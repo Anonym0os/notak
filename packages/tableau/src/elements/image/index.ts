@@ -6,6 +6,7 @@ import { largeurNaturelleImage } from './geometrie'
 import { recevoirImages } from './recepteur'
 
 registre.type<Image>({
+  suivant: () => null,
   type: 'image',
   Rendu: RenduImage,
   Outils: OutilsImage,

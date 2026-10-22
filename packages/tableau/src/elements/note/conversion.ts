@@ -1,3 +1,4 @@
+import { lireAdresse } from '../lien/adresse'
 import { type NoeudTexte, docDepuisTexte } from '../../coeur/tableau'
 
 /** Vrai s'il y a au moins un caractère visible dans le document. */
@@ -45,4 +46,28 @@ export function normaliserUrl(saisie: string): string {
   const url = saisie.trim()
   if (!url) return ''
   return /^[a-z][a-z0-9+.-]*:/i.test(url) ? url : `https://${url}`
+}
+
+/** Le texte d'une note faite d'un seul paragraphe, d'un seul morceau de texte, hors code ; sinon `null`. */
+export function texteSeul(doc: NoeudTexte): string | null {
+  const blocs = doc.content ?? []
+  if (blocs.length !== 1 || blocs[0]!.type !== 'paragraph') return null
+  const morceaux = blocs[0]!.content ?? []
+  const [m] = morceaux
+  if (morceaux.length !== 1 || m!.text === undefined || m!.marks?.some((x) => x.type === 'code')) return null
+  return m!.text
+}
+
+/** Une note qui n'est qu'une adresse web : l'adresse complète, sinon `null`. */
+export function adresseSeule(doc: NoeudTexte): string | null {
+  const t = texteSeul(doc)
+  return t === null ? null : lireAdresse(t)
+}
+
+/** Une note qui n'est qu'une case, `[]`, `[ ]` ou `[x]` : vrai si elle est cochée ; `null` si ce n'en est pas une. */
+export function caseSeule(doc: NoeudTexte): boolean | null {
+  const t = texteSeul(doc)?.trim()
+  if (t === '[]' || t === '[ ]') return false
+  if (t === '[x]' || t === '[X]') return true
+  return null
 }

@@ -10,10 +10,13 @@ registre.type<Taches>({
   Outils: OutilsTaches,
   editable: true,
   hauteurParDefaut: HAUTEUR_TACHES_MIN,
+  suivant: (e, places) => ({ ...nouvelleListeTaches(places.dessous.x, places.dessous.y), largeur: e.largeur }),
   outils: [
     {
       libelle: 'Tâches',
       icone: '☑',
+      rang: 30,
+      fantome: () => nouvelleListeTaches(0, 0),
       creer: (ou) => [{ type: 'creer', element: nouvelleListeTaches(Math.round(ou.x), Math.round(ou.y)) }],
     },
   ],

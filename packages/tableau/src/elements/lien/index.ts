@@ -28,6 +28,8 @@ registre.type<Lien>({
     {
       libelle: 'Lien',
       icone: '↗',
+      rang: 20,
+      fantome: () => nouveauLien({ x: 0, y: 0 }, ''),
       creer: (ou) => [{ type: 'creer', element: nouveauLien(ou, '') }],
     },
   ],

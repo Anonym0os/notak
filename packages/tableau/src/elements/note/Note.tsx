@@ -1,10 +1,11 @@
 import { EditorContent, useEditor } from '@tiptap/react'
 import { renderToReactElement } from '@tiptap/static-renderer/pm/react'
-import { memo, useMemo, useRef, useState } from 'react'
-import { HAUTEUR_NOTE_MIN, type Note, type NoeudTexte, nouvelleNote } from '../../coeur/tableau'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import type { Note, NoeudTexte } from '../../coeur/tableau'
 import type { PropsRendu } from '../types'
 import { BarreTexte } from './Barre'
-import { docEstVide } from './conversion'
+import { adresseSeule, caseSeule, docEstVide } from './conversion'
+import { docVide } from '../taches/liste'
 import { texteDeNote } from './couleurs'
 import { EXTENSIONS_NOTE, type GestesEdition, raccourcisEdition } from './extensions'
 
@@ -39,10 +40,20 @@ function Editeur({ element, contexte, brouillon }: PropsRendu<Note>) {
   const editeur = useEditor({
     extensions,
     content: contenu.texte,
-    autofocus: 'end',
     editorProps: { attributes: { class: 'notak-texte' } },
     onUpdate: ({ editor }) => brouillon({ ...contenu, texte: editor.getJSON() as NoeudTexte }),
   })
+
+  // Le curseur se pose là où l'on a cliqué, sinon à la fin : une fois l'éditeur accroché à la page
+  // (les effets des enfants passent avant, `EditorContent` y accroche la vue).
+  useEffect(() => {
+    if (!editeur || editeur.isDestroyed) return
+    const ou = contexte.prendrePointEdition()
+    const pos = ou && editeur.view.posAtCoords({ left: ou.x, top: ou.y })
+    // Tout de suite, sans la focalisation différée de Tiptap : ce qu'on tape aussitôt arrive dans la note.
+    editeur.commands.setTextSelection(pos ? pos.pos : editeur.state.doc.content.size)
+    editeur.view.focus()
+  }, [editeur, contexte])
 
   gestes.current = {
     lien: () => {
@@ -57,19 +68,22 @@ function Editeur({ element, contexte, brouillon }: PropsRendu<Note>) {
       if (courante) contexte.magasin.faire([{ type: 'supprimer', element: courante }])
       contexte.finirEdition()
     },
-    noteDessous: () => {
-      const courante = contexte.magasin.lire().elements.find((e) => e.id === element.id)
-      if (!courante) return
-      const bas = contexte.rect(element.id)?.max.y ?? courante.y + HAUTEUR_NOTE_MIN
-      const neuve = nouvelleNote(courante.x, Math.round(bas) + 1)
-      const note: typeof neuve = {
-        ...neuve,
-        largeur: courante.largeur,
-        contenu: { ...neuve.contenu, ...(contenu.couleur ? { couleur: contenu.couleur } : {}) },
-      }
+    noteDessous: () => contexte.creerSuivant(element.id, false),
+    // Une note qui n'est qu'une adresse devient un lien en sortant ; qui n'est qu'une case, une liste de tâches.
+    entree: () => {
+      if (!editeur || !adresseSeule(editeur.getJSON() as NoeudTexte)) return false
       contexte.finirEdition()
-      contexte.magasin.faire([{ type: 'creer', element: note }])
-      contexte.commencerEdition(note.id)
+      return true
+    },
+    enTaches: () => {
+      const cochee = editeur && caseSeule(editeur.getJSON() as NoeudTexte)
+      if (cochee === null || cochee === undefined) return false
+      const texte = docVide()
+      texte.content![0]!.content![0]!.attrs = { checked: cochee }
+      brouillon({ type: 'taches', texte } as never)
+      contexte.finirEdition()
+      contexte.commencerEdition(element.id)
+      return true
     },
   }
 

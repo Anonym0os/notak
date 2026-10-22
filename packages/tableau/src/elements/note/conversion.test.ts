@@ -2,7 +2,7 @@
 import { generateJSON } from '@tiptap/react'
 import { describe, expect, it } from 'vitest'
 import { type NoeudTexte, docDepuisTexte } from '../../coeur/tableau'
-import { contientDuTexte, docDepuisCollage, docEstVide, normaliserUrl, sansCouleursCollees } from './conversion'
+import { adresseSeule, caseSeule, contientDuTexte, docDepuisCollage, docEstVide, normaliserUrl, sansCouleursCollees } from './conversion'
 import { EXTENSIONS_NOTE } from './extensions'
 
 const paragraphe = (texte?: string): NoeudTexte => ({ type: 'paragraph', ...(texte ? { content: [{ type: 'text', text: texte }] } : {}) })
@@ -74,5 +74,25 @@ describe('normaliserUrl', () => {
     expect(normaliserUrl('mailto:a@b.fr')).toBe('mailto:a@b.fr')
     expect(normaliserUrl('http://x.fr')).toBe('http://x.fr')
     expect(normaliserUrl('  ')).toBe('')
+  })
+})
+
+describe('conversions en tapant', () => {
+  const doc = (texte: string) => docDepuisTexte(texte)
+  it('une note qui n’est qu’une adresse devient un lien', () => {
+    expect(adresseSeule(doc('notak.fr'))).toBe('https://notak.fr')
+    expect(adresseSeule(doc('voir notak.fr'))).toBeNull()
+    expect(adresseSeule(doc('notak.fr\nautre'))).toBeNull()
+    expect(adresseSeule(doc('ana@notak.fr'))).toBeNull()
+  })
+  it('une adresse en code reste du texte', () => {
+    const code = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'notak.fr', marks: [{ type: 'code' }] }] }] }
+    expect(adresseSeule(code)).toBeNull()
+  })
+  it('une case seule devient une tâche, cochée avec x', () => {
+    expect(caseSeule(doc('[] '))).toBe(false)
+    expect(caseSeule(doc('[ ] '))).toBe(false)
+    expect(caseSeule(doc('[x] '))).toBe(true)
+    expect(caseSeule(doc('[] lait'))).toBeNull()
   })
 })

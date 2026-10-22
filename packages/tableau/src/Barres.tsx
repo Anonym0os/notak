@@ -1,28 +1,80 @@
+import { useState } from 'react'
 import type { Element } from './coeur/tableau'
 import { definition, tousLesOutilsCommuns, tousLesTypes } from './elements/registre'
-import type { ContexteToile } from './elements/types'
+import type { ContexteToile, Outil } from './elements/types'
 
-/** La barre de gauche : un outil par entrée que les types déclarent. Un clic crée l'élément au centre de la vue. */
-export function BarreOutils({ contexte, surCreation }: { contexte: ContexteToile; surCreation(ids: string[]): void }) {
-  const outils = tousLesTypes().flatMap((d) => (d.outils ?? []).map((outil) => ({ type: d.type, outil })))
-  return (
-    <nav className="notak-barre-outils" onPointerDown={(e) => e.stopPropagation()}>
-      {outils.map(({ type, outil }) => (
+/** Un outil de la barre, avec le type qui l'apporte. */
+export interface OutilDeBarre {
+  type: string
+  outil: Outil
+}
+
+export const outilsDeBarre = (): OutilDeBarre[] =>
+  tousLesTypes()
+    .flatMap((d) => (d.outils ?? []).map((outil) => ({ type: d.type, outil })))
+    .sort((a, b) => a.outil.rang - b.outil.rang)
+
+/**
+ * La barre de gauche. Un outil se glisse sur la toile : c'est la toile qui suit le geste (`surAppui`).
+ * Un simple clic ne crée rien : l'outil rebondit et une bulle rappelle qu'on le glisse (`rebond`).
+ */
+export function BarreOutils({
+  surAppui,
+  rebond,
+}: {
+  surAppui(o: OutilDeBarre, e: React.PointerEvent): void
+  rebond: { libelle: string; n: number } | null
+}) {
+  const [tiroir, setTiroir] = useState(false)
+  const tous = outilsDeBarre()
+  const bouton = (o: OutilDeBarre, dansTiroir = false) => {
+    const rebondit = rebond?.libelle === o.outil.libelle
+    return (
+      <div key={`${o.type}:${o.outil.libelle}`} className="notak-outil-place">
         <button
-          key={`${type}:${outil.libelle}`}
           type="button"
           className="notak-outil"
-          title={outil.libelle}
-          onClick={() => {
-            const pas = outil.creer(contexte.centreVue(), contexte)
-            contexte.magasin.faire(pas)
-            surCreation(pas.flatMap((op) => (op.type === 'creer' ? [op.element.id] : [])))
+          title={o.outil.libelle}
+          // La clé change à chaque clic : l'animation du rebond repart.
+          data-rebond={rebondit ? rebond.n % 2 : undefined}
+          onPointerDown={(e) => {
+            if (e.button !== 0) return
+            e.preventDefault()
+            surAppui(o, e)
+            // Le tiroir se referme : l'outil sorti part avec le pointeur.
+            if (dansTiroir) setTiroir(false)
           }}
         >
-          <span className="notak-outil-icone">{outil.icone}</span>
-          <span className="notak-outil-libelle">{outil.libelle}</span>
+          <span className="notak-outil-icone">{o.outil.icone}</span>
+          <span className="notak-outil-libelle">{o.outil.libelle}</span>
         </button>
-      ))}
+        {rebondit && (
+          <div key={rebond.n} className="notak-bulle-outil" role="status">
+            Glissez l’outil sur le tableau
+          </div>
+        )}
+      </div>
+    )
+  }
+  const caches = tous.filter((o) => o.outil.tiroir)
+  return (
+    <nav className="notak-barre-outils" onPointerDown={(e) => e.stopPropagation()}>
+      {tous.filter((o) => !o.outil.tiroir).map((o) => bouton(o))}
+      {caches.length > 0 && (
+        <div className="notak-outil-place">
+          <button
+            type="button"
+            className="notak-outil"
+            aria-expanded={tiroir}
+            title="Plus d’outils"
+            onClick={() => setTiroir((t) => !t)}
+          >
+            <span className="notak-outil-icone">⋯</span>
+            <span className="notak-outil-libelle">Plus</span>
+          </button>
+          {tiroir && <div className="notak-tiroir">{caches.map((o) => bouton(o, true))}</div>}
+        </div>
+      )}
     </nav>
   )
 }

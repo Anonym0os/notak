@@ -203,10 +203,15 @@ conflit. Milanote envoie des diffs et rejette en cas de version concurrente ; c'
   éléments, ils gardent leur disposition. Survoler un tableau ou le fil d'Ariane 700 ms y entre.
 - **Depuis le Finder** : fichiers, images, URL, texte. Plusieurs fichiers sur une toile vide se rangent en mur de
   briques (maçonnerie), 2 UG d'écart.
-- **Outils** : on fait glisser un outil de la barre de gauche sur la toile. → Notak : le clic crée aussi l'élément,
-  au centre de la vue (Milanote refuse le clic, c'est déroutant).
-- **Rendu du glisser** : l'élément se soulève (ombre qui grandit), s'incline légèrement dans le sens du mouvement,
-  puis se repose en douceur.
+- **Outils** : on fait glisser un outil de la barre de gauche sur la toile ; le fantôme est l'élément lui-même,
+  tenu à 3 UG de son coin (un tableau par son centre, une ligne par son milieu). Lâché sur une colonne, il y entre
+  à la place visée ; sur la barre, rien n'est créé. Un simple clic ne crée rien : l'outil rebondit et une bulle
+  rappelle qu'on le glisse (5 s).
+- **Rendu du glisser** : l'élément suit le pointeur au pixel avec un léger retard (60 % de l'écart par image,
+  50 % s'il s'incline) et ne s'aimante à la grille qu'au dépôt. Il se soulève (l'ombre monte de 5 % par image,
+  pleine à 50 px parcourus), s'incline dans le sens du mouvement (au plus 25°, moins s'il est grand ; jamais un
+  tableau, une ligne ni un groupe), puis se repose en douceur. Échap pendant le geste ramène tout à sa place.
+- Le détail des écarts relevés avec Milanote, et ce qui reste à faire, est dans `docs/ecarts/`.
 
 ## 13. Coller
 

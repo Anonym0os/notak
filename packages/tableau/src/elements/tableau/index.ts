@@ -1,22 +1,27 @@
 import { type Element, type RenvoiTableau, nouvelId } from '../../coeur/tableau'
 import { registre } from '../registre'
-import type { Raccourci } from '../types'
+import type { Point } from '../../coeur/geometrie'
+import type { ContexteToile } from '../types'
 import { OutilsRenvoi } from './Outils'
 import { RenduRenvoi } from './Renvoi'
 import { demanderRenommage } from './renommage'
 import './tableau.css'
 
-const LARGEUR_RENVOI = 12
+const LARGEUR_RENVOI = 10
 
-/** Cmd+Entrée, la carte seule choisie : ouvre le tableau. */
-export const raccourciOuvrir: Raccourci = (e, contexte) => {
-  if (e.key !== 'Enter' || !(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return false
-  if (contexte.selection.size !== 1) return false
-  const id = [...contexte.selection][0]
-  const contenu = contexte.magasin.lire().elements.find((x) => x.id === id)?.contenu
-  if (contenu?.type !== 'tableau' || !contexte.services.ouvrirTableau) return false
-  contexte.services.ouvrirTableau(contenu.cible)
-  return true
+/** Un tableau neuf, vide, et son renvoi posé là ; son titre se saisit aussitôt. */
+function nouveauRenvoi(ou: Point, contexte: ContexteToile): Element<RenvoiTableau> | null {
+  const cible = contexte.services.creerTableau?.('Nouveau tableau')
+  if (!cible) return null
+  const element: Element<RenvoiTableau> = {
+    id: nouvelId(),
+    x: Math.round(ou.x),
+    y: Math.round(ou.y),
+    largeur: LARGEUR_RENVOI,
+    contenu: { type: 'tableau', cible },
+  }
+  demanderRenommage(element.id)
+  return element
 }
 
 registre.type<RenvoiTableau>({
@@ -24,28 +29,23 @@ registre.type<RenvoiTableau>({
   Rendu: RenduRenvoi,
   Outils: OutilsRenvoi,
   sansFond: true,
+  sansInclinaison: true,
   ouvrir: (e, contexte) => contexte.services.ouvrirTableau?.(e.contenu.cible),
   hauteurParDefaut: 14,
+  suivant: (e, _places, _format, contexte) => nouveauRenvoi({ x: e.x + 17, y: e.y }, contexte),
   largeurMin: LARGEUR_RENVOI,
   outils: [
     {
       libelle: 'Tableau',
       icone: '▣',
+      rang: 50,
+      fantome: () => ({ id: '', x: 0, y: 0, largeur: LARGEUR_RENVOI, contenu: { type: 'tableau', cible: '' } }),
+      prise: { x: LARGEUR_RENVOI / 2, y: LARGEUR_RENVOI / 2 },
       creer(ou, contexte) {
-        const cible = contexte.services.creerTableau?.('Nouveau tableau')
-        if (!cible) return []
-        const element: Element<RenvoiTableau> = {
-          id: nouvelId(),
-          x: Math.round(ou.x),
-          y: Math.round(ou.y),
-          largeur: LARGEUR_RENVOI,
-          contenu: { type: 'tableau', cible },
-        }
-        demanderRenommage(element.id)
-        return [{ type: 'creer', element }]
+        const element = nouveauRenvoi(ou, contexte)
+        return element ? [{ type: 'creer', element }] : []
       },
     },
   ],
 })
 
-registre.raccourci(raccourciOuvrir)

@@ -277,3 +277,25 @@
   outline: 2px solid var(--notak-accent);
   outline-offset: -1px;
 }
+
+/* Une note vide dit qu'on peut y écrire, même hors édition. */
+.notak-note:not([data-variante='titre']) .notak-texte:has(> p:only-child:empty)::before,
+.notak-note:not([data-variante='titre']) .notak-texte:has(> p:only-child > br.ProseMirror-trailingBreak:only-child)::before {
+  content: 'Écrivez quelque chose…';
+  position: absolute;
+  color: rgb(0 0 0 / 0.35);
+  pointer-events: none;
+}
+
+.notak-note[data-variante='titre'] .notak-texte:has(> h1:only-child:empty)::before,
+.notak-note[data-variante='titre'] .notak-texte:has(> h1:only-child > br.ProseMirror-trailingBreak:only-child)::before {
+  content: 'Titre';
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: rgb(0 0 0 / 0.3);
+  pointer-events: none;
+}

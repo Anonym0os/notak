@@ -1,22 +1,26 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { BarreOutils, BarreSelection } from './Barres'
+import { BarreOutils, BarreSelection, type OutilDeBarre } from './Barres'
 import { Cadre, ContexteRangement, type Rangement } from './Cadre'
 import * as cam from './coeur/camera'
 import { type Point, type Rect, depuisCoins, englobant, point, soustraire } from './coeur/geometrie'
 import { creerLimiteur } from './coeur/limiteur'
 import { type Magasin, enLectureSeule } from './coeur/magasin'
 import { largeurDoubleClic, largeurTiree, LARGEUR_MIN_DEFAUT } from './coeur/largeur'
-import { type Cible, type Deplace, comparerOrdre, indexInsertion, pasDeDepot } from './coeur/ordre'
+import { type Cible, type Deplace, cleEntre, clesEntre, comparerOrdre, indexInsertion, pasDeDepot } from './coeur/ordre'
 import { cliquer, lasso } from './coeur/selection'
+import { VOL_REPOS, type Vol, inclinaisonMax, transformation } from './coeur/vol'
+import { Envol, dessinerSur, oublierVol } from './envol'
 import {
   type Contenu,
   type Element,
   type Id,
   type Operation,
   type Tableau,
+  HAUTEUR_NOTE_MIN,
   aimanter,
   auPremierPlan,
   avecDependants,
+  inverse,
   nouvelleNote,
   placeDe,
 } from './coeur/tableau'
@@ -36,6 +40,27 @@ type Geste =
       /** Chaque élément glissé : sa place d'origine, et sa position sur le tableau au départ. */
       origines: Map<Id, { place: Deplace['de']; pos: Point }>
       axe: 'h' | 'v' | null
+      /** Un appui sur un élément déjà choisi, sans Cmd : au relâchement sans glisser, il devient seul choisi (ou s'édite). */
+      reduire?: { id: Id; seul: boolean; ou: Point }
+      /** Le déplacement voulu, en UG, sans aimantation : on n'aimante qu'au dépôt. */
+      d: Point
+      envol?: Envol
+      /** Les nœuds qui volent, et la place où ils sont déjà posés pendant la dépose, en pixels du plan. */
+      vols: Id[]
+      base: Point
+      /** Ce qui a quitté une colonne au départ du geste, pour le remettre si on annule. */
+      sorties: Operation[]
+    }
+  | {
+      type: 'outil'
+      outil: OutilDeBarre
+      fantome: Element
+      prise: Point
+      ecran: Point
+      /** Le coin haut gauche voulu du fantôme, à l'écran : l'élément naîtra là, le fantôme l'y suit. */
+      coin: Point
+      demarre: boolean
+      envol?: Envol
     }
   | { type: 'redimensionner'; id: Id; depart: Point; largeurDepart: number; min: number }
 
@@ -51,6 +76,13 @@ function choisirAxe(actuel: 'h' | 'v' | null, d: Point): 'h' | 'v' {
 const SEUIL_GLISSER = 3
 
 const sansEcoute = () => () => {}
+const rien = () => {}
+
+/** Une ligne fantôme se dessine par son type, dans un calque SVG à elle. */
+function rendreFantome(e: Element, contexte: ContexteToile) {
+  const Rendu = definition(e.contenu.type)!.Rendu
+  return <Rendu element={e} choisie={false} enEdition={false} contexte={contexte} brouillon={rien} changer={rien} />
+}
 const aucun = (): Presence[] => AUCUN
 const AUCUN: Presence[] = []
 
@@ -93,6 +125,9 @@ interface PropsToile {
   surCamera?(c: cam.Camera): void
 }
 
+/** Le texte qu'on écrit part dans le tableau à ce rythme au plus, en millisecondes. */
+const DELAI_ECRITURE = 1000
+
 /** Le pointeur est signalé aux autres à ce rythme au plus, en millisecondes. */
 const DELAI_CURSEUR = 100
 
@@ -111,6 +146,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const [edition, setEdition] = useState<Id | null>(null)
   const [zoneLasso, setZoneLasso] = useState<Rect | null>(null)
   const [espace, setEspace] = useState(false)
+  /** Espace vient d'être appuyée, et n'a encore rien attrapé. */
+  const espaceBref = useRef(false)
   const [anime, setAnime] = useState(false)
   const [enGeste, setEnGeste] = useState(false)
   const [glisses, setGlisses] = useState<ReadonlySet<Id> | null>(null)
@@ -122,7 +159,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const geste = useRef<Geste | null>(null)
   const gesteZoom = useRef(new cam.GesteZoom())
   const animation = useRef<{ depart: cam.Camera; cible: cam.Camera; debut: number } | null>(null)
-  const brouillon = useRef<{ id: Id; contenu: Contenu } | null>(null)
+  /** Ce qu'on écrit : le contenu d'avant l'édition (un seul pas d'historique à la sortie), et le dernier état. */
+  const brouillon = useRef<{ id: Id; debut: Contenu; contenu: Contenu } | null>(null)
+  const pointEdition = useRef<Point | null>(null)
+  /** Le fantôme de l'outil qu'on glisse depuis la barre. */
+  const [fantome, setFantome] = useState<Element | null>(null)
+  const calqueFantome = useRef<HTMLDivElement>(null)
+  const [rebond, setRebond] = useState<{ libelle: string; n: number } | null>(null)
+  /** La dépose qui s'anime encore : un nouveau geste l'arrête net. */
+  const depose = useRef<{ envol: Envol; ids: Id[] } | null>(null)
   // Les gestionnaires natifs (molette, collage, animation) et le contexte lisent l'état courant ici.
   const etat = useRef({ camera, vue, tableau, selection, edition, magasin, services })
   etat.current = { camera, vue, tableau, selection, edition, magasin, services }
@@ -207,31 +252,80 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     return n && racine.current?.contains(n) ? n.getAttribute('data-id') : null
   }
 
+  // Pendant l'écriture, le texte part dans le tableau au plus chaque seconde : les autres le voient venir.
+  const ecritureDirecte = useMemo(
+    () =>
+      creerLimiteur((id: Id) => {
+        const b = brouillon.current
+        const m = etat.current.magasin
+        const el = b?.id === id && m.lire().elements.find((x) => x.id === id)
+        if (b && el && !memes(el.contenu, b.contenu)) m.appliquerSeulement([{ type: 'contenu', id, avant: el.contenu, apres: b.contenu }])
+      }, DELAI_ECRITURE),
+    [],
+  )
   const finirEdition = useCallback(() => {
     const b = brouillon.current
     brouillon.current = null
     setEdition(null)
     racine.current?.focus({ preventScroll: true })
-    const el = b && etat.current.magasin.lire().elements.find((x) => x.id === b.id)
-    if (!b || !el || memes(el.contenu, b.contenu)) return
-    etat.current.magasin.faire([{ type: 'contenu', id: b.id, avant: el.contenu, apres: b.contenu }])
+    const m = etat.current.magasin
+    const el = b && m.lire().elements.find((x) => x.id === b.id)
+    if (!b || !el) return
+    // Une note qui n'est qu'une adresse devient un lien, d'un seul pas avec l'écriture.
+    const converti = definition(b.contenu.type)?.convertir?.(b.contenu as never)
+    if (converti) b.contenu = converti
+    if (!memes(el.contenu, b.contenu)) m.appliquerSeulement([{ type: 'contenu', id: b.id, avant: el.contenu, apres: b.contenu }])
+    // Toute l'édition, d'un seul pas : annuler rend le contenu d'avant.
+    if (!memes(b.debut, b.contenu)) m.inscrire([{ type: 'contenu', id: b.id, avant: b.debut, apres: b.contenu }])
   }, [])
   const commencerEdition = useCallback(
-    (id: Id) => {
+    (id: Id, ou?: Point) => {
       if (etat.current.services.lectureSeule) return
       // Le magasin, pas l'état rendu : l'élément vient peut-être d'être créé.
       const el = etat.current.magasin.lire().elements.find((x) => x.id === id)
       if (!el || !definition(el.contenu.type)?.editable) return
       if (etat.current.edition) finirEdition()
       brouillon.current = null
+      pointEdition.current = ou ?? null
       setSelection(new Set([id]))
       setEdition(id)
     },
     [finirEdition],
   )
-  const surBrouillon = useCallback((el: Element, apres: Contenu) => {
-    brouillon.current = { id: el.id, contenu: apres }
-  }, [])
+  const creerSuivant = useCallback((id: Id, format: boolean) => {
+    if (etat.current.services.lectureSeule) return
+    if (etat.current.edition) finirEdition()
+    const m = etat.current.magasin
+    const t = m.lire()
+    const el = t.elements.find((x) => x.id === id)
+    if (!el) return
+    const def = definition(el.contenu.type)
+    const r = rect(id)
+    const bas = r ? Math.round(r.max.y) + 1 : el.y + (def?.hauteurParDefaut ?? HAUTEUR_NOTE_MIN) + 1
+    const places = { dessous: point(el.x, bas), droite: point(el.x + el.largeur + 2, el.y) }
+    const neuf = def?.suivant ? def.suivant(el as never, places, format, contexteRef.current!) : nouvelleNote(places.dessous.x, places.dessous.y)
+    if (!neuf) return
+    let element: Element = def?.suivant ? neuf : { ...neuf, largeur: el.largeur }
+    // Dans une colonne, l'élément neuf se range juste après.
+    if (el.parent) {
+      const freres = t.elements.filter((x) => x.parent === el.parent).sort((a, b) => comparerOrdre(a.ordre, b.ordre))
+      const apres = freres[freres.findIndex((x) => x.id === id) + 1]
+      element = { ...element, parent: el.parent, ordre: cleEntre(el.ordre, apres?.ordre) }
+    }
+    m.faire([{ type: 'creer', element }])
+    setSelection(new Set([element.id]))
+    commencerEdition(element.id)
+  }, [finirEdition, rect, commencerEdition])
+  const contexteRef = useRef<ContexteToile | null>(null)
+  const surBrouillon = useCallback(
+    (el: Element, apres: Contenu) => {
+      const b = brouillon.current
+      const debut = b?.id === el.id ? b.debut : (etat.current.magasin.lire().elements.find((x) => x.id === el.id)?.contenu ?? el.contenu)
+      brouillon.current = { id: el.id, debut, contenu: apres }
+      if (!etat.current.services.lectureSeule) ecritureDirecte.pousser(el.id)
+    },
+    [ecritureDirecte],
+  )
   const surChanger = useCallback((el: Element, apres: Contenu) => {
     if (etat.current.services.lectureSeule) return
     const m = etat.current.magasin
@@ -260,10 +354,17 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       centreVue: () => cam.centreCamera(etat.current.camera, etat.current.vue),
       choisir: (ids) => setSelection(new Set(ids)),
       commencerEdition,
+      creerSuivant,
+      prendrePointEdition: () => {
+        const p = pointEdition.current
+        pointEdition.current = null
+        return p
+      },
       finirEdition,
     }),
-    [rect, commencerEdition, finirEdition],
+    [rect, commencerEdition, finirEdition, creerSuivant],
   )
+  contexteRef.current = contexte
 
   const recevoir = async (original: DataTransfer, ou: Point) => {
     if (lectureSeule) return
@@ -358,6 +459,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     )
 
   const clavier = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape' && annulerGlisser()) return e.preventDefault()
     const cmd = e.metaKey || e.ctrlKey
     const touche = e.key.toLowerCase()
     const min = cam.echelleMin(contenu(), vue)
@@ -407,6 +509,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       e.preventDefault()
       return setSelection(new Set(tableau.elements.filter((x) => !x.parent).map((x) => x.id)))
     }
+    if (cmd && e.key === 'Enter' && !e.shiftKey && !e.altKey) {
+      e.preventDefault()
+      if (selection.size === 1) creerSuivant([...selection][0]!, true)
+      return
+    }
     if (cmd) return
     const pas = e.shiftKey ? 5 : 1
     const fleches: Record<string, [number, number]> = {
@@ -438,22 +545,85 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       }
       case ' ':
         e.preventDefault()
+        if (!e.repeat) espaceBref.current = true
         return setEspace(true)
     }
     if (touche === 'z' && !e.repeat) ajuster()
+  }
+
+  const noeudDe = (id: Id) => racine.current?.querySelector<HTMLElement>(`[data-id="${CSS.escape(id)}"]`) ?? null
+
+  /** Arrête net la dépose qui s'anime encore et remet ses éléments à leur place. */
+  const arreterDepose = () => {
+    const d = depose.current
+    depose.current = null
+    if (!d) return
+    d.envol.arreter()
+    for (const id of d.ids) {
+      const n = noeudDe(id)
+      if (n) oublierVol(n)
+    }
+  }
+
+  /** Repose ces éléments en douceur, depuis le vol où ils sont jusqu'à `base`, la place où ils sont posés. */
+  const reposer = (envol: Envol, ids: Id[]) => {
+    depose.current = { envol, ids }
+    envol.poser(VOL_REPOS, () => {
+      if (depose.current?.envol !== envol) return
+      depose.current = null
+      for (const id of ids) {
+        const n = noeudDe(id)
+        if (n) oublierVol(n)
+      }
+    })
+  }
+
+  const surAppuiOutil = (o: OutilDeBarre, e: React.PointerEvent) => {
+    if (lectureSeule) return
+    if (edition) finirEdition()
+    arreterDepose()
+    setRebond(null)
+    racine.current!.focus({ preventScroll: true })
+    geste.current = {
+      type: 'outil',
+      outil: o,
+      fantome: o.outil.fantome(),
+      prise: o.outil.prise ?? point(3, 3),
+      ecran: local(e),
+      coin: local(e),
+      demarre: false,
+    }
+    setEnGeste(true)
+    racine.current!.setPointerCapture(e.pointerId)
+  }
+
+  /** Espace relâchée sans avoir attrapé la toile : elle ouvre l'élément choisi (un tableau). */
+  const relacherEspace = (e: React.KeyboardEvent) => {
+    if (e.key !== ' ') return
+    setEspace(false)
+    const bref = espaceBref.current
+    espaceBref.current = false
+    if (!bref || edition || selection.size !== 1) return
+    const el = tableau.elements.find((x) => selection.has(x.id))
+    const ouvrir = el && definition(el.contenu.type)?.ouvrir
+    if (el && ouvrir) ouvrir(el, contexte)
   }
 
   const appui = (e: React.PointerEvent) => {
     if (dansEdition(racine.current, e.target)) return
     if (edition) finirEdition()
     racine.current!.focus({ preventScroll: true })
+    setRebond(null)
     const p = local(e)
     const id = sous(e.target)
     if (e.button === 1 || (e.button === 0 && espace)) {
       e.preventDefault()
+      espaceBref.current = false
       geste.current = { type: 'attraper', dernier: p }
     } else if (e.button === 2) {
+      // Le clic droit choisit ce qu'il touche, s'il ne l'était pas ; sur le vide, il désélectionne.
       if (!id) setSelection(new Set())
+      else if (!selection.has(id)) setSelection(new Set([id]))
       return
     } else if (e.button === 0) {
       const ici = cam.versTableau(camera, p)
@@ -462,8 +632,12 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         const min = definition(el.contenu.type)?.largeurMin ?? LARGEUR_MIN_DEFAUT
         geste.current = { type: 'redimensionner', id: el.id, depart: ici, largeurDepart: el.largeur, min }
       } else if (id) {
-        const s = cliquer(selection, id, e.metaKey || e.ctrlKey)
+        arreterDepose()
+        const basculer = e.metaKey || e.ctrlKey || e.shiftKey
+        const s = cliquer(selection, id, basculer)
         setSelection(s)
+        // Sur un élément déjà choisi, l'appui garde le groupe pour le glisser ; le relâchement décide.
+        const reduire = !basculer && selection.has(id) ? { id, seul: selection.size === 1, ou: point(e.clientX, e.clientY) } : undefined
         if (!s.has(id) || lectureSeule) return
         // Un élément rangé se glisse aussi, sauf si sa colonne est choisie avec lui : il la suit.
         const origines = new Map(
@@ -474,7 +648,19 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
               return [x.id, { place: placeDe(x), pos: r ? r.min : point(x.x, x.y) }] as const
             }),
         )
-        geste.current = { type: 'glisser', depart: ici, ecran: p, demarre: false, origines, axe: null }
+        geste.current = {
+          type: 'glisser',
+          depart: ici,
+          ecran: p,
+          demarre: false,
+          origines,
+          axe: null,
+          d: point(0, 0),
+          vols: [],
+          base: point(0, 0),
+          sorties: [],
+          ...(reduire ? { reduire } : {}),
+        }
       } else {
         const inverser = e.shiftKey || e.metaKey || e.ctrlKey
         const avant = inverser ? selection : new Set<Id>()
@@ -484,6 +670,13 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     } else return
     setEnGeste(true)
     racine.current!.setPointerCapture(e.pointerId)
+  }
+
+  /** Le réglage du vol pour ces éléments : seul un élément isolé s'incline, d'autant moins qu'il est grand. */
+  const reglageVol = (elements: Element[], cote: number) => {
+    const seul = elements.length === 1 ? elements[0] : undefined
+    const def = seul && definition(seul.contenu.type)
+    return { incliner: !!def && !def.sansInclinaison && def.calque !== 'lignes', max: inclinaisonMax(cote) }
   }
 
   const mouvement = (e: React.PointerEvent) => {
@@ -499,6 +692,27 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       g.dernier = p
       animation.current = null
       return setCamera((c) => cam.defiler(c, d.x, d.y))
+    }
+    const k = cam.PX_PAR_UG * camera.echelle
+    if (g.type === 'outil') {
+      const parcouru = Math.hypot(p.x - g.ecran.x, p.y - g.ecran.y)
+      // Le fantôme est tenu à sa prise : son coin haut gauche, à l'écran.
+      const coin = point(p.x - g.prise.x * k, p.y - g.prise.y * k)
+      if (!g.demarre) {
+        if (parcouru < SEUIL_GLISSER) return
+        g.demarre = true
+        const def = definition(g.fantome.contenu.type)
+        const cote = Math.max(g.fantome.largeur, def?.hauteurParDefaut ?? 0) * k
+        const depart: Vol = { ...VOL_REPOS, x: coin.x, y: coin.y }
+        g.envol = new Envol(reglageVol([g.fantome], cote), (v) => {
+          const n = calqueFantome.current
+          if (n) dessinerSur(n, `${transformation(v)} scale(${etat.current.camera.echelle})`, v.ombre)
+        }, depart)
+        setFantome(g.fantome)
+      }
+      g.coin = coin
+      g.envol?.viser(coin, parcouru)
+      return viser(e, [g.fantome])
     }
     const ici = cam.versTableau(camera, p)
     if (g.type === 'lasso') {
@@ -517,35 +731,48 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (!g.demarre) {
       if (Math.hypot(p.x - g.ecran.x, p.y - g.ecran.y) < SEUIL_GLISSER) return
       g.demarre = true
+      g.reduire = undefined
+      arreterDepose()
+      const ids = [...g.origines.keys()]
+      const choisis = magasin.lire().elements.filter((x) => g.origines.has(x.id))
+      const r = ids.length === 1 ? rect(ids[0]!) : null
+      const cote = r ? Math.max(r.max.x - r.min.x, r.max.y - r.min.y) * k : 0
       // Ce qui était rangé quitte sa colonne à l'endroit où il se trouvait à l'écran, et la colonne se resserre.
-      magasin.appliquerSeulement(
-        [...g.origines]
-          .filter(([, o]) => o.place.parent)
-          .map(([id, o]) => {
-            const [x, y] = aimanter(o.pos)
-            return { type: 'ranger', id, de: o.place, vers: { x, y } }
-          }),
-      )
-      setGlisses(new Set(g.origines.keys()))
+      g.sorties = [...g.origines]
+        .filter(([, o]) => o.place.parent)
+        .map(([id, o]): Operation => {
+          const [x, y] = aimanter(o.pos)
+          return { type: 'ranger', id, de: o.place, vers: { x, y } }
+        })
+      magasin.appliquerSeulement(g.sorties)
+      g.vols = ids
+      g.envol = new Envol(reglageVol(choisis, cote), (v) => {
+        for (const id of g.vols) {
+          const n = noeudDe(id)
+          if (n) dessinerSur(n, transformation(v, g.base), v.ombre)
+        }
+      })
+      setGlisses(new Set(ids))
     }
     const d = soustraire(ici, g.depart)
     g.axe = e.shiftKey ? choisirAxe(g.axe, d) : null
     if (g.axe === 'h') d.y = 0
     if (g.axe === 'v') d.x = 0
-    magasin.appliquerSeulement(
-      [...g.origines].map(([id, o]) => ({ type: 'deplacer', id, de: [o.pos.x, o.pos.y], vers: aimanter(point(o.pos.x + d.x, o.pos.y + d.y)) })),
-    )
-    viser(e, g.origines.keys())
+    g.d = d
+    // L'élément suit le pointeur au pixel, dans le plan : on n'aimante qu'au dépôt.
+    g.envol?.viser(point(d.x * cam.PX_PAR_UG, d.y * cam.PX_PAR_UG), Math.hypot(p.x - g.ecran.x, p.y - g.ecran.y))
+    viser(e, choisis())
   }
 
-  /** Cherche la colonne sous le pointeur, la place d'insertion, et dessine le trait. Les éléments glissés ne comptent pas. */
-  const viser = (e: React.PointerEvent, ids: Iterable<Id>) => {
-    const glisses = new Set(ids)
+  /** Cherche la colonne sous le pointeur, la place d'insertion, et dessine le trait. Ce qu'on glisse ne compte pas. */
+  const viser = (e: React.PointerEvent, portes: readonly Element[]) => {
+    const glisses = new Set(portes.map((x) => x.id))
     const div = racine.current!
     const elements = magasin.lire().elements
     let trouvee: Cible | null = null
     let nouveauTrait: { x0: number; x1: number; y: number } | null = null
     for (const n of document.elementsFromPoint(e.clientX, e.clientY)) {
+      if (calqueFantome.current?.contains(n)) continue
       const chaine = chaineDe(div, n)
       if (chaine.length === 0) continue
       const idDe = (c: HTMLElement) => c.getAttribute('data-id')!
@@ -560,7 +787,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const conteneur = noeud && elements.find((x) => x.id === idDe(noeud))
       const def = conteneur && definition(conteneur.contenu.type)
       if (!noeud || !conteneur || !def?.accepte) break
-      const acceptes = elements.filter((x) => glisses.has(x.id) && def.accepte!(x, conteneur)).map((x) => x.id)
+      const acceptes = portes.filter((x) => def.accepte!(x, conteneur)).map((x) => x.id)
       if (acceptes.length === 0) break
       const freres = elements
         .filter((x) => x.parent === conteneur.id && !glisses.has(x.id))
@@ -584,7 +811,77 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     setTrait((t) => (t && nouveauTrait && t.x0 === nouveauTrait.x0 && t.x1 === nouveauTrait.x1 && t.y === nouveauTrait.y ? t : nouveauTrait))
   }
 
-  const relache = () => {
+  /** Lâcher un outil : l'élément naît sous le fantôme (ou dans la colonne visée), puis se pose en douceur. */
+  const lacherOutil = (g: Extract<Geste, { type: 'outil' }>, e: React.PointerEvent, visee: Cible | null) => {
+    g.envol?.arreter()
+    const vol = g.envol?.vol
+    setFantome(null)
+    if (!g.demarre) {
+      setRebond((r) => ({ libelle: g.outil.outil.libelle, n: (r?.n ?? 0) + 1 }))
+      return
+    }
+    const sur = document.elementFromPoint(e.clientX, e.clientY)
+    if (!vol || sur?.closest('.notak-barre-outils')) return
+    const [x, y] = aimanter(cam.versTableau(camera, g.coin))
+    const ghost = cam.versTableau(camera, point(vol.x, vol.y))
+    let pas = g.outil.outil.creer(point(x, y), contexte)
+    const ids = pas.flatMap((op) => (op.type === 'creer' ? [op.element.id] : []))
+    if (ids.length === 0) return
+    let range = false
+    if (visee) {
+      const colonne = visee.colonne
+      const freres = magasin.lire().elements.filter((x) => x.parent === colonne).sort((a, b) => comparerOrdre(a.ordre, b.ordre))
+      const i = Math.max(0, Math.min(visee.index, freres.length))
+      const conteneur = magasin.lire().elements.find((x) => x.id === colonne)
+      const accepte = conteneur && definition(conteneur.contenu.type)?.accepte
+      const entrants = pas.filter((op) => op.type === 'creer' && conteneur && accepte?.(op.element, conteneur))
+      const cles = clesEntre(freres[i - 1]?.ordre, freres[i]?.ordre, entrants.length)
+      pas = pas.map((op) => {
+        const j = entrants.indexOf(op)
+        if (j < 0 || op.type !== 'creer') return op
+        range = true
+        return { ...op, element: { ...op.element, parent: colonne, ordre: cles[j]! } }
+      })
+    }
+    magasin.faire(pas)
+    setSelection(new Set(ids))
+    commencerEdition(ids[0]!)
+    if (range) return
+    // Le nouvel élément part de là où était le fantôme, et rejoint sa case de grille.
+    const ecart = point((ghost.x - x) * cam.PX_PAR_UG, (ghost.y - y) * cam.PX_PAR_UG)
+    const fantomeVol = { ...vol, x: ecart.x, y: ecart.y }
+    const def = definition(g.fantome.contenu.type)
+    const envol = new Envol(reglageVol([g.fantome], 0), (v) => {
+      for (const id of ids) {
+        const n = noeudDe(id)
+        if (n) dessinerSur(n, transformation(v), v.ombre)
+      }
+    }, fantomeVol)
+    if (def?.calque === 'lignes') envol.arreter()
+    else reposer(envol, ids)
+  }
+
+  /** Échap pendant un glisser : tout revient à sa place, en douceur. */
+  const annulerGlisser = () => {
+    const g = geste.current
+    if (g?.type === 'outil') {
+      g.envol?.arreter()
+      setFantome(null)
+    } else if (g?.type === 'glisser' && g.demarre && g.envol) {
+      magasin.appliquerSeulement(g.sorties.toReversed().map(inverse))
+      g.base = point(0, 0)
+      g.vols = g.vols.filter((id) => !g.sorties.some((op) => op.type === 'ranger' && op.id === id))
+      reposer(g.envol, g.vols)
+    } else return false
+    geste.current = null
+    cible.current = null
+    setTrait(null)
+    setGlisses(null)
+    setEnGeste(false)
+    return true
+  }
+
+  const relache = (e: React.PointerEvent) => {
     const g = geste.current
     geste.current = null
     setEnGeste(false)
@@ -600,13 +897,43 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     cible.current = null
     setTrait(null)
     setGlisses(null)
-    if (g?.type !== 'glisser' || !g.demarre) return
+    if (g?.type === 'outil') return lacherOutil(g, e, visee)
+    if (g?.type !== 'glisser') return
+    if (!g.demarre) {
+      // Un clic sans glisser sur un élément déjà choisi : il devient seul choisi, ou s'édite s'il l'était déjà.
+      const r = g.reduire
+      if (!r) return
+      const el = tableau.elements.find((x) => x.id === r.id)
+      if (r.seul && el && !lectureSeule && definition(el.contenu.type)?.editable && e.type === 'pointerup') commencerEdition(r.id, r.ou)
+      else setSelection(new Set([r.id]))
+      return
+    }
+    // On aimante maintenant : chaque élément tombe sur la case de grille la plus proche du déplacement voulu.
+    const ds = point(Math.round(g.d.x), Math.round(g.d.y))
+    const lu = magasin.lire()
+    magasin.appliquerSeulement(
+      [...g.origines].flatMap(([id]): Operation[] => {
+        const el = lu.elements.find((x) => x.id === id)
+        return el ? [{ type: 'deplacer', id, de: [el.x, el.y], vers: aimanter(point(el.x + ds.x, el.y + ds.y)) }] : []
+      }),
+    )
     // Un seul pas, de la place d'origine à la place finale, même si l'élément a quitté sa colonne en route.
     const deplaces = [...g.origines].map(([id, o]): Deplace => ({ id, de: o.place, lecture: o.pos }))
     const pas = pasDeDepot(magasin.lire(), deplaces, visee)
     magasin.appliquerSeulement(pas)
     magasin.remplacer(auPremierPlan(magasin.lire(), g.origines.keys()))
     magasin.inscrire(pas)
+    // Ce qui entre dans une colonne y prend sa place tout de suite ; le reste se pose en douceur.
+    const entres = new Set(pas.flatMap((op) => (op.type === 'ranger' && op.vers.parent ? [op.id] : [])))
+    g.vols = g.vols.filter((id) => !entres.has(id))
+    g.base = point(ds.x * cam.PX_PAR_UG, ds.y * cam.PX_PAR_UG)
+    if (g.envol) {
+      // Pendant la dépose, le vol se mesure depuis la place où l'élément est posé.
+      g.envol.vol = { ...g.envol.vol, x: g.envol.vol.x - g.base.x, y: g.envol.vol.y - g.base.y }
+      g.base = point(0, 0)
+      g.envol.redessiner()
+      reposer(g.envol, g.vols)
+    }
   }
 
   const doubleClic = (e: React.MouseEvent) => {
@@ -630,7 +957,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (id) {
       const el = tableau.elements.find((x) => x.id === id)
       const ouvrir = el && definition(el.contenu.type)?.ouvrir
-      return ouvrir ? ouvrir(el, contexte) : commencerEdition(id)
+      return ouvrir ? ouvrir(el, contexte) : commencerEdition(id, point(e.clientX, e.clientY))
     }
     const [x, y] = aimanter(cam.versTableau(camera, local(e)))
     const note = nouvelleNote(x, y)
@@ -684,7 +1011,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       tabIndex={0}
       style={styleRacine}
       onKeyDown={clavier}
-      onKeyUp={(e) => e.key === ' ' && setEspace(false)}
+      onKeyUp={relacherEspace}
       onBlur={() => setEspace(false)}
       onPointerDown={appui}
       onPointerMove={mouvement}
@@ -772,7 +1099,16 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           position={{ x: (barre.min.x + barre.max.x) / 2, y: Math.max(8, barre.min.y - MARGE_BARRE) }}
         />
       )}
-      {!lectureSeule && <BarreOutils contexte={contexte} surCreation={(ids) => ids[0] && commencerEdition(ids[0])} />}
+      {fantome && (
+        <div ref={calqueFantome} className="notak-fantome" aria-hidden>
+          {definition(fantome.contenu.type)?.calque === 'lignes' ? (
+            <svg className="notak-calque-lignes">{rendreFantome(fantome, contexte)}</svg>
+          ) : (
+            <Cadre element={fantome} choisie={false} enEdition={false} contexte={contexte} brouillon={rien} changer={rien} />
+          )}
+        </div>
+      )}
+      {!lectureSeule && <BarreOutils surAppui={surAppuiOutil} rebond={rebond} />}
       {lectureSeule && <div className="notak-lecture">Lecture seule</div>}
       <div className="notak-echelle">{Math.round(camera.echelle * 100)} %</div>
     </div>

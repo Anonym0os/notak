@@ -74,7 +74,15 @@ export interface ContexteToile {
   centreVue(): Point
   selection: ReadonlySet<Id>
   choisir(ids: Iterable<Id>): void
-  commencerEdition(id: Id): void
+  /** `ou` : le point de l'écran (`clientX`, `clientY`) où poser le curseur de texte, sinon la fin. */
+  commencerEdition(id: Id, ou?: Point): void
+  /**
+   * Cmd+Entrée : crée l'élément suivant, du type que dit `suivant` (une note par défaut), sous cet élément,
+   * ou juste après lui dans sa colonne ; le choisit et l'édite. `format` : recopier aussi la mise en forme.
+   */
+  creerSuivant(id: Id, format: boolean): void
+  /** Le point où l'édition qui commence doit poser son curseur ; il n'est rendu qu'une fois. */
+  prendrePointEdition(): Point | null
   finirEdition(): void
 }
 
@@ -134,7 +142,34 @@ export interface TypeElement<C extends Contenu = Contenu> {
    */
   emporterAvec?(supprimes: Element[], tableau: Tableau): Element[]
   /** Les outils de la barre de gauche qui créent un élément de ce type (une note, un titre…). */
-  outils?: { libelle: string; icone: ReactNode; creer(ou: Point, contexte: ContexteToile): Operation[] }[]
+  outils?: Outil[]
+  /**
+   * L'élément que Cmd+Entrée fait naître à côté de celui-ci : `dessous` et `droite` sont des places toutes
+   * prêtes, en UG. `null` : rien (une ligne, une image). Absent : une note dessous.
+   */
+  suivant?(element: Element<C>, places: { dessous: Point; droite: Point }, format: boolean, contexte: ContexteToile): Element | null
+  /** À la sortie de l'édition, ce que devient le contenu (une note qui n'est qu'une adresse devient un lien). */
+  convertir?(c: C): Contenu | null
+  /** Ne s'incline pas quand on le glisse (un tableau, dessiné en icône). */
+  sansInclinaison?: boolean
+}
+
+/**
+ * Un outil de la barre de gauche. On le glisse sur la toile : un fantôme de l'élément suit le pointeur,
+ * et `creer` le fait naître là où on le lâche (`ou` est son coin haut gauche, en UG).
+ */
+export interface Outil {
+  libelle: string
+  icone: ReactNode
+  /** Sa place dans la barre, croissante vers le bas. */
+  rang: number
+  /** Rangé dans le tiroir « Plus » plutôt que dans la barre. */
+  tiroir?: boolean
+  /** L'élément tel qu'il naîtra, pour le dessiner sous le pointeur ; sans effet sur rien. */
+  fantome(): Element
+  /** Où le pointeur tient le fantôme, depuis son coin haut gauche, en UG (3, 3 par défaut). */
+  prise?: Point
+  creer(ou: Point, contexte: ContexteToile): Operation[]
 }
 
 /**

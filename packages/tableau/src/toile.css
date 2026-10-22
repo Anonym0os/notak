@@ -404,3 +404,109 @@
 }
 
 .notak-espace { position: relative; }
+
+/* Ce qui vole sous le pointeur : au-dessus de tout, soulevé par une ombre qui grandit. */
+.notak-carte[data-vol] {
+  z-index: 10;
+  will-change: transform;
+}
+
+.notak-carte[data-vol]:not([data-type='tableau'])::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  box-shadow: 0 22px 44px rgb(0 0 0 / 0.16), 0 8px 16px rgb(0 0 0 / 0.1);
+  opacity: var(--notak-soulevement, 0);
+  pointer-events: none;
+}
+
+/* Le fantôme de l'outil qu'on glisse depuis la barre. */
+.notak-fantome {
+  position: absolute;
+  z-index: 30;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.notak-fantome > .notak-carte {
+  left: 0;
+  top: 0;
+}
+
+.notak-fantome .notak-carte::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  box-shadow: 0 22px 44px rgb(0 0 0 / 0.16), 0 8px 16px rgb(0 0 0 / 0.1);
+  opacity: var(--notak-soulevement, 0);
+}
+
+.notak-fantome .notak-carte[data-type='tableau']::after {
+  content: none;
+}
+
+/* Un clic sur un outil : il rebondit, une bulle dit de le glisser. */
+.notak-outil-place {
+  position: relative;
+}
+
+.notak-outil[data-rebond='0'] {
+  animation: notak-rebond-a 0.4s ease;
+}
+
+.notak-outil[data-rebond='1'] {
+  animation: notak-rebond-b 0.4s ease;
+}
+
+@keyframes notak-rebond-a {
+  30% { transform: translateX(6px); }
+  60% { transform: translateX(-3px); }
+}
+
+@keyframes notak-rebond-b {
+  30% { transform: translateX(6px); }
+  60% { transform: translateX(-3px); }
+}
+
+.notak-bulle-outil {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  left: calc(100% + 12px);
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #1f2328;
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+  transform: translateY(-50%);
+  pointer-events: none;
+  opacity: 0;
+  animation: notak-bulle 5.4s linear forwards;
+}
+
+@keyframes notak-bulle {
+  0%, 7% { opacity: 0; }
+  10%, 95% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.notak-tiroir {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: calc(100% + 8px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 4px;
+  border-radius: 8px;
+  background: var(--notak-carte);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
+}
