@@ -1,12 +1,23 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { BarreOutils, BarreSelection } from './Barres'
-import { Cadre } from './Cadre'
+import { Cadre, ContexteRangement, type Rangement } from './Cadre'
 import * as cam from './coeur/camera'
 import { type Point, type Rect, depuisCoins, englobant, point, soustraire } from './coeur/geometrie'
 import type { Magasin } from './coeur/magasin'
 import { largeurDoubleClic, largeurTiree, LARGEUR_MIN_DEFAUT } from './coeur/largeur'
+import { type Cible, type Deplace, comparerOrdre, indexInsertion, pasDeDepot } from './coeur/ordre'
 import { cliquer, lasso } from './coeur/selection'
-import { type Contenu, type Element, type Id, type Operation, aimanter, auPremierPlan, nouvelleNote } from './coeur/tableau'
+import {
+  type Contenu,
+  type Element,
+  type Id,
+  type Operation,
+  aimanter,
+  auPremierPlan,
+  avecDependants,
+  nouvelleNote,
+  placeDe,
+} from './coeur/tableau'
 import './elements'
 import { definition, tousLesRaccourcis, tousLesRecepteurs } from './elements/registre'
 import type { ContexteToile, Services } from './elements/types'
@@ -14,7 +25,16 @@ import type { ContexteToile, Services } from './elements/types'
 type Geste =
   | { type: 'attraper'; dernier: Point }
   | { type: 'lasso'; depart: Point; avant: ReadonlySet<Id>; inverser: boolean }
-  | { type: 'glisser'; depart: Point; initiales: Map<Id, [number, number]>; axe: 'h' | 'v' | null }
+  | {
+      type: 'glisser'
+      depart: Point
+      /** Le départ du pointeur à l'écran : un glisser ne démarre qu'après quelques pixels. */
+      ecran: Point
+      demarre: boolean
+      /** Chaque élément glissé : sa place d'origine, et sa position sur le tableau au départ. */
+      origines: Map<Id, { place: Deplace['de']; pos: Point }>
+      axe: 'h' | 'v' | null
+    }
   | { type: 'redimensionner'; id: Id; depart: Point; largeurDepart: number; min: number }
 
 /** Le verrou d'axe de Maj : choisi d'après le plus grand déplacement, il ne bascule que si l'autre le dépasse franchement. */
@@ -25,7 +45,25 @@ function choisirAxe(actuel: 'h' | 'v' | null, d: Point): 'h' | 'v' {
   return ax >= ay ? 'h' : 'v'
 }
 
+/** Sous ce déplacement (pixels écran), un appui reste un clic : rien ne bouge, rien ne quitte sa colonne. */
+const SEUIL_GLISSER = 3
+
 const memes = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+/** Les nœuds `data-id` qui contiennent ce nœud, du plus proche au plus lointain, dans la toile. */
+function chaineDe(racine: HTMLElement | null, noeud: EventTarget | null): HTMLElement[] {
+  const chaine: HTMLElement[] = []
+  for (let c = (noeud as HTMLElement | null)?.closest<HTMLElement>('[data-id]') ?? null; c; c = c.parentElement?.closest<HTMLElement>('[data-id]') ?? null) {
+    if (racine?.contains(c)) chaine.push(c)
+  }
+  return chaine
+}
+/** Le nœud en cours d'édition ne laisse passer que ce qui est à lui, pas ce qu'il contient (les éléments d'une colonne). */
+function dansEdition(racine: HTMLElement | null, cible: EventTarget | null) {
+  const n = (cible as HTMLElement | null)?.closest?.('[data-edition]')
+  return !!n && chaineDe(racine, cible)[0]?.getAttribute('data-id') === n.getAttribute('data-id')
+}
+/** Un élément qu'on glisse : tout sauf une ligne. */
+const mobile = (e: Element) => definition(e.contenu.type)?.calque !== 'lignes'
 /** Un élément posé librement sur la toile : ni dans une colonne, ni une ligne. */
 const libre = (e: Element) => !e.parent && definition(e.contenu.type)?.calque !== 'lignes'
 /** Hauteur réservée au-dessus de la sélection pour sa barre, en pixels. */
@@ -41,6 +79,10 @@ export function Toile({ magasin, services = {} }: { magasin: Magasin; services?:
   const [espace, setEspace] = useState(false)
   const [anime, setAnime] = useState(false)
   const [enGeste, setEnGeste] = useState(false)
+  const [glisses, setGlisses] = useState<ReadonlySet<Id> | null>(null)
+  /** Le trait qui montre la place d'insertion dans une colonne, en pixels de la toile. */
+  const [trait, setTrait] = useState<{ x0: number; x1: number; y: number } | null>(null)
+  const cible = useRef<Cible | null>(null)
 
   const racine = useRef<HTMLDivElement>(null)
   const geste = useRef<Geste | null>(null)
@@ -160,7 +202,7 @@ export function Toile({ magasin, services = {} }: { magasin: Magasin; services?:
   useEffect(() => {
     const div = racine.current!
     const molette = (e: WheelEvent) => {
-      if (etat.current.edition && (e.target as HTMLElement).closest('[data-edition]') && !(e.ctrlKey || e.metaKey)) return
+      if (etat.current.edition && dansEdition(div, e.target) && !(e.ctrlKey || e.metaKey)) return
       e.preventDefault()
       animation.current = null
       const { camera: c, vue: v } = etat.current
@@ -287,9 +329,11 @@ export function Toile({ magasin, services = {} }: { magasin: Magasin; services?:
         }
         return
       case 'Delete':
-      case 'Backspace':
+      case 'Backspace': {
         e.preventDefault()
-        return magasin.faire(choisis().map((x): Operation => ({ type: 'supprimer', element: x })))
+        const aussi = (x: Element, t: typeof tableau) => definition(x.contenu.type)?.aussiSupprimer?.(x, t) ?? []
+        return magasin.faire(avecDependants(choisis(), tableau, aussi).map((x): Operation => ({ type: 'supprimer', element: x })))
+      }
       case ' ':
         e.preventDefault()
         return setEspace(true)
@@ -298,7 +342,7 @@ export function Toile({ magasin, services = {} }: { magasin: Magasin; services?:
   }
 
   const appui = (e: React.PointerEvent) => {
-    if ((e.target as HTMLElement).closest('[data-edition]')) return
+    if (dansEdition(racine.current, e.target)) return
     if (edition) finirEdition()
     racine.current!.focus({ preventScroll: true })
     const p = local(e)
@@ -319,12 +363,16 @@ export function Toile({ magasin, services = {} }: { magasin: Magasin; services?:
         const s = cliquer(selection, id, e.metaKey || e.ctrlKey)
         setSelection(s)
         if (!s.has(id)) return
-        const initiales = new Map(
+        // Un élément rangé se glisse aussi, sauf si sa colonne est choisie avec lui : il la suit.
+        const origines = new Map(
           tableau.elements
-            .filter((x) => s.has(x.id) && libre(x))
-            .map((x): [Id, [number, number]] => [x.id, [x.x, x.y]]),
+            .filter((x) => s.has(x.id) && mobile(x) && !(x.parent && s.has(x.parent)))
+            .map((x) => {
+              const r = x.parent ? rect(x.id) : null
+              return [x.id, { place: placeDe(x), pos: r ? r.min : point(x.x, x.y) }] as const
+            }),
         )
-        geste.current = { type: 'glisser', depart: ici, initiales, axe: null }
+        geste.current = { type: 'glisser', depart: ici, ecran: p, demarre: false, origines, axe: null }
       } else {
         const inverser = e.shiftKey || e.metaKey || e.ctrlKey
         const avant = inverser ? selection : new Set<Id>()
@@ -360,13 +408,74 @@ export function Toile({ magasin, services = {} }: { magasin: Magasin; services?:
       const vers = largeurTiree(g.largeurDepart + ici.x - g.depart.x, g.min)
       return magasin.appliquerSeulement([{ type: 'redimensionner', id: g.id, de: g.largeurDepart, vers }])
     }
+    if (!g.demarre) {
+      if (Math.hypot(p.x - g.ecran.x, p.y - g.ecran.y) < SEUIL_GLISSER) return
+      g.demarre = true
+      // Ce qui était rangé quitte sa colonne à l'endroit où il se trouvait à l'écran, et la colonne se resserre.
+      magasin.appliquerSeulement(
+        [...g.origines]
+          .filter(([, o]) => o.place.parent)
+          .map(([id, o]) => {
+            const [x, y] = aimanter(o.pos)
+            return { type: 'ranger', id, de: o.place, vers: { x, y } }
+          }),
+      )
+      setGlisses(new Set(g.origines.keys()))
+    }
     const d = soustraire(ici, g.depart)
     g.axe = e.shiftKey ? choisirAxe(g.axe, d) : null
     if (g.axe === 'h') d.y = 0
     if (g.axe === 'v') d.x = 0
     magasin.appliquerSeulement(
-      [...g.initiales].map(([id, [x, y]]) => ({ type: 'deplacer', id, de: [x, y], vers: aimanter(point(x + d.x, y + d.y)) })),
+      [...g.origines].map(([id, o]) => ({ type: 'deplacer', id, de: [o.pos.x, o.pos.y], vers: aimanter(point(o.pos.x + d.x, o.pos.y + d.y)) })),
     )
+    viser(e, g.origines.keys())
+  }
+
+  /** Cherche la colonne sous le pointeur, la place d'insertion, et dessine le trait. Les éléments glissés ne comptent pas. */
+  const viser = (e: React.PointerEvent, ids: Iterable<Id>) => {
+    const glisses = new Set(ids)
+    const div = racine.current!
+    const elements = magasin.lire().elements
+    let trouvee: Cible | null = null
+    let nouveauTrait: { x0: number; x1: number; y: number } | null = null
+    for (const n of document.elementsFromPoint(e.clientX, e.clientY)) {
+      const chaine = chaineDe(div, n)
+      if (chaine.length === 0) continue
+      const idDe = (c: HTMLElement) => c.getAttribute('data-id')!
+      if (chaine.some((c) => glisses.has(idDe(c)))) continue
+      const defDe = (c: HTMLElement) => {
+        const el = elements.find((x) => x.id === idDe(c))
+        return el && definition(el.contenu.type)
+      }
+      if (defDe(chaine[0]!)?.calque === 'lignes') continue
+      // Le premier élément touché décide : un conteneur qui le contient, ou la toile nue.
+      const noeud = chaine.find((c) => defDe(c)?.accepte)
+      const conteneur = noeud && elements.find((x) => x.id === idDe(noeud))
+      const def = conteneur && definition(conteneur.contenu.type)
+      if (!noeud || !conteneur || !def?.accepte) break
+      const acceptes = elements.filter((x) => glisses.has(x.id) && def.accepte!(x, conteneur)).map((x) => x.id)
+      if (acceptes.length === 0) break
+      const freres = elements
+        .filter((x) => x.parent === conteneur.id && !glisses.has(x.id))
+        .sort((a, b) => comparerOrdre(a.ordre, b.ordre))
+        .flatMap((x) => {
+          const r = div.querySelector(`[data-id="${CSS.escape(x.id)}"]`)?.getBoundingClientRect()
+          return r ? [r] : []
+        })
+      const index = indexInsertion(freres.map((r) => (r.top + r.bottom) / 2), e.clientY)
+      const [o, c, k] = [div.getBoundingClientRect(), noeud.getBoundingClientRect(), camera.echelle]
+      let y = c.bottom
+      if (freres.length === 0) {
+        const zone = noeud.querySelector('[data-depot]')?.getBoundingClientRect()
+        if (zone) y = (zone.top + zone.bottom) / 2
+      } else y = index < freres.length ? freres[index]!.top - 4 * k : freres[freres.length - 1]!.bottom + 4 * k
+      trouvee = { colonne: conteneur.id, index, acceptes }
+      nouveauTrait = { x0: c.left - o.left + 8 * k, x1: c.right - o.left - 8 * k, y: y - o.top }
+      break
+    }
+    cible.current = trouvee
+    setTrait((t) => (t && nouveauTrait && t.x0 === nouveauTrait.x0 && t.x1 === nouveauTrait.x1 && t.y === nouveauTrait.y ? t : nouveauTrait))
   }
 
   const relache = () => {
@@ -381,20 +490,21 @@ export function Toile({ magasin, services = {} }: { magasin: Magasin; services?:
       }
       return
     }
-    if (g?.type !== 'glisser') return
-    const t = magasin.lire()
-    const pas: Operation[] = []
-    for (const [id, de] of g.initiales) {
-      const el = t.elements.find((x) => x.id === id)
-      if (el && (el.x !== de[0] || el.y !== de[1])) pas.push({ type: 'deplacer', id, de, vers: [el.x, el.y] })
-    }
-    if (pas.length === 0) return
-    magasin.remplacer(auPremierPlan(t, g.initiales.keys()))
+    const visee = cible.current
+    cible.current = null
+    setTrait(null)
+    setGlisses(null)
+    if (g?.type !== 'glisser' || !g.demarre) return
+    // Un seul pas, de la place d'origine à la place finale, même si l'élément a quitté sa colonne en route.
+    const deplaces = [...g.origines].map(([id, o]): Deplace => ({ id, de: o.place, lecture: o.pos }))
+    const pas = pasDeDepot(magasin.lire(), deplaces, visee)
+    magasin.appliquerSeulement(pas)
+    magasin.remplacer(auPremierPlan(magasin.lire(), g.origines.keys()))
     magasin.inscrire(pas)
   }
 
   const doubleClic = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('[data-edition]')) return
+    if (dansEdition(racine.current, e.target)) return
     // Le pointeur est capturé par la toile : la cible du double-clic n'est pas fiable, on regarde sous le curseur.
     if (document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-poignee]')) {
       const el = tableau.elements.find((x) => selection.has(x.id))
@@ -442,6 +552,10 @@ export function Toile({ magasin, services = {} }: { magasin: Magasin; services?:
     : null
   const barre = cadreChoisis && versEcran(cadreChoisis)
 
+  const rangement = useMemo<Rangement>(
+    () => ({ elements: tableau.elements, selection, edition, brouillon: surBrouillon, changer: surChanger }),
+    [tableau, selection, edition, surBrouillon, surChanger],
+  )
   const cartes = tableau.elements.filter(libre)
   const seule = !edition && selection.size === 1 ? [...selection][0] : undefined
   const lignes = tableau.elements.filter((e) => definition(e.contenu.type)?.calque === 'lignes')
@@ -471,18 +585,21 @@ export function Toile({ magasin, services = {} }: { magasin: Magasin; services?:
           transform: `translate(${-camera.origine.x * k}px, ${-camera.origine.y * k}px) scale(${camera.echelle})`,
         }}
       >
-        {cartes.map((e) => (
-          <Cadre
-            key={e.id}
-            element={e}
-            choisie={selection.has(e.id)}
-            enEdition={edition === e.id}
-            poignee={e.id === seule}
-            contexte={contexte}
-            brouillon={surBrouillon}
-            changer={surChanger}
-          />
-        ))}
+        <ContexteRangement.Provider value={rangement}>
+          {cartes.map((e) => (
+            <Cadre
+              key={e.id}
+              element={e}
+              choisie={selection.has(e.id)}
+              enEdition={edition === e.id}
+              poignee={e.id === seule}
+              audessus={glisses?.has(e.id)}
+              contexte={contexte}
+              brouillon={surBrouillon}
+              changer={surChanger}
+            />
+          ))}
+        </ContexteRangement.Provider>
         <svg className="notak-calque-lignes" aria-hidden>
           {lignes.map((e) => {
             const Rendu = definition(e.contenu.type)!.Rendu
@@ -511,6 +628,7 @@ export function Toile({ magasin, services = {} }: { magasin: Magasin; services?:
           }}
         />
       )}
+      {trait && <div className="notak-trait-depot" style={{ left: trait.x0, top: trait.y - 1, width: trait.x1 - trait.x0 }} />}
       {barre && (
         <BarreSelection
           elements={elementsChoisis}

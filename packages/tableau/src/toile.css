@@ -198,3 +198,17 @@
   background: var(--notak-carte);
   cursor: nwse-resize;
 }
+
+/* Un élément qu'on glisse passe au-dessus de tout. */
+.notak-carte[data-audessus] {
+  z-index: 10;
+}
+
+/* La place où tombera ce qu'on glisse dans une colonne. */
+.notak-trait-depot {
+  position: absolute;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--notak-accent);
+  pointer-events: none;
+}

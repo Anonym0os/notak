@@ -1,0 +1,189 @@
+/* Les fonds de colonne : des teintes plus claires que celles des notes. */
+.notak-toile {
+  --notak-colonne: #e3e6ea;
+  --notak-colonne-gris: #e6e8eb;
+  --notak-colonne-cyan: #d3eef2;
+  --notak-colonne-vert: #d9ecdf;
+  --notak-colonne-brun: #ebe0d6;
+  --notak-colonne-jaune: #f9efc6;
+  --notak-colonne-orange: #fae1c8;
+  --notak-colonne-rouge: #f5d7d7;
+  --notak-colonne-rose: #f9dbe6;
+  --notak-colonne-violet: #e6dcf4;
+  --notak-colonne-bleu: #d8e5fa;
+  --notak-colonne-bleu_nuit: #d5dbe8;
+}
+
+.notak-carte[data-type='colonne'] {
+  min-height: 0;
+  border-radius: 10px;
+}
+
+.notak-carte[data-type='colonne'][data-edition] {
+  cursor: default;
+  user-select: none;
+}
+
+.notak-colonne {
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  background: var(--notak-colonne);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.05);
+}
+
+.notak-colonne[data-couleur='gris'] { background: var(--notak-colonne-gris); }
+.notak-colonne[data-couleur='cyan'] { background: var(--notak-colonne-cyan); }
+.notak-colonne[data-couleur='vert'] { background: var(--notak-colonne-vert); }
+.notak-colonne[data-couleur='brun'] { background: var(--notak-colonne-brun); }
+.notak-colonne[data-couleur='jaune'] { background: var(--notak-colonne-jaune); }
+.notak-colonne[data-couleur='orange'] { background: var(--notak-colonne-orange); }
+.notak-colonne[data-couleur='rouge'] { background: var(--notak-colonne-rouge); }
+.notak-colonne[data-couleur='rose'] { background: var(--notak-colonne-rose); }
+.notak-colonne[data-couleur='violet'] { background: var(--notak-colonne-violet); }
+.notak-colonne[data-couleur='bleu'] { background: var(--notak-colonne-bleu); }
+.notak-colonne[data-couleur='bleu_nuit'] { background: var(--notak-colonne-bleu_nuit); }
+
+.notak-colonne-tete {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 8px 6px 12px;
+}
+
+.notak-colonne-titre {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-colonne-titre[data-vide] {
+  opacity: 0.45;
+}
+
+.notak-colonne-saisie {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 26px;
+  margin: 0 -4px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 0.8);
+  box-shadow: 0 0 0 1.5px var(--notak-accent);
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  outline: none;
+  user-select: text;
+  cursor: text;
+}
+
+.notak-colonne-compte {
+  font-size: 12px;
+  opacity: 0.5;
+}
+
+.notak-colonne-plier {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.notak-colonne-plier:hover {
+  background: rgb(0 0 0 / 0.07);
+}
+
+.notak-colonne:hover .notak-colonne-plier,
+.notak-colonne[data-choisie] .notak-colonne-plier,
+.notak-colonne[data-repliee] .notak-colonne-plier {
+  opacity: 0.7;
+}
+
+.notak-colonne-plier svg {
+  transition: transform 0.12s;
+}
+
+.notak-colonne[data-repliee] .notak-colonne-plier svg {
+  transform: rotate(-90deg);
+}
+
+.notak-colonne-corps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 8px 8px;
+}
+
+.notak-colonne-vide {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  height: 60px;
+  margin: 0 8px 8px;
+  border: 1.5px dashed rgb(0 0 0 / 0.22);
+  border-radius: 6px;
+  font-size: 12px;
+  opacity: 0.55;
+}
+
+.notak-colonne[data-repliee] .notak-colonne-tete {
+  min-height: 40px;
+}
+
+/* La palette de la barre de sélection. */
+.notak-colonne-menu-ancre {
+  position: relative;
+}
+
+.notak-colonne-palette {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: max-content;
+  max-width: 180px;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--notak-carte);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
+  transform: translateX(-50%);
+}
+
+.notak-colonne-pastilles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px;
+}
+
+.notak-barre-selection .notak-colonne-pastilles button {
+  min-width: 22px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgb(0 0 0 / 0.14);
+  border-radius: 50%;
+}
+
+.notak-barre-selection .notak-colonne-pastilles button[aria-pressed='true'] {
+  box-shadow: 0 0 0 2px var(--notak-accent);
+}
