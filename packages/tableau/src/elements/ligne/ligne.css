@@ -1,0 +1,119 @@
+.notak-calque-lignes .notak-ligne-trait,
+.notak-calque-lignes .notak-ligne-clic,
+.notak-calque-lignes .notak-ligne-halo {
+  fill: none;
+}
+
+.notak-calque-lignes .notak-ligne-trait {
+  pointer-events: none;
+}
+
+.notak-calque-lignes .notak-ligne-halo {
+  stroke: var(--notak-accent);
+  stroke-width: 8px;
+  stroke-opacity: 0.22;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+/* La zone de clic : 20 px de large, invisible. */
+.notak-calque-lignes .notak-ligne-clic {
+  stroke: transparent;
+  stroke-width: 20px;
+  cursor: pointer;
+}
+
+.notak-calque-lignes .notak-ligne-libelle-zone {
+  overflow: visible;
+  pointer-events: none;
+}
+
+.notak-calque-lignes .notak-ligne-boite {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  pointer-events: none;
+}
+
+.notak-calque-lignes .notak-ligne-libelle[data-id] {
+  display: block;
+  max-width: 280px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+}
+
+.notak-calque-lignes .notak-ligne-champ {
+  box-sizing: border-box;
+  width: 220px;
+  height: 26px;
+  padding: 0 8px;
+  border: 2px solid var(--notak-accent);
+  border-radius: 4px;
+  outline: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  pointer-events: auto;
+}
+
+.notak-calque-lignes .notak-ligne-poignee {
+  fill: var(--notak-carte);
+  stroke: var(--notak-accent);
+  stroke-width: 2px;
+  pointer-events: all;
+  cursor: grab;
+}
+
+.notak-calque-lignes rect.notak-ligne-poignee {
+  rx: 2px;
+}
+
+.notak-ligne-sep {
+  align-self: stretch;
+  width: 1px;
+  margin: 4px 2px;
+  background: rgb(0 0 0 / 0.12);
+}
+
+.notak-ligne-ancre {
+  position: relative;
+}
+
+.notak-ligne-palette {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: repeat(6, 22px);
+  gap: 4px;
+  padding: 6px;
+  border-radius: 8px;
+  background: var(--notak-carte);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
+  transform: translateX(-50%);
+}
+
+.notak-barre-selection .notak-ligne-palette button {
+  min-width: 22px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgb(0 0 0 / 0.12);
+}
+
+.notak-barre-selection .notak-ligne-palette button[aria-pressed='true'] {
+  box-shadow: 0 0 0 2px var(--notak-accent);
+}

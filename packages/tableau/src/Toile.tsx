@@ -6,9 +6,9 @@ import { type Point, type Rect, depuisCoins, englobant, point, soustraire } from
 import type { Magasin } from './coeur/magasin'
 import { largeurDoubleClic, largeurTiree, LARGEUR_MIN_DEFAUT } from './coeur/largeur'
 import { cliquer, lasso } from './coeur/selection'
-import { type Contenu, type Element, type Id, type Operation, aimanter, auPremierPlan, nouvelleNote } from './coeur/tableau'
+import { type Contenu, type Element, type Id, type Operation, type Tableau, aimanter, auPremierPlan, nouvelleNote } from './coeur/tableau'
 import './elements'
-import { definition, tousLesRaccourcis, tousLesRecepteurs } from './elements/registre'
+import { definition, tousLesRaccourcis, tousLesRecepteurs, tousLesTypes } from './elements/registre'
 import type { ContexteToile, Services } from './elements/types'
 
 type Geste =
@@ -28,6 +28,12 @@ function choisirAxe(actuel: 'h' | 'v' | null, d: Point): 'h' | 'v' {
 const memes = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 /** Un élément posé librement sur la toile : ni dans une colonne, ni une ligne. */
 const libre = (e: Element) => !e.parent && definition(e.contenu.type)?.calque !== 'lignes'
+/** Ce qu'on supprime, et ce qui doit partir avec (les lignes accrochées), sans doublon. */
+function avecLiees(supprimes: Element[], tableau: Tableau): Element[] {
+  const vus = new Set(supprimes.map((e) => e.id))
+  const liees = tousLesTypes().flatMap((d) => d.aussiSupprimer?.(supprimes, tableau) ?? [])
+  return [...supprimes, ...liees.filter((e) => !vus.has(e.id) && vus.add(e.id))]
+}
 /** Hauteur réservée au-dessus de la sélection pour sa barre, en pixels. */
 const MARGE_BARRE = 52
 
@@ -324,7 +330,7 @@ export function Toile({ magasin, services = {}, cameraInitiale, surCamera }: Pro
       case 'Delete':
       case 'Backspace':
         e.preventDefault()
-        return magasin.faire(choisis().map((x): Operation => ({ type: 'supprimer', element: x })))
+        return magasin.faire(avecLiees(choisis(), tableau).map((x): Operation => ({ type: 'supprimer', element: x })))
       case ' ':
         e.preventDefault()
         return setEspace(true)

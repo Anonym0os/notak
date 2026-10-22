@@ -98,6 +98,11 @@ export interface TypeElement<C extends Contenu = Contenu> {
   largeurNaturelle?(c: C): number
   /** Outils de la barre de sélection propres au type. */
   Outils?: ComponentType<PropsOutils<C>>
+  /**
+   * Les éléments qui partent avec ceux qu'on supprime (les lignes accrochées à une carte supprimée).
+   * La toile l'interroge sur chaque type inscrit ; elle écarte les doublons.
+   */
+  aussiSupprimer?(supprimes: Element[], tableau: Tableau): Element[]
   /** Les outils de la barre de gauche qui créent un élément de ce type (une note, un titre…). */
   outils?: { libelle: string; icone: ReactNode; creer(ou: Point, contexte: ContexteToile): Operation[] }[]
 }
