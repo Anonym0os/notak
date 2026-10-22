@@ -1,7 +1,14 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
-import { apercuWeb } from './vite-apercu'
+
+const serveur = process.env.NOTAK_SERVEUR ?? 'http://localhost:3005'
 
 export default defineConfig({
-  plugins: [react(), apercuWeb()],
+  plugins: [react()],
+  server: {
+    proxy: {
+      '/api': serveur,
+      '/sync': { target: serveur, ws: true },
+    },
+  },
 })

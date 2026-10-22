@@ -6,6 +6,7 @@
   "workspaces": ["packages/*", "apps/*"],
   "scripts": {
     "dev": "bun --cwd apps/web run dev",
+    "serveur": "node apps/serveur/src/index.ts",
     "test": "vitest run",
     "typecheck": "tsc -b"
   },
