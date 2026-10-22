@@ -4,6 +4,7 @@ import { Cadre } from './Cadre'
 import * as cam from './coeur/camera'
 import { type Point, type Rect, depuisCoins, englobant, point, soustraire } from './coeur/geometrie'
 import type { Magasin } from './coeur/magasin'
+import { largeurDoubleClic, largeurTiree, LARGEUR_MIN_DEFAUT } from './coeur/largeur'
 import { cliquer, lasso } from './coeur/selection'
 import { type Contenu, type Element, type Id, type Operation, aimanter, auPremierPlan, nouvelleNote } from './coeur/tableau'
 import './elements'
@@ -14,6 +15,7 @@ type Geste =
   | { type: 'attraper'; dernier: Point }
   | { type: 'lasso'; depart: Point; avant: ReadonlySet<Id>; inverser: boolean }
   | { type: 'glisser'; depart: Point; initiales: Map<Id, [number, number]>; axe: 'h' | 'v' | null }
+  | { type: 'redimensionner'; id: Id; depart: Point; largeurDepart: number; min: number }
 
 /** Le verrou d'axe de Maj : choisi d'après le plus grand déplacement, il ne bascule que si l'autre le dépasse franchement. */
 function choisirAxe(actuel: 'h' | 'v' | null, d: Point): 'h' | 'v' {
@@ -122,6 +124,7 @@ export function Toile({ magasin, services = {} }: { magasin: Magasin; services?:
       },
       rect,
       versTableau: (p) => cam.versTableau(etat.current.camera, p),
+      largeurVue: () => etat.current.vue.largeur,
       centreVue: () => cam.centreCamera(etat.current.camera, etat.current.vue),
       choisir: (ids) => setSelection(new Set(ids)),
       commencerEdition,
@@ -303,7 +306,11 @@ export function Toile({ magasin, services = {} }: { magasin: Magasin; services?:
       return
     } else if (e.button === 0) {
       const ici = cam.versTableau(camera, p)
-      if (id) {
+      const el = id && tableau.elements.find((x) => x.id === id)
+      if (el && (e.target as HTMLElement).closest('[data-poignee]')) {
+        const min = definition(el.contenu.type)?.largeurMin ?? LARGEUR_MIN_DEFAUT
+        geste.current = { type: 'redimensionner', id: el.id, depart: ici, largeurDepart: el.largeur, min }
+      } else if (id) {
         const s = cliquer(selection, id, e.metaKey || e.ctrlKey)
         setSelection(s)
         if (!s.has(id)) return
@@ -344,6 +351,10 @@ export function Toile({ magasin, services = {} }: { magasin: Magasin; services?:
       })
       return setSelection(lasso(zone, rects, g.avant, g.inverser))
     }
+    if (g.type === 'redimensionner') {
+      const vers = largeurTiree(g.largeurDepart + ici.x - g.depart.x, g.min)
+      return magasin.appliquerSeulement([{ type: 'redimensionner', id: g.id, de: g.largeurDepart, vers }])
+    }
     const d = soustraire(ici, g.depart)
     g.axe = e.shiftKey ? choisirAxe(g.axe, d) : null
     if (g.axe === 'h') d.y = 0
@@ -358,6 +369,13 @@ export function Toile({ magasin, services = {} }: { magasin: Magasin; services?:
     geste.current = null
     setEnGeste(false)
     setZoneLasso(null)
+    if (g?.type === 'redimensionner') {
+      const el = magasin.lire().elements.find((x) => x.id === g.id)
+      if (el && el.largeur !== g.largeurDepart) {
+        magasin.inscrire([{ type: 'redimensionner', id: g.id, de: g.largeurDepart, vers: el.largeur }])
+      }
+      return
+    }
     if (g?.type !== 'glisser') return
     const t = magasin.lire()
     const pas: Operation[] = []
@@ -372,6 +390,15 @@ export function Toile({ magasin, services = {} }: { magasin: Magasin; services?:
 
   const doubleClic = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('[data-edition]')) return
+    // Le pointeur est capturé par la toile : la cible du double-clic n'est pas fiable, on regarde sous le curseur.
+    if (document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-poignee]')) {
+      const el = tableau.elements.find((x) => selection.has(x.id))
+      const def = el && definition(el.contenu.type)
+      if (!el || !def) return
+      const vers = largeurDoubleClic(el.largeur, def.largeurNaturelle?.(el.contenu), def.largeurMin)
+      if (vers !== el.largeur) magasin.faire([{ type: 'redimensionner', id: el.id, de: el.largeur, vers }])
+      return
+    }
     const id = sous(e.target)
     if (id) return commencerEdition(id)
     const [x, y] = aimanter(cam.versTableau(camera, local(e)))
@@ -411,6 +438,7 @@ export function Toile({ magasin, services = {} }: { magasin: Magasin; services?:
   const barre = cadreChoisis && versEcran(cadreChoisis)
 
   const cartes = tableau.elements.filter(libre)
+  const seule = !edition && selection.size === 1 ? [...selection][0] : undefined
   const lignes = tableau.elements.filter((e) => definition(e.contenu.type)?.calque === 'lignes')
 
   return (
@@ -444,6 +472,7 @@ export function Toile({ magasin, services = {} }: { magasin: Magasin; services?:
             element={e}
             choisie={selection.has(e.id)}
             enEdition={edition === e.id}
+            poignee={e.id === seule}
             contexte={contexte}
             brouillon={surBrouillon}
             changer={surChanger}

@@ -4,6 +4,7 @@ import './app.css'
 import { Toile, creerMagasin } from '@notak/tableau'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { fichiers } from './fichiers'
 import { ecrire, lire } from './stockage'
 
 const magasin = creerMagasin(lire())
@@ -15,6 +16,6 @@ magasin.ecouter(() => {
 
 createRoot(document.getElementById('racine')!).render(
   <StrictMode>
-    <Toile magasin={magasin} />
+    <Toile magasin={magasin} services={{ fichiers }} />
   </StrictMode>,
 )

@@ -39,6 +39,8 @@ export interface ContexteToile {
   rect(id: Id): Rect | null
   /** Un point de l'écran (coordonnées de la toile) vers le tableau. */
   versTableau(p: Point): Point
+  /** La largeur de la vue à l'écran, en pixels. */
+  largeurVue(): number
   /** Le centre de la vue, sur le tableau : là où l'on pose ce qu'on crée sans position. */
   centreVue(): Point
   selection: ReadonlySet<Id>
@@ -82,6 +84,10 @@ export interface TypeElement<C extends Contenu = Contenu> {
   hauteurParDefaut?: number
   /** Le cadre commun n'a ni fond ni ombre (une image, un titre) : le type dessine les siens. */
   sansFond?: boolean | ((c: C) => boolean)
+  /** Largeur minimale quand on redimensionne, en UG (17 par défaut). */
+  largeurMin?: number
+  /** La largeur « naturelle », en UG : celle où revient le double-clic sur la poignée, depuis 34. */
+  largeurNaturelle?(c: C): number
   /** Outils de la barre de sélection propres au type. */
   Outils?: ComponentType<PropsOutils<C>>
   /** L'outil de la barre de gauche qui crée un élément de ce type. */

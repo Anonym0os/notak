@@ -185,3 +185,16 @@
 .notak-barre-selection button[aria-pressed='true'] {
   background: var(--notak-fond);
 }
+
+.notak-poignee {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--notak-accent);
+  border-radius: 2px;
+  background: var(--notak-carte);
+  cursor: nwse-resize;
+}
