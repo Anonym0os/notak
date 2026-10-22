@@ -1,0 +1,53 @@
+.notak-renvoi {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--notak-texte);
+}
+
+.notak-renvoi-carre {
+  display: grid;
+  place-items: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 6px;
+  box-shadow: var(--notak-ombre);
+  color: #fff;
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.notak-renvoi-titre {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 14px;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.notak-renvoi-info {
+  color: #7a7f87;
+  font-size: 12px;
+}
+
+.notak-renvoi-saisie {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 2px 4px;
+  border: 1px solid var(--notak-accent);
+  border-radius: 4px;
+  background: var(--notak-carte);
+  color: var(--notak-texte);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.3;
+  text-align: center;
+  outline: none;
+  user-select: text;
+}

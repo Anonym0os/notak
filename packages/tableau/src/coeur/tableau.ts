@@ -128,6 +128,11 @@ export interface Ligne {
 export interface RenvoiTableau {
   type: 'tableau'
   cible: Id
+  /**
+   * Le dernier nom donné depuis ce renvoi. Il sert à l'historique : annuler un renommage
+   * remet ce champ, et la carte en reporte la valeur sur le tableau cible.
+   */
+  titre?: string
 }
 
 export type Contenu = Note | Image | Lien | Taches | Colonne | Ligne | RenvoiTableau
@@ -150,6 +155,8 @@ export interface Element<C extends Contenu = Contenu> {
 export interface Tableau {
   id?: Id
   titre: string
+  /** La couleur de sa carte dans le tableau parent. */
+  couleur?: CouleurNote
   elements: Element[]
 }
 

@@ -31,9 +31,21 @@ const libre = (e: Element) => !e.parent && definition(e.contenu.type)?.calque !=
 /** Hauteur réservée au-dessus de la sélection pour sa barre, en pixels. */
 const MARGE_BARRE = 52
 
-export function Toile({ magasin, services = {} }: { magasin: Magasin; services?: Services }) {
+/** La vue n'est signalée à l'hôte qu'à ce rythme au plus, en millisecondes. */
+const DELAI_SIGNAL_CAMERA = 300
+
+interface PropsToile {
+  magasin: Magasin
+  services?: Services
+  /** Où regarder à l'ouverture (la vue mémorisée du tableau). */
+  cameraInitiale?: cam.Camera
+  /** La vue a changé : au plus toutes les 300 ms, et une dernière fois en quittant la toile. */
+  surCamera?(c: cam.Camera): void
+}
+
+export function Toile({ magasin, services = {}, cameraInitiale, surCamera }: PropsToile) {
   const tableau = useSyncExternalStore(magasin.ecouter, magasin.lire)
-  const [camera, setCamera] = useState<cam.Camera>(cam.CAMERA_DEPART)
+  const [camera, setCamera] = useState<cam.Camera>(cameraInitiale ?? cam.CAMERA_DEPART)
   const [vue, setVue] = useState<cam.Vue>({ largeur: 1, hauteur: 1 })
   const [selection, setSelection] = useState<ReadonlySet<Id>>(new Set())
   const [edition, setEdition] = useState<Id | null>(null)
@@ -50,6 +62,29 @@ export function Toile({ magasin, services = {} }: { magasin: Magasin; services?:
   // Les gestionnaires natifs (molette, collage, animation) et le contexte lisent l'état courant ici.
   const etat = useRef({ camera, vue, tableau, selection, edition, magasin, services })
   etat.current = { camera, vue, tableau, selection, edition, magasin, services }
+
+  const signalee = useRef(camera)
+  const signal = useRef<{ f?: (c: cam.Camera) => void; minuteur?: ReturnType<typeof setTimeout> }>({})
+  signal.current.f = surCamera
+  useEffect(() => {
+    const s = signal.current
+    if (camera === signalee.current || s.minuteur) return
+    s.minuteur = setTimeout(() => {
+      s.minuteur = undefined
+      signalee.current = etat.current.camera
+      s.f?.(signalee.current)
+    }, DELAI_SIGNAL_CAMERA)
+  }, [camera])
+  // En quittant la toile, la dernière vue part tout de suite.
+  useEffect(() => {
+    const s = signal.current
+    return () => {
+      if (!s.minuteur) return
+      clearTimeout(s.minuteur)
+      s.minuteur = undefined
+      s.f?.(etat.current.camera)
+    }
+  }, [])
 
   const local = (e: { clientX: number; clientY: number }): Point => {
     const r = racine.current!.getBoundingClientRect()
