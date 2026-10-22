@@ -54,6 +54,8 @@ type Geste =
       base: Point
       /** Ce qui a quitté une colonne au départ du geste, pour le remettre si on annule. */
       sorties: Operation[]
+      /** Alt : les copies laissées à la place de départ. */
+      copies?: Operation[]
     }
   | {
       type: 'outil'
@@ -163,6 +165,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const [selection, setSelection] = useState<ReadonlySet<Id>>(new Set())
   const [edition, setEdition] = useState<Id | null>(null)
   const [zoneLasso, setZoneLasso] = useState<Rect | null>(null)
+  /** Ce que le lasso prendra : montré pendant le geste, posé comme sélection au relâchement. */
+  const [prisLasso, setPrisLasso] = useState<ReadonlySet<Id> | null>(null)
   const [espace, setEspace] = useState(false)
   /** Espace vient d'être appuyée, et n'a encore rien attrapé. */
   const espaceBref = useRef(false)
@@ -435,24 +439,62 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   }, [])
 
   // Molette et pincement : il faut un écouteur non passif pour empêcher le zoom du navigateur.
+  // L'échelle voulue est rejointe en douceur (un quart de l'écart par image) ; un effleurement près de 100 % y revient.
   useEffect(() => {
     const div = racine.current!
+    const mac = /Mac|iP(hone|ad)/.test(navigator.platform)
+    const vise = { echelle: 0, fixe: point(0, 0), image: 0, depuisCent: false, cumul: 0, correction: 0 as ReturnType<typeof setTimeout> | 0 }
+    const rejoindre = () => {
+      vise.image = 0
+      const c = etat.current.camera
+      const ecart = vise.echelle - c.echelle
+      const fini = Math.abs(ecart) / vise.echelle < 0.002
+      setCamera(cam.echelleAutour(c, fini ? vise.echelle : c.echelle + ecart * 0.25, vise.fixe))
+      if (!fini) vise.image = requestAnimationFrame(rejoindre)
+    }
+    const viser = (echelle: number, fixe: Point) => {
+      vise.echelle = echelle
+      vise.fixe = fixe
+      if (!vise.image) vise.image = requestAnimationFrame(rejoindre)
+    }
+    // L'inertie d'un défilement ne devient jamais un zoom, ni l'inverse : le mode tient 150 ms après le dernier pas.
+    let mode: 'zoom' | 'defiler' | null = null
+    let finMode: ReturnType<typeof setTimeout> | undefined
     const molette = (e: WheelEvent) => {
       if (etat.current.edition && dansEdition(div, e.target) && !(e.ctrlKey || e.metaKey)) return
       e.preventDefault()
       animation.current = null
       const { camera: c, vue: v } = etat.current
-      if (e.ctrlKey || e.metaKey) {
-        // Le pincement du trackpad arrive en Ctrl+molette, à petits pas : on le rend trois fois plus vif.
-        const facteur = Math.exp(-e.deltaY * (e.metaKey ? 0.0025 : 0.0075))
-        const echelle = gesteZoom.current.appliquer(c.echelle, facteur, cam.echelleMin(contenu(), v), e.timeStamp)
-        setCamera(cam.echelleAutour(c, echelle, cam.pointFixe(echelle, local(e), v)))
+      mode ??= e.ctrlKey || e.metaKey ? 'zoom' : 'defiler'
+      clearTimeout(finMode)
+      finMode = setTimeout(() => (mode = null), 150)
+      if (mode === 'zoom') {
+        // Le pincement du trackpad arrive en Ctrl+molette sur Mac, à petits pas : on le rend trois fois plus vif.
+        const pas = e.deltaY * (mac && e.ctrlKey && !e.metaKey ? 3 : 1)
+        const depart = vise.image ? vise.echelle : c.echelle
+        // Un geste commence quand le précédent s'est tu (100 ms) : on note s'il part de 100 %.
+        if (vise.cumul === 0) vise.depuisCent = Math.abs(c.echelle - 1) < 1e-3
+        vise.cumul += Math.abs(pas)
+        const echelle = gesteZoom.current.appliquer(depart, Math.max(0.1, 1 - pas * 0.0025), cam.echelleMin(contenu(), v), e.timeStamp)
+        viser(echelle, cam.pointFixe(echelle, local(e), v))
+        clearTimeout(vise.correction || undefined)
+        vise.correction = setTimeout(() => {
+          // Un geste à peine esquissé depuis 100 % n'en voulait pas : on y revient.
+          if (vise.depuisCent && vise.cumul < 50) viser(1, cam.pointFixe(1, point(v.largeur / 2, v.hauteur / 2), v))
+          vise.cumul = 0
+          vise.correction = 0
+        }, 100)
       } else {
         setCamera(cam.defiler(c, -e.deltaX, -e.deltaY))
       }
     }
     div.addEventListener('wheel', molette, { passive: false })
-    return () => div.removeEventListener('wheel', molette)
+    return () => {
+      div.removeEventListener('wheel', molette)
+      cancelAnimationFrame(vise.image)
+      clearTimeout(finMode)
+      clearTimeout(vise.correction || undefined)
+    }
   }, [contenu])
 
   // Copier, couper, coller sur la toile, hors édition.
@@ -661,6 +703,22 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         .map((e) => ({ type: 'deplacer', id: e.id, de: [e.x, e.y], vers: [e.x + dx, e.y + dy] })),
     )
 
+  /** Dans une colonne, les flèches font monter ou descendre d'un rang ce qui est choisi. */
+  const reordonner = (colonne: Id, sens: -1 | 1) => {
+    const freres = tableau.elements.filter((x) => x.parent === colonne).sort((a, b) => comparerOrdre(a.ordre, b.ordre))
+    const choisisIci = freres.filter((x) => selection.has(x.id))
+    const autres = freres.filter((x) => !selection.has(x.id))
+    const premier = freres.indexOf(choisisIci[0]!)
+    // La place du groupe parmi les autres, décalée d'un cran.
+    const avant = freres.slice(0, premier).filter((x) => !selection.has(x.id)).length
+    const ou = Math.max(0, Math.min(autres.length, avant + sens))
+    if (ou === avant) return
+    const cles = clesEntre(autres[ou - 1]?.ordre, autres[ou]?.ordre, choisisIci.length)
+    magasin.faire(
+      choisisIci.map((x, i): Operation => ({ type: 'ranger', id: x.id, de: placeDe(x), vers: { ...placeDe(x), ordre: cles[i]! } })),
+    )
+  }
+
   const clavier = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape' && annulerGlisser()) return e.preventDefault()
     const cmd = e.metaKey || e.ctrlKey
@@ -710,7 +768,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     }
     if (cmd && touche === 'a') {
       e.preventDefault()
-      return setSelection(new Set(tableau.elements.filter((x) => !x.parent).map((x) => x.id)))
+      // Avec des éléments choisis dans une colonne : toute la colonne ; sinon toute la toile.
+      const parents = new Set(choisis().map((x) => x.parent))
+      const dans = parents.size === 1 ? [...parents][0] : undefined
+      return setSelection(new Set(tableau.elements.filter((x) => x.parent === dans).map((x) => x.id)))
     }
     if (cmd && touche === 'd' && !e.shiftKey) {
       e.preventDefault()
@@ -735,6 +796,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     }
     if (fleches[e.key] && selection.size > 0) {
       e.preventDefault()
+      const parents = new Set(choisis().map((x) => x.parent))
+      const dans = parents.size === 1 ? [...parents][0] : undefined
+      if (dans && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) return reordonner(dans, e.key === 'ArrowUp' ? -1 : 1)
       return deplacer(...fleches[e.key]!)
     }
     switch (e.key) {
@@ -938,7 +1002,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         const r = rect(x.id)
         return r ? [[x.id, r]] : []
       })
-      return setSelection(lasso(zone, rects, g.avant, g.inverser))
+      return setPrisLasso(lasso(zone, rects, g.avant, g.inverser))
     }
     if (g.type === 'redimensionner') {
       const vers = largeurTiree(g.largeurDepart + ici.x - g.depart.x, g.min)
@@ -970,6 +1034,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         }),
       )
       magasin.appliquerSeulement(g.sorties)
+      // Alt : une copie reste à la place de départ, ce qu'on glisse est l'original.
+      if (e.altKey) {
+        const p = empaqueter(magasin.lire(), ids, rect)
+        if (p) {
+          const copies = deballer(p, point(0, 0))
+          g.copies = copies.map((element): Operation => ({ type: 'creer', element }))
+          magasin.appliquerSeulement(g.copies)
+        }
+      }
       g.vols = ids
       g.envol = new Envol(reglageVol(choisis, cote), (v) => {
         for (const id of g.vols) {
@@ -1115,7 +1188,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       g.envol?.arreter()
       setFantome(null)
     } else if (g?.type === 'glisser' && g.demarre && g.envol) {
-      magasin.appliquerSeulement(g.sorties.toReversed().map(inverse))
+      magasin.appliquerSeulement([...(g.copies ?? []), ...g.sorties].toReversed().map(inverse))
       g.base = point(0, 0)
       g.vols = g.vols.filter((id) => !g.sorties.some((op) => op.type === 'ranger' && op.id === id))
       reposer(g.envol, g.vols)
@@ -1136,6 +1209,13 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     geste.current = null
     setEnGeste(false)
     setZoneLasso(null)
+    if (g?.type === 'lasso') {
+      setPrisLasso((pris) => {
+        if (pris) setSelection(pris)
+        return null
+      })
+      return
+    }
     if (g?.type === 'redimensionner') {
       const el = magasin.lire().elements.find((x) => x.id === g.id)
       if (el && el.largeur !== g.largeurDepart) {
@@ -1196,7 +1276,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const pas = pasDeDepot(magasin.lire(), deplaces, visee)
     magasin.appliquerSeulement(pas)
     magasin.remplacer(auPremierPlan(magasin.lire(), g.origines.keys()))
-    magasin.inscrire(pas)
+    magasin.inscrire([...(g.copies ?? []), ...pas])
     // Ce qui entre dans une colonne y prend sa place tout de suite ; le reste se pose en douceur.
     const entres = new Set(pas.flatMap((op) => (op.type === 'ranger' && op.vers.parent ? [op.id] : [])))
     g.vols = g.vols.filter((id) => !entres.has(id))
@@ -1269,9 +1349,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     : null
   const barre = cadreChoisis && !lectureSeule && versEcran(cadreChoisis)
 
+  // Pendant un lasso, ce qu'il va prendre paraît déjà choisi.
+  const vueChoix = prisLasso ?? selection
   const rangement = useMemo<Rangement>(
-    () => ({ elements: tableau.elements, empreintes, selection, edition, brouillon: surBrouillon, changer: surChanger }),
-    [tableau, empreintes, selection, edition, surBrouillon, surChanger],
+    () => ({ elements: tableau.elements, empreintes, selection: vueChoix, edition, brouillon: surBrouillon, changer: surChanger }),
+    [tableau, empreintes, vueChoix, edition, surBrouillon, surChanger],
   )
   // Ce qui est verrouillé reste dessous.
   const cartes = [...tableau.elements.filter((x) => libre(x) && x.verrou), ...tableau.elements.filter((x) => libre(x) && !x.verrou)]
@@ -1302,6 +1384,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         className="notak-plan"
         style={{
           transform: `translate(${-camera.origine.x * k}px, ${-camera.origine.y * k}px) scale(${camera.echelle})`,
+          ['--notak-zoom-inverse' as string]: 1 / camera.echelle,
         }}
       >
         <ContexteRangement.Provider value={rangement}>
@@ -1309,9 +1392,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
             <Cadre
               key={e.id}
               element={e}
-              choisie={selection.has(e.id)}
+              choisie={vueChoix.has(e.id)}
               enEdition={edition === e.id}
-              poignee={e.id === seule}
+              poignee={!lectureSeule && !e.verrou && !edition && (e.id === seule || !selection.has(e.id))}
               audessus={glisses?.has(e.id)}
               contexte={contexte}
               brouillon={surBrouillon}
@@ -1326,7 +1409,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
               <Rendu
                 key={e.id}
                 element={e}
-                choisie={selection.has(e.id)}
+                choisie={vueChoix.has(e.id)}
                 enEdition={edition === e.id}
                 contexte={contexte}
                 brouillon={(c) => surBrouillon(e, c)}
