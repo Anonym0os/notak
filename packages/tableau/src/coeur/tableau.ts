@@ -151,6 +151,24 @@ export interface Element<C extends Contenu = Contenu> {
   ordre?: string
 }
 
+/** Où est un élément : sur la toile (`x`, `y`), ou rangé dans une colonne (`parent`, `ordre`). */
+export interface Place {
+  parent?: Id
+  ordre?: string
+  x: number
+  y: number
+}
+
+export const placeDe = (e: Element): Place => ({
+  ...(e.parent !== undefined ? { parent: e.parent } : {}),
+  ...(e.ordre !== undefined ? { ordre: e.ordre } : {}),
+  x: e.x,
+  y: e.y,
+})
+
+export const memePlace = (a: Place, b: Place) =>
+  a.parent === b.parent && a.ordre === b.ordre && a.x === b.x && a.y === b.y
+
 /** Un tableau : ses éléments, du plus bas au plus haut dans l'empilement. */
 export interface Tableau {
   id?: Id
@@ -167,6 +185,8 @@ export type Operation =
   | { type: 'deplacer'; id: Id; de: [number, number]; vers: [number, number] }
   | { type: 'redimensionner'; id: Id; de: number; vers: number }
   | { type: 'contenu'; id: Id; avant: Contenu; apres: Contenu }
+  /** Change la place d'un élément : le sortir ou l'entrer d'une colonne, le replacer dans la colonne ou sur la toile. */
+  | { type: 'ranger'; id: Id; de: Place; vers: Place }
 
 const BASE32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
 
@@ -202,6 +222,13 @@ export function nouvelleNote(x: number, y: number, texte = ''): Element<Note> {
   }
 }
 
+/** Largeur par défaut d'une colonne, en unités de grille. */
+export const LARGEUR_COLONNE = 34
+
+export function nouvelleColonne(x: number, y: number, titre = 'Colonne'): Element<Colonne> {
+  return { id: nouvelId(), x: borner(x), y: borner(y), largeur: LARGEUR_COLONNE, contenu: { type: 'colonne', titre } }
+}
+
 export const position = (e: Element): Point => point(e.x, e.y)
 
 export function inverse(op: Operation): Operation {
@@ -216,6 +243,8 @@ export function inverse(op: Operation): Operation {
       return { type: 'redimensionner', id: op.id, de: op.vers, vers: op.de }
     case 'contenu':
       return { type: 'contenu', id: op.id, avant: op.apres, apres: op.avant }
+    case 'ranger':
+      return { type: 'ranger', id: op.id, de: op.vers, vers: op.de }
   }
 }
 
@@ -232,6 +261,19 @@ export function appliquer(t: Tableau, op: Operation): Tableau {
       return modifier(t, op.id, (e) => ({ ...e, largeur: op.vers }))
     case 'contenu':
       return modifier(t, op.id, (e) => ({ ...e, contenu: op.apres }))
+    case 'ranger':
+      return modifier(t, op.id, (e) => placer(e, op.vers))
+  }
+}
+
+function placer(e: Element, p: Place): Element {
+  const { parent: _parent, ordre: _ordre, ...reste } = e
+  return {
+    ...reste,
+    x: borner(p.x),
+    y: borner(p.y),
+    ...(p.parent !== undefined ? { parent: p.parent } : {}),
+    ...(p.ordre !== undefined ? { ordre: p.ordre } : {}),
   }
 }
 
@@ -246,4 +288,21 @@ export function auPremierPlan(t: Tableau, ids: Iterable<Id>): Tableau {
     ...t,
     elements: [...t.elements.filter((e) => !dessus.has(e.id)), ...t.elements.filter((e) => dessus.has(e.id))],
   }
+}
+
+/**
+ * Ces éléments, plus ce que leur suppression emporte (le contenu d'une colonne), sans doublon.
+ * `aussi` dit ce que chaque élément emporte : c'est le type qui le sait.
+ */
+export function avecDependants(
+  choisis: readonly Element[],
+  t: Tableau,
+  aussi: (e: Element, t: Tableau) => Element[],
+): Element[] {
+  const tous = new Map<Id, Element>()
+  for (const e of choisis) {
+    tous.set(e.id, e)
+    for (const d of aussi(e, t)) tous.set(d.id, d)
+  }
+  return [...tous.values()]
 }

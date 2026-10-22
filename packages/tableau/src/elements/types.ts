@@ -86,6 +86,8 @@ export interface TypeElement<C extends Contenu = Contenu> {
    * `lignes` : dessiné dans le calque SVG au-dessus des cartes ; `Rendu` rend alors du SVG, sans cadre.
    */
   calque?: 'cartes' | 'lignes'
+  /** Le double-clic ouvre l'élément au lieu de l'éditer (un tableau imbriqué). */
+  ouvrir?(element: Element<C>, contexte: ContexteToile): void
   /** Le double-clic et Entrée ouvrent l'édition. */
   editable?: boolean
   /** Hauteur avant la première mesure, en UG. */
@@ -96,13 +98,20 @@ export interface TypeElement<C extends Contenu = Contenu> {
   largeurMin?: number
   /** La largeur « naturelle », en UG : celle où revient le double-clic sur la poignée, depuis 34. */
   largeurNaturelle?(c: C): number
+  /** Ce que la suppression d'un élément de ce type emporte avec lui (le contenu d'une colonne). */
+  aussiSupprimer?(element: Element<C>, tableau: Tableau): Element[]
+  /**
+   * Ce type range d'autres éléments (une colonne) : dit si `enfant` peut y entrer.
+   * Les enfants portent `parent` = l'id du conteneur, et se rendent par `Rangees` (Cadre.tsx).
+   */
+  accepte?(enfant: Element, conteneur: Element<C>): boolean
   /** Outils de la barre de sélection propres au type. */
   Outils?: ComponentType<PropsOutils<C>>
   /**
    * Les éléments qui partent avec ceux qu'on supprime (les lignes accrochées à une carte supprimée).
    * La toile l'interroge sur chaque type inscrit ; elle écarte les doublons.
    */
-  aussiSupprimer?(supprimes: Element[], tableau: Tableau): Element[]
+  emporterAvec?(supprimes: Element[], tableau: Tableau): Element[]
   /** Les outils de la barre de gauche qui créent un élément de ce type (une note, un titre…). */
   outils?: { libelle: string; icone: ReactNode; creer(ou: Point, contexte: ContexteToile): Operation[] }[]
 }

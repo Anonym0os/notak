@@ -14,7 +14,7 @@ registre.type<Ligne>({
   calque: 'lignes',
   Rendu: RenduLigne,
   Outils: OutilsLigne,
-  aussiSupprimer: lignesASupprimer,
+  emporterAvec: lignesASupprimer,
   outils: [
     {
       libelle: 'Ligne',

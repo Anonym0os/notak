@@ -24,6 +24,7 @@ registre.type<RenvoiTableau>({
   Rendu: RenduRenvoi,
   Outils: OutilsRenvoi,
   sansFond: true,
+  ouvrir: (e, contexte) => contexte.services.ouvrirTableau?.(e.contenu.cible),
   hauteurParDefaut: 14,
   largeurMin: LARGEUR_RENVOI,
   outils: [
