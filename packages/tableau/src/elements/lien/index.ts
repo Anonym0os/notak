@@ -24,11 +24,13 @@ registre.type<Lien>({
   hauteurParDefaut: 20,
   sansFond: true,
   Outils: OutilsLien,
-  outil: {
-    libelle: 'Lien',
-    icone: '↗',
-    creer: (ou) => [{ type: 'creer', element: nouveauLien(ou, '') }],
-  },
+  outils: [
+    {
+      libelle: 'Lien',
+      icone: '↗',
+      creer: (ou) => [{ type: 'creer', element: nouveauLien(ou, '') }],
+    },
+  ],
 })
 
 registre.recepteur({
