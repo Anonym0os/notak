@@ -1,18 +1,28 @@
 import { EditorContent, useEditor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
 import { renderToReactElement } from '@tiptap/static-renderer/pm/react'
-import { memo, useMemo } from 'react'
-import type { NoeudTexte, Note } from '../../coeur/tableau'
+import { memo, useMemo, useRef, useState } from 'react'
+import { HAUTEUR_NOTE_MIN, type Note, type NoeudTexte, nouvelleNote } from '../../coeur/tableau'
 import type { PropsRendu } from '../types'
+import { BarreTexte } from './Barre'
+import { docEstVide } from './conversion'
+import { texteDeNote } from './couleurs'
+import { EXTENSIONS_NOTE, type GestesEdition, raccourcisEdition } from './extensions'
 
-export const EXTENSIONS_NOTE = [StarterKit]
-
-export function RenduNote({ element, enEdition, brouillon }: PropsRendu<Note>) {
+export function RenduNote(props: PropsRendu<Note>) {
+  const { element, enEdition } = props
   const { contenu } = element
-  return enEdition ? (
-    <Editeur texte={contenu.texte} surChangement={(texte) => brouillon({ ...contenu, texte })} />
-  ) : (
-    <TexteFige texte={contenu.texte} />
+  const texte = texteDeNote(contenu.couleur)
+  return (
+    <div
+      className="notak-note"
+      data-couleur={contenu.couleur}
+      data-variante={contenu.variante}
+      style={texte ? { color: texte } : undefined}
+      // Hors édition, un lien s'ouvre : l'appui ne doit pas lancer un glisser.
+      onPointerDown={enEdition ? undefined : (e) => (e.target as HTMLElement).closest('a') && e.stopPropagation()}
+    >
+      {enEdition ? <Editeur {...props} /> : <TexteFige texte={contenu.texte} />}
+    </div>
   )
 }
 
@@ -21,13 +31,52 @@ const TexteFige = memo(function TexteFige({ texte }: { texte: NoeudTexte }) {
   return <div className="notak-texte">{rendu}</div>
 })
 
-function Editeur({ texte, surChangement }: { texte: NoeudTexte; surChangement(t: NoeudTexte): void }) {
+function Editeur({ element, contexte, brouillon }: PropsRendu<Note>) {
+  const { contenu } = element
+  const [lien, setLien] = useState<string | null>(null)
+  const gestes = useRef<GestesEdition>(null!)
+  const extensions = useMemo(() => [...EXTENSIONS_NOTE, raccourcisEdition(gestes)], [])
   const editeur = useEditor({
-    extensions: EXTENSIONS_NOTE,
-    content: texte,
+    extensions,
+    content: contenu.texte,
     autofocus: 'end',
     editorProps: { attributes: { class: 'notak-texte' } },
-    onUpdate: ({ editor }) => surChangement(editor.getJSON() as NoeudTexte),
+    onUpdate: ({ editor }) => brouillon({ ...contenu, texte: editor.getJSON() as NoeudTexte }),
   })
-  return <EditorContent editor={editeur} />
+
+  gestes.current = {
+    lien: () => {
+      if (editeur && (!editeur.state.selection.empty || editeur.isActive('link')))
+        setLien((editeur.getAttributes('link').href as string | undefined) ?? '')
+    },
+    estVide: () => !!editeur && docEstVide(editeur.getJSON() as NoeudTexte),
+    supprimerNote: () => {
+      // Supprimer d'abord : la sortie de l'édition n'inscrit plus rien d'une note disparue,
+      // et l'annulation rend la note telle qu'elle était avant l'édition.
+      const courante = contexte.magasin.lire().elements.find((e) => e.id === element.id)
+      if (courante) contexte.magasin.faire([{ type: 'supprimer', element: courante }])
+      contexte.finirEdition()
+    },
+    noteDessous: () => {
+      const courante = contexte.magasin.lire().elements.find((e) => e.id === element.id)
+      if (!courante) return
+      const bas = contexte.rect(element.id)?.max.y ?? courante.y + HAUTEUR_NOTE_MIN
+      const neuve = nouvelleNote(courante.x, Math.round(bas) + 1)
+      const note: typeof neuve = {
+        ...neuve,
+        largeur: courante.largeur,
+        contenu: { ...neuve.contenu, ...(contenu.couleur ? { couleur: contenu.couleur } : {}) },
+      }
+      contexte.finirEdition()
+      contexte.magasin.faire([{ type: 'creer', element: note }])
+      contexte.commencerEdition(note.id)
+    },
+  }
+
+  return (
+    <>
+      {editeur && <BarreTexte editor={editeur} lien={lien} surLien={setLien} />}
+      <EditorContent editor={editeur} />
+    </>
+  )
 }

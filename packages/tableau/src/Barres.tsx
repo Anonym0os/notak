@@ -2,25 +2,25 @@ import type { Element } from './coeur/tableau'
 import { definition, tousLesOutilsCommuns, tousLesTypes } from './elements/registre'
 import type { ContexteToile } from './elements/types'
 
-/** La barre de gauche : un outil par type qui en déclare un. Un clic crée l'élément au centre de la vue. */
+/** La barre de gauche : un outil par entrée que les types déclarent. Un clic crée l'élément au centre de la vue. */
 export function BarreOutils({ contexte, surCreation }: { contexte: ContexteToile; surCreation(ids: string[]): void }) {
-  const outils = tousLesTypes().filter((d) => d.outil)
+  const outils = tousLesTypes().flatMap((d) => (d.outils ?? []).map((outil) => ({ type: d.type, outil })))
   return (
     <nav className="notak-barre-outils" onPointerDown={(e) => e.stopPropagation()}>
-      {outils.map((d) => (
+      {outils.map(({ type, outil }) => (
         <button
-          key={d.type}
+          key={`${type}:${outil.libelle}`}
           type="button"
           className="notak-outil"
-          title={d.outil!.libelle}
+          title={outil.libelle}
           onClick={() => {
-            const pas = d.outil!.creer(contexte.centreVue(), contexte)
+            const pas = outil.creer(contexte.centreVue(), contexte)
             contexte.magasin.faire(pas)
             surCreation(pas.flatMap((op) => (op.type === 'creer' ? [op.element.id] : [])))
           }}
         >
-          <span className="notak-outil-icone">{d.outil!.icone}</span>
-          <span className="notak-outil-libelle">{d.outil!.libelle}</span>
+          <span className="notak-outil-icone">{outil.icone}</span>
+          <span className="notak-outil-libelle">{outil.libelle}</span>
         </button>
       ))}
     </nav>

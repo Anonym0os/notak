@@ -36,6 +36,21 @@ export type CouleurNote =
   | 'bleu_nuit'
   | 'transparent'
 
+/** Les couleurs de fond qu'on peut donner à une note, dans l'ordre de la palette (`transparent` en plus). */
+export const COULEURS_NOTE = [
+  'gris',
+  'cyan',
+  'vert',
+  'brun',
+  'jaune',
+  'orange',
+  'rouge',
+  'rose',
+  'violet',
+  'bleu',
+  'bleu_nuit',
+] as const satisfies readonly CouleurNote[]
+
 /** `titre` : posé sur la toile, sans fond, texte centré. */
 export type VarianteNote = 'normale' | 'titre'
 

@@ -1,0 +1,279 @@
+/* Les couleurs de la note : fonds, texte, surlignages. Les fonds sont aussi dans couleurs.ts (un test les compare). */
+.notak-toile {
+  --notak-note-gris: #8b939d;
+  --notak-note-cyan: #1db4c6;
+  --notak-note-vert: #3c9d5b;
+  --notak-note-brun: #8c6446;
+  --notak-note-jaune: #f3c534;
+  --notak-note-orange: #ef8a2f;
+  --notak-note-rouge: #d84b4b;
+  --notak-note-rose: #e8729f;
+  --notak-note-violet: #8a5fd1;
+  --notak-note-bleu: #3a76df;
+  --notak-note-bleu_nuit: #27344f;
+
+  --notak-texte-bleu: #2f6feb;
+  --notak-texte-vert: #228a4a;
+  --notak-texte-orange: #d96f0b;
+  --notak-texte-rouge: #d43b3b;
+  --notak-texte-gris: #7a828c;
+
+  --notak-surligne-gris-fonce: #4b5360;
+  --notak-surligne-bleu: #cfe0ff;
+  --notak-surligne-vert: #cdeed7;
+  --notak-surligne-orange: #fddcb4;
+  --notak-surligne-rose: #fbd3e3;
+  --notak-surligne-gris: #e1e4e8;
+}
+
+
+/* Le fond est celui du cadre commun : la note le lui demande à travers son enfant. */
+.notak-carte:has(> .notak-note[data-couleur='gris']) { background: var(--notak-note-gris); }
+.notak-carte:has(> .notak-note[data-couleur='cyan']) { background: var(--notak-note-cyan); }
+.notak-carte:has(> .notak-note[data-couleur='vert']) { background: var(--notak-note-vert); }
+.notak-carte:has(> .notak-note[data-couleur='brun']) { background: var(--notak-note-brun); }
+.notak-carte:has(> .notak-note[data-couleur='jaune']) { background: var(--notak-note-jaune); }
+.notak-carte:has(> .notak-note[data-couleur='orange']) { background: var(--notak-note-orange); }
+.notak-carte:has(> .notak-note[data-couleur='rouge']) { background: var(--notak-note-rouge); }
+.notak-carte:has(> .notak-note[data-couleur='rose']) { background: var(--notak-note-rose); }
+.notak-carte:has(> .notak-note[data-couleur='violet']) { background: var(--notak-note-violet); }
+.notak-carte:has(> .notak-note[data-couleur='bleu']) { background: var(--notak-note-bleu); }
+.notak-carte:has(> .notak-note[data-couleur='bleu_nuit']) { background: var(--notak-note-bleu_nuit); }
+
+/* Une note transparente n'a ni fond, ni ombre, ni marge, ni hauteur minimale. */
+.notak-carte[data-type='note'][data-sans-fond] {
+  min-height: 0;
+}
+
+.notak-note[data-variante='titre'] .notak-texte {
+  text-align: center;
+}
+
+/* Le texte : valable en édition comme hors édition. */
+.notak-texte h1,
+.notak-texte h2 {
+  margin: 0 0 0.4em;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.notak-texte h1 { font-size: 22px; }
+.notak-texte h2 { font-size: 18px; }
+
+.notak-texte ul,
+.notak-texte ol {
+  margin: 0 0 0.4em;
+  padding-left: 1.5em;
+}
+
+.notak-texte li > p {
+  margin: 0;
+}
+
+.notak-texte blockquote {
+  margin: 0 0 0.4em;
+  padding-left: 12px;
+  border-left: 3px solid currentColor;
+  opacity: 0.85;
+}
+
+.notak-texte code {
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgb(127 127 127 / 0.2);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.9em;
+}
+
+.notak-texte pre {
+  margin: 0 0 0.4em;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: rgb(127 127 127 / 0.18);
+  overflow-x: auto;
+}
+
+.notak-texte pre code {
+  padding: 0;
+  background: none;
+  font-size: 12.5px;
+}
+
+.notak-texte a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.notak-carte[data-edition] .notak-texte a {
+  cursor: text;
+}
+
+.notak-texte mark {
+  padding: 0 1px;
+  border-radius: 2px;
+  background: var(--notak-surligne-vert);
+  color: #1f2328;
+}
+
+.notak-texte mark[data-color='gris-fonce'] { background: var(--notak-surligne-gris-fonce); color: #fff; }
+.notak-texte mark[data-color='bleu'] { background: var(--notak-surligne-bleu); }
+.notak-texte mark[data-color='vert'] { background: var(--notak-surligne-vert); }
+.notak-texte mark[data-color='orange'] { background: var(--notak-surligne-orange); }
+.notak-texte mark[data-color='rose'] { background: var(--notak-surligne-rose); }
+.notak-texte mark[data-color='gris'] { background: var(--notak-surligne-gris); }
+
+/* La barre de mise en forme, au-dessus de la note en édition. */
+.notak-note-barre {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--notak-carte);
+  color: var(--notak-texte);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: default;
+  user-select: none;
+}
+
+.notak-note-barre i {
+  width: 1px;
+  height: 18px;
+  margin: 0 3px;
+  background: var(--notak-point);
+}
+
+.notak-note-barre button,
+.notak-note-palette button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.notak-note-barre button:hover:not(:disabled),
+.notak-note-palette button:hover,
+.notak-note-barre button[aria-pressed='true'] {
+  background: var(--notak-fond);
+}
+
+.notak-note-barre button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.notak-note-menu-ancre {
+  position: relative;
+}
+
+.notak-note-menu,
+.notak-note-palette {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 150px;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--notak-carte);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
+}
+
+.notak-note-palette {
+  top: calc(100% + 6px);
+  bottom: auto;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.notak-note-menu-ligne {
+  justify-content: flex-start !important;
+}
+
+.notak-note-menu hr {
+  width: 100%;
+  margin: 2px 0;
+  border: 0;
+  border-top: 1px solid var(--notak-point);
+}
+
+.notak-note-pastilles {
+  display: flex;
+  gap: 4px;
+  padding: 2px;
+}
+
+.notak-note-pastilles button {
+  min-width: 22px !important;
+  width: 22px;
+  height: 22px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  border: 1px solid rgb(0 0 0 / 0.12) !important;
+  font-size: 12px !important;
+  font-weight: 600;
+}
+
+.notak-note-pastilles button[aria-pressed='true'] {
+  box-shadow: 0 0 0 2px var(--notak-accent);
+}
+
+.notak-note-pastilles button[data-vide] { background: #fff; }
+.notak-note-pastilles button[data-texte='bleu'] { background: #fff; color: var(--notak-texte-bleu); }
+.notak-note-pastilles button[data-texte='vert'] { background: #fff; color: var(--notak-texte-vert); }
+.notak-note-pastilles button[data-texte='orange'] { background: #fff; color: var(--notak-texte-orange); }
+.notak-note-pastilles button[data-texte='rouge'] { background: #fff; color: var(--notak-texte-rouge); }
+.notak-note-pastilles button[data-texte='gris'] { background: #fff; color: var(--notak-texte-gris); }
+.notak-note-pastilles button[data-surligne='gris-fonce'] { background: var(--notak-surligne-gris-fonce); }
+.notak-note-pastilles button[data-surligne='bleu'] { background: var(--notak-surligne-bleu); }
+.notak-note-pastilles button[data-surligne='vert'] { background: var(--notak-surligne-vert); }
+.notak-note-pastilles button[data-surligne='orange'] { background: var(--notak-surligne-orange); }
+.notak-note-pastilles button[data-surligne='rose'] { background: var(--notak-surligne-rose); }
+.notak-note-pastilles button[data-surligne='gris'] { background: var(--notak-surligne-gris); }
+.notak-note-pastilles button[data-fond='gris'] { background: var(--notak-note-gris); }
+.notak-note-pastilles button[data-fond='cyan'] { background: var(--notak-note-cyan); }
+.notak-note-pastilles button[data-fond='vert'] { background: var(--notak-note-vert); }
+.notak-note-pastilles button[data-fond='brun'] { background: var(--notak-note-brun); }
+.notak-note-pastilles button[data-fond='jaune'] { background: var(--notak-note-jaune); }
+.notak-note-pastilles button[data-fond='orange'] { background: var(--notak-note-orange); }
+.notak-note-pastilles button[data-fond='rouge'] { background: var(--notak-note-rouge); }
+.notak-note-pastilles button[data-fond='rose'] { background: var(--notak-note-rose); }
+.notak-note-pastilles button[data-fond='violet'] { background: var(--notak-note-violet); }
+.notak-note-pastilles button[data-fond='bleu'] { background: var(--notak-note-bleu); }
+.notak-note-pastilles button[data-fond='bleu_nuit'] { background: var(--notak-note-bleu_nuit); }
+
+.notak-note-lien {
+  width: 180px;
+  height: 28px;
+  margin-left: 4px;
+  padding: 0 8px;
+  border: 1px solid var(--notak-point);
+  border-radius: 6px;
+  font: inherit;
+  user-select: text;
+}
+
+.notak-note-lien:focus {
+  outline: 2px solid var(--notak-accent);
+  outline-offset: -1px;
+}

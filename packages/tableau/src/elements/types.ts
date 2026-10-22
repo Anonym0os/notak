@@ -84,8 +84,8 @@ export interface TypeElement<C extends Contenu = Contenu> {
   sansFond?: boolean | ((c: C) => boolean)
   /** Outils de la barre de sélection propres au type. */
   Outils?: ComponentType<PropsOutils<C>>
-  /** L'outil de la barre de gauche qui crée un élément de ce type. */
-  outil?: { libelle: string; icone: ReactNode; creer(ou: Point, contexte: ContexteToile): Operation[] }
+  /** Les outils de la barre de gauche qui créent un élément de ce type (une note, un titre…). */
+  outils?: { libelle: string; icone: ReactNode; creer(ou: Point, contexte: ContexteToile): Operation[] }[]
 }
 
 /**
