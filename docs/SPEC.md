@@ -6,6 +6,28 @@ son ni aucun texte de Milanote n'est repris ; Notak a son propre habillage.
 
 Les décisions propres à Notak, quand elles s'écartent de Milanote, sont marquées **→ Notak**.
 
+## Périmètre de la première version
+
+Décidé le 22/10/2026 : on livre d'abord le **socle**, le reste attend.
+
+**Socle**, dans l'ordre des passes :
+
+| Passe | Contenu |
+|---|---|
+| 1 ✅ | Toile : zoom, défilement, sélection, déplacement, annuler |
+| 2 | Notes en texte riche, titres, couleurs, coller du texte |
+| 3 | Images (Finder, collage), liens avec aperçu |
+| 4 | Colonnes, tableaux imbriqués et fil d'Ariane, flèches, listes de tâches, aligner et répartir |
+| 5 | À plusieurs : serveur, comptes, partage, en direct, curseurs et présence |
+| 6 | Import des tableaux Milanote |
+
+**Plus tard** : échéances, rappels et assignation des tâches ; fichiers joints ; croquis et annotations ; table
+de données ; nuancier ; document long ; audio, vidéo et carte intégrés ; clones et raccourcis ; non triés ;
+corbeille restaurable ; recherche ; présentation ; thème sombre ; étiquettes et réactions ; commentaires et
+mentions ; liens publics ; notifications ; exports ; MCP.
+
+Les sections suivantes décrivent tout, socle et suite, pour que le modèle de données ne ferme aucune porte.
+
 ---
 
 ## 1. Principes
