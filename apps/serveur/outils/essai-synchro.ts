@@ -1,6 +1,6 @@
 // Essai à la main de /sync : node apps/serveur/outils/essai-synchro.ts [http://localhost:3005]
 // Inscrit un compte, écrit dans `elements`, se déconnecte, se reconnecte et relit.
-import { HocuspocusProvider } from '@hocuspocus/provider'
+import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/provider'
 import WebSocket from 'ws'
 import * as Y from 'yjs'
 
@@ -23,15 +23,16 @@ function ouvrir(nom: string, cookie: string): Promise<{ doc: Y.Doc; fermer(): vo
       super(url, protocoles, { headers: { cookie } })
     }
   }
+  const socket = new HocuspocusProviderWebsocket({ url: origine.replace(/^http/, 'ws') + '/sync', WebSocketPolyfill: Ws })
   return new Promise((resoudre, rejeter) => {
-    const provider = new HocuspocusProvider({
-      url: origine.replace(/^http/, 'ws') + '/sync',
-      WebSocketPolyfill: Ws,
+    const provider: HocuspocusProvider = new HocuspocusProvider({
+      websocketProvider: socket,
       name: nom,
       document: doc,
-      onSynced: () => resoudre({ doc, fermer: () => provider.destroy(), lectureSeule: provider.authorizedScope === 'readonly' }),
+      onSynced: () => resoudre({ doc, fermer: () => { provider.destroy(); socket.destroy() }, lectureSeule: provider.authorizedScope === 'readonly' }),
       onAuthenticationFailed: ({ reason }) => rejeter(new Error('refusé : ' + reason)),
     })
+    provider.attach()
     setTimeout(() => rejeter(new Error('délai dépassé')), 8000)
   })
 }

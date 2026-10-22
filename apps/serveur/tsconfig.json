@@ -1,28 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "lib": [
-      "ES2023"
-    ],
-    "composite": true,
-    "noEmit": false,
-    "emitDeclarationOnly": true,
+    "lib": ["ES2023"],
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true,
-    "types": [
-      "node"
-    ],
-    "outDir": "../../node_modules/.tsbuild/serveur",
-    "tsBuildInfoFile": "../../node_modules/.tsbuild/serveur.tsbuildinfo",
-    "rootDir": "../.."
+    "types": ["node"]
   },
-  "include": [
-    "src",
-    "outils",
-    "../../packages/tableau/src/coeur",
-    "../../packages/tableau/src/elements/lien/lireApercu.ts"
-  ],
-  "exclude": [
-    "../../packages/tableau/src/**/*.test.ts"
-  ]
+  "include": ["src", "outils"]
 }
