@@ -19,6 +19,8 @@ const nouveauLien = (ou: Point, url: string): Element<Lien> => ({
 
 registre.type<Lien>({
   type: 'lien',
+  nom: 'Lien',
+  resume: (c) => c.apercu?.titre || c.url,
   Rendu: RenduLien,
   editable: true,
   hauteurParDefaut: 20,

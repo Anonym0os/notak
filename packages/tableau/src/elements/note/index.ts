@@ -1,5 +1,5 @@
 import { generateJSON } from '@tiptap/react'
-import { HAUTEUR_NOTE_MIN, type Note, type NoeudTexte, nouvelleNote } from '../../coeur/tableau'
+import { HAUTEUR_NOTE_MIN, type Note, type NoeudTexte, nouvelleNote, texteBrut } from '../../coeur/tableau'
 import { registre } from '../registre'
 import { RenduNote } from './Note'
 import { OutilsNote } from './Outils'
@@ -19,6 +19,8 @@ const enTitre = (x: number, y: number) => {
 
 registre.type<Note>({
   type: 'note',
+  nom: 'Note',
+  resume: (c) => texteBrut(c.texte),
   Rendu: RenduNote,
   Outils: OutilsNote,
   editable: true,

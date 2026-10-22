@@ -1,4 +1,4 @@
-import type { Tableau } from '../../coeur/tableau'
+import { type Tableau, surLeTableau } from '../../coeur/tableau'
 
 /** La lettre de la carte : la première du titre, en majuscule. */
 export function initiale(titre: string): string {
@@ -6,8 +6,8 @@ export function initiale(titre: string): string {
   return premier ? premier.toLocaleUpperCase('fr') : '?'
 }
 
-/** Ce que la carte dit du contenu : « vide », « 1 élément », « 3 éléments ». Les lignes ne comptent pas. */
+/** Ce que la carte dit du contenu : « vide », « 1 élément », « 3 éléments ». Les lignes et la corbeille ne comptent pas. */
 export function libelleContenu(t: Tableau): string {
-  const n = t.elements.filter((e) => e.contenu.type !== 'ligne').length
+  const n = surLeTableau(t).filter((e) => e.contenu.type !== 'ligne').length
   return n === 0 ? 'vide' : n === 1 ? '1 élément' : `${n} éléments`
 }

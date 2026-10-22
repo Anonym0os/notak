@@ -42,6 +42,17 @@ function ecrireVues(v: Vues) {
 const saisissable = (cible: EventTarget | null) =>
   cible instanceof HTMLElement && (cible.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(cible.tagName))
 
+/**
+ * L'adresse du tableau ouvert, que l'application tient (la barre du navigateur, `/t/<id>`) : on l'écrit à
+ * chaque changement de tableau, et le bouton retour du navigateur ramène au précédent.
+ */
+export interface Adresse {
+  lire(): Id | null
+  ecrire(id: Id): void
+  /** Prévenu quand l'adresse change sans nous (retour, avance) ; `null` : l'accueil. */
+  ecouter(f: (id: Id | null) => void): () => void
+}
+
 interface Segment {
   id: Id
   titre: string
@@ -52,9 +63,11 @@ export function EspaceNotak({
   espace,
   services: hote = {},
   actions,
+  adresse,
 }: {
   espace: EspaceNavigable
   services?: Services
+  adresse?: Adresse
   /** Ce que l'application ajoute à droite de l'en-tête (partage, compte), pour le tableau ouvert. */
   actions?(courant: Id, ouvrir: (id: Id) => void): ReactNode
 }) {
@@ -91,6 +104,52 @@ export function EspaceNotak({
     }),
     [hote, espace, ouvrir, courant, lectureSeule],
   )
+
+  // L'adresse suit le tableau ouvert ; une adresse qu'on suit (retour du navigateur) ne se réécrit pas.
+  const suivie = useRef<Id | null>(null)
+  // Tant que le tableau de l'adresse de départ n'est pas ouvert, l'adresse attend : on ne l'écrase pas.
+  const enAttente = useRef(adresse ? adresse.lire() !== racine : false)
+  useEffect(() => {
+    if (!adresse || enAttente.current) return
+    // Un tableau qu'on suit depuis l'adresse est en route : rien à écrire, ni avant ni à son arrivée.
+    if (suivie.current !== null) {
+      if (suivie.current === courant) suivie.current = null
+      return
+    }
+    if (adresse.lire() !== courant) adresse.ecrire(courant)
+  }, [adresse, courant])
+  useEffect(() => {
+    if (!adresse) return
+    // Le tableau de l'adresse n'est peut-être pas encore connu (un partage qui se charge) : on l'attend un peu.
+    const aller = (id: Id | null) => {
+      const cible = id ?? racine
+      if (cible === etat.current.courant) {
+        enAttente.current = false
+        return
+      }
+      const essayer = () => {
+        if (!espace.existe(cible)) return false
+        enAttente.current = false
+        suivie.current = cible
+        ouvrir(cible)
+        return true
+      }
+      if (essayer()) return
+      const fin = espace.ecouter(() => essayer() && arret())
+      // Introuvable : on reste où l'on est, et l'adresse le redit.
+      const minuteur = setTimeout(() => {
+        arret()
+        enAttente.current = false
+        adresse.ecrire(etat.current.courant)
+      }, 10_000)
+      const arret = () => {
+        fin()
+        clearTimeout(minuteur)
+      }
+    }
+    aller(adresse.lire())
+    return adresse.ecouter(aller)
+  }, [adresse, espace, ouvrir, racine])
 
   // Le tableau regardé reste ouvert, avec ceux vers lesquels il renvoie.
   useEffect(() => espace.retenir?.(courant), [espace, courant])
@@ -157,7 +216,14 @@ export function EspaceNotak({
 
   return (
     <div className="notak-espace">
-      <Entete segments={segments} courant={courant} ouvrir={ouvrir} presence={espace.presence?.(courant)} actions={actions?.(courant, ouvrir)} />
+      <Entete
+        segments={segments}
+        courant={courant}
+        ouvrir={ouvrir}
+        renommer={courant === racine || lectureSeule ? undefined : (titre) => espace.renommer(courant, titre)}
+        presence={espace.presence?.(courant)}
+        actions={actions?.(courant, ouvrir)}
+      />
       {avis && <div className="notak-avis" role="status">{avis}</div>}
       <div className="notak-espace-corps" ref={corps}>
         <Toile
@@ -176,18 +242,23 @@ function Entete({
   segments,
   courant,
   ouvrir,
+  renommer,
   presence,
   actions,
 }: {
   segments: Segment[]
   courant: Id
   ouvrir(id: Id): void
+  /** Le titre du tableau ouvert se change en cliquant dessus (pas celui de l'accueil). */
+  renommer?(titre: string): void
   presence?: Services['presence']
   actions?: ReactNode
 }) {
   const entete = useRef<HTMLElement>(null)
   const [largeur, setLargeur] = useState(Number.POSITIVE_INFINITY)
   const [menu, setMenu] = useState(false)
+  const [enRenommage, setEnRenommage] = useState(false)
+  useEffect(() => setEnRenommage(false), [courant])
 
   useLayoutEffect(() => {
     const n = entete.current!
@@ -216,6 +287,29 @@ function Entete({
   const segment = (i: number) => {
     const s = segments[i]!
     const ici = i === segments.length - 1 && s.id === courant
+    if (ici && enRenommage && renommer) {
+      const valider = (v: string) => {
+        setEnRenommage(false)
+        const titre = v.trim()
+        if (titre && titre !== s.titre) renommer(titre)
+      }
+      return (
+        <input
+          key="renommage"
+          className="notak-fil-saisie"
+          aria-label="Titre du tableau"
+          defaultValue={s.titre}
+          autoFocus
+          onFocus={(e) => e.currentTarget.select()}
+          onBlur={(e) => valider(e.currentTarget.value)}
+          onKeyDown={(e) => {
+            e.stopPropagation()
+            if (e.key === 'Enter') valider(e.currentTarget.value)
+            if (e.key === 'Escape') setEnRenommage(false)
+          }}
+        />
+      )
+    }
     return (
       <button
         key={`${s.id}:${i}`}
@@ -223,7 +317,7 @@ function Entete({
         className="notak-fil-segment"
         aria-current={ici ? 'page' : undefined}
         title={s.titre}
-        onClick={() => aller(s.id)}
+        onClick={() => (ici && renommer ? setEnRenommage(true) : aller(s.id))}
       >
         {s.titre || 'Sans titre'}
       </button>

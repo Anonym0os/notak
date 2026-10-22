@@ -21,9 +21,12 @@ export const outilsDeBarre = (): OutilDeBarre[] =>
 export function BarreOutils({
   surAppui,
   rebond,
+  corbeille,
 }: {
   surAppui(o: OutilDeBarre, e: React.PointerEvent): void
   rebond: { libelle: string; n: number } | null
+  /** La corbeille, en bas de la barre : elle s'ouvre au clic et reçoit ce qu'on y lâche. */
+  corbeille: { nombre: number; ouverte: boolean; basculer(): void }
 }) {
   const [tiroir, setTiroir] = useState(false)
   const tous = outilsDeBarre()
@@ -75,6 +78,18 @@ export function BarreOutils({
           {tiroir && <div className="notak-tiroir">{caches.map((o) => bouton(o, true))}</div>}
         </div>
       )}
+      <div className="notak-barre-sep" />
+      <button
+        type="button"
+        className="notak-outil"
+        data-corbeille
+        aria-expanded={corbeille.ouverte}
+        title="Corbeille"
+        onClick={corbeille.basculer}
+      >
+        <span className="notak-outil-icone">🗑</span>
+        <span className="notak-outil-libelle">Corbeille{corbeille.nombre > 0 ? ` (${corbeille.nombre})` : ''}</span>
+      </button>
     </nav>
   )
 }

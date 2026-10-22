@@ -8,7 +8,7 @@ export { Cadre } from './Cadre'
 export { definition, registre } from './elements/registre'
 export type * from './elements/types'
 export { Toile } from './Toile'
-export { EspaceNotak } from './EspaceNotak'
+export { type Adresse, EspaceNotak } from './EspaceNotak'
 export { creerMagasinYjs, type MagasinYjs } from './coeur/magasinYjs'
 export { enLectureSeule } from './coeur/magasin'
 export {

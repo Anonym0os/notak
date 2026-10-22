@@ -45,6 +45,8 @@ export interface Services {
   apercu?: ChercheurApercu
   /** Ouvrir un tableau imbriqué. */
   ouvrirTableau?(id: Id): void
+  /** L'ouvrir dans un nouvel onglet (Cmd+clic, menu), là où l'application a des adresses. */
+  ouvrirDansOnglet?(id: Id): void
   /** Le tableau d'un renvoi (titre, couleur, contenu), ou `undefined` s'il n'existe pas. */
   tableau?(id: Id): Tableau | undefined
   /** Prévenu à chaque changement de n'importe quel tableau de l'espace. */
@@ -76,6 +78,8 @@ export interface ContexteToile {
   choisir(ids: Iterable<Id>): void
   /** `ou` : le point de l'écran (`clientX`, `clientY`) où poser le curseur de texte, sinon la fin. */
   commencerEdition(id: Id, ou?: Point): void
+  /** Met ces éléments à la corbeille du tableau (avec leurs lignes accrochées), d'un seul pas. */
+  jeter(ids: Iterable<Id>): void
   /**
    * Cmd+Entrée : crée l'élément suivant, du type que dit `suivant` (une note par défaut), sous cet élément,
    * ou juste après lui dans sa colonne ; le choisit et l'édite. `format` : recopier aussi la mise en forme.
@@ -150,6 +154,10 @@ export interface TypeElement<C extends Contenu = Contenu> {
   suivant?(element: Element<C>, places: { dessous: Point; droite: Point }, format: boolean, contexte: ContexteToile): Element | null
   /** À la sortie de l'édition, ce que devient le contenu (une note qui n'est qu'une adresse devient un lien). */
   convertir?(c: C): Contenu | null
+  /** Son nom de type, pour qui le lit (« Note », « Colonne »). */
+  nom?: string
+  /** Ce qu'on lit de lui dans une liste (la corbeille) : son texte, son titre, son adresse. */
+  resume?(c: C, contexte: ContexteToile): string
   /** Ne s'incline pas quand on le glisse (un tableau, dessiné en icône). */
   sansInclinaison?: boolean
 }
@@ -183,6 +191,17 @@ export interface Recepteur {
 
 /** Un raccourci clavier de la toile, hors édition. Rend vrai s'il a pris la touche. */
 export type Raccourci = (e: KeyboardEvent, contexte: ContexteToile) => boolean
+
+/**
+ * Une entrée du menu d'un élément (clic droit), qu'un module apporte (grouper en colonne, relier).
+ * `visible` dit si elle sert pour ces éléments choisis.
+ */
+export interface EntreeMenu {
+  libelle: string
+  raccourci?: string
+  visible(elements: Element[], contexte: ContexteToile): boolean
+  faire(elements: Element[], contexte: ContexteToile): void
+}
 
 /** Un outil commun de la barre de sélection, montré quel que soit le type (aligner, répartir…). */
 export type OutilCommun = ComponentType<{ elements: Element[]; contexte: ContexteToile }>

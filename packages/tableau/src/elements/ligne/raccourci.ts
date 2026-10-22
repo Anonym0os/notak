@@ -2,7 +2,7 @@ import { centre } from '../../coeur/geometrie'
 import { accroches, relier } from '../../coeur/lignes'
 import type { Element, Id, Ligne } from '../../coeur/tableau'
 import { definition } from '../registre'
-import type { Raccourci } from '../types'
+import type { ContexteToile, EntreeMenu, Raccourci } from '../types'
 import { nouvelleLigne } from './creation'
 
 const libre = (e: Element) => !e.parent && definition(e.contenu.type)?.calque !== 'lignes'
@@ -10,6 +10,18 @@ const libre = (e: Element) => !e.parent && definition(e.contenu.type)?.calque !=
 /** Cmd+K : relie les éléments libres choisis, sans pointes. Les lignes créées ne sont pas choisies. */
 export const raccourciRelier: Raccourci = (e, contexte) => {
   if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 'k') return false
+  return relierChoisis(contexte)
+}
+
+export const entreeRelier: EntreeMenu = {
+  libelle: 'Relier par des lignes',
+  raccourci: '⌘K',
+  visible: (elements) => elements.filter(libre).length >= 2,
+  faire: (_e, contexte) => void relierChoisis(contexte),
+}
+
+/** Relie deux à deux les éléments libres choisis ; faux s'il y en a moins de deux. */
+export function relierChoisis(contexte: ContexteToile): boolean {
   const tableau = contexte.magasin.lire()
   const items = tableau.elements
     .filter((x) => contexte.selection.has(x.id) && libre(x))

@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { BarreOutils, BarreSelection, type OutilDeBarre } from './Barres'
+import { BarreOutils, BarreSelection, type OutilDeBarre, outilsDeBarre } from './Barres'
 import { Cadre, ContexteRangement, type Rangement } from './Cadre'
 import * as cam from './coeur/camera'
-import { type Point, type Rect, depuisCoins, englobant, point, soustraire } from './coeur/geometrie'
+import { type Point, type Rect, chevauche, depuisCoins, englobant, point, soustraire } from './coeur/geometrie'
 import { creerLimiteur } from './coeur/limiteur'
-import { type Magasin, enLectureSeule } from './coeur/magasin'
+import { type Magasin, enLectureSeule, sansCorbeille } from './coeur/magasin'
 import { largeurDoubleClic, largeurTiree, LARGEUR_MIN_DEFAUT } from './coeur/largeur'
 import { type Cible, type Deplace, cleEntre, clesEntre, comparerOrdre, indexInsertion, pasDeDepot } from './coeur/ordre'
 import { cliquer, lasso } from './coeur/selection'
+import { type Paquet, TYPE_PAQUET, decalageDeCollage, deballer, empaqueter, texteDuPaquet } from './coeur/pressePapiers'
+import { type Entree, MenuContextuel, PanneauCorbeille } from './Menus'
 import { VOL_REPOS, type Vol, inclinaisonMax, transformation } from './coeur/vol'
 import { Envol, dessinerSur, oublierVol } from './envol'
 import {
@@ -17,15 +19,17 @@ import {
   type Operation,
   type Tableau,
   HAUTEUR_NOTE_MIN,
+  aLaCorbeille,
   aimanter,
+  auDernierPlan,
   auPremierPlan,
-  avecDependants,
+  dUnCran,
   inverse,
   nouvelleNote,
   placeDe,
 } from './coeur/tableau'
 import './elements'
-import { definition, tousLesRaccourcis, tousLesRecepteurs, tousLesTypes } from './elements/registre'
+import { definition, tousLesRaccourcis, tousLesRecepteurs, tousLesTypes, toutesLesEntreesMenu } from './elements/registre'
 import type { ContexteToile, Presence, Services } from './elements/types'
 
 type Geste =
@@ -74,6 +78,13 @@ function choisirAxe(actuel: 'h' | 'v' | null, d: Point): 'h' | 'v' {
 
 /** Sous ce déplacement (pixels écran), un appui reste un clic : rien ne bouge, rien ne quitte sa colonne. */
 const SEUIL_GLISSER = 3
+
+/** Le dernier paquet copié, gardé d'un tableau à l'autre : le menu « Coller » s'en sert. */
+const copie: { paquet: Paquet | null; collages: number } = { paquet: null, collages: 0 }
+function retenirPaquet(p: Paquet) {
+  if (copie.paquet !== p) copie.collages = 0
+  copie.paquet = p
+}
 
 const sansEcoute = () => () => {}
 const rien = () => {}
@@ -133,7 +144,13 @@ const DELAI_CURSEUR = 100
 
 export function Toile({ magasin: source, services = {}, cameraInitiale, surCamera }: PropsToile) {
   const lectureSeule = !!services.lectureSeule
-  const magasin = useMemo(() => (lectureSeule ? enLectureSeule(source) : source), [source, lectureSeule])
+  // Tout le tableau, corbeille comprise ; la toile, elle, ne voit pas la corbeille.
+  const complet = useMemo(() => (lectureSeule ? enLectureSeule(source) : source), [source, lectureSeule])
+  const magasin = useMemo(() => sansCorbeille(complet), [complet])
+  const toutLeTableau = useSyncExternalStore(complet.ecouter, complet.lire)
+  const corbeille = useMemo(() => aLaCorbeille(toutLeTableau), [toutLeTableau])
+  const [corbeilleOuverte, setCorbeilleOuverte] = useState(false)
+  const [menu, setMenu] = useState<{ x: number; y: number; ou: Point; surElement: boolean } | null>(null)
   const presence = services.presence
   const autres = useSyncExternalStore(
     presence?.ecouter ?? sansEcoute,
@@ -317,6 +334,28 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     commencerEdition(element.id)
   }, [finirEdition, rect, commencerEdition])
   const contexteRef = useRef<ContexteToile | null>(null)
+
+  const jeter = useCallback(
+    (ids: Iterable<Id>) => {
+      if (etat.current.services.lectureSeule) return
+      const m = etat.current.magasin
+      const t = m.lire()
+      const voulus = new Set(ids)
+      // Un élément verrouillé reste ; les lignes accrochées partent avec ; une colonne garde son contenu.
+      const partants = avecLiees(t.elements.filter((e) => voulus.has(e.id) && !e.verrou), t)
+      const dedans = new Set(partants.map((e) => e.id))
+      const date = Date.now()
+      const pas = partants
+        .filter((e) => !(e.parent && dedans.has(e.parent)))
+        .map((e): Operation => {
+          const r = e.parent ? rect(e.id) : null
+          const [x, y] = r ? aimanter(r.min) : [e.x, e.y]
+          return { type: 'ranger', id: e.id, de: placeDe(e), vers: { x, y, corbeille: date } }
+        })
+      m.faire(pas)
+    },
+    [rect],
+  )
   const surBrouillon = useCallback(
     (el: Element, apres: Contenu) => {
       const b = brouillon.current
@@ -354,6 +393,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       centreVue: () => cam.centreCamera(etat.current.camera, etat.current.vue),
       choisir: (ids) => setSelection(new Set(ids)),
       commencerEdition,
+      jeter,
       creerSuivant,
       prendrePointEdition: () => {
         const p = pointEdition.current
@@ -362,7 +402,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       },
       finirEdition,
     }),
-    [rect, commencerEdition, finirEdition, creerSuivant],
+    [rect, commencerEdition, finirEdition, creerSuivant, jeter],
   )
   contexteRef.current = contexte
 
@@ -411,16 +451,159 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     return () => div.removeEventListener('wheel', molette)
   }, [contenu])
 
-  // Coller sur la toile, hors édition.
+  // Copier, couper, coller sur la toile, hors édition.
   useEffect(() => {
+    const actif = () => document.activeElement === racine.current && !etat.current.edition
     const coller = (e: ClipboardEvent) => {
-      if (document.activeElement !== racine.current || etat.current.edition || !e.clipboardData) return
+      if (!actif() || !e.clipboardData) return
       e.preventDefault()
+      const brut = e.clipboardData.getData(TYPE_PAQUET)
+      let p: Paquet | null = null
+      try {
+        p = brut ? (JSON.parse(brut) as Paquet) : null
+      } catch {
+        p = null
+      }
+      if (p) return collerPaquet(p)
       void recevoir(e.clipboardData, contexte.centreVue())
     }
+    const copier = (couper: boolean) => (e: ClipboardEvent) => {
+      if (!actif() || !e.clipboardData || etat.current.selection.size === 0) return
+      const p = empaqueter(etat.current.magasin.lire(), etat.current.selection, rect)
+      if (!p) return
+      e.preventDefault()
+      retenirPaquet(p)
+      e.clipboardData.setData(TYPE_PAQUET, JSON.stringify(p))
+      e.clipboardData.setData('text/plain', texteDuPaquet(p))
+      if (couper && !etat.current.services.lectureSeule) jeter(etat.current.selection)
+    }
+    const surCopie = copier(false)
+    const surCoupe = copier(true)
     document.addEventListener('paste', coller)
-    return () => document.removeEventListener('paste', coller)
+    document.addEventListener('copy', surCopie)
+    document.addEventListener('cut', surCoupe)
+    return () => {
+      document.removeEventListener('paste', coller)
+      document.removeEventListener('copy', surCopie)
+      document.removeEventListener('cut', surCoupe)
+    }
   })
+
+  /** Colle un paquet : à `ou` s'il est dit (le menu), sinon décalé de l'original s'il est en vue, ou au centre. */
+  const collerPaquet = (p: Paquet, ou?: Point) => {
+    if (lectureSeule) return
+    const n = (copie.paquet === p || JSON.stringify(copie.paquet) === JSON.stringify(p) ? copie.collages : 0) + 1
+    retenirPaquet(p)
+    copie.collages = n
+    const vueUG = { min: cam.versTableau(camera, point(0, 0)), max: cam.versTableau(camera, point(vue.largeur, vue.hauteur)) }
+    const enVue = p.tableau === tableau.id && chevauche(vueUG, p.cadre)
+    const d = ou ? point(Math.round(ou.x - p.cadre.min.x), Math.round(ou.y - p.cadre.min.y)) : decalageDeCollage(p, enVue, n, contexte.centreVue())
+    const neufs = deballer(p, d)
+    magasin.faire(neufs.map((element): Operation => ({ type: 'creer', element })))
+    setSelection(new Set(neufs.filter((x) => !x.parent).map((x) => x.id)))
+  }
+
+  /** Cmd+D : une copie à 2 UG en bas à droite ; dans une colonne, juste après l'original. */
+  const dupliquer = () => {
+    const t = magasin.lire()
+    const p = empaqueter(t, selection, rect)
+    if (!p) return
+    const neufs = deballer(p, point(2, 2))
+    const originaux = new Map(p.elements.map((e, i) => [neufs[i]!.id, e]))
+    const ranges = neufs.map((n) => {
+      const o = originaux.get(n.id)!
+      const avant = t.elements.find((x) => x.id === o.id)
+      if (n.parent || !avant?.parent || !selection.has(avant.id)) return n
+      // Tiré d'une colonne : la copie reste dans la colonne, juste après lui.
+      const freres = t.elements.filter((x) => x.parent === avant.parent).sort((a, b) => comparerOrdre(a.ordre, b.ordre))
+      const suivant = freres[freres.findIndex((x) => x.id === avant.id) + 1]
+      return { ...n, parent: avant.parent, ordre: cleEntre(avant.ordre, suivant?.ordre) }
+    })
+    magasin.faire(ranges.map((element): Operation => ({ type: 'creer', element })))
+    setSelection(new Set(ranges.filter((x) => !x.parent || selection.has(originaux.get(x.id)!.id)).map((x) => x.id)))
+  }
+
+  const restaurer = (e: Element) => {
+    complet.faire([{ type: 'ranger', id: e.id, de: placeDe(e), vers: { x: e.x, y: e.y } }])
+    magasin.remplacer(auPremierPlan(magasin.lire(), [e.id]))
+    setSelection(new Set([e.id]))
+  }
+
+  const viderCorbeille = () => {
+    const t = complet.lire()
+    const jetes = new Set(aLaCorbeille(t).map((e) => e.id))
+    const partants = t.elements.filter((e) => jetes.has(e.id) || (e.parent && jetes.has(e.parent)))
+    complet.faire(partants.map((element): Operation => ({ type: 'supprimer', element })))
+  }
+
+  /** Premier plan, arrière-plan : `cran` d'un cran parmi ce qui chevauche, sinon tout devant ou tout derrière. */
+  const changerPlan = (sens: 'haut' | 'bas', cran: boolean) => {
+    const t = magasin.lire()
+    if (!cran) return magasin.remplacer(sens === 'haut' ? auPremierPlan(t, selection) : auDernierPlan(t, selection))
+    const zones = [...selection].flatMap((id) => rect(id) ?? [])
+    const touches = new Set(
+      t.elements.filter((x) => !selection.has(x.id) && libre(x)).flatMap((x) => {
+        const r = rect(x.id)
+        return r && zones.some((z) => chevauche(z, r)) ? [x.id] : []
+      }),
+    )
+    magasin.remplacer(dUnCran(t, selection, touches, sens))
+  }
+
+  const verrouiller = (verrou: boolean) =>
+    magasin.faire(choisis().filter((x) => !!x.verrou !== verrou).map((x): Operation => ({ type: 'verrouiller', id: x.id, de: !verrou, vers: verrou })))
+
+  const entreesMenu = (): Entree[] => {
+    if (!menu) return []
+    const ou = menu.ou
+    const avecPaquet = !lectureSeule && copie.paquet ? [{ libelle: 'Coller', raccourci: '⌘V', faire: () => collerPaquet(copie.paquet!, ou) }] : []
+    if (!menu.surElement) {
+      const creer = lectureSeule
+        ? []
+        : outilsDeBarre().map((o) => ({
+            libelle: o.outil.libelle,
+            faire: () => {
+              const pas = o.outil.creer(point(Math.round(ou.x), Math.round(ou.y)), contexte)
+              magasin.faire(pas)
+              const ids = pas.flatMap((op) => (op.type === 'creer' ? [op.element.id] : []))
+              setSelection(new Set(ids))
+              if (ids[0]) commencerEdition(ids[0])
+            },
+          }))
+      return [
+        ...avecPaquet,
+        null,
+        ...(lectureSeule ? [] : [{ libelle: 'Annuler', raccourci: '⌘Z', faire: () => void magasin.annuler() }, { libelle: 'Rétablir', raccourci: '⇧⌘Z', faire: () => void magasin.retablir() }]),
+        { libelle: 'Tout sélectionner', raccourci: '⌘A', faire: () => setSelection(new Set(tableau.elements.filter((x) => !x.parent).map((x) => x.id))) },
+        null,
+        ...creer,
+      ]
+    }
+    const els = choisis()
+    if (lectureSeule) return [{ libelle: 'Copier', raccourci: '⌘C', faire: () => document.execCommand('copy') }]
+    const verrouilles = els.length > 0 && els.every((x) => x.verrou)
+    const seul = els.length === 1 ? els[0] : undefined
+    const defSeul = seul && definition(seul.contenu.type)
+    return [
+      { libelle: 'Couper', raccourci: '⌘X', faire: () => document.execCommand('cut') },
+      { libelle: 'Copier', raccourci: '⌘C', faire: () => document.execCommand('copy') },
+      ...avecPaquet,
+      { libelle: 'Dupliquer', raccourci: '⌘D', faire: dupliquer },
+      null,
+      ...(seul && defSeul?.ouvrir ? [{ libelle: 'Ouvrir', raccourci: 'Espace', faire: () => defSeul.ouvrir!(seul, contexte) }] : []),
+      ...(seul && defSeul?.editable ? [{ libelle: 'Modifier', raccourci: '↩', faire: () => commencerEdition(seul.id) }] : []),
+      null,
+      ...toutesLesEntreesMenu()
+        .filter((x) => x.visible(els, contexte))
+        .map((x) => ({ libelle: x.libelle, ...(x.raccourci ? { raccourci: x.raccourci } : {}), faire: () => x.faire(els, contexte) })),
+      null,
+      { libelle: 'Verrouiller la position', coche: verrouilles, faire: () => verrouiller(!verrouilles) },
+      { libelle: 'Premier plan', raccourci: '⇧⌘↑', faire: () => changerPlan('haut', false) },
+      { libelle: 'Arrière-plan', raccourci: '⇧⌘↓', faire: () => changerPlan('bas', false) },
+      null,
+      { libelle: 'Mettre à la corbeille', raccourci: '⌫', faire: () => jeter(selection) },
+    ]
+  }
 
   const lancerAnimation = (cible: cam.Camera) => {
     animation.current = { depart: camera, cible, debut: performance.now() }
@@ -509,6 +692,14 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       e.preventDefault()
       return setSelection(new Set(tableau.elements.filter((x) => !x.parent).map((x) => x.id)))
     }
+    if (cmd && touche === 'd' && !e.shiftKey) {
+      e.preventDefault()
+      return dupliquer()
+    }
+    if (cmd && e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      e.preventDefault()
+      return changerPlan(e.key === 'ArrowUp' ? 'haut' : 'bas', true)
+    }
     if (cmd && e.key === 'Enter' && !e.shiftKey && !e.altKey) {
       e.preventDefault()
       if (selection.size === 1) creerSuivant([...selection][0]!, true)
@@ -536,13 +727,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         }
         return
       case 'Delete':
-      case 'Backspace': {
+      case 'Backspace':
         e.preventDefault()
-        // Une colonne emporte son contenu, et chaque élément supprimé ses lignes accrochées.
-        const aussi = (x: Element, t: typeof tableau) => definition(x.contenu.type)?.aussiSupprimer?.(x, t) ?? []
-        const partants = avecLiees(avecDependants(choisis(), tableau, aussi), tableau)
-        return magasin.faire(partants.map((x): Operation => ({ type: 'supprimer', element: x })))
-      }
+        return jeter(selection)
       case ' ':
         e.preventDefault()
         if (!e.repeat) espaceBref.current = true
@@ -597,6 +784,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     racine.current!.setPointerCapture(e.pointerId)
   }
 
+  const fermerMenu = useCallback(() => setMenu(null), [])
+  const ouvrirMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (dansEdition(racine.current, e.target)) return
+    const p = local(e)
+    const id = sous(document.elementFromPoint(e.clientX, e.clientY))
+    setMenu({ x: p.x, y: p.y, ou: cam.versTableau(camera, p), surElement: !!id })
+  }
+
   /** Espace relâchée sans avoir attrapé la toile : elle ouvre l'élément choisi (un tableau). */
   const relacherEspace = (e: React.KeyboardEvent) => {
     if (e.key !== ' ') return
@@ -628,7 +824,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     } else if (e.button === 0) {
       const ici = cam.versTableau(camera, p)
       const el = id && tableau.elements.find((x) => x.id === id)
-      if (el && !lectureSeule && (e.target as HTMLElement).closest('[data-poignee]')) {
+      if (el && !lectureSeule && !el.verrou && (e.target as HTMLElement).closest('[data-poignee]')) {
         const min = definition(el.contenu.type)?.largeurMin ?? LARGEUR_MIN_DEFAUT
         geste.current = { type: 'redimensionner', id: el.id, depart: ici, largeurDepart: el.largeur, min }
       } else if (id) {
@@ -642,7 +838,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         // Un élément rangé se glisse aussi, sauf si sa colonne est choisie avec lui : il la suit.
         const origines = new Map(
           tableau.elements
-            .filter((x) => s.has(x.id) && mobile(x) && !(x.parent && s.has(x.parent)))
+            .filter((x) => s.has(x.id) && mobile(x) && !x.verrou && !(x.parent && s.has(x.parent)))
             .map((x) => {
               const r = x.parent ? rect(x.id) : null
               return [x.id, { place: placeDe(x), pos: r ? r.min : point(x.x, x.y) }] as const
@@ -899,6 +1095,16 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     setGlisses(null)
     if (g?.type === 'outil') return lacherOutil(g, e, visee)
     if (g?.type !== 'glisser') return
+    if (g.demarre && document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-corbeille]')) {
+      // Lâché sur la corbeille : on remet d'abord ce qui sortait d'une colonne, la corbeille le prend de là.
+      g.envol?.arreter()
+      for (const id of g.vols) {
+        const n = noeudDe(id)
+        if (n) oublierVol(n)
+      }
+      magasin.appliquerSeulement(g.sorties.toReversed().map(inverse))
+      return jeter(g.origines.keys())
+    }
     if (!g.demarre) {
       // Un clic sans glisser sur un élément déjà choisi : il devient seul choisi, ou s'édite s'il l'était déjà.
       const r = g.reduire
@@ -999,8 +1205,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     () => ({ elements: tableau.elements, selection, edition, brouillon: surBrouillon, changer: surChanger }),
     [tableau, selection, edition, surBrouillon, surChanger],
   )
-  const cartes = tableau.elements.filter(libre)
-  const seule = !edition && selection.size === 1 ? [...selection][0] : undefined
+  // Ce qui est verrouillé reste dessous.
+  const cartes = [...tableau.elements.filter((x) => libre(x) && x.verrou), ...tableau.elements.filter((x) => libre(x) && !x.verrou)]
+  const seule = !edition && selection.size === 1 && !tableau.elements.find((x) => selection.has(x.id))?.verrou ? [...selection][0] : undefined
   const lignes = tableau.elements.filter((e) => definition(e.contenu.type)?.calque === 'lignes')
 
   return (
@@ -1019,7 +1226,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       onPointerCancel={relache}
       onPointerLeave={() => limiteur?.forcer(null)}
       onDoubleClick={doubleClic}
-      onContextMenu={(e) => e.preventDefault()}
+      onContextMenu={ouvrirMenu}
       onDragOver={(e) => e.preventDefault()}
       onDrop={deposer}
     >
@@ -1108,7 +1315,17 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           )}
         </div>
       )}
-      {!lectureSeule && <BarreOutils surAppui={surAppuiOutil} rebond={rebond} />}
+      {!lectureSeule && (
+        <BarreOutils
+          surAppui={surAppuiOutil}
+          rebond={rebond}
+          corbeille={{ nombre: corbeille.length, ouverte: corbeilleOuverte, basculer: () => setCorbeilleOuverte((o) => !o) }}
+        />
+      )}
+      {corbeilleOuverte && !lectureSeule && (
+        <PanneauCorbeille elements={corbeille} contexte={contexte} restaurer={restaurer} vider={viderCorbeille} fermer={() => setCorbeilleOuverte(false)} />
+      )}
+      {menu && <MenuContextuel x={menu.x} y={menu.y} entrees={entreesMenu()} fermer={fermerMenu} />}
       {lectureSeule && <div className="notak-lecture">Lecture seule</div>}
       <div className="notak-echelle">{Math.round(camera.echelle * 100)} %</div>
     </div>

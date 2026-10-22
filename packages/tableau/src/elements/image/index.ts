@@ -7,6 +7,8 @@ import { recevoirImages } from './recepteur'
 
 registre.type<Image>({
   suivant: () => null,
+  nom: 'Image',
+  resume: (c) => c.legende ?? '',
   type: 'image',
   Rendu: RenduImage,
   Outils: OutilsImage,

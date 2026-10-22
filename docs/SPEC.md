@@ -226,6 +226,9 @@ Par priorité :
 
 Ce qui est créé par collage arrive dans les non triés, ou au centre de la vue.
 
+→ Notak : couper met à la corbeille d'un seul pas (Milanote cache les éléments et les déplace au collage) ; le
+collage en fait des copies. Le menu « Coller » colle au point cliqué.
+
 ## 14. Barres et menus
 
 - **Barre de gauche** : note, lien, tâches, ligne, tableau, colonne, commentaire, table, puis un tiroir « plus »

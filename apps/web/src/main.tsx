@@ -2,6 +2,7 @@ import '@fontsource-variable/inter'
 import '@notak/tableau/toile.css'
 import './app.css'
 import {
+  type Adresse,
   EspaceNotak,
   type EspaceDistant,
   type Declaration,
@@ -18,7 +19,26 @@ import { apercu, fichiers } from './fichiers'
 import { importerEspaceLocal } from './importLocal'
 import { Partage } from './Partage'
 
-const services = { fichiers, apercu }
+const services = { fichiers, apercu, ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank') }
+
+/** Chaque tableau a son adresse, `/t/<id>` ; l'accueil est `/`. Le retour du navigateur ramène au précédent. */
+function adressePour(racine: string): Adresse {
+  const lire = () => {
+    const m = /^\/t\/([^/]+)\/?$/.exec(location.pathname)
+    return m ? decodeURIComponent(m[1]!) : null
+  }
+  return {
+    lire: () => lire() ?? racine,
+    ecrire(id) {
+      history.pushState(null, '', id === racine ? '/' : `/t/${encodeURIComponent(id)}`)
+    },
+    ecouter(f) {
+      const surRetour = () => f(lire())
+      window.addEventListener('popstate', surRetour)
+      return () => window.removeEventListener('popstate', surRetour)
+    },
+  }
+}
 
 // Un espace par compte, créé une fois : React peut monter l'application deux fois, pas le réseau.
 let ouvert: { id: string; espace: EspaceDistant } | null = null
@@ -100,11 +120,13 @@ function Application() {
 
 function Espace({ moi, deconnexion }: { moi: Moi; deconnexion(): void }) {
   const espace = espacePour(moi)
+  const [adresse] = useState(() => adressePour(moi.racine))
   return (
     <>
       <EspaceNotak
         espace={espace}
         services={services}
+        adresse={adresse}
         actions={(courant, ouvrir) => (
           <>
             <Partage tableau={courant} moi={moi} />

@@ -43,7 +43,8 @@ export function RenduRenvoi({ element, contexte }: PropsRendu<RenvoiTableau>) {
       className="notak-renvoi"
       onDoubleClick={(e) => {
         e.stopPropagation()
-        ouvrirTableau?.(cible)
+        if ((e.metaKey || e.ctrlKey) && contexte.services.ouvrirDansOnglet) contexte.services.ouvrirDansOnglet(cible)
+        else ouvrirTableau?.(cible)
       }}
     >
       <div

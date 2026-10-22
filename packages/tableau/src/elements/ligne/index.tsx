@@ -7,10 +7,12 @@ import { RenduLigne } from './Ligne'
 import { OutilsLigne } from './Outils'
 import { TAILLE_LIGNE_NEUVE, ligneLibre } from './creation'
 import './ligne.css'
-import { raccourciRelier } from './raccourci'
+import { entreeRelier, raccourciRelier } from './raccourci'
 
 registre.type<Ligne>({
   type: 'ligne',
+  nom: 'Ligne',
+  resume: (c) => c.libelle ?? '',
   calque: 'lignes',
   Rendu: RenduLigne,
   Outils: OutilsLigne,
@@ -34,3 +36,4 @@ registre.type<Ligne>({
 })
 
 registre.raccourci(raccourciRelier)
+registre.entreeMenu(entreeRelier)

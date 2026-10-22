@@ -1,5 +1,5 @@
 import { Historique } from './historique'
-import { type Operation, type Tableau, appliquer } from './tableau'
+import { type Operation, type Tableau, appliquer, surLeTableau } from './tableau'
 
 /**
  * Le tableau et son historique, derrière une petite interface qu'écoute l'interface.
@@ -68,5 +68,32 @@ export function enLectureSeule(m: Magasin): Magasin {
     remplacer() {},
     annuler: () => false,
     retablir: () => false,
+  }
+}
+
+/**
+ * Le même tableau, sans ce qui est à la corbeille : c'est ce que voit la toile. Les gestes passent tels quels ;
+ * `remplacer` garde la corbeille, qu'il ne voit pas, sous le reste.
+ */
+export function sansCorbeille(m: Magasin): Magasin {
+  let source: Tableau | null = null
+  let vue: Tableau | null = null
+  const lire = () => {
+    const t = m.lire()
+    if (t !== source) {
+      source = t
+      const elements = surLeTableau(t)
+      vue = elements === t.elements ? t : { ...t, elements }
+    }
+    return vue!
+  }
+  return {
+    ...m,
+    lire,
+    remplacer(t) {
+      const visibles = new Set(lire().elements.map((e) => e.id))
+      const caches = m.lire().elements.filter((e) => !visibles.has(e.id))
+      m.remplacer({ ...t, elements: [...caches, ...t.elements] })
+    },
   }
 }

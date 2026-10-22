@@ -62,10 +62,9 @@ function Editeur({ element, contexte, brouillon }: PropsRendu<Note>) {
     },
     estVide: () => !!editeur && docEstVide(editeur.getJSON() as NoeudTexte),
     supprimerNote: () => {
-      // Supprimer d'abord : la sortie de l'édition n'inscrit plus rien d'une note disparue,
+      // À la corbeille d'abord : la sortie de l'édition n'inscrit plus rien d'une note partie,
       // et l'annulation rend la note telle qu'elle était avant l'édition.
-      const courante = contexte.magasin.lire().elements.find((e) => e.id === element.id)
-      if (courante) contexte.magasin.faire([{ type: 'supprimer', element: courante }])
+      contexte.jeter([element.id])
       contexte.finirEdition()
     },
     noteDessous: () => contexte.creerSuivant(element.id, false),

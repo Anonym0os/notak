@@ -510,3 +510,160 @@
   background: var(--notak-carte);
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
 }
+
+/* Le menu du clic droit. */
+.notak-menu {
+  position: absolute;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--notak-carte);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.16), 0 1px 3px rgb(0 0 0 / 0.1);
+  color: var(--notak-texte);
+  font-size: 13px;
+}
+
+.notak-menu button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px 0 4px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notak-menu button:hover {
+  background: var(--notak-accent);
+  color: #fff;
+}
+
+.notak-menu-coche {
+  width: 14px;
+  text-align: center;
+}
+
+.notak-menu-libelle {
+  flex: 1;
+}
+
+.notak-menu kbd {
+  font: inherit;
+  opacity: 0.55;
+}
+
+.notak-menu-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: rgb(0 0 0 / 0.08);
+}
+
+.notak-barre-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: rgb(0 0 0 / 0.08);
+}
+
+/* La corbeille du tableau, à côté de la barre. */
+.notak-corbeille {
+  position: absolute;
+  z-index: 35;
+  bottom: 12px;
+  left: 84px;
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  max-height: 60%;
+  border-radius: 10px;
+  background: var(--notak-carte);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.16), 0 1px 3px rgb(0 0 0 / 0.1);
+  color: var(--notak-texte);
+  font-size: 13px;
+}
+
+.notak-corbeille-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgb(0 0 0 / 0.06);
+}
+
+.notak-corbeille button {
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--notak-fond);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.notak-corbeille ul {
+  flex: 1;
+  margin: 0;
+  padding: 4px 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.notak-corbeille li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+}
+
+.notak-corbeille-nom {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-corbeille-vide {
+  margin: 0;
+  padding: 16px 12px;
+  color: #7a7f87;
+}
+
+.notak-corbeille-pied {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid rgb(0 0 0 / 0.06);
+}
+
+.notak-corbeille-pied span {
+  flex: 1;
+}
+
+.notak-corbeille .notak-danger {
+  background: #d43b3b;
+  color: #fff;
+}
+
+/* Le titre du tableau ouvert, en cours de renommage. */
+.notak-fil-saisie {
+  width: 200px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--notak-accent);
+  border-radius: 6px;
+  outline: none;
+  background: var(--notak-carte);
+  color: var(--notak-texte);
+  font: inherit;
+  font-weight: 600;
+}

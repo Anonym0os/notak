@@ -149,6 +149,10 @@ export interface Element<C extends Contenu = Contenu> {
   parent?: Id
   /** Son rang dans la colonne : une clé fractionnaire, triée comme une chaîne. */
   ordre?: string
+  /** À la corbeille du tableau depuis cette date (ms) : hors de la toile, restaurable. */
+  corbeille?: number
+  /** Verrouillé : ne se glisse pas, ne se redimensionne pas, ne part pas à la corbeille, reste dessous. */
+  verrou?: boolean
 }
 
 /** Où est un élément : sur la toile (`x`, `y`), ou rangé dans une colonne (`parent`, `ordre`). */
@@ -157,6 +161,7 @@ export interface Place {
   ordre?: string
   x: number
   y: number
+  corbeille?: number
 }
 
 export const placeDe = (e: Element): Place => ({
@@ -164,10 +169,11 @@ export const placeDe = (e: Element): Place => ({
   ...(e.ordre !== undefined ? { ordre: e.ordre } : {}),
   x: e.x,
   y: e.y,
+  ...(e.corbeille !== undefined ? { corbeille: e.corbeille } : {}),
 })
 
 export const memePlace = (a: Place, b: Place) =>
-  a.parent === b.parent && a.ordre === b.ordre && a.x === b.x && a.y === b.y
+  a.parent === b.parent && a.ordre === b.ordre && a.x === b.x && a.y === b.y && a.corbeille === b.corbeille
 
 /** Un tableau : ses éléments, du plus bas au plus haut dans l'empilement. */
 export interface Tableau {
@@ -187,6 +193,8 @@ export type Operation =
   | { type: 'contenu'; id: Id; avant: Contenu; apres: Contenu }
   /** Change la place d'un élément : le sortir ou l'entrer d'une colonne, le replacer dans la colonne ou sur la toile. */
   | { type: 'ranger'; id: Id; de: Place; vers: Place }
+  /** Verrouille ou libère sa position. */
+  | { type: 'verrouiller'; id: Id; de: boolean; vers: boolean }
 
 const BASE32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
 
@@ -210,6 +218,12 @@ export function docDepuisTexte(texte: string): NoeudTexte {
       .split('\n')
       .map((ligne) => (ligne ? { type: 'paragraph', content: [{ type: 'text', text: ligne }] } : { type: 'paragraph' })),
   }
+}
+
+/** Le texte d'un document, sans mise en forme : un bloc par ligne. */
+export function texteBrut(n: NoeudTexte): string {
+  if (n.text !== undefined) return n.text
+  return (n.content ?? []).map(texteBrut).filter((t) => t !== '').join('\n')
 }
 
 export function nouvelleNote(x: number, y: number, texte = ''): Element<Note> {
@@ -245,6 +259,8 @@ export function inverse(op: Operation): Operation {
       return { type: 'contenu', id: op.id, avant: op.apres, apres: op.avant }
     case 'ranger':
       return { type: 'ranger', id: op.id, de: op.vers, vers: op.de }
+    case 'verrouiller':
+      return { type: 'verrouiller', id: op.id, de: op.vers, vers: op.de }
   }
 }
 
@@ -263,19 +279,33 @@ export function appliquer(t: Tableau, op: Operation): Tableau {
       return modifier(t, op.id, (e) => ({ ...e, contenu: op.apres }))
     case 'ranger':
       return modifier(t, op.id, (e) => placer(e, op.vers))
+    case 'verrouiller':
+      return modifier(t, op.id, ({ verrou: _v, ...e }) => (op.vers ? { ...e, verrou: true } : e))
   }
 }
 
 function placer(e: Element, p: Place): Element {
-  const { parent: _parent, ordre: _ordre, ...reste } = e
+  const { parent: _parent, ordre: _ordre, corbeille: _corbeille, ...reste } = e
   return {
     ...reste,
     x: borner(p.x),
     y: borner(p.y),
     ...(p.parent !== undefined ? { parent: p.parent } : {}),
     ...(p.ordre !== undefined ? { ordre: p.ordre } : {}),
+    ...(p.corbeille !== undefined ? { corbeille: p.corbeille } : {}),
   }
 }
+
+/** Ce qui est sur le tableau : ni à la corbeille, ni rangé dans un conteneur qui y est. */
+export function surLeTableau(t: Tableau): Element[] {
+  const jetes = new Set(t.elements.filter((e) => e.corbeille !== undefined).map((e) => e.id))
+  if (jetes.size === 0) return t.elements
+  return t.elements.filter((e) => !jetes.has(e.id) && !(e.parent && jetes.has(e.parent)))
+}
+
+/** Ce qui est à la corbeille, du plus récent au plus ancien. */
+export const aLaCorbeille = (t: Tableau): Element[] =>
+  t.elements.filter((e) => e.corbeille !== undefined).sort((a, b) => b.corbeille! - a.corbeille!)
 
 function modifier(t: Tableau, id: Id, f: (e: Element) => Element): Tableau {
   return { ...t, elements: t.elements.map((e) => (e.id === id ? f(e) : e)) }
@@ -288,6 +318,29 @@ export function auPremierPlan(t: Tableau, ids: Iterable<Id>): Tableau {
     ...t,
     elements: [...t.elements.filter((e) => !dessus.has(e.id)), ...t.elements.filter((e) => dessus.has(e.id))],
   }
+}
+
+/** Passe ces éléments sous les autres, en gardant leur ordre entre eux. */
+export function auDernierPlan(t: Tableau, ids: Iterable<Id>): Tableau {
+  const dessous = new Set(ids)
+  return {
+    ...t,
+    elements: [...t.elements.filter((e) => dessous.has(e.id)), ...t.elements.filter((e) => !dessous.has(e.id))],
+  }
+}
+
+/**
+ * Un cran plus haut (ou plus bas) parmi ce qui les chevauche : la sélection passe juste au-dessus du plus haut
+ * (ou juste sous le plus bas) des éléments qu'elle touche. Rien ne bouge si rien ne la touche.
+ */
+export function dUnCran(t: Tableau, ids: Iterable<Id>, touches: ReadonlySet<Id>, sens: 'haut' | 'bas'): Tableau {
+  const choisis = new Set(ids)
+  const autres = t.elements.filter((e) => !choisis.has(e.id))
+  const bougent = t.elements.filter((e) => choisis.has(e.id))
+  const rangs = autres.flatMap((e, i) => (touches.has(e.id) ? [i] : []))
+  if (rangs.length === 0 || bougent.length === 0) return t
+  const ou = sens === 'haut' ? Math.max(...rangs) + 1 : Math.min(...rangs)
+  return { ...t, elements: [...autres.slice(0, ou), ...bougent, ...autres.slice(ou)] }
 }
 
 /**

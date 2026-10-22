@@ -1,12 +1,14 @@
 import { type Colonne, nouvelleColonne } from '../../coeur/tableau'
 import { registre } from '../registre'
 import { OutilsColonne, RenduColonne } from './Colonne'
-import { OutilGrouper } from './OutilGrouper'
+import { OutilGrouper, entreeGrouper } from './OutilGrouper'
 import { accepteDansColonne } from './regles'
 import './colonne.css'
 
 registre.type<Colonne>({
   type: 'colonne',
+  nom: 'Colonne',
+  resume: (c) => c.titre,
   Rendu: RenduColonne,
   Outils: OutilsColonne,
   editable: true,
@@ -26,3 +28,4 @@ registre.type<Colonne>({
 })
 
 registre.outilCommun(OutilGrouper)
+registre.entreeMenu(entreeGrouper)

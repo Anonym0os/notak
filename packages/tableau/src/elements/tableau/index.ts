@@ -24,8 +24,22 @@ function nouveauRenvoi(ou: Point, contexte: ContexteToile): Element<RenvoiTablea
   return element
 }
 
+registre.entreeMenu({
+  libelle: 'Ouvrir dans un nouvel onglet',
+  visible: (els, contexte) => els.length === 1 && els[0]!.contenu.type === 'tableau' && !!contexte.services.ouvrirDansOnglet,
+  faire: ([e], contexte) => e?.contenu.type === 'tableau' && contexte.services.ouvrirDansOnglet?.(e.contenu.cible),
+})
+
+registre.entreeMenu({
+  libelle: 'Renommer',
+  visible: (els) => els.length === 1 && els[0]!.contenu.type === 'tableau',
+  faire: ([e]) => e && demanderRenommage(e.id),
+})
+
 registre.type<RenvoiTableau>({
   type: 'tableau',
+  nom: 'Tableau',
+  resume: (c, contexte) => contexte.services.tableau?.(c.cible)?.titre ?? '',
   Rendu: RenduRenvoi,
   Outils: OutilsRenvoi,
   sansFond: true,
