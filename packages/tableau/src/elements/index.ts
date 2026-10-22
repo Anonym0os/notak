@@ -2,3 +2,4 @@
 import './note'
 import './lien'
 import './image'
+import './arrangement'
