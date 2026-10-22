@@ -16,6 +16,7 @@
         "@fontsource-variable/inter": "5.3.0",
         "@notak/tableau": "workspace:*",
         "@tiptap/extension-highlight": "3.32.0",
+        "@tiptap/extension-list": "3.32.0",
         "@tiptap/extension-text-align": "3.32.0",
         "@tiptap/extension-text-style": "3.32.0",
         "@tiptap/pm": "3.32.0",
@@ -37,6 +38,7 @@
       "version": "0.1.0",
       "devDependencies": {
         "@tiptap/extension-highlight": "3.32.0",
+        "@tiptap/extension-list": "3.32.0",
         "@tiptap/extension-text-align": "3.32.0",
         "@tiptap/extension-text-style": "3.32.0",
         "@tiptap/pm": "3.32.0",
@@ -50,6 +52,7 @@
       },
       "peerDependencies": {
         "@tiptap/extension-highlight": "^3.31.0",
+        "@tiptap/extension-list": "^3.31.0",
         "@tiptap/extension-text-align": "^3.31.0",
         "@tiptap/extension-text-style": "^3.31.0",
         "@tiptap/pm": "^3.31.0",
