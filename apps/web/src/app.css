@@ -9,3 +9,255 @@ body {
   font-family: 'Inter Variable', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+:root {
+  --texte: #1f2328;
+  --accent: #2f6feb;
+  --fond: #eef0f2;
+  --carte: #fff;
+}
+
+.ecran-attente {
+  height: 100%;
+  background: var(--fond);
+}
+
+.connexion {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  background: var(--fond);
+  color: var(--texte);
+}
+
+.connexion-carte {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-sizing: border-box;
+  width: min(340px, calc(100vw - 32px));
+  padding: 28px;
+  border-radius: 12px;
+  background: var(--carte);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.1), 0 8px 24px rgb(0 0 0 / 0.06);
+}
+
+.connexion-carte h1 {
+  margin: 0 0 4px;
+  font-size: 22px;
+}
+
+.connexion-carte label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #5b616a;
+  font-size: 13px;
+}
+
+.connexion-carte input,
+.partage-form input,
+.partage-form select {
+  height: 34px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid rgb(0 0 0 / 0.15);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--texte);
+  font: inherit;
+  font-size: 14px;
+}
+
+.connexion-carte input:focus,
+.partage-form input:focus {
+  border-color: var(--accent);
+  outline: 2px solid rgb(47 111 235 / 0.25);
+}
+
+.connexion-erreur {
+  margin: 0;
+  color: #c0362c;
+  font-size: 13px;
+}
+
+.bouton {
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid rgb(0 0 0 / 0.15);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--texte);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.bouton:hover {
+  background: var(--fond);
+}
+
+.bouton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.bouton-plein {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.bouton-plein:hover {
+  background: #2560d0;
+}
+
+.connexion-carte .bouton-plein {
+  height: 36px;
+}
+
+.bouton-lien {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.partage,
+.compte {
+  position: relative;
+}
+
+.partage-panneau,
+.compte-menu {
+  position: absolute;
+  z-index: 40;
+  top: 36px;
+  right: 0;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 4px 20px rgb(0 0 0 / 0.14), 0 1px 3px rgb(0 0 0 / 0.1);
+}
+
+.partage-panneau {
+  width: min(360px, calc(100vw - 24px));
+  padding: 12px;
+}
+
+.partage-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.partage-liste li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.partage-qui {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.partage-qui strong,
+.partage-qui small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.partage-qui small,
+.partage-role,
+.partage-note {
+  color: #6b7280;
+}
+
+.partage-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+.partage-form {
+  display: flex;
+  gap: 6px;
+}
+
+.partage-form input {
+  flex: 1;
+  min-width: 0;
+}
+
+.compte-nom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 4px;
+}
+
+.compte-pastille {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.compte-menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 190px;
+  padding: 6px;
+}
+
+.compte-menu small {
+  padding: 4px 8px;
+  color: #6b7280;
+}
+
+.compte-menu button {
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.compte-menu button:hover {
+  background: var(--fond);
+}
+
+.bandeau {
+  position: fixed;
+  z-index: 50;
+  bottom: 16px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 4px 20px rgb(0 0 0 / 0.16), 0 1px 3px rgb(0 0 0 / 0.1);
+  color: var(--texte);
+  font-size: 13px;
+  transform: translateX(-50%);
+}

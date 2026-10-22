@@ -10,22 +10,26 @@
     "./toile.css": "./src/toile.css"
   },
   "peerDependencies": {
+    "@hocuspocus/provider": "4.7.1",
     "@tiptap/extension-highlight": "^3.31.0",
+    "@tiptap/extension-list": "^3.31.0",
     "@tiptap/extension-text-align": "^3.31.0",
     "@tiptap/extension-text-style": "^3.31.0",
-    "@tiptap/extension-list": "^3.31.0",
     "@tiptap/pm": "^3.31.0",
     "@tiptap/react": "^3.31.0",
     "@tiptap/starter-kit": "^3.31.0",
     "@tiptap/static-renderer": "^3.31.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "y-indexeddb": "9.0.12",
+    "yjs": "13.6.33"
   },
   "devDependencies": {
+    "@hocuspocus/provider": "4.7.1",
     "@tiptap/extension-highlight": "3.32.0",
+    "@tiptap/extension-list": "3.32.0",
     "@tiptap/extension-text-align": "3.32.0",
     "@tiptap/extension-text-style": "3.32.0",
-    "@tiptap/extension-list": "3.32.0",
     "@tiptap/pm": "3.32.0",
     "@tiptap/react": "3.32.0",
     "@tiptap/starter-kit": "3.32.0",
@@ -33,6 +37,8 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "y-indexeddb": "9.0.12",
+    "yjs": "13.6.33"
   }
 }

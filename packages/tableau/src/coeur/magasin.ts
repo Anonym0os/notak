@@ -56,3 +56,17 @@ export function creerMagasin(initial: Tableau): Magasin {
     },
   }
 }
+
+/** Le même tableau, qu'on ne peut que regarder : tout geste est ignoré. */
+export function enLectureSeule(m: Magasin): Magasin {
+  return {
+    lire: m.lire,
+    ecouter: m.ecouter,
+    faire() {},
+    appliquerSeulement() {},
+    inscrire() {},
+    remplacer() {},
+    annuler: () => false,
+    retablir: () => false,
+  }
+}

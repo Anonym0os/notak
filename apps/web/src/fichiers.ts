@@ -1,57 +1,23 @@
-import { type DepotFichiers, type Id, nouvelId } from '@notak/tableau'
+import type { DepotFichiers } from '@notak/tableau'
 
-// Les fichiers vivent dans IndexedDB, en attendant un vrai dépôt côté serveur.
-const BASE = 'notak'
-const MAGASIN = 'fichiers'
+/** Les fichiers vivent sur le serveur : l'adresse d'un fichier est une route, le cookie de session suffit. */
+export const adresseFichier = (id: string) => `/api/fichiers/${encodeURIComponent(id)}`
 
-let base: Promise<IDBDatabase> | undefined
-const ouvrir = () =>
-  (base ??= new Promise<IDBDatabase>((resolve, reject) => {
-    const demande = indexedDB.open(BASE, 1)
-    demande.onupgradeneeded = () => demande.result.createObjectStore(MAGASIN)
-    demande.onsuccess = () => resolve(demande.result)
-    demande.onerror = () => {
-      base = undefined
-      reject(demande.error)
-    }
-  }))
-
-const attendre = <T>(demande: IDBRequest<T>) =>
-  new Promise<T>((resolve, reject) => {
-    demande.onsuccess = () => resolve(demande.result)
-    demande.onerror = () => reject(demande.error)
+export async function envoyerFichier(blob: Blob): Promise<string> {
+  const r = await fetch('/api/fichiers', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': blob.type || 'application/octet-stream' },
+    body: blob,
   })
-
-// Une adresse par fichier, gardée tant que la page vit.
-const adresses = new Map<Id, Promise<string | null>>()
+  if (!r.ok) throw new Error(r.status === 413 ? 'Fichier trop gros (25 Mo au plus)' : 'Envoi impossible')
+  return ((await r.json()) as { id: string }).id
+}
 
 export const fichiers: DepotFichiers = {
-  async enregistrer(blob) {
-    const id = nouvelId()
-    const db = await ouvrir()
-    const tx = db.transaction(MAGASIN, 'readwrite')
-    const fini = new Promise<void>((resolve, reject) => {
-      tx.oncomplete = () => resolve()
-      tx.onerror = () => reject(tx.error)
-      tx.onabort = () => reject(tx.error)
-    })
-    tx.objectStore(MAGASIN).put(blob, id)
-    await fini
-    adresses.set(id, Promise.resolve(URL.createObjectURL(blob)))
-    return id
-  },
-
-  adresse(id) {
-    let adresse = adresses.get(id)
-    if (!adresse) {
-      adresse = ouvrir()
-        .then((db) => attendre<Blob | undefined>(db.transaction(MAGASIN).objectStore(MAGASIN).get(id)))
-        .then((blob) => (blob ? URL.createObjectURL(blob) : null))
-        .catch(() => null)
-      adresses.set(id, adresse)
-      // Un fichier absent ou illisible n'est pas retenu : il peut arriver plus tard.
-      void adresse.then((a) => a === null && adresses.delete(id))
-    }
-    return adresse
-  },
+  enregistrer: envoyerFichier,
+  adresse: async (id) => adresseFichier(id),
 }
+
+export const apercu = (url: string) =>
+  fetch('/api/apercu?url=' + encodeURIComponent(url)).then((r) => (r.ok ? r.json() : Promise.reject(new Error('Aperçu indisponible'))))
