@@ -6,8 +6,9 @@
   "workspaces": ["packages/*", "apps/*"],
   "scripts": {
     "dev": "bun --cwd apps/web run dev",
+    "serveur": "node apps/serveur/src/index.ts",
     "test": "vitest run",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b && tsc -p apps/serveur"
   },
   "devDependencies": {
     "jsdom": "^27.0.0",
