@@ -46,19 +46,92 @@ export interface Note {
   variante?: VarianteNote
 }
 
-export type Contenu = Note
+/** Une image envoyée. Le fichier vit dans le dépôt de fichiers, l'élément ne garde que sa clé. */
+export interface Image {
+  type: 'image'
+  fichier: Id
+  /** Taille d'origine en pixels, pour garder les proportions. */
+  largeurOrigine: number
+  hauteurOrigine: number
+  legende?: string
+}
 
-export interface Element {
+export interface Apercu {
+  titre?: string
+  description?: string
+  /** Adresse de l'image d'aperçu. */
+  image?: string
+  site?: string
+  favicon?: string
+}
+
+export interface Lien {
+  type: 'lien'
+  url: string
+  apercu?: Apercu
+  /** `attente` tant que l'aperçu se charge, `echec` s'il n'a pas pu l'être. */
+  statut: 'attente' | 'pret' | 'echec'
+}
+
+/** Une liste de tâches : un document Tiptap fait d'une liste de cases. */
+export interface Taches {
+  type: 'taches'
+  titre?: string
+  texte: NoeudTexte
+}
+
+/** Une colonne : ses éléments portent `parent` = l'id de la colonne, et un `ordre`. */
+export interface Colonne {
+  type: 'colonne'
+  titre: string
+  couleur?: CouleurNote
+  repliee?: boolean
+}
+
+/** Une extrémité de ligne : un point libre du tableau, ou accrochée à un élément. */
+export type Extremite = { x: number; y: number } | { element: Id }
+
+export type Pointe = 'fleche' | 'rond' | 'rien'
+
+export interface Ligne {
+  type: 'ligne'
+  depart: Extremite
+  arrivee: Extremite
+  /** Courbe de Bézier quadratique : écart perpendiculaire (UG) et position le long de la corde (0 à 1). */
+  courbe?: { ecart: number; position: number }
+  pointeDepart: Pointe
+  pointeArrivee: Pointe
+  trait: 'plein' | 'tirets' | 'points'
+  epaisseur: 1 | 2 | 4
+  couleur?: CouleurNote
+  libelle?: string
+}
+
+/** Un tableau imbriqué, posé sur la toile de son parent. */
+export interface RenvoiTableau {
+  type: 'tableau'
+  cible: Id
+}
+
+export type Contenu = Note | Image | Lien | Taches | Colonne | Ligne | RenvoiTableau
+export type TypeContenu = Contenu['type']
+
+export interface Element<C extends Contenu = Contenu> {
   id: Id
-  /** Coin haut-gauche, en unités de grille entières. */
+  /** Coin haut-gauche, en unités de grille entières. Sans effet dans une colonne et pour une ligne. */
   x: number
   y: number
   largeur: number
-  contenu: Contenu
+  contenu: C
+  /** La colonne qui le contient, s'il est rangé dans une colonne. */
+  parent?: Id
+  /** Son rang dans la colonne : une clé fractionnaire, triée comme une chaîne. */
+  ordre?: string
 }
 
 /** Un tableau : ses éléments, du plus bas au plus haut dans l'empilement. */
 export interface Tableau {
+  id?: Id
   titre: string
   elements: Element[]
 }
@@ -94,7 +167,7 @@ export function docDepuisTexte(texte: string): NoeudTexte {
   }
 }
 
-export function nouvelleNote(x: number, y: number, texte = ''): Element {
+export function nouvelleNote(x: number, y: number, texte = ''): Element<Note> {
   return {
     id: nouvelId(),
     x: borner(x),

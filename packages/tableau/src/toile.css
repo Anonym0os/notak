@@ -89,3 +89,99 @@
   color: #7a7f87;
   pointer-events: none;
 }
+
+.notak-carte[data-sans-fond] {
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.notak-carte[data-sans-fond][data-choisie] {
+  box-shadow: 0 0 0 2px var(--notak-accent);
+}
+
+.notak-calque-lignes {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.notak-calque-lignes [data-id] {
+  pointer-events: stroke;
+}
+
+.notak-barre-outils {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 4px;
+  border-radius: 8px;
+  background: var(--notak-carte);
+  box-shadow: var(--notak-ombre);
+}
+
+.notak-outil {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 52px;
+  padding: 6px 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--notak-texte);
+  font: inherit;
+  cursor: pointer;
+}
+
+.notak-outil:hover {
+  background: var(--notak-fond);
+}
+
+.notak-outil-icone {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.notak-outil-libelle {
+  font-size: 11px;
+}
+
+.notak-barre-selection {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--notak-carte);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.notak-barre-selection button {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--notak-texte);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.notak-barre-selection button:hover,
+.notak-barre-selection button[aria-pressed='true'] {
+  background: var(--notak-fond);
+}

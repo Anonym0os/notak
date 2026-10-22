@@ -1,20 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { Carte } from './Carte'
+import { BarreOutils, BarreSelection } from './Barres'
+import { Cadre } from './Cadre'
 import * as cam from './coeur/camera'
-import { type Point, type Rect, contient, depuisCoins, depuisTaille, englobant, point, soustraire } from './coeur/geometrie'
+import { type Point, type Rect, depuisCoins, englobant, point, soustraire } from './coeur/geometrie'
 import type { Magasin } from './coeur/magasin'
 import { cliquer, lasso } from './coeur/selection'
-import {
-  HAUTEUR_NOTE_MIN,
-  type Element,
-  type Id,
-  type NoeudTexte,
-  type Operation,
-  aimanter,
-  auPremierPlan,
-  nouvelleNote,
-  position,
-} from './coeur/tableau'
+import { type Contenu, type Element, type Id, type Operation, aimanter, auPremierPlan, nouvelleNote } from './coeur/tableau'
+import './elements'
+import { definition, tousLesRaccourcis, tousLesRecepteurs } from './elements/registre'
+import type { ContexteToile, Services } from './elements/types'
 
 type Geste =
   | { type: 'attraper'; dernier: Point }
@@ -29,9 +23,13 @@ function choisirAxe(actuel: 'h' | 'v' | null, d: Point): 'h' | 'v' {
   return ax >= ay ? 'h' : 'v'
 }
 
-const memesTextes = (a: NoeudTexte, b: NoeudTexte) => JSON.stringify(a) === JSON.stringify(b)
+const memes = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+/** Un élément posé librement sur la toile : ni dans une colonne, ni une ligne. */
+const libre = (e: Element) => !e.parent && definition(e.contenu.type)?.calque !== 'lignes'
+/** Hauteur réservée au-dessus de la sélection pour sa barre, en pixels. */
+const MARGE_BARRE = 52
 
-export function Toile({ magasin }: { magasin: Magasin }) {
+export function Toile({ magasin, services = {} }: { magasin: Magasin; services?: Services }) {
   const tableau = useSyncExternalStore(magasin.ecouter, magasin.lire)
   const [camera, setCamera] = useState<cam.Camera>(cam.CAMERA_DEPART)
   const [vue, setVue] = useState<cam.Vue>({ largeur: 1, hauteur: 1 })
@@ -40,47 +38,107 @@ export function Toile({ magasin }: { magasin: Magasin }) {
   const [zoneLasso, setZoneLasso] = useState<Rect | null>(null)
   const [espace, setEspace] = useState(false)
   const [anime, setAnime] = useState(false)
+  const [enGeste, setEnGeste] = useState(false)
 
   const racine = useRef<HTMLDivElement>(null)
   const geste = useRef<Geste | null>(null)
-  const hauteurs = useRef(new Map<Id, number>())
-  const geste_zoom = useRef(new cam.GesteZoom())
+  const gesteZoom = useRef(new cam.GesteZoom())
   const animation = useRef<{ depart: cam.Camera; cible: cam.Camera; debut: number } | null>(null)
-  // Les gestionnaires d'événements natifs (molette, animation) lisent l'état courant ici.
-  const etat = useRef({ camera, vue, tableau })
-  etat.current = { camera, vue, tableau }
-
-  const rect = useCallback(
-    (e: Element): Rect => depuisTaille(position(e), e.largeur, hauteurs.current.get(e.id) ?? HAUTEUR_NOTE_MIN),
-    [],
-  )
-  const contenu = useCallback(() => englobant(etat.current.tableau.elements.map(rect)), [rect])
-  const sous = (p: Point) => [...tableau.elements].reverse().find((e) => contient(rect(e), p))?.id ?? null
+  const brouillon = useRef<{ id: Id; contenu: Contenu } | null>(null)
+  // Les gestionnaires natifs (molette, collage, animation) et le contexte lisent l'état courant ici.
+  const etat = useRef({ camera, vue, tableau, selection, edition, magasin, services })
+  etat.current = { camera, vue, tableau, selection, edition, magasin, services }
 
   const local = (e: { clientX: number; clientY: number }): Point => {
     const r = racine.current!.getBoundingClientRect()
     return point(e.clientX - r.left, e.clientY - r.top)
   }
 
-  const surHauteur = useCallback((id: Id, h: number) => hauteurs.current.set(id, h), [])
-  const brouillon = useRef<{ id: Id; texte: NoeudTexte } | null>(null)
-  const surBrouillon = useCallback((id: Id, texte: NoeudTexte) => {
-    brouillon.current = { id, texte }
+  /** Le rectangle d'un élément, mesuré sur son nœud DOM et ramené au tableau. */
+  const rect = useCallback((id: Id): Rect | null => {
+    const div = racine.current
+    const noeud = div?.querySelector(`[data-id="${CSS.escape(id)}"]`)
+    if (!div || !noeud) return null
+    const [o, r] = [div.getBoundingClientRect(), noeud.getBoundingClientRect()]
+    const c = etat.current.camera
+    return {
+      min: cam.versTableau(c, point(r.left - o.left, r.top - o.top)),
+      max: cam.versTableau(c, point(r.right - o.left, r.bottom - o.top)),
+    }
   }, [])
-  const commencerEdition = (id: Id) => {
-    finirEdition()
-    brouillon.current = null
-    setSelection(new Set([id]))
-    setEdition(id)
+  const contenu = useCallback(
+    () => englobant(etat.current.tableau.elements.filter(libre).flatMap((e) => rect(e.id) ?? [])),
+    [rect],
+  )
+  const sous = (cible: EventTarget | null): Id | null => {
+    const n = (cible as HTMLElement | null)?.closest?.('[data-id]')
+    return n && racine.current?.contains(n) ? n.getAttribute('data-id') : null
   }
-  const finirEdition = () => {
+
+  const finirEdition = useCallback(() => {
     const b = brouillon.current
     brouillon.current = null
     setEdition(null)
     racine.current?.focus({ preventScroll: true })
-    const el = b && magasin.lire().elements.find((x) => x.id === b.id)
-    if (!b || !el || memesTextes(el.contenu.texte, b.texte)) return
-    magasin.faire([{ type: 'contenu', id: b.id, avant: el.contenu, apres: { ...el.contenu, texte: b.texte } }])
+    const el = b && etat.current.magasin.lire().elements.find((x) => x.id === b.id)
+    if (!b || !el || memes(el.contenu, b.contenu)) return
+    etat.current.magasin.faire([{ type: 'contenu', id: b.id, avant: el.contenu, apres: b.contenu }])
+  }, [])
+  const commencerEdition = useCallback(
+    (id: Id) => {
+      // Le magasin, pas l'état rendu : l'élément vient peut-être d'être créé.
+      const el = etat.current.magasin.lire().elements.find((x) => x.id === id)
+      if (!el || !definition(el.contenu.type)?.editable) return
+      if (etat.current.edition) finirEdition()
+      brouillon.current = null
+      setSelection(new Set([id]))
+      setEdition(id)
+    },
+    [finirEdition],
+  )
+  const surBrouillon = useCallback((el: Element, apres: Contenu) => {
+    brouillon.current = { id: el.id, contenu: apres }
+  }, [])
+  const surChanger = useCallback((el: Element, apres: Contenu) => {
+    const m = etat.current.magasin
+    const actuel = m.lire().elements.find((x) => x.id === el.id)
+    if (actuel && !memes(actuel.contenu, apres)) m.faire([{ type: 'contenu', id: el.id, avant: actuel.contenu, apres }])
+  }, [])
+
+  // Le contexte est stable : ses champs lisent l'état courant, les cartes ne se redessinent pas à chaque zoom.
+  const contexte = useMemo<ContexteToile>(
+    () => ({
+      get magasin() {
+        return etat.current.magasin
+      },
+      get services() {
+        return etat.current.services
+      },
+      get camera() {
+        return etat.current.camera
+      },
+      get selection() {
+        return etat.current.selection
+      },
+      rect,
+      versTableau: (p) => cam.versTableau(etat.current.camera, p),
+      centreVue: () => cam.centreCamera(etat.current.camera, etat.current.vue),
+      choisir: (ids) => setSelection(new Set(ids)),
+      commencerEdition,
+      finirEdition,
+    }),
+    [rect, commencerEdition, finirEdition],
+  )
+
+  const recevoir = async (donnees: DataTransfer, ou: Point) => {
+    for (const r of tousLesRecepteurs()) {
+      const pas = await r.recevoir(donnees, ou, contexte)
+      if (pas && pas.length > 0) {
+        magasin.faire(pas)
+        setSelection(new Set(pas.flatMap((op) => (op.type === 'creer' ? [op.element.id] : []))))
+        return
+      }
+    }
   }
 
   useLayoutEffect(() => {
@@ -94,13 +152,14 @@ export function Toile({ magasin }: { magasin: Magasin }) {
   useEffect(() => {
     const div = racine.current!
     const molette = (e: WheelEvent) => {
+      if (etat.current.edition && (e.target as HTMLElement).closest('[data-edition]') && !(e.ctrlKey || e.metaKey)) return
       e.preventDefault()
       animation.current = null
       const { camera: c, vue: v } = etat.current
       if (e.ctrlKey || e.metaKey) {
         // Le pincement du trackpad arrive en Ctrl+molette, à petits pas : on le rend trois fois plus vif.
         const facteur = Math.exp(-e.deltaY * (e.metaKey ? 0.0025 : 0.0075))
-        const echelle = geste_zoom.current.appliquer(c.echelle, facteur, cam.echelleMin(contenu(), v), e.timeStamp)
+        const echelle = gesteZoom.current.appliquer(c.echelle, facteur, cam.echelleMin(contenu(), v), e.timeStamp)
         setCamera(cam.echelleAutour(c, echelle, cam.pointFixe(echelle, local(e), v)))
       } else {
         setCamera(cam.defiler(c, -e.deltaX, -e.deltaY))
@@ -109,6 +168,17 @@ export function Toile({ magasin }: { magasin: Magasin }) {
     div.addEventListener('wheel', molette, { passive: false })
     return () => div.removeEventListener('wheel', molette)
   }, [contenu])
+
+  // Coller sur la toile, hors édition.
+  useEffect(() => {
+    const coller = (e: ClipboardEvent) => {
+      if (document.activeElement !== racine.current || etat.current.edition || !e.clipboardData) return
+      e.preventDefault()
+      void recevoir(e.clipboardData, contexte.centreVue())
+    }
+    document.addEventListener('paste', coller)
+    return () => document.removeEventListener('paste', coller)
+  })
 
   const lancerAnimation = (cible: cam.Camera) => {
     animation.current = { depart: camera, cible, debut: performance.now() }
@@ -140,7 +210,11 @@ export function Toile({ magasin }: { magasin: Magasin }) {
   const choisis = () => tableau.elements.filter((e) => selection.has(e.id))
 
   const deplacer = (dx: number, dy: number) =>
-    magasin.faire(choisis().map((e) => ({ type: 'deplacer', id: e.id, de: [e.x, e.y], vers: [e.x + dx, e.y + dy] })))
+    magasin.faire(
+      choisis()
+        .filter(libre)
+        .map((e) => ({ type: 'deplacer', id: e.id, de: [e.x, e.y], vers: [e.x + dx, e.y + dy] })),
+    )
 
   const clavier = (e: React.KeyboardEvent) => {
     const cmd = e.metaKey || e.ctrlKey
@@ -166,6 +240,10 @@ export function Toile({ magasin }: { magasin: Magasin }) {
       }
       return
     }
+    if (e.target !== racine.current) return
+    for (const r of tousLesRaccourcis()) {
+      if (r(e.nativeEvent, contexte)) return e.preventDefault()
+    }
 
     if (cmd && touche === 'z') {
       e.preventDefault()
@@ -177,7 +255,7 @@ export function Toile({ magasin }: { magasin: Magasin }) {
     }
     if (cmd && touche === 'a') {
       e.preventDefault()
-      return setSelection(new Set(tableau.elements.map((x) => x.id)))
+      return setSelection(new Set(tableau.elements.filter((x) => !x.parent).map((x) => x.id)))
     }
     if (cmd) return
     const pas = e.shiftKey ? 5 : 1
@@ -216,21 +294,23 @@ export function Toile({ magasin }: { magasin: Magasin }) {
     if (edition) finirEdition()
     racine.current!.focus({ preventScroll: true })
     const p = local(e)
+    const id = sous(e.target)
     if (e.button === 1 || (e.button === 0 && espace)) {
       e.preventDefault()
       geste.current = { type: 'attraper', dernier: p }
     } else if (e.button === 2) {
-      if (!sous(cam.versTableau(camera, p))) setSelection(new Set())
+      if (!id) setSelection(new Set())
       return
     } else if (e.button === 0) {
       const ici = cam.versTableau(camera, p)
-      const id = sous(ici)
       if (id) {
         const s = cliquer(selection, id, e.metaKey || e.ctrlKey)
         setSelection(s)
         if (!s.has(id)) return
         const initiales = new Map(
-          tableau.elements.filter((x) => s.has(x.id)).map((x): [Id, [number, number]] => [x.id, [x.x, x.y]]),
+          tableau.elements
+            .filter((x) => s.has(x.id) && libre(x))
+            .map((x): [Id, [number, number]] => [x.id, [x.x, x.y]]),
         )
         geste.current = { type: 'glisser', depart: ici, initiales, axe: null }
       } else {
@@ -240,6 +320,7 @@ export function Toile({ magasin }: { magasin: Magasin }) {
         geste.current = { type: 'lasso', depart: ici, avant, inverser }
       }
     } else return
+    setEnGeste(true)
     racine.current!.setPointerCapture(e.pointerId)
   }
 
@@ -257,7 +338,11 @@ export function Toile({ magasin }: { magasin: Magasin }) {
     if (g.type === 'lasso') {
       const zone = depuisCoins(g.depart, ici)
       setZoneLasso(zone)
-      return setSelection(lasso(zone, tableau.elements.map((x): [Id, Rect] => [x.id, rect(x)]), g.avant, g.inverser))
+      const rects = tableau.elements.filter((x) => !x.parent).flatMap((x): [Id, Rect][] => {
+        const r = rect(x.id)
+        return r ? [[x.id, r]] : []
+      })
+      return setSelection(lasso(zone, rects, g.avant, g.inverser))
     }
     const d = soustraire(ici, g.depart)
     g.axe = e.shiftKey ? choisirAxe(g.axe, d) : null
@@ -271,6 +356,7 @@ export function Toile({ magasin }: { magasin: Magasin }) {
   const relache = () => {
     const g = geste.current
     geste.current = null
+    setEnGeste(false)
     setZoneLasso(null)
     if (g?.type !== 'glisser') return
     const t = magasin.lire()
@@ -286,13 +372,17 @@ export function Toile({ magasin }: { magasin: Magasin }) {
 
   const doubleClic = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('[data-edition]')) return
-    const ici = cam.versTableau(camera, local(e))
-    const id = sous(ici)
+    const id = sous(e.target)
     if (id) return commencerEdition(id)
-    const [x, y] = aimanter(ici)
+    const [x, y] = aimanter(cam.versTableau(camera, local(e)))
     const note = nouvelleNote(x, y)
     magasin.faire([{ type: 'creer', element: note }])
     commencerEdition(note.id)
+  }
+
+  const deposer = (e: React.DragEvent) => {
+    e.preventDefault()
+    void recevoir(e.dataTransfer, cam.versTableau(camera, local(e)))
   }
 
   // La sélection ne garde que ce qui existe encore (après une suppression, une annulation).
@@ -305,20 +395,23 @@ export function Toile({ magasin }: { magasin: Magasin }) {
 
   const k = cam.PX_PAR_UG * camera.echelle
   const grille = Math.abs(camera.echelle - 1) < 1e-3 && !anime
-  const styleRacine = useMemo(
-    () =>
-      grille
-        ? {
-            backgroundSize: `${cam.PX_PAR_UG}px ${cam.PX_PAR_UG}px`,
-            backgroundPosition: `${-camera.origine.x * k}px ${-camera.origine.y * k}px`,
-          }
-        : { backgroundImage: 'none' },
-    [grille, camera, k],
-  )
-  const lassoEcran = zoneLasso && {
-    min: cam.versEcran(camera, zoneLasso.min),
-    max: cam.versEcran(camera, zoneLasso.max),
-  }
+  const styleRacine = grille
+    ? {
+        backgroundSize: `${cam.PX_PAR_UG}px ${cam.PX_PAR_UG}px`,
+        backgroundPosition: `${-camera.origine.x * k}px ${-camera.origine.y * k}px`,
+      }
+    : { backgroundImage: 'none' }
+  const versEcran = (r: Rect) => ({ min: cam.versEcran(camera, r.min), max: cam.versEcran(camera, r.max) })
+  const lassoEcran = zoneLasso && versEcran(zoneLasso)
+
+  const elementsChoisis = choisis()
+  const cadreChoisis = !enGeste && !edition && elementsChoisis.length > 0
+    ? englobant(elementsChoisis.flatMap((x) => rect(x.id) ?? []))
+    : null
+  const barre = cadreChoisis && versEcran(cadreChoisis)
+
+  const cartes = tableau.elements.filter(libre)
+  const lignes = tableau.elements.filter((e) => definition(e.contenu.type)?.calque === 'lignes')
 
   return (
     <div
@@ -336,6 +429,8 @@ export function Toile({ magasin }: { magasin: Magasin }) {
       onPointerCancel={relache}
       onDoubleClick={doubleClic}
       onContextMenu={(e) => e.preventDefault()}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={deposer}
     >
       <div
         className="notak-plan"
@@ -343,16 +438,33 @@ export function Toile({ magasin }: { magasin: Magasin }) {
           transform: `translate(${-camera.origine.x * k}px, ${-camera.origine.y * k}px) scale(${camera.echelle})`,
         }}
       >
-        {tableau.elements.map((e) => (
-          <Carte
+        {cartes.map((e) => (
+          <Cadre
             key={e.id}
             element={e}
             choisie={selection.has(e.id)}
             enEdition={edition === e.id}
-            surHauteur={surHauteur}
-            surBrouillon={surBrouillon}
+            contexte={contexte}
+            brouillon={surBrouillon}
+            changer={surChanger}
           />
         ))}
+        <svg className="notak-calque-lignes" aria-hidden>
+          {lignes.map((e) => {
+            const Rendu = definition(e.contenu.type)!.Rendu
+            return (
+              <Rendu
+                key={e.id}
+                element={e}
+                choisie={selection.has(e.id)}
+                enEdition={edition === e.id}
+                contexte={contexte}
+                brouillon={(c) => surBrouillon(e, c)}
+                changer={(c) => surChanger(e, c)}
+              />
+            )
+          })}
+        </svg>
       </div>
       {lassoEcran && (
         <div
@@ -365,6 +477,14 @@ export function Toile({ magasin }: { magasin: Magasin }) {
           }}
         />
       )}
+      {barre && (
+        <BarreSelection
+          elements={elementsChoisis}
+          contexte={contexte}
+          position={{ x: (barre.min.x + barre.max.x) / 2, y: Math.max(8, barre.min.y - MARGE_BARRE) }}
+        />
+      )}
+      <BarreOutils contexte={contexte} surCreation={(ids) => ids[0] && commencerEdition(ids[0])} />
       <div className="notak-echelle">{Math.round(camera.echelle * 100)} %</div>
     </div>
   )
