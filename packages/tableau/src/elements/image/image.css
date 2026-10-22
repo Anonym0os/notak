@@ -47,3 +47,36 @@
   color: inherit;
   user-select: text;
 }
+
+/* L'image en grand. */
+.notak-visionneuse {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px;
+  background: rgb(15 17 20 / 0.86);
+  cursor: zoom-out;
+  animation: notak-voile 0.15s ease-out;
+}
+
+.notak-visionneuse img {
+  max-width: 100%;
+  max-height: calc(100% - 40px);
+  object-fit: contain;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 0.4);
+}
+
+.notak-visionneuse p {
+  margin: 0;
+  color: #fff;
+  font-size: 14px;
+}
+
+@keyframes notak-voile {
+  from { opacity: 0; }
+}

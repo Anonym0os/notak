@@ -118,6 +118,11 @@ export function EspaceNotak({
       ecouterEspace: espace.ecouter,
       creerTableau: (titre) => espace.creerTableau(titre, courant),
       renommerTableau: espace.renommer,
+      colorerTableau: (id, couleur) => {
+        if (espace.lectureSeule?.(id)) return
+        const m = espace.magasin(id)
+        m.remplacer({ ...m.lire(), couleur })
+      },
       presence: espace.presence?.(courant),
       lectureSeule: lectureSeule || hote.lectureSeule,
       deposerDans: (cible, elements) => {

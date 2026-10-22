@@ -10,7 +10,7 @@ import type { ComponentType, ReactNode } from 'react'
 import type { Camera } from '../coeur/camera'
 import type { Point, Rect } from '../coeur/geometrie'
 import type { Magasin } from '../coeur/magasin'
-import type { Apercu, Contenu, Element, Id, Operation, Tableau, TypeContenu } from '../coeur/tableau'
+import type { Apercu, Contenu, CouleurNote, Element, Id, Operation, Tableau, TypeContenu } from '../coeur/tableau'
 
 /** Où l'application range les fichiers (images…). La toile ne sait pas où ils vivent. */
 export interface DepotFichiers {
@@ -58,6 +58,8 @@ export interface Services {
   ecouterEspace?(f: () => void): () => void
   /** Crée un tableau vide dans l'espace et rend son id. */
   creerTableau?(titre: string): Id
+  /** Change la couleur d'un tableau de l'espace (celle de sa carte). */
+  colorerTableau?(id: Id, couleur: CouleurNote): void
   /** Change le titre d'un tableau de l'espace. */
   renommerTableau?(id: Id, titre: string): void
   /** La présence des autres sur ce tableau. Sans elle, la toile est seule. */

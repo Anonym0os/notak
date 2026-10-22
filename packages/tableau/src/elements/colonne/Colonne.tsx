@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { Rangees, useEmpreintes, useRanges } from '../../Cadre'
 import { COULEURS_NOTE, type Colonne, type CouleurNote } from '../../coeur/tableau'
+import { composition } from '../composition'
 import { LIBELLES_COULEUR } from '../note/couleurs'
 import type { PropsOutils, PropsRendu } from '../types'
 
@@ -17,6 +18,7 @@ function Saisie({ titre, surChangement, valider }: { titre: string; surChangemen
       className="notak-colonne-saisie"
       defaultValue={titre}
       aria-label="Titre"
+      maxLength={100}
       spellCheck={false}
       onChange={(e) => surChangement(e.target.value)}
       onKeyDown={(e) => {
@@ -53,13 +55,12 @@ export function RenduColonne({ element, choisie, enEdition, contexte, brouillon,
     >
       <div className="notak-colonne-tete">
         {enEdition ? (
-          <Saisie titre={contenu.titre} surChangement={(titre) => brouillon({ ...contenu, titre })} valider={contexte.finirEdition} />
+          <Saisie titre={contenu.titre} surChangement={(titre) => brouillon({ ...contenu, titre: titre.trim() ? titre : contenu.titre })} valider={contexte.finirEdition} />
         ) : (
           <span className="notak-colonne-titre" data-vide={contenu.titre ? undefined : true}>
             {contenu.titre || 'Colonne'}
           </span>
         )}
-        {enfants.length > 0 && <span className="notak-colonne-compte">{enfants.length}</span>}
         <button
           type="button"
           className="notak-colonne-plier"
@@ -75,6 +76,7 @@ export function RenduColonne({ element, choisie, enEdition, contexte, brouillon,
           </svg>
         </button>
       </div>
+      {contenu.repliee && <div className="notak-colonne-repliee" data-depot />}
       {!contenu.repliee &&
         (enfants.length > 0 || empreintes.length > 0 ? (
           <div className="notak-colonne-corps">
@@ -85,6 +87,7 @@ export function RenduColonne({ element, choisie, enEdition, contexte, brouillon,
             Déposer ici
           </div>
         ))}
+      {enfants.length > 0 && <div className="notak-colonne-compte">{composition(enfants)}</div>}
     </div>
   )
 }

@@ -51,3 +51,80 @@
   outline: none;
   user-select: text;
 }
+
+/* Les proportions de Milanote : une icône de 72 px aux coins très ronds, un titre de 15 px. */
+.notak-renvoi {
+  position: relative;
+}
+
+.notak-renvoi .notak-renvoi-carre {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  font-size: 34px;
+  transition: transform 0.12s, filter 0.12s;
+}
+
+.notak-renvoi-titre {
+  font-size: 15px;
+}
+
+/* Choisi : l'icône seule porte le contour. */
+.notak-carte[data-type='tableau'][data-choisie] {
+  box-shadow: none;
+}
+
+.notak-carte[data-type='tableau'][data-choisie] .notak-renvoi-carre {
+  box-shadow: var(--notak-ombre), 0 0 0 2px var(--notak-carte), 0 0 0 4px var(--notak-accent);
+}
+
+/* Survolé pendant un glisser : il grossit et s'assombrit, prêt à recevoir. */
+.notak-carte[data-survol-depot] .notak-renvoi-carre {
+  outline: none;
+  transform: scale(1.1);
+  filter: brightness(0.8);
+  box-shadow: 0 8px 20px rgb(0 0 0 / 0.2);
+}
+
+.notak-renvoi-bulle {
+  position: absolute;
+  z-index: 3;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: #1f2328;
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* Dans une colonne : l'icône à gauche, le titre et le contenu à droite. */
+.notak-colonne-corps .notak-renvoi {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 2px;
+  text-align: left;
+}
+
+.notak-colonne-corps .notak-renvoi .notak-renvoi-carre {
+  grid-row: span 2;
+  width: 60px;
+  height: 60px;
+  border-radius: 13px;
+  font-size: 28px;
+}
+
+.notak-colonne-corps .notak-renvoi-titre {
+  align-self: end;
+  text-align: left;
+}
+
+.notak-colonne-corps .notak-renvoi-info {
+  align-self: start;
+}

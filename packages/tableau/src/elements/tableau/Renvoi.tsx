@@ -1,4 +1,4 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { RenvoiTableau } from '../../coeur/tableau'
 import { FOND_NOTE } from '../note/couleurs'
 import type { PropsRendu } from '../types'
@@ -7,7 +7,7 @@ import { demanderRenommage, ecouterRenommage, renommageEnCours } from './renomma
 
 const sans = () => () => {}
 
-export function RenduRenvoi({ element, contexte }: PropsRendu<RenvoiTableau>) {
+export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTableau>) {
   const { cible, titre: nomDonne } = element.contenu
   const { tableau, ecouterEspace, ouvrirTableau, renommerTableau } = contexte.services
   // Une chaîne comme instantané : React compare par valeur, la carte ne se redessine que si elle change.
@@ -17,6 +17,21 @@ export function RenduRenvoi({ element, contexte }: PropsRendu<RenvoiTableau>) {
   })
   const [titre = '', couleur, contenu = ''] = cle ? (JSON.parse(cle) as [string, string?, string?]) : []
   const enRenommage = useSyncExternalStore(ecouterRenommage, renommageEnCours) === element.id
+  // Un clic sur un tableau déjà choisi : sur le titre, on le renomme ; sur l'icône, une bulle dit de double-cliquer.
+  const dejaChoisie = useRef(false)
+  const [bulle, setBulle] = useState(false)
+  const minuteur = useRef<ReturnType<typeof setTimeout>>(undefined)
+  useEffect(() => () => clearTimeout(minuteur.current), [])
+  const apresClic = (sur: 'titre' | 'icone') => {
+    if (!dejaChoisie.current || contexte.services.lectureSeule) return
+    clearTimeout(minuteur.current)
+    if (sur === 'titre') minuteur.current = setTimeout(() => demanderRenommage(element.id), 100)
+    else
+      minuteur.current = setTimeout(() => {
+        setBulle(true)
+        minuteur.current = setTimeout(() => setBulle(false), 2000)
+      }, 500)
+  }
 
   // Annuler ou rétablir un renommage change `titre` dans le renvoi : on en reporte la valeur sur le tableau.
   const vu = useRef(nomDonne)
@@ -41,13 +56,20 @@ export function RenduRenvoi({ element, contexte }: PropsRendu<RenvoiTableau>) {
   return (
     <div
       className="notak-renvoi"
+      onPointerDownCapture={() => {
+        dejaChoisie.current = choisie
+      }}
       onDoubleClick={(e) => {
         e.stopPropagation()
+        clearTimeout(minuteur.current)
+        setBulle(false)
         if ((e.metaKey || e.ctrlKey) && contexte.services.ouvrirDansOnglet) contexte.services.ouvrirDansOnglet(cible)
         else ouvrirTableau?.(cible)
       }}
     >
+      {bulle && <div className="notak-renvoi-bulle">Double-cliquez pour ouvrir</div>}
       <div
+        onClick={() => apresClic('icone')}
         className="notak-renvoi-carre"
         style={{ background: FOND_NOTE[couleur && couleur !== 'transparent' ? (couleur as keyof typeof FOND_NOTE) : 'gris'] }}
       >
@@ -56,7 +78,9 @@ export function RenduRenvoi({ element, contexte }: PropsRendu<RenvoiTableau>) {
       {enRenommage ? (
         <Saisie depart={titre} valider={valider} />
       ) : (
-        <div className="notak-renvoi-titre">{titre}</div>
+        <div className="notak-renvoi-titre" onClick={() => apresClic('titre')}>
+          {titre}
+        </div>
       )}
       <div className="notak-renvoi-info">{contenu}</div>
     </div>

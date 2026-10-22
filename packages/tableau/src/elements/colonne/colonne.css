@@ -15,8 +15,8 @@
 }
 
 .notak-carte[data-type='colonne'] {
-  min-height: 0;
-  border-radius: 10px;
+  min-height: 150px;
+  border-radius: 0;
 }
 
 .notak-carte[data-type='colonne'][data-edition] {
@@ -27,9 +27,19 @@
 .notak-colonne {
   display: flex;
   flex-direction: column;
-  border-radius: 10px;
+  box-sizing: border-box;
+  min-height: 150px;
   background: var(--notak-colonne);
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.05);
+  box-shadow: var(--notak-ombre);
+}
+
+/* Dans une colonne, les éléments n'ont pas d'ombre : un liseré les sépare. */
+.notak-colonne-corps > .notak-carte:not([data-sans-fond]) {
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.07);
+}
+
+.notak-colonne-corps > .notak-carte[data-choisie]:not([data-sans-fond]) {
+  box-shadow: 0 0 0 2px var(--notak-accent);
 }
 
 .notak-colonne[data-couleur='gris'] { background: var(--notak-colonne-gris); }
@@ -45,21 +55,21 @@
 .notak-colonne[data-couleur='bleu_nuit'] { background: var(--notak-colonne-bleu_nuit); }
 
 .notak-colonne-tete {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  padding: 6px 8px 6px 12px;
+  justify-content: center;
+  min-height: 48px;
+  padding: 12px 32px 8px;
 }
 
 .notak-colonne-titre {
-  flex: 1;
   min-width: 0;
-  overflow: hidden;
-  font-size: 14px;
+  font-size: 17px;
   font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.25;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .notak-colonne-titre[data-vide] {
@@ -69,6 +79,7 @@
 .notak-colonne-saisie {
   flex: 1;
   min-width: 0;
+  text-align: center;
   box-sizing: border-box;
   height: 26px;
   margin: 0 -4px;
@@ -79,7 +90,7 @@
   box-shadow: 0 0 0 1.5px var(--notak-accent);
   color: inherit;
   font: inherit;
-  font-size: 14px;
+  font-size: 17px;
   font-weight: 600;
   outline: none;
   user-select: text;
@@ -87,15 +98,20 @@
 }
 
 .notak-colonne-compte {
+  padding: 4px 12px 10px;
   font-size: 12px;
-  opacity: 0.5;
+  text-align: center;
+  opacity: 0.55;
 }
 
 .notak-colonne-plier {
+  position: absolute;
+  top: 8px;
+  right: 6px;
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   padding: 0;
   border: 0;
   border-radius: 6px;
@@ -186,4 +202,17 @@
 
 .notak-barre-selection .notak-colonne-pastilles button[aria-pressed='true'] {
   box-shadow: 0 0 0 2px var(--notak-accent);
+}
+
+/* Repliée, la colonne reçoit encore ce qu'on lui lâche. */
+.notak-colonne-repliee {
+  height: 8px;
+}
+
+.notak-carte[data-type='colonne']:has(.notak-colonne[data-repliee]) {
+  min-height: 0;
+}
+
+.notak-colonne[data-repliee] {
+  min-height: 0;
 }

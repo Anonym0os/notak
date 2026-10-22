@@ -4,7 +4,7 @@
   --notak-carte: #ffffff;
   --notak-texte: #1f2328;
   --notak-accent: #2f6feb;
-  --notak-ombre: 0 1px 3px rgb(0 0 0 / 0.1), 0 1px 1px rgb(0 0 0 / 0.04);
+  --notak-ombre: 0 1px 2px rgb(0 0 0 / 0.07);
 
   position: relative;
   overflow: hidden;
@@ -37,9 +37,9 @@
 .notak-carte {
   position: absolute;
   box-sizing: border-box;
-  min-height: 80px;
-  padding: 20px;
-  border-radius: 2px;
+  min-height: 58px;
+  padding: 24px 20px 14px 24px;
+  border-radius: 1px;
   background: var(--notak-carte);
   box-shadow: var(--notak-ombre);
   color: var(--notak-texte);
@@ -98,6 +98,11 @@
 
 .notak-carte[data-sans-fond][data-choisie] {
   box-shadow: 0 0 0 2px var(--notak-accent);
+}
+
+/* Une note transparente se devine au survol. */
+.notak-carte[data-type='note'][data-sans-fond]:not([data-choisie]):hover {
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.14);
 }
 
 .notak-calque-lignes {

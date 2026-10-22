@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import type { Image } from '../../coeur/tableau'
 import type { PropsOutils, PropsRendu } from '../types'
 import { aUneOmbre, avecLegende } from './geometrie'
+import { Visionneuse, useImageOuverte } from './visionneuse'
 
 /** `undefined` : en chargement ; `null` : introuvable. */
 function useAdresse(fichier: string, contexte: PropsRendu['contexte']) {
@@ -29,8 +30,10 @@ export function RenduImage({ element, enEdition, contexte, brouillon }: PropsRen
   const { contenu } = element
   const adresse = useAdresse(contenu.fichier, contexte)
   const proportions = `${contenu.largeurOrigine} / ${contenu.hauteurOrigine}`
+  const enGrand = useImageOuverte() === element.id
   return (
     <>
+      {enGrand && adresse && <Visionneuse adresse={adresse} {...(contenu.legende ? { legende: contenu.legende } : {})} />}
       {adresse ? (
         <img
           className="notak-image"

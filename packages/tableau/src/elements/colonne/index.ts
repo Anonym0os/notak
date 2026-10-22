@@ -1,4 +1,4 @@
-import { type Colonne, nouvelleColonne } from '../../coeur/tableau'
+import { type Colonne, LARGEUR_COLONNE, nouvelleColonne } from '../../coeur/tableau'
 import { registre } from '../registre'
 import { OutilsColonne, RenduColonne } from './Colonne'
 import { OutilGrouper, entreeGrouper } from './OutilGrouper'
@@ -14,7 +14,9 @@ registre.type<Colonne>({
   editable: true,
   sansFond: true,
   suivant: (_e, places) => nouvelleColonne(places.droite.x, places.droite.y),
-  accepte: (enfant, colonne) => !colonne.contenu.repliee && accepteDansColonne(enfant),
+  // Repliée, elle accepte encore ce qu'on y lâche : tout son corps devient la zone de dépôt.
+  accepte: (enfant) => accepteDansColonne(enfant),
+  largeurMin: LARGEUR_COLONNE,
   aussiSupprimer: (colonne, tableau) => tableau.elements.filter((e) => e.parent === colonne.id),
   outils: [
     {
