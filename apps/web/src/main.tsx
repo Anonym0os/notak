@@ -15,6 +15,11 @@ magasin.ecouter(() => {
 
 createRoot(document.getElementById('racine')!).render(
   <StrictMode>
-    <Toile magasin={magasin} />
+    <Toile
+      magasin={magasin}
+      services={{
+        apercu: (url) => fetch('/api/apercu?url=' + encodeURIComponent(url)).then((r) => (r.ok ? r.json() : Promise.reject())),
+      }}
+    />
   </StrictMode>,
 )

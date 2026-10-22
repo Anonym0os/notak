@@ -1,0 +1,143 @@
+.notak-lien {
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--notak-carte);
+  box-shadow: var(--notak-ombre);
+  color: var(--notak-texte);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.notak-lien-media {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: var(--notak-fond);
+}
+
+.notak-lien-media img,
+.notak-lien-media iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  object-fit: cover;
+}
+
+.notak-lien-lecture {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0 0 0 3px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.65);
+  color: #fff;
+  cursor: pointer;
+}
+
+.notak-lien-lecture:hover {
+  background: rgb(0 0 0 / 0.8);
+}
+
+.notak-lien-texte {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+}
+
+.notak-lien a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.notak-lien-domaine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.notak-lien-domaine span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-lien-favicon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.notak-lien-titre {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.notak-lien-titre:hover,
+.notak-lien-domaine:hover span {
+  text-decoration: underline;
+}
+
+.notak-lien-description {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow-wrap: anywhere;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.notak-lien-chargement {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--notak-point);
+  border-top-color: var(--notak-accent);
+  border-radius: 50%;
+  animation: notak-lien-tour 0.8s linear infinite;
+}
+
+@keyframes notak-lien-tour {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.notak-lien-saisie {
+  padding: 12px;
+  cursor: text;
+}
+
+.notak-lien-champ {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--notak-point);
+  border-radius: 4px;
+  font: inherit;
+  color: inherit;
+  outline: none;
+}
+
+.notak-lien-champ:focus {
+  border-color: var(--notak-accent);
+}
+
+.notak-lien-erreur {
+  margin-top: 6px;
+  color: #c0392b;
+  font-size: 12px;
+}
