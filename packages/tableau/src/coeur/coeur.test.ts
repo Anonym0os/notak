@@ -32,6 +32,7 @@ describe('tableau', () => {
     const origine = appliquer(vide(), { type: 'creer', element: note })
     const ops: Operation[] = [
       { type: 'deplacer', id: note.id, de: [0, 0], vers: [12, -4] },
+      { type: 'redimensionner', id: note.id, de: 34, vers: 20 },
       { type: 'contenu', id: note.id, avant: note.contenu, apres: nouvelleNote(0, 0, 'b').contenu },
       { type: 'supprimer', element: note },
     ]
@@ -40,6 +41,12 @@ describe('tableau', () => {
       expect(apres).not.toEqual(origine)
       expect(appliquer(apres, inverse(op))).toEqual(origine)
     }
+  })
+
+  test('redimensionner ne change que la largeur', () => {
+    const note = nouvelleNote(3, 4, 'a')
+    const t = appliquer({ titre: '', elements: [note] }, { type: 'redimensionner', id: note.id, de: 34, vers: 21 })
+    expect(t.elements[0]).toEqual({ ...note, largeur: 21 })
   })
 
   test('une position est arrondie à la grille et bornée', () => {

@@ -1,0 +1,49 @@
+.notak-carte[data-type='image'] {
+  min-height: 0;
+}
+
+.notak-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 2px;
+  -webkit-user-drag: none;
+}
+
+.notak-image[data-ombre] {
+  box-shadow: var(--notak-ombre);
+}
+
+.notak-image-vide {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e6e8eb;
+  color: #7a7f87;
+  font-size: 11px;
+}
+
+.notak-legende {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #5b6169;
+  overflow-wrap: anywhere;
+}
+
+.notak-legende-champ {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  background: none;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+  color: inherit;
+  user-select: text;
+}

@@ -54,6 +54,8 @@ export interface Image {
   largeurOrigine: number
   hauteurOrigine: number
   legende?: string
+  /** Le type du fichier (`image/png`…) : les formats à transparence n'ont pas d'ombre. */
+  typeMime?: string
 }
 
 export interface Apercu {
@@ -141,6 +143,7 @@ export type Operation =
   | { type: 'creer'; element: Element }
   | { type: 'supprimer'; element: Element }
   | { type: 'deplacer'; id: Id; de: [number, number]; vers: [number, number] }
+  | { type: 'redimensionner'; id: Id; de: number; vers: number }
   | { type: 'contenu'; id: Id; avant: Contenu; apres: Contenu }
 
 const BASE32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
@@ -187,6 +190,8 @@ export function inverse(op: Operation): Operation {
       return { type: 'creer', element: op.element }
     case 'deplacer':
       return { type: 'deplacer', id: op.id, de: op.vers, vers: op.de }
+    case 'redimensionner':
+      return { type: 'redimensionner', id: op.id, de: op.vers, vers: op.de }
     case 'contenu':
       return { type: 'contenu', id: op.id, avant: op.apres, apres: op.avant }
   }
@@ -201,6 +206,8 @@ export function appliquer(t: Tableau, op: Operation): Tableau {
       return { ...t, elements: t.elements.filter((e) => e.id !== op.element.id) }
     case 'deplacer':
       return modifier(t, op.id, (e) => ({ ...e, x: borner(op.vers[0]), y: borner(op.vers[1]) }))
+    case 'redimensionner':
+      return modifier(t, op.id, (e) => ({ ...e, largeur: op.vers }))
     case 'contenu':
       return modifier(t, op.id, (e) => ({ ...e, contenu: op.apres }))
   }

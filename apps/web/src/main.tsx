@@ -4,6 +4,7 @@ import './app.css'
 import { Toile, creerMagasin } from '@notak/tableau'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { fichiers } from './fichiers'
 import { ecrire, lire } from './stockage'
 
 const magasin = creerMagasin(lire())
@@ -18,6 +19,7 @@ createRoot(document.getElementById('racine')!).render(
     <Toile
       magasin={magasin}
       services={{
+        fichiers,
         apercu: (url) => fetch('/api/apercu?url=' + encodeURIComponent(url)).then((r) => (r.ok ? r.json() : Promise.reject())),
       }}
     />

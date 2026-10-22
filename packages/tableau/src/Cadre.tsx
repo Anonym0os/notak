@@ -11,12 +11,14 @@ interface Props {
   contexte: ContexteToile
   /** `toile` : posé à sa position. `liste` : dans le flux d'un conteneur (une colonne). */
   mode?: 'toile' | 'liste'
+  /** Montre la poignée de redimensionnement (élément seul choisi, libre, hors édition). */
+  poignee?: boolean
   brouillon(element: Element, apres: Contenu): void
   changer(element: Element, apres: Contenu): void
 }
 
 /** Le cadre commun d'un élément : position, largeur, fond, ombre, sélection. Le type dessine dedans. */
-export const Cadre = memo(function Cadre({ element, choisie, enEdition, contexte, mode = 'toile', brouillon, changer }: Props) {
+export const Cadre = memo(function Cadre({ element, choisie, enEdition, contexte, mode = 'toile', poignee, brouillon, changer }: Props) {
   const def = definition(element.contenu.type)
   if (!def) return null
   const sansFond = typeof def.sansFond === 'function' ? def.sansFond(element.contenu) : def.sansFond
@@ -43,6 +45,7 @@ export const Cadre = memo(function Cadre({ element, choisie, enEdition, contexte
         brouillon={(c) => brouillon(element, c)}
         changer={(c) => changer(element, c)}
       />
+      {poignee && <div className="notak-poignee" data-poignee aria-hidden />}
     </div>
   )
 })
