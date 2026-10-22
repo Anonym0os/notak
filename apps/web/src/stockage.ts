@@ -1,22 +1,25 @@
-import type { Tableau } from '@notak/tableau'
+import { type Espace, type Tableau, espaceDepuis, nouvelId } from '@notak/tableau'
 
-// Le tableau vit dans le navigateur, en attendant la synchronisation.
-const CLE = 'notak:tableau'
+// L'espace vit dans le navigateur, en attendant la synchronisation.
+const CLE = 'notak:espace'
+// La version précédente n'enregistrait qu'un tableau seul.
+const ANCIENNE_CLE = 'notak:tableau'
 
-export function lire(): Tableau {
+export function lire(): Espace {
   try {
-    const json = localStorage.getItem(CLE)
-    if (json) return JSON.parse(json) as Tableau
+    const json = localStorage.getItem(CLE) ?? localStorage.getItem(ANCIENNE_CLE)
+    if (json) return espaceDepuis(JSON.parse(json) as Tableau | Espace)
   } catch {
-    // Un stockage illisible ou interdit : on repart d'un tableau vide.
+    // Un stockage illisible ou interdit : on repart d'un espace vide.
   }
-  return { titre: 'Mon tableau', elements: [] }
+  const id = nouvelId()
+  return { racine: id, tableaux: { [id]: { id, titre: 'Mon tableau', elements: [] } } }
 }
 
-export function ecrire(t: Tableau) {
+export function ecrire(e: Espace) {
   try {
-    localStorage.setItem(CLE, JSON.stringify(t))
+    localStorage.setItem(CLE, JSON.stringify(e))
   } catch {
-    // Stockage plein ou interdit : le tableau reste en mémoire.
+    // Stockage plein ou interdit : l'espace reste en mémoire.
   }
 }

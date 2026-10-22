@@ -10,7 +10,7 @@ import type { ComponentType, ReactNode } from 'react'
 import type { Camera } from '../coeur/camera'
 import type { Point, Rect } from '../coeur/geometrie'
 import type { Magasin } from '../coeur/magasin'
-import type { Apercu, Contenu, Element, Id, Operation, TypeContenu } from '../coeur/tableau'
+import type { Apercu, Contenu, Element, Id, Operation, Tableau, TypeContenu } from '../coeur/tableau'
 
 /** Où l'application range les fichiers (images…). La toile ne sait pas où ils vivent. */
 export interface DepotFichiers {
@@ -28,6 +28,14 @@ export interface Services {
   apercu?: ChercheurApercu
   /** Ouvrir un tableau imbriqué. */
   ouvrirTableau?(id: Id): void
+  /** Le tableau d'un renvoi (titre, couleur, contenu), ou `undefined` s'il n'existe pas. */
+  tableau?(id: Id): Tableau | undefined
+  /** Prévenu à chaque changement de n'importe quel tableau de l'espace. */
+  ecouterEspace?(f: () => void): () => void
+  /** Crée un tableau vide dans l'espace et rend son id. */
+  creerTableau?(titre: string): Id
+  /** Change le titre d'un tableau de l'espace. */
+  renommerTableau?(id: Id, titre: string): void
 }
 
 /** L'état de la toile, prêté à chaque type d'élément. */

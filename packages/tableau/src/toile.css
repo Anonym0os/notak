@@ -198,3 +198,108 @@
   background: var(--notak-carte);
   cursor: nwse-resize;
 }
+
+/* L'espace de tableaux : l'en-tête et la toile du tableau courant. */
+.notak-espace {
+  --notak-fond: #eef0f2;
+  --notak-carte: #ffffff;
+  --notak-texte: #1f2328;
+  --notak-accent: #2f6feb;
+
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+.notak-espace-corps {
+  flex: 1;
+  min-height: 0;
+}
+
+.notak-entete {
+  display: flex;
+  flex: none;
+  align-items: center;
+  box-sizing: border-box;
+  height: 44px;
+  padding: 0 16px;
+  border-bottom: 1px solid rgb(0 0 0 / 0.08);
+  background: var(--notak-carte);
+  color: var(--notak-texte);
+  font-size: 14px;
+}
+
+.notak-fil {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 2px;
+}
+
+.notak-fil-bloc {
+  position: relative;
+}
+
+.notak-fil-sep {
+  color: #9aa0a8;
+}
+
+.notak-fil-segment {
+  max-width: 160px;
+  height: 28px;
+  padding: 0 8px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #5b616a;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.notak-fil-segment:hover,
+.notak-fil-segment[aria-expanded='true'] {
+  background: var(--notak-fond);
+}
+
+.notak-fil-segment[aria-current='page'] {
+  color: var(--notak-texte);
+  font-weight: 600;
+}
+
+.notak-fil-menu {
+  position: absolute;
+  z-index: 5;
+  top: 32px;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--notak-carte);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
+}
+
+.notak-fil-menu button {
+  max-width: 260px;
+  height: 28px;
+  padding: 0 8px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--notak-texte);
+  font: inherit;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.notak-fil-menu button:hover {
+  background: var(--notak-fond);
+}
