@@ -1,0 +1,207 @@
+import * as Y from 'yjs'
+import type { Magasin } from './magasin'
+import { cleEntre, comparerOrdre } from './ordre'
+import { type CouleurNote, type Element, type Id, type Operation, type Tableau, appliquer, inverse } from './tableau'
+
+/** Un élément tel qu'il vit dans le document : l'`Element` entier, plus sa place dans l'empilement. */
+export type ElementStocke = Element & { plan: string }
+
+/** Les gestes d'une personne : seuls ceux-là entrent dans son historique. */
+export const ORIGINE_GESTE = 'notak:geste'
+/** Ce qui s'applique sans historique : un glisser en cours, un retour au point de départ, l'ordre d'empilement. */
+export const ORIGINE_LIBRE = 'notak:libre'
+
+export type MagasinYjs = Magasin & { detruire(): void }
+
+const sansPlan = (s: ElementStocke): Element => {
+  const { plan: _plan, ...element } = s
+  return element
+}
+
+/**
+ * Les nouveaux plans que demande un ordre voulu. `actuel` est l'empilement d'aujourd'hui, du bas vers le haut ;
+ * `voulu` celui qu'on veut. Les éléments qui gardent leur ordre relatif (la plus longue suite) ne bougent pas :
+ * les autres reçoivent une clé entre leurs voisins. Un id inconnu de `actuel` reçoit aussi un plan.
+ */
+export function plansPour(actuel: readonly { id: Id; plan: string }[], voulu: readonly Id[]): Map<Id, string> {
+  const rang = new Map(actuel.map((e, i) => [e.id, i]))
+  const plans = new Map(actuel.map((e) => [e.id, e.plan]))
+  // La plus longue suite croissante des rangs actuels, lue dans l'ordre voulu.
+  const connus = voulu.flatMap((id, i) => (rang.has(id) ? [{ id, i, r: rang.get(id)! }] : []))
+  const queues: number[] = []
+  const precedent: number[] = []
+  connus.forEach((c, k) => {
+    let [bas, haut] = [0, queues.length]
+    while (bas < haut) {
+      const m = (bas + haut) >> 1
+      if (connus[queues[m]!]!.r < c.r) bas = m + 1
+      else haut = m
+    }
+    precedent[k] = bas > 0 ? queues[bas - 1]! : -1
+    queues[bas] = k
+  })
+  const fixes = new Set<Id>()
+  for (let k = queues.length ? queues[queues.length - 1]! : -1; k >= 0; k = precedent[k]!) fixes.add(connus[k]!.id)
+
+  const nouveaux = new Map<Id, string>()
+  let avant: string | undefined
+  voulu.forEach((id, i) => {
+    if (fixes.has(id)) {
+      avant = plans.get(id)
+      return
+    }
+    const apres = voulu.slice(i + 1).find((x) => fixes.has(x))
+    const borne = apres === undefined ? undefined : plans.get(apres)
+    if (avant !== undefined && borne !== undefined && avant >= borne) return
+    avant = cleEntre(avant, borne)
+    nouveaux.set(id, avant)
+  })
+  return nouveaux
+}
+
+/**
+ * Le magasin d'un tableau, posé sur un document Yjs :
+ * `elements` (id → élément + `plan`) et `meta` (`titre`, `couleur`).
+ * Le document peut être relié à un serveur : le magasin n'en sait rien.
+ */
+export function creerMagasinYjs(doc: Y.Doc, id?: Id): MagasinYjs {
+  const elements = doc.getMap<ElementStocke>('elements')
+  const meta = doc.getMap<unknown>('meta')
+  // Un glisser écrit sans cesse, puis revient au départ et inscrit son geste : tout cela doit tenir dans un seul
+  // pas, sinon annuler la création d'un élément déplacé ne l'atteindrait plus. Le temps ne découpe donc rien
+  // (captureTimeout infini) ; les pas sont découpés à la main par `stopCapturing`, avant et après chaque geste.
+  const historique = new Y.UndoManager(elements, {
+    trackedOrigins: new Set([ORIGINE_GESTE, ORIGINE_LIBRE]),
+    captureTimeout: Number.MAX_SAFE_INTEGER,
+  })
+
+  const ecouteurs = new Set<() => void>()
+  let cache: Tableau | null = null
+  // Un élément inchangé garde le même objet d'une lecture à l'autre : les cartes ne se redessinent pas.
+  const reperes = new Map<Id, { brut: ElementStocke; element: Element }>()
+
+  const construire = (): Tableau => {
+    const liste: { id: Id; plan: string; element: Element }[] = []
+    const vus = new Set<Id>()
+    elements.forEach((brut, cle) => {
+      vus.add(cle)
+      let r = reperes.get(cle)
+      if (!r || r.brut !== brut) {
+        r = { brut, element: sansPlan(brut) }
+        reperes.set(cle, r)
+      }
+      liste.push({ id: cle, plan: brut.plan, element: r.element })
+    })
+    for (const cle of reperes.keys()) if (!vus.has(cle)) reperes.delete(cle)
+    liste.sort((a, b) => comparerOrdre(a.plan, b.plan) || comparerOrdre(a.id, b.id))
+    const titre = meta.get('titre')
+    const couleur = meta.get('couleur')
+    return {
+      ...(id !== undefined ? { id } : {}),
+      titre: typeof titre === 'string' ? titre : '',
+      ...(typeof couleur === 'string' ? { couleur: couleur as CouleurNote } : {}),
+      elements: liste.map((l) => l.element),
+    }
+  }
+
+  const changer = () => {
+    cache = null
+    for (const f of ecouteurs) f()
+  }
+  elements.observeDeep(changer)
+  meta.observe(changer)
+
+  const lire = () => (cache ??= construire())
+
+  const plusHaut = () => {
+    let max: string | undefined
+    elements.forEach((s) => {
+      if (max === undefined || comparerOrdre(s.plan, max) > 0) max = s.plan
+    })
+    return max
+  }
+
+  /** Écrit des opérations dans le document ; à appeler dans une transaction. */
+  const ecrire = (pas: readonly Operation[]) => {
+    let haut: string | undefined
+    let calcule = false
+    const auDessus = () => {
+      if (!calcule) {
+        haut = plusHaut()
+        calcule = true
+      }
+      haut = cleEntre(haut, undefined)
+      return haut
+    }
+    for (const op of pas) {
+      if (op.type === 'creer') {
+        if (!elements.has(op.element.id)) elements.set(op.element.id, { ...op.element, plan: auDessus() })
+      } else if (op.type === 'supprimer') {
+        elements.delete(op.element.id)
+      } else {
+        const actuel = elements.get(op.id)
+        if (!actuel) continue
+        const apres = appliquer({ titre: '', elements: [sansPlan(actuel)] }, op).elements[0]!
+        // Un déplacement qui n'en est pas un ne réveille personne.
+        if (op.type !== 'contenu' && JSON.stringify(apres) === JSON.stringify(sansPlan(actuel))) continue
+        elements.set(op.id, { ...apres, plan: actuel.plan })
+      }
+    }
+  }
+
+  const transaction = (f: () => void, origine: string) => doc.transact(f, origine)
+
+  return {
+    lire,
+    ecouter(f) {
+      ecouteurs.add(f)
+      return () => ecouteurs.delete(f)
+    },
+    faire(pas) {
+      if (pas.length === 0) return
+      historique.stopCapturing()
+      transaction(() => ecrire(pas), ORIGINE_GESTE)
+      historique.stopCapturing()
+    },
+    appliquerSeulement(pas) {
+      if (pas.length > 0) transaction(() => ecrire(pas), ORIGINE_LIBRE)
+    },
+    inscrire(pas) {
+      if (pas.length > 0) {
+        // Revenir au début du geste, puis le refaire : le pas contient tout le glisser, et annuler ramène au début.
+        transaction(() => ecrire(pas.toReversed().map(inverse)), ORIGINE_LIBRE)
+        transaction(() => ecrire(pas), ORIGINE_GESTE)
+      }
+      historique.stopCapturing()
+    },
+    remplacer(t) {
+      transaction(() => {
+        if (t.titre !== (meta.get('titre') ?? '')) meta.set('titre', t.titre)
+        if (t.couleur !== meta.get('couleur')) {
+          if (t.couleur === undefined) meta.delete('couleur')
+          else meta.set('couleur', t.couleur)
+        }
+        const voulus = new Set(t.elements.map((e) => e.id))
+        for (const cle of [...elements.keys()]) if (!voulus.has(cle)) elements.delete(cle)
+
+        const actuel = [...elements].map(([cle, s]) => ({ id: cle, plan: s.plan })).sort((a, b) => comparerOrdre(a.plan, b.plan) || comparerOrdre(a.id, b.id))
+        const plans = plansPour(actuel, t.elements.map((e) => e.id))
+        for (const e of t.elements) {
+          const brut = elements.get(e.id)
+          const plan = plans.get(e.id) ?? brut?.plan
+          if (plan === undefined) continue
+          const change = !brut || reperes.get(e.id)?.element !== e && JSON.stringify(sansPlan(brut)) !== JSON.stringify(e)
+          if (change || plan !== brut?.plan) elements.set(e.id, { ...e, plan })
+        }
+      }, ORIGINE_LIBRE)
+    },
+    annuler: () => historique.undo() !== null,
+    retablir: () => historique.redo() !== null,
+    detruire() {
+      elements.unobserveDeep(changer)
+      meta.unobserve(changer)
+      historique.destroy()
+      ecouteurs.clear()
+    },
+  }
+}

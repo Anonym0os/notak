@@ -9,3 +9,15 @@ export { definition, registre } from './elements/registre'
 export type * from './elements/types'
 export { Toile } from './Toile'
 export { EspaceNotak } from './EspaceNotak'
+export { creerMagasinYjs, type MagasinYjs } from './coeur/magasinYjs'
+export { enLectureSeule } from './coeur/magasin'
+export {
+  type Connexion,
+  type Declaration,
+  type Memoire,
+  type EspaceDistant,
+  type Reseau,
+  type Utilisateur,
+  creerEspaceDistant,
+} from './coeur/espaceDistant'
+export { creerReseauNavigateur } from './reseau'

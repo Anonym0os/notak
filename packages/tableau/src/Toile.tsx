@@ -3,7 +3,8 @@ import { BarreOutils, BarreSelection } from './Barres'
 import { Cadre, ContexteRangement, type Rangement } from './Cadre'
 import * as cam from './coeur/camera'
 import { type Point, type Rect, depuisCoins, englobant, point, soustraire } from './coeur/geometrie'
-import type { Magasin } from './coeur/magasin'
+import { creerLimiteur } from './coeur/limiteur'
+import { type Magasin, enLectureSeule } from './coeur/magasin'
 import { largeurDoubleClic, largeurTiree, LARGEUR_MIN_DEFAUT } from './coeur/largeur'
 import { type Cible, type Deplace, comparerOrdre, indexInsertion, pasDeDepot } from './coeur/ordre'
 import { cliquer, lasso } from './coeur/selection'
@@ -21,7 +22,7 @@ import {
 } from './coeur/tableau'
 import './elements'
 import { definition, tousLesRaccourcis, tousLesRecepteurs, tousLesTypes } from './elements/registre'
-import type { ContexteToile, Services } from './elements/types'
+import type { ContexteToile, Presence, Services } from './elements/types'
 
 type Geste =
   | { type: 'attraper'; dernier: Point }
@@ -48,6 +49,10 @@ function choisirAxe(actuel: 'h' | 'v' | null, d: Point): 'h' | 'v' {
 
 /** Sous ce déplacement (pixels écran), un appui reste un clic : rien ne bouge, rien ne quitte sa colonne. */
 const SEUIL_GLISSER = 3
+
+const sansEcoute = () => () => {}
+const aucun = (): Presence[] => AUCUN
+const AUCUN: Presence[] = []
 
 const memes = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 /** Les nœuds `data-id` qui contiennent ce nœud, du plus proche au plus lointain, dans la toile. */
@@ -88,7 +93,17 @@ interface PropsToile {
   surCamera?(c: cam.Camera): void
 }
 
-export function Toile({ magasin, services = {}, cameraInitiale, surCamera }: PropsToile) {
+/** Le pointeur est signalé aux autres à ce rythme au plus, en millisecondes. */
+const DELAI_CURSEUR = 100
+
+export function Toile({ magasin: source, services = {}, cameraInitiale, surCamera }: PropsToile) {
+  const lectureSeule = !!services.lectureSeule
+  const magasin = useMemo(() => (lectureSeule ? enLectureSeule(source) : source), [source, lectureSeule])
+  const presence = services.presence
+  const autres = useSyncExternalStore(
+    presence?.ecouter ?? sansEcoute,
+    presence ? presence.autres : aucun,
+  )
   const tableau = useSyncExternalStore(magasin.ecouter, magasin.lire)
   const [camera, setCamera] = useState<cam.Camera>(cameraInitiale ?? cam.CAMERA_DEPART)
   const [vue, setVue] = useState<cam.Vue>({ largeur: 1, hauteur: 1 })
@@ -111,6 +126,37 @@ export function Toile({ magasin, services = {}, cameraInitiale, surCamera }: Pro
   // Les gestionnaires natifs (molette, collage, animation) et le contexte lisent l'état courant ici.
   const etat = useRef({ camera, vue, tableau, selection, edition, magasin, services })
   etat.current = { camera, vue, tableau, selection, edition, magasin, services }
+
+  const limiteur = useMemo(
+    () => (presence ? creerLimiteur((curseur: Point | null) => presence.signaler({ curseur }), DELAI_CURSEUR) : null),
+    [presence],
+  )
+  useEffect(() => {
+    presence?.signaler({ selection: [...selection] })
+  }, [presence, selection])
+  useEffect(() => () => presence?.signaler({ curseur: null, selection: [] }), [presence])
+
+  // Le contour d'un élément choisi par un autre : posé sur le nœud, dans la couleur de cette personne.
+  useEffect(() => {
+    const div = racine.current
+    if (!div) return
+    const marques: HTMLElement[] = []
+    for (const a of autres) {
+      for (const id of a.selection) {
+        const n = div.querySelector<HTMLElement>(`[data-id="${CSS.escape(id)}"]`)
+        if (!n) continue
+        n.dataset.autre = a.utilisateur.nom
+        n.style.setProperty('--notak-autre', a.utilisateur.couleur)
+        marques.push(n)
+      }
+    }
+    return () => {
+      for (const n of marques) {
+        delete n.dataset.autre
+        n.style.removeProperty('--notak-autre')
+      }
+    }
+  }, [autres, tableau])
 
   const signalee = useRef(camera)
   const signal = useRef<{ f?: (c: cam.Camera) => void; minuteur?: ReturnType<typeof setTimeout> }>({})
@@ -172,6 +218,7 @@ export function Toile({ magasin, services = {}, cameraInitiale, surCamera }: Pro
   }, [])
   const commencerEdition = useCallback(
     (id: Id) => {
+      if (etat.current.services.lectureSeule) return
       // Le magasin, pas l'état rendu : l'élément vient peut-être d'être créé.
       const el = etat.current.magasin.lire().elements.find((x) => x.id === id)
       if (!el || !definition(el.contenu.type)?.editable) return
@@ -186,6 +233,7 @@ export function Toile({ magasin, services = {}, cameraInitiale, surCamera }: Pro
     brouillon.current = { id: el.id, contenu: apres }
   }, [])
   const surChanger = useCallback((el: Element, apres: Contenu) => {
+    if (etat.current.services.lectureSeule) return
     const m = etat.current.magasin
     const actuel = m.lire().elements.find((x) => x.id === el.id)
     if (actuel && !memes(actuel.contenu, apres)) m.faire([{ type: 'contenu', id: el.id, avant: actuel.contenu, apres }])
@@ -218,6 +266,7 @@ export function Toile({ magasin, services = {}, cameraInitiale, surCamera }: Pro
   )
 
   const recevoir = async (original: DataTransfer, ou: Point) => {
+    if (lectureSeule) return
     // Le navigateur vide le presse-papiers dès que l'événement est fini : on le recopie avant d'attendre
     // le premier récepteur.
     const donnees = new DataTransfer()
@@ -333,10 +382,19 @@ export function Toile({ magasin, services = {}, cameraInitiale, surCamera }: Pro
       return
     }
     if (e.target !== racine.current) return
-    for (const r of tousLesRaccourcis()) {
+    for (const r of lectureSeule ? [] : tousLesRaccourcis()) {
       if (r(e.nativeEvent, contexte)) return e.preventDefault()
     }
 
+    if (lectureSeule) {
+      if (cmd && touche === 'a') {
+        e.preventDefault()
+        return setSelection(new Set(tableau.elements.filter((x) => !x.parent).map((x) => x.id)))
+      }
+      if (e.key === 'Escape') return setSelection(new Set())
+      if (!cmd && touche === 'z' && !e.repeat) ajuster()
+      return
+    }
     if (cmd && touche === 'z') {
       e.preventDefault()
       return e.shiftKey ? magasin.retablir() : magasin.annuler()
@@ -400,13 +458,13 @@ export function Toile({ magasin, services = {}, cameraInitiale, surCamera }: Pro
     } else if (e.button === 0) {
       const ici = cam.versTableau(camera, p)
       const el = id && tableau.elements.find((x) => x.id === id)
-      if (el && (e.target as HTMLElement).closest('[data-poignee]')) {
+      if (el && !lectureSeule && (e.target as HTMLElement).closest('[data-poignee]')) {
         const min = definition(el.contenu.type)?.largeurMin ?? LARGEUR_MIN_DEFAUT
         geste.current = { type: 'redimensionner', id: el.id, depart: ici, largeurDepart: el.largeur, min }
       } else if (id) {
         const s = cliquer(selection, id, e.metaKey || e.ctrlKey)
         setSelection(s)
-        if (!s.has(id)) return
+        if (!s.has(id) || lectureSeule) return
         // Un élément rangé se glisse aussi, sauf si sa colonne est choisie avec lui : il la suit.
         const origines = new Map(
           tableau.elements
@@ -429,6 +487,10 @@ export function Toile({ magasin, services = {}, cameraInitiale, surCamera }: Pro
   }
 
   const mouvement = (e: React.PointerEvent) => {
+    if (limiteur) {
+      const c = cam.versTableau(camera, local(e))
+      limiteur.pousser(point(Math.round(c.x * 10) / 10, Math.round(c.y * 10) / 10))
+    }
     const g = geste.current
     if (!g) return
     const p = local(e)
@@ -549,6 +611,12 @@ export function Toile({ magasin, services = {}, cameraInitiale, surCamera }: Pro
 
   const doubleClic = (e: React.MouseEvent) => {
     if (dansEdition(racine.current, e.target)) return
+    if (lectureSeule) {
+      const el = tableau.elements.find((x) => x.id === sous(document.elementFromPoint(e.clientX, e.clientY)))
+      const ouvrir = el && definition(el.contenu.type)?.ouvrir
+      if (el && ouvrir) ouvrir(el, contexte)
+      return
+    }
     // Le pointeur est capturé par la toile : la cible du double-clic n'est pas fiable, on regarde sous le curseur.
     if (document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-poignee]')) {
       const el = tableau.elements.find((x) => selection.has(x.id))
@@ -598,7 +666,7 @@ export function Toile({ magasin, services = {}, cameraInitiale, surCamera }: Pro
   const cadreChoisis = !enGeste && !edition && elementsChoisis.length > 0
     ? englobant(elementsChoisis.flatMap((x) => rect(x.id) ?? []))
     : null
-  const barre = cadreChoisis && versEcran(cadreChoisis)
+  const barre = cadreChoisis && !lectureSeule && versEcran(cadreChoisis)
 
   const rangement = useMemo<Rangement>(
     () => ({ elements: tableau.elements, selection, edition, brouillon: surBrouillon, changer: surChanger }),
@@ -622,6 +690,7 @@ export function Toile({ magasin, services = {}, cameraInitiale, surCamera }: Pro
       onPointerMove={mouvement}
       onPointerUp={relache}
       onPointerCancel={relache}
+      onPointerLeave={() => limiteur?.forcer(null)}
       onDoubleClick={doubleClic}
       onContextMenu={(e) => e.preventDefault()}
       onDragOver={(e) => e.preventDefault()}
@@ -664,6 +733,25 @@ export function Toile({ magasin, services = {}, cameraInitiale, surCamera }: Pro
             )
           })}
         </svg>
+        {autres.map((a) =>
+          a.curseur ? (
+            <div
+              key={a.client}
+              className="notak-curseur"
+              style={{
+                left: a.curseur.x * cam.PX_PAR_UG,
+                top: a.curseur.y * cam.PX_PAR_UG,
+                transform: `scale(${1 / camera.echelle})`,
+                ['--notak-autre' as string]: a.utilisateur.couleur,
+              }}
+            >
+              <svg width="16" height="20" viewBox="0 0 16 20" aria-hidden>
+                <path d="M1 1l13 8.5-5.6 1.4L6.2 17z" fill="currentColor" stroke="#fff" strokeWidth="1.2" strokeLinejoin="round" />
+              </svg>
+              <span>{a.utilisateur.nom}</span>
+            </div>
+          ) : null,
+        )}
       </div>
       {lassoEcran && (
         <div
@@ -684,7 +772,8 @@ export function Toile({ magasin, services = {}, cameraInitiale, surCamera }: Pro
           position={{ x: (barre.min.x + barre.max.x) / 2, y: Math.max(8, barre.min.y - MARGE_BARRE) }}
         />
       )}
-      <BarreOutils contexte={contexte} surCreation={(ids) => ids[0] && commencerEdition(ids[0])} />
+      {!lectureSeule && <BarreOutils contexte={contexte} surCreation={(ids) => ids[0] && commencerEdition(ids[0])} />}
+      {lectureSeule && <div className="notak-lecture">Lecture seule</div>}
       <div className="notak-echelle">{Math.round(camera.echelle * 100)} %</div>
     </div>
   )

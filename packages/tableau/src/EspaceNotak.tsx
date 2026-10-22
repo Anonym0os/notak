@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { Camera } from './coeur/camera'
 import {
-  type EspaceVivant,
+  type EspaceNavigable,
   type Vues,
   avancer,
   courantDe,
@@ -14,7 +14,7 @@ import {
 } from './coeur/espace'
 import type { Id } from './coeur/tableau'
 import { demanderRenommage } from './elements/tableau/renommage'
-import type { Services } from './elements/types'
+import type { Presence, Services } from './elements/types'
 import { Toile } from './Toile'
 
 const CLE_VUES = 'notak:vues'
@@ -48,18 +48,32 @@ interface Segment {
 }
 
 /** L'espace de tableaux : un en-tête avec le fil d'Ariane, puis la toile du tableau courant. */
-export function EspaceNotak({ espace, services: hote = {} }: { espace: EspaceVivant; services?: Services }) {
-  const racine = espace.lire().racine
+export function EspaceNotak({
+  espace,
+  services: hote = {},
+  actions,
+}: {
+  espace: EspaceNavigable
+  services?: Services
+  /** Ce que l'application ajoute à droite de l'en-tête (partage, compte), pour le tableau ouvert. */
+  actions?(courant: Id): ReactNode
+}) {
+  const racine = espace.racine
   const [parcours, setParcours] = useState(() => parcoursDepart(racine))
+  const [avis, setAvis] = useState<string | null>(null)
   const courant = courantDe(parcours)
+  const lectureSeule = useSyncExternalStore(espace.ecouter, () => espace.lectureSeule?.(courant) ?? false)
   const vues = useRef<Vues | null>(null)
   vues.current ??= lireVuesEnregistrees()
 
   const ouvrir = useCallback(
     (id: Id) => {
-      if (!espace.lire().tableaux[id]) return
+      if (!espace.existe(id)) return
       demanderRenommage(null)
-      setParcours((p) => ouvrirParcours(p, id))
+      setParcours((p) => {
+        espace.entrer?.(id, courantDe(p))
+        return ouvrirParcours(p, id)
+      })
     },
     [espace],
   )
@@ -68,19 +82,36 @@ export function EspaceNotak({ espace, services: hote = {} }: { espace: EspaceViv
     () => ({
       ...hote,
       ouvrirTableau: ouvrir,
-      tableau: (id) => espace.lire().tableaux[id],
+      tableau: espace.tableau,
       ecouterEspace: espace.ecouter,
-      creerTableau: espace.creerTableau,
+      creerTableau: (titre) => espace.creerTableau(titre, courant),
       renommerTableau: espace.renommer,
+      presence: espace.presence?.(courant),
+      lectureSeule: lectureSeule || hote.lectureSeule,
     }),
-    [hote, espace, ouvrir],
+    [hote, espace, ouvrir, courant, lectureSeule],
   )
+
+  // Le tableau regardé reste ouvert, avec ceux vers lesquels il renvoie.
+  useEffect(() => espace.retenir?.(courant), [espace, courant])
+
+  // Un accès retiré ramène à l'accueil, une fois, avec un mot.
+  const refuse = useSyncExternalStore(espace.ecouter, () => espace.refuse?.(courant) ?? false)
+  useEffect(() => {
+    if (!refuse || courant === racine) return
+    setAvis('Accès retiré')
+    setParcours(parcoursDepart(racine))
+  }, [refuse, courant, racine])
+  useEffect(() => {
+    if (!avis) return
+    const t = setTimeout(() => setAvis(null), 4000)
+    return () => clearTimeout(t)
+  }, [avis])
 
   // Le fil, lu comme une chaîne : l'en-tête ne se redessine que si le chemin ou un titre change.
   const fil = useSyncExternalStore(espace.ecouter, () => {
-    const { tableaux } = espace.lire()
     const chemin = espace.chemin(courant)
-    return JSON.stringify(chemin.map((id) => [id, tableaux[id]?.titre ?? '']))
+    return JSON.stringify(chemin.map((id) => [id, espace.tableau(id)?.titre ?? '']))
   })
   const segments = useMemo(() => {
     const chemin = (JSON.parse(fil) as [Id, string][]).map(([id, titre]): Segment => ({ id, titre }))
@@ -126,7 +157,8 @@ export function EspaceNotak({ espace, services: hote = {} }: { espace: EspaceViv
 
   return (
     <div className="notak-espace">
-      <Entete segments={segments} courant={courant} ouvrir={ouvrir} />
+      <Entete segments={segments} courant={courant} ouvrir={ouvrir} presence={espace.presence?.(courant)} actions={actions?.(courant)} />
+      {avis && <div className="notak-avis" role="status">{avis}</div>}
       <div className="notak-espace-corps" ref={corps}>
         <Toile
           key={courant}
@@ -140,7 +172,19 @@ export function EspaceNotak({ espace, services: hote = {} }: { espace: EspaceViv
   )
 }
 
-function Entete({ segments, courant, ouvrir }: { segments: Segment[]; courant: Id; ouvrir(id: Id): void }) {
+function Entete({
+  segments,
+  courant,
+  ouvrir,
+  presence,
+  actions,
+}: {
+  segments: Segment[]
+  courant: Id
+  ouvrir(id: Id): void
+  presence?: Services['presence']
+  actions?: ReactNode
+}) {
   const entete = useRef<HTMLElement>(null)
   const [largeur, setLargeur] = useState(Number.POSITIVE_INFINITY)
   const [menu, setMenu] = useState(false)
@@ -217,6 +261,26 @@ function Entete({ segments, courant, ouvrir }: { segments: Segment[]; courant: I
           segment(i),
         ])}
       </nav>
+      <Pastilles presence={presence} />
+      {actions && <div className="notak-entete-actions">{actions}</div>}
     </header>
+  )
+}
+
+const sansEcoute = () => () => {}
+const aucune: Presence[] = []
+
+/** Les personnes présentes sur ce tableau, une pastille chacune (initiale, couleur), sans doublon. */
+function Pastilles({ presence }: { presence?: Services['presence'] }) {
+  const autres = useSyncExternalStore(presence?.ecouter ?? sansEcoute, presence ? presence.autres : () => aucune)
+  const personnes = [...new Map(autres.map((a) => [a.utilisateur.id, a.utilisateur])).values()]
+  return (
+    <div className="notak-pastilles">
+      {personnes.map((u) => (
+        <span key={u.id} className="notak-pastille" style={{ background: u.couleur }} title={u.nom}>
+          {[...u.nom.trim()][0]?.toLocaleUpperCase('fr') ?? '?'}
+        </span>
+      ))}
+    </div>
   )
 }

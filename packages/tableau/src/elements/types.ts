@@ -22,6 +22,23 @@ export interface DepotFichiers {
 /** Qui va chercher l'aperçu d'une page web : un serveur, puisqu'un navigateur ne lit pas les autres sites. */
 export type ChercheurApercu = (url: string) => Promise<Apercu>
 
+/** Qui est là : un client branché sur le tableau (une personne peut en avoir plusieurs). */
+export interface Presence {
+  client: number
+  utilisateur: { id: string; nom: string; couleur: string }
+  /** Où est son pointeur, en UG ; `null` s'il est sorti de la toile. */
+  curseur: Point | null
+  selection: Id[]
+}
+
+/** Ce que la toile dit de soi aux autres, et ce qu'elle apprend d'eux. */
+export interface ServicePresence {
+  signaler(etat: { curseur?: Point | null; selection?: Id[] }): void
+  /** Les autres seulement, jamais soi. Même tableau tant que rien ne change. */
+  autres(): Presence[]
+  ecouter(f: () => void): () => void
+}
+
 /** Ce que l'application hôte prête à la toile. Tout est facultatif : un type sans son service se dégrade. */
 export interface Services {
   fichiers?: DepotFichiers
@@ -36,6 +53,10 @@ export interface Services {
   creerTableau?(titre: string): Id
   /** Change le titre d'un tableau de l'espace. */
   renommerTableau?(id: Id, titre: string): void
+  /** La présence des autres sur ce tableau. Sans elle, la toile est seule. */
+  presence?: ServicePresence
+  /** On peut regarder et défiler, rien de plus : la toile refuse tout ce qui modifie. */
+  lectureSeule?: boolean
 }
 
 /** L'état de la toile, prêté à chaque type d'élément. */

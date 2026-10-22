@@ -1,4 +1,5 @@
 import type { Camera } from './camera'
+import type { ServicePresence } from '../elements/types'
 import { point } from './geometrie'
 import { type Magasin, creerMagasin } from './magasin'
 import { COULEURS_NOTE, type CouleurNote, type Id, type Tableau, nouvelId } from './tableau'
@@ -9,19 +10,43 @@ export interface Espace {
   tableaux: Record<Id, Tableau>
 }
 
-export interface EspaceVivant {
+/**
+ * Ce dont la vue a besoin pour naviguer : l'espace local et l'espace synchronisé la remplissent tous deux.
+ * La vue ne sait pas combien de tableaux existent, seulement ceux qu'on lui demande.
+ */
+export interface EspaceNavigable {
+  racine: Id
   /** Le magasin d'un tableau, créé à la demande, avec son propre historique. */
   magasin(id: Id): Magasin
-  /** Crée un tableau vide, sans renvoi : c'est à l'appelant de le poser quelque part. */
-  creerTableau(titre: string): Id
+  /** Titre et couleur d'un tableau, et ses éléments quand on les a. `undefined` s'il est inconnu. */
+  tableau(id: Id): Tableau | undefined
+  existe(id: Id): boolean
+  /**
+   * Crée un tableau vide, sans renvoi : c'est à l'appelant de le poser quelque part. `parent` est le tableau
+   * où il va être posé, pour les espaces qui en héritent les accès.
+   */
+  creerTableau(titre: string, parent?: Id): Id
   /** Change le titre, hors historique (le renvoi qui le demande porte le pas d'historique). */
   renommer(id: Id, titre: string): void
-  lire(): Espace
-  /** Prévenu à chaque changement de n'importe quel tableau. */
+  /** Prévenu à chaque changement de n'importe quel tableau regardé. */
   ecouter(f: () => void): () => void
   /** De la racine jusqu'à ce tableau, en suivant les renvois. Un orphelin s'arrête à lui-même. */
   chemin(id: Id): Id[]
   parent(id: Id): Id | null
+  /** La vue entre dans `id` en partant de `depuis` : l'espace s'en sert pour tenir le chemin. */
+  entrer?(id: Id, depuis: Id | null): void
+  /** Un tableau regardé reste ouvert tant qu'on ne rend pas ce qu'il rend. */
+  retenir?(id: Id): () => void
+  /** La présence des autres sur ce tableau. */
+  presence?(id: Id): ServicePresence | undefined
+  /** On ne peut que regarder ce tableau. */
+  lectureSeule?(id: Id): boolean
+  /** Le serveur n'en donne plus l'accès : la vue revient à l'accueil. */
+  refuse?(id: Id): boolean
+}
+
+export interface EspaceVivant extends EspaceNavigable {
+  lire(): Espace
 }
 
 /** La couleur du n-ième tableau créé : la palette tourne. */
@@ -96,7 +121,10 @@ export function creerEspace(initial: Espace): EspaceVivant {
   }
 
   return {
+    racine,
     magasin,
+    tableau: (id) => lire().tableaux[id],
+    existe: (id) => !!lire().tableaux[id],
     creerTableau(titre) {
       const id = nouvelId()
       base[id] = { id, titre, couleur: couleurSuivante(Object.keys(base).length), elements: [] }
