@@ -12,7 +12,9 @@ import {
   reculer,
   tronquerFil,
 } from './coeur/espace'
-import type { Id } from './coeur/tableau'
+import { point } from './coeur/geometrie'
+import { deballer } from './coeur/pressePapiers'
+import { type Element, type Id, type Tableau, surLeTableau } from './coeur/tableau'
 import { demanderRenommage } from './elements/tableau/renommage'
 import type { Presence, Services } from './elements/types'
 import { Toile } from './Toile'
@@ -51,6 +53,23 @@ export interface Adresse {
   ecrire(id: Id): void
   /** Prévenu quand l'adresse change sans nous (retour, avance) ; `null` : l'accueil. */
   ecouter(f: (id: Id | null) => void): () => void
+}
+
+/**
+ * Des éléments venus d'un autre tableau, rangés à droite de ce qu'il y a déjà (4 UG d'écart, en haut du contenu),
+ * ou à 5 UG du coin si le tableau est vide ; ils gardent leur disposition et reçoivent des identifiants neufs.
+ */
+export function placerALaSuite(t: Tableau, elements: Element[]): Element[] {
+  const posables = (els: readonly Element[]) => els.filter((e) => !e.parent && e.contenu.type !== 'ligne')
+  const venus = posables(elements)
+  if (venus.length === 0) return deballer({ elements, cadre: { min: point(0, 0), max: point(0, 0) } }, point(0, 0))
+  const [minX, minY] = [Math.min(...venus.map((e) => e.x)), Math.min(...venus.map((e) => e.y))]
+  const la = posables(surLeTableau(t))
+  const d =
+    la.length === 0
+      ? point(5 - minX, 5 - minY)
+      : point(Math.max(...la.map((e) => e.x + e.largeur)) + 4 - minX, Math.min(...la.map((e) => e.y)) - minY)
+  return deballer({ elements, cadre: { min: point(minX, minY), max: point(minX, minY) } }, d)
 }
 
 interface Segment {
@@ -101,6 +120,11 @@ export function EspaceNotak({
       renommerTableau: espace.renommer,
       presence: espace.presence?.(courant),
       lectureSeule: lectureSeule || hote.lectureSeule,
+      deposerDans: (cible, elements) => {
+        if (espace.lectureSeule?.(cible)) return
+        const m = espace.magasin(cible)
+        m.appliquerSeulement(placerALaSuite(m.lire(), elements).map((element) => ({ type: 'creer' as const, element })))
+      },
     }),
     [hote, espace, ouvrir, courant, lectureSeule],
   )
@@ -317,6 +341,7 @@ function Entete({
         className="notak-fil-segment"
         aria-current={ici ? 'page' : undefined}
         title={s.titre}
+        data-depot-tableau={s.id}
         onClick={() => (ici && renommer ? setEnRenommage(true) : aller(s.id))}
       >
         {s.titre || 'Sans titre'}

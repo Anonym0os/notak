@@ -667,3 +667,22 @@
   font: inherit;
   font-weight: 600;
 }
+
+/* La place laissée dans une colonne par ce qu'on en a tiré. */
+.notak-empreinte {
+  box-sizing: border-box;
+  border: 1.5px dashed rgb(0 0 0 / 0.14);
+  border-radius: 3px;
+  background: rgb(0 0 0 / 0.03);
+}
+
+/* Un tableau qui va recevoir ce qu'on glisse : sa carte, ou son segment du fil d'Ariane. */
+.notak-carte[data-survol-depot] .notak-renvoi-carre {
+  outline: 3px solid var(--notak-accent);
+  outline-offset: 3px;
+}
+
+.notak-fil-segment[data-survol-depot] {
+  background: var(--notak-accent);
+  color: #fff;
+}

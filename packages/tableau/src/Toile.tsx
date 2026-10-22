@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { BarreOutils, BarreSelection, type OutilDeBarre, outilsDeBarre } from './Barres'
-import { Cadre, ContexteRangement, type Rangement } from './Cadre'
+import { Cadre, ContexteRangement, type Empreinte, type Rangement } from './Cadre'
 import * as cam from './coeur/camera'
 import { type Point, type Rect, chevauche, depuisCoins, englobant, point, soustraire } from './coeur/geometrie'
 import { creerLimiteur } from './coeur/limiteur'
@@ -86,6 +86,7 @@ function retenirPaquet(p: Paquet) {
   copie.paquet = p
 }
 
+const AUCUNE: readonly Empreinte[] = []
 const sansEcoute = () => () => {}
 const rien = () => {}
 
@@ -171,6 +172,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   /** Le trait qui montre la place d'insertion dans une colonne, en pixels de la toile. */
   const [trait, setTrait] = useState<{ x0: number; x1: number; y: number } | null>(null)
   const cible = useRef<Cible | null>(null)
+  /** Le tableau où tombera ce qu'on glisse (sa carte sur la toile, ou un segment du fil d'Ariane), et son nœud. */
+  const tableauVise = useRef<{ id: Id; noeud: HTMLElement } | null>(null)
+  const [empreintes, setEmpreintes] = useState<readonly Empreinte[]>(AUCUNE)
 
   const racine = useRef<HTMLDivElement>(null)
   const geste = useRef<Geste | null>(null)
@@ -521,6 +525,22 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     })
     magasin.faire(ranges.map((element): Operation => ({ type: 'creer', element })))
     setSelection(new Set(ranges.filter((x) => !x.parent || selection.has(originaux.get(x.id)!.id)).map((x) => x.id)))
+  }
+
+  /** Envoie ces éléments dans un autre tableau (avec le contenu des colonnes et les lignes entre eux). */
+  const envoyerDans = (cibleTableau: Id, ids: Id[]) => {
+    const t = magasin.lire()
+    const p = empaqueter(t, ids, rect)
+    if (!p || !services.deposerDans) return
+    services.deposerDans(cibleTableau, p.elements.map((x) => ({ ...x })))
+    // Le déplacement n'entre pas dans l'historique : l'annuler ici laisserait un double là-bas.
+    const partis = new Set(p.elements.map((x) => x.id))
+    const lignesOrphelines = avecLiees(t.elements.filter((x) => partis.has(x.id)), t).filter((x) => !partis.has(x.id))
+    magasin.appliquerSeulement(
+      [...t.elements.filter((x) => partis.has(x.id) || (x.parent && partis.has(x.parent))), ...lignesOrphelines].map(
+        (element): Operation => ({ type: 'supprimer', element }),
+      ),
+    )
   }
 
   const restaurer = (e: Element) => {
@@ -940,6 +960,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           const [x, y] = aimanter(o.pos)
           return { type: 'ranger', id, de: o.place, vers: { x, y } }
         })
+      // Chaque élément tiré d'une colonne y laisse sa place vide jusqu'au dépôt.
+      setEmpreintes(
+        [...g.origines].flatMap(([id, o]): Empreinte[] => {
+          if (!o.place.parent) return []
+          const r = rect(id)
+          const hauteur = r ? (r.max.y - r.min.y) * cam.PX_PAR_UG : 0
+          return [{ id, parent: o.place.parent, ...(o.place.ordre !== undefined ? { ordre: o.place.ordre } : {}), hauteur }]
+        }),
+      )
       magasin.appliquerSeulement(g.sorties)
       g.vols = ids
       g.envol = new Envol(reglageVol(choisis, cote), (v) => {
@@ -967,7 +996,13 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const elements = magasin.lire().elements
     let trouvee: Cible | null = null
     let nouveauTrait: { x0: number; x1: number; y: number } | null = null
-    for (const n of document.elementsFromPoint(e.clientX, e.clientY)) {
+    let versTableau: { id: Id; noeud: HTMLElement } | null = null
+    // On ne range pas un tableau en lui-même.
+    const interdits = new Set(portes.flatMap((x) => (x.contenu.type === 'tableau' ? [x.contenu.cible] : [])))
+    const segment = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('[data-depot-tableau]')
+    const idSegment = segment?.getAttribute('data-depot-tableau')
+    if (segment && idSegment && idSegment !== tableau.id && !interdits.has(idSegment) && services.deposerDans) versTableau = { id: idSegment, noeud: segment }
+    for (const n of versTableau ? [] : document.elementsFromPoint(e.clientX, e.clientY)) {
       if (calqueFantome.current?.contains(n)) continue
       const chaine = chaineDe(div, n)
       if (chaine.length === 0) continue
@@ -978,6 +1013,12 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         return el && definition(el.contenu.type)
       }
       if (defDe(chaine[0]!)?.calque === 'lignes') continue
+      // Sur la carte d'un tableau : ce qu'on lâche part dans ce tableau.
+      const carte = elements.find((x) => x.id === idDe(chaine[0]!))
+      if (carte?.contenu.type === 'tableau' && services.deposerDans && !interdits.has(carte.contenu.cible)) {
+        versTableau = { id: carte.contenu.cible, noeud: chaine[0]! }
+        break
+      }
       // Le premier élément touché décide : un conteneur qui le contient, ou la toile nue.
       const noeud = chaine.find((c) => defDe(c)?.accepte)
       const conteneur = noeud && elements.find((x) => x.id === idDe(noeud))
@@ -1003,12 +1044,18 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       nouveauTrait = { x0: c.left - o.left + 8 * k, x1: c.right - o.left - 8 * k, y: y - o.top }
       break
     }
-    cible.current = trouvee
+    if (tableauVise.current?.noeud !== versTableau?.noeud) {
+      if (tableauVise.current) delete tableauVise.current.noeud.dataset.survolDepot
+      if (versTableau) versTableau.noeud.dataset.survolDepot = ''
+    }
+    tableauVise.current = versTableau
+    if (versTableau) nouveauTrait = null
+    cible.current = versTableau ? null : trouvee
     setTrait((t) => (t && nouveauTrait && t.x0 === nouveauTrait.x0 && t.x1 === nouveauTrait.x1 && t.y === nouveauTrait.y ? t : nouveauTrait))
   }
 
   /** Lâcher un outil : l'élément naît sous le fantôme (ou dans la colonne visée), puis se pose en douceur. */
-  const lacherOutil = (g: Extract<Geste, { type: 'outil' }>, e: React.PointerEvent, visee: Cible | null) => {
+  const lacherOutil = (g: Extract<Geste, { type: 'outil' }>, e: React.PointerEvent, visee: Cible | null, versTableau?: Id) => {
     g.envol?.arreter()
     const vol = g.envol?.vol
     setFantome(null)
@@ -1023,6 +1070,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     let pas = g.outil.outil.creer(point(x, y), contexte)
     const ids = pas.flatMap((op) => (op.type === 'creer' ? [op.element.id] : []))
     if (ids.length === 0) return
+    if (versTableau && services.deposerDans) {
+      // Lâché sur un tableau : l'élément naît dans ce tableau, sans être choisi.
+      return services.deposerDans(versTableau, pas.flatMap((op) => (op.type === 'creer' ? [op.element] : [])))
+    }
     let range = false
     if (visee) {
       const colonne = visee.colonne
@@ -1071,8 +1122,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     } else return false
     geste.current = null
     cible.current = null
+    if (tableauVise.current) delete tableauVise.current.noeud.dataset.survolDepot
+    tableauVise.current = null
     setTrait(null)
     setGlisses(null)
+    setEmpreintes(AUCUNE)
     setEnGeste(false)
     return true
   }
@@ -1090,11 +1144,25 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       return
     }
     const visee = cible.current
+    const versTableau = tableauVise.current
     cible.current = null
+    if (versTableau) delete versTableau.noeud.dataset.survolDepot
+    tableauVise.current = null
     setTrait(null)
     setGlisses(null)
-    if (g?.type === 'outil') return lacherOutil(g, e, visee)
+    setEmpreintes(AUCUNE)
+    if (g?.type === 'outil') return lacherOutil(g, e, visee, versTableau?.id)
     if (g?.type !== 'glisser') return
+    if (g.demarre && versTableau && services.deposerDans) {
+      // Lâché sur un tableau : tout part dans ce tableau, colonnes et lignes comprises.
+      g.envol?.arreter()
+      for (const id of g.vols) {
+        const n = noeudDe(id)
+        if (n) oublierVol(n)
+      }
+      magasin.appliquerSeulement(g.sorties.toReversed().map(inverse))
+      return envoyerDans(versTableau.id, [...g.origines.keys()])
+    }
     if (g.demarre && document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-corbeille]')) {
       // Lâché sur la corbeille : on remet d'abord ce qui sortait d'une colonne, la corbeille le prend de là.
       g.envol?.arreter()
@@ -1202,8 +1270,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const barre = cadreChoisis && !lectureSeule && versEcran(cadreChoisis)
 
   const rangement = useMemo<Rangement>(
-    () => ({ elements: tableau.elements, selection, edition, brouillon: surBrouillon, changer: surChanger }),
-    [tableau, selection, edition, surBrouillon, surChanger],
+    () => ({ elements: tableau.elements, empreintes, selection, edition, brouillon: surBrouillon, changer: surChanger }),
+    [tableau, empreintes, selection, edition, surBrouillon, surChanger],
   )
   // Ce qui est verrouillé reste dessous.
   const cartes = [...tableau.elements.filter((x) => libre(x) && x.verrou), ...tableau.elements.filter((x) => libre(x) && !x.verrou)]

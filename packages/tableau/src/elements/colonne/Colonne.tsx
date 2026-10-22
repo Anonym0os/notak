@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react'
-import { Rangees, useRanges } from '../../Cadre'
+import { Rangees, useEmpreintes, useRanges } from '../../Cadre'
 import { COULEURS_NOTE, type Colonne, type CouleurNote } from '../../coeur/tableau'
 import { LIBELLES_COULEUR } from '../note/couleurs'
 import type { PropsOutils, PropsRendu } from '../types'
@@ -31,6 +31,7 @@ function Saisie({ titre, surChangement, valider }: { titre: string; surChangemen
 export function RenduColonne({ element, choisie, enEdition, contexte, brouillon, changer }: PropsRendu<Colonne>) {
   const { contenu } = element
   const enfants = useRanges(element.id)
+  const empreintes = useEmpreintes(element.id)
 
   const replier = () => {
     const { repliee: _, ...reste } = contenu
@@ -75,9 +76,9 @@ export function RenduColonne({ element, choisie, enEdition, contexte, brouillon,
         </button>
       </div>
       {!contenu.repliee &&
-        (enfants.length > 0 ? (
+        (enfants.length > 0 || empreintes.length > 0 ? (
           <div className="notak-colonne-corps">
-            <Rangees enfants={enfants} contexte={contexte} />
+            <Rangees enfants={enfants} empreintes={empreintes} contexte={contexte} />
           </div>
         ) : (
           <div className="notak-colonne-vide" data-depot>

@@ -54,9 +54,18 @@ export const Cadre = memo(function Cadre({ element, choisie, enEdition, contexte
   )
 })
 
+/** La place que garde, jusqu'au dépôt, un élément qu'on a tiré de sa colonne : son rang et sa hauteur (px du plan). */
+export interface Empreinte {
+  id: Id
+  parent: Id
+  ordre?: string
+  hauteur: number
+}
+
 /** Ce que la toile prête aux conteneurs (une colonne) pour dessiner leurs éléments rangés. */
 export interface Rangement {
   elements: readonly Element[]
+  empreintes: readonly Empreinte[]
   selection: ReadonlySet<Id>
   edition: Id | null
   brouillon(element: Element, apres: Contenu): void
@@ -74,24 +83,42 @@ export function useRanges(parent: Id): Element[] {
   )
 }
 
-/** Dessine des éléments rangés, pleine largeur du conteneur. */
-export function Rangees({ enfants, contexte }: { enfants: readonly Element[]; contexte: ContexteToile }) {
+/** Les empreintes laissées dans ce conteneur par ce qu'on en a tiré. */
+export function useEmpreintes(parent: Id): Empreinte[] {
+  const empreintes = useContext(ContexteRangement)?.empreintes
+  return useMemo(() => (empreintes ?? []).filter((e) => e.parent === parent), [empreintes, parent])
+}
+
+/** Dessine des éléments rangés, pleine largeur du conteneur, et les empreintes de ceux qu'on en a tirés. */
+export function Rangees({ enfants, empreintes = [], contexte }: { enfants: readonly Element[]; empreintes?: readonly Empreinte[]; contexte: ContexteToile }) {
   const r = useContext(ContexteRangement)
   if (!r) return null
+  const suite = [...enfants.map((e) => ({ e, ordre: e.ordre })), ...empreintes.map((p) => ({ p, ordre: p.ordre }))].sort((a, b) =>
+    comparerOrdre(a.ordre, b.ordre),
+  )
   return (
     <>
-      {enfants.map((e) => (
-        <Cadre
-          key={e.id}
-          element={e}
-          mode="liste"
-          choisie={r.selection.has(e.id)}
-          enEdition={r.edition === e.id}
-          contexte={contexte}
-          brouillon={r.brouillon}
-          changer={r.changer}
-        />
-      ))}
+      {suite.map((x) =>
+        'p' in x ? (
+          <div key={`empreinte:${x.p.id}`} className="notak-empreinte" style={{ height: x.p.hauteur }} aria-hidden />
+        ) : (
+          <Rangee key={x.e.id} e={x.e} r={r} contexte={contexte} />
+        ),
+      )}
     </>
+  )
+}
+
+function Rangee({ e, r, contexte }: { e: Element; r: Rangement; contexte: ContexteToile }) {
+  return (
+    <Cadre
+      element={e}
+      mode="liste"
+      choisie={r.selection.has(e.id)}
+      enEdition={r.edition === e.id}
+      contexte={contexte}
+      brouillon={r.brouillon}
+      changer={r.changer}
+    />
   )
 }
