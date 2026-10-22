@@ -1,0 +1,116 @@
+.notak-taches {
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  color: var(--notak-texte);
+}
+
+.notak-taches ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Une sous-liste s'aligne sous le texte de sa tâche. */
+.notak-taches li > div > ul {
+  margin-top: 2px;
+}
+
+.notak-taches li[data-type='taskItem'] {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.notak-taches li[data-type='taskItem'] > div {
+  flex: 1;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.notak-taches p {
+  margin: 0;
+  min-height: 1.45em;
+  transition: color 150ms;
+}
+
+.notak-taches li[data-checked='true'] > div > p {
+  color: #9aa0a8;
+}
+
+/* La zone de clic fait 24 px ; la case ronde en fait 16, dessinée au centre. */
+.notak-case {
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  margin: 0 2px 0 -4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.notak-case::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  box-sizing: border-box;
+  border: 1.5px solid #b3b9c1;
+  border-radius: 50%;
+  transition: background-color 150ms, border-color 150ms;
+}
+
+.notak-case:hover::before {
+  border-color: var(--notak-accent);
+}
+
+.notak-case[aria-checked='true']::before {
+  border-color: var(--notak-accent);
+  background: var(--notak-accent);
+}
+
+.notak-case[aria-checked='true']::after {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 7px;
+  width: 3px;
+  height: 6px;
+  border: solid #fff;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+
+.notak-taches-texte {
+  outline: none;
+}
+
+.notak-taches-titre {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0 0 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--notak-texte);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  outline: none;
+}
+
+.notak-taches-titre::placeholder {
+  color: #b3b9c1;
+}
+
+.notak-barre-selection .notak-taches-compteur {
+  padding: 0 6px;
+  color: #7a7f87;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
