@@ -105,10 +105,10 @@ function Espace({ moi, deconnexion }: { moi: Moi; deconnexion(): void }) {
       <EspaceNotak
         espace={espace}
         services={services}
-        actions={(courant) => (
+        actions={(courant, ouvrir) => (
           <>
             <Partage tableau={courant} moi={moi} />
-            <Compte moi={moi} deconnexion={deconnexion} />
+            <Compte moi={moi} deconnexion={deconnexion} ouvrir={ouvrir} />
           </>
         )}
       />

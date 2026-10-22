@@ -1,4 +1,4 @@
-import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/provider'
+import { HocuspocusProvider, HocuspocusProviderWebsocket, WebSocketStatus } from '@hocuspocus/provider'
 import { IndexeddbPersistence } from 'y-indexeddb'
 import type { Reseau } from './coeur/espaceDistant'
 
@@ -39,6 +39,15 @@ export function creerReseauNavigateur(utilisateurId: string): Reseau {
         onSynced: ({ state }) => {
           synchro = state
           surEtat()
+        },
+        onClose: () => {
+          // Le serveur ferme ce seul document quand le rôle change ou que l'accès est retiré. La prise reste
+          // ouverte et le provider ne redemande rien : on se rattache pour relire le rôle (ou le refus).
+          if (refuse || socket().status !== WebSocketStatus.Connected) return
+          queueMicrotask(() => {
+            provider.detach()
+            provider.attach()
+          })
         },
       })
       // Le socket est partagé : le provider ne s'y accroche pas tout seul.

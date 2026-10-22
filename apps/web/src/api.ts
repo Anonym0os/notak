@@ -65,6 +65,19 @@ export async function seDeconnecter(): Promise<void> {
   await appeler('/api/deconnexion', {})
 }
 
+export interface TableauAccessible {
+  id: string
+  titre: string
+  role: Role
+}
+
+/** Les tableaux qu'on peut ouvrir, hors son propre accueil. */
+export async function listerTableaux(): Promise<TableauAccessible[]> {
+  const r = await appeler('/api/tableaux')
+  if (!r.ok) throw refus(r, {})
+  return (await r.json()) as TableauAccessible[]
+}
+
 export async function listerAcces(tableau: string): Promise<Acces[]> {
   const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/acces`)
   if (!r.ok) throw refus(r, { 404: 'Tableau introuvable', 403: 'Accès refusé' })

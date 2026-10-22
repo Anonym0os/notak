@@ -56,7 +56,7 @@ export function EspaceNotak({
   espace: EspaceNavigable
   services?: Services
   /** Ce que l'application ajoute à droite de l'en-tête (partage, compte), pour le tableau ouvert. */
-  actions?(courant: Id): ReactNode
+  actions?(courant: Id, ouvrir: (id: Id) => void): ReactNode
 }) {
   const racine = espace.racine
   const [parcours, setParcours] = useState(() => parcoursDepart(racine))
@@ -157,7 +157,7 @@ export function EspaceNotak({
 
   return (
     <div className="notak-espace">
-      <Entete segments={segments} courant={courant} ouvrir={ouvrir} presence={espace.presence?.(courant)} actions={actions?.(courant)} />
+      <Entete segments={segments} courant={courant} ouvrir={ouvrir} presence={espace.presence?.(courant)} actions={actions?.(courant, ouvrir)} />
       {avis && <div className="notak-avis" role="status">{avis}</div>}
       <div className="notak-espace-corps" ref={corps}>
         <Toile
