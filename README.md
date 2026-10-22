@@ -1,13 +1,14 @@
 # Notak
 
 Des tableaux visuels libres, à plusieurs : notes, images, liens, colonnes, flèches, tâches, croquis.
-Une alternative open source à Milanote, écrite en Rust natif.
+Une alternative open source à Milanote, en TypeScript et React, qu'on pose aussi dans d'autres applications.
 
 > État : passe 1, la toile. On pose des notes, on zoome, on défile, on sélectionne et on déplace.
 > Le tableau est un fichier local ; rien n'est encore partagé.
 
 ```bash
-cargo run -p notak-app
+bun install
+bun run dev
 ```
 
 | Geste | Effet |
@@ -27,21 +28,20 @@ cargo run -p notak-app
 
 ## Pile
 
-- Interface : `eframe` / `egui` sur `wgpu` (dessin vectoriel `vello` quand il deviendra utile)
-- Texte : `parley`
-- Collaboration : CRDT `yrs` (compatible Yjs)
-- Serveur : `axum`, Postgres
+- Interface : React 19, toile en DOM (une transformation CSS pour le zoom)
+- Texte riche : Tiptap 3 (ProseMirror), enregistré dans son format JSON
+- Collaboration : Yjs (à venir)
+- Coques : web, bureau par Tauri, iPhone (à venir)
 
 ## Dépôt
 
 | Dossier | Rôle |
 |---|---|
 | `docs/SPEC.md` | ce que Notak doit faire, geste par geste |
-| `crates/notak-core` | modèle, opérations, annuler/rétablir |
-| `crates/notak-sync` | documents CRDT (à venir) |
-| `crates/notak-app` | application de bureau |
-| `crates/notak-serveur` | comptes, partage, relais temps réel (à venir) |
-| `crates/notak-commandes` | bus de commandes, serveur MCP (à venir) |
+| `packages/tableau` | `@notak/tableau` : le cœur (caméra, sélection, historique) et la toile React |
+| `apps/web` | l'application web |
+
+Tests : `bun run test`. Types : `bun run typecheck`.
 
 ## Licence
 

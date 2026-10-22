@@ -1,0 +1,6 @@
+export * from './coeur/camera'
+export * from './coeur/geometrie'
+export { creerMagasin, type Magasin } from './coeur/magasin'
+export * from './coeur/selection'
+export * from './coeur/tableau'
+export { Toile } from './Toile'

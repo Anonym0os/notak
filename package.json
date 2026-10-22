@@ -1,0 +1,17 @@
+{
+  "name": "notak",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.3.12",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev": "bun --cwd apps/web run dev",
+    "test": "vitest run",
+    "typecheck": "tsc -b"
+  },
+  "devDependencies": {
+    "jsdom": "^27.0.0",
+    "typescript": "6.0.3",
+    "vitest": "4.1.12"
+  }
+}

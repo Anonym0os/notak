@@ -1,0 +1,30 @@
+{
+  "name": "@notak/tableau",
+  "version": "0.1.0",
+  "description": "La toile Notak : un tableau visuel à poser dans n'importe quelle application React.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./toile.css": "./src/toile.css"
+  },
+  "peerDependencies": {
+    "@tiptap/pm": "^3.31.0",
+    "@tiptap/react": "^3.31.0",
+    "@tiptap/starter-kit": "^3.31.0",
+    "@tiptap/static-renderer": "^3.31.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@tiptap/pm": "3.32.0",
+    "@tiptap/react": "3.32.0",
+    "@tiptap/starter-kit": "3.32.0",
+    "@tiptap/static-renderer": "3.32.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  }
+}

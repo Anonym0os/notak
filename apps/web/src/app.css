@@ -1,0 +1,11 @@
+html,
+body,
+#racine {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'Inter Variable', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}

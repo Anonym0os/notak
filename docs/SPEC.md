@@ -38,6 +38,9 @@ Les sections suivantes décrivent tout, socle et suite, pour que le modèle de d
   10 px selon la taille d'interface choisie.
 - **Local d'abord.** → Notak : l'état vit dans un document CRDT sur la machine. Le serveur relaie et conserve, il
   n'arbitre pas. On écrit hors ligne comme en ligne.
+- **Une bibliothèque, plusieurs coques.** → Notak : la toile est un composant React (`@notak/tableau`) qui
+  vit dans l'application web, dans la coque de bureau (Tauri), sur iPhone, et dans Silak. Elle ne sait rien
+  de l'endroit où elle est posée : on lui donne un magasin, elle l'affiche.
 - **Tout geste est une commande.** → Notak : chaque action (créer, déplacer, colorer…) est une commande nommée,
   sérialisable, que l'interface, le serveur et un serveur MCP appellent de la même façon.
 
@@ -118,7 +121,7 @@ Un document arborescent de blocs et de marques, du type ProseMirror.
 - Chaque type n'accepte qu'un sous-ensemble : la note a tout ; une légende ou une cellule n'a ni titre, ni liste,
   ni bloc de code.
 
-→ Notak : le texte d'un élément est un `Y.XmlFragment` (yrs), donc deux personnes écrivent dans la même note sans
+→ Notak : le texte d'un élément est un `Y.XmlFragment` (Yjs, via y-prosemirror), donc deux personnes écrivent dans la même note sans
 conflit. Milanote envoie des diffs et rejette en cas de version concurrente ; c'est son point faible.
 
 ## 6. Lignes
@@ -148,7 +151,7 @@ conflit. Milanote envoie des diffs et rejette en cas de version concurrente ; c'
   horizontal et vertical, fond, lecture seule.
 - **Types** : auto, nombre, monnaie, pourcentage, texte, date et heure, case à cocher, avec leurs formats
   (décimales, milliers, devise, format de date).
-- **Formules** de tableur. → Notak : un moteur de formules Rust (à choisir à la passe 5).
+- **Formules** de tableur. → Notak : un moteur de formules libre (HyperFormula est sous GPL, à vérifier ; à choisir quand la table viendra).
 
 ## 9. Couleurs
 
@@ -266,7 +269,7 @@ Cmd = Ctrl hors Mac.
 
 - Un pas = une transaction : un déplacement de groupe, un alignement, un collage s'annulent d'un coup.
 - 500 pas gardés.
-- Seuls ses propres gestes s'annulent, jamais ceux des autres. → Notak : `yrs::UndoManager`, limité à l'origine
+- Seuls ses propres gestes s'annulent, jamais ceux des autres. → Notak : le `UndoManager` de Yjs, limité à l'origine
   locale, le fait nativement.
 - Milanote annule aussi la navigation entre tableaux. → Notak : non, la navigation a son Précédent / Suivant.
 
@@ -298,13 +301,13 @@ Cmd = Ctrl hors Mac.
   permet d'écrire à deux ; on affiche seulement qui est là.
 
 ### Synchronisation → Notak
-- **Un document yrs par tableau.** Éléments dans une `Y.Map` par identifiant ; texte dans un `Y.XmlFragment` ;
+- **Un document Yjs par tableau.** Éléments dans une `Y.Map` par identifiant ; texte dans un `Y.XmlFragment` ;
   ordre des listes par indices fractionnaires.
 - **Protocole** : le protocole de synchronisation Yjs (vecteur d'état, puis mises à jour) sur WebSocket ; la
   présence sur le protocole *awareness* de Yjs. Un client web futur (Silak) pourra se brancher tel quel.
 - **Serveur** : un canal de diffusion par tableau ; les mises à jour sont ajoutées à Postgres puis compactées
   régulièrement en un instantané. Plusieurs nœuds : `LISTEN/NOTIFY`.
-- **Hors ligne** : le document est persisté sur le disque local (SQLite) ; à la reconnexion, les vecteurs d'état
+- **Hors ligne** : le document est persisté localement (IndexedDB dans le navigateur, `y-indexeddb`) ; à la reconnexion, les vecteurs d'état
   font l'échange minimal.
 - **Le serveur vérifie les droits** à chaque mise à jour reçue ; le client ne décide de rien.
 

@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "outDir": "../../node_modules/.tsbuild/tableau",
+    "tsBuildInfoFile": "../../node_modules/.tsbuild/tableau.tsbuildinfo"
+  },
+  "include": ["src"]
+}
