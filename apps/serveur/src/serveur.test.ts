@@ -98,14 +98,21 @@ describe('serveur de bout en bout', () => {
     expect(liste).toEqual([{ id: 'tableau-invite-1', titre: 'Invité', role: 'edition' }])
   })
 
-  it('un tableau sous un parent éditable reprend ses accès', async () => {
+  it('un tableau sous un parent éditable en hérite les accès, présents et à venir', async () => {
     const ana = await appeler('/api/connexion', { json: { email: 'ana@exemple.fr', motDePasse: 'motdepasse' } })
     const bob = await appeler('/api/connexion', { json: { email: 'bob@exemple.fr', motDePasse: 'motdepasse' } })
     await appeler('/api/tableaux/tableau-invite-1/partage', { cookie: ana.cookie, json: { email: 'bob@exemple.fr', role: 'edition' } })
     const fils = await appeler('/api/tableaux', { cookie: bob.cookie, json: { id: 'tableau-fils-0001', titre: 'Fils', parent: 'tableau-invite-1' } })
     expect(fils.statut).toBe(201)
-    const liste = await lire<Tableau[]>(await appeler('/api/tableaux', { cookie: ana.cookie }))
-    expect(liste.find((t) => t.id === 'tableau-fils-0001')?.role).toBe('proprietaire')
+    const membres = await lire<(Membre & { herite?: boolean })[]>(await appeler('/api/tableaux/tableau-fils-0001/acces', { cookie: ana.cookie }))
+    expect(membres.find((m) => m.email === 'ana@exemple.fr')).toMatchObject({ role: 'proprietaire', herite: true })
+    expect(membres.find((m) => m.email === 'bob@exemple.fr')).toMatchObject({ role: 'proprietaire', herite: false })
+
+    // retirer l'accès au parent le retire aussi du fils
+    const cleoAvant = await appeler('/api/connexion', { json: { email: 'cleo@exemple.fr', motDePasse: 'motdepasse' } })
+    expect((await appeler('/api/tableaux/tableau-fils-0001/acces', { cookie: cleoAvant.cookie })).statut).toBe(200)
+    await appeler('/api/tableaux/tableau-invite-1/partage', { methode: 'DELETE', cookie: ana.cookie, json: { email: 'cleo@exemple.fr' } })
+    expect((await appeler('/api/tableaux/tableau-fils-0001/acces', { cookie: cleoAvant.cookie })).statut).toBe(404)
     // un id pris par un autre
     expect((await appeler('/api/tableaux', { cookie: ana.cookie, json: { id: 'tableau-fils-0001', titre: 'X' } })).statut).toBe(201)
     const cleo = await appeler('/api/connexion', { json: { email: 'cleo@exemple.fr', motDePasse: 'motdepasse' } })

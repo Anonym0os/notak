@@ -14,6 +14,8 @@ export interface Acces {
   nom?: string
   role: Role
   enAttente: boolean
+  /** Donné sur un tableau parent : il se retire là-haut. */
+  herite?: boolean
 }
 
 /** Une erreur dont le message se montre tel quel. */

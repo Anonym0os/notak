@@ -4,7 +4,7 @@ import { Database } from '@hocuspocus/extension-database'
 import { Hocuspocus } from '@hocuspocus/server'
 import { WebSocketServer } from 'ws'
 import type { Base } from './base.ts'
-import { role } from './droits.ts'
+import { roleHerite } from './droits.ts'
 import { NOM_COOKIE, empreinteDe, lireCookie } from './sessions.ts'
 
 const PREFIXE = 'tableau:'
@@ -30,11 +30,19 @@ export function creerHocuspocus(base: Base, maintenant: () => number = Date.now)
         },
       }),
     ],
+    // Un tableau dont le document n'a pas encore de titre (un accueil, créé à l'inscription) prend celui de la base,
+    // pour que les autres le voient nommé.
+    async afterLoadDocument({ documentName, document }) {
+      const id = idDuDocument(documentName)
+      const meta = document.getMap('meta')
+      const titre = id ? base.tableau(id)?.titre : undefined
+      if (titre && !meta.get('titre')) document.transact(() => meta.set('titre', titre))
+    },
     async onAuthenticate({ documentName, requestHeaders, connectionConfig }) {
       const id = idDuDocument(documentName)
       const jeton = lireCookie(requestHeaders.get('cookie'), NOM_COOKIE)
       const utilisateur = id && jeton ? base.utilisateurDeSession(empreinteDe(jeton), maintenant()) : null
-      const droit = utilisateur && id ? role(base.acces(id), utilisateur.id, id) : null
+      const droit = utilisateur && id ? roleHerite((t) => base.acces(t), (t) => base.tableau(t)?.parent ?? null, utilisateur.id, id) : null
       if (!utilisateur || !droit) throw new Error('refusé')
       if (droit === 'lecture') connectionConfig.readOnly = true
       return { utilisateur: { id: utilisateur.id, nom: utilisateur.nom, couleur: utilisateur.couleur }, role: droit }

@@ -11,7 +11,7 @@ import { apercuDePage } from './apercu.ts'
 import type { Base, Utilisateur } from './base.ts'
 import { ErreurCompte, inscrire, normaliserEmail } from './comptes.ts'
 import type { Limiteur } from './debit.ts'
-import { type Role, accesRecopies, auMoins, role } from './droits.ts'
+import { type Role, auMoins, role, roleHerite } from './droits.ts'
 import { hacher, verifier } from './motsDePasse.ts'
 import { DUREE_SESSION_S, NOM_COOKIE, cookieEfface, cookieSession, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
 import { nomDuDocument } from './synchro.ts'
@@ -122,6 +122,14 @@ export function creerApp(ctx: Contexte): Hono {
 
   // ---- Tableaux ----
 
+  /** Le rôle hérité : un accès donné sur un tableau vaut pour tout ce qu'il contient. */
+  const roleSur = (utilisateur: string, id: string) =>
+    roleHerite((t) => base.acces(t), (t) => base.tableau(t)?.parent ?? null, utilisateur, id)
+  /** Ferme les connexions ouvertes sur un tableau et ses descendants : chacun y relira son rôle. */
+  const fermerConnexions = (id: string) => {
+    for (const t of [id, ...base.descendants(id)]) ctx.synchro()?.closeConnections(nomDuDocument(t))
+  }
+
   app.post('/api/tableaux', async (c) => {
     const u = utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté' }, 401)
@@ -133,15 +141,14 @@ export function creerApp(ctx: Contexte): Hono {
 
     const existant = base.tableau(id)
     if (existant) {
-      if (role(base.acces(id), u.id, id) !== 'proprietaire') return c.json({ erreur: 'id pris' }, 409)
+      if (roleSur(u.id, id) !== 'proprietaire') return c.json({ erreur: 'id pris' }, 409)
       return c.json({ id, titre: existant.titre, role: 'proprietaire' }, 201)
     }
-    const accesParent = parent ? base.acces(parent) : []
-    const heritage = parent && auMoins(role(accesParent, u.id, parent), 'edition')
+    // Placé sous un parent qu'on peut éditer, le tableau en hérite les accès, présents et à venir.
+    const heritage = parent !== null && auMoins(roleSur(u.id, parent), 'edition')
     base.transaction(() => {
       base.creerTableau({ id, titre, proprietaire: u.id, parent: heritage ? parent : null })
-      for (const a of accesRecopies(heritage ? accesParent : [], id, u.id)) base.definirAcces(a)
-      if (heritage) for (const i of base.invitations(parent)) base.definirInvitation({ ...i, tableau: id })
+      base.definirAcces({ tableau: id, utilisateur: u.id, role: 'proprietaire' })
     })
     return c.json({ id, titre, role: 'proprietaire' }, 201)
   })
@@ -157,7 +164,7 @@ export function creerApp(ctx: Contexte): Hono {
     const u = utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté' }, 401)
     const id = c.req.param('id') ?? ''
-    const droit = role(base.acces(id), u.id, id)
+    const droit = roleSur(u.id, id)
     // Un tableau qu'on ne peut pas voir n'existe pas.
     if (droit === null) return c.json({ erreur: 'introuvable' }, 404)
     if (!auMoins(droit, minimum)) return c.json({ erreur: 'interdit' }, 403)
@@ -167,11 +174,28 @@ export function creerApp(ctx: Contexte): Hono {
   app.get('/api/tableaux/:id/acces', (c) => {
     const g = garde(c, 'lecture')
     if (g instanceof Response) return g
-    const membres = base.acces(g.id).flatMap((a) => {
-      const m = base.utilisateurParId(a.utilisateur)
-      return m ? [{ utilisateur: m.id, email: m.email, nom: m.nom, role: a.role, enAttente: false }] : []
+    // Les accès du tableau et ceux de ses ancêtres ; `herite` : donné plus haut, il se retire là-haut.
+    const chaine: string[] = []
+    for (let t: string | null = g.id; t !== null && !chaine.includes(t); t = base.tableau(t)?.parent ?? null) chaine.push(t)
+    const meilleurs = new Map<string, { role: Role; herite: boolean }>()
+    for (const t of chaine) {
+      for (const a of base.acces(t)) {
+        const r = roleSur(a.utilisateur, g.id)
+        if (r && !meilleurs.has(a.utilisateur)) meilleurs.set(a.utilisateur, { role: r, herite: role(base.acces(g.id), a.utilisateur, g.id) !== r })
+      }
+    }
+    const membres = [...meilleurs].flatMap(([id, { role: r, herite }]) => {
+      const m = base.utilisateurParId(id)
+      return m ? [{ utilisateur: m.id, email: m.email, nom: m.nom, role: r, enAttente: false, herite }] : []
     })
-    const attente = base.invitations(g.id).map((i) => ({ email: i.email, role: i.role, enAttente: true }))
+    const emails = new Set<string>()
+    const attente = chaine.flatMap((t) =>
+      base.invitations(t).flatMap((i) => {
+        if (emails.has(i.email)) return []
+        emails.add(i.email)
+        return [{ email: i.email, role: i.role, enAttente: true, herite: t !== g.id }]
+      }),
+    )
     return c.json([...membres, ...attente])
   })
 
@@ -187,7 +211,7 @@ export function creerApp(ctx: Contexte): Hono {
       const avant = role(base.acces(g.id), cible.id, g.id)
       if (avant === 'proprietaire') return c.json({ erreur: 'propriétaire' }, 409)
       base.definirAcces({ tableau: g.id, utilisateur: cible.id, role: nouveau })
-      if (avant !== null && avant !== nouveau) ctx.synchro()?.closeConnections(nomDuDocument(g.id))
+      if (avant !== null && avant !== nouveau) fermerConnexions(g.id)
     } else {
       base.definirInvitation({ tableau: g.id, email, role: nouveau })
     }
@@ -206,7 +230,7 @@ export function creerApp(ctx: Contexte): Hono {
       const proprietaires = acces.filter((a) => a.role === 'proprietaire')
       if (proprietaires.length === 1 && proprietaires[0]!.utilisateur === cible.id) return c.json({ erreur: 'dernier propriétaire' }, 409)
       base.retirerAcces(g.id, cible.id)
-      ctx.synchro()?.closeConnections(nomDuDocument(g.id))
+      fermerConnexions(g.id)
     } else if (!base.retirerInvitation(g.id, email)) {
       return c.json({ erreur: 'introuvable' }, 404)
     }

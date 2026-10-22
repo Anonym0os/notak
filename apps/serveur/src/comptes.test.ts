@@ -13,7 +13,7 @@ describe('inscription', () => {
     expect(u.nom).toBe('Ana')
     expect(COULEURS).toContain(u.couleur)
     expect(COULEURS).toHaveLength(8)
-    expect(base.tableau(u.racine)?.titre).toBe('Accueil')
+    expect(base.tableau(u.racine)?.titre).toBe('Accueil d’Ana')
     expect(role(base.acces(u.racine), u.id, u.racine)).toBe('proprietaire')
     expect(u.hash).not.toContain('motdepasse')
   })

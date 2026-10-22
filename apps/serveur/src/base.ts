@@ -48,6 +48,8 @@ export interface Base {
   tableau(id: string): LigneTableau | null
   creerTableau(t: LigneTableau): void
   changerTitre(id: string, titre: string): void
+  /** Tous les tableaux placés sous celui-ci, à toute profondeur. */
+  descendants(id: string): string[]
 
   acces(tableau: string): Acces[]
   tableauxAccessibles(utilisateur: string): { id: string; titre: string; role: Role }[]
@@ -149,6 +151,13 @@ export function ouvrirBase(chemin: string): Base {
     changerTitre: (id, titre) => void executer('UPDATE tableaux SET titre = ? WHERE id = ?', titre, id),
 
     acces: (tableau) => tous('SELECT tableau, utilisateur, role FROM acces WHERE tableau = ?', tableau) as unknown as Acces[],
+    descendants: (id) =>
+      (
+        tous(
+          'WITH RECURSIVE d(id) AS (SELECT id FROM tableaux WHERE parent = ? UNION SELECT t.id FROM tableaux t JOIN d ON t.parent = d.id) SELECT id FROM d',
+          id,
+        ) as unknown as { id: string }[]
+      ).map((l) => l.id),
     tableauxAccessibles: (u) =>
       tous('SELECT t.id, t.titre, a.role FROM acces a JOIN tableaux t ON t.id = a.tableau WHERE a.utilisateur = ?', u) as unknown as {
         id: string

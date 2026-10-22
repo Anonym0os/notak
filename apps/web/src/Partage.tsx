@@ -76,8 +76,9 @@ function Panneau({ tableau, moi, fermer }: { tableau: string; moi: Moi; fermer()
             <span className="partage-role">
               {LIBELLE_ROLE[a.role]}
               {a.enAttente && <em> · en attente</em>}
+              {a.herite && <em> · par le tableau parent</em>}
             </span>
-            {proprietaire && a.role !== 'proprietaire' && (
+            {proprietaire && a.role !== 'proprietaire' && !a.herite && (
               <button
                 type="button"
                 className="bouton-lien"
