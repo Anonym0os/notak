@@ -10,7 +10,7 @@ import type { ComponentType, ReactNode } from 'react'
 import type { Camera } from '../coeur/camera'
 import type { Point, Rect } from '../coeur/geometrie'
 import type { Magasin } from '../coeur/magasin'
-import type { Apercu, Contenu, Element, Id, Operation, TypeContenu } from '../coeur/tableau'
+import type { Apercu, Contenu, Element, Id, Operation, Tableau, TypeContenu } from '../coeur/tableau'
 
 /** Où l'application range les fichiers (images…). La toile ne sait pas où ils vivent. */
 export interface DepotFichiers {
@@ -90,6 +90,11 @@ export interface TypeElement<C extends Contenu = Contenu> {
   largeurNaturelle?(c: C): number
   /** Outils de la barre de sélection propres au type. */
   Outils?: ComponentType<PropsOutils<C>>
+  /**
+   * Les éléments qui partent avec ceux qu'on supprime (les lignes accrochées à une carte supprimée).
+   * La toile l'interroge sur chaque type inscrit ; elle écarte les doublons.
+   */
+  aussiSupprimer?(supprimes: Element[], tableau: Tableau): Element[]
   /** Les outils de la barre de gauche qui créent un élément de ce type (une note, un titre…). */
   outils?: { libelle: string; icone: ReactNode; creer(ou: Point, contexte: ContexteToile): Operation[] }[]
 }
