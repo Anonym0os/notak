@@ -1,4 +1,4 @@
-import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Element, Image, TraitImage } from '../../coeur/tableau'
 import { useFichier } from '../envois'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
@@ -8,13 +8,11 @@ import { Recadreur, recadrer, useRecadrageOuvert } from './Recadreur'
 import { Annotateur, Traits } from './Annotateur'
 import { Detoureur, detourerImage, useDetourageOuvert } from './Detoureur'
 import { sansDetourage } from './detourage'
-import { annoter, choisirCouleur, choisirOutil, useAnnotation } from './modeAnnotation'
-import { COULEURS_TRAIT, avecTraits } from './annotation'
+import { annoter, useAnnotation } from './modeAnnotation'
 import { adresseALargeur, finesse, largeurCadrePx, largeurEntiereAffichee, palierPour } from './tailles'
 import { Visionneuse, useImageOuverte } from './visionneuse'
 import { t } from '../../langue'
-import { BoutonOutil, ContexteOutils, OutilAvecMenu } from '../../BoutonOutil'
-import { useMenu } from '../../menuUnique'
+import { BoutonOutil } from '../../BoutonOutil'
 
 /**
  * L'adresse du fichier à la taille que l'affichage demande : le plus petit palier net pour la largeur à l'écran,
@@ -152,20 +150,7 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
   const dessin = useAnnotation()
   const enDessin = elements.length === 1 && dessin.id === el.id && !contexte.services.lectureSeule
   const enDetourage = useDetourageOuvert() === el.id
-  const { aGauche } = useContext(ContexteOutils)
-  const menuTrait = useMenu()
   const seul = elements.length === 1 && !contexte.services.lectureSeule
-  const pastilles = COULEURS_TRAIT.map((c) => (
-    <button
-      key={c}
-      type="button"
-      className="notak-pastille-trait"
-      style={{ background: c }}
-      aria-label={t('image.couleurTrait', { couleur: c })}
-      aria-pressed={dessin.outil === 'crayon' && dessin.couleur === c}
-      onClick={() => choisirCouleur(c)}
-    />
-  ))
   return (
     <>
       {/* Visibles : Dessiner, puis la légende. Pivoter, Recadrer et Détourer n'ont pas d'équivalent chez Milanote : « ••• ». */}
@@ -193,30 +178,6 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
           libelle={t('image.retablir')}
           onClick={() => contexte.magasin.faire([{ type: 'contenu', id: el.id, avant: el.contenu, apres: sansDetourage(el.contenu) }])}
         />
-      )}
-      {enDessin && (
-        <>
-          <BoutonOutil icone="croquis" libelle={t('dessin.crayon')} actif={dessin.outil === 'crayon'} onClick={() => choisirOutil('crayon')} />
-          <BoutonOutil icone="gomme" titre={t('image.gommeTitre')} libelle={t('dessin.gomme')} actif={dessin.outil === 'gomme'} onClick={() => choisirOutil('gomme')} />
-          {aGauche ? (
-            <OutilAvecMenu menu={menuTrait} icone="palette" pastille={dessin.couleur} libelle={t('couleur.titre')}>
-              <div className="notak-note-palette" role="menu">
-                <div className="notak-note-pastilles">{pastilles}</div>
-              </div>
-            </OutilAvecMenu>
-          ) : (
-            pastilles
-          )}
-          {!!el.contenu.traits?.length && (
-            <BoutonOutil
-              icone="retirer"
-              secondaire
-              titre={t('image.effacerTraits')}
-              libelle={t('dessin.toutEffacer')}
-              onClick={() => contexte.magasin.faire([{ type: 'contenu', id: el.id, avant: el.contenu, apres: avecTraits(el.contenu, []) }])}
-            />
-          )}
-        </>
       )}
     </>
   )
