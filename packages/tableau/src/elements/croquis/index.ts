@@ -4,6 +4,7 @@ import { OutilsCroquis, RenduCroquis } from './Croquis'
 import './croquis.css'
 import { nouveauCroquis, resume } from './trace'
 import { t } from '../../langue'
+import { ico } from '../../icones'
 
 registre.type<Croquis>({
   type: 'croquis',
@@ -22,7 +23,7 @@ registre.type<Croquis>({
       get libelle() {
         return t('type.croquis')
       },
-      icone: '✎',
+      icone: ico('croquis'),
       rang: 130,
       tiroir: true,
       fantome: () => nouveauCroquis(0, 0),

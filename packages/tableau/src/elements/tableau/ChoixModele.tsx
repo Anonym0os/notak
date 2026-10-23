@@ -4,6 +4,7 @@ import { modelesDe } from '../../modeles/langues'
 import type { ModeleTableau } from '../../modeles/construire'
 import { Surcouche } from '../surcouche'
 import { ApercuModele } from './ApercuModele'
+import { Icone } from '../../icones'
 
 /**
  * Le choix d'un modèle pour un tableau neuf : la liste à gauche, l'aperçu et son résumé à droite.
@@ -28,7 +29,7 @@ export function ChoixModele({ choisir, laisser }: { choisir(m: ModeleTableau): v
         <div className="notak-modeles-tete">
           <strong>{t('modele.titre')}</strong>
           <button type="button" aria-label={t('commun.fermer')} onClick={laisser}>
-            ×
+            <Icone nom="fermer" />
           </button>
         </div>
         <div className="notak-modeles-corps">

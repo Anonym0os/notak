@@ -5,12 +5,13 @@ import type { PropsOutils } from '../types'
 import { GRIS_LIGNE } from './couleur'
 import { editionLibelle } from './edition'
 import { t } from '../../langue'
+import { type NomIcone, Icone } from '../../icones'
 
 const EPAISSEURS = [1, 2, 4] as const
 const TRAITS = [
-  { trait: 'plein', icone: '—', get titre() { return t('ligne.plein') } },
-  { trait: 'tirets', icone: '┄', get titre() { return t('ligne.tirets') } },
-  { trait: 'points', icone: '···', get titre() { return t('ligne.points') } },
+  { trait: 'plein', icone: 'traitPlein', get titre() { return t('ligne.plein') } },
+  { trait: 'tirets', icone: 'traitTirets', get titre() { return t('ligne.tirets') } },
+  { trait: 'points', icone: 'traitPoints', get titre() { return t('ligne.points') } },
 ] as const
 
 /** La barre des lignes choisies. Plusieurs lignes : chaque changement s'applique à toutes, en un seul pas d'historique. */
@@ -33,9 +34,9 @@ export function OutilsLigne({ elements, contexte }: PropsOutils<Ligne>) {
     const vers: Pointe = elements.every((e) => e.contenu[clef] === premiere) ? SUITE[premiere] : 'fleche'
     modifier((l) => ({ ...l, [clef]: vers }))
   }
-  const signe = (clef: 'pointeDepart' | 'pointeArrivee', fleche: string) => {
+  const signe = (clef: 'pointeDepart' | 'pointeArrivee', fleche: NomIcone) => {
     const p = elements[0]!.contenu[clef]
-    return p === 'fleche' ? fleche : p === 'rond' ? '●' : '–'
+    return <Icone nom={p === 'fleche' ? fleche : p === 'rond' ? 'rond' : 'retirer'} />
   }
   const colorier = (couleur: CouleurNote | undefined) => {
     modifier((l) => {
@@ -49,15 +50,15 @@ export function OutilsLigne({ elements, contexte }: PropsOutils<Ligne>) {
   return (
     <>
       <button type="button" title={t('ligne.pointeDepart')} aria-pressed={!tous((l) => l.pointeDepart, 'rien')} onClick={() => bascule('pointeDepart')}>
-        {signe('pointeDepart', '◀')}
+        {signe('pointeDepart', 'gauche')}
       </button>
       <button type="button" title={t('ligne.pointeArrivee')} aria-pressed={!tous((l) => l.pointeArrivee, 'rien')} onClick={() => bascule('pointeArrivee')}>
-        {signe('pointeArrivee', '▶')}
+        {signe('pointeArrivee', 'droite')}
       </button>
       <span className="notak-ligne-sep" />
       {TRAITS.map((x) => (
         <button key={x.trait} type="button" title={x.titre} aria-pressed={tous((l) => l.trait, x.trait)} onClick={() => modifier((l) => ({ ...l, trait: x.trait }))}>
-          {x.icone}
+          <Icone nom={x.icone} />
         </button>
       ))}
       <span className="notak-ligne-sep" />

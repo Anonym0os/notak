@@ -6,6 +6,7 @@ import { AUTEUR_INCONNU, ajouterMessage, initiales, resoudre, retirerMessage } f
 import type { ContexteToile } from '../types'
 import { type Fils, MARQUE_FIL, filsDuTexte, placerEnMarge } from './fils'
 import { t } from '../../langue'
+import { Icone } from '../../icones'
 
 const garder = (e: React.SyntheticEvent) => e.stopPropagation()
 
@@ -132,7 +133,7 @@ function Fiche({
     <section ref={ref} className="notak-fil-marge" data-actif={actif || undefined} data-resolu={fil.resolu || undefined} style={{ top: haut }} onClick={actif ? undefined : ouvrir}>
       {fil.resolu && (
         <p className="notak-commentaire-resolu">
-          ✓ Résolu · {n} message{n > 1 ? 's' : ''}
+          <Icone nom="coche" taille={13} /> Résolu · {n} message{n > 1 ? 's' : ''}
         </p>
       )}
       {(!fil.resolu || actif) &&

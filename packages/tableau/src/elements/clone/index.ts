@@ -5,6 +5,7 @@ import { OutilsClone, RenduClone } from './Clone'
 import './clone.css'
 import { cibleDe, clonesEmportes, nouveauClone, originalAffichable, originalDe, peutCloner, placeAcote, resumeSansOriginal } from './original'
 import { t } from '../../langue'
+import { ico } from '../../icones'
 
 /**
  * Les clones de ces éléments, posés à côté de chacun. Un élément déjà clone donne un clone de son original.
@@ -50,7 +51,7 @@ registre.type<Clone>({
       get libelle() {
         return t('type.clone')
       },
-      icone: '⧉',
+      icone: ico('copie'),
       rang: 150,
       tiroir: true,
       fantome: () => nouveauClone(0, 0, '', 17),

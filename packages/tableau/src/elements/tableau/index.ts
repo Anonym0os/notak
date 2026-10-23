@@ -9,6 +9,7 @@ import { demanderRenommage } from './renommage'
 import { demanderModele } from './modele'
 import { t } from '../../langue'
 import './tableau.css'
+import { ico } from '../../icones'
 
 const LARGEUR_RENVOI = 10
 
@@ -82,7 +83,7 @@ registre.type<RenvoiTableau>({
       get libelle() {
         return t('type.tableau')
       },
-      icone: '▣',
+      icone: ico('tableau'),
       rang: 50,
       fantome: () => ({ id: '', x: 0, y: 0, largeur: LARGEUR_RENVOI, contenu: { type: 'tableau', cible: '' } }),
       prise: { x: LARGEUR_RENVOI / 2, y: LARGEUR_RENVOI / 2 },
@@ -96,7 +97,7 @@ registre.type<RenvoiTableau>({
       get libelle() {
         return t('outil.tableauModele')
       },
-      icone: '▤',
+      icone: ico('modele'),
       rang: 51,
       tiroir: true,
       fantome: () => ({ id: '', x: 0, y: 0, largeur: LARGEUR_RENVOI, contenu: { type: 'tableau', cible: '' } }),

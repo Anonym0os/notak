@@ -7,13 +7,14 @@ import { RenduLien, titreDuLien } from './Lien'
 import './lien.css'
 import { OutilsLien } from './Outils'
 import { t } from '../../langue'
+import { type NomIcone, ico } from '../../icones'
 
 const LARGEUR_LIEN = 34
 
-const GENRES: { genre: GenreLien; libelle: string; icone: string; rang: number }[] = [
-  { genre: 'video', get libelle() { return t('lien.video') }, icone: '▶', rang: 21 },
-  { genre: 'audio', get libelle() { return t('lien.audio') }, icone: '♪', rang: 22 },
-  { genre: 'carte', get libelle() { return t('lien.carte') }, icone: '⌖', rang: 23 },
+const GENRES: { genre: GenreLien; libelle: string; icone: NomIcone; rang: number }[] = [
+  { genre: 'video', get libelle() { return t('lien.video') }, icone: 'lecture', rang: 21 },
+  { genre: 'audio', get libelle() { return t('lien.audio') }, icone: 'audio', rang: 22 },
+  { genre: 'carte', get libelle() { return t('lien.carte') }, icone: 'carte', rang: 23 },
 ]
 
 const nouveauLien = (ou: Point, url: string, genre?: GenreLien): Element<Lien> => ({
@@ -41,14 +42,14 @@ registre.type<Lien>({
       get libelle() {
         return t('type.lien')
       },
-      icone: '↗',
+      icone: ico('lien'),
       rang: 20,
       fantome: () => nouveauLien({ x: 0, y: 0 }, ''),
       creer: (ou) => [{ type: 'creer', element: nouveauLien(ou, '') }],
     },
     ...GENRES.map(({ genre, libelle, icone, rang }) => ({
       libelle,
-      icone,
+      icone: ico(icone),
       rang,
       tiroir: true,
       fantome: () => nouveauLien({ x: 0, y: 0 }, '', genre),

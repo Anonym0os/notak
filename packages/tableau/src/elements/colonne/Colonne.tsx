@@ -5,6 +5,7 @@ import { composition } from '../composition'
 import { LIBELLES_COULEUR } from '../note/couleurs'
 import type { PropsOutils, PropsRendu } from '../types'
 import { t } from '../../langue'
+import { Icone } from '../../icones'
 
 /** Le titre en édition : tout le texte est choisi à l'ouverture, Entrée valide (Échap est géré par la toile). */
 function Saisie({ titre, surChangement, valider }: { titre: string; surChangement(t: string): void; valider(): void }) {
@@ -72,9 +73,7 @@ export function RenduColonne({ element, choisie, enEdition, contexte, brouillon,
           onDoubleClick={(e) => e.stopPropagation()}
           onClick={replier}
         >
-          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
-            <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <Icone nom="chevronBas" taille={14} />
         </button>
       </div>
       {contenu.repliee && <div className="notak-colonne-repliee" data-depot />}

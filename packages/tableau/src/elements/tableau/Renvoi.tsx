@@ -10,6 +10,7 @@ import { demanderModele, ecouterModele, modeleEnCours } from './modele'
 import { poserModele } from './poserModele'
 import { demanderRenommage, ecouterRenommage, renommageEnCours } from './renommage'
 import { t } from '../../langue'
+import { Icone } from '../../icones'
 
 const sans = () => () => {}
 
@@ -123,16 +124,14 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
           image && <img className="notak-renvoi-image" src={image} alt="" draggable={false} />
         ) : pastille.genre === 'icone' ? (
           <span className="notak-renvoi-signe" role="img" aria-label={pastille.libelle}>
-            {pastille.signe}
+            <Icone nom={pastille.icone} taille={38} trait={1.5} />
           </span>
         ) : (
           initiale(titre)
         )}
         {element.contenu.raccourci && (
           <span className="notak-renvoi-raccourci" title={t('tableau.raccourci.titre')} aria-label={t('tableau.raccourci')}>
-            <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M6 3h7v7M13 3 4 12" />
-            </svg>
+            <Icone nom="ligne" taille={12} trait={2} />
           </span>
         )}
       </div>

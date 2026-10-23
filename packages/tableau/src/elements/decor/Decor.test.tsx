@@ -86,7 +86,7 @@ describe('la bande sous une carte', () => {
     const { contexte, element } = monde({ commentaire: { type: 'commentaire', messages: [{ id: 'm1', auteur: { id: 'bob', nom: 'Bob' }, date: Date.now(), texte: 'Bonjour' }] } })
     const rendre = () => act(() => racine.render(<Decor element={element()} contexte={contexte} mode="toile" />))
     rendre()
-    expect(bouton('1').textContent).toContain('💬')
+    expect(bouton('1').querySelector('svg.notak-ico')).not.toBeNull()
     act(() => bouton('1').click())
     expect(hote.querySelector('.notak-fil-attache')).not.toBeNull()
     expect(hote.textContent).toContain('Bonjour')

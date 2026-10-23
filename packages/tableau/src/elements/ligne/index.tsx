@@ -1,8 +1,6 @@
-import { createElement } from 'react'
 import { lignesASupprimer } from '../../coeur/lignes'
 import type { Ligne } from '../../coeur/tableau'
 import { registre } from '../registre'
-import { IconeLigne } from './Icone'
 import { RenduLigne } from './Ligne'
 import { LigneRapide } from './LigneRapide'
 import { OutilsLigne } from './Outils'
@@ -11,6 +9,7 @@ import './ligne.css'
 import { entreeRelier, raccourciRelier } from './raccourci'
 import { couleurDuContenu } from '../couleur'
 import { t } from '../../langue'
+import { ico } from '../../icones'
 
 registre.type<Ligne>({
   type: 'ligne',
@@ -29,7 +28,7 @@ registre.type<Ligne>({
       get libelle() {
         return t('type.ligne')
       },
-      icone: createElement(IconeLigne),
+      icone: ico('ligne'),
       rang: 40,
       fantome: () => ligneLibre({ x: 0, y: 0 }),
       prise: { x: TAILLE_LIGNE_NEUVE / 2, y: TAILLE_LIGNE_NEUVE / 2 },

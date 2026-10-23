@@ -4,6 +4,7 @@ import { OutilsNuancier, RenduNuancier } from './Nuancier'
 import { LARGEUR_NUANCIER, PROPORTION_NUANCIER, codeAffiche, normaliserHex, nouveauNuancier } from './couleur'
 import { t } from '../../langue'
 import './nuancier.css'
+import { ico } from '../../icones'
 
 registre.type<Nuancier>({
   type: 'nuancier',
@@ -25,7 +26,7 @@ registre.type<Nuancier>({
       get libelle() {
         return t('type.nuancier')
       },
-      icone: '🎨',
+      icone: ico('palette'),
       rang: 110,
       tiroir: true,
       fantome: () => nouveauNuancier(0, 0),

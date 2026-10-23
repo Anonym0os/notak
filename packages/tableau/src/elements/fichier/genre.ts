@@ -1,7 +1,22 @@
 import { langue } from '../../langue'
+import type { NomIcone } from '../../icones'
 /** Ce qu'on sait dire d'un fichier d'après son type et son nom, sans l'ouvrir. */
 
 export type Genre = 'pdf' | 'texte' | 'tableur' | 'presentation' | 'archive' | 'son' | 'video' | 'image' | 'code' | 'autre'
+
+/** L'icône de chaque genre, dans le badge de la carte. */
+export const ICONE_DU_GENRE: Record<Genre, NomIcone> = {
+  pdf: 'fichierPdf',
+  texte: 'fichierTexte',
+  tableur: 'fichierTableur',
+  presentation: 'fichierPresentation',
+  archive: 'fichierArchive',
+  son: 'fichierSon',
+  video: 'fichierVideo',
+  image: 'fichierImage',
+  code: 'fichierCode',
+  autre: 'fichier',
+}
 
 const PAR_EXTENSION: Record<string, Genre> = {
   pdf: 'pdf',

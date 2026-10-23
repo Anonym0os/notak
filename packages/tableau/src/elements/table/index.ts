@@ -4,6 +4,7 @@ import { OutilsTable, RenduTable } from './Table'
 import { nouvelleTable, resume } from './grille'
 import { t } from '../../langue'
 import './table.css'
+import { ico } from '../../icones'
 
 registre.type<Table>({
   type: 'table',
@@ -22,7 +23,7 @@ registre.type<Table>({
       get libelle() {
         return t('type.table')
       },
-      icone: '▦',
+      icone: ico('table'),
       rang: 100,
       tiroir: true,
       fantome: () => nouvelleTable(0, 0),

@@ -9,6 +9,7 @@ import { EXTENSIONS_NOTE } from './extensions'
 import './note.css'
 import { couleurDuContenu } from '../couleur'
 import { t } from '../../langue'
+import { ico } from '../../icones'
 
 const enNote = (x: number, y: number, texte?: NoeudTexte) => {
   const note = nouvelleNote(Math.round(x), Math.round(y))
@@ -57,7 +58,7 @@ registre.type<Note>({
       get libelle() {
         return t('type.note')
       },
-      icone: '¶',
+      icone: ico('note'),
       rang: 10,
       fantome: () => enNote(0, 0),
       creer: (ou) => [{ type: 'creer', element: enNote(ou.x, ou.y) }],
@@ -66,7 +67,7 @@ registre.type<Note>({
       get libelle() {
         return t('outil.titre')
       },
-      icone: 'T',
+      icone: ico('titre'),
       rang: 10,
       tiroir: true,
       fantome: () => enTitre(0, 0),

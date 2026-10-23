@@ -4,6 +4,7 @@ import { OutilsCommentaire, RenduCommentaire } from './Commentaire'
 import './commentaire.css'
 import { nouveauCommentaire } from './fil'
 import { t } from '../../langue'
+import { ico } from '../../icones'
 
 registre.type<Commentaire>({
   type: 'commentaire',
@@ -22,7 +23,7 @@ registre.type<Commentaire>({
       get libelle() {
         return t('type.commentaire')
       },
-      icone: '💬',
+      icone: ico('commentaire'),
       rang: 70,
       fantome: () => nouveauCommentaire(0, 0),
       creer: (ou) => [{ type: 'creer', element: nouveauCommentaire(Math.round(ou.x), Math.round(ou.y)) }],

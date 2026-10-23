@@ -32,8 +32,11 @@ describe('changer l’icône', () => {
     expect(avecIcone(carte({ icone: 'fusee' }).contenu, undefined)).toEqual({ type: 'tableau', cible: 'T' })
     expect(avecIcone(carte().contenu, 'inconnue')).toEqual({ type: 'tableau', cible: 'T' })
   })
-  it('chaque icône a un signe et un nom lisible', () => {
-    for (const { signe, libelle } of Object.values(ICONES_TABLEAU)) expect(signe && libelle).toBeTruthy()
+  it('chaque icône dessine une icône du jeu et porte un nom lisible', () => {
+    const toutes = Object.values(ICONES_TABLEAU)
+    for (const { icone, libelle } of toutes) expect(icone && libelle).toBeTruthy()
+    expect(toutes.length).toBeGreaterThanOrEqual(40)
+    expect(new Set(toutes.map((x) => x.icone)).size).toBe(toutes.length)
   })
 })
 

@@ -7,6 +7,7 @@ import { demanderModele } from './modele'
 import { peutPoserModele } from './poserModele'
 import { demanderRenommage } from './renommage'
 import { t } from '../../langue'
+import { Icone } from '../../icones'
 
 const sans = () => () => {}
 
@@ -39,7 +40,7 @@ function ChoixIcone({ elements, contexte }: PropsOutils<RenvoiTableau>) {
       {ouvert && (
         <div className="notak-colonne-palette" role="menu">
           <div className="notak-renvoi-icones">
-            {Object.entries(ICONES_TABLEAU).map(([nom, { signe, libelle }]) => (
+            {Object.entries(ICONES_TABLEAU).map(([nom, { icone, libelle }]) => (
               <button
                 key={nom}
                 type="button"
@@ -52,7 +53,7 @@ function ChoixIcone({ elements, contexte }: PropsOutils<RenvoiTableau>) {
                   setOuvert(false)
                 }}
               >
-                {signe}
+                <Icone nom={icone} />
               </button>
             ))}
           </div>

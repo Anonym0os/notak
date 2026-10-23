@@ -4,6 +4,7 @@ import type { ContexteToile } from '../types'
 import { Ligne } from './Commentaire'
 import { AUTEUR_INCONNU, ajouterMessage, resoudre, retirerMessage } from './fil'
 import { t } from '../../langue'
+import { Icone } from '../../icones'
 
 const garder = (e: React.SyntheticEvent) => e.stopPropagation()
 
@@ -49,11 +50,11 @@ export function FilAttache({ element, contexte, fermer }: { element: Element; co
           </button>
         )}
         <button type="button" aria-label={t('commun.fermer')} onClick={fermer}>
-          ×
+          <Icone nom="fermer" />
         </button>
       </div>
       {fil.messages.length === 0 && <p className="notak-commentaire-vide">{t('commentaire.aucun')}</p>}
-      {fil.resolu && <p className="notak-commentaire-resolu">✓ {t('commentaire.resolu')}</p>}
+      {fil.resolu && <p className="notak-commentaire-resolu"><Icone nom="coche" taille={13} /> {t('commentaire.resolu')}</p>}
       {fil.messages.map((m) => (
         <Ligne key={m.id} message={m} retirer={ecrire && m.auteur.id === auteur.id ? () => agir(retirerMessage(fil, m.id)) : undefined} />
       ))}

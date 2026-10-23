@@ -6,6 +6,7 @@ import { EMOJIS } from './insertion'
 import { augmenterRetrait, diminuerRetrait } from './texte'
 import { COULEURS_TEXTE, SURLIGNAGES, valeurCouleurTexte } from './couleurs'
 import { t } from '../../langue'
+import { Icone } from '../../icones'
 
 const STYLES: { style: StyleBloc; libelle: string }[] = [
   { style: 'titre1', get libelle() { return t('barre.style.grandTitre') } },
@@ -15,12 +16,6 @@ const STYLES: { style: StyleBloc; libelle: string }[] = [
   { style: 'citation', get libelle() { return t('barre.style.citation') } },
   { style: 'code', get libelle() { return t('barre.style.code') } },
 ]
-
-const Trait = ({ d }: { d: string }) => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-    <path d={d} />
-  </svg>
-)
 
 interface Props {
   editor: Editor
@@ -78,30 +73,30 @@ export function BarreTexte({ editor, lien, surLien, commenter }: Props) {
     >
       <div className="notak-note-menu-ancre">
         <button type="button" title={t('barre.style')} aria-expanded={menu} onClick={() => { setInsertion(false); setMenu(!menu) }}>
-          {STYLES.find((s) => s.style === etat.style)?.libelle} ▾
+          {STYLES.find((s) => s.style === etat.style)?.libelle} <Icone nom="chevronBas" taille={14} />
         </button>
         {menu && <MenuStyle editor={editor} etat={etat} ferme={() => setMenu(false)} />}
       </div>
       <i />
-      {bouton(t('barre.gras'), etat.gras, () => chaine().toggleBold().run(), <b>B</b>)}
-      {bouton(t('barre.italique'), etat.italique, () => chaine().toggleItalic().run(), <i>I</i>)}
-      {bouton(t('barre.barre'), etat.barre, () => chaine().toggleStrike().run(), <s>S</s>)}
-      {bouton(t('barre.souligne'), etat.souligne, () => chaine().toggleUnderline().run(), <u>U</u>)}
+      {bouton(t('barre.gras'), etat.gras, () => chaine().toggleBold().run(), <Icone nom="gras" />)}
+      {bouton(t('barre.italique'), etat.italique, () => chaine().toggleItalic().run(), <Icone nom="italique" />)}
+      {bouton(t('barre.barre'), etat.barre, () => chaine().toggleStrike().run(), <Icone nom="barre" />)}
+      {bouton(t('barre.souligne'), etat.souligne, () => chaine().toggleUnderline().run(), <Icone nom="souligne" />)}
       <i />
-      {bouton(t('barre.puces'), etat.puces, () => chaine().toggleBulletList().run(), <Trait d="M6 4h8M6 8h8M6 12h8M2.5 4h.01M2.5 8h.01M2.5 12h.01" />)}
-      {bouton(t('barre.numerotee'), etat.numerotee, () => chaine().toggleOrderedList().run(), <Trait d="M6 4h8M6 8h8M6 12h8M2 3.5l1-.5v3M2 9.5h2l-2 2h2" />)}
+      {bouton(t('barre.puces'), etat.puces, () => chaine().toggleBulletList().run(), <Icone nom="puces" />)}
+      {bouton(t('barre.numerotee'), etat.numerotee, () => chaine().toggleOrderedList().run(), <Icone nom="numerotee" />)}
       <i />
-      {bouton(t('barre.centrer'), etat.centre, () => basculerCentre(editor), <Trait d="M2 4h12M4 8h8M3 12h10" />)}
-      {bouton(t('barre.retraitMoins'), false, () => { editor.commands.focus(); diminuerRetrait(editor) }, <Trait d="M2 3h12M7 6.5h7M7 9.5h7M2 13h12M5 6.5 2.5 8 5 9.5" />)}
-      {bouton(t('barre.retraitPlus'), false, () => { editor.commands.focus(); augmenterRetrait(editor) }, <Trait d="M2 3h12M7 6.5h7M7 9.5h7M2 13h12M2.5 6.5 5 8 2.5 9.5" />)}
-      {bouton(t('barre.codeLigne'), etat.code, () => chaine().toggleCode().run(), <Trait d="M5.5 4.5 2 8l3.5 3.5M10.5 4.5 14 8l-3.5 3.5" />)}
-      {bouton(t('barre.lien'), etat.surLien || lien !== null, ouvrirLien, <Trait d="M6.5 9.5a3 3 0 0 0 4.2 0l2-2a3 3 0 0 0-4.2-4.2l-.7.7M9.5 6.5a3 3 0 0 0-4.2 0l-2 2a3 3 0 0 0 4.2 4.2l.7-.7" />, etat.vide && !etat.surLien)}
+      {bouton(t('barre.centrer'), etat.centre, () => basculerCentre(editor), <Icone nom="centrer" />)}
+      {bouton(t('barre.retraitMoins'), false, () => { editor.commands.focus(); diminuerRetrait(editor) }, <Icone nom="retraitMoins" />)}
+      {bouton(t('barre.retraitPlus'), false, () => { editor.commands.focus(); augmenterRetrait(editor) }, <Icone nom="retraitPlus" />)}
+      {bouton(t('barre.codeLigne'), etat.code, () => chaine().toggleCode().run(), <Icone nom="code" />)}
+      {bouton(t('barre.lien'), etat.surLien || lien !== null, ouvrirLien, <Icone nom="lien" />, etat.vide && !etat.surLien)}
       {commenter &&
-        bouton(t('barre.commenterPassage'), etat.surFil, commenter, <Trait d="M2.5 3.5h11v7h-5l-3 2.5v-2.5h-3z" />, etat.vide && !etat.surFil)}
+        bouton(t('barre.commenterPassage'), etat.surFil, commenter, <Icone nom="commenterPassage" />, etat.vide && !etat.surFil)}
       <i />
       <div className="notak-note-menu-ancre">
         <button type="button" title={t('barre.inserer')} aria-expanded={insertion} onClick={() => { setMenu(false); setInsertion(!insertion) }}>
-          {t('barre.inserer')} ▾
+          {t('barre.inserer')} <Icone nom="chevronBas" taille={14} />
         </button>
         {insertion && <MenuInsertion editor={editor} ferme={() => setInsertion(false)} />}
       </div>
