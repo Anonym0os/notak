@@ -165,20 +165,20 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
       {elements.length === 1 && !contexte.services.lectureSeule && !!contexte.services.fichiers && (
         <button
           type="button"
-          title="Retirer le fond uni de l’image"
+          title={t('image.detourer.titre')}
           aria-pressed={enDetourage || !!el.contenu.original}
           onClick={() => detourerImage(enDetourage ? null : el.id)}
         >
-          Détourer
+          {t('image.detourer')}
         </button>
       )}
       {elements.length === 1 && !contexte.services.lectureSeule && !!el.contenu.original && (
         <button
           type="button"
-          title="Revenir à l’image d’avant le détourage"
+          title={t('image.retablir.titre')}
           onClick={() => contexte.magasin.faire([{ type: 'contenu', id: el.id, avant: el.contenu, apres: sansDetourage(el.contenu) }])}
         >
-          Rétablir l’original
+          {t('image.retablir')}
         </button>
       )}
       {elements.length === 1 && !contexte.services.lectureSeule && (

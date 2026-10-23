@@ -1,3 +1,4 @@
+import { t } from './langue'
 import { type Camera, type Vue, ajuster } from './coeur/camera'
 import type { Rect } from './coeur/geometrie'
 
@@ -48,9 +49,9 @@ export interface Cadrage {
  */
 export async function avecToutLeTableau<T>(faire: (cadrage: Cadrage) => Promise<T>, delai = DELAI_AFFICHAGE): Promise<T> {
   const p = courant
-  if (!p) throw new Error('Aucun tableau à exporter')
+  if (!p) throw new Error(t('pilotage.aucun'))
   const cible = ajuster(p.contenu(), p.vue())
-  if (!cible) throw new Error('Le tableau est vide')
+  if (!cible) throw new Error(t('pilotage.vide'))
   const avant = p.camera()
   p.poser(cible)
   try {

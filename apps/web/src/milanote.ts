@@ -1,5 +1,6 @@
 import { unzipSync } from 'fflate'
 import type { Element, Id, NoeudTexte } from '@notak/tableau'
+import { t } from './langue'
 
 // Milanote n'a pas d'export structuré : on lit son export « Markdown + fichiers », une archive zip.
 // Ce qu'on en suppose, et rien de plus : un ou plusieurs fichiers `.md` (le premier du dossier le moins profond est
@@ -360,7 +361,7 @@ function elementsDe(chemin: string, md: string, r: Rangement): { titre: string; 
         if (reste.length) note([paragraphe(reste)], reste.join(' ').length)
         continue
       }
-      if (images.length > 0) r.avertir(`Image introuvable dans l’archive : ${images.map((m) => m[2]).join(', ')}`)
+      if (images.length > 0) r.avertir(t('milanote.imageIntrouvable', { noms: images.map((m) => m[2]).join(', ') }))
       note([paragraphe(b.lignes)], texte.length)
     } else if (b.genre === 'liste') {
       const taches = b.items.every((i) => i.fait !== null)
@@ -432,7 +433,7 @@ export function lireExportMilanote(zip: Uint8Array, nouvelId: () => Id = idAleat
   try {
     entrees = unzipSync(zip)
   } catch {
-    throw new ErreurImport('Ce fichier n’est pas une archive zip')
+    throw new ErreurImport(t('milanote.pasZip'))
   }
   const fichiers = new Map<string, FichierARanger>()
   const markdowns = new Map<string, string>()
@@ -442,7 +443,7 @@ export function lireExportMilanote(zip: Uint8Array, nouvelId: () => Id = idAleat
     if (/\.(md|markdown)$/i.test(chemin)) markdowns.set(chemin, new TextDecoder().decode(octets))
     else fichiers.set(chemin, { chemin, nom: nomDe(chemin), type: typeDe(chemin), octets })
   }
-  if (markdowns.size === 0) throw new ErreurImport('Aucun fichier Markdown dans cette archive')
+  if (markdowns.size === 0) throw new ErreurImport(t('milanote.aucunMarkdown'))
 
   // Les liens, sans casse : les exports des systèmes de fichiers ne s'accordent pas toujours.
   const parMinuscules = new Map<string, string>()

@@ -1,3 +1,4 @@
+import { t } from './langue'
 import { HocuspocusProvider, HocuspocusProviderWebsocket, WebSocketStatus } from '@hocuspocus/provider'
 import { IndexeddbPersistence } from 'y-indexeddb'
 import type { Reseau } from './coeur/espaceDistant'
@@ -79,10 +80,10 @@ export function creerReseauNavigateur(utilisateurId: string): Reseau {
           body: JSON.stringify({ id, titre, ...(parent ? { parent } : {}) }),
         })
       } catch {
-        throw new Error('Réseau absent')
+        throw new Error(t('reseau.absent'))
       }
       if (r.ok) return
-      throw Object.assign(new Error(`Déclaration refusée (${r.status})`), { definitif: r.status >= 400 && r.status < 500 })
+      throw Object.assign(new Error(t('reseau.refuse', { statut: r.status })), { definitif: r.status >= 400 && r.status < 500 })
     },
 
     fermer() {

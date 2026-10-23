@@ -1,3 +1,4 @@
+import { langue } from '../../langue'
 /** Ce qu'on sait dire d'un fichier d'après son type et son nom, sans l'ouvrir. */
 
 export type Genre = 'pdf' | 'texte' | 'tableur' | 'presentation' | 'archive' | 'son' | 'video' | 'image' | 'code' | 'autre'
@@ -38,10 +39,11 @@ export function lisible(typeMime: string): 'son' | 'video' | null {
   return n.canPlayType(t) ? (t.startsWith('audio/') ? 'son' : 'video') : null
 }
 
-/** La taille lisible : « 812 o », « 14 ko », « 2,4 Mo ». */
+/** La taille lisible : « 812 o », « 14 ko », « 2,4 Mo » en français ; « 812 B », « 14 kB », « 2.4 MB » en anglais. */
 export function tailleLisible(octets: number): string {
-  if (octets < 1000) return `${octets} o`
-  const unites = ['ko', 'Mo', 'Go']
+  const en = langue() === 'en'
+  if (octets < 1000) return `${octets} ${en ? 'B' : 'o'}`
+  const unites = en ? ['kB', 'MB', 'GB'] : ['ko', 'Mo', 'Go']
   let v = octets / 1000
   let u = 0
   while (v >= 1000 && u < unites.length - 1) {
@@ -49,7 +51,7 @@ export function tailleLisible(octets: number): string {
     u++
   }
   const arrondi = v < 10 ? Math.round(v * 10) / 10 : Math.round(v)
-  return `${String(arrondi).replace('.', ',')} ${unites[u]}`
+  return `${en ? String(arrondi) : String(arrondi).replace('.', ',')} ${unites[u]}`
 }
 
 /**

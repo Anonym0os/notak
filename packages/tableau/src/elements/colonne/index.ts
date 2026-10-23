@@ -18,7 +18,7 @@ registre.type<Colonne>({
   couleur: couleurDuContenu<Colonne>(),
   editable: true,
   sansFond: true,
-  suivant: (_e, places) => nouvelleColonne(places.droite.x, places.droite.y),
+  suivant: (_e, places) => nouvelleColonne(places.droite.x, places.droite.y, t('type.colonne')),
   // Repliée, elle accepte encore ce qu'on y lâche : tout son corps devient la zone de dépôt.
   accepte: (enfant) => accepteDansColonne(enfant),
   largeurMin: LARGEUR_COLONNE,
@@ -30,8 +30,8 @@ registre.type<Colonne>({
       },
       icone: '▥',
       rang: 60,
-      fantome: () => nouvelleColonne(0, 0),
-      creer: (ou) => [{ type: 'creer', element: nouvelleColonne(Math.round(ou.x), Math.round(ou.y)) }],
+      fantome: () => nouvelleColonne(0, 0, t('type.colonne')),
+      creer: (ou) => [{ type: 'creer', element: nouvelleColonne(Math.round(ou.x), Math.round(ou.y), t('type.colonne')) }],
     },
   ],
 })

@@ -106,7 +106,7 @@ function Ligne({ groupe, moi }: { groupe: GroupeActivite; moi: string }) {
         <p>
           <strong>{groupe.auteur.id === moi ? t('activite.vous') : groupe.auteur.nom}</strong> {phraseDuGroupe(groupe, groupe.auteur.id === moi)}
         </p>
-        {citees.length > 0 && <small className="activite-elements">{citees.map((e) => `« ${e.libelle} »`).join(', ')}</small>}
+        {citees.length > 0 && <small className="activite-elements">{citees.map((e) => t('activite.citee', { libelle: e.libelle })).join(', ')}</small>}
         <small>{quand(groupe.fin)}</small>
       </div>
     </li>

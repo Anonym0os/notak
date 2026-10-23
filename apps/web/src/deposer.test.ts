@@ -93,3 +93,18 @@ describe('messageDuDepot', () => {
     expect(messageDuDepot({ etat: 'enregistre', ajoutes: 1, ignores: 1 })).toContain('Une image n’a pas pu être prise')
   })
 })
+
+describe('messageDuDepot en anglais', () => {
+  it('dit l’ajout, l’endroit et les images laissées de côté', async () => {
+    const { definirLangue } = await import('@notak/tableau')
+    definirLangue('en')
+    try {
+      expect(messageDuDepot({ etat: 'enregistre', ajoutes: 1, ignores: 0 })).toBe('Added to Unsorted.')
+      expect(messageDuDepot({ etat: 'local', ajoutes: 3, ignores: 1 })).toBe(
+        '3 items added to Unsorted, on this device: it will be sent when the network is back. One image couldn’t be taken.',
+      )
+    } finally {
+      definirLangue('fr')
+    }
+  })
+})

@@ -3,7 +3,7 @@ import { definition, registre } from '../registre'
 import type { ContexteToile } from '../types'
 import { OutilsClone, RenduClone } from './Clone'
 import './clone.css'
-import { RESUME_SANS_ORIGINAL, cibleDe, clonesEmportes, nouveauClone, originalAffichable, originalDe, peutCloner, placeAcote } from './original'
+import { cibleDe, clonesEmportes, nouveauClone, originalAffichable, originalDe, peutCloner, placeAcote, resumeSansOriginal } from './original'
 import { t } from '../../langue'
 
 /**
@@ -30,7 +30,7 @@ registre.type<Clone>({
   resume: (c, contexte) => {
     const original = originalAffichable(contexte.magasin.lire().elements, c.cible)
     const texte = original && definition(original.contenu.type)?.resume?.(original.contenu as never, contexte)
-    return original ? `Clone de ${texte || definition(original.contenu.type)?.nom || 'l’original'}` : RESUME_SANS_ORIGINAL
+    return original ? t('clone.resume', { texte: texte || definition(original.contenu.type)?.nom || t('clone.lOriginal') }) : resumeSansOriginal()
   },
   Rendu: RenduClone,
   Outils: OutilsClone,

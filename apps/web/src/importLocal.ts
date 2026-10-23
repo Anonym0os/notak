@@ -1,6 +1,7 @@
 import { type Element, type EspaceNavigable, type Id, type Operation } from '@notak/tableau'
 import { lireAncienEspace, lireAncienFichier } from './ancien'
 import { envoyerFichier } from './fichiers'
+import { t } from './langue'
 
 /**
  * Recopie l'ancien espace local dans le compte : la racine dans la racine, chaque tableau imbriqué dans un
@@ -25,18 +26,18 @@ export async function importerEspaceLocal(espace: EspaceNavigable): Promise<numb
 
   for (let i = 0; i < file.length; i++) {
     const vieux = file[i]!
-    const t = ancien.tableaux[vieux]
+    const tableau = ancien.tableaux[vieux]
     const cible = nouveaux.get(vieux)!
-    if (!t) continue
+    if (!tableau) continue
     const ops: Operation[] = []
-    for (const e of t.elements) {
+    for (const e of tableau.elements) {
       let element: Element = e
       const c = e.contenu
       if (c.type === 'tableau') {
         let n = nouveaux.get(c.cible)
         if (!n) {
           const enfant = ancien.tableaux[c.cible]
-          n = espace.creerTableau(enfant?.titre ?? c.titre ?? 'Tableau', cible)
+          n = espace.creerTableau(enfant?.titre ?? c.titre ?? t('type.tableau'), cible)
           nouveaux.set(c.cible, n)
           if (enfant?.couleur) {
             const m = espace.magasin(n)

@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { definirLangue } from '@notak/tableau'
+import { afterEach, describe, expect, it } from 'vitest'
 import { adresseArrivee, enteteAutorisation, etapesRaccourciImage, etapesRaccourciTexte, favori } from './raccourcis'
+
+afterEach(() => definirLangue('fr'))
 
 const ORIGINE = 'https://notak.exemple.fr'
 const JETON = 'nk_abcDEF123-_'
@@ -74,5 +77,22 @@ describe('favori du bureau', () => {
     const [repli] = ouverts
     expect(new URL(repli!).pathname).toBe('/partage')
     expect(new URL(repli!).searchParams.get('adresse')).toBe('https://exemple.fr/article')
+  })
+})
+
+describe('en anglais', () => {
+  it('les étapes parlent le Raccourcis anglais, avec les mêmes valeurs à saisir', () => {
+    definirLangue('en')
+    const texte = etapesRaccourciTexte(ORIGINE, JETON).join('\n')
+    expect(texte).toContain('Get Contents of URL')
+    expect(texte).toContain('Shortcut Input')
+    expect(texte).toContain(`\`${ORIGINE}/api/arrivee\``)
+    expect(texte).toContain(`\`Bearer ${JETON}\``)
+    expect(texte).not.toMatch(/Touchez|Ajoutez/)
+    const image = etapesRaccourciImage(ORIGINE, JETON)
+    expect(image[0]).toContain('Send image to Notak')
+    expect(image.join('\n')).toContain('Convert Image')
+    expect(new Set(image).size).toBe(image.length)
+    expect(favori(ORIGINE, JETON)).toContain('Sent to Notak')
   })
 })

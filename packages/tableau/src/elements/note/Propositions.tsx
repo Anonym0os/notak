@@ -2,6 +2,7 @@ import { type Editor, Extension } from '@tiptap/react'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { type RefObject, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { t as translate } from '../../langue'
 import type { ContexteToile } from '../types'
 import { type Declencheur, type Proposition, declencheurDans, filtrer, sansDoublons } from './suggestion'
 
@@ -63,14 +64,16 @@ export function personnesProposees(contexte: ContexteToile): Proposition[] {
   ])
 }
 
+const sansTitre = () => translate('commun.sansTitre')
+
 /** Les tableaux qu'on peut citer : ceux de l'espace si l'hôte les liste, sinon ceux posés sur ce tableau. */
 export function tableauxProposes(contexte: ContexteToile): Proposition[] {
   const { listerTableaux, tableau } = contexte.services
-  if (listerTableaux) return listerTableaux().map((t) => ({ id: t.id, libelle: t.titre || 'Sans titre' }))
+  if (listerTableaux) return listerTableaux().map((t) => ({ id: t.id, libelle: t.titre || sansTitre() }))
   const ids = new Set(contexte.magasin.lire().elements.flatMap((e) => (e.contenu.type === 'tableau' ? [e.contenu.cible] : [])))
   return [...ids].flatMap((id) => {
     const t = tableau?.(id)
-    return t ? [{ id, libelle: t.titre || 'Sans titre' }] : []
+    return t ? [{ id, libelle: t.titre || sansTitre() }] : []
   })
 }
 

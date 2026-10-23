@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { creerMagasinYjs } from '../coeur/magasinYjs'
 import { POSITION_MAX, type Element, type NoeudTexte } from '../coeur/tableau'
 import { ACCUEIL } from './accueil'
+import { ACCUEIL_EN } from './accueil.en'
 import { MODELES } from './catalogue'
+import { MODELES_EN } from './catalogue.en'
 import { type ElementModele, type ModeleTableau, elementsDuModele, hauteurEstimee } from './construire'
 
 let n = 0
@@ -105,5 +107,30 @@ describe('modèles de tableaux', () => {
     expect(chevauchements(ACCUEIL)).toEqual([])
     expect(elements.filter((e) => e.contenu.type === 'colonne').length).toBeGreaterThanOrEqual(4)
     expect(elements.length).toBeGreaterThan(15)
+  })
+})
+
+/** La forme d'un modèle sans ses textes : ce que l'anglais doit garder à l'identique du français. */
+const forme = (m: ModeleTableau) =>
+  JSON.stringify(m, (cle, v) => (['texte', 'titre', 'resume'].includes(cle) && typeof v === 'string' ? '' : cle === 'taches' ? (v as unknown[]).map((x) => typeof x === 'object') : v))
+
+describe('modèles en anglais', () => {
+  it('suivent le catalogue français : mêmes identifiants, mêmes éléments, mêmes positions', () => {
+    expect(MODELES_EN.map((m) => m.id)).toEqual(MODELES.map((m) => m.id))
+    MODELES.forEach((m, i) => expect(forme(MODELES_EN[i]!), m.id).toBe(forme(m)))
+    expect(forme(ACCUEIL_EN)).toBe(forme(ACCUEIL))
+  })
+
+  it('ont leur propre résumé, et se nomment chacun une fois', () => {
+    expect(new Set(MODELES_EN.map((m) => m.titre)).size).toBe(MODELES_EN.length)
+    MODELES.forEach((m, i) => {
+      expect(MODELES_EN[i]!.resume, m.id).not.toBe(m.resume)
+      expect(MODELES_EN[i]!.resume.length, m.id).toBeGreaterThan(10)
+    })
+  })
+
+  it.each([...MODELES_EN, ACCUEIL_EN].map((m) => [m.id, m] as const))('%s est valide et ne superpose rien', (_nom, m) => {
+    expect(problemes(elementsDuModele(m, id))).toEqual([])
+    expect(chevauchements(m)).toEqual([])
   })
 })

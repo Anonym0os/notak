@@ -316,7 +316,7 @@ export function EspaceNotak({
     const suivante = TAILLES_GRILLE[Math.max(0, Math.min(TAILLES_GRILLE.length - 1, i + sens))]!
     if (suivante === reglages.grille) return
     changerReglages({ grille: suivante })
-    annoncer({ texte: `Grille ${suivante === 8 ? 'serrée' : suivante === 9 ? 'moyenne' : 'large'} (${suivante} px)` })
+    annoncer({ texte: t(suivante === 8 ? 'espace.grille.serree' : suivante === 9 ? 'espace.grille.moyenne' : 'espace.grille.large', { px: suivante }) })
   }
   // La présentation passe en plein écran ; en sortir (Échap du navigateur compris) la referme.
   const racineEspace = useRef<HTMLDivElement>(null)

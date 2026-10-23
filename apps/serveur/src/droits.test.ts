@@ -71,3 +71,10 @@ describe('titreAccueil', () => {
     expect(titreAccueil('  ')).toBe('Accueil')
   })
 })
+
+describe('titreAccueil en anglais', () => {
+  it('suit la langue demandée', () => {
+    expect(titreAccueil('Alice', 'en')).toBe('Alice’s home')
+    expect(titreAccueil(' ', 'en')).toBe('Home')
+  })
+})

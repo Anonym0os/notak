@@ -48,8 +48,9 @@ export function roleHerite(
 }
 
 /** Le titre de l'accueil d'une personne, tel que les autres le voient. */
-export function titreAccueil(nom: string): string {
+export function titreAccueil(nom: string, langue: 'fr' | 'en' = 'fr'): string {
   const n = nom.trim()
+  if (langue === 'en') return n ? `${n}’s home` : 'Home'
   if (!n) return 'Accueil'
   return /^[aeiouyàâäéèêëîïôöùûüh]/i.test(n) ? `Accueil d’${n}` : `Accueil de ${n}`
 }

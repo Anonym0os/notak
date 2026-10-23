@@ -6,15 +6,16 @@ export type GesteDecouverte = 'outil' | 'note' | 'aide'
 
 export interface Bulle {
   geste: GesteDecouverte
+  /** La clé du texte dans les dictionnaires (`decouverte.*`). */
   texte: string
   /** Où elle se pose : près de la barre d'outils, au milieu, ou près du menu du compte. */
   ou: 'barre' | 'milieu' | 'compte'
 }
 
 export const BULLES: readonly Bulle[] = [
-  { geste: 'outil', ou: 'barre', texte: 'Glissez un outil de cette barre sur la toile pour poser votre premier élément.' },
-  { geste: 'note', ou: 'milieu', texte: 'Un double-clic sur le vide pose une note, prête à écrire.' },
-  { geste: 'aide', ou: 'compte', texte: 'Tapez / à tout moment pour voir les raccourcis. L’entrée Aide de ce menu les ouvre aussi.' },
+  { geste: 'outil', ou: 'barre', texte: 'decouverte.outil' },
+  { geste: 'note', ou: 'milieu', texte: 'decouverte.note' },
+  { geste: 'aide', ou: 'compte', texte: 'decouverte.aide' },
 ]
 
 /** Ce que la toile montre, au moment de choisir une bulle. */

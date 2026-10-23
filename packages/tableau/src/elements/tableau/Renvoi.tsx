@@ -9,6 +9,7 @@ import { ChoixModele } from './ChoixModele'
 import { demanderModele, ecouterModele, modeleEnCours } from './modele'
 import { poserModele } from './poserModele'
 import { demanderRenommage, ecouterRenommage, renommageEnCours } from './renommage'
+import { t } from '../../langue'
 
 const sans = () => () => {}
 
@@ -106,7 +107,7 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
           }}
         />
       )}
-      {bulle && <div className="notak-renvoi-bulle">Double-cliquez pour ouvrir</div>}
+      {bulle && <div className="notak-renvoi-bulle">{t('tableau.doubleClic')}</div>}
       {plan && !enRenommage && (
         <div className="notak-renvoi-apercu" role="tooltip">
           <PlanTableau tableau={plan} />
@@ -128,7 +129,7 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
           initiale(titre)
         )}
         {element.contenu.raccourci && (
-          <span className="notak-renvoi-raccourci" title="Raccourci vers ce tableau" aria-label="Raccourci">
+          <span className="notak-renvoi-raccourci" title={t('tableau.raccourci.titre')} aria-label={t('tableau.raccourci')}>
             <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M6 3h7v7M13 3 4 12" />
             </svg>
@@ -166,7 +167,7 @@ function Saisie({ depart, valider }: { depart: string; valider(v: string): void 
       ref={champ}
       className="notak-renvoi-saisie"
       defaultValue={depart}
-      aria-label="Titre du tableau"
+      aria-label={t('tableau.titreChamp')}
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => {

@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { t } from '../../langue'
 import { type ModeleTableau } from '../../modeles/construire'
 import { formesApercu } from '../../modeles/apercu'
 import { FOND_NOTE } from '../note/couleurs'
@@ -12,7 +13,7 @@ export function ApercuModele({ modele }: { modele: ModeleTableau }) {
       className="notak-modeles-apercu"
       viewBox={`${-marge} ${-marge} ${largeur + 2 * marge} ${hauteur + 2 * marge}`}
       role="img"
-      aria-label={`Aperçu du modèle ${modele.titre}`}
+      aria-label={t('modele.apercu', { titre: modele.titre })}
     >
       {formes.map((f, i) => {
         const fond = f.couleur && f.couleur !== 'transparent' ? FOND_NOTE[f.couleur] : undefined

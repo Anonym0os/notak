@@ -1,5 +1,5 @@
 import { avecToutLeTableau } from '@notak/tableau'
-import { t } from './langue'
+import { langue, t } from './langue'
 import { toJpeg, toPng } from 'html-to-image'
 import { useEffect, useState } from 'react'
 import { octetsDeDataUrl, pdfDepuisJpeg } from './pdf'
@@ -90,13 +90,13 @@ export function Export({ tableau, titre }: { tableau: string; titre(): string })
       </button>
       {ouvert && (
         <div className="compte-menu" role="menu">
-          <a role="menuitem" href={`${base}/export?format=md`} download onClick={() => setOuvert(false)}>
+          <a role="menuitem" href={`${base}/export?format=md&langue=${langue()}`} download onClick={() => setOuvert(false)}>
             {t('exporter.markdown')}
           </a>
-          <a role="menuitem" href={`${base}/export?format=txt`} download onClick={() => setOuvert(false)}>
+          <a role="menuitem" href={`${base}/export?format=txt&langue=${langue()}`} download onClick={() => setOuvert(false)}>
             {t('exporter.texte')}
           </a>
-          <a role="menuitem" href={`${base}/medias`} download onClick={() => setOuvert(false)}>
+          <a role="menuitem" href={`${base}/medias?langue=${langue()}`} download onClick={() => setOuvert(false)}>
             {t('exporter.medias')}
           </a>
           <small className="compte-rubrique">{t('exporter.ecran')}</small>

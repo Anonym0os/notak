@@ -3,6 +3,7 @@ import { nouvelId } from '../../coeur/tableau'
 import { TAILLE_MAX, TYPES_ACCEPTES } from '../image/geometrie'
 import { commencerEnvoi } from '../envois'
 import type { ContexteToile } from '../types'
+import { t } from '../../langue'
 
 export const LARGEUR_FICHIER = 34
 /** La hauteur d'une carte de fichier sans lecteur, en UG, pour en poser plusieurs l'une sous l'autre. */
@@ -25,7 +26,7 @@ export function recevoirFichiers(donnees: DataTransfer, ou: { x: number; y: numb
     contenu: {
       type: 'fichier',
       fichier: commencerEnvoi(f, depot),
-      nom: f.name || 'Fichier',
+      nom: f.name || t('type.fichier'),
       typeMime: f.type || 'application/octet-stream',
       taille: f.size,
     },

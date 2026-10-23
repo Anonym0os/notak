@@ -92,7 +92,7 @@ function Grand({ contenu, ecrire, finir }: { contenu: DocumentTexte; ecrire(c: D
   }, [editeur])
 
   return (
-    <Surcouche etiquette="Document" className="notak-document-fond" fermer={finir}>
+    <Surcouche etiquette={t('type.document')} className="notak-document-fond" fermer={finir}>
       <div className="notak-document-feuille">
         <input
           ref={champTitre}

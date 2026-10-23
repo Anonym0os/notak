@@ -1,4 +1,5 @@
 import { type Element, type Table, nouvelId } from '../../coeur/tableau'
+import { t } from '../../langue'
 
 export const LIGNES_DEPART = 4
 export const COLONNES_DEPART = 3
@@ -82,5 +83,5 @@ export function celluleSuivante(c: Cellules, i: number, j: number, recul = false
 export function resume(c: Table): string {
   const entete = (c.cellules[0] ?? []).filter(Boolean).join(' | ')
   const n = c.cellules.length
-  return `${entete || 'Table'} (${n} lignes × ${nombreColonnes(c.cellules)} colonnes)`
+  return t('table.resume', { entete: entete || t('type.table'), lignes: n, colonnes: nombreColonnes(c.cellules) })
 }

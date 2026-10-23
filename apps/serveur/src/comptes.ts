@@ -25,7 +25,7 @@ export class ErreurCompte extends Error {
 /** Crée le compte, son tableau d'accueil, et active les invitations en attente pour cette adresse. */
 export async function inscrire(
   base: Base,
-  entree: { email: string; motDePasse: string; nom: string },
+  entree: { email: string; motDePasse: string; nom: string; langue?: 'fr' | 'en' },
   choisirCouleur: () => string = () => COULEURS[randomInt(COULEURS.length)]!,
 ): Promise<Utilisateur> {
   const email = normaliserEmail(entree.email)
@@ -43,14 +43,14 @@ export async function inscrire(
     couleur: choisirCouleur(),
     racine: randomUUID(),
   }
-  const titre = titreAccueil(utilisateur.nom)
+  const titre = titreAccueil(utilisateur.nom, entree.langue)
   try {
     base.transaction(() => {
       base.creerUtilisateur(utilisateur)
       base.creerTableau({ id: utilisateur.racine, titre, proprietaire: utilisateur.id, parent: null })
       base.definirAcces({ tableau: utilisateur.racine, utilisateur: utilisateur.id, role: 'proprietaire' })
       // L'accueil naît rempli : il présente les gestes. Le document est enregistré comme le ferait la synchro.
-      const accueil = documentAccueil(titre)
+      const accueil = documentAccueil(titre, entree.langue)
       base.enregistrerDocument(nomDuDocument(utilisateur.racine), Y.encodeStateAsUpdate(accueil))
       indexerDocument(base, utilisateur.racine, accueil)
       accueil.destroy()

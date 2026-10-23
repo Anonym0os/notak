@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { type Element, type Tableau, surLeTableau } from '../../coeur/tableau'
 import { FOND_NOTE } from '../note/couleurs'
 import { definition } from '../registre'
+import { t } from '../../langue'
 
 /** Le survol d'un tableau montre son plan après ce délai, en millisecondes. */
 const DELAI_APERCU = 600
@@ -30,7 +31,7 @@ export function PlanTableau({ tableau }: { tableau: Tableau }) {
   const libres = surLeTableau(tableau)
     .filter((e) => !e.parent && definition(e.contenu.type)?.calque !== 'lignes')
     .slice(0, MAX_DESSINES)
-  if (libres.length === 0) return <div className="notak-renvoi-apercu-vide">Tableau vide</div>
+  if (libres.length === 0) return <div className="notak-renvoi-apercu-vide">{t('tableau.vide')}</div>
   let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity]
   const boites = libres.map((e) => {
     const h = hauteurProbable(e)

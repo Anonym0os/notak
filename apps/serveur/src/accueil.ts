@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { ACCUEIL } from '@notak/tableau/modeles/accueil'
+import { ACCUEIL_EN } from '@notak/tableau/modeles/accueil.en'
 import { cleDeRang, elementsDuModele } from '@notak/tableau/modeles/construire'
 import * as Y from 'yjs'
 
@@ -8,12 +9,12 @@ import * as Y from 'yjs'
  * le fait la toile, avec les gestes présentés par le modèle `ACCUEIL`. Un document par appel : les identifiants
  * sont neufs, deux comptes ne partagent rien.
  */
-export function documentAccueil(titre: string): Y.Doc {
+export function documentAccueil(titre: string, langue: 'fr' | 'en' = 'fr'): Y.Doc {
   const doc = new Y.Doc()
   doc.transact(() => {
     doc.getMap('meta').set('titre', titre)
     const elements = doc.getMap('elements')
-    elementsDuModele(ACCUEIL, randomUUID).forEach((e, i) => elements.set(e.id, { ...e, plan: cleDeRang(i) }))
+    elementsDuModele(langue === 'en' ? ACCUEIL_EN : ACCUEIL, randomUUID).forEach((e, i) => elements.set(e.id, { ...e, plan: cleDeRang(i) }))
   })
   return doc
 }

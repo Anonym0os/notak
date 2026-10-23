@@ -1,5 +1,6 @@
 import type { Arrivee, EspaceDistant } from '@notak/tableau'
 import { useEffect, useRef, useState } from 'react'
+import { t } from './langue'
 import { deposerDansAccueil, messageDuDepot } from './deposer'
 import { lireArrivee, oublierArrivee } from './recuDuPartage'
 
@@ -31,8 +32,8 @@ export function PagePartage({ espace }: { espace: EspaceDistant }) {
   // Reçu par le serveur : on rend la main à l'accueil. Gardé ici seulement : on laisse lire.
   useEffect(() => {
     if (etat.type !== 'fini' || etat.local) return
-    const t = setTimeout(() => location.replace('/'), 1500)
-    return () => clearTimeout(t)
+    const minuteur = setTimeout(() => location.replace('/'), 1500)
+    return () => clearTimeout(minuteur)
   }, [etat])
 
   return (
@@ -40,14 +41,14 @@ export function PagePartage({ espace }: { espace: EspaceDistant }) {
       <div className="arrivee-carte" role="status">
         <h1>Notak</h1>
         <p>
-          {etat.type === 'cours' && 'Ajout aux non triés…'}
-          {etat.type === 'vide' && 'Rien à ajouter : ce partage ne contenait ni texte, ni adresse, ni image que Notak sache prendre.'}
+          {etat.type === 'cours' && t('arrivee.cours')}
+          {etat.type === 'vide' && t('arrivee.vide')}
           {etat.type === 'fini' && etat.message}
-          {etat.type === 'echec' && 'Le partage n’a pas pu être posé. Il reste de côté : rouvrez cette page pour réessayer.'}
+          {etat.type === 'echec' && t('arrivee.echec')}
         </p>
         {etat.type !== 'cours' && (
           <a className="bouton bouton-plein" href="/">
-            Ouvrir Notak
+            {t('arrivee.ouvrir')}
           </a>
         )}
       </div>
@@ -89,15 +90,15 @@ export function PageRapide({ espace }: { espace: EspaceDistant }) {
           void envoyer()
         }}
       >
-        <h1>Note rapide</h1>
+        <h1>{t('rapide.titre')}</h1>
         <textarea
           ref={champ}
           className="rapide-champ"
           value={texte}
           autoFocus
           rows={6}
-          placeholder="Une idée, une chose à ne pas oublier…"
-          aria-label="Note"
+          placeholder={t('rapide.placeholder')}
+          aria-label={t('rapide.champ')}
           onChange={(e) => {
             setTexte(e.target.value)
             if (etat.type !== 'envoi') setEtat({ type: 'repos' })
@@ -111,14 +112,14 @@ export function PageRapide({ espace }: { espace: EspaceDistant }) {
           }}
         />
         <button type="submit" className="bouton bouton-plein rapide-envoyer" disabled={vide || etat.type === 'envoi'}>
-          {etat.type === 'envoi' ? 'Envoi…' : 'Envoyer'}
+          {etat.type === 'envoi' ? t('rapide.envoi') : t('rapide.envoyer')}
         </button>
         <p className="rapide-etat" role="status">
-          {etat.type === 'fait' && (etat.local ? 'Note gardée sur cet appareil : elle partira au retour du réseau.' : 'Note ajoutée aux non triés.')}
-          {etat.type === 'echec' && 'La note n’a pas pu être envoyée. Elle est toujours là : réessayez.'}
+          {etat.type === 'fait' && (etat.local ? t('rapide.local') : t('rapide.fait'))}
+          {etat.type === 'echec' && t('rapide.echec')}
         </p>
         <a className="bouton-lien" href="/">
-          Ouvrir Notak
+          {t('arrivee.ouvrir')}
         </a>
       </form>
     </main>

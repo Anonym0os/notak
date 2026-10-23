@@ -1,7 +1,7 @@
 import type { Dessin } from '../../coeur/tableau'
 import { registre } from '../registre'
 import { RenduDessin, ouvrirDessinLibre } from './Dessin'
-import { t } from '../../langue'
+import { t, tn } from '../../langue'
 import './dessin.css'
 
 registre.type<Dessin>({
@@ -9,7 +9,7 @@ registre.type<Dessin>({
   get nom() {
     return t('type.dessin')
   },
-  resume: (c) => `Dessin (${c.traits.length} trait${c.traits.length > 1 ? 's' : ''})`,
+  resume: (c) => tn('dessin.resume', c.traits.length),
   Rendu: RenduDessin,
   sansFond: true,
   largeurMin: 2,

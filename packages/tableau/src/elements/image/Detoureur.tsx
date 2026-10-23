@@ -4,6 +4,7 @@ import { commencerEnvoi } from '../envois'
 import type { ContexteToile } from '../types'
 import { TOLERANCE_DEFAUT, TOLERANCE_MAX, avecDetourage, detourer } from './detourage'
 import { miseEnPage, proportionsAffichees } from './geometrie'
+import { t } from '../../langue'
 
 /** L'image dont on règle le détourage, une seule à la fois. */
 let ouvert: Id | null = null
@@ -99,7 +100,7 @@ export function Detoureur({ id, contenu, adresse, contexte }: { id: Id; contenu:
       const pixels = lirePixels(plein)
       plein.getContext('2d')!.putImageData(new ImageData(detourer(pixels, tolerance).data, plein.width, plein.height), 0, 0)
       const png = await new Promise<Blob | null>((fin) => plein.toBlob(fin, 'image/png'))
-      if (!png) throw new Error('PNG illisible')
+      if (!png) throw new Error('PNG')
       const fichier = commencerEnvoi(png, depot)
       const apres = avecDetourage(contenu, fichier, { largeur: plein.width, hauteur: plein.height })
       contexte.magasin.faire([{ type: 'contenu', id, avant: contenu, apres }])
@@ -132,34 +133,34 @@ export function Detoureur({ id, contenu, adresse, contexte }: { id: Id; contenu:
         <div className="notak-image-plan" style={page.plan}>
           {source === null ? (
             <div className="notak-image notak-image-vide">
-              <span>Image illisible</span>
+              <span>{t('detourage.illisible')}</span>
             </div>
           ) : (
             <canvas ref={toile} className="notak-image" style={page.image} />
           )}
         </div>
-        {source === undefined && <span className="notak-roue" role="status" aria-label="Lecture de l’image" />}
+        {source === undefined && <span className="notak-roue" role="status" aria-label={t('detourage.lecture')} />}
       </div>
       <label className="notak-detoureur-reglage">
-        <span>Tolérance</span>
+        <span>{t('detourage.tolerance')}</span>
         <input
           type="range"
           min={0}
           max={TOLERANCE_MAX}
           value={tolerance}
-          aria-label="Tolérance du détourage"
+          aria-label={t('detourage.toleranceDetail')}
           onChange={(e) => setTolerance(Number(e.target.value))}
         />
         <output>{tolerance}</output>
       </label>
-      {resultat && resultat.retires === 0 && <p className="notak-detoureur-note">Le bord n’est pas assez uni : rien à retirer.</p>}
-      {echec && <p className="notak-detoureur-note">Détourage impossible.</p>}
+      {resultat && resultat.retires === 0 && <p className="notak-detoureur-note">{t('detourage.rien')}</p>}
+      {echec && <p className="notak-detoureur-note">{t('detourage.impossible')}</p>}
       <div className="notak-recadreur-actions">
         <button type="button" disabled={!depot || !resultat || resultat.retires === 0 || travail} onClick={() => void valider()}>
-          {travail ? 'Détourage…' : 'Valider'}
+          {travail ? t('detourage.encours') : t('recadreur.valider')}
         </button>
         <button type="button" onClick={() => detourerImage(null)}>
-          Annuler
+          {t('commun.annuler')}
         </button>
       </div>
     </div>

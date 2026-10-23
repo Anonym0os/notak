@@ -41,7 +41,7 @@ export function commencerEnvoi(fichier: Blob, depot: DepotFichiers): string {
     },
     (e: unknown) => {
       enRoute--
-      const nom = fichier instanceof File && fichier.name ? `« ${fichier.name} »` : t('envois.leFichier')
+      const nom = fichier instanceof File && fichier.name ? t('envois.nomFichier', { nom: fichier.name }) : t('envois.leFichier')
       const cause = e instanceof Error ? e.message : t('envois.impossible')
       envois.set(id, { ...envois.get(id)!, echec: t('envois.echec', { nom, cause: `${cause.charAt(0).toLowerCase()}${cause.slice(1)}` }) })
       prevenir()

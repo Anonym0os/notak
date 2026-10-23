@@ -282,7 +282,7 @@
 /* Une note vide dit qu'on peut y écrire, même hors édition. */
 .notak-note:not([data-variante='titre']) .notak-texte:has(> p:only-child:empty)::before,
 .notak-note:not([data-variante='titre']) .notak-texte:has(> p:only-child > br.ProseMirror-trailingBreak:only-child)::before {
-  content: 'Écrivez quelque chose…';
+  content: var(--notak-ph-note, 'Écrivez quelque chose…');
   position: absolute;
   color: rgb(0 0 0 / 0.35);
   pointer-events: none;
@@ -290,7 +290,7 @@
 
 .notak-note[data-variante='titre'] .notak-texte:has(> h1:only-child:empty)::before,
 .notak-note[data-variante='titre'] .notak-texte:has(> h1:only-child > br.ProseMirror-trailingBreak:only-child)::before {
-  content: 'Titre';
+  content: var(--notak-ph-titre, 'Titre');
   position: absolute;
   left: 0;
   right: 0;
