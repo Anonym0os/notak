@@ -4,6 +4,7 @@ import type { PropsOutils, PropsRendu } from '../types'
 import { avecPosition, positionValable, requete, urlCarte, urlCarteIntegree } from './adresse'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
+import { BoutonOutil } from '../../BoutonOutil'
 
 /** Le lien et les champs de la carte ne lancent pas de glisser. */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
@@ -127,14 +128,10 @@ export function OutilsLieu({ elements, contexte }: PropsOutils<Lieu>) {
   return (
     <>
       {url && (
-        <a className="notak-lieu-outil" href={url} target="_blank" rel="noopener noreferrer" title={t('lieu.ouvrirCarte')}>
-          {t('lieu.voirCarte')}
-        </a>
+        <BoutonOutil icone="carte" titre={t('lieu.ouvrirCarte')} libelle={t('lieu.voirCarte')} onClick={() => void window.open(url, '_blank', 'noopener,noreferrer')} />
       )}
       {elements.length === 1 && !contexte.services.lectureSeule && (
-        <button type="button" title={t('lieu.modifierAdresse')} onClick={() => contexte.commencerEdition(elements[0]!.id)}>
-          {t('commun.modifier')}
-        </button>
+        <BoutonOutil icone="modifier" titre={t('lieu.modifierAdresse')} libelle={t('commun.modifier')} onClick={() => contexte.commencerEdition(elements[0]!.id)} />
       )}
     </>
   )

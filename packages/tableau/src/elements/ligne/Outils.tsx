@@ -1,17 +1,18 @@
 import { COULEURS_NOTE, type CouleurNote, type Ligne, type Pointe } from '../../coeur/tableau'
-import { FOND_NOTE, LIBELLES_COULEUR } from '../note/couleurs'
+import { FOND_NOTE, LIBELLES_COULEUR, teinteDe } from '../note/couleurs'
 import type { PropsOutils } from '../types'
 import { GRIS_LIGNE } from './couleur'
 import { editionLibelle } from './edition'
 import { t } from '../../langue'
 import { type NomIcone, Icone } from '../../icones'
 import { useMenu } from '../../menuUnique'
+import { BoutonOutil, OutilAvecMenu } from '../../BoutonOutil'
 
 const EPAISSEURS = [1, 2, 4] as const
 const TRAITS = [
-  { trait: 'plein', icone: 'traitPlein', get titre() { return t('ligne.plein') } },
-  { trait: 'tirets', icone: 'traitTirets', get titre() { return t('ligne.tirets') } },
-  { trait: 'points', icone: 'traitPoints', get titre() { return t('ligne.points') } },
+  { trait: 'plein', court: 'plein', icone: 'traitPlein', get titre() { return t('ligne.plein') } },
+  { trait: 'tirets', court: 'tirets', icone: 'traitTirets', get titre() { return t('ligne.tirets') } },
+  { trait: 'points', court: 'points', icone: 'traitPoints', get titre() { return t('ligne.points') } },
 ] as const
 
 /** La barre des lignes choisies. Plusieurs lignes : chaque changement s'applique à toutes, en un seul pas d'historique. */
@@ -34,10 +35,11 @@ export function OutilsLigne({ elements, contexte }: PropsOutils<Ligne>) {
     const vers: Pointe = elements.every((e) => e.contenu[clef] === premiere) ? SUITE[premiere] : 'fleche'
     modifier((l) => ({ ...l, [clef]: vers }))
   }
-  const signe = (clef: 'pointeDepart' | 'pointeArrivee', fleche: NomIcone) => {
+  const nomPointe = (clef: 'pointeDepart' | 'pointeArrivee', fleche: NomIcone): NomIcone => {
     const p = elements[0]!.contenu[clef]
-    return <Icone nom={p === 'fleche' ? fleche : p === 'rond' ? 'rond' : 'retirer'} />
+    return p === 'fleche' ? fleche : p === 'rond' ? 'rond' : 'retirer'
   }
+  const signe = (clef: 'pointeDepart' | 'pointeArrivee', fleche: NomIcone) => <Icone nom={nomPointe(clef, fleche)} />
   const colorier = (couleur: CouleurNote | undefined) => {
     modifier((l) => {
       const { couleur: _, ...reste } = l
@@ -49,42 +51,27 @@ export function OutilsLigne({ elements, contexte }: PropsOutils<Ligne>) {
 
   return (
     <>
-      <button type="button" title={t('ligne.pointeDepart')} aria-pressed={!tous((l) => l.pointeDepart, 'rien')} onClick={() => bascule('pointeDepart')}>
-        {signe('pointeDepart', 'gauche')}
-      </button>
-      <button type="button" title={t('ligne.pointeArrivee')} aria-pressed={!tous((l) => l.pointeArrivee, 'rien')} onClick={() => bascule('pointeArrivee')}>
-        {signe('pointeArrivee', 'droite')}
-      </button>
+      <BoutonOutil icone={nomPointe('pointeDepart', 'gauche')} titre={t('ligne.pointeDepart')} libelle={t('ligne.debut')} flottant={signe('pointeDepart', 'gauche')} actif={!tous((l) => l.pointeDepart, 'rien')} onClick={() => bascule('pointeDepart')} />
+      <BoutonOutil icone={nomPointe('pointeArrivee', 'droite')} titre={t('ligne.pointeArrivee')} libelle={t('ligne.fin')} flottant={signe('pointeArrivee', 'droite')} actif={!tous((l) => l.pointeArrivee, 'rien')} onClick={() => bascule('pointeArrivee')} />
       <span className="notak-ligne-sep" />
       {TRAITS.map((x) => (
-        <button key={x.trait} type="button" title={x.titre} aria-pressed={tous((l) => l.trait, x.trait)} onClick={() => modifier((l) => ({ ...l, trait: x.trait }))}>
-          <Icone nom={x.icone} />
-        </button>
+        <BoutonOutil key={x.trait} icone={x.icone} titre={x.titre} libelle={t(`ligne.court.${x.court}`)} flottant={<Icone nom={x.icone} />} secondaire actif={tous((l) => l.trait, x.trait)} onClick={() => modifier((l) => ({ ...l, trait: x.trait }))} />
       ))}
       <span className="notak-ligne-sep" />
       {EPAISSEURS.map((n) => (
-        <button key={n} type="button" title={t('ligne.epaisseur', { n })} aria-pressed={tous((l) => l.epaisseur, n)} onClick={() => modifier((l) => ({ ...l, epaisseur: n }))}>
-          {n}
-        </button>
+        <BoutonOutil key={n} icone="traitPlein" titre={t('ligne.epaisseur', { n })} libelle={t('ligne.court.epaisseur', { n })} flottant={n} secondaire actif={tous((l) => l.epaisseur, n)} onClick={() => modifier((l) => ({ ...l, epaisseur: n }))} />
       ))}
       <span className="notak-ligne-sep" />
-      <div className="notak-ligne-ancre" ref={ancre}>
-        <button type="button" title={t('couleur.titre')} aria-expanded={palette} onClick={() => setPalette(!palette)}>
-          {t('couleur.titre')}
-        </button>
-        {palette && (
+      <OutilAvecMenu menu={[palette, setPalette, ancre]} classeAncre="notak-ligne-ancre" icone="palette" titre={t('couleur.titre')} libelle={t('couleur.titre')} pastille={teinteDe(actuelle ?? undefined) ?? GRIS_LIGNE}>
           <div className="notak-ligne-palette" role="menu">
             <button type="button" role="menuitem" title={t('couleur.grisFonce')} aria-label={t('couleur.grisFonce')} aria-pressed={actuelle === undefined} style={{ background: GRIS_LIGNE }} onClick={() => colorier(undefined)} />
             {COULEURS_NOTE.map((c) => (
               <button key={c} type="button" role="menuitem" title={LIBELLES_COULEUR[c]} aria-label={LIBELLES_COULEUR[c]} aria-pressed={actuelle === c} style={{ background: FOND_NOTE[c] }} onClick={() => colorier(c)} />
             ))}
           </div>
-        )}
-      </div>
+      </OutilAvecMenu>
       {elements.length === 1 && (
-        <button type="button" title={t('ligne.libelle')} aria-pressed={!!elements[0]!.contenu.libelle} onClick={() => editionLibelle.ouvrir(elements[0]!.id)}>
-          {t('ligne.libelle')}
-        </button>
+        <BoutonOutil icone="legende" titre={t('ligne.libelle')} libelle={t('ligne.libelle')} actif={!!elements[0]!.contenu.libelle} onClick={() => editionLibelle.ouvrir(elements[0]!.id)} />
       )}
     </>
   )

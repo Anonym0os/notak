@@ -7,6 +7,7 @@ import type { PropsOutils, PropsRendu } from '../types'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
 import { useMenu } from '../../menuUnique'
+import { OutilAvecMenu } from '../../BoutonOutil'
 
 /** Le titre en édition : tout le texte est choisi à l'ouverture, Entrée valide (Échap est géré par la toile). */
 function Saisie({ titre, surChangement, valider }: { titre: string; surChangement(t: string): void; valider(): void }) {
@@ -107,12 +108,8 @@ export function OutilsColonne({ elements, contexte }: PropsOutils<Colonne>) {
   }
   const actuelle = elements.every((e) => e.contenu.couleur === elements[0]!.contenu.couleur) ? elements[0]!.contenu.couleur : undefined
   return (
-    <div className="notak-colonne-menu-ancre" ref={ancre}>
-      <button type="button" title={t('couleur.titre')} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
-        {t('couleur.titre')}
-      </button>
-      {ouvert && (
-        <div className="notak-colonne-palette" role="menu">
+    <OutilAvecMenu menu={[ouvert, setOuvert, ancre]} classeAncre="notak-colonne-menu-ancre" icone="palette" titre={t('couleur.titre')} libelle={t('couleur.titre')} pastille={actuelle ? `var(--notak-colonne-${actuelle})` : undefined}>
+      <div className="notak-colonne-palette" role="menu">
           <div className="notak-colonne-pastilles">
             <button type="button" role="menuitem" className="notak-pastille-aucune" title={t('couleur.aucune')} aria-label={t('couleur.aucune')} aria-pressed={actuelle === undefined} onClick={() => choisir(undefined)} />
             {COULEURS_NOTE.map((c) => (
@@ -128,8 +125,7 @@ export function OutilsColonne({ elements, contexte }: PropsOutils<Colonne>) {
               />
             ))}
           </div>
-        </div>
-      )}
-    </div>
+      </div>
+    </OutilAvecMenu>
   )
 }
