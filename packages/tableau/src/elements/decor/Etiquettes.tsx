@@ -8,12 +8,14 @@ import {
   colorerEtiquette,
   etatEtiquette,
   etiquetteNommee,
+  etiquettesAReprendre,
   nouvelleEtiquette,
   renommerEtiquette,
   supprimerEtiquette,
   texteEtiquette,
 } from './annotations'
 import { basculerFiltre, useFiltre, viderFiltre } from './etat'
+import { changerEtiquettes } from './ecriture'
 import { t, tn } from '../../langue'
 import { Icone } from '../../icones'
 
@@ -38,13 +40,17 @@ export function PanneauEtiquettes({ elements, contexte }: { elements: readonly E
   const liste = tableau.etiquettes ?? []
   const ecrire = !contexte.services.lectureSeule
 
-  const changerListe = (vers: Etiquette[]) => magasin.faire([{ type: 'etiquettes', de: liste, vers }])
+  const changerListe = (vers: Etiquette[]) => changerEtiquettes(contexte, vers)
   const annoterTous = (f: (e: Element) => ReturnType<typeof annoter>) => elements.flatMap((e) => f(e) ?? [])
   const poserSur = (id: string) => annoterTous((e) => annoter(e, { etiquettes: basculerEtiquette(e.etiquettes, id) }))
   const creer = (nom: string) => {
     const et = nouvelleEtiquette(liste, nom)
     if (!et) return
     // Une étiquette créée avec des éléments choisis se pose aussitôt dessus.
+    magasin.faire([{ type: 'etiquettes' as const, de: liste, vers: [...liste, et] }, ...poserSur(et.id)])
+  }
+  // Une étiquette d'un autre tableau de l'espace, reprise ici : même identifiant, donc la même étiquette partout.
+  const reprendre = (et: Etiquette) => {
     magasin.faire([{ type: 'etiquettes' as const, de: liste, vers: [...liste, et] }, ...poserSur(et.id)])
   }
   // Tous l'ont : on la leur ôte. Sinon seuls ceux qui ne l'ont pas la reçoivent.
@@ -83,6 +89,8 @@ export function PanneauEtiquettes({ elements, contexte }: { elements: readonly E
   const recentes = cherche ? [] : [...liste].reverse().slice(0, RECENTES)
   const autres = cherche ? visibles : liste.filter((e) => !recentes.includes(e))
   const peutCreer = ecrire && cherche && !etiquetteNommee(liste, requete)
+  // Celles des autres tableaux (le chemin d'abord) qu'on n'a pas encore ici.
+  const ailleurs = ecrire ? etiquettesAReprendre(liste, contexte.services.etiquettesDesAutres?.() ?? [], requete) : []
 
   const ligne = (et: Etiquette) => {
     const etat = etatEtiquette(elements, et.id)
@@ -166,8 +174,8 @@ export function PanneauEtiquettes({ elements, contexte }: { elements: readonly E
         </button>
       )}
       <div className="notak-etiquettes-liste">
-        {liste.length === 0 && !cherche && <p className="notak-etiquettes-vide">{t('etiquettes.aucune')}</p>}
-        {cherche && visibles.length === 0 && !peutCreer && <p className="notak-etiquettes-vide">{t('etiquettes.aucunResultat')}</p>}
+        {liste.length === 0 && !cherche && ailleurs.length === 0 && <p className="notak-etiquettes-vide">{t('etiquettes.aucune')}</p>}
+        {cherche && visibles.length === 0 && ailleurs.length === 0 && !peutCreer && <p className="notak-etiquettes-vide">{t('etiquettes.aucunResultat')}</p>}
         {recentes.length > 0 && (
           <>
             <span className="notak-decor-titre">{t('etiquettes.recentes')}</span>
@@ -180,6 +188,23 @@ export function PanneauEtiquettes({ elements, contexte }: { elements: readonly E
             <ul>{autres.map(ligne)}</ul>
           </>
         )}
+        {ailleurs.map((section) => (
+          <div key={section.id} className="notak-etiquettes-ailleurs">
+            <span className="notak-decor-titre">{section.titre.trim() || t('etiquettes.sansTitre')}</span>
+            <ul>
+              {section.etiquettes.map((et) => (
+                <li key={et.id} className="notak-etiquettes-ligne">
+                  <button type="button" className="notak-etiquettes-reprendre" title={t('etiquettes.reprendre', { nom: et.nom })} aria-label={t('etiquettes.reprendre', { nom: et.nom })} onClick={() => reprendre(et)}>
+                    <Icone nom="ajouter" taille={14} />
+                  </button>
+                  <span className="notak-etiquette notak-etiquettes-chip" data-fond={et.couleur} style={{ color: texteEtiquette(et.couleur) }}>
+                    {et.nom}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </div>
       {filtre.size > 0 && (
         <button type="button" className="notak-etiquettes-lien" onClick={viderFiltre}>

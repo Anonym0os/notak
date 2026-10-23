@@ -9,13 +9,15 @@ import '../note'
 import '../commentaire'
 import './index'
 import { Decor, Pastille } from './Decor'
+import { BarreSelection } from '../../Barres'
+import { BarreEtiquette } from './BarreEtiquette'
 import { PanneauEtiquettes } from './Etiquettes'
 import { OutilEtiquettes, OutilReactions } from './Outils'
 import { OutilsCommentaire } from '../commentaire/Commentaire'
 import { nouveauCommentaire } from '../commentaire/fil'
 import { SelecteurEmojis } from './SelecteurEmojis'
 import { chargerEmojis } from './emojis'
-import { basculerFiltre, useFiltre, viderFiltre } from './etat'
+import { basculerFiltre, choisirPuce, useFiltre, viderFiltre } from './etat'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -348,6 +350,77 @@ describe('le sélecteur d’émojis', () => {
     await monter(new Set(['🍕']))
     const pizza = boutons().find((b) => b.textContent === '🍕')!
     expect(pizza.getAttribute('aria-pressed')).toBe('true')
+  })
+})
+
+describe('une pastille d’étiquette choisie, dans la barre de gauche', () => {
+  const monter = (plus: Partial<Element> = { etiquettes: ['e1'] }) => {
+    const m = monde(plus)
+    const propagees: string[] = []
+    ;(m.contexte.services as { propagerEtiquette?: (e: { nom: string }) => void }).propagerEtiquette = (e) => void propagees.push(e.nom)
+    const rendre = () =>
+      act(() => racine.render(<BarreEtiquette element={m.element()} puce={{ element: m.element().id, etiquette: 'e1' }} contexte={m.contexte} aGauche position={{ x: 0, y: 0 }} />))
+    rendre()
+    return { ...m, propagees }
+  }
+  it('propose Couleur, Renommer et Retirer', () => {
+    monter()
+    expect([...hote.querySelectorAll('button.notak-outil-selection')].map((b) => b.getAttribute('aria-label'))).toEqual(['Couleur', 'Renommer', 'Retirer'])
+  })
+  it('Couleur recolore l’étiquette pour tout le tableau, et le dit aux autres tableaux', () => {
+    const { magasin, propagees } = monter()
+    act(() => bouton('Couleur').click())
+    act(() => bouton('Vert').click())
+    expect(magasin.lire().etiquettes![0]!.couleur).toBe('vert')
+    expect(propagees).toEqual(['Urgent'])
+  })
+  it('Retirer ôte l’étiquette de cette carte seulement', () => {
+    const { magasin, element } = monter()
+    act(() => bouton('Retirer').click())
+    expect(element().etiquettes).toBeUndefined()
+    expect(magasin.lire().etiquettes).toHaveLength(1)
+  })
+  it('Renommer fait passer la pastille en édition', () => {
+    const { contexte, element } = monde({ etiquettes: ['e1'] })
+    const puce = { element: element().id, etiquette: 'e1' }
+    act(() =>
+      racine.render(
+        <>
+          <Decor element={element()} contexte={contexte} mode="toile" />
+          <BarreEtiquette element={element()} puce={puce} contexte={contexte} aGauche position={{ x: 0, y: 0 }} />
+        </>,
+      ),
+    )
+    act(() => hote.querySelector<HTMLElement>('.notak-etiquette')!.click())
+    expect(hote.querySelector('.notak-etiquette input')).toBeNull()
+    act(() => bouton('Renommer').click())
+    expect(hote.querySelector('.notak-etiquette input')).not.toBeNull()
+    act(() => choisirPuce(null))
+  })
+})
+
+describe('la barre de sélection', () => {
+  it('ne propose que Couleur, Renommer et Retirer quand une pastille d’étiquette est choisie', () => {
+    const { contexte, element } = monde({ etiquettes: ['e1'] })
+    const rendre = () => act(() => racine.render(<BarreSelection elements={[element()]} contexte={contexte} position={{ x: 0, y: 0 }} aGauche />))
+    rendre()
+    expect([...hote.querySelectorAll('button.notak-outil-selection')].map((b) => b.getAttribute('aria-label'))).toContain('Étiquettes')
+    act(() => choisirPuce({ element: element().id, etiquette: 'e1' }))
+    expect([...hote.querySelectorAll('button.notak-outil-selection')].map((b) => b.getAttribute('aria-label'))).toEqual(['Couleur', 'Renommer', 'Retirer'])
+    act(() => choisirPuce(null))
+    expect([...hote.querySelectorAll('button.notak-outil-selection')].map((b) => b.getAttribute('aria-label'))).toContain('Étiquettes')
+  })
+})
+
+describe('les étiquettes des autres tableaux, dans le panneau', () => {
+  it('se reprennent d’un clic : même identifiant, et posées sur la sélection', () => {
+    const { contexte, magasin, element } = monde()
+    ;(contexte.services as { etiquettesDesAutres?: () => unknown }).etiquettesDesAutres = () => [{ id: 't2', titre: 'Projet', etiquettes: [{ id: 'z', nom: 'À relire', couleur: 'vert' }] }]
+    act(() => racine.render(<PanneauEtiquettes elements={[element()]} contexte={contexte} />))
+    expect(hote.textContent).toContain('Projet')
+    act(() => bouton('Reprendre « À relire »').click())
+    expect(magasin.lire().etiquettes!.map((e) => e.id)).toEqual(['e1', 'z'])
+    expect(element().etiquettes).toEqual(['z'])
   })
 })
 

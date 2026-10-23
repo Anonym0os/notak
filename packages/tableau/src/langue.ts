@@ -927,6 +927,10 @@ export const fr: Textes = {
   'etiquettes.supprimerBouton': 'Supprimer',
   'etiquettes.confirmer': '« {nom} » sera retirée de tous les éléments qui la portent.',
   'etiquettes.annuler': 'Annuler',
+  'etiquettes.retirerElement': 'Retirer l’étiquette de cet élément',
+  'etiquettes.autresTableaux': 'Autres tableaux',
+  'etiquettes.reprendre': 'Reprendre « {nom} » dans ce tableau',
+  'etiquettes.sansTitre': 'Sans titre',
   'etiquettes.utilisee.one': 'Utilisée {n} fois',
   'etiquettes.utilisee.other': 'Utilisée {n} fois',
 }
@@ -1773,6 +1777,10 @@ export const en: Textes = {
   'etiquettes.supprimerBouton': 'Delete',
   'etiquettes.confirmer': '“{nom}” will be removed from every item that carries it.',
   'etiquettes.annuler': 'Cancel',
+  'etiquettes.retirerElement': 'Remove the label from this element',
+  'etiquettes.autresTableaux': 'Other boards',
+  'etiquettes.reprendre': 'Use “{nom}” on this board',
+  'etiquettes.sansTitre': 'Untitled',
   'etiquettes.utilisee.one': 'Used {n} time',
   'etiquettes.utilisee.other': 'Used {n} times',
 }

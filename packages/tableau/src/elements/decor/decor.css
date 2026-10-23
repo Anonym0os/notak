@@ -722,3 +722,18 @@
   text-align: center;
   opacity: 0.6;
 }
+
+/* Une étiquette d'un autre tableau, qu'on reprend d'un clic sur son « + ». */
+.notak-etiquettes-reprendre {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  color: #8d929a !important;
+}
+
+.notak-etiquettes-reprendre:hover {
+  background: #e8e9eb !important;
+  color: #323b4a !important;
+}

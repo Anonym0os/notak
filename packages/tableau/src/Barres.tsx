@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Element } from './coeur/tableau'
+import { BarreEtiquette } from './elements/decor/BarreEtiquette'
 import { BoutonEtiquettes } from './elements/decor/BoutonEtiquettes'
+import { usePuce } from './elements/decor/etat'
 import { t } from './langue'
 import { RANG_APRES_TETE, definition, tousLesOutilsCommunsRanges, tousLesTypes } from './elements/registre'
 import type { ContexteToile, Outil } from './elements/types'
@@ -213,6 +215,7 @@ export function BarreSelection({
   useMenusBornes(aGauche ? nav : barre, !aGauche)
   useBarreBornee(barre, position.x, !aGauche)
   const dessinOuvert = useDessinLibreOuvert()
+  const puce = usePuce()
   // Les outils s'inscrivent ici ; trop nombreux pour la hauteur, les moins prioritaires passent dans le « ••• ».
   const [inscrits, setInscrits] = useState<EntreeRepli[]>([])
   const inscrire = useCallback((e: EntreeRepli) => {
@@ -240,6 +243,10 @@ export function BarreSelection({
   // Une sélection d'un seul type montre ses outils ; une sélection mêlée ne montre que ce qui vaut pour tous,
   // et range les outils de chaque type derrière « … ».
   const mele = parType.size > 1
+  // Une pastille d'étiquette choisie sur la carte : la barre ne propose plus que ses trois gestes.
+  if (puce && elements.length === 1 && puce.element === elements[0]!.id && !contexte.services.lectureSeule) {
+    return <BarreEtiquette element={elements[0]!} puce={puce} contexte={contexte} aGauche={aGauche} position={position} />
+  }
   if (blocs.length === 0 && communs.length + communsSuite.length === 0) return null
 
   if (aGauche) {

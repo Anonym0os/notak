@@ -9,6 +9,7 @@ import type { ContexteToile } from '../types'
 import { FOND_NOTE } from '../note/couleurs'
 import { NOM_ETIQUETTE_MAX, basculerReaction, compterReactions, contourEtiquette, etatEcheance, etiquettesDe, libelleEcheance, renommerEtiquette, texteEtiquette } from './annotations'
 import { PastilleReaction } from './PastilleReaction'
+import { changerEtiquettes } from './ecriture'
 import { choisirPuce, ouvrirFil, retenirContexte, useFilOuvert, usePuce } from './etat'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
@@ -185,10 +186,19 @@ function PastilleEtiquette({ et, element, contexte, fond, ecrire, choisie }: { e
   useEffect(() => {
     if (choisie && !renomme) noeud.current?.focus({ preventScroll: true })
   }, [choisie, renomme])
+  // « Renommer » de la barre de gauche.
+  const demande = usePuce()?.renommer
+  useEffect(() => {
+    if (choisie && demande) {
+      setRenomme(true)
+      choisirPuce({ element: element.id, etiquette: et.id })
+    }
+  }, [choisie, demande, element.id, et.id])
   // Un appui ailleurs que sur une pastille la lâche.
   useEffect(() => {
     if (!choisie) return
-    const dehors = (e: PointerEvent) => !(e.target as HTMLElement | null)?.closest?.('.notak-etiquette') && choisirPuce(null)
+    // La barre de gauche (Couleur, Renommer, Retirer) agit sur la pastille choisie : y appuyer ne la lâche pas.
+    const dehors = (e: PointerEvent) => !(e.target as HTMLElement | null)?.closest?.('.notak-etiquette, .notak-barre-outils, .notak-barre-selection') && choisirPuce(null)
     document.addEventListener('pointerdown', dehors, true)
     return () => document.removeEventListener('pointerdown', dehors, true)
   }, [choisie])
@@ -200,7 +210,7 @@ function PastilleEtiquette({ et, element, contexte, fond, ecrire, choisie }: { e
   const valider = (nom: string) => {
     const liste = magasin.lire().etiquettes ?? []
     const suite = renommerEtiquette(liste, et.id, nom)
-    if (suite.find((x) => x.id === et.id)!.nom !== et.nom) magasin.faire([{ type: 'etiquettes', de: liste, vers: suite }])
+    if (suite.find((x) => x.id === et.id)!.nom !== et.nom) changerEtiquettes(contexte, suite)
     setRenomme(false)
   }
   const proprietes = {
@@ -252,7 +262,11 @@ function PastilleEtiquette({ et, element, contexte, fond, ecrire, choisie }: { e
       role="button"
       tabIndex={choisie ? 0 : -1}
       aria-pressed={choisie}
-      onClick={() => choisirPuce({ element: element.id, etiquette: et.id })}
+      onClick={() => {
+        // L'élément est choisi avec elle : la barre de gauche propose alors Couleur, Renommer, Retirer.
+        contexte.choisir?.([element.id])
+        choisirPuce({ element: element.id, etiquette: et.id })
+      }}
       onDoubleClick={() => setRenomme(true)}
       onKeyDown={(e) => {
         if (!choisie) return

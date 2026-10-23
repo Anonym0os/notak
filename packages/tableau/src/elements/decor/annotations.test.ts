@@ -10,6 +10,7 @@ import {
   contourEtiquette,
   couleurPourNom,
   etiquetteNommee,
+  etiquettesAReprendre,
   etiquettesDe,
   quiReagit,
   reagirSurPlusieurs,
@@ -184,5 +185,28 @@ describe('réagir sur plusieurs éléments', () => {
     const b = note('b')
     expect(reagirSurPlusieurs([a, b], '🔥', 'ana')).toHaveLength(1)
     expect(reagirSurPlusieurs([b, note('c')], '🔥', 'ana')).toHaveLength(2)
+  })
+})
+
+describe('les étiquettes des autres tableaux', () => {
+  const e = (id: string, nom: string) => ({ id, nom, couleur: 'rouge' as const })
+  const autres = [
+    { id: 't1', titre: 'Projet', etiquettes: [e('a', 'Urgent'), e('b', 'Idée')] },
+    { id: 't2', titre: 'Accueil', etiquettes: [e('b', 'Idée'), e('c', 'À voir'), e('d', 'urgent')] },
+  ]
+  it('ne propose que celles qu’on n’a pas ici, ni par identifiant ni par nom', () => {
+    const r = etiquettesAReprendre([e('a', 'Urgent')], autres)
+    expect(r.map((s) => [s.titre, s.etiquettes.map((x) => x.nom)])).toEqual([
+      ['Projet', ['Idée']],
+      ['Accueil', ['À voir']],
+    ])
+  })
+  it('une étiquette présente dans deux tableaux n’est proposée qu’une fois, au plus proche', () => {
+    const r = etiquettesAReprendre([], autres)
+    expect(r[1]!.etiquettes.map((x) => x.id)).toEqual(['c'])
+  })
+  it('suit la recherche, sans égard à la casse, et fait disparaître les sections vides', () => {
+    expect(etiquettesAReprendre([], autres, 'VOIR').map((s) => s.titre)).toEqual(['Accueil'])
+    expect(etiquettesAReprendre([], autres, 'zzz')).toEqual([])
   })
 })
