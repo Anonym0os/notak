@@ -27,10 +27,10 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 12. Organiser | 16 | 0 | 0 | 100 % |
 | 13. Naviguer | 13 | 0 | 0 | 100 % |
 | 14. À plusieurs | 17 | 0 | 0 | 100 % |
-| 15. Habillage | 14 | 0 | 1 | 93 % |
+| 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 6 | 1 | 0 | 93 % |
-| **Total** | **245** | **3** | **1** | **99 %** |
+| **Total** | **246** | **3** | **0** | **99 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -345,7 +345,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Présentation (Cmd+Alt+P), mode focus sur un élément | ✅ |  |
 | Aide, bulles de découverte, accueil d'un nouveau compte | ✅ |  |
 | Réglages du compte (Cmd+,), photo, couleur | ✅ |  |
-| Langues de l'interface | ⬜ | Français seulement. |
+| Langues de l'interface | ✅ | Français et anglais, au choix dans les réglages ou d'après le navigateur ; un test vérifie que les deux dictionnaires ont les mêmes clés. Les modèles de tableau et les bulles de découverte restent en français. |
 | Avis en bas d'écran (toasts) avec annulation | ✅ | Corbeille et non triés (« Annuler »), envoi raté, déplacement dans un tableau (« Ouvrir »), Cmd+S, style collé. |
 | Envoi de fichier : progression dans l'en-tête | ✅ |  |
 | Cmd+S rassure (« déjà enregistré ») | ✅ | |
