@@ -15,6 +15,7 @@ import { type Moi, moi as lireMoi, seDeconnecter } from './api'
 import { importDejaPropose, lireAncienEspace, noterImportPropose } from './ancien'
 import { Compte } from './Compte'
 import { EcranConnexion } from './connexion'
+import { Export } from './Export'
 import { apercu, fichiers } from './fichiers'
 import { importerEspaceLocal } from './importLocal'
 import { Partage } from './Partage'
@@ -129,6 +130,7 @@ function Espace({ moi, deconnexion }: { moi: Moi; deconnexion(): void }) {
         adresse={adresse}
         actions={(courant, ouvrir) => (
           <>
+            <Export tableau={courant} />
             <Partage tableau={courant} moi={moi} />
             <Compte moi={moi} deconnexion={deconnexion} ouvrir={ouvrir} />
           </>

@@ -127,7 +127,8 @@ body {
 }
 
 .partage,
-.compte {
+.compte,
+.export {
   position: relative;
 }
 
@@ -243,7 +244,15 @@ body {
   padding: 0;
 }
 
-.compte-menu button {
+.compte-menu a {
+  display: flex;
+  align-items: center;
+  color: inherit;
+  text-decoration: none;
+}
+
+.compte-menu button,
+.compte-menu a {
   height: 28px;
   padding: 0 8px;
   border: 0;
@@ -255,7 +264,8 @@ body {
   cursor: pointer;
 }
 
-.compte-menu button:hover {
+.compte-menu button:hover,
+.compte-menu a:hover {
   background: var(--fond);
 }
 

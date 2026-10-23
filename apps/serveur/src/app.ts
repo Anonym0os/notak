@@ -11,8 +11,10 @@ import type { Context } from 'hono'
 import { ErreurApercu, apercuDePage, rapatrierImage } from './apercu.ts'
 import type { Base, Utilisateur } from './base.ts'
 import { ErreurCompte, inscrire, normaliserEmail } from './comptes.ts'
+import { type TableauLu, lireEtat, lireTableau } from './contenu.ts'
 import type { Limiteur } from './debit.ts'
 import { type Role, auMoins, role, roleHerite } from './droits.ts'
+import { estFormatExport, exporterTexte } from './exporter.ts'
 import { hacher, verifier } from './motsDePasse.ts'
 import { DUREE_SESSION_S, NOM_COOKIE, cookieEfface, cookieSession, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
 import { nomDuDocument } from './synchro.ts'
@@ -34,6 +36,13 @@ export interface Contexte {
 export const FICHIER_MAX = 25 * 1024 * 1024
 const ID_TABLEAU = /^[A-Za-z0-9_-]{8,64}$/
 const ID_FICHIER = /^[0-9a-f-]{36}$/
+
+/** Un nom de fichier sûr à partir d'un titre, et l'en-tête qui le propose au téléchargement. */
+export function enTeteTelechargement(titre: string, extension: string): string {
+  const net = titre.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').trim().slice(0, 100) || 'tableau'
+  const ascii = net.normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^\x20-\x7e]/g, '_').replace(/[%"]/g, '_')
+  return `attachment; filename="${ascii}.${extension}"; filename*=UTF-8''${encodeURIComponent(`${net}.${extension}`)}`
+}
 
 const moi = (u: Utilisateur) => ({ id: u.id, email: u.email, nom: u.nom, couleur: u.couleur, racine: u.racine })
 
@@ -238,6 +247,30 @@ export function creerApp(ctx: Contexte): Hono {
       return c.json({ erreur: 'introuvable' }, 404)
     }
     return c.body(null, 204)
+  })
+
+  /** Le tableau tel qu'il est maintenant : le document en direct s'il est ouvert, sinon le dernier état enregistré. */
+  const lireLe = (id: string): TableauLu => {
+    const vivant = ctx.synchro()?.documents.get(nomDuDocument(id))
+    if (vivant) return lireTableau(vivant)
+    const etat = base.document(nomDuDocument(id))
+    return etat ? lireEtat(etat) : { titre: base.tableau(id)?.titre ?? '', elements: [] }
+  }
+  const titreDe = (id: string) => base.tableau(id)?.titre
+
+  // ---- Export ----
+
+  app.get('/api/tableaux/:id/export', (c) => {
+    const g = garde(c, 'lecture')
+    if (g instanceof Response) return g
+    const format = c.req.query('format') ?? 'md'
+    if (!estFormatExport(format)) return c.json({ erreur: 'format inconnu' }, 400)
+    const tableau = lireLe(g.id)
+    return c.body(exporterTexte(tableau, format, titreDe), 200, {
+      'content-type': format === 'md' ? 'text/markdown; charset=utf-8' : 'text/plain; charset=utf-8',
+      'content-disposition': enTeteTelechargement(tableau.titre, format),
+      'cache-control': 'no-store',
+    })
   })
 
   // ---- Fichiers ----
