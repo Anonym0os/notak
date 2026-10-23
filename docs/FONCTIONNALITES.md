@@ -13,24 +13,24 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 
 | Partie | Fait | En partie | Absent | Avancement |
 |---|---|---|---|---|
-| 1. Toile | 21 | 3 | 3 | 83 % |
-| 2. Création | 12 | 2 | 3 | 76 % |
+| 1. Toile | 22 | 3 | 2 | 87 % |
+| 2. Création | 12 | 3 | 2 | 79 % |
 | 3. Note et texte | 26 | 2 | 3 | 87 % |
 | 4. Colonne | 10 | 0 | 1 | 91 % |
 | 5. Tableau imbriqué | 8 | 0 | 3 | 73 % |
 | 6. Lien | 13 | 0 | 0 | 100 % |
-| 7. Image | 9 | 1 | 2 | 79 % |
+| 7. Image | 11 | 1 | 0 | 96 % |
 | 8. Liste de tâches | 16 | 1 | 0 | 97 % |
 | 9. Ligne | 14 | 0 | 0 | 100 % |
 | 10. Autres éléments | 7 | 3 | 2 | 71 % |
 | 11. Commun aux éléments | 6 | 0 | 6 | 50 % |
-| 12. Organiser | 15 | 1 | 0 | 97 % |
+| 12. Organiser | 16 | 0 | 0 | 100 % |
 | 13. Naviguer | 10 | 1 | 2 | 81 % |
 | 14. À plusieurs | 12 | 0 | 5 | 71 % |
 | 15. Habillage | 10 | 3 | 2 | 77 % |
 | 16. Exporter, importer | 2 | 0 | 2 | 50 % |
-| 17. Plateformes | 1 | 1 | 5 | 21 % |
-| **Total** | **192** | **18** | **39** | **81 %** |
+| 17. Plateformes | 3 | 3 | 1 | 64 % |
+| **Total** | **198** | **20** | **31** | **84 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -89,7 +89,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Tailles et couleurs de départ de chaque type | ✅ | |
 | Modèles de tableaux | ⬜ | |
 | Sons et vibration à la création | ➖ | Pas de sons repris (salle blanche). |
-| Création depuis le téléphone (notes rapides, partage vers Notak) | ⬜ | Attend l'iPhone (§ 17). |
+| Création depuis le téléphone (notes rapides, partage vers Notak) | 🟡 | Notes rapides ; le partage marche sur Android et Chrome, pas sur iOS Safari. |
 
 ## 3. Note et texte
 
@@ -186,10 +186,10 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Légende | ✅ |  |
 | Ombre selon la transparence | ✅ |  |
 | Miniature et roue pendant l'envoi | ✅ | |
-| Tailles adaptées à l'affichage (400, 800, 1600 px) | ⬜ | |
+| Tailles adaptées à l'affichage (400, 800, 1600 px) | ✅ |  |
 | Hauteur calée sur la grille | ✅ |  |
 | Recadrer, pivoter, détourer | 🟡 | Pivoter et recadrer ; pas encore détourer. |
-| Dessiner sur l'image (annotation, Maj+D) | ⬜ | |
+| Dessiner sur l'image (annotation, Maj+D) | ✅ |  |
 | Remplacer en déposant une autre image dessus | ✅ |  |
 | Image cassée signalée | ✅ | |
 | Outils Image et Fichier : choisir dans le Finder, au clic ou en glissant l'outil | ✅ | |
@@ -365,9 +365,9 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Fonctionnalité | État | Reste |
 |---|---|---|
 | Web | ✅ | |
-| Hors ligne complet (écrire sans réseau, rattraper au retour) | 🟡 | Voir § 14. |
-| Bureau (Tauri) | ⬜ | |
-| iPhone | ⬜ | |
-| Notes rapides sur le téléphone | ⬜ | |
-| Partager vers Notak depuis le téléphone | ⬜ | |
+| Hors ligne complet (écrire sans réseau, rattraper au retour) | ✅ | IndexedDB pour les tableaux, service worker pour l'application. |
+| Bureau (Tauri) | 🟡 | Coque Tauri 2 écrite (apps/bureau), pas encore compilée. |
+| iPhone | 🟡 | S'installe sur l'écran d'accueil (manifeste, icône) ; attend les gestes tactiles. |
+| Notes rapides sur le téléphone | ✅ | Page /rapide, vers les non triés de l'accueil. |
+| Partager vers Notak depuis le téléphone | 🟡 | Android et Chrome ; iOS Safari ne reçoit pas les partages des sites. |
 | Gestes tactiles (pincer, toucher long) | ⬜ | |
