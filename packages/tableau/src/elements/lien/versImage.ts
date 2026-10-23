@@ -1,11 +1,12 @@
 import type { Element, Id, Image, Lien, Operation } from '../../coeur/tableau'
 import { largeurInitiale } from '../image/geometrie'
-import { lireDimensions } from '../image/lecture'
+import { lireDimensions, lireTransparence } from '../image/lecture'
 import type { ContexteToile } from '../types'
 
 /** Ce que devient la carte d'un lien dont l'adresse mène à une image : une image, à la largeur d'une image neuve. */
-export function operationsEnImage(element: Element<Lien>, fichier: Id, type: string, d: { largeur: number; hauteur: number }): Operation[] {
+export function operationsEnImage(element: Element<Lien>, fichier: Id, type: string, d: { largeur: number; hauteur: number; transparente?: boolean }): Operation[] {
   const apres: Image = { type: 'image', fichier, largeurOrigine: d.largeur, hauteurOrigine: d.hauteur, typeMime: type }
+  if (d.transparente !== undefined) apres.transparente = d.transparente
   const legende = element.contenu.legende?.trim()
   if (legende) apres.legende = legende
   const pas: Operation[] = [{ type: 'contenu', id: element.id, avant: element.contenu, apres }]
@@ -26,12 +27,14 @@ export async function convertirEnImage(id: Id, url: string, contexte: ContexteTo
   try {
     const { id: fichier, type } = await rapatrier(url)
     const adresse = await fichiers.adresse(fichier)
-    const d = adresse && (await lireDimensions(await (await fetch(adresse)).blob()))
-    if (!d) return false
+    const blob = adresse ? await (await fetch(adresse)).blob() : null
+    const d = blob && (await lireDimensions(blob))
+    if (!blob || !d) return false
+    const transparente = await lireTransparence(blob)
     // Pendant le rapatriement, la carte a pu changer d'adresse ou disparaître.
     const present = contexte.magasin.lire().elements.find((e) => e.id === id)
     if (!present || present.contenu.type !== 'lien' || present.contenu.url !== url) return false
-    contexte.magasin.corriger(operationsEnImage(present as Element<Lien>, fichier, type, d))
+    contexte.magasin.corriger(operationsEnImage(present as Element<Lien>, fichier, type, { ...d, ...(transparente !== undefined ? { transparente } : {}) }))
     return true
   } catch {
     return false

@@ -28,9 +28,12 @@ export const largeurNaturelleImage = (c: Image) => Math.min(c.largeurOrigine, LA
 export const hauteurPour = (largeur: number, c: Pick<Image, 'largeurOrigine' | 'hauteurOrigine'>) =>
   (largeur * c.hauteurOrigine) / c.largeurOrigine
 
-/** Les formats qu'on suppose transparents n'ont pas d'ombre. */
-export const aUneOmbre = (typeMime: string | undefined) =>
-  typeMime !== 'image/png' && typeMime !== 'image/gif' && typeMime !== 'image/svg+xml'
+/**
+ * Une image transparente (un détourage) n'a pas d'ombre : l'ombre dessinerait son rectangle. Ce qu'on a lu dans
+ * les pixels l'emporte ; sans lecture, on devine au type du fichier (PNG, GIF et SVG passent pour transparents).
+ */
+export const aUneOmbre = (typeMime: string | undefined, transparente?: boolean) =>
+  transparente !== undefined ? !transparente : typeMime !== 'image/png' && typeMime !== 'image/gif' && typeMime !== 'image/svg+xml'
 
 export const nombreColonnes = (largeurVuePx: number) => Math.max(3, Math.floor(largeurVuePx / 360))
 

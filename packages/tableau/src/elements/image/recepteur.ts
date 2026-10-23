@@ -1,6 +1,6 @@
 import { type Element, type Image as ContenuImage, type Operation, nouvelId } from '../../coeur/tableau'
 import { commencerEnvoi } from '../envois'
-import { lireDimensions } from './lecture'
+import { lireDimensions, lireTransparence } from './lecture'
 import type { ContexteToile, DepotFichiers } from '../types'
 import { type TailleUG, TAILLE_MAX, TYPES_ACCEPTES, hauteurPour, largeurInitiale, nombreColonnes, placerImages } from './geometrie'
 
@@ -18,7 +18,14 @@ async function poserImages(fichiers: File[], ou: { x: number; y: number }, conte
   for (const f of fichiers) {
     const d = await lireDimensions(f)
     if (!d) continue
-    const contenu = { type: 'image' as const, largeurOrigine: d.largeur, hauteurOrigine: d.hauteur, typeMime: f.type }
+    const transparente = await lireTransparence(f)
+    const contenu = {
+      type: 'image' as const,
+      largeurOrigine: d.largeur,
+      hauteurOrigine: d.hauteur,
+      typeMime: f.type,
+      ...(transparente !== undefined ? { transparente } : {}),
+    }
     lues.push({ fichier: f, contenu, largeur: largeurInitiale(d.largeur) })
   }
   if (lues.length === 0) return []

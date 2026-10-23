@@ -21,7 +21,7 @@ export function RenduImage({ element, enEdition, contexte, brouillon }: PropsRen
       {adresse ? (
         <img
           className="notak-image"
-          data-ombre={aUneOmbre(contenu.typeMime) || undefined}
+          data-ombre={aUneOmbre(contenu.typeMime, contenu.transparente) || undefined}
           data-en-route={enRoute || undefined}
           src={adresse}
           alt={contenu.legende ?? ''}

@@ -27,6 +27,12 @@ describe('taille d’une image', () => {
     expect(aUneOmbre(undefined)).toBe(true)
     for (const t of ['image/png', 'image/gif', 'image/svg+xml']) expect(aUneOmbre(t)).toBe(false)
   })
+
+  test('ce qu’on a lu dans les pixels l’emporte sur le type du fichier', () => {
+    expect(aUneOmbre('image/png', false)).toBe(true)
+    expect(aUneOmbre('image/webp', true)).toBe(false)
+    expect(aUneOmbre('image/jpeg', true)).toBe(false)
+  })
 })
 
 describe('placement', () => {
