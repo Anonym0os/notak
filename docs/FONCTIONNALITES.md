@@ -23,14 +23,14 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 8. Liste de tâches | 16 | 1 | 0 | 97 % |
 | 9. Ligne | 14 | 0 | 0 | 100 % |
 | 10. Autres éléments | 10 | 1 | 1 | 88 % |
-| 11. Commun aux éléments | 6 | 0 | 6 | 50 % |
+| 11. Commun aux éléments | 11 | 1 | 0 | 96 % |
 | 12. Organiser | 16 | 0 | 0 | 100 % |
 | 13. Naviguer | 10 | 1 | 2 | 81 % |
-| 14. À plusieurs | 12 | 0 | 5 | 71 % |
+| 14. À plusieurs | 14 | 0 | 3 | 82 % |
 | 15. Habillage | 10 | 3 | 2 | 77 % |
 | 16. Exporter, importer | 2 | 0 | 2 | 50 % |
 | 17. Plateformes | 5 | 2 | 0 | 86 % |
-| **Total** | **210** | **16** | **23** | **88 %** |
+| **Total** | **217** | **17** | **15** | **91 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -261,14 +261,14 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Contour choisi sans ombre, contour écarté en édition | ✅ | |
 | Verrouiller | ✅ | |
 | État « verrouillé » visible (autre couleur de contour) | ✅ |  |
-| Étiquettes (créer, colorer, renommer, filtrer) | ⬜ | |
-| Réactions (émojis) | ⬜ | |
-| Commentaire attaché à un élément | ⬜ | |
-| Échéance, personne assignée sur un élément | ⬜ | |
+| Étiquettes (créer, colorer, renommer, filtrer) | ✅ |  |
+| Réactions (émojis) | ✅ |  |
+| Commentaire attaché à un élément | ✅ |  |
+| Échéance, personne assignée sur un élément | ✅ |  |
 | Barre de couleur, couleur libre | ✅ | Notes (voir § 3). |
 | Copier le style d'un élément (Cmd+Alt+V) | ✅ |  |
-| Protéger par mot de passe | ⬜ | |
-| Mode d'affichage (icône, détail) | ⬜ | |
+| Protéger par mot de passe | ✅ |  |
+| Mode d'affichage (icône, détail) | 🟡 | Cartes ; pas encore les colonnes, tableaux et lignes. |
 
 ## 12. Organiser
 
@@ -325,10 +325,10 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Cache local, reprise après coupure | ✅ | Copie locale (IndexedDB), « Hors ligne » dans l'en-tête. |
 | Texte écrit à plusieurs dans une même note | ✅ | Voir § 3. |
 | Lien public, publication en lecture | ✅ |  |
-| Mot de passe sur un tableau partagé | ⬜ | |
+| Mot de passe sur un tableau partagé | ✅ |  |
 | Notifications (commentaires, mentions, modifications) | ⬜ | |
 | Activité récente du tableau | ⬜ | |
-| Commentaires, mentions, réactions | ⬜ | Voir § 10 et § 11. |
+| Commentaires, mentions, réactions | ✅ | Voir § 10 et § 11. |
 | Mise en valeur de ce qu'un autre vient de modifier | ⬜ | |
 
 ## 15. Habillage
