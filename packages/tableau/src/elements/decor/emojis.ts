@@ -1,5 +1,3 @@
-import { EMOJIS_UNICODE } from './emojisUnicode'
-
 /** Un émoji du catalogue Unicode : ses noms, ses mots-clés, et ses cinq variantes de teinte quand il en a. */
 export interface EmojiU {
   e: string
@@ -19,18 +17,28 @@ export interface GroupeEmojis {
 export const normaliser = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 
 let groupes: GroupeEmojis[] | null = null
+let chargement: Promise<GroupeEmojis[]> | null = null
 
-/** Le catalogue complet, lu une fois : neuf groupes dans l'ordre d'Unicode. */
-export function groupesEmojis(): GroupeEmojis[] {
-  groupes ??= EMOJIS_UNICODE.map((lignes, cle) => ({
-    cle,
-    emojis: lignes.split('\n').map((l) => {
-      const [e, en, fr, mots, teintes] = l.split('\t') as [string, string, string, string, string?]
-      return { e, en, fr, mots: normaliser(`${en} ${fr} ${mots}`), ...(teintes ? { teintes: teintes.split(' ') } : {}) }
-    }),
-  }))
-  return groupes
+/**
+ * Charge le catalogue complet (250 Ko de texte) à la première demande : l'import est différé, la toile ne le paie
+ * qu'à l'ouverture d'un sélecteur d'émojis. Neuf groupes dans l'ordre d'Unicode ; la promesse est partagée.
+ */
+export function chargerEmojis(): Promise<GroupeEmojis[]> {
+  chargement ??= import('./emojisUnicode').then(({ EMOJIS_UNICODE }) => {
+    groupes = EMOJIS_UNICODE.map((lignes, cle) => ({
+      cle,
+      emojis: lignes.split('\n').map((l) => {
+        const [e, en, fr, mots, teintes] = l.split('\t') as [string, string, string, string, string?]
+        return { e, en, fr, mots: normaliser(`${en} ${fr} ${mots}`), ...(teintes ? { teintes: teintes.split(' ') } : {}) }
+      }),
+    }))
+    return groupes
+  })
+  return chargement
 }
+
+/** Le catalogue, s'il est chargé ; vide tant que `chargerEmojis` n'a pas abouti. */
+export const groupesEmojis = (): GroupeEmojis[] => groupes ?? []
 
 /** Tous les émojis, à plat. */
 export const tousLesEmojis = (): EmojiU[] => groupesEmojis().flatMap((g) => g.emojis)

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { t } from '../../langue'
-import { avecTeinte, chercherEmojis, frequents, groupesEmojis, retenirEmoji, retenirTeinte, teinteRetenue } from './emojis'
+import { type GroupeEmojis, avecTeinte, chargerEmojis, chercherEmojis, frequents, groupesEmojis, retenirEmoji, retenirTeinte, teinteRetenue } from './emojis'
 
 /** Les neuf groupes d'Unicode, avec leur titre. */
 const TITRES = ['emojis.g0', 'emojis.g1', 'emojis.g2', 'emojis.g3', 'emojis.g4', 'emojis.g5', 'emojis.g6', 'emojis.g7', 'emojis.g8']
@@ -20,10 +20,18 @@ export function SelecteurEmojis({ choisir, posees }: { choisir(emoji: string): v
   const [teinte, setTeinte] = useState(teinteRetenue)
   const [teintesVues, setTeintesVues] = useState(false)
   const liste = useRef<HTMLDivElement>(null)
-  const groupes = useMemo(() => groupesEmojis(), [])
+  // Le catalogue (250 Ko) arrive à l'ouverture du sélecteur, pas avec la toile.
+  const [groupes, setGroupes] = useState<GroupeEmojis[]>(groupesEmojis)
+  useEffect(() => {
+    let vivant = true
+    if (groupes.length === 0) void chargerEmojis().then((g) => vivant && setGroupes(g))
+    return () => {
+      vivant = false
+    }
+  }, [groupes.length])
   const [favoris, setFavoris] = useState(frequents)
   const cherche = requete.trim().length > 0
-  const trouves = useMemo(() => (cherche ? chercherEmojis(requete) : []), [cherche, requete])
+  const trouves = useMemo(() => (cherche ? chercherEmojis(requete) : []), [cherche, requete, groupes])
   const parGroupe = useMemo(() => new Set(trouves.map((m) => m.e)), [trouves])
 
   const poser = (e: string, base: string) => {
@@ -107,6 +115,10 @@ export function SelecteurEmojis({ choisir, posees }: { choisir(emoji: string): v
             <div className="notak-emojis-grille" role="group" aria-label={t('emojis.resultats')}>
               {trouves.map((m) => bouton(avecTeinte(m, teinte), m.fr, m.e))}
             </div>
+          ) : groupes.length === 0 ? (
+            <p className="notak-emojis-vide" aria-busy>
+              …
+            </p>
           ) : (
             <p className="notak-emojis-vide">
               {t('emojis.aucun')} <span aria-hidden>😔</span>

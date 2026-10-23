@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { creerMagasin } from '../../coeur/magasin'
 import { type Element, annoter, nouvelleNote } from '../../coeur/tableau'
 import type { ContexteToile } from '../types'
@@ -14,12 +14,18 @@ import { OutilEtiquettes, OutilReactions } from './Outils'
 import { OutilsCommentaire } from '../commentaire/Commentaire'
 import { nouveauCommentaire } from '../commentaire/fil'
 import { SelecteurEmojis } from './SelecteurEmojis'
+import { chargerEmojis } from './emojis'
 import { basculerFiltre, useFiltre, viderFiltre } from './etat'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 let racine: Root
 let hote: HTMLElement
+// Le catalogue d'émojis arrive par un import différé : il est là avant les tests.
+beforeAll(async () => {
+  await chargerEmojis()
+})
+
 beforeEach(() => {
   hote = document.createElement('div')
   document.body.append(hote)
@@ -284,9 +290,13 @@ describe('l’outil Réagir', () => {
 })
 
 describe('le sélecteur d’émojis', () => {
-  const monter = (posees?: Set<string>) => {
+  // Le catalogue arrive par un import différé : on attend qu'il soit là.
+  const monter = async (posees?: Set<string>) => {
     const choisis: string[] = []
-    act(() => racine.render(<SelecteurEmojis choisir={(e) => choisis.push(e)} {...(posees ? { posees } : {})} />))
+    await act(async () => {
+      racine.render(<SelecteurEmojis choisir={(e) => choisis.push(e)} {...(posees ? { posees } : {})} />)
+      await chargerEmojis()
+    })
     return choisis
   }
   const boutons = () => [...hote.querySelectorAll<HTMLButtonElement>('.notak-emojis-grille button')]
@@ -299,9 +309,9 @@ describe('le sélecteur d’émojis', () => {
     })
   }
 
-  it('ouvre sur les vingt-quatre fréquents, puis les neuf groupes d’Unicode', () => {
+  it('ouvre sur les vingt-quatre fréquents, puis les neuf groupes d’Unicode', async () => {
     localStorage.clear()
-    monter()
+    await monter()
     expect(grille('frequents')).toEqual(['👍', '👎', '😊', '😀', '🙂', '🤔', '😍', '😞'])
     expect([...hote.querySelectorAll('[role="tab"]')].map((b) => b.getAttribute('data-categorie'))).toEqual(['frequents', '0', '1', '2', '3', '4', '5', '6', '7', '8'])
     expect(grille('3')).toContain('🍕')
@@ -309,8 +319,8 @@ describe('le sélecteur d’émojis', () => {
     expect(boutons().length).toBeGreaterThan(1800)
   })
 
-  it('cherche par nom ou mot-clé, en français ou en anglais, sans accent ni casse', () => {
-    monter()
+  it('cherche par nom ou mot-clé, en français ou en anglais, sans accent ni casse', async () => {
+    await monter()
     ecrire('FÊTE')
     expect(boutons().map((b) => b.textContent)).toContain('🥳')
     ecrire('pizza')
@@ -319,25 +329,25 @@ describe('le sélecteur d’émojis', () => {
     expect(hote.querySelector('.notak-emojis-vide')?.textContent).toContain('😔')
   })
 
-  it('compte chaque choix : le plus employé passe en tête des fréquents', () => {
+  it('compte chaque choix : le plus employé passe en tête des fréquents', async () => {
     localStorage.clear()
-    const choisis = monter()
+    const choisis = await monter()
     for (let i = 0; i < 5; i++) act(() => boutons().find((b) => b.textContent === '🍕' && b.closest('[data-section="3"]'))!.click())
     expect(choisis).toEqual(['🍕', '🍕', '🍕', '🍕', '🍕'])
     expect(grille('frequents')[0]).toBe('🍕')
   })
 
-  it('applique la teinte de peau choisie aux émojis qui en ont, et la retient', () => {
+  it('applique la teinte de peau choisie aux émojis qui en ont, et la retient', async () => {
     localStorage.clear()
-    monter()
+    await monter()
     act(() => hote.querySelector<HTMLButtonElement>('.notak-emojis-teinte-lien')!.click())
     act(() => hote.querySelectorAll<HTMLButtonElement>('.notak-emojis-teintes button')[3]!.click())
     expect(grille('1')).toContain('👋🏽')
     expect(localStorage.getItem('notak:emojis-teinte')).toBe('3')
   })
 
-  it('surligne les émojis que j’ai déjà posés', () => {
-    monter(new Set(['🍕']))
+  it('surligne les émojis que j’ai déjà posés', async () => {
+    await monter(new Set(['🍕']))
     const pizza = boutons().find((b) => b.textContent === '🍕')!
     expect(pizza.getAttribute('aria-pressed')).toBe('true')
   })
