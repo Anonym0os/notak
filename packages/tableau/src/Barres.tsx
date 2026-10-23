@@ -4,6 +4,8 @@ import { BoutonEtiquettes } from './elements/decor/BoutonEtiquettes'
 import { t } from './langue'
 import { definition, tousLesOutilsCommuns, tousLesTypes } from './elements/registre'
 import type { ContexteToile, Outil } from './elements/types'
+import { ContexteOutils } from './BoutonOutil'
+import { useBarreBornee, useMenusBornes } from './borner'
 import { Icone } from './icones'
 import { useMenu } from './menuUnique'
 import { Vignette } from './vignettes'
@@ -142,7 +144,7 @@ export function BarreOutils({
   )
 }
 
-/** La barre de sélection, posée au-dessus des éléments choisis : les outils de chaque type présent, puis les outils communs. */
+/** La barre de sélection : les outils de chaque type présent, puis les outils communs. À gauche, elle remplace la barre de création. */
 export function BarreSelection({
   elements,
   contexte,
@@ -152,17 +154,24 @@ export function BarreSelection({
   elements: Element[]
   contexte: ContexteToile
   position: { x: number; y: number }
-  /** À la place de la barre de gauche, en colonne, plutôt qu'au-dessus de la sélection. */
+  /** À la place de la barre de gauche, en colonne de tuiles, plutôt qu'au-dessus de la sélection. */
   aGauche?: boolean
 }) {
   const [plus, setPlus, ancrePlus] = useMenu<HTMLSpanElement>()
+  // À gauche, le « ••• » est un tiroir qui porte les outils secondaires (et ceux de chaque type d'une sélection mêlée).
+  const [tiroir, setTiroir, ancreTiroir] = useMenu()
+  const [cibleTiroir, setCibleTiroir] = useState<HTMLElement | null>(null)
   // Échap referme le menu ouvert : la barre repart de zéro, chaque outil avec ses menus fermés.
   const [cle, setCle] = useState(0)
   const barre = useRef<HTMLDivElement>(null)
-  useEchapFerme(barre, () => {
+  const nav = useRef<HTMLElement>(null)
+  useEchapFerme(aGauche ? nav : barre, () => {
     setPlus(false)
+    setTiroir(false)
     setCle((c) => c + 1)
   })
+  useMenusBornes(aGauche ? nav : barre, !aGauche)
+  useBarreBornee(barre, position.x, !aGauche)
   const parType = new Map<string, Element[]>()
   for (const e of elements) parType.set(e.contenu.type, [...(parType.get(e.contenu.type) ?? []), e])
   const blocs = [...parType].flatMap(([type, els]) => {
@@ -175,13 +184,49 @@ export function BarreSelection({
   // et range les outils de chaque type derrière « … ».
   const mele = parType.size > 1
   if (blocs.length === 0 && communs.length === 0) return null
+
+  if (aGauche) {
+    return (
+      <nav ref={nav} className="notak-barre-outils" data-selection onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+        <button type="button" className="notak-barre-retour" title={t('barre.retour')} aria-label={t('barre.retour')} onClick={() => contexte.choisir([])}>
+          <Icone nom="gauche" taille={22} />
+        </button>
+        <ContexteOutils.Provider value={{ aGauche: true, plus: cibleTiroir }}>
+          <div key={cle} className="notak-barre-selection" data-a-gauche>
+            {!mele && blocs.map((b) => b.rendu)}
+            {communs}
+            <div className="notak-outil-place notak-selection-plus" ref={ancreTiroir}>
+              <button type="button" className="notak-outil-plus" aria-expanded={tiroir} aria-label={t('barre.plusOutils')} title={t('barre.plusOutils')} onClick={() => setTiroir(!tiroir)}>
+                <Icone nom="plus" />
+              </button>
+              <div className="notak-tiroir" hidden={!tiroir}>
+                <div className="notak-tiroir-grille" ref={setCibleTiroir} />
+                {mele &&
+                  blocs.map((b) => (
+                    <div key={b.type} className="notak-tiroir-type">
+                      <span className="notak-barre-plus-nom">
+                        {b.nom}
+                        {b.n > 1 ? ` (${b.n})` : ''}
+                      </span>
+                      {/* Ici les outils restent à leur place : le tiroir est déjà leur rangement. */}
+                      <ContexteOutils.Provider value={{ aGauche: true, plus: null }}>
+                        <div className="notak-tiroir-type-outils">{b.rendu}</div>
+                      </ContexteOutils.Provider>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </ContexteOutils.Provider>
+      </nav>
+    )
+  }
   return (
     <div
       ref={barre}
       key={cle}
       className="notak-barre-selection"
-      data-a-gauche={aGauche || undefined}
-      style={aGauche ? undefined : { left: position.x, top: position.y }}
+      style={{ left: position.x, top: position.y }}
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
     >

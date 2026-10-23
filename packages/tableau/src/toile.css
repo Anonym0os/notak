@@ -1345,26 +1345,169 @@
   right: 16px;
 }
 
-/* Les outils d'une sélection à la place de la barre de gauche (réglage « Outils de la sélection »), comme Milanote. */
+/*
+ * Les outils d'une sélection à la place de la barre de gauche (réglage « Outils de la sélection »), comme Milanote :
+ * le même panneau gris, une flèche pour revenir aux éléments à créer, puis une tuile par outil.
+ */
+.notak-barre-outils[data-selection] {
+  gap: 6px;
+}
+
+.notak-barre-retour {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 36px;
+  margin-bottom: 2px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: #5f656d;
+  cursor: pointer;
+}
+
+.notak-barre-retour:hover {
+  background: rgb(0 0 0 / 0.08);
+  color: var(--notak-texte);
+}
+
+/* La colonne de tuiles : plus de carte flottante, c'est le panneau gris qui porte. */
 .notak-barre-selection[data-a-gauche] {
-  top: 12px;
-  left: 12px;
+  position: static;
+  z-index: auto;
   flex-direction: column;
-  align-items: stretch;
+  gap: 4px;
+  padding: 0;
+  background: none;
+  box-shadow: none;
   transform: none;
 }
 
-/* Les palettes et menus de ces outils s'ouvrent à droite de la barre, pas en dessous. */
+.notak-barre-selection[data-a-gauche] button.notak-outil {
+  min-width: 0;
+  height: auto;
+  padding: 4px 0 6px;
+  background: none;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.notak-barre-selection[data-a-gauche] button.notak-outil:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.notak-barre-selection[data-a-gauche] .notak-outil-libelle {
+  max-width: 68px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-barre-selection[data-a-gauche] .notak-outil[aria-pressed='true'] .notak-outil-icone {
+  background: rgb(0 0 0 / 0.14);
+}
+
+.notak-barre-selection[data-a-gauche] button.notak-outil-plus {
+  min-width: 0;
+  width: 36px;
+  height: 20px;
+  padding: 0;
+  background: rgb(0 0 0 / 0.08);
+}
+
+.notak-barre-selection[data-a-gauche] button.notak-outil-plus:hover,
+.notak-barre-selection[data-a-gauche] button.notak-outil-plus[aria-expanded='true'] {
+  background: rgb(0 0 0 / 0.14);
+}
+
+/* La couleur d'à présent, dans la tuile « Couleur ». */
+.notak-outil-pastille {
+  width: 22px;
+  height: 22px;
+  box-sizing: border-box;
+  border: 1px solid rgb(0 0 0 / 0.18);
+  border-radius: 50%;
+}
+
+.notak-barre-selection[data-a-gauche] .notak-taches-compteur,
+.notak-barre-selection[data-a-gauche] .notak-ligne-sep {
+  display: none;
+}
+
+/* Les ancres des menus tiennent la largeur de la tuile ; le menu s'ouvre à droite d'elle, pas en dessous. */
+.notak-barre-selection[data-a-gauche] :is(.notak-note-menu-ancre, .notak-colonne-menu-ancre, .notak-ligne-ancre, .notak-arrangement) {
+  display: block;
+  width: 68px;
+}
+
 .notak-barre-selection[data-a-gauche] [role='menu'] {
   top: 0;
-  left: calc(100% + 8px);
+  left: calc(100% + 10px);
   transform: none;
 }
 
-.notak-barre-selection[data-a-gauche] > *,
-.notak-barre-selection[data-a-gauche] button {
-  justify-content: flex-start;
-  text-align: left;
+/* Un menu qui manque de place en bas se retourne vers le haut. */
+.notak-barre-selection [role='menu'][data-retourne] {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+.notak-barre-selection[data-a-gauche] [role='menu'][data-retourne] {
+  top: auto;
+  bottom: 0;
+}
+
+.notak-tiroir[data-retourne] {
+  top: auto;
+  bottom: -8px;
+}
+
+.notak-tiroir[hidden] {
+  display: none;
+}
+
+.notak-tiroir-grille {
+  display: contents;
+}
+
+.notak-tiroir-type {
+  grid-column: 1 / -1;
+}
+
+.notak-tiroir-type-outils {
+  display: grid;
+  grid-template-columns: repeat(3, 76px);
+  gap: 6px;
+}
+
+/* Le « ••• » ne paraît que s'il y a quelque chose à ranger dedans. */
+.notak-selection-plus:not(:has(.notak-tiroir-grille > *, .notak-tiroir-type)) {
+  display: none;
+}
+
+/* Les panneaux et menus de la barre passent au-dessus des décors des cartes (étiquettes, fil). */
+.notak-barre-outils,
+.notak-barre-selection:not([data-a-gauche]) {
+  z-index: 30;
+}
+
+/* Une carte dont le fil est ouvert passe devant ses voisines : leurs puces ne le recouvrent pas. */
+.notak-toile [data-id]:has(.notak-fil-attache) {
+  z-index: 25;
+}
+
+/* « Transparent » : une pastille de la grille, sur un damier. */
+.notak-pastille-transparente {
+  background:
+    linear-gradient(45deg, #c9cdd3 25%, transparent 25% 75%, #c9cdd3 75%) 0 0 / 8px 8px,
+    linear-gradient(45deg, #c9cdd3 25%, transparent 25% 75%, #c9cdd3 75%) 4px 4px / 8px 8px,
+    #fff !important;
+}
+
+/* Les bulles de découverte ne se posent pas sur la barre de mise en forme d'une note en édition. */
+body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
+  display: none;
 }
 
 /* ———— Le contenu des menus de la barre : même corps, mêmes champs, mêmes rangées ———— */

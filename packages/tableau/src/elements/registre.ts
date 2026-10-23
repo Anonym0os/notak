@@ -19,10 +19,16 @@ export const registre = {
     raccourcis.push(r)
   },
   outilCommun(o: OutilCommun) {
-    outilsCommuns.push(o)
+    // Un module rechargé (à chaud) se déclare une seconde fois : il remplace sa première déclaration.
+    const i = o.name ? outilsCommuns.findIndex((x) => x.name === o.name) : -1
+    if (i >= 0) outilsCommuns[i] = o
+    else outilsCommuns.push(o)
   },
   entreeMenu(e: EntreeMenu) {
-    entreesMenu.push(e)
+    // Une entrée porte le nom de son geste : deux entrées du même nom n'en font qu'une dans le menu.
+    const i = entreesMenu.findIndex((x) => x.libelle === e.libelle)
+    if (i >= 0) entreesMenu[i] = e
+    else entreesMenu.push(e)
   },
 }
 

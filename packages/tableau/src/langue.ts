@@ -141,6 +141,8 @@ export const fr: Textes = {
 
   'barre.glisser': 'Glissez l’outil sur le tableau',
   'barre.plusOutils': 'Plus d’outils',
+  'barre.retour': 'Retour aux éléments à créer',
+  'couleur.recentes': 'Récentes',
   'barre.plus': 'Plus',
   'barre.outilsParType': 'Outils de chaque type',
 
@@ -355,6 +357,12 @@ export const fr: Textes = {
   'ligne.pointeDepart': 'Pointe de départ : flèche, rond ou rien',
   'ligne.pointeArrivee': 'Pointe d’arrivée : flèche, rond ou rien',
   'ligne.epaisseur': 'Épaisseur {n}',
+  'ligne.debut': 'Début',
+  'ligne.fin': 'Fin',
+  'ligne.court.plein': 'Plein',
+  'ligne.court.tirets': 'Tirets',
+  'ligne.court.points': 'Points',
+  'ligne.court.epaisseur': 'Trait {n}',
   'ligne.libelle': 'Libellé',
   'commun.ouvrir': 'Ouvrir',
   'commun.copier': 'Copier',
@@ -705,6 +713,8 @@ export const en: Textes = {
 
   'barre.glisser': 'Drag the tool onto the board',
   'barre.plusOutils': 'More tools',
+  'barre.retour': 'Back to the elements to create',
+  'couleur.recentes': 'Recent',
   'barre.plus': 'More',
   'barre.outilsParType': 'Tools for each type',
 
@@ -919,6 +929,12 @@ export const en: Textes = {
   'ligne.pointeDepart': 'Start: arrow, dot or none',
   'ligne.pointeArrivee': 'End: arrow, dot or none',
   'ligne.epaisseur': 'Thickness {n}',
+  'ligne.debut': 'Start',
+  'ligne.fin': 'End',
+  'ligne.court.plein': 'Solid',
+  'ligne.court.tirets': 'Dashed',
+  'ligne.court.points': 'Dotted',
+  'ligne.court.epaisseur': 'Width {n}',
   'ligne.libelle': 'Label',
   'commun.ouvrir': 'Open',
   'commun.copier': 'Copy',
