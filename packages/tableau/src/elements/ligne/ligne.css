@@ -68,15 +68,47 @@
 }
 
 .notak-calque-lignes .notak-ligne-poignee {
-  fill: var(--notak-carte);
-  stroke: var(--notak-accent);
-  stroke-width: 2px;
   pointer-events: all;
   cursor: grab;
 }
 
-.notak-calque-lignes rect.notak-ligne-poignee {
-  rx: 2px;
+.notak-calque-lignes .notak-ligne-poignee-prise {
+  fill: transparent;
+}
+
+.notak-calque-lignes .notak-ligne-poignee-anneau {
+  fill: var(--notak-carte);
+  stroke: var(--notak-accent);
+  stroke-width: 2px;
+  transition: r 120ms ease-out;
+}
+
+.notak-calque-lignes .notak-ligne-poignee-coeur {
+  fill: var(--notak-accent);
+  pointer-events: none;
+  transition: r 120ms ease-out;
+}
+
+/* Au survol, l'anneau s'ouvre un peu : on sait qu'on peut la prendre. */
+.notak-calque-lignes .notak-ligne-poignee:hover .notak-ligne-poignee-anneau {
+  r: 8px;
+}
+
+.notak-calque-lignes .notak-ligne-poignee:hover .notak-ligne-poignee-coeur {
+  r: 3px;
+}
+
+/* Le point de contrôle : un anneau plus discret, sans cœur. */
+.notak-calque-lignes .notak-ligne-poignee[data-extremite='courbe'] .notak-ligne-poignee-anneau {
+  r: 5px;
+}
+
+.notak-calque-lignes .notak-ligne-poignee[data-extremite='courbe'] .notak-ligne-poignee-coeur {
+  r: 0;
+}
+
+.notak-calque-lignes .notak-ligne-poignee[data-extremite='courbe']:hover .notak-ligne-poignee-anneau {
+  r: 6.5px;
 }
 
 .notak-ligne-sep {

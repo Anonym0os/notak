@@ -9,6 +9,7 @@ const EPAISSEURS = [1, 2, 4] as const
 const TRAITS = [
   { trait: 'plein', icone: '—', titre: 'Trait plein' },
   { trait: 'tirets', icone: '┄', titre: 'Tirets' },
+  { trait: 'points', icone: '···', titre: 'Points' },
 ] as const
 
 /** La barre des lignes choisies. Plusieurs lignes : chaque changement s'applique à toutes, en un seul pas d'historique. */

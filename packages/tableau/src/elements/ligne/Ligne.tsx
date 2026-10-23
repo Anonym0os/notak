@@ -314,38 +314,39 @@ export function RenduLigne({
       )}
       {choisie && (
         <>
-          <rect
-            className="notak-ligne-poignee"
-            data-extremite="depart"
-            x={trace.debut.x * PX_PAR_UG - 5}
-            y={trace.debut.y * PX_PAR_UG - 5}
-            width={10}
-            height={10}
-            onPointerDown={commencer("depart")}
-            {...prises}
-          />
-          <rect
-            className="notak-ligne-poignee"
-            data-extremite="arrivee"
-            x={trace.fin.x * PX_PAR_UG - 5}
-            y={trace.fin.y * PX_PAR_UG - 5}
-            width={10}
-            height={10}
-            onPointerDown={commencer("arrivee")}
-            {...prises}
-          />
-          <circle
-            className="notak-ligne-poignee"
-            data-extremite="courbe"
-            cx={cx}
-            cy={cy}
-            r={5}
+          <Poignee quoi="depart" p={trace.debut} onPointerDown={commencer("depart")} {...prises} />
+          <Poignee quoi="arrivee" p={trace.fin} onPointerDown={commencer("arrivee")} {...prises} />
+          <Poignee
+            quoi="courbe"
+            p={point(cx / PX_PAR_UG, cy / PX_PAR_UG)}
             onPointerDown={commencer("courbe")}
             onDoubleClick={redresser}
             {...prises}
           />
         </>
       )}
+    </g>
+  );
+}
+
+/**
+ * Une poignée ronde : un anneau à la couleur d'accent autour d'un cœur plein, et une zone de prise
+ * plus large que ce qu'on voit.
+ */
+function Poignee({
+  quoi,
+  p,
+  ...gestes
+}: {
+  quoi: Geste["quoi"];
+  p: Point;
+} & React.SVGProps<SVGGElement>) {
+  const [x, y] = [p.x * PX_PAR_UG, p.y * PX_PAR_UG];
+  return (
+    <g className="notak-ligne-poignee" data-extremite={quoi} {...gestes}>
+      <circle className="notak-ligne-poignee-prise" cx={x} cy={y} r={11} />
+      <circle className="notak-ligne-poignee-anneau" cx={x} cy={y} r={6.5} />
+      <circle className="notak-ligne-poignee-coeur" cx={x} cy={y} r={2.5} />
     </g>
   );
 }
