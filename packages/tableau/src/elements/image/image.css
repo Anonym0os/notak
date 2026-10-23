@@ -113,33 +113,144 @@
   width: 100%;
 }
 
-/* L'image en grand. */
+/* L'image en grand (la fenêtre V2 de Milanote) : un voile à 70 %, l'image à sa taille au plus, une barre sombre. */
 .notak-visionneuse {
   position: fixed;
   z-index: 1000;
   inset: 0;
   display: flex;
-  flex-direction: column;
+  background: rgb(0 0 0 / 0.7);
+  cursor: default;
+  overflow: hidden;
+}
+
+.notak-visionneuse-zone {
+  flex: 1;
+  min-width: 0;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 40px;
-  background: rgb(15 17 20 / 0.86);
-  cursor: zoom-out;
-  animation: notak-voile 0.15s ease-out;
+  box-sizing: border-box;
+  padding: 48px 60px;
 }
 
-.notak-visionneuse img {
-  max-width: 100%;
-  max-height: calc(100% - 40px);
-  object-fit: contain;
-  box-shadow: 0 20px 60px rgb(0 0 0 / 0.4);
-}
-
-.notak-visionneuse p {
+.notak-visionneuse-figure {
   margin: 0;
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+}
+
+.notak-visionneuse-image {
+  display: block;
+  min-height: 0;
+  max-width: 100%;
+  max-height: calc(100vh - 96px);
+  object-fit: contain;
+  will-change: transform;
+  transition: transform 0.12s ease-out;
+}
+
+.notak-visionneuse-image[data-zoom] {
+  cursor: grab;
+  transition: none;
+}
+
+.notak-visionneuse-image[data-zoom]:active {
+  cursor: grabbing;
+}
+
+/* Une image transparente se montre sur un damier de 32 px. */
+.notak-visionneuse-image[data-damier] {
+  background: repeating-conic-gradient(#d9d9d9 0% 25%, #fff 0% 50%) 0 0 / 32px 32px;
+}
+
+.notak-visionneuse-legende {
+  box-sizing: border-box;
+  max-width: 100%;
+  max-height: calc(50vh - 48px);
+  overflow: auto;
+  padding: 16px 24px 20px;
+  background: #fff;
+  color: #323b4a;
+  font-size: 12px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.notak-visionneuse-vide {
+  display: grid;
+  place-items: center;
+  width: 160px;
+  height: 120px;
+  background: #f3f3f4;
+  color: #8d929a;
+}
+
+/* La barre : 40 px, sombre, au bas de la fenêtre ; elle s'estompe le temps du zoom. */
+.notak-visionneuse-barre {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  height: 40px;
+  transform: translateX(-50%);
+  border-radius: 6px;
+  background: #262626;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
   color: #fff;
-  font-size: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: opacity 0.1s ease-out;
+}
+
+.notak-visionneuse-barre[data-estompee] {
+  opacity: 0.35;
+}
+
+.notak-visionneuse-texte,
+.notak-visionneuse-outil {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  margin: 0;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.notak-visionneuse-texte:hover,
+.notak-visionneuse-outil:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.1);
+}
+
+.notak-visionneuse-texte:focus-visible,
+.notak-visionneuse-outil:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -2px;
+}
+
+.notak-visionneuse-outil:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.notak-visionneuse-sep {
+  align-self: stretch;
+  width: 1px;
+  margin: 8px 2px;
+  background: rgb(255 255 255 / 0.2);
 }
 
 @keyframes notak-voile {

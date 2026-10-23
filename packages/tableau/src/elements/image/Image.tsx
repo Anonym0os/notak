@@ -75,7 +75,7 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
           <span className="notak-roue" />
         </span>
       )}
-      {enGrand && adresseOrigine && <Visionneuse adresse={adresseOrigine} {...(contenu.legende ? { legende: contenu.legende } : {})} />}
+      {enGrand && adresseOrigine && <Visionneuse element={element} adresse={adresseOrigine} contexte={contexte} />}
       <div className="notak-image-cadre" style={forme}>
         {adresse ? (
           <div className="notak-image-plan" style={page.plan}>

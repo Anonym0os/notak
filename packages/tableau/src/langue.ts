@@ -857,6 +857,14 @@ export const fr: Textes = {
   'image.transparent.titre': 'Montrer ou cacher le fond blanc de l’image transparente',
   'image.dessinerDessus': 'Dessiner dessus',
   'image.modifierDessin': 'Modifier le dessin',
+  'visionneuse.barre': 'Outils de l’image',
+  'visionneuse.dessiner': 'Dessiner',
+  'visionneuse.modifier': 'Modifier',
+  'visionneuse.fond': 'Fond',
+  'visionneuse.precedent': 'Précédente',
+  'visionneuse.suivant': 'Suivante',
+  'visionneuse.ouvrir': 'Ouvrir dans un nouvel onglet',
+  'visionneuse.telecharger': 'Télécharger',
 }
 
 export const en: Textes = {
@@ -1631,4 +1639,12 @@ export const en: Textes = {
   'image.transparent.titre': 'Show or hide the white background of a transparent image',
   'image.dessinerDessus': 'Draw on top',
   'image.modifierDessin': 'Edit drawing',
+  'visionneuse.barre': 'Image tools',
+  'visionneuse.dessiner': 'Draw on',
+  'visionneuse.modifier': 'Edit',
+  'visionneuse.fond': 'Background',
+  'visionneuse.precedent': 'Back',
+  'visionneuse.suivant': 'Next',
+  'visionneuse.ouvrir': 'Open in a new tab',
+  'visionneuse.telecharger': 'Download',
 }
