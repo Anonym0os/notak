@@ -17,7 +17,8 @@ registre.type<Commentaire>({
   editable: true,
   hauteurParDefaut: 7,
   largeurMin: 34,
-  suivant: () => null,
+  // ⌘Entrée : un fil neuf juste dessous, à la même largeur.
+  suivant: (e, places) => ({ ...nouveauCommentaire(places.dessous.x, places.dessous.y), largeur: e.largeur }),
   outils: [
     {
       get libelle() {

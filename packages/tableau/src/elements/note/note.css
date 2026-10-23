@@ -502,7 +502,11 @@
 }
 
 .notak-mention {
-  color: var(--notak-accent);
+  padding: 0 3px;
+  border-radius: 3px;
+  background: #eaeffe;
+  color: #2f63f7;
+  font-weight: 600;
 }
 
 .notak-lien-tableau {
@@ -543,6 +547,47 @@
 
 .notak-propositions li[data-actif] {
   background: rgb(0 0 0 / 0.07);
+}
+
+/* La liste des mentions : 320 px, des personnes avec leur avatar, la choisie sur fond bleu pâle. */
+.notak-propositions[data-genre='mention'] {
+  box-sizing: border-box;
+  width: 320px;
+  max-width: none;
+  padding: 15px 0;
+}
+
+.notak-propositions[data-genre='mention'] li {
+  gap: 10px;
+  min-height: 48px;
+  margin: 0 24px;
+  padding: 0 8px;
+  border-radius: 4px;
+}
+
+.notak-propositions[data-genre='mention'] li[data-actif] {
+  background: #eaeffe;
+}
+
+.notak-proposition-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #8a94a3;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.notak-proposition-nom {
+  overflow: hidden;
+  color: #2f63f7;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
 }
 
 .notak-proposition-teinte {
