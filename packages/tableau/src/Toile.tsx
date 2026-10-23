@@ -27,6 +27,7 @@ import {
   type Id,
   type Operation,
   type Tableau,
+  type TypeContenu,
   HAUTEUR_NOTE_MIN,
   aLaCorbeille,
   nonTriesDe,
@@ -40,6 +41,7 @@ import {
 } from './coeur/tableau'
 import './elements'
 import { definition, tousLesRaccourcis, tousLesRecepteurs, tousLesTypes, toutesLesEntreesMenu } from './elements/registre'
+import { demanderRenommage } from './elements/tableau/renommage'
 import type { ContexteToile, Presence, Services } from './elements/types'
 import { t, tn } from './langue'
 import { PastilleZoom } from './PastilleZoom'
@@ -154,6 +156,18 @@ const APPUI_LONG = 500
 /** Sous ce déplacement (pixels écran), un appui reste un clic : rien ne bouge, rien ne quitte sa colonne. */
 /** Les types que propose le menu de la toile vide. */
 const TYPES_DU_MENU: ReadonlySet<string> = new Set(['note', 'lien', 'taches', 'ligne', 'tableau', 'colonne', 'commentaire', 'table'])
+
+/** Ce que Cmd+Entrée fait naître, pour les types où Milanote diffère de la suite propre du type. */
+const SUIVANT_COMMUN: Partial<Record<TypeContenu, 'note' | 'rien' | 'droite'>> = {
+  table: 'rien',
+  document: 'droite',
+  nuancier: 'note',
+  lieu: 'note',
+  fichier: 'note',
+  croquis: 'note',
+  clone: 'note',
+  dessin: 'note',
+}
 
 const SEUIL_GLISSER = 3
 /** Près du bord pendant un glisser ou un lasso, la vue défile : zone de 40 px, jusqu'à 18 px par image. */
@@ -570,9 +584,14 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const r = rect(id)
     const bas = r ? Math.round(r.max.y) + 1 : el.y + (def?.hauteurParDefaut ?? HAUTEUR_NOTE_MIN) + 1
     const places = { dessous: point(el.x, bas), droite: point(el.x + el.largeur + 2, el.y) }
-    const neuf = def?.suivant ? def.suivant(el as never, places, format, contexteRef.current!) : nouvelleNote(places.dessous.x, places.dessous.y)
+    // Comme Milanote : une table ne donne rien, un document naît 17 UG à droite, le reste des éléments sans suite propre donne une note dessous.
+    const usage = SUIVANT_COMMUN[el.contenu.type]
+    if (usage === 'rien') return
+    const propre = usage === 'note' ? undefined : def?.suivant
+    const neuf = propre ? propre(el as never, places, format, contexteRef.current!) : nouvelleNote(places.dessous.x, places.dessous.y)
     if (!neuf) return
-    let element: Element = def?.suivant ? neuf : { ...neuf, largeur: el.largeur }
+    let element: Element = propre ? neuf : { ...neuf, largeur: el.largeur }
+    if (usage === 'droite') element = { ...element, x: el.x + 17, y: el.y }
     // Dans une colonne, l'élément neuf se range juste après.
     if (el.parent) {
       const freres = t.elements.filter((x) => x.parent === el.parent).sort((a, b) => comparerOrdre(a.ordre, b.ordre))
@@ -1431,6 +1450,24 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (selection.size === 1) creerSuivant([...selection][0]!, true)
       return
     }
+    // Cmd+Retour arrière et Cmd+Suppr mettent aussi à la corbeille.
+    if (cmd && (e.key === 'Backspace' || e.key === 'Delete') && selection.size > 0) {
+      e.preventDefault()
+      return jeter(selection)
+    }
+    // Alt+Entrée sur une colonne : une note neuve en tête, en édition.
+    if (e.altKey && !cmd && e.key === 'Enter' && selection.size === 1) {
+      const colonne = choisis()[0]
+      if (colonne?.contenu.type === 'colonne' && !lectureSeule) {
+        e.preventDefault()
+        const tete = tableau.elements.filter((x) => x.parent === colonne.id).sort((a, b) => comparerOrdre(a.ordre, b.ordre))[0]
+        const note = { ...nouvelleNote(colonne.x, colonne.y), parent: colonne.id, ordre: cleEntre(undefined, tete?.ordre) }
+        magasin.faire([{ type: 'creer', element: note }])
+        neSous.current = note.id
+        commencerEdition(note.id)
+        return
+      }
+    }
     if (cmd) return
     const pas = e.shiftKey ? 5 : 1
     const fleches: Record<string, [number, number]> = {
@@ -1455,6 +1492,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       case 'Enter':
         if (selection.size === 1) {
           e.preventDefault()
+          const un = choisis()[0]
+          // Une image s'ouvre en grand ; un tableau imbriqué se renomme ; le reste s'édite.
+          if (un?.contenu.type === 'image' && definition('image')?.ouvrir) return definition('image')!.ouvrir!(un, contexte)
+          if (un?.contenu.type === 'tableau' && !lectureSeule) return demanderRenommage(un.id)
           commencerEdition([...selection][0]!)
         }
         return
