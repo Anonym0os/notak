@@ -22,7 +22,8 @@ describe('la barre de création, dans l’ordre de Milanote', () => {
 })
 
 describe('ce que devient un élément qu’un outil vient de créer', () => {
-  it('une ligne et une table sont seulement choisies', () => {
+  it('une ligne, une table et un document sont seulement choisis', () => {
+    expect(definition('document')?.aLaCreation).toBe('choisir')
     expect(definition('ligne')?.aLaCreation).toBe('choisir')
     expect(definition('table')?.aLaCreation).toBe('choisir')
   })
@@ -31,6 +32,6 @@ describe('ce que devient un élément qu’un outil vient de créer', () => {
     expect(definition('nuancier')?.aLaCreation).toBe('rien')
   })
   it('une note, un texte, un lien, une colonne : édités (le défaut)', () => {
-    for (const type of ['note', 'lien', 'colonne', 'document', 'commentaire', 'taches'] as const) expect(definition(type)?.aLaCreation, type).toBeUndefined()
+    for (const type of ['note', 'lien', 'colonne', 'commentaire', 'taches'] as const) expect(definition(type)?.aLaCreation, type).toBeUndefined()
   })
 })

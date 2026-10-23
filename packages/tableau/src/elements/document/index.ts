@@ -3,7 +3,7 @@ import { registre } from '../registre'
 import { documentEnNote } from '../note/conversion'
 import { OutilsDocument, RenduDocument } from './Document'
 import './document.css'
-import { nouveauDocument, resume } from './texte'
+import { documentCree, nouveauDocument, resume } from './texte'
 import { t } from '../../langue'
 import { ico } from '../../icones'
 
@@ -16,8 +16,11 @@ registre.type<DocumentTexte>({
   Rendu: RenduDocument,
   OutilsApres: OutilsDocument,
   editable: true,
+  // Comme Milanote : la carte n'est qu'une feuille et son titre ; l'outil pose le document et en édite le titre, la modale s'ouvre au double-clic.
+  sansFond: true,
+  aLaCreation: 'choisir',
   hauteurParDefaut: 12,
-  largeurMin: 16,
+  largeurMin: 8,
   suivant: (e, places) => ({ ...nouveauDocument(places.dessous.x, places.dessous.y), largeur: e.largeur }),
   outils: [
     {
@@ -29,7 +32,7 @@ registre.type<DocumentTexte>({
       vignette: 'document',
       tiroir: true,
       fantome: () => nouveauDocument(0, 0),
-      creer: (ou) => [{ type: 'creer', element: nouveauDocument(Math.round(ou.x), Math.round(ou.y)) }],
+      creer: (ou) => [{ type: 'creer', element: documentCree(Math.round(ou.x), Math.round(ou.y)) }],
     },
   ],
 })

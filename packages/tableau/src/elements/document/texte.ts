@@ -1,7 +1,8 @@
 import { type DocumentTexte, type Element, type NoeudTexte, nouvelId, texteBrut } from '../../coeur/tableau'
 import { t, tn } from '../../langue'
 
-export const LARGEUR_DOCUMENT = 24
+/** La largeur d'un document neuf : une icône et son titre, comme dans Milanote (10 unités). */
+export const LARGEUR_DOCUMENT = 10
 /** Combien de blocs du texte la carte dessine : le reste est caché de toute façon. */
 export const BLOCS_APERCU = 12
 /** Mots lus par minute, pour dire le temps de lecture. */
@@ -50,4 +51,19 @@ export const documentVide = (c: DocumentTexte) => !c.titre.trim() && compterMots
 /** Ce qu'on lit d'un document dans une liste : son titre, sinon le début de son texte. */
 export function resume(c: DocumentTexte): string {
   return c.titre.trim() || extrait(c.texte, 80) || t('document.resumeVide')
+}
+
+/**
+ * Les documents que l'outil vient de poser : leur titre s'édite sur la carte, une fois. La carte le lit à son montage
+ * et le retire ; une carte qu'on rouvre plus tard n'y revient pas.
+ */
+const aTitrer = new Set<string>()
+export const titrerALaCreation = (id: string) => void aTitrer.add(id)
+export const doitEtreTitre = (id: string): boolean => aTitrer.delete(id)
+
+/** Le document que pose l'outil : son titre « Nouveau document » est prêt à être remplacé. */
+export function documentCree(x: number, y: number): Element<DocumentTexte> {
+  const e = nouveauDocument(x, y)
+  titrerALaCreation(e.id)
+  return { ...e, contenu: { ...e.contenu, titre: t('document.nouveau') } }
 }

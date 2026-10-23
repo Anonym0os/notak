@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { docDepuisTexte } from '../../coeur/tableau'
-import { compterMots, documentVide, extrait, mesure, nouveauDocument, premiersBlocs, resume } from './texte'
+import { compterMots, doitEtreTitre, documentCree, documentVide, extrait, mesure, nouveauDocument, premiersBlocs, resume } from './texte'
 
 describe('le document', () => {
   test('un document neuf est vide', () => {
@@ -35,5 +35,19 @@ describe('le document', () => {
     expect(resume({ type: 'document', titre: ' Plan ', texte: docDepuisTexte('x') })).toBe('Plan')
     expect(resume({ type: 'document', titre: '', texte: docDepuisTexte('Notes de réunion') })).toBe('Notes de réunion')
     expect(resume(nouveauDocument(0, 0).contenu)).toBe('Document vide')
+  })
+})
+
+describe('la création par l’outil', () => {
+  test('le document posé porte « Nouveau document » et son titre s’édite une seule fois sur la carte', () => {
+    const e = documentCree(0, 0)
+    expect(e.contenu.titre).toBe('Nouveau document')
+    expect(e.largeur).toBe(10)
+    expect(doitEtreTitre(e.id)).toBe(true)
+    expect(doitEtreTitre(e.id)).toBe(false)
+  })
+
+  test('un document venu d’ailleurs (suivant, copie) n’édite pas son titre', () => {
+    expect(doitEtreTitre(nouveauDocument(0, 0).id)).toBe(false)
   })
 })
