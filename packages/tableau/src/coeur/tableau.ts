@@ -162,6 +162,10 @@ export interface Fichier {
   taille: number
   /** Le nom qu'on lui a donné, à la place du nom d'origine. */
   titre?: string
+  /** Un mot sous la carte. */
+  legende?: string
+  /** Rien que l'icône et le nom : ni aperçu des pages, ni lecteur. */
+  icone?: boolean
 }
 
 /** Une colonne : ses éléments portent `parent` = l'id de la colonne, et un `ordre`. */
