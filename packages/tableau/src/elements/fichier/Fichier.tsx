@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Fichier } from '../../coeur/tableau'
 import { useFichier } from '../envois'
 import type { PropsOutils, PropsRendu } from '../types'
-import { ICONE_DU_GENRE, aApercuAbsent, adresseApercuPdf, apercuDe, genreDe, lisible, seLitEnLigne, tailleLisible } from './genre'
+import { ICONE_DU_GENRE, aApercuAbsent, apercuDe, genreDe, lisible, seLitEnLigne, tailleLisible } from './genre'
 import { t } from '../../langue'
 import { annoncer } from '../../avis'
 import { Icone } from '../../icones'
@@ -10,6 +10,7 @@ import { BoutonOutil } from '../../BoutonOutil'
 import { LecteurSon, LecteurVideo } from './lecteur'
 import { ModaleFichier } from './ModaleFichier'
 import { ouvrirFenetreFichier, prendreAmorce, prendreCible, useFichierOuvert, viserEdition } from './ouverture'
+import { useApercuPdf } from './apercuPdf'
 
 /** La largeur d'un fichier en icône (une feuille et son nom) et d'une carte détaillée, en UG. */
 export const LARGEUR_ICONE = 10
@@ -44,7 +45,10 @@ export function RenduFichier({ element, enEdition, contexte, brouillon }: PropsR
   // La carte détaillée montre l'aperçu et le lecteur, sauf si on les a masqués ; l'icône n'a ni l'un ni l'autre.
   const apercu = c.sansApercu ? null : apercuDe(c.nom, c.typeMime, c.icone)
   const lecteur = c.icone || c.sansApercu ? null : lisible(c.typeMime)
-  const sansApercuDispo = !c.icone && !c.sansApercu && !apercu && !lecteur && aApercuAbsent(c.nom, c.typeMime)
+  // La première page d'un PDF est dessinée ici : « Processing » le temps que ça dure, et pas d'aperçu si elle ne se lit pas.
+  const pdf = useApercuPdf(adresse, apercu === 'pdf')
+  const sansApercuDispo =
+    !c.icone && !c.sansApercu && !lecteur && ((!apercu && aApercuAbsent(c.nom, c.typeMime)) || (apercu === 'pdf' && adresse !== undefined && pdf.etat === 'manque'))
   const ouvrable = seLitEnLigne(c.nom, c.typeMime)
   // « Renommer » et « Légende » ouvrent la même édition ; la cible dit où poser le curseur.
   const cible = useMemo(() => (enEdition ? prendreCible() : 'nom'), [enEdition])
@@ -77,16 +81,29 @@ export function RenduFichier({ element, enEdition, contexte, brouillon }: PropsR
           <div className="notak-fichier-texte">
             {titre}
             <span className="notak-fichier-details">
-              {tailleEtat}
+              {enRoute ? (
+                // Une feuille qui s'enregistre : la barre et « Saving », la taille revient ensuite.
+                <>
+                  <span className="notak-fichier-barre notak-fichier-barre-fine" aria-hidden /> {t('fichier.enregistrement')}
+                </>
+              ) : (
+                tailleEtat
+              )}
               {adresse === null && ` - ${t('fichier.introuvable')}`}
             </span>
           </div>
         </>
       ) : (
         <>
-          {apercu === 'pdf' && adresse && !enRoute && (
-            // La première page seulement ; le cadre n'attrape pas le pointeur, la carte reste glissable.
-            <iframe className="notak-fichier-pdf" title={t('fichier.premierePage', { nom: c.titre ?? c.nom })} src={adresseApercuPdf(adresse)} loading="lazy" tabIndex={-1} />
+          {apercu === 'pdf' && pdf.etat === 'pret' && (
+            // La première page seulement, déjà dessinée ; l'image n'attrape pas le pointeur, la carte reste glissable.
+            <img className="notak-fichier-pdf" src={pdf.adresse} alt={t('fichier.premierePage', { nom: c.titre ?? c.nom })} draggable={false} />
+          )}
+          {apercu === 'pdf' && pdf.etat === 'prepare' && adresse !== null && (
+            <div className="notak-fichier-traitement" role="status">
+              <span className="notak-fichier-barre" aria-hidden />
+              <span>{t('fichier.traitement')}</span>
+            </div>
           )}
           {apercu === 'image' && adresse && <img className="notak-fichier-image" src={adresse} alt="" draggable={false} />}
           {apercu === 'video' && lecteur !== 'video' && adresse && <video className="notak-fichier-video" src={adresse} preload="metadata" />}

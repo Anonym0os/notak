@@ -972,6 +972,8 @@ export const fr: Textes = {
   'fichier.lectureAuto': 'Lecture auto',
   'fichier.lectureAuto.titre': 'Lancer la lecture dès l’affichage',
   'fichier.aucunApercu': 'Aucun aperçu disponible',
+  'fichier.traitement': 'Traitement',
+  'fichier.enregistrement': 'Enregistrement',
 }
 
 export const en: Textes = {
@@ -1861,4 +1863,6 @@ export const en: Textes = {
   'fichier.lectureAuto': 'Autoplay',
   'fichier.lectureAuto.titre': 'Start playing as soon as it is shown',
   'fichier.aucunApercu': 'No preview available',
+  'fichier.traitement': 'Processing',
+  'fichier.enregistrement': 'Saving',
 }

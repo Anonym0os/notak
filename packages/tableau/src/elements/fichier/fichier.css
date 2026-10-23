@@ -181,6 +181,48 @@
   background: #f3f3f4;
 }
 
+/* La page dessinée par pdf.js : ses proportions, pas celles d'un cadre fixe. */
+img.notak-fichier-pdf {
+  height: auto;
+  aspect-ratio: auto;
+}
+
+/* Le temps du dessin : une barre pleine de 200 × 8 px qui respire, et « Processing » à côté. */
+.notak-fichier-traitement {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  min-height: 160px;
+  background: #f3f3f4;
+  color: #8d929a;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.notak-fichier-barre {
+  width: 200px;
+  height: 8px;
+  border-radius: 4px;
+  background: #d1d3d6;
+  animation: notak-fichier-respire 1.2s ease-in-out infinite alternate;
+}
+
+.notak-fichier-barre-fine {
+  display: inline-block;
+  width: 48px;
+  height: 6px;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
+@keyframes notak-fichier-respire {
+  to {
+    opacity: 0.45;
+  }
+}
+
 /* Un format dont Milanote fabrique un aperçu et que nous ne savons pas montrer. */
 .notak-fichier-sans-apercu {
   display: flex;

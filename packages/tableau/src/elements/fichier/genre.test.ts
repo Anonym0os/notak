@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ICONE_DU_GENRE, adresseApercuPdf, apercuDe, extensionDe, genreDe, naitEnIcone, seLitEnLigne, tailleLisible } from './genre'
+import { ICONE_DU_GENRE, apercuDe, extensionDe, genreDe, naitEnIcone, seLitEnLigne, tailleLisible } from './genre'
 
 describe('genre d’un fichier', () => {
   it('lit l’extension', () => {
@@ -51,10 +51,6 @@ describe('genre d’un fichier', () => {
 })
 
 describe('aperçu d’un fichier', () => {
-  it('demande la première page d’un PDF, sans barre d’outils', () => {
-    expect(adresseApercuPdf('/api/fichiers/ab')).toBe('/api/fichiers/ab#page=1&toolbar=0&navpanes=0&scrollbar=0&view=FitH')
-    expect(adresseApercuPdf('blob:x#page=9')).toBe('blob:x#page=1&toolbar=0&navpanes=0&scrollbar=0&view=FitH')
-  })
   it('montre un PDF, une image, une vidéo, et rien d’autre ; le mode icône ne montre rien', () => {
     expect(apercuDe('a.pdf', 'application/pdf', undefined)).toBe('pdf')
     expect(apercuDe('a.tiff', 'image/tiff', undefined)).toBe('image')
