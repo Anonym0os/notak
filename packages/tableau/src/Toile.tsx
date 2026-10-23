@@ -152,6 +152,9 @@ function choisirAxe(actuel: 'h' | 'v' | null, d: Point): 'h' | 'v' {
 const APPUI_LONG = 500
 
 /** Sous ce déplacement (pixels écran), un appui reste un clic : rien ne bouge, rien ne quitte sa colonne. */
+/** Les types que propose le menu de la toile vide. */
+const TYPES_DU_MENU: ReadonlySet<string> = new Set(['note', 'lien', 'taches', 'ligne', 'tableau', 'colonne', 'commentaire', 'table'])
+
 const SEUIL_GLISSER = 3
 /** Près du bord pendant un glisser ou un lasso, la vue défile : zone de 40 px, jusqu'à 18 px par image. */
 const BORD = 40
@@ -952,7 +955,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       } catch {
         p = null
       }
-      if (p) return collerPaquet(p)
+      if (p) {
+        const choisie = etat.current.selection.size === 1 ? etat.current.magasin.lire().elements.find((x) => etat.current.selection.has(x.id)) : undefined
+        if (choisie?.contenu.type === 'colonne' && collerDansColonne(p, choisie)) return
+        return collerPaquet(p)
+      }
       void recevoir(e.clipboardData, contexte.centreVue())
     }
     const copier = (couper: boolean) => (e: ClipboardEvent) => {
@@ -989,6 +996,21 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const neufs = deballer(p, d)
     magasin.faire(neufs.map((element): Operation => ({ type: 'creer', element })))
     setSelection(new Set(neufs.filter((x) => !x.parent).map((x) => x.id)))
+  }
+
+  /** Colle un paquet dans une colonne, en tête, si tout peut y entrer ; la sélection ne change pas. */
+  const collerDansColonne = (p: Paquet, colonne: Element) => {
+    const def = definition(colonne.contenu.type)
+    if (lectureSeule || !def?.accepte) return false
+    const neufs = deballer(p, point(0, 0))
+    const racines = neufs.filter((x) => !x.parent)
+    if (racines.length === 0 || !racines.every((x) => def.accepte!(x, colonne))) return false
+    const tete = magasin.lire().elements.filter((x) => x.parent === colonne.id).sort((a, b) => comparerOrdre(a.ordre, b.ordre))[0]
+    let avant: string | undefined
+    const rangs = new Map(racines.map((x) => [x.id, (avant = cleEntre(avant, tete?.ordre))] as const))
+    retenirPaquet(p)
+    magasin.faire(neufs.map((element): Operation => ({ type: 'creer', element: rangs.has(element.id) ? { ...element, parent: colonne.id, ordre: rangs.get(element.id)! } : element })))
+    return true
   }
 
   /** Cmd+D : une copie à 2 UG en bas à droite ; dans une colonne, juste après l'original. */
@@ -1179,9 +1201,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const ou = menu.ou
     const avecPaquet = !lectureSeule && copie.paquet ? [{ libelle: t('toile.coller'), raccourci: '⌘V', faire: () => collerPaquet(copie.paquet!, ou) }] : []
     if (!menu.surElement) {
+      // Milanote ne propose ici que huit créations ; les autres se prennent dans la barre.
       const creer = lectureSeule
         ? []
-        : outilsDeBarre().map((o) => ({
+        : outilsDeBarre().filter((o) => o.outil.groupe !== 'action' && TYPES_DU_MENU.has(o.outil.fantome().contenu.type)).map((o) => ({
             libelle: o.outil.libelle,
             faire: () => {
               const pas = o.outil.creer(point(Math.round(ou.x), Math.round(ou.y)), contexte)
@@ -1189,15 +1212,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
               apresCreation(pas.flatMap((op) => (op.type === 'creer' ? [op.element.id] : [])))
             },
           }))
+      // Annuler et Rétablir disparaissent quand il n'y a rien à défaire ; Tout sélectionner, quand la toile est vide.
       return [
         ...avecPaquet,
         null,
-        ...(lectureSeule ? [] : [{ libelle: t('espace.annuler'), raccourci: '⌘Z', faire: () => void magasin.annuler() }, { libelle: t('espace.retablir'), raccourci: '⇧⌘Z', faire: () => void magasin.retablir() }]),
-        { libelle: t('raccourcis.toutSelectionner'), raccourci: '⌘A', faire: () => setSelection(new Set(tableau.elements.filter((x) => !x.parent).map((x) => x.id))) },
+        ...(lectureSeule || !magasin.peutAnnuler() ? [] : [{ libelle: t('espace.annuler'), raccourci: '⌘Z', faire: () => void magasin.annuler() }]),
+        ...(lectureSeule || !magasin.peutRetablir() ? [] : [{ libelle: t('espace.retablir'), raccourci: '⇧⌘Z', faire: () => void magasin.retablir() }]),
+        ...(tableau.elements.length === 0 ? [] : [{ libelle: t('raccourcis.toutSelectionner'), raccourci: '⌘A', faire: () => setSelection(new Set(tableau.elements.filter((x) => !x.parent).map((x) => x.id))) }]),
         null,
         ...creer,
-        null,
-        { libelle: t('raccourcis.titre'), raccourci: '/', faire: () => setRaccourcis(true) },
       ]
     }
     const els = choisis()
@@ -1205,26 +1228,29 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const verrouilles = els.length > 0 && els.every((x) => x.verrou)
     const seul = els.length === 1 ? els[0] : undefined
     const defSeul = seul && definition(seul.contenu.type)
+    // Comme Milanote : le presse-papiers et la suppression d'abord, puis le nom, les entrées des types, le verrou et le plan.
+    // « Coller » ne paraît que sur des colonnes (le collage y entre, en tête).
+    const colonnes = els.length > 0 && els.every((x) => x.contenu.type === 'colonne')
+    const collage = !!copie.paquet && colonnes && seul ? [{ libelle: t('toile.coller'), raccourci: '⌘V', faire: () => void collerDansColonne(copie.paquet!, seul) }] : []
+    const renommable = !!seul && ['colonne', 'document', 'fichier'].includes(seul.contenu.type) && !!defSeul?.editable
     return [
       { libelle: t('toile.couper'), raccourci: '⌘X', faire: () => document.execCommand('cut') },
       { libelle: t('commun.copier'), raccourci: '⌘C', faire: () => document.execCommand('copy') },
-      ...avecPaquet,
+      ...collage,
+      ...(copie.paquet ? [{ libelle: t('toile.collerStyle'), raccourci: '⌥⌘V', faire: collerStyle }] : []),
       { libelle: t('raccourcis.dupliquer'), raccourci: '⌘D', faire: dupliquer },
+      { libelle: t('menu.supprimer'), raccourci: '⌫', faire: () => jeter(selection) },
       null,
-      ...(seul && defSeul?.ouvrir ? [{ libelle: t('commun.ouvrir'), raccourci: t('raccourcis.touche.espace'), faire: () => defSeul.ouvrir!(seul, contexte) }] : []),
-      ...(seul && defSeul?.editable ? [{ libelle: t('commun.modifier'), raccourci: '↩', faire: () => commencerEdition(seul.id) }] : []),
+      ...(renommable ? [{ libelle: t('menu.renommer'), raccourci: '↩', faire: () => commencerEdition(seul!.id) }] : []),
       null,
       ...toutesLesEntreesMenu()
         .filter((x) => x.visible(els, contexte))
         .map((x) => ({ libelle: x.libelle, ...(x.raccourci ? { raccourci: x.raccourci } : {}), faire: () => x.faire(els, contexte) })),
       null,
-      { libelle: t('toile.verrouiller'), coche: verrouilles, faire: () => verrouiller(!verrouilles) },
+      { libelle: t('toile.verrouiller'), coche: verrouilles, reste: true, faire: () => verrouiller(!verrouilles) },
+      null,
       { libelle: t('toile.premierPlan'), raccourci: '⇧⌘↑', faire: () => changerPlan('haut', false) },
       { libelle: t('toile.arrierePlan'), raccourci: '⇧⌘↓', faire: () => changerPlan('bas', false) },
-      null,
-      ...(copie.paquet ? [{ libelle: t('toile.collerStyle'), raccourci: '⌥⌘V', faire: collerStyle }] : []),
-      { libelle: t('toile.mettreNonTries'), raccourci: '⌥`', faire: () => ecarter(selection, 'nonTrie') },
-      { libelle: t('raccourcis.corbeille'), raccourci: '⌫', faire: () => jeter(selection) },
     ]
   }
 

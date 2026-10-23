@@ -6,7 +6,7 @@ import type { ContexteToile, ResultatRecherche } from './elements/types'
 import { Icone } from './icones'
 
 /** Une entrée du menu ; `null` trace un séparateur. */
-export type Entree = { libelle: string; raccourci?: string; coche?: boolean; desactive?: boolean; faire(): void } | null
+export type Entree = { libelle: string; raccourci?: string; coche?: boolean; /** Le menu reste ouvert après le choix (une bascule). */ reste?: boolean; desactive?: boolean; faire(): void } | null
 
 /** Les touches d'un raccourci, une pastille chacune : « ⇧⌘Z » donne ⇧, ⌘, Z. */
 export const touchesDe = (raccourci: string): string[] => {
@@ -75,7 +75,7 @@ export function MenuContextuel({ x, y, entrees, fermer }: { x: number; y: number
   const propres = entrees.filter((e, i, t) => e !== null || (i > 0 && i < t.length - 1 && t[i - 1] !== null))
   const avecCoches = propres.some((e) => e?.coche !== undefined)
   const choisir = (e: Exclude<Entree, null>) => {
-    fermer()
+    if (!e.reste) fermer()
     e.faire()
   }
   const clavier = (ev: React.KeyboardEvent) => {
@@ -123,9 +123,9 @@ export function MenuContextuel({ x, y, entrees, fermer }: { x: number; y: number
             }}
             onClick={() => choisir(e)}
           >
-            {avecCoches && <span className="notak-menu-coche">{e.coche ? <Icone nom="coche" taille={14} /> : null}</span>}
             <span className="notak-menu-libelle">{e.libelle}</span>
             {e.raccourci && <Raccourci touches={e.raccourci} />}
+            {avecCoches && <span className="notak-menu-coche">{e.coche ? <Icone nom="coche" taille={14} /> : null}</span>}
           </button>
         ),
       )}
