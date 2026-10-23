@@ -92,7 +92,6 @@ interface Contour {
   bas: boolean
   gauche: boolean
   droite: boolean
-  teinte: boolean
 }
 
 const LIEN = /^https?:\/\/\S+$/i
@@ -120,7 +119,7 @@ export function styleDeCellule(f: FormatCellule | null | undefined, estFormule: 
   }
 }
 
-/** Le contour (2 px) et la teinte d'une plage, en ombres intérieures. */
+/** Le contour d'une plage, en ombres intérieures. */
 function ombreContour(c: Pick<Contour, 'haut' | 'bas' | 'gauche' | 'droite'>, couleur: string, epaisseur: number): string {
   const e = epaisseur
   return [c.haut && `inset 0 ${e}px 0 0 ${couleur}`, c.bas && `inset 0 -${e}px 0 0 ${couleur}`, c.gauche && `inset ${e}px 0 0 0 ${couleur}`, c.droite && `inset -${e}px 0 0 0 ${couleur}`]
@@ -128,67 +127,151 @@ function ombreContour(c: Pick<Contour, 'haut' | 'bas' | 'gauche' | 'droite'>, co
     .join(', ')
 }
 
-/** Les cellules de ces plages, avec leurs bords. `sansTeinte` : la cellule active n'est pas teintée. */
-function contoursDe(plages: readonly Plage[], actives: Cellule | null): Map<string, Contour> {
+/** Les cellules de ces plages, avec leurs bords. */
+function contoursDe(plages: readonly Plage[]): Map<string, Contour> {
   const m = new Map<string, Contour>()
-  const derniere = plages.length - 1
-  plages.forEach((brute, k) => {
+  plages.forEach((brute) => {
     const p = normaliserPlage(brute)
     for (let l = p.l1; l <= p.l2; l++)
       for (let c = p.c1; c <= p.c2; c++) {
         const cle = `${l},${c}`
-        const e = m.get(cle) ?? { haut: false, bas: false, gauche: false, droite: false, teinte: false }
+        const e = m.get(cle) ?? { haut: false, bas: false, gauche: false, droite: false }
         e.haut ||= l === p.l1
         e.bas ||= l === p.l2
         e.gauche ||= c === p.c1
         e.droite ||= c === p.c2
-        if (!(k === derniere && actives && actives.l === l && actives.c === c)) e.teinte = true
         m.set(cle, e)
       }
   })
   return m
 }
 
-/* ───────────── Le titre ───────────── */
+/* ───────────── Le titre et la légende ───────────── */
 
-/** Le titre, centré au-dessus de la grille. Il s'écrit quand la table est seule choisie ; un pas par validation. */
-function Titre({ id, valeur, ecrivable, change, suite }: { id: string; valeur: string; ecrivable: boolean; change(v: string): void; suite(): void }) {
+/** La hauteur d'un bandeau de titre, arrondie à la grille : une ligne fait six unités, deux en font neuf. */
+const hauteurTitre = (n: HTMLElement | null): number => {
+  if (!n) return 0
+  n.style.height = 'auto'
+  const h = Math.ceil(n.scrollHeight / PX_PAR_UG) * PX_PAR_UG
+  n.style.height = `${h}px`
+  return h
+}
+
+interface PropsTitre {
+  id: string
+  valeur: string
+  ecrivable: boolean
+  change(v: string): void
+  /** Quitter le titre pour la première cellule. */
+  suite(): void
+  /** Retour arrière sur un titre vide : il disparaît. */
+  retirer(): void
+  /** Entrée : le titre est écrit, la table se déchoisit. */
+  finir(): void
+  hauteur(h: number): void
+}
+
+/**
+ * Le titre, centré au-dessus de la grille, sur autant de lignes qu'il faut. Il s'écrit quand la table est seule
+ * choisie ; un pas par validation. Tab, → en fin de texte ou ↓ sur la dernière ligne vont à la première cellule.
+ */
+function Titre({ id, valeur, ecrivable, change, suite, retirer, finir, hauteur }: PropsTitre) {
   const [brouillon, setBrouillon] = useState(valeur)
-  const champ = useRef<HTMLInputElement>(null)
+  const champ = useRef<HTMLTextAreaElement | null>(null)
+  const lecture = useRef<HTMLDivElement>(null)
   useEffect(() => setBrouillon(valeur), [valeur])
-  if (!ecrivable) return <div className="notak-table-titre">{valeur}</div>
+  useLayoutEffect(() => {
+    hauteur(hauteurTitre(ecrivable ? champ.current : lecture.current))
+  })
+  if (!ecrivable)
+    return (
+      <div ref={lecture} className="notak-table-titre">
+        {valeur}
+      </div>
+    )
   const valider = () => {
     if (brouillon !== valeur) change(brouillon)
   }
+  const vers = (e: React.KeyboardEvent) => {
+    e.preventDefault()
+    valider()
+    suite()
+  }
   return (
-    <input
+    <textarea
       ref={(n) => {
         champ.current = n
         if (n && prendreDemandeTitre(id)) n.focus({ preventScroll: true })
       }}
       className="notak-table-titre"
+      rows={1}
       value={brouillon}
       placeholder={t('table.titre')}
       aria-label={t('table.titre')}
       maxLength={200}
       onPointerDown={(e) => e.stopPropagation()}
-      onChange={(e) => setBrouillon(e.target.value)}
+      onChange={(e) => setBrouillon(e.target.value.replace(/\n/g, ' '))}
       onBlur={valider}
       onKeyDown={(e) => {
+        const n = e.currentTarget
+        const vide = n.selectionStart === n.selectionEnd
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+          // ⌘Entrée : la toile crée l'élément suivant.
+          valider()
+          return
+        }
         e.stopPropagation()
         if (e.key === 'Enter') {
           e.preventDefault()
           valider()
-          champ.current?.blur()
+          finir()
         } else if (e.key === 'Escape') {
           e.preventDefault()
           setBrouillon(valeur)
-          champ.current?.blur()
-        } else if (e.key === 'Tab' && !e.shiftKey) {
-          // Tab quitte le titre pour la première cellule.
+          n.blur()
+        } else if (e.key === 'Tab' && !e.shiftKey) vers(e)
+        else if (e.key === 'ArrowRight' && vide && n.selectionEnd === brouillon.length) vers(e)
+        // ↓ sur la dernière ligne : le curseur au bout, ou un titre qui tient sur une ligne.
+        else if (e.key === 'ArrowDown' && vide && (n.selectionEnd === brouillon.length || n.scrollHeight <= 2 * PX_PAR_UG * 3)) vers(e)
+        else if (e.key === 'Backspace' && brouillon === '') {
           e.preventDefault()
-          valider()
-          suite()
+          retirer()
+        }
+      }}
+    />
+  )
+}
+
+/** La légende, sous la grille ; elle s'écrit quand la table est seule choisie. Entrée valide. */
+function LegendeTable({ valeur, ecrivable, change }: { valeur: string; ecrivable: boolean; change(v: string): void }) {
+  const [brouillon, setBrouillon] = useState(valeur)
+  const champ = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => setBrouillon(valeur), [valeur])
+  useLayoutEffect(() => {
+    const n = champ.current
+    if (!n) return
+    n.style.height = 'auto'
+    n.style.height = `${n.scrollHeight}px`
+  }, [brouillon, ecrivable])
+  if (!ecrivable) return valeur ? <p className="notak-table-legende">{valeur}</p> : null
+  return (
+    <textarea
+      ref={champ}
+      className="notak-table-legende"
+      data-table-legende
+      rows={1}
+      value={brouillon}
+      placeholder={t('note.legende')}
+      aria-label={t('note.legende')}
+      onPointerDown={(e) => e.stopPropagation()}
+      onChange={(e) => setBrouillon(e.target.value.replace(/\n/g, ' '))}
+      onBlur={() => brouillon !== valeur && change(brouillon)}
+      onKeyDown={(e) => {
+        e.stopPropagation()
+        if (e.key === 'Enter' || e.key === 'Escape') {
+          e.preventDefault()
+          if (e.key === 'Escape') setBrouillon(valeur)
+          e.currentTarget.blur()
         }
       }}
     />
@@ -197,7 +280,7 @@ function Titre({ id, valeur, ecrivable, change, suite }: { id: string; valeur: s
 
 /* ───────────── La table ───────────── */
 
-export function RenduTable({ element, choisie, seule, contexte, changer }: PropsRendu<Table>) {
+export function RenduTable({ element, seule, contexte, changer }: PropsRendu<Table>) {
   const id = element.id
   const c = element.contenu
   const lg = regionalDuSysteme(useLangue())
@@ -209,6 +292,7 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
   const [bulle, setBulle] = useState<Cellule | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [dispo, setDispo] = useState(0)
+  const [hTitre, setHTitre] = useState(0)
 
   const lectureSeule = !!contexte.services.lectureSeule
   const actif = !!seule && !lectureSeule
@@ -222,7 +306,7 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
   const largeurs = useMemo(() => largeursDe(c, element.largeur), [c, element.largeur])
   const plages = useMemo(() => bornerPlages(etat.plages, c), [etat.plages, c])
   const edition = etat.edition
-  const contours = useMemo(() => contoursDe(plages, etat.ancre), [plages, etat.ancre])
+  const contours = useMemo(() => contoursDe(plages), [plages])
 
   // La table qui cesse d'être la seule choisie oublie ses cellules ; elle les oublie aussi en disparaissant.
   useEffect(() => {
@@ -248,6 +332,11 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
   /* ── la sélection ── */
 
   const choisir = (suite: Plage[], ancre: Cellule | null, tete: Cellule | null) => poserEtat(id, { plages: suite, ancre, tete })
+  const allerA1 = () => {
+    const a1 = { l: 0, c: 0 }
+    choisir([plageDe(a1)], a1, a1)
+    focaliser(id)
+  }
   const courante = () => {
     const el = contexte.magasin.lire().elements.find((x) => x.id === id)
     return el && el.contenu.type === 'table' ? (el as Element<Table>) : null
@@ -626,6 +715,26 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
       else if (k === 'ArrowDown') geste_((tab, l) => insererAutourLignes(tab, l, plages_, 'dessous'))
       else if (k === 'ArrowLeft') geste_((tab, l) => insererAutourColonnes(tab, l, plages_, 'gauche'))
       else geste_((tab, l) => insererAutourColonnes(tab, l, plages_, 'droite'))
+    } else if (fleches[k] && cmd) {
+      // ⌘ + flèche : jusqu'au bord de la grille ; avec Maj, la plage s'étend jusque-là.
+      prendre()
+      const [dl, dc] = fleches[k]!
+      const vers = { l: dl ? (dl < 0 ? 0 : d.l - 1) : tete.l, c: dc ? (dc < 0 ? 0 : d.c - 1) : tete.c }
+      if (e.shiftKey) {
+        const ancre = e0.ancre ?? tete
+        choisir([...e0.plages.slice(0, -1), plageEntre(ancre, vers)], ancre, vers)
+      } else choisir([plageDe(vers)], vers, vers)
+    } else if (k === 'Home' || k === 'End') {
+      // Début, Fin : le bout de la ligne ; avec ⌘, la première ou la dernière cellule.
+      prendre()
+      const fin = k === 'End'
+      const vers = cmd ? (fin ? { l: d.l - 1, c: d.c - 1 } : { l: 0, c: 0 }) : { l: tete.l, c: fin ? d.c - 1 : 0 }
+      choisir([plageDe(vers)], vers, vers)
+    } else if (k === ' ' && (e.ctrlKey || e.shiftKey) && !e.metaKey && !e.altKey) {
+      // Ctrl+Espace : la colonne entière ; Maj+Espace : la ligne entière.
+      prendre()
+      if (e.ctrlKey) choisir([{ l1: 0, c1: tete.c, l2: d.l - 1, c2: tete.c }], { l: 0, c: tete.c }, { l: d.l - 1, c: tete.c })
+      else choisir([{ l1: tete.l, c1: 0, l2: tete.l, c2: d.c - 1 }], { l: tete.l, c: 0 }, { l: tete.l, c: d.c - 1 })
     } else if (fleches[k] && !cmd) {
       prendre()
       const [dl, dc] = fleches[k]!
@@ -651,9 +760,12 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
       if (suivante) {
         const vers = { l: suivante[0], c: suivante[1] }
         choisir([plageDe(vers)], vers, vers)
+      } else if (!e.shiftKey && c.avecLegende) {
+        // Tab depuis la dernière cellule : vers la légende.
+        racine.current?.querySelector<HTMLTextAreaElement>('textarea.notak-table-legende')?.focus()
       } else if (e.shiftKey && c.avecTitre) {
         // Maj+Tab depuis la première cellule : vers le titre.
-        racine.current?.querySelector<HTMLInputElement>('input.notak-table-titre')?.focus()
+        racine.current?.querySelector<HTMLTextAreaElement>('textarea.notak-table-titre')?.focus()
       }
     } else if (cmd && !e.altKey && (k.toLowerCase() === 'b' || k.toLowerCase() === 'i' || (k.toLowerCase() === 'x' && e.shiftKey))) {
       const style = k.toLowerCase() === 'b' ? 'gras' : k.toLowerCase() === 'i' ? 'italique' : 'barre'
@@ -743,7 +855,7 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
   const derniere = plages.at(-1)
   const coin = derniere ? normaliserPlage(derniere) : null
   const cibleRecopie = visuel.cible ? normaliserPlage(visuel.cible) : null
-  const contoursCible = useMemo(() => (visuel.cible ? contoursDe([visuel.cible], null) : null), [visuel.cible])
+  const contoursCible = useMemo(() => (visuel.cible ? contoursDe([visuel.cible]) : null), [visuel.cible])
   const apercu = etat.apercuFond
 
   const somme = largeurs.reduce((a, b) => a + b, 0) || 1
@@ -787,8 +899,9 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
           className="notak-table-case"
           checked={brut === 'true'}
           aria-label={t('table.case', { ligne: i + 1, colonne: j + 1 })}
-          onPointerDown={(e) => actif && e.stopPropagation()}
-          onChange={() => choisie && cocher(i, j)}
+          // Une case se coche d'un clic, même sur une table qui n'est pas choisie.
+          onPointerDown={(e) => !lectureSeule && e.stopPropagation()}
+          onChange={() => !lectureSeule && cocher(i, j)}
         />
       )
     } else if (estFormule && r?.erreur) {
@@ -810,8 +923,8 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
           href={brut.trim()}
           target="_blank"
           rel="noopener noreferrer"
-          onPointerDown={(e) => actif && e.stopPropagation()}
-          onClick={(e) => !choisie && e.preventDefault()}
+          // Un lien s'ouvre d'un clic, table choisie ou non.
+          onPointerDown={(e) => e.stopPropagation()}
         >
           {affiche}
         </a>
@@ -842,14 +955,15 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
           <i
             className="notak-table-ref"
             aria-hidden
-            style={{ background: `color-mix(in srgb, ${ref.couleur} 10%, transparent)`, boxShadow: ombreContour(ref, ref.couleur, 1) }}
+            style={{ background: `color-mix(in srgb, ${ref.couleur} 10%, transparent)`, boxShadow: ombreContour(ref, ref.couleur, 2) }}
           />
         )}
         {contour && !(enEdition && edition) && (
           <i
             className="notak-table-sel"
             aria-hidden
-            style={{ boxShadow: ombreContour(contour, 'var(--notak-accent)', 2), ...(contour.teinte ? { background: 'color-mix(in srgb, var(--notak-accent) 14%, transparent)' } : {}) }}
+            // Comme Milanote : le seul contour extérieur de la plage, sans voile sur les cellules.
+            style={{ boxShadow: ombreContour(contour, 'var(--notak-accent)', 2) }}
           />
         )}
         {contour && enEdition && <i className="notak-table-sel" aria-hidden style={{ boxShadow: 'inset 0 0 0 2px var(--notak-accent)' }} />}
@@ -908,6 +1022,8 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
       data-cellules={actif && plages.length > 0 ? '' : undefined}
       data-colonne={dansColonne || undefined}
       data-titre={c.avecTitre || undefined}
+      data-legende={c.avecLegende || undefined}
+      style={c.avecTitre && hTitre ? ({ '--notak-table-titre-h': `${hTitre}px` } as CSSProperties) : undefined}
       data-deplace={!!visuel.ombre || undefined}
       onPointerDown={surAppui}
       onPointerMove={surMouvement}
@@ -926,10 +1042,14 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
           valeur={c.titre ?? ''}
           ecrivable={actif}
           change={(v) => changer({ ...c, titre: v })}
-          suite={() => {
-            const a1 = { l: 0, c: 0 }
-            choisir([plageDe(a1)], a1, a1)
-            focaliser(id)
+          suite={allerA1}
+          retirer={() => {
+            changer({ ...c, avecTitre: false })
+            allerA1()
+          }}
+          finir={() => contexte.choisir([])}
+          hauteur={(h) => {
+            if (h && h !== hTitre) setHTitre(h)
           }}
         />
       )}
@@ -947,6 +1067,7 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
           </tbody>
         </table>
       </div>
+      {c.avecLegende && <LegendeTable valeur={c.legende ?? ''} ecrivable={actif} change={(v) => changer({ ...c, legende: v })} />}
       {visuel.ombre && <div className="notak-table-ombre" aria-hidden style={{ left: visuel.ombre.x, top: visuel.ombre.y, width: visuel.ombre.w, height: visuel.ombre.h }} />}
       {visuel.ligne && <div className="notak-table-place" aria-hidden style={{ left: visuel.ligne.x, top: visuel.ligne.y, width: visuel.ligne.w, height: visuel.ligne.h }} />}
       {actif && plages.length > 0 && (

@@ -12,12 +12,12 @@
 .notak-tableur {
   position: relative;
   font-size: 14px;
-  line-height: 1.35;
+  line-height: 20px;
   color: var(--notak-texte);
 }
 
 .notak-tableur[data-titre] {
-  --notak-table-titre-h: 32px;
+  --notak-table-titre-h: 60px;
 }
 
 .notak-tableur table {
@@ -50,11 +50,21 @@
   box-sizing: border-box;
   /* Une ligne fait au moins trois unités de grille. */
   height: calc(var(--notak-grille-pas, 10px) * 3);
-  padding: 5px 8px;
+  padding: 4.5px 6px;
   border: 1px solid var(--notak-point);
   vertical-align: top;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Pas de filet extérieur à gauche ni à droite. */
+.notak-tableur td:first-child {
+  border-left-color: transparent;
+}
+
+.notak-tableur td:last-child {
+  border-right-color: transparent;
 }
 
 /* Pas de bordure extérieure en haut sans titre, ni en bas. */
@@ -62,7 +72,8 @@
   border-top: 0;
 }
 
-.notak-tableur tr:last-child td {
+/* En bas, un filet seulement s'il y a une légende dessous. */
+.notak-tableur:not([data-legende]) tr:last-child td {
   border-bottom: 0;
 }
 
@@ -70,26 +81,51 @@
   display: block;
   box-sizing: border-box;
   width: 100%;
-  height: 32px;
+  min-height: calc(var(--notak-grille-pas, 10px) * 6);
   margin: 0;
-  padding: 0 12px;
+  padding: 17px 24px 18px;
   overflow: hidden;
   border: 0;
   background: none;
   color: inherit;
   font: inherit;
+  font-size: 16px;
   font-weight: 600;
-  line-height: 32px;
+  line-height: 25px;
   text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  resize: none;
   outline: none;
   user-select: text;
   -webkit-user-select: text;
 }
 
-.notak-table-titre::placeholder {
+.notak-table-titre::placeholder,
+.notak-table-legende::placeholder {
   color: var(--notak-pale);
+}
+
+/* La légende, sous la grille. */
+.notak-table-legende {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 8px 12px 9px;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: var(--notak-pale);
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  resize: none;
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .notak-table-texte {
@@ -128,6 +164,8 @@ a.notak-table-texte {
   top: calc(100% + 6px);
   left: 50%;
   z-index: 8;
+  width: max-content;
+  max-width: 270px;
   padding: 4px 8px;
   border-radius: 6px;
   background: #23262c;
@@ -136,8 +174,9 @@ a.notak-table-texte {
   font-size: 12px;
   font-style: normal;
   font-weight: 400;
-  text-align: left;
-  white-space: nowrap;
+  text-align: center;
+  white-space: normal;
+  text-wrap: balance;
   transform: translateX(-50%);
   pointer-events: none;
 }
@@ -158,13 +197,13 @@ a.notak-table-texte {
 
 .notak-table-recopie {
   position: absolute;
-  right: -5px;
-  bottom: -5px;
+  right: -4px;
+  bottom: -4px;
   z-index: 3;
   box-sizing: border-box;
-  width: 9px;
-  height: 9px;
-  border: 1.5px solid var(--notak-table-corps, #fff);
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--notak-table-corps, #fff);
   border-radius: 1px;
   background: var(--notak-accent);
   cursor: crosshair;
@@ -192,19 +231,28 @@ a.notak-table-texte {
 
 /* ───────────── Les repères A B C et 1 2 3, hors de la table ───────────── */
 
+/* Les repères : un ruban continu au fond presque blanc, un filet entre deux repères, les bouts arrondis. Un repère
+   que la sélection touche prend le gris d'en-tête, jamais la couleur de sélection. */
+.notak-tableur {
+  --notak-repere-fond: #fdfdfd;
+  --notak-repere-texte: #8d929a;
+  --notak-repere-filet: rgb(0 0 0 / 0.08);
+  --notak-repere-touche: var(--notak-table-entete, #d1d3d6);
+  --notak-repere-touche-texte: #48505e;
+}
+
 .notak-table-repere {
   position: absolute;
   z-index: 3;
   display: grid;
   place-items: center;
   box-sizing: border-box;
-  border-radius: 4px;
-  background: var(--notak-carte);
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.16), 0 0 0 1px rgb(0 0 0 / 0.04);
-  color: #7a7f87;
-  font-size: 12px;
+  background: var(--notak-repere-fond);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
+  color: var(--notak-repere-texte);
+  font-size: 11px;
   font-style: normal;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
@@ -217,6 +265,20 @@ a.notak-table-texte {
   bottom: calc(100% + 10px + var(--notak-table-titre-h, 0px));
   left: 0;
   height: 24px;
+  border-right: 1px solid var(--notak-repere-filet);
+}
+
+td:first-child > .notak-table-repere-colonne {
+  border-radius: 4px 0 0 4px;
+}
+
+td:last-child > .notak-table-repere-colonne {
+  border-right: 0;
+  border-radius: 0 4px 4px 0;
+}
+
+td:first-child:last-child > .notak-table-repere-colonne {
+  border-radius: 4px;
 }
 
 .notak-table-repere-ligne {
@@ -224,15 +286,28 @@ a.notak-table-texte {
   right: calc(100% + 10px);
   bottom: 0;
   width: 24px;
+  border-bottom: 1px solid var(--notak-repere-filet);
 }
 
-.notak-table-repere[data-touche] {
-  color: var(--notak-accent);
+tr:first-child .notak-table-repere-ligne {
+  border-radius: 4px 4px 0 0;
+}
+
+tr:last-child .notak-table-repere-ligne {
+  border-bottom: 0;
+  border-radius: 0 0 4px 4px;
+}
+
+tr:first-child:last-child .notak-table-repere-ligne {
+  border-radius: 4px;
+}
+
+.notak-table-repere:is([data-touche], [data-choisi]) {
+  background: var(--notak-repere-touche);
+  color: var(--notak-repere-touche-texte);
 }
 
 .notak-table-repere[data-choisi] {
-  background: var(--notak-accent);
-  color: #fff;
   cursor: grab;
 }
 
@@ -248,24 +323,8 @@ a.notak-table-texte {
 }
 
 .notak-table-largeur[data-derniere] {
-  right: -10px;
+  right: -12px;
   width: 20px;
-}
-
-.notak-table-largeur::after {
-  content: '';
-  position: absolute;
-  top: 3px;
-  bottom: 3px;
-  left: calc(50% - 1px);
-  width: 2px;
-  border-radius: 1px;
-  background: var(--notak-accent);
-  opacity: 0;
-}
-
-.notak-table-largeur:hover::after {
-  opacity: 0.8;
 }
 
 /* Déplacer des lignes ou des colonnes : une ombre suit le pointeur, une ligne de 2 px marque la place. */
@@ -273,10 +332,7 @@ a.notak-table-texte {
   position: absolute;
   z-index: 6;
   box-sizing: border-box;
-  border: 2px solid var(--notak-accent);
-  background: color-mix(in srgb, var(--notak-accent) 16%, transparent);
-  box-shadow: 0 8px 22px rgb(0 0 0 / 0.2);
-  opacity: 0.75;
+  background: rgb(0 0 0 / 0.05);
   pointer-events: none;
 }
 
@@ -365,18 +421,24 @@ a.notak-table-texte {
 
 .notak-table-fonctions {
   min-width: 150px;
+  max-width: 240px;
+  max-height: 190px;
+  overflow-y: auto;
+  border-radius: 5px;
   list-style: none;
 }
 
 .notak-table-fonctions li {
-  padding: 4px 8px;
-  border-radius: 5px;
+  padding: 0 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 26px;
   cursor: pointer;
 }
 
+.notak-table-fonctions li:hover,
 .notak-table-fonctions li[data-choisie] {
-  background: var(--notak-accent);
-  color: #fff;
+  background: var(--notak-fond);
 }
 
 .notak-table-fonctions b {

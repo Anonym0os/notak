@@ -325,6 +325,9 @@ export interface Table {
   largeurs?: number[]
   titre?: string
   avecTitre?: boolean
+  /** La légende, sous la grille, montrée tant que `avecLegende` est posé. */
+  legende?: string
+  avecLegende?: boolean
   sansEntete?: boolean
 }
 

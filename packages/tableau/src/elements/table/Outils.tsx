@@ -27,7 +27,7 @@ import { modifierTable } from './modifier'
 /**
  * Les outils de la barre de sélection pour une table. Des cellules choisies : le style du texte, le type, la couleur
  * de la cellule, une formule, l'alignement, + colonne, + ligne et « ••• » (le menu du clic droit). La table seule :
- * son titre. Tout ce qui touche des cellules s'applique à toutes les cellules de toutes les plages ; un outil montre
+ * son titre et sa légende. Tout ce qui touche des cellules s'applique à toutes les cellules de toutes les plages ; un outil montre
  * ce qu'elles ont en commun, rien quand elles diffèrent. Les menus restent ouverts après un choix.
  */
 export function OutilsTable({ elements, contexte }: PropsOutils<Table>) {
@@ -48,9 +48,13 @@ function OutilsElement({ elements, contexte }: { elements: Element<Table>[]; con
     contexte.magasin.faire(elements.map((e) => ({ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: { ...e.contenu, avecTitre: !avecTitre } })))
     if (!avecTitre && elements.length === 1) demanderTitre(elements[0]!.id)
   }
+  const avecLegende = elements.every((e) => e.contenu.avecLegende)
+  const basculerLegende = () =>
+    contexte.magasin.faire(elements.map((e) => ({ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: { ...e.contenu, avecLegende: !avecLegende } })))
   return (
     <>
       <BoutonOutil icone="titre" titre={t('table.titre.titre')} libelle={t('table.titre')} actif={avecTitre} onClick={basculerTitre} />
+      <BoutonOutil icone="legende" titre={t('table.legende.titre')} libelle={t('note.legende')} actif={avecLegende} onClick={basculerLegende} />
     </>
   )
 }

@@ -52,6 +52,7 @@ function monde(plus: Partial<Table> = {}, options: { lectureSeule?: boolean; par
     services: { lectureSeule: !!options.lectureSeule },
     camera: { echelle: 1, origine: { x: 0, y: 0 } },
     selection: new Set([ID]),
+    choisir: () => {},
   } as unknown as ContexteToile
   const lire = () => magasin.lire().elements[0] as Element<Table>
   return { magasin, contexte, lire }
@@ -506,7 +507,7 @@ describe('le titre', () => {
   it('Tab quitte le titre pour A1 ; Maj+Tab depuis A1 y revient', () => {
     const m = monde({ avecTitre: true, titre: 'Devis' })
     monter(m)
-    const titre = hote.querySelector<HTMLInputElement>('input.notak-table-titre')!
+    const titre = hote.querySelector<HTMLTextAreaElement>('textarea.notak-table-titre')!
     act(() => titre.focus())
     appuyer(titre, { key: 'Tab' })
     expect(lireEtat(ID).tete).toEqual({ l: 0, c: 0 })
@@ -518,9 +519,9 @@ describe('le titre', () => {
   it('le titre s’écrit d’un pas, à la validation', () => {
     const m = monde({ avecTitre: true, titre: '' })
     monter(m)
-    const titre = hote.querySelector<HTMLInputElement>('input.notak-table-titre')!
+    const titre = hote.querySelector<HTMLTextAreaElement>('textarea.notak-table-titre')!
     act(() => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(titre, 'Budget')
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(titre, 'Budget')
       titre.dispatchEvent(new Event('input', { bubbles: true }))
     })
     expect(m.lire().contenu.titre).toBe('')
@@ -528,6 +529,27 @@ describe('le titre', () => {
     expect(m.lire().contenu.titre).toBe('Budget')
     m.magasin.annuler()
     expect(m.lire().contenu.titre).toBe('')
+  })
+
+  it('Retour arrière sur un titre vide le retire et va à A1', () => {
+    const m = monde({ avecTitre: true, titre: '' })
+    monter(m)
+    const titre = hote.querySelector<HTMLTextAreaElement>('textarea.notak-table-titre')!
+    act(() => titre.focus())
+    appuyer(titre, { key: 'Backspace' })
+    expect(m.lire().contenu.avecTitre).toBe(false)
+    expect(lireEtat(ID).tete).toEqual({ l: 0, c: 0 })
+  })
+
+  it('la légende : sous la grille, Tab depuis la dernière cellule y va', () => {
+    const m = monde({ avecLegende: true, legende: 'Source : relevé' })
+    monter(m)
+    const legende = hote.querySelector<HTMLTextAreaElement>('textarea.notak-table-legende')!
+    expect(legende.value).toBe('Source : relevé')
+    const d = { l: m.lire().contenu.cellules.length - 1, c: m.lire().contenu.cellules[0]!.length - 1 }
+    act(() => poserEtat(ID, { plages: [{ l1: d.l, c1: d.c, l2: d.l, c2: d.c }], ancre: d, tete: d }))
+    appuyer(clavier()!, { key: 'Tab' })
+    expect(document.activeElement).toBe(legende)
   })
 })
 
@@ -590,10 +612,10 @@ describe('le presse-papiers', () => {
 })
 
 describe('les outils de la barre', () => {
-  it('sans cellule : le titre seul (on ajoute lignes et colonnes depuis les cellules ou la poignée)', () => {
+  it('sans cellule : le titre et la légende (on ajoute lignes et colonnes depuis les cellules ou la poignée)', () => {
     const m = monde()
     monter(m)
-    expect([...hote.querySelectorAll('button')].map((b) => b.textContent?.trim())).toEqual(['Titre'])
+    expect([...hote.querySelectorAll('button')].map((b) => b.textContent?.trim())).toEqual(['Titre', 'Légende'])
     act(() => bouton('Titre').click())
     expect(m.lire().contenu.avecTitre).toBe(true)
   })

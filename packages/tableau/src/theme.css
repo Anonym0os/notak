@@ -17,6 +17,18 @@
   color-scheme: dark;
 }
 
+/* La table : repères, fantôme de déplacement et filets de la grille à la mode sombre de Milanote. */
+.notak-espace[data-theme='sombre'] .notak-tableur {
+  --notak-repere-fond: #282828;
+  --notak-repere-texte: #a3a3a3;
+  --notak-repere-filet: rgb(255 255 255 / 0.08);
+  --notak-repere-touche-texte: #cccccc;
+}
+
+.notak-espace[data-theme='sombre'] .notak-table-ombre {
+  background: rgb(255 255 255 / 0.1);
+}
+
 /* Les champs gardent un texte indicatif lisible sur le sombre, quel que soit l'élément. */
 .notak-espace[data-theme='sombre'] ::placeholder {
   color: var(--notak-pale);
