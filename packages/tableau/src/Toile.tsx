@@ -464,7 +464,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   /** Le fantôme de l'outil qu'on glisse depuis la barre. */
   const [fantome, setFantome] = useState<Element | null>(null)
   const calqueFantome = useRef<HTMLDivElement>(null)
-  const [rebond, setRebond] = useState<{ libelle: string; n: number } | null>(null)
+  const [rebond, setRebond] = useState<{ libelle: string; n: number; texte?: 'barre.cliquer' } | null>(null)
   /** La dépose qui s'anime encore : un nouveau geste l'arrête net. */
   const depose = useRef<{ envol: Envol; ids: Id[] } | null>(null)
   // Les gestionnaires natifs (molette, collage, animation) et le contexte lisent l'état courant ici.
@@ -1851,6 +1851,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const parcouru = Math.hypot(p.x - g.ecran.x, p.y - g.ecran.y)
       // Le fantôme est tenu à sa prise : son coin haut gauche, à l'écran.
       const coin = point(p.x - g.prise.x * k, p.y - g.prise.y * k)
+      if (g.outil.outil.cliquerSeulement) {
+        // Un outil qui ne se glisse pas : ni fantôme ni envol, le geste sert seulement à le dire au lâcher.
+        if (parcouru >= SEUIL_GLISSER) g.demarre = true
+        return
+      }
       if (!g.demarre) {
         if (parcouru < SEUIL_GLISSER) return
         g.demarre = true
@@ -2118,6 +2123,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       // Un outil d'envoi s'ouvre au clic : ce qu'on choisit se pose au milieu de la vue.
       if (clic) return clic(cam.versTableau(camera, point(vue.largeur / 2, vue.hauteur / 2)), contexte)
       setRebond((r) => ({ libelle: g.outil.outil.libelle, n: (r?.n ?? 0) + 1 }))
+      return
+    }
+    if (g.outil.outil.cliquerSeulement) {
+      // Glissé : rien ne naît, l'outil rebondit et la bulle invite à cliquer.
+      setRebond((r) => ({ libelle: g.outil.outil.libelle, n: (r?.n ?? 0) + 1, texte: 'barre.cliquer' }))
       return
     }
     const sur = document.elementFromPoint(e.clientX, e.clientY)

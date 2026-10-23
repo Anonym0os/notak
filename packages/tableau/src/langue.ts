@@ -149,6 +149,7 @@ export const fr: Textes = {
   'commun.annuler': 'Annuler',
 
   'barre.glisser': 'Glissez l’outil sur le tableau',
+  'barre.cliquer': 'Cliquez sur l’outil pour ajouter une image',
   'barre.plusOutils': 'Plus d’outils',
   'barre.retour': 'Retour aux éléments à créer',
   'couleur.recentes': 'Récentes',
@@ -1041,6 +1042,7 @@ export const en: Textes = {
   'commun.annuler': 'Cancel',
 
   'barre.glisser': 'Drag the tool onto the board',
+  'barre.cliquer': 'Click the tool to add an image',
   'barre.plusOutils': 'More tools',
   'barre.retour': 'Back to the elements to create',
   'couleur.recentes': 'Recent',

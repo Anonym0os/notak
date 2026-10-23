@@ -357,6 +357,8 @@ export interface Outil {
   creer(ou: Point, contexte: ContexteToile): Operation[]
   /** Un clic sans glisser : au lieu du rebond qui rappelle de glisser (ouvrir un sélecteur de fichiers). */
   clic?(ou: Point, contexte: ContexteToile): void
+  /** Glisser l'outil ne crée rien : il rebondit et la bulle invite à cliquer (l'outil Image de Milanote, dont le clic ouvre un panneau). */
+  cliquerSeulement?: boolean
 }
 
 /**

@@ -57,11 +57,10 @@ registre.type<Fichier>({
       rang: 80,
       groupe: 'action',
       fantome: () => fantome(t('type.image'), 'image/png'),
-      // L'élément naît du choix fait dans le sélecteur, là où l'on a lâché l'outil.
-      creer: (ou, contexte) => {
-        choisirFichiers(ou, contexte, 'image/*')
-        return []
-      },
+      // Rien ne naît d'un glisser (voir `cliquerSeulement`) : l'image naît du panneau, ou du sélecteur de fichiers.
+      creer: () => [],
+      // Glisser l'outil ne crée rien, comme chez Milanote : il rebondit et la bulle invite à cliquer.
+      cliquerSeulement: true,
       // Avec une banque d'images, le clic ouvre son panneau (« Envoyer les vôtres » y mène au sélecteur) ; sans, le sélecteur.
       clic: (ou, contexte) => {
         fermerEnvoi()
