@@ -20,6 +20,7 @@ registre.entreeMenu({
     return t('menu.commenter')
   },
   visible: (elements) => elements.length === 1,
+  tuile: true,
   faire: (elements) => ouvrirFil(elements[0]!.id),
 })
 registre.entreeMenu({
@@ -27,6 +28,7 @@ registre.entreeMenu({
     return t('menu.enIcone')
   },
   visible: (elements, contexte) => modifiables(elements, contexte) && repliables(elements) && elements.some((e) => !estReduit(e)),
+  tuile: true,
   faire: (elements, contexte) => appliquerAffichage(elements, true, contexte),
 })
 registre.entreeMenu({
@@ -34,5 +36,6 @@ registre.entreeMenu({
     return t('menu.enDetail')
   },
   visible: (elements, contexte) => modifiables(elements, contexte) && repliables(elements) && elements.some(estReduit),
+  tuile: true,
   faire: (elements, contexte) => appliquerAffichage(elements, false, contexte),
 })

@@ -153,7 +153,6 @@ import {
   IconInfoCircle,
   IconLayoutNavbar,
   IconMathFunction,
-  IconLockOpen,
   IconStackFront,
   IconStackBack,
   IconArrowsExchange,
@@ -375,7 +374,6 @@ const ICONES = {
   alerte: IconAlertCircle,
   formule: IconMathFunction,
   // Le menu « ••• » d'une sélection.
-  deverrou: IconLockOpen,
   premierPlan: IconStackFront,
   arrierePlan: IconStackBack,
   convertir: IconArrowsExchange,

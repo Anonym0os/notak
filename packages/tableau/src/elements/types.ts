@@ -313,6 +313,8 @@ export interface EntreeMenu {
   libelle: string
   raccourci?: string
   visible(elements: Element[], contexte: ContexteToile): boolean
+  /** Le geste a déjà sa tuile dans la barre de gauche : l'entrée reste au clic droit, et ne se répète pas dans « ••• ». */
+  tuile?: boolean
   faire(elements: Element[], contexte: ContexteToile): void
 }
 

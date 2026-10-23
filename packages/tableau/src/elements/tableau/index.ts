@@ -56,6 +56,7 @@ registre.entreeMenu({
     return t('menu.renommer')
   },
   visible: (els) => els.length === 1 && els[0]!.contenu.type === 'tableau',
+  tuile: true,
   faire: ([e]) => e && demanderRenommage(e.id),
 })
 

@@ -7,6 +7,7 @@ import type { ContexteToile, Outil } from './elements/types'
 import { ContexteOutils } from './BoutonOutil'
 import { useBarreBornee, useMenusBornes } from './borner'
 import { Icone } from './icones'
+import { MenuActions } from './MenuActions'
 import { useMenu } from './menuUnique'
 import { Vignette } from './vignettes'
 
@@ -215,6 +216,8 @@ export function BarreSelection({
               </button>
               <div className="notak-tiroir" hidden={!tiroir}>
                 <div className="notak-tiroir-grille" ref={setCibleTiroir} />
+                {/* Le menu d'actions du « ••• » : Verrouiller, plans, convertir, ouvrir… */}
+                <MenuActions elements={elements} contexte={contexte} fermer={() => setTiroir(false)} />
                 {mele &&
                   blocs.map((b) => (
                     <div key={b.type} className="notak-tiroir-type">

@@ -1,8 +1,7 @@
 import type { Element } from '../../coeur/tableau'
-import type { ContexteToile, EntreeMenu, OutilCommun } from '../types'
+import type { ContexteToile, EntreeMenu } from '../types'
 import { pasDeGroupement } from './grouper'
 import { accepteDansColonne } from './regles'
-import { BoutonOutil } from '../../BoutonOutil'
 import { t } from '../../langue'
 
 const groupables = (elements: Element[], contexte: ContexteToile) =>
@@ -26,11 +25,4 @@ export const entreeGrouper: EntreeMenu = {
   },
   visible: (elements, contexte) => groupables(elements, contexte).length > 0,
   faire: grouper,
-}
-
-/** « Colonne » : range les éléments libres choisis dans une colonne neuve. */
-export const OutilGrouper: OutilCommun = ({ elements, contexte }) => {
-  const items = groupables(elements, contexte)
-  if (items.length < 2) return null
-  return <BoutonOutil icone="colonne" secondaire titre={t('colonne.mettre')} libelle={t('type.colonne')} onClick={() => grouper(elements, contexte)} />
 }
