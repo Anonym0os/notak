@@ -64,14 +64,13 @@ describe('espace', () => {
     expect(n).toBe(2)
   })
 
-  it('crée un tableau vide, titré, aux couleurs qui tournent', () => {
+  it('crée un tableau vide, titré, sans couleur (tuile grise)', () => {
     const e = creerEspace(exemple())
     const id = e.creerTableau('Neuf')
     const t = e.lire().tableaux[id]!
     expect(t).toMatchObject({ id, titre: 'Neuf', elements: [] })
     expect(e.magasin(id).lire().titre).toBe('Neuf')
-    const idAutre = e.creerTableau('Autre')
-    expect(e.lire().tableaux[idAutre]!.couleur).not.toBe(t.couleur)
+    expect(t.couleur).toBeUndefined()
   })
 
   it('renomme un tableau', () => {

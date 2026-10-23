@@ -136,7 +136,8 @@ export function creerEspace(initial: Espace): EspaceVivant {
     existe: (id) => !!lire().tableaux[id],
     creerTableau(titre) {
       const id = nouvelId()
-      base[id] = { id, titre, couleur: couleurSuivante(Object.keys(base).length), elements: [] }
+      // Comme Milanote : un tableau neuf n'a pas de couleur, sa tuile est grise.
+      base[id] = { id, titre, elements: [] }
       changer()
       return id
     },

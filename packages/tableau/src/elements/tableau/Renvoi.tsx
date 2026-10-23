@@ -126,9 +126,10 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
           <span className="notak-renvoi-signe" role="img" aria-label={pastille.libelle}>
             <Icone nom={pastille.icone} taille={38} trait={1.5} />
           </span>
-        ) : (
+        ) : // Sans icône ni image, la tuile reste unie : l'initiale ne vient qu'avec une couleur choisie.
+        couleur && couleur !== 'transparent' ? (
           initiale(titre)
-        )}
+        ) : null}
         {element.contenu.raccourci && (
           <span className="notak-renvoi-raccourci" title={t('tableau.raccourci.titre')} aria-label={t('tableau.raccourci')}>
             <Icone nom="ligne" taille={12} trait={2} />

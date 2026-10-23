@@ -1,7 +1,7 @@
 import * as Y from 'yjs'
 import type { Point } from './geometrie'
 import type { Presence, ServicePresence } from '../elements/types'
-import { type EspaceNavigable, couleurSuivante } from './espace'
+import type { EspaceNavigable } from './espace'
 import { type MagasinYjs, creerMagasinYjs } from './magasinYjs'
 import { type Id, nouvelId } from './tableau'
 
@@ -122,8 +122,6 @@ export function presenceDe(client: number, etat: Record<string, unknown>): Prese
     edition: typeof etat.edition === 'string' ? etat.edition : null,
   }
 }
-
-const hachage = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7)
 
 /** L'espace d'un compte : les tableaux sont des documents Yjs, ouverts à la demande et refermés quand plus rien ne les regarde. */
 export function creerEspaceDistant(options: OptionsEspaceDistant): EspaceDistant {
@@ -351,7 +349,7 @@ export function creerEspaceDistant(options: OptionsEspaceDistant): EspaceDistant
       const declaration: Declaration = { id, titre, ...(parent !== undefined ? { parent } : {}) }
       void declarer(declaration)
       const e = ouvrir(id)
-      e.magasin.remplacer({ titre, couleur: couleurSuivante(hachage(id)), elements: [] })
+      e.magasin.remplacer({ titre, elements: [] })
       return id
     },
     renommer(id, titre) {
