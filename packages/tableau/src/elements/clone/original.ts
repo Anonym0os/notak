@@ -50,8 +50,8 @@ export const nouveauClone = (x: number, y: number, cible: Id, largeur: number): 
   contenu: { type: 'clone', cible },
 })
 
-/** Où naît un clone « à côté » : à droite de l'élément, sur sa ligne, à deux unités de lui. */
-export const placeAcote = (x: number, y: number, largeur: number): { x: number; y: number } => ({ x: Math.round(x + largeur) + 2, y: Math.round(y) })
+/** Où naît un clone sur la toile : deux unités à droite et deux plus bas que l'élément, comme « Dupliquer ». */
+export const placeAcote = (x: number, y: number): { x: number; y: number } => ({ x: Math.round(x) + 2, y: Math.round(y) + 2 })
 
 /** Ce qu'on lit d'un clone dans une liste, quand son original n'est plus là. */
 export const resumeSansOriginal = () => t('clone.sansOriginal')

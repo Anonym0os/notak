@@ -7,6 +7,8 @@ import { passeLeFiltre, peutEtreIcone } from './elements/decor/annotations'
 import { useFiltre } from './elements/decor/etat'
 import { teinteDeCarte } from './elements/couleur/teinte'
 import { definition } from './elements/registre'
+import { MarqueClone } from './elements/clone/Marque'
+import { peutCloner } from './elements/clone/original'
 import { PoigneeHauteur } from './elements/rangee/PoigneeHauteur'
 import type { ContexteToile } from './elements/types'
 
@@ -83,6 +85,7 @@ export const Cadre = memo(function Cadre({ element, choisie, seule, enEdition, c
       )}
       {plafond !== undefined && <Voile carte={noeud} />}
       <Decor element={element} contexte={contexte} mode={mode} />
+      {peutCloner(element.contenu) && <MarqueClone cible={element.id} contexte={contexte} />}
       {poignee && <div className="notak-poignee" data-poignee aria-hidden />}
       {rangeReglable && <PoigneeHauteur element={element} carte={noeud} contexte={contexte} />}
     </div>

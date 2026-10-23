@@ -2,9 +2,9 @@ import { useSyncExternalStore } from 'react'
 import type { Clone, Element } from '../../coeur/tableau'
 import { definition } from '../registre'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
+import { MarqueClone } from './Marque'
 import { originalAffichable, originalDe } from './original'
 import { t } from '../../langue'
-import { Icone } from '../../icones'
 import { BoutonOutil } from '../../BoutonOutil'
 
 const rien = () => {}
@@ -44,9 +44,7 @@ export function RenduClone({ element, choisie, contexte }: PropsRendu<Clone>) {
         }}
       />
       {sansFond && <span className="notak-clone-nu" hidden />}
-      <span className="notak-clone-marque" title={t('clone.marque')} aria-label={t('type.clone')}>
-        <Icone nom="copie" taille={13} />
-      </span>
+      <MarqueClone cible={element.contenu.cible} contexte={contexte} toujours />
     </>
   )
 }

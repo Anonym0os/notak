@@ -5,7 +5,7 @@ import { OutilsClone, RenduClone } from './Clone'
 import './clone.css'
 import { cibleDe, clonesEmportes, nouveauClone, originalAffichable, originalDe, peutCloner, placeAcote, resumeSansOriginal } from './original'
 import { t } from '../../langue'
-import { ico } from '../../icones'
+import { cleEntre, comparerOrdre } from '../../coeur/ordre'
 
 /**
  * Les clones de ces éléments, posés à côté de chacun. Un élément déjà clone donne un clone de son original.
@@ -14,10 +14,14 @@ import { ico } from '../../icones'
 export function cloner(elements: readonly Element[], contexte: ContexteToile) {
   const aCloner = elements.filter((e) => peutCloner(e.contenu) || e.contenu.type === 'clone')
   if (aCloner.length === 0 || contexte.services.lectureSeule) return
+  const tous = contexte.magasin.lire().elements
   const clones = aCloner.map((e) => {
-    const r = contexte.rect(e.id)
-    const place = placeAcote(r?.min.x ?? e.x, r?.min.y ?? e.y, r ? r.max.x - r.min.x : e.largeur)
-    return nouveauClone(place.x, place.y, cibleDe(e), e.largeur)
+    const place = placeAcote(e.x, e.y)
+    const clone = nouveauClone(place.x, place.y, cibleDe(e), e.largeur)
+    if (!e.parent) return clone
+    // Rangé dans une colonne, le clone naît juste après.
+    const freres = tous.filter((x) => x.parent === e.parent).sort((a, b) => comparerOrdre(a.ordre, b.ordre))
+    return { ...clone, parent: e.parent, ordre: cleEntre(e.ordre, freres[freres.findIndex((x) => x.id === e.id) + 1]?.ordre) }
   })
   contexte.magasin.faire(clones.map((element) => ({ type: 'creer' as const, element })))
   contexte.choisir(clones.map((c) => c.id))
@@ -46,25 +50,6 @@ registre.type<Clone>({
     if (original) contexte.commencerEdition(original.id)
   },
   suivant: () => null,
-  outils: [
-    {
-      get libelle() {
-        return t('type.clone')
-      },
-      icone: ico('copie'),
-      rang: 290,
-      vignette: 'clone',
-      tiroir: true,
-      fantome: () => nouveauClone(0, 0, '', 17),
-      // Le clone de l'élément choisi, là où l'on lâche l'outil.
-      creer: (ou, contexte) => {
-        const choisis = contexte.magasin.lire().elements.filter((e) => contexte.selection.has(e.id))
-        const source = choisis.length === 1 ? choisis[0] : undefined
-        if (!source || !(peutCloner(source.contenu) || source.contenu.type === 'clone')) return []
-        return [{ type: 'creer', element: nouveauClone(Math.round(ou.x), Math.round(ou.y), cibleDe(source), source.largeur) }]
-      },
-    },
-  ],
 })
 
 const clonables = (elements: readonly Element[]) =>
@@ -74,6 +59,7 @@ registre.entreeMenu({
   get libelle() {
     return t('clone.cloner')
   },
-  visible: (elements, contexte) => clonables(elements) && !contexte.services.lectureSeule,
+  // Un seul élément à la fois, comme chez Milanote.
+  visible: (elements, contexte) => elements.length === 1 && clonables(elements) && !contexte.services.lectureSeule,
   faire: (elements, contexte) => cloner(elements, contexte),
 })
