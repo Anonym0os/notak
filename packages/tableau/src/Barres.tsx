@@ -104,13 +104,18 @@ export function BarreSelection({
   contexte: ContexteToile
   position: { x: number; y: number }
 }) {
+  const [plus, setPlus] = useState(false)
   const parType = new Map<string, Element[]>()
   for (const e of elements) parType.set(e.contenu.type, [...(parType.get(e.contenu.type) ?? []), e])
   const blocs = [...parType].flatMap(([type, els]) => {
-    const Outils = definition(els[0]!.contenu.type)?.Outils
-    return Outils ? [<Outils key={type} elements={els} contexte={contexte} />] : []
+    const def = definition(type as Element['contenu']['type'])
+    const Outils = def?.Outils
+    return Outils ? [{ type, nom: def?.nom ?? type, n: els.length, rendu: <Outils key={type} elements={els} contexte={contexte} /> }] : []
   })
   const communs = tousLesOutilsCommuns().map((O, i) => <O key={`c${i}`} elements={elements} contexte={contexte} />)
+  // Une sélection d'un seul type montre ses outils ; une sélection mêlée ne montre que ce qui vaut pour tous,
+  // et range les outils de chaque type derrière « … ».
+  const mele = parType.size > 1
   if (blocs.length === 0 && communs.length === 0) return null
   return (
     <div
@@ -119,8 +124,28 @@ export function BarreSelection({
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
     >
-      {blocs}
+      {!mele && blocs.map((b) => b.rendu)}
       {communs}
+      {mele && blocs.length > 0 && (
+        <span className="notak-barre-plus">
+          <button type="button" title="Outils de chaque type" aria-expanded={plus} aria-pressed={plus} onClick={() => setPlus((p) => !p)}>
+            …
+          </button>
+          {plus && (
+            <div className="notak-barre-plus-menu" role="menu">
+              {blocs.map((b) => (
+                <div key={b.type} className="notak-barre-plus-groupe">
+                  <span className="notak-barre-plus-nom">
+                    {b.nom}
+                    {b.n > 1 ? ` (${b.n})` : ''}
+                  </span>
+                  <div className="notak-barre-plus-outils">{b.rendu}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </span>
+      )}
     </div>
   )
 }

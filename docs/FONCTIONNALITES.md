@@ -24,13 +24,13 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 9. Ligne | 9 | 2 | 3 | 71 % |
 | 10. Autres éléments | 0 | 1 | 11 | 4 % |
 | 11. Commun aux éléments | 3 | 1 | 8 | 29 % |
-| 12. Organiser | 13 | 1 | 2 | 84 % |
+| 12. Organiser | 13 | 2 | 1 | 88 % |
 | 13. Naviguer | 6 | 3 | 4 | 58 % |
 | 14. À plusieurs | 7 | 3 | 7 | 50 % |
 | 15. Habillage | 1 | 4 | 10 | 20 % |
 | 16. Exporter, importer | 0 | 0 | 4 | 0 % |
 | 17. Plateformes | 1 | 1 | 5 | 21 % |
-| **Total** | **123** | **31** | **95** | **56 %** |
+| **Total** | **123** | **32** | **94** | **56 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -287,7 +287,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Relier par une ligne (Cmd+K) | ✅ | |
 | Envoyer dans un tableau, sur le fil d'Ariane | ✅ | |
 | Annuler, rétablir (Cmd+Z, Cmd+Maj+Z, Cmd+Y) | ✅ | |
-| Barre de sélection : outils communs seulement, menu « … » | ⬜ | Une sélection mêlée empile les outils de chaque type. |
+| Barre de sélection : outils communs seulement, menu « … » | 🟡 | Une sélection mêlée montre les outils communs, et ceux de chaque type derrière « … » ; la couleur n'est pas encore commune aux notes, colonnes et tableaux. |
 | Déplacer vers les non triés (Alt+`) | ⬜ | Attend les non triés (§ 2). |
 | Sélectionner tout le tableau, désélectionner | ✅ | |
 

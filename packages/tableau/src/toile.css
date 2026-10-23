@@ -841,3 +841,45 @@
     transform: translate(-50%, 8px);
   }
 }
+
+/* Le « … » d'une sélection mêlée : les outils de chaque type, sous son nom. */
+.notak-barre-plus {
+  position: relative;
+}
+
+.notak-barre-plus-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--notak-carte);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
+  transform: translateX(-50%);
+}
+
+.notak-barre-plus-groupe {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notak-barre-plus-nom {
+  min-width: 64px;
+  color: #7a7f87;
+  font-size: 11px;
+}
+
+.notak-barre-plus-outils {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Un type qui n'a rien à proposer pour plusieurs éléments à la fois (renommer un fichier) n'a pas de ligne. */
+.notak-barre-plus-groupe:has(.notak-barre-plus-outils:empty) {
+  display: none;
+}
