@@ -101,6 +101,21 @@ export function hauteurEstimee(e: ElementModele): number {
   return Math.max(e.genre === 'note' ? 8 : 6, Math.ceil(pixelsFeuille(e, largeur) / PX_PAR_UG))
 }
 
+/**
+ * La variante d'un modèle sans ses exemples : mêmes titres, mêmes colonnes, mêmes positions. Une note ne garde que
+ * son sous-titre (la ligne `# `), une liste de tâches son titre et une seule case vide, et les colonnes se
+ * vident de ce qu'elles contenaient.
+ */
+export function sansExemple(m: ModeleTableau): ModeleTableau {
+  const vider = (e: ElementModele): ElementModele => {
+    if (e.genre === 'titre') return e
+    if (e.genre === 'colonne') return { ...e, contenu: [] }
+    if (e.genre === 'note') return { ...e, texte: e.texte.split('\n').filter((l) => l.startsWith('# ')).slice(0, 1).join('') }
+    return { ...e, taches: [''] }
+  }
+  return { ...m, elements: m.elements.map(vider) }
+}
+
 const contenuDe = (f: Feuille): Element['contenu'] =>
   f.genre === 'note'
     ? { type: 'note', texte: docDeNote(f.texte), ...(f.couleur ? { couleur: f.couleur } : {}) }

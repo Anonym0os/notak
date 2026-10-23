@@ -29,6 +29,12 @@ describe('poser un modèle dans un tableau', () => {
     expect(deposes[0]!.length).toBeGreaterThanOrEqual(m.elements.length)
   })
 
+  it('peut laisser au tableau son titre et sa couleur', () => {
+    const { s, appels } = services([])
+    expect(poserModele(MODELES[0]!, 'cible', s, { identite: false })).toBe(true)
+    expect(appels).toEqual(['depose:cible'])
+  })
+
   it('ne touche pas à un tableau qui a déjà du contenu, ni en lecture seule, ni sans dépôt possible', () => {
     const plein: Element[] = [{ id: 'a', x: 0, y: 0, largeur: 34, contenu: { type: 'colonne', titre: 'X' } }]
     for (const { s, appels } of [services(plein), services([], { lectureSeule: true }), services([], { deposerDans: undefined })]) {
