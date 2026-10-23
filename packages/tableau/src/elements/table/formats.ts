@@ -8,28 +8,39 @@ export interface CouleurNommee {
   valeur: string
 }
 
-/** Couleur du texte ; « défaut » est l'absence de couleur. */
+/**
+ * Couleur du texte et surlignage : des noms, qui suivent le thème (`var(--notak-texte-bleu)`) ; les deux s'excluent.
+ * Un hex (couleur d'une table plus ancienne) s'affiche tel quel. Les valeurs claires servent à l'export.
+ */
 export const COULEURS_TEXTE: readonly CouleurNommee[] = [
-  { nom: 'bleu', valeur: '#2b6fd6' },
-  { nom: 'vert', valeur: '#2e9b4f' },
-  { nom: 'orange', valeur: '#e8741a' },
-  { nom: 'rouge', valeur: '#d93a3a' },
-  { nom: 'gris', valeur: '#7a7f87' },
+  { nom: 'bleu', valeur: '#4ebafd' },
+  { nom: 'vert', valeur: '#4eb85a' },
+  { nom: 'orange', valeur: '#ff8d22' },
+  { nom: 'rouge', valeur: '#f52929' },
+  { nom: 'gris', valeur: '#5f6672' },
 ]
 
-/** Surlignage du texte (exclusif avec la couleur du texte) ; « aucun » est l'absence de surlignage. */
 export const SURLIGNAGES: readonly CouleurNommee[] = [
-  { nom: 'grisFonce', valeur: '#9aa0a8' },
-  { nom: 'bleu', valeur: '#a5d4fb' },
-  { nom: 'vert', valeur: '#b5e8a3' },
-  { nom: 'orange', valeur: '#ffc89a' },
-  { nom: 'rose', valeur: '#ffb8e8' },
-  { nom: 'gris', valeur: '#d9dbde' },
+  { nom: 'grisFonce', valeur: '#000000' },
+  { nom: 'bleu', valeur: '#8ae0ff' },
+  { nom: 'vert', valeur: '#c9f201' },
+  { nom: 'orange', valeur: '#ffce26' },
+  { nom: 'rose', valeur: '#ffa4de' },
+  { nom: 'gris', valeur: '#e8e9eb' },
 ]
 
-/** Fond de cellule ; `entete` est le gris d'en-tête, qui change avec le thème (voir `FOND_ENTETE`). */
+const enCss = (nom: string) => nom.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
+
+/** La couleur CSS d'une couleur de texte rangée dans une cellule. */
+export const couleurTexte = (v: string): string => (v.startsWith('#') ? v : `var(--notak-texte-${enCss(v)})`)
+export const couleurSurlignage = (v: string): string => (v.startsWith('#') ? v : `var(--notak-surligne-${enCss(v)})`)
+/** La même, en hex du thème clair, pour ce qui sort de Notak (presse-papiers). */
+export const hexTexte = (v: string): string => (v.startsWith('#') ? v : (COULEURS_TEXTE.find((c) => c.nom === v)?.valeur ?? v))
+export const hexSurlignage = (v: string): string => (v.startsWith('#') ? v : (SURLIGNAGES.find((c) => c.nom === v)?.valeur ?? v))
+
+/** Fond de cellule : aucune, le gris d'en-tête (qui change avec le thème, voir `FOND_ENTETE`), puis les dix couleurs. */
 export const FONDS_CELLULE: readonly CouleurNommee[] = [
-  { nom: 'gris', valeur: '#bbbec3' },
+  { nom: 'entete', valeur: 'entete' },
   { nom: 'cyan', valeur: '#62dbc8' },
   { nom: 'vert', valeur: '#7cd651' },
   { nom: 'brun', valeur: '#d58558' },
@@ -40,8 +51,20 @@ export const FONDS_CELLULE: readonly CouleurNommee[] = [
   { nom: 'violet', valeur: '#ad6fff' },
   { nom: 'bleu', valeur: '#4ebafd' },
   { nom: 'bleuProfond', valeur: '#5882f8' },
-  { nom: 'entete', valeur: 'entete' },
 ]
+
+/** Un fond clair garde un texte sombre, un fond foncé prend un texte blanc. */
+export function texteSurFond(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex)
+  if (!m) return '#1f2328'
+  const n = parseInt(m[1]!, 16)
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((x) => {
+    const c = x / 255
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  })
+  const l = 0.2126 * r! + 0.7152 * g! + 0.0722 * b!
+  return l > 0.36 ? '#1f2328' : '#ffffff'
+}
 
 export const FOND_ENTETE = { clair: '#d1d3d6', sombre: '#414141' }
 export const FOND_CORPS = { clair: '#ffffff', sombre: '#282828' }
@@ -183,20 +206,21 @@ function serieDe(texte: string): number | null {
   return serieDeIso(t)
 }
 
+// Les rendus de la langue : les chiffres sont ceux qu'elle donne d'elle-même (01/02/2006 en français, 2/1/2006 aux États-Unis).
 const OPTIONS_DATE: Record<Exclude<FormatDate, 'aucun'>, Intl.DateTimeFormatOptions> = {
-  long: { day: 'numeric', month: 'long', year: 'numeric' },
-  court: { day: 'numeric', month: 'short', year: 'numeric' },
-  chiffres: { day: '2-digit', month: '2-digit', year: 'numeric' },
-  chiffresCourts: { day: '2-digit', month: '2-digit', year: '2-digit' },
-  tirets: { day: '2-digit', month: '2-digit', year: 'numeric' },
-  jour: { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' },
+  long: { dateStyle: 'long' },
+  court: { dateStyle: 'medium' },
+  chiffres: {},
+  chiffresCourts: { year: '2-digit', month: 'numeric', day: 'numeric' },
+  tirets: {},
+  jour: { dateStyle: 'full' },
 }
 
 const OPTIONS_HEURE: Record<Exclude<FormatHeure, 'aucune'>, Intl.DateTimeFormatOptions> = {
-  '12h': { hour: 'numeric', minute: '2-digit', hour12: true },
-  '12hs': { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true },
-  '24h': { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' },
-  '24hs': { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' },
+  '12h': { hourCycle: 'h12', hour: 'numeric', minute: 'numeric' },
+  '12hs': { hourCycle: 'h12', hour: 'numeric', minute: 'numeric', second: 'numeric' },
+  '24h': { hourCycle: 'h23', timeStyle: 'short' },
+  '24hs': { hourCycle: 'h23', hour: 'numeric', minute: 'numeric', second: 'numeric' },
 }
 
 function afficherDate(serie: number, f: FormatCellule, langue: Regional): string | null {
@@ -216,7 +240,8 @@ function afficherDate(serie: number, f: FormatCellule, langue: Regional): string
     texteDate = parties
       .map((p) => {
         if (p.type === 'day' && jour.faux29) return '29'
-        if (p.type === 'literal' && format === 'tirets') return p.value.replace('/', '-')
+        if (p.type === 'literal' && format === 'tirets') return p.value.replace(/\//g, '-')
+        if (p.type === 'literal' && (format === 'chiffres' || format === 'chiffresCourts')) return p.value.replace(/-/g, '/')
         return p.value
       })
       .join('')
@@ -257,10 +282,11 @@ export function afficher(texte: string, format: FormatCellule | null | undefined
   if (!CANON.test(t)) return texte
   const n = Number(t)
   if (type === 'nombre') {
-    const d = format.decimales === undefined ? decimalesAuto(t, n) : borneDec(format.decimales)
+    const d = format.decimales === undefined || format.decimales === 'auto' ? decimalesAuto(t, n) : borneDec(format.decimales)
     return new Intl.NumberFormat(locale, { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: groupement(format) }).format(n)
   }
-  const d = borneDec(format.decimales ?? 2)
+  // Vide : deux décimales ; « auto » : autant que la valeur en porte.
+  const d = format.decimales === 'auto' ? decimalesAuto(t, n) : borneDec(format.decimales ?? 2)
   if (type === 'pourcent') {
     return new Intl.NumberFormat(locale, { style: 'percent', minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: groupement(format) }).format(n)
   }

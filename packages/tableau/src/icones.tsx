@@ -1,6 +1,9 @@
 import {
   IconActivity,
   IconAlignCenter,
+  IconAlignJustified,
+  IconAlignLeft,
+  IconAlignRight,
   IconAlertCircle,
   IconAlertTriangle,
   IconArrowBackUp,
@@ -220,6 +223,11 @@ const ICONES = {
   traitTirets: IconLineDashed,
   traitPoints: IconLineDotted,
   // L'arrangement.
+  // L'alignement du texte dans une cellule.
+  texteGauche: IconAlignLeft,
+  texteCentre: IconAlignCenter,
+  texteDroite: IconAlignRight,
+  justifier: IconAlignJustified,
   alignerGauche: IconLayoutAlignLeft,
   alignerCentreH: IconLayoutAlignCenter,
   alignerDroite: IconLayoutAlignRight,

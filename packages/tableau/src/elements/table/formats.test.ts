@@ -52,7 +52,7 @@ describe('afficher une date', () => {
     expect(d('38749', 'chiffres')).toBe('01/02/2006')
     expect(d('38749', 'chiffresCourts')).toBe('01/02/06')
     expect(d('38749', 'tirets')).toBe('01-02-2006')
-    expect(d('38749', 'jour')).toBe('mercredi 1 févr. 2006')
+    expect(d('38749', 'jour')).toBe('mercredi 1 février 2006')
   })
   test('une date ISO tapée s’affiche aussi', () => {
     expect(d('2006-02-01', 'chiffres')).toBe('01/02/2006')
@@ -67,7 +67,7 @@ describe('afficher une date', () => {
   test('l’heure : 24 h, 12 h, secondes, parenthèses', () => {
     expect(afficher('38749.5', { type: 'date', date: 'chiffres', heure: '24h' }, 'fr')).toBe('01/02/2006 12:00')
     expect(afficher('38749.75', { type: 'date', date: 'chiffres', heure: '24hs' }, 'fr')).toBe('01/02/2006 18:00:00')
-    expect(s(afficher('38749.75', { type: 'date', date: 'chiffres', heure: '12h' }, 'en'))).toBe('02/01/2006 6:00 PM')
+    expect(s(afficher('38749.75', { type: 'date', date: 'chiffres', heure: '12h' }, 'en'))).toBe('2/1/2006 6:00 PM')
     expect(afficher('38749.5', { type: 'date', date: 'chiffres', heure: '24h', heureEntreParentheses: true }, 'fr')).toBe('01/02/2006 (12:00)')
     expect(afficher('38749.5', { type: 'date', date: 'aucun', heure: '24h' }, 'fr')).toBe('12:00')
   })
@@ -207,7 +207,7 @@ describe('alignementDe', () => {
     expect(alignementDe({ type: 'texte' })).toBe('gauche')
     expect(alignementDe({ type: 'nombre', alignement: 'centre' })).toBe('centre')
   })
-  test('une formule s’aligne à gauche', () => {
+  test('une formule sans type s’aligne à gauche', () => {
     expect(alignementDe({ type: 'nombre' }, true)).toBe('gauche')
     expect(alignementDe({ type: 'nombre', alignement: 'droite' }, true)).toBe('droite')
   })
@@ -215,8 +215,9 @@ describe('alignementDe', () => {
 
 describe('les couleurs', () => {
   test('les fonds du relevé, avec l’en-tête', () => {
-    expect(FONDS_CELLULE).toHaveLength(12)
-    expect(FONDS_CELLULE.at(-1)?.valeur).toBe('entete')
+    // « Aucune » vient avant, puis le gris d'en-tête, puis les dix couleurs.
+    expect(FONDS_CELLULE).toHaveLength(11)
+    expect(FONDS_CELLULE[0]?.valeur).toBe('entete')
     expect(FONDS_CELLULE.every((c) => c.valeur === 'entete' || /^#[0-9a-f]{6}$/.test(c.valeur))).toBe(true)
   })
   test('couleurs de texte et surlignages en #rrggbb', () => {

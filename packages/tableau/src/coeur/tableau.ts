@@ -289,8 +289,8 @@ export type FormatHeure = 'aucune' | '12h' | '12hs' | '24h' | '24hs'
 /** Mise en forme et type d'une cellule entière (voir docs/ecarts/table.md). */
 export interface FormatCellule {
   type?: TypeCellule
-  /** Nombre, monnaie, pourcentage : 0 à 20 ; absent : autant que tapé (nombre) ou 2. */
-  decimales?: number
+  /** Nombre, monnaie, pourcentage : 0 à 20, ou « auto » (autant que tapé) ; absent : auto pour un nombre, 2 sinon. */
+  decimales?: number | 'auto'
   /** Séparateur des milliers ; absent : oui. */
   sansMilliers?: boolean
   /** Monnaie : code ISO (EUR par défaut), affichage, négatifs entre parenthèses. */

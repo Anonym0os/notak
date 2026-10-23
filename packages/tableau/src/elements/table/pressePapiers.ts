@@ -1,5 +1,5 @@
 import type { FormatCellule, Table } from '../../coeur/tableau'
-import { type Regional, saisir } from './formats'
+import { type Regional, hexSurlignage, hexTexte, saisir } from './formats'
 import {
   COLONNES_MAX,
   LIGNES_MAX,
@@ -54,7 +54,8 @@ function styleCss(f: FormatCellule | null): string {
   if (!f) return ''
   const css: string[] = []
   if (f.fond) css.push(`background:${f.fond === 'entete' ? '#d1d3d6' : f.fond}`)
-  if (f.couleur) css.push(`color:${f.couleur}`)
+  if (f.couleur) css.push(`color:${hexTexte(f.couleur)}`)
+  if (f.surligne) css.push(`background:${hexSurlignage(f.surligne)}`)
   if (f.alignement) css.push(`text-align:${f.alignement === 'gauche' ? 'left' : f.alignement === 'droite' ? 'right' : 'center'}`)
   if (f.gras) css.push('font-weight:bold')
   if (f.italique) css.push('font-style:italic')

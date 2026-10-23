@@ -40,7 +40,7 @@ import {
   rendreALaToile,
   useEtatTable,
 } from './etat'
-import { COULEURS_REFERENCES, alignementDe, regional, regionalDuSysteme } from './formats'
+import { COULEURS_REFERENCES, alignementDe, couleurSurlignage, couleurTexte, regional, regionalDuSysteme, texteSurFond } from './formats'
 import { citerReferences, evaluerTable, modeCitation, nomCellule, nomColonne } from './formules'
 import {
   type Plage,
@@ -110,8 +110,8 @@ export function styleDeCellule(f: FormatCellule | null | undefined, estFormule: 
   const vertical = { haut: 'top', milieu: 'middle', bas: 'bottom' } as const
   return {
     ...(v ? { background: v } : {}),
-    // Un fond de couleur garde un texte sombre, quel que soit le thème.
-    ...(f?.couleur ? { color: f.couleur } : v && v !== 'var(--notak-table-entete)' ? { color: '#1f2328' } : {}),
+    // Sur un fond de couleur, le texte se lit en sombre ou en blanc selon la clarté du fond, quel que soit le thème.
+    ...(f?.couleur ? { color: couleurTexte(f.couleur) } : v && v !== 'var(--notak-table-entete)' ? { color: texteSurFond(v) } : {}),
     textAlign: a === 'gauche' ? 'left' : a === 'droite' ? 'right' : 'center',
     ...(f?.vertical ? { verticalAlign: vertical[f.vertical] } : {}),
     ...(f?.gras ? { fontWeight: 700 } : {}),
@@ -818,7 +818,7 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
       )
     } else if (affiche !== '') {
       contenu = (
-        <span className="notak-table-texte" style={f?.surligne ? { background: f.surligne } : undefined}>
+        <span className="notak-table-texte" style={f?.surligne ? { background: couleurSurlignage(f.surligne), color: f.surligne === 'grisFonce' ? '#fff' : 'var(--notak-surligne-texte)' } : undefined}>
           {affiche}
         </span>
       )

@@ -12,18 +12,20 @@
   --notak-note-bleu: #3a76df;
   --notak-note-bleu_nuit: #27344f;
 
-  --notak-texte-bleu: #2f6feb;
-  --notak-texte-vert: #228a4a;
-  --notak-texte-orange: #d96f0b;
-  --notak-texte-rouge: #d43b3b;
-  --notak-texte-gris: #7a828c;
+  --notak-texte-bleu: #4ebafd;
+  --notak-texte-vert: #4eb85a;
+  --notak-texte-orange: #ff8d22;
+  --notak-texte-rouge: #f52929;
+  --notak-texte-gris: #5f6672;
 
-  --notak-surligne-gris-fonce: #4b5360;
-  --notak-surligne-bleu: #cfe0ff;
-  --notak-surligne-vert: #cdeed7;
-  --notak-surligne-orange: #fddcb4;
-  --notak-surligne-rose: #fbd3e3;
-  --notak-surligne-gris: #e1e4e8;
+  --notak-surligne-gris-fonce: #000000;
+  --notak-surligne-bleu: #8ae0ff;
+  --notak-surligne-vert: #c9f201;
+  --notak-surligne-orange: #ffce26;
+  --notak-surligne-rose: #ffa4de;
+  --notak-surligne-gris: #e8e9eb;
+  /* Le texte sur un surlignage clair. */
+  --notak-surligne-texte: #323b4a;
 }
 
 
@@ -225,19 +227,21 @@
   padding: 2px;
 }
 
+/* Une pastille de couleur : 24 × 20, coins de 2 px ; la choisie est cerclée à 4 px de distance. */
 .notak-note-pastilles button {
-  min-width: 22px !important;
-  width: 22px;
-  height: 22px !important;
+  min-width: 24px !important;
+  width: 24px;
+  height: 20px !important;
   padding: 0 !important;
-  border-radius: 50% !important;
-  border: 1px solid rgb(0 0 0 / 0.12) !important;
-  font-size: 12px !important;
-  font-weight: 600;
+  border-radius: 2px !important;
+  border: 1px solid rgb(0 0 0 / 0.1) !important;
+  font-size: 13px !important;
+  font-weight: 700;
 }
 
-.notak-note-pastilles button[aria-pressed='true'] {
-  box-shadow: 0 0 0 2px var(--notak-accent);
+.notak-note-pastilles button:is([aria-pressed='true'], [aria-checked='true']) {
+  outline: 2px solid var(--notak-accent);
+  outline-offset: 2px;
 }
 
 .notak-note-pastilles button[data-vide] { background: #fff; }
@@ -246,7 +250,8 @@
 .notak-note-pastilles button[data-texte='orange'] { background: #fff; color: var(--notak-texte-orange); }
 .notak-note-pastilles button[data-texte='rouge'] { background: #fff; color: var(--notak-texte-rouge); }
 .notak-note-pastilles button[data-texte='gris'] { background: #fff; color: var(--notak-texte-gris); }
-.notak-note-pastilles button[data-surligne='gris-fonce'] { background: var(--notak-surligne-gris-fonce); }
+.notak-note-pastilles button[data-surligne] { color: var(--notak-surligne-texte); }
+.notak-note-pastilles button[data-surligne='gris-fonce'] { background: var(--notak-surligne-gris-fonce); color: #fff; }
 .notak-note-pastilles button[data-surligne='bleu'] { background: var(--notak-surligne-bleu); }
 .notak-note-pastilles button[data-surligne='vert'] { background: var(--notak-surligne-vert); }
 .notak-note-pastilles button[data-surligne='orange'] { background: var(--notak-surligne-orange); }

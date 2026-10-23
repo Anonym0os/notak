@@ -590,17 +590,12 @@ describe('le presse-papiers', () => {
 })
 
 describe('les outils de la barre', () => {
-  it('sans cellule : Titre, + Ligne, + Colonne', () => {
+  it('sans cellule : le titre seul (on ajoute lignes et colonnes depuis les cellules ou la poignée)', () => {
     const m = monde()
     monter(m)
-    expect([...hote.querySelectorAll('button')].map((b) => b.textContent?.trim())).toEqual(['Titre', 'Ligne', 'Colonne'])
+    expect([...hote.querySelectorAll('button')].map((b) => b.textContent?.trim())).toEqual(['Titre'])
     act(() => bouton('Titre').click())
     expect(m.lire().contenu.avecTitre).toBe(true)
-    act(() => bouton('Ligne').click())
-    expect(m.lire().contenu.cellules).toHaveLength(5)
-    act(() => bouton('Colonne').click())
-    expect(m.lire().contenu.cellules[0]).toHaveLength(4)
-    expect(m.lire().largeur).toBe(34 + 12)
   })
 
   it('des cellules choisies : les outils de cellule remplacent ceux de l’élément', () => {
@@ -614,22 +609,29 @@ describe('les outils de la barre', () => {
     expect(hote.textContent).not.toContain('Titre')
   })
 
-  it('l’outil Type : le type se donne à la cellule et ses options se règlent', () => {
+  it('l’outil Type : le type se donne à la cellule, ses options s’ouvrent à côté, le menu reste ouvert', () => {
     const m = monde()
     monter(m)
     cliquer(1, 1)
     act(() => bouton('Type de cellule').click())
-    const types = [...hote.querySelectorAll('[role=menuitemradio]')]
-    expect(types.map((b) => b.textContent)).toEqual(['Automatique', 'Nombre', 'Monnaie', 'Pourcentage', 'Texte', 'Date et heure', 'Case à cocher'])
-    // « Nom » est du texte : la cellule du dessus ne peut pas être un nombre ; ici B2 vaut 10, tout va.
-    act(() => (types[2] as HTMLElement).click())
+    const nom = (b: globalThis.Element) => b.querySelector('.notak-menu-rang-texte')?.textContent
+    const types = () => [...hote.querySelectorAll('.notak-table-menu-type [role=menuitemradio]')]
+    expect(types().map(nom)).toEqual(['Automatique', 'Nombre', 'Monnaie', 'Pourcentage', 'Texte', 'Date et heure', 'Case à cocher'])
+    act(() => (types()[2] as HTMLElement).click())
     expect(formatsDe(m.lire().contenu)[1]![1]?.type).toBe('monnaie')
-    const decimales = hote.querySelector<HTMLSelectElement>('.notak-table-options select')!
+    const decimales = hote.querySelector<HTMLInputElement>('.notak-table-format .notak-table-decimales')!
+    expect(decimales.value).toBe('2')
     act(() => {
-      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')!.set!.call(decimales, '0')
-      decimales.dispatchEvent(new Event('change', { bubbles: true }))
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(decimales, '0')
+      decimales.dispatchEvent(new Event('input', { bubbles: true }))
     })
     expect(formatsDe(m.lire().contenu)[1]![1]).toEqual({ type: 'monnaie', decimales: 0 })
+    // Vide : autant de décimales que la valeur en porte.
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(decimales, '')
+      decimales.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    expect(formatsDe(m.lire().contenu)[1]![1]).toEqual({ type: 'monnaie', decimales: 'auto' })
   })
 
   it('l’outil Type se grise pour un type qu’aucune cellule choisie ne peut prendre', () => {
@@ -637,47 +639,52 @@ describe('les outils de la barre', () => {
     monter(m)
     cliquer(1, 0)
     act(() => bouton('Type de cellule').click())
-    const types = [...hote.querySelectorAll<HTMLButtonElement>('[role=menuitemradio]')]
-    expect(types.find((b) => b.textContent === 'Nombre')!.disabled).toBe(true)
-    expect(types.find((b) => b.textContent === 'Texte')!.disabled).toBe(false)
+    const types = [...hote.querySelectorAll<HTMLButtonElement>('.notak-table-menu-type [role=menuitemradio]')]
+    const de = (n: string) => types.find((b) => b.querySelector('.notak-menu-rang-texte')?.textContent === n)!
+    expect(de('Nombre').disabled).toBe(true)
+    expect(de('Texte').disabled).toBe(false)
   })
 
-  it('la couleur de la cellule : un aperçu au survol, le choix d’un seul pas', () => {
+  it('la couleur de la cellule : le gris d’en-tête en deuxième, le choix d’un seul pas, le menu reste ouvert', () => {
     const m = monde()
     monter(m)
     cliquer(1, 1)
     act(() => bouton('Couleur de la cellule').click())
-    const jaune = hote.querySelector<HTMLElement>('[aria-label="Jaune"]')!
-    act(() => void jaune.dispatchEvent(new MouseEvent('pointerover', { bubbles: true })))
-    act(() => void jaune.dispatchEvent(new MouseEvent('pointerenter')))
-    expect(lireEtat(ID).apercuFond).toBe('#ffd14d')
-    expect(formatsDe(m.lire().contenu)[1]![1]).toBeNull()
-    act(() => jaune.click())
+    const noms = [...hote.querySelectorAll('.notak-table-pastilles-fond button')].map((b) => b.getAttribute('aria-label'))
+    expect(noms.slice(0, 3)).toEqual(['Aucune', 'Gris d’en-tête', 'Cyan'])
+    act(() => hote.querySelector<HTMLElement>('[aria-label="Jaune"]')!.click())
     expect(formatsDe(m.lire().contenu)[1]![1]).toEqual({ fond: '#ffd14d' })
-    expect(lireEtat(ID).apercuFond).toBeUndefined()
+    expect(hote.querySelector('[aria-label="Jaune"]')!.getAttribute('aria-checked')).toBe('true')
   })
 
-  it('la couleur du texte et le surlignage s’excluent', () => {
+  it('la couleur du texte et le surlignage s’excluent ; re-choisir la même couleur l’ôte ; « défaut » ôte tout', () => {
     const m = monde()
     monter(m)
     cliquer(1, 1)
     act(() => bouton('Couleur du texte et surlignage').click())
-    act(() => hote.querySelector<HTMLElement>('[aria-label="Rouge"]')!.click())
-    expect(formatsDe(m.lire().contenu)[1]![1]).toEqual({ couleur: '#d93a3a' })
-    act(() => bouton('Couleur du texte et surlignage').click())
-    act(() => hote.querySelector<HTMLElement>('[aria-label="Rose"]')!.click())
-    expect(formatsDe(m.lire().contenu)[1]![1]).toEqual({ surligne: '#ffb8e8' })
+    const pastille = (n: string) => hote.querySelector<HTMLElement>(`.notak-table-palette-texte [aria-label="${n}"]`)!
+    act(() => pastille('Rouge').click())
+    expect(formatsDe(m.lire().contenu)[1]![1]).toEqual({ couleur: 'rouge' })
+    act(() => pastille('Rose').click())
+    expect(formatsDe(m.lire().contenu)[1]![1]).toEqual({ surligne: 'rose' })
+    act(() => pastille('Rose').click())
+    expect(formatsDe(m.lire().contenu)[1]![1]).toBeNull()
+    act(() => pastille('Vert').click())
+    act(() => pastille('Par défaut').click())
+    expect(formatsDe(m.lire().contenu)[1]![1]).toBeNull()
   })
 
-  it('l’alignement : horizontal et vertical', () => {
+  it('l’alignement : horizontal et vertical ; rien d’actif quand les cellules diffèrent', () => {
     const m = monde()
     monter(m)
     cliquer(1, 1)
     act(() => bouton('Alignement dans la cellule').click())
     act(() => hote.querySelector<HTMLElement>('[aria-label="Au centre"]')!.click())
-    act(() => bouton('Alignement dans la cellule').click())
     act(() => hote.querySelector<HTMLElement>('[aria-label="En bas"]')!.click())
     expect(formatsDe(m.lire().contenu)[1]![1]).toEqual({ alignement: 'centre', vertical: 'bas' })
+    cliquer(1, 2, { shiftKey: true })
+    if (!hote.querySelector('.notak-table-alignements')) act(() => bouton('Alignement dans la cellule').click())
+    expect([...hote.querySelectorAll('.notak-table-alignements [aria-checked="true"]')].map((b) => b.getAttribute('aria-label'))).toEqual(['En haut'])
   })
 
   it('fx ouvre l’édition avec = ; il se grise sur plusieurs cellules', () => {

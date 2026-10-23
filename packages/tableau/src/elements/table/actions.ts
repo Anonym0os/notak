@@ -328,7 +328,8 @@ export function choisirType(t: Table, plages: readonly Plage[], type: TypeCellul
       if (d?.type === 'date') {
         texte = d.valeur
         suite = { ...(suite ?? {}), type, ...d.options }
-      } else suite = { ...(suite ?? {}), type }
+        // Posée à la main, une date se montre en mots courts ; une heure ajoutée viendra entre parenthèses.
+      } else suite = { ...(suite ?? {}), type, date: 'court', heureEntreParentheses: true }
     } else if (type) {
       suite = { ...(suite ?? {}), type }
     }

@@ -53,6 +53,13 @@
   box-shadow: 0 6px 24px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.06);
 }
 
+.notak-espace[data-theme='sombre'] .notak-toile {
+  --notak-texte-orange: #ffa047;
+  --notak-texte-rouge: #f75555;
+  --notak-texte-gris: #bcbcbc;
+  --notak-surligne-gris: #e6e6e6;
+}
+
 .notak-espace[data-theme='sombre'] .notak-menu {
   --notak-menu-texte: #cfcfcf;
   --notak-menu-survol: #333333;
