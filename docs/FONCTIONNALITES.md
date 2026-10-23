@@ -14,12 +14,12 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | Partie | Fait | En partie | Absent | Avancement |
 |---|---|---|---|---|
 | 1. Toile | 21 | 3 | 3 | 83 % |
-| 2. Création | 11 | 3 | 3 | 74 % |
+| 2. Création | 12 | 2 | 3 | 76 % |
 | 3. Note et texte | 26 | 2 | 3 | 87 % |
 | 4. Colonne | 9 | 0 | 2 | 82 % |
 | 5. Tableau imbriqué | 8 | 0 | 3 | 73 % |
-| 6. Lien | 7 | 2 | 4 | 62 % |
-| 7. Image | 5 | 2 | 5 | 50 % |
+| 6. Lien | 13 | 0 | 0 | 100 % |
+| 7. Image | 9 | 1 | 2 | 79 % |
 | 8. Liste de tâches | 11 | 0 | 6 | 65 % |
 | 9. Ligne | 11 | 0 | 3 | 79 % |
 | 10. Autres éléments | 0 | 2 | 10 | 8 % |
@@ -27,10 +27,10 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 12. Organiser | 15 | 1 | 0 | 97 % |
 | 13. Naviguer | 8 | 2 | 3 | 69 % |
 | 14. À plusieurs | 9 | 2 | 6 | 59 % |
-| 15. Habillage | 6 | 2 | 7 | 47 % |
+| 15. Habillage | 7 | 3 | 5 | 57 % |
 | 16. Exporter, importer | 0 | 0 | 4 | 0 % |
 | 17. Plateformes | 1 | 1 | 5 | 21 % |
-| **Total** | **154** | **22** | **73** | **66 %** |
+| **Total** | **166** | **19** | **64** | **70 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -170,12 +170,12 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Outil « Adresse » | ✅ | |
 | Ouvrir, copier l'adresse | ✅ | |
 | Hauteur bornée | ✅ | |
-| Lecteurs intégrés (vidéo, audio, carte, contenus riches) | 🟡 | Seize fournisseurs reconnus ; la carte les dessine encore tous en 16/9. |
-| Réglages d'affichage : aperçu, infos, légende | ⬜ | |
-| Lecture auto et en boucle d'une vidéo | ⬜ | |
-| Adresse d'image changée en image | ⬜ | Il faut d'abord rapatrier le fichier. |
-| Outils Vidéo, Audio et Carte dans le tiroir | ⬜ | |
-| Message d'échec selon la cause | 🟡 | Le serveur dit la cause ; la carte ne l'affiche pas encore. |
+| Lecteurs intégrés (vidéo, audio, carte, contenus riches) | ✅ |  |
+| Réglages d'affichage : aperçu, infos, légende | ✅ |  |
+| Lecture auto et en boucle d'une vidéo | ✅ |  |
+| Adresse d'image changée en image | ✅ |  |
+| Outils Vidéo, Audio et Carte dans le tiroir | ✅ |  |
+| Message d'échec selon la cause | ✅ |  |
 
 ## 7. Image
 
@@ -183,14 +183,14 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 |---|---|---|
 | Largeur de départ tirée de l'image, 4 UG au minimum | ✅ | |
 | Visionneuse plein écran (double-clic, Espace) | ✅ | |
-| Légende | 🟡 | Texte brut, hors de la carte ; pas de saisie directe. |
-| Ombre selon la transparence | 🟡 | Devinée au type de fichier, pas lue dans l'image. |
+| Légende | ✅ |  |
+| Ombre selon la transparence | ✅ |  |
 | Miniature et roue pendant l'envoi | ✅ | |
 | Tailles adaptées à l'affichage (400, 800, 1600 px) | ⬜ | |
-| Hauteur calée sur la grille | ⬜ | |
-| Recadrer, pivoter, détourer | ⬜ | |
+| Hauteur calée sur la grille | ✅ |  |
+| Recadrer, pivoter, détourer | 🟡 | Pivoter et recadrer ; pas encore détourer. |
 | Dessiner sur l'image (annotation, Maj+D) | ⬜ | |
-| Remplacer en déposant une autre image dessus | ⬜ | |
+| Remplacer en déposant une autre image dessus | ✅ |  |
 | Image cassée signalée | ✅ | |
 | Outils Image et Fichier : choisir dans le Finder, au clic ou en glissant l'outil | ✅ | |
 
