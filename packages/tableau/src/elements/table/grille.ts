@@ -212,23 +212,36 @@ const reecrireCellules = (c: string[][], reecrire?: Reecrire): string[][] =>
 
 const bornerEntier = (v: number, min: number, max: number) => Math.min(Math.max(Math.trunc(v), min), max)
 
-/** Les clés qui font la mise en forme d'une cellule vide : un voisin les prête, pas son type. */
-const CLES_STYLE = ['gras', 'italique', 'barre', 'couleur', 'surligne', 'fond', 'alignement', 'vertical'] as const
+/** Ce qu'une ligne ou une colonne neuve reprend de ses voisines : le fond, les styles du texte, l'alignement. Jamais le type. */
+const STYLES_TEXTE = ['gras', 'italique', 'barre', 'couleur', 'surligne'] as const
+type Voisin = FormatCellule | null | undefined
 
-function styleDe(f: FormatCellule | null | undefined): FormatCellule | null {
-  if (!f) return null
+/**
+ * La mise en forme d'une cellule neuve, d'après ses deux voisines d'avant (`aa`, `a`) et d'après (`p`, `pp`) : une
+ * propriété de la voisine d'avant est reprise si l'avant-avant ou la voisine d'après la partagent ; sinon celle de
+ * la voisine d'après si l'après-après la partage. Insérer sous l'en-tête ne recopie donc pas l'en-tête, et insérer
+ * dans un bandeau régulier le prolonge. `seule` : la table n'avait qu'une ligne (ou colonne), on reprend la voisine.
+ */
+export function continuation(aa: Voisin, a: Voisin, p: Voisin, pp: Voisin, seule: boolean): FormatCellule | null {
   const sortie: Record<string, unknown> = {}
-  for (const k of CLES_STYLE) if (f[k] !== undefined) sortie[k] = f[k]
-  return Object.keys(sortie).length ? (sortie as FormatCellule) : null
-}
-
-const memeStyle = (a: FormatCellule | null, b: FormatCellule | null) => JSON.stringify(a) === JSON.stringify(b)
-
-/** Le style commun d'une ligne si elle est régulière (le même partout), sinon rien. L'en-tête ne se propage pas. */
-function styleRegulier(ligne: readonly (FormatCellule | null)[]): FormatCellule | null {
-  const premier = styleDe(ligne[0])
-  if (!premier || premier.fond === 'entete') return null
-  return ligne.every((f) => memeStyle(styleDe(f), premier)) ? premier : null
+  if (seule) {
+    for (const v of [a, p]) {
+      if (!v) continue
+      for (const k of [...STYLES_TEXTE, 'fond', 'alignement'] as const) if (v[k] !== undefined) sortie[k] = v[k]
+    }
+    return nettoyer(sortie as FormatCellule)
+  }
+  for (const k of ['fond', 'alignement'] as const) {
+    const v = a?.[k]
+    if (v !== undefined && (aa?.[k] === v || p?.[k] === v)) sortie[k] = v
+    else if (p?.[k] !== undefined && pp?.[k] === p[k]) sortie[k] = p[k]
+  }
+  for (const k of STYLES_TEXTE) {
+    const v = a?.[k]
+    if (v !== undefined && (aa?.[k] === v || p?.[k] === v)) sortie[k] = v
+    else if (p?.[k] !== undefined && pp?.[k] === p[k]) sortie[k] = p[k]
+  }
+  return nettoyer(sortie as FormatCellule)
 }
 
 /** Une table dont les trois matrices sont recopiées ; `largeurs` est toujours posé. */
@@ -250,9 +263,10 @@ export function insererLignes(t: Table, a: number, n: number, reecrire?: Reecrir
   const place = bornerEntier(a, 0, lignes)
   const m = enMatrices(t)
   const colonnes = nombreColonnes(m.cellules)
-  const style = place > 0 ? styleRegulier(m.formats[place - 1]!) : null
+  const f = m.formats
+  const neuve = Array.from({ length: colonnes }, (_, j) => continuation(f[place - 2]?.[j], f[place - 1]?.[j], f[place]?.[j], f[place + 1]?.[j], lignes === 1))
   const vides = Array.from({ length: nombre }, () => Array<string>(colonnes).fill(''))
-  const formats = Array.from({ length: nombre }, () => Array.from({ length: colonnes }, () => copieFormat(style)))
+  const formats = Array.from({ length: nombre }, () => neuve.map(copieFormat))
   m.cellules.splice(place, 0, ...vides)
   m.formats.splice(place, 0, ...formats)
   return { ...t, cellules: reecrireCellules(m.cellules, reecrire), formats: m.formats }
@@ -271,8 +285,8 @@ export function retirerLignes(t: Table, a: number, n: number, reecrire?: Reecrir
 }
 
 /**
- * `n` colonnes vides de `LARGEUR_COLONNE` UG insérées à l'index `a`. Une colonne neuve reprend, ligne par ligne, la
- * mise en forme de sa voisine de gauche (de droite pour la toute première). Sans `largeurs`, `largeurElement`
+ * `n` colonnes vides de `LARGEUR_COLONNE` UG insérées à l'index `a`. Une colonne neuve reprend, ligne par ligne, ce
+ * que ses voisines ont en commun (voir `continuation`). Sans `largeurs`, `largeurElement`
  * (la largeur de l'élément) sert à retrouver les largeurs des colonnes existantes.
  */
 export function insererColonnes(t: Table, a: number, n: number, reecrire?: Reecrire, largeurElement?: number): Table {
@@ -281,10 +295,9 @@ export function insererColonnes(t: Table, a: number, n: number, reecrire?: Reecr
   if (nombre <= 0) return t
   const place = bornerEntier(a, 0, colonnes)
   const m = enMatrices(t, largeurElement)
-  const voisine = place > 0 ? place - 1 : 0
   m.cellules = m.cellules.map((l) => [...l.slice(0, place), ...Array<string>(nombre).fill(''), ...l.slice(place)])
   m.formats = m.formats.map((l) => {
-    const style = place > 0 || colonnes > 0 ? styleDe(l[voisine]) : null
+    const style = continuation(l[place - 2], l[place - 1], l[place], l[place + 1], colonnes === 1)
     return [...l.slice(0, place), ...Array.from({ length: nombre }, () => copieFormat(style)), ...l.slice(place)]
   })
   m.largeurs.splice(place, 0, ...Array<number>(nombre).fill(LARGEUR_COLONNE))

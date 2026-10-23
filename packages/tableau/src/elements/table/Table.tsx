@@ -146,6 +146,9 @@ function contoursDe(plages: readonly Plage[]): Map<string, Contour> {
   return m
 }
 
+/** La référence d'une formule que touche le curseur, s'il y en a une. */
+const referenceSous = (texte: string, curseur: number) => citerReferences(texte).find((r) => r.debut <= curseur && curseur <= r.fin) ?? null
+
 /* ───────────── Le titre et la légende ───────────── */
 
 /** La hauteur d'un bandeau de titre, arrondie à la grille : une ligne fait six unités, deux en font neuf. */
@@ -428,6 +431,14 @@ export function RenduTable({ element, seule, contexte, changer }: PropsRendu<Tab
     } else if (e.citation && plus.cmd) {
       avant += ','
       debut += 1
+    } else if (!plus.cmd) {
+      // Le curseur touche une référence déjà écrite : le clic la remplace.
+      const sous = referenceSous(e.texte, e.curseur)
+      if (sous) {
+        debut = sous.debut
+        avant = e.texte.slice(0, debut)
+        apres = e.texte.slice(sous.fin)
+      }
     }
     const texte = avant + nom + apres
     const curseur = debut + nom.length
@@ -455,7 +466,7 @@ export function RenduTable({ element, seule, contexte, changer }: PropsRendu<Tab
     const ed = lireEtat(id).edition
     if (ed) {
       if (ed.l === cel.l && ed.c === cel.c) return
-      if (ed.texte.startsWith('=') && (ed.citation || modeCitation(ed.texte, ed.curseur))) {
+      if (ed.texte.startsWith('=') && (ed.citation || modeCitation(ed.texte, ed.curseur) || referenceSous(ed.texte, ed.curseur))) {
         e.preventDefault()
         citer(cel, { maj, cmd })
         geste.current = { type: 'citation', ancre: lireEtat(id).edition?.citation?.ancre ?? cel }

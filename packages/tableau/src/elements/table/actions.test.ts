@@ -204,10 +204,10 @@ describe('coller, recopier', () => {
     expect(plageDeRecopie(s, { l: 0, c: 1 })).toEqual({ l1: 0, c1: 1, l2: 1, c2: 1 })
     expect(plageDeRecopie(s, { l: 1, c: 1 })).toEqual(s)
   })
-  test('recopier prolonge une suite et décale les formules', () => {
-    const t = table([['1'], ['2'], [''], ['']])
+  test('recopier répète le motif et décale les formules', () => {
+    const t = table([['1'], ['=A1+1'], [''], ['']])
     const r = recopierSur(t, { l1: 0, c1: 0, l2: 1, c2: 0 }, { l1: 0, c1: 0, l2: 3, c2: 0 })!
-    expect(r.table.cellules.map((l) => l[0])).toEqual(['1', '2', '3', '4'])
+    expect(r.table.cellules.map((l) => l[0])).toEqual(['1', '=A1+1', '1', '=A3+1'])
   })
   test('une table collée sur la toile prend la taille du collage, sans en-tête', () => {
     const e = tableDepuisCollage({ cellules: [['a', 'b', 'c'], ['1', '2', '3']] }, 5, 6, 'fr')

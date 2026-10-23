@@ -261,25 +261,12 @@ export function coller(
 
 /* ───────────── Recopie ───────────── */
 
-const NUMERIQUE = /^-?\d+(\.\d+)?$/
 const modulo = (a: number, n: number) => ((a % n) + n) % n
 
-/** Une suite régulière de nombres (au moins deux) : son départ, son pas et ses décimales. */
-function suite(valeurs: readonly string[]): { debut: number; pas: number; decimales: number } | null {
-  if (valeurs.length < 2 || !valeurs.every((v) => NUMERIQUE.test(v))) return null
-  const n = valeurs.map(Number)
-  const pas = n[1]! - n[0]!
-  for (let i = 2; i < n.length; i++) if (Math.abs(n[i]! - n[i - 1]! - pas) > 1e-9) return null
-  const decimales = Math.max(...valeurs.map((v) => v.split('.')[1]?.length ?? 0))
-  return { debut: n[0]!, pas, decimales }
-}
-
-const nombreVers = (v: number, decimales: number) => (Math.abs(v) < 5 * 10 ** -(decimales + 1) ? 0 : v).toFixed(decimales)
-
 /**
- * Recopie la plage `source` sur la plage `cible` (qui peut la recouvrir) : les valeurs et les formats se répètent
- * en boucle, une suite régulière de nombres (le long de l'axe de la recopie) se prolonge, une formule passe par
- * `translater(texte, décalageLignes, décalageColonnes)`. La grille ne grandit pas.
+ * Recopie la plage `source` sur la plage `cible` (qui peut la recouvrir), comme Milanote : les valeurs et les formats
+ * se répètent en motif (1, 2 donne 1, 2, 1, 2), une formule passe par `translater(texte, décalageLignes,
+ * décalageColonnes)`. La grille ne grandit pas.
  */
 export function recopier(
   t: Table,
@@ -293,28 +280,10 @@ export function recopier(
   const colonnesSource = s.c2 - s.c1 + 1
   const colonnes = nombreColonnes(t.cellules)
   if (s.l1 < 0 || s.c1 < 0 || s.l2 >= t.cellules.length || s.c2 >= colonnes) return t
-  /** Le long d'une colonne si la cible reste dans les colonnes de la source, sinon le long d'une ligne. */
-  const vertical = !(c.c1 < s.c1 || c.c2 > s.c2)
   const cellules = t.cellules.map((l) => [...l])
   const formats = formatsDe(t)
   const origine = t.cellules
   const formatsOrigine = formatsDe(t)
-  const suites = new Map<number, ReturnType<typeof suite>>()
-  const suiteDe = (axe: number) => {
-    if (!suites.has(axe)) {
-      const n = vertical ? lignesSource : colonnesSource
-      const valeurs: string[] = []
-      let ok = true
-      for (let i = 0; i < n; i++) {
-        const [l, k] = vertical ? [s.l1 + i, axe] : [axe, s.c1 + i]
-        const type = formatsOrigine[l]![k]?.type
-        if (type === 'texte' || type === 'case') ok = false
-        valeurs.push(origine[l]![k]!)
-      }
-      suites.set(axe, ok ? suite(valeurs) : null)
-    }
-    return suites.get(axe)!
-  }
   for (let l = Math.max(c.l1, 0); l <= Math.min(c.l2, t.cellules.length - 1); l++)
     for (let k = Math.max(c.c1, 0); k <= Math.min(c.c2, colonnes - 1); k++) {
       const relL = l - s.l1
@@ -323,9 +292,7 @@ export function recopier(
       const sc = s.c1 + modulo(relC, colonnesSource)
       if (sl === l && sc === k) continue
       const brut = origine[sl]![sc]!
-      const prolongement = brut.startsWith('=') ? null : suiteDe(vertical ? sc : sl)
-      if (prolongement) cellules[l]![k] = nombreVers(prolongement.debut + prolongement.pas * (vertical ? relL : relC), prolongement.decimales)
-      else if (brut.startsWith('=') && translater) cellules[l]![k] = translater(brut, l - sl, k - sc)
+      if (brut.startsWith('=') && translater) cellules[l]![k] = translater(brut, l - sl, k - sc)
       else cellules[l]![k] = brut
       const f = formatsOrigine[sl]![sc]
       formats[l]![k] = f ? { ...f } : null

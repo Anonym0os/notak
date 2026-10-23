@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 import type { Table } from '../../coeur/tableau'
 import {
   ajusterALaPoignee,
+  continuation,
   appliquerFormat,
   basculerStyle,
   calerSurGrille,
@@ -150,11 +151,21 @@ describe('insérer et retirer des lignes', () => {
     expect(t.formats![3]).toEqual([null, null, null]) // la ligne 2 n’est pas régulière
     expect(t.formats![2]![2]).toEqual({ fond: '#ff5757' })
   })
-  test('une ligne régulière se propage, l’en-tête non', () => {
-    let t = appliquerFormat(table(), [{ l1: 2, c1: 0, l2: 2, c2: 2 }], () => ({ italique: true, fond: '#ffd14d' }))
-    t = insererLignes(t, 3, 1)
-    expect(t.formats![3]).toEqual([{ italique: true, fond: '#ffd14d' }, { italique: true, fond: '#ffd14d' }, { italique: true, fond: '#ffd14d' }])
+  test('une ligne neuve prolonge ce que ses voisines partagent ; l’en-tête ne se recopie pas', () => {
+    const jaune = { italique: true, fond: '#ffd14d' }
+    let t = appliquerFormat(table(), [{ l1: 1, c1: 0, l2: 2, c2: 2 }], () => jaune)
+    // Entre deux lignes jaunes : jaune. Sous la dernière jaune, avec une jaune au-dessus d'elle : jaune aussi.
+    expect(insererLignes(t, 2, 1).formats![2]).toEqual([jaune, jaune, jaune])
+    expect(insererLignes(t, 3, 1).formats![3]).toEqual([jaune, jaune, jaune])
+    // Une seule ligne jaune, entourée de lignes sans fond : rien ne se recopie.
+    t = appliquerFormat(table(), [{ l1: 2, c1: 0, l2: 2, c2: 2 }], () => jaune)
+    expect(insererLignes(t, 3, 1).formats![3]).toEqual([null, null, null])
     expect(insererLignes(table(), 1, 1).formats![1]).toEqual([null, null, null])
+  })
+  test('la règle des voisines : le type ne passe jamais, le côté d’après prend le relais', () => {
+    expect(continuation(null, { type: 'nombre', gras: true }, { gras: true }, null, false)).toEqual({ gras: true })
+    expect(continuation(null, null, { fond: '#62dbc8' }, { fond: '#62dbc8' }, false)).toEqual({ fond: '#62dbc8' })
+    expect(continuation(null, { fond: '#62dbc8', alignement: 'droite' }, null, null, true)).toEqual({ fond: '#62dbc8', alignement: 'droite' })
   })
   test('insérer au milieu décale, et le rappel réécrit les formules', () => {
     const t = { ...table(), cellules: [['A', 'B', 'C'], ['=A1', '2', '3'], ['4', '5', '6']] }

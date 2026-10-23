@@ -111,19 +111,11 @@ describe('coller', () => {
 
 describe('recopier', () => {
   const t = (cellules: string[][], formats?: Table['formats']): Table => ({ type: 'table', cellules, formats })
-  test('une suite de nombres se prolonge vers le bas', () => {
+  test('comme Milanote, une suite de nombres ne se prolonge pas : elle se répète', () => {
     const r = recopier(t([['1'], ['2'], [''], [''], ['']]), { l1: 0, c1: 0, l2: 1, c2: 0 }, { l1: 2, c1: 0, l2: 4, c2: 0 })
-    expect(r.cellules.map((l) => l[0])).toEqual(['1', '2', '3', '4', '5'])
-  })
-  test('une suite de pas 10 garde ses décimales', () => {
-    const r = recopier(t([['0.5'], ['10.5'], ['']]), { l1: 0, c1: 0, l2: 1, c2: 0 }, { l1: 2, c1: 0, l2: 2, c2: 0 })
-    expect(r.cellules[2]![0]).toBe('20.5')
-  })
-  test('vers la droite, et vers le haut', () => {
-    const droite = recopier(t([['2', '4', '', ''], ['', '', '', '']]), { l1: 0, c1: 0, l2: 0, c2: 1 }, { l1: 0, c1: 2, l2: 0, c2: 3 })
-    expect(droite.cellules[0]).toEqual(['2', '4', '6', '8'])
+    expect(r.cellules.map((l) => l[0])).toEqual(['1', '2', '1', '2', '1'])
     const haut = recopier(t([[''], [''], ['5'], ['6']]), { l1: 2, c1: 0, l2: 3, c2: 0 }, { l1: 0, c1: 0, l2: 1, c2: 0 })
-    expect(haut.cellules.map((l) => l[0])).toEqual(['3', '4', '5', '6'])
+    expect(haut.cellules.map((l) => l[0])).toEqual(['5', '6', '5', '6'])
   })
   test('sinon les valeurs et les formats se répètent', () => {
     const r = recopier(t([['a'], ['b'], [''], [''], ['']], [[{ gras: true }], [null], [null], [null], [null]]), { l1: 0, c1: 0, l2: 1, c2: 0 }, { l1: 2, c1: 0, l2: 4, c2: 0 })
@@ -131,9 +123,7 @@ describe('recopier', () => {
     expect(r.formats![4]![0]).toEqual({ gras: true })
     expect(r.formats![3]![0]).toBeNull()
   })
-  test('une suite irrégulière, un nombre seul ou un texte de type Texte se répètent', () => {
-    const irreg = recopier(t([['1'], ['2'], ['4'], ['']]), { l1: 0, c1: 0, l2: 2, c2: 0 }, { l1: 3, c1: 0, l2: 3, c2: 0 })
-    expect(irreg.cellules[3]![0]).toBe('1')
+  test('un nombre seul ou un texte de type Texte se répètent aussi', () => {
     const seul = recopier(t([['7'], [''], ['']]), { l1: 0, c1: 0, l2: 0, c2: 0 }, { l1: 1, c1: 0, l2: 2, c2: 0 })
     expect(seul.cellules.map((l) => l[0])).toEqual(['7', '7', '7'])
     const texte = recopier(t([['1'], ['2'], ['']], [[{ type: 'texte' }], [{ type: 'texte' }], [null]]), { l1: 0, c1: 0, l2: 1, c2: 0 }, { l1: 2, c1: 0, l2: 2, c2: 0 })
@@ -142,10 +132,6 @@ describe('recopier', () => {
   test('les formules passent par le rappel avec leur décalage', () => {
     const r = recopier(t([['=A1', '1'], ['', ''], ['', '']]), { l1: 0, c1: 0, l2: 0, c2: 0 }, { l1: 1, c1: 0, l2: 2, c2: 0 }, (f, dl, dc) => `${f}[${dl},${dc}]`)
     expect(r.cellules.map((l) => l[0])).toEqual(['=A1', '=A1[1,0]', '=A1[2,0]'])
-  })
-  test('plusieurs colonnes : chacune prolonge sa propre suite', () => {
-    const r = recopier(t([['1', '10'], ['2', '20'], ['', ''], ['', '']]), { l1: 0, c1: 0, l2: 1, c2: 1 }, { l1: 2, c1: 0, l2: 3, c2: 1 })
-    expect(r.cellules.slice(2)).toEqual([['3', '30'], ['4', '40']])
   })
   test('la source n’est pas touchée, la cible hors de la grille est rognée', () => {
     const base = t([['1'], ['2']])

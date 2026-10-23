@@ -798,6 +798,13 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     let finMode: ReturnType<typeof setTimeout> | undefined
     const molette = (e: WheelEvent) => {
       if (etat.current.edition && dansEdition(div, e.target) && !(e.ctrlKey || e.metaKey)) return
+      // Une table plus large que sa colonne défile en largeur sous un geste horizontal, comme chez Milanote.
+      const defile = !(e.ctrlKey || e.metaKey) && Math.abs(e.deltaX) > Math.abs(e.deltaY) && e.target instanceof Element ? e.target.closest<HTMLElement>('.notak-tableur[data-colonne] .notak-table-defile') : null
+      if (defile && defile.scrollWidth > defile.clientWidth + 1 && mode !== 'zoom') {
+        e.preventDefault()
+        defile.scrollLeft += e.deltaX
+        return
+      }
       e.preventDefault()
       animation.current = null
       const { camera: c, vue: v } = etat.current

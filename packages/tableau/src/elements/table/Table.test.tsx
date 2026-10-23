@@ -422,6 +422,17 @@ describe('l’édition d’une cellule', () => {
     expect(hote.querySelectorAll('.notak-table-ref')).toHaveLength(2)
   })
 
+  it('le curseur sur une référence déjà écrite : un clic la remplace', () => {
+    const m = monde()
+    monter(m)
+    cliquer(3, 1)
+    appuyer(clavier()!, { key: 'Enter' })
+    // Le curseur est collé à B2, tapé à la main : un clic sur C3 prend sa place.
+    taper(champ(), '=B2')
+    cliquer(2, 2)
+    expect(champ().value).toBe('=C3')
+  })
+
   it('une cellule date ouvre un calendrier ; le jour choisi garde le format de la cellule', () => {
     const m = monde({ cellules: [['46054', ''], ['', ''], ['', ''], ['', '']], formats: [[{ type: 'date', date: 'long' }, null], [null, null], [null, null], [null, null]] })
     monter(m)

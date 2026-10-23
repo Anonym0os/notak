@@ -43,6 +43,18 @@
 
 .notak-tableur[data-colonne] .notak-table-defile {
   overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(0 0 0 / 0.4) rgb(0 0 0 / 0.05);
+}
+
+.notak-tableur[data-colonne] .notak-table-defile::-webkit-scrollbar {
+  height: 6px;
+}
+
+.notak-tableur[data-colonne] .notak-table-defile::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: rgb(0 0 0 / 0.4);
 }
 
 .notak-tableur td {
