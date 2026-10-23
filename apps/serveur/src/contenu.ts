@@ -130,7 +130,7 @@ export function fichiersDe(elements: readonly ElementLu[]): { id: string; nom: s
   return sortie
 }
 
-/** Tous les identifiants de fichier qu'un tableau montre, y compris les copies réduites d'une image. */
+/** Tous les identifiants de fichier qu'un tableau montre, y compris les copies réduites d'une image et son original d'avant détourage. */
 export function idsDeFichiers(elements: readonly ElementLu[]): Set<string> {
   const ids = new Set<string>()
   for (const e of elements) {
@@ -139,6 +139,12 @@ export function idsDeFichiers(elements: readonly ElementLu[]): Set<string> {
     if ((c.type === 'image' || c.type === 'fichier') && chaine(c.fichier)) ids.add(chaine(c.fichier))
     if (c.type === 'image' && Array.isArray(c.tailles)) {
       for (const t of c.tailles as { fichier?: unknown }[]) if (chaine(t?.fichier)) ids.add(chaine(t.fichier))
+    }
+    // « Rétablir l'original » le remontre : il doit rester servi.
+    const o = c.type === 'image' ? (c.original as { fichier?: unknown; tailles?: unknown } | undefined) : undefined
+    if (o && chaine(o.fichier)) ids.add(chaine(o.fichier))
+    if (o && Array.isArray(o.tailles)) {
+      for (const t of o.tailles as { fichier?: unknown }[]) if (chaine(t?.fichier)) ids.add(chaine(t.fichier))
     }
   }
   return ids
