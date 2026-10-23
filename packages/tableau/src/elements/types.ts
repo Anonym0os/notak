@@ -271,6 +271,13 @@ export interface TypeElement<C extends Contenu = Contenu> {
   tirerPoignee?(element: Element<C>, largeurTiree: number, dHauteurUG: number): { largeur: number; contenu: C }
   /** Largeur sur hauteur d'un média : la poignée garde ces proportions (Cmd les libère). */
   proportion?(c: C): number
+  /**
+   * Le cadrage libre d'un média (Cmd + poignée) : la poignée règle alors la hauteur du cadre en plus de la largeur, et le
+   * média le recouvre (Milanote : 4 × 4 UG au moins). `hauteur` : la hauteur du cadre pour cette largeur (UG) ;
+   * `avec` : le contenu qui fixe ce cadre ; `retire` : le contenu qui retrouve les proportions du média (double-clic
+   * sur la poignée), ou `null` s'il n'y a pas de cadrage.
+   */
+  cadrageLibre?: { hauteur(c: C, largeur: number): number; avec(c: C, largeur: number, hauteur: number): C; retire(c: C): C | null }
   /** La poignée règle aussi la hauteur : le contenu qui dépasse se cache sous un voile, et revient en édition. */
   hauteurBornable?: boolean
   /** Ce que la suppression d'un élément de ce type emporte avec lui (le contenu d'une colonne). */

@@ -3,7 +3,7 @@ import { registre } from '../registre'
 import { OutilsFinImage, OutilsImage, RenduImage } from './Image'
 import { amorcerLegende } from './legendeAmorce'
 import './image.css'
-import { RETRAIT_PX, aUneCarte, largeurNaturelleImage } from './geometrie'
+import { RETRAIT_PX, aUneCarte, cadrageLibre, largeurNaturelleImage, rapportDuCadre } from './geometrie'
 import { raccourciAnnoter } from './raccourciAnnotation'
 import { choisirPourRemplacer, recevoirImages } from './recepteur'
 import { ouvrirImage } from './visionneuse'
@@ -38,7 +38,8 @@ registre.type<Image>({
   retraitPx: () => RETRAIT_PX,
   largeurMin: 4,
   largeurNaturelle: largeurNaturelleImage,
-  proportion: (c) => c.largeurOrigine / c.hauteurOrigine,
+  proportion: rapportDuCadre,
+  cadrageLibre,
 })
 
 registre.recepteur({ priorite: 40, cumulable: true, recevoir: recevoirImages })

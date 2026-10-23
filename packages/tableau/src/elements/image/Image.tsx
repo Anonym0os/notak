@@ -3,7 +3,7 @@ import type { Element, Image, TraitImage } from '../../coeur/tableau'
 import { useFichier } from '../envois'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { PX_PAR_UG } from '../../coeur/camera'
-import { aUneCarte, avecLegende, hauteurCartePx, miseEnPage, pivoter, proportionsAffichees } from './geometrie'
+import { aUneCarte, avecLegende, basculerMiroir, hauteurCartePx, miseEnPage, pivoter, rapportDuCadre } from './geometrie'
 import { prendreAmorce } from './legendeAmorce'
 import { Recadreur, recadrer, useRecadrageOuvert } from './Recadreur'
 import { Annotateur, Traits } from './Annotateur'
@@ -38,7 +38,8 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
   const { contenu } = element
   const { adresse: adresseOrigine, enRoute } = useFichier(element, contexte)
   const adresse = useAdresseALargeur(element, contexte, adresseOrigine)
-  const proportions = proportionsAffichees(contenu)
+  // Le cadre suit l'image, ou le cadrage libre qu'un redimensionnement avec Cmd a fixé : l'image le recouvre.
+  const proportions = rapportDuCadre(contenu)
   const page = miseEnPage(contenu)
   // Sur la toile, la hauteur tombe sur la grille (l'image est rognée, jamais étirée) ; dans une colonne, dont la
   // largeur n'est pas la nôtre, elle suit les proportions.
@@ -180,6 +181,14 @@ function Legende({ texte, surChangement, valider, retirer }: { texte: string; su
 export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
   const pivoterTout = () =>
     contexte.magasin.faire(elements.map((e) => ({ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: pivoter(e.contenu) })))
+  // Le miroir : si tous l'ont déjà, il se défait pour tous ; sinon il se pose sur ceux qui ne l'ont pas.
+  const miroiter = (axe: 'h' | 'v') => {
+    const cle = axe === 'h' ? 'miroirH' : 'miroirV'
+    const tous = elements.every((e) => e.contenu[cle])
+    contexte.magasin.faire(
+      elements.filter((e) => tous || !e.contenu[cle]).map((e) => ({ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: basculerMiroir(e.contenu, axe) })),
+    )
+  }
   const el = elements[0]!
   const dessin = useAnnotation()
   const enDessin = elements.length === 1 && dessin.id === el.id && !contexte.services.lectureSeule
@@ -209,6 +218,12 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
           actif={enDessin}
           onClick={() => annoter(enDessin ? null : el.id)}
         />
+      )}
+      {!contexte.services.lectureSeule && (
+        <>
+          <BoutonOutil icone="miroirH" secondaire titre={t('image.miroirH.titre')} libelle={t('image.miroirH')} actif={elements.every((e) => e.contenu.miroirH)} onClick={() => miroiter('h')} />
+          <BoutonOutil icone="miroirV" secondaire titre={t('image.miroirV.titre')} libelle={t('image.miroirV')} actif={elements.every((e) => e.contenu.miroirV)} onClick={() => miroiter('v')} />
+        </>
       )}
       {!contexte.services.lectureSeule && <BoutonOutil icone="pivoterGauche" secondaire titre={t('image.pivoter.titre')} libelle={t('image.pivoter')} onClick={pivoterTout} />}
       {seul && <BoutonOutil icone="recadrer" secondaire titre={t('image.recadrer.titre')} libelle={t('image.recadrer')} actif={!!el.contenu.recadrage} onClick={() => recadrer(el.id)} />}

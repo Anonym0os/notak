@@ -44,6 +44,8 @@ import {
   IconDownload,
   IconEye,
   IconFile,
+  IconFlipHorizontal,
+  IconFlipVertical,
   IconFileCode,
   IconFileMusic,
   IconFileSpreadsheet,
@@ -379,6 +381,8 @@ const ICONES = {
   pipette: IconColorPicker,
   // L'image et le fichier joint.
   pivoterGauche: IconRotate,
+  miroirH: IconFlipHorizontal,
+  miroirV: IconFlipVertical,
   fondBlanc: IconBackground,
   pause: IconPlayerPauseFilled,
   volume: IconVolume,

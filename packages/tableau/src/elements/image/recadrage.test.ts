@@ -73,3 +73,18 @@ describe('du cadre à l’image d’origine', () => {
     })
   })
 })
+
+describe('recadrage d’une image retournée', () => {
+  test('le cadre montré est retourné avant d’être rendu à l’image d’origine', () => {
+    const cadre = { x: 0, y: 0, l: 0.25, h: 0.5 }
+    expect(versSource(cadre, 0, { h: true })).toEqual({ x: 0.75, y: 0, largeur: 0.25, hauteur: 0.5 })
+    expect(versSource(cadre, 0, { v: true })).toEqual({ x: 0, y: 0.5, largeur: 0.25, hauteur: 0.5 })
+    expect(avecRecadrage({ ...image, miroirH: true }, cadre).recadrage).toEqual({ x: 0.75, y: 0, largeur: 0.25, hauteur: 0.5 })
+  })
+
+  test('un recadrage à la main remplace le cadrage libre ; un cadre entier le laisse', () => {
+    const libre: Image = { ...image, rapportCadre: 1 }
+    expect(avecRecadrage(libre, { x: 0, y: 0, l: 0.5, h: 0.5 }).rapportCadre).toBeUndefined()
+    expect(avecRecadrage(libre, CADRE_PLEIN).rapportCadre).toBe(1)
+  })
+})

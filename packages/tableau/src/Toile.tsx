@@ -1728,7 +1728,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           largeurDepart: el.largeur,
           min,
           ...(n ? { borne: { de: el.hauteur, px: n.offsetHeight } } : {}),
-          ...(def?.tirerPoignee ? { avant: el } : {}),
+          ...(def?.tirerPoignee || def?.cadrageLibre ? { avant: el } : {}),
         }
       } else if (id) {
         arreterDepose()
@@ -1894,7 +1894,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (g.type === 'redimensionnerGroupe') {
       return magasin.appliquerSeulement(pasDuGroupe(g, ici, e.metaKey || e.ctrlKey))
     }
-    if (g.type === 'redimensionner' && g.avant) {
+    if (g.type === 'redimensionner' && g.avant && definition(g.avant.contenu.type)?.tirerPoignee) {
       // Une poignée qui change le contenu (une table gagne des colonnes) : le type dit ce que devient l'élément.
       const el = magasin.lire().elements.find((x) => x.id === g.id)
       const r = el && definition(g.avant.contenu.type)?.tirerPoignee?.(g.avant as never, g.largeurDepart + (ici.x - g.depart.x), ici.y - g.depart.y)
@@ -1907,11 +1907,18 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (g.type === 'redimensionner') {
       // Un média garde ses proportions : on suit la plus grande des deux tractions, ramenée en largeur.
       const el = magasin.lire().elements.find((x) => x.id === g.id)
-      const ratio = el && definition(el.contenu.type)?.proportion?.(el.contenu as never)
+      const ratio = el && definition(el.contenu.type)?.proportion?.((g.avant ?? el).contenu as never)
       const dx = ici.x - g.depart.x
       const tire = ratio && !e.metaKey && !e.ctrlKey ? Math.max(dx, (ici.y - g.depart.y) * ratio) : dx
       const vers = largeurTiree(g.largeurDepart + tire, g.min)
       const pas: Operation[] = [{ type: 'redimensionner', id: g.id, de: g.largeurDepart, vers }]
+      // Cmd libère aussi la hauteur d'un média : le cadre se règle, l'image le recouvre (4 × 4 UG au moins).
+      const libre = g.avant && definition(g.avant.contenu.type)?.cadrageLibre
+      if (g.avant && libre && el) {
+        const hauteur = libre.hauteur(g.avant.contenu as never, g.largeurDepart) + (ici.y - g.depart.y)
+        const apres = e.metaKey || e.ctrlKey ? (libre.avec(g.avant.contenu as never, vers, hauteur) as Contenu) : g.avant.contenu
+        if (!memes(el.contenu, apres)) pas.push({ type: 'contenu', id: g.id, avant: el.contenu, apres })
+      }
       const n = g.borne && noeudDe(g.id)
       if (g.borne && n) {
         const h = hauteurTiree(g.borne.px + (ici.y - g.depart.y) * cam.PX_PAR_UG, hauteurNaturelle(n))
@@ -2369,6 +2376,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const el = tableau.elements.find((x) => selection.has(x.id))
       const def = el && definition(el.contenu.type)
       if (!el || !def) return
+      // Un cadrage libre (Cmd + poignée) se retire d'abord : l'image retrouve ses proportions.
+      const sans = def.cadrageLibre?.retire(el.contenu as never)
+      if (sans) return magasin.faire([{ type: 'contenu', id: el.id, avant: el.contenu, apres: sans as Contenu }])
       const vers = largeurDoubleClic(el.largeur, def.largeurNaturelle?.(el.contenu), largeurMinDe(def.largeurMin, el.contenu))
       if (vers !== el.largeur) magasin.faire([{ type: 'redimensionner', id: el.id, de: el.largeur, vers }])
       return

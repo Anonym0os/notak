@@ -105,6 +105,13 @@ export interface Image {
   proportionsExactes?: boolean
   /** La légende reste affichée, même vide (avec son invite), tant qu'on ne l'a pas retirée. */
   legendeAffichee?: boolean
+  /** Miroir horizontal / vertical, dans le sens de l'écran (appliqué après le quart de tour). */
+  miroirH?: boolean
+  miroirV?: boolean
+  /** Cadrage libre (Cmd + poignée) : largeur sur hauteur du cadre, l'image le recouvre. Absent : le cadre suit l'image. */
+  rapportCadre?: number
+  /** Les couleurs dominantes lues à l'arrivée (`#rrggbb`, les plus présentes d'abord), proposées avec les couleurs suggérées. */
+  couleurs?: string[]
 }
 
 /** Ce qu'une image était avant son détourage. */

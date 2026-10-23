@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import type { Element, Image } from '../../coeur/tableau'
-import { aUneCarte, aUneOmbre, hauteurCartePx, versPlan, avecLegende, hauteurCalee, hauteurPour, imageSous, miseEnPage, pivoter, proportionsAffichees, rotationDe, largeurInitiale, largeurNaturelleImage, nombreColonnes, placerImages, remplacerContenu } from './geometrie'
+import { aUneCarte, aUneOmbre, hauteurCartePx, versPlan, avecLegende, hauteurCalee, hauteurPour, imageSous, miseEnPage, pivoter, proportionsAffichees, rotationDe, largeurInitiale, largeurNaturelleImage, nombreColonnes, placerImages, remplacerContenu, basculerMiroir, cadrageLibre, rapportDuCadre } from './geometrie'
 
 const image = (largeurOrigine: number, hauteurOrigine = 100): Image => ({ type: 'image', fichier: 'f', largeurOrigine, hauteurOrigine })
 
@@ -197,5 +197,45 @@ describe('carte et rognage', () => {
     // Boîte plus large : il déborde en haut et en bas.
     expect(versPlan(0.5, 0, 2, 1)).toEqual([0.5, 0.25])
     expect(versPlan(0.3, 0.3, 1, 1)).toEqual([0.3, 0.3])
+  })
+})
+
+describe('miroirs', () => {
+  test('un miroir se pose puis se défait, la clé disparaît', () => {
+    const a = basculerMiroir(image(100), 'h')
+    expect(a.miroirH).toBe(true)
+    const b = basculerMiroir(a, 'v')
+    expect(b).toMatchObject({ miroirH: true, miroirV: true })
+    const c = basculerMiroir(basculerMiroir(b, 'h'), 'v')
+    expect('miroirH' in c || 'miroirV' in c).toBe(false)
+  })
+
+  test('le plan se retourne à l’écran, après le quart de tour', () => {
+    expect(miseEnPage({ ...image(100), miroirH: true }).plan.transform).toBe('translate(-50%, -50%) scale(-1, 1)')
+    expect(miseEnPage({ ...image(100), miroirV: true, rotation: 90 }).plan.transform).toBe('translate(-50%, -50%) scale(1, -1) rotate(90deg)')
+    expect(miseEnPage(image(100)).plan.transform).toBe('translate(-50%, -50%)')
+  })
+})
+
+describe('cadrage libre', () => {
+  test('sans cadrage, le cadre suit l’image ; avec, il garde le rapport fixé', () => {
+    expect(rapportDuCadre(image(200, 100))).toBe(2)
+    const c = cadrageLibre.avec(image(200, 100), 20, 10)
+    expect(c.rapportCadre).toBe(2)
+    expect(rapportDuCadre({ ...image(200, 100), rapportCadre: 1 })).toBe(1)
+  })
+
+  test('la hauteur en UG suit le rapport, au moins 4 × 4 UG', () => {
+    const c = cadrageLibre.avec(image(200, 100), 20, 8)
+    expect(cadrageLibre.hauteur(c, 20)).toBe(8)
+    expect(cadrageLibre.hauteur(c, 10)).toBe(4)
+    expect(cadrageLibre.avec(image(200, 100), 20, 1).rapportCadre).toBe(5)
+    expect(cadrageLibre.avec(image(200, 100), 2, 10).rapportCadre).toBe(0.4)
+  })
+
+  test('le double-clic sur la poignée le retire ; sans cadrage, rien', () => {
+    const c = cadrageLibre.avec(image(200, 100), 20, 8)
+    expect(cadrageLibre.retire(c)).toEqual(image(200, 100))
+    expect(cadrageLibre.retire(image(200, 100))).toBeNull()
   })
 })

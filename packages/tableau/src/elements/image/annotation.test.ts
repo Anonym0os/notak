@@ -33,6 +33,12 @@ describe('versImage', () => {
     expect(v).toBeGreaterThanOrEqual(0)
     expect(v).toBeLessThanOrEqual(0.5)
   })
+  it('défait les miroirs de l’écran avant le quart de tour', () => {
+    expect(versImage(0, 0, image({ miroirH: true }))).toEqual([1, 0])
+    expect(versImage(0, 0, image({ miroirV: true }))).toEqual([0, 1])
+    // Miroir horizontal à l'écran, puis quart de tour : le coin haut gauche montré vient du coin haut droit montré avant le miroir.
+    expect(versImage(0, 0, image({ rotation: 90, miroirH: true }))).toEqual(versImage(1, 0, image({ rotation: 90 })))
+  })
   it('reste dans l’image quand le pointeur en sort', () => {
     expect(versImage(-0.3, 1.4, image())).toEqual([0, 1])
   })
