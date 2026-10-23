@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import type { Hocuspocus } from '@hocuspocus/server'
 import { getConnInfo } from '@hono/node-server/conninfo'
+import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { apercuDePage } from './apercu.ts'
@@ -26,6 +27,8 @@ export interface Contexte {
   /** Derrière un relais de confiance : l'adresse du client vient de `X-Forwarded-For`. */
   relaisFiable: boolean
   cookieSecurise: boolean
+  /** Le build de `apps/web`, servi à côté de l'API ; absent en développement, où Vite s'en charge. */
+  dossierWeb?: string
 }
 
 export const FICHIER_MAX = 25 * 1024 * 1024
@@ -307,5 +310,11 @@ export function creerApp(ctx: Contexte): Hono {
   })
 
   app.all('/api/*', (c) => c.json({ erreur: 'introuvable' }, 404))
+
+  // En production, le même serveur sert l'application web construite ; toute autre adresse (`/t/…`) reçoit la page.
+  if (ctx.dossierWeb) {
+    app.use('*', serveStatic({ root: ctx.dossierWeb }))
+    app.get('*', serveStatic({ root: ctx.dossierWeb, path: 'index.html' }))
+  }
   return app
 }

@@ -14,6 +14,7 @@ export interface OptionsServeur {
   dossier: string
   relaisFiable?: boolean
   cookieSecurise?: boolean
+  dossierWeb?: string
 }
 
 export interface ServeurDemarre {
@@ -34,6 +35,7 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     synchro: () => hocuspocus,
     relaisFiable: options.relaisFiable ?? false,
     cookieSecurise: options.cookieSecurise ?? false,
+    dossierWeb: options.dossierWeb,
   })
 
   const http = await new Promise<Server>((resoudre, rejeter) => {

@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -161,5 +161,35 @@ describe('serveur de bout en bout', () => {
     let dernier = 0
     for (let i = 0; i < 12; i++) dernier = (await appeler('/api/connexion', { json: { email: 'x@exemple.fr', motDePasse: 'faux-faux-faux' } })).statut
     expect(dernier).toBe(429)
+  })
+})
+
+describe("l'application web servie par le serveur", () => {
+  let web: ServeurDemarre
+  let racine: string
+  let adresse: string
+  beforeAll(async () => {
+    racine = mkdtempSync(join(tmpdir(), 'notak-web-'))
+    mkdirSync(join(racine, 'assets'))
+    writeFileSync(join(racine, 'index.html'), '<!doctype html><title>Notak</title>')
+    writeFileSync(join(racine, 'assets', 'app.js'), 'console.log(1)')
+    web = await demarrer({ port: 0, dossier: join(racine, 'donnees'), dossierWeb: racine })
+    adresse = `http://127.0.0.1:${web.port}`
+  })
+  afterAll(async () => {
+    await web.fermer()
+    rmSync(racine, { recursive: true, force: true })
+  })
+
+  it('sert les fichiers, la page sur toute adresse du front, et laisse l’API répondre seule', async () => {
+    expect(await (await fetch(`${adresse}/assets/app.js`)).text()).toBe('console.log(1)')
+    for (const chemin of ['/', '/t/abcdefgh']) {
+      const r = await fetch(adresse + chemin)
+      expect(r.status).toBe(200)
+      expect(await r.text()).toContain('<title>Notak</title>')
+    }
+    const api = await fetch(`${adresse}/api/inexistant`)
+    expect(api.status).toBe(404)
+    expect(await api.json()).toEqual({ erreur: 'introuvable' })
   })
 })

@@ -1,0 +1,7 @@
+**/node_modules
+**/dist
+apps/serveur/data
+.git
+.claude
+**/*.tsbuildinfo
+.DS_Store

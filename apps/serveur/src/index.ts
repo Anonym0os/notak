@@ -10,6 +10,7 @@ const serveur = await demarrer({
   dossier,
   relaisFiable: process.env.NOTAK_RELAIS === '1',
   cookieSecurise: process.env.NOTAK_COOKIE_SECURISE === '1',
+  dossierWeb: process.env.NOTAK_WEB,
 })
 console.log(`Notak : serveur sur le port ${serveur.port}, données dans ${dossier}`)
 
