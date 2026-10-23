@@ -101,7 +101,7 @@ function Couche({ contexte, hote, fermer }: { contexte: ContexteToile; hote: HTM
           <path key={i} d={cheminLisse(versEcran(tr.points))} stroke={tr.couleur} strokeWidth={tr.epaisseur * echelle} fill="none" strokeLinecap="round" strokeLinejoin="round" />
         ))}
       </svg>
-      <div className="notak-dessin-libre-barre" onPointerDown={(e) => e.stopPropagation()}>
+      <div className="notak-dessin-libre-barre" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
         <span>{t('dessin.surToile')}</span>
         {COULEURS.map((c) => (
           <button key={c} type="button" aria-label={t('image.couleurTrait', { couleur: c })} aria-pressed={couleur === c} style={{ background: c }} onClick={() => setCouleur(c)} />

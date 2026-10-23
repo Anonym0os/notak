@@ -79,8 +79,9 @@
 .notak-carte {
   position: absolute;
   box-sizing: border-box;
-  min-height: 58px;
-  padding: 24px 20px 14px 24px;
+  /* Le texte (une ligne de 20 px) tombe au milieu de la carte : autant de marge en haut qu'en bas. */
+  min-height: 62px;
+  padding: 21px 20px 21px 24px;
   border-radius: 0;
   background: var(--notak-carte);
   box-shadow: var(--notak-ombre);
