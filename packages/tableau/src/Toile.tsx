@@ -12,6 +12,7 @@ import { cliquer, lasso } from './coeur/selection'
 import { type Paquet, TYPE_PAQUET, decalageDeCollage, deballer, empaqueter, texteDuPaquet } from './coeur/pressePapiers'
 import { type Entree, MenuContextuel, PanneauCorbeille, Recherche } from './Menus'
 import { chercher } from './coeur/recherche'
+import { poussees } from './coeur/collisions'
 import { VOL_REPOS, type Vol, inclinaisonMax, transformation } from './coeur/vol'
 import { Envol, dessinerSur, oublierVol } from './envol'
 import { BandeauAvis, annoncer } from './avis'
@@ -150,6 +151,8 @@ function dansEdition(racine: HTMLElement | null, cible: EventTarget | null) {
 /** Un élément qu'on glisse : tout sauf une ligne. */
 const mobile = (e: Element) => definition(e.contenu.type)?.calque !== 'lignes'
 /** Un élément posé librement sur la toile : ni dans une colonne, ni une ligne. */
+/** Au-delà de ce nombre d'éléments libres, l'édition ne pousse plus ses voisins. */
+const MAX_POUSSEES = 150
 const libre = (e: Element) => !e.parent && definition(e.contenu.type)?.calque !== 'lignes'
 /** Ce qu'on supprime, et ce qui doit partir avec (les lignes accrochées), sans doublon. */
 function avecLiees(supprimes: Element[], tableau: Tableau): Element[] {
@@ -232,6 +235,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const animation = useRef<{ depart: cam.Camera; cible: cam.Camera; debut: number } | null>(null)
   /** Ce qu'on écrit : le contenu d'avant l'édition (un seul pas d'historique à la sortie), et le dernier état. */
   const brouillon = useRef<{ id: Id; debut: Contenu; contenu: Contenu } | null>(null)
+  // Les voisins poussés pendant l'édition : ils entrent dans le pas qui l'inscrit. `neSous` : l'élément que
+  // Cmd+Entrée vient de faire naître, qui écarte ce qu'il recouvre dès sa première mesure.
+  const pousses = useRef<Operation[]>([])
+  const neSous = useRef<Id | null>(null)
   const pointEdition = useRef<Point | null>(null)
   /** Le fantôme de l'outil qu'on glisse depuis la barre. */
   const [fantome, setFantome] = useState<Element | null>(null)
@@ -346,8 +353,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const converti = definition(b.contenu.type)?.convertir?.(b.contenu as never)
     if (converti) b.contenu = converti
     if (!memes(el.contenu, b.contenu)) m.appliquerSeulement([{ type: 'contenu', id: b.id, avant: el.contenu, apres: b.contenu }])
-    // Toute l'édition, d'un seul pas : annuler rend le contenu d'avant.
-    if (!memes(b.debut, b.contenu)) m.inscrire([{ type: 'contenu', id: b.id, avant: b.debut, apres: b.contenu }])
+    // Toute l'édition, d'un seul pas, avec les voisins qu'elle a poussés : annuler rend le contenu et les places d'avant.
+    const pas: Operation[] = memes(b.debut, b.contenu) ? [] : [{ type: 'contenu', id: b.id, avant: b.debut, apres: b.contenu }]
+    pas.push(...pousses.current)
+    pousses.current = []
+    if (pas.length > 0) m.inscrire(pas)
   }, [])
   const commencerEdition = useCallback(
     (id: Id, ou?: Point) => {
@@ -357,6 +367,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (!el || !definition(el.contenu.type)?.editable) return
       if (etat.current.edition) finirEdition()
       brouillon.current = null
+      pousses.current = []
       pointEdition.current = ou ?? null
       setSelection(new Set([id]))
       setEdition(id)
@@ -385,8 +396,51 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     }
     m.faire([{ type: 'creer', element }])
     setSelection(new Set([element.id]))
+    neSous.current = element.id
     commencerEdition(element.id)
   }, [finirEdition, rect, commencerEdition])
+
+  // Pendant l'édition, ce qui grandit pousse ce qui est dessous (voir `coeur/collisions.ts`). Un élément rangé
+  // fait grandir sa colonne : c'est elle qui pousse.
+  useEffect(() => {
+    if (!edition || services.lectureSeule) return
+    const m = etat.current.magasin
+    const el = m.lire().elements.find((x) => x.id === edition)
+    if (!el) return
+    const haut = el.parent ?? el.id
+    const noeud = racine.current?.querySelector(`.notak-carte[data-id="${CSS.escape(haut)}"]`)
+    if (!noeud) return
+    let avant = rect(haut)
+    const origines = new Map<Id, number>()
+    const obs = new ResizeObserver(() => {
+      const apres = rect(haut)
+      // Lue ici, pas à l'entrée de l'effet : React le joue deux fois en développement.
+      const nouveau = neSous.current === edition
+      if (!avant || !apres || (!nouveau && Math.abs(apres.max.y - avant.max.y) < 0.05)) return
+      const t = m.lire()
+      const candidats = t.elements.filter((x) => libre(x) && x.id !== haut && !x.verrou)
+      // Au-delà, chaque frappe mesurerait trop d'éléments.
+      if (candidats.length > MAX_POUSSEES) return
+      const voisins = new Map<Id, Rect>()
+      for (const x of candidats) {
+        const r = rect(x.id)
+        if (r) voisins.set(x.id, r)
+      }
+      const decalages = poussees(haut, { avant, apres, nouveau }, voisins, origines)
+      if (nouveau) neSous.current = null
+      avant = apres
+      const pas: Operation[] = []
+      for (const [id, dy] of decalages) {
+        const x = t.elements.find((e) => e.id === id)!
+        pas.push({ type: 'deplacer', id, de: [x.x, x.y], vers: [x.x, x.y + dy] })
+      }
+      if (pas.length === 0) return
+      m.appliquerSeulement(pas)
+      pousses.current.push(...pas)
+    })
+    obs.observe(noeud)
+    return () => obs.disconnect()
+  }, [edition, services.lectureSeule, rect])
   const contexteRef = useRef<ContexteToile | null>(null)
 
   const jeter = useCallback(

@@ -13,7 +13,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 
 | Partie | Fait | En partie | Absent | Avancement |
 |---|---|---|---|---|
-| 1. Toile | 16 | 5 | 6 | 69 % |
+| 1. Toile | 16 | 6 | 5 | 70 % |
 | 2. Création | 10 | 3 | 4 | 68 % |
 | 3. Note et texte | 17 | 2 | 12 | 58 % |
 | 4. Colonne | 9 | 0 | 2 | 82 % |
@@ -30,7 +30,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 15. Habillage | 1 | 4 | 10 | 20 % |
 | 16. Exporter, importer | 0 | 0 | 4 | 0 % |
 | 17. Plateformes | 1 | 1 | 5 | 21 % |
-| **Total** | **123** | **30** | **96** | **55 %** |
+| **Total** | **123** | **31** | **95** | **56 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -62,7 +62,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Hauteur bornée par la poignée (note, lien) | ✅ | |
 | Redimensionner un groupe | ⬜ | |
 | Proportions gardées pour les médias, Cmd pour les libérer, Échap pendant le geste | ⬜ | |
-| Collisions : ce qui grandit pousse ses voisins du dessous | ⬜ | |
+| Collisions : ce qui grandit pousse ses voisins du dessous | 🟡 | Pendant l'édition et à Cmd+Entrée, colonnes comprises ; pas encore quand on dépose dans une colonne, ni pour les lignes horizontales, ni au retour d'une note bornée à sa hauteur. |
 | Entrer dans un tableau en le survolant pendant un glisser (700 ms puis 300 ms de clignement, 400 ms ensuite) | ✅ | |
 | Curseurs adaptés (main, redimensionner, texte) | 🟡 | Curseur au repos des autres. |
 | Poignée de taille constante quel que soit le zoom, visible au survol | ✅ | |
