@@ -1,4 +1,4 @@
-import type { XmlFragment } from 'yjs'
+import type { Text as YText, XmlFragment } from 'yjs'
 import { Historique } from './historique'
 import { type Id, type Operation, type Tableau, appliquer, surLeTableau } from './tableau'
 
@@ -26,6 +26,8 @@ export interface Magasin {
    * Absent d'un magasin qui n'est pas partagé : l'éditeur écrit alors seul dans le contenu.
    */
   texte?(id: Id): XmlFragment
+  /** Une ligne d'un élément écrite à plusieurs (le titre d'une liste de tâches), créée au besoin. Même absence. */
+  ligne?(id: Id): YText
   annuler(): boolean
   retablir(): boolean
 }

@@ -2,6 +2,7 @@ import { EditorContent, getSchema, useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 import { type CSSProperties, type KeyboardEvent, type ReactNode, memo, useEffect, useMemo, useRef, useState } from 'react'
 import { type CouleurNote, type Element, type Id, type NoeudTexte, type Taches, aimanter } from '../../coeur/tableau'
+import { useLignePartagee } from '../ligne'
 import { extensionsDuPartage, textePartage } from '../partage'
 import { texteDeNote } from '../note/couleurs'
 import { MenuCouleur } from '../note/MenuCouleur'
@@ -246,7 +247,7 @@ function inline(paragraphe: NoeudTexte): ReactNode {
   })
 }
 
-// ———— En édition : Tiptap, avec un titre en champ simple ————
+// ———— En édition : Tiptap, et le titre dans un champ simple ————
 
 const CASE_EN_TETE = /^\[([ xX]?)\]\s/
 
@@ -266,7 +267,7 @@ function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surC
     surChangement(apres)
   }
   const gestes = useRef<GestesTaches>(null!)
-  // Les tâches s'écrivent à plusieurs, comme le texte d'une note ; le titre, lui, reste un champ simple.
+  // Les tâches s'écrivent à plusieurs, comme le texte d'une note ; le titre aussi, par une ligne partagée.
   const fragment = useMemo(() => textePartage(contexte, id, docTaches(contenu.texte), SCHEMA), [])
   const extensions = useMemo(
     () => [...(fragment ? [...EXTENSIONS_TACHES_PARTAGEE, ...extensionsDuPartage(fragment, contexte)] : EXTENSIONS_TACHES), clavierListe(gestes)],
@@ -297,8 +298,15 @@ function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surC
 
   const changerTitre = (valeur: string | undefined) => {
     setTitre(valeur)
+    inscrireTitre(valeur ?? '')
     poser(valeur === undefined ? sansTitre(courant.current) : { ...courant.current, titre: valeur })
   }
+  const inscrireTitre = useLignePartagee(contexte, id, contenu.titre, champ, (valeur) => {
+    // Un autre a écrit dans le titre : on le suit tant qu'on en a un.
+    if (courant.current.titre === undefined) return
+    setTitre(valeur)
+    poser({ ...courant.current, titre: valeur })
+  })
   gestes.current = {
     aUnTitre: () => courant.current.titre !== undefined,
     versTitre: () => {

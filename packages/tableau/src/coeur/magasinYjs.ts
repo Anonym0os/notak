@@ -13,7 +13,7 @@ export const ORIGINE_LIBRE = 'notak:libre'
 /** Ce que l'historique ne voit pas du tout : une correction qui n'a pas trouvé son pas (`corriger`). */
 const ORIGINE_HORS = 'notak:hors-historique'
 
-export type MagasinYjs = Magasin & { detruire(): void; texte(id: Id): Y.XmlFragment }
+export type MagasinYjs = Magasin & { detruire(): void; texte(id: Id): Y.XmlFragment; ligne(id: Id): Y.Text }
 
 const sansPlan = (s: ElementStocke): Element => {
   const { plan: _plan, ...element } = s
@@ -71,6 +71,8 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id): MagasinYjs {
   const meta = doc.getMap<unknown>('meta')
   // Le texte des notes, à part des éléments : l'historique du tableau ne le voit pas, chacun a le sien dans l'éditeur.
   const textes = doc.getMap<Y.XmlFragment>('textes')
+  // De même pour une ligne simple, comme le titre d'une liste de tâches.
+  const lignes = doc.getMap<Y.Text>('lignes')
   // Un glisser écrit sans cesse, puis revient au départ et inscrit son geste : tout cela doit tenir dans un seul
   // pas, sinon annuler la création d'un élément déplacé ne l'atteindrait plus. Le temps ne découpe donc rien
   // (captureTimeout infini) ; les pas sont découpés à la main par `stopCapturing`, avant et après chaque geste.
@@ -201,6 +203,12 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id): MagasinYjs {
       if (deja) return deja
       transaction(() => textes.set(id, new Y.XmlFragment()), ORIGINE_HORS)
       return textes.get(id)!
+    },
+    ligne(id) {
+      const deja = lignes.get(id)
+      if (deja) return deja
+      transaction(() => lignes.set(id, new Y.Text()), ORIGINE_HORS)
+      return lignes.get(id)!
     },
     corriger(pas) {
       if (pas.length === 0) return

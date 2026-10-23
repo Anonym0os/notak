@@ -102,7 +102,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Entrée, Échap, clic ailleurs | ✅ | |
 | Retour arrière dans une note vide : corbeille | ✅ | |
 | Texte envoyé pendant l'écriture, un seul pas d'annulation | ✅ | |
-| Texte écrit à plusieurs en même temps (curseurs dans la note) | ✅ | Notes et listes de tâches ; le titre d'une liste reste un champ simple. |
+| Texte écrit à plusieurs en même temps (curseurs dans la note) | ✅ | Notes et listes de tâches, titre de la liste compris. |
 | Hauteur bornée, voile, étendue en édition | ✅ | |
 | Styles : grand titre, titre, texte, petit texte, citation, code | ✅ | |
 | Encadré à icône | ✅ |  |
