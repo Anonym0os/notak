@@ -8,6 +8,8 @@ import './lien.css'
 import { OutilsLien } from './Outils'
 import { t } from '../../langue'
 import { type NomIcone, ico } from '../../icones'
+import { couleurDuContenu } from '../couleur'
+import { OutilCouleurCarte } from '../couleur/OutilCouleurCarte'
 
 const LARGEUR_LIEN = 34
 
@@ -37,6 +39,9 @@ registre.type<Lien>({
   hauteurParDefaut: 20,
   sansFond: true,
   hauteurBornable: true,
+  Outils: OutilCouleurCarte,
+  couleur: couleurDuContenu<Lien>(),
+  teinte: true,
   OutilsApres: OutilsLien,
   outils: [
     {

@@ -160,12 +160,15 @@ export function MenuStyle({ editor, etat }: { editor: Editor; etat: EtatTexte })
   )
 }
 
-/** Le menu d'insertion : un séparateur, un émoji. */
+/** Le menu d'insertion : un séparateur, un lien vers un tableau (`[[`), un émoji. */
 export function MenuInsertion({ editor, ferme }: { editor: Editor; ferme(): void }) {
   return (
     <div className="notak-note-menu" role="menu">
       <button type="button" role="menuitem" className="notak-note-menu-ligne" onClick={() => { editor.chain().focus().setHorizontalRule().run(); ferme() }}>
         {t('barre.separateur')}
+      </button>
+      <button type="button" role="menuitem" className="notak-note-menu-ligne" onClick={() => { editor.chain().focus().insertContent('[[').run(); ferme() }}>
+        {t('barre.lierTableau')}
       </button>
       <hr />
       <div className="notak-note-emojis" role="group" aria-label={t('barre.emojis')}>

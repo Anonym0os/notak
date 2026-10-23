@@ -291,6 +291,8 @@ export interface TypeElement<C extends Contenu = Contenu> {
   sansInclinaison?: boolean
   /** Sa couleur, pour l'outil commun d'une sélection mêlée (voir `elements/couleur`). */
   couleur?: Coloration<C>
+  /** Sa couleur teinte une partie de la carte (en-tête, légende, feuille) : le cadre pose `--notak-teinte`. */
+  teinte?: boolean
 }
 
 /**

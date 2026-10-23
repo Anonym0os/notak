@@ -18,7 +18,7 @@ export const nouveauCommentaire = (x: number, y: number): Element<Commentaire> =
 export function ajouterMessage(c: Commentaire, m: Message): Commentaire {
   const texte = m.texte.trim()
   if (!texte) return c
-  const { resolu: _, ...reste } = c
+  const { resolu: _, replie: __, ...reste } = c
   return { ...reste, messages: [...c.messages.filter((x) => x.id !== m.id), { ...m, texte }] }
 }
 
@@ -30,6 +30,12 @@ export const retirerMessage = (c: Commentaire, id: Id): Commentaire => ({ ...c, 
 export function resoudre(c: Commentaire, resolu: boolean): Commentaire {
   const { resolu: _, ...reste } = c
   return resolu ? { ...reste, resolu: true } : reste
+}
+
+/** Replier le fil sur une ligne, ou le déplier. */
+export function plier(c: Commentaire, replie: boolean): Commentaire {
+  const { replie: _, ...reste } = c
+  return replie ? { ...reste, replie: true } : reste
 }
 
 /** Les initiales d'un nom, pour sa pastille : « Samy Agher » → « SA ». */

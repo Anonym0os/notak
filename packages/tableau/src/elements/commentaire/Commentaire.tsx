@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { type Auteur, type Commentaire, type Message, nouvelId } from '../../coeur/tableau'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
-import { AUTEUR_INCONNU, ajouterMessage, filVide, dateLisible, initiales, replier, resoudre, retirerMessage } from './fil'
+import { AUTEUR_INCONNU, ajouterMessage, filVide, dateLisible, initiales, plier, replier, resoudre, retirerMessage } from './fil'
 import { langue, t, tn } from '../../langue'
 import { Icone } from '../../icones'
 import { BoutonOutil } from '../../BoutonOutil'
@@ -20,6 +20,17 @@ export function RenduCommentaire({ element, choisie, enEdition, contexte, brouil
       <div className="notak-commentaire" data-resolu>
         <span className="notak-commentaire-resolu"><Icone nom="coche" taille={13} /> {t('commentaire.resolu')} · {tn('commentaire.messages', n)}</span>
         {c.messages[0] && <p className="notak-commentaire-extrait">{c.messages[0].texte}</p>}
+      </div>
+    )
+  }
+  if (c.replie && n > 0) {
+    const premier = c.messages[0]!.auteur
+    return (
+      <div className="notak-commentaire" data-replie>
+        <span className="notak-commentaire-pastille" style={premier.couleur ? { background: premier.couleur } : undefined} aria-hidden>
+          {initiales(premier.nom)}
+        </span>
+        <span className="notak-commentaire-ligne">{premier.nom} · {tn('commentaire.messages', n)}</span>
       </div>
     )
   }
@@ -166,8 +177,16 @@ export function OutilsCommentaire({ elements, contexte }: PropsOutils<Commentair
     contexte.magasin.faire(
       elements.map((e) => ({ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: resoudre(e.contenu, !tousResolus) })),
     )
+  const tousReplies = elements.every((e) => e.contenu.replie)
+  const plierTout = () =>
+    contexte.magasin.faire(
+      elements.map((e) => ({ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: plier(e.contenu, !tousReplies) })),
+    )
   return (
     <>
+      {!elements.some((e) => e.contenu.resolu) && (
+        <BoutonOutil icone={tousReplies ? 'chevronDroite' : 'chevronBas'} secondaire actif={tousReplies} titre={tousReplies ? t('commentaire.deplierFil') : t('commentaire.replierFil')} libelle={tousReplies ? t('commentaire.deplier') : t('commentaire.replier')} onClick={plierTout} />
+      )}
       {elements.length === 1 && (
         <BoutonOutil icone="commenterPassage" secondaire titre={t('commentaire.repondreFil')} libelle={t('commentaire.repondre')} onClick={() => contexte.commencerEdition(elements[0]!.id)} />
       )}

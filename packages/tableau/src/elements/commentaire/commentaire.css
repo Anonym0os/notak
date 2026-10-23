@@ -142,3 +142,20 @@
 .notak-commentaire-saisie textarea:focus {
   border-color: var(--notak-accent);
 }
+
+/* Un fil replié à la main : une ligne, la pastille du premier auteur et le nombre de messages. */
+.notak-commentaire[data-replie] {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  min-height: 0;
+}
+
+.notak-commentaire-ligne {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+}

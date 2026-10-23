@@ -67,25 +67,25 @@ describe('la barre de gauche, type par type (ordre de Milanote)', () => {
     expect(listes('note').visibles).toEqual(['Couleur', ...COMMUNS])
   })
 
-  it('lien : étiquettes, réactions, commentaire, puis Aperçu, Infos, Adresse, Légende', () => {
+  it('lien : Couleur, étiquettes, réactions, commentaire, puis Aperçu, Infos, Adresse, Légende', () => {
     const { visibles, rangees } = listes('lien')
-    expect(visibles).toEqual([...COMMUNS, 'Aperçu', 'Infos', 'Adresse', 'Légende'])
+    expect(visibles).toEqual(['Couleur', ...COMMUNS, 'Aperçu', 'Infos', 'Adresse', 'Légende'])
     expect(rangees).not.toContain('Ouvrir')
   })
 
   it('image : Dessiner et Légende visibles ; pivoter, recadrer et détourer dans « ••• »', () => {
     const { visibles, rangees } = listes('image')
-    expect(visibles).toEqual([...COMMUNS, 'Dessiner', 'Légende'])
+    expect(visibles).toEqual(['Couleur', ...COMMUNS, 'Dessiner', 'Légende'])
     expect(rangees).toEqual(expect.arrayContaining(['Pivoter', 'Recadrer', 'Détourer']))
   })
 
   it('fichier : Mode, Renommer, Légende', () => {
-    expect(listes('fichier').visibles).toEqual([...COMMUNS, 'Icône', 'Renommer', 'Légende'])
+    expect(listes('fichier').visibles).toEqual(['Couleur', ...COMMUNS, 'Icône', 'Renommer', 'Légende'])
   })
 
   it('document : Mode (visible) ; Ouvrir dans « ••• »', () => {
     const { visibles, rangees } = listes('document')
-    expect(visibles).toEqual([...COMMUNS, 'Icône'])
+    expect(visibles).toEqual(['Couleur', ...COMMUNS, 'Icône'])
     expect(rangees).toContain('Ouvrir')
   })
 
@@ -108,17 +108,17 @@ describe('la barre de gauche, type par type (ordre de Milanote)', () => {
     expect(listes('nuancier').visibles).toEqual(['Couleur', ...COMMUNS, 'HEX'])
   })
 
-  it('croquis : étiquettes, réactions, commentaire, Dessiner', () => {
-    expect(listes('croquis').visibles).toEqual([...COMMUNS, 'Dessiner'])
+  it('croquis : Couleur, étiquettes, réactions, commentaire, Dessiner', () => {
+    expect(listes('croquis').visibles).toEqual(['Couleur', ...COMMUNS, 'Dessiner'])
   })
 
   it('liste de tâches : Couleur puis Titre', () => {
     expect(listes('taches').visibles.slice(0, 2)).toEqual(['Couleur', 'Titre'])
   })
 
-  it('commentaire : répondre et résoudre dans « ••• »', () => {
+  it('commentaire : répondre, résoudre et replier dans « ••• »', () => {
     const { visibles, rangees } = listes('commentaire')
     expect(visibles).not.toContain('Répondre')
-    expect(rangees).toEqual(expect.arrayContaining(['Répondre', 'Résoudre']))
+    expect(rangees).toEqual(expect.arrayContaining(['Répondre', 'Résoudre', 'Replier']))
   })
 })

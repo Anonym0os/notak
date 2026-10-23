@@ -83,6 +83,8 @@ export interface Image {
   largeurOrigine: number
   hauteurOrigine: number
   legende?: string
+  /** Le fond de sa légende, de la palette des notes. */
+  couleur?: CouleurNote
   /** Le type du fichier (`image/png`…) : les formats à transparence n'ont pas d'ombre. */
   typeMime?: string
   /** Lu dans les pixels à l'arrivée : une image transparente n'a pas d'ombre. Absent : deviné au type. */
@@ -159,6 +161,8 @@ export interface Lien {
   statut: 'attente' | 'pret' | 'echec'
   /** Le titre qu'on lui a donné, à la place de celui de l'aperçu. */
   titre?: string
+  /** Le fond de son en-tête, de la palette des notes. */
+  couleur?: CouleurNote
   /** La légende qu'on lui a écrite, à la place de la description de l'aperçu ; vide, elle est cachée. */
   legende?: string
   /** Les réglages d'affichage : cacher l'image ou le lecteur, le domaine et le titre, la légende. */
@@ -196,6 +200,8 @@ export interface Fichier {
   titre?: string
   /** Un mot sous la carte. */
   legende?: string
+  /** Le fond de la carte, de la palette des notes. */
+  couleur?: CouleurNote
   /** Rien que l'icône et le nom : ni aperçu des pages, ni lecteur. */
   icone?: boolean
 }
@@ -278,6 +284,8 @@ export interface Commentaire {
   messages: Message[]
   /** Résolu : le fil se replie en une pastille, et se rouvre. */
   resolu?: boolean
+  /** Replié à la main : une ligne (le premier auteur et le nombre de messages) au lieu du fil. */
+  replie?: boolean
 }
 
 /** Le type d'une cellule ; absent : « auto », déduit de ce qu'on tape. */
@@ -367,6 +375,8 @@ export interface Trait {
 export interface Croquis {
   type: 'croquis'
   traits: Trait[]
+  /** Le fond de la feuille, de la palette des notes ; sans lui, elle est blanche. */
+  couleur?: CouleurNote
 }
 
 /**
@@ -385,6 +395,8 @@ export interface DocumentTexte {
   type: 'document'
   titre: string
   texte: NoeudTexte
+  /** La couleur de sa feuille sur la toile, de la palette des notes. */
+  couleur?: CouleurNote
 }
 
 /**

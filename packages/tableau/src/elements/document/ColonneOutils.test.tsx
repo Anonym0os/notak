@@ -49,10 +49,11 @@ describe('la colonne d’outils du document', () => {
     expect(outil('Gras').getAttribute('aria-disabled')).toBeNull()
   })
 
-  it('le menu Insérer propose le séparateur et les émojis', () => {
+  it('le menu Insérer propose le séparateur, le lien vers un tableau et les émojis', () => {
     monter()
     act(() => hote.querySelectorAll<HTMLButtonElement>('.notak-document-tuile')[1]!.click())
     expect(hote.querySelector('[role="menu"]')?.textContent).toContain('Séparateur')
+    expect(hote.querySelector('[role="menu"]')?.textContent).toContain('Lier un tableau')
   })
 
   it('ce qui ne tient pas en hauteur passe derrière « ••• »', () => {

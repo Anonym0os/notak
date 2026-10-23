@@ -6,6 +6,8 @@ import './document.css'
 import { documentCree, nouveauDocument, resume } from './texte'
 import { t } from '../../langue'
 import { ico } from '../../icones'
+import { couleurDuContenu } from '../couleur'
+import { OutilCouleurCarte } from '../couleur/OutilCouleurCarte'
 
 registre.type<DocumentTexte>({
   type: 'document',
@@ -14,6 +16,9 @@ registre.type<DocumentTexte>({
   },
   resume,
   Rendu: RenduDocument,
+  Outils: OutilCouleurCarte,
+  couleur: couleurDuContenu<DocumentTexte>(),
+  teinte: true,
   OutilsApres: OutilsDocument,
   editable: true,
   // Comme Milanote : la carte n'est qu'une feuille et son titre ; l'outil pose le document et en édite le titre, la modale s'ouvre au double-clic.

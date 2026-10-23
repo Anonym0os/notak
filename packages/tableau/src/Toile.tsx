@@ -1605,7 +1605,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const reglageVol = (elements: Element[], cote: number) => {
     const seul = elements.length === 1 ? elements[0] : undefined
     const def = seul && definition(seul.contenu.type)
-    return { incliner: !!def && !def.sansInclinaison && def.calque !== 'lignes', max: inclinaisonMax(cote) }
+    // Moins de mouvement demandé : l'élément vole encore sous le pointeur, mais ne s'incline plus.
+    const calme = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+    return { incliner: !calme && !!def && !def.sansInclinaison && def.calque !== 'lignes', max: inclinaisonMax(cote) }
   }
 
   /** La vitesse du défilement au bord (px d'écran par image), ou `null` hors de la zone et sur la barre d'outils. */
