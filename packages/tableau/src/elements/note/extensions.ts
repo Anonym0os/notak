@@ -5,6 +5,7 @@ import { Color, TextStyle } from '@tiptap/extension-text-style'
 import StarterKit from '@tiptap/starter-kit'
 import { basculerCentre, basculerSurlignage, poserStyle } from './commandes'
 import { normaliserUrl } from './conversion'
+import { augmenterRetrait, changerCasse, diminuerRetrait } from './texte'
 
 /** Le surlignage garde un nom de couleur (`vert`), que `note.css` décline : le document ne porte aucune valeur. */
 const Surlignage = Highlight.configure({ multicolor: true }).extend({
@@ -61,6 +62,19 @@ const RaccourcisFormat = Extension.create({
       'Mod-\\': () => basculerCentre(e()),
       'Mod-Shift-h': () => basculerSurlignage(e(), 'vert'),
       'Mod-j': () => basculerSurlignage(e(), 'vert'),
+      'Shift-F3': () => changerCasse(e()),
+    }
+  },
+})
+
+/** Tab et Maj+Tab : le retrait du texte. Après les listes (priorité plus basse), qui font descendre leurs éléments. */
+const Retraits = Extension.create({
+  name: 'retraits',
+  priority: 50,
+  addKeyboardShortcuts() {
+    return {
+      Tab: () => augmenterRetrait(this.editor),
+      'Shift-Tab': () => diminuerRetrait(this.editor),
     }
   },
 })
@@ -102,6 +116,7 @@ export const EXTENSIONS_NOTE = [
   Color,
   PetitTexte,
   RaccourcisFormat,
+  Retraits,
   MarkdownTape,
 ]
 
