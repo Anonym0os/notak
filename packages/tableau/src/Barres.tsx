@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Element } from './coeur/tableau'
 import { definition, tousLesOutilsCommuns, tousLesTypes } from './elements/registre'
 import type { ContexteToile, Outil } from './elements/types'
@@ -13,6 +13,23 @@ export const outilsDeBarre = (): OutilDeBarre[] =>
   tousLesTypes()
     .flatMap((d) => (d.outils ?? []).map((outil) => ({ type: d.type, outil })))
     .sort((a, b) => a.outil.rang - b.outil.rang)
+
+/**
+ * Échap referme d'abord un menu ouvert dans cette barre (un tiroir, une palette) sans rien désélectionner : `fermer`
+ * remet la barre à neuf.
+ */
+function useEchapFerme(barre: { current: HTMLElement | null }, fermer: () => void) {
+  useEffect(() => {
+    const touche = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || !barre.current?.querySelector('[aria-expanded="true"]')) return
+      e.stopPropagation()
+      e.preventDefault()
+      fermer()
+    }
+    document.addEventListener('keydown', touche, true)
+    return () => document.removeEventListener('keydown', touche, true)
+  }, [barre, fermer])
+}
 
 /**
  * La barre de gauche. Un outil se glisse sur la toile : c'est la toile qui suit le geste (`surAppui`).
@@ -32,6 +49,8 @@ export function BarreOutils({
   nonTries: { nombre: number; ouverte: boolean; basculer(): void }
 }) {
   const [tiroir, setTiroir] = useState(false)
+  const nav = useRef<HTMLElement>(null)
+  useEchapFerme(nav, () => setTiroir(false))
   const tous = outilsDeBarre()
   const bouton = (o: OutilDeBarre, dansTiroir = false) => {
     const rebondit = rebond?.libelle === o.outil.libelle
@@ -64,7 +83,7 @@ export function BarreOutils({
   }
   const caches = tous.filter((o) => o.outil.tiroir)
   return (
-    <nav className="notak-barre-outils" onPointerDown={(e) => e.stopPropagation()}>
+    <nav ref={nav} className="notak-barre-outils" onPointerDown={(e) => e.stopPropagation()}>
       {tous.filter((o) => !o.outil.tiroir).map((o) => bouton(o))}
       {caches.length > 0 && (
         <div className="notak-outil-place">
@@ -112,6 +131,13 @@ export function BarreSelection({
   position: { x: number; y: number }
 }) {
   const [plus, setPlus] = useState(false)
+  // Échap referme le menu ouvert : la barre repart de zéro, chaque outil avec ses menus fermés.
+  const [cle, setCle] = useState(0)
+  const barre = useRef<HTMLDivElement>(null)
+  useEchapFerme(barre, () => {
+    setPlus(false)
+    setCle((c) => c + 1)
+  })
   const parType = new Map<string, Element[]>()
   for (const e of elements) parType.set(e.contenu.type, [...(parType.get(e.contenu.type) ?? []), e])
   const blocs = [...parType].flatMap(([type, els]) => {
@@ -126,6 +152,8 @@ export function BarreSelection({
   if (blocs.length === 0 && communs.length === 0) return null
   return (
     <div
+      ref={barre}
+      key={cle}
       className="notak-barre-selection"
       style={{ left: position.x, top: position.y }}
       onPointerDown={(e) => e.stopPropagation()}

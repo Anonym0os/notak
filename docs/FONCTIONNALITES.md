@@ -342,14 +342,14 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Thème sombre (Cmd+Maj+D) | ✅ | |
 | Tailles d'interface (petite, moyenne, grande) | ✅ |  |
 | Fenêtre des raccourcis (/) | ✅ | |
-| Présentation (Cmd+Alt+P), mode focus sur un élément | ⬜ | |
+| Présentation (Cmd+Alt+P), mode focus sur un élément | ✅ |  |
 | Aide, bulles de découverte, accueil d'un nouveau compte | ⬜ | |
 | Réglages du compte (Cmd+,), photo, couleur | 🟡 | Thème, taille, double-clic ; pas encore la photo ni la couleur du compte. |
 | Langues de l'interface | ⬜ | Français seulement. |
 | Avis en bas d'écran (toasts) avec annulation | 🟡 | Corbeille (« Annuler ») et envoi raté ; pas encore les autres gestes. |
 | Envoi de fichier : progression dans l'en-tête | ✅ |  |
 | Cmd+S rassure (« déjà enregistré ») | ✅ | |
-| Raccourci Échap sur les menus de la barre | ⬜ | |
+| Raccourci Échap sur les menus de la barre | ✅ |  |
 
 ## 16. Exporter, importer
 

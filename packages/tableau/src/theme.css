@@ -141,3 +141,37 @@
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
   font-weight: 600;
 }
+
+/* La présentation : rien que le tableau, sans en-tête ni barres. */
+.notak-espace[data-presentation] :is(.notak-entete, .notak-barre-outils, .notak-barre-selection, .notak-non-tries, .notak-corbeille) {
+  display: none;
+}
+
+.notak-espace[data-presentation] .notak-carte {
+  cursor: zoom-in;
+}
+
+/* L'élément montré en grand, sur un voile qui s'assombrit. */
+.notak-focus {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgb(15 18 22 / 0.72);
+  cursor: zoom-out;
+  animation: notak-focus-voile 0.3s ease-out;
+  transition: background-color 0.3s ease;
+}
+
+.notak-focus[data-sortie] {
+  background: rgb(15 18 22 / 0);
+}
+
+.notak-focus .notak-carte {
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.45);
+}
+
+@keyframes notak-focus-voile {
+  from {
+    background: rgb(15 18 22 / 0);
+  }
+}

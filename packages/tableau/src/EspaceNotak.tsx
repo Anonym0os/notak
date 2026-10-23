@@ -101,6 +101,7 @@ export function EspaceNotak({
   const lectureSeule = useSyncExternalStore(espace.ecouter, () => espace.lectureSeule?.(courant) ?? false)
   const [reglages, changerReglages] = useReglages()
   const [reglagesOuverts, setReglagesOuverts] = useState(false)
+  const [presentation, setPresentation] = useState(false)
   const vues = useRef<Vues | null>(null)
   vues.current ??= lireVuesEnregistrees()
 
@@ -130,7 +131,8 @@ export function EspaceNotak({
         m.remplacer({ ...m.lire(), couleur })
       },
       presence: espace.presence?.(courant),
-      lectureSeule: lectureSeule || hote.lectureSeule,
+      lectureSeule: lectureSeule || hote.lectureSeule || presentation,
+      presentation,
       doubleClicCreeNote: reglages.doubleClic,
       deposerDans: (cible, elements) => {
         if (espace.lectureSeule?.(cible)) return
@@ -140,7 +142,7 @@ export function EspaceNotak({
         return neufs
       },
     }),
-    [hote, espace, ouvrir, courant, lectureSeule, reglages.doubleClic],
+    [hote, espace, ouvrir, courant, lectureSeule, reglages.doubleClic, presentation],
   )
 
   // L'adresse suit le tableau ouvert ; une adresse qu'on suit (retour du navigateur) ne se réécrit pas.
@@ -216,11 +218,16 @@ export function EspaceNotak({
   // Les raccourcis de navigation, sur le document : la toile qui avait le focus disparaît à chaque changement.
   const basculerThemeRef = useRef(() => {})
   const ouvrirReglagesRef = useRef(() => {})
+  const basculerPresentationRef = useRef(() => {})
   const etat = useRef({ courant, ouvrir, espace, parcours })
   etat.current = { courant, ouvrir, espace, parcours }
   useEffect(() => {
     const touche = (e: KeyboardEvent) => {
       // Cmd+S, même en écrivant : tout s'enregistre seul, on le dit plutôt que d'ouvrir « Enregistrer la page ».
+      if ((e.metaKey || e.ctrlKey) && e.altKey && !e.shiftKey && e.code === 'KeyP') {
+        e.preventDefault()
+        return basculerPresentationRef.current()
+      }
       if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key === ',') {
         e.preventDefault()
         return ouvrirReglagesRef.current()
@@ -261,6 +268,25 @@ export function EspaceNotak({
   const envoi = useSyncExternalStore(espace.ecouter, () => espace.envoi?.(courant))
   const basculerTheme = useCallback(() => changerReglages({ theme: reglages.theme === 'sombre' ? 'clair' : 'sombre' }), [reglages.theme, changerReglages])
   ouvrirReglagesRef.current = () => setReglagesOuverts(true)
+  basculerPresentationRef.current = () => setPresentation((p) => !p)
+  // La présentation passe en plein écran ; en sortir (Échap du navigateur compris) la referme.
+  const racineEspace = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!presentation) return
+    if (!document.fullscreenElement) void racineEspace.current?.requestFullscreen?.().catch(() => {})
+    const sortie = () => !document.fullscreenElement && setPresentation(false)
+    const touche = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || document.querySelector('.notak-focus')) return
+      setPresentation(false)
+    }
+    document.addEventListener('fullscreenchange', sortie)
+    document.addEventListener('keydown', touche)
+    return () => {
+      document.removeEventListener('fullscreenchange', sortie)
+      document.removeEventListener('keydown', touche)
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+    }
+  }, [presentation])
   basculerThemeRef.current = basculerTheme
   const historique = useMemo(
     () => ({
@@ -279,7 +305,7 @@ export function EspaceNotak({
   )
 
   return (
-    <div className="notak-espace" data-theme={reglages.theme} data-taille={reglages.taille}>
+    <div ref={racineEspace} className="notak-espace" data-theme={reglages.theme} data-taille={reglages.taille} data-presentation={presentation || undefined}>
       <Entete
         segments={segments}
         courant={courant}

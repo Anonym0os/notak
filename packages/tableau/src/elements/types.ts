@@ -93,6 +93,8 @@ export interface Services {
   presence?: ServicePresence
   /** On peut regarder et défiler, rien de plus : la toile refuse tout ce qui modifie. */
   lectureSeule?: boolean
+  /** La présentation (Cmd+Alt+P) : rien ne se modifie, et un clic sur un élément le montre en grand. */
+  presentation?: boolean
   /** Un double-clic sur le vide crée une note (le réglage de chacun) ; absent : oui. */
   doubleClicCreeNote?: boolean
 }

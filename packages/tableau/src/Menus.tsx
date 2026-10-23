@@ -280,6 +280,8 @@ const RACCOURCIS: { titre: string; lignes: [string, string][] }[] = [
       ['Tableau parent, redescendre', '⌘U  ⇧⌘U'],
       ['Reculer, avancer', '⌘[  ⌘]'],
       ['Thème sombre', '⇧⌘D'],
+      ['Présentation', '⌥⌘P'],
+      ['Réglages', '⌘,'],
       ['Ces raccourcis', '/'],
     ],
   },

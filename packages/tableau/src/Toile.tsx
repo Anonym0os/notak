@@ -125,6 +125,48 @@ function retenirPaquet(p: Paquet) {
 
 const AUCUNE: readonly Empreinte[] = []
 
+/**
+ * La présentation montre un élément en grand : une copie de sa carte part de sa place et grandit au centre, sur un
+ * voile. Un clic ou Échap la renvoie à sa place.
+ */
+function CoucheFocus({ noeud, depart, fermer }: { noeud: HTMLElement; depart: DOMRect; fermer(): void }) {
+  const hote = useRef<HTMLDivElement>(null)
+  const [sortie, setSortie] = useState(false)
+  const copie = useRef<HTMLElement | null>(null)
+  const place = `translate(${depart.left}px, ${depart.top}px)`
+  useLayoutEffect(() => {
+    const c = noeud.cloneNode(true) as HTMLElement
+    c.removeAttribute('data-choisie')
+    Object.assign(c.style, { position: 'absolute', left: '0', top: '0', margin: '0', width: `${depart.width}px`, transformOrigin: '0 0', transform: place })
+    hote.current!.replaceChildren(c)
+    copie.current = c
+    const k = Math.min((innerWidth * 0.8) / depart.width, (innerHeight * 0.8) / depart.height, 3)
+    const [x, y] = [(innerWidth - depart.width * k) / 2, (innerHeight - depart.height * k) / 2]
+    c.getBoundingClientRect()
+    c.style.transition = 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)'
+    c.style.transform = `translate(${x}px, ${y}px) scale(${k})`
+  }, [noeud, depart, place])
+  const quitter = useCallback(() => {
+    setSortie(true)
+    if (copie.current) copie.current.style.transform = place
+    setTimeout(fermer, 300)
+  }, [fermer, place])
+  useEffect(() => {
+    const touche = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.stopPropagation()
+      quitter()
+    }
+    document.addEventListener('keydown', touche, true)
+    return () => document.removeEventListener('keydown', touche, true)
+  }, [quitter])
+  return (
+    <div className="notak-focus" data-sortie={sortie || undefined} onPointerDown={(e) => (e.stopPropagation(), quitter())}>
+      <div ref={hote} />
+    </div>
+  )
+}
+
 /** Le nom suit le pointeur d'un autre tant qu'il bouge ; immobile, le nom s'efface, puis le pointeur pâlit. */
 const NOM_REPOS = 3_000
 const POINTEUR_REPOS = 20_000
@@ -254,6 +296,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const [enGeste, setEnGeste] = useState(false)
   // La main se ferme tant qu'on tient la toile, au bouton du milieu comme avec Espace.
   const [attrape, setAttrape] = useState(false)
+  // L'élément montré en grand pendant une présentation.
+  const [focus, setFocus] = useState<{ noeud: HTMLElement; depart: DOMRect } | null>(null)
   const [glisses, setGlisses] = useState<ReadonlySet<Id> | null>(null)
   /** Le trait qui montre la place d'insertion dans une colonne, en pixels de la toile. */
   const [trait, setTrait] = useState<{ x0: number; x1: number; y: number } | null>(null)
@@ -1246,6 +1290,16 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   }
 
   const appui = (e: React.PointerEvent) => {
+    // En présentation, un clic sur un élément le montre en grand ; le reste de la toile se parcourt.
+    if (services.presentation && e.button === 0 && !espace) {
+      const id = sous(e.target)
+      const n = id ? noeudDe(id) : null
+      const el = id ? tableau.elements.find((x) => x.id === id) : null
+      if (n && el && definition(el.contenu.type)?.calque !== 'lignes') {
+        e.preventDefault()
+        return setFocus({ noeud: n, depart: n.getBoundingClientRect() })
+      }
+    }
     if (dansEdition(racine.current, e.target)) return
     if (edition) finirEdition()
     racine.current!.focus({ preventScroll: true })
@@ -1936,6 +1990,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         <PanneauCorbeille elements={corbeille} contexte={contexte} restaurer={restaurer} vider={viderCorbeille} fermer={() => setCorbeilleOuverte(false)} />
       )}
       <BandeauAvis />
+      {focus && <CoucheFocus noeud={focus.noeud} depart={focus.depart} fermer={() => setFocus(null)} />}
       {raccourcis && <FenetreRaccourcis fermer={fermerRaccourcis} />}
       {menu && <MenuContextuel x={menu.x} y={menu.y} entrees={entreesMenu()} fermer={fermerMenu} />}
       {requete !== null && (
@@ -1955,7 +2010,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           {...(toutLeTableau.id ? { ici: toutLeTableau.id } : {})}
         />
       )}
-      {lectureSeule && <div className="notak-lecture">Lecture seule</div>}
+      {lectureSeule && !services.presentation && <div className="notak-lecture">Lecture seule</div>}
       <div className="notak-echelle">{Math.round(camera.echelle * 100)} %</div>
     </div>
   )
