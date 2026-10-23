@@ -1,5 +1,6 @@
 // Ce que la page « Envoyer vers Notak » dit et fabrique : l'adresse d'arrivée, les étapes d'un Raccourci iOS et le
 // favori du bureau. Du texte et du code, sans écran : les essais s'y tiennent.
+import { t } from './langue'
 
 /** Ce que la page montre à la place du jeton tant qu'aucun n'a été créé ici. */
 export const JETON_A_REMPLACER = 'VOTRE_JETON'
@@ -9,37 +10,29 @@ export const adresseArrivee = (origine: string) => `${origine}/api/arrivee`
 /** La valeur de l'en-tête `Authorization`, avec son espace. */
 export const enteteAutorisation = (jeton: string) => `Bearer ${jeton}`
 
-const reglagesCommuns = (origine: string, jeton: string, types: string): string[] => [
-  `Ouvrez l’app Raccourcis, touchez + pour créer un raccourci, puis touchez son nom en haut pour le renommer : « Envoyer vers Notak ».`,
-  `Touchez le bouton de réglages (ⓘ) : activez « Afficher dans la feuille de partage », puis, dans « Types acceptés », ne gardez que ${types}. Touchez OK.`,
-  `Ajoutez l’action « Obtenir le contenu de l’URL » (cherchez-la dans la barre de recherche des actions).`,
-  `Dans son champ URL, saisissez \`${adresseArrivee(origine)}\`.`,
-  `Touchez « Afficher plus » sur l’action, puis réglez « Méthode » sur POST.`,
-  `Dans « En-têtes », touchez « Ajouter un nouvel en-tête » : Clé \`Authorization\`, Texte \`${enteteAutorisation(jeton)}\` (le mot Bearer, une espace, puis le jeton).`,
+const reglagesCommuns = (origine: string, jeton: string, nom: string, types: string): string[] => [
+  t('ios.renommer', { nom }),
+  t('ios.reglages', { types }),
+  t('ios.obtenir'),
+  t('ios.url', { adresse: adresseArrivee(origine) }),
+  t('ios.methode'),
+  t('ios.entetes', { entete: enteteAutorisation(jeton) }),
 ]
 
 /** Un raccourci pour une page, un lien ou un texte partagé depuis Safari ou une autre app. */
 export function etapesRaccourciTexte(origine: string, jeton: string): string[] {
   return [
-    ...reglagesCommuns(origine, jeton, '« Pages Safari », « URL » et « Texte »'),
-    `Dans « Corps de la requête », choisissez JSON, puis touchez « Ajouter un nouveau champ » : choisissez Texte, Clé \`texte\`, et pour la valeur touchez le champ puis choisissez la variable « Entrée du raccourci ».`,
-    `Pour savoir que c’est parti, ajoutez à la suite l’action « Afficher la notification » avec le texte « Envoyé vers Notak ». Touchez OK.`,
-    `Pour l’utiliser : dans Safari, touchez Partager, faites défiler jusqu’à « Envoyer vers Notak » et touchez-le. S’il n’y est pas, touchez « Modifier les actions » tout en bas de la feuille et ajoutez-le aux favoris.`,
+    ...reglagesCommuns(origine, jeton, t('ios.nomTexte'), t('ios.typesTexte')),
+    t('ios.corpsJson'),
+    t('ios.notifTexte'),
+    t('ios.usageTexte'),
   ]
 }
 
 /** Un raccourci pour une photo ou une image partagée depuis Photos ou une autre app. */
 export function etapesRaccourciImage(origine: string, jeton: string): string[] {
-  const [renommer, reglages, ...suite] = reglagesCommuns(origine, jeton, '« Images »')
-  return [
-    renommer!.replace('« Envoyer vers Notak »', '« Envoyer une image vers Notak »'),
-    reglages!,
-    `Ajoutez d’abord l’action « Convertir l’image » et réglez-la sur JPEG : les photos de l’iPhone sont en HEIC, un format que Notak ne lit pas.`,
-    ...suite,
-    `Dans « Corps de la requête », choisissez Formulaire, puis touchez « Ajouter un nouveau champ » : choisissez Fichier, Clé \`image\`, et pour la valeur touchez le champ puis choisissez la variable « Image convertie ».`,
-    `Ajoutez l’action « Afficher la notification » avec le texte « Image envoyée vers Notak », puis touchez OK.`,
-    `Pour l’utiliser : dans Photos, ouvrez une photo, touchez Partager, puis « Envoyer une image vers Notak ».`,
-  ]
+  const [renommer, reglages, ...suite] = reglagesCommuns(origine, jeton, t('ios.nomImage'), t('ios.typesImage'))
+  return [renommer!, reglages!, t('ios.convertir'), ...suite, t('ios.corpsFormulaire'), t('ios.notifImage'), t('ios.usageImage')]
 }
 
 /**
@@ -59,7 +52,7 @@ export function favori(origine: string, jeton: string): string {
     setTimeout(() => d.remove(), 2500);
   };
   fetch(o + '/api/arrivee', { method: 'POST', headers: { Authorization: ${JSON.stringify(enteteAutorisation(jeton))}, 'Content-Type': 'application/json' }, body: JSON.stringify(donnees) })
-    .then((r) => { if (!r.ok) throw new Error(String(r.status)); dire('Envoyé vers Notak'); })
+    .then((r) => { if (!r.ok) throw new Error(String(r.status)); dire(${JSON.stringify(t('ios.favoriEnvoye'))}); })
     .catch(() => open(o + '/partage?' + new URLSearchParams({ titre: donnees.titre, adresse: donnees.url, texte: donnees.texte }), '_blank', 'width=480,height=360'));
 })()`
   return 'javascript:' + code.replace(/\s*\n\s*/g, ' ')

@@ -1,5 +1,6 @@
 import { type Arrivee, type EspaceDistant, elementsArrives, poserDansNonTries } from '@notak/tableau'
 import { fichiers } from './fichiers'
+import { t, tn } from './langue'
 
 /** Attend que `fait` soit vrai, en le relisant toutes les `pas` ms ; rend faux si `delai` s'écoule avant. */
 export function attendre(fait: () => boolean, delai: number, pas = 100, abandon: (ecoule: number) => boolean = () => false): Promise<boolean> {
@@ -20,9 +21,9 @@ export type Depot = { etat: 'enregistre' | 'local'; ajoutes: number; ignores: nu
 
 /** Ce que la page dit d'un dépôt réussi. */
 export function messageDuDepot(d: Depot): string {
-  const quoi = d.ajoutes === 1 ? 'Ajouté' : `${d.ajoutes} éléments ajoutés`
-  const ou = d.etat === 'enregistre' ? 'aux non triés.' : 'aux non triés, sur cet appareil : ça partira au retour du réseau.'
-  const refus = d.ignores > 0 ? ` ${d.ignores === 1 ? 'Une image n’a pas pu être prise.' : `${d.ignores} images n’ont pas pu être prises.`}` : ''
+  const quoi = tn('deposer.quoi', d.ajoutes)
+  const ou = d.etat === 'enregistre' ? t('deposer.ou.enregistre') : t('deposer.ou.local')
+  const refus = d.ignores > 0 ? ` ${tn('deposer.ignores', d.ignores)}` : ''
   return `${quoi} ${ou}${refus}`
 }
 

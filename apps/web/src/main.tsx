@@ -142,7 +142,7 @@ function Application() {
           <h1>Notak</h1>
           <p className="connexion-erreur">{etat.message}</p>
           <button type="button" className="bouton bouton-plein" onClick={charger}>
-            Réessayer
+            {t('bandeau.reessayer')}
           </button>
         </div>
       </main>
