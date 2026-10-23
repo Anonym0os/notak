@@ -31,6 +31,7 @@ import type { PropsRendu } from "../types";
 import { LIBELLE_MAX, couleurDeLigne } from "./couleur";
 import { elementSous } from "./accroche";
 import { editionLibelle } from "./edition";
+import { suivreLesVols } from "../../envol";
 
 type Mesures = { depart: Rect | null; arrivee: Rect | null };
 type Geste = { quoi: "depart" | "arrivee" | "courbe"; avant: Ligne };
@@ -100,6 +101,20 @@ export function RenduLigne({
     for (const n of noeuds) obs.observe(n);
     return () => obs.disconnect();
   }, [idD, idA]);
+  // Une carte qu'on glisse bouge sans rendu React : la ligne la suit à chaque image du vol.
+  useEffect(
+    () =>
+      suivreLesVols((noeud) => {
+        const porte = (id: Id | null) =>
+          !!id && (noeud.dataset.id === id || !!noeud.querySelector(`[data-id="${CSS.escape(id)}"]`));
+        if (!porte(idD) && !porte(idA)) return;
+        const m = mesurer();
+        setMesures((avant) =>
+          memesRects(m.depart, avant.depart) && memesRects(m.arrivee, avant.arrivee) ? avant : m,
+        );
+      }),
+    [idD, idA],
+  );
 
   const estColonne = (id: Id | null) =>
     !!id && contexte.magasin.lire().elements.find((e) => e.id === id)?.contenu.type === "colonne";

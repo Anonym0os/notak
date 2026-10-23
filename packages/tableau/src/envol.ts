@@ -74,14 +74,29 @@ export class Envol {
 }
 
 /** Pose le vol sur le nœud d'un élément : sa transformation, et l'intensité de son ombre de soulèvement. */
+/**
+ * Ce qui suit un élément en vol image par image (une ligne accrochée à lui) : le vol écrit dans le DOM sans passer
+ * par React, il prévient donc lui-même, avec le nœud qui a bougé (une colonne emporte aussi ce qu'elle contient).
+ */
+const suiveurs = new Set<(noeud: HTMLElement) => void>()
+export function suivreLesVols(f: (noeud: HTMLElement) => void): () => void {
+  suiveurs.add(f)
+  return () => void suiveurs.delete(f)
+}
+const prevenir = (noeud: HTMLElement) => {
+  for (const f of suiveurs) f(noeud)
+}
+
 export function dessinerSur(noeud: HTMLElement, transformation: string, ombre: number) {
   noeud.style.transform = transformation
   noeud.style.setProperty('--notak-soulevement', String(ombre))
   noeud.dataset.vol = ''
+  prevenir(noeud)
 }
 
 export function oublierVol(noeud: HTMLElement) {
   noeud.style.removeProperty('transform')
   noeud.style.removeProperty('--notak-soulevement')
   delete noeud.dataset.vol
+  prevenir(noeud)
 }
