@@ -183,7 +183,7 @@
   flex: none;
 }
 
-.notak-lien-titre {
+.notak-lien .notak-lien-titre {
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
