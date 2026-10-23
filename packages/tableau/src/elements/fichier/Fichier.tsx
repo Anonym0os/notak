@@ -1,26 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Fichier } from '../../coeur/tableau'
+import { useFichier } from '../envois'
 import type { PropsOutils, PropsRendu } from '../types'
 import { extensionDe, genreDe, lisible, tailleLisible } from './genre'
-
-/** `undefined` : en chargement ; `null` : introuvable. */
-function useAdresse(fichier: string, contexte: PropsRendu['contexte']) {
-  const [adresse, setAdresse] = useState<string | null | undefined>(undefined)
-  const depot = contexte.services.fichiers
-  useLayoutEffect(() => {
-    let vivant = true
-    if (!fichier) return // Le fantôme d'un outil : pas encore de fichier.
-    if (!depot) return setAdresse(null)
-    depot.adresse(fichier).then(
-      (a) => vivant && setAdresse(a),
-      () => vivant && setAdresse(null),
-    )
-    return () => {
-      vivant = false
-    }
-  }, [depot, fichier])
-  return adresse
-}
 
 const sansTitre = ({ titre: _, ...reste }: Fichier): Fichier => reste
 /** Les liens et les lecteurs de la carte ne lancent pas de glisser. */
@@ -28,7 +10,7 @@ const garder = (e: React.PointerEvent) => e.stopPropagation()
 
 export function RenduFichier({ element, enEdition, contexte, brouillon }: PropsRendu<Fichier>) {
   const c = element.contenu
-  const adresse = useAdresse(c.fichier, contexte)
+  const { adresse, enRoute } = useFichier(element, contexte)
   const genre = genreDe(c.nom, c.typeMime)
   const extension = extensionDe(c.nom)
   const lecteur = lisible(c.typeMime)
@@ -51,7 +33,13 @@ export function RenduFichier({ element, enEdition, contexte, brouillon }: PropsR
           )}
           <span className="notak-fichier-details">
             {tailleLisible(c.taille)}
-            {adresse && (
+            {enRoute && (
+              <>
+                {' · '}
+                <span className="notak-roue" aria-hidden /> Envoi…
+              </>
+            )}
+            {adresse && !enRoute && (
               <>
                 {' · '}
                 <a href={adresse} download={c.nom} onPointerDown={garder}>

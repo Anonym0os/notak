@@ -10,6 +10,8 @@ export type ElementStocke = Element & { plan: string }
 export const ORIGINE_GESTE = 'notak:geste'
 /** Ce qui s'applique sans historique : un glisser en cours, un retour au point de départ, l'ordre d'empilement. */
 export const ORIGINE_LIBRE = 'notak:libre'
+/** Ce que l'historique ne voit pas du tout : une correction qui n'a pas trouvé son pas (`corriger`). */
+const ORIGINE_HORS = 'notak:hors-historique'
 
 export type MagasinYjs = Magasin & { detruire(): void }
 
@@ -173,6 +175,23 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id): MagasinYjs {
         transaction(() => ecrire(pas), ORIGINE_GESTE)
       }
       historique.stopCapturing()
+    },
+    corriger(pas) {
+      if (pas.length === 0) return
+      // Un geste est en train de s'écrire (un glisser) : la correction ne doit pas s'y mêler ni le couper.
+      if (historique.lastChange > 0) return transaction(() => ecrire(pas), ORIGINE_HORS)
+      // Les entrées que la correction va remplacer : le pas qui les a écrites la reçoit, comme si elle en était.
+      const stockees = (elements as unknown as { _map: Map<string, { id: Y.ID }> })._map
+      const touchees = pas.map((op) => stockees.get(op.type === 'creer' || op.type === 'supprimer' ? op.element.id : op.id)?.id)
+      const avant = historique.undoStack.length
+      transaction(() => ecrire(pas), ORIGINE_LIBRE)
+      historique.stopCapturing()
+      if (historique.undoStack.length === avant) return
+      const correction = historique.undoStack.pop()!
+      const pasDOrigine = historique.undoStack.findLast((p) => touchees.some((id) => id && Y.isDeleted(p.insertions, id)))
+      if (!pasDOrigine) return
+      pasDOrigine.insertions = Y.mergeDeleteSets([pasDOrigine.insertions, correction.insertions])
+      pasDOrigine.deletions = Y.mergeDeleteSets([pasDOrigine.deletions, correction.deletions])
     },
     remplacer(t) {
       transaction(() => {

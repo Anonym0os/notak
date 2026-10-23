@@ -13,6 +13,11 @@ export interface Magasin {
   /** Applique sans rien inscrire : un glisser en cours, inscrit à la fin par `inscrire`. */
   appliquerSeulement(pas: Operation[]): void
   inscrire(pas: Operation[]): void
+  /**
+   * Écrit sans que l'historique le voie jamais : la suite d'un geste déjà inscrit, qui ne doit pas devenir un
+   * pas à part (un fichier qui finit d'arriver). Annuler le geste emporte aussi la correction.
+   */
+  corriger(pas: Operation[]): void
   /** Remplace le tableau sans passer par l'historique (premier plan, chargement). */
   remplacer(t: Tableau): void
   annuler(): boolean
@@ -43,6 +48,9 @@ export function creerMagasin(initial: Tableau): Magasin {
       if (pas.length > 0) poser(pas.reduce(appliquer, tableau))
     },
     inscrire: (pas) => historique.inscrire(pas),
+    corriger(pas) {
+      if (pas.length > 0) poser(pas.reduce(appliquer, tableau))
+    },
     remplacer: poser,
     annuler() {
       const t = historique.annuler(tableau)
@@ -65,6 +73,7 @@ export function enLectureSeule(m: Magasin): Magasin {
     faire() {},
     appliquerSeulement() {},
     inscrire() {},
+    corriger() {},
     remplacer() {},
     annuler: () => false,
     retablir: () => false,

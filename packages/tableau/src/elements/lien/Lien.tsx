@@ -38,7 +38,7 @@ function useChargementApercu({ element, contexte }: PropsRendu<Lien>) {
       // L'élément a disparu ou changé d'adresse entre-temps : ce résultat ne le concerne plus.
       if (!actuel || actuel.type !== 'lien' || actuel.url !== url || actuel.statut !== 'attente') return
       const apres: Lien = { ...actuel, statut: statutFinal, apercu }
-      contexte.magasin.appliquerSeulement([{ type: 'contenu', id, avant: actuel, apres }])
+      contexte.magasin.corriger([{ type: 'contenu', id, avant: actuel, apres }])
     }
     if (!chercheur) return terminer('echec')
     let minuteur: ReturnType<typeof setTimeout>

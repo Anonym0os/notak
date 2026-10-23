@@ -19,7 +19,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 4. Colonne | 9 | 0 | 2 | 82 % |
 | 5. Tableau imbriqué | 8 | 0 | 3 | 73 % |
 | 6. Lien | 7 | 2 | 4 | 62 % |
-| 7. Image | 4 | 2 | 6 | 42 % |
+| 7. Image | 5 | 2 | 5 | 50 % |
 | 8. Liste de tâches | 11 | 0 | 6 | 65 % |
 | 9. Ligne | 9 | 2 | 3 | 71 % |
 | 10. Autres éléments | 0 | 1 | 11 | 4 % |
@@ -27,10 +27,10 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 12. Organiser | 13 | 1 | 2 | 84 % |
 | 13. Naviguer | 6 | 3 | 4 | 58 % |
 | 14. À plusieurs | 7 | 3 | 7 | 50 % |
-| 15. Habillage | 1 | 3 | 11 | 17 % |
+| 15. Habillage | 1 | 4 | 10 | 20 % |
 | 16. Exporter, importer | 0 | 0 | 4 | 0 % |
 | 17. Plateformes | 1 | 1 | 5 | 21 % |
-| **Total** | **122** | **29** | **98** | **55 %** |
+| **Total** | **123** | **30** | **96** | **55 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -185,7 +185,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Visionneuse plein écran (double-clic, Espace) | ✅ | |
 | Légende | 🟡 | Texte brut, hors de la carte ; pas de saisie directe. |
 | Ombre selon la transparence | 🟡 | Devinée au type de fichier, pas lue dans l'image. |
-| Miniature et roue pendant l'envoi | ⬜ | L'image n'apparaît qu'une fois envoyée. |
+| Miniature et roue pendant l'envoi | ✅ | |
 | Tailles adaptées à l'affichage (400, 800, 1600 px) | ⬜ | |
 | Hauteur calée sur la grille | ⬜ | |
 | Recadrer, pivoter, détourer | ⬜ | |
@@ -240,7 +240,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
 | Fonctionnalité | État | Reste |
 |---|---|---|
-| Fichier joint : extension, nom, taille, Télécharger, Ouvrir, lecteur du son et de la vidéo, renommer | 🟡 | Pas d'aperçu des pages d'un PDF, de légende ni de mode icône ; rien à l'écran pendant l'envoi. |
+| Fichier joint : extension, nom, taille, Télécharger, Ouvrir, lecteur du son et de la vidéo, renommer | 🟡 | Pas d'aperçu des pages d'un PDF, de légende ni de mode icône. |
 | Commentaire (fil de discussion posé sur la toile) | ⬜ | |
 | Table (lignes, colonnes, cellules) | ⬜ | |
 | Croquis à main levée | ⬜ | |
@@ -346,7 +346,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Aide, bulles de découverte, accueil d'un nouveau compte | ⬜ | |
 | Réglages du compte (Cmd+,), photo, couleur | ⬜ | |
 | Langues de l'interface | ⬜ | Français seulement. |
-| Avis en bas d'écran (toasts) avec annulation | ⬜ | |
+| Avis en bas d'écran (toasts) avec annulation | 🟡 | Corbeille (« Annuler ») et envoi raté ; pas encore les autres gestes. |
 | Envoi de fichier : progression dans l'en-tête | ⬜ | |
 | Cmd+S rassure (« déjà enregistré ») | ⬜ | |
 | Raccourci Échap sur les menus de la barre | ⬜ | |

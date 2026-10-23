@@ -14,6 +14,7 @@ import { type Entree, MenuContextuel, PanneauCorbeille, Recherche } from './Menu
 import { chercher } from './coeur/recherche'
 import { VOL_REPOS, type Vol, inclinaisonMax, transformation } from './coeur/vol'
 import { Envol, dessinerSur, oublierVol } from './envol'
+import { BandeauAvis, annoncer } from './avis'
 import {
   type Contenu,
   type Element,
@@ -405,7 +406,13 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           const [x, y] = r ? aimanter(r.min) : [e.x, e.y]
           return { type: 'ranger', id: e.id, de: placeDe(e), vers: { x, y, corbeille: date } }
         })
+      if (pas.length === 0) return
       m.faire(pas)
+      annoncer({
+        texte: pas.length === 1 ? 'Mis à la corbeille' : `${pas.length} éléments mis à la corbeille`,
+        // Défaire ce geste-là, même si d'autres l'ont suivi : Cmd+Z, lui, défait le dernier.
+        action: { libelle: 'Annuler', faire: () => m.faire(pas.map(inverse).reverse()) },
+      })
     },
     [rect],
   )
@@ -1737,6 +1744,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       {corbeilleOuverte && !lectureSeule && (
         <PanneauCorbeille elements={corbeille} contexte={contexte} restaurer={restaurer} vider={viderCorbeille} fermer={() => setCorbeilleOuverte(false)} />
       )}
+      <BandeauAvis />
       {menu && <MenuContextuel x={menu.x} y={menu.y} entrees={entreesMenu()} fermer={fermerMenu} />}
       {requete !== null && (
         <Recherche

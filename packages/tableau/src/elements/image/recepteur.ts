@@ -1,4 +1,5 @@
 import { type Element, type Image as ContenuImage, type Operation, nouvelId } from '../../coeur/tableau'
+import { commencerEnvoi } from '../envois'
 import type { ContexteToile, DepotFichiers } from '../types'
 import { type TailleUG, TAILLE_MAX, TYPES_ACCEPTES, hauteurPour, largeurInitiale, nombreColonnes, placerImages } from './geometrie'
 
@@ -36,6 +37,7 @@ export function recevoirImages(donnees: DataTransfer, ou: { x: number; y: number
   return poserImages(fichiers, ou, contexte, depot)
 }
 
+/** Les images naissent dès que leurs dimensions sont lues ; l'envoi suit (voir `envois.ts`). */
 async function poserImages(fichiers: File[], ou: { x: number; y: number }, contexte: ContexteToile, depot: DepotFichiers): Promise<Operation[]> {
   const lues: { fichier: Blob; contenu: Omit<ContenuImage, 'fichier'>; largeur: number }[] = []
   for (const f of fichiers) {
@@ -56,7 +58,7 @@ async function poserImages(fichiers: File[], ou: { x: number; y: number }, conte
       x,
       y,
       largeur: l.largeur,
-      contenu: { ...l.contenu, fichier: await depot.enregistrer(l.fichier) },
+      contenu: { ...l.contenu, fichier: commencerEnvoi(l.fichier, depot) },
     })
   }
   return elements.map((element) => ({ type: 'creer' as const, element }))

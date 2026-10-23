@@ -1,43 +1,28 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { Image } from '../../coeur/tableau'
+import { useFichier } from '../envois'
 import type { PropsOutils, PropsRendu } from '../types'
 import { aUneOmbre, avecLegende } from './geometrie'
 import { Visionneuse, useImageOuverte } from './visionneuse'
 
-/** `undefined` : en chargement ; `null` : introuvable. */
-function useAdresse(fichier: string, contexte: PropsRendu['contexte']) {
-  const [adresse, setAdresse] = useState<string | null | undefined>(undefined)
-  const depot = contexte.services.fichiers
-  useLayoutEffect(() => {
-    let vivant = true
-    setAdresse(undefined)
-    if (!depot) {
-      setAdresse(null)
-      return
-    }
-    depot.adresse(fichier).then(
-      (a) => vivant && setAdresse(a),
-      () => vivant && setAdresse(null),
-    )
-    return () => {
-      vivant = false
-    }
-  }, [depot, fichier])
-  return adresse
-}
-
 export function RenduImage({ element, enEdition, contexte, brouillon }: PropsRendu<Image>) {
   const { contenu } = element
-  const adresse = useAdresse(contenu.fichier, contexte)
+  const { adresse, enRoute } = useFichier(element, contexte)
   const proportions = `${contenu.largeurOrigine} / ${contenu.hauteurOrigine}`
   const enGrand = useImageOuverte() === element.id
   return (
     <>
+      {enRoute && (
+        <span className="notak-envoi" role="status" aria-label="Envoi en cours">
+          <span className="notak-roue" />
+        </span>
+      )}
       {enGrand && adresse && <Visionneuse adresse={adresse} {...(contenu.legende ? { legende: contenu.legende } : {})} />}
       {adresse ? (
         <img
           className="notak-image"
           data-ombre={aUneOmbre(contenu.typeMime) || undefined}
+          data-en-route={enRoute || undefined}
           src={adresse}
           alt={contenu.legende ?? ''}
           draggable={false}

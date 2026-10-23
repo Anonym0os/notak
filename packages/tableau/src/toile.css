@@ -405,19 +405,6 @@
   margin-left: 12px;
 }
 
-.notak-avis {
-  position: absolute;
-  z-index: 30;
-  top: 52px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 6px 14px;
-  border-radius: 8px;
-  background: var(--notak-texte);
-  color: #fff;
-  font-size: 13px;
-}
-
 .notak-espace { position: relative; }
 
 /* Ce qui vole sous le pointeur : au-dessus de tout, soulevé par une ombre qui grandit. */
@@ -789,4 +776,68 @@
 [data-hors-recherche] {
   opacity: 0.22;
   transition: opacity 0.15s;
+}
+
+/* Une roue qui tourne : un envoi en cours. */
+.notak-roue {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  vertical-align: -2px;
+  animation: notak-roue 0.8s linear infinite;
+}
+
+@keyframes notak-roue {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* L'avis en bas de la toile, avec son bouton qui défait le geste. */
+.notak-avis {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 14px;
+  border-radius: 8px;
+  background: #2b2f36;
+  color: #f4f5f7;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.22);
+  font-size: 13px;
+  transform: translateX(-50%);
+  animation: notak-avis-entree 0.18s ease-out;
+}
+
+.notak-avis button {
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: #8fc1ff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notak-avis button:hover {
+  background: rgb(255 255 255 / 0.1);
+}
+
+.notak-avis .notak-avis-fermer {
+  color: #aab0b8;
+  font-weight: 400;
+}
+
+@keyframes notak-avis-entree {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
 }

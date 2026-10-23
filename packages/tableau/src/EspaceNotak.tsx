@@ -18,6 +18,7 @@ import { type Element, type Id, type Tableau, surLeTableau } from './coeur/table
 import { demanderRenommage } from './elements/tableau/renommage'
 import type { Presence, Services } from './elements/types'
 import { Toile } from './Toile'
+import { annoncer } from './avis'
 
 const CLE_VUES = 'notak:vues'
 const LIBELLE_RACINE = 'Accueil'
@@ -92,7 +93,6 @@ export function EspaceNotak({
 }) {
   const racine = espace.racine
   const [parcours, setParcours] = useState(() => parcoursDepart(racine))
-  const [avis, setAvis] = useState<string | null>(null)
   const courant = courantDe(parcours)
   const lectureSeule = useSyncExternalStore(espace.ecouter, () => espace.lectureSeule?.(courant) ?? false)
   const vues = useRef<Vues | null>(null)
@@ -189,14 +189,9 @@ export function EspaceNotak({
   const refuse = useSyncExternalStore(espace.ecouter, () => espace.refuse?.(courant) ?? false)
   useEffect(() => {
     if (!refuse || courant === racine) return
-    setAvis('Accès retiré')
+    annoncer({ texte: 'Accès retiré' })
     setParcours(parcoursDepart(racine))
   }, [refuse, courant, racine])
-  useEffect(() => {
-    if (!avis) return
-    const t = setTimeout(() => setAvis(null), 4000)
-    return () => clearTimeout(t)
-  }, [avis])
 
   // Le fil, lu comme une chaîne : l'en-tête ne se redessine que si le chemin ou un titre change.
   const fil = useSyncExternalStore(espace.ecouter, () => {
@@ -255,7 +250,6 @@ export function EspaceNotak({
         presence={espace.presence?.(courant)}
         actions={actions?.(courant, ouvrir)}
       />
-      {avis && <div className="notak-avis" role="status">{avis}</div>}
       <div className="notak-espace-corps" ref={corps}>
         <Toile
           key={courant}

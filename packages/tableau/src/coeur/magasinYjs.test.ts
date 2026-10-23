@@ -53,6 +53,33 @@ describe('magasin Yjs', () => {
     expect(ids(mb.lire())).toEqual([n.id])
   })
 
+  it('une correction n’est pas un pas : annuler la création l’emporte, rétablir la garde', () => {
+    const { ma } = relies()
+    const n = note(1)
+    ma.faire([{ type: 'creer', element: n }])
+    const corrige = { ...n, x: 9 }
+    ma.corriger([{ type: 'deplacer', id: n.id, de: [1, 0], vers: [9, 0] }])
+    expect(ma.annuler()).toBe(true)
+    expect(ma.lire().elements).toEqual([])
+    expect(ma.annuler()).toBe(false)
+    expect(ma.retablir()).toBe(true)
+    expect(ma.lire().elements).toEqual([corrige])
+  })
+
+  it('une correction rejoint le pas qui a créé l’élément, même si d’autres l’ont suivi', () => {
+    const { ma } = relies()
+    const [n, m] = [note(1), note(2)]
+    ma.faire([{ type: 'creer', element: n }])
+    ma.faire([{ type: 'creer', element: m }])
+    ma.corriger([{ type: 'deplacer', id: n.id, de: [1, 0], vers: [9, 0] }])
+    ma.annuler()
+    expect(ma.lire().elements).toEqual([{ ...n, x: 9 }])
+    ma.annuler()
+    expect(ma.lire().elements).toEqual([])
+    ma.retablir()
+    expect(ma.lire().elements).toEqual([{ ...n, x: 9 }])
+  })
+
   it('un glisser inscrit fait un seul pas, qui ramène au début du geste', () => {
     const { ma, mb } = relies()
     const n = note(1, 1)
