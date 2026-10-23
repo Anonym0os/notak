@@ -201,6 +201,14 @@ export interface ContexteToile {
   /** Le point où l'édition qui commence doit poser son curseur ; il n'est rendu qu'une fois. */
   prendrePointEdition(): Point | null
   finirEdition(): void
+  /**
+   * Le défilement au bord pendant un tirage qui garde sa propre capture du pointeur (le bout d'une ligne) : à chaque
+   * mouvement, la position du pointeur et de quoi rejouer le dernier mouvement ; la vue défile tant que le
+   * pointeur reste près d'un bord, et `rejouer` suit la vue.
+   */
+  suivreBord?(e: { clientX: number; clientY: number }, rejouer: () => void): void
+  /** Arrête ce défilement (fin du tirage). */
+  arreterBord?(): void
 }
 
 export interface PropsRendu<C extends Contenu = Contenu> {

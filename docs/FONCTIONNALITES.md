@@ -21,7 +21,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 6. Lien | 13 | 0 | 0 | 100 % |
 | 7. Image | 17 | 0 | 0 | 100 % |
 | 8. Liste de tâches | 18 | 0 | 0 | 100 % |
-| 9. Ligne | 16 | 2 | 0 | 94 % |
+| 9. Ligne | 19 | 1 | 0 | 98 % |
 | 10. Autres éléments | 15 | 2 | 0 | 94 % |
 | 11. Commun aux éléments | 11 | 1 | 0 | 96 % |
 | 12. Organiser | 16 | 0 | 0 | 100 % |
@@ -252,11 +252,13 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Libellé : étiquette, édition en place, masquer, frappe, glisser, texte collé | ✅ | |
 | Poignées blanches de 8 px, taille constante au zoom, grises quand la ligne est verrouillée | ✅ | |
 | Trait fantôme dans les éléments reliés | ✅ | |
-| Outil de ligne rapide au coin d'un élément choisi | ✅ | Le point de 8 px grossit au survol ; l'élément reste choisi pendant le tirage. |
+| Outil de ligne rapide au coin d'un élément choisi | ✅ | Le point de 8 px grossit au survol ; l'élément paraît désélectionné pendant le tirage (visuellement : la poignée reste montée, la sélection ne change pas). |
 | Aligner et répartir les lignes libres, coller le style entre lignes, copier une ligne seule | ✅ | |
 | Ligne horizontale entre deux colonnes alignées | ✅ | Voir § 4. |
-| Empilement : une ligne passe derrière une carte | 🟡 | Toutes les lignes sont dans un calque au-dessus des cartes. |
-| Sons, présence des collaborateurs, défilement au bord pendant le tirage | 🟡 | Rien de tout cela sur les lignes. |
+| Empilement : une ligne s'intercale avec les cartes selon l'ordre du plan | ✅ | Chaque ligne a son calque SVG, rangé entre les cartes ; les poignées vont dans un calque au-dessus de tout. |
+| Défilement au bord pendant le tirage d'un bout ou de la courbe, courbe gardée à l'accroche | ✅ | Même vitesse que le glisser des cartes. |
+| Surbrillance de recherche sur l'étiquette, masquage en présentation, variante tablette | ✅ | En présentation, une ligne reliée à un commentaire disparaît. Pointeur grossier : prises de 40 px. |
+| Sons, présence des collaborateurs | 🟡 | Rien de tout cela sur les lignes. |
 
 ## 10. Autres éléments
 

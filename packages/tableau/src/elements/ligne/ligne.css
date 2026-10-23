@@ -274,3 +274,55 @@
   border-radius: 1px;
   background: currentColor;
 }
+
+/* Pendant le tirage d'une ligne rapide, l'élément d'origine paraît désélectionné : plus de filet, de poignée
+   de taille, ni de barre d'outils (la poignée de la ligne rapide, elle, reste montée). */
+.notak-toile[data-tirage-ligne] .notak-carte[data-choisie]::before {
+  box-shadow: 0 0 0 2px transparent;
+}
+
+.notak-toile[data-tirage-ligne] .notak-carte[data-choisie] {
+  box-shadow: var(--notak-ombre);
+}
+
+.notak-toile[data-tirage-ligne] .notak-carte[data-choisie] > .notak-poignee,
+.notak-toile[data-tirage-ligne] .notak-barre-selection {
+  visibility: hidden;
+}
+
+/* La recherche : une ligne qui ne correspond pas s'efface tout entière (le trait n'a pas de data-id), et son
+   étiquette ne s'efface pas deux fois ; une étiquette trouvée s'entoure de jaune. */
+.notak-calque-lignes .notak-ligne:has(.notak-ligne-clic[data-hors-recherche]) {
+  opacity: 0.22;
+  transition: opacity 0.15s;
+}
+
+.notak-calque-lignes .notak-ligne-libelle[data-hors-recherche] {
+  opacity: 1;
+}
+
+.notak-calque-lignes .notak-ligne-libelle[data-trouve] {
+  box-shadow: 0 0 0 2px #ffd14d;
+}
+
+/* Tablette (pointeur grossier) : zones de prise de 40 px, point de la ligne rapide déjà plein, flèche visible. */
+@media (pointer: coarse) {
+  .notak-calque-lignes .notak-ligne-poignee-prise {
+    r: 20px;
+  }
+
+  .notak-ligne-rapide {
+    width: 40px;
+    height: 40px;
+    margin: -20px 0 0 -20px;
+  }
+
+  .notak-ligne-rapide-point {
+    transform: none;
+  }
+
+  .notak-ligne-rapide-point > * {
+    opacity: 1;
+    transform: none;
+  }
+}
