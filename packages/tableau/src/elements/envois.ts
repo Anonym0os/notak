@@ -11,7 +11,7 @@ import { t } from '../langue'
  */
 const PREFIXE = 'envoi-'
 
-type Envoi = { local: string; fini?: string; echec?: string }
+type Envoi = { local: string; fini?: string; echec?: string; envoyes?: number; total?: number }
 const envois = new Map<string, Envoi>()
 const abonnes = new Set<() => void>()
 const prevenir = () => abonnes.forEach((f) => f())
@@ -33,7 +33,14 @@ export function commencerEnvoi(fichier: Blob, depot: DepotFichiers): string {
   envois.set(id, { local: URL.createObjectURL(fichier) })
   enRoute++
   prevenir()
-  depot.enregistrer(fichier).then(
+  depot
+    .enregistrer(fichier, (envoyes, total) => {
+      const en = envois.get(id)
+      if (!en || en.fini || en.echec) return
+      envois.set(id, { ...en, envoyes, total })
+      prevenir()
+    })
+    .then(
     (fini) => {
       enRoute--
       envois.set(id, { ...envois.get(id)!, fini })
@@ -49,6 +56,18 @@ export function commencerEnvoi(fichier: Blob, depot: DepotFichiers): string {
   )
   return id
 }
+
+/** La copie locale d'un fichier en cours d'envoi, pour le montrer sans attendre le serveur ; `undefined` s'il n'est pas d'ici. */
+export const copieLocale = (fichier: string): string | undefined => (enEnvoi(fichier) ? envois.get(fichier)?.local : undefined)
+
+/** Où en est l'envoi de ce fichier : `null` s'il n'est pas en route, sinon la part envoyée (0 à 1), ou `-1` si on ne la connaît pas. */
+export function progressionEnvoi(fichier: string): number | null {
+  const e = enEnvoi(fichier) ? envois.get(fichier) : undefined
+  if (!e || e.fini || e.echec) return null
+  return e.total ? Math.min(1, (e.envoyes ?? 0) / e.total) : -1
+}
+
+export const useProgressionEnvoi = (fichier: string): number | null => useSyncExternalStore(ecouter, () => progressionEnvoi(fichier))
 
 /** Ce que l'élément en cours d'envoi devient : son vrai fichier, ou `null` si l'envoi a échoué. */
 type Issue = { fini: string } | { echec: string } | null

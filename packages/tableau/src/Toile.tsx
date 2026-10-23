@@ -47,6 +47,7 @@ import {
 import './elements'
 import { definition, marquerDepot, tousLesCollages, tousLesRaccourcis, tousLesRecepteurs, tousLesTypes, toutesLesEntreesMenu } from './elements/registre'
 import { demanderRenommage } from './elements/tableau/renommage'
+import { figerDepot, glisseUneImage, libererDepot, survolerImage } from './elements/image/survolDepot'
 import type { ContexteToile, Presence, Services } from './elements/types'
 import { t, tn } from './langue'
 import { PastilleZoom } from './PastilleZoom'
@@ -474,7 +475,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   /** Le fantôme de l'outil qu'on glisse depuis la barre. */
   const [fantome, setFantome] = useState<Element | null>(null)
   const calqueFantome = useRef<HTMLDivElement>(null)
-  const [rebond, setRebond] = useState<{ libelle: string; n: number } | null>(null)
+  const [rebond, setRebond] = useState<{ libelle: string; n: number; texte?: 'barre.cliquer' } | null>(null)
   /** La dépose qui s'anime encore : un nouveau geste l'arrête net. */
   const depose = useRef<{ envol: Envol; ids: Id[] } | null>(null)
   // Les gestionnaires natifs (molette, collage, animation) et le contexte lisent l'état courant ici.
@@ -1776,7 +1777,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           largeurDepart: el.largeur,
           min,
           ...(n ? { borne: { de: el.hauteur, px: n.offsetHeight } } : {}),
-          ...(def?.tirerPoignee ? { avant: el } : {}),
+          ...(def?.tirerPoignee || def?.cadrageLibre ? { avant: el } : {}),
         }
       } else if (id) {
         arreterDepose()
@@ -1927,6 +1928,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const parcouru = Math.hypot(p.x - g.ecran.x, p.y - g.ecran.y)
       // Le fantôme est tenu à sa prise : son coin haut gauche, à l'écran.
       const coin = point(p.x - g.prise.x * k, p.y - g.prise.y * k)
+      if (g.outil.outil.cliquerSeulement) {
+        // Un outil qui ne se glisse pas : ni fantôme ni envol, le geste sert seulement à le dire au lâcher.
+        if (parcouru >= SEUIL_GLISSER) g.demarre = true
+        return
+      }
       if (!g.demarre) {
         if (parcouru < SEUIL_GLISSER) return
         g.demarre = true
@@ -1971,7 +1977,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (g.type === 'redimensionnerGroupe') {
       return magasin.appliquerSeulement(pasDuGroupe(g, ici, e.metaKey || e.ctrlKey))
     }
-    if (g.type === 'redimensionner' && g.avant) {
+    if (g.type === 'redimensionner' && g.avant && definition(g.avant.contenu.type)?.tirerPoignee) {
       // Une poignée qui change le contenu (une table gagne des colonnes) : le type dit ce que devient l'élément.
       const el = magasin.lire().elements.find((x) => x.id === g.id)
       const r = el && definition(g.avant.contenu.type)?.tirerPoignee?.(g.avant as never, g.largeurDepart + (ici.x - g.depart.x), ici.y - g.depart.y)
@@ -1984,12 +1990,19 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (g.type === 'redimensionner') {
       // Un média garde ses proportions : on suit la plus grande des deux tractions, ramenée en largeur.
       const el = magasin.lire().elements.find((x) => x.id === g.id)
-      const ratio = el && definition(el.contenu.type)?.proportion?.(el.contenu as never)
+      const ratio = el && definition(el.contenu.type)?.proportion?.((g.avant ?? el).contenu as never)
       const dx = ici.x - g.depart.x
       const tire = ratio && !e.metaKey && !e.ctrlKey ? Math.max(dx, (ici.y - g.depart.y) * ratio) : dx
       const max = el && definition(el.contenu.type)?.largeurMax?.(el.contenu as never)
       const vers = Math.max(g.min, Math.min(max ?? Infinity, largeurTiree(g.largeurDepart + tire, g.min)))
       const pas: Operation[] = [{ type: 'redimensionner', id: g.id, de: g.largeurDepart, vers }]
+      // Cmd libère aussi la hauteur d'un média : le cadre se règle, l'image le recouvre (4 × 4 UG au moins).
+      const libre = g.avant && definition(g.avant.contenu.type)?.cadrageLibre
+      if (g.avant && libre && el) {
+        const hauteur = libre.hauteur(g.avant.contenu as never, g.largeurDepart) + (ici.y - g.depart.y)
+        const apres = e.metaKey || e.ctrlKey ? (libre.avec(g.avant.contenu as never, vers, hauteur) as Contenu) : g.avant.contenu
+        if (!memes(el.contenu, apres)) pas.push({ type: 'contenu', id: g.id, avant: el.contenu, apres })
+      }
       const n = g.borne && noeudDe(g.id)
       if (g.borne && n) {
         const h = hauteurTiree(g.borne.px + (ici.y - g.depart.y) * cam.PX_PAR_UG, hauteurNaturelle(n))
@@ -2188,6 +2201,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       // Un outil d'envoi s'ouvre au clic : ce qu'on choisit se pose au milieu de la vue.
       if (clic) return clic(cam.versTableau(camera, point(vue.largeur / 2, vue.hauteur / 2)), contexte)
       setRebond((r) => ({ libelle: g.outil.outil.libelle, n: (r?.n ?? 0) + 1 }))
+      return
+    }
+    if (g.outil.outil.cliquerSeulement) {
+      // Glissé : rien ne naît, l'outil rebondit et la bulle invite à cliquer.
+      setRebond((r) => ({ libelle: g.outil.outil.libelle, n: (r?.n ?? 0) + 1, texte: 'barre.cliquer' }))
       return
     }
     const sur = document.elementFromPoint(e.clientX, e.clientY)
@@ -2476,6 +2494,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const el = tableau.elements.find((x) => selection.has(x.id))
       const def = el && definition(el.contenu.type)
       if (!el || !def) return
+      // Un cadrage libre (Cmd + poignée) se retire d'abord : l'image retrouve ses proportions.
+      const sans = def.cadrageLibre?.retire(el.contenu as never)
+      if (sans) return magasin.faire([{ type: 'contenu', id: el.id, avant: el.contenu, apres: sans as Contenu }])
       const vers = largeurDoubleClic(el.largeur, def.largeurNaturelle?.(el.contenu), largeurMinDe(def.largeurMin, el.contenu))
       if (vers !== el.largeur) magasin.faire([{ type: 'redimensionner', id: el.id, de: el.largeur, vers }])
       return
@@ -2516,13 +2537,21 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     commencerEdition(note.id)
   }
 
+  /** Une image du bureau au-dessus d'une image de la toile : elle prépare le voile « Remplacer l'image » (voir `survolDepot`). */
+  const survolDepot = (e: React.DragEvent) => {
+    const id = !lectureSeule && glisseUneImage(e.dataTransfer) ? sous(document.elementFromPoint(e.clientX, e.clientY)) : null
+    const el = id ? tableau.elements.find((x) => x.id === id) : undefined
+    survolerImage(el && el.contenu.type === 'image' && !el.verrou && el.corbeille === undefined ? el.id : null)
+  }
+
   const deposer = (e: React.DragEvent) => {
     e.preventDefault()
+    figerDepot()
     const nonTrie = e.dataTransfer.getData(GLISSER_NON_TRIE)
     if (nonTrie) return poserNonTrie(nonTrie, cam.versTableau(camera, local(e)))
     // Déposé sur une colonne : ce qui arrive s'y range.
     const colonne = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('.notak-carte[data-type="colonne"]')
-    void recevoir(e.dataTransfer, cam.versTableau(camera, local(e)), colonne?.dataset.id, true)
+    void recevoir(e.dataTransfer, cam.versTableau(camera, local(e)), colonne?.dataset.id, true).finally(libererDepot)
   }
 
   // La sélection ne garde que ce qui existe encore (après une suppression, une annulation).
@@ -2620,7 +2649,13 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       onPointerLeave={() => limiteur?.forcer(null)}
       onDoubleClick={doubleClic}
       onContextMenu={ouvrirMenu}
-      onDragOver={(e) => e.preventDefault()}
+      onDragOver={(e) => {
+        e.preventDefault()
+        survolDepot(e)
+      }}
+      onDragLeave={(e) => {
+        if (!(e.relatedTarget instanceof Node) || !racine.current?.contains(e.relatedTarget)) survolerImage(null)
+      }}
       onDrop={deposer}
     >
       <div

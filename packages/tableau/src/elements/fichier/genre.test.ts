@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { adresseApercuPdf, apercuDe, extensionDe, genreDe, naitEnIcone, seLitEnLigne, tailleLisible } from './genre'
+import { ICONE_DU_GENRE, apercuDe, extensionDe, genreDe, naitEnIcone, seLitEnLigne, tailleLisible } from './genre'
 
 describe('genre d’un fichier', () => {
   it('lit l’extension', () => {
@@ -12,6 +12,21 @@ describe('genre d’un fichier', () => {
     expect(genreDe('note.docx', 'application/octet-stream')).toBe('texte')
     expect(genreDe('piste', 'audio/mpeg')).toBe('son')
     expect(genreDe('inconnu.xyz', '')).toBe('autre')
+  })
+  it('chaque famille de Milanote a son pictogramme : 3D, polices, courriels, pages web, vecteur, photo brute, montage, maquette', () => {
+    expect(genreDe('piece.STL', '')).toBe('modele3d')
+    expect(genreDe('Inter.woff2', 'font/woff2')).toBe('police')
+    expect(genreDe('lettre.eml', 'message/rfc822')).toBe('courriel')
+    expect(genreDe('page.dwt', '')).toBe('web')
+    expect(genreDe('logo.ai', 'application/postscript')).toBe('vecteur')
+    expect(genreDe('IMG_0042.CR2', '')).toBe('photo')
+    expect(genreDe('film.prproj', '')).toBe('montage')
+    expect(genreDe('ecran.sketch', '')).toBe('maquette')
+    expect(genreDe('modele.numbers', '')).toBe('tableur')
+  })
+  it('chaque genre a une icône', () => {
+    for (const g of Object.keys(ICONE_DU_GENRE)) expect(ICONE_DU_GENRE[g as keyof typeof ICONE_DU_GENRE]).toBeTruthy()
+    expect(Object.keys(ICONE_DU_GENRE)).toHaveLength(18)
   })
   it('écrit la taille comme Milanote : décimale, base 1000, B KB MB GB', () => {
     expect(tailleLisible(812)).toBe('812 B')
@@ -36,10 +51,6 @@ describe('genre d’un fichier', () => {
 })
 
 describe('aperçu d’un fichier', () => {
-  it('demande la première page d’un PDF, sans barre d’outils', () => {
-    expect(adresseApercuPdf('/api/fichiers/ab')).toBe('/api/fichiers/ab#page=1&toolbar=0&navpanes=0&scrollbar=0&view=FitH')
-    expect(adresseApercuPdf('blob:x#page=9')).toBe('blob:x#page=1&toolbar=0&navpanes=0&scrollbar=0&view=FitH')
-  })
   it('montre un PDF, une image, une vidéo, et rien d’autre ; le mode icône ne montre rien', () => {
     expect(apercuDe('a.pdf', 'application/pdf', undefined)).toBe('pdf')
     expect(apercuDe('a.tiff', 'image/tiff', undefined)).toBe('image')

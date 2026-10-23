@@ -51,5 +51,8 @@
     "y-indexeddb": "9.0.12",
     "y-protocols": "1.0.7",
     "yjs": "13.6.33"
+  },
+  "dependencies": {
+    "pdfjs-dist": "5.4.149"
   }
 }

@@ -15,7 +15,8 @@ import type { Apercu, Contenu, CouleurNote, Element, Etiquette, Id, Operation, T
 
 /** Où l'application range les fichiers (images…). La toile ne sait pas où ils vivent. */
 export interface DepotFichiers {
-  enregistrer(fichier: Blob): Promise<Id>
+  /** `progression` : combien d'octets sont partis sur combien, si le dépôt sait le dire (la barre de la fenêtre de l'image). */
+  enregistrer(fichier: Blob, progression?: (envoyes: number, total: number) => void): Promise<Id>
   /** Une adresse affichable (`blob:`, `https:`…), ou `null` si le fichier est introuvable. */
   adresse(id: Id): Promise<string | null>
 }
@@ -312,6 +313,13 @@ export interface TypeElement<C extends Contenu = Contenu> {
   surDoubleClic?(element: Element<C>, cible: HTMLElement | null, contexte: ContexteToile): boolean
   /** Largeur sur hauteur d'un média : la poignée garde ces proportions (Cmd les libère). */
   proportion?(c: C): number
+  /**
+   * Le cadrage libre d'un média (Cmd + poignée) : la poignée règle alors la hauteur du cadre en plus de la largeur, et le
+   * média le recouvre (Milanote : 4 × 4 UG au moins). `hauteur` : la hauteur du cadre pour cette largeur (UG) ;
+   * `avec` : le contenu qui fixe ce cadre ; `retire` : le contenu qui retrouve les proportions du média (double-clic
+   * sur la poignée), ou `null` s'il n'y a pas de cadrage.
+   */
+  cadrageLibre?: { hauteur(c: C, largeur: number): number; avec(c: C, largeur: number, hauteur: number): C; retire(c: C): C | null }
   /** La poignée règle aussi la hauteur : le contenu qui dépasse se cache sous un voile, et revient en édition. */
   hauteurBornable?: boolean
   /** Le plafond de hauteur tient aussi pendant l'édition (un fil dont les messages défilent, au lieu de grandir). */
@@ -394,6 +402,8 @@ export interface Outil {
   creer(ou: Point, contexte: ContexteToile): Operation[]
   /** Un clic sans glisser : au lieu du rebond qui rappelle de glisser (ouvrir un sélecteur de fichiers). */
   clic?(ou: Point, contexte: ContexteToile): void
+  /** Glisser l'outil ne crée rien : il rebondit et la bulle invite à cliquer (l'outil Image de Milanote, dont le clic ouvre un panneau). */
+  cliquerSeulement?: boolean
 }
 
 /**

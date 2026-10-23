@@ -4,7 +4,9 @@ import { t } from './langue'
 /** Les fichiers vivent sur le serveur : l'adresse d'un fichier est une route, le cookie de session suffit. */
 export const adresseFichier = (id: string) => `/api/fichiers/${encodeURIComponent(id)}`
 
-export async function envoyerFichier(blob: Blob): Promise<string> {
+export async function envoyerFichier(blob: Blob, progression?: (envoyes: number, total: number) => void): Promise<string> {
+  // Pour dire où en est l'envoi, il faut XMLHttpRequest : `fetch` ne montre pas la progression d'un envoi.
+  if (progression) return envoyerAvecProgression(blob, progression)
   const r = await fetch('/api/fichiers', {
     method: 'POST',
     credentials: 'same-origin',
@@ -13,6 +15,26 @@ export async function envoyerFichier(blob: Blob): Promise<string> {
   })
   if (!r.ok) throw new Error(r.status === 413 ? t('fichiers.tropGros') : t('fichiers.envoiImpossible'))
   return ((await r.json()) as { id: string }).id
+}
+
+function envoyerAvecProgression(blob: Blob, progression: (envoyes: number, total: number) => void): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest()
+    x.open('POST', '/api/fichiers')
+    x.withCredentials = true
+    x.setRequestHeader('Content-Type', blob.type || 'application/octet-stream')
+    x.upload.onprogress = (e) => e.lengthComputable && progression(e.loaded, e.total)
+    x.onerror = () => reject(new Error(t('fichiers.envoiImpossible')))
+    x.onload = () => {
+      if (x.status < 200 || x.status >= 300) return reject(new Error(x.status === 413 ? t('fichiers.tropGros') : t('fichiers.envoiImpossible')))
+      try {
+        resolve((JSON.parse(x.responseText) as { id: string }).id)
+      } catch {
+        reject(new Error(t('fichiers.envoiImpossible')))
+      }
+    }
+    x.send(blob)
+  })
 }
 
 /** Une photo de compte n'a besoin que d'une petite copie : la plus étroite que le serveur sait servir. */

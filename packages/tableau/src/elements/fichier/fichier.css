@@ -39,6 +39,14 @@
 .notak-fichier[data-genre='video'] { --notak-genre: #c43f7d; }
 .notak-fichier[data-genre='code'] { --notak-genre: #3c4654; }
 .notak-fichier[data-genre='image'] { --notak-genre: #3b8f8a; }
+.notak-fichier[data-genre='modele3d'] { --notak-genre: #5b6ad0; }
+.notak-fichier[data-genre='police'] { --notak-genre: #8a6d3b; }
+.notak-fichier[data-genre='courriel'] { --notak-genre: #3a8fd0; }
+.notak-fichier[data-genre='web'] { --notak-genre: #d1561f; }
+.notak-fichier[data-genre='vecteur'] { --notak-genre: #e08a00; }
+.notak-fichier[data-genre='photo'] { --notak-genre: #2e7fb8; }
+.notak-fichier[data-genre='montage'] { --notak-genre: #6a3fb5; }
+.notak-fichier[data-genre='maquette'] { --notak-genre: #d94f5c; }
 
 /* La ligne du titre : le pictogramme à gauche, le titre et les détails à droite. */
 .notak-fichier-meta {
@@ -173,6 +181,48 @@
   background: #f3f3f4;
 }
 
+/* La page dessinée par pdf.js : ses proportions, pas celles d'un cadre fixe. */
+img.notak-fichier-pdf {
+  height: auto;
+  aspect-ratio: auto;
+}
+
+/* Le temps du dessin : une barre pleine de 200 × 8 px qui respire, et « Processing » à côté. */
+.notak-fichier-traitement {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  min-height: 160px;
+  background: #f3f3f4;
+  color: #8d929a;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.notak-fichier-barre {
+  width: 200px;
+  height: 8px;
+  border-radius: 4px;
+  background: #d1d3d6;
+  animation: notak-fichier-respire 1.2s ease-in-out infinite alternate;
+}
+
+.notak-fichier-barre-fine {
+  display: inline-block;
+  width: 48px;
+  height: 6px;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
+@keyframes notak-fichier-respire {
+  to {
+    opacity: 0.45;
+  }
+}
+
 /* Un format dont Milanote fabrique un aperçu et que nous ne savons pas montrer. */
 .notak-fichier-sans-apercu {
   display: flex;
@@ -287,6 +337,41 @@
 .notak-fichier[data-feuille][data-colonne] .notak-fichier-texte .notak-fichier-nom,
 .notak-fichier[data-feuille][data-colonne] .notak-fichier-texte .notak-fichier-champ {
   text-align: left;
+}
+
+/*
+ * Le contour de sélection d'une feuille suit son papier : la carte ne dessine plus son filet rectangulaire, la feuille
+ * montre le sien (2 px, pli compris) quand elle est choisie, et un liseré de 1 px au survol.
+ */
+.notak-carte[data-type='fichier'][data-sans-fond][data-choisie],
+.notak-carte[data-type='fichier'][data-sans-fond]:not([data-choisie]):hover {
+  box-shadow: none;
+}
+
+.notak-feuille-contour {
+  display: none;
+  fill: none;
+  stroke: var(--notak-selection);
+  stroke-width: 4;
+  stroke-linejoin: round;
+}
+
+.notak-feuille-dessin {
+  overflow: visible;
+}
+
+.notak-carte[data-choisie] .notak-feuille-contour {
+  display: block;
+}
+
+.notak-carte[data-verrou][data-choisie] .notak-feuille-contour {
+  stroke: var(--notak-selection-verrou);
+}
+
+.notak-carte:not([data-choisie]):hover .notak-feuille-contour {
+  display: block;
+  stroke: rgb(0 0 0 / 0.1);
+  stroke-width: 2;
 }
 
 /* Une feuille teintée par la couleur choisie. */

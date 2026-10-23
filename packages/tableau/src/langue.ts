@@ -149,6 +149,7 @@ export const fr: Textes = {
   'commun.annuler': 'Annuler',
 
   'barre.glisser': 'Glissez l’outil sur le tableau',
+  'barre.cliquer': 'Cliquez sur l’outil pour ajouter une image',
   'barre.plusOutils': 'Plus d’outils',
   'barre.retour': 'Retour aux éléments à créer',
   'couleur.recentes': 'Récentes',
@@ -512,6 +513,10 @@ export const fr: Textes = {
   'croquis.pipette': 'Pipette',
   'image.pivoter.titre': 'Tourner d’un quart de tour vers la gauche',
   'image.pivoter': 'Pivoter',
+  'image.miroirH.titre': 'Retourner l’image de gauche à droite',
+  'image.miroirH': 'Miroir horizontal',
+  'image.miroirV.titre': 'Retourner l’image de haut en bas',
+  'image.miroirV': 'Miroir vertical',
   'image.recadrer.titre': 'Garder une partie de l’image',
   'image.recadrer': 'Recadrer',
   'image.dessiner.titre': 'Dessiner sur l’image (Maj+D)',
@@ -987,6 +992,7 @@ export const fr: Textes = {
   'visionneuse.precedent': 'Précédente',
   'visionneuse.suivant': 'Suivante',
   'visionneuse.ouvrir': 'Ouvrir dans un nouvel onglet',
+  'visionneuse.envoi': 'Envoi de l’image…',
   'visionneuse.telecharger': 'Télécharger',
   'menu.telechargerImage': 'Télécharger l’image d’origine',
   'menu.telechargerImages': 'Télécharger les images d’origine',
@@ -1020,6 +1026,8 @@ export const fr: Textes = {
   'fichier.lectureAuto': 'Lecture auto',
   'fichier.lectureAuto.titre': 'Lancer la lecture dès l’affichage',
   'fichier.aucunApercu': 'Aucun aperçu disponible',
+  'fichier.traitement': 'Traitement',
+  'fichier.enregistrement': 'Enregistrement',
 }
 
 export const en: Textes = {
@@ -1086,6 +1094,7 @@ export const en: Textes = {
   'commun.annuler': 'Cancel',
 
   'barre.glisser': 'Drag the tool onto the board',
+  'barre.cliquer': 'Click the tool to add an image',
   'barre.plusOutils': 'More tools',
   'barre.retour': 'Back to the elements to create',
   'couleur.recentes': 'Recent',
@@ -1449,6 +1458,10 @@ export const en: Textes = {
   'croquis.pipette': 'Eyedropper',
   'image.pivoter.titre': 'Rotate a quarter turn to the left',
   'image.pivoter': 'Rotate',
+  'image.miroirH.titre': 'Flip the image left to right',
+  'image.miroirH': 'Flip horizontal',
+  'image.miroirV.titre': 'Flip the image top to bottom',
+  'image.miroirV': 'Flip vertical',
   'image.recadrer.titre': 'Keep part of the image',
   'image.recadrer': 'Crop',
   'image.dessiner.titre': 'Draw on the image (Shift+D)',
@@ -1924,6 +1937,7 @@ export const en: Textes = {
   'visionneuse.precedent': 'Back',
   'visionneuse.suivant': 'Next',
   'visionneuse.ouvrir': 'Open in a new tab',
+  'visionneuse.envoi': 'Uploading image…',
   'visionneuse.telecharger': 'Download',
   'menu.telechargerImage': 'Download original image',
   'menu.telechargerImages': 'Download original images',
@@ -1957,4 +1971,6 @@ export const en: Textes = {
   'fichier.lectureAuto': 'Autoplay',
   'fichier.lectureAuto.titre': 'Start playing as soon as it is shown',
   'fichier.aucunApercu': 'No preview available',
+  'fichier.traitement': 'Processing',
+  'fichier.enregistrement': 'Saving',
 }

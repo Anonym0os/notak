@@ -44,6 +44,8 @@ import {
   IconDownload,
   IconEye,
   IconFile,
+  IconFlipHorizontal,
+  IconFlipVertical,
   IconFileCode,
   IconFileMusic,
   IconFileSpreadsheet,
@@ -218,6 +220,27 @@ const IconRenommer = dessiner(
     createElement('path', { d: 'M9 11.5v1M12 6.5v11' }),
   ),
 )
+/** Une icône faite de traits : chaque chaîne est un tracé. */
+const traits = (nom: string, ...chemins: string[]): TablerIcon =>
+  dessiner(nom, createElement('g', null, ...chemins.map((d, i) => createElement('path', { key: i, d }))))
+
+// Les pictogrammes des familles de fichiers que le jeu n'a pas (le mode icône et la carte les posent sur la feuille).
+/** Un cube vu d'un coin : les modèles 3D. */
+const IconFichier3d = traits('IconFichier3d', 'M12 3l8 4.5v9L12 21l-8-4.5v-9z', 'M4 7.5l8 4.5 8-4.5', 'M12 12v9')
+/** Un A et un a : les polices. */
+const IconFichierPolice = traits('IconFichierPolice', 'M3 18L7.5 6 12 18', 'M4.9 14h5.2', 'M20 12v6', 'M20 15.5a2.6 2.6 0 1 0-5.2 0 2.6 2.6 0 0 0 5.2 0z')
+/** Une enveloppe : les courriels. */
+const IconFichierCourriel = traits('IconFichierCourriel', 'M3 6h18v12H3z', 'M3 7l9 6.5L21 7')
+/** Des chevrons autour d'une barre : les pages web. */
+const IconFichierWeb = traits('IconFichierWeb', 'M8.5 8L4 12l4.5 4', 'M15.5 8L20 12l-4.5 4', 'M13.5 6l-3 12')
+/** Une courbe de Bézier et ses deux points d'ancrage : le dessin vectoriel. */
+const IconFichierVecteur = traits('IconFichierVecteur', 'M5.5 17C7 4 15 20 18.5 7', 'M3 16.5h3v3H3z', 'M18 4.5h3v3h-3z')
+/** Un objectif et ses trois lames : les photos brutes. */
+const IconFichierPhoto = traits('IconFichierPhoto', 'M20.5 12a8.5 8.5 0 1 1-17 0 8.5 8.5 0 0 1 17 0z', 'M15 12a3 3 0 1 0-6 0 3 3 0 0 0 6 0z', 'M12 3.5v5.5', 'M19.4 16.25l-4.8-2.75', 'M4.6 16.25l4.8-2.75')
+/** Deux pistes et une tête de lecture : le montage vidéo. */
+const IconFichierMontage = traits('IconFichierMontage', 'M3 7h9v4H3z', 'M8 13h13v4H8z', 'M16 3v18')
+/** Un plan de travail coupé en zones : les maquettes. */
+const IconFichierMaquette = traits('IconFichierMaquette', 'M4 4h16v16H4z', 'M4 9h16', 'M9 9v11')
 
 /** Une roue chromatique : un disque et ses quartiers. */
 const IconRoue = dessiner(
@@ -332,6 +355,14 @@ const ICONES = {
   fichierVideo: IconVideo,
   fichierImage: IconPhoto,
   fichierCode: IconFileCode,
+  fichier3d: IconFichier3d,
+  fichierPolice: IconFichierPolice,
+  fichierCourriel: IconFichierCourriel,
+  fichierWeb: IconFichierWeb,
+  fichierVecteur: IconFichierVecteur,
+  fichierPhoto: IconFichierPhoto,
+  fichierMontage: IconFichierMontage,
+  fichierMaquette: IconFichierMaquette,
   // La bibliothèque d'icônes d'un tableau (le nom est celui qu'on garde dans le tableau).
   maison: IconHome,
   voyage: IconPlane,
@@ -398,6 +429,8 @@ const ICONES = {
   pipette: IconColorPicker,
   // L'image et le fichier joint.
   pivoterGauche: IconRotate,
+  miroirH: IconFlipHorizontal,
+  miroirV: IconFlipVertical,
   fondBlanc: IconBackground,
   pause: IconPlayerPauseFilled,
   volume: IconVolume,

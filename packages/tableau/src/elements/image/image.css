@@ -425,3 +425,58 @@
 .notak-annotation[data-outil='gomme'] {
   cursor: default;
 }
+
+/* Un fichier glissé au-dessus : un filet de 2 px, puis, après 500 ms, le voile « Remplacer l'image ». */
+.notak-image-depot {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: inset 0 0 0 2px #323b4a;
+  color: #f3f3f4;
+  font-size: 12px;
+  line-height: 16px;
+  pointer-events: none;
+}
+
+.notak-image-depot[data-voile] {
+  background: rgb(0 0 0 / 0.48);
+}
+
+/* L'image est encore en route : une barre de 4 px au bas de l'image, et la barre d'outils dit « Envoi… ». */
+.notak-visionneuse-envoi {
+  position: relative;
+  z-index: 1;
+  align-self: stretch;
+  height: 4px;
+  margin-top: -4px;
+  background: rgb(255 255 255 / 0.35);
+  pointer-events: none;
+}
+
+.notak-visionneuse-envoi > span {
+  display: block;
+  height: 100%;
+  background: #fff;
+  transition: width 0.2s ease-out;
+}
+
+.notak-visionneuse-envoi > span[data-indetermine] {
+  width: 40%;
+  animation: notak-visionneuse-envoi 1s ease-in-out infinite alternate;
+}
+
+@keyframes notak-visionneuse-envoi {
+  to {
+    transform: translateX(150%);
+  }
+}
+
+.notak-visionneuse-etat {
+  padding: 0 24px;
+  white-space: nowrap;
+}

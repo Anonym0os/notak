@@ -76,7 +76,7 @@ export function BarreOutils({
   /** Aperçu d'un modèle : la barre reste visible, grisée à 30 % et sans clic. */
   grisee?: boolean
   surAppui(o: OutilDeBarre, e: React.PointerEvent): void
-  rebond: { libelle: string; n: number } | null
+  rebond: { libelle: string; n: number; texte?: 'barre.cliquer' } | null
   /** La corbeille, en bas de la barre : elle s'ouvre au clic et reçoit ce qu'on y lâche. */
   corbeille: { nombre: number; ouverte: boolean; basculer(): void }
   /** Les non triés, juste au-dessus : Cmd+\ les ouvre aussi. */
@@ -129,7 +129,7 @@ export function BarreOutils({
         </Infobulle>
         {rebondit && (
           <div key={rebond.n} className="notak-bulle-outil" role="status">
-            {t('barre.glisser')}
+            {t(rebond.texte ?? 'barre.glisser')}
           </div>
         )}
       </div>

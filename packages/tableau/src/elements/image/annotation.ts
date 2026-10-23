@@ -23,10 +23,13 @@ const entre01 = (v: number) => Math.max(0, Math.min(1, v))
 
 /**
  * Un point du cadre montré (fractions de sa largeur et de sa hauteur, rotation et recadrage compris) vers l'image
- * d'origine : on défait le quart de tour, puis on replace la fraction dans la partie gardée.
+ * d'origine : on défait le miroir et le quart de tour, puis on replace la fraction dans la partie gardée.
  */
-export function versImage(fx: number, fy: number, c: Pick<Image, 'rotation' | 'recadrage'>): Point2 {
+export function versImage(fx0: number, fy0: number, c: Pick<Image, 'rotation' | 'recadrage' | 'miroirH' | 'miroirV'>): Point2 {
   const rot = rotationDe(c)
+  // Le miroir est celui de l'écran, appliqué après le quart de tour : on le défait en premier.
+  const fx = c.miroirH ? 1 - fx0 : fx0
+  const fy = c.miroirV ? 1 - fy0 : fy0
   const [a, b] = rot === 90 ? [fy, 1 - fx] : rot === 180 ? [1 - fx, 1 - fy] : rot === 270 ? [1 - fy, fx] : [fx, fy]
   const r = c.recadrage ?? { x: 0, y: 0, largeur: 1, hauteur: 1 }
   return [arrondi(entre01(r.x + a * r.largeur)), arrondi(entre01(r.y + b * r.hauteur))]

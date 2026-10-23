@@ -38,7 +38,9 @@ const arrondi = (v: number) => Math.round(v * 10_000) / 10_000
 /**
  * Ce que le cadre garde, en fractions de l'image d'origine : on défait le quart de tour. `undefined` : toute l'image.
  */
-export function versSource(c: Cadre, rotation: 0 | 90 | 180 | 270): Recadrage | undefined {
+export function versSource(c0: Cadre, rotation: 0 | 90 | 180 | 270, miroirs: { h?: boolean; v?: boolean } = {}): Recadrage | undefined {
+  // Le miroir est celui de l'écran, appliqué après le quart de tour : on le défait d'abord.
+  const c: Cadre = { x: miroirs.h ? 1 - (c0.x + c0.l) : c0.x, y: miroirs.v ? 1 - (c0.y + c0.h) : c0.y, l: c0.l, h: c0.h }
   let r: Recadrage
   if (rotation === 90) r = { x: c.y, y: 1 - (c.x + c.l), largeur: c.h, hauteur: c.l }
   else if (rotation === 180) r = { x: 1 - (c.x + c.l), y: 1 - (c.y + c.h), largeur: c.l, hauteur: c.h }
@@ -51,6 +53,8 @@ export function versSource(c: Cadre, rotation: 0 | 90 | 180 | 270): Recadrage | 
 /** L'image avec ce recadrage, ou sans la clé quand elle est entière. */
 export function avecRecadrage(c: Image, cadre: Cadre): Image {
   const { recadrage: _, ...reste } = c
-  const r = versSource(cadre, rotationDe(c))
-  return r ? { ...reste, recadrage: r } : reste
+  const r = versSource(cadre, rotationDe(c), { h: c.miroirH, v: c.miroirV })
+  // Un recadrage choisi à la main remplace le cadrage libre : le cadre suit ce qui est gardé.
+  const { rapportCadre: _c, ...propre } = reste
+  return r ? { ...propre, recadrage: r } : reste
 }

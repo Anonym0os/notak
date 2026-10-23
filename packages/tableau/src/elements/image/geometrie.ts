@@ -58,6 +58,32 @@ export function hauteurCartePx(largeurUG: number, proportions: number, exactes: 
   return hauteurCalee(largeurUG, proportions) * PX_PAR_UG - RETRAIT_PX
 }
 
+/**
+ * Largeur sur hauteur du cadre de l'image : celui qu'un redimensionnement avec Cmd a fixé (`rapportCadre`, l'image
+ * le recouvre), sinon les proportions de l'image montrée.
+ */
+export const rapportDuCadre = (c: Image): number => c.rapportCadre ?? proportionsAffichees(c)
+
+/** Les côtés que le cadrage libre ne descend pas sous (en UG), comme Milanote : 4 × 4. */
+export const COTE_CADRAGE_MIN = 4
+
+/**
+ * Le cadrage libre (Cmd + poignée) : la hauteur du cadre en UG pour cette largeur, le contenu qui fixe un cadre de
+ * `largeur` × `hauteur` UG, et le contenu qui retrouve les proportions de l'image (double-clic sur la poignée).
+ */
+export const cadrageLibre = {
+  hauteur: (c: Image, largeur: number) => hauteurCalee(largeur, rapportDuCadre(c)),
+  avec: (c: Image, largeur: number, hauteur: number): Image => {
+    const h = Math.max(COTE_CADRAGE_MIN, Math.round(hauteur))
+    return { ...c, rapportCadre: +(Math.max(COTE_CADRAGE_MIN, largeur) / h).toFixed(4) }
+  },
+  retire: (c: Image): Image | null => {
+    if (c.rapportCadre === undefined) return null
+    const { rapportCadre: _, ...reste } = c
+    return reste
+  },
+}
+
 export const nombreColonnes = (largeurVuePx: number) => Math.max(3, Math.floor(largeurVuePx / 360))
 
 /**
@@ -117,6 +143,13 @@ export function pivoter(c: Image): Image {
   return suivante === 0 ? reste : { ...reste, rotation: suivante }
 }
 
+/** Le miroir demandé, à l'écran : un second appel le défait. La clé disparaît quand il n'y en a plus. */
+export function basculerMiroir(c: Image, axe: 'h' | 'v'): Image {
+  const cle = axe === 'h' ? 'miroirH' : 'miroirV'
+  const { [cle]: actif, ...reste } = c
+  return actif ? reste : { ...reste, [cle]: true }
+}
+
 const couche = (r: Rotation) => r === 90 || r === 270
 
 /**
@@ -158,8 +191,10 @@ export function miseEnPage(c: Image, plein = false): MiseEnPage {
   const p = +proportionsAffichees(c, plein).toFixed(6)
   const montree = { width: `max(100cqw, calc(100cqh * ${p}))`, height: `max(100cqh, calc(100cqw / ${p}))` }
   const plan = couche(rot) ? { width: montree.height, height: montree.width } : montree
+  // Les miroirs sont ceux de l'écran : ils s'appliquent au plan déjà tourné, autour de son centre.
+  const miroir = c.miroirH || c.miroirV ? ` scale(${c.miroirH ? -1 : 1}, ${c.miroirV ? -1 : 1})` : ''
   return {
-    plan: { ...plan, ...(rot ? { transform: `translate(-50%, -50%) rotate(${rot}deg)` } : { transform: 'translate(-50%, -50%)' }) },
+    plan: { ...plan, transform: `translate(-50%, -50%)${miroir}${rot ? ` rotate(${rot}deg)` : ''}` },
     image: { width: pct(1 / r.largeur), height: pct(1 / r.hauteur), left: pct(-r.x / r.largeur), top: pct(-r.y / r.hauteur) },
   }
 }

@@ -78,7 +78,7 @@ export const SUGGEREES_MAX = 8
 
 /**
  * Les couleurs déjà employées sur le tableau (fonds, barres, textes libres, fonds nommés), les plus fréquentes
- * d'abord, au plus `SUGGEREES_MAX` : de quoi retrouver une teinte sans la retaper.
+ * d'abord, au plus `SUGGEREES_MAX` : de quoi retrouver une teinte sans la retaper. Les palettes des images complètent.
  */
 export function couleursSuggerees(elements: readonly Element[]): string[] {
   const compte = new Map<string, number>()
@@ -90,7 +90,20 @@ export function couleursSuggerees(elements: readonly Element[]): string[] {
     noter(e.contenu.couleurTexte)
   }
   // Tri stable : à égalité, la première rencontrée reste devant.
-  return [...compte].sort((a, b) => b[1] - a[1]).slice(0, SUGGEREES_MAX).map(([c]) => c)
+  const posees = [...compte].sort((a, b) => b[1] - a[1]).slice(0, SUGGEREES_MAX).map(([c]) => c)
+  // Ce qu'il reste de place va aux couleurs des images du tableau (leur palette, lue à l'arrivée), les plus présentes d'abord.
+  const vues = new Set(posees)
+  for (const e of elements) {
+    if (e.contenu.type !== 'image' || e.corbeille !== undefined) continue
+    for (const c of e.contenu.couleurs ?? []) {
+      if (posees.length >= SUGGEREES_MAX) return posees
+      if (!vues.has(c)) {
+        vues.add(c)
+        posees.push(c)
+      }
+    }
+  }
+  return posees
 }
 
 /** Un fond et le texte qui s'y lit : ce que Milanote appelle une paire. */
