@@ -115,14 +115,19 @@ describe('l’icône', () => {
 })
 
 describe('le panneau des étiquettes', () => {
+  const ecrireDans = (texte: string) => {
+    const champ = hote.querySelector<HTMLInputElement>('.notak-etiquettes-recherche')!
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(champ, texte)
+      champ.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+  }
+  const entree = () => act(() => hote.querySelector('.notak-etiquettes-recherche')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })))
+
   it('crée une étiquette et la pose sur la sélection d’un seul pas', () => {
     const { contexte, element, magasin } = monde()
     act(() => racine.render(<PanneauEtiquettes elements={[element()]} contexte={contexte} />))
-    const champ = hote.querySelector<HTMLInputElement>('input[aria-label="Nom de la nouvelle étiquette"]')!
-    act(() => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(champ, 'À relire')
-      champ.dispatchEvent(new Event('input', { bubbles: true }))
-    })
+    ecrireDans('À relire')
     act(() => bouton('Créer').click())
     expect(magasin.lire().etiquettes?.map((e) => e.nom)).toEqual(['Urgent', 'À relire'])
     expect(element().etiquettes).toEqual([magasin.lire().etiquettes![1]!.id])
@@ -142,10 +147,38 @@ describe('le panneau des étiquettes', () => {
     expect(element().etiquettes).toBeUndefined()
   })
 
+  it('Entrée crée l’étiquette et la pose, puis pose celle qui existe déjà sans la doubler', () => {
+    const { contexte, element, magasin } = monde()
+    act(() => racine.render(<PanneauEtiquettes elements={[element()]} contexte={contexte} />))
+    ecrireDans('Idée')
+    entree()
+    expect(magasin.lire().etiquettes?.map((e) => e.nom)).toEqual(['Urgent', 'Idée'])
+    expect(element().etiquettes).toHaveLength(1)
+    act(() => racine.render(<PanneauEtiquettes elements={[element()]} contexte={contexte} />))
+    ecrireDans('urgent')
+    entree()
+    expect(magasin.lire().etiquettes).toHaveLength(2)
+    expect(element().etiquettes).toHaveLength(2)
+  })
+
+  it('cherche dans la liste, et dit quand rien ne correspond', () => {
+    const { contexte } = monde()
+    act(() => racine.render(<PanneauEtiquettes elements={[]} contexte={contexte} />))
+    expect(hote.querySelectorAll('.notak-etiquettes-ligne')).toHaveLength(1)
+    expect(hote.textContent).toContain('Récemment créées')
+    ecrireDans('zzz')
+    expect(hote.querySelectorAll('.notak-etiquettes-ligne')).toHaveLength(0)
+    expect(hote.querySelector('.notak-etiquettes-creer')?.textContent).toContain('Créer « zzz »')
+  })
+
   it('supprimer une étiquette la retire des éléments, et l’annulation les lui rend', () => {
     const { contexte, element, magasin } = monde({ etiquettes: ['e1'] })
     act(() => racine.render(<PanneauEtiquettes elements={[]} contexte={contexte} />))
-    act(() => bouton('Supprimer').click())
+    act(() => bouton('Options de').click())
+    act(() => [...hote.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find((b) => b.textContent === 'Supprimer')!.click())
+    // Une confirmation d'abord : rien n'est supprimé avant elle.
+    expect(magasin.lire().etiquettes).toHaveLength(1)
+    act(() => [...hote.querySelectorAll<HTMLButtonElement>('.notak-etiquettes-confirmer button')].find((b) => b.textContent === 'Supprimer')!.click())
     expect(magasin.lire().etiquettes).toBeUndefined()
     expect(element().etiquettes).toBeUndefined()
     magasin.annuler()
@@ -161,7 +194,8 @@ describe('le panneau des étiquettes', () => {
       return null
     }
     act(() => racine.render(<><PanneauEtiquettes elements={[]} contexte={contexte} /><Sonde /></>))
-    act(() => bouton('Filtrer par').click())
+    act(() => bouton('Options de').click())
+    act(() => bouton('Utilisée 0 fois').click())
     expect([...vu]).toEqual(['e1'])
     act(() => bouton('Tout montrer').click())
     expect(vu.size).toBe(0)
@@ -172,9 +206,9 @@ describe('le panneau des étiquettes', () => {
   it('en lecture seule, on ne crée ni ne supprime : on filtre', () => {
     const { contexte } = monde({}, true)
     act(() => racine.render(<PanneauEtiquettes elements={[]} contexte={contexte} />))
-    expect(hote.querySelector('form')).toBeNull()
-    expect(hote.querySelector('[aria-label^="Supprimer"]')).toBeNull()
-    expect(bouton('Filtrer par')).toBeDefined()
+    expect(hote.querySelector('.notak-etiquettes-recherche')).toBeNull()
+    act(() => bouton('Options de').click())
+    expect([...hote.querySelectorAll('[role=menuitem]')].map((b) => b.textContent)).toEqual(['Utilisée 0 fois'])
   })
 })
 

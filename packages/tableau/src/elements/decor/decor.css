@@ -333,78 +333,152 @@
   text-transform: uppercase;
 }
 
-/* Les étiquettes du tableau. */
+/* Les étiquettes du tableau : un champ qui cherche et crée, puis la liste (380 px au plus, qui défile). */
 .notak-etiquettes {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  width: 260px;
   min-width: 230px;
   text-align: left;
   white-space: normal;
 }
 
+.notak-etiquettes-recherche {
+  box-sizing: border-box;
+  width: 100%;
+  font: inherit;
+}
+
+.notak-etiquettes-creer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 4px;
+  text-align: left;
+}
+
+.notak-etiquettes-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 380px;
+  padding-bottom: 6px;
+  overflow-y: auto;
+}
+
+.notak-etiquettes-liste ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .notak-etiquettes-vide {
   margin: 0;
-  opacity: 0.6;
+  padding: 8px 4px;
+  color: #8d929a;
+  font-size: 14px;
 }
 
 .notak-etiquettes-ligne {
+  position: relative;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  padding: 3px 4px;
+  border-radius: 4px;
 }
 
-.notak-etiquettes-pastille {
-  flex: none;
-  width: 16px;
-  height: 16px;
-  min-width: 16px !important;
-  padding: 0 !important;
-  border-radius: 50% !important;
-  border: 1px solid rgb(0 0 0 / 0.15) !important;
-  background: var(--notak-etiq) !important;
+.notak-etiquettes-ligne:hover,
+.notak-etiquettes-ligne[data-ouvert] {
+  background: #f3f3f4;
+}
+
+.notak-etiquettes-chip {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .notak-etiquettes-nom {
   flex: 1;
   min-width: 0;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  background: none;
-  color: inherit;
   font: inherit;
 }
 
-input.notak-etiquettes-nom:hover,
-input.notak-etiquettes-nom:focus {
-  border-color: rgb(0 0 0 / 0.2);
+.notak-etiquettes-plus {
+  margin-left: auto;
+  padding: 2px 4px !important;
+  color: #8d929a !important;
 }
 
-.notak-etiquettes-filtre[aria-pressed='true'] {
-  background: var(--notak-fond) !important;
-  box-shadow: 0 0 0 1px var(--notak-accent);
+.notak-etiquettes-ligne[data-ouvert] .notak-etiquettes-plus,
+.notak-etiquettes-plus:hover {
+  color: #323b4a !important;
+}
+
+/* Le menu d'une étiquette, déplié sous sa ligne. */
+.notak-etiquettes-menu {
+  display: flex;
+  flex-direction: column;
+  flex-basis: 100%;
+  min-width: 208px;
+  padding: 4px 0;
+  border-top: 1px solid #00000014;
+}
+
+.notak-etiquettes-menu > button {
+  padding: 6px 8px !important;
+  text-align: left;
+}
+
+.notak-etiquettes-menu > button:hover {
+  background: #ebedee !important;
+}
+
+.notak-etiquettes-danger {
+  color: #d64545 !important;
+}
+
+.notak-etiquettes-usage {
+  margin-top: 4px;
+  border-top: 1px solid #00000014 !important;
+  border-radius: 0 !important;
+  color: #8d929a !important;
+  font-size: 12px;
+}
+
+.notak-etiquettes-usage[aria-pressed='true'] {
+  color: var(--notak-accent) !important;
 }
 
 .notak-etiquettes-palette {
-  flex-basis: 100%;
+  padding: 6px 8px;
+}
+
+.notak-etiquettes-confirmer {
+  padding: 8px;
+}
+
+.notak-etiquettes-confirmer p {
+  margin: 0 0 8px;
+  text-align: center;
+}
+
+.notak-etiquettes-confirmer div {
+  display: flex;
+  gap: 4px;
+}
+
+.notak-etiquettes-confirmer button {
+  flex: 1;
+  padding: 6px 0 !important;
+  border: 1px solid #00000026 !important;
 }
 
 .notak-etiquettes-lien {
   align-self: flex-start;
   color: var(--notak-accent) !important;
   text-decoration: underline;
-}
-
-.notak-etiquettes-nouvelle {
-  display: flex;
-  gap: 4px;
-}
-
-.notak-etiquettes-nouvelle input {
-  flex: 1;
-  min-width: 0;
-  font: inherit;
 }
 
 .notak-decor-tiroir {
