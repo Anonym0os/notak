@@ -138,3 +138,12 @@ export function resume(c: Croquis): string {
   const n = c.traits.length
   return n === 0 ? t('croquis.resumeVide') : tn('croquis.resume', n)
 }
+
+/** Le croquis en SVG autonome (fond blanc), pour « Télécharger en SVG ». */
+export function croquisEnSvg(c: CroquisFeuille): string {
+  const h = hauteurFeuille(c)
+  const chemins = c.traits
+    .map((tr) => `<path d="${cheminLisse(tr.points)}" fill="none" stroke="${tr.couleur}" stroke-width="${tr.epaisseur}" stroke-linecap="round" stroke-linejoin="round"/>`)
+    .join('')
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${LARGEUR_FEUILLE} ${h}" width="${LARGEUR_FEUILLE}" height="${h}"><rect width="100%" height="100%" fill="#ffffff"/>${chemins}</svg>`
+}

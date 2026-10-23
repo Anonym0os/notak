@@ -9,6 +9,7 @@ import {
   ajouterPoint,
   arrondir,
   cheminLisse,
+  croquisEnSvg,
   distanceSegment,
   epaisseurFeuille,
   gommer,
@@ -101,5 +102,15 @@ describe('le tracé', () => {
     expect(resume({ type: 'croquis', traits: [] })).toBe('Croquis vide')
     expect(resume({ type: 'croquis', traits: [trait([0, 0])] })).toBe('Croquis (1 trait)')
     expect(resume({ type: 'croquis', traits: [trait([0, 0]), trait([1, 1])] })).toBe('Croquis (2 traits)')
+  })
+})
+
+describe('le croquis en SVG', () => {
+  test('un fond blanc puis un chemin par trait', () => {
+    const c = { ...nouveauCroquis(0, 0).contenu, traits: [{ points: [0, 0, 10, 10], couleur: '#ff5757', epaisseur: 3 }] }
+    const svg = croquisEnSvg(c)
+    expect(svg).toContain('fill="#ffffff"')
+    expect(svg).toContain('stroke="#ff5757"')
+    expect(svg.match(/<path/g)).toHaveLength(1)
   })
 })

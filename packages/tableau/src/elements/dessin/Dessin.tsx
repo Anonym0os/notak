@@ -43,6 +43,8 @@ const GOMME_PX = 7
 const CAPTURE_PX = 6
 /** Les contours (trait visé par la gomme, trait choisi) débordent de ce nombre de pixels d'écran de chaque côté. */
 const CONTOUR_PX = 3
+/** Le cernage rouge de la gomme : 1 px de chaque côté, comme Milanote. */
+const CONTOUR_GOMME_PX = 1
 
 /** Ce que la couche garde pour elle : rien de ce qui s'y passe ne doit atteindre la toile dessous. */
 const EVENEMENTS_ARRETES = ['dblclick', 'click', 'contextmenu', 'wheel', 'pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'mousedown', 'mouseup'] as const
@@ -419,7 +421,7 @@ function Couche({
         {traits.map((tr, i) => (
           <g key={i}>
             {outil === 'gomme' && vise === tr && (
-              <path d={chemins.get(tr)} fill="none" stroke={ROUGE_GOMME} strokeWidth={px(tr) + 2 * CONTOUR_PX} strokeLinecap="round" strokeLinejoin="round" />
+              <path d={chemins.get(tr)} fill="none" stroke={ROUGE_GOMME} strokeWidth={px(tr) + 2 * CONTOUR_GOMME_PX} strokeLinecap="round" strokeLinejoin="round" />
             )}
             {outil === 'selection' && choix.has(tr) && (
               <path d={chemins.get(tr)} fill="none" stroke="var(--notak-accent)" strokeWidth={px(tr) + 2 * CONTOUR_PX} strokeLinecap="round" strokeLinejoin="round" />

@@ -82,3 +82,14 @@ export function couleurSous(traits: readonly Trait[], x: number, y: number, rayo
   const i = traitVise(traits, x, y, rayon)
   return i < 0 ? null : traits[i]!.couleur
 }
+
+/**
+ * Amener devant (⌘⇧↑) ou derrière (⌘⇧↓) les traits choisis : ils gardent leur ordre entre eux, les autres le leur.
+ * Rend le même tableau si rien ne change.
+ */
+export function ordonnerTraits(traits: readonly Trait[], choix: ReadonlySet<Trait>, devant: boolean): Trait[] {
+  const choisis = traits.filter((t) => choix.has(t))
+  const autres = traits.filter((t) => !choix.has(t))
+  const suite = devant ? [...autres, ...choisis] : [...choisis, ...autres]
+  return suite.every((t, i) => t === traits[i]) ? (traits as Trait[]) : suite
+}
