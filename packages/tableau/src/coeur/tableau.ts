@@ -72,6 +72,26 @@ export interface Image {
   legende?: string
   /** Le type du fichier (`image/png`…) : les formats à transparence n'ont pas d'ombre. */
   typeMime?: string
+  /** Lu dans les pixels à l'arrivée : une image transparente n'a pas d'ombre. Absent : deviné au type. */
+  transparente?: boolean
+  /** Des copies plus petites (400, 800, 1600 px de large), pour ne charger que ce que l'affichage demande. */
+  tailles?: TailleImage[]
+  /** Quart de tour dans le sens des aiguilles d'une montre, appliqué après le recadrage. */
+  rotation?: 0 | 90 | 180 | 270
+  /** La partie gardée, en fractions de l'image d'origine (0 à 1). Absent : toute l'image. */
+  recadrage?: Recadrage
+}
+
+export interface TailleImage {
+  largeur: number
+  fichier: Id
+}
+
+export interface Recadrage {
+  x: number
+  y: number
+  largeur: number
+  hauteur: number
 }
 
 export interface Apercu {
@@ -81,7 +101,15 @@ export interface Apercu {
   image?: string
   site?: string
   favicon?: string
+  /** L'adresse mène à une image, pas à une page : la carte devient une image. */
+  estImage?: boolean
 }
+
+/** Pourquoi un aperçu n'a pas pu se faire, pour le dire avec des mots. */
+export type CauseEchec = 'introuvable' | 'refuse' | 'injoignable' | 'delai' | 'interdit' | 'illisible'
+
+/** Ce qu'un outil du tiroir attend comme adresse (une vidéo, un son, une carte) ; une invite, rien de plus. */
+export type GenreLien = 'video' | 'audio' | 'carte'
 
 export interface Lien {
   type: 'lien'
@@ -93,6 +121,17 @@ export interface Lien {
   titre?: string
   /** La légende qu'on lui a écrite, à la place de la description de l'aperçu ; vide, elle est cachée. */
   legende?: string
+  /** Les réglages d'affichage : cacher l'image ou le lecteur, le domaine et le titre, la légende. */
+  sansApercu?: boolean
+  sansInfos?: boolean
+  sansLegende?: boolean
+  /** Une vidéo qui se lance seule (son coupé) quand on ouvre le tableau, et qui reprend à la fin. */
+  lectureAuto?: boolean
+  boucle?: boolean
+  /** Né d'un outil Vidéo, Audio ou Carte. */
+  genre?: GenreLien
+  /** La cause de l'échec, quand `statut` vaut `echec`. */
+  echec?: CauseEchec
 }
 
 /** Une liste de tâches : un document Tiptap fait d'une liste de cases. */

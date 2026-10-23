@@ -154,7 +154,17 @@ describe('serveur de bout en bout', () => {
   it('l’aperçu refuse le réseau local', async () => {
     const ana = await appeler('/api/connexion', { json: { email: 'ana@exemple.fr', motDePasse: 'motdepasse' } })
     expect((await appeler('/api/apercu', { cookie: ana.cookie })).statut).toBe(400)
-    expect((await appeler(`/api/apercu?url=${encodeURIComponent('http://127.0.0.1:1/')}`, { cookie: ana.cookie })).statut).toBe(502)
+    const refus = await appeler(`/api/apercu?url=${encodeURIComponent('http://127.0.0.1:1/')}`, { cookie: ana.cookie })
+    expect(refus.statut).toBe(502)
+    expect(await lire<{ cause: string }>(refus)).toMatchObject({ cause: 'interdit' })
+
+    // Le rapatriement d'une image : session exigée, adresse exigée, réseau local refusé.
+    const url = 'http://192.168.1.10/photo.png'
+    expect((await appeler('/api/fichiers/rapatrier', { json: { url } })).statut).toBe(401)
+    expect((await appeler('/api/fichiers/rapatrier', { cookie: ana.cookie, json: {} })).statut).toBe(400)
+    const image = await appeler('/api/fichiers/rapatrier', { cookie: ana.cookie, json: { url } })
+    expect(image.statut).toBe(422)
+    expect(await lire<{ cause: string }>(image)).toMatchObject({ cause: 'interdit' })
   })
 
   it('la onzième tentative de connexion de la minute est limitée', async () => {
