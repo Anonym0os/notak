@@ -6,18 +6,20 @@ import { extensionsDuPartage, textePartage } from '../partage'
 import { MenuCouleur } from '../note/MenuCouleur'
 import type { Operation } from '../../coeur/tableau'
 import type { ContexteToile, PropsOutils, PropsRendu, ServicePresence } from '../types'
-import { EXTENSIONS_TACHES, EXTENSIONS_TACHES_PARTAGEE, type GestesTaches, clavierListe, ouvreursPuces, puceActive } from './extensions'
+import { EXTENSIONS_TACHES, EXTENSIONS_TACHES_PARTAGEE, type GestesTaches, clavierListe, ouvreursPuces, puceActive, remplacerListe } from './extensions'
 import { MenuPuce, type OuverturePuce } from './MenuPuce'
 import { type Personne, type Puce, attrsAllumes, attrsEteints, attrsVides, jourDe, personnes, puces } from './puces'
 import { animerCase } from './animation'
-import { avecTitre, contenuDepuis, curseurAuTitre, docEditeur, sansTitre } from './titre'
+import { ajouterTitre, avecTitre, contenuDepuis, curseurAuTitre, docEditeur, sansTitre } from './titre'
 import { type Sortie, glisserTache } from './glisse'
-import { type Chemin, basculer, compter, deplacer, detacher, docTaches, estFaite, regler, retirer, sousTaches, transferer } from './liste'
+import { type Chemin, basculer, compter, deplacer, detacher, docTaches, effacerFaites, estFaite, regler, retirer, sousTaches, transferer } from './liste'
 import { t } from '../../langue'
 import { BoutonOutil } from '../../BoutonOutil'
 import { ContexteBarreEdition } from '../../barreEdition'
 import { ouvrirFil } from '../decor/etat'
 import { OutilsEdition } from './OutilsEdition'
+import { BulleSuggestion } from './Suggestion'
+import { type Suggestion, ecartee, nombreEnHaut, noterRefusDuTitre, suggestionA } from './suggestions'
 
 /** Les listes dont le titre vient d'être ajouté : leur édition y met le curseur. */
 const titreAFocaliser = new Set<Id>()
@@ -27,23 +29,26 @@ const puceAOuvrir = new Map<Id, Puce['genre']>()
 
 const sansCouleur = ({ couleur: _, ...reste }: Taches): Taches => reste
 
-export function RenduTaches({ element, enEdition, contexte, brouillon, changer }: PropsRendu<Taches>) {
+export function RenduTaches({ element, enEdition, seule, contexte, brouillon, changer }: PropsRendu<Taches>) {
   const { contenu } = element
   const jeter = () => {
     contexte.jeter([element.id])
     contexte.finirEdition()
   }
-  if (enEdition) return <Edition id={element.id} contenu={contenu} contexte={contexte} surChangement={brouillon} jeter={jeter} />
+  if (enEdition) return <Edition id={element.id} contenu={contenu} largeur={element.largeur} contexte={contexte} surChangement={brouillon} jeter={jeter} />
   return (
     <div className="notak-taches" data-couleur={contenu.couleur}>
-      <Figee id={element.id} contenu={contenu} changer={changer} contexte={contexte} />
+      <Figee id={element.id} contenu={contenu} largeur={element.largeur} seule={!!seule} changer={changer} contexte={contexte} />
     </div>
   )
 }
 
 // ———— Hors édition : la liste se dessine à partir du JSON, cases cliquables ————
 
-const Figee = memo(function Figee({ id, contenu, changer, contexte }: { id: Id; contenu: Taches; changer(apres: Taches): void; contexte: ContexteToile }) {
+/** La carte est assez large pour porter une bulle de suggestion (34 UG au moins). */
+const LARGEUR_BULLE = 34
+
+const Figee = memo(function Figee({ id, contenu, largeur, seule, changer, contexte }: { id: Id; contenu: Taches; largeur: number; seule: boolean; changer(apres: Taches): void; contexte: ContexteToile }) {
   const presence = contexte.services.presence
   const doc = docTaches(contenu.texte)
   const cocher = (chemin: Chemin, enCascade: boolean) =>
@@ -82,9 +87,22 @@ const Figee = memo(function Figee({ id, contenu, changer, contexte }: { id: Id; 
           fermer={() => setMenu(null)}
         />
       )}
+      {/* Choisie seule, la liste propose d'effacer ses tâches faites ; le titre ne se propose qu'en écrivant. */}
+      {seule && largeur >= LARGEUR_BULLE && !contexte.services.lectureSeule && !contexte.services.presentation && (
+        <SuggestionDe
+          suggestion={suggestionA(contenu, false)}
+          oui={() => changer({ ...contenu, texte: effacerFaites(doc) })}
+          non={(s) => changer(ecartee(contenu, s))}
+        />
+      )}
     </>
   )
 })
+
+/** La bulle de la suggestion en cours, s'il y en a une. */
+function SuggestionDe({ suggestion, oui, non }: { suggestion: Suggestion | null; oui(s: Suggestion): void; non(s: Suggestion): void }) {
+  return suggestion ? <BulleSuggestion key={suggestion} suggestion={suggestion} oui={() => oui(suggestion)} non={() => non(suggestion)} /> : null
+}
 
 interface PropsListe {
   noeud: NoeudTexte
@@ -259,8 +277,8 @@ function inline(paragraphe: NoeudTexte): ReactNode {
 
 const SCHEMA = getSchema(EXTENSIONS_TACHES)
 
-function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surChangement(apres: Taches): void; jeter(): void }) {
-  const { id, contenu, contexte, surChangement, jeter } = props
+function Edition(props: { id: Id; contenu: Taches; largeur: number; contexte: ContexteToile; surChangement(apres: Taches): void; jeter(): void }) {
+  const { id, contenu, largeur, contexte, surChangement, jeter } = props
   // L'état courant vit ici : la toile ne remet l'élément à jour qu'à la sortie de l'édition.
   const courant = useRef(contenu)
   const focaliserTitre = useRef(titreAFocaliser.delete(id) && contenu.titre !== undefined)
@@ -298,6 +316,33 @@ function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surC
     else editeur.commands.focus('end')
   }, [editeur, contexte])
   gestes.current = { jeter }
+
+  // Les suggestions : une pause de frappe d'une seconde, et la liste dit ce qu'elle propose.
+  const [suggestion, setSuggestion] = useState<Suggestion | null>(null)
+  const gagne = useRef(false)
+  useEffect(() => {
+    if (!editeur) return
+    let minuteur: ReturnType<typeof setTimeout> | undefined
+    const enHaut = () => nombreEnHaut(contenuDepuis(editeur.getJSON() as NoeudTexte, courant.current))
+    let avant = enHaut()
+    const surMaj = () => {
+      const h = enHaut()
+      if (h >= 2 && avant < 2) gagne.current = true
+      avant = h
+      clearTimeout(minuteur)
+      minuteur = setTimeout(() => setSuggestion(suggestionA(courant.current, gagne.current)), 1000)
+    }
+    editeur.on('update', surMaj)
+    return () => {
+      editeur.off('update', surMaj)
+      clearTimeout(minuteur)
+    }
+  }, [editeur])
+  const ecarter = (s: Suggestion) => {
+    if (s === 'titre') noterRefusDuTitre()
+    poser(ecartee(courant.current, s))
+    setSuggestion(null)
+  }
 
   const [menu, setMenu] = useState<(OuverturePuce & { pos: number }) | null>(null)
   useEffect(() => {
@@ -344,6 +389,18 @@ function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surC
             if (t?.type.name === 'taskItem') editeur.view.dispatch(editeur.state.tr.setNodeMarkup(menu.pos, undefined, { ...t.attrs, ...attrs }))
           }}
           fermer={() => setMenu(null)}
+        />
+      )}
+      {suggestion && editeur && largeur >= LARGEUR_BULLE && (
+        <BulleSuggestion
+          key={suggestion}
+          suggestion={suggestion}
+          oui={() => {
+            if (suggestion === 'titre') ajouterTitre(editeur, courant.current.titreCache)
+            else remplacerListe(editeur, effacerFaites(docTaches(contenuDepuis(editeur.getJSON() as NoeudTexte, courant.current).texte)).content![0]!)
+            setSuggestion(null)
+          }}
+          non={() => ecarter(suggestion)}
         />
       )}
     </div>

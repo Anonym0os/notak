@@ -193,6 +193,15 @@ export function deplacerDansEditeur(editor: Editor, de: number, vers: number, av
   return true
 }
 
+/** Remplace toute la liste (sous le titre) par `liste` (un nœud `taskList`), d'un seul pas, curseur au début de la première tâche. */
+export function remplacerListe(editor: Editor, liste: NoeudTexte) {
+  const { doc, schema } = editor.state
+  const debut = titreDe(doc)?.noeud.nodeSize ?? 0
+  const tr = editor.state.tr.replaceWith(debut, doc.content.size, schema.nodeFromJSON(liste))
+  tr.setSelection(TextSelection.near(tr.doc.resolve(debut + 3)))
+  editor.view.dispatch(tr)
+}
+
 /** Retire la tâche en `pos` ; seule dans sa liste, elle emporte la liste, ou laisse une tâche vide tout en haut. */
 export function retirerDansEditeur(editor: Editor, pos: number) {
   const { state } = editor

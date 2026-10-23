@@ -698,3 +698,45 @@
   outline-offset: 4px;
   border-radius: 2px;
 }
+
+/*
+ * La bulle de suggestion sous la liste : 40 px, pleine largeur de la carte, la question puis deux réponses
+ * soulignées. Elle entre en 200 ms (hauteur, fondu, glissement de 40 px).
+ */
+.notak-suggestion {
+  position: absolute;
+  top: calc(100% + 19px);
+  left: -24px;
+  right: -24px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 24px;
+  overflow: hidden;
+  color: #7a7f87;
+  font-size: 13px;
+  white-space: nowrap;
+  animation: notak-suggestion-entree 200ms ease-out;
+}
+
+.notak-suggestion button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.notak-suggestion button:hover {
+  color: var(--notak-texte);
+}
+
+@keyframes notak-suggestion-entree {
+  from { height: 0; opacity: 0; transform: translateY(-40px); }
+  to { height: 40px; opacity: 1; transform: none; }
+}

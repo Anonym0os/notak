@@ -184,6 +184,8 @@ export interface Taches {
   titre?: string
   /** Le texte du titre retiré, gardé caché : il revient quand on rajoute le titre. */
   titreCache?: string
+  /** Les suggestions sous la liste que l'utilisateur a déjà écartées : on ne les lui refait pas. */
+  refus?: ('titre' | 'faites')[]
   /** Le fond de la liste, de la palette des notes ; sans lui, la carte est blanche. */
   couleur?: CouleurNote
   texte: NoeudTexte
