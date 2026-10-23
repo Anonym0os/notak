@@ -421,6 +421,8 @@ export function docDepuisTexte(texte: string): NoeudTexte {
 /** Le texte d'un document, sans mise en forme : un bloc par ligne. */
 export function texteBrut(n: NoeudTexte): string {
   if (n.text !== undefined) return n.text
+  // Une personne ou un tableau cité dans le texte se lit par son nom.
+  if ((n.type === 'mention' || n.type === 'lienTableau') && typeof n.attrs?.label === 'string') return n.type === 'mention' ? `@${n.attrs.label}` : n.attrs.label
   return (n.content ?? []).map(texteBrut).filter((t) => t !== '').join('\n')
 }
 

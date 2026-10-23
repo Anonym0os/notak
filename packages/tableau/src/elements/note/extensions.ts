@@ -5,7 +5,7 @@ import { Color, TextStyle } from '@tiptap/extension-text-style'
 import StarterKit from '@tiptap/starter-kit'
 import { basculerCentre, basculerSurlignage, poserStyle } from './commandes'
 import { normaliserUrl } from './conversion'
-import { AdressesReperees, CelluleTable, Encadre, EnteteTable, LigneTable, Table } from './noeuds'
+import { AdressesReperees, CelluleTable, Encadre, EnteteTable, LienTableau, LigneTable, Mention, Table } from './noeuds'
 import { augmenterRetrait, changerCasse, diminuerRetrait } from './texte'
 
 /** Le surlignage garde un nom de couleur (`vert`), que `note.css` décline : le document ne porte aucune valeur. */
@@ -128,6 +128,8 @@ export const EXTENSIONS_NOTE = [
   CelluleTable,
   EnteteTable,
   AdressesReperees,
+  Mention,
+  LienTableau,
 ]
 
 /** Les mêmes, quand le texte s'écrit à plusieurs : l'annulation est alors celle du partage (voir `partage.ts`). */

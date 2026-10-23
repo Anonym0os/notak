@@ -94,6 +94,16 @@ export interface Services {
   /** On peut regarder et défiler, rien de plus : la toile refuse tout ce qui modifie. */
   lectureSeule?: boolean
   /**
+   * Les membres de l'espace (nom, couleur), pour citer quelqu'un avec `@` dans une note. Les personnes présentes
+   * sur le tableau sont proposées dans tous les cas ; ce service y ajoute celles qui n'y sont pas.
+   */
+  membres?(): { id: string; nom: string; couleur?: string }[]
+  /**
+   * Les tableaux de l'espace (id, titre, couleur), pour en citer un avec `[[` dans une note. Sans lui, la note ne
+   * propose que les tableaux déjà posés sur le tableau ouvert.
+   */
+  listerTableaux?(): { id: Id; titre: string; couleur?: CouleurNote }[]
+  /**
    * Trouve où est une adresse sur la carte (un géocodeur) : le lieu en tire sa carte intégrée.
    * Absent, le lieu reste une adresse avec un lien vers la carte.
    */

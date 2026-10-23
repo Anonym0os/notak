@@ -172,3 +172,32 @@ export const AdressesReperees = Extension.create({
     ]
   },
 })
+
+/** Un nœud en ligne qui n'est pas du texte : une pastille, qui garde sa cible et son nom du moment. */
+function pastille(name: string, classe: string, cle: string) {
+  return Node.create({
+    name,
+    group: 'inline',
+    inline: true,
+    atom: true,
+    selectable: true,
+    addAttributes() {
+      return {
+        id: { default: '', parseHTML: (el: HTMLElement) => el.getAttribute(cle) ?? '', renderHTML: (a: { id?: string }) => ({ [cle]: a.id }) },
+        label: { default: '', parseHTML: (el: HTMLElement) => el.textContent?.replace(/^[@↗\s]+/u, '') ?? '' },
+      }
+    },
+    parseHTML: () => [{ tag: `span[${cle}]` }],
+    renderHTML: ({ node, HTMLAttributes }) => [
+      'span',
+      mergeAttributes(HTMLAttributes, { class: classe, contenteditable: 'false' }),
+      `${name === 'mention' ? '@' : '↗ '}${String(node.attrs.label ?? '')}`,
+    ],
+    renderText: ({ node }) => `${name === 'mention' ? '@' : ''}${String(node.attrs.label ?? '')}`,
+  })
+}
+
+/** Une personne citée avec `@`. */
+export const Mention = pastille('mention', 'notak-mention', 'data-mention')
+/** Un tableau cité avec `[[` : un clic l'ouvre. */
+export const LienTableau = pastille('lienTableau', 'notak-lien-tableau', 'data-tableau')

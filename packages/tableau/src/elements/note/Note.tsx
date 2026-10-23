@@ -5,6 +5,7 @@ import type { Note, NoeudTexte } from '../../coeur/tableau'
 import { extensionsDuPartage, textePartage } from '../partage'
 import type { PropsRendu } from '../types'
 import { BarreTexte } from './Barre'
+import { type Pont, Propositions, extensionPropositions } from './Propositions'
 import { adresseSeule, adressesEnLiens, caseSeule, docEstVide } from './conversion'
 import { docVide } from '../taches/liste'
 import { texteDuContenu } from './couleurs'
@@ -47,7 +48,12 @@ export function RenduNote(props: PropsRendu<Note>) {
       data-deborde={deborde || undefined}
       style={texte ? { color: texte } : undefined}
       // Hors édition, un lien s'ouvre : l'appui ne doit pas lancer un glisser.
-      onPointerDown={enEdition ? undefined : (e) => (e.target as HTMLElement).closest('a') && e.stopPropagation()}
+      onPointerDown={enEdition ? undefined : (e) => (e.target as HTMLElement).closest('a, [data-tableau]') && e.stopPropagation()}
+      // Un tableau cité dans le texte s'ouvre d'un clic.
+      onClick={enEdition ? undefined : (e) => {
+        const cible = (e.target as HTMLElement).closest<HTMLElement>('[data-tableau]')?.dataset.tableau
+        if (cible) props.contexte.services.ouvrirTableau?.(cible)
+      }}
     >
       {contenu.barre && <div className="notak-note-bande" style={{ background: contenu.barre }} aria-hidden />}
       {enEdition ? <Editeur {...props} /> : <TexteFige texte={contenu.texte} />}
@@ -68,10 +74,15 @@ function Editeur(props: PropsRendu<Note>) {
   const { contenu } = element
   const [lien, setLien] = useState<string | null>(null)
   const gestes = useRef<GestesEdition>(null!)
+  const pont = useRef<Pont | null>(null)
   // Lu une fois, à l'entrée en édition : la suite du texte arrive par le fragment.
   const fragment = useMemo(() => textePartage(contexte, element.id, contenu.texte, SCHEMA), [])
   const extensions = useMemo(
-    () => [...(fragment ? [...EXTENSIONS_NOTE_PARTAGEE, ...extensionsDuPartage(fragment, contexte)] : EXTENSIONS_NOTE), raccourcisEdition(gestes)],
+    () => [
+      ...(fragment ? [...EXTENSIONS_NOTE_PARTAGEE, ...extensionsDuPartage(fragment, contexte)] : EXTENSIONS_NOTE),
+      raccourcisEdition(gestes),
+      extensionPropositions(pont),
+    ],
     [fragment],
   )
   const editeur = useEditor({
@@ -126,6 +137,7 @@ function Editeur(props: PropsRendu<Note>) {
   return (
     <>
       {editeur && <BarreTexte editor={editeur} lien={lien} surLien={setLien} />}
+      {editeur && <Propositions editeur={editeur} contexte={contexte} pont={pont} />}
       <EditorContent editor={editeur} />
     </>
   )
