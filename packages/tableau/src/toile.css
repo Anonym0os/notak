@@ -200,6 +200,10 @@
   vertical-align: -0.2em;
 }
 
+.notak-ico:not(:only-child) {
+  margin-inline: 1px;
+}
+
 :where(button:has(> .notak-ico:only-child)) {
   display: inline-flex;
   align-items: center;
