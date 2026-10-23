@@ -5,7 +5,8 @@ import type { ContexteToile } from '../types'
 import { moiDe } from './Decor'
 import { PanneauEtiquettes } from './Etiquettes'
 import { appliquerAffichage, estReduit, peutSeReduire } from './affichage'
-import { ECHEANCE, EMOJIS, basculerReaction, pasPour } from './annotations'
+import { ECHEANCE, basculerReaction, pasPour } from './annotations'
+import { SelecteurEmojis } from './SelecteurEmojis'
 import { ouvrirFil, useFilOuvert } from './etat'
 import { t } from '../../langue'
 import { BoutonOutil, OutilAvecMenu } from '../../BoutonOutil'
@@ -53,15 +54,7 @@ export function OutilReactions({ elements, contexte }: Props) {
   }
   return (
     <Menu titre={t('decor.reagirEmoji')} libelle={t('decor.reagir')} icone="reaction">
-      {(fermer) => (
-        <div className="notak-decor-emojis">
-          {EMOJIS.map((m) => (
-            <button key={m} type="button" role="menuitem" aria-label={t('decor.reagirAvec', { emoji: m })} onClick={() => reagir(m, fermer)}>
-              {m}
-            </button>
-          ))}
-        </div>
-      )}
+      {(fermer) => <SelecteurEmojis choisir={(m) => reagir(m, fermer)} />}
     </Menu>
   )
 }

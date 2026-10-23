@@ -316,3 +316,57 @@ input.notak-etiquettes-nom:focus {
   bottom: 0;
   padding: 10px;
 }
+
+/* Le sélecteur d'émojis des réactions : recherche, catégories, grille de huit colonnes qui défile. */
+.notak-decor-menu:has(.notak-emojis) {
+  width: 320px;
+  min-width: 320px;
+}
+
+.notak-emojis {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.notak-emojis-categories {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--notak-point);
+  padding-bottom: 4px;
+}
+
+.notak-emojis-categories button {
+  min-width: 0 !important;
+  width: 34px;
+  height: 28px;
+  font-size: 16px;
+  opacity: 0.55;
+}
+
+.notak-emojis-categories button[aria-selected='true'] {
+  background: var(--notak-fond) !important;
+  opacity: 1;
+}
+
+.notak-emojis-grille {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  max-height: 224px;
+  overflow-y: auto;
+}
+
+.notak-emojis-grille button {
+  min-width: 0 !important;
+  height: 34px;
+  padding: 0 !important;
+  font-size: 20px;
+}
+
+.notak-emojis-vide {
+  grid-column: 1 / -1;
+  padding: 12px 0;
+  text-align: center;
+  opacity: 0.6;
+}
