@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Apercu, CauseEchec, Id, Lien } from '../../coeur/tableau'
 import type { PropsRendu } from '../types'
-import { domaineDe, lireAdresse } from './adresse'
+import { INVITES, avecAdresse, domaineDe, lireAdresse } from './adresse'
 import { lireCause, messageEchec } from './echec'
 import { lecteurDe } from './lecteurs'
 import { Media } from './Media'
@@ -89,7 +89,7 @@ function Saisie({ element, contexte, changer }: PropsRendu<Lien>) {
     const url = lireAdresse(texte)
     if (!url) return setErreur(true)
     adresseAEditer.delete(element.id)
-    if (url !== contenu.url) changer({ type: 'lien', url, statut: 'attente' })
+    if (url !== contenu.url) changer(avecAdresse(contenu, url))
     contexte.finirEdition()
   }
 
@@ -100,7 +100,7 @@ function Saisie({ element, contexte, changer }: PropsRendu<Lien>) {
         type="url"
         autoFocus
         spellCheck={false}
-        placeholder="Adresse"
+        placeholder={INVITES[contenu.genre ?? 'lien']}
         value={texte}
         onChange={(e) => setTexte(e.target.value)}
         onKeyDown={(e) => {
