@@ -43,7 +43,14 @@ export interface EspaceNavigable {
   lectureSeule?(id: Id): boolean
   /** Le serveur n'en donne plus l'accès : la vue revient à l'accueil. */
   refuse?(id: Id): boolean
+  /**
+   * Où en est ce qu'on a fait sur ce tableau : reçu par le serveur, en route, ou gardé sur cet appareil faute de
+   * réseau (il partira au retour). Absent : un espace sans serveur, rien à dire.
+   */
+  envoi?(id: Id): EtatEnvoi
 }
+
+export type EtatEnvoi = 'enregistre' | 'envoi' | 'hors-ligne'
 
 export interface EspaceVivant extends EspaceNavigable {
   lire(): Espace

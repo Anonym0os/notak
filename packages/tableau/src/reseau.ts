@@ -20,6 +20,7 @@ export function creerReseauNavigateur(utilisateurId: string): Reseau {
       let lecture = false
       let refuse = false
       let synchro = false
+      let enAttente = false
       const provider: HocuspocusProvider = new HocuspocusProvider({
         websocketProvider: socket(),
         name: `tableau:${id}`,
@@ -40,6 +41,12 @@ export function creerReseauNavigateur(utilisateurId: string): Reseau {
           synchro = state
           surEtat()
         },
+        onUnsyncedChanges: () => {
+          const avant = enAttente
+          enAttente = provider.hasUnsyncedChanges
+          if (enAttente !== avant) surEtat()
+        },
+        onStatus: () => surEtat(),
         onClose: () => {
           // Le serveur ferme ce seul document quand le rôle change ou que l'accès est retiré. La prise reste
           // ouverte et le provider ne redemande rien : on se rattache pour relire le rôle (ou le refus).
@@ -57,6 +64,8 @@ export function creerReseauNavigateur(utilisateurId: string): Reseau {
         lectureSeule: () => lecture,
         refuse: () => refuse,
         synchronise: () => synchro,
+        enLigne: () => socket().status === WebSocketStatus.Connected,
+        enAttente: () => enAttente,
         detruire: () => provider.destroy(),
       }
     },

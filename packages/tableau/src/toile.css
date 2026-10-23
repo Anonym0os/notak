@@ -972,3 +972,46 @@
   font-size: 12px;
   white-space: nowrap;
 }
+
+/* Annuler, rétablir, et l'état de l'enregistrement, à côté du fil d'Ariane. */
+.notak-historique {
+  display: flex;
+  margin-left: 8px;
+}
+
+.notak-historique button {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--notak-texte);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.notak-historique button:hover {
+  background: var(--notak-fond);
+}
+
+.notak-enregistrement {
+  margin-left: 8px;
+  color: #7a7f87;
+  font-size: 12px;
+  white-space: nowrap;
+  animation: notak-enregistrement-entree 0.18s ease-out;
+}
+
+@keyframes notak-enregistrement-entree {
+  from {
+    opacity: 0;
+  }
+}
+
+.notak-enregistrement[data-etat='hors-ligne'] {
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #fdf0d5;
+  color: #8a5a00;
+  animation: none;
+}

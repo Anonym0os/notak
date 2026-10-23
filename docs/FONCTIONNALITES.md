@@ -26,11 +26,11 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 11. Commun aux éléments | 3 | 1 | 8 | 29 % |
 | 12. Organiser | 14 | 1 | 1 | 91 % |
 | 13. Naviguer | 8 | 2 | 3 | 69 % |
-| 14. À plusieurs | 8 | 3 | 6 | 56 % |
-| 15. Habillage | 2 | 4 | 9 | 27 % |
+| 14. À plusieurs | 9 | 2 | 6 | 59 % |
+| 15. Habillage | 5 | 2 | 8 | 40 % |
 | 16. Exporter, importer | 0 | 0 | 4 | 0 % |
 | 17. Plateformes | 1 | 1 | 5 | 21 % |
-| **Total** | **129** | **30** | **90** | **58 %** |
+| **Total** | **133** | **27** | **89** | **59 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -322,7 +322,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Lecture seule | ✅ | |
 | Pastilles plafonnées à 5 et « +N » | 🟡 | |
 | Curseur des autres au repos | 🟡 | |
-| Cache local, reprise après coupure | 🟡 | Copie locale (IndexedDB) ; l'état « hors ligne » ne se voit pas. |
+| Cache local, reprise après coupure | ✅ | Copie locale (IndexedDB), « Hors ligne » dans l'en-tête. |
 | Texte écrit à plusieurs dans une même note | ✅ | Voir § 3. |
 | Lien public, publication en lecture | ⬜ | |
 | Mot de passe sur un tableau partagé | ⬜ | |
@@ -337,8 +337,8 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 |---|---|---|
 | En-tête : fil d'Ariane, titre, partage, présence | ✅ | |
 | Barre d'outils contextuelle | 🟡 | Flottante au-dessus de la sélection (choix) ; voir § 12 pour son contenu. |
-| Annuler et rétablir dans l'en-tête | 🟡 | Au clavier seulement. |
-| État d'enregistrement (« enregistré », « hors ligne ») | 🟡 | Rien ne le dit. |
+| Annuler et rétablir dans l'en-tête | ✅ | |
+| État d'enregistrement (« enregistré », « hors ligne ») | ✅ | |
 | Thème sombre (Cmd+Maj+D) | ⬜ | |
 | Tailles d'interface (petite, moyenne, grande) | ⬜ | |
 | Fenêtre des raccourcis (/) | ✅ | |
@@ -348,7 +348,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Langues de l'interface | ⬜ | Français seulement. |
 | Avis en bas d'écran (toasts) avec annulation | 🟡 | Corbeille (« Annuler ») et envoi raté ; pas encore les autres gestes. |
 | Envoi de fichier : progression dans l'en-tête | ⬜ | |
-| Cmd+S rassure (« déjà enregistré ») | ⬜ | |
+| Cmd+S rassure (« déjà enregistré ») | ✅ | |
 | Raccourci Échap sur les menus de la barre | ⬜ | |
 
 ## 16. Exporter, importer

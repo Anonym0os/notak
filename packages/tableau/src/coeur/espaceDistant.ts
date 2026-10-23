@@ -23,6 +23,10 @@ export interface Connexion {
   refuse(): boolean
   /** Le document a rattrapé celui du serveur. */
   synchronise(): boolean
+  /** Le lien avec le serveur est ouvert. */
+  enLigne?(): boolean
+  /** Des modifications faites ici n'ont pas encore été reçues par le serveur. */
+  enAttente?(): boolean
   detruire(): void
 }
 
@@ -371,6 +375,11 @@ export function creerEspaceDistant(options: OptionsEspaceDistant): EspaceDistant
     lectureSeule: (id) => entrees.get(id)?.connexion?.lectureSeule() ?? false,
     refuse: (id) => entrees.get(id)?.connexion?.refuse() ?? false,
     synchronise: (id) => entrees.get(id)?.connexion?.synchronise() ?? false,
+    envoi: (id) => {
+      const c = entrees.get(id)?.connexion
+      if (!c || c.enLigne?.() === false) return 'hors-ligne'
+      return c.enAttente?.() ? 'envoi' : 'enregistre'
+    },
     detruire() {
       detruit = true
       for (const e of [...entrees.values()]) fermer(e)

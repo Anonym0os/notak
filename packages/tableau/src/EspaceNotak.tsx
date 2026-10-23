@@ -2,6 +2,7 @@ import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import type { Camera } from './coeur/camera'
 import {
   type EspaceNavigable,
+  type EtatEnvoi,
   type Vues,
   avancer,
   courantDe,
@@ -211,6 +212,13 @@ export function EspaceNotak({
   etat.current = { courant, ouvrir, espace, parcours }
   useEffect(() => {
     const touche = (e: KeyboardEvent) => {
+      // Cmd+S, même en écrivant : tout s'enregistre seul, on le dit plutôt que d'ouvrir « Enregistrer la page ».
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        const envoi = etat.current.espace.envoi?.(etat.current.courant)
+        annoncer({ texte: envoi === 'hors-ligne' ? 'Hors ligne : gardé sur cet appareil, envoyé au retour du réseau' : 'Tout s’enregistre tout seul' })
+        return
+      }
       if (!(e.metaKey || e.ctrlKey) || e.altKey || saisissable(e.target)) return
       const { courant: ici, ouvrir: aller, espace: esp, parcours: p } = etat.current
       if (e.key.toLowerCase() === 'u' && e.shiftKey) {
@@ -237,6 +245,15 @@ export function EspaceNotak({
     corps.current?.querySelector<HTMLElement>('.notak-toile')?.focus({ preventScroll: true })
   }, [courant])
 
+  const envoi = useSyncExternalStore(espace.ecouter, () => espace.envoi?.(courant))
+  const historique = useMemo(
+    () => ({
+      annuler: () => void espace.magasin(courant).annuler(),
+      retablir: () => void espace.magasin(courant).retablir(),
+    }),
+    [espace, courant],
+  )
+
   const surCamera = useCallback(
     (c: Camera) => {
       vues.current = memoriserVue(vues.current ?? {}, courant, c, Date.now())
@@ -254,6 +271,8 @@ export function EspaceNotak({
         renommer={courant === racine || lectureSeule ? undefined : (titre) => espace.renommer(courant, titre)}
         presence={espace.presence?.(courant)}
         actions={actions?.(courant, ouvrir)}
+        historique={lectureSeule ? undefined : historique}
+        envoi={envoi}
       />
       <div className="notak-espace-corps" ref={corps}>
         <Toile
@@ -275,6 +294,8 @@ function Entete({
   renommer,
   presence,
   actions,
+  historique,
+  envoi,
 }: {
   segments: Segment[]
   courant: Id
@@ -283,6 +304,9 @@ function Entete({
   renommer?(titre: string): void
   presence?: Services['presence']
   actions?: ReactNode
+  /** Annuler et rétablir le tableau ouvert ; absent en lecture seule. */
+  historique?: { annuler(): void; retablir(): void }
+  envoi?: EtatEnvoi
 }) {
   const entete = useRef<HTMLElement>(null)
   const [largeur, setLargeur] = useState(Number.POSITIVE_INFINITY)
@@ -386,9 +410,61 @@ function Entete({
           segment(i),
         ])}
       </nav>
+      {historique && (
+        <div className="notak-historique">
+          <button type="button" title="Annuler (⌘Z)" aria-label="Annuler" onClick={historique.annuler}>
+            ↶
+          </button>
+          <button type="button" title="Rétablir (⇧⌘Z)" aria-label="Rétablir" onClick={historique.retablir}>
+            ↷
+          </button>
+        </div>
+      )}
+      <EtatEnregistrement etat={envoi} />
       <Pastilles presence={presence} />
       {actions && <div className="notak-entete-actions">{actions}</div>}
     </header>
+  )
+}
+
+/**
+ * Où en est l'enregistrement : rien tant que tout va bien, « Enregistrement… » si un envoi traîne, un mot
+ * bref quand il aboutit, et « Hors ligne » tant que le réseau manque (rien n'est perdu : tout part au retour).
+ */
+function EtatEnregistrement({ etat }: { etat: EtatEnvoi | undefined }) {
+  const [vu, setVu] = useState<'envoi' | 'fait' | 'hors-ligne' | null>(null)
+  const passe = useRef(etat)
+  useEffect(() => {
+    const avant = passe.current
+    passe.current = etat
+    if (etat === 'hors-ligne') {
+      // Au chargement, la connexion met un instant à s'ouvrir : ce n'est pas une coupure.
+      const t = setTimeout(() => setVu('hors-ligne'), 1500)
+      return () => clearTimeout(t)
+    }
+    if (etat === 'envoi') {
+      // Un envoi ordinaire dure quelques dizaines de millisecondes : on n'en parle que s'il traîne.
+      const t = setTimeout(() => setVu('envoi'), 600)
+      return () => clearTimeout(t)
+    }
+    if (etat === 'enregistre' && (avant === 'envoi' || avant === 'hors-ligne')) {
+      setVu((v) => (v ? 'fait' : null))
+      const t = setTimeout(() => setVu(null), 1800)
+      return () => clearTimeout(t)
+    }
+    setVu(null)
+  }, [etat])
+  if (vu === 'hors-ligne')
+    return (
+      <span className="notak-enregistrement" data-etat="hors-ligne" title="Vos modifications sont gardées sur cet appareil ; elles partiront au retour du réseau.">
+        Hors ligne
+      </span>
+    )
+  if (!vu) return null
+  return (
+    <span className="notak-enregistrement" data-etat={vu} role="status">
+      {vu === 'envoi' ? 'Enregistrement…' : 'Enregistré'}
+    </span>
   )
 }
 

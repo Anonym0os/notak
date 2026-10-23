@@ -88,6 +88,35 @@ describe('espace distant', () => {
   })
 })
 
+describe('état d’envoi', () => {
+  it('dit si ce qu’on a fait est reçu, en route, ou gardé faute de réseau', () => {
+    const lien = { enLigne: true, enAttente: false }
+    const reseau: Reseau = {
+      connecter: (): Connexion => ({
+        awareness: null,
+        lectureSeule: () => false,
+        refuse: () => false,
+        synchronise: () => true,
+        enLigne: () => lien.enLigne,
+        enAttente: () => lien.enAttente,
+        detruire() {},
+      }),
+      declarer: async () => {},
+    }
+    const e = creerEspaceDistant({ racine: 'R', utilisateur, reseau })
+    const rendre = e.retenir!('R')
+    expect(e.envoi!('R')).toBe('enregistre')
+    lien.enAttente = true
+    expect(e.envoi!('R')).toBe('envoi')
+    lien.enLigne = false
+    expect(e.envoi!('R')).toBe('hors-ligne')
+    // Un tableau qu'on n'a pas ouvert n'a pas de lien : rien n'en est parti.
+    expect(e.envoi!('X')).toBe('hors-ligne')
+    rendre()
+    e.detruire()
+  })
+})
+
 describe('presenceDe', () => {
   it('garde ce qui est bien formé et écarte le reste', () => {
     expect(presenceDe(3, { utilisateur: { id: 'a', nom: 'A', couleur: '#fff' }, curseur: { x: 1, y: 2 }, selection: ['x', 4], edition: 'x' })).toEqual({
