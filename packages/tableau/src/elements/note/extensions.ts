@@ -5,6 +5,8 @@ import Highlight from '@tiptap/extension-highlight'
 import TextAlign from '@tiptap/extension-text-align'
 import { Color, TextStyle } from '@tiptap/extension-text-style'
 import StarterKit from '@tiptap/starter-kit'
+import { ApercuCouleurs } from './apercuCouleur'
+import { PassageExtrait } from './extraction'
 import { basculerCentre, basculerCode, basculerSurlignage, poserStyle } from './commandes'
 import { normaliserUrl } from './conversion'
 import { MARQUE_FIL } from './fils'
@@ -296,6 +298,8 @@ export const EXTENSIONS_NOTE = [
   MarkdownTape,
   Citation,
   EntreeEnTeteDeBloc,
+  ApercuCouleurs,
+  PassageExtrait,
   Encadre,
   Table,
   LigneTable,
@@ -346,6 +350,8 @@ export interface GestesEdition {
   enTaches(): boolean
   /** Commente le passage choisi, ou ouvre le fil de celui où l'on est. */
   commenter(): void
+  /** Des tâches collées dans une note vide : elle devient une liste de tâches. Rend vrai si le collage a servi. */
+  collerTaches(texte: string): boolean
 }
 
 /** Ce qui n'a de sens que pendant l'édition : lien, suppression de la note vide, note du dessous. */

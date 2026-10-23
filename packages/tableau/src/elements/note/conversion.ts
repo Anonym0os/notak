@@ -178,6 +178,14 @@ export function tachesDepuisTexte(texte: string): NoeudTexte | null {
   return { type: 'doc', content: [{ type: 'taskList', content: items }] }
 }
 
+/** Des tâches collées dans une note vide : la liste de tâches qu'elles font ; `null` si la note a déjà du texte ou si ce n'en sont pas. */
+export function collageEnTaches(note: NoeudTexte, collé: string): NoeudTexte | null {
+  return docEstVide(note) ? tachesDepuisTexte(collé) : null
+}
+
+/** Au-delà de cette hauteur de texte (48 UG, une page A4 à 34 UG de large), on propose d'en faire un document. */
+export const HAUTEUR_NOTE_LONGUE = 480
+
 /**
  * Pour l'affichage figé : les adresses du texte deviennent des liens, afin qu'on puisse les ouvrir.
  * Le document enregistré n'est pas touché ; une adresse déjà dans un lien ou du code reste telle quelle.

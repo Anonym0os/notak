@@ -2,16 +2,19 @@ import { type Editor, EditorContent, getSchema, useEditor } from '@tiptap/react'
 import { renderToReactElement } from '@tiptap/static-renderer/pm/react'
 import { memo, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { t } from '../../langue'
+import { Icone } from '../../icones'
 import { type Commentaire, type Id, type Note, type NoeudTexte, nouvelId } from '../../coeur/tableau'
 import { extensionsDuPartage, textePartage } from '../partage'
 import type { PropsRendu } from '../types'
 import { ContexteBarreEdition } from '../../barreEdition'
 import { BarreTexte } from './Barre'
 import { OutilsTexteGauche } from './OutilsTexte'
+import { Extraction } from './PoigneeExtraction'
 import { FilOuvert, Marge } from './Marge'
 import { MARQUE_FIL, type Fils, avecFil, filsVivants, sansPassagesMuets } from './fils'
 import { type Pont, Propositions, extensionPropositions } from './Propositions'
-import { adresseSeule, adressesEnLiens, caseSeule, couleurSeule, docEstVide } from './conversion'
+import { HAUTEUR_NOTE_LONGUE, adresseSeule, adressesEnLiens, caseSeule, collageEnTaches, couleurSeule, docEstVide, enDocument } from './conversion'
 import { docVide } from '../taches/liste'
 import { fondDeNote, luminance, texteDuContenu } from './couleurs'
 import { EXTENSIONS_NOTE, EXTENSIONS_NOTE_PARTAGEE, type GestesEdition, raccourcisEdition } from './extensions'
@@ -107,6 +110,10 @@ const TexteFige = memo(function TexteFige({ texte, fils }: { texte: NoeudTexte; 
 
 const SCHEMA = getSchema(EXTENSIONS_NOTE)
 
+/** Les notes dont on a refusé la proposition « Convertir en document » : elle ne revient pas. */
+const documentsRefuses = new Set<Id>()
+const arreter = (e: React.SyntheticEvent) => e.stopPropagation()
+
 function Editeur(props: PropsRendu<Note>) {
   const { element, contexte, brouillon } = props
   const { contenu } = element
@@ -148,10 +155,18 @@ function Editeur(props: PropsRendu<Note>) {
     ],
     [fragment],
   )
+  // Un collage qui allonge la note la fait proposer un document tout de suite ; la frappe, après une seconde.
+  const collage = useRef(false)
   const editeur = useEditor({
     extensions,
     ...(fragment ? {} : { content: contenu.texte }),
-    editorProps: { attributes: { class: 'notak-texte' } },
+    editorProps: {
+      attributes: { class: 'notak-texte' },
+      handlePaste: (_vue, event) => {
+        collage.current = true
+        return gestes.current.collerTaches(event.clipboardData?.getData('text/plain') ?? '')
+      },
+    },
     // Le texte copié sépare les blocs par un seul saut de ligne.
     coreExtensionOptions: { clipboardTextSerializer: { blockSeparator: '\n' } },
     onUpdate: ({ editor }) => {
@@ -171,6 +186,32 @@ function Editeur(props: PropsRendu<Note>) {
     editeur.view.focus()
   }, [editeur, contexte])
 
+  // Une note longue propose de devenir un document ; refusée une fois, elle ne le redemande pas.
+  const [suggereDocument, setSuggereDocument] = useState(false)
+  useEffect(() => {
+    if (!editeur || contexte.services.lectureSeule) return
+    let minuterie: ReturnType<typeof setTimeout> | undefined
+    const verifier = () => {
+      clearTimeout(minuterie)
+      if (editeur.isDestroyed) return
+      if (editeur.view.dom.offsetHeight <= HAUTEUR_NOTE_LONGUE) return setSuggereDocument(false)
+      if (documentsRefuses.has(element.id)) return
+      if (collage.current) {
+        collage.current = false
+        setSuggereDocument(true)
+      } else minuterie = setTimeout(() => setSuggereDocument(true), 1000)
+    }
+    editeur.on('update', verifier)
+    return () => {
+      clearTimeout(minuterie)
+      editeur.off('update', verifier)
+    }
+  }, [editeur, element.id, contexte.services.lectureSeule])
+  const convertirEnDocument = () => {
+    contexte.finirEdition()
+    const el = contexte.magasin.lire().elements.find((x) => x.id === element.id)
+    if (el?.contenu.type === 'note') contexte.magasin.faire([{ type: 'contenu', id: el.id, avant: el.contenu, apres: enDocument(el.contenu) }])
+  }
   // Un clic dans la légende, ou une légende neuve et vide : l'écriture commence dans la légende.
   const legendeFaite = useRef(false)
   useEffect(() => {
@@ -242,6 +283,17 @@ function Editeur(props: PropsRendu<Note>) {
       }
       return gestes.current.enTaches()
     },
+    collerTaches: (texte) => {
+      const taches = editeur && collageEnTaches(editeur.getJSON() as NoeudTexte, texte)
+      if (!taches) return false
+      // Après le collage en cours : la note change de type et l'édition repart.
+      queueMicrotask(() => {
+        brouillon({ type: 'taches', texte: taches } as never)
+        contexte.finirEdition()
+        contexte.commencerEdition(element.id)
+      })
+      return true
+    },
     enTaches: () => {
       const cochee = editeur && caseSeule(editeur.getJSON() as NoeudTexte)
       if (cochee === null || cochee === undefined) return false
@@ -281,7 +333,27 @@ function Editeur(props: PropsRendu<Note>) {
         />
       )}
       {editeur && <Propositions editeur={editeur} contexte={contexte} pont={pont} />}
+      {editeur && <Extraction editeur={editeur} contexte={contexte} />}
       <EditorContent editor={editeur} />
+      {suggereDocument && (
+        <div className="notak-suggestion-document" role="status" onMouseDown={(e) => e.preventDefault()} onPointerDown={arreter}>
+          <span>{t('note.suggestionDocument')}</span>
+          <button type="button" onClick={convertirEnDocument}>
+            {t('menu.convertirDocument')}
+          </button>
+          <button
+            type="button"
+            className="notak-suggestion-fermer"
+            aria-label={t('commun.fermer')}
+            onClick={() => {
+              documentsRefuses.add(element.id)
+              setSuggereDocument(false)
+            }}
+          >
+            <Icone nom="fermer" taille={14} />
+          </button>
+        </div>
+      )}
       {legendeOuverte && (
         <div className="notak-note-legende">
           <LegendeEditeur

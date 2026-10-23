@@ -2,7 +2,7 @@
 import { generateJSON } from '@tiptap/react'
 import { describe, expect, it } from 'vitest'
 import { type NoeudTexte, docDepuisTexte } from '../../coeur/tableau'
-import { adresseSeule, adressesEnLiens, caseSeule, contientDuTexte, couleurSeule, decouperAdresses, lireCouleur, tachesDepuisTexte, docDepuisCollage, docEstVide, normaliserUrl, sansCouleursCollees } from './conversion'
+import { adresseSeule, adressesEnLiens, caseSeule, collageEnTaches, contientDuTexte, couleurSeule, decouperAdresses, lireCouleur, tachesDepuisTexte, docDepuisCollage, docEstVide, normaliserUrl, sansCouleursCollees } from './conversion'
 import { EXTENSIONS_NOTE } from './extensions'
 import { ICONES_ENCADRE, ICONE_ENCADRE_DEFAUT, iconeSuivante } from './noeuds'
 
@@ -205,5 +205,18 @@ describe('un code couleur seul', () => {
     expect(couleurSeule(docDepuisTexte('#fff'))?.couleur).toBe('#ffffff')
     expect(couleurSeule(docDepuisTexte('#fff et du texte'))).toBeNull()
     expect(couleurSeule(docDepuisTexte('#fff\n#000'))).toBeNull()
+  })
+})
+
+describe('des tâches collées dans une note', () => {
+  it('une note vide devient la liste de ces tâches', () => {
+    const taches = collageEnTaches(aucun(), '☐ pain\n☑ lait')
+    expect(taches?.content?.[0]?.type).toBe('taskList')
+    expect(taches?.content?.[0]?.content).toHaveLength(2)
+  })
+
+  it('une note qui a déjà du texte, ou un texte sans cases, ne change pas', () => {
+    expect(collageEnTaches(doc(paragraphe('déjà')), '☐ pain')).toBeNull()
+    expect(collageEnTaches(aucun(), 'du texte simple')).toBeNull()
   })
 })
