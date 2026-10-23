@@ -133,6 +133,10 @@
   color: inherit;
   resize: none;
   outline: none;
+  /* Le champ grandit avec ce qu'on écrit, sans barre de défilement sur une ligne. */
+  overflow-y: hidden;
+  field-sizing: content;
+  max-height: 160px;
 }
 
 .notak-commentaire-saisie textarea:focus {

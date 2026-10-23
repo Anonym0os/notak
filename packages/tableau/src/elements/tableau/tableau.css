@@ -64,8 +64,13 @@
 }
 
 .notak-renvoi-info {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
   color: #7a7f87;
   font-size: 12px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .notak-renvoi-saisie {

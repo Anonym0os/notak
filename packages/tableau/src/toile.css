@@ -901,6 +901,10 @@
   font-size: 13px;
 }
 
+.notak-recherche input::-webkit-search-cancel-button {
+  display: none;
+}
+
 .notak-recherche input {
   width: 220px;
   padding: 5px 2px;
