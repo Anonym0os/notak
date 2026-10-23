@@ -380,6 +380,9 @@ export interface Croquis {
   traits: Trait[]
   /** Le fond de la feuille, de la palette des notes ; sans lui, elle est blanche. */
   couleur?: CouleurNote
+  /** La légende sous la feuille, montrée tant que `avecLegende` est posé. */
+  legende?: string
+  avecLegende?: boolean
 }
 
 /**
@@ -402,6 +405,9 @@ export interface DocumentTexte {
   couleur?: CouleurNote
   /** Vue carte : 34 unités de large, avec un aperçu du texte ; absent, la carte n'est qu'une feuille et son titre. */
   carte?: boolean
+  /** La légende sous la carte (vue carte seulement), montrée tant que `avecLegende` est posé. */
+  legende?: string
+  avecLegende?: boolean
 }
 
 /**

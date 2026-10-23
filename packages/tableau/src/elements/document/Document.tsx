@@ -6,6 +6,7 @@ import type { DocumentTexte, NoeudTexte } from '../../coeur/tableau'
 import { EXTENSIONS_NOTE } from '../note/extensions'
 import { type Pont, Propositions, extensionPropositions } from '../note/Propositions'
 import { Surcouche } from '../surcouche'
+import { LegendeLocale, OutilLegende, avecTexteLegende } from '../LegendeLocale'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { ColonneOutils } from './ColonneOutils'
 import { documentEnDocx } from './docx'
@@ -141,6 +142,15 @@ export function RenduDocument({ element, choisie, enEdition, contexte, brouillon
             <Papier taille={32} />
             <div className="notak-document-nom">{nom}</div>
           </div>
+          {c.avecLegende && (
+            <LegendeLocale
+              classe="notak-document-legende"
+              texte={c.legende ?? ''}
+              choisie={choisie}
+              modifiable={!lectureSeule}
+              valider={(texte) => changer(avecTexteLegende(c, texte))}
+            />
+          )}
         </>
       ) : (
         <>
@@ -342,6 +352,7 @@ export function OutilsDocument({ elements, contexte }: PropsOutils<DocumentTexte
   return (
     <>
       <BoutonOutil icone="vueCarte" actif={tous} titre={t('document.vueCarte')} libelle={t('document.vueCarte')} onClick={basculer} />
+      {tous && <OutilLegende elements={elements} contexte={contexte} />}
       {elements.length === 1 && <BoutonOutil icone="renommer" titre={t('menu.renommer')} libelle={t('menu.renommer')} onClick={() => demanderRenommer(elements[0]!.id)} />}
     </>
   )

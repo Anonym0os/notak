@@ -108,8 +108,8 @@ describe('la barre de gauche, type par type (ordre de Milanote)', () => {
     expect(listes('nuancier').visibles).toEqual(['Couleur', ...COMMUNS, 'HEX', 'Légende'])
   })
 
-  it('croquis : Couleur, étiquettes, réactions, commentaire (ni « Dessiner » : le double-clic ouvre)', () => {
-    expect(listes('croquis').visibles).toEqual(['Couleur', ...COMMUNS])
+  it('croquis : Couleur, étiquettes, réactions, commentaire, Légende (ni « Dessiner » : le double-clic ouvre)', () => {
+    expect(listes('croquis').visibles).toEqual(['Couleur', ...COMMUNS, 'Légende'])
   })
 
   it('liste de tâches : Couleur puis Titre', () => {

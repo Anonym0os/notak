@@ -507,3 +507,35 @@
 .notak-propositions {
   z-index: 1100;
 }
+
+/* La légende d'une carte détaillée : sous le titre, 12 px sur 20. */
+.notak-document-legende {
+  box-sizing: border-box;
+  width: 100%;
+  margin: -3px 0 0;
+  padding: 0 16px 14px;
+  color: var(--notak-texte);
+  font-size: 12px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.notak-document-legende[data-vide] {
+  color: var(--notak-pale);
+}
+
+.notak-carte[data-choisie] .notak-document-legende {
+  cursor: text;
+}
+
+.notak-document-legende-champ {
+  display: block;
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  line-height: 20px;
+}

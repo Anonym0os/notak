@@ -8,6 +8,7 @@ import { t } from '../../langue'
 import { ico } from '../../icones'
 import { couleurDuContenu } from '../couleur'
 import { OutilCouleurCarte } from '../couleur/OutilCouleurCarte'
+import { OutilLegende } from '../LegendeLocale'
 
 registre.type<Croquis>({
   type: 'croquis',
@@ -19,6 +20,7 @@ registre.type<Croquis>({
   Outils: OutilCouleurCarte,
   couleur: couleurDuContenu<Croquis>(),
   teinte: true,
+  OutilsApres: OutilLegende,
   editable: true,
   // Comme Milanote : un clic sur le croquis déjà choisi ne l'ouvre pas, il faut un double-clic (ou Entrée).
   ouvreAuDoubleClic: true,

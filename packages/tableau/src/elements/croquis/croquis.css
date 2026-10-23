@@ -3,11 +3,55 @@
   color: var(--notak-texte);
 }
 
+/* La carte est la feuille : pas de marge, et la couleur choisie (ou le blanc) la remplit. */
+.notak-carte[data-type='croquis'] {
+  padding: 0;
+}
+
 .notak-croquis > svg {
   display: block;
   width: 100%;
   height: auto;
   background: #fff;
+}
+
+.notak-carte[data-teinte] .notak-croquis > svg {
+  background: transparent;
+}
+
+.notak-croquis-legende {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 12px 24px 14px;
+  background: var(--notak-carte, #fff);
+  color: var(--notak-texte);
+  font-size: 12px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.notak-carte[data-teinte] .notak-croquis-legende {
+  background: transparent;
+}
+
+.notak-croquis-legende[data-vide] {
+  color: var(--notak-pale);
+}
+
+.notak-carte[data-choisie] .notak-croquis-legende {
+  cursor: text;
+}
+
+.notak-croquis-legende-champ {
+  display: block;
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  font: inherit;
+  font-size: 12px;
+  line-height: 20px;
 }
 
 /* Une feuille vide : l'icône « dessin » de 48 px, puis la phrase de 12 px, en gris tertiaire. */

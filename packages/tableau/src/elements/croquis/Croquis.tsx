@@ -21,6 +21,7 @@ import {
 import { BarreEpaisseur, CURSEUR_GOMME, VoletCouleur, VoletEpaisseur, curseurCrayon } from './partage'
 import { appliquerAuChoix, appuiSurTrait, couleurSous, decalageFleche, deplacerTraits, ordonnerTraits, sansTraits, traitsDansMarquise } from './selection'
 import { t } from '../../langue'
+import { LegendeLocale, avecTexteLegende } from '../LegendeLocale'
 import { ico } from '../../icones'
 
 const CLE_COULEUR = 'notak.croquis.couleur'
@@ -54,7 +55,7 @@ function Traits({ traits, vise, choisis, contour = 0 }: { traits: readonly Trait
   )
 }
 
-export function RenduCroquis({ element, enEdition, contexte, brouillon }: PropsRendu<Croquis>) {
+export function RenduCroquis({ element, choisie, enEdition, contexte, brouillon, changer }: PropsRendu<Croquis>) {
   const c = element.contenu as CroquisFeuille
   return (
     <div className="notak-croquis">
@@ -66,6 +67,15 @@ export function RenduCroquis({ element, enEdition, contexte, brouillon }: PropsR
           {ico('dessin')}
           <p>{t('croquis.vide')}</p>
         </div>
+      )}
+      {c.avecLegende && (
+        <LegendeLocale
+          classe="notak-croquis-legende"
+          texte={c.legende ?? ''}
+          choisie={choisie}
+          modifiable={!contexte.services.lectureSeule}
+          valider={(texte) => changer(avecTexteLegende(c, texte))}
+        />
       )}
       {enEdition && <Feuille contenu={c} ecrire={brouillon} finir={contexte.finirEdition} />}
     </div>
