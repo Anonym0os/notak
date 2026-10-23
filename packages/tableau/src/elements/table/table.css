@@ -1,138 +1,461 @@
-.notak-table {
+/* La table : une carte blanche, sans marge, dont la largeur est la somme des colonnes. */
+.notak-carte[data-type='table'] {
+  padding: 0;
+  background: var(--notak-table-corps, #ffffff);
+}
+
+/* Des cellules choisies : la bordure de l'élément s'efface, le contour des cellules prend le relais. */
+.notak-carte[data-type='table']:has(.notak-tableur[data-cellules]) {
+  box-shadow: var(--notak-ombre);
+}
+
+.notak-tableur {
   position: relative;
   font-size: 14px;
   line-height: 1.35;
   color: var(--notak-texte);
 }
 
-.notak-table table {
-  width: 100%;
+.notak-tableur[data-titre] {
+  --notak-table-titre-h: 32px;
+}
+
+.notak-tableur table {
   border-collapse: collapse;
   table-layout: fixed;
 }
 
-.notak-table td {
-  padding: 6px 8px;
+/* Dans une colonne, une table plus large qu'elle défile en largeur. */
+.notak-tableur[data-actif] td {
+  cursor: cell;
+}
+
+.notak-tableur[data-colonne] .notak-table-defile {
+  overflow-x: auto;
+}
+
+.notak-tableur td {
+  position: relative;
+  box-sizing: border-box;
+  /* Une ligne fait au moins trois unités de grille. */
+  height: calc(var(--notak-grille-pas, 10px) * 3);
+  padding: 5px 8px;
   border: 1px solid var(--notak-point);
   vertical-align: top;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
-.notak-table tr:not([data-entete]) td:empty {
-  height: 31px;
+/* Pas de bordure extérieure en haut sans titre, ni en bas. */
+.notak-tableur:not([data-titre]) tr:first-child td {
+  border-top: 0;
 }
 
-.notak-table tr[data-entete] td:not(.notak-table-retrait-ligne) {
-  background: rgb(47 111 235 / 0.08);
-  font-weight: 700;
+.notak-tableur tr:last-child td {
+  border-bottom: 0;
 }
 
-/* En édition, la cellule est un champ qui en prend toute la place. */
-.notak-table[data-edition] td[data-cellule] {
-  padding: 0;
-}
-
-.notak-table textarea {
+.notak-table-titre {
   display: block;
   box-sizing: border-box;
   width: 100%;
-  min-height: 31px;
+  height: 32px;
   margin: 0;
-  padding: 6px 8px;
+  padding: 0 12px;
+  overflow: hidden;
   border: 0;
   background: none;
-  font: inherit;
-  font-weight: inherit;
   color: inherit;
-  resize: none;
-  overflow: hidden;
+  font: inherit;
+  font-weight: 600;
+  line-height: 32px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.notak-table-titre::placeholder {
+  color: var(--notak-pale);
+}
+
+.notak-table-texte {
+  padding: 0 2px;
+  margin: 0 -2px;
+  border-radius: 2px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+a.notak-table-texte {
+  color: var(--notak-accent);
+  text-decoration: underline;
+}
+
+.notak-table-case {
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0;
+  vertical-align: middle;
+  accent-color: var(--notak-accent);
+  cursor: pointer;
+}
+
+/* Une formule en erreur ne montre qu'une pastille ; la bulle dit l'erreur. */
+.notak-table-erreur {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  color: #d84b4b;
+  vertical-align: middle;
+}
+
+.notak-table-bulle {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  z-index: 8;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #23262c;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.25);
+  color: #fff;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
+  text-align: left;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* ───────────── La sélection ───────────── */
+
+.notak-table-sel,
+.notak-table-ref,
+.notak-table-cible {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.notak-table-cible {
+  background: color-mix(in srgb, var(--notak-accent) 12%, transparent);
+}
+
+.notak-table-recopie {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  z-index: 3;
+  box-sizing: border-box;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--notak-table-corps, #fff);
+  border-radius: 1px;
+  background: var(--notak-accent);
+  cursor: crosshair;
+}
+
+.notak-tableur td:has(.notak-table-recopie) {
+  z-index: 3;
+}
+
+/* Le clavier de la table tient sur un nœud qu'on ne voit pas. */
+.notak-table-clavier {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
   outline: none;
 }
 
-.notak-table textarea:focus {
-  box-shadow: inset 0 0 0 2px var(--notak-accent);
-}
+/* ───────────── Les repères A B C et 1 2 3, hors de la table ───────────── */
 
-/* Les boutons de retrait tiennent dans une cellule sans largeur, ils débordent hors de la table. */
-.notak-table .notak-table-retraits td,
-.notak-table td.notak-table-retrait-ligne {
-  position: relative;
-  padding: 0;
-  border: 0;
-}
-
-.notak-table .notak-table-retraits td {
-  height: 0;
-}
-
-.notak-table td.notak-table-retrait-ligne {
-  width: 0;
-}
-
-.notak-table-retraits button,
-.notak-table-retrait-ligne button {
+.notak-table-repere {
   position: absolute;
+  z-index: 3;
   display: grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: var(--notak-fond);
-  color: #6b7280;
-  font: inherit;
+  box-sizing: border-box;
+  border-radius: 4px;
+  background: var(--notak-carte);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.16), 0 0 0 1px rgb(0 0 0 / 0.04);
+  color: #7a7f87;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.notak-table-repere-colonne {
+  right: 0;
+  bottom: calc(100% + 10px + var(--notak-table-titre-h, 0px));
+  left: 0;
+  height: 24px;
+}
+
+.notak-table-repere-ligne {
+  top: 0;
+  right: calc(100% + 10px);
+  bottom: 0;
+  width: 24px;
+}
+
+.notak-table-repere[data-touche] {
+  color: var(--notak-accent);
+}
+
+.notak-table-repere[data-choisi] {
+  background: var(--notak-accent);
+  color: #fff;
+  cursor: grab;
+}
+
+/* La poignée de largeur est à cheval sur le bord droit de la lettre. */
+.notak-table-largeur {
+  position: absolute;
+  top: 0;
+  right: -6px;
+  z-index: 4;
+  width: 12px;
+  height: 100%;
+  cursor: col-resize;
+}
+
+.notak-table-largeur[data-derniere] {
+  right: -10px;
+  width: 20px;
+}
+
+.notak-table-largeur::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: calc(50% - 1px);
+  width: 2px;
+  border-radius: 1px;
+  background: var(--notak-accent);
   opacity: 0;
-  transition: opacity 120ms ease;
 }
 
-.notak-table-retraits button {
-  top: -26px;
-  left: calc(50% - 10px);
+.notak-table-largeur:hover::after {
+  opacity: 0.8;
 }
 
-.notak-table-retrait-ligne button {
-  top: 6px;
-  left: 6px;
+/* Déplacer des lignes ou des colonnes : une ombre suit le pointeur, une ligne de 2 px marque la place. */
+.notak-table-ombre {
+  position: absolute;
+  z-index: 6;
+  box-sizing: border-box;
+  border: 2px solid var(--notak-accent);
+  background: color-mix(in srgb, var(--notak-accent) 16%, transparent);
+  box-shadow: 0 8px 22px rgb(0 0 0 / 0.2);
+  opacity: 0.75;
+  pointer-events: none;
 }
 
-.notak-table-retraits td:hover button,
-.notak-table tr:hover .notak-table-retrait-ligne button,
-.notak-table-retraits button:focus-visible,
-.notak-table-retrait-ligne button:focus-visible {
-  opacity: 1;
+.notak-table-place {
+  position: absolute;
+  z-index: 6;
+  background: var(--notak-accent);
+  pointer-events: none;
 }
 
-.notak-table-retraits button:hover,
-.notak-table-retrait-ligne button:hover {
-  background: #d84b4b;
+.notak-tableur[data-deplace],
+.notak-tableur[data-deplace] * {
+  cursor: grabbing !important;
+}
+
+/* ───────────── L'éditeur de cellule ───────────── */
+
+.notak-tableur td[data-edition] {
+  z-index: 4;
+  padding: 0;
+}
+
+.notak-table-editeur {
+  position: relative;
+}
+
+/* Le miroir donne sa hauteur à la cellule et porte les couleurs des références ; le champ est posé dessus. */
+.notak-table-miroir,
+.notak-table-champ {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 5px 8px;
+  font: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.notak-table-miroir {
+  min-height: calc(var(--notak-grille-pas, 10px) * 3);
+  pointer-events: none;
+}
+
+.notak-table-champ {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: none;
+  color: transparent;
+  caret-color: var(--notak-texte);
+  resize: none;
+  overflow: hidden;
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.notak-table-champ::selection {
+  background: color-mix(in srgb, var(--notak-accent) 32%, transparent);
+  color: transparent;
+}
+
+.notak-table-fonctions,
+.notak-table-popup {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 7;
+  margin: 4px 0 0;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--notak-carte);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18), 0 1px 3px rgb(0 0 0 / 0.1);
+  color: var(--notak-texte);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.3;
+  text-align: left;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.notak-table-fonctions {
+  min-width: 150px;
+  list-style: none;
+}
+
+.notak-table-fonctions li {
+  padding: 4px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.notak-table-fonctions li[data-choisie] {
+  background: var(--notak-accent);
   color: #fff;
 }
 
-.notak-table-ajouts {
+.notak-table-fonctions b {
+  font-weight: 700;
+}
+
+.notak-table-popup {
   display: flex;
+  flex-direction: column;
   gap: 8px;
-  margin-top: 8px;
+  padding: 8px;
 }
 
-.notak-table-ajouts button {
-  padding: 4px 10px;
-  border: 0;
-  border-radius: 6px;
-  background: var(--notak-fond);
-  color: #6b7280;
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
+.notak-table-popup label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
-.notak-table-ajouts button:hover:not(:disabled) {
-  color: var(--notak-texte);
+.notak-table-popup .notak-table-calendrier-coche {
+  justify-content: flex-start;
 }
 
-.notak-table-ajouts button:disabled {
+/* ───────────── Les menus de la barre d'outils ───────────── */
+
+.notak-table-menu-type,
+.notak-table-menu-plus {
+  min-width: 230px;
+  white-space: nowrap;
+}
+
+.notak-table-menu-type .notak-menu-rang:disabled,
+.notak-table-menu-plus .notak-menu-rang:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+.notak-table-menu-plus hr {
+  width: 100%;
+  margin: 2px 0;
+  border: 0;
+  border-top: 1px solid var(--notak-point);
+}
+
+.notak-table-menu-plus kbd {
+  font: inherit;
+  opacity: 0.55;
+}
+
+.notak-table-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 8px 6px 4px;
+  border-top: 1px solid var(--notak-point);
+}
+
+.notak-table-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.notak-table-option-coche {
+  justify-content: flex-start;
+}
+
+.notak-table-option select {
+  max-width: 170px;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid rgb(0 0 0 / 0.12);
+  border-radius: 6px;
+  background: var(--notak-carte);
+  color: inherit;
+  font: inherit;
+  color-scheme: light dark;
+}
+
+.notak-table-option input[type='checkbox'],
+.notak-table-popup input[type='checkbox'] {
+  accent-color: var(--notak-accent);
+}
+
+.notak-table-alignements > div {
+  display: flex;
+  gap: 2px;
+}
+
+.notak-table-alignements > div + div {
+  margin-top: 2px;
+  padding-top: 2px;
+  border-top: 1px solid var(--notak-point);
 }
