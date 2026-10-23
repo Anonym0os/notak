@@ -85,6 +85,7 @@ registre.type<RenvoiTableau>({
       },
       icone: ico('tableau'),
       rang: 50,
+      vignette: 'tableau',
       fantome: () => ({ id: '', x: 0, y: 0, largeur: LARGEUR_RENVOI, contenu: { type: 'tableau', cible: '' } }),
       prise: { x: LARGEUR_RENVOI / 2, y: LARGEUR_RENVOI / 2 },
       creer(ou, contexte) {
@@ -99,6 +100,7 @@ registre.type<RenvoiTableau>({
       },
       icone: ico('modele'),
       rang: 51,
+      vignette: 'modele',
       tiroir: true,
       fantome: () => ({ id: '', x: 0, y: 0, largeur: LARGEUR_RENVOI, contenu: { type: 'tableau', cible: '' } }),
       prise: { x: LARGEUR_RENVOI / 2, y: LARGEUR_RENVOI / 2 },

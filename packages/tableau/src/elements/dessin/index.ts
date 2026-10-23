@@ -23,7 +23,7 @@ registre.type<Dessin>({
       },
       icone: ico('dessin'),
       rang: 135,
-      tiroir: true,
+      groupe: 'action',
       fantome: () => ({ id: 'fantome', x: 0, y: 0, largeur: 6, contenu: { type: 'dessin', traits: [], largeurOrigine: 6, hauteurOrigine: 4 } }),
       // Glisser l'outil ou le cliquer ouvre la couche de dessin : ce qu'on y trace se pose là où on l'a tracé.
       creer: (_ou, contexte) => {

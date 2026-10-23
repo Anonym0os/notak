@@ -31,6 +31,7 @@ registre.type<Colonne>({
       },
       icone: ico('colonne'),
       rang: 60,
+      vignette: 'colonne',
       fantome: () => nouvelleColonne(0, 0, t('type.colonne')),
       creer: (ou) => [{ type: 'creer', element: nouvelleColonne(Math.round(ou.x), Math.round(ou.y), t('type.colonne')) }],
     },

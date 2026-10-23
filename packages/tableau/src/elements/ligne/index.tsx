@@ -30,6 +30,7 @@ registre.type<Ligne>({
       },
       icone: ico('ligne'),
       rang: 40,
+      vignette: 'ligne',
       fantome: () => ligneLibre({ x: 0, y: 0 }),
       prise: { x: TAILLE_LIGNE_NEUVE / 2, y: TAILLE_LIGNE_NEUVE / 2 },
       creer(ou, contexte) {

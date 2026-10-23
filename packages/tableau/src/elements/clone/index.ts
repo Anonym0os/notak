@@ -53,6 +53,7 @@ registre.type<Clone>({
       },
       icone: ico('copie'),
       rang: 150,
+      vignette: 'clone',
       tiroir: true,
       fantome: () => nouveauClone(0, 0, '', 17),
       // Le clone de l'élément choisi, là où l'on lâche l'outil.

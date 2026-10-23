@@ -25,6 +25,7 @@ registre.type<Lieu>({
       },
       icone: ico('epingle'),
       rang: 120,
+      vignette: 'lieu',
       tiroir: true,
       fantome: () => nouveauLieu(0, 0),
       creer: (ou) => [{ type: 'creer', element: nouveauLieu(Math.round(ou.x), Math.round(ou.y)) }],

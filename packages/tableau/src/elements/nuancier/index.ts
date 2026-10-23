@@ -28,6 +28,7 @@ registre.type<Nuancier>({
       },
       icone: ico('palette'),
       rang: 110,
+      vignette: 'nuancier',
       tiroir: true,
       fantome: () => nouveauNuancier(0, 0),
       creer: (ou) => [{ type: 'creer', element: nouveauNuancier(Math.round(ou.x), Math.round(ou.y)) }],

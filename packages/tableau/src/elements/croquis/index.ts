@@ -25,6 +25,7 @@ registre.type<Croquis>({
       },
       icone: ico('croquis'),
       rang: 130,
+      vignette: 'croquis',
       tiroir: true,
       fantome: () => nouveauCroquis(0, 0),
       creer: (ou) => [{ type: 'creer', element: nouveauCroquis(Math.round(ou.x), Math.round(ou.y)) }],

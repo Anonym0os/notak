@@ -25,6 +25,7 @@ registre.type<DocumentTexte>({
       },
       icone: ico('document'),
       rang: 140,
+      vignette: 'document',
       tiroir: true,
       fantome: () => nouveauDocument(0, 0),
       creer: (ou) => [{ type: 'creer', element: nouveauDocument(Math.round(ou.x), Math.round(ou.y)) }],

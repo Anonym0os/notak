@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as Y from 'yjs'
-import { decaler, ecart } from './ligne'
+import { decaler, ecart } from './lignePartagee'
 
 describe('ligne partagée', () => {
   it('ramène une frappe à ce qui a changé', () => {

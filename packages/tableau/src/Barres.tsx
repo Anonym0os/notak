@@ -6,6 +6,7 @@ import { definition, tousLesOutilsCommuns, tousLesTypes } from './elements/regis
 import type { ContexteToile, Outil } from './elements/types'
 import { Icone } from './icones'
 import { useMenu } from './menuUnique'
+import { Vignette } from './vignettes'
 
 /** Un outil de la barre, avec le type qui l'apporte. */
 export interface OutilDeBarre {
@@ -58,11 +59,13 @@ export function BarreOutils({
   const tous = outilsDeBarre()
   const bouton = (o: OutilDeBarre, dansTiroir = false) => {
     const rebondit = rebond?.libelle === o.outil.libelle
+    const vignette = o.outil.vignette ? <Vignette nom={o.outil.vignette} /> : null
     return (
       <div key={`${o.type}:${o.outil.libelle}`} className="notak-outil-place">
         <button
           type="button"
           className="notak-outil"
+          data-genre={vignette ? 'vignette' : 'tuile'}
           title={o.outil.libelle}
           // La clé change à chaque clic : l'animation du rebond repart.
           data-rebond={rebondit ? rebond.n % 2 : undefined}
@@ -74,7 +77,7 @@ export function BarreOutils({
             if (dansTiroir) setTiroir(false)
           }}
         >
-          <span className="notak-outil-icone">{o.outil.icone}</span>
+          <span className="notak-outil-icone">{vignette ?? o.outil.icone}</span>
           <span className="notak-outil-libelle">{o.outil.libelle}</span>
         </button>
         {rebondit && (
@@ -85,43 +88,57 @@ export function BarreOutils({
       </div>
     )
   }
+  const elementsVisibles = tous.filter((o) => !o.outil.tiroir && o.outil.groupe !== 'action')
   const caches = tous.filter((o) => o.outil.tiroir)
+  const actions = tous.filter((o) => !o.outil.tiroir && o.outil.groupe === 'action')
   return (
-    <nav ref={nav} className="notak-barre-outils" onPointerDown={(e) => e.stopPropagation()}>
-      {tous.filter((o) => !o.outil.tiroir).map((o) => bouton(o))}
-      {caches.length > 0 && (
-        <div className="notak-outil-place" ref={ancreTiroir}>
-          <button
-            type="button"
-            className="notak-outil"
-            aria-expanded={tiroir}
-            title={t('barre.plusOutils')}
-            onClick={() => setTiroir(!tiroir)}
-          >
-            <span className="notak-outil-icone"><Icone nom="plus" /></span>
-            <span className="notak-outil-libelle">{t('barre.plus')}</span>
-          </button>
-          {tiroir && <div className="notak-tiroir">{caches.map((o) => bouton(o, true))}</div>}
-        </div>
-      )}
-      <div className="notak-barre-sep" />
-      <BoutonEtiquettes />
-      <button type="button" className="notak-outil" aria-expanded={nonTries.ouverte} title={t('nonTries.titre') + ' (⌘\\)'} onClick={nonTries.basculer}>
-        <span className="notak-outil-icone"><Icone nom="nonTries" /></span>
-        <span className="notak-outil-libelle">{t('nonTries.titre')}{nonTries.nombre > 0 ? ` (${nonTries.nombre})` : ''}</span>
-      </button>
+    <>
+      <nav ref={nav} className="notak-barre-outils" onPointerDown={(e) => e.stopPropagation()}>
+        {elementsVisibles.map((o) => bouton(o))}
+        {caches.length > 0 && (
+          <div className="notak-outil-place" ref={ancreTiroir}>
+            <button
+              type="button"
+              className="notak-outil-plus"
+              aria-expanded={tiroir}
+              aria-label={t('barre.plusOutils')}
+              title={t('barre.plusOutils')}
+              onClick={() => setTiroir(!tiroir)}
+            >
+              <Icone nom="plus" />
+            </button>
+            {tiroir && <div className="notak-tiroir">{caches.map((o) => bouton(o, true))}</div>}
+          </div>
+        )}
+        <div className="notak-barre-sep" />
+        {actions.map((o) => bouton(o))}
+        <BoutonEtiquettes />
+        <div className="notak-barre-ressort" />
+        <button
+          type="button"
+          className="notak-outil"
+          data-genre="corbeille"
+          data-corbeille
+          aria-expanded={corbeille.ouverte}
+          title={t('corbeille.titre')}
+          onClick={corbeille.basculer}
+        >
+          <span className="notak-outil-icone"><Icone nom="corbeille" taille={26} /></span>
+          <span className="notak-outil-libelle">{t('corbeille.titre')}{corbeille.nombre > 0 ? ` (${corbeille.nombre})` : ''}</span>
+        </button>
+      </nav>
+      {/* Les non triés, en haut à droite de la toile : leur nombre, et Cmd+\ les ouvre aussi. */}
       <button
         type="button"
-        className="notak-outil"
-        data-corbeille
-        aria-expanded={corbeille.ouverte}
-        title={t('corbeille.titre')}
-        onClick={corbeille.basculer}
+        className="notak-non-tries-bouton"
+        aria-expanded={nonTries.ouverte}
+        title={t('nonTries.titre') + ' (⌘\\)'}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={nonTries.basculer}
       >
-        <span className="notak-outil-icone"><Icone nom="corbeille" /></span>
-        <span className="notak-outil-libelle">{t('corbeille.titre')}{corbeille.nombre > 0 ? ` (${corbeille.nombre})` : ''}</span>
+        <strong>{nonTries.nombre}</strong> {t('nonTries.titre')}
       </button>
-    </nav>
+    </>
   )
 }
 

@@ -269,6 +269,10 @@ export interface Outil {
   rang: number
   /** Rangé dans le tiroir « Plus » plutôt que dans la barre. */
   tiroir?: boolean
+  /** Le dessin de l'élément en petit (`vignettes.tsx`), à la place de l'icône. */
+  vignette?: string
+  /** `action` : un geste plutôt qu'un élément (ajouter une image, envoyer un fichier, dessiner), rangé après. */
+  groupe?: 'action'
   /** L'élément tel qu'il naîtra, pour le dessiner sous le pointeur ; sans effet sur rien. */
   fantome(): Element
   /** Où le pointeur tient le fantôme, depuis son coin haut gauche, en UG (3, 3 par défaut). */

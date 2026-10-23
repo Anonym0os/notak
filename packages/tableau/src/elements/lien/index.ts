@@ -44,6 +44,7 @@ registre.type<Lien>({
       },
       icone: ico('lien'),
       rang: 20,
+      vignette: 'lien',
       fantome: () => nouveauLien({ x: 0, y: 0 }, ''),
       creer: (ou) => [{ type: 'creer', element: nouveauLien(ou, '') }],
     },
@@ -51,6 +52,7 @@ registre.type<Lien>({
       libelle,
       icone: ico(icone),
       rang,
+      vignette: genre,
       tiroir: true,
       fantome: () => nouveauLien({ x: 0, y: 0 }, '', genre),
       // Un lien vide, en édition : on y colle l'adresse de la vidéo, du morceau ou de la carte.

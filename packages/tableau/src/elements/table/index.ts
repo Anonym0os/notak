@@ -25,7 +25,7 @@ registre.type<Table>({
       },
       icone: ico('table'),
       rang: 100,
-      tiroir: true,
+      vignette: 'table',
       fantome: () => nouvelleTable(0, 0),
       creer: (ou) => [{ type: 'creer', element: nouvelleTable(Math.round(ou.x), Math.round(ou.y)) }],
     },

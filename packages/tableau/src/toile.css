@@ -21,6 +21,8 @@
   height: 100%;
   background-color: var(--notak-fond);
   outline: none;
+  /* Glisser sur la toile ne surligne pas le texte des cartes (WebKit, l'appli de bureau, veut le préfixe). */
+  -webkit-user-select: none;
   user-select: none;
   touch-action: none;
   overscroll-behavior: none;
@@ -88,6 +90,7 @@
 }
 
 .notak-carte[data-edition] {
+  -webkit-user-select: text;
   user-select: text;
   cursor: text;
 }
@@ -157,41 +160,128 @@
 }
 
 .notak-barre-outils {
+  --notak-vignette-trait: #c9cdd3;
+  --notak-vignette-accent: #4f6cf0;
+
   position: absolute;
-  top: 12px;
-  left: 12px;
+  inset: 0 auto 0 0;
+  z-index: 3;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 6px 4px;
-  border-radius: 8px;
-  background: var(--notak-carte);
-  box-shadow: var(--notak-ombre);
+  align-items: center;
+  gap: 4px;
+  width: 76px;
+  padding: 10px 0;
+  border-right: 1px solid rgb(0 0 0 / 0.07);
+  background: var(--notak-barre, #eceef1);
 }
 
 .notak-outil {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  width: 52px;
-  padding: 6px 0;
+  gap: 4px;
+  width: 68px;
+  padding: 4px 0 6px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   background: none;
   color: var(--notak-texte);
   font: inherit;
+  cursor: grab;
+}
+
+.notak-outil:hover .notak-outil-icone {
+  transform: translateY(-1px);
+}
+
+.notak-outil:hover .notak-vignette {
+  filter: drop-shadow(0 3px 4px rgb(0 0 0 / 0.1));
+}
+
+/* Un geste (image, fichier, dessin, étiquettes) : une tuile grise et son icône. */
+.notak-outil:is([data-genre='tuile'], :not([data-genre])) .notak-outil-icone {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 40px;
+  border-radius: 8px;
+  background: rgb(0 0 0 / 0.06);
+}
+
+.notak-outil:is([data-genre='tuile'], :not([data-genre])):hover .notak-outil-icone {
+  background: rgb(0 0 0 / 0.1);
+}
+
+.notak-outil[data-genre='tuile'] .notak-ico,
+.notak-outil:not([data-genre]) .notak-ico {
+  width: 24px;
+  height: 24px;
+}
+
+.notak-outil[data-genre='corbeille'] {
+  cursor: pointer;
+  color: #8a9099;
+}
+
+.notak-outil[aria-expanded='true'] .notak-outil-icone {
+  background: rgb(0 0 0 / 0.12);
+}
+
+.notak-barre-ressort {
+  flex: 1;
+}
+
+/* « ••• » : la pastille qui ouvre la grille des autres éléments. */
+.notak-outil-plus {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 20px;
+  margin: 2px 0 4px;
+  border: 0;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 0.08);
+  color: var(--notak-texte);
   cursor: pointer;
 }
 
-.notak-outil:hover {
-  background: var(--notak-fond);
+.notak-outil-plus:hover,
+.notak-outil-plus[aria-expanded='true'] {
+  background: rgb(0 0 0 / 0.14);
+}
+
+/* Les non triés, en haut à droite de la toile. */
+.notak-non-tries-bouton {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgb(0 0 0 / 0.1);
+  border-radius: 6px;
+  background: var(--notak-carte);
+  color: #7a7f87;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.notak-non-tries-bouton strong {
+  color: var(--notak-texte);
+}
+
+.notak-non-tries-bouton:hover,
+.notak-non-tries-bouton[aria-expanded='true'] {
+  border-color: rgb(0 0 0 / 0.2);
 }
 
 .notak-outil-icone {
   display: flex;
   font-size: 18px;
   line-height: 1;
+  transition: transform 120ms ease;
 }
 
 /* Les icônes (Tabler, par `icones.tsx`) : en ligne avec un texte, elles descendent un peu sous la ligne de base ;
@@ -212,7 +302,10 @@
 }
 
 .notak-outil-libelle {
+  color: #5f656d;
   font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
 }
 
 .notak-barre-selection {
@@ -560,16 +653,27 @@
 
 .notak-tiroir {
   position: absolute;
-  z-index: 3;
-  top: 0;
-  left: calc(100% + 8px);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 6px 4px;
-  border-radius: 8px;
-  background: var(--notak-carte);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
+  z-index: 5;
+  top: -8px;
+  left: calc(100% + 10px);
+  display: grid;
+  grid-template-columns: repeat(3, 76px);
+  gap: 6px;
+  padding: 14px 10px;
+  border-radius: 12px;
+  background: var(--notak-barre, #eceef1);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.16), 0 1px 3px rgb(0 0 0 / 0.08);
+}
+
+/* La petite pointe vers la pastille « ••• ». */
+.notak-tiroir::before {
+  content: '';
+  position: absolute;
+  top: 16px;
+  left: -6px;
+  border: 6px solid transparent;
+  border-left: 0;
+  border-right-color: var(--notak-barre, #eceef1);
 }
 
 /* Le menu du clic droit. */
@@ -628,8 +732,10 @@
 }
 
 .notak-barre-sep {
+  flex: none;
+  width: 44px;
   height: 1px;
-  margin: 4px 6px;
+  margin: 6px 0;
   background: rgb(0 0 0 / 0.08);
 }
 
@@ -638,7 +744,7 @@
   position: absolute;
   z-index: 35;
   bottom: 12px;
-  left: 84px;
+  left: 88px;
   display: flex;
   flex-direction: column;
   width: 320px;
@@ -1119,7 +1225,7 @@
 .notak-non-tries {
   right: 12px;
   bottom: auto;
-  top: 12px;
+  top: 48px;
   left: auto;
 }
 
@@ -1225,7 +1331,7 @@
 
 .notak-bulle-decouverte[data-ou='barre'] {
   top: 96px;
-  left: 68px;
+  left: 86px;
 }
 
 .notak-bulle-decouverte[data-ou='milieu'] {
@@ -1344,4 +1450,9 @@
   grid-template-columns: repeat(6, 22px);
   gap: 6px !important;
   padding: 4px !important;
+}
+
+.notak-toile :is(input, textarea) {
+  -webkit-user-select: text;
+  user-select: text;
 }

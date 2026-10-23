@@ -31,6 +31,7 @@ registre.type<Taches>({
       },
       icone: ico('tache'),
       rang: 30,
+      vignette: 'taches',
       fantome: () => nouvelleListeTaches(0, 0),
       creer: (ou) => [{ type: 'creer', element: nouvelleListeTaches(Math.round(ou.x), Math.round(ou.y)) }],
     },

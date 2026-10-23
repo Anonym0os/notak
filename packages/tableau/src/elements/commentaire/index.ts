@@ -25,6 +25,7 @@ registre.type<Commentaire>({
       },
       icone: ico('commentaire'),
       rang: 70,
+      vignette: 'commentaire',
       fantome: () => nouveauCommentaire(0, 0),
       creer: (ou) => [{ type: 'creer', element: nouveauCommentaire(Math.round(ou.x), Math.round(ou.y)) }],
     },
