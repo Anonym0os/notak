@@ -1,11 +1,13 @@
 import { TAILLE_MAX } from '../image/geometrie'
 import { extensionDe } from './genre'
 
-/** Les extensions que Milanote refuse (programmes, scripts, pages web, images disque, raccourcis). */
-const EXTENSIONS_REFUSEES = new Set([
-  'app', 'bat', 'cmd', 'com', 'cpl', 'dll', 'dmg', 'exe', 'gadget', 'hta', 'htm', 'html', 'inf', 'iso', 'jar', 'jse', 'lnk', 'msc', 'msi', 'msp',
-  'pif', 'ps1', 'reg', 'scr', 'vbe', 'vbs', 'wsf', 'wsh',
-])
+/** Les 43 extensions que Milanote refuse (programmes, installateurs, scripts, pages web, images disque, raccourcis). */
+const EXTENSIONS_REFUSEES = new Set(
+  (
+    'ade adp apk appx appxbundle bat cab chm cmd com cpl dll dmg exe hta htm html isp iso jse lib lnk mde msc msi msix msixbundle msp mst nsh ' +
+    'pif ps1 scr sct shb sys vb vbe vbs vxd wsc wsf wsh'
+  ).split(' '),
+)
 
 /** Les noms de fichiers de configuration d'un site : un fichier qui les porte pourrait en changer le comportement. */
 const NOMS_REFUSES = new Set(['.htaccess', 'web.config', 'robots.txt', 'crossdomain.xml', 'clientaccesspolicy.xml'])

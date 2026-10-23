@@ -39,6 +39,14 @@
 .notak-fichier[data-genre='video'] { --notak-genre: #c43f7d; }
 .notak-fichier[data-genre='code'] { --notak-genre: #3c4654; }
 .notak-fichier[data-genre='image'] { --notak-genre: #3b8f8a; }
+.notak-fichier[data-genre='modele3d'] { --notak-genre: #5b6ad0; }
+.notak-fichier[data-genre='police'] { --notak-genre: #8a6d3b; }
+.notak-fichier[data-genre='courriel'] { --notak-genre: #3a8fd0; }
+.notak-fichier[data-genre='web'] { --notak-genre: #d1561f; }
+.notak-fichier[data-genre='vecteur'] { --notak-genre: #e08a00; }
+.notak-fichier[data-genre='photo'] { --notak-genre: #2e7fb8; }
+.notak-fichier[data-genre='montage'] { --notak-genre: #6a3fb5; }
+.notak-fichier[data-genre='maquette'] { --notak-genre: #d94f5c; }
 
 /* La ligne du titre : le pictogramme à gauche, le titre et les détails à droite. */
 .notak-fichier-meta {

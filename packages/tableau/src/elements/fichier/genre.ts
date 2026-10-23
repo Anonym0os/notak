@@ -2,7 +2,9 @@ import { langue } from '../../langue'
 import type { NomIcone } from '../../icones'
 /** Ce qu'on sait dire d'un fichier d'après son type et son nom, sans l'ouvrir. */
 
-export type Genre = 'pdf' | 'texte' | 'tableur' | 'presentation' | 'archive' | 'son' | 'video' | 'image' | 'code' | 'autre'
+export type Genre =
+  | 'pdf' | 'texte' | 'tableur' | 'presentation' | 'archive' | 'son' | 'video' | 'image' | 'code' | 'autre'
+  | 'modele3d' | 'police' | 'courriel' | 'web' | 'vecteur' | 'photo' | 'montage' | 'maquette'
 
 /** L'icône de chaque genre, dans le badge de la carte. */
 export const ICONE_DU_GENRE: Record<Genre, NomIcone> = {
@@ -16,19 +18,40 @@ export const ICONE_DU_GENRE: Record<Genre, NomIcone> = {
   image: 'fichierImage',
   code: 'fichierCode',
   autre: 'fichier',
+  modele3d: 'fichier3d',
+  police: 'fichierPolice',
+  courriel: 'fichierCourriel',
+  web: 'fichierWeb',
+  vecteur: 'fichierVecteur',
+  photo: 'fichierPhoto',
+  montage: 'fichierMontage',
+  maquette: 'fichierMaquette',
 }
 
-const PAR_EXTENSION: Record<string, Genre> = {
-  pdf: 'pdf',
-  doc: 'texte', docx: 'texte', odt: 'texte', rtf: 'texte', txt: 'texte', md: 'texte', pages: 'texte',
-  xls: 'tableur', xlsx: 'tableur', ods: 'tableur', csv: 'tableur', numbers: 'tableur',
-  ppt: 'presentation', pptx: 'presentation', odp: 'presentation', key: 'presentation',
-  zip: 'archive', rar: 'archive', '7z': 'archive', tar: 'archive', gz: 'archive',
-  mp3: 'son', wav: 'son', m4a: 'son', aac: 'son', ogg: 'son', flac: 'son',
-  mp4: 'video', mov: 'video', webm: 'video', m4v: 'video', avi: 'video', mkv: 'video',
-  png: 'image', jpg: 'image', jpeg: 'image', gif: 'image', webp: 'image', svg: 'image', heic: 'image', tiff: 'image', psd: 'image',
-  js: 'code', ts: 'code', json: 'code', html: 'code', css: 'code', py: 'code', sh: 'code',
+/** Les extensions de chaque famille (celles que Milanote range ensemble, dans nos dix-huit pictogrammes). */
+const FAMILLES: Record<Exclude<Genre, 'pdf' | 'autre'>, string> = {
+  texte: 'doc docx docm odt ott otg odg rtf txt md pages msg',
+  tableur: 'xls xlsx xlsm ods odc otc csv tsv tab numbers',
+  presentation: 'ppt pptx pptm odp otp key',
+  archive: 'zip rar 7z tar gz',
+  son: 'mp3 wav wave m4a aac ogg flac mid amr 3ga mka mpa opus oga pkf ra ram aiff pcm',
+  video: 'mp4 mov webm m4v m4p m4b m4r avi mkv mk3d mks qt wmv divx xvid mpg mpeg mpeg4 mp1 mp2 mlv m1a m2a mpv ogv ogx ogm spx drp wma asf',
+  image: 'png jpg jpeg jpe gif webp svg heic tif tiff bmp ico pbm pgm ppm psd',
+  code: 'js jsx ts tsx json css py sh c h ini ins jar java pl php swift xml yml yaml sql go rs rb',
+  modele3d: 'max blend mp ma 3ds dwg gltf gltb obj fbx stl stp collade glb dae step wrl x3d 3mf amf',
+  police: 'otf ttc ttf eot woff woff2 ffil afm pfa pfb pfm tfil',
+  courriel: 'eml emlx mbox',
+  web: 'html htm xhtml dw dwt muse mulib',
+  vecteur: 'ai ai3 ai4 ai5 ai6 ai7 ai8 eps ps psf',
+  photo: 'jxr cr2 crw dng mrw orf raw xmp nef x3f erf raf cube 3dl lrtemplate lrcat lrdata lrdb lrprev lrpreview',
+  montage: 'prproj cfa cpa aec aep aet aetx amx',
+  maquette: 'sketch afdesign xd ind indd idlk indt rp',
 }
+
+const PAR_EXTENSION: Record<string, Genre> = Object.fromEntries(
+  (Object.entries(FAMILLES) as [Genre, string][]).flatMap(([genre, liste]) => liste.split(' ').map((e) => [e, genre])),
+)
+PAR_EXTENSION.pdf = 'pdf'
 
 /** L'extension, en minuscules, sans le point ; vide s'il n'y en a pas. */
 export function extensionDe(nom: string): string {
@@ -94,11 +117,11 @@ export function apercuDe(nom: string, typeMime: string, icone: boolean | undefin
  */
 export const aApercuAbsent = (nom: string, typeMime: string): boolean => {
   const g = genreDe(nom, typeMime)
-  return g === 'texte' || g === 'tableur' || g === 'presentation' || g === 'code'
+  return g !== 'pdf' && g !== 'image' && g !== 'video' && g !== 'son' && g !== 'archive' && g !== 'autre'
 }
 
 /** Les formats dont l'aperçu est forcé : leur carte naît détaillée (Photoshop, Illustrator, Sketch…). */
-const APERCU_FORCE = new Set(['psd', 'ai', 'indd', 'sketch', 'xd'])
+const APERCU_FORCE = new Set(['psd', 'ai', 'ai3', 'ai4', 'ai5', 'ai6', 'ai7', 'ai8', 'eps', 'ps', 'psf', 'ind', 'indd', 'idlk', 'indt', 'sketch', 'xd', 'dw', 'dwt'])
 
 /**
  * Un fichier naît en icône, sauf le son et la vidéo qu'on lit, et les formats dont Milanote force l'aperçu
