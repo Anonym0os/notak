@@ -87,6 +87,8 @@ export function tn(cle: string, n: number, valeurs?: Record<string, string | num
 
 export const fr: Textes = {
   'commun.fermer': 'Fermer',
+  'garde.titre': 'Ce tableau n’a pas pu s’afficher.',
+  'garde.reessayer': 'Réessayer',
 
   'reglages.titre': 'Réglages',
   'reglages.theme': 'Thème',
@@ -651,6 +653,8 @@ export const fr: Textes = {
 
 export const en: Textes = {
   'commun.fermer': 'Close',
+  'garde.titre': 'This board could not be displayed.',
+  'garde.reessayer': 'Try again',
 
   'reglages.titre': 'Settings',
   'reglages.theme': 'Theme',

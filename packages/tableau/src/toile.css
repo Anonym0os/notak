@@ -1488,3 +1488,29 @@
     display: block;
   }
 }
+
+/* La garde de la toile : elle prend toute la place, et montre l'erreur au milieu. */
+.notak-garde {
+  display: contents;
+}
+
+.notak-garde-erreur {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+  color: var(--notak-texte);
+}
+
+.notak-garde-erreur button {
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid rgb(0 0 0 / 0.15);
+  border-radius: 6px;
+  background: var(--notak-carte);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}

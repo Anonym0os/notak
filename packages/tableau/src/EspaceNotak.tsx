@@ -27,6 +27,7 @@ import { PastillePersonne } from './pastille'
 import { FenetreReglages, type ServiceCompte, useReglages } from './reglages'
 import './theme.css'
 import { Icone } from './icones'
+import { GardeToile } from './garde'
 
 const CLE_VUES = 'notak:vues'
 /**
@@ -370,14 +371,16 @@ export function EspaceNotak({
         envoi={envoi}
       />
       <div className="notak-espace-corps" ref={corps}>
-        <Toile
-          // Une autre grille ou une autre langue redessine tout : pixels et textes changent.
-          key={`${courant}:${reglages.grille}:${langue}`}
-          magasin={espace.magasin(courant)}
-          services={services}
-          cameraInitiale={vues.current[courant]?.camera}
-          surCamera={surCamera}
-        />
+        <GardeToile key={courant}>
+          <Toile
+            // Une autre grille ou une autre langue redessine tout : pixels et textes changent.
+            key={`${courant}:${reglages.grille}:${langue}`}
+            magasin={espace.magasin(courant)}
+            services={services}
+            cameraInitiale={vues.current[courant]?.camera}
+            surCamera={surCamera}
+          />
+        </GardeToile>
       </div>
       {aideOuverte && <FenetreRaccourcis fermer={fermerAide} />}
       {reglagesOuverts && <FenetreReglages reglages={reglages} changer={changerReglages} fermer={() => setReglagesOuverts(false)} {...(compte ? { compte } : {})} />}
