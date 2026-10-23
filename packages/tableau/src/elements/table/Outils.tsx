@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Element, FormatCellule, Id, Table, TypeCellule } from '../../coeur/tableau'
 import { BoutonOutil, OutilAvecMenu } from '../../BoutonOutil'
 import { type NomIcone, Icone } from '../../icones'
-import { type Langue, langue, t } from '../../langue'
+import { langue, t } from '../../langue'
 import { fermerMenus, useMenu } from '../../menuUnique'
 import { lireHex } from '../note/couleurs'
 import type { ContexteToile, PropsOutils } from '../types'
@@ -17,7 +17,7 @@ import {
 } from './actions'
 import { ouvrirEdition } from './edition'
 import { demanderTitre, focaliser, poserEtat, useEtatTable } from './etat'
-import { COULEURS_TEXTE, FOND_ENTETE, FONDS_CELLULE, SURLIGNAGES, alignementDe } from './formats'
+import { COULEURS_TEXTE, FOND_ENTETE, FONDS_CELLULE, SURLIGNAGES, alignementDe, regional } from './formats'
 import {
   COLONNES_MAX,
   LIGNES_MAX,
@@ -210,9 +210,9 @@ const AFFICHAGES_DEVISE = ['symboleEtroit', 'symbole', 'code', 'nom'] as const
 const FORMATS_DATE = ['aucun', 'long', 'court', 'chiffres', 'chiffresCourts', 'tirets', 'jour'] as const
 const FORMATS_HEURE = ['aucune', '12h', '12hs', '24h', '24hs'] as const
 
-const nomDevise = (code: string, lg: Langue) => {
+const nomDevise = (code: string) => {
   try {
-    return `${code} · ${new Intl.DisplayNames(lg === 'fr' ? 'fr-FR' : 'en-US', { type: 'currency' }).of(code) ?? code}`
+    return `${code} · ${new Intl.DisplayNames(langue() === 'fr' ? 'fr-FR' : 'en-US', { type: 'currency' }).of(code) ?? code}`
   } catch {
     return code
   }
@@ -220,7 +220,7 @@ const nomDevise = (code: string, lg: Langue) => {
 
 function OutilType({ c }: { c: Cellules }) {
   const menu = useMenu()
-  const lg = langue()
+  const lg = regional()
   const actif = c.format?.type
   const choisir = (type: TypeCellule | undefined) => c.appliquer((tab) => choisirType(tab, c.plages, type, lg), true)
   /** Une option du type actif : elle ne touche que les cellules qui ont ce type. */
@@ -273,7 +273,7 @@ function OutilType({ c }: { c: Cellules }) {
                   <select value={f.devise ?? 'EUR'} onChange={(e) => option({ devise: e.target.value })}>
                     {(DEVISES.includes(f.devise ?? 'EUR') ? DEVISES : [...DEVISES, f.devise!]).map((d) => (
                       <option key={d} value={d}>
-                        {nomDevise(d, lg)}
+                        {nomDevise(d)}
                       </option>
                     ))}
                   </select>

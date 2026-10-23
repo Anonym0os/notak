@@ -1,3 +1,4 @@
+import { regional } from './formats'
 import type { Table } from '../../coeur/tableau'
 import { registre } from '../registre'
 import { RenduTable } from './Table'
@@ -7,7 +8,7 @@ import { resumeTable } from './affichage'
 import { focaliser, lireEtat, poserEtat } from './etat'
 import { ajusterALaPoignee, calerSurGrille, largeursDe, nouvelleTable } from './grille'
 import { lireCollage } from './pressePapiers'
-import { langue, t } from '../../langue'
+import { t } from '../../langue'
 import './table.css'
 import { ico } from '../../icones'
 
@@ -65,6 +66,6 @@ registre.recepteur({
   recevoir(donnees, ou) {
     const html = donnees.getData('text/html')
     if (!/<table[\s>]/i.test(html)) return null
-    return [{ type: 'creer', element: tableDepuisCollage(lireCollage(html, donnees.getData('text/plain')), Math.round(ou.x), Math.round(ou.y), langue()) }]
+    return [{ type: 'creer', element: tableDepuisCollage(lireCollage(html, donnees.getData('text/plain')), Math.round(ou.x), Math.round(ou.y), regional()) }]
   },
 })

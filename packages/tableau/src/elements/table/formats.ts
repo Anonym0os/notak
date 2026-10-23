@@ -1,5 +1,5 @@
 import type { FormatCellule, FormatDate, FormatHeure, TypeCellule } from '../../coeur/tableau'
-import type { Langue } from '../../langue'
+import { type Langue, langue as langueCourante } from '../../langue'
 
 /* ───────────── Les couleurs du relevé (docs/ecarts/table.md) ───────────── */
 
@@ -51,7 +51,40 @@ export const COULEURS_REFERENCES = ['#16a0e5', '#ff8d22', '#4eb85a', '#af72ff', 
 
 /* ───────────── Langues ───────────── */
 
-const LOCALES: Record<Langue, string> = { fr: 'fr-FR', en: 'en-US' }
+/**
+ * Les nombres et les dates suivent les réglages régionaux du système, comme dans un tableur : une locale BCP 47
+ * (`fr-FR`, `en-GB`), ou à défaut la langue de l'interface (`fr`, `en`).
+ */
+export type Regional = Langue | (string & {})
+
+export const localeDe = (r: Regional): string => (r === 'fr' ? 'fr-FR' : r === 'en' ? 'en-US' : r)
+
+const memo = <T,>(f: (l: string) => T) => {
+  const deja = new Map<string, T>()
+  return (r: Regional): T => {
+    const l = localeDe(r)
+    if (!deja.has(l)) deja.set(l, f(l))
+    return deja.get(l)!
+  }
+}
+
+/** La virgule est le séparateur décimal (fr, de, es…). */
+const virguleDecimale = memo((l) => new Intl.NumberFormat(l).formatToParts(1.5).find((p) => p.type === 'decimal')?.value === ',')
+
+/** Une date en chiffres s'écrit le jour d'abord (fr, en-GB…), pas le mois (en-US). */
+const jourDAbord = memo((l) => {
+  const parts = new Intl.DateTimeFormat(l).formatToParts(new Date(2006, 1, 3)).map((p) => p.type)
+  return parts.indexOf('day') < parts.indexOf('month')
+})
+
+const francais = (r: Regional) => localeDe(r).toLowerCase().startsWith('fr')
+
+/** Les réglages régionaux du système, ou ceux de la langue de l'interface hors navigateur. */
+export const regionalDuSysteme = (langue: Regional): Regional =>
+  (typeof navigator !== 'undefined' && navigator.language) || langue
+
+/** Les réglages régionaux en vigueur, hors React. */
+export const regional = (): Regional => regionalDuSysteme(langueCourante())
 
 /* ───────────── Nombres : lecture, écriture ───────────── */
 
@@ -68,7 +101,7 @@ const nettoyerZeros = (s: string) => s.replace(/^(-?)0+(?=\d)/, '$1')
 const decimalesDe = (canon: string) => canon.split('.')[1]?.length ?? 0
 
 /** Lit un nombre écrit à la façon de la langue ; `null` si ce n'en est pas un (ou s'il perdrait des chiffres). */
-function lireNombre(brut: string, langue: Langue): NombreLu | null {
+function lireNombre(brut: string, langue: Regional): NombreLu | null {
   let s = brut.trim().replace(/−/g, '-')
   if (!s) return null
   let signe = ''
@@ -77,7 +110,7 @@ function lireNombre(brut: string, langue: Langue): NombreLu | null {
     s = s.slice(1).trimStart()
   }
   let canon: string | null = null
-  if (langue === 'fr') {
+  if (virguleDecimale(langue)) {
     if (/^(\d{1,3}([   ]\d{3})+|\d+)(,\d+)?$/.test(s)) canon = s.replace(/[   ]/g, '').replace(',', '.')
     else if (/^,\d+$/.test(s)) canon = `0${s.replace(',', '.')}`
     else if (/^\d+\.\d+$/.test(s)) canon = s
@@ -166,7 +199,7 @@ const OPTIONS_HEURE: Record<Exclude<FormatHeure, 'aucune'>, Intl.DateTimeFormatO
   '24hs': { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' },
 }
 
-function afficherDate(serie: number, f: FormatCellule, langue: Langue): string | null {
+function afficherDate(serie: number, f: FormatCellule, langue: Regional): string | null {
   const total = Math.round(serie * 86400)
   const entier = Math.floor(total / 86400)
   const secondes = total - entier * 86400
@@ -176,7 +209,7 @@ function afficherDate(serie: number, f: FormatCellule, langue: Langue): string |
   let format: FormatDate = f.date ?? 'chiffres'
   const heure: FormatHeure = f.heure ?? 'aucune'
   if (format === 'aucun' && heure === 'aucune') format = 'chiffres'
-  const locale = LOCALES[langue]
+  const locale = localeDe(langue)
   let texteDate = ''
   if (format !== 'aucun') {
     const parties = new Intl.DateTimeFormat(locale, { ...OPTIONS_DATE[format], timeZone: 'UTC' }).formatToParts(date)
@@ -211,11 +244,11 @@ function decimalesAuto(valeur: string, n: number): number {
  * Le texte affiché d'une cellule selon son type. Une valeur qui ne va pas avec son type s'affiche telle quelle ;
  * une case à cocher n'affiche rien (le rendu dessine la case).
  */
-export function afficher(texte: string, format: FormatCellule | null | undefined, langue: Langue): string {
+export function afficher(texte: string, format: FormatCellule | null | undefined, langue: Regional): string {
   const type = format?.type
   if (type === 'case') return ''
   if (!format || !type || type === 'texte' || texte === '') return texte
-  const locale = LOCALES[langue]
+  const locale = localeDe(langue)
   if (type === 'date') {
     const serie = serieDe(texte)
     return (serie === null ? null : afficherDate(serie, format, langue)) ?? texte
@@ -264,7 +297,7 @@ const DEVISES: Record<string, string> = {
 const SIGNE = '[+\\-\\u2212]'
 const SYMBOLE = '[^\\d\\s+\\-\\u2212.,()%:/]'
 
-function deduirePourcent(texte: string, langue: Langue): Deduction | null {
+function deduirePourcent(texte: string, langue: Regional): Deduction | null {
   const m = /^(.*\d)\s*%$/.exec(texte.replace(/[  ]/g, ' ').trim())
   if (!m) return null
   const n = lireNombre(m[1]!, langue)
@@ -272,7 +305,7 @@ function deduirePourcent(texte: string, langue: Langue): Deduction | null {
   return { type: 'pourcent', valeur: decaler(n.valeur, 2), options: n.decimales > 2 ? { decimales: n.decimales } : {} }
 }
 
-function deduireMonnaie(texte: string, langue: Langue): Deduction | null {
+function deduireMonnaie(texte: string, langue: Regional): Deduction | null {
   const s = texte.trim()
   let signe = ''
   let symbole = ''
@@ -307,9 +340,9 @@ const MOIS = {
 const JOURS_SEMAINE = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 
 /** Le mois (1 à 12) d'un nom, et s'il est écrit en entier ; la langue de l'utilisateur d'abord. */
-function lireMois(nom: string, langue: Langue): { mois: number; entier: boolean } | null {
+function lireMois(nom: string, langue: Regional): { mois: number; entier: boolean } | null {
   const n = sansAccent(nom)
-  const ordre: Langue[] = langue === 'fr' ? ['fr', 'en'] : ['en', 'fr']
+  const ordre: Langue[] = francais(langue) ? ['fr', 'en'] : ['en', 'fr']
   for (const l of ordre) {
     const entier = MOIS[l].indexOf(n)
     if (entier >= 0) return { mois: entier + 1, entier: true }
@@ -322,7 +355,7 @@ function lireMois(nom: string, langue: Langue): { mois: number; entier: boolean 
 
 const annee2 = (aa: number) => (aa < 30 ? 2000 + aa : 1900 + aa)
 
-function deduireDate(texte: string, langue: Langue): Deduction | null {
+function deduireDate(texte: string, langue: Regional): Deduction | null {
   let s = texte.trim().replace(/[  ]/g, ' ')
   let heure: FormatHeure = 'aucune'
   let secondes = 0
@@ -340,12 +373,12 @@ function deduireDate(texte: string, langue: Langue): Deduction | null {
   if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s))) {
     jour = serieDeJour(Number(m[1]), Number(m[2]), Number(m[3]))
   } else if ((m = /^(\d{1,2})\/(\d{1,2})\/(\d{4}|\d{2})$/.exec(s))) {
-    const [a, b] = langue === 'fr' ? [Number(m[1]), Number(m[2])] : [Number(m[2]), Number(m[1])]
+    const [a, b] = jourDAbord(langue) ? [Number(m[1]), Number(m[2])] : [Number(m[2]), Number(m[1])]
     const court = m[3]!.length === 2
     jour = serieDeJour(court ? annee2(Number(m[3])) : Number(m[3]), b, a)
     if (court) date = 'chiffresCourts'
   } else if ((m = /^(\d{1,2})-(\d{1,2})-(\d{4})$/.exec(s))) {
-    const [a, b] = langue === 'fr' ? [Number(m[1]), Number(m[2])] : [Number(m[2]), Number(m[1])]
+    const [a, b] = jourDAbord(langue) ? [Number(m[1]), Number(m[2])] : [Number(m[2]), Number(m[1])]
     jour = serieDeJour(Number(m[3]), b, a)
     date = 'tirets'
   } else {
@@ -379,7 +412,7 @@ function deduireDate(texte: string, langue: Langue): Deduction | null {
  * Ce que le texte tapé révèle de son type, dans l'ordre : nombre, pourcentage, monnaie, date. `null` si rien :
  * c'est alors du texte. Les séparateurs suivent la langue.
  */
-export function deduireType(texte: string, langue: Langue): Deduction | null {
+export function deduireType(texte: string, langue: Regional): Deduction | null {
   const t = texte.trim()
   if (!t || t.startsWith('=')) return null
   const n = lireNombre(t, langue)
@@ -402,7 +435,7 @@ function sansType(f: FormatCellule | null): FormatCellule | null {
  * une cellule sans type prend celui qu'on déduit ; sinon pourcentage, monnaie et date remplacent le type, une date
  * retombe en nombre, et rien de reconnu ramène à Auto.
  */
-export function saisir(ancien: FormatCellule | null | undefined, texte: string, langue: Langue): { texte: string; format: FormatCellule | null } {
+export function saisir(ancien: FormatCellule | null | undefined, texte: string, langue: Regional): { texte: string; format: FormatCellule | null } {
   const format = ancien ?? null
   const type = format?.type
   if (type === 'texte' || type === 'case' || texte.trim() === '' || texte.startsWith('=')) return { texte, format }
@@ -423,7 +456,7 @@ export function saisir(ancien: FormatCellule | null | undefined, texte: string, 
  * seulement `true` ou `false` ; nombre, monnaie, pourcentage une valeur numérique (ou une formule) ; date un numéro
  * de série, une date ISO ou une date qu'on sait lire.
  */
-export function peutPrendreType(texte: string, type: TypeCellule | undefined, langue: Langue = 'fr'): boolean {
+export function peutPrendreType(texte: string, type: TypeCellule | undefined, langue: Regional = 'fr'): boolean {
   if (!type || type === 'texte' || texte === '') return true
   if (type === 'case') return texte === 'true' || texte === 'false'
   if (texte.startsWith('=')) return type !== 'date'

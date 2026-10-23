@@ -181,7 +181,11 @@ a.notak-table-texte {
   left: 0;
   width: 1px;
   height: 1px;
+  padding: 0;
+  border: 0;
   opacity: 0;
+  resize: none;
+  overflow: hidden;
   pointer-events: none;
   outline: none;
 }

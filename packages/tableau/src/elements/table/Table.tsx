@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { PX_PAR_UG } from '../../coeur/camera'
 import type { Element, FormatCellule, Table } from '../../coeur/tableau'
 import { Icone } from '../../icones'
-import { langue, t, useLangue } from '../../langue'
+import { t, useLangue } from '../../langue'
 import { MenuContextuel } from '../../Menus'
 import type { PropsRendu } from '../types'
 import {
@@ -40,7 +40,7 @@ import {
   rendreALaToile,
   useEtatTable,
 } from './etat'
-import { COULEURS_REFERENCES, alignementDe } from './formats'
+import { COULEURS_REFERENCES, alignementDe, regional, regionalDuSysteme } from './formats'
 import { citerReferences, evaluerTable, modeCitation, nomCellule, nomColonne } from './formules'
 import {
   type Plage,
@@ -200,7 +200,7 @@ function Titre({ id, valeur, ecrivable, change, suite }: { id: string; valeur: s
 export function RenduTable({ element, choisie, seule, contexte, changer }: PropsRendu<Table>) {
   const id = element.id
   const c = element.contenu
-  const lg = useLangue()
+  const lg = regionalDuSysteme(useLangue())
   const etat = useEtatTable(id)
   const racine = useRef<HTMLDivElement>(null)
   const geste = useRef<Geste | null>(null)
@@ -243,7 +243,7 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
     return () => obs.disconnect()
   }, [dansColonne])
 
-  const refNoeud = useCallback((n: HTMLDivElement | null) => enregistrerNoeud(id, n), [id])
+  const refNoeud = useCallback((n: HTMLTextAreaElement | null) => enregistrerNoeud(id, n), [id])
 
   /* ── la sélection ── */
 
@@ -298,7 +298,7 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
     poserEtat(id, { edition: null })
     const calendrier = e.depuisCalendrier ? serieDeIso(e.texte) : null
     modifierTable(contexte, id, (tab) => ({
-      table: ecrireCellule(tab, e.l, e.c, e.texte, langue(), calendrier ? { serie: calendrier, ...(e.avecHeure !== undefined ? { avecHeure: e.avecHeure } : {}) } : undefined),
+      table: ecrireCellule(tab, e.l, e.c, e.texte, regional(), calendrier ? { serie: calendrier, ...(e.avecHeure !== undefined ? { avecHeure: e.avecHeure } : {}) } : undefined),
     }))
     if (deplacement !== 'aucun') {
       const d = { bas: [1, 0], haut: [-1, 0], droite: [0, 1], gauche: [0, -1] }[deplacement]
@@ -597,7 +597,7 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
 
   /* ── le clavier ── */
 
-  const surClavier = (e: React.KeyboardEvent<HTMLDivElement>) => {
+  const surClavier = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.target !== e.currentTarget || e.nativeEvent.isComposing) return
     const e0 = lireEtat(id)
     if (!e0.plages.length) return
@@ -664,11 +664,23 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
     } else if (k === ' ' && !cmd && formatsDe(c)[active.l]?.[active.c]?.type === 'case') {
       prendre()
       cocher(active.l, active.c)
-    } else if (!cmd && !e.altKey && k.length === 1 && k !== ' ') {
-      // Un caractère remplace le contenu de la cellule active.
-      prendre()
-      demarrerEdition(active.l, active.c, { texte: k, curseur: k.length })
+    } else if (!cmd && k.length === 1) {
+      // Un caractère tombe dans le champ caché, et `surSaisie` ouvre l'édition avec lui : ainsi les accents
+      // à touche morte, la dictée et ce qui arrive sans touche passent aussi.
+      e.stopPropagation()
     }
+  }
+
+  /** Ce qui s'écrit sur la table choisie remplace le contenu de la cellule active. */
+  const surSaisie = (e: React.FormEvent<HTMLTextAreaElement>) => {
+    const n = e.currentTarget
+    if ((e.nativeEvent as InputEvent).isComposing) return
+    const texte = n.value
+    n.value = ''
+    const e0 = lireEtat(id)
+    const active = e0.ancre ?? e0.tete
+    if (!texte || !active || e0.edition || formatsDe(c)[active.l]?.[active.c]?.type === 'case') return
+    demarrerEdition(active.l, active.c, { texte, curseur: texte.length })
   }
 
   const surCopie = (e: React.ClipboardEvent, couper: boolean) => {
@@ -806,7 +818,12 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
         data-cellule={cle}
         data-edition={enEdition || undefined}
         data-case={f?.type === 'case' || undefined}
-        style={styleDeCellule(f, estFormule, dansSel ? apercu : undefined)}
+        style={styleDeCellule(
+          // Le résultat d'une formule s'aligne comme sa valeur : un nombre à droite ; seule l'écriture reste à gauche.
+          estFormule && !enEdition && !f?.type && typeof r?.valeur === 'number' && !r.erreur ? { ...f, type: 'nombre' } : f,
+          estFormule && enEdition,
+          dansSel ? apercu : undefined,
+        )}
       >
         {contenu}
         {ref && (
@@ -833,6 +850,8 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
             data-touche={plages.some((p) => { const n = normaliserPlage(p); return n.c1 <= j && j <= n.c2 }) || undefined}
             role="columnheader"
             aria-label={t('table.repere.colonne', { nom: nomColonne(j) })}
+            // Chaque lettre passe sur la suivante : la moitié droite de sa poignée de largeur reste saisissable.
+            style={{ zIndex: 3 + nombreColonnes(c.cellules) - j }}
             onPointerDown={(e) => surRepere(e, 'colonne', j)}
           >
             {nomColonne(j)}
@@ -919,13 +938,19 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
       {visuel.ombre && <div className="notak-table-ombre" aria-hidden style={{ left: visuel.ombre.x, top: visuel.ombre.y, width: visuel.ombre.w, height: visuel.ombre.h }} />}
       {visuel.ligne && <div className="notak-table-place" aria-hidden style={{ left: visuel.ligne.x, top: visuel.ligne.y, width: visuel.ligne.w, height: visuel.ligne.h }} />}
       {actif && plages.length > 0 && (
-        <div
+        <textarea
           ref={refNoeud}
           className="notak-table-clavier"
           data-table-clavier
           tabIndex={-1}
           aria-label={t('type.table')}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
           onKeyDown={surClavier}
+          onInput={surSaisie}
+          onCompositionEnd={surSaisie}
           onCopy={(e) => surCopie(e, false)}
           onCut={(e) => surCopie(e, true)}
           onPaste={surColle}

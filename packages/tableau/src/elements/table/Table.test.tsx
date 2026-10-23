@@ -330,6 +330,8 @@ describe('l’édition d’une cellule', () => {
     monter(m)
     cliquer(1, 0)
     appuyer(clavier()!, { key: 'z' })
+    // La touche tombe dans le champ caché, qui ouvre l'édition avec ce qu'il reçoit (accents à touche morte compris).
+    taper(clavier() as HTMLTextAreaElement, 'z')
     expect(champ().value).toBe('z')
     taper(champ(), 'zèbre')
     appuyer(champ(), { key: 'Enter' })

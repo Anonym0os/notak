@@ -1,6 +1,5 @@
 import type { FormatCellule, Table } from '../../coeur/tableau'
-import type { Langue } from '../../langue'
-import { saisir } from './formats'
+import { type Regional, saisir } from './formats'
 import {
   COLONNES_MAX,
   LIGNES_MAX,
@@ -226,7 +225,7 @@ export function coller(
   ancre: { l: number; c: number },
   donnees: DonneesCollage,
   reecrire?: Reecrire,
-  langue: Langue = 'fr',
+  langue: Regional = 'fr',
 ): Table {
   const hauteur = donnees.cellules.length
   const largeur = Math.max(0, ...donnees.cellules.map((l) => l.length))

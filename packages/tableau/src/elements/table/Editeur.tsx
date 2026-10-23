@@ -133,9 +133,13 @@ export function Editeur({ id, edition, format, valider, abandonner }: Props) {
           majEdition(id, (x) => ({ ...x, texte: e.target.value, curseur: e.target.selectionStart, suggestion: 0, citation: null, depuisCalendrier: false }))
         }
         onSelect={(e) => {
-          const pos = e.currentTarget.selectionStart
+          // React relaie aussi la sélection au keydown : après une insertion, le champ a encore l'ancien texte et
+          // l'ancien curseur, qu'il ne faut pas reprendre.
+          const { value, selectionStart: pos } = e.currentTarget
           majEdition(id, (x) =>
-            x.curseur === pos ? undefined : { ...x, curseur: pos, citation: x.citation && x.citation.fin === pos ? x.citation : null },
+            x.curseur === pos || value !== x.texte
+              ? undefined
+              : { ...x, curseur: pos, citation: x.citation && x.citation.fin === pos ? x.citation : null },
           )
         }}
         onKeyDown={touche}

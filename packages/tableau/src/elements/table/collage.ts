@@ -1,5 +1,5 @@
+import { regional } from './formats'
 import type { Id } from '../../coeur/tableau'
-import { langue } from '../../langue'
 import type { ContexteToile } from '../types'
 import { collerA, copiable } from './actions'
 import { derniereCopie, lireEtat, retenirCopie } from './etat'
@@ -62,7 +62,7 @@ export function collerDansTable(contexte: ContexteToile, id: Id, html: string | 
   const decalage = memo && !valeursSeules ? { dl: ancre.l1 - memo.origine.l, dc: ancre.c1 - memo.origine.c } : null
   const coupe = memo?.coupe ?? null
   const viderIci = !!coupe && memo?.id === id
-  const fait = modifierTable(contexte, id, (table) => collerA(viderIci ? viderPlage(table, coupe) : table, plages, donnees, decalage, langue()))
+  const fait = modifierTable(contexte, id, (table) => collerA(viderIci ? viderPlage(table, coupe) : table, plages, donnees, decalage, regional()))
   if (fait && memo && coupe) {
     if (memo.id !== id) modifierTable(contexte, memo.id, (table) => ({ table: viderPlage(table, coupe) }))
     retenirCopie({ ...memo, coupe: null })

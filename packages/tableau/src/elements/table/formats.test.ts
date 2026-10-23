@@ -224,3 +224,15 @@ describe('les couleurs', () => {
     expect(SURLIGNAGES).toHaveLength(6)
   })
 })
+
+describe('les réglages régionaux', () => {
+  test('une date en chiffres se lit le jour d’abord en en-GB, le mois d’abord en en-US', () => {
+    expect(deduireType('23/10/2026', 'en-GB')?.type).toBe('date')
+    expect(deduireType('23/10/2026', 'en-US')).toBeNull()
+    expect(deduireType('10/23/2026', 'en-US')?.type).toBe('date')
+  })
+  test('la virgule décimale suit la locale', () => {
+    expect(deduireType('12,5', 'de-DE')?.valeur).toBe('12.5')
+    expect(deduireType('1,234.5', 'en-GB')?.valeur).toBe('1234.5')
+  })
+})

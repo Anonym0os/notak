@@ -1,8 +1,7 @@
 import { type Element, type FormatCellule, type Table, type TypeCellule, nouvelId } from '../../coeur/tableau'
-import type { Langue } from '../../langue'
 import { textesAffiches } from './affichage'
 import type { Cellule } from './etat'
-import { deduireType, peutPrendreType, saisir } from './formats'
+import { deduireType, peutPrendreType, saisir, type Regional } from './formats'
 import {
   type OperationStructure,
   citerReferences,
@@ -282,7 +281,7 @@ const optionsDeType = (f: FormatCellule | null | undefined): FormatCellule => {
 }
 
 /** Les cellules des plages qui peuvent prendre ce type. */
-export function cellulesPouvant(t: Table, plages: readonly Plage[], type: TypeCellule | undefined, lg: Langue): [number, number][] {
+export function cellulesPouvant(t: Table, plages: readonly Plage[], type: TypeCellule | undefined, lg: Regional): [number, number][] {
   return cellulesDe(plages, t).filter(([l, c]) => peutPrendreType(t.cellules[l]![c]!, type, lg))
 }
 
@@ -290,7 +289,7 @@ export function cellulesPouvant(t: Table, plages: readonly Plage[], type: TypeCe
  * Donne un type aux cellules choisies qui peuvent le prendre. `undefined` : Auto. Passer en Texte fige le texte
  * tel qu'il s'affichait ; une date écrite en toutes lettres devient son numéro de série.
  */
-export function choisirType(t: Table, plages: readonly Plage[], type: TypeCellule | undefined, lg: Langue): Table {
+export function choisirType(t: Table, plages: readonly Plage[], type: TypeCellule | undefined, lg: Regional): Table {
   const concernees = cellulesPouvant(t, plages, type, lg)
   if (!concernees.length) return t
   const formats = formatsDe(t)
@@ -337,7 +336,7 @@ export function ecrireCellule(
   l: number,
   c: number,
   saisie: string,
-  lg: Langue,
+  lg: Regional,
   calendrier?: { serie: string; avecHeure?: boolean },
 ): Table {
   const formats = formatsDe(t)
@@ -383,7 +382,7 @@ export function copiable(t: Table, plages: readonly Plage[]): { texte: string; h
  * Colle à partir de la première cellule choisie. `decalage` : de combien les références des formules collées
  * se déplacent. La sélection devient ce qui vient d'être collé.
  */
-export function collerA(t: Table, plages: readonly Plage[], donnees: DonneesCollage, decalage: { dl: number; dc: number } | null, lg: Langue): Issue | null {
+export function collerA(t: Table, plages: readonly Plage[], donnees: DonneesCollage, decalage: { dl: number; dc: number } | null, lg: Regional): Issue | null {
   const p = plages[0]
   if (!p) return null
   const { l1, c1 } = normaliserPlage(p)
@@ -423,7 +422,7 @@ export function plageDeRecopie(source: Plage, survol: Cellule): Plage {
 }
 
 /** Une table neuve, de la taille de ce qu'on a collé sur la toile (tableur, autre table), sans en-tête ajouté. */
-export function tableDepuisCollage(donnees: DonneesCollage, x: number, y: number, lg: Langue): Element<Table> {
+export function tableDepuisCollage(donnees: DonneesCollage, x: number, y: number, lg: Regional): Element<Table> {
   const lignes = Math.min(Math.max(LIGNES_MIN, donnees.cellules.length), LIGNES_MAX)
   const colonnes = Math.min(Math.max(COLONNES_MIN, ...donnees.cellules.map((l) => l.length)), COLONNES_MAX)
   const depart: Table = {
