@@ -2,11 +2,23 @@
 
 ## Où on en est
 
-| Phase | État |
+> Le 23/10/2026, le propriétaire a simplifié le projet : notak.app est **l'édition locale** (tout dans le
+> navigateur, copies `.notak`, rien de géré par nous), et le temps réel passe par l'édition serveur, à installer
+> soi-même ou sur demande. Le modèle est décrit dans `docs/PUBLIER.md`. Les phases 2 à 5 ci-dessous (dossiers
+> partagés comme cœur du produit, applications iPhone et Android) sont remplacées par les étapes suivantes.
+
+| Étape | État |
 |---|---|
-| 0 : durcir ce qui existe | ✅ validation à la lecture, garde par élément, adresses filtrées, carte au clic, documents réécrits |
-| 1 : format du dossier et faux nuage | ✅ `packages/tableau/src/dossier/` ; le journal, la lecture, le compactage et les appareils vivent ensemble dans `coffre.ts` ; 3 000 scénarios du faux nuage passent (voir `docs/STOCKAGE.md`) |
-| 2 à 5 | à faire |
+| 0 : durcir ce qui existe | ✅ validation à la lecture, garde par élément, adresses filtrées, carte au clic |
+| 1 : format du dossier et faux nuage | ✅ `packages/tableau/src/dossier/`, 3 000 scénarios du faux nuage passent (`docs/STOCKAGE.md`) |
+| A : édition locale de l'application web | ✅ `VITE_EDITION=locale`, réseau local, index de l'espace, fichiers locaux, recherche et export dans le navigateur |
+| B : copies `.notak` et franchise | ✅ Cmd+S, Cmd+O, dépôt, PWA ; pastille et panneau « Où sont mes tableaux ? », contact `VITE_CONTACT` |
+| C : synchroniser avec un dossier | ✅ expérimental, Chrome et Edge sur ordinateur ; essayé dans Chromium entre deux profils ; reste un essai sur de vrais nuages |
+| D : notak.app | ✅ `apps/site` construit et sert l'édition locale ; « À propos » en `/a-propos` |
+| E : un dépôt accueillant | ✅ README anglais et français, CONTRIBUTING, ARCHITECTURE, CI GitHub, modèles d'issue et de PR |
+
+Ce qui reste, hors de ce plan : essayer la synchro par dossier sur de vrais nuages et un vrai Mac ; donner l'adresse
+de contact ; les applications de bureau et mobiles, quand quelqu'un s'en emparera.
 
 ## Contexte
 

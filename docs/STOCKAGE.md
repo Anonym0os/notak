@@ -1,5 +1,9 @@
 # Le dossier Notak
 
+> Dans l'édition locale (notak.app), c'est l'option **« Synchroniser avec un dossier »**, expérimentale, sur Chrome
+> et Edge pour ordinateur (`apps/web/src/local/synchro.ts`) ; l'essentiel, pour la plupart des gens, reste la copie
+> `.notak` (`docs/PUBLIER.md`).
+
 > Ce que fait le code de `packages/tableau/src/dossier/`, et pourquoi. L'édition publique enregistre les tableaux
 > dans un dossier que la personne choisit dans son nuage (iCloud Drive, OneDrive, Dropbox, Google Drive, Nextcloud,
 > Syncthing, une clé USB) ; plusieurs appareils, et plusieurs personnes pour un dossier partagé, y écrivent et y
@@ -133,8 +137,8 @@ la même empreinte ont divergé : `divergences()` les signale, revenir à une ve
   revenir des fichiers effacés. Puis E1, E2, E3, E6, l'absence de fausse divergence, et un appareil neuf qui doit
   tout retrouver après le ménage. 3 000 scénarios passent. Un échec se rejoue seul :
   `NOTAK_GRAINE=<graine> bun run test proprietes` ; plus de scénarios : `NOTAK_SCENARIOS=3000`.
-- **`essais/contrat.ts`** : ce que toute réalisation de `Dossier` doit tenir (la vue du faux nuage aujourd'hui ; le
-  système de fichiers de l'application et l'accès aux fichiers du navigateur ensuite).
+- **`essais/contrat.ts`** : ce que toute réalisation de `Dossier` doit tenir : la vue du faux nuage, et l'accès aux
+  fichiers du navigateur (`apps/web/src/local/dossierNavigateur.test.ts`).
 
 ## 6. Ce que le format ne fait pas
 
