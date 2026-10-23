@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hoteInterdit } from './apercu.ts'
+import { causeDuStatut, hoteInterdit } from './apercu.ts'
 
 describe('hoteInterdit', () => {
   it('refuse le serveur lui-même et le réseau local', () => {
@@ -8,5 +8,15 @@ describe('hoteInterdit', () => {
   })
   it('laisse passer le web public', () => {
     for (const h of ['example.com', '93.184.216.34', '172.32.0.1', '2606:2800:220:1::1']) expect(hoteInterdit(h), h).toBe(false)
+  })
+})
+
+describe('causeDuStatut', () => {
+  it('dit pourquoi la page ne s’est pas lue', () => {
+    expect(causeDuStatut(404)).toBe('introuvable')
+    expect(causeDuStatut(410)).toBe('introuvable')
+    expect(causeDuStatut(403)).toBe('refuse')
+    expect(causeDuStatut(429)).toBe('refuse')
+    expect(causeDuStatut(500)).toBe('injoignable')
   })
 })

@@ -8,7 +8,7 @@ import { getConnInfo } from '@hono/node-server/conninfo'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
-import { apercuDePage } from './apercu.ts'
+import { ErreurApercu, apercuDePage, rapatrierImage } from './apercu.ts'
 import type { Base, Utilisateur } from './base.ts'
 import { ErreurCompte, inscrire, normaliserEmail } from './comptes.ts'
 import type { Limiteur } from './debit.ts'
@@ -265,17 +265,37 @@ export function creerApp(ctx: Contexte): Hono {
     }
     if (taille === 0) return c.json({ erreur: 'fichier vide' }, 400)
 
-    const id = randomUUID()
     const type = (c.req.header('content-type') ?? 'application/octet-stream').slice(0, 200)
+    return c.json({ id: await ranger(Buffer.concat(morceaux), type, u.id) }, 201)
+  })
+
+  /** Range un fichier reçu sur le disque et dans la base ; rend son id. */
+  const ranger = async (octets: Buffer, type: string, auteur: string): Promise<string> => {
+    const id = randomUUID()
     await mkdir(ctx.dossierFichiers, { recursive: true })
-    await writeFile(join(ctx.dossierFichiers, id), Buffer.concat(morceaux))
+    await writeFile(join(ctx.dossierFichiers, id), octets)
     try {
-      base.creerFichier({ id, type, taille, auteur: u.id })
+      base.creerFichier({ id, type, taille: octets.length, auteur })
     } catch (e) {
       await rm(join(ctx.dossierFichiers, id), { force: true })
       throw e
     }
-    return c.json({ id }, 201)
+    return id
+  }
+
+  // Une adresse d'image collée sur la toile : le serveur la rapatrie, pour qu'elle ne dépende plus de son site.
+  app.post('/api/fichiers/rapatrier', async (c) => {
+    const u = utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    const adresse = texte((await corps(c))?.url)
+    if (!adresse) return c.json({ erreur: 'url manquante' }, 400)
+    try {
+      const { octets, type } = await rapatrierImage(adresse, FICHIER_MAX)
+      return c.json({ id: await ranger(octets, type, u.id), type }, 201)
+    } catch (e) {
+      if (e instanceof ErreurApercu) return c.json({ erreur: 'image indisponible', cause: e.cause }, 422)
+      throw e
+    }
   })
 
   app.get('/api/fichiers/:id', (c) => {
@@ -304,8 +324,9 @@ export function creerApp(ctx: Contexte): Hono {
     if (!adresse) return c.json({ erreur: 'url manquante' }, 400)
     try {
       return c.json(await apercuDePage(adresse))
-    } catch {
-      return c.json({ erreur: 'aperçu indisponible' }, 502)
+    } catch (e) {
+      const cause = e instanceof ErreurApercu ? e.cause : 'injoignable'
+      return c.json({ erreur: 'aperçu indisponible', cause }, 502)
     }
   })
 
