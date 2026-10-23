@@ -254,6 +254,8 @@ export interface TypeElement<C extends Contenu = Contenu> {
   sansFond?: boolean | ((c: C) => boolean)
   /** Largeur minimale quand on redimensionne, en UG (17 par défaut). */
   largeurMin?: number
+  /** Pas de poignée de redimensionnement pour ce contenu (un fichier en icône : il se déplace, c'est tout). */
+  sansPoignee?: (c: C) => boolean
   /** Pixels que la carte posée sur la toile perd en largeur : son filet de sélection est à l'extérieur (une image : 2). */
   retraitPx?: (c: C) => number
   /** La largeur « naturelle », en UG : celle où revient le double-clic sur la poignée, depuis 34. */

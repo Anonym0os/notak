@@ -54,19 +54,23 @@ export function lisible(typeMime: string): 'son' | 'video' | null {
   return n.canPlayType(t) ? (t.startsWith('audio/') ? 'son' : 'video') : null
 }
 
-/** La taille lisible : « 812 o », « 14 ko », « 2,4 Mo » en français ; « 812 B », « 14 kB », « 2.4 MB » en anglais. */
+/**
+ * La taille lisible, comme Milanote : unités décimales (1 Ko = 1000 o) écrites B, KB, MB, GB dans les deux langues,
+ * sans décimale pour les octets et les Ko, une pour les Mo et les Go (aucune au-delà de 100), le nombre écrit à la
+ * manière de la langue (« 1,2 MB » en français).
+ */
 export function tailleLisible(octets: number): string {
-  const en = langue() === 'en'
-  if (octets < 1000) return `${octets} ${en ? 'B' : 'o'}`
-  const unites = en ? ['kB', 'MB', 'GB'] : ['ko', 'Mo', 'Go']
-  let v = octets / 1000
+  const unites = ['B', 'KB', 'MB', 'GB']
+  let v = Math.max(0, octets)
   let u = 0
   while (v >= 1000 && u < unites.length - 1) {
     v /= 1000
     u++
   }
-  const arrondi = v < 10 ? Math.round(v * 10) / 10 : Math.round(v)
-  return `${en ? String(arrondi) : String(arrondi).replace('.', ',')} ${unites[u]}`
+  const decimales = u >= 2 && v < 100 ? 1 : 0
+  const arrondi = Math.round(v * 10 ** decimales) / 10 ** decimales
+  const nombre = decimales ? String(arrondi.toFixed(1)).replace(/\.0$/, '') : String(arrondi)
+  return `${langue() === 'en' ? nombre : nombre.replace('.', ',')} ${unites[u]}`
 }
 
 /**
@@ -77,9 +81,36 @@ export function adresseApercuPdf(adresse: string): string {
   return `${adresse.replace(/#.*$/, '')}#page=1&toolbar=0&navpanes=0&scrollbar=0&view=FitH`
 }
 
-/** Ce que la carte montre au-dessus du nom : une page de PDF, une vidéo, ou rien (le mode icône ne montre rien). */
-export function apercuDe(nom: string, typeMime: string, icone: boolean | undefined): 'pdf' | 'video' | null {
+/** Ce que la carte montre au-dessus du nom : une page de PDF, l'image, une vidéo, ou rien (le mode icône ne montre rien). */
+export function apercuDe(nom: string, typeMime: string, icone: boolean | undefined): 'pdf' | 'image' | 'video' | null {
   if (icone) return null
   const g = genreDe(nom, typeMime)
-  return g === 'pdf' ? 'pdf' : g === 'video' ? 'video' : null
+  return g === 'pdf' ? 'pdf' : g === 'image' ? 'image' : g === 'video' ? 'video' : null
+}
+
+/**
+ * Les formats dont Milanote fabrique un aperçu (Word, Excel, PowerPoint, texte, HTML…) et que Notak ne sait pas
+ * montrer : la carte dit alors qu'il n'y en a pas, au lieu de laisser un trou.
+ */
+export const aApercuAbsent = (nom: string, typeMime: string): boolean => {
+  const g = genreDe(nom, typeMime)
+  return g === 'texte' || g === 'tableur' || g === 'presentation' || g === 'code'
+}
+
+/** Les formats dont l'aperçu est forcé : leur carte naît détaillée (Photoshop, Illustrator, Sketch…). */
+const APERCU_FORCE = new Set(['psd', 'ai', 'indd', 'sketch', 'xd'])
+
+/**
+ * Un fichier naît en icône, sauf le son et la vidéo qu'on lit, et les formats dont Milanote force l'aperçu
+ * (leur carte naît détaillée).
+ */
+export function naitEnIcone(nom: string, typeMime: string): boolean {
+  const g = genreDe(nom, typeMime)
+  return g !== 'son' && g !== 'video' && !APERCU_FORCE.has(extensionDe(nom))
+}
+
+/** Le fichier s'ouvre dans la fenêtre du fichier : un PDF ou un texte se lit dans le lecteur du navigateur. */
+export const seLitEnLigne = (nom: string, typeMime: string): boolean => {
+  const t = typeMime.toLowerCase()
+  return t === 'application/pdf' || t.startsWith('text/') || ['pdf', 'txt', 'md', 'csv'].includes(extensionDe(nom))
 }

@@ -1,6 +1,8 @@
 import type { Element, Fichier } from '../../coeur/tableau'
 import { registre } from '../registre'
-import { OutilsFichier, RenduFichier, copierLienFichier, ouvrirFichier } from './Fichier'
+import { OutilsFichier, RenduFichier, copierLienFichier } from './Fichier'
+import { apercuDe, lisible } from './genre'
+import { amorcerLegendeFichier, ouvrirFenetreFichier, viserEdition } from './ouverture'
 import './fichier.css'
 import { LARGEUR_FICHIER, choisirFichiers, recevoirFichiers } from './recepteur'
 import { basculerBanque } from '../image/banqueImages'
@@ -34,8 +36,18 @@ registre.type<Fichier>({
   OutilsApres: OutilsFichier,
   editable: true,
   hauteurParDefaut: 8,
-  largeurMin: 12,
-  ouvrir: (e, contexte) => void ouvrirFichier(e.contenu, contexte),
+  // Une feuille (le mode icône) n'a pas de poignée : on la déplace, c'est tout. Sans aperçu ni lecteur, la carte garde ses 34 UG.
+  largeurMin: 4,
+  sansFond: (c) => !!c.icone,
+  sansPoignee: (c) => !!c.icone || !!c.sansApercu || (apercuDe(c.nom, c.typeMime, false) === null && lisible(c.typeMime) === null),
+  // Le double-clic montre le fichier dans sa fenêtre : un PDF ou un texte se lit, le reste s'agrandit.
+  ouvrir: (e) => ouvrirFenetreFichier(e.id),
+  surFrappe: (e, caractere, contexte) => {
+    if (contexte.services.lectureSeule || e.contenu.icone || e.contenu.sansInfos) return false
+    viserEdition('legende')
+    amorcerLegendeFichier(caractere)
+    return true
+  },
   outils: [
     {
       get libelle() {

@@ -84,7 +84,7 @@ export const Cadre = memo(function Cadre({ element, choisie, seule, enEdition, c
       )}
       {plafond !== undefined && <Voile carte={noeud} />}
       <Decor element={element} contexte={contexte} mode={mode} />
-      {poignee && <div className="notak-poignee" data-poignee aria-hidden />}
+      {poignee && !def.sansPoignee?.(element.contenu) && <div className="notak-poignee" data-poignee aria-hidden />}
       {rangeReglable && <PoigneeHauteur element={element} carte={noeud} contexte={contexte} />}
     </div>
   )

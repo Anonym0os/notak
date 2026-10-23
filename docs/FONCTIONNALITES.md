@@ -182,8 +182,13 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Fonctionnalité | État | Reste |
 |---|---|---|
 | Largeur de départ tirée de l'image, 4 UG au minimum | ✅ | |
-| Visionneuse plein écran (double-clic, Espace) | ✅ | |
-| Légende | ✅ |  |
+| Visionneuse plein écran (double-clic, Espace, Entrée) | ✅ | Voile à 70 %, barre sombre (Dessiner, Modifier, Fond, précédente, suivante, ouvrir, télécharger), zoom de 1 à 4, flèches ; pas d'étape d'envoi dans la fenêtre. |
+| Carte blanche, légende dedans (12 px, retrait de 24 px), masquée sous 8 UG | ✅ | Légende en texte brut, sans mise en forme. |
+| Image rognée sur la grille (jamais étirée), carte 2 px plus petite que la grille | ✅ | « Rogner l'image sur la grille de points » décoche pour garder les proportions exactes. |
+| Frappe directe sur une image choisie = début de sa légende ; Entrée l'ouvre | ✅ | |
+| Outil Transparent, Dessiner dessus, Légende après l'arrangement | ✅ | Pivoter, Recadrer, Détourer restent dans « ••• ». |
+| Télécharger l'image d'origine, Remplacer l'image | ✅ | |
+| Pivoter vers la gauche | ✅ | Pas de miroirs. |
 | Ombre selon la transparence | ✅ |  |
 | Miniature et roue pendant l'envoi | ✅ | |
 | Tailles adaptées à l'affichage (400, 800, 1600 px) | ✅ |  |
@@ -240,7 +245,13 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
 | Fonctionnalité | État | Reste |
 |---|---|---|
-| Fichier joint : extension, nom, taille, Télécharger, Ouvrir, lecteur du son et de la vidéo, renommer | ✅ | Aperçu de la première page d'un PDF, légende, mode icône. |
+| Fichier joint : mode icône (feuille de 56 × 72 px, 10 UG), naît en icône sauf son et vidéo | ✅ | Pictogrammes de Notak (neuf familles), pas les 31 de Milanote. |
+| Fichier joint : carte détaillée, aperçu de bord à bord, « Télécharger - Ouvrir - 1,2 MB » | ✅ | Aperçu : première page d'un PDF, image, vidéo ; « Aucun aperçu disponible » pour Word, Excel, PowerPoint, texte, code. |
+| Fenêtre du fichier (PDF et texte dans le lecteur du navigateur, le reste en carte agrandie) | ✅ | |
+| Barre du fichier : Mode, Aperçu, Renommer, Légende, Infos, Boucle, Lecture auto | ✅ | |
+| Lecteurs audio et vidéo à nous (volume au survol, durée, cercle de lecture, plein écran, relances) | ✅ | |
+| Fichiers refusés avec un message (extension, nom, taille de 25 Mio) | ✅ | Liste d'extensions de Notak, plus courte que celle de Milanote ; plafond unique, sans offre. |
+| Fichier joint : aperçus fabriqués par un service, état « Processing » | ❌ | Pas de service d'aperçu. |
 | Commentaire (fil de discussion posé sur la toile) | ✅ |  |
 | Table : un petit tableur (sélection de plages, clavier, types, formules, repères, clic droit, presse-papiers, titre, légende) | ✅ | Relevé dans `docs/ecarts/table.md`, repris d'après le code de Milanote le 23/10. Pas de mise en forme partielle dans une cellule ; ⌃⌘N attend les raccourcis de création. |
 | Croquis à main levée | ✅ |  |

@@ -79,8 +79,8 @@ describe('la barre de gauche, type par type (ordre de Milanote)', () => {
     expect(rangees).toEqual(expect.arrayContaining(['Pivoter', 'Recadrer', 'Détourer']))
   })
 
-  it('fichier : Mode, Renommer, Légende', () => {
-    expect(listes('fichier').visibles).toEqual(['Couleur', ...COMMUNS, 'Icône', 'Renommer', 'Légende'])
+  it('fichier : Mode, Aperçu, Renommer, Légende, Infos', () => {
+    expect(listes('fichier').visibles).toEqual(['Couleur', ...COMMUNS, 'Icône', 'Aperçu', 'Renommer', 'Légende', 'Infos'])
   })
 
   it('document : Mode (visible) ; Ouvrir dans « ••• »', () => {
