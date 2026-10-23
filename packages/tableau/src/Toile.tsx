@@ -1299,7 +1299,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       }
       return
     }
-    if (e.target !== racine.current) return
+    // Un bouton de la barre garde le focus après un clic : le reste du clavier revient quand même à la toile.
+    const surBouton = e.target instanceof HTMLButtonElement && e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Tab'
+    if (e.target !== racine.current && !surBouton) return
     if (cmd && touche === 'f') {
       e.preventDefault()
       setRequete((r) => r ?? '')
