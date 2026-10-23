@@ -6,6 +6,7 @@ import { Decor, Pastille } from './elements/decor/Decor'
 import { passeLeFiltre, peutEtreIcone } from './elements/decor/annotations'
 import { useFiltre } from './elements/decor/etat'
 import { definition } from './elements/registre'
+import { PoigneeHauteur } from './elements/rangee/PoigneeHauteur'
 import type { ContexteToile } from './elements/types'
 
 interface Props {
@@ -39,6 +40,9 @@ export const Cadre = memo(function Cadre({ element, choisie, enEdition, contexte
   const h = def.hauteurBornable && !icone ? element.hauteur : undefined
   const plafond = h && 'max' in h && !enEdition ? h.max * PX_PAR_UG : undefined
   const plancher = h && 'min' in h ? h.min * PX_PAR_UG : undefined
+  // Rangé dans une colonne, il n'a pas la poignée du coin : celle du bas règle sa hauteur.
+  const rangeReglable =
+    mode === 'liste' && !!def.hauteurBornable && !icone && !enEdition && !element.verrou && !contexte.services.lectureSeule && !contexte.services.presentation
   const place: CSSProperties =
     mode === 'toile'
       ? { left: element.x * PX_PAR_UG, top: element.y * PX_PAR_UG, width: element.largeur * PX_PAR_UG }
@@ -74,6 +78,7 @@ export const Cadre = memo(function Cadre({ element, choisie, enEdition, contexte
       {plafond !== undefined && <Voile carte={noeud} />}
       <Decor element={element} contexte={contexte} mode={mode} />
       {poignee && <div className="notak-poignee" data-poignee aria-hidden />}
+      {rangeReglable && <PoigneeHauteur element={element} carte={noeud} contexte={contexte} />}
     </div>
   )
 })

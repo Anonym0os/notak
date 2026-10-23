@@ -257,3 +257,56 @@ export function deplacer(doc: NoeudTexte, de: number, vers: number, avant: boole
   }
   return inserer(retirer(doc, source), ajuste.slice(0, -1), ajuste.at(-1)! + (avant ? 0 : 1), tache)
 }
+
+// ———— Passer d'une liste à une autre ————
+
+/** Vrai pour une liste qui n'a encore rien dit : une seule tâche, vide et à faire. */
+export function estListeVierge(doc: NoeudTexte): boolean {
+  const taches = sousTaches(doc)
+  const seule = taches[0]
+  return taches.length === 1 && !!seule && !estFaite(seule) && sousTaches(seule).length === 0 && !texteDeTache(seule)
+}
+
+const texteDeTache = (tache: NoeudTexte): string =>
+  (tache.content ?? [])
+    .filter((n) => n.type === 'paragraph')
+    .map((p) => (p.content ?? []).map((x) => x.text ?? '').join(''))
+    .join('')
+    .trim()
+
+/**
+ * Les deux documents où la tâche `de` de `source` (son rang dans l'ordre de lecture, sous-tâches avec elle) est
+ * passée dans `destination`, avant ou après la tâche `vers`, au même niveau qu'elle. Une liste de destination
+ * encore vierge est remplacée par la tâche. `null` si un rang n'existe pas ou si la tâche passerait le sixième niveau.
+ */
+export function transferer(
+  source: NoeudTexte,
+  de: number,
+  destination: NoeudTexte,
+  vers: number,
+  avant: boolean,
+): { source: NoeudTexte; destination: NoeudTexte } | null {
+  const chemin = cheminsEnOrdre(source)[de]
+  const cible = cheminsEnOrdre(destination)[vers]
+  if (!chemin || !cible) return null
+  const tache = tacheA(source, chemin)
+  if (!tache || !peutPoserAuNiveau(cible.length, hauteur(tache))) return null
+  const vierge = estListeVierge(destination)
+  const apres = vierge ? { ...destination, content: [{ type: 'taskList', content: [tache] }] } : inserer(destination, cible.slice(0, -1), cible.at(-1)! + (avant ? 0 : 1), tache)
+  return { source: retirer(source, chemin), destination: apres }
+}
+
+/**
+ * La tâche `de` de `source` posée seule sur une nouvelle liste, en `x`, `y` (UG) ; `null` si le rang n'existe pas.
+ * Rend aussi la source privée de la tâche.
+ */
+export function detacher(source: NoeudTexte, de: number, x: number, y: number): { source: NoeudTexte; liste: Element<Taches> } | null {
+  const chemin = cheminsEnOrdre(source)[de]
+  const tache = chemin && tacheA(source, chemin)
+  if (!chemin || !tache) return null
+  const neuve = nouvelleListeTaches(x, y)
+  return {
+    source: retirer(source, chemin),
+    liste: { ...neuve, contenu: { ...neuve.contenu, texte: { type: 'doc', content: [{ type: 'taskList', content: [tache] }] } } },
+  }
+}

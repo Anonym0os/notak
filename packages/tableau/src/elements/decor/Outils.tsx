@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { type Auteur, type Element, annoter } from '../../coeur/tableau'
 import { AUTEUR_INCONNU } from '../commentaire/fil'
-import { definition } from '../registre'
 import type { ContexteToile } from '../types'
 import { moiDe } from './Decor'
 import { PanneauEtiquettes } from './Etiquettes'
-import { ECHEANCE, EMOJIS, basculerReaction, pasPour, peutEtreIcone } from './annotations'
+import { appliquerAffichage, estReduit, peutSeReduire } from './affichage'
+import { ECHEANCE, EMOJIS, basculerReaction, pasPour } from './annotations'
 import { ouvrirFil, useFilOuvert } from './etat'
 
 interface Props {
@@ -117,11 +117,11 @@ export function OutilEcheance({ elements, contexte }: Props) {
 
 export function OutilAffichage({ elements, contexte }: Props) {
   if (contexte.services.lectureSeule) return null
-  if (!elements.every((e) => peutEtreIcone(definition(e.contenu.type)))) return null
-  const toutIcone = elements.every((e) => e.affichage === 'icone')
-  const basculer = () => contexte.magasin.faire(pasPour(elements, (e) => annoter(e, { affichage: toutIcone ? null : 'icone' })))
+  if (!elements.every(peutSeReduire)) return null
+  const toutIcone = elements.every(estReduit)
+  const basculer = () => appliquerAffichage(elements, !toutIcone, contexte)
   return (
-    <button type="button" title={toutIcone ? 'Afficher en détail' : 'Afficher en icône'} aria-pressed={toutIcone} onClick={basculer}>
+    <button type="button" title={elements.every((e) => e.contenu.type === 'colonne') ? (toutIcone ? 'Déplier' : 'Replier en icône') : toutIcone ? 'Afficher en détail' : 'Afficher en icône'} aria-pressed={toutIcone} onClick={basculer}>
       {toutIcone ? 'Détail' : 'Icône'}
     </button>
   )

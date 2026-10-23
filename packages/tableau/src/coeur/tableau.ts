@@ -68,6 +68,11 @@ export interface Note {
   couleurTexte?: string
   /** Un mot sous la note. */
   legende?: string
+  /**
+   * Les fils de discussion posés sur des passages du texte, par leur clé : un passage porte la marque
+   * `commentaireTexte` dont l'attribut `fil` est cette clé. Un fil dont le passage a disparu disparaît aussi.
+   */
+  fils?: Record<Id, Commentaire>
 }
 
 /** Une image envoyée. Le fichier vit dans le dépôt de fichiers, l'élément ne garde que sa clé. */

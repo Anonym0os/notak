@@ -22,6 +22,17 @@ export function originalDe(elements: readonly Element[], cible: Id): Element | u
   return e && e.corbeille === undefined && peutCloner(e.contenu) ? e : undefined
 }
 
+/**
+ * L'original qu'un clone dessine : le même que `originalDe`, mais il reste là quand l'original est à la corbeille.
+ * Chez Milanote, un clone se dessine d'après l'élément qu'il pointe, sans regarder s'il est jeté : jeter l'original
+ * emporte ses clones, mais un clone qu'on rapporte seul de la corbeille montre encore son contenu (et se détache,
+ * si l'on veut le garder). Il ne dit « plus d'original » que lorsque la corbeille est vidée.
+ */
+export function originalAffichable(elements: readonly Element[], cible: Id): Element | undefined {
+  const e = elements.find((x) => x.id === cible)
+  return e && peutCloner(e.contenu) ? e : undefined
+}
+
 /** L'original d'un élément qu'on veut cloner : un clone qu'on clone donne un clone du même original. */
 export const cibleDe = (e: Element): Id => (e.contenu.type === 'clone' ? e.contenu.cible : e.id)
 

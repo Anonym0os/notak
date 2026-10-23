@@ -3,17 +3,21 @@ import type { NoeudTexte } from '../../coeur/tableau'
 import {
   PROFONDEUR_MAX,
   basculer,
+  cheminsEnOrdre,
   compter,
+  detacher,
   docTaches,
   docVide,
   effacerFaites,
   estFaite,
+  estListeVierge,
   hauteur,
   lignesEnTaches,
   nouvelleListeTaches,
   peutDescendre,
   retirer,
   sousTaches,
+  transferer,
 } from './liste'
 
 const tache = (texte: string, faite = false, ...sous: NoeudTexte[]): NoeudTexte => ({
@@ -190,5 +194,73 @@ describe('retirer et coller', () => {
   it('laisse une ligne simple se coller comme du texte', () => {
     expect(lignesEnTaches('bonjour')).toBeNull()
     expect(lignesEnTaches('[ ] seule')).toHaveLength(1)
+  })
+})
+
+describe('passer d’une liste à une autre', () => {
+  const tache = (texte: string, sous: NoeudTexte[] = [], fait = false): NoeudTexte => ({
+    type: 'taskItem',
+    attrs: { checked: fait },
+    content: [{ type: 'paragraph', content: [{ type: 'text', text: texte }] }, ...(sous.length ? [{ type: 'taskList', content: sous }] : [])],
+  })
+  const doc = (...taches: NoeudTexte[]): NoeudTexte => ({ type: 'doc', content: [{ type: 'taskList', content: taches }] })
+  const noms = (d: NoeudTexte): string[] => cheminsEnOrdre(d).map((c) => {
+    let n: NoeudTexte = d
+    for (const i of c) n = sousTaches(n)[i]!
+    return n.content![0]!.content![0]!.text!
+  })
+
+  it('la tâche quitte sa liste et entre dans l’autre, avant ou après la cible', () => {
+    const a = doc(tache('A'), tache('B'), tache('C'))
+    const b = doc(tache('X'), tache('Y'))
+    const r = transferer(a, 1, b, 1, true)!
+    expect(noms(r.source)).toEqual(['A', 'C'])
+    expect(noms(r.destination)).toEqual(['X', 'B', 'Y'])
+    expect(noms(transferer(a, 1, b, 1, false)!.destination)).toEqual(['X', 'Y', 'B'])
+  })
+
+  it('emmène les sous-tâches et garde l’état coché', () => {
+    const a = doc(tache('A', [tache('a1')], true), tache('B'))
+    const r = transferer(a, 0, doc(tache('X')), 0, false)!
+    expect(noms(r.destination)).toEqual(['X', 'A', 'a1'])
+    expect(sousTaches(r.destination)[1]!.attrs?.checked).toBe(true)
+  })
+
+  it('se pose au niveau de la cible, parmi ses sous-tâches', () => {
+    const r = transferer(doc(tache('A')), 0, doc(tache('X', [tache('x1')])), 1, true)!
+    expect(noms(r.destination)).toEqual(['X', 'A', 'x1'])
+    expect(sousTaches(sousTaches(r.destination)[0]!)).toHaveLength(2)
+  })
+
+  it('remplace la tâche vide d’une liste vierge', () => {
+    const r = transferer(doc(tache('A'), tache('B')), 0, docVide(), 0, true)!
+    expect(noms(r.destination)).toEqual(['A'])
+    expect(estListeVierge(docVide())).toBe(true)
+    expect(estListeVierge(r.destination)).toBe(false)
+  })
+
+  it('la source vidée garde une tâche vide', () => {
+    const r = transferer(doc(tache('A')), 0, doc(tache('X')), 0, true)!
+    expect(estListeVierge(r.source)).toBe(true)
+  })
+
+  it('refuse un rang inconnu, et un sixième niveau dépassé', () => {
+    expect(transferer(doc(tache('A')), 3, doc(tache('X')), 0, true)).toBeNull()
+    expect(transferer(doc(tache('A')), 0, doc(tache('X')), 3, true)).toBeNull()
+    let profond = tache('6')
+    for (const n of ['5', '4', '3', '2']) profond = tache(n, [profond])
+    const cinq = doc(tache('1', [profond]))
+    // « 6 » est au sixième niveau : une tâche à sous-tâche n'y entre pas.
+    expect(transferer(doc(tache('X', [tache('x1')])), 0, cinq, 5, true)).toBeNull()
+    expect(transferer(doc(tache('Y')), 0, cinq, 5, true)).not.toBeNull()
+  })
+
+  it('détache une tâche en liste d’une tâche, à l’endroit voulu', () => {
+    const r = detacher(doc(tache('A'), tache('B', [tache('b1')])), 1, 7.4, -3)!
+    expect(noms(r.source)).toEqual(['A'])
+    expect(noms(r.liste.contenu.texte)).toEqual(['B', 'b1'])
+    expect(r.liste.contenu.type).toBe('taches')
+    expect([r.liste.x, r.liste.y]).toEqual([7.4, -3])
+    expect(detacher(doc(tache('A')), 4, 0, 0)).toBeNull()
   })
 })
