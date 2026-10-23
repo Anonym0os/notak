@@ -16,21 +16,21 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 1. Toile | 21 | 3 | 3 | 83 % |
 | 2. Création | 12 | 2 | 3 | 76 % |
 | 3. Note et texte | 26 | 2 | 3 | 87 % |
-| 4. Colonne | 9 | 0 | 2 | 82 % |
+| 4. Colonne | 10 | 0 | 1 | 91 % |
 | 5. Tableau imbriqué | 8 | 0 | 3 | 73 % |
 | 6. Lien | 13 | 0 | 0 | 100 % |
 | 7. Image | 9 | 1 | 2 | 79 % |
-| 8. Liste de tâches | 11 | 0 | 6 | 65 % |
-| 9. Ligne | 11 | 0 | 3 | 79 % |
+| 8. Liste de tâches | 16 | 1 | 0 | 97 % |
+| 9. Ligne | 14 | 0 | 0 | 100 % |
 | 10. Autres éléments | 7 | 3 | 2 | 71 % |
 | 11. Commun aux éléments | 6 | 0 | 6 | 50 % |
 | 12. Organiser | 15 | 1 | 0 | 97 % |
-| 13. Naviguer | 8 | 2 | 3 | 69 % |
-| 14. À plusieurs | 11 | 0 | 6 | 65 % |
+| 13. Naviguer | 10 | 1 | 2 | 81 % |
+| 14. À plusieurs | 12 | 0 | 5 | 71 % |
 | 15. Habillage | 8 | 3 | 4 | 63 % |
-| 16. Exporter, importer | 0 | 0 | 4 | 0 % |
+| 16. Exporter, importer | 2 | 0 | 2 | 50 % |
 | 17. Plateformes | 1 | 1 | 5 | 21 % |
-| **Total** | **176** | **18** | **55** | **74 %** |
+| **Total** | **190** | **18** | **41** | **80 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -141,7 +141,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Grouper la sélection en colonne | ✅ | |
 | Supprimer emporte le contenu | ✅ | |
 | Hauteur réglable, hauteur bornée d'un élément rangé | ⬜ | |
-| Ligne horizontale entre deux colonnes alignées | ⬜ | |
+| Ligne horizontale entre deux colonnes alignées | ✅ |  |
 
 ## 5. Tableau imbriqué
 
@@ -210,12 +210,12 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Compteur, « Effacer les faites » | ✅ | En plus de Milanote. |
 | Conversion d'une note `[] ` en liste | ✅ | |
 | Case carrée | ➖ | Notak garde la case ronde. |
-| Poignée pour faire glisser une tâche (vers une autre liste, la toile) | ⬜ | |
-| Collage d'une liste HTML (Google Docs) | ⬜ | |
-| Échéance d'une tâche | ⬜ | |
-| Personne assignée | ⬜ | |
-| Couleur de la liste | ⬜ | |
-| Cmd ou Alt + retour arrière : réduire une tâche vide | ⬜ | |
+| Poignée pour faire glisser une tâche (vers une autre liste, la toile) | 🟡 | Dans la liste seulement ; pas encore vers une autre liste ni la toile. |
+| Collage d'une liste HTML (Google Docs) | ✅ |  |
+| Échéance d'une tâche | ✅ |  |
+| Personne assignée | ✅ |  |
+| Couleur de la liste | ✅ |  |
+| Cmd ou Alt + retour arrière : réduire une tâche vide | ✅ |  |
 
 ## 9. Ligne
 
@@ -224,7 +224,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Création par l'outil, Cmd+K relie la sélection | ✅ | |
 | Zone de clic de 20 px | ✅ | |
 | Accroche au centre d'un élément, arrêt au bord | ✅ | |
-| Accroche à un point précis de l'élément | ⬜ | |
+| Accroche à un point précis de l'élément | ✅ |  |
 | Courbe par le point de contrôle, redressée près du milieu | ✅ | |
 | Maj pour 45° | ✅ | |
 | Longueur minimale selon les flèches | ✅ | |
@@ -233,8 +233,8 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Épaisseurs 1, 2, 4 ; couleurs | ✅ | |
 | Libellé | ✅ | |
 | Poignées rondes à anneau | ✅ |  |
-| Outil de ligne rapide au coin d'un élément choisi | ⬜ | |
-| Ligne horizontale entre deux colonnes alignées | ⬜ | Voir § 4. |
+| Outil de ligne rapide au coin d'un élément choisi | ✅ |  |
+| Ligne horizontale entre deux colonnes alignées | ✅ | Voir § 9. |
 
 ## 10. Autres éléments
 
@@ -304,8 +304,8 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Fil d'Ariane : « … », largeurs, état de chargement | 🟡 | Largeurs estimées, pas d'état de chargement. |
 | Retour et avance au clavier (Ctrl+[, Ctrl+]) | ✅ | |
 | Monter d'un niveau, redescendre (Cmd+U, Cmd+Maj+U) | ✅ | |
-| Recherche (Cmd+F) : ce qui ne correspond pas s'efface, Entrée va au résultat suivant | 🟡 | Dans le tableau ouvert seulement : pas encore dans tous les tableaux (il faut un index au serveur), ni de tri ou de tableaux récents. |
-| Tableaux récents, favoris | ⬜ | |
+| Recherche (Cmd+F) : ce qui ne correspond pas s'efface, Entrée va au résultat suivant | ✅ | Dans le tableau ouvert, et dans tous les tableaux du compte par le serveur. |
+| Tableaux récents, favoris | ✅ |  |
 | Aperçu d'un tableau au survol | ⬜ | |
 | Annuler la navigation (à l'échelle de la session) | ⬜ | |
 
@@ -324,7 +324,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Curseur des autres au repos | ✅ |  |
 | Cache local, reprise après coupure | ✅ | Copie locale (IndexedDB), « Hors ligne » dans l'en-tête. |
 | Texte écrit à plusieurs dans une même note | ✅ | Voir § 3. |
-| Lien public, publication en lecture | ⬜ | |
+| Lien public, publication en lecture | ✅ |  |
 | Mot de passe sur un tableau partagé | ⬜ | |
 | Notifications (commentaires, mentions, modifications) | ⬜ | |
 | Activité récente du tableau | ⬜ | |
@@ -356,8 +356,8 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Fonctionnalité | État | Reste |
 |---|---|---|
 | Exporter un tableau (PDF, image) | ⬜ | |
-| Exporter le texte (Markdown, texte brut) | ⬜ | Le copier-coller donne déjà le texte brut. |
-| Télécharger les médias d'un tableau (zip) | ⬜ | |
+| Exporter le texte (Markdown, texte brut) | ✅ |  |
+| Télécharger les médias d'un tableau (zip) | ✅ |  |
 | Importer depuis Milanote | ⬜ | Par son API : Milanote n'a pas d'export structuré. |
 
 ## 17. Plateformes
