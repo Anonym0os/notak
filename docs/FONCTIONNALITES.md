@@ -13,7 +13,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 
 | Partie | Fait | En partie | Absent | Avancement |
 |---|---|---|---|---|
-| 1. Toile | 25 | 1 | 1 | 94 % |
+| 1. Toile | 26 | 1 | 0 | 98 % |
 | 2. Création | 16 | 1 | 0 | 97 % |
 | 3. Note et texte | 31 | 0 | 0 | 100 % |
 | 4. Colonne | 11 | 0 | 0 | 100 % |
@@ -30,7 +30,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 15. Habillage | 13 | 1 | 1 | 90 % |
 | 16. Exporter, importer | 2 | 2 | 0 | 75 % |
 | 17. Plateformes | 5 | 2 | 0 | 86 % |
-| **Total** | **238** | **9** | **2** | **97 %** |
+| **Total** | **239** | **9** | **1** | **98 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -62,7 +62,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Hauteur bornée par la poignée (note, lien) | ✅ | |
 | Redimensionner un groupe | ✅ | |
 | Proportions gardées pour les médias, Cmd pour les libérer, Échap pendant le geste | ✅ | |
-| Collisions : ce qui grandit pousse ses voisins du dessous | 🟡 | Édition, Cmd+Entrée, colonne qui reçoit ou perd un élément, note bornée qui se replie ; pas encore les lignes horizontales. |
+| Collisions : ce qui grandit pousse ses voisins du dessous | ✅ | Édition, Cmd+Entrée, colonne qui reçoit ou perd un élément, note bornée qui se replie, lignes horizontales libres. |
 | Entrer dans un tableau en le survolant pendant un glisser (700 ms puis 300 ms de clignement, 400 ms ensuite) | ✅ | |
 | Curseurs adaptés (main, redimensionner, texte) | ✅ |  |
 | Poignée de taille constante quel que soit le zoom, visible au survol | ✅ | |

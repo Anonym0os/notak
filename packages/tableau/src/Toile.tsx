@@ -560,10 +560,21 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         const r = rect(x.id)
         if (r) voisins.set(x.id, r)
       }
+      // Une ligne horizontale aux deux bouts libres se pousse aussi, comme un trait d'une UG d'épaisseur.
+      for (const x of t.elements) {
+        const c = x.contenu
+        if (c.type !== 'ligne' || x.verrou || !('x' in c.depart) || !('x' in c.arrivee) || c.depart.y !== c.arrivee.y) continue
+        const y = c.depart.y
+        voisins.set(x.id, { min: point(Math.min(c.depart.x, c.arrivee.x), y - 0.5), max: point(Math.max(c.depart.x, c.arrivee.x), y + 0.5) })
+      }
       const pas: Operation[] = []
       for (const [id, dy] of poussees(haut, { avant, apres, nouveau }, voisins, origines)) {
         const x = t.elements.find((e) => e.id === id)!
-        pas.push({ type: 'deplacer', id, de: [x.x, x.y], vers: [x.x, x.y + dy] })
+        const c = x.contenu
+        if (c.type === 'ligne' && 'x' in c.depart && 'x' in c.arrivee) {
+          const apres = { ...c, depart: { x: c.depart.x, y: c.depart.y + dy }, arrivee: { x: c.arrivee.x, y: c.arrivee.y + dy } }
+          pas.push({ type: 'contenu', id, avant: c, apres })
+        } else pas.push({ type: 'deplacer', id, de: [x.x, x.y], vers: [x.x, x.y + dy] })
       }
       return pas
     },
