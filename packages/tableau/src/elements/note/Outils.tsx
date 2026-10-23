@@ -70,10 +70,8 @@ export function OutilsNote({ elements, contexte }: PropsOutils<Note>) {
 function PaletteFond({ actuelle, suggerees, choisir }: { actuelle: string | undefined; suggerees: string[]; choisir(couleur?: CouleurNote, fond?: string): void }) {
   return (
     <div className="notak-note-palette" role="menu">
-      <button type="button" role="menuitem" aria-pressed={actuelle === undefined} onClick={() => choisir()}>
-        {t('couleur.aucune')}
-      </button>
       <div className="notak-note-pastilles">
+        <button type="button" role="menuitem" className="notak-pastille-aucune" title={t('couleur.aucune')} aria-label={t('couleur.aucune')} aria-pressed={actuelle === undefined} onClick={() => choisir()} />
         {COULEURS_NOTE.map((c) => (
           <button key={c} type="button" role="menuitem" title={LIBELLES_COULEUR[c]} aria-label={LIBELLES_COULEUR[c]} aria-pressed={actuelle === c} data-fond={c} onClick={() => choisir(c)} />
         ))}
@@ -91,10 +89,8 @@ function PaletteHex({ cle, actuelle, suggerees, appliquer }: { cle: Cle; actuell
   const poser = (hex?: string) => appliquer((c) => (hex ? { ...c, [cle]: hex } : sans(c, cle)))
   return (
     <div className="notak-note-palette" role="menu">
-      <button type="button" role="menuitem" aria-pressed={actuelle === undefined} onClick={() => poser()}>
-        {t('couleur.aucune')}
-      </button>
       <div className="notak-note-pastilles">
+        <button type="button" role="menuitem" className="notak-pastille-aucune" title={t('couleur.aucune')} aria-label={t('couleur.aucune')} aria-pressed={actuelle === undefined} onClick={() => poser()} />
         {COULEURS_NOTE.map((c) => (
           <button key={c} type="button" role="menuitem" title={LIBELLES_COULEUR[c]} aria-label={LIBELLES_COULEUR[c]} aria-pressed={actuelle === FOND_NOTE[c]} data-fond={c} onClick={() => poser(FOND_NOTE[c])} />
         ))}

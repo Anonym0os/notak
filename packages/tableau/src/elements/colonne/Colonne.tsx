@@ -113,10 +113,8 @@ export function OutilsColonne({ elements, contexte }: PropsOutils<Colonne>) {
       </button>
       {ouvert && (
         <div className="notak-colonne-palette" role="menu">
-          <button type="button" role="menuitem" aria-pressed={actuelle === undefined} onClick={() => choisir(undefined)}>
-            {t('couleur.aucune')}
-          </button>
           <div className="notak-colonne-pastilles">
+            <button type="button" role="menuitem" className="notak-pastille-aucune" title={t('couleur.aucune')} aria-label={t('couleur.aucune')} aria-pressed={actuelle === undefined} onClick={() => choisir(undefined)} />
             {COULEURS_NOTE.map((c) => (
               <button
                 key={c}

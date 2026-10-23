@@ -90,7 +90,7 @@ export function OutilEcheance({ elements, contexte }: Props) {
     <Menu titre={t('decor.echeanceTitre')} libelle={t('decor.echeance')}>
       {() => (
         <div className="notak-decor-echeance">
-          <label>
+          <label className="notak-decor-champ">
             <span>{t('decor.pourLe')}</span>
             <input type="date" value={commune ?? ''} onChange={(e) => (ECHEANCE.test(e.target.value) ? echeance(e.target.value) : undefined)} aria-label={t('decor.echeance')} />
           </label>
@@ -101,9 +101,12 @@ export function OutilEcheance({ elements, contexte }: Props) {
           )}
           <span className="notak-decor-titre">{t('decor.confieA')}</span>
           {personnes(contexte).map((p) => (
-            <button key={p.id} type="button" role="menuitemradio" aria-checked={assigneCommun === p.id} onClick={() => assigner(assigneCommun === p.id ? null : p)}>
+            <button key={p.id} type="button" className="notak-menu-rang" role="menuitemradio" aria-checked={assigneCommun === p.id} onClick={() => assigner(assigneCommun === p.id ? null : p)}>
+              <span className="notak-decor-personne" style={p.couleur ? { background: p.couleur } : undefined}>
+                {p.nom.trim().charAt(0).toUpperCase()}
+              </span>
+              <span className="notak-menu-rang-texte">{p.nom}</span>
               {assigneCommun === p.id && <Icone nom="coche" taille={14} />}
-              {p.nom}
             </button>
           ))}
           {elements.some((e) => e.assigne) && (

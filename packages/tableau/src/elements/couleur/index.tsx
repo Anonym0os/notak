@@ -41,12 +41,8 @@ function OutilCouleur({ elements, contexte }: { elements: Element[]; contexte: C
       </button>
       {ouvert && (
         <div className="notak-note-palette" role="menu">
-          {sansCouleur && (
-            <button type="button" role="menuitem" aria-pressed={actuelle === undefined} onClick={() => choisir(undefined)}>
-              {t('couleur.aucune')}
-            </button>
-          )}
           <div className="notak-note-pastilles">
+            {sansCouleur && <button type="button" role="menuitem" className="notak-pastille-aucune" title={t('couleur.aucune')} aria-label={t('couleur.aucune')} aria-pressed={actuelle === undefined} onClick={() => choisir(undefined)} />}
             {COULEURS_NOTE.map((c) => (
               <button key={c} type="button" role="menuitem" title={LIBELLES_COULEUR[c]} aria-label={LIBELLES_COULEUR[c]} aria-pressed={actuelle === c} data-fond={c} onClick={() => choisir(c)} />
             ))}

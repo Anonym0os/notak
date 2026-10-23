@@ -1260,3 +1260,88 @@
   justify-content: flex-start;
   text-align: left;
 }
+
+/* ———— Le contenu des menus de la barre : même corps, mêmes champs, mêmes rangées ———— */
+:is(.notak-note-palette, .notak-colonne-palette, .notak-ligne-palette, .notak-decor-menu, .notak-barre-plus-menu) {
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+:is(.notak-note-palette, .notak-colonne-palette, .notak-ligne-palette, .notak-decor-menu) :is(input[type='date'], input[type='text'], input:not([type])) {
+  box-sizing: border-box;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid rgb(0 0 0 / 0.12);
+  border-radius: 6px;
+  background: var(--notak-carte);
+  color: inherit;
+  font: inherit;
+  color-scheme: light dark;
+}
+
+:is(.notak-note-palette, .notak-colonne-palette, .notak-ligne-palette, .notak-decor-menu) input:focus-visible {
+  border-color: var(--notak-accent);
+  outline: none;
+}
+
+.notak-decor-champ {
+  justify-content: space-between;
+  padding: 2px 4px 6px;
+}
+
+.notak-menu-rang {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start !important;
+  gap: 8px;
+  width: 100%;
+  height: 32px !important;
+  padding: 0 6px !important;
+  text-align: left;
+}
+
+.notak-menu-rang:hover {
+  background: var(--notak-fond) !important;
+}
+
+.notak-menu-rang-texte {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notak-decor-personne {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #7a7f87;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* « Aucune couleur » : une pastille barrée en tête des couleurs. */
+.notak-pastille-aucune {
+  position: relative;
+  background: var(--notak-carte) !important;
+}
+
+.notak-pastille-aucune::after {
+  content: '';
+  position: absolute;
+  inset: 50% 3px auto;
+  height: 1.5px;
+  background: #d0453c;
+  transform: rotate(-45deg);
+}
+
+.notak-note-pastilles,
+.notak-colonne-pastilles {
+  display: grid !important;
+  grid-template-columns: repeat(6, 22px);
+  gap: 6px !important;
+  padding: 4px !important;
+}
