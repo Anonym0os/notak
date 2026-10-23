@@ -25,16 +25,25 @@ registre.type<Note>({
   resume: (c) => texteBrut(c.texte),
   Rendu: RenduNote,
   Outils: OutilsNote,
-  couleur: couleurDuContenu<Note>(),
+  // Une couleur nommée remplace le fond libre.
+  couleur: {
+    lire: couleurDuContenu<Note>().lire,
+    vers: (c, couleur) => {
+      const { fond: _, ...reste } = c
+      return couleurDuContenu<Note>().vers(reste, couleur)
+    },
+  },
   editable: true,
   hauteurParDefaut: HAUTEUR_NOTE_MIN,
-  sansFond: (c) => c.couleur === 'transparent',
+  sansFond: (c) => c.couleur === 'transparent' && !c.fond,
   hauteurBornable: true,
   // La note suivante garde la largeur ; hors édition, toute la mise en forme (couleur, titre), sans le texte.
   suivant: (e, places, format) => {
     const neuve = e.contenu.variante === 'titre' && format ? enTitre(places.dessous.x, places.dessous.y) : enNote(places.dessous.x, places.dessous.y)
-    const couleur = format && e.contenu.couleur ? { couleur: e.contenu.couleur } : {}
-    return { ...neuve, largeur: e.largeur, contenu: { ...neuve.contenu, ...couleur } }
+    // La mise en forme suit (couleurs, barre) ; le texte et la légende, non.
+    const { couleur, fond, barre, couleurTexte } = e.contenu
+    const forme = format ? { ...(couleur && { couleur }), ...(fond && { fond }), ...(barre && { barre }), ...(couleurTexte && { couleurTexte }) } : {}
+    return { ...neuve, largeur: e.largeur, contenu: { ...neuve.contenu, ...forme } }
   },
   convertir: (c) => {
     const url = adresseSeule(c.texte)
