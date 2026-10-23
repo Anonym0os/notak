@@ -18,7 +18,7 @@ interface Props {
   finir(): void
 }
 
-interface PropsOutil {
+export interface PropsOutil {
   icone: NomIcone
   libelle: string
   raccourci?: string
@@ -29,7 +29,7 @@ interface PropsOutil {
 }
 
 /** Un outil de texte : l'icône seule, sans fond de tuile ; actif, la tuile se remplit à l'inverse. Le raccourci est dans l'infobulle. */
-function OutilTexte({ icone, libelle, raccourci, actif, grise, onClick }: PropsOutil) {
+export function OutilTexte({ icone, libelle, raccourci, actif, grise, onClick }: PropsOutil) {
   return (
     <button
       type="button"

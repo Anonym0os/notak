@@ -161,7 +161,7 @@ export function MenuStyle({ editor, etat }: { editor: Editor; etat: EtatTexte })
 }
 
 /** Le menu d'insertion : un séparateur, un émoji. */
-function MenuInsertion({ editor, ferme }: { editor: Editor; ferme(): void }) {
+export function MenuInsertion({ editor, ferme }: { editor: Editor; ferme(): void }) {
   return (
     <div className="notak-note-menu" role="menu">
       <button type="button" role="menuitem" className="notak-note-menu-ligne" onClick={() => { editor.chain().focus().setHorizontalRule().run(); ferme() }}>
