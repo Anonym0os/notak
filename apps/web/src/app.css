@@ -1020,6 +1020,17 @@ body {
   text-decoration: none;
 }
 
+.rangement-experimental {
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .rangement-note {
   display: block;
   color: #6b7280;

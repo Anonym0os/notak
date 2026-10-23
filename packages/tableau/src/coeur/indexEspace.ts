@@ -32,6 +32,12 @@ export interface IndexEspace {
   noterCopie(quand: number): void
   /** Un autre tableau devient l'accueil (une copie rouverte dans un navigateur encore vide). */
   changerRacine(id: Id): void
+  /**
+   * L'accueil de cet appareil est vide : il s'efface devant celui d'un autre (un dossier qu'on rejoint). Tant que
+   * rien ne l'a remplacé, `racine()` rend toujours l'ancien ; `garderAccueil` le remet s'il n'en est venu aucun.
+   */
+  cederAccueil(): void
+  garderAccueil(): void
   /** Ce tableau n'est plus listé (un accueil vide qu'une copie rouverte a remplacé). */
   retirer(id: Id): void
   ecouter(f: () => void): () => void
@@ -40,13 +46,17 @@ export interface IndexEspace {
 const estObjet = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 
 /**
- * L'index posé sur `doc`, chargé au préalable (sa racine en dépend : un index vide en reçoit une neuve). Deux
- * onglets qui créent chacun une racine en même temps finissent d'accord sur l'une des deux (la dernière écriture de
- * `meta.racine` l'emporte) ; l'autre reste un tableau ordinaire.
+ * L'index posé sur `doc`, chargé au préalable (un index vide reçoit un accueil neuf).
+ *
+ * L'accueil se choisit parmi des candidats (`meta.accueils` : un par appareil qui en a créé un) par une règle que
+ * tous les appareils appliquent pareil : le plus ancien de ceux qui ne se sont pas retirés. Un accueil vide se
+ * retire quand son appareil rejoint un dossier qui en a déjà un : l'accueil qui contient quelque chose l'emporte
+ * toujours, quel que soit l'ordre dans lequel les appareils s'entendent.
  */
 export function creerIndexEspace(doc: Y.Doc, maintenant: () => number = Date.now): IndexEspace {
   const tableaux = doc.getMap<unknown>('tableaux')
   const meta = doc.getMap<unknown>('meta')
+  const accueils = doc.getMap<unknown>('accueils')
 
   const lire = (id: Id): EntreeIndex | undefined => {
     const v = tableaux.get(id)
@@ -63,18 +73,30 @@ export function creerIndexEspace(doc: Y.Doc, maintenant: () => number = Date.now
     const { id, ...reste } = e
     tableaux.set(id, reste)
   }
+  const candidats = () =>
+    [...accueils.entries()].flatMap(([id, v]) =>
+      estObjet(v) ? [{ id, cree: typeof v.cree === 'number' ? v.cree : 0, retire: v.retire === true }] : [],
+    )
+  const avant = (a: { id: string; cree: number }, b: { id: string; cree: number }) => a.cree - b.cree || (a.id < b.id ? -1 : 1)
 
-  if (typeof meta.get('racine') !== 'string') {
+  if (candidats().length === 0) {
     const id = nouvelId()
+    const t = maintenant()
     doc.transact(() => {
-      meta.set('racine', id)
-      ecrire({ id, titre: '', cree: maintenant() })
+      accueils.set(id, { cree: t })
+      ecrire({ id, titre: '', cree: t })
     })
+  }
+  /** Mon accueil : celui que cet appareil a créé ou adopté (le dernier retenu ici). */
+  let mien = [...candidats()].sort(avant)[0]!.id
+  const racine = () => {
+    const tous = candidats().sort(avant)
+    return (tous.find((c) => !c.retire) ?? tous[0])?.id ?? mien
   }
 
   return {
     doc,
-    racine: () => meta.get('racine') as Id,
+    racine,
     lister: () =>
       [...tableaux.keys()]
         .map(lire)
@@ -97,8 +119,11 @@ export function creerIndexEspace(doc: Y.Doc, maintenant: () => number = Date.now
     },
     noterCopie: (quand) => meta.set('derniereCopie', quand),
     changerRacine(id) {
+      const ancien = racine()
       doc.transact(() => {
-        meta.set('racine', id)
+        for (const c of candidats()) accueils.set(c.id, { cree: c.cree, retire: true })
+        accueils.set(id, { cree: maintenant() })
+        if (id !== ancien) mien = id
         const e = lire(id)
         if (e?.parent) {
           const { parent: _p, ...sans } = e
@@ -107,6 +132,15 @@ export function creerIndexEspace(doc: Y.Doc, maintenant: () => number = Date.now
       })
     },
     retirer: (id) => tableaux.delete(id),
+    cederAccueil() {
+      const c = candidats().find((x) => x.id === mien)
+      accueils.set(mien, { cree: c?.cree ?? 0, retire: true })
+    },
+    garderAccueil() {
+      if (candidats().some((c) => !c.retire)) return
+      const c = candidats().find((x) => x.id === mien)
+      accueils.set(mien, { cree: c?.cree ?? 0 })
+    },
     ecouter(f) {
       const g = () => f()
       doc.on('update', g)

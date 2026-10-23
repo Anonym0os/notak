@@ -1,6 +1,7 @@
 import { IndexeddbPersistence } from 'y-indexeddb'
 import * as Y from 'yjs'
 import type { Connexion, Reseau } from './coeur/espaceDistant'
+import { ORIGINE_DOSSIER } from './dossier/coffre'
 import { type IndexEspace, creerIndexEspace } from './coeur/indexEspace'
 import type { Id } from './coeur/tableau'
 
@@ -13,6 +14,10 @@ import type { Id } from './coeur/tableau'
 /** L'origine des changements reçus d'un autre onglet : ils n'y repartent pas. */
 const ORIGINE_ONGLET = 'notak:onglet'
 const NOM_BASE = (prefixe: string, id: Id) => `${prefixe}${id}`
+/** L'identifiant réservé à l'index de l'espace, là où il voyage comme un tableau (un dossier synchronisé). */
+export const ID_INDEX = 'espace'
+/** Le canal où chaque onglet annonce les tableaux qu'il vient de changer (pour qui les recopie ailleurs). */
+const CANAL_CHANGEMENTS = (prefixe: string) => `${prefixe}changements`
 
 export interface ReseauLocal extends Reseau {
   /**
@@ -20,6 +25,11 @@ export interface ReseauLocal extends Reseau {
    * `f` y écrit est gardé, et atteint les onglets où il est ouvert.
    */
   avec<T>(id: Id, f: (doc: Y.Doc) => T): Promise<T>
+  /**
+   * Les tableaux que quelqu'un vient de changer, dans cet onglet ou un autre (pas ce que le dossier synchronisé vient
+   * d'apporter). Rend de quoi cesser d'écouter.
+   */
+  ecouterChangements(f: (id: Id) => void): () => void
 }
 
 export interface OptionsReseauLocal {
@@ -31,9 +41,16 @@ export interface OptionsReseauLocal {
 /** Garde un document dans IndexedDB et le relie aux autres onglets. Rend la persistance et de quoi tout arrêter. */
 function garder(prefixe: string, id: Id, doc: Y.Doc, index: IndexEspace) {
   const persistance = new IndexeddbPersistence(NOM_BASE(prefixe, id), doc)
-  const canal = typeof BroadcastChannel === 'function' ? new BroadcastChannel(NOM_BASE(prefixe, id)) : null
+  // y-indexeddb n'écrit qu'une fois sa base ouverte (il y range alors tout l'état du document) : fermé avant, il
+  // perdrait ce qu'on vient d'écrire. On ne le ferme donc qu'une fois chargé, même si le document part avant.
+  doc.off('destroy', persistance.destroy)
+  const avecCanaux = typeof BroadcastChannel === 'function'
+  const canal = avecCanaux ? new BroadcastChannel(NOM_BASE(prefixe, id)) : null
+  const changements = avecCanaux ? new BroadcastChannel(CANAL_CHANGEMENTS(prefixe)) : null
   const envoyer = (maj: Uint8Array, origine: unknown) => {
-    if (origine !== ORIGINE_ONGLET) canal?.postMessage(maj)
+    if (origine === ORIGINE_ONGLET) return
+    canal?.postMessage(maj)
+    if (origine !== ORIGINE_DOSSIER) changements?.postMessage(id)
   }
   doc.on('update', envoyer)
   if (canal) canal.onmessage = (e: MessageEvent) => Y.applyUpdate(doc, new Uint8Array(e.data as ArrayBuffer), ORIGINE_ONGLET)
@@ -52,7 +69,8 @@ function garder(prefixe: string, id: Id, doc: Y.Doc, index: IndexEspace) {
       meta.unobserve(noter)
       doc.off('update', envoyer)
       canal?.close()
-      void persistance.destroy()
+      changements?.close()
+      void persistance.whenSynced.then(() => persistance.destroy())
     },
   }
 }
@@ -88,6 +106,13 @@ export function creerReseauLocal({ index, prefixe = 'notak:local:' }: OptionsRes
       index.declarer(id, titre, parent)
     },
 
+    ecouterChangements(f) {
+      if (typeof BroadcastChannel !== 'function') return () => {}
+      const c = new BroadcastChannel(CANAL_CHANGEMENTS(prefixe))
+      c.onmessage = (e: MessageEvent) => typeof e.data === 'string' && f(e.data)
+      return () => c.close()
+    },
+
     async avec(id, f) {
       const doc = new Y.Doc()
       const g = garder(prefixe, id, doc, index)
@@ -108,10 +133,14 @@ export function creerReseauLocal({ index, prefixe = 'notak:local:' }: OptionsRes
  */
 export async function ouvrirIndexLocal(prefixe = 'notak:local:', maintenant: () => number = Date.now) {
   const doc = new Y.Doc()
-  const persistance = new IndexeddbPersistence(NOM_BASE(prefixe, 'espace'), doc)
-  const canal = typeof BroadcastChannel === 'function' ? new BroadcastChannel(NOM_BASE(prefixe, 'espace')) : null
+  const persistance = new IndexeddbPersistence(NOM_BASE(prefixe, ID_INDEX), doc)
+  const avecCanaux = typeof BroadcastChannel === 'function'
+  const canal = avecCanaux ? new BroadcastChannel(NOM_BASE(prefixe, ID_INDEX)) : null
+  const changements = avecCanaux ? new BroadcastChannel(CANAL_CHANGEMENTS(prefixe)) : null
   const envoyer = (maj: Uint8Array, origine: unknown) => {
-    if (origine !== ORIGINE_ONGLET) canal?.postMessage(maj)
+    if (origine === ORIGINE_ONGLET) return
+    canal?.postMessage(maj)
+    if (origine !== ORIGINE_DOSSIER) changements?.postMessage(ID_INDEX)
   }
   doc.on('update', envoyer)
   if (canal) canal.onmessage = (e: MessageEvent) => Y.applyUpdate(doc, new Uint8Array(e.data as ArrayBuffer), ORIGINE_ONGLET)
@@ -122,6 +151,7 @@ export async function ouvrirIndexLocal(prefixe = 'notak:local:', maintenant: () 
     fermer() {
       doc.off('update', envoyer)
       canal?.close()
+      changements?.close()
       void persistance.destroy()
       doc.destroy()
     },

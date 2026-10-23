@@ -16,6 +16,7 @@ import { choisirCopie, estCopie, nomDeCopie, rangerCopie } from '../local/enregi
 import { type EspaceLocal, espaceLocal, exportLocal, rechercherLocalement } from '../local/espace'
 import { fichiersLocaux } from '../local/fichiers'
 import { Rangement } from '../local/Rangement'
+import { initialiserSynchro } from '../local/synchro'
 
 /**
  * L'édition locale, celle de notak.app : pas de compte, pas de serveur. Les tableaux vivent dans ce navigateur
@@ -27,7 +28,10 @@ function Application() {
   const [el, setEl] = useState<EspaceLocal | null>(null)
   const [echec, setEchec] = useState(false)
   useEffect(() => {
-    espaceLocal().then(setEl, () => setEchec(true))
+    espaceLocal().then((e) => {
+      setEl(e)
+      void initialiserSynchro(e)
+    }, () => setEchec(true))
   }, [])
   if (echec) {
     return (

@@ -3,6 +3,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react'
 import { t, tn } from '../langue'
 import { usePanneau } from '../panneaux'
 import type { EspaceLocal } from './espace'
+import { arreterSynchro, choisirDossier, ecouterSynchro, lireEtatSynchro, reprendreSynchro, synchroniserMaintenant } from './synchro'
 
 /**
  * Où sont mes tableaux ? Une pastille dans l'en-tête dit la vérité en deux mots (« Dans ce navigateur », « Copie
@@ -123,6 +124,8 @@ export function Rangement({ el, enregistrer, rouvrir, message }: { el: EspaceLoc
           </div>
           {garde === true && <small className="rangement-note">{t('local.protege')}</small>}
 
+          <Synchro el={el} />
+
           <h3>{t('local.plusieurs')}</h3>
           <p>{t('local.plusieursTexte')}</p>
           <div className="rangement-actions">
@@ -138,5 +141,73 @@ export function Rangement({ el, enregistrer, rouvrir, message }: { el: EspaceLoc
         </div>
       )}
     </div>
+  )
+}
+
+/** La section « Synchroniser avec un dossier », là où le navigateur sait écrire dans un dossier. */
+function Synchro({ el }: { el: EspaceLocal }) {
+  const etat = useSyncExternalStore(ecouterSynchro, lireEtatSynchro)
+  if (etat.mode === 'indisponible') return null
+  return (
+    <>
+      <h3>
+        {t('synchro.titre')} <span className="rangement-experimental">{t('synchro.experimental')}</span>
+      </h3>
+      {etat.mode === 'aucune' && (
+        <>
+          <p>{t('synchro.explication')}</p>
+          <div className="rangement-actions">
+            <button type="button" className="bouton" onClick={() => void choisirDossier(el)}>
+              <Icone nom="dossier" taille={16} />
+              {t('synchro.choisir')}
+            </button>
+          </div>
+        </>
+      )}
+      {etat.mode === 'a-reprendre' && (
+        <>
+          <p>{t('synchro.aReprendre', { nom: etat.nom })}</p>
+          <div className="rangement-actions">
+            <button type="button" className="bouton bouton-plein" onClick={() => void reprendreSynchro(el)}>
+              {t('synchro.reprendre')}
+            </button>
+            <button type="button" className="bouton" onClick={() => void arreterSynchro()}>
+              {t('synchro.arreter')}
+            </button>
+          </div>
+        </>
+      )}
+      {etat.mode === 'active' && (
+        <>
+          <p>
+            {t('synchro.active', { nom: etat.nom })}
+            {' · '}
+            {!etat.meneur
+              ? t('synchro.autreOnglet')
+              : etat.derniere
+                ? t('synchro.derniere', { heure: new Date(etat.derniere).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })
+                : t('synchro.enCours')}
+          </p>
+          {etat.erreur && <p className="rangement-attention">{etat.erreur}</p>}
+          {etat.enAttente && <small className="rangement-note">{t('synchro.enAttente')}</small>}
+          {etat.accueilChange && (
+            <p className="rangement-attention">
+              {t('synchro.accueilChange')}{' '}
+              <button type="button" className="bouton-lien" onClick={() => location.assign('/')}>
+                {t('synchro.recharger')}
+              </button>
+            </p>
+          )}
+          <div className="rangement-actions">
+            <button type="button" className="bouton" onClick={synchroniserMaintenant} disabled={!etat.meneur}>
+              {t('synchro.maintenant')}
+            </button>
+            <button type="button" className="bouton" onClick={() => void arreterSynchro()}>
+              {t('synchro.arreter')}
+            </button>
+          </div>
+        </>
+      )}
+    </>
   )
 }
