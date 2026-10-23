@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { COULEURS_NOTE, type CouleurNote, type Element, type Operation } from '../../coeur/tableau'
-import { LIBELLES_COULEUR } from '../note/couleurs'
+import { LIBELLES_COULEUR, teinteDe } from '../note/couleurs'
+import { OutilAvecMenu } from '../../BoutonOutil'
 import { definition, registre } from '../registre'
 import type { ContexteToile } from '../types'
 import { t } from '../../langue'
@@ -35,21 +36,16 @@ function OutilCouleur({ elements, contexte }: { elements: Element[]; contexte: C
     setOuvert(false)
   }
   return (
-    <div className="notak-note-menu-ancre" ref={ancre}>
-      <button type="button" title={t('couleur.titre')} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
-        {t('couleur.titre')}
-      </button>
-      {ouvert && (
-        <div className="notak-note-palette" role="menu">
+    <OutilAvecMenu menu={[ouvert, setOuvert, ancre]} icone="palette" titre={t('couleur.titre')} libelle={t('couleur.titre')} pastille={teinteDe(actuelle ?? undefined)}>
+      <div className="notak-note-palette" role="menu">
           <div className="notak-note-pastilles">
             {sansCouleur && <button type="button" role="menuitem" className="notak-pastille-aucune" title={t('couleur.aucune')} aria-label={t('couleur.aucune')} aria-pressed={actuelle === undefined} onClick={() => choisir(undefined)} />}
             {COULEURS_NOTE.map((c) => (
               <button key={c} type="button" role="menuitem" title={LIBELLES_COULEUR[c]} aria-label={LIBELLES_COULEUR[c]} aria-pressed={actuelle === c} data-fond={c} onClick={() => choisir(c)} />
             ))}
           </div>
-        </div>
-      )}
-    </div>
+      </div>
+    </OutilAvecMenu>
   )
 }
 

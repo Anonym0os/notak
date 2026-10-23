@@ -13,6 +13,7 @@ import {
   simplifier,
 } from './trace'
 import { t } from '../../langue'
+import { BoutonOutil } from '../../BoutonOutil'
 
 /** Les traits d'une feuille, en SVG : un chemin lissé par trait. */
 function Traits({ traits }: { traits: readonly Trait[] }) {
@@ -209,8 +210,6 @@ function Feuille({ contenu, ecrire, finir }: { contenu: Croquis; ecrire(c: Croqu
 export function OutilsCroquis({ elements, contexte }: PropsOutils<Croquis>) {
   if (contexte.services.lectureSeule || elements.length !== 1) return null
   return (
-    <button type="button" title={t('croquis.ouvrir')} onClick={() => contexte.commencerEdition(elements[0]!.id)}>
-      {t('croquis.dessiner')}
-    </button>
+    <BoutonOutil icone="croquis" titre={t('croquis.ouvrir')} libelle={t('croquis.dessiner')} onClick={() => contexte.commencerEdition(elements[0]!.id)} />
   )
 }

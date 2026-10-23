@@ -5,6 +5,7 @@ import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { originalAffichable, originalDe } from './original'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
+import { BoutonOutil } from '../../BoutonOutil'
 
 const rien = () => {}
 
@@ -63,13 +64,9 @@ export function OutilsClone({ elements, contexte }: PropsOutils<Clone>) {
   }
   return (
     <>
-      <button type="button" title={t('clone.choisirOriginal')} disabled={!original} onClick={() => original && contexte.choisir([original.id])}>
-        {t('clone.original')}
-      </button>
+      <BoutonOutil icone="original" titre={t('clone.choisirOriginal')} libelle={t('clone.original')} desactive={!original} onClick={() => original && contexte.choisir([original.id])} />
       {!contexte.services.lectureSeule && (
-        <button type="button" title={t('clone.detacher.titre')} disabled={!aDetacher} onClick={detacher}>
-          {t('clone.detacher')}
-        </button>
+        <BoutonOutil icone="detacher" titre={t('clone.detacher.titre')} libelle={t('clone.detacher')} desactive={!aDetacher} onClick={detacher} />
       )}
     </>
   )

@@ -125,3 +125,9 @@ export const SURLIGNAGES = [
 ] as const
 
 export const valeurCouleurTexte = (nom: string) => `var(--notak-texte-${nom})`
+
+/** La teinte à montrer pour une couleur de note : nommée (la palette), libre (#hex), ou rien pour « aucune » et « transparent ». */
+export function teinteDe(couleur: string | undefined): string | undefined {
+  if (!couleur || couleur === 'transparent') return undefined
+  return couleur in FOND_NOTE ? FOND_NOTE[couleur as keyof typeof FOND_NOTE] : couleur
+}

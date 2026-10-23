@@ -17,6 +17,7 @@ import {
 } from './grille'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
+import { BoutonOutil } from '../../BoutonOutil'
 
 /** Les boutons et les champs de la table ne lancent pas de glisser. */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
@@ -159,28 +160,19 @@ export function OutilsTable({ elements, contexte }: PropsOutils<Table>) {
   const cols = un ? nombreColonnes(un.cellules) : 0
   return (
     <>
-      <button
-        type="button"
-        title={t('table.entete.titre')}
-        aria-pressed={avecEntete}
+      <BoutonOutil
+        icone="entete"
+        titre={t('table.entete.titre')}
+        libelle={t('table.entete')}
+        actif={avecEntete}
         onClick={() => appliquer((c) => (avecEntete ? { ...c, sansEntete: true } : sansEntete(c)))}
-      >
-        {t('table.entete')}
-      </button>
+      />
       {un && (
         <>
-          <button type="button" title={t('table.ajouterLigne')} disabled={lignes >= LIGNES_MAX} onClick={() => appliquer((c) => ({ ...c, cellules: ajouterLigne(c.cellules) }))}>
-            <Icone nom="ajouter" taille={14} /> {t('table.ligne')}
-          </button>
-          <button type="button" title={t('table.ajouterColonne')} disabled={cols >= COLONNES_MAX} onClick={() => appliquer((c) => ({ ...c, cellules: ajouterColonne(c.cellules) }))}>
-            <Icone nom="ajouter" taille={14} /> {t('type.colonne')}
-          </button>
-          <button type="button" title={t('table.retirerDerniereLigne')} disabled={lignes <= LIGNES_MIN} onClick={() => appliquer((c) => ({ ...c, cellules: retirerLigne(c.cellules, c.cellules.length - 1) }))}>
-            <Icone nom="retirer" taille={14} /> {t('table.ligne')}
-          </button>
-          <button type="button" title={t('table.retirerDerniereColonne')} disabled={cols <= COLONNES_MIN} onClick={() => appliquer((c) => ({ ...c, cellules: retirerColonne(c.cellules, nombreColonnes(c.cellules) - 1) }))}>
-            <Icone nom="retirer" taille={14} /> {t('type.colonne')}
-          </button>
+          <BoutonOutil icone="ligneAjout" titre={t('table.ajouterLigne')} libelle={t('table.ligne')} flottant={<><Icone nom="ajouter" taille={14} /> {t('table.ligne')}</>} desactive={lignes >= LIGNES_MAX} onClick={() => appliquer((c) => ({ ...c, cellules: ajouterLigne(c.cellules) }))} />
+          <BoutonOutil icone="colonneAjout" titre={t('table.ajouterColonne')} libelle={t('type.colonne')} flottant={<><Icone nom="ajouter" taille={14} /> {t('type.colonne')}</>} desactive={cols >= COLONNES_MAX} onClick={() => appliquer((c) => ({ ...c, cellules: ajouterColonne(c.cellules) }))} />
+          <BoutonOutil icone="ligneRetrait" secondaire titre={t('table.retirerDerniereLigne')} libelle={t('table.ligne')} flottant={<><Icone nom="retirer" taille={14} /> {t('table.ligne')}</>} desactive={lignes <= LIGNES_MIN} onClick={() => appliquer((c) => ({ ...c, cellules: retirerLigne(c.cellules, c.cellules.length - 1) }))} />
+          <BoutonOutil icone="colonneRetrait" secondaire titre={t('table.retirerDerniereColonne')} libelle={t('type.colonne')} flottant={<><Icone nom="retirer" taille={14} /> {t('type.colonne')}</>} desactive={cols <= COLONNES_MIN} onClick={() => appliquer((c) => ({ ...c, cellules: retirerColonne(c.cellules, nombreColonnes(c.cellules) - 1) }))} />
         </>
       )}
     </>

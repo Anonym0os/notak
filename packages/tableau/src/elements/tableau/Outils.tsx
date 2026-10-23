@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { COULEURS_NOTE, type CouleurNote, type RenvoiTableau } from '../../coeur/tableau'
 import { ICONES_TABLEAU, avecIcone, avecImage } from './icones'
-import { FOND_NOTE, LIBELLES_COULEUR } from '../note/couleurs'
+import { FOND_NOTE, LIBELLES_COULEUR, teinteDe } from '../note/couleurs'
 import type { PropsOutils } from '../types'
 import { demanderModele } from './modele'
 import { peutPoserModele } from './poserModele'
@@ -9,6 +9,7 @@ import { demanderRenommage } from './renommage'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
 import { useMenu } from '../../menuUnique'
+import { BoutonOutil, OutilAvecMenu } from '../../BoutonOutil'
 
 const sans = () => () => {}
 
@@ -34,12 +35,8 @@ function ChoixIcone({ elements, contexte }: PropsOutils<RenvoiTableau>) {
     champ.click()
   }
   return (
-    <div className="notak-colonne-menu-ancre" ref={ancre}>
-      <button type="button" title={t('tableau.icone.titre')} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
-        {t('tableau.icone')}
-      </button>
-      {ouvert && (
-        <div className="notak-colonne-palette" role="menu">
+    <OutilAvecMenu menu={[ouvert, setOuvert, ancre]} classeAncre="notak-colonne-menu-ancre" icone="tableau" titre={t('tableau.icone.titre')} libelle={t('tableau.icone')} secondaire>
+      <div className="notak-colonne-palette" role="menu">
           <div className="notak-renvoi-icones">
             {Object.entries(ICONES_TABLEAU).map(([nom, { icone, libelle }]) => (
               <button
@@ -80,9 +77,8 @@ function ChoixIcone({ elements, contexte }: PropsOutils<RenvoiTableau>) {
               {t('tableau.uneImage')}
             </button>
           )}
-        </div>
-      )}
-    </div>
+      </div>
+    </OutilAvecMenu>
   )
 }
 
@@ -101,11 +97,7 @@ export function OutilsRenvoi({ elements, contexte }: PropsOutils<RenvoiTableau>)
   return (
     <>
       {colorerTableau && (
-        <div className="notak-colonne-menu-ancre" ref={ancre}>
-          <button type="button" title={t('tableau.couleur')} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
-            {t('couleur.titre')}
-          </button>
-          {ouvert && (
+        <OutilAvecMenu menu={[ouvert, setOuvert, ancre]} classeAncre="notak-colonne-menu-ancre" icone="palette" titre={t('tableau.couleur')} libelle={t('couleur.titre')} pastille={teinteDe(actuelle)}>
             <div className="notak-colonne-palette" role="menu">
               <div className="notak-colonne-pastilles">
                 {COULEURS_NOTE.map((c) => (
@@ -122,19 +114,14 @@ export function OutilsRenvoi({ elements, contexte }: PropsOutils<RenvoiTableau>)
                 ))}
               </div>
             </div>
-          )}
-        </div>
+        </OutilAvecMenu>
       )}
       {!contexte.services.lectureSeule && <ChoixIcone elements={elements} contexte={contexte} />}
       {elements.length === 1 && peutPoserModele(elements[0]!.contenu.cible, contexte.services) && (
-        <button type="button" title={t('tableau.modele.titre')} onClick={() => demanderModele(elements[0]!.id)}>
-          {t('tableau.modele')}
-        </button>
+        <BoutonOutil icone="modele" secondaire titre={t('tableau.modele.titre')} libelle={t('tableau.modele')} onClick={() => demanderModele(elements[0]!.id)} />
       )}
       {elements.length === 1 && (
-        <button type="button" title={t('tableau.renommer.titre')} onClick={() => demanderRenommage(elements[0]!.id)}>
-          {t('menu.renommer')}
-        </button>
+        <BoutonOutil icone="modifier" secondaire titre={t('tableau.renommer.titre')} libelle={t('menu.renommer')} onClick={() => demanderRenommage(elements[0]!.id)} />
       )}
     </>
   )

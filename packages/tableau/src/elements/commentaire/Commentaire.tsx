@@ -4,6 +4,7 @@ import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { AUTEUR_INCONNU, ajouterMessage, filVide, dateLisible, initiales, replier, resoudre, retirerMessage } from './fil'
 import { langue, t, tn } from '../../langue'
 import { Icone } from '../../icones'
+import { BoutonOutil } from '../../BoutonOutil'
 
 /** Les boutons et le champ de la carte ne lancent pas de glisser. */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
@@ -168,13 +169,9 @@ export function OutilsCommentaire({ elements, contexte }: PropsOutils<Commentair
   return (
     <>
       {elements.length === 1 && (
-        <button type="button" title={t('commentaire.repondreFil')} onClick={() => contexte.commencerEdition(elements[0]!.id)}>
-          {t('commentaire.repondre')}
-        </button>
+        <BoutonOutil icone="commenterPassage" titre={t('commentaire.repondreFil')} libelle={t('commentaire.repondre')} onClick={() => contexte.commencerEdition(elements[0]!.id)} />
       )}
-      <button type="button" title={tousResolus ? t('commentaire.rouvrirFil') : t('commentaire.resoudreFil')} onClick={basculer}>
-        {tousResolus ? t('commentaire.rouvrir') : t('commentaire.resoudre')}
-      </button>
+      <BoutonOutil icone={tousResolus ? 'rouvrir' : 'resoudre'} titre={tousResolus ? t('commentaire.rouvrirFil') : t('commentaire.resoudreFil')} libelle={tousResolus ? t('commentaire.rouvrir') : t('commentaire.resoudre')} onClick={basculer} />
     </>
   )
 }

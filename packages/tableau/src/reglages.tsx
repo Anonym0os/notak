@@ -50,7 +50,7 @@ export function refusDePhoto(f: { type: string; size: number }): string | null {
 }
 
 const CLE = 'notak:reglages'
-const DEFAUT: Reglages = { theme: 'clair', taille: 'moyenne', doubleClic: true, grille: 10, barre: 'flottante', langue: 'auto' }
+const DEFAUT: Reglages = { theme: 'clair', taille: 'moyenne', doubleClic: true, grille: 10, barre: 'gauche', langue: 'auto' }
 
 function lire(): Reglages {
   try {
@@ -62,7 +62,7 @@ function lire(): Reglages {
       taille: brut.taille === 'petite' || brut.taille === 'grande' ? brut.taille : 'moyenne',
       doubleClic: brut.doubleClic !== false,
       grille: brut.grille === 8 || brut.grille === 9 ? brut.grille : 10,
-      barre: brut.barre === 'gauche' ? 'gauche' : 'flottante',
+      barre: brut.barre === 'flottante' ? 'flottante' : 'gauche',
       langue: brut.langue === 'fr' || brut.langue === 'en' ? brut.langue : 'auto',
     }
   } catch {

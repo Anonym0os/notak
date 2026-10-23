@@ -3,6 +3,7 @@ import { definition } from '../registre'
 import type { ContexteToile, OutilCommun } from '../types'
 import { hauteurApresCran } from './hauteur'
 import { t } from '../../langue'
+import { BoutonOutil } from '../../BoutonOutil'
 import { Icone } from '../../icones'
 
 /** Ce dont la hauteur se règle ici : un élément rangé dans une colonne, de ceux qui savent être bornés. */
@@ -27,20 +28,30 @@ export const OutilHauteur: OutilCommun = ({ elements, contexte }) => {
   const reglee = elements.some((e) => e.hauteur)
   return (
     <>
-      <button type="button" title={t('hauteur.moins')} aria-label={t('hauteur.moins')} onClick={() => cran(elements, contexte, -1)}>
-        {t('hauteur.titre')} <Icone nom="retirer" taille={14} />
-      </button>
-      <button type="button" title={t('hauteur.plus')} aria-label={t('hauteur.plus')} onClick={() => cran(elements, contexte, 1)}>
-        {t('hauteur.titre')} <Icone nom="ajouter" taille={14} />
-      </button>
+      <BoutonOutil
+        icone="hauteur"
+        secondaire
+        titre={t('hauteur.moins')}
+        libelle={t('hauteur.moins')}
+        flottant={<>{t('hauteur.titre')} <Icone nom="retirer" taille={14} /></>}
+        onClick={() => cran(elements, contexte, -1)}
+      />
+      <BoutonOutil
+        icone="hauteur"
+        secondaire
+        titre={t('hauteur.plus')}
+        libelle={t('hauteur.plus')}
+        flottant={<>{t('hauteur.titre')} <Icone nom="ajouter" taille={14} /></>}
+        onClick={() => cran(elements, contexte, 1)}
+      />
       {reglee && (
-        <button
-          type="button"
-          title={t('hauteur.auto.titre')}
+        <BoutonOutil
+          icone="original"
+          secondaire
+          titre={t('hauteur.auto.titre')}
+          libelle={t('hauteur.auto')}
           onClick={() => contexte.magasin.faire(elements.flatMap((e) => (e.hauteur ? [{ type: 'borner' as const, id: e.id, de: e.hauteur, vers: null }] : [])))}
-        >
-          {t('hauteur.auto')}
-        </button>
+        />
       )}
     </>
   )

@@ -2,6 +2,7 @@ import type { Element } from '../../coeur/tableau'
 import type { ContexteToile, EntreeMenu, OutilCommun } from '../types'
 import { pasDeGroupement } from './grouper'
 import { accepteDansColonne } from './regles'
+import { BoutonOutil } from '../../BoutonOutil'
 import { t } from '../../langue'
 
 const groupables = (elements: Element[], contexte: ContexteToile) =>
@@ -31,13 +32,5 @@ export const entreeGrouper: EntreeMenu = {
 export const OutilGrouper: OutilCommun = ({ elements, contexte }) => {
   const items = groupables(elements, contexte)
   if (items.length < 2) return null
-  return (
-    <button
-      type="button"
-      title={t('colonne.mettre')}
-      onClick={() => grouper(elements, contexte)}
-    >
-      {t('type.colonne')}
-    </button>
-  )
+  return <BoutonOutil icone="colonne" secondaire titre={t('colonne.mettre')} libelle={t('type.colonne')} onClick={() => grouper(elements, contexte)} />
 }

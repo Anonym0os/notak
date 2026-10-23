@@ -5,6 +5,7 @@ import type { PropsOutils, PropsRendu } from '../types'
 import { ICONE_DU_GENRE, adresseApercuPdf, apercuDe, extensionDe, genreDe, lisible, tailleLisible } from './genre'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
+import { BoutonOutil } from '../../BoutonOutil'
 
 const sansTitre = ({ titre: _, ...reste }: Fichier): Fichier => reste
 /** Les liens et les lecteurs de la carte ne lancent pas de glisser. */
@@ -138,26 +139,22 @@ export function OutilsFichier({ elements, contexte }: PropsOutils<Fichier>) {
   return (
     <>
       {!contexte.services.lectureSeule && (
-        <button type="button" title={t('fichier.renommer.titre')} onClick={() => contexte.commencerEdition(el.id)}>
-          {t('menu.renommer')}
-        </button>
+        <BoutonOutil icone="modifier" secondaire titre={t('fichier.renommer.titre')} libelle={t('menu.renommer')} onClick={() => contexte.commencerEdition(el.id)} />
       )}
       {!contexte.services.lectureSeule && (
-        <button
-          type="button"
-          title={el.contenu.icone ? t('fichier.montrerApercu') : t('fichier.reduire')}
-          aria-pressed={!!el.contenu.icone}
+        <BoutonOutil
+          icone="reduire"
+          secondaire
+          titre={el.contenu.icone ? t('fichier.montrerApercu') : t('fichier.reduire')}
+          libelle={t('tableau.icone')}
+          actif={!!el.contenu.icone}
           onClick={() => {
             const { icone: _, ...reste } = el.contenu
             contexte.magasin.faire([{ type: 'contenu', id: el.id, avant: el.contenu, apres: el.contenu.icone ? reste : { ...reste, icone: true } }])
           }}
-        >
-          {t('tableau.icone')}
-        </button>
+        />
       )}
-      <button type="button" title={t('menu.ouvrirOnglet')} onClick={() => void ouvrirFichier(el.contenu, contexte)}>
-        {t('commun.ouvrir')}
-      </button>
+      <BoutonOutil icone="ouvrir" titre={t('menu.ouvrirOnglet')} libelle={t('commun.ouvrir')} onClick={() => void ouvrirFichier(el.contenu, contexte)} />
     </>
   )
 }

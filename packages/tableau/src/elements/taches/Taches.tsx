@@ -14,6 +14,7 @@ import { type Personne, type Puce, assigneDe, echeanceDe, jourDe, personnes, puc
 import { type Sortie, glisserTache } from './glisse'
 import { type Chemin, basculer, compter, deplacer, detacher, docTaches, effacerFaites, estFaite, regler, retirer, sousTaches, transferer } from './liste'
 import { t } from '../../langue'
+import { BoutonOutil } from '../../BoutonOutil'
 
 /** Les listes dont le titre vient d'être ajouté : leur édition y met le curseur. */
 const titreAFocaliser = new Set<Id>()
@@ -417,9 +418,7 @@ export function OutilsTaches({ elements, contexte }: PropsOutils<Taches>) {
           {faites}/{total}
         </span>
       )}
-      <button type="button" aria-pressed={toutesTitrees} onClick={basculerTitre}>
-        {t('taches.titre')}
-      </button>
+      <BoutonOutil icone="titre" libelle={t('taches.titre')} actif={toutesTitrees} onClick={basculerTitre} />
       <MenuCouleur
         actuelle={elements.every((e) => e.contenu.couleur === elements[0]!.contenu.couleur) ? elements[0]!.contenu.couleur : undefined}
         choisir={(couleur: CouleurNote | undefined) =>
@@ -427,12 +426,12 @@ export function OutilsTaches({ elements, contexte }: PropsOutils<Taches>) {
         }
       />
       {faites >= 2 && (
-        <button
-          type="button"
+        <BoutonOutil
+          icone="gomme"
+          secondaire
+          libelle={t('taches.effacerFaites')}
           onClick={() => changerTout((e) => ({ ...e.contenu, texte: effacerFaites(docTaches(e.contenu.texte)) }))}
-        >
-          {t('taches.effacerFaites')}
-        </button>
+        />
       )}
     </>
   )

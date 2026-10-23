@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Element, Image, TraitImage } from '../../coeur/tableau'
 import { useFichier } from '../envois'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
@@ -13,6 +13,8 @@ import { COULEURS_TRAIT, avecTraits } from './annotation'
 import { adresseALargeur, finesse, largeurCadrePx, largeurEntiereAffichee, palierPour } from './tailles'
 import { Visionneuse, useImageOuverte } from './visionneuse'
 import { t } from '../../langue'
+import { BoutonOutil, ContexteOutils, OutilAvecMenu } from '../../BoutonOutil'
+import { useMenu } from '../../menuUnique'
 
 /**
  * L'adresse du fichier à la taille que l'affichage demande : le plus petit palier net pour la largeur à l'écran,
@@ -150,86 +152,70 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
   const dessin = useAnnotation()
   const enDessin = elements.length === 1 && dessin.id === el.id && !contexte.services.lectureSeule
   const enDetourage = useDetourageOuvert() === el.id
+  const { aGauche } = useContext(ContexteOutils)
+  const menuTrait = useMenu()
+  const seul = elements.length === 1 && !contexte.services.lectureSeule
+  const pastilles = COULEURS_TRAIT.map((c) => (
+    <button
+      key={c}
+      type="button"
+      className="notak-pastille-trait"
+      style={{ background: c }}
+      aria-label={t('image.couleurTrait', { couleur: c })}
+      aria-pressed={dessin.outil === 'crayon' && dessin.couleur === c}
+      onClick={() => choisirCouleur(c)}
+    />
+  ))
   return (
     <>
-      {!contexte.services.lectureSeule && (
-        <button type="button" title={t('image.pivoter.titre')} onClick={pivoterTout}>
-          {t('image.pivoter')}
-        </button>
-      )}
-      {elements.length === 1 && !contexte.services.lectureSeule && (
-        <button type="button" title={t('image.recadrer.titre')} aria-pressed={!!el.contenu.recadrage} onClick={() => recadrer(el.id)}>
-          {t('image.recadrer')}
-        </button>
-      )}
-      {elements.length === 1 && !contexte.services.lectureSeule && !!contexte.services.fichiers && (
-        <button
-          type="button"
-          title={t('image.detourer.titre')}
-          aria-pressed={enDetourage || !!el.contenu.original}
+      {!contexte.services.lectureSeule && <BoutonOutil icone="pivoter" titre={t('image.pivoter.titre')} libelle={t('image.pivoter')} onClick={pivoterTout} />}
+      {seul && <BoutonOutil icone="recadrer" titre={t('image.recadrer.titre')} libelle={t('image.recadrer')} actif={!!el.contenu.recadrage} onClick={() => recadrer(el.id)} />}
+      {seul && !!contexte.services.fichiers && (
+        <BoutonOutil
+          icone="detourer"
+          secondaire
+          titre={t('image.detourer.titre')}
+          libelle={t('image.detourer')}
+          actif={enDetourage || !!el.contenu.original}
           onClick={() => detourerImage(enDetourage ? null : el.id)}
-        >
-          {t('image.detourer')}
-        </button>
+        />
       )}
-      {elements.length === 1 && !contexte.services.lectureSeule && !!el.contenu.original && (
-        <button
-          type="button"
-          title={t('image.retablir.titre')}
+      {seul && !!el.contenu.original && (
+        <BoutonOutil
+          icone="original"
+          secondaire
+          titre={t('image.retablir.titre')}
+          libelle={t('image.retablir')}
           onClick={() => contexte.magasin.faire([{ type: 'contenu', id: el.id, avant: el.contenu, apres: sansDetourage(el.contenu) }])}
-        >
-          {t('image.retablir')}
-        </button>
+        />
       )}
-      {elements.length === 1 && !contexte.services.lectureSeule && (
-        <button
-          type="button"
-          title={t('image.dessiner.titre')}
-          aria-pressed={enDessin}
-          onClick={() => annoter(enDessin ? null : el.id)}
-        >
-          {t('croquis.dessiner')}
-        </button>
-      )}
+      {seul && <BoutonOutil icone="croquis" titre={t('image.dessiner.titre')} libelle={t('croquis.dessiner')} actif={enDessin} onClick={() => annoter(enDessin ? null : el.id)} />}
       {enDessin && (
         <>
-          <button type="button" aria-pressed={dessin.outil === 'crayon'} onClick={() => choisirOutil('crayon')}>
-            {t('dessin.crayon')}
-          </button>
-          <button type="button" aria-pressed={dessin.outil === 'gomme'} title={t('image.gommeTitre')} onClick={() => choisirOutil('gomme')}>
-            {t('dessin.gomme')}
-          </button>
-          {COULEURS_TRAIT.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className="notak-pastille-trait"
-              style={{ background: c }}
-              aria-label={t('image.couleurTrait', { couleur: c })}
-              aria-pressed={dessin.outil === 'crayon' && dessin.couleur === c}
-              onClick={() => choisirCouleur(c)}
-            />
-          ))}
+          <BoutonOutil icone="croquis" libelle={t('dessin.crayon')} actif={dessin.outil === 'crayon'} onClick={() => choisirOutil('crayon')} />
+          <BoutonOutil icone="gomme" titre={t('image.gommeTitre')} libelle={t('dessin.gomme')} actif={dessin.outil === 'gomme'} onClick={() => choisirOutil('gomme')} />
+          {aGauche ? (
+            <OutilAvecMenu menu={menuTrait} icone="palette" pastille={dessin.couleur} libelle={t('couleur.titre')}>
+              <div className="notak-note-palette" role="menu">
+                <div className="notak-note-pastilles">{pastilles}</div>
+              </div>
+            </OutilAvecMenu>
+          ) : (
+            pastilles
+          )}
           {!!el.contenu.traits?.length && (
-            <button
-              type="button"
-              title={t('image.effacerTraits')}
+            <BoutonOutil
+              icone="retirer"
+              secondaire
+              titre={t('image.effacerTraits')}
+              libelle={t('dessin.toutEffacer')}
               onClick={() => contexte.magasin.faire([{ type: 'contenu', id: el.id, avant: el.contenu, apres: avecTraits(el.contenu, []) }])}
-            >
-              {t('dessin.toutEffacer')}
-            </button>
+            />
           )}
         </>
       )}
       {elements.length === 1 && (
-        <button
-          type="button"
-          title={t('image.ajouterLegende')}
-          aria-pressed={!!el.contenu.legende}
-          onClick={() => contexte.commencerEdition(el.id)}
-        >
-          {t('note.legende')}
-        </button>
+        <BoutonOutil icone="legende" secondaire titre={t('image.ajouterLegende')} libelle={t('note.legende')} actif={!!el.contenu.legende} onClick={() => contexte.commencerEdition(el.id)} />
       )}
     </>
   )

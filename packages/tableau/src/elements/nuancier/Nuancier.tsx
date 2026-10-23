@@ -4,6 +4,7 @@ import { couleurTexteSur } from '../note/couleurs'
 import type { PropsOutils, PropsRendu } from '../types'
 import { codeAffiche, normaliserHex, piocherCouleur, pipetteDisponible } from './couleur'
 import { t } from '../../langue'
+import { BoutonOutil } from '../../BoutonOutil'
 
 /** Les champs de la carte ne lancent pas de glisser. */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
@@ -74,27 +75,25 @@ export function OutilsNuancier({ elements, contexte }: PropsOutils<Nuancier>) {
   return (
     <>
       {elements.length === 1 && (
-        <button type="button" title={t('nuancier.changer')} onClick={() => contexte.commencerEdition(elements[0]!.id)}>
-          {t('couleur.titre')}
-        </button>
+        <BoutonOutil icone="palette" pastille={elements[0]!.contenu.couleur} titre={t('nuancier.changer')} libelle={t('couleur.titre')} onClick={() => contexte.commencerEdition(elements[0]!.id)} />
       )}
       {elements.length === 1 && pipetteDisponible() && (
-        <button
-          type="button"
-          title={t('nuancier.pipette.titre')}
+        <BoutonOutil
+          icone="pipette"
+          secondaire
+          titre={t('nuancier.pipette.titre')}
+          libelle={t('nuancier.pipette')}
           onClick={() => void piocherCouleur().then((h) => h && appliquer((e) => ({ ...e.contenu, couleur: h })))}
-        >
-          {t('nuancier.pipette')}
-        </button>
+        />
       )}
-      <button
-        type="button"
-        title={avecCode ? t('nuancier.cacherCode') : t('nuancier.montrerCode')}
-        aria-pressed={avecCode}
+      <BoutonOutil
+        icone="diese"
+        secondaire
+        titre={avecCode ? t('nuancier.cacherCode') : t('nuancier.montrerCode')}
+        libelle={t('nuancier.code')}
+        actif={avecCode}
         onClick={() => appliquer(({ contenu: { sansCode: _, ...reste } }) => (avecCode ? { ...reste, sansCode: true } : reste))}
-      >
-        {t('nuancier.code')}
-      </button>
+      />
     </>
   )
 }
