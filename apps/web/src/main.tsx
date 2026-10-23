@@ -25,7 +25,28 @@ import { PagePublique } from './PagePublique'
 import { Partage } from './Partage'
 import { enregistrerServiceWorker } from './pwa'
 
-const services = { fichiers, apercu, rapatrier, rechercherPartout, localiser, ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank') }
+/**
+ * Les tableaux du compte, pour les citer avec `[[` dans une note : gardés en mémoire, relus au chargement et quand
+ * la fenêtre reprend la main (la liste est demandée sans attendre, la note se contente de ce qu'on a).
+ */
+let tableauxConnus: { id: string; titre: string }[] = []
+const relireTableaux = () =>
+  fetch('/api/tableaux', { credentials: 'same-origin' })
+    .then((r) => (r.ok ? r.json() : []))
+    .then((t: { id: string; titre: string }[]) => (tableauxConnus = t.map(({ id, titre }) => ({ id, titre }))))
+    .catch(() => {})
+void relireTableaux()
+window.addEventListener('focus', () => void relireTableaux())
+
+const services = {
+  fichiers,
+  apercu,
+  rapatrier,
+  rechercherPartout,
+  localiser,
+  listerTableaux: () => tableauxConnus,
+  ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank'),
+}
 
 /** Chaque tableau a son adresse, `/t/<id>` ; l'accueil est `/`. Le retour du navigateur ramène au précédent. */
 function adressePour(racine: string): Adresse {

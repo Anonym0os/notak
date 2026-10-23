@@ -498,12 +498,16 @@ export function creerApp(ctx: Contexte): Hono {
   /** Le contenu d'un fichier rangé, servi pour qu'il ne s'exécute jamais dans l'origine de l'application. */
   const servirFichier = (f: Fichier, cache: string): Response => {
     const flux = Readable.toWeb(createReadStream(join(ctx.dossierFichiers, f.id))) as ReadableStream
-    return new Response(flux, { headers: { ...entetesFichier(cache), 'content-type': f.type, 'content-length': String(f.taille) } })
+    return new Response(flux, { headers: { ...entetesFichier(cache, f.type), 'content-type': f.type, 'content-length': String(f.taille) } })
   }
-  const entetesFichier = (cache: string) => ({
+  const entetesFichier = (cache: string, type = '') => ({
     'cache-control': cache,
     'x-content-type-options': 'nosniff',
-    'content-security-policy': "sandbox; default-src 'none'; img-src data:; media-src 'self'; style-src 'unsafe-inline'",
+    // Un PDF garde le lecteur du navigateur, qui refuse le bac à sable, mais rien d'autre : ni script, ni requête.
+    'content-security-policy':
+      type === 'application/pdf'
+        ? "default-src 'none'; frame-ancestors 'self'"
+        : "sandbox; default-src 'none'; img-src data:; media-src 'self'; style-src 'unsafe-inline'",
   })
 
   /** La copie réduite d'une image, fabriquée à la première demande puis gardée à côté de l'original ; `null` : servir l'original. */

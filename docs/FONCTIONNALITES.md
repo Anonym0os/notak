@@ -15,22 +15,22 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 |---|---|---|---|---|
 | 1. Toile | 22 | 3 | 2 | 87 % |
 | 2. Création | 12 | 3 | 2 | 79 % |
-| 3. Note et texte | 26 | 2 | 3 | 87 % |
-| 4. Colonne | 10 | 0 | 1 | 91 % |
-| 5. Tableau imbriqué | 8 | 0 | 3 | 73 % |
+| 3. Note et texte | 30 | 0 | 1 | 97 % |
+| 4. Colonne | 10 | 1 | 0 | 95 % |
+| 5. Tableau imbriqué | 11 | 0 | 0 | 100 % |
 | 6. Lien | 13 | 0 | 0 | 100 % |
 | 7. Image | 11 | 1 | 0 | 96 % |
 | 8. Liste de tâches | 16 | 1 | 0 | 97 % |
 | 9. Ligne | 14 | 0 | 0 | 100 % |
-| 10. Autres éléments | 7 | 3 | 2 | 71 % |
+| 10. Autres éléments | 10 | 1 | 1 | 88 % |
 | 11. Commun aux éléments | 6 | 0 | 6 | 50 % |
 | 12. Organiser | 16 | 0 | 0 | 100 % |
 | 13. Naviguer | 10 | 1 | 2 | 81 % |
 | 14. À plusieurs | 12 | 0 | 5 | 71 % |
 | 15. Habillage | 10 | 3 | 2 | 77 % |
 | 16. Exporter, importer | 2 | 0 | 2 | 50 % |
-| 17. Plateformes | 3 | 3 | 1 | 64 % |
-| **Total** | **198** | **20** | **31** | **84 %** |
+| 17. Plateformes | 5 | 2 | 0 | 86 % |
+| **Total** | **210** | **16** | **23** | **88 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -111,7 +111,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Retraits du texte (Tab, retrait + et −) | ✅ |  |
 | Centrer | ✅ | |
 | Couleurs du texte et surlignages, exclusifs | ✅ | |
-| Menu d'insertion (émoji, séparateur, lien vers un tableau, mention) | 🟡 | Émoji et séparateur ; pas encore le lien vers un tableau ni la mention. |
+| Menu d'insertion (émoji, séparateur, lien vers un tableau, mention) | ✅ | Émoji, séparateur ; « @ » et « [[ » en tapant. |
 | Commentaire dans le texte | ⬜ | |
 | Raccourcis de mise en forme de Milanote | ✅ |  |
 | Markdown tapé : `*gras*`, `_italique_`, `~barré~`, `==surligné==`, `[t](url)`, `# `, `> `, `---` | ✅ | |
@@ -120,12 +120,12 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Barre de couleur en haut de la note | ✅ |  |
 | Couleur libre (hexadécimal), couleurs suggérées du tableau | ✅ |  |
 | Couleur de texte propre à la note | ✅ |  |
-| Légende sous la note | 🟡 | Coupée sur une note à hauteur bornée. |
+| Légende sous la note | ✅ |  |
 | Lien cliquable hors édition | ✅ | |
 | Lecture seule : rien ne s'édite | ✅ | |
 | Barre de mise en forme | ✅ | Posée sur la note, pas dans la barre de gauche (choix). |
-| Mention d'une personne (@) | ⬜ | |
-| Lien vers un tableau dans le texte | ⬜ | |
+| Mention d'une personne (@) | ✅ |  |
+| Lien vers un tableau dans le texte | ✅ |  |
 
 ## 4. Colonne
 
@@ -140,7 +140,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Couleurs | ✅ | |
 | Grouper la sélection en colonne | ✅ | |
 | Supprimer emporte le contenu | ✅ | |
-| Hauteur réglable, hauteur bornée d'un élément rangé | ⬜ | |
+| Hauteur réglable, hauteur bornée d'un élément rangé | 🟡 | Boutons Hauteur −, + et Auto ; pas encore la poignée. |
 | Ligne horizontale entre deux colonnes alignées | ✅ |  |
 
 ## 5. Tableau imbriqué
@@ -154,9 +154,9 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Couleur modifiable | ✅ | |
 | Déposer sur un tableau pour l'y envoyer | ✅ | |
 | Survol pendant un glisser : l'icône grossit, s'assombrit, clignote avant d'entrer | ✅ | |
-| Icône de la bibliothèque ou image à la place de l'initiale | ⬜ | |
-| Disposition en ligne dans une colonne | ⬜ | |
-| Raccourci vers un tableau (le même tableau à deux endroits) | ⬜ | Élément « alias » de Milanote. |
+| Icône de la bibliothèque ou image à la place de l'initiale | ✅ |  |
+| Disposition en ligne dans une colonne | ✅ |  |
+| Raccourci vers un tableau (le même tableau à deux endroits) | ✅ |  |
 | Un tableau supprimé part à la corbeille, restaurable | ✅ | |
 
 ## 6. Lien
@@ -240,7 +240,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
 | Fonctionnalité | État | Reste |
 |---|---|---|
-| Fichier joint : extension, nom, taille, Télécharger, Ouvrir, lecteur du son et de la vidéo, renommer | 🟡 | Pas d'aperçu des pages d'un PDF, de légende ni de mode icône. |
+| Fichier joint : extension, nom, taille, Télécharger, Ouvrir, lecteur du son et de la vidéo, renommer | ✅ | Aperçu de la première page d'un PDF, légende, mode icône. |
 | Commentaire (fil de discussion posé sur la toile) | ✅ |  |
 | Table (lignes, colonnes, cellules) | ✅ |  |
 | Croquis à main levée | ✅ |  |
@@ -249,9 +249,9 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Document (texte long, ouvert en grand) | ✅ |  |
 | Lien vidéo | ✅ | Outil « Vidéo » du tiroir. |
 | Lien audio | ✅ | Outil « Audio » du tiroir. |
-| Carte (lieu) | 🟡 | Adresse et lien vers OpenStreetMap ; pas de carte intégrée. |
-| Clone (le même élément à plusieurs endroits) | 🟡 | Suit l'original, se détache ; un clone dont l'original est jeté le dit. |
-| Raccourci vers un tableau | ⬜ | Compté aussi au § 5. |
+| Carte (lieu) | ✅ |  |
+| Clone (le même élément à plusieurs endroits) | 🟡 | Les clones suivent l'original à la corbeille ; la règle de Milanote reste à vérifier. |
+| Raccourci vers un tableau | ✅ |  |
 
 ## 11. Commun aux éléments
 

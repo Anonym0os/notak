@@ -150,6 +150,12 @@ describe('serveur de bout en bout', () => {
     expect(lu.reponse.headers.get('cache-control')).toBe('private, max-age=31536000, immutable')
     expect(new Uint8Array(await lu.reponse.arrayBuffer())).toEqual(octets)
     expect((await appeler('/api/fichiers/../../etc/passwd', { cookie: ana.cookie })).statut).toBe(404)
+    // Tout fichier passe au bac à sable, sauf un PDF : le lecteur du navigateur le refuse, et l'aperçu en a besoin.
+    expect(lu.reponse.headers.get('content-security-policy')).toMatch(/^sandbox;/)
+    const pdf = (await lire<{ id: string }>(await appeler('/api/fichiers', { cookie: ana.cookie, corps: octets, type: 'application/pdf' }))).id
+    const politique = (await appeler(`/api/fichiers/${pdf}`, { cookie: ana.cookie })).reponse.headers.get('content-security-policy')
+    expect(politique).not.toMatch(/sandbox/)
+    expect(politique).toMatch(/default-src 'none'/)
 
     // `?l=` : une image à la largeur demandée (la limite de connexions de la minute interdit une seconde ouverture de session).
     const grande = await sharp({ create: { width: 2000, height: 1000, channels: 3, background: '#3366cc' } }).jpeg().toBuffer()
