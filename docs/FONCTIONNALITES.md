@@ -23,14 +23,14 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 8. Liste de tâches | 18 | 0 | 0 | 100 % |
 | 9. Ligne | 16 | 2 | 0 | 94 % |
 | 10. Autres éléments | 15 | 2 | 0 | 94 % |
-| 11. Commun aux éléments | 11 | 1 | 0 | 96 % |
+| 11. Commun aux éléments | 12 | 0 | 0 | 100 % |
 | 12. Organiser | 16 | 0 | 0 | 100 % |
 | 13. Naviguer | 13 | 0 | 0 | 100 % |
 | 14. À plusieurs | 19 | 0 | 0 | 100 % |
 | 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 6 | 1 | 0 | 93 % |
-| **Total** | **270** | **11** | **1** | **98 %** |
+| **Total** | **271** | **10** | **1** | **98 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -273,7 +273,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Lecteurs audio et vidéo à nous (volume au survol, durée, cercle de lecture, plein écran, relances) | ✅ | |
 | Fichiers refusés avec un message (extension, nom, taille de 25 Mio) | ✅ | Liste d'extensions de Notak, plus courte que celle de Milanote ; plafond unique, sans offre. |
 | Fichier joint : aperçus fabriqués par un service, état « Processing » | ❌ | Pas de service d'aperçu. |
-| Commentaire (fil de discussion posé sur la toile) | ✅ | Fiche bleu pâle de 34 unités, prénom et date relative, liens, Modifier au survol, Publier, couleur (bande). Reste : éditeur riche, mentions et émojis dans le fil, indicateur de frappe, hauteur réglable. |
+| Commentaire (fil de discussion posé sur la toile) | ✅ | Fiche bleu pâle de 34 unités, éditeur riche (gras, liens, mentions « @ », émojis), réaction par message, « est en train d'écrire », point non lu, défilement interne et hauteur réglable à la poignée, outils Couleur et Épingle (le fil se réduit en épingle). Pas de « Résoudre » (Milanote n'en a pas ; la donnée reste, l'interface la cache). Reste : « Nouveau commentaire » au clic droit de la toile, aperçu glissé réduit en épingle, brouillon non envoyé. |
 | Table : un petit tableur (sélection de plages, clavier, types, formules, repères, clic droit, presse-papiers, titre, légende) | ✅ | Relevé dans `docs/ecarts/table.md`, repris d'après le code de Milanote le 23/10. Pas de mise en forme partielle dans une cellule ; ⌃⌘N attend les raccourcis de création. |
 | Croquis à main levée | ✅ |  |
 | Dessin libre sur la toile | ✅ | Outil « Dessin libre » du tiroir : on trace à même la toile, Entrée pose le dessin. |
@@ -293,9 +293,9 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Contour choisi sans ombre, contour écarté en édition | ✅ | |
 | Verrouiller | ✅ | |
 | État « verrouillé » visible (autre couleur de contour) | ✅ |  |
-| Étiquettes (créer, colorer, renommer, filtrer) | ✅ | Dans la carte ; panneau avec recherche qui crée, menu par ligne ; pastille choisie, renommée et retirée sur la carte. Reste : étiquettes communes à tous les tableaux, étiquettes par tâche. |
-| Réactions (émojis) | ✅ | Pastilles de Milanote avec info-bulle « qui a réagi » ; sélecteur Unicode complet (teinte de peau, fréquents). Reste : réaction par message d'un fil. |
-| Commentaire attaché à un élément | 🟡 | Épingle au coin haut droit et bulle à droite. Reste : épingle déplaçable, glisser un fil sur un élément, commentaire en ligne ouvert hors édition. |
+| Étiquettes (créer, colorer, renommer, filtrer) | ✅ | Dans la carte ; panneau avec recherche qui crée, menu par ligne, étiquettes des autres tableaux (le chemin d'abord) à reprendre d'un clic ; pastille choisie : barre Couleur, Renommer, Retirer. Un renommage ou une couleur se répercute dans les autres tableaux chargés. Reste : suppression commune, étiquettes par tâche. |
+| Réactions (émojis) | ✅ | Pastilles de Milanote avec info-bulle « qui a réagi » ; sélecteur Unicode complet (teinte de peau, fréquents), chargé à l'ouverture ; réaction par message d'un fil, avec son « + ». |
+| Commentaire attaché à un élément | ✅ | Épingle aux couleurs du fil, à taille d'écran constante au zoom, qu'on déplace (sur la carte ou vers un autre élément) ; un fil glissé sur un élément s'y attache ; même éditeur que le fil posé. Commentaire en ligne : Détacher et Retirer. Reste : commentaire en ligne ouvert hors édition (passe note). |
 | Échéance, personne assignée sur un élément | ✅ |  |
 | Barre de couleur, couleur libre | ✅ | Notes (voir § 3). |
 | Copier le style d'un élément (Cmd+Alt+V) | ✅ |  |

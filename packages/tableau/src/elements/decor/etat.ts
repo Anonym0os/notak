@@ -14,6 +14,8 @@ let contexte: ContexteToile | null = null
 export interface PuceChoisie {
   element: Id
   etiquette: Id
+  /** La barre de gauche vient de demander « Renommer » : la pastille passe en édition, puis efface la demande. */
+  renommer?: boolean
 }
 let puce: PuceChoisie | null = null
 const ecouteurs = new Set<() => void>()
@@ -60,7 +62,7 @@ export function retenirContexte(c: ContexteToile) {
 }
 
 export function choisirPuce(p: PuceChoisie | null) {
-  if (puce?.element === p?.element && puce?.etiquette === p?.etiquette) return
+  if (puce?.element === p?.element && puce?.etiquette === p?.etiquette && puce?.renommer === p?.renommer) return
   puce = p
   notifier()
 }

@@ -259,11 +259,9 @@
   white-space: nowrap;
 }
 
-/* L'épingle d'un fil attaché : sa pointe tombe à 20 px du bord droit et du haut de la carte. */
+/* L'épingle d'un fil attaché : sa pointe tombe où on l'a posée (`left` et `top` en ligne), à 20 px du bord droit et du haut par défaut. */
 .notak-epingle {
   position: absolute;
-  top: 20px;
-  left: calc(100% - 20px);
   z-index: 4;
 }
 
@@ -276,7 +274,14 @@
   padding: 0;
   border: 0;
   background: none;
-  cursor: pointer;
+  cursor: grab;
+  /* L'épingle ne grossit pas avec le zoom : elle reste à sa taille d'écran, ancrée à sa pointe. */
+  transform: scale(var(--notak-zoom-inverse, 1));
+  transform-origin: 12px 29px;
+}
+
+.notak-epingle[data-glisse] .notak-epingle-bouton {
+  cursor: grabbing;
 }
 
 .notak-epingle-bouton[aria-expanded='true'] .notak-epingle-forme path {
@@ -304,6 +309,19 @@
   text-align: center;
 }
 
+/* Du nouveau sur ce fil : un point orange au coin haut droit de l'épingle. */
+.notak-epingle-nonlu {
+  position: absolute;
+  top: -2px;
+  right: -3px;
+  box-sizing: border-box;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid #fff;
+  border-radius: 50%;
+  background: #f4511c;
+}
+
 /* Le fil accroché : une bulle à droite de l'épingle, 15 px plus loin, avec sa flèche de 13 × 8 px. */
 .notak-fil-attache {
   position: absolute;
@@ -312,12 +330,9 @@
   z-index: 3;
   display: flex;
   flex-direction: column;
-  gap: 6px;
   box-sizing: border-box;
   width: 340px;
   max-height: min(600px, 80vh);
-  padding: 10px 0;
-  overflow-y: auto;
   border-radius: 8px;
   background: #f4f7fe;
   color: #323b4a;
@@ -326,8 +341,9 @@
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
 }
 
-.notak-fil-attache > :not(.notak-commentaire-message, .notak-commentaire-saisie) {
-  margin-inline: 14px;
+.notak-fil-attache > .notak-commentaire {
+  max-height: inherit;
+  padding: 0 0 4px;
 }
 
 .notak-fil-attache[data-bande]::before {
@@ -335,7 +351,7 @@
   display: block;
   flex: none;
   height: 5px;
-  margin: -10px 0 0;
+  border-radius: 8px 8px 0 0;
   background: var(--bande);
 }
 
@@ -352,14 +368,17 @@
   border-right-width: 8px;
 }
 
-.notak-fil-attache-entete {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.notak-fil-attache-entete strong {
-  flex: 1;
+.notak-fil-attache-fermer {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  color: #8d929a !important;
 }
 
 .notak-fil-attache button,
@@ -371,13 +390,6 @@
   color: inherit;
   font: inherit;
   cursor: pointer;
-}
-
-.notak-fil-attache textarea {
-  box-sizing: border-box;
-  width: 100%;
-  resize: none;
-  font: inherit;
 }
 
 /* Les fenêtres de la barre de sélection. */
@@ -709,4 +721,19 @@
   padding: 12px 0;
   text-align: center;
   opacity: 0.6;
+}
+
+/* Une étiquette d'un autre tableau, qu'on reprend d'un clic sur son « + ». */
+.notak-etiquettes-reprendre {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  color: #8d929a !important;
+}
+
+.notak-etiquettes-reprendre:hover {
+  background: #e8e9eb !important;
+  color: #323b4a !important;
 }

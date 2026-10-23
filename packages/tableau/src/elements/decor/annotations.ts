@@ -87,6 +87,34 @@ export function supprimerEtiquette(liste: readonly Etiquette[], elements: readon
   }
 }
 
+/** Les étiquettes d'un autre tableau de l'espace, avec son titre. */
+export interface SectionEtiquettes {
+  id: Id
+  titre: string
+  etiquettes: Etiquette[]
+}
+
+/**
+ * Les étiquettes des autres tableaux qu'on peut reprendre ici : celles qu'on n'a pas déjà (ni leur identifiant, ni
+ * leur nom, sans égard à la casse), une seule fois même si plusieurs tableaux les ont, et qui répondent à la
+ * recherche. Les sections gardent l'ordre donné (le tableau le plus proche d'abord) ; une section vide disparaît.
+ */
+export function etiquettesAReprendre(courantes: readonly Etiquette[], autres: readonly SectionEtiquettes[], requete = ''): SectionEtiquettes[] {
+  const bas = (nom: string) => nom.toLocaleLowerCase('fr')
+  const ids = new Set(courantes.map((e) => e.id))
+  const noms = new Set(courantes.map((e) => bas(e.nom)))
+  const q = bas(requete.trim())
+  return autres.flatMap((s) => {
+    const gardees = s.etiquettes.filter((e) => {
+      if (ids.has(e.id) || noms.has(bas(e.nom)) || (q && !bas(e.nom).includes(q))) return false
+      ids.add(e.id)
+      noms.add(bas(e.nom))
+      return true
+    })
+    return gardees.length > 0 ? [{ ...s, etiquettes: gardees }] : []
+  })
+}
+
 /** Pose ou retire une étiquette de la liste d'un élément. */
 export const basculerEtiquette = (actuelles: readonly Id[] | undefined, id: Id): Id[] =>
   actuelles?.includes(id) ? actuelles.filter((x) => x !== id) : [...(actuelles ?? []), id]

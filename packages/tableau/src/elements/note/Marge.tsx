@@ -1,15 +1,54 @@
 import { type Editor, useEditorState } from '@tiptap/react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { type Commentaire, type Id, nouvelId } from '../../coeur/tableau'
+import { type Commentaire, type Id, type NoeudTexte, annoter, nouvelId } from '../../coeur/tableau'
 import { Ligne } from '../commentaire/Commentaire'
-import { AUTEUR_INCONNU, ajouterMessage, initiales, resoudre, retirerMessage } from '../commentaire/fil'
+import { AUTEUR_INCONNU, ajouterMessage, epinglerEn, initiales, modifierMessage, reagirAuMessage, retirerMessage } from '../commentaire/fil'
 import type { ContexteToile } from '../types'
 import { type Fils, MARQUE_FIL, filsDuTexte, placerEnMarge } from './fils'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
 
 const garder = (e: React.SyntheticEvent) => e.stopPropagation()
+
+/** Ôte la marque de ce fil de tout le texte : le passage redevient du texte, le fil n'a plus de passage. */
+function retirerMarque(editeur: Editor, id: Id) {
+  const type = editeur.state.schema.marks[MARQUE_FIL]
+  if (!type) return
+  const tr = editeur.state.tr
+  editeur.state.doc.descendants((n, pos) => {
+    if (!n.isText) return
+    const m = n.marks.find((x) => x.type === type && x.attrs.fil === id)
+    if (m) tr.removeMark(pos, pos + n.nodeSize, m)
+  })
+  if (tr.docChanged || tr.steps.length > 0) editeur.view.dispatch(tr)
+}
+
+/**
+ * « Détacher » : le fil quitte son passage et devient l'épingle de la note (au bord droit, à la hauteur du passage).
+ * `null` si la note porte déjà un fil, ou si l'on n'écrit pas.
+ */
+function detacheDansElement(editeur: Editor, contexte: ContexteToile, fil: Commentaire | undefined, id: Id, fin: () => void): (() => void) | null {
+  if (contexte.services.lectureSeule || !fil || fil.messages.length === 0) return null
+  const carte = editeur.view.dom.closest<HTMLElement>('.notak-carte[data-id]')
+  const element = carte && contexte.magasin.lire().elements.find((e) => e.id === carte.dataset.id)
+  if (!carte || !element || element.commentaire?.messages.length) return null
+  return () => {
+    let pos = -1
+    editeur.state.doc.descendants((n, p) => {
+      if (pos < 0 && n.isText && n.marks.some((m) => m.type.name === MARQUE_FIL && m.attrs.fil === id)) pos = p
+      return pos < 0
+    })
+    const r = carte.getBoundingClientRect()
+    const echelle = carte.offsetWidth > 0 ? r.width / carte.offsetWidth : 1
+    const haut = pos < 0 ? 20 : (editeur.view.coordsAtPos(pos).top - r.top) / echelle + 5
+    const { replie: _, ...ouvert } = fil
+    const op = annoter(element, { commentaire: epinglerEn(ouvert, carte.offsetWidth, Math.max(0, Math.min(carte.offsetHeight, haut))) })
+    if (op) contexte.magasin.faire([op])
+    fin()
+    retirerMarque(editeur, id)
+  }
+}
 
 interface Props {
   editeur: Editor
@@ -89,6 +128,11 @@ export function Marge({ editeur, fils, ouvert, surOuvert, ecrire, contexte }: Pr
             editeur.commands.focus()
           }}
           ecrire={(f) => ecrire(id, f)}
+          retirer={() => {
+            surOuvert(null)
+            retirerMarque(editeur, id)
+          }}
+          detacher={detacheDansElement(editeur, contexte, fils?.[id], id, () => surOuvert(null))}
           contexte={contexte}
         />
       ))}
@@ -106,6 +150,8 @@ function Fiche({
   ouvrir,
   fermer,
   ecrire,
+  retirer,
+  detacher,
   contexte,
 }: {
   ref: (n: HTMLElement | null) => void
@@ -115,6 +161,10 @@ function Fiche({
   ouvrir(): void
   fermer(): void
   ecrire(f: Commentaire): void
+  /** Retire le fil, et la marque de son passage ; absent hors édition (la marque n'est pas à portée). */
+  retirer: (() => void) | null
+  /** Le fil devient l'épingle de la note ; absent si la note porte déjà un fil. */
+  detacher: (() => void) | null
   contexte: ContexteToile
 }) {
   const [texte, setTexte] = useState('')
@@ -131,16 +181,18 @@ function Fiche({
   }
   const n = fil.messages.length
   return (
-    <section ref={ref} className="notak-fil-marge" data-actif={actif || undefined} data-resolu={fil.resolu || undefined} style={{ top: haut }} onClick={actif ? undefined : ouvrir}>
-      {fil.resolu && (
-        <p className="notak-commentaire-resolu">
-          <Icone nom="coche" taille={13} /> Résolu · {n} message{n > 1 ? 's' : ''}
-        </p>
-      )}
-      {(!fil.resolu || actif) &&
-        fil.messages.map((m) => (
-          <Ligne key={m.id} message={m} retirer={peutEcrire && m.auteur.id === auteur.id ? () => ecrire(retirerMessage(fil, m.id)) : undefined} />
-        ))}
+    <section ref={ref} className="notak-fil-marge" data-actif={actif || undefined} style={{ top: haut }} onClick={actif ? undefined : ouvrir}>
+      {fil.messages.map((m) => (
+        <Ligne
+          key={m.id}
+          message={m}
+          contexte={contexte}
+          {...(peutEcrire ? { reagir: (emoji: string) => ecrire(reagirAuMessage(fil, m.id, emoji, auteur.id)) } : {})}
+          {...(peutEcrire && m.auteur.id === auteur.id
+            ? { retirer: () => ecrire(retirerMessage(fil, m.id)), modifier: (texte: string, riche?: NoeudTexte) => ecrire(modifierMessage(fil, m.id, texte, riche)) }
+            : {})}
+        />
+      ))}
       {actif && peutEcrire && (
         <div className="notak-commentaire-saisie">
           <span className="notak-commentaire-pastille" style={auteur.couleur ? { background: auteur.couleur } : undefined} aria-hidden>
@@ -167,11 +219,18 @@ function Fiche({
           />
         </div>
       )}
-      {actif && peutEcrire && n > 0 && (
+      {actif && peutEcrire && (
         <div className="notak-fil-marge-actions">
-          <button type="button" onClick={() => ecrire(resoudre(fil, !fil.resolu))}>
-            {fil.resolu ? t('commentaire.rouvrir') : t('commentaire.resoudre')}
-          </button>
+          {detacher && n > 0 && (
+            <button type="button" onClick={detacher}>
+              <Icone nom="detacher" taille={14} /> {t('commentaire.detacher')}
+            </button>
+          )}
+          {retirer && (
+            <button type="button" onClick={retirer}>
+              <Icone nom="corbeille" taille={14} /> {t('commentaire.retirer')}
+            </button>
+          )}
           <button type="button" onClick={fermer}>
             {t('commun.fermer')}
           </button>
@@ -231,7 +290,7 @@ export function FilOuvert({
   if (!plan || !place) return null
   return createPortal(
     <aside className="notak-note-marge" data-fige aria-label={t('commentaire.dutexte')} style={{ left: place.x, top: place.y }} onPointerDown={garder} onPointerUp={garder} onDoubleClick={garder} onClick={garder}>
-      <Fiche ref={() => {}} haut={0} {...(fil ? { fil } : {})} actif ouvrir={() => {}} fermer={fermer} ecrire={ecrire} contexte={contexte} />
+      <Fiche ref={() => {}} haut={0} {...(fil ? { fil } : {})} actif ouvrir={() => {}} fermer={fermer} ecrire={ecrire} retirer={null} detacher={null} contexte={contexte} />
     </aside>,
     plan,
   )

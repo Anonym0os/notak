@@ -205,6 +205,28 @@ export function EspaceNotak({
         const m = espace.magasin(id)
         m.remplacer({ ...m.lire(), couleur })
       },
+      etiquettesDesAutres: () => {
+        // Le chemin d'abord, du plus proche au plus loin, puis les autres tableaux que l'hôte connaît.
+        const ids = [...espace.chemin(courant)].reverse().concat((hote.listerTableaux?.() ?? []).map((x) => x.id))
+        const vus = new Set<Id>([courant])
+        return ids.flatMap((id) => {
+          if (vus.has(id)) return []
+          vus.add(id)
+          const t = espace.tableau(id)
+          return t?.etiquettes?.length ? [{ id, titre: t.titre, etiquettes: t.etiquettes }] : []
+        })
+      },
+      propagerEtiquette: (et) => {
+        const ids = [...espace.chemin(courant), ...(hote.listerTableaux?.() ?? []).map((x) => x.id)]
+        for (const id of new Set(ids)) {
+          if (id === courant || espace.lectureSeule?.(id)) continue
+          const liste = espace.tableau(id)?.etiquettes
+          const ici = liste?.find((x) => x.id === et.id)
+          if (!liste || !ici || (ici.nom === et.nom && ici.couleur === et.couleur)) continue
+          // Hors historique : ce n'est pas un geste de ce tableau-là.
+          espace.magasin(id).appliquerSeulement([{ type: 'etiquettes', de: liste, vers: liste.map((x) => (x.id === et.id ? { ...x, nom: et.nom, couleur: et.couleur } : x)) }])
+        }
+      },
       presence: espace.presence?.(courant),
       lectureSeule: lectureSeule || hote.lectureSeule || presentation,
       presentation,

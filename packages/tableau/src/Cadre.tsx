@@ -45,7 +45,7 @@ export const Cadre = memo(function Cadre({ element, choisie, seule, enEdition, c
   const teinte = teinteDeCarte(def.teinte, element.contenu)
   // En édition, la note s'étend le temps d'écrire ; le plafond revient à la sortie.
   const h = def.hauteurBornable && !icone ? element.hauteur : undefined
-  const plafond = h && 'max' in h && !enEdition ? h.max * PX_PAR_UG : undefined
+  const plafond = h && 'max' in h && (!enEdition || def.plafondEnEdition) ? h.max * PX_PAR_UG : undefined
   const plancher = h && 'min' in h ? h.min * PX_PAR_UG : undefined
   // Rangé dans une colonne, il n'a pas la poignée du coin : celle du bas règle sa hauteur.
   const rangeReglable =

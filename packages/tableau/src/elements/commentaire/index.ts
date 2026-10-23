@@ -15,6 +15,11 @@ registre.type<Commentaire>({
   Rendu: RenduCommentaire,
   OutilsApres: OutilsCommentaire,
   editable: true,
+  // Réduit en épingle, le fil n'est plus qu'une épingle sur la toile : ni fond ni ombre.
+  sansFond: (c) => !!c.replie && c.messages.length > 0,
+  // La poignée règle aussi la hauteur : au-delà, les messages défilent dans le fil.
+  hauteurBornable: true,
+  plafondEnEdition: true,
   hauteurParDefaut: 7,
   largeurMin: 34,
   // ⌘Entrée : un fil neuf juste dessous, à la même largeur.

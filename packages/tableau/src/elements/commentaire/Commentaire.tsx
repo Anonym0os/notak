@@ -1,13 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
-import { type Auteur, type Commentaire, type Message, nouvelId } from '../../coeur/tableau'
+import { type Auteur, type Commentaire, type NoeudTexte, nouvelId } from '../../coeur/tableau'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
-import { AUTEUR_INCONNU, ajouterMessage, filVide, dateLisible, initiales, modifierMessage, morceauxDeTexte, plier, prenom, replier, resoudre, retirerMessage } from './fil'
-import { langue, t, tn } from '../../langue'
-import { Icone } from '../../icones'
+import { AUTEUR_INCONNU, ajouterMessage, filVide, plier, replier } from './fil'
+import { t } from '../../langue'
 import { BoutonOutil, OutilAvecMenu } from '../../BoutonOutil'
 import { useMenu } from '../../menuUnique'
 import { COULEURS_NOTE, type CouleurNote } from '../../coeur/tableau'
 import { LIBELLES_COULEUR } from '../note/couleurs'
+import { ouvrirFil, useFilOuvert } from '../decor/etat'
+import { CorpsFil } from './Corps'
+import type { PoigneeCompositeur } from './Compositeur'
+import { EpingleLibre } from './Epingle'
+
+export { Avatar, Ligne } from './Corps'
 
 /** La bande de 5 px en haut de la fiche, de la couleur du fil (passée par une variable CSS). */
 const bande = (c: Commentaire) => (c.couleur ? { 'data-bande': '', style: { '--bande': `var(--notak-note-${c.couleur})` } as React.CSSProperties } : {})
@@ -19,150 +24,38 @@ const moi = (contexte: ContexteToile): Auteur => contexte.services.presence?.moi
 
 export function RenduCommentaire({ element, choisie, enEdition, contexte, brouillon, changer }: PropsRendu<Commentaire>) {
   const c = element.contenu
-  if (enEdition) return <Fil id={element.id} contenu={c} contexte={contexte} ecrire={brouillon} />
   const n = c.messages.length
-  if (c.resolu) {
-    return (
-      <div className="notak-commentaire" data-resolu>
-        <span className="notak-commentaire-resolu"><Icone nom="coche" taille={13} /> {t('commentaire.resolu')} · {tn('commentaire.messages', n)}</span>
-        {c.messages[0] && <p className="notak-commentaire-extrait">{c.messages[0].texte}</p>}
-      </div>
-    )
-  }
-  if (c.replie && n > 0) {
-    const premier = c.messages[0]!.auteur
-    return (
-      <div className="notak-commentaire" data-replie>
-        <span className="notak-commentaire-pastille" style={premier.couleur ? { background: premier.couleur } : undefined} aria-hidden>
-          {initiales(premier.nom)}
-        </span>
-        <span className="notak-commentaire-ligne">{premier.nom} · {tn('commentaire.messages', n)}</span>
-      </div>
-    )
-  }
+  if (c.replie && n > 0) return <EpingleLibre element={element} enEdition={enEdition} contexte={contexte} changer={changer} />
+  if (enEdition) return <Fil id={element.id} contenu={c} contexte={contexte} ecrire={brouillon} />
+  return <FilLu element={element} choisie={choisie} contexte={contexte} changer={changer} />
+}
+
+/** Le fil hors édition : les messages (les longs fils se replient sur le premier et le dernier), le lien « Répondre ». */
+function FilLu({ element, choisie, contexte, changer }: { element: PropsRendu<Commentaire>['element']; choisie: boolean; contexte: ContexteToile; changer(c: Commentaire): void }) {
+  const c = element.contenu
+  const n = c.messages.length
   const { montres, caches } = choisie ? { montres: c.messages, caches: 0 } : replier(c.messages)
   const ecrire = !contexte.services.lectureSeule
   return (
     <div className="notak-commentaire" {...bande(c)}>
-      {n > 0 && ecrire && (
-        <button type="button" className="notak-commentaire-resoudre" title={t('commentaire.resoudreFil')} onPointerDown={garder} onClick={() => changer(resoudre(c, true))}>
-          <Icone nom="coche" taille={16} />
-        </button>
-      )}
-      {n === 0 && <p className="notak-commentaire-vide">{t('commentaire.vide')}</p>}
-      {montres.map((m, i) => (
-        <div key={m.id}>
-          <Ligne message={m} {...(ecrire && m.auteur.id === moi(contexte).id ? { modifier: (texte: string) => changer(modifierMessage(c, m.id, texte)) } : {})} />
-          {i === 0 && caches > 0 && <p className="notak-commentaire-caches">{tn('commentaire.autresReponses', caches)}</p>}
-        </div>
-      ))}
-      {ecrire && (choisie || n > 0) && (
-        <button type="button" className="notak-commentaire-repondre" onPointerDown={garder} onClick={() => contexte.commencerEdition(element.id)}>
-          {n > 0 ? t('commentaire.repondre') : t('commentaire.ecrire')}
-        </button>
-      )}
-    </div>
-  )
-}
-
-/** Un battement par minute : les dates relatives (« il y a 5 min ») se rafraîchissent d'elles-mêmes. */
-function useMinute(): number {
-  const [maintenant, setMaintenant] = useState(() => Date.now())
-  useEffect(() => {
-    const id = setInterval(() => setMaintenant(Date.now()), 60_000)
-    return () => clearInterval(id)
-  }, [])
-  return maintenant
-}
-
-/** Le texte d'un message : les adresses web y sont des liens. */
-function TexteMessage({ texte }: { texte: string }) {
-  return (
-    <>
-      {morceauxDeTexte(texte).map((m, i) =>
-        m.lien ? (
-          <a key={i} className="notak-commentaire-lien" href={m.lien} target="_blank" rel="noopener noreferrer" onPointerDown={garder}>
-            {m.texte}
-          </a>
-        ) : (
-          m.texte
-        ),
-      )}
-    </>
-  )
-}
-
-/**
- * Un message : l'avatar, le prénom, la date, et le texte. `modifier` (mes messages seulement) montre « Modifier » au
- * survol, qui ouvre le texte dans un champ, « Enregistrer » le remplace.
- */
-export function Ligne({ message, retirer, modifier }: { message: Message; retirer?: () => void; modifier?: (texte: string) => void }) {
-  const { auteur } = message
-  const maintenant = useMinute()
-  const [edition, setEdition] = useState(false)
-  const [brouillon, setBrouillon] = useState(message.texte)
-  const enregistrer = () => {
-    if (brouillon.trim() && brouillon.trim() !== message.texte) modifier?.(brouillon)
-    setEdition(false)
-  }
-  return (
-    <div className="notak-commentaire-message" data-edition={edition || undefined}>
-      <span className="notak-commentaire-pastille" style={auteur.couleur ? { background: auteur.couleur } : undefined} aria-hidden>
-        {initiales(auteur.nom)}
-      </span>
-      <div className="notak-commentaire-corps">
-        <div className="notak-commentaire-entete">
-          <strong title={auteur.nom}>{prenom(auteur.nom)}</strong>
-          <time dateTime={new Date(message.date).toISOString()} title={new Date(message.date).toLocaleString(langue() === 'en' ? 'en-US' : 'fr-FR')}>
-            {dateLisible(message.date, maintenant)}
-          </time>
-          {modifier && (
-            <button
-              type="button"
-              className="notak-commentaire-modifier"
-              onPointerDown={garder}
-              onClick={() => {
-                if (edition) enregistrer()
-                else {
-                  setBrouillon(message.texte)
-                  setEdition(true)
-                }
-              }}
-            >
-              {edition ? t('commentaire.enregistrer') : t('commentaire.modifier')}
+      <CorpsFil
+        fil={c}
+        messages={montres}
+        caches={caches}
+        contexte={contexte}
+        cle={element.id}
+        cles={[element.id]}
+        vu={choisie}
+        maj={changer}
+        vide={n === 0 ? t('commentaire.vide') : undefined}
+        pied={
+          ecrire && (choisie || n > 0) ? (
+            <button type="button" className="notak-commentaire-repondre" onPointerDown={garder} onClick={() => contexte.commencerEdition(element.id)}>
+              {n > 0 ? t('commentaire.repondre') : t('commentaire.ecrire')}
             </button>
-          )}
-          {retirer && (
-            <button type="button" className="notak-commentaire-retirer" title={t('commentaire.supprimerMessage')} onPointerDown={garder} onClick={retirer}>
-              <Icone nom="fermer" />
-            </button>
-          )}
-        </div>
-        {edition ? (
-          <textarea
-            className="notak-commentaire-champ"
-            autoFocus
-            rows={1}
-            value={brouillon}
-            maxLength={5000}
-            placeholder={t('commentaire.modifierPoints')}
-            onPointerDown={garder}
-            onChange={(e) => setBrouillon(e.target.value)}
-            onKeyDown={(e) => {
-              e.stopPropagation()
-              if (e.key === 'Escape') setEdition(false)
-              else if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault()
-                enregistrer()
-              }
-            }}
-          />
-        ) : (
-          <p className="notak-commentaire-texte">
-            <TexteMessage texte={message.texte} />
-          </p>
-        )}
-      </div>
+          ) : undefined
+        }
+      />
     </div>
   )
 }
@@ -172,14 +65,18 @@ export function Ligne({ message, retirer, modifier }: { message: Message; retire
  * partie du brouillon : sortir de l'édition sans envoyer garde le message, et les autres le voient venir.
  */
 function Fil({ id, contenu, contexte, ecrire }: { id: string; contenu: Commentaire; contexte: ContexteToile; ecrire(c: Commentaire): void }) {
-  const [envoye, setEnvoye] = useState(contenu)
-  const [texte, setTexte] = useState('')
+  // Le fil tel qu'il est posté (sans le brouillon) : une référence, car le champ se vide pendant qu'on envoie.
+  const base = useRef(contenu)
+  const [, redessiner] = useState(0)
+  const poser = (c: Commentaire) => {
+    base.current = c
+    redessiner((n) => n + 1)
+  }
+  const [vide, setVide] = useState(true)
+  const courant = useRef<{ texte: string; riche?: NoeudTexte }>({ texte: '' })
   const enCours = useRef<{ id: string; date: number } | null>(null)
-  const champ = useRef<HTMLTextAreaElement>(null)
+  const champ = useRef<PoigneeCompositeur>(null)
   const auteur = moi(contexte)
-  useEffect(() => {
-    champ.current?.focus()
-  }, [])
   // Sortir de l'édition d'un fil resté vide le jette. On regarde le tableau une fois la sortie inscrite, et on
   // attend un tour : en développement, React démonte puis remonte le composant sur-le-champ, ce n'est pas une sortie.
   const monte = useRef(false)
@@ -195,77 +92,50 @@ function Fil({ id, contenu, contexte, ecrire }: { id: string; contenu: Commentai
     }
   }, [id, contexte])
 
-  const brouillonDe = (base: Commentaire, t: string) => {
-    if (!t.trim()) return base
+  const brouillonDe = (fil: Commentaire, texte: string, riche?: NoeudTexte) => {
+    if (!texte.trim()) return fil
     enCours.current ??= { id: nouvelId(), date: Date.now() }
-    return ajouterMessage(base, { ...enCours.current, auteur, texte: t })
+    return ajouterMessage(fil, { ...enCours.current, auteur, texte, ...(riche ? { riche } : {}) })
   }
-  const envoyer = () => {
-    if (!texte.trim()) return
-    const suite = brouillonDe(envoye, texte)
+  const envoyer = (texte: string, riche: NoeudTexte | undefined) => {
+    const suite = brouillonDe(base.current, texte, riche)
     enCours.current = null
-    setEnvoye(suite)
-    setTexte('')
+    courant.current = { texte: '' }
+    setVide(true)
+    poser(suite)
     ecrire(suite)
+    champ.current?.vider()
   }
-  const retirer = (id: string) => {
-    const suite = retirerMessage(envoye, id)
-    setEnvoye(suite)
-    ecrire(brouillonDe(suite, texte))
+  const maj = (apres: Commentaire) => {
+    poser(apres)
+    ecrire(brouillonDe(apres, courant.current.texte, courant.current.riche))
   }
-  const modifier = (id: string, nouveau: string) => {
-    const suite = modifierMessage(envoye, id, nouveau)
-    setEnvoye(suite)
-    ecrire(brouillonDe(suite, texte))
-  }
-  const auto = (n: HTMLTextAreaElement | null) => {
-    if (!n) return
-    n.style.height = 'auto'
-    n.style.height = `${n.scrollHeight}px`
-  }
-  useEffect(() => auto(champ.current), [texte])
-
   return (
     <div className="notak-commentaire" data-edition {...bande(contenu)}>
-      {envoye.messages.map((m) => (
-        <Ligne
-          key={m.id}
-          message={m}
-          {...(m.auteur.id === auteur.id ? { retirer: () => retirer(m.id), modifier: (texte: string) => modifier(m.id, texte) } : {})}
-        />
-      ))}
-      <div className="notak-commentaire-saisie">
-        <span className="notak-commentaire-pastille" style={auteur.couleur ? { background: auteur.couleur } : undefined} aria-hidden>
-          {initiales(auteur.nom)}
-        </span>
-        <div className="notak-commentaire-zone">
-          <textarea
-            ref={champ}
-            rows={1}
-            value={texte}
-            maxLength={5000}
-            placeholder={envoye.messages.length > 0 ? t('commentaire.repondrePoints') : t('commentaire.ecrire')}
-            onPointerDown={garder}
-            onChange={(e) => {
-              setTexte(e.target.value)
-              ecrire(brouillonDe(envoye, e.target.value))
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault()
-                envoyer()
-              } else if (e.key === 'Backspace' && texte === '' && envoye.messages.length === 0) {
-                // Retour arrière dans le champ d'un fil neuf resté vide : le fil est jeté.
-                e.preventDefault()
-                contexte.jeter([id])
-              }
-            }}
-          />
-          <button type="button" className="notak-commentaire-publier" disabled={!texte.trim()} onPointerDown={garder} onClick={envoyer}>
-            {t('commentaire.publier')}
-          </button>
-        </div>
-      </div>
+      <CorpsFil
+        fil={base.current}
+        contexte={contexte}
+        cle={id}
+        cles={[id]}
+        vu
+        maj={maj}
+        saisie={{
+          vide,
+          poignee: champ,
+          surChangement: (texte, riche) => {
+            courant.current = { texte, ...(riche ? { riche } : {}) }
+            setVide(!texte.trim())
+            ecrire(brouillonDe(base.current, texte, riche))
+          },
+          envoyer,
+          publier: () => envoyer(courant.current.texte, courant.current.riche),
+          // Retour arrière dans le champ d'un fil neuf resté vide : le fil est jeté.
+          retourVide: () => {
+            if (base.current.messages.length > 0) return
+            contexte.jeter([id])
+          },
+        }}
+      />
       <p className="notak-commentaire-aide">{t('commentaire.aide')}</p>
     </div>
   )
@@ -298,28 +168,35 @@ function OutilCouleurFil({ elements, contexte }: PropsOutils<Commentaire>) {
   )
 }
 
+/**
+ * Les outils d'un fil choisi, comme chez Milanote : la couleur, puis l'épingle (le fil se réduit à une épingle de la
+ * couleur du fil, qui s'ouvre d'un clic ; on le redéploie du même geste).
+ */
 export function OutilsCommentaire({ elements, contexte }: PropsOutils<Commentaire>) {
+  const ouvert = useFilOuvert()
   if (contexte.services.lectureSeule) return null
-  const tousResolus = elements.every((e) => e.contenu.resolu)
+  const touteEpingle = elements.every((e) => e.contenu.replie)
   const basculer = () =>
     contexte.magasin.faire(
-      elements.map((e) => ({ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: resoudre(e.contenu, !tousResolus) })),
+      elements.map((e) => ({ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: plier(e.contenu, !touteEpingle) })),
     )
-  const tousReplies = elements.every((e) => e.contenu.replie)
-  const plierTout = () =>
-    contexte.magasin.faire(
-      elements.map((e) => ({ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: plier(e.contenu, !tousReplies) })),
-    )
+  const epinglable = elements.every((e) => e.contenu.messages.length > 0)
   return (
     <>
       <OutilCouleurFil elements={elements} contexte={contexte} />
-      {!elements.some((e) => e.contenu.resolu) && (
-        <BoutonOutil icone={tousReplies ? 'chevronDroite' : 'chevronBas'} secondaire actif={tousReplies} titre={tousReplies ? t('commentaire.deplierFil') : t('commentaire.replierFil')} libelle={tousReplies ? t('commentaire.deplier') : t('commentaire.replier')} onClick={plierTout} />
+      {epinglable && (
+        <BoutonOutil
+          icone="epingle"
+          secondaire
+          actif={touteEpingle}
+          titre={touteEpingle ? t('commentaire.deployerFil') : t('commentaire.epinglerFil')}
+          libelle={touteEpingle ? t('commentaire.deployer') : t('commentaire.epingler')}
+          onClick={() => {
+            if (!touteEpingle && ouvert && elements.some((e) => e.id === ouvert)) ouvrirFil(null)
+            basculer()
+          }}
+        />
       )}
-      {elements.length === 1 && (
-        <BoutonOutil icone="commenterPassage" secondaire titre={t('commentaire.repondreFil')} libelle={t('commentaire.repondre')} onClick={() => contexte.commencerEdition(elements[0]!.id)} />
-      )}
-      <BoutonOutil icone={tousResolus ? 'rouvrir' : 'resoudre'} secondaire titre={tousResolus ? t('commentaire.rouvrirFil') : t('commentaire.resoudreFil')} libelle={tousResolus ? t('commentaire.rouvrir') : t('commentaire.resoudre')} onClick={basculer} />
     </>
   )
 }

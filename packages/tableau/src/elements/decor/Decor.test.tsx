@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { creerMagasin } from '../../coeur/magasin'
 import { type Element, annoter, nouvelleNote } from '../../coeur/tableau'
 import type { ContexteToile } from '../types'
@@ -9,17 +9,25 @@ import '../note'
 import '../commentaire'
 import './index'
 import { Decor, Pastille } from './Decor'
+import { BarreSelection } from '../../Barres'
+import { BarreEtiquette } from './BarreEtiquette'
 import { PanneauEtiquettes } from './Etiquettes'
 import { OutilEtiquettes, OutilReactions } from './Outils'
 import { OutilsCommentaire } from '../commentaire/Commentaire'
 import { nouveauCommentaire } from '../commentaire/fil'
 import { SelecteurEmojis } from './SelecteurEmojis'
-import { basculerFiltre, useFiltre, viderFiltre } from './etat'
+import { chargerEmojis } from './emojis'
+import { basculerFiltre, choisirPuce, useFiltre, viderFiltre } from './etat'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 let racine: Root
 let hote: HTMLElement
+// Le catalogue d'émojis arrive par un import différé : il est là avant les tests.
+beforeAll(async () => {
+  await chargerEmojis()
+})
+
 beforeEach(() => {
   hote = document.createElement('div')
   document.body.append(hote)
@@ -96,12 +104,10 @@ describe('la bande sous une carte', () => {
     act(() => bouton('1').click())
     expect(hote.querySelector('.notak-fil-attache')).not.toBeNull()
     expect(hote.textContent).toContain('Bonjour')
-    const champ = hote.querySelector('textarea')!
-    act(() => {
-      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(champ, 'Merci')
-      champ.dispatchEvent(new Event('input', { bubbles: true }))
-    })
-    act(() => bouton('Envoyer').click())
+    // Le champ est l'éditeur de la note : on y écrit par sa commande, comme le ferait la frappe.
+    const champ = hote.querySelector<HTMLElement & { editor: { commands: { insertContent(t: string): boolean } } }>('.ProseMirror')!
+    act(() => void champ.editor.commands.insertContent('Merci'))
+    act(() => bouton('Publier').click())
     expect(element().commentaire?.messages.map((m) => [m.auteur.nom, m.texte])).toEqual([
       ['Bob', 'Bonjour'],
       ['Ana Dupont', 'Merci'],
@@ -284,9 +290,13 @@ describe('l’outil Réagir', () => {
 })
 
 describe('le sélecteur d’émojis', () => {
-  const monter = (posees?: Set<string>) => {
+  // Le catalogue arrive par un import différé : on attend qu'il soit là.
+  const monter = async (posees?: Set<string>) => {
     const choisis: string[] = []
-    act(() => racine.render(<SelecteurEmojis choisir={(e) => choisis.push(e)} {...(posees ? { posees } : {})} />))
+    await act(async () => {
+      racine.render(<SelecteurEmojis choisir={(e) => choisis.push(e)} {...(posees ? { posees } : {})} />)
+      await chargerEmojis()
+    })
     return choisis
   }
   const boutons = () => [...hote.querySelectorAll<HTMLButtonElement>('.notak-emojis-grille button')]
@@ -299,9 +309,9 @@ describe('le sélecteur d’émojis', () => {
     })
   }
 
-  it('ouvre sur les vingt-quatre fréquents, puis les neuf groupes d’Unicode', () => {
+  it('ouvre sur les vingt-quatre fréquents, puis les neuf groupes d’Unicode', async () => {
     localStorage.clear()
-    monter()
+    await monter()
     expect(grille('frequents')).toEqual(['👍', '👎', '😊', '😀', '🙂', '🤔', '😍', '😞'])
     expect([...hote.querySelectorAll('[role="tab"]')].map((b) => b.getAttribute('data-categorie'))).toEqual(['frequents', '0', '1', '2', '3', '4', '5', '6', '7', '8'])
     expect(grille('3')).toContain('🍕')
@@ -309,8 +319,8 @@ describe('le sélecteur d’émojis', () => {
     expect(boutons().length).toBeGreaterThan(1800)
   })
 
-  it('cherche par nom ou mot-clé, en français ou en anglais, sans accent ni casse', () => {
-    monter()
+  it('cherche par nom ou mot-clé, en français ou en anglais, sans accent ni casse', async () => {
+    await monter()
     ecrire('FÊTE')
     expect(boutons().map((b) => b.textContent)).toContain('🥳')
     ecrire('pizza')
@@ -319,27 +329,98 @@ describe('le sélecteur d’émojis', () => {
     expect(hote.querySelector('.notak-emojis-vide')?.textContent).toContain('😔')
   })
 
-  it('compte chaque choix : le plus employé passe en tête des fréquents', () => {
+  it('compte chaque choix : le plus employé passe en tête des fréquents', async () => {
     localStorage.clear()
-    const choisis = monter()
+    const choisis = await monter()
     for (let i = 0; i < 5; i++) act(() => boutons().find((b) => b.textContent === '🍕' && b.closest('[data-section="3"]'))!.click())
     expect(choisis).toEqual(['🍕', '🍕', '🍕', '🍕', '🍕'])
     expect(grille('frequents')[0]).toBe('🍕')
   })
 
-  it('applique la teinte de peau choisie aux émojis qui en ont, et la retient', () => {
+  it('applique la teinte de peau choisie aux émojis qui en ont, et la retient', async () => {
     localStorage.clear()
-    monter()
+    await monter()
     act(() => hote.querySelector<HTMLButtonElement>('.notak-emojis-teinte-lien')!.click())
     act(() => hote.querySelectorAll<HTMLButtonElement>('.notak-emojis-teintes button')[3]!.click())
     expect(grille('1')).toContain('👋🏽')
     expect(localStorage.getItem('notak:emojis-teinte')).toBe('3')
   })
 
-  it('surligne les émojis que j’ai déjà posés', () => {
-    monter(new Set(['🍕']))
+  it('surligne les émojis que j’ai déjà posés', async () => {
+    await monter(new Set(['🍕']))
     const pizza = boutons().find((b) => b.textContent === '🍕')!
     expect(pizza.getAttribute('aria-pressed')).toBe('true')
+  })
+})
+
+describe('une pastille d’étiquette choisie, dans la barre de gauche', () => {
+  const monter = (plus: Partial<Element> = { etiquettes: ['e1'] }) => {
+    const m = monde(plus)
+    const propagees: string[] = []
+    ;(m.contexte.services as { propagerEtiquette?: (e: { nom: string }) => void }).propagerEtiquette = (e) => void propagees.push(e.nom)
+    const rendre = () =>
+      act(() => racine.render(<BarreEtiquette element={m.element()} puce={{ element: m.element().id, etiquette: 'e1' }} contexte={m.contexte} aGauche position={{ x: 0, y: 0 }} />))
+    rendre()
+    return { ...m, propagees }
+  }
+  it('propose Couleur, Renommer et Retirer', () => {
+    monter()
+    expect([...hote.querySelectorAll('button.notak-outil-selection')].map((b) => b.getAttribute('aria-label'))).toEqual(['Couleur', 'Renommer', 'Retirer'])
+  })
+  it('Couleur recolore l’étiquette pour tout le tableau, et le dit aux autres tableaux', () => {
+    const { magasin, propagees } = monter()
+    act(() => bouton('Couleur').click())
+    act(() => bouton('Vert').click())
+    expect(magasin.lire().etiquettes![0]!.couleur).toBe('vert')
+    expect(propagees).toEqual(['Urgent'])
+  })
+  it('Retirer ôte l’étiquette de cette carte seulement', () => {
+    const { magasin, element } = monter()
+    act(() => bouton('Retirer').click())
+    expect(element().etiquettes).toBeUndefined()
+    expect(magasin.lire().etiquettes).toHaveLength(1)
+  })
+  it('Renommer fait passer la pastille en édition', () => {
+    const { contexte, element } = monde({ etiquettes: ['e1'] })
+    const puce = { element: element().id, etiquette: 'e1' }
+    act(() =>
+      racine.render(
+        <>
+          <Decor element={element()} contexte={contexte} mode="toile" />
+          <BarreEtiquette element={element()} puce={puce} contexte={contexte} aGauche position={{ x: 0, y: 0 }} />
+        </>,
+      ),
+    )
+    act(() => hote.querySelector<HTMLElement>('.notak-etiquette')!.click())
+    expect(hote.querySelector('.notak-etiquette input')).toBeNull()
+    act(() => bouton('Renommer').click())
+    expect(hote.querySelector('.notak-etiquette input')).not.toBeNull()
+    act(() => choisirPuce(null))
+  })
+})
+
+describe('la barre de sélection', () => {
+  it('ne propose que Couleur, Renommer et Retirer quand une pastille d’étiquette est choisie', () => {
+    const { contexte, element } = monde({ etiquettes: ['e1'] })
+    const rendre = () => act(() => racine.render(<BarreSelection elements={[element()]} contexte={contexte} position={{ x: 0, y: 0 }} aGauche />))
+    rendre()
+    expect([...hote.querySelectorAll('button.notak-outil-selection')].map((b) => b.getAttribute('aria-label'))).toContain('Étiquettes')
+    act(() => choisirPuce({ element: element().id, etiquette: 'e1' }))
+    expect([...hote.querySelectorAll('button.notak-outil-selection')].map((b) => b.getAttribute('aria-label'))).toEqual(['Couleur', 'Renommer', 'Retirer'])
+    act(() => choisirPuce(null))
+    expect([...hote.querySelectorAll('button.notak-outil-selection')].map((b) => b.getAttribute('aria-label'))).toContain('Étiquettes')
+  })
+})
+
+describe('les étiquettes des autres tableaux, dans le panneau', () => {
+  it('se reprennent d’un clic : même identifiant, et posées sur la sélection', () => {
+    const { contexte, magasin, element } = monde()
+    ;(contexte.services as { etiquettesDesAutres?: () => unknown }).etiquettesDesAutres = () => [{ id: 't2', titre: 'Projet', etiquettes: [{ id: 'z', nom: 'À relire', couleur: 'vert' }] }]
+    act(() => racine.render(<PanneauEtiquettes elements={[element()]} contexte={contexte} />))
+    expect(hote.textContent).toContain('Projet')
+    act(() => bouton('Reprendre « À relire »').click())
+    expect(magasin.lire().etiquettes!.map((e) => e.id)).toEqual(['e1', 'z'])
+    expect(element().etiquettes).toEqual(['z'])
   })
 })
 

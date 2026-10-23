@@ -1,9 +1,10 @@
 .notak-commentaire {
   position: relative;
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 0;
-  padding-bottom: 8px;
+  min-height: 0;
   font-size: 12px;
   line-height: 20px;
   color: #323b4a;
@@ -12,6 +13,8 @@
 /* La fiche d'un fil : bleu très pâle, ombre fine ; rangée dans une colonne, un filet bleu clair à la place de l'ombre. */
 .notak-carte[data-type='commentaire'] {
   --notak-ombre: 0 1px 2px #1b25361a;
+  display: flex;
+  flex-direction: column;
   min-height: 60px;
   padding: 4px 0;
   background: #f4f7fe;
@@ -29,9 +32,15 @@
   color: var(--notak-texte);
 }
 
+/* Le fil borné en hauteur défile dans sa fiche : pas de voile qui cache le bas. */
+.notak-carte[data-type='commentaire'] > .notak-voile {
+  display: none;
+}
+
 .notak-commentaire[data-bande]::before {
   content: '';
   position: absolute;
+  z-index: 1;
   top: -4px;
   right: 0;
   left: 0;
@@ -39,22 +48,27 @@
   background: var(--bande);
 }
 
-.notak-commentaire[data-resolu] {
-  gap: 4px;
-  opacity: 0.7;
+/*
+ * Les messages défilent là-dedans quand le fil est borné (poignée du coin) ; barre de 12 px sans piste. Les bords se
+ * fondent sur 20 px dès qu'il y a de quoi défiler.
+ */
+.notak-commentaire-defile {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #8d929a66 transparent;
 }
 
-.notak-commentaire-resolu {
-  font-size: 12px;
-  font-weight: 600;
-  color: #2f9a5a;
+.notak-commentaire-defile[data-defile] {
+  mask-image: linear-gradient(to bottom, transparent, #000 20px, #000 calc(100% - 20px), transparent);
 }
 
-.notak-commentaire-extrait {
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.notak-commentaire-rang {
+  display: block;
 }
 
 .notak-commentaire-message,
@@ -66,12 +80,12 @@
   padding: 8px 14px 0 24px;
 }
 
-.notak-commentaire > :first-child.notak-commentaire-message,
-.notak-commentaire > :first-child.notak-commentaire-saisie {
+.notak-commentaire-defile > :first-child.notak-commentaire-rang > .notak-commentaire-message,
+.notak-commentaire-defile > :first-child.notak-commentaire-saisie {
   padding-top: 17px;
 }
 
-/* L'avatar : un rond de 24 px, les initiales en 40 % de sa taille. */
+/* L'avatar : un rond de 24 px, les initiales en 40 % de sa taille ; qui écrit a un anneau de sa couleur. */
 .notak-commentaire-pastille {
   flex: none;
   display: grid;
@@ -86,6 +100,10 @@
   line-height: 1;
 }
 
+.notak-commentaire-pastille[data-ecrit] {
+  box-shadow: 0 0 0 2px #f4f7fe, 0 0 0 4px var(--anneau, #2f63f7);
+}
+
 .notak-commentaire-corps {
   flex: 1;
   min-width: 0;
@@ -93,7 +111,7 @@
 
 .notak-commentaire-entete {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 6px;
 }
 
@@ -106,6 +124,15 @@
 .notak-commentaire-entete time {
   color: #8d929a;
   font-size: 12px;
+}
+
+/* Du nouveau que je n'ai pas lu : un point orange à côté du nom. */
+.notak-commentaire-nonlu {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f4511c;
 }
 
 .notak-commentaire-caches,
@@ -123,17 +150,75 @@
 
 .notak-commentaire-texte {
   margin: 0 0 0 6px;
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
-.notak-commentaire-lien {
+.notak-commentaire-texte p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.notak-commentaire-riche p {
+  margin: 0;
+}
+
+.notak-commentaire-lien,
+.notak-commentaire-riche a {
   color: #f4511c;
   text-decoration: none;
 }
 
-.notak-commentaire-lien:hover {
+.notak-commentaire-lien:hover,
+.notak-commentaire-riche a:hover {
   text-decoration: underline;
+}
+
+/* Une personne citée dans un fil : sans fond ni marge. */
+.notak-commentaire .notak-mention {
+  padding: 0;
+  background: none;
+}
+
+/* Les réactions d'un message : sous le texte, avec le « + » après la dernière. */
+.notak-commentaire-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 5px 0 0 6px;
+}
+
+.notak-reaction-ajout,
+.notak-commentaire-reagir {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  height: 20px;
+  padding: 3px 4px;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: #8d929a;
+  cursor: pointer;
+}
+
+.notak-reaction-ajout:hover,
+.notak-reaction-ajout[aria-expanded='true'],
+.notak-commentaire-reagir:hover,
+.notak-commentaire-reagir[aria-expanded='true'] {
+  background: #e8e9eb;
+  color: #323b4a;
+}
+
+/* Avant la première réaction, le « + » est dans l'en-tête, au survol, sur les messages des autres. */
+.notak-commentaire-reagir {
+  opacity: 0;
+}
+
+.notak-commentaire-message:hover .notak-commentaire-reagir,
+.notak-commentaire-reagir[aria-expanded='true'],
+.notak-commentaire-reagir:focus-visible {
+  opacity: 1;
 }
 
 /* « Modifier » : à droite de l'en-tête, au survol, sur mes messages. */
@@ -158,27 +243,6 @@
   cursor: pointer;
 }
 
-.notak-commentaire-resoudre {
-  position: absolute;
-  top: -16px;
-  right: -12px;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  opacity: 0;
-  transition: opacity 120ms ease, background 120ms ease;
-}
-
-.notak-carte:hover .notak-commentaire-resoudre,
-.notak-carte[data-choisie] .notak-commentaire-resoudre {
-  opacity: 1;
-}
-
-.notak-commentaire-resoudre:hover {
-  background: var(--notak-fond);
-  color: #2f9a5a;
-}
-
 .notak-commentaire-retirer {
   color: #8d929a;
 }
@@ -197,50 +261,126 @@
   text-decoration: underline;
 }
 
-.notak-commentaire-zone {
-  position: relative;
-  flex: 1;
-  min-width: 0;
+/* Qui écrit : l'avatar à anneau, « Prénom est en train d'écrire », trois points qui montent et descendent. */
+.notak-commentaire-frappe {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin: 8px 14px 0 24px;
+  color: #8d929a;
 }
 
-.notak-commentaire-saisie textarea,
-.notak-commentaire-champ {
+.notak-commentaire-frappe > span:nth-child(2) {
+  margin-left: -6px;
+}
+
+.notak-commentaire-points {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: -12px;
+}
+
+.notak-commentaire-points i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #8d929a;
+  animation: notak-frappe 1s ease-in-out infinite;
+}
+
+.notak-commentaire-points i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.notak-commentaire-points i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes notak-frappe {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notak-commentaire-points i {
+    animation: none;
+  }
+}
+
+/* Le champ d'un message : l'éditeur de la note, blanc, avec « Publier » dans le coin bas droit. */
+.notak-compositeur {
+  position: relative;
+  flex: 1;
   box-sizing: border-box;
-  width: 100%;
+  min-width: 0;
   min-height: 28px;
-  padding: 4px 8px;
+  padding: 4px 8px 28px;
   border: 1px solid #00000026;
   border-radius: 4px;
   background: #fff;
-  font: inherit;
-  color: inherit;
-  resize: none;
-  outline: none;
-  /* Le champ grandit avec ce qu'on écrit, sans barre de défilement sur une ligne. */
-  overflow-y: hidden;
-  field-sizing: content;
-  max-height: 160px;
+  color: #323b4a;
 }
 
-.notak-commentaire-saisie textarea {
-  padding-bottom: 28px;
-}
-
-.notak-commentaire-saisie textarea:focus,
-.notak-commentaire-champ:focus {
+.notak-compositeur:focus-within {
   border-color: #2f63f7;
 }
 
-.notak-commentaire-champ {
-  margin-left: 6px;
-  width: calc(100% - 6px);
+.notak-compositeur .ProseMirror {
+  max-height: 160px;
+  overflow-y: auto;
+  outline: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
-/* « Publier » : dans le coin bas droit du champ, bleu, grisé tant qu'il est vide. */
-.notak-commentaire-publier {
+.notak-compositeur .ProseMirror p {
+  margin: 0;
+}
+
+.notak-compositeur-attente {
+  position: absolute;
+  pointer-events: none;
+  color: #00000066;
+}
+
+.notak-compositeur-pied {
   position: absolute;
   right: 8px;
-  bottom: 7px;
+  bottom: 4px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.notak-compositeur-emoji {
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  color: #8d929a !important;
+}
+
+.notak-compositeur-emoji:hover,
+.notak-compositeur-emoji[aria-expanded='true'] {
+  color: #323b4a !important;
+}
+
+/* Un message qu'on corrige : le champ prend la place du texte. */
+.notak-commentaire-champ {
+  flex: none;
+  margin-left: 6px;
+}
+
+/* « Publier » : bleu, grisé tant que le champ est vide. */
+.notak-commentaire-publier {
   padding: 0;
   color: #2f63f7 !important;
   font-size: 12px !important;
@@ -252,19 +392,52 @@
   cursor: default !important;
 }
 
-/* Un fil replié à la main : une ligne, la pastille du premier auteur et le nombre de messages. */
-.notak-commentaire[data-replie] {
-  flex-direction: row;
-  align-items: center;
-  gap: 10px;
-  min-height: 0;
+/* Le sélecteur d'émojis du fil : une fenêtre claire posée au-dessus de son bouton. */
+.notak-fenetre-emojis {
+  position: fixed;
+  z-index: 1000;
+  box-sizing: border-box;
+  border-radius: 8px;
+  background: #fff;
+  color: #323b4a;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.18), 0 0 0 1px rgb(0 0 0 / 0.06);
 }
 
-.notak-commentaire-ligne {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  font-weight: 600;
+/*
+ * Un fil réduit en épingle : l'élément n'est plus que l'épingle de 24 × 29 px, sans fond ni ombre ; la carte se
+ * resserre sur elle. La pointe est au bas de l'épingle, au milieu.
+ */
+.notak-carte[data-type='commentaire'][data-sans-fond] {
+  width: 24px !important;
+  min-height: 29px;
+  padding: 0;
+  background: none;
+}
+
+.notak-commentaire-epingle {
+  display: block;
+  height: 29px;
+}
+
+.notak-epingle-libre {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 24px;
+  height: 29px;
+  padding: 0;
+  cursor: pointer;
+  transform: scale(var(--notak-zoom-inverse, 1));
+  transform-origin: 50% 100%;
+}
+
+.notak-epingle-bulle {
+  position: absolute;
+  top: 29px;
+  left: 12px;
+  z-index: 5;
+}
+
+.notak-epingle-bulle > .notak-fil-attache {
+  top: -29px;
 }

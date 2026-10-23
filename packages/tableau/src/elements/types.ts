@@ -10,7 +10,7 @@ import type { ComponentType, ReactNode } from 'react'
 import type { Camera } from '../coeur/camera'
 import type { Point, Rect } from '../coeur/geometrie'
 import type { Magasin } from '../coeur/magasin'
-import type { Apercu, Contenu, CouleurNote, Element, Id, Operation, Tableau, TypeContenu } from '../coeur/tableau'
+import type { Apercu, Contenu, CouleurNote, Element, Etiquette, Id, Operation, Tableau, TypeContenu } from '../coeur/tableau'
 
 /** Où l'application range les fichiers (images…). La toile ne sait pas où ils vivent. */
 export interface DepotFichiers {
@@ -133,6 +133,14 @@ export interface Services {
   recemmentModifies?(): ReadonlyMap<Id, ModifiePar>
   /** Prévenu quand `recemmentModifies` change (un élément s'y ajoute, ou en sort). Rend de quoi arrêter. */
   ecouterRecemmentModifies?(f: () => void): () => void
+  /**
+   * Les étiquettes des autres tableaux de l'espace dont on les connaît, ceux du chemin d'abord (le plus proche en
+   * premier) : de quoi proposer, dans le panneau Étiquettes, celles qu'on a déjà posées ailleurs. Une étiquette reprise
+   * garde son identifiant : c'est la même étiquette dans tous les tableaux.
+   */
+  etiquettesDesAutres?(): { id: Id; titre: string; etiquettes: Etiquette[] }[]
+  /** Répercute le nom et la couleur d'une étiquette changée ici dans les autres tableaux qui la portent (même identifiant). */
+  propagerEtiquette?(etiquette: Etiquette): void
   /** On peut regarder et défiler, rien de plus : la toile refuse tout ce qui modifie. */
   lectureSeule?: boolean
   /** L'aperçu d'un modèle : lecture seule, mais la barre de gauche reste là, grisée et sans clic. */
@@ -297,6 +305,8 @@ export interface TypeElement<C extends Contenu = Contenu> {
   proportion?(c: C): number
   /** La poignée règle aussi la hauteur : le contenu qui dépasse se cache sous un voile, et revient en édition. */
   hauteurBornable?: boolean
+  /** Le plafond de hauteur tient aussi pendant l'édition (un fil dont les messages défilent, au lieu de grandir). */
+  plafondEnEdition?: boolean
   /** Ce que la suppression d'un élément de ce type emporte avec lui (le contenu d'une colonne). */
   aussiSupprimer?(element: Element<C>, tableau: Tableau): Element[]
   /**
