@@ -1,0 +1,30 @@
+import type { Dessin } from '../../coeur/tableau'
+import { registre } from '../registre'
+import { RenduDessin, ouvrirDessinLibre } from './Dessin'
+import './dessin.css'
+
+registre.type<Dessin>({
+  type: 'dessin',
+  nom: 'Dessin',
+  resume: (c) => `Dessin (${c.traits.length} trait${c.traits.length > 1 ? 's' : ''})`,
+  Rendu: RenduDessin,
+  sansFond: true,
+  largeurMin: 2,
+  proportion: (c) => c.largeurOrigine / c.hauteurOrigine,
+  suivant: () => null,
+  outils: [
+    {
+      libelle: 'Dessin libre',
+      icone: '〰',
+      rang: 135,
+      tiroir: true,
+      fantome: () => ({ id: 'fantome', x: 0, y: 0, largeur: 6, contenu: { type: 'dessin', traits: [], largeurOrigine: 6, hauteurOrigine: 4 } }),
+      // Glisser l'outil ou le cliquer ouvre la couche de dessin : ce qu'on y trace se pose là où on l'a tracé.
+      creer: (_ou, contexte) => {
+        ouvrirDessinLibre(contexte)
+        return []
+      },
+      clic: (_ou, contexte) => ouvrirDessinLibre(contexte),
+    },
+  ],
+})

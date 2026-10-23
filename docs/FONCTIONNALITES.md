@@ -13,7 +13,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 
 | Partie | Fait | En partie | Absent | Avancement |
 |---|---|---|---|---|
-| 1. Toile | 22 | 3 | 2 | 87 % |
+| 1. Toile | 23 | 3 | 1 | 91 % |
 | 2. Création | 14 | 2 | 1 | 88 % |
 | 3. Note et texte | 30 | 0 | 1 | 97 % |
 | 4. Colonne | 10 | 1 | 0 | 95 % |
@@ -25,12 +25,12 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 10. Autres éléments | 10 | 1 | 1 | 88 % |
 | 11. Commun aux éléments | 11 | 1 | 0 | 96 % |
 | 12. Organiser | 16 | 0 | 0 | 100 % |
-| 13. Naviguer | 11 | 0 | 2 | 85 % |
+| 13. Naviguer | 12 | 0 | 1 | 92 % |
 | 14. À plusieurs | 17 | 0 | 0 | 100 % |
 | 15. Habillage | 10 | 3 | 2 | 77 % |
 | 16. Exporter, importer | 2 | 2 | 0 | 75 % |
 | 17. Plateformes | 5 | 2 | 0 | 86 % |
-| **Total** | **223** | **17** | **9** | **93 %** |
+| **Total** | **225** | **17** | **7** | **94 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -244,7 +244,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Commentaire (fil de discussion posé sur la toile) | ✅ |  |
 | Table (lignes, colonnes, cellules) | ✅ |  |
 | Croquis à main levée | ✅ |  |
-| Dessin libre sur la toile | ⬜ | |
+| Dessin libre sur la toile | ✅ | Outil « Dessin libre » du tiroir : on trace à même la toile, Entrée pose le dessin. |
 | Nuancier (couleur, code, pipette) | ✅ |  |
 | Document (texte long, ouvert en grand) | ✅ |  |
 | Lien vidéo | ✅ | Outil « Vidéo » du tiroir. |

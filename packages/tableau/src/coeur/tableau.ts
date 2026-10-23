@@ -309,6 +309,17 @@ export interface Croquis {
   traits: Trait[]
 }
 
+/**
+ * Un dessin tracé à main levée à même la toile : ses traits en UG, depuis son coin haut gauche, dans un cadre de
+ * `largeurOrigine` × `hauteurOrigine` UG qu'on agrandit en gardant les proportions.
+ */
+export interface Dessin {
+  type: 'dessin'
+  traits: Trait[]
+  largeurOrigine: number
+  hauteurOrigine: number
+}
+
 /** Un document : un titre et un texte long, qui s'écrit en grand (mêmes mises en forme qu'une note). */
 export interface DocumentTexte {
   type: 'document'
@@ -339,6 +350,7 @@ export type Contenu =
   | Nuancier
   | Lieu
   | Croquis
+  | Dessin
   | DocumentTexte
   | Clone
 export type TypeContenu = Contenu['type']

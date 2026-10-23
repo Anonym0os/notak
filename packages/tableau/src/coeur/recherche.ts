@@ -36,6 +36,7 @@ export function texteCherchable(e: Element, titreDe: (id: string) => string | un
     case 'document':
       return [c.titre, doc(c.texte)].join('\n')
     case 'croquis':
+    case 'dessin':
       return ''
     case 'lieu':
       return [c.nom, c.adresse].filter(Boolean).join('\n')
