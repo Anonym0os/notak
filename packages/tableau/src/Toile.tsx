@@ -54,6 +54,8 @@ import { demanderRenommage } from './elements/tableau/renommage'
 import type { ContexteToile, Presence, Services } from './elements/types'
 import { t, tn } from './langue'
 import { PastilleZoom } from './PastilleZoom'
+import { PointeursBord } from './PointeursBord'
+import type { CibleBord } from './coeur/pointeurs'
 import { lignesDeTrace } from './trace'
 import { usePublierVue } from './vueZoom'
 
@@ -2765,6 +2767,18 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const versEcran = (r: Rect) => ({ min: cam.versEcran(camera, r.min), max: cam.versEcran(camera, r.max) })
   const lassoEcran = zoneLasso && versEcran(zoneLasso)
 
+  // Qui et quoi sort de la vue : le curseur des autres, et ce qu'ils viennent de toucher.
+  const ciblesBord = useMemo<CibleBord[]>(
+    () => [
+      ...autres.flatMap((a): CibleBord[] => (a.curseur ? [{ id: `p${a.client}`, ou: a.curseur, genre: 'personne', nom: a.utilisateur.nom, couleur: a.utilisateur.couleur }] : [])),
+      ...[...nonVus].flatMap(([id, v]): CibleBord[] => {
+        const r = rect(id)
+        return r ? [{ id: `a${id}`, ou: centre(r), genre: 'activite', nom: v.nom }] : []
+      }),
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [autres, nonVus, tableau],
+  )
   const elementsChoisis = choisis()
   const cadreChoisis = !enGeste && !edition && elementsChoisis.length > 0
     ? englobant(elementsChoisis.flatMap((x) => rect(x.id) ?? []))
@@ -2955,6 +2969,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         />
       )}
       {lectureSeule && !services.presentation && <div className="notak-lecture">{t('toile.lectureSeule')}</div>}
+      <PointeursBord cibles={ciblesBord} camera={camera} vue={vue} aller={(ou) => lancerAnimation(cam.centree(ou, camera.echelle, vue))} />
       <PastilleZoom echelle={camera.echelle} remettre={remettreA100} />
     </div>
     </ContexteBarreEdition.Provider>

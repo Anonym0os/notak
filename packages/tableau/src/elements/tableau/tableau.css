@@ -438,15 +438,24 @@
   z-index: 30;
 }
 
-/* Du nouveau dans ce tableau depuis la dernière visite : un point en haut à droite de l'icône. */
-.notak-renvoi-activite {
+/* Du nouveau dans ce tableau depuis la dernière visite : « New » ou le nombre de changements, en pastille de 22 px, à 21 px au-dessus et 16 px à droite du bord. */
+.notak-renvoi-marque {
   position: absolute;
-  top: 5px;
-  right: 5px;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: var(--notak-accent, #3a76df);
-  box-shadow: 0 0 0 2px #fff;
+  top: -21px;
+  right: -16px;
+  z-index: 2;
+  box-sizing: border-box;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 11px;
+  background: #f4511c;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 22px;
+  text-align: center;
+  white-space: nowrap;
   pointer-events: none;
 }

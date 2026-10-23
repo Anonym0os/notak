@@ -2714,3 +2714,81 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   transform: scale(var(--notak-zoom-inverse, 1));
   transform-origin: top right;
 }
+
+/* Les pointeurs de bord de vue : un disque de 18 px contre le bord, une flèche tournée vers ce qu'il désigne. */
+.notak-pointeurs {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.notak-pointeur {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--notak-autre, #f4511c);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.3);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 0.15s ease-out;
+  animation: notak-pointeur-entre 0.2s cubic-bezier(0.24, 0.58, 0.57, 1.45);
+}
+
+.notak-pointeur[data-genre='activite'] {
+  background: #f4511c;
+}
+
+.notak-pointeur:hover {
+  transform: scale(1.1);
+}
+
+/* La flèche déborde du disque, dans le sens de la cible. */
+.notak-pointeur-fleche {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.notak-pointeur-fleche::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -7px;
+  margin-top: -4px;
+  border: 4px solid transparent;
+  border-left: 5px solid var(--notak-autre, #f4511c);
+  border-right-width: 0;
+}
+
+.notak-pointeur[data-genre='activite'] .notak-pointeur-fleche::after {
+  border-left-color: #f4511c;
+}
+
+.notak-pointeur-texte {
+  position: relative;
+}
+
+@keyframes notak-pointeur-entre {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notak-pointeur {
+    animation: none;
+  }
+}
