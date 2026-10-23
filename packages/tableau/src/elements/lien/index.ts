@@ -53,11 +53,18 @@ registre.type<Lien>({
   ],
 })
 
+/** Plusieurs adresses collées ou déposées se posent l'une sous l'autre, à ce pas (UG). */
+const PAS_ADRESSES = 12
+
 registre.recepteur({
   priorite: 30,
   recevoir(donnees, ou) {
-    const url = lireAdresse(donnees.getData('text/plain'))
-    if (!url) return null
-    return [{ type: 'creer', element: nouveauLien(ou, url) }]
+    // Une liste d'adresses (glissées d'un navigateur, ou une par ligne) : un lien chacune, tant qu'aucune ligne
+    // n'est autre chose qu'une adresse.
+    const brut = donnees.getData('text/uri-list') || donnees.getData('text/plain')
+    const lignes = brut.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('#'))
+    const urls = lignes.map(lireAdresse)
+    if (urls.length === 0 || urls.some((u) => !u)) return null
+    return [...new Set(urls as string[])].map((url, i) => ({ type: 'creer' as const, element: nouveauLien({ x: ou.x, y: ou.y + i * PAS_ADRESSES }, url) }))
   },
 })

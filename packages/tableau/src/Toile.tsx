@@ -676,7 +676,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   contexteRef.current = contexte
 
   const recevoirCourant = useRef<(d: DataTransfer, ou: Point) => Promise<void>>(async () => {})
-  const recevoir = async (original: DataTransfer, ou: Point) => {
+  /** `dans` : la colonne où l'on a déposé ; ce qui peut y entrer s'y range, à la suite. */
+  const recevoir = async (original: DataTransfer, ou: Point, dans?: Id) => {
     if (lectureSeule) return
     // Le navigateur vide le presse-papiers dès que l'événement est fini : on le recopie avant d'attendre
     // le premier récepteur.
@@ -691,6 +692,17 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (!r.cumulable) break
     }
     if (tous.length === 0) return
+    const colonne = dans ? magasin.lire().elements.find((x) => x.id === dans) : undefined
+    const defColonne = colonne ? definition(colonne.contenu.type) : undefined
+    if (colonne && defColonne?.accepte) {
+      const freres = magasin.lire().elements.filter((x) => x.parent === colonne.id).sort((a, b) => comparerOrdre(a.ordre, b.ordre))
+      let dernier = freres.at(-1)?.ordre
+      for (const op of tous) {
+        if (op.type !== 'creer' || !defColonne.accepte(op.element, colonne as never)) continue
+        dernier = cleEntre(dernier, undefined)
+        op.element = { ...op.element, parent: colonne.id, ordre: dernier }
+      }
+    }
     magasin.faire(tous)
     const crees = tous.flatMap((op) => (op.type === 'creer' ? [op.element] : []))
     setSelection(new Set(crees.map((e) => e.id)))
@@ -1925,7 +1937,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         if (n) oublierVol(n)
       }
       magasin.appliquerSeulement(g.sorties.toReversed().map(inverse))
-      return envoyerDans(versTableau.id, [...g.origines.keys()])
+      const cibleId = versTableau.id
+      const n = g.origines.size
+      envoyerDans(cibleId, [...g.origines.keys()])
+      const titre = services.tableau?.(cibleId)?.titre || 'Sans titre'
+      annoncer({
+        texte: `${n === 1 ? 'Déplacé' : `${n} éléments déplacés`} dans « ${titre} »`,
+        ...(services.ouvrirTableau ? { action: { libelle: 'Ouvrir', faire: () => services.ouvrirTableau!(cibleId) } } : {}),
+      })
+      return
     }
     if (g.demarre && document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-corbeille]')) {
       // Lâché sur la corbeille : on remet d'abord ce qui sortait d'une colonne, la corbeille le prend de là.
@@ -2008,7 +2028,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     e.preventDefault()
     const nonTrie = e.dataTransfer.getData(GLISSER_NON_TRIE)
     if (nonTrie) return poserNonTrie(nonTrie, cam.versTableau(camera, local(e)))
-    void recevoir(e.dataTransfer, cam.versTableau(camera, local(e)))
+    // Déposé sur une colonne : ce qui arrive s'y range.
+    const colonne = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('.notak-carte[data-type="colonne"]')
+    void recevoir(e.dataTransfer, cam.versTableau(camera, local(e)), colonne?.dataset.id)
   }
 
   // La sélection ne garde que ce qui existe encore (après une suppression, une annulation).

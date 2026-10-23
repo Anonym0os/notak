@@ -64,7 +64,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Proportions gardées pour les médias, Cmd pour les libérer, Échap pendant le geste | ✅ | |
 | Collisions : ce qui grandit pousse ses voisins du dessous | 🟡 | Pendant l'édition et à Cmd+Entrée, colonnes comprises ; pas encore quand on dépose dans une colonne, ni pour les lignes horizontales, ni au retour d'une note bornée à sa hauteur. |
 | Entrer dans un tableau en le survolant pendant un glisser (700 ms puis 300 ms de clignement, 400 ms ensuite) | ✅ | |
-| Curseurs adaptés (main, redimensionner, texte) | 🟡 | Curseur au repos des autres. |
+| Curseurs adaptés (main, redimensionner, texte) | ✅ |  |
 | Poignée de taille constante quel que soit le zoom, visible au survol | ✅ | |
 | Défilement automatique au bord pendant un glisser ou un lasso | ✅ | |
 
@@ -84,7 +84,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Coller des éléments copiés, décalés de 2 UG | ✅ | |
 | Coller du texte, une adresse, une image hors édition | ✅ | La note collée s'ouvre en édition. |
 | Déposer des images depuis le Finder | ✅ | |
-| Déposer un fichier quelconque, plusieurs adresses, dans une colonne | 🟡 | Les fichiers se posent sur la toile, pas encore dans la colonne visée ; une seule adresse est gardée. |
+| Déposer un fichier quelconque, plusieurs adresses, dans une colonne | ✅ |  |
 | Non triés : bac latéral, Cmd+\, Alt+` | ✅ | |
 | Tailles et couleurs de départ de chaque type | ✅ | |
 | Modèles de tableaux | ✅ | Dix modèles, choisis avec un aperçu. |
@@ -346,7 +346,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Aide, bulles de découverte, accueil d'un nouveau compte | ✅ |  |
 | Réglages du compte (Cmd+,), photo, couleur | ✅ |  |
 | Langues de l'interface | ⬜ | Français seulement. |
-| Avis en bas d'écran (toasts) avec annulation | 🟡 | Corbeille (« Annuler ») et envoi raté ; pas encore les autres gestes. |
+| Avis en bas d'écran (toasts) avec annulation | ✅ | Corbeille et non triés (« Annuler »), envoi raté, déplacement dans un tableau (« Ouvrir »), Cmd+S, style collé. |
 | Envoi de fichier : progression dans l'en-tête | ✅ |  |
 | Cmd+S rassure (« déjà enregistré ») | ✅ | |
 | Raccourci Échap sur les menus de la barre | ✅ |  |
