@@ -16,13 +16,13 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 1. Toile | 27 | 0 | 0 | 100 % |
 | 2. Création | 16 | 1 | 0 | 97 % |
 | 3. Note et texte | 31 | 2 | 4 | 86 % |
-| 4. Colonne | 11 | 0 | 0 | 100 % |
+| 4. Colonne | 11 | 1 | 0 | 96 % |
 | 5. Tableau imbriqué | 11 | 0 | 0 | 100 % |
 | 6. Lien | 13 | 0 | 0 | 100 % |
 | 7. Image | 12 | 0 | 0 | 100 % |
 | 8. Liste de tâches | 18 | 0 | 0 | 100 % |
 | 9. Ligne | 16 | 2 | 0 | 94 % |
-| 10. Autres éléments | 12 | 0 | 0 | 100 % |
+| 10. Autres éléments | 10 | 2 | 0 | 92 % |
 | 11. Commun aux éléments | 12 | 0 | 0 | 100 % |
 | 12. Organiser | 16 | 0 | 0 | 100 % |
 | 13. Naviguer | 13 | 0 | 0 | 100 % |
@@ -30,7 +30,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 6 | 1 | 0 | 93 % |
-| **Total** | **249** | **7** | **4** | **97 %** |
+| **Total** | **247** | **10** | **4** | **97 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
