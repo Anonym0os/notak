@@ -289,6 +289,41 @@
   text-align: left;
 }
 
+/*
+ * Le contour de sélection d'une feuille suit son papier : la carte ne dessine plus son filet rectangulaire, la feuille
+ * montre le sien (2 px, pli compris) quand elle est choisie, et un liseré de 1 px au survol.
+ */
+.notak-carte[data-type='fichier'][data-sans-fond][data-choisie],
+.notak-carte[data-type='fichier'][data-sans-fond]:not([data-choisie]):hover {
+  box-shadow: none;
+}
+
+.notak-feuille-contour {
+  display: none;
+  fill: none;
+  stroke: var(--notak-selection);
+  stroke-width: 4;
+  stroke-linejoin: round;
+}
+
+.notak-feuille-dessin {
+  overflow: visible;
+}
+
+.notak-carte[data-choisie] .notak-feuille-contour {
+  display: block;
+}
+
+.notak-carte[data-verrou][data-choisie] .notak-feuille-contour {
+  stroke: var(--notak-selection-verrou);
+}
+
+.notak-carte:not([data-choisie]):hover .notak-feuille-contour {
+  display: block;
+  stroke: rgb(0 0 0 / 0.1);
+  stroke-width: 2;
+}
+
 /* Une feuille teintée par la couleur choisie. */
 .notak-carte[data-type='fichier'][data-sans-fond][data-teinte] .notak-fichier {
   color: var(--notak-texte);

@@ -25,6 +25,8 @@ function Feuille({ genre, grande }: { genre: keyof typeof ICONE_DU_GENRE; grande
   return (
     <span className={grande ? 'notak-feuille notak-feuille-grande' : 'notak-feuille'} aria-hidden>
       <svg className="notak-feuille-dessin" width={l} height={h} viewBox={`0 0 ${l} ${h}`}>
+        {/* Le contour de sélection suit le papier, coin plié compris : un trait de 4 px sous la feuille, dont 2 dépassent. */}
+        {grande && <path className="notak-feuille-contour" d={`M0 0H${l - pli}L${l} ${pli}V${h}H0Z`} />}
         <path className="notak-feuille-papier" d={`M${grande ? 0 : 0.75} ${grande ? 0 : 0.75}H${l - pli}L${grande ? l : l - 0.75} ${pli}V${grande ? h : h - 0.75}H${grande ? 0 : 0.75}Z`} />
         <path className="notak-feuille-pli" d={`M${l - pli} ${grande ? 0 : 0.75}V${pli}H${grande ? l : l - 0.75}`} />
       </svg>

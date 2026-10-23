@@ -65,6 +65,14 @@ describe('la carte d’un fichier', () => {
     expect(hote.querySelector('iframe')).toBeNull()
   })
 
+  it('le contour de sélection suit le papier de la feuille, pas celle de la petite icône d’une carte', async () => {
+    await rendre({ icone: true }, { largeur: 10 })
+    const contour = hote.querySelector('.notak-feuille-grande .notak-feuille-contour')
+    expect(contour?.getAttribute('d')).toBe('M0 0H40L56 16V72H0Z')
+    await rendre({})
+    expect(hote.querySelector('.notak-feuille-contour')).toBeNull()
+  })
+
   it('sans les infos : rien que l’aperçu', async () => {
     await rendre({ sansInfos: true })
     expect(hote.querySelector('.notak-fichier-meta')).toBeNull()
