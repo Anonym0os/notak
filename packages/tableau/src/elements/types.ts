@@ -73,6 +73,8 @@ export interface Services {
   presence?: ServicePresence
   /** On peut regarder et défiler, rien de plus : la toile refuse tout ce qui modifie. */
   lectureSeule?: boolean
+  /** Un double-clic sur le vide crée une note (le réglage de chacun) ; absent : oui. */
+  doubleClicCreeNote?: boolean
 }
 
 /** L'état de la toile, prêté à chaque type d'élément. */

@@ -1741,6 +1741,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const ouvrir = el && definition(el.contenu.type)?.ouvrir
       return ouvrir ? ouvrir(el, contexte) : commencerEdition(id, point(e.clientX, e.clientY))
     }
+    if (services.doubleClicCreeNote === false) return
     const [x, y] = aimanter(cam.versTableau(camera, local(e)))
     const note = nouvelleNote(x, y)
     magasin.faire([{ type: 'creer', element: note }])

@@ -90,3 +90,54 @@
   background: #2f343b;
   color: var(--notak-texte);
 }
+
+/* La taille de l'interface : l'en-tête, la barre d'outils et les fenêtres grandissent ou rapetissent ensemble. */
+.notak-espace[data-taille='petite'] :is(.notak-entete, .notak-barre-outils, .notak-raccourcis) {
+  zoom: 0.88;
+}
+
+.notak-espace[data-taille='grande'] :is(.notak-entete, .notak-barre-outils, .notak-raccourcis) {
+  zoom: 1.15;
+}
+
+/* La fenêtre des réglages : une colonne de choix, chacun en boutons à bascule. */
+.notak-reglages {
+  width: min(420px, 100%);
+}
+
+.notak-reglages-corps {
+  display: grid;
+  gap: 8px;
+  padding: 4px 18px 20px;
+}
+
+.notak-reglages-corps label {
+  margin-top: 8px;
+  color: #7a7f87;
+  font-size: 12px;
+}
+
+.notak-reglages-choix {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--notak-fond);
+}
+
+.notak-reglages-choix button {
+  flex: 1;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--notak-texte);
+  font: inherit;
+  cursor: pointer;
+}
+
+.notak-reglages-choix button[aria-checked='true'] {
+  background: var(--notak-carte);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+  font-weight: 600;
+}

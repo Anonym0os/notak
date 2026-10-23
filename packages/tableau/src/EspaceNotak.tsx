@@ -20,6 +20,7 @@ import { demanderRenommage } from './elements/tableau/renommage'
 import type { Presence, Services } from './elements/types'
 import { Toile } from './Toile'
 import { annoncer } from './avis'
+import { FenetreReglages, useReglages } from './reglages'
 import './theme.css'
 
 const CLE_VUES = 'notak:vues'
@@ -97,6 +98,8 @@ export function EspaceNotak({
   const [parcours, setParcours] = useState(() => parcoursDepart(racine))
   const courant = courantDe(parcours)
   const lectureSeule = useSyncExternalStore(espace.ecouter, () => espace.lectureSeule?.(courant) ?? false)
+  const [reglages, changerReglages] = useReglages()
+  const [reglagesOuverts, setReglagesOuverts] = useState(false)
   const vues = useRef<Vues | null>(null)
   vues.current ??= lireVuesEnregistrees()
 
@@ -127,6 +130,7 @@ export function EspaceNotak({
       },
       presence: espace.presence?.(courant),
       lectureSeule: lectureSeule || hote.lectureSeule,
+      doubleClicCreeNote: reglages.doubleClic,
       deposerDans: (cible, elements) => {
         if (espace.lectureSeule?.(cible)) return
         const m = espace.magasin(cible)
@@ -135,7 +139,7 @@ export function EspaceNotak({
         return neufs
       },
     }),
-    [hote, espace, ouvrir, courant, lectureSeule],
+    [hote, espace, ouvrir, courant, lectureSeule, reglages.doubleClic],
   )
 
   // L'adresse suit le tableau ouvert ; une adresse qu'on suit (retour du navigateur) ne se réécrit pas.
@@ -210,11 +214,16 @@ export function EspaceNotak({
 
   // Les raccourcis de navigation, sur le document : la toile qui avait le focus disparaît à chaque changement.
   const basculerThemeRef = useRef(() => {})
+  const ouvrirReglagesRef = useRef(() => {})
   const etat = useRef({ courant, ouvrir, espace, parcours })
   etat.current = { courant, ouvrir, espace, parcours }
   useEffect(() => {
     const touche = (e: KeyboardEvent) => {
       // Cmd+S, même en écrivant : tout s'enregistre seul, on le dit plutôt que d'ouvrir « Enregistrer la page ».
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key === ',') {
+        e.preventDefault()
+        return ouvrirReglagesRef.current()
+      }
       if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 's') {
         e.preventDefault()
         const envoi = etat.current.espace.envoi?.(etat.current.courant)
@@ -249,24 +258,8 @@ export function EspaceNotak({
   }, [courant])
 
   const envoi = useSyncExternalStore(espace.ecouter, () => espace.envoi?.(courant))
-  const [theme, setTheme] = useState<'clair' | 'sombre'>(() => {
-    try {
-      return localStorage.getItem(CLE_THEME) === 'sombre' ? 'sombre' : 'clair'
-    } catch {
-      return 'clair'
-    }
-  })
-  const basculerTheme = useCallback(() => {
-    setTheme((t) => {
-      const suivant = t === 'sombre' ? 'clair' : 'sombre'
-      try {
-        localStorage.setItem(CLE_THEME, suivant)
-      } catch {
-        // Sans stockage (navigation privée), le thème vaut pour la page.
-      }
-      return suivant
-    })
-  }, [])
+  const basculerTheme = useCallback(() => changerReglages({ theme: reglages.theme === 'sombre' ? 'clair' : 'sombre' }), [reglages.theme, changerReglages])
+  ouvrirReglagesRef.current = () => setReglagesOuverts(true)
   basculerThemeRef.current = basculerTheme
   const historique = useMemo(
     () => ({
@@ -285,7 +278,7 @@ export function EspaceNotak({
   )
 
   return (
-    <div className="notak-espace" data-theme={theme}>
+    <div className="notak-espace" data-theme={reglages.theme} data-taille={reglages.taille}>
       <Entete
         segments={segments}
         courant={courant}
@@ -305,6 +298,7 @@ export function EspaceNotak({
           surCamera={surCamera}
         />
       </div>
+      {reglagesOuverts && <FenetreReglages reglages={reglages} changer={changerReglages} fermer={() => setReglagesOuverts(false)} />}
     </div>
   )
 }
@@ -489,9 +483,6 @@ function EtatEnregistrement({ etat }: { etat: EtatEnvoi | undefined }) {
     </span>
   )
 }
-
-/** Le thème choisi, gardé par navigateur. */
-const CLE_THEME = 'notak:theme'
 
 const sansEcoute = () => () => {}
 const aucune: Presence[] = []

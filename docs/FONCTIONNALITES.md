@@ -76,7 +76,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Glisser un outil sur la toile, fantôme et prise | ✅ | |
 | Glisser un outil dans une colonne ou sur un tableau | ✅ | |
 | Clic sur un outil : rebond et bulle d'aide | ✅ | |
-| Double-clic sur le vide | 🟡 | Notak crée toujours une note ; Milanote en fait un réglage éteint. |
+| Double-clic sur le vide | ✅ | Un réglage (Cmd+,) ; il crée une note par défaut. |
 | Cmd+Entrée : l'élément suivant (dessous, à droite, dans la colonne) | ✅ | |
 | Note vide qui invite à écrire | ✅ | |
 | Conversions en tapant : adresse → lien, `[] ` → tâches | ✅ | |
@@ -340,11 +340,11 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Annuler et rétablir dans l'en-tête | ✅ | |
 | État d'enregistrement (« enregistré », « hors ligne ») | ✅ | |
 | Thème sombre (Cmd+Maj+D) | ✅ | |
-| Tailles d'interface (petite, moyenne, grande) | ⬜ | |
+| Tailles d'interface (petite, moyenne, grande) | ✅ |  |
 | Fenêtre des raccourcis (/) | ✅ | |
 | Présentation (Cmd+Alt+P), mode focus sur un élément | ⬜ | |
 | Aide, bulles de découverte, accueil d'un nouveau compte | ⬜ | |
-| Réglages du compte (Cmd+,), photo, couleur | ⬜ | |
+| Réglages du compte (Cmd+,), photo, couleur | 🟡 | Thème, taille, double-clic ; pas encore la photo ni la couleur du compte. |
 | Langues de l'interface | ⬜ | Français seulement. |
 | Avis en bas d'écran (toasts) avec annulation | 🟡 | Corbeille (« Annuler ») et envoi raté ; pas encore les autres gestes. |
 | Envoi de fichier : progression dans l'en-tête | ⬜ | |
