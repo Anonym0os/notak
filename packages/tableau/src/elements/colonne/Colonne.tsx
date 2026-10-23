@@ -1,7 +1,8 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Rangees, useEmpreintes, useRanges } from '../../Cadre'
 import type { Colonne, CouleurNote } from '../../coeur/tableau'
 import { composition } from '../composition'
+import { ecouterRecherche, ouverteParRecherche } from './recherche'
 import { LIBELLES_COULEUR } from '../note/couleurs'
 import type { PropsOutils, PropsRendu } from '../types'
 import { t } from '../../langue'
@@ -42,7 +43,9 @@ export function RenduColonne({ element, choisie, enEdition, contexte, brouillon,
   // En lecture seule, le repli reste utilisable, mais ne s'enregistre pas : il vaut pour cet écran seulement.
   const lectureSeule = !!contexte.services.lectureSeule
   const [local, setLocal] = useState<boolean>()
-  const repliee = lectureSeule && local !== undefined ? local : !!contenu.repliee
+  // Repliée, elle s'ouvre d'elle-même quand la recherche trouve un de ses éléments.
+  const ouverteParLaRecherche = useSyncExternalStore(ecouterRecherche, () => ouverteParRecherche(element.id))
+  const repliee = !ouverteParLaRecherche && (lectureSeule && local !== undefined ? local : !!contenu.repliee)
 
   const replier = () => {
     const { repliee: _, ...reste } = contenu

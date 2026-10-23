@@ -132,13 +132,14 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Fonctionnalité | État | Reste |
 |---|---|---|
 | Largeur 34 UG au minimum, hauteur de 15 UG vide | ✅ | |
-| Titre centré, 100 caractères, vide refusé, clic sur une colonne choisie | ✅ | |
-| Composition par type sous la liste | ✅ | |
+| Titre centré, 100 caractères, vide refusé, clic sur le titre d'une colonne choisie | ✅ | Le titre initial est « Colonne » enregistré, pas vide avec une invite ; pas de Maj+Entrée dans le titre. |
+| Compteur sous le titre (« Vide » si rien), double-clic ou Alt+Entrée pour ajouter une note | ✅ | |
 | Replier, déposer sur une colonne repliée | ✅ | |
 | Ranger, sortir, réordonner par glisser, empreinte jusqu'au dépôt | ✅ | |
 | Flèches et Cmd+A dans la colonne | ✅ | |
 | Couleurs | ✅ | |
-| Grouper la sélection en colonne | ✅ | |
+| Grouper la sélection en colonne (deux éléments au moins, colonne centrée, lignes attachées à la corbeille) | ✅ | |
+| Convertir en tableau | 🟡 | Les éléments passent sur la toile du tableau neuf, pas dans des « non triés » (le dépôt d'un autre tableau ne sait pas les y mettre). |
 | Supprimer emporte le contenu | ✅ | |
 | Hauteur réglable, hauteur bornée d'un élément rangé | ✅ |  |
 | Ligne horizontale entre deux colonnes alignées | ✅ |  |
@@ -250,8 +251,8 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Lien vidéo | ✅ | Outil « Vidéo » du tiroir. |
 | Lien audio | ✅ | Outil « Audio » du tiroir. |
 | Carte (lieu) | ✅ |  |
-| Clone (le même élément à plusieurs endroits) | ✅ | Suit l'original et le suit à la corbeille, comme le laissent voir les indices de Milanote ; se détache. |
-| Raccourci vers un tableau | ✅ |  |
+| Clone (le même élément à plusieurs endroits) | 🟡 | Suit l'original et le suit à la corbeille ; repère en bas à gauche avec bulle du nombre de copies, aussi sur l'original. Reste : l'édition sur place (elle passe encore par l'original) et la liste des copies sur plusieurs tableaux. |
+| Raccourci vers un tableau | 🟡 | Titre et couleur propres, créé à +6 / +5 UG ; l'icône est copiée à la création, elle ne suit pas celle du tableau. « Retrouver le tableau d'origine » et « Dupliquer le tableau lié » manquent. |
 
 ## 11. Commun aux éléments
 

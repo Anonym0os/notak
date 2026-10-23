@@ -1,6 +1,7 @@
 import { type Colonne, LARGEUR_COLONNE, nouvelleColonne } from '../../coeur/tableau'
 import { registre } from '../registre'
 import { OutilsColonne, RenduColonne } from './Colonne'
+import './convertir'
 import { entreeGrouper } from './OutilGrouper'
 import { accepteDansColonne } from './regles'
 import './colonne.css'

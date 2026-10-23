@@ -17,6 +17,7 @@ import { cliquer, lasso } from './coeur/selection'
 import { type Paquet, TYPE_PAQUET, decalageDeCollage, deballer, empaqueter, texteDuPaquet } from './coeur/pressePapiers'
 import { type Entree, FenetreRaccourcis, GLISSER_NON_TRIE, MenuContextuel, PanneauCorbeille, PanneauNonTries, Recherche } from './Menus'
 import { chercher } from './coeur/recherche'
+import { ouvrirPourRecherche } from './elements/colonne/recherche'
 import { poussees } from './coeur/collisions'
 import { VOL_REPOS, type Vol, inclinaisonMax, transformation } from './coeur/vol'
 import { Envol, dessinerSur, oublierVol } from './envol'
@@ -1223,6 +1224,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (!div) return
     // Une colonne qui contient un résultat reste nette : son contenu s'effacerait avec elle.
     const gardes = requete ? new Set(trouves.flatMap((x) => (x.parent ? [x.id, x.parent] : [x.id]))) : null
+    ouvrirPourRecherche(requete?.trim() ? trouves.flatMap((x) => (x.parent ? [x.parent] : [])) : [])
     for (const n of div.querySelectorAll<HTMLElement | SVGElement>('[data-id]')) {
       const id = n.getAttribute('data-id')!
       if (gardes && requete!.trim() && !gardes.has(id)) n.dataset.horsRecherche = ''
