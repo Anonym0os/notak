@@ -1950,6 +1950,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           }}
           aller={allerAuTrouve}
           fermer={fermerRecherche}
+          {...(services.rechercherPartout ? { partout: services.rechercherPartout } : {})}
+          {...(services.ouvrirTableau ? { ouvrirTableau: services.ouvrirTableau } : {})}
+          {...(toutLeTableau.id ? { ici: toutLeTableau.id } : {})}
         />
       )}
       {lectureSeule && <div className="notak-lecture">Lecture seule</div>}

@@ -48,6 +48,17 @@ export interface ServicePresence {
   ecouter(f: () => void): () => void
 }
 
+/** Une correspondance de la recherche dans tous les tableaux de l'espace. */
+export interface ResultatRecherche {
+  tableau: Id
+  /** Le titre du tableau où c'est écrit. */
+  titre: string
+  /** L'élément trouvé ; absent si c'est le titre du tableau. */
+  element?: Id
+  /** Le passage qui correspond, en texte brut. */
+  extrait: string
+}
+
 /** Ce que l'application hôte prête à la toile. Tout est facultatif : un type sans son service se dégrade. */
 export interface Services {
   fichiers?: DepotFichiers
@@ -73,6 +84,11 @@ export interface Services {
   colorerTableau?(id: Id, couleur: CouleurNote): void
   /** Change le titre d'un tableau de l'espace. */
   renommerTableau?(id: Id, titre: string): void
+  /**
+   * Cherche dans tous les tableaux du compte (l'application tient l'index). Sans ce service, la recherche
+   * (Cmd+F) reste dans le tableau ouvert.
+   */
+  rechercherPartout?(requete: string): Promise<ResultatRecherche[]>
   /** La présence des autres sur ce tableau. Sans elle, la toile est seule. */
   presence?: ServicePresence
   /** On peut regarder et défiler, rien de plus : la toile refuse tout ce qui modifie. */

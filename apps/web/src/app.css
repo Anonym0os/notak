@@ -127,7 +127,8 @@ body {
 }
 
 .partage,
-.compte {
+.compte,
+.export {
   position: relative;
 }
 
@@ -243,7 +244,15 @@ body {
   padding: 0;
 }
 
-.compte-menu button {
+.compte-menu a {
+  display: flex;
+  align-items: center;
+  color: inherit;
+  text-decoration: none;
+}
+
+.compte-menu button,
+.compte-menu a {
   height: 28px;
   padding: 0 8px;
   border: 0;
@@ -255,7 +264,8 @@ body {
   cursor: pointer;
 }
 
-.compte-menu button:hover {
+.compte-menu button:hover,
+.compte-menu a:hover {
   background: var(--fond);
 }
 
@@ -274,4 +284,94 @@ body {
   color: var(--texte);
   font-size: 13px;
   transform: translateX(-50%);
+}
+
+.public {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.public-entete {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+  height: 48px;
+  box-sizing: border-box;
+  padding: 0 16px;
+  background: #fff;
+  box-shadow: 0 1px 0 rgb(0 0 0 / 0.08);
+  color: var(--texte);
+}
+
+.public-titre {
+  overflow: hidden;
+  min-width: 0;
+  flex: 1;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-note {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.public-entete .bouton {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.public-corps {
+  flex: 1;
+  min-height: 0;
+}
+
+.partage-lien {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eef0f3;
+  font-size: 13px;
+}
+
+.partage-lien-ligne {
+  display: flex;
+  gap: 6px;
+}
+
+.partage-lien-ligne input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  box-sizing: border-box;
+  padding: 0 8px;
+  border: 1px solid rgb(0 0 0 / 0.15);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.bouton-etoile {
+  padding: 0 9px;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.bouton-etoile[aria-pressed='true'] {
+  color: #e8a400;
+}
+
+.sr-seulement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

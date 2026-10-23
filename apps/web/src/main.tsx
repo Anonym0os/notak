@@ -11,15 +11,18 @@ import {
 } from '@notak/tableau'
 import { StrictMode, useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
-import { type Moi, moi as lireMoi, seDeconnecter } from './api'
+import { type Moi, moi as lireMoi, rechercherPartout, seDeconnecter } from './api'
 import { importDejaPropose, lireAncienEspace, noterImportPropose } from './ancien'
 import { Compte } from './Compte'
 import { EcranConnexion } from './connexion'
+import { Export } from './Export'
+import { Favori } from './Favori'
 import { apercu, fichiers, rapatrier } from './fichiers'
 import { importerEspaceLocal } from './importLocal'
+import { PagePublique } from './PagePublique'
 import { Partage } from './Partage'
 
-const services = { fichiers, apercu, rapatrier, ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank') }
+const services = { fichiers, apercu, rapatrier, rechercherPartout, ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank') }
 
 /** Chaque tableau a son adresse, `/t/<id>` ; l'accueil est `/`. Le retour du navigateur ramène au précédent. */
 function adressePour(racine: string): Adresse {
@@ -129,6 +132,8 @@ function Espace({ moi, deconnexion }: { moi: Moi; deconnexion(): void }) {
         adresse={adresse}
         actions={(courant, ouvrir) => (
           <>
+            <Favori tableau={courant} accueil={moi.racine} />
+            <Export tableau={courant} />
             <Partage tableau={courant} moi={moi} />
             <Compte moi={moi} deconnexion={deconnexion} ouvrir={ouvrir} />
           </>
@@ -175,8 +180,9 @@ function BandeauImport({ moi, espace }: { moi: Moi; espace: EspaceDistant }) {
   )
 }
 
+/** `/p/<jeton>` : un tableau publié, lu sans compte. */
+const publie = /^\/p\/([A-Za-z0-9_-]+)\/?$/.exec(location.pathname)
+
 createRoot(document.getElementById('racine')!).render(
-  <StrictMode>
-    <Application />
-  </StrictMode>,
+  <StrictMode>{publie ? <PagePublique jeton={publie[1]!} /> : <Application />}</StrictMode>,
 )

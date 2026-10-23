@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { Element } from './coeur/tableau'
+import type { Element, Id } from './coeur/tableau'
 import { definition } from './elements/registre'
-import type { ContexteToile } from './elements/types'
+import type { ContexteToile, ResultatRecherche } from './elements/types'
 
 /** Une entrée du menu ; `null` trace un séparateur. */
 export type Entree = { libelle: string; raccourci?: string; coche?: boolean; faire(): void } | null
@@ -150,9 +150,31 @@ export function Recherche(props: {
   changer(r: string): void
   aller(sens: 1 | -1): void
   fermer(): void
+  /** Chercher aussi dans les autres tableaux (`Services.rechercherPartout`) : leurs résultats se listent dessous. */
+  partout?(requete: string): Promise<ResultatRecherche[]>
+  /** Ouvrir le tableau d'un résultat (`Services.ouvrirTableau`). */
+  ouvrirTableau?(id: Id): void
+  /** Le tableau ouvert, dont les résultats sont déjà sur la toile. */
+  ici?: Id
 }) {
-  const { requete, appel, nombre, rang, changer, aller, fermer } = props
+  const { requete, appel, nombre, rang, changer, aller, fermer, partout, ouvrirTableau, ici } = props
   const champ = useRef<HTMLInputElement>(null)
+  const [ailleurs, setAilleurs] = useState<ResultatRecherche[]>([])
+  useEffect(() => {
+    if (!partout || !requete.trim()) return setAilleurs([])
+    let vivant = true
+    // On attend la fin de la frappe : un aller-retour au serveur par lettre serait de trop.
+    const delai = setTimeout(() => {
+      partout(requete).then(
+        (r) => vivant && setAilleurs(r.filter((x) => x.tableau !== ici)),
+        () => vivant && setAilleurs([]),
+      )
+    }, 250)
+    return () => {
+      vivant = false
+      clearTimeout(delai)
+    }
+  }, [partout, requete, ici])
   useEffect(() => {
     champ.current?.focus()
     champ.current?.select()
@@ -163,7 +185,7 @@ export function Recherche(props: {
       <input
         ref={champ}
         type="search"
-        placeholder="Chercher dans ce tableau"
+        placeholder={partout ? 'Chercher dans les tableaux' : 'Chercher dans ce tableau'}
         aria-label="Chercher dans ce tableau"
         value={requete}
         spellCheck={false}
@@ -194,6 +216,25 @@ export function Recherche(props: {
       <button type="button" title="Fermer (Échap)" onClick={fermer}>
         ×
       </button>
+      {ailleurs.length > 0 && (
+        <ul className="notak-recherche-ailleurs" aria-label="Dans les autres tableaux">
+          {ailleurs.map((r) => (
+            <li key={`${r.tableau}/${r.element ?? ''}`}>
+              <button
+                type="button"
+                disabled={!ouvrirTableau}
+                onClick={() => {
+                  ouvrirTableau?.(r.tableau)
+                  fermer()
+                }}
+              >
+                <strong>{r.titre || 'Sans titre'}</strong>
+                {r.element && <span>{r.extrait}</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

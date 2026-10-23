@@ -193,7 +193,7 @@ describe("l'application web servie par le serveur", () => {
 
   it('sert les fichiers, la page sur toute adresse du front, et laisse l’API répondre seule', async () => {
     expect(await (await fetch(`${adresse}/assets/app.js`)).text()).toBe('console.log(1)')
-    for (const chemin of ['/', '/t/abcdefgh']) {
+    for (const chemin of ['/', '/t/abcdefgh', '/p/abcdefghijklmnopqrstuv']) {
       const r = await fetch(adresse + chemin)
       expect(r.status).toBe(200)
       expect(await r.text()).toContain('<title>Notak</title>')

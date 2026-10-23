@@ -1,3 +1,4 @@
+import type { Element, ResultatRecherche } from '@notak/tableau'
 export interface Moi {
   id: string
   email: string
@@ -94,4 +95,75 @@ export async function partager(tableau: string, email: string, role: 'edition' |
 export async function retirerAcces(tableau: string, email: string): Promise<void> {
   const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/partage`, { email }, 'DELETE')
   if (!r.ok) throw refus(r, { 409: 'Il faut garder un propriétaire', 403: 'Réservé au propriétaire', 404: 'Tableau introuvable' })
+}
+
+const lienDe = (tableau: string) => `/api/tableaux/${encodeURIComponent(tableau)}/lien`
+
+/** Le jeton du lien public du tableau, ou `null` s'il n'est pas publié. */
+export async function lienPublic(tableau: string): Promise<string | null> {
+  const r = await appeler(lienDe(tableau))
+  if (!r.ok) throw refus(r, { 403: 'Réservé au propriétaire', 404: 'Tableau introuvable' })
+  return ((await r.json()) as { jeton: string | null }).jeton
+}
+
+export async function creerLienPublic(tableau: string): Promise<string> {
+  const r = await appeler(lienDe(tableau), {})
+  if (!r.ok) throw refus(r, { 403: 'Réservé au propriétaire', 404: 'Tableau introuvable' })
+  return ((await r.json()) as { jeton: string }).jeton
+}
+
+export async function retirerLienPublic(tableau: string): Promise<void> {
+  const r = await appeler(lienDe(tableau), undefined, 'DELETE')
+  if (!r.ok && r.status !== 404) throw refus(r, { 403: 'Réservé au propriétaire' })
+}
+
+/** L'adresse que l'on donne : la page de lecture du tableau. */
+export const adressePublique = (jeton: string) => `${location.origin}/p/${jeton}`
+
+export interface TableauPublic {
+  titre: string
+  couleur?: string
+  elements: Element[]
+  /** Le titre des tableaux imbriqués, pour leurs cartes. */
+  titres: Record<string, string>
+}
+
+/** Un tableau publié, lu sans compte ; `null` si le lien n'existe pas ou plus. */
+export async function lirePublic(jeton: string): Promise<TableauPublic | null> {
+  const r = await appeler(`/api/public/${encodeURIComponent(jeton)}`)
+  if (r.status === 404) return null
+  if (!r.ok) throw refus(r, {})
+  return (await r.json()) as TableauPublic
+}
+
+/** Les tableaux favoris du compte, le dernier ajouté d'abord. */
+export async function listerFavoris(): Promise<TableauAccessible[]> {
+  const r = await appeler('/api/favoris')
+  if (!r.ok) throw refus(r, {})
+  return (await r.json()) as TableauAccessible[]
+}
+
+export async function definirFavori(tableau: string, favori: boolean): Promise<void> {
+  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/favori`, undefined, favori ? 'PUT' : 'DELETE')
+  if (!r.ok) throw refus(r, { 404: 'Tableau introuvable', 400: 'L’accueil ne se met pas en favori' })
+}
+
+/** Les derniers tableaux ouverts par le compte. */
+export async function listerRecents(): Promise<TableauAccessible[]> {
+  const r = await appeler('/api/recents')
+  if (!r.ok) throw refus(r, {})
+  return (await r.json()) as TableauAccessible[]
+}
+
+/** Note l'ouverture d'un tableau, pour la liste des récents. */
+export async function noterVu(tableau: string): Promise<void> {
+  await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/vu`, {}).catch(() => {})
+}
+
+/** La recherche dans tous les tableaux du compte. */
+export async function rechercherPartout(requete: string): Promise<ResultatRecherche[]> {
+  const r = await appeler(`/api/recherche?q=${encodeURIComponent(requete)}`)
+  if (!r.ok) throw refus(r, {})
+  const trouves = (await r.json()) as { tableau: string; titre: string; element: string | null; extrait: string }[]
+  return trouves.map((t) => ({ tableau: t.tableau, titre: t.titre, ...(t.element ? { element: t.element } : {}), extrait: t.extrait }))
 }

@@ -1,6 +1,6 @@
-import { randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import { createReadStream } from 'node:fs'
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import type { Hocuspocus } from '@hocuspocus/server'
@@ -9,13 +9,17 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { ErreurApercu, apercuDePage, rapatrierImage } from './apercu.ts'
-import type { Base, Utilisateur } from './base.ts'
+import type { Base, Fichier, Utilisateur } from './base.ts'
 import { ErreurCompte, inscrire, normaliserEmail } from './comptes.ts'
+import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from './contenu.ts'
 import type { Limiteur } from './debit.ts'
 import { type Role, auMoins, role, roleHerite } from './droits.ts'
+import { estFormatExport, exporterTexte } from './exporter.ts'
+import { requeteIndex } from './indexation.ts'
 import { hacher, verifier } from './motsDePasse.ts'
 import { DUREE_SESSION_S, NOM_COOKIE, cookieEfface, cookieSession, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
 import { nomDuDocument } from './synchro.ts'
+import { creerZip, nommerLesMedias } from './zip.ts'
 
 export interface Contexte {
   base: Base
@@ -34,6 +38,18 @@ export interface Contexte {
 export const FICHIER_MAX = 25 * 1024 * 1024
 const ID_TABLEAU = /^[A-Za-z0-9_-]{8,64}$/
 const ID_FICHIER = /^[0-9a-f-]{36}$/
+/** Combien de tableaux récents la liste montre. */
+const RECENTS_AFFICHES = 12
+/** Combien de résultats la recherche dans tous les tableaux rend au plus. */
+const RESULTATS_RECHERCHE = 30
+const JETON_PUBLIC = /^[A-Za-z0-9_-]{16,64}$/
+
+/** Un nom de fichier sûr à partir d'un titre, et l'en-tête qui le propose au téléchargement. */
+export function enTeteTelechargement(titre: string, extension: string): string {
+  const net = titre.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').trim().slice(0, 100) || 'tableau'
+  const ascii = net.normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^\x20-\x7e]/g, '_').replace(/[%"]/g, '_')
+  return `attachment; filename="${ascii}.${extension}"; filename*=UTF-8''${encodeURIComponent(`${net}.${extension}`)}`
+}
 
 const moi = (u: Utilisateur) => ({ id: u.id, email: u.email, nom: u.nom, couleur: u.couleur, racine: u.racine })
 
@@ -162,6 +178,14 @@ export function creerApp(ctx: Contexte): Hono {
     return c.json(base.tableauxAccessibles(u.id).filter((t) => t.id !== u.racine))
   })
 
+  /** Ces tableaux, avec le titre et le rôle de `u` ; ceux qu'il ne peut plus ouvrir et son accueil sont écartés. */
+  const resumes = (u: Utilisateur, ids: readonly string[]) =>
+    ids.flatMap((id) => {
+      const r = roleSur(u.id, id)
+      const t = base.tableau(id)
+      return r && t && id !== u.racine ? [{ id, titre: t.titre, role: r }] : []
+    })
+
   /** Le tableau, et l'utilisateur s'il atteint au moins `minimum` ; sinon la réponse d'erreur à rendre. */
   const garde = (c: Context, minimum: Role): { u: Utilisateur; id: string } | Response => {
     const u = utilisateurCourant(c)
@@ -240,6 +264,178 @@ export function creerApp(ctx: Contexte): Hono {
     return c.body(null, 204)
   })
 
+  /** Le tableau tel qu'il est maintenant : le document en direct s'il est ouvert, sinon le dernier état enregistré. */
+  const lireLe = (id: string): TableauLu => {
+    const vivant = ctx.synchro()?.documents.get(nomDuDocument(id))
+    if (vivant) return lireTableau(vivant)
+    const etat = base.document(nomDuDocument(id))
+    return etat ? lireEtat(etat) : { titre: base.tableau(id)?.titre ?? '', elements: [] }
+  }
+  const titreDe = (id: string) => base.tableau(id)?.titre
+
+  // ---- Recherche dans tous les tableaux ----
+
+  app.get('/api/recherche', (c) => {
+    const u = utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    const requete = requeteIndex(c.req.query('q') ?? '')
+    if (!requete) return c.json([])
+    // Les tableaux du compte, et tout ce qu'ils contiennent : un accès se transmet aux sous-tableaux.
+    const ouverts = new Set<string>()
+    for (const t of base.tableauxAccessibles(u.id)) {
+      ouverts.add(t.id)
+      for (const d of base.descendants(t.id)) ouverts.add(d)
+    }
+    const trouves = base.chercher(requete, [...ouverts], RESULTATS_RECHERCHE)
+    return c.json(
+      trouves.flatMap((t) => {
+        const r = roleSur(u.id, t.tableau)
+        const ligne = base.tableau(t.tableau)
+        return r && ligne ? [{ tableau: t.tableau, titre: ligne.titre, element: t.element || null, extrait: t.extrait, role: r }] : []
+      }),
+    )
+  })
+
+  // ---- Favoris et récents ----
+
+  app.get('/api/favoris', (c) => {
+    const u = utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    return c.json(resumes(u, base.favoris(u.id)))
+  })
+
+  app.put('/api/tableaux/:id/favori', (c) => {
+    const g = garde(c, 'lecture')
+    if (g instanceof Response) return g
+    if (g.id === g.u.racine) return c.json({ erreur: 'accueil' }, 400)
+    base.definirFavori(g.u.id, g.id, ctx.maintenant())
+    return c.body(null, 204)
+  })
+
+  app.delete('/api/tableaux/:id/favori', (c) => {
+    const g = garde(c, 'lecture')
+    if (g instanceof Response) return g
+    base.retirerFavori(g.u.id, g.id)
+    return c.body(null, 204)
+  })
+
+  app.get('/api/recents', (c) => {
+    const u = utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    return c.json(resumes(u, base.recents(u.id, RECENTS_AFFICHES)))
+  })
+
+  // Le client note chaque tableau qu'il ouvre ; l'accueil n'entre pas dans la liste.
+  app.post('/api/tableaux/:id/vu', (c) => {
+    const g = garde(c, 'lecture')
+    if (g instanceof Response) return g
+    if (g.id !== g.u.racine) base.noterVu(g.u.id, g.id, ctx.maintenant())
+    return c.body(null, 204)
+  })
+
+  // ---- Lien public ----
+
+  app.get('/api/tableaux/:id/lien', (c) => {
+    const g = garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    return c.json({ jeton: base.jetonPublic(g.id) })
+  })
+
+  app.post('/api/tableaux/:id/lien', (c) => {
+    const g = garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    // Un lien déjà publié reste le même : pour en changer, on le retire d'abord.
+    let jeton = base.jetonPublic(g.id)
+    if (!jeton) {
+      jeton = randomBytes(16).toString('base64url')
+      base.definirJetonPublic(g.id, jeton, ctx.maintenant())
+    }
+    return c.json({ jeton }, 201)
+  })
+
+  app.delete('/api/tableaux/:id/lien', (c) => {
+    const g = garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    if (!base.retirerJetonPublic(g.id)) return c.json({ erreur: 'introuvable' }, 404)
+    return c.body(null, 204)
+  })
+
+  /**
+   * Ce que voit quelqu'un qui n'a pas de compte : le tableau sans la corbeille, les non triés ni les commentaires
+   * (ce sont les échanges de ceux qui y travaillent), et les lignes qui n'ont plus leurs deux bouts.
+   */
+  const vuePublique = (id: string) => {
+    const t = lireLe(id)
+    const visibles = t.elements.filter((e) => e.corbeille === undefined && e.nonTrie === undefined && e.contenu.type !== 'commentaire')
+    const ids = new Set(visibles.map((e) => e.id))
+    const bout = (b: unknown) => !(b && typeof b === 'object' && 'element' in b) || ids.has(String((b as { element: unknown }).element))
+    const elements = visibles.filter((e) => e.contenu.type !== 'ligne' || (bout(e.contenu.depart) && bout(e.contenu.arrivee)))
+    const titres: Record<string, string> = {}
+    for (const e of elements) {
+      if (e.contenu.type !== 'tableau' || typeof e.contenu.cible !== 'string') continue
+      const titre = titreDe(e.contenu.cible)
+      if (titre !== undefined) titres[e.contenu.cible] = titre
+    }
+    return { titre: t.titre, ...(t.couleur ? { couleur: t.couleur } : {}), elements, titres }
+  }
+
+  const tableauPublic = (c: Context): string | null => {
+    const jeton = c.req.param('jeton') ?? ''
+    return JETON_PUBLIC.test(jeton) ? base.tableauDuJeton(jeton) : null
+  }
+
+  app.get('/api/public/:jeton', (c) => {
+    const id = tableauPublic(c)
+    if (!id) return c.json({ erreur: 'introuvable' }, 404)
+    return c.json(vuePublique(id), 200, { 'cache-control': 'no-store', 'x-robots-tag': 'noindex' })
+  })
+
+  // Seuls les fichiers que le tableau montre se lisent par son lien.
+  app.get('/api/public/:jeton/fichiers/:fichier', (c) => {
+    const id = tableauPublic(c)
+    const fichier = c.req.param('fichier') ?? ''
+    if (!id || !ID_FICHIER.test(fichier) || !idsDeFichiers(vuePublique(id).elements).has(fichier)) return c.json({ erreur: 'introuvable' }, 404)
+    const f = base.fichier(fichier)
+    if (!f) return c.json({ erreur: 'introuvable' }, 404)
+    return servirFichier(f, 'private, max-age=300')
+  })
+
+  // ---- Export ----
+
+  app.get('/api/tableaux/:id/export', (c) => {
+    const g = garde(c, 'lecture')
+    if (g instanceof Response) return g
+    const format = c.req.query('format') ?? 'md'
+    if (!estFormatExport(format)) return c.json({ erreur: 'format inconnu' }, 400)
+    const tableau = lireLe(g.id)
+    return c.body(exporterTexte(tableau, format, titreDe), 200, {
+      'content-type': format === 'md' ? 'text/markdown; charset=utf-8' : 'text/plain; charset=utf-8',
+      'content-disposition': enTeteTelechargement(tableau.titre, format),
+      'cache-control': 'no-store',
+    })
+  })
+
+  app.get('/api/tableaux/:id/medias', async (c) => {
+    const g = garde(c, 'lecture')
+    if (g instanceof Response) return g
+    const tableau = lireLe(g.id)
+    const medias = nommerLesMedias(fichiersDe(tableau.elements), (id) => base.fichier(id)?.type)
+    const entrees: { nom: string; octets: Uint8Array; type: string }[] = []
+    for (const m of medias) {
+      const f = base.fichier(m.id)
+      if (!f) continue
+      // Un fichier absent du disque ne fait pas échouer toute l'archive.
+      const octets = await readFile(join(ctx.dossierFichiers, f.id)).catch(() => null)
+      if (octets) entrees.push({ nom: m.nom, octets, type: f.type })
+    }
+    if (entrees.length === 0) return c.json({ erreur: 'aucun média' }, 404)
+    return c.body(creerZip(entrees) as Uint8Array<ArrayBuffer>, 200, {
+      'content-type': 'application/zip',
+      'content-disposition': enTeteTelechargement(`${tableau.titre} (médias)`, 'zip'),
+      'cache-control': 'no-store',
+    })
+  })
+
   // ---- Fichiers ----
 
   app.post('/api/fichiers', async (c) => {
@@ -298,22 +494,26 @@ export function creerApp(ctx: Contexte): Hono {
     }
   })
 
-  app.get('/api/fichiers/:id', (c) => {
-    if (!utilisateurCourant(c)) return c.json({ erreur: 'non connecté' }, 401)
-    const id = c.req.param('id')
-    const f = ID_FICHIER.test(id) ? base.fichier(id) : null
-    if (!f) return c.json({ erreur: 'introuvable' }, 404)
+  /** Le contenu d'un fichier rangé, servi pour qu'il ne s'exécute jamais dans l'origine de l'application. */
+  const servirFichier = (f: Fichier, cache: string): Response => {
     const flux = Readable.toWeb(createReadStream(join(ctx.dossierFichiers, f.id))) as ReadableStream
     return new Response(flux, {
       headers: {
         'content-type': f.type,
         'content-length': String(f.taille),
-        'cache-control': 'private, max-age=31536000, immutable',
-        // Un fichier déposé ne doit jamais s'exécuter dans l'origine de l'application.
+        'cache-control': cache,
         'x-content-type-options': 'nosniff',
         'content-security-policy': "sandbox; default-src 'none'; img-src data:; media-src 'self'; style-src 'unsafe-inline'",
       },
     })
+  }
+
+  app.get('/api/fichiers/:id', (c) => {
+    if (!utilisateurCourant(c)) return c.json({ erreur: 'non connecté' }, 401)
+    const id = c.req.param('id')
+    const f = ID_FICHIER.test(id) ? base.fichier(id) : null
+    if (!f) return c.json({ erreur: 'introuvable' }, 404)
+    return servirFichier(f, 'private, max-age=31536000, immutable')
   })
 
   // ---- Aperçus ----
