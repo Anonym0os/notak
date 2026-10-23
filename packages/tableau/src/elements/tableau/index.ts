@@ -42,6 +42,11 @@ registre.type<RenvoiTableau>({
   resume: (c, contexte) => contexte.services.tableau?.(c.cible)?.titre ?? '',
   Rendu: RenduRenvoi,
   Outils: OutilsRenvoi,
+  // Sa couleur est celle du tableau, rangée dans l'espace : la changer ne passe pas par l'historique de celui-ci.
+  couleur: {
+    lire: (e, contexte) => contexte.services.tableau?.(e.contenu.cible)?.couleur,
+    ailleurs: (e, couleur, contexte) => contexte.services.colorerTableau?.(e.contenu.cible, couleur),
+  },
   sansFond: true,
   sansInclinaison: true,
   ouvrir: (e, contexte) => contexte.services.ouvrirTableau?.(e.contenu.cible),

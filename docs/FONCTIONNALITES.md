@@ -287,7 +287,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Relier par une ligne (Cmd+K) | ✅ | |
 | Envoyer dans un tableau, sur le fil d'Ariane | ✅ | |
 | Annuler, rétablir (Cmd+Z, Cmd+Maj+Z, Cmd+Y) | ✅ | |
-| Barre de sélection : outils communs seulement, menu « … » | 🟡 | Une sélection mêlée montre les outils communs, et ceux de chaque type derrière « … » ; la couleur n'est pas encore commune aux notes, colonnes et tableaux. |
+| Barre de sélection : outils communs seulement, menu « … » | ✅ | |
 | Déplacer vers les non triés (Alt+`) | ⬜ | Attend les non triés (§ 2). |
 | Sélectionner tout le tableau, désélectionner | ✅ | |
 

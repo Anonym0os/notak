@@ -6,6 +6,7 @@ import { OutilsNote } from './Outils'
 import { adresseSeule, docDepuisCollage } from './conversion'
 import { EXTENSIONS_NOTE } from './extensions'
 import './note.css'
+import { couleurDuContenu } from '../couleur'
 
 const enNote = (x: number, y: number, texte?: NoeudTexte) => {
   const note = nouvelleNote(Math.round(x), Math.round(y))
@@ -23,6 +24,7 @@ registre.type<Note>({
   resume: (c) => texteBrut(c.texte),
   Rendu: RenduNote,
   Outils: OutilsNote,
+  couleur: couleurDuContenu<Note>(),
   editable: true,
   hauteurParDefaut: HAUTEUR_NOTE_MIN,
   sansFond: (c) => c.couleur === 'transparent',

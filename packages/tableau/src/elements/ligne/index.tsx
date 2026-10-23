@@ -8,6 +8,7 @@ import { OutilsLigne } from './Outils'
 import { TAILLE_LIGNE_NEUVE, ligneLibre } from './creation'
 import './ligne.css'
 import { entreeRelier, raccourciRelier } from './raccourci'
+import { couleurDuContenu } from '../couleur'
 
 registre.type<Ligne>({
   type: 'ligne',
@@ -16,6 +17,7 @@ registre.type<Ligne>({
   calque: 'lignes',
   Rendu: RenduLigne,
   Outils: OutilsLigne,
+  couleur: couleurDuContenu<Ligne>(),
   emporterAvec: lignesASupprimer,
   suivant: () => null,
   outils: [

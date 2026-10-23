@@ -4,6 +4,7 @@ import { OutilsColonne, RenduColonne } from './Colonne'
 import { OutilGrouper, entreeGrouper } from './OutilGrouper'
 import { accepteDansColonne } from './regles'
 import './colonne.css'
+import { couleurDuContenu } from '../couleur'
 
 registre.type<Colonne>({
   type: 'colonne',
@@ -11,6 +12,7 @@ registre.type<Colonne>({
   resume: (c) => c.titre,
   Rendu: RenduColonne,
   Outils: OutilsColonne,
+  couleur: couleurDuContenu<Colonne>(),
   editable: true,
   sansFond: true,
   suivant: (_e, places) => nouvelleColonne(places.droite.x, places.droite.y),

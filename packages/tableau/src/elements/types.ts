@@ -172,6 +172,18 @@ export interface TypeElement<C extends Contenu = Contenu> {
   resume?(c: C, contexte: ContexteToile): string
   /** Ne s'incline pas quand on le glisse (un tableau, dessiné en icône). */
   sansInclinaison?: boolean
+  /** Sa couleur, pour l'outil commun d'une sélection mêlée (voir `elements/couleur`). */
+  couleur?: Coloration<C>
+}
+
+/**
+ * Lire et changer la couleur d'un élément. `vers` rend le contenu recoloré (un pas d'historique) ; un type dont
+ * la couleur vit ailleurs (un tableau, dans l'espace) passe par `ailleurs`.
+ */
+export interface Coloration<C extends Contenu = Contenu> {
+  lire(e: Element<C>, contexte: ContexteToile): CouleurNote | undefined
+  vers?(c: C, couleur: CouleurNote | undefined): C
+  ailleurs?(e: Element<C>, couleur: CouleurNote, contexte: ContexteToile): void
 }
 
 /**
