@@ -5,8 +5,9 @@ import { INVITES, adresseAffichee, avecAdresse, domaineDe, lireAdresse } from '.
 import { lireCause, messageEchec } from './echec'
 import { lecteurDe } from './lecteurs'
 import { Media } from './Media'
-import { convertirEnImage } from './versImage'
+import { convertirEnImage, estAdresseImage } from './versImage'
 import { affichage, mediaSeul } from './affichage'
+import { dimensionsApercu } from './imageApercu'
 import { t } from '../../langue'
 import { Icone, type NomIcone } from '../../icones'
 import { FOND_NOTE } from '../note/couleurs'
@@ -16,10 +17,19 @@ const REL = 'noopener noreferrer nofollow'
 /** Un message passager (adresse invalide, aperçu manqué) reste 2 secondes, puis le champ revient. */
 const DUREE_MESSAGE = 2000
 
-/** Les liens dont la prochaine édition porte sur l'adresse, pas sur le titre (outil « Adresse »). */
-export const adresseAEditer = new Set<Id>()
-/** Les liens dont la prochaine édition porte sur la légende (l'outil « Légende » vient de l'allumer). */
+/** Les liens dont la prochaine édition porte sur la légende (l'outil « Légende » vient de l'allumer, ou un caractère tapé). */
 export const legendeAEditer = new Set<Id>()
+
+/** Le caractère tapé sur un lien choisi : il devient le début de sa légende (voir `surFrappe`). */
+let amorce = ''
+export const amorcerLegendeLien = (caractere: string) => {
+  amorce = caractere
+}
+const prendreAmorce = () => {
+  const a = amorce
+  amorce = ''
+  return a
+}
 
 export function RenduLien(props: PropsRendu<Lien>) {
   useChargementApercu(props)
@@ -28,12 +38,9 @@ export function RenduLien(props: PropsRendu<Lien>) {
   const { url, statut } = element.contenu
   // Sans aperçu, la carte est une ligne de saisie : l'adresse à taper, l'aperçu en lecture (la roue), ou l'aperçu
   // manqué (le message, puis l'adresse tapée de nouveau modifiable).
-  const saisie = !url || (enEdition && adresseAEditer.has(element.id)) || statut === 'echec' || statut === 'attente'
+  const saisie = !url || statut === 'echec' || statut === 'attente'
   useEffect(() => {
-    if (!enEdition) {
-      adresseAEditer.delete(element.id)
-      legendeAEditer.delete(element.id)
-    }
+    if (!enEdition) legendeAEditer.delete(element.id)
   }, [enEdition, element.id])
   return saisie ? <Saisie {...props} /> : <Carte {...props} />
 }
@@ -52,6 +59,9 @@ function useChargementApercu({ element, contexte }: PropsRendu<Lien>) {
     if (statut !== 'attente' || !url || marque.current === `${id}|${url}`) return
     marque.current = `${id}|${url}`
     const chercheur = contexte.services.apercu
+    // Une adresse d'image devient une image tout de suite, sans attendre la page (si l'aperçu arrive avant, il gagne).
+    const direct = estAdresseImage(url)
+    if (direct) void convertirEnImage(id, url, contexte, true)
     const terminer = (statutFinal: 'pret' | 'echec', apercu?: Apercu, cause?: CauseEchec) => {
       const actuel = contexte.magasin.lire().elements.find((e) => e.id === id)?.contenu
       // L'élément a disparu ou changé d'adresse entre-temps : ce résultat ne le concerne plus.
@@ -68,7 +78,7 @@ function useChargementApercu({ element, contexte }: PropsRendu<Lien>) {
     Promise.race([chercheur(url), limite])
       .then(async (a) => {
         // L'adresse mène à une image : on la rapatrie et la carte devient une image ; sinon elle garde l'aperçu.
-        if (a.estImage && (await convertirEnImage(id, url, contexte))) return
+        if (a.estImage && !direct && (await convertirEnImage(id, url, contexte))) return
         terminer('pret', a)
       })
       .catch((e: unknown) => terminer('echec', undefined, lireCause(e)))
@@ -125,7 +135,6 @@ function Saisie({ element, enEdition, contexte }: PropsRendu<Lien>) {
     const url = lireAdresse(dernier.current)
     if (!url) return false
     fait.current = true
-    adresseAEditer.delete(element.id)
     const actuel = contexte.magasin.lire().elements.find((e) => e.id === element.id)?.contenu
     if (actuel?.type === 'lien' && (actuel.url !== url || actuel.statut === 'echec')) {
       contexte.magasin.faire([{ type: 'contenu', id: element.id, avant: actuel, apres: avecAdresse(actuel, url) }])
@@ -197,6 +206,33 @@ function Saisie({ element, enEdition, contexte }: PropsRendu<Lien>) {
   )
 }
 
+/** L'adresse affichable d'un fichier du tableau (l'image qu'on a donnée à un lien) ; `undefined` tant qu'elle n'est pas là. */
+function useAdresseFichier(fichier: Id | undefined, contexte: PropsRendu<Lien>['contexte']): string | undefined {
+  const [adresse, setAdresse] = useState<string>()
+  const depot = contexte.services.fichiers
+  useEffect(() => {
+    setAdresse(undefined)
+    if (!fichier || !depot) return
+    let vivant = true
+    depot.adresse(fichier).then(
+      (a) => vivant && setAdresse(a ?? undefined),
+      () => {},
+    )
+    return () => {
+      vivant = false
+    }
+  }, [fichier, depot])
+  return adresse
+}
+
+/** L'image d'aperçu vient de se charger : on garde sa taille avec le lien, pour réserver sa place la fois suivante. */
+function retenirDimensions(id: Id, image: string | undefined, largeur: number, hauteur: number, contexte: PropsRendu<Lien>['contexte']) {
+  if (contexte.services.lectureSeule || !image || largeur <= 0 || hauteur <= 0) return
+  const actuel = contexte.magasin.lire().elements.find((e) => e.id === id)?.contenu
+  if (!actuel || actuel.type !== 'lien' || actuel.statut !== 'pret' || actuel.image || actuel.apercu?.image !== image || actuel.apercu.largeur) return
+  contexte.magasin.corriger([{ type: 'contenu', id, avant: actuel, apres: { ...actuel, apercu: { ...actuel.apercu, largeur, hauteur } } }])
+}
+
 /** Le titre se termine par une espace insécable : jamais un mot seul sur la dernière ligne. */
 const sansOrphelin = (titre: string) => titre.replace(/ (\S+)\s*$/, ' $1')
 
@@ -205,7 +241,9 @@ function Carte({ element, choisie, seule, enEdition, contexte, brouillon }: Prop
   const { url, statut, apercu } = contenu
   const domaine = domaineDe(url)
   const lecteur = lecteurDe(url)
-  const image = statut === 'pret' ? apercu?.image : undefined
+  // L'image qu'on a donnée à la carte prime sur celle de la page.
+  const perso = useAdresseFichier(contenu.image?.fichier, contexte)
+  const image = contenu.image ? perso : statut === 'pret' ? apercu?.image : undefined
   // Dans une colonne, la largeur de la carte n'est pas la sienne : le média seul ne s'y décide pas par la largeur.
   const aff = affichage(contenu, element.parent ? undefined : element.largeur)
   const seulMedia = mediaSeul(contenu, element.parent ? undefined : element.largeur)
@@ -215,10 +253,12 @@ function Carte({ element, choisie, seule, enEdition, contexte, brouillon }: Prop
   // Entré en édition par un clic sur la légende, on l'écrit ; sinon on renomme. Le choix se fait une fois
   // par édition (le mode strict rejoue l'effet, et le point d'édition ne se lit qu'une fois).
   const [partie, setPartie] = useState<'titre' | 'legende' | null>(null)
+  const [debut, setDebut] = useState('')
   const choix = useRef<'titre' | 'legende' | null>(null)
   useLayoutEffect(() => {
     if (!enEdition) {
       choix.current = null
+      setDebut('')
       return setPartie(null)
     }
     if (choix.current) return
@@ -226,6 +266,8 @@ function Carte({ element, choisie, seule, enEdition, contexte, brouillon }: Prop
     const sous = ou && document.elementFromPoint(ou.x, ou.y)
     choix.current = legendeAEditer.has(element.id) || sous?.closest('.notak-lien-description') || !aff.infos ? 'legende' : 'titre'
     setPartie(choix.current)
+    // Un caractère tapé sur la carte choisie ouvre la légende, et en est le premier mot.
+    if (choix.current === 'legende') setDebut(prendreAmorce())
   }, [enEdition, contexte, aff.infos, element.id])
   const ecrire = (champ: 'titre' | 'legende', v: string) => brouillon({ ...contenu, [champ]: v })
 
@@ -256,7 +298,20 @@ function Carte({ element, choisie, seule, enEdition, contexte, brouillon }: Prop
   return (
     <div className="notak-lien">
       {fond && <div className="notak-lien-barre" style={{ background: fond }} />}
-      {aff.apercu && <Media lecteur={lecteur} image={image} titre={titre ?? domaine} lien={contenu} actif={choisie && !!seule} bouton={!seulMedia} />}
+      {aff.apercu && (
+        <Media
+          lecteur={lecteur}
+          image={image}
+          titre={titre ?? domaine}
+          lien={contenu}
+          actif={choisie && !!seule}
+          bouton={!seulMedia}
+          largeur={element.parent ? undefined : element.largeur}
+          dimensions={dimensionsApercu(contenu)}
+          presentation={!!contexte.services.presentation}
+          surDimensions={(largeur, hauteur) => retenirDimensions(element.id, image, largeur, hauteur, contexte)}
+        />
+      )}
       {(aff.infos || aff.legende || partie) && (
         <div className="notak-lien-texte" data-legende={montreLegende ? '' : undefined}>
           {aff.infos &&
@@ -278,7 +333,7 @@ function Carte({ element, choisie, seule, enEdition, contexte, brouillon }: Prop
             aff.infos && titre && lien(sansOrphelin(titre), 'notak-lien-titre', false)
           )}
           {partie === 'legende' ? (
-            <Champ classe="notak-lien-description" valeur={legende ?? ''} ecrire={(v) => ecrire('legende', v)} finir={contexte.finirEdition} />
+            <Champ classe="notak-lien-description" valeur={legende ?? ''} debut={debut} ecrire={(v) => ecrire('legende', v)} finir={contexte.finirEdition} />
           ) : (
             aff.legende && legende && <div className="notak-lien-description">{legende}</div>
           )}
@@ -292,9 +347,15 @@ function Carte({ element, choisie, seule, enEdition, contexte, brouillon }: Prop
  * Un champ de texte posé à la place du titre ou de la légende, à sa taille, écrit à chaque frappe.
  * Un titre vidé est refusé : l'ancien reste.
  */
-function Champ(props: { classe: string; valeur: string; max?: number; toutChoisir?: boolean; ligne?: boolean; ecrire(v: string): void; finir(): void }) {
-  const { classe, valeur, max, toutChoisir, ligne, ecrire, finir } = props
-  const [texte, setTexte] = useState(valeur)
+function Champ(props: { classe: string; valeur: string; debut?: string; max?: number; toutChoisir?: boolean; ligne?: boolean; ecrire(v: string): void; finir(): void }) {
+  const { classe, valeur, debut, max, toutChoisir, ligne, ecrire, finir } = props
+  const [texte, setTexte] = useState(valeur + (debut ?? ''))
+  // Le caractère qui a ouvert la légende en est déjà écrit.
+  useEffect(() => {
+    if (debut) ecrire(valeur + debut)
+    // Une fois, à l'ouverture.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const champ = useRef<HTMLTextAreaElement>(null)
   useEffect(() => {
     const c = champ.current

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Element, Lien } from '../../coeur/tableau'
-import { operationsEnImage } from './versImage'
+import { estAdresseImage, operationsEnImage } from './versImage'
 
 const lien = (extra: Partial<Element<Lien>> = {}, contenu: Partial<Lien> = {}): Element<Lien> => ({
   id: 'a',
@@ -30,5 +30,19 @@ describe('operationsEnImage', () => {
   it('ne redimensionne pas quand la largeur est déjà la bonne', () => {
     const pas = operationsEnImage(lien(), 'f1', 'image/jpeg', { largeur: 340, hauteur: 100 })
     expect(pas.map((p) => p.type)).toEqual(['contenu'])
+  })
+})
+
+describe('estAdresseImage', () => {
+  it('reconnaît une extension d’image dans l’adresse, avant la requête ou le fragment', () => {
+    expect(estAdresseImage('https://x.test/a/b.PNG')).toBe(true)
+    expect(estAdresseImage('https://x.test/a.jpeg?w=300')).toBe(true)
+    expect(estAdresseImage('https://x.test/a.webp#haut')).toBe(true)
+    expect(estAdresseImage('https://x.test/a.gif')).toBe(true)
+  })
+  it('laisse les pages en paix', () => {
+    expect(estAdresseImage('https://x.test/article')).toBe(false)
+    expect(estAdresseImage('https://x.test/a.pngs')).toBe(false)
+    expect(estAdresseImage('https://image.png.example.com')).toBe(false)
   })
 })

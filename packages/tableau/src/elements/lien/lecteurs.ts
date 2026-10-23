@@ -81,6 +81,8 @@ const youtube: Fabrique = (u, hote, s) => {
       playlist: o.boucle && id,
       start: debut ? String(debut) : undefined,
       rel: '0',
+      // Laisse la carte entendre la fin de la lecture (voir `fin.ts`).
+      enablejsapi: '1',
     }),
   )
 }

@@ -1,4 +1,5 @@
 import type { Lien } from '../../coeur/tableau'
+import { dimensionsApercu } from './imageApercu'
 import { lecteurDe } from './lecteurs'
 
 /** Les trois parties d'une carte de lien qu'on peut cacher : l'image ou le lecteur, le domaine et le titre, la légende. */
@@ -13,7 +14,7 @@ const LARGEUR_MIN_MEDIA = 4
 const LARGEUR_MIN_TEXTE = 17
 
 /** Le lien peut-il montrer un média : un lecteur intégré, ou une image d'aperçu déjà lue ? */
-export const aUnMedia = (c: Lien) => !!lecteurDe(c.url) || (c.statut === 'pret' && !!c.apercu?.image)
+export const aUnMedia = (c: Lien) => !!lecteurDe(c.url) || !!c.image || (c.statut === 'pret' && !!c.apercu?.image)
 
 /** Le média est-il montré (il existe, et l'aperçu n'est pas caché) ? */
 export const mediaVisible = (c: Lien) => aUnMedia(c) && !c.sansApercu
@@ -35,10 +36,26 @@ export function affichage(c: Lien, largeur?: number): Record<Partie, boolean> {
 /** Largeur minimale quand on redimensionne : 4 UG avec un média (comme une image), 17 UG sans. */
 export const largeurMinLien = (c: Lien) => (mediaVisible(c) ? LARGEUR_MIN_MEDIA : LARGEUR_MIN_TEXTE)
 
-/** Largeur sur hauteur d'une vidéo en média seul, pour qu'elle garde ses proportions ; 0 : la carte est libre. */
+/** Largeur sur hauteur de ce qu'on voit en média seul, pour qu'il garde ses proportions (une vidéo, une image dont on connaît la taille) ; 0 : la carte est libre. */
 export function proportionLien(c: Lien): number {
+  if (!mediaSeul(c)) return 0
   const l = lecteurDe(c.url)
-  return l && l.genre === 'video' && l.proportions && mediaSeul(c) ? l.proportions : 0
+  if (l && !c.image) return l.genre === 'video' && l.proportions ? l.proportions : 0
+  const d = dimensionsApercu(c)
+  return d ? d.largeur / d.hauteur : 0
+}
+
+/** La largeur d'origine de l'image d'aperçu en UG (10 px l'unité), quand on la connaît ; un lecteur n'en a pas. */
+export function largeurOrigineLien(c: Lien): number | undefined {
+  if (!mediaVisible(c) || (lecteurDe(c.url) && !c.image)) return undefined
+  const d = dimensionsApercu(c)
+  return d ? d.largeur / 10 : undefined
+}
+
+/** Un lien à image d'aperçu ne s'étire pas au-delà de la taille d'origine de l'image (jamais sous sa largeur minimale). */
+export function largeurMaxLien(c: Lien): number | undefined {
+  const origine = largeurOrigineLien(c)
+  return origine === undefined ? undefined : Math.max(largeurMinLien(c), Math.round(origine))
 }
 
 /**

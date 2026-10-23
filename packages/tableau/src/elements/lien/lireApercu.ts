@@ -59,6 +59,10 @@ export function lireApercu(html: string, base: string): Apercu {
   if (titre) apercu.titre = titre
   if (description) apercu.description = description
   if (image) apercu.image = image
+  // La taille de l'image, quand la page la dit : la carte réserve sa place avant le chargement.
+  const largeur = Math.round(Number(choisir('og:image:width', 'twitter:image:width')))
+  const hauteur = Math.round(Number(choisir('og:image:height', 'twitter:image:height')))
+  if (image && largeur > 0 && hauteur > 0) Object.assign(apercu, { largeur, hauteur })
   if (site) apercu.site = site
   if (favicon) apercu.favicon = favicon
   return apercu

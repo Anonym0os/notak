@@ -3,6 +3,7 @@ import { commencerEnvoi } from '../envois'
 import { lireDimensions, lireTransparence } from './lecture'
 import type { ContexteToile, DepotFichiers } from '../types'
 import { annoncer } from '../../avis'
+import { estUnDepotToile } from '../registre'
 import { t } from '../../langue'
 import { type TailleUG, TAILLE_MAX, TYPES_ACCEPTES, hauteurPour, imageSous, largeurInitiale, nombreColonnes, placerImages, remplacerContenu } from './geometrie'
 
@@ -23,7 +24,7 @@ export function recevoirImages(donnees: DataTransfer, ou: { x: number; y: number
 }
 
 /** Un `DataTransfer` de glisser-déposer a un effet permis ; celui du presse-papiers ou du sélecteur n'en a pas. */
-const estUnDepot = (d: DataTransfer) => d.effectAllowed !== 'uninitialized' && d.effectAllowed !== 'none'
+const estUnDepot = (d: DataTransfer) => estUnDepotToile(d) || (d.effectAllowed !== 'uninitialized' && d.effectAllowed !== 'none')
 
 /** Ouvre le sélecteur d'images, puis l'image choisie prend la place de celle-ci (« Remplacer l'image »). */
 export function choisirPourRemplacer(cible: Element<ContenuImage>, contexte: ContexteToile) {

@@ -1,6 +1,6 @@
 import type { Lien } from '../../coeur/tableau'
 import type { PropsOutils } from '../types'
-import { adresseAEditer, legendeAEditer } from './Lien'
+import { legendeAEditer } from './Lien'
 import { LARGEUR_MEDIA_SEUL, type Partie, affichage, aUnMedia, avecPartie, mediaSeul, mediaVisible } from './affichage'
 import { aDesReglagesDeLecture, lecteurDe } from './lecteurs'
 import { t } from '../../langue'
@@ -69,7 +69,6 @@ export function OutilsLien({ elements, contexte }: PropsOutils<Lien>) {
           titre={t('lien.renommer.titre')}
           libelle={t('lien.renommer')}
           onClick={() => {
-            adresseAEditer.delete(elements[0]!.id)
             legendeAEditer.delete(elements[0]!.id)
             contexte.commencerEdition(elements[0]!.id)
           }}
@@ -77,17 +76,6 @@ export function OutilsLien({ elements, contexte }: PropsOutils<Lien>) {
       )}
       {modifiable && texteVisible && (
         <BoutonOutil icone="legende" titre={t('lien.legende.titre')} libelle={t('note.legende')} actif={elements.every((e) => affichage(e.contenu).legende)} onClick={legende} />
-      )}
-      {elements.length === 1 && modifiable && texteVisible && (
-        <BoutonOutil
-          icone="lien"
-          titre={t('lien.changerAdresse')}
-          libelle={t('lien.adresse')}
-          onClick={() => {
-            adresseAEditer.add(elements[0]!.id)
-            contexte.commencerEdition(elements[0]!.id)
-          }}
-        />
       )}
       {lectureReglable && reglage('lectureAuto', t('lien.lectureAuto'), t('lien.lectureAuto.titre'), 'lecture')}
       {lectureReglable && reglage('boucle', t('lien.boucle'), t('lien.boucle.titre'), 'boucle')}

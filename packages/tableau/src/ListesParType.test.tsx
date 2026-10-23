@@ -68,15 +68,15 @@ describe('la barre de gauche, type par type (ordre de Milanote)', () => {
     expect(listes('note').visibles).toEqual(['Couleur', ...COMMUNS])
   })
 
-  it('lien sans média : Renommer, Légende, Adresse (Aperçu et Infos du lien n’ont rien à montrer)', () => {
+  it('lien sans média : Renommer, Légende (Aperçu et Infos du lien n’ont rien à montrer)', () => {
     const { visibles, rangees } = listes('lien')
-    expect(visibles).toEqual(['Couleur', ...COMMUNS, 'Renommer', 'Légende', 'Adresse'])
+    expect(visibles).toEqual(['Couleur', ...COMMUNS, 'Renommer', 'Légende'])
     expect(rangees).not.toContain('Ouvrir')
   })
 
   it('lien à média : Couleur, étiquettes, réactions, commentaire, puis Aperçu, Infos du lien, Renommer, Légende', () => {
     const { visibles } = listes('lien-video')
-    expect(visibles).toEqual(['Couleur', ...COMMUNS, 'Aperçu', 'Infos du lien', 'Renommer', 'Légende', 'Adresse'])
+    expect(visibles).toEqual(['Couleur', ...COMMUNS, 'Aperçu', 'Infos du lien', 'Renommer', 'Légende'])
   })
 
   it('image : Dessiner dessus et Légende visibles ; pivoter, recadrer et détourer dans « ••• »', () => {

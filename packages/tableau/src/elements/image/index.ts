@@ -1,4 +1,4 @@
-import type { Element, Image } from '../../coeur/tableau'
+import type { Element, Image, Lien } from '../../coeur/tableau'
 import { registre } from '../registre'
 import { OutilsFinImage, OutilsImage, RenduImage } from './Image'
 import { amorcerLegende } from './legendeAmorce'
@@ -6,6 +6,7 @@ import './image.css'
 import { RETRAIT_PX, aUneCarte, largeurNaturelleImage } from './geometrie'
 import { raccourciAnnoter } from './raccourciAnnotation'
 import { choisirPourRemplacer, recevoirImages } from './recepteur'
+import { choisirImageApercu, estVideo, imageMontree } from '../lien/imageApercu'
 import { ouvrirImage } from './visionneuse'
 import { t } from '../../langue'
 import { couleurDuContenu } from '../couleur'
@@ -47,12 +48,20 @@ registre.raccourci(raccourciAnnoter)
 const toutesImages = (els: Element[]): els is Element<Image>[] => els.length > 0 && els.every((e) => e.contenu.type === 'image')
 
 // Remplacer l'image : le sélecteur de fichiers, puis le fichier prend la place de l'image (position, largeur et légende gardées).
+// Le même geste remplace l'image d'un lien (celle de son aperçu, hors vidéo : « Remplacer l'aperçu » est à elle, voir elements/lien).
 registre.entreeMenu({
   get libelle() {
     return t('image.remplacer')
   },
-  visible: (els, contexte) => els.length === 1 && toutesImages(els) && !contexte.services.lectureSeule && !!contexte.services.fichiers,
-  faire: ([e], contexte) => e?.contenu.type === 'image' && choisirPourRemplacer(e as Element<Image>, contexte),
+  visible: (els, contexte) => {
+    if (els.length !== 1 || contexte.services.lectureSeule || !contexte.services.fichiers) return false
+    const c = els[0]!.contenu
+    return c.type === 'image' || (c.type === 'lien' && !!c.url && imageMontree(c) && !estVideo(c))
+  },
+  faire: ([e], contexte) => {
+    if (e?.contenu.type === 'image') choisirPourRemplacer(e as Element<Image>, contexte)
+    else if (e?.contenu.type === 'lien') choisirImageApercu(e as Element<Lien>, contexte)
+  },
 })
 
 // « Rogner l'image sur la grille de points » : cochée, l'image est rognée pour que ses bords tombent sur la grille ;

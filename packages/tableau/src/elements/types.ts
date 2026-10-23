@@ -278,7 +278,7 @@ export interface TypeElement<C extends Contenu = Contenu> {
   /** Pixels que la carte posée sur la toile perd en largeur : son filet de sélection est à l'extérieur (une image : 2). */
   retraitPx?: (c: C) => number
   /** La largeur « naturelle », en UG : celle où revient le double-clic sur la poignée, depuis 34. */
-  largeurNaturelle?(c: C): number
+  largeurNaturelle?(c: C): number | undefined
   /**
    * La poignée du coin n'étire pas ce type, elle change son contenu (une table gagne ou perd des colonnes et des
    * lignes). La toile l'appelle pendant le geste puis au lâcher, avec l'élément tel qu'il était au départ :
@@ -286,6 +286,13 @@ export interface TypeElement<C extends Contenu = Contenu> {
    * descendu depuis le départ. Elle rend la largeur de l'élément et son contenu ; un seul pas d'historique.
    */
   tirerPoignee?(element: Element<C>, largeurTiree: number, dHauteurUG: number): { largeur: number; contenu: C }
+  /** Largeur maximale quand on redimensionne, en UG (une image d'aperçu ne s'étire pas au-delà de sa taille d'origine) ; `undefined` : aucune. */
+  largeurMax?(c: C): number | undefined
+  /**
+   * Le double-clic touche une partie précise de l'élément (`cible` : le nœud sous le pointeur) qui a son geste à elle
+   * (l'aperçu d'un lien en « média seul » ouvre l'adresse). Rend vrai s'il l'a pris : la toile n'édite alors rien.
+   */
+  surDoubleClic?(element: Element<C>, cible: HTMLElement | null, contexte: ContexteToile): boolean
   /** Largeur sur hauteur d'un média : la poignée garde ces proportions (Cmd les libère). */
   proportion?(c: C): number
   /** La poignée règle aussi la hauteur : le contenu qui dépasse se cache sous un voile, et revient en édition. */

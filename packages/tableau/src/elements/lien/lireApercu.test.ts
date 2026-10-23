@@ -36,4 +36,9 @@ describe('lireApercu', () => {
   it('écarte une image qui n’est pas http(s)', () => {
     expect(lireApercu('<meta property="og:image" content="javascript:x">', base).image).toBeUndefined()
   })
+  it('garde la taille de l’image quand la page la donne', () => {
+    const html = '<meta property="og:image" content="/a.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">'
+    expect(lireApercu(html, base)).toMatchObject({ largeur: 1200, hauteur: 630 })
+    expect(lireApercu('<meta property="og:image:width" content="1200">', base).largeur).toBeUndefined()
+  })
 })

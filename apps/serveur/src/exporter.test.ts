@@ -159,6 +159,11 @@ describe('texte cherchable et fichiers', () => {
     expect([...idsDeFichiers(elements)].sort()).toEqual(['f1', 'i1', 'i1-400'])
   })
 
+  it('garde servi l\u2019image qu\u2019on a donnée à un lien comme aperçu', () => {
+    const lien = el({ type: 'lien', url: 'https://x.fr', image: { fichier: 'apercu', largeur: 400, hauteur: 300 } })
+    expect([...idsDeFichiers([lien])]).toEqual(['apercu'])
+  })
+
   it('garde servi l\u2019original d\u2019une image détourée', () => {
     const detouree = el({ type: 'image', fichier: 'png', original: { fichier: 'photo', tailles: [{ largeur: 400, fichier: 'photo-400' }] } })
     expect([...idsDeFichiers([detouree])].sort()).toEqual(['photo', 'photo-400', 'png'])
