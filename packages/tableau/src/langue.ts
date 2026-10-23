@@ -626,6 +626,8 @@ export const fr: Textes = {
   'pilotage.vide': 'Le tableau est vide',
   'reseau.absent': 'Réseau absent',
   'reseau.refuse': 'Déclaration refusée ({statut})',
+
+  'envois.nomFichier': '« {nom} »',
   // FIN fr
 }
 
@@ -1170,5 +1172,7 @@ export const en: Textes = {
   'pilotage.vide': 'The board is empty',
   'reseau.absent': 'No network',
   'reseau.refuse': 'Declaration refused ({statut})',
+
+  'envois.nomFichier': '“{nom}”',
   // FIN en
 }
