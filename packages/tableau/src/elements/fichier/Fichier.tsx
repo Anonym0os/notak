@@ -4,6 +4,7 @@ import { useFichier } from '../envois'
 import type { PropsOutils, PropsRendu } from '../types'
 import { ICONE_DU_GENRE, adresseApercuPdf, apercuDe, extensionDe, genreDe, lisible, tailleLisible } from './genre'
 import { t } from '../../langue'
+import { annoncer } from '../../avis'
 import { Icone } from '../../icones'
 import { BoutonOutil } from '../../BoutonOutil'
 
@@ -164,4 +165,16 @@ export function OutilsFichier({ elements, contexte }: PropsOutils<Fichier>) {
 export async function ouvrirFichier(c: Fichier, contexte: PropsOutils['contexte']) {
   const a = await contexte.services.fichiers?.adresse(c.fichier)
   if (a) window.open(a, '_blank', 'noopener,noreferrer')
+}
+
+/** L'adresse du fichier, absolue, au presse-papiers ; sans presse-papiers, on ouvre le fichier. */
+export async function copierLienFichier(c: Fichier, contexte: PropsOutils['contexte']) {
+  const a = await contexte.services.fichiers?.adresse(c.fichier)
+  if (!a) return
+  try {
+    await navigator.clipboard.writeText(new URL(a, window.location.href).href)
+    annoncer({ texte: t('fichier.lienCopie') })
+  } catch {
+    window.open(a, '_blank', 'noopener,noreferrer')
+  }
 }

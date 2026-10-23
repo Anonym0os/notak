@@ -2,11 +2,16 @@ import { type Element, type Image as ContenuImage, type Operation, nouvelId } fr
 import { commencerEnvoi } from '../envois'
 import { lireDimensions, lireTransparence } from './lecture'
 import type { ContexteToile, DepotFichiers } from '../types'
+import { annoncer } from '../../avis'
+import { t } from '../../langue'
 import { type TailleUG, TAILLE_MAX, TYPES_ACCEPTES, hauteurPour, imageSous, largeurInitiale, nombreColonnes, placerImages, remplacerContenu } from './geometrie'
 
 export function recevoirImages(donnees: DataTransfer, ou: { x: number; y: number }, contexte: ContexteToile) {
   // Pris tout de suite : le navigateur vide le presse-papiers dès qu'on rend la main.
-  const fichiers = [...donnees.files].filter((f) => TYPES_ACCEPTES.includes(f.type) && f.size <= TAILLE_MAX)
+  const images = [...donnees.files].filter((f) => TYPES_ACCEPTES.includes(f.type))
+  // Une image trop lourde est refusée à voix haute : un filtre muet laisse croire que le dépôt n'a pas pris.
+  for (const f of images) if (f.size > TAILLE_MAX) annoncer({ texte: t('envois.tropGros', { nom: f.name, max: '25' }) })
+  const fichiers = images.filter((f) => f.size <= TAILLE_MAX)
   const depot = contexte.services.fichiers
   if (!depot || fichiers.length === 0) return null
   // Une image lâchée sur une autre la remplace. Seul un dépôt a un point visé : un collage ou le sélecteur n'en ont pas.
@@ -20,8 +25,25 @@ export function recevoirImages(donnees: DataTransfer, ou: { x: number; y: number
 /** Un `DataTransfer` de glisser-déposer a un effet permis ; celui du presse-papiers ou du sélecteur n'en a pas. */
 const estUnDepot = (d: DataTransfer) => d.effectAllowed !== 'uninitialized' && d.effectAllowed !== 'none'
 
+/** Ouvre le sélecteur d'images, puis l'image choisie prend la place de celle-ci (« Remplacer l'image »). */
+export function choisirPourRemplacer(cible: Element<ContenuImage>, contexte: ContexteToile) {
+  const depot = contexte.services.fichiers
+  if (!depot) return
+  const champ = document.createElement('input')
+  champ.type = 'file'
+  champ.accept = 'image/*'
+  champ.addEventListener('change', () => {
+    const f = champ.files?.[0]
+    if (!f) return
+    if (!TYPES_ACCEPTES.includes(f.type)) return void annoncer({ texte: t('envois.imageNonPrise') })
+    if (f.size > TAILLE_MAX) return void annoncer({ texte: t('envois.tropGros', { nom: f.name, max: '25' }) })
+    void remplacerImage(cible, f, depot).then((ops) => ops.length > 0 && contexte.magasin.faire(ops))
+  })
+  champ.click()
+}
+
 /** Le fichier prend la place de celui de l'image visée, dans le même élément : même place, même largeur, même légende. */
-async function remplacerImage(cible: Element<ContenuImage>, f: File, depot: DepotFichiers): Promise<Operation[]> {
+export async function remplacerImage(cible: Element<ContenuImage>, f: File, depot: DepotFichiers): Promise<Operation[]> {
   const d = await lireDimensions(f)
   if (!d) return []
   const transparente = await lireTransparence(f)

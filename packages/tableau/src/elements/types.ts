@@ -366,6 +366,8 @@ export interface EntreeMenu {
   visible(elements: Element[], contexte: ContexteToile): boolean
   /** Le geste a déjà sa tuile dans la barre de gauche : l'entrée reste au clic droit, et ne se répète pas dans « ••• ». */
   tuile?: boolean
+  /** Une case cochée devant le libellé, quand elle l'est pour ces éléments (« Rogner l'image sur la grille »). */
+  coche?(elements: Element[], contexte: ContexteToile): boolean
   faire(elements: Element[], contexte: ContexteToile): void
 }
 

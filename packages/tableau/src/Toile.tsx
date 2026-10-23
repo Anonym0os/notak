@@ -1201,7 +1201,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       null,
       ...toutesLesEntreesMenu()
         .filter((x) => x.visible(els, contexte))
-        .map((x) => ({ libelle: x.libelle, ...(x.raccourci ? { raccourci: x.raccourci } : {}), faire: () => x.faire(els, contexte) })),
+        .map((x) => ({ libelle: x.libelle, ...(x.raccourci ? { raccourci: x.raccourci } : {}), ...(x.coche ? { coche: x.coche(els, contexte) } : {}), faire: () => x.faire(els, contexte) })),
       null,
       { libelle: t('toile.verrouiller'), coche: verrouilles, faire: () => verrouiller(!verrouilles) },
       { libelle: t('toile.premierPlan'), raccourci: '⇧⌘↑', faire: () => changerPlan('haut', false) },

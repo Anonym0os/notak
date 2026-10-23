@@ -1,11 +1,11 @@
-import type { Image } from '../../coeur/tableau'
+import type { Element, Image } from '../../coeur/tableau'
 import { registre } from '../registre'
 import { OutilsFinImage, OutilsImage, RenduImage } from './Image'
 import { amorcerLegende } from './legendeAmorce'
 import './image.css'
 import { RETRAIT_PX, aUneCarte, largeurNaturelleImage } from './geometrie'
 import { raccourciAnnoter } from './raccourciAnnotation'
-import { recevoirImages } from './recepteur'
+import { choisirPourRemplacer, recevoirImages } from './recepteur'
 import { ouvrirImage } from './visionneuse'
 import { t } from '../../langue'
 import { couleurDuContenu } from '../couleur'
@@ -43,3 +43,34 @@ registre.type<Image>({
 
 registre.recepteur({ priorite: 40, cumulable: true, recevoir: recevoirImages })
 registre.raccourci(raccourciAnnoter)
+
+const toutesImages = (els: Element[]): els is Element<Image>[] => els.length > 0 && els.every((e) => e.contenu.type === 'image')
+
+// Remplacer l'image : le sélecteur de fichiers, puis le fichier prend la place de l'image (position, largeur et légende gardées).
+registre.entreeMenu({
+  get libelle() {
+    return t('image.remplacer')
+  },
+  visible: (els, contexte) => els.length === 1 && toutesImages(els) && !contexte.services.lectureSeule && !!contexte.services.fichiers,
+  faire: ([e], contexte) => e?.contenu.type === 'image' && choisirPourRemplacer(e as Element<Image>, contexte),
+})
+
+// « Rogner l'image sur la grille de points » : cochée, l'image est rognée pour que ses bords tombent sur la grille ;
+// décochée, elle garde ses proportions exactes.
+registre.entreeMenu({
+  get libelle() {
+    return t('image.rognerGrille')
+  },
+  visible: (els, contexte) => toutesImages(els) && !contexte.services.lectureSeule,
+  coche: (els) => toutesImages(els) && els.every((e) => !e.contenu.proportionsExactes),
+  faire: (els, contexte) => {
+    if (!toutesImages(els)) return
+    const exactes = els.every((e) => !e.contenu.proportionsExactes)
+    contexte.magasin.faire(
+      els.map((e) => {
+        const { proportionsExactes: _, ...reste } = e.contenu
+        return { type: 'contenu' as const, id: e.id, avant: e.contenu, apres: exactes ? { ...reste, proportionsExactes: true } : reste }
+      }),
+    )
+  },
+})
