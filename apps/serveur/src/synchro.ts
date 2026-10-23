@@ -5,6 +5,7 @@ import { Hocuspocus } from '@hocuspocus/server'
 import { WebSocketServer } from 'ws'
 import type { Base } from './base.ts'
 import { roleHerite } from './droits.ts'
+import { indexerDocument } from './indexation.ts'
 import { NOM_COOKIE, empreinteDe, lireCookie } from './sessions.ts'
 
 const PREFIXE = 'tableau:'
@@ -27,6 +28,8 @@ export function creerHocuspocus(base: Base, maintenant: () => number = Date.now)
           const id = idDuDocument(documentName)
           const titre = document.getMap('meta').get('titre')
           if (id && typeof titre === 'string') base.changerTitre(id, titre.slice(0, 200))
+          // La recherche dans tous les tableaux suit ce qui vient d'être enregistré.
+          if (id && base.tableau(id)) indexerDocument(base, id, document)
         },
       }),
     ],

@@ -7,6 +7,7 @@ import type { Hocuspocus } from '@hocuspocus/server'
 import { creerApp } from './app.ts'
 import { ouvrirBase } from './base.ts'
 import { creerLimiteur } from './debit.ts'
+import { indexerLesAbsents } from './indexation.ts'
 import { brancherSynchro, creerHocuspocus } from './synchro.ts'
 
 export interface OptionsServeur {
@@ -25,6 +26,7 @@ export interface ServeurDemarre {
 export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre> {
   mkdirSync(options.dossier, { recursive: true })
   const base = ouvrirBase(join(options.dossier, 'notak.db'))
+  indexerLesAbsents(base)
   let hocuspocus: Hocuspocus | null = null
 
   const app = creerApp({

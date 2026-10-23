@@ -82,6 +82,24 @@ export interface Base {
   noterVu(utilisateur: string, tableau: string, maintenant: number): void
   /** Les tableaux ouverts en dernier par un compte, le plus récent d'abord. */
   recents(utilisateur: string, limite: number): string[]
+
+  /** Remplace tout ce qu'on sait chercher dans ce tableau. `element` vide : le titre du tableau. */
+  indexer(tableau: string, entrees: readonly EntreeIndex[]): void
+  /** Les tableaux dont le document est enregistré mais que l'index n'a jamais vus. */
+  tableauxNonIndexes(): string[]
+  /** Les meilleures correspondances dans ces tableaux ; `requete` est une expression FTS5 (voir `requeteIndex`). */
+  chercher(requete: string, tableaux: readonly string[], limite: number): Trouve[]
+}
+
+export interface EntreeIndex {
+  element: string
+  texte: string
+}
+
+export interface Trouve {
+  tableau: string
+  element: string
+  extrait: string
 }
 
 /** Combien de tableaux récents on garde par compte. */
@@ -132,6 +150,10 @@ CREATE TABLE IF NOT EXISTS recents (
   PRIMARY KEY (utilisateur, tableau)
 );
 CREATE INDEX IF NOT EXISTS recents_vu ON recents(utilisateur, vu DESC);
+CREATE VIRTUAL TABLE IF NOT EXISTS recherche USING fts5(
+  tableau UNINDEXED, element UNINDEXED, texte, tokenize = 'unicode61 remove_diacritics 2'
+);
+CREATE TABLE IF NOT EXISTS recherche_etat (tableau TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS liens_publics (
   tableau TEXT PRIMARY KEY REFERENCES tableaux(id) ON DELETE CASCADE,
   jeton TEXT NOT NULL UNIQUE, cree INTEGER NOT NULL
@@ -153,18 +175,20 @@ export function ouvrirBase(chemin: string): Base {
 
   const utilisateur = (l: Ligne | null): Utilisateur | null => (l ? (l as unknown as Utilisateur) : null)
 
+  const transaction = <T>(travail: () => T): T => {
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      const resultat = travail()
+      db.exec('COMMIT')
+      return resultat
+    } catch (e) {
+      db.exec('ROLLBACK')
+      throw e
+    }
+  }
+
   return {
-    transaction(travail) {
-      db.exec('BEGIN IMMEDIATE')
-      try {
-        const resultat = travail()
-        db.exec('COMMIT')
-        return resultat
-      } catch (e) {
-        db.exec('ROLLBACK')
-        throw e
-      }
-    },
+    transaction,
     fermer: () => db.close(),
 
     creerUtilisateur: (u) =>
@@ -257,6 +281,30 @@ export function ouvrirBase(chemin: string): Base {
       (tous('SELECT tableau FROM recents WHERE utilisateur = ? ORDER BY vu DESC, tableau LIMIT ?', u, limite) as unknown as { tableau: string }[]).map(
         (l) => l.tableau,
       ),
+    indexer(tableau, entrees) {
+      const faire = () => {
+        executer('DELETE FROM recherche WHERE tableau = ?', tableau)
+        for (const e of entrees) executer('INSERT INTO recherche (tableau,element,texte) VALUES (?,?,?)', tableau, e.element, e.texte)
+        executer('INSERT OR IGNORE INTO recherche_etat (tableau) VALUES (?)', tableau)
+      }
+      // Déjà dans une transaction (le magasin en ouvre une autour de certains gestes) : on s'y joint.
+      if (db.isTransaction) faire()
+      else transaction(faire)
+    },
+    tableauxNonIndexes: () =>
+      (
+        tous("SELECT substr(nom, 9) AS tableau FROM documents WHERE nom LIKE 'tableau:%' AND substr(nom, 9) NOT IN (SELECT tableau FROM recherche_etat)") as unknown as {
+          tableau: string
+        }[]
+      ).map((l) => l.tableau),
+    chercher: (requete, tableaux, limite) =>
+      tous(
+        `SELECT tableau, element, snippet(recherche, 2, '', '', '…', 14) AS extrait FROM recherche
+         WHERE recherche MATCH ? AND tableau IN (SELECT value FROM json_each(?)) ORDER BY rank LIMIT ?`,
+        requete,
+        JSON.stringify(tableaux),
+        limite,
+      ) as unknown as Trouve[],
     tableauDuJeton: (jeton) => (un('SELECT tableau FROM liens_publics WHERE jeton = ?', jeton)?.tableau as string | undefined) ?? null,
   }
 }

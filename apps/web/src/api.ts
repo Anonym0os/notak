@@ -1,4 +1,4 @@
-import type { Element } from '@notak/tableau'
+import type { Element, ResultatRecherche } from '@notak/tableau'
 export interface Moi {
   id: string
   email: string
@@ -158,4 +158,12 @@ export async function listerRecents(): Promise<TableauAccessible[]> {
 /** Note l'ouverture d'un tableau, pour la liste des récents. */
 export async function noterVu(tableau: string): Promise<void> {
   await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/vu`, {}).catch(() => {})
+}
+
+/** La recherche dans tous les tableaux du compte. */
+export async function rechercherPartout(requete: string): Promise<ResultatRecherche[]> {
+  const r = await appeler(`/api/recherche?q=${encodeURIComponent(requete)}`)
+  if (!r.ok) throw refus(r, {})
+  const trouves = (await r.json()) as { tableau: string; titre: string; element: string | null; extrait: string }[]
+  return trouves.map((t) => ({ tableau: t.tableau, titre: t.titre, ...(t.element ? { element: t.element } : {}), extrait: t.extrait }))
 }

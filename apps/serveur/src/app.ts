@@ -15,6 +15,7 @@ import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from
 import type { Limiteur } from './debit.ts'
 import { type Role, auMoins, role, roleHerite } from './droits.ts'
 import { estFormatExport, exporterTexte } from './exporter.ts'
+import { requeteIndex } from './indexation.ts'
 import { hacher, verifier } from './motsDePasse.ts'
 import { DUREE_SESSION_S, NOM_COOKIE, cookieEfface, cookieSession, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
 import { nomDuDocument } from './synchro.ts'
@@ -39,6 +40,8 @@ const ID_TABLEAU = /^[A-Za-z0-9_-]{8,64}$/
 const ID_FICHIER = /^[0-9a-f-]{36}$/
 /** Combien de tableaux récents la liste montre. */
 const RECENTS_AFFICHES = 12
+/** Combien de résultats la recherche dans tous les tableaux rend au plus. */
+const RESULTATS_RECHERCHE = 30
 const JETON_PUBLIC = /^[A-Za-z0-9_-]{16,64}$/
 
 /** Un nom de fichier sûr à partir d'un titre, et l'en-tête qui le propose au téléchargement. */
@@ -269,6 +272,29 @@ export function creerApp(ctx: Contexte): Hono {
     return etat ? lireEtat(etat) : { titre: base.tableau(id)?.titre ?? '', elements: [] }
   }
   const titreDe = (id: string) => base.tableau(id)?.titre
+
+  // ---- Recherche dans tous les tableaux ----
+
+  app.get('/api/recherche', (c) => {
+    const u = utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    const requete = requeteIndex(c.req.query('q') ?? '')
+    if (!requete) return c.json([])
+    // Les tableaux du compte, et tout ce qu'ils contiennent : un accès se transmet aux sous-tableaux.
+    const ouverts = new Set<string>()
+    for (const t of base.tableauxAccessibles(u.id)) {
+      ouverts.add(t.id)
+      for (const d of base.descendants(t.id)) ouverts.add(d)
+    }
+    const trouves = base.chercher(requete, [...ouverts], RESULTATS_RECHERCHE)
+    return c.json(
+      trouves.flatMap((t) => {
+        const r = roleSur(u.id, t.tableau)
+        const ligne = base.tableau(t.tableau)
+        return r && ligne ? [{ tableau: t.tableau, titre: ligne.titre, element: t.element || null, extrait: t.extrait, role: r }] : []
+      }),
+    )
+  })
 
   // ---- Favoris et récents ----
 
