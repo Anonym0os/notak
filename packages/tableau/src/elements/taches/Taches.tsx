@@ -1,9 +1,10 @@
-import { EditorContent, useEditor } from '@tiptap/react'
+import { EditorContent, getSchema, useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 import { type KeyboardEvent, type ReactNode, memo, useEffect, useMemo, useRef, useState } from 'react'
 import type { Element, Id, NoeudTexte, Taches } from '../../coeur/tableau'
-import type { PropsOutils, PropsRendu } from '../types'
-import { EXTENSIONS_TACHES, type GestesTaches, clavierListe } from './extensions'
+import { extensionsDuPartage, textePartage } from '../partage'
+import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
+import { EXTENSIONS_TACHES, EXTENSIONS_TACHES_PARTAGEE, type GestesTaches, clavierListe } from './extensions'
 import { type Chemin, basculer, compter, docTaches, effacerFaites, estFaite, retirer, sousTaches } from './liste'
 
 /** Les listes dont le titre vient d'être ajouté : leur édition y met le curseur. */
@@ -20,7 +21,7 @@ export function RenduTaches({ element, enEdition, contexte, brouillon, changer }
   return (
     <div className="notak-taches">
       {enEdition ? (
-        <Edition id={element.id} contenu={contenu} surChangement={brouillon} jeter={jeter} />
+        <Edition id={element.id} contenu={contenu} contexte={contexte} surChangement={brouillon} jeter={jeter} />
       ) : (
         <Figee contenu={contenu} changer={changer} />
       )}
@@ -119,7 +120,10 @@ function inline(paragraphe: NoeudTexte): ReactNode {
 
 const CASE_EN_TETE = /^\[([ xX]?)\]\s/
 
-function Edition({ id, contenu, surChangement, jeter }: { id: Id; contenu: Taches; surChangement(apres: Taches): void; jeter(): void }) {
+const SCHEMA = getSchema(EXTENSIONS_TACHES)
+
+function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surChangement(apres: Taches): void; jeter(): void }) {
+  const { id, contenu, contexte, surChangement, jeter } = props
   // L'état courant vit ici : la toile ne remet l'élément à jour qu'à la sortie de l'édition.
   const courant = useRef(contenu)
   const [titre, setTitre] = useState(contenu.titre)
@@ -132,10 +136,15 @@ function Edition({ id, contenu, surChangement, jeter }: { id: Id; contenu: Tache
     surChangement(apres)
   }
   const gestes = useRef<GestesTaches>(null!)
-  const extensions = useMemo(() => [...EXTENSIONS_TACHES, clavierListe(gestes)], [])
+  // Les tâches s'écrivent à plusieurs, comme le texte d'une note ; le titre, lui, reste un champ simple.
+  const fragment = useMemo(() => textePartage(contexte, id, docTaches(contenu.texte), SCHEMA), [])
+  const extensions = useMemo(
+    () => [...(fragment ? [...EXTENSIONS_TACHES_PARTAGEE, ...extensionsDuPartage(fragment, contexte)] : EXTENSIONS_TACHES), clavierListe(gestes)],
+    [fragment],
+  )
   const editeur = useEditor({
     extensions,
-    content: docTaches(contenu.texte),
+    ...(fragment ? {} : { content: docTaches(contenu.texte) }),
     autofocus: focaliserTitre.current ? false : 'end',
     editorProps: { attributes: { class: 'notak-taches-texte' } },
     onUpdate: ({ editor }) => poser({ ...courant.current, texte: editor.getJSON() as NoeudTexte }),

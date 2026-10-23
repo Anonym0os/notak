@@ -2,9 +2,7 @@ import { type Editor, Extension, InputRule, markInputRule } from '@tiptap/react'
 import Highlight from '@tiptap/extension-highlight'
 import TextAlign from '@tiptap/extension-text-align'
 import { Color, TextStyle } from '@tiptap/extension-text-style'
-import Collaboration from '@tiptap/extension-collaboration'
 import StarterKit from '@tiptap/starter-kit'
-import type { XmlFragment } from 'yjs'
 import { basculerCentre, basculerSurlignage, poserStyle } from './commandes'
 import { normaliserUrl } from './conversion'
 
@@ -107,15 +105,8 @@ export const EXTENSIONS_NOTE = [
   MarkdownTape,
 ]
 
-/**
- * Les mêmes, quand le texte s'écrit à plusieurs dans `fragment` : Yjs fusionne ce que chacun tape, et
- * l'annulation de l'éditeur (Cmd+Z en écrivant) ne défait que ce qu'on a tapé soi-même.
- */
-export const extensionsPartagees = (fragment: XmlFragment) => [
-  StarterKit.configure({ ...KIT, undoRedo: false }),
-  ...EXTENSIONS_NOTE.slice(1),
-  Collaboration.configure({ fragment }),
-]
+/** Les mêmes, quand le texte s'écrit à plusieurs : l'annulation est alors celle du partage (voir `partage.ts`). */
+export const EXTENSIONS_NOTE_PARTAGEE = [StarterKit.configure({ ...KIT, undoRedo: false }), ...EXTENSIONS_NOTE.slice(1)]
 
 export interface GestesEdition {
   lien(): void

@@ -300,3 +300,27 @@
   color: rgb(0 0 0 / 0.3);
   pointer-events: none;
 }
+
+/* Le curseur d'un autre dans un texte écrit à plusieurs : un trait à sa couleur, son prénom au-dessus. */
+.notak-caret {
+  position: relative;
+  margin: 0 -1px;
+  border-left: 2px solid;
+  pointer-events: none;
+  word-break: normal;
+}
+
+.notak-caret-nom {
+  position: absolute;
+  bottom: 100%;
+  left: -2px;
+  padding: 1px 5px;
+  border-radius: 4px 4px 4px 0;
+  color: #fff;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  user-select: none;
+}

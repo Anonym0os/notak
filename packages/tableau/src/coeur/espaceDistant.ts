@@ -190,6 +190,8 @@ export function creerEspaceDistant(options: OptionsEspaceDistant): EspaceDistant
       for (const f of locaux) f()
     }
     return {
+      moi: () => utilisateur,
+      canal: () => e.connexion?.awareness ?? null,
       signaler(etat) {
         local = {
           curseur: etat.curseur === undefined ? local.curseur : etat.curseur,

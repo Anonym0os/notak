@@ -35,6 +35,7 @@
         "@hocuspocus/provider": "4.7.1",
         "@notak/tableau": "workspace:*",
         "@tiptap/extension-collaboration": "3.32.0",
+        "@tiptap/extension-collaboration-caret": "3.32.0",
         "@tiptap/extension-highlight": "3.32.0",
         "@tiptap/extension-list": "3.32.0",
         "@tiptap/extension-text-align": "3.32.0",
@@ -63,6 +64,7 @@
       "devDependencies": {
         "@hocuspocus/provider": "4.7.1",
         "@tiptap/extension-collaboration": "3.32.0",
+        "@tiptap/extension-collaboration-caret": "3.32.0",
         "@tiptap/extension-highlight": "3.32.0",
         "@tiptap/extension-list": "3.32.0",
         "@tiptap/extension-text-align": "3.32.0",
@@ -82,6 +84,7 @@
       },
       "peerDependencies": {
         "@hocuspocus/provider": "4.7.1",
+        "@tiptap/extension-collaboration": "^3.31.0",
         "@tiptap/extension-highlight": "^3.31.0",
         "@tiptap/extension-list": "^3.31.0",
         "@tiptap/extension-text-align": "^3.31.0",
@@ -90,6 +93,7 @@
         "@tiptap/react": "^3.31.0",
         "@tiptap/starter-kit": "^3.31.0",
         "@tiptap/static-renderer": "^3.31.0",
+        "@tiptap/y-tiptap": "^3.0.10",
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
         "y-indexeddb": "9.0.12",
@@ -227,6 +231,8 @@
     "@tiptap/extension-code-block": ["@tiptap/extension-code-block@3.32.0", "", { "peerDependencies": { "@tiptap/core": "3.32.0", "@tiptap/pm": "3.32.0" } }, "sha512-9NZW/yXP9j9XKr+hRS5m58xiyZI+tQo1PJ7eLHXjGNFWaF601NG/h6741mbKh5uCY51XsbyqG+7que+RavngPA=="],
 
     "@tiptap/extension-collaboration": ["@tiptap/extension-collaboration@3.32.0", "", { "peerDependencies": { "@tiptap/core": "3.32.0", "@tiptap/pm": "3.32.0", "@tiptap/y-tiptap": "^3.0.7", "yjs": "^13" } }, "sha512-db7VPDksD13zsYVi/Hao2Je5ZMwGRuXxVBDFv182Kr06aixxAWjBJ5JvYf6AgcrDKFx/dPPpDjctKQjJPtw6VA=="],
+
+    "@tiptap/extension-collaboration-caret": ["@tiptap/extension-collaboration-caret@3.32.0", "", { "peerDependencies": { "@tiptap/core": "3.32.0", "@tiptap/pm": "3.32.0", "@tiptap/y-tiptap": "^3.0.7" } }, "sha512-xWDNWRl7mU782lnxm0B9Lht1EzxcpRXkJcfF76MXmLj1n27PsXqEA6tcVn7RC8sQs8IcuDWQjFvvxMd08nMfCQ=="],
 
     "@tiptap/extension-document": ["@tiptap/extension-document@3.32.0", "", { "peerDependencies": { "@tiptap/core": "3.32.0" } }, "sha512-GugeKE6AnZDluRXJUNBuX43TPcaJxy5wck6vT2J4a0/EnKStJ43suSZZf1IPfb1ij9EL9bYvAwg9DOcrvdEzTQ=="],
 

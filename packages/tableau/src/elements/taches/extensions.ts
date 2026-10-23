@@ -236,19 +236,24 @@ const ClavierTaches = Extension.create({
   },
 })
 
+const KIT_TACHES = {
+  document: false,
+  heading: false,
+  codeBlock: false,
+  blockquote: false,
+  bulletList: false,
+  orderedList: false,
+  listItem: false,
+  horizontalRule: false,
+} as const
+
 export const EXTENSIONS_TACHES = [
-  StarterKit.configure({
-    document: false,
-    heading: false,
-    codeBlock: false,
-    blockquote: false,
-    bulletList: false,
-    orderedList: false,
-    listItem: false,
-    horizontalRule: false,
-  }),
+  StarterKit.configure(KIT_TACHES),
   Document,
   TaskList,
   Tache,
   ClavierTaches,
 ]
+
+/** Les mêmes, quand la liste s'écrit à plusieurs : l'annulation est alors celle du partage (voir `partage.ts`). */
+export const EXTENSIONS_TACHES_PARTAGEE = [StarterKit.configure({ ...KIT_TACHES, undoRedo: false }), ...EXTENSIONS_TACHES.slice(1)]

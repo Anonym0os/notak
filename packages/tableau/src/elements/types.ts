@@ -38,6 +38,10 @@ export interface ServicePresence {
   signaler(etat: { curseur?: Point | null; selection?: Id[]; edition?: Id | null }): void
   /** Les autres seulement, jamais soi. Même tableau tant que rien ne change. */
   autres(): Presence[]
+  /** Soi, tel que les autres le voient (nom, couleur). */
+  moi?(): Presence['utilisateur']
+  /** Le canal d'awareness Yjs du tableau, pour les curseurs dans un texte partagé ; `null` hors connexion. */
+  canal?(): unknown
   ecouter(f: () => void): () => void
 }
 
