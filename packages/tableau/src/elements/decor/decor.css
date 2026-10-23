@@ -79,6 +79,30 @@
 }
 
 /* Une pastille qui se confond avec la carte : un contour de 1 px à 30 %. */
+.notak-etiquette[role='button'] {
+  cursor: pointer;
+  outline: none;
+}
+
+/* La pastille choisie : un anneau de 2 px de la couleur de sélection. */
+.notak-etiquette[data-choisie],
+.notak-etiquette[data-choisie][data-contour] {
+  box-shadow: 0 0 0 2px var(--notak-selection);
+}
+
+.notak-etiquette[data-renomme] input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 4ch;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
 .notak-etiquette[data-contour='clair'] {
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.3);
 }

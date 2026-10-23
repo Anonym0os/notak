@@ -552,10 +552,16 @@
   border-radius: 5px;
 }
 
-/* Un passage commenté : un soulignement jaune, qui s'épaissit quand on y est. */
+/* Un passage commenté : un fond bleu très pâle et un soulignement bleu de 1 px, comme chez Milanote. */
 .notak-texte .notak-fil-texte {
-  background: color-mix(in srgb, #f3c534 28%, transparent);
-  border-bottom: 2px solid #f3c534;
+  padding-block: 1.5px;
+  background: #f4f7fe;
+  border-bottom: 1px solid #2f63f7;
+}
+
+.notak-espace[data-theme='sombre'] .notak-texte .notak-fil-texte {
+  background: #323b4a;
+  border-bottom-color: #537ef8;
 }
 
 /* La marge des fils, à droite de la note en édition. */
@@ -579,8 +585,8 @@
   flex-direction: column;
   gap: 10px;
   border-radius: 8px;
-  background: var(--notak-carte);
-  box-shadow: var(--notak-ombre);
+  background: #f4f7fe;
+  box-shadow: 0 1px 2px #1b25361a;
   opacity: 0.85;
   cursor: pointer;
 }

@@ -10,6 +10,12 @@ import type { ContexteToile } from '../types'
 let filtre: ReadonlySet<Id> = new Set()
 let fil: Id | null = null
 let contexte: ContexteToile | null = null
+/** La pastille d'étiquette choisie sur une carte (un seul clic dessus), ou rien. */
+export interface PuceChoisie {
+  element: Id
+  etiquette: Id
+}
+let puce: PuceChoisie | null = null
 const ecouteurs = new Set<() => void>()
 
 const souscrire = (f: () => void) => {
@@ -48,10 +54,18 @@ export function retenirContexte(c: ContexteToile) {
   if (autreTableau) {
     filtre = new Set()
     fil = null
+    puce = null
   }
   notifier()
 }
 
+export function choisirPuce(p: PuceChoisie | null) {
+  if (puce?.element === p?.element && puce?.etiquette === p?.etiquette) return
+  puce = p
+  notifier()
+}
+
+export const usePuce = () => useSyncExternalStore(souscrire, () => puce)
 export const useFiltre = () => useSyncExternalStore(souscrire, () => filtre)
 export const useFilOuvert = () => useSyncExternalStore(souscrire, () => fil)
 export const useContexteRetenu = () => useSyncExternalStore(souscrire, () => contexte)

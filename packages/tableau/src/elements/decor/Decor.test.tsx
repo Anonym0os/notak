@@ -109,6 +109,47 @@ describe('la bande sous une carte', () => {
   })
 })
 
+describe('une pastille d’étiquette sur la carte', () => {
+  const puce = () => hote.querySelector<HTMLElement>('.notak-etiquette')!
+  const touche = (n: HTMLElement, key: string) => act(() => void n.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true })))
+  it('se choisit d’un clic, se retire avec Suppr', () => {
+    const { contexte, element } = monde({ etiquettes: ['e1'] })
+    act(() => racine.render(<Decor element={element()} contexte={contexte} mode="toile" />))
+    act(() => puce().click())
+    expect(puce().hasAttribute('data-choisie')).toBe(true)
+    touche(puce(), 'Delete')
+    expect(element().etiquettes).toBeUndefined()
+  })
+  it('Échap la lâche sans rien changer', () => {
+    const { contexte, element } = monde({ etiquettes: ['e1'] })
+    act(() => racine.render(<Decor element={element()} contexte={contexte} mode="toile" />))
+    act(() => puce().click())
+    touche(puce(), 'Escape')
+    expect(puce().hasAttribute('data-choisie')).toBe(false)
+    expect(element().etiquettes).toEqual(['e1'])
+  })
+  it('se renomme sur place avec Entrée, pour tout le tableau', () => {
+    const { contexte, element, magasin } = monde({ etiquettes: ['e1'] })
+    act(() => racine.render(<Decor element={element()} contexte={contexte} mode="toile" />))
+    act(() => puce().click())
+    touche(puce(), 'Enter')
+    const champ = hote.querySelector<HTMLInputElement>('.notak-etiquette input')!
+    expect(champ.value).toBe('Urgent')
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(champ, 'À faire')
+      champ.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    touche(champ, 'Enter')
+    expect(magasin.lire().etiquettes?.[0]?.nom).toBe('À faire')
+    expect(hote.querySelector('.notak-etiquette input')).toBeNull()
+  })
+  it('en lecture seule, elle n’est qu’un texte', () => {
+    const { contexte, element } = monde({ etiquettes: ['e1'] }, true)
+    act(() => racine.render(<Decor element={element()} contexte={contexte} mode="toile" />))
+    expect(puce().getAttribute('role')).toBeNull()
+  })
+})
+
 describe('l’icône', () => {
   it('replie l’élément en son glyphe et son résumé', () => {
     const { contexte, element } = monde({ affichage: 'icone' })
