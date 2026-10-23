@@ -40,6 +40,11 @@
   overflow-wrap: anywhere;
 }
 
+.notak-legende[data-vide] {
+  color: #9aa0a8;
+  cursor: text;
+}
+
 .notak-legende-champ {
   display: block;
   box-sizing: border-box;
@@ -111,4 +116,8 @@
   height: 18px;
   border-width: 2.5px;
   filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.4));
+}
+
+.notak-carte[data-choisie] .notak-legende {
+  cursor: text;
 }

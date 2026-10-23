@@ -6,7 +6,7 @@ import { PX_PAR_UG } from '../../coeur/camera'
 import { aUneOmbre, avecLegende, hauteurCalee } from './geometrie'
 import { Visionneuse, useImageOuverte } from './visionneuse'
 
-export function RenduImage({ element, enEdition, contexte, brouillon }: PropsRendu<Image>) {
+export function RenduImage({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<Image>) {
   const { contenu } = element
   const { adresse, enRoute } = useFichier(element, contexte)
   const proportions = contenu.largeurOrigine / contenu.hauteurOrigine
@@ -43,7 +43,17 @@ export function RenduImage({ element, enEdition, contexte, brouillon }: PropsRen
           valider={contexte.finirEdition}
         />
       ) : (
-        contenu.legende && <p className="notak-legende">{contenu.legende}</p>
+        // Une image choisie s'écrit sous le doigt : un clic sur sa légende, ou sur l'invite quand elle n'en a pas.
+        (contenu.legende || (choisie && !contexte.services.lectureSeule)) && (
+          <p
+            className="notak-legende"
+            data-vide={contenu.legende ? undefined : ''}
+            onPointerDown={(e) => choisie && e.stopPropagation()}
+            onClick={() => choisie && !contexte.services.lectureSeule && contexte.commencerEdition(element.id)}
+          >
+            {contenu.legende || 'Légende'}
+          </p>
+        )
       )}
     </>
   )
