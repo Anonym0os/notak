@@ -13,24 +13,24 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 
 | Partie | Fait | En partie | Absent | Avancement |
 |---|---|---|---|---|
-| 1. Toile | 14 | 5 | 8 | 61 % |
+| 1. Toile | 16 | 5 | 6 | 69 % |
 | 2. Création | 10 | 3 | 4 | 68 % |
 | 3. Note et texte | 17 | 2 | 12 | 58 % |
 | 4. Colonne | 9 | 0 | 2 | 82 % |
-| 5. Tableau imbriqué | 7 | 1 | 3 | 68 % |
+| 5. Tableau imbriqué | 8 | 0 | 3 | 73 % |
 | 6. Lien | 7 | 2 | 4 | 62 % |
 | 7. Image | 4 | 2 | 6 | 42 % |
 | 8. Liste de tâches | 11 | 0 | 6 | 65 % |
 | 9. Ligne | 9 | 2 | 3 | 71 % |
-| 10. Autres éléments | 0 | 0 | 12 | 0 % |
+| 10. Autres éléments | 0 | 1 | 11 | 4 % |
 | 11. Commun aux éléments | 3 | 1 | 8 | 29 % |
 | 12. Organiser | 13 | 1 | 2 | 84 % |
-| 13. Naviguer | 6 | 2 | 5 | 54 % |
+| 13. Naviguer | 6 | 3 | 4 | 58 % |
 | 14. À plusieurs | 7 | 3 | 7 | 50 % |
 | 15. Habillage | 1 | 3 | 11 | 17 % |
 | 16. Exporter, importer | 0 | 0 | 4 | 0 % |
 | 17. Plateformes | 1 | 1 | 5 | 21 % |
-| **Total** | **119** | **28** | **102** | **53 %** |
+| **Total** | **122** | **29** | **98** | **55 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -63,10 +63,10 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Redimensionner un groupe | ⬜ | |
 | Proportions gardées pour les médias, Cmd pour les libérer, Échap pendant le geste | ⬜ | |
 | Collisions : ce qui grandit pousse ses voisins du dessous | ⬜ | |
-| Entrer dans un tableau en le survolant pendant un glisser (1 s) | ⬜ | |
+| Entrer dans un tableau en le survolant pendant un glisser (700 ms puis 300 ms de clignement, 400 ms ensuite) | ✅ | |
 | Curseurs adaptés (main, redimensionner, texte) | 🟡 | Curseur au repos des autres. |
 | Poignée de taille constante quel que soit le zoom, visible au survol | ✅ | |
-| Défilement automatique au bord pendant un glisser | ⬜ | |
+| Défilement automatique au bord pendant un glisser ou un lasso | ✅ | |
 
 ## 2. Création
 
@@ -84,7 +84,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Coller des éléments copiés, décalés de 2 UG | ✅ | |
 | Coller du texte, une adresse, une image hors édition | 🟡 | N'arrive pas dans les non triés ; la note collée n'est pas éditée. |
 | Déposer des images depuis le Finder | ✅ | |
-| Déposer un fichier quelconque, plusieurs adresses, dans une colonne | 🟡 | Un PDF est ignoré ; une seule adresse est gardée. |
+| Déposer un fichier quelconque, plusieurs adresses, dans une colonne | 🟡 | Les fichiers se posent sur la toile, pas encore dans la colonne visée ; une seule adresse est gardée. |
 | Non triés : bac latéral, Cmd+\, Alt+` | ⬜ | |
 | Tailles et couleurs de départ de chaque type | ✅ | |
 | Modèles de tableaux | ⬜ | |
@@ -153,7 +153,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Renommer par un clic sur le titre d'un tableau choisi | ✅ | |
 | Couleur modifiable | ✅ | |
 | Déposer sur un tableau pour l'y envoyer | ✅ | |
-| Survol pendant un glisser : l'icône grossit et clignote | 🟡 | Mise en valeur simple, sans grossissement ni clignement. |
+| Survol pendant un glisser : l'icône grossit, s'assombrit, clignote avant d'entrer | ✅ | |
 | Icône de la bibliothèque ou image à la place de l'initiale | ⬜ | |
 | Disposition en ligne dans une colonne | ⬜ | |
 | Raccourci vers un tableau (le même tableau à deux endroits) | ⬜ | Élément « alias » de Milanote. |
@@ -192,7 +192,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Dessiner sur l'image (annotation, Maj+D) | ⬜ | |
 | Remplacer en déposant une autre image dessus | ⬜ | |
 | Image cassée signalée | ✅ | |
-| Envoi par l'outil Image du tiroir | ✅ | |
+| Outils Image et Fichier : choisir dans le Finder, au clic ou en glissant l'outil | ✅ | |
 
 ## 8. Liste de tâches
 
@@ -240,7 +240,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
 | Fonctionnalité | État | Reste |
 |---|---|---|
-| Fichier joint (icône, aperçu, lecteur audio ou vidéo) | ⬜ | |
+| Fichier joint : extension, nom, taille, Télécharger, Ouvrir, lecteur du son et de la vidéo, renommer | 🟡 | Pas d'aperçu des pages d'un PDF, de légende ni de mode icône ; rien à l'écran pendant l'envoi. |
 | Commentaire (fil de discussion posé sur la toile) | ⬜ | |
 | Table (lignes, colonnes, cellules) | ⬜ | |
 | Croquis à main levée | ⬜ | |
@@ -304,7 +304,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Fil d'Ariane : « … », largeurs, état de chargement | 🟡 | Largeurs estimées, pas d'état de chargement. |
 | Retour et avance au clavier (Ctrl+[, Ctrl+]) | 🟡 | Les boutons du navigateur marchent, pas les touches. |
 | Monter d'un niveau, redescendre (Cmd+U, Cmd+Maj+U) | ⬜ | |
-| Recherche dans les tableaux (Cmd+F), filtre de la toile | ⬜ | |
+| Recherche (Cmd+F) : ce qui ne correspond pas s'efface, Entrée va au résultat suivant | 🟡 | Dans le tableau ouvert seulement : pas encore dans tous les tableaux (il faut un index au serveur), ni de tri ou de tableaux récents. |
 | Tableaux récents, favoris | ⬜ | |
 | Aperçu d'un tableau au survol | ⬜ | |
 | Annuler la navigation (à l'échelle de la session) | ⬜ | |

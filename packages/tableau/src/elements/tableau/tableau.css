@@ -128,3 +128,19 @@
 .notak-colonne-corps .notak-renvoi-info {
   align-self: start;
 }
+
+/* Juste avant d'y entrer, l'icône clignote : on sait que le tableau va s'ouvrir. */
+.notak-carte[data-clignote] .notak-renvoi-carre {
+  animation: notak-renvoi-clignote 0.3s linear forwards;
+}
+
+.notak-fil-segment[data-clignote] {
+  animation: notak-renvoi-clignote 0.3s linear forwards;
+}
+
+@keyframes notak-renvoi-clignote {
+  0% { filter: brightness(0.9); }
+  25% { filter: brightness(0.75); }
+  50% { filter: brightness(0.9); }
+  100% { filter: brightness(0.8); }
+}

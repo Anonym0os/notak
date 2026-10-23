@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { BarreOutils, BarreSelection, type OutilDeBarre, outilsDeBarre } from './Barres'
 import { Cadre, ContexteRangement, type Empreinte, type Rangement } from './Cadre'
 import * as cam from './coeur/camera'
-import { type Point, type Rect, chevauche, depuisCoins, englobant, point, soustraire } from './coeur/geometrie'
+import { type Point, type Rect, centre, chevauche, depuisCoins, englobant, point, soustraire } from './coeur/geometrie'
 import { type Hauteur, hauteurTiree, memeHauteur } from './coeur/hauteur'
 import { creerLimiteur } from './coeur/limiteur'
 import { type Magasin, enLectureSeule, sansCorbeille } from './coeur/magasin'
@@ -10,7 +10,8 @@ import { largeurDoubleClic, largeurTiree, LARGEUR_MIN_DEFAUT } from './coeur/lar
 import { type Cible, type Deplace, cleEntre, clesEntre, comparerOrdre, indexInsertion, pasDeDepot } from './coeur/ordre'
 import { cliquer, lasso } from './coeur/selection'
 import { type Paquet, TYPE_PAQUET, decalageDeCollage, deballer, empaqueter, texteDuPaquet } from './coeur/pressePapiers'
-import { type Entree, MenuContextuel, PanneauCorbeille } from './Menus'
+import { type Entree, MenuContextuel, PanneauCorbeille, Recherche } from './Menus'
+import { chercher } from './coeur/recherche'
 import { VOL_REPOS, type Vol, inclinaisonMax, transformation } from './coeur/vol'
 import { Envol, dessinerSur, oublierVol } from './envol'
 import {
@@ -57,6 +58,8 @@ type Geste =
       sorties: Operation[]
       /** Alt : les copies laissées à la place de départ. */
       copies?: Operation[]
+      /** Le geste vient d'un autre tableau, où il est entré au survol. */
+      enchaine?: boolean
     }
   | {
       type: 'outil'
@@ -86,6 +89,16 @@ function hauteurNaturelle(carte: HTMLElement): number {
   return (contenu?.offsetHeight ?? 0) + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom)
 }
 
+/**
+ * Un glisser qui entre dans un tableau survolé : la toile de départ y envoie ce qu'on glisse, puis la toile
+ * d'arrivée reprend le geste sous le pointeur, toujours enfoncé.
+ */
+let relais: { tableau: Id; ids: Id[]; decalages: Point[]; pointeur: number; ecran: Point } | null = null
+/** Survoler un tableau ouvre au bout de ce délai (plus court une fois qu'on est déjà entré), puis d'un clignement. */
+const ENTREE_PREMIERE = 700
+const ENTREE_SUIVANTE = 400
+const ENTREE_CLIGNEMENT = 300
+
 /** Le verrou d'axe de Maj : choisi d'après le plus grand déplacement, il ne bascule que si l'autre le dépasse franchement. */
 function choisirAxe(actuel: 'h' | 'v' | null, d: Point): 'h' | 'v' {
   const [ax, ay] = [Math.abs(d.x), Math.abs(d.y)]
@@ -96,6 +109,9 @@ function choisirAxe(actuel: 'h' | 'v' | null, d: Point): 'h' | 'v' {
 
 /** Sous ce déplacement (pixels écran), un appui reste un clic : rien ne bouge, rien ne quitte sa colonne. */
 const SEUIL_GLISSER = 3
+/** Près du bord pendant un glisser ou un lasso, la vue défile : zone de 40 px, jusqu'à 18 px par image. */
+const BORD = 40
+const VITESSE_BORD = 18
 
 /** Le dernier paquet copié, gardé d'un tableau à l'autre : le menu « Coller » s'en sert. */
 const copie: { paquet: Paquet | null; collages: number } = { paquet: null, collages: 0 }
@@ -169,6 +185,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const toutLeTableau = useSyncExternalStore(complet.ecouter, complet.lire)
   const corbeille = useMemo(() => aLaCorbeille(toutLeTableau), [toutLeTableau])
   const [corbeilleOuverte, setCorbeilleOuverte] = useState(false)
+  // La recherche dans le tableau (Cmd+F) : `null` fermée ; le rang du résultat montré ; chaque appel refocalise.
+  const [requete, setRequete] = useState<string | null>(null)
+  const [rangTrouve, setRangTrouve] = useState(-1)
+  const [appelRecherche, setAppelRecherche] = useState(0)
   const [menu, setMenu] = useState<{ x: number; y: number; ou: Point; surElement: boolean } | null>(null)
   const presence = services.presence
   const autres = useSyncExternalStore(
@@ -194,6 +214,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const cible = useRef<Cible | null>(null)
   /** Le tableau où tombera ce qu'on glisse (sa carte sur la toile, ou un segment du fil d'Ariane), et son nœud. */
   const tableauVise = useRef<{ id: Id; noeud: HTMLElement } | null>(null)
+  // L'entrée au survol en attente, et le dernier point du pointeur (écran) pour la reprise dans l'autre tableau.
+  const entree = useRef<{ noeud: HTMLElement; minuteur: ReturnType<typeof setTimeout> } | null>(null)
+  const dernierPointeur = useRef<{ ecran: Point; id: number } | null>(null)
+  const oublierEntree = () => {
+    if (!entree.current) return
+    clearTimeout(entree.current.minuteur)
+    delete entree.current.noeud.dataset.clignote
+    entree.current = null
+  }
   const [empreintes, setEmpreintes] = useState<readonly Empreinte[]>(AUCUNE)
 
   const racine = useRef<HTMLDivElement>(null)
@@ -425,11 +454,13 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         return p
       },
       finirEdition,
+      recevoir: (donnees, ou) => void recevoirCourant.current(donnees, ou),
     }),
     [rect, commencerEdition, finirEdition, creerSuivant, jeter],
   )
   contexteRef.current = contexte
 
+  const recevoirCourant = useRef<(d: DataTransfer, ou: Point) => Promise<void>>(async () => {})
   const recevoir = async (original: DataTransfer, ou: Point) => {
     if (lectureSeule) return
     // Le navigateur vide le presse-papiers dès que l'événement est fini : on le recopie avant d'attendre
@@ -437,15 +468,19 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const donnees = new DataTransfer()
     for (const type of original.types) if (type !== 'Files') donnees.setData(type, original.getData(type))
     for (const f of original.files) donnees.items.add(f)
+    const tous: Operation[] = []
     for (const r of tousLesRecepteurs()) {
       const pas = await r.recevoir(donnees, ou, contexte)
-      if (pas && pas.length > 0) {
-        magasin.faire(pas)
-        setSelection(new Set(pas.flatMap((op) => (op.type === 'creer' ? [op.element.id] : []))))
-        return
-      }
+      if (!pas || pas.length === 0) continue
+      tous.push(...pas)
+      if (!r.cumulable) break
     }
+    if (tous.length === 0) return
+    magasin.faire(tous)
+    setSelection(new Set(tous.flatMap((op) => (op.type === 'creer' ? [op.element.id] : []))))
   }
+
+  recevoirCourant.current = recevoir
 
   useLayoutEffect(() => {
     const div = racine.current!
@@ -586,11 +621,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   }
 
   /** Envoie ces éléments dans un autre tableau (avec le contenu des colonnes et les lignes entre eux). */
-  const envoyerDans = (cibleTableau: Id, ids: Id[]) => {
+  const envoyerDans = (cibleTableau: Id, ids: Id[]): Map<Id, Id | undefined> | undefined => {
     const t = magasin.lire()
     const p = empaqueter(t, ids, rect)
     if (!p || !services.deposerDans) return
-    services.deposerDans(cibleTableau, p.elements.map((x) => ({ ...x })))
+    const neufs = services.deposerDans(cibleTableau, p.elements.map((x) => ({ ...x }))) ?? []
     // Le déplacement n'entre pas dans l'historique : l'annuler ici laisserait un double là-bas.
     const partis = new Set(p.elements.map((x) => x.id))
     const lignesOrphelines = avecLiees(t.elements.filter((x) => partis.has(x.id)), t).filter((x) => !partis.has(x.id))
@@ -599,7 +634,94 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         (element): Operation => ({ type: 'supprimer', element }),
       ),
     )
+    return new Map(p.elements.map((x, i) => [x.id, neufs[i]?.id]))
   }
+  /** Le glisser entre dans le tableau survolé : ce qu'on glisse y part, et le geste reprend dans sa toile. */
+  const entrerEnGlissant = (id: Id) => {
+    oublierEntree()
+    const g = geste.current
+    const ptr = dernierPointeur.current
+    if (g?.type !== 'glisser' || !g.demarre || !ptr || !services.ouvrirTableau) return
+    const ici = cam.versTableau(camera, local({ clientX: ptr.ecran.x, clientY: ptr.ecran.y }))
+    // Ce qu'on glisse, là où on le voit, par rapport au pointeur.
+    const ids = [...g.origines.keys()]
+    const decalages = ids.map((x) => {
+      const o = g.origines.get(x)!
+      return point(o.pos.x + g.d.x - ici.x, o.pos.y + g.d.y - ici.y)
+    })
+    g.envol?.arreter()
+    for (const v of g.vols) {
+      const n = noeudDe(v)
+      if (n) oublierVol(n)
+    }
+    magasin.appliquerSeulement(g.sorties.toReversed().map(inverse))
+    geste.current = null
+    if (tableauVise.current) delete tableauVise.current.noeud.dataset.survolDepot
+    tableauVise.current = null
+    cible.current = null
+    setTrait(null)
+    setGlisses(null)
+    setEmpreintes(AUCUNE)
+    setEnGeste(false)
+    const neufs = envoyerDans(id, ids)
+    const suite = ids.flatMap((x, i) => {
+      const n = neufs?.get(x)
+      return n ? [{ id: n, decalage: decalages[i]! }] : []
+    })
+    relais = { tableau: id, ids: suite.map((x) => x.id), decalages: suite.map((x) => x.decalage), pointeur: ptr.id, ecran: ptr.ecran }
+    services.ouvrirTableau(id)
+  }
+
+  // Arrivé par un glisser entré au survol : on reprend le geste, ce qu'on glisse sous le pointeur.
+  useLayoutEffect(() => {
+    const r = relais
+    if (!r || r.tableau !== tableau.id || !racine.current) return
+    relais = null
+    const ici = cam.versTableau(camera, local({ clientX: r.ecran.x, clientY: r.ecran.y }))
+    const pas: Operation[] = []
+    const origines = new Map<Id, { place: Deplace['de']; pos: Point }>()
+    r.ids.forEach((x, i) => {
+      const el = magasin.lire().elements.find((y) => y.id === x)
+      if (!el) return
+      const [vx, vy] = aimanter(point(ici.x + r.decalages[i]!.x, ici.y + r.decalages[i]!.y))
+      pas.push({ type: 'deplacer', id: x, de: [el.x, el.y], vers: [vx, vy] })
+      origines.set(x, { place: { ...placeDe(el), x: vx, y: vy }, pos: point(vx, vy) })
+    })
+    if (origines.size === 0) return
+    magasin.appliquerSeulement(pas)
+    const ids = [...origines.keys()]
+    const choisis = magasin.lire().elements.filter((x) => origines.has(x.id))
+    const g: Extract<Geste, { type: 'glisser' }> = {
+      type: 'glisser',
+      depart: ici,
+      ecran: r.ecran,
+      demarre: true,
+      origines,
+      axe: null,
+      d: point(0, 0),
+      vols: ids,
+      base: point(0, 0),
+      sorties: [],
+      enchaine: true,
+    }
+    g.envol = new Envol(reglageVol(choisis, 0), (v) => {
+      for (const id of g.vols) {
+        const n = noeudDe(id)
+        if (n) dessinerSur(n, transformation(v, g.base), v.ombre)
+      }
+    })
+    geste.current = g
+    setSelection(new Set(ids))
+    setGlisses(new Set(ids))
+    setEnGeste(true)
+    try {
+      racine.current.setPointerCapture(r.pointeur)
+    } catch {
+      // Le bouton a été relâché pendant le chargement : le geste finira au prochain mouvement.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableau.id])
+
 
   const restaurer = (e: Element) => {
     complet.faire([{ type: 'ranger', id: e.id, de: placeDe(e), vers: { x: e.x, y: e.y } }])
@@ -683,6 +805,38 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     ]
   }
 
+  const trouves = useMemo(
+    () => (requete ? chercher(tableau.elements, requete, (id) => services.tableau?.(id)?.titre) : []),
+    [tableau, requete, services],
+  )
+  // Ce qui ne correspond pas s'efface à moitié, le temps de la recherche.
+  useLayoutEffect(() => {
+    const div = racine.current
+    if (!div) return
+    // Une colonne qui contient un résultat reste nette : son contenu s'effacerait avec elle.
+    const gardes = requete ? new Set(trouves.flatMap((x) => (x.parent ? [x.id, x.parent] : [x.id]))) : null
+    for (const n of div.querySelectorAll<HTMLElement | SVGElement>('[data-id]')) {
+      const id = n.getAttribute('data-id')!
+      if (gardes && requete!.trim() && !gardes.has(id)) n.dataset.horsRecherche = ''
+      else delete n.dataset.horsRecherche
+    }
+  })
+  /** Montre le résultat suivant (ou précédent) : il est choisi, et la vue s'y centre. */
+  const allerAuTrouve = (sens: 1 | -1) => {
+    if (trouves.length === 0) return
+    const r = (((rangTrouve < 0 && sens < 0 ? 0 : rangTrouve + sens) % trouves.length) + trouves.length) % trouves.length
+    setRangTrouve(r)
+    const el = trouves[r]!
+    setSelection(new Set([el.id]))
+    const zone = rect(el.id)
+    if (zone) lancerAnimation(cam.centree(centre(zone), camera.echelle, vue))
+  }
+  const fermerRecherche = () => {
+    setRequete(null)
+    setRangTrouve(-1)
+    racine.current?.focus()
+  }
+
   const lancerAnimation = (cible: cam.Camera) => {
     animation.current = { depart: camera, cible, debut: performance.now() }
     setAnime(true)
@@ -761,6 +915,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       return
     }
     if (e.target !== racine.current) return
+    if (cmd && touche === 'f') {
+      e.preventDefault()
+      setRequete((r) => r ?? '')
+      return setAppelRecherche((n) => n + 1)
+    }
     for (const r of lectureSeule ? [] : tousLesRaccourcis()) {
       if (r(e.nativeEvent, contexte)) return e.preventDefault()
     }
@@ -984,13 +1143,57 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     return { incliner: !!def && !def.sansInclinaison && def.calque !== 'lignes', max: inclinaisonMax(cote) }
   }
 
+  /** La vitesse du défilement au bord (px d'écran par image), ou `null` hors de la zone et sur la barre d'outils. */
+  const vitesseBord = (e: { clientX: number; clientY: number }): Point | null => {
+    const r = racine.current?.getBoundingClientRect()
+    if (!r || document.elementFromPoint(e.clientX, e.clientY)?.closest('.notak-barre-outils')) return null
+    const axe = (v: number, min: number, max: number) =>
+      v < min + BORD ? -VITESSE_BORD * Math.min(1, (min + BORD - v) / BORD) : v > max - BORD ? VITESSE_BORD * Math.min(1, (v - max + BORD) / BORD) : 0
+    const v = point(axe(e.clientX, r.left, r.right), axe(e.clientY, r.top, r.bottom))
+    return v.x || v.y ? v : null
+  }
+  const bord = useRef<{ image: number; e: React.PointerEvent } | null>(null)
+  const suivreBord = (e: React.PointerEvent) => {
+    const g = geste.current
+    const actif = g && (g.type === 'lasso' || ((g.type === 'glisser' || g.type === 'outil') && g.demarre))
+    if (!actif) return
+    // Les champs utiles seulement : l'évènement de React ne survit pas à l'image suivante.
+    const copie = { clientX: e.clientX, clientY: e.clientY, pointerId: e.pointerId, shiftKey: e.shiftKey, altKey: e.altKey, metaKey: e.metaKey, ctrlKey: e.ctrlKey }
+    if (bord.current) {
+      bord.current.e = copie as React.PointerEvent
+      return
+    }
+    if (!vitesseBord(copie)) return
+    const b = { image: 0, e: copie as React.PointerEvent }
+    bord.current = b
+    const pas = () => {
+      const v = geste.current && vitesseBord(b.e)
+      if (!v || bord.current !== b) {
+        if (bord.current === b) bord.current = null
+        return
+      }
+      animation.current = null
+      setCamera((c) => cam.defiler(c, -v.x, -v.y))
+      // Ce qu'on glisse suit la vue : on rejoue le dernier mouvement.
+      mouvementCourant.current(b.e)
+      b.image = requestAnimationFrame(pas)
+    }
+    b.image = requestAnimationFrame(pas)
+  }
+  const arreterBord = () => {
+    if (bord.current) cancelAnimationFrame(bord.current.image)
+    bord.current = null
+  }
+
   const mouvement = (e: React.PointerEvent) => {
+    dernierPointeur.current = { ecran: point(e.clientX, e.clientY), id: e.pointerId }
     if (limiteur) {
       const c = cam.versTableau(camera, local(e))
       limiteur.pousser(point(Math.round(c.x * 10) / 10, Math.round(c.y * 10) / 10))
     }
     const g = geste.current
     if (!g) return
+    suivreBord(e)
     const p = local(e)
     if (g.type === 'attraper') {
       const d = soustraire(p, g.dernier)
@@ -1093,6 +1296,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     viser(e, choisis())
   }
 
+  const mouvementCourant = useRef(mouvement)
+  mouvementCourant.current = mouvement
+
   /** Cherche la colonne sous le pointeur, la place d'insertion, et dessine le trait. Ce qu'on glisse ne compte pas. */
   const viser = (e: React.PointerEvent, portes: readonly Element[]) => {
     const glisses = new Set(portes.map((x) => x.id))
@@ -1151,6 +1357,20 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (tableauVise.current?.noeud !== versTableau?.noeud) {
       if (tableauVise.current) delete tableauVise.current.noeud.dataset.survolDepot
       if (versTableau) versTableau.noeud.dataset.survolDepot = ''
+      oublierEntree()
+      const g = geste.current
+      // Un glisser qui s'attarde sur un tableau y entre, et continue dedans.
+      if (versTableau && g?.type === 'glisser' && services.ouvrirTableau) {
+        const vise = versTableau
+        const minuteur = setTimeout(
+          () => {
+            vise.noeud.dataset.clignote = ''
+            entree.current = { noeud: vise.noeud, minuteur: setTimeout(() => entrerEnGlissant(vise.id), ENTREE_CLIGNEMENT) }
+          },
+          g.enchaine ? ENTREE_SUIVANTE : ENTREE_PREMIERE,
+        )
+        entree.current = { noeud: vise.noeud, minuteur }
+      }
     }
     tableauVise.current = versTableau
     if (versTableau) nouveauTrait = null
@@ -1164,6 +1384,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const vol = g.envol?.vol
     setFantome(null)
     if (!g.demarre) {
+      const clic = g.outil.outil.clic
+      // Un outil d'envoi s'ouvre au clic : ce qu'on choisit se pose au milieu de la vue.
+      if (clic) return clic(cam.versTableau(camera, point(vue.largeur / 2, vue.hauteur / 2)), contexte)
       setRebond((r) => ({ libelle: g.outil.outil.libelle, n: (r?.n ?? 0) + 1 }))
       return
     }
@@ -1228,6 +1451,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     cible.current = null
     if (tableauVise.current) delete tableauVise.current.noeud.dataset.survolDepot
     tableauVise.current = null
+    oublierEntree()
     setTrait(null)
     setGlisses(null)
     setEmpreintes(AUCUNE)
@@ -1236,6 +1460,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   }
 
   const relache = (e: React.PointerEvent) => {
+    arreterBord()
     const g = geste.current
     geste.current = null
     setEnGeste(false)
@@ -1263,6 +1488,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     cible.current = null
     if (versTableau) delete versTableau.noeud.dataset.survolDepot
     tableauVise.current = null
+    oublierEntree()
     setTrait(null)
     setGlisses(null)
     setEmpreintes(AUCUNE)
@@ -1512,6 +1738,20 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         <PanneauCorbeille elements={corbeille} contexte={contexte} restaurer={restaurer} vider={viderCorbeille} fermer={() => setCorbeilleOuverte(false)} />
       )}
       {menu && <MenuContextuel x={menu.x} y={menu.y} entrees={entreesMenu()} fermer={fermerMenu} />}
+      {requete !== null && (
+        <Recherche
+          requete={requete}
+          appel={appelRecherche}
+          nombre={trouves.length}
+          rang={rangTrouve}
+          changer={(r) => {
+            setRequete(r)
+            setRangTrouve(-1)
+          }}
+          aller={allerAuTrouve}
+          fermer={fermerRecherche}
+        />
+      )}
       {lectureSeule && <div className="notak-lecture">Lecture seule</div>}
       <div className="notak-echelle">{Math.round(camera.echelle * 100)} %</div>
     </div>

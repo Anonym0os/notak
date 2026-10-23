@@ -49,7 +49,8 @@ export interface Services {
    * Pose ces éléments dans un autre tableau (on les y a lâchés) : ils s'y rangent à la suite du contenu,
    * ou gardent leur disposition si le tableau est vide.
    */
-  deposerDans?(tableau: Id, elements: Element[]): void
+  /** Pose ces éléments dans un autre tableau, à la suite de son contenu ; rend ce qui y a été créé (mêmes rangs). */
+  deposerDans?(tableau: Id, elements: Element[]): Element[] | void
   /** L'ouvrir dans un nouvel onglet (Cmd+clic, menu), là où l'application a des adresses. */
   ouvrirDansOnglet?(id: Id): void
   /** Le tableau d'un renvoi (titre, couleur, contenu), ou `undefined` s'il n'existe pas. */
@@ -79,6 +80,8 @@ export interface ContexteToile {
   versTableau(p: Point): Point
   /** La largeur de la vue à l'écran, en pixels. */
   largeurVue(): number
+  /** Passe des données (fichiers choisis, déposés) aux récepteurs, comme un dépôt à `ou` (UG). */
+  recevoir(donnees: DataTransfer, ou: Point): void
   /** Le centre de la vue, sur le tableau : là où l'on pose ce qu'on crée sans position. */
   centreVue(): Point
   selection: ReadonlySet<Id>
@@ -187,14 +190,18 @@ export interface Outil {
   /** Où le pointeur tient le fantôme, depuis son coin haut gauche, en UG (3, 3 par défaut). */
   prise?: Point
   creer(ou: Point, contexte: ContexteToile): Operation[]
+  /** Un clic sans glisser : au lieu du rebond qui rappelle de glisser (ouvrir un sélecteur de fichiers). */
+  clic?(ou: Point, contexte: ContexteToile): void
 }
 
 /**
  * Qui reçoit ce qu'on colle ou dépose sur la toile (hors édition). Les récepteurs sont essayés
- * par priorité décroissante ; le premier qui rend des opérations gagne.
+ * par priorité décroissante ; le premier qui rend des opérations gagne, sauf s'il est cumulable.
  */
 export interface Recepteur {
   priorite: number
+  /** Ce qu'il rend s'ajoute à ce que rendent les suivants (images et fichiers d'un même dépôt). */
+  cumulable?: boolean
   recevoir(donnees: DataTransfer, ou: Point, contexte: ContexteToile): Operation[] | Promise<Operation[]> | null
 }
 

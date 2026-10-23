@@ -102,6 +102,19 @@ export interface Taches {
   texte: NoeudTexte
 }
 
+/** Un fichier joint (PDF, document, son, vidéo…). Le fichier vit dans le dépôt, l'élément garde sa clé. */
+export interface Fichier {
+  type: 'fichier'
+  fichier: Id
+  /** Le nom d'origine, avec son extension. */
+  nom: string
+  typeMime: string
+  /** En octets. */
+  taille: number
+  /** Le nom qu'on lui a donné, à la place du nom d'origine. */
+  titre?: string
+}
+
 /** Une colonne : ses éléments portent `parent` = l'id de la colonne, et un `ordre`. */
 export interface Colonne {
   type: 'colonne'
@@ -140,7 +153,7 @@ export interface RenvoiTableau {
   titre?: string
 }
 
-export type Contenu = Note | Image | Lien | Taches | Colonne | Ligne | RenvoiTableau
+export type Contenu = Note | Image | Fichier | Lien | Taches | Colonne | Ligne | RenvoiTableau
 export type TypeContenu = Contenu['type']
 
 export interface Element<C extends Contenu = Contenu> {

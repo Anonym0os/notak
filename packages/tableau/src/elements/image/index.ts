@@ -21,4 +21,4 @@ registre.type<Image>({
   largeurNaturelle: largeurNaturelleImage,
 })
 
-registre.recepteur({ priorite: 40, recevoir: recevoirImages })
+registre.recepteur({ priorite: 40, cumulable: true, recevoir: recevoirImages })

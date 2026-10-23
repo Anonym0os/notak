@@ -1,0 +1,92 @@
+.notak-fichier {
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--notak-texte);
+}
+
+.notak-fichier-tete {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* L'extension, sur une pastille de la couleur de sa famille. */
+.notak-fichier-badge {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 48px;
+  border-radius: 3px;
+  background: #8a94a3;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.notak-fichier[data-genre='pdf'] .notak-fichier-badge { background: #d6453d; }
+.notak-fichier[data-genre='texte'] .notak-fichier-badge { background: #3f74d1; }
+.notak-fichier[data-genre='tableur'] .notak-fichier-badge { background: #2f9a5a; }
+.notak-fichier[data-genre='presentation'] .notak-fichier-badge { background: #e07a2e; }
+.notak-fichier[data-genre='archive'] .notak-fichier-badge { background: #7c6a55; }
+.notak-fichier[data-genre='son'] .notak-fichier-badge { background: #9a4fc4; }
+.notak-fichier[data-genre='video'] .notak-fichier-badge { background: #c43f7d; }
+.notak-fichier[data-genre='code'] .notak-fichier-badge { background: #3c4654; }
+
+.notak-fichier-infos {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.notak-fichier-nom {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-fichier-champ {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  outline: none;
+  user-select: text;
+}
+
+.notak-fichier-details {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.notak-fichier-details a {
+  color: inherit;
+}
+
+.notak-fichier-details a:hover {
+  color: var(--notak-texte);
+}
+
+.notak-fichier-video {
+  display: block;
+  width: calc(100% + 44px);
+  margin: -24px -20px 14px -24px;
+  background: #000;
+}
+
+.notak-fichier-son {
+  display: block;
+  width: 100%;
+  height: 32px;
+  margin-top: 12px;
+}

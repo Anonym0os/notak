@@ -731,3 +731,62 @@
 .notak-voile[data-montre] {
   opacity: 1;
 }
+
+/* La recherche dans le tableau : en haut, au milieu ; ce qui ne correspond pas s'efface. */
+.notak-recherche {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 4px 4px 10px;
+  border-radius: 8px;
+  background: var(--notak-carte);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.14);
+  transform: translateX(-50%);
+  font-size: 13px;
+}
+
+.notak-recherche input {
+  width: 220px;
+  padding: 5px 2px;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--notak-texte);
+  outline: none;
+}
+
+.notak-recherche-compte {
+  min-width: 64px;
+  color: #6b7280;
+  font-size: 12px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.notak-recherche button {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--notak-texte);
+  cursor: pointer;
+}
+
+.notak-recherche button:hover:not(:disabled) {
+  background: rgb(0 0 0 / 0.06);
+}
+
+.notak-recherche button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+[data-hors-recherche] {
+  opacity: 0.22;
+  transition: opacity 0.15s;
+}

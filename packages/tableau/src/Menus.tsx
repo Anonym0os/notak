@@ -137,3 +137,63 @@ export function PanneauCorbeille({
     </div>
   )
 }
+
+/**
+ * La recherche dans le tableau ouvert : ce qui ne correspond pas s'efface sur la toile, Entrée montre le résultat
+ * suivant (Maj+Entrée le précédent), Échap ferme.
+ */
+export function Recherche(props: {
+  requete: string
+  appel: number
+  nombre: number
+  rang: number
+  changer(r: string): void
+  aller(sens: 1 | -1): void
+  fermer(): void
+}) {
+  const { requete, appel, nombre, rang, changer, aller, fermer } = props
+  const champ = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    champ.current?.focus()
+    champ.current?.select()
+  }, [appel])
+  const compte = !requete.trim() ? '' : nombre === 0 ? 'Aucun résultat' : rang < 0 ? `${nombre} résultat${nombre > 1 ? 's' : ''}` : `${rang + 1} sur ${nombre}`
+  return (
+    <div className="notak-recherche" role="search" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+      <input
+        ref={champ}
+        type="search"
+        placeholder="Chercher dans ce tableau"
+        aria-label="Chercher dans ce tableau"
+        value={requete}
+        spellCheck={false}
+        onChange={(e) => changer(e.target.value)}
+        onKeyDown={(e) => {
+          e.stopPropagation()
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            aller(e.shiftKey ? -1 : 1)
+          } else if (e.key === 'Escape') {
+            e.preventDefault()
+            fermer()
+          } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
+            e.preventDefault()
+            champ.current?.select()
+          }
+        }}
+      />
+      <span className="notak-recherche-compte" aria-live="polite">
+        {compte}
+      </span>
+      <button type="button" title="Résultat précédent (Maj+Entrée)" disabled={nombre === 0} onClick={() => aller(-1)}>
+        ↑
+      </button>
+      <button type="button" title="Résultat suivant (Entrée)" disabled={nombre === 0} onClick={() => aller(1)}>
+        ↓
+      </button>
+      <button type="button" title="Fermer (Échap)" onClick={fermer}>
+        ×
+      </button>
+    </div>
+  )
+}

@@ -128,7 +128,9 @@ export function EspaceNotak({
       deposerDans: (cible, elements) => {
         if (espace.lectureSeule?.(cible)) return
         const m = espace.magasin(cible)
-        m.appliquerSeulement(placerALaSuite(m.lire(), elements).map((element) => ({ type: 'creer' as const, element })))
+        const neufs = placerALaSuite(m.lire(), elements)
+        m.appliquerSeulement(neufs.map((element) => ({ type: 'creer' as const, element })))
+        return neufs
       },
     }),
     [hote, espace, ouvrir, courant, lectureSeule],
