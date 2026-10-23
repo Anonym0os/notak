@@ -625,6 +625,8 @@ function Entete({
           {actions && <div className="notak-entete-actions">{actions}</div>}
         </div>
       </div>
+      {/* Comme Milanote : l'accueil n'a que la première rangée ; titre, partage, export et vue ne viennent qu'avec un tableau. */}
+      {segments.length > 1 && (
       <div className="notak-entete-bas">
         <div className="notak-entete-gauche">
           <EtatEnregistrement etat={envoi} />
@@ -635,6 +637,7 @@ function Entete({
           <BoutonVue />
         </div>
       </div>
+      )}
     </header>
   )
 }
