@@ -6,7 +6,21 @@ import type { ContexteToile, ResultatRecherche } from './elements/types'
 import { Icone } from './icones'
 
 /** Une entrée du menu ; `null` trace un séparateur. */
-export type Entree = { libelle: string; raccourci?: string; coche?: boolean; /** Le menu reste ouvert après le choix (une bascule). */ reste?: boolean; desactive?: boolean; faire(): void } | null
+export type Entree = {
+  libelle: string
+  raccourci?: string
+  coche?: boolean
+  /** Le menu reste ouvert après le choix (une bascule). */
+  reste?: boolean
+  desactive?: boolean
+  /** Un sous-menu qui s'ouvre à droite (au survol, au clic ou avec la flèche droite). */
+  sous?: Entree[]
+  /** Une ligne d'information, sans clic : une personne (avatar) et ce qu'elle a fait. */
+  info?: { nom: string; couleur?: string }
+  /** Une pastille de couleur devant le libellé (les couleurs du canevas). */
+  pastille?: string
+  faire(): void
+} | null
 
 /** Les touches d'un raccourci, une pastille chacune : « ⇧⌘Z » donne ⇧, ⌘, Z. */
 export const touchesDe = (raccourci: string): string[] => {
@@ -40,6 +54,7 @@ export function Raccourci({ touches }: { touches: string }) {
 export function MenuContextuel({ x, y, entrees, fermer }: { x: number; y: number; entrees: Entree[]; fermer(): void }) {
   const boite = useRef<HTMLDivElement>(null)
   const [place, setPlace] = useState({ x, y })
+  const [sousOuvert, setSousOuvert] = useState<string | null>(null)
   const ouvertA = useRef(performance.now())
   useLayoutEffect(() => {
     const n = boite.current
@@ -96,6 +111,87 @@ export function MenuContextuel({ x, y, entrees, fermer }: { x: number; y: number
     ev.preventDefault()
     cible?.focus()
   }
+  /** Une entrée du menu, ou d'un sous-menu (`niveau` 1). */
+  const rendre = (e: Entree, i: number, niveau: number): React.ReactNode => {
+    if (e === null) return <div key={`s${i}`} className="notak-menu-sep" role="separator" />
+    if (e.info) {
+      return (
+        <div key={e.libelle} className="notak-menu-meta">
+          <span className="notak-decor-personne" style={e.info.couleur ? { background: e.info.couleur } : undefined} aria-hidden>
+            {e.info.nom.trim().charAt(0).toUpperCase()}
+          </span>
+          <span>{e.libelle}</span>
+        </div>
+      )
+    }
+    if (e.sous) {
+      const ouvert = sousOuvert === e.libelle
+      const sous = e.sous.filter((x, k, l) => x !== null || (k > 0 && k < l.length - 1 && l[k - 1] !== null))
+      return (
+        <div key={e.libelle} className="notak-menu-sous" onPointerLeave={() => setSousOuvert((o) => (o === e.libelle ? null : o))}>
+          <button
+            type="button"
+            role="menuitem"
+            aria-haspopup="menu"
+            aria-expanded={ouvert}
+            onPointerEnter={(ev) => {
+              ev.currentTarget.focus({ preventScroll: true })
+              setSousOuvert(e.libelle)
+            }}
+            onClick={() => setSousOuvert(e.libelle)}
+            onKeyDown={(ev) => {
+              if (ev.key !== 'ArrowRight' && ev.key !== 'Enter' && ev.key !== ' ') return
+              ev.preventDefault()
+              ev.stopPropagation()
+              setSousOuvert(e.libelle)
+              requestAnimationFrame(() => ev.currentTarget.parentElement?.querySelector<HTMLButtonElement>('.notak-menu-sous-liste button:not(:disabled)')?.focus({ preventScroll: true }))
+            }}
+          >
+            <span className="notak-menu-libelle">{e.libelle}</span>
+            <Icone nom="chevronDroite" taille={14} />
+          </button>
+          {ouvert && (
+            <div
+              className="notak-menu notak-menu-sous-liste"
+              role="menu"
+              onKeyDown={(ev) => {
+                if (ev.key !== 'ArrowLeft') return
+                ev.preventDefault()
+                ev.stopPropagation()
+                setSousOuvert(null)
+                ev.currentTarget.parentElement?.querySelector<HTMLButtonElement>(':scope > button')?.focus({ preventScroll: true })
+              }}
+            >
+              {sous.map((x, k) => rendre(x, k, niveau + 1))}
+            </div>
+          )}
+        </div>
+      )
+    }
+    return (
+      <button
+        key={e.libelle}
+        type="button"
+        role={e.coche === undefined ? 'menuitem' : 'menuitemcheckbox'}
+        aria-checked={e.coche}
+        disabled={e.desactive}
+        onPointerEnter={(ev) => {
+          ev.currentTarget.focus({ preventScroll: true })
+          if (niveau === 0) setSousOuvert(null)
+        }}
+        onPointerUp={(ev) => {
+          // Appuyer du bouton droit, glisser jusqu'à l'entrée et relâcher la choisit (pas le relâchement qui ouvre).
+          if (ev.button === 2 && performance.now() - ouvertA.current > 250) choisir(e)
+        }}
+        onClick={() => choisir(e)}
+      >
+        {e.pastille && <span className="notak-menu-pastille" style={{ background: e.pastille }} aria-hidden />}
+        <span className="notak-menu-libelle">{e.libelle}</span>
+        {e.raccourci && <Raccourci touches={e.raccourci} />}
+        {(avecCoches || niveau > 0) && <span className="notak-menu-coche">{e.coche ? <Icone nom="coche" taille={14} /> : null}</span>}
+      </button>
+    )
+  }
   return (
     <div
       ref={boite}
@@ -106,29 +202,7 @@ export function MenuContextuel({ x, y, entrees, fermer }: { x: number; y: number
       onContextMenu={(e) => e.preventDefault()}
       onKeyDown={clavier}
     >
-      {propres.map((e, i) =>
-        e === null ? (
-          <div key={`s${i}`} className="notak-menu-sep" role="separator" />
-        ) : (
-          <button
-            key={e.libelle}
-            type="button"
-            role={e.coche === undefined ? 'menuitem' : 'menuitemcheckbox'}
-            aria-checked={e.coche}
-            disabled={e.desactive}
-            onPointerEnter={(ev) => ev.currentTarget.focus({ preventScroll: true })}
-            onPointerUp={(ev) => {
-              // Appuyer du bouton droit, glisser jusqu'à l'entrée et relâcher la choisit (pas le relâchement qui ouvre).
-              if (ev.button === 2 && performance.now() - ouvertA.current > 250) choisir(e)
-            }}
-            onClick={() => choisir(e)}
-          >
-            <span className="notak-menu-libelle">{e.libelle}</span>
-            {e.raccourci && <Raccourci touches={e.raccourci} />}
-            {avecCoches && <span className="notak-menu-coche">{e.coche ? <Icone nom="coche" taille={14} /> : null}</span>}
-          </button>
-        ),
-      )}
+      {propres.map((e, i) => rendre(e, i, 0))}
     </div>
   )
 }

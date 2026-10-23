@@ -1,7 +1,8 @@
 import * as Y from 'yjs'
+import { type Fond, lireFond } from './fond'
 import type { Magasin } from './magasin'
 import { cleEntre, comparerOrdre } from './ordre'
-import { type CouleurNote, type Element, type Etiquette, type Id, type Operation, type Tableau, appliquer, inverse } from './tableau'
+import { type Auteur, type CouleurNote, type Element, type Etiquette, type Id, type Operation, type Tableau, type Trace, appliquer, inverse } from './tableau'
 
 /** Un élément tel qu'il vit dans le document : l'`Element` entier, plus sa place dans l'empilement. */
 export type ElementStocke = Element & { plan: string }
@@ -13,7 +14,7 @@ export const ORIGINE_LIBRE = 'notak:libre'
 /** Ce que l'historique ne voit pas du tout : une correction qui n'a pas trouvé son pas (`corriger`). */
 const ORIGINE_HORS = 'notak:hors-historique'
 
-export type MagasinYjs = Magasin & { detruire(): void; texte(id: Id): Y.XmlFragment; ligne(id: Id): Y.Text }
+export type MagasinYjs = Magasin & { detruire(): void; texte(id: Id): Y.XmlFragment; ligne(id: Id): Y.Text; trace(id: Id): Trace | undefined }
 
 const sansPlan = (s: ElementStocke): Element => {
   const { plan: _plan, ...element } = s
@@ -66,13 +67,15 @@ export function plansPour(actuel: readonly { id: Id; plan: string }[], voulu: re
  * `elements` (id → élément + `plan`) et `meta` (`titre`, `couleur`, `etiquettes`).
  * Le document peut être relié à un serveur : le magasin n'en sait rien.
  */
-export function creerMagasinYjs(doc: Y.Doc, id?: Id): MagasinYjs {
+export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteur | undefined } = {}): MagasinYjs {
   const elements = doc.getMap<ElementStocke>('elements')
   const meta = doc.getMap<unknown>('meta')
   // Le texte des notes, à part des éléments : l'historique du tableau ne le voit pas, chacun a le sien dans l'éditeur.
   const textes = doc.getMap<Y.XmlFragment>('textes')
   // De même pour une ligne simple, comme le titre d'une liste de tâches.
   const lignes = doc.getMap<Y.Text>('lignes')
+  // Qui a créé et touché chaque élément : hors de l'historique, comme le texte.
+  const traces = doc.getMap<Trace>('traces')
   // Un glisser écrit sans cesse, puis revient au départ et inscrit son geste : tout cela doit tenir dans un seul
   // pas, sinon annuler la création d'un élément déplacé ne l'atteindrait plus. Le temps ne découpe donc rien
   // (captureTimeout infini) ; les pas sont découpés à la main par `stopCapturing`, avant et après chaque geste.
@@ -98,6 +101,14 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id): MagasinYjs {
     return liste
   }
 
+  /** L'arrière-plan du tableau, lu dans `meta` ; le même objet tant que rien n'y change. */
+  let fondLu: { brut: unknown; fond: Fond | undefined } = { brut: undefined, fond: undefined }
+  const fondStocke = (): Fond | undefined => {
+    const brut = meta.get('fond')
+    if (brut !== fondLu.brut) fondLu = { brut, fond: lireFond(brut) }
+    return fondLu.fond
+  }
+
   const construire = (): Tableau => {
     const liste: { id: Id; plan: string; element: Element }[] = []
     const vus = new Set<Id>()
@@ -115,11 +126,13 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id): MagasinYjs {
     const titre = meta.get('titre')
     const couleur = meta.get('couleur')
     const etiquettes = etiquettesStockees()
+    const fond = fondStocke()
     return {
       ...(id !== undefined ? { id } : {}),
       titre: typeof titre === 'string' ? titre : '',
       ...(typeof couleur === 'string' ? { couleur: couleur as CouleurNote } : {}),
       ...(etiquettes.length > 0 ? { etiquettes } : {}),
+      ...(fond ? { fond } : {}),
       elements: liste.map((l) => l.element),
     }
   }
@@ -169,6 +182,10 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id): MagasinYjs {
         // Les étiquettes vivent dans `meta`, hors de l'historique de Yjs : annuler un geste ne les rend pas.
         if (op.vers.length > 0) meta.set('etiquettes', op.vers)
         else meta.delete('etiquettes')
+      } else if (op.type === 'fond') {
+        // L'arrière-plan vit lui aussi dans `meta`, hors de l'historique de Yjs.
+        if (op.vers) meta.set('fond', op.vers)
+        else meta.delete('fond')
       } else {
         const actuel = elements.get(op.id)
         if (!actuel) continue
@@ -182,6 +199,23 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id): MagasinYjs {
 
   const transaction = (f: () => void, origine: string) => doc.transact(f, origine)
 
+  /** Note, pour chaque élément qu'un geste touche, qui l'a fait et quand (sans nom connu, rien n'est noté). */
+  const marquer = (pas: Operation[]) => {
+    const par = options.auteur?.()
+    if (!par) return
+    const maintenant = Date.now()
+    for (const op of pas) {
+      if (op.type === 'etiquettes' || op.type === 'fond') continue
+      if (op.type === 'supprimer') {
+        traces.delete(op.element.id)
+        continue
+      }
+      const id = op.type === 'creer' ? op.element.id : op.id
+      if (op.type === 'creer') traces.set(id, { par, cree: maintenant, modifiePar: par, modifie: maintenant })
+      else traces.set(id, { ...traces.get(id), modifiePar: par, modifie: maintenant })
+    }
+  }
+
   return {
     lire,
     ecouter(f) {
@@ -191,7 +225,10 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id): MagasinYjs {
     faire(pas) {
       if (pas.length === 0) return
       historique.stopCapturing()
-      transaction(() => ecrire(pas), ORIGINE_GESTE)
+      transaction(() => {
+        ecrire(pas)
+        marquer(pas)
+      }, ORIGINE_GESTE)
       historique.stopCapturing()
     },
     appliquerSeulement(pas) {
@@ -201,9 +238,15 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id): MagasinYjs {
       if (pas.length > 0) {
         // Revenir au début du geste, puis le refaire : le pas contient tout le glisser, et annuler ramène au début.
         transaction(() => ecrire(pas.toReversed().map(inverse)), ORIGINE_LIBRE)
-        transaction(() => ecrire(pas), ORIGINE_GESTE)
+        transaction(() => {
+          ecrire(pas)
+          marquer(pas)
+        }, ORIGINE_GESTE)
       }
       historique.stopCapturing()
+    },
+    trace(id) {
+      return traces.get(id)
     },
     texte(id) {
       const deja = textes.get(id)
@@ -224,7 +267,7 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id): MagasinYjs {
       // Les entrées que la correction va remplacer : le pas qui les a écrites la reçoit, comme si elle en était.
       const stockees = (elements as unknown as { _map: Map<string, { id: Y.ID }> })._map
       const touchees = pas.flatMap((op) =>
-        op.type === 'etiquettes' ? [] : [stockees.get(op.type === 'creer' || op.type === 'supprimer' ? op.element.id : op.id)?.id],
+        op.type === 'etiquettes' || op.type === 'fond' ? [] : [stockees.get(op.type === 'creer' || op.type === 'supprimer' ? op.element.id : op.id)?.id],
       )
       const avant = historique.undoStack.length
       transaction(() => ecrire(pas), ORIGINE_LIBRE)
@@ -247,6 +290,10 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id): MagasinYjs {
         if (JSON.stringify(etiquettes) !== JSON.stringify(etiquettesStockees())) {
           if (etiquettes.length > 0) meta.set('etiquettes', etiquettes)
           else meta.delete('etiquettes')
+        }
+        if (JSON.stringify(t.fond) !== JSON.stringify(fondStocke())) {
+          if (t.fond) meta.set('fond', t.fond)
+          else meta.delete('fond')
         }
         const voulus = new Set(t.elements.map((e) => e.id))
         for (const cle of [...elements.keys()]) if (!voulus.has(cle)) elements.delete(cle)

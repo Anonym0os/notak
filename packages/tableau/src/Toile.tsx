@@ -10,6 +10,7 @@ import * as cam from './coeur/camera'
 import { brancherPilote } from './pilotage'
 import { type Point, type Rect, centre, chevauche, depuisCoins, englobant, point, soustraire } from './coeur/geometrie'
 import { type Hauteur, hauteurTiree, memeHauteur } from './coeur/hauteur'
+import { CANEVAS, type Fond, NOMS_CANEVAS, estLibre, estNomme, estSombre, fondParDefaut, fondRange, pointsAllumes } from './coeur/fond'
 import { creerLimiteur } from './coeur/limiteur'
 import { type Magasin, enLectureSeule, sansCorbeille } from './coeur/magasin'
 import { largeurDoubleClic, largeurMinDe, largeurTiree } from './coeur/largeur'
@@ -51,6 +52,7 @@ import { demanderRenommage } from './elements/tableau/renommage'
 import type { ContexteToile, Presence, Services } from './elements/types'
 import { t, tn } from './langue'
 import { PastilleZoom } from './PastilleZoom'
+import { lignesDeTrace } from './trace'
 import { usePublierVue } from './vueZoom'
 
 type Geste =
@@ -402,6 +404,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   // Ce qui est coupé de ce tableau disparaît de l'écran, sans quitter le tableau.
   const coupeEnCours = useSyncExternalStore(abonnerCoupe, lireCoupe)
   const masques = coupeEnCours?.magasin === magasin ? coupeEnCours.ids : null
+  // L'arrière-plan du tableau, et son aperçu en direct pendant qu'on choisit une couleur libre.
+  const [apercuFond, setApercuFond] = useState<Fond | null>(null)
+  const fondVoulu: Fond | undefined = apercuFond ?? toutLeTableau.fond
   const prisParUnAutre = useMemo(() => new Set(autres.flatMap((a) => [...a.selection, ...(a.edition ? [a.edition] : [])])), [autres])
   const tableau = useSyncExternalStore(magasin.ecouter, magasin.lire)
   const [camera, setCamera] = useState<cam.Camera>(cameraInitiale ?? cam.CAMERA_DEPART)
@@ -1399,6 +1404,51 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const verrouiller = (verrou: boolean) =>
     magasin.faire(choisis().filter((x) => !!x.verrou !== verrou).map((x): Operation => ({ type: 'verrouiller', id: x.id, de: !verrou, vers: verrou })))
 
+  /** Poser l'arrière-plan du tableau (`undefined` : celui d'origine), d'un geste qu'on peut annuler. */
+  const poserFond = (vers: Fond | undefined) => {
+    const range = vers && fondRange(vers)
+    if (JSON.stringify(range) === JSON.stringify(toutLeTableau.fond)) return
+    complet.faire([{ type: 'fond', de: toutLeTableau.fond, vers: range }])
+  }
+  const selecteurFond = useRef<HTMLInputElement | null>(null)
+  /** Le sélecteur natif de couleur : le fond suit le choix en direct, et se pose quand on le ferme. */
+  const choisirFondLibre = () => {
+    selecteurFond.current?.remove()
+    const actuel = toutLeTableau.fond
+    const champ = document.createElement('input')
+    champ.type = 'color'
+    champ.value = estLibre(actuel?.couleur) ? actuel.couleur : CANEVAS.gris.clair
+    champ.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none'
+    champ.addEventListener('input', () => setApercuFond({ ...actuel, couleur: champ.value }))
+    champ.addEventListener('change', () => {
+      poserFond({ ...actuel, couleur: champ.value })
+      setApercuFond(null)
+      champ.remove()
+    })
+    document.body.appendChild(champ)
+    selecteurFond.current = champ
+    champ.click()
+  }
+  useEffect(() => () => selecteurFond.current?.remove(), [])
+  /** « Changer l'arrière-plan » : les couleurs du canevas, une couleur libre, la grille de points, le retour au défaut. */
+  const sousMenuFond = (): Entree[] => {
+    const fond = toutLeTableau.fond
+    const sombre = racine.current?.closest('.notak-espace')?.getAttribute('data-theme') === 'sombre'
+    const nomme = estNomme(fond?.couleur) ? fond.couleur : estLibre(fond?.couleur) ? null : 'gris'
+    return [
+      ...NOMS_CANEVAS.map((n) => ({
+        libelle: t(`fond.${n}`),
+        pastille: CANEVAS[n][sombre ? 'sombre' : 'clair'],
+        coche: nomme === n,
+        faire: () => poserFond({ ...fond, couleur: n === 'gris' ? undefined : n }),
+      })),
+      null,
+      { libelle: t('fond.personnalisee'), coche: estLibre(fond?.couleur), faire: choisirFondLibre },
+      { libelle: t('fond.grille'), coche: pointsAllumes(fond), reste: true, faire: () => poserFond({ ...fond, points: !pointsAllumes(fond) }) },
+      ...(fondParDefaut(fond) ? [] : [null, { libelle: t('fond.retablir'), faire: () => poserFond(undefined) }]),
+    ]
+  }
+
   const entreesMenu = (): Entree[] => {
     if (!menu) return []
     const ou = menu.ou
@@ -1424,6 +1474,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         ...(tableau.elements.length === 0 ? [] : [{ libelle: t('raccourcis.toutSelectionner'), raccourci: '⌘A', faire: () => setSelection(new Set(tableau.elements.filter((x) => !x.parent).map((x) => x.id))) }]),
         null,
         ...creer,
+        ...(lectureSeule ? [] : [null, { libelle: t('fond.changer'), faire: () => {}, sous: sousMenuFond() }]),
       ]
     }
     const els = choisis()
@@ -1457,7 +1508,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       ...(els.some((x) => x.contenu.type === 'ligne' && accroches(x.contenu).length > 0)
         ? []
         : [{ libelle: t('toile.arrierePlan'), raccourci: '⇧⌘↓', faire: () => changerPlan('bas', false) }]),
+      // Un élément seul dit qui l'a créé et touché, avec l'avatar de la personne (rien si l'on ne sait pas).
+      ...(seul ? histoireDe(seul.id) : []),
     ]
+  }
+
+  /** Les lignes « Créé par vous… » du menu d'un élément, précédées d'un filet. */
+  const histoireDe = (id: Id): Entree[] => {
+    const lignes = lignesDeTrace(complet.trace?.(id), services.presence?.moi?.()?.id)
+    return lignes.length === 0 ? [] : [null, ...lignes.map((l) => ({ libelle: l.texte, info: { nom: l.auteur.nom, ...(l.auteur.couleur ? { couleur: l.auteur.couleur } : {}) }, faire: () => {} }))]
   }
 
   const trouves = useMemo(
@@ -2630,12 +2689,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   )
 
   const k = cam.PX_PAR_UG * camera.echelle
-  const grille = Math.abs(camera.echelle - 1) < 1e-3 && !anime
+  const grille = Math.abs(camera.echelle - 1) < 1e-3 && !anime && pointsAllumes(fondVoulu)
+  const fondLibre = estLibre(fondVoulu?.couleur) ? fondVoulu.couleur : undefined
   // La grille ne paraît qu'à 100 % : elle revient en fondu quand on y retombe (voir `.notak-toile::before`).
   const styleRacine = {
     '--notak-grille-pas': `${cam.PX_PAR_UG}px`,
     '--notak-grille-x': `${-camera.origine.x * k}px`,
     '--notak-grille-y': `${-camera.origine.y * k}px`,
+    // Une couleur libre : les points s'éclaircissent sur un fond sombre.
+    ...(fondLibre ? { '--notak-fond': fondLibre, '--notak-point': estSombre(fondLibre) ? 'rgb(255 255 255 / 0.22)' : 'rgb(0 0 0 / 0.18)' } : {}),
   } as React.CSSProperties
   const versEcran = (r: Rect) => ({ min: cam.versEcran(camera, r.min), max: cam.versEcran(camera, r.max) })
   const lassoEcran = zoneLasso && versEcran(zoneLasso)
@@ -2676,6 +2738,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       data-attraper={espace || attrape || undefined}
       data-attrape={attrape || undefined}
       data-grille={grille || undefined}
+      data-fond={estNomme(fondVoulu?.couleur) ? fondVoulu.couleur : undefined}
       tabIndex={0}
       style={styleRacine}
       onKeyDown={clavier}

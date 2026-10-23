@@ -236,7 +236,7 @@ export function creerEspaceDistant(options: OptionsEspaceDistant): EspaceDistant
     let e = entrees.get(id)
     if (e) return e
     const doc = new Y.Doc()
-    const magasin = creerMagasinYjs(doc, id)
+    const magasin = creerMagasinYjs(doc, id, { auteur: () => (utilisateur ? { id: utilisateur.id, nom: utilisateur.nom, couleur: utilisateur.couleur } : undefined) })
     const signal = { f: () => {} }
     const entree: Entree = {
       id,

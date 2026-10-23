@@ -1,6 +1,6 @@
 import type { Text as YText, XmlFragment } from 'yjs'
 import { Historique } from './historique'
-import { type Id, type Operation, type Tableau, appliquer, surLeTableau } from './tableau'
+import { type Id, type Operation, type Tableau, type Trace, appliquer, surLeTableau } from './tableau'
 
 /**
  * Le tableau et son historique, derrière une petite interface qu'écoute l'interface.
@@ -26,6 +26,8 @@ export interface Magasin {
    * Absent d'un magasin qui n'est pas partagé : l'éditeur écrit alors seul dans le contenu.
    */
   texte?(id: Id): XmlFragment
+  /** Qui a créé et dernièrement touché cet élément, et quand. Absent d'un magasin qui n'en garde pas la trace. */
+  trace?(id: Id): Trace | undefined
   /** Une ligne d'un élément écrite à plusieurs (le titre d'une liste de tâches), créée au besoin. Même absence. */
   ligne?(id: Id): YText
   annuler(): boolean
