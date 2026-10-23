@@ -19,7 +19,8 @@ import { BoutonOutil } from '../../BoutonOutil'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { type Historique, defaire, historiqueVide, noter, refaire } from './historique'
 import { dessinLibreOuvert, poserDessinLibre } from './mode'
-import { deplacerTraits, dessinsDepuis, operationsApresEdition, presDuBas, sansTraits, traitsDansMarquise, traitsDe } from './trace'
+import { dessinsDepuis, operationsApresEdition, presDuBas, traitsDe } from './trace'
+import { appliquerAuChoix, appuiSurTrait, decalageFleche, deplacerTraits, sansTraits, traitsDansMarquise } from '../croquis/selection'
 import { t } from '../../langue'
 import { ico } from '../../icones'
 
@@ -183,13 +184,7 @@ function Couche({
   const surChoix = (f: (t: Trait) => Trait) => {
     const { traits: tous, choix: c } = sur.current
     if (c.size === 0) return false
-    const suivants = new Set<Trait>()
-    const apres = tous.map((tr) => {
-      if (!c.has(tr)) return tr
-      const neuf = f(tr)
-      suivants.add(neuf)
-      return neuf
-    })
+    const { traits: apres, choix: suivants } = appliquerAuChoix(tous, c, f)
     valider(apres, tous)
     setChoix(suivants)
     return true
@@ -269,8 +264,8 @@ function Couche({
       else if (k >= '1' && k <= '4') choisirEpaisseur(Number(k) - 1)
       else if (s.outil === 'selection' && (k === 'delete' || k === 'backspace')) supprimerChoix()
       else if (s.outil === 'selection' && k.startsWith('arrow')) {
-        const pas = (e.shiftKey ? 10 : 1) / (contexte.camera.echelle * 10)
-        decaler(k === 'arrowleft' ? -pas : k === 'arrowright' ? pas : 0, k === 'arrowup' ? -pas : k === 'arrowdown' ? pas : 0)
+        const d = decalageFleche(k, e.shiftKey, 1 / (contexte.camera.echelle * 10))
+        if (d) decaler(d[0], d[1])
       } else return
       pris()
     }
@@ -317,16 +312,10 @@ function Couche({
       const ajoute = e.shiftKey || e.metaKey || e.ctrlKey
       if (i >= 0) {
         const trait = traits[i]!
-        let suite: ReadonlySet<Trait> = choix
-        if (ajoute) {
-          const c = new Set(choix)
-          if (c.has(trait)) c.delete(trait)
-          else c.add(trait)
-          suite = c
-        } else if (!choix.has(trait)) suite = new Set([trait])
+        const { choix: suite, glisse } = appuiSurTrait(choix, trait, ajoute)
         setChoix(suite)
         // Retirer un trait de la sélection n'ouvre pas de glisser.
-        if (suite.has(trait)) geste.current = { type: 'deplacer', depart: p, avant: traits, choix: suite }
+        if (glisse) geste.current = { type: 'deplacer', depart: p, avant: traits, choix: suite }
       } else {
         if (!ajoute) setChoix(new Set())
         geste.current = { type: 'marquise', depart: p, ecran: ecran(e), ajoute, base: ajoute ? choix : new Set() }

@@ -1,6 +1,10 @@
 import type { Dessin, Element, Operation, Trait } from '../../coeur/tableau'
 import { nouvelId } from '../../coeur/tableau'
 import { arrondir } from '../croquis/trace'
+import { boiteTrait, seTouchent } from '../croquis/selection'
+
+// La sélection vit dans le module partagé du croquis ; le dessin la reprend d'ici comme avant.
+export { type Boite, boiteTrait, deplacerTraits, sansTraits, traitsDansMarquise } from '../croquis/selection'
 
 /** Ce qui entoure les traits, en UG : le dessin ne colle pas à son cadre. */
 const MARGE = 1
@@ -38,26 +42,6 @@ export function dessinDepuis(traits: readonly Trait[]): Element<Dessin> | null {
 
 /** De combien on élargit le rectangle d'un trait pour dire que deux traits se touchent, en UG. */
 export const MARGE_GROUPE = 2
-
-export interface Boite {
-  x0: number
-  y0: number
-  x1: number
-  y1: number
-}
-
-/** Le rectangle d'un trait, son épaisseur comprise, élargi de `marge` de chaque côté. */
-export function boiteTrait(t: Trait, marge = 0): Boite {
-  let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity]
-  for (let i = 0; i < t.points.length; i += 2) {
-    const [x, y] = [t.points[i]!, t.points[i + 1]!]
-    ;[x0, y0, x1, y1] = [Math.min(x0, x), Math.min(y0, y), Math.max(x1, x), Math.max(y1, y)]
-  }
-  const m = marge + t.epaisseur / 2
-  return { x0: x0 - m, y0: y0 - m, x1: x1 + m, y1: y1 + m }
-}
-
-const seTouchent = (a: Boite, b: Boite) => a.x0 <= b.x1 && b.x0 <= a.x1 && a.y0 <= b.y1 && b.y0 <= a.y1
 
 /** Un trait utilisable : au moins un point, et pas de valeur absurde (un simple appui peut donner des NaN). */
 export const traitValide = (t: Trait): boolean => t.points.length >= 2 && t.points.every(Number.isFinite)
@@ -103,27 +87,6 @@ export function operationsApresEdition(element: Element<Dessin>, traits: readonl
   ops.push({ type: 'contenu', id: element.id, avant: element.contenu, apres: neuf.contenu })
   return ops
 }
-
-/** Les traits dont le rectangle rencontre la marquise. */
-export function traitsDansMarquise(traits: readonly Trait[], m: Boite): Trait[] {
-  const r = { x0: Math.min(m.x0, m.x1), y0: Math.min(m.y0, m.y1), x1: Math.max(m.x0, m.x1), y1: Math.max(m.y0, m.y1) }
-  return traits.filter((t) => seTouchent(boiteTrait(t), r))
-}
-
-/** Les traits choisis, décalés de (dx, dy) ; les autres restent les mêmes objets. `choix` suit les nouveaux traits. */
-export function deplacerTraits(traits: readonly Trait[], choix: ReadonlySet<Trait>, dx: number, dy: number): { traits: Trait[]; choix: Set<Trait> } {
-  const suivants = new Set<Trait>()
-  const apres = traits.map((t) => {
-    if (!choix.has(t)) return t
-    const neuf = { ...t, points: t.points.map((v, i) => v + (i % 2 === 0 ? dx : dy)) }
-    suivants.add(neuf)
-    return neuf
-  })
-  return { traits: apres, choix: suivants }
-}
-
-/** La gomme par trait entier : ce qui reste quand on retire les traits `retires`. */
-export const sansTraits = (traits: readonly Trait[], retires: ReadonlySet<Trait>): Trait[] => traits.filter((t) => !retires.has(t))
 
 /** Le pointeur est-il assez près du bas de la fenêtre pour que la barre s'efface pendant un tracé ? */
 export const presDuBas = (y: number, hauteurFenetre: number, seuil = 120): boolean => hauteurFenetre - y < seuil
