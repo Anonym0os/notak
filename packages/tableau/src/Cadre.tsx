@@ -12,6 +12,8 @@ import type { ContexteToile } from './elements/types'
 interface Props {
   element: Element
   choisie: boolean
+  /** Le seul élément choisi, libre de ses gestes. */
+  seule?: boolean
   enEdition: boolean
   contexte: ContexteToile
   /** `toile` : posé à sa position. `liste` : dans le flux d'un conteneur (une colonne). */
@@ -25,7 +27,7 @@ interface Props {
 }
 
 /** Le cadre commun d'un élément : position, largeur, fond, ombre, sélection. Le type dessine dedans. */
-export const Cadre = memo(function Cadre({ element, choisie, enEdition, contexte, mode = 'toile', poignee, audessus, brouillon, changer }: Props) {
+export const Cadre = memo(function Cadre({ element, choisie, seule, enEdition, contexte, mode = 'toile', poignee, audessus, brouillon, changer }: Props) {
   const noeud = useRef<HTMLDivElement>(null)
   const filtre = useFiltre()
   const def = definition(element.contenu.type)
@@ -69,6 +71,7 @@ export const Cadre = memo(function Cadre({ element, choisie, enEdition, contexte
         <Rendu
           element={element}
           choisie={choisie}
+          {...(seule ? { seule } : {})}
           enEdition={enEdition}
           contexte={contexte}
           brouillon={(c) => brouillon(element, c)}
@@ -162,6 +165,7 @@ function Rangee({ e, r, contexte }: { e: Element; r: Rangement; contexte: Contex
       element={e}
       mode="liste"
       choisie={r.selection.has(e.id)}
+      seule={r.selection.size === 1 && r.selection.has(e.id) && !e.verrou && r.edition === null && !contexte.services.lectureSeule}
       enEdition={r.edition === e.id}
       contexte={contexte}
       brouillon={r.brouillon}

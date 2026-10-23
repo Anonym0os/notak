@@ -6,7 +6,7 @@ import type { ContexteToile, ResultatRecherche } from './elements/types'
 import { Icone } from './icones'
 
 /** Une entrée du menu ; `null` trace un séparateur. */
-export type Entree = { libelle: string; raccourci?: string; coche?: boolean; faire(): void } | null
+export type Entree = { libelle: string; raccourci?: string; coche?: boolean; desactive?: boolean; faire(): void } | null
 
 /**
  * Le menu du clic droit, posé au point cliqué et ramené dans la toile s'il déborde. Un clic dehors, Échap
@@ -58,6 +58,7 @@ export function MenuContextuel({ x, y, entrees, fermer }: { x: number; y: number
             type="button"
             role={e.coche === undefined ? 'menuitem' : 'menuitemcheckbox'}
             aria-checked={e.coche}
+            disabled={e.desactive}
             onClick={() => {
               fermer()
               e.faire()

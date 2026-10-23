@@ -173,6 +173,8 @@ export interface ContexteToile {
 export interface PropsRendu<C extends Contenu = Contenu> {
   element: Element<C>
   choisie: boolean
+  /** Il est le seul élément choisi, libre de ses gestes (ni verrouillé, ni en lecture seule) : un type qui a des gestes à lui (les cellules d'une table) n'en a pas d'autre cas. */
+  seule?: boolean
   enEdition: boolean
   contexte: ContexteToile
   /**
@@ -211,6 +213,13 @@ export interface TypeElement<C extends Contenu = Contenu> {
   largeurMin?: number
   /** La largeur « naturelle », en UG : celle où revient le double-clic sur la poignée, depuis 34. */
   largeurNaturelle?(c: C): number
+  /**
+   * La poignée du coin n'étire pas ce type, elle change son contenu (une table gagne ou perd des colonnes et des
+   * lignes). La toile l'appelle pendant le geste puis au lâcher, avec l'élément tel qu'il était au départ :
+   * `largeurTiree` est la largeur où se trouve la poignée (UG, sans arrondi), `dHauteurUG` de combien elle a
+   * descendu depuis le départ. Elle rend la largeur de l'élément et son contenu ; un seul pas d'historique.
+   */
+  tirerPoignee?(element: Element<C>, largeurTiree: number, dHauteurUG: number): { largeur: number; contenu: C }
   /** Largeur sur hauteur d'un média : la poignée garde ces proportions (Cmd les libère). */
   proportion?(c: C): number
   /** La poignée règle aussi la hauteur : le contenu qui dépasse se cache sous un voile, et revient en édition. */

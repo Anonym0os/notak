@@ -1,6 +1,7 @@
 import {
   IconActivity,
   IconAlignCenter,
+  IconAlertCircle,
   IconAlertTriangle,
   IconArrowBackUp,
   IconArrowDown,
@@ -148,6 +149,7 @@ import {
   IconHash,
   IconInfoCircle,
   IconLayoutNavbar,
+  IconMathFunction,
   IconTypography,
   type TablerIcon,
 } from '@tabler/icons-react'
@@ -322,6 +324,8 @@ const ICONES = {
   infos: IconInfoCircle,
   barreNote: IconLayoutNavbar,
   texte: IconTypography,
+  alerte: IconAlertCircle,
+  formule: IconMathFunction,
 } as const satisfies Record<string, TablerIcon>
 
 export type NomIcone = keyof typeof ICONES

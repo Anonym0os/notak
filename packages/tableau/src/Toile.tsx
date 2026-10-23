@@ -92,6 +92,8 @@ type Geste =
       min: number
       /** Pour un type à hauteur bornable : sa hauteur donnée au départ, et celle de sa carte (px du plan). */
       borne?: { de: Hauteur | undefined; px: number }
+      /** Pour un type dont la poignée change le contenu (`tirerPoignee`) : l'élément tel qu'il était au départ. */
+      avant?: Element
     }
 
 /**
@@ -1309,7 +1311,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     }
     // Un bouton de la barre garde le focus après un clic : le reste du clavier revient quand même à la toile.
     const surBouton = e.target instanceof HTMLButtonElement && e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Tab'
-    if (e.target !== racine.current && !surBouton) return
+    // Une table dont des cellules sont choisies tient le clavier sur un nœud à elle : ce qu'elle ne prend pas revient ici.
+    const surTable = e.target instanceof HTMLElement && e.target.hasAttribute('data-table-clavier')
+    if (e.target !== racine.current && !surBouton && !surTable) return
     if (cmd && touche === 'f') {
       e.preventDefault()
       setRequete((r) => r ?? '')
@@ -1538,6 +1542,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           largeurDepart: el.largeur,
           min,
           ...(n ? { borne: { de: el.hauteur, px: n.offsetHeight } } : {}),
+          ...(def?.tirerPoignee ? { avant: el } : {}),
         }
       } else if (id) {
         arreterDepose()
@@ -1680,6 +1685,16 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     }
     if (g.type === 'redimensionnerGroupe') {
       return magasin.appliquerSeulement(pasDuGroupe(g, ici))
+    }
+    if (g.type === 'redimensionner' && g.avant) {
+      // Une poignée qui change le contenu (une table gagne des colonnes) : le type dit ce que devient l'élément.
+      const el = magasin.lire().elements.find((x) => x.id === g.id)
+      const r = el && definition(g.avant.contenu.type)?.tirerPoignee?.(g.avant as never, g.largeurDepart + (ici.x - g.depart.x), ici.y - g.depart.y)
+      if (!el || !r) return
+      return magasin.appliquerSeulement([
+        { type: 'redimensionner', id: g.id, de: el.largeur, vers: r.largeur },
+        { type: 'contenu', id: g.id, avant: el.contenu, apres: r.contenu as Contenu },
+      ])
     }
     if (g.type === 'redimensionner') {
       // Un média garde ses proportions : on suit la plus grande des deux tractions, ramenée en largeur.
@@ -1912,6 +1927,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const el = magasin.lire().elements.find((x) => x.id === g.id)
       if (el) {
         const pas: Operation[] = [{ type: 'redimensionner', id: g.id, de: el.largeur, vers: g.largeurDepart }]
+        if (g.avant && !memes(el.contenu, g.avant.contenu)) pas.push({ type: 'contenu', id: g.id, avant: el.contenu, apres: g.avant.contenu })
         if (g.borne) pas.push({ type: 'borner', id: g.id, de: el.hauteur ?? null, vers: g.borne.de ?? null })
         magasin.appliquerSeulement(pas)
       }
@@ -1972,6 +1988,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (!el) return
       const pas: Operation[] = []
       if (el.largeur !== g.largeurDepart) pas.push({ type: 'redimensionner', id: g.id, de: g.largeurDepart, vers: el.largeur })
+      if (g.avant && !memes(el.contenu, g.avant.contenu)) pas.push({ type: 'contenu', id: g.id, avant: g.avant.contenu, apres: el.contenu })
       if (g.borne && !memeHauteur(el.hauteur, g.borne.de)) {
         pas.push({ type: 'borner', id: g.id, de: g.borne.de ?? null, vers: el.hauteur ?? null })
       }
@@ -2168,6 +2185,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
               key={e.id}
               element={e}
               choisie={vueChoix.has(e.id)}
+              seule={e.id === seule}
               enEdition={edition === e.id}
               poignee={!lectureSeule && !e.verrou && !edition && (e.id === seule || !selection.has(e.id))}
               audessus={glisses?.has(e.id)}
