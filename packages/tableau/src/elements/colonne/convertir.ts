@@ -8,8 +8,8 @@ import { t } from '../../langue'
 const LARGEUR_TABLEAU = 10
 
 /**
- * Ce que la colonne devient en tableau : ses éléments, sortis de la colonne et empilés (5 UG de marge, 2 UG entre
- * chacun) selon leur hauteur. Leur rang dans la colonne fait leur ordre.
+ * Ce que la colonne devient en tableau : ses éléments, sortis de la colonne, dans l'ordre de la colonne. Le tableau
+ * neuf les garde dans ses non triés (le placement qu'on leur donne ici ne sert que s'il les pose un jour sur la toile).
  */
 export function elementsDuTableau(enfants: readonly Element[], hauteur: (e: Element) => number): Element[] {
   let y = 5
@@ -67,7 +67,8 @@ registre.entreeMenu({
       const lignes = tousLesTypes()
         .flatMap((d) => d.emporterAvec?.(enfants, tableau) ?? [])
         .filter((l, i, tous) => !enfants.some((x) => x.id === l.id) && tous.findIndex((x) => x.id === l.id) === i)
-      if (venus.length > 0) deposerDans(cible, [...venus, ...lignes])
+      // Les cartes attendent dans les non triés du tableau neuf, dans l'ordre de la colonne.
+      if (venus.length > 0) deposerDans(cible, venus, true)
       pas.push(...pasDeConversion(colonne, [...enfants, ...lignes], cible))
     }
     if (pas.length > 0) contexte.magasin.faire(pas)

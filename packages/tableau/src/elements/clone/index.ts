@@ -3,7 +3,7 @@ import { definition, registre } from '../registre'
 import type { ContexteToile } from '../types'
 import { OutilsClone, RenduClone } from './Clone'
 import './clone.css'
-import { cibleDe, clonesEmportes, nouveauClone, originalAffichable, originalDe, peutCloner, placeAcote, resumeSansOriginal } from './original'
+import { cibleDe, clonesEmportes, nouveauClone, originalAffichable, peutCloner, placeAcote, resumeSansOriginal } from './original'
 import { t } from '../../langue'
 import { cleEntre, comparerOrdre } from '../../coeur/ordre'
 
@@ -44,10 +44,11 @@ registre.type<Clone>({
   largeurMin: 8,
   // Quand l'original part à la corbeille, ses clones le suivent : ils ne diraient plus rien sans lui.
   emporterAvec: clonesEmportes,
-  // Il se place comme n'importe quelle carte ; l'écrire, c'est écrire l'original (depuis l'original).
-  ouvrir: (e, contexte) => {
-    const original = originalDe(contexte.magasin.lire().elements, e.contenu.cible)
-    if (original) contexte.commencerEdition(original.id)
+  // On l'écrit sur place : le texte et les changements vont à l'original, où qu'il soit.
+  editable: true,
+  edite: (e, tableau) => {
+    const original = originalAffichable(tableau.elements, e.contenu.cible)
+    return original && definition(original.contenu.type)?.editable ? original : null
   },
   suivant: () => null,
 })

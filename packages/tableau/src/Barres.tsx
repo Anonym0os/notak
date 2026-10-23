@@ -104,7 +104,7 @@ export function BarreOutils({
     const vignette = o.outil.vignette ? <Vignette nom={o.outil.vignette} /> : null
     return (
       <div key={`${o.type}:${o.outil.libelle}`} className="notak-outil-place">
-        <Infobulle libelle={o.outil.libelle} cote="droite" contenu>
+        <Infobulle libelle={o.outil.libelle} {...(o.outil.raccourci ? { raccourci: o.outil.raccourci } : {})} cote="droite" contenu>
         <button
           type="button"
           className="notak-outil"

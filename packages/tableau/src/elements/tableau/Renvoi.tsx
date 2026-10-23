@@ -1,13 +1,16 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { RenvoiTableau } from '../../coeur/tableau'
 import { FOND_NOTE, couleurTexteSur } from '../note/couleurs'
 import type { PropsRendu } from '../types'
+import { aDuNouveau, ecouterVus } from './activite'
+import { Glyphe } from './Glyphe'
 import { avecIcone, pastilleDe } from './icones'
 import { couleurDuTitre, iconeDuTitre } from './initialisation'
 import { initiale, libelleContenu } from './libelles'
 import { PlanTableau, useApercuAuSurvol } from './Apercu'
 import { ChoixModele } from './ChoixModele'
 import { demanderModele, ecouterModele, modeleEnCours } from './modele'
+import { prendreDemande } from './montrer'
 import { poserModele } from './poserModele'
 import { demanderRenommage, ecouterRenommage, renommageEnCours } from './renommage'
 import { t } from '../../langue'
@@ -44,7 +47,22 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
   const raccourci = !!element.contenu.raccourci
   const titre = raccourci ? (nomDonne ?? titreCible) : titreCible
   const couleur = raccourci ? (element.contenu.couleur ?? couleurCible) : couleurCible
-  const fond = FOND_NOTE[couleur && couleur !== 'transparent' ? (couleur as keyof typeof FOND_NOTE) : 'gris']
+  // Un fond libre (et sa paire, le glyphe) passe devant la couleur du tableau.
+  const fondLibre = element.contenu.fond
+  const fond = fondLibre ?? FOND_NOTE[couleur && couleur !== 'transparent' ? (couleur as keyof typeof FOND_NOTE) : 'gris']
+  // Du nouveau dans ce tableau depuis la dernière visite : un point sur la carte.
+  const suivreVus = useCallback(
+    (f: () => void) => {
+      const arret = ecouterEspace?.(f)
+      const arretVus = ecouterVus(f)
+      return () => {
+        arret?.()
+        arretVus()
+      }
+    },
+    [ecouterEspace],
+  )
+  const nouveau = useSyncExternalStore(suivreVus, () => aDuNouveau(cible, tableau?.(cible)))
   const pastille = pastilleDe(element.contenu)
   const image = useImage(pastille.genre === 'image' ? pastille.fichier : undefined, contexte)
   const enRenommage = useSyncExternalStore(ecouterRenommage, renommageEnCours) === element.id
@@ -66,6 +84,13 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
         minuteur.current = setTimeout(() => setBulle(false), 2000)
       }, 500)
   }
+
+  // Arrivé ici par « Retrouver le tableau d'origine » : la carte se choisit, et la vue s'y centre une fois la toile mesurée.
+  useEffect(() => {
+    if (!prendreDemande(element.id)) return
+    const minuteur = setTimeout(() => contexte.montrer(element.id), 60)
+    return () => clearTimeout(minuteur)
+  }, [element.id, contexte])
 
   // Annuler ou rétablir un renommage change `titre` dans le renvoi : on en reporte la valeur sur le tableau.
   const vu = useRef(nomDonne)
@@ -132,18 +157,19 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
         {...apercu.proprietes}
         onClick={() => apresClic('icone')}
         className="notak-renvoi-carre"
-        style={{ background: fond, color: couleurTexteSur(fond) }}
+        style={{ background: fond, color: element.contenu.glyphe ?? couleurTexteSur(fond) }}
       >
         {pastille.genre === 'image' ? (
           image && <img className="notak-renvoi-image" src={image} alt="" draggable={false} />
-        ) : pastille.genre === 'icone' ? (
+        ) : pastille.genre === 'icone' || pastille.genre === 'catalogue' ? (
           <span className="notak-renvoi-signe" role="img" aria-label={pastille.libelle}>
-            <Icone nom={pastille.icone} taille={35} trait={1.5} />
+            <Glyphe pastille={pastille} />
           </span>
         ) : // Sans icône ni image, la tuile reste unie : l'initiale ne vient qu'avec une couleur choisie.
-        couleur && couleur !== 'transparent' ? (
+        fondLibre || (couleur && couleur !== 'transparent') ? (
           initiale(titre)
         ) : null}
+        {nouveau && <span className="notak-renvoi-activite" role="img" aria-label={t('tableau.activite')} title={t('tableau.activite')} />}
         {element.contenu.raccourci && (
           <span className="notak-renvoi-raccourci" title={t('tableau.raccourci.titre')} aria-label={t('tableau.raccourci')}>
             <Icone nom="ligne" taille={16} trait={2} />

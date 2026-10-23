@@ -78,9 +78,15 @@
   line-height: 25px;
   text-align: center;
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .notak-colonne-titre[data-vide] {
+  opacity: 0.45;
+}
+
+.notak-colonne-saisie::placeholder {
+  color: inherit;
   opacity: 0.45;
 }
 
@@ -90,6 +96,9 @@
   text-align: center;
   box-sizing: border-box;
   height: 25px;
+  resize: none;
+  overflow: hidden;
+  line-height: 25px;
   margin: 0;
   padding: 0;
   border: 0;

@@ -208,9 +208,53 @@
 
 .notak-renvoi-icones {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: 2px;
-  width: 224px;
+  width: 252px;
+  max-height: 224px;
+  overflow-y: auto;
+}
+
+/* La recherche d'icône, au-dessus de la grille. */
+.notak-renvoi-recherche {
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 6px 8px;
+  border: 1px solid rgb(128 128 128 / 0.35);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.notak-renvoi-recherche:focus {
+  border-color: var(--notak-accent);
+}
+
+.notak-renvoi-aucune {
+  margin: 8px 0;
+  opacity: 0.6;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* Une paire de couleurs : le fond, et le point du glyphe dedans. */
+.notak-paire {
+  position: relative;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.notak-paire::after {
+  content: '';
+  position: absolute;
+  inset: 6px 8px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .notak-renvoi-icones button {
@@ -392,4 +436,17 @@
 /* Le temps du plan, la carte survolée passe devant ses voisines. */
 .notak-carte:has(.notak-renvoi-apercu) {
   z-index: 30;
+}
+
+/* Du nouveau dans ce tableau depuis la dernière visite : un point en haut à droite de l'icône. */
+.notak-renvoi-activite {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--notak-accent, #3a76df);
+  box-shadow: 0 0 0 2px #fff;
+  pointer-events: none;
 }

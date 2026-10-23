@@ -5,7 +5,7 @@ import { type Element, type Ligne, type Tableau, nouvelleColonne, nouvelleNote }
 const boite = (e: Element) => ({ min: { x: e.x, y: e.y }, max: { x: e.x + e.largeur, y: e.y + 8 } })
 
 describe('presse-papiers', () => {
-  const colonne = nouvelleColonne(0, 0)
+  const colonne = nouvelleColonne(0, 0, 'Colonne')
   const rangee: Element = { ...nouvelleNote(0, 0, 'dedans'), parent: colonne.id, ordre: 'V' }
   const note = nouvelleNote(50, 10, 'seule')
   const ligne: Element = {

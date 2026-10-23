@@ -211,6 +211,8 @@ export interface Colonne {
   type: 'colonne'
   titre: string
   couleur?: CouleurNote
+  /** Un fond libre (`#rrggbb`), choisi dans « Couleur personnalisée » ; il remplace `couleur`. */
+  fond?: string
   repliee?: boolean
 }
 
@@ -266,6 +268,10 @@ export interface RenvoiTableau {
   raccourci?: boolean
   /** La couleur propre d'un raccourci ; absente, il montre celle du tableau. */
   couleur?: CouleurNote
+  /** Un fond libre (`#rrggbb`) pour cette carte ; il remplace la couleur du tableau. */
+  fond?: string
+  /** La couleur du glyphe (`#rrggbb`) quand on en a choisi une (une paire de couleurs) ; sinon blanc ou sombre selon le fond. */
+  glyphe?: string
 }
 
 /** Qui a écrit un message, tel qu'il se présentait à ce moment-là. */
@@ -604,7 +610,7 @@ export function nouvelleNote(x: number, y: number, texte = ''): Element<Note> {
 /** Largeur par défaut d'une colonne, en unités de grille. */
 export const LARGEUR_COLONNE = 34
 
-export function nouvelleColonne(x: number, y: number, titre = 'Colonne'): Element<Colonne> {
+export function nouvelleColonne(x: number, y: number, titre = ''): Element<Colonne> {
   return { id: nouvelId(), x: borner(x), y: borner(y), largeur: LARGEUR_COLONNE, contenu: { type: 'colonne', titre } }
 }
 

@@ -33,8 +33,8 @@
   left: 0;
   z-index: 5;
   box-sizing: border-box;
-  width: 200px;
-  padding: 10px 12px;
+  width: 220px;
+  padding: 10px 0 6px;
   border-radius: 6px;
   background: var(--notak-carte);
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.16), 0 0 0 1px rgb(0 0 0 / 0.05);
@@ -52,4 +52,51 @@
 
 .notak-carte[data-type='clone'][data-choisie]:has(> .notak-clone-nu) {
   box-shadow: 0 0 0 2px var(--notak-accent);
+}
+
+.notak-clone-bulle-texte {
+  margin: 0 0 6px;
+  padding: 0 12px;
+}
+
+/* Les exemplaires : des rangées de 37 px, 35 rem au plus, puis on défile. */
+.notak-clone-liste {
+  max-height: 350px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.notak-clone-rangee {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 37px;
+  padding: 0 12px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notak-clone-rangee:hover {
+  background: rgb(0 0 0 / 0.05);
+}
+
+.notak-clone-rangee-nom {
+  flex: none;
+  font-weight: 600;
+}
+
+.notak-clone-rangee-texte {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--notak-texte-doux, rgb(0 0 0 / 0.55));
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
