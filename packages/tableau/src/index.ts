@@ -23,3 +23,5 @@ export {
 export { creerReseauNavigateur } from './reseau'
 export { type Arrivee, decomposerArrivee, elementsArrives, elementsDeTexte, poserDansNonTries } from './arrivee'
 export * from './modeles'
+export { BullesDecouverte } from './BullesDecouverte'
+export { BULLES, bulleAMontrer, vuesDuCompte, type Bulle, type GesteDecouverte } from './decouverte'

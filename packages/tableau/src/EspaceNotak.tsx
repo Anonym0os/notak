@@ -21,6 +21,7 @@ import type { Presence, Services } from './elements/types'
 import { Toile } from './Toile'
 import { annoncer } from './avis'
 import { ecouterEnvois, envoisEnCours } from './elements/envois'
+import { FenetreRaccourcis } from './Menus'
 import { FenetreReglages, useReglages } from './reglages'
 import './theme.css'
 
@@ -92,8 +93,11 @@ export function EspaceNotak({
   espace: EspaceNavigable
   services?: Services
   adresse?: Adresse
-  /** Ce que l'application ajoute à droite de l'en-tête (partage, compte), pour le tableau ouvert. */
-  actions?(courant: Id, ouvrir: (id: Id) => void): ReactNode
+  /**
+   * Ce que l'application ajoute à droite de l'en-tête (partage, compte), pour le tableau ouvert. `aide` ouvre la
+   * fenêtre des raccourcis, la même que « / ».
+   */
+  actions?(courant: Id, ouvrir: (id: Id) => void, aide: () => void): ReactNode
 }) {
   const racine = espace.racine
   const [parcours, setParcours] = useState(() => parcoursDepart(racine))
@@ -102,6 +106,9 @@ export function EspaceNotak({
   const [reglages, changerReglages] = useReglages()
   const [reglagesOuverts, setReglagesOuverts] = useState(false)
   const [presentation, setPresentation] = useState(false)
+  const [aideOuverte, setAideOuverte] = useState(false)
+  const fermerAide = useCallback(() => setAideOuverte(false), [])
+  const ouvrirAide = useCallback(() => setAideOuverte(true), [])
   const vues = useRef<Vues | null>(null)
   vues.current ??= lireVuesEnregistrees()
 
@@ -312,7 +319,7 @@ export function EspaceNotak({
         ouvrir={ouvrir}
         renommer={courant === racine || lectureSeule ? undefined : (titre) => espace.renommer(courant, titre)}
         presence={espace.presence?.(courant)}
-        actions={actions?.(courant, ouvrir)}
+        actions={actions?.(courant, ouvrir, ouvrirAide)}
         historique={lectureSeule ? undefined : historique}
         envoi={envoi}
       />
@@ -325,6 +332,7 @@ export function EspaceNotak({
           surCamera={surCamera}
         />
       </div>
+      {aideOuverte && <FenetreRaccourcis fermer={fermerAide} />}
       {reglagesOuverts && <FenetreReglages reglages={reglages} changer={changerReglages} fermer={() => setReglagesOuverts(false)} />}
     </div>
   )

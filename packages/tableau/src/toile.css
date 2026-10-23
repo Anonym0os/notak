@@ -1121,3 +1121,48 @@
   background: var(--notak-carte);
   cursor: nwse-resize;
 }
+
+/* Les bulles de découverte : posées sur la fenêtre, près de ce qu'elles montrent, au-dessus de la toile. */
+.notak-bulle-decouverte {
+  position: fixed;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  max-width: min(300px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--notak-accent, #3a76df);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.25);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.notak-bulle-decouverte button {
+  flex: none;
+  padding: 4px 10px;
+  border: 1px solid rgb(255 255 255 / 0.6);
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.notak-bulle-decouverte[data-ou='barre'] {
+  top: 96px;
+  left: 68px;
+}
+
+.notak-bulle-decouverte[data-ou='milieu'] {
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.notak-bulle-decouverte[data-ou='compte'] {
+  top: 52px;
+  right: 16px;
+}

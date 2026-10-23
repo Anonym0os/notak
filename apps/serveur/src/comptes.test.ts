@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { ouvrirBase } from './base.ts'
 import { COULEURS, ErreurCompte, inscrire } from './comptes.ts'
 import { role } from './droits.ts'
+import { lireEtat } from './contenu.ts'
+import { nomDuDocument } from './synchro.ts'
 
 const neuf = () => ouvrirBase(':memory:')
 
@@ -16,6 +18,32 @@ describe('inscription', () => {
     expect(base.tableau(u.racine)?.titre).toBe('Accueil d’Ana')
     expect(role(base.acces(u.racine), u.id, u.racine)).toBe('proprietaire')
     expect(u.hash).not.toContain('motdepasse')
+  })
+
+  it('remplit l’accueil d’un compte neuf : un document avec son titre, des colonnes et des notes qui présentent les gestes', async () => {
+    const base = neuf()
+    const u = await inscrire(base, { email: 'ana@exemple.fr', motDePasse: 'motdepasse', nom: 'Ana' })
+    const etat = base.document(nomDuDocument(u.racine))
+    expect(etat).not.toBeNull()
+    const t = lireEtat(etat!)
+    expect(t.titre).toBe('Accueil d’Ana')
+    const colonnes = t.elements.filter((e) => e.contenu.type === 'colonne')
+    expect(colonnes.length).toBeGreaterThanOrEqual(4)
+    const enfants = t.elements.filter((e) => e.parent)
+    expect(enfants.length).toBeGreaterThan(8)
+    for (const e of enfants) expect(colonnes.map((c) => c.id)).toContain(e.parent)
+    expect(t.elements.some((e) => e.contenu.type === 'taches')).toBe(true)
+    // La recherche dans tous les tableaux trouve déjà l'accueil.
+    expect(base.chercher('"raccourcis"', [u.racine], 5).length).toBeGreaterThan(0)
+  })
+
+  it('deux comptes n’ont aucun identifiant d’élément en commun', async () => {
+    const base = neuf()
+    const a = await inscrire(base, { email: 'ana@exemple.fr', motDePasse: 'motdepasse', nom: 'Ana' })
+    const b = await inscrire(base, { email: 'bob@exemple.fr', motDePasse: 'motdepasse', nom: 'Bob' })
+    const ids = (racine: string) => new Set(lireEtat(base.document(nomDuDocument(racine))!).elements.map((e) => e.id))
+    const [ia, ib] = [ids(a.racine), ids(b.racine)]
+    expect([...ia].filter((i) => ib.has(i))).toEqual([])
   })
 
   it('refuse une adresse déjà prise, même écrite autrement', async () => {

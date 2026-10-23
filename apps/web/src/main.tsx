@@ -3,6 +3,7 @@ import '@notak/tableau/toile.css'
 import './app.css'
 import {
   type Adresse,
+  BullesDecouverte,
   EspaceNotak,
   type EspaceDistant,
   type Declaration,
@@ -157,12 +158,13 @@ function Espace({ moi, deconnexion }: { moi: Moi; deconnexion(): void }) {
         espace={espace}
         services={services}
         adresse={adresse}
-        actions={(courant, ouvrir) => (
+        actions={(courant, ouvrir, aide) => (
           <>
+            <BullesDecouverte espace={espace} tableau={courant} compte={moi.id} />
             <Favori tableau={courant} accueil={moi.racine} />
             <Export tableau={courant} />
             <Partage tableau={courant} moi={moi} />
-            <Compte moi={moi} deconnexion={deconnexion} ouvrir={ouvrir} />
+            <Compte moi={moi} deconnexion={deconnexion} ouvrir={ouvrir} aide={aide} />
           </>
         )}
       />

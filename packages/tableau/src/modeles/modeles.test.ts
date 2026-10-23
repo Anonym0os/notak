@@ -2,6 +2,7 @@ import * as Y from 'yjs'
 import { describe, expect, it } from 'vitest'
 import { creerMagasinYjs } from '../coeur/magasinYjs'
 import { POSITION_MAX, type Element, type NoeudTexte } from '../coeur/tableau'
+import { ACCUEIL } from './accueil'
 import { MODELES } from './catalogue'
 import { type ElementModele, type ModeleTableau, elementsDuModele, hauteurEstimee } from './construire'
 
@@ -96,5 +97,13 @@ describe('modèles de tableaux', () => {
     const [premier] = elementsDuModele(MODELES[0]!, id)
     expect(problemes([premier!, premier!])).toContain('identifiants en double')
     expect(problemes([{ ...premier!, parent: 'ailleurs', ordre: 'a' }])).not.toEqual([])
+  })
+
+  it('le tableau d’accueil est valide, sans superposition, et présente les gestes en colonnes', () => {
+    const elements = elementsDuModele(ACCUEIL, id)
+    expect(problemes(elements)).toEqual([])
+    expect(chevauchements(ACCUEIL)).toEqual([])
+    expect(elements.filter((e) => e.contenu.type === 'colonne').length).toBeGreaterThanOrEqual(4)
+    expect(elements.length).toBeGreaterThan(15)
   })
 })
