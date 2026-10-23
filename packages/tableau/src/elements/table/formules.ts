@@ -2,7 +2,7 @@ import type { FormatCellule, TypeCellule } from '../../coeur/tableau'
 
 /**
  * Le moteur de formules de la table : une cellule qui commence par `=` est une formule (références A1, plages
- * A1:B3, `$` absolu, opérateurs, une quarantaine de fonctions). Tout est pur : l'horloge se passe en paramètre.
+ * A1:B3, `$` absolu, opérateurs, environ deux cents fonctions de tableur). Tout est pur : l'horloge se passe en paramètre.
  * Les lignes et colonnes sont comptées à partir de 0 (A1 = ligne 0, colonne 0).
  */
 
@@ -520,9 +520,13 @@ function aPlat(args: Arg[]): Valeur[] {
 /* Critères (SUMIF, COUNTIF, AVERAGEIF)                                                                          */
 /* ------------------------------------------------------------------------------------------------------------ */
 
+/** Le motif (sans ancres) d'un texte à jokers : `*` pour toute suite de caractères, `?` pour un seul. */
+function corpsJoker(s: string): string {
+  return s.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')
+}
+
 function motifJoker(s: string): RegExp {
-  const corps = s.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')
-  return new RegExp(`^${corps}$`, 'i')
+  return new RegExp(`^${corpsJoker(s)}$`, 'i')
 }
 
 /** `">5"`, `"<>x"`, `"=texte"`, `"texte"` ou une valeur directe : le test que doit passer une cellule. */
@@ -634,14 +638,50 @@ function texteFormate(v: Valeur, format: string): string {
   return formaterNombre(n, format)
 }
 
-/** Un numéro de série lu dans un nombre ou dans un texte `aaaa-mm-jj`. */
+const joursDuMois = (a: number, m: number): number => joursCivils(a, m + 1, 1) - joursCivils(a, m, 1)
+const estBissextile = (a: number): boolean => (a % 4 === 0 && a % 100 !== 0) || a % 400 === 0
+
+/** Le numéro de série d'un texte `aaaa-mm-jj` ou `jj/mm/aaaa` (ou `jj/mm/aa`) ; null si ce n'est pas une date valide. */
+function lireDate(t: string): number | null {
+  let a: number, m: number, j: number
+  let r = /^\s*(\d{4})-(\d{1,2})-(\d{1,2})/.exec(t)
+  if (r) [a, m, j] = [Number(r[1]), Number(r[2]), Number(r[3])]
+  else if ((r = /^\s*(\d{1,2})\/(\d{1,2})\/(\d{4}|\d{2})\s*$/.exec(t))) {
+    ;[j, m, a] = [Number(r[1]), Number(r[2]), Number(r[3])]
+    if (r[3]!.length === 2) a += a < 30 ? 2000 : 1900
+  } else return null
+  if (m < 1 || m > 12 || j < 1 || j > joursDuMois(a, m)) return null
+  return serieDepuisJours(joursCivils(a, m, j))
+}
+
+/** Une heure `hh:mm`, `hh:mm:ss`, avec AM/PM possible, en fraction de jour ; null sinon. */
+function lireHeure(t: string): number | null {
+  const r = /^\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?\s*$/i.exec(t)
+  if (!r) return null
+  let h = Number(r[1])
+  const mn = Number(r[2])
+  const sec = Number(r[3] ?? 0)
+  if (r[4]) {
+    if (h < 1 || h > 12) return null
+    h = (h % 12) + (r[4].toUpperCase() === 'PM' ? 12 : 0)
+  }
+  if (h > 23 || mn > 59 || sec > 59) return null
+  return (h * 3600 + mn * 60 + sec) / 86400
+}
+
+/** Un numéro de série lu dans un nombre ou dans un texte de date. */
 function serieDe(v: Valeur): number {
   if (typeof v === 'string') {
-    const m = /^\s*(\d{4})-(\d{1,2})-(\d{1,2})/.exec(v)
-    if (m) return serieDepuisJours(joursCivils(Number(m[1]), Number(m[2]), Number(m[3])))
+    const d = lireDate(v)
+    if (d !== null) return d
   }
   return versNombre(v)
 }
+
+const joursDe = (serie: number): number => joursDepuisSerie(Math.floor(serie))
+/** Jour de la semaine, dimanche = 0. */
+const jourSemaine = (serie: number): number => (((joursDe(serie) + 4) % 7) + 7) % 7
+const secondesDuJour = (serie: number): number => Math.round((serie - Math.floor(serie)) * 86400) % 86400
 
 /* ------------------------------------------------------------------------------------------------------------ */
 /* Évaluation                                                                                                    */
@@ -650,6 +690,8 @@ function serieDe(v: Valeur): number {
 interface Contexte {
   lignes: number
   colonnes: number
+  /** La cellule dont la formule se calcule (pour ROW() et COLUMN() sans argument). */
+  courante?: { l: number; c: number }
   maintenant: () => Date
   cellule(i: number, j: number): Resultat
 }
@@ -724,6 +766,273 @@ function si(
 
 const somme = (v: number[]): number => net(v.reduce((a, b) => a + b, 0))
 
+/** Le résultat d'un argument, erreur comprise : une plage d'une seule cellule rend sa cellule telle quelle (vide compris). */
+function essai(n: Noeud | undefined, ev: Evaluer): Resultat {
+  if (!n) return { valeur: null }
+  try {
+    const x = ev(n)
+    if (!Array.isArray(x)) return { valeur: x }
+    const cel = x.length === 1 && x[0]!.length === 1 ? x[0]![0] : undefined
+    return cel ?? { valeur: null, erreur: '#VALUE!' }
+  } catch (e) {
+    if (e instanceof ErreurFormule) return { valeur: null, erreur: e.code }
+    throw e
+  }
+}
+
+/** Les cellules qui passent tous les couples plage / critère des arguments à partir de `debut` (SUMIFS et cie). */
+function filtrer(args: Noeud[], debut: number, ev: Evaluer, ctx: Contexte): { h: number; l: number; ok: boolean[][] } {
+  if (args.length - debut < 2 || (args.length - debut) % 2 !== 0) return echec('#VALUE!')
+  let h = -1
+  let l = -1
+  let ok: boolean[][] = []
+  for (let k = debut; k < args.length; k += 2) {
+    const z = zoneDe(args[k])
+    const hh = z.l2 - z.l1 + 1
+    const ll = z.c2 - z.c1 + 1
+    if (h < 0) {
+      h = hh
+      l = ll
+      ok = Array.from({ length: h }, () => Array<boolean>(l).fill(true))
+    } else if (hh !== h || ll !== l) return echec('#VALUE!')
+    const test = critere(scalaire(ev(args[k + 1]!)))
+    lireMatrice(ctx, z).forEach((ligne, i) =>
+      ligne.forEach((c, j) => {
+        if (c.erreur || !test(c.valeur)) ok[i]![j] = false
+      }),
+    )
+  }
+  return { h, l, ok }
+}
+
+/** SUMIFS, AVERAGEIFS, MAXIFS, MINIFS : les nombres de la première plage, là où tous les critères passent. */
+function agregerSi(args: Noeud[], ev: Evaluer, ctx: Contexte, agreger: (valeurs: number[]) => Valeur): Valeur {
+  arite(args, 3, 255)
+  const f = filtrer(args, 1, ev, ctx)
+  const z = zoneDe(args[0])
+  if (z.l2 - z.l1 + 1 !== f.h || z.c2 - z.c1 + 1 !== f.l) return echec('#VALUE!')
+  const out: number[] = []
+  lireMatrice(ctx, z).forEach((ligne, i) =>
+    ligne.forEach((c, j) => {
+      if (!f.ok[i]![j]) return
+      if (c.erreur) echec(c.erreur)
+      if (typeof c.valeur === 'number') out.push(c.valeur)
+    }),
+  )
+  return agreger(out)
+}
+
+const maximum = (v: number[]): number => v.reduce((a, b) => Math.max(a, b), -Infinity)
+const minimum = (v: number[]): number => v.reduce((a, b) => Math.min(a, b), Infinity)
+
+/** Une ligne ou une colonne de cellules ; autre chose n'est pas une recherche possible (#N/A). */
+function vecteur(a: Arg | undefined): Resultat[] {
+  const m = matriceArg(a)
+  if (m.length === 1) return m[0]!
+  if (m.every((l) => l.length === 1)) return m.map((l) => l[0]!)
+  return echec('#N/A')
+}
+
+/**
+ * L'indice de la cellule cherchée, ou -1. `type` 0 : égalité (avec jokers pour un texte si `joker`) ; 1 : la dernière
+ * valeur inférieure ou égale ; -1 : la dernière valeur supérieure ou égale. Seules les cellules de même nature comptent.
+ */
+function chercher(cherche: Valeur, cellules: Resultat[], type: 0 | 1 | -1, joker = true): number {
+  const avecJoker = joker && typeof cherche === 'string' && /[*?]/.test(cherche)
+  const motif = avecJoker ? motifJoker(cherche as string) : null
+  let k = -1
+  cellules.forEach((c, i) => {
+    const x = c.valeur
+    if (c.erreur || x === null || typeof x !== typeof cherche) return
+    if (type === 0) {
+      if (k < 0 && (motif ? motif.test(x as string) : comparer(x, cherche) === 0)) k = i
+      return
+    }
+    const d = comparer(x, cherche)
+    if (type === 1 ? d <= 0 : d >= 0) k = i
+  })
+  return k
+}
+
+function rechercheTable(a: Arg[], horizontal: boolean): Valeur {
+  arite(a, 3, 4)
+  const cherche = argument(a, 0)
+  const m = matriceArg(a[1])
+  const indice = Math.trunc(nombreArg(a, 2))
+  const approche = a[3] === undefined ? true : versBool(argument(a, 3))
+  const t = horizontal ? (m[0] ?? []).map((_, j) => m.map((ligne) => ligne[j]!)) : m
+  if (indice < 1) return echec('#VALUE!')
+  if (indice > (t[0]?.length ?? 0)) return echec('#REF!')
+  const k = chercher(cherche, t.map((ligne) => ligne[0]!), approche ? 1 : 0)
+  if (k < 0) return echec('#N/A')
+  const cel = t[k]![indice - 1]!
+  return cel.erreur ? echec(cel.erreur) : cel.valeur
+}
+
+const entier = (a: Arg[], i: number, defaut?: number): number => Math.trunc(nombreArg(a, i, defaut))
+
+/** Variance des nombres (échantillon : n - 1, sinon n). */
+function variance(n: number[], echantillon: boolean): number {
+  const d = n.length - (echantillon ? 1 : 0)
+  if (d <= 0) return echec('#DIV/0!')
+  const moy = somme(n) / n.length
+  return net(n.reduce((s, x) => s + (x - moy) ** 2, 0) / d)
+}
+
+/** Le k-ième plus grand (ou plus petit) des nombres du premier argument. */
+function rang(a: Arg[], grand: boolean): number {
+  arite(a, 2)
+  const n = nombres([a[0]!]).sort((x, y) => (grand ? y - x : x - y))
+  const k = entier(a, 1)
+  return k < 1 || k > n.length ? echec('#VALUE!') : n[k - 1]!
+}
+
+const pgcd = (a: number, b: number): number => (b === 0 ? a : pgcd(b, a % b))
+
+/** Ajoute `n` mois à une date de série, en gardant le jour s'il existe (sinon le dernier du mois). */
+function ajouterMois(serie: number, n: number): number {
+  const { a, m, j } = composantes(serie)
+  const debut = joursCivils(a, m + n, 1)
+  const jour = Math.min(j, joursCivils(a, m + n + 1, 1) - debut)
+  return serieDepuisJours(debut + jour - 1)
+}
+
+/** Les jours fériés d'un argument (nombres de série entiers). */
+const feries = (a: Arg | undefined): Set<number> =>
+  new Set(a === undefined ? [] : aPlat([a]).filter((x): x is number => typeof x === 'number').map(Math.floor))
+
+const ouvre = (serie: number, conges: Set<number>): boolean => {
+  const j = jourSemaine(serie)
+  return j !== 0 && j !== 6 && !conges.has(Math.floor(serie))
+}
+
+/** Jours entre deux dates sur une année de 360 jours (méthode américaine, ou européenne). */
+function jours360(s: number, e: number, europeen: boolean): number {
+  const d = composantes(s)
+  const f = composantes(e)
+  let j1 = d.j
+  let j2 = f.j
+  if (europeen) {
+    j1 = Math.min(j1, 30)
+    j2 = Math.min(j2, 30)
+  } else {
+    const finFevrier = (c: { a: number; m: number; j: number }) => c.m === 2 && c.j === joursDuMois(c.a, 2)
+    if (finFevrier(d)) {
+      if (finFevrier(f)) j2 = 30
+      j1 = 30
+    }
+    if (j2 === 31 && j1 >= 30) j2 = 30
+    if (j1 === 31) j1 = 30
+  }
+  return (f.a - d.a) * 360 + (f.m - d.m) * 30 + (j2 - j1)
+}
+
+function numeroSemaine(serie: number, debutSemaine: number): number {
+  const { a } = composantes(serie)
+  const premier = joursCivils(a, 1, 1)
+  const rangPremier = (((premier + 4) % 7) + 7) % 7
+  return Math.floor((joursDe(serie) - premier + ((rangPremier - debutSemaine + 7) % 7)) / 7) + 1
+}
+
+function semaineIso(serie: number): number {
+  const j = joursDe(serie)
+  const lundi0 = (((j + 3) % 7) + 7) % 7
+  const jeudi = j - lundi0 + 3
+  const a = dateCivile(jeudi).a
+  return Math.floor((jeudi - joursCivils(a, 1, 1)) / 7) + 1
+}
+
+function anneeFraction(s: number, e: number, base: number): number {
+  if (s > e) [s, e] = [e, s]
+  switch (base) {
+    case 0:
+      return jours360(s, e, false) / 360
+    case 4:
+      return jours360(s, e, true) / 360
+    case 2:
+      return (e - s) / 360
+    case 3:
+      return (e - s) / 365
+    case 1: {
+      const d = composantes(s)
+      const f = composantes(e)
+      let longueur: number
+      if (d.a === f.a) longueur = estBissextile(d.a) ? 366 : 365
+      else if (f.a === d.a + 1 && (f.m < d.m || (f.m === d.m && f.j <= d.j))) {
+        const fevrier29 = (estBissextile(d.a) && d.m <= 2) || (estBissextile(f.a) && (f.m > 2 || (f.m === 2 && f.j === 29)))
+        longueur = fevrier29 ? 366 : 365
+      } else {
+        let total = 0
+        for (let a = d.a; a <= f.a; a++) total += estBissextile(a) ? 366 : 365
+        longueur = total / (f.a - d.a + 1)
+      }
+      return (e - s) / longueur
+    }
+    default:
+      return echec('#VALUE!')
+  }
+}
+
+function datedif(a: Arg[]): number {
+  arite(a, 3)
+  const s = Math.floor(serieDe(argument(a, 0)))
+  const e = Math.floor(serieDe(argument(a, 1)))
+  if (s > e) return echec('#VALUE!')
+  const d = composantes(s)
+  const f = composantes(e)
+  const avantAnniv = f.m < d.m || (f.m === d.m && f.j < d.j)
+  const moisEntiers = (f.a - d.a) * 12 + f.m - d.m - (f.j < d.j ? 1 : 0)
+  switch (versTexte(argument(a, 2)).toUpperCase()) {
+    case 'Y':
+      return f.a - d.a - (avantAnniv ? 1 : 0)
+    case 'M':
+      return moisEntiers
+    case 'D':
+      return e - s
+    case 'YM':
+      return ((moisEntiers % 12) + 12) % 12
+    case 'MD':
+      return f.j >= d.j ? f.j - d.j : f.j - d.j + joursDuMois(f.m === 1 ? f.a - 1 : f.a, f.m === 1 ? 12 : f.m - 1)
+    case 'YD':
+      return joursCivils(f.a, f.m, f.j) - joursCivils(avantAnniv ? f.a - 1 : f.a, d.m, d.j)
+    default:
+      return echec('#VALUE!')
+  }
+}
+
+const motifPartiel = (s: string): RegExp => new RegExp(corpsJoker(s), 'i')
+
+/** Lit un nombre dans un texte : nombre, pourcentage ou date. */
+function valeurDeTexte(t: string): number {
+  const n = lireNombre(t)
+  if (n !== null) return n
+  const p = /^(.*\S)\s*%$/.exec(t.trim())
+  const np = p ? lireNombre(p[1]!) : null
+  if (np !== null) return net(np / 100)
+  const d = lireDate(t)
+  if (d !== null) return d
+  const h = lireHeure(t)
+  return h === null ? echec('#VALUE!') : h
+}
+
+function modeUnique(a: Arg[]): number {
+  const n = nombres(a)
+  const compte = new Map<number, number>()
+  for (const x of n) compte.set(x, (compte.get(x) ?? 0) + 1)
+  let meilleur: number | undefined
+  for (const [x, c] of compte) if (c > 1 && (meilleur === undefined || c > compte.get(meilleur)!)) meilleur = x
+  return meilleur === undefined ? echec('#N/A') : meilleur
+}
+
+function classement(a: Arg[]): number {
+  arite(a, 2, 3)
+  const x = nombreArg(a, 0)
+  const n = nombres([a[1]!])
+  if (!n.includes(x)) return echec('#N/A')
+  const croissant = nombreArg(a, 2, 0) !== 0
+  return n.filter((y) => (croissant ? y < x : y > x)).length + 1
+}
+
 const PARESSEUX: Record<string, Paresseux> = {
   IF: (args, ev) => {
     arite(args, 2, 3)
@@ -741,6 +1050,47 @@ const PARESSEUX: Record<string, Paresseux> = {
   },
   SUMIF: (args, ev, ctx) => si(args, ev, somme, ctx),
   AVERAGEIF: (args, ev, ctx) => si(args, ev, (v) => diviser(somme(v), v.length), ctx),
+  IFNA: (args, ev) => {
+    arite(args, 2)
+    const r = essai(args[0], ev)
+    if (r.erreur === '#N/A') return scalaire(ev(args[1]!))
+    return r.erreur ? echec(r.erreur) : r.valeur
+  },
+  IFS: (args, ev) => {
+    arite(args, 2, 254)
+    if (args.length % 2 !== 0) return echec('#VALUE!')
+    for (let i = 0; i < args.length; i += 2) if (versBool(scalaire(ev(args[i]!)))) return scalaire(ev(args[i + 1]!))
+    return echec('#N/A')
+  },
+  SWITCH: (args, ev) => {
+    arite(args, 3, 255)
+    const cible = scalaire(ev(args[0]!))
+    let i = 1
+    for (; i + 1 < args.length; i += 2) if (comparer(cible, scalaire(ev(args[i]!))) === 0) return scalaire(ev(args[i + 1]!))
+    return i < args.length ? scalaire(ev(args[i]!)) : echec('#N/A')
+  },
+  CHOOSE: (args, ev) => {
+    arite(args, 2, 255)
+    const k = Math.trunc(versNombre(scalaire(ev(args[0]!))))
+    return k < 1 || k >= args.length ? echec('#VALUE!') : scalaire(ev(args[k]!))
+  },
+  SUMIFS: (args, ev, ctx) => agregerSi(args, ev, ctx, somme),
+  AVERAGEIFS: (args, ev, ctx) => agregerSi(args, ev, ctx, (v) => diviser(somme(v), v.length)),
+  MAXIFS: (args, ev, ctx) => agregerSi(args, ev, ctx, (v) => (v.length ? maximum(v) : 0)),
+  MINIFS: (args, ev, ctx) => agregerSi(args, ev, ctx, (v) => (v.length ? minimum(v) : 0)),
+  COUNTIFS: (args, ev, ctx) => {
+    arite(args, 2, 254)
+    return filtrer(args, 0, ev, ctx).ok.flat().filter(Boolean).length
+  },
+  ROW: (args, _ev, ctx) => (arite(args, 0, 1), args.length ? zoneDe(args[0]).l1 + 1 : (ctx.courante?.l ?? 0) + 1),
+  COLUMN: (args, _ev, ctx) => (arite(args, 0, 1), args.length ? zoneDe(args[0]).c1 + 1 : (ctx.courante?.c ?? 0) + 1),
+  ISBLANK: (args, ev) => (arite(args, 1), (r => !r.erreur && r.valeur === null)(essai(args[0], ev))),
+  ISNUMBER: (args, ev) => (arite(args, 1), (r => !r.erreur && typeof r.valeur === 'number')(essai(args[0], ev))),
+  ISTEXT: (args, ev) => (arite(args, 1), (r => !r.erreur && typeof r.valeur === 'string')(essai(args[0], ev))),
+  ISLOGICAL: (args, ev) => (arite(args, 1), (r => !r.erreur && typeof r.valeur === 'boolean')(essai(args[0], ev))),
+  ISERROR: (args, ev) => (arite(args, 1), essai(args[0], ev).erreur !== undefined),
+  ISERR: (args, ev) => (arite(args, 1), (r => r.erreur !== undefined && r.erreur !== '#N/A')(essai(args[0], ev))),
+  ISNA: (args, ev) => (arite(args, 1), essai(args[0], ev).erreur === '#N/A'),
   COUNTIF: (args, ev, ctx) => {
     arite(args, 2)
     const test = critere(scalaire(ev(args[1]!)))
@@ -857,30 +1207,360 @@ const EAGER: Record<string, Eager> = {
   YEAR: (a) => (arite(a, 1), composantes(serieDe(argument(a, 0))).a),
   MONTH: (a) => (arite(a, 1), composantes(serieDe(argument(a, 0))).m),
   DAY: (a) => (arite(a, 1), composantes(serieDe(argument(a, 0))).j),
-  VLOOKUP: (a) => {
-    arite(a, 3, 4)
-    const cherche = argument(a, 0)
-    const table = matriceArg(a[1])
-    const indice = Math.trunc(nombreArg(a, 2))
-    const approche = a[3] === undefined ? true : versBool(argument(a, 3))
-    if (indice < 1) return echec('#VALUE!')
-    if (indice > (table[0]?.length ?? 0)) return echec('#REF!')
-    let trouvee: Resultat[] | undefined
-    if (approche) {
-      for (const ligne of table) {
-        const v = ligne[0]!.valeur
-        if (v === null || ligne[0]!.erreur || typeof v !== typeof cherche) continue
-        if (comparer(v, cherche) <= 0) trouvee = ligne
+  VLOOKUP: (a) => rechercheTable(a, false),
+  HLOOKUP: (a) => rechercheTable(a, true),
+  /* maths */
+  CEILING: (a) => {
+    arite(a, 1, 2)
+    const x = nombreArg(a, 0)
+    const s = nombreArg(a, 1, 1)
+    if (s === 0 || x === 0) return 0
+    if (x > 0 && s < 0) return echec('#VALUE!')
+    const p = Math.abs(s)
+    return net(s > 0 || x > 0 ? Math.ceil(parseFloat((x / p).toPrecision(15))) * p : Math.floor(parseFloat((x / p).toPrecision(15))) * p)
+  },
+  FLOOR: (a) => {
+    arite(a, 1, 2)
+    const x = nombreArg(a, 0)
+    const s = nombreArg(a, 1, 1)
+    if (s === 0) return x === 0 ? 0 : echec('#DIV/0!')
+    if (x > 0 && s < 0) return echec('#VALUE!')
+    const p = Math.abs(s)
+    return net(s > 0 || x > 0 ? Math.floor(parseFloat((x / p).toPrecision(15))) * p : Math.ceil(parseFloat((x / p).toPrecision(15))) * p)
+  },
+  TRUNC: (a) => (arite(a, 1, 2), arrondir(nombreArg(a, 0), nombreArg(a, 1, 0), 'bas')),
+  SIGN: (a) => (arite(a, 1), Math.sign(nombreArg(a, 0))),
+  RAND: (a) => (arite(a, 0), Math.random()),
+  RANDBETWEEN: (a) => {
+    arite(a, 2)
+    const bas = Math.ceil(nombreArg(a, 0))
+    const haut = Math.floor(nombreArg(a, 1))
+    return bas > haut ? echec('#VALUE!') : bas + Math.floor(Math.random() * (haut - bas + 1))
+  },
+  LN: (a) => (arite(a, 1), nombreArg(a, 0) <= 0 ? echec('#VALUE!') : fini(Math.log(nombreArg(a, 0)))),
+  LOG: (a) => {
+    arite(a, 1, 2)
+    const x = nombreArg(a, 0)
+    const b = nombreArg(a, 1, 10)
+    if (x <= 0 || b <= 0) return echec('#VALUE!')
+    return b === 1 ? echec('#DIV/0!') : fini(Math.log(x) / Math.log(b))
+  },
+  LOG10: (a) => (arite(a, 1), nombreArg(a, 0) <= 0 ? echec('#VALUE!') : fini(Math.log10(nombreArg(a, 0)))),
+  EXP: (a) => (arite(a, 1), fini(Math.exp(nombreArg(a, 0)))),
+  SUMSQ: (a) => fini(nombres(a).reduce((s, x) => s + x * x, 0)),
+  SUMPRODUCT: (a) => {
+    arite(a, 1, 255)
+    const ms = a.map((x): Matrice => (Array.isArray(x) ? x : [[{ valeur: x }]]))
+    const h = ms[0]!.length
+    const l = ms[0]![0]?.length ?? 0
+    if (ms.some((m) => m.length !== h || m.some((ligne) => ligne.length !== l))) return echec('#VALUE!')
+    let total = 0
+    for (let i = 0; i < h; i++)
+      for (let j = 0; j < l; j++) {
+        let p = 1
+        for (const m of ms) {
+          const c = m[i]![j]!
+          if (c.erreur) echec(c.erreur)
+          p *= typeof c.valeur === 'number' ? c.valeur : 0
+        }
+        total += p
       }
-    } else {
-      trouvee = table.find((ligne) => {
-        const v = ligne[0]!.valeur
-        return !ligne[0]!.erreur && v !== null && typeof v === typeof cherche && comparer(v, cherche) === 0
-      })
+    return fini(total)
+  },
+  QUOTIENT: (a) => (arite(a, 2), nombreArg(a, 1) === 0 ? echec('#DIV/0!') : Math.trunc(nombreArg(a, 0) / nombreArg(a, 1))),
+  GCD: (a) => {
+    const n = nombres(a).map(Math.trunc)
+    return n.some((x) => x < 0) ? echec('#VALUE!') : n.reduce(pgcd, 0)
+  },
+  LCM: (a) => {
+    const n = nombres(a).map(Math.trunc)
+    if (n.some((x) => x < 0)) return echec('#VALUE!')
+    return n.reduce((p, x) => (p === 0 || x === 0 ? 0 : fini((p / pgcd(p, x)) * x)), 1)
+  },
+  FACT: (a) => {
+    arite(a, 1)
+    const n = Math.trunc(nombreArg(a, 0))
+    if (n < 0 || n > 170) return echec('#VALUE!')
+    let p = 1
+    for (let i = 2; i <= n; i++) p *= i
+    return p
+  },
+  EVEN: (a) => {
+    arite(a, 1)
+    const x = nombreArg(a, 0)
+    const r = Math.ceil(Math.abs(x))
+    return (x < 0 ? -1 : 1) * (r % 2 === 0 ? r : r + 1)
+  },
+  ODD: (a) => {
+    arite(a, 1)
+    const x = nombreArg(a, 0)
+    const r = Math.ceil(Math.abs(x))
+    return (x < 0 ? -1 : 1) * (r % 2 === 1 ? r : r + 1)
+  },
+  RADIANS: (a) => (arite(a, 1), fini((nombreArg(a, 0) * Math.PI) / 180)),
+  DEGREES: (a) => (arite(a, 1), fini((nombreArg(a, 0) * 180) / Math.PI)),
+  SIN: (a) => (arite(a, 1), fini(Math.sin(nombreArg(a, 0)))),
+  COS: (a) => (arite(a, 1), fini(Math.cos(nombreArg(a, 0)))),
+  TAN: (a) => (arite(a, 1), fini(Math.tan(nombreArg(a, 0)))),
+  ASIN: (a) => (arite(a, 1), Math.abs(nombreArg(a, 0)) > 1 ? echec('#VALUE!') : fini(Math.asin(nombreArg(a, 0)))),
+  ACOS: (a) => (arite(a, 1), Math.abs(nombreArg(a, 0)) > 1 ? echec('#VALUE!') : fini(Math.acos(nombreArg(a, 0)))),
+  ATAN: (a) => (arite(a, 1), fini(Math.atan(nombreArg(a, 0)))),
+  ATAN2: (a) => {
+    arite(a, 2)
+    const x = nombreArg(a, 0)
+    const y = nombreArg(a, 1)
+    return x === 0 && y === 0 ? echec('#DIV/0!') : fini(Math.atan2(y, x))
+  },
+  /* logique */
+  XOR: (a) => booleens(a).filter(Boolean).length % 2 === 1,
+  TRUE: (a) => (arite(a, 0), true),
+  FALSE: (a) => (arite(a, 0), false),
+  NA: (a) => (arite(a, 0), echec('#N/A')),
+  ISEVEN: (a) => (arite(a, 1), Math.trunc(Math.abs(nombreArg(a, 0))) % 2 === 0),
+  ISODD: (a) => (arite(a, 1), Math.trunc(Math.abs(nombreArg(a, 0))) % 2 === 1),
+  /* statistiques */
+  MODE: (a) => modeUnique(a),
+  'MODE.SNGL': (a) => modeUnique(a),
+  STDEV: (a) => fini(Math.sqrt(variance(nombres(a), true))),
+  'STDEV.S': (a) => fini(Math.sqrt(variance(nombres(a), true))),
+  STDEVP: (a) => fini(Math.sqrt(variance(nombres(a), false))),
+  'STDEV.P': (a) => fini(Math.sqrt(variance(nombres(a), false))),
+  VAR: (a) => variance(nombres(a), true),
+  'VAR.S': (a) => variance(nombres(a), true),
+  VARP: (a) => variance(nombres(a), false),
+  'VAR.P': (a) => variance(nombres(a), false),
+  LARGE: (a) => rang(a, true),
+  SMALL: (a) => rang(a, false),
+  RANK: (a) => classement(a),
+  'RANK.EQ': (a) => classement(a),
+  AVERAGEA: (a) => {
+    const n: number[] = []
+    for (const x of a) {
+      if (!Array.isArray(x)) n.push(versNombre(x))
+      else
+        for (const c of x.flat()) {
+          if (c.erreur) echec(c.erreur)
+          if (typeof c.valeur === 'number') n.push(c.valeur)
+          else if (typeof c.valeur === 'boolean') n.push(c.valeur ? 1 : 0)
+          else if (typeof c.valeur === 'string') n.push(0)
+        }
     }
-    if (!trouvee) return echec('#N/A')
-    const cel = trouvee[indice - 1]!
+    return diviser(somme(n), n.length)
+  },
+  /* recherche */
+  INDEX: (a) => {
+    arite(a, 2, 3)
+    const m = matriceArg(a[0])
+    const h = m.length
+    const l = m[0]?.length ?? 0
+    let r = entier(a, 1)
+    let c = a[2] === undefined ? undefined : entier(a, 2)
+    if (c === undefined) {
+      if (h === 1) [r, c] = [1, r]
+      else if (l === 1) c = 1
+      else return echec('#VALUE!')
+    }
+    if (r < 0 || c < 0 || r === 0 || c === 0) return echec('#VALUE!')
+    if (r > h || c > l) return echec('#REF!')
+    const cel = m[r - 1]![c - 1]!
     return cel.erreur ? echec(cel.erreur) : cel.valeur
+  },
+  MATCH: (a) => {
+    arite(a, 2, 3)
+    const type = entier(a, 2, 1)
+    const k = chercher(argument(a, 0), vecteur(a[1]), type > 0 ? 1 : type < 0 ? -1 : 0)
+    return k < 0 ? echec('#N/A') : k + 1
+  },
+  XLOOKUP: (a) => {
+    arite(a, 3, 6)
+    const cherche = argument(a, 0)
+    const cles = vecteur(a[1])
+    const rendus = vecteur(a[2])
+    if (cles.length !== rendus.length) return echec('#VALUE!')
+    const mode = entier(a, 4, 0)
+    const sens = entier(a, 5, 1)
+    if (![0, 1, -1, 2].includes(mode) || ![1, -1].includes(sens)) return echec('#VALUE!')
+    const ordre = cles.map((_, i) => (sens === 1 ? i : cles.length - 1 - i))
+    const pareil = (x: Resultat) => !x.erreur && x.valeur !== null && typeof x.valeur === typeof cherche
+    let k = ordre.find((i) => {
+      const c = cles[i]!
+      if (!pareil(c)) return false
+      if (mode === 2 && typeof cherche === 'string' && /[*?]/.test(cherche)) return motifJoker(cherche).test(c.valeur as string)
+      return comparer(c.valeur, cherche) === 0
+    })
+    if (k === undefined && (mode === 1 || mode === -1)) {
+      for (const i of ordre) {
+        const c = cles[i]!
+        if (!pareil(c)) continue
+        const d = comparer(c.valeur, cherche)
+        if (mode === -1 ? d >= 0 : d <= 0) continue
+        if (k === undefined || comparer(c.valeur, cles[k]!.valeur) * (mode === -1 ? 1 : -1) > 0) k = i
+      }
+    }
+    if (k === undefined) return a[3] === undefined ? echec('#N/A') : argument(a, 3)
+    const cel = rendus[k]!
+    return cel.erreur ? echec(cel.erreur) : cel.valeur
+  },
+  ROWS: (a) => (arite(a, 1), Array.isArray(a[0]) ? a[0].length : 1),
+  COLUMNS: (a) => (arite(a, 1), Array.isArray(a[0]) ? (a[0][0]?.length ?? 0) : 1),
+  /* texte */
+  PROPER: (a) => (arite(a, 1), versTexte(argument(a, 0)).toLowerCase().replace(/(^|[^\p{L}])(\p{L})/gu, (_m, p: string, l: string) => p + l.toUpperCase())),
+  SUBSTITUTE: (a) => {
+    arite(a, 3, 4)
+    const t = versTexte(argument(a, 0))
+    const ancien = versTexte(argument(a, 1))
+    const neuf = versTexte(argument(a, 2))
+    if (ancien === '') return t
+    if (a[3] === undefined) return t.split(ancien).join(neuf)
+    const n = entier(a, 3)
+    if (n < 1) return echec('#VALUE!')
+    let pos = -ancien.length
+    for (let i = 0; i < n; i++) {
+      pos = t.indexOf(ancien, pos + ancien.length)
+      if (pos < 0) return t
+    }
+    return t.slice(0, pos) + neuf + t.slice(pos + ancien.length)
+  },
+  REPLACE: (a) => {
+    arite(a, 4)
+    const t = versTexte(argument(a, 0))
+    const debut = entier(a, 1)
+    const n = entier(a, 2)
+    if (debut < 1 || n < 0) return echec('#VALUE!')
+    return t.slice(0, debut - 1) + versTexte(argument(a, 3)) + t.slice(debut - 1 + n)
+  },
+  FIND: (a) => {
+    arite(a, 2, 3)
+    const t = versTexte(argument(a, 1))
+    const debut = entier(a, 2, 1)
+    if (debut < 1 || debut > t.length + 1) return echec('#VALUE!')
+    const k = t.indexOf(versTexte(argument(a, 0)), debut - 1)
+    return k < 0 ? echec('#VALUE!') : k + 1
+  },
+  SEARCH: (a) => {
+    arite(a, 2, 3)
+    const t = versTexte(argument(a, 1))
+    const debut = entier(a, 2, 1)
+    if (debut < 1 || debut > t.length + 1) return echec('#VALUE!')
+    const m = motifPartiel(versTexte(argument(a, 0))).exec(t.slice(debut - 1))
+    return m ? m.index + debut : echec('#VALUE!')
+  },
+  REPT: (a) => {
+    arite(a, 2)
+    const t = versTexte(argument(a, 0))
+    const n = entier(a, 1)
+    return n < 0 || t.length * n > 32767 ? echec('#VALUE!') : t.repeat(n)
+  },
+  TEXTJOIN: (a) => {
+    arite(a, 3, 255)
+    const ignorer = versBool(argument(a, 1))
+    return aPlat(a.slice(2))
+      .filter((x) => !(ignorer && (x === null || x === '')))
+      .map(versTexte)
+      .join(versTexte(argument(a, 0)))
+  },
+  EXACT: (a) => (arite(a, 2), versTexte(argument(a, 0)) === versTexte(argument(a, 1))),
+  VALUE: (a) => {
+    arite(a, 1)
+    const x = argument(a, 0)
+    if (typeof x === 'number') return x
+    if (x === null) return 0
+    return typeof x === 'boolean' ? echec('#VALUE!') : valeurDeTexte(x)
+  },
+  T: (a) => {
+    arite(a, 1)
+    const x = argument(a, 0)
+    return typeof x === 'string' ? x : ''
+  },
+  N: (a) => {
+    arite(a, 1)
+    const x = argument(a, 0)
+    return typeof x === 'number' ? x : typeof x === 'boolean' ? Number(x) : 0
+  },
+  CHAR: (a) => {
+    arite(a, 1)
+    const n = Math.trunc(nombreArg(a, 0))
+    return n < 1 || n > 255 ? echec('#VALUE!') : String.fromCharCode(n)
+  },
+  CODE: (a) => {
+    arite(a, 1)
+    const t = versTexte(argument(a, 0))
+    return t === '' ? echec('#VALUE!') : t.charCodeAt(0)
+  },
+  CLEAN: (a) => (arite(a, 1), versTexte(argument(a, 0)).replace(/[\u0000-\u001f]/g, '')),
+  /* dates */
+  TIME: (a) => {
+    arite(a, 3)
+    const s = entier(a, 0) * 3600 + entier(a, 1) * 60 + entier(a, 2)
+    return s < 0 ? echec('#VALUE!') : (s % 86400) / 86400
+  },
+  HOUR: (a) => (arite(a, 1), Math.floor(secondesDuJour(serieDe(argument(a, 0))) / 3600)),
+  MINUTE: (a) => (arite(a, 1), Math.floor((secondesDuJour(serieDe(argument(a, 0))) % 3600) / 60)),
+  SECOND: (a) => (arite(a, 1), secondesDuJour(serieDe(argument(a, 0))) % 60),
+  WEEKDAY: (a) => {
+    arite(a, 1, 2)
+    const j = jourSemaine(serieDe(argument(a, 0)))
+    const type = entier(a, 1, 1)
+    if (type === 1) return j + 1
+    if (type === 2) return ((j + 6) % 7) + 1
+    if (type === 3) return (j + 6) % 7
+    if (type >= 11 && type <= 17) return ((j - ((type - 10) % 7) + 7) % 7) + 1
+    return echec('#VALUE!')
+  },
+  WEEKNUM: (a) => {
+    arite(a, 1, 2)
+    const s = serieDe(argument(a, 0))
+    const type = entier(a, 1, 1)
+    if (type === 21) return semaineIso(s)
+    const debut = type === 1 || type === 17 ? 0 : type === 2 ? 1 : type >= 11 && type <= 16 ? type - 10 : -1
+    return debut < 0 ? echec('#VALUE!') : numeroSemaine(s, debut)
+  },
+  ISOWEEKNUM: (a) => (arite(a, 1), semaineIso(serieDe(argument(a, 0)))),
+  EDATE: (a) => (arite(a, 2), ajouterMois(serieDe(argument(a, 0)), entier(a, 1))),
+  EOMONTH: (a) => {
+    arite(a, 2)
+    const { a: an, m } = composantes(serieDe(argument(a, 0)))
+    return serieDepuisJours(joursCivils(an, m + entier(a, 1) + 1, 1) - 1)
+  },
+  DATEDIF: (a) => datedif(a),
+  DAYS: (a) => (arite(a, 2), Math.floor(serieDe(argument(a, 0))) - Math.floor(serieDe(argument(a, 1)))),
+  DAYS360: (a) => (arite(a, 2, 3), jours360(Math.floor(serieDe(argument(a, 0))), Math.floor(serieDe(argument(a, 1))), a[2] === undefined ? false : versBool(argument(a, 2)))),
+  NETWORKDAYS: (a) => {
+    arite(a, 2, 3)
+    const s = Math.floor(serieDe(argument(a, 0)))
+    const e = Math.floor(serieDe(argument(a, 1)))
+    const conges = feries(a[2])
+    let n = 0
+    for (let d = Math.min(s, e); d <= Math.max(s, e); d++) if (ouvre(d, conges)) n++
+    return s <= e ? n : -n
+  },
+  WORKDAY: (a) => {
+    arite(a, 2, 3)
+    let d = Math.floor(serieDe(argument(a, 0)))
+    let reste = entier(a, 1)
+    const pas = reste < 0 ? -1 : 1
+    const conges = feries(a[2])
+    for (reste = Math.abs(reste); reste > 0; ) {
+      d += pas
+      if (ouvre(d, conges)) reste--
+    }
+    return d
+  },
+  DATEVALUE: (a) => {
+    arite(a, 1)
+    const x = argument(a, 0)
+    const d = typeof x === 'string' ? lireDate(x) : null
+    return d === null ? echec('#VALUE!') : d
+  },
+  TIMEVALUE: (a) => {
+    arite(a, 1)
+    const x = argument(a, 0)
+    const h = typeof x === 'string' ? lireHeure(x) : null
+    return h === null ? echec('#VALUE!') : h
+  },
+  YEARFRAC: (a) => {
+    arite(a, 2, 3)
+    return fini(anneeFraction(serieDe(argument(a, 0)), serieDe(argument(a, 1)), entier(a, 2, 0)))
   },
   PI: (a) => (arite(a, 0), Math.PI),
 }
@@ -1003,7 +1683,10 @@ export function evaluerTable(
     if (!texte.startsWith('=')) r = { valeur: lireBrut(texte) }
     else {
       enCours.add(cle)
+      const avant = ctx.courante
+      ctx.courante = { l: i, c: j }
       r = formule(texte)
+      ctx.courante = avant
       enCours.delete(cle)
     }
     memo[i]![j] = r
@@ -1050,19 +1733,19 @@ const DECLENCHEURS = '=(,;+-*/^&<> '
 
 /**
  * Faut-il ouvrir l'autocomplétion ? `debut` : où commence la requête dans le texte. Oui quand le texte est
- * exactement `=` (requête vide), ou quand des lettres seules suivent un déclencheur juste avant le curseur.
+ * exactement `=` ou que le curseur suit un déclencheur (requête vide), ou quand un mot de lettres, `_` et `.`
+ * (jamais de chiffre) suit un déclencheur juste avant le curseur.
  */
 export function requeteAutocompletion(texte: string, curseur: number): { debut: number; requete: string } | null {
   if (texte === '=') return { debut: 1, requete: '' }
   if (!texte.startsWith('=')) return null
   const avant = texte.slice(0, curseur)
-  const m = /([A-Za-z]+)$/.exec(avant)
-  if (!m) return null
-  const debut = m.index
+  const m = /([A-Za-z_.]+)$/.exec(avant)
+  const debut = m ? m.index : avant.length
   const declencheur = avant[debut - 1]
   if (declencheur === undefined || !DECLENCHEURS.includes(declencheur)) return null
   if (dansUneChaine(texte, debut)) return null
-  return { debut, requete: m[1]! }
+  return { debut, requete: m ? m[1]! : '' }
 }
 
 /** Un clic sur une cellule doit-il citer sa référence ? Oui juste après un opérateur, `(`, `,`, `;` ou `=`. */
@@ -1251,11 +1934,11 @@ export function translaterFormule(
 /* Type du résultat                                                                                              */
 /* ------------------------------------------------------------------------------------------------------------ */
 
-const FONCTIONS_DU_TYPE_CITE = ['SUM', 'SUMIF', 'MIN', 'MAX', 'AVERAGE', 'AVERAGEIF', 'PRODUCT', 'MEDIAN']
-const FONCTIONS_DE_DATE = ['TODAY', 'NOW', 'DATE']
+const FONCTIONS_DU_TYPE_CITE = ['SUM', 'SUMIF', 'SUMIFS', 'MIN', 'MAX', 'MAXIFS', 'MINIFS', 'AVERAGE', 'AVERAGEIF', 'AVERAGEIFS', 'PRODUCT', 'MEDIAN']
+const FONCTIONS_DE_DATE = ['TODAY', 'NOW', 'DATE', 'DATEVALUE', 'EDATE', 'EOMONTH', 'WORKDAY']
 
 /**
- * Le type que prend une formule : `date` pour TODAY, NOW, DATE ; pour SUM, MIN, MAX, AVERAGE… le type de la
+ * Le type que prend une formule : `date` pour TODAY, NOW, DATE, EDATE… ; pour SUM, MIN, MAX, AVERAGE… le type de la
  * première cellule citée (celle-ci peut être une formule qui en a un). Sinon `undefined`.
  */
 export function typeDuResultat(

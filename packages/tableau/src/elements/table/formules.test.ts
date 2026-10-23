@@ -15,6 +15,7 @@ import {
   suggererFonctions,
   translaterFormule,
   typeDuResultat,
+  type Valeur,
 } from './formules'
 
 /** Évalue une formule seule, dans une table dont `donnees` remplit les premières lignes. */
@@ -318,12 +319,111 @@ describe('VLOOKUP', () => {
   test('indice nul', () => expect(e('=VLOOKUP(10,A1:B3,0,FALSE)', ...d)).toBe('#VALUE!'))
 })
 
+type Cas = [formule: string, attendu: Valeur, ...donnees: string[][]]
+const verifier = (formule: string, attendu: Valeur, ...donnees: string[][]) => {
+  const r = f(formule, ...donnees)
+  if (typeof attendu === 'number') expect(r.valeur).toBeCloseTo(attendu, 9)
+  else expect(r.valeur).toBe(attendu)
+  expect(r.erreur).toBeUndefined()
+}
+
+const lettres = [['a', '1', 'x'], ['b', '2', 'y'], ['a', '3', 'y'], ['c', '4', 'y']]
+const notes = [['3'], ['1'], ['4'], ['1'], ['5']]
+const tableau = [['a', '10'], ['b', '20'], ['c', '30']]
+
+describe('les fonctions de tableur : maths', () => {
+  test.each<Cas>([
+    ['=CEILING(2.5,2)', 4], ['=CEILING(-2.5,-2)', -4], ['=CEILING(-2.5,2)', -2], ['=FLOOR(2.5,2)', 2], ['=FLOOR(-2.5,2)', -4],
+    ['=TRUNC(8.97,1)', 8.9], ['=TRUNC(-8.97)', -8], ['=SIGN(-4)', -1], ['=LN(1)', 0], ['=LOG(8,2)', 3], ['=LOG10(1000)', 3], ['=EXP(0)', 1],
+    ['=SUMSQ(1,2,3)', 14], ['=QUOTIENT(-7,2)', -3], ['=GCD(12,18)', 6], ['=LCM(4,6)', 12], ['=FACT(5)', 120], ['=EVEN(3)', 4], ['=ODD(-2)', -3],
+    ['=DEGREES(PI())', 180], ['=RADIANS(180)', Math.PI], ['=SIN(0)', 0], ['=COS(0)', 1], ['=TAN(0)', 0], ['=ASIN(1)', Math.PI / 2],
+    ['=ACOS(1)', 0], ['=ATAN(1)', Math.PI / 4], ['=ATAN2(1,1)', Math.PI / 4], ['=RANDBETWEEN(3,3)', 3], ['=RAND()<1', true],
+    ['=SUMPRODUCT(A1:A2,B1:B2)', 14, ['1', '2'], ['3', '4']],
+  ])('%s', (...cas) => verifier(...cas))
+  test.each([['=ASIN(2)', '#VALUE!'], ['=LN(0)', '#VALUE!'], ['=FACT(-1)', '#VALUE!'], ['=QUOTIENT(1,0)', '#DIV/0!'], ['=SQRT(-1)', '#VALUE!']])('%s', (formule, code) =>
+    expect(e(formule)).toBe(code))
+})
+
+describe('les fonctions de tableur : conditions', () => {
+  test.each<Cas>([
+    ['=SUMIFS(B1:B4,A1:A4,"a")', 4, ...lettres], ['=SUMIFS(B1:B4,A1:A4,"a",C1:C4,"y")', 3, ...lettres], ['=SUMIFS(B1:B4,B1:B4,">1")', 9, ...lettres],
+    ['=SUMIFS(B1:B4,A1:A4,"*")', 10, ...lettres], ['=COUNTIFS(A1:A4,"<>a",C1:C4,"y")', 2, ...lettres], ['=COUNTIFS(A1:A4,"?")', 4, ...lettres],
+    ['=AVERAGEIFS(B1:B4,C1:C4,"y")', 3, ...lettres], ['=MAXIFS(B1:B4,A1:A4,"a")', 3, ...lettres], ['=MINIFS(B1:B4,C1:C4,"y")', 2, ...lettres],
+    ['=IFNA(NA(),"x")', 'x'], ['=IFS(1>2,"a",2>1,"b")', 'b'], ['=SWITCH(2,1,"un",2,"deux","autre")', 'deux'], ['=SWITCH(9,1,"un","autre")', 'autre'],
+    ['=XOR(TRUE,FALSE)', true], ['=XOR(TRUE,TRUE)', false], ['=CHOOSE(2,"a","b","c")', 'b'],
+  ])('%s', (...cas) => verifier(...cas))
+  test.each([['=IFNA(1/0,"x")', '#DIV/0!'], ['=IFS(1>2,"a")', '#N/A'], ['=SWITCH(9,1,"un")', '#N/A'], ['=CHOOSE(4,1,2)', '#VALUE!'], ['=SUMIFS(A1:A2,A1:A3,"a")', '#VALUE!']])('%s', (formule, code) =>
+    expect(e(formule, ['1'], ['2'], ['3'])).toBe(code))
+})
+
+describe('les fonctions de tableur : statistiques', () => {
+  test.each<Cas>([
+    ['=MODE(A1:A5)', 1, ...notes], ['=MODE.SNGL(A1:A5)', 1, ...notes], ['=STDEV.P(A1:A5)', 1.6, ...notes], ['=STDEVP(A1:A5)', 1.6, ...notes],
+    ['=STDEV(A1:A5)', Math.sqrt(3.2), ...notes], ['=STDEV.S(A1:A5)', Math.sqrt(3.2), ...notes], ['=VAR.P(A1:A5)', 2.56, ...notes], ['=VARP(A1:A5)', 2.56, ...notes],
+    ['=VAR(A1:A5)', 3.2, ...notes], ['=VAR.S(A1:A5)', 3.2, ...notes], ['=LARGE(A1:A5,2)', 4, ...notes], ['=SMALL(A1:A5,2)', 1, ...notes],
+    ['=RANK(4,A1:A5)', 2, ...notes], ['=RANK.EQ(1,A1:A5,1)', 1, ...notes], ['=AVERAGEA(A1:A2)', 2, ...notes], ['=AVERAGEA(A1:A3)', 2 / 3, ['1'], ['x'], ['true']],
+  ])('%s', (...cas) => verifier(...cas))
+  test.each([['=MODE(A2:A3)', '#N/A'], ['=LARGE(A1:A5,6)', '#VALUE!'], ['=RANK(9,A1:A5)', '#N/A'], ['=VAR(A1)', '#DIV/0!']])('%s', (formule, code) =>
+    expect(e(formule, ...notes)).toBe(code))
+})
+
+describe('les fonctions de tableur : recherche', () => {
+  test.each<Cas>([
+    ['=INDEX(A1:B3,2,2)', 20, ...tableau], ['=INDEX(B1:B3,3)', 30, ...tableau], ['=MATCH("b",A1:A3,0)', 2, ...tableau], ['=MATCH("*c",A1:A3,0)', 3, ...tableau],
+    ['=MATCH(25,B1:B3,1)', 2, ...tableau], ['=MATCH(25,B1:B3)', 2, ...tableau], ['=MATCH(25,A1:A3,-1)', 1, ['30'], ['20'], ['10']],
+    ['=HLOOKUP(20,A1:C2,2,FALSE)', 'y', ['10', '20', '30'], ['x', 'y', 'z']], ['=XLOOKUP("b",A1:A3,B1:B3)', 20, ...tableau],
+    ['=XLOOKUP("z",A1:A3,B1:B3,"non")', 'non', ...tableau], ['=XLOOKUP(25,B1:B3,A1:A3,"",-1)', 'b', ...tableau], ['=XLOOKUP(25,B1:B3,A1:A3,"",1)', 'c', ...tableau],
+    ['=ROW(B3)', 3], ['=COLUMN(C1)', 3], ['=ROW()', 4, ...tableau], ['=ROWS(A1:B3)', 3, ...tableau], ['=COLUMNS(A1:B3)', 2, ...tableau],
+  ])('%s', (...cas) => verifier(...cas))
+  test.each([['=MATCH("z",A1:A3,0)', '#N/A'], ['=INDEX(A1:B3,4,1)', '#REF!'], ['=HLOOKUP(1,A1:B3,9,FALSE)', '#REF!'], ['=XLOOKUP("z",A1:A3,B1:B3)', '#N/A']])('%s', (formule, code) =>
+    expect(e(formule, ...tableau)).toBe(code))
+})
+
+describe('les fonctions de tableur : texte', () => {
+  test.each<Cas>([
+    ['=PROPER("hello wORLD")', 'Hello World'], ['=SUBSTITUTE("a-b-c","-","+")', 'a+b+c'], ['=SUBSTITUTE("a-b-c","-","+",2)', 'a-b+c'],
+    ['=REPLACE("abcdef",2,3,"X")', 'aXef'], ['=FIND("b","abcb")', 2], ['=FIND("b","abcb",3)', 4], ['=SEARCH("A?C","xabcd")', 2], ['=REPT("ab",3)', 'ababab'],
+    ['=TEXTJOIN("-",TRUE,"a","","b")', 'a-b'], ['=TEXTJOIN("-",FALSE,"a","","b")', 'a--b'], ['=EXACT("a","A")', false], ['=VALUE("12,5")', 12.5],
+    ['=VALUE("50%")', 0.5], ['=T(5)', ''], ['=T("x")', 'x'], ['=N(TRUE)', 1], ['=N("x")', 0], ['=CHAR(65)', 'A'], ['=CODE("A")', 65], ['=CLEAN("a"&CHAR(7)&"b")', 'ab'],
+  ])('%s', (...cas) => verifier(...cas))
+  test.each([['=FIND("z","abc")', '#VALUE!'], ['=VALUE("abc")', '#VALUE!'], ['=REPT("a",-1)', '#VALUE!'], ['=CHAR(0)', '#VALUE!']])('%s', (formule, code) =>
+    expect(e(formule)).toBe(code))
+})
+
+describe('les fonctions de tableur : dates', () => {
+  const iso = (x: string) => `TEXT(${x},"yyyy-mm-dd")`
+  test.each<Cas>([
+    [`=${iso('EDATE(DATE(2024,1,31),1)')}`, '2024-02-29'], [`=${iso('EOMONTH(DATE(2024,1,15),1)')}`, '2024-02-29'], [`=${iso('WORKDAY(DATE(2024,1,12),1)')}`, '2024-01-15'],
+    ['=WEEKDAY(DATE(2024,1,15))', 2], ['=WEEKDAY(DATE(2024,1,15),2)', 1], ['=WEEKDAY(DATE(2024,1,15),3)', 0], ['=WEEKNUM(DATE(2024,1,15))', 3],
+    ['=ISOWEEKNUM(DATE(2024,1,15))', 3], ['=ISOWEEKNUM(DATE(2021,1,3))', 53], ['=DAYS(DATE(2024,3,1),DATE(2024,2,1))', 29],
+    ['=DAYS360(DATE(2024,1,31),DATE(2024,3,31))', 60], ['=DAYS360(DATE(2024,1,31),DATE(2024,3,31),TRUE)', 60],
+    ['=DATEDIF(DATE(2020,2,15),DATE(2024,1,10),"Y")', 3], ['=DATEDIF(DATE(2020,2,15),DATE(2024,1,10),"M")', 46], ['=DATEDIF(DATE(2020,2,15),DATE(2024,1,10),"YM")', 10],
+    ['=DATEDIF(DATE(2020,2,15),DATE(2024,1,10),"MD")', 26], ['=DATEDIF(DATE(2024,1,1),DATE(2024,1,31),"D")', 30],
+    ['=NETWORKDAYS(DATE(2024,1,15),DATE(2024,1,21))', 5], ['=NETWORKDAYS(DATE(2024,1,15),DATE(2024,1,21),A1)', 4, ['=DATE(2024,1,17)']],
+    ['=DATEVALUE("05/03/2024")=DATE(2024,3,5)', true], ['=DATEVALUE("2024-03-05")=DATE(2024,3,5)', true], ['=TIMEVALUE("12:00")', 0.5], ['=TIME(6,0,0)', 0.25],
+    ['=HOUR(0.75)', 18], ['=MINUTE(TIME(1,30,0))', 30], ['=SECOND(TIME(0,0,45))', 45],
+    ['=YEARFRAC(DATE(2024,1,1),DATE(2024,7,1))', 0.5], ['=YEARFRAC(DATE(2024,1,1),DATE(2024,7,1),1)', 182 / 366], ['=YEARFRAC(DATE(2023,1,1),DATE(2023,7,1),3)', 181 / 365],
+  ])('%s', (...cas) => verifier(...cas))
+  test.each([['=DATEDIF(DATE(2024,2,1),DATE(2024,1,1),"D")', '#VALUE!'], ['=DATEVALUE("31/02/2024")', '#VALUE!'], ['=TIME(-1,0,0)', '#VALUE!'], ['=WEEKDAY(1,9)', '#VALUE!']])('%s', (formule, code) =>
+    expect(e(formule)).toBe(code))
+})
+
+describe('les fonctions de tableur : informations', () => {
+  test.each<Cas>([
+    ['=ISBLANK(A1)', true, ['', '1']], ['=ISBLANK(B1)', false, ['', '1']], ['=ISNUMBER(B1)', true, ['', '1']], ['=ISNUMBER("1")', false], ['=ISTEXT("a")', true],
+    ['=ISTEXT(B1)', false, ['', '1']], ['=ISLOGICAL(TRUE)', true], ['=ISERROR(1/0)', true], ['=ISERROR(1)', false], ['=ISERR(NA())', false], ['=ISERR(1/0)', true],
+    ['=ISNA(NA())', true], ['=ISEVEN(4)', true], ['=ISODD(4)', false], ['=ISODD(-3)', true], ['=TRUE()', true], ['=FALSE()', false],
+  ])('%s', (...cas) => verifier(...cas))
+  test('NA donne #N/A', () => expect(e('=NA()')).toBe('#N/A'))
+})
+
 describe('les fonctions', () => {
   test('la liste est triée et complète', () => {
     expect([...FONCTIONS].sort()).toEqual([...FONCTIONS])
     expect(FONCTIONS).toContain('VLOOKUP')
     expect(FONCTIONS).toContain('IFERROR')
-    expect(FONCTIONS.length).toBeGreaterThanOrEqual(43)
+    expect(FONCTIONS.length).toBeGreaterThanOrEqual(140)
+    expect(FONCTIONS).toEqual(expect.arrayContaining(['SUMIFS', 'INDEX', 'MATCH', 'STDEV.S', 'RANK.EQ', 'ISOWEEKNUM', 'YEARFRAC', 'XLOOKUP']))
   })
   test('chaque fonction de la liste est connue du moteur', () => {
     for (const nom of FONCTIONS) expect(e(`=${nom}()`)).not.toBe('#NAME?')
@@ -333,9 +433,12 @@ describe('les fonctions', () => {
 describe('suggererFonctions', () => {
   test('sans requête', () => expect(suggererFonctions('')).toEqual(['SUM', 'IF', 'MIN', 'MAX', 'COUNT', 'AVERAGE']))
   test('préfixe, tri par longueur puis alphabet', () => {
-    expect(suggererFonctions('co')).toEqual(['CONCAT', 'COUNT', 'COUNTA', 'COUNTIF', 'COUNTBLANK', 'CONCATENATE'].sort((a, b) => a.length - b.length || (a < b ? -1 : 1)))
+    const r = suggererFonctions('co')
+    expect(r.slice(0, 6)).toEqual(['COS', 'CODE', 'COUNT', 'COLUMN', 'CONCAT', 'COUNTA'])
+    expect(r.every((n) => n.startsWith('CO'))).toBe(true)
   })
-  test('insensible à la casse', () => expect(suggererFonctions('su')).toEqual(['SUM', 'SUMIF']))
+  test('insensible à la casse', () => expect(suggererFonctions('su')).toEqual(['SUM', 'SUMIF', 'SUMSQ', 'SUMIFS', 'SUBSTITUTE', 'SUMPRODUCT']))
+  test('noms pointés', () => expect(suggererFonctions('stdev.')).toEqual(['STDEV.P', 'STDEV.S']))
   test('rien', () => expect(suggererFonctions('zz')).toEqual([]))
 })
 
@@ -346,7 +449,12 @@ describe('requeteAutocompletion', () => {
     const t = `=1${c}ab`
     expect(requeteAutocompletion(t, t.length)).toEqual({ debut: 3, requete: 'ab' })
   })
-  test('pas de requête vide après un opérateur', () => expect(requeteAutocompletion('=1+', 3)).toBeNull())
+  test('requête vide juste après un déclencheur', () => {
+    expect(requeteAutocompletion('=1+', 3)).toEqual({ debut: 3, requete: '' })
+    expect(requeteAutocompletion('=SUM(', 5)).toEqual({ debut: 5, requete: '' })
+  })
+  test('le mot peut porter _ et .', () => expect(requeteAutocompletion('=1+STDEV.', 9)).toEqual({ debut: 3, requete: 'STDEV.' }))
+  test('jamais de chiffre dans la requête', () => expect(requeteAutocompletion('=LOG10', 6)).toBeNull())
   test('pas dans une référence', () => expect(requeteAutocompletion('=A1', 3)).toBeNull())
   test('pas collé à un mot', () => expect(requeteAutocompletion('=1a', 3)).toBeNull())
   test('pas sans =', () => expect(requeteAutocompletion('SU', 2)).toBeNull())
