@@ -1,22 +1,29 @@
 import { EditorContent, getSchema, useEditor, useEditorState } from '@tiptap/react'
-import { type ReactNode, memo, useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, memo, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { type CouleurNote, type Element, type Id, type NoeudTexte, type Taches, aimanter } from '../../coeur/tableau'
 import { extensionsDuPartage, textePartage } from '../partage'
 import { MenuCouleur } from '../note/MenuCouleur'
 import type { Operation } from '../../coeur/tableau'
 import type { ContexteToile, PropsOutils, PropsRendu, ServicePresence } from '../types'
-import { EXTENSIONS_TACHES, EXTENSIONS_TACHES_PARTAGEE, type GestesTaches, clavierListe, ouvreursPuces } from './extensions'
+import { EXTENSIONS_TACHES, EXTENSIONS_TACHES_PARTAGEE, type GestesTaches, clavierListe, ouvreursPuces, puceActive } from './extensions'
 import { MenuPuce, type OuverturePuce } from './MenuPuce'
-import { type Personne, type Puce, jourDe, personnes, puces } from './puces'
+import { type Personne, type Puce, attrsAllumes, attrsEteints, attrsVides, jourDe, personnes, puces } from './puces'
 import { animerCase } from './animation'
 import { avecTitre, contenuDepuis, curseurAuTitre, docEditeur, sansTitre } from './titre'
 import { type Sortie, glisserTache } from './glisse'
-import { type Chemin, basculer, compter, deplacer, detacher, docTaches, effacerFaites, estFaite, regler, retirer, sousTaches, transferer } from './liste'
+import { type Chemin, basculer, compter, deplacer, detacher, docTaches, estFaite, regler, retirer, sousTaches, transferer } from './liste'
 import { t } from '../../langue'
 import { BoutonOutil } from '../../BoutonOutil'
+import { ContexteBarreEdition } from '../../barreEdition'
+import { ouvrirFil } from '../decor/etat'
+import { OutilsEdition } from './OutilsEdition'
 
 /** Les listes dont le titre vient d'être ajouté : leur édition y met le curseur. */
 const titreAFocaliser = new Set<Id>()
+
+/** Les listes dont une puce vient d'être allumée par la barre : leur rendu en ouvre le choix, sous la puce. */
+const puceAOuvrir = new Map<Id, Puce['genre']>()
 
 const sansCouleur = ({ couleur: _, ...reste }: Taches): Taches => reste
 
@@ -26,13 +33,10 @@ export function RenduTaches({ element, enEdition, contexte, brouillon, changer }
     contexte.jeter([element.id])
     contexte.finirEdition()
   }
+  if (enEdition) return <Edition id={element.id} contenu={contenu} contexte={contexte} surChangement={brouillon} jeter={jeter} />
   return (
     <div className="notak-taches" data-couleur={contenu.couleur}>
-      {enEdition ? (
-        <Edition id={element.id} contenu={contenu} contexte={contexte} surChangement={brouillon} jeter={jeter} />
-      ) : (
-        <Figee id={element.id} contenu={contenu} changer={changer} contexte={contexte} />
-      )}
+      <Figee id={element.id} contenu={contenu} changer={changer} contexte={contexte} />
     </div>
   )
 }
@@ -56,6 +60,14 @@ const Figee = memo(function Figee({ id, contenu, changer, contexte }: { id: Id; 
   }
   const [menu, setMenu] = useState<(OuverturePuce & { chemin: Chemin }) | null>(null)
   const ouvrir = (chemin: Chemin, genre: Puce['genre'], ancre: HTMLElement) => setMenu(ouverturePuce(chemin, genre, ancre))
+  // Une puce que la barre vient d'allumer : son choix s'ouvre dès qu'elle est dessinée.
+  useEffect(() => {
+    const genre = puceAOuvrir.get(id)
+    if (!genre) return
+    puceAOuvrir.delete(id)
+    const puce = document.querySelector<HTMLElement>(`[data-id="${id}"] .notak-puce[data-genre="${genre}"]`)
+    if (puce) ouvrir([0], genre, puce)
+  }, [contenu]) // eslint-disable-line react-hooks/exhaustive-deps
   const cible = menu && sousTachePar(doc, menu.chemin)
   return (
     <>
@@ -253,11 +265,16 @@ function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surC
   const courant = useRef(contenu)
   const focaliserTitre = useRef(titreAFocaliser.delete(id) && contenu.titre !== undefined)
 
+  // La couleur se change pendant l'écriture : la bande suit tout de suite, la toile n'a que le brouillon.
+  const [couleur, setCouleur] = useState(contenu.couleur)
   const poser = (apres: Taches) => {
     courant.current = apres
     surChangement(apres)
   }
   const gestes = useRef<GestesTaches>(null!)
+  // Avec la barre de gauche, les outils de la liste y prennent la place ; sinon il n'y a pas de barre d'édition.
+  const { attendue, cible } = useContext(ContexteBarreEdition)
+  const [lien, setLien] = useState<string | null>(null)
   // Les tâches et le titre s'écrivent à plusieurs, comme le texte d'une note.
   const fragment = useMemo(() => textePartage(contexte, id, docEditeur(contenu), SCHEMA), [])
   const extensions = useMemo(
@@ -298,8 +315,25 @@ function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surC
   })
 
   return (
-    <>
+    <div className="notak-taches" data-couleur={couleur}>
       <EditorContent editor={editeur} />
+      {editeur && attendue && cible &&
+        createPortal(
+          <OutilsEdition
+            editor={editeur}
+            couleur={couleur}
+            choisirCouleur={(c) => {
+              setCouleur(c)
+              poser(c ? { ...sansCouleur(courant.current), couleur: c } : sansCouleur(courant.current))
+            }}
+            titreCache={() => courant.current.titreCache}
+            lien={lien}
+            surLien={setLien}
+            {...(contexte.services.lectureSeule ? {} : { commenter: () => ouvrirFil(id) })}
+            finir={() => contexte.finirEdition()}
+          />,
+          cible,
+        )}
       {menu && editeur && (
         <MenuPuce
           ouverture={menu}
@@ -312,7 +346,7 @@ function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surC
           fermer={() => setMenu(null)}
         />
       )}
-    </>
+    </div>
   )
 }
 
@@ -346,6 +380,18 @@ export function OutilsTaches({ elements, contexte }: PropsOutils<Taches>) {
     }
   }
 
+  // Une liste qui n'a qu'une tâche de premier niveau prête ses outils à cette tâche : Échéance, Assigner.
+  const seule = elements.length === 1 ? elements[0]! : null
+  const unique = seule && sousTaches(docTaches(seule.contenu.texte)).length === 1 ? sousTaches(docTaches(seule.contenu.texte))[0]! : null
+  const basculerPuce = (genre: Puce['genre']) => {
+    if (!seule || !unique) return
+    const actif = puceActive(unique.attrs, genre)
+    // Allumée, la puce de l'assigné repart vide ; éteinte, elle perd ce qu'elle portait.
+    const patch = actif ? attrsEteints(genre) : { ...(genre === 'assigne' ? attrsVides('assigne') : {}), ...attrsAllumes(genre) }
+    changerTout((e) => ({ ...e.contenu, texte: regler(docTaches(e.contenu.texte), [0], patch) }))
+    if (!actif) puceAOuvrir.set(seule.id, genre)
+  }
+
   return (
     <>
       {total > 0 && (
@@ -360,13 +406,12 @@ export function OutilsTaches({ elements, contexte }: PropsOutils<Taches>) {
         }
       />
       <BoutonOutil icone="titre" libelle={t('taches.titre')} actif={toutesTitrees} onClick={basculerTitre} />
-      {faites >= 2 && (
-        <BoutonOutil
-          icone="gomme"
-          secondaire
-          libelle={t('taches.effacerFaites')}
-          onClick={() => changerTout((e) => ({ ...e.contenu, texte: effacerFaites(docTaches(e.contenu.texte)) }))}
-        />
+      {/* Réaction et Étiquette de la tâche unique prendront ici leur place, avec les annotations par tâche (elements/decor). */}
+      {unique && (
+        <>
+          <BoutonOutil icone="calendrier" libelle={t('decor.echeance')} actif={puceActive(unique.attrs, 'echeance')} onClick={() => basculerPuce('echeance')} />
+          <BoutonOutil icone="personne" libelle={t('taches.assigner')} actif={puceActive(unique.attrs, 'assigne')} onClick={() => basculerPuce('assigne')} />
+        </>
       )}
     </>
   )

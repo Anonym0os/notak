@@ -17,6 +17,8 @@ registre.type<Taches>({
   Outils: OutilsTaches,
   couleur: couleurDuContenu<Taches>(),
   editable: true,
+  // En édition, les outils de la liste prennent la barre de gauche (Couleur, Titre, Échéance, Assigner, Retrait…).
+  outilsEdition: true,
   hauteurParDefaut: HAUTEUR_TACHES_MIN,
   // La liste suivante garde la largeur ; avec la mise en forme, elle garde aussi la couleur.
   suivant: (e, places, format) => {

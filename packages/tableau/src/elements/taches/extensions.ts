@@ -9,7 +9,7 @@ import type { NoeudTexte } from '../../coeur/tableau'
 import { glisserTache } from './glisse'
 import { htmlEnTaches } from './html'
 import { PROFONDEUR_MAX, hauteur, lignesEnTaches, peutDescendre, peutPoserAuNiveau } from './liste'
-import { DRAPEAU, type GenrePuce, jourDe, puces } from './puces'
+import { DRAPEAU, type GenrePuce, assigneDe, attrsAllumes, attrsEteints, attrsVides, echeanceDe, jourDe, puces } from './puces'
 import { animerCase } from './animation'
 import { ClavierTitre, NOM_TITRE, TitreListe, ajouterTitre, curseurAuTitre, titreDe } from './titre'
 import { t } from '../../langue'
@@ -389,23 +389,65 @@ export function entree(editor: Editor): boolean {
   return false
 }
 
-/** La tâche sous le curseur : allume sa puce (sans toucher à ce qu'elle porte) et ouvre son choix. */
-export function demanderPuce(editor: Editor, genre: GenrePuce): boolean {
+/** La tâche sous le curseur (la plus profonde), avec sa position. */
+export function tacheCourante(editor: Editor): { pos: number; noeud: NoeudPM } | null {
   const { $from } = editor.state.selection
-  let prof = $from.depth
-  while (prof > 0 && $from.node(prof).type.name !== 'taskItem') prof--
-  if (prof === 0) return true
-  const pos = $from.before(prof)
-  const tache = editor.state.doc.nodeAt(pos)!
-  const drapeau = DRAPEAU[genre]
-  if (tache.attrs[drapeau] !== true) editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, undefined, { ...tache.attrs, [drapeau]: true }))
-  // La puce naît au rendu qui suit.
+  for (let prof = $from.depth; prof > 0; prof--) {
+    if ($from.node(prof).type.name === 'taskItem') return { pos: $from.before(prof), noeud: $from.node(prof) }
+  }
+  return null
+}
+
+/** La puce `genre` est-elle allumée sur cette tâche : demandée, ou déjà garnie ? */
+export const puceActive = (attrs: Record<string, unknown> | undefined, genre: GenrePuce): boolean =>
+  genre === 'echeance' ? attrs?.montreEcheance === true || echeanceDe(attrs) !== null : attrs?.montreAssigne === true || assigneDe(attrs) !== null
+
+/** Ouvre le choix d'une puce une fois qu'elle est dessinée (au rendu qui suit). */
+function ouvrirPuceApres(editor: Editor, pos: number, genre: GenrePuce) {
   requestAnimationFrame(() => {
+    if (editor.isDestroyed) return
     const dom = editor.view.nodeDOM(pos) as HTMLElement | null
     const puce = dom?.querySelector<HTMLElement>(`:scope > .notak-puces > .notak-puce[data-genre="${genre}"]`)
     if (puce) ouvreursPuces.get(editor)?.(genre, pos, puce)
   })
+}
+
+/** Cmd+Maj+1, Cmd+Maj+2 : allume la puce de la tâche sous le curseur (sans toucher à ce qu'elle porte) et ouvre son choix. */
+export function demanderPuce(editor: Editor, genre: GenrePuce): boolean {
+  const tache = tacheCourante(editor)
+  if (!tache) return true
+  if (tache.noeud.attrs[DRAPEAU[genre]] !== true)
+    editor.view.dispatch(editor.state.tr.setNodeMarkup(tache.pos, undefined, { ...tache.noeud.attrs, ...attrsAllumes(genre) }))
+  ouvrirPuceApres(editor, tache.pos, genre)
   return true
+}
+
+/**
+ * Les outils Échéance et Assigner de la barre : allument la puce de la tâche sous le curseur et ouvrent son
+ * choix, ou l'éteignent (avec ce qu'elle porte) si elle est allumée. À l'allumage, l'assigné est vidé.
+ */
+export function basculerPuce(editor: Editor, genre: GenrePuce): boolean {
+  const tache = tacheCourante(editor)
+  if (!tache) return false
+  const apres = puceActive(tache.noeud.attrs, genre)
+    ? attrsEteints(genre)
+    : { ...(genre === 'assigne' ? attrsVides('assigne') : {}), ...attrsAllumes(genre) }
+  editor.view.dispatch(editor.state.tr.setNodeMarkup(tache.pos, undefined, { ...tache.noeud.attrs, ...apres }))
+  if (!puceActive(tache.noeud.attrs, genre)) ouvrirPuceApres(editor, tache.pos, genre)
+  return true
+}
+
+/** Peut-on descendre (`1`) ou remonter (`-1`) les tâches de la sélection d'un niveau ? */
+export function peutRetrait(editor: Editor, sens: 1 | -1): boolean {
+  const autour = tachesAutour(editor.state)
+  if (sens === -1) return autour.every((v) => v.niveau >= 2)
+  return autour.every((v) => v.tache && peutDescendre(v.niveau, hauteur(v.tache.toJSON() as NoeudTexte))) && editor.can().sinkListItem('taskItem')
+}
+
+/** Descend (`1`, Tab) ou remonte (`-1`, Maj+Tab) les tâches de la sélection d'un niveau, quand c'est permis. */
+export function retrait(editor: Editor, sens: 1 | -1): boolean {
+  if (!peutRetrait(editor, sens)) return false
+  return sens === 1 ? editor.commands.sinkListItem('taskItem') : editor.commands.liftListItem('taskItem')
 }
 
 /** Tab et Maj+Tab restent dans la note, même quand il n'y a rien à faire. */
@@ -425,7 +467,7 @@ const ClavierTaches = Extension.create({
         return true
       },
       'Shift-Tab': ({ editor }) => {
-        if (tachesAutour(editor.state).every((v) => v.niveau >= 2)) editor.commands.liftListItem('taskItem')
+        retrait(editor, -1)
         return true
       },
       Backspace: ({ editor }) => fusionnerAvecPrecedente(editor),
