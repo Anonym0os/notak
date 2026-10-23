@@ -304,3 +304,29 @@ export async function marquerLues(ids?: number[]): Promise<void> {
   const r = await appeler('/api/notifications/lues', ids ? { ids } : { tout: true })
   if (!r.ok) throw refus(r, {})
 }
+
+/** Un jeton personnel d'arrivée, tel que la liste le montre : jamais le jeton lui-même. */
+export interface JetonArrivee {
+  id: string
+  nom: string
+  cree: number
+  dernierUsage: number | null
+}
+
+export async function listerJetons(): Promise<JetonArrivee[]> {
+  const r = await appeler('/api/jetons')
+  if (!r.ok) throw refus(r, {})
+  return (await r.json()) as JetonArrivee[]
+}
+
+/** Crée un jeton. Le jeton lui-même (`jeton`) n'est rendu qu'ici : il ne se relit plus. */
+export async function creerJeton(nom: string): Promise<JetonArrivee & { jeton: string }> {
+  const r = await appeler('/api/jetons', { nom })
+  if (!r.ok) throw refus(r, { 400: 'Donnez un nom de 60 caractères au plus', 409: 'Trop de jetons : révoquez-en un' })
+  return (await r.json()) as JetonArrivee & { jeton: string }
+}
+
+export async function revoquerJeton(id: string): Promise<void> {
+  const r = await appeler(`/api/jetons/${encodeURIComponent(id)}`, undefined, 'DELETE')
+  if (!r.ok && r.status !== 404) throw refus(r, {})
+}
