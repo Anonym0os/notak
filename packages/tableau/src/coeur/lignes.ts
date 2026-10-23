@@ -5,8 +5,8 @@
  * Une ligne va d'un point à un autre. Accrochée à un élément, elle vise son centre et s'arrête sur son bord.
  * Une courbe est une Bézier quadratique dont le point de contrôle vient de `{ ecart, position }`.
  */
-import { type Point, type Rect, contient, point } from './geometrie'
-import type { Element, Id, Ligne, Pointe, Tableau } from './tableau'
+import { type Point, type Rect, contient, hauteur, largeur, point } from './geometrie'
+import type { Ancre, Element, Id, Ligne, Pointe, Tableau } from './tableau'
 
 export type Courbe = NonNullable<Ligne['courbe']>
 
@@ -239,4 +239,54 @@ export function auMoins(fixe: Point, p: Point, min: number): Point {
   if (d >= min) return p
   if (d === 0) return point(fixe.x + min, fixe.y)
   return point(fixe.x + ((p.x - fixe.x) / d) * min, fixe.y + ((p.y - fixe.y) / d) * min)
+}
+
+// ———— Accroche à un point précis ————
+
+/** Le point du tableau que désigne une ancre sur ce rectangle. */
+export const pointAncre = (r: Rect, a: Ancre): Point =>
+  point(r.min.x + largeur(r) * a.x, r.min.y + hauteur(r) * a.y)
+
+/** À moins de cette distance (UG), le point se colle au bord, puis à un coin, au milieu d'un bord ou au centre. */
+export const PRES_ANCRE = 1
+
+/** Les neuf repères d'un élément : coins, milieux des bords, centre. */
+const REPERES = [0, 0.5, 1].flatMap((y) => [0, 0.5, 1].map((x) => ({ x, y })))
+
+/**
+ * L'ancre que vise `p` sur ce rectangle : bornée à l'élément, collée au bord tout proche, puis à un repère
+ * tout proche. `null` pour le centre lui-même : la ligne vise alors le centre, comme d'habitude.
+ */
+export function ancreSous(r: Rect, p: Point, pres = PRES_ANCRE): Ancre | null {
+  const [l, h] = [largeur(r), hauteur(r)]
+  if (l < 1e-9 || h < 1e-9) return null
+  let x = Math.max(r.min.x, Math.min(r.max.x, p.x))
+  let y = Math.max(r.min.y, Math.min(r.max.y, p.y))
+  if (x - r.min.x < pres) x = r.min.x
+  else if (r.max.x - x < pres) x = r.max.x
+  if (y - r.min.y < pres) y = r.min.y
+  else if (r.max.y - y < pres) y = r.max.y
+  for (const rep of REPERES) {
+    const q = pointAncre(r, rep)
+    if (distance(q, point(x, y)) < pres * 1.5) [x, y] = [q.x, q.y]
+  }
+  const ancre = { x: arrondi((x - r.min.x) / l), y: arrondi((y - r.min.y) / h) }
+  return ancre.x === 0.5 && ancre.y === 0.5 ? null : ancre
+}
+
+// ———— Deux colonnes côte à côte ————
+
+/** Deux colonnes dont les hauts sont à moins de cet écart (UG) se relient d'un trait horizontal. */
+export const ECART_COLONNES_ALIGNEES = 4
+/** La hauteur du milieu de l'en-tête d'une colonne, depuis son haut (UG) : le trait passe à la hauteur des titres. */
+export const MILIEU_TITRE_COLONNE = 2.3
+
+/**
+ * Une ligne entre deux colonnes à peu près alignées : les deux bouts visent la hauteur des titres, sous le plus
+ * bas des deux hauts, et le trait est horizontal. `null` si elles ne sont pas alignées.
+ */
+export function aligneesEnColonnes(a: Point, b: Point, rectA: Rect, rectB: Rect): { a: Point; b: Point } | null {
+  if (Math.abs(rectA.min.y - rectB.min.y) > ECART_COLONNES_ALIGNEES) return null
+  const y = Math.max(rectA.min.y, rectB.min.y) + MILIEU_TITRE_COLONNE
+  return { a: point(a.x, y), b: point(b.x, y) }
 }

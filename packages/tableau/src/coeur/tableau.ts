@@ -123,8 +123,20 @@ export interface Colonne {
   repliee?: boolean
 }
 
-/** Une extrémité de ligne : un point libre du tableau, ou accrochée à un élément. */
-export type Extremite = { x: number; y: number } | { element: Id }
+/**
+ * Un point précis d'un élément, en part de sa largeur et de sa hauteur (0 à 1, depuis le coin haut gauche).
+ * Il suit l'élément quand celui-ci bouge ou change de taille.
+ */
+export interface Ancre {
+  x: number
+  y: number
+}
+
+/**
+ * Une extrémité de ligne : un point libre du tableau, ou accrochée à un élément. Sans `ancre`, elle vise
+ * le centre et s'arrête au bord ; avec, elle s'arrête sur ce point.
+ */
+export type Extremite = { x: number; y: number } | { element: Id; ancre?: Ancre }
 
 export type Pointe = 'fleche' | 'rond' | 'rien'
 
