@@ -413,55 +413,137 @@ input.notak-etiquettes-nom:focus {
   padding: 10px;
 }
 
-/* Le sélecteur d'émojis des réactions : recherche, catégories, grille de huit colonnes qui défile. */
+/* Le sélecteur d'émojis : le menu des catégories à gauche (220 px), les émojis par sections à droite (huit par rangée). */
 .notak-decor-menu:has(.notak-emojis) {
-  width: 320px;
-  min-width: 320px;
+  width: 572px;
+  min-width: 0;
+  max-width: calc(100vw - 120px);
+  padding: 24px 10px 24px 24px;
 }
 
 .notak-emojis {
   display: flex;
+  gap: 20px;
+  height: 505px;
+  max-height: calc(100vh - 120px);
+  text-align: left;
+}
+
+.notak-emojis-menu {
+  display: flex;
+  flex: none;
   flex-direction: column;
-  gap: 6px;
+  width: 220px;
+  min-height: 0;
 }
 
 .notak-emojis-categories {
   display: flex;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--notak-point);
-  padding-bottom: 4px;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .notak-emojis-categories button {
-  min-width: 0 !important;
-  width: 34px;
-  height: 28px;
-  font-size: 16px;
-  opacity: 0.55;
+  padding: 6px 8px;
+  color: #5f6672;
+  font-size: 14px;
+  text-align: left;
 }
 
 .notak-emojis-categories button[aria-selected='true'] {
-  background: var(--notak-fond) !important;
-  opacity: 1;
+  background: #f3f3f4 !important;
+  color: #323b4a;
+  font-weight: 600;
+}
+
+.notak-emojis-categories button[data-vide] {
+  opacity: 0.4;
+}
+
+.notak-emojis-teinte {
+  position: relative;
+  margin: 8px 0;
+}
+
+.notak-emojis-teinte-lien {
+  padding: 4px 0 !important;
+  color: #8d929a !important;
+  font-size: 12px;
+  text-decoration: underline;
+}
+
+.notak-emojis-teintes {
+  display: flex;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+.notak-emojis-teintes button {
+  min-width: 0 !important;
+  width: 32px;
+  height: 32px;
+  font-size: 20px;
+}
+
+.notak-emojis-teintes button[aria-checked='true'] {
+  background: #eaeffe !important;
+}
+
+.notak-emojis-recherche {
+  box-sizing: border-box;
+  width: 100%;
+  font: inherit;
+}
+
+.notak-emojis-liste {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.notak-emojis-liste section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}
+
+.notak-emojis-liste h2 {
+  margin: 0 0 3px;
+  padding-top: 8px;
+  color: #323b4a;
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .notak-emojis-grille {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 2px;
-  max-height: 224px;
-  overflow-y: auto;
+  grid-template-columns: repeat(8, 36px);
+  grid-auto-rows: 34px;
+  margin-bottom: 12px;
 }
 
 .notak-emojis-grille button {
   min-width: 0 !important;
+  width: 36px;
   height: 34px;
   padding: 0 !important;
-  font-size: 20px;
+  border-radius: 3px !important;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.notak-emojis-grille button:hover {
+  background: #f3f3f4 !important;
+}
+
+.notak-emojis-grille button[aria-pressed='true'] {
+  background: #eaeffe !important;
 }
 
 .notak-emojis-vide {
-  grid-column: 1 / -1;
   padding: 12px 0;
   text-align: center;
   opacity: 0.6;

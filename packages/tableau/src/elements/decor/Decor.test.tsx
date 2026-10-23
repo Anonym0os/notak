@@ -206,44 +206,62 @@ describe('l’outil Réagir', () => {
 })
 
 describe('le sélecteur d’émojis', () => {
-  const monter = () => {
+  const monter = (posees?: Set<string>) => {
     const choisis: string[] = []
-    act(() => racine.render(<SelecteurEmojis choisir={(e) => choisis.push(e)} />))
+    act(() => racine.render(<SelecteurEmojis choisir={(e) => choisis.push(e)} {...(posees ? { posees } : {})} />))
     return choisis
   }
-  const grille = () => [...hote.querySelectorAll<HTMLButtonElement>('.notak-emojis-grille button')].map((b) => b.textContent)
-
-  it('ouvre sur les fréquents, avec des catégories et une recherche', () => {
-    localStorage.clear()
-    monter()
-    expect(grille()).toEqual(['👍', '❤️', '😂', '🎉', '👀', '✅', '🙏', '🔥'])
-    expect([...hote.querySelectorAll('[role="tab"]')].map((b) => b.getAttribute('data-categorie'))).toEqual([
-      'frequents', 'visages', 'gestes', 'symboles', 'nature', 'nourriture', 'activites', 'objets',
-    ])
-    act(() => hote.querySelector<HTMLButtonElement>('[data-categorie="nourriture"]')!.click())
-    expect(grille()).toContain('🍕')
-    expect(grille().length).toBeGreaterThan(8)
-  })
-
-  it('cherche par mot, sans accent ni casse', () => {
-    monter()
-    const champ = hote.querySelector<HTMLInputElement>('input')!
+  const boutons = () => [...hote.querySelectorAll<HTMLButtonElement>('.notak-emojis-grille button')]
+  const grille = (section: string) => [...hote.querySelectorAll<HTMLButtonElement>(`[data-section="${section}"] .notak-emojis-grille button`)].map((b) => b.textContent)
+  const ecrire = (texte: string) => {
+    const champ = hote.querySelector<HTMLInputElement>('input.notak-emojis-recherche')!
     act(() => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(champ, 'FÊTE')
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(champ, texte)
       champ.dispatchEvent(new Event('input', { bubbles: true }))
     })
-    expect(grille()).toContain('🥳')
-    expect(hote.querySelector('[role="tab"]')).toBeNull()
+  }
+
+  it('ouvre sur les vingt-quatre fréquents, puis les neuf groupes d’Unicode', () => {
+    localStorage.clear()
+    monter()
+    expect(grille('frequents')).toEqual(['👍', '👎', '😊', '😀', '🙂', '🤔', '😍', '😞'])
+    expect([...hote.querySelectorAll('[role="tab"]')].map((b) => b.getAttribute('data-categorie'))).toEqual(['frequents', '0', '1', '2', '3', '4', '5', '6', '7', '8'])
+    expect(grille('3')).toContain('🍕')
+    expect(grille('8')).toContain('🇫🇷')
+    expect(boutons().length).toBeGreaterThan(1800)
   })
 
-  it('retient le dernier choisi en tête des fréquents', () => {
+  it('cherche par nom ou mot-clé, en français ou en anglais, sans accent ni casse', () => {
+    monter()
+    ecrire('FÊTE')
+    expect(boutons().map((b) => b.textContent)).toContain('🥳')
+    ecrire('pizza')
+    expect(boutons().map((b) => b.textContent)).toContain('🍕')
+    ecrire('zzzzqqq')
+    expect(hote.querySelector('.notak-emojis-vide')?.textContent).toContain('😔')
+  })
+
+  it('compte chaque choix : le plus employé passe en tête des fréquents', () => {
     localStorage.clear()
     const choisis = monter()
-    act(() => hote.querySelector<HTMLButtonElement>('[data-categorie="nourriture"]')!.click())
-    act(() => [...hote.querySelectorAll<HTMLButtonElement>('.notak-emojis-grille button')].find((b) => b.textContent === '🍕')!.click())
-    expect(choisis).toEqual(['🍕'])
-    act(() => hote.querySelector<HTMLButtonElement>('[data-categorie="frequents"]')!.click())
-    expect(grille()[0]).toBe('🍕')
+    for (let i = 0; i < 5; i++) act(() => boutons().find((b) => b.textContent === '🍕' && b.closest('[data-section="3"]'))!.click())
+    expect(choisis).toEqual(['🍕', '🍕', '🍕', '🍕', '🍕'])
+    expect(grille('frequents')[0]).toBe('🍕')
+  })
+
+  it('applique la teinte de peau choisie aux émojis qui en ont, et la retient', () => {
+    localStorage.clear()
+    monter()
+    act(() => hote.querySelector<HTMLButtonElement>('.notak-emojis-teinte-lien')!.click())
+    act(() => hote.querySelectorAll<HTMLButtonElement>('.notak-emojis-teintes button')[3]!.click())
+    expect(grille('1')).toContain('👋🏽')
+    expect(localStorage.getItem('notak:emojis-teinte')).toBe('3')
+  })
+
+  it('surligne les émojis que j’ai déjà posés', () => {
+    monter(new Set(['🍕']))
+    const pizza = boutons().find((b) => b.textContent === '🍕')!
+    expect(pizza.getAttribute('aria-pressed')).toBe('true')
   })
 })
 
