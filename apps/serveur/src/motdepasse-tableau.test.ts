@@ -59,7 +59,7 @@ describe('le mot de passe d’un tableau', () => {
     expect(await verrou(bob)).toEqual({ protege: true, verrouille: true, par: 'tableau-coffre' })
     const ferme = await m.appeler('/api/tableaux/tableau-coffre/export', { compte: bob })
     expect(ferme.status).toBe(423)
-    expect(await ferme.json()).toEqual({ erreur: 'verrouillé', par: 'tableau-coffre' })
+    expect(await ferme.json()).toEqual({ erreur: 'verrouillé', code: 'verrouille', par: 'tableau-coffre' })
     expect((await m.appeler('/api/tableaux/tableau-coffre/export', { compte: ana })).status).toBe(200)
   })
 

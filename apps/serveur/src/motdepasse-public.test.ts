@@ -58,7 +58,7 @@ describe('le mot de passe du lien public', () => {
     expect(await (await mdp(ana, 'GET')).json()).toEqual({ protege: true })
     const ferme = await m.appeler(`/api/public/${lien}`)
     expect(ferme.status).toBe(401)
-    expect(await ferme.json()).toEqual({ erreur: 'mot de passe requis', protege: true })
+    expect(await ferme.json()).toEqual({ erreur: 'mot de passe requis', code: 'mot_de_passe_requis', protege: true })
     expect(ferme.headers.get('cache-control')).toBe('no-store')
     expect((await m.appeler(`/api/public/${lien}/fichiers/${idImage}`)).status).toBe(401)
     // Les comptes du tableau, eux, y accèdent toujours.

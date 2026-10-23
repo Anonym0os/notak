@@ -66,6 +66,13 @@ const ARRIVEE_TEXTE_MAX = 256 * 1024
 const ARRIVEE_CHAMP_MAX = 20_000
 /** Les formats qu'une arrivée accepte en image, par leur nom chez `sharp`. Un HEIC d'iPhone n'y est pas. */
 const FORMATS_ARRIVEE: Record<string, string> = { png: 'image/png', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif' }
+/** Le code stable que l'API rend pour chaque refus d'une inscription (le message de l'erreur, lui, reste du texte lisible). */
+const CODES_COMPTE: Record<string, string> = {
+  adresse: 'adresse_invalide',
+  nom: 'nom_invalide',
+  'mot de passe': 'mot_de_passe_invalide',
+  'adresse prise': 'adresse_prise',
+}
 /** Ce qui ouvre un jeton d'arrivée : de quoi le reconnaître dans un presse-papiers ou un dépôt. */
 const PREFIXE_JETON = 'nk_'
 const JETON_PUBLIC = /^[A-Za-z0-9_-]{16,64}$/
@@ -129,7 +136,7 @@ export function creerApp(ctx: Contexte): Hono {
     const maintenant = ctx.maintenant()
     if (limiteur.autoriser(cle, maintenant)) return null
     const secondes = Math.ceil(limiteur.attente(cle, maintenant) / 1000)
-    return c.json({ erreur: 'trop d’essais' }, 429, { 'retry-after': String(secondes) })
+    return c.json({ erreur: 'trop d’essais', code: 'trop_d_essais' }, 429, { 'retry-after': String(secondes) })
   }
 
   const corps = async (c: Context): Promise<Record<string, unknown> | null> => {
@@ -155,13 +162,13 @@ export function creerApp(ctx: Contexte): Hono {
     const refus = limiter(c, 'inscription')
     if (refus) return refus
     const b = await corps(c)
-    if (!b) return c.json({ erreur: 'corps invalide' }, 400)
+    if (!b) return c.json({ erreur: 'corps invalide', code: 'corps_invalide' }, 400)
     try {
       const u = await inscrire(base, { email: texte(b.email), motDePasse: texte(b.motDePasse), nom: texte(b.nom) })
       ouvrirSession(c, u)
       return c.json(moi(u), 201)
     } catch (e) {
-      if (e instanceof ErreurCompte) return c.json({ erreur: e.message }, e.code === 'existe' ? 409 : 400)
+      if (e instanceof ErreurCompte) return c.json({ erreur: e.message, code: CODES_COMPTE[e.message] ?? 'compte_invalide' }, e.code === 'existe' ? 409 : 400)
       throw e
     }
   })
@@ -172,7 +179,7 @@ export function creerApp(ctx: Contexte): Hono {
     const b = await corps(c)
     const u = b ? base.utilisateurParEmail(normaliserEmail(texte(b.email))) : null
     const bon = await verifier(u?.hash ?? (await empreinteLeurre), texte(b?.motDePasse))
-    if (!u || !bon) return c.json({ erreur: 'identifiants incorrects' }, 401)
+    if (!u || !bon) return c.json({ erreur: 'identifiants incorrects', code: 'identifiants_incorrects' }, 401)
     ouvrirSession(c, u)
     return c.json(moi(u), 200)
   })
@@ -186,18 +193,18 @@ export function creerApp(ctx: Contexte): Hono {
 
   app.get('/api/moi', (c) => {
     const u = utilisateurCourant(c)
-    return u ? c.json(moi(u)) : c.json({ erreur: 'non connecté' }, 401)
+    return u ? c.json(moi(u)) : c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
   })
 
   // Les réglages du compte : sa couleur (curseur, pastille) et sa photo, un fichier que le compte a déposé.
   app.patch('/api/moi', async (c) => {
     const u = utilisateurCourant(c)
-    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const b = await corps(c)
-    if (!b) return c.json({ erreur: 'corps invalide' }, 400)
+    if (!b) return c.json({ erreur: 'corps invalide', code: 'corps_invalide' }, 400)
     const reglages: { couleur?: string; photo?: string | null } = {}
     if ('couleur' in b) {
-      if (typeof b.couleur !== 'string' || !COULEUR_COMPTE.test(b.couleur)) return c.json({ erreur: 'couleur invalide' }, 400)
+      if (typeof b.couleur !== 'string' || !COULEUR_COMPTE.test(b.couleur)) return c.json({ erreur: 'couleur invalide', code: 'couleur_invalide' }, 400)
       reglages.couleur = b.couleur.toLowerCase()
     }
     if ('photo' in b) {
@@ -205,12 +212,12 @@ export function creerApp(ctx: Contexte): Hono {
       else {
         const f = typeof b.photo === 'string' && ID_FICHIER.test(b.photo) ? base.fichier(b.photo) : null
         // Un fichier qu'on n'a pas déposé soi-même n'est pas une photo qu'on peut prendre.
-        if (!f || f.auteur !== u.id) return c.json({ erreur: 'photo introuvable' }, 400)
-        if (!TYPES_PHOTO.has(f.type)) return c.json({ erreur: 'format de photo refusé' }, 415)
+        if (!f || f.auteur !== u.id) return c.json({ erreur: 'photo introuvable', code: 'photo_introuvable' }, 400)
+        if (!TYPES_PHOTO.has(f.type)) return c.json({ erreur: 'format de photo refusé', code: 'photo_format_refuse' }, 415)
         reglages.photo = f.id
       }
     }
-    if (Object.keys(reglages).length === 0) return c.json({ erreur: 'rien à régler' }, 400)
+    if (Object.keys(reglages).length === 0) return c.json({ erreur: 'rien à régler', code: 'rien_a_regler' }, 400)
     base.reglerCompte(u.id, reglages)
     return c.json(moi(base.utilisateurParId(u.id) ?? u))
   })
@@ -227,16 +234,16 @@ export function creerApp(ctx: Contexte): Hono {
 
   app.post('/api/tableaux', async (c) => {
     const u = utilisateurCourant(c)
-    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const b = await corps(c)
     const id = texte(b?.id)
     const titre = texte(b?.titre).slice(0, 200)
     const parent = typeof b?.parent === 'string' && b.parent ? b.parent : null
-    if (!ID_TABLEAU.test(id)) return c.json({ erreur: 'id invalide' }, 400)
+    if (!ID_TABLEAU.test(id)) return c.json({ erreur: 'id invalide', code: 'id_invalide' }, 400)
 
     const existant = base.tableau(id)
     if (existant) {
-      if (roleSur(u.id, id) !== 'proprietaire') return c.json({ erreur: 'id pris' }, 409)
+      if (roleSur(u.id, id) !== 'proprietaire') return c.json({ erreur: 'id pris', code: 'id_pris' }, 409)
       return c.json({ id, titre: existant.titre, role: 'proprietaire' }, 201)
     }
     // Placé sous un parent qu'on peut éditer, le tableau en hérite les accès, présents et à venir.
@@ -250,7 +257,7 @@ export function creerApp(ctx: Contexte): Hono {
 
   app.get('/api/tableaux', (c) => {
     const u = utilisateurCourant(c)
-    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     return c.json(base.tableauxAccessibles(u.id).filter((t) => t.id !== u.racine))
   })
 
@@ -269,15 +276,15 @@ export function creerApp(ctx: Contexte): Hono {
    */
   const garde = (c: Context, minimum: Role, horsVerrou = false): { u: Utilisateur; id: string } | Response => {
     const u = utilisateurCourant(c)
-    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const id = c.req.param('id') ?? ''
     const droit = roleSur(u.id, id)
     // Un tableau qu'on ne peut pas voir n'existe pas.
-    if (droit === null) return c.json({ erreur: 'introuvable' }, 404)
-    if (!auMoins(droit, minimum)) return c.json({ erreur: 'interdit' }, 403)
+    if (droit === null) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
+    if (!auMoins(droit, minimum)) return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
     if (!horsVerrou) {
       const par = verrouPar(base, u.id, id)
-      if (par !== null) return c.json({ erreur: 'verrouillé', par }, 423)
+      if (par !== null) return c.json({ erreur: 'verrouillé', code: 'verrouille', par }, 423)
     }
     return { u, id }
   }
@@ -287,7 +294,7 @@ export function creerApp(ctx: Contexte): Hono {
   /** Un mot de passe valable dans la demande, ou la réponse d'erreur. */
   const motDePasseDemande = async (c: Context): Promise<string | Response> => {
     const m = texte((await corps(c))?.motDePasse)
-    return m.length < MOT_DE_PASSE_MIN || m.length > MOT_DE_PASSE_MAX ? c.json({ erreur: 'mot de passe invalide' }, 400) : m
+    return m.length < MOT_DE_PASSE_MIN || m.length > MOT_DE_PASSE_MAX ? c.json({ erreur: 'mot de passe invalide', code: 'mot_de_passe_invalide' }, 400) : m
   }
 
   // Où en est ce tableau pour ce compte : protégé lui-même, et barré (par lui ou par un tableau au-dessus).
@@ -317,7 +324,7 @@ export function creerApp(ctx: Contexte): Hono {
   app.delete('/api/tableaux/:id/mot-de-passe', (c) => {
     const g = garde(c, 'proprietaire', true)
     if (g instanceof Response) return g
-    if (!base.retirerMotDePasse(g.id, 'tableau')) return c.json({ erreur: 'introuvable' }, 404)
+    if (!base.retirerMotDePasse(g.id, 'tableau')) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     return c.body(null, 204)
   })
 
@@ -331,7 +338,7 @@ export function creerApp(ctx: Contexte): Hono {
     if (par === null) return c.json({ verrouille: false, par: null })
     const empreinte = base.motDePasse(par, 'tableau')
     const bon = empreinte !== null && (await verifier(empreinte, texte((await corps(c))?.motDePasse)))
-    if (!bon) return c.json({ erreur: 'mot de passe incorrect' }, 401)
+    if (!bon) return c.json({ erreur: 'mot de passe incorrect', code: 'mot_de_passe_incorrect' }, 401)
     base.noterOuverture(g.u.id, par)
     const reste = verrouPar(base, g.u.id, g.id)
     return c.json({ verrouille: reste !== null, par: reste })
@@ -371,11 +378,11 @@ export function creerApp(ctx: Contexte): Hono {
     const b = await corps(c)
     const email = normaliserEmail(texte(b?.email))
     const nouveau = b?.role
-    if (!email || (nouveau !== 'edition' && nouveau !== 'lecture')) return c.json({ erreur: 'demande invalide' }, 400)
+    if (!email || (nouveau !== 'edition' && nouveau !== 'lecture')) return c.json({ erreur: 'demande invalide', code: 'demande_invalide' }, 400)
     const cible = base.utilisateurParEmail(email)
     if (cible) {
       const avant = role(base.acces(g.id), cible.id, g.id)
-      if (avant === 'proprietaire') return c.json({ erreur: 'propriétaire' }, 409)
+      if (avant === 'proprietaire') return c.json({ erreur: 'propriétaire', code: 'proprietaire' }, 409)
       base.definirAcces({ tableau: g.id, utilisateur: cible.id, role: nouveau })
       if (avant !== null && avant !== nouveau) fermerConnexions(g.id)
       if (avant === null && cible.id !== g.u.id) {
@@ -400,16 +407,16 @@ export function creerApp(ctx: Contexte): Hono {
     if (g instanceof Response) return g
     const b = await corps(c)
     const email = normaliserEmail(texte(b?.email))
-    if (!email) return c.json({ erreur: 'demande invalide' }, 400)
+    if (!email) return c.json({ erreur: 'demande invalide', code: 'demande_invalide' }, 400)
     const cible = base.utilisateurParEmail(email)
     const acces = base.acces(g.id)
     if (cible && role(acces, cible.id, g.id)) {
       const proprietaires = acces.filter((a) => a.role === 'proprietaire')
-      if (proprietaires.length === 1 && proprietaires[0]!.utilisateur === cible.id) return c.json({ erreur: 'dernier propriétaire' }, 409)
+      if (proprietaires.length === 1 && proprietaires[0]!.utilisateur === cible.id) return c.json({ erreur: 'dernier propriétaire', code: 'dernier_proprietaire' }, 409)
       base.retirerAcces(g.id, cible.id)
       fermerConnexions(g.id)
     } else if (!base.retirerInvitation(g.id, email)) {
-      return c.json({ erreur: 'introuvable' }, 404)
+      return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     }
     return c.body(null, 204)
   })
@@ -427,7 +434,7 @@ export function creerApp(ctx: Contexte): Hono {
 
   app.get('/api/recherche', (c) => {
     const u = utilisateurCourant(c)
-    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const requete = requeteIndex(c.req.query('q') ?? '')
     if (!requete) return c.json([])
     // Les tableaux du compte, et tout ce qu'ils contiennent : un accès se transmet aux sous-tableaux.
@@ -466,7 +473,7 @@ export function creerApp(ctx: Contexte): Hono {
 
   app.get('/api/notifications', (c) => {
     const u = utilisateurCourant(c)
-    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const limite = entier(c.req.query('limite'), NOTIFICATIONS_AFFICHEES, 0, NOTIFICATIONS_AFFICHEES)
     // Un tableau qu'on ne peut plus ouvrir ne se devine pas par ses notifications.
     const notifications = base.notifications(u.id, limite).flatMap((n) => {
@@ -479,11 +486,11 @@ export function creerApp(ctx: Contexte): Hono {
   // `{ ids: [...] }` marque celles-là, `{ tout: true }` toutes les siennes ; jamais celles d'un autre.
   app.post('/api/notifications/lues', async (c) => {
     const u = utilisateurCourant(c)
-    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const b = await corps(c)
     if (b?.tout === true) return c.json({ marquees: base.marquerLues(u.id, null) })
     const ids = Array.isArray(b?.ids) ? b.ids : null
-    if (!ids || ids.length > 200 || !ids.every((i) => Number.isInteger(i))) return c.json({ erreur: 'demande invalide' }, 400)
+    if (!ids || ids.length > 200 || !ids.every((i) => Number.isInteger(i))) return c.json({ erreur: 'demande invalide', code: 'demande_invalide' }, 400)
     return c.json({ marquees: base.marquerLues(u.id, ids as number[]) })
   })
 
@@ -491,14 +498,14 @@ export function creerApp(ctx: Contexte): Hono {
 
   app.get('/api/favoris', (c) => {
     const u = utilisateurCourant(c)
-    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     return c.json(resumes(u, base.favoris(u.id)))
   })
 
   app.put('/api/tableaux/:id/favori', (c) => {
     const g = garde(c, 'lecture')
     if (g instanceof Response) return g
-    if (g.id === g.u.racine) return c.json({ erreur: 'accueil' }, 400)
+    if (g.id === g.u.racine) return c.json({ erreur: 'accueil', code: 'accueil_pas_favori' }, 400)
     base.definirFavori(g.u.id, g.id, ctx.maintenant())
     return c.body(null, 204)
   })
@@ -512,7 +519,7 @@ export function creerApp(ctx: Contexte): Hono {
 
   app.get('/api/recents', (c) => {
     const u = utilisateurCourant(c)
-    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     return c.json(resumes(u, base.recents(u.id, RECENTS_AFFICHES)))
   })
 
@@ -547,7 +554,7 @@ export function creerApp(ctx: Contexte): Hono {
   app.delete('/api/tableaux/:id/lien', (c) => {
     const g = garde(c, 'proprietaire')
     if (g instanceof Response) return g
-    if (!base.retirerJetonPublic(g.id)) return c.json({ erreur: 'introuvable' }, 404)
+    if (!base.retirerJetonPublic(g.id)) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     // Un lien retiré emporte son mot de passe : le prochain sera libre, à moins d'en poser un.
     base.retirerMotDePasse(g.id, 'public')
     return c.body(null, 204)
@@ -572,7 +579,7 @@ export function creerApp(ctx: Contexte): Hono {
   app.delete('/api/tableaux/:id/lien/mot-de-passe', (c) => {
     const g = garde(c, 'proprietaire')
     if (g instanceof Response) return g
-    if (!base.retirerMotDePasse(g.id, 'public')) return c.json({ erreur: 'introuvable' }, 404)
+    if (!base.retirerMotDePasse(g.id, 'public')) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     return c.body(null, 204)
   })
 
@@ -608,7 +615,7 @@ export function creerApp(ctx: Contexte): Hono {
     if (base.motDePasse(id, 'public') === null) return null
     const acces = lireCookie(c.req.header('cookie'), NOM_COOKIE_PUBLIC)
     if (acces && base.accesPublicValide(empreinteDe(acces), id, ctx.maintenant())) return null
-    return c.json({ erreur: 'mot de passe requis', protege: true }, 401, { 'cache-control': 'no-store' })
+    return c.json({ erreur: 'mot de passe requis', code: 'mot_de_passe_requis', protege: true }, 401, { 'cache-control': 'no-store' })
   }
 
   // Donner le mot de passe du lien : le serveur remet un accès, porté par un cookie limité à ce lien.
@@ -616,10 +623,10 @@ export function creerApp(ctx: Contexte): Hono {
     const refus = limiter(c, 'deverrouillage-public')
     if (refus) return refus
     const id = tableauPublic(c)
-    if (!id) return c.json({ erreur: 'introuvable' }, 404)
+    if (!id) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     const empreinte = base.motDePasse(id, 'public')
     if (empreinte === null) return c.body(null, 204)
-    if (!(await verifier(empreinte, texte((await corps(c))?.motDePasse)))) return c.json({ erreur: 'mot de passe incorrect' }, 401)
+    if (!(await verifier(empreinte, texte((await corps(c))?.motDePasse)))) return c.json({ erreur: 'mot de passe incorrect', code: 'mot_de_passe_incorrect' }, 401)
     const { jeton: acces, empreinte: trace } = nouveauJeton()
     base.creerAccesPublic(trace, id, ctx.maintenant() + DUREE_ACCES_PUBLIC_MS)
     c.header('set-cookie', cookieAccesPublic(NOM_COOKIE_PUBLIC, c.req.param('jeton') ?? '', acces, DUREE_ACCES_PUBLIC_MS / 1000, ctx.cookieSecurise))
@@ -628,7 +635,7 @@ export function creerApp(ctx: Contexte): Hono {
 
   app.get('/api/public/:jeton', (c) => {
     const id = tableauPublic(c)
-    if (!id) return c.json({ erreur: 'introuvable' }, 404)
+    if (!id) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     const ferme = motDePasseRequis(c, id)
     if (ferme) return ferme
     return c.json(vuePublique(id), 200, { 'cache-control': 'no-store', 'x-robots-tag': 'noindex' })
@@ -640,9 +647,9 @@ export function creerApp(ctx: Contexte): Hono {
     const fichier = c.req.param('fichier') ?? ''
     const ferme = id ? motDePasseRequis(c, id) : null
     if (ferme) return ferme
-    if (!id || !ID_FICHIER.test(fichier) || !idsDeFichiers(vuePublique(id).elements).has(fichier)) return c.json({ erreur: 'introuvable' }, 404)
+    if (!id || !ID_FICHIER.test(fichier) || !idsDeFichiers(vuePublique(id).elements).has(fichier)) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     const f = base.fichier(fichier)
-    if (!f) return c.json({ erreur: 'introuvable' }, 404)
+    if (!f) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     return servirFichier(f, 'private, max-age=300')
   })
 
@@ -652,7 +659,7 @@ export function creerApp(ctx: Contexte): Hono {
     const g = garde(c, 'lecture')
     if (g instanceof Response) return g
     const format = c.req.query('format') ?? 'md'
-    if (!estFormatExport(format)) return c.json({ erreur: 'format inconnu' }, 400)
+    if (!estFormatExport(format)) return c.json({ erreur: 'format inconnu', code: 'format_inconnu' }, 400)
     const tableau = lireLe(g.id)
     return c.body(exporterTexte(tableau, format, titreDe), 200, {
       'content-type': format === 'md' ? 'text/markdown; charset=utf-8' : 'text/plain; charset=utf-8',
@@ -674,7 +681,7 @@ export function creerApp(ctx: Contexte): Hono {
       const octets = await readFile(join(ctx.dossierFichiers, f.id)).catch(() => null)
       if (octets) entrees.push({ nom: m.nom, octets, type: f.type })
     }
-    if (entrees.length === 0) return c.json({ erreur: 'aucun média' }, 404)
+    if (entrees.length === 0) return c.json({ erreur: 'aucun média', code: 'aucun_media' }, 404)
     return c.body(creerZip(entrees) as Uint8Array<ArrayBuffer>, 200, {
       'content-type': 'application/zip',
       'content-disposition': enTeteTelechargement(`${tableau.titre} (médias)`, 'zip'),
@@ -686,12 +693,12 @@ export function creerApp(ctx: Contexte): Hono {
 
   app.post('/api/fichiers', async (c) => {
     const u = utilisateurCourant(c)
-    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const annonce = Number(c.req.header('content-length') ?? 0)
-    if (annonce > FICHIER_MAX) return c.json({ erreur: 'trop gros' }, 413)
+    if (annonce > FICHIER_MAX) return c.json({ erreur: 'trop gros', code: 'trop_gros' }, 413)
     const octets = await lireBorne(c.req.raw.body, FICHIER_MAX)
-    if (octets === 'trop gros') return c.json({ erreur: 'trop gros' }, 413)
-    if (!octets) return c.json({ erreur: 'fichier vide' }, 400)
+    if (octets === 'trop gros') return c.json({ erreur: 'trop gros', code: 'trop_gros' }, 413)
+    if (!octets) return c.json({ erreur: 'fichier vide', code: 'fichier_vide' }, 400)
 
     const type = (c.req.header('content-type') ?? 'application/octet-stream').slice(0, 200)
     return c.json({ id: await ranger(octets, type, u.id) }, 201)
@@ -714,14 +721,14 @@ export function creerApp(ctx: Contexte): Hono {
   // Une adresse d'image collée sur la toile : le serveur la rapatrie, pour qu'elle ne dépende plus de son site.
   app.post('/api/fichiers/rapatrier', async (c) => {
     const u = utilisateurCourant(c)
-    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const adresse = texte((await corps(c))?.url)
-    if (!adresse) return c.json({ erreur: 'url manquante' }, 400)
+    if (!adresse) return c.json({ erreur: 'url manquante', code: 'url_manquante' }, 400)
     try {
       const { octets, type } = await rapatrierImage(adresse, FICHIER_MAX)
       return c.json({ id: await ranger(octets, type, u.id), type }, 201)
     } catch (e) {
-      if (e instanceof ErreurApercu) return c.json({ erreur: 'image indisponible', cause: e.cause }, 422)
+      if (e instanceof ErreurApercu) return c.json({ erreur: 'image indisponible', code: 'image_indisponible', cause: e.cause }, 422)
       throw e
     }
   })
@@ -760,17 +767,17 @@ export function creerApp(ctx: Contexte): Hono {
   }
 
   app.get('/api/fichiers/:id', async (c) => {
-    if (!utilisateurCourant(c)) return c.json({ erreur: 'non connecté' }, 401)
+    if (!utilisateurCourant(c)) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const id = c.req.param('id')
     const f = ID_FICHIER.test(id) ? base.fichier(id) : null
-    if (!f) return c.json({ erreur: 'introuvable' }, 404)
+    if (!f) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     const cache = 'private, max-age=31536000, immutable'
 
     // `?l=800` : l'image réduite à cette largeur (400, 800 ou 1600), quand elle y gagne.
     const demande = c.req.query('l')
     if (demande !== undefined) {
       const largeur = largeurDemandee(demande)
-      if (largeur === null) return c.json({ erreur: 'largeur invalide' }, 400)
+      if (largeur === null) return c.json({ erreur: 'largeur invalide', code: 'largeur_invalide' }, 400)
       const reduite = await copieReduite(f.id, f.type, largeur)
       if (reduite) {
         return new Response(new Uint8Array(reduite), {
@@ -784,14 +791,14 @@ export function creerApp(ctx: Contexte): Hono {
   // ---- Aperçus ----
 
   app.get('/api/apercu', async (c) => {
-    if (!utilisateurCourant(c)) return c.json({ erreur: 'non connecté' }, 401)
+    if (!utilisateurCourant(c)) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const adresse = c.req.query('url')
-    if (!adresse) return c.json({ erreur: 'url manquante' }, 400)
+    if (!adresse) return c.json({ erreur: 'url manquante', code: 'url_manquante' }, 400)
     try {
       return c.json(await apercuDePage(adresse))
     } catch (e) {
       const cause = e instanceof ErreurApercu ? e.cause : 'injoignable'
-      return c.json({ erreur: 'aperçu indisponible', cause }, 502)
+      return c.json({ erreur: 'aperçu indisponible', code: 'apercu_indisponible', cause }, 502)
     }
   })
 
@@ -804,16 +811,16 @@ export function creerApp(ctx: Contexte): Hono {
 
   app.get('/api/jetons', (c) => {
     const u = utilisateurCourant(c)
-    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     return c.json(base.jetonsArrivee(u.id))
   })
 
   app.post('/api/jetons', async (c) => {
     const u = utilisateurCourant(c)
-    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const nom = texte((await corps(c))?.nom).trim()
-    if (!nom || nom.length > NOM_JETON_MAX) return c.json({ erreur: `nom de 1 à ${NOM_JETON_MAX} caractères` }, 400)
-    if (base.jetonsArrivee(u.id).length >= JETONS_ARRIVEE_MAX) return c.json({ erreur: 'trop de jetons : révoquez-en un' }, 409)
+    if (!nom || nom.length > NOM_JETON_MAX) return c.json({ erreur: `nom de 1 à ${NOM_JETON_MAX} caractères`, code: 'nom_jeton_invalide' }, 400)
+    if (base.jetonsArrivee(u.id).length >= JETONS_ARRIVEE_MAX) return c.json({ erreur: 'trop de jetons : révoquez-en un', code: 'trop_de_jetons' }, 409)
     const jeton = PREFIXE_JETON + nouveauJeton().jeton
     const j = { id: randomUUID(), nom, cree: ctx.maintenant() }
     base.creerJetonArrivee({ ...j, utilisateur: u.id, empreinte: empreinteDe(jeton) })
@@ -822,8 +829,8 @@ export function creerApp(ctx: Contexte): Hono {
 
   app.delete('/api/jetons/:id', (c) => {
     const u = utilisateurCourant(c)
-    if (!u) return c.json({ erreur: 'non connecté' }, 401)
-    return base.retirerJetonArrivee(u.id, c.req.param('id')) ? c.body(null, 204) : c.json({ erreur: 'introuvable' }, 404)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    return base.retirerJetonArrivee(u.id, c.req.param('id')) ? c.body(null, 204) : c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
   })
 
   // ---- Arrivée ----
@@ -870,12 +877,12 @@ export function creerApp(ctx: Contexte): Hono {
     }
     const porteur = /^Bearer +(\S+)$/i.exec(c.req.header('authorization') ?? '')?.[1]
     const u = porteur ? base.utilisateurDuJetonArrivee(empreinteDe(porteur), ctx.maintenant()) : null
-    if (!u) return repondre({ erreur: 'jeton absent ou révoqué' }, 401, { 'www-authenticate': 'Bearer' })
+    if (!u) return repondre({ erreur: 'jeton absent ou révoqué', code: 'jeton_invalide' }, 401, { 'www-authenticate': 'Bearer' })
 
     const multipart = /^multipart\/form-data/i.test(c.req.header('content-type') ?? '')
     const octets = await lireBorne(c.req.raw.body, multipart ? FICHIER_MAX + ARRIVEE_TEXTE_MAX : ARRIVEE_TEXTE_MAX)
-    if (octets === 'trop gros') return repondre({ erreur: 'trop gros' }, 413)
-    if (!octets) return repondre({ erreur: 'corps vide' }, 400)
+    if (octets === 'trop gros') return repondre({ erreur: 'trop gros', code: 'trop_gros' }, 413)
+    if (!octets) return repondre({ erreur: 'corps vide', code: 'corps_vide' }, 400)
 
     // Le même sens des champs, en JSON ou en formulaire : `texte`, `url`, `titre`, et `image` pour un fichier.
     let champs: Record<string, unknown>
@@ -892,19 +899,19 @@ export function creerApp(ctx: Contexte): Hono {
         champs = valeur as Record<string, unknown>
       }
     } catch {
-      return repondre({ erreur: 'corps invalide' }, 400)
+      return repondre({ erreur: 'corps invalide', code: 'corps_invalide' }, 400)
     }
     const champ = (nom: string) => texte(champs[nom]).slice(0, ARRIVEE_CHAMP_MAX)
     const maintenant = ctx.maintenant()
     const elements = elementsDeTexte({ titre: champ('titre'), texte: champ('texte'), adresse: champ('url') }, maintenant)
 
     if (image) {
-      if (image.size > FICHIER_MAX) return repondre({ erreur: 'trop gros' }, 413)
+      if (image.size > FICHIER_MAX) return repondre({ erreur: 'trop gros', code: 'trop_gros' }, 413)
       const brut = Buffer.from(await image.arrayBuffer())
       const lu = await sharp(brut).metadata().catch(() => null)
       const type = lu?.format ? FORMATS_ARRIVEE[lu.format] : undefined
       if (!lu || !type || !lu.width || !lu.height) {
-        return repondre({ erreur: 'image illisible : PNG, JPEG, WebP ou GIF (un HEIC se convertit en JPEG avant l’envoi)' }, 415)
+        return repondre({ erreur: 'image illisible : PNG, JPEG, WebP ou GIF (un HEIC se convertit en JPEG avant l’envoi)', code: 'image_illisible' }, 415)
       }
       // Une photo d'iPhone est enregistrée couchée, avec un indicateur de rotation : l'affichage la redresse.
       const tournee = (lu.orientation ?? 1) >= 5
@@ -913,13 +920,13 @@ export function creerApp(ctx: Contexte): Hono {
         elementImage({ fichier, largeur: tournee ? lu.height : lu.width, hauteur: tournee ? lu.width : lu.height, typeMime: type }, maintenant, elements.length),
       )
     }
-    if (elements.length === 0) return repondre({ erreur: 'rien à poser : ni texte, ni adresse, ni image' }, 400)
+    if (elements.length === 0) return repondre({ erreur: 'rien à poser : ni texte, ni adresse, ni image', code: 'rien_a_poser' }, 400)
 
     await poserDansLAccueil(u, elements)
     return repondre({ ajoutes: elements.length }, 201)
   })
 
-  app.all('/api/*', (c) => c.json({ erreur: 'introuvable' }, 404))
+  app.all('/api/*', (c) => c.json({ erreur: 'introuvable', code: 'introuvable' }, 404))
 
   // En production, le même serveur sert l'application web construite ; toute autre adresse (`/t/…`) reçoit la page.
   if (ctx.dossierWeb) {

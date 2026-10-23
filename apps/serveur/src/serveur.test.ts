@@ -125,12 +125,25 @@ describe('serveur de bout en bout', () => {
     const inconnue = await appeler('/api/connexion', { json: { email: 'personne@exemple.fr', motDePasse: 'faux-faux-faux' } })
     expect(mauvaisMot.statut).toBe(401)
     expect(inconnue.statut).toBe(401)
-    expect(await mauvaisMot.reponse.json()).toEqual(await inconnue.reponse.json())
+    const corps = await mauvaisMot.reponse.json()
+    expect(corps).toEqual(await inconnue.reponse.json())
+    expect(corps).toMatchObject({ code: 'identifiants_incorrects' })
+  })
+
+  it('chaque refus porte un code stable en plus de son message', async () => {
+    const sans = await appeler('/api/moi')
+    expect(sans.statut).toBe(401)
+    expect(await sans.reponse.json()).toEqual({ erreur: 'non connecté', code: 'non_connecte' })
+    const adresse = await appeler('/api/inscription', { json: { email: 'pas-une-adresse', motDePasse: 'motdepasse', nom: 'Ana' } })
+    expect(await adresse.reponse.json()).toMatchObject({ code: 'adresse_invalide' })
+    const court = await appeler('/api/inscription', { json: { email: 'court@exemple.fr', motDePasse: 'abc', nom: 'Ana' } })
+    expect(await court.reponse.json()).toMatchObject({ code: 'mot_de_passe_invalide' })
   })
 
   it('une adresse prise répond 409, la déconnexion efface la session', async () => {
     const encore = await appeler('/api/inscription', { json: { email: 'ana@exemple.fr', motDePasse: 'motdepasse', nom: 'Ana' } })
     expect(encore.statut).toBe(409)
+    expect(await encore.reponse.json()).toMatchObject({ code: 'adresse_prise' })
     const ana = await appeler('/api/connexion', { json: { email: 'ana@exemple.fr', motDePasse: 'motdepasse' } })
     const sortie = await appeler('/api/deconnexion', { methode: 'POST', cookie: ana.cookie })
     expect(sortie.statut).toBe(204)
@@ -244,7 +257,7 @@ describe("l'application web servie par le serveur", () => {
     }
     const api = await fetch(`${adresse}/api/inexistant`)
     expect(api.status).toBe(404)
-    expect(await api.json()).toEqual({ erreur: 'introuvable' })
+    expect(await api.json()).toEqual({ erreur: 'introuvable', code: 'introuvable' })
   })
 
   it('un partage reçu sans service worker revient à l’accueil au lieu d’une erreur', async () => {
