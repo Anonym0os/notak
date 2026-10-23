@@ -1,0 +1,250 @@
+.notak-banque {
+  --banque-texte: var(--notak-texte, #2b2f36);
+  --banque-doux: var(--notak-menu-grise, #8a8f98);
+  --banque-actif: var(--notak-menu-touche, rgb(0 0 0 / 0.07));
+  --banque-filet: var(--notak-menu-filet, rgb(0 0 0 / 0.12));
+  position: fixed;
+  z-index: 45;
+  display: grid;
+  grid-template-columns: 37% 1fr;
+  box-sizing: border-box;
+  width: min(568px, calc(100vw - 16px));
+  height: min(540px, calc(100vh - 16px));
+  padding: 16px 12px 16px 16px;
+  border-radius: 12px;
+  background: var(--notak-carte, #fff);
+  color: var(--banque-texte);
+  box-shadow: var(--notak-ombre-vol, 0 8px 28px rgb(0 0 0 / 0.25));
+  font-size: 13px;
+}
+
+.notak-banque::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--notak-banque-fleche, 40px) - 7px);
+  left: -6px;
+  width: 14px;
+  height: 14px;
+  background: inherit;
+  transform: rotate(45deg);
+  border-radius: 2px;
+}
+
+.notak-banque[data-sans-banque] {
+  display: block;
+  width: min(350px, calc(100vw - 16px));
+  height: auto;
+  padding: 24px;
+}
+
+.notak-banque-menu {
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  min-height: 0;
+  padding-right: 8px;
+  gap: 8px;
+}
+
+.notak-banque-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.notak-banque-modes button {
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.notak-banque-modes button:hover,
+.notak-banque-modes button[data-actif] {
+  background: var(--banque-actif);
+}
+
+.notak-banque-attribution {
+  margin: 0;
+  padding-left: 10px;
+  color: var(--banque-doux);
+  font-size: 11px;
+}
+
+.notak-banque-attribution a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.notak-banque-champ {
+  position: relative;
+}
+
+.notak-banque-champ input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 32px 8px 10px;
+  border: 1px solid var(--banque-filet);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.notak-banque-champ button {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--banque-doux);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.notak-banque-contenu {
+  min-height: 0;
+  padding: 0 4px 0 20px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.notak-banque-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notak-banque-vignette {
+  position: relative;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.notak-banque-vignette img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+  background: var(--banque-actif);
+}
+
+.notak-banque-bulle {
+  position: absolute;
+  top: 50%;
+  left: calc(100% - 96px);
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: #1f2328;
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.notak-banque-fantome {
+  position: fixed;
+  z-index: 60;
+  width: 140px;
+  border-radius: 4px;
+  box-shadow: var(--notak-ombre-vol, 0 8px 22px rgb(0 0 0 / 0.35));
+  pointer-events: none;
+  transform: translate(-50%, -50%) rotate(-2deg);
+}
+
+.notak-banque-plus,
+.notak-banque-principal {
+  margin: 12px 0 4px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--notak-accent, #3b7ddd);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.notak-banque-plus {
+  display: block;
+  margin-inline: auto;
+}
+
+.notak-banque-lien {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.notak-banque-note {
+  margin: 12px 0 0;
+  color: var(--banque-doux);
+}
+
+.notak-banque-attente {
+  width: 20px;
+  height: 20px;
+  margin: 16px auto;
+  border: 2px solid var(--banque-filet);
+  border-top-color: var(--banque-texte);
+  border-radius: 50%;
+  animation: notak-banque-tour 0.8s linear infinite;
+}
+
+@keyframes notak-banque-tour {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.notak-banque-envoi {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 24px 12px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  color: var(--banque-doux);
+  text-align: center;
+}
+
+.notak-banque-envoi[data-survol] {
+  border-color: var(--notak-accent, #3b7ddd);
+}
+
+.notak-banque-envoi p {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
+
+.notak-banque-seule .notak-banque-note {
+  text-align: center;
+}

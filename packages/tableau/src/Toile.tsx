@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { toileSuspendue } from './elements/dessin/mode'
+import { PanneauBanque } from './elements/image/Banque'
 import { BarreOutils, BarreSelection, type OutilDeBarre, outilsDeBarre } from './Barres'
 import { BarreEdition, ContexteBarreEdition } from './barreEdition'
 import { Cadre, ContexteRangement, type Empreinte, type Rangement } from './Cadre'
@@ -2325,6 +2326,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       {corbeilleOuverte && !lectureSeule && (
         <PanneauCorbeille elements={corbeille} contexte={contexte} restaurer={restaurer} vider={viderCorbeille} fermer={() => setCorbeilleOuverte(false)} />
       )}
+      {!lectureSeule && <PanneauBanque contexte={contexte} libelleOutil={t('type.image')} />}
       <BandeauAvis />
       {focus && <CoucheFocus noeud={focus.noeud} depart={focus.depart} fermer={() => setFocus(null)} />}
       {raccourcis && <FenetreRaccourcis fermer={fermerRaccourcis} />}

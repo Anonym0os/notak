@@ -812,6 +812,21 @@ export const fr: Textes = {
   'reseau.refuse': 'Déclaration refusée ({statut})',
 
   'envois.nomFichier': '« {nom} »',
+  'image.banque.titre': 'Images',
+  'image.banque.recommandees': 'Recommandées',
+  'image.banque.envoyer': 'Envoyer les vôtres',
+  'image.banque.rechercher': 'Chercher des images…',
+  'image.banque.effacer': 'Effacer la recherche',
+  'image.banque.plus': 'Plus d’images',
+  'image.banque.vide': 'Aucune image pour cette recherche.',
+  'image.banque.erreur': 'La recherche n’a pas abouti.',
+  'image.banque.reessayer': 'Réessayer',
+  'image.banque.attribution': 'Images fournies par',
+  'image.banque.glissezMoi': 'Glissez-moi',
+  'image.banque.credit': 'Photo : {nom}, Pexels',
+  'image.banque.nonConfiguree': 'La recherche d’images n’est pas configurée sur ce serveur.',
+  'image.banque.choisir': 'Choisir des images',
+  'image.banque.astuce': 'Ou déposez vos images ici.',
   // FIN fr
 }
 
@@ -1542,5 +1557,20 @@ export const en: Textes = {
   'reseau.refuse': 'Declaration refused ({statut})',
 
   'envois.nomFichier': '“{nom}”',
+  'image.banque.titre': 'Images',
+  'image.banque.recommandees': 'Recommended',
+  'image.banque.envoyer': 'Upload your own',
+  'image.banque.rechercher': 'Search images…',
+  'image.banque.effacer': 'Clear the search',
+  'image.banque.plus': 'More images',
+  'image.banque.vide': 'No images for this search.',
+  'image.banque.erreur': 'The search failed.',
+  'image.banque.reessayer': 'Try again',
+  'image.banque.attribution': 'Images provided by',
+  'image.banque.glissezMoi': 'Drag me',
+  'image.banque.credit': 'Photo: {nom}, Pexels',
+  'image.banque.nonConfiguree': 'Image search is not set up on this server.',
+  'image.banque.choisir': 'Choose images',
+  'image.banque.astuce': 'Or drop your images here.',
   // FIN en
 }

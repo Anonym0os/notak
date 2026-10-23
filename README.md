@@ -41,6 +41,8 @@ docker run -d -p 3005:3005 -v notak-donnees:/donnees notak
 L'image suppose un relais HTTPS devant elle (cookie `Secure`, adresse du client lue dans `X-Forwarded-For`).
 Pour l'essayer en HTTP sur sa machine : `-e NOTAK_COOKIE_SECURISE=0 -e NOTAK_RELAIS=0`.
 
+La banque d'images du panneau « Image » interroge Pexels : donner une clé gratuite par `-e PEXELS_API_KEY=…`. Sans elle, le panneau ne propose que l'envoi de ses propres fichiers.
+
 ## Pile
 
 - Interface : React 19, toile en DOM (une transformation CSS pour le zoom)

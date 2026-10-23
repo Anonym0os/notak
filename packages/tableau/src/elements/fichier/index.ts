@@ -3,6 +3,7 @@ import { registre } from '../registre'
 import { OutilsFichier, RenduFichier, ouvrirFichier } from './Fichier'
 import './fichier.css'
 import { LARGEUR_FICHIER, choisirFichiers, recevoirFichiers } from './recepteur'
+import { basculerBanque } from '../image/banqueImages'
 import { peutTelecharger, telecharger } from './telechargement'
 import { t } from '../../langue'
 import { ico } from '../../icones'
@@ -43,7 +44,8 @@ registre.type<Fichier>({
         choisirFichiers(ou, contexte, 'image/*')
         return []
       },
-      clic: (ou, contexte) => choisirFichiers(ou, contexte, 'image/*'),
+      // Avec une banque d'images, le clic ouvre son panneau (« Envoyer les vôtres » y mène au sélecteur) ; sans, le sélecteur.
+      clic: (ou, contexte) => (contexte.services.banqueImages ? basculerBanque() : choisirFichiers(ou, contexte, 'image/*')),
     },
     {
       get libelle() {
