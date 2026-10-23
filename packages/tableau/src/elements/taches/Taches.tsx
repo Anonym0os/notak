@@ -1,64 +1,91 @@
-import { EditorContent, getSchema, useEditor } from '@tiptap/react'
-import type { Editor } from '@tiptap/react'
-import { type KeyboardEvent, type ReactNode, memo, useEffect, useMemo, useRef, useState } from 'react'
+import { EditorContent, getSchema, useEditor, useEditorState } from '@tiptap/react'
+import { type ReactNode, memo, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { cleEntre, comparerOrdre } from '../../coeur/ordre'
 import { type CouleurNote, type Element, type Id, type NoeudTexte, type Taches, aimanter } from '../../coeur/tableau'
-import { useLignePartagee } from '../lignePartagee'
 import { extensionsDuPartage, textePartage } from '../partage'
 import { MenuCouleur } from '../note/MenuCouleur'
 import type { Operation } from '../../coeur/tableau'
 import type { ContexteToile, PropsOutils, PropsRendu, ServicePresence } from '../types'
-import { EXTENSIONS_TACHES, EXTENSIONS_TACHES_PARTAGEE, type GestesTaches, clavierListe, ouvreursPuces } from './extensions'
+import { EXTENSIONS_TACHES, EXTENSIONS_TACHES_PARTAGEE, type GestesTaches, clavierListe, gestesDe, ouvreursPuces, puceActive, remplacerListe } from './extensions'
 import { MenuPuce, type OuverturePuce } from './MenuPuce'
-import { type Personne, type Puce, assigneDe, attrsPuce, echeanceDe, jourDe, personnes, puces } from './puces'
+import { type Personne, type Puce, attrsAllumes, attrsEteints, attrsVides, jourDe, personnes, puces } from './puces'
 import { animerCase } from './animation'
+import { ajouterTitre, avecTitre, contenuDepuis, curseurAuTitre, docEditeur, sansTitre } from './titre'
 import { type Sortie, glisserTache } from './glisse'
-import { type Chemin, basculer, compter, deplacer, detacher, docTaches, effacerFaites, estFaite, regler, retirer, sousTaches, transferer } from './liste'
+import { type Chemin, type Place, basculer, emporteLaListe, compter, deplacer, detacher, docTaches, effacerFaites, estFaite, regler, retirer, sousTaches, transferer } from './liste'
 import { t } from '../../langue'
 import { BoutonOutil } from '../../BoutonOutil'
+import { ContexteBarreEdition } from '../../barreEdition'
+import { ouvrirFil } from '../decor/etat'
+import { OutilsEdition } from './OutilsEdition'
+import { BulleSuggestion } from './Suggestion'
+import { type Suggestion, ecartee, nombreEnHaut, noterRefusDuTitre, suggestionA } from './suggestions'
 
 /** Les listes dont le titre vient d'être ajouté : leur édition y met le curseur. */
 const titreAFocaliser = new Set<Id>()
 
-const sansTitre = ({ titre: _, ...reste }: Taches): Taches => reste
+/** Les listes dont une puce vient d'être allumée par la barre : leur rendu en ouvre le choix, sous la puce. */
+const puceAOuvrir = new Map<Id, Puce['genre']>()
 
 const sansCouleur = ({ couleur: _, ...reste }: Taches): Taches => reste
 
-export function RenduTaches({ element, enEdition, contexte, brouillon, changer }: PropsRendu<Taches>) {
+/** Alt+Retour sur une liste choisie : le titre s'affiche (vide s'il n'y en avait pas) et le curseur s'y met. */
+export function afficherTitre(liste: Element<Taches>, contexte: ContexteToile) {
+  const apres = avecTitre(liste.contenu)
+  if (apres !== liste.contenu) contexte.magasin.faire([{ type: 'contenu', id: liste.id, avant: liste.contenu, apres }])
+  titreAFocaliser.add(liste.id)
+  contexte.commencerEdition(liste.id)
+}
+
+export function RenduTaches({ element, enEdition, seule, contexte, brouillon, changer }: PropsRendu<Taches>) {
   const { contenu } = element
   const jeter = () => {
     contexte.jeter([element.id])
     contexte.finirEdition()
   }
+  if (enEdition) return <Edition id={element.id} contenu={contenu} largeur={element.largeur} contexte={contexte} surChangement={brouillon} jeter={jeter} />
   return (
     <div className="notak-taches" data-couleur={contenu.couleur}>
-      {enEdition ? (
-        <Edition id={element.id} contenu={contenu} contexte={contexte} surChangement={brouillon} jeter={jeter} />
-      ) : (
-        <Figee id={element.id} contenu={contenu} changer={changer} contexte={contexte} />
-      )}
+      <Figee id={element.id} contenu={contenu} largeur={element.largeur} seule={!!seule} changer={changer} contexte={contexte} />
     </div>
   )
 }
 
 // ———— Hors édition : la liste se dessine à partir du JSON, cases cliquables ————
 
-const Figee = memo(function Figee({ id, contenu, changer, contexte }: { id: Id; contenu: Taches; changer(apres: Taches): void; contexte: ContexteToile }) {
+/** La carte est assez large pour porter une bulle de suggestion (34 UG au moins). */
+const LARGEUR_BULLE = 34
+
+const Figee = memo(function Figee({ id, contenu, largeur, seule, changer, contexte }: { id: Id; contenu: Taches; largeur: number; seule: boolean; changer(apres: Taches): void; contexte: ContexteToile }) {
   const presence = contexte.services.presence
   const doc = docTaches(contenu.texte)
   const cocher = (chemin: Chemin, enCascade: boolean) =>
     changer({ ...contenu, texte: basculer(doc, chemin, enCascade) })
-  const supprimer = (chemin: Chemin) => changer({ ...contenu, texte: retirer(doc, chemin) })
-  const bouger = (de: number, vers: number, avant: boolean) => changer({ ...contenu, texte: deplacer(doc, de, vers, avant) })
+  // La dernière tâche d'une liste sans titre emporte la liste ; avec un titre, une tâche vide reste.
+  const supprimer = (chemin: Chemin) => {
+    if (emporteLaListe(contenu, chemin)) contexte.jeter([id])
+    else changer({ ...contenu, texte: retirer(doc, chemin) })
+  }
+  const bouger = (de: number, vers: number, place: Place, copie: boolean) => changer({ ...contenu, texte: deplacer(doc, de, vers, place, copie) })
   // Hors de sa liste : dans une autre liste du tableau, ou sur la toile (une nouvelle liste d'une tâche).
-  const sortir = (de: number, ou: Sortie) => {
+  const sortir = (de: number, ou: Sortie, copie: boolean) => {
     if (contexte.services.lectureSeule || contexte.services.presentation) return
-    const ops = operationsDeSortie(contexte, id, de, ou)
+    const ops = operationsDeSortie(contexte, id, de, ou, copie)
     if (!ops) return
     contexte.magasin.faire(ops.operations)
     if (ops.nouvelle) contexte.choisir([ops.nouvelle])
   }
   const [menu, setMenu] = useState<(OuverturePuce & { chemin: Chemin }) | null>(null)
   const ouvrir = (chemin: Chemin, genre: Puce['genre'], ancre: HTMLElement) => setMenu(ouverturePuce(chemin, genre, ancre))
+  // Une puce que la barre vient d'allumer : son choix s'ouvre dès qu'elle est dessinée.
+  useEffect(() => {
+    const genre = puceAOuvrir.get(id)
+    if (!genre) return
+    puceAOuvrir.delete(id)
+    const puce = document.querySelector<HTMLElement>(`[data-id="${id}"] .notak-puce[data-genre="${genre}"]`)
+    if (puce) ouvrir([0], genre, puce)
+  }, [contenu]) // eslint-disable-line react-hooks/exhaustive-deps
   const cible = menu && sousTachePar(doc, menu.chemin)
   return (
     <>
@@ -67,15 +94,28 @@ const Figee = memo(function Figee({ id, contenu, changer, contexte }: { id: Id; 
       {menu && (
         <MenuPuce
           ouverture={menu}
-          valeur={valeurPuce(menu.genre, cible?.attrs)}
-          personnes={personnesPresentes(presence)}
-          regler={(v) => changer({ ...contenu, texte: regler(doc, menu.chemin, attrsPuce(menu.genre, v, valeurPuce(menu.genre, cible?.attrs))) })}
+          attrs={cible?.attrs}
+          personnes={personnesPresentes(presence, contexte.services.membres)}
+          regler={(attrs) => changer({ ...contenu, texte: regler(doc, menu.chemin, attrs) })}
           fermer={() => setMenu(null)}
+        />
+      )}
+      {/* Choisie seule, la liste propose d'effacer ses tâches faites ; le titre ne se propose qu'en écrivant. */}
+      {seule && largeur >= LARGEUR_BULLE && !contexte.services.lectureSeule && !contexte.services.presentation && (
+        <SuggestionDe
+          suggestion={suggestionA(contenu, false)}
+          oui={() => changer({ ...contenu, texte: effacerFaites(doc) })}
+          non={(s) => changer(ecartee(contenu, s))}
         />
       )}
     </>
   )
 })
+
+/** La bulle de la suggestion en cours, s'il y en a une. */
+function SuggestionDe({ suggestion, oui, non }: { suggestion: Suggestion | null; oui(s: Suggestion): void; non(s: Suggestion): void }) {
+  return suggestion ? <BulleSuggestion key={suggestion} suggestion={suggestion} oui={() => oui(suggestion)} non={() => non(suggestion)} /> : null
+}
 
 interface PropsListe {
   noeud: NoeudTexte
@@ -83,8 +123,8 @@ interface PropsListe {
   cocher(c: Chemin, cascade: boolean): void
   supprimer(c: Chemin): void
   ouvrir(c: Chemin, genre: Puce['genre'], ancre: HTMLElement): void
-  deplacer(de: number, vers: number, avant: boolean): void
-  sortir(de: number, ou: Sortie): void
+  deplacer(de: number, vers: number, place: Place, copie: boolean): void
+  sortir(de: number, ou: Sortie, copie: boolean): void
 }
 
 function Liste({ noeud, chemin, cocher, supprimer, ouvrir, deplacer, sortir }: PropsListe) {
@@ -140,6 +180,7 @@ function Liste({ noeud, chemin, cocher, supprimer, ouvrir, deplacer, sortir }: P
                   data-genre={p.genre}
                   data-vide={p.vide ? '' : undefined}
                   data-statut={p.statut}
+                  data-rappel={p.rappel ? '' : undefined}
                   title={p.titre}
                   onPointerDown={(e) => e.stopPropagation()}
                   onDoubleClick={(e) => e.stopPropagation()}
@@ -167,15 +208,18 @@ function Liste({ noeud, chemin, cocher, supprimer, ouvrir, deplacer, sortir }: P
 
 /**
  * Ce que change le tableau quand une tâche est lâchée hors de sa liste, d'un seul pas : les deux listes qui
- * changent, ou la liste qui perd la tâche et celle qui naît sur la toile. `nouvelle` : l'id de la liste née.
+ * changent, ou la liste qui perd la tâche et celle qui naît (sur la toile, ou rangée dans une colonne). `nouvelle` :
+ * l'id de la liste née. Avec `copie`, la liste d'origine ne perd rien.
  */
 export function operationsDeSortie(
   contexte: ContexteToile,
   id: Id,
   de: number,
   ou: Sortie,
+  copie = false,
 ): { operations: Operation[]; nouvelle?: Id } | null {
-  const elements = contexte.magasin.lire().elements
+  const tableau = contexte.magasin.lire()
+  const elements = tableau.elements
   const source = elements.find((e) => e.id === id)
   if (source?.contenu.type !== 'taches') return null
   const avant = source.contenu
@@ -183,23 +227,34 @@ export function operationsDeSortie(
   if (ou.genre === 'liste') {
     const cible = elements.find((e) => e.id === ou.carte)
     if (cible?.contenu.type !== 'taches' || cible.id === id) return null
-    const r = transferer(docSource, de, docTaches(cible.contenu.texte), ou.vers, ou.avant)
+    const r = transferer(docSource, de, docTaches(cible.contenu.texte), ou.vers, ou.place, copie)
     if (!r) return null
     return {
       operations: [
-        { type: 'contenu', id, avant, apres: { ...avant, texte: r.source } },
+        ...(copie ? [] : [{ type: 'contenu' as const, id, avant, apres: { ...avant, texte: r.source } }]),
         { type: 'contenu', id: cible.id, avant: cible.contenu, apres: { ...cible.contenu, texte: r.destination } },
       ],
     }
   }
+  if (ou.genre === 'colonne') {
+    const colonne = elements.find((e) => e.id === ou.colonne)
+    if (colonne?.contenu.type !== 'colonne') return null
+    const r = detacher(docSource, de, colonne.x, colonne.y, copie)
+    if (!r) return null
+    // Rangée parmi les éléments de la colonne, à l'index visé.
+    const freres = elements.filter((e) => e.parent === colonne.id && e.corbeille === undefined).sort((a, b) => comparerOrdre(a.ordre, b.ordre))
+    const i = Math.max(0, Math.min(ou.index, freres.length))
+    const rangee: Element<Taches> = { ...r.liste, parent: colonne.id, ordre: cleEntre(freres[i - 1]?.ordre, freres[i]?.ordre) }
+    return {
+      operations: [...(copie ? [] : [{ type: 'contenu' as const, id, avant, apres: { ...avant, texte: r.source } }]), { type: 'creer', element: rangee }],
+      nouvelle: rangee.id,
+    }
+  }
   const [x, y] = aimanter(contexte.versTableau({ x: ou.x, y: ou.y }))
-  const r = detacher(docSource, de, x, y)
+  const r = detacher(docSource, de, x, y, copie)
   if (!r) return null
   return {
-    operations: [
-      { type: 'contenu', id, avant, apres: { ...avant, texte: r.source } },
-      { type: 'creer', element: r.liste },
-    ],
+    operations: [...(copie ? [] : [{ type: 'contenu' as const, id, avant, apres: { ...avant, texte: r.source } }]), { type: 'creer', element: r.liste }],
     nouvelle: r.liste.id,
   }
 }
@@ -211,15 +266,11 @@ function sousTachePar(doc: NoeudTexte, chemin: Chemin): NoeudTexte | undefined {
   return n
 }
 
-/** Ce que la puce de ce genre porte déjà. */
-const valeurPuce = (genre: Puce['genre'], attrs: Record<string, unknown> | undefined) =>
-  genre === 'echeance' ? echeanceDe(attrs) : assigneDe(attrs)
-
-/** Soi et ceux qui sont là sur le tableau : les noms qu'on propose d'assigner. */
-function personnesPresentes(presence: ServicePresence | undefined): Personne[] {
-  const vers = (u: { nom: string; couleur: string }): Personne => ({ nom: u.nom, couleur: u.couleur })
+/** Soi, ceux qui sont là sur le tableau, puis les membres de l'espace : les noms qu'on propose d'assigner. */
+function personnesPresentes(presence: ServicePresence | undefined, membres?: () => { nom: string; couleur?: string }[]): Personne[] {
+  const vers = (u: { nom: string; couleur?: string | undefined }): Personne => ({ nom: u.nom, ...(u.couleur ? { couleur: u.couleur } : {}) })
   const moi = presence?.moi?.()
-  return personnes(moi && vers(moi), (presence?.autres() ?? []).map((p) => vers(p.utilisateur)))
+  return personnes(moi && vers(moi), [...(presence?.autres() ?? []).map((p) => vers(p.utilisateur)), ...(membres?.() ?? []).map(vers)])
 }
 
 /** Où ouvrir le menu d'une puce : sous elle, dans la toile qui la porte. */
@@ -249,40 +300,82 @@ function inline(paragraphe: NoeudTexte): ReactNode {
   })
 }
 
-// ———— En édition : Tiptap, et le titre dans un champ simple ————
-
-const CASE_EN_TETE = /^\[([ xX]?)\]\s/
+// ———— En édition : Tiptap, le titre est le premier nœud du document ————
 
 const SCHEMA = getSchema(EXTENSIONS_TACHES)
 
-function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surChangement(apres: Taches): void; jeter(): void }) {
-  const { id, contenu, contexte, surChangement, jeter } = props
+function Edition(props: { id: Id; contenu: Taches; largeur: number; contexte: ContexteToile; surChangement(apres: Taches): void; jeter(): void }) {
+  const { id, contenu, largeur, contexte, surChangement, jeter } = props
   // L'état courant vit ici : la toile ne remet l'élément à jour qu'à la sortie de l'édition.
   const courant = useRef(contenu)
-  const [titre, setTitre] = useState(contenu.titre)
-  const champ = useRef<HTMLInputElement>(null)
-  const editeurRef = useRef<Editor | null>(null)
   const focaliserTitre = useRef(titreAFocaliser.delete(id) && contenu.titre !== undefined)
 
+  // La couleur se change pendant l'écriture : la bande suit tout de suite, la toile n'a que le brouillon.
+  const [couleur, setCouleur] = useState(contenu.couleur)
   const poser = (apres: Taches) => {
     courant.current = apres
     surChangement(apres)
   }
   const gestes = useRef<GestesTaches>(null!)
-  // Les tâches s'écrivent à plusieurs, comme le texte d'une note ; le titre aussi, par une ligne partagée.
-  const fragment = useMemo(() => textePartage(contexte, id, docTaches(contenu.texte), SCHEMA), [])
+  // Avec la barre de gauche, les outils de la liste y prennent la place ; sinon il n'y a pas de barre d'édition.
+  const { attendue, cible } = useContext(ContexteBarreEdition)
+  const [lien, setLien] = useState<string | null>(null)
+  // Les tâches et le titre s'écrivent à plusieurs, comme le texte d'une note.
+  const fragment = useMemo(() => textePartage(contexte, id, docEditeur(contenu), SCHEMA), [])
   const extensions = useMemo(
     () => [...(fragment ? [...EXTENSIONS_TACHES_PARTAGEE, ...extensionsDuPartage(fragment, contexte)] : EXTENSIONS_TACHES), clavierListe(gestes)],
     [fragment],
   )
   const editeur = useEditor({
     extensions,
-    ...(fragment ? {} : { content: docTaches(contenu.texte) }),
-    autofocus: focaliserTitre.current ? false : 'end',
+    ...(fragment ? {} : { content: docEditeur(contenu) }),
+    autofocus: false,
     editorProps: { attributes: { class: 'notak-taches-texte' } },
-    onUpdate: ({ editor }) => poser({ ...courant.current, texte: editor.getJSON() as NoeudTexte }),
+    onUpdate: ({ editor }) => poser(contenuDepuis(editor.getJSON() as NoeudTexte, courant.current)),
   })
-  editeurRef.current = editeur
+  // Le curseur se pose là où l'on a cliqué, au bout du titre qu'on vient d'ajouter, sinon à la dernière tâche.
+  useEffect(() => {
+    if (!editeur || editeur.isDestroyed) return
+    if (focaliserTitre.current) return void curseurAuTitre(editeur)
+    const ou = contexte.prendrePointEdition()
+    const pos = ou && editeur.view.posAtCoords({ left: ou.x, top: ou.y })
+    if (pos) editeur.chain().setTextSelection(pos.pos).focus().run()
+    else editeur.commands.focus('end')
+  }, [editeur, contexte])
+  gestes.current = { jeter, titreCache: () => courant.current.titreCache }
+  useEffect(() => {
+    if (!editeur) return
+    gestesDe.set(editeur, gestes)
+    return () => void gestesDe.delete(editeur)
+  }, [editeur])
+
+  // Les suggestions : une pause de frappe d'une seconde, et la liste dit ce qu'elle propose.
+  const [suggestion, setSuggestion] = useState<Suggestion | null>(null)
+  const gagne = useRef(false)
+  useEffect(() => {
+    if (!editeur) return
+    let minuteur: ReturnType<typeof setTimeout> | undefined
+    const enHaut = () => nombreEnHaut(contenuDepuis(editeur.getJSON() as NoeudTexte, courant.current))
+    let avant = enHaut()
+    const surMaj = () => {
+      const h = enHaut()
+      if (h >= 2 && avant < 2) gagne.current = true
+      avant = h
+      clearTimeout(minuteur)
+      minuteur = setTimeout(() => setSuggestion(suggestionA(courant.current, gagne.current)), 1000)
+    }
+    editeur.on('update', surMaj)
+    return () => {
+      editeur.off('update', surMaj)
+      clearTimeout(minuteur)
+    }
+  }, [editeur])
+  const ecarter = (s: Suggestion) => {
+    if (s === 'titre') noterRefusDuTitre()
+    poser(ecartee(courant.current, s))
+    setSuggestion(null)
+  }
+
   const [menu, setMenu] = useState<(OuverturePuce & { pos: number }) | null>(null)
   useEffect(() => {
     if (!editeur) return
@@ -292,98 +385,59 @@ function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surC
     })
     return () => void ouvreursPuces.delete(editeur)
   }, [editeur])
-  const tacheDuMenu = menu && editeur?.state.doc.nodeAt(menu.pos)
-
-  useEffect(() => {
-    if (focaliserTitre.current) champ.current?.focus()
-  }, [])
-
-  const changerTitre = (valeur: string | undefined) => {
-    setTitre(valeur)
-    inscrireTitre(valeur ?? '')
-    poser(valeur === undefined ? sansTitre(courant.current) : { ...courant.current, titre: valeur })
-  }
-  const inscrireTitre = useLignePartagee(contexte, id, contenu.titre, champ, (valeur) => {
-    // Un autre a écrit dans le titre : on le suit tant qu'on en a un.
-    if (courant.current.titre === undefined) return
-    setTitre(valeur)
-    poser({ ...courant.current, titre: valeur })
+  // Une plage de texte choisie : la corbeille de ligne ne réagit plus (voir `taches.css`).
+  const texteChoisi = useEditorState({ editor: editeur, selector: ({ editor }) => !!editor && !editor.state.selection.empty })
+  // Les attributs de la tâche du menu, relus à chaque transaction : le menu les montre à jour.
+  const attrsDuMenu = useEditorState({
+    editor: editeur,
+    selector: ({ editor }) => (menu && editor ? (editor.state.doc.nodeAt(menu.pos)?.attrs ?? null) : null),
   })
-  gestes.current = {
-    aUnTitre: () => courant.current.titre !== undefined,
-    versTitre: () => {
-      if (courant.current.titre === undefined) changerTitre('')
-      // Le champ naît au rendu suivant.
-      setTimeout(() => {
-        const c = champ.current
-        c?.focus()
-        c?.setSelectionRange(c.value.length, c.value.length)
-      }, 0)
-    },
-    jeter,
-  }
-  // `[] ` en tête du titre le change en tâche, posée en haut de la liste.
-  const titreTape = (valeur: string) => {
-    const c = CASE_EN_TETE.exec(valeur)
-    const ed = editeurRef.current
-    if (!c || !ed) return changerTitre(valeur)
-    const reste = valeur.slice(c[0].length)
-    changerTitre(undefined)
-    ed.chain()
-      .insertContentAt(1, {
-        type: 'taskItem',
-        attrs: { checked: c[1]!.toLowerCase() === 'x' },
-        content: [reste ? { type: 'paragraph', content: [{ type: 'text', text: reste }] } : { type: 'paragraph' }],
-      })
-      .setTextSelection(3 + reste.length)
-      .run()
-    // Tout de suite, sans la focalisation différée de Tiptap.
-    ed.view.focus()
-  }
-  const clavier = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      // Une tâche neuve en tête de liste, curseur dedans (la première tâche ne sert pas).
-      const ed = editeurRef.current
-      if (!ed) return
-      ed.chain().insertContentAt(1, { type: 'taskItem', attrs: { checked: false }, content: [{ type: 'paragraph' }] }).setTextSelection(3).run()
-      ed.view.focus()
-    } else if (e.key === 'Backspace' && e.currentTarget.value === '') {
-      e.preventDefault()
-      changerTitre(undefined)
-      editeurRef.current?.commands.focus('start')
-    }
-  }
 
   return (
-    <>
-      {titre !== undefined && (
-        <input
-          ref={champ}
-          className="notak-taches-titre"
-          value={titre}
-          placeholder={t('taches.titre')}
-          onChange={(e) => titreTape(e.target.value)}
-          onKeyDown={clavier}
-        />
-      )}
+    <div className="notak-taches" data-couleur={couleur} data-texte-choisi={texteChoisi ? '' : undefined}>
       <EditorContent editor={editeur} />
+      {editeur && attendue && cible &&
+        createPortal(
+          <OutilsEdition
+            editor={editeur}
+            couleur={couleur}
+            choisirCouleur={(c) => {
+              setCouleur(c)
+              poser(c ? { ...sansCouleur(courant.current), couleur: c } : sansCouleur(courant.current))
+            }}
+            titreCache={() => courant.current.titreCache}
+            lien={lien}
+            surLien={setLien}
+            {...(contexte.services.lectureSeule ? {} : { commenter: () => ouvrirFil(id) })}
+            finir={() => contexte.finirEdition()}
+          />,
+          cible,
+        )}
       {menu && editeur && (
         <MenuPuce
           ouverture={menu}
-          valeur={valeurPuce(menu.genre, tacheDuMenu ? tacheDuMenu.attrs : undefined)}
-          personnes={personnesPresentes(contexte.services.presence)}
-          regler={(v) => {
+          attrs={attrsDuMenu ?? undefined}
+          personnes={personnesPresentes(contexte.services.presence, contexte.services.membres)}
+          regler={(attrs) => {
             const t = editeur.state.doc.nodeAt(menu.pos)
-            if (t?.type.name === 'taskItem')
-              editeur.view.dispatch(
-                editeur.state.tr.setNodeMarkup(menu.pos, undefined, { ...t.attrs, ...attrsPuce(menu.genre, v, valeurPuce(menu.genre, t.attrs)) }),
-              )
+            if (t?.type.name === 'taskItem') editeur.view.dispatch(editeur.state.tr.setNodeMarkup(menu.pos, undefined, { ...t.attrs, ...attrs }))
           }}
           fermer={() => setMenu(null)}
         />
       )}
-    </>
+      {suggestion && editeur && largeur >= LARGEUR_BULLE && (
+        <BulleSuggestion
+          key={suggestion}
+          suggestion={suggestion}
+          oui={() => {
+            if (suggestion === 'titre') ajouterTitre(editeur, courant.current.titreCache)
+            else remplacerListe(editeur, effacerFaites(docTaches(contenuDepuis(editeur.getJSON() as NoeudTexte, courant.current).texte)).content![0]!)
+            setSuggestion(null)
+          }}
+          non={() => ecarter(suggestion)}
+        />
+      )}
+    </div>
   )
 }
 
@@ -410,13 +464,23 @@ export function OutilsTaches({ elements, contexte }: PropsOutils<Taches>) {
     )
 
   const basculerTitre = () => {
-    changerTout((e) =>
-      toutesTitrees ? sansTitre(e.contenu) : e.contenu.titre === undefined ? { ...e.contenu, titre: '' } : e.contenu,
-    )
+    changerTout((e) => (toutesTitrees ? sansTitre(e.contenu) : avecTitre(e.contenu)))
     if (!toutesTitrees && elements.length === 1) {
       titreAFocaliser.add(elements[0]!.id)
       contexte.commencerEdition(elements[0]!.id)
     }
+  }
+
+  // Une liste qui n'a qu'une tâche de premier niveau prête ses outils à cette tâche : Échéance, Assigner.
+  const seule = elements.length === 1 ? elements[0]! : null
+  const unique = seule && sousTaches(docTaches(seule.contenu.texte)).length === 1 ? sousTaches(docTaches(seule.contenu.texte))[0]! : null
+  const basculerPuce = (genre: Puce['genre']) => {
+    if (!seule || !unique) return
+    const actif = puceActive(unique.attrs, genre)
+    // Allumée, la puce de l'assigné repart vide ; éteinte, elle perd ce qu'elle portait.
+    const patch = actif ? attrsEteints(genre) : { ...(genre === 'assigne' ? attrsVides('assigne') : {}), ...attrsAllumes(genre) }
+    changerTout((e) => ({ ...e.contenu, texte: regler(docTaches(e.contenu.texte), [0], patch) }))
+    if (!actif) puceAOuvrir.set(seule.id, genre)
   }
 
   return (
@@ -433,13 +497,12 @@ export function OutilsTaches({ elements, contexte }: PropsOutils<Taches>) {
         }
       />
       <BoutonOutil icone="titre" libelle={t('taches.titre')} actif={toutesTitrees} onClick={basculerTitre} />
-      {faites >= 2 && (
-        <BoutonOutil
-          icone="gomme"
-          secondaire
-          libelle={t('taches.effacerFaites')}
-          onClick={() => changerTout((e) => ({ ...e.contenu, texte: effacerFaites(docTaches(e.contenu.texte)) }))}
-        />
+      {/* Réaction et Étiquette de la tâche unique prendront ici leur place, avec les annotations par tâche (elements/decor). */}
+      {unique && (
+        <>
+          <BoutonOutil icone="calendrier" libelle={t('decor.echeance')} actif={puceActive(unique.attrs, 'echeance')} onClick={() => basculerPuce('echeance')} />
+          <BoutonOutil icone="personne" libelle={t('taches.assigner')} actif={puceActive(unique.attrs, 'assigne')} onClick={() => basculerPuce('assigne')} />
+        </>
       )}
     </>
   )

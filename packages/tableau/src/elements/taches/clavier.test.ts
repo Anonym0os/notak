@@ -316,12 +316,14 @@ describe('Déplacer une tâche (poignée)', () => {
     const depart: Plan = ['A', ['a1', 'a2'], 'B', ['b1'], 'C']
     for (let de = 0; de < 6; de++) {
       for (let vers = 0; vers < 6; vers++) {
-        for (const avant of [true, false]) {
-          ouvrir(depart)
-          const attendu = plan(deplacer(doc(depart), de, vers, avant))
-          deplacerDansEditeur(editeur, de, vers, avant)
-          expect(actuel(), `${de} -> ${vers} ${avant}`).toEqual(attendu)
-          editeur.destroy()
+        for (const place of ['avant', 'apres', 'dans'] as const) {
+          for (const copie of [false, true]) {
+            ouvrir(depart)
+            const attendu = plan(deplacer(doc(depart), de, vers, place, copie))
+            deplacerDansEditeur(editeur, de, vers, place, copie)
+            expect(actuel(), `${de} -> ${vers} ${place}${copie ? ' copie' : ''}`).toEqual(attendu)
+            editeur.destroy()
+          }
         }
       }
     }

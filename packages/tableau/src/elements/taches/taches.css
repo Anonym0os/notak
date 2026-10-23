@@ -157,25 +157,29 @@
   outline: none;
 }
 
-/* Le titre : 16 px, 600, interligne 25 px ; 1 px au-dessus, 4 au-dessous. */
+/* Le titre : 16 px, 600, interligne 25 px ; 1 px au-dessus, 4 au-dessous. C'est le premier nœud du document. */
 .notak-taches-titre {
   display: block;
   box-sizing: border-box;
   width: 100%;
   margin: 1px 0 4px;
   padding: 0;
-  border: 0;
-  background: none;
   color: var(--notak-texte);
-  font: inherit;
   font-size: 16px;
   font-weight: 600;
   line-height: 25px;
+  white-space: pre-wrap;
   outline: none;
 }
 
-.notak-taches-titre::placeholder {
-  color: #b3b9c1;
+/* Un titre vide dit quoi y mettre (en édition seulement : hors édition il n'est pas dessiné). */
+.notak-taches-titre:empty::before,
+.notak-taches-titre:has(> br.ProseMirror-trailingBreak:only-child)::before {
+  content: var(--notak-ph-titre, 'Titre');
+  float: left;
+  height: 0;
+  color: #d1d3d6;
+  pointer-events: none;
 }
 
 .notak-barre-selection .notak-taches-compteur {
@@ -323,79 +327,287 @@
   box-shadow: 0 0 0 2px var(--notak-texte);
 }
 
-/* Le menu d'une puce : posé sur la toile, sous la puce touchée. */
+/* Une cloche en tête de la puce d'échéance quand un rappel est posé. */
+.notak-puce[data-rappel]::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin: 2px 2px 0 -3px;
+  vertical-align: top;
+  background: currentColor;
+  -webkit-mask: var(--notak-icone-cloche) center / 14px 14px no-repeat;
+  mask: var(--notak-icone-cloche) center / 14px 14px no-repeat;
+}
+
+.notak-taches {
+  --notak-icone-cloche: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'><path d='M4 11.5V7a4 4 0 0 1 8 0v4.5l1 1H3zM6.5 14h3'/></svg>");
+}
+
+/*
+ * La fenêtre d'une puce : posée sur la toile, sous la puce touchée, 292 px de large. L'échéance a 20 px de marge
+ * (calendrier, heure, rappel) ; la personne n'en a pas (recherche en tête, liste dessous).
+ */
 .notak-menu-puce {
   position: fixed;
   z-index: 30;
   box-sizing: border-box;
-  width: 232px;
+  width: 292px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px;
   border-radius: 8px;
   background: var(--notak-carte);
   color: var(--notak-texte);
   font-size: 13px;
+  outline: none;
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
 }
 
-.notak-menu-puce input {
-  box-sizing: border-box;
-  width: 100%;
-  height: 30px;
-  padding: 0 8px;
-  border: 1px solid #d5d9de;
-  border-radius: 6px;
-  background: none;
-  color: inherit;
-  font: inherit;
-}
-
-.notak-menu-puce-raccourcis {
-  display: flex;
-  flex-direction: column;
+.notak-menu-puce[data-genre='echeance'] {
+  min-height: 350px;
+  padding: 20px;
 }
 
 .notak-menu-puce button {
-  height: 28px;
-  padding: 0 8px;
   border: 0;
-  border-radius: 6px;
   background: none;
   color: inherit;
   font: inherit;
-  text-align: left;
   cursor: pointer;
 }
 
-.notak-menu-puce button:hover {
+/* Le calendrier : le mois et ses deux flèches, l'initiale des jours, six semaines de cases de 36 px. */
+.notak-cal-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+}
+
+.notak-cal-mois {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.notak-cal-fleche {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 30px;
+  padding: 0;
+  border-radius: 4px;
+}
+
+.notak-cal-fleche:hover,
+.notak-cal-jour:not(:disabled):hover {
   background: var(--notak-fond);
 }
 
-.notak-menu-puce-retirer {
-  color: #d43b3b !important;
+.notak-cal-grille {
+  display: grid;
+  grid-template-columns: repeat(7, 36px);
+  margin-top: 4px;
 }
 
-.notak-menu-puce-raccourcis button {
+.notak-cal-initiale {
+  height: 20px;
+  color: #8d929a;
+  font-size: 11px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.notak-cal-vide,
+.notak-cal-jour {
+  box-sizing: border-box;
+  width: 36px;
+  height: 36px;
+}
+
+.notak-cal-jour {
+  padding: 0;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.notak-cal-jour:disabled {
+  color: #c4c8ce;
+  cursor: default;
+}
+
+/* Aujourd'hui est cerclé ; le jour choisi est en gras, cerclé plus fort. */
+.notak-cal-jour[data-aujourdhui] {
+  box-shadow: inset 0 0 0 2px var(--notak-accent);
+}
+
+.notak-cal-jour[aria-pressed='true'] {
+  font-weight: 700;
+  box-shadow: inset 0 0 0 2px var(--notak-texte);
+}
+
+/* L'heure : un bouton pleine largeur, puis une ligne avec l'horloge, le champ et « Retirer l'heure ». */
+.notak-menu-heure {
+  margin-top: 15px;
+}
+
+.notak-menu-heure-ajout {
   display: flex;
   align-items: center;
   gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 37px;
+  padding: 0 8px;
+  border: 1px solid #d5d9de !important;
+  border-radius: 3px;
 }
 
-.notak-menu-puce-raccourcis button[aria-pressed='true'] {
-  background: var(--notak-fond);
+.notak-menu-heure-ajout:disabled {
+  color: #b3b9c1;
+  cursor: default;
+}
+
+.notak-menu-heure-ligne {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  height: 37px;
+  padding: 0 8px;
+  border: 1px solid #d5d9de;
+  border-radius: 3px;
+}
+
+.notak-menu-heure-ligne input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.notak-menu-lien {
+  padding: 0;
+  color: var(--notak-accent) !important;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+/* Le rappel : une liste déroulante de 35 px, une cloche à gauche, une flèche à droite. */
+.notak-menu-rappel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-top: 10px;
+  height: 35px;
+  border-radius: 3px;
+}
+
+.notak-menu-rappel:hover {
+  background: #f3f3f4;
+}
+
+.notak-menu-rappel[data-desactive] {
+  opacity: 0.45;
+}
+
+.notak-menu-rappel > .notak-ico:first-child,
+.notak-menu-rappel > .notak-ico:last-child {
+  position: absolute;
+  pointer-events: none;
+}
+
+.notak-menu-rappel > .notak-ico:first-child {
+  left: 8px;
+}
+
+.notak-menu-rappel > .notak-ico:last-child {
+  right: 8px;
+}
+
+.notak-menu-rappel select {
+  appearance: none;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 0 32px 0 40px;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* La personne : la recherche en tête, séparée d'un trait, puis les collaborateurs. */
+.notak-menu-recherche {
+  box-sizing: border-box;
+  width: 100%;
+  height: 36px;
+  margin: 4px 0 0;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 1px solid #e6e8eb;
+  background: none;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.notak-menu-liste {
+  max-height: 240px;
+  padding: 7px 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.notak-menu-liste button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 36px;
+  padding: 0 16px;
+  text-align: left;
+}
+
+.notak-menu-liste button[data-actif] {
+  background: #f3f3f4;
+}
+
+.notak-menu-liste-nom {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-menu-liste mark {
+  background: none;
+  color: inherit;
+  font-weight: 700;
+}
+
+.notak-menu-vide {
+  margin: 0;
+  padding: 8px 16px;
+  color: #8d929a;
 }
 
 .notak-menu-puce-pastille {
   flex: none;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   color: #fff;
   font-size: 9px;
   font-weight: 600;
-  line-height: 20px;
+  line-height: 22px;
   text-align: center;
 }
 
@@ -427,6 +639,7 @@
   opacity: 0;
 }
 
+.notak-taches[data-texte-choisi] .notak-tache-suppr,
 .notak-carte[data-verrou] .notak-tache-poignee,
 .notak-carte[data-verrou] .notak-tache-suppr,
 *:has(> .notak-carte[data-choisie] ~ .notak-carte[data-choisie]) > .notak-carte[data-choisie] .notak-tache-poignee,
@@ -435,9 +648,10 @@
   pointer-events: none !important;
 }
 
-/* Pendant le glisser : la tâche prise s'efface un peu, un trait montre où elle se posera. */
-.notak-taches li[data-glisse] {
+/* Pendant le glisser : la tâche prise reste en place, grise à 40 % (sauf pour une copie) ; un trait montre où elle se posera. */
+.notak-taches li[data-glisse]:not([data-copie]) {
   opacity: 0.4;
+  filter: grayscale(1);
 }
 
 .notak-glisse-repere {
@@ -448,36 +662,46 @@
   pointer-events: none;
 }
 
+.notak-glisse-repere[data-fixe] {
+  position: fixed;
+  z-index: 1000;
+}
+
 .notak-glisse-repere[hidden] {
   display: none;
 }
 
-/* Une tâche qu'on porte hors de sa liste : une pastille derrière le pointeur, pointillée au-dessus du vide de la toile. */
-.notak-glisse-fantome {
+/*
+ * Ce qui suit le pointeur : la tâche et ses sous-tâches dans une carte de liste (blanche, avec son ombre). Elle devient
+ * transparente au-dessus d'une autre liste ou d'une colonne.
+ */
+.notak-glisse-apercu {
   position: fixed;
   top: 0;
   left: 0;
   z-index: 1000;
-  max-width: 220px;
-  padding: 4px 10px;
-  overflow: hidden;
-  border: 1px solid var(--notak-accent);
-  border-radius: 6px;
+  box-sizing: border-box;
+  padding: 19px 24px;
+  transform-origin: 0 0;
   background: var(--notak-carte, #fff);
-  box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
+  box-shadow: var(--notak-ombre-vol, 0 8px 22px -6px rgb(27 37 54 / 0.2));
   color: var(--notak-texte, #1f2328);
-  font-size: 13px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   pointer-events: none;
+  transition: opacity 100ms linear;
 }
 
-.notak-glisse-fantome[hidden] {
+.notak-glisse-apercu[data-dessus='liste'],
+.notak-glisse-apercu[data-dessus='colonne'] {
+  opacity: 0.5;
+}
+
+.notak-glisse-apercu[hidden] {
   display: none;
 }
 
-.notak-glisse-fantome[data-toile] {
-  border-style: dashed;
+.notak-glisse-apercu .notak-tache-poignee,
+.notak-glisse-apercu .notak-tache-suppr {
+  display: none;
 }
 
 /* La liste qui recevra la tâche. */
@@ -485,4 +709,46 @@
   outline: 2px dashed var(--notak-accent);
   outline-offset: 4px;
   border-radius: 2px;
+}
+
+/*
+ * La bulle de suggestion sous la liste : 40 px, pleine largeur de la carte, la question puis deux réponses
+ * soulignées. Elle entre en 200 ms (hauteur, fondu, glissement de 40 px).
+ */
+.notak-suggestion {
+  position: absolute;
+  top: calc(100% + 19px);
+  left: -24px;
+  right: -24px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 24px;
+  overflow: hidden;
+  color: #7a7f87;
+  font-size: 13px;
+  white-space: nowrap;
+  animation: notak-suggestion-entree 200ms ease-out;
+}
+
+.notak-suggestion button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.notak-suggestion button:hover {
+  color: var(--notak-texte);
+}
+
+@keyframes notak-suggestion-entree {
+  from { height: 0; opacity: 0; transform: translateY(-40px); }
+  to { height: 40px; opacity: 1; transform: none; }
 }

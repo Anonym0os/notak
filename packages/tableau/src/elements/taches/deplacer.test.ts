@@ -69,3 +69,49 @@ describe('deplacer', () => {
     expect(lire(deplacer(d, 8, 5, true))).toEqual(['1', ['2', ['3', ['4', ['5', ['Y', '6']]]]], 'X', ['x1']])
   })
 })
+
+describe('deplacer, dans une tâche et en copie', () => {
+  type Plan = (string | Plan)[]
+  const t = (texte: string, sous: NoeudTexte[] = []): NoeudTexte => ({
+    type: 'taskItem',
+    attrs: { checked: false },
+    content: [{ type: 'paragraph', content: [{ type: 'text', text: texte }] }, ...(sous.length ? [{ type: 'taskList', content: sous }] : [])],
+  })
+  const liste = (...taches: NoeudTexte[]): NoeudTexte => ({ type: 'doc', content: [{ type: 'taskList', content: taches }] })
+  const lire = (doc: NoeudTexte): Plan =>
+    sousTaches(doc).flatMap((x): Plan => {
+      const texte = x.content![0]!.content![0]!.text!
+      return sousTaches(x).length ? [texte, lire(x)] : [texte]
+    })
+  const doc = liste(t('A'), t('B', [t('b1')]), t('C'))
+
+  it('« dans » range la tâche en dernière sous-tâche, et crée la sous-liste au besoin', () => {
+    expect(lire(deplacer(doc, 0, 3, 'dans'))).toEqual(['B', ['b1'], 'C', ['A']])
+    expect(lire(deplacer(doc, 3, 1, 'dans'))).toEqual(['A', 'B', ['b1', 'C']])
+    expect(lire(deplacer(doc, 2, 0, 'dans'))).toEqual(['A', ['b1'], 'B', 'C'])
+  })
+
+  it('« dans » refuse la tâche elle-même et ses sous-tâches, et le sixième niveau', () => {
+    expect(deplacer(doc, 1, 1, 'dans')).toBe(doc)
+    expect(deplacer(doc, 1, 2, 'dans')).toBe(doc)
+    const profond = liste(t('1', [t('2', [t('3', [t('4', [t('5', [t('6')])])])])]), t('X'))
+    expect(deplacer(profond, 6, 5, 'dans')).toBe(profond)
+  })
+
+  it('« dans » le parent déjà occupé reclasse la tâche en dernière', () => {
+    const d = liste(t('P', [t('a'), t('b')]))
+    expect(lire(deplacer(d, 1, 0, 'dans'))).toEqual(['P', ['b', 'a']])
+  })
+
+  it('une copie double la tâche et ses sous-tâches, sans toucher à l’original', () => {
+    expect(lire(deplacer(doc, 1, 3, 'apres', true))).toEqual(['A', 'B', ['b1'], 'C', 'B', ['b1']])
+    expect(lire(deplacer(doc, 0, 0, 'apres', true))).toEqual(['A', 'A', 'B', ['b1'], 'C'])
+    expect(lire(deplacer(doc, 0, 2, 'avant', true))).toEqual(['A', 'B', ['A', 'b1'], 'C'])
+  })
+
+  it('une copie refuse l’une de ses propres sous-tâches, et « dans » elle-même', () => {
+    expect(deplacer(doc, 1, 2, 'apres', true)).toBe(doc)
+    expect(deplacer(doc, 1, 1, 'dans', true)).toBe(doc)
+  })
+})
+

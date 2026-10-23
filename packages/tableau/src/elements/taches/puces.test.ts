@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { type NoeudTexte } from '../../coeur/tableau'
 import { regler, docVide, sousTaches } from './liste'
-import { assigneDe, attrsPuce, decaler, echeanceDe, initiales, jourDe, jourValide, libelleEcheance, personnes, puces, teinteDe } from './puces'
+import { assigneDe, attrsAllumes, attrsEteints, attrsHeure, attrsJour, attrsPersonne, attrsVides, decaler, heureDe, optionsRappel, rappelApres, rappelDe, echeanceDe, initiales, jourDe, jourValide, libelleEcheance, personnes, puces, teinteDe } from './puces'
 
 describe('jours', () => {
   it('écrit le jour de la machine AAAA-MM-JJ', () => {
@@ -52,10 +52,16 @@ describe('puces', () => {
     expect(puces({ echeance: '2026-10-20', checked: true }, ajd)[0]!.statut).toBe('fait')
   })
 
-  it('poser une valeur allume la puce, l’effacer la laisse vide, l’effacer encore l’éteint', () => {
-    expect(attrsPuce('echeance', '2026-10-23', null)).toEqual({ echeance: '2026-10-23', montreEcheance: true })
-    expect(attrsPuce('assigne', null, 'Léa')).toEqual({ assigne: null })
-    expect(attrsPuce('assigne', null, null)).toEqual({ montreAssigne: null })
+  it('poser une valeur allume la puce, l’effacer la laisse vide, l’éteindre efface tout', () => {
+    const maintenant = new Date(2026, 9, 23, 10, 0)
+    expect(attrsJour({}, '2026-10-24', maintenant)).toEqual({ echeance: '2026-10-24', montreEcheance: true, rappel: 'jour9' })
+    expect(attrsJour({ echeance: '2026-10-24' }, null, maintenant)).toEqual({ echeance: null, heure: null, rappel: null })
+    expect(attrsPersonne('Léa')).toEqual({ assigne: 'Léa', montreAssigne: true })
+    expect(attrsPersonne(null)).toEqual({ assigne: null })
+    expect(attrsVides('assigne')).toEqual({ assigne: null })
+    expect(attrsAllumes('echeance')).toEqual({ montreEcheance: true })
+    expect(attrsEteints('assigne')).toEqual({ assigne: null, montreAssigne: null })
+    expect(attrsEteints('echeance')).toEqual({ echeance: null, heure: null, rappel: null, montreEcheance: null })
   })
 
   it('une échéance passée est en retard tant que la tâche n’est pas faite', () => {
@@ -130,5 +136,64 @@ describe('regler', () => {
   it('un chemin inconnu ne change rien', () => {
     expect(regler(doc, [9], { echeance: '2026-10-30' })).toBe(doc)
     expect(regler(docVide(), [], { echeance: '2026-10-30' })).toEqual(docVide())
+  })
+})
+
+describe('heure et rappel', () => {
+  const maintenant = new Date(2026, 9, 23, 10, 0)
+
+  it('lit une heure valable seulement', () => {
+    expect(heureDe({ heure: '17:00' })).toBe('17:00')
+    expect(heureDe({ heure: '25:00' })).toBeNull()
+    expect(heureDe({ heure: 17 })).toBeNull()
+    expect(rappelDe({ rappel: '1h' })).toBe('1h')
+    expect(rappelDe({ rappel: 'bientôt' })).toBeNull()
+  })
+
+  it('propose, sans heure, 9 h le jour même et la veille, tant qu’ils sont à venir', () => {
+    expect(optionsRappel('2026-10-25', null, maintenant)).toEqual(['aucun', 'jour9', 'veille9'])
+    // Demain, 9 h la veille est déjà passé.
+    expect(optionsRappel('2026-10-24', null, maintenant)).toEqual(['aucun', 'jour9'])
+    // Aujourd'hui, 9 h est passé ; la veille aussi.
+    expect(optionsRappel('2026-10-23', null, maintenant)).toEqual(['aucun'])
+    expect(optionsRappel('2026-10-24', null, new Date(2026, 9, 24, 9, 30))).toEqual(['aucun'])
+  })
+
+  it('propose, avec une heure, l’échéance, 10 minutes et 1 heure avant', () => {
+    expect(optionsRappel('2026-10-25', '17:00', maintenant)).toEqual(['aucun', 'echeance', '10min', '1h', 'jour9', 'veille9'])
+    // 9 h le jour même n'est proposé que si l'échéance est à 9 h ou après.
+    expect(optionsRappel('2026-10-25', '08:30', maintenant)).not.toContain('jour9')
+    // Dans 40 minutes : une heure avant est déjà passé.
+    expect(optionsRappel('2026-10-23', '10:40', maintenant)).toEqual(['aucun', 'echeance', '10min'])
+  })
+
+  it('rappelApres garde « aucun », garde un rappel valable, sinon prend 9 h le jour même', () => {
+    expect(rappelApres('2026-10-24', null, 'aucun', maintenant)).toBe('aucun')
+    expect(rappelApres('2026-10-25', null, 'veille9', maintenant)).toBe('veille9')
+    expect(rappelApres('2026-10-24', null, null, maintenant)).toBe('jour9')
+    // Une heure retire « 9 h le jour même » si l'échéance est tôt : le dernier proposé le remplace.
+    expect(rappelApres('2026-10-25', '08:00', 'jour9', maintenant)).toBe('veille9')
+    expect(rappelApres('2026-10-23', null, null, maintenant)).toBe('aucun')
+  })
+
+  it('fixer l’heure ajuste le rappel ; sans date, rien', () => {
+    expect(attrsHeure({ echeance: '2026-10-24' }, '17:00', maintenant)).toEqual({ heure: '17:00', rappel: 'jour9' })
+    expect(attrsHeure({ echeance: '2026-10-24', heure: '17:00', rappel: 'aucun' }, null, maintenant)).toEqual({ heure: null, rappel: 'aucun' })
+    expect(attrsHeure({}, '17:00', maintenant)).toEqual({})
+  })
+
+  it('écrit l’heure entre parenthèses, et la cloche quand un rappel est posé', () => {
+    const [p] = puces({ echeance: '2026-10-24', heure: '17:00', rappel: 'jour9' }, '2026-10-23', maintenant)
+    expect(p).toMatchObject({ texte: 'Pour demain (17:00)', statut: 'futur', rappel: true })
+    expect(puces({ echeance: '2026-10-24', rappel: 'aucun' }, '2026-10-23', maintenant)[0]!.rappel).toBe(false)
+  })
+
+  it('avec une heure, le retard commence à l’instant dit ; aujourd’hui passé, on dit depuis quand', () => {
+    expect(puces({ echeance: '2026-10-23', heure: '11:00' }, '2026-10-23', maintenant)[0]).toMatchObject({ statut: 'aujourdhui', texte: 'Pour aujourd\'hui (11:00)' })
+    const passe = puces({ echeance: '2026-10-23', heure: '08:00' }, '2026-10-23', maintenant)[0]!
+    expect(passe.statut).toBe('retard')
+    expect(passe.texte).toMatch(/^Pour il y a 2 heures$/)
+    // Une tâche faite n'est jamais en retard.
+    expect(puces({ echeance: '2026-10-23', heure: '08:00', checked: true }, '2026-10-23', maintenant)[0]).toMatchObject({ statut: 'fait', texte: 'Pour aujourd\'hui (08:00)' })
   })
 })

@@ -19,9 +19,13 @@ const estTexte = (n: Node): n is Text => n.nodeType === 3
 
 const nettoyer = (texte: string) => texte.replace(/[\s ]+/g, ' ').trim()
 
-const tache = (texte: string, fait: boolean, sous: NoeudTexte[]): NoeudTexte => ({
+/** Les puces qu'une tâche copiée de Notak porte dans le HTML (`data-echeance`…), pour qu'elles survivent au collage. */
+const PUCES_HTML = ['echeance', 'assigne', 'heure', 'rappel'] as const
+const DRAPEAUX_HTML = [['montreEcheance', 'data-montre-echeance'], ['montreAssigne', 'data-montre-assigne']] as const
+
+const tache = (texte: string, fait: boolean, sous: NoeudTexte[], plus: Record<string, unknown> = {}): NoeudTexte => ({
   type: 'taskItem',
-  attrs: { checked: fait },
+  attrs: { checked: fait, ...plus },
   content: [
     texte ? { type: 'paragraph', content: [{ type: 'text', text: texte }] } : { type: 'paragraph' },
     ...(sous.length > 0 ? [{ type: 'taskList', content: sous }] : []),
@@ -40,8 +44,14 @@ function puce(li: Element): NoeudTexte {
     else if (estElement(c) && LISTES.has(c.tagName)) sous.push(...puces(c))
     else if (estElement(c) && !IGNORES.has(c.tagName)) texte += ` ${c.textContent ?? ''} `
   }
-  const fait = !!li.querySelector('input[type="checkbox"][checked], input[type="checkbox"]:checked')
-  return tache(nettoyer(texte), fait, sous)
+  const fait = li.getAttribute('data-checked') === 'true' || !!li.querySelector('input[type="checkbox"][checked], input[type="checkbox"]:checked')
+  const posees: Record<string, unknown> = {}
+  for (const nom of PUCES_HTML) {
+    const v = li.getAttribute(`data-${nom}`)
+    if (v) posees[nom] = v
+  }
+  for (const [nom, attribut] of DRAPEAUX_HTML) if (li.getAttribute(attribut) === 'true') posees[nom] = true
+  return tache(nettoyer(texte), fait, sous, posees)
 }
 
 const puces = (liste: Element) => [...liste.children].filter((c) => c.tagName === 'LI').map(puce)
@@ -93,7 +103,7 @@ function borner(taches: NoeudTexte[], niveau = 1): NoeudTexte[] {
     const [p, sous] = t.content!
     const enfants = sous?.content ?? []
     if (enfants.length === 0) return [t]
-    if (niveau >= PROFONDEUR_MAX) return [tache(p!.content?.[0]?.text ?? '', t.attrs?.checked === true, []), ...borner(enfants, niveau)]
+    if (niveau >= PROFONDEUR_MAX) return [{ ...t, content: [p!] }, ...borner(enfants, niveau)]
     return [{ ...t, content: [p!, { ...sous!, content: borner(enfants, niveau + 1) }] }]
   })
 }

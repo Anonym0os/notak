@@ -1,5 +1,5 @@
 import { type Point, type Rect, englobant } from './geometrie'
-import { type Element, type Extremite, type Id, type Tableau, aimanter, nouvelId } from './tableau'
+import { type Element, type Extremite, type Id, type NoeudTexte, type Tableau, aimanter, nouvelId } from './tableau'
 
 /** Ce qu'on a copié : les éléments, prêts à recréer, et leur cadre d'origine sur le tableau (en UG). */
 export interface Paquet {
@@ -87,6 +87,18 @@ export function decalageDeCollage(p: Paquet, enVue: boolean, n: number, centre: 
   return { x: Math.round(centre.x - cx), y: Math.round(centre.y - cy) }
 }
 
+/** Une liste de tâches en lignes : le titre d'abord, puis une ligne par tâche, les sous-tâches décalées de 4 espaces par niveau. */
+function lignesDeTaches(titre: string | undefined, texte: NoeudTexte): string[] {
+  const paragraphe = (t: NoeudTexte) => (t.content ?? []).find((x) => x.type === 'paragraph')
+  const mots = (n: NoeudTexte | undefined): string => (n ? (n.text ?? (n.content ?? []).map((x) => (x.type === 'hardBreak' ? ' ' : mots(x))).join('')) : '')
+  const tache = (t: NoeudTexte, niveau: number): string[] => [
+    `${'    '.repeat(niveau)}${mots(paragraphe(t))}`,
+    ...(t.content ?? []).flatMap((n) => (n.type === 'taskList' ? (n.content ?? []).flatMap((x) => tache(x, niveau + 1)) : [])),
+  ]
+  const taches = (texte.content ?? []).flatMap((n) => (n.type === 'taskList' ? (n.content ?? []).flatMap((x) => tache(x, 0)) : []))
+  return [...(titre ? [titre] : []), ...taches]
+}
+
 /** Le texte brut du paquet, pour coller ailleurs que dans Notak. */
 export function texteDuPaquet(p: Paquet): string {
   const lignes: string[] = []
@@ -94,7 +106,8 @@ export function texteDuPaquet(p: Paquet): string {
     n.text ?? (n.content ?? []).map((x) => lire(x as typeof n)).join(n.content?.length ? '\n' : '')
   for (const e of p.elements) {
     const c = e.contenu
-    if (c.type === 'note' || c.type === 'taches') lignes.push(lire(c.texte).trim())
+    if (c.type === 'taches') lignes.push(lignesDeTaches(c.titre, c.texte).join('\n'))
+    else if (c.type === 'note') lignes.push(lire(c.texte).trim())
     else if (c.type === 'lien') lignes.push(c.url)
     else if (c.type === 'colonne') lignes.push(c.titre)
   }
