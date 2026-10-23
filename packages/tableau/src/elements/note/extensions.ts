@@ -1,9 +1,11 @@
+import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { type Editor, Extension, InputRule, Mark, markInputRule, mergeAttributes } from '@tiptap/react'
 import Highlight from '@tiptap/extension-highlight'
 import TextAlign from '@tiptap/extension-text-align'
 import { Color, TextStyle } from '@tiptap/extension-text-style'
 import StarterKit from '@tiptap/starter-kit'
-import { basculerCentre, basculerSurlignage, poserStyle } from './commandes'
+import { basculerCentre, basculerCode, basculerSurlignage, poserStyle } from './commandes'
 import { normaliserUrl } from './conversion'
 import { MARQUE_FIL } from './fils'
 import { AdressesReperees, CelluleTable, Encadre, EnteteTable, LienTableau, LigneTable, Mention, Table } from './noeuds'
@@ -40,6 +42,31 @@ export const FilTexte = Mark.create({
   },
   parseHTML: () => [{ tag: 'span[data-fil]' }],
   renderHTML: ({ HTMLAttributes }) => ['span', mergeAttributes(HTMLAttributes, { class: 'notak-fil-texte' }), 0],
+})
+
+/**
+ * Le code en ligne. Comme celui de Tiptap, mais il laisse passer les autres marques : on peut y mettre du gras,
+ * un lien, un surlignage ou un commentaire (celui de Tiptap les exclut toutes).
+ */
+const CodeEnLigne = Mark.create({
+  name: 'code',
+  excludes: '',
+  code: true,
+  parseHTML: () => [{ tag: 'code' }],
+  renderHTML: ({ HTMLAttributes }) => ['code', mergeAttributes(HTMLAttributes), 0],
+  addCommands() {
+    return {
+      setCode: () => ({ commands }) => commands.setMark(this.name),
+      toggleCode: () => ({ commands }) => commands.toggleMark(this.name),
+      unsetCode: () => ({ commands }) => commands.unsetMark(this.name),
+    }
+  },
+  addKeyboardShortcuts() {
+    return { 'Mod-e': () => this.editor.commands.toggleCode() }
+  },
+  addInputRules() {
+    return [markInputRule({ find: /(^|[^`])`([^`]+)`(?!`)$/, type: this.type })]
+  },
 })
 
 /** Le petit texte : un paragraphe marqué, que `note.css` dessine plus petit. */
@@ -80,7 +107,11 @@ const RaccourcisFormat = Extension.create({
       'Mod-Shift-o': () => e().commands.toggleOrderedList(),
       'Mod-Shift-b': () => poserStyle(e(), 'citation'),
       "Mod-'": () => poserStyle(e(), 'citation'),
-      'Mod-.': () => poserStyle(e(), 'code'),
+      'Mod-.': () => basculerCode(e()),
+      'Mod->': () => basculerCode(e()),
+      'Mod-Shift-.': () => basculerCode(e()),
+      'Mod-"': () => poserStyle(e(), 'citation'),
+      "Mod-Shift-'": () => poserStyle(e(), 'citation'),
       'Mod-\\': () => basculerCentre(e()),
       'Mod-Shift-h': () => basculerSurlignage(e(), 'vert'),
       'Mod-j': () => basculerSurlignage(e(), 'vert'),
@@ -101,6 +132,91 @@ const Retraits = Extension.create({
   },
 })
 
+/**
+ * Retour arrière en tête d'un titre ou d'un petit texte : le bloc redevient un paragraphe normal.
+ * Avant les listes, dont l'élément remonte d'un niveau quand il n'y a rien de tel à défaire.
+ */
+const BlocEnParagraphe = Extension.create({
+  name: 'blocEnParagraphe',
+  priority: 1000,
+  addKeyboardShortcuts() {
+    return {
+      Backspace: () => {
+        const { selection } = this.editor.state
+        if (!selection.empty || selection.$from.parentOffset !== 0) return false
+        const parent = selection.$from.parent
+        if (parent.type.name === 'heading') return this.editor.commands.setParagraph()
+        if (parent.type.name === 'paragraph' && parent.attrs.petit) return this.editor.commands.updateAttributes('paragraph', { petit: null })
+        return false
+      },
+    }
+  },
+})
+
+/** Entrée efface les marques en cours (gras, couleur, surlignage) : la ligne suivante repart sans mise en forme en ligne. */
+const MarquesALEntree = Extension.create({
+  name: 'marquesALEntree',
+  addProseMirrorPlugins() {
+    const editor = this.editor
+    return [
+      new Plugin({
+        key: new PluginKey('marquesALEntree'),
+        props: {
+          handleKeyDown: (view, e) => {
+            if (e.key !== 'Enter' || e.shiftKey || e.metaKey || e.ctrlKey || e.isComposing) return false
+            // Après la touche : le bloc est coupé, les marques gardées vivent dans les « marques en attente ».
+            queueMicrotask(() => {
+              if (editor.isDestroyed) return
+              const { selection, storedMarks } = view.state
+              if (selection.empty && selection.$from.parent.content.size === 0 && storedMarks?.length) {
+                view.dispatch(view.state.tr.setStoredMarks([]))
+              }
+            })
+            return false
+          },
+        },
+      }),
+    ]
+  },
+})
+
+/**
+ * Quand l'éditeur perd le focus alors que du texte est choisi (clic dans le champ d'adresse du lien, dans un menu),
+ * le passage reste surligné ; il le cesse au retour du focus.
+ */
+const SelectionVirtuelle = Extension.create({
+  name: 'selectionVirtuelle',
+  addProseMirrorPlugins() {
+    const cle = new PluginKey<boolean>('selectionVirtuelle')
+    return [
+      new Plugin<boolean>({
+        key: cle,
+        state: {
+          init: () => false,
+          apply: (tr, avant) => (tr.getMeta(cle) as boolean | undefined) ?? avant,
+        },
+        props: {
+          decorations: (state) => {
+            const { from, to, empty } = state.selection
+            if (empty || !cle.getState(state)) return null
+            return DecorationSet.create(state.doc, [Decoration.inline(from, to, { class: 'notak-selection-virtuelle' })])
+          },
+          handleDOMEvents: {
+            blur: (view) => {
+              if (!view.isDestroyed) view.dispatch(view.state.tr.setMeta(cle, true))
+              return false
+            },
+            focus: (view) => {
+              if (!view.isDestroyed) view.dispatch(view.state.tr.setMeta(cle, false))
+              return false
+            },
+          },
+        },
+      }),
+    ]
+  },
+})
+
 const styleActifPetit = (ed: Editor) => ed.isActive('paragraph', { petit: true })
 
 /**
@@ -115,6 +231,13 @@ const MarkdownTape = Extension.create({
     return [
       markInputRule({ find: /(?:^|\s)(\*(?!\s+\*)((?:[^*]+))\*(?!\s+\*))$/, type: bold! }),
       markInputRule({ find: /(?:^|\s)(~(?!~)((?:[^~]+))~(?!~))$/, type: strike! }),
+      // `---`, `***` ou `___` seuls sur la ligne font un séparateur tout de suite, sans espace après.
+      new InputRule({
+        find: /^(?:---|\*\*\*|___)$/,
+        handler: ({ range, chain }) => {
+          chain().deleteRange(range).setHorizontalRule().run()
+        },
+      }),
       new InputRule({
         find: /\[([^\]]+)\]\((\S+)\)$/,
         handler: ({ state, range, match }) => {
@@ -131,7 +254,7 @@ const MarkdownTape = Extension.create({
  * Une seule liste, pour l'éditeur comme pour le rendu figé. Une adresse tapée ou collée ne devient pas un lien
  * d'elle-même (`autolink`, `linkOnPaste`) : elle reste du texte, que `AdressesReperees` souligne.
  */
-const KIT = { heading: { levels: [1, 2] as (1 | 2)[] }, link: { openOnClick: false, autolink: false, linkOnPaste: false } }
+const KIT = { code: false as const, heading: { levels: [1, 2] as (1 | 2)[] }, link: { openOnClick: false, autolink: false, linkOnPaste: false } }
 
 export const EXTENSIONS_NOTE = [
   StarterKit.configure(KIT),
@@ -142,6 +265,10 @@ export const EXTENSIONS_NOTE = [
   PetitTexte,
   RaccourcisFormat,
   Retraits,
+  CodeEnLigne,
+  BlocEnParagraphe,
+  MarquesALEntree,
+  SelectionVirtuelle,
   MarkdownTape,
   Encadre,
   Table,
@@ -203,11 +330,19 @@ export const raccourcisEdition = (gestes: { current: GestesEdition }) =>
           return true
         },
         Enter: () => gestes.current.entree(),
-        Backspace: () => {
-          if (!gestes.current.estVide()) return false
-          gestes.current.supprimerNote()
-          return true
-        },
+        // Retour arrière et Suppr, seuls ou avec Maj, Alt, Ctrl, Cmd : tous mettent la note vide à la corbeille.
+        ...Object.fromEntries(
+          ['Backspace', 'Delete'].flatMap((touche) =>
+            ['', 'Shift-', 'Alt-', 'Ctrl-', 'Mod-'].map((mod) => [
+              `${mod}${touche}`,
+              () => {
+                if (!gestes.current.estVide()) return false
+                gestes.current.supprimerNote()
+                return true
+              },
+            ]),
+          ),
+        ),
       }
     },
   })

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { type NoeudTexte, docDepuisTexte } from '../../coeur/tableau'
 import { adresseSeule, adressesEnLiens, caseSeule, contientDuTexte, decouperAdresses, tachesDepuisTexte, docDepuisCollage, docEstVide, normaliserUrl, sansCouleursCollees } from './conversion'
 import { EXTENSIONS_NOTE } from './extensions'
-import { ICONES_ENCADRE, iconeSuivante } from './noeuds'
+import { ICONES_ENCADRE, ICONE_ENCADRE_DEFAUT, iconeSuivante } from './noeuds'
 
 const paragraphe = (texte?: string): NoeudTexte => ({ type: 'paragraph', ...(texte ? { content: [{ type: 'text', text: texte }] } : {}) })
 const doc = (...content: NoeudTexte[]): NoeudTexte => ({ type: 'doc', content })
@@ -174,6 +174,11 @@ describe('encadré', () => {
   it('se relit depuis le HTML avec son icône', () => {
     const d = generateJSON('<div data-type="encadre" data-icone="⚠️"><p>x</p></div>', EXTENSIONS_NOTE)
     expect(d.content[0]).toMatchObject({ type: 'encadre', attrs: { icone: '⚠️' } })
+  })
+  it('un encadré neuf porte l\'avertissement', () => {
+    const d = generateJSON('<div data-type="encadre"><p>x</p></div>', EXTENSIONS_NOTE)
+    expect(d.content[0]).toMatchObject({ type: 'encadre', attrs: { icone: ICONE_ENCADRE_DEFAUT } })
+    expect(ICONE_ENCADRE_DEFAUT).toBe('⚠️')
   })
   it('l\'icône suivante fait le tour', () => {
     expect(iconeSuivante('💡')).toBe('ℹ️')

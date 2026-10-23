@@ -126,6 +126,12 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Barre de mise en forme | ✅ | Posée sur la note, pas dans la barre de gauche (choix). |
 | Mention d'une personne (@) | ✅ |  |
 | Lien vers un tableau dans le texte | ✅ |  |
+| Légende riche dans la carte (gras, lien, centrer) | 🟡 | Posée dans la carte, en 12 px ; reste du texte brut (relevé `ecart-note.md` § 3). |
+| Extraction d'un passage en note (icône à tirer, Alt copie) | ⬜ | |
+| Aperçu de couleur dans le texte, note qui n'est qu'une couleur → nuancier | ⬜ | |
+| Suggestion « Convertir en document » sur une note longue | ⬜ | |
+| Sélecteur d'émojis complet pour l'encadré et le menu d'insertion | ⬜ | L'icône de l'encadré défile parmi 8 ; le menu d'insertion n'a que 32 émojis. |
+| Commentaire sur un passage : fil ouvert au clic hors édition | 🟡 | Le passage a le style de Milanote ; le fil ne s'affiche qu'en édition. |
 
 ## 4. Colonne
 

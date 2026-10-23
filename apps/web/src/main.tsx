@@ -1,4 +1,5 @@
 import '@fontsource-variable/inter'
+import '@fontsource-variable/source-serif-4'
 import '@notak/tableau/toile.css'
 import './app.css'
 import {

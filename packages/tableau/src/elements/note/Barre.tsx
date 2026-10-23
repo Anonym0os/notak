@@ -18,9 +18,9 @@ const STYLES: { style: StyleMenu; libelle: string; ligne: string; raccourci: str
   { style: 'titre2', get libelle() { return t('barre.style.titre') }, get ligne() { return t('barre.style.titre') }, raccourci: '⌘⇧2' },
   { style: 'texte', get libelle() { return t('barre.style.texte') }, get ligne() { return t('barre.style.texteNormal') }, raccourci: '⌘⇧0' },
   { style: 'petit', get libelle() { return t('barre.style.petit') }, get ligne() { return t('barre.style.petit') }, raccourci: '⌘⇧9' },
-  { style: 'code', get libelle() { return t('barre.style.code') }, get ligne() { return t('barre.style.codeBloc') }, raccourci: '⌘.' },
+  { style: 'code', get libelle() { return t('barre.style.code') }, get ligne() { return t('barre.style.codeBloc') }, raccourci: '⌘>' },
   { style: 'encadre', get libelle() { return t('barre.style.encadre') }, get ligne() { return t('barre.style.encadre') }, raccourci: '⌘⇧6' },
-  { style: 'citation', get libelle() { return t('barre.style.citation') }, get ligne() { return t('barre.style.citation') }, raccourci: '⌘\'' },
+  { style: 'citation', get libelle() { return t('barre.style.citation') }, get ligne() { return t('barre.style.citation') }, raccourci: '⌘"' },
 ]
 
 /** Ce que les barres de texte lisent de l'éditeur : les marques actives, le bloc, la sélection. */
@@ -121,6 +121,13 @@ export function BarreTexte({ editor, lien, surLien, commenter }: Props) {
  */
 export function MenuStyle({ editor, etat }: { editor: Editor; etat: EtatTexte }) {
   const actif = (style: StyleMenu) => (style === 'encadre' ? etat.encadre : style === 'texte' ? etat.style === 'texte' && !etat.encadre : etat.style === style)
+  // Les pastilles « A » se montrent sur le vrai fond de la carte (blanc si elle n'en a pas).
+  const fondCarte = (() => {
+    const carte = editor.view.dom.closest('.notak-carte')
+    const fond = carte ? getComputedStyle(carte).backgroundColor : ''
+    return !fond || fond === 'rgba(0, 0, 0, 0)' || fond === 'transparent' ? undefined : fond
+  })()
+  const surFond = fondCarte ? { background: fondCarte } : undefined
   return (
     <div className="notak-note-menu notak-menu-style" role="menu">
       {STYLES.map(({ style, ligne, raccourci }) => (
@@ -131,7 +138,8 @@ export function MenuStyle({ editor, etat }: { editor: Editor; etat: EtatTexte })
           className="notak-note-menu-ligne"
           data-style={style}
           aria-current={actif(style) || undefined}
-          onClick={() => (style === 'encadre' ? basculerEncadre(editor) : poserStyle(editor, style))}
+          // La ligne active ne répond pas : on en sort en choisissant un autre bloc.
+          onClick={() => !actif(style) && (style === 'encadre' ? basculerEncadre(editor) : poserStyle(editor, style))}
         >
           <span>{ligne}</span>
           {actif(style) ? <Icone nom="coche" taille={16} /> : <kbd>{raccourci}</kbd>}
@@ -140,11 +148,11 @@ export function MenuStyle({ editor, etat }: { editor: Editor; etat: EtatTexte })
       <hr />
       <span className="notak-menu-rubrique">{t('barre.rubriqueCouleur')}</span>
       <div className="notak-note-pastilles" aria-label={t('barre.couleurTexte')}>
-        <button type="button" title={t('barre.defaut')} aria-label={t('barre.couleurDefaut')} aria-pressed={etat.couleur === null && etat.surlignage === null} data-vide onClick={() => { poserCouleurTexte(editor, null); basculerSurlignage(editor, null) }}>
+        <button type="button" title={t('barre.defaut')} aria-label={t('barre.couleurDefaut')} aria-pressed={etat.couleur === null && etat.surlignage === null} data-vide style={surFond} onClick={() => { poserCouleurTexte(editor, null); basculerSurlignage(editor, null) }}>
           A
         </button>
         {COULEURS_TEXTE.map(({ nom, libelle }) => (
-          <button key={nom} type="button" title={libelle} aria-label={t('barre.texteCouleur', { couleur: libelle })} aria-pressed={etat.couleur === valeurCouleurTexte(nom)} data-texte={nom} onClick={() => poserCouleurTexte(editor, nom)}>
+          <button key={nom} type="button" title={libelle} aria-label={t('barre.texteCouleur', { couleur: libelle })} aria-pressed={etat.couleur === valeurCouleurTexte(nom)} data-texte={nom} style={surFond} onClick={() => poserCouleurTexte(editor, nom)}>
             A
           </button>
         ))}
@@ -185,7 +193,11 @@ export function MenuInsertion({ editor, ferme }: { editor: Editor; ferme(): void
 export function ChampLien({ editor, depart, fini }: { editor: Editor; depart: string; fini(): void }) {
   const [valeur, setValeur] = useState(depart)
   const champ = useRef<HTMLInputElement>(null)
-  useEffect(() => champ.current?.focus(), [])
+  // À l'ouverture le champ prend le focus et son texte est choisi : on peut taper par-dessus.
+  useEffect(() => {
+    champ.current?.focus()
+    champ.current?.select()
+  }, [])
   const valider = () => {
     const url = normaliserUrl(valeur)
     const c = editor.chain().focus().extendMarkRange('link')
@@ -194,25 +206,41 @@ export function ChampLien({ editor, depart, fini }: { editor: Editor; depart: st
     fini()
   }
   return (
-    <input
-      ref={champ}
-      className="notak-note-lien"
-      value={valeur}
-      placeholder={t('lien.adresse')}
-      aria-label={t('barre.adresseLien')}
-      onChange={(e) => setValeur(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault()
-          valider()
-        } else if (e.key === 'Escape') {
-          // Échap ferme le champ ; il ne sort pas de la note.
-          e.stopPropagation()
-          e.preventDefault()
-          editor.commands.focus()
-          fini()
-        }
-      }}
-    />
+    <span className="notak-note-lien-champ">
+      <input
+        ref={champ}
+        className="notak-note-lien"
+        value={valeur}
+        placeholder={t('barre.lienPlaceholder')}
+        aria-label={t('barre.adresseLien')}
+        // Une adresse n'a ni espace, ni saut de ligne, ni virgule : ils sont retirés à la saisie.
+        onChange={(e) => setValeur(e.target.value.replace(/[\s,]+/g, ''))}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || (e.key === 'Tab' && !e.shiftKey)) {
+            e.preventDefault()
+            valider()
+          } else if (e.key === ' ') {
+            e.preventDefault()
+          } else if (e.key === 'Escape') {
+            // Échap ferme le champ ; il ne sort pas de la note.
+            e.stopPropagation()
+            e.preventDefault()
+            editor.commands.focus()
+            fini()
+          } else if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+            // Cmd+K referme le champ comme il l'a ouvert.
+            e.stopPropagation()
+            e.preventDefault()
+            editor.commands.focus()
+            fini()
+          }
+        }}
+      />
+      {valeur && (
+        <button type="button" className="notak-note-lien-efface" aria-label={t('barre.effacerLien')} onMouseDown={(e) => e.preventDefault()} onClick={() => { setValeur(''); champ.current?.focus() }}>
+          <Icone nom="fermer" taille={12} />
+        </button>
+      )}
+    </span>
   )
 }

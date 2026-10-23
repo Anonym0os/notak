@@ -26,6 +26,9 @@
   --notak-surligne-gris: #e8e9eb;
   /* Le texte sur un surlignage clair. */
   --notak-surligne-texte: #323b4a;
+
+  /* La police des titres : une serif libre, proche de Tiempos (que Milanote emploie et qui n'est pas libre). */
+  --notak-serif: 'Source Serif 4 Variable', 'Source Serif 4', 'Newsreader', 'Iowan Old Style', 'Charter', Georgia, 'Times New Roman', serif;
 }
 
 
@@ -42,9 +45,14 @@
 .notak-carte:has(> .notak-note[data-couleur='bleu']) { background: var(--notak-note-bleu); --notak-voile: var(--notak-note-bleu); }
 .notak-carte:has(> .notak-note[data-couleur='bleu_nuit']) { background: var(--notak-note-bleu_nuit); --notak-voile: var(--notak-note-bleu_nuit); }
 
-/* Une note transparente n'a ni fond, ni ombre, ni marge, ni hauteur minimale. */
+/*
+ * Les marges d'une note : 24 en haut et à gauche, 20 à droite, 14 en bas, plus les 10 px sous le dernier paragraphe
+ * (une ligne fait 68 px). Une note transparente les garde : seuls son fond et son ombre disparaissent.
+ */
+.notak-carte[data-type='note'],
 .notak-carte[data-type='note'][data-sans-fond] {
-  min-height: 0;
+  min-height: 58px;
+  padding: 24px 20px 14px 24px;
 }
 
 .notak-note[data-variante='titre'] .notak-texte {
@@ -55,51 +63,120 @@
 .notak-texte h1,
 .notak-texte h2 {
   margin: 0 0 0.4em;
+  font-family: var(--notak-serif);
   font-weight: 600;
-  line-height: 1.25;
+  letter-spacing: -0.2px;
 }
 
-.notak-texte h1 { font-size: 20px; }
-.notak-texte h2 { font-size: 16px; }
-.notak-texte p[data-taille="petit"] { font-size: 12px; line-height: 1.4; }
+.notak-texte h1 { font-size: 20px; line-height: 30px; }
+.notak-texte h2 { font-size: 15px; line-height: 25px; }
 
-.notak-texte ul,
-.notak-texte ol {
-  margin: 0 0 0.4em;
-  padding-left: 1.5em;
+/* Dans la note, tout bloc garde 10 px sous lui, le dernier compris ; les titres ont leurs marges propres. */
+.notak-note .notak-texte p {
+  margin: 0 0 10px;
 }
 
-.notak-texte li > p {
+/* Le dernier paragraphe ou la dernière liste garde aussi ses 10 px (le plancher de la carte les compte). */
+.notak-note .notak-texte > :is(p, ul, ol):last-child {
+  margin-bottom: 10px;
+}
+
+.notak-note .notak-texte p[data-taille='petit'] { font-size: 12px; line-height: 20px; }
+
+.notak-note .notak-texte h1 { margin: 15px 0; }
+.notak-note .notak-texte h2 { margin: 16px 0 9px; }
+.notak-note .notak-texte h1 + h1 { margin-top: 20px; }
+.notak-note .notak-texte h2 + h1 { margin-top: 14px; }
+.notak-note .notak-texte h1 + h2 { margin-top: -4px; }
+.notak-note .notak-texte h2 + h2 { margin-top: 15px; }
+.notak-note .notak-texte > h1:first-child { margin-top: -5px; }
+.notak-note .notak-texte > h2:first-child { margin-top: -4px; }
+.notak-note .notak-texte > h1:last-child { margin-bottom: 5px; }
+.notak-note .notak-texte > h1:only-child { margin: -6px 0 6px; }
+.notak-note .notak-texte > h2:only-child { margin: -3px 0 8px; }
+
+/* Les listes : le texte à 27 px du bord, par niveau ; la numérotation change à chaque niveau (1., a., i.). */
+.notak-note .notak-texte ul,
+.notak-note .notak-texte ol {
+  margin: 0 0 10px;
+  padding-left: 27px;
+}
+
+.notak-note .notak-texte li > ul,
+.notak-note .notak-texte li > ol {
   margin: 0;
 }
 
-.notak-texte blockquote {
-  margin: 0 0 0.4em;
-  padding-left: 12px;
-  border-left: 3px solid currentColor;
-  opacity: 0.85;
+.notak-note .notak-texte li > p {
+  margin: 0;
 }
 
+.notak-note .notak-texte ol { list-style-type: decimal; }
+.notak-note .notak-texte ol ol { list-style-type: lower-alpha; }
+.notak-note .notak-texte ol ol ol { list-style-type: lower-roman; }
+.notak-note .notak-texte ol ol ol ol { list-style-type: decimal; }
+
+/* La teinte des blocs de code, de citation et d'encadré : le fond de la carte mêlé à du noir (6 %) ou du blanc (10 %). */
+.notak-note {
+  --notak-teinte: color-mix(in srgb, currentColor 6%, transparent);
+  --notak-filet-texte: #5f6672;
+  --notak-trait: rgb(0 0 0 / 0.2);
+}
+
+.notak-note[data-ton='clair'] {
+  --notak-teinte: color-mix(in srgb, currentColor 10%, transparent);
+  --notak-filet-texte: rgb(255 255 255 / 0.6);
+  --notak-trait: rgb(255 255 255 / 0.2);
+}
+
+.notak-note[data-teinte]:not([data-ton='clair']) {
+  --notak-filet-texte: rgb(0 0 0 / 0.5);
+}
+
+/* La citation : un filet de 2 px, de l'italique, des guillemets posés par le CSS. */
+.notak-texte blockquote {
+  margin: 15px 0 15px 1px;
+  padding: 5px 0 5px 14px;
+  border-left: 2px solid var(--notak-filet-texte, currentColor);
+  font-style: italic;
+}
+
+.notak-note .notak-texte blockquote > p { margin-bottom: 0; }
+.notak-texte blockquote > p:first-child::before { content: '\201c'; }
+.notak-texte blockquote > p:last-child::after { content: '\201d'; }
+.notak-texte blockquote + blockquote { margin-top: 10px; }
+.notak-texte blockquote:has(+ blockquote) { margin-bottom: 10px; }
+
 .notak-texte code {
-  padding: 1px 4px;
-  border-radius: 3px;
-  background: rgb(127 127 127 / 0.2);
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 0.9em;
+  padding: 0 0.6em 0 0.1em;
+  border-radius: 0.5em;
+  background: var(--notak-teinte, rgb(127 127 127 / 0.2));
+  font-family: ui-monospace, 'SF Mono', Menlo, 'Roboto Mono', 'Courier New', monospace;
+  font-size: 12px;
 }
 
 .notak-texte pre {
-  margin: 0 0 0.4em;
-  padding: 8px 10px;
+  margin: 15px 3.9px 15px 0;
+  padding: 5px 12px;
   border-radius: 4px;
-  background: rgb(127 127 127 / 0.18);
+  background: var(--notak-teinte, rgb(127 127 127 / 0.18));
+  font-size: 12px;
+  line-height: 20px;
+  tab-size: 4;
+  white-space: pre;
   overflow-x: auto;
 }
+
+.notak-texte pre + pre { margin-top: 10px; }
+.notak-texte pre:has(+ pre) { margin-bottom: 10px; }
+
+.notak-texte pre::-webkit-scrollbar { height: 6px; }
+.notak-texte pre::-webkit-scrollbar-thumb { border-radius: 3px; background: rgb(0 0 0 / 0.25); }
 
 .notak-texte pre code {
   padding: 0;
   background: none;
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 .notak-texte a {
@@ -109,15 +186,31 @@
   cursor: pointer;
 }
 
+/* Hors édition, le lien d'une note a la couleur de la marque ; sur un fond de couleur ou en écrivant, celle du texte. */
+.notak-note .notak-texte a {
+  color: #f4511c;
+}
+
+.notak-note[data-teinte] .notak-texte a,
+.notak-carte[data-edition] .notak-note .notak-texte a {
+  color: inherit;
+}
+
 .notak-carte[data-edition] .notak-texte a {
   cursor: text;
 }
 
+/* La sélection du texte, y compris celle que l'éditeur garde quand il perd le focus (voir `selectionVirtuelle`). */
+.notak-note .notak-texte ::selection,
+.notak-note .notak-texte .notak-selection-virtuelle {
+  background: #73b6fe8c;
+}
+
 .notak-texte mark {
-  padding: 0 1px;
-  border-radius: 2px;
+  padding: 1.5px 0;
+  border-radius: 0;
   background: var(--notak-surligne-vert);
-  color: #1f2328;
+  color: var(--notak-surligne-texte);
 }
 
 .notak-texte mark[data-color='gris-fonce'] { background: var(--notak-surligne-gris-fonce); color: #fff; }
@@ -240,8 +333,8 @@
 }
 
 .notak-note-pastilles button:is([aria-pressed='true'], [aria-checked='true']) {
-  outline: 2px solid var(--notak-accent);
-  outline-offset: 2px;
+  outline: 2px solid var(--notak-selection);
+  outline-offset: 4px;
 }
 
 .notak-note-pastilles button[data-vide] { background: #fff; }
@@ -280,6 +373,32 @@
   user-select: text;
 }
 
+.notak-note-lien-champ {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.notak-note-lien-champ .notak-note-lien {
+  padding-right: 24px;
+}
+
+.notak-note-lien-efface {
+  position: absolute;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--notak-pale, #8a9099);
+  cursor: pointer;
+}
+
 .notak-note-lien:focus {
   outline: 2px solid var(--notak-accent);
   outline-offset: -1px;
@@ -296,13 +415,16 @@
 
 .notak-note[data-variante='titre'] .notak-texte:has(> h1:only-child:empty)::before,
 .notak-note[data-variante='titre'] .notak-texte:has(> h1:only-child > br.ProseMirror-trailingBreak:only-child)::before {
-  content: var(--notak-ph-titre, 'Titre');
+  content: var(--notak-ph-note, 'Commencez à écrire…');
   position: absolute;
   left: 0;
   right: 0;
   text-align: center;
-  font-size: 22px;
-  font-weight: 700;
+  font-family: var(--notak-serif);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 30px;
+  letter-spacing: -0.2px;
   color: var(--notak-attente, var(--notak-pale));
   pointer-events: none;
 }
@@ -334,25 +456,26 @@
 /* L'encadré : un fond léger, l'icône (attribut `data-icone`) dans la marge gauche, où un clic la change. */
 .notak-texte .notak-encadre {
   position: relative;
-  margin: 0 0 0.4em;
-  padding: 6px 8px 6px 34px;
-  border-radius: 6px;
-  background: rgb(127 127 127 / 0.14);
+  margin: 20px 4px 20px 0;
+  padding: 10px 10px 0 32px;
+  border-radius: 4px;
+  background: var(--notak-teinte, rgb(127 127 127 / 0.14));
+}
+
+.notak-texte > .notak-encadre:first-child {
+  margin-top: 0;
 }
 
 .notak-texte .notak-encadre::before {
   content: attr(data-icone);
   position: absolute;
-  top: 6px;
-  left: 8px;
-  font-size: 16px;
-  line-height: 1.4;
+  top: 10px;
+  left: 11px;
+  width: 18px;
+  font-size: 18px;
+  line-height: 20px;
   cursor: pointer;
   user-select: none;
-}
-
-.notak-texte .notak-encadre > p:last-child {
-  margin-bottom: 0;
 }
 
 /* Une table collée : filets fins, la ligne d'en-tête en gras. */
@@ -394,12 +517,8 @@
   top: 0;
   right: 0;
   left: 0;
-  height: 6px;
-  border-radius: 1px 1px 0 0;
-}
-
-.notak-note[data-barre] .notak-texte:first-child {
-  margin-top: 4px;
+  height: 5px;
+  border-radius: 0;
 }
 
 /*
@@ -436,16 +555,11 @@
 
 /* La légende : sous la carte, en petit, comme sous une image. */
 .notak-note-legende {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  left: 0;
-  margin-top: 6px;
-  color: var(--notak-texte);
+  margin: -4px -20px -14px -24px;
+  padding: 3px 24px 20px;
   font-size: 12px;
-  line-height: 1.35;
-  opacity: 0.7;
-  text-align: center;
+  line-height: 20px;
+  letter-spacing: 0;
   overflow-wrap: anywhere;
   pointer-events: none;
 }
@@ -485,10 +599,13 @@
 
 /* Le séparateur. */
 .notak-texte hr {
-  margin: 0.6em 0;
+  margin: 10px 0 19px;
   border: 0;
-  border-top: 1px solid currentColor;
-  opacity: 0.35;
+  border-top: 1px solid var(--notak-trait, rgb(0 0 0 / 0.2));
+}
+
+.notak-texte hr.ProseMirror-selectednode {
+  border-top: 3px solid #73b6fe;
 }
 
 /* Une personne ou un tableau cité dans le texte : une pastille. */
@@ -501,8 +618,13 @@
   white-space: nowrap;
 }
 
+/* Une personne citée : texte bleu 600 sur fond bleu pâle, coins de 3 px. */
 .notak-mention {
-  color: var(--notak-accent);
+  padding: 0 3px;
+  border-radius: 3px;
+  background: #eaeffe;
+  color: #2f63f7;
+  font-weight: 600;
 }
 
 .notak-lien-tableau {
@@ -552,10 +674,12 @@
   border-radius: 5px;
 }
 
-/* Un passage commenté : un soulignement jaune, qui s'épaissit quand on y est. */
+/* Un passage commenté : un fond bleu très pâle, souligné de pointillés bleus. */
 .notak-texte .notak-fil-texte {
-  background: color-mix(in srgb, #f3c534 28%, transparent);
-  border-bottom: 2px solid #f3c534;
+  padding: 1.5px 0;
+  background: #f4f7fe;
+  border-bottom: 1px dotted #2f63f7;
+  mix-blend-mode: multiply;
 }
 
 /* La marge des fils, à droite de la note en édition. */
@@ -674,7 +798,14 @@
 .notak-note[style*='color'] .notak-texte:has(> p:only-child > br.ProseMirror-trailingBreak:only-child)::before,
 .notak-note[style*='color'] .notak-texte:has(> h1:only-child:empty)::before,
 .notak-note[style*='color'] .notak-texte:has(> h1:only-child > br.ProseMirror-trailingBreak:only-child)::before {
-  color: color-mix(in srgb, currentColor 30%, transparent);
+  color: rgb(0 0 0 / 0.2);
+}
+
+.notak-note[data-ton='clair'][style*='color'] .notak-texte:has(> p:only-child:empty)::before,
+.notak-note[data-ton='clair'][style*='color'] .notak-texte:has(> p:only-child > br.ProseMirror-trailingBreak:only-child)::before,
+.notak-note[data-ton='clair'][style*='color'] .notak-texte:has(> h1:only-child:empty)::before,
+.notak-note[data-ton='clair'][style*='color'] .notak-texte:has(> h1:only-child > br.ProseMirror-trailingBreak:only-child)::before {
+  color: rgb(255 255 255 / 0.3);
 }
 
 /* Une carte de couleur garde l'ombre simple, sans l'anneau qui détoure une carte blanche. */
@@ -725,8 +856,8 @@
 }
 
 .notak-panneau-couleur .notak-pastilles-grille button[aria-pressed='true'] {
-  outline: 2px solid var(--notak-accent);
-  outline-offset: 2px;
+  outline: 2px solid var(--notak-selection);
+  outline-offset: 4px;
 }
 
 /* « Couleur personnalisée » : toute la largeur ; le sélecteur natif est sous le libellé, invisible. */

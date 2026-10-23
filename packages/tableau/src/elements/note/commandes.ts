@@ -18,23 +18,38 @@ export function poserCouleurTexte(editor: Editor, nom: string | null): boolean {
   return editor.chain().focus().unsetHighlight().setColor(valeurCouleurTexte(nom)).run()
 }
 
+/** ⌘. : un passage à l'intérieur d'une ligne passe en code en ligne ; une ligne entière, en bloc de code. */
+export function basculerCode(editor: Editor): boolean {
+  const { selection } = editor.state
+  const dansUneLigne =
+    !selection.empty &&
+    selection.$from.sameParent(selection.$to) &&
+    !(selection.$from.parentOffset === 0 && selection.$to.parentOffset === selection.$from.parent.content.size)
+  return dansUneLigne ? editor.chain().focus().toggleCode().run() : poserStyle(editor, 'code')
+}
+
+/** Un bloc d'une autre sorte (code, citation, encadré) se retire avant d'en poser un nouveau. */
+const enveloppe = (ed: Editor) => ed.isActive('blockquote') || ed.isActive('codeBlock') || ed.isActive('encadre')
+
 export type StyleBloc = 'titre1' | 'titre2' | 'texte' | 'petit' | 'citation' | 'code'
 
 export function poserStyle(editor: Editor, style: StyleBloc): boolean {
   const c = editor.chain().focus()
   switch (style) {
     case 'titre1':
-      return c.setHeading({ level: 1 }).run()
+      return (enveloppe(editor) ? c.clearNodes() : c).setHeading({ level: 1 }).run()
     case 'titre2':
-      return c.setHeading({ level: 2 }).run()
+      return (enveloppe(editor) ? c.clearNodes() : c).setHeading({ level: 2 }).run()
     case 'texte':
       return c.clearNodes().updateAttributes('paragraph', { petit: null }).run()
     case 'petit':
       return c.clearNodes().updateAttributes('paragraph', { petit: true }).run()
     case 'citation':
-      return editor.isActive('blockquote') ? c.lift('blockquote').run() : c.setBlockquote().run()
+      if (editor.isActive('blockquote')) return c.lift('blockquote').run()
+      return (editor.isActive('codeBlock') || editor.isActive('encadre') ? c.clearNodes() : c).setBlockquote().run()
     case 'code':
-      return editor.isActive('codeBlock') ? c.clearNodes().run() : c.setCodeBlock().run()
+      if (editor.isActive('codeBlock')) return c.clearNodes().run()
+      return (editor.isActive('blockquote') || editor.isActive('encadre') ? c.clearNodes() : c).setCodeBlock().run()
   }
 }
 
