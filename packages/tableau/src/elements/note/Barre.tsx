@@ -2,6 +2,7 @@ import { type Editor, useEditorState } from '@tiptap/react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { type StyleBloc, basculerCentre, basculerSurlignage, poserCouleurTexte, poserStyle, styleActif } from './commandes'
 import { normaliserUrl } from './conversion'
+import { augmenterRetrait, diminuerRetrait } from './texte'
 import { COULEURS_TEXTE, SURLIGNAGES, valeurCouleurTexte } from './couleurs'
 
 const STYLES: { style: StyleBloc; libelle: string }[] = [
@@ -85,6 +86,8 @@ export function BarreTexte({ editor, lien, surLien }: Props) {
       {bouton('Numérotée', etat.numerotee, () => chaine().toggleOrderedList().run(), <Trait d="M6 4h8M6 8h8M6 12h8M2 3.5l1-.5v3M2 9.5h2l-2 2h2" />)}
       <i />
       {bouton('Centrer', etat.centre, () => basculerCentre(editor), <Trait d="M2 4h12M4 8h8M3 12h10" />)}
+      {bouton('Retrait −', false, () => { editor.commands.focus(); diminuerRetrait(editor) }, <Trait d="M2 3h12M7 6.5h7M7 9.5h7M2 13h12M5 6.5 2.5 8 5 9.5" />)}
+      {bouton('Retrait +', false, () => { editor.commands.focus(); augmenterRetrait(editor) }, <Trait d="M2 3h12M7 6.5h7M7 9.5h7M2 13h12M2.5 6.5 5 8 2.5 9.5" />)}
       {bouton('Code', etat.code, () => chaine().toggleCode().run(), <Trait d="M5.5 4.5 2 8l3.5 3.5M10.5 4.5 14 8l-3.5 3.5" />)}
       {bouton('Lien', etat.surLien || lien !== null, ouvrirLien, <Trait d="M6.5 9.5a3 3 0 0 0 4.2 0l2-2a3 3 0 0 0-4.2-4.2l-.7.7M9.5 6.5a3 3 0 0 0-4.2 0l-2 2a3 3 0 0 0 4.2 4.2l.7-.7" />, etat.vide && !etat.surLien)}
       {lien !== null && <ChampLien editor={editor} depart={lien} fini={() => surLien(null)} />}
