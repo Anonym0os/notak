@@ -2,6 +2,7 @@ import { type Editor, useEditorState } from '@tiptap/react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { type StyleBloc, basculerCentre, basculerSurlignage, poserCouleurTexte, poserStyle, styleActif } from './commandes'
 import { normaliserUrl } from './conversion'
+import { EMOJIS } from './insertion'
 import { augmenterRetrait, diminuerRetrait } from './texte'
 import { COULEURS_TEXTE, SURLIGNAGES, valeurCouleurTexte } from './couleurs'
 
@@ -48,6 +49,7 @@ export function BarreTexte({ editor, lien, surLien }: Props) {
     }),
   })
   const [menu, setMenu] = useState(false)
+  const [insertion, setInsertion] = useState(false)
   const ouvrirLien = () => {
     if (etat.vide && !etat.surLien) return
     setMenu(false)
@@ -71,7 +73,7 @@ export function BarreTexte({ editor, lien, surLien }: Props) {
       }}
     >
       <div className="notak-note-menu-ancre">
-        <button type="button" title="Style" aria-expanded={menu} onClick={() => setMenu(!menu)}>
+        <button type="button" title="Style" aria-expanded={menu} onClick={() => { setInsertion(false); setMenu(!menu) }}>
           {STYLES.find((s) => s.style === etat.style)?.libelle} ▾
         </button>
         {menu && <MenuStyle editor={editor} etat={etat} ferme={() => setMenu(false)} />}
@@ -90,6 +92,13 @@ export function BarreTexte({ editor, lien, surLien }: Props) {
       {bouton('Retrait +', false, () => { editor.commands.focus(); augmenterRetrait(editor) }, <Trait d="M2 3h12M7 6.5h7M7 9.5h7M2 13h12M2.5 6.5 5 8 2.5 9.5" />)}
       {bouton('Code', etat.code, () => chaine().toggleCode().run(), <Trait d="M5.5 4.5 2 8l3.5 3.5M10.5 4.5 14 8l-3.5 3.5" />)}
       {bouton('Lien', etat.surLien || lien !== null, ouvrirLien, <Trait d="M6.5 9.5a3 3 0 0 0 4.2 0l2-2a3 3 0 0 0-4.2-4.2l-.7.7M9.5 6.5a3 3 0 0 0-4.2 0l-2 2a3 3 0 0 0 4.2 4.2l.7-.7" />, etat.vide && !etat.surLien)}
+      <i />
+      <div className="notak-note-menu-ancre">
+        <button type="button" title="Insérer" aria-expanded={insertion} onClick={() => { setMenu(false); setInsertion(!insertion) }}>
+          Insérer ▾
+        </button>
+        {insertion && <MenuInsertion editor={editor} ferme={() => setInsertion(false)} />}
+      </div>
       {lien !== null && <ChampLien editor={editor} depart={lien} fini={() => surLien(null)} />}
     </div>
   )
@@ -117,6 +126,25 @@ function MenuStyle({ editor, etat, ferme }: { editor: Editor; etat: { couleur: s
       <div className="notak-note-pastilles" aria-label="Surlignage">
         {SURLIGNAGES.map(({ nom, libelle }) => (
           <button key={nom} type="button" title={libelle} aria-label={`Surlignage ${libelle}`} aria-pressed={etat.surlignage === nom} data-surligne={nom} onClick={() => basculerSurlignage(editor, nom)} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** Le menu d'insertion : un séparateur, un émoji. */
+function MenuInsertion({ editor, ferme }: { editor: Editor; ferme(): void }) {
+  return (
+    <div className="notak-note-menu" role="menu">
+      <button type="button" role="menuitem" className="notak-note-menu-ligne" onClick={() => { editor.chain().focus().setHorizontalRule().run(); ferme() }}>
+        Séparateur
+      </button>
+      <hr />
+      <div className="notak-note-emojis" role="group" aria-label="Émojis">
+        {EMOJIS.map((e) => (
+          <button key={e} type="button" role="menuitem" aria-label={e} onClick={() => { editor.chain().focus().insertContent(e).run(); ferme() }}>
+            {e}
+          </button>
         ))}
       </div>
     </div>
