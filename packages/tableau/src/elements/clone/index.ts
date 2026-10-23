@@ -3,7 +3,7 @@ import { definition, registre } from '../registre'
 import type { ContexteToile } from '../types'
 import { OutilsClone, RenduClone } from './Clone'
 import './clone.css'
-import { RESUME_SANS_ORIGINAL, cibleDe, nouveauClone, originalDe, peutCloner, placeAcote } from './original'
+import { RESUME_SANS_ORIGINAL, cibleDe, clonesEmportes, nouveauClone, originalDe, peutCloner, placeAcote } from './original'
 
 /**
  * Les clones de ces éléments, posés à côté de chacun. Un élément déjà clone donne un clone de son original.
@@ -34,6 +34,8 @@ registre.type<Clone>({
   hauteurParDefaut: 8,
   hauteurBornable: true,
   largeurMin: 8,
+  // Quand l'original part à la corbeille, ses clones le suivent : ils ne diraient plus rien sans lui.
+  emporterAvec: clonesEmportes,
   // Il se place comme n'importe quelle carte ; l'écrire, c'est écrire l'original (depuis l'original).
   ouvrir: (e, contexte) => {
     const original = originalDe(contexte.magasin.lire().elements, e.contenu.cible)
