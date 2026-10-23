@@ -26,6 +26,21 @@ bun run dev
 | Cmd+Z / Cmd+Maj+Z | annuler, rétablir |
 | Cmd+A, Échap | tout sélectionner, désélectionner |
 
+## Héberger
+
+Un seul conteneur sert l'application, les comptes et le travail à plusieurs, sur le port 3005.
+Les données (base SQLite et fichiers envoyés) vivent dans le volume `/donnees`.
+
+```bash
+git clone https://github.com/Anonym0os/notak
+cd notak
+docker build -t notak .
+docker run -d -p 3005:3005 -v notak-donnees:/donnees notak
+```
+
+L'image suppose un relais HTTPS devant elle (cookie `Secure`, adresse du client lue dans `X-Forwarded-For`).
+Pour l'essayer en HTTP sur sa machine : `-e NOTAK_COOKIE_SECURISE=0 -e NOTAK_RELAIS=0`.
+
 ## Pile
 
 - Interface : React 19, toile en DOM (une transformation CSS pour le zoom)
@@ -40,6 +55,7 @@ bun run dev
 | `docs/SPEC.md` | ce que Notak doit faire, geste par geste |
 | `packages/tableau` | `@notak/tableau` : le cœur (caméra, sélection, historique) et la toile React |
 | `apps/web` | l'application web |
+| `apps/site` | la vitrine de notak.app, en fichiers statiques |
 
 Tests : `bun run test`. Types : `bun run typecheck`.
 
