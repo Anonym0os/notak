@@ -314,3 +314,30 @@
 .notak-lien-description.notak-lien-edition {
   margin: 3px 0 20px;
 }
+
+/* Une image d'aperçu dont on connaît la taille : sa boîte tombe sur la grille, l'image la remplit (rognée). */
+.notak-lien-media[data-calee] img {
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Pendant qu'on déplace la carte, le lecteur se cache (l'aperçu reste dessous) et un bloqueur couvre tout le cadre. */
+.notak-carte[data-audessus] .notak-lien-media iframe {
+  display: none;
+}
+
+.notak-carte[data-audessus] .notak-lien-media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 14;
+}
+
+/* En présentation, une carte ou une maquette ne se monte pas : un cadre gris à sa place. */
+.notak-lien-media[data-fige] {
+  background: #fdfdfd;
+}
+
+.notak-lien-media[data-fige] img {
+  display: none;
+}

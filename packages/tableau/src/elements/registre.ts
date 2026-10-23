@@ -40,6 +40,15 @@ export const registre = {
   },
 }
 
+/**
+ * Les `DataTransfer` qui viennent d'un glisser-déposer (et non d'un collage ou d'un sélecteur) : ils ont un point visé,
+ * et ce qu'on lâche sur un élément peut l'atteindre. La toile recopie les données avant de les passer aux récepteurs,
+ * et la copie perd l'effet permis du glisser : c'est ici qu'elle le garde.
+ */
+const depots = new WeakSet<DataTransfer>()
+export const marquerDepot = (d: DataTransfer) => void depots.add(d)
+export const estUnDepotToile = (d: DataTransfer) => depots.has(d)
+
 export const definition = (type: TypeContenu) => types.get(type)
 export const tousLesTypes = () => [...types.values()]
 export const tousLesRecepteurs = () => recepteurs

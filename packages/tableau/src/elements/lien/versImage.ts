@@ -3,6 +3,9 @@ import { largeurInitiale } from '../image/geometrie'
 import { lireDimensions, lireTransparence } from '../image/lecture'
 import type { ContexteToile } from '../types'
 
+/** L'adresse nomme une image (webp, gif, png, jpg, jpeg) : pas besoin d'aperçu pour savoir ce que c'est. */
+export const estAdresseImage = (url: string) => /\.(webp|gif|png|jpe?g)(?=$|[?#&/])/i.test(url)
+
 /** Ce que devient la carte d'un lien dont l'adresse mène à une image : une image, à la largeur d'une image neuve. */
 export function operationsEnImage(element: Element<Lien>, fichier: Id, type: string, d: { largeur: number; hauteur: number; transparente?: boolean }): Operation[] {
   const apres: Image = { type: 'image', fichier, largeurOrigine: d.largeur, hauteurOrigine: d.hauteur, typeMime: type }
@@ -20,8 +23,9 @@ export function operationsEnImage(element: Element<Lien>, fichier: Id, type: str
 /**
  * Rapatrie l'image de ce lien et change la carte en image. Rend `false` si ce n'est pas possible (pas de service,
  * site qui refuse, image illisible) : la carte reste alors un lien, avec l'image en aperçu.
+ * `siEnAttente` : la conversion part sans attendre l'aperçu ; s'il arrive avant, il gagne et la carte reste un lien.
  */
-export async function convertirEnImage(id: Id, url: string, contexte: ContexteToile): Promise<boolean> {
+export async function convertirEnImage(id: Id, url: string, contexte: ContexteToile, siEnAttente = false): Promise<boolean> {
   const { rapatrier, fichiers } = contexte.services
   if (!rapatrier || !fichiers || contexte.services.lectureSeule) return false
   try {
@@ -34,6 +38,7 @@ export async function convertirEnImage(id: Id, url: string, contexte: ContexteTo
     // Pendant le rapatriement, la carte a pu changer d'adresse ou disparaître.
     const present = contexte.magasin.lire().elements.find((e) => e.id === id)
     if (!present || present.contenu.type !== 'lien' || present.contenu.url !== url) return false
+    if (siEnAttente && present.contenu.statut !== 'attente') return false
     contexte.magasin.corriger(operationsEnImage(present as Element<Lien>, fichier, type, { ...d, ...(transparente !== undefined ? { transparente } : {}) }))
     return true
   } catch {

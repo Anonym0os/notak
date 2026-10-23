@@ -173,15 +173,18 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 |---|---|---|
 | Champ d'adresse, adresse invalide signalée | ✅ | Une ligne à icône d'état ; l'adresse se lit en quittant le champ ; échec : message gris 2 s puis adresse modifiable. |
 | Aperçu : image, favicon, domaine, titre, description | ✅ | |
-| Image d'aperçu à ses proportions | ✅ | |
+| Image d'aperçu à ses proportions | ✅ | Taille lue à la page ou au chargement, hauteur calée sur la grille, largeur plafonnée à la taille d'origine ; double-clic sur la poignée y revient. |
 | Titre modifiable, légende | ✅ | |
-| Outil « Adresse » | ✅ | |
-| Ouvrir (en-tête, titre), copier l'adresse | ✅ | Pas d'« Ajouter / Remplacer l'image » d'aperçu. |
+| Ouvrir (en-tête, titre), copier l'adresse | ✅ | Double-clic sur l'aperçu en média seul : ouvre l'adresse. |
+| Ajouter / Remplacer l'image d'aperçu (menu, dépôt d'une image sur l'aperçu) | 🟡 | Voile « Remplacer l'image » au survol d'un dépôt absent ; image déposée seulement (pas un élément image). |
+| Taper un caractère sur un lien choisi : ouvre la légende | ✅ | |
+| Fichier `.url` / `.webloc` déposé, adresse d'un tableau Notak collée | ✅ | Lien ; raccourci vers le tableau. |
+| Retour à l'aperçu en fin de lecture (YouTube, Vimeo) ; bloqueur pendant le glisser ; aperçu seul en présentation | ✅ | |
 | Hauteur bornée | ✅ | |
 | Lecteurs intégrés (vidéo, audio, carte, contenus riches) | ✅ |  |
 | Réglages d'affichage : aperçu, infos du lien (média seul), légende | ✅ | Légende en texte brut (pas de texte riche). |
 | Lecture auto et en boucle d'une vidéo | ✅ |  |
-| Adresse d'image changée en image | ✅ | Après l'aperçu et par rapatriement (Milanote la convertit tout de suite). |
+| Adresse d'image changée en image | ✅ | Tout de suite, par rapatriement du fichier (route `/api/fichiers/rapatrier`) ; l'aperçu, s'il arrive avant, gagne. |
 | Outils Vidéo, Audio et Carte dans le tiroir | ✅ |  |
 | Message d'échec selon la cause | ✅ |  |
 

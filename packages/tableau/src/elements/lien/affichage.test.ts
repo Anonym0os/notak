@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Lien } from '../../coeur/tableau'
-import { LARGEUR_MEDIA_SEUL, affichage, aUnMedia, avecPartie, largeurMinLien, mediaSeul, proportionLien } from './affichage'
+import { LARGEUR_MEDIA_SEUL, affichage, aUnMedia, avecPartie, largeurMaxLien, largeurMinLien, largeurOrigineLien, mediaSeul, proportionLien } from './affichage'
 
 const lien: Lien = { type: 'lien', url: 'https://x.test', statut: 'pret' }
 
@@ -51,5 +51,23 @@ describe('affichage d’un lien', () => {
   it('une vidéo seule garde ses proportions, une carte à texte est libre', () => {
     expect(proportionLien({ ...video, sansInfos: true })).toBeCloseTo(16 / 9)
     expect(proportionLien(video)).toBe(0)
+  })
+
+  it('une image d’aperçu seule garde ses proportions, et ne dépasse pas sa taille d’origine', () => {
+    const grande: Lien = { ...page, apercu: { ...page.apercu, image: 'https://exemple.fr/i.png', largeur: 600, hauteur: 300 } }
+    expect(proportionLien(grande)).toBe(0)
+    expect(proportionLien({ ...grande, sansInfos: true })).toBe(2)
+    expect(largeurOrigineLien(grande)).toBe(60)
+    expect(largeurMaxLien(grande)).toBe(60)
+    // Une image de 30 px n'a pas de quoi aller sous la largeur minimale.
+    expect(largeurMaxLien({ ...grande, apercu: { ...grande.apercu, largeur: 30, hauteur: 30 } })).toBe(4)
+  })
+
+  it('l’image choisie à la main prime sur celle de la page, même pour une vidéo', () => {
+    const perso: Lien = { ...video, image: { fichier: 'f', largeur: 400, hauteur: 400 } }
+    expect(aUnMedia({ ...lien, image: perso.image })).toBe(true)
+    expect(largeurOrigineLien(perso)).toBe(40)
+    expect(largeurOrigineLien(video)).toBeUndefined()
+    expect(largeurMaxLien(lien)).toBeUndefined()
   })
 })

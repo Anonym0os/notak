@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Lien } from '../../coeur/tableau'
 import { BAC_A_SABLE, type Lecteur, PERMISSIONS, adresseDeLecture, demarreSeul, formeDe } from './lecteurs'
+import { ecouterFin } from './fin'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
 
@@ -16,50 +17,85 @@ interface Props {
   actif: boolean
   /** Le bouton de lecture est là (pas en « média seul »). */
   bouton: boolean
+  /** La largeur de la carte en UG, quand elle est la sienne (pas dans une colonne) : l'image tombe alors sur la grille. */
+  largeur?: number
+  /** La taille de l'image d'aperçu en pixels, quand on la connaît : la place est réservée avant son chargement. */
+  dimensions: { largeur: number; hauteur: number } | null
+  /** Pas de lecteur en présentation : l'aperçu seul, ou un cadre gris pour une carte ou une maquette. */
+  presentation: boolean
+  /** L'image vient de se charger sans qu'on en connaisse la taille : à garder avec le lien. */
+  surDimensions(largeur: number, hauteur: number): void
 }
+
+/** La hauteur d'une image d'aperçu sur la grille : en UG entières, 10 px chacune. */
+export const hauteurSurGrille = (largeurUG: number, proportions: number) => Math.max(1, Math.round(largeurUG / proportions)) * 10
 
 /**
  * Le haut de la carte : le lecteur intégré (une vidéo, un morceau, une carte) ou l'image d'aperçu.
  * Un lecteur a la forme de son genre — ses proportions, ou la hauteur fixe d'un morceau. Une vidéo ne se charge qu'au
- * clic (une roue tourne sur l'aperçu jusqu'à ce que le lecteur soit prêt) ; une carte ou une maquette est incrustée d'emblée.
+ * clic (une roue tourne sur l'aperçu jusqu'à ce que le lecteur soit prêt, et l'aperçu revient quand la lecture finit) ;
+ * une carte ou une maquette est incrustée d'emblée.
  */
-export function Media({ lecteur, image, titre, lien, actif, bouton }: Props) {
+export function Media({ lecteur, image, titre, lien, actif, bouton, largeur, dimensions, presentation, surDimensions }: Props) {
   const [clic, setClic] = useState(false)
   const [pret, setPret] = useState(false)
+  const [fini, setFini] = useState(false)
   const [illisible, setIllisible] = useState(false)
   const [cassee, setCassee] = useState(false)
-  const seul = !!lecteur && demarreSeul(lecteur, lien)
-  const monte = clic || seul
+  const arreter = useRef<(() => void) | null>(null)
+  const seul = !presentation && !fini && !!lecteur && demarreSeul(lecteur, lien)
+  const monte = !presentation && !fini && (clic || seul)
   useEffect(() => {
     if (!monte || pret) return
     const minuteur = setTimeout(() => setPret(true), DELAI_LECTEUR)
     return () => clearTimeout(minuteur)
   }, [monte, pret])
+  // Le lecteur démonté (fin de lecture, carte supprimée), on n'écoute plus.
+  useEffect(() => () => arreter.current?.(), [monte])
+  useEffect(() => setCassee(false), [image])
 
   if (!lecteur) {
     if (!image) return null
+    const proportions = dimensions ? dimensions.largeur / dimensions.hauteur : undefined
+    const forme = proportions ? (largeur ? { height: hauteurSurGrille(largeur, proportions) } : { aspectRatio: String(proportions) }) : undefined
     return (
-      <div className="notak-lien-media">
+      <div className="notak-lien-media" data-calee={proportions ? '' : undefined} style={forme}>
         {cassee ? (
           <div className="notak-lien-cassee">
             <Icone nom="image" taille={24} />
           </div>
         ) : (
-          <img src={image} alt="" draggable={false} referrerPolicy="no-referrer" onError={() => setCassee(true)} />
+          <img
+            src={image}
+            alt=""
+            draggable={false}
+            referrerPolicy="no-referrer"
+            onLoad={dimensions ? undefined : (e) => surDimensions(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)}
+            onError={() => setCassee(true)}
+          />
         )}
       </div>
     )
   }
-  const apercu = image && (!monte || (!pret && !seul))
+  const peutLire = bouton && !presentation
   return (
     <div
       className="notak-lien-media"
       data-genre={lecteur.genre}
-      data-clic={!monte && bouton ? '' : undefined}
+      data-clic={!monte && peutLire ? '' : undefined}
+      data-fige={presentation && lecteur.genre !== 'video' ? '' : undefined}
       style={formeDe(lecteur)}
-      onClick={!monte && bouton ? () => setClic(true) : undefined}
+      onClick={
+        !monte && peutLire
+          ? () => {
+              setFini(false)
+              setPret(false)
+              setClic(true)
+            }
+          : undefined
+      }
     >
-      {apercu && <img src={image} alt="" draggable={false} referrerPolicy="no-referrer" />}
+      {image && <img src={image} alt="" draggable={false} referrerPolicy="no-referrer" />}
       {monte && (
         <iframe
           src={adresseDeLecture(lecteur, lien, clic)}
@@ -69,11 +105,20 @@ export function Media({ lecteur, image, titre, lien, actif, bouton }: Props) {
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
           data-pret={pret || seul ? '' : undefined}
-          onLoad={() => setPret(true)}
+          onLoad={(e) => {
+            setPret(true)
+            arreter.current?.()
+            arreter.current = ecouterFin(e.currentTarget, lecteur.fournisseur, () => {
+              // La lecture est finie : le lecteur s'en va, l'aperçu et son bouton reviennent.
+              setFini(true)
+              setClic(false)
+              setPret(false)
+            })
+          }}
           onError={() => setIllisible(true)}
         />
       )}
-      {!monte && bouton && (
+      {!monte && peutLire && (
         <button className="notak-lien-lecture" title={t('lien.lire')} aria-label={t('lien.lire')}>
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M7 4.5v15l12.5-7.5z" fill="currentColor" />

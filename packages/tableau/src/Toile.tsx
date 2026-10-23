@@ -44,7 +44,7 @@ import {
   placeDe,
 } from './coeur/tableau'
 import './elements'
-import { definition, tousLesRaccourcis, tousLesRecepteurs, tousLesTypes, toutesLesEntreesMenu } from './elements/registre'
+import { definition, marquerDepot, tousLesRaccourcis, tousLesRecepteurs, tousLesTypes, toutesLesEntreesMenu } from './elements/registre'
 import { demanderRenommage } from './elements/tableau/renommage'
 import type { ContexteToile, Presence, Services } from './elements/types'
 import { t, tn } from './langue'
@@ -818,13 +818,14 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
 
   const recevoirCourant = useRef<(d: DataTransfer, ou: Point) => Promise<void>>(async () => {})
   /** `dans` : la colonne où l'on a déposé ; ce qui peut y entrer s'y range, à la suite. */
-  const recevoir = async (original: DataTransfer, ou: Point, dans?: Id) => {
+  const recevoir = async (original: DataTransfer, ou: Point, dans?: Id, depot = false) => {
     if (lectureSeule) return
     // Le navigateur vide le presse-papiers dès que l'événement est fini : on le recopie avant d'attendre
     // le premier récepteur.
     const donnees = new DataTransfer()
     for (const type of original.types) if (type !== 'Files') donnees.setData(type, original.getData(type))
     for (const f of original.files) donnees.items.add(f)
+    if (depot) marquerDepot(donnees)
     const tous: Operation[] = []
     for (const r of tousLesRecepteurs()) {
       const pas = await r.recevoir(donnees, ou, contexte)
@@ -1910,7 +1911,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const ratio = el && definition(el.contenu.type)?.proportion?.(el.contenu as never)
       const dx = ici.x - g.depart.x
       const tire = ratio && !e.metaKey && !e.ctrlKey ? Math.max(dx, (ici.y - g.depart.y) * ratio) : dx
-      const vers = largeurTiree(g.largeurDepart + tire, g.min)
+      const max = el && definition(el.contenu.type)?.largeurMax?.(el.contenu as never)
+      const vers = Math.max(g.min, Math.min(max ?? Infinity, largeurTiree(g.largeurDepart + tire, g.min)))
       const pas: Operation[] = [{ type: 'redimensionner', id: g.id, de: g.largeurDepart, vers }]
       const n = g.borne && noeudDe(g.id)
       if (g.borne && n) {
@@ -2358,6 +2360,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     // DESSIN-LIBRE : sous la couche de dessin, la toile ne fait rien (pas de note, pas d'ouverture).
     if (toileSuspendue(racine.current)) return
     if (dansEdition(racine.current, e.target)) return
+    // Une partie de l'élément qui a son double-clic à elle (l'aperçu d'un lien en « média seul »).
+    const touche = document.elementFromPoint(e.clientX, e.clientY)
+    const porteur = tableau.elements.find((x) => x.id === sous(touche))
+    if (porteur && definition(porteur.contenu.type)?.surDoubleClic?.(porteur as never, touche as HTMLElement | null, contexte)) return
     if (lectureSeule) {
       const el = tableau.elements.find((x) => x.id === sous(document.elementFromPoint(e.clientX, e.clientY)))
       const ouvrir = el && definition(el.contenu.type)?.ouvrir
@@ -2415,7 +2421,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (nonTrie) return poserNonTrie(nonTrie, cam.versTableau(camera, local(e)))
     // Déposé sur une colonne : ce qui arrive s'y range.
     const colonne = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('.notak-carte[data-type="colonne"]')
-    void recevoir(e.dataTransfer, cam.versTableau(camera, local(e)), colonne?.dataset.id)
+    void recevoir(e.dataTransfer, cam.versTableau(camera, local(e)), colonne?.dataset.id, true)
   }
 
   // La sélection ne garde que ce qui existe encore (après une suppression, une annulation).

@@ -151,6 +151,9 @@ export interface Apercu {
   favicon?: string
   /** L'adresse mène à une image, pas à une page : la carte devient une image. */
   estImage?: boolean
+  /** Les dimensions de l'image d'aperçu en pixels : la carte réserve sa place avant le chargement. */
+  largeur?: number
+  hauteur?: number
 }
 
 /** Pourquoi un aperçu n'a pas pu se faire, pour le dire avec des mots. */
@@ -178,6 +181,8 @@ export interface Lien {
   /** Une vidéo qui se lance seule (son coupé) quand on ouvre le tableau, et qui reprend à la fin. */
   lectureAuto?: boolean
   boucle?: boolean
+  /** Une image choisie à la main, à la place de celle de la page : le fichier du tableau et ses dimensions en pixels. */
+  image?: { fichier: Id; largeur: number; hauteur: number }
   /** Né d'un outil Vidéo, Audio ou Carte. */
   genre?: GenreLien
   /** La cause de l'échec, quand `statut` vaut `echec`. */
