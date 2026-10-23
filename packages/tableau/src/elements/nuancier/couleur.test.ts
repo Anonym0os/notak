@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { codeAffiche, normaliserHex, nouveauNuancier } from './couleur'
+import { PALETTE_DEPART, analyserCode, codeAffiche, couleurSuivante, normaliserHex, nouveauNuancier } from './couleur'
 
 describe('le code couleur', () => {
   test('six chiffres, avec ou sans dièse, en minuscules', () => {
@@ -30,9 +30,30 @@ describe('le code couleur', () => {
 describe('le code affiché', () => {
   test('hexadécimal par défaut, puis rgb et hsl', () => {
     expect(codeAffiche('#4f8cff')).toBe('#4F8CFF')
-    expect(codeAffiche('#4f8cff', 'rgb')).toBe('rgb(79, 140, 255)')
-    expect(codeAffiche('#4f8cff', 'hsl')).toBe('hsl(219, 100%, 65%)')
-    expect(codeAffiche('#ff0000', 'hsl')).toBe('hsl(0, 100%, 50%)')
-    expect(codeAffiche('#808080', 'hsl')).toBe('hsl(0, 0%, 50%)')
+    expect(codeAffiche('#4f8cff', 'rgb')).toBe('79,140,255')
+    expect(codeAffiche('#4f8cff', 'hsl')).toBe('219,100%,65%')
+    expect(codeAffiche('#ff0000', 'hsl')).toBe('0,100%,50%')
+    expect(codeAffiche('#808080', 'hsl')).toBe('0,0%,50%')
   })
+})
+
+describe('le code tapé', () => {
+  test('hexadécimal, rgb, hsl et R,G,B', () => {
+    expect(analyserCode('4f8cff')).toBe('#4f8cff')
+    expect(analyserCode('rgb(79, 140, 255)')).toBe('#4f8cff')
+    expect(analyserCode('79,140,255')).toBe('#4f8cff')
+    expect(analyserCode('hsl(0, 100%, 50%)')).toBe('#ff0000')
+    expect(analyserCode('120,100%,25%')).toBe('#008000')
+  })
+
+  test('hors bornes ou incomplet : refusé', () => {
+    for (const faux of ['rgb(300, 0, 0)', '79,140', 'hsl(400, 10%, 10%)', 'rgb(1,2,3,4)', 'bleu']) expect(analyserCode(faux)).toBeNull()
+  })
+})
+
+test('les couleurs de naissance se suivent', () => {
+  const a = couleurSuivante()
+  const b = couleurSuivante()
+  expect(a).not.toBe(b)
+  expect(PALETTE_DEPART).toContain(b)
 })

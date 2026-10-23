@@ -1020,7 +1020,7 @@ export const en: Textes = {
   'ligne.epaisseurCourt': 'Weight',
   'ligne.rondDebut': 'Round start',
   'ligne.rondFin': 'Round end',
-  'nuancier.sansCode': 'None',
+  'nuancier.sansCode': 'Off',
   'nuancier.affichage': 'Code display',
   'arrangement.relier': 'Connect',
   'menu.convertirDocument': 'Convert to document',

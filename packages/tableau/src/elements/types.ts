@@ -231,6 +231,12 @@ export interface TypeElement<C extends Contenu = Contenu> {
   /** Le double-clic et Entrée ouvrent l'édition. */
   editable?: boolean
   /**
+   * Comme Milanote, un clic sur l'élément déjà choisi ne l'ouvre pas (il faut un double-clic), et « Modifier » n'est pas
+   * dans son menu. Entrée appelle `surEntree` s'il existe (renommer un document), sinon elle ouvre.
+   */
+  ouvreAuDoubleClic?: boolean
+  surEntree?(element: Element<C>, contexte: ContexteToile): void
+  /**
    * En édition, le type range ses propres outils (de texte) dans la barre de gauche, par `ContexteBarreEdition`
    * (voir `barreEdition.tsx`). Sans cela, la barre de gauche garde les outils de sa sélection.
    */

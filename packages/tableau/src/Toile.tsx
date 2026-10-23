@@ -1197,7 +1197,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       { libelle: t('raccourcis.dupliquer'), raccourci: '⌘D', faire: dupliquer },
       null,
       ...(seul && defSeul?.ouvrir ? [{ libelle: t('commun.ouvrir'), raccourci: t('raccourcis.touche.espace'), faire: () => defSeul.ouvrir!(seul, contexte) }] : []),
-      ...(seul && defSeul?.editable ? [{ libelle: t('commun.modifier'), raccourci: '↩', faire: () => commencerEdition(seul.id) }] : []),
+      ...(seul && defSeul?.editable && !defSeul.ouvreAuDoubleClic ? [{ libelle: t('commun.modifier'), raccourci: '↩', faire: () => commencerEdition(seul.id) }] : []),
       null,
       ...toutesLesEntreesMenu()
         .filter((x) => x.visible(els, contexte))
@@ -1414,7 +1414,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       case 'Enter':
         if (selection.size === 1) {
           e.preventDefault()
-          commencerEdition([...selection][0]!)
+          const seul = tableau.elements.find((x) => x.id === [...selection][0])
+          const entree = seul && definition(seul.contenu.type)?.surEntree
+          if (seul && entree && !lectureSeule && !seul.verrou) entree(seul as never, contexte)
+          else commencerEdition([...selection][0]!)
         }
         return
       case 'Delete':
@@ -2070,7 +2073,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const r = g.reduire
       if (!r) return
       const el = tableau.elements.find((x) => x.id === r.id)
-      if (r.seul && el && !lectureSeule && definition(el.contenu.type)?.editable && e.type === 'pointerup') commencerEdition(r.id, r.ou)
+      const defClic = el && definition(el.contenu.type)
+      if (r.seul && el && !lectureSeule && defClic?.editable && !defClic.ouvreAuDoubleClic && e.type === 'pointerup') commencerEdition(r.id, r.ou)
       else setSelection(new Set([r.id]))
       return
     }

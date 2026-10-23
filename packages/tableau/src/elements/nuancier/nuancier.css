@@ -4,13 +4,13 @@
   width: 100%;
   aspect-ratio: 17 / 12;
   display: flex;
-  align-items: flex-end;
-  padding: 8px 10px;
+  align-items: flex-start;
+  padding: 20px 24px;
   border-radius: 0;
   box-shadow: var(--notak-ombre);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  line-height: 20px;
 }
 
 .notak-nuancier-code {
@@ -18,64 +18,62 @@
   user-select: none;
 }
 
-.notak-nuancier-reglage {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px;
-  border-radius: 8px;
-  background: var(--notak-carte);
-  color: var(--notak-texte);
-  box-shadow: 0 2px 10px rgb(0 0 0 / 0.18);
-  font-weight: 400;
-  letter-spacing: 0;
-}
-
-.notak-nuancier-reglage input[type='color'] {
-  width: 32px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid var(--notak-point);
-  border-radius: 6px;
-  background: none;
-  cursor: pointer;
-}
-
-.notak-nuancier-reglage input[type='text'] {
+/* Le code s'écrit à sa place, sur l'aplat. */
+.notak-nuancier-saisie {
   box-sizing: border-box;
-  width: 88px;
-  height: 28px;
-  padding: 0 8px;
-  border: 1px solid var(--notak-point);
-  border-radius: 6px;
-  background: none;
-  font: inherit;
-  font-variant-numeric: tabular-nums;
-  color: inherit;
-  outline: none;
-}
-
-.notak-nuancier-reglage input[type='text']:focus {
-  border-color: var(--notak-accent);
-}
-
-.notak-nuancier-reglage input[data-invalide] {
-  border-color: #d84b4b !important;
-}
-
-.notak-nuancier-reglage button {
-  height: 28px;
-  padding: 0 10px;
+  width: calc(100% - 28px);
+  margin: 0;
+  padding: 0;
   border: 0;
-  border-radius: 6px;
-  background: var(--notak-fond);
-  font: inherit;
+  background: none;
   color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  outline: none;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.notak-nuancier-saisie[data-invalide] {
+  text-decoration-style: wavy;
+}
+
+/* L'affichage du code : une rangée de quatre boutons carrés, le choisi entouré de 2 px. */
+.notak-nuancier-formats {
+  display: flex;
+  gap: 8px;
+  padding: 16px;
+}
+
+.notak-nuancier-formats button {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 1px solid rgb(0 0 0 / 0.1);
+  border-radius: 4px;
+  background: none;
+  color: var(--notak-texte);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
+}
+
+.notak-nuancier-formats button[data-rien] {
+  font-weight: 400;
+}
+
+.notak-nuancier-formats button:hover {
+  background: rgb(0 0 0 / 0.05);
+}
+
+.notak-nuancier-formats button[aria-checked='true'] {
+  border-color: var(--notak-selection, #323b4a);
+  box-shadow: inset 0 0 0 1px var(--notak-selection, #323b4a);
 }
 
 /* Le sélecteur de couleur du système, ouvert par la tuile « Couleur » : invisible, c'est le navigateur qui dessine la fenêtre. */
