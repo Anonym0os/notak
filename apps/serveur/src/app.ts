@@ -362,14 +362,17 @@ export function creerApp(ctx: Contexte): Hono {
 
   /**
    * Ce que voit quelqu'un qui n'a pas de compte : le tableau sans la corbeille, les non triés ni les commentaires
-   * (ce sont les échanges de ceux qui y travaillent), et les lignes qui n'ont plus leurs deux bouts.
+   * (ce sont les échanges de ceux qui y travaillent, y compris le fil accroché à un élément, ses réactions et la
+   * personne à qui il est confié), et les lignes qui n'ont plus leurs deux bouts.
    */
   const vuePublique = (id: string) => {
     const t = lireLe(id)
     const visibles = t.elements.filter((e) => e.corbeille === undefined && e.nonTrie === undefined && e.contenu.type !== 'commentaire')
     const ids = new Set(visibles.map((e) => e.id))
     const bout = (b: unknown) => !(b && typeof b === 'object' && 'element' in b) || ids.has(String((b as { element: unknown }).element))
-    const elements = visibles.filter((e) => e.contenu.type !== 'ligne' || (bout(e.contenu.depart) && bout(e.contenu.arrivee)))
+    const elements = visibles
+      .filter((e) => e.contenu.type !== 'ligne' || (bout(e.contenu.depart) && bout(e.contenu.arrivee)))
+      .map(({ commentaire: _c, reactions: _r, assigne: _a, ...e }) => e)
     const titres: Record<string, string> = {}
     for (const e of elements) {
       if (e.contenu.type !== 'tableau' || typeof e.contenu.cible !== 'string') continue

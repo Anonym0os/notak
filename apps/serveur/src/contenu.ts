@@ -27,6 +27,12 @@ export interface ElementLu {
   ordre?: string
   corbeille?: number
   nonTrie?: number
+  /** Ce que tout élément peut porter ; la publication ne montre pas les trois derniers. */
+  etiquettes?: string[]
+  echeance?: string
+  commentaire?: unknown
+  reactions?: unknown
+  assigne?: unknown
 }
 
 export interface TableauLu {

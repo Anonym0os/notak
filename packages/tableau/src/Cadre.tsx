@@ -2,6 +2,9 @@ import { type CSSProperties, type RefObject, createContext, memo, useContext, us
 import { PX_PAR_UG } from './coeur/camera'
 import { comparerOrdre } from './coeur/ordre'
 import type { Contenu, Element, Id } from './coeur/tableau'
+import { Decor, Pastille } from './elements/decor/Decor'
+import { passeLeFiltre, peutEtreIcone } from './elements/decor/annotations'
+import { useFiltre } from './elements/decor/etat'
 import { definition } from './elements/registre'
 import type { ContexteToile } from './elements/types'
 
@@ -23,12 +26,17 @@ interface Props {
 /** Le cadre commun d'un élément : position, largeur, fond, ombre, sélection. Le type dessine dedans. */
 export const Cadre = memo(function Cadre({ element, choisie, enEdition, contexte, mode = 'toile', poignee, audessus, brouillon, changer }: Props) {
   const noeud = useRef<HTMLDivElement>(null)
+  const filtre = useFiltre()
   const def = definition(element.contenu.type)
   if (!def) return null
+  // Replié en icône tant qu'on ne l'édite pas ; un filtre par étiquettes estompe ce qui n'en porte aucune des voulues
+  // (un conteneur reste net : ce qu'il range peut, lui, correspondre).
+  const icone = element.affichage === 'icone' && !enEdition && peutEtreIcone(def)
+  const attenue = filtre.size > 0 && !def.accepte && !passeLeFiltre(element, filtre)
   const sansFond = typeof def.sansFond === 'function' ? def.sansFond(element.contenu) : def.sansFond
   const { Rendu } = def
   // En édition, la note s'étend le temps d'écrire ; le plafond revient à la sortie.
-  const h = def.hauteurBornable ? element.hauteur : undefined
+  const h = def.hauteurBornable && !icone ? element.hauteur : undefined
   const plafond = h && 'max' in h && !enEdition ? h.max * PX_PAR_UG : undefined
   const plancher = h && 'min' in h ? h.min * PX_PAR_UG : undefined
   const place: CSSProperties =
@@ -47,17 +55,24 @@ export const Cadre = memo(function Cadre({ element, choisie, enEdition, contexte
       data-audessus={audessus || undefined}
       data-plafond={plafond !== undefined || undefined}
       data-verrou={element.verrou || undefined}
+      data-icone={icone || undefined}
+      data-attenue={attenue || undefined}
       style={{ ...place, ...(plafond !== undefined ? { maxHeight: plafond } : {}), ...(plancher !== undefined ? { minHeight: plancher } : {}) }}
     >
-      <Rendu
-        element={element}
-        choisie={choisie}
-        enEdition={enEdition}
-        contexte={contexte}
-        brouillon={(c) => brouillon(element, c)}
-        changer={(c) => changer(element, c)}
-      />
+      {icone ? (
+        <Pastille element={element} contexte={contexte} />
+      ) : (
+        <Rendu
+          element={element}
+          choisie={choisie}
+          enEdition={enEdition}
+          contexte={contexte}
+          brouillon={(c) => brouillon(element, c)}
+          changer={(c) => changer(element, c)}
+        />
+      )}
       {plafond !== undefined && <Voile carte={noeud} />}
+      <Decor element={element} contexte={contexte} mode={mode} />
       {poignee && <div className="notak-poignee" data-poignee aria-hidden />}
     </div>
   )
@@ -70,7 +85,8 @@ function Voile({ carte }: { carte: RefObject<HTMLDivElement | null> }) {
     const c = carte.current
     const contenu = c?.firstElementChild
     if (!c || !contenu) return
-    const mesurer = () => setDeborde(c.scrollHeight > c.clientHeight + 1)
+    // Le contenu seul, sans la bande des étiquettes qui déborde exprès sous la carte.
+    const mesurer = () => setDeborde(contenu instanceof HTMLElement && contenu.offsetTop + contenu.offsetHeight > c.clientHeight + 1)
     mesurer()
     const obs = new ResizeObserver(mesurer)
     obs.observe(c)

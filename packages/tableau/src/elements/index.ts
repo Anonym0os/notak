@@ -17,3 +17,5 @@ import './document'
 import './clone'
 // L'outil de couleur commun, une fois tous les types inscrits.
 import './couleur'
+// Les étiquettes, réactions, échéances et le mode d'affichage, communs à tous les types.
+import './decor'

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import * as Y from 'yjs'
 import { enLectureSeule } from './magasin'
 import { type ElementStocke, creerMagasinYjs, plansPour } from './magasinYjs'
-import { type Element, type Tableau, auPremierPlan, nouvelleNote } from './tableau'
+import { type Element, type Tableau, annoter, auPremierPlan, nouvelleNote } from './tableau'
 
 /** Deux documents qui s'échangent leurs mises à jour, comme le ferait un serveur. */
 function relies() {
@@ -246,5 +246,40 @@ describe('enLectureSeule', () => {
     ma.faire([{ type: 'creer', element: note(1) }])
     expect(ro.lire().elements).toHaveLength(1)
     expect(ro.annuler()).toBe(false)
+  })
+})
+
+describe('étiquettes et annotations', () => {
+  it('les étiquettes du tableau et celles d’un élément arrivent chez l’autre', () => {
+    const { ma, mb } = relies()
+    const n = note(1)
+    ma.faire([{ type: 'creer', element: n }])
+    const etiquette = { id: 'e1', nom: 'Urgent', couleur: 'rouge' as const }
+    ma.faire([{ type: 'etiquettes', de: [], vers: [etiquette] }, annoter(n, { etiquettes: ['e1'], echeance: '2026-11-02' })!])
+    expect(mb.lire().etiquettes).toEqual([etiquette])
+    expect(mb.lire().elements[0]).toMatchObject({ etiquettes: ['e1'], echeance: '2026-11-02' })
+    // La liste se reconstruit sans nouvel objet tant que rien ne change.
+    expect(mb.lire().etiquettes).toBe(mb.lire().etiquettes)
+    ma.faire([{ type: 'etiquettes', de: [etiquette], vers: [] }])
+    expect(mb.lire().etiquettes).toBeUndefined()
+  })
+
+  it('annuler un geste d’annotation ne touche que l’élément', () => {
+    const { ma } = relies()
+    const n = note(1)
+    ma.faire([{ type: 'creer', element: n }])
+    ma.faire([annoter(ma.lire().elements[0]!, { affichage: 'icone' })!])
+    expect(ma.lire().elements[0]!.affichage).toBe('icone')
+    ma.annuler()
+    expect(ma.lire().elements[0]!.affichage).toBeUndefined()
+    expect(ma.lire().elements).toHaveLength(1)
+  })
+
+  it('remplacer écrit aussi les étiquettes', () => {
+    const { ma, mb } = relies()
+    ma.remplacer({ titre: 'T', etiquettes: [{ id: 'e', nom: 'A', couleur: 'vert' }], elements: [] })
+    expect(mb.lire().etiquettes).toHaveLength(1)
+    ma.remplacer({ titre: 'T', elements: [] })
+    expect(mb.lire().etiquettes).toBeUndefined()
   })
 })
