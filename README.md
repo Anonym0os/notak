@@ -55,7 +55,7 @@ Pour l'essayer en HTTP sur sa machine : `-e NOTAK_COOKIE_SECURISE=0 -e NOTAK_REL
 | `docs/SPEC.md` | ce que Notak doit faire, geste par geste |
 | `packages/tableau` | `@notak/tableau` : le cœur (caméra, sélection, historique) et la toile React |
 | `apps/web` | l'application web |
-| `apps/site` | la vitrine de notak.app, en fichiers statiques |
+| `apps/site` | la page d’attente de notak.app |
 
 Tests : `bun run test`. Types : `bun run typecheck`.
 

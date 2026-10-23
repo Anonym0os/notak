@@ -3,176 +3,41 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Notak · des tableaux visuels libres</title>
-    <meta name="description" content="Notak est une application libre pour poser notes, images, liens, tâches et croquis sur des tableaux visuels, seul ou à plusieurs. Open source, sous licence AGPL." />
-    <link rel="canonical" href="https://notak.app/" />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://notak.app/" />
-    <meta property="og:title" content="Notak · des tableaux visuels libres" />
-    <meta property="og:description" content="Notes, images, liens, tâches et colonnes sur une toile sans bord. Seul ou à plusieurs, et open source." />
-    <meta property="og:image" content="https://notak.app/images/toile.png" />
-    <meta name="twitter:card" content="summary_large_image" />
+    <title>Notak</title>
+    <meta name="description" content="Notak, des tableaux visuels libres. Prochainement." />
     <meta name="theme-color" content="#eef0f2" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preload" href="/fonts/inter.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="stylesheet" href="/site.css" />
+    <style>
+      @font-face {
+        font-family: 'Inter';
+        src: url('/fonts/inter.woff2') format('woff2');
+        font-weight: 100 900;
+        font-display: swap;
+      }
+      html, body { margin: 0; height: 100%; }
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        padding: 16px;
+        box-sizing: border-box;
+        background: #eef0f2 radial-gradient(#c4c8ce 1px, transparent 1px) center / 20px 20px;
+        color: #1f2328;
+        font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        text-align: center;
+      }
+      h1 { margin: 0; font-size: clamp(64px, 18vw, 220px); font-weight: 800; letter-spacing: -0.05em; line-height: 1; }
+      p { margin: 0; font-size: clamp(17px, 2.2vw, 22px); color: #59636e; }
+      a { font-size: 15px; color: #2f6feb; text-decoration: none; font-weight: 600; }
+      a:hover { text-decoration: underline; text-underline-offset: 3px; }
+    </style>
   </head>
   <body>
-    <header class="entete">
-      <div class="cadre entete-cadre">
-        <a class="marque" href="/" aria-label="Notak, accueil">
-          <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="5" width="15" height="11" rx="2.5" /><rect x="14" y="16" width="15" height="11" rx="2.5" /></svg>
-          Notak
-        </a>
-        <nav class="nav" aria-label="Sections">
-          <a href="#fonctions">Fonctions</a>
-          <a href="#libre">Open source</a>
-          <a class="bouton bouton-petit" href="#telecharger">Télécharger</a>
-        </nav>
-      </div>
-    </header>
-
-    <main>
-      <section class="accroche">
-        <div class="cadre accroche-texte">
-          <p class="surtitre">Libre et open source</p>
-          <h1>Toutes vos idées sur une seule toile.</h1>
-          <p class="chapeau">
-            Notak pose vos notes, images, liens, tâches et colonnes côte à côte, sur des tableaux qui s'emboîtent.
-            On y pense seul, on y travaille à plusieurs, et le code appartient à tout le monde.
-          </p>
-          <div class="actions">
-            <a class="bouton" href="#telecharger">Télécharger Notak</a>
-            <a class="bouton bouton-second" href="https://github.com/Anonym0os/notak">Voir le code sur GitHub</a>
-          </div>
-        </div>
-        <div class="cadre cadre-large">
-          <figure class="ecran">
-            <div class="ecran-barre" aria-hidden="true"><span></span><span></span><span></span></div>
-            <img src="/images/toile.webp" width="2880" height="1240" alt="Un tableau Notak qui prépare un voyage au Japon : une colonne de lieux à voir, des notes de couleur, une liste de tâches reliée à un lien par une flèche, deux sous-tableaux, et le curseur de Tom, qui travaille sur le même tableau." />
-          </figure>
-        </div>
-      </section>
-
-      <section id="fonctions" class="section">
-        <div class="cadre">
-          <h2>Ce qu'on pose sur la toile</h2>
-          <p class="intro">Tout se fait à la souris et au clavier : on glisse un outil, on écrit, on range. La toile n'a pas de bord.</p>
-          <ul class="fonctions">
-            <li>
-              <h3>Notes en texte riche</h3>
-              <p>Titres, listes, gras, surlignage, couleurs. Un double-clic sur le vide, et on écrit.</p>
-            </li>
-            <li>
-              <h3>Images et liens</h3>
-              <p>On dépose une image ou on colle une adresse : le lien prend son titre et son image d'aperçu.</p>
-            </li>
-            <li>
-              <h3>Colonnes</h3>
-              <p>Pour ranger une liste d'éléments les uns sous les autres, et la déplacer d'un seul geste.</p>
-            </li>
-            <li>
-              <h3>Tableaux dans les tableaux</h3>
-              <p>Un projet, puis ses parties, puis leurs détails. On entre dans un tableau comme dans un dossier.</p>
-            </li>
-            <li>
-              <h3>Tâches</h3>
-              <p>Des listes à cocher posées au milieu des idées, là où le travail se décide.</p>
-            </li>
-            <li>
-              <h3>Lignes et flèches</h3>
-              <p>Pour relier deux idées, montrer un enchaînement ou tracer un schéma rapide.</p>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <section class="section section-teintee">
-        <div class="cadre deux-colonnes">
-          <div>
-            <h2>À plusieurs, en direct</h2>
-            <p>
-              Invitez quelqu'un sur un tableau : vous voyez son curseur et ce qu'il sélectionne, et chaque élément qu'il pose ou déplace apparaît aussitôt chez vous.
-              Chacun peut avoir le droit d'écrire ou seulement de lire, et l'accès donné vaut pour tous les sous-tableaux.
-            </p>
-            <p>Hors ligne, rien ne se perd : les changements se rejoignent dès que la connexion revient.</p>
-          </div>
-          <figure class="ecran ecran-petit">
-            <img src="/images/plusieurs.webp" width="1500" height="1000" alt="Le curseur de Tom posé sur la note Budget qu'il a sélectionnée, tel que Léa le voit sur son écran." loading="lazy" />
-          </figure>
-        </div>
-      </section>
-
-      <section id="libre" class="section">
-        <div class="cadre">
-          <h2>Libre, pour de vrai</h2>
-          <ul class="engagements">
-            <li>
-              <h3>Le code est ouvert</h3>
-              <p>Tout est publié sous licence AGPL-3.0. On peut le lire, le modifier et le redistribuer.</p>
-            </li>
-            <li>
-              <h3>Vos tableaux restent chez vous</h3>
-              <p>Sur votre ordinateur, ou sur votre propre serveur. Personne ne lit vos données, et rien n'est revendu.</p>
-            </li>
-            <li>
-              <h3>Rien à payer</h3>
-              <p>Pas d'abonnement, pas de limite de tableaux, pas de fonctions réservées.</p>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <section id="telecharger" class="section section-teintee">
-        <div class="cadre">
-          <h2>Télécharger Notak</h2>
-          <p class="intro">
-            Notak est en cours de construction. Les applications pour ordinateur et iPhone arrivent ; en attendant,
-            on peut déjà l'installer sur son propre serveur.
-          </p>
-          <ul class="plateformes">
-            <li class="plateforme">
-              <h3>Mac</h3>
-              <p class="etat">Bientôt</p>
-            </li>
-            <li class="plateforme">
-              <h3>Windows</h3>
-              <p class="etat">Bientôt</p>
-            </li>
-            <li class="plateforme">
-              <h3>Linux</h3>
-              <p class="etat">Bientôt</p>
-            </li>
-            <li class="plateforme">
-              <h3>iPhone</h3>
-              <p class="etat">Plus tard</p>
-            </li>
-          </ul>
-
-          <div class="serveur">
-            <div>
-              <h3>Sur votre serveur, dès aujourd'hui</h3>
-              <p>
-                Un seul conteneur Docker sert l'application, les comptes et le travail à plusieurs.
-                Les données tiennent dans un volume.
-              </p>
-              <a class="lien-fleche" href="https://github.com/Anonym0os/notak#readme">Le guide sur GitHub</a>
-            </div>
-            <pre class="code"><code>git clone https://github.com/Anonym0os/notak
-cd notak
-docker build -t notak .
-docker run -d -p 3005:3005 \
-  -v notak-donnees:/donnees notak</code></pre>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="pied">
-      <div class="cadre pied-cadre">
-        <span>Notak, logiciel libre sous licence AGPL-3.0.</span>
-        <a href="https://github.com/Anonym0os/notak">GitHub</a>
-      </div>
-    </footer>
+    <h1>Notak</h1>
+    <p>Prochainement.</p>
+    <a href="https://github.com/Anonym0os/notak">Le code sur GitHub</a>
   </body>
 </html>
