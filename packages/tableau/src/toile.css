@@ -13,6 +13,8 @@
   --notak-texte: #1f2328;
   --notak-accent: #2f6feb;
   --notak-ombre: 0 1px 2px rgb(0 0 0 / 0.07);
+  /* Ce qui invite à écrire (« Écrivez quelque chose… ») et les textes d'appoint. */
+  --notak-pale: rgb(0 0 0 / 0.35);
 
   position: relative;
   /* `clip` et non `hidden` : un champ hors de l'écran qui prend le focus ferait défiler la toile, barres comprises. */

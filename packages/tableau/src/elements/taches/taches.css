@@ -166,7 +166,7 @@
 .notak-taches-texte > ul[data-type='taskList'] > li:only-child > div > p:only-child:has(> br.ProseMirror-trailingBreak:only-child)::before {
   content: var(--notak-ph-tache, 'Ajoutez une tâche…');
   position: absolute;
-  color: rgb(0 0 0 / 0.35);
+  color: var(--notak-pale);
   pointer-events: none;
 }
 
