@@ -13,13 +13,13 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 
 | Partie | Fait | En partie | Absent | Avancement |
 |---|---|---|---|---|
-| 1. Toile | 26 | 1 | 0 | 98 % |
+| 1. Toile | 27 | 0 | 0 | 100 % |
 | 2. Création | 16 | 1 | 0 | 97 % |
 | 3. Note et texte | 31 | 0 | 0 | 100 % |
 | 4. Colonne | 11 | 0 | 0 | 100 % |
 | 5. Tableau imbriqué | 11 | 0 | 0 | 100 % |
 | 6. Lien | 13 | 0 | 0 | 100 % |
-| 7. Image | 11 | 1 | 0 | 96 % |
+| 7. Image | 12 | 0 | 0 | 100 % |
 | 8. Liste de tâches | 17 | 0 | 0 | 100 % |
 | 9. Ligne | 14 | 0 | 0 | 100 % |
 | 10. Autres éléments | 11 | 1 | 0 | 96 % |
@@ -28,9 +28,9 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 13. Naviguer | 13 | 0 | 0 | 100 % |
 | 14. À plusieurs | 17 | 0 | 0 | 100 % |
 | 15. Habillage | 13 | 1 | 1 | 90 % |
-| 16. Exporter, importer | 2 | 2 | 0 | 75 % |
+| 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 5 | 2 | 0 | 86 % |
-| **Total** | **239** | **9** | **1** | **98 %** |
+| **Total** | **242** | **6** | **1** | **98 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -188,7 +188,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Miniature et roue pendant l'envoi | ✅ | |
 | Tailles adaptées à l'affichage (400, 800, 1600 px) | ✅ |  |
 | Hauteur calée sur la grille | ✅ |  |
-| Recadrer, pivoter, détourer | 🟡 | Pivoter et recadrer ; pas encore détourer. |
+| Recadrer, pivoter, détourer | ✅ | Détourer retire un fond uni, avec une tolérance ; l'original se rétablit. |
 | Dessiner sur l'image (annotation, Maj+D) | ✅ |  |
 | Remplacer en déposant une autre image dessus | ✅ |  |
 | Image cassée signalée | ✅ | |
@@ -355,7 +355,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
 | Fonctionnalité | État | Reste |
 |---|---|---|
-| Exporter un tableau (PDF, image) | 🟡 | PNG et PDF de ce qui est à l'écran ; pas encore le tableau entier. |
+| Exporter un tableau (PDF, image) | ✅ | PNG et PDF, de ce qui est à l'écran ou du tableau entier. |
 | Exporter le texte (Markdown, texte brut) | ✅ |  |
 | Télécharger les médias d'un tableau (zip) | ✅ |  |
 | Importer depuis Milanote | 🟡 | Depuis l'export Markdown (zip) de Milanote ; jamais essayé sur un vrai export. |
