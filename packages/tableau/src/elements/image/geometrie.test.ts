@@ -1,14 +1,15 @@
 import { describe, expect, test } from 'vitest'
 import type { Element, Image } from '../../coeur/tableau'
-import { aUneOmbre, avecLegende, hauteurCalee, hauteurPour, imageSous, miseEnPage, pivoter, proportionsAffichees, rotationDe, largeurInitiale, largeurNaturelleImage, nombreColonnes, placerImages, remplacerContenu } from './geometrie'
+import { aUneCarte, aUneOmbre, hauteurCartePx, versPlan, avecLegende, hauteurCalee, hauteurPour, imageSous, miseEnPage, pivoter, proportionsAffichees, rotationDe, largeurInitiale, largeurNaturelleImage, nombreColonnes, placerImages, remplacerContenu } from './geometrie'
 
 const image = (largeurOrigine: number, hauteurOrigine = 100): Image => ({ type: 'image', fichier: 'f', largeurOrigine, hauteurOrigine })
 
 describe('taille d’une image', () => {
-  test('sa largeur en pixels sur dix, entre 4 et 34 UG', () => {
+  test('sa largeur en pixels sur dix, 34 UG au plus et sans plancher', () => {
     expect(largeurInitiale(200)).toBe(20)
     expect(largeurInitiale(4000)).toBe(34)
-    expect(largeurInitiale(12)).toBe(4)
+    expect(largeurInitiale(12)).toBe(1)
+    expect(largeurInitiale(30)).toBe(3)
     expect(largeurInitiale(335)).toBe(34)
   })
 
@@ -135,7 +136,7 @@ describe('quart de tour', () => {
       c = pivoter(c)
       vus.push(rotationDe(c))
     }
-    expect(vus).toEqual([90, 180, 270, 0])
+    expect(vus).toEqual([270, 180, 90, 0])
     expect('rotation' in c).toBe(false)
   })
 
@@ -159,12 +160,14 @@ describe('mise en page', () => {
   test('sans recadrage ni rotation, l’image remplit la boîte', () => {
     const m = miseEnPage(image(100))
     expect(m.image).toEqual({ width: '100%', height: '100%', left: '0%', top: '0%' })
-    expect(m.plan.width).toBe('100cqw')
+    // Le plan recouvre la boîte : il la déborde d'un côté plutôt que de s'étirer.
+    expect(m.plan.width).toBe('max(100cqw, calc(100cqh * 1))')
+    expect(m.plan.height).toBe('max(100cqh, calc(100cqw / 1))')
   })
 
   test('un quart de tour échange les deux côtés du plan', () => {
     const m = miseEnPage({ ...image(100), rotation: 90 })
-    expect(m.plan).toMatchObject({ width: '100cqh', height: '100cqw' })
+    expect(m.plan).toMatchObject({ width: 'max(100cqh, calc(100cqw / 1))', height: 'max(100cqw, calc(100cqh * 1))' })
     expect(m.plan.transform).toContain('rotate(90deg)')
   })
 
@@ -172,5 +175,27 @@ describe('mise en page', () => {
     const m = miseEnPage({ ...image(100), recadrage: { x: 0.25, y: 0.5, largeur: 0.5, hauteur: 0.25 } })
     expect(m.image).toEqual({ width: '200%', height: '400%', left: '-50%', top: '-200%' })
     expect(miseEnPage({ ...image(100), recadrage: { x: 0.25, y: 0.5, largeur: 0.5, hauteur: 0.25 } }, true).image.width).toBe('100%')
+  })
+})
+
+describe('carte et rognage', () => {
+  test('la carte blanche : sauf une image transparente, à moins qu’on lui rende son fond', () => {
+    expect(aUneCarte({ typeMime: 'image/jpeg' })).toBe(true)
+    expect(aUneCarte({ typeMime: 'image/png', transparente: true })).toBe(false)
+    expect(aUneCarte({ typeMime: 'image/png', transparente: true, fondBlanc: true })).toBe(true)
+  })
+
+  test('la hauteur tombe sur la grille moins 2 px, ou suit les proportions exactes', () => {
+    expect(hauteurCartePx(20, 1.5, undefined)).toBe(128)
+    expect(hauteurCartePx(20, 1.5, true)).toBeCloseTo(132)
+  })
+
+  test('un point de la boîte vers le plan qui la recouvre', () => {
+    // Boîte plus étroite que l'image : le plan déborde à gauche et à droite.
+    expect(versPlan(0, 0.5, 1, 2)).toEqual([0.25, 0.5])
+    expect(versPlan(1, 0.5, 1, 2)).toEqual([0.75, 0.5])
+    // Boîte plus large : il déborde en haut et en bas.
+    expect(versPlan(0.5, 0, 2, 1)).toEqual([0.5, 0.25])
+    expect(versPlan(0.3, 0.3, 1, 1)).toEqual([0.3, 0.3])
   })
 })

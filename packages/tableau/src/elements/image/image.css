@@ -1,5 +1,29 @@
 .notak-carte[data-type='image'] {
   min-height: 0;
+  padding: 0;
+}
+
+/* La carte de l'image : fond blanc, l'ombre légère de l'élévation 1 sans l'anneau ; elle porte l'image et sa légende. */
+.notak-carte[data-type='image']:not([data-sans-fond], [data-choisie]) {
+  box-shadow: 0 1px 2px rgb(27 37 54 / 0.1);
+}
+
+/* Une image transparente se devine au survol : un filet de 1 px. */
+.notak-carte[data-type='image'][data-sans-fond]:not([data-choisie]):hover {
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.1);
+}
+
+/* La barre de couleur : 5 px en haut de la carte, au lieu d'une teinte sur la carte. */
+.notak-carte[data-type='image'][data-teinte]::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  height: 5px;
+  background: var(--notak-teinte);
+  pointer-events: none;
 }
 
 .notak-image-cadre {
@@ -11,10 +35,6 @@
   container-type: size;
 }
 
-.notak-image-cadre[data-ombre] {
-  box-shadow: var(--notak-ombre);
-}
-
 .notak-image-plan {
   position: absolute;
   top: 50%;
@@ -22,7 +42,7 @@
   overflow: hidden;
 }
 
-/* L'image remplit son plan (ou, recadrée, le déborde : le plan cache le reste). */
+/* L'image remplit son plan, qui recouvre le cadre (ou, recadrée, le déborde : le cadre cache le reste). */
 .notak-image {
   display: block;
   width: 100%;
@@ -47,21 +67,28 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #e6e8eb;
-  color: #7a7f87;
-  font-size: 11px;
+  background: #f3f3f4;
+  color: #8d929a;
 }
 
-.notak-legende {
-  margin: 4px 0 0;
-  font-size: 11px;
-  line-height: 1.4;
-  color: #5b6169;
+/* La légende, dans la carte, sous l'image : 12 px sur 20, retrait de 24 px. */
+.notak-carte[data-type='image'] .notak-legende {
+  margin: 0;
+  padding: 20px 24px;
+  font-size: 12px;
+  line-height: 20px;
+  letter-spacing: normal;
+  color: #323b4a;
   overflow-wrap: anywhere;
 }
 
-.notak-legende[data-vide] {
-  color: #9aa0a8;
+.notak-carte[data-type='image'][data-teinte] .notak-legende {
+  background: none;
+  color: #323b4a;
+}
+
+.notak-carte[data-type='image'] .notak-legende[data-vide] {
+  color: #d1d3d6;
   cursor: text;
 }
 
@@ -76,10 +103,14 @@
   overflow: hidden;
   background: none;
   font: inherit;
-  font-size: 11px;
-  line-height: 1.4;
+  font-size: 12px;
+  line-height: 20px;
   color: inherit;
   user-select: text;
+}
+
+.notak-carte[data-type='image'] .notak-legende-champ {
+  width: 100%;
 }
 
 /* L'image en grand. */

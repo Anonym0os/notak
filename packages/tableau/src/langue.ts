@@ -494,7 +494,7 @@ export const fr: Textes = {
   'croquis.enregistrer': 'Enregistrer',
   'croquis.couleurLibre': 'Autre couleur',
   'croquis.pipette': 'Pipette',
-  'image.pivoter.titre': 'Tourner d’un quart de tour vers la droite',
+  'image.pivoter.titre': 'Tourner d’un quart de tour vers la gauche',
   'image.pivoter': 'Pivoter',
   'image.recadrer.titre': 'Garder une partie de l’image',
   'image.recadrer': 'Recadrer',
@@ -853,6 +853,10 @@ export const fr: Textes = {
   'image.banque.choisir': 'Choisir des images',
   'image.banque.astuce': 'Ou déposez vos images ici.',
   // FIN fr
+  'image.transparent': 'Transparent',
+  'image.transparent.titre': 'Montrer ou cacher le fond blanc de l’image transparente',
+  'image.dessinerDessus': 'Dessiner dessus',
+  'image.modifierDessin': 'Modifier le dessin',
 }
 
 export const en: Textes = {
@@ -1264,7 +1268,7 @@ export const en: Textes = {
   'croquis.enregistrer': 'Save',
   'croquis.couleurLibre': 'Custom colour',
   'croquis.pipette': 'Eyedropper',
-  'image.pivoter.titre': 'Rotate a quarter turn clockwise',
+  'image.pivoter.titre': 'Rotate a quarter turn to the left',
   'image.pivoter': 'Rotate',
   'image.recadrer.titre': 'Keep part of the image',
   'image.recadrer': 'Crop',
@@ -1623,4 +1627,8 @@ export const en: Textes = {
   'image.banque.choisir': 'Choose images',
   'image.banque.astuce': 'Or drop your images here.',
   // FIN en
+  'image.transparent': 'Transparent',
+  'image.transparent.titre': 'Show or hide the white background of a transparent image',
+  'image.dessinerDessus': 'Draw on top',
+  'image.modifierDessin': 'Edit drawing',
 }

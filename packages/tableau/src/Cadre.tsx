@@ -47,9 +47,10 @@ export const Cadre = memo(function Cadre({ element, choisie, seule, enEdition, c
   // Rangé dans une colonne, il n'a pas la poignée du coin : celle du bas règle sa hauteur.
   const rangeReglable =
     mode === 'liste' && !!def.hauteurBornable && !icone && !enEdition && !element.verrou && !contexte.services.lectureSeule && !contexte.services.presentation
+  const retrait = def.retraitPx?.(element.contenu) ?? 0
   const place: CSSProperties =
     mode === 'toile'
-      ? { left: element.x * PX_PAR_UG, top: element.y * PX_PAR_UG, width: element.largeur * PX_PAR_UG }
+      ? { left: element.x * PX_PAR_UG, top: element.y * PX_PAR_UG, width: element.largeur * PX_PAR_UG - retrait }
       : { position: 'relative' }
   return (
     <div

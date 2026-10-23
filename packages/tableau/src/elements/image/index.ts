@@ -1,8 +1,9 @@
 import type { Image } from '../../coeur/tableau'
 import { registre } from '../registre'
-import { OutilsImage, RenduImage } from './Image'
+import { OutilsFinImage, OutilsImage, RenduImage } from './Image'
+import { amorcerLegende } from './legendeAmorce'
 import './image.css'
-import { largeurNaturelleImage } from './geometrie'
+import { RETRAIT_PX, aUneCarte, largeurNaturelleImage } from './geometrie'
 import { raccourciAnnoter } from './raccourciAnnotation'
 import { recevoirImages } from './recepteur'
 import { ouvrirImage } from './visionneuse'
@@ -22,10 +23,19 @@ registre.type<Image>({
   couleur: couleurDuContenu<Image>(),
   teinte: true,
   OutilsApres: OutilsImage,
+  OutilsFin: OutilsFinImage,
   editable: true,
-  // Le double-clic et Espace la montrent en grand ; Entrée édite sa légende.
+  // Le double-clic, Entrée et Espace la montrent en grand ; taper dessus commence sa légende.
   ouvrir: (e) => ouvrirImage(e.id),
-  sansFond: true,
+  entreeOuvre: true,
+  surFrappe: (_e, caractere, contexte) => {
+    if (contexte.services.lectureSeule) return false
+    amorcerLegende(caractere)
+    return true
+  },
+  // Une carte blanche à ombre porte l'image et sa légende ; une image transparente n'a ni l'un ni l'autre.
+  sansFond: (c) => !aUneCarte(c),
+  retraitPx: () => RETRAIT_PX,
   largeurMin: 4,
   largeurNaturelle: largeurNaturelleImage,
   proportion: (c) => c.largeurOrigine / c.hauteurOrigine,

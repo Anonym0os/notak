@@ -73,9 +73,9 @@ describe('la barre de gauche, type par type (ordre de Milanote)', () => {
     expect(rangees).not.toContain('Ouvrir')
   })
 
-  it('image : Dessiner et Légende visibles ; pivoter, recadrer et détourer dans « ••• »', () => {
+  it('image : Dessiner dessus et Légende visibles ; pivoter, recadrer et détourer dans « ••• »', () => {
     const { visibles, rangees } = listes('image')
-    expect(visibles).toEqual(['Couleur', ...COMMUNS, 'Dessiner', 'Légende'])
+    expect(visibles).toEqual(['Couleur', ...COMMUNS, 'Dessiner dessus', 'Légende'])
     expect(rangees).toEqual(expect.arrayContaining(['Pivoter', 'Recadrer', 'Détourer']))
   })
 

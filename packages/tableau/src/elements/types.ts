@@ -230,6 +230,13 @@ export interface TypeElement<C extends Contenu = Contenu> {
   ouvrir?(element: Element<C>, contexte: ContexteToile): void
   /** Le double-clic et Entrée ouvrent l'édition. */
   editable?: boolean
+  /** Entrée sur l'élément choisi l'ouvre (`ouvrir`) au lieu d'entrer en édition (une image). */
+  entreeOuvre?: boolean
+  /**
+   * Un caractère tapé sur l'élément choisi, seul : rend vrai s'il le prend (il entre alors en édition, et le type
+   * garde le caractère pour le premier mot de ce qu'il écrit).
+   */
+  surFrappe?(element: Element<C>, caractere: string, contexte: ContexteToile): boolean
   /**
    * En édition, le type range ses propres outils (de texte) dans la barre de gauche, par `ContexteBarreEdition`
    * (voir `barreEdition.tsx`). Sans cela, la barre de gauche garde les outils de sa sélection.
@@ -247,6 +254,8 @@ export interface TypeElement<C extends Contenu = Contenu> {
   sansFond?: boolean | ((c: C) => boolean)
   /** Largeur minimale quand on redimensionne, en UG (17 par défaut). */
   largeurMin?: number
+  /** Pixels que la carte posée sur la toile perd en largeur : son filet de sélection est à l'extérieur (une image : 2). */
+  retraitPx?: (c: C) => number
   /** La largeur « naturelle », en UG : celle où revient le double-clic sur la poignée, depuis 34. */
   largeurNaturelle?(c: C): number
   /**
@@ -271,6 +280,8 @@ export interface TypeElement<C extends Contenu = Contenu> {
   Outils?: ComponentType<PropsOutils<C>>
   /** Outils propres au type qui suivent les étiquettes, les réactions et le commentaire (aperçu, infos, légende…). */
   OutilsApres?: ComponentType<PropsOutils<C>>
+  /** Outils propres au type qui viennent après l'arrangement (aligner, répartir, relier), juste avant « ••• ». */
+  OutilsFin?: ComponentType<PropsOutils<C>>
   /**
    * Les éléments qui partent avec ceux qu'on supprime (les lignes accrochées à une carte supprimée).
    * La toile l'interroge sur chaque type inscrit ; elle écarte les doublons.
