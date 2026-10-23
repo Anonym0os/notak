@@ -2,13 +2,13 @@ import { useSyncExternalStore } from 'react'
 import type { Clone, Element } from '../../coeur/tableau'
 import { definition } from '../registre'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
-import { originalDe } from './original'
+import { originalAffichable, originalDe } from './original'
 
 const rien = () => {}
 
-/** L'original d'un clone, suivi à chaque changement du tableau. */
+/** L'original d'un clone, suivi à chaque changement du tableau, même s'il est à la corbeille. */
 function useOriginal(cible: string, contexte: ContexteToile): Element | undefined {
-  return useSyncExternalStore(contexte.magasin.ecouter, () => originalDe(contexte.magasin.lire().elements, cible))
+  return useSyncExternalStore(contexte.magasin.ecouter, () => originalAffichable(contexte.magasin.lire().elements, cible))
 }
 
 /**
@@ -55,10 +55,12 @@ export function OutilsClone({ elements, contexte }: PropsOutils<Clone>) {
   if (elements.length !== 1) return null
   const clone = elements[0]!
   const original = originalDe(contexte.magasin.lire().elements, clone.contenu.cible)
+  // Détacher se contente d'un original à la corbeille : c'est le moyen de garder un clone rapporté seul.
+  const aDetacher = originalAffichable(contexte.magasin.lire().elements, clone.contenu.cible)
   const detacher = () => {
-    if (!original) return
+    if (!aDetacher) return
     // Une copie indépendante : le clone prend le contenu de l'original, et ne le suit plus.
-    contexte.magasin.faire([{ type: 'contenu', id: clone.id, avant: clone.contenu, apres: original.contenu }])
+    contexte.magasin.faire([{ type: 'contenu', id: clone.id, avant: clone.contenu, apres: aDetacher.contenu }])
   }
   return (
     <>
@@ -66,7 +68,7 @@ export function OutilsClone({ elements, contexte }: PropsOutils<Clone>) {
         Original
       </button>
       {!contexte.services.lectureSeule && (
-        <button type="button" title="Rendre ce clone indépendant de l’original" disabled={!original} onClick={detacher}>
+        <button type="button" title="Rendre ce clone indépendant de l’original" disabled={!aDetacher} onClick={detacher}>
           Détacher
         </button>
       )}

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { type Element, nouvelleNote } from '../../coeur/tableau'
-import { cibleDe, clonesDe, clonesEmportes, nouveauClone, originalDe, peutCloner, placeAcote } from './original'
+import { cibleDe, clonesDe, clonesEmportes, nouveauClone, originalAffichable, originalDe, peutCloner, placeAcote } from './original'
 
 const note = (id: string): Element => ({ ...nouvelleNote(0, 0), id })
 const clone = (id: string, cible: string): Element => ({ ...nouveauClone(10, 10, cible, 30), id })
@@ -47,5 +47,18 @@ describe('un original qui part à la corbeille', () => {
   test('jeter un clone seul n’emporte rien', () => {
     const c = clone('c1', 'a')
     expect(clonesEmportes([c], { elements: [note('a'), c] })).toEqual([])
+  })
+})
+
+describe('un clone rapporté seul de la corbeille', () => {
+  test('se dessine d’après l’original, même jeté', () => {
+    const jete = { ...note('a'), corbeille: 5 }
+    expect(originalDe([jete], 'a')).toBeUndefined()
+    expect(originalAffichable([jete], 'a')).toBe(jete)
+  })
+
+  test('n’a plus d’original une fois la corbeille vidée, ou si la cible n’est pas clonable', () => {
+    expect(originalAffichable([], 'a')).toBeUndefined()
+    expect(originalAffichable([clone('c', 'a'), clone('d', 'c')], 'c')).toBeUndefined()
   })
 })

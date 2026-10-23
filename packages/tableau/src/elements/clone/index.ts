@@ -3,7 +3,7 @@ import { definition, registre } from '../registre'
 import type { ContexteToile } from '../types'
 import { OutilsClone, RenduClone } from './Clone'
 import './clone.css'
-import { RESUME_SANS_ORIGINAL, cibleDe, clonesEmportes, nouveauClone, originalDe, peutCloner, placeAcote } from './original'
+import { RESUME_SANS_ORIGINAL, cibleDe, clonesEmportes, nouveauClone, originalAffichable, originalDe, peutCloner, placeAcote } from './original'
 
 /**
  * Les clones de ces éléments, posés à côté de chacun. Un élément déjà clone donne un clone de son original.
@@ -25,7 +25,7 @@ registre.type<Clone>({
   type: 'clone',
   nom: 'Clone',
   resume: (c, contexte) => {
-    const original = originalDe(contexte.magasin.lire().elements, c.cible)
+    const original = originalAffichable(contexte.magasin.lire().elements, c.cible)
     const texte = original && definition(original.contenu.type)?.resume?.(original.contenu as never, contexte)
     return original ? `Clone de ${texte || definition(original.contenu.type)?.nom || 'l’original'}` : RESUME_SANS_ORIGINAL
   },
