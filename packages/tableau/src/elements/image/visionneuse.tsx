@@ -5,6 +5,7 @@ import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
 import type { ContexteToile } from '../types'
 import { nomTelecharge } from '../fichier/telechargement'
+import { copieLocale, useProgressionEnvoi } from '../envois'
 import { aUneCarte } from './geometrie'
 import { annoter } from './modeAnnotation'
 import { borneDecalage, borneZoom, ordreImages, voisine } from './navigation'
@@ -34,6 +35,9 @@ function useAdresse(contexte: ContexteToile, fichier: string, connue?: string): 
   useEffect(() => {
     let vivant = true
     if (connue) return setAdresse(connue)
+    // Une image qui part encore d'ici se montre depuis sa copie locale : le serveur ne la connaît pas.
+    const locale = copieLocale(fichier)
+    if (locale) return setAdresse(locale)
     setAdresse(undefined)
     contexte.services.fichiers?.adresse(fichier).then(
       (a) => vivant && setAdresse(a),
@@ -67,6 +71,8 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
   const pret = useRef<ReturnType<typeof setTimeout>>(undefined)
   const modifiable = !contexte.services.lectureSeule && !contexte.services.presentation
   const plusieurs = liste.length > 1
+  // L'image est encore en route : une barre de 4 px au bas de l'image, et la barre d'outils le dit au lieu de ses boutons.
+  const envoi = useProgressionEnvoi(c.fichier)
 
   const reglerZoom = (vers: number) => {
     const z = borneZoom(vers)
@@ -192,6 +198,11 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
               <Icone nom="imageCassee" taille={32} trait={1.5} />
             </span>
           )}
+          {envoi !== null && (
+            <div className="notak-visionneuse-envoi" role="progressbar" aria-label={t('visionneuse.envoi')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={envoi >= 0 ? Math.round(envoi * 100) : undefined}>
+              <span style={envoi >= 0 ? { width: `${Math.round(envoi * 100)}%` } : undefined} data-indetermine={envoi < 0 || undefined} />
+            </div>
+          )}
           {c.legende && (
             <figcaption data-garder className="notak-visionneuse-legende">
               {c.legende}
@@ -200,21 +211,27 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
         </figure>
       </div>
       <div data-garder className="notak-visionneuse-barre" data-estompee={bouge || undefined} role="toolbar" aria-label={t('visionneuse.barre')}>
-        {modifiable && texte(t('visionneuse.dessiner'), () => sortir(() => annoter(courant.id)))}
-        {modifiable && texte(t('visionneuse.modifier'), () => sortir(() => recadrer(courant.id)))}
-        {modifiable && !!contexte.services.fichiers && aUneCarte({ ...c, fondBlanc: false }) && texte(t('visionneuse.fond'), () => sortir(() => detourerImage(courant.id)))}
-        {modifiable && <span className="notak-visionneuse-sep" role="separator" />}
-        {plusieurs && outil('precedent', t('visionneuse.precedent'), () => aller(-1))}
-        {plusieurs && outil('suivant', t('visionneuse.suivant'), () => aller(1))}
-        {plusieurs && <span className="notak-visionneuse-sep" role="separator" />}
-        {outil('ouvrir', t('visionneuse.ouvrir'), () => adresse && window.open(adresse, '_blank', 'noopener,noreferrer'), !!adresse)}
-        {adresse ? (
-          <a className="notak-visionneuse-outil" href={adresse} download={nomTelecharge(c)} aria-label={t('visionneuse.telecharger')} title={t('visionneuse.telecharger')} rel="noopener">
-            <Icone nom="exporter" taille={16} />
-          </a>
-        ) : (
-          outil('exporter', t('visionneuse.telecharger'), () => {}, false)
+        {envoi !== null && (
+          <span className="notak-visionneuse-etat" role="status">
+            {t('visionneuse.envoi')}
+          </span>
         )}
+        {envoi === null && modifiable && texte(t('visionneuse.dessiner'), () => sortir(() => annoter(courant.id)))}
+        {envoi === null && modifiable && texte(t('visionneuse.modifier'), () => sortir(() => recadrer(courant.id)))}
+        {envoi === null && modifiable && !!contexte.services.fichiers && aUneCarte({ ...c, fondBlanc: false }) && texte(t('visionneuse.fond'), () => sortir(() => detourerImage(courant.id)))}
+        {envoi === null && modifiable && <span className="notak-visionneuse-sep" role="separator" />}
+        {envoi === null && plusieurs && outil('precedent', t('visionneuse.precedent'), () => aller(-1))}
+        {envoi === null && plusieurs && outil('suivant', t('visionneuse.suivant'), () => aller(1))}
+        {envoi === null && plusieurs && <span className="notak-visionneuse-sep" role="separator" />}
+        {envoi === null && outil('ouvrir', t('visionneuse.ouvrir'), () => adresse && window.open(adresse, '_blank', 'noopener,noreferrer'), !!adresse)}
+        {envoi === null &&
+          (adresse ? (
+            <a className="notak-visionneuse-outil" href={adresse} download={nomTelecharge(c)} aria-label={t('visionneuse.telecharger')} title={t('visionneuse.telecharger')} rel="noopener">
+              <Icone nom="exporter" taille={16} />
+            </a>
+          ) : (
+            outil('exporter', t('visionneuse.telecharger'), () => {}, false)
+          ))}
       </div>
     </div>,
     document.body,

@@ -14,7 +14,8 @@ import type { Apercu, Contenu, CouleurNote, Element, Id, Operation, Tableau, Typ
 
 /** Où l'application range les fichiers (images…). La toile ne sait pas où ils vivent. */
 export interface DepotFichiers {
-  enregistrer(fichier: Blob): Promise<Id>
+  /** `progression` : combien d'octets sont partis sur combien, si le dépôt sait le dire (la barre de la fenêtre de l'image). */
+  enregistrer(fichier: Blob, progression?: (envoyes: number, total: number) => void): Promise<Id>
   /** Une adresse affichable (`blob:`, `https:`…), ou `null` si le fichier est introuvable. */
   adresse(id: Id): Promise<string | null>
 }
