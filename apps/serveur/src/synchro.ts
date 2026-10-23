@@ -7,6 +7,7 @@ import type { Base } from './base.ts'
 import { roleHerite } from './droits.ts'
 import { indexerDocument } from './indexation.ts'
 import { NOM_COOKIE, empreinteDe, lireCookie } from './sessions.ts'
+import { verrouPar } from './verrou.ts'
 
 const PREFIXE = 'tableau:'
 
@@ -47,6 +48,8 @@ export function creerHocuspocus(base: Base, maintenant: () => number = Date.now)
       const utilisateur = id && jeton ? base.utilisateurDeSession(empreinteDe(jeton), maintenant()) : null
       const droit = utilisateur && id ? roleHerite((t) => base.acces(t), (t) => base.tableau(t)?.parent ?? null, utilisateur.id, id) : null
       if (!utilisateur || !droit) throw new Error('refusé')
+      // Un tableau protégé ne se synchronise qu'une fois son mot de passe donné.
+      if (id && verrouPar(base, utilisateur.id, id) !== null) throw new Error('verrouillé')
       if (droit === 'lecture') connectionConfig.readOnly = true
       return { utilisateur: { id: utilisateur.id, nom: utilisateur.nom, couleur: utilisateur.couleur }, role: droit }
     },
