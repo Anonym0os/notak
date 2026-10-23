@@ -2640,3 +2640,15 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
     transform: none;
   }
 }
+
+/* L'activité qu'on n'a pas vue : un point de 7 px, à la couleur de la marque, au coin haut droit de l'élément. */
+.notak-activite {
+  position: absolute;
+  z-index: 40;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f4511c;
+  transform: scale(var(--notak-zoom-inverse, 1));
+  transform-origin: top right;
+}

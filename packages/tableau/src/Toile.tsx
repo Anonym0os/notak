@@ -157,6 +157,12 @@ const APPUI_LONG = 500
 /** Les types que propose le menu de la toile vide. */
 const TYPES_DU_MENU: ReadonlySet<string> = new Set(['note', 'lien', 'taches', 'ligne', 'tableau', 'colonne', 'commentaire', 'table'])
 
+/** L'âge d'une activité, en quelques mots : « il y a quelques secondes », « il y a 3 min ». */
+const ageCourt = (quand: number) => {
+  const m = Math.floor((Date.now() - quand) / 60000)
+  return m < 1 ? t('toile.ageSecondes') : t('toile.ageMinutes', { n: m })
+}
+
 /** Ce que Cmd+Entrée fait naître, pour les types où Milanote diffère de la suite propre du type. */
 const SUIVANT_COMMUN: Partial<Record<TypeContenu, 'note' | 'rien' | 'droite'>> = {
   table: 'rien',
@@ -378,6 +384,24 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       n.style.setProperty('--notak-modifie', qui.couleur)
     }
   })
+  // L'activité qu'on n'a pas vue : un point sur l'élément qu'un autre a modifié, jusqu'à ce qu'on l'ait choisi puis lâché.
+  const [nonVus, setNonVus] = useState<ReadonlyMap<Id, { nom: string; quand: number }>>(new Map())
+  useEffect(() => {
+    setNonVus((avant) => {
+      let suivant: Map<Id, { nom: string; quand: number }> | null = null
+      for (const [id, qui] of modifies) {
+        if (avant.has(id) || selection.has(id)) continue
+        suivant ??= new Map(avant)
+        suivant.set(id, { nom: qui.nom, quand: Date.now() })
+      }
+      return suivant ?? avant
+    })
+  }, [modifies, selection])
+  useEffect(() => {
+    if (enGeste || nonVus.size === 0) return
+    const vus = [...nonVus.keys()].filter((id) => selection.has(id))
+    if (vus.length > 0) setNonVus((avant) => new Map([...avant].filter(([id]) => !vus.includes(id))))
+  }, [selection, enGeste, nonVus])
   // L'élément montré en grand pendant une présentation.
   const [focus, setFocus] = useState<{ noeud: HTMLElement; depart: DOMRect } | null>(null)
   const [glisses, setGlisses] = useState<ReadonlySet<Id> | null>(null)
@@ -2371,6 +2395,18 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
             />
           ))}
         </ContexteRangement.Provider>
+        {[...nonVus].map(([id, v]) => {
+          const r = rect(id)
+          if (!r) return null
+          return (
+            <span
+              key={`activite:${id}`}
+              className="notak-activite"
+              title={t('toile.modifiePar', { nom: v.nom, age: ageCourt(v.quand) })}
+              style={{ left: r.max.x * cam.PX_PAR_UG - 6 - 7, top: r.min.y * cam.PX_PAR_UG + 6 }}
+            />
+          )
+        })}
         <svg className="notak-calque-lignes" aria-hidden>
           {lignes.map((e) => {
             const Rendu = definition(e.contenu.type)!.Rendu
