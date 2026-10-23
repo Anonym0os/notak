@@ -28,8 +28,9 @@ UG : l'unité de grille de la toile (10 px à 100 %). « Choix Notak » marque u
   (#d1d3d6 clair, #414141 sombre ; corps #fff / #282828). L'en-tête n'est qu'une mise en forme : il se change, se
   déplace et se retire comme une autre ligne.
 - Minimum 2 lignes, 1 colonne ; colonne neuve 12 UG ; colonne au moins 4 UG ; ligne au moins 3 UG (hauteur selon
-  le contenu, pas de geste de hauteur) ; élément au moins 12 × 6 UG. Choix Notak : au plus 200 lignes et
-  30 colonnes. Raccourci de création ⌃⌘N : pas encore, Notak n'a aucun raccourci de création d'élément.
+  le contenu, pas de geste de hauteur) ; élément au moins 12 × 6 UG. Milanote ne borne pas la table : Notak
+  ne garde qu'une garde contre un collage démesuré (10 000 lignes, 1 000 colonnes). Pas de raccourci de création
+  de table dans le code de Milanote.
 - Non choisie : la grille est dessinée, un clic choisit ou glisse l'élément, pas de repères. Une case à cocher se
   coche et un lien s'ouvre d'un clic quand même.
 - Choisie seule : bordure de sélection de 2 px, repères A B C au-dessus et 1 2 3 à gauche, hors de la table. Pas
@@ -261,9 +262,9 @@ lignes (dès une demi-ligne de 3 UG). Elle ne retire jamais une colonne ou une l
 
 ## Ce qu'on ne reprend pas tout de suite
 
-- Le texte riche partiel dans une cellule (un mot en gras, une mention, un lien au milieu d'une phrase) : chez nous
-  la mise en forme est par cellule, et un lien doit occuper toute la cellule.
-- Le raccourci de création ⌃⌘N (avec les raccourcis de création des autres éléments).
+- La mention « @ » et le lien vers un tableau dans une cellule. Le gras, l'italique, le barré, le lien, la couleur et
+  le surlignage d'un passage sont repris (`riche` dans le format de la cellule, voir `riche.ts`).
+- Le raccourci de création ⌃⌘N : le code de Milanote n'en donne pas pour la table (seul ⌘Entrée crée l'élément suivant).
 - Les couleurs suggérées de la planche sous la palette de fond.
 - Le repli de la barre selon la hauteur de la fenêtre.
 - L'erreur #NUM! (les erreurs de domaine donnent #VALUE!).
