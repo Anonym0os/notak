@@ -73,6 +73,11 @@ describe('couleursSuggerees', () => {
     const els = [note({ fond: '#111111' }), note({ barre: '#222222' }), note({ fond: '#222222' }), note({ couleur: 'vert' }), note({})]
     expect(couleursSuggerees(els)).toEqual(['#222222', '#111111', FOND_NOTE.vert])
   })
+  it('complète avec la palette des images, sans doublon ni image à la corbeille', () => {
+    const image = (couleurs: string[], reste: object = {}): Element => ({ id: 'i', x: 0, y: 0, largeur: 20, contenu: { type: 'image', fichier: 'f', largeurOrigine: 10, hauteurOrigine: 10, couleurs }, ...reste }) as never
+    const els = [note({ fond: '#111111' }), image(['#111111', '#aa0000']), image(['#00bb00'], { corbeille: 1 }), image(['#0000cc'])]
+    expect(couleursSuggerees(els)).toEqual(['#111111', '#aa0000', '#0000cc'])
+  })
   it('s\'arrête à huit', () => {
     const els = Array.from({ length: 12 }, (_, i) => note({ fond: `#0000${(i + 10).toString(16)}` }))
     expect(couleursSuggerees(els)).toHaveLength(8)

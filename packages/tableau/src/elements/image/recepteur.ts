@@ -1,6 +1,7 @@
 import { type Element, type Image as ContenuImage, type Operation, nouvelId } from '../../coeur/tableau'
 import { commencerEnvoi } from '../envois'
 import { lireDimensions, lireTransparence } from './lecture'
+import { lirePalette } from './palette'
 import type { ContexteToile, DepotFichiers } from '../types'
 import { annoncer } from '../../avis'
 import { imageARemplacer } from './survolDepot'
@@ -45,12 +46,14 @@ export async function remplacerImage(cible: Element<ContenuImage>, f: File, depo
   const d = await lireDimensions(f)
   if (!d) return []
   const transparente = await lireTransparence(f)
+  const couleurs = await lirePalette(f)
   const nouveau: Omit<ContenuImage, 'fichier'> = {
     type: 'image',
     largeurOrigine: d.largeur,
     hauteurOrigine: d.hauteur,
     typeMime: f.type,
     ...(transparente !== undefined ? { transparente } : {}),
+    ...(couleurs.length > 0 ? { couleurs } : {}),
   }
   const apres = remplacerContenu(cible.contenu, nouveau, commencerEnvoi(f, depot))
   return [{ type: 'contenu', id: cible.id, avant: cible.contenu, apres }]
@@ -63,12 +66,14 @@ async function poserImages(fichiers: File[], ou: { x: number; y: number }, conte
     const d = await lireDimensions(f)
     if (!d) continue
     const transparente = await lireTransparence(f)
+    const couleurs = await lirePalette(f)
     const contenu = {
       type: 'image' as const,
       largeurOrigine: d.largeur,
       hauteurOrigine: d.hauteur,
       typeMime: f.type,
       ...(transparente !== undefined ? { transparente } : {}),
+      ...(couleurs.length > 0 ? { couleurs } : {}),
     }
     lues.push({ fichier: f, contenu, largeur: largeurInitiale(d.largeur) })
   }
