@@ -1,6 +1,7 @@
+// @vitest-environment jsdom
 import { describe, expect, test } from 'vitest'
 import { docDepuisTexte } from '../../coeur/tableau'
-import { compterMots, doitEtreTitre, documentCree, documentVide, extrait, mesure, nouveauDocument, premiersBlocs, resume } from './texte'
+import { compterMots, deposerTampon, doitEtreTitre, documentCree, documentVide, ecouterRenommer, demanderRenommer, extrait, mesure, nouveauDocument, premiersBlocs, prendreTampon, resume, titreAffiche } from './texte'
 
 describe('le document', () => {
   test('un document neuf est vide', () => {
@@ -49,5 +50,30 @@ describe('la création par l’outil', () => {
 
   test('un document venu d’ailleurs (suivant, copie) n’édite pas son titre', () => {
     expect(doitEtreTitre(nouveauDocument(0, 0).id)).toBe(false)
+  })
+})
+
+describe('la carte et son titre', () => {
+  test('pas de mot orphelin : une espace insécable avant le dernier mot', () => {
+    expect(titreAffiche(' Plan de la semaine ')).toBe('Plan de la\u00a0semaine')
+    expect(titreAffiche('Plan')).toBe('Plan')
+  })
+
+  test('le caractère tapé sur la carte se reprend une seule fois', () => {
+    deposerTampon('é')
+    expect(prendreTampon()).toBe('é')
+    expect(prendreTampon()).toBeNull()
+  })
+
+  test('« renommer » ne réveille que le document visé', () => {
+    let a = 0
+    let b = 0
+    const quitterA = ecouterRenommer('a', () => a++)
+    const quitterB = ecouterRenommer('b', () => b++)
+    demanderRenommer('a')
+    quitterA()
+    quitterB()
+    demanderRenommer('a')
+    expect([a, b]).toEqual([1, 0])
   })
 })

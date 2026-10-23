@@ -397,6 +397,8 @@ export interface DocumentTexte {
   texte: NoeudTexte
   /** La couleur de sa feuille sur la toile, de la palette des notes. */
   couleur?: CouleurNote
+  /** Vue carte : 34 unités de large, avec un aperçu du texte ; absent, la carte n'est qu'une feuille et son titre. */
+  carte?: boolean
 }
 
 /**

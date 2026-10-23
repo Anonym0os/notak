@@ -236,6 +236,8 @@ export interface TypeElement<C extends Contenu = Contenu> {
    */
   ouvreAuDoubleClic?: boolean
   surEntree?(element: Element<C>, contexte: ContexteToile): void
+  /** Un caractère tapé sur l'élément seul choisi (hors Cmd et Alt) : un document s'ouvre avec ce caractère. */
+  surFrappe?(element: Element<C>, caractere: string, contexte: ContexteToile): void
   /**
    * En édition, le type range ses propres outils (de texte) dans la barre de gauche, par `ContexteBarreEdition`
    * (voir `barreEdition.tsx`). Sans cela, la barre de gauche garde les outils de sa sélection.
@@ -251,6 +253,8 @@ export interface TypeElement<C extends Contenu = Contenu> {
   hauteurParDefaut?: number
   /** Le cadre commun n'a ni fond ni ombre (une image, un titre) : le type dessine les siens. */
   sansFond?: boolean | ((c: C) => boolean)
+  /** Pas de poignée de redimensionnement : la largeur est fixe (un document). */
+  sansPoignee?: boolean
   /** Largeur minimale quand on redimensionne, en UG (17 par défaut). */
   largeurMin?: number
   /** La largeur « naturelle », en UG : celle où revient le double-clic sur la poignée, depuis 34. */

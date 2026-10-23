@@ -83,10 +83,10 @@ describe('la barre de gauche, type par type (ordre de Milanote)', () => {
     expect(listes('fichier').visibles).toEqual(['Couleur', ...COMMUNS, 'Icône', 'Renommer', 'Légende'])
   })
 
-  it('document : Mode (visible) ; Ouvrir dans « ••• »', () => {
+  it('document : Couleur, communs, Vue carte, Renommer (ni « Ouvrir » : le double-clic ouvre)', () => {
     const { visibles, rangees } = listes('document')
-    expect(visibles).toEqual(['Couleur', ...COMMUNS, 'Icône'])
-    expect(rangees).toContain('Ouvrir')
+    expect(visibles).toEqual(['Couleur', ...COMMUNS, 'Vue carte', 'Renommer'])
+    expect(rangees).not.toContain('Ouvrir')
   })
 
   it('colonne : Couleur, Renommer', () => {

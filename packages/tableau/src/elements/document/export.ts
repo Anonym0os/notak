@@ -3,6 +3,8 @@ import { texteBrut } from '../../coeur/tableau'
 
 /** Les formats que le navigateur sait fabriquer seul : le PDF passe par l'impression. */
 export type FormatDocument = 'md' | 'txt'
+/** Le titre d'un document tient en 100 caractères, comme chez Milanote. */
+export const TITRE_MAX = 100
 
 const chaine = (v: unknown): string => (typeof v === 'string' ? v : '')
 
@@ -96,6 +98,18 @@ export const nomFichier = (titre: string, extension: string): string =>
 /** Ce que le navigateur télécharge : le fichier de ce format. */
 export function telecharger(nom: string, contenu: string, mime: string) {
   const adresse = URL.createObjectURL(new Blob([contenu], { type: `${mime};charset=utf-8` }))
+  const lien = document.createElement('a')
+  lien.href = adresse
+  lien.download = nom
+  document.body.appendChild(lien)
+  lien.click()
+  lien.remove()
+  setTimeout(() => URL.revokeObjectURL(adresse), 1000)
+}
+
+/** Comme `telecharger`, pour un fichier binaire (le .docx). */
+export function telechargerOctets(nom: string, octets: Uint8Array, mime: string) {
+  const adresse = URL.createObjectURL(new Blob([octets as BlobPart], { type: mime }))
   const lien = document.createElement('a')
   lien.href = adresse
   lien.download = nom

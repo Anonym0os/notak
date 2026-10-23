@@ -1405,6 +1405,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (dans && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) return reordonner(dans, e.key === 'ArrowUp' ? -1 : 1)
       return deplacer(...fleches[e.key]!)
     }
+    // Un caractère tapé sur un élément seul choisi qui sait l'accueillir (un document s'ouvre avec lui).
+    if (selection.size === 1 && e.key.length === 1 && e.key !== '/' && e.key !== ' ' && !e.altKey && !e.ctrlKey) {
+      const seul = tableau.elements.find((x) => x.id === [...selection][0])
+      const frappe = seul && !seul.verrou ? definition(seul.contenu.type)?.surFrappe : undefined
+      if (seul && frappe) {
+        e.preventDefault()
+        return frappe(seul as never, e.key, contexte)
+      }
+    }
     switch (e.key) {
       case '/':
         e.preventDefault()

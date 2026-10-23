@@ -60,15 +60,15 @@ export function ColonneOutils({ editor, lien, surLien }: Props) {
   const outils: PropsOutil[] = [
     { icone: 'gras', libelle: t('barre.gras'), raccourci: '⌘B', actif: etat.gras, onClick: () => chaine().toggleBold().run() },
     { icone: 'italique', libelle: t('barre.italique'), raccourci: '⌘I', actif: etat.italique, onClick: () => chaine().toggleItalic().run() },
+    { icone: 'barre', libelle: t('barre.barre'), raccourci: '⌘⇧X', actif: etat.barre, onClick: () => chaine().toggleStrike().run() },
+    { icone: 'souligne', libelle: t('barre.souligne'), raccourci: '⌘U', actif: etat.souligne, onClick: () => chaine().toggleUnderline().run() },
     { icone: 'puces', libelle: t('barre.puces'), raccourci: '⌘⇧U', actif: etat.puces, onClick: () => chaine().toggleBulletList().run() },
     { icone: 'numerotee', libelle: t('barre.numerotee'), raccourci: '⌘⇧O', actif: etat.numerotee, onClick: () => chaine().toggleOrderedList().run() },
     { icone: 'retraitPlus', libelle: t('barre.retraitPlus'), raccourci: 'Tab', grise: !dansListe, onClick: () => { editor.commands.focus(); augmenterRetrait(editor) } },
     { icone: 'retraitMoins', libelle: t('barre.retraitMoins'), raccourci: '⇧Tab', grise: !dansListe, onClick: () => { editor.commands.focus(); diminuerRetrait(editor) } },
     { icone: 'centrer', libelle: t('barre.centrer'), raccourci: '⌘\\', actif: etat.centre, onClick: () => basculerCentre(editor) },
-    { icone: 'lien', libelle: t('barre.lien'), raccourci: '⌘K', actif: etat.surLien || lien !== null, grise: sansSelection, onClick: ouvrirLien },
-    { icone: 'barre', libelle: t('barre.barre'), raccourci: '⌘⇧X', actif: etat.barre, onClick: () => chaine().toggleStrike().run() },
-    { icone: 'souligne', libelle: t('barre.souligne'), raccourci: '⌘U', actif: etat.souligne, onClick: () => chaine().toggleUnderline().run() },
     { icone: 'code', libelle: t('barre.codeLigne'), raccourci: '⌘E', actif: etat.code, onClick: () => chaine().toggleCode().run() },
+    { icone: 'lien', libelle: t('barre.lien'), raccourci: '⌘K', actif: etat.surLien || lien !== null, grise: sansSelection, onClick: ouvrirLien },
   ]
   const n = outilsVisibles(hauteur, outils.length)
   const cache = outils.slice(n)

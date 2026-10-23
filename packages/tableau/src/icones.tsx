@@ -188,6 +188,25 @@ const IconRelier = dessiner(
   ),
 )
 
+/** Une carte détaillée : un cadre, un aperçu de texte en haut et le titre dessous. */
+const IconVueCarte = dessiner(
+  'IconVueCarte',
+  createElement('g', null,
+    createElement('rect', { x: 4, y: 3, width: 16, height: 18, rx: 1.5 }),
+    createElement('path', { d: 'M8 7h8M8 10h8M8 13h5' }),
+    createElement('path', { d: 'M4 16.5h16' }),
+  ),
+)
+
+/** Un champ de texte à renommer : un cadre et le curseur d'écriture. */
+const IconRenommer = dessiner(
+  'IconRenommer',
+  createElement('g', null,
+    createElement('path', { d: 'M5 8h14a1.5 1.5 0 0 1 1.5 1.5v5A1.5 1.5 0 0 1 19 16H5a1.5 1.5 0 0 1-1.5-1.5v-5A1.5 1.5 0 0 1 5 8z' }),
+    createElement('path', { d: 'M9 11.5v1M12 6.5v11' }),
+  ),
+)
+
 /** Une roue chromatique : un disque et ses quartiers. */
 const IconRoue = dessiner(
   'IconRoue',
@@ -370,6 +389,8 @@ const ICONES = {
   resoudre: IconCircleCheck,
   detacher: IconLinkOff,
   diese: IconHash,
+  vueCarte: IconVueCarte,
+  renommer: IconRenommer,
   infos: IconInfoCircle,
   barreNote: IconLayoutNavbar,
   texte: IconTypography,
