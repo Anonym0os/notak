@@ -1741,3 +1741,157 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   font: inherit;
   cursor: pointer;
 }
+
+/* [barre d'édition à gauche] Les outils de texte d'une note en édition prennent la barre de gauche. */
+.notak-barre-edition-liste {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-height: 0;
+  width: 100%;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.notak-edition-outils {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+/* Un outil de texte : l'icône seule, 32 px, sans fond ; 49 px d'un outil au suivant. */
+.notak-barre-edition {
+  gap: 17px;
+}
+
+.notak-barre-edition button.notak-outil-texte {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--notak-texte);
+  cursor: pointer;
+}
+
+/* Actif : la tuile se remplit, le glyphe prend la couleur inverse. */
+.notak-barre-edition button.notak-outil-texte[aria-pressed='true'] {
+  background: var(--notak-texte);
+  color: var(--notak-barre, var(--notak-fond));
+}
+
+/* Grisé : le glyphe à 20 %, le clic est reçu mais ne fait rien. */
+.notak-barre-edition button.notak-outil-texte[aria-disabled='true'] {
+  cursor: default;
+}
+
+.notak-barre-edition button.notak-outil-texte[aria-disabled='true'] .notak-ico {
+  opacity: 0.2;
+}
+
+/* « Style de texte » : la seule tuile avec son nom. */
+.notak-barre-edition .notak-outil-selection {
+  margin: 0 auto;
+}
+
+.notak-barre-edition .notak-note-menu-ancre {
+  display: grid;
+  place-items: center;
+  width: 68px;
+}
+
+.notak-barre-edition .notak-note-menu-ancre > .notak-outil-selection {
+  justify-self: center;
+}
+
+/* Le menu de style s'ouvre à droite de la barre, 242 px de large : chaque ligne dans son style, le raccourci ou la coche à droite. */
+.notak-barre-edition .notak-menu-style {
+  bottom: auto;
+  width: 242px;
+  padding: 4px 0;
+  gap: 0;
+}
+
+.notak-menu-style .notak-note-menu-ligne {
+  display: flex;
+  align-items: center;
+  justify-content: space-between !important;
+  height: 40px;
+  padding: 0 16px 0 20px !important;
+  border-radius: 0 !important;
+  text-align: left;
+}
+
+.notak-menu-style .notak-note-menu-ligne[aria-current] {
+  background: var(--notak-fond);
+}
+
+.notak-menu-style kbd {
+  color: var(--notak-pale, #8a9099);
+  font: inherit;
+  font-size: 12px;
+}
+
+.notak-menu-style [data-style='titre1'] > span { font-size: 20px; font-weight: 700; }
+.notak-menu-style [data-style='titre2'] > span { font-size: 16px; font-weight: 700; }
+.notak-menu-style [data-style='petit'] > span { font-size: 11px; }
+.notak-menu-style [data-style='code'] > span { font-family: ui-monospace, monospace; font-size: 12px; }
+.notak-menu-style [data-style='citation'] > span { font-style: italic; }
+
+.notak-menu-style hr {
+  margin: 4px 0;
+}
+
+.notak-menu-rubrique {
+  padding: 4px 20px 2px;
+  color: var(--notak-pale, #8a9099);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.notak-menu-style .notak-note-pastilles {
+  justify-content: space-between;
+  padding: 4px 16px 6px 20px;
+}
+
+/* Le champ d'adresse du lien : un popup à droite de l'outil. */
+.notak-lien-popup {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 10px);
+  z-index: 4;
+  padding: 6px;
+  border-radius: 8px;
+  background: var(--notak-carte);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
+  transform: translateY(-50%);
+}
+
+.notak-lien-popup .notak-note-lien {
+  margin-left: 0;
+}
+
+/* D'une liste à l'autre (création, sélection, écriture), la nouvelle arrive de la droite en 200 ms. */
+@keyframes notak-liste-entre {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+}
+
+.notak-barre-outils[data-selection] > :not(.notak-barre-ressort) {
+  animation: notak-liste-entre 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notak-barre-outils[data-selection] > :not(.notak-barre-ressort) {
+    animation: none;
+  }
+}

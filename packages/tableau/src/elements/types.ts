@@ -205,6 +205,11 @@ export interface TypeElement<C extends Contenu = Contenu> {
   ouvrir?(element: Element<C>, contexte: ContexteToile): void
   /** Le double-clic et Entrée ouvrent l'édition. */
   editable?: boolean
+  /**
+   * En édition, le type range ses propres outils (de texte) dans la barre de gauche, par `ContexteBarreEdition`
+   * (voir `barreEdition.tsx`). Sans cela, la barre de gauche garde les outils de sa sélection.
+   */
+  outilsEdition?: boolean
   /** Hauteur avant la première mesure, en UG. */
   hauteurParDefaut?: number
   /** Le cadre commun n'a ni fond ni ombre (une image, un titre) : le type dessine les siens. */

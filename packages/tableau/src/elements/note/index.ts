@@ -38,6 +38,7 @@ registre.type<Note>({
     },
   },
   editable: true,
+  outilsEdition: true,
   hauteurParDefaut: HAUTEUR_NOTE_MIN,
   sansFond: (c) => c.couleur === 'transparent' && !c.fond,
   hauteurBornable: true,

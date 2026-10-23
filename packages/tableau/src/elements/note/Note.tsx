@@ -1,10 +1,13 @@
 import { EditorContent, getSchema, useEditor } from '@tiptap/react'
 import { renderToReactElement } from '@tiptap/static-renderer/pm/react'
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { memo, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { type Commentaire, type Id, type Note, type NoeudTexte, nouvelId } from '../../coeur/tableau'
 import { extensionsDuPartage, textePartage } from '../partage'
 import type { PropsRendu } from '../types'
+import { ContexteBarreEdition } from '../../barreEdition'
 import { BarreTexte } from './Barre'
+import { OutilsTexteGauche } from './OutilsTexte'
 import { Marge } from './Marge'
 import { MARQUE_FIL, type Fils, avecFil, filsVivants, sansPassagesMuets } from './fils'
 import { type Pont, Propositions, extensionPropositions } from './Propositions'
@@ -79,6 +82,8 @@ function Editeur(props: PropsRendu<Note>) {
   const { element, contexte, brouillon } = props
   const { contenu } = element
   const [lien, setLien] = useState<string | null>(null)
+  // Avec la barre de gauche, les outils de texte y prennent sa place ; sinon ils flottent au-dessus de la note.
+  const { attendue, cible } = useContext(ContexteBarreEdition)
   const gestes = useRef<GestesEdition>(null!)
   // Les fils du texte vivent à côté de lui : la note les garde en brouillon avec le texte.
   const fils = useRef<Fils | undefined>(contenu.fils)
@@ -166,7 +171,13 @@ function Editeur(props: PropsRendu<Note>) {
 
   return (
     <>
-      {editeur && <BarreTexte editor={editeur} lien={lien} surLien={setLien} commenter={contexte.services.lectureSeule ? undefined : () => gestes.current.commenter()} />}
+      {/* Le bloc « barre de gauche en édition » : le portail de l'éditeur vers l'emplacement que la toile prête. */}
+      {editeur && !attendue && <BarreTexte editor={editeur} lien={lien} surLien={setLien} commenter={contexte.services.lectureSeule ? undefined : () => gestes.current.commenter()} />}
+      {editeur && attendue && cible &&
+        createPortal(
+          <OutilsTexteGauche editor={editeur} lien={lien} surLien={setLien} finir={() => contexte.finirEdition()} commenter={contexte.services.lectureSeule ? undefined : () => gestes.current.commenter()} />,
+          cible,
+        )}
       {editeur && (
         <Marge
           editeur={editeur}

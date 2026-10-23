@@ -2,6 +2,7 @@ import { type Editor, useEditorState } from '@tiptap/react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { type StyleBloc, basculerCentre, basculerSurlignage, poserCouleurTexte, poserStyle, styleActif } from './commandes'
 import { normaliserUrl } from './conversion'
+import { basculerEncadre } from './noeuds'
 import { EMOJIS } from './insertion'
 import { augmenterRetrait, diminuerRetrait } from './texte'
 import { COULEURS_TEXTE, SURLIGNAGES, valeurCouleurTexte } from './couleurs'
@@ -9,14 +10,40 @@ import { t } from '../../langue'
 import { Icone } from '../../icones'
 import { useMenu } from '../../menuUnique'
 
-const STYLES: { style: StyleBloc; libelle: string }[] = [
-  { style: 'titre1', get libelle() { return t('barre.style.grandTitre') } },
-  { style: 'titre2', get libelle() { return t('barre.style.titre') } },
-  { style: 'texte', get libelle() { return t('barre.style.texte') } },
-  { style: 'petit', get libelle() { return t('barre.style.petit') } },
-  { style: 'citation', get libelle() { return t('barre.style.citation') } },
-  { style: 'code', get libelle() { return t('barre.style.code') } },
+type StyleMenu = StyleBloc | 'encadre'
+
+/** Les styles de bloc, dans l'ordre du menu : le nom court (le bouton flottant), le nom du menu, le raccourci. */
+const STYLES: { style: StyleMenu; libelle: string; ligne: string; raccourci: string }[] = [
+  { style: 'titre1', get libelle() { return t('barre.style.grandTitre') }, get ligne() { return t('barre.style.grandTitre') }, raccourci: '⌘⇧1' },
+  { style: 'titre2', get libelle() { return t('barre.style.titre') }, get ligne() { return t('barre.style.titre') }, raccourci: '⌘⇧2' },
+  { style: 'texte', get libelle() { return t('barre.style.texte') }, get ligne() { return t('barre.style.texteNormal') }, raccourci: '⌘⇧0' },
+  { style: 'petit', get libelle() { return t('barre.style.petit') }, get ligne() { return t('barre.style.petit') }, raccourci: '⌘⇧9' },
+  { style: 'code', get libelle() { return t('barre.style.code') }, get ligne() { return t('barre.style.codeBloc') }, raccourci: '⌘.' },
+  { style: 'encadre', get libelle() { return t('barre.style.encadre') }, get ligne() { return t('barre.style.encadre') }, raccourci: '⌘⇧6' },
+  { style: 'citation', get libelle() { return t('barre.style.citation') }, get ligne() { return t('barre.style.citation') }, raccourci: '⌘\'' },
 ]
+
+/** Ce que les barres de texte lisent de l'éditeur : les marques actives, le bloc, la sélection. */
+export const etatTexte = ({ editor: ed }: { editor: Editor }) => ({
+  style: styleActif(ed),
+  encadre: ed.isActive('encadre'),
+  gras: ed.isActive('bold'),
+  italique: ed.isActive('italic'),
+  barre: ed.isActive('strike'),
+  souligne: ed.isActive('underline'),
+  puces: ed.isActive('bulletList'),
+  numerotee: ed.isActive('orderedList'),
+  centre: ed.isActive({ textAlign: 'center' }),
+  code: ed.isActive('code'),
+  blocCode: ed.isActive('codeBlock'),
+  surLien: ed.isActive('link'),
+  surFil: ed.isActive('commentaireTexte'),
+  vide: ed.state.selection.empty,
+  debut: ed.state.selection.from,
+  couleur: (ed.getAttributes('textStyle').color as string | undefined) ?? null,
+  surlignage: ed.isActive('highlight') ? ((ed.getAttributes('highlight').color as string | null) ?? '') : null,
+})
+export type EtatTexte = ReturnType<typeof etatTexte>
 
 interface Props {
   editor: Editor
@@ -29,25 +56,7 @@ interface Props {
 
 /** La barre de mise en forme, posée au-dessus de la note en édition. Elle ne prend jamais le focus à l'éditeur. */
 export function BarreTexte({ editor, lien, surLien, commenter }: Props) {
-  const etat = useEditorState({
-    editor,
-    selector: ({ editor: ed }) => ({
-      style: styleActif(ed),
-      gras: ed.isActive('bold'),
-      italique: ed.isActive('italic'),
-      barre: ed.isActive('strike'),
-      souligne: ed.isActive('underline'),
-      puces: ed.isActive('bulletList'),
-      numerotee: ed.isActive('orderedList'),
-      centre: ed.isActive({ textAlign: 'center' }),
-      code: ed.isActive('code'),
-      surLien: ed.isActive('link'),
-      surFil: ed.isActive('commentaireTexte'),
-      vide: ed.state.selection.empty,
-      couleur: (ed.getAttributes('textStyle').color as string | undefined) ?? null,
-      surlignage: ed.isActive('highlight') ? ((ed.getAttributes('highlight').color as string | null) ?? '') : null,
-    }),
-  })
+  const etat = useEditorState({ editor, selector: etatTexte })
   const [menu, setMenu, ancreMenu] = useMenu()
   const [insertion, setInsertion, ancreInsertion] = useMenu()
   const ouvrirLien = () => {
@@ -74,9 +83,9 @@ export function BarreTexte({ editor, lien, surLien, commenter }: Props) {
     >
       <div className="notak-note-menu-ancre" ref={ancreMenu}>
         <button type="button" title={t('barre.style')} aria-expanded={menu} onClick={() => setMenu(!menu)}>
-          {STYLES.find((s) => s.style === etat.style)?.libelle} <Icone nom="chevronBas" taille={14} />
+          {STYLES.find((s) => s.style === (etat.encadre ? 'encadre' : etat.style))?.libelle} <Icone nom="chevronBas" taille={14} />
         </button>
-        {menu && <MenuStyle editor={editor} etat={etat} ferme={() => setMenu(false)} />}
+        {menu && <MenuStyle editor={editor} etat={etat} />}
       </div>
       <i />
       {bouton(t('barre.gras'), etat.gras, () => chaine().toggleBold().run(), <Icone nom="gras" />)}
@@ -106,17 +115,32 @@ export function BarreTexte({ editor, lien, surLien, commenter }: Props) {
   )
 }
 
-function MenuStyle({ editor, etat, ferme }: { editor: Editor; etat: { couleur: string | null; surlignage: string | null }; ferme(): void }) {
+/**
+ * Le menu « Style de texte » : les blocs (chaque ligne dans son style, le raccourci ou la coche de l'actif), puis la
+ * couleur du texte et le surlignage. Il reste ouvert après un choix.
+ */
+export function MenuStyle({ editor, etat }: { editor: Editor; etat: EtatTexte }) {
+  const actif = (style: StyleMenu) => (style === 'encadre' ? etat.encadre : style === 'texte' ? etat.style === 'texte' && !etat.encadre : etat.style === style)
   return (
-    <div className="notak-note-menu" role="menu">
-      {STYLES.map(({ style, libelle }) => (
-        <button key={style} type="button" role="menuitem" className="notak-note-menu-ligne" onClick={() => { poserStyle(editor, style); ferme() }}>
-          {libelle}
+    <div className="notak-note-menu notak-menu-style" role="menu">
+      {STYLES.map(({ style, ligne, raccourci }) => (
+        <button
+          key={style}
+          type="button"
+          role="menuitem"
+          className="notak-note-menu-ligne"
+          data-style={style}
+          aria-current={actif(style) || undefined}
+          onClick={() => (style === 'encadre' ? basculerEncadre(editor) : poserStyle(editor, style))}
+        >
+          <span>{ligne}</span>
+          {actif(style) ? <Icone nom="coche" taille={16} /> : <kbd>{raccourci}</kbd>}
         </button>
       ))}
       <hr />
+      <span className="notak-menu-rubrique">{t('barre.rubriqueCouleur')}</span>
       <div className="notak-note-pastilles" aria-label={t('barre.couleurTexte')}>
-        <button type="button" title={t('barre.defaut')} aria-label={t('barre.couleurDefaut')} aria-pressed={etat.couleur === null} data-vide onClick={() => poserCouleurTexte(editor, null)}>
+        <button type="button" title={t('barre.defaut')} aria-label={t('barre.couleurDefaut')} aria-pressed={etat.couleur === null && etat.surlignage === null} data-vide onClick={() => { poserCouleurTexte(editor, null); basculerSurlignage(editor, null) }}>
           A
         </button>
         {COULEURS_TEXTE.map(({ nom, libelle }) => (
@@ -125,6 +149,8 @@ function MenuStyle({ editor, etat, ferme }: { editor: Editor; etat: { couleur: s
           </button>
         ))}
       </div>
+      <hr />
+      <span className="notak-menu-rubrique">{t('barre.surlignage')}</span>
       <div className="notak-note-pastilles" aria-label={t('barre.surlignage')}>
         {SURLIGNAGES.map(({ nom, libelle }) => (
           <button key={nom} type="button" title={libelle} aria-label={t('barre.surlignageCouleur', { couleur: libelle })} aria-pressed={etat.surlignage === nom} data-surligne={nom} onClick={() => basculerSurlignage(editor, nom)} />
@@ -153,7 +179,7 @@ function MenuInsertion({ editor, ferme }: { editor: Editor; ferme(): void }) {
   )
 }
 
-function ChampLien({ editor, depart, fini }: { editor: Editor; depart: string; fini(): void }) {
+export function ChampLien({ editor, depart, fini }: { editor: Editor; depart: string; fini(): void }) {
   const [valeur, setValeur] = useState(depart)
   const champ = useRef<HTMLInputElement>(null)
   useEffect(() => champ.current?.focus(), [])

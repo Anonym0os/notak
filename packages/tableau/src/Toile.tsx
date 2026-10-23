@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { BarreOutils, BarreSelection, type OutilDeBarre, outilsDeBarre } from './Barres'
+import { BarreEdition, ContexteBarreEdition } from './barreEdition'
 import { Cadre, ContexteRangement, type Empreinte, type Rangement } from './Cadre'
 import * as cam from './coeur/camera'
 import { brancherPilote } from './pilotage'
@@ -321,6 +322,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const [vue, setVue] = useState<cam.Vue>({ largeur: 1, hauteur: 1 })
   const [selection, setSelection] = useState<ReadonlySet<Id>>(new Set())
   const [edition, setEdition] = useState<Id | null>(null)
+  // [barre d'édition à gauche] L'emplacement que la barre de gauche prête aux outils de texte de l'élément en édition.
+  const [cibleEdition, setCibleEdition] = useState<HTMLElement | null>(null)
   const [zoneLasso, setZoneLasso] = useState<Rect | null>(null)
   /** Ce que le lasso prendra : montré pendant le geste, posé comme sélection au relâchement. */
   const [prisLasso, setPrisLasso] = useState<ReadonlySet<Id> | null>(null)
@@ -2146,6 +2149,14 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     : null
   const barre = cadreChoisis && !lectureSeule && versEcran(cadreChoisis)
 
+  // [barre d'édition à gauche] En édition, la barre de gauche prend les outils de l'élément (la note : ses outils de
+  // texte, par un portail) ; un type sans outils d'édition garde la barre de sa sélection.
+  const elementEnEdition = edition && !enGeste ? tableau.elements.find((x) => x.id === edition) : undefined
+  const editionAGauche = !!services.barreAGauche && !lectureSeule && !!elementEnEdition
+  const barreEdition = editionAGauche && !!definition(elementEnEdition!.contenu.type)?.outilsEdition
+  const selectionEnEdition = editionAGauche && !barreEdition ? [elementEnEdition!] : null
+  const emplacementEdition = useMemo(() => ({ attendue: barreEdition, cible: barreEdition ? cibleEdition : null }), [barreEdition, cibleEdition])
+
   // Pendant un lasso, ce qu'il va prendre paraît déjà choisi.
   const vueChoix = prisLasso ?? selection
   const rangement = useMemo<Rangement>(
@@ -2158,6 +2169,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const lignes = tableau.elements.filter((e) => definition(e.contenu.type)?.calque === 'lignes')
 
   return (
+    <ContexteBarreEdition.Provider value={emplacementEdition}>
     <div
       ref={racine}
       className="notak-toile"
@@ -2261,6 +2273,17 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           {...(services.barreAGauche ? { aGauche: true } : {})}
         />
       )}
+      {/* [barre d'édition à gauche] */}
+      {selectionEnEdition && (
+        <BarreSelection elements={selectionEnEdition} contexte={contexte} position={{ x: 0, y: 0 }} aGauche />
+      )}
+      {barreEdition && (
+        <BarreEdition
+          cible={setCibleEdition}
+          corbeille={{ nombre: corbeille.length, ouverte: corbeilleOuverte, basculer: () => setCorbeilleOuverte((o) => !o) }}
+          nonTries={{ nombre: nonTries.length, ouverte: nonTriesOuvert, basculer: () => setNonTriesOuvert((o) => !o) }}
+        />
+      )}
       {fantome && (
         <div ref={calqueFantome} className="notak-fantome" aria-hidden>
           {definition(fantome.contenu.type)?.calque === 'lignes' ? (
@@ -2270,7 +2293,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           )}
         </div>
       )}
-      {!lectureSeule && !(services.barreAGauche && barre) && (
+      {!lectureSeule && !(services.barreAGauche && (barre || editionAGauche)) && (
         <BarreOutils
           surAppui={surAppuiOutil}
           rebond={rebond}
@@ -2313,5 +2336,6 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       {lectureSeule && !services.presentation && <div className="notak-lecture">{t('toile.lectureSeule')}</div>}
       <div className="notak-echelle">{Math.round(camera.echelle * 100)} %</div>
     </div>
+    </ContexteBarreEdition.Provider>
   )
 }
