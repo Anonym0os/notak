@@ -1603,12 +1603,14 @@
 .notak-barre-retour {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 36px;
+  width: 100%;
+  height: 25px;
   margin-bottom: 2px;
   border: 0;
-  border-radius: 8px;
+  border-bottom: 1px solid rgb(0 0 0 / 0.08);
+  border-radius: 0;
   background: none;
+  transition: opacity 0.1s linear;
   color: #5f656d;
   cursor: pointer;
 }
@@ -1666,6 +1668,53 @@
 .notak-barre-selection[data-a-gauche] button.notak-outil-plus:hover,
 .notak-barre-selection[data-a-gauche] button.notak-outil-plus[aria-expanded='true'] {
   background: rgb(0 0 0 / 0.14);
+}
+
+/*
+ * La tuile des outils d'une sélection, comme Milanote : une icône carrée de 32 px aux coins de 4 px, plus claire que la
+ * barre, un libellé de 10 px dessous ; allumée, elle prend un contour de 2 px au lieu d'un fond ; grisée, seul son
+ * glyphe pâlit ; au survol, rien ne bouge.
+ */
+.notak-barre-selection[data-a-gauche] button.notak-outil .notak-outil-icone {
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--notak-barre, var(--notak-fond)) 40%, white);
+  color: var(--notak-texte);
+  transform: none;
+}
+
+.notak-barre-selection[data-a-gauche] button.notak-outil .notak-ico {
+  width: 20px;
+  height: 20px;
+}
+
+.notak-barre-selection[data-a-gauche] button.notak-outil:hover .notak-outil-icone {
+  background: color-mix(in srgb, var(--notak-barre, var(--notak-fond)) 40%, white);
+  transform: none;
+}
+
+.notak-barre-selection[data-a-gauche] button.notak-outil[aria-expanded='true'] .notak-outil-icone {
+  background: color-mix(in srgb, var(--notak-barre, var(--notak-fond)) 20%, white);
+}
+
+.notak-barre-selection[data-a-gauche] button.notak-outil[aria-pressed='true'] .notak-outil-icone {
+  background: none;
+  box-shadow: inset 0 0 0 2px currentColor;
+}
+
+.notak-barre-selection[data-a-gauche] button.notak-outil .notak-outil-libelle {
+  font-size: 10px;
+  color: color-mix(in srgb, var(--notak-texte) 60%, transparent);
+}
+
+.notak-barre-selection[data-a-gauche] button.notak-outil:disabled {
+  opacity: 1;
+}
+
+.notak-barre-selection[data-a-gauche] button.notak-outil:disabled .notak-ico {
+  opacity: 0.2;
 }
 
 /* La couleur d'à présent, dans la tuile « Couleur ». */
