@@ -18,6 +18,7 @@ import {
   retirerMotDePasseDuLien,
 } from './api'
 import { t } from './langue'
+import { Icone } from '@notak/tableau'
 
 const LIBELLE_ROLE: Record<Role, () => string> = {
   proprietaire: () => t('partage.proprietaire'),
@@ -31,6 +32,7 @@ export function Partage({ tableau, moi }: { tableau: string; moi: Moi }) {
   return (
     <div className="partage">
       <button type="button" className="bouton" aria-expanded={ouvert} onClick={() => setOuvert((o) => !o)}>
+        <Icone nom="partager" taille={16} />
         {t('partage.titre')}
       </button>
       {ouvert && <Panneau key={tableau} tableau={tableau} moi={moi} fermer={() => setOuvert(false)} />}
@@ -112,7 +114,7 @@ function Panneau({ tableau, moi, fermer }: { tableau: string; moi: Moi; fermer()
             )}
           </li>
         ))}
-        {!acces && !erreur && <li className="partage-vide">…</li>}
+        {!acces && !erreur && <li className="partage-vide"><span className="notak-roue" aria-hidden /></li>}
       </ul>
       {(proprietaire || acces === null) && (
         <form className="partage-form" onSubmit={inviter} noValidate>
@@ -178,7 +180,7 @@ function MotDePasse({ tableau }: { tableau: string }) {
     <div className="partage-lien">
       <strong>{t('partage.mdpTableau')}</strong>
       {protege === undefined ? (
-        <span className="partage-note">…</span>
+        <span className="partage-note"><span className="notak-roue" aria-hidden /></span>
       ) : (
         <>
           <span className="partage-note">
@@ -248,7 +250,7 @@ function LienPublic({ tableau }: { tableau: string }) {
     <div className="partage-lien">
       <strong>{t('partage.lienLecture')}</strong>
       {jeton === undefined ? (
-        <span className="partage-note">…</span>
+        <span className="partage-note"><span className="notak-roue" aria-hidden /></span>
       ) : jeton === null ? (
         <>
           <span className="partage-note">{t('partage.lienNote')}</span>

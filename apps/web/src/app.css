@@ -82,6 +82,10 @@ body {
 }
 
 .bouton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   height: 30px;
   padding: 0 12px;
   border: 1px solid rgb(0 0 0 / 0.15);
@@ -271,6 +275,12 @@ body {
   font-size: 13px;
   text-align: left;
   cursor: pointer;
+}
+
+.compte-menu .compte-ligne {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .compte-menu button:hover,
@@ -592,6 +602,12 @@ body {
 }
 
 /* Le tableau protégé se couvre d'un écran qui demande son mot de passe. */
+.verrou-titre {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .verrou {
   position: fixed;
   z-index: 100;

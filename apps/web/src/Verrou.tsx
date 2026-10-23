@@ -1,6 +1,7 @@
 import { t } from './langue'
 import { type FormEvent, useEffect, useState } from 'react'
 import { deverrouiller, etatVerrou } from './api'
+import { Icone } from '@notak/tableau'
 
 /**
  * Un tableau protégé par mot de passe se couvre d'un écran qui le demande. Une fois donné, la page se recharge :
@@ -42,7 +43,10 @@ export function VerrouTableau({ tableau, accueil, ouvrir }: { tableau: string; a
   return (
     <div className="verrou" role="dialog" aria-modal aria-label={t('verrou.titre')}>
       <form className="connexion-carte" onSubmit={valider} noValidate>
-        <h1>{t('verrou.titre')}</h1>
+        <h1 className="verrou-titre">
+          <Icone nom="verrou" taille={22} />
+          {t('verrou.titre')}
+        </h1>
         <p className="partage-note">{par === tableau ? t('verrou.ceTableau') : t('verrou.auDessus')}</p>
         <label>
           {t('connexion.mdp')}

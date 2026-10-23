@@ -3,6 +3,7 @@ import { langue, t } from './langue'
 import { toJpeg, toPng } from 'html-to-image'
 import { useEffect, useState } from 'react'
 import { octetsDeDataUrl, pdfDepuisJpeg } from './pdf'
+import { Icone } from '@notak/tableau'
 
 /** Ce que la capture laisse de côté : les pastilles et les curseurs posés sur la toile, pas le tableau. */
 const HORS_CAPTURE = ['notak-echelle', 'notak-lecture', 'notak-lasso', 'notak-curseur']
@@ -86,6 +87,7 @@ export function Export({ tableau, titre }: { tableau: string; titre(): string })
   return (
     <div className="export">
       <button type="button" className="bouton" aria-expanded={ouvert} onClick={() => setOuvert((o) => !o)}>
+        <Icone nom="exporter" taille={16} />
         {capture ? t('exporter.encours') : echec ? t('exporter.impossible') : t('exporter.titre')}
       </button>
       {ouvert && (
