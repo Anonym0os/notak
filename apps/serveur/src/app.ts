@@ -9,7 +9,7 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { ErreurApercu, apercuDePage, rapatrierImage } from './apercu.ts'
-import type { Base, Fichier, Utilisateur } from './base.ts'
+import { type Base, DUREE_ACCES_PUBLIC_MS, type Fichier, type Utilisateur } from './base.ts'
 import { ErreurCompte, inscrire, normaliserEmail } from './comptes.ts'
 import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from './contenu.ts'
 import type { Limiteur } from './debit.ts'
@@ -17,7 +17,7 @@ import { type Role, auMoins, role, roleHerite } from './droits.ts'
 import { estFormatExport, exporterTexte } from './exporter.ts'
 import { requeteIndex } from './indexation.ts'
 import { hacher, verifier } from './motsDePasse.ts'
-import { DUREE_SESSION_S, NOM_COOKIE, cookieEfface, cookieSession, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
+import { DUREE_SESSION_S, NOM_COOKIE, cookieAccesPublic, cookieEfface, cookieSession, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
 import { nomDuDocument } from './synchro.ts'
 import { verrouPar } from './verrou.ts'
 import { creerZip, nommerLesMedias } from './zip.ts'
@@ -428,6 +428,31 @@ export function creerApp(ctx: Contexte): Hono {
     const g = garde(c, 'proprietaire')
     if (g instanceof Response) return g
     if (!base.retirerJetonPublic(g.id)) return c.json({ erreur: 'introuvable' }, 404)
+    // Un lien retiré emporte son mot de passe : le prochain sera libre, à moins d'en poser un.
+    base.retirerMotDePasse(g.id, 'public')
+    return c.body(null, 204)
+  })
+
+  // Le mot de passe du lien public : il se pose à part de celui qui ferme le tableau aux comptes.
+  app.get('/api/tableaux/:id/lien/mot-de-passe', (c) => {
+    const g = garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    return c.json({ protege: base.motDePasse(g.id, 'public') !== null })
+  })
+
+  app.put('/api/tableaux/:id/lien/mot-de-passe', async (c) => {
+    const g = garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    const m = await motDePasseDemande(c)
+    if (m instanceof Response) return m
+    base.definirMotDePasse(g.id, 'public', await hacher(m))
+    return c.body(null, 204)
+  })
+
+  app.delete('/api/tableaux/:id/lien/mot-de-passe', (c) => {
+    const g = garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    if (!base.retirerMotDePasse(g.id, 'public')) return c.json({ erreur: 'introuvable' }, 404)
     return c.body(null, 204)
   })
 
@@ -458,9 +483,34 @@ export function creerApp(ctx: Contexte): Hono {
     return JETON_PUBLIC.test(jeton) ? base.tableauDuJeton(jeton) : null
   }
 
+  /** Le lien est protégé et ce lecteur n'a pas donné le mot de passe : la réponse à rendre, sinon `null`. */
+  const motDePasseRequis = (c: Context, id: string): Response | null => {
+    if (base.motDePasse(id, 'public') === null) return null
+    const acces = lireCookie(c.req.header('cookie'), NOM_COOKIE_PUBLIC)
+    if (acces && base.accesPublicValide(empreinteDe(acces), id, ctx.maintenant())) return null
+    return c.json({ erreur: 'mot de passe requis', protege: true }, 401, { 'cache-control': 'no-store' })
+  }
+
+  // Donner le mot de passe du lien : le serveur remet un accès, porté par un cookie limité à ce lien.
+  app.post('/api/public/:jeton/deverrouiller', async (c) => {
+    const refus = limiter(c, 'deverrouillage-public')
+    if (refus) return refus
+    const id = tableauPublic(c)
+    if (!id) return c.json({ erreur: 'introuvable' }, 404)
+    const empreinte = base.motDePasse(id, 'public')
+    if (empreinte === null) return c.body(null, 204)
+    if (!(await verifier(empreinte, texte((await corps(c))?.motDePasse)))) return c.json({ erreur: 'mot de passe incorrect' }, 401)
+    const { jeton: acces, empreinte: trace } = nouveauJeton()
+    base.creerAccesPublic(trace, id, ctx.maintenant() + DUREE_ACCES_PUBLIC_MS)
+    c.header('set-cookie', cookieAccesPublic(NOM_COOKIE_PUBLIC, c.req.param('jeton') ?? '', acces, DUREE_ACCES_PUBLIC_MS / 1000, ctx.cookieSecurise))
+    return c.body(null, 204)
+  })
+
   app.get('/api/public/:jeton', (c) => {
     const id = tableauPublic(c)
     if (!id) return c.json({ erreur: 'introuvable' }, 404)
+    const ferme = motDePasseRequis(c, id)
+    if (ferme) return ferme
     return c.json(vuePublique(id), 200, { 'cache-control': 'no-store', 'x-robots-tag': 'noindex' })
   })
 
@@ -468,6 +518,8 @@ export function creerApp(ctx: Contexte): Hono {
   app.get('/api/public/:jeton/fichiers/:fichier', (c) => {
     const id = tableauPublic(c)
     const fichier = c.req.param('fichier') ?? ''
+    const ferme = id ? motDePasseRequis(c, id) : null
+    if (ferme) return ferme
     if (!id || !ID_FICHIER.test(fichier) || !idsDeFichiers(vuePublique(id).elements).has(fichier)) return c.json({ erreur: 'introuvable' }, 404)
     const f = base.fichier(fichier)
     if (!f) return c.json({ erreur: 'introuvable' }, 404)

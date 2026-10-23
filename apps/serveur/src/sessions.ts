@@ -37,3 +37,8 @@ export function cookieSession(jeton: string, securise: boolean): string {
 export function cookieEfface(securise: boolean): string {
   return `${NOM_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${securise ? '; Secure' : ''}`
 }
+
+/** Le cookie qui porte l'accès au lien public d'un tableau protégé : limité aux adresses de ce lien. */
+export function cookieAccesPublic(nom: string, jetonLien: string, acces: string, dureeS: number, securise: boolean): string {
+  return `${nom}=${acces}; HttpOnly; SameSite=Lax; Path=/api/public/${jetonLien}; Max-Age=${dureeS}${securise ? '; Secure' : ''}`
+}

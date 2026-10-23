@@ -132,7 +132,7 @@ export interface TableauPublic {
 export async function lirePublic(jeton: string): Promise<TableauPublic | null> {
   const r = await appeler(`/api/public/${encodeURIComponent(jeton)}`)
   if (r.status === 404) return null
-  if (!r.ok) throw refus(r, {})
+  if (!r.ok) throw refus(r, { 401: 'Ce lien demande un mot de passe' })
   return (await r.json()) as TableauPublic
 }
 
@@ -198,5 +198,29 @@ export async function poserMotDePasse(tableau: string, motDePasse: string): Prom
 
 export async function retirerMotDePasse(tableau: string): Promise<void> {
   const r = await appeler(`${verrouDe(tableau)}/mot-de-passe`, undefined, 'DELETE')
+  if (!r.ok && r.status !== 404) throw refus(r, { 403: 'Réservé au propriétaire' })
+}
+
+/** Donne le mot de passe d'un lien public : le navigateur garde l'accès (cookie propre à ce lien). */
+export async function deverrouillerPublic(jeton: string, motDePasse: string): Promise<void> {
+  const r = await appeler(`/api/public/${encodeURIComponent(jeton)}/deverrouiller`, { motDePasse })
+  if (!r.ok) throw refus(r, { 401: 'Mot de passe incorrect', 429: 'Trop d’essais, patientez un instant', 404: 'Ce lien n’existe plus' })
+}
+
+const motDePasseDuLien = (tableau: string) => `${lienDe(tableau)}/mot-de-passe`
+
+export async function lienProtege(tableau: string): Promise<boolean> {
+  const r = await appeler(motDePasseDuLien(tableau))
+  if (!r.ok) throw refus(r, { 403: 'Réservé au propriétaire', 404: 'Tableau introuvable' })
+  return ((await r.json()) as { protege: boolean }).protege
+}
+
+export async function poserMotDePasseDuLien(tableau: string, motDePasse: string): Promise<void> {
+  const r = await appeler(motDePasseDuLien(tableau), { motDePasse }, 'PUT')
+  if (!r.ok) throw refus(r, { 400: '6 caractères au moins', 403: 'Réservé au propriétaire', 404: 'Tableau introuvable' })
+}
+
+export async function retirerMotDePasseDuLien(tableau: string): Promise<void> {
+  const r = await appeler(motDePasseDuLien(tableau), undefined, 'DELETE')
   if (!r.ok && r.status !== 404) throw refus(r, { 403: 'Réservé au propriétaire' })
 }

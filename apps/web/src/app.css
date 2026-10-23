@@ -386,3 +386,9 @@ body {
   background: var(--fond);
   color: var(--texte);
 }
+
+.partage-mdp-lien {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}

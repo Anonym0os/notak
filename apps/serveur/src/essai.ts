@@ -24,7 +24,7 @@ export interface Monde {
   compte(nom: string): Promise<Compte>
   /** Crée un tableau à `proprietaire` et y écrit ce que fait `ecrire` ; l'état est enregistré comme le ferait la synchro. */
   tableau(proprietaire: Compte, id: string, titre: string, ecrire?: (doc: Y.Doc) => void, parent?: string): void
-  appeler(chemin: string, options?: { methode?: string; compte?: Compte; json?: unknown; corps?: Uint8Array; type?: string }): Promise<Response>
+  appeler(chemin: string, options?: { methode?: string; compte?: Compte; cookie?: string; json?: unknown; corps?: Uint8Array; type?: string }): Promise<Response>
   fermer(): void
 }
 
@@ -62,6 +62,7 @@ export function monde(): Monde {
     appeler(chemin, options = {}) {
       const entetes: Record<string, string> = {}
       if (options.compte) entetes.cookie = options.compte.cookie
+      if (options.cookie) entetes.cookie = options.cookie
       if (options.json !== undefined) entetes['content-type'] = 'application/json'
       if (options.type) entetes['content-type'] = options.type
       return Promise.resolve(
