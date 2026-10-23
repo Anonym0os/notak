@@ -65,6 +65,13 @@ export interface ServicePresence {
   autres(): Presence[]
   /** Soi, tel que les autres le voient (nom, couleur). */
   moi?(): Presence['utilisateur']
+  /**
+   * Demande à cette personne de lâcher ces éléments (la croix de sa pastille) : son navigateur les retire de sa
+   * sélection. Absent hors connexion.
+   */
+  forcerDeselection?(client: number, ids: Id[]): void
+  /** Prévenu quand quelqu'un nous demande de lâcher ces éléments. Rend de quoi arrêter. */
+  surDeselection?(f: (ids: Id[]) => void): () => void
   /** Le canal d'awareness Yjs du tableau, pour les curseurs dans un texte partagé ; `null` hors connexion. */
   canal?(): unknown
   ecouter(f: () => void): () => void

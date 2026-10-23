@@ -679,16 +679,17 @@
   outline-offset: 0;
 }
 
-.notak-carte[data-autre]:not([data-modifie-par])::after {
-  content: attr(data-autre);
+/* La pastille d'un élément choisi par un autre (voir `PastilleAutre`) : avatar, prénom qui s'ouvre, croix de désélection. */
+.notak-carte[data-autre]:not([data-modifie-par]) > .notak-pastille-autre {
   position: absolute;
   z-index: 45;
   top: -15px;
   right: -14px;
+  display: flex;
+  align-items: center;
   box-sizing: border-box;
-  max-width: 160px;
-  overflow: hidden;
-  padding: 0 12px;
+  height: 30px;
+  padding: 0 4px;
   border-radius: 15px;
   background: var(--notak-autre);
   color: #fff;
@@ -696,12 +697,65 @@
   font-weight: 600;
   line-height: 30px;
   white-space: nowrap;
-  text-overflow: ellipsis;
-  pointer-events: none;
   transform-origin: bottom left;
   animation:
     notak-pastille-pop 0.4s cubic-bezier(0.665, 0.1, 0, 2.5) both,
     notak-pastille-pulse 1.5s ease-out 0.4s infinite;
+}
+
+.notak-pastille-autre-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.28);
+  font-size: 11px;
+}
+
+.notak-pastille-autre-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.notak-pastille-autre-nom {
+  display: block;
+  max-width: 125px;
+  overflow: hidden;
+  padding: 0 4px 0 6px;
+  text-overflow: ellipsis;
+  animation: notak-pastille-nom 0.4s ease-out 0.35s both;
+}
+
+@keyframes notak-pastille-nom {
+  from {
+    max-width: 8px;
+    padding-right: 0;
+    opacity: 0;
+  }
+}
+
+.notak-pastille-autre-croix {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.18);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+}
+
+.notak-pastille-autre-croix:hover {
+  background: rgb(0 0 0 / 0.35);
 }
 
 @keyframes notak-pastille-pop {

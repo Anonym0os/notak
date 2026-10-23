@@ -54,6 +54,7 @@ import { demanderRenommage } from './elements/tableau/renommage'
 import type { ContexteToile, Presence, Services } from './elements/types'
 import { t, tn } from './langue'
 import { PastilleZoom } from './PastilleZoom'
+import { PastilleAutre } from './PastilleAutre'
 import { PointeursBord } from './PointeursBord'
 import type { CibleBord } from './coeur/pointeurs'
 import { lignesDeTrace } from './trace'
@@ -180,6 +181,8 @@ function choisirAxe(actuel: 'h' | 'v' | null, d: Point): 'h' | 'v' {
 const APPUI_LONG = 500
 
 /** Les types qui s'ouvrent en grand, et dont le plein écran a donc une adresse. */
+const SANS_CROIX: ReadonlySet<string> = new Set(['croquis', 'document'])
+
 const PLEIN_ECRAN: ReadonlySet<string> = new Set(['image', 'fichier', 'document', 'croquis'])
 
 /** Les types que propose le menu de la toile vide. */
@@ -536,6 +539,17 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     presence?.signaler({ edition: el ? (ecrivain(el, etat.current.tableau)?.id ?? edition) : edition })
   }, [presence, edition])
   useEffect(() => () => presence?.signaler({ curseur: null, selection: [], edition: null }), [presence])
+  // Quelqu'un nous demande de lâcher ce qu'il voulait : retiré de la sélection (et de l'écriture), sauf croquis et document.
+  useEffect(
+    () =>
+      presence?.surDeselection?.((ids) => {
+        const lachables = new Set(ids.filter((id) => !SANS_CROIX.has(etat.current.magasin.lire().elements.find((x) => x.id === id)?.contenu.type ?? '')))
+        if (lachables.size === 0) return
+        if (etat.current.edition && lachables.has(etat.current.edition)) finirEdition()
+        setSelection((s) => (ids.some((id) => s.has(id) && lachables.has(id)) ? new Set([...s].filter((id) => !lachables.has(id))) : s))
+      }),
+    [presence],
+  )
 
   // Le contour d'un élément choisi par un autre : posé sur le nœud, dans la couleur de cette personne.
   useEffect(() => {
@@ -2866,6 +2880,24 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
             />
           )
         })}
+        {autres.flatMap((a) =>
+          [...new Set([...a.selection, ...(a.edition ? [a.edition] : [])])].flatMap((id) => {
+            const n = noeudDe(id)
+            const el = n?.classList.contains('notak-carte') ? tableau.elements.find((x) => x.id === id) : undefined
+            return n && el
+              ? [
+                  <PastilleAutre
+                    key={`${a.client}:${id}`}
+                    noeud={n}
+                    presence={a}
+                    type={el.contenu.type}
+                    adressePhoto={services.adressePhoto}
+                    lacher={lectureSeule ? undefined : () => presence?.forcerDeselection?.(a.client, [id])}
+                  />,
+                ]
+              : []
+          }),
+        )}
         <svg className="notak-calque-lignes" aria-hidden>
           {lignes.map((e) => {
             const Rendu = definition(e.contenu.type)!.Rendu

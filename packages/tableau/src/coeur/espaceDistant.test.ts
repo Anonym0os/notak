@@ -1,5 +1,5 @@
 import * as Y from 'yjs'
-import { Awareness } from 'y-protocols/awareness'
+import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from 'y-protocols/awareness'
 import { describe, expect, it } from 'vitest'
 import { type Connexion, type Reseau, creerEspaceDistant, presenceDe } from './espaceDistant'
 
@@ -154,5 +154,39 @@ describe('presenceDe', () => {
     })
     expect(presenceDe(3, { curseur: null })).toBeNull()
     expect(presenceDe(3, { utilisateur: { id: 'a', nom: 'A', couleur: '#fff' }, curseur: { x: 'a' }, edition: 4 })).toMatchObject({ curseur: null, edition: null })
+  })
+})
+
+describe('faire lâcher un élément à quelqu’un', () => {
+  it('la demande de A arrive chez B une seule fois, et seulement chez lui', () => {
+    const [aa, ab] = [new Awareness(new Y.Doc()), new Awareness(new Y.Doc())]
+    // Ce que dit l'un à l'autre, comme le ferait le serveur.
+    for (const [de, vers] of [[aa, ab], [ab, aa]] as const)
+      de.on('update', ({ added, updated, removed }: { added: number[]; updated: number[]; removed: number[] }, origine: unknown) => {
+        if (origine !== 'distant') applyAwarenessUpdate(vers, encodeAwarenessUpdate(de, [...added, ...updated, ...removed]), 'distant')
+      })
+    const monter = (awareness: Awareness) => {
+      const reseau: Reseau = {
+        connecter: (): Connexion => ({ awareness, lectureSeule: () => false, refuse: () => false, synchronise: () => true, detruire() {} }),
+        async declarer() {},
+      }
+      const e = creerEspaceDistant({ racine: 'R', utilisateur, reseau })
+      e.retenir?.('R')
+      e.magasin('R')
+      return { e, presence: e.presence!('R')! }
+    }
+    const [a, b] = [monter(aa), monter(ab)]
+    const recu: string[][] = []
+    b.presence.surDeselection!((ids) => recu.push(ids))
+    a.presence.forcerDeselection!(ab.clientID, ['n1'])
+    expect(recu).toEqual([['n1']])
+    // Un autre signal de A (un curseur) ne rejoue pas la demande.
+    a.presence.signaler({ curseur: { x: 1, y: 1 } })
+    expect(recu).toHaveLength(1)
+    // Une demande suivante repart.
+    a.presence.forcerDeselection!(ab.clientID, ['n2'])
+    expect(recu).toEqual([['n1'], ['n2']])
+    a.e.detruire()
+    b.e.detruire()
   })
 })
