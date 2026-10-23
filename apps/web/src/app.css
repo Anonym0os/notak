@@ -959,3 +959,83 @@ body {
 .notak-espace[data-theme='sombre'] .bouton-etoile[aria-pressed='true'] {
   color: #f5b82e;
 }
+
+/* L'édition locale : la pastille « Où sont mes tableaux ? » et son panneau. */
+.rangement {
+  position: relative;
+}
+
+.rangement-pastille span {
+  white-space: nowrap;
+}
+
+.rangement-pastille[data-alerte] {
+  color: #b45309;
+}
+
+.rangement-panneau {
+  width: min(400px, calc(100vw - 24px));
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--texte);
+}
+
+.rangement-panneau h2 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.rangement-panneau h3 {
+  margin: 14px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+}
+
+.rangement-panneau p {
+  margin: 0 0 6px;
+}
+
+.rangement-faits {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.rangement-attention {
+  color: #b45309;
+}
+
+.rangement-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.rangement-actions a {
+  text-decoration: none;
+}
+
+.rangement-note {
+  display: block;
+  color: #6b7280;
+}
+
+/* Sous 640 px, la pastille se réduit à son icône, comme les autres boutons de l'en-tête. */
+@media (max-width: 640px) {
+  .rangement-pastille span {
+    display: none;
+  }
+}
+
+.notak-espace[data-theme='sombre'] :is(.rangement-panneau h3, .rangement-note) {
+  color: #9aa1ab;
+}
+
+.notak-espace[data-theme='sombre'] :is(.rangement-pastille[data-alerte], .rangement-attention) {
+  color: #f59e0b;
+}

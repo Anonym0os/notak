@@ -10,7 +10,7 @@ import { usePanneau } from './panneaux'
 const HORS_CAPTURE = ['notak-echelle', 'notak-lecture', 'notak-lasso', 'notak-curseur']
 const ECHELLE_CAPTURE = 2
 
-function telecharger(blob: Blob, nom: string) {
+export function telecharger(blob: Blob, nom: string) {
   const adresse = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = adresse
@@ -20,7 +20,7 @@ function telecharger(blob: Blob, nom: string) {
 }
 
 /** Un nom de fichier sûr à partir d'un titre. */
-const nomDeFichier = (titre: string, extension: string) => `${titre.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').trim().slice(0, 100) || t('exporter.nomFichier')}.${extension}`
+export const nomDeFichier = (titre: string, extension: string) => `${titre.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').trim().slice(0, 100) || t('exporter.nomFichier')}.${extension}`
 
 /** Ce que la capture montre : la vue telle qu'elle est, ou le tableau entier (la toile cadre tout le contenu le temps de la prise). */
 type Portee = 'ecran' | 'tout'
@@ -52,8 +52,17 @@ async function photographier(format: 'png' | 'pdf', titre: string, rapport: numb
   }
 }
 
+/**
+ * Ce que l'édition locale sait faire elle-même, sans serveur : le texte du tableau et ses médias, fabriqués dans le
+ * navigateur. Sans lui, ce sont des liens vers les routes du serveur.
+ */
+export interface ExportLocal {
+  texte(tableau: string, format: 'md' | 'txt'): Promise<Blob>
+  medias(tableau: string): Promise<Blob>
+}
+
 /** Le bouton « Exporter » : le texte du tableau, ses médias, ou une capture de la vue, à télécharger. */
-export function Export({ tableau, titre }: { tableau: string; titre(): string }) {
+export function Export({ tableau, titre, local }: { tableau: string; titre(): string; local?: ExportLocal }) {
   const { ouvert, regler, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
   const [capture, setCapture] = useState<'png' | 'pdf' | null>(null)
   const [echec, setEchec] = useState(false)
@@ -74,6 +83,16 @@ export function Export({ tableau, titre }: { tableau: string; titre(): string })
     })
   }
   const base = `/api/tableaux/${encodeURIComponent(tableau)}`
+  const fabriquer = (f: () => Promise<Blob>, extension: string) => {
+    regler(false)
+    f().then(
+      (blob) => telecharger(blob, nomDeFichier(titre(), extension)),
+      () => {
+        setEchec(true)
+        setTimeout(() => setEchec(false), 6000)
+      },
+    )
+  }
   return (
     <div className="export" ref={ancre}>
       <button type="button" ref={bouton} className="bouton" aria-expanded={ouvert} onClick={basculer}>
@@ -82,15 +101,31 @@ export function Export({ tableau, titre }: { tableau: string; titre(): string })
       </button>
       {ouvert && (
         <div className="compte-menu" ref={panneau} role="menu">
-          <a role="menuitem" href={`${base}/export?format=md&langue=${langue()}`} download onClick={() => regler(false)}>
-            {t('exporter.markdown')}
-          </a>
-          <a role="menuitem" href={`${base}/export?format=txt&langue=${langue()}`} download onClick={() => regler(false)}>
-            {t('exporter.texte')}
-          </a>
-          <a role="menuitem" href={`${base}/medias?langue=${langue()}`} download onClick={() => regler(false)}>
-            {t('exporter.medias')}
-          </a>
+          {local ? (
+            <>
+              <button type="button" role="menuitem" onClick={() => fabriquer(() => local.texte(tableau, 'md'), 'md')}>
+                {t('exporter.markdown')}
+              </button>
+              <button type="button" role="menuitem" onClick={() => fabriquer(() => local.texte(tableau, 'txt'), 'txt')}>
+                {t('exporter.texte')}
+              </button>
+              <button type="button" role="menuitem" onClick={() => fabriquer(() => local.medias(tableau), 'zip')}>
+                {t('exporter.medias')}
+              </button>
+            </>
+          ) : (
+            <>
+              <a role="menuitem" href={`${base}/export?format=md&langue=${langue()}`} download onClick={() => regler(false)}>
+                {t('exporter.markdown')}
+              </a>
+              <a role="menuitem" href={`${base}/export?format=txt&langue=${langue()}`} download onClick={() => regler(false)}>
+                {t('exporter.texte')}
+              </a>
+              <a role="menuitem" href={`${base}/medias?langue=${langue()}`} download onClick={() => regler(false)}>
+                {t('exporter.medias')}
+              </a>
+            </>
+          )}
           <small className="compte-rubrique">{t('exporter.ecran')}</small>
           <button type="button" role="menuitem" disabled={capture !== null} onClick={() => photographierVue('png', 'ecran')}>
             {t('exporter.png')}

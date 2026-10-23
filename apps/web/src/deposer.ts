@@ -1,5 +1,4 @@
-import { type Arrivee, type EspaceDistant, elementsArrives, poserDansNonTries } from '@notak/tableau'
-import { fichiers } from './fichiers'
+import { type Arrivee, type DepotFichiers, type EspaceDistant, elementsArrives, poserDansNonTries } from '@notak/tableau'
 import { t, tn } from './langue'
 
 /** Attend que `fait` soit vrai, en le relisant toutes les `pas` ms ; rend faux si `delai` s'écoule avant. */
@@ -35,7 +34,7 @@ const HORS_LIGNE_APRES = 1500
  * secondes, bien moins sans réseau), puis on attend que le serveur ait reçu le geste ; hors ligne, il reste sur cet
  * appareil et partira au retour du réseau.
  */
-export async function deposerDansAccueil(espace: EspaceDistant, arrivee: Arrivee, maintenant = Date.now()): Promise<Depot> {
+export async function deposerDansAccueil(espace: EspaceDistant, arrivee: Arrivee, fichiers: DepotFichiers, maintenant = Date.now()): Promise<Depot> {
   const { racine } = espace
   const liberer = espace.retenir?.(racine)
   try {

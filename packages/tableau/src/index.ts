@@ -22,6 +22,13 @@ export {
   creerEspaceDistant,
 } from './coeur/espaceDistant'
 export { creerReseauNavigateur } from './reseau'
+export { type ReseauLocal, creerReseauLocal, ouvrirIndexLocal } from './reseauLocal'
+export { type EntreeIndex, type IndexEspace, creerIndexEspace } from './coeur/indexEspace'
+export { chercher, normaliser, texteCherchable } from './coeur/recherche'
+export { exporterTexte, langueExport } from './export/exporter'
+export { fichiersDe, idsDeFichiers, lireTableau } from './export/contenu'
+export * from './fichierEspace'
+export { creerZip, nommerLesMedias } from './export/zip'
 export { type Arrivee, decomposerArrivee, elementsArrives, elementsDeTexte, poserDansNonTries } from './arrivee'
 export * from './modeles'
 export { BullesDecouverte } from './BullesDecouverte'

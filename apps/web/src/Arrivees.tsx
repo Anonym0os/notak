@@ -1,4 +1,4 @@
-import type { Arrivee, EspaceDistant } from '@notak/tableau'
+import type { Arrivee, DepotFichiers, EspaceDistant } from '@notak/tableau'
 import { useEffect, useRef, useState } from 'react'
 import { t } from './langue'
 import { deposerDansAccueil, messageDuDepot } from './deposer'
@@ -8,7 +8,7 @@ import { lireArrivee, oublierArrivee } from './recuDuPartage'
  * La page `/partage`, où mène le partage d'une page, d'un texte ou d'images vers Notak : ce qui est arrivé va dans
  * les non triés de l'accueil, puis on rend la main à l'application.
  */
-export function PagePartage({ espace }: { espace: EspaceDistant }) {
+export function PagePartage({ espace, fichiers }: { espace: EspaceDistant; fichiers: DepotFichiers }) {
   const [etat, setEtat] = useState<{ type: 'cours' } | { type: 'vide' } | { type: 'fini'; message: string; local: boolean } | { type: 'echec' }>({ type: 'cours' })
   // Une seule fois, même quand React monte la page deux fois : poser deux fois ferait des doublons.
   const lance = useRef(false)
@@ -19,7 +19,7 @@ export function PagePartage({ espace }: { espace: EspaceDistant }) {
       try {
         const arrivee = await lireArrivee(location.search)
         if (!arrivee) return setEtat({ type: 'vide' })
-        const depot = await deposerDansAccueil(espace, arrivee)
+        const depot = await deposerDansAccueil(espace, arrivee, fichiers)
         await oublierArrivee(location.search)
         if (depot.ajoutes === 0) return setEtat({ type: 'vide' })
         setEtat({ type: 'fini', message: messageDuDepot(depot), local: depot.etat === 'local' })
@@ -27,7 +27,7 @@ export function PagePartage({ espace }: { espace: EspaceDistant }) {
         setEtat({ type: 'echec' })
       }
     })()
-  }, [espace])
+  }, [espace, fichiers])
 
   // Reçu par le serveur : on rend la main à l'accueil. Gardé ici seulement : on laisse lire.
   useEffect(() => {
@@ -60,7 +60,7 @@ export function PagePartage({ espace }: { espace: EspaceDistant }) {
  * La page `/rapide`, pour jeter une idée depuis le téléphone : un champ, « Envoyer », et la note part dans les non
  * triés de l'accueil. Rien d'autre à charger, rien d'autre à regarder.
  */
-export function PageRapide({ espace }: { espace: EspaceDistant }) {
+export function PageRapide({ espace, fichiers }: { espace: EspaceDistant; fichiers: DepotFichiers }) {
   const [texte, setTexte] = useState('')
   const [etat, setEtat] = useState<{ type: 'repos' } | { type: 'envoi' } | { type: 'fait'; local: boolean } | { type: 'echec' }>({ type: 'repos' })
   const champ = useRef<HTMLTextAreaElement>(null)
@@ -71,7 +71,7 @@ export function PageRapide({ espace }: { espace: EspaceDistant }) {
     setEtat({ type: 'envoi' })
     const arrivee: Arrivee = { texte }
     try {
-      const depot = await deposerDansAccueil(espace, arrivee)
+      const depot = await deposerDansAccueil(espace, arrivee, fichiers)
       if (depot.ajoutes === 0) return setEtat({ type: 'echec' })
       setTexte('')
       setEtat({ type: 'fait', local: depot.etat === 'local' })
