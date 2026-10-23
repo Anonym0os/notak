@@ -178,8 +178,82 @@ Réglée à zéro, tout marche encore ; le partage asynchrone attend alors que l
 | B | le format de `STOCKAGE.md`, l'interface `Dossier`, **le faux logiciel de synchro et ses tests de propriétés** | un enregistrement prouvé avant d'être branché |
 | C | `Dossier` dans Chrome et Edge ; application de bureau autonome (Tauri + `fs`) ; pastille, Réglages → Dossier et Appareils | iCloud Drive, OneDrive, Dropbox, Nextcloud sur Mac, Windows, Linux |
 | D | applications iPhone, iPad (conteneur iCloud) et Android | les tableaux dans la poche |
-| E | `apps/relais` + `coturn` + transit : tableaux partagés, présence, curseurs, mot de passe, retrait d'accès | le travail à plusieurs |
+| E | `apps/relais` + `coturn` + transit : tableaux partagés, clés par appareil, présence, curseurs, mot de passe, retrait sans renvoi de lien, appareils reliés par une salle | le travail à plusieurs, et un iPad avec un PC sans nuage commun |
 | F | `VITE_EDITION` : la même interface ; l'édition serveur garde comptes, notifications et envoi par jeton | deux éditions, un seul code |
 
 La passe B passe avant tout branchement réel : on ne confie pas les tableaux des gens à un format qui n'a pas
 survécu au faux logiciel de synchro.
+
+## 8. Les questions concrètes
+
+### Un tableau rangé dans le nuage d'une personne, d'autres peuvent-ils y travailler ?
+Oui, parce qu'un tableau partagé **n'est hébergé par personne**. Chaque participant en a une copie complète :
+sur son appareil et dans **son propre** dossier Notak. Les changements passent d'une copie à l'autre par notre
+serveur (chiffrés, en direct quand les deux sont en ligne, par la boîte de transit sinon). Personne n'a besoin
+d'accéder au nuage d'un autre. Léa sur iCloud et Samy sur OneDrive travaillent sur le même tableau, chacun garde le
+sien dans son nuage.
+
+Deux personnes qui écrivent en même temps dans la même note ne s'écrasent pas : le texte est fusionné caractère par
+caractère (`Y.XmlFragment`, déjà en place), avec les curseurs de chacun.
+
+### Un iPad et un PC Windows, ça marche ?
+- **À plusieurs** (mon iPad, le PC de Léa) : oui, toujours. Le partage ne dépend pas du nuage de chacun.
+- **Mes propres appareils** (mon iPad et mon PC) : le dossier doit être dans un nuage présent sur les deux.
+  - **iCloud** : sur l'iPad, c'est natif ; sur le PC, avec « iCloud pour Windows » (gratuit). C'est la réponse
+    à donner par défaut.
+  - **OneDrive, Google Drive, Dropbox** : leur application pour iPad n'offre pas de vrai dossier synchronisé, seulement
+    l'accès fichier par fichier. On ne le promet pas.
+  - Sinon, **relier les appareils** comme on partage un tableau : l'espace entier passe alors par une salle
+    chiffrée, comme un tableau partagé. Chaque appareil garde le dossier qu'il peut (iCloud sur l'iPad, OneDrive sur
+    le PC), et le serveur ne garde que le transit borné.
+
+L'écran « Où ranger vos tableaux ? » le dit au moment du choix : « Vous avez aussi un PC ? iCloud pour Windows
+retrouvera ce dossier. »
+
+### Qui garde la version officielle ?
+**Il n'y en a pas, et c'est voulu.** Toutes les copies convergent vers le même état ; aucune n'est plus vraie qu'une
+autre. Concrètement :
+
+- Le tableau existe tant qu'**une** copie existe : il y en a autant que de participants, et autant que de nuages.
+  C'est plus solide qu'un serveur unique, pas moins.
+- Le **créateur** n'a pas de copie privilégiée. Il a un rôle : il peut changer les droits et retirer un participant.
+  Ce rôle peut être transmis à un autre participant.
+- **Historique** : chaque appareil garde dans son dossier des versions datées (une par jour sur 30 jours, une par
+  semaine sur 6 mois ; voir `STOCKAGE.md` § 5.7). « Revenir à cette version » écrit l'ancien état comme un nouveau
+  changement : tout le monde le reçoit, et l'on peut encore revenir en arrière.
+- **Quelqu'un vide le tableau**, par erreur ou exprès : la suppression se propage à tous, comme sur n'importe quel
+  outil collaboratif. Mais chacun a l'historique dans son propre dossier, et un seul participant suffit pour
+  restaurer.
+
+### Et si je perds mon appareil ?
+| Situation | Ce qui se passe |
+|---|---|
+| J'avais un dossier dans mon nuage | J'installe Notak sur le nouvel appareil, je choisis le même nuage : tout revient, historique compris. Puis *Réglages → Appareils → Oublier* l'ancien. |
+| Mes tableaux partagés | Ils sont dans mon dossier, et les autres participants en ont des copies. Même sans dossier, un participant peut me renvoyer une invitation. |
+| Quelqu'un trouve l'appareil perdu | Il a ce que l'appareil contient (protégé par le verrouillage de l'appareil). *Oublier* cet appareil change les clés de mes tableaux partagés et de mon espace relié ; les autres participants reçoivent les nouvelles automatiquement (ci-dessous). L'appareil perdu ne reçoit plus rien. |
+| Navigateur seul, sans dossier, sans partage | Perdu. C'est la raison pour laquelle l'interface traite ce mode comme un essai et le dit (§ 3.2). |
+| Dossier chiffré et phrase de passe oubliée | Perdu, et on l'a dit au moment de choisir le chiffrement. |
+
+### Retirer quelqu'un, ou un appareil, sans renvoyer de liens à tout le monde
+Un lien de partage sert à **entrer**. Une fois dedans, chaque appareil a sa propre paire de clés (X25519), et la clé du
+tableau lui est remise chiffrée pour lui seul. Retirer un participant ou un appareil, c'est :
+
+1. tirer une nouvelle clé de tableau ;
+2. la chiffrer pour chaque appareil restant, et la déposer dans la salle ;
+3. passer dans une nouvelle salle.
+
+Les restants suivent sans rien faire ; le retiré ne peut plus lire ce qui s'écrit ensuite. Comme partout (un fichier
+téléchargé, une capture d'écran), il garde ce qu'il avait déjà : on le dit au moment de retirer.
+
+### Les autres questions qu'on nous posera
+- **« Mon nuage est plein. »** Notak continue sur l'appareil, et la pastille l'affiche en orange : « iCloud ne prend
+  plus de fichiers ». Les images pèsent l'essentiel ; on montre dans *Réglages → Dossier* ce que pèse chaque tableau.
+- **« Je veux quitter Notak. »** Le dossier est à moi. L'export `.notak`, et un export lisible (HTML, Markdown et
+  images), ne demandent ni compte ni serveur.
+- **« Et si notak.app ferme ? »** Les applications installées continuent : tableaux, dossier, synchro entre mes
+  appareils. Seul le partage s'arrête, et le relais est libre (AGPL) : n'importe qui peut en remettre un en route, et
+  l'application permet d'en choisir un autre dans ses réglages.
+- **« Deux personnes déplacent la même carte en même temps. »** Le dernier déplacement l'emporte, sans casse ni
+  doublon ; le texte, lui, se fusionne.
+- **« Le serveur peut-il lire nos tableaux ? »** Non : il ne voit que des octets chiffrés, et la clé ne lui est
+  jamais envoyée.

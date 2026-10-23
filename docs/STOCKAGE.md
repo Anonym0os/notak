@@ -121,6 +121,21 @@ Le dossier est dans le nuage de l'utilisateur. Au branchement, on lui laisse le 
 - **Chiffré** : une phrase de passe (Argon2id, puis AES-GCM sur chaque fichier, noms compris pour `fichiers/`). La
   phrase est demandée une fois par appareil. On dit clairement : *phrase perdue, tableaux perdus*.
 
+### 5.7 Versions
+Chaque appareil garde, **dans son propre sous-dossier**, des instantanés datés :
+
+```
+appareils/<appareil>/versions/<aaaa-mm-jj>.nmb
+```
+
+- Un par jour d'activité, gardé 30 jours ; puis un par semaine, gardé 6 mois. Chaque appareil fait le ménage de ses
+  propres versions, jamais de celles des autres (E3).
+- Comme chaque appareil garde les siennes, un même tableau a autant d'historiques que d'appareils et de
+  participants. C'est ce qui permet de revenir en arrière même si quelqu'un a tout effacé.
+- **Restaurer** ne réécrit pas le passé : on calcule l'ancien contenu et on l'écrit comme un changement nouveau.
+  Tout le monde le reçoit, et cette restauration peut elle-même être annulée.
+- Les images citées par une version ne sont pas effacées de `fichiers/` tant qu'une version les cite.
+
 ## 6. Ce qui marche, plateforme par plateforme
 
 Le web ne peut pas écrire dans un dossier partout : c'est la limite la plus dure du projet. D'où des applications.
