@@ -26,10 +26,12 @@ interface Props {
   /** Le champ d'adresse du lien : `null` fermé, sinon l'adresse en cours de saisie. */
   lien: string | null
   surLien(adresse: string | null): void
+  /** Commenter le passage choisi ; absent en lecture seule. */
+  commenter?(): void
 }
 
 /** La barre de mise en forme, posée au-dessus de la note en édition. Elle ne prend jamais le focus à l'éditeur. */
-export function BarreTexte({ editor, lien, surLien }: Props) {
+export function BarreTexte({ editor, lien, surLien, commenter }: Props) {
   const etat = useEditorState({
     editor,
     selector: ({ editor: ed }) => ({
@@ -43,6 +45,7 @@ export function BarreTexte({ editor, lien, surLien }: Props) {
       centre: ed.isActive({ textAlign: 'center' }),
       code: ed.isActive('code'),
       surLien: ed.isActive('link'),
+      surFil: ed.isActive('commentaireTexte'),
       vide: ed.state.selection.empty,
       couleur: (ed.getAttributes('textStyle').color as string | undefined) ?? null,
       surlignage: ed.isActive('highlight') ? ((ed.getAttributes('highlight').color as string | null) ?? '') : null,
@@ -92,6 +95,8 @@ export function BarreTexte({ editor, lien, surLien }: Props) {
       {bouton('Retrait +', false, () => { editor.commands.focus(); augmenterRetrait(editor) }, <Trait d="M2 3h12M7 6.5h7M7 9.5h7M2 13h12M2.5 6.5 5 8 2.5 9.5" />)}
       {bouton('Code', etat.code, () => chaine().toggleCode().run(), <Trait d="M5.5 4.5 2 8l3.5 3.5M10.5 4.5 14 8l-3.5 3.5" />)}
       {bouton('Lien', etat.surLien || lien !== null, ouvrirLien, <Trait d="M6.5 9.5a3 3 0 0 0 4.2 0l2-2a3 3 0 0 0-4.2-4.2l-.7.7M9.5 6.5a3 3 0 0 0-4.2 0l-2 2a3 3 0 0 0 4.2 4.2l.7-.7" />, etat.vide && !etat.surLien)}
+      {commenter &&
+        bouton('Commenter le passage (⌘⌥M)', etat.surFil, commenter, <Trait d="M2.5 3.5h11v7h-5l-3 2.5v-2.5h-3z" />, etat.vide && !etat.surFil)}
       <i />
       <div className="notak-note-menu-ancre">
         <button type="button" title="Insérer" aria-expanded={insertion} onClick={() => { setMenu(false); setInsertion(!insertion) }}>

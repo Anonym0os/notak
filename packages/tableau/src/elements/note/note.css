@@ -545,3 +545,120 @@
   height: 10px;
   border-radius: 5px;
 }
+
+/* Un passage commenté : un soulignement jaune, qui s'épaissit quand on y est. */
+.notak-texte .notak-fil-texte {
+  background: color-mix(in srgb, #f3c534 28%, transparent);
+  border-bottom: 2px solid #f3c534;
+}
+
+/* La marge des fils, à droite de la note en édition. */
+.notak-note-marge {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 16px);
+  width: 260px;
+  color: var(--notak-texte);
+  font-size: 13px;
+  cursor: default;
+}
+
+.notak-fil-marge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-radius: 8px;
+  background: var(--notak-carte);
+  box-shadow: var(--notak-ombre);
+  opacity: 0.85;
+  cursor: pointer;
+}
+
+.notak-fil-marge[data-actif] {
+  opacity: 1;
+  cursor: default;
+  outline: 2px solid var(--notak-accent);
+}
+
+.notak-fil-marge[data-resolu]:not([data-actif]) {
+  opacity: 0.6;
+}
+
+.notak-fil-marge .notak-commentaire-message,
+.notak-fil-marge .notak-commentaire-saisie {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.notak-fil-marge .notak-commentaire-pastille {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #8a94a3;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.notak-fil-marge .notak-commentaire-entete {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.notak-fil-marge time {
+  color: #6b7280;
+  font-size: 11px;
+}
+
+.notak-fil-marge .notak-commentaire-texte {
+  margin: 2px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.notak-fil-marge .notak-commentaire-retirer {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.notak-fil-marge textarea {
+  flex: 1;
+  box-sizing: border-box;
+  min-height: 26px;
+  padding: 4px 8px;
+  border: 1px solid var(--notak-point);
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  resize: none;
+  outline: none;
+}
+
+.notak-fil-marge-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.notak-fil-marge-actions button {
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: #6b7280;
+  cursor: pointer;
+}

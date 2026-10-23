@@ -1,10 +1,12 @@
 import { EditorContent, getSchema, useEditor } from '@tiptap/react'
 import { renderToReactElement } from '@tiptap/static-renderer/pm/react'
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { Note, NoeudTexte } from '../../coeur/tableau'
+import { type Commentaire, type Id, type Note, type NoeudTexte, nouvelId } from '../../coeur/tableau'
 import { extensionsDuPartage, textePartage } from '../partage'
 import type { PropsRendu } from '../types'
 import { BarreTexte } from './Barre'
+import { Marge } from './Marge'
+import { MARQUE_FIL, type Fils, avecFil, filsVivants, sansPassagesMuets } from './fils'
 import { type Pont, Propositions, extensionPropositions } from './Propositions'
 import { adresseSeule, adressesEnLiens, caseSeule, docEstVide } from './conversion'
 import { docVide } from '../taches/liste'
@@ -56,14 +58,18 @@ export function RenduNote(props: PropsRendu<Note>) {
       }}
     >
       {contenu.barre && <div className="notak-note-bande" style={{ background: contenu.barre }} aria-hidden />}
-      {enEdition ? <Editeur {...props} /> : <TexteFige texte={contenu.texte} />}
+      {enEdition ? <Editeur {...props} /> : <TexteFige texte={contenu.texte} fils={contenu.fils} />}
       {contenu.legende && <div className="notak-note-legende">{contenu.legende}</div>}
     </div>
   )
 }
 
-const TexteFige = memo(function TexteFige({ texte }: { texte: NoeudTexte }) {
-  const rendu = useMemo(() => renderToReactElement({ content: adressesEnLiens(texte), extensions: EXTENSIONS_NOTE }), [texte])
+const TexteFige = memo(function TexteFige({ texte, fils }: { texte: NoeudTexte; fils?: Fils }) {
+  // Un passage dont le fil n'a aucun message (marqué, rien écrit) ne se souligne pas.
+  const rendu = useMemo(
+    () => renderToReactElement({ content: adressesEnLiens(sansPassagesMuets(texte, fils)), extensions: EXTENSIONS_NOTE }),
+    [texte, fils],
+  )
   return <div className="notak-texte">{rendu}</div>
 })
 
@@ -74,6 +80,16 @@ function Editeur(props: PropsRendu<Note>) {
   const { contenu } = element
   const [lien, setLien] = useState<string | null>(null)
   const gestes = useRef<GestesEdition>(null!)
+  // Les fils du texte vivent à côté de lui : la note les garde en brouillon avec le texte.
+  const fils = useRef<Fils | undefined>(contenu.fils)
+  const [filsVus, setFilsVus] = useState<Fils | undefined>(contenu.fils)
+  const [ouvert, setOuvert] = useState<Id | null>(null)
+  const ecrire = (texte: NoeudTexte, apres: Fils | undefined) => {
+    fils.current = apres
+    setFilsVus(apres)
+    const { fils: _, ...reste } = contenu
+    brouillon({ ...reste, texte, ...(apres ? { fils: apres } : {}) })
+  }
   const pont = useRef<Pont | null>(null)
   // Lu une fois, à l'entrée en édition : la suite du texte arrive par le fragment.
   const fragment = useMemo(() => textePartage(contexte, element.id, contenu.texte, SCHEMA), [])
@@ -89,7 +105,10 @@ function Editeur(props: PropsRendu<Note>) {
     extensions,
     ...(fragment ? {} : { content: contenu.texte }),
     editorProps: { attributes: { class: 'notak-texte' } },
-    onUpdate: ({ editor }) => brouillon({ ...contenu, texte: editor.getJSON() as NoeudTexte }),
+    onUpdate: ({ editor }) => {
+      const texte = editor.getJSON() as NoeudTexte
+      ecrire(texte, filsVivants(fils.current, texte))
+    },
   })
 
   // Le curseur se pose là où l'on a cliqué, sinon à la fin : une fois l'éditeur accroché à la page
@@ -116,6 +135,17 @@ function Editeur(props: PropsRendu<Note>) {
       contexte.finirEdition()
     },
     noteDessous: () => contexte.creerSuivant(element.id, false),
+    commenter: () => {
+      if (!editeur || contexte.services.lectureSeule) return
+      // Dans un passage déjà commenté : on ouvre son fil. Sinon, le passage choisi reçoit un fil neuf.
+      const present = editeur.isActive(MARQUE_FIL) ? (editeur.getAttributes(MARQUE_FIL).fil as Id | null) : null
+      if (present) return setOuvert(present)
+      if (editeur.state.selection.empty) return
+      const id = nouvelId()
+      editeur.chain().focus().setMark(MARQUE_FIL, { fil: id }).run()
+      ecrire(editeur.getJSON() as NoeudTexte, avecFil(fils.current, id, { type: 'commentaire', messages: [] }))
+      setOuvert(id)
+    },
     // Une note qui n'est qu'une adresse devient un lien en sortant ; qui n'est qu'une case, une liste de tâches.
     entree: () => {
       if (!editeur || !adresseSeule(editeur.getJSON() as NoeudTexte)) return false
@@ -136,7 +166,17 @@ function Editeur(props: PropsRendu<Note>) {
 
   return (
     <>
-      {editeur && <BarreTexte editor={editeur} lien={lien} surLien={setLien} />}
+      {editeur && <BarreTexte editor={editeur} lien={lien} surLien={setLien} commenter={contexte.services.lectureSeule ? undefined : () => gestes.current.commenter()} />}
+      {editeur && (
+        <Marge
+          editeur={editeur}
+          fils={filsVus}
+          ouvert={ouvert}
+          surOuvert={setOuvert}
+          ecrire={(id: Id, fil: Commentaire) => ecrire(editeur.getJSON() as NoeudTexte, avecFil(fils.current, id, fil))}
+          contexte={contexte}
+        />
+      )}
       {editeur && <Propositions editeur={editeur} contexte={contexte} pont={pont} />}
       <EditorContent editor={editeur} />
     </>

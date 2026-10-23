@@ -1,10 +1,11 @@
-import { type Editor, Extension, InputRule, markInputRule } from '@tiptap/react'
+import { type Editor, Extension, InputRule, Mark, markInputRule, mergeAttributes } from '@tiptap/react'
 import Highlight from '@tiptap/extension-highlight'
 import TextAlign from '@tiptap/extension-text-align'
 import { Color, TextStyle } from '@tiptap/extension-text-style'
 import StarterKit from '@tiptap/starter-kit'
 import { basculerCentre, basculerSurlignage, poserStyle } from './commandes'
 import { normaliserUrl } from './conversion'
+import { MARQUE_FIL } from './fils'
 import { AdressesReperees, CelluleTable, Encadre, EnteteTable, LienTableau, LigneTable, Mention, Table } from './noeuds'
 import { augmenterRetrait, changerCasse, diminuerRetrait } from './texte'
 
@@ -19,6 +20,26 @@ const Surlignage = Highlight.configure({ multicolor: true }).extend({
       },
     }
   },
+})
+
+/**
+ * Un passage commenté : la marque ne porte que la clé du fil (`Note.fils`), que la marge de la note en édition
+ * retrouve. Elle est dans le schéma partagé, donc elle voyage avec le texte dans le fragment Yjs.
+ */
+export const FilTexte = Mark.create({
+  name: MARQUE_FIL,
+  inclusive: false,
+  addAttributes() {
+    return {
+      fil: {
+        default: null,
+        parseHTML: (el: HTMLElement) => el.getAttribute('data-fil'),
+        renderHTML: (attrs: { fil?: string | null }) => (attrs.fil ? { 'data-fil': attrs.fil } : {}),
+      },
+    }
+  },
+  parseHTML: () => [{ tag: 'span[data-fil]' }],
+  renderHTML: ({ HTMLAttributes }) => ['span', mergeAttributes(HTMLAttributes, { class: 'notak-fil-texte' }), 0],
 })
 
 /** Le petit texte : un paragraphe marqué, que `note.css` dessine plus petit. */
@@ -130,6 +151,7 @@ export const EXTENSIONS_NOTE = [
   AdressesReperees,
   Mention,
   LienTableau,
+  FilTexte,
 ]
 
 /** Les mêmes, quand le texte s'écrit à plusieurs : l'annulation est alors celle du partage (voir `partage.ts`). */
@@ -144,6 +166,8 @@ export interface GestesEdition {
   entree(): boolean
   /** La note n'est qu'une case (`[] `) : elle devient une liste de tâches. */
   enTaches(): boolean
+  /** Commente le passage choisi, ou ouvre le fil de celui où l'on est. */
+  commenter(): void
 }
 
 /** Ce qui n'a de sens que pendant l'édition : lien, suppression de la note vide, note du dessous. */
@@ -168,6 +192,10 @@ export const raccourcisEdition = (gestes: { current: GestesEdition }) =>
       return {
         'Mod-k': () => {
           gestes.current.lien()
+          return true
+        },
+        'Mod-Alt-m': () => {
+          gestes.current.commenter()
           return true
         },
         'Mod-Enter': () => {
