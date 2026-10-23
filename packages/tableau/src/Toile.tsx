@@ -2222,6 +2222,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           elements={elementsChoisis}
           contexte={contexte}
           position={{ x: (barre.min.x + barre.max.x) / 2, y: Math.max(8, barre.min.y - MARGE_BARRE) }}
+          {...(services.barreAGauche ? { aGauche: true } : {})}
         />
       )}
       {fantome && (
@@ -2233,7 +2234,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           )}
         </div>
       )}
-      {!lectureSeule && (
+      {!lectureSeule && !(services.barreAGauche && barre) && (
         <BarreOutils
           surAppui={surAppuiOutil}
           rebond={rebond}

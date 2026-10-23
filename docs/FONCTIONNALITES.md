@@ -336,7 +336,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Fonctionnalité | État | Reste |
 |---|---|---|
 | En-tête : fil d'Ariane, titre, partage, présence | ✅ | |
-| Barre d'outils contextuelle | 🟡 | Flottante au-dessus de la sélection (choix) ; voir § 12 pour son contenu. |
+| Barre d'outils contextuelle | ✅ | Au-dessus de la sélection, ou dans la barre de gauche comme Milanote (réglage). |
 | Annuler et rétablir dans l'en-tête | ✅ | |
 | État d'enregistrement (« enregistré », « hors ligne ») | ✅ | |
 | Thème sombre (Cmd+Maj+D) | ✅ | |
@@ -366,7 +366,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 |---|---|---|
 | Web | ✅ | |
 | Hors ligne complet (écrire sans réseau, rattraper au retour) | ✅ | IndexedDB pour les tableaux, service worker pour l'application. |
-| Bureau (Tauri) | 🟡 | Coque Tauri 2 écrite (apps/bureau), pas encore compilée. |
+| Bureau (Tauri) | ✅ | Coque Tauri 2 (apps/bureau), compilée sur macOS ; à signer pour la diffuser. |
 | iPhone | ✅ | Application web installable (manifeste, icône, hors ligne) et gestes tactiles. |
 | Notes rapides sur le téléphone | ✅ | Page /rapide, vers les non triés de l'accueil. |
 | Partager vers Notak depuis le téléphone | 🟡 | Android et Chrome ; iOS Safari ne reçoit pas les partages des sites. |

@@ -1211,3 +1211,25 @@
   top: 52px;
   right: 16px;
 }
+
+/* Les outils d'une sélection à la place de la barre de gauche (réglage « Outils de la sélection »), comme Milanote. */
+.notak-barre-selection[data-a-gauche] {
+  top: 12px;
+  left: 12px;
+  flex-direction: column;
+  align-items: stretch;
+  transform: none;
+}
+
+/* Les palettes et menus de ces outils s'ouvrent à droite de la barre, pas en dessous. */
+.notak-barre-selection[data-a-gauche] [role='menu'] {
+  top: 0;
+  left: calc(100% + 8px);
+  transform: none;
+}
+
+.notak-barre-selection[data-a-gauche] > *,
+.notak-barre-selection[data-a-gauche] button {
+  justify-content: flex-start;
+  text-align: left;
+}

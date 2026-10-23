@@ -18,7 +18,7 @@ afterEach(() => {
   hote.remove()
 })
 
-const reglages = { theme: 'clair', taille: 'moyenne', doubleClic: true, grille: 10 } as const
+const reglages = { theme: 'clair', taille: 'moyenne', doubleClic: true, grille: 10, barre: 'flottante' } as const
 const monter = (compte?: ServiceCompte) =>
   act(() => racine.render(<FenetreReglages reglages={reglages} changer={() => {}} fermer={() => {}} {...(compte ? { compte } : {})} />))
 

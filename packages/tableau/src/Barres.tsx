@@ -127,10 +127,13 @@ export function BarreSelection({
   elements,
   contexte,
   position,
+  aGauche = false,
 }: {
   elements: Element[]
   contexte: ContexteToile
   position: { x: number; y: number }
+  /** À la place de la barre de gauche, en colonne, plutôt qu'au-dessus de la sélection. */
+  aGauche?: boolean
 }) {
   const [plus, setPlus] = useState(false)
   // Échap referme le menu ouvert : la barre repart de zéro, chaque outil avec ses menus fermés.
@@ -157,7 +160,8 @@ export function BarreSelection({
       ref={barre}
       key={cle}
       className="notak-barre-selection"
-      style={{ left: position.x, top: position.y }}
+      data-a-gauche={aGauche || undefined}
+      style={aGauche ? undefined : { left: position.x, top: position.y }}
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
     >

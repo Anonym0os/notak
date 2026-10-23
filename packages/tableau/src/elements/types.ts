@@ -133,6 +133,8 @@ export interface Services {
   retablirNavigation?(): boolean
   /** L'adresse affichable de la photo d'une personne, d'après le fichier qu'elle a choisi ; absent : l'initiale seule. */
   adressePhoto?(fichier: Id): string
+  /** Les outils d'une sélection prennent la place de la barre de gauche, comme chez Milanote, au lieu de flotter. */
+  barreAGauche?: boolean
   /** Un double-clic sur le vide crée une note (le réglage de chacun) ; absent : oui. */
   doubleClicCreeNote?: boolean
 }

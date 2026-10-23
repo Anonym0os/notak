@@ -158,6 +158,7 @@ export function EspaceNotak({
       lectureSeule: lectureSeule || hote.lectureSeule || presentation,
       presentation,
       doubleClicCreeNote: reglages.doubleClic,
+      barreAGauche: reglages.barre === 'gauche',
       annulerNavigation: () => {
         const p = etat.current.parcours
         if (p.index === 0) return false
@@ -178,7 +179,7 @@ export function EspaceNotak({
         return neufs
       },
     }),
-    [hote, espace, ouvrir, courant, lectureSeule, reglages.doubleClic, presentation],
+    [hote, espace, ouvrir, courant, lectureSeule, reglages.doubleClic, reglages.barre, presentation],
   )
 
   // L'adresse suit le tableau ouvert ; une adresse qu'on suit (retour du navigateur) ne se réécrit pas.

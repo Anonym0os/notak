@@ -12,6 +12,8 @@ export interface Reglages {
   doubleClic: boolean
   /** La taille d'une UG, en pixels (Cmd+Maj+, et Cmd+Maj+.). */
   grille: 8 | 9 | 10
+  /** Où paraissent les outils d'une sélection : au-dessus d'elle, ou à la place de la barre de gauche. */
+  barre: 'flottante' | 'gauche'
 }
 
 /**
@@ -44,7 +46,7 @@ export function refusDePhoto(f: { type: string; size: number }): string | null {
 }
 
 const CLE = 'notak:reglages'
-const DEFAUT: Reglages = { theme: 'clair', taille: 'moyenne', doubleClic: true, grille: 10 }
+const DEFAUT: Reglages = { theme: 'clair', taille: 'moyenne', doubleClic: true, grille: 10, barre: 'flottante' }
 
 function lire(): Reglages {
   try {
@@ -56,6 +58,7 @@ function lire(): Reglages {
       taille: brut.taille === 'petite' || brut.taille === 'grande' ? brut.taille : 'moyenne',
       doubleClic: brut.doubleClic !== false,
       grille: brut.grille === 8 || brut.grille === 9 ? brut.grille : 10,
+      barre: brut.barre === 'gauche' ? 'gauche' : 'flottante',
     }
   } catch {
     return DEFAUT
@@ -198,6 +201,11 @@ export function FenetreReglages({
             [8, 'Serrée'],
             [9, 'Moyenne'],
             [10, 'Large'],
+          ])}
+          <label>Outils de la sélection</label>
+          {choix('barre', [
+            ['flottante', 'Au-dessus d’elle'],
+            ['gauche', 'Dans la barre de gauche'],
           ])}
           <label>Double-clic sur le vide</label>
           {choix('doubleClic', [
