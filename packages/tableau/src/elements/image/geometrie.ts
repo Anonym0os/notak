@@ -9,7 +9,7 @@ const LARGEUR_MAX_UG = 34
 const LARGEUR_MIN_UG = 4
 /** La largeur naturelle ne dépasse pas 1600 px. */
 const LARGEUR_NATURELLE_MAX_PX = 1600
-const LARGEUR_COLONNE = 36
+export const LARGEUR_COLONNE = 36
 const ECART = 2
 const PX_PAR_UG = 10
 

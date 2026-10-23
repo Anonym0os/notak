@@ -1,15 +1,32 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { Image } from '../../coeur/tableau'
+import type { Element, Image } from '../../coeur/tableau'
 import { useFichier } from '../envois'
-import type { PropsOutils, PropsRendu } from '../types'
+import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { PX_PAR_UG } from '../../coeur/camera'
 import { aUneOmbre, avecLegende, hauteurCalee, miseEnPage, pivoter, proportionsAffichees } from './geometrie'
 import { Recadreur, recadrer, useRecadrageOuvert } from './Recadreur'
+import { adresseALargeur, finesse, largeurCadrePx, largeurEntiereAffichee, palierPour } from './tailles'
 import { Visionneuse, useImageOuverte } from './visionneuse'
+
+/**
+ * L'adresse du fichier à la taille que l'affichage demande : le plus petit palier net pour la largeur à l'écran,
+ * au zoom et à la densité d'ici. On ne revient jamais à plus petit en reculant : la copie plus grande est déjà là.
+ */
+function useAdresseALargeur(element: Element<Image>, contexte: ContexteToile, adresse: string | null | undefined) {
+  const garde = useRef({ fichier: '', palier: 0 as number | null })
+  const { contenu } = element
+  if (garde.current.fichier !== contenu.fichier) garde.current = { fichier: contenu.fichier, palier: 0 }
+  if (!adresse) return adresse
+  const cadre = largeurCadrePx(element.largeur, element.parent !== undefined, PX_PAR_UG, contexte.camera.echelle)
+  const palier = palierPour(contenu, largeurEntiereAffichee(contenu, cadre), window.devicePixelRatio || 1)
+  if (finesse(palier) > finesse(garde.current.palier)) garde.current.palier = palier
+  return adresseALargeur(adresse, garde.current.palier)
+}
 
 export function RenduImage({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<Image>) {
   const { contenu } = element
-  const { adresse, enRoute } = useFichier(element, contexte)
+  const { adresse: adresseOrigine, enRoute } = useFichier(element, contexte)
+  const adresse = useAdresseALargeur(element, contexte, adresseOrigine)
   const proportions = proportionsAffichees(contenu)
   const page = miseEnPage(contenu)
   // Sur la toile, la hauteur tombe sur la grille ; dans une colonne, dont la largeur n'est pas la nôtre, elle suit les proportions.
@@ -22,7 +39,7 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
   useEffect(() => {
     if (enRecadrage && !choisie) recadrer(null)
   }, [enRecadrage, choisie])
-  if (enRecadrage && adresse) return <Recadreur id={element.id} contenu={contenu} adresse={adresse} contexte={contexte} />
+  if (enRecadrage && adresseOrigine) return <Recadreur id={element.id} contenu={contenu} adresse={adresseOrigine} contexte={contexte} />
   return (
     <>
       {enRoute && (
@@ -30,7 +47,7 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
           <span className="notak-roue" />
         </span>
       )}
-      {enGrand && adresse && <Visionneuse adresse={adresse} {...(contenu.legende ? { legende: contenu.legende } : {})} />}
+      {enGrand && adresseOrigine && <Visionneuse adresse={adresseOrigine} {...(contenu.legende ? { legende: contenu.legende } : {})} />}
       <div className="notak-image-cadre" data-ombre={aUneOmbre(contenu.typeMime, contenu.transparente) || undefined} style={forme}>
         {adresse ? (
           <div className="notak-image-plan" style={page.plan}>

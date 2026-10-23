@@ -13,6 +13,7 @@
     "@node-rs/argon2": "2.2.2",
     "@notak/tableau": "workspace:*",
     "hono": "4.13.13",
+    "sharp": "0.35.5",
     "ws": "8.22.0",
     "yjs": "13.6.33"
   },
