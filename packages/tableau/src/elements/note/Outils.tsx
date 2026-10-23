@@ -1,7 +1,9 @@
 import { useState, useSyncExternalStore } from 'react'
 import { COULEURS_NOTE, type CouleurNote, type Note } from '../../coeur/tableau'
 import type { PropsOutils } from '../types'
-import { FOND_NOTE, LIBELLES_COULEUR, couleursSuggerees, lireHex } from './couleurs'
+import { FOND_NOTE, LIBELLES_COULEUR, couleursSuggerees, lireHex, teinteDe } from './couleurs'
+import { OutilAvecMenu } from '../../BoutonOutil'
+import { fermerMenus, useMenu } from '../../menuUnique'
 import { t } from '../../langue'
 
 type Cle = 'fond' | 'barre' | 'couleurTexte'
@@ -16,52 +18,45 @@ const sans = (c: Note, cle: keyof Note) => {
 
 /** « Couleur », « Barre », « Texte », « Légende » : la mise en forme de la note choisie. */
 export function OutilsNote({ elements, contexte }: PropsOutils<Note>) {
-  const [ouvert, setOuvert] = useState<'couleur' | Cle | 'legende' | null>(null)
+  // Chaque palette est un menu de la barre : en ouvrir une referme les autres, et les menus des autres outils.
+  const couleur = useMenu()
+  const barre = useMenu()
+  const texte = useMenu()
+  const legende = useMenu()
   const appliquer = (f: Changement) => {
     contexte.magasin.faire(elements.map((e) => ({ type: 'contenu', id: e.id, avant: e.contenu, apres: f(e.contenu) })))
-    setOuvert(null)
+    fermerMenus()
   }
   const commun = <T,>(lire: (c: Note) => T): T | undefined =>
     elements.every((e) => lire(e.contenu) === lire(elements[0]!.contenu)) ? lire(elements[0]!.contenu) : undefined
   // Les teintes déjà employées sur le tableau, relues à chaque changement.
   const tableau = useSyncExternalStore(contexte.magasin.ecouter, contexte.magasin.lire)
   const suggerees = couleursSuggerees(tableau.elements)
-
-  const bascule = (nom: NonNullable<typeof ouvert>, libelle: string) => (
-    <button type="button" title={libelle} aria-expanded={ouvert === nom} onClick={() => setOuvert(ouvert === nom ? null : nom)}>
-      {libelle}
-    </button>
-  )
+  const fond = commun((c) => c.fond ?? c.couleur)
 
   return (
     <>
-      <div className="notak-note-menu-ancre">
-        {bascule('couleur', t('couleur.titre'))}
-        {ouvert === 'couleur' && (
-          <PaletteFond
-            actuelle={commun((c) => c.fond ?? c.couleur)}
-            suggerees={suggerees}
-            choisir={(couleur, fond) =>
-              appliquer((c) => {
-                const nu = sans(sans(c, 'couleur'), 'fond')
-                return couleur ? { ...nu, couleur } : fond ? { ...nu, fond } : nu
-              })
-            }
-          />
-        )}
-      </div>
-      <div className="notak-note-menu-ancre">
-        {bascule('barre', t('note.barre'))}
-        {ouvert === 'barre' && <PaletteHex cle="barre" actuelle={commun((c) => c.barre)} suggerees={suggerees} appliquer={appliquer} />}
-      </div>
-      <div className="notak-note-menu-ancre">
-        {bascule('couleurTexte', t('note.texte'))}
-        {ouvert === 'couleurTexte' && <PaletteHex cle="couleurTexte" actuelle={commun((c) => c.couleurTexte)} suggerees={suggerees} appliquer={appliquer} />}
-      </div>
-      <div className="notak-note-menu-ancre">
-        {bascule('legende', t('note.legende'))}
-        {ouvert === 'legende' && <ChampLegende depart={commun((c) => c.legende) ?? ''} appliquer={appliquer} />}
-      </div>
+      <OutilAvecMenu menu={couleur} icone="palette" titre={t('couleur.titre')} libelle={t('couleur.titre')} pastille={teinteDe(fond)}>
+        <PaletteFond
+          actuelle={fond}
+          suggerees={suggerees}
+          choisir={(couleur, fond) =>
+            appliquer((c) => {
+              const nu = sans(sans(c, 'couleur'), 'fond')
+              return couleur ? { ...nu, couleur } : fond ? { ...nu, fond } : nu
+            })
+          }
+        />
+      </OutilAvecMenu>
+      <OutilAvecMenu menu={barre} icone="barreNote" titre={t('note.barre')} libelle={t('note.barre')} pastille={teinteDe(commun((c) => c.barre))} secondaire>
+        <PaletteHex cle="barre" actuelle={commun((c) => c.barre)} suggerees={suggerees} appliquer={appliquer} />
+      </OutilAvecMenu>
+      <OutilAvecMenu menu={texte} icone="texte" titre={t('note.texte')} libelle={t('note.texte')} pastille={teinteDe(commun((c) => c.couleurTexte))} secondaire>
+        <PaletteHex cle="couleurTexte" actuelle={commun((c) => c.couleurTexte)} suggerees={suggerees} appliquer={appliquer} />
+      </OutilAvecMenu>
+      <OutilAvecMenu menu={legende} icone="legende" titre={t('note.legende')} libelle={t('note.legende')} secondaire>
+        <ChampLegende depart={commun((c) => c.legende) ?? ''} appliquer={appliquer} />
+      </OutilAvecMenu>
     </>
   )
 }
@@ -72,13 +67,11 @@ function PaletteFond({ actuelle, suggerees, choisir }: { actuelle: string | unde
     <div className="notak-note-palette" role="menu">
       <div className="notak-note-pastilles">
         <button type="button" role="menuitem" className="notak-pastille-aucune" title={t('couleur.aucune')} aria-label={t('couleur.aucune')} aria-pressed={actuelle === undefined} onClick={() => choisir()} />
+        <button type="button" role="menuitem" className="notak-pastille-transparente" title={t('couleur.transparent')} aria-label={t('couleur.transparent')} aria-pressed={actuelle === 'transparent'} onClick={() => choisir('transparent')} />
         {COULEURS_NOTE.map((c) => (
           <button key={c} type="button" role="menuitem" title={LIBELLES_COULEUR[c]} aria-label={LIBELLES_COULEUR[c]} aria-pressed={actuelle === c} data-fond={c} onClick={() => choisir(c)} />
         ))}
       </div>
-      <button type="button" role="menuitem" aria-pressed={actuelle === 'transparent'} onClick={() => choisir('transparent')}>
-        {t('couleur.transparent')}
-      </button>
       <Libre actuelle={actuelle} suggerees={suggerees} choisir={(hex) => choisir(undefined, hex)} />
     </div>
   )
@@ -107,11 +100,14 @@ function Libre({ actuelle, suggerees, choisir }: { actuelle: string | undefined;
   return (
     <>
       {suggerees.length > 0 && (
-        <div className="notak-note-pastilles" aria-label={t('note.couleursTableau')}>
-          {suggerees.map((c) => (
-            <button key={c} type="button" role="menuitem" title={c} aria-label={c} aria-pressed={actuelle === c} style={{ background: c }} onClick={() => choisir(c)} />
-          ))}
-        </div>
+        <>
+          <span className="notak-decor-titre">{t('couleur.recentes')}</span>
+          <div className="notak-note-pastilles" aria-label={t('note.couleursTableau')}>
+            {suggerees.map((c) => (
+              <button key={c} type="button" role="menuitem" title={c} aria-label={c} aria-pressed={actuelle === c} style={{ background: c }} onClick={() => choisir(c)} />
+            ))}
+          </div>
+        </>
       )}
       <input
         className="notak-note-hex"

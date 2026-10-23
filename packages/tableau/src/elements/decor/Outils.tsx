@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { type Auteur, type Element, annoter } from '../../coeur/tableau'
 import { AUTEUR_INCONNU } from '../commentaire/fil'
 import type { ContexteToile } from '../types'
@@ -7,7 +8,8 @@ import { appliquerAffichage, estReduit, peutSeReduire } from './affichage'
 import { ECHEANCE, EMOJIS, basculerReaction, pasPour } from './annotations'
 import { ouvrirFil, useFilOuvert } from './etat'
 import { t } from '../../langue'
-import { Icone } from '../../icones'
+import { BoutonOutil, OutilAvecMenu } from '../../BoutonOutil'
+import { type NomIcone, Icone } from '../../icones'
 import { useMenu } from '../../menuUnique'
 
 interface Props {
@@ -15,26 +17,21 @@ interface Props {
   contexte: ContexteToile
 }
 
-/** Un bouton de la barre de sélection et la fenêtre qu'il ouvre dessous. */
-function Menu({ titre, libelle, children }: { titre: string; libelle: string; children: (fermer: () => void) => React.ReactNode }) {
-  const [ouvert, setOuvert, ancre] = useMenu()
+/** Un bouton de la barre de sélection et la fenêtre qu'il ouvre dessous (à droite, dans la barre de gauche). */
+function Menu({ titre, libelle, icone, secondaire, children }: { titre: string; libelle: string; icone: NomIcone; secondaire?: boolean; children: (fermer: () => void) => React.ReactNode }) {
+  const menu = useMenu()
   return (
-    <div className="notak-note-menu-ancre" ref={ancre}>
-      <button type="button" title={titre} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
-        {libelle}
-      </button>
-      {ouvert && (
-        <div className="notak-note-palette notak-decor-menu" role="menu">
-          {children(() => setOuvert(false))}
-        </div>
-      )}
-    </div>
+    <OutilAvecMenu menu={menu} titre={titre} libelle={libelle} icone={icone} secondaire={secondaire}>
+      <div className="notak-note-palette notak-decor-menu" role="menu">
+        {children(() => menu[1](false))}
+      </div>
+    </OutilAvecMenu>
   )
 }
 
 export function OutilEtiquettes({ elements, contexte }: Props) {
   return (
-    <Menu titre={t('etiquettes.titre')} libelle={t('etiquettes.titre')}>
+    <Menu titre={t('etiquettes.titre')} libelle={t('etiquettes.titre')} icone="etiquette">
       {() => <PanneauEtiquettes elements={elements} contexte={contexte} />}
     </Menu>
   )
@@ -55,7 +52,7 @@ export function OutilReactions({ elements, contexte }: Props) {
     fermer()
   }
   return (
-    <Menu titre={t('decor.reagirEmoji')} libelle={t('decor.reagir')}>
+    <Menu titre={t('decor.reagirEmoji')} libelle={t('decor.reagir')} icone="reaction">
       {(fermer) => (
         <div className="notak-decor-emojis">
           {EMOJIS.map((m) => (
@@ -87,7 +84,7 @@ export function OutilEcheance({ elements, contexte }: Props) {
   const echeance = (jour: string | null) => contexte.magasin.faire(pasPour(elements, (e) => annoter(e, { echeance: jour })))
   const assigner = (p: Auteur | null) => contexte.magasin.faire(pasPour(elements, (e) => annoter(e, { assigne: p })))
   return (
-    <Menu titre={t('decor.echeanceTitre')} libelle={t('decor.echeance')}>
+    <Menu titre={t('decor.echeanceTitre')} libelle={t('decor.echeance')} icone="calendrier" secondaire>
       {() => (
         <div className="notak-decor-echeance">
           <label className="notak-decor-champ">
@@ -126,21 +123,46 @@ export function OutilAffichage({ elements, contexte }: Props) {
   const toutIcone = elements.every(estReduit)
   const basculer = () => appliquerAffichage(elements, !toutIcone, contexte)
   return (
-    <button type="button" title={elements.every((e) => e.contenu.type === 'colonne') ? (toutIcone ? t('decor.deplier') : t('decor.replierIcone')) : toutIcone ? t('menu.enDetail') : t('menu.enIcone')} aria-pressed={toutIcone} onClick={basculer}>
-      {toutIcone ? t('decor.detail') : t('tableau.icone')}
-    </button>
+    <BoutonOutil
+      icone={toutIcone ? 'agrandir' : 'reduire'}
+      secondaire
+      titre={elements.every((e) => e.contenu.type === 'colonne') ? (toutIcone ? t('decor.deplier') : t('decor.replierIcone')) : toutIcone ? t('menu.enDetail') : t('menu.enIcone')}
+      libelle={toutIcone ? t('decor.detail') : t('tableau.icone')}
+      actif={toutIcone}
+      onClick={basculer}
+    />
   )
 }
 
 export function OutilCommentaire({ elements, contexte }: Props) {
   const ouvert = useFilOuvert()
+  // Le panneau des commentaires est un menu comme les autres : en ouvrir un autre le ferme, et l'inverse.
+  // Il s'affiche ailleurs que sous le bouton, donc un appui hors de l'ancre ne le ferme pas.
+  const [menuOuvert, setMenuOuvert] = useMenu({ fermerAuClicDehors: false })
   const e = elements[0]
+  const parMoi = useRef(false)
+  const id = e?.id
+  const ici = !!id && ouvert === id
+  useEffect(() => {
+    // Un autre menu s'est ouvert : le fil que ce bouton avait ouvert se referme.
+    if (!menuOuvert && parMoi.current) {
+      parMoi.current = false
+      if (ici) ouvrirFil(null)
+    }
+  }, [menuOuvert, ici])
   if (elements.length !== 1 || !e) return null
   // En lecture seule, on ne rouvre un fil que s'il y en a un.
   if (contexte.services.lectureSeule && !e.commentaire?.messages.length) return null
-  return (
-    <button type="button" title={t('decor.commentairesSur')} aria-pressed={ouvert === e.id} onClick={() => ouvrirFil(ouvert === e.id ? null : e.id)}>
-      {t('menu.commenter')}
-    </button>
-  )
+  const basculer = () => {
+    if (ici) {
+      parMoi.current = false
+      setMenuOuvert(false)
+      ouvrirFil(null)
+    } else {
+      setMenuOuvert(true)
+      parMoi.current = true
+      ouvrirFil(e.id)
+    }
+  }
+  return <BoutonOutil icone="commenterPassage" titre={t('decor.commentairesSur')} libelle={t('menu.commenter')} actif={ici} onClick={basculer} />
 }
