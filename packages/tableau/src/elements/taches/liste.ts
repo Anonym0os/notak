@@ -123,3 +123,71 @@ export function effacerFaites(doc: NoeudTexte): NoeudTexte {
   const reste = sansFaites(doc)
   return sousTaches(reste).length > 0 ? reste : docVide()
 }
+
+/** Le document sans cette tâche (ni ses sous-tâches). Il reste toujours une tâche. */
+export function retirer(doc: NoeudTexte, chemin: Chemin): NoeudTexte {
+  const enlever = (parent: NoeudTexte, [indice, ...suite]: Chemin): NoeudTexte => {
+    let reste = indice!
+    return {
+      ...parent,
+      content: (parent.content ?? []).flatMap((n): NoeudTexte[] => {
+        if (n.type !== 'taskList' || reste < 0) return [n]
+        const nb = n.content?.length ?? 0
+        if (reste >= nb) {
+          reste -= nb
+          return [n]
+        }
+        const ici = reste
+        reste = -1
+        const taches =
+          suite.length === 0 ? n.content!.filter((_, k) => k !== ici) : n.content!.map((t, k) => (k === ici ? enlever(t, suite) : t))
+        return taches.length > 0 ? [{ ...n, content: taches }] : []
+      }),
+    }
+  }
+  if (chemin.length === 0) return doc
+  const apres = enlever(doc, chemin)
+  return sousTaches(apres).length > 0 ? apres : docVide()
+}
+
+const PUCE = /^(?:[-*•+]|\d+[.)])\s+/
+const CASE = /^\[([ xX]?)\]\s*/
+
+/**
+ * Des lignes collées, en tâches : une tâche par ligne non vide, les puces et les cases (`[x]`) retirées,
+ * l'imbrication tirée du retrait (une tabulation ou deux espaces par niveau). `null` pour une seule ligne
+ * sans puce ni case : elle se colle comme du texte.
+ */
+export function lignesEnTaches(texte: string): NoeudTexte[] | null {
+  const lignes = texte.replace(/\r\n?/g, '\n').split('\n').filter((l) => l.trim() !== '')
+  const marquees = lignes.some((l) => PUCE.test(l.trim()) || CASE.test(l.trim()))
+  if (lignes.length === 0 || (lignes.length === 1 && !marquees)) return null
+  const racine: NoeudTexte[] = []
+  // La pile des listes ouvertes, du premier niveau au plus profond.
+  const pile: NoeudTexte[][] = [racine]
+  for (const brute of lignes) {
+    const retrait = /^[\t ]*/.exec(brute)![0]
+    const niveauVoulu = [...retrait].reduce((n, c) => n + (c === '\t' ? 2 : 1), 0) >> 1
+    let t = brute.trim().replace(PUCE, '')
+    const coche = CASE.exec(t)
+    if (coche) t = t.slice(coche[0].length)
+    const tache: NoeudTexte = {
+      type: 'taskItem',
+      attrs: { checked: !!coche && coche[1]!.toLowerCase() === 'x' },
+      content: [t ? { type: 'paragraph', content: [{ type: 'text', text: t }] } : { type: 'paragraph' }],
+    }
+    const niveau = Math.min(niveauVoulu, pile.length - 1, PROFONDEUR_MAX - 1)
+    pile.length = niveau + 1
+    pile[niveau]!.push(tache)
+    const sous: NoeudTexte = { type: 'taskList', content: [] }
+    tache.content!.push(sous)
+    pile.push(sous.content!)
+  }
+  // Les sous-listes restées vides s'en vont.
+  const nettoyer = (taches: NoeudTexte[]): NoeudTexte[] =>
+    taches.map((t) => {
+      const [p, sous] = t.content!
+      return sous!.content!.length > 0 ? { ...t, content: [p!, { ...sous!, content: nettoyer(sous!.content!) }] } : { ...t, content: [p!] }
+    })
+  return nettoyer(racine)
+}

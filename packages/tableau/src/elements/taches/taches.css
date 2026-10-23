@@ -114,3 +114,58 @@
   font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
+
+/* Au survol d'une tâche, à droite, de quoi la retirer. */
+.notak-tache-suppr {
+  flex: none;
+  position: relative;
+  width: 20px;
+  height: 22px;
+  margin: 0 -8px 0 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 100ms;
+}
+
+.notak-tache-suppr::before,
+.notak-tache-suppr::after {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 5px;
+  width: 10px;
+  height: 1.5px;
+  border-radius: 1px;
+  background: #8a9099;
+  transform: rotate(45deg);
+}
+
+.notak-tache-suppr::after {
+  transform: rotate(-45deg);
+}
+
+.notak-tache-suppr:hover::before,
+.notak-tache-suppr:hover::after {
+  background: var(--notak-texte);
+}
+
+.notak-taches li[data-type='taskItem']:hover > .notak-tache-suppr {
+  opacity: 1;
+}
+
+/* La sous-tâche survolée montre la sienne, pas celle de sa parente. */
+.notak-taches li[data-type='taskItem']:has(li[data-type='taskItem']:hover) > .notak-tache-suppr {
+  opacity: 0;
+}
+
+/* Une liste vide dit quoi y mettre. */
+.notak-taches > ul[data-type='taskList'] > li:only-child > div > p:only-child:empty::before,
+.notak-taches-texte > ul[data-type='taskList'] > li:only-child > div > p:only-child:has(> br.ProseMirror-trailingBreak:only-child)::before {
+  content: 'Ajoutez une tâche…';
+  position: absolute;
+  color: rgb(0 0 0 / 0.35);
+  pointer-events: none;
+}

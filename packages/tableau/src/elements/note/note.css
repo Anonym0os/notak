@@ -28,17 +28,17 @@
 
 
 /* Le fond est celui du cadre commun : la note le lui demande à travers son enfant. */
-.notak-carte:has(> .notak-note[data-couleur='gris']) { background: var(--notak-note-gris); }
-.notak-carte:has(> .notak-note[data-couleur='cyan']) { background: var(--notak-note-cyan); }
-.notak-carte:has(> .notak-note[data-couleur='vert']) { background: var(--notak-note-vert); }
-.notak-carte:has(> .notak-note[data-couleur='brun']) { background: var(--notak-note-brun); }
-.notak-carte:has(> .notak-note[data-couleur='jaune']) { background: var(--notak-note-jaune); }
-.notak-carte:has(> .notak-note[data-couleur='orange']) { background: var(--notak-note-orange); }
-.notak-carte:has(> .notak-note[data-couleur='rouge']) { background: var(--notak-note-rouge); }
-.notak-carte:has(> .notak-note[data-couleur='rose']) { background: var(--notak-note-rose); }
-.notak-carte:has(> .notak-note[data-couleur='violet']) { background: var(--notak-note-violet); }
-.notak-carte:has(> .notak-note[data-couleur='bleu']) { background: var(--notak-note-bleu); }
-.notak-carte:has(> .notak-note[data-couleur='bleu_nuit']) { background: var(--notak-note-bleu_nuit); }
+.notak-carte:has(> .notak-note[data-couleur='gris']) { background: var(--notak-note-gris); --notak-voile: var(--notak-note-gris); }
+.notak-carte:has(> .notak-note[data-couleur='cyan']) { background: var(--notak-note-cyan); --notak-voile: var(--notak-note-cyan); }
+.notak-carte:has(> .notak-note[data-couleur='vert']) { background: var(--notak-note-vert); --notak-voile: var(--notak-note-vert); }
+.notak-carte:has(> .notak-note[data-couleur='brun']) { background: var(--notak-note-brun); --notak-voile: var(--notak-note-brun); }
+.notak-carte:has(> .notak-note[data-couleur='jaune']) { background: var(--notak-note-jaune); --notak-voile: var(--notak-note-jaune); }
+.notak-carte:has(> .notak-note[data-couleur='orange']) { background: var(--notak-note-orange); --notak-voile: var(--notak-note-orange); }
+.notak-carte:has(> .notak-note[data-couleur='rouge']) { background: var(--notak-note-rouge); --notak-voile: var(--notak-note-rouge); }
+.notak-carte:has(> .notak-note[data-couleur='rose']) { background: var(--notak-note-rose); --notak-voile: var(--notak-note-rose); }
+.notak-carte:has(> .notak-note[data-couleur='violet']) { background: var(--notak-note-violet); --notak-voile: var(--notak-note-violet); }
+.notak-carte:has(> .notak-note[data-couleur='bleu']) { background: var(--notak-note-bleu); --notak-voile: var(--notak-note-bleu); }
+.notak-carte:has(> .notak-note[data-couleur='bleu_nuit']) { background: var(--notak-note-bleu_nuit); --notak-voile: var(--notak-note-bleu_nuit); }
 
 /* Une note transparente n'a ni fond, ni ombre, ni marge, ni hauteur minimale. */
 .notak-carte[data-type='note'][data-sans-fond] {
@@ -59,6 +59,7 @@
 
 .notak-texte h1 { font-size: 20px; }
 .notak-texte h2 { font-size: 16px; }
+.notak-texte p[data-taille="petit"] { font-size: 12px; line-height: 1.4; }
 
 .notak-texte ul,
 .notak-texte ol {

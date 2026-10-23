@@ -1,9 +1,9 @@
-import { Extension, InputRule, markInputRule } from '@tiptap/react'
+import { type Editor, Extension, InputRule, markInputRule } from '@tiptap/react'
 import Highlight from '@tiptap/extension-highlight'
 import TextAlign from '@tiptap/extension-text-align'
 import { Color, TextStyle } from '@tiptap/extension-text-style'
 import StarterKit from '@tiptap/starter-kit'
-import { basculerCentre, basculerSurlignage } from './commandes'
+import { basculerCentre, basculerSurlignage, poserStyle } from './commandes'
 import { normaliserUrl } from './conversion'
 
 /** Le surlignage garde un nom de couleur (`vert`), que `note.css` décline : le document ne porte aucune valeur. */
@@ -19,6 +19,25 @@ const Surlignage = Highlight.configure({ multicolor: true }).extend({
   },
 })
 
+/** Le petit texte : un paragraphe marqué, que `note.css` dessine plus petit. */
+const PetitTexte = Extension.create({
+  name: 'petitTexte',
+  addGlobalAttributes() {
+    return [
+      {
+        types: ['paragraph'],
+        attributes: {
+          petit: {
+            default: null,
+            parseHTML: (el: HTMLElement) => (el.getAttribute('data-taille') === 'petit' ? true : null),
+            renderHTML: (attrs: { petit?: boolean | null }) => (attrs.petit ? { 'data-taille': 'petit' } : {}),
+          },
+        },
+      },
+    ]
+  },
+})
+
 /** Les raccourcis de mise en forme, en plus de ceux de Tiptap. */
 const RaccourcisFormat = Extension.create({
   name: 'raccourcisFormat',
@@ -30,14 +49,23 @@ const RaccourcisFormat = Extension.create({
       'Mod-e': () => e().commands.toggleCode(),
       'Mod-Shift-1': () => e().commands.toggleHeading({ level: 1 }),
       'Mod-Shift-2': () => e().commands.toggleHeading({ level: 2 }),
-      'Mod-Shift-0': () => e().chain().focus().clearNodes().run(),
+      'Mod-Shift-0': () => poserStyle(e(), 'texte'),
+      'Mod-Shift-9': () => poserStyle(e(), styleActifPetit(e()) ? 'texte' : 'petit'),
       'Mod-Shift-8': () => e().commands.toggleBulletList(),
+      'Mod-Shift-u': () => e().commands.toggleBulletList(),
       'Mod-Shift-7': () => e().commands.toggleOrderedList(),
+      'Mod-Shift-o': () => e().commands.toggleOrderedList(),
+      'Mod-Shift-b': () => poserStyle(e(), 'citation'),
+      "Mod-'": () => poserStyle(e(), 'citation'),
+      'Mod-.': () => poserStyle(e(), 'code'),
       'Mod-\\': () => basculerCentre(e()),
       'Mod-Shift-h': () => basculerSurlignage(e(), 'vert'),
+      'Mod-j': () => basculerSurlignage(e(), 'vert'),
     }
   },
 })
+
+const styleActifPetit = (ed: Editor) => ed.isActive('paragraph', { petit: true })
 
 /**
  * Le Markdown qu'on tape : `*mot*` met en gras (l'italique garde `_mot_`), `~mot~` barre, et `[texte](adresse)`
@@ -70,6 +98,7 @@ export const EXTENSIONS_NOTE = [
   Surlignage,
   TextStyle,
   Color,
+  PetitTexte,
   RaccourcisFormat,
   MarkdownTape,
 ]

@@ -11,16 +11,26 @@
 
 .notak-lien-media {
   position: relative;
-  aspect-ratio: 16 / 9;
   background: var(--notak-fond);
+}
+
+/* Un lecteur garde le format vidéo ; une image d'aperçu, ses propres proportions. */
+.notak-lien-media[data-video],
+.notak-lien-media:has(> iframe) {
+  aspect-ratio: 16 / 9;
 }
 
 .notak-lien-media img,
 .notak-lien-media iframe {
   display: block;
   width: 100%;
-  height: 100%;
+  height: auto;
   border: 0;
+}
+
+.notak-lien-media[data-video] img,
+.notak-lien-media iframe {
+  height: 100%;
   object-fit: cover;
 }
 
@@ -140,4 +150,28 @@
   margin-top: 6px;
   color: #c0392b;
   font-size: 12px;
+}
+
+/* Le titre ou la légende en cours d'écriture : le même texte, à la même place. */
+.notak-lien-edition {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  resize: none;
+  outline: none;
+  field-sizing: content;
+  -webkit-line-clamp: none;
+  overflow: hidden;
+  user-select: text;
+  cursor: text;
+}
+
+.notak-lien-titre.notak-lien-edition {
+  font-weight: 700;
 }

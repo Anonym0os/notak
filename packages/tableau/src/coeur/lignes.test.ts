@@ -2,6 +2,9 @@ import { describe, expect, test } from 'vitest'
 import { depuisTaille, point } from './geometrie'
 import {
   SEUIL_DROIT,
+  aimanterAngle,
+  auMoins,
+  longueurMin,
   courbeDepuisPoint,
   decouper,
   evaluer,
@@ -224,5 +227,19 @@ describe('lignes à supprimer', () => {
   })
   test('supprimer une ligne seule n’emporte rien', () => {
     expect(lignesASupprimer([tableau.elements[3]!], tableau)).toEqual([])
+  })
+})
+
+describe('angle et longueur', () => {
+  const o = point(0, 0)
+  test('Maj cale à 45°', () => {
+    expect(aimanterAngle(o, point(10, 2))).toEqual(point(10, 0))
+    expect(aimanterAngle(o, point(-1, -9))).toEqual(point(0, -9))
+    expect(aimanterAngle(o, point(7, -6))).toEqual(point(7, -7))
+  })
+  test('une ligne fléchée garde de quoi loger ses pointes', () => {
+    expect(longueurMin('fleche', 'fleche')).toBe(1.5)
+    expect(auMoins(o, point(0.5, 0), longueurMin('rien', 'fleche'))).toEqual(point(1, 0))
+    expect(auMoins(o, point(3, 4), 1)).toEqual(point(3, 4))
   })
 })

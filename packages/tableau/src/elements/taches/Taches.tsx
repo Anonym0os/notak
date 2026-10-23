@@ -1,22 +1,26 @@
 import { EditorContent, useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
-import { type KeyboardEvent, type ReactNode, memo, useEffect, useRef, useState } from 'react'
+import { type KeyboardEvent, type ReactNode, memo, useEffect, useMemo, useRef, useState } from 'react'
 import type { Element, Id, NoeudTexte, Taches } from '../../coeur/tableau'
 import type { PropsOutils, PropsRendu } from '../types'
-import { EXTENSIONS_TACHES } from './extensions'
-import { type Chemin, basculer, compter, docTaches, effacerFaites, estFaite, sousTaches } from './liste'
+import { EXTENSIONS_TACHES, type GestesTaches, clavierListe } from './extensions'
+import { type Chemin, basculer, compter, docTaches, effacerFaites, estFaite, retirer, sousTaches } from './liste'
 
 /** Les listes dont le titre vient d'être ajouté : leur édition y met le curseur. */
 const titreAFocaliser = new Set<Id>()
 
 const sansTitre = ({ titre: _, ...reste }: Taches): Taches => reste
 
-export function RenduTaches({ element, enEdition, brouillon, changer }: PropsRendu<Taches>) {
+export function RenduTaches({ element, enEdition, contexte, brouillon, changer }: PropsRendu<Taches>) {
   const { contenu } = element
+  const jeter = () => {
+    contexte.jeter([element.id])
+    contexte.finirEdition()
+  }
   return (
     <div className="notak-taches">
       {enEdition ? (
-        <Edition id={element.id} contenu={contenu} surChangement={brouillon} />
+        <Edition id={element.id} contenu={contenu} surChangement={brouillon} jeter={jeter} />
       ) : (
         <Figee contenu={contenu} changer={changer} />
       )}
@@ -30,15 +34,23 @@ const Figee = memo(function Figee({ contenu, changer }: { contenu: Taches; chang
   const doc = docTaches(contenu.texte)
   const cocher = (chemin: Chemin, enCascade: boolean) =>
     changer({ ...contenu, texte: basculer(doc, chemin, enCascade) })
+  const supprimer = (chemin: Chemin) => changer({ ...contenu, texte: retirer(doc, chemin) })
   return (
     <>
       {contenu.titre && <div className="notak-taches-titre">{contenu.titre}</div>}
-      <Liste noeud={doc} chemin={[]} cocher={cocher} />
+      <Liste noeud={doc} chemin={[]} cocher={cocher} supprimer={supprimer} />
     </>
   )
 })
 
-function Liste({ noeud, chemin, cocher }: { noeud: NoeudTexte; chemin: Chemin; cocher(c: Chemin, cascade: boolean): void }) {
+interface PropsListe {
+  noeud: NoeudTexte
+  chemin: Chemin
+  cocher(c: Chemin, cascade: boolean): void
+  supprimer(c: Chemin): void
+}
+
+function Liste({ noeud, chemin, cocher, supprimer }: PropsListe) {
   const taches = sousTaches(noeud)
   if (taches.length === 0) return null
   return (
@@ -64,8 +76,17 @@ function Liste({ noeud, chemin, cocher }: { noeud: NoeudTexte; chemin: Chemin; c
               {(tache.content ?? []).map((n, k) =>
                 n.type === 'paragraph' ? <p key={k}>{inline(n)}</p> : null,
               )}
-              <Liste noeud={tache} chemin={ici} cocher={cocher} />
+              <Liste noeud={tache} chemin={ici} cocher={cocher} supprimer={supprimer} />
             </div>
+            <button
+              type="button"
+              tabIndex={-1}
+              className="notak-tache-suppr"
+              title="Supprimer la tâche"
+              onPointerDown={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => e.stopPropagation()}
+              onClick={() => supprimer(ici)}
+            />
           </li>
         )
       })}
@@ -96,7 +117,9 @@ function inline(paragraphe: NoeudTexte): ReactNode {
 
 // ———— En édition : Tiptap, avec un titre en champ simple ————
 
-function Edition({ id, contenu, surChangement }: { id: Id; contenu: Taches; surChangement(apres: Taches): void }) {
+const CASE_EN_TETE = /^\[([ xX]?)\]\s/
+
+function Edition({ id, contenu, surChangement, jeter }: { id: Id; contenu: Taches; surChangement(apres: Taches): void; jeter(): void }) {
   // L'état courant vit ici : la toile ne remet l'élément à jour qu'à la sortie de l'édition.
   const courant = useRef(contenu)
   const [titre, setTitre] = useState(contenu.titre)
@@ -108,8 +131,10 @@ function Edition({ id, contenu, surChangement }: { id: Id; contenu: Taches; surC
     courant.current = apres
     surChangement(apres)
   }
+  const gestes = useRef<GestesTaches>(null!)
+  const extensions = useMemo(() => [...EXTENSIONS_TACHES, clavierListe(gestes)], [])
   const editeur = useEditor({
-    extensions: EXTENSIONS_TACHES,
+    extensions,
     content: docTaches(contenu.texte),
     autofocus: focaliserTitre.current ? false : 'end',
     editorProps: { attributes: { class: 'notak-taches-texte' } },
@@ -124,6 +149,37 @@ function Edition({ id, contenu, surChangement }: { id: Id; contenu: Taches; surC
   const changerTitre = (valeur: string | undefined) => {
     setTitre(valeur)
     poser(valeur === undefined ? sansTitre(courant.current) : { ...courant.current, titre: valeur })
+  }
+  gestes.current = {
+    aUnTitre: () => courant.current.titre !== undefined,
+    versTitre: () => {
+      if (courant.current.titre === undefined) changerTitre('')
+      // Le champ naît au rendu suivant.
+      setTimeout(() => {
+        const c = champ.current
+        c?.focus()
+        c?.setSelectionRange(c.value.length, c.value.length)
+      }, 0)
+    },
+    jeter,
+  }
+  // `[] ` en tête du titre le change en tâche, posée en haut de la liste.
+  const titreTape = (valeur: string) => {
+    const c = CASE_EN_TETE.exec(valeur)
+    const ed = editeurRef.current
+    if (!c || !ed) return changerTitre(valeur)
+    const reste = valeur.slice(c[0].length)
+    changerTitre(undefined)
+    ed.chain()
+      .insertContentAt(1, {
+        type: 'taskItem',
+        attrs: { checked: c[1]!.toLowerCase() === 'x' },
+        content: [reste ? { type: 'paragraph', content: [{ type: 'text', text: reste }] } : { type: 'paragraph' }],
+      })
+      .setTextSelection(3 + reste.length)
+      .run()
+    // Tout de suite, sans la focalisation différée de Tiptap.
+    ed.view.focus()
   }
   const clavier = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -144,7 +200,7 @@ function Edition({ id, contenu, surChangement }: { id: Id; contenu: Taches; surC
           className="notak-taches-titre"
           value={titre}
           placeholder="Titre"
-          onChange={(e) => changerTitre(e.target.value)}
+          onChange={(e) => titreTape(e.target.value)}
           onKeyDown={clavier}
         />
       )}

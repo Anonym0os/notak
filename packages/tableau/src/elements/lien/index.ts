@@ -3,7 +3,7 @@ import type { Point } from '../../coeur/geometrie'
 import { type Element, nouvelId } from '../../coeur/tableau'
 import { registre } from '../registre'
 import { lireAdresse } from './adresse'
-import { RenduLien } from './Lien'
+import { RenduLien, titreDuLien } from './Lien'
 import './lien.css'
 import { OutilsLien } from './Outils'
 
@@ -20,11 +20,12 @@ const nouveauLien = (ou: Point, url: string): Element<Lien> => ({
 registre.type<Lien>({
   type: 'lien',
   nom: 'Lien',
-  resume: (c) => c.apercu?.titre || c.url,
+  resume: (c) => titreDuLien(c) || c.url,
   Rendu: RenduLien,
   editable: true,
   hauteurParDefaut: 20,
   sansFond: true,
+  hauteurBornable: true,
   Outils: OutilsLien,
   outils: [
     {

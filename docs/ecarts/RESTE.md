@@ -17,6 +17,13 @@ Chaque ligne renvoie au relevé qui la détaille.
 - Proportions des notes, colonnes, tableaux ; composition des contenus ; image en grand ; couleur d'un tableau.
 - Zoom lissé, effleurement corrigé, inertie filtrée ; lasso posé au relâchement ; Alt+glisser ; colonne au
   clavier ; poignée au survol.
+- Hauteur bornée des notes et des liens (plafond et voile, plancher, retour au contenu à 20 px près ; la note
+  s'étend en édition) ; contour choisi sans ombre, contour écarté en édition.
+- Lien : titre et légende modifiables (clic sur le lien choisi), outil « Adresse », aperçu à ses proportions.
+- Tâches : suppression au survol, lignes collées en tâches, liste vide à la corbeille au retour arrière,
+  première tâche vide changée en titre, `[] ` en tête du titre changé en tâche, indication de liste vide.
+- Ligne : Maj pour 45°, longueur minimale selon les flèches, pointe ronde ; une ligne au tracé vide reste visible.
+- Petit texte (Cmd+Maj+9) ; raccourcis Cmd+., Cmd+Maj+B, Cmd+', Cmd+J, Cmd+Maj+O, Cmd+Maj+U.
 
 ## Reste
 
@@ -34,13 +41,13 @@ Chaque ligne renvoie au relevé qui la détaille.
 - Dépôt depuis le Finder : fichiers quelconques, dans une colonne, plusieurs adresses.
 
 ### Éléments (elements.md)
-- Hauteur bornée des notes et des liens, avec le voile qui cache la suite.
+- Hauteur bornée dans une colonne (la poignée n'y règle que la hauteur).
 - Barre de couleur, couleur libre, légende d'une note.
-- Petit texte, encadré, séparateur, retraits, menu d'insertion ; raccourcis Cmd+Maj+9, Cmd+., Cmd+Maj+B, Cmd+J.
-- Lien : titre modifiable, légende, aperçu entier, adresse d'image changée en image.
+- Encadré, retraits du texte (Tab), menu d'insertion.
+- Lien : adresse d'image changée en image (il faut d'abord rapatrier le fichier), réglages d'affichage.
 - Image : miniature pendant l'envoi, transparence lue dans l'image.
-- Tâches : poignée et suppression au survol, collage de lignes en tâches.
-- Ligne : ancrage à un point précis, Maj pour 45°, outil rapide au coin, pointe ronde, longueur minimale.
+- Tâches : poignée pour faire glisser une tâche, collage d'une liste HTML (Google Docs).
+- Ligne : ancrage à un point précis, outil rapide au coin de l'élément.
 - Icône ou image d'un tableau.
 - Texte écrit à plusieurs en même temps (Y.XmlFragment, Tiptap Collaboration).
 

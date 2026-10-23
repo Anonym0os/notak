@@ -24,9 +24,16 @@ export function OutilsLigne({ elements, contexte }: PropsOutils<Ligne>) {
     contexte.magasin.faire(pas)
   }
   const tous = <T,>(lire: (l: Ligne) => T, valeur: T) => elements.every((e) => lire(e.contenu) === valeur)
+  // Chaque clic passe à la pointe suivante : flèche, rond, rien.
+  const SUITE: Record<Pointe, Pointe> = { fleche: 'rond', rond: 'rien', rien: 'fleche' }
   const bascule = (clef: 'pointeDepart' | 'pointeArrivee') => {
-    const vers: Pointe = tous((l) => l[clef], 'fleche') ? 'rien' : 'fleche'
+    const premiere = elements[0]!.contenu[clef]
+    const vers: Pointe = elements.every((e) => e.contenu[clef] === premiere) ? SUITE[premiere] : 'fleche'
     modifier((l) => ({ ...l, [clef]: vers }))
+  }
+  const signe = (clef: 'pointeDepart' | 'pointeArrivee', fleche: string) => {
+    const p = elements[0]!.contenu[clef]
+    return p === 'fleche' ? fleche : p === 'rond' ? '●' : '–'
   }
   const colorier = (couleur: CouleurNote | undefined) => {
     modifier((l) => {
@@ -39,11 +46,11 @@ export function OutilsLigne({ elements, contexte }: PropsOutils<Ligne>) {
 
   return (
     <>
-      <button type="button" title="Pointe de départ" aria-pressed={tous((l) => l.pointeDepart, 'fleche')} onClick={() => bascule('pointeDepart')}>
-        ◀
+      <button type="button" title="Pointe de départ : flèche, rond ou rien" aria-pressed={!tous((l) => l.pointeDepart, 'rien')} onClick={() => bascule('pointeDepart')}>
+        {signe('pointeDepart', '◀')}
       </button>
-      <button type="button" title="Pointe d’arrivée" aria-pressed={tous((l) => l.pointeArrivee, 'fleche')} onClick={() => bascule('pointeArrivee')}>
-        ▶
+      <button type="button" title="Pointe d’arrivée : flèche, rond ou rien" aria-pressed={!tous((l) => l.pointeArrivee, 'rien')} onClick={() => bascule('pointeArrivee')}>
+        {signe('pointeArrivee', '▶')}
       </button>
       <span className="notak-ligne-sep" />
       {TRAITS.map((t) => (

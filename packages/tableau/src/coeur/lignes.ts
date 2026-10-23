@@ -6,7 +6,7 @@
  * Une courbe est une Bézier quadratique dont le point de contrôle vient de `{ ecart, position }`.
  */
 import { type Point, type Rect, contient, point } from './geometrie'
-import type { Element, Id, Ligne, Tableau } from './tableau'
+import type { Element, Id, Ligne, Pointe, Tableau } from './tableau'
 
 export type Courbe = NonNullable<Ligne['courbe']>
 
@@ -214,4 +214,29 @@ export function lignesASupprimer(supprimes: Element[], tableau: Tableau): Elemen
   return tableau.elements.filter(
     (e) => e.contenu.type === 'ligne' && !ids.has(e.id) && accroches(e.contenu).some((id) => ids.has(id)),
   )
+}
+
+/** Maj pendant qu'on tire une extrémité : la ligne se cale à l'horizontale, à la verticale ou sur une diagonale. */
+export function aimanterAngle(fixe: Point, p: Point): Point {
+  const [dx, dy] = [p.x - fixe.x, p.y - fixe.y]
+  const cran = Math.round(Math.atan2(dy, dx) / (Math.PI / 4))
+  if (cran % 4 === 0) return point(p.x, fixe.y)
+  if (Math.abs(cran) === 2) return point(fixe.x, p.y)
+  // Diagonale : on garde le plus long des deux écarts, avec le signe de chacun.
+  const t = Math.max(Math.abs(dx), Math.abs(dy))
+  return point(fixe.x + Math.sign(dx) * t, fixe.y + Math.sign(dy) * t)
+}
+
+/** La longueur la plus courte d'une ligne (UG) : de quoi loger ses flèches sans qu'elles se chevauchent. */
+export function longueurMin(depart: Pointe, arrivee: Pointe): number {
+  const fleches = Number(depart === 'fleche') + Number(arrivee === 'fleche')
+  return fleches === 2 ? 1.5 : fleches === 1 ? 1 : 0.1
+}
+
+/** Repousse `p` loin de `fixe` jusqu'à la longueur `min` (UG), dans la même direction (à droite si confondus). */
+export function auMoins(fixe: Point, p: Point, min: number): Point {
+  const d = Math.hypot(p.x - fixe.x, p.y - fixe.y)
+  if (d >= min) return p
+  if (d === 0) return point(fixe.x + min, fixe.y)
+  return point(fixe.x + ((p.x - fixe.x) / d) * min, fixe.y + ((p.y - fixe.y) / d) * min)
 }

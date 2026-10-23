@@ -1,4 +1,5 @@
 import { type Point, point } from './geometrie'
+import type { Hauteur } from './hauteur'
 
 export type Id = string
 
@@ -88,6 +89,10 @@ export interface Lien {
   apercu?: Apercu
   /** `attente` tant que l'aperçu se charge, `echec` s'il n'a pas pu l'être. */
   statut: 'attente' | 'pret' | 'echec'
+  /** Le titre qu'on lui a donné, à la place de celui de l'aperçu. */
+  titre?: string
+  /** La légende qu'on lui a écrite, à la place de la description de l'aperçu ; vide, elle est cachée. */
+  legende?: string
 }
 
 /** Une liste de tâches : un document Tiptap fait d'une liste de cases. */
@@ -153,6 +158,8 @@ export interface Element<C extends Contenu = Contenu> {
   corbeille?: number
   /** Verrouillé : ne se glisse pas, ne se redimensionne pas, ne part pas à la corbeille, reste dessous. */
   verrou?: boolean
+  /** La hauteur qu'on lui a donnée, pour les types qui le permettent (note, lien). */
+  hauteur?: Hauteur
 }
 
 /** Où est un élément : sur la toile (`x`, `y`), ou rangé dans une colonne (`parent`, `ordre`). */
@@ -195,6 +202,8 @@ export type Operation =
   | { type: 'ranger'; id: Id; de: Place; vers: Place }
   /** Verrouille ou libère sa position. */
   | { type: 'verrouiller'; id: Id; de: boolean; vers: boolean }
+  /** Donne une hauteur à l'élément, ou la rend à son contenu (`null`). */
+  | { type: 'borner'; id: Id; de: Hauteur | null; vers: Hauteur | null }
 
 const BASE32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
 
@@ -261,6 +270,8 @@ export function inverse(op: Operation): Operation {
       return { type: 'ranger', id: op.id, de: op.vers, vers: op.de }
     case 'verrouiller':
       return { type: 'verrouiller', id: op.id, de: op.vers, vers: op.de }
+    case 'borner':
+      return { type: 'borner', id: op.id, de: op.vers, vers: op.de }
   }
 }
 
@@ -281,6 +292,8 @@ export function appliquer(t: Tableau, op: Operation): Tableau {
       return modifier(t, op.id, (e) => placer(e, op.vers))
     case 'verrouiller':
       return modifier(t, op.id, ({ verrou: _v, ...e }) => (op.vers ? { ...e, verrou: true } : e))
+    case 'borner':
+      return modifier(t, op.id, ({ hauteur: _h, ...e }) => (op.vers ? { ...e, hauteur: op.vers } : e))
   }
 }
 

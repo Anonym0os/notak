@@ -9,8 +9,10 @@ import {
   effacerFaites,
   estFaite,
   hauteur,
+  lignesEnTaches,
   nouvelleListeTaches,
   peutDescendre,
+  retirer,
   sousTaches,
 } from './liste'
 
@@ -160,5 +162,33 @@ describe('profondeur', () => {
     expect(peutDescendre(6, 1)).toBe(false)
     expect(peutDescendre(3, 3)).toBe(true)
     expect(peutDescendre(3, 4)).toBe(false)
+  })
+})
+
+describe('retirer et coller', () => {
+  const doc = (...t: NoeudTexte[]): NoeudTexte => ({ type: 'doc', content: [{ type: 'taskList', content: t }] })
+  const t = (texte: string, ...sous: NoeudTexte[]): NoeudTexte => ({
+    type: 'taskItem',
+    attrs: { checked: false },
+    content: [{ type: 'paragraph', content: [{ type: 'text', text: texte }] }, ...(sous.length ? [{ type: 'taskList', content: sous }] : [])],
+  })
+
+  it('retire une tâche et ses sous-tâches, une sous-tâche seule', () => {
+    expect(retirer(doc(t('a', t('b')), t('c')), [0])).toEqual(doc(t('c')))
+    expect(retirer(doc(t('a', t('b')), t('c')), [0, 0])).toEqual(doc(t('a'), t('c')))
+    expect(retirer(doc(t('a')), [0])).toEqual(docVide())
+  })
+
+  it('change des lignes en tâches, puces, cases et retraits compris', () => {
+    const r = lignesEnTaches('- pain\n  - [x] complet\n\n* lait\n')!
+    expect(r).toEqual([
+      { ...t('pain', { ...t('complet'), attrs: { checked: true } }) },
+      t('lait'),
+    ])
+  })
+
+  it('laisse une ligne simple se coller comme du texte', () => {
+    expect(lignesEnTaches('bonjour')).toBeNull()
+    expect(lignesEnTaches('[ ] seule')).toHaveLength(1)
   })
 })

@@ -46,7 +46,14 @@
 }
 
 .notak-carte[data-choisie] {
-  box-shadow: var(--notak-ombre), 0 0 0 2px var(--notak-accent);
+  box-shadow: 0 0 0 2px var(--notak-accent);
+}
+
+/* En édition, le contour s'écarte de la carte : on voit qu'on écrit dedans. */
+.notak-carte[data-edition]:not([data-sans-fond]) {
+  box-shadow: none;
+  outline: 2px solid var(--notak-accent);
+  outline-offset: 2px;
 }
 
 .notak-carte[data-edition] {
@@ -698,5 +705,29 @@
 /* La poignée paraît au survol, et sur l'élément seul choisi ; elle garde sa taille quel que soit le zoom. */
 .notak-carte:hover > .notak-poignee,
 .notak-carte[data-choisie] > .notak-poignee {
+  opacity: 1;
+}
+
+/* Hauteur bornée : ce qui dépasse le plafond se cache sous un voile de la couleur de la carte. */
+.notak-carte {
+  --notak-voile: var(--notak-carte);
+}
+
+.notak-carte[data-plafond] {
+  overflow: hidden;
+}
+
+.notak-voile {
+  position: absolute;
+  right: 1px;
+  bottom: 0;
+  left: 1px;
+  height: 60px;
+  background: linear-gradient(to bottom, transparent, var(--notak-voile) 80%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.notak-voile[data-montre] {
   opacity: 1;
 }

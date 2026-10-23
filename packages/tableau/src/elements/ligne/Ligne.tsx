@@ -6,10 +6,13 @@ import {
   useSyncExternalStore,
 } from "react";
 import { PX_PAR_UG } from "../../coeur/camera";
-import { type Point, type Rect, centre, point } from "../../coeur/geometrie";
+import { type Point, type Rect, centre, contient, point } from "../../coeur/geometrie";
 import {
   TAILLE_POINTE,
+  aimanterAngle,
+  auMoins,
   courbeDepuisPoint,
+  longueurMin,
   pointControle,
   sommetsFleche,
   tracer,
@@ -126,7 +129,7 @@ export function RenduLigne({
   const taille = TAILLE_POINTE[l.epaisseur] / PX_PAR_UG;
   const recul = (p: Ligne["pointeDepart"]) =>
     p === "fleche" ? taille * 0.85 : p === "rond" ? taille / 2 : 0;
-  const trace = tracer({
+  const entree = {
     a,
     b,
     rectA: idD ? mesures.depart : null,
@@ -134,7 +137,10 @@ export function RenduLigne({
     courbe: l.courbe,
     reculA: recul(l.pointeDepart),
     reculB: recul(l.pointeArrivee),
-  });
+  };
+  // Un bout posé dans l'élément de l'autre (ou deux éléments l'un sur l'autre) : rien ne dépasse des bords.
+  // La ligne se dessine alors de centre à centre, pour rester visible et se laisser prendre.
+  const trace = tracer(entree) ?? tracer({ ...entree, rectA: null, rectB: null });
   if (!trace) return <g ref={ancre} />;
 
   const { chemin } = trace;
@@ -216,13 +222,24 @@ export function RenduLigne({
     const autre = idAccroche(
       g.quoi === "depart" ? g.avant.arrivee : g.avant.depart,
     );
-    const cible = elementSous(
+    const fixeLibre = g.quoi === "depart" ? g.avant.arrivee : g.avant.depart;
+    let cible = elementSous(
       e.clientX,
       e.clientY,
       [element.id, autre],
       contexte,
     );
-    const [x, y] = aimanter(p);
+    // Pas d'accroche à l'élément qui contient déjà l'autre bout : la ligne n'aurait rien à montrer.
+    const rectCible = cible && "x" in fixeLibre ? contexte.rect(cible) : null;
+    if (rectCible && "x" in fixeLibre && contient(rectCible, point(fixeLibre.x, fixeLibre.y))) cible = null;
+    // L'autre bout, là où on le voit : Maj cale la ligne sur un angle de 45°, et elle ne devient jamais trop courte.
+    const fixe = cordes.current && (g.quoi === "depart" ? cordes.current.b : cordes.current.a);
+    let libre = p;
+    if (fixe && !cible) {
+      if (e.shiftKey) libre = aimanterAngle(fixe, libre);
+      libre = auMoins(fixe, libre, longueurMin(g.avant.pointeDepart, g.avant.pointeArrivee));
+    }
+    const [x, y] = e.shiftKey ? [Math.round(libre.x * 2) / 2, Math.round(libre.y * 2) / 2] : aimanter(libre);
     poser({ ...g.avant, [g.quoi]: cible ? { element: cible } : { x, y } });
   };
   const finir = (e: React.PointerEvent) => {

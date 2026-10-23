@@ -8,6 +8,7 @@ const STYLES: { style: StyleBloc; libelle: string }[] = [
   { style: 'titre1', libelle: 'Grand titre' },
   { style: 'titre2', libelle: 'Titre' },
   { style: 'texte', libelle: 'Texte' },
+  { style: 'petit', libelle: 'Petit texte' },
   { style: 'citation', libelle: 'Citation' },
   { style: 'code', libelle: 'Code' },
 ]

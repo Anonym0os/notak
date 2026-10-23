@@ -1,4 +1,4 @@
-import { createContext, memo, useContext, useMemo } from 'react'
+import { type CSSProperties, type RefObject, createContext, memo, useContext, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { PX_PAR_UG } from './coeur/camera'
 import { comparerOrdre } from './coeur/ordre'
 import type { Contenu, Element, Id } from './coeur/tableau'
@@ -22,12 +22,22 @@ interface Props {
 
 /** Le cadre commun d'un élément : position, largeur, fond, ombre, sélection. Le type dessine dedans. */
 export const Cadre = memo(function Cadre({ element, choisie, enEdition, contexte, mode = 'toile', poignee, audessus, brouillon, changer }: Props) {
+  const noeud = useRef<HTMLDivElement>(null)
   const def = definition(element.contenu.type)
   if (!def) return null
   const sansFond = typeof def.sansFond === 'function' ? def.sansFond(element.contenu) : def.sansFond
   const { Rendu } = def
+  // En édition, la note s'étend le temps d'écrire ; le plafond revient à la sortie.
+  const h = def.hauteurBornable ? element.hauteur : undefined
+  const plafond = h && 'max' in h && !enEdition ? h.max * PX_PAR_UG : undefined
+  const plancher = h && 'min' in h ? h.min * PX_PAR_UG : undefined
+  const place: CSSProperties =
+    mode === 'toile'
+      ? { left: element.x * PX_PAR_UG, top: element.y * PX_PAR_UG, width: element.largeur * PX_PAR_UG }
+      : { position: 'relative' }
   return (
     <div
+      ref={noeud}
       className="notak-carte"
       data-id={element.id}
       data-type={element.contenu.type}
@@ -35,11 +45,8 @@ export const Cadre = memo(function Cadre({ element, choisie, enEdition, contexte
       data-edition={enEdition || undefined}
       data-sans-fond={sansFond || undefined}
       data-audessus={audessus || undefined}
-      style={
-        mode === 'toile'
-          ? { left: element.x * PX_PAR_UG, top: element.y * PX_PAR_UG, width: element.largeur * PX_PAR_UG }
-          : { position: 'relative' }
-      }
+      data-plafond={plafond !== undefined || undefined}
+      style={{ ...place, ...(plafond !== undefined ? { maxHeight: plafond } : {}), ...(plancher !== undefined ? { minHeight: plancher } : {}) }}
     >
       <Rendu
         element={element}
@@ -49,10 +56,28 @@ export const Cadre = memo(function Cadre({ element, choisie, enEdition, contexte
         brouillon={(c) => brouillon(element, c)}
         changer={(c) => changer(element, c)}
       />
+      {plafond !== undefined && <Voile carte={noeud} />}
       {poignee && <div className="notak-poignee" data-poignee aria-hidden />}
     </div>
   )
 })
+
+/** Le dégradé qui cache le bas d'un contenu plus haut que son plafond ; rien tant que tout tient. */
+function Voile({ carte }: { carte: RefObject<HTMLDivElement | null> }) {
+  const [deborde, setDeborde] = useState(false)
+  useLayoutEffect(() => {
+    const c = carte.current
+    const contenu = c?.firstElementChild
+    if (!c || !contenu) return
+    const mesurer = () => setDeborde(c.scrollHeight > c.clientHeight + 1)
+    mesurer()
+    const obs = new ResizeObserver(mesurer)
+    obs.observe(c)
+    obs.observe(contenu)
+    return () => obs.disconnect()
+  }, [carte])
+  return <div className="notak-voile" data-montre={deborde || undefined} aria-hidden />
+}
 
 /** La place que garde, jusqu'au dépôt, un élément qu'on a tiré de sa colonne : son rang et sa hauteur (px du plan). */
 export interface Empreinte {

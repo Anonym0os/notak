@@ -3,6 +3,7 @@ import { BarreOutils, BarreSelection, type OutilDeBarre, outilsDeBarre } from '.
 import { Cadre, ContexteRangement, type Empreinte, type Rangement } from './Cadre'
 import * as cam from './coeur/camera'
 import { type Point, type Rect, chevauche, depuisCoins, englobant, point, soustraire } from './coeur/geometrie'
+import { type Hauteur, hauteurTiree, memeHauteur } from './coeur/hauteur'
 import { creerLimiteur } from './coeur/limiteur'
 import { type Magasin, enLectureSeule, sansCorbeille } from './coeur/magasin'
 import { largeurDoubleClic, largeurTiree, LARGEUR_MIN_DEFAUT } from './coeur/largeur'
@@ -68,7 +69,22 @@ type Geste =
       demarre: boolean
       envol?: Envol
     }
-  | { type: 'redimensionner'; id: Id; depart: Point; largeurDepart: number; min: number }
+  | {
+      type: 'redimensionner'
+      id: Id
+      depart: Point
+      largeurDepart: number
+      min: number
+      /** Pour un type à hauteur bornable : sa hauteur donnée au départ, et celle de sa carte (px du plan). */
+      borne?: { de: Hauteur | undefined; px: number }
+    }
+
+/** La hauteur que demande le contenu d'une carte, plafond ou non (px du plan). */
+function hauteurNaturelle(carte: HTMLElement): number {
+  const contenu = carte.firstElementChild as HTMLElement | null
+  const style = getComputedStyle(carte)
+  return (contenu?.offsetHeight ?? 0) + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom)
+}
 
 /** Le verrou d'axe de Maj : choisi d'après le plus grand déplacement, il ne bascule que si l'autre le dépasse franchement. */
 function choisirAxe(actuel: 'h' | 'v' | null, d: Point): 'h' | 'v' {
@@ -909,8 +925,17 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const ici = cam.versTableau(camera, p)
       const el = id && tableau.elements.find((x) => x.id === id)
       if (el && !lectureSeule && !el.verrou && (e.target as HTMLElement).closest('[data-poignee]')) {
-        const min = definition(el.contenu.type)?.largeurMin ?? LARGEUR_MIN_DEFAUT
-        geste.current = { type: 'redimensionner', id: el.id, depart: ici, largeurDepart: el.largeur, min }
+        const def = definition(el.contenu.type)
+        const min = def?.largeurMin ?? LARGEUR_MIN_DEFAUT
+        const n = def?.hauteurBornable && !el.parent ? noeudDe(el.id) : null
+        geste.current = {
+          type: 'redimensionner',
+          id: el.id,
+          depart: ici,
+          largeurDepart: el.largeur,
+          min,
+          ...(n ? { borne: { de: el.hauteur, px: n.offsetHeight } } : {}),
+        }
       } else if (id) {
         arreterDepose()
         const basculer = e.metaKey || e.ctrlKey || e.shiftKey
@@ -1006,7 +1031,13 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     }
     if (g.type === 'redimensionner') {
       const vers = largeurTiree(g.largeurDepart + ici.x - g.depart.x, g.min)
-      return magasin.appliquerSeulement([{ type: 'redimensionner', id: g.id, de: g.largeurDepart, vers }])
+      const pas: Operation[] = [{ type: 'redimensionner', id: g.id, de: g.largeurDepart, vers }]
+      const n = g.borne && noeudDe(g.id)
+      if (g.borne && n) {
+        const h = hauteurTiree(g.borne.px + (ici.y - g.depart.y) * cam.PX_PAR_UG, hauteurNaturelle(n))
+        pas.push({ type: 'borner', id: g.id, de: g.borne.de ?? null, vers: h ?? null })
+      }
+      return magasin.appliquerSeulement(pas)
     }
     if (!g.demarre) {
       if (Math.hypot(p.x - g.ecran.x, p.y - g.ecran.y) < SEUIL_GLISSER) return
@@ -1218,9 +1249,13 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     }
     if (g?.type === 'redimensionner') {
       const el = magasin.lire().elements.find((x) => x.id === g.id)
-      if (el && el.largeur !== g.largeurDepart) {
-        magasin.inscrire([{ type: 'redimensionner', id: g.id, de: g.largeurDepart, vers: el.largeur }])
+      if (!el) return
+      const pas: Operation[] = []
+      if (el.largeur !== g.largeurDepart) pas.push({ type: 'redimensionner', id: g.id, de: g.largeurDepart, vers: el.largeur })
+      if (g.borne && !memeHauteur(el.hauteur, g.borne.de)) {
+        pas.push({ type: 'borner', id: g.id, de: g.borne.de ?? null, vers: el.hauteur ?? null })
       }
+      magasin.inscrire(pas)
       return
     }
     const visee = cible.current

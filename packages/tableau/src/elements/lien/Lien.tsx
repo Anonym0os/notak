@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import type { Apercu, Lien } from '../../coeur/tableau'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { Apercu, Id, Lien } from '../../coeur/tableau'
 import type { PropsRendu } from '../types'
 import { domaineDe, lireAdresse } from './adresse'
 import { lecteurDe } from './video'
@@ -7,11 +7,22 @@ import { lecteurDe } from './video'
 const DELAI_APERCU = 15_000
 const REL = 'noopener noreferrer nofollow'
 
+/** Les liens dont la prochaine édition porte sur l'adresse, pas sur le titre (outil « Adresse »). */
+export const adresseAEditer = new Set<Id>()
+
 export function RenduLien(props: PropsRendu<Lien>) {
   useChargementApercu(props)
   useSuppressionSiVide(props)
-  return props.enEdition ? <Saisie {...props} /> : <Carte {...props} />
+  const { element, enEdition } = props
+  const saisie = enEdition && (!element.contenu.url || adresseAEditer.has(element.id))
+  useEffect(() => {
+    if (!enEdition) adresseAEditer.delete(element.id)
+  }, [enEdition, element.id])
+  return saisie ? <Saisie {...props} /> : <Carte {...props} />
 }
+
+/** Le titre affiché : celui qu'on a donné, sinon celui de l'aperçu, sinon l'adresse si l'aperçu a échoué. */
+export const titreDuLien = (c: Lien) => c.titre ?? (c.statut === 'echec' ? c.url : c.apercu?.titre)
 
 /** Va chercher l'aperçu, une seule fois par adresse (React rejoue les effets en mode strict). */
 function useChargementApercu({ element, contexte }: PropsRendu<Lien>) {
@@ -68,6 +79,7 @@ function Saisie({ element, contexte, changer }: PropsRendu<Lien>) {
   const valider = () => {
     const url = lireAdresse(texte)
     if (!url) return setErreur(true)
+    adresseAEditer.delete(element.id)
     if (url !== contenu.url) changer({ type: 'lien', url, statut: 'attente' })
     contexte.finirEdition()
   }
@@ -94,17 +106,42 @@ function Saisie({ element, contexte, changer }: PropsRendu<Lien>) {
   )
 }
 
-function Carte({ element }: PropsRendu<Lien>) {
-  const { url, statut, apercu } = element.contenu
+function Carte({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<Lien>) {
+  const { contenu } = element
+  const { url, statut, apercu } = contenu
   const domaine = domaineDe(url)
   const lecteur = lecteurDe(url)
   const [lecture, setLecture] = useState(false)
   const image = statut === 'pret' ? apercu?.image : undefined
-  const titre = statut === 'echec' ? url : apercu?.titre
+  const titre = titreDuLien(contenu)
+  const legende = contenu.legende ?? (statut === 'pret' && !lecteur ? apercu?.description : undefined)
+  // Entré en édition par un clic sur la légende, on l'écrit ; sinon on renomme. Le choix se fait une fois
+  // par édition (le mode strict rejoue l'effet, et le point d'édition ne se lit qu'une fois).
+  const [partie, setPartie] = useState<'titre' | 'legende' | null>(null)
+  const choix = useRef<'titre' | 'legende' | null>(null)
+  useLayoutEffect(() => {
+    if (!enEdition) {
+      choix.current = null
+      return setPartie(null)
+    }
+    if (choix.current) return
+    const ou = contexte.prendrePointEdition()
+    const sous = ou && document.elementFromPoint(ou.x, ou.y)
+    choix.current = sous?.closest('.notak-lien-description') ? 'legende' : 'titre'
+    setPartie(choix.current)
+  }, [enEdition, contexte])
+  const ecrire = (champ: 'titre' | 'legende', v: string) => brouillon({ ...contenu, [champ]: v })
 
-  // Sur le lien seulement, le pointeur ne sélectionne pas l'élément.
-  const lien = (children: React.ReactNode, classe: string) => (
-    <a className={classe} href={url} target="_blank" rel={REL} onPointerDown={(e) => e.stopPropagation()}>
+  // Le domaine ouvre toujours le lien ; le titre seulement tant que le lien n'est pas choisi (sinon, on le renomme).
+  const lien = (children: React.ReactNode, classe: string, toujours: boolean) => (
+    <a
+      className={classe}
+      href={url}
+      target="_blank"
+      rel={REL}
+      onPointerDown={(e) => (toujours || !choisie) && e.stopPropagation()}
+      onClick={(e) => !toujours && choisie && e.preventDefault()}
+    >
       {children}
     </a>
   )
@@ -123,7 +160,7 @@ function Carte({ element }: PropsRendu<Lien>) {
         </div>
       ) : (
         (image || lecteur) && (
-          <div className="notak-lien-media">
+          <div className="notak-lien-media" data-video={lecteur ? '' : undefined}>
             {image && <img src={image} alt="" draggable={false} referrerPolicy="no-referrer" />}
             {lecteur && (
               <button className="notak-lien-lecture" title="Lire" onClick={() => setLecture(true)}>
@@ -144,16 +181,61 @@ function Carte({ element }: PropsRendu<Lien>) {
             <span>{domaine}</span>
           </>,
           'notak-lien-domaine',
+          true,
         )}
         {statut === 'attente' ? (
           <span className="notak-lien-chargement" role="status" aria-label="Chargement" />
         ) : (
           <>
-            {titre && lien(titre, 'notak-lien-titre')}
-            {statut === 'pret' && apercu?.description && <div className="notak-lien-description">{apercu.description}</div>}
+            {partie === 'titre' ? (
+              <Champ classe="notak-lien-titre" valeur={titre ?? ''} max={500} toutChoisir ligne ecrire={(v) => ecrire('titre', v)} finir={contexte.finirEdition} />
+            ) : (
+              titre && lien(titre, 'notak-lien-titre', false)
+            )}
+            {partie === 'legende' ? (
+              <Champ classe="notak-lien-description" valeur={legende ?? ''} ecrire={(v) => ecrire('legende', v)} finir={contexte.finirEdition} />
+            ) : (
+              legende && <div className="notak-lien-description">{legende}</div>
+            )}
           </>
         )}
       </div>
     </div>
+  )
+}
+
+/** Un champ de texte posé à la place du titre ou de la légende, à sa taille, écrit à chaque frappe. */
+function Champ(props: { classe: string; valeur: string; max?: number; toutChoisir?: boolean; ligne?: boolean; ecrire(v: string): void; finir(): void }) {
+  const { classe, valeur, max, toutChoisir, ligne, ecrire, finir } = props
+  const [texte, setTexte] = useState(valeur)
+  const champ = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    const c = champ.current
+    if (!c) return
+    c.focus()
+    if (toutChoisir) c.select()
+    else c.setSelectionRange(c.value.length, c.value.length)
+  }, [toutChoisir])
+  return (
+    <textarea
+      ref={champ}
+      className={`${classe} notak-lien-edition`}
+      value={texte}
+      maxLength={max}
+      rows={1}
+      spellCheck={false}
+      onPointerDown={(e) => e.stopPropagation()}
+      onChange={(e) => {
+        const v = ligne ? e.target.value.replace(/\n/g, ' ') : e.target.value
+        setTexte(v)
+        ecrire(v)
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && (ligne || e.metaKey || e.ctrlKey)) {
+          e.preventDefault()
+          finir()
+        }
+      }}
+    />
   )
 }

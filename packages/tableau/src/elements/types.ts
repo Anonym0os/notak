@@ -138,6 +138,8 @@ export interface TypeElement<C extends Contenu = Contenu> {
   largeurMin?: number
   /** La largeur « naturelle », en UG : celle où revient le double-clic sur la poignée, depuis 34. */
   largeurNaturelle?(c: C): number
+  /** La poignée règle aussi la hauteur : le contenu qui dépasse se cache sous un voile, et revient en édition. */
+  hauteurBornable?: boolean
   /** Ce que la suppression d'un élément de ce type emporte avec lui (le contenu d'une colonne). */
   aussiSupprimer?(element: Element<C>, tableau: Tableau): Element[]
   /**

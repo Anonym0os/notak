@@ -26,6 +26,7 @@ registre.type<Note>({
   editable: true,
   hauteurParDefaut: HAUTEUR_NOTE_MIN,
   sansFond: (c) => c.couleur === 'transparent',
+  hauteurBornable: true,
   // La note suivante garde la largeur ; hors édition, toute la mise en forme (couleur, titre), sans le texte.
   suivant: (e, places, format) => {
     const neuve = e.contenu.variante === 'titre' && format ? enTitre(places.dessous.x, places.dessous.y) : enNote(places.dessous.x, places.dessous.y)

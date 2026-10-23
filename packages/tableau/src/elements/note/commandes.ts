@@ -18,7 +18,7 @@ export function poserCouleurTexte(editor: Editor, nom: string | null): boolean {
   return editor.chain().focus().unsetHighlight().setColor(valeurCouleurTexte(nom)).run()
 }
 
-export type StyleBloc = 'titre1' | 'titre2' | 'texte' | 'citation' | 'code'
+export type StyleBloc = 'titre1' | 'titre2' | 'texte' | 'petit' | 'citation' | 'code'
 
 export function poserStyle(editor: Editor, style: StyleBloc): boolean {
   const c = editor.chain().focus()
@@ -28,7 +28,9 @@ export function poserStyle(editor: Editor, style: StyleBloc): boolean {
     case 'titre2':
       return c.setHeading({ level: 2 }).run()
     case 'texte':
-      return c.clearNodes().run()
+      return c.clearNodes().updateAttributes('paragraph', { petit: null }).run()
+    case 'petit':
+      return c.clearNodes().updateAttributes('paragraph', { petit: true }).run()
     case 'citation':
       return editor.isActive('blockquote') ? c.lift('blockquote').run() : c.setBlockquote().run()
     case 'code':
@@ -41,5 +43,6 @@ export function styleActif(editor: Editor): StyleBloc {
   if (editor.isActive('heading', { level: 2 })) return 'titre2'
   if (editor.isActive('blockquote')) return 'citation'
   if (editor.isActive('codeBlock')) return 'code'
+  if (editor.isActive('paragraph', { petit: true })) return 'petit'
   return 'texte'
 }
