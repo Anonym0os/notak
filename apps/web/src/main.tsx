@@ -21,6 +21,7 @@ import { Export } from './Export'
 import { Favori } from './Favori'
 import { apercu, fichiers, rapatrier } from './fichiers'
 import { importerEspaceLocal } from './importLocal'
+import { Importer } from './Importer'
 import { creerRecents } from './recents'
 import { PagePublique } from './PagePublique'
 import { Partage } from './Partage'
@@ -149,6 +150,7 @@ function Espace({ moi, deconnexion }: { moi: Moi; deconnexion(): void }) {
             <Favori tableau={courant} accueil={moi.racine} />
             <Cloche ouvrir={ouvrir} />
             <Activite tableau={courant} moi={moi.id} surNouveaux={recents.noter} />
+            <Importer espace={espace} tableau={courant} ouvrir={ouvrir} />
             <Export tableau={courant} titre={() => espace.tableau(courant)?.titre ?? ''} />
             <Partage tableau={courant} moi={moi} />
             <Compte moi={moi} deconnexion={deconnexion} ouvrir={ouvrir} />
