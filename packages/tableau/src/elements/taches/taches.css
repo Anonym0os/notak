@@ -157,25 +157,29 @@
   outline: none;
 }
 
-/* Le titre : 16 px, 600, interligne 25 px ; 1 px au-dessus, 4 au-dessous. */
+/* Le titre : 16 px, 600, interligne 25 px ; 1 px au-dessus, 4 au-dessous. C'est le premier nœud du document. */
 .notak-taches-titre {
   display: block;
   box-sizing: border-box;
   width: 100%;
   margin: 1px 0 4px;
   padding: 0;
-  border: 0;
-  background: none;
   color: var(--notak-texte);
-  font: inherit;
   font-size: 16px;
   font-weight: 600;
   line-height: 25px;
+  white-space: pre-wrap;
   outline: none;
 }
 
-.notak-taches-titre::placeholder {
-  color: #b3b9c1;
+/* Un titre vide dit quoi y mettre (en édition seulement : hors édition il n'est pas dessiné). */
+.notak-taches-titre:empty::before,
+.notak-taches-titre:has(> br.ProseMirror-trailingBreak:only-child)::before {
+  content: var(--notak-ph-titre, 'Titre');
+  float: left;
+  height: 0;
+  color: #d1d3d6;
+  pointer-events: none;
 }
 
 .notak-barre-selection .notak-taches-compteur {

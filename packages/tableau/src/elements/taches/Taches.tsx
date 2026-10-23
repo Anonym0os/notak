@@ -1,8 +1,6 @@
 import { EditorContent, getSchema, useEditor } from '@tiptap/react'
-import type { Editor } from '@tiptap/react'
-import { type KeyboardEvent, type ReactNode, memo, useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, memo, useEffect, useMemo, useRef, useState } from 'react'
 import { type CouleurNote, type Element, type Id, type NoeudTexte, type Taches, aimanter } from '../../coeur/tableau'
-import { useLignePartagee } from '../lignePartagee'
 import { extensionsDuPartage, textePartage } from '../partage'
 import { MenuCouleur } from '../note/MenuCouleur'
 import type { Operation } from '../../coeur/tableau'
@@ -11,6 +9,7 @@ import { EXTENSIONS_TACHES, EXTENSIONS_TACHES_PARTAGEE, type GestesTaches, clavi
 import { MenuPuce, type OuverturePuce } from './MenuPuce'
 import { type Personne, type Puce, assigneDe, attrsPuce, echeanceDe, jourDe, personnes, puces } from './puces'
 import { animerCase } from './animation'
+import { avecTitre, contenuDepuis, curseurAuTitre, docEditeur, sansTitre } from './titre'
 import { type Sortie, glisserTache } from './glisse'
 import { type Chemin, basculer, compter, deplacer, detacher, docTaches, effacerFaites, estFaite, regler, retirer, sousTaches, transferer } from './liste'
 import { t } from '../../langue'
@@ -18,8 +17,6 @@ import { BoutonOutil } from '../../BoutonOutil'
 
 /** Les listes dont le titre vient d'être ajouté : leur édition y met le curseur. */
 const titreAFocaliser = new Set<Id>()
-
-const sansTitre = ({ titre: _, ...reste }: Taches): Taches => reste
 
 const sansCouleur = ({ couleur: _, ...reste }: Taches): Taches => reste
 
@@ -249,9 +246,7 @@ function inline(paragraphe: NoeudTexte): ReactNode {
   })
 }
 
-// ———— En édition : Tiptap, et le titre dans un champ simple ————
-
-const CASE_EN_TETE = /^\[([ xX]?)\]\s/
+// ———— En édition : Tiptap, le titre est le premier nœud du document ————
 
 const SCHEMA = getSchema(EXTENSIONS_TACHES)
 
@@ -259,9 +254,6 @@ function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surC
   const { id, contenu, contexte, surChangement, jeter } = props
   // L'état courant vit ici : la toile ne remet l'élément à jour qu'à la sortie de l'édition.
   const courant = useRef(contenu)
-  const [titre, setTitre] = useState(contenu.titre)
-  const champ = useRef<HTMLInputElement>(null)
-  const editeurRef = useRef<Editor | null>(null)
   const focaliserTitre = useRef(titreAFocaliser.delete(id) && contenu.titre !== undefined)
 
   const poser = (apres: Taches) => {
@@ -269,20 +261,30 @@ function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surC
     surChangement(apres)
   }
   const gestes = useRef<GestesTaches>(null!)
-  // Les tâches s'écrivent à plusieurs, comme le texte d'une note ; le titre aussi, par une ligne partagée.
-  const fragment = useMemo(() => textePartage(contexte, id, docTaches(contenu.texte), SCHEMA), [])
+  // Les tâches et le titre s'écrivent à plusieurs, comme le texte d'une note.
+  const fragment = useMemo(() => textePartage(contexte, id, docEditeur(contenu), SCHEMA), [])
   const extensions = useMemo(
     () => [...(fragment ? [...EXTENSIONS_TACHES_PARTAGEE, ...extensionsDuPartage(fragment, contexte)] : EXTENSIONS_TACHES), clavierListe(gestes)],
     [fragment],
   )
   const editeur = useEditor({
     extensions,
-    ...(fragment ? {} : { content: docTaches(contenu.texte) }),
-    autofocus: focaliserTitre.current ? false : 'end',
+    ...(fragment ? {} : { content: docEditeur(contenu) }),
+    autofocus: false,
     editorProps: { attributes: { class: 'notak-taches-texte' } },
-    onUpdate: ({ editor }) => poser({ ...courant.current, texte: editor.getJSON() as NoeudTexte }),
+    onUpdate: ({ editor }) => poser(contenuDepuis(editor.getJSON() as NoeudTexte, courant.current)),
   })
-  editeurRef.current = editeur
+  // Le curseur se pose là où l'on a cliqué, au bout du titre qu'on vient d'ajouter, sinon à la dernière tâche.
+  useEffect(() => {
+    if (!editeur || editeur.isDestroyed) return
+    if (focaliserTitre.current) return void curseurAuTitre(editeur)
+    const ou = contexte.prendrePointEdition()
+    const pos = ou && editeur.view.posAtCoords({ left: ou.x, top: ou.y })
+    if (pos) editeur.chain().setTextSelection(pos.pos).focus().run()
+    else editeur.commands.focus('end')
+  }, [editeur, contexte])
+  gestes.current = { jeter }
+
   const [menu, setMenu] = useState<(OuverturePuce & { pos: number }) | null>(null)
   useEffect(() => {
     if (!editeur) return
@@ -294,79 +296,8 @@ function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surC
   }, [editeur])
   const tacheDuMenu = menu && editeur?.state.doc.nodeAt(menu.pos)
 
-  useEffect(() => {
-    if (focaliserTitre.current) champ.current?.focus()
-  }, [])
-
-  const changerTitre = (valeur: string | undefined) => {
-    setTitre(valeur)
-    inscrireTitre(valeur ?? '')
-    poser(valeur === undefined ? sansTitre(courant.current) : { ...courant.current, titre: valeur })
-  }
-  const inscrireTitre = useLignePartagee(contexte, id, contenu.titre, champ, (valeur) => {
-    // Un autre a écrit dans le titre : on le suit tant qu'on en a un.
-    if (courant.current.titre === undefined) return
-    setTitre(valeur)
-    poser({ ...courant.current, titre: valeur })
-  })
-  gestes.current = {
-    aUnTitre: () => courant.current.titre !== undefined,
-    versTitre: () => {
-      if (courant.current.titre === undefined) changerTitre('')
-      // Le champ naît au rendu suivant.
-      setTimeout(() => {
-        const c = champ.current
-        c?.focus()
-        c?.setSelectionRange(c.value.length, c.value.length)
-      }, 0)
-    },
-    jeter,
-  }
-  // `[] ` en tête du titre le change en tâche, posée en haut de la liste.
-  const titreTape = (valeur: string) => {
-    const c = CASE_EN_TETE.exec(valeur)
-    const ed = editeurRef.current
-    if (!c || !ed) return changerTitre(valeur)
-    const reste = valeur.slice(c[0].length)
-    changerTitre(undefined)
-    ed.chain()
-      .insertContentAt(1, {
-        type: 'taskItem',
-        attrs: { checked: c[1]!.toLowerCase() === 'x' },
-        content: [reste ? { type: 'paragraph', content: [{ type: 'text', text: reste }] } : { type: 'paragraph' }],
-      })
-      .setTextSelection(3 + reste.length)
-      .run()
-    // Tout de suite, sans la focalisation différée de Tiptap.
-    ed.view.focus()
-  }
-  const clavier = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      // Une tâche neuve en tête de liste, curseur dedans (la première tâche ne sert pas).
-      const ed = editeurRef.current
-      if (!ed) return
-      ed.chain().insertContentAt(1, { type: 'taskItem', attrs: { checked: false }, content: [{ type: 'paragraph' }] }).setTextSelection(3).run()
-      ed.view.focus()
-    } else if (e.key === 'Backspace' && e.currentTarget.value === '') {
-      e.preventDefault()
-      changerTitre(undefined)
-      editeurRef.current?.commands.focus('start')
-    }
-  }
-
   return (
     <>
-      {titre !== undefined && (
-        <input
-          ref={champ}
-          className="notak-taches-titre"
-          value={titre}
-          placeholder={t('taches.titre')}
-          onChange={(e) => titreTape(e.target.value)}
-          onKeyDown={clavier}
-        />
-      )}
       <EditorContent editor={editeur} />
       {menu && editeur && (
         <MenuPuce
@@ -410,9 +341,7 @@ export function OutilsTaches({ elements, contexte }: PropsOutils<Taches>) {
     )
 
   const basculerTitre = () => {
-    changerTout((e) =>
-      toutesTitrees ? sansTitre(e.contenu) : e.contenu.titre === undefined ? { ...e.contenu, titre: '' } : e.contenu,
-    )
+    changerTout((e) => (toutesTitrees ? sansTitre(e.contenu) : avecTitre(e.contenu)))
     if (!toutesTitrees && elements.length === 1) {
       titreAFocaliser.add(elements[0]!.id)
       contexte.commencerEdition(elements[0]!.id)

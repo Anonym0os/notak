@@ -11,10 +11,11 @@ import { htmlEnTaches } from './html'
 import { PROFONDEUR_MAX, hauteur, lignesEnTaches, peutDescendre, peutPoserAuNiveau } from './liste'
 import { DRAPEAU, type GenrePuce, jourDe, puces } from './puces'
 import { animerCase } from './animation'
+import { ClavierTitre, NOM_TITRE, TitreListe, ajouterTitre, curseurAuTitre, titreDe } from './titre'
 import { t } from '../../langue'
 
-/** Le document n'est qu'une liste de tâches. */
-const Document = Node.create({ name: 'doc', topNode: true, content: 'taskList' })
+/** Le document : un titre facultatif, puis la liste de tâches. */
+const Document = Node.create({ name: 'doc', topNode: true, content: `${NOM_TITRE}? taskList` })
 
 /** Pose `checked` sur la tâche en `pos` et, en cascade, sur toutes ses sous-tâches. */
 export function cocherDansEditeur(editor: Editor, pos: number, enCascade: boolean) {
@@ -205,30 +206,35 @@ export function retirerDansEditeur(editor: Editor, pos: number) {
 
 /** Ce que l'éditeur demande à la liste autour de lui. */
 export interface GestesTaches {
-  /** La liste a-t-elle un titre ? */
-  aUnTitre(): boolean
-  /** Met le curseur au bout du titre, après l'avoir créé vide s'il n'existait pas. */
-  versTitre(): void
   /** La liste vide part à la corbeille. */
   jeter(): void
 }
 
 /**
- * Retour arrière dans la première tâche, vide : avec d'autres tâches, elle devient le titre ; seule, le curseur
- * remonte au titre, ou la liste part à la corbeille s'il n'y en a pas.
+ * Retour arrière au début de la première tâche : avec un titre, le curseur y remonte, et la tâche vide qui a des
+ * voisines est retirée ; sans titre, une première tâche vide devient le titre, ou la liste part à la corbeille
+ * si elle est seule.
  */
 export const clavierListe = (gestes: MutableRefObject<GestesTaches>) => {
   const retour = ({ editor }: { editor: Editor }) => {
     const { $from, empty } = editor.state.selection
-    if (!empty || $from.parentOffset !== 0 || $from.depth !== 3) return false
+    if (!empty || $from.parentOffset !== 0 || $from.depth !== 3 || $from.index(1) !== 0 || $from.index(2) !== 0) return false
     const tache = $from.node(2)
-    if ($from.index(1) !== 0 || tache.childCount > 1 || tache.textContent !== '') return false
     const liste = $from.node(1)
+    const aTitre = !!titreDe(editor.state.doc)
+    const vide = tache.childCount === 1 && tache.textContent === ''
+    if (!vide) {
+      // Du texte ou des sous-tâches : seul le curseur monte, s'il y a un titre.
+      if (!aTitre) return false
+      curseurAuTitre(editor)
+      return true
+    }
     if (liste.childCount > 1) {
       const pos = $from.before(2)
       editor.view.dispatch(editor.state.tr.delete(pos, pos + tache.nodeSize))
-      gestes.current.versTitre()
-    } else if (gestes.current.aUnTitre()) gestes.current.versTitre()
+      if (aTitre) curseurAuTitre(editor)
+      else ajouterTitre(editor)
+    } else if (aTitre) curseurAuTitre(editor)
     else gestes.current.jeter()
     return true
   }
@@ -446,8 +452,10 @@ const KIT_TACHES = {
 export const EXTENSIONS_TACHES = [
   StarterKit.configure(KIT_TACHES),
   Document,
+  TitreListe,
   TaskList,
   Tache,
+  ClavierTitre,
   ClavierTaches,
 ]
 
