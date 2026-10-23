@@ -365,6 +365,8 @@ export function creerApp(ctx: Contexte): Hono {
 
   // En production, le même serveur sert l'application web construite ; toute autre adresse (`/t/…`) reçoit la page.
   if (ctx.dossierWeb) {
+    // Un partage vers Notak est reçu par le service worker ; sans lui (pas encore installé), on ne perd que le partage, pas la page.
+    app.post('/partage', (c) => c.redirect('/', 303))
     app.use('*', serveStatic({ root: ctx.dossierWeb }))
     app.get('*', serveStatic({ root: ctx.dossierWeb, path: 'index.html' }))
   }

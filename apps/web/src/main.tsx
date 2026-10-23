@@ -13,11 +13,13 @@ import { StrictMode, useCallback, useEffect, useState, useSyncExternalStore } fr
 import { createRoot } from 'react-dom/client'
 import { type Moi, moi as lireMoi, seDeconnecter } from './api'
 import { importDejaPropose, lireAncienEspace, noterImportPropose } from './ancien'
+import { PagePartage } from './Arrivees'
 import { Compte } from './Compte'
 import { EcranConnexion } from './connexion'
 import { apercu, fichiers, rapatrier } from './fichiers'
 import { importerEspaceLocal } from './importLocal'
 import { Partage } from './Partage'
+import { enregistrerServiceWorker } from './pwa'
 
 const services = { fichiers, apercu, rapatrier, ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank') }
 
@@ -107,6 +109,8 @@ function Application() {
     )
   }
   if (etat.type === 'anonyme') return <EcranConnexion surConnexion={(m) => setEtat({ type: 'connecte', moi: m })} />
+  // Une page légère, sans la toile : le partage vers Notak.
+  if (location.pathname === '/partage') return <PagePartage espace={espacePour(etat.moi)} />
   return (
     <Espace
       moi={etat.moi}
@@ -174,6 +178,8 @@ function BandeauImport({ moi, espace }: { moi: Moi; espace: EspaceDistant }) {
     </aside>
   )
 }
+
+enregistrerServiceWorker()
 
 createRoot(document.getElementById('racine')!).render(
   <StrictMode>

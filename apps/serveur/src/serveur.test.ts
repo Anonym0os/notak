@@ -240,4 +240,10 @@ describe("l'application web servie par le serveur", () => {
     expect(api.status).toBe(404)
     expect(await api.json()).toEqual({ erreur: 'introuvable' })
   })
+
+  it('un partage reçu sans service worker revient à l’accueil au lieu d’une erreur', async () => {
+    const r = await fetch(`${adresse}/partage`, { method: 'POST', body: new FormData(), redirect: 'manual' })
+    expect(r.status).toBe(303)
+    expect(r.headers.get('location')).toBe('/')
+  })
 })
