@@ -215,6 +215,14 @@ describe('caméra', () => {
     expect(cam.bornerVue(cam.CAMERA_DEPART, null, VUE)).toBe(cam.CAMERA_DEPART)
   })
 
+  test('très dézoomé, un écart de moins d’un demi-pixel laisse la caméra telle quelle', () => {
+    const c = { origine: point(0, 0), echelle: 0.001 }
+    const tout = cam.bornerVue(c, depuisTaille(point(0, 0), 20, 10), VUE)
+    // Le même contenu, mesuré un poil autrement (l'arrondi de l'écran) : pas de nouvelle correction.
+    const remesure = depuisTaille(point(0.01, 0.01), 20, 10)
+    expect(cam.bornerVue(tout, remesure, VUE)).toBe(tout)
+  })
+
   test('les crans du bas, du minimum à 100 % : 40, 47, 57, 73 %', () => {
     const vus: number[] = []
     for (let e = 1; e > 0.41; ) vus.push(Math.round((e = cam.cranDessous(e, 0.4)) * 100))

@@ -85,7 +85,10 @@ export function bornerVue(c: Camera, contenu: Rect | null, v: Vue): Camera {
   }
   const x = axe(c.origine.x, contenu.min.x, contenu.max.x, MARGE_DOCUMENT.x, vue.x)
   const y = axe(c.origine.y, contenu.min.y, contenu.max.y, MARGE_DOCUMENT.y, vue.y)
-  return x === c.origine.x && y === c.origine.y ? c : { ...c, origine: point(x, y) }
+  // Moins d'un demi-pixel à l'écran ne compte pas. Le contenu est mesuré à l'écran : très dézoomé, ses arrondis
+  // bougent avec la caméra, et chaque correction en appelait une autre, sans fin.
+  const pareil = (a: number, b: number) => Math.abs(a - b) * k < 0.5
+  return pareil(x, c.origine.x) && pareil(y, c.origine.y) ? c : { ...c, origine: point(x, y) }
 }
 
 export function centree(centre: Point, echelle: number, v: Vue): Camera {
