@@ -1,5 +1,13 @@
 # Plan : l’édition publique de Notak (sans compte, sans serveur, dans le dossier de chacun)
 
+## Où on en est
+
+| Phase | État |
+|---|---|
+| 0 : durcir ce qui existe | ✅ validation à la lecture, garde par élément, adresses filtrées, carte au clic, documents réécrits |
+| 1 : format du dossier et faux nuage | ✅ `packages/tableau/src/dossier/` ; le journal, la lecture, le compactage et les appareils vivent ensemble dans `coffre.ts` ; 3 000 scénarios du faux nuage passent (voir `docs/STOCKAGE.md`) |
+| 2 à 5 | à faire |
+
 ## Contexte
 
 Le propriétaire veut publier Notak gratuitement, sans payer de stockage, sans service tiers. Il a précisé en
