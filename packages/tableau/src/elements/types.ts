@@ -9,6 +9,7 @@
 import type { ComponentType, ReactNode } from 'react'
 import type { Camera } from '../coeur/camera'
 import type { Point, Rect } from '../coeur/geometrie'
+import type { Paquet } from '../coeur/pressePapiers'
 import type { Magasin } from '../coeur/magasin'
 import type { Apercu, Contenu, CouleurNote, Element, Id, Operation, Tableau, TypeContenu } from '../coeur/tableau'
 
@@ -341,6 +342,13 @@ export interface Recepteur {
   cumulable?: boolean
   recevoir(donnees: DataTransfer, ou: Point, contexte: ContexteToile): Operation[] | Promise<Operation[]> | null
 }
+
+/**
+ * Ce que devient un paquet copié quand on le colle alors que ces éléments sont choisis (des tâches copiées, collées
+ * sur une liste choisie, s'y ajoutent). Rend les opérations s'il prend le collage, `null` sinon : le paquet se colle alors
+ * comme un paquet ordinaire.
+ */
+export type CollageSurSelection = (paquet: Paquet, selection: Element[], contexte: ContexteToile) => Operation[] | null
 
 /** Un raccourci clavier de la toile, hors édition. Rend vrai s'il a pris la touche. */
 export type Raccourci = (e: KeyboardEvent, contexte: ContexteToile) => boolean

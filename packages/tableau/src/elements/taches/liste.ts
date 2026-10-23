@@ -346,3 +346,14 @@ export function detacher(source: NoeudTexte, de: number, x: number, y: number, c
     liste: { ...neuve, contenu: { ...neuve.contenu, texte: { type: 'doc', content: [{ type: 'taskList', content: [tache] }] } } },
   }
 }
+
+/**
+ * La liste `destination` avec, à sa suite, les tâches de `source` (leur titre est laissé de côté). Une destination encore
+ * vierge est remplacée par elles.
+ */
+export function ajouterALaFin(destination_: NoeudTexte, source: NoeudTexte): NoeudTexte {
+  const apres = sousTaches(source)
+  if (apres.length === 0) return destination_
+  const avant = estListeVierge(destination_) ? [] : sousTaches(destination_)
+  return { ...destination_, content: [{ type: 'taskList', content: [...avant, ...apres] }] }
+}

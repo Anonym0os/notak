@@ -39,7 +39,7 @@ import {
   placeDe,
 } from './coeur/tableau'
 import './elements'
-import { definition, tousLesRaccourcis, tousLesRecepteurs, tousLesTypes, toutesLesEntreesMenu } from './elements/registre'
+import { definition, tousLesCollages, tousLesRaccourcis, tousLesRecepteurs, tousLesTypes, toutesLesEntreesMenu } from './elements/registre'
 import type { ContexteToile, Presence, Services } from './elements/types'
 import { t, tn } from './langue'
 import { PastilleZoom } from './PastilleZoom'
@@ -937,7 +937,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       } catch {
         p = null
       }
-      if (p) return collerPaquet(p)
+      if (p) return collerSurSelection(p) || collerPaquet(p)
       void recevoir(e.clipboardData, contexte.centreVue())
     }
     const copier = (couper: boolean) => (e: ClipboardEvent) => {
@@ -961,6 +961,19 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       document.removeEventListener('cut', surCoupe)
     }
   })
+
+  /** Un paquet collé sur des éléments choisis qui le prennent (des tâches sur une liste) : vrai s'ils l'ont pris. */
+  const collerSurSelection = (p: Paquet): boolean => {
+    if (lectureSeule || etat.current.selection.size === 0) return false
+    const choisis = magasin.lire().elements.filter((x) => etat.current.selection.has(x.id) && !x.verrou)
+    for (const c of tousLesCollages()) {
+      const pas = c(p, choisis, contexte)
+      if (!pas || pas.length === 0) continue
+      magasin.faire(pas)
+      return true
+    }
+    return false
+  }
 
   /** Colle un paquet : à `ou` s'il est dit (le menu), sinon décalé de l'original s'il est en vue, ou au centre. */
   const collerPaquet = (p: Paquet, ou?: Point) => {

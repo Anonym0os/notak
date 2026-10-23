@@ -1,9 +1,10 @@
 import type { Contenu, TypeContenu } from '../coeur/tableau'
-import type { EntreeMenu, OutilCommun, Raccourci, Recepteur, TypeElement } from './types'
+import type { CollageSurSelection, EntreeMenu, OutilCommun, Raccourci, Recepteur, TypeElement } from './types'
 
 const types = new Map<TypeContenu, TypeElement>()
 const recepteurs: Recepteur[] = []
 const raccourcis: Raccourci[] = []
+const collages: CollageSurSelection[] = []
 const outilsCommuns: { outil: OutilCommun; rang: number }[] = []
 
 /** Où paraissent les outils d'un type qui se montrent après les outils communs « de tête » (étiquettes, réactions, commentaire). */
@@ -20,6 +21,10 @@ export const registre = {
   },
   raccourci(r: Raccourci) {
     raccourcis.push(r)
+  },
+  /** Un collage de paquet sur la sélection (voir `CollageSurSelection`). */
+  collage(c: CollageSurSelection) {
+    collages.push(c)
   },
   /**
    * `rang` place l'outil dans la barre de sélection, croissant : 10 la couleur, 20 les étiquettes, 30 les réactions,
@@ -44,6 +49,7 @@ export const definition = (type: TypeContenu) => types.get(type)
 export const tousLesTypes = () => [...types.values()]
 export const tousLesRecepteurs = () => recepteurs
 export const tousLesRaccourcis = () => raccourcis
+export const tousLesCollages = () => collages
 export const tousLesOutilsCommuns = () => outilsCommuns.map((x) => x.outil)
 /** Les outils communs avec leur rang, du premier au dernier. */
 export const tousLesOutilsCommunsRanges = () => outilsCommuns

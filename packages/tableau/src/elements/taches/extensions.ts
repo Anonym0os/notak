@@ -4,6 +4,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { Fragment, type Node as NoeudPM, Slice } from '@tiptap/pm/model'
 import { type EditorState, Plugin, TextSelection } from '@tiptap/pm/state'
+import type { EditorView } from '@tiptap/pm/view'
 import type { MutableRefObject } from 'react'
 import type { NoeudTexte } from '../../coeur/tableau'
 import { glisserTache } from './glisse'
@@ -391,6 +392,41 @@ const CollageEnTaches = new Plugin({
   },
 })
 
+/** La tâche dont la sélection couvre tout le texte, de bout en bout : c'est elle, et non son texte, qu'on copie ou qu'on coupe. */
+export function tacheEntiere(etat: EditorState): { pos: number; noeud: NoeudPM } | null {
+  const { $from, $to, empty } = etat.selection
+  if (empty || !$from.sameParent($to) || $from.parent.type.name !== 'paragraph' || $from.node(-1).type.name !== 'taskItem') return null
+  if ($from.parentOffset !== 0 || $to.parentOffset !== $to.parent.content.size) return null
+  return { pos: $from.before($from.depth - 1), noeud: $from.node($from.depth - 1) }
+}
+
+/**
+ * Copier (ou couper) tout le texte d'une tâche emporte la tâche : dans une liste fermée, avec ses puces mais sans ses
+ * sous-tâches. Coupée, la ligne reste, vidée et remise à zéro (plus d'échéance ni de personne).
+ */
+function copieDeTache(couper: boolean) {
+  return (view: EditorView, e: Event): boolean => {
+    const donnees = (e as ClipboardEvent).clipboardData
+    const tache = tacheEntiere(view.state)
+    if (!donnees || !tache) return false
+    const { schema } = view.state
+    const seule = schema.nodes.taskItem!.create(tache.noeud.attrs, tache.noeud.child(0))
+    const { dom, text } = view.serializeForClipboard(new Slice(Fragment.from(schema.nodes.taskList!.create(null, seule)), 0, 0))
+    e.preventDefault()
+    donnees.clearData()
+    donnees.setData('text/html', dom.innerHTML)
+    donnees.setData('text/plain', text)
+    if (couper) {
+      const tr = view.state.tr.delete(tache.pos + 2, tache.pos + 2 + tache.noeud.child(0).content.size)
+      tr.setNodeMarkup(tache.pos, undefined, { ...tache.noeud.attrs, ...attrsEteints('echeance'), ...attrsEteints('assigne') })
+      view.dispatch(tr)
+    }
+    return true
+  }
+}
+
+const CopieDeTache = new Plugin({ props: { handleDOMEvents: { copy: copieDeTache(false), cut: copieDeTache(true) } } })
+
 const tacheVierge = (editor: Editor) => editor.state.schema.nodes.taskItem!.create({ checked: false }, editor.state.schema.nodes.paragraph!.create())
 
 /**
@@ -485,7 +521,7 @@ const ClavierTaches = Extension.create({
   name: 'clavierTaches',
   priority: 200,
   addProseMirrorPlugins() {
-    return [CollageEnTaches]
+    return [CollageEnTaches, CopieDeTache]
   },
   addKeyboardShortcuts() {
     return {
