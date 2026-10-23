@@ -265,7 +265,28 @@ export interface Croquis {
   traits: Trait[]
 }
 
-export type Contenu = Note | Image | Fichier | Lien | Taches | Colonne | Ligne | RenvoiTableau | Commentaire | Table | Nuancier | Lieu | Croquis
+/** Un document : un titre et un texte long, qui s'écrit en grand (mêmes mises en forme qu'une note). */
+export interface DocumentTexte {
+  type: 'document'
+  titre: string
+  texte: NoeudTexte
+}
+
+export type Contenu =
+  | Note
+  | Image
+  | Fichier
+  | Lien
+  | Taches
+  | Colonne
+  | Ligne
+  | RenvoiTableau
+  | Commentaire
+  | Table
+  | Nuancier
+  | Lieu
+  | Croquis
+  | DocumentTexte
 export type TypeContenu = Contenu['type']
 
 export interface Element<C extends Contenu = Contenu> {

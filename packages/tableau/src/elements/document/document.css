@@ -1,0 +1,139 @@
+.notak-document {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--notak-texte);
+}
+
+.notak-document-titre {
+  font-size: 16px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.notak-document-titre[data-vide] {
+  color: #6b7280;
+  font-weight: 600;
+}
+
+/* L'aperçu s'arrête au bout de huit lignes environ, sous un dégradé. */
+.notak-document-apercu {
+  position: relative;
+  max-height: 11.2em;
+  overflow: hidden;
+  user-select: none;
+}
+
+.notak-document-apercu::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 2.4em;
+  background: linear-gradient(transparent, var(--notak-carte));
+}
+
+.notak-document-apercu .notak-texte > :first-child {
+  margin-top: 0;
+}
+
+.notak-document-pied {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+/* Le document en grand, au-dessus de la toile. */
+.notak-document-fond {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  background: rgb(15 20 28 / 0.55);
+  outline: none;
+  color: var(--notak-texte, #1f2328);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.notak-document-feuille {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(780px, 94vw);
+  height: min(92vh, 1000px);
+  padding: 20px 32px 12px;
+  border-radius: 10px;
+  background: var(--notak-carte, #fff);
+  box-shadow: 0 12px 48px rgb(0 0 0 / 0.35);
+}
+
+.notak-document-grand-titre {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0 0 8px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: inherit;
+  outline: none;
+}
+
+.notak-document-grand-titre::placeholder {
+  color: #9aa1ab;
+}
+
+/* La barre de la note, posée en haut de la feuille au lieu de flotter au-dessus ; ses menus s'ouvrent vers le bas. */
+.notak-document-barre {
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.notak-document-barre .notak-note-barre {
+  position: static;
+  display: inline-flex;
+  box-shadow: 0 0 0 1px var(--notak-point, #c4c8ce);
+}
+
+.notak-document-barre .notak-note-menu {
+  top: calc(100% + 6px);
+  bottom: auto;
+}
+
+.notak-document-corps {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  user-select: text;
+}
+
+.notak-document-corps .ProseMirror {
+  min-height: 100%;
+  outline: none;
+}
+
+.notak-document-bas {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid var(--notak-fond, #eef0f2);
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.notak-document-bas button {
+  height: 28px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--notak-accent, #2f6feb);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
