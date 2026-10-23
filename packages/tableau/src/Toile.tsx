@@ -361,7 +361,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const [focus, setFocus] = useState<{ noeud: HTMLElement; depart: DOMRect } | null>(null)
   const [glisses, setGlisses] = useState<ReadonlySet<Id> | null>(null)
   /** Le trait qui montre la place d'insertion dans une colonne, en pixels de la toile. */
-  const [trait, setTrait] = useState<{ x0: number; x1: number; y: number } | null>(null)
+  const [trait, setTrait] = useState<{ x0: number; x1: number; y: number; cadre?: number } | null>(null)
   const cible = useRef<Cible | null>(null)
   /** Le tableau où tombera ce qu'on glisse (sa carte sur la toile, ou un segment du fil d'Ariane), et son nœud. */
   const tableauVise = useRef<{ id: Id; noeud: HTMLElement } | null>(null)
@@ -1390,6 +1390,14 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (selection.size === 1) creerSuivant([...selection][0]!, true)
       return
     }
+    if (e.altKey && !cmd && e.key === 'Enter' && selection.size === 1) {
+      // Alt+Entrée sur une colonne choisie : une note neuve en tête.
+      const colonne = tableau.elements.find((x) => x.id === [...selection][0])
+      if (colonne?.contenu.type === 'colonne') {
+        e.preventDefault()
+        return noteDansColonne(colonne, null)
+      }
+    }
     if (cmd) return
     const pas = e.shiftKey ? 5 : 1
     const fleches: Record<string, [number, number]> = {
@@ -1798,7 +1806,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const div = racine.current!
     const elements = magasin.lire().elements
     let trouvee: Cible | null = null
-    let nouveauTrait: { x0: number; x1: number; y: number } | null = null
+    let nouveauTrait: { x0: number; x1: number; y: number; cadre?: number } | null = null
     let versTableau: { id: Id; noeud: HTMLElement } | null = null
     // On ne range pas un tableau en lui-même.
     const interdits = new Set(portes.flatMap((x) => (x.contenu.type === 'tableau' ? [x.contenu.cible] : [])))
@@ -1827,6 +1835,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const conteneur = noeud && elements.find((x) => x.id === idDe(noeud))
       const def = conteneur && definition(conteneur.contenu.type)
       if (!noeud || !conteneur || !def?.accepte) break
+      // Une colonne dans le lot : la colonne refuse tout.
+      if (portes.some((x) => x.contenu.type === 'colonne')) break
       const acceptes = portes.filter((x) => def.accepte!(x, conteneur)).map((x) => x.id)
       if (acceptes.length === 0) break
       const freres = elements
@@ -1844,7 +1854,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         if (zone) y = (zone.top + zone.bottom) / 2
       } else y = index < freres.length ? freres[index]!.top - 4 * k : freres[freres.length - 1]!.bottom + 4 * k
       trouvee = { colonne: conteneur.id, index, acceptes }
-      nouveauTrait = { x0: c.left - o.left + 8 * k, x1: c.right - o.left - 8 * k, y: y - o.top }
+      // Rien à montrer si le dépôt ne changerait rien : l'élément glissé est seul et vise sa propre place.
+      const seul = portes.length === 1 && portes[0]!.parent === conteneur.id ? portes[0]! : null
+      const place = seul ? elements.filter((x) => x.parent === conteneur.id).sort((a, b) => comparerOrdre(a.ordre, b.ordre)).findIndex((x) => x.id === seul.id) : -1
+      const vide = freres.length === 0 && conteneur.contenu.type === 'colonne' && !!conteneur.contenu.repliee === false
+      if (conteneur.contenu.type === 'colonne' && (conteneur.contenu.repliee || vide)) {
+        // Repliée ou vide : un cadre de 2 px autour de la colonne entière (ou de son bloc vide), pas de trait.
+        const zone = (vide ? noeud.querySelector('[data-depot]') : null)?.getBoundingClientRect() ?? c
+        nouveauTrait = { x0: zone.left - o.left, x1: zone.right - o.left, y: zone.top - o.top, cadre: zone.bottom - zone.top }
+      } else if (!(seul && place === index)) nouveauTrait = { x0: c.left - o.left + 8 * k, x1: c.right - o.left - 8 * k, y: y - o.top }
       break
     }
     if (tableauVise.current?.noeud !== versTableau?.noeud) {
@@ -1868,7 +1886,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     tableauVise.current = versTableau
     if (versTableau) nouveauTrait = null
     cible.current = versTableau ? null : trouvee
-    setTrait((t) => (t && nouveauTrait && t.x0 === nouveauTrait.x0 && t.x1 === nouveauTrait.x1 && t.y === nouveauTrait.y ? t : nouveauTrait))
+    setTrait((t) => (t && nouveauTrait && t.x0 === nouveauTrait.x0 && t.x1 === nouveauTrait.x1 && t.y === nouveauTrait.y && t.cadre === nouveauTrait.cadre ? t : nouveauTrait))
   }
 
   // — Après la création par un outil : le type dit s'il est édité, seulement choisi, ou laissé tel quel. —
@@ -2070,7 +2088,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const r = g.reduire
       if (!r) return
       const el = tableau.elements.find((x) => x.id === r.id)
-      if (r.seul && el && !lectureSeule && definition(el.contenu.type)?.editable && e.type === 'pointerup') commencerEdition(r.id, r.ou)
+      const surTitre = el?.contenu.type !== 'colonne' || !!document.elementFromPoint(r.ou.x, r.ou.y)?.closest('.notak-colonne-titre')
+      if (r.seul && el && !lectureSeule && surTitre && definition(el.contenu.type)?.editable && e.type === 'pointerup') commencerEdition(r.id, r.ou)
       else setSelection(new Set([r.id]))
       return
     }
@@ -2102,6 +2121,22 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     }
   }
 
+  /** Une note neuve dans la colonne, à la place visée (le pied de la colonne : à la fin) ; une colonne repliée n'en reçoit pas. */
+  const noteDansColonne = (colonne: Element, clientY: number | null) => {
+    if (lectureSeule || (colonne.contenu.type === 'colonne' && colonne.contenu.repliee)) return
+    const div = racine.current
+    const freres = tableau.elements.filter((x) => x.parent === colonne.id).sort((a, b) => comparerOrdre(a.ordre, b.ordre))
+    const centres = freres.map((x) => {
+      const r = div?.querySelector(`[data-id="${CSS.escape(x.id)}"]`)?.getBoundingClientRect()
+      return r ? (r.top + r.bottom) / 2 : 0
+    })
+    const index = clientY === null ? 0 : indexInsertion(centres, clientY)
+    const note = { ...nouvelleNote(colonne.x, colonne.y), parent: colonne.id, ordre: cleEntre(freres[index - 1]?.ordre, freres[index]?.ordre) }
+    magasin.faire([{ type: 'creer', element: note }])
+    setSelection(new Set([note.id]))
+    commencerEdition(note.id)
+  }
+
   const doubleClic = (e: React.MouseEvent) => {
     // DESSIN-LIBRE : sous la couche de dessin, la toile ne fait rien (pas de note, pas d'ouverture).
     if (toileSuspendue(racine.current)) return
@@ -2125,6 +2160,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (id) {
       const el = tableau.elements.find((x) => x.id === id)
       const ouvrir = el && definition(el.contenu.type)?.ouvrir
+      if (el?.contenu.type === 'colonne' && !document.elementFromPoint(e.clientX, e.clientY)?.closest('.notak-colonne-tete')) return noteDansColonne(el, e.clientY)
       return ouvrir ? ouvrir(el, contexte) : commencerEdition(id, point(e.clientX, e.clientY))
     }
     if (services.doubleClicCreeNote === false) return
@@ -2277,7 +2313,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           }}
         />
       )}
-      {trait && <div className="notak-trait-depot" style={{ left: trait.x0, top: trait.y - 1, width: trait.x1 - trait.x0 }} />}
+      {trait && trait.cadre === undefined && <div className="notak-trait-depot" style={{ left: trait.x0, top: trait.y - 1, width: trait.x1 - trait.x0 }} />}
+      {trait && trait.cadre !== undefined && <div className="notak-cadre-depot" style={{ left: trait.x0, top: trait.y, width: trait.x1 - trait.x0, height: trait.cadre }} />}
       {barre && elementsChoisis.length > 1 && (
         <div
           className="notak-poignee-groupe"

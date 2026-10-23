@@ -15,14 +15,14 @@ describe('initiale', () => {
 describe('libelleContenu', () => {
   const avec = (n: number): Tableau => ({ titre: 'T', elements: Array.from({ length: n }, () => nouvelleNote(0, 0)) })
   it('dit vide, ou ce qu’il contient type par type', () => {
-    expect(libelleContenu(avec(0))).toBe('0 carte')
+    expect(libelleContenu(avec(0))).toBe('Vide')
     expect(libelleContenu(avec(1))).toBe('1 note')
     expect(libelleContenu(avec(3))).toBe('3 notes')
     const t = avec(2)
     t.elements.push({ ...nouvelleColonne(0, 0) }, { ...nouvelleNote(0, 0), parent: 'c' })
     expect(libelleContenu(t)).toBe('2 notes, 1 colonne')
   })
-  it('ne compte pas les lignes', () => {
+  it('compte les lignes', () => {
     const t = avec(1)
     t.elements.push({
       id: 'l',
@@ -39,6 +39,6 @@ describe('libelleContenu', () => {
         epaisseur: 2,
       },
     })
-    expect(libelleContenu(t)).toBe('1 note')
+    expect(libelleContenu(t)).toBe('1 note, 1 ligne')
   })
 })

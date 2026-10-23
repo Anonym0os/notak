@@ -1,17 +1,20 @@
-/* Les fonds de colonne : des teintes plus claires que celles des notes. */
+/* Les fonds de colonne : blanc sans couleur, puis les teintes franches de Milanote. */
 .notak-toile {
-  --notak-colonne: #e3e6ea;
-  --notak-colonne-gris: #e6e8eb;
-  --notak-colonne-cyan: #d3eef2;
-  --notak-colonne-vert: #d9ecdf;
-  --notak-colonne-brun: #ebe0d6;
-  --notak-colonne-jaune: #f9efc6;
-  --notak-colonne-orange: #fae1c8;
-  --notak-colonne-rouge: #f5d7d7;
-  --notak-colonne-rose: #f9dbe6;
-  --notak-colonne-violet: #e6dcf4;
-  --notak-colonne-bleu: #d8e5fa;
-  --notak-colonne-bleu_nuit: #d5dbe8;
+  --notak-colonne: #fff;
+  --notak-colonne-gris: #dcdcdc;
+  --notak-colonne-cyan: #7be6d5;
+  --notak-colonne-vert: #92e36b;
+  --notak-colonne-brun: #ed936e;
+  --notak-colonne-jaune: #ffd96a;
+  --notak-colonne-orange: #ffa954;
+  --notak-colonne-rouge: #ff7171;
+  --notak-colonne-rose: #ff8add;
+  --notak-colonne-violet: #bf8eff;
+  --notak-colonne-bleu: #6cc7ff;
+  --notak-colonne-bleu_nuit: #799bf9;
+  --notak-colonne-texte: #323b4a;
+  --notak-colonne-compte: rgb(0 0 0 / 0.5);
+  --notak-colonne-creux: rgb(0 0 0 / 0.04);
 }
 
 .notak-carte[data-type='colonne'] {
@@ -54,20 +57,25 @@
 .notak-colonne[data-couleur='bleu'] { background: var(--notak-colonne-bleu); }
 .notak-colonne[data-couleur='bleu_nuit'] { background: var(--notak-colonne-bleu_nuit); }
 
+/* L'en-tête : 17 px d'air, le titre sur 25 px d'interligne, 24 px de marge de chaque côté. */
 .notak-colonne-tete {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 48px;
-  padding: 12px 32px 8px;
+  padding: 17px 24px 4px;
+  color: var(--notak-colonne-texte);
 }
 
+/* Le titre de colonne est en empattement (Tiempos chez Milanote, Georgia à défaut). */
 .notak-colonne-titre {
+  flex: 1;
   min-width: 0;
+  font-family: 'Tiempos Headline', Georgia, 'Times New Roman', serif;
   font-size: 17px;
   font-weight: 600;
-  line-height: 1.25;
+  letter-spacing: -0.2px;
+  line-height: 25px;
   text-align: center;
   overflow-wrap: anywhere;
 }
@@ -81,62 +89,75 @@
   min-width: 0;
   text-align: center;
   box-sizing: border-box;
-  height: 26px;
-  margin: 0 -4px;
-  padding: 0 4px;
+  height: 25px;
+  margin: 0;
+  padding: 0;
   border: 0;
-  border-radius: 4px;
-  background: rgb(255 255 255 / 0.8);
-  box-shadow: 0 0 0 1.5px var(--notak-accent);
+  border-radius: 0;
+  background: none;
   color: inherit;
   font: inherit;
+  font-family: 'Tiempos Headline', Georgia, 'Times New Roman', serif;
   font-size: 17px;
   font-weight: 600;
+  letter-spacing: -0.2px;
   outline: none;
   user-select: text;
   cursor: text;
 }
 
+/* Le compteur, juste sous le titre : 14 px de haut, puis 20 px d'air avant la liste. */
 .notak-colonne-compte {
-  padding: 4px 12px 10px;
+  min-height: 14px;
+  padding: 0 12px 20px;
+  color: var(--notak-colonne-compte);
   font-size: 12px;
+  line-height: 14px;
   text-align: center;
-  opacity: 0.55;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+/* Le bouton de repli : 16 px visibles, 32 px à cliquer, 8 px du coin haut-droit. */
 .notak-colonne-plier {
   position: absolute;
   top: 8px;
-  right: 6px;
+  right: 8px;
   display: grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: 2px;
   background: none;
-  color: inherit;
+  color: var(--notak-colonne-compte);
   opacity: 0;
+  transition: opacity 0.1s linear;
   cursor: pointer;
 }
 
+.notak-colonne-plier::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+
 .notak-colonne-plier:hover {
-  background: rgb(0 0 0 / 0.07);
+  background: rgb(0 0 0 / 0.05);
 }
 
 .notak-colonne:hover .notak-colonne-plier,
 .notak-colonne[data-choisie] .notak-colonne-plier,
 .notak-colonne[data-repliee] .notak-colonne-plier {
-  opacity: 0.7;
+  opacity: 1;
 }
 
-.notak-colonne-plier svg {
-  transition: transform 0.12s;
-}
-
-.notak-colonne[data-repliee] .notak-colonne-plier svg {
-  transform: rotate(-90deg);
+@media (hover: none) {
+  .notak-colonne-plier {
+    opacity: 1;
+  }
 }
 
 .notak-colonne-corps {
@@ -146,20 +167,12 @@
   padding: 0 8px 8px;
 }
 
+/* Une colonne vide : un creux de 72 px, sans texte ni bordure. */
 .notak-colonne-vide {
-  display: grid;
-  place-items: center;
   box-sizing: border-box;
-  height: 60px;
+  height: 72px;
   margin: 0 8px 8px;
-  border: 1.5px dashed rgb(0 0 0 / 0.22);
-  border-radius: 6px;
-  font-size: 12px;
-  opacity: 0.55;
-}
-
-.notak-colonne[data-repliee] .notak-colonne-tete {
-  min-height: 40px;
+  background: var(--notak-colonne-creux);
 }
 
 /* La palette de la barre de sélection. */
@@ -176,7 +189,6 @@
   flex-direction: column;
   gap: 2px;
   width: max-content;
-  max-width: 180px;
   padding: 4px;
   border-radius: 8px;
   background: var(--notak-carte);
@@ -184,24 +196,25 @@
   transform: translateX(-50%);
 }
 
+/* Cinq pastilles par rangée : 24 × 20 px, 8 px d'écart. */
 .notak-colonne-pastilles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 2px;
+  display: grid;
+  grid-template-columns: repeat(5, 24px);
+  gap: 8px;
+  padding: 4px;
 }
 
 .notak-barre-selection .notak-colonne-pastilles button {
-  min-width: 22px;
-  width: 22px;
-  height: 22px;
+  min-width: 24px;
+  width: 24px;
+  height: 20px;
   padding: 0;
   border: 1px solid rgb(0 0 0 / 0.14);
-  border-radius: 50%;
+  border-radius: 4px;
 }
 
 .notak-barre-selection .notak-colonne-pastilles button[aria-pressed='true'] {
-  box-shadow: 0 0 0 2px var(--notak-accent);
+  box-shadow: 0 0 0 2px var(--notak-selection);
 }
 
 /* Repliée, la colonne reçoit encore ce qu'on lui lâche. */

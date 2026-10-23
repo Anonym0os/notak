@@ -11,10 +11,17 @@ describe('pasDeGroupement', () => {
   const avant: Tableau = { titre: '', elements: [a.element, b.element, c.element] }
   const apres = pas.reduce(appliquer, avant)
 
-  test('crée la colonne au coin haut-gauche du cadre englobant', () => {
+  test('crée la colonne centrée sur le cadre englobant', () => {
     const col = apres.elements.find((e) => e.id === colonne)!
     expect(col.contenu.type).toBe('colonne')
-    expect([col.x, col.y]).toEqual([10, 5])
+    // Cadre : x de 10 à 84, y de 5 à 38 ; hauteur de colonne : 15 + 3 × 8 = 39.
+    expect([col.x, col.y]).toEqual([Math.round(47 - 17), Math.round(21.5 - 19.5)])
+  })
+
+  test('met à la corbeille les lignes attachées', () => {
+    const ligne = { ...nouvelleNote(0, 0), id: 'l' }
+    const { pas: avecLigne } = pasDeGroupement([a, b], [ligne], 123)
+    expect(avecLigne.at(-1)).toMatchObject({ type: 'ranger', id: 'l', vers: { corbeille: 123 } })
   })
 
   test('range de haut en bas, puis de gauche à droite', () => {
