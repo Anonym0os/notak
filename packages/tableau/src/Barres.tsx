@@ -13,6 +13,7 @@ import { MenuActions } from './MenuActions'
 import { useMenu } from './menuUnique'
 import { Vignette } from './vignettes'
 import { useDessinLibreOuvert } from './elements/dessin/mode'
+import { useGlissement } from './glissement'
 
 /** Un outil de la barre, avec le type qui l'apporte. */
 export interface OutilDeBarre {
@@ -92,6 +93,7 @@ export function BarreOutils({
     if (depasse > 0) g.style.setProperty('--notak-tiroir-remonte', `${Math.min(depasse, r.top - 8)}px`)
   }, [tiroir])
   const nav = useRef<HTMLElement>(null)
+  useGlissement(nav, 0)
   useEchapFerme(nav, () => setTiroir(false))
   // DESSIN-LIBRE : pendant le mode, la barre s'éteint et le bouton du dessin se montre ouvert.
   const dessinOuvert = useDessinLibreOuvert()
@@ -205,6 +207,7 @@ export function BarreSelection({
   const [cle, setCle] = useState(0)
   const barre = useRef<HTMLDivElement>(null)
   const nav = useRef<HTMLElement>(null)
+  useGlissement(nav, 1)
   useEchapFerme(aGauche ? nav : barre, () => {
     setPlus(false)
     setTiroir(false)

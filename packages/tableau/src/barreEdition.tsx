@@ -1,4 +1,5 @@
-import { createContext } from 'react'
+import { createContext, useRef } from 'react'
+import { useGlissement } from './glissement'
 import { Icone } from './icones'
 import { Infobulle } from './Infobulle'
 import { t } from './langue'
@@ -26,9 +27,11 @@ interface Panneau {
  * bas, comme la barre de création.
  */
 export function BarreEdition({ cible, corbeille, nonTries }: { cible(el: HTMLElement | null): void; corbeille: Panneau; nonTries: Panneau }) {
+  const nav = useRef<HTMLElement>(null)
+  useGlissement(nav, 2)
   return (
     <>
-      <nav className="notak-barre-outils" data-selection data-edition onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+      <nav ref={nav} className="notak-barre-outils" data-selection data-edition onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
         <div className="notak-barre-edition-liste" ref={cible} />
         <div className="notak-barre-ressort" />
         <Infobulle libelle={t('corbeille.titre')} cote="droite" contenu>

@@ -2189,23 +2189,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   margin-left: 0;
 }
 
-/* D'une liste à l'autre (création, sélection, écriture), la nouvelle arrive de la droite en 200 ms. */
-@keyframes notak-liste-entre {
-  from {
-    opacity: 0;
-    transform: translateX(14px);
-  }
-}
-
-.notak-barre-outils[data-selection] > :not(.notak-barre-ressort) {
-  animation: notak-liste-entre 200ms ease-out;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .notak-barre-outils[data-selection] > :not(.notak-barre-ressort) {
-    animation: none;
-  }
-}
+/* D'une liste à l'autre (création, sélection, écriture), la barre glisse à ressort : voir `glissement.ts`. */
 
 /* Le menu d'actions du « ••• » : des rangées sous la grille des outils secondaires. */
 .notak-menu-actions {
