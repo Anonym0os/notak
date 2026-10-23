@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Apercu, Id, Lien } from '../../coeur/tableau'
 import type { PropsRendu } from '../types'
 import { domaineDe, lireAdresse } from './adresse'
-import { lecteurDe } from './video'
+import { lecteurDe } from './lecteurs'
 
 const DELAI_APERCU = 15_000
 const REL = 'noopener noreferrer nofollow'
