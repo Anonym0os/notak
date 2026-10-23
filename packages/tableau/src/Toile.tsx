@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { toileSuspendue } from './elements/dessin/mode'
 import { PanneauBanque } from './elements/image/Banque'
+import { avecLegende } from './elements/image/geometrie'
 import { PanneauEnvoi } from './elements/fichier/PanneauEnvoi'
 import { BarreOutils, BarreSelection, type OutilDeBarre, outilsDeBarre } from './Barres'
 import { BarreEdition, ContexteBarreEdition } from './barreEdition'
@@ -40,6 +41,7 @@ import {
   auPremierPlan,
   dUnCran,
   inverse,
+  nouvelId,
   nouvelleNote,
   placeDe,
 } from './coeur/tableau'
@@ -73,8 +75,10 @@ type Geste =
       base: Point
       /** Ce qui a quitté une colonne au départ du geste, pour le remettre si on annule. */
       sorties: Operation[]
-      /** Alt : les copies laissées à la place de départ. */
+      /** Alt, lue au dépôt : les copies laissées à la place de départ. */
       copies?: Operation[]
+      /** Ce qu'on glisse tel qu'au départ, prêt à laisser une copie si Alt est tenue au dépôt. */
+      modele?: Paquet | null
       /** Le geste vient d'un autre tableau, où il est entré au survol. */
       enchaine?: boolean
     }
@@ -121,19 +125,21 @@ type Geste =
  * Où en est le groupe tiré jusqu'à `ici` : une échelle par axe, celle en x ne descendant pas sous la largeur minimale
  * d'aucun élément. Chaque élément s'éloigne du coin haut gauche en proportion ; une ligne ne fait que suivre. Les opérations vont de l'état présent à l'état voulu.
  */
-function pasDuGroupe(g: Extract<Geste, { type: 'redimensionnerGroupe' }>, ici: Point, libre = false): Operation[] {
+function pasDuGroupe(g: Extract<Geste, { type: 'redimensionnerGroupe' }>, ici: Point, libre = false, arrondir = true): Operation[] {
   const [l, h] = [g.cadre.max.x - g.cadre.min.x, g.cadre.max.y - g.cadre.min.y]
   const plancher = Math.max(0.1, ...g.items.filter((i) => !i.ligne).map((i) => i.min / i.largeur))
   // Chaque axe a sa propre échelle ; un média du groupe qui garde ses proportions ramène les deux à l'échelle en x (Cmd les libère).
   const echelleX = Math.max(plancher, 1 + (ici.x - g.depart.x) / l)
   const echelleY = !libre && g.items.some((i) => i.proportion) ? echelleX : Math.max(0.1, 1 + (ici.y - g.depart.y) / h)
   const o = g.cadre.min
+  // Pendant le geste tout suit le pointeur au plus fin ; la grille ne rattrape que la fin (voir `animerFin`).
+  const sur = arrondir ? Math.round : (v: number) => v
   return g.items.flatMap((i): Operation[] => {
-    const x = Math.round(o.x + (i.x - o.x) * echelleX)
-    const y = Math.round(o.y + (i.y - o.y) * echelleY)
+    const x = sur(o.x + (i.x - o.x) * echelleX)
+    const y = sur(o.y + (i.y - o.y) * echelleY)
     const echelle = echelleX
     const pas: Operation[] = [{ type: 'deplacer', id: i.id, de: [i.x, i.y], vers: [x, y] }]
-    if (!i.ligne) pas.push({ type: 'redimensionner', id: i.id, de: i.largeur, vers: Math.max(i.min, Math.round(i.largeur * echelle)) })
+    if (!i.ligne) pas.push({ type: 'redimensionner', id: i.id, de: i.largeur, vers: Math.max(i.min, sur(i.largeur * echelle)) })
     return pas
   })
 }
@@ -199,7 +205,28 @@ const copie: { paquet: Paquet | null; collages: number } = { paquet: null, colla
 function retenirPaquet(p: Paquet) {
   if (copie.paquet !== p) copie.collages = 0
   copie.paquet = p
+  // Un nouveau copier rend ce qui avait été coupé.
+  if (coupe && p.coupe !== coupe.cle) libererCoupe()
 }
+
+/**
+ * Ce qui a été coupé : comme chez Milanote, rien ne va à la corbeille. Les éléments disparaissent de l'écran (sans
+ * rien changer au tableau) jusqu'au collage, qui les déplace ; un nouveau copier ou un annuler les fait reparaître.
+ */
+let coupe: { cle: string; magasin: Magasin; ids: ReadonlySet<Id> } | null = null
+const ecouteursCoupe = new Set<() => void>()
+function poserCoupe(c: typeof coupe) {
+  coupe = c
+  for (const f of ecouteursCoupe) f()
+}
+function libererCoupe() {
+  if (coupe) poserCoupe(null)
+}
+const abonnerCoupe = (f: () => void) => {
+  ecouteursCoupe.add(f)
+  return () => void ecouteursCoupe.delete(f)
+}
+const lireCoupe = () => coupe
 
 const AUCUNE: readonly Empreinte[] = []
 const RIEN_MODIFIE = new Map<Id, { couleur: string; nom: string }>()
@@ -372,6 +399,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     presence ? presence.autres : aucun,
   )
   // Ce qu'un autre a choisi ou écrit en ce moment : ni vous ni le lasso n'y touchez.
+  // Ce qui est coupé de ce tableau disparaît de l'écran, sans quitter le tableau.
+  const coupeEnCours = useSyncExternalStore(abonnerCoupe, lireCoupe)
+  const masques = coupeEnCours?.magasin === magasin ? coupeEnCours.ids : null
   const prisParUnAutre = useMemo(() => new Set(autres.flatMap((a) => [...a.selection, ...(a.edition ? [a.edition] : [])])), [autres])
   const tableau = useSyncExternalStore(magasin.ecouter, magasin.lire)
   const [camera, setCamera] = useState<cam.Camera>(cameraInitiale ?? cam.CAMERA_DEPART)
@@ -833,6 +863,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   contexteRef.current = contexte
 
   const montrerCourant = useRef<(id: Id) => void>(() => {})
+  /** Met fin tout de suite à la fin animée d'un redimensionnement en cours (voir `animerFin`). */
+  const finRedim = useRef<(() => void) | null>(null)
+  useEffect(() => () => finRedim.current?.(), [])
+  /** Un zoom qui démarre pendant un redimensionnement l'annule (rempli plus bas, avec `annulerGlisser`). */
+  const annulerRedimRef = useRef<() => void>(() => {})
   const recevoirCourant = useRef<(d: DataTransfer, ou: Point) => Promise<void>>(async () => {})
   /** `dans` : la colonne où l'on a déposé ; ce qui peut y entrer s'y range, à la suite. */
   const recevoir = async (original: DataTransfer, ou: Point, dans?: Id) => {
@@ -912,6 +947,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       animation.current = null
       const { camera: c, vue: v } = etat.current
       mode ??= e.ctrlKey || e.metaKey ? 'zoom' : 'defiler'
+      // Un zoom qui démarre pendant un redimensionnement l'annule : les mesures d'avant sont rendues.
+      if (mode === 'zoom') annulerRedimRef.current()
       clearTimeout(finMode)
       finMode = setTimeout(() => (mode = null), 150)
       if (mode === 'zoom') {
@@ -980,6 +1017,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       } else if (doigts.size === 2) {
         // Un second doigt change le geste en pincement : ce que le premier avait commencé s'arrête là.
         lacherAppuiLong()
+        annulerRedimRef.current()
         geste.current = null
         setEnGeste(false)
         setZoneLasso(null)
@@ -1044,6 +1082,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         const { libelleMasque: _m, ...sans } = choisie.contenu
         return etat.current.magasin.faire([{ type: 'contenu', id: choisie.id, avant: choisie.contenu, apres: { ...sans, libelle: texte.slice(0, 400) } }])
       }
+      // Du texte collé sur une image seule choisie en devient la légende.
+      if (texte.trim() && e.clipboardData.files.length === 0 && choisie?.contenu.type === 'image' && !choisie.verrou && !etat.current.services.lectureSeule) {
+        return etat.current.magasin.faire([{ type: 'contenu', id: choisie.id, avant: choisie.contenu, apres: avecLegende(choisie.contenu, texte) }])
+      }
       void recevoir(e.clipboardData, contexte.centreVue())
     }
     const copier = (couper: boolean) => (e: ClipboardEvent) => {
@@ -1051,10 +1093,18 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const p = empaqueter(etat.current.magasin.lire(), etat.current.selection, rect)
       if (!p) return
       e.preventDefault()
-      retenirPaquet(p)
-      e.clipboardData.setData(TYPE_PAQUET, JSON.stringify(p))
-      e.clipboardData.setData('text/plain', texteDuPaquet(p))
-      if (couper && !etat.current.services.lectureSeule) jeter(etat.current.selection)
+      // Couper ne jette rien : le paquet porte une marque, ce qui est coupé se masque jusqu'au collage.
+      const coupable = couper && !etat.current.services.lectureSeule
+      const cle = coupable ? nouvelId() : undefined
+      const emporte = cle ? { ...p, coupe: cle } : p
+      if (coupe) libererCoupe()
+      retenirPaquet(emporte)
+      e.clipboardData.setData(TYPE_PAQUET, JSON.stringify(emporte))
+      e.clipboardData.setData('text/plain', texteDuPaquet(emporte))
+      if (cle) {
+        poserCoupe({ cle, magasin: etat.current.magasin, ids: new Set(emporte.elements.map((x) => x.id)) })
+        setSelection(new Set())
+      }
     }
     const surCopie = copier(false)
     const surCoupe = copier(true)
@@ -1077,15 +1127,67 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const vueUG = { min: cam.versTableau(camera, point(0, 0)), max: cam.versTableau(camera, point(vue.largeur, vue.hauteur)) }
     const enVue = p.tableau === tableau.id && chevauche(vueUG, p.cadre)
     const d = ou ? point(Math.round(ou.x - p.cadre.min.x), Math.round(ou.y - p.cadre.min.y)) : decalageDeCollage(p, enVue, n, contexte.centreVue())
+    if (p.coupe && coupe?.cle === p.coupe && coupe.magasin === magasin) return deplacerCoupe(p, d)
     const neufs = deballer(p, d)
     magasin.faire(neufs.map((element): Operation => ({ type: 'creer', element })))
     setSelection(new Set(neufs.filter((x) => !x.parent).map((x) => x.id)))
+    finirCoupe(p)
+  }
+
+  /** Le collage d'un paquet coupé ailleurs : les originaux, masqués dans leur tableau, en sont retirés pour de bon. */
+  const finirCoupe = (p: Paquet) => {
+    const c = coupe
+    if (!p.coupe || c?.cle !== p.coupe) return
+    if (c.magasin !== magasin) {
+      const source = c.magasin.lire()
+      c.magasin.faire(source.elements.filter((x) => c.ids.has(x.id)).map((element): Operation => ({ type: 'supprimer', element })))
+    }
+    libererCoupe()
+  }
+
+  /**
+   * Coller ce qu'on a coupé dans le même tableau : les mêmes éléments (mêmes identifiants, mêmes liens) changent de
+   * place, décalés de `d` UG ; `colonne` les range en tête de cette colonne.
+   */
+  const deplacerCoupe = (p: Paquet, d: Point, colonne?: Element) => {
+    const t = magasin.lire()
+    const racines = p.elements.filter((x) => !x.parent && x.contenu.type !== 'ligne')
+    const actuels = racines.flatMap((x) => t.elements.find((y) => y.id === x.id) ?? [])
+    let tete: string | undefined
+    if (colonne) {
+      const premier = t.elements.filter((x) => x.parent === colonne.id && !coupe!.ids.has(x.id)).sort((a, b) => comparerOrdre(a.ordre, b.ordre))[0]
+      tete = premier?.ordre
+    }
+    let avant: string | undefined
+    const pas: Operation[] = actuels.map((e): Operation => {
+      if (colonne) return { type: 'ranger', id: e.id, de: placeDe(e), vers: { x: colonne.x, y: colonne.y, parent: colonne.id, ordre: (avant = cleEntre(avant, tete)) } }
+      const [x, y] = aimanter(point(e.x + d.x, e.y + d.y))
+      return { type: 'ranger', id: e.id, de: placeDe(e), vers: { x, y } }
+    })
+    // Une ligne coupée avec ses éléments suit ses bouts accrochés ; ses bouts libres se décalent comme eux.
+    if (!colonne) {
+      for (const l of p.elements) {
+        const actuelle = l.contenu.type === 'ligne' ? t.elements.find((y) => y.id === l.id) : undefined
+        if (!actuelle || actuelle.contenu.type !== 'ligne') continue
+        const bout = (x: Extremite): Extremite => ('element' in x ? x : { x: x.x + d.x, y: x.y + d.y })
+        pas.push({ type: 'contenu', id: l.id, avant: actuelle.contenu, apres: { ...actuelle.contenu, depart: bout(actuelle.contenu.depart), arrivee: bout(actuelle.contenu.arrivee) } })
+      }
+    }
+    libererCoupe()
+    if (pas.length > 0) magasin.faire(pas)
+    if (!colonne) setSelection(new Set(actuels.map((x) => x.id)))
   }
 
   /** Colle un paquet dans une colonne, en tête, si tout peut y entrer ; la sélection ne change pas. */
   const collerDansColonne = (p: Paquet, colonne: Element) => {
     const def = definition(colonne.contenu.type)
     if (lectureSeule || !def?.accepte) return false
+    if (p.coupe && coupe?.cle === p.coupe && coupe.magasin === magasin) {
+      const entrants = p.elements.filter((x) => !x.parent && x.contenu.type !== 'ligne' && x.id !== colonne.id)
+      if (entrants.length === 0 || !entrants.every((x) => def.accepte!(x, colonne))) return false
+      deplacerCoupe(p, point(0, 0), colonne)
+      return true
+    }
     const neufs = deballer(p, point(0, 0))
     const racines = neufs.filter((x) => !x.parent)
     if (racines.length === 0 || !racines.every((x) => def.accepte!(x, colonne))) return false
@@ -1094,6 +1196,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const rangs = new Map(racines.map((x) => [x.id, (avant = cleEntre(avant, tete?.ordre))] as const))
     retenirPaquet(p)
     magasin.faire(neufs.map((element): Operation => ({ type: 'creer', element: rangs.has(element.id) ? { ...element, parent: colonne.id, ordre: rangs.get(element.id)! } : element })))
+    finirCoupe(p)
     return true
   }
 
@@ -1516,6 +1619,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (cmd && touche === 'z') {
       e.preventDefault()
       if (e.shiftKey) return void (magasin.retablir() || services.retablirNavigation?.())
+      libererCoupe()
       return void (magasin.annuler() || services.annulerNavigation?.())
     }
     if (cmd && touche === 'y') {
@@ -1713,6 +1817,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       }
     }
     if (dansEdition(racine.current, e.target)) return
+    finRedim.current?.()
     if (edition) finirEdition()
     racine.current!.focus({ preventScroll: true })
     setRebond(null)
@@ -1920,7 +2025,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       return setPrisLasso(lasso(zone, rects, g.avant, g.inverser))
     }
     if (g.type === 'redimensionnerGroupe') {
-      return magasin.appliquerSeulement(pasDuGroupe(g, ici, e.metaKey || e.ctrlKey))
+      return magasin.appliquerSeulement(pasDuGroupe(g, ici, e.metaKey || e.ctrlKey, false))
     }
     if (g.type === 'redimensionner' && g.avant) {
       // Une poignée qui change le contenu (une table gagne des colonnes) : le type dit ce que devient l'élément.
@@ -1938,7 +2043,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const ratio = el && definition(el.contenu.type)?.proportion?.(el.contenu as never)
       const dx = ici.x - g.depart.x
       const tire = ratio && !e.metaKey && !e.ctrlKey ? Math.max(dx, (ici.y - g.depart.y) * ratio) : dx
-      const vers = largeurTiree(g.largeurDepart + tire, g.min)
+      // La largeur suit le pointeur sans arrondi ; la grille la rattrape au relâchement (voir `animerFin`).
+      const vers = Math.max(g.min, g.largeurDepart + tire)
       const pas: Operation[] = [{ type: 'redimensionner', id: g.id, de: g.largeurDepart, vers }]
       const n = g.borne && noeudDe(g.id)
       if (g.borne && n) {
@@ -1960,6 +2066,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       })
       const ids = [...g.origines.keys()]
       const choisis = magasin.lire().elements.filter((x) => g.origines.has(x.id))
+      g.modele = empaqueter(magasin.lire(), ids, rect)
       const r = ids.length === 1 ? rect(ids[0]!) : null
       const cote = r ? Math.max(r.max.x - r.min.x, r.max.y - r.min.y) * k : 0
       // Ce qui était rangé quitte sa colonne à l'endroit où il se trouvait à l'écran, et la colonne se resserre.
@@ -1979,15 +2086,6 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         }),
       )
       magasin.appliquerSeulement(g.sorties)
-      // Alt : une copie reste à la place de départ, ce qu'on glisse est l'original.
-      if (e.altKey) {
-        const p = empaqueter(magasin.lire(), ids, rect)
-        if (p) {
-          const copies = deballer(p, point(0, 0))
-          g.copies = copies.map((element): Operation => ({ type: 'creer', element }))
-          magasin.appliquerSeulement(g.copies)
-        }
-      }
       g.vols = ids
       g.envol = new Envol(reglageVol(choisis, cote), (v) => {
         for (const id of g.vols) {
@@ -2238,6 +2336,50 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     return true
   }
 
+  /**
+   * La fin d'un redimensionnement : positions et largeurs rejoignent la grille en parcourant 30 % de l'écart par image.
+   * Un groupe se pose l'un après l'autre, du haut gauche au bas droit (500 ms en tout, 50 ms d'écart au plus, d'un
+   * coup au-delà de 50 éléments). `conclure` inscrit le geste ; un nouveau geste ou un zoom y mettent fin d'emblée.
+   */
+  const animerFin = (cibles: { id: Id; x: number; y: number; largeur: number; ligne: boolean }[], conclure: () => void) => {
+    finRedim.current?.()
+    const ordre = [...cibles].sort((a, b) => a.y - b.y || a.x - b.x)
+    const ecart = ordre.length > 1 && ordre.length <= 50 ? Math.min(50, 500 / ordre.length) : 0
+    const depart = performance.now()
+    let image = 0
+    const poser = (final: boolean) => {
+      const t = magasin.lire()
+      const pas = ordre.flatMap((c, rang): Operation[] => {
+        const el = t.elements.find((x) => x.id === c.id)
+        if (!el || (!final && performance.now() - depart < rang * ecart)) return []
+        const vers = (v: number, but: number) => (final || Math.abs(but - v) < 0.05 ? but : v + (but - v) * 0.3)
+        const [x, y, largeur] = [vers(el.x, c.x), vers(el.y, c.y), c.ligne ? el.largeur : vers(el.largeur, c.largeur)]
+        const sorties: Operation[] = []
+        if (x !== el.x || y !== el.y) sorties.push({ type: 'deplacer', id: c.id, de: [el.x, el.y], vers: [x, y] })
+        if (largeur !== el.largeur) sorties.push({ type: 'redimensionner', id: c.id, de: el.largeur, vers: largeur })
+        return sorties
+      })
+      if (pas.length > 0) magasin.appliquerSeulement(pas)
+      return pas.length === 0 && performance.now() - depart >= ordre.length * ecart
+    }
+    const fin = () => {
+      cancelAnimationFrame(image)
+      finRedim.current = null
+      poser(true)
+      conclure()
+    }
+    finRedim.current = fin
+    const pas = () => {
+      if (poser(false)) return fin()
+      image = requestAnimationFrame(pas)
+    }
+    image = requestAnimationFrame(pas)
+  }
+  annulerRedimRef.current = () => {
+    const g = geste.current
+    if (g?.type === 'redimensionner' || g?.type === 'redimensionnerGroupe') annulerGlisser()
+  }
+
   const relache = (e: React.PointerEvent) => {
     arreterBord()
     const g = geste.current
@@ -2253,16 +2395,22 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       return
     }
     if (g?.type === 'redimensionnerGroupe') {
-      // Le pas inscrit va du départ à la fin du geste, quel que soit le chemin parcouru.
-      const t = magasin.lire()
-      const pas: Operation[] = []
-      for (const i of g.items) {
-        const el = t.elements.find((x) => x.id === i.id)
-        if (!el) continue
-        if (el.x !== i.x || el.y !== i.y) pas.push({ type: 'deplacer', id: i.id, de: [i.x, i.y], vers: [el.x, el.y] })
-        if (el.largeur !== i.largeur) pas.push({ type: 'redimensionner', id: i.id, de: i.largeur, vers: el.largeur })
+      // Les éléments se posent sur la grille l'un après l'autre, du haut gauche au bas droit.
+      const minimum = new Map(g.items.map((i) => [i.id, i.min]))
+      const cibles = magasin.lire().elements.flatMap((el) => (minimum.has(el.id) ? [{ id: el.id, x: Math.round(el.x), y: Math.round(el.y), largeur: Math.max(minimum.get(el.id)!, Math.round(el.largeur)), ligne: g.items.find((i) => i.id === el.id)!.ligne }] : []))
+      const conclure = () => {
+        // Le pas inscrit va du départ à la fin du geste, quel que soit le chemin parcouru.
+        const t = magasin.lire()
+        const pas: Operation[] = []
+        for (const i of g.items) {
+          const el = t.elements.find((x) => x.id === i.id)
+          if (!el) continue
+          if (el.x !== i.x || el.y !== i.y) pas.push({ type: 'deplacer', id: i.id, de: [i.x, i.y], vers: [el.x, el.y] })
+          if (el.largeur !== i.largeur) pas.push({ type: 'redimensionner', id: i.id, de: i.largeur, vers: el.largeur })
+        }
+        magasin.inscrire(pas)
       }
-      magasin.inscrire(pas)
+      animerFin(cibles, conclure)
       return
     }
     if (g?.type === 'ligneEntiere') {
@@ -2273,13 +2421,20 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (g?.type === 'redimensionner') {
       const el = magasin.lire().elements.find((x) => x.id === g.id)
       if (!el) return
-      const pas: Operation[] = []
-      if (el.largeur !== g.largeurDepart) pas.push({ type: 'redimensionner', id: g.id, de: g.largeurDepart, vers: el.largeur })
-      if (g.avant && !memes(el.contenu, g.avant.contenu)) pas.push({ type: 'contenu', id: g.id, avant: g.avant.contenu, apres: el.contenu })
-      if (g.borne && !memeHauteur(el.hauteur, g.borne.de)) {
-        pas.push({ type: 'borner', id: g.id, de: g.borne.de ?? null, vers: el.hauteur ?? null })
+      const conclure = () => {
+        const el = magasin.lire().elements.find((x) => x.id === g.id)
+        if (!el) return
+        const pas: Operation[] = []
+        if (el.largeur !== g.largeurDepart) pas.push({ type: 'redimensionner', id: g.id, de: g.largeurDepart, vers: el.largeur })
+        if (g.avant && !memes(el.contenu, g.avant.contenu)) pas.push({ type: 'contenu', id: g.id, avant: g.avant.contenu, apres: el.contenu })
+        if (g.borne && !memeHauteur(el.hauteur, g.borne.de)) {
+          pas.push({ type: 'borner', id: g.id, de: g.borne.de ?? null, vers: el.hauteur ?? null })
+        }
+        magasin.inscrire(pas)
       }
-      magasin.inscrire(pas)
+      // Une poignée qui change le contenu travaille déjà en entiers ; les autres rejoignent la grille en douceur.
+      if (g.avant) return conclure()
+      animerFin([{ id: g.id, x: el.x, y: el.y, largeur: largeurTiree(el.largeur, g.min), ligne: false }], conclure)
       return
     }
     const visee = cible.current
@@ -2352,6 +2507,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const pas = pasDeDepot(magasin.lire(), deplaces, visee)
     magasin.appliquerSeulement(pas)
     magasin.remplacer(auPremierPlan(magasin.lire(), g.origines.keys()))
+    // Alt est lue au dépôt : tenue à cet instant, une copie reste à la place de départ et l'original arrive.
+    if (e.altKey && g.modele) {
+      g.copies = deballer(g.modele, point(0, 0)).map((element): Operation => ({ type: 'creer', element }))
+      magasin.appliquerSeulement(g.copies)
+    }
     magasin.inscrire([...(g.copies ?? []), ...pas])
     // Ce qui entre dans une colonne y prend sa place tout de suite ; le reste se pose en douceur.
     const entres = new Set(pas.flatMap((op) => (op.type === 'ranger' && op.vers.parent ? [op.id] : [])))
@@ -2497,13 +2657,16 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   // Pendant un lasso, ce qu'il va prendre paraît déjà choisi.
   const vueChoix = prisLasso ?? selection
   const rangement = useMemo<Rangement>(
-    () => ({ elements: tableau.elements, empreintes, selection: vueChoix, edition, brouillon: surBrouillon, changer: surChanger }),
-    [tableau, empreintes, vueChoix, edition, surBrouillon, surChanger],
+    () => ({ elements: masques ? tableau.elements.filter((x) => !masques.has(x.id)) : tableau.elements, empreintes, selection: vueChoix, edition, brouillon: surBrouillon, changer: surChanger }),
+    [tableau, masques, empreintes, vueChoix, edition, surBrouillon, surChanger],
   )
   // Ce qui est verrouillé reste dessous.
-  const cartes = [...tableau.elements.filter((x) => libre(x) && x.verrou), ...tableau.elements.filter((x) => libre(x) && !x.verrou)]
+  const cartes = [...tableau.elements.filter((x) => libre(x) && x.verrou && !masques?.has(x.id)), ...tableau.elements.filter((x) => libre(x) && !x.verrou && !masques?.has(x.id))]
   const seule = !edition && selection.size === 1 && !tableau.elements.find((x) => selection.has(x.id))?.verrou ? [...selection][0] : undefined
-  const lignes = tableau.elements.filter((e) => definition(e.contenu.type)?.calque === 'lignes')
+  // Une ligne dont un bout tient à un élément coupé disparaît avec lui.
+  const lignes = tableau.elements.filter(
+    (e) => definition(e.contenu.type)?.calque === 'lignes' && !masques?.has(e.id) && !(masques && e.contenu.type === 'ligne' && accroches(e.contenu).some((a) => masques.has(a))),
+  )
 
   return (
     <ContexteBarreEdition.Provider value={emplacementEdition}>
