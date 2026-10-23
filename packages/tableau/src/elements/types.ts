@@ -93,6 +93,11 @@ export interface Services {
   presence?: ServicePresence
   /** On peut regarder et défiler, rien de plus : la toile refuse tout ce qui modifie. */
   lectureSeule?: boolean
+  /**
+   * Trouve où est une adresse sur la carte (un géocodeur) : le lieu en tire sa carte intégrée.
+   * Absent, le lieu reste une adresse avec un lien vers la carte.
+   */
+  localiser?(requete: string): Promise<{ lat: number; lon: number } | null>
   /** Un double-clic sur le vide crée une note (le réglage de chacun) ; absent : oui. */
   doubleClicCreeNote?: boolean
 }

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { Lieu } from '../../coeur/tableau'
 import type { PropsOutils, PropsRendu } from '../types'
-import { urlCarte } from './adresse'
+import { avecPosition, positionValable, requete, urlCarte, urlCarteIntegree } from './adresse'
 
 /** Le lien et les champs de la carte ne lancent pas de glisser. */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
@@ -12,14 +12,59 @@ const Epingle = () => (
   </svg>
 )
 
-export function RenduLieu({ element, enEdition, contexte, brouillon }: PropsRendu<Lieu>) {
+/**
+ * Trouve la position de l'adresse quand le service existe et qu'elle a changé. Hors historique (`corriger`) :
+ * c'est un cache de l'adresse, pas un geste de la personne.
+ */
+function useLocalisation(element: PropsRendu<Lieu>['element'], contexte: PropsRendu<Lieu>['contexte'], actif: boolean) {
+  const c = element.contenu
+  const q = requete(c)
+  const { localiser, lectureSeule } = contexte.services
+  const valable = !!positionValable(c)
+  const essayee = useRef<string | null>(null)
+  useEffect(() => {
+    if (!localiser || lectureSeule || !actif || !q || valable || essayee.current === q) return
+    essayee.current = q
+    let vivant = true
+    localiser(q)
+      .then((p) => {
+        if (!vivant || !p) return
+        const actuel = contexte.magasin.lire().elements.find((x) => x.id === element.id)?.contenu
+        if (actuel?.type !== 'lieu' || requete(actuel) !== q) return
+        contexte.magasin.corriger([{ type: 'contenu', id: element.id, avant: actuel, apres: avecPosition(actuel, p) }])
+      })
+      .catch(() => {})
+    return () => {
+      vivant = false
+      // Un essai interrompu (l'élément a bougé) peut recommencer.
+      if (essayee.current === q) essayee.current = null
+    }
+  }, [localiser, lectureSeule, actif, q, valable, contexte, element.id])
+}
+
+export function RenduLieu({ element, enEdition, choisie, contexte, brouillon }: PropsRendu<Lieu>) {
   const c = element.contenu
   const url = urlCarte(c)
+  useLocalisation(element, contexte, !enEdition)
+  const position = positionValable(c)
   return (
     <div className="notak-lieu">
-      <div className="notak-lieu-plan">
-        <Epingle />
-      </div>
+      {position && !enEdition ? (
+        // Le cadre ne laisse passer le pointeur que lorsque le lieu est choisi : sinon il avalerait le glisser.
+        <iframe
+          className="notak-lieu-carte"
+          title={`Carte : ${requete(c)}`}
+          src={urlCarteIntegree(position)}
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          sandbox="allow-scripts allow-same-origin"
+          data-actif={choisie || undefined}
+        />
+      ) : (
+        <div className="notak-lieu-plan">
+          <Epingle />
+        </div>
+      )}
       {enEdition ? (
         <Saisie contenu={c} ecrire={brouillon} finir={contexte.finirEdition} />
       ) : (

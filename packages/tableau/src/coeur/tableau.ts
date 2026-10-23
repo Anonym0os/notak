@@ -260,6 +260,15 @@ export interface Lieu {
   type: 'lieu'
   adresse: string
   nom?: string
+  /** Où l'adresse tombe sur la carte, trouvé par le service `localiser` ; il sert à dessiner la carte intégrée. */
+  position?: PositionLieu
+}
+
+/** Un point de la carte, en degrés. `pour` : la recherche qui l'a donné (si l'adresse change, il est périmé). */
+export interface PositionLieu {
+  lat: number
+  lon: number
+  pour: string
 }
 
 /** Un trait de crayon : ses points à la suite (`x1, y1, x2, y2…`, dans le repère de la feuille), sa couleur et son épaisseur. */
