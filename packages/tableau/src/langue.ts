@@ -853,6 +853,16 @@ export const fr: Textes = {
   'image.banque.choisir': 'Choisir des images',
   'image.banque.astuce': 'Ou déposez vos images ici.',
   // FIN fr
+
+  // Décor : pastilles de réaction, étiquettes.
+  'decor.quelquun': 'Quelqu’un',
+  'decor.vous': 'Vous',
+  'decor.et': 'et',
+  'decor.autres.one': '{n} autre',
+  'decor.autres.other': '{n} autres',
+  'decor.aReagi.one': 'a réagi',
+  'decor.aReagi.other': 'ont réagi',
+  'decor.avezReagi': 'avez réagi',
 }
 
 export const en: Textes = {
@@ -1623,4 +1633,14 @@ export const en: Textes = {
   'image.banque.choisir': 'Choose images',
   'image.banque.astuce': 'Or drop your images here.',
   // FIN en
+
+  // Décor : pastilles de réaction, étiquettes.
+  'decor.quelquun': 'Someone',
+  'decor.vous': 'You',
+  'decor.et': 'and',
+  'decor.autres.one': '{n} other',
+  'decor.autres.other': '{n} others',
+  'decor.aReagi.one': 'reacted',
+  'decor.aReagi.other': 'reacted',
+  'decor.avezReagi': 'reacted',
 }

@@ -1,4 +1,4 @@
-/* La bande sous une carte : étiquettes, échéance, personne, fil, réactions. */
+/* La bande des étiquettes, de l'échéance, de la personne, du fil et des réactions. */
 .notak-decor {
   display: flex;
   flex-direction: column;
@@ -8,8 +8,25 @@
   color: var(--notak-texte);
 }
 
-/* Sur la toile elle déborde sous la carte sans en changer la taille ; dans une colonne elle prend sa place. */
-.notak-decor[data-mode='toile'] {
+/* Dans une carte pleine : sous le contenu, dans son flux, comme chez Milanote (marge haute de −10 px, 16 px sous la bande). */
+.notak-carte[data-decor-dedans] > .notak-decor:not([data-sans-ligne]) {
+  margin: -10px 0 -5px;
+}
+
+/* Le fil ouvert d'une carte pleine posée sur la toile s'ouvre sous la carte sans l'agrandir. */
+.notak-carte[data-decor-dedans] > .notak-decor[data-mode='toile'] > .notak-fil-attache {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 300px;
+}
+
+.notak-carte[data-decor-dedans] > .notak-decor .notak-decor-ligne {
+  margin-top: 14px;
+}
+
+/* Un élément sans fond (image, lien, colonne…) : la bande déborde sous la carte sans en changer la taille. */
+.notak-carte:not([data-decor-dedans]) > .notak-decor[data-mode='toile'] {
   position: absolute;
   top: 100%;
   left: 0;
@@ -17,9 +34,24 @@
   margin-top: 6px;
 }
 
-.notak-decor[data-mode='liste'] {
+.notak-carte:not([data-decor-dedans]) > .notak-decor[data-mode='liste'] {
   position: relative;
   margin-top: 8px;
+}
+
+/* Une image sans légende : les pastilles se posent sur l'image, en bas à gauche, à 7 px du bord. */
+.notak-carte[data-type='image'] > .notak-decor {
+  position: absolute !important;
+  top: auto !important;
+  right: 7px;
+  bottom: 7px;
+  left: 7px;
+  margin: 0 !important;
+}
+
+.notak-carte[data-type='image'] > .notak-decor .notak-etiquette,
+.notak-carte[data-type='image'] > .notak-decor .notak-reaction {
+  box-shadow: 0 1px 2px #1b25361a;
 }
 
 .notak-decor-ligne {
@@ -29,21 +61,34 @@
   gap: 4px;
 }
 
+/* Une pastille d'étiquette : 20 px de haut, coins de 4 px, texte noir ou blanc selon son fond. */
 .notak-etiquette {
-  padding: 2px 8px;
-  border-radius: 10px;
+  box-sizing: border-box;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 4px;
   background: var(--notak-fond);
   color: #1f2430;
+  font-size: 12px;
   font-weight: 500;
+  line-height: 20px;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* Une pastille qui se confond avec la carte : un contour de 1 px à 30 %. */
+.notak-etiquette[data-contour='clair'] {
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.3);
+}
+
+.notak-etiquette[data-contour='sombre'] {
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.3);
+}
+
 .notak-echeance,
-.notak-decor-fil,
-.notak-reaction {
+.notak-decor-fil {
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -57,18 +102,69 @@
   white-space: nowrap;
 }
 
-.notak-decor-fil,
-.notak-reaction {
+.notak-decor-fil {
   cursor: pointer;
 }
 
-.notak-reaction:disabled {
-  cursor: default;
+/* Une réaction : un rectangle de 20 px, coins de 2 px, l'émoji puis le compte. */
+.notak-reaction {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-width: 35px;
+  height: 20px;
+  padding: 2px 3px 3px;
+  border: 0;
+  border-radius: 2px;
+  background: #e8e9eb;
+  color: #5f6672;
+  font: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
 .notak-reaction[aria-pressed='true'] {
-  border-color: var(--notak-accent);
-  background: color-mix(in srgb, var(--notak-accent) 14%, var(--notak-carte));
+  background: #eaeffe;
+  color: #2f63f7;
+}
+
+.notak-reaction[aria-disabled='true'] {
+  cursor: default;
+}
+
+.notak-reaction-emoji {
+  font-size: 14px;
+  line-height: 16px;
+}
+
+.notak-reaction-compte {
+  min-width: 10px;
+  margin-left: 2px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Qui a réagi, au-dessus de la pastille. */
+.notak-reaction-bulle {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 5;
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: #323b4a;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.3;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.notak-reaction-bulle strong {
+  font-weight: 700;
 }
 
 .notak-decor-fil[data-resolu] {

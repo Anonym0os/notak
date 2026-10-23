@@ -1,12 +1,13 @@
-import { type ReactNode, useEffect, useSyncExternalStore } from 'react'
+import { type ReactNode, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { type Element, annoter } from '../../coeur/tableau'
 import { FilAttache } from '../commentaire/Attache'
 import { AUTEUR_INCONNU, initiales } from '../commentaire/fil'
 import { definition } from '../registre'
 import type { ContexteToile } from '../types'
-import { basculerReaction, compterReactions, etatEcheance, etiquettesDe, libelleEcheance } from './annotations'
+import { FOND_NOTE } from '../note/couleurs'
+import { basculerReaction, compterReactions, contourEtiquette, etatEcheance, etiquettesDe, libelleEcheance, quiReagit, texteEtiquette } from './annotations'
 import { ouvrirFil, retenirContexte, useFilOuvert } from './etat'
-import { t } from '../../langue'
+import { t, tn } from '../../langue'
 import { Icone } from '../../icones'
 
 const garder = (e: React.SyntheticEvent) => e.stopPropagation()
@@ -28,6 +29,58 @@ export function Decor({ element, contexte, mode }: { element: Element; contexte:
   return <Bande element={element} contexte={contexte} mode={mode} ouvert={ouvert} />
 }
 
+/** Le fond de la carte qui porte la bande, pour savoir si une étiquette s'y confond. */
+const fondDeCarte = (e: Element): string => {
+  const c = e.contenu
+  if (c.type !== 'note') return '#ffffff'
+  return c.fond ?? (c.couleur && c.couleur in FOND_NOTE ? FOND_NOTE[c.couleur as keyof typeof FOND_NOTE] : '#ffffff')
+}
+
+/** Le prénom, ou le nom, de chaque personne dont on a l'identifiant (celles qui ne sont pas là restent inconnues). */
+function nomsDe(contexte: ContexteToile, ids: readonly string[], moi: string): string[] {
+  const connus = new Map((contexte.services.presence?.autres() ?? []).map((p) => [p.utilisateur.id, p.utilisateur.nom]))
+  return ids.filter((id) => id !== moi).map((id) => connus.get(id) ?? '')
+}
+
+/** Une pastille de réaction ; une info-bulle dit qui a réagi, après 300 ms de survol. */
+function PastilleReaction({ r, ids, contexte, moi, ecrire, reagir }: { r: { emoji: string; n: number; moi: boolean }; ids: readonly string[]; contexte: ContexteToile; moi: string; ecrire: boolean; reagir(emoji: string): void }) {
+  const [vue, setVue] = useState(false)
+  const minuterie = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const montrer = () => {
+    clearTimeout(minuterie.current)
+    minuterie.current = setTimeout(() => setVue(true), 300)
+  }
+  const cacher = () => {
+    clearTimeout(minuterie.current)
+    setVue(false)
+  }
+  useEffect(() => () => clearTimeout(minuterie.current), [])
+  const { qui, n } = quiReagit(nomsDe(contexte, ids, moi), r.moi)
+  return (
+    <button
+      type="button"
+      className="notak-reaction"
+      aria-pressed={r.moi}
+      aria-disabled={!ecrire || undefined}
+      aria-label={`${r.emoji} ${r.n}`}
+      onClick={() => ecrire && reagir(r.emoji)}
+      onPointerEnter={montrer}
+      onPointerLeave={cacher}
+      onBlur={cacher}
+    >
+      <span className="notak-reaction-emoji" aria-hidden>
+        {r.emoji}
+      </span>
+      <span className="notak-reaction-compte">{r.n}</span>
+      {vue && (
+        <span className="notak-reaction-bulle" role="tooltip">
+          <strong>{qui}</strong> {n === 1 && r.moi ? t('decor.avezReagi') : tn('decor.aReagi', n)}
+        </span>
+      )}
+    </button>
+  )
+}
+
 function Bande({ element, contexte, mode, ouvert }: { element: Element; contexte: ContexteToile; mode: 'toile' | 'liste'; ouvert: boolean }) {
   const { magasin } = contexte
   const tableau = useSyncExternalStore(magasin.ecouter, magasin.lire)
@@ -36,23 +89,31 @@ function Bande({ element, contexte, mode, ouvert }: { element: Element; contexte
   const etiquettes = etiquettesDe(element, tableau.etiquettes)
   const reactions = compterReactions(element.reactions, moi)
   const messages = element.commentaire?.messages.length ?? 0
+  const fond = fondDeCarte(element)
   const reagir = (emoji: string) => {
     const op = annoter(element, { reactions: basculerReaction(element.reactions, emoji, moi) })
     if (op) magasin.faire([op])
   }
+  const sansLigne = etiquettes.length === 0 && !element.echeance && !element.assigne && messages === 0 && reactions.length === 0
   return (
-    <div className="notak-decor" data-mode={mode} onPointerDown={garder} onDoubleClick={garder}>
-      {etiquettes.length > 0 && (
+    <div className="notak-decor" data-mode={mode} data-sans-ligne={sansLigne || undefined} onPointerDown={garder} onDoubleClick={garder}>
+      {!sansLigne && (
         <div className="notak-decor-ligne">
-          {etiquettes.map((et) => (
-            <span key={et.id} className="notak-etiquette" data-fond={et.couleur} title={t('decor.etiquette', { nom: et.nom })}>
-              {et.nom}
-            </span>
-          ))}
-        </div>
-      )}
-      {(element.echeance || element.assigne || messages > 0 || reactions.length > 0) && (
-        <div className="notak-decor-ligne">
+          {etiquettes.map((et) => {
+            const contour = contourEtiquette(et.couleur, fond)
+            return (
+              <span
+                key={et.id}
+                className="notak-etiquette"
+                data-fond={et.couleur}
+                data-contour={contour}
+                style={{ color: texteEtiquette(et.couleur) }}
+                title={t('decor.etiquette', { nom: et.nom })}
+              >
+                {et.nom}
+              </span>
+            )
+          })}
           {element.echeance && (
             <span className="notak-echeance" data-etat={etatEcheance(element.echeance)} title={t('decor.echeanceLe', { jour: element.echeance })}>
               <Icone nom="calendrier" taille={13} /> {libelleEcheance(element.echeance)}
@@ -81,17 +142,7 @@ function Bande({ element, contexte, mode, ouvert }: { element: Element; contexte
             </button>
           )}
           {reactions.map((r) => (
-            <button
-              key={r.emoji}
-              type="button"
-              className="notak-reaction"
-              aria-pressed={r.moi}
-              disabled={!ecrire}
-              title={r.moi ? t('decor.retirerReaction') : t('decor.reagirAussi')}
-              onClick={() => reagir(r.emoji)}
-            >
-              <span aria-hidden>{r.emoji}</span> {r.n}
-            </button>
+            <PastilleReaction key={r.emoji} r={r} ids={element.reactions?.[r.emoji] ?? []} contexte={contexte} moi={moi} ecrire={ecrire} reagir={reagir} />
           ))}
         </div>
       )}

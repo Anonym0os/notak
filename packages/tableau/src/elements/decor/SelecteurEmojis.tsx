@@ -26,7 +26,7 @@ const retenir = (emoji: string) => {
  * Le sélecteur d'émojis des réactions : une recherche, des catégories en onglets (les fréquents d'abord : les derniers
  * employés, complétés par les huit d'origine) et une grille de huit colonnes qui défile.
  */
-export function SelecteurEmojis({ choisir }: { choisir(emoji: string): void }) {
+export function SelecteurEmojis({ choisir, posees }: { choisir(emoji: string): void; /** Les émojis que j'ai déjà posés : ils se détachent dans la grille. */ posees?: ReadonlySet<string> }) {
   const [requete, setRequete] = useState('')
   const [categorie, setCategorie] = useState('frequents')
   const frequents = [...new Set([...recents(), ...FREQUENTS])].slice(0, 16)
@@ -58,7 +58,7 @@ export function SelecteurEmojis({ choisir }: { choisir(emoji: string): void }) {
       )}
       <div className="notak-emojis-grille" role="group" aria-label={requete.trim() ? t('emojis.resultats') : t(`emojis.${categorie}`)}>
         {liste.map((m) => (
-          <button key={m} type="button" role="menuitem" aria-label={t('decor.reagirAvec', { emoji: m })} onClick={() => poser(m)}>
+          <button key={m} type="button" role="menuitem" aria-pressed={posees?.has(m) || undefined} aria-label={t('decor.reagirAvec', { emoji: m })} onClick={() => poser(m)}>
             {m}
           </button>
         ))}

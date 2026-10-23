@@ -65,6 +65,7 @@ export const Cadre = memo(function Cadre({ element, choisie, seule, enEdition, c
       data-verrou={element.verrou || undefined}
       data-icone={icone || undefined}
       data-attenue={attenue || undefined}
+      data-decor-dedans={!sansFond || undefined}
       data-teinte={teinte ? '' : undefined}
       style={{ ...place, ...teinte, ...(plafond !== undefined ? { maxHeight: plafond } : {}), ...(plancher !== undefined ? { minHeight: plancher } : {}) }}
     >

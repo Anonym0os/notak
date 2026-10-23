@@ -60,7 +60,7 @@ describe('la bande sous une carte', () => {
     expect(hote.querySelector('.notak-echeance')?.getAttribute('data-etat')).toBe('passee')
     expect(hote.querySelector('.notak-assigne')?.textContent).toBe('BM')
     const r = [...hote.querySelectorAll('.notak-reaction')]
-    expect(r.map((x) => x.textContent?.trim())).toEqual(['👍 2', '🎉 1'])
+    expect(r.map((x) => x.textContent?.trim())).toEqual(['👍2', '🎉1'])
     expect(r.map((x) => x.getAttribute('aria-pressed'))).toEqual(['true', 'false'])
   })
 
@@ -80,7 +80,9 @@ describe('la bande sous une carte', () => {
   it('en lecture seule, les réactions se lisent mais ne se changent pas', () => {
     const { contexte, element } = monde({ reactions: { '👍': ['bob'] } }, true)
     act(() => racine.render(<Decor element={element()} contexte={contexte} mode="toile" />))
-    expect(bouton('👍').disabled).toBe(true)
+    expect(bouton('👍').getAttribute('aria-disabled')).toBe('true')
+    act(() => bouton('👍').click())
+    expect(element().reactions).toEqual({ '👍': ['bob'] })
   })
 
   it('le fil accroché s’ouvre, reçoit un message signé et dissout un fil vidé', () => {
@@ -187,10 +189,19 @@ describe('l’outil Réagir', () => {
     act(() => bouton('Réagir').click())
     act(() => bouton('Réagir avec 🔥').click())
     expect(choisis().map((e) => e.reactions)).toEqual([{ '🔥': ['ana'] }, { '🔥': ['ana'] }])
+    // La fenêtre reste ouverte après le choix : le même clic le retire.
     rendre()
-    act(() => bouton('Réagir').click())
     act(() => bouton('Réagir avec 🔥').click())
     expect(choisis().every((e) => e.reactions === undefined)).toBe(true)
+  })
+  it('si l’un des éléments l’a déjà, on ne fait que le retirer de ceux qui l’ont', () => {
+    const { contexte, magasin } = monde({ reactions: { '🔥': ['ana'] } })
+    magasin.faire([{ type: 'creer', element: nouvelleNote(40, 0, 'Autre') }])
+    const choisis = () => magasin.lire().elements
+    act(() => racine.render(<OutilReactions elements={choisis()} contexte={contexte} />))
+    act(() => bouton('Réagir').click())
+    act(() => bouton('Réagir avec 🔥').click())
+    expect(choisis().map((e) => e.reactions)).toEqual([undefined, undefined])
   })
 })
 

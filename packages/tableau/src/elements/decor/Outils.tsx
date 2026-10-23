@@ -5,7 +5,7 @@ import type { ContexteToile } from '../types'
 import { moiDe } from './Decor'
 import { PanneauEtiquettes } from './Etiquettes'
 import { appliquerAffichage, estReduit, peutSeReduire } from './affichage'
-import { ECHEANCE, basculerReaction, pasPour } from './annotations'
+import { ECHEANCE, pasPour, reagirSurPlusieurs } from './annotations'
 import { SelecteurEmojis } from './SelecteurEmojis'
 import { ouvrirFil, useFilOuvert } from './etat'
 import { t } from '../../langue'
@@ -41,20 +41,12 @@ export function OutilEtiquettes({ elements, contexte }: Props) {
 export function OutilReactions({ elements, contexte }: Props) {
   if (contexte.services.lectureSeule) return null
   const moi = moiDe(contexte).id
-  const reagir = (emoji: string, fermer: () => void) => {
-    // Si tous l'ont déjà posé, on le retire de tous ; sinon on le pose sur ceux qui ne l'ont pas.
-    const tous = elements.every((e) => e.reactions?.[emoji]?.includes(moi))
-    contexte.magasin.faire(
-      pasPour(elements, (e) => {
-        const a = e.reactions?.[emoji]?.includes(moi) ?? false
-        return a === tous ? annoter(e, { reactions: basculerReaction(e.reactions, emoji, moi) }) : null
-      }),
-    )
-    fermer()
-  }
+  // La fenêtre reste ouverte après le choix : on peut poser ou retirer plusieurs émojis de suite.
+  const reagir = (emoji: string) => contexte.magasin.faire(reagirSurPlusieurs(elements, emoji, moi))
+  const posees = new Set(elements.flatMap((e) => Object.entries(e.reactions ?? {}).flatMap(([emoji, gens]) => (gens.includes(moi) ? [emoji] : []))))
   return (
     <Menu titre={t('decor.reagirEmoji')} libelle={t('decor.reagir')} icone="reaction">
-      {(fermer) => <SelecteurEmojis choisir={(m) => reagir(m, fermer)} />}
+      {() => <SelecteurEmojis choisir={reagir} posees={posees} />}
     </Menu>
   )
 }
