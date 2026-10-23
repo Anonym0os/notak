@@ -18,9 +18,9 @@ const STYLES: { style: StyleMenu; libelle: string; ligne: string; raccourci: str
   { style: 'titre2', get libelle() { return t('barre.style.titre') }, get ligne() { return t('barre.style.titre') }, raccourci: '⌘⇧2' },
   { style: 'texte', get libelle() { return t('barre.style.texte') }, get ligne() { return t('barre.style.texteNormal') }, raccourci: '⌘⇧0' },
   { style: 'petit', get libelle() { return t('barre.style.petit') }, get ligne() { return t('barre.style.petit') }, raccourci: '⌘⇧9' },
-  { style: 'code', get libelle() { return t('barre.style.code') }, get ligne() { return t('barre.style.codeBloc') }, raccourci: '⌘.' },
+  { style: 'code', get libelle() { return t('barre.style.code') }, get ligne() { return t('barre.style.codeBloc') }, raccourci: '⌘>' },
   { style: 'encadre', get libelle() { return t('barre.style.encadre') }, get ligne() { return t('barre.style.encadre') }, raccourci: '⌘⇧6' },
-  { style: 'citation', get libelle() { return t('barre.style.citation') }, get ligne() { return t('barre.style.citation') }, raccourci: '⌘\'' },
+  { style: 'citation', get libelle() { return t('barre.style.citation') }, get ligne() { return t('barre.style.citation') }, raccourci: '⌘"' },
 ]
 
 /** Ce que les barres de texte lisent de l'éditeur : les marques actives, le bloc, la sélection. */
@@ -131,7 +131,8 @@ export function MenuStyle({ editor, etat }: { editor: Editor; etat: EtatTexte })
           className="notak-note-menu-ligne"
           data-style={style}
           aria-current={actif(style) || undefined}
-          onClick={() => (style === 'encadre' ? basculerEncadre(editor) : poserStyle(editor, style))}
+          // La ligne active ne répond pas : on en sort en choisissant un autre bloc.
+          onClick={() => !actif(style) && (style === 'encadre' ? basculerEncadre(editor) : poserStyle(editor, style))}
         >
           <span>{ligne}</span>
           {actif(style) ? <Icone nom="coche" taille={16} /> : <kbd>{raccourci}</kbd>}
@@ -185,7 +186,11 @@ export function MenuInsertion({ editor, ferme }: { editor: Editor; ferme(): void
 export function ChampLien({ editor, depart, fini }: { editor: Editor; depart: string; fini(): void }) {
   const [valeur, setValeur] = useState(depart)
   const champ = useRef<HTMLInputElement>(null)
-  useEffect(() => champ.current?.focus(), [])
+  // À l'ouverture le champ prend le focus et son texte est choisi : on peut taper par-dessus.
+  useEffect(() => {
+    champ.current?.focus()
+    champ.current?.select()
+  }, [])
   const valider = () => {
     const url = normaliserUrl(valeur)
     const c = editor.chain().focus().extendMarkRange('link')
@@ -194,25 +199,41 @@ export function ChampLien({ editor, depart, fini }: { editor: Editor; depart: st
     fini()
   }
   return (
-    <input
-      ref={champ}
-      className="notak-note-lien"
-      value={valeur}
-      placeholder={t('lien.adresse')}
-      aria-label={t('barre.adresseLien')}
-      onChange={(e) => setValeur(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault()
-          valider()
-        } else if (e.key === 'Escape') {
-          // Échap ferme le champ ; il ne sort pas de la note.
-          e.stopPropagation()
-          e.preventDefault()
-          editor.commands.focus()
-          fini()
-        }
-      }}
-    />
+    <span className="notak-note-lien-champ">
+      <input
+        ref={champ}
+        className="notak-note-lien"
+        value={valeur}
+        placeholder={t('barre.lienPlaceholder')}
+        aria-label={t('barre.adresseLien')}
+        // Une adresse n'a ni espace, ni saut de ligne, ni virgule : ils sont retirés à la saisie.
+        onChange={(e) => setValeur(e.target.value.replace(/[\s,]+/g, ''))}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || (e.key === 'Tab' && !e.shiftKey)) {
+            e.preventDefault()
+            valider()
+          } else if (e.key === ' ') {
+            e.preventDefault()
+          } else if (e.key === 'Escape') {
+            // Échap ferme le champ ; il ne sort pas de la note.
+            e.stopPropagation()
+            e.preventDefault()
+            editor.commands.focus()
+            fini()
+          } else if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+            // Cmd+K referme le champ comme il l'a ouvert.
+            e.stopPropagation()
+            e.preventDefault()
+            editor.commands.focus()
+            fini()
+          }
+        }}
+      />
+      {valeur && (
+        <button type="button" className="notak-note-lien-efface" aria-label={t('barre.effacerLien')} onMouseDown={(e) => e.preventDefault()} onClick={() => { setValeur(''); champ.current?.focus() }}>
+          <Icone nom="fermer" taille={12} />
+        </button>
+      )}
+    </span>
   )
 }

@@ -42,9 +42,10 @@ registre.type<Note>({
   hauteurParDefaut: HAUTEUR_NOTE_MIN,
   sansFond: (c) => c.couleur === 'transparent' && !c.fond,
   hauteurBornable: true,
-  // La note suivante garde la largeur ; hors édition, toute la mise en forme (couleur, titre), sans le texte.
+  // La note suivante garde la largeur ; la mise en forme (couleurs, barre), sans le texte.
   suivant: (e, places, format) => {
-    const neuve = e.contenu.variante === 'titre' && format ? enTitre(places.dessous.x, places.dessous.y) : enNote(places.dessous.x, places.dessous.y)
+    // Sous un titre, la note neuve reprend la mise en forme (transparente) mais son texte est un paragraphe ordinaire.
+    const neuve = enNote(places.dessous.x, places.dessous.y)
     // La mise en forme suit (couleurs, barre) ; le texte et la légende, non.
     const { couleur, fond, barre, couleurTexte } = e.contenu
     const forme = format ? { ...(couleur && { couleur }), ...(fond && { fond }), ...(barre && { barre }), ...(couleurTexte && { couleurTexte }) } : {}

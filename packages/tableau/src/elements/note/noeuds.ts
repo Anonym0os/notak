@@ -7,6 +7,9 @@ import { decouperAdresses } from './conversion'
 /** Les icônes d'un encadré, dans l'ordre où un clic les fait défiler. */
 export const ICONES_ENCADRE = ['💡', 'ℹ️', '⚠️', '❗', '❓', '✅', '❌', '📌'] as const
 
+/** L'icône d'un encadré neuf : l'avertissement, comme chez Milanote. */
+export const ICONE_ENCADRE_DEFAUT = '⚠️'
+
 /** Les mots qu'on tape après `!` pour choisir l'icône : `!idee `, `!attention `… */
 const MOTS_ICONE: Record<string, string> = {
   idee: '💡',
@@ -17,8 +20,11 @@ const MOTS_ICONE: Record<string, string> = {
   question: '❓',
   ok: '✅',
   non: '❌',
-  note: '📌',
+  note: 'ℹ️',
+  tip: '💡',
   idea: '💡',
+  success: '✅',
+  error: '❌',
   warning: '⚠️',
   yes: '✅',
   no: '❌',
@@ -47,8 +53,8 @@ export const Encadre = Node.create({
   addAttributes() {
     return {
       icone: {
-        default: ICONES_ENCADRE[0],
-        parseHTML: (el: HTMLElement) => el.getAttribute('data-icone') || ICONES_ENCADRE[0],
+        default: ICONE_ENCADRE_DEFAUT,
+        parseHTML: (el: HTMLElement) => el.getAttribute('data-icone') || ICONE_ENCADRE_DEFAUT,
         renderHTML: (attrs: { icone?: string }) => ({ 'data-icone': attrs.icone }),
       },
     }
@@ -65,7 +71,7 @@ export const Encadre = Node.create({
         type: this.type,
         getAttributes: (m) => {
           const choix = m[1]
-          return { icone: choix ? (MOTS_ICONE[choix.toLowerCase()] ?? choix) : ICONES_ENCADRE[0] }
+          return { icone: choix ? (MOTS_ICONE[choix.toLowerCase()] ?? choix) : ICONE_ENCADRE_DEFAUT }
         },
       }),
     ]

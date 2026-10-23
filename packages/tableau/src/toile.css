@@ -181,7 +181,7 @@
 
 /* Une note transparente se devine au survol. */
 .notak-carte[data-type='note'][data-sans-fond]:not([data-choisie]):hover {
-  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.14);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.1);
 }
 
 .notak-calque-lignes {

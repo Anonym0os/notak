@@ -6,7 +6,7 @@ export type Id = string
 /** Largeur par défaut d'une note, en unités de grille. */
 export const LARGEUR_NOTE = 34
 /** Hauteur d'une note vide, en unités de grille. */
-export const HAUTEUR_NOTE_MIN = 8
+export const HAUTEUR_NOTE_MIN = 7
 /** Une position ne s'éloigne jamais plus de ça de l'origine. */
 export const POSITION_MAX = 15_000
 

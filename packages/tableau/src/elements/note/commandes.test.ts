@@ -2,7 +2,7 @@
 import { Editor } from '@tiptap/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { NoeudTexte } from '../../coeur/tableau'
-import { basculerCentre, basculerSurlignage, poserCouleurTexte, poserStyle } from './commandes'
+import { basculerCentre, basculerCode, basculerSurlignage, poserCouleurTexte, poserStyle } from './commandes'
 import { EXTENSIONS_NOTE } from './extensions'
 
 // Un éditeur laissé vivant garde un minuteur de ProseMirror, qui part après le démontage de jsdom.
@@ -58,6 +58,37 @@ describe('mise en forme', () => {
     expect(e.getJSON().content![0]!.type).toBe('paragraph')
     poserStyle(e, 'code')
     expect(e.isActive('codeBlock')).toBe(true)
+  })
+
+  it('un titre posé sur une citation ou du code en retire l\'enveloppe', () => {
+    const e = editeur()
+    poserStyle(e, 'citation')
+    poserStyle(e, 'titre1')
+    expect(e.getJSON().content![0]).toMatchObject({ type: 'heading', attrs: { level: 1 } })
+    poserStyle(e, 'code')
+    poserStyle(e, 'citation')
+    expect(e.getJSON().content![0]!.type).toBe('blockquote')
+    poserStyle(e, 'code')
+    expect(e.getJSON().content![0]!.type).toBe('codeBlock')
+  })
+
+  it('⌘. : un passage dans une ligne passe en code en ligne, une ligne entière en bloc', () => {
+    const e = editeur('abcdef')
+    e.commands.setTextSelection({ from: 2, to: 4 })
+    basculerCode(e)
+    expect(e.isActive('code')).toBe(true)
+    e.commands.setTextSelection({ from: 1, to: 7 })
+    e.commands.unsetCode()
+    basculerCode(e)
+    expect(e.isActive('codeBlock')).toBe(true)
+  })
+
+  it('le code en ligne accepte d\'autres marques', () => {
+    const e = editeur()
+    e.commands.selectAll()
+    e.commands.toggleCode()
+    e.commands.toggleBold()
+    expect(marques(e).sort()).toEqual(['bold', 'code'])
   })
 
   it('ne connaît que deux niveaux de titre', () => {

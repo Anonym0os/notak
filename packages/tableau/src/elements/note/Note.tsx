@@ -13,13 +13,15 @@ import { MARQUE_FIL, type Fils, avecFil, filsVivants, sansPassagesMuets } from '
 import { type Pont, Propositions, extensionPropositions } from './Propositions'
 import { adresseSeule, adressesEnLiens, caseSeule, docEstVide } from './conversion'
 import { docVide } from '../taches/liste'
-import { texteDuContenu } from './couleurs'
+import { fondDeNote, luminance, texteDuContenu } from './couleurs'
 import { EXTENSIONS_NOTE, EXTENSIONS_NOTE_PARTAGEE, type GestesEdition, raccourcisEdition } from './extensions'
 
 export function RenduNote(props: PropsRendu<Note>) {
   const { element, enEdition } = props
   const { contenu } = element
   const texte = texteDuContenu(contenu)
+  // Un texte clair (sur un fond foncé) se teinte de blanc : code, citation, filets et texte d'attente le suivent.
+  const clair = texte && /^#[0-9a-f]{6}$/i.test(texte) ? luminance(texte) > 0.5 : undefined
   const racine = useRef<HTMLDivElement>(null)
   // Un fond libre ne peut pas se dire en CSS : la carte, que `Cadre` pose, le reçoit d'ici.
   useLayoutEffect(() => {
@@ -50,6 +52,8 @@ export function RenduNote(props: PropsRendu<Note>) {
       data-couleur={contenu.fond ? undefined : contenu.couleur}
       data-variante={contenu.variante}
       data-barre={contenu.barre ? '' : undefined}
+      data-teinte={fondDeNote(contenu) ? '' : undefined}
+      data-ton={clair === undefined ? undefined : clair ? 'clair' : 'sombre'}
       data-deborde={deborde || undefined}
       style={texte ? { color: texte } : undefined}
       // Hors édition, un lien s'ouvre : l'appui ne doit pas lancer un glisser.
@@ -110,6 +114,8 @@ function Editeur(props: PropsRendu<Note>) {
     extensions,
     ...(fragment ? {} : { content: contenu.texte }),
     editorProps: { attributes: { class: 'notak-texte' } },
+    // Le texte copié sépare les blocs par un seul saut de ligne.
+    coreExtensionOptions: { clipboardTextSerializer: { blockSeparator: '\n' } },
     onUpdate: ({ editor }) => {
       const texte = editor.getJSON() as NoeudTexte
       ecrire(texte, filsVivants(fils.current, texte))
@@ -139,7 +145,7 @@ function Editeur(props: PropsRendu<Note>) {
       contexte.jeter([element.id])
       contexte.finirEdition()
     },
-    noteDessous: () => contexte.creerSuivant(element.id, false),
+    noteDessous: () => contexte.creerSuivant(element.id, true),
     commenter: () => {
       if (!editeur || contexte.services.lectureSeule) return
       // Dans un passage déjà commenté : on ouvre son fil. Sinon, le passage choisi reçoit un fil neuf.

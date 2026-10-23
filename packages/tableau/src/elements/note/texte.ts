@@ -12,7 +12,6 @@ export const espacesAAjouter = (n: number) => RETRAIT - (n % RETRAIT)
 export const espacesARetirer = (n: number) => (n === 0 ? 0 : n % RETRAIT || RETRAIT)
 
 const espacesEnTete = (t: string) => t.length - t.replace(/^[  ]+/, '').length
-const espacesEnFin = (t: string) => t.length - t.replace(/[  ]+$/, '').length
 
 /** Les débuts des blocs de texte que touche la sélection (paragraphes, titres, lignes de code), du dernier au premier. */
 function debutsDeBlocs(editor: Editor): { pos: number; texte: string }[] {
@@ -29,7 +28,7 @@ function debutsDeBlocs(editor: Editor): { pos: number; texte: string }[] {
 const dansUneListe = (editor: Editor) => editor.isActive('listItem') || editor.isActive('taskItem')
 
 /**
- * Tab : le curseur seul avance jusqu'au retrait suivant ; une sélection sur plusieurs lignes décale chacune.
+ * Tab : le curseur seul reçoit quatre espaces ; une sélection sur plusieurs lignes décale chacune.
  * Dans une liste, l'élément descend (Tiptap s'en charge avant nous) ; s'il ne peut pas, rien ne bouge,
  * mais Tab ne quitte jamais la note.
  */
@@ -41,8 +40,8 @@ export function augmenterRetrait(editor: Editor): boolean {
     if (!selection.empty && selection.$from.parentOffset === 0 && selection.$to.parentOffset === selection.$to.parent.content.size) {
       // Toute la ligne choisie : on la décale, comme plusieurs lignes.
     } else {
-      const avant = state.doc.textBetween(selection.$from.start(), selection.from, '', '')
-      return editor.chain().insertContent(' '.repeat(espacesAAjouter(espacesEnFin(avant)))).run()
+      // Curseur seul : toujours quatre espaces, là où il est.
+      return editor.chain().insertContent(' '.repeat(RETRAIT)).run()
     }
   }
   const tr = state.tr
