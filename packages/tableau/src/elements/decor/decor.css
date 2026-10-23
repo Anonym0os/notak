@@ -13,18 +13,6 @@
   margin: -10px 0 -5px;
 }
 
-/* Le fil ouvert d'une carte pleine posée sur la toile s'ouvre sous la carte sans l'agrandir. */
-.notak-carte[data-decor-dedans] > .notak-decor[data-mode='toile'] > .notak-fil-attache {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  width: 300px;
-}
-
-.notak-carte[data-decor-dedans] > .notak-decor .notak-decor-ligne {
-  margin-top: 14px;
-}
-
 /* Un élément sans fond (image, lien, colonne…) : la bande déborde sous la carte sans en changer la taille. */
 .notak-carte:not([data-decor-dedans]) > .notak-decor[data-mode='toile'] {
   position: absolute;
@@ -271,21 +259,97 @@
   white-space: nowrap;
 }
 
-/* Le fil accroché, sous la carte. */
+/* L'épingle d'un fil attaché : sa pointe tombe à 20 px du bord droit et du haut de la carte. */
+.notak-epingle {
+  position: absolute;
+  top: 20px;
+  left: calc(100% - 20px);
+  z-index: 4;
+}
+
+.notak-epingle-bouton {
+  position: absolute;
+  top: -29px;
+  left: -12px;
+  width: 24px;
+  height: 29px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.notak-epingle-bouton[aria-expanded='true'] .notak-epingle-forme path {
+  stroke: #323b4a;
+  stroke-width: 2;
+}
+
+.notak-epingle-bouton[data-resolu] {
+  opacity: 0.6;
+}
+
+.notak-epingle-forme {
+  display: block;
+  filter: drop-shadow(0 1px 1px #1b253633);
+}
+
+.notak-epingle-compte {
+  position: absolute;
+  top: 5px;
+  right: 0;
+  left: 0;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+}
+
+/* Le fil accroché : une bulle à droite de l'épingle, 15 px plus loin, avec sa flèche de 13 × 8 px. */
 .notak-fil-attache {
-  position: relative;
+  position: absolute;
+  top: -29px;
+  left: 27px;
   z-index: 3;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 240px;
-  max-width: 340px;
-  max-height: 320px;
-  padding: 10px;
+  box-sizing: border-box;
+  width: 340px;
+  max-height: min(600px, 80vh);
+  padding: 10px 0;
   overflow-y: auto;
   border-radius: 8px;
-  background: var(--notak-carte);
+  background: #f4f7fe;
+  color: #323b4a;
+  font-size: 12px;
+  line-height: 20px;
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
+}
+
+.notak-fil-attache > :not(.notak-commentaire-message, .notak-commentaire-saisie) {
+  margin-inline: 14px;
+}
+
+.notak-fil-attache[data-bande]::before {
+  content: '';
+  display: block;
+  flex: none;
+  height: 5px;
+  margin: -10px 0 0;
+  background: var(--bande);
+}
+
+.notak-fil-attache::after {
+  content: '';
+  position: absolute;
+  top: 36px;
+  left: -8px;
+  border: 4px solid transparent;
+  border-right-color: #f4f7fe;
+  border-left-width: 0;
+  border-top-width: 6.5px;
+  border-bottom-width: 6.5px;
+  border-right-width: 8px;
 }
 
 .notak-fil-attache-entete {

@@ -4,7 +4,7 @@ import { FilAttache } from '../commentaire/Attache'
 import { AUTEUR_INCONNU, initiales } from '../commentaire/fil'
 import { definition } from '../registre'
 import type { ContexteToile } from '../types'
-import { FOND_NOTE } from '../note/couleurs'
+import { FOND_NOTE, contraste } from '../note/couleurs'
 import { NOM_ETIQUETTE_MAX, basculerReaction, compterReactions, contourEtiquette, etatEcheance, etiquettesDe, libelleEcheance, quiReagit, renommerEtiquette, texteEtiquette } from './annotations'
 import { choisirPuce, ouvrirFil, retenirContexte, useFilOuvert, usePuce } from './etat'
 import { t, tn } from '../../langue'
@@ -26,7 +26,50 @@ export function Decor({ element, contexte, mode }: { element: Element; contexte:
   useEffect(() => retenirContexte(contexte), [contexte])
   const ouvert = useFilOuvert() === element.id
   if (!aDecor(element) && !ouvert) return null
-  return <Bande element={element} contexte={contexte} mode={mode} ouvert={ouvert} />
+  return (
+    <>
+      <Bande element={element} contexte={contexte} mode={mode} />
+      <Epingle element={element} contexte={contexte} ouvert={ouvert} />
+    </>
+  )
+}
+
+/** La couleur d'une épingle sans couleur de fil : le bleu des liens de Milanote. */
+const BLEU_EPINGLE = '#2f63f7'
+
+/** Blanc ou presque noir pour le compte, selon la luminosité de l'épingle. */
+const texteEpingle = (hex: string) => (contraste(hex, '#ffffff') >= contraste(hex, '#323b4a') ? '#ffffff' : '#323b4a')
+
+/**
+ * Le fil de commentaires attaché à un élément : une épingle au coin haut droit de la carte (sa pointe à 20 px du bord
+ * droit et du haut), le nombre de messages dedans (99 au plus). Un clic ouvre le fil dans une bulle à sa droite.
+ */
+function Epingle({ element, contexte, ouvert }: { element: Element; contexte: ContexteToile; ouvert: boolean }) {
+  const fil = element.commentaire
+  const n = fil?.messages.length ?? 0
+  if (n === 0 && !ouvert) return null
+  const hex = (fil?.couleur && FOND_NOTE[fil.couleur as keyof typeof FOND_NOTE]) || BLEU_EPINGLE
+  return (
+    <div className="notak-epingle" onPointerDown={garder} onDoubleClick={garder}>
+      <button
+        type="button"
+        className="notak-epingle-bouton"
+        data-resolu={fil?.resolu || undefined}
+        aria-expanded={ouvert}
+        aria-label={`${ouvert ? t('decor.fermerCommentaires') : t('decor.ouvrirCommentaires')} (${n})`}
+        title={ouvert ? t('decor.fermerCommentaires') : t('decor.ouvrirCommentaires')}
+        onClick={() => ouvrirFil(ouvert ? null : element.id)}
+      >
+        <svg className="notak-epingle-forme" viewBox="0 0 24 29" width="24" height="29" aria-hidden>
+          <path d="M12 28.5 3.2 18.2A11.2 11.2 0 0 1 1 11.5C1 5.4 5.9.5 12 .5s11 4.9 11 11c0 2.5-.8 4.8-2.2 6.7z" fill={hex} stroke="#fff" strokeWidth="1" />
+        </svg>
+        <span className="notak-epingle-compte" style={{ color: texteEpingle(hex) }}>
+          {n > 99 ? 99 : n}
+        </span>
+      </button>
+      {ouvert && <FilAttache element={element} contexte={contexte} fermer={() => ouvrirFil(null)} couleur={hex} />}
+    </div>
+  )
 }
 
 /** Le fond de la carte qui porte la bande, pour savoir si une étiquette s'y confond. */
@@ -183,21 +226,20 @@ function PastilleEtiquette({ et, element, contexte, fond, ecrire, choisie }: { e
   )
 }
 
-function Bande({ element, contexte, mode, ouvert }: { element: Element; contexte: ContexteToile; mode: 'toile' | 'liste'; ouvert: boolean }) {
+function Bande({ element, contexte, mode }: { element: Element; contexte: ContexteToile; mode: 'toile' | 'liste' }) {
   const { magasin } = contexte
   const tableau = useSyncExternalStore(magasin.ecouter, magasin.lire)
   const moi = moiDe(contexte).id
   const ecrire = !contexte.services.lectureSeule
   const etiquettes = etiquettesDe(element, tableau.etiquettes)
   const reactions = compterReactions(element.reactions, moi)
-  const messages = element.commentaire?.messages.length ?? 0
   const fond = fondDeCarte(element)
   const puce = usePuce()
   const reagir = (emoji: string) => {
     const op = annoter(element, { reactions: basculerReaction(element.reactions, emoji, moi) })
     if (op) magasin.faire([op])
   }
-  const sansLigne = etiquettes.length === 0 && !element.echeance && !element.assigne && messages === 0 && reactions.length === 0
+  const sansLigne = etiquettes.length === 0 && !element.echeance && !element.assigne && reactions.length === 0
   return (
     <div className="notak-decor" data-mode={mode} data-sans-ligne={sansLigne || undefined} onPointerDown={garder} onDoubleClick={garder}>
       {!sansLigne && (
@@ -220,24 +262,11 @@ function Bande({ element, contexte, mode, ouvert }: { element: Element; contexte
               {initiales(element.assigne.nom)}
             </span>
           )}
-          {messages > 0 && (
-            <button
-              type="button"
-              className="notak-decor-fil"
-              data-resolu={element.commentaire?.resolu || undefined}
-              aria-expanded={ouvert}
-              title={ouvert ? t('decor.fermerCommentaires') : t('decor.ouvrirCommentaires')}
-              onClick={() => ouvrirFil(ouvert ? null : element.id)}
-            >
-              <Icone nom="commentaire" taille={13} /> {messages}
-            </button>
-          )}
           {reactions.map((r) => (
             <PastilleReaction key={r.emoji} r={r} ids={element.reactions?.[r.emoji] ?? []} contexte={contexte} moi={moi} ecrire={ecrire} reagir={reagir} />
           ))}
         </div>
       )}
-      {ouvert && <FilAttache element={element} contexte={contexte} fermer={() => ouvrirFil(null)} />}
     </div>
   )
 }

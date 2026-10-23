@@ -18,7 +18,7 @@ const poser = (e: Element, fil: Commentaire) => annoter(e, { commentaire: fil.me
  * Le fil de discussion accroché à un élément : les mêmes messages, auteurs et dates que l'élément Commentaire
  * (voir `fil.ts`), mais rangés dans l'élément lui-même plutôt que posés sur la toile.
  */
-export function FilAttache({ element, contexte, fermer }: { element: Element; contexte: ContexteToile; fermer(): void }) {
+export function FilAttache({ element, contexte, fermer, couleur }: { element: Element; contexte: ContexteToile; fermer(): void; /** La couleur de l'épingle, pour la bande du haut. */ couleur?: string }) {
   const [texte, setTexte] = useState('')
   const champ = useRef<HTMLTextAreaElement>(null)
   const fil = element.commentaire ?? VIDE
@@ -38,7 +38,7 @@ export function FilAttache({ element, contexte, fermer }: { element: Element; co
     setTexte('')
   }
   return (
-    <div className="notak-fil-attache" role="dialog" aria-label={t('commentaire.titre')} onPointerDown={garder} onDoubleClick={garder} onKeyDown={(e) => {
+    <div className="notak-fil-attache" data-bande={fil.couleur ? '' : undefined} style={couleur && fil.couleur ? ({ '--bande': couleur } as React.CSSProperties) : undefined} role="dialog" aria-label={t('commentaire.titre')} onPointerDown={garder} onDoubleClick={garder} onKeyDown={(e) => {
       e.stopPropagation()
       if (e.key === 'Escape') fermer()
     }}>
