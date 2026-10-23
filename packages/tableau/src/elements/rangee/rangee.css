@@ -1,0 +1,24 @@
+/* La poignée de hauteur d'un élément rangé dans une colonne : une barre au bas de sa carte, qui paraît au survol et à la sélection. */
+.notak-poignee-hauteur {
+  position: absolute;
+  bottom: 1px;
+  left: 50%;
+  z-index: 2;
+  box-sizing: border-box;
+  width: 36px;
+  height: 8px;
+  transform: translateX(-50%);
+  border: 2px solid var(--notak-accent);
+  border-radius: 4px;
+  background: var(--notak-carte);
+  cursor: ns-resize;
+  opacity: 0;
+  touch-action: none;
+  transition: opacity 0.12s;
+}
+
+.notak-carte:hover > .notak-poignee-hauteur,
+.notak-carte[data-choisie] > .notak-poignee-hauteur,
+.notak-poignee-hauteur:active {
+  opacity: 1;
+}

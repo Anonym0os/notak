@@ -17,7 +17,8 @@ function cran(elements: Element[], contexte: ContexteToile, sens: 1 | -1) {
 
 /**
  * « Hauteur » : règle la hauteur des éléments rangés d'une colonne, d'un cran à la fois. La poignée du coin
- * n'existe que pour les éléments libres ; dans une colonne, la barre de sélection tient ce rôle.
+ * n'existe que pour les éléments libres ; dans une colonne, la poignée du bas de la carte (`PoigneeHauteur`) règle
+ * à la main, et ces boutons au cran.
  */
 export const OutilHauteur: OutilCommun = ({ elements, contexte }) => {
   if (contexte.services.lectureSeule || elements.length === 0 || !elements.every(reglable)) return null
