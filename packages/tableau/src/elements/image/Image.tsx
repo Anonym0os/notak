@@ -1,9 +1,10 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Image } from '../../coeur/tableau'
 import { useFichier } from '../envois'
 import type { PropsOutils, PropsRendu } from '../types'
 import { PX_PAR_UG } from '../../coeur/camera'
 import { aUneOmbre, avecLegende, hauteurCalee, miseEnPage, pivoter, proportionsAffichees } from './geometrie'
+import { Recadreur, recadrer, useRecadrageOuvert } from './Recadreur'
 import { Visionneuse, useImageOuverte } from './visionneuse'
 
 export function RenduImage({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<Image>) {
@@ -16,6 +17,12 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
     ? { height: hauteurCalee(element.largeur, proportions) * PX_PAR_UG }
     : { aspectRatio: String(proportions) }
   const enGrand = useImageOuverte() === element.id
+  const enRecadrage = useRecadrageOuvert() === element.id
+  // On ne règle que l'image qu'on a sous la main : choisir autre chose referme le réglage.
+  useEffect(() => {
+    if (enRecadrage && !choisie) recadrer(null)
+  }, [enRecadrage, choisie])
+  if (enRecadrage && adresse) return <Recadreur id={element.id} contenu={contenu} adresse={adresse} contexte={contexte} />
   return (
     <>
       {enRoute && (
@@ -105,6 +112,11 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
       {!contexte.services.lectureSeule && (
         <button type="button" title="Tourner d’un quart de tour vers la droite" onClick={pivoterTout}>
           Pivoter
+        </button>
+      )}
+      {elements.length === 1 && !contexte.services.lectureSeule && (
+        <button type="button" title="Garder une partie de l’image" aria-pressed={!!el.contenu.recadrage} onClick={() => recadrer(el.id)}>
+          Recadrer
         </button>
       )}
       {elements.length === 1 && (
