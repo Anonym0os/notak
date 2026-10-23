@@ -1,6 +1,6 @@
 import { couleurDuContenu } from '../couleur'
 import { registre } from '../registre'
-import { RenduTaches, OutilsTaches } from './Taches'
+import { RenduTaches, OutilsTaches, afficherTitre } from './Taches'
 import { HAUTEUR_TACHES_MIN, ajouterALaFin, docTaches, nouvelleListeTaches } from './liste'
 import { htmlEnTaches } from './html'
 import { type Operation, type Taches, texteBrut } from '../../coeur/tableau'
@@ -64,4 +64,14 @@ registre.recepteur({
     const liste = nouvelleListeTaches(Math.round(ou.x), Math.round(ou.y))
     return [{ type: 'creer', element: { ...liste, contenu: { type: 'taches', texte: { type: 'doc', content: [{ type: 'taskList', content: taches }] } } } }]
   },
+})
+
+// Alt+Retour sur une liste choisie : son titre, curseur dedans (comme l'outil Titre).
+registre.raccourci((e, contexte) => {
+  if (e.key !== 'Enter' || !e.altKey || e.metaKey || e.ctrlKey || e.shiftKey || contexte.services.lectureSeule) return false
+  const choisis = contexte.magasin.lire().elements.filter((x) => contexte.selection.has(x.id))
+  const liste = choisis.length === 1 ? choisis[0]! : null
+  if (liste?.contenu.type !== 'taches' || liste.verrou) return false
+  afficherTitre(liste as never, contexte)
+  return true
 })

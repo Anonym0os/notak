@@ -3,7 +3,7 @@ import type { Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { Fragment, type Node as NoeudPM, Slice } from '@tiptap/pm/model'
-import { type EditorState, Plugin, TextSelection } from '@tiptap/pm/state'
+import { type EditorState, Plugin, Selection, TextSelection } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
 import type { MutableRefObject } from 'react'
 import type { NoeudTexte } from '../../coeur/tableau'
@@ -224,7 +224,10 @@ export function remplacerListe(editor: Editor, liste: NoeudTexte) {
   editor.view.dispatch(tr)
 }
 
-/** Retire la tâche en `pos` ; seule dans sa liste, elle emporte la liste, ou laisse une tâche vide tout en haut. */
+/**
+ * Retire la tâche en `pos`. Seule dans sa liste, c'est selon le titre : une liste sans titre (ou au titre vide, et sans
+ * titre caché) part à la corbeille ; une liste titrée garde une tâche vide, et le curseur monte au bout du titre.
+ */
 export function retirerDansEditeur(editor: Editor, pos: number) {
   const { state } = editor
   const tache = state.doc.nodeAt(pos)
@@ -234,7 +237,15 @@ export function retirerDansEditeur(editor: Editor, pos: number) {
   const tr = state.tr
   if (liste.childCount > 1) tr.delete(pos, pos + tache.nodeSize)
   else if ($pos.depth > 1) tr.delete(pos - 1, pos + tache.nodeSize + 1)
-  else tr.replaceWith(pos, pos + tache.nodeSize, state.schema.nodes.taskItem!.create({ checked: false }, state.schema.nodes.paragraph!.create()))
+  else {
+    const gestes = gestesDe.get(editor)?.current
+    const titre = titreDe(state.doc)?.noeud.textContent.trim() || gestes?.titreCache?.()?.trim()
+    if (!titre && gestes) return gestes.jeter()
+    tr.replaceWith(pos, pos + tache.nodeSize, state.schema.nodes.taskItem!.create({ checked: false }, state.schema.nodes.paragraph!.create()))
+    editor.view.dispatch(tr)
+    if (titreDe(editor.state.doc)) curseurAuTitre(editor)
+    return
+  }
   editor.view.dispatch(tr)
 }
 
@@ -242,7 +253,12 @@ export function retirerDansEditeur(editor: Editor, pos: number) {
 export interface GestesTaches {
   /** La liste vide part à la corbeille. */
   jeter(): void
+  /** Le texte du titre qu'on avait retiré, s'il y en a un : il revient avec le titre. */
+  titreCache?(): string | undefined
 }
+
+/** Les gestes de la liste autour d'un éditeur : la vue du nœud (DOM nu) n'a que l'éditeur sous la main. */
+export const gestesDe = new WeakMap<Editor, MutableRefObject<GestesTaches>>()
 
 /**
  * Retour arrière au début de la première tâche : avec un titre, le curseur y remonte, et la tâche vide qui a des
@@ -278,7 +294,17 @@ export const clavierListe = (gestes: MutableRefObject<GestesTaches>) => {
     name: 'clavierListe',
     priority: 300,
     addKeyboardShortcuts() {
-      return { Backspace: retour, 'Mod-Backspace': retourModifie, 'Alt-Backspace': retourModifie }
+      return {
+        Backspace: retour,
+        'Mod-Backspace': retourModifie,
+        'Alt-Backspace': retourModifie,
+        // Alt+Retour : le titre (ajouté s'il n'y en a pas), curseur dedans.
+        'Alt-Enter': ({ editor }) => {
+          if (titreDe(editor.state.doc)) curseurAuTitre(editor)
+          else ajouterTitre(editor, gestes.current.titreCache?.())
+          return true
+        },
+      }
     },
   })
 }
@@ -318,7 +344,11 @@ export function fusionnerAvecPrecedente(editor: Editor): boolean {
   if (!empty || $from.parentOffset !== 0 || profItem < 1 || $from.node(profItem).type.name !== 'taskItem') return false
   const indice = $from.index(profItem - 1)
   const niveau = tachesAutour(state)[0]!.niveau
-  if (indice === 0) return niveau === 1
+  if (indice === 0) {
+    // La première sous-tâche remonte d'un niveau, avec ses sous-tâches.
+    if (niveau > 1) retrait(editor, -1)
+    return true
+  }
 
   const item = $from.node(profItem)
   const posItem = $from.before(profItem)
@@ -435,7 +465,18 @@ const tacheVierge = (editor: Editor) => editor.state.schema.nodes.taskItem!.crea
  */
 export function entree(editor: Editor): boolean {
   const { state } = editor
-  const { $from, empty } = state.selection
+  const { $from, $to, empty } = state.selection
+  // Une sélection qui couvre plusieurs lignes : elle s'efface, puis Entrée joue au curseur ; si elle ne tient que la
+  // frontière entre deux lignes, le curseur passe seulement au début de la seconde.
+  if (!empty && $from.parent.isTextblock && $to.parent.isTextblock && !$from.sameParent($to)) {
+    if (state.doc.textBetween($from.pos, $to.pos) === '') {
+      editor.view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, $to.pos)))
+      return true
+    }
+    editor.view.dispatch(state.tr.deleteSelection())
+    if (!entree(editor)) editor.commands.splitListItem('taskItem')
+    return true
+  }
   const [v] = tachesAutour(state)
   if (!empty || !v || !v.tache || $from.parent.type.name !== 'paragraph' || $from.node(-1).type.name !== 'taskItem') return false
   const profItem = $from.depth - 1
@@ -510,10 +551,126 @@ export function peutRetrait(editor: Editor, sens: 1 | -1): boolean {
   return autour.every((v) => v.tache && peutDescendre(v.niveau, hauteur(v.tache.toJSON() as NoeudTexte))) && editor.can().sinkListItem('taskItem')
 }
 
-/** Descend (`1`, Tab) ou remonte (`-1`, Maj+Tab) les tâches de la sélection d'un niveau, quand c'est permis. */
+/**
+ * Descend (`1`, Tab) ou remonte (`-1`, Maj+Tab) les tâches de la sélection d'un niveau, quand c'est permis. Une tâche
+ * qui remonte emmène derrière elle les tâches qui la suivent ; si elle a déjà des sous-tâches, elles s'y rangent d'abord
+ * (une tâche n'a qu'une sous-liste).
+ */
 export function retrait(editor: Editor, sens: 1 | -1): boolean {
   if (!peutRetrait(editor, sens)) return false
-  return sens === 1 ? editor.commands.sinkListItem('taskItem') : editor.commands.liftListItem('taskItem')
+  try {
+    if (sens === 1) return editor.commands.sinkListItem('taskItem')
+    adopterLesSuivantes(editor)
+    return editor.commands.liftListItem('taskItem')
+  } catch {
+    // Une sélection étrangère à la liste : rien ne bouge.
+    return false
+  }
+}
+
+/** La tâche sous le curseur a des sous-tâches et des soeurs derrière elle : les soeurs deviennent ses dernières sous-tâches. */
+function adopterLesSuivantes(editor: Editor) {
+  const { state } = editor
+  const tache = tacheCourante(editor)
+  if (!tache || tache.noeud.childCount < 2) return
+  const $pos = state.doc.resolve(tache.pos)
+  if ($pos.index() >= $pos.parent.childCount - 1) return
+  const debut = tache.pos + tache.noeud.nodeSize
+  const suivantes = state.doc.slice(debut, $pos.end()).content
+  const tr = state.tr.delete(debut, $pos.end())
+  // La fin de la sous-liste : juste avant la fermeture de la tâche et de sa sous-liste.
+  tr.insert(tache.pos + tache.noeud.nodeSize - 2, suivantes)
+  editor.view.dispatch(tr)
+}
+
+/**
+ * Suppr au bout du texte d'une tâche : la ligne suivante (sa première sous-tâche, sinon la tâche qui vient après) vient
+ * se fondre dans celle-ci. Sur une tâche vide, c'est elle qui disparaît, et le curseur va au début de la suivante, qui
+ * garde ses puces. À la dernière ligne, rien. Rend faux hors du bout d'un texte de tâche (Suppr efface alors un caractère).
+ */
+export function supprimer(editor: Editor): boolean {
+  const { state } = editor
+  const { $from, empty } = state.selection
+  if (!empty || $from.parent.type.name !== 'paragraph' || $from.node(-1).type.name !== 'taskItem') return false
+  if ($from.parentOffset !== $from.parent.content.size) return false
+  const prof = $from.depth - 1
+  const tache = $from.node(prof)
+  const pos = $from.before(prof)
+
+  // La ligne suivante, et si c'est la première sous-tâche de celle-ci.
+  let suivante: { pos: number; noeud: NoeudPM } | null = null
+  const sousPremiere = tache.childCount > 1
+  if (sousPremiere) suivante = { pos: pos + 2 + tache.child(0).nodeSize, noeud: tache.child(1).child(0) }
+  else {
+    for (let d = prof; d >= 1 && !suivante; d--) {
+      if ($from.node(d).type.name !== 'taskItem') continue
+      const liste = $from.node(d - 1)
+      const i = $from.index(d - 1)
+      if (i < liste.childCount - 1) suivante = { pos: $from.after(d), noeud: liste.child(i + 1) }
+    }
+  }
+  if (!suivante) return true
+
+  const tr = state.tr
+  if (tache.childCount === 1 && tache.child(0).content.size === 0) {
+    // Une tâche vide s'en va ; seule dans sa sous-liste, elle emporte la sous-liste.
+    const $tache = state.doc.resolve(pos)
+    if ($tache.parent.childCount === 1 && $tache.depth > 1) tr.delete(pos - 1, pos + tache.nodeSize + 1)
+    else tr.delete(pos, pos + tache.nodeSize)
+    tr.setSelection(TextSelection.near(tr.doc.resolve(tr.mapping.map(suivante.pos) + 2)))
+    editor.view.dispatch(tr.scrollIntoView())
+    return true
+  }
+  const n = suivante.noeud
+  const fin = suivante.pos + n.nodeSize
+  if (sousPremiere) {
+    // Ses propres sous-tâches prennent sa place dans la sous-liste ; sans elles, la sous-liste vide s'en va.
+    const $n = state.doc.resolve(suivante.pos)
+    if (n.childCount > 1) tr.replaceWith(suivante.pos, fin, n.child(1).content)
+    else if ($n.parent.childCount === 1) tr.delete(suivante.pos - 1, fin + 1)
+    else tr.delete(suivante.pos, fin)
+  } else {
+    // Ses sous-tâches deviennent celles de cette tâche (qui n'en avait pas), si elles tiennent en six niveaux.
+    const niveau = tachesAutour(state)[0]!.niveau
+    if (n.childCount > 1 && !peutPoserAuNiveau(niveau + 1, hauteur(n.toJSON() as NoeudTexte) - 1)) return true
+    tr.delete(suivante.pos, fin)
+    if (n.childCount > 1) tr.insert(pos + tache.nodeSize - 1, n.child(1))
+  }
+  tr.insert($from.pos, n.child(0).content)
+  tr.setSelection(TextSelection.create(tr.doc, $from.pos))
+  editor.view.dispatch(tr.scrollIntoView())
+  return true
+}
+
+/**
+ * Flèche droite au bout d'une ligne : le curseur passe au début de la ligne suivante (à la dernière, il reste).
+ * Avec Maj, la sélection s'étend jusque-là.
+ */
+export function versLeBlocSuivant(editor: Editor, etendre: boolean): boolean {
+  const { state } = editor
+  const { $from, $head, empty, anchor } = state.selection
+  const tete = etendre ? $head : $from
+  if ((!etendre && !empty) || !tete.parent.isTextblock || tete.parentOffset !== tete.parent.content.size) return false
+  const suivant = Selection.findFrom(state.doc.resolve(tete.after()), 1, true)
+  if (!suivant) return true
+  editor.view.dispatch(state.tr.setSelection(etendre ? TextSelection.create(state.doc, anchor, suivant.from) : suivant).scrollIntoView())
+  return true
+}
+
+/** Flèche bas sur la dernière ligne de la dernière tâche : le curseur va au bout du texte (Maj étend jusque-là). */
+export function finDeListe(editor: Editor, etendre: boolean): boolean {
+  const { state, view } = editor
+  const { $head, anchor } = state.selection
+  if (!$head.parent.isTextblock || Selection.findFrom(state.doc.resolve($head.after()), 1, true)) return false
+  let derniere = false
+  try {
+    derniere = view.endOfTextblock('down')
+  } catch {
+    return false
+  }
+  if (!derniere || $head.pos === $head.end()) return false
+  view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, etendre ? anchor : $head.end(), $head.end())).scrollIntoView())
+  return true
 }
 
 /** Tab et Maj+Tab restent dans la note, même quand il n'y a rien à faire. */
@@ -536,6 +693,16 @@ const ClavierTaches = Extension.create({
         retrait(editor, -1)
         return true
       },
+      // Tiptap sortirait les tâches de la liste unique : la touche ne fait rien ici.
+      'Mod-Shift-9': () => true,
+      Delete: ({ editor }) => supprimer(editor),
+      // Avec Cmd ou Alt, la même réduction ; ailleurs qu'au bout d'un texte, la touche efface un mot comme partout.
+      'Mod-Delete': ({ editor }) => supprimer(editor),
+      'Alt-Delete': ({ editor }) => supprimer(editor),
+      ArrowRight: ({ editor }) => versLeBlocSuivant(editor, false),
+      'Shift-ArrowRight': ({ editor }) => versLeBlocSuivant(editor, true),
+      ArrowDown: ({ editor }) => finDeListe(editor, false),
+      'Shift-ArrowDown': ({ editor }) => finDeListe(editor, true),
       Backspace: ({ editor }) => fusionnerAvecPrecedente(editor),
       'Mod-Backspace': ({ editor }) => reduireVide(editor),
       'Alt-Backspace': ({ editor }) => reduireVide(editor),

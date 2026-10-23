@@ -150,6 +150,14 @@ export function retirer(doc: NoeudTexte, chemin: Chemin): NoeudTexte {
   return sousTaches(apres).length > 0 ? apres : docVide()
 }
 
+/**
+ * Retirer cette tâche emporte-t-il la liste ? Oui si c'est la dernière tâche de premier niveau et que la liste n'a
+ * rien d'autre à dire : ni titre, ni titre caché. Avec un titre, une tâche vide la remplace.
+ */
+export function emporteLaListe(c: Taches, chemin: Chemin): boolean {
+  return chemin.length === 1 && sousTaches(docTaches(c.texte)).length === 1 && !c.titre?.trim() && !c.titreCache?.trim()
+}
+
 const PUCE = /^(?:[-*•+]|\d+[.)])\s+/
 const CASE = /^\[([ xX]?)\]\s*/
 

@@ -29,7 +29,8 @@ const tache = (texte: string, plus: Record<string, unknown> = {}): NoeudTexte =>
   content: [texte ? { type: 'paragraph', content: [{ type: 'text', text: texte }] } : { type: 'paragraph' }],
 })
 const contenu = (taches: NoeudTexte[], plus: Partial<Taches> = {}): Taches => ({ type: 'taches', texte: { type: 'doc', content: [{ type: 'taskList', content: taches }] }, ...plus })
-const contexte = (services: Record<string, unknown> = {}) => ({ services, magasin: {} }) as unknown as ContexteToile
+const jeter = vi.fn()
+const contexte = (services: Record<string, unknown> = {}) => ({ services, magasin: {}, jeter }) as unknown as ContexteToile
 
 function rendre(c: Taches, { seule = true, largeur = 34, services = {} }: { seule?: boolean; largeur?: number; services?: Record<string, unknown> } = {}) {
   const changer = vi.fn()
@@ -105,5 +106,37 @@ describe('remplacerListe', () => {
     expect(editor.state.doc.lastChild?.childCount).toBe(1)
     expect(editor.state.doc.lastChild?.textContent).toBe('seule')
     editor.destroy()
+  })
+})
+
+describe('retirer la dernière tâche', () => {
+  const corbeille = () => hote.querySelector<HTMLButtonElement>('.notak-tache-suppr')!
+
+  it('sans titre, la liste part à la corbeille', () => {
+    jeter.mockClear()
+    const { changer } = rendre(contenu([tache('a', { checked: true })]))
+    act(() => corbeille().click())
+    expect(jeter).toHaveBeenCalledWith(['l1'])
+    expect(changer).not.toHaveBeenCalled()
+  })
+
+  it('avec un titre, une tâche vide reste ; avec un titre caché de même', () => {
+    jeter.mockClear()
+    const { changer } = rendre(contenu([tache('a', { checked: true })], { titre: 'Courses' }))
+    act(() => corbeille().click())
+    expect(jeter).not.toHaveBeenCalled()
+    expect((changer.mock.calls[0]![0] as Taches).texte.content![0]!.content).toHaveLength(1)
+    const autre = rendre(contenu([tache('a', { checked: true })], { titreCache: 'Courses' }))
+    act(() => corbeille().click())
+    expect(jeter).not.toHaveBeenCalled()
+    expect(autre.changer).toHaveBeenCalled()
+  })
+
+  it('avec d’autres tâches, seule la tâche part', () => {
+    jeter.mockClear()
+    const { changer } = rendre(contenu([tache('a', { checked: true }), tache('b')]))
+    act(() => corbeille().click())
+    expect(jeter).not.toHaveBeenCalled()
+    expect((changer.mock.calls[0]![0] as Taches).texte.content![0]!.content).toHaveLength(1)
   })
 })

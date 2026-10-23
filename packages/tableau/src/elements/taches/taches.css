@@ -639,6 +639,7 @@
   opacity: 0;
 }
 
+.notak-taches[data-texte-choisi] .notak-tache-suppr,
 .notak-carte[data-verrou] .notak-tache-poignee,
 .notak-carte[data-verrou] .notak-tache-suppr,
 *:has(> .notak-carte[data-choisie] ~ .notak-carte[data-choisie]) > .notak-carte[data-choisie] .notak-tache-poignee,

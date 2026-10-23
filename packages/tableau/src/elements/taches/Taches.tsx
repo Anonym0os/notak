@@ -7,13 +7,13 @@ import { extensionsDuPartage, textePartage } from '../partage'
 import { MenuCouleur } from '../note/MenuCouleur'
 import type { Operation } from '../../coeur/tableau'
 import type { ContexteToile, PropsOutils, PropsRendu, ServicePresence } from '../types'
-import { EXTENSIONS_TACHES, EXTENSIONS_TACHES_PARTAGEE, type GestesTaches, clavierListe, ouvreursPuces, puceActive, remplacerListe } from './extensions'
+import { EXTENSIONS_TACHES, EXTENSIONS_TACHES_PARTAGEE, type GestesTaches, clavierListe, gestesDe, ouvreursPuces, puceActive, remplacerListe } from './extensions'
 import { MenuPuce, type OuverturePuce } from './MenuPuce'
 import { type Personne, type Puce, attrsAllumes, attrsEteints, attrsVides, jourDe, personnes, puces } from './puces'
 import { animerCase } from './animation'
 import { ajouterTitre, avecTitre, contenuDepuis, curseurAuTitre, docEditeur, sansTitre } from './titre'
 import { type Sortie, glisserTache } from './glisse'
-import { type Chemin, type Place, basculer, compter, deplacer, detacher, docTaches, effacerFaites, estFaite, regler, retirer, sousTaches, transferer } from './liste'
+import { type Chemin, type Place, basculer, emporteLaListe, compter, deplacer, detacher, docTaches, effacerFaites, estFaite, regler, retirer, sousTaches, transferer } from './liste'
 import { t } from '../../langue'
 import { BoutonOutil } from '../../BoutonOutil'
 import { ContexteBarreEdition } from '../../barreEdition'
@@ -29,6 +29,14 @@ const titreAFocaliser = new Set<Id>()
 const puceAOuvrir = new Map<Id, Puce['genre']>()
 
 const sansCouleur = ({ couleur: _, ...reste }: Taches): Taches => reste
+
+/** Alt+Retour sur une liste choisie : le titre s'affiche (vide s'il n'y en avait pas) et le curseur s'y met. */
+export function afficherTitre(liste: Element<Taches>, contexte: ContexteToile) {
+  const apres = avecTitre(liste.contenu)
+  if (apres !== liste.contenu) contexte.magasin.faire([{ type: 'contenu', id: liste.id, avant: liste.contenu, apres }])
+  titreAFocaliser.add(liste.id)
+  contexte.commencerEdition(liste.id)
+}
 
 export function RenduTaches({ element, enEdition, seule, contexte, brouillon, changer }: PropsRendu<Taches>) {
   const { contenu } = element
@@ -54,7 +62,11 @@ const Figee = memo(function Figee({ id, contenu, largeur, seule, changer, contex
   const doc = docTaches(contenu.texte)
   const cocher = (chemin: Chemin, enCascade: boolean) =>
     changer({ ...contenu, texte: basculer(doc, chemin, enCascade) })
-  const supprimer = (chemin: Chemin) => changer({ ...contenu, texte: retirer(doc, chemin) })
+  // La dernière tâche d'une liste sans titre emporte la liste ; avec un titre, une tâche vide reste.
+  const supprimer = (chemin: Chemin) => {
+    if (emporteLaListe(contenu, chemin)) contexte.jeter([id])
+    else changer({ ...contenu, texte: retirer(doc, chemin) })
+  }
   const bouger = (de: number, vers: number, place: Place, copie: boolean) => changer({ ...contenu, texte: deplacer(doc, de, vers, place, copie) })
   // Hors de sa liste : dans une autre liste du tableau, ou sur la toile (une nouvelle liste d'une tâche).
   const sortir = (de: number, ou: Sortie, copie: boolean) => {
@@ -330,7 +342,12 @@ function Edition(props: { id: Id; contenu: Taches; largeur: number; contexte: Co
     if (pos) editeur.chain().setTextSelection(pos.pos).focus().run()
     else editeur.commands.focus('end')
   }, [editeur, contexte])
-  gestes.current = { jeter }
+  gestes.current = { jeter, titreCache: () => courant.current.titreCache }
+  useEffect(() => {
+    if (!editeur) return
+    gestesDe.set(editeur, gestes)
+    return () => void gestesDe.delete(editeur)
+  }, [editeur])
 
   // Les suggestions : une pause de frappe d'une seconde, et la liste dit ce qu'elle propose.
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null)
@@ -368,6 +385,8 @@ function Edition(props: { id: Id; contenu: Taches; largeur: number; contexte: Co
     })
     return () => void ouvreursPuces.delete(editeur)
   }, [editeur])
+  // Une plage de texte choisie : la corbeille de ligne ne réagit plus (voir `taches.css`).
+  const texteChoisi = useEditorState({ editor: editeur, selector: ({ editor }) => !!editor && !editor.state.selection.empty })
   // Les attributs de la tâche du menu, relus à chaque transaction : le menu les montre à jour.
   const attrsDuMenu = useEditorState({
     editor: editeur,
@@ -375,7 +394,7 @@ function Edition(props: { id: Id; contenu: Taches; largeur: number; contexte: Co
   })
 
   return (
-    <div className="notak-taches" data-couleur={couleur}>
+    <div className="notak-taches" data-couleur={couleur} data-texte-choisi={texteChoisi ? '' : undefined}>
       <EditorContent editor={editeur} />
       {editeur && attendue && cible &&
         createPortal(
