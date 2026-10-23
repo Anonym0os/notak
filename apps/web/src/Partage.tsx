@@ -1,5 +1,22 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
-import { type Acces, type Moi, type Role, adressePublique, creerLienPublic, lienPublic, listerAcces, partager, retirerAcces, retirerLienPublic } from './api'
+import {
+  type Acces,
+  type Moi,
+  type Role,
+  adressePublique,
+  creerLienPublic,
+  etatVerrou,
+  lienPublic,
+  lienProtege,
+  listerAcces,
+  partager,
+  poserMotDePasse,
+  poserMotDePasseDuLien,
+  retirerAcces,
+  retirerLienPublic,
+  retirerMotDePasse,
+  retirerMotDePasseDuLien,
+} from './api'
 
 const LIBELLE_ROLE: Record<Role, string> = { proprietaire: 'Propriétaire', edition: 'Édition', lecture: 'Lecture' }
 
@@ -110,8 +127,78 @@ function Panneau({ tableau, moi, fermer }: { tableau: string; moi: Moi; fermer()
           </button>
         </form>
       )}
+      {proprietaire && <MotDePasse tableau={tableau} />}
       {proprietaire && <LienPublic tableau={tableau} />}
       {acces && !proprietaire && <p className="partage-note">Seul le propriétaire invite.</p>}
+      {erreur && (
+        <p className="connexion-erreur" role="alert">
+          {erreur}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/**
+ * « Protéger par mot de passe » : le tableau (et ce qu'il contient) ne s'ouvre plus, pour les autres comptes, qu'avec
+ * ce mot de passe. Celui qui le pose n'a pas à le redonner sur cet appareil.
+ */
+function MotDePasse({ tableau }: { tableau: string }) {
+  const [protege, setProtege] = useState<boolean | undefined>(undefined)
+  const [saisie, setSaisie] = useState('')
+  const [erreur, setErreur] = useState<string | null>(null)
+  const [occupe, setOccupe] = useState(false)
+  useEffect(() => {
+    etatVerrou(tableau).then((e) => setProtege(e.protege), (x: Error) => setErreur(x.message))
+  }, [tableau])
+
+  const agir = async (f: () => Promise<boolean>) => {
+    setErreur(null)
+    setOccupe(true)
+    try {
+      setProtege(await f())
+      setSaisie('')
+    } catch (x) {
+      setErreur(x instanceof Error ? x.message : 'Échec')
+    } finally {
+      setOccupe(false)
+    }
+  }
+  const poser = (e: FormEvent) => {
+    e.preventDefault()
+    if (saisie.length < 6) return setErreur('6 caractères au moins')
+    void agir(async () => (await poserMotDePasse(tableau, saisie), true))
+  }
+  return (
+    <div className="partage-lien">
+      <strong>Mot de passe du tableau</strong>
+      {protege === undefined ? (
+        <span className="partage-note">…</span>
+      ) : (
+        <>
+          <span className="partage-note">
+            {protege ? 'Les autres comptes doivent le donner pour ouvrir ce tableau.' : 'Sans mot de passe, tout compte invité ouvre ce tableau.'}
+          </span>
+          <form className="partage-lien-ligne" onSubmit={poser} noValidate>
+            <input
+              type="password"
+              autoComplete="new-password"
+              aria-label={protege ? 'Nouveau mot de passe du tableau' : 'Mot de passe du tableau'}
+              placeholder={protege ? 'Nouveau mot de passe' : 'Mot de passe'}
+              value={saisie}
+              onChange={(e) => setSaisie(e.target.value)}
+            />
+            <button type="submit" className="bouton" disabled={occupe || !saisie}>
+              {protege ? 'Changer' : 'Protéger'}
+            </button>
+          </form>
+          {protege && (
+            <button type="button" className="bouton-lien" disabled={occupe} onClick={() => agir(async () => (await retirerMotDePasse(tableau), false))}>
+              Retirer le mot de passe
+            </button>
+          )}
+        </>
+      )}
       {erreur && (
         <p className="connexion-erreur" role="alert">
           {erreur}
@@ -172,10 +259,68 @@ function LienPublic({ tableau }: { tableau: string }) {
               {copie ? 'Copié' : 'Copier'}
             </button>
           </div>
+          <MotDePasseDuLien tableau={tableau} />
           <button type="button" className="bouton-lien" disabled={occupe} onClick={() => agir(async () => (await retirerLienPublic(tableau), null))}>
             Fermer le lien
           </button>
         </>
+      )}
+      {erreur && (
+        <p className="connexion-erreur" role="alert">
+          {erreur}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** Un mot de passe sur le lien de lecture : qui n'a pas de compte le donne avant de voir le tableau. */
+function MotDePasseDuLien({ tableau }: { tableau: string }) {
+  const [protege, setProtege] = useState<boolean | undefined>(undefined)
+  const [saisie, setSaisie] = useState('')
+  const [erreur, setErreur] = useState<string | null>(null)
+  const [occupe, setOccupe] = useState(false)
+  useEffect(() => {
+    lienProtege(tableau).then(setProtege, (x: Error) => setErreur(x.message))
+  }, [tableau])
+
+  const agir = async (f: () => Promise<boolean>) => {
+    setErreur(null)
+    setOccupe(true)
+    try {
+      setProtege(await f())
+      setSaisie('')
+    } catch (x) {
+      setErreur(x instanceof Error ? x.message : 'Échec')
+    } finally {
+      setOccupe(false)
+    }
+  }
+  const poser = (e: FormEvent) => {
+    e.preventDefault()
+    if (saisie.length < 6) return setErreur('6 caractères au moins')
+    void agir(async () => (await poserMotDePasseDuLien(tableau, saisie), true))
+  }
+  return (
+    <div className="partage-mdp-lien">
+      <span className="partage-note">{protege ? 'Ce lien demande un mot de passe.' : 'Ce lien s’ouvre sans mot de passe.'}</span>
+      <form className="partage-lien-ligne" onSubmit={poser} noValidate>
+        <input
+          type="password"
+          autoComplete="new-password"
+          aria-label={protege ? 'Nouveau mot de passe du lien' : 'Mot de passe du lien'}
+          placeholder={protege ? 'Nouveau mot de passe' : 'Mot de passe du lien'}
+          value={saisie}
+          onChange={(e) => setSaisie(e.target.value)}
+        />
+        <button type="submit" className="bouton" disabled={occupe || protege === undefined || !saisie}>
+          {protege ? 'Changer' : 'Protéger'}
+        </button>
+      </form>
+      {protege && (
+        <button type="button" className="bouton-lien" disabled={occupe} onClick={() => agir(async () => (await retirerMotDePasseDuLien(tableau), false))}>
+          Retirer le mot de passe du lien
+        </button>
       )}
       {erreur && (
         <p className="connexion-erreur" role="alert">

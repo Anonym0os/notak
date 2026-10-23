@@ -1,0 +1,312 @@
+/* La bande sous une carte : étiquettes, échéance, personne, fil, réactions. */
+.notak-decor {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--notak-texte);
+}
+
+/* Sur la toile elle déborde sous la carte sans en changer la taille ; dans une colonne elle prend sa place. */
+.notak-decor[data-mode='toile'] {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 6px;
+}
+
+.notak-decor[data-mode='liste'] {
+  position: relative;
+  margin-top: 8px;
+}
+
+.notak-decor-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.notak-etiquette {
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--notak-fond);
+  color: #1f2430;
+  font-weight: 500;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-echeance,
+.notak-decor-fil,
+.notak-reaction {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+  padding: 0 7px;
+  border: 1px solid rgb(0 0 0 / 0.1);
+  border-radius: 11px;
+  background: var(--notak-carte);
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+}
+
+.notak-decor-fil,
+.notak-reaction {
+  cursor: pointer;
+}
+
+.notak-reaction:disabled {
+  cursor: default;
+}
+
+.notak-reaction[aria-pressed='true'] {
+  border-color: var(--notak-accent);
+  background: color-mix(in srgb, var(--notak-accent) 14%, var(--notak-carte));
+}
+
+.notak-decor-fil[data-resolu] {
+  opacity: 0.6;
+}
+
+.notak-echeance[data-etat='passee'] {
+  border-color: #d64545;
+  color: #d64545;
+}
+
+.notak-echeance[data-etat='aujourdhui'] {
+  border-color: #e08a1e;
+  color: #b86a00;
+}
+
+.notak-assigne {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--notak-accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* Les couleurs des étiquettes sont celles des notes. */
+[data-fond='gris'] { --notak-etiq: var(--notak-note-gris); }
+[data-fond='cyan'] { --notak-etiq: var(--notak-note-cyan); }
+[data-fond='vert'] { --notak-etiq: var(--notak-note-vert); }
+[data-fond='brun'] { --notak-etiq: var(--notak-note-brun); }
+[data-fond='jaune'] { --notak-etiq: var(--notak-note-jaune); }
+[data-fond='orange'] { --notak-etiq: var(--notak-note-orange); }
+[data-fond='rouge'] { --notak-etiq: var(--notak-note-rouge); }
+[data-fond='rose'] { --notak-etiq: var(--notak-note-rose); }
+[data-fond='violet'] { --notak-etiq: var(--notak-note-violet); }
+[data-fond='bleu'] { --notak-etiq: var(--notak-note-bleu); }
+[data-fond='bleu_nuit'] { --notak-etiq: var(--notak-note-bleu_nuit); }
+
+.notak-etiquette[data-fond] {
+  background: var(--notak-etiq);
+}
+
+/* Le filtre par étiquette estompe ce qui ne correspond pas. */
+.notak-carte[data-attenue] {
+  opacity: 0.25;
+  transition: opacity 0.12s;
+}
+
+/* Un élément replié en icône. */
+.notak-carte[data-icone] {
+  min-height: 0;
+  padding: 8px 12px;
+}
+
+.notak-icone {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.notak-icone-glyphe {
+  flex: none;
+  font-size: 16px;
+}
+
+.notak-icone-texte {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Le fil accroché, sous la carte. */
+.notak-fil-attache {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 240px;
+  max-width: 340px;
+  max-height: 320px;
+  padding: 10px;
+  overflow-y: auto;
+  border-radius: 8px;
+  background: var(--notak-carte);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
+}
+
+.notak-fil-attache-entete {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.notak-fil-attache-entete strong {
+  flex: 1;
+}
+
+.notak-fil-attache button,
+.notak-etiquettes button,
+.notak-decor-menu button {
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.notak-fil-attache textarea {
+  box-sizing: border-box;
+  width: 100%;
+  resize: none;
+  font: inherit;
+}
+
+/* Les fenêtres de la barre de sélection. */
+.notak-decor-menu {
+  min-width: 220px;
+  white-space: normal;
+}
+
+.notak-decor-emojis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+}
+
+.notak-decor-emojis button {
+  height: 32px;
+  font-size: 18px;
+}
+
+.notak-decor-echeance {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+
+.notak-decor-echeance label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notak-decor-echeance button {
+  text-align: left;
+}
+
+.notak-decor-titre {
+  margin-top: 4px;
+  font-size: 11px;
+  opacity: 0.6;
+  text-transform: uppercase;
+}
+
+/* Les étiquettes du tableau. */
+.notak-etiquettes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 230px;
+  text-align: left;
+  white-space: normal;
+}
+
+.notak-etiquettes-vide {
+  margin: 0;
+  opacity: 0.6;
+}
+
+.notak-etiquettes-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.notak-etiquettes-pastille {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  min-width: 16px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  border: 1px solid rgb(0 0 0 / 0.15) !important;
+  background: var(--notak-etiq) !important;
+}
+
+.notak-etiquettes-nom {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+input.notak-etiquettes-nom:hover,
+input.notak-etiquettes-nom:focus {
+  border-color: rgb(0 0 0 / 0.2);
+}
+
+.notak-etiquettes-filtre[aria-pressed='true'] {
+  background: var(--notak-fond) !important;
+  box-shadow: 0 0 0 1px var(--notak-accent);
+}
+
+.notak-etiquettes-palette {
+  flex-basis: 100%;
+}
+
+.notak-etiquettes-lien {
+  align-self: flex-start;
+  color: var(--notak-accent) !important;
+  text-decoration: underline;
+}
+
+.notak-etiquettes-nouvelle {
+  display: flex;
+  gap: 4px;
+}
+
+.notak-etiquettes-nouvelle input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+}
+
+.notak-decor-tiroir {
+  top: auto;
+  bottom: 0;
+  padding: 10px;
+}

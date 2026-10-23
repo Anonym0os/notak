@@ -9,7 +9,7 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { ErreurApercu, apercuDePage, rapatrierImage } from './apercu.ts'
-import type { Base, Fichier, Utilisateur } from './base.ts'
+import { type Base, DUREE_ACCES_PUBLIC_MS, type Fichier, type Utilisateur } from './base.ts'
 import { ErreurCompte, inscrire, normaliserEmail } from './comptes.ts'
 import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from './contenu.ts'
 import type { Limiteur } from './debit.ts'
@@ -17,9 +17,10 @@ import { type Role, auMoins, role, roleHerite } from './droits.ts'
 import { estFormatExport, exporterTexte } from './exporter.ts'
 import { requeteIndex } from './indexation.ts'
 import { hacher, verifier } from './motsDePasse.ts'
-import { DUREE_SESSION_S, NOM_COOKIE, cookieEfface, cookieSession, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
+import { DUREE_SESSION_S, NOM_COOKIE, cookieAccesPublic, cookieEfface, cookieSession, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
 import { nomDuDocument } from './synchro.ts'
 import { largeurDemandee, nomReduit, reduire, reductible } from './tailles.ts'
+import { verrouPar } from './verrou.ts'
 import { creerZip, nommerLesMedias } from './zip.ts'
 
 export interface Contexte {
@@ -44,6 +45,11 @@ const RECENTS_AFFICHES = 12
 /** Combien de résultats la recherche dans tous les tableaux rend au plus. */
 const RESULTATS_RECHERCHE = 30
 const JETON_PUBLIC = /^[A-Za-z0-9_-]{16,64}$/
+/** Les mots de passe d'un tableau : ni trop courts pour valoir quelque chose, ni assez longs pour coûter au hachage. */
+const MOT_DE_PASSE_MIN = 6
+const MOT_DE_PASSE_MAX = 200
+/** Le cookie qui porte l'accès à la lecture publique d'un tableau protégé. */
+export const NOM_COOKIE_PUBLIC = 'notak_public'
 
 /** Un nom de fichier sûr à partir d'un titre, et l'en-tête qui le propose au téléchargement. */
 export function enTeteTelechargement(titre: string, extension: string): string {
@@ -187,8 +193,12 @@ export function creerApp(ctx: Contexte): Hono {
       return r && t && id !== u.racine ? [{ id, titre: t.titre, role: r }] : []
     })
 
-  /** Le tableau, et l'utilisateur s'il atteint au moins `minimum` ; sinon la réponse d'erreur à rendre. */
-  const garde = (c: Context, minimum: Role): { u: Utilisateur; id: string } | Response => {
+  /**
+   * Le tableau, et l'utilisateur s'il atteint au moins `minimum` ; sinon la réponse d'erreur à rendre.
+   * Un tableau protégé que ce compte n'a pas ouvert répond 423 (`par` : le tableau dont il faut le mot de passe),
+   * sauf pour les routes qui servent justement à l'ouvrir ou à gérer son mot de passe (`horsVerrou`).
+   */
+  const garde = (c: Context, minimum: Role, horsVerrou = false): { u: Utilisateur; id: string } | Response => {
     const u = utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté' }, 401)
     const id = c.req.param('id') ?? ''
@@ -196,8 +206,67 @@ export function creerApp(ctx: Contexte): Hono {
     // Un tableau qu'on ne peut pas voir n'existe pas.
     if (droit === null) return c.json({ erreur: 'introuvable' }, 404)
     if (!auMoins(droit, minimum)) return c.json({ erreur: 'interdit' }, 403)
+    if (!horsVerrou) {
+      const par = verrouPar(base, u.id, id)
+      if (par !== null) return c.json({ erreur: 'verrouillé', par }, 423)
+    }
     return { u, id }
   }
+
+  // ---- Mot de passe d'un tableau ----
+
+  /** Un mot de passe valable dans la demande, ou la réponse d'erreur. */
+  const motDePasseDemande = async (c: Context): Promise<string | Response> => {
+    const m = texte((await corps(c))?.motDePasse)
+    return m.length < MOT_DE_PASSE_MIN || m.length > MOT_DE_PASSE_MAX ? c.json({ erreur: 'mot de passe invalide' }, 400) : m
+  }
+
+  // Où en est ce tableau pour ce compte : protégé lui-même, et barré (par lui ou par un tableau au-dessus).
+  app.get('/api/tableaux/:id/verrou', (c) => {
+    const g = garde(c, 'lecture', true)
+    if (g instanceof Response) return g
+    const par = verrouPar(base, g.u.id, g.id)
+    return c.json({ protege: base.motDePasse(g.id, 'tableau') !== null, verrouille: par !== null, par })
+  })
+
+  app.put('/api/tableaux/:id/mot-de-passe', async (c) => {
+    const g = garde(c, 'proprietaire', true)
+    if (g instanceof Response) return g
+    const m = await motDePasseDemande(c)
+    if (m instanceof Response) return m
+    const empreinte = await hacher(m)
+    base.transaction(() => {
+      base.definirMotDePasse(g.id, 'tableau', empreinte)
+      // Celui qui le pose n'a pas à le redonner tout de suite.
+      base.noterOuverture(g.u.id, g.id)
+    })
+    // Les autres sont renvoyés à la porte : ils relisent leur droit à la prochaine connexion.
+    fermerConnexions(g.id)
+    return c.body(null, 204)
+  })
+
+  app.delete('/api/tableaux/:id/mot-de-passe', (c) => {
+    const g = garde(c, 'proprietaire', true)
+    if (g instanceof Response) return g
+    if (!base.retirerMotDePasse(g.id, 'tableau')) return c.json({ erreur: 'introuvable' }, 404)
+    return c.body(null, 204)
+  })
+
+  // Donner le mot de passe ouvre le tableau, pour ce compte, tant que le mot de passe ne change pas.
+  app.post('/api/tableaux/:id/deverrouiller', async (c) => {
+    const refus = limiter(c, 'deverrouillage')
+    if (refus) return refus
+    const g = garde(c, 'lecture', true)
+    if (g instanceof Response) return g
+    const par = verrouPar(base, g.u.id, g.id)
+    if (par === null) return c.json({ verrouille: false, par: null })
+    const empreinte = base.motDePasse(par, 'tableau')
+    const bon = empreinte !== null && (await verifier(empreinte, texte((await corps(c))?.motDePasse)))
+    if (!bon) return c.json({ erreur: 'mot de passe incorrect' }, 401)
+    base.noterOuverture(g.u.id, par)
+    const reste = verrouPar(base, g.u.id, g.id)
+    return c.json({ verrouille: reste !== null, par: reste })
+  })
 
   app.get('/api/tableaux/:id/acces', (c) => {
     const g = garde(c, 'lecture')
@@ -292,6 +361,8 @@ export function creerApp(ctx: Contexte): Hono {
       trouves.flatMap((t) => {
         const r = roleSur(u.id, t.tableau)
         const ligne = base.tableau(t.tableau)
+        // Ce qui est dans un tableau protégé ne se trouve pas sans son mot de passe.
+        if (verrouPar(base, u.id, t.tableau) !== null) return []
         return r && ligne ? [{ tableau: t.tableau, titre: ligne.titre, element: t.element || null, extrait: t.extrait, role: r }] : []
       }),
     )
@@ -358,19 +429,47 @@ export function creerApp(ctx: Contexte): Hono {
     const g = garde(c, 'proprietaire')
     if (g instanceof Response) return g
     if (!base.retirerJetonPublic(g.id)) return c.json({ erreur: 'introuvable' }, 404)
+    // Un lien retiré emporte son mot de passe : le prochain sera libre, à moins d'en poser un.
+    base.retirerMotDePasse(g.id, 'public')
+    return c.body(null, 204)
+  })
+
+  // Le mot de passe du lien public : il se pose à part de celui qui ferme le tableau aux comptes.
+  app.get('/api/tableaux/:id/lien/mot-de-passe', (c) => {
+    const g = garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    return c.json({ protege: base.motDePasse(g.id, 'public') !== null })
+  })
+
+  app.put('/api/tableaux/:id/lien/mot-de-passe', async (c) => {
+    const g = garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    const m = await motDePasseDemande(c)
+    if (m instanceof Response) return m
+    base.definirMotDePasse(g.id, 'public', await hacher(m))
+    return c.body(null, 204)
+  })
+
+  app.delete('/api/tableaux/:id/lien/mot-de-passe', (c) => {
+    const g = garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    if (!base.retirerMotDePasse(g.id, 'public')) return c.json({ erreur: 'introuvable' }, 404)
     return c.body(null, 204)
   })
 
   /**
    * Ce que voit quelqu'un qui n'a pas de compte : le tableau sans la corbeille, les non triés ni les commentaires
-   * (ce sont les échanges de ceux qui y travaillent), et les lignes qui n'ont plus leurs deux bouts.
+   * (ce sont les échanges de ceux qui y travaillent, y compris le fil accroché à un élément, ses réactions et la
+   * personne à qui il est confié), et les lignes qui n'ont plus leurs deux bouts.
    */
   const vuePublique = (id: string) => {
     const t = lireLe(id)
     const visibles = t.elements.filter((e) => e.corbeille === undefined && e.nonTrie === undefined && e.contenu.type !== 'commentaire')
     const ids = new Set(visibles.map((e) => e.id))
     const bout = (b: unknown) => !(b && typeof b === 'object' && 'element' in b) || ids.has(String((b as { element: unknown }).element))
-    const elements = visibles.filter((e) => e.contenu.type !== 'ligne' || (bout(e.contenu.depart) && bout(e.contenu.arrivee)))
+    const elements = visibles
+      .filter((e) => e.contenu.type !== 'ligne' || (bout(e.contenu.depart) && bout(e.contenu.arrivee)))
+      .map(({ commentaire: _c, reactions: _r, assigne: _a, ...e }) => e)
     const titres: Record<string, string> = {}
     for (const e of elements) {
       if (e.contenu.type !== 'tableau' || typeof e.contenu.cible !== 'string') continue
@@ -385,9 +484,34 @@ export function creerApp(ctx: Contexte): Hono {
     return JETON_PUBLIC.test(jeton) ? base.tableauDuJeton(jeton) : null
   }
 
+  /** Le lien est protégé et ce lecteur n'a pas donné le mot de passe : la réponse à rendre, sinon `null`. */
+  const motDePasseRequis = (c: Context, id: string): Response | null => {
+    if (base.motDePasse(id, 'public') === null) return null
+    const acces = lireCookie(c.req.header('cookie'), NOM_COOKIE_PUBLIC)
+    if (acces && base.accesPublicValide(empreinteDe(acces), id, ctx.maintenant())) return null
+    return c.json({ erreur: 'mot de passe requis', protege: true }, 401, { 'cache-control': 'no-store' })
+  }
+
+  // Donner le mot de passe du lien : le serveur remet un accès, porté par un cookie limité à ce lien.
+  app.post('/api/public/:jeton/deverrouiller', async (c) => {
+    const refus = limiter(c, 'deverrouillage-public')
+    if (refus) return refus
+    const id = tableauPublic(c)
+    if (!id) return c.json({ erreur: 'introuvable' }, 404)
+    const empreinte = base.motDePasse(id, 'public')
+    if (empreinte === null) return c.body(null, 204)
+    if (!(await verifier(empreinte, texte((await corps(c))?.motDePasse)))) return c.json({ erreur: 'mot de passe incorrect' }, 401)
+    const { jeton: acces, empreinte: trace } = nouveauJeton()
+    base.creerAccesPublic(trace, id, ctx.maintenant() + DUREE_ACCES_PUBLIC_MS)
+    c.header('set-cookie', cookieAccesPublic(NOM_COOKIE_PUBLIC, c.req.param('jeton') ?? '', acces, DUREE_ACCES_PUBLIC_MS / 1000, ctx.cookieSecurise))
+    return c.body(null, 204)
+  })
+
   app.get('/api/public/:jeton', (c) => {
     const id = tableauPublic(c)
     if (!id) return c.json({ erreur: 'introuvable' }, 404)
+    const ferme = motDePasseRequis(c, id)
+    if (ferme) return ferme
     return c.json(vuePublique(id), 200, { 'cache-control': 'no-store', 'x-robots-tag': 'noindex' })
   })
 
@@ -395,6 +519,8 @@ export function creerApp(ctx: Contexte): Hono {
   app.get('/api/public/:jeton/fichiers/:fichier', (c) => {
     const id = tableauPublic(c)
     const fichier = c.req.param('fichier') ?? ''
+    const ferme = id ? motDePasseRequis(c, id) : null
+    if (ferme) return ferme
     if (!id || !ID_FICHIER.test(fichier) || !idsDeFichiers(vuePublique(id).elements).has(fichier)) return c.json({ erreur: 'introuvable' }, 404)
     const f = base.fichier(fichier)
     if (!f) return c.json({ erreur: 'introuvable' }, 404)

@@ -45,7 +45,7 @@ export function RenduCommentaire({ element, choisie, enEdition, contexte, brouil
   )
 }
 
-function Ligne({ message, retirer }: { message: Message; retirer?: () => void }) {
+export function Ligne({ message, retirer }: { message: Message; retirer?: () => void }) {
   const { auteur } = message
   return (
     <div className="notak-commentaire-message">

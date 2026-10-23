@@ -19,7 +19,18 @@ beforeAll(async () => {
   idCache = await depot()
   m.tableau(ana, 'tableau-budget', 'Budget')
   m.tableau(ana, 'tableau-public', 'Carnet', (doc) => {
-    poser(doc, { type: 'note', texte: texte('Visible') }, { id: 'note-1' })
+    poser(
+      doc,
+      { type: 'note', texte: texte('Visible') },
+      {
+        id: 'note-1',
+        etiquettes: ['e1'],
+        echeance: '2026-11-02',
+        assigne: { id: 'x', nom: 'Ana' },
+        reactions: { '👍': ['x'] },
+        commentaire: { type: 'commentaire', messages: [{ id: 'm2', auteur: { id: 'x', nom: 'Ana' }, date: 1, texte: 'fil-secret' }] },
+      },
+    )
     poser(doc, { type: 'note', texte: texte('Jetée') }, { id: 'note-2', corbeille: 5 })
     poser(doc, { type: 'note', texte: texte('À trier') }, { id: 'note-3', nonTrie: 5 })
     poser(doc, { type: 'commentaire', messages: [{ id: 'm', auteur: { id: 'x', nom: 'Ana' }, date: 1, texte: 'privé' }] }, { id: 'comm-1' })
@@ -67,6 +78,13 @@ describe('le lien public d’un tableau', () => {
     expect(t.titre).toBe('Carnet')
     expect(t.elements.map((e) => e.id)).toEqual(['note-1', 'img-1', 'sous-1', 'lien-ok'])
     expect(t.titres).toEqual({ 'tableau-budget': 'Budget' })
+    // Le fil accroché, les réactions et la personne confiée restent entre ceux qui travaillent sur le tableau.
+    const note = t.elements.find((e) => e.id === 'note-1') as Record<string, unknown>
+    expect(note).toMatchObject({ echeance: '2026-11-02', etiquettes: ['e1'] })
+    expect(note).not.toHaveProperty('commentaire')
+    expect(note).not.toHaveProperty('reactions')
+    expect(note).not.toHaveProperty('assigne')
+    expect(JSON.stringify(t)).not.toContain('fil-secret')
     expect(JSON.stringify(t)).not.toContain('plan')
   })
 

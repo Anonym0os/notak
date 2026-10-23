@@ -32,6 +32,9 @@ export interface Fichier {
   auteur: string
 }
 
+/** Ce que protège un mot de passe : l'ouverture du tableau (`tableau`), ou la lecture par son lien public (`public`). */
+export type Portee = 'tableau' | 'public'
+
 export interface Base {
   /** Exécute `travail` dans une transaction : annulée si elle lève. */
   transaction<T>(travail: () => T): T
@@ -74,6 +77,22 @@ export interface Base {
   retirerJetonPublic(tableau: string): boolean
   tableauDuJeton(jeton: string): string | null
 
+  /** L'empreinte du mot de passe de ce tableau pour cette portée, ou `null` s'il n'en a pas. */
+  motDePasse(tableau: string, portee: Portee): string | null
+  /**
+   * Pose (ou change) le mot de passe. Tout ce qui l'avait levé retombe : les comptes qui avaient ouvert le tableau
+   * (`tableau`), ou les lecteurs du lien public (`public`) doivent le redonner.
+   */
+  definirMotDePasse(tableau: string, portee: Portee, empreinte: string): void
+  /** Retire le mot de passe ; rend faux s'il n'y en avait pas. */
+  retirerMotDePasse(tableau: string, portee: Portee): boolean
+  /** Ce compte a-t-il donné le mot de passe de ce tableau ? */
+  aOuvert(utilisateur: string, tableau: string): boolean
+  noterOuverture(utilisateur: string, tableau: string): void
+  /** Un accès à la lecture publique, donné contre le mot de passe du lien : seule l'empreinte du jeton est gardée. */
+  creerAccesPublic(empreinte: string, tableau: string, expire: number): void
+  accesPublicValide(empreinte: string, tableau: string, maintenant: number): boolean
+
   /** Les tableaux favoris d'un compte, le dernier ajouté d'abord. */
   favoris(utilisateur: string): string[]
   definirFavori(utilisateur: string, tableau: string, maintenant: number): void
@@ -101,6 +120,9 @@ export interface Trouve {
   element: string
   extrait: string
 }
+
+/** Combien de temps un accès public, donné contre le mot de passe du lien, reste valable. */
+export const DUREE_ACCES_PUBLIC_MS = 24 * 3600 * 1000
 
 /** Combien de tableaux récents on garde par compte. */
 export const RECENTS_GARDES = 50
@@ -150,6 +172,20 @@ CREATE TABLE IF NOT EXISTS recents (
   PRIMARY KEY (utilisateur, tableau)
 );
 CREATE INDEX IF NOT EXISTS recents_vu ON recents(utilisateur, vu DESC);
+CREATE TABLE IF NOT EXISTS mots_de_passe (
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  portee TEXT NOT NULL CHECK (portee IN ('tableau','public')),
+  empreinte TEXT NOT NULL,
+  PRIMARY KEY (tableau, portee)
+);
+CREATE TABLE IF NOT EXISTS ouvertures (
+  utilisateur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  PRIMARY KEY (utilisateur, tableau)
+);
+CREATE TABLE IF NOT EXISTS acces_publics (
+  empreinte TEXT PRIMARY KEY, tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE, expire INTEGER NOT NULL
+);
 CREATE VIRTUAL TABLE IF NOT EXISTS recherche USING fts5(
   tableau UNINDEXED, element UNINDEXED, texte, tokenize = 'unicode61 remove_diacritics 2'
 );
@@ -172,6 +208,14 @@ export function ouvrirBase(chemin: string): Base {
   const un = (sql: string, ...params: (string | number | Uint8Array)[]): Ligne | null =>
     (db.prepare(sql).get(...params) as Ligne | undefined) ?? null
   const executer = (sql: string, ...params: (string | number | Uint8Array | null)[]) => db.prepare(sql).run(...params)
+
+  const dansTransaction = <T>(travail: () => T): T => (db.isTransaction ? travail() : transaction(travail))
+
+  /** Un mot de passe change ou disparaît : ce qui l'avait levé ne vaut plus. */
+  const oublierLeves = (tableau: string, portee: Portee) => {
+    if (portee === 'tableau') executer('DELETE FROM ouvertures WHERE tableau = ?', tableau)
+    else executer('DELETE FROM acces_publics WHERE tableau = ?', tableau)
+  }
 
   const utilisateur = (l: Ligne | null): Utilisateur | null => (l ? (l as unknown as Utilisateur) : null)
 
@@ -263,6 +307,34 @@ export function ouvrirBase(chemin: string): Base {
         maintenant,
       ),
     retirerJetonPublic: (tableau) => Number(executer('DELETE FROM liens_publics WHERE tableau = ?', tableau).changes) > 0,
+    motDePasse: (tableau, portee) =>
+      (un('SELECT empreinte FROM mots_de_passe WHERE tableau = ? AND portee = ?', tableau, portee)?.empreinte as string | undefined) ?? null,
+    definirMotDePasse(tableau, portee, empreinte) {
+      dansTransaction(() => {
+        executer(
+          'INSERT INTO mots_de_passe (tableau,portee,empreinte) VALUES (?,?,?) ON CONFLICT(tableau,portee) DO UPDATE SET empreinte = excluded.empreinte',
+          tableau,
+          portee,
+          empreinte,
+        )
+        oublierLeves(tableau, portee)
+      })
+    },
+    retirerMotDePasse(tableau, portee) {
+      return dansTransaction(() => {
+        const retire = Number(executer('DELETE FROM mots_de_passe WHERE tableau = ? AND portee = ?', tableau, portee).changes) > 0
+        oublierLeves(tableau, portee)
+        return retire
+      })
+    },
+    aOuvert: (u, t) => un('SELECT 1 AS ok FROM ouvertures WHERE utilisateur = ? AND tableau = ?', u, t) !== null,
+    noterOuverture: (u, t) => void executer('INSERT OR IGNORE INTO ouvertures (utilisateur,tableau) VALUES (?,?)', u, t),
+    creerAccesPublic(empreinte, tableau, expire) {
+      executer('DELETE FROM acces_publics WHERE expire < ?', expire - DUREE_ACCES_PUBLIC_MS)
+      executer('INSERT INTO acces_publics (empreinte,tableau,expire) VALUES (?,?,?)', empreinte, tableau, expire)
+    },
+    accesPublicValide: (empreinte, tableau, maintenant) =>
+      un('SELECT 1 AS ok FROM acces_publics WHERE empreinte = ? AND tableau = ? AND expire >= ?', empreinte, tableau, maintenant) !== null,
     favoris: (u) =>
       (tous('SELECT tableau FROM favoris WHERE utilisateur = ? ORDER BY cree DESC, tableau', u) as unknown as { tableau: string }[]).map((l) => l.tableau),
     definirFavori: (u, t, maintenant) =>

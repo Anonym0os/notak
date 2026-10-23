@@ -1,7 +1,7 @@
 import * as Y from 'yjs'
 import type { Magasin } from './magasin'
 import { cleEntre, comparerOrdre } from './ordre'
-import { type CouleurNote, type Element, type Id, type Operation, type Tableau, appliquer, inverse } from './tableau'
+import { type CouleurNote, type Element, type Etiquette, type Id, type Operation, type Tableau, appliquer, inverse } from './tableau'
 
 /** Un élément tel qu'il vit dans le document : l'`Element` entier, plus sa place dans l'empilement. */
 export type ElementStocke = Element & { plan: string }
@@ -63,7 +63,7 @@ export function plansPour(actuel: readonly { id: Id; plan: string }[], voulu: re
 
 /**
  * Le magasin d'un tableau, posé sur un document Yjs :
- * `elements` (id → élément + `plan`) et `meta` (`titre`, `couleur`).
+ * `elements` (id → élément + `plan`) et `meta` (`titre`, `couleur`, `etiquettes`).
  * Le document peut être relié à un serveur : le magasin n'en sait rien.
  */
 export function creerMagasinYjs(doc: Y.Doc, id?: Id): MagasinYjs {
@@ -84,6 +84,18 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id): MagasinYjs {
   // Un élément inchangé garde le même objet d'une lecture à l'autre : les cartes ne se redessinent pas.
   const reperes = new Map<Id, { brut: ElementStocke; element: Element }>()
 
+  /** Les étiquettes du tableau, lues dans `meta` (un autre client a pu y écrire n'importe quoi). */
+  let etiquettesLues: { brut: unknown; liste: Etiquette[] } = { brut: undefined, liste: [] }
+  const etiquettesStockees = (): Etiquette[] => {
+    const brut = meta.get('etiquettes')
+    if (brut === etiquettesLues.brut) return etiquettesLues.liste
+    const liste = Array.isArray(brut)
+      ? brut.filter((x): x is Etiquette => !!x && typeof x.id === 'string' && typeof x.nom === 'string' && typeof x.couleur === 'string')
+      : []
+    etiquettesLues = { brut, liste }
+    return liste
+  }
+
   const construire = (): Tableau => {
     const liste: { id: Id; plan: string; element: Element }[] = []
     const vus = new Set<Id>()
@@ -100,10 +112,12 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id): MagasinYjs {
     liste.sort((a, b) => comparerOrdre(a.plan, b.plan) || comparerOrdre(a.id, b.id))
     const titre = meta.get('titre')
     const couleur = meta.get('couleur')
+    const etiquettes = etiquettesStockees()
     return {
       ...(id !== undefined ? { id } : {}),
       titre: typeof titre === 'string' ? titre : '',
       ...(typeof couleur === 'string' ? { couleur: couleur as CouleurNote } : {}),
+      ...(etiquettes.length > 0 ? { etiquettes } : {}),
       elements: liste.map((l) => l.element),
     }
   }
@@ -142,6 +156,10 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id): MagasinYjs {
         if (!elements.has(op.element.id)) elements.set(op.element.id, { ...op.element, plan: auDessus() })
       } else if (op.type === 'supprimer') {
         elements.delete(op.element.id)
+      } else if (op.type === 'etiquettes') {
+        // Les étiquettes vivent dans `meta`, hors de l'historique de Yjs : annuler un geste ne les rend pas.
+        if (op.vers.length > 0) meta.set('etiquettes', op.vers)
+        else meta.delete('etiquettes')
       } else {
         const actuel = elements.get(op.id)
         if (!actuel) continue
@@ -190,7 +208,9 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id): MagasinYjs {
       if (historique.lastChange > 0) return transaction(() => ecrire(pas), ORIGINE_HORS)
       // Les entrées que la correction va remplacer : le pas qui les a écrites la reçoit, comme si elle en était.
       const stockees = (elements as unknown as { _map: Map<string, { id: Y.ID }> })._map
-      const touchees = pas.map((op) => stockees.get(op.type === 'creer' || op.type === 'supprimer' ? op.element.id : op.id)?.id)
+      const touchees = pas.flatMap((op) =>
+        op.type === 'etiquettes' ? [] : [stockees.get(op.type === 'creer' || op.type === 'supprimer' ? op.element.id : op.id)?.id],
+      )
       const avant = historique.undoStack.length
       transaction(() => ecrire(pas), ORIGINE_LIBRE)
       historique.stopCapturing()
@@ -207,6 +227,11 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id): MagasinYjs {
         if (t.couleur !== meta.get('couleur')) {
           if (t.couleur === undefined) meta.delete('couleur')
           else meta.set('couleur', t.couleur)
+        }
+        const etiquettes = t.etiquettes ?? []
+        if (JSON.stringify(etiquettes) !== JSON.stringify(etiquettesStockees())) {
+          if (etiquettes.length > 0) meta.set('etiquettes', etiquettes)
+          else meta.delete('etiquettes')
         }
         const voulus = new Set(t.elements.map((e) => e.id))
         for (const cle of [...elements.keys()]) if (!voulus.has(cle)) elements.delete(cle)

@@ -343,6 +343,19 @@ export type Contenu =
   | Clone
 export type TypeContenu = Contenu['type']
 
+/** Une étiquette du tableau : un nom et une couleur. Les éléments ne gardent que son id. */
+export interface Etiquette {
+  id: Id
+  nom: string
+  couleur: CouleurNote
+}
+
+/** Qui a réagi avec quel émoji : l'émoji, puis les ids des personnes, dans l'ordre où elles sont venues. */
+export type Reactions = Record<string, string[]>
+
+/** `icone` : l'élément se replie en une pastille (son type et son résumé). `detail` : tel qu'il est dessiné. */
+export type Affichage = 'icone' | 'detail'
+
 export interface Element<C extends Contenu = Contenu> {
   id: Id
   /** Coin haut-gauche, en unités de grille entières. Sans effet dans une colonne et pour une ligne. */
@@ -362,6 +375,47 @@ export interface Element<C extends Contenu = Contenu> {
   verrou?: boolean
   /** La hauteur qu'on lui a donnée, pour les types qui le permettent (note, lien). */
   hauteur?: Hauteur
+  /** Les étiquettes posées dessus (ids des `Tableau.etiquettes`). */
+  etiquettes?: Id[]
+  /** Les réactions des gens, par émoji. */
+  reactions?: Reactions
+  /** Pour quel jour (`aaaa-mm-jj`). */
+  echeance?: string
+  /** La personne à qui il est confié. */
+  assigne?: Auteur
+  /** Absent : tel qu'il est dessiné (`detail`). */
+  affichage?: Affichage
+  /** Un fil de discussion accroché à l'élément, qui n'occupe pas de place sur la toile. */
+  commentaire?: Commentaire
+}
+
+/** Les champs que tout élément peut porter, quel que soit son type : ils changent ensemble, d'un seul pas. */
+export const CHAMPS_ANNOTES = ['etiquettes', 'reactions', 'echeance', 'assigne', 'affichage', 'commentaire'] as const
+export type Annotations = Pick<Element, (typeof CHAMPS_ANNOTES)[number]>
+
+/** Ce qu'un élément porte de ces champs, sans les absents. */
+export function annotationsDe(e: Element): Annotations {
+  const a: Record<string, unknown> = {}
+  for (const c of CHAMPS_ANNOTES) if (e[c] !== undefined) a[c] = e[c]
+  return a as Annotations
+}
+
+/**
+ * Le pas qui change certains de ces champs : une valeur `null` (ou une liste vide) le retire, les autres champs
+ * restent. Rend `null` si rien ne change.
+ */
+export function annoter(e: Element, changement: { [K in keyof Annotations]?: Annotations[K] | null }): Operation | null {
+  const de = annotationsDe(e)
+  const vers: Record<string, unknown> = { ...de }
+  for (const c of CHAMPS_ANNOTES) {
+    if (!(c in changement)) continue
+    const v = changement[c]
+    const vide = v === null || v === undefined || (Array.isArray(v) && v.length === 0) || (c === 'reactions' && Object.keys(v as object).length === 0)
+    if (vide) delete vers[c]
+    else vers[c] = v
+  }
+  if (JSON.stringify(de) === JSON.stringify(vers)) return null
+  return { type: 'annoter', id: e.id, de, vers: vers as Annotations }
 }
 
 /** Où est un élément : sur la toile (`x`, `y`), ou rangé dans une colonne (`parent`, `ordre`). */
@@ -392,6 +446,8 @@ export interface Tableau {
   titre: string
   /** La couleur de sa carte dans le tableau parent. */
   couleur?: CouleurNote
+  /** Les étiquettes qu'on peut poser sur ses éléments. */
+  etiquettes?: Etiquette[]
   elements: Element[]
 }
 
@@ -408,6 +464,10 @@ export type Operation =
   | { type: 'verrouiller'; id: Id; de: boolean; vers: boolean }
   /** Donne une hauteur à l'élément, ou la rend à son contenu (`null`). */
   | { type: 'borner'; id: Id; de: Hauteur | null; vers: Hauteur | null }
+  /** Change les étiquettes, réactions, échéance, personne, affichage ou fil d'un élément (voir `annoter`). */
+  | { type: 'annoter'; id: Id; de: Annotations; vers: Annotations }
+  /** Change la liste des étiquettes du tableau. */
+  | { type: 'etiquettes'; de: Etiquette[]; vers: Etiquette[] }
 
 const BASE32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
 
@@ -478,6 +538,10 @@ export function inverse(op: Operation): Operation {
       return { type: 'verrouiller', id: op.id, de: op.vers, vers: op.de }
     case 'borner':
       return { type: 'borner', id: op.id, de: op.vers, vers: op.de }
+    case 'annoter':
+      return { type: 'annoter', id: op.id, de: op.vers, vers: op.de }
+    case 'etiquettes':
+      return { type: 'etiquettes', de: op.vers, vers: op.de }
   }
 }
 
@@ -500,6 +564,16 @@ export function appliquer(t: Tableau, op: Operation): Tableau {
       return modifier(t, op.id, ({ verrou: _v, ...e }) => (op.vers ? { ...e, verrou: true } : e))
     case 'borner':
       return modifier(t, op.id, ({ hauteur: _h, ...e }) => (op.vers ? { ...e, hauteur: op.vers } : e))
+    case 'annoter':
+      return modifier(t, op.id, (e) => {
+        const reste: Record<string, unknown> = { ...e }
+        for (const c of CHAMPS_ANNOTES) delete reste[c]
+        return { ...reste, ...op.vers } as Element
+      })
+    case 'etiquettes': {
+      const { etiquettes: _e, ...reste } = t
+      return op.vers.length > 0 ? { ...reste, etiquettes: op.vers } : reste
+    }
   }
 }
 
