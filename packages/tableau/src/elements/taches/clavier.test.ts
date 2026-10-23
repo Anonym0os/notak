@@ -142,6 +142,43 @@ describe('Retour arrière', () => {
   })
 })
 
+describe('Cmd ou Alt + retour arrière', () => {
+  it('sur une tâche vide, la réduit dans la précédente', () => {
+    ouvrir(['un', ''])
+    curseur(1, 'debut')
+    expect(touche('Backspace', { altKey: true })).toBe(true)
+    expect(actuel()).toEqual(['un'])
+  })
+
+  it('Cmd (Ctrl sous jsdom) fait de même, et ramène les sous-tâches', () => {
+    ouvrir(['un', '', ['b1']])
+    curseur(1, 'debut')
+    touche('Backspace', { ctrlKey: true })
+    expect(actuel()).toEqual(['un', ['b1']])
+  })
+
+  it('sur la première sous-tâche vide, la remonte d’un niveau', () => {
+    ouvrir(['A', ['', 'y']])
+    curseur(1, 'debut')
+    expect(touche('Backspace', { altKey: true })).toBe(true)
+    expect(actuel()).toEqual(['A', '', ['y']])
+  })
+
+  it('sur une tâche qui a du texte, laisse le navigateur effacer le mot', () => {
+    ouvrir(['un', 'deux'])
+    curseur(1, 'fin')
+    expect(touche('Backspace', { altKey: true })).toBe(false)
+    expect(actuel()).toEqual(['un', 'deux'])
+  })
+
+  it('sur l’unique tâche vide tout en haut, ne casse rien', () => {
+    ouvrir([''])
+    curseur(0, 'debut')
+    touche('Backspace', { altKey: true })
+    expect(actuel()).toEqual([''])
+  })
+})
+
 describe('Tab', () => {
   it('fait de la tâche une sous-tâche de la précédente', () => {
     ouvrir(['A', 'B'])

@@ -102,29 +102,37 @@ export interface GestesTaches {
  * Retour arrière dans la première tâche, vide : avec d'autres tâches, elle devient le titre ; seule, le curseur
  * remonte au titre, ou la liste part à la corbeille s'il n'y en a pas.
  */
-export const clavierListe = (gestes: MutableRefObject<GestesTaches>) =>
-  Extension.create({
+export const clavierListe = (gestes: MutableRefObject<GestesTaches>) => {
+  const retour = ({ editor }: { editor: Editor }) => {
+    const { $from, empty } = editor.state.selection
+    if (!empty || $from.parentOffset !== 0 || $from.depth !== 3) return false
+    const tache = $from.node(2)
+    if ($from.index(1) !== 0 || tache.childCount > 1 || tache.textContent !== '') return false
+    const liste = $from.node(1)
+    if (liste.childCount > 1) {
+      const pos = $from.before(2)
+      editor.view.dispatch(editor.state.tr.delete(pos, pos + tache.nodeSize))
+      gestes.current.versTitre()
+    } else if (gestes.current.aUnTitre()) gestes.current.versTitre()
+    else gestes.current.jeter()
+    return true
+  }
+  // Cmd ou Alt + retour arrière sur une tâche vide : comme le retour arrière seul (voir `ClavierTaches`).
+  const retourModifie = (p: { editor: Editor }) => texteVide(p.editor.state) && retour(p)
+  return Extension.create({
     name: 'clavierListe',
     priority: 300,
     addKeyboardShortcuts() {
-      return {
-        Backspace: ({ editor }) => {
-          const { $from, empty } = editor.state.selection
-          if (!empty || $from.parentOffset !== 0 || $from.depth !== 3) return false
-          const tache = $from.node(2)
-          if ($from.index(1) !== 0 || tache.childCount > 1 || tache.textContent !== '') return false
-          const liste = $from.node(1)
-          if (liste.childCount > 1) {
-            const pos = $from.before(2)
-            editor.view.dispatch(editor.state.tr.delete(pos, pos + tache.nodeSize))
-            gestes.current.versTitre()
-          } else if (gestes.current.aUnTitre()) gestes.current.versTitre()
-          else gestes.current.jeter()
-          return true
-        },
-      }
+      return { Backspace: retour, 'Mod-Backspace': retourModifie, 'Alt-Backspace': retourModifie }
     },
   })
+}
+
+/** Le curseur est dans le texte d'une tâche, et ce texte est vide. */
+export function texteVide(etat: EditorState): boolean {
+  const { $from, empty } = etat.selection
+  return empty && $from.parent.type.name === 'paragraph' && $from.parent.content.size === 0 && $from.node(-1).type.name === 'taskItem'
+}
 
 /** Les tâches parmi les ancêtres de la sélection : leur niveau (1 = en haut) et leur hauteur. */
 function tachesAutour(etat: EditorState) {
@@ -180,6 +188,17 @@ export function fusionnerAvecPrecedente(editor: Editor): boolean {
   return true
 }
 
+/**
+ * Cmd ou Alt + retour arrière sur une tâche vide la réduit : elle se fond dans la précédente, ou, première
+ * de sa sous-liste, remonte d'un niveau. Sur une tâche qui a du texte, c'est l'effacement d'un mot, comme partout.
+ */
+export function reduireVide(editor: Editor): boolean {
+  if (!texteVide(editor.state)) return false
+  if (fusionnerAvecPrecedente(editor)) return true
+  editor.commands.liftListItem('taskItem')
+  return true
+}
+
 /** La profondeur des nœuds ouverts au bout d'un nœud, jusqu'à son dernier bloc de texte (compris). */
 function ouvertsAuBout(n: NoeudPM | null): number {
   let d = 0
@@ -227,6 +246,8 @@ const ClavierTaches = Extension.create({
         return true
       },
       Backspace: ({ editor }) => fusionnerAvecPrecedente(editor),
+      'Mod-Backspace': ({ editor }) => reduireVide(editor),
+      'Alt-Backspace': ({ editor }) => reduireVide(editor),
       // Une tâche vide tout en haut n'a pas de niveau où remonter : on ne fait rien.
       Enter: ({ editor }) => {
         const [v] = tachesAutour(editor.state)
