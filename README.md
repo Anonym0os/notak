@@ -53,6 +53,7 @@ Pour l'essayer en HTTP sur sa machine : `-e NOTAK_COOKIE_SECURISE=0 -e NOTAK_REL
 | Dossier | Rôle |
 |---|---|
 | `docs/SPEC.md` | ce que Notak doit faire, geste par geste |
+| `docs/PUBLIER.md` | publier Notak gratuitement : local, coffre de l’utilisateur, relais chiffré |
 | `packages/tableau` | `@notak/tableau` : le cœur (caméra, sélection, historique) et la toile React |
 | `apps/web` | l'application web |
 | `apps/site` | la page d’attente de notak.app |
