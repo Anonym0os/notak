@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Element } from './coeur/tableau'
 import { BoutonEtiquettes } from './elements/decor/BoutonEtiquettes'
+import { t } from './langue'
 import { definition, tousLesOutilsCommuns, tousLesTypes } from './elements/registre'
 import type { ContexteToile, Outil } from './elements/types'
 
@@ -76,7 +77,7 @@ export function BarreOutils({
         </button>
         {rebondit && (
           <div key={rebond.n} className="notak-bulle-outil" role="status">
-            Glissez l’outil sur le tableau
+            {t('barre.glisser')}
           </div>
         )}
       </div>
@@ -92,31 +93,31 @@ export function BarreOutils({
             type="button"
             className="notak-outil"
             aria-expanded={tiroir}
-            title="Plus d’outils"
+            title={t('barre.plusOutils')}
             onClick={() => setTiroir((t) => !t)}
           >
             <span className="notak-outil-icone">⋯</span>
-            <span className="notak-outil-libelle">Plus</span>
+            <span className="notak-outil-libelle">{t('barre.plus')}</span>
           </button>
           {tiroir && <div className="notak-tiroir">{caches.map((o) => bouton(o, true))}</div>}
         </div>
       )}
       <div className="notak-barre-sep" />
       <BoutonEtiquettes />
-      <button type="button" className="notak-outil" aria-expanded={nonTries.ouverte} title="Non triés (⌘\)" onClick={nonTries.basculer}>
+      <button type="button" className="notak-outil" aria-expanded={nonTries.ouverte} title={t('nonTries.titre') + ' (⌘\\)'} onClick={nonTries.basculer}>
         <span className="notak-outil-icone">📥</span>
-        <span className="notak-outil-libelle">Non triés{nonTries.nombre > 0 ? ` (${nonTries.nombre})` : ''}</span>
+        <span className="notak-outil-libelle">{t('nonTries.titre')}{nonTries.nombre > 0 ? ` (${nonTries.nombre})` : ''}</span>
       </button>
       <button
         type="button"
         className="notak-outil"
         data-corbeille
         aria-expanded={corbeille.ouverte}
-        title="Corbeille"
+        title={t('corbeille.titre')}
         onClick={corbeille.basculer}
       >
         <span className="notak-outil-icone">🗑</span>
-        <span className="notak-outil-libelle">Corbeille{corbeille.nombre > 0 ? ` (${corbeille.nombre})` : ''}</span>
+        <span className="notak-outil-libelle">{t('corbeille.titre')}{corbeille.nombre > 0 ? ` (${corbeille.nombre})` : ''}</span>
       </button>
     </nav>
   )
@@ -165,7 +166,7 @@ export function BarreSelection({
       {communs}
       {mele && blocs.length > 0 && (
         <span className="notak-barre-plus">
-          <button type="button" title="Outils de chaque type" aria-expanded={plus} aria-pressed={plus} onClick={() => setPlus((p) => !p)}>
+          <button type="button" title={t('barre.outilsParType')} aria-expanded={plus} aria-pressed={plus} onClick={() => setPlus((p) => !p)}>
             …
           </button>
           {plus && (

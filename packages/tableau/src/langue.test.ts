@@ -27,7 +27,12 @@ describe('dictionnaires', () => {
     )
     expect(Object.keys(sources).length).toBeGreaterThan(10)
     const inconnues: string[] = []
+    // Les clés qu'on range dans des tableaux de données : tout texte entre guillemets qui commence par un préfixe connu.
+    const prefixes = [...new Set(Object.keys(fr).map((k) => k.split('.')[0]))].join('|')
     for (const [f, source] of Object.entries(sources)) {
+      if (f === './langue.ts') continue
+      for (const m of source.matchAll(new RegExp(`'((?:${prefixes})\\.[\\w.]+)'`, 'g')))
+        if (!(m[1]! in fr) && !(`${m[1]}.one` in fr)) inconnues.push(`${f}: ${m[1]}`)
       for (const m of source.matchAll(/(?<![\w.$])t\(\s*'([\w.]+)'/g)) if (!(m[1]! in fr)) inconnues.push(`${f}: ${m[1]}`)
       for (const m of source.matchAll(/(?<![\w.$])tn\(\s*'([\w.]+)'/g))
         for (const forme of ['one', 'other']) if (!(`${m[1]}.${forme}` in fr)) inconnues.push(`${f}: ${m[1]}.${forme}`)
