@@ -3,35 +3,63 @@ import { t, tn } from '../../langue'
 
 /** La feuille sur laquelle on dessine, en unités de feuille (le rendu la met à l'échelle). */
 export const LARGEUR_FEUILLE = 640
+/** La hauteur des feuilles d'avant les proportions de 1,63 : un croquis sans `hauteur` la garde. */
 export const HAUTEUR_FEUILLE = 480
-export const LARGEUR_CROQUIS = 30
+/** La hauteur d'une feuille neuve : rapport de 1,63 (3400 × 2090). */
+export const HAUTEUR_FEUILLE_NEUVE = 393
+export const LARGEUR_CROQUIS = 34
 
-export const COULEURS_TRAIT = ['#1f2328', '#d84b4b', '#ef8a2f', '#3c9d5b', '#3a76df', '#8a5fd1'] as const
-export const EPAISSEURS_TRAIT = [
-  { get libelle() { return t('croquis.fin') }, valeur: 2 },
-  { get libelle() { return t('croquis.moyen') }, valeur: 5 },
-  { get libelle() { return t('croquis.epais') }, valeur: 10 },
+/** Un croquis, avec la hauteur de sa feuille (absente : 480, celle des croquis d'avant). */
+export type CroquisFeuille = Croquis & { hauteur?: number }
+export const hauteurFeuille = (c: CroquisFeuille): number => (c.hauteur && c.hauteur > 0 ? c.hauteur : HAUTEUR_FEUILLE)
+
+/** L'encre par défaut, puis les couleurs proposées, dans l'ordre de la palette. */
+export const COULEURS_TRAIT = [
+  '#323b4a',
+  '#bbbec3',
+  '#62dbc8',
+  '#7cd651',
+  '#d58558',
+  '#ffd14d',
+  '#ff8d48',
+  '#ff5757',
+  '#ff6ed4',
+  '#ad6fff',
+  '#4ebafd',
+  '#5882f8',
+  '#ffffff',
 ] as const
 
-/** Sous cette distance, un point de plus n'apporte rien au tracé. */
-const PAS_MIN = 1.5
-/** L'écart qu'une simplification a le droit d'introduire. */
-const TOLERANCE = 0.7
+/** Les épaisseurs, en pixels d'écran : le trait garde la même allure quelle que soit la taille de la fenêtre. */
+export const EPAISSEURS_TRAIT = [
+  { get libelle() { return t('croquis.fin') }, px: 2 },
+  { get libelle() { return t('croquis.moyen') }, px: 4 },
+  { get libelle() { return t('croquis.epais') }, px: 8 },
+  { get libelle() { return t('croquis.tresEpais') }, px: 32 },
+] as const
+export const EPAISSEUR_DEFAUT = 1
 
-export const nouveauCroquis = (x: number, y: number): Element<Croquis> => ({
+/** L'épaisseur à ranger dans le trait : des pixels d'écran ramenés aux unités de la feuille. `echelle` : pixels par unité. */
+export const epaisseurFeuille = (px: number, echelle: number): number => arrondi(px / (echelle > 0 ? echelle : 1))
+
+export const nouveauCroquis = (x: number, y: number): Element<CroquisFeuille> => ({
   id: nouvelId(),
   x,
   y,
   largeur: LARGEUR_CROQUIS,
-  contenu: { type: 'croquis', traits: [] },
+  contenu: { type: 'croquis', traits: [], hauteur: HAUTEUR_FEUILLE_NEUVE },
 })
 
-const arrondi = (v: number) => Math.round(v * 10) / 10
+/** Arrondi au centième : assez fin pour un tracé, assez court pour ne pas alourdir le document. */
+const arrondi = (v: number) => Math.round(v * 100) / 100
 
-/** Le point suivant d'un tracé en cours ; rend le tracé inchangé s'il est trop près du dernier. */
+/** Les points ramenés au centième. */
+export const arrondir = (points: readonly number[]): number[] => points.map(arrondi)
+
+/** Le point suivant d'un tracé en cours ; tous sont gardés, sauf un doublon exact du dernier (le tracé reste alors inchangé). */
 export function ajouterPoint(points: readonly number[], x: number, y: number): number[] {
   const n = points.length
-  if (n >= 2 && Math.hypot(x - points[n - 2]!, y - points[n - 1]!) < PAS_MIN) return points as number[]
+  if (n >= 2 && x === points[n - 2] && y === points[n - 1]) return points as number[]
   return [...points, x, y]
 }
 
@@ -44,39 +72,11 @@ export function distanceSegment(px: number, py: number, ax: number, ay: number, 
   return Math.hypot(px - (ax + t * dx), py - (ay + t * dy))
 }
 
-/** Ramer-Douglas-Peucker : garde les points qui portent la forme, écarte ceux qui sont presque alignés. */
-export function simplifier(points: readonly number[], tolerance = TOLERANCE): number[] {
-  const n = points.length / 2
-  if (n <= 2) return points.map(arrondi)
-  const garde = new Array<boolean>(n).fill(false)
-  garde[0] = garde[n - 1] = true
-  const pile: [number, number][] = [[0, n - 1]]
-  while (pile.length > 0) {
-    const [a, b] = pile.pop()!
-    let pire = -1
-    let ecart = tolerance
-    for (let i = a + 1; i < b; i++) {
-      const d = distanceSegment(points[2 * i]!, points[2 * i + 1]!, points[2 * a]!, points[2 * a + 1]!, points[2 * b]!, points[2 * b + 1]!)
-      if (d > ecart) {
-        ecart = d
-        pire = i
-      }
-    }
-    if (pire >= 0) {
-      garde[pire] = true
-      pile.push([a, pire], [pire, b])
-    }
-  }
-  const sortie: number[] = []
-  garde.forEach((g, i) => g && sortie.push(arrondi(points[2 * i]!), arrondi(points[2 * i + 1]!)))
-  return sortie
-}
-
 const nb = (v: number) => String(arrondi(v))
 
 /**
- * Le tracé lissé, en chemin SVG : la courbe passe par le milieu de chaque segment et prend chaque point
- * du tracé pour point de contrôle (des quadratiques bout à bout, sans cassure aux jonctions).
+ * Le tracé lissé, en chemin SVG : chaque point du tracé sert de point de contrôle à une quadratique qui finit au
+ * milieu du segment suivant (des courbes bout à bout, sans cassure aux jonctions) ; le dernier segment est droit.
  */
 export function cheminLisse(points: readonly number[]): string {
   const n = points.length / 2
@@ -84,19 +84,14 @@ export function cheminLisse(points: readonly number[]): string {
   const p = (i: number) => [points[2 * i]!, points[2 * i + 1]!] as const
   const [x0, y0] = p(0)
   if (n === 1) return `M${nb(x0)} ${nb(y0)}l0 0.01`
-  if (n === 2) {
-    const [x1, y1] = p(1)
-    return `M${nb(x0)} ${nb(y0)}L${nb(x1)} ${nb(y1)}`
-  }
   let d = `M${nb(x0)} ${nb(y0)}`
   for (let i = 1; i < n - 1; i++) {
     const [cx, cy] = p(i)
     const [sx, sy] = p(i + 1)
-    // Le dernier segment finit sur le dernier point lui-même, pas sur un milieu.
-    const [ex, ey] = i === n - 2 ? [sx, sy] : [(cx + sx) / 2, (cy + sy) / 2]
-    d += `Q${nb(cx)} ${nb(cy)} ${nb(ex)} ${nb(ey)}`
+    d += `Q${nb(cx)} ${nb(cy)} ${nb((cx + sx) / 2)} ${nb((cy + sy) / 2)}`
   }
-  return d
+  const [xn, yn] = p(n - 1)
+  return `${d}L${nb(xn)} ${nb(yn)}`
 }
 
 /** Un trait touche-t-il le disque de centre (x, y) et de rayon `rayon` ? (Son épaisseur compte.) */
@@ -114,6 +109,28 @@ export function toucheTrait(t: Trait, x: number, y: number, rayon: number): bool
 export function gommer(traits: readonly Trait[], x: number, y: number, rayon = 6): Trait[] {
   const reste = traits.filter((t) => !toucheTrait(t, x, y, rayon))
   return reste.length === traits.length ? (traits as Trait[]) : reste
+}
+
+/** Le trait que la gomme viserait en (x, y) : le plus haut (le dernier dessiné) qu'elle touche, ou -1. */
+export function traitVise(traits: readonly Trait[], x: number, y: number, rayon: number): number {
+  for (let i = traits.length - 1; i >= 0; i--) if (toucheTrait(traits[i]!, x, y, rayon)) return i
+  return -1
+}
+
+/** Ce qu'on garde d'une session à l'autre (dans le navigateur, quand il le permet). */
+export function lireReglage(cle: string): string | null {
+  try {
+    return localStorage.getItem(cle)
+  } catch {
+    return null
+  }
+}
+export function ecrireReglage(cle: string, valeur: string): void {
+  try {
+    localStorage.setItem(cle, valeur)
+  } catch {
+    // Stockage fermé : le réglage ne survit pas, rien d'autre ne change.
+  }
 }
 
 /** Ce qu'on lit d'un croquis dans une liste. */

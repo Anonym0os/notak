@@ -15,7 +15,7 @@ registre.type<Croquis>({
   Rendu: RenduCroquis,
   Outils: OutilsCroquis,
   editable: true,
-  hauteurParDefaut: 23,
+  hauteurParDefaut: 21,
   largeurMin: 12,
   suivant: () => null,
   outils: [

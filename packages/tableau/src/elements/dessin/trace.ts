@@ -1,13 +1,13 @@
 import type { Dessin, Element, Trait } from '../../coeur/tableau'
 import { nouvelId } from '../../coeur/tableau'
-import { simplifier } from '../croquis/trace'
+import { arrondir } from '../croquis/trace'
 
 /** Ce qui entoure les traits, en UG : le dessin ne colle pas à son cadre. */
 const MARGE = 1
 
 /**
  * Le dessin né des traits tracés sur la toile (points en UG du tableau, à plat : x, y, x, y…) : posé à leur coin haut
- * gauche, ses traits ramenés à son repère et simplifiés. `null` s'il n'y a rien à garder.
+ * gauche, ses traits ramenés à son repère (tous leurs points sont gardés). `null` s'il n'y a rien à garder.
  */
 export function dessinDepuis(traits: readonly Trait[]): Element<Dessin> | null {
   const tous = traits.filter((t) => t.points.length >= 2)
@@ -31,7 +31,7 @@ export function dessinDepuis(traits: readonly Trait[]): Element<Dessin> | null {
       type: 'dessin',
       largeurOrigine: largeur,
       hauteurOrigine: hauteur,
-      traits: tous.map((t) => ({ ...t, points: simplifier(t.points.map((v, i) => v - (i % 2 === 0 ? ox : oy)), 0.15) })),
+      traits: tous.map((t) => ({ ...t, points: arrondir(t.points.map((v, i) => v - (i % 2 === 0 ? ox : oy))) })),
     },
   }
 }

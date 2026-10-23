@@ -7,6 +7,7 @@
   display: block;
   width: 100%;
   height: auto;
+  background: #fff;
 }
 
 .notak-croquis-vide {
@@ -20,8 +21,9 @@
   pointer-events: none;
 }
 
-/* La feuille ouverte en grand, au-dessus de la toile. */
+/* La feuille ouverte en grand, au-dessus de la toile : centrée, 10 % de marge, la barre dessous. */
 .notak-croquis-fond {
+  --croquis-marge: min(10vw, 10vh);
   position: fixed;
   inset: 0;
   z-index: 1000;
@@ -32,84 +34,160 @@
 }
 
 .notak-croquis-feuille {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: min(92vw, calc((92vh - 70px) * 4 / 3));
-}
-
-.notak-croquis-outils {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 16px;
-  padding: 6px 8px;
-  border-radius: 10px;
-  background: var(--notak-carte, #fff);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
-  font-size: 13px;
-  color: var(--notak-texte, #1f2328);
-}
-
-.notak-croquis-outils [role='group'] {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.notak-croquis-outils button {
-  height: 28px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 6px;
-  background: none;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-}
-
-.notak-croquis-outils button:hover:not(:disabled),
-.notak-croquis-outils button[aria-pressed='true'] {
-  background: var(--notak-fond, #eef0f2);
-}
-
-.notak-croquis-outils button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.notak-croquis-outils .notak-croquis-pastille {
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  margin: 0 2px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.15);
-}
-
-.notak-croquis-outils .notak-croquis-pastille[aria-pressed='true'] {
-  box-shadow: 0 0 0 2px var(--notak-carte, #fff), 0 0 0 4px var(--notak-accent, #2f6feb);
-  background-color: inherit;
-}
-
-.notak-croquis-outils .notak-croquis-terminer {
-  margin-left: auto;
-  background: var(--notak-accent, #2f6feb);
-  color: #fff;
+  position: relative;
+  width: min(
+    calc(100vw - 2 * var(--croquis-marge)),
+    calc((100vh - 2 * var(--croquis-marge) - 83px) * var(--croquis-rapport, 1.63))
+  );
 }
 
 .notak-croquis-surface {
   display: block;
   width: 100%;
   height: auto;
-  border-radius: 6px;
   background: #fff;
-  box-shadow: 0 8px 32px rgb(0 0 0 / 0.3);
-  cursor: crosshair;
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.35);
+  /* Un crayon dessiné à la main ; la pointe est en bas à gauche. */
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M3 21l1-5L16 4l4 4L8 20z' fill='white' stroke='black' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='M3 21l1-5 4 4z' fill='black'/%3E%3C/svg%3E") 3 21, crosshair;
   touch-action: none;
   user-select: none;
 }
 
 .notak-croquis-surface[data-outil='gomme'] {
-  cursor: cell;
+  cursor: default;
+}
+
+.notak-croquis-barre {
+  position: absolute;
+  top: calc(100% + 20px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: min(560px, 92vw);
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--notak-carte, #fff);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.2), 0 8px 10px -6px rgb(0 0 0 / 0.2);
+  font-size: 13px;
+  color: var(--notak-texte, #1f2328);
+}
+
+.notak-croquis-barre button {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.notak-croquis-barre button:hover:not(:disabled),
+.notak-croquis-barre button[aria-pressed='true'],
+.notak-croquis-barre button[aria-expanded='true'] {
+  background: var(--notak-fond, #eef0f2);
+}
+
+.notak-croquis-barre button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.notak-croquis-sep {
+  width: 1px;
+  height: 20px;
+  margin: 0 6px;
+  background: currentColor;
+  opacity: 0.15;
+}
+
+.notak-croquis-espace {
+  flex: 1;
+}
+
+.notak-croquis-barre .notak-croquis-texte {
+  padding: 0 14px;
+}
+
+.notak-croquis-barre .notak-croquis-enregistrer {
+  background: var(--notak-accent, #2f6feb);
+  color: #fff;
+}
+
+.notak-croquis-barre .notak-croquis-enregistrer:hover:not(:disabled) {
+  background: var(--notak-accent, #2f6feb);
+  filter: brightness(1.1);
+}
+
+.notak-croquis-volet-hote {
+  position: relative;
+}
+
+.notak-croquis-volet {
+  position: absolute;
+  bottom: calc(100% + 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--notak-carte, #fff);
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.25), 0 0 0 1px rgb(0 0 0 / 0.06);
+}
+
+.notak-croquis-couleurs {
+  display: grid;
+  grid-template-columns: repeat(7, 28px);
+  gap: 4px;
+  padding: 10px;
+}
+
+.notak-croquis-barre .notak-croquis-pastille {
+  display: block;
+  width: 18px;
+  height: 18px;
+  min-width: 0;
+  padding: 0;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.18);
+}
+
+.notak-croquis-couleurs .notak-croquis-pastille {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+
+.notak-croquis-barre .notak-croquis-pastille:hover:not(:disabled) {
+  background-color: inherit;
+  filter: brightness(0.95);
+}
+
+.notak-croquis-couleurs .notak-croquis-pastille[aria-pressed='true'] {
+  box-shadow: 0 0 0 2px var(--notak-carte, #fff), 0 0 0 4px var(--notak-accent, #2f6feb);
+}
+
+.notak-croquis-libre {
+  display: block;
+  width: 28px;
+  height: 28px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: conic-gradient(#ff5757, #ffd14d, #7cd651, #4ebafd, #ad6fff, #ff5757);
+  cursor: pointer;
+}
+
+.notak-croquis-libre input {
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
 }
