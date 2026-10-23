@@ -95,6 +95,18 @@ export interface Image {
   recadrage?: Recadrage
   /** Les traits dessinés par-dessus (annotation), du plus ancien au plus récent. */
   traits?: TraitImage[]
+  /** Après un détourage : le fichier d'avant, gardé pour « Rétablir l'original » et pour régler le détourage de nouveau. */
+  original?: OriginalImage
+}
+
+/** Ce qu'une image était avant son détourage. */
+export interface OriginalImage {
+  fichier: Id
+  largeurOrigine: number
+  hauteurOrigine: number
+  typeMime?: string
+  transparente?: boolean
+  tailles?: TailleImage[]
 }
 
 /**

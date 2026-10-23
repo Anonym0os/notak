@@ -6,6 +6,8 @@ import { PX_PAR_UG } from '../../coeur/camera'
 import { aUneOmbre, avecLegende, hauteurCalee, miseEnPage, pivoter, proportionsAffichees } from './geometrie'
 import { Recadreur, recadrer, useRecadrageOuvert } from './Recadreur'
 import { Annotateur, Traits } from './Annotateur'
+import { Detoureur, detourerImage, useDetourageOuvert } from './Detoureur'
+import { sansDetourage } from './detourage'
 import { annoter, choisirCouleur, choisirOutil, useAnnotation } from './modeAnnotation'
 import { COULEURS_TRAIT, avecTraits } from './annotation'
 import { adresseALargeur, finesse, largeurCadrePx, largeurEntiereAffichee, palierPour } from './tailles'
@@ -38,7 +40,8 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
     : { aspectRatio: String(proportions) }
   const enGrand = useImageOuverte() === element.id
   const enRecadrage = useRecadrageOuvert() === element.id
-  const enDessin = useAnnotation().id === element.id && !contexte.services.lectureSeule && !enRecadrage
+  const enDetourage = useDetourageOuvert() === element.id
+  const enDessin = useAnnotation().id === element.id && !contexte.services.lectureSeule && !enRecadrage && !enDetourage
   // Les traits tels qu'ils seront à la fin du geste en cours (tracé, gomme) ; `null` : ceux du tableau.
   const [enCours, setEnCours] = useState<TraitImage[] | null>(null)
   const traits = enCours ?? contenu.traits
@@ -49,9 +52,14 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
   // Même chose pour le dessin : on ne dessine que sur l'image qu'on a sous la main.
   const dessine = useAnnotation().id === element.id
   useEffect(() => {
-    if (dessine && (!choisie || enRecadrage || enEdition)) annoter(null)
-  }, [dessine, choisie, enRecadrage, enEdition])
+    if (dessine && (!choisie || enRecadrage || enDetourage || enEdition)) annoter(null)
+  }, [dessine, choisie, enRecadrage, enDetourage, enEdition])
+  // Et pour le détourage.
+  useEffect(() => {
+    if (enDetourage && (!choisie || enRecadrage || contexte.services.lectureSeule)) detourerImage(null)
+  }, [enDetourage, choisie, enRecadrage, contexte.services.lectureSeule])
   if (enRecadrage && adresseOrigine) return <Recadreur id={element.id} contenu={contenu} adresse={adresseOrigine} contexte={contexte} />
+  if (enDetourage && adresseOrigine) return <Detoureur id={element.id} contenu={contenu} adresse={adresseOrigine} contexte={contexte} />
   return (
     <>
       {enRoute && (
@@ -140,6 +148,7 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
   const el = elements[0]!
   const dessin = useAnnotation()
   const enDessin = elements.length === 1 && dessin.id === el.id && !contexte.services.lectureSeule
+  const enDetourage = useDetourageOuvert() === el.id
   return (
     <>
       {!contexte.services.lectureSeule && (
@@ -150,6 +159,25 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
       {elements.length === 1 && !contexte.services.lectureSeule && (
         <button type="button" title="Garder une partie de l’image" aria-pressed={!!el.contenu.recadrage} onClick={() => recadrer(el.id)}>
           Recadrer
+        </button>
+      )}
+      {elements.length === 1 && !contexte.services.lectureSeule && !!contexte.services.fichiers && (
+        <button
+          type="button"
+          title="Retirer le fond uni de l’image"
+          aria-pressed={enDetourage || !!el.contenu.original}
+          onClick={() => detourerImage(enDetourage ? null : el.id)}
+        >
+          Détourer
+        </button>
+      )}
+      {elements.length === 1 && !contexte.services.lectureSeule && !!el.contenu.original && (
+        <button
+          type="button"
+          title="Revenir à l’image d’avant le détourage"
+          onClick={() => contexte.magasin.faire([{ type: 'contenu', id: el.id, avant: el.contenu, apres: sansDetourage(el.contenu) }])}
+        >
+          Rétablir l’original
         </button>
       )}
       {elements.length === 1 && !contexte.services.lectureSeule && (

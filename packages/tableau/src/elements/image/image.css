@@ -224,3 +224,44 @@
   outline: 2px solid currentColor;
   outline-offset: 1px;
 }
+
+/* Détourer : l'aperçu sur un damier, et le curseur de tolérance. */
+.notak-damier {
+  background: repeating-conic-gradient(#d9d9d9 0% 25%, #fff 0% 50%) 0 0 / 14px 14px;
+}
+
+.notak-damier > .notak-roue {
+  position: absolute;
+  top: calc(50% - 9px);
+  left: calc(50% - 9px);
+  width: 18px;
+  height: 18px;
+}
+
+.notak-detoureur-reglage {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.notak-detoureur-reglage input {
+  flex: 1;
+  min-width: 0;
+}
+
+.notak-detoureur-reglage output {
+  min-width: 2ch;
+  text-align: right;
+}
+
+.notak-detoureur-note {
+  margin: 0;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.notak-recadreur-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

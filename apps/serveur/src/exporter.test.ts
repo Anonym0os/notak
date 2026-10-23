@@ -158,4 +158,9 @@ describe('texte cherchable et fichiers', () => {
     expect(fichiersDe(elements).map((f) => f.id)).toEqual(['i1', 'f1'])
     expect([...idsDeFichiers(elements)].sort()).toEqual(['f1', 'i1', 'i1-400'])
   })
+
+  it('garde servi l\u2019original d\u2019une image détourée', () => {
+    const detouree = el({ type: 'image', fichier: 'png', original: { fichier: 'photo', tailles: [{ largeur: 400, fichier: 'photo-400' }] } })
+    expect([...idsDeFichiers([detouree])].sort()).toEqual(['photo', 'photo-400', 'png'])
+  })
 })
