@@ -1,5 +1,5 @@
 import { type Element, type ResultatRecherche, textesFr } from '@notak/tableau'
-import { t } from './langue'
+import { langue, t } from './langue'
 
 export interface Moi {
   id: string
@@ -82,7 +82,7 @@ export async function seConnecter(email: string, motDePasse: string): Promise<Mo
 }
 
 export async function sInscrire(email: string, motDePasse: string, nom: string): Promise<Moi> {
-  const r = await appeler('/api/inscription', { email, motDePasse, nom })
+  const r = await appeler('/api/inscription', { email, motDePasse, nom, langue: langue() })
   if (!r.ok) throw await refus(r, { 409: 'erreur.adresse_prise', 400: 'erreur.compte_invalide', 422: 'erreur.compte_invalide' })
   return (await r.json()) as Moi
 }

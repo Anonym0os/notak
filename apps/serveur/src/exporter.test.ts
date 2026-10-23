@@ -164,3 +164,23 @@ describe('texte cherchable et fichiers', () => {
     expect([...idsDeFichiers([detouree])].sort()).toEqual(['photo', 'photo-400', 'png'])
   })
 })
+
+describe('exporterTexte en anglais', () => {
+  it('écrit ses propres mots en anglais et laisse le texte de l’utilisateur', () => {
+    const tableau = {
+      titre: '  ',
+      elements: [
+        { id: 'a', x: 0, y: 0, largeur: 10, contenu: { type: 'tableau', cible: 'z', titre: '' } },
+        { id: 'b', x: 0, y: 20, largeur: 10, contenu: { type: 'fichier', nom: 'plan.pdf' } },
+        { id: 'c', x: 0, y: 40, largeur: 10, contenu: { type: 'commentaire', resolu: true, messages: [{ auteur: { nom: 'Ana' }, texte: 'Bonjour' }] } },
+      ],
+    } as never
+    const md = exporterTexte(tableau, 'md', () => undefined, 'en')
+    expect(md).toContain('# Untitled')
+    expect(md).toContain('*Board: Untitled*')
+    expect(md).toContain('*File: plan.pdf*')
+    expect(md).toContain('> (resolved)')
+    expect(md).toContain('> Ana : Bonjour')
+    expect(exporterTexte(tableau, 'txt')).toContain('Tableau : Sans titre')
+  })
+})

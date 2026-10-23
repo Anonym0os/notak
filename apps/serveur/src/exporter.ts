@@ -7,9 +7,23 @@ export const estFormatExport = (v: unknown): v is FormatExport => v === 'md' || 
 
 const chaine = (v: unknown): string => (typeof v === 'string' ? v : '')
 
+/**
+ * La langue des quelques mots que l'export écrit lui-même (« Tableau : », « Non triés »). Ce n'est pas un
+ * dictionnaire d'interface : le reste de l'export est le texte de l'utilisateur, tel quel.
+ */
+export type LangueExport = 'fr' | 'en'
+
+export const langueExport = (v: unknown): LangueExport => (v === 'en' ? 'en' : 'fr')
+
+const MOTS: Record<LangueExport, { tableau: string; image: string; fichier: string; resolu: string; sansTitre: string; nonTries: string; deuxPoints: string }> = {
+  fr: { tableau: 'Tableau', image: 'Image', fichier: 'Fichier', resolu: 'résolu', sansTitre: 'Sans titre', nonTries: 'Non triés', deuxPoints: ' : ' },
+  en: { tableau: 'Board', image: 'Image', fichier: 'File', resolu: 'resolved', sansTitre: 'Untitled', nonTries: 'Unsorted', deuxPoints: ': ' },
+}
+
 interface Rendu {
   md: boolean
   titreDe(id: string): string | undefined
+  mots: (typeof MOTS)[LangueExport]
 }
 
 // ---- Le texte riche (Tiptap) ----
@@ -102,7 +116,7 @@ function bloc(n: NoeudTexte, r: Rendu, decalage: number): string[] {
 
 /** Un texte riche en Markdown ou en texte brut. `decalage` : combien de niveaux de titre on le descend. */
 export function texteRiche(n: NoeudTexte, format: FormatExport, titreDe: (id: string) => string | undefined = () => undefined, decalage = 0): string {
-  return blocs(n.type === 'doc' ? (n.content ?? []) : [n], { md: format === 'md', titreDe }, decalage).join('\n')
+  return blocs(n.type === 'doc' ? (n.content ?? []) : [n], { md: format === 'md', titreDe, mots: MOTS.fr }, decalage).join('\n')
 }
 
 // ---- Les éléments ----
@@ -148,21 +162,24 @@ function lignesDe(e: ElementLu, r: Rendu, enfants: Map<string, ElementLu[]>, niv
     }
     case 'tableau': {
       const titre = r.titreDe(chaine(c.cible)) ?? chaine(c.titre)
-      return [r.md ? `*Tableau : ${titre || 'Sans titre'}*` : `Tableau : ${titre || 'Sans titre'}`]
+      const ligne = `${r.mots.tableau}${r.mots.deuxPoints}${titre || r.mots.sansTitre}`
+      return [r.md ? `*${ligne}*` : ligne]
     }
     case 'image': {
       const legende = chaine(c.legende)
-      return [r.md ? `*Image${legende ? ` : ${legende}` : ''}*` : `Image${legende ? ` : ${legende}` : ''}`]
+      const ligne = `${r.mots.image}${legende ? `${r.mots.deuxPoints}${legende}` : ''}`
+      return [r.md ? `*${ligne}*` : ligne]
     }
     case 'fichier': {
       const nom = chaine(c.titre) || chaine(c.nom)
-      return [r.md ? `*Fichier : ${nom}*` : `Fichier : ${nom}`]
+      const ligne = `${r.mots.fichier}${r.mots.deuxPoints}${nom}`
+      return [r.md ? `*${ligne}*` : ligne]
     }
     case 'commentaire': {
       const messages = (c.messages as { auteur?: { nom?: string }; texte?: string }[] | undefined) ?? []
       const lignes = messages.map((m) => `${r.md ? '> ' : ''}${chaine(m.auteur?.nom)} : ${chaine(m.texte).replace(/\n/g, ' ')}`)
       if (lignes.length === 0) return []
-      return c.resolu === true ? [...lignes, `${r.md ? '> ' : ''}(résolu)`] : lignes
+      return c.resolu === true ? [...lignes, `${r.md ? '> ' : ''}(${r.mots.resolu})`] : lignes
     }
     default:
       return []
@@ -224,14 +241,15 @@ export function exporterTexte(
   tableau: TableauLu,
   format: FormatExport,
   titreDe: (id: string) => string | undefined = () => undefined,
+  langue: LangueExport = 'fr',
 ): string {
-  const r: Rendu = { md: format === 'md', titreDe }
+  const r: Rendu = { md: format === 'md', titreDe, mots: MOTS[langue] }
   const { racines, enfants, nonTries } = ordreDeLecture(tableau.elements)
-  const titre = tableau.titre.trim() || 'Sans titre'
+  const titre = tableau.titre.trim() || r.mots.sansTitre
   const parties: string[][] = [[r.md ? `# ${titre}` : titre]]
   for (const e of racines) parties.push(lignesDe(e, r, enfants, 2))
   if (nonTries.length > 0) {
-    parties.push([r.md ? '## Non triés' : 'Non triés'])
+    parties.push([r.md ? `## ${r.mots.nonTries}` : r.mots.nonTries])
     for (const e of nonTries) parties.push(lignesDe(e, r, enfants, 3))
   }
   return assembler(parties).join('\n') + '\n'

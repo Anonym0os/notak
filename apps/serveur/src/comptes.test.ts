@@ -37,6 +37,18 @@ describe('inscription', () => {
     expect(base.chercher('"raccourcis"', [u.racine], 5).length).toBeGreaterThan(0)
   })
 
+  it('l’accueil d’un compte qui s’inscrit en anglais naît en anglais, de même forme', async () => {
+    const base = neuf()
+    const fr = await inscrire(base, { email: 'ana@exemple.fr', motDePasse: 'motdepasse', nom: 'Ana' })
+    const en = await inscrire(base, { email: 'bob@exemple.fr', motDePasse: 'motdepasse', nom: 'Bob', langue: 'en' })
+    const [a, b] = [fr, en].map((u) => lireEtat(base.document(nomDuDocument(u.racine))!))
+    expect(b!.titre).toBe('Bob’s home')
+    expect(base.tableau(en.racine)?.titre).toBe('Bob’s home')
+    expect(b!.elements).toHaveLength(a!.elements.length)
+    expect(JSON.stringify(b!.elements)).toContain('Welcome to Notak')
+    expect(JSON.stringify(a!.elements)).toContain('Bienvenue sur Notak')
+  })
+
   it('deux comptes n’ont aucun identifiant d’élément en commun', async () => {
     const base = neuf()
     const a = await inscrire(base, { email: 'ana@exemple.fr', motDePasse: 'motdepasse', nom: 'Ana' })

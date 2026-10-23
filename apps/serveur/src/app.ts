@@ -18,7 +18,7 @@ import { ErreurCompte, inscrire, normaliserEmail } from './comptes.ts'
 import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from './contenu.ts'
 import type { Limiteur } from './debit.ts'
 import { type Role, auMoins, role, roleHerite } from './droits.ts'
-import { estFormatExport, exporterTexte } from './exporter.ts'
+import { estFormatExport, exporterTexte, langueExport } from './exporter.ts'
 import { indexerDocument, requeteIndex } from './indexation.ts'
 import { hacher, verifier } from './motsDePasse.ts'
 import { DUREE_SESSION_S, NOM_COOKIE, cookieAccesPublic, cookieEfface, cookieSession, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
@@ -164,7 +164,7 @@ export function creerApp(ctx: Contexte): Hono {
     const b = await corps(c)
     if (!b) return c.json({ erreur: 'corps invalide', code: 'corps_invalide' }, 400)
     try {
-      const u = await inscrire(base, { email: texte(b.email), motDePasse: texte(b.motDePasse), nom: texte(b.nom) })
+      const u = await inscrire(base, { email: texte(b.email), motDePasse: texte(b.motDePasse), nom: texte(b.nom), langue: langueExport(b.langue) })
       ouvrirSession(c, u)
       return c.json(moi(u), 201)
     } catch (e) {
@@ -661,7 +661,7 @@ export function creerApp(ctx: Contexte): Hono {
     const format = c.req.query('format') ?? 'md'
     if (!estFormatExport(format)) return c.json({ erreur: 'format inconnu', code: 'format_inconnu' }, 400)
     const tableau = lireLe(g.id)
-    return c.body(exporterTexte(tableau, format, titreDe), 200, {
+    return c.body(exporterTexte(tableau, format, titreDe, langueExport(c.req.query('langue'))), 200, {
       'content-type': format === 'md' ? 'text/markdown; charset=utf-8' : 'text/plain; charset=utf-8',
       'content-disposition': enTeteTelechargement(tableau.titre, format),
       'cache-control': 'no-store',
@@ -684,7 +684,7 @@ export function creerApp(ctx: Contexte): Hono {
     if (entrees.length === 0) return c.json({ erreur: 'aucun média', code: 'aucun_media' }, 404)
     return c.body(creerZip(entrees) as Uint8Array<ArrayBuffer>, 200, {
       'content-type': 'application/zip',
-      'content-disposition': enTeteTelechargement(`${tableau.titre} (médias)`, 'zip'),
+      'content-disposition': enTeteTelechargement(`${tableau.titre} (${langueExport(c.req.query('langue')) === 'en' ? 'media' : 'médias'})`, 'zip'),
       'cache-control': 'no-store',
     })
   })
