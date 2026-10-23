@@ -356,3 +356,22 @@ body {
   font: inherit;
   font-size: 12px;
 }
+
+.bouton-etoile {
+  padding: 0 9px;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.bouton-etoile[aria-pressed='true'] {
+  color: #e8a400;
+}
+
+.sr-seulement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

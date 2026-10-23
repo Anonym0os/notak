@@ -37,6 +37,8 @@ export interface Contexte {
 export const FICHIER_MAX = 25 * 1024 * 1024
 const ID_TABLEAU = /^[A-Za-z0-9_-]{8,64}$/
 const ID_FICHIER = /^[0-9a-f-]{36}$/
+/** Combien de tableaux récents la liste montre. */
+const RECENTS_AFFICHES = 12
 const JETON_PUBLIC = /^[A-Za-z0-9_-]{16,64}$/
 
 /** Un nom de fichier sûr à partir d'un titre, et l'en-tête qui le propose au téléchargement. */
@@ -173,6 +175,14 @@ export function creerApp(ctx: Contexte): Hono {
     return c.json(base.tableauxAccessibles(u.id).filter((t) => t.id !== u.racine))
   })
 
+  /** Ces tableaux, avec le titre et le rôle de `u` ; ceux qu'il ne peut plus ouvrir et son accueil sont écartés. */
+  const resumes = (u: Utilisateur, ids: readonly string[]) =>
+    ids.flatMap((id) => {
+      const r = roleSur(u.id, id)
+      const t = base.tableau(id)
+      return r && t && id !== u.racine ? [{ id, titre: t.titre, role: r }] : []
+    })
+
   /** Le tableau, et l'utilisateur s'il atteint au moins `minimum` ; sinon la réponse d'erreur à rendre. */
   const garde = (c: Context, minimum: Role): { u: Utilisateur; id: string } | Response => {
     const u = utilisateurCourant(c)
@@ -259,6 +269,43 @@ export function creerApp(ctx: Contexte): Hono {
     return etat ? lireEtat(etat) : { titre: base.tableau(id)?.titre ?? '', elements: [] }
   }
   const titreDe = (id: string) => base.tableau(id)?.titre
+
+  // ---- Favoris et récents ----
+
+  app.get('/api/favoris', (c) => {
+    const u = utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    return c.json(resumes(u, base.favoris(u.id)))
+  })
+
+  app.put('/api/tableaux/:id/favori', (c) => {
+    const g = garde(c, 'lecture')
+    if (g instanceof Response) return g
+    if (g.id === g.u.racine) return c.json({ erreur: 'accueil' }, 400)
+    base.definirFavori(g.u.id, g.id, ctx.maintenant())
+    return c.body(null, 204)
+  })
+
+  app.delete('/api/tableaux/:id/favori', (c) => {
+    const g = garde(c, 'lecture')
+    if (g instanceof Response) return g
+    base.retirerFavori(g.u.id, g.id)
+    return c.body(null, 204)
+  })
+
+  app.get('/api/recents', (c) => {
+    const u = utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    return c.json(resumes(u, base.recents(u.id, RECENTS_AFFICHES)))
+  })
+
+  // Le client note chaque tableau qu'il ouvre ; l'accueil n'entre pas dans la liste.
+  app.post('/api/tableaux/:id/vu', (c) => {
+    const g = garde(c, 'lecture')
+    if (g instanceof Response) return g
+    if (g.id !== g.u.racine) base.noterVu(g.u.id, g.id, ctx.maintenant())
+    return c.body(null, 204)
+  })
 
   // ---- Lien public ----
 

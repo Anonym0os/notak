@@ -31,11 +31,13 @@ export interface Monde {
 export function monde(): Monde {
   const dossier = mkdtempSync(join(tmpdir(), 'notak-monde-'))
   const base = ouvrirBase(':memory:')
+  // Une horloge qui avance d'une milliseconde à chaque lecture : deux gestes ne tombent jamais au même instant.
+  let instant = Date.now()
   const app = creerApp({
     base,
     dossierFichiers: join(dossier, 'fichiers'),
     limiteur: creerLimiteur(1000, 60_000),
-    maintenant: Date.now,
+    maintenant: () => ++instant,
     synchro: () => null,
     relaisFiable: false,
     cookieSecurise: false,

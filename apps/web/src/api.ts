@@ -135,3 +135,27 @@ export async function lirePublic(jeton: string): Promise<TableauPublic | null> {
   if (!r.ok) throw refus(r, {})
   return (await r.json()) as TableauPublic
 }
+
+/** Les tableaux favoris du compte, le dernier ajouté d'abord. */
+export async function listerFavoris(): Promise<TableauAccessible[]> {
+  const r = await appeler('/api/favoris')
+  if (!r.ok) throw refus(r, {})
+  return (await r.json()) as TableauAccessible[]
+}
+
+export async function definirFavori(tableau: string, favori: boolean): Promise<void> {
+  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/favori`, undefined, favori ? 'PUT' : 'DELETE')
+  if (!r.ok) throw refus(r, { 404: 'Tableau introuvable', 400: 'L’accueil ne se met pas en favori' })
+}
+
+/** Les derniers tableaux ouverts par le compte. */
+export async function listerRecents(): Promise<TableauAccessible[]> {
+  const r = await appeler('/api/recents')
+  if (!r.ok) throw refus(r, {})
+  return (await r.json()) as TableauAccessible[]
+}
+
+/** Note l'ouverture d'un tableau, pour la liste des récents. */
+export async function noterVu(tableau: string): Promise<void> {
+  await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/vu`, {}).catch(() => {})
+}

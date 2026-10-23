@@ -73,7 +73,19 @@ export interface Base {
   definirJetonPublic(tableau: string, jeton: string, maintenant: number): void
   retirerJetonPublic(tableau: string): boolean
   tableauDuJeton(jeton: string): string | null
+
+  /** Les tableaux favoris d'un compte, le dernier ajouté d'abord. */
+  favoris(utilisateur: string): string[]
+  definirFavori(utilisateur: string, tableau: string, maintenant: number): void
+  retirerFavori(utilisateur: string, tableau: string): boolean
+  /** Note l'ouverture d'un tableau ; seuls les plus récents sont gardés. */
+  noterVu(utilisateur: string, tableau: string, maintenant: number): void
+  /** Les tableaux ouverts en dernier par un compte, le plus récent d'abord. */
+  recents(utilisateur: string, limite: number): string[]
 }
+
+/** Combien de tableaux récents on garde par compte. */
+export const RECENTS_GARDES = 50
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS utilisateurs (
@@ -107,6 +119,19 @@ CREATE TABLE IF NOT EXISTS fichiers (
   id TEXT PRIMARY KEY, type TEXT NOT NULL, taille INTEGER NOT NULL,
   auteur TEXT NOT NULL REFERENCES utilisateurs(id)
 );
+CREATE TABLE IF NOT EXISTS favoris (
+  utilisateur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  cree INTEGER NOT NULL,
+  PRIMARY KEY (utilisateur, tableau)
+);
+CREATE TABLE IF NOT EXISTS recents (
+  utilisateur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  vu INTEGER NOT NULL,
+  PRIMARY KEY (utilisateur, tableau)
+);
+CREATE INDEX IF NOT EXISTS recents_vu ON recents(utilisateur, vu DESC);
 CREATE TABLE IF NOT EXISTS liens_publics (
   tableau TEXT PRIMARY KEY REFERENCES tableaux(id) ON DELETE CASCADE,
   jeton TEXT NOT NULL UNIQUE, cree INTEGER NOT NULL
@@ -214,6 +239,24 @@ export function ouvrirBase(chemin: string): Base {
         maintenant,
       ),
     retirerJetonPublic: (tableau) => Number(executer('DELETE FROM liens_publics WHERE tableau = ?', tableau).changes) > 0,
+    favoris: (u) =>
+      (tous('SELECT tableau FROM favoris WHERE utilisateur = ? ORDER BY cree DESC, tableau', u) as unknown as { tableau: string }[]).map((l) => l.tableau),
+    definirFavori: (u, t, maintenant) =>
+      void executer('INSERT INTO favoris (utilisateur,tableau,cree) VALUES (?,?,?) ON CONFLICT(utilisateur,tableau) DO NOTHING', u, t, maintenant),
+    retirerFavori: (u, t) => Number(executer('DELETE FROM favoris WHERE utilisateur = ? AND tableau = ?', u, t).changes) > 0,
+    noterVu(u, t, maintenant) {
+      executer('INSERT INTO recents (utilisateur,tableau,vu) VALUES (?,?,?) ON CONFLICT(utilisateur,tableau) DO UPDATE SET vu = excluded.vu', u, t, maintenant)
+      executer(
+        'DELETE FROM recents WHERE utilisateur = ? AND tableau NOT IN (SELECT tableau FROM recents WHERE utilisateur = ? ORDER BY vu DESC LIMIT ?)',
+        u,
+        u,
+        RECENTS_GARDES,
+      )
+    },
+    recents: (u, limite) =>
+      (tous('SELECT tableau FROM recents WHERE utilisateur = ? ORDER BY vu DESC, tableau LIMIT ?', u, limite) as unknown as { tableau: string }[]).map(
+        (l) => l.tableau,
+      ),
     tableauDuJeton: (jeton) => (un('SELECT tableau FROM liens_publics WHERE jeton = ?', jeton)?.tableau as string | undefined) ?? null,
   }
 }
