@@ -318,6 +318,8 @@ export const fr: Textes = {
   'synchro.plein': 'Plus de place dans le dossier.',
   'synchro.introuvable': 'Le dossier est introuvable (déplacé, ou disque débranché).',
   'synchro.erreur': 'La synchro a échoué ; elle réessaiera.',
+  'local.aPropos': 'À propos de Notak',
+  'local.code': 'Le code (AGPL-3.0)',
   // FIN fr
 }
 
@@ -633,6 +635,8 @@ export const en: Textes = {
   'synchro.plein': 'No space left in the folder.',
   'synchro.introuvable': 'The folder cannot be found (moved, or drive unplugged).',
   'synchro.erreur': 'Sync failed; it will try again.',
+  'local.aPropos': 'About Notak',
+  'local.code': 'Source code (AGPL-3.0)',
   // FIN en
 }
 

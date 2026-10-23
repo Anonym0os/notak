@@ -138,6 +138,9 @@ export function Rangement({ el, enregistrer, rouvrir, message }: { el: EspaceLoc
               </a>
             )}
           </div>
+          <small className="rangement-note">
+            <a href="/a-propos">{t('local.aPropos')}</a> · <a href={DEPOT} target="_blank" rel="noopener noreferrer">{t('local.code')}</a>
+          </small>
         </div>
       )}
     </div>
