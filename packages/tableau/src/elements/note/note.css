@@ -396,6 +396,38 @@
   margin-top: 4px;
 }
 
+/*
+ * Une note à hauteur bornée coupe son texte, pas sa légende : la carte ne rogne plus (la légende vit sous elle),
+ * c'est le texte qui rétrécit et qui s'efface en bas quand il déborde (`data-deborde`, posé par `RenduNote`).
+ */
+.notak-carte[data-plafond]:has(> .notak-note) {
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+}
+
+.notak-carte[data-plafond]:has(> .notak-note) > .notak-voile {
+  display: none;
+}
+
+.notak-carte[data-plafond] > .notak-note {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.notak-carte[data-plafond] > .notak-note > .notak-texte {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.notak-carte[data-plafond] > .notak-note[data-deborde] > .notak-texte {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 44px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 44px), transparent);
+}
+
 /* La légende : sous la carte, en petit, comme sous une image. */
 .notak-note-legende {
   position: absolute;

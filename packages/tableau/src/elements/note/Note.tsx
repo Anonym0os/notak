@@ -26,6 +26,17 @@ export function RenduNote(props: PropsRendu<Note>) {
       carte.style.removeProperty('--notak-voile')
     }
   }, [contenu.fond])
+  // Sous un plafond de hauteur, le texte déborde en silence : le bas s'efface (voir `note.css`).
+  const [deborde, setDeborde] = useState(false)
+  useLayoutEffect(() => {
+    const texteDom = racine.current?.querySelector<HTMLElement>(':scope > .notak-texte')
+    if (!texteDom) return
+    const mesurer = () => setDeborde(texteDom.scrollHeight > texteDom.clientHeight + 1)
+    mesurer()
+    const obs = new ResizeObserver(mesurer)
+    obs.observe(texteDom)
+    return () => obs.disconnect()
+  }, [enEdition, contenu.texte])
   return (
     <div
       ref={racine}
@@ -33,6 +44,7 @@ export function RenduNote(props: PropsRendu<Note>) {
       data-couleur={contenu.fond ? undefined : contenu.couleur}
       data-variante={contenu.variante}
       data-barre={contenu.barre ? '' : undefined}
+      data-deborde={deborde || undefined}
       style={texte ? { color: texte } : undefined}
       // Hors édition, un lien s'ouvre : l'appui ne doit pas lancer un glisser.
       onPointerDown={enEdition ? undefined : (e) => (e.target as HTMLElement).closest('a') && e.stopPropagation()}
