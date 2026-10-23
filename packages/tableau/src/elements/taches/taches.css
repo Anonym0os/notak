@@ -169,3 +169,54 @@
   color: rgb(0 0 0 / 0.35);
   pointer-events: none;
 }
+
+/* La couleur de la liste : le fond est celui du cadre commun (la liste le lui demande à travers son enfant), comme une note. */
+.notak-carte:has(> .notak-taches[data-couleur='gris']) { background: var(--notak-note-gris); --notak-voile: var(--notak-note-gris); --notak-liste-fond: var(--notak-note-gris); }
+.notak-carte:has(> .notak-taches[data-couleur='cyan']) { background: var(--notak-note-cyan); --notak-voile: var(--notak-note-cyan); --notak-liste-fond: var(--notak-note-cyan); }
+.notak-carte:has(> .notak-taches[data-couleur='vert']) { background: var(--notak-note-vert); --notak-voile: var(--notak-note-vert); --notak-liste-fond: var(--notak-note-vert); }
+.notak-carte:has(> .notak-taches[data-couleur='brun']) { background: var(--notak-note-brun); --notak-voile: var(--notak-note-brun); --notak-liste-fond: var(--notak-note-brun); }
+.notak-carte:has(> .notak-taches[data-couleur='jaune']) { background: var(--notak-note-jaune); --notak-voile: var(--notak-note-jaune); --notak-liste-fond: var(--notak-note-jaune); }
+.notak-carte:has(> .notak-taches[data-couleur='orange']) { background: var(--notak-note-orange); --notak-voile: var(--notak-note-orange); --notak-liste-fond: var(--notak-note-orange); }
+.notak-carte:has(> .notak-taches[data-couleur='rouge']) { background: var(--notak-note-rouge); --notak-voile: var(--notak-note-rouge); --notak-liste-fond: var(--notak-note-rouge); }
+.notak-carte:has(> .notak-taches[data-couleur='rose']) { background: var(--notak-note-rose); --notak-voile: var(--notak-note-rose); --notak-liste-fond: var(--notak-note-rose); }
+.notak-carte:has(> .notak-taches[data-couleur='violet']) { background: var(--notak-note-violet); --notak-voile: var(--notak-note-violet); --notak-liste-fond: var(--notak-note-violet); }
+.notak-carte:has(> .notak-taches[data-couleur='bleu']) { background: var(--notak-note-bleu); --notak-voile: var(--notak-note-bleu); --notak-liste-fond: var(--notak-note-bleu); }
+.notak-carte:has(> .notak-taches[data-couleur='bleu_nuit']) { background: var(--notak-note-bleu_nuit); --notak-voile: var(--notak-note-bleu_nuit); --notak-liste-fond: var(--notak-note-bleu_nuit); }
+
+/* Sur un fond de couleur, tout se dessine à la couleur du texte. */
+.notak-taches[data-couleur] .notak-taches-titre {
+  color: inherit;
+}
+
+.notak-taches[data-couleur] .notak-taches-titre::placeholder {
+  color: inherit;
+  opacity: 0.55;
+}
+
+.notak-taches[data-couleur] .notak-case::before {
+  border-color: color-mix(in srgb, currentColor 60%, transparent);
+}
+
+.notak-taches[data-couleur] .notak-case:hover::before {
+  border-color: currentColor;
+}
+
+.notak-taches[data-couleur] .notak-case[aria-checked='true']::before {
+  border-color: currentColor;
+  background: currentColor;
+}
+
+.notak-taches[data-couleur] .notak-case[aria-checked='true']::after {
+  border-color: var(--notak-liste-fond, #fff);
+}
+
+.notak-taches[data-couleur] li[data-checked='true'] > div > p {
+  color: inherit;
+  opacity: 0.6;
+}
+
+.notak-taches[data-couleur] .notak-tache-suppr::before,
+.notak-taches[data-couleur] .notak-tache-suppr::after {
+  background: currentColor;
+  opacity: 0.6;
+}

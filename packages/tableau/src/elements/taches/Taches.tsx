@@ -1,8 +1,10 @@
 import { EditorContent, getSchema, useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 import { type KeyboardEvent, type ReactNode, memo, useEffect, useMemo, useRef, useState } from 'react'
-import type { Element, Id, NoeudTexte, Taches } from '../../coeur/tableau'
+import type { CouleurNote, Element, Id, NoeudTexte, Taches } from '../../coeur/tableau'
 import { extensionsDuPartage, textePartage } from '../partage'
+import { texteDeNote } from '../note/couleurs'
+import { MenuCouleur } from '../note/MenuCouleur'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { EXTENSIONS_TACHES, EXTENSIONS_TACHES_PARTAGEE, type GestesTaches, clavierListe } from './extensions'
 import { type Chemin, basculer, compter, docTaches, effacerFaites, estFaite, retirer, sousTaches } from './liste'
@@ -12,14 +14,17 @@ const titreAFocaliser = new Set<Id>()
 
 const sansTitre = ({ titre: _, ...reste }: Taches): Taches => reste
 
+const sansCouleur = ({ couleur: _, ...reste }: Taches): Taches => reste
+
 export function RenduTaches({ element, enEdition, contexte, brouillon, changer }: PropsRendu<Taches>) {
   const { contenu } = element
   const jeter = () => {
     contexte.jeter([element.id])
     contexte.finirEdition()
   }
+  const texte = texteDeNote(contenu.couleur)
   return (
-    <div className="notak-taches">
+    <div className="notak-taches" data-couleur={contenu.couleur} style={texte ? { color: texte } : undefined}>
       {enEdition ? (
         <Edition id={element.id} contenu={contenu} contexte={contexte} surChangement={brouillon} jeter={jeter} />
       ) : (
@@ -260,6 +265,12 @@ export function OutilsTaches({ elements, contexte }: PropsOutils<Taches>) {
       <button type="button" aria-pressed={toutesTitrees} onClick={basculerTitre}>
         Titre
       </button>
+      <MenuCouleur
+        actuelle={elements.every((e) => e.contenu.couleur === elements[0]!.contenu.couleur) ? elements[0]!.contenu.couleur : undefined}
+        choisir={(couleur: CouleurNote | undefined) =>
+          changerTout((e) => (couleur ? { ...sansCouleur(e.contenu), couleur } : sansCouleur(e.contenu)))
+        }
+      />
       {faites >= 2 && (
         <button
           type="button"
