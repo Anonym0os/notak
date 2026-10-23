@@ -2,16 +2,45 @@
   min-height: 0;
 }
 
+.notak-image-cadre {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 2px;
+  container-type: size;
+}
+
+.notak-image-cadre[data-ombre] {
+  box-shadow: var(--notak-ombre);
+}
+
+.notak-image-plan {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  overflow: hidden;
+}
+
+/* L'image remplit son plan (ou, recadrée, le déborde : le plan cache le reste). */
 .notak-image {
   display: block;
   width: 100%;
-  height: auto;
-  border-radius: 2px;
+  height: 100%;
+  object-fit: fill;
   -webkit-user-drag: none;
 }
 
-.notak-image[data-ombre] {
-  box-shadow: var(--notak-ombre);
+.notak-image-plan > .notak-image {
+  position: absolute;
+  max-width: none;
+}
+
+.notak-image-cadre > .notak-image-vide {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
 }
 
 .notak-image-vide {
@@ -29,6 +58,11 @@
   line-height: 1.4;
   color: #5b6169;
   overflow-wrap: anywhere;
+}
+
+.notak-legende[data-vide] {
+  color: #9aa0a8;
+  cursor: text;
 }
 
 .notak-legende-champ {
@@ -102,4 +136,57 @@
   height: 18px;
   border-width: 2.5px;
   filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.4));
+}
+
+.notak-carte[data-choisie] .notak-legende {
+  cursor: text;
+}
+
+/* Régler le recadrage : l'image en entier, voilée hors du cadre. */
+.notak-recadreur {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.notak-recadre {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1.5px solid #fff;
+  box-shadow: 0 0 0 100vmax rgb(15 17 20 / 0.55);
+  outline: 1px solid rgb(0 0 0 / 0.35);
+  cursor: move;
+  touch-action: none;
+}
+
+.notak-recadre-poignee {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+  border: 1.5px solid #333;
+  border-radius: 50%;
+  background: #fff;
+  touch-action: none;
+}
+
+.notak-recadre-poignee[data-poignee='nw'] { top: 2px; left: 2px; cursor: nwse-resize; }
+.notak-recadre-poignee[data-poignee='ne'] { top: 2px; right: 2px; cursor: nesw-resize; }
+.notak-recadre-poignee[data-poignee='sw'] { bottom: 2px; left: 2px; cursor: nesw-resize; }
+.notak-recadre-poignee[data-poignee='se'] { bottom: 2px; right: 2px; cursor: nwse-resize; }
+
+.notak-recadreur-actions {
+  display: flex;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.notak-recadreur-actions button {
+  padding: 3px 8px;
+  border: 1px solid var(--notak-point);
+  border-radius: 4px;
+  background: var(--notak-carte);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }

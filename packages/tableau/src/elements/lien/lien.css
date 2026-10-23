@@ -14,12 +14,6 @@
   background: var(--notak-fond);
 }
 
-/* Un lecteur garde le format vidéo ; une image d'aperçu, ses propres proportions. */
-.notak-lien-media[data-video],
-.notak-lien-media:has(> iframe) {
-  aspect-ratio: 16 / 9;
-}
-
 .notak-lien-media img,
 .notak-lien-media iframe {
   display: block;
@@ -28,10 +22,16 @@
   border: 0;
 }
 
-.notak-lien-media[data-video] img,
-.notak-lien-media iframe {
+/* Un lecteur a la forme que lui donne la carte (proportions ou hauteur fixe) : l'aperçu le remplit. */
+.notak-lien-media[data-genre] img,
+.notak-lien-media[data-genre] iframe {
   height: 100%;
   object-fit: cover;
+}
+
+/* Un morceau n'a pas de vignette à montrer en grand : un fond de lecteur, et le bouton au centre. */
+.notak-lien-media[data-genre='audio'] {
+  background: #1f2328;
 }
 
 .notak-lien-lecture {
@@ -174,4 +174,11 @@
 
 .notak-lien-titre.notak-lien-edition {
   font-weight: 700;
+}
+
+/* L'aperçu a échoué : la cause, sous l'adresse. */
+.notak-lien-echec {
+  color: #b45309;
+  font-size: 12px;
+  line-height: 1.35;
 }

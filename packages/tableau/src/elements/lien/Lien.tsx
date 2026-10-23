@@ -1,8 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { Apercu, Id, Lien } from '../../coeur/tableau'
+import type { Apercu, CauseEchec, Id, Lien } from '../../coeur/tableau'
 import type { PropsRendu } from '../types'
-import { domaineDe, lireAdresse } from './adresse'
+import { INVITES, avecAdresse, domaineDe, lireAdresse } from './adresse'
+import { lireCause, messageEchec } from './echec'
 import { lecteurDe } from './lecteurs'
+import { Media } from './Media'
+import { convertirEnImage } from './versImage'
+import { affichage } from './affichage'
 
 const DELAI_APERCU = 15_000
 const REL = 'noopener noreferrer nofollow'
@@ -33,21 +37,26 @@ function useChargementApercu({ element, contexte }: PropsRendu<Lien>) {
     if (statut !== 'attente' || !url || marque.current === `${id}|${url}`) return
     marque.current = `${id}|${url}`
     const chercheur = contexte.services.apercu
-    const terminer = (statutFinal: 'pret' | 'echec', apercu?: Apercu) => {
+    const terminer = (statutFinal: 'pret' | 'echec', apercu?: Apercu, cause?: CauseEchec) => {
       const actuel = contexte.magasin.lire().elements.find((e) => e.id === id)?.contenu
       // L'élément a disparu ou changé d'adresse entre-temps : ce résultat ne le concerne plus.
       if (!actuel || actuel.type !== 'lien' || actuel.url !== url || actuel.statut !== 'attente') return
-      const apres: Lien = { ...actuel, statut: statutFinal, apercu }
+      const { echec: _, ...sans } = actuel
+      const apres: Lien = { ...sans, statut: statutFinal, apercu, ...(cause ? { echec: cause } : {}) }
       contexte.magasin.corriger([{ type: 'contenu', id, avant: actuel, apres }])
     }
-    if (!chercheur) return terminer('echec')
+    if (!chercheur) return terminer('echec', undefined, 'injoignable')
     let minuteur: ReturnType<typeof setTimeout>
     const limite = new Promise<never>((_, rejeter) => {
-      minuteur = setTimeout(() => rejeter(new Error('délai')), DELAI_APERCU)
+      minuteur = setTimeout(() => rejeter(new Error('délai', { cause: 'delai' })), DELAI_APERCU)
     })
     Promise.race([chercheur(url), limite])
-      .then((a) => terminer('pret', a))
-      .catch(() => terminer('echec'))
+      .then(async (a) => {
+        // L'adresse mène à une image : on la rapatrie et la carte devient une image ; sinon elle garde l'aperçu.
+        if (a.estImage && (await convertirEnImage(id, url, contexte))) return
+        terminer('pret', a)
+      })
+      .catch((e: unknown) => terminer('echec', undefined, lireCause(e)))
       .finally(() => clearTimeout(minuteur))
   }, [id, url, statut, contexte])
 }
@@ -80,7 +89,7 @@ function Saisie({ element, contexte, changer }: PropsRendu<Lien>) {
     const url = lireAdresse(texte)
     if (!url) return setErreur(true)
     adresseAEditer.delete(element.id)
-    if (url !== contenu.url) changer({ type: 'lien', url, statut: 'attente' })
+    if (url !== contenu.url) changer(avecAdresse(contenu, url))
     contexte.finirEdition()
   }
 
@@ -91,7 +100,7 @@ function Saisie({ element, contexte, changer }: PropsRendu<Lien>) {
         type="url"
         autoFocus
         spellCheck={false}
-        placeholder="Adresse"
+        placeholder={INVITES[contenu.genre ?? 'lien']}
         value={texte}
         onChange={(e) => setTexte(e.target.value)}
         onKeyDown={(e) => {
@@ -111,8 +120,8 @@ function Carte({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<
   const { url, statut, apercu } = contenu
   const domaine = domaineDe(url)
   const lecteur = lecteurDe(url)
-  const [lecture, setLecture] = useState(false)
   const image = statut === 'pret' ? apercu?.image : undefined
+  const aff = affichage(contenu)
   const titre = titreDuLien(contenu)
   const legende = contenu.legende ?? (statut === 'pret' && !lecteur ? apercu?.description : undefined)
   // Entré en édition par un clic sur la légende, on l'écrit ; sinon on renomme. Le choix se fait une fois
@@ -127,9 +136,9 @@ function Carte({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<
     if (choix.current) return
     const ou = contexte.prendrePointEdition()
     const sous = ou && document.elementFromPoint(ou.x, ou.y)
-    choix.current = sous?.closest('.notak-lien-description') ? 'legende' : 'titre'
+    choix.current = sous?.closest('.notak-lien-description') || !aff.infos ? 'legende' : 'titre'
     setPartie(choix.current)
-  }, [enEdition, contexte])
+  }, [enEdition, contexte, aff.infos])
   const ecrire = (champ: 'titre' | 'legende', v: string) => brouillon({ ...contenu, [champ]: v })
 
   // Le domaine ouvre toujours le lien ; le titre seulement tant que le lien n'est pas choisi (sinon, on le renomme).
@@ -148,58 +157,43 @@ function Carte({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<
 
   return (
     <div className="notak-lien">
-      {lecteur && lecture ? (
-        <div className="notak-lien-media">
-          <iframe
-            src={lecteur.src}
-            title={titre ?? domaine}
-            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-          />
+      {aff.apercu && <Media lecteur={lecteur} image={image} titre={titre ?? domaine} lien={contenu} />}
+      {(aff.infos || aff.legende || statut !== 'pret' || partie) && (
+        <div className="notak-lien-texte">
+          {aff.infos &&
+            lien(
+              <>
+                {apercu?.favicon && statut === 'pret' && (
+                  <img className="notak-lien-favicon" src={apercu.favicon} alt="" draggable={false} referrerPolicy="no-referrer" />
+                )}
+                <span>{domaine}</span>
+              </>,
+              'notak-lien-domaine',
+              true,
+            )}
+          {statut === 'attente' ? (
+            <span className="notak-lien-chargement" role="status" aria-label="Chargement" />
+          ) : (
+            <>
+              {statut === 'echec' && (
+                <div className="notak-lien-echec" role="status">
+                  {messageEchec(contenu.echec)}
+                </div>
+              )}
+              {partie === 'titre' ? (
+                <Champ classe="notak-lien-titre" valeur={titre ?? ''} max={500} toutChoisir ligne ecrire={(v) => ecrire('titre', v)} finir={contexte.finirEdition} />
+              ) : (
+                aff.infos && titre && lien(titre, 'notak-lien-titre', false)
+              )}
+              {partie === 'legende' ? (
+                <Champ classe="notak-lien-description" valeur={legende ?? ''} ecrire={(v) => ecrire('legende', v)} finir={contexte.finirEdition} />
+              ) : (
+                aff.legende && legende && <div className="notak-lien-description">{legende}</div>
+              )}
+            </>
+          )}
         </div>
-      ) : (
-        (image || lecteur) && (
-          <div className="notak-lien-media" data-video={lecteur ? '' : undefined}>
-            {image && <img src={image} alt="" draggable={false} referrerPolicy="no-referrer" />}
-            {lecteur && (
-              <button className="notak-lien-lecture" title="Lire" onClick={() => setLecture(true)}>
-                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
-                  <path d="M8 5v14l11-7z" fill="currentColor" />
-                </svg>
-              </button>
-            )}
-          </div>
-        )
       )}
-      <div className="notak-lien-texte">
-        {lien(
-          <>
-            {apercu?.favicon && statut === 'pret' && (
-              <img className="notak-lien-favicon" src={apercu.favicon} alt="" draggable={false} referrerPolicy="no-referrer" />
-            )}
-            <span>{domaine}</span>
-          </>,
-          'notak-lien-domaine',
-          true,
-        )}
-        {statut === 'attente' ? (
-          <span className="notak-lien-chargement" role="status" aria-label="Chargement" />
-        ) : (
-          <>
-            {partie === 'titre' ? (
-              <Champ classe="notak-lien-titre" valeur={titre ?? ''} max={500} toutChoisir ligne ecrire={(v) => ecrire('titre', v)} finir={contexte.finirEdition} />
-            ) : (
-              titre && lien(titre, 'notak-lien-titre', false)
-            )}
-            {partie === 'legende' ? (
-              <Champ classe="notak-lien-description" valeur={legende ?? ''} ecrire={(v) => ecrire('legende', v)} finir={contexte.finirEdition} />
-            ) : (
-              legende && <div className="notak-lien-description">{legende}</div>
-            )}
-          </>
-        )}
-      </div>
     </div>
   )
 }

@@ -1,15 +1,28 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Image } from '../../coeur/tableau'
 import { useFichier } from '../envois'
 import type { PropsOutils, PropsRendu } from '../types'
-import { aUneOmbre, avecLegende } from './geometrie'
+import { PX_PAR_UG } from '../../coeur/camera'
+import { aUneOmbre, avecLegende, hauteurCalee, miseEnPage, pivoter, proportionsAffichees } from './geometrie'
+import { Recadreur, recadrer, useRecadrageOuvert } from './Recadreur'
 import { Visionneuse, useImageOuverte } from './visionneuse'
 
-export function RenduImage({ element, enEdition, contexte, brouillon }: PropsRendu<Image>) {
+export function RenduImage({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<Image>) {
   const { contenu } = element
   const { adresse, enRoute } = useFichier(element, contexte)
-  const proportions = `${contenu.largeurOrigine} / ${contenu.hauteurOrigine}`
+  const proportions = proportionsAffichees(contenu)
+  const page = miseEnPage(contenu)
+  // Sur la toile, la hauteur tombe sur la grille ; dans une colonne, dont la largeur n'est pas la nôtre, elle suit les proportions.
+  const forme = element.parent === undefined
+    ? { height: hauteurCalee(element.largeur, proportions) * PX_PAR_UG }
+    : { aspectRatio: String(proportions) }
   const enGrand = useImageOuverte() === element.id
+  const enRecadrage = useRecadrageOuvert() === element.id
+  // On ne règle que l'image qu'on a sous la main : choisir autre chose referme le réglage.
+  useEffect(() => {
+    if (enRecadrage && !choisie) recadrer(null)
+  }, [enRecadrage, choisie])
+  if (enRecadrage && adresse) return <Recadreur id={element.id} contenu={contenu} adresse={adresse} contexte={contexte} />
   return (
     <>
       {enRoute && (
@@ -18,21 +31,22 @@ export function RenduImage({ element, enEdition, contexte, brouillon }: PropsRen
         </span>
       )}
       {enGrand && adresse && <Visionneuse adresse={adresse} {...(contenu.legende ? { legende: contenu.legende } : {})} />}
-      {adresse ? (
-        <img
-          className="notak-image"
-          data-ombre={aUneOmbre(contenu.typeMime) || undefined}
-          data-en-route={enRoute || undefined}
-          src={adresse}
-          alt={contenu.legende ?? ''}
-          draggable={false}
-          style={{ aspectRatio: proportions }}
-        />
-      ) : (
-        <div className="notak-image notak-image-vide" style={{ aspectRatio: proportions }}>
-          {adresse === null && <span>Image introuvable</span>}
-        </div>
-      )}
+      <div className="notak-image-cadre" data-ombre={aUneOmbre(contenu.typeMime, contenu.transparente) || undefined} style={forme}>
+        {adresse ? (
+          <div className="notak-image-plan" style={page.plan}>
+            <img
+              className="notak-image"
+              data-en-route={enRoute || undefined}
+              src={adresse}
+              alt={contenu.legende ?? ''}
+              draggable={false}
+              style={page.image}
+            />
+          </div>
+        ) : (
+          <div className="notak-image notak-image-vide">{adresse === null && <span>Image introuvable</span>}</div>
+        )}
+      </div>
       {enEdition ? (
         <Legende
           texte={contenu.legende ?? ''}
@@ -40,7 +54,17 @@ export function RenduImage({ element, enEdition, contexte, brouillon }: PropsRen
           valider={contexte.finirEdition}
         />
       ) : (
-        contenu.legende && <p className="notak-legende">{contenu.legende}</p>
+        // Une image choisie s'écrit sous le doigt : un clic sur sa légende, ou sur l'invite quand elle n'en a pas.
+        (contenu.legende || (choisie && !contexte.services.lectureSeule)) && (
+          <p
+            className="notak-legende"
+            data-vide={contenu.legende ? undefined : ''}
+            onPointerDown={(e) => choisie && e.stopPropagation()}
+            onClick={() => choisie && !contexte.services.lectureSeule && contexte.commencerEdition(element.id)}
+          >
+            {contenu.legende || 'Légende'}
+          </p>
+        )
       )}
     </>
   )
@@ -80,16 +104,31 @@ function Legende({ texte, surChangement, valider }: { texte: string; surChangeme
 }
 
 export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
-  if (elements.length !== 1) return null
+  const pivoterTout = () =>
+    contexte.magasin.faire(elements.map((e) => ({ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: pivoter(e.contenu) })))
   const el = elements[0]!
   return (
-    <button
-      type="button"
-      title="Ajouter une légende"
-      aria-pressed={!!el.contenu.legende}
-      onClick={() => contexte.commencerEdition(el.id)}
-    >
-      Légende
-    </button>
+    <>
+      {!contexte.services.lectureSeule && (
+        <button type="button" title="Tourner d’un quart de tour vers la droite" onClick={pivoterTout}>
+          Pivoter
+        </button>
+      )}
+      {elements.length === 1 && !contexte.services.lectureSeule && (
+        <button type="button" title="Garder une partie de l’image" aria-pressed={!!el.contenu.recadrage} onClick={() => recadrer(el.id)}>
+          Recadrer
+        </button>
+      )}
+      {elements.length === 1 && (
+        <button
+          type="button"
+          title="Ajouter une légende"
+          aria-pressed={!!el.contenu.legende}
+          onClick={() => contexte.commencerEdition(el.id)}
+        >
+          Légende
+        </button>
+      )}
+    </>
   )
 }

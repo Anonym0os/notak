@@ -1,3 +1,4 @@
+import type { GenreLien, Lien } from '../../coeur/tableau'
 const LONGUEUR_MAX = 300
 
 /**
@@ -34,4 +35,18 @@ export function domaineDe(url: string): string {
   } catch {
     return url
   }
+}
+
+/** Ce que la saisie d'adresse demande, selon l'outil qui a fait naître le lien. */
+export const INVITES: Record<GenreLien | 'lien', string> = {
+  lien: 'Adresse',
+  video: 'Adresse de la vidéo',
+  audio: 'Adresse du morceau ou du podcast',
+  carte: 'Adresse de la carte',
+}
+
+/** Le lien à une autre adresse : son aperçu est à refaire, mais son genre et ses réglages d'affichage restent. */
+export function avecAdresse(c: Lien, url: string): Lien {
+  const { apercu: _a, echec: _e, titre: _t, legende: _l, ...gardes } = c
+  return { ...gardes, url, statut: 'attente' }
 }

@@ -15,11 +15,11 @@ import { type Moi, moi as lireMoi, seDeconnecter } from './api'
 import { importDejaPropose, lireAncienEspace, noterImportPropose } from './ancien'
 import { Compte } from './Compte'
 import { EcranConnexion } from './connexion'
-import { apercu, fichiers } from './fichiers'
+import { apercu, fichiers, rapatrier } from './fichiers'
 import { importerEspaceLocal } from './importLocal'
 import { Partage } from './Partage'
 
-const services = { fichiers, apercu, ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank') }
+const services = { fichiers, apercu, rapatrier, ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank') }
 
 /** Chaque tableau a son adresse, `/t/<id>` ; l'accueil est `/`. Le retour du navigateur ramène au précédent. */
 function adressePour(racine: string): Adresse {

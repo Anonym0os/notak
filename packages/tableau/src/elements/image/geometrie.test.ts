@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import type { Image } from '../../coeur/tableau'
-import { aUneOmbre, avecLegende, hauteurPour, largeurInitiale, largeurNaturelleImage, nombreColonnes, placerImages } from './geometrie'
+import type { Element, Image } from '../../coeur/tableau'
+import { aUneOmbre, avecLegende, hauteurCalee, hauteurPour, imageSous, miseEnPage, pivoter, proportionsAffichees, rotationDe, largeurInitiale, largeurNaturelleImage, nombreColonnes, placerImages, remplacerContenu } from './geometrie'
 
 const image = (largeurOrigine: number, hauteurOrigine = 100): Image => ({ type: 'image', fichier: 'f', largeurOrigine, hauteurOrigine })
 
@@ -26,6 +26,23 @@ describe('taille d’une image', () => {
     expect(aUneOmbre('image/webp')).toBe(true)
     expect(aUneOmbre(undefined)).toBe(true)
     for (const t of ['image/png', 'image/gif', 'image/svg+xml']) expect(aUneOmbre(t)).toBe(false)
+  })
+
+  test('ce qu’on a lu dans les pixels l’emporte sur le type du fichier', () => {
+    expect(aUneOmbre('image/png', false)).toBe(true)
+    expect(aUneOmbre('image/webp', true)).toBe(false)
+    expect(aUneOmbre('image/jpeg', true)).toBe(false)
+  })
+})
+
+describe('hauteur calée sur la grille', () => {
+  test('arrondie à l’unité de grille la plus proche', () => {
+    expect(hauteurCalee(20, 2)).toBe(10)
+    expect(hauteurCalee(20, 3)).toBe(7)
+    expect(hauteurCalee(34, 1.5)).toBe(23)
+  })
+  test('jamais sous une unité', () => {
+    expect(hauteurCalee(4, 100)).toBe(1)
   })
 })
 
@@ -71,5 +88,89 @@ describe('légende', () => {
 
   test('une légende tient sur une ligne', () => {
     expect(avecLegende(image(10), ' un\ndeux ').legende).toBe('un deux')
+  })
+})
+
+describe('remplacer une image', () => {
+  const el = (id: string, extra: Partial<Element> = {}, contenu: Image = image(100)): Element => ({ id, x: 0, y: 0, largeur: 10, contenu, ...extra })
+  const rects: Record<string, { min: { x: number; y: number }; max: { x: number; y: number } }> = {
+    bas: { min: { x: 0, y: 0 }, max: { x: 20, y: 20 } },
+    haut: { min: { x: 10, y: 10 }, max: { x: 30, y: 30 } },
+  }
+  const rect = (id: string) => rects[id] ?? null
+
+  test('le dépôt vise l’image la plus haute sous le point', () => {
+    const els = [el('bas'), el('haut')]
+    expect(imageSous(els, rect, { x: 15, y: 15 })?.id).toBe('haut')
+    expect(imageSous(els, rect, { x: 5, y: 5 })?.id).toBe('bas')
+    expect(imageSous(els, rect, { x: 50, y: 50 })).toBeNull()
+  })
+
+  test('une image verrouillée, à la corbeille, ou une note, ne se remplace pas', () => {
+    expect(imageSous([el('bas', { verrou: true })], rect, { x: 5, y: 5 })).toBeNull()
+    expect(imageSous([el('bas', { corbeille: 1 })], rect, { x: 5, y: 5 })).toBeNull()
+    expect(imageSous([el('bas', {}, { type: 'note' } as never)], rect, { x: 5, y: 5 })).toBeNull()
+  })
+
+  test('la légende reste, le recadrage et la rotation s’en vont', () => {
+    const ancien: Image = { ...image(100), legende: 'Port', rotation: 90, recadrage: { x: 0, y: 0, largeur: 0.5, hauteur: 0.5 } }
+    const nouveau = { type: 'image' as const, largeurOrigine: 800, hauteurOrigine: 600, typeMime: 'image/png', transparente: true, rotation: 180 as const }
+    expect(remplacerContenu(ancien, nouveau, 'f2')).toEqual({
+      type: 'image',
+      fichier: 'f2',
+      largeurOrigine: 800,
+      hauteurOrigine: 600,
+      typeMime: 'image/png',
+      transparente: true,
+      legende: 'Port',
+    })
+  })
+})
+
+describe('quart de tour', () => {
+  test('quatre quarts de tour reviennent au départ, sans clé en trop', () => {
+    let c = image(100, 50)
+    const vus: number[] = []
+    for (let i = 0; i < 4; i++) {
+      c = pivoter(c)
+      vus.push(rotationDe(c))
+    }
+    expect(vus).toEqual([90, 180, 270, 0])
+    expect('rotation' in c).toBe(false)
+  })
+
+  test('les proportions s’échangent à 90° et 270°, pas à 180°', () => {
+    const c = image(200, 100)
+    expect(proportionsAffichees(c)).toBe(2)
+    expect(proportionsAffichees({ ...c, rotation: 90 })).toBe(0.5)
+    expect(proportionsAffichees({ ...c, rotation: 180 })).toBe(2)
+    expect(proportionsAffichees({ ...c, rotation: 270 })).toBe(0.5)
+  })
+
+  test('le recadrage change les proportions, sauf à les montrer en plein', () => {
+    const c: Image = { ...image(200, 100), recadrage: { x: 0.25, y: 0, largeur: 0.5, hauteur: 1 } }
+    expect(proportionsAffichees(c)).toBe(1)
+    expect(proportionsAffichees(c, true)).toBe(2)
+    expect(proportionsAffichees({ ...c, rotation: 90 })).toBe(1)
+  })
+})
+
+describe('mise en page', () => {
+  test('sans recadrage ni rotation, l’image remplit la boîte', () => {
+    const m = miseEnPage(image(100))
+    expect(m.image).toEqual({ width: '100%', height: '100%', left: '0%', top: '0%' })
+    expect(m.plan.width).toBe('100cqw')
+  })
+
+  test('un quart de tour échange les deux côtés du plan', () => {
+    const m = miseEnPage({ ...image(100), rotation: 90 })
+    expect(m.plan).toMatchObject({ width: '100cqh', height: '100cqw' })
+    expect(m.plan.transform).toContain('rotate(90deg)')
+  })
+
+  test('le recadrage agrandit l’image et la décale', () => {
+    const m = miseEnPage({ ...image(100), recadrage: { x: 0.25, y: 0.5, largeur: 0.5, hauteur: 0.25 } })
+    expect(m.image).toEqual({ width: '200%', height: '400%', left: '-50%', top: '-200%' })
+    expect(miseEnPage({ ...image(100), recadrage: { x: 0.25, y: 0.5, largeur: 0.5, hauteur: 0.25 } }, true).image.width).toBe('100%')
   })
 })

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { domaineDe, lireAdresse } from './adresse'
+import type { Lien } from '../../coeur/tableau'
+import { INVITES, avecAdresse, domaineDe, lireAdresse } from './adresse'
 
 describe('lireAdresse', () => {
   it('garde une adresse complète', () => {
@@ -28,5 +29,36 @@ describe('lireAdresse', () => {
   })
   it('donne le domaine sans www', () => {
     expect(domaineDe('https://www.exemple.fr/x')).toBe('exemple.fr')
+  })
+})
+
+describe('avecAdresse', () => {
+  it('refait l’aperçu mais garde le genre et les réglages', () => {
+    const avant: Lien = {
+      type: 'lien',
+      url: 'https://a.test',
+      statut: 'echec',
+      echec: 'refuse',
+      titre: 'Vieux titre',
+      legende: 'Vieille légende',
+      apercu: { titre: 'x' },
+      genre: 'video',
+      lectureAuto: true,
+      sansInfos: true,
+    }
+    expect(avecAdresse(avant, 'https://b.test')).toEqual({
+      type: 'lien',
+      url: 'https://b.test',
+      statut: 'attente',
+      genre: 'video',
+      lectureAuto: true,
+      sansInfos: true,
+    })
+  })
+})
+
+describe('INVITES', () => {
+  it('a une invite par genre', () => {
+    expect(Object.keys(INVITES).sort()).toEqual(['audio', 'carte', 'lien', 'video'])
   })
 })
