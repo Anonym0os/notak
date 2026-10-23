@@ -1,0 +1,79 @@
+.notak-nuancier {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  aspect-ratio: 17 / 12;
+  display: flex;
+  align-items: flex-end;
+  padding: 8px 10px;
+  border-radius: 2px;
+  box-shadow: var(--notak-ombre);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.notak-nuancier-code {
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+.notak-nuancier-reglage {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 8px;
+  background: var(--notak-carte);
+  color: var(--notak-texte);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.18);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.notak-nuancier-reglage input[type='color'] {
+  width: 32px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--notak-point);
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+}
+
+.notak-nuancier-reglage input[type='text'] {
+  box-sizing: border-box;
+  width: 88px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--notak-point);
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  outline: none;
+}
+
+.notak-nuancier-reglage input[type='text']:focus {
+  border-color: var(--notak-accent);
+}
+
+.notak-nuancier-reglage input[data-invalide] {
+  border-color: #d84b4b !important;
+}
+
+.notak-nuancier-reglage button {
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--notak-fond);
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}

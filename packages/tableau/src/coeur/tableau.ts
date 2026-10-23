@@ -238,7 +238,14 @@ export interface Table {
   sansEntete?: boolean
 }
 
-export type Contenu = Note | Image | Fichier | Lien | Taches | Colonne | Ligne | RenvoiTableau | Commentaire | Table
+/** Un nuancier : une couleur libre, en `#rrggbb`, avec son code écrit dessus tant que `sansCode` n'est pas posé. */
+export interface Nuancier {
+  type: 'nuancier'
+  couleur: string
+  sansCode?: boolean
+}
+
+export type Contenu = Note | Image | Fichier | Lien | Taches | Colonne | Ligne | RenvoiTableau | Commentaire | Table | Nuancier
 export type TypeContenu = Contenu['type']
 
 export interface Element<C extends Contenu = Contenu> {
