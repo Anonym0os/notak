@@ -97,6 +97,53 @@ describe('la barre de sélection à gauche', () => {
   })
 })
 
+describe('la couleur de la note', () => {
+  const ouvrir = () => {
+    const m = monde()
+    act(() => racine.render(<BarreSelection elements={[m.note]} contexte={m.contexte} position={{ x: 0, y: 0 }} aGauche />))
+    act(() => tuile('Couleur').click())
+    return m
+  }
+  const pastilles = () => [...hote.querySelectorAll<HTMLButtonElement>('.notak-pastilles-grille')[0]!.querySelectorAll('button')]
+
+  it('un seul outil, deux onglets : le fond d’abord, puis la bande du haut', () => {
+    ouvrir()
+    expect([...hote.querySelectorAll('.notak-barre-selection > .notak-outil-place [role="tab"], .notak-barre-selection > div [role="tab"]')].map((b) => b.textContent)).toEqual(['Fond', 'Bande du haut'])
+    expect([...hote.querySelectorAll<HTMLButtonElement>('button.notak-outil')].filter((b) => b.textContent === 'Barre')).toHaveLength(0)
+  })
+
+  it('le fond : Aucune, onze teintes dans l’ordre, Transparent en dernier', () => {
+    ouvrir()
+    expect(pastilles().map((b) => b.getAttribute('data-pastille'))).toEqual([
+      'aucune', 'gris', 'cyan', 'vert', 'brun', 'jaune', 'orange', 'rouge', 'rose', 'violet', 'bleu', 'bleu_nuit', 'transparent',
+    ])
+  })
+
+  it('une teinte se pose sur le fond, le panneau reste ouvert, la bande a son onglet', () => {
+    const { note, contexte } = ouvrir()
+    act(() => pastilles().find((b) => b.getAttribute('data-pastille') === 'rouge')!.click())
+    expect(contexte.magasin.lire().elements.find((e) => e.id === note.id)!.contenu).toMatchObject({ couleur: 'rouge' })
+    expect(hote.querySelector('.notak-panneau-couleur')).not.toBeNull()
+    // La toile rend la barre avec les éléments à jour.
+    act(() => racine.render(<BarreSelection elements={contexte.magasin.lire().elements} contexte={contexte} position={{ x: 0, y: 0 }} aGauche />))
+    act(() => hote.querySelector<HTMLButtonElement>('[data-onglet="bande"]')!.click())
+    expect(pastilles()).toHaveLength(12)
+    act(() => pastilles().find((b) => b.getAttribute('data-pastille') === 'vert')!.click())
+    expect(contexte.magasin.lire().elements.find((e) => e.id === note.id)!.contenu).toMatchObject({ couleur: 'rouge', barre: '#7cd651' })
+  })
+
+  it('« Couleur personnalisée » ouvre le sélecteur natif et pose la teinte choisie', () => {
+    const { note, contexte } = ouvrir()
+    const champ = hote.querySelector<HTMLInputElement>('.notak-couleur-libre input[type="color"]')!
+    expect(champ).not.toBeNull()
+    act(() => {
+      champ.value = '#123456'
+      champ.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    expect(contexte.magasin.lire().elements.find((e) => e.id === note.id)!.contenu).toMatchObject({ fond: '#123456' })
+  })
+})
+
 describe('la barre de sélection flottante', () => {
   it('garde ses boutons de texte, au-dessus de la sélection', () => {
     monter(false)

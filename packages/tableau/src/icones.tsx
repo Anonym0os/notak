@@ -153,10 +153,50 @@ import {
   IconInfoCircle,
   IconLayoutNavbar,
   IconMathFunction,
+  IconLockOpen,
+  IconStackFront,
+  IconStackBack,
+  IconArrowsExchange,
   IconTypography,
   type TablerIcon,
 } from '@tabler/icons-react'
-import { type ReactElement, createElement } from 'react'
+import { type ReactElement, type ReactNode, createElement, forwardRef } from 'react'
+
+/**
+ * Une icône à nous, dans le style de Tabler : grille de 24, trait arrondi, `currentColor`. Pour ce que le jeu n'a pas.
+ */
+const dessiner = (nom: string, formes: ReactNode): TablerIcon => {
+  const Dessin = forwardRef<SVGSVGElement, { size?: number | string; stroke?: number | string; color?: string; className?: string }>(
+    ({ size = 24, stroke = 2, color = 'currentColor', className }, ref) =>
+      createElement(
+        'svg',
+        { ref, xmlns: 'http://www.w3.org/2000/svg', width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: stroke, strokeLinecap: 'round', strokeLinejoin: 'round', className, 'aria-hidden': true },
+        formes,
+      ),
+  )
+  Dessin.displayName = nom
+  return Dessin as unknown as TablerIcon
+}
+
+/** Deux cartes reliées par un trait. */
+const IconRelier = dessiner(
+  'IconRelier',
+  createElement('g', null,
+    createElement('rect', { x: 3, y: 3, width: 7, height: 6, rx: 1.5 }),
+    createElement('rect', { x: 14, y: 15, width: 7, height: 6, rx: 1.5 }),
+    createElement('path', { d: 'M10 6h2a2 2 0 0 1 2 2v7' }),
+  ),
+)
+
+/** Une roue chromatique : un disque et ses quartiers. */
+const IconRoue = dessiner(
+  'IconRoue',
+  createElement('g', null,
+    createElement('circle', { cx: 12, cy: 12, r: 9 }),
+    createElement('path', { d: 'M12 3v9l7.8 4.5' }),
+    createElement('path', { d: 'M12 12l-7.8 4.5' }),
+  ),
+)
 
 /**
  * Le seul fichier qui connaît le jeu d'icônes (Tabler Icons, MIT). Le reste de Notak parle de `<Icone nom="corbeille" />` :
@@ -334,6 +374,13 @@ const ICONES = {
   texte: IconTypography,
   alerte: IconAlertCircle,
   formule: IconMathFunction,
+  // Le menu « ••• » d'une sélection.
+  deverrou: IconLockOpen,
+  premierPlan: IconStackFront,
+  arrierePlan: IconStackBack,
+  convertir: IconArrowsExchange,
+  relier: IconRelier,
+  roue: IconRoue,
 } as const satisfies Record<string, TablerIcon>
 
 export type NomIcone = keyof typeof ICONES
