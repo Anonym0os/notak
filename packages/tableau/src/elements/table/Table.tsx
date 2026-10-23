@@ -690,6 +690,8 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
     e.stopPropagation()
     e.clipboardData.setData('text/plain', copie.texte)
     e.clipboardData.setData('text/html', copie.html)
+    // Couper vide les cellules tout de suite, comme un tableur.
+    if (couper) modifierTable(contexte, id, (tab) => ({ table: viderSelection(tab, lireEtat(id).plages) }))
   }
   const surColle = (e: React.ClipboardEvent) => {
     e.preventDefault()
@@ -697,17 +699,27 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
     collerDansTable(contexte, id, e.clipboardData.getData('text/html') || null, e.clipboardData.getData('text/plain'))
   }
 
+  /**
+   * Le clic droit ouvre le menu de la table seulement s'il y a des cellules choisies et pas d'écriture en cours ;
+   * sinon c'est le menu de l'élément (ou celui du navigateur dans une cellule ouverte). Sur une lettre ou un numéro
+   * hors de la sélection, la colonne ou la ligne entière se choisit ; sur une cellule hors de la sélection, elle seule.
+   */
   const surMenu = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!actif) return
-    // Dans l'éditeur, le menu du navigateur sert (couper, copier, coller le texte).
-    if ((e.target as HTMLElement).closest('.notak-table-editeur, .notak-table-titre, input')) return e.stopPropagation()
+    const e0 = lireEtat(id)
+    if (e0.edition || (e.target as HTMLElement).closest('.notak-table-editeur, .notak-table-titre, input, textarea:not(.notak-table-clavier)')) return e.stopPropagation()
+    if (e0.plages.length === 0) return
+    const repere = (e.target as HTMLElement).closest<HTMLElement>('.notak-table-repere')
     const cel = celluleDe(e.target)
     if (!cel) return
     e.preventDefault()
     e.stopPropagation()
-    if (lireEtat(id).edition) valider('aucun')
-    const p = lireEtat(id).plages
-    if (!p.some((q) => dansPlage(q, cel.l, cel.c))) choisir([plageDe(cel)], cel, cel)
+    const p = e0.plages
+    if (repere?.classList.contains('notak-table-repere-colonne')) {
+      if (!colonneChoisie(cel.c)) choisir([colonneEntiere(cel.c)], { l: 0, c: cel.c }, { l: dimensions().l - 1, c: cel.c })
+    } else if (repere) {
+      if (!ligneChoisie(cel.l)) choisir([ligneEntiere(cel.l)], { l: cel.l, c: 0 }, { l: cel.l, c: dimensions().c - 1 })
+    } else if (!p.some((q) => dansPlage(q, cel.l, cel.c))) choisir([plageDe(cel)], cel, cel)
     focaliser(id)
     const toile = racine.current?.closest('.notak-toile')?.getBoundingClientRect()
     if (toile) setMenu({ x: e.clientX - toile.left, y: e.clientY - toile.top })
@@ -956,7 +968,7 @@ export function RenduTable({ element, choisie, seule, contexte, changer }: Props
           onPaste={surColle}
         />
       )}
-      {menu && toile && createPortal(<MenuContextuel x={menu.x} y={menu.y} entrees={entreesTable(contexte, id, true)} fermer={() => { setMenu(null); focaliser(id) }} />, toile)}
+      {menu && toile && createPortal(<MenuContextuel x={menu.x} y={menu.y} entrees={entreesTable(contexte, id, 'clic')} fermer={() => { setMenu(null); focaliser(id) }} />, toile)}
     </div>
   )
 }

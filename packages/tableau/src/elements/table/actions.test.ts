@@ -15,6 +15,7 @@ import {
   retirerSelection,
   tableDepuisCollage,
   versDeFrontiere,
+  viderSelection,
 } from './actions'
 import { formatsDe, largeursDe } from './grille'
 
@@ -29,6 +30,16 @@ const base = table(
 )
 
 describe('insérer autour de la sélection', () => {
+  test('une colonne entière n’ajoute qu’une ligne, tout en bas ou tout en haut ; une ligne entière, une colonne au bord', () => {
+    const r = insererAutourLignes(base, 30, [{ l1: 0, c1: 1, l2: 2, c2: 1 }], 'dessous')!
+    expect(r.table.cellules).toHaveLength(4)
+    expect(r.table.cellules[3]).toEqual(['', '', ''])
+    expect(r.plages).toEqual([{ l1: 3, c1: 1, l2: 3, c2: 1 }])
+    expect(insererAutourLignes(base, 30, [{ l1: 0, c1: 1, l2: 2, c2: 1 }], 'dessus')!.table.cellules[0]).toEqual(['', '', ''])
+    const c = insererAutourColonnes(base, 30, [{ l1: 1, c1: 0, l2: 1, c2: 2 }], 'gauche')!
+    expect(c.table.cellules[0]).toEqual(['', '1', '2', '3'])
+    expect(c.plages).toEqual([{ l1: 1, c1: 0, l2: 1, c2: 0 }])
+  })
   test('autant de lignes que la sélection en couvre, et la sélection suit', () => {
     const r = insererAutourLignes(base, 30, [{ l1: 0, c1: 0, l2: 1, c2: 1 }], 'dessus')!
     expect(r.table.cellules).toHaveLength(5)
@@ -111,6 +122,13 @@ describe('les droits du menu', () => {
     const e = droitsDe(base, [{ l1: 0, c1: 0, l2: 0, c2: 0 }, { l1: 2, c1: 2, l2: 2, c2: 2 }])
     expect(e.insererLignes).toBe(false)
     expect(e.plusieurs).toBe(true)
+  })
+  test('toute la table : ni insertion ni retrait, seulement vider ; les déplacements ne regardent que la première plage', () => {
+    const d = droitsDe(base, [{ l1: 0, c1: 0, l2: 2, c2: 2 }])
+    expect([d.afficherLignes, d.afficherColonnes, d.deplacerLignes, d.deplacerColonnes]).toEqual([false, false, false, false])
+    const e = droitsDe(base, [{ l1: 1, c1: 0, l2: 1, c2: 2 }, { l1: 0, c1: 0, l2: 0, c2: 0 }])
+    expect([e.deplacerLignes, e.lignesHaut, e.insererLignes]).toEqual([true, true, false])
+    expect(glisserLignes(base, [{ l1: 1, c1: 0, l2: 1, c2: 2 }, { l1: 0, c1: 0, l2: 0, c2: 0 }], -1)!.table.cellules[0]).toEqual(['4', '5', '=A1+B1'])
   })
   test('le déplacement se grise au bord', () => {
     const d = droitsDe(base, [{ l1: 0, c1: 0, l2: 0, c2: 2 }])
@@ -198,5 +216,14 @@ describe('coller, recopier', () => {
     expect(formatsDe(e.contenu).flat().some((f) => f?.fond)).toBe(false)
     expect(largeursDe(e.contenu, e.largeur)).toEqual([12, 12, 12])
     expect([e.x, e.y]).toEqual([5, 6])
+  })
+})
+
+describe('vider', () => {
+  test('le texte part, la mise en forme reste ; une case à cocher redevient une cellule ordinaire', () => {
+    const t = table([['true', '5']], { formats: [[{ type: 'case', fond: '#ffd14d' }, { type: 'nombre', gras: true }]] })
+    const v = viderSelection(t, [{ l1: 0, c1: 0, l2: 0, c2: 1 }])
+    expect(v.cellules[0]).toEqual(['', ''])
+    expect(v.formats![0]).toEqual([{ fond: '#ffd14d' }, { type: 'nombre', gras: true }])
   })
 })

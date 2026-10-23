@@ -681,43 +681,53 @@
   border-right-color: var(--notak-barre, #eceef1);
 }
 
-/* Le menu du clic droit. */
+/* Le menu du clic droit : rangées de 28 px, survol gris, raccourcis en pastilles, une par touche. */
 .notak-menu {
+  --notak-menu-texte: #5f6672;
+  --notak-menu-survol: #f3f3f4;
+  --notak-menu-grise: #a3a7ae;
+  --notak-menu-touche: rgb(0 0 0 / 0.06);
+  --notak-menu-filet: rgb(0 0 0 / 0.1);
   position: absolute;
   z-index: 40;
   display: flex;
   flex-direction: column;
-  min-width: 220px;
-  padding: 4px;
-  border-radius: 8px;
+  box-sizing: border-box;
+  width: max-content;
+  min-width: 240px;
+  max-width: 296px;
+  padding: 4px 6px;
+  border-radius: 12px;
   background: var(--notak-carte);
-  box-shadow: 0 8px 28px rgb(0 0 0 / 0.16), 0 1px 3px rgb(0 0 0 / 0.1);
-  color: var(--notak-texte);
-  font-size: 13px;
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25), 0 0 0 1px rgb(0 0 0 / 0.04);
+  color: var(--notak-menu-texte);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
 }
 
 .notak-menu button {
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 28px;
-  padding: 0 10px 0 4px;
+  min-height: 28px;
+  padding: 4px 10px;
   border: 0;
-  border-radius: 5px;
+  border-radius: 6px;
   background: none;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
+  outline: none;
 }
 
-.notak-menu button:hover:not(:disabled) {
-  background: var(--notak-accent);
-  color: #fff;
+.notak-menu button:is(:hover, :focus-visible, :focus):not(:disabled) {
+  background: var(--notak-menu-survol);
 }
 
 .notak-menu button:disabled {
-  opacity: 0.4;
+  color: var(--notak-menu-grise);
   cursor: default;
 }
 
@@ -730,15 +740,28 @@
   flex: 1;
 }
 
-.notak-menu kbd {
+.notak-menu-touches {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 16px;
+}
+
+.notak-menu-touches kbd {
+  min-width: 12px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--notak-menu-touche);
   font: inherit;
-  opacity: 0.55;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
 }
 
 .notak-menu-sep {
+  flex: none;
   height: 1px;
-  margin: 4px 6px;
-  background: rgb(0 0 0 / 0.08);
+  margin: 6px 0;
+  background: var(--notak-menu-filet);
 }
 
 .notak-barre-sep {

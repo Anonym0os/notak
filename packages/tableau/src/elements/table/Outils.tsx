@@ -420,7 +420,7 @@ function OutilAlignement({ c }: { c: Cellules }) {
 function OutilPlus({ c }: { c: Cellules }) {
   const menu = useMenu()
   // Le menu se relit à chaque rendu : la sélection a pu changer.
-  const entrees = menu[0] ? entreesTable(c.contexte, c.id, false) : []
+  const entrees = menu[0] ? entreesTable(c.contexte, c.id, 'barre') : []
   const propres = entrees.filter((e, i, tout) => e !== null || (i > 0 && i < tout.length - 1 && tout[i - 1] !== null))
   return (
     <OutilAvecMenu menu={menu} icone="plus" titre={t('table.plus.titre')} libelle={t('table.plus')}>

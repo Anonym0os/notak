@@ -8,7 +8,7 @@ import { definirLangue } from '../../langue'
 import type { ContexteToile } from '../types'
 import { OutilsTable } from './Outils'
 import { RenduTable } from './Table'
-import { lireEtat, oublierEtat } from './etat'
+import { lireEtat, oublierEtat, poserEtat } from './etat'
 import { formatsDe, nouvelleTable } from './grille'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -551,17 +551,17 @@ describe('le presse-papiers', () => {
     expect(stock['text/html']).toContain('<table')
   })
 
-  it('couper puis coller déplace : la source se vide au collage, tout d’un pas', () => {
+  it('couper vide la source tout de suite ; coller la pose ailleurs', () => {
     const m = monde()
     monter(m)
     cliquer(1, 0)
     cliquer(1, 1, { shiftKey: true })
     const { stock } = presse('cut')
-    expect(m.lire().contenu.cellules[1]![0]).toBe('a')
+    expect(m.lire().contenu.cellules[1]!.slice(0, 2)).toEqual(['', ''])
     cliquer(3, 0)
     presse('paste', stock)
     expect(m.lire().contenu.cellules[3]!.slice(0, 2)).toEqual(['a', '10'])
-    expect(m.lire().contenu.cellules[1]!.slice(0, 2)).toEqual(['', ''])
+    m.magasin.annuler()
     m.magasin.annuler()
     expect(m.lire().contenu.cellules[1]!.slice(0, 2)).toEqual(['a', '10'])
     expect(m.lire().contenu.cellules[3]!.slice(0, 2)).toEqual(['', ''])
@@ -707,15 +707,14 @@ describe('les outils de la barre', () => {
     monter(m)
     cliquer(1, 1)
     act(() => bouton('Autres gestes').click())
-    const noms = [...hote.querySelectorAll('.notak-table-menu-plus button')].map((b) => b.textContent?.replace('⌥↑', '').replace('⌥↓', '').replace('⌥←', '').replace('⌥→', '').replace('⌫', '').replace('⌘', ''))
-    expect(noms).toContain('Ajouter une ligne au-dessus')
-    expect(noms).toContain('Vider la cellule')
-    expect(noms).not.toContain('Copier')
+    const noms = [...hote.querySelectorAll('.notak-table-menu-plus button .notak-menu-rang-texte')].map((b) => b.textContent)
+    // Ni le presse-papiers, ni « en dessous » et « à droite », qui ont déjà leur bouton dans la barre.
+    expect(noms).toEqual(['Ajouter une ligne au-dessus', 'Ajouter une colonne à gauche', 'Vider la cellule', 'Retirer la ligne', 'Retirer la colonne'])
   })
 })
 
 describe('le clic droit', () => {
-  it('sur une cellule d’une table seule choisie : le menu de la table, pas celui de la toile', () => {
+  it('sur des cellules choisies : le menu de la table en cinq groupes, pas celui de la toile', () => {
     const m = monde()
     const toile = document.createElement('div')
     toile.className = 'notak-toile'
@@ -723,14 +722,22 @@ describe('le clic droit', () => {
     const r = createRoot(toile)
     act(() => r.render(<Monde magasin={m.magasin} contexte={m.contexte} />))
     const td = toile.querySelector<HTMLElement>('td[data-cellule="1,1"]')!
+    const droit = (n: HTMLElement) => act(() => void n.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 50, clientY: 60 })))
+    // Sans cellule choisie, le clic droit va au menu de l’élément.
     let remonte = false
     document.body.addEventListener('contextmenu', () => (remonte = true), { once: true })
-    act(() => void td.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 50, clientY: 60 })))
+    droit(td)
+    expect(remonte).toBe(true)
+    expect(toile.querySelector('.notak-menu')).toBeNull()
+    act(() => poserEtat(ID, { plages: [{ l1: 0, c1: 0, l2: 0, c2: 0 }] }))
+    remonte = false
+    document.body.addEventListener('contextmenu', () => (remonte = true), { once: true })
+    droit(td)
     expect(remonte).toBe(false)
-    const libelles = [...toile.querySelectorAll('.notak-menu button')].map((b) => b.querySelector('.notak-menu-libelle')?.textContent)
-    expect(libelles).toEqual(
-      expect.arrayContaining(['Couper', 'Copier', 'Coller', 'Coller les valeurs', 'Ajouter une ligne au-dessus', 'Ajouter une ligne en dessous', 'Ajouter une colonne à gauche', 'Ajouter une colonne à droite', 'Vider la cellule', 'Retirer la ligne', 'Retirer la colonne']),
-    )
+    const rangs = [...toile.querySelectorAll('.notak-menu > *')].map((b) => b.querySelector('.notak-menu-libelle')?.textContent ?? '|')
+    expect(rangs).toEqual(['Couper', 'Copier', 'Coller', 'Coller les valeurs', '|', 'Ajouter une ligne au-dessus', 'Ajouter une ligne en dessous', '|', 'Ajouter une colonne à gauche', 'Ajouter une colonne à droite', '|', 'Vider la cellule', 'Retirer la ligne', 'Retirer la colonne'])
+    // Seules les insertions montrent leur raccourci.
+    expect([...toile.querySelectorAll('.notak-menu-touches')].map((k) => k.getAttribute('aria-label'))).toEqual(['⌥↑', '⌥↓', '⌥←', '⌥→'])
     expect(lireEtat(ID).plages).toEqual([{ l1: 1, c1: 1, l2: 1, c2: 1 }])
     act(() => r.unmount())
     toile.remove()

@@ -248,7 +248,8 @@ export function coller(
         const f = donnees.formats?.[i]?.[j]
         formats[l]![c] = f ? { ...f } : null
       } else {
-        const base = donnees.formats ? (donnees.formats[i]?.[j] ?? null) : formats[l]![c]!
+        // Venue d'ailleurs, la cellule repart de zéro : son ancien format s'en va, son type se déduit du texte.
+        const base = donnees.formats ? (donnees.formats[i]?.[j] ?? null) : null
         const s = saisir(base, texte, langue)
         cellules[l]![c] = s.texte
         formats[l]![c] = s.format

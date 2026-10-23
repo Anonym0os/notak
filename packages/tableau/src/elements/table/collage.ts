@@ -4,7 +4,7 @@ import type { ContexteToile } from '../types'
 import { collerA, copiable } from './actions'
 import { derniereCopie, lireEtat, retenirCopie } from './etat'
 import { evaluerTable } from './formules'
-import { normaliserPlage, viderPlage } from './grille'
+import { normaliserPlage } from './grille'
 import { modifierTable } from './modifier'
 import { lireCollage } from './pressePapiers'
 
@@ -28,7 +28,7 @@ function valeursDe(cellules: readonly (readonly string[])[], l1: number, c1: num
 
 /**
  * Ce qu'une copie ou une coupe de cette table met dans le presse-papiers (texte et HTML), et ce qu'on retient pour
- * le collage : d'où ça vient, et la source à vider si c'était une coupe.
+ * le collage : d'où ça vient, et si c'était une coupe (la source, elle, se vide tout de suite).
  */
 export function preparerCopie(contexte: ContexteToile, id: Id, couper: boolean): { texte: string; html: string } | null {
   const el = contexte.magasin.lire().elements.find((x) => x.id === id)
@@ -49,7 +49,8 @@ export function preparerCopie(contexte: ContexteToile, id: Id, couper: boolean):
 
 /**
  * Colle ce qu'il y a dans le presse-papiers à partir de la première cellule choisie. Notre propre copie garde ses
- * formats et décale ses formules ; une coupe vide sa source. `valeursSeules` : le texte seul, sans mise en forme.
+ * formats et décale ses formules ; une coupe collée dans sa propre table garde ses références telles quelles.
+ * `valeursSeules` : le texte affiché seul, comme venu d'un autre tableur.
  */
 export function collerDansTable(contexte: ContexteToile, id: Id, html: string | null, texte: string, valeursSeules = false): boolean {
   const plages = lireEtat(id).plages
@@ -59,14 +60,11 @@ export function collerDansTable(contexte: ContexteToile, id: Id, html: string | 
   const memo = derniere && derniere.texte === texte ? derniere : null
   const donnees = valeursSeules ? lireCollage(null, memo ? memo.valeurs.map((l) => l.join('\t')).join('\n') : texte) : lireCollage(html, texte)
   const ancre = normaliserPlage(premiere)
-  const decalage = memo && !valeursSeules ? { dl: ancre.l1 - memo.origine.l, dc: ancre.c1 - memo.origine.c } : null
-  const coupe = memo?.coupe ?? null
-  const viderIci = !!coupe && memo?.id === id
-  const fait = modifierTable(contexte, id, (table) => collerA(viderIci ? viderPlage(table, coupe) : table, plages, donnees, decalage, regional()))
-  if (fait && memo && coupe) {
-    if (memo.id !== id) modifierTable(contexte, memo.id, (table) => ({ table: viderPlage(table, coupe) }))
-    retenirCopie({ ...memo, coupe: null })
-  }
+  const coupeIci = !!memo?.coupe && memo.id === id
+  const decalage = memo && !valeursSeules && !coupeIci ? { dl: ancre.l1 - memo.origine.l, dc: ancre.c1 - memo.origine.c } : null
+  const fait = modifierTable(contexte, id, (table) => collerA(table, plages, donnees, decalage, regional()))
+  // Après une coupe collée, les collages suivants se décalent depuis sa nouvelle place.
+  if (fait && memo?.coupe) retenirCopie({ ...memo, id, coupe: null, origine: { l: ancre.l1, c: ancre.c1 } })
   return fait
 }
 

@@ -8,21 +8,48 @@ import { Icone } from './icones'
 /** Une entrée du menu ; `null` trace un séparateur. */
 export type Entree = { libelle: string; raccourci?: string; coche?: boolean; desactive?: boolean; faire(): void } | null
 
+/** Les touches d'un raccourci, une pastille chacune : « ⇧⌘Z » donne ⇧, ⌘, Z. */
+export const touchesDe = (raccourci: string): string[] => {
+  const touches: string[] = []
+  let reste = raccourci
+  while (reste && '⌘⌥⇧⌃'.includes(reste[0]!)) {
+    touches.push(reste[0]!)
+    reste = reste.slice(1)
+  }
+  if (reste) touches.push(reste)
+  return touches
+}
+
+/** Le raccourci d'une entrée de menu, une pastille par touche. */
+export function Raccourci({ touches }: { touches: string }) {
+  return (
+    <span className="notak-menu-touches" aria-label={touches}>
+      {touchesDe(touches).map((k, i) => (
+        <kbd key={i}>{k}</kbd>
+      ))}
+    </span>
+  )
+}
+
 /**
- * Le menu du clic droit, posé au point cliqué et ramené dans la toile s'il déborde. Un clic dehors, Échap
- * ou une entrée choisie le ferment.
+ * Le menu du clic droit, posé au point cliqué et ramené dans la toile s'il déborde. Il prend le focus : les flèches
+ * passent d'une entrée à l'autre (les grisées sont sautées), Entrée choisit, une lettre va à l'entrée qui commence
+ * par elle. Un clic dehors, Échap, un redimensionnement de la fenêtre ou une entrée choisie le ferment ; le bouton
+ * droit relâché sur une entrée la choisit aussi.
  */
 export function MenuContextuel({ x, y, entrees, fermer }: { x: number; y: number; entrees: Entree[]; fermer(): void }) {
   const boite = useRef<HTMLDivElement>(null)
   const [place, setPlace] = useState({ x, y })
+  const ouvertA = useRef(performance.now())
   useLayoutEffect(() => {
     const n = boite.current
     const toile = n?.parentElement
     if (!n || !toile) return
     setPlace({
-      x: Math.max(4, Math.min(x, toile.clientWidth - n.offsetWidth - 4)),
-      y: Math.max(4, Math.min(y, toile.clientHeight - n.offsetHeight - 4)),
+      x: Math.max(8, Math.min(x, toile.clientWidth - n.offsetWidth - 8)),
+      y: Math.max(8, Math.min(y, toile.clientHeight - n.offsetHeight - 8)),
     })
+    n.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus({ preventScroll: true })
   }, [x, y])
   useEffect(() => {
     const dehors = (e: PointerEvent) => !boite.current?.contains(e.target as Node) && fermer()
@@ -31,15 +58,44 @@ export function MenuContextuel({ x, y, entrees, fermer }: { x: number; y: number
       e.stopPropagation()
       fermer()
     }
+    // La molette ne fait pas défiler la toile sous un menu ouvert.
+    const molette = (e: WheelEvent) => !boite.current?.contains(e.target as Node) && e.preventDefault()
     document.addEventListener('pointerdown', dehors, true)
     document.addEventListener('keydown', touche, true)
+    document.addEventListener('wheel', molette, { capture: true, passive: false })
+    window.addEventListener('resize', fermer)
     return () => {
       document.removeEventListener('pointerdown', dehors, true)
       document.removeEventListener('keydown', touche, true)
+      document.removeEventListener('wheel', molette, true)
+      window.removeEventListener('resize', fermer)
     }
   }, [fermer])
   // Pas deux séparateurs de suite, ni au bord.
   const propres = entrees.filter((e, i, t) => e !== null || (i > 0 && i < t.length - 1 && t[i - 1] !== null))
+  const avecCoches = propres.some((e) => e?.coche !== undefined)
+  const choisir = (e: Exclude<Entree, null>) => {
+    fermer()
+    e.faire()
+  }
+  const clavier = (ev: React.KeyboardEvent) => {
+    ev.stopPropagation()
+    const boutons = [...(boite.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])]
+    if (!boutons.length) return
+    const i = boutons.indexOf(document.activeElement as HTMLButtonElement)
+    let cible: HTMLButtonElement | undefined
+    if (ev.key === 'ArrowDown') cible = boutons[(i + 1) % boutons.length]
+    else if (ev.key === 'ArrowUp') cible = boutons[(i - 1 + boutons.length) % boutons.length]
+    else if (ev.key === 'Home') cible = boutons[0]
+    else if (ev.key === 'End') cible = boutons[boutons.length - 1]
+    else if (ev.key.length === 1 && /\p{L}/u.test(ev.key)) {
+      const k = ev.key.toLocaleLowerCase()
+      const suite = [...boutons.slice(i + 1), ...boutons.slice(0, i + 1)]
+      cible = suite.find((b) => b.textContent?.trim().toLocaleLowerCase().startsWith(k))
+    } else return
+    ev.preventDefault()
+    cible?.focus()
+  }
   return (
     <div
       ref={boite}
@@ -48,6 +104,7 @@ export function MenuContextuel({ x, y, entrees, fermer }: { x: number; y: number
       style={{ left: place.x, top: place.y }}
       onPointerDown={(e) => e.stopPropagation()}
       onContextMenu={(e) => e.preventDefault()}
+      onKeyDown={clavier}
     >
       {propres.map((e, i) =>
         e === null ? (
@@ -59,14 +116,16 @@ export function MenuContextuel({ x, y, entrees, fermer }: { x: number; y: number
             role={e.coche === undefined ? 'menuitem' : 'menuitemcheckbox'}
             aria-checked={e.coche}
             disabled={e.desactive}
-            onClick={() => {
-              fermer()
-              e.faire()
+            onPointerEnter={(ev) => ev.currentTarget.focus({ preventScroll: true })}
+            onPointerUp={(ev) => {
+              // Appuyer du bouton droit, glisser jusqu'à l'entrée et relâcher la choisit (pas le relâchement qui ouvre).
+              if (ev.button === 2 && performance.now() - ouvertA.current > 250) choisir(e)
             }}
+            onClick={() => choisir(e)}
           >
-            <span className="notak-menu-coche">{e.coche ? <Icone nom="coche" taille={14} /> : null}</span>
+            {avecCoches && <span className="notak-menu-coche">{e.coche ? <Icone nom="coche" taille={14} /> : null}</span>}
             <span className="notak-menu-libelle">{e.libelle}</span>
-            {e.raccourci && <kbd>{e.raccourci}</kbd>}
+            {e.raccourci && <Raccourci touches={e.raccourci} />}
           </button>
         ),
       )}

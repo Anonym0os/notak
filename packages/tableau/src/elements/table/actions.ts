@@ -86,24 +86,32 @@ const reecrire = (op: OperationStructure) => (texte: string) => decalerFormule(t
 
 export const memeTable = (a: Table, b: Table) => a === b || JSON.stringify(a) === JSON.stringify(b)
 
-/** Ajoute autant de lignes que la sélection en couvre, au-dessus ou au-dessous. Une seule plage. */
+/**
+ * Ajoute autant de lignes que la sélection en couvre, au-dessus ou au-dessous. Une seule plage. Des colonnes
+ * entières choisies : une seule ligne, tout en haut ou tout en bas, sur ces colonnes.
+ */
 export function insererAutourLignes(t: Table, largeur: number, plages: readonly Plage[], cote: 'dessus' | 'dessous'): Issue | null {
   if (plages.length !== 1) return null
   const p = normaliserPlage(plages[0]!)
-  const n = p.l2 - p.l1 + 1
-  const a = cote === 'dessus' ? p.l1 : p.l2 + 1
+  const auBord = colonnesEntieres(plages, t) && !lignesEntieres(plages, t)
+  const n = auBord ? 1 : p.l2 - p.l1 + 1
+  const a = auBord ? (cote === 'dessus' ? 0 : t.cellules.length) : cote === 'dessus' ? p.l1 : p.l2 + 1
   const table = insererLignes(t, a, n, reecrire({ genre: 'insererLignes', a, n }))
   if (table === t) return null
   void largeur
   return { table, ...plageSeule({ l1: a, l2: a + n - 1, c1: p.c1, c2: p.c2 }) }
 }
 
-/** Ajoute autant de colonnes que la sélection en couvre, à gauche ou à droite. Une seule plage. */
+/**
+ * Ajoute autant de colonnes que la sélection en couvre, à gauche ou à droite. Une seule plage. Des lignes entières
+ * choisies : une seule colonne, tout à gauche ou tout à droite, sur ces lignes.
+ */
 export function insererAutourColonnes(t: Table, largeur: number, plages: readonly Plage[], cote: 'gauche' | 'droite'): Issue | null {
   if (plages.length !== 1) return null
   const p = normaliserPlage(plages[0]!)
-  const n = p.c2 - p.c1 + 1
-  const a = cote === 'gauche' ? p.c1 : p.c2 + 1
+  const auBord = lignesEntieres(plages, t) && !colonnesEntieres(plages, t)
+  const n = auBord ? 1 : p.c2 - p.c1 + 1
+  const a = auBord ? (cote === 'gauche' ? 0 : nombreColonnes(t.cellules)) : cote === 'gauche' ? p.c1 : p.c2 + 1
   const table = insererColonnes(t, a, n, reecrire({ genre: 'insererColonnes', a, n }), largeur)
   if (table === t) return null
   return { table, ...plageSeule({ l1: p.l1, l2: p.l2, c1: a, c2: a + n - 1 }) }
@@ -176,16 +184,18 @@ export function deplacerLesColonnes(t: Table, largeur: number, de: number, n: nu
   return { table, ...plageSeule({ l1: 0, l2: t.cellules.length - 1, c1: vers, c2: vers + n - 1 }) }
 }
 
-/** Les lignes entières choisies (une seule plage) un cran plus haut ou plus bas. */
+/** Les lignes entières de la première plage (les autres n'y sont pour rien) un cran plus haut ou plus bas. */
 export function glisserLignes(t: Table, plages: readonly Plage[], sens: -1 | 1): Issue | null {
-  if (plages.length !== 1 || !lignesEntieres(plages, t)) return null
-  const p = normaliserPlage(plages[0]!)
+  const premiere = plages.slice(0, 1)
+  if (!premiere.length || !lignesEntieres(premiere, t)) return null
+  const p = normaliserPlage(premiere[0]!)
   return deplacerLesLignes(t, p.l1, p.l2 - p.l1 + 1, p.l1 + sens)
 }
 
 export function glisserColonnes(t: Table, largeur: number, plages: readonly Plage[], sens: -1 | 1): Issue | null {
-  if (plages.length !== 1 || !colonnesEntieres(plages, t)) return null
-  const p = normaliserPlage(plages[0]!)
+  const premiere = plages.slice(0, 1)
+  if (!premiere.length || !colonnesEntieres(premiere, t)) return null
+  const p = normaliserPlage(premiere[0]!)
   return deplacerLesColonnes(t, largeur, p.c1, p.c2 - p.c1 + 1, p.c1 + sens)
 }
 
@@ -227,23 +237,31 @@ export function droitsDe(t: Table, plages: readonly Plage[]): Droits {
   const colonnes = nombreColonnes(t.cellules)
   const entL = lignesEntieres(plages, t)
   const entC = colonnesEntieres(plages, t)
-  const un = plages.length === 1 ? normaliserPlage(plages[0]!) : null
+  // Les déplacements ne regardent que la première plage, même quand il y en a plusieurs.
+  const premiere = plages.slice(0, 1)
+  const p = premiere.length ? normaliserPlage(premiere[0]!) : null
+  const ligne1 = !!p && lignesEntieres(premiere, t) && !colonnesEntieres(premiere, t)
+  const colonne1 = !!p && colonnesEntieres(premiere, t) && !lignesEntieres(premiere, t)
+  // Des colonnes entières n'ajoutent qu'une ligne (au bord), des lignes entières qu'une colonne.
+  const lignesAjoutees = entC && !entL ? 1 : ls.length
+  const colonnesAjoutees = entL && !entC ? 1 : cs.length
   return {
     lignes: ls.length,
     colonnes: cs.length,
     plusieurs,
     lignesEntieres: entL,
     colonnesEntieres: entC,
-    afficherLignes: !(entC && !entL),
-    afficherColonnes: !(entL && !entC),
-    insererLignes: !plusieurs && t.cellules.length + ls.length <= LIGNES_MAX,
-    insererColonnes: !plusieurs && colonnes + cs.length <= COLONNES_MAX,
-    deplacerLignes: entL && !plusieurs,
-    deplacerColonnes: entC && !plusieurs,
-    lignesHaut: !!un && entL && un.l1 > 0,
-    lignesBas: !!un && entL && un.l2 < t.cellules.length - 1,
-    colonnesGauche: !!un && entC && un.c1 > 0,
-    colonnesDroite: !!un && entC && un.c2 < colonnes - 1,
+    // Toute la table choisie : ni insertion ni retrait de lignes ou de colonnes, seulement vider.
+    afficherLignes: !entC,
+    afficherColonnes: !entL,
+    insererLignes: !plusieurs && t.cellules.length + lignesAjoutees <= LIGNES_MAX,
+    insererColonnes: !plusieurs && colonnes + colonnesAjoutees <= COLONNES_MAX,
+    deplacerLignes: ligne1,
+    deplacerColonnes: colonne1,
+    lignesHaut: ligne1 && p!.l1 > 0,
+    lignesBas: ligne1 && p!.l2 < t.cellules.length - 1,
+    colonnesGauche: colonne1 && p!.c1 > 0,
+    colonnesDroite: colonne1 && p!.c2 < colonnes - 1,
     retirerLignes: !plusieurs && t.cellules.length - ls.length >= LIGNES_MIN,
     retirerColonnes: !plusieurs && colonnes - cs.length >= COLONNES_MIN,
   }
@@ -251,8 +269,11 @@ export function droitsDe(t: Table, plages: readonly Plage[]): Droits {
 
 /* ───────────── Contenu, styles, types ───────────── */
 
+/** Vide le texte des cellules choisies ; leur mise en forme reste, sauf la case à cocher, qui redevient une cellule ordinaire. */
 export function viderSelection(t: Table, plages: readonly Plage[]): Table {
-  return plages.reduce((table, p) => viderPlage(table, p), t)
+  const vide = plages.reduce((table, p) => viderPlage(table, p), t)
+  if (!t.formats) return vide
+  return appliquerFormat(vide, plages, (f) => (f?.type === 'case' ? sansType(f) : f))
 }
 
 export { basculerStyle }

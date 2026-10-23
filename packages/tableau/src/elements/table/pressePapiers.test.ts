@@ -82,9 +82,9 @@ describe('coller', () => {
     expect(t.formats![1]![0]).toEqual({ type: 'pourcent' })
     expect(t.formats![2]![0]).toMatchObject({ type: 'date', date: 'chiffres' })
     expect(t.cellules[2]![0]).toBe('38749')
-    // la cellule d’à côté était en monnaie : un nombre ne la remplace pas
+    // la cellule d’à côté était en monnaie : venu d’ailleurs, le nombre repart de zéro
     expect(t.cellules[2]![1]).toBe('3.5')
-    expect(t.formats![2]![1]).toEqual({ type: 'monnaie' })
+    expect(t.formats![2]![1]).toEqual({ type: 'nombre' })
   })
   test('le format collé (gras d’un tableur) sert de base à la déduction', () => {
     const t = coller(table(), { l: 1, c: 0 }, { cellules: [['5']], formats: [[{ gras: true }]] })
