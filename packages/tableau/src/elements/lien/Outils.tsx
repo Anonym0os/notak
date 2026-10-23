@@ -1,10 +1,32 @@
 import type { Lien } from '../../coeur/tableau'
 import type { PropsOutils } from '../types'
 import { adresseAEditer } from './Lien'
+import { aDesReglagesDeLecture, lecteurDe } from './lecteurs'
+
+type Reglage = 'lectureAuto' | 'boucle'
 
 export function OutilsLien({ elements, contexte }: PropsOutils<Lien>) {
   const urls = elements.map((e) => e.contenu.url).filter(Boolean)
   if (urls.length === 0) return null
+  const lectureReglable = !contexte.services.lectureSeule && elements.every((e) => {
+    const l = lecteurDe(e.contenu.url)
+    return l && aDesReglagesDeLecture(l)
+  })
+  // Un seul pas d'historique pour toute la sélection : tous allumés si l'un est éteint, sinon tous éteints.
+  const basculer = (champ: Reglage) => {
+    const allumer = !elements.every((e) => e.contenu[champ])
+    contexte.magasin.faire(
+      elements.map((e) => {
+        const { [champ]: _, ...reste } = e.contenu
+        return { type: 'contenu', id: e.id, avant: e.contenu, apres: allumer ? { ...reste, [champ]: true } : reste }
+      }),
+    )
+  }
+  const reglage = (champ: Reglage, libelle: string, titre: string) => (
+    <button type="button" title={titre} aria-pressed={elements.every((e) => e.contenu[champ])} onClick={() => basculer(champ)}>
+      {libelle}
+    </button>
+  )
   return (
     <>
       {urls.length === 1 && (
@@ -23,6 +45,8 @@ export function OutilsLien({ elements, contexte }: PropsOutils<Lien>) {
           Adresse
         </button>
       )}
+      {lectureReglable && reglage('lectureAuto', 'Lecture auto', 'Lancer la vidéo à l’ouverture du tableau, sans le son')}
+      {lectureReglable && reglage('boucle', 'Boucle', 'Reprendre la vidéo au début quand elle se termine')}
       <button title="Copier l’adresse" onClick={() => void navigator.clipboard.writeText(urls.join('\n'))}>
         Copier
       </button>

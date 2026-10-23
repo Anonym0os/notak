@@ -254,3 +254,29 @@ export function lecteurDe(url: string): Lecteur | null {
   }
   return null
 }
+
+/** Ce que la carte sait régler de la lecture : lancée seule (son coupé), et reprise à la fin. */
+export interface ReglagesLecture {
+  lectureAuto?: boolean
+  boucle?: boolean
+}
+
+/** Seules les vidéos ont ces deux réglages : un morceau ou une carte ne se lancent pas seuls. */
+export const aDesReglagesDeLecture = (l: Lecteur) => l.genre === 'video'
+
+/** Les dimensions de la boîte du lecteur : sa hauteur en pixels (un morceau), sinon ses proportions. */
+export type Forme = { height: number } | { aspectRatio: string }
+
+export function formeDe(l: Lecteur): Forme {
+  if (l.hauteur) return { height: l.hauteur }
+  return { aspectRatio: String(l.proportions ?? 16 / 9) }
+}
+
+/** Le lecteur s'ouvre sans clic : une carte, ou une vidéo réglée en lecture automatique. */
+export const demarreSeul = (l: Lecteur, r: ReglagesLecture) => l.genre === 'carte' || (aDesReglagesDeLecture(l) && !!r.lectureAuto)
+
+/** L'adresse de l'iframe. Un clic sur « Lire » lance le son ; la lecture automatique, elle, le coupe. */
+export function adresseDeLecture(l: Lecteur, r: ReglagesLecture, parClic: boolean): string {
+  if (!aDesReglagesDeLecture(l)) return l.adresse()
+  return l.adresse({ auto: !parClic && !!r.lectureAuto, boucle: !!r.boucle })
+}

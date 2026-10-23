@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { lecteurDe } from './lecteurs'
+import { adresseDeLecture, demarreSeul, formeDe, lecteurDe } from './lecteurs'
 
 describe('lecteurDe', () => {
   it('lit les formes d’adresse YouTube', () => {
@@ -81,5 +81,34 @@ describe('les autres lecteurs', () => {
     const vimeo = new URL(lecteurDe('https://vimeo.com/76979871')!.adresse({ boucle: true }))
     expect(vimeo.searchParams.get('loop')).toBe('1')
     expect(vimeo.searchParams.get('muted')).toBeNull()
+  })
+})
+
+describe('la boîte du lecteur', () => {
+  it('un morceau garde sa hauteur fixe, une vidéo ses proportions', () => {
+    expect(formeDe(lecteurDe('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC')!)).toEqual({ height: 152 })
+    expect(formeDe(lecteurDe('https://open.spotify.com/album/4uLU6hMCjMI75M1A2tKUQC')!)).toEqual({ height: 352 })
+    expect(formeDe(lecteurDe('https://youtu.be/dQw4w9WgXcQ')!)).toEqual({ aspectRatio: String(16 / 9) })
+    expect(formeDe(lecteurDe('https://www.youtube.com/shorts/dQw4w9WgXcQ')!)).toEqual({ aspectRatio: String(9 / 16) })
+  })
+
+  it('une carte s’ouvre seule, une vidéo seulement si on le demande', () => {
+    const carte = lecteurDe('https://www.openstreetmap.org/#map=12/48.85/2.35')!
+    const video = lecteurDe('https://youtu.be/dQw4w9WgXcQ')!
+    const morceau = lecteurDe('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC')!
+    expect(demarreSeul(carte, {})).toBe(true)
+    expect(demarreSeul(video, {})).toBe(false)
+    expect(demarreSeul(video, { lectureAuto: true })).toBe(true)
+    expect(demarreSeul(morceau, { lectureAuto: true })).toBe(false)
+  })
+
+  it('la lecture automatique coupe le son, le clic non', () => {
+    const video = lecteurDe('https://youtu.be/dQw4w9WgXcQ')!
+    expect(new URL(adresseDeLecture(video, { lectureAuto: true }, false)).searchParams.get('mute')).toBe('1')
+    expect(new URL(adresseDeLecture(video, { lectureAuto: true }, true)).searchParams.has('mute')).toBe(false)
+    expect(new URL(adresseDeLecture(video, { boucle: true }, true)).searchParams.get('loop')).toBe('1')
+    expect(adresseDeLecture(lecteurDe('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC')!, { boucle: true }, true)).toBe(
+      'https://open.spotify.com/embed/track/4uLU6hMCjMI75M1A2tKUQC',
+    )
   })
 })

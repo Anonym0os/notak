@@ -3,6 +3,7 @@ import type { Apercu, Id, Lien } from '../../coeur/tableau'
 import type { PropsRendu } from '../types'
 import { domaineDe, lireAdresse } from './adresse'
 import { lecteurDe } from './lecteurs'
+import { Media } from './Media'
 
 const DELAI_APERCU = 15_000
 const REL = 'noopener noreferrer nofollow'
@@ -111,7 +112,6 @@ function Carte({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<
   const { url, statut, apercu } = contenu
   const domaine = domaineDe(url)
   const lecteur = lecteurDe(url)
-  const [lecture, setLecture] = useState(false)
   const image = statut === 'pret' ? apercu?.image : undefined
   const titre = titreDuLien(contenu)
   const legende = contenu.legende ?? (statut === 'pret' && !lecteur ? apercu?.description : undefined)
@@ -148,30 +148,7 @@ function Carte({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<
 
   return (
     <div className="notak-lien">
-      {lecteur && lecture ? (
-        <div className="notak-lien-media">
-          <iframe
-            src={lecteur.src}
-            title={titre ?? domaine}
-            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-          />
-        </div>
-      ) : (
-        (image || lecteur) && (
-          <div className="notak-lien-media" data-video={lecteur ? '' : undefined}>
-            {image && <img src={image} alt="" draggable={false} referrerPolicy="no-referrer" />}
-            {lecteur && (
-              <button className="notak-lien-lecture" title="Lire" onClick={() => setLecture(true)}>
-                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
-                  <path d="M8 5v14l11-7z" fill="currentColor" />
-                </svg>
-              </button>
-            )}
-          </div>
-        )
-      )}
+      <Media lecteur={lecteur} image={image} titre={titre ?? domaine} lien={contenu} />
       <div className="notak-lien-texte">
         {lien(
           <>
