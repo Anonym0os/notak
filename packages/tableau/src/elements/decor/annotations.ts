@@ -112,7 +112,10 @@ export function libelleEcheance(echeance: string, maintenant = new Date()): stri
 
 // ---- Mode d'affichage ----
 
-/** Un conteneur (une colonne) ne se replie pas en icône : ses éléments disparaîtraient avec lui. Un tableau en est déjà une. */
+/**
+ * Les cartes que le cadre commun replie en pastille. Une colonne se réduit en se repliant (`repliee`, voir `affichage.ts`),
+ * un tableau imbriqué est déjà une icône, une ligne n'a pas de corps.
+ */
 export const peutEtreIcone = (def: TypeElement | undefined): boolean => !!def && !def.accepte && def.type !== 'tableau' && def.calque !== 'lignes'
 
 // ---- Commun à tous ----
