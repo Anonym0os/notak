@@ -242,7 +242,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 |---|---|---|
 | Fichier joint : extension, nom, taille, Télécharger, Ouvrir, lecteur du son et de la vidéo, renommer | ✅ | Aperçu de la première page d'un PDF, légende, mode icône. |
 | Commentaire (fil de discussion posé sur la toile) | ✅ |  |
-| Table (lignes, colonnes, cellules) | ✅ |  |
+| Table : un petit tableur (sélection de plages, clavier, types, formules, repères, clic droit, presse-papiers) | ✅ | Relevé dans `docs/ecarts/table.md`. Pas de mise en forme partielle dans une cellule ; ⌃⌘N et Tab vers la légende manquent. |
 | Croquis à main levée | ✅ |  |
 | Dessin libre sur la toile | ✅ | Outil « Dessin libre » du tiroir : on trace à même la toile, Entrée pose le dessin. |
 | Nuancier (couleur, code, pipette) | ✅ |  |
