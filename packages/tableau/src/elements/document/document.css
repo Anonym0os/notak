@@ -195,6 +195,7 @@
 }
 
 .notak-document-boite {
+  position: relative;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -538,4 +539,32 @@
   font: inherit;
   font-size: 12px;
   line-height: 20px;
+}
+
+/* Lecture seule : la colonne d'outils se réduit à 35 px, le texte remonte de 9 px (27 au lieu de 36). */
+.notak-document-boite[data-lecture] .notak-document-zone {
+  justify-content: center;
+}
+
+.notak-document-boite[data-lecture] .notak-document-cote {
+  width: 35px;
+  padding-top: 0;
+}
+
+.notak-document-boite[data-lecture] .notak-document-corps {
+  padding-top: 27px;
+}
+
+/* Les fils des passages commentés : à droite de la boîte, sur le voile ; sur une fenêtre étroite, dans la boîte. */
+.notak-document-boite > .notak-note-marge,
+.notak-document-corps .notak-note-marge {
+  z-index: 2;
+}
+
+@media (max-width: 1240px) {
+  .notak-document-corps .notak-note-marge {
+    left: auto;
+    right: 8px;
+    width: 200px;
+  }
 }

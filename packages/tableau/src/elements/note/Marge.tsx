@@ -40,7 +40,7 @@ export function Marge({ editeur, fils, ouvert, surOuvert, ecrire, contexte }: Pr
   const [places, setPlaces] = useState<number[]>([])
 
   const mesurer = useCallback(() => {
-    const carte = editeur.view.dom.closest<HTMLElement>('.notak-carte')
+    const carte = editeur.view.dom.closest<HTMLElement>('.notak-carte, [data-marge-ancre]')
     if (!carte) return
     const rect = carte.getBoundingClientRect()
     // La toile peut être zoomée : la marge vit dans le plan, pas à l'écran.
@@ -63,9 +63,12 @@ export function Marge({ editeur, fils, ouvert, surOuvert, ecrire, contexte }: Pr
   useEffect(() => {
     editeur.on('update', mesurer)
     editeur.on('selectionUpdate', mesurer)
+    // Un texte qui défile (le document ouvert en grand) emporte ses passages : les fiches les suivent.
+    document.addEventListener('scroll', mesurer, true)
     return () => {
       editeur.off('update', mesurer)
       editeur.off('selectionUpdate', mesurer)
+      document.removeEventListener('scroll', mesurer, true)
     }
   }, [editeur, mesurer])
 

@@ -56,6 +56,25 @@ describe('la colonne d’outils du document', () => {
     expect(hote.querySelector('[role="menu"]')?.textContent).toContain('Lier un tableau')
   })
 
+  it('l’outil Commentaire est le dernier, grisé sans passage choisi, et pose un fil sur la sélection', () => {
+    const editor = new Editor({ extensions: EXTENSIONS_NOTE, content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'abcdef' }] }] } })
+    ouverts.push(editor)
+    let appels = 0
+    act(() => racine.render(<ColonneOutils editor={editor} lien={null} surLien={() => {}} commenter={() => void appels++} />))
+    const noms = [...hote.querySelectorAll<HTMLButtonElement>('button.notak-outil-texte')].map((b) => b.getAttribute('aria-label'))
+    expect(noms.at(-1)).toBe('Commenter le passage')
+    expect(outil('Commenter le passage').getAttribute('aria-disabled')).toBe('true')
+    act(() => void editor.commands.setTextSelection({ from: 2, to: 5 }))
+    expect(outil('Commenter le passage').getAttribute('aria-disabled')).toBeNull()
+    act(() => outil('Commenter le passage').click())
+    expect(appels).toBe(1)
+  })
+
+  it('sans fonction « commenter » (lecture seule), l’outil n’est pas là', () => {
+    monter()
+    expect(hote.querySelector('button[aria-label="Commenter le passage"]')).toBeNull()
+  })
+
   it('ce qui ne tient pas en hauteur passe derrière « ••• »', () => {
     expect(outilsVisibles(0, 11)).toBe(11)
     expect(outilsVisibles(600, 11)).toBeLessThan(11)

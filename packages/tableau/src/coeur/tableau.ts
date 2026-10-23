@@ -455,6 +455,8 @@ export interface DocumentTexte {
   /** La légende sous la carte (vue carte seulement), montrée tant que `avecLegende` est posé. */
   legende?: string
   avecLegende?: boolean
+  /** Les fils de discussion posés sur des passages du texte, par leur clé (comme `Note.fils`). */
+  fils?: Record<Id, Commentaire>
 }
 
 /**

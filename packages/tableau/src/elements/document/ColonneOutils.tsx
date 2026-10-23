@@ -18,6 +18,8 @@ interface Props {
   /** Le champ d'adresse du lien : `null` fermé, sinon l'adresse en cours de saisie. */
   lien: string | null
   surLien(adresse: string | null): void
+  /** Commenter le passage choisi ; absent quand le document ne s'écrit pas. */
+  commenter?(): void
 }
 
 /** Combien d'outils en icône seule tiennent dans cette hauteur ; ce qui reste passe derrière « ••• ». 0 de hauteur : rien n'est mesuré, tout se montre. */
@@ -31,7 +33,7 @@ export function outilsVisibles(hauteur: number, total: number): number {
  * icônes seules (les mêmes outils que la note), repliées derrière « ••• » quand la hauteur manque. Elle ne prend
  * jamais le focus à l'éditeur.
  */
-export function ColonneOutils({ editor, lien, surLien }: Props) {
+export function ColonneOutils({ editor, lien, surLien, commenter }: Props) {
   const etat: EtatTexte = useEditorState({ editor, selector: etatTexte })
   const [menuStyle, setMenuStyle, ancreStyle] = useMenu()
   const [insertion, setInsertion, ancreInsertion] = useMenu()
@@ -69,6 +71,10 @@ export function ColonneOutils({ editor, lien, surLien }: Props) {
     { icone: 'centrer', libelle: t('barre.centrer'), raccourci: '⌘\\', actif: etat.centre, onClick: () => basculerCentre(editor) },
     { icone: 'code', libelle: t('barre.codeLigne'), raccourci: '⌘E', actif: etat.code, onClick: () => chaine().toggleCode().run() },
     { icone: 'lien', libelle: t('barre.lien'), raccourci: '⌘K', actif: etat.surLien || lien !== null, grise: sansSelection, onClick: ouvrirLien },
+    // Le dernier avant « ••• » : un fil sur le passage choisi, grisé sans passage ni fil à ouvrir (et dans du code).
+    ...(commenter
+      ? [{ icone: 'commenterPassage' as const, libelle: t('barre.commenterPassageNom'), raccourci: '⌘⌥M', actif: etat.surFil, grise: (etat.vide && !etat.surFil) || etat.code || etat.blocCode, onClick: commenter }]
+      : []),
   ]
   const n = outilsVisibles(hauteur, outils.length)
   const cache = outils.slice(n)
