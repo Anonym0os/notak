@@ -21,6 +21,9 @@ export function ajouterMessage(c: Commentaire, m: Message): Commentaire {
   return { ...reste, messages: [...c.messages.filter((x) => x.id !== m.id), { ...m, texte }] }
 }
 
+/** Un fil sans le moindre message n'a rien à dire : il disparaît quand on en sort. */
+export const filVide = (c: Commentaire) => c.messages.length === 0
+
 export const retirerMessage = (c: Commentaire, id: Id): Commentaire => ({ ...c, messages: c.messages.filter((m) => m.id !== id) })
 
 export function resoudre(c: Commentaire, resolu: boolean): Commentaire {

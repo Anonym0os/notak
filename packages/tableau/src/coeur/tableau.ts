@@ -236,7 +236,75 @@ export interface Commentaire {
   resolu?: boolean
 }
 
-export type Contenu = Note | Image | Fichier | Lien | Taches | Colonne | Ligne | RenvoiTableau | Commentaire
+/**
+ * Une table : des lignes de cellules de texte, toutes de la même longueur. La première ligne est l'en-tête
+ * (en gras, sur un fond teinté) tant que `sansEntete` n'est pas posé.
+ */
+export interface Table {
+  type: 'table'
+  cellules: string[][]
+  sansEntete?: boolean
+}
+
+/** Un nuancier : une couleur libre, en `#rrggbb`, avec son code écrit dessus tant que `sansCode` n'est pas posé. */
+export interface Nuancier {
+  type: 'nuancier'
+  couleur: string
+  sansCode?: boolean
+}
+
+/** Un lieu : son nom (facultatif) et son adresse, avec un lien vers une carte en ligne. */
+export interface Lieu {
+  type: 'lieu'
+  adresse: string
+  nom?: string
+}
+
+/** Un trait de crayon : ses points à la suite (`x1, y1, x2, y2…`, dans le repère de la feuille), sa couleur et son épaisseur. */
+export interface Trait {
+  points: number[]
+  couleur: string
+  epaisseur: number
+}
+
+/** Un croquis à main levée : des traits sur une feuille de taille fixe (voir `elements/croquis`). */
+export interface Croquis {
+  type: 'croquis'
+  traits: Trait[]
+}
+
+/** Un document : un titre et un texte long, qui s'écrit en grand (mêmes mises en forme qu'une note). */
+export interface DocumentTexte {
+  type: 'document'
+  titre: string
+  texte: NoeudTexte
+}
+
+/**
+ * Le même élément à un autre endroit : le clone ne garde que la clé de son original, qu'il dessine à sa place.
+ * Changer l'un change l'autre ; seuls la place et la largeur sont à chacun.
+ */
+export interface Clone {
+  type: 'clone'
+  cible: Id
+}
+
+export type Contenu =
+  | Note
+  | Image
+  | Fichier
+  | Lien
+  | Taches
+  | Colonne
+  | Ligne
+  | RenvoiTableau
+  | Commentaire
+  | Table
+  | Nuancier
+  | Lieu
+  | Croquis
+  | DocumentTexte
+  | Clone
 export type TypeContenu = Contenu['type']
 
 export interface Element<C extends Contenu = Contenu> {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import type { Commentaire, Message } from '../../coeur/tableau'
-import { ajouterMessage, dateLisible, initiales, replier, resoudre, retirerMessage } from './fil'
+import { ajouterMessage, dateLisible, filVide, initiales, replier, resoudre, retirerMessage } from './fil'
 
 const auteur = { id: 'a', nom: 'Samy' }
 const msg = (id: string, texte = 'Bonjour'): Message => ({ id, auteur, date: 0, texte })
@@ -24,6 +24,12 @@ describe('le fil', () => {
     expect(r.resolu).toBe(true)
     expect(ajouterMessage(r, msg('2')).resolu).toBeUndefined()
     expect('resolu' in resoudre(r, false)).toBe(false)
+  })
+
+  test('un fil sans message est vide ; avec un message, il reste', () => {
+    expect(filVide(vide)).toBe(true)
+    expect(filVide(ajouterMessage(vide, msg('1')))).toBe(false)
+    expect(filVide(retirerMessage(ajouterMessage(vide, msg('1')), '1'))).toBe(true)
   })
 
   test('retirer un message', () => {

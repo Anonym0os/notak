@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { type Auteur, type Commentaire, type Message, nouvelId } from '../../coeur/tableau'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
-import { AUTEUR_INCONNU, ajouterMessage, dateLisible, initiales, replier, resoudre, retirerMessage } from './fil'
+import { AUTEUR_INCONNU, ajouterMessage, filVide, dateLisible, initiales, replier, resoudre, retirerMessage } from './fil'
 
 /** Les boutons et le champ de la carte ne lancent pas de glisser. */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
@@ -10,7 +10,7 @@ const moi = (contexte: ContexteToile): Auteur => contexte.services.presence?.moi
 
 export function RenduCommentaire({ element, choisie, enEdition, contexte, brouillon, changer }: PropsRendu<Commentaire>) {
   const c = element.contenu
-  if (enEdition) return <Fil contenu={c} contexte={contexte} ecrire={brouillon} />
+  if (enEdition) return <Fil id={element.id} contenu={c} contexte={contexte} ecrire={brouillon} />
   const n = c.messages.length
   if (c.resolu) {
     return (
@@ -74,7 +74,7 @@ function Ligne({ message, retirer }: { message: Message; retirer?: () => void })
  * Le fil en édition : on écrit sous les messages. Entrée envoie (Maj+Entrée va à la ligne). Ce qu'on tape fait
  * partie du brouillon : sortir de l'édition sans envoyer garde le message, et les autres le voient venir.
  */
-function Fil({ contenu, contexte, ecrire }: { contenu: Commentaire; contexte: ContexteToile; ecrire(c: Commentaire): void }) {
+function Fil({ id, contenu, contexte, ecrire }: { id: string; contenu: Commentaire; contexte: ContexteToile; ecrire(c: Commentaire): void }) {
   const [envoye, setEnvoye] = useState(contenu)
   const [texte, setTexte] = useState('')
   const enCours = useRef<{ id: string; date: number } | null>(null)
@@ -83,6 +83,20 @@ function Fil({ contenu, contexte, ecrire }: { contenu: Commentaire; contexte: Co
   useEffect(() => {
     champ.current?.focus()
   }, [])
+  // Sortir de l'édition d'un fil resté vide le jette. On regarde le tableau une fois la sortie inscrite, et on
+  // attend un tour : en développement, React démonte puis remonte le composant sur-le-champ, ce n'est pas une sortie.
+  const monte = useRef(false)
+  useEffect(() => {
+    monte.current = true
+    return () => {
+      monte.current = false
+      queueMicrotask(() => {
+        if (monte.current) return
+        const e = contexte.magasin.lire().elements.find((x) => x.id === id)
+        if (e?.contenu.type === 'commentaire' && filVide(e.contenu)) contexte.jeter([id])
+      })
+    }
+  }, [id, contexte])
 
   const brouillonDe = (base: Commentaire, t: string) => {
     if (!t.trim()) return base

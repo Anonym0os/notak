@@ -1,0 +1,115 @@
+.notak-croquis {
+  position: relative;
+  color: var(--notak-texte);
+}
+
+.notak-croquis > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.notak-croquis-vide {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: #6b7280;
+  font-size: 13px;
+  pointer-events: none;
+}
+
+/* La feuille ouverte en grand, au-dessus de la toile. */
+.notak-croquis-fond {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  background: rgb(15 20 28 / 0.55);
+  outline: none;
+}
+
+.notak-croquis-feuille {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(92vw, calc((92vh - 70px) * 4 / 3));
+}
+
+.notak-croquis-outils {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: var(--notak-carte, #fff);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
+  font-size: 13px;
+  color: var(--notak-texte, #1f2328);
+}
+
+.notak-croquis-outils [role='group'] {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.notak-croquis-outils button {
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.notak-croquis-outils button:hover:not(:disabled),
+.notak-croquis-outils button[aria-pressed='true'] {
+  background: var(--notak-fond, #eef0f2);
+}
+
+.notak-croquis-outils button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.notak-croquis-outils .notak-croquis-pastille {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin: 0 2px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.15);
+}
+
+.notak-croquis-outils .notak-croquis-pastille[aria-pressed='true'] {
+  box-shadow: 0 0 0 2px var(--notak-carte, #fff), 0 0 0 4px var(--notak-accent, #2f6feb);
+  background-color: inherit;
+}
+
+.notak-croquis-outils .notak-croquis-terminer {
+  margin-left: auto;
+  background: var(--notak-accent, #2f6feb);
+  color: #fff;
+}
+
+.notak-croquis-surface {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 8px 32px rgb(0 0 0 / 0.3);
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+.notak-croquis-surface[data-outil='gomme'] {
+  cursor: cell;
+}
