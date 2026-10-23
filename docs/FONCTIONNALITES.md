@@ -45,6 +45,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Zoom molette et pincement, lissé, effleurement corrigé, inertie filtrée | ✅ | |
 | Cmd+plus, Cmd+moins, Cmd+0 | ✅ | |
 | Crans de zoom et Ajuster | ✅ | |
+| Plein écran d'un élément (image, fichier, document, croquis) par adresse `/t/<tableau>/e/<élément>` | ✅ | Le retour du navigateur le referme ; l'adresse l'ouvre et le choisit ; Espace referme l'image ou le fichier. |
 | Document borné (bord haut-gauche, marges de 50 × 40 UG), recentrage en dézoomant | ✅ | |
 | Grille de points | ✅ | |
 | Tailles de grille 8, 9, 10 px (Cmd+Maj+, et .) | ✅ | Réglage « Grille » (Cmd+,) ; le texte garde sa taille. |
@@ -58,9 +59,9 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Échap annule un glisser | ✅ | |
 | Maj verrouille l'axe | ✅ | |
 | Flèches : déplacer d'une UG (Maj : plus loin) | ✅ | |
-| Redimensionner un élément (largeur, double-clic sur la poignée) | ✅ | |
+| Redimensionner un élément (largeur, double-clic sur la poignée) | ✅ | La largeur suit le pointeur sans arrondi et rejoint la grille en douceur au relâchement. Planchers de Milanote : 4 pour image, fichier, nuancier, croquis, dessin ; 17 pour note, lien sans aperçu, lieu sans carte. |
 | Hauteur bornée par la poignée (note, lien) | ✅ | |
-| Redimensionner un groupe | ✅ | Une échelle par axe ; une poignée sur chaque élément choisi. Reste : fin animée en cascade. |
+| Redimensionner un groupe | ✅ | Une échelle par axe ; une poignée sur chaque élément choisi ; en fin de geste les éléments rejoignent la grille l'un après l'autre (30 % par image, 500 ms en tout), un zoom pendant le geste l'annule. |
 | Pas de poignée de taille sur une liste de tâches, un tableau, un document, un clone | ✅ | `redimensionnable: false` dans le registre. |
 | Proportions gardées pour les médias, Cmd pour les libérer, Échap pendant le geste | ✅ | |
 | Collisions : ce qui grandit pousse ses voisins du dessous | ✅ | Édition, Cmd+Entrée, colonne qui reçoit ou perd un élément, note bornée qui se replie, lignes horizontales libres. |
@@ -73,7 +74,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
 | Fonctionnalité | État | Reste |
 |---|---|---|
-| Barre de gauche dans l'ordre de Milanote, tiroir « Plus » | ✅ | |
+| Barre de gauche dans l'ordre de Milanote, tiroir « Plus » | ✅ | D'une liste à l'autre (création, sélection, écriture) la barre glisse à ressort (raideur 300, amortissement 30). Reste : le délai de 100 ms avant de recomposer. |
 | Glisser un outil sur la toile, fantôme et prise | ✅ | |
 | Glisser un outil dans une colonne ou sur un tableau | ✅ | |
 | Clic sur un outil : rebond et bulle d'aide | ✅ | |
@@ -165,7 +166,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Survol pendant un glisser : l'icône grossit, s'assombrit, clignote avant d'entrer | ✅ | |
 | Icône (recherche par mot dans un catalogue de plus de 200 icônes, en français et en anglais) ou image à la place de l'initiale | ✅ | Le catalogue est tiré du jeu Tabler (MIT), pas de Milanote. |
 | Couleur personnalisée, couleur du glyphe, paires de couleurs et couleurs déjà employées | ✅ | Le fond libre est celui de la carte, pas du tableau. |
-| Pastille d'activité : un point quand le tableau a changé depuis la dernière visite | 🟡 | Calculée sur cet appareil (empreinte du contenu), pas par personne ni par le serveur ; un tableau jamais ouvert ne s'allume pas. |
+| Pastille d'activité : « Nouveau » ou le nombre de changements depuis la dernière visite | 🟡 | Calculée sur cet appareil (empreinte de chaque élément, 400 au plus, 30 tableaux), pas par personne ni par le serveur ; « Nouveau » pour un tableau posé par un autre depuis moins de 14 jours et jamais ouvert ici. |
 | Raccourci de création ⌃⌘B (Ctrl+Alt+B), affiché dans l'infobulle de l'outil | ✅ | |
 | Disposition en ligne dans une colonne | ✅ |  |
 | Raccourci vers un tableau (le même tableau à deux endroits) | ✅ |  |
@@ -304,13 +305,13 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 |---|---|---|
 | Corbeille du tableau : envoyer, remettre, vider | ✅ | |
 | Lâcher sur la corbeille | ✅ | |
-| Copier, couper, coller, dupliquer (Cmd+C, X, V, D) | ✅ | |
-| Alt+glisser duplique | ✅ | |
+| Copier, couper, coller, dupliquer (Cmd+C, X, V, D) | ✅ | Couper masque sans corbeille et le collage déplace les mêmes éléments (ailleurs : copie puis retrait de l'original) ; un nouveau copier ou Cmd+Z les fait reparaître. Du texte collé sur une image en devient la légende. |
+| Alt+glisser duplique | ✅ | Alt est lue au dépôt, comme chez Milanote. |
 | Aligner (Alt+A, D, W, S, H, V) | ✅ | |
 | Répartir (Cmd+Alt+Maj+H, V) | ✅ | |
 | Aligner les centres sur la valeur commune | ✅ | |
 | Premier plan, arrière-plan (Cmd+Maj+↑, ↓), d'un cran | ✅ | |
-| Menu du clic droit, sur la toile et sur un élément | ✅ | Ordre de Milanote, coche à droite, création limitée à huit types, rien en lecture seule. Reste : sous-menu d'arrière-plan, métadonnées avec avatar. |
+| Menu du clic droit, sur la toile et sur un élément | ✅ | Ordre de Milanote, coche à droite, création limitée à huit types, rien en lecture seule. Sous-menu « Changer l'arrière-plan » (cinq couleurs du canevas, couleur libre en direct, grille de points, retour au défaut, par tableau) ; métadonnées « Créé par… / Modifié par… » avec avatar (trace gardée dans le document partagé). |
 | Grouper en colonne | ✅ | |
 | Relier par une ligne (Cmd+K) | ✅ | |
 | Envoyer dans un tableau, sur le fil d'Ariane | ✅ | |
@@ -345,8 +346,8 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Partager un tableau par adresse, invitation en attente | ✅ | |
 | Rôles lecture, édition, propriétaire ; changés en direct | ✅ | |
 | Partage hérité par les sous-tableaux | ✅ | |
-| Présence : pastilles, curseurs, sélections des autres | ✅ | Pastille avec prénom qui pulse ; un élément tenu par un autre ne se choisit ni ne s'édite. |
-| Point d'activité non vue sur un élément modifié par un autre | ✅ | Reste : pastille « New » des tableaux, pointeurs de bord de vue. |
+| Présence : pastilles, curseurs, sélections des autres | ✅ | Pastille avec avatar et prénom qui pulse, et croix qui fait lâcher l'élément à l'autre (sauf croquis et document) ; un élément tenu par un autre ne se choisit ni ne s'édite. |
+| Point d'activité non vue sur un élément modifié par un autre | ✅ | Zone de 19 px, infobulle immédiate (qui, depuis quand). Pointeurs de bord de vue vers les autres personnes et l'activité hors écran (clic : la vue s'y centre, effacés pendant un zoom). |
 | Suggestion sous l'élément (« Convertir en document ? ») | ✅ | Mécanisme `suggestionSous` ; reste : copie synchronisée, titre et tâches terminées d'une liste. |
 | Fusion des modifications sans conflit (Yjs) | ✅ | |
 | Lecture seule | ✅ | |
