@@ -1,4 +1,4 @@
-import { COULEURS_NOTE, type CouleurNote } from '../../coeur/tableau'
+import { COULEURS_NOTE, type CouleurNote, type Element, type Note } from '../../coeur/tableau'
 
 /**
  * Les fonds de note. Les mêmes valeurs sont déclinées en variables CSS (`--notak-note-<nom>`
@@ -47,6 +47,47 @@ export function couleurTexteSur(fond: string): string {
 /** La couleur du texte d'une note : celle que son fond impose, `undefined` pour le style par défaut. */
 export function texteDeNote(couleur: CouleurNote | undefined): string | undefined {
   return couleur && couleur !== 'transparent' ? couleurTexteSur(FOND_NOTE[couleur]) : undefined
+}
+
+/** Une couleur saisie (`#abc`, `AABBCC`, `#aabbcc`) ramenée à `#rrggbb` en minuscules ; `null` si ce n'en est pas une. */
+export function lireHex(saisie: string): string | null {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(saisie.trim())
+  if (!m) return null
+  const h = m[1]!.toLowerCase()
+  return `#${h.length === 3 ? [...h].map((c) => c + c).join('') : h}`
+}
+
+/** Le fond d'une note en `#rrggbb` : le fond libre, sinon sa couleur nommée ; `undefined` sans fond ou transparente. */
+export function fondDeNote(c: Pick<Note, 'couleur' | 'fond'>): string | undefined {
+  if (c.fond) return c.fond
+  return c.couleur && c.couleur !== 'transparent' ? FOND_NOTE[c.couleur] : undefined
+}
+
+/** Le texte d'une note : le sien s'il en a un, sinon blanc ou presque-noir selon le fond ; `undefined` pour le défaut. */
+export function texteDuContenu(c: Pick<Note, 'couleur' | 'fond' | 'couleurTexte'>): string | undefined {
+  if (c.couleurTexte) return c.couleurTexte
+  const fond = fondDeNote(c)
+  return fond ? couleurTexteSur(fond) : undefined
+}
+
+/** Le nombre de couleurs suggérées au plus. */
+export const SUGGEREES_MAX = 8
+
+/**
+ * Les couleurs déjà employées sur le tableau (fonds, barres, textes libres, fonds nommés), les plus fréquentes
+ * d'abord, au plus `SUGGEREES_MAX` : de quoi retrouver une teinte sans la retaper.
+ */
+export function couleursSuggerees(elements: readonly Element[]): string[] {
+  const compte = new Map<string, number>()
+  const noter = (c: string | undefined) => c && compte.set(c, (compte.get(c) ?? 0) + 1)
+  for (const e of elements) {
+    if (e.contenu.type !== 'note') continue
+    noter(fondDeNote(e.contenu))
+    noter(e.contenu.barre)
+    noter(e.contenu.couleurTexte)
+  }
+  // Tri stable : à égalité, la première rencontrée reste devant.
+  return [...compte].sort((a, b) => b[1] - a[1]).slice(0, SUGGEREES_MAX).map(([c]) => c)
 }
 
 export const LIBELLES_COULEUR: Record<CouleurNote, string> = {

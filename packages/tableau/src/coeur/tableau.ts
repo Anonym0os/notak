@@ -60,6 +60,14 @@ export interface Note {
   texte: NoeudTexte
   couleur?: CouleurNote
   variante?: VarianteNote
+  /** Un fond libre, `#rrggbb` : il prime sur `couleur`. */
+  fond?: string
+  /** Une barre de cette couleur (`#rrggbb`) en haut de la note. */
+  barre?: string
+  /** La couleur du texte de cette note (`#rrggbb`), à la place de celle que son fond impose. */
+  couleurTexte?: string
+  /** Un mot sous la note. */
+  legende?: string
 }
 
 /** Une image envoyée. Le fichier vit dans le dépôt de fichiers, l'élément ne garde que sa clé. */

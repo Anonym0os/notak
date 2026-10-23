@@ -324,3 +324,131 @@
   white-space: nowrap;
   user-select: none;
 }
+
+/* L'encadré : un fond léger, l'icône (attribut `data-icone`) dans la marge gauche, où un clic la change. */
+.notak-texte .notak-encadre {
+  position: relative;
+  margin: 0 0 0.4em;
+  padding: 6px 8px 6px 34px;
+  border-radius: 6px;
+  background: rgb(127 127 127 / 0.14);
+}
+
+.notak-texte .notak-encadre::before {
+  content: attr(data-icone);
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  font-size: 16px;
+  line-height: 1.4;
+  cursor: pointer;
+  user-select: none;
+}
+
+.notak-texte .notak-encadre > p:last-child {
+  margin-bottom: 0;
+}
+
+/* Une table collée : filets fins, la ligne d'en-tête en gras. */
+.notak-texte table.notak-table {
+  width: 100%;
+  margin: 0 0 0.4em;
+  border-collapse: collapse;
+  font-size: 0.92em;
+}
+
+.notak-texte .notak-table th,
+.notak-texte .notak-table td {
+  min-width: 40px;
+  padding: 3px 6px;
+  border: 1px solid rgb(127 127 127 / 0.45);
+  vertical-align: top;
+  text-align: left;
+}
+
+.notak-texte .notak-table th {
+  background: rgb(127 127 127 / 0.14);
+  font-weight: 600;
+}
+
+.notak-texte .notak-table p {
+  margin: 0;
+}
+
+/* Une adresse repérée en édition : soulignée comme un lien, Cmd+clic l'ouvre. */
+.notak-texte .notak-adresse {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: text;
+}
+
+/* La barre de couleur : une bande en haut de la carte, sur toute sa largeur. */
+.notak-note-bande {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 6px;
+  border-radius: 1px 1px 0 0;
+}
+
+.notak-note[data-barre] .notak-texte:first-child {
+  margin-top: 4px;
+}
+
+/* La légende : sous la carte, en petit, comme sous une image. */
+.notak-note-legende {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  margin-top: 6px;
+  color: var(--notak-texte);
+  font-size: 12px;
+  line-height: 1.35;
+  opacity: 0.7;
+  text-align: center;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+
+.notak-note-hex {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--notak-point);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  user-select: text;
+}
+
+.notak-note-hex[aria-invalid='true'] {
+  border-color: #d43b3b;
+}
+
+.notak-note-hex:focus {
+  outline: 2px solid var(--notak-accent);
+  outline-offset: -1px;
+}
+
+/* Le menu d'insertion : huit émojis par ligne. */
+.notak-note-emojis {
+  display: grid;
+  grid-template-columns: repeat(8, 28px);
+  gap: 2px;
+}
+
+.notak-note-emojis button {
+  min-width: 28px !important;
+  padding: 0 !important;
+  font-size: 16px !important;
+}
+
+/* Le séparateur. */
+.notak-texte hr {
+  margin: 0.6em 0;
+  border: 0;
+  border-top: 1px solid currentColor;
+  opacity: 0.35;
+}

@@ -5,6 +5,7 @@ import { Color, TextStyle } from '@tiptap/extension-text-style'
 import StarterKit from '@tiptap/starter-kit'
 import { basculerCentre, basculerSurlignage, poserStyle } from './commandes'
 import { normaliserUrl } from './conversion'
+import { AdressesReperees, CelluleTable, Encadre, EnteteTable, LigneTable, Table } from './noeuds'
 import { augmenterRetrait, changerCasse, diminuerRetrait } from './texte'
 
 /** Le surlignage garde un nom de couleur (`vert`), que `note.css` décline : le document ne porte aucune valeur. */
@@ -105,8 +106,11 @@ const MarkdownTape = Extension.create({
   },
 })
 
-/** Une seule liste, pour l'éditeur comme pour le rendu figé. */
-const KIT = { heading: { levels: [1, 2] as (1 | 2)[] }, link: { openOnClick: false } }
+/**
+ * Une seule liste, pour l'éditeur comme pour le rendu figé. Une adresse tapée ou collée ne devient pas un lien
+ * d'elle-même (`autolink`, `linkOnPaste`) : elle reste du texte, que `AdressesReperees` souligne.
+ */
+const KIT = { heading: { levels: [1, 2] as (1 | 2)[] }, link: { openOnClick: false, autolink: false, linkOnPaste: false } }
 
 export const EXTENSIONS_NOTE = [
   StarterKit.configure(KIT),
@@ -118,6 +122,12 @@ export const EXTENSIONS_NOTE = [
   RaccourcisFormat,
   Retraits,
   MarkdownTape,
+  Encadre,
+  Table,
+  LigneTable,
+  CelluleTable,
+  EnteteTable,
+  AdressesReperees,
 ]
 
 /** Les mêmes, quand le texte s'écrit à plusieurs : l'annulation est alors celle du partage (voir `partage.ts`). */

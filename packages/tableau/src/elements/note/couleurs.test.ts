@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { COULEURS_NOTE } from '../../coeur/tableau'
 import { readFileSync } from 'node:fs'
-import { FOND_NOTE, TEXTE_CLAIR, TEXTE_SOMBRE, contraste, couleurTexteSur, luminance, texteDeNote } from './couleurs'
+import type { Element } from '../../coeur/tableau'
+import { FOND_NOTE, TEXTE_CLAIR, TEXTE_SOMBRE, contraste, couleurTexteSur, couleursSuggerees, fondDeNote, lireHex, luminance, texteDeNote, texteDuContenu } from './couleurs'
 
 describe('contraste', () => {
   it('mesure le noir et le blanc aux deux bouts', () => {
@@ -38,5 +39,41 @@ describe('palette', () => {
   it('a les mêmes valeurs en TypeScript et dans note.css', () => {
     const css = readFileSync(new URL('./note.css', import.meta.url), 'utf8')
     for (const c of COULEURS_NOTE) expect(css).toContain(`--notak-note-${c}: ${FOND_NOTE[c]};`)
+  })
+})
+
+describe('lireHex', () => {
+  it('ramène une saisie à #rrggbb', () => {
+    expect(lireHex('#ABC')).toBe('#aabbcc')
+    expect(lireHex(' 12ab9f ')).toBe('#12ab9f')
+    expect(lireHex('#1234')).toBeNull()
+    expect(lireHex('rouge')).toBeNull()
+    expect(lireHex('')).toBeNull()
+  })
+})
+
+describe('fond et texte d\'une note', () => {
+  it('le fond libre prime sur la couleur nommée', () => {
+    expect(fondDeNote({ couleur: 'bleu', fond: '#112233' })).toBe('#112233')
+    expect(fondDeNote({ couleur: 'bleu' })).toBe(FOND_NOTE.bleu)
+    expect(fondDeNote({ couleur: 'transparent' })).toBeUndefined()
+  })
+  it('la couleur de texte propre à la note prime sur celle du fond', () => {
+    expect(texteDuContenu({ fond: '#000000' })).toBe(TEXTE_CLAIR)
+    expect(texteDuContenu({ fond: '#000000', couleurTexte: '#ff0000' })).toBe('#ff0000')
+    expect(texteDuContenu({ couleurTexte: '#ff0000' })).toBe('#ff0000')
+    expect(texteDuContenu({})).toBeUndefined()
+  })
+})
+
+describe('couleursSuggerees', () => {
+  const note = (contenu: object): Element => ({ id: 'n', x: 0, y: 0, largeur: 34, contenu: { type: 'note', texte: { type: 'doc' }, ...contenu } }) as never
+  it('compte fonds, barres et textes, les plus employées d\'abord', () => {
+    const els = [note({ fond: '#111111' }), note({ barre: '#222222' }), note({ fond: '#222222' }), note({ couleur: 'vert' }), note({})]
+    expect(couleursSuggerees(els)).toEqual(['#222222', '#111111', FOND_NOTE.vert])
+  })
+  it('s\'arrête à huit', () => {
+    const els = Array.from({ length: 12 }, (_, i) => note({ fond: `#0000${(i + 10).toString(16)}` }))
+    expect(couleursSuggerees(els)).toHaveLength(8)
   })
 })

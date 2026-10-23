@@ -1,35 +1,51 @@
 import { EditorContent, getSchema, useEditor } from '@tiptap/react'
 import { renderToReactElement } from '@tiptap/static-renderer/pm/react'
-import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Note, NoeudTexte } from '../../coeur/tableau'
 import { extensionsDuPartage, textePartage } from '../partage'
 import type { PropsRendu } from '../types'
 import { BarreTexte } from './Barre'
-import { adresseSeule, caseSeule, docEstVide } from './conversion'
+import { adresseSeule, adressesEnLiens, caseSeule, docEstVide } from './conversion'
 import { docVide } from '../taches/liste'
-import { texteDeNote } from './couleurs'
+import { texteDuContenu } from './couleurs'
 import { EXTENSIONS_NOTE, EXTENSIONS_NOTE_PARTAGEE, type GestesEdition, raccourcisEdition } from './extensions'
 
 export function RenduNote(props: PropsRendu<Note>) {
   const { element, enEdition } = props
   const { contenu } = element
-  const texte = texteDeNote(contenu.couleur)
+  const texte = texteDuContenu(contenu)
+  const racine = useRef<HTMLDivElement>(null)
+  // Un fond libre ne peut pas se dire en CSS : la carte, que `Cadre` pose, le reçoit d'ici.
+  useLayoutEffect(() => {
+    const carte = racine.current?.parentElement
+    if (!carte || !contenu.fond) return
+    carte.style.background = contenu.fond
+    carte.style.setProperty('--notak-voile', contenu.fond)
+    return () => {
+      carte.style.background = ''
+      carte.style.removeProperty('--notak-voile')
+    }
+  }, [contenu.fond])
   return (
     <div
+      ref={racine}
       className="notak-note"
-      data-couleur={contenu.couleur}
+      data-couleur={contenu.fond ? undefined : contenu.couleur}
       data-variante={contenu.variante}
+      data-barre={contenu.barre ? '' : undefined}
       style={texte ? { color: texte } : undefined}
       // Hors édition, un lien s'ouvre : l'appui ne doit pas lancer un glisser.
       onPointerDown={enEdition ? undefined : (e) => (e.target as HTMLElement).closest('a') && e.stopPropagation()}
     >
+      {contenu.barre && <div className="notak-note-bande" style={{ background: contenu.barre }} aria-hidden />}
       {enEdition ? <Editeur {...props} /> : <TexteFige texte={contenu.texte} />}
+      {contenu.legende && <div className="notak-note-legende">{contenu.legende}</div>}
     </div>
   )
 }
 
 const TexteFige = memo(function TexteFige({ texte }: { texte: NoeudTexte }) {
-  const rendu = useMemo(() => renderToReactElement({ content: texte, extensions: EXTENSIONS_NOTE }), [texte])
+  const rendu = useMemo(() => renderToReactElement({ content: adressesEnLiens(texte), extensions: EXTENSIONS_NOTE }), [texte])
   return <div className="notak-texte">{rendu}</div>
 })
 
