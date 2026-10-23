@@ -1,0 +1,140 @@
+.notak-commentaire {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--notak-texte);
+}
+
+.notak-commentaire[data-resolu] {
+  gap: 4px;
+  opacity: 0.7;
+}
+
+.notak-commentaire-resolu {
+  font-size: 12px;
+  font-weight: 600;
+  color: #2f9a5a;
+}
+
+.notak-commentaire-extrait {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-commentaire-message,
+.notak-commentaire-saisie {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.notak-commentaire-pastille {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #8a94a3;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.notak-commentaire-corps {
+  flex: 1;
+  min-width: 0;
+}
+
+.notak-commentaire-entete {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.notak-commentaire-entete time,
+.notak-commentaire-caches,
+.notak-commentaire-aide,
+.notak-commentaire-vide {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.notak-commentaire-caches,
+.notak-commentaire-aide,
+.notak-commentaire-vide {
+  margin: 8px 0 0 38px;
+}
+
+.notak-commentaire-texte {
+  margin: 2px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.notak-commentaire button {
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.notak-commentaire-resoudre {
+  position: absolute;
+  top: -16px;
+  right: -12px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 120ms ease, background 120ms ease;
+}
+
+.notak-carte:hover .notak-commentaire-resoudre,
+.notak-carte[data-choisie] .notak-commentaire-resoudre {
+  opacity: 1;
+}
+
+.notak-commentaire-resoudre:hover {
+  background: var(--notak-fond);
+  color: #2f9a5a;
+}
+
+.notak-commentaire-retirer {
+  margin-left: auto;
+  color: #6b7280;
+}
+
+.notak-commentaire-repondre {
+  margin-left: 38px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--notak-fond) !important;
+  color: #6b7280 !important;
+  text-align: left;
+}
+
+.notak-commentaire-saisie textarea {
+  flex: 1;
+  box-sizing: border-box;
+  min-height: 28px;
+  padding: 5px 8px;
+  border: 1px solid var(--notak-point);
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  resize: none;
+  outline: none;
+}
+
+.notak-commentaire-saisie textarea:focus {
+  border-color: var(--notak-accent);
+}

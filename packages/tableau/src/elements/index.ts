@@ -8,5 +8,6 @@ import './tableau'
 import './ligne'
 import './colonne'
 import './fichier'
+import './commentaire'
 // L'outil de couleur commun, une fois tous les types inscrits.
 import './couleur'

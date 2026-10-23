@@ -153,7 +153,31 @@ export interface RenvoiTableau {
   titre?: string
 }
 
-export type Contenu = Note | Image | Fichier | Lien | Taches | Colonne | Ligne | RenvoiTableau
+/** Qui a écrit un message, tel qu'il se présentait à ce moment-là. */
+export interface Auteur {
+  id: string
+  nom: string
+  couleur?: string
+}
+
+/** Un message d'un fil de discussion. */
+export interface Message {
+  id: Id
+  auteur: Auteur
+  /** Quand il a été écrit (ms). */
+  date: number
+  texte: string
+}
+
+/** Un fil de discussion posé sur la toile : un premier message, puis les réponses. */
+export interface Commentaire {
+  type: 'commentaire'
+  messages: Message[]
+  /** Résolu : le fil se replie en une pastille, et se rouvre. */
+  resolu?: boolean
+}
+
+export type Contenu = Note | Image | Fichier | Lien | Taches | Colonne | Ligne | RenvoiTableau | Commentaire
 export type TypeContenu = Contenu['type']
 
 export interface Element<C extends Contenu = Contenu> {
