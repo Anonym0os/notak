@@ -5,6 +5,7 @@ import type { Contenu, Element, Id } from './coeur/tableau'
 import { Decor, Pastille } from './elements/decor/Decor'
 import { passeLeFiltre, peutEtreIcone } from './elements/decor/annotations'
 import { useFiltre } from './elements/decor/etat'
+import { teinteDeCarte } from './elements/couleur/teinte'
 import { definition } from './elements/registre'
 import { PoigneeHauteur } from './elements/rangee/PoigneeHauteur'
 import type { ContexteToile } from './elements/types'
@@ -38,6 +39,7 @@ export const Cadre = memo(function Cadre({ element, choisie, seule, enEdition, c
   const attenue = filtre.size > 0 && !def.accepte && !passeLeFiltre(element, filtre)
   const sansFond = typeof def.sansFond === 'function' ? def.sansFond(element.contenu) : def.sansFond
   const { Rendu } = def
+  const teinte = teinteDeCarte(def.teinte, element.contenu)
   // En édition, la note s'étend le temps d'écrire ; le plafond revient à la sortie.
   const h = def.hauteurBornable && !icone ? element.hauteur : undefined
   const plafond = h && 'max' in h && !enEdition ? h.max * PX_PAR_UG : undefined
@@ -63,7 +65,8 @@ export const Cadre = memo(function Cadre({ element, choisie, seule, enEdition, c
       data-verrou={element.verrou || undefined}
       data-icone={icone || undefined}
       data-attenue={attenue || undefined}
-      style={{ ...place, ...(plafond !== undefined ? { maxHeight: plafond } : {}), ...(plancher !== undefined ? { minHeight: plancher } : {}) }}
+      data-teinte={teinte ? '' : undefined}
+      style={{ ...place, ...teinte, ...(plafond !== undefined ? { maxHeight: plafond } : {}), ...(plancher !== undefined ? { minHeight: plancher } : {}) }}
     >
       {icone ? (
         <Pastille element={element} contexte={contexte} />

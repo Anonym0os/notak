@@ -5,6 +5,8 @@ import './croquis.css'
 import { nouveauCroquis, resume } from './trace'
 import { t } from '../../langue'
 import { ico } from '../../icones'
+import { couleurDuContenu } from '../couleur'
+import { OutilCouleurCarte } from '../couleur/OutilCouleurCarte'
 
 registre.type<Croquis>({
   type: 'croquis',
@@ -13,6 +15,9 @@ registre.type<Croquis>({
   },
   resume,
   Rendu: RenduCroquis,
+  Outils: OutilCouleurCarte,
+  couleur: couleurDuContenu<Croquis>(),
+  teinte: true,
   OutilsApres: OutilsCroquis,
   editable: true,
   aLaCreation: 'rien',

@@ -2439,3 +2439,36 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 .notak-vue-tout:hover {
   background: var(--notak-fond);
 }
+
+/* === Teinte des cartes : la couleur choisie colore l'en-tête d'un lien, la légende d'une image, la carte d'un fichier ou d'un croquis, la feuille d'un document === */
+.notak-carte[data-teinte] .notak-lien {
+  background: var(--notak-teinte);
+  color: var(--notak-teinte-texte, var(--notak-texte));
+}
+
+.notak-carte[data-teinte] .notak-lien-titre,
+.notak-carte[data-teinte] .notak-lien-description {
+  color: inherit;
+}
+
+.notak-carte[data-teinte] .notak-legende {
+  margin: 0;
+  padding: 4px 8px 6px;
+  background: var(--notak-teinte);
+  color: var(--notak-teinte-texte, #5b6169);
+}
+
+.notak-carte[data-type='fichier'][data-teinte],
+.notak-carte[data-type='croquis'][data-teinte] {
+  background: var(--notak-teinte);
+  color: var(--notak-teinte-texte, var(--notak-texte));
+}
+
+.notak-carte[data-type='fichier'][data-teinte] .notak-fichier,
+.notak-carte[data-type='croquis'][data-teinte] .notak-croquis {
+  color: inherit;
+}
+
+.notak-carte[data-teinte] .notak-document-papier path:first-child {
+  fill: var(--notak-teinte);
+}

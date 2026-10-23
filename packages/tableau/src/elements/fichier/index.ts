@@ -7,6 +7,8 @@ import { basculerBanque } from '../image/banqueImages'
 import { peutTelecharger, telecharger } from './telechargement'
 import { t } from '../../langue'
 import { ico } from '../../icones'
+import { couleurDuContenu } from '../couleur'
+import { OutilCouleurCarte } from '../couleur/OutilCouleurCarte'
 
 /** Le fantôme des outils d'envoi : une carte de fichier sans fichier. */
 const fantome = (nom: string, typeMime: string) => ({
@@ -25,6 +27,9 @@ registre.type<Fichier>({
   resume: (c) => c.titre ?? c.nom,
   suivant: () => null,
   Rendu: RenduFichier,
+  Outils: OutilCouleurCarte,
+  couleur: couleurDuContenu<Fichier>(),
+  teinte: true,
   OutilsApres: OutilsFichier,
   editable: true,
   hauteurParDefaut: 8,

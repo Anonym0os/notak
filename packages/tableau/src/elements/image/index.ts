@@ -7,6 +7,8 @@ import { raccourciAnnoter } from './raccourciAnnotation'
 import { recevoirImages } from './recepteur'
 import { ouvrirImage } from './visionneuse'
 import { t } from '../../langue'
+import { couleurDuContenu } from '../couleur'
+import { OutilCouleurCarte } from '../couleur/OutilCouleurCarte'
 
 registre.type<Image>({
   suivant: () => null,
@@ -16,6 +18,9 @@ registre.type<Image>({
   resume: (c) => c.legende ?? '',
   type: 'image',
   Rendu: RenduImage,
+  Outils: OutilCouleurCarte,
+  couleur: couleurDuContenu<Image>(),
+  teinte: true,
   OutilsApres: OutilsImage,
   editable: true,
   // Le double-clic et Espace la montrent en grand ; Entrée édite sa légende.
