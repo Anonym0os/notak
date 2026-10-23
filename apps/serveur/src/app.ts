@@ -8,6 +8,7 @@ import { getConnInfo } from '@hono/node-server/conninfo'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
+import { regrouper } from './activite.ts'
 import { ErreurApercu, apercuDePage, rapatrierImage } from './apercu.ts'
 import { type Base, DUREE_ACCES_PUBLIC_MS, type Fichier, type Utilisateur } from './base.ts'
 import { ErreurCompte, inscrire, normaliserEmail } from './comptes.ts'
@@ -44,6 +45,11 @@ const ID_FICHIER = /^[0-9a-f-]{36}$/
 const RECENTS_AFFICHES = 12
 /** Combien de résultats la recherche dans tous les tableaux rend au plus. */
 const RESULTATS_RECHERCHE = 30
+/** Combien de gestes l'activité d'un tableau rend, par défaut et au plus. */
+const ACTIVITE_DEFAUT = 100
+const ACTIVITE_MAX = 200
+/** Combien de notifications la liste rend au plus. */
+const NOTIFICATIONS_AFFICHEES = 50
 const JETON_PUBLIC = /^[A-Za-z0-9_-]{16,64}$/
 /** Les mots de passe d'un tableau : ni trop courts pour valoir quelque chose, ni assez longs pour coûter au hachage. */
 const MOT_DE_PASSE_MIN = 6
@@ -309,6 +315,17 @@ export function creerApp(ctx: Contexte): Hono {
       if (avant === 'proprietaire') return c.json({ erreur: 'propriétaire' }, 409)
       base.definirAcces({ tableau: g.id, utilisateur: cible.id, role: nouveau })
       if (avant !== null && avant !== nouveau) fermerConnexions(g.id)
+      if (avant === null && cible.id !== g.u.id) {
+        base.noterNotification({
+          destinataire: cible.id,
+          genre: 'partage',
+          tableau: g.id,
+          element: '',
+          auteur: g.u.id,
+          extrait: base.tableau(g.id)?.titre ?? '',
+          instant: ctx.maintenant(),
+        })
+      }
     } else {
       base.definirInvitation({ tableau: g.id, email, role: nouveau })
     }
@@ -366,6 +383,45 @@ export function creerApp(ctx: Contexte): Hono {
         return r && ligne ? [{ tableau: t.tableau, titre: ligne.titre, element: t.element || null, extrait: t.extrait, role: r }] : []
       }),
     )
+  })
+
+  // ---- Activité et notifications ----
+
+  const entier = (v: string | undefined, defaut: number, min: number, max: number): number => {
+    const n = Number(v)
+    return v !== undefined && Number.isInteger(n) ? Math.min(max, Math.max(min, n)) : defaut
+  }
+
+  app.get('/api/tableaux/:id/activite', (c) => {
+    const g = garde(c, 'lecture')
+    if (g instanceof Response) return g
+    const limite = entier(c.req.query('limite'), ACTIVITE_DEFAUT, 1, ACTIVITE_MAX)
+    const apres = entier(c.req.query('depuis'), 0, 0, Number.MAX_SAFE_INTEGER)
+    const evenements = base.activite(g.id, limite, apres)
+    return c.json({ evenements, groupes: regrouper(evenements), dernier: evenements[0]?.id ?? apres }, 200, { 'cache-control': 'no-store' })
+  })
+
+  app.get('/api/notifications', (c) => {
+    const u = utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    const limite = entier(c.req.query('limite'), NOTIFICATIONS_AFFICHEES, 0, NOTIFICATIONS_AFFICHEES)
+    // Un tableau qu'on ne peut plus ouvrir ne se devine pas par ses notifications.
+    const notifications = base.notifications(u.id, limite).flatMap((n) => {
+      const t = base.tableau(n.tableau)
+      return t && roleSur(u.id, n.tableau) ? [{ ...n, titreTableau: t.titre }] : []
+    })
+    return c.json({ notifications, nonLues: base.nonLues(u.id) }, 200, { 'cache-control': 'no-store' })
+  })
+
+  // `{ ids: [...] }` marque celles-là, `{ tout: true }` toutes les siennes ; jamais celles d'un autre.
+  app.post('/api/notifications/lues', async (c) => {
+    const u = utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    const b = await corps(c)
+    if (b?.tout === true) return c.json({ marquees: base.marquerLues(u.id, null) })
+    const ids = Array.isArray(b?.ids) ? b.ids : null
+    if (!ids || ids.length > 200 || !ids.every((i) => Number.isInteger(i))) return c.json({ erreur: 'demande invalide' }, 400)
+    return c.json({ marquees: base.marquerLues(u.id, ids as number[]) })
   })
 
   // ---- Favoris et récents ----

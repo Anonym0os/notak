@@ -224,3 +224,74 @@ export async function retirerMotDePasseDuLien(tableau: string): Promise<void> {
   const r = await appeler(motDePasseDuLien(tableau), undefined, 'DELETE')
   if (!r.ok && r.status !== 404) throw refus(r, { 403: 'Réservé au propriétaire' })
 }
+
+export type GenreActivite = 'cree' | 'modifie' | 'deplace' | 'supprime' | 'restaure' | 'commente' | 'titre'
+
+export interface Personne {
+  id: string
+  nom: string
+  couleur: string
+}
+
+export interface EvenementActivite {
+  id: number
+  genre: GenreActivite
+  element: string
+  typeElement: string
+  libelle: string
+  instant: number
+  auteur: Personne
+}
+
+export interface GroupeActivite {
+  auteur: Personne
+  debut: number
+  fin: number
+  resume: Partial<Record<GenreActivite, number>>
+  elements: { element: string; genre: GenreActivite; typeElement: string; libelle: string }[]
+}
+
+export interface ActiviteTableau {
+  evenements: EvenementActivite[]
+  groupes: GroupeActivite[]
+  /** Le numéro du geste le plus récent : à redonner en `depuis` pour ne lire que la suite. */
+  dernier: number
+}
+
+/** Ce qu'on a fait sur ce tableau, le plus récent d'abord ; `depuis` : seulement après ce numéro. */
+export async function lireActivite(tableau: string, depuis?: number): Promise<ActiviteTableau> {
+  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/activite${depuis !== undefined ? `?depuis=${depuis}` : ''}`)
+  if (!r.ok) throw refus(r, { 404: 'Tableau introuvable' })
+  return (await r.json()) as ActiviteTableau
+}
+
+export type GenreNotification = 'commentaire' | 'mention' | 'modification' | 'partage'
+
+export interface Notification {
+  id: number
+  genre: GenreNotification
+  tableau: string
+  titreTableau: string
+  element: string
+  extrait: string
+  instant: number
+  lu: boolean
+  auteur: Personne
+}
+
+export interface ListeNotifications {
+  notifications: Notification[]
+  nonLues: number
+}
+
+export async function listerNotifications(): Promise<ListeNotifications> {
+  const r = await appeler('/api/notifications')
+  if (!r.ok) throw refus(r, {})
+  return (await r.json()) as ListeNotifications
+}
+
+/** Marque ces notifications comme lues, ou toutes si `ids` est absent. */
+export async function marquerLues(ids?: number[]): Promise<void> {
+  const r = await appeler('/api/notifications/lues', ids ? { ids } : { tout: true })
+  if (!r.ok) throw refus(r, {})
+}

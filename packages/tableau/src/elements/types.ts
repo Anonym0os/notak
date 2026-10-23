@@ -48,6 +48,12 @@ export interface ServicePresence {
   ecouter(f: () => void): () => void
 }
 
+/** Qui vient de toucher un élément : de quoi le cerner à sa couleur et le nommer. */
+export interface ModifiePar {
+  couleur: string
+  nom: string
+}
+
 /** Une correspondance de la recherche dans tous les tableaux de l'espace. */
 export interface ResultatRecherche {
   tableau: Id
@@ -91,6 +97,14 @@ export interface Services {
   rechercherPartout?(requete: string): Promise<ResultatRecherche[]>
   /** La présence des autres sur ce tableau. Sans elle, la toile est seule. */
   presence?: ServicePresence
+  /**
+   * Les éléments du tableau ouvert qu'un autre vient de créer, modifier ou déplacer, avec qui c'est (sa couleur
+   * et son nom). Un élément n'y reste que quelques secondes. La même `Map` est rendue tant que rien ne change :
+   * on peut s'en servir comme valeur d'un `useSyncExternalStore`. Sans ce service, rien n'est mis en valeur.
+   */
+  recemmentModifies?(): ReadonlyMap<Id, ModifiePar>
+  /** Prévenu quand `recemmentModifies` change (un élément s'y ajoute, ou en sort). Rend de quoi arrêter. */
+  ecouterRecemmentModifies?(f: () => void): () => void
   /** On peut regarder et défiler, rien de plus : la toile refuse tout ce qui modifie. */
   lectureSeule?: boolean
   /** La présentation (Cmd+Alt+P) : rien ne se modifie, et un clic sur un élément le montre en grand. */

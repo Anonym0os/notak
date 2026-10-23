@@ -14,6 +14,8 @@ import { createRoot } from 'react-dom/client'
 import { type Moi, moi as lireMoi, rechercherPartout, seDeconnecter } from './api'
 import { importDejaPropose, lireAncienEspace, noterImportPropose } from './ancien'
 import { PagePartage, PageRapide } from './Arrivees'
+import { Activite } from './Activite'
+import { Cloche } from './Cloche'
 import { Compte } from './Compte'
 import { EcranConnexion } from './connexion'
 import { Export } from './Export'
@@ -21,6 +23,8 @@ import { Favori } from './Favori'
 import { apercu, fichiers, rapatrier } from './fichiers'
 import { localiser } from './geocodage'
 import { importerEspaceLocal } from './importLocal'
+import { Importer } from './Importer'
+import { creerRecents } from './recents'
 import { PagePublique } from './PagePublique'
 import { Partage } from './Partage'
 import { enregistrerServiceWorker } from './pwa'
@@ -38,6 +42,8 @@ const relireTableaux = () =>
     .catch(() => {})
 void relireTableaux()
 window.addEventListener('focus', () => void relireTableaux())
+/** Ce que les autres viennent de faire sur le tableau ouvert : `Activite` le remplit, la toile le lit. */
+const recents = creerRecents()
 
 const services = {
   fichiers,
@@ -46,6 +52,8 @@ const services = {
   rechercherPartout,
   localiser,
   listerTableaux: () => tableauxConnus,
+  recemmentModifies: recents.lire,
+  ecouterRecemmentModifies: recents.ecouter,
   ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank'),
 }
 
@@ -161,7 +169,10 @@ function Espace({ moi, deconnexion }: { moi: Moi; deconnexion(): void }) {
         actions={(courant, ouvrir) => (
           <>
             <Favori tableau={courant} accueil={moi.racine} />
-            <Export tableau={courant} />
+            <Cloche ouvrir={ouvrir} />
+            <Activite tableau={courant} moi={moi.id} surNouveaux={recents.noter} />
+            <Importer espace={espace} tableau={courant} ouvrir={ouvrir} />
+            <Export tableau={courant} titre={() => espace.tableau(courant)?.titre ?? ''} />
             <Partage tableau={courant} moi={moi} />
             <VerrouTableau tableau={courant} accueil={moi.racine} ouvrir={ouvrir} />
             <Compte moi={moi} deconnexion={deconnexion} ouvrir={ouvrir} />

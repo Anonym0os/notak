@@ -128,6 +128,7 @@ body {
 
 .partage,
 .compte,
+.importer,
 .export {
   position: relative;
 }
@@ -465,4 +466,132 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+/* Activité du tableau et notifications */
+.activite,
+.cloche {
+  position: relative;
+}
+
+.activite-panneau,
+.cloche-panneau {
+  position: absolute;
+  z-index: 40;
+  top: 36px;
+  right: 0;
+  box-sizing: border-box;
+  width: min(360px, calc(100vw - 24px));
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
+  padding: 12px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 4px 20px rgb(0 0 0 / 0.14), 0 1px 3px rgb(0 0 0 / 0.1);
+}
+
+.activite-liste,
+.cloche-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.activite-liste li {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.activite-pastille {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-top: 5px;
+  border-radius: 50%;
+}
+
+.activite-texte,
+.cloche-texte {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.activite-texte p {
+  margin: 0;
+}
+
+.activite-texte small,
+.cloche-texte small {
+  color: #6b7280;
+}
+
+.activite-elements {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bouton-cloche {
+  position: relative;
+}
+
+.cloche-compte {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  background: #d92d20;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+}
+
+.cloche-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.cloche-liste button {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cloche-liste button:hover {
+  background: var(--fond);
+}
+
+.cloche-liste li[data-lu] {
+  opacity: 0.6;
+}
+
+.cloche-liste li:not([data-lu]) .cloche-texte > span {
+  font-weight: 600;
+}
+
+.importer-etat {
+  width: min(300px, calc(100vw - 24px));
 }
