@@ -179,6 +179,41 @@ describe('Cmd ou Alt + retour arrière', () => {
   })
 })
 
+describe('Échéance', () => {
+  const echeances = () => {
+    const res: (string | null)[] = []
+    editeur.state.doc.descendants((n) => {
+      if (n.type.name === 'taskItem') res.push((n.attrs.echeance as string | null) ?? null)
+    })
+    return res
+  }
+
+  it('se pose sur la tâche et reste dans le JSON', () => {
+    ouvrir(['A', 'B'])
+    editeur.view.dispatch(editeur.state.tr.setNodeMarkup(1, undefined, { ...editeur.state.doc.nodeAt(1)!.attrs, echeance: '2026-10-30' }))
+    expect(echeances()).toEqual(['2026-10-30', null])
+    const json = editeur.getJSON() as NoeudTexte
+    expect(json.content![0]!.content![0]!.attrs!.echeance).toBe('2026-10-30')
+  })
+
+  it('ne se recopie pas sur la tâche née d’Entrée', () => {
+    ouvrir(['abcd'])
+    editeur.view.dispatch(editeur.state.tr.setNodeMarkup(1, undefined, { ...editeur.state.doc.nodeAt(1)!.attrs, echeance: '2026-10-30' }))
+    editeur.commands.setTextSelection(5)
+    touche('Enter')
+    expect(actuel()).toEqual(['ab', 'cd'])
+    expect(echeances()).toEqual(['2026-10-30', null])
+  })
+
+  it('se relit depuis le JSON', () => {
+    editeur = new Editor({
+      extensions: EXTENSIONS_TACHES,
+      content: { type: 'doc', content: [{ type: 'taskList', content: [{ type: 'taskItem', attrs: { checked: false, echeance: '2026-11-02' }, content: [{ type: 'paragraph' }] }] }] },
+    })
+    expect(echeances()).toEqual(['2026-11-02'])
+  })
+})
+
 describe('Tab', () => {
   it('fait de la tâche une sous-tâche de la précédente', () => {
     ouvrir(['A', 'B'])

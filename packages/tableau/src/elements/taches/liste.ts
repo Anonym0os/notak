@@ -191,3 +191,17 @@ export function lignesEnTaches(texte: string): NoeudTexte[] | null {
     })
   return nettoyer(racine)
 }
+
+/**
+ * Le document où cette tâche a de nouveaux attributs (`echeance`, `assigne`…). Une valeur `null` ou vide
+ * retire l'attribut. Un chemin inconnu ne change rien.
+ */
+export function regler(doc: NoeudTexte, chemin: Chemin, attrs: Record<string, unknown>): NoeudTexte {
+  return (
+    modifier(doc, chemin, (t) => {
+      const apres = { ...t.attrs, ...attrs }
+      for (const [k, v] of Object.entries(apres)) if (v === null || v === undefined || v === '') delete apres[k]
+      return { ...t, attrs: apres }
+    }) ?? doc
+  )
+}

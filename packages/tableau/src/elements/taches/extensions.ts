@@ -7,6 +7,7 @@ import { type EditorState, Plugin, TextSelection } from '@tiptap/pm/state'
 import type { MutableRefObject } from 'react'
 import type { NoeudTexte } from '../../coeur/tableau'
 import { PROFONDEUR_MAX, hauteur, lignesEnTaches, peutDescendre } from './liste'
+import { type GenrePuce, jourDe, puces } from './puces'
 
 /** Le document n'est qu'une liste de tâches. */
 const Document = Node.create({ name: 'doc', topNode: true, content: 'taskList' })
@@ -26,9 +27,23 @@ export function cocherDansEditeur(editor: Editor, pos: number, enCascade: boolea
   editor.view.dispatch(tr)
 }
 
+/** Qui ouvre le menu d'une puce, par éditeur : la vue du nœud est du DOM nu, le menu est en React (voir `Taches.tsx`). */
+export const ouvreursPuces = new WeakMap<Editor, (genre: GenrePuce, pos: number, ancre: HTMLElement) => void>()
+
+/** Les attributs d'une tâche qui ne se recopient pas sur la tâche née d'une scission (Entrée). */
+const attributTexte = (nom: string) => ({
+  default: null,
+  keepOnSplit: false,
+  parseHTML: (el: HTMLElement) => el.getAttribute(`data-${nom}`),
+  renderHTML: (attrs: Record<string, unknown>) => (attrs[nom] ? { [`data-${nom}`]: String(attrs[nom]) } : {}),
+})
+
 /** La case ronde : un nœud à elle, pour garder la main sur le clic (Maj+clic) et la zone de clic. */
 const Tache = TaskItem.extend({
   content: 'paragraph taskList?',
+  addAttributes() {
+    return { ...this.parent?.(), echeance: attributTexte('echeance') }
+  },
   addNodeView() {
     return ({ node, getPos, editor }) => {
       const li = document.createElement('li')
@@ -54,8 +69,35 @@ const Tache = TaskItem.extend({
         const pos = getPos()
         if (typeof pos === 'number') retirerDansEditeur(editor, pos)
       })
-      li.append(case_, contenu, suppr)
+      // À droite du texte : l'échéance, la personne.
+      const zonePuces = document.createElement('span')
+      zonePuces.className = 'notak-puces'
+      zonePuces.contentEditable = 'false'
+      li.append(case_, contenu, zonePuces, suppr)
+      const dessinerPuces = (n: NoeudPM) => {
+        zonePuces.replaceChildren(
+          ...puces(n.attrs, jourDe(new Date())).map((p) => {
+            const b = document.createElement('button')
+            b.type = 'button'
+            b.tabIndex = -1
+            b.className = 'notak-puce'
+            b.dataset.genre = p.genre
+            if (p.vide) b.dataset.vide = ''
+            if (p.retard) b.dataset.retard = ''
+            b.title = p.titre
+            b.textContent = p.texte
+            b.addEventListener('mousedown', (e) => e.preventDefault())
+            b.addEventListener('click', (e) => {
+              e.preventDefault()
+              const pos = getPos()
+              if (typeof pos === 'number') ouvreursPuces.get(editor)?.(p.genre, pos, b)
+            })
+            return b
+          }),
+        )
+      }
       const poser = (n: NoeudPM) => {
+        dessinerPuces(n)
         li.dataset.type = 'taskItem'
         li.dataset.checked = String(n.attrs.checked === true)
         case_.setAttribute('aria-checked', String(n.attrs.checked === true))

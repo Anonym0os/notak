@@ -220,3 +220,110 @@
   background: currentColor;
   opacity: 0.6;
 }
+
+/* À droite du texte : l'échéance, la personne. Une puce vide n'apparaît qu'au survol de la tâche. */
+.notak-puces {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin: 3px 0 0 6px;
+}
+
+.notak-puce {
+  box-sizing: border-box;
+  height: 18px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.notak-puce:hover {
+  background: color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.notak-puce[data-retard] {
+  background: rgb(212 59 59 / 0.12);
+  color: #d43b3b;
+}
+
+.notak-taches li[data-checked='true'] > .notak-puces {
+  opacity: 0.6;
+}
+
+.notak-puce[data-vide] {
+  display: none;
+  border-style: dashed;
+  border-color: color-mix(in srgb, currentColor 35%, transparent);
+  background: none;
+  opacity: 0.7;
+}
+
+.notak-taches li[data-type='taskItem']:hover > .notak-puces > .notak-puce[data-vide] {
+  display: block;
+}
+
+.notak-taches li[data-type='taskItem']:has(li[data-type='taskItem']:hover) > .notak-puces > .notak-puce[data-vide] {
+  display: none;
+}
+
+/* Le menu d'une puce : posé sur la toile, sous la puce touchée. */
+.notak-menu-puce {
+  position: fixed;
+  z-index: 30;
+  box-sizing: border-box;
+  width: 232px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--notak-carte);
+  color: var(--notak-texte);
+  font-size: 13px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
+}
+
+.notak-menu-puce input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid #d5d9de;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+.notak-menu-puce-raccourcis {
+  display: flex;
+  flex-direction: column;
+}
+
+.notak-menu-puce button {
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notak-menu-puce button:hover {
+  background: var(--notak-fond);
+}
+
+.notak-menu-puce-retirer {
+  color: #d43b3b !important;
+}

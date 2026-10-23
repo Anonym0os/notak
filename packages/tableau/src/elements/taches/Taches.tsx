@@ -6,8 +6,10 @@ import { extensionsDuPartage, textePartage } from '../partage'
 import { texteDeNote } from '../note/couleurs'
 import { MenuCouleur } from '../note/MenuCouleur'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
-import { EXTENSIONS_TACHES, EXTENSIONS_TACHES_PARTAGEE, type GestesTaches, clavierListe } from './extensions'
-import { type Chemin, basculer, compter, docTaches, effacerFaites, estFaite, retirer, sousTaches } from './liste'
+import { EXTENSIONS_TACHES, EXTENSIONS_TACHES_PARTAGEE, type GestesTaches, clavierListe, ouvreursPuces } from './extensions'
+import { MenuPuce, type OuverturePuce } from './MenuPuce'
+import { type Puce, echeanceDe, jourDe, puces } from './puces'
+import { type Chemin, basculer, compter, docTaches, effacerFaites, estFaite, regler, retirer, sousTaches } from './liste'
 
 /** Les listes dont le titre vient d'être ajouté : leur édition y met le curseur. */
 const titreAFocaliser = new Set<Id>()
@@ -41,10 +43,21 @@ const Figee = memo(function Figee({ contenu, changer }: { contenu: Taches; chang
   const cocher = (chemin: Chemin, enCascade: boolean) =>
     changer({ ...contenu, texte: basculer(doc, chemin, enCascade) })
   const supprimer = (chemin: Chemin) => changer({ ...contenu, texte: retirer(doc, chemin) })
+  const [menu, setMenu] = useState<(OuverturePuce & { chemin: Chemin }) | null>(null)
+  const ouvrir = (chemin: Chemin, genre: Puce['genre'], ancre: HTMLElement) => setMenu(ouverturePuce(chemin, genre, ancre))
+  const cible = menu && sousTachePar(doc, menu.chemin)
   return (
     <>
       {contenu.titre && <div className="notak-taches-titre">{contenu.titre}</div>}
-      <Liste noeud={doc} chemin={[]} cocher={cocher} supprimer={supprimer} />
+      <Liste noeud={doc} chemin={[]} cocher={cocher} supprimer={supprimer} ouvrir={ouvrir} />
+      {menu && (
+        <MenuPuce
+          ouverture={menu}
+          valeur={echeanceDe(cible?.attrs)}
+          regler={(v) => changer({ ...contenu, texte: regler(doc, menu.chemin, { echeance: v }) })}
+          fermer={() => setMenu(null)}
+        />
+      )}
     </>
   )
 })
@@ -54,9 +67,11 @@ interface PropsListe {
   chemin: Chemin
   cocher(c: Chemin, cascade: boolean): void
   supprimer(c: Chemin): void
+  ouvrir(c: Chemin, genre: Puce['genre'], ancre: HTMLElement): void
 }
 
-function Liste({ noeud, chemin, cocher, supprimer }: PropsListe) {
+function Liste({ noeud, chemin, cocher, supprimer, ouvrir }: PropsListe) {
+  const aujourdhui = jourDe(new Date())
   const taches = sousTaches(noeud)
   if (taches.length === 0) return null
   return (
@@ -82,8 +97,27 @@ function Liste({ noeud, chemin, cocher, supprimer }: PropsListe) {
               {(tache.content ?? []).map((n, k) =>
                 n.type === 'paragraph' ? <p key={k}>{inline(n)}</p> : null,
               )}
-              <Liste noeud={tache} chemin={ici} cocher={cocher} supprimer={supprimer} />
+              <Liste noeud={tache} chemin={ici} cocher={cocher} supprimer={supprimer} ouvrir={ouvrir} />
             </div>
+            <span className="notak-puces">
+              {puces(tache.attrs, aujourdhui).map((p) => (
+                <button
+                  key={p.genre}
+                  type="button"
+                  tabIndex={-1}
+                  className="notak-puce"
+                  data-genre={p.genre}
+                  data-vide={p.vide ? '' : undefined}
+                  data-retard={p.retard ? '' : undefined}
+                  title={p.titre}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onDoubleClick={(e) => e.stopPropagation()}
+                  onClick={(e) => ouvrir(ici, p.genre, e.currentTarget)}
+                >
+                  {p.texte}
+                </button>
+              ))}
+            </span>
             <button
               type="button"
               tabIndex={-1}
@@ -98,6 +132,19 @@ function Liste({ noeud, chemin, cocher, supprimer }: PropsListe) {
       })}
     </ul>
   )
+}
+
+/** La tâche à ce chemin, ou `undefined`. */
+function sousTachePar(doc: NoeudTexte, chemin: Chemin): NoeudTexte | undefined {
+  let n: NoeudTexte | undefined = doc
+  for (const i of chemin) n = n && sousTaches(n)[i]
+  return n
+}
+
+/** Où ouvrir le menu d'une puce : sous elle, dans la toile qui la porte. */
+function ouverturePuce(chemin: Chemin, genre: Puce['genre'], ancre: HTMLElement) {
+  const r = ancre.getBoundingClientRect()
+  return { chemin, genre, ancre: { left: r.left, bottom: r.bottom }, hote: (ancre.closest('.notak-toile') as HTMLElement | null) ?? document.body }
 }
 
 function inline(paragraphe: NoeudTexte): ReactNode {
@@ -155,6 +202,16 @@ function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surC
     onUpdate: ({ editor }) => poser({ ...courant.current, texte: editor.getJSON() as NoeudTexte }),
   })
   editeurRef.current = editeur
+  const [menu, setMenu] = useState<(OuverturePuce & { pos: number }) | null>(null)
+  useEffect(() => {
+    if (!editeur) return
+    ouvreursPuces.set(editeur, (genre, pos, ancre) => {
+      const { chemin: _, ...o } = ouverturePuce([], genre, ancre)
+      setMenu({ ...o, pos })
+    })
+    return () => void ouvreursPuces.delete(editeur)
+  }, [editeur])
+  const tacheDuMenu = menu && editeur?.state.doc.nodeAt(menu.pos)
 
   useEffect(() => {
     if (focaliserTitre.current) champ.current?.focus()
@@ -219,6 +276,17 @@ function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surC
         />
       )}
       <EditorContent editor={editeur} />
+      {menu && editeur && (
+        <MenuPuce
+          ouverture={menu}
+          valeur={echeanceDe(tacheDuMenu ? tacheDuMenu.attrs : undefined)}
+          regler={(v) => {
+            const t = editeur.state.doc.nodeAt(menu.pos)
+            if (t?.type.name === 'taskItem') editeur.view.dispatch(editeur.state.tr.setNodeMarkup(menu.pos, undefined, { ...t.attrs, echeance: v }))
+          }}
+          fermer={() => setMenu(null)}
+        />
+      )}
     </>
   )
 }
