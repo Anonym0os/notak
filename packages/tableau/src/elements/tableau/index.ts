@@ -6,12 +6,13 @@ import { nouveauRaccourci } from './icones'
 import { OutilsRenvoi } from './Outils'
 import { RenduRenvoi } from './Renvoi'
 import { demanderRenommage } from './renommage'
+import { demanderModele } from './modele'
 import './tableau.css'
 
 const LARGEUR_RENVOI = 10
 
 /** Un tableau neuf, vide, et son renvoi posé là ; son titre se saisit aussitôt. */
-function nouveauRenvoi(ou: Point, contexte: ContexteToile): Element<RenvoiTableau> | null {
+function nouveauRenvoi(ou: Point, contexte: ContexteToile, renommer = true): Element<RenvoiTableau> | null {
   const cible = contexte.services.creerTableau?.('Nouveau tableau')
   if (!cible) return null
   const element: Element<RenvoiTableau> = {
@@ -21,7 +22,7 @@ function nouveauRenvoi(ou: Point, contexte: ContexteToile): Element<RenvoiTablea
     largeur: LARGEUR_RENVOI,
     contenu: { type: 'tableau', cible },
   }
-  demanderRenommage(element.id)
+  if (renommer) demanderRenommage(element.id)
   return element
 }
 
@@ -77,6 +78,20 @@ registre.type<RenvoiTableau>({
       creer(ou, contexte) {
         const element = nouveauRenvoi(ou, contexte)
         return element ? [{ type: 'creer', element }] : []
+      },
+    },
+    {
+      // Un tableau neuf qui propose d'abord ses modèles ; le laisser vide ramène au renommage de l'outil ordinaire.
+      libelle: 'Tableau modèle',
+      icone: '▤',
+      rang: 51,
+      fantome: () => ({ id: '', x: 0, y: 0, largeur: LARGEUR_RENVOI, contenu: { type: 'tableau', cible: '' } }),
+      prise: { x: LARGEUR_RENVOI / 2, y: LARGEUR_RENVOI / 2 },
+      creer(ou, contexte) {
+        const element = nouveauRenvoi(ou, contexte, false)
+        if (!element) return []
+        demanderModele(element.id)
+        return [{ type: 'creer', element }]
       },
     },
   ],

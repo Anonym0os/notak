@@ -22,3 +22,4 @@ export {
 } from './coeur/espaceDistant'
 export { creerReseauNavigateur } from './reseau'
 export { type Arrivee, decomposerArrivee, elementsArrives, elementsDeTexte, poserDansNonTries } from './arrivee'
+export * from './modeles'
