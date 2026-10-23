@@ -14,7 +14,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | Partie | Fait | En partie | Absent | Avancement |
 |---|---|---|---|---|
 | 1. Toile | 22 | 3 | 2 | 87 % |
-| 2. Création | 12 | 3 | 2 | 79 % |
+| 2. Création | 14 | 2 | 1 | 88 % |
 | 3. Note et texte | 30 | 0 | 1 | 97 % |
 | 4. Colonne | 10 | 1 | 0 | 95 % |
 | 5. Tableau imbriqué | 11 | 0 | 0 | 100 % |
@@ -25,12 +25,12 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 10. Autres éléments | 10 | 1 | 1 | 88 % |
 | 11. Commun aux éléments | 11 | 1 | 0 | 96 % |
 | 12. Organiser | 16 | 0 | 0 | 100 % |
-| 13. Naviguer | 10 | 1 | 2 | 81 % |
-| 14. À plusieurs | 14 | 0 | 3 | 82 % |
+| 13. Naviguer | 11 | 0 | 2 | 85 % |
+| 14. À plusieurs | 17 | 0 | 0 | 100 % |
 | 15. Habillage | 10 | 3 | 2 | 77 % |
-| 16. Exporter, importer | 2 | 0 | 2 | 50 % |
+| 16. Exporter, importer | 2 | 2 | 0 | 75 % |
 | 17. Plateformes | 5 | 2 | 0 | 86 % |
-| **Total** | **217** | **17** | **15** | **91 %** |
+| **Total** | **223** | **17** | **9** | **93 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -301,7 +301,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Ouvrir dans un nouvel onglet | ✅ | |
 | Titre du tableau modifiable dans l'en-tête | ✅ | |
 | Vue gardée par tableau (position, zoom) | ✅ | |
-| Fil d'Ariane : « … », largeurs, état de chargement | 🟡 | Largeurs estimées, pas d'état de chargement. |
+| Fil d'Ariane : « … », largeurs, état de chargement | ✅ |  |
 | Retour et avance au clavier (Ctrl+[, Ctrl+]) | ✅ | |
 | Monter d'un niveau, redescendre (Cmd+U, Cmd+Maj+U) | ✅ | |
 | Recherche (Cmd+F) : ce qui ne correspond pas s'efface, Entrée va au résultat suivant | ✅ | Dans le tableau ouvert, et dans tous les tableaux du compte par le serveur. |
@@ -326,10 +326,10 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Texte écrit à plusieurs dans une même note | ✅ | Voir § 3. |
 | Lien public, publication en lecture | ✅ |  |
 | Mot de passe sur un tableau partagé | ✅ |  |
-| Notifications (commentaires, mentions, modifications) | ⬜ | |
-| Activité récente du tableau | ⬜ | |
+| Notifications (commentaires, mentions, modifications) | ✅ | Cloche dans l'en-tête ; pas de courriel ni de push. |
+| Activité récente du tableau | ✅ |  |
 | Commentaires, mentions, réactions | ✅ | Voir § 10 et § 11. |
-| Mise en valeur de ce qu'un autre vient de modifier | ⬜ | |
+| Mise en valeur de ce qu'un autre vient de modifier | ✅ |  |
 
 ## 15. Habillage
 
@@ -355,10 +355,10 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
 | Fonctionnalité | État | Reste |
 |---|---|---|
-| Exporter un tableau (PDF, image) | ⬜ | |
+| Exporter un tableau (PDF, image) | 🟡 | PNG et PDF de ce qui est à l'écran ; pas encore le tableau entier. |
 | Exporter le texte (Markdown, texte brut) | ✅ |  |
 | Télécharger les médias d'un tableau (zip) | ✅ |  |
-| Importer depuis Milanote | ⬜ | Par son API : Milanote n'a pas d'export structuré. |
+| Importer depuis Milanote | 🟡 | Depuis l'export Markdown (zip) de Milanote ; jamais essayé sur un vrai export. |
 
 ## 17. Plateformes
 

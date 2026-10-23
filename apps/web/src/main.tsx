@@ -27,6 +27,7 @@ import { Importer } from './Importer'
 import { creerRecents } from './recents'
 import { PagePublique } from './PagePublique'
 import { Partage } from './Partage'
+import { PlusEntete } from './PlusEntete'
 import { enregistrerServiceWorker } from './pwa'
 import { VerrouTableau } from './Verrou'
 
@@ -170,9 +171,11 @@ function Espace({ moi, deconnexion }: { moi: Moi; deconnexion(): void }) {
           <>
             <Favori tableau={courant} accueil={moi.racine} />
             <Cloche ouvrir={ouvrir} />
-            <Activite tableau={courant} moi={moi.id} surNouveaux={recents.noter} />
-            <Importer espace={espace} tableau={courant} ouvrir={ouvrir} />
-            <Export tableau={courant} titre={() => espace.tableau(courant)?.titre ?? ''} />
+            <PlusEntete>
+              <Activite tableau={courant} moi={moi.id} surNouveaux={recents.noter} />
+              <Importer espace={espace} tableau={courant} ouvrir={ouvrir} />
+              <Export tableau={courant} titre={() => espace.tableau(courant)?.titre ?? ''} />
+            </PlusEntete>
             <Partage tableau={courant} moi={moi} />
             <VerrouTableau tableau={courant} accueil={moi.racine} ouvrir={ouvrir} />
             <Compte moi={moi} deconnexion={deconnexion} ouvrir={ouvrir} />
