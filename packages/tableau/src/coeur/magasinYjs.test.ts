@@ -283,3 +283,67 @@ describe('étiquettes et annotations', () => {
     expect(mb.lire().etiquettes).toBeUndefined()
   })
 })
+
+describe('magasin Yjs : ce que d’autres ont écrit de travers', () => {
+  /** Un document où quelqu'un a écrit sans passer par le magasin. */
+  function empoisonne(brut: Record<string, unknown>) {
+    const doc = new Y.Doc()
+    const m = creerMagasinYjs(doc)
+    const bonne = note(1)
+    m.faire([{ type: 'creer', element: bonne }])
+    doc.getMap('elements').set('poison', brut as never)
+    return { doc, m, bonne }
+  }
+
+  it('un élément illisible ne fait pas tomber le tableau et reste hors de la toile', () => {
+    for (const brut of [
+      null,
+      42,
+      'texte',
+      {},
+      { id: 'poison', x: 0, y: 0, largeur: 10 },
+      { id: 'poison', x: 0, y: 0, largeur: 10, contenu: { type: 'inconnu-d-une-autre-version' } },
+      { id: 'poison', x: 0, y: 0, largeur: 10, contenu: { type: 'note' } },
+      { id: 'poison', x: 0, y: 0, largeur: 10, contenu: { type: 'note', texte: { content: [] } } },
+      { id: 'poison', x: 0, y: 0, largeur: 10, contenu: { type: 'image', fichier: 3 } },
+    ]) {
+      const { m, bonne } = empoisonne(brut as Record<string, unknown>)
+      expect(ids(m.lire())).toEqual([bonne.id])
+    }
+  })
+
+  it('un élément réparable est réparé à la lecture, sans réécrire le document', () => {
+    const { doc, m } = empoisonne({
+      id: 'autre-chose',
+      x: Number.NaN,
+      y: 1e12,
+      largeur: -4,
+      verrou: 'oui',
+      etiquettes: [1, 2],
+      contenu: { type: 'note', texte: { type: 'doc', content: [] } },
+    })
+    const lu = m.lire().elements.find((e) => e.id === 'poison')!
+    expect(lu).toMatchObject({ id: 'poison', x: 0, y: 15_000, largeur: 34 })
+    expect(lu).not.toHaveProperty('verrou')
+    expect(lu).not.toHaveProperty('etiquettes')
+    expect((doc.getMap('elements').get('poison') as { x: number }).x).toBeNaN()
+  })
+
+  it('renommer ou recolorer le tableau n’efface pas ce qu’il ne sait pas lire', () => {
+    const { doc, m, bonne } = empoisonne({ id: 'poison', x: 0, y: 0, largeur: 10, contenu: { type: 'venu-du-futur' } })
+    m.remplacer({ ...m.lire(), titre: 'Nouveau titre' })
+    expect(doc.getMap('elements').has('poison')).toBe(true)
+    expect(ids(m.lire())).toEqual([bonne.id])
+  })
+
+  it('un geste sur un élément illisible ne fait rien', () => {
+    const { m } = empoisonne({ id: 'poison', x: 0, y: 0, largeur: 10, contenu: { type: 'note' } })
+    expect(() => m.faire([{ type: 'deplacer', id: 'poison', de: [0, 0], vers: [3, 3] }])).not.toThrow()
+  })
+
+  it('un plan qui n’est pas une chaîne ne casse pas l’empilement', () => {
+    const { m } = empoisonne({ id: 'poison', x: 0, y: 0, largeur: 10, plan: 7, contenu: { type: 'note', texte: { type: 'doc' } } })
+    expect(() => m.faire([{ type: 'creer', element: note(5) }])).not.toThrow()
+    expect(m.lire().elements).toHaveLength(3)
+  })
+})

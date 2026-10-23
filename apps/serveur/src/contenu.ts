@@ -47,6 +47,8 @@ export function lireTableau(doc: Y.Doc): TableauLu {
   const meta = doc.getMap<unknown>('meta')
   const brutes: { plan: string; id: string; element: ElementLu }[] = []
   doc.getMap<Record<string, unknown>>('elements').forEach((brut, id) => {
+    // Un client a pu écrire n'importe quoi : seul un objet est un élément.
+    if (typeof brut !== 'object' || brut === null || Array.isArray(brut)) return
     const { plan, ...element } = brut
     if (!element.contenu || typeof (element.contenu as ContenuLu).type !== 'string') return
     brutes.push({ plan: typeof plan === 'string' ? plan : '', id, element: { ...(element as unknown as ElementLu), id } })

@@ -89,6 +89,7 @@ export const fr: Textes = {
   'commun.fermer': 'Fermer',
   'garde.titre': 'Ce tableau n’a pas pu s’afficher.',
   'garde.reessayer': 'Réessayer',
+  'garde.element': 'Cet élément ne peut pas s’afficher.',
 
   'reglages.titre': 'Réglages',
   'reglages.theme': 'Thème',
@@ -531,6 +532,7 @@ export const fr: Textes = {
   'fichier.introuvable': 'introuvable',
   'fichier.legendePoints': 'Légende…',
   'lieu.carte': 'Carte : {adresse}',
+  'lieu.afficherCarte': 'Afficher la carte (OpenStreetMap)',
   'lieu.adressePoints': 'Adresse du lieu…',
   'lieu.nom': 'Nom du lieu',
   'lieu.nomFacultatif': 'Nom (facultatif)',
@@ -663,6 +665,7 @@ export const en: Textes = {
   'commun.fermer': 'Close',
   'garde.titre': 'This board could not be displayed.',
   'garde.reessayer': 'Try again',
+  'garde.element': 'This item cannot be displayed.',
 
   'reglages.titre': 'Settings',
   'reglages.theme': 'Theme',
@@ -1105,6 +1108,7 @@ export const en: Textes = {
   'fichier.introuvable': 'not found',
   'fichier.legendePoints': 'Caption…',
   'lieu.carte': 'Map: {adresse}',
+  'lieu.afficherCarte': 'Show the map (OpenStreetMap)',
   'lieu.adressePoints': 'Place address…',
   'lieu.nom': 'Place name',
   'lieu.nomFacultatif': 'Name (optional)',

@@ -1653,6 +1653,15 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   color: var(--notak-texte);
 }
 
+/* Un seul élément qui ne peut pas s'afficher : sa carte le dit, discrètement, à sa place. */
+.notak-element-casse {
+  padding: 12px;
+  color: var(--notak-texte);
+  opacity: 0.6;
+  font-size: 13px;
+  font-style: italic;
+}
+
 .notak-garde-erreur button {
   height: 32px;
   padding: 0 14px;

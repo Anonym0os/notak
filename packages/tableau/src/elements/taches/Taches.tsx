@@ -15,6 +15,7 @@ import { type Sortie, glisserTache } from './glisse'
 import { type Chemin, basculer, compter, deplacer, detacher, docTaches, effacerFaites, estFaite, regler, retirer, sousTaches, transferer } from './liste'
 import { t } from '../../langue'
 import { BoutonOutil } from '../../BoutonOutil'
+import { adresseSure } from '../lien/adresse'
 
 /** Les listes dont le titre vient d'être ajouté : leur édition y met le curseur. */
 const titreAFocaliser = new Set<Id>()
@@ -237,9 +238,9 @@ function inline(paragraphe: NoeudTexte): ReactNode {
       else if (m.type === 'strike') rendu = <s>{rendu}</s>
       else if (m.type === 'underline') rendu = <u>{rendu}</u>
       else if (m.type === 'code') rendu = <code>{rendu}</code>
-      else if (m.type === 'link' && typeof m.attrs?.href === 'string')
+      else if (m.type === 'link' && adresseSure(m.attrs?.href))
         rendu = (
-          <a href={m.attrs.href} target="_blank" rel="noopener noreferrer nofollow">
+          <a href={adresseSure(m.attrs?.href)} target="_blank" rel="noopener noreferrer nofollow">
             {rendu}
           </a>
         )

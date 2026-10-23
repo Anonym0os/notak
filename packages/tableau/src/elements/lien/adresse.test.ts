@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Lien } from '../../coeur/tableau'
-import { INVITES, avecAdresse, domaineDe, lireAdresse } from './adresse'
+import { INVITES, adresseSure, avecAdresse, domaineDe, lireAdresse } from './adresse'
 
 describe('lireAdresse', () => {
   it('garde une adresse complète', () => {
@@ -60,5 +60,17 @@ describe('avecAdresse', () => {
 describe('INVITES', () => {
   it('a une invite par genre', () => {
     expect(Object.keys(INVITES).sort()).toEqual(['audio', 'carte', 'lien', 'video'])
+  })
+})
+
+describe('adresseSure', () => {
+  it('ne laisse passer que le web (et mailto, tel pour un lien)', () => {
+    expect(adresseSure('https://exemple.fr/a')).toBe('https://exemple.fr/a')
+    expect(adresseSure('http://exemple.fr')).toBe('http://exemple.fr')
+    expect(adresseSure('mailto:a@b.fr')).toBe('mailto:a@b.fr')
+    expect(adresseSure('mailto:a@b.fr', 'image')).toBeUndefined()
+    for (const mauvaise of ['javascript:alert(1)', ' JavaScript:alert(1)', 'data:text/html,<script>', 'vbscript:x', 'file:///etc/passwd', '/relatif', 42, null, undefined])
+      expect(adresseSure(mauvaise)).toBeUndefined()
+    expect(adresseSure('data:image/png;base64,AAAA', 'image')).toBeUndefined()
   })
 })

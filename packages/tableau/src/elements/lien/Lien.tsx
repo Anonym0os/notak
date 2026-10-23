@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Apercu, CauseEchec, Id, Lien } from '../../coeur/tableau'
 import type { PropsRendu } from '../types'
-import { INVITES, avecAdresse, domaineDe, lireAdresse } from './adresse'
+import { INVITES, adresseSure, avecAdresse, domaineDe, lireAdresse } from './adresse'
 import { lireCause, messageEchec } from './echec'
 import { lecteurDe } from './lecteurs'
 import { Media } from './Media'
@@ -121,7 +121,7 @@ function Carte({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<
   const { url, statut, apercu } = contenu
   const domaine = domaineDe(url)
   const lecteur = lecteurDe(url)
-  const image = statut === 'pret' ? apercu?.image : undefined
+  const image = statut === 'pret' ? adresseSure(apercu?.image, 'image') : undefined
   const aff = affichage(contenu)
   const titre = titreDuLien(contenu)
   const legende = contenu.legende ?? (statut === 'pret' && !lecteur ? apercu?.description : undefined)
@@ -148,7 +148,7 @@ function Carte({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<
   const lien = (children: React.ReactNode, classe: string, toujours: boolean) => (
     <a
       className={classe}
-      href={url}
+      href={adresseSure(url)}
       target="_blank"
       rel={REL}
       draggable={false}
@@ -172,8 +172,8 @@ function Carte({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<
           {aff.infos &&
             lien(
               <>
-                {apercu?.favicon && statut === 'pret' && (
-                  <img className="notak-lien-favicon" src={apercu.favicon} alt="" draggable={false} referrerPolicy="no-referrer" />
+                {adresseSure(apercu?.favicon, 'image') && statut === 'pret' && (
+                  <img className="notak-lien-favicon" src={adresseSure(apercu?.favicon, 'image')} alt="" draggable={false} referrerPolicy="no-referrer" />
                 )}
                 <span>{domaine}</span>
               </>,

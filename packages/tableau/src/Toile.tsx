@@ -36,6 +36,7 @@ import {
 } from './coeur/tableau'
 import './elements'
 import { definition, tousLesRaccourcis, tousLesRecepteurs, tousLesTypes, toutesLesEntreesMenu } from './elements/registre'
+import { GardeElement } from './garde'
 import type { ContexteToile, Presence, Services } from './elements/types'
 import { t, tn } from './langue'
 
@@ -2181,15 +2182,16 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           {lignes.map((e) => {
             const Rendu = definition(e.contenu.type)!.Rendu
             return (
-              <Rendu
-                key={e.id}
-                element={e}
-                choisie={vueChoix.has(e.id)}
-                enEdition={edition === e.id}
-                contexte={contexte}
-                brouillon={(c) => surBrouillon(e, c)}
-                changer={(c) => surChanger(e, c)}
-              />
+              <GardeElement key={e.id} element={e} repli={null}>
+                <Rendu
+                  element={e}
+                  choisie={vueChoix.has(e.id)}
+                  enEdition={edition === e.id}
+                  contexte={contexte}
+                  brouillon={(c) => surBrouillon(e, c)}
+                  changer={(c) => surChanger(e, c)}
+                />
+              </GardeElement>
             )
           })}
         </svg>

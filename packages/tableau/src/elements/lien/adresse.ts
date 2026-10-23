@@ -59,3 +59,20 @@ export function avecAdresse(c: Lien, url: string): Lien {
   const { apercu: _a, echec: _e, titre: _t, legende: _l, ...gardes } = c
   return { ...gardes, url, statut: 'attente' }
 }
+
+/**
+ * Une adresse qu'on peut mettre dans un `href` ou un `src` sans danger, ou `undefined`. Le contenu d'un tableau
+ * peut venir de n'importe qui : une adresse `javascript:` ou `data:` ne doit jamais atteindre la page.
+ * `genre` : pour un `href` (`lien`), `mailto:` et `tel:` sont permis aussi ; pour une image, seulement le web.
+ */
+export function adresseSure(url: unknown, genre: 'lien' | 'image' = 'lien'): string | undefined {
+  if (typeof url !== 'string' || url.length > 4096) return undefined
+  try {
+    const { protocol } = new URL(url)
+    if (protocol === 'https:' || protocol === 'http:') return url
+    if (genre === 'lien' && (protocol === 'mailto:' || protocol === 'tel:')) return url
+  } catch {
+    // Pas une adresse complète.
+  }
+  return undefined
+}
