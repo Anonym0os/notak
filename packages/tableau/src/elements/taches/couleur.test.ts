@@ -14,8 +14,9 @@ describe('couleur de la liste', () => {
     expect(coloration.vers(rouge, undefined)).toEqual({ ...liste, titre: 'Courses' })
   })
 
-  it('a un fond dans la feuille de style pour chaque couleur de la palette', () => {
+  it('a une bande dans la feuille de style pour chaque couleur de la palette, et un fond qui reste blanc', () => {
     const css = readFileSync(new URL('./taches.css', import.meta.url), 'utf8')
-    for (const c of COULEURS_NOTE) expect(css).toContain(`.notak-taches[data-couleur='${c}']) { background: var(--notak-note-${c});`)
+    for (const c of COULEURS_NOTE) expect(css).toContain(`.notak-taches[data-couleur='${c}'] { --bande: var(--notak-note-${c}); }`)
+    expect(css).not.toContain('.notak-carte:has(> .notak-taches[data-couleur')
   })
 })

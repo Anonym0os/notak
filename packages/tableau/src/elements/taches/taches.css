@@ -1,9 +1,16 @@
 .notak-taches {
+  position: relative;
   font-size: 14px;
   line-height: 20px;
   letter-spacing: -0.1px;
   overflow-wrap: anywhere;
   color: var(--notak-texte);
+}
+
+/* Une liste de tâches : 19 px en haut et en bas, 24 de chaque côté ; la hauteur vient du contenu (5 + 20 + 5 par tâche). */
+.notak-carte:has(> .notak-taches) {
+  min-height: 0;
+  padding: 19px 24px;
 }
 
 .notak-taches ul {
@@ -12,41 +19,56 @@
   padding: 0;
 }
 
-/* Une sous-liste s'aligne sous le texte de sa tâche. */
-.notak-taches li > div > ul {
-  margin-top: 2px;
-}
-
+/*
+ * Une tâche : la case (26 px avec son espace), puis une colonne pour le texte, les puces, la sous-liste.
+ * La colonne de contenu se défait (`display: contents`) pour que ses enfants se rangent dans la grille de la tâche.
+ */
 .notak-taches li[data-type='taskItem'] {
-  display: flex;
-  align-items: flex-start;
-  gap: 0;
+  position: relative;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: start;
+  padding: 5px 0;
 }
 
 .notak-taches li[data-type='taskItem'] > div {
-  flex: 1;
-  min-width: 0;
-  padding-top: 2px;
+  display: contents;
+}
+
+.notak-taches li[data-type='taskItem'] > div > p {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+/* Une sous-liste s'ouvre sous le texte (et les puces) de sa tâche, 5 px plus bas. */
+.notak-taches li[data-type='taskItem'] > div > ul {
+  grid-column: 2;
+  grid-row: 3;
+  margin: 5px 0 -5px;
 }
 
 .notak-taches p {
   margin: 0;
-  min-height: 1.45em;
-  transition: color 150ms;
+  min-height: 20px;
+  transition: color 150ms linear;
 }
 
 .notak-taches li[data-checked='true'] > div > p {
-  color: #9aa0a8;
+  color: #8d929a;
 }
 
-/* La zone de clic fait 24 px ; la case carrée en fait 16, dessinée au centre. */
+/*
+ * La zone de clic de la case : 38 × 32 px autour d'une case de 16 (8 px au-dessus et au-dessous, 16 à gauche,
+ * 6 à droite). Elle déborde sur la marge ; la case dessinée tombe à 2 px sous le haut de la ligne.
+ */
 .notak-case {
   position: relative;
-  flex: none;
+  grid-column: 1;
+  grid-row: 1;
   box-sizing: border-box;
-  width: 24px;
-  height: 24px;
-  margin: 0 2px 0 -4px;
+  width: 38px;
+  height: 32px;
+  margin: -6px 4px -6px -16px;
   padding: 0;
   border: 0;
   background: none;
@@ -57,43 +79,90 @@
 .notak-case::before {
   content: '';
   position: absolute;
-  inset: 4px;
+  inset: 8px 6px 8px 16px;
   box-sizing: border-box;
-  border: 1.5px solid var(--notak-texte);
+  border: 1px solid var(--notak-texte);
   border-radius: 2px;
-  transition: background-color 100ms, border-color 100ms, transform 150ms;
-}
-
-.notak-case:active::before {
-  transform: scale(0.8);
+  background: #fff;
+  transition: background-color 100ms linear 50ms, border-color 100ms linear 50ms;
 }
 
 .notak-case[aria-checked='true']::before {
-  border-color: var(--notak-texte);
-  background: var(--notak-texte);
+  border-color: transparent;
+  background: #d1d3d6;
+  transition: background-color 150ms linear, border-color 100ms linear;
 }
 
+/* La coche : un trait de 2 px, blanc, arrondi. */
 .notak-case[aria-checked='true']::after {
   content: '';
   position: absolute;
-  left: 9px;
-  top: 7px;
-  width: 3px;
-  height: 6px;
+  left: 21px;
+  top: 9px;
+  width: 4px;
+  height: 8px;
+  box-sizing: border-box;
   border: solid #fff;
-  border-width: 0 1.5px 1.5px 0;
+  border-width: 0 2px 2px 0;
+  border-radius: 1px;
   transform: rotate(45deg);
+}
+
+/* Au cochage seulement (jamais à l'affichage) : un rebond, un éclair vert, la coche qui se trace. */
+@keyframes notak-case-rebond {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.8); }
+  100% { transform: scale(1); }
+}
+
+@keyframes notak-case-eclair {
+  0% { background-color: #d1d3d6; }
+  50% { background-color: #6ac374; }
+  100% { background-color: #d1d3d6; }
+}
+
+@keyframes notak-case-trace {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0); }
+}
+
+@keyframes notak-case-retire {
+  from { clip-path: inset(0); }
+  to { clip-path: inset(0 100% 0 0); }
+}
+
+.notak-case[data-anime='coche']::before {
+  animation: notak-case-rebond 150ms ease-out, notak-case-eclair 150ms linear;
+}
+
+.notak-case[data-anime='coche']::after {
+  animation: notak-case-trace 150ms linear 150ms backwards;
+}
+
+.notak-case[data-anime='decoche']::after {
+  content: '';
+  position: absolute;
+  left: 21px;
+  top: 9px;
+  width: 4px;
+  height: 8px;
+  box-sizing: border-box;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  animation: notak-case-retire 100ms linear forwards;
 }
 
 .notak-taches-texte {
   outline: none;
 }
 
+/* Le titre : 16 px, 600, interligne 25 px ; 1 px au-dessus, 4 au-dessous. */
 .notak-taches-titre {
   display: block;
   box-sizing: border-box;
   width: 100%;
-  margin: 0 0 8px;
+  margin: 1px 0 4px;
   padding: 0;
   border: 0;
   background: none;
@@ -101,7 +170,7 @@
   font: inherit;
   font-size: 16px;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 25px;
   outline: none;
 }
 
@@ -116,163 +185,142 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Au survol d'une tâche, à droite, de quoi la retirer. */
+/*
+ * Une tâche cochée, au survol : une corbeille glisse depuis la droite, après une demi-seconde, sur un dégradé
+ * qui masque le texte dessous. Elle se place juste à gauche de la poignée.
+ */
 .notak-tache-suppr {
-  flex: none;
-  position: relative;
-  width: 20px;
-  height: 22px;
-  margin: 0 -8px 0 4px;
+  position: absolute;
+  top: 7px;
+  right: -2px;
+  width: 16px;
+  height: 16px;
   padding: 0;
   border: 0;
   background: none;
   opacity: 0;
+  pointer-events: none;
+  transform: translateX(31px);
+  transition: transform 160ms ease-in, opacity 160ms ease-in;
   cursor: pointer;
-  transition: opacity 100ms;
 }
 
-.notak-tache-suppr::before,
+.notak-tache-suppr::before {
+  content: '';
+  position: absolute;
+  inset: -3px 0 -3px -26px;
+  background: linear-gradient(to right, rgb(255 255 255 / 0), #fff 40%);
+  z-index: -1;
+}
+
 .notak-tache-suppr::after {
   content: '';
   position: absolute;
-  top: 10px;
-  left: 5px;
-  width: 10px;
-  height: 1.5px;
-  border-radius: 1px;
-  background: #8a9099;
-  transform: rotate(45deg);
+  inset: 0;
+  background: #a3a7ae;
+  -webkit-mask: var(--notak-icone-corbeille) center / 16px 16px no-repeat;
+  mask: var(--notak-icone-corbeille) center / 16px 16px no-repeat;
 }
 
-.notak-tache-suppr::after {
-  transform: rotate(-45deg);
-}
-
-.notak-tache-suppr:hover::before,
 .notak-tache-suppr:hover::after {
   background: var(--notak-texte);
 }
 
-.notak-taches li[data-type='taskItem']:hover > .notak-tache-suppr {
+.notak-taches {
+  --notak-icone-corbeille: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'><path d='M2.5 4.5h11M6 4.5V3h4v1.5M3.8 4.5l.7 8.5h7l.7-8.5M6.8 7v4M9.2 7v4'/></svg>");
+  --notak-icone-poignee: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'><path d='M2.5 4h11M2.5 8h11M2.5 12h11'/></svg>");
+}
+
+.notak-taches li[data-type='taskItem'][data-checked='true']:hover > .notak-tache-suppr {
   opacity: 1;
+  pointer-events: auto;
+  transform: none;
+  transition: transform 160ms ease-out 500ms, opacity 160ms ease-out 500ms;
 }
 
 /* La sous-tâche survolée montre la sienne, pas celle de sa parente. */
 .notak-taches li[data-type='taskItem']:has(li[data-type='taskItem']:hover) > .notak-tache-suppr {
   opacity: 0;
-}
-
-/* Une liste vide dit quoi y mettre. */
-.notak-taches > ul[data-type='taskList'] > li:only-child > div > p:only-child:empty::before,
-.notak-taches-texte > ul[data-type='taskList'] > li:only-child > div > p:only-child:has(> br.ProseMirror-trailingBreak:only-child)::before {
-  content: var(--notak-ph-tache, 'Ajoutez une tâche…');
-  position: absolute;
-  color: var(--notak-pale);
   pointer-events: none;
 }
 
-/* La couleur de la liste : le fond est celui du cadre commun (la liste le lui demande à travers son enfant), comme une note. */
-.notak-carte:has(> .notak-taches[data-couleur='gris']) { background: var(--notak-note-gris); --notak-voile: var(--notak-note-gris); --notak-liste-fond: var(--notak-note-gris); }
-.notak-carte:has(> .notak-taches[data-couleur='cyan']) { background: var(--notak-note-cyan); --notak-voile: var(--notak-note-cyan); --notak-liste-fond: var(--notak-note-cyan); }
-.notak-carte:has(> .notak-taches[data-couleur='vert']) { background: var(--notak-note-vert); --notak-voile: var(--notak-note-vert); --notak-liste-fond: var(--notak-note-vert); }
-.notak-carte:has(> .notak-taches[data-couleur='brun']) { background: var(--notak-note-brun); --notak-voile: var(--notak-note-brun); --notak-liste-fond: var(--notak-note-brun); }
-.notak-carte:has(> .notak-taches[data-couleur='jaune']) { background: var(--notak-note-jaune); --notak-voile: var(--notak-note-jaune); --notak-liste-fond: var(--notak-note-jaune); }
-.notak-carte:has(> .notak-taches[data-couleur='orange']) { background: var(--notak-note-orange); --notak-voile: var(--notak-note-orange); --notak-liste-fond: var(--notak-note-orange); }
-.notak-carte:has(> .notak-taches[data-couleur='rouge']) { background: var(--notak-note-rouge); --notak-voile: var(--notak-note-rouge); --notak-liste-fond: var(--notak-note-rouge); }
-.notak-carte:has(> .notak-taches[data-couleur='rose']) { background: var(--notak-note-rose); --notak-voile: var(--notak-note-rose); --notak-liste-fond: var(--notak-note-rose); }
-.notak-carte:has(> .notak-taches[data-couleur='violet']) { background: var(--notak-note-violet); --notak-voile: var(--notak-note-violet); --notak-liste-fond: var(--notak-note-violet); }
-.notak-carte:has(> .notak-taches[data-couleur='bleu']) { background: var(--notak-note-bleu); --notak-voile: var(--notak-note-bleu); --notak-liste-fond: var(--notak-note-bleu); }
-.notak-carte:has(> .notak-taches[data-couleur='bleu_nuit']) { background: var(--notak-note-bleu_nuit); --notak-voile: var(--notak-note-bleu_nuit); --notak-liste-fond: var(--notak-note-bleu_nuit); }
-
-/* Sur un fond de couleur, tout se dessine à la couleur du texte. */
-.notak-taches[data-couleur] .notak-taches-titre {
-  color: inherit;
+/* Une tâche vide dit quoi y mettre, en pleine liste comme seule. */
+.notak-taches li[data-type='taskItem'] > div > p:empty::before,
+.notak-taches li[data-type='taskItem'] > div > p:has(> br.ProseMirror-trailingBreak:only-child)::before {
+  content: var(--notak-ph-tache, 'Ajoutez une tâche…');
+  float: left;
+  height: 0;
+  color: #d1d3d6;
+  pointer-events: none;
 }
 
-.notak-taches[data-couleur] .notak-taches-titre::placeholder {
-  color: inherit;
-  opacity: 0.55;
+/* La couleur de la liste : une bande de 5 px en haut de la carte, sur toute sa largeur ; le fond reste blanc. */
+.notak-taches[data-couleur]::before {
+  content: '';
+  position: absolute;
+  top: -19px;
+  left: -24px;
+  right: -24px;
+  height: 5px;
+  background: var(--bande);
+  pointer-events: none;
 }
 
-.notak-taches[data-couleur] .notak-case::before {
-  border-color: color-mix(in srgb, currentColor 60%, transparent);
-}
+.notak-taches[data-couleur='gris'] { --bande: var(--notak-note-gris); }
+.notak-taches[data-couleur='cyan'] { --bande: var(--notak-note-cyan); }
+.notak-taches[data-couleur='vert'] { --bande: var(--notak-note-vert); }
+.notak-taches[data-couleur='brun'] { --bande: var(--notak-note-brun); }
+.notak-taches[data-couleur='jaune'] { --bande: var(--notak-note-jaune); }
+.notak-taches[data-couleur='orange'] { --bande: var(--notak-note-orange); }
+.notak-taches[data-couleur='rouge'] { --bande: var(--notak-note-rouge); }
+.notak-taches[data-couleur='rose'] { --bande: var(--notak-note-rose); }
+.notak-taches[data-couleur='violet'] { --bande: var(--notak-note-violet); }
+.notak-taches[data-couleur='bleu'] { --bande: var(--notak-note-bleu); }
+.notak-taches[data-couleur='bleu_nuit'] { --bande: var(--notak-note-bleu_nuit); }
 
-.notak-taches[data-couleur] .notak-case:hover::before {
-  border-color: currentColor;
-}
-
-.notak-taches[data-couleur] .notak-case[aria-checked='true']::before {
-  border-color: currentColor;
-  background: currentColor;
-}
-
-.notak-taches[data-couleur] .notak-case[aria-checked='true']::after {
-  border-color: var(--notak-liste-fond, #fff);
-}
-
-.notak-taches[data-couleur] li[data-checked='true'] > div > p {
-  color: inherit;
-  opacity: 0.6;
-}
-
-.notak-taches[data-couleur] .notak-tache-suppr::before,
-.notak-taches[data-couleur] .notak-tache-suppr::after {
-  background: currentColor;
-  opacity: 0.6;
-}
-
-/* À droite du texte : l'échéance, la personne. Une puce vide n'apparaît qu'au survol de la tâche. */
+/* Sous le texte de la tâche : l'échéance, la personne. Une puce vide n'existe que si on l'a demandée (outil ou raccourci). */
 .notak-puces {
-  flex: none;
+  grid-column: 2;
+  grid-row: 2;
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
-  gap: 4px;
-  margin: 3px 0 0 6px;
+  gap: 6px;
+  margin: 9px 0 3px;
+}
+
+.notak-puces:empty {
+  display: none;
 }
 
 .notak-puce {
   box-sizing: border-box;
   height: 18px;
-  padding: 0 7px;
-  border: 1px solid transparent;
-  border-radius: 9px;
-  background: color-mix(in srgb, currentColor 10%, transparent);
-  color: inherit;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: #f3f3f4;
+  color: #5f6672;
   font: inherit;
   font-size: 11px;
-  line-height: 16px;
+  font-weight: 500;
+  line-height: 18px;
+  letter-spacing: 0;
   white-space: nowrap;
   cursor: pointer;
 }
 
+.notak-puce[data-statut='futur'] { background: #edf8ee; color: #4eb85a; }
+.notak-puce[data-statut='aujourdhui'] { background: #fff3e9; color: #ff8d22; }
+.notak-puce[data-statut='retard'] { background: #fdefef; color: #e60b0b; }
+.notak-puce[data-genre='assigne']:not([data-vide]) { background: #eaeffe; color: #2f63f7; }
+
 .notak-puce:hover {
-  background: color-mix(in srgb, currentColor 18%, transparent);
+  filter: brightness(0.97);
 }
 
-.notak-puce[data-retard] {
-  background: rgb(212 59 59 / 0.12);
-  color: #d43b3b;
-}
-
-.notak-taches li[data-checked='true'] > .notak-puces {
-  opacity: 0.6;
-}
-
-.notak-puce[data-vide] {
-  display: none;
-  border-style: dashed;
-  border-color: color-mix(in srgb, currentColor 35%, transparent);
-  background: none;
-  opacity: 0.7;
-}
-
-.notak-taches li[data-type='taskItem']:hover > .notak-puces > .notak-puce[data-vide] {
-  display: block;
-}
-
-.notak-taches li[data-type='taskItem']:has(li[data-type='taskItem']:hover) > .notak-puces > .notak-puce[data-vide] {
-  display: none;
+.notak-puce[aria-expanded='true'] {
+  box-shadow: 0 0 0 2px var(--notak-texte);
 }
 
 /* Le menu d'une puce : posé sur la toile, sous la puce touchée. */
@@ -329,22 +377,6 @@
   color: #d43b3b !important;
 }
 
-/* La personne assignée : une pastille ronde à ses initiales. */
-.notak-puce[data-genre='assigne']:not([data-vide]) {
-  width: 18px;
-  padding: 0;
-  border: 0;
-  background: var(--teinte, #7a828c);
-  color: #fff;
-  font-size: 9px;
-  font-weight: 600;
-  text-align: center;
-}
-
-.notak-puce[data-genre='assigne']:not([data-vide]):hover {
-  filter: brightness(1.12);
-}
-
 .notak-menu-puce-raccourcis button {
   display: flex;
   align-items: center;
@@ -367,38 +399,40 @@
   text-align: center;
 }
 
-/* À gauche d'une tâche, au survol : la poignée pour la changer de place (six points). */
-.notak-taches {
-  position: relative;
-}
-
-.notak-taches li[data-type='taskItem'] {
-  position: relative;
-}
-
+/* À droite de la tâche, au survol : la poignée pour la changer de place (trois traits). Rien si la liste est verrouillée ou si plusieurs éléments sont choisis. */
 .notak-tache-poignee {
   position: absolute;
-  left: -20px;
-  top: 6px;
-  width: 12px;
-  height: 18px;
-  background: radial-gradient(circle at 3px 3px, currentColor 1.2px, transparent 1.6px) 0 0 / 6px 6px;
+  right: -20px;
+  top: 7px;
+  width: 16px;
+  height: 16px;
+  background: #a3a7ae;
+  -webkit-mask: var(--notak-icone-poignee) center / 16px 16px no-repeat;
+  mask: var(--notak-icone-poignee) center / 16px 16px no-repeat;
   opacity: 0;
   cursor: grab;
   transition: opacity 100ms;
 }
 
 .notak-taches li[data-type='taskItem']:hover > .notak-tache-poignee {
-  opacity: 0.35;
+  opacity: 1;
 }
 
 .notak-taches li[data-type='taskItem'] > .notak-tache-poignee:hover {
-  opacity: 0.8;
+  background: var(--notak-texte);
 }
 
 /* La sous-tâche survolée montre la sienne, pas celle de sa parente. */
 .notak-taches li[data-type='taskItem']:has(li[data-type='taskItem']:hover) > .notak-tache-poignee {
   opacity: 0;
+}
+
+.notak-carte[data-verrou] .notak-tache-poignee,
+.notak-carte[data-verrou] .notak-tache-suppr,
+*:has(> .notak-carte[data-choisie] ~ .notak-carte[data-choisie]) > .notak-carte[data-choisie] .notak-tache-poignee,
+*:has(> .notak-carte[data-choisie] ~ .notak-carte[data-choisie]) > .notak-carte[data-choisie] .notak-tache-suppr {
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 /* Pendant le glisser : la tâche prise s'efface un peu, un trait montre où elle se posera. */
@@ -410,7 +444,7 @@
   position: absolute;
   height: 2px;
   border-radius: 1px;
-  background: var(--notak-accent);
+  background: var(--notak-texte);
   pointer-events: none;
 }
 

@@ -9,7 +9,8 @@ import type { NoeudTexte } from '../../coeur/tableau'
 import { glisserTache } from './glisse'
 import { htmlEnTaches } from './html'
 import { PROFONDEUR_MAX, hauteur, lignesEnTaches, peutDescendre, peutPoserAuNiveau } from './liste'
-import { type GenrePuce, jourDe, puces } from './puces'
+import { DRAPEAU, type GenrePuce, jourDe, puces } from './puces'
+import { animerCase } from './animation'
 import { t } from '../../langue'
 
 /** Le document n'est qu'une liste de tâches. */
@@ -41,11 +42,23 @@ const attributTexte = (nom: string) => ({
   renderHTML: (attrs: Record<string, unknown>) => (attrs[nom] ? { [`data-${nom}`]: String(attrs[nom]) } : {}),
 })
 
-/** La case ronde : un nœud à elle, pour garder la main sur le clic (Maj+clic) et la zone de clic. */
+/** Un drapeau : « vrai » ou rien, jamais recopié sur la tâche née d'une scission. */
+const attributDrapeau = (nom: string, attribut: string) => ({
+  default: null,
+  keepOnSplit: false,
+  parseHTML: (el: HTMLElement) => (el.getAttribute(attribut) === 'true' ? true : null),
+  renderHTML: (attrs: Record<string, unknown>) => (attrs[nom] === true ? { [attribut]: 'true' } : {}),
+})
+
+/** La case : un nœud à elle, pour garder la main sur le clic (Maj+clic) et la zone de clic. */
 const Tache = TaskItem.extend({
   content: 'paragraph taskList?',
   addAttributes() {
-    return { ...this.parent?.(), echeance: attributTexte('echeance'), assigne: attributTexte('assigne') }
+    return { ...this.parent?.(), echeance: attributTexte('echeance'),
+      assigne: attributTexte('assigne'),
+      montreEcheance: attributDrapeau('montreEcheance', 'data-montre-echeance'),
+      montreAssigne: attributDrapeau('montreAssigne', 'data-montre-assigne'),
+    }
   },
   addNodeView() {
     return ({ node, getPos, editor }) => {
@@ -59,9 +72,11 @@ const Tache = TaskItem.extend({
       case_.addEventListener('click', (e) => {
         e.preventDefault()
         const pos = getPos()
-        if (typeof pos === 'number') cocherDansEditeur(editor, pos, e.shiftKey)
+        if (typeof pos !== 'number') return
+        animerCase(case_, editor.state.doc.nodeAt(pos)?.attrs.checked !== true)
+        cocherDansEditeur(editor, pos, e.shiftKey)
       })
-      // Au survol, de quoi retirer la tâche (et ses sous-tâches).
+      // Sur une tâche cochée, au survol, de quoi la retirer (et ses sous-tâches).
       const suppr = document.createElement('span')
       suppr.className = 'notak-tache-suppr'
       suppr.contentEditable = 'false'
@@ -72,11 +87,11 @@ const Tache = TaskItem.extend({
         const pos = getPos()
         if (typeof pos === 'number') retirerDansEditeur(editor, pos)
       })
-      // À droite du texte : l'échéance, la personne.
+      // Sous le texte : l'échéance, la personne.
       const zonePuces = document.createElement('span')
       zonePuces.className = 'notak-puces'
       zonePuces.contentEditable = 'false'
-      // À gauche, au survol : la poignée pour changer la tâche de place.
+      // À droite, au survol : la poignée pour changer la tâche de place.
       const poignee = document.createElement('span')
       poignee.className = 'notak-tache-poignee'
       poignee.contentEditable = 'false'
@@ -97,10 +112,9 @@ const Tache = TaskItem.extend({
             b.className = 'notak-puce'
             b.dataset.genre = p.genre
             if (p.vide) b.dataset.vide = ''
-            if (p.retard) b.dataset.retard = ''
+            b.dataset.statut = p.statut
             b.title = p.titre
             b.textContent = p.texte
-            if (p.teinte) b.style.setProperty('--teinte', p.teinte)
             b.addEventListener('mousedown', (e) => e.preventDefault())
             b.addEventListener('click', (e) => {
               e.preventDefault()
@@ -278,6 +292,14 @@ export function fusionnerAvecPrecedente(editor: Editor): boolean {
     cible = derniere
     niveauCible += 1
   }
+  // Une tâche vide juste avant : c'est elle qui disparaît, la tâche courante garde son texte, ses sous-tâches et ses puces.
+  if (cible.childCount === 1 && cible.textContent === '') {
+    const $cible = state.doc.resolve(posCible)
+    const seule = $cible.parent.childCount === 1 && $cible.depth > 1
+    const tr = state.tr.delete(seule ? posCible - 1 : posCible, posCible + cible.nodeSize + (seule ? 1 : 0))
+    editor.view.dispatch(tr.scrollIntoView())
+    return true
+  }
   if (niveauCible + hauteur(item.toJSON() as NoeudTexte) - 1 > PROFONDEUR_MAX) return true
 
   const finTexte = posCible + cible.child(0).nodeSize
@@ -330,6 +352,53 @@ const CollageEnTaches = new Plugin({
   },
 })
 
+const tacheVierge = (editor: Editor) => editor.state.schema.nodes.taskItem!.create({ checked: false }, editor.state.schema.nodes.paragraph!.create())
+
+/**
+ * Entrée. Rend faux (Tiptap scinde la tâche) sauf dans deux cas : une tâche vide de premier niveau appelle une
+ * nouvelle tâche dessous, et le curseur au début d'une tâche qui a du texte glisse une tâche vierge au-dessus.
+ */
+export function entree(editor: Editor): boolean {
+  const { state } = editor
+  const { $from, empty } = state.selection
+  const [v] = tachesAutour(state)
+  if (!empty || !v || !v.tache || $from.parent.type.name !== 'paragraph' || $from.node(-1).type.name !== 'taskItem') return false
+  const profItem = $from.depth - 1
+  if (v.tache.childCount === 1 && v.tache.textContent === '') {
+    if (v.niveau !== 1) return false
+    const apres = $from.after(profItem)
+    const tr = state.tr.insert(apres, tacheVierge(editor))
+    tr.setSelection(TextSelection.near(tr.doc.resolve(apres + 2)))
+    editor.view.dispatch(tr.scrollIntoView())
+    return true
+  }
+  if ($from.parentOffset === 0 && $from.index(profItem) === 0 && v.tache.child(0).content.size > 0) {
+    // Le curseur reste dans la tâche d'origine, qui descend d'un rang avec ses sous-tâches et ses puces.
+    editor.view.dispatch(state.tr.insert($from.before(profItem), tacheVierge(editor)).scrollIntoView())
+    return true
+  }
+  return false
+}
+
+/** La tâche sous le curseur : allume sa puce (sans toucher à ce qu'elle porte) et ouvre son choix. */
+export function demanderPuce(editor: Editor, genre: GenrePuce): boolean {
+  const { $from } = editor.state.selection
+  let prof = $from.depth
+  while (prof > 0 && $from.node(prof).type.name !== 'taskItem') prof--
+  if (prof === 0) return true
+  const pos = $from.before(prof)
+  const tache = editor.state.doc.nodeAt(pos)!
+  const drapeau = DRAPEAU[genre]
+  if (tache.attrs[drapeau] !== true) editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, undefined, { ...tache.attrs, [drapeau]: true }))
+  // La puce naît au rendu qui suit.
+  requestAnimationFrame(() => {
+    const dom = editor.view.nodeDOM(pos) as HTMLElement | null
+    const puce = dom?.querySelector<HTMLElement>(`:scope > .notak-puces > .notak-puce[data-genre="${genre}"]`)
+    if (puce) ouvreursPuces.get(editor)?.(genre, pos, puce)
+  })
+  return true
+}
+
 /** Tab et Maj+Tab restent dans la note, même quand il n'y a rien à faire. */
 const ClavierTaches = Extension.create({
   name: 'clavierTaches',
@@ -353,11 +422,12 @@ const ClavierTaches = Extension.create({
       Backspace: ({ editor }) => fusionnerAvecPrecedente(editor),
       'Mod-Backspace': ({ editor }) => reduireVide(editor),
       'Alt-Backspace': ({ editor }) => reduireVide(editor),
-      // Une tâche vide tout en haut n'a pas de niveau où remonter : on ne fait rien.
-      Enter: ({ editor }) => {
-        const [v] = tachesAutour(editor.state)
-        return !!v && v.niveau === 1 && !!v.tache && v.tache.childCount === 1 && v.tache.textContent === ''
-      },
+      // Une tâche vide tout en haut n'a pas de niveau où remonter : elle en appelle une nouvelle dessous ;
+      // au début d'une tâche qui a du texte, la nouvelle se glisse au-dessus et la tâche garde tout.
+      Enter: ({ editor }) => entree(editor),
+      // Cmd+Maj+1 : l'échéance de la tâche ; Cmd+Maj+2 : la personne.
+      'Mod-Shift-1': ({ editor }) => demanderPuce(editor, 'echeance'),
+      'Mod-Shift-2': ({ editor }) => demanderPuce(editor, 'assigne'),
     }
   },
 })

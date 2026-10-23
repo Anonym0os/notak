@@ -204,17 +204,18 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Retour arrière : fusion avec la tâche d'avant | ✅ | |
 | Liste vidée à la corbeille au retour arrière | ✅ | |
 | Titre facultatif ; première tâche vide changée en titre, `[] ` du titre en tâche | ✅ | |
-| Croix de suppression au survol | ✅ | |
+| Corbeille de ligne (tâche cochée seulement, glisse après 0,5 s) | ✅ | |
 | Lignes collées changées en tâches | ✅ | |
-| Indication de liste vide | ✅ | |
+| Indication dans chaque tâche vide | ✅ | |
 | Compteur, « Effacer les faites » | ✅ | En plus de Milanote. |
 | Conversion d'une note `[] ` en liste | ✅ | |
 | Case carrée | ➖ | Notak garde la case ronde. |
-| Poignée pour faire glisser une tâche (vers une autre liste, la toile) | ✅ | Hors édition. |
+| Poignée à droite (trois traits) pour faire glisser une tâche (vers une autre liste, la toile) | ✅ | Hors édition. Reste : aperçu en carte de liste, niveau choisi par la case, copie avec Alt, glisser une liste entière. |
 | Collage d'une liste HTML (Google Docs) | ✅ |  |
-| Échéance d'une tâche | ✅ |  |
-| Personne assignée | ✅ |  |
-| Couleur de la liste | ✅ |  |
+| Échéance d'une tâche, puces sous le texte (vert, orange, rouge), Cmd+Maj+1 | ✅ | Reste : calendrier mensuel, heure, rappel, puce sélectionnée. |
+| Personne assignée (puce « @Nom »), Cmd+Maj+2 | ✅ | Reste : liste des collaborateurs du tableau. Étiquettes, réactions et commentaires par tâche, barre d'édition : absents. |
+| Couleur de la liste : bande de 5 px, fond blanc | ✅ | |
+| Entrée sur tâche vide ou en début de tâche ; Retour arrière devant une tâche vide | ✅ | |
 | Cmd ou Alt + retour arrière : réduire une tâche vide | ✅ |  |
 
 ## 9. Ligne

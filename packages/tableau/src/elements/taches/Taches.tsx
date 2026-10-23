@@ -1,16 +1,16 @@
 import { EditorContent, getSchema, useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
-import { type CSSProperties, type KeyboardEvent, type ReactNode, memo, useEffect, useMemo, useRef, useState } from 'react'
+import { type KeyboardEvent, type ReactNode, memo, useEffect, useMemo, useRef, useState } from 'react'
 import { type CouleurNote, type Element, type Id, type NoeudTexte, type Taches, aimanter } from '../../coeur/tableau'
 import { useLignePartagee } from '../lignePartagee'
 import { extensionsDuPartage, textePartage } from '../partage'
-import { texteDeNote } from '../note/couleurs'
 import { MenuCouleur } from '../note/MenuCouleur'
 import type { Operation } from '../../coeur/tableau'
 import type { ContexteToile, PropsOutils, PropsRendu, ServicePresence } from '../types'
 import { EXTENSIONS_TACHES, EXTENSIONS_TACHES_PARTAGEE, type GestesTaches, clavierListe, ouvreursPuces } from './extensions'
 import { MenuPuce, type OuverturePuce } from './MenuPuce'
-import { type Personne, type Puce, assigneDe, echeanceDe, jourDe, personnes, puces } from './puces'
+import { type Personne, type Puce, assigneDe, attrsPuce, echeanceDe, jourDe, personnes, puces } from './puces'
+import { animerCase } from './animation'
 import { type Sortie, glisserTache } from './glisse'
 import { type Chemin, basculer, compter, deplacer, detacher, docTaches, effacerFaites, estFaite, regler, retirer, sousTaches, transferer } from './liste'
 import { t } from '../../langue'
@@ -29,9 +29,8 @@ export function RenduTaches({ element, enEdition, contexte, brouillon, changer }
     contexte.jeter([element.id])
     contexte.finirEdition()
   }
-  const texte = texteDeNote(contenu.couleur)
   return (
-    <div className="notak-taches" data-couleur={contenu.couleur} style={texte ? { color: texte } : undefined}>
+    <div className="notak-taches" data-couleur={contenu.couleur}>
       {enEdition ? (
         <Edition id={element.id} contenu={contenu} contexte={contexte} surChangement={brouillon} jeter={jeter} />
       ) : (
@@ -70,7 +69,7 @@ const Figee = memo(function Figee({ id, contenu, changer, contexte }: { id: Id; 
           ouverture={menu}
           valeur={valeurPuce(menu.genre, cible?.attrs)}
           personnes={personnesPresentes(presence)}
-          regler={(v) => changer({ ...contenu, texte: regler(doc, menu.chemin, { [menu.genre]: v }) })}
+          regler={(v) => changer({ ...contenu, texte: regler(doc, menu.chemin, attrsPuce(menu.genre, v, valeurPuce(menu.genre, cible?.attrs))) })}
           fermer={() => setMenu(null)}
         />
       )}
@@ -120,7 +119,10 @@ function Liste({ noeud, chemin, cocher, supprimer, ouvrir, deplacer, sortir }: P
               onPointerDown={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.preventDefault()}
               onDoubleClick={(e) => e.stopPropagation()}
-              onClick={(e) => cocher(ici, e.shiftKey)}
+              onClick={(e) => {
+                animerCase(e.currentTarget, !faite)
+                cocher(ici, e.shiftKey)
+              }}
             />
             <div>
               {(tache.content ?? []).map((n, k) =>
@@ -137,9 +139,8 @@ function Liste({ noeud, chemin, cocher, supprimer, ouvrir, deplacer, sortir }: P
                   className="notak-puce"
                   data-genre={p.genre}
                   data-vide={p.vide ? '' : undefined}
-                  data-retard={p.retard ? '' : undefined}
+                  data-statut={p.statut}
                   title={p.titre}
-                  style={p.teinte ? ({ '--teinte': p.teinte } as CSSProperties) : undefined}
                   onPointerDown={(e) => e.stopPropagation()}
                   onDoubleClick={(e) => e.stopPropagation()}
                   onClick={(e) => ouvrir(ici, p.genre, e.currentTarget)}
@@ -342,7 +343,11 @@ function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surC
   const clavier = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
-      editeurRef.current?.commands.focus('start')
+      // Une tâche neuve en tête de liste, curseur dedans (la première tâche ne sert pas).
+      const ed = editeurRef.current
+      if (!ed) return
+      ed.chain().insertContentAt(1, { type: 'taskItem', attrs: { checked: false }, content: [{ type: 'paragraph' }] }).setTextSelection(3).run()
+      ed.view.focus()
     } else if (e.key === 'Backspace' && e.currentTarget.value === '') {
       e.preventDefault()
       changerTitre(undefined)
@@ -370,7 +375,10 @@ function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surC
           personnes={personnesPresentes(contexte.services.presence)}
           regler={(v) => {
             const t = editeur.state.doc.nodeAt(menu.pos)
-            if (t?.type.name === 'taskItem') editeur.view.dispatch(editeur.state.tr.setNodeMarkup(menu.pos, undefined, { ...t.attrs, [menu.genre]: v }))
+            if (t?.type.name === 'taskItem')
+              editeur.view.dispatch(
+                editeur.state.tr.setNodeMarkup(menu.pos, undefined, { ...t.attrs, ...attrsPuce(menu.genre, v, valeurPuce(menu.genre, t.attrs)) }),
+              )
           }}
           fermer={() => setMenu(null)}
         />

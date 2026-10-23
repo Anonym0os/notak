@@ -84,11 +84,20 @@ describe('Entrée', () => {
     expect(actuel()).toEqual(['A', ['a1'], ''])
   })
 
-  it('sur une tâche vide tout en haut, ne fait rien', () => {
+  it('sur une tâche vide tout en haut, en crée une dessous', () => {
     ouvrir(['A', ''])
     curseur(1, 'debut')
     expect(touche('Enter')).toBe(true)
-    expect(actuel()).toEqual(['A', ''])
+    expect(actuel()).toEqual(['A', '', ''])
+    expect(editeur.state.selection.$from.index(1)).toBe(2)
+  })
+
+  it('au début d’une tâche qui a du texte, glisse une tâche vierge au-dessus et garde le reste', () => {
+    ouvrir(['A', 'B', ['b1']])
+    curseur(1, 'debut')
+    touche('Enter')
+    expect(actuel()).toEqual(['A', '', 'B', ['b1']])
+    expect(editeur.state.selection.$from.parent.textContent).toBe('B')
   })
 })
 
@@ -105,6 +114,13 @@ describe('Retour arrière', () => {
     curseur(0, 'debut')
     touche('Backspace')
     expect(actuel()).toEqual(['un', 'deux'])
+  })
+
+  it('au début d’une tâche dont la précédente est vide, supprime la vide et garde la tâche telle quelle', () => {
+    ouvrir(['A', '', 'B', ['b1']])
+    curseur(2, 'debut')
+    touche('Backspace')
+    expect(actuel()).toEqual(['A', 'B', ['b1']])
   })
 
   it('dans l’unique tâche vide, laisse une tâche', () => {
