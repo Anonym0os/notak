@@ -210,13 +210,16 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Compteur, « Effacer les faites » | ✅ | En plus de Milanote. |
 | Conversion d'une note `[] ` en liste | ✅ | |
 | Case carrée | ➖ | Notak garde la case ronde. |
-| Poignée à droite (trois traits) pour faire glisser une tâche (vers une autre liste, la toile) | ✅ | Hors édition. Reste : aperçu en carte de liste, niveau choisi par la case, copie avec Alt, glisser une liste entière. |
+| Poignée à droite (trois traits) pour faire glisser une tâche (vers une autre liste, une colonne, la toile) | ✅ | Aperçu en carte de liste, niveau choisi par la case, trait au milieu du vide, Alt copie. Reste : glisser une liste entière sur une autre, sons. |
 | Collage d'une liste HTML (Google Docs) | ✅ |  |
-| Échéance d'une tâche, puces sous le texte (vert, orange, rouge), Cmd+Maj+1 | ✅ | Reste : calendrier mensuel, heure, rappel, puce sélectionnée. |
-| Personne assignée (puce « @Nom »), Cmd+Maj+2 | ✅ | Reste : liste des collaborateurs du tableau. Étiquettes, réactions et commentaires par tâche, barre d'édition : absents. |
+| Échéance d'une tâche : calendrier mensuel, heure, rappel (cloche), puces sous le texte, Cmd+Maj+1 | ✅ | Le rappel est enregistré ; aucune notification n'est envoyée. Reste : puce sélectionnée (anneau, F2). |
+| Personne assignée (puce « @Nom »), recherche parmi les collaborateurs, Cmd+Maj+2 | ✅ | Reste : section « sans accès », notification. Étiquettes, réactions et commentaires par tâche : absents (passe commentaires). |
 | Couleur de la liste : bande de 5 px, fond blanc | ✅ | |
 | Entrée sur tâche vide ou en début de tâche ; Retour arrière devant une tâche vide | ✅ | |
 | Cmd ou Alt + retour arrière : réduire une tâche vide | ✅ |  |
+| Barre de gauche en édition (Couleur, Titre, Échéance, Assigner, Retrait, Commentaire ; Gras, Italique, Barré, Lien) | ✅ | Réaction et Étiquette par tâche à venir. |
+| Bulles « Ajouter un titre ? » et « Supprimer les tâches terminées ? » | ✅ | |
+| Titre dans le document ; Suppr, flèches de bord, Alt+Retour, copier-coller d'une tâche avec ses puces | ✅ | |
 
 ## 9. Ligne
 
