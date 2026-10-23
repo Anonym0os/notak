@@ -53,7 +53,8 @@
   user-select: none;
 }
 
-.notak-croquis-surface[data-outil='gomme'] {
+.notak-croquis-surface[data-outil='gomme'],
+.notak-croquis-surface[data-outil='selection'] {
   cursor: default;
 }
 
@@ -190,4 +191,15 @@
   height: 100%;
   opacity: 0;
   cursor: pointer;
+}
+
+.notak-croquis-surface[data-outil='pipette'] {
+  cursor: copy;
+}
+
+.notak-croquis-marquise {
+  fill: color-mix(in srgb, var(--notak-accent) 12%, transparent);
+  stroke: var(--notak-selection);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
 }

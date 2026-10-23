@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Image, TraitImage } from '../../coeur/tableau'
-import { COULEUR_TRAIT_DEFAUT, ajouterPoint, avecTraits, cheminTrait, couleurSure, epaisseurPour, gommer, versImage } from './annotation'
+import { COULEURS_TRAIT, COULEUR_TRAIT_DEFAUT, EPAISSEURS_PX, ajouterPoint, avecTraits, cheminTrait, couleurSure, epaisseurPour, gommer, traitVise, versImage } from './annotation'
 import { pivoter, remplacerContenu } from './geometrie'
 
 const image = (reste: Partial<Image> = {}): Image => ({ type: 'image', fichier: 'f', largeurOrigine: 1000, hauteurOrigine: 500, ...reste })
@@ -44,8 +44,17 @@ describe('epaisseurPour', () => {
     expect(epaisseurPour(3, 1200)).toBeCloseTo(0.0025)
   })
   it('reste entre deux bornes', () => {
-    expect(epaisseurPour(3, 1_000_000)).toBe(0.002)
-    expect(epaisseurPour(3, 0)).toBe(0.03)
+    expect(epaisseurPour(3, 1_000_000)).toBe(0.0005)
+    expect(epaisseurPour(3, 0)).toBe(0.2)
+  })
+  it('suit les épaisseurs du croquis : 2, 4, 8 et 32 pixels d’écran', () => {
+    expect(EPAISSEURS_PX).toEqual([2, 4, 8, 32])
+    expect(epaisseurPour(32, 800)).toBeCloseTo(0.04)
+    expect(epaisseurPour(2, 800)).toBeCloseTo(0.0025)
+  })
+  it('la palette est celle du croquis, treize couleurs, l’encre d’abord', () => {
+    expect(COULEURS_TRAIT).toHaveLength(13)
+    expect(COULEUR_TRAIT_DEFAUT).toBe('#323b4a')
   })
 })
 
@@ -54,22 +63,41 @@ describe('ajouterPoint', () => {
   it('ajoute un point assez loin du précédent', () => {
     expect(ajouterPoint([[0.1, 0.1]], [0.2, 0.1], c)).toEqual([[0.1, 0.1], [0.2, 0.1]])
   })
-  it('ignore un point sur le précédent, et rend le même tableau', () => {
+  it('ignore un doublon exact du précédent, et rend le même tableau', () => {
     const points: [number, number][] = [[0.1, 0.1]]
-    expect(ajouterPoint(points, [0.1005, 0.1], c)).toBe(points)
+    expect(ajouterPoint(points, [0.1, 0.1], c)).toBe(points)
+  })
+  it('garde tous les autres points, même très proches', () => {
+    expect(ajouterPoint([[0.1, 0.1]], [0.1005, 0.1], c)).toHaveLength(2)
   })
 })
 
 describe('cheminTrait', () => {
   const c = image()
   it('passe dans l’espace des pixels d’origine', () => {
-    expect(cheminTrait(trait([[0, 0], [0.5, 1], [1, 0.5]]), c)).toBe('M0 0L500 500L1000 250')
+    expect(cheminTrait(trait([[0, 0], [1, 1]]), c)).toBe('M0 0L1000 500')
+  })
+  it('lisse par les milieux : chaque point contrôle une quadratique, le dernier segment est droit', () => {
+    expect(cheminTrait(trait([[0, 0], [0.5, 1], [1, 0.5]]), c)).toBe('M0 0Q500 500 750 375L1000 250')
+    expect(cheminTrait(trait([[0, 0], [0.2, 0], [0.4, 0], [0.6, 0]]), c)).toBe('M0 0Q200 0 300 0Q400 0 500 0L600 0')
   })
   it('un point seul fait un rond', () => {
     expect(cheminTrait(trait([[0.1, 0.2]]), c)).toBe('M100 100l0 0')
   })
   it('un trait vide ne dessine rien', () => {
     expect(cheminTrait(trait([]), c)).toBe('')
+  })
+})
+
+describe('traitVise', () => {
+  const c = image()
+  const bas = trait([[0.1, 0.5], [0.9, 0.5]])
+  const haut = trait([[0.1, 0.5], [0.9, 0.5]], { couleur: '#7cd651' })
+  it('vise le trait le plus haut sous la gomme', () => {
+    expect(traitVise([bas, haut], [0.5, 0.5], 0.01, c)).toBe(1)
+  })
+  it('-1 quand rien n’est touché', () => {
+    expect(traitVise([bas, haut], [0.5, 0.9], 0.01, c)).toBe(-1)
   })
 })
 

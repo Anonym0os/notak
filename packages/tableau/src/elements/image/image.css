@@ -265,3 +265,21 @@
   opacity: 0.5;
   cursor: default;
 }
+
+/* La barre de l'annotation est celle du croquis, flottante au centre du bas de la fenêtre. */
+.notak-annotation-barre {
+  position: fixed;
+  top: auto;
+  bottom: 4rem;
+  left: 50%;
+  z-index: 60;
+  width: max-content;
+}
+
+.notak-annotation-vise {
+  pointer-events: none;
+}
+
+.notak-annotation[data-outil='gomme'] {
+  cursor: default;
+}
