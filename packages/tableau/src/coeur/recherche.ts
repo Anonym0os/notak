@@ -30,6 +30,8 @@ export function texteCherchable(e: Element, titreDe: (id: string) => string | un
       return c.libelle ?? ''
     case 'commentaire':
       return c.messages.map((m) => `${m.auteur.nom}\n${m.texte}`).join('\n')
+    case 'croquis':
+      return ''
     case 'lieu':
       return [c.nom, c.adresse].filter(Boolean).join('\n')
     case 'nuancier':

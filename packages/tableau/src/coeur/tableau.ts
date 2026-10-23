@@ -252,7 +252,20 @@ export interface Lieu {
   nom?: string
 }
 
-export type Contenu = Note | Image | Fichier | Lien | Taches | Colonne | Ligne | RenvoiTableau | Commentaire | Table | Nuancier | Lieu
+/** Un trait de crayon : ses points à la suite (`x1, y1, x2, y2…`, dans le repère de la feuille), sa couleur et son épaisseur. */
+export interface Trait {
+  points: number[]
+  couleur: string
+  epaisseur: number
+}
+
+/** Un croquis à main levée : des traits sur une feuille de taille fixe (voir `elements/croquis`). */
+export interface Croquis {
+  type: 'croquis'
+  traits: Trait[]
+}
+
+export type Contenu = Note | Image | Fichier | Lien | Taches | Colonne | Ligne | RenvoiTableau | Commentaire | Table | Nuancier | Lieu | Croquis
 export type TypeContenu = Contenu['type']
 
 export interface Element<C extends Contenu = Contenu> {
