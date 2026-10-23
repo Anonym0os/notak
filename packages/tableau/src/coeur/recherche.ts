@@ -28,6 +28,8 @@ export function texteCherchable(e: Element, titreDe: (id: string) => string | un
       return [c.titre, c.nom].filter(Boolean).join('\n')
     case 'ligne':
       return c.libelle ?? ''
+    case 'commentaire':
+      return c.messages.map((m) => `${m.auteur.nom}\n${m.texte}`).join('\n')
   }
 }
 
