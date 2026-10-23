@@ -145,6 +145,18 @@ export function EspaceNotak({
       lectureSeule: lectureSeule || hote.lectureSeule || presentation,
       presentation,
       doubleClicCreeNote: reglages.doubleClic,
+      annulerNavigation: () => {
+        const p = etat.current.parcours
+        if (p.index === 0) return false
+        setParcours(reculer)
+        return true
+      },
+      retablirNavigation: () => {
+        const p = etat.current.parcours
+        if (p.index >= p.pile.length - 1) return false
+        setParcours(avancer)
+        return true
+      },
       deposerDans: (cible, elements) => {
         if (espace.lectureSeule?.(cible)) return
         const m = espace.magasin(cible)
@@ -302,10 +314,10 @@ export function EspaceNotak({
   basculerThemeRef.current = basculerTheme
   const historique = useMemo(
     () => ({
-      annuler: () => void espace.magasin(courant).annuler(),
-      retablir: () => void espace.magasin(courant).retablir(),
+      annuler: () => void (espace.magasin(courant).annuler() || services.annulerNavigation?.()),
+      retablir: () => void (espace.magasin(courant).retablir() || services.retablirNavigation?.()),
     }),
-    [espace, courant],
+    [espace, courant, services],
   )
 
   const surCamera = useCallback(

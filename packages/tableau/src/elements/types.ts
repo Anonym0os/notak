@@ -124,6 +124,12 @@ export interface Services {
    * Absent, le lieu reste une adresse avec un lien vers la carte.
    */
   localiser?(requete: string): Promise<{ lat: number; lon: number } | null>
+  /**
+   * L'historique de la session continue au-delà du tableau : quand il n'y a plus rien à annuler ici, Cmd+Z revient
+   * au tableau d'où l'on vient (et Cmd+Maj+Z y retourne). Rend vrai s'il a navigué.
+   */
+  annulerNavigation?(): boolean
+  retablirNavigation?(): boolean
   /** Un double-clic sur le vide crée une note (le réglage de chacun) ; absent : oui. */
   doubleClicCreeNote?: boolean
 }

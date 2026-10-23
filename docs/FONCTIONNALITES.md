@@ -307,7 +307,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Recherche (Cmd+F) : ce qui ne correspond pas s'efface, Entrée va au résultat suivant | ✅ | Dans le tableau ouvert, et dans tous les tableaux du compte par le serveur. |
 | Tableaux récents, favoris | ✅ |  |
 | Aperçu d'un tableau au survol | ⬜ | |
-| Annuler la navigation (à l'échelle de la session) | ⬜ | |
+| Annuler la navigation (à l'échelle de la session) | ✅ | Quand le tableau n'a plus rien à annuler, Cmd+Z revient au tableau d'avant. |
 
 ## 14. À plusieurs
 

@@ -1277,11 +1277,12 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     }
     if (cmd && touche === 'z') {
       e.preventDefault()
-      return e.shiftKey ? magasin.retablir() : magasin.annuler()
+      if (e.shiftKey) return void (magasin.retablir() || services.retablirNavigation?.())
+      return void (magasin.annuler() || services.annulerNavigation?.())
     }
     if (cmd && touche === 'y') {
       e.preventDefault()
-      return magasin.retablir()
+      return void (magasin.retablir() || services.retablirNavigation?.())
     }
     if (cmd && touche === 'a') {
       e.preventDefault()
