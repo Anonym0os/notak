@@ -2,7 +2,7 @@
 import { generateJSON } from '@tiptap/react'
 import { describe, expect, it } from 'vitest'
 import { type NoeudTexte, docDepuisTexte } from '../../coeur/tableau'
-import { adresseSeule, adressesEnLiens, caseSeule, contientDuTexte, decouperAdresses, tachesDepuisTexte, docDepuisCollage, docEstVide, normaliserUrl, sansCouleursCollees } from './conversion'
+import { adresseSeule, adressesEnLiens, caseSeule, contientDuTexte, couleurSeule, decouperAdresses, lireCouleur, tachesDepuisTexte, docDepuisCollage, docEstVide, normaliserUrl, sansCouleursCollees } from './conversion'
 import { EXTENSIONS_NOTE } from './extensions'
 import { ICONES_ENCADRE, ICONE_ENCADRE_DEFAUT, iconeSuivante } from './noeuds'
 
@@ -183,5 +183,27 @@ describe('encadré', () => {
   it('l\'icône suivante fait le tour', () => {
     expect(iconeSuivante('💡')).toBe('ℹ️')
     expect(iconeSuivante(ICONES_ENCADRE.at(-1)!)).toBe('💡')
+  })
+})
+
+describe('un code couleur seul', () => {
+  it('lit hexadécimal, rgb et hsl', () => {
+    expect(lireCouleur('#3a76df')).toEqual({ couleur: '#3a76df', format: 'hex' })
+    expect(lireCouleur('#ABC')).toEqual({ couleur: '#aabbcc', format: 'hex' })
+    expect(lireCouleur('#aabbcc80')).toEqual({ couleur: '#aabbcc', format: 'hex' })
+    expect(lireCouleur('rgb(79, 140, 255)')).toEqual({ couleur: '#4f8cff', format: 'rgb' })
+    expect(lireCouleur('rgba(79 140 255 / 0.5)')).toEqual({ couleur: '#4f8cff', format: 'rgb' })
+    expect(lireCouleur('hsl(0, 100%, 50%)')).toEqual({ couleur: '#ff0000', format: 'hsl' })
+    expect(lireCouleur('hsl(219, 100%, 65%)')?.couleur).toBe('#4d8bff')
+  })
+
+  it('refuse ce qui n\'en est pas un', () => {
+    for (const t of ['cafe', 'add', '#abcde', 'rgb(300, 0, 0)', 'hsl(10, 120%, 50%)', 'bonjour #fff', '']) expect(lireCouleur(t)).toBeNull()
+  })
+
+  it('une note qui n\'est que cela devient un nuancier, pas une note avec un mot de plus', () => {
+    expect(couleurSeule(docDepuisTexte('#fff'))?.couleur).toBe('#ffffff')
+    expect(couleurSeule(docDepuisTexte('#fff et du texte'))).toBeNull()
+    expect(couleurSeule(docDepuisTexte('#fff\n#000'))).toBeNull()
   })
 })

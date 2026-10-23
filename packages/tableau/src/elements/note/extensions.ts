@@ -1,4 +1,4 @@
-import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { type Editor, Extension, InputRule, Mark, markInputRule, mergeAttributes } from '@tiptap/react'
 import Highlight from '@tiptap/extension-highlight'
@@ -8,11 +8,11 @@ import StarterKit from '@tiptap/starter-kit'
 import { basculerCentre, basculerCode, basculerSurlignage, poserStyle } from './commandes'
 import { normaliserUrl } from './conversion'
 import { MARQUE_FIL } from './fils'
-import { AdressesReperees, CelluleTable, Encadre, EnteteTable, LienTableau, LigneTable, Mention, Table } from './noeuds'
+import { AdressesReperees, Citation, CelluleTable, Encadre, EnteteTable, LienTableau, LigneTable, Mention, Table } from './noeuds'
 import { augmenterRetrait, changerCasse, diminuerRetrait } from './texte'
 
 /** Le surlignage garde un nom de couleur (`vert`), que `note.css` décline : le document ne porte aucune valeur. */
-const Surlignage = Highlight.configure({ multicolor: true }).extend({
+export const Surlignage = Highlight.configure({ multicolor: true }).extend({
   addAttributes() {
     return {
       color: {
@@ -217,6 +217,30 @@ const SelectionVirtuelle = Extension.create({
   },
 })
 
+/**
+ * Entrée en tête d'une citation ou d'un encadré dont le texte n'est pas vide : un paragraphe neuf est créé avant le
+ * bloc, hors de lui, et le curseur y va (le texte du bloc ne bouge pas).
+ */
+const EntreeEnTeteDeBloc = Extension.create({
+  name: 'entreeEnTeteDeBloc',
+  priority: 1000,
+  addKeyboardShortcuts() {
+    return {
+      Enter: () => {
+        const { state, view } = this.editor
+        const { $from, empty } = state.selection
+        if (!empty || $from.parentOffset !== 0 || $from.parent.type.name !== 'paragraph' || $from.parent.content.size === 0) return false
+        const bloc = $from.depth > 1 ? $from.node($from.depth - 1) : null
+        if (!bloc || (bloc.type.name !== 'blockquote' && bloc.type.name !== 'encadre') || $from.index($from.depth - 1) !== 0) return false
+        const avant = $from.before($from.depth - 1)
+        const tr = state.tr.insert(avant, state.schema.nodes.paragraph!.create())
+        view.dispatch(tr.setSelection(TextSelection.near(tr.doc.resolve(avant + 1))).scrollIntoView())
+        return true
+      },
+    }
+  },
+})
+
 const styleActifPetit = (ed: Editor) => ed.isActive('paragraph', { petit: true })
 
 /**
@@ -254,7 +278,7 @@ const MarkdownTape = Extension.create({
  * Une seule liste, pour l'éditeur comme pour le rendu figé. Une adresse tapée ou collée ne devient pas un lien
  * d'elle-même (`autolink`, `linkOnPaste`) : elle reste du texte, que `AdressesReperees` souligne.
  */
-const KIT = { code: false as const, heading: { levels: [1, 2] as (1 | 2)[] }, link: { openOnClick: false, autolink: false, linkOnPaste: false } }
+const KIT = { code: false as const, blockquote: false as const, heading: { levels: [1, 2] as (1 | 2)[] }, link: { openOnClick: false, autolink: false, linkOnPaste: false } }
 
 export const EXTENSIONS_NOTE = [
   StarterKit.configure(KIT),
@@ -270,6 +294,8 @@ export const EXTENSIONS_NOTE = [
   MarquesALEntree,
   SelectionVirtuelle,
   MarkdownTape,
+  Citation,
+  EntreeEnTeteDeBloc,
   Encadre,
   Table,
   LigneTable,
@@ -283,6 +309,31 @@ export const EXTENSIONS_NOTE = [
 
 /** Les mêmes, quand le texte s'écrit à plusieurs : l'annulation est alors celle du partage (voir `partage.ts`). */
 export const EXTENSIONS_NOTE_PARTAGEE = [StarterKit.configure({ ...KIT, undoRedo: false }), ...EXTENSIONS_NOTE.slice(1)]
+
+/**
+ * La légende : gras, italique, barré, souligné, lien, couleur, surlignage et centrage ; ni titre, ni liste, ni citation,
+ * ni code. Le Markdown qu'on tape (`*gras*`, `[t](u)`) n'y est pas : ses règles posent aussi des blocs.
+ */
+const KIT_LEGENDE = {
+  ...KIT,
+  heading: false as const,
+  bulletList: false as const,
+  orderedList: false as const,
+  listItem: false as const,
+  listKeymap: false as const,
+  codeBlock: false as const,
+  horizontalRule: false as const,
+  trailingNode: false as const,
+}
+
+export const EXTENSIONS_LEGENDE = [
+  StarterKit.configure(KIT_LEGENDE),
+  TextAlign.configure({ types: ['paragraph'], alignments: ['left', 'center'], defaultAlignment: 'left' }),
+  Surlignage,
+  TextStyle,
+  Color,
+  AdressesReperees,
+]
 
 export interface GestesEdition {
   lien(): void

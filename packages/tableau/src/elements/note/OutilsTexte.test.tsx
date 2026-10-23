@@ -7,7 +7,7 @@ import { BarreEdition } from '../../barreEdition'
 import { DELAI_INFOBULLE, oublierInfobulle } from '../../Infobulle'
 import { fermerMenus } from '../../menuUnique'
 import { OutilsTexteGauche } from './OutilsTexte'
-import { EXTENSIONS_NOTE } from './extensions'
+import { EXTENSIONS_LEGENDE, EXTENSIONS_NOTE } from './extensions'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -131,5 +131,19 @@ describe('la barre de gauche en édition', () => {
     act(() => racine.render(<BarreEdition cible={(el) => (cible = el)} corbeille={panneau} nonTries={panneau} />))
     expect(cible).toBe(hote.querySelector('nav[data-edition] .notak-barre-edition-liste'))
     expect(hote.querySelector('nav [data-corbeille]')!.textContent).toContain('Corbeille (2)')
+  })
+})
+
+describe('les outils de la légende', () => {
+  it('Gras, Italique, Barré, Souligné, Lien, Centrer, et le menu sans blocs', () => {
+    const editor = new Editor({ extensions: EXTENSIONS_LEGENDE, content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'abc' }] }] } })
+    ouverts.push(editor)
+    act(() => racine.render(<OutilsTexteGauche editor={editor} variante="legende" lien={null} surLien={() => {}} finir={() => {}} />))
+    const noms = [...hote.querySelectorAll<HTMLButtonElement>('button.notak-outil-texte')].map((b) => b.getAttribute('aria-label'))
+    expect(noms).toEqual(['Gras', 'Italique', 'Barré', 'Souligné', 'Lien', 'Centrer'])
+    act(() => hote.querySelector<HTMLButtonElement>('.notak-outil-selection')!.click())
+    const menu = hote.querySelector('.notak-menu-style')!
+    expect(menu.querySelector('[data-style]')).toBeNull()
+    expect(menu.querySelectorAll('.notak-note-pastilles button').length).toBeGreaterThan(5)
   })
 })

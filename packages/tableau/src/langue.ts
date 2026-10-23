@@ -152,6 +152,10 @@ export const fr: Textes = {
   'barre.plusOutils': 'Plus d’outils',
   'barre.retour': 'Retour aux éléments à créer',
   'couleur.recentes': 'Récentes',
+  'couleur.paires': 'Fond et texte déjà utilisés',
+  'couleur.couleurTexte': 'Couleur du texte',
+  'couleur.texteClair': 'Texte clair',
+  'couleur.texteSombre': 'Texte sombre',
   'barre.plus': 'Plus',
   'barre.outilsParType': 'Outils de chaque type',
 
@@ -947,6 +951,10 @@ export const en: Textes = {
   'barre.plusOutils': 'More tools',
   'barre.retour': 'Back to the elements to create',
   'couleur.recentes': 'Recent',
+  'couleur.paires': 'Background and text already used',
+  'couleur.couleurTexte': 'Text color',
+  'couleur.texteClair': 'Light text',
+  'couleur.texteSombre': 'Dark text',
   'barre.plus': 'More',
   'barre.outilsParType': 'Tools for each type',
 

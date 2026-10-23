@@ -1,4 +1,5 @@
 import { lireAdresse } from '../lien/adresse'
+import { type FormatCode, normaliserHex } from '../nuancier/couleur'
 import { type DocumentTexte, type NoeudTexte, type Note, docDepuisTexte } from '../../coeur/tableau'
 
 /** Vrai s'il y a au moins un caractère visible dans le document. */
@@ -70,6 +71,61 @@ export function caseSeule(doc: NoeudTexte): boolean | null {
   if (t === '[]' || t === '[ ]') return false
   if (t === '[x]' || t === '[X]') return true
   return null
+}
+
+export interface CouleurLue {
+  /** `#rrggbb`. */
+  couleur: string
+  /** La façon dont elle était écrite ; le nuancier la montre de même. */
+  format: FormatCode
+}
+
+const dieze = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0')
+
+/** Teinte (0 à 360), saturation et luminosité (0 à 100) vers `#rrggbb`. */
+function hslVersHex(h: number, s: number, l: number): string {
+  const sat = s / 100
+  const lum = l / 100
+  const k = (n: number) => (n + h / 30) % 12
+  const a = sat * Math.min(lum, 1 - lum)
+  const f = (n: number) => lum - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)))
+  return `#${dieze(f(0) * 255)}${dieze(f(8) * 255)}${dieze(f(4) * 255)}`
+}
+
+/**
+ * Un code couleur seul : `#abc`, `#aabbcc` (avec ou sans transparence), `rgb(r, g, b)`, `rgba(…)`, `hsl(h, s%, l%)`,
+ * `hsla(…)`. Rend la couleur en `#rrggbb` (la transparence s'en va) et le format écrit ; `null` si ce n'en est pas un.
+ */
+export function lireCouleur(saisie: string): CouleurLue | null {
+  const t = saisie.trim()
+  const hex = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(t)
+  if (hex) {
+    const h = hex[1]!
+    const couleur = normaliserHex(h.length === 4 ? h.slice(0, 3) : h.length === 8 ? h.slice(0, 6) : h)
+    return couleur ? { couleur, format: 'hex' } : null
+  }
+  const nombre = '(-?\\d+(?:\\.\\d+)?)'
+  const sep = '\\s*[,\\s]\\s*'
+  const alpha = '(?:\\s*[,/]\\s*\\d*\\.?\\d+%?)?'
+  const rgb = new RegExp(`^rgba?\\(\\s*${nombre}${sep}${nombre}${sep}${nombre}${alpha}\\s*\\)$`, 'i').exec(t)
+  if (rgb) {
+    const [r, g, b] = [rgb[1], rgb[2], rgb[3]].map(Number) as [number, number, number]
+    if ([r, g, b].some((v) => v < 0 || v > 255)) return null
+    return { couleur: `#${dieze(r)}${dieze(g)}${dieze(b)}`, format: 'rgb' }
+  }
+  const hsl = new RegExp(`^hsla?\\(\\s*${nombre}(?:deg)?${sep}${nombre}%${sep}${nombre}%${alpha}\\s*\\)$`, 'i').exec(t)
+  if (hsl) {
+    const [h, s, l] = [hsl[1], hsl[2], hsl[3]].map(Number) as [number, number, number]
+    if (s < 0 || s > 100 || l < 0 || l > 100) return null
+    return { couleur: hslVersHex(((h % 360) + 360) % 360, s, l), format: 'hsl' }
+  }
+  return null
+}
+
+/** Une note qui n'est qu'un code couleur (`#3a76df`, `rgb(…)`, `hsl(…)`) : la couleur, sinon `null`. */
+export function couleurSeule(doc: NoeudTexte): CouleurLue | null {
+  const t = texteSeul(doc)
+  return t === null ? null : lireCouleur(t)
 }
 
 /** Les extensions qu'on reconnaît sans protocole ni `www.` : assez pour l'usage, sans prendre « node.js » pour une adresse. */

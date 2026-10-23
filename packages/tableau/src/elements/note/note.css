@@ -144,6 +144,8 @@
 .notak-note .notak-texte blockquote > p { margin-bottom: 0; }
 .notak-texte blockquote > p:first-child::before { content: '\201c'; }
 .notak-texte blockquote > p:last-child::after { content: '\201d'; }
+.notak-texte blockquote[data-guillemets] > p:first-child::before,
+.notak-texte blockquote[data-guillemets] > p:last-child::after { content: none; }
 .notak-texte blockquote + blockquote { margin-top: 10px; }
 .notak-texte blockquote:has(+ blockquote) { margin-bottom: 10px; }
 
@@ -553,14 +555,42 @@
   mask-image: linear-gradient(to bottom, #000 calc(100% - 44px), transparent);
 }
 
-/* La légende : sous la carte, en petit, comme sous une image. */
+/* En lecture seule le texte se choisit et se copie, comme une page. */
+.notak-note[data-lecture-seule] .notak-texte {
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+
+/* La légende : un texte riche au bas de la carte, 12 px sur 20, sur le fond de la carte. */
 .notak-note-legende {
+  position: relative;
   margin: -4px -20px -14px -24px;
   padding: 3px 24px 20px;
   font-size: 12px;
   line-height: 20px;
   letter-spacing: 0;
   overflow-wrap: anywhere;
+}
+
+.notak-note .notak-legende-texte,
+.notak-note .notak-legende-texte.notak-texte {
+  font-size: 12px;
+  line-height: 20px;
+  letter-spacing: 0;
+}
+
+.notak-note .notak-legende-texte p,
+.notak-note .notak-legende-texte.notak-texte > :is(p):last-child {
+  margin: 0;
+}
+
+/* La légende vide dit où écrire. */
+.notak-note .notak-note-legende .notak-legende-texte.notak-texte:has(> p:only-child:empty)::before,
+.notak-note .notak-note-legende .notak-legende-texte.notak-texte:has(> p:only-child > br.ProseMirror-trailingBreak:only-child)::before {
+  content: attr(data-attente);
+  position: absolute;
+  color: var(--notak-attente, var(--notak-pale));
   pointer-events: none;
 }
 
@@ -858,6 +888,19 @@
 .notak-panneau-couleur .notak-pastilles-grille button[aria-pressed='true'] {
   outline: 2px solid var(--notak-selection);
   outline-offset: 4px;
+}
+
+/* Un trait entre la grille des fonds et ce qui se règle dessous : paires fond + texte, couleur du texte. */
+.notak-couleur-trait {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid rgb(0 0 0 / 0.1);
+}
+
+.notak-panneau-couleur .notak-pastilles-grille button.notak-pastille-paire {
+  font: 600 12px/18px var(--notak-police, Inter, system-ui, sans-serif);
+  text-align: center;
 }
 
 /* « Couleur personnalisée » : toute la largeur ; le sélecteur natif est sous le libellé, invisible. */

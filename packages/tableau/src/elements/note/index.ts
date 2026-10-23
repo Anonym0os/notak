@@ -3,7 +3,8 @@ import { HAUTEUR_NOTE_MIN, type Note, type NoeudTexte, nouvelleNote, texteBrut }
 import { registre } from '../registre'
 import { RenduNote } from './Note'
 import { OutilsNote } from './Outils'
-import { adresseSeule, docDepuisCollage, enDocument, tachesDepuisTexte } from './conversion'
+import { adresseSeule, couleurSeule, docDepuisCollage, enDocument, tachesDepuisTexte } from './conversion'
+import { legendeVide } from './legende'
 import { nouvelleListeTaches } from '../taches/liste'
 import { EXTENSIONS_NOTE } from './extensions'
 import './note.css'
@@ -51,9 +52,18 @@ registre.type<Note>({
     const forme = format ? { ...(couleur && { couleur }), ...(fond && { fond }), ...(barre && { barre }), ...(couleurTexte && { couleurTexte }) } : {}
     return { ...neuve, largeur: e.largeur, contenu: { ...neuve.contenu, ...forme } }
   },
+  // À la sortie de l'édition : une adresse seule devient un lien, un code couleur seul un nuancier ; une légende
+  // restée vide s'en va.
   convertir: (c) => {
     const url = adresseSeule(c.texte)
-    return url ? { type: 'lien', url, statut: 'attente' } : null
+    if (url) return { type: 'lien', url, statut: 'attente' }
+    const couleur = couleurSeule(c.texte)
+    if (couleur) return { type: 'nuancier', couleur: couleur.couleur, format: couleur.format }
+    if (c.legende !== undefined && legendeVide(c.legende)) {
+      const { legende: _, ...reste } = c
+      return reste
+    }
+    return null
   },
   outils: [
     {

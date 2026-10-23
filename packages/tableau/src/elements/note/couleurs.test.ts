@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { COULEURS_NOTE } from '../../coeur/tableau'
 import { readFileSync } from 'node:fs'
 import type { Element } from '../../coeur/tableau'
-import { FOND_NOTE, SEUIL_SOMBRE, TEXTE_CLAIR, TEXTE_SOMBRE, contraste, couleurTexteSur, couleursSuggerees, fondDeNote, lireHex, luminance, texteDeNote, texteDuContenu } from './couleurs'
+import { FOND_NOTE, SEUIL_SOMBRE, TEXTE_CLAIR, TEXTE_SOMBRE, contraste, couleurTexteSur, couleursSuggerees, contenuAvecPaire, fondDeNote, pairesUtilisees, lireHex, luminance, texteDeNote, texteDuContenu } from './couleurs'
 
 describe('contraste', () => {
   it('mesure le noir et le blanc aux deux bouts', () => {
@@ -76,5 +76,25 @@ describe('couleursSuggerees', () => {
   it('s\'arrête à huit', () => {
     const els = Array.from({ length: 12 }, (_, i) => note({ fond: `#0000${(i + 10).toString(16)}` }))
     expect(couleursSuggerees(els)).toHaveLength(8)
+  })
+})
+
+describe('pairesUtilisees', () => {
+  const note = (contenu: object): Element => ({ id: 'n', x: 0, y: 0, largeur: 34, contenu: { type: 'note', texte: { type: 'doc' }, ...contenu } }) as never
+  it('compte les couples fond + texte, les plus employés d\'abord, sans les notes sans fond', () => {
+    const els = [note({ couleur: 'vert' }), note({ fond: '#000000' }), note({ fond: '#000000' }), note({ fond: '#000000', couleurTexte: '#ff0000' }), note({})]
+    expect(pairesUtilisees(els)).toEqual([
+      { fond: '#000000', texte: TEXTE_CLAIR },
+      { fond: FOND_NOTE.vert, texte: couleurTexteSur(FOND_NOTE.vert) },
+      { fond: '#000000', texte: '#ff0000' },
+    ])
+  })
+})
+
+describe('contenuAvecPaire', () => {
+  it('pose la couleur nommée quand le fond en est une, et le texte seulement s\'il n\'est pas imposé', () => {
+    const n = { type: 'note', texte: { type: 'doc' }, fond: '#123456', couleurTexte: '#ff0000' } as never
+    expect(contenuAvecPaire(n, { fond: FOND_NOTE.vert, texte: couleurTexteSur(FOND_NOTE.vert) })).toEqual({ type: 'note', texte: { type: 'doc' }, couleur: 'vert' })
+    expect(contenuAvecPaire(n, { fond: '#000000', texte: '#ff0000' })).toEqual({ type: 'note', texte: { type: 'doc' }, fond: '#000000', couleurTexte: '#ff0000' })
   })
 })

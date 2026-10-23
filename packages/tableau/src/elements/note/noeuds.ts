@@ -36,6 +36,32 @@ const SAISIE_ENCADRE = new RegExp(
   'iu',
 )
 
+/** Un texte qui s'ouvre et se ferme déjà par des guillemets : la citation n'en ajoute pas d'autres. */
+export const entreGuillemets = (texte: string) => /^\s*[«“"‘„]/u.test(texte) && /[»”"’‟]\s*$/u.test(texte)
+
+/**
+ * La citation. Comme celle de Tiptap, mais elle se sait déjà entre guillemets (`data-guillemets`) quand son texte
+ * en porte : `note.css` ne lui en pose alors pas d'autres.
+ */
+export const Citation = Node.create({
+  name: 'blockquote',
+  group: 'block',
+  content: 'block+',
+  defining: true,
+  parseHTML: () => [{ tag: 'blockquote' }],
+  renderHTML: ({ node, HTMLAttributes }) => ['blockquote', mergeAttributes(HTMLAttributes, entreGuillemets(node.textContent) ? { 'data-guillemets': '' } : {}), 0],
+  addCommands() {
+    return {
+      setBlockquote: () => ({ commands }) => commands.wrapIn(this.name),
+      toggleBlockquote: () => ({ commands }) => commands.toggleWrap(this.name),
+      unsetBlockquote: () => ({ commands }) => commands.lift(this.name),
+    }
+  },
+  addInputRules() {
+    return [wrappingInputRule({ find: /^\s*>\s$/, type: this.type })]
+  },
+})
+
 /** Met les blocs choisis dans un encadré, ou les en sort. */
 export function basculerEncadre(editor: Editor): boolean {
   const c = editor.chain().focus()

@@ -1,4 +1,4 @@
-import { EditorContent, getSchema, useEditor } from '@tiptap/react'
+import { type Editor, EditorContent, getSchema, useEditor } from '@tiptap/react'
 import { renderToReactElement } from '@tiptap/static-renderer/pm/react'
 import { memo, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -11,10 +11,12 @@ import { OutilsTexteGauche } from './OutilsTexte'
 import { Marge } from './Marge'
 import { MARQUE_FIL, type Fils, avecFil, filsVivants, sansPassagesMuets } from './fils'
 import { type Pont, Propositions, extensionPropositions } from './Propositions'
-import { adresseSeule, adressesEnLiens, caseSeule, docEstVide } from './conversion'
+import { adresseSeule, adressesEnLiens, caseSeule, couleurSeule, docEstVide } from './conversion'
 import { docVide } from '../taches/liste'
 import { fondDeNote, luminance, texteDuContenu } from './couleurs'
 import { EXTENSIONS_NOTE, EXTENSIONS_NOTE_PARTAGEE, type GestesEdition, raccourcisEdition } from './extensions'
+import { type ActionsLegende, LegendeEditeur, LegendeFigee } from './LegendeRiche'
+import { docLegende, legendeNeuve, legendeVide } from './legende'
 
 export function RenduNote(props: PropsRendu<Note>) {
   const { element, enEdition } = props
@@ -52,6 +54,7 @@ export function RenduNote(props: PropsRendu<Note>) {
       data-couleur={contenu.fond ? undefined : contenu.couleur}
       data-variante={contenu.variante}
       data-barre={contenu.barre ? '' : undefined}
+      data-lecture-seule={props.contexte.services.lectureSeule ? '' : undefined}
       data-teinte={fondDeNote(contenu) ? '' : undefined}
       data-ton={clair === undefined ? undefined : clair ? 'clair' : 'sombre'}
       data-deborde={deborde || undefined}
@@ -66,7 +69,11 @@ export function RenduNote(props: PropsRendu<Note>) {
     >
       {contenu.barre && <div className="notak-note-bande" style={{ background: contenu.barre }} aria-hidden />}
       {enEdition ? <Editeur {...props} /> : <TexteFige texte={contenu.texte} fils={contenu.fils} />}
-      {contenu.legende && <div className="notak-note-legende">{contenu.legende}</div>}
+      {!enEdition && !legendeVide(contenu.legende) && (
+        <div className="notak-note-legende">
+          <LegendeFigee doc={docLegende(contenu.legende)!} />
+        </div>
+      )}
     </div>
   )
 }
@@ -96,10 +103,23 @@ function Editeur(props: PropsRendu<Note>) {
   const ecrire = (texte: NoeudTexte, apres: Fils | undefined) => {
     fils.current = apres
     setFilsVus(apres)
-    const { fils: _, ...reste } = contenu
-    brouillon({ ...reste, texte, ...(apres ? { fils: apres } : {}) })
+    const { fils: _, ...reste } = courant.current
+    poser({ ...reste, texte, ...(apres ? { fils: apres } : {}) })
   }
   const pont = useRef<Pont | null>(null)
+  // Le dernier contenu écrit : le texte et la légende s'écrivent chacun de son côté, sans se défaire l'un l'autre.
+  const courant = useRef(contenu)
+  courant.current = contenu
+  const poser = (apres: Note) => {
+    courant.current = apres
+    brouillon(apres)
+  }
+  // La légende a son propre éditeur ; la barre de gauche suit celui qui a le focus.
+  const [editeurLegende, setEditeurLegende] = useState<Editor | null>(null)
+  const [surLegende, setSurLegende] = useState(false)
+  const [legendeOuverte, setLegendeOuverte] = useState(contenu.legende !== undefined)
+  const actionsLegende = useRef<ActionsLegende | null>(null)
+  const pointDepart = useRef<{ x: number; y: number } | null>(null)
   // Lu une fois, à l'entrée en édition : la suite du texte arrive par le fragment.
   const fragment = useMemo(() => textePartage(contexte, element.id, contenu.texte, SCHEMA), [])
   const extensions = useMemo(
@@ -126,17 +146,53 @@ function Editeur(props: PropsRendu<Note>) {
   // (les effets des enfants passent avant, `EditorContent` y accroche la vue).
   useEffect(() => {
     if (!editeur || editeur.isDestroyed) return
-    const ou = contexte.prendrePointEdition()
+    const ou = (pointDepart.current = contexte.prendrePointEdition())
     const pos = ou && editeur.view.posAtCoords({ left: ou.x, top: ou.y })
     // Tout de suite, sans la focalisation différée de Tiptap : ce qu'on tape aussitôt arrive dans la note.
     editeur.commands.setTextSelection(pos ? pos.pos : editeur.state.doc.content.size)
     editeur.view.focus()
   }, [editeur, contexte])
 
+  // Un clic dans la légende, ou une légende neuve et vide : l'écriture commence dans la légende.
+  const legendeFaite = useRef(false)
+  useEffect(() => {
+    if (!editeurLegende || editeurLegende.isDestroyed || legendeFaite.current) return
+    legendeFaite.current = true
+    const ou = pointDepart.current
+    const zone = editeurLegende.view.dom.getBoundingClientRect()
+    if (ou && ou.x >= zone.left && ou.x <= zone.right && ou.y >= zone.top && ou.y <= zone.bottom) {
+      editeurLegende.commands.focus(editeurLegende.view.posAtCoords({ left: ou.x, top: ou.y })?.pos ?? 'end')
+    } else if (!ou && legendeVide(contenu.legende)) editeurLegende.commands.focus('end')
+  }, [editeurLegende])
+  useEffect(() => {
+    if (!editeur || !editeurLegende) return
+    const surTexte = () => setSurLegende(false)
+    const surLeg = () => setSurLegende(true)
+    editeur.on('focus', surTexte)
+    editeurLegende.on('focus', surLeg)
+    return () => {
+      editeur.off('focus', surTexte)
+      editeurLegende.off('focus', surLeg)
+    }
+  }, [editeur, editeurLegende])
+  // L'éditeur dont la barre de gauche montre les outils : celui qui a le focus.
+  const actif = surLegende && editeurLegende ? editeurLegende : editeur
+  actionsLegende.current = {
+    lien: () => gestes.current.lien(),
+    noteDessous: () => gestes.current.noteDessous(),
+    retirer: () => {
+      const { legende: _, ...reste } = courant.current
+      poser(reste)
+      setLegendeOuverte(false)
+      setSurLegende(false)
+      editeur?.commands.focus('end')
+    },
+  }
+
   gestes.current = {
     lien: () => {
-      if (editeur && (!editeur.state.selection.empty || editeur.isActive('link')))
-        setLien((editeur.getAttributes('link').href as string | undefined) ?? '')
+      if (actif && (!actif.state.selection.empty || actif.isActive('link')))
+        setLien((actif.getAttributes('link').href as string | undefined) ?? '')
     },
     estVide: () => !!editeur && docEstVide(editeur.getJSON() as NoeudTexte),
     supprimerNote: () => {
@@ -157,11 +213,16 @@ function Editeur(props: PropsRendu<Note>) {
       ecrire(editeur.getJSON() as NoeudTexte, avecFil(fils.current, id, { type: 'commentaire', messages: [] }))
       setOuvert(id)
     },
-    // Une note qui n'est qu'une adresse devient un lien en sortant ; qui n'est qu'une case, une liste de tâches.
+    // Une note qui n'est qu'une adresse devient un lien en sortant, qui n'est qu'un code couleur un nuancier,
+    // qui n'est qu'une case une liste de tâches.
     entree: () => {
-      if (!editeur || !adresseSeule(editeur.getJSON() as NoeudTexte)) return false
-      contexte.finirEdition()
-      return true
+      if (!editeur) return false
+      const doc = editeur.getJSON() as NoeudTexte
+      if (adresseSeule(doc) || couleurSeule(doc)) {
+        contexte.finirEdition()
+        return true
+      }
+      return gestes.current.enTaches()
     },
     enTaches: () => {
       const cochee = editeur && caseSeule(editeur.getJSON() as NoeudTexte)
@@ -178,10 +239,17 @@ function Editeur(props: PropsRendu<Note>) {
   return (
     <>
       {/* Le bloc « barre de gauche en édition » : le portail de l'éditeur vers l'emplacement que la toile prête. */}
-      {editeur && !attendue && <BarreTexte editor={editeur} lien={lien} surLien={setLien} commenter={contexte.services.lectureSeule ? undefined : () => gestes.current.commenter()} />}
-      {editeur && attendue && cible &&
+      {actif && !attendue && <BarreTexte editor={actif} lien={lien} surLien={setLien} commenter={contexte.services.lectureSeule || surLegende ? undefined : () => gestes.current.commenter()} />}
+      {actif && attendue && cible &&
         createPortal(
-          <OutilsTexteGauche editor={editeur} lien={lien} surLien={setLien} finir={() => contexte.finirEdition()} commenter={contexte.services.lectureSeule ? undefined : () => gestes.current.commenter()} />,
+          <OutilsTexteGauche
+            editor={actif}
+            variante={surLegende ? 'legende' : 'note'}
+            lien={lien}
+            surLien={setLien}
+            finir={() => contexte.finirEdition()}
+            commenter={contexte.services.lectureSeule || surLegende ? undefined : () => gestes.current.commenter()}
+          />,
           cible,
         )}
       {editeur && (
@@ -196,6 +264,16 @@ function Editeur(props: PropsRendu<Note>) {
       )}
       {editeur && <Propositions editeur={editeur} contexte={contexte} pont={pont} />}
       <EditorContent editor={editeur} />
+      {legendeOuverte && (
+        <div className="notak-note-legende">
+          <LegendeEditeur
+            depart={docLegende(contenu.legende) ?? legendeNeuve()}
+            ecrire={(doc) => poser({ ...courant.current, legende: doc })}
+            surEditeur={setEditeurLegende}
+            actions={actionsLegende}
+          />
+        </div>
+      )}
     </>
   )
 }

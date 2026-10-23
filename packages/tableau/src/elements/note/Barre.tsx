@@ -119,7 +119,7 @@ export function BarreTexte({ editor, lien, surLien, commenter }: Props) {
  * Le menu « Style de texte » : les blocs (chaque ligne dans son style, le raccourci ou la coche de l'actif), puis la
  * couleur du texte et le surlignage. Il reste ouvert après un choix.
  */
-export function MenuStyle({ editor, etat }: { editor: Editor; etat: EtatTexte }) {
+export function MenuStyle({ editor, etat, sansBlocs = false }: { editor: Editor; etat: EtatTexte; sansBlocs?: boolean }) {
   const actif = (style: StyleMenu) => (style === 'encadre' ? etat.encadre : style === 'texte' ? etat.style === 'texte' && !etat.encadre : etat.style === style)
   // Les pastilles « A » se montrent sur le vrai fond de la carte (blanc si elle n'en a pas).
   const fondCarte = (() => {
@@ -130,7 +130,7 @@ export function MenuStyle({ editor, etat }: { editor: Editor; etat: EtatTexte })
   const surFond = fondCarte ? { background: fondCarte } : undefined
   return (
     <div className="notak-note-menu notak-menu-style" role="menu">
-      {STYLES.map(({ style, ligne, raccourci }) => (
+      {!sansBlocs && STYLES.map(({ style, ligne, raccourci }) => (
         <button
           key={style}
           type="button"
@@ -145,7 +145,7 @@ export function MenuStyle({ editor, etat }: { editor: Editor; etat: EtatTexte })
           {actif(style) ? <Icone nom="coche" taille={16} /> : <kbd>{raccourci}</kbd>}
         </button>
       ))}
-      <hr />
+      {!sansBlocs && <hr />}
       <span className="notak-menu-rubrique">{t('barre.rubriqueCouleur')}</span>
       <div className="notak-note-pastilles" aria-label={t('barre.couleurTexte')}>
         <button type="button" title={t('barre.defaut')} aria-label={t('barre.couleurDefaut')} aria-pressed={etat.couleur === null && etat.surlignage === null} data-vide style={surFond} onClick={() => { poserCouleurTexte(editor, null); basculerSurlignage(editor, null) }}>

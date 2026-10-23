@@ -1,3 +1,4 @@
+import { texteLegende } from '../elements/note/legende'
 import { texteCherchableDeTable } from '../elements/table/affichage'
 import { type Element, type NoeudTexte, texteBrut } from './tableau'
 
@@ -14,7 +15,7 @@ export function texteCherchable(e: Element, titreDe: (id: string) => string | un
   const doc = (n: NoeudTexte) => texteBrut(n)
   switch (c.type) {
     case 'note':
-      return doc(c.texte)
+      return [doc(c.texte), texteLegende(c.legende)].filter(Boolean).join('\n')
     case 'taches':
       return [c.titre ?? '', doc(c.texte)].join('\n')
     case 'lien':
