@@ -1826,7 +1826,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (defDe(chaine[0]!)?.calque === 'lignes') continue
       // Sur la carte d'un tableau : ce qu'on lâche part dans ce tableau.
       const carte = elements.find((x) => x.id === idDe(chaine[0]!))
-      if (carte?.contenu.type === 'tableau' && services.deposerDans && !interdits.has(carte.contenu.cible)) {
+      // Rangée dans une colonne, la carte laisse 18 px en haut et en bas à l'insertion entre cartes.
+      const rc = carte?.parent ? chaine[0]!.getBoundingClientRect() : null
+      const dedans = !rc || (e.clientY > rc.top + 18 * camera.echelle && e.clientY < rc.bottom - 18 * camera.echelle)
+      if (carte?.contenu.type === 'tableau' && dedans && services.deposerDans && !interdits.has(carte.contenu.cible)) {
         versTableau = { id: carte.contenu.cible, noeud: chaine[0]! }
         break
       }

@@ -70,8 +70,8 @@ export function avecImage(c: RenvoiTableau, image: Id): RenvoiTableau {
   return { ...reste, image }
 }
 
-/** Un raccourci vers le même tableau, posé à `ou`, avec l'icône de la carte d'où il vient. */
+/** Un raccourci vers le même tableau, posé à `ou`, avec l'icône de la carte d'où il vient ; titre et couleur sont ceux du tableau tant qu'on ne lui en donne pas. */
 export function nouveauRaccourci(source: Element<RenvoiTableau>, ou: { x: number; y: number }): Element<RenvoiTableau> {
-  const { titre: _, raccourci: __, ...reste } = source.contenu
+  const { titre: _, raccourci: __, couleur: ___, ...reste } = source.contenu
   return { id: nouvelId(), x: Math.round(ou.x), y: Math.round(ou.y), largeur: source.largeur, contenu: { ...reste, raccourci: true } }
 }
