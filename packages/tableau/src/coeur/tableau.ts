@@ -177,6 +177,10 @@ export interface Fichier {
   taille: number
   /** Le nom qu'on lui a donné, à la place du nom d'origine. */
   titre?: string
+  /** Un mot sous la carte. */
+  legende?: string
+  /** Rien que l'icône et le nom : ni aperçu des pages, ni lecteur. */
+  icone?: boolean
 }
 
 /** Une colonne : ses éléments portent `parent` = l'id de la colonne, et un `ordre`. */
@@ -227,6 +231,12 @@ export interface RenvoiTableau {
    * remet ce champ, et la carte en reporte la valeur sur le tableau cible.
    */
   titre?: string
+  /** Une icône de la bibliothèque (voir `elements/tableau/icones.ts`), à la place de l'initiale. */
+  icone?: string
+  /** Une image envoyée (clé du dépôt de fichiers), à la place de l'initiale ; elle prime sur `icone`. */
+  image?: Id
+  /** Un raccourci : le même tableau posé à un autre endroit. Le jeter ne jette pas le tableau. */
+  raccourci?: boolean
 }
 
 /** Qui a écrit un message, tel qu'il se présentait à ce moment-là. */
@@ -275,6 +285,15 @@ export interface Lieu {
   type: 'lieu'
   adresse: string
   nom?: string
+  /** Où l'adresse tombe sur la carte, trouvé par le service `localiser` ; il sert à dessiner la carte intégrée. */
+  position?: PositionLieu
+}
+
+/** Un point de la carte, en degrés. `pour` : la recherche qui l'a donné (si l'adresse change, il est périmé). */
+export interface PositionLieu {
+  lat: number
+  lon: number
+  pour: string
 }
 
 /** Un trait de crayon : ses points à la suite (`x1, y1, x2, y2…`, dans le repère de la feuille), sa couleur et son épaisseur. */
@@ -417,6 +436,8 @@ export function docDepuisTexte(texte: string): NoeudTexte {
 /** Le texte d'un document, sans mise en forme : un bloc par ligne. */
 export function texteBrut(n: NoeudTexte): string {
   if (n.text !== undefined) return n.text
+  // Une personne ou un tableau cité dans le texte se lit par son nom.
+  if ((n.type === 'mention' || n.type === 'lienTableau') && typeof n.attrs?.label === 'string') return n.type === 'mention' ? `@${n.attrs.label}` : n.attrs.label
   return (n.content ?? []).map(texteBrut).filter((t) => t !== '').join('\n')
 }
 

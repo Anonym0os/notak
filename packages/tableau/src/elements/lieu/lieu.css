@@ -1,5 +1,6 @@
 .notak-lieu {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   align-items: flex-start;
   font-size: 14px;
@@ -83,4 +84,20 @@
 
 .notak-lieu-outil:hover {
   background: var(--notak-fond);
+}
+
+/* La carte intégrée prend toute la largeur, au-dessus du nom et de l'adresse. */
+.notak-lieu-carte {
+  flex: 1 1 100%;
+  box-sizing: border-box;
+  width: 100%;
+  height: 190px;
+  border: 0;
+  border-radius: 6px;
+  background: #dfe9d8;
+  pointer-events: none;
+}
+
+.notak-lieu-carte[data-actif] {
+  pointer-events: auto;
 }

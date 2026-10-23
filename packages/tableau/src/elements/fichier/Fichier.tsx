@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Fichier } from '../../coeur/tableau'
 import { useFichier } from '../envois'
 import type { PropsOutils, PropsRendu } from '../types'
-import { extensionDe, genreDe, lisible, tailleLisible } from './genre'
+import { adresseApercuPdf, apercuDe, extensionDe, genreDe, lisible, tailleLisible } from './genre'
 
 const sansTitre = ({ titre: _, ...reste }: Fichier): Fichier => reste
 /** Les liens et les lecteurs de la carte ne lancent pas de glisser. */
@@ -13,9 +13,14 @@ export function RenduFichier({ element, enEdition, contexte, brouillon }: PropsR
   const { adresse, enRoute } = useFichier(element, contexte)
   const genre = genreDe(c.nom, c.typeMime)
   const extension = extensionDe(c.nom)
-  const lecteur = lisible(c.typeMime)
+  const apercu = apercuDe(c.nom, c.typeMime, c.icone)
+  const lecteur = c.icone ? null : lisible(c.typeMime)
   return (
-    <div className="notak-fichier" data-genre={genre}>
+    <div className="notak-fichier" data-genre={genre} data-icone={c.icone || undefined}>
+      {apercu === 'pdf' && adresse && !enRoute && (
+        // La première page seulement ; le cadre n'attrape pas le pointeur, la carte reste glissable.
+        <iframe className="notak-fichier-pdf" title={`Première page de ${c.titre ?? c.nom}`} src={adresseApercuPdf(adresse)} loading="lazy" tabIndex={-1} />
+      )}
       {lecteur === 'video' && adresse && (
         <video className="notak-fichier-video" src={adresse} controls preload="metadata" onPointerDown={garder} onDoubleClick={(e) => e.stopPropagation()} />
       )}
@@ -58,6 +63,11 @@ export function RenduFichier({ element, enEdition, contexte, brouillon }: PropsR
       {lecteur === 'son' && adresse && (
         <audio className="notak-fichier-son" src={adresse} controls preload="metadata" onPointerDown={garder} />
       )}
+      {enEdition ? (
+        <Legende contenu={c} ecrire={brouillon} finir={contexte.finirEdition} />
+      ) : (
+        c.legende && <div className="notak-fichier-legende">{c.legende}</div>
+      )}
     </div>
   )
 }
@@ -94,14 +104,52 @@ function Nom({ contenu, ecrire, finir }: { contenu: Fichier; ecrire(c: Fichier):
   )
 }
 
+/** La légende sous la carte ; vidée, elle disparaît. Entrée ferme. */
+function Legende({ contenu, ecrire, finir }: { contenu: Fichier; ecrire(c: Fichier): void; finir(): void }) {
+  return (
+    <input
+      className="notak-fichier-legende notak-fichier-champ"
+      aria-label="Légende"
+      placeholder="Légende…"
+      maxLength={500}
+      defaultValue={contenu.legende ?? ''}
+      onPointerDown={garder}
+      onChange={(e) => {
+        const { legende: _, ...reste } = contenu
+        const v = e.target.value.trim()
+        ecrire(v ? { ...reste, legende: v } : reste)
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          finir()
+        }
+      }}
+    />
+  )
+}
+
 export function OutilsFichier({ elements, contexte }: PropsOutils<Fichier>) {
   if (elements.length !== 1) return null
   const el = elements[0]!
   return (
     <>
       {!contexte.services.lectureSeule && (
-        <button type="button" title="Renommer le fichier" onClick={() => contexte.commencerEdition(el.id)}>
+        <button type="button" title="Renommer le fichier, écrire une légende" onClick={() => contexte.commencerEdition(el.id)}>
           Renommer
+        </button>
+      )}
+      {!contexte.services.lectureSeule && (
+        <button
+          type="button"
+          title={el.contenu.icone ? 'Montrer l’aperçu' : 'Réduire à l’icône et au nom'}
+          aria-pressed={!!el.contenu.icone}
+          onClick={() => {
+            const { icone: _, ...reste } = el.contenu
+            contexte.magasin.faire([{ type: 'contenu', id: el.id, avant: el.contenu, apres: el.contenu.icone ? reste : { ...reste, icone: true } }])
+          }}
+        >
+          Icône
         </button>
       )}
       <button type="button" title="Ouvrir dans un nouvel onglet" onClick={() => void ouvrirFichier(el.contenu, contexte)}>

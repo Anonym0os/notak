@@ -15,5 +15,6 @@ import './lieu'
 import './croquis'
 import './document'
 import './clone'
+import './rangee'
 // L'outil de couleur commun, une fois tous les types inscrits.
 import './couleur'

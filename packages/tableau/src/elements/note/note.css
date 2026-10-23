@@ -396,6 +396,38 @@
   margin-top: 4px;
 }
 
+/*
+ * Une note à hauteur bornée coupe son texte, pas sa légende : la carte ne rogne plus (la légende vit sous elle),
+ * c'est le texte qui rétrécit et qui s'efface en bas quand il déborde (`data-deborde`, posé par `RenduNote`).
+ */
+.notak-carte[data-plafond]:has(> .notak-note) {
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+}
+
+.notak-carte[data-plafond]:has(> .notak-note) > .notak-voile {
+  display: none;
+}
+
+.notak-carte[data-plafond] > .notak-note {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.notak-carte[data-plafond] > .notak-note > .notak-texte {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.notak-carte[data-plafond] > .notak-note[data-deborde] > .notak-texte {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 44px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 44px), transparent);
+}
+
 /* La légende : sous la carte, en petit, comme sous une image. */
 .notak-note-legende {
   position: absolute;
@@ -451,4 +483,65 @@
   border: 0;
   border-top: 1px solid currentColor;
   opacity: 0.35;
+}
+
+/* Une personne ou un tableau cité dans le texte : une pastille. */
+.notak-mention,
+.notak-lien-tableau {
+  padding: 0 5px;
+  border-radius: 9px;
+  background: rgb(0 0 0 / 0.07);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.notak-mention {
+  color: var(--notak-accent);
+}
+
+.notak-lien-tableau {
+  cursor: pointer;
+}
+
+.notak-lien-tableau:hover {
+  background: rgb(0 0 0 / 0.13);
+}
+
+/* La liste des propositions, sous le curseur, hors de la toile (elle ne suit pas le zoom). */
+.notak-propositions {
+  position: fixed;
+  z-index: 1000;
+  min-width: 160px;
+  max-width: 280px;
+  margin: 0;
+  padding: 4px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.18), 0 0 0 1px rgb(0 0 0 / 0.06);
+  color: #1f2328;
+  font: 13px/1.3 system-ui, sans-serif;
+  list-style: none;
+}
+
+.notak-propositions li {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-propositions li[data-actif] {
+  background: rgb(0 0 0 / 0.07);
+}
+
+.notak-proposition-teinte {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
 }

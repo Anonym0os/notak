@@ -51,3 +51,18 @@ export function tailleLisible(octets: number): string {
   const arrondi = v < 10 ? Math.round(v * 10) / 10 : Math.round(v)
   return `${String(arrondi).replace('.', ',')} ${unites[u]}`
 }
+
+/**
+ * L'adresse qui montre la première page d'un PDF dans un cadre : on demande la page 1, sans barre d'outils ni volet.
+ * (Les visionneuses des navigateurs lisent ces réglages après le `#` ; aucune ne les envoie au serveur.)
+ */
+export function adresseApercuPdf(adresse: string): string {
+  return `${adresse.replace(/#.*$/, '')}#page=1&toolbar=0&navpanes=0&scrollbar=0&view=FitH`
+}
+
+/** Ce que la carte montre au-dessus du nom : une page de PDF, une vidéo, ou rien (le mode icône ne montre rien). */
+export function apercuDe(nom: string, typeMime: string, icone: boolean | undefined): 'pdf' | 'video' | null {
+  if (icone) return null
+  const g = genreDe(nom, typeMime)
+  return g === 'pdf' ? 'pdf' : g === 'video' ? 'video' : null
+}

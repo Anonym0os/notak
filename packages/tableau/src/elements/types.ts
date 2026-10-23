@@ -95,6 +95,21 @@ export interface Services {
   lectureSeule?: boolean
   /** La présentation (Cmd+Alt+P) : rien ne se modifie, et un clic sur un élément le montre en grand. */
   presentation?: boolean
+  /**
+   * Les membres de l'espace (nom, couleur), pour citer quelqu'un avec `@` dans une note. Les personnes présentes
+   * sur le tableau sont proposées dans tous les cas ; ce service y ajoute celles qui n'y sont pas.
+   */
+  membres?(): { id: string; nom: string; couleur?: string }[]
+  /**
+   * Les tableaux de l'espace (id, titre, couleur), pour en citer un avec `[[` dans une note. Sans lui, la note ne
+   * propose que les tableaux déjà posés sur le tableau ouvert.
+   */
+  listerTableaux?(): { id: Id; titre: string; couleur?: CouleurNote }[]
+  /**
+   * Trouve où est une adresse sur la carte (un géocodeur) : le lieu en tire sa carte intégrée.
+   * Absent, le lieu reste une adresse avec un lien vers la carte.
+   */
+  localiser?(requete: string): Promise<{ lat: number; lon: number } | null>
   /** Un double-clic sur le vide crée une note (le réglage de chacun) ; absent : oui. */
   doubleClicCreeNote?: boolean
 }

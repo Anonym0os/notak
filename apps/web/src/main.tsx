@@ -19,12 +19,13 @@ import { EcranConnexion } from './connexion'
 import { Export } from './Export'
 import { Favori } from './Favori'
 import { apercu, fichiers, rapatrier } from './fichiers'
+import { localiser } from './geocodage'
 import { importerEspaceLocal } from './importLocal'
 import { PagePublique } from './PagePublique'
 import { Partage } from './Partage'
 import { enregistrerServiceWorker } from './pwa'
 
-const services = { fichiers, apercu, rapatrier, rechercherPartout, ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank') }
+const services = { fichiers, apercu, rapatrier, rechercherPartout, localiser, ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank') }
 
 /** Chaque tableau a son adresse, `/t/<id>` ; l'accueil est `/`. Le retour du navigateur ramène au précédent. */
 function adressePour(racine: string): Adresse {

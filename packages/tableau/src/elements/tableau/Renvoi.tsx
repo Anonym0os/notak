@@ -2,10 +2,27 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { RenvoiTableau } from '../../coeur/tableau'
 import { FOND_NOTE } from '../note/couleurs'
 import type { PropsRendu } from '../types'
+import { pastilleDe } from './icones'
 import { initiale, libelleContenu } from './libelles'
 import { demanderRenommage, ecouterRenommage, renommageEnCours } from './renommage'
 
 const sans = () => () => {}
+
+/** L'adresse de l'image d'un tableau, quand il en a une ; rien tant qu'elle n'est pas connue. */
+function useImage(fichier: string | undefined, contexte: PropsRendu<RenvoiTableau>['contexte']) {
+  const [adresse, setAdresse] = useState<string | null>(null)
+  const depot = contexte.services.fichiers
+  useEffect(() => {
+    setAdresse(null)
+    if (!fichier || !depot) return
+    let vivant = true
+    depot.adresse(fichier).then((a) => vivant && setAdresse(a), () => {})
+    return () => {
+      vivant = false
+    }
+  }, [fichier, depot])
+  return adresse
+}
 
 export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTableau>) {
   const { cible, titre: nomDonne } = element.contenu
@@ -16,6 +33,8 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
     return t ? JSON.stringify([t.titre, t.couleur, libelleContenu(t)]) : ''
   })
   const [titre = '', couleur, contenu = ''] = cle ? (JSON.parse(cle) as [string, string?, string?]) : []
+  const pastille = pastilleDe(element.contenu)
+  const image = useImage(pastille.genre === 'image' ? pastille.fichier : undefined, contexte)
   const enRenommage = useSyncExternalStore(ecouterRenommage, renommageEnCours) === element.id
   // Un clic sur un tableau déjà choisi : sur le titre, on le renomme ; sur l'icône, une bulle dit de double-cliquer.
   const dejaChoisie = useRef(false)
@@ -56,6 +75,7 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
   return (
     <div
       className="notak-renvoi"
+      data-raccourci={element.contenu.raccourci || undefined}
       onPointerDownCapture={() => {
         dejaChoisie.current = choisie
       }}
@@ -73,7 +93,22 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
         className="notak-renvoi-carre"
         style={{ background: FOND_NOTE[couleur && couleur !== 'transparent' ? (couleur as keyof typeof FOND_NOTE) : 'gris'] }}
       >
-        {initiale(titre)}
+        {pastille.genre === 'image' ? (
+          image && <img className="notak-renvoi-image" src={image} alt="" draggable={false} />
+        ) : pastille.genre === 'icone' ? (
+          <span className="notak-renvoi-signe" role="img" aria-label={pastille.libelle}>
+            {pastille.signe}
+          </span>
+        ) : (
+          initiale(titre)
+        )}
+        {element.contenu.raccourci && (
+          <span className="notak-renvoi-raccourci" title="Raccourci vers ce tableau" aria-label="Raccourci">
+            <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M6 3h7v7M13 3 4 12" />
+            </svg>
+          </span>
+        )}
       </div>
       {enRenommage ? (
         <Saisie depart={titre} valider={valider} />

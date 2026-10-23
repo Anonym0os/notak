@@ -43,3 +43,12 @@ export const placeAcote = (x: number, y: number, largeur: number): { x: number; 
 
 /** Ce qu'on lit d'un clone dans une liste, quand son original n'est plus là. */
 export const RESUME_SANS_ORIGINAL = 'Clone sans original'
+
+/**
+ * Les clones qui partent avec leur original quand il part à la corbeille. Un clone n'a pas de contenu à lui : sans
+ * original il ne montrerait plus rien. Ils reviennent avec lui (Cmd+Z, ou la restauration l'un après l'autre).
+ */
+export function clonesEmportes(supprimes: readonly Element[], tableau: { elements: readonly Element[] }): Element[] {
+  const partants = new Set(supprimes.map((e) => e.id))
+  return tableau.elements.filter((e) => e.contenu.type === 'clone' && e.corbeille === undefined && partants.has(e.contenu.cible))
+}
