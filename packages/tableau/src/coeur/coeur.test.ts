@@ -215,6 +215,11 @@ describe('caméra', () => {
     expect(cam.bornerVue(cam.CAMERA_DEPART, null, VUE)).toBe(cam.CAMERA_DEPART)
   })
 
+  test('sans recentrage (un élément a bougé), la vue dézoomée reste où elle est', () => {
+    const c = { origine: point(300, 300), echelle: 0.25 }
+    expect(cam.bornerVue(c, depuisTaille(point(0, 0), 20, 10), VUE, false)).toBe(c)
+  })
+
   test('très dézoomé, un écart de moins d’un demi-pixel laisse la caméra telle quelle', () => {
     const c = { origine: point(0, 0), echelle: 0.001 }
     const tout = cam.bornerVue(c, depuisTaille(point(0, 0), 20, 10), VUE)

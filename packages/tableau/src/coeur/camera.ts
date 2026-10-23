@@ -73,14 +73,15 @@ export const MARGE_DOCUMENT = point(50, 40)
 
 /**
  * Le tableau est un document borné en haut et à gauche : la vue n'y remonte pas plus loin que le contenu, marge
- * comprise. Sur un axe où tout le contenu tient avec ses marges (on a dézoomé), il se recentre.
+ * comprise. Sur un axe où tout le contenu tient avec ses marges (on a dézoomé), il se recentre, mais seulement si
+ * `recentrer` : quand le zoom ou la fenêtre change, jamais parce qu'un élément a bougé (la vue le suivrait).
  */
-export function bornerVue(c: Camera, contenu: Rect | null, v: Vue): Camera {
+export function bornerVue(c: Camera, contenu: Rect | null, v: Vue, recentrer = true): Camera {
   if (!contenu) return c
   const k = pxParUg(c)
   const vue = point(v.largeur / k, v.hauteur / k)
   const axe = (o: number, min: number, max: number, marge: number, taille: number) => {
-    if (max - min + 2 * marge <= taille) return (min + max) / 2 - taille / 2
+    if (max - min + 2 * marge <= taille) return recentrer ? (min + max) / 2 - taille / 2 : o
     return Math.max(o, min - marge)
   }
   const x = axe(c.origine.x, contenu.min.x, contenu.max.x, MARGE_DOCUMENT.x, vue.x)

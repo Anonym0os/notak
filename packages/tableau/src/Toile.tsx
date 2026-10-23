@@ -468,9 +468,17 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   useEffect(() => brancherPilote({ camera: () => etat.current.camera, vue: () => etat.current.vue, contenu, poser: setCamera }), [contenu])
   // Le document borné : après chaque mouvement de vue, la caméra revient dans ses bornes. Pas pendant un geste ni
   // une animation : la vue ne doit pas bouger sous le pointeur pendant qu'on tire un élément.
+  // Seul ce que la personne fait de la vue la recale : déplacer un élément ne la fait jamais bouger. Le recentrage
+  // (tout tient à l'écran) attend un changement de zoom ou de fenêtre.
+  const derniereBorne = useRef<{ camera: cam.Camera | null; vue: cam.Vue }>({ camera: null, vue })
   useLayoutEffect(() => {
     if (enGeste || anime || edition) return
-    const bornee = cam.bornerVue(camera, contenu(), vue)
+    const avant = derniereBorne.current
+    const memeVue = avant.vue.largeur === vue.largeur && avant.vue.hauteur === vue.hauteur
+    derniereBorne.current = { camera, vue }
+    if (avant.camera === camera && memeVue) return
+    const recentrer = !avant.camera || avant.camera.echelle !== camera.echelle || !memeVue
+    const bornee = cam.bornerVue(camera, contenu(), vue, recentrer)
     if (bornee !== camera) setCamera(bornee)
   }, [camera, enGeste, anime, edition, vue, tableau, contenu])
 
