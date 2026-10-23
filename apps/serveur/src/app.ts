@@ -19,6 +19,7 @@ import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from
 import type { Limiteur } from './debit.ts'
 import { type Role, auMoins, role, roleHerite } from './droits.ts'
 import { estFormatExport, exporterTexte, langueExport } from './exporter.ts'
+import { ErreurBanque, chercherImages } from './images.ts'
 import { indexerDocument, requeteIndex } from './indexation.ts'
 import { hacher, verifier } from './motsDePasse.ts'
 import { DUREE_SESSION_S, NOM_COOKIE, cookieAccesPublic, cookieEfface, cookieSession, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
@@ -799,6 +800,21 @@ export function creerApp(ctx: Contexte): Hono {
     } catch (e) {
       const cause = e instanceof ErreurApercu ? e.cause : 'injoignable'
       return c.json({ erreur: 'aperçu indisponible', code: 'apercu_indisponible', cause }, 502)
+    }
+  })
+
+  // ---- Banque d'images ----
+
+  // La clé Pexels vit ici et nulle part ailleurs ; sans elle, le panneau d'images le sait (503) et ne propose que l'envoi.
+  app.get('/api/images/recherche', async (c) => {
+    if (!utilisateurCourant(c)) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    try {
+      return c.json(await chercherImages({ cle: process.env.PEXELS_API_KEY, requete: c.req.query('q') ?? '', page: Number(c.req.query('page') ?? 1) }))
+    } catch (e) {
+      if (!(e instanceof ErreurBanque)) throw e
+      return e.code === 'non_configuree'
+        ? c.json({ erreur: 'recherche d’images non configurée', code: 'images_non_configurees' }, 503)
+        : c.json({ erreur: 'recherche d’images indisponible', code: 'images_indisponibles' }, 502)
     }
   })
 
