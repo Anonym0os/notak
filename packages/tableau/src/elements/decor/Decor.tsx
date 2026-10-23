@@ -1,13 +1,16 @@
-import { type ReactNode, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { type Element, type Etiquette, annoter } from '../../coeur/tableau'
 import { FilAttache } from '../commentaire/Attache'
-import { AUTEUR_INCONNU, initiales } from '../commentaire/fil'
+import { GlypheEpingle, aDuNouveau, couleurEpingle, useFermerAuClicDehors } from '../commentaire/Epingle'
+import { AUTEUR_INCONNU, epinglerEn, initiales, pointeEpingle } from '../commentaire/fil'
+import { marquerLu } from '../commentaire/suivi'
 import { definition } from '../registre'
 import type { ContexteToile } from '../types'
-import { FOND_NOTE, contraste } from '../note/couleurs'
-import { NOM_ETIQUETTE_MAX, basculerReaction, compterReactions, contourEtiquette, etatEcheance, etiquettesDe, libelleEcheance, quiReagit, renommerEtiquette, texteEtiquette } from './annotations'
+import { FOND_NOTE } from '../note/couleurs'
+import { NOM_ETIQUETTE_MAX, basculerReaction, compterReactions, contourEtiquette, etatEcheance, etiquettesDe, libelleEcheance, renommerEtiquette, texteEtiquette } from './annotations'
+import { PastilleReaction } from './PastilleReaction'
 import { choisirPuce, ouvrirFil, retenirContexte, useFilOuvert, usePuce } from './etat'
-import { t, tn } from '../../langue'
+import { t } from '../../langue'
 import { Icone } from '../../icones'
 
 const garder = (e: React.SyntheticEvent) => e.stopPropagation()
@@ -34,23 +37,112 @@ export function Decor({ element, contexte, mode }: { element: Element; contexte:
   )
 }
 
-/** La couleur d'une épingle sans couleur de fil : le bleu des liens de Milanote. */
-const BLEU_EPINGLE = '#2f63f7'
-
-/** Blanc ou presque noir pour le compte, selon la luminosité de l'épingle. */
-const texteEpingle = (hex: string) => (contraste(hex, '#ffffff') >= contraste(hex, '#323b4a') ? '#ffffff' : '#323b4a')
+/** Un appui qui bouge de moins que ça reste un clic. */
+const SEUIL_GLISSER = 4
+/** L'épingle s'aimante à la grille (10 px). */
+const GRILLE_EPINGLE = 10
 
 /**
- * Le fil de commentaires attaché à un élément : une épingle au coin haut droit de la carte (sa pointe à 20 px du bord
- * droit et du haut), le nombre de messages dedans (99 au plus). Un clic ouvre le fil dans une bulle à sa droite.
+ * Le fil de commentaires attaché à un élément : une épingle dont la pointe tombe où on l'a posée (à 20 px du bord
+ * droit et du haut par défaut), le nombre de messages dedans (99 au plus). Un clic ouvre le fil dans une bulle à sa
+ * droite. On la glisse ailleurs sur la carte, ou sur un autre élément, qui reprend alors le fil.
  */
 function Epingle({ element, contexte, ouvert }: { element: Element; contexte: ContexteToile; ouvert: boolean }) {
   const fil = element.commentaire
   const n = fil?.messages.length ?? 0
+  const racine = useRef<HTMLDivElement>(null)
+  const carte = useRef<HTMLElement | null>(null)
+  /** Un glisser vient de finir : le clic qui suit n'ouvre rien. */
+  const suppression = useRef(false)
+  const [taille, setTaille] = useState({ l: 0, h: 0 })
+  const [glisse, setGlisse] = useState<{ x: number; y: number } | null>(null)
+  const jeSuis = moiDe(contexte).id
+  const ecrire = !contexte.services.lectureSeule && !element.verrou
+  useLayoutEffect(() => {
+    const c = racine.current?.closest<HTMLElement>('.notak-carte')
+    carte.current = c ?? null
+    if (!c) return
+    const mesurer = () => setTaille((a) => (a.l === c.offsetWidth && a.h === c.offsetHeight ? a : { l: c.offsetWidth, h: c.offsetHeight }))
+    mesurer()
+    if (typeof ResizeObserver === 'undefined') return
+    const obs = new ResizeObserver(mesurer)
+    obs.observe(c)
+    return () => obs.disconnect()
+  })
+  useEffect(() => {
+    if (ouvert && fil) marquerLu(`fil:${element.id}`, fil.messages.reduce((d, m) => Math.max(d, m.date), 0))
+  }, [ouvert, fil, element.id])
+  useFermerAuClicDehors(ouvert, racine, () => ouvrirFil(null))
   if (n === 0 && !ouvert) return null
-  const hex = (fil?.couleur && FOND_NOTE[fil.couleur as keyof typeof FOND_NOTE]) || BLEU_EPINGLE
+  const hex = couleurEpingle(fil)
+  const pointe = glisse ?? (fil ? pointeEpingle(fil, taille.l, taille.h) : { x: Math.max(0, taille.l - 20), y: 20 })
+
+  // Le glisser : la pointe suit le pointeur, bornée à la carte, aimantée ; lâchée sur un autre élément, elle y passe.
+  const commencer = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    const c = carte.current
+    if (!ecrire || !fil || !c || e.button !== 0) return
+    const depart = { x: e.clientX, y: e.clientY }
+    let bouge = false
+    const point = (ev: PointerEvent) => {
+      const r = c.getBoundingClientRect()
+      const echelle = c.offsetWidth > 0 ? r.width / c.offsetWidth : 1
+      return { x: (ev.clientX - r.left) / echelle, y: (ev.clientY - r.top) / echelle }
+    }
+    const borne = (p: { x: number; y: number }) => ({
+      x: Math.max(0, Math.min(c.offsetWidth, Math.round(p.x / GRILLE_EPINGLE) * GRILLE_EPINGLE)),
+      y: Math.max(0, Math.min(c.offsetHeight, Math.round(p.y / GRILLE_EPINGLE) * GRILLE_EPINGLE)),
+    })
+    const bouton = e.currentTarget
+    bouton.setPointerCapture(e.pointerId)
+    const aller = (ev: PointerEvent) => {
+      if (!bouge && Math.hypot(ev.clientX - depart.x, ev.clientY - depart.y) < SEUIL_GLISSER) return
+      bouge = true
+      setGlisse(borne(point(ev)))
+    }
+    const fin = (ev: PointerEvent) => {
+      bouton.removeEventListener('pointermove', aller)
+      bouton.removeEventListener('pointerup', fin)
+      bouton.removeEventListener('pointercancel', fin)
+      bouton.releasePointerCapture?.(ev.pointerId)
+      setGlisse(null)
+      if (!bouge || ev.type === 'pointercancel') return
+      // Un clic n'a pas bougé : `onClick` s'en charge. Ici, on a glissé : plus de clic.
+      suppression.current = true
+      setTimeout(() => (suppression.current = false), 50)
+      const lu = contexte.magasin.lire()
+      const autre = document
+        .elementsFromPoint(ev.clientX, ev.clientY)
+        .map((x) => x.closest<HTMLElement>('.notak-carte[data-id]'))
+        .find((x) => x && x.dataset.id !== element.id)
+      const cible = autre ? lu.elements.find((x) => x.id === autre.dataset.id) : undefined
+      if (cible && autre && cible.contenu.type !== 'commentaire' && !cible.commentaire?.messages.length) {
+        // Un autre élément reprend le fil, à l'endroit où on l'a lâché.
+        const r = autre.getBoundingClientRect()
+        const echelle = autre.offsetWidth > 0 ? r.width / autre.offsetWidth : 1
+        const p = { x: (ev.clientX - r.left) / echelle, y: (ev.clientY - r.top) / echelle }
+        const sur = { x: Math.max(0, Math.min(autre.offsetWidth, Math.round(p.x / GRILLE_EPINGLE) * GRILLE_EPINGLE)), y: Math.max(0, Math.min(autre.offsetHeight, Math.round(p.y / GRILLE_EPINGLE) * GRILLE_EPINGLE)) }
+        const ops = [annoter(element, { commentaire: null }), annoter(cible, { commentaire: epinglerEn(fil, sur.x, sur.y) })].flatMap((o) => o ?? [])
+        if (ops.length === 2) contexte.magasin.faire(ops)
+        return
+      }
+      const p = borne(point(ev))
+      const op = annoter(element, { commentaire: epinglerEn(fil, p.x, p.y) })
+      if (op) contexte.magasin.faire([op])
+    }
+    bouton.addEventListener('pointermove', aller)
+    bouton.addEventListener('pointerup', fin)
+    bouton.addEventListener('pointercancel', fin)
+  }
   return (
-    <div className="notak-epingle" onPointerDown={garder} onDoubleClick={garder}>
+    <div
+      ref={racine}
+      className="notak-epingle"
+      data-glisse={glisse ? '' : undefined}
+      style={{ left: pointe.x, top: pointe.y }}
+      onPointerDown={garder}
+      onDoubleClick={garder}
+    >
       <button
         type="button"
         className="notak-epingle-bouton"
@@ -58,16 +150,18 @@ function Epingle({ element, contexte, ouvert }: { element: Element; contexte: Co
         aria-expanded={ouvert}
         aria-label={`${ouvert ? t('decor.fermerCommentaires') : t('decor.ouvrirCommentaires')} (${n})`}
         title={ouvert ? t('decor.fermerCommentaires') : t('decor.ouvrirCommentaires')}
-        onClick={() => ouvrirFil(ouvert ? null : element.id)}
+        onPointerDown={commencer}
+        onClick={() => {
+          if (suppression.current) {
+            suppression.current = false
+            return
+          }
+          ouvrirFil(ouvert ? null : element.id)
+        }}
       >
-        <svg className="notak-epingle-forme" viewBox="0 0 24 29" width="24" height="29" aria-hidden>
-          <path d="M12 28.5 3.2 18.2A11.2 11.2 0 0 1 1 11.5C1 5.4 5.9.5 12 .5s11 4.9 11 11c0 2.5-.8 4.8-2.2 6.7z" fill={hex} stroke="#fff" strokeWidth="1" />
-        </svg>
-        <span className="notak-epingle-compte" style={{ color: texteEpingle(hex) }}>
-          {n > 99 ? 99 : n}
-        </span>
+        <GlypheEpingle n={n} hex={hex} nonLu={!ouvert && aDuNouveau(`fil:${element.id}`, fil, jeSuis)} />
       </button>
-      {ouvert && <FilAttache element={element} contexte={contexte} fermer={() => ouvrirFil(null)} couleur={hex} />}
+      {ouvert && !glisse && <FilAttache element={element} contexte={contexte} fermer={() => ouvrirFil(null)} />}
     </div>
   )
 }
@@ -77,51 +171,6 @@ const fondDeCarte = (e: Element): string => {
   const c = e.contenu
   if (c.type !== 'note') return '#ffffff'
   return c.fond ?? (c.couleur && c.couleur in FOND_NOTE ? FOND_NOTE[c.couleur as keyof typeof FOND_NOTE] : '#ffffff')
-}
-
-/** Le prénom, ou le nom, de chaque personne dont on a l'identifiant (celles qui ne sont pas là restent inconnues). */
-function nomsDe(contexte: ContexteToile, ids: readonly string[], moi: string): string[] {
-  const connus = new Map((contexte.services.presence?.autres() ?? []).map((p) => [p.utilisateur.id, p.utilisateur.nom]))
-  return ids.filter((id) => id !== moi).map((id) => connus.get(id) ?? '')
-}
-
-/** Une pastille de réaction ; une info-bulle dit qui a réagi, après 300 ms de survol. */
-function PastilleReaction({ r, ids, contexte, moi, ecrire, reagir }: { r: { emoji: string; n: number; moi: boolean }; ids: readonly string[]; contexte: ContexteToile; moi: string; ecrire: boolean; reagir(emoji: string): void }) {
-  const [vue, setVue] = useState(false)
-  const minuterie = useRef<ReturnType<typeof setTimeout>>(undefined)
-  const montrer = () => {
-    clearTimeout(minuterie.current)
-    minuterie.current = setTimeout(() => setVue(true), 300)
-  }
-  const cacher = () => {
-    clearTimeout(minuterie.current)
-    setVue(false)
-  }
-  useEffect(() => () => clearTimeout(minuterie.current), [])
-  const { qui, n } = quiReagit(nomsDe(contexte, ids, moi), r.moi)
-  return (
-    <button
-      type="button"
-      className="notak-reaction"
-      aria-pressed={r.moi}
-      aria-disabled={!ecrire || undefined}
-      aria-label={`${r.emoji} ${r.n}`}
-      onClick={() => ecrire && reagir(r.emoji)}
-      onPointerEnter={montrer}
-      onPointerLeave={cacher}
-      onBlur={cacher}
-    >
-      <span className="notak-reaction-emoji" aria-hidden>
-        {r.emoji}
-      </span>
-      <span className="notak-reaction-compte">{r.n}</span>
-      {vue && (
-        <span className="notak-reaction-bulle" role="tooltip">
-          <strong>{qui}</strong> {n === 1 && r.moi ? t('decor.avezReagi') : tn('decor.aReagi', n)}
-        </span>
-      )}
-    </button>
-  )
 }
 
 /**

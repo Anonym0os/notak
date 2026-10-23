@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import type { Commentaire, Message } from '../../coeur/tableau'
-import { ajouterMessage, dateLisible, filVide, initiales, modifierMessage, morceauxDeTexte, plier, prenom, replier, resoudre, retirerMessage } from './fil'
+import { ajouterMessage, dateLisible, epinglerEn, estSimple, filVide, initiales, modifierMessage, morceauxDeTexte, plier, pointeEpingle, prenom, reagirAuMessage, replier, resoudre, retirerMessage, richeDe, texteDeRiche } from './fil'
 
 const auteur = { id: 'a', nom: 'Samy' }
 const msg = (id: string, texte = 'Bonjour'): Message => ({ id, auteur, date: 0, texte })
@@ -90,4 +90,53 @@ test('les adresses d’un texte deviennent des liens, sans la ponctuation finale
     { texte: '.' },
   ])
   expect(morceauxDeTexte('rien')).toEqual([{ texte: 'rien' }])
+})
+
+describe('un message mis en forme', () => {
+  const riche = {
+    type: 'doc',
+    content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'Salut ' }, { type: 'mention', attrs: { id: 'b', label: 'Bob' } }, { type: 'text', text: ' !', marks: [{ type: 'bold' }] }] },
+      { type: 'paragraph', content: [{ type: 'text', text: 'Suite' }] },
+    ],
+  }
+  test('son texte brut garde les mentions en @Nom et un paragraphe par ligne', () => {
+    expect(texteDeRiche(riche)).toBe('Salut @Bob !\nSuite')
+  })
+  test('un document sans marque ni mention n’est pas gardé : le texte suffit', () => {
+    expect(estSimple(riche)).toBe(false)
+    expect(estSimple({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'a' }] }] })).toBe(true)
+  })
+  test('un message en texte simple se lit comme un document, un paragraphe par ligne', () => {
+    expect(richeDe({ texte: 'a\nb' }).content).toHaveLength(2)
+    expect(richeDe({ texte: 'a', riche })).toBe(riche)
+  })
+  test('corriger un message change sa mise en forme, ou la retire', () => {
+    const c = ajouterMessage(vide, { ...msg('1'), riche })
+    expect(modifierMessage(c, '1', 'Autre', riche).messages[0]!.riche).toBe(riche)
+    expect('riche' in modifierMessage(c, '1', 'Autre').messages[0]!).toBe(false)
+  })
+})
+
+describe('les réactions d’un message', () => {
+  const fil = ajouterMessage(ajouterMessage(vide, msg('1')), msg('2', 'Re'))
+  test('chacun pose ou retire la sienne, message par message', () => {
+    const a = reagirAuMessage(fil, '1', '👍', 'ana')
+    expect(a.messages[0]!.reactions).toEqual({ '👍': ['ana'] })
+    expect(a.messages[1]!.reactions).toBeUndefined()
+    const b = reagirAuMessage(a, '1', '👍', 'bob')
+    expect(b.messages[0]!.reactions).toEqual({ '👍': ['ana', 'bob'] })
+    const c = reagirAuMessage(reagirAuMessage(b, '1', '👍', 'ana'), '1', '👍', 'bob')
+    expect('reactions' in c.messages[0]!).toBe(false)
+  })
+})
+
+describe('l’épingle d’un fil', () => {
+  test('sans point choisi, la pointe est à 20 px du bord droit et du haut', () => {
+    expect(pointeEpingle(vide, 340, 100)).toEqual({ x: 320, y: 20 })
+  })
+  test('le point choisi est gardé, borné à la carte', () => {
+    expect(pointeEpingle(epinglerEn(vide, 100.4, 50), 340, 100)).toEqual({ x: 100, y: 50 })
+    expect(pointeEpingle(epinglerEn(vide, 900, -5), 340, 100)).toEqual({ x: 340, y: 0 })
+  })
 })

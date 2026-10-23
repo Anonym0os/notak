@@ -260,6 +260,8 @@ export interface TypeElement<C extends Contenu = Contenu> {
   proportion?(c: C): number
   /** La poignée règle aussi la hauteur : le contenu qui dépasse se cache sous un voile, et revient en édition. */
   hauteurBornable?: boolean
+  /** Le plafond de hauteur tient aussi pendant l'édition (un fil dont les messages défilent, au lieu de grandir). */
+  plafondEnEdition?: boolean
   /** Ce que la suppression d'un élément de ce type emporte avec lui (le contenu d'une colonne). */
   aussiSupprimer?(element: Element<C>, tableau: Tableau): Element[]
   /**

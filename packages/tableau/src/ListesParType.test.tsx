@@ -44,8 +44,8 @@ const CONTENUS: Record<string, Contenu> = {
 }
 
 /** Les tuiles de la barre de gauche pour ce type : celles de la colonne, puis celles rangées dans « ••• ». */
-function listes(type: string) {
-  const e = el(CONTENUS[type]!)
+function listes(type: string, contenu?: Contenu) {
+  const e = el(contenu ?? CONTENUS[type]!)
   const magasin = creerMagasin({ titre: '', etiquettes: [], elements: [e] })
   const contexte = {
     magasin,
@@ -123,9 +123,12 @@ describe('la barre de gauche, type par type (ordre de Milanote)', () => {
     expect(listes('taches').visibles.slice(0, 2)).toEqual(['Couleur', 'Titre'])
   })
 
-  it('commentaire : répondre, résoudre et replier dans « ••• »', () => {
-    const { visibles, rangees } = listes('commentaire')
-    expect(visibles).not.toContain('Répondre')
-    expect(rangees).toEqual(expect.arrayContaining(['Répondre', 'Résoudre', 'Replier']))
+  it('commentaire : Couleur, puis Épingle quand le fil a des messages ; ni Répondre ni Résoudre', () => {
+    const vide = listes('commentaire')
+    expect([...vide.visibles, ...vide.rangees]).not.toEqual(expect.arrayContaining(['Répondre']))
+    expect([...vide.visibles, ...vide.rangees]).not.toEqual(expect.arrayContaining(['Résoudre']))
+    expect(vide.visibles).toContain('Couleur')
+    const plein = listes('commentaire', { type: 'commentaire', messages: [{ id: 'm', auteur: { id: 'a', nom: 'Ana' }, date: 1, texte: 'Salut' }] } as Contenu)
+    expect([...plein.visibles, ...plein.rangees]).toContain('Épingle')
   })
 })

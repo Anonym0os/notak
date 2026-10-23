@@ -281,7 +281,12 @@ export interface Message {
   auteur: Auteur
   /** Quand il a été écrit (ms). */
   date: number
+  /** Le texte brut du message (les mentions s'y lisent `@Nom`) : de quoi chercher, résumer, retomber sur ses pieds. */
   texte: string
+  /** Le message mis en forme (gras, liens, mentions, émojis), au format de la note ; absent : `texte` seul. */
+  riche?: NoeudTexte
+  /** Les réactions des gens à ce message, par émoji. */
+  reactions?: Reactions
 }
 
 /** Un fil de discussion posé sur la toile : un premier message, puis les réponses. */
@@ -294,6 +299,11 @@ export interface Commentaire {
   replie?: boolean
   /** La couleur du fil : une bande de 5 px en haut de la fiche. */
   couleur?: CouleurNote
+  /**
+   * Attaché à un élément : où tombe la pointe de l'épingle, en pixels depuis le coin haut gauche de la carte.
+   * Absent : à 20 px du bord droit et du haut.
+   */
+  epingle?: { x: number; y: number }
 }
 
 /** Le type d'une cellule ; absent : « auto », déduit de ce qu'on tape. */

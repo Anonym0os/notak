@@ -102,12 +102,10 @@ describe('la bande sous une carte', () => {
     act(() => bouton('1').click())
     expect(hote.querySelector('.notak-fil-attache')).not.toBeNull()
     expect(hote.textContent).toContain('Bonjour')
-    const champ = hote.querySelector('textarea')!
-    act(() => {
-      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(champ, 'Merci')
-      champ.dispatchEvent(new Event('input', { bubbles: true }))
-    })
-    act(() => bouton('Envoyer').click())
+    // Le champ est l'éditeur de la note : on y écrit par sa commande, comme le ferait la frappe.
+    const champ = hote.querySelector<HTMLElement & { editor: { commands: { insertContent(t: string): boolean } } }>('.ProseMirror')!
+    act(() => void champ.editor.commands.insertContent('Merci'))
+    act(() => bouton('Publier').click())
     expect(element().commentaire?.messages.map((m) => [m.auteur.nom, m.texte])).toEqual([
       ['Bob', 'Bonjour'],
       ['Ana Dupont', 'Merci'],

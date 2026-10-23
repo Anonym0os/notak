@@ -1,4 +1,5 @@
-import { type Auteur, type Commentaire, type Element, type Id, type Message, nouvelId } from '../../coeur/tableau'
+import { type Auteur, type Commentaire, type Element, type Id, type Message, type NoeudTexte, docDepuisTexte, nouvelId } from '../../coeur/tableau'
+import { basculerReaction } from '../decor/annotations'
 import { langue, t, tn } from '../../langue'
 
 /** 34 unités de grille : la largeur d'une note, et la plus étroite d'un fil. */
@@ -70,11 +71,67 @@ export function dateLisible(date: number, maintenant = Date.now()): string {
 /** Le prénom d'un auteur : le premier mot de son nom, « Quelqu'un » s'il n'en a pas. */
 export const prenom = (nom: string): string => nom.trim().split(/\s+/)[0] || t('decor.quelquun')
 
-/** Ce message avec un autre texte ; un texte vide ne change rien (supprimer est un autre geste). */
-export function modifierMessage(c: Commentaire, id: Id, texte: string): Commentaire {
+/**
+ * Ce message avec un autre texte (et, si l'éditeur le donne, sa mise en forme) ; un texte vide ne change rien
+ * (supprimer est un autre geste). Sans mise en forme, le message redevient du texte simple.
+ */
+export function modifierMessage(c: Commentaire, id: Id, texte: string, riche?: NoeudTexte): Commentaire {
   const propre = texte.trim()
   if (!propre) return c
-  return { ...c, messages: c.messages.map((m) => (m.id === id ? { ...m, texte: propre } : m)) }
+  return {
+    ...c,
+    messages: c.messages.map((m) => {
+      if (m.id !== id) return m
+      const { riche: _, ...reste } = m
+      return { ...reste, texte: propre, ...(riche ? { riche } : {}) }
+    }),
+  }
+}
+
+/** Le message tel que l'éditeur le lit : sa mise en forme, ou son texte simple, un paragraphe par ligne. */
+export const richeDe = (m: Pick<Message, 'texte' | 'riche'>): NoeudTexte => m.riche ?? docDepuisTexte(m.texte)
+
+/** Le texte brut d'un message mis en forme : les paragraphes sur des lignes, les mentions en `@Nom`. */
+export function texteDeRiche(n: NoeudTexte): string {
+  if (n.text !== undefined) return n.text
+  if (n.type === 'mention') return `@${String(n.attrs?.label ?? '')}`
+  if (n.type === 'lienTableau') return String(n.attrs?.label ?? '')
+  if (n.type === 'hardBreak') return '\n'
+  const enfants = (n.content ?? []).map(texteDeRiche)
+  return n.type === 'doc' ? enfants.join('\n') : enfants.join('')
+}
+
+/**
+ * Le document ne dit rien de plus que son texte (que des paragraphes de texte sans marque ni mention) : on ne le
+ * garde pas, `texte` suffit.
+ */
+export function estSimple(riche: NoeudTexte): boolean {
+  const simple = (n: NoeudTexte): boolean => (n.type === 'doc' || n.type === 'paragraph' || n.type === 'text') && !n.marks?.length && (n.content ?? []).every(simple)
+  return simple(riche)
+}
+
+/** La réaction d'une personne à un message : posée, ou retirée si elle y était. */
+export function reagirAuMessage(c: Commentaire, id: Id, emoji: string, personne: string): Commentaire {
+  return {
+    ...c,
+    messages: c.messages.map((m) => {
+      if (m.id !== id) return m
+      const { reactions: _, ...reste } = m
+      const apres = basculerReaction(m.reactions, emoji, personne)
+      return Object.keys(apres).length > 0 ? { ...reste, reactions: apres } : reste
+    }),
+  }
+}
+
+/** Le fil ramené à son épingle : à ce point de la carte (pixels), ou au coin par défaut. */
+export function epinglerEn(c: Commentaire, x: number, y: number): Commentaire {
+  return { ...c, epingle: { x: Math.round(x), y: Math.round(y) } }
+}
+
+/** Où tombe la pointe de l'épingle sur une carte large de `largeur` px : le point choisi, borné à la carte, sinon le coin. */
+export function pointeEpingle(c: Commentaire, largeur: number, hauteur: number): { x: number; y: number } {
+  const p = c.epingle ?? { x: largeur - 20, y: 20 }
+  return { x: Math.max(0, Math.min(largeur, p.x)), y: Math.max(0, Math.min(hauteur, p.y)) }
 }
 
 /** Une adresse web dans un texte, à rendre cliquable. */

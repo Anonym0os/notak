@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { toileSuspendue } from './elements/dessin/mode'
 import { PanneauBanque } from './elements/image/Banque'
+import { attacherFil, pointDePose } from './elements/commentaire/attacher'
 import { PanneauEnvoi } from './elements/fichier/PanneauEnvoi'
 import { BarreOutils, BarreSelection, type OutilDeBarre, outilsDeBarre } from './Barres'
 import { BarreEdition, ContexteBarreEdition } from './barreEdition'
@@ -2160,6 +2161,31 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       }
       magasin.appliquerSeulement(g.sorties.toReversed().map(inverse))
       return jeter(g.origines.keys())
+    }
+    // Un fil lâché sur un autre élément s'y attache en épingle, à l'endroit du dépôt.
+    if (g.demarre && !lectureSeule && !visee && g.origines.size === 1) {
+      const filId = [...g.origines.keys()][0]!
+      const sur = document
+        .elementsFromPoint(e.clientX, e.clientY)
+        .map((n) => n.closest<HTMLElement>('.notak-carte[data-id]'))
+        .find((c) => c && c.dataset.id !== filId && !calqueFantome.current?.contains(c))
+      if (sur && tableau.elements.find((x) => x.id === filId)?.contenu.type === 'commentaire') {
+        const r = sur.getBoundingClientRect()
+        const echelle = sur.offsetWidth > 0 ? r.width / sur.offsetWidth : 1
+        const p = pointDePose((e.clientX - r.left) / echelle, (e.clientY - r.top) / echelle, sur.offsetWidth, sur.offsetHeight)
+        const pas = attacherFil(magasin.lire(), filId, sur.dataset.id!, p.x, p.y)
+        if (pas) {
+          g.envol?.arreter()
+          for (const id of g.vols) {
+            const n = noeudDe(id)
+            if (n) oublierVol(n)
+          }
+          magasin.appliquerSeulement(g.sorties.toReversed().map(inverse))
+          magasin.faire(pas)
+          setSelection(new Set([sur.dataset.id!]))
+          return
+        }
+      }
     }
     if (!g.demarre) {
       // Un clic sans glisser sur un élément déjà choisi : il devient seul choisi, ou s'édite s'il l'était déjà.
