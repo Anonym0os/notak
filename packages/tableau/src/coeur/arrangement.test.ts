@@ -31,11 +31,17 @@ describe('aligner', () => {
     // bords bas : 10, 25, 60
     expect(versDe(aligner(trois, 'bas'))).toEqual({ a: [0, 50], b: [12, 40] })
   })
-  test('centre horizontal : centre du cadre englobant (0..32 → 16)', () => {
-    expect(versDe(aligner(trois, 'centre-horizontal'))).toEqual({ a: [11, 0], b: [6, 5], c: [11, 30] })
+  test('centre horizontal : tout diffère, le centre le plus près de celui du groupe (16 → 17)', () => {
+    // centres : 5, 22, 17
+    expect(versDe(aligner(trois, 'centre-horizontal'))).toEqual({ a: [12, 0], b: [7, 5] })
   })
-  test('centre vertical : centre du cadre englobant (0..60 → 30)', () => {
-    expect(versDe(aligner(trois, 'centre-vertical'))).toEqual({ a: [0, 25], b: [12, 20], c: [12, 15] })
+  test('centre vertical : à égalité de distance, le premier rencontré (5, 15, 45 autour de 30 → 15)', () => {
+    expect(versDe(aligner(trois, 'centre-vertical'))).toEqual({ a: [0, 10], c: [12, 0] })
+  })
+  test('centre : le centre que partagent le plus d’éléments l’emporte', () => {
+    const deux = [el('a', 0, 0, 10, 10), el('b', 2, 20, 6, 6), el('c', 40, 40, 4, 4)]
+    // a et b sont centrés sur 5 ; c s'y range, même loin du centre du groupe.
+    expect(versDe(aligner(deux, 'centre-horizontal'))).toEqual({ c: [3, 40] })
   })
   test('un élément déjà en place ne produit pas d’opération', () => {
     expect(aligner([el('a', 3, 0, 10, 10), el('b', 3, 20, 5, 5)], 'gauche')).toEqual([])

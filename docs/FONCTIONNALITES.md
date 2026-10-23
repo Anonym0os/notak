@@ -27,10 +27,10 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 12. Organiser | 15 | 1 | 0 | 97 % |
 | 13. Naviguer | 10 | 1 | 2 | 81 % |
 | 14. À plusieurs | 12 | 0 | 5 | 71 % |
-| 15. Habillage | 8 | 3 | 4 | 63 % |
+| 15. Habillage | 10 | 3 | 2 | 77 % |
 | 16. Exporter, importer | 2 | 0 | 2 | 50 % |
 | 17. Plateformes | 1 | 1 | 5 | 21 % |
-| **Total** | **190** | **18** | **41** | **80 %** |
+| **Total** | **192** | **18** | **39** | **81 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -280,7 +280,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Alt+glisser duplique | ✅ | |
 | Aligner (Alt+A, D, W, S, H, V) | ✅ | |
 | Répartir (Cmd+Alt+Maj+H, V) | ✅ | |
-| Aligner les centres sur la valeur commune | 🟡 | Notak prend le centre du cadre. |
+| Aligner les centres sur la valeur commune | ✅ | |
 | Premier plan, arrière-plan (Cmd+Maj+↑, ↓), d'un cran | ✅ | |
 | Menu du clic droit, sur la toile et sur un élément | ✅ | |
 | Grouper en colonne | ✅ | |

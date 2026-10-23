@@ -26,12 +26,13 @@ export const MIN_ALIGNER = 2
 export const MIN_REPARTIR = 3
 
 /** Le plus fréquent ; à égalité (ou si tout diffère), l'extrême demandé. */
-function plusFrequent(valeurs: number[], extreme: 'min' | 'max'): number {
+/** La valeur la plus fréquente ; à égalité, la plus proche de `repli` (le bord extrême, ou le centre du groupe). */
+function plusFrequent(valeurs: number[], repli: number): number {
   const comptes = new Map<number, number>()
   for (const v of valeurs) comptes.set(v, (comptes.get(v) ?? 0) + 1)
   const meilleur = Math.max(...comptes.values())
-  const ex = meilleur === 1 ? valeurs : [...comptes].filter(([, n]) => n === meilleur).map(([v]) => v)
-  return extreme === 'min' ? Math.min(...ex) : Math.max(...ex)
+  const ex = [...comptes].filter(([, n]) => n === meilleur).map(([v]) => v)
+  return ex.reduce((a, b) => (Math.abs(b - repli) < Math.abs(a - repli) ? b : a))
 }
 
 /** Garde seulement ce qui bouge réellement. */
@@ -48,13 +49,17 @@ export function aligner(items: Disposable[], sens: SensAlignement): Deplacement[
   let reference: number
   if (sens === 'gauche' || sens === 'haut') {
     decalage = () => 0
-    reference = plusFrequent(items.map((i) => Math.round(debut(i.rect))), 'min')
+    const v = items.map((i) => Math.round(debut(i.rect)))
+    reference = plusFrequent(v, Math.min(...v))
   } else if (sens === 'droite' || sens === 'bas') {
     decalage = (r) => fin(r) - debut(r)
-    reference = plusFrequent(items.map((i) => Math.round(fin(i.rect))), 'max')
+    const v = items.map((i) => Math.round(fin(i.rect)))
+    reference = plusFrequent(v, Math.max(...v))
   } else {
+    // Le centre que partagent le plus d'éléments (à la demi-UG) ; sinon celui qui est le plus près du centre du groupe.
     const cadre = englobant(items.map((i) => i.rect))!
-    reference = (debut(cadre) + fin(cadre)) / 2
+    const centres = items.map((i) => Math.round(debut(i.rect) + fin(i.rect)) / 2)
+    reference = plusFrequent(centres, (debut(cadre) + fin(cadre)) / 2)
     decalage = (r) => (fin(r) - debut(r)) / 2
   }
 
