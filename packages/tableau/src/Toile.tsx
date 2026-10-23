@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { BarreOutils, BarreSelection, type OutilDeBarre, outilsDeBarre } from './Barres'
 import { Cadre, ContexteRangement, type Empreinte, type Rangement } from './Cadre'
 import * as cam from './coeur/camera'
+import { brancherPilote } from './pilotage'
 import { type Point, type Rect, centre, chevauche, depuisCoins, englobant, point, soustraire } from './coeur/geometrie'
 import { type Hauteur, hauteurTiree, memeHauteur } from './coeur/hauteur'
 import { creerLimiteur } from './coeur/limiteur'
@@ -462,6 +463,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     () => englobant(etat.current.tableau.elements.filter(libre).flatMap((e) => rect(e.id) ?? [])),
     [rect],
   )
+  // L'hôte (l'export du tableau entier) déplace la caméra par là, le temps d'une capture.
+  useEffect(() => brancherPilote({ camera: () => etat.current.camera, vue: () => etat.current.vue, contenu, poser: setCamera }), [contenu])
   // Le document borné : après chaque mouvement de vue, la caméra revient dans ses bornes. Pas pendant un geste ni
   // une animation : la vue ne doit pas bouger sous le pointeur pendant qu'on tire un élément.
   useLayoutEffect(() => {

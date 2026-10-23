@@ -1,3 +1,4 @@
+import { avecToutLeTableau } from '@notak/tableau'
 import { toJpeg, toPng } from 'html-to-image'
 import { useEffect, useState } from 'react'
 import { octetsDeDataUrl, pdfDepuisJpeg } from './pdf'
@@ -18,15 +19,23 @@ function telecharger(blob: Blob, nom: string) {
 /** Un nom de fichier sûr à partir d'un titre. */
 const nomDeFichier = (titre: string, extension: string) => `${titre.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').trim().slice(0, 100) || 'tableau'}.${extension}`
 
+/** Ce que la capture montre : la vue telle qu'elle est, ou le tableau entier (la toile cadre tout le contenu le temps de la prise). */
+type Portee = 'ecran' | 'tout'
+
 /**
- * Ce qu'on voit de la toile, en image (`png`) ou en page PDF (`pdf`). La capture se fait dans le navigateur, sur ce
- * qui est à l'écran : pour exporter tout le tableau, on le cadre d'abord.
+ * La toile en image (`png`) ou en page PDF (`pdf`). La capture se fait dans le navigateur : sur ce qui est à
+ * l'écran, ou, pour `tout`, sur le tableau cadré en entier (4000 px de large au plus), la vue revenant ensuite.
  */
-async function capturer(format: 'png' | 'pdf', titre: string): Promise<void> {
+function capturer(format: 'png' | 'pdf', titre: string, portee: Portee): Promise<void> {
+  if (portee === 'ecran') return photographier(format, titre, ECHELLE_CAPTURE)
+  return avecToutLeTableau(({ rapport }) => photographier(format, titre, rapport))
+}
+
+async function photographier(format: 'png' | 'pdf', titre: string, rapport: number): Promise<void> {
   const toile = document.querySelector<HTMLElement>('.notak-toile')
   if (!toile) throw new Error('Aucun tableau à exporter')
   const options = {
-    pixelRatio: ECHELLE_CAPTURE,
+    pixelRatio: rapport,
     backgroundColor: getComputedStyle(toile).backgroundColor,
     filter: (n: Node) => !(n instanceof HTMLElement && HORS_CAPTURE.some((c) => n.classList.contains(c))),
   }
@@ -45,13 +54,13 @@ export function Export({ tableau, titre }: { tableau: string; titre(): string })
   const [ouvert, setOuvert] = useState(false)
   const [capture, setCapture] = useState<'png' | 'pdf' | null>(null)
   const [echec, setEchec] = useState(false)
-  const photographier = (format: 'png' | 'pdf') => {
+  const photographierVue = (format: 'png' | 'pdf', portee: Portee) => {
     setCapture(format)
     setEchec(false)
     // Le menu se ferme avant la prise de vue : il ne doit pas figurer sur l'image.
     setOuvert(false)
     requestAnimationFrame(() => {
-      capturer(format, titre()).then(
+      capturer(format, titre(), portee).then(
         () => setCapture(null),
         () => {
           setCapture(null)
@@ -90,10 +99,17 @@ export function Export({ tableau, titre }: { tableau: string; titre(): string })
             Images et fichiers (zip)
           </a>
           <small className="compte-rubrique">Ce qui est à l’écran</small>
-          <button type="button" role="menuitem" disabled={capture !== null} onClick={() => photographier('png')}>
+          <button type="button" role="menuitem" disabled={capture !== null} onClick={() => photographierVue('png', 'ecran')}>
             Image (PNG)
           </button>
-          <button type="button" role="menuitem" disabled={capture !== null} onClick={() => photographier('pdf')}>
+          <button type="button" role="menuitem" disabled={capture !== null} onClick={() => photographierVue('pdf', 'ecran')}>
+            Page PDF
+          </button>
+          <small className="compte-rubrique">Le tableau entier</small>
+          <button type="button" role="menuitem" disabled={capture !== null} onClick={() => photographierVue('png', 'tout')}>
+            Image (PNG)
+          </button>
+          <button type="button" role="menuitem" disabled={capture !== null} onClick={() => photographierVue('pdf', 'tout')}>
             Page PDF
           </button>
         </div>
