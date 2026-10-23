@@ -89,7 +89,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Tailles et couleurs de départ de chaque type | ✅ | |
 | Modèles de tableaux | ✅ | Dix modèles, choisis avec un aperçu. |
 | Sons et vibration à la création | ➖ | Pas de sons repris (salle blanche). |
-| Création depuis le téléphone (notes rapides, partage vers Notak) | 🟡 | Notes rapides ; le partage marche sur Android et Chrome, pas sur iOS Safari. |
+| Création depuis le téléphone (notes rapides, partage vers Notak) | 🟡 | Notes rapides ; partage sur Android et Chrome ; sur iPhone, un Raccourci et un jeton personnel (page /envoyer), à essayer sur un vrai iPhone. |
 
 ## 3. Note et texte
 
@@ -369,5 +369,5 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Bureau (Tauri) | ✅ | Coque Tauri 2 (apps/bureau), compilée sur macOS ; à signer pour la diffuser. |
 | iPhone | ✅ | Application web installable (manifeste, icône, hors ligne) et gestes tactiles. |
 | Notes rapides sur le téléphone | ✅ | Page /rapide, vers les non triés de l'accueil. |
-| Partager vers Notak depuis le téléphone | 🟡 | Android et Chrome ; iOS Safari ne reçoit pas les partages des sites. |
+| Partager vers Notak depuis le téléphone | 🟡 | Android et Chrome ; iPhone par un Raccourci et un jeton personnel (`POST /api/arrivee`, éprouvé en local), le Raccourci reste à essayer sur un iPhone. Favori du bureau pour les autres navigateurs. |
 | Gestes tactiles (pincer, toucher long) | ✅ | Pincer, un doigt sur le vide pour tirer la toile, appui long pour le menu. |
