@@ -46,6 +46,7 @@ import {
 import './elements'
 import { definition, tousLesRaccourcis, tousLesRecepteurs, tousLesTypes, toutesLesEntreesMenu } from './elements/registre'
 import { demanderRenommage } from './elements/tableau/renommage'
+import { figerDepot, glisseUneImage, libererDepot, survolerImage } from './elements/image/survolDepot'
 import type { ContexteToile, Presence, Services } from './elements/types'
 import { t, tn } from './langue'
 import { PastilleZoom } from './PastilleZoom'
@@ -2419,13 +2420,21 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     commencerEdition(note.id)
   }
 
+  /** Une image du bureau au-dessus d'une image de la toile : elle prépare le voile « Remplacer l'image » (voir `survolDepot`). */
+  const survolDepot = (e: React.DragEvent) => {
+    const id = !lectureSeule && glisseUneImage(e.dataTransfer) ? sous(document.elementFromPoint(e.clientX, e.clientY)) : null
+    const el = id ? tableau.elements.find((x) => x.id === id) : undefined
+    survolerImage(el && el.contenu.type === 'image' && !el.verrou && el.corbeille === undefined ? el.id : null)
+  }
+
   const deposer = (e: React.DragEvent) => {
     e.preventDefault()
+    figerDepot()
     const nonTrie = e.dataTransfer.getData(GLISSER_NON_TRIE)
     if (nonTrie) return poserNonTrie(nonTrie, cam.versTableau(camera, local(e)))
     // Déposé sur une colonne : ce qui arrive s'y range.
     const colonne = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('.notak-carte[data-type="colonne"]')
-    void recevoir(e.dataTransfer, cam.versTableau(camera, local(e)), colonne?.dataset.id)
+    void recevoir(e.dataTransfer, cam.versTableau(camera, local(e)), colonne?.dataset.id).finally(libererDepot)
   }
 
   // La sélection ne garde que ce qui existe encore (après une suppression, une annulation).
@@ -2507,7 +2516,13 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       onPointerLeave={() => limiteur?.forcer(null)}
       onDoubleClick={doubleClic}
       onContextMenu={ouvrirMenu}
-      onDragOver={(e) => e.preventDefault()}
+      onDragOver={(e) => {
+        e.preventDefault()
+        survolDepot(e)
+      }}
+      onDragLeave={(e) => {
+        if (!(e.relatedTarget instanceof Node) || !racine.current?.contains(e.relatedTarget)) survolerImage(null)
+      }}
       onDrop={deposer}
     >
       <div

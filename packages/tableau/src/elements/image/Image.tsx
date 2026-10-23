@@ -12,6 +12,7 @@ import { sansDetourage } from './detourage'
 import { annoter, useAnnotation } from './modeAnnotation'
 import { adresseALargeur, finesse, largeurCadrePx, largeurEntiereAffichee, palierPour } from './tailles'
 import { Visionneuse, useImageOuverte } from './visionneuse'
+import { useDepotSurImage } from './survolDepot'
 import { t } from '../../langue'
 import { BoutonOutil } from '../../BoutonOutil'
 import { Icone } from '../../icones'
@@ -48,6 +49,7 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
     : { aspectRatio: String(proportions) }
   const legendeVisible = enEdition || (element.largeur >= LARGEUR_LEGENDE_MIN && (!!contenu.legende || !!contenu.legendeAffichee))
   const enGrand = useImageOuverte() === element.id
+  const depot = useDepotSurImage(element.id)
   const enRecadrage = useRecadrageOuvert() === element.id
   const enDetourage = useDetourageOuvert() === element.id
   const enDessin = useAnnotation().id === element.id && !contexte.services.lectureSeule && !enRecadrage && !enDetourage
@@ -96,6 +98,17 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
               <span role="img" aria-label={t('image.introuvable')}>
                 <Icone nom="imageCassee" taille={forme.height !== undefined && forme.height < 60 ? 20 : 32} trait={1.5} />
               </span>
+            )}
+          </div>
+        )}
+        {depot && (
+          // Un fichier au-dessus : un filet de 2 px, puis, après 500 ms, le voile qui dit que l'image va être remplacée.
+          <div className="notak-image-depot" data-voile={depot === 'voile' || undefined} aria-hidden>
+            {depot === 'voile' && (
+              <>
+                <Icone nom="remplacer" taille={49} trait={1.25} />
+                <span>{t('image.remplacer')}</span>
+              </>
             )}
           </div>
         )}

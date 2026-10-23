@@ -3,8 +3,9 @@ import { commencerEnvoi } from '../envois'
 import { lireDimensions, lireTransparence } from './lecture'
 import type { ContexteToile, DepotFichiers } from '../types'
 import { annoncer } from '../../avis'
+import { imageARemplacer } from './survolDepot'
 import { t } from '../../langue'
-import { type TailleUG, TAILLE_MAX, TYPES_ACCEPTES, hauteurPour, imageSous, largeurInitiale, nombreColonnes, placerImages, remplacerContenu } from './geometrie'
+import { type TailleUG, TAILLE_MAX, TYPES_ACCEPTES, hauteurPour, largeurInitiale, nombreColonnes, placerImages, remplacerContenu } from './geometrie'
 
 export function recevoirImages(donnees: DataTransfer, ou: { x: number; y: number }, contexte: ContexteToile) {
   // Pris tout de suite : le navigateur vide le presse-papiers dès qu'on rend la main.
@@ -14,16 +15,13 @@ export function recevoirImages(donnees: DataTransfer, ou: { x: number; y: number
   const fichiers = images.filter((f) => f.size <= TAILLE_MAX)
   const depot = contexte.services.fichiers
   if (!depot || fichiers.length === 0) return null
-  // Une image lâchée sur une autre la remplace. Seul un dépôt a un point visé : un collage ou le sélecteur n'en ont pas.
-  const cible = fichiers.length === 1 && estUnDepot(donnees) && !contexte.services.lectureSeule
-    ? imageSous(contexte.magasin.lire().elements, (id) => contexte.rect(id), ou)
-    : null
+  // Une image lâchée sous le voile « Remplacer l'image » (500 ms de survol) prend la place de l'autre ; lâchée plus tôt,
+  // ou collée, ou choisie dans le sélecteur, elle est une image de plus.
+  const visee = fichiers.length === 1 && !contexte.services.lectureSeule ? imageARemplacer() : null
+  const cible = visee ? (contexte.magasin.lire().elements.find((e) => e.id === visee && e.contenu.type === 'image' && !e.verrou && e.corbeille === undefined) as Element<ContenuImage> | undefined) : undefined
   if (cible) return remplacerImage(cible, fichiers[0]!, depot)
   return poserImages(fichiers, ou, contexte, depot)
 }
-
-/** Un `DataTransfer` de glisser-déposer a un effet permis ; celui du presse-papiers ou du sélecteur n'en a pas. */
-const estUnDepot = (d: DataTransfer) => d.effectAllowed !== 'uninitialized' && d.effectAllowed !== 'none'
 
 /** Ouvre le sélecteur d'images, puis l'image choisie prend la place de celle-ci (« Remplacer l'image »). */
 export function choisirPourRemplacer(cible: Element<ContenuImage>, contexte: ContexteToile) {
