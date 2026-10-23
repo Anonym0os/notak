@@ -7,6 +7,7 @@ import { fermerMenus, useMenu } from '../../menuUnique'
 import { lireHex } from '../note/couleurs'
 import type { ContexteToile, PropsOutils } from '../types'
 import {
+  bornerPlages,
   cellulesPouvant,
   choisirType,
   droitsDe,
@@ -40,7 +41,9 @@ export function OutilsTable({ elements, contexte }: PropsOutils<Table>) {
   const un = elements.length === 1 ? elements[0]! : null
   const etat = useEtatTable(un?.id ?? '')
   if (contexte.services.lectureSeule) return null
-  if (un && etat.plages.length > 0) return <OutilsCellules element={un} plages={etat.plages} contexte={contexte} />
+  // Les cellules choisies que l'historique ou un retrait ont laissées hors de la table ne comptent plus.
+  const plages = un ? bornerPlages(etat.plages, un.contenu) : []
+  if (un && plages.length > 0) return <OutilsCellules element={un} plages={plages} contexte={contexte} />
   return <OutilsElement elements={elements} contexte={contexte} />
 }
 

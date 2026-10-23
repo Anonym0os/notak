@@ -23,6 +23,22 @@ describe('recherche', () => {
     expect(chercher(tout, 'ete', titre).map((e) => e.id)).toEqual([colonne.id])
   })
 
+  it('trouve une cellule sur son texte affiché : le résultat d’une formule, un montant formaté', () => {
+    const table: Element = {
+      id: 'TB',
+      x: 0,
+      y: 60,
+      largeur: 24,
+      contenu: {
+        type: 'table',
+        cellules: [['Total', '=SUM(B2:B3)'], ['', '1200'], ['', '34']],
+        formats: [[null, { type: 'nombre', decimales: 1, sansMilliers: true }], [null, null], [null, null]],
+      },
+    }
+    expect(chercher([...tout, table], '1234', titre).map((e) => e.id)).toEqual(['TB'])
+    expect(chercher([...tout, table], 'total', titre).map((e) => e.id)).toEqual(['TB'])
+  })
+
   it('ne trouve rien sans requête', () => {
     expect(chercher(tout, '  ', titre)).toEqual([])
   })

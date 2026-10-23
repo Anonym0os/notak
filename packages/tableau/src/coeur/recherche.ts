@@ -1,3 +1,4 @@
+import { texteCherchableDeTable } from '../elements/table/affichage'
 import { type Element, type NoeudTexte, texteBrut } from './tableau'
 
 /** Sans accents ni majuscules : « Éte » trouve « été ». */
@@ -43,7 +44,8 @@ export function texteCherchable(e: Element, titreDe: (id: string) => string | un
     case 'nuancier':
       return c.couleur
     case 'table':
-      return c.cellules.flat().filter(Boolean).join('\n')
+      // Le texte tel qu'on le lit : formaté selon le type, une formule donne son résultat.
+      return texteCherchableDeTable(c)
   }
 }
 

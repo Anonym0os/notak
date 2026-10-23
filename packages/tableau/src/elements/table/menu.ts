@@ -3,6 +3,7 @@ import { t, tn } from '../../langue'
 import type { Entree } from '../../Menus'
 import type { ContexteToile } from '../types'
 import {
+  bornerPlages,
   droitsDe,
   glisserColonnes,
   glisserLignes,
@@ -22,8 +23,9 @@ import { type Geste, modifierTable } from './modifier'
  */
 export function entreesTable(contexte: ContexteToile, id: Id, avecPresse: boolean): Entree[] {
   const el = contexte.magasin.lire().elements.find((x) => x.id === id)
-  const plages = lireEtat(id).plages
-  if (!el || el.contenu.type !== 'table' || plages.length === 0) return []
+  if (!el || el.contenu.type !== 'table') return []
+  const plages = bornerPlages(lireEtat(id).plages, el.contenu)
+  if (plages.length === 0) return []
   const d = droitsDe(el.contenu, plages)
   const geste = (f: Geste) => () => {
     modifierTable(contexte, id, f)
