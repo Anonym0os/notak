@@ -15,7 +15,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 |---|---|---|---|---|
 | 1. Toile | 16 | 6 | 5 | 70 % |
 | 2. Création | 10 | 3 | 4 | 68 % |
-| 3. Note et texte | 17 | 2 | 12 | 58 % |
+| 3. Note et texte | 17 | 3 | 11 | 60 % |
 | 4. Colonne | 9 | 0 | 2 | 82 % |
 | 5. Tableau imbriqué | 8 | 0 | 3 | 73 % |
 | 6. Lien | 7 | 2 | 4 | 62 % |
@@ -26,11 +26,11 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 11. Commun aux éléments | 3 | 1 | 8 | 29 % |
 | 12. Organiser | 14 | 1 | 1 | 91 % |
 | 13. Naviguer | 8 | 2 | 3 | 69 % |
-| 14. À plusieurs | 7 | 3 | 7 | 50 % |
+| 14. À plusieurs | 7 | 4 | 6 | 53 % |
 | 15. Habillage | 2 | 4 | 9 | 27 % |
 | 16. Exporter, importer | 0 | 0 | 4 | 0 % |
 | 17. Plateformes | 1 | 1 | 5 | 21 % |
-| **Total** | **127** | **30** | **92** | **57 %** |
+| **Total** | **127** | **32** | **90** | **57 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -102,7 +102,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Entrée, Échap, clic ailleurs | ✅ | |
 | Retour arrière dans une note vide : corbeille | ✅ | |
 | Texte envoyé pendant l'écriture, un seul pas d'annulation | ✅ | |
-| Texte écrit à plusieurs en même temps (curseurs dans la note) | ⬜ | `Y.XmlFragment`, Tiptap Collaboration. |
+| Texte écrit à plusieurs en même temps (curseurs dans la note) | 🟡 | Le texte des notes se fusionne ; on ne voit pas encore le curseur des autres, et les listes de tâches s'écrivent encore seules. |
 | Hauteur bornée, voile, étendue en édition | ✅ | |
 | Styles : grand titre, titre, texte, petit texte, citation, code | ✅ | |
 | Encadré à icône | ⬜ | |
@@ -323,7 +323,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Pastilles plafonnées à 5 et « +N » | 🟡 | |
 | Curseur des autres au repos | 🟡 | |
 | Cache local, reprise après coupure | 🟡 | Copie locale (IndexedDB) ; l'état « hors ligne » ne se voit pas. |
-| Texte écrit à plusieurs dans une même note | ⬜ | Voir § 3. |
+| Texte écrit à plusieurs dans une même note | 🟡 | Voir § 3. |
 | Lien public, publication en lecture | ⬜ | |
 | Mot de passe sur un tableau partagé | ⬜ | |
 | Notifications (commentaires, mentions, modifications) | ⬜ | |

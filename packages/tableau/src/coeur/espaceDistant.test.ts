@@ -90,13 +90,14 @@ describe('espace distant', () => {
 
 describe('presenceDe', () => {
   it('garde ce qui est bien formé et écarte le reste', () => {
-    expect(presenceDe(3, { utilisateur: { id: 'a', nom: 'A', couleur: '#fff' }, curseur: { x: 1, y: 2 }, selection: ['x', 4] })).toEqual({
+    expect(presenceDe(3, { utilisateur: { id: 'a', nom: 'A', couleur: '#fff' }, curseur: { x: 1, y: 2 }, selection: ['x', 4], edition: 'x' })).toEqual({
       client: 3,
       utilisateur: { id: 'a', nom: 'A', couleur: '#fff' },
       curseur: { x: 1, y: 2 },
       selection: ['x'],
+      edition: 'x',
     })
     expect(presenceDe(3, { curseur: null })).toBeNull()
-    expect(presenceDe(3, { utilisateur: { id: 'a', nom: 'A', couleur: '#fff' }, curseur: { x: 'a' } })?.curseur).toBeNull()
+    expect(presenceDe(3, { utilisateur: { id: 'a', nom: 'A', couleur: '#fff' }, curseur: { x: 'a' }, edition: 4 })).toMatchObject({ curseur: null, edition: null })
   })
 })

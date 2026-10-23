@@ -1,5 +1,6 @@
+import type { XmlFragment } from 'yjs'
 import { Historique } from './historique'
-import { type Operation, type Tableau, appliquer, surLeTableau } from './tableau'
+import { type Id, type Operation, type Tableau, appliquer, surLeTableau } from './tableau'
 
 /**
  * Le tableau et son historique, derrière une petite interface qu'écoute l'interface.
@@ -20,6 +21,11 @@ export interface Magasin {
   corriger(pas: Operation[]): void
   /** Remplace le tableau sans passer par l'historique (premier plan, chargement). */
   remplacer(t: Tableau): void
+  /**
+   * Le texte d'un élément tel que plusieurs personnes l'écrivent ensemble (un fragment Yjs, créé au besoin).
+   * Absent d'un magasin qui n'est pas partagé : l'éditeur écrit alors seul dans le contenu.
+   */
+  texte?(id: Id): XmlFragment
   annuler(): boolean
   retablir(): boolean
 }

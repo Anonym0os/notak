@@ -80,6 +80,20 @@ describe('magasin Yjs', () => {
     expect(ma.lire().elements).toEqual([{ ...n, x: 9 }])
   })
 
+  it('le texte d’une note se partage, hors de l’historique du tableau', () => {
+    const { ma, mb } = relies()
+    const n = note(1)
+    ma.faire([{ type: 'creer', element: n }])
+    const fa = ma.texte(n.id)
+    fa.insert(0, [new Y.XmlText('Bonjour')])
+    expect(mb.texte(n.id).toString()).toBe('Bonjour')
+    // Créé d'un côté, le fragment est le même de l'autre : pas de second texte qui l'écraserait.
+    expect(mb.texte(n.id)).toBe(mb.texte(n.id))
+    expect(ma.annuler()).toBe(true)
+    expect(ma.lire().elements).toEqual([])
+    expect(ma.annuler()).toBe(false)
+  })
+
   it('un glisser inscrit fait un seul pas, qui ramène au début du geste', () => {
     const { ma, mb } = relies()
     const n = note(1, 1)

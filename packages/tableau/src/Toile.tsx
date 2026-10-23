@@ -259,7 +259,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   useEffect(() => {
     presence?.signaler({ selection: [...selection] })
   }, [presence, selection])
-  useEffect(() => () => presence?.signaler({ curseur: null, selection: [] }), [presence])
+  // Qui écrit dans quelle note : celui qui arrive rejoint le texte en cours au lieu de le remettre à zéro.
+  useEffect(() => presence?.signaler({ edition }), [presence, edition])
+  useEffect(() => () => presence?.signaler({ curseur: null, selection: [], edition: null }), [presence])
 
   // Le contour d'un élément choisi par un autre : posé sur le nœud, dans la couleur de cette personne.
   useEffect(() => {

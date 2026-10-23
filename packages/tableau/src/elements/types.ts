@@ -29,11 +29,13 @@ export interface Presence {
   /** Où est son pointeur, en UG ; `null` s'il est sorti de la toile. */
   curseur: Point | null
   selection: Id[]
+  /** L'élément dont il écrit le texte, s'il en écrit un. */
+  edition: Id | null
 }
 
 /** Ce que la toile dit de soi aux autres, et ce qu'elle apprend d'eux. */
 export interface ServicePresence {
-  signaler(etat: { curseur?: Point | null; selection?: Id[] }): void
+  signaler(etat: { curseur?: Point | null; selection?: Id[]; edition?: Id | null }): void
   /** Les autres seulement, jamais soi. Même tableau tant que rien ne change. */
   autres(): Presence[]
   ecouter(f: () => void): () => void

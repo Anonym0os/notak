@@ -111,6 +111,7 @@ export function presenceDe(client: number, etat: Record<string, unknown>): Prese
     utilisateur: { id: u.id, nom: u.nom, couleur: u.couleur },
     curseur: estPoint(etat.curseur) ? { x: etat.curseur.x, y: etat.curseur.y } : null,
     selection,
+    edition: typeof etat.edition === 'string' ? etat.edition : null,
   }
 }
 
@@ -182,7 +183,7 @@ export function creerEspaceDistant(options: OptionsEspaceDistant): EspaceDistant
 
   const creerPresence = (e: Entree, signal: { f: () => void }): ServicePresence => {
     const locaux = new Set<() => void>()
-    let local: { curseur: Point | null; selection: Id[] } = { curseur: null, selection: [] }
+    let local: { curseur: Point | null; selection: Id[]; edition: Id | null } = { curseur: null, selection: [], edition: null }
     let cache: Presence[] | null = null
     signal.f = () => {
       cache = null
@@ -190,11 +191,16 @@ export function creerEspaceDistant(options: OptionsEspaceDistant): EspaceDistant
     }
     return {
       signaler(etat) {
-        local = { curseur: etat.curseur === undefined ? local.curseur : etat.curseur, selection: etat.selection ?? local.selection }
+        local = {
+          curseur: etat.curseur === undefined ? local.curseur : etat.curseur,
+          selection: etat.selection ?? local.selection,
+          edition: etat.edition === undefined ? local.edition : etat.edition,
+        }
         const a = e.connexion?.awareness
         if (!a) return
         if (etat.curseur !== undefined) a.setLocalStateField('curseur', local.curseur)
         if (etat.selection) a.setLocalStateField('selection', local.selection)
+        if (etat.edition !== undefined) a.setLocalStateField('edition', local.edition)
       },
       autres() {
         if (cache) return cache

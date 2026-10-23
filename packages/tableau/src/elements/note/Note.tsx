@@ -1,4 +1,6 @@
-import { EditorContent, useEditor } from '@tiptap/react'
+import { Node as NoeudPM } from '@tiptap/pm/model'
+import { EditorContent, getSchema, useEditor } from '@tiptap/react'
+import { prosemirrorToYXmlFragment, yXmlFragmentToProseMirrorRootNode } from '@tiptap/y-tiptap'
 import { renderToReactElement } from '@tiptap/static-renderer/pm/react'
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import type { Note, NoeudTexte } from '../../coeur/tableau'
@@ -7,7 +9,8 @@ import { BarreTexte } from './Barre'
 import { adresseSeule, caseSeule, docEstVide } from './conversion'
 import { docVide } from '../taches/liste'
 import { texteDeNote } from './couleurs'
-import { EXTENSIONS_NOTE, type GestesEdition, raccourcisEdition } from './extensions'
+import type { XmlFragment } from 'yjs'
+import { EXTENSIONS_NOTE, type GestesEdition, extensionsPartagees, raccourcisEdition } from './extensions'
 
 export function RenduNote(props: PropsRendu<Note>) {
   const { element, enEdition } = props
@@ -32,14 +35,47 @@ const TexteFige = memo(function TexteFige({ texte }: { texte: NoeudTexte }) {
   return <div className="notak-texte">{rendu}</div>
 })
 
-function Editeur({ element, contexte, brouillon }: PropsRendu<Note>) {
+const SCHEMA = getSchema(EXTENSIONS_NOTE)
+
+/**
+ * Le texte partagé de la note, prêt à éditer. Si personne d'autre n'y écrit, il repart du contenu de la note
+ * (qu'une annulation a pu changer depuis) ; sinon on rejoint ce qui s'écrit.
+ */
+/** Le document que porte le fragment ; `null` s'il est vide (jamais écrit à plusieurs) ou illisible. */
+function lire(fragment: XmlFragment): NoeudPM | null {
+  if (fragment.length === 0) return null
+  try {
+    return yXmlFragmentToProseMirrorRootNode(fragment, SCHEMA)
+  } catch {
+    return null
+  }
+}
+
+function textePartage({ element, contexte }: PropsRendu<Note>): XmlFragment | null {
+  const fragment = contexte.magasin.texte?.(element.id)
+  if (!fragment) return null
+  const ailleurs = contexte.services.presence?.autres().some((p) => p.edition === element.id)
+  const voulu = NoeudPM.fromJSON(SCHEMA, element.contenu.texte)
+  if (!ailleurs && !lire(fragment)?.eq(voulu)) {
+    fragment.doc!.transact(() => {
+      fragment.delete(0, fragment.length)
+      prosemirrorToYXmlFragment(voulu, fragment)
+    }, 'notak:texte')
+  }
+  return fragment
+}
+
+function Editeur(props: PropsRendu<Note>) {
+  const { element, contexte, brouillon } = props
   const { contenu } = element
   const [lien, setLien] = useState<string | null>(null)
   const gestes = useRef<GestesEdition>(null!)
-  const extensions = useMemo(() => [...EXTENSIONS_NOTE, raccourcisEdition(gestes)], [])
+  // Lu une fois, à l'entrée en édition : la suite du texte arrive par le fragment.
+  const fragment = useMemo(() => textePartage(props), [])
+  const extensions = useMemo(() => [...(fragment ? extensionsPartagees(fragment) : EXTENSIONS_NOTE), raccourcisEdition(gestes)], [fragment])
   const editeur = useEditor({
     extensions,
-    content: contenu.texte,
+    ...(fragment ? {} : { content: contenu.texte }),
     editorProps: { attributes: { class: 'notak-texte' } },
     onUpdate: ({ editor }) => brouillon({ ...contenu, texte: editor.getJSON() as NoeudTexte }),
   })
