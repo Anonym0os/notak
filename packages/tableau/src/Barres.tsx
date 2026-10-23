@@ -10,6 +10,7 @@ import { Icone } from './icones'
 import { MenuActions } from './MenuActions'
 import { useMenu } from './menuUnique'
 import { Vignette } from './vignettes'
+import { useDessinLibreOuvert } from './elements/dessin/mode'
 
 /** Un outil de la barre, avec le type qui l'apporte. */
 export interface OutilDeBarre {
@@ -69,6 +70,8 @@ export function BarreOutils({
   }, [tiroir])
   const nav = useRef<HTMLElement>(null)
   useEchapFerme(nav, () => setTiroir(false))
+  // DESSIN-LIBRE : pendant le mode, la barre s'éteint et le bouton du dessin se montre ouvert.
+  const dessinOuvert = useDessinLibreOuvert()
   const tous = outilsDeBarre()
   const bouton = (o: OutilDeBarre, dansTiroir = false) => {
     const rebondit = rebond?.libelle === o.outil.libelle
@@ -80,6 +83,7 @@ export function BarreOutils({
           className="notak-outil"
           data-genre={vignette ? 'vignette' : 'tuile'}
           title={o.outil.libelle}
+          aria-expanded={o.type === 'dessin' && dessinOuvert ? true : undefined}
           // La clé change à chaque clic : l'animation du rebond repart.
           data-rebond={rebondit ? rebond.n % 2 : undefined}
           onPointerDown={(e) => {
@@ -106,7 +110,7 @@ export function BarreOutils({
   const actions = tous.filter((o) => !o.outil.tiroir && o.outil.groupe === 'action')
   return (
     <>
-      <nav ref={nav} className="notak-barre-outils" onPointerDown={(e) => e.stopPropagation()}>
+      <nav ref={nav} className="notak-barre-outils" data-eteinte={dessinOuvert || undefined} onPointerDown={(e) => e.stopPropagation()}>
         {elementsVisibles.map((o) => bouton(o))}
         {caches.length > 0 && (
           <div className="notak-outil-place" ref={ancreTiroir}>
@@ -187,6 +191,7 @@ export function BarreSelection({
   })
   useMenusBornes(aGauche ? nav : barre, !aGauche)
   useBarreBornee(barre, position.x, !aGauche)
+  const dessinOuvert = useDessinLibreOuvert()
   const parType = new Map<string, Element[]>()
   for (const e of elements) parType.set(e.contenu.type, [...(parType.get(e.contenu.type) ?? []), e])
   const blocs = [...parType].flatMap(([type, els]) => {
@@ -211,7 +216,7 @@ export function BarreSelection({
 
   if (aGauche) {
     return (
-      <nav ref={nav} className="notak-barre-outils" data-selection onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+      <nav ref={nav} className="notak-barre-outils" data-selection data-eteinte={dessinOuvert || undefined} onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
         <button type="button" className="notak-barre-retour" title={t('barre.retour')} aria-label={t('barre.retour')} onClick={() => contexte.choisir([])}>
           <Icone nom="gauche" taille={22} />
         </button>

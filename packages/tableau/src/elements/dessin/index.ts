@@ -1,7 +1,8 @@
 import type { Dessin } from '../../coeur/tableau'
 import { registre } from '../registre'
-import { RenduDessin, ouvrirDessinLibre } from './Dessin'
+import { OutilsDessin, RenduDessin, ouvrirDessinLibre } from './Dessin'
 import { t, tn } from '../../langue'
+import '../croquis/croquis.css'
 import './dessin.css'
 import { ico } from '../../icones'
 
@@ -16,6 +17,9 @@ registre.type<Dessin>({
   largeurMin: 2,
   proportion: (c) => c.largeurOrigine / c.hauteurOrigine,
   suivant: () => null,
+  // Un double-clic rouvre le dessin dans le mode de dessin, avec ses traits.
+  ouvrir: (element, contexte) => ouvrirDessinLibre(contexte, element),
+  OutilsApres: OutilsDessin,
   outils: [
     {
       get libelle() {

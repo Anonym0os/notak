@@ -5,12 +5,21 @@
   overflow: visible;
 }
 
-/* La couche de dessin libre : toute la toile, au-dessus des cartes, avec sa petite barre en haut. */
+/* La couche de dessin libre : toute la toile devient une feuille, sous un voile à moitié opaque. */
 .notak-dessin-libre {
   position: absolute;
   inset: 0;
   z-index: 45;
-  cursor: crosshair;
+  user-select: none;
+}
+
+/* Le voile : le fond de la toile à 50 %, à droite de la barre de gauche (qui reste visible, éteinte). */
+.notak-dessin-libre::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 0 72px;
+  background: color-mix(in srgb, var(--notak-fond) 50%, transparent);
+  pointer-events: none;
 }
 
 .notak-dessin-libre-feuille {
@@ -19,49 +28,50 @@
   width: 100%;
   height: 100%;
   touch-action: none;
+  cursor: crosshair;
 }
 
-.notak-dessin-libre-barre {
-  position: absolute;
-  top: 12px;
-  left: 50%;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px 6px 12px;
-  border-radius: 8px;
-  background: var(--notak-carte);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.14);
-  color: var(--notak-texte);
-  font-size: 13px;
-  transform: translateX(-50%);
+.notak-dessin-libre-feuille[data-outil='selection'],
+.notak-dessin-libre-feuille[data-outil='gomme'] {
   cursor: default;
 }
 
-.notak-dessin-libre-barre button {
-  width: 20px;
-  height: 20px;
-  border: 2px solid transparent;
-  border-radius: 50%;
-  cursor: pointer;
+.notak-dessin-libre-marquise {
+  fill: color-mix(in srgb, var(--notak-accent) 12%, transparent);
+  stroke: var(--notak-selection);
+  stroke-width: 1px;
 }
 
-.notak-dessin-libre-barre button[aria-pressed='true'] {
-  border-color: var(--notak-accent);
+/* La barre est celle du croquis (ses boutons, ses volets), flottante au centre du bas de la fenêtre. */
+.notak-dessin-libre .notak-dessin-libre-barre {
+  position: fixed;
+  top: auto;
+  bottom: 4rem;
+  left: 50%;
+  z-index: 1;
+  width: max-content;
+  transform: translateX(-50%);
+  transition: opacity 0.15s, transform 0.15s;
+  cursor: default;
 }
 
-.notak-dessin-libre-barre .notak-dessin-libre-texte {
-  width: auto;
-  height: 26px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 6px;
-  background: var(--notak-fond);
-  color: var(--notak-texte);
-  font: inherit;
+/* Pendant un tracé près du bord, la barre descend et s'efface. */
+.notak-dessin-libre .notak-dessin-libre-barre[data-effacee] {
+  opacity: 0;
+  transform: translate(-50%, 15px);
+  pointer-events: none;
 }
 
-.notak-dessin-libre-barre .notak-dessin-libre-fin {
-  background: var(--notak-accent);
-  color: #fff;
+/* Un bouton grisé garde ses événements (aria-disabled) : son double-clic ne traverse jamais vers la toile. */
+.notak-dessin-libre-barre button[aria-disabled='true'] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.notak-dessin-libre-barre button[aria-disabled='true']:hover {
+  background: none;
+}
+
+.notak-dessin-libre-barre .notak-croquis-enregistrer[aria-disabled='true']:hover {
+  background: var(--notak-accent, #2f6feb);
 }

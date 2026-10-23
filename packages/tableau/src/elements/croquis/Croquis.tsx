@@ -18,6 +18,7 @@ import {
   lireReglage,
   traitVise,
 } from './trace'
+import { BarreEpaisseur, VoletCouleur, VoletEpaisseur } from './partage'
 import { t } from '../../langue'
 import { BoutonOutil } from '../../BoutonOutil'
 import { ico } from '../../icones'
@@ -64,16 +65,6 @@ type Outil = 'crayon' | 'gomme'
 type Volet = 'couleur' | 'epaisseur' | null
 
 const couleurValide = (v: string | null): v is string => v !== null && /^#[0-9a-f]{6}$/i.test(v)
-
-/** L'allure d'une épaisseur, pour son bouton : une barre plus ou moins grasse. */
-function BarreEpaisseur({ i }: { i: number }) {
-  const e = [1.5, 3, 5, 9][i] ?? 3
-  return (
-    <svg width="22" height="18" viewBox="0 0 22 18" aria-hidden="true">
-      <line x1="3" y1="9" x2="19" y2="9" stroke="currentColor" strokeWidth={e} strokeLinecap="round" />
-    </svg>
-  )
-}
 
 /**
  * Le croquis ouvert en grand : une feuille centrée au-dessus de la toile, sa barre d'outils en pilule dessous. Un
@@ -278,30 +269,13 @@ function Feuille({ contenu, ecrire, finir }: { contenu: CroquisFeuille; ecrire(c
             <button type="button" title={`${t('couleur.titre')} (C)`} aria-label={t('couleur.titre')} aria-expanded={volet === 'couleur'} onClick={() => setVolet(volet === 'couleur' ? null : 'couleur')}>
               <span className="notak-croquis-pastille" style={{ background: couleur }} />
             </button>
-            {volet === 'couleur' && (
-              <div className="notak-croquis-volet notak-croquis-couleurs" role="group" aria-label={t('couleur.titre')}>
-                {COULEURS_TRAIT.map((c) => (
-                  <button key={c} type="button" className="notak-croquis-pastille" style={{ background: c }} aria-label={c} aria-pressed={couleur === c} onClick={() => choisirCouleur(c)} />
-                ))}
-                <label className="notak-croquis-libre" title={t('croquis.couleurLibre')}>
-                  <input type="color" value={couleur} aria-label={t('croquis.couleurLibre')} onChange={(e) => choisirCouleur(e.target.value)} />
-                </label>
-              </div>
-            )}
+            {volet === 'couleur' && <VoletCouleur couleur={couleur} choisir={choisirCouleur} />}
           </span>
           <span className="notak-croquis-volet-hote">
             <button type="button" title={`${t('croquis.epaisseur')} (1-4)`} aria-label={t('croquis.epaisseur')} aria-expanded={volet === 'epaisseur'} onClick={() => setVolet(volet === 'epaisseur' ? null : 'epaisseur')}>
               <BarreEpaisseur i={epaisseur} />
             </button>
-            {volet === 'epaisseur' && (
-              <div className="notak-croquis-volet" role="group" aria-label={t('croquis.epaisseur')}>
-                {EPAISSEURS_TRAIT.map((e, i) => (
-                  <button key={e.px} type="button" title={`${e.libelle} (${i + 1})`} aria-label={e.libelle} aria-pressed={epaisseur === i} onClick={() => choisirEpaisseur(i)}>
-                    <BarreEpaisseur i={i} />
-                  </button>
-                ))}
-              </div>
-            )}
+            {volet === 'epaisseur' && <VoletEpaisseur epaisseur={epaisseur} choisir={choisirEpaisseur} />}
           </span>
           <span className="notak-croquis-sep" role="separator" />
           <button type="button" title={`${t('espace.annuler')} (⌘Z)`} aria-label={t('espace.annuler')} disabled={passe.length === 0} onClick={annuler}>

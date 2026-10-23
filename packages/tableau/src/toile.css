@@ -1961,3 +1961,9 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   font-size: 11px;
   opacity: 0.6;
 }
+
+/* DESSIN-LIBRE : pendant le mode de dessin, la barre de gauche reste visible mais s'éteint (50 %, aucun clic). */
+.notak-barre-outils[data-eteinte] {
+  opacity: 0.5;
+  pointer-events: none;
+}

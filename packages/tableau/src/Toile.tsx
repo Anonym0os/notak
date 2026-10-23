@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { toileSuspendue } from './elements/dessin/mode'
 import { BarreOutils, BarreSelection, type OutilDeBarre, outilsDeBarre } from './Barres'
 import { BarreEdition, ContexteBarreEdition } from './barreEdition'
 import { Cadre, ContexteRangement, type Empreinte, type Rangement } from './Cadre'
@@ -1293,6 +1294,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   }
 
   const clavier = (e: React.KeyboardEvent) => {
+    // DESSIN-LIBRE : le clavier appartient à la couche de dessin (Suppr, flèches, Cmd+Z n'agissent plus sur le tableau).
+    if (toileSuspendue(racine.current)) return
     if (e.key === 'Escape' && annulerGlisser()) return e.preventDefault()
     const cmd = e.metaKey || e.ctrlKey
     const touche = e.key.toLowerCase()
@@ -1509,6 +1512,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   }
 
   const appui = (e: React.PointerEvent) => {
+    // DESSIN-LIBRE : la couche de dessin tient le pointeur ; la toile ne capture rien dessous.
+    if (toileSuspendue(racine.current)) return
     // En présentation, un clic sur un élément le montre en grand ; le reste de la toile se parcourt.
     if (services.presentation && e.button === 0 && !espace) {
       const id = sous(e.target)
@@ -2092,6 +2097,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   }
 
   const doubleClic = (e: React.MouseEvent) => {
+    // DESSIN-LIBRE : sous la couche de dessin, la toile ne fait rien (pas de note, pas d'ouverture).
+    if (toileSuspendue(racine.current)) return
     if (dansEdition(racine.current, e.target)) return
     if (lectureSeule) {
       const el = tableau.elements.find((x) => x.id === sous(document.elementFromPoint(e.clientX, e.clientY)))
