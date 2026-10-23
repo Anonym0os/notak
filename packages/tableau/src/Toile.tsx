@@ -545,8 +545,48 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     commencerEdition(element.id)
   }, [finirEdition, rect, commencerEdition])
 
-  // Pendant l'édition, ce qui grandit pousse ce qui est dessous (voir `coeur/collisions.ts`). Un élément rangé
-  // fait grandir sa colonne : c'est elle qui pousse.
+  /**
+   * Les voisins à pousser quand l'élément `haut` passe de `avant` à `apres` (voir `coeur/collisions.ts`), en
+   * opérations prêtes à écrire. `origines` garde, d'un appel à l'autre, d'où venaient les voisins rattrapés.
+   */
+  const calculerPoussees = useCallback(
+    (haut: Id, avant: Rect, apres: Rect, nouveau: boolean, origines: Map<Id, number>): Operation[] => {
+      const t = etat.current.magasin.lire()
+      const candidats = t.elements.filter((x) => libre(x) && x.id !== haut && !x.verrou)
+      // Au-delà, chaque frappe mesurerait trop d'éléments.
+      if (candidats.length > MAX_POUSSEES) return []
+      const voisins = new Map<Id, Rect>()
+      for (const x of candidats) {
+        const r = rect(x.id)
+        if (r) voisins.set(x.id, r)
+      }
+      const pas: Operation[] = []
+      for (const [id, dy] of poussees(haut, { avant, apres, nouveau }, voisins, origines)) {
+        const x = t.elements.find((e) => e.id === id)!
+        pas.push({ type: 'deplacer', id, de: [x.x, x.y], vers: [x.x, x.y + dy] })
+      }
+      return pas
+    },
+    [rect],
+  )
+
+  // Ce qui change de taille juste après un geste (une note bornée qui se replie en sortant d'édition, une colonne
+  // qui reçoit ou perd un élément) : remesuré une fois le geste écrit, ses voisins suivent d'un pas à part.
+  const aRemesurer = useRef<{ haut: Id; avant: Rect; origines: Map<Id, number> }[]>([])
+  const colonnesAuDepart = useRef<{ haut: Id; avant: Rect; origines: Map<Id, number> }[]>([])
+  useEffect(() => {
+    if (aRemesurer.current.length === 0 || enGeste || edition || services.lectureSeule) return
+    const liste = aRemesurer.current
+    aRemesurer.current = []
+    const pas = liste.flatMap((r) => {
+      const apres = rect(r.haut)
+      return apres && Math.abs(apres.max.y - r.avant.max.y) >= 0.05 ? calculerPoussees(r.haut, r.avant, apres, false, r.origines) : []
+    })
+    if (pas.length > 0) etat.current.magasin.faire(pas)
+  })
+
+  // Pendant l'édition, ce qui grandit pousse ce qui est dessous. Un élément rangé fait grandir sa colonne : c'est
+  // elle qui pousse.
   useEffect(() => {
     if (!edition || services.lectureSeule) return
     const m = etat.current.magasin
@@ -562,30 +602,20 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       // Lue ici, pas à l'entrée de l'effet : React le joue deux fois en développement.
       const nouveau = neSous.current === edition
       if (!avant || !apres || (!nouveau && Math.abs(apres.max.y - avant.max.y) < 0.05)) return
-      const t = m.lire()
-      const candidats = t.elements.filter((x) => libre(x) && x.id !== haut && !x.verrou)
-      // Au-delà, chaque frappe mesurerait trop d'éléments.
-      if (candidats.length > MAX_POUSSEES) return
-      const voisins = new Map<Id, Rect>()
-      for (const x of candidats) {
-        const r = rect(x.id)
-        if (r) voisins.set(x.id, r)
-      }
-      const decalages = poussees(haut, { avant, apres, nouveau }, voisins, origines)
+      const pas = calculerPoussees(haut, avant, apres, nouveau, origines)
       if (nouveau) neSous.current = null
       avant = apres
-      const pas: Operation[] = []
-      for (const [id, dy] of decalages) {
-        const x = t.elements.find((e) => e.id === id)!
-        pas.push({ type: 'deplacer', id, de: [x.x, x.y], vers: [x.x, x.y + dy] })
-      }
       if (pas.length === 0) return
       m.appliquerSeulement(pas)
       pousses.current.push(...pas)
     })
     obs.observe(noeud)
-    return () => obs.disconnect()
-  }, [edition, services.lectureSeule, rect])
+    return () => {
+      obs.disconnect()
+      // En sortant d'édition, une note à hauteur bornée se replie : elle ramène ses voisins.
+      if (avant) aRemesurer.current.push({ haut, avant, origines })
+    }
+  }, [edition, services.lectureSeule, rect, calculerPoussees])
   const contexteRef = useRef<ContexteToile | null>(null)
 
   /**
@@ -1646,6 +1676,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       g.demarre = true
       g.reduire = undefined
       arreterDepose()
+      // Les colonnes telles qu'au départ : celle qu'on quitte et celle qu'on vise changent de taille au dépôt.
+      colonnesAuDepart.current = tableau.elements.flatMap((x) => {
+        const r = x.contenu.type === 'colonne' && !x.parent ? rect(x.id) : null
+        return r ? [{ haut: x.id, avant: r, origines: new Map<Id, number>() }] : []
+      })
       const ids = [...g.origines.keys()]
       const choisis = magasin.lire().elements.filter((x) => g.origines.has(x.id))
       const r = ids.length === 1 ? rect(ids[0]!) : null
@@ -1929,6 +1964,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     setEmpreintes(AUCUNE)
     if (g?.type === 'outil') return lacherOutil(g, e, visee, versTableau?.id)
     if (g?.type !== 'glisser') return
+    if (g.demarre) {
+      aRemesurer.current.push(...colonnesAuDepart.current)
+      colonnesAuDepart.current = []
+    }
     if (g.demarre && versTableau && services.deposerDans) {
       // Lâché sur un tableau : tout part dans ce tableau, colonnes et lignes comprises.
       g.envol?.arreter()
