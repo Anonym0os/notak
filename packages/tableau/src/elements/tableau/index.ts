@@ -85,6 +85,7 @@ registre.type<RenvoiTableau>({
       libelle: 'Tableau modèle',
       icone: '▤',
       rang: 51,
+      tiroir: true,
       fantome: () => ({ id: '', x: 0, y: 0, largeur: LARGEUR_RENVOI, contenu: { type: 'tableau', cible: '' } }),
       prise: { x: LARGEUR_RENVOI / 2, y: LARGEUR_RENVOI / 2 },
       creer(ou, contexte) {

@@ -14,7 +14,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | Partie | Fait | En partie | Absent | Avancement |
 |---|---|---|---|---|
 | 1. Toile | 23 | 3 | 1 | 91 % |
-| 2. Création | 14 | 2 | 1 | 88 % |
+| 2. Création | 15 | 2 | 0 | 94 % |
 | 3. Note et texte | 30 | 0 | 1 | 97 % |
 | 4. Colonne | 10 | 1 | 0 | 95 % |
 | 5. Tableau imbriqué | 11 | 0 | 0 | 100 % |
@@ -22,15 +22,15 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 7. Image | 11 | 1 | 0 | 96 % |
 | 8. Liste de tâches | 16 | 1 | 0 | 97 % |
 | 9. Ligne | 14 | 0 | 0 | 100 % |
-| 10. Autres éléments | 10 | 1 | 1 | 88 % |
+| 10. Autres éléments | 11 | 1 | 0 | 96 % |
 | 11. Commun aux éléments | 11 | 1 | 0 | 96 % |
 | 12. Organiser | 16 | 0 | 0 | 100 % |
 | 13. Naviguer | 12 | 0 | 1 | 92 % |
 | 14. À plusieurs | 17 | 0 | 0 | 100 % |
-| 15. Habillage | 10 | 3 | 2 | 77 % |
+| 15. Habillage | 12 | 2 | 1 | 87 % |
 | 16. Exporter, importer | 2 | 2 | 0 | 75 % |
 | 17. Plateformes | 5 | 2 | 0 | 86 % |
-| **Total** | **225** | **17** | **7** | **94 %** |
+| **Total** | **229** | **16** | **4** | **95 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -87,7 +87,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Déposer un fichier quelconque, plusieurs adresses, dans une colonne | 🟡 | Les fichiers se posent sur la toile, pas encore dans la colonne visée ; une seule adresse est gardée. |
 | Non triés : bac latéral, Cmd+\, Alt+` | ✅ | |
 | Tailles et couleurs de départ de chaque type | ✅ | |
-| Modèles de tableaux | ⬜ | |
+| Modèles de tableaux | ✅ | Dix modèles, choisis avec un aperçu. |
 | Sons et vibration à la création | ➖ | Pas de sons repris (salle blanche). |
 | Création depuis le téléphone (notes rapides, partage vers Notak) | 🟡 | Notes rapides ; le partage marche sur Android et Chrome, pas sur iOS Safari. |
 
@@ -343,8 +343,8 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Tailles d'interface (petite, moyenne, grande) | ✅ |  |
 | Fenêtre des raccourcis (/) | ✅ | |
 | Présentation (Cmd+Alt+P), mode focus sur un élément | ✅ |  |
-| Aide, bulles de découverte, accueil d'un nouveau compte | ⬜ | |
-| Réglages du compte (Cmd+,), photo, couleur | 🟡 | Thème, taille, double-clic ; pas encore la photo ni la couleur du compte. |
+| Aide, bulles de découverte, accueil d'un nouveau compte | ✅ |  |
+| Réglages du compte (Cmd+,), photo, couleur | ✅ |  |
 | Langues de l'interface | ⬜ | Français seulement. |
 | Avis en bas d'écran (toasts) avec annulation | 🟡 | Corbeille (« Annuler ») et envoi raté ; pas encore les autres gestes. |
 | Envoi de fichier : progression dans l'en-tête | ✅ |  |
