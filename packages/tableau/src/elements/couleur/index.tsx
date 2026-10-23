@@ -49,7 +49,7 @@ function OutilCouleur({ elements, contexte }: { elements: Element[]; contexte: C
   )
 }
 
-registre.outilCommun(OutilCouleur)
+registre.outilCommun(OutilCouleur, 10)
 
 /** La couleur rangée dans le contenu (`couleur`), qu'on retire pour « Aucune ». */
 export function couleurDuContenu<C extends { couleur?: CouleurNote }>() {

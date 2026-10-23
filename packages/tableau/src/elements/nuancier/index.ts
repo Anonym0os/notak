@@ -1,6 +1,6 @@
 import type { Nuancier } from '../../coeur/tableau'
 import { registre } from '../registre'
-import { OutilsNuancier, RenduNuancier } from './Nuancier'
+import { OutilsNuancier, OutilsNuancierApres, RenduNuancier } from './Nuancier'
 import { LARGEUR_NUANCIER, PROPORTION_NUANCIER, codeAffiche, normaliserHex, nouveauNuancier } from './couleur'
 import { t } from '../../langue'
 import './nuancier.css'
@@ -14,6 +14,7 @@ registre.type<Nuancier>({
   resume: (c) => codeAffiche(c.couleur),
   Rendu: RenduNuancier,
   Outils: OutilsNuancier,
+  OutilsApres: OutilsNuancierApres,
   editable: true,
   sansFond: true,
   hauteurParDefaut: 12,

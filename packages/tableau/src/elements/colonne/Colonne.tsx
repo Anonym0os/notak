@@ -1,13 +1,13 @@
 import { useLayoutEffect, useRef } from 'react'
 import { Rangees, useEmpreintes, useRanges } from '../../Cadre'
-import { COULEURS_NOTE, type Colonne, type CouleurNote } from '../../coeur/tableau'
+import type { Colonne, CouleurNote } from '../../coeur/tableau'
 import { composition } from '../composition'
 import { LIBELLES_COULEUR } from '../note/couleurs'
 import type { PropsOutils, PropsRendu } from '../types'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
 import { useMenu } from '../../menuUnique'
-import { OutilAvecMenu } from '../../BoutonOutil'
+import { BoutonOutil, OutilAvecMenu } from '../../BoutonOutil'
 
 /** Le titre en édition : tout le texte est choisi à l'ouverture, Entrée valide (Échap est géré par la toile). */
 function Saisie({ titre, surChangement, valider }: { titre: string; surChangement(t: string): void; valider(): void }) {
@@ -94,7 +94,10 @@ export function RenduColonne({ element, choisie, enEdition, contexte, brouillon,
   )
 }
 
-/** « Couleur » : la palette des colonnes choisies. Un seul pas d'historique. */
+/** Les teintes d'une colonne, dans l'ordre de Milanote : dix, sans le brun, le gris à la fin. */
+const COULEURS_COLONNE = ['cyan', 'vert', 'jaune', 'orange', 'rouge', 'rose', 'violet', 'bleu', 'bleu_nuit', 'gris'] as const satisfies readonly CouleurNote[]
+
+/** « Couleur » (la palette des colonnes choisies, un seul pas d'historique) et « Renommer » pour une colonne seule. */
 export function OutilsColonne({ elements, contexte }: PropsOutils<Colonne>) {
   const [ouvert, setOuvert, ancre] = useMenu()
   const choisir = (couleur: CouleurNote | undefined) => {
@@ -108,11 +111,12 @@ export function OutilsColonne({ elements, contexte }: PropsOutils<Colonne>) {
   }
   const actuelle = elements.every((e) => e.contenu.couleur === elements[0]!.contenu.couleur) ? elements[0]!.contenu.couleur : undefined
   return (
+    <>
     <OutilAvecMenu menu={[ouvert, setOuvert, ancre]} classeAncre="notak-colonne-menu-ancre" icone="palette" titre={t('couleur.titre')} libelle={t('couleur.titre')} pastille={actuelle ? `var(--notak-colonne-${actuelle})` : undefined}>
       <div className="notak-colonne-palette" role="menu">
           <div className="notak-colonne-pastilles">
             <button type="button" role="menuitem" className="notak-pastille-aucune" title={t('couleur.aucune')} aria-label={t('couleur.aucune')} aria-pressed={actuelle === undefined} onClick={() => choisir(undefined)} />
-            {COULEURS_NOTE.map((c) => (
+            {COULEURS_COLONNE.map((c) => (
               <button
                 key={c}
                 type="button"
@@ -127,5 +131,9 @@ export function OutilsColonne({ elements, contexte }: PropsOutils<Colonne>) {
           </div>
       </div>
     </OutilAvecMenu>
+    {elements.length === 1 && !contexte.services.lectureSeule && (
+      <BoutonOutil icone="modifier" titre={t('colonne.renommer')} libelle={t('menu.renommer')} onClick={() => contexte.commencerEdition(elements[0]!.id)} />
+    )}
+    </>
   )
 }

@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import type { Nuancier } from '../../coeur/tableau'
 import { couleurTexteSur } from '../note/couleurs'
 import type { PropsOutils, PropsRendu } from '../types'
-import { codeAffiche, normaliserHex, piocherCouleur, pipetteDisponible } from './couleur'
+import { FORMATS_CODE, type FormatCode, codeAffiche, normaliserHex, piocherCouleur, pipetteDisponible } from './couleur'
 import { t } from '../../langue'
-import { BoutonOutil } from '../../BoutonOutil'
+import { BoutonOutil, OutilAvecMenu } from '../../BoutonOutil'
+import { Icone } from '../../icones'
+import { useMenu } from '../../menuUnique'
 
 /** Les champs de la carte ne lancent pas de glisser. */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
@@ -13,7 +15,7 @@ export function RenduNuancier({ element, enEdition, contexte, brouillon }: Props
   const c = element.contenu
   return (
     <div className="notak-nuancier" style={{ background: c.couleur, color: couleurTexteSur(c.couleur) }}>
-      {!c.sansCode && <span className="notak-nuancier-code">{codeAffiche(c.couleur)}</span>}
+      {!c.sansCode && <span className="notak-nuancier-code">{codeAffiche(c.couleur, c.format)}</span>}
       {enEdition && <Reglage contenu={c} ecrire={brouillon} finir={contexte.finirEdition} />}
     </div>
   )
@@ -67,16 +69,65 @@ function Reglage({ contenu, ecrire, finir }: { contenu: Nuancier; ecrire(c: Nuan
   )
 }
 
+/** « Couleur » : la tuile ouvre tout de suite le sélecteur du système ; la teinte se pose quand on le referme. */
 export function OutilsNuancier({ elements, contexte }: PropsOutils<Nuancier>) {
+  const champ = useRef<HTMLInputElement>(null)
+  const appliquerRef = useRef<(hex: string) => void>(() => {})
+  appliquerRef.current = (hex) => contexte.magasin.faire(elements.map((e) => ({ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: { ...e.contenu, couleur: hex } })))
+  useEffect(() => {
+    const c = champ.current
+    if (!c) return
+    const fin = () => {
+      const hex = normaliserHex(c.value)
+      if (hex) appliquerRef.current(hex)
+    }
+    c.addEventListener('change', fin)
+    return () => c.removeEventListener('change', fin)
+  }, [])
   if (contexte.services.lectureSeule) return null
-  const appliquer = (f: (e: PropsOutils<Nuancier>['elements'][number]) => Nuancier) =>
-    contexte.magasin.faire(elements.map((e) => ({ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: f(e) })))
-  const avecCode = elements.every((e) => !e.contenu.sansCode)
+  const commune = elements.every((e) => e.contenu.couleur === elements[0]!.contenu.couleur) ? elements[0]!.contenu.couleur : undefined
+  const ouvrir = () => {
+    const c = champ.current
+    if (!c) return
+    if (commune) c.value = commune
+    if (typeof c.showPicker === 'function') c.showPicker()
+    else c.click()
+  }
   return (
     <>
-      {elements.length === 1 && (
-        <BoutonOutil icone="palette" pastille={elements[0]!.contenu.couleur} titre={t('nuancier.changer')} libelle={t('couleur.titre')} onClick={() => contexte.commencerEdition(elements[0]!.id)} />
-      )}
+      <BoutonOutil icone="palette" pastille={commune} titre={t('nuancier.changer')} libelle={t('couleur.titre')} onClick={ouvrir} />
+      <input ref={champ} type="color" className="notak-nuancier-natif" tabIndex={-1} aria-label={t('nuancier.choisir')} defaultValue={commune ?? '#000000'} />
+    </>
+  )
+}
+
+/** Affichage du code (HEX, RGB, HSL, rien), puis la pipette dans « ••• ». */
+export function OutilsNuancierApres({ elements, contexte }: PropsOutils<Nuancier>) {
+  const menu = useMenu()
+  if (contexte.services.lectureSeule) return null
+  const appliquer = (f: (e: PropsOutils<Nuancier>['elements'][number]) => Nuancier) => {
+    contexte.magasin.faire(elements.map((e) => ({ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: f(e) })))
+    menu[1](false)
+  }
+  const choix = (e: PropsOutils<Nuancier>['elements'][number]): FormatCode | 'rien' => (e.contenu.sansCode ? 'rien' : e.contenu.format ?? 'hex')
+  const commun = elements.every((e) => choix(e) === choix(elements[0]!)) ? choix(elements[0]!) : undefined
+  const poser = (c: Nuancier, vers: FormatCode | 'rien'): Nuancier => {
+    const { sansCode: _, format: __, ...reste } = c
+    return vers === 'rien' ? { ...reste, sansCode: true } : vers === 'hex' ? reste : { ...reste, format: vers }
+  }
+  const libelles: Record<FormatCode | 'rien', string> = { hex: 'HEX', rgb: 'RGB', hsl: 'HSL', rien: t('nuancier.sansCode') }
+  return (
+    <>
+      <OutilAvecMenu menu={menu} icone="diese" titre={t('nuancier.affichage')} libelle={commun ? libelles[commun] : t('nuancier.code')}>
+        <div className="notak-note-palette notak-decor-menu" role="menu">
+          {([...FORMATS_CODE, 'rien'] as const).map((f) => (
+            <button key={f} type="button" className="notak-menu-rang" role="menuitemradio" aria-checked={commun === f} onClick={() => appliquer((e) => poser(e.contenu, f))}>
+              <span className="notak-menu-rang-texte">{libelles[f]}</span>
+              {commun === f && <Icone nom="coche" taille={14} />}
+            </button>
+          ))}
+        </div>
+      </OutilAvecMenu>
       {elements.length === 1 && pipetteDisponible() && (
         <BoutonOutil
           icone="pipette"
@@ -86,14 +137,6 @@ export function OutilsNuancier({ elements, contexte }: PropsOutils<Nuancier>) {
           onClick={() => void piocherCouleur().then((h) => h && appliquer((e) => ({ ...e.contenu, couleur: h })))}
         />
       )}
-      <BoutonOutil
-        icone="diese"
-        secondaire
-        titre={avecCode ? t('nuancier.cacherCode') : t('nuancier.montrerCode')}
-        libelle={t('nuancier.code')}
-        actif={avecCode}
-        onClick={() => appliquer(({ contenu: { sansCode: _, ...reste } }) => (avecCode ? { ...reste, sansCode: true } : reste))}
-      />
     </>
   )
 }

@@ -36,7 +36,7 @@ registre.type<Lien>({
   hauteurParDefaut: 20,
   sansFond: true,
   hauteurBornable: true,
-  Outils: OutilsLien,
+  OutilsApres: OutilsLien,
   outils: [
     {
       get libelle() {
@@ -75,4 +75,24 @@ registre.recepteur({
     if (urls.length === 0 || urls.some((u) => !u)) return null
     return [...new Set(urls as string[])].map((url, i) => ({ type: 'creer' as const, element: nouveauLien({ x: ou.x, y: ou.y + i * PAS_ADRESSES }, url) }))
   },
+})
+
+// Ouvrir et copier l'adresse n'ont pas de tuile : ils sont au menu « ••• » de la barre, comme chez Milanote.
+const liensAvecAdresse = (els: Element[]) => els.length > 0 && els.every((e) => e.contenu.type === 'lien' && !!e.contenu.url)
+const adressesDe = (els: Element[]) => els.flatMap((e) => (e.contenu.type === 'lien' ? [e.contenu.url] : []))
+
+registre.entreeMenu({
+  get libelle() {
+    return t('lien.ouvrirLien')
+  },
+  visible: (els) => els.length === 1 && liensAvecAdresse(els),
+  faire: (els) => void window.open(adressesDe(els)[0], '_blank', 'noopener,noreferrer'),
+})
+
+registre.entreeMenu({
+  get libelle() {
+    return t('lien.copierAdresse')
+  },
+  visible: (els) => liensAvecAdresse(els),
+  faire: (els) => void navigator.clipboard.writeText(adressesDe(els).join('\n')),
 })

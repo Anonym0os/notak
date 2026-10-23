@@ -336,6 +336,8 @@ export interface Nuancier {
   type: 'nuancier'
   couleur: string
   sansCode?: boolean
+  /** Le code montré : hexadécimal (par défaut), `rgb(…)` ou `hsl(…)`. `sansCode` le cache. */
+  format?: 'hex' | 'rgb' | 'hsl'
 }
 
 /** Un lieu : son nom (facultatif) et son adresse, avec un lien vers une carte en ligne. */

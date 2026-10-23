@@ -188,3 +188,21 @@
   overflow: visible;
   pointer-events: none;
 }
+
+/* Le choix de l'épaisseur : trois traits, un par épaisseur. */
+.notak-ligne-epaisseurs {
+  flex-direction: row !important;
+  gap: 4px !important;
+}
+
+.notak-ligne-epaisseurs button {
+  width: 36px;
+  height: 28px;
+}
+
+.notak-ligne-epaisseurs button span {
+  display: block;
+  width: 22px;
+  border-radius: 1px;
+  background: currentColor;
+}

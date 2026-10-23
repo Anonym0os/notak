@@ -22,7 +22,8 @@ export interface OngletCouleur {
   pastilles: Pastille[]
   /** La couleur libre d'à présent (`#rrggbb`), si c'en est une. */
   libre?: string | undefined
-  poserLibre(hex: string): void
+  /** Absent : ce type n'a que les teintes de la grille, pas de couleur libre. */
+  poserLibre?(hex: string): void
 }
 
 /** La grille : cinq colonnes, 24 × 20, huit pixels entre les pastilles. */
@@ -96,16 +97,16 @@ export function PanneauCouleur({ onglets, depart = 0, suggerees = [] }: { onglet
         </div>
       )}
       <GrillePastilles pastilles={onglet.pastilles} nom={onglet.libelle} />
-      {suggerees.length > 0 && (
+      {suggerees.length > 0 && onglet.poserLibre && (
         <>
           <span className="notak-decor-titre">{t('couleur.recentes')}</span>
           <GrillePastilles
             nom={t('note.couleursTableau')}
-            pastilles={suggerees.map((c) => ({ cle: c, libelle: c, teinte: c, actif: onglet.libre === c, choisir: () => onglet.poserLibre(c) }))}
+            pastilles={suggerees.map((c) => ({ cle: c, libelle: c, teinte: c, actif: onglet.libre === c, choisir: () => onglet.poserLibre!(c) }))}
           />
         </>
       )}
-      <CouleurPersonnalisee actuelle={onglet.libre} choisir={onglet.poserLibre} />
+      {onglet.poserLibre && <CouleurPersonnalisee actuelle={onglet.libre} choisir={onglet.poserLibre} />}
     </div>
   )
 }

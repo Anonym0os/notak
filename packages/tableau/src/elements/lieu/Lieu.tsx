@@ -128,10 +128,10 @@ export function OutilsLieu({ elements, contexte }: PropsOutils<Lieu>) {
   return (
     <>
       {url && (
-        <BoutonOutil icone="carte" titre={t('lieu.ouvrirCarte')} libelle={t('lieu.voirCarte')} onClick={() => void window.open(url, '_blank', 'noopener,noreferrer')} />
+        <BoutonOutil icone="carte" secondaire titre={t('lieu.ouvrirCarte')} libelle={t('lieu.voirCarte')} onClick={() => void window.open(url, '_blank', 'noopener,noreferrer')} />
       )}
       {elements.length === 1 && !contexte.services.lectureSeule && (
-        <BoutonOutil icone="modifier" titre={t('lieu.modifierAdresse')} libelle={t('commun.modifier')} onClick={() => contexte.commencerEdition(elements[0]!.id)} />
+        <BoutonOutil icone="modifier" secondaire titre={t('lieu.modifierAdresse')} libelle={t('commun.modifier')} onClick={() => contexte.commencerEdition(elements[0]!.id)} />
       )}
     </>
   )

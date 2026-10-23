@@ -4,7 +4,10 @@ import type { EntreeMenu, OutilCommun, Raccourci, Recepteur, TypeElement } from 
 const types = new Map<TypeContenu, TypeElement>()
 const recepteurs: Recepteur[] = []
 const raccourcis: Raccourci[] = []
-const outilsCommuns: OutilCommun[] = []
+const outilsCommuns: { outil: OutilCommun; rang: number }[] = []
+
+/** Où paraissent les outils d'un type qui se montrent après les outils communs « de tête » (étiquettes, réactions, commentaire). */
+export const RANG_APRES_TETE = 45
 const entreesMenu: EntreeMenu[] = []
 
 export const registre = {
@@ -18,11 +21,16 @@ export const registre = {
   raccourci(r: Raccourci) {
     raccourcis.push(r)
   },
-  outilCommun(o: OutilCommun) {
+  /**
+   * `rang` place l'outil dans la barre de sélection, croissant : 10 la couleur, 20 les étiquettes, 30 les réactions,
+   * 40 le commentaire ; les outils propres au type qui suivent viennent à `RANG_APRES_TETE` ; 60 l'arrangement.
+   */
+  outilCommun(o: OutilCommun, rang = 50) {
     // Un module rechargé (à chaud) se déclare une seconde fois : il remplace sa première déclaration.
-    const i = o.name ? outilsCommuns.findIndex((x) => x.name === o.name) : -1
-    if (i >= 0) outilsCommuns[i] = o
-    else outilsCommuns.push(o)
+    const i = o.name ? outilsCommuns.findIndex((x) => x.outil.name === o.name) : -1
+    if (i >= 0) outilsCommuns[i] = { outil: o, rang }
+    else outilsCommuns.push({ outil: o, rang })
+    outilsCommuns.sort((a, b) => a.rang - b.rang)
   },
   entreeMenu(e: EntreeMenu) {
     // Une entrée porte le nom de son geste : deux entrées du même nom n'en font qu'une dans le menu.
@@ -36,5 +44,7 @@ export const definition = (type: TypeContenu) => types.get(type)
 export const tousLesTypes = () => [...types.values()]
 export const tousLesRecepteurs = () => recepteurs
 export const tousLesRaccourcis = () => raccourcis
-export const tousLesOutilsCommuns = () => outilsCommuns
+export const tousLesOutilsCommuns = () => outilsCommuns.map((x) => x.outil)
+/** Les outils communs avec leur rang, du premier au dernier. */
+export const tousLesOutilsCommunsRanges = () => outilsCommuns
 export const toutesLesEntreesMenu = () => entreesMenu

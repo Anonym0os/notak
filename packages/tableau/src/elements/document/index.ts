@@ -14,7 +14,7 @@ registre.type<DocumentTexte>({
   },
   resume,
   Rendu: RenduDocument,
-  Outils: OutilsDocument,
+  OutilsApres: OutilsDocument,
   editable: true,
   hauteurParDefaut: 12,
   largeurMin: 16,

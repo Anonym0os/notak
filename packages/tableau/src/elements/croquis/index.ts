@@ -13,7 +13,7 @@ registre.type<Croquis>({
   },
   resume,
   Rendu: RenduCroquis,
-  Outils: OutilsCroquis,
+  OutilsApres: OutilsCroquis,
   editable: true,
   hauteurParDefaut: 21,
   largeurMin: 12,

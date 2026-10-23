@@ -34,7 +34,7 @@ registre.type<Clone>({
     return original ? t('clone.resume', { texte: texte || definition(original.contenu.type)?.nom || t('clone.lOriginal') }) : resumeSansOriginal()
   },
   Rendu: RenduClone,
-  Outils: OutilsClone,
+  OutilsApres: OutilsClone,
   hauteurParDefaut: 8,
   hauteurBornable: true,
   largeurMin: 8,

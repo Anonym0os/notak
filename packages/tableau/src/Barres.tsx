@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Element } from './coeur/tableau'
 import { BoutonEtiquettes } from './elements/decor/BoutonEtiquettes'
 import { t } from './langue'
-import { definition, tousLesOutilsCommuns, tousLesTypes } from './elements/registre'
+import { RANG_APRES_TETE, definition, tousLesOutilsCommunsRanges, tousLesTypes } from './elements/registre'
 import type { ContexteToile, Outil } from './elements/types'
 import { ContexteOutils } from './BoutonOutil'
 import { useBarreBornee, useMenusBornes } from './borner'
@@ -192,13 +192,22 @@ export function BarreSelection({
   const blocs = [...parType].flatMap(([type, els]) => {
     const def = definition(type as Element['contenu']['type'])
     const Outils = def?.Outils
-    return Outils ? [{ type, nom: def?.nom ?? type, n: els.length, rendu: <Outils key={type} elements={els} contexte={contexte} /> }] : []
+    const Apres = def?.OutilsApres
+    if (!Outils && !Apres) return []
+    const tete = Outils ? <Outils key={type} elements={els} contexte={contexte} /> : null
+    const suite = Apres ? <Apres key={`${type}:apres`} elements={els} contexte={contexte} /> : null
+    return [{ type, nom: def?.nom ?? type, n: els.length, tete, suite, rendu: <>{tete}{suite}</> }]
   })
-  const communs = tousLesOutilsCommuns().map((O, i) => <O key={`c${i}`} elements={elements} contexte={contexte} />)
+  // Les outils communs, dans l'ordre de leur rang ; ceux du type qui suivent les étiquettes, réactions et commentaire
+  // (`OutilsApres`) s'intercalent avant l'arrangement.
+  const communsRanges = tousLesOutilsCommunsRanges()
+  const commun = ({ outil: O }: (typeof communsRanges)[number], i: number) => <O key={`c${i}`} elements={elements} contexte={contexte} />
+  const communs = communsRanges.filter((x) => x.rang < RANG_APRES_TETE).map(commun)
+  const communsSuite = communsRanges.filter((x) => x.rang >= RANG_APRES_TETE).map((x, i) => commun(x, i + 100))
   // Une sélection d'un seul type montre ses outils ; une sélection mêlée ne montre que ce qui vaut pour tous,
   // et range les outils de chaque type derrière « … ».
   const mele = parType.size > 1
-  if (blocs.length === 0 && communs.length === 0) return null
+  if (blocs.length === 0 && communs.length + communsSuite.length === 0) return null
 
   if (aGauche) {
     return (
@@ -208,8 +217,10 @@ export function BarreSelection({
         </button>
         <ContexteOutils.Provider value={{ aGauche: true, plus: cibleTiroir }}>
           <div key={cle} className="notak-barre-selection" data-a-gauche>
-            {!mele && blocs.map((b) => b.rendu)}
+            {!mele && blocs.map((b) => b.tete)}
             {communs}
+            {!mele && blocs.map((b) => b.suite)}
+            {communsSuite}
             <div className="notak-outil-place notak-selection-plus" ref={ancreTiroir}>
               <button type="button" className="notak-outil-plus" aria-expanded={tiroir} aria-label={t('barre.plusOutils')} title={t('barre.plusOutils')} onClick={() => setTiroir(!tiroir)}>
                 <Icone nom="plus" />
@@ -247,8 +258,10 @@ export function BarreSelection({
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
     >
-      {!mele && blocs.map((b) => b.rendu)}
+      {!mele && blocs.map((b) => b.tete)}
       {communs}
+      {!mele && blocs.map((b) => b.suite)}
+      {communsSuite}
       {mele && blocs.length > 0 && (
         <span className="notak-barre-plus" ref={ancrePlus}>
           <button type="button" title={t('barre.outilsParType')} aria-expanded={plus} aria-pressed={plus} onClick={() => setPlus(!plus)}>

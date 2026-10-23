@@ -35,7 +35,7 @@ function ChoixIcone({ elements, contexte }: PropsOutils<RenvoiTableau>) {
     champ.click()
   }
   return (
-    <OutilAvecMenu menu={[ouvert, setOuvert, ancre]} classeAncre="notak-colonne-menu-ancre" icone="tableau" titre={t('tableau.icone.titre')} libelle={t('tableau.icone')} secondaire>
+    <OutilAvecMenu menu={[ouvert, setOuvert, ancre]} classeAncre="notak-colonne-menu-ancre" icone="tableau" titre={t('tableau.icone.titre')} libelle={t('tableau.icone')}>
       <div className="notak-colonne-palette" role="menu">
           <div className="notak-renvoi-icones">
             {Object.entries(ICONES_TABLEAU).map(([nom, { icone, libelle }]) => (
@@ -121,7 +121,7 @@ export function OutilsRenvoi({ elements, contexte }: PropsOutils<RenvoiTableau>)
         <BoutonOutil icone="modele" secondaire titre={t('tableau.modele.titre')} libelle={t('tableau.modele')} onClick={() => demanderModele(elements[0]!.id)} />
       )}
       {elements.length === 1 && (
-        <BoutonOutil icone="modifier" secondaire titre={t('tableau.renommer.titre')} libelle={t('menu.renommer')} onClick={() => demanderRenommage(elements[0]!.id)} />
+        <BoutonOutil icone="modifier" titre={t('tableau.renommer.titre')} libelle={t('menu.renommer')} onClick={() => demanderRenommage(elements[0]!.id)} />
       )}
     </>
   )

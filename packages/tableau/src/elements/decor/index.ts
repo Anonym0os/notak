@@ -6,11 +6,11 @@ import { appliquerAffichage, estReduit, peutSeReduire } from './affichage'
 import { ouvrirFil } from './etat'
 import { t } from '../../langue'
 
-registre.outilCommun(OutilEtiquettes)
-registre.outilCommun(OutilReactions)
-registre.outilCommun(OutilEcheance)
-registre.outilCommun(OutilAffichage)
-registre.outilCommun(OutilCommentaire)
+registre.outilCommun(OutilEtiquettes, 20)
+registre.outilCommun(OutilReactions, 30)
+registre.outilCommun(OutilEcheance, 70)
+registre.outilCommun(OutilAffichage, 44)
+registre.outilCommun(OutilCommentaire, 40)
 
 const modifiables = (elements: Element[], contexte: { services: { lectureSeule?: boolean } }) => !contexte.services.lectureSeule && elements.length > 0
 const repliables = (elements: Element[]) => elements.every(peutSeReduire)

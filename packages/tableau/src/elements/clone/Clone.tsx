@@ -64,9 +64,9 @@ export function OutilsClone({ elements, contexte }: PropsOutils<Clone>) {
   }
   return (
     <>
-      <BoutonOutil icone="original" titre={t('clone.choisirOriginal')} libelle={t('clone.original')} desactive={!original} onClick={() => original && contexte.choisir([original.id])} />
+      <BoutonOutil icone="original" secondaire titre={t('clone.choisirOriginal')} libelle={t('clone.original')} desactive={!original} onClick={() => original && contexte.choisir([original.id])} />
       {!contexte.services.lectureSeule && (
-        <BoutonOutil icone="detacher" titre={t('clone.detacher.titre')} libelle={t('clone.detacher')} desactive={!aDetacher} onClick={detacher} />
+        <BoutonOutil icone="detacher" secondaire titre={t('clone.detacher.titre')} libelle={t('clone.detacher')} desactive={!aDetacher} onClick={detacher} />
       )}
     </>
   )

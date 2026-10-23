@@ -168,8 +168,13 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
   ))
   return (
     <>
-      {!contexte.services.lectureSeule && <BoutonOutil icone="pivoter" titre={t('image.pivoter.titre')} libelle={t('image.pivoter')} onClick={pivoterTout} />}
-      {seul && <BoutonOutil icone="recadrer" titre={t('image.recadrer.titre')} libelle={t('image.recadrer')} actif={!!el.contenu.recadrage} onClick={() => recadrer(el.id)} />}
+      {/* Visibles : Dessiner, puis la légende. Pivoter, Recadrer et Détourer n'ont pas d'équivalent chez Milanote : « ••• ». */}
+      {seul && <BoutonOutil icone="croquis" titre={t('image.dessiner.titre')} libelle={t('croquis.dessiner')} actif={enDessin} onClick={() => annoter(enDessin ? null : el.id)} />}
+      {elements.length === 1 && !enDessin && (
+        <BoutonOutil icone="legende" titre={t('image.ajouterLegende')} libelle={t('note.legende')} actif={!!el.contenu.legende} onClick={() => contexte.commencerEdition(el.id)} />
+      )}
+      {!contexte.services.lectureSeule && <BoutonOutil icone="pivoter" secondaire titre={t('image.pivoter.titre')} libelle={t('image.pivoter')} onClick={pivoterTout} />}
+      {seul && <BoutonOutil icone="recadrer" secondaire titre={t('image.recadrer.titre')} libelle={t('image.recadrer')} actif={!!el.contenu.recadrage} onClick={() => recadrer(el.id)} />}
       {seul && !!contexte.services.fichiers && (
         <BoutonOutil
           icone="detourer"
@@ -189,7 +194,6 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
           onClick={() => contexte.magasin.faire([{ type: 'contenu', id: el.id, avant: el.contenu, apres: sansDetourage(el.contenu) }])}
         />
       )}
-      {seul && <BoutonOutil icone="croquis" titre={t('image.dessiner.titre')} libelle={t('croquis.dessiner')} actif={enDessin} onClick={() => annoter(enDessin ? null : el.id)} />}
       {enDessin && (
         <>
           <BoutonOutil icone="croquis" libelle={t('dessin.crayon')} actif={dessin.outil === 'crayon'} onClick={() => choisirOutil('crayon')} />
@@ -213,9 +217,6 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
             />
           )}
         </>
-      )}
-      {elements.length === 1 && (
-        <BoutonOutil icone="legende" secondaire titre={t('image.ajouterLegende')} libelle={t('note.legende')} actif={!!el.contenu.legende} onClick={() => contexte.commencerEdition(el.id)} />
       )}
     </>
   )

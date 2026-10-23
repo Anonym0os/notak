@@ -13,7 +13,7 @@ registre.type<Lieu>({
   },
   resume,
   Rendu: RenduLieu,
-  Outils: OutilsLieu,
+  OutilsApres: OutilsLieu,
   editable: true,
   hauteurParDefaut: 9,
   largeurMin: 16,

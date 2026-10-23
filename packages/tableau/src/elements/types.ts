@@ -231,8 +231,10 @@ export interface TypeElement<C extends Contenu = Contenu> {
    * Les enfants portent `parent` = l'id du conteneur, et se rendent par `Rangees` (Cadre.tsx).
    */
   accepte?(enfant: Element, conteneur: Element<C>): boolean
-  /** Outils de la barre de sélection propres au type. */
+  /** Outils de la barre de sélection propres au type, en tête : la couleur, avant les étiquettes et les réactions. */
   Outils?: ComponentType<PropsOutils<C>>
+  /** Outils propres au type qui suivent les étiquettes, les réactions et le commentaire (aperçu, infos, légende…). */
+  OutilsApres?: ComponentType<PropsOutils<C>>
   /**
    * Les éléments qui partent avec ceux qu'on supprime (les lignes accrochées à une carte supprimée).
    * La toile l'interroge sur chaque type inscrit ; elle écarte les doublons.

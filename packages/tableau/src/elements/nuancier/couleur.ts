@@ -16,8 +16,37 @@ export function normaliserHex(texte: string): string | null {
   return `#${h.length === 3 ? [...h].map((c) => c + c).join('') : h}`
 }
 
-/** Le code tel qu'on l'affiche : `#4F8CFF`. */
-export const codeAffiche = (couleur: string) => couleur.toUpperCase()
+export type FormatCode = NonNullable<Nuancier['format']>
+
+/** Les formats du code, dans l'ordre du menu « Affichage ». */
+export const FORMATS_CODE: readonly FormatCode[] = ['hex', 'rgb', 'hsl']
+
+/** Rouge, vert, bleu (0 à 255) d'une couleur `#rrggbb`. */
+const canaux = (hex: string): [number, number, number] => {
+  const n = Number.parseInt(hex.replace('#', ''), 16)
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+}
+
+/** Teinte (0 à 359), saturation et luminosité (0 à 100) d'une couleur `#rrggbb`. */
+function teinteSaturationLuminosite(hex: string): [number, number, number] {
+  const [r, g, b] = canaux(hex).map((v) => v / 255) as [number, number, number]
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const l = (max + min) / 2
+  const d = max - min
+  if (d === 0) return [0, 0, Math.round(l * 100)]
+  const s = d / (1 - Math.abs(2 * l - 1))
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4
+  return [Math.round((h * 60 + 360) % 360), Math.round(s * 100), Math.round(l * 100)]
+}
+
+/** Le code tel qu'on l'affiche : `#4F8CFF`, `rgb(79, 140, 255)` ou `hsl(219, 100%, 65%)`. */
+export function codeAffiche(couleur: string, format: FormatCode = 'hex'): string {
+  if (!/^#[0-9a-f]{6}$/i.test(couleur) || format === 'hex') return couleur.toUpperCase()
+  if (format === 'rgb') return `rgb(${canaux(couleur).join(', ')})`
+  const [h, s, l] = teinteSaturationLuminosite(couleur)
+  return `hsl(${h}, ${s}%, ${l}%)`
+}
 
 export const nouveauNuancier = (x: number, y: number, couleur = COULEUR_DEPART): Element<Nuancier> => ({
   id: nouvelId(),

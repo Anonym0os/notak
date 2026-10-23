@@ -113,12 +113,14 @@ export function OutilEcheance({ elements, contexte }: Props) {
 export function OutilAffichage({ elements, contexte }: Props) {
   if (contexte.services.lectureSeule) return null
   if (!elements.every(peutSeReduire)) return null
+  // Le fichier a son propre mode (aperçu ou icône) ; le document a celui-ci, visible comme chez Milanote, les autres types dans « ••• ».
+  if (elements.every((e) => e.contenu.type === 'fichier')) return null
   const toutIcone = elements.every(estReduit)
   const basculer = () => appliquerAffichage(elements, !toutIcone, contexte)
   return (
     <BoutonOutil
       icone={toutIcone ? 'agrandir' : 'reduire'}
-      secondaire
+      secondaire={!elements.every((e) => e.contenu.type === 'document')}
       titre={elements.every((e) => e.contenu.type === 'colonne') ? (toutIcone ? t('decor.deplier') : t('decor.replierIcone')) : toutIcone ? t('menu.enDetail') : t('menu.enIcone')}
       libelle={toutIcone ? t('decor.detail') : t('tableau.icone')}
       actif={toutIcone}

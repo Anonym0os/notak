@@ -3,6 +3,7 @@ import { registre } from '../registre'
 import { OutilsFichier, RenduFichier, ouvrirFichier } from './Fichier'
 import './fichier.css'
 import { LARGEUR_FICHIER, choisirFichiers, recevoirFichiers } from './recepteur'
+import { peutTelecharger, telecharger } from './telechargement'
 import { t } from '../../langue'
 import { ico } from '../../icones'
 
@@ -23,7 +24,7 @@ registre.type<Fichier>({
   resume: (c) => c.titre ?? c.nom,
   suivant: () => null,
   Rendu: RenduFichier,
-  Outils: OutilsFichier,
+  OutilsApres: OutilsFichier,
   editable: true,
   hauteurParDefaut: 8,
   largeurMin: 12,
@@ -62,3 +63,19 @@ registre.type<Fichier>({
 })
 
 registre.recepteur({ priorite: 35, cumulable: true, recevoir: recevoirFichiers })
+
+registre.entreeMenu({
+  get libelle() {
+    return t('menu.telechargerOriginal')
+  },
+  visible: (els, contexte) => peutTelecharger(els, contexte),
+  faire: (els, contexte) => void telecharger(els, contexte),
+})
+
+registre.entreeMenu({
+  get libelle() {
+    return t('fichier.ouvrirFichier')
+  },
+  visible: (els) => els.length === 1 && els[0]!.contenu.type === 'fichier',
+  faire: ([e], contexte) => e?.contenu.type === 'fichier' && void ouvrirFichier(e.contenu, contexte),
+})
