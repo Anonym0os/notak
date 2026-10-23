@@ -214,6 +214,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const espaceBref = useRef(false)
   const [anime, setAnime] = useState(false)
   const [enGeste, setEnGeste] = useState(false)
+  // La main se ferme tant qu'on tient la toile, au bouton du milieu comme avec Espace.
+  const [attrape, setAttrape] = useState(false)
   const [glisses, setGlisses] = useState<ReadonlySet<Id> | null>(null)
   /** Le trait qui montre la place d'insertion dans une colonne, en pixels de la toile. */
   const [trait, setTrait] = useState<{ x0: number; x1: number; y: number } | null>(null)
@@ -923,7 +925,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const ajuster = () => {
     const cible = cam.ajuster(contenu(), vue)
     if (!cible) return
-    lancerAnimation(cam.dejaAjuste(camera, cible) ? cam.centree(cam.centreCamera(camera, vue), 1, vue) : cible)
+    lancerAnimation(cam.revenirA100(camera.echelle, cible.echelle) ? cam.centree(cam.centreCamera(camera, vue), 1, vue) : cible)
   }
 
   const zoomerVers = (echelle: number) => {
@@ -1067,6 +1069,22 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (touche === 'z' && !e.repeat) ajuster()
   }
 
+  /** Le trait d'une ligne, échantillonné sur son tracé SVG, en UG ; `null` s'il n'est pas dessiné. */
+  const traceDe = (id: Id): Point[] | null => {
+    const n = noeudDe(id)
+    const chemin = n instanceof SVGPathElement ? n : n?.querySelector('path')
+    const ecran = chemin?.getScreenCTM()
+    const o = racine.current?.getBoundingClientRect()
+    if (!chemin || !ecran || !o) return null
+    const long = chemin.getTotalLength()
+    const pas = Math.max(2, Math.min(60, Math.ceil(long / 8)))
+    return Array.from({ length: pas + 1 }, (_, i) => {
+      const local = chemin.getPointAtLength((long * i) / pas)
+      const p = new DOMPoint(local.x, local.y).matrixTransform(ecran)
+      return cam.versTableau(camera, point(p.x - o.left, p.y - o.top))
+    })
+  }
+
   const noeudDe = (id: Id) => racine.current?.querySelector<HTMLElement>(`[data-id="${CSS.escape(id)}"]`) ?? null
 
   /** Arrête net la dépose qui s'anime encore et remet ses éléments à leur place. */
@@ -1145,6 +1163,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       e.preventDefault()
       espaceBref.current = false
       geste.current = { type: 'attraper', dernier: p }
+      setAttrape(true)
     } else if (e.button === 2) {
       // Le clic droit choisit ce qu'il touche, s'il ne l'était pas ; sur le vide, il désélectionne.
       if (!id) setSelection(new Set())
@@ -1296,14 +1315,21 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (g.type === 'lasso') {
       const zone = depuisCoins(g.depart, ici)
       setZoneLasso(zone)
-      const rects = tableau.elements.filter((x) => !x.parent).flatMap((x): [Id, Rect][] => {
+      const rects = tableau.elements.filter((x) => !x.parent).flatMap((x): [Id, Rect | Point[]][] => {
+        const trace = definition(x.contenu.type)?.calque === 'lignes' ? traceDe(x.id) : null
+        if (trace) return [[x.id, trace]]
         const r = rect(x.id)
         return r ? [[x.id, r]] : []
       })
       return setPrisLasso(lasso(zone, rects, g.avant, g.inverser))
     }
     if (g.type === 'redimensionner') {
-      const vers = largeurTiree(g.largeurDepart + ici.x - g.depart.x, g.min)
+      // Un média garde ses proportions : on suit la plus grande des deux tractions, ramenée en largeur.
+      const el = magasin.lire().elements.find((x) => x.id === g.id)
+      const ratio = el && definition(el.contenu.type)?.proportion?.(el.contenu as never)
+      const dx = ici.x - g.depart.x
+      const tire = ratio && !e.metaKey && !e.ctrlKey ? Math.max(dx, (ici.y - g.depart.y) * ratio) : dx
+      const vers = largeurTiree(g.largeurDepart + tire, g.min)
       const pas: Operation[] = [{ type: 'redimensionner', id: g.id, de: g.largeurDepart, vers }]
       const n = g.borne && noeudDe(g.id)
       if (g.borne && n) {
@@ -1508,6 +1534,18 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   /** Échap pendant un glisser : tout revient à sa place, en douceur. */
   const annulerGlisser = () => {
     const g = geste.current
+    if (g?.type === 'redimensionner') {
+      // Échap rend la taille de départ ; rien n'entre dans l'historique.
+      const el = magasin.lire().elements.find((x) => x.id === g.id)
+      if (el) {
+        const pas: Operation[] = [{ type: 'redimensionner', id: g.id, de: el.largeur, vers: g.largeurDepart }]
+        if (g.borne) pas.push({ type: 'borner', id: g.id, de: el.hauteur ?? null, vers: g.borne.de ?? null })
+        magasin.appliquerSeulement(pas)
+      }
+      geste.current = null
+      setEnGeste(false)
+      return true
+    }
     if (g?.type === 'outil') {
       g.envol?.arreter()
       setFantome(null)
@@ -1534,6 +1572,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const g = geste.current
     geste.current = null
     setEnGeste(false)
+    setAttrape(false)
     setZoneLasso(null)
     if (g?.type === 'lasso') {
       setPrisLasso((pris) => {
@@ -1665,12 +1704,12 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
 
   const k = cam.PX_PAR_UG * camera.echelle
   const grille = Math.abs(camera.echelle - 1) < 1e-3 && !anime
-  const styleRacine = grille
-    ? {
-        backgroundSize: `${cam.PX_PAR_UG}px ${cam.PX_PAR_UG}px`,
-        backgroundPosition: `${-camera.origine.x * k}px ${-camera.origine.y * k}px`,
-      }
-    : { backgroundImage: 'none' }
+  // La grille ne paraît qu'à 100 % : elle revient en fondu quand on y retombe (voir `.notak-toile::before`).
+  const styleRacine = {
+    '--notak-grille-pas': `${cam.PX_PAR_UG}px`,
+    '--notak-grille-x': `${-camera.origine.x * k}px`,
+    '--notak-grille-y': `${-camera.origine.y * k}px`,
+  } as React.CSSProperties
   const versEcran = (r: Rect) => ({ min: cam.versEcran(camera, r.min), max: cam.versEcran(camera, r.max) })
   const lassoEcran = zoneLasso && versEcran(zoneLasso)
 
@@ -1695,7 +1734,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     <div
       ref={racine}
       className="notak-toile"
-      data-attraper={espace || undefined}
+      data-attraper={espace || attrape || undefined}
+      data-attrape={attrape || undefined}
+      data-grille={grille || undefined}
       tabIndex={0}
       style={styleRacine}
       onKeyDown={clavier}

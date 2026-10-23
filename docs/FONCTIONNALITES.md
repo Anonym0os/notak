@@ -13,7 +13,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 
 | Partie | Fait | En partie | Absent | Avancement |
 |---|---|---|---|---|
-| 1. Toile | 16 | 6 | 5 | 70 % |
+| 1. Toile | 21 | 3 | 3 | 83 % |
 | 2. Création | 10 | 3 | 4 | 68 % |
 | 3. Note et texte | 18 | 2 | 11 | 61 % |
 | 4. Colonne | 9 | 0 | 2 | 82 % |
@@ -30,7 +30,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 15. Habillage | 5 | 2 | 8 | 40 % |
 | 16. Exporter, importer | 0 | 0 | 4 | 0 % |
 | 17. Plateformes | 1 | 1 | 5 | 21 % |
-| **Total** | **133** | **27** | **89** | **59 %** |
+| **Total** | **138** | **24** | **87** | **60 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -41,27 +41,27 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Fonctionnalité | État | Reste |
 |---|---|---|
 | Toile infinie, défilement à la molette et au trackpad | ✅ | |
-| Attraper la toile (Espace + glisser, bouton du milieu) | 🟡 | Main fermée au bouton du milieu. |
+| Attraper la toile (Espace + glisser, bouton du milieu) | ✅ | |
 | Zoom molette et pincement, lissé, effleurement corrigé, inertie filtrée | ✅ | |
 | Cmd+plus, Cmd+moins, Cmd+0 | ✅ | |
-| Crans de zoom et Ajuster | 🟡 | Crans du bas 73, 57, 47 % ; marges d'Ajuster ; retour à 100 %. |
+| Crans de zoom et Ajuster | 🟡 | Ajuster et son retour à 100 % comme Milanote ; crans du bas encore calculés à notre façon. |
 | Document borné (bord haut-gauche, marges de 50 × 40 UG), recentrage en dézoomant | ⬜ | |
-| Grille de points | 🟡 | Fondu de 0,6 s à l'apparition. |
+| Grille de points | ✅ | |
 | Tailles de grille 8, 9, 10 px (Cmd+Maj+, et .) | ⬜ | Notak fixe 10 px. |
 | Clic, Maj+clic, Cmd+clic, clic droit qui choisit | ✅ | |
 | Clic dans une sélection multiple qui la réduit au relâchement | ✅ | |
 | Lasso, posé au relâchement | ✅ | |
-| Lasso qui prend une ligne par son trait | ⬜ | Une ligne est prise par sa boîte. |
+| Lasso qui prend une ligne par son trait | ✅ | |
 | Cmd+A (dans la colonne active aussi) | ✅ | |
 | Échap désélectionne | ✅ | |
 | Glisser au pixel, soulèvement, inclinaison, dépose animée | ✅ | |
 | Échap annule un glisser | ✅ | |
-| Maj verrouille l'axe | 🟡 | Bascule à 50 px, pas au double. |
+| Maj verrouille l'axe | ✅ | |
 | Flèches : déplacer d'une UG (Maj : plus loin) | ✅ | |
 | Redimensionner un élément (largeur, double-clic sur la poignée) | ✅ | |
 | Hauteur bornée par la poignée (note, lien) | ✅ | |
 | Redimensionner un groupe | ⬜ | |
-| Proportions gardées pour les médias, Cmd pour les libérer, Échap pendant le geste | ⬜ | |
+| Proportions gardées pour les médias, Cmd pour les libérer, Échap pendant le geste | ✅ | |
 | Collisions : ce qui grandit pousse ses voisins du dessous | 🟡 | Pendant l'édition et à Cmd+Entrée, colonnes comprises ; pas encore quand on dépose dans une colonne, ni pour les lignes horizontales, ni au retour d'une note bornée à sa hauteur. |
 | Entrer dans un tableau en le survolant pendant un glisser (700 ms puis 300 ms de clignement, 400 ms ensuite) | ✅ | |
 | Curseurs adaptés (main, redimensionner, texte) | 🟡 | Curseur au repos des autres. |

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 import * as cam from './camera'
 import { chevauche, depuisCoins, depuisTaille, point } from './geometrie'
 import { Historique } from './historique'
-import { cliquer, lasso } from './selection'
+import { cliquer, lasso, traverse } from './selection'
 import {
   POSITION_MAX,
   type Operation,
@@ -104,6 +104,16 @@ describe('historique', () => {
 describe('sélection', () => {
   const carre = (x: number) => depuisTaille(point(x, 0), 10, 10)
 
+  test('le lasso prend une ligne par son trait, pas par sa boîte', () => {
+    const diagonale = [point(0, 0), point(10, 10), point(20, 20)]
+    // Le coin vide de la boîte de la diagonale ne la prend pas ; le trait, si.
+    expect(traverse(depuisTaille(point(14, 0), 6, 6), diagonale)).toBe(false)
+    expect(traverse(depuisTaille(point(8, 8), 4, 4), diagonale)).toBe(true)
+    // Un segment qui traverse la zone sans point dedans compte aussi.
+    expect(traverse(depuisTaille(point(4, 4), 2, 2), [point(0, 5), point(10, 5)])).toBe(true)
+    expect(lasso(depuisTaille(point(14, 0), 6, 6), [['l', diagonale]], new Set(), false).size).toBe(0)
+  })
+
   test('le lasso prend ce qu’il touche et inverse avec Maj', () => {
     const rects: [string, ReturnType<typeof carre>][] = [
       ['a', carre(0)],
@@ -173,11 +183,21 @@ describe('caméra', () => {
 
   test('ajuster plafonne selon la taille du contenu et centre le contenu', () => {
     proche(cam.ajuster(depuisTaille(point(0, 0), 10, 10), VUE)!.echelle, 1.3)
-    proche(cam.ajuster(depuisTaille(point(0, 0), 90, 10), VUE)!.echelle, 0.8)
+    // Ce qui tient à 100 % grossit sans marge ; le reste se réduit avec un cinquième de vide de chaque côté.
+    proche(cam.ajuster(depuisTaille(point(0, 0), 90, 10), VUE)!.echelle, 1000 / 900)
+    proche(cam.ajuster(depuisTaille(point(0, 0), 150, 10), VUE)!.echelle, 1000 / 1500 / 1.4)
     expect(cam.ajuster(null, VUE)).toBeNull()
     const c = cam.centreCamera(cam.ajuster(depuisTaille(point(100, -50), 40, 20), VUE)!, VUE)
     proche(c.x, 120)
     proche(c.y, -40)
+  })
+
+  test('ajuster ramène à 100 % quand on y est déjà, ou quand il irait dans le même sens', () => {
+    expect(cam.revenirA100(0.5, 0.5)).toBe(true)
+    expect(cam.revenirA100(0.4, 0.7)).toBe(true)
+    expect(cam.revenirA100(2, 1.2)).toBe(true)
+    expect(cam.revenirA100(1, 0.6)).toBe(false)
+    expect(cam.revenirA100(0.7, 0.4)).toBe(false)
   })
 
   test('la courbe part de zéro et finit à un', () => {

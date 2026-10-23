@@ -19,6 +19,7 @@ registre.type<Image>({
   sansFond: true,
   largeurMin: 4,
   largeurNaturelle: largeurNaturelleImage,
+  proportion: (c) => c.largeurOrigine / c.hauteurOrigine,
 })
 
 registre.recepteur({ priorite: 40, cumulable: true, recevoir: recevoirImages })

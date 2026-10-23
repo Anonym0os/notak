@@ -18,8 +18,8 @@ const FIN_DE_GESTE = 250
 /** Ajuster : plafonds selon que le contenu tient ou non à 100 %. */
 const AJUSTER_PETIT_MAX = 1.3
 const AJUSTER_GRAND_MAX = 0.8
-/** Marge autour du contenu ajusté, en pixels. */
-const MARGE_AJUSTER = 80
+/** Marge autour d'un contenu qui ne tient pas à 100 %, en part du contenu de chaque côté. */
+const MARGE_AJUSTER = 0.2
 export const DUREE_AJUSTER = 600
 
 export interface Camera {
@@ -119,19 +119,23 @@ export const cranDessous = (echelle: number, min: number) =>
 /** La caméra qui cadre tout le contenu. `null` sur un tableau vide. */
 export function ajuster(contenu: Rect | null, v: Vue): Camera | null {
   if (!contenu) return null
-  const tient = Math.max(
-    0.01,
-    Math.min(
-      (v.largeur - 2 * MARGE_AJUSTER) / (largeur(contenu) * PX_PAR_UG),
-      (v.hauteur - 2 * MARGE_AJUSTER) / (hauteur(contenu) * PX_PAR_UG),
-    ),
-  )
-  const echelle = tient >= 1 ? Math.min(tient, AJUSTER_PETIT_MAX) : Math.min(tient, AJUSTER_GRAND_MAX)
+  const [l, h] = [largeur(contenu) * PX_PAR_UG, hauteur(contenu) * PX_PAR_UG]
+  const tient = Math.min(v.largeur / l, v.hauteur / h)
+  // Ce qui tient à 100 % se grossit sans marge ; le reste se réduit avec un cinquième de vide de chaque côté.
+  const echelle =
+    tient > 1 ? Math.min(tient, AJUSTER_PETIT_MAX) : Math.max(0.01, Math.min(tient / (1 + 2 * MARGE_AJUSTER), AJUSTER_GRAND_MAX))
   return centree(centreRect(contenu), echelle, v)
 }
 
-/** Ajuster une seconde fois ramène à 100 % : vrai si l'on est déjà à l'échelle ajustée. */
-export const dejaAjuste = (c: Camera, cible: Camera) => Math.abs(c.echelle / cible.echelle - 1) < 0.01
+/**
+ * Ajuster ramène à 100 % plutôt qu'à l'échelle ajustée quand on y est déjà, ou quand elle irait dans le même
+ * sens que le zoom actuel sans franchir 100 % (on est dézoomé et elle dézoomerait moins, par exemple).
+ */
+export function revenirA100(actuelle: number, ajustee: number): boolean {
+  if (Math.abs(actuelle - ajustee) < Math.min(0.01, ajustee * 0.1)) return true
+  if (actuelle < 1 && actuelle < ajustee && ajustee < 1) return true
+  return actuelle > 1 && actuelle > ajustee && ajustee > 1
+}
 
 /** Courbe d'accélération de Bézier (0,645 ; 0,045 ; 0,355 ; 1), pour `t` entre 0 et 1. */
 export function adoucir(t: number): number {
