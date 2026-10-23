@@ -121,6 +121,13 @@ export function BarreTexte({ editor, lien, surLien, commenter }: Props) {
  */
 export function MenuStyle({ editor, etat }: { editor: Editor; etat: EtatTexte }) {
   const actif = (style: StyleMenu) => (style === 'encadre' ? etat.encadre : style === 'texte' ? etat.style === 'texte' && !etat.encadre : etat.style === style)
+  // Les pastilles « A » se montrent sur le vrai fond de la carte (blanc si elle n'en a pas).
+  const fondCarte = (() => {
+    const carte = editor.view.dom.closest('.notak-carte')
+    const fond = carte ? getComputedStyle(carte).backgroundColor : ''
+    return !fond || fond === 'rgba(0, 0, 0, 0)' || fond === 'transparent' ? undefined : fond
+  })()
+  const surFond = fondCarte ? { background: fondCarte } : undefined
   return (
     <div className="notak-note-menu notak-menu-style" role="menu">
       {STYLES.map(({ style, ligne, raccourci }) => (
@@ -141,11 +148,11 @@ export function MenuStyle({ editor, etat }: { editor: Editor; etat: EtatTexte })
       <hr />
       <span className="notak-menu-rubrique">{t('barre.rubriqueCouleur')}</span>
       <div className="notak-note-pastilles" aria-label={t('barre.couleurTexte')}>
-        <button type="button" title={t('barre.defaut')} aria-label={t('barre.couleurDefaut')} aria-pressed={etat.couleur === null && etat.surlignage === null} data-vide onClick={() => { poserCouleurTexte(editor, null); basculerSurlignage(editor, null) }}>
+        <button type="button" title={t('barre.defaut')} aria-label={t('barre.couleurDefaut')} aria-pressed={etat.couleur === null && etat.surlignage === null} data-vide style={surFond} onClick={() => { poserCouleurTexte(editor, null); basculerSurlignage(editor, null) }}>
           A
         </button>
         {COULEURS_TEXTE.map(({ nom, libelle }) => (
-          <button key={nom} type="button" title={libelle} aria-label={t('barre.texteCouleur', { couleur: libelle })} aria-pressed={etat.couleur === valeurCouleurTexte(nom)} data-texte={nom} onClick={() => poserCouleurTexte(editor, nom)}>
+          <button key={nom} type="button" title={libelle} aria-label={t('barre.texteCouleur', { couleur: libelle })} aria-pressed={etat.couleur === valeurCouleurTexte(nom)} data-texte={nom} style={surFond} onClick={() => poserCouleurTexte(editor, nom)}>
             A
           </button>
         ))}
