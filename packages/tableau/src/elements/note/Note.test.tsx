@@ -25,9 +25,10 @@ afterEach(() => {
   hote.remove()
 })
 
-const rendre = (contenu: Partial<Note>, services: object = {}) => {
+const rendre = (contenu: Partial<Note>, services: object = {}, enEdition = false, brouillon: (c: Note) => void = () => {}) => {
   const element = { id: 'n', x: 0, y: 0, largeur: 34, contenu: { type: 'note', texte: docDepuisTexte('Bonjour'), ...contenu } } as Element<Note>
-  const props = { element, choisie: false, enEdition: false, contexte: { services }, brouillon: () => {}, changer: () => {} } as unknown as PropsRendu<Note>
+  const contexte = { services, magasin: {}, prendrePointEdition: () => null, finirEdition: () => {}, commencerEdition: () => {}, creerSuivant: () => {}, jeter: () => {} }
+  const props = { element, choisie: false, enEdition, contexte, brouillon, changer: () => {} } as unknown as PropsRendu<Note>
   act(() => racine.render(<RenduNote {...props} />))
 }
 
@@ -75,6 +76,35 @@ describe('un passage commenté, hors édition', () => {
       document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
     })
     expect(hote.querySelector('.notak-note-marge')).toBeNull()
+  })
+})
+
+describe('la légende en édition', () => {
+  it('une légende d\'avant s\'ouvre dans son éditeur, à côté de celui du texte', () => {
+    rendre({ legende: 'Une légende' }, {}, true)
+    const editeurs = hote.querySelectorAll('.ProseMirror')
+    expect(editeurs).toHaveLength(2)
+    expect(hote.querySelector('.notak-note-legende .ProseMirror')?.textContent).toBe('Une légende')
+  })
+
+  it('écrire dans la légende garde le texte, et inversement', () => {
+    const envois: Note[] = []
+    rendre({ legende: 'Une légende' }, {}, true, (c) => envois.push(c))
+    const [texte, legende] = [...hote.querySelectorAll<HTMLElement & { editor?: import('@tiptap/react').Editor }>('.ProseMirror')]
+    act(() => legende!.editor!.commands.insertContentAt(1, 'Ma '))
+    const dernier = envois.at(-1)!
+    expect(JSON.stringify(dernier.legende)).toContain('Ma Une légende')
+    expect(JSON.stringify(dernier.texte)).toContain('Bonjour')
+    act(() => texte!.editor!.commands.insertContentAt(1, 'Oh '))
+    // Le texte écrit ensuite part avec la légende déjà écrite.
+    expect(JSON.stringify(envois.at(-1)!.legende)).toContain('Ma Une légende')
+    expect(JSON.stringify(envois.at(-1)!.texte)).toContain('Oh Bonjour')
+  })
+
+  it('une note sans légende n\'en ouvre pas', () => {
+    rendre({}, {}, true)
+    expect(hote.querySelectorAll('.ProseMirror')).toHaveLength(1)
+    expect(hote.querySelector('.notak-note-legende')).toBeNull()
   })
 })
 
