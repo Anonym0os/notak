@@ -1,3 +1,4 @@
+import type { Element } from '@notak/tableau'
 export interface Moi {
   id: string
   email: string
@@ -94,4 +95,43 @@ export async function partager(tableau: string, email: string, role: 'edition' |
 export async function retirerAcces(tableau: string, email: string): Promise<void> {
   const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/partage`, { email }, 'DELETE')
   if (!r.ok) throw refus(r, { 409: 'Il faut garder un propriétaire', 403: 'Réservé au propriétaire', 404: 'Tableau introuvable' })
+}
+
+const lienDe = (tableau: string) => `/api/tableaux/${encodeURIComponent(tableau)}/lien`
+
+/** Le jeton du lien public du tableau, ou `null` s'il n'est pas publié. */
+export async function lienPublic(tableau: string): Promise<string | null> {
+  const r = await appeler(lienDe(tableau))
+  if (!r.ok) throw refus(r, { 403: 'Réservé au propriétaire', 404: 'Tableau introuvable' })
+  return ((await r.json()) as { jeton: string | null }).jeton
+}
+
+export async function creerLienPublic(tableau: string): Promise<string> {
+  const r = await appeler(lienDe(tableau), {})
+  if (!r.ok) throw refus(r, { 403: 'Réservé au propriétaire', 404: 'Tableau introuvable' })
+  return ((await r.json()) as { jeton: string }).jeton
+}
+
+export async function retirerLienPublic(tableau: string): Promise<void> {
+  const r = await appeler(lienDe(tableau), undefined, 'DELETE')
+  if (!r.ok && r.status !== 404) throw refus(r, { 403: 'Réservé au propriétaire' })
+}
+
+/** L'adresse que l'on donne : la page de lecture du tableau. */
+export const adressePublique = (jeton: string) => `${location.origin}/p/${jeton}`
+
+export interface TableauPublic {
+  titre: string
+  couleur?: string
+  elements: Element[]
+  /** Le titre des tableaux imbriqués, pour leurs cartes. */
+  titres: Record<string, string>
+}
+
+/** Un tableau publié, lu sans compte ; `null` si le lien n'existe pas ou plus. */
+export async function lirePublic(jeton: string): Promise<TableauPublic | null> {
+  const r = await appeler(`/api/public/${encodeURIComponent(jeton)}`)
+  if (r.status === 404) return null
+  if (!r.ok) throw refus(r, {})
+  return (await r.json()) as TableauPublic
 }

@@ -67,6 +67,12 @@ export interface Base {
 
   creerFichier(f: Fichier): void
   fichier(id: string): Fichier | null
+
+  /** Le jeton du lien public du tableau, ou `null` s'il n'est pas publié. */
+  jetonPublic(tableau: string): string | null
+  definirJetonPublic(tableau: string, jeton: string, maintenant: number): void
+  retirerJetonPublic(tableau: string): boolean
+  tableauDuJeton(jeton: string): string | null
 }
 
 const SCHEMA = `
@@ -100,6 +106,10 @@ CREATE TABLE IF NOT EXISTS documents (nom TEXT PRIMARY KEY, etat BLOB NOT NULL);
 CREATE TABLE IF NOT EXISTS fichiers (
   id TEXT PRIMARY KEY, type TEXT NOT NULL, taille INTEGER NOT NULL,
   auteur TEXT NOT NULL REFERENCES utilisateurs(id)
+);
+CREATE TABLE IF NOT EXISTS liens_publics (
+  tableau TEXT PRIMARY KEY REFERENCES tableaux(id) ON DELETE CASCADE,
+  jeton TEXT NOT NULL UNIQUE, cree INTEGER NOT NULL
 );
 `
 
@@ -194,5 +204,16 @@ export function ouvrirBase(chemin: string): Base {
 
     creerFichier: (f) => void executer('INSERT INTO fichiers (id,type,taille,auteur) VALUES (?,?,?,?)', f.id, f.type, f.taille, f.auteur),
     fichier: (id) => (un('SELECT * FROM fichiers WHERE id = ?', id) as Fichier | null),
+
+    jetonPublic: (tableau) => (un('SELECT jeton FROM liens_publics WHERE tableau = ?', tableau)?.jeton as string | undefined) ?? null,
+    definirJetonPublic: (tableau, jeton, maintenant) =>
+      void executer(
+        'INSERT INTO liens_publics (tableau,jeton,cree) VALUES (?,?,?) ON CONFLICT(tableau) DO UPDATE SET jeton = excluded.jeton, cree = excluded.cree',
+        tableau,
+        jeton,
+        maintenant,
+      ),
+    retirerJetonPublic: (tableau) => Number(executer('DELETE FROM liens_publics WHERE tableau = ?', tableau).changes) > 0,
+    tableauDuJeton: (jeton) => (un('SELECT tableau FROM liens_publics WHERE jeton = ?', jeton)?.tableau as string | undefined) ?? null,
   }
 }

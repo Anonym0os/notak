@@ -18,6 +18,7 @@ import { EcranConnexion } from './connexion'
 import { Export } from './Export'
 import { apercu, fichiers } from './fichiers'
 import { importerEspaceLocal } from './importLocal'
+import { PagePublique } from './PagePublique'
 import { Partage } from './Partage'
 
 const services = { fichiers, apercu, ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank') }
@@ -177,8 +178,9 @@ function BandeauImport({ moi, espace }: { moi: Moi; espace: EspaceDistant }) {
   )
 }
 
+/** `/p/<jeton>` : un tableau publié, lu sans compte. */
+const publie = /^\/p\/([A-Za-z0-9_-]+)\/?$/.exec(location.pathname)
+
 createRoot(document.getElementById('racine')!).render(
-  <StrictMode>
-    <Application />
-  </StrictMode>,
+  <StrictMode>{publie ? <PagePublique jeton={publie[1]!} /> : <Application />}</StrictMode>,
 )

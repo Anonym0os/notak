@@ -1,5 +1,5 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
-import { type Acces, type Moi, type Role, listerAcces, partager, retirerAcces } from './api'
+import { type Acces, type Moi, type Role, adressePublique, creerLienPublic, lienPublic, listerAcces, partager, retirerAcces, retirerLienPublic } from './api'
 
 const LIBELLE_ROLE: Record<Role, string> = { proprietaire: 'Propriétaire', edition: 'Édition', lecture: 'Lecture' }
 
@@ -110,7 +110,73 @@ function Panneau({ tableau, moi, fermer }: { tableau: string; moi: Moi; fermer()
           </button>
         </form>
       )}
+      {proprietaire && <LienPublic tableau={tableau} />}
       {acces && !proprietaire && <p className="partage-note">Seul le propriétaire invite.</p>}
+      {erreur && (
+        <p className="connexion-erreur" role="alert">
+          {erreur}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** Le lien de lecture : toute personne qui l'a voit le tableau, sans compte. Le retirer le ferme. */
+function LienPublic({ tableau }: { tableau: string }) {
+  const [jeton, setJeton] = useState<string | null | undefined>(undefined)
+  const [erreur, setErreur] = useState<string | null>(null)
+  const [copie, setCopie] = useState(false)
+  const [occupe, setOccupe] = useState(false)
+  useEffect(() => {
+    lienPublic(tableau).then(setJeton, (x: Error) => setErreur(x.message))
+  }, [tableau])
+
+  const agir = async (f: () => Promise<string | null>) => {
+    setErreur(null)
+    setOccupe(true)
+    try {
+      setJeton(await f())
+      setCopie(false)
+    } catch (x) {
+      setErreur(x instanceof Error ? x.message : 'Échec')
+    } finally {
+      setOccupe(false)
+    }
+  }
+  const copier = async () => {
+    try {
+      await navigator.clipboard.writeText(adressePublique(jeton!))
+      setCopie(true)
+    } catch {
+      setErreur('Copie impossible : sélectionnez l’adresse')
+    }
+  }
+
+  return (
+    <div className="partage-lien">
+      <strong>Lien de lecture</strong>
+      {jeton === undefined ? (
+        <span className="partage-note">…</span>
+      ) : jeton === null ? (
+        <>
+          <span className="partage-note">Toute personne qui a le lien voit ce tableau, sans compte.</span>
+          <button type="button" className="bouton" disabled={occupe} onClick={() => agir(() => creerLienPublic(tableau))}>
+            Créer un lien
+          </button>
+        </>
+      ) : (
+        <>
+          <div className="partage-lien-ligne">
+            <input readOnly aria-label="Adresse du lien de lecture" value={adressePublique(jeton)} onFocus={(e) => e.target.select()} />
+            <button type="button" className="bouton" onClick={copier}>
+              {copie ? 'Copié' : 'Copier'}
+            </button>
+          </div>
+          <button type="button" className="bouton-lien" disabled={occupe} onClick={() => agir(async () => (await retirerLienPublic(tableau), null))}>
+            Fermer le lien
+          </button>
+        </>
+      )}
       {erreur && (
         <p className="connexion-erreur" role="alert">
           {erreur}

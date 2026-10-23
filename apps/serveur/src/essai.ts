@@ -80,8 +80,9 @@ export function monde(): Monde {
 let compteur = 0
 /** Pose un élément dans le document, comme le fait la toile. */
 export function poser(doc: Y.Doc, contenu: ElementLu['contenu'], champs: Partial<ElementLu> = {}): string {
-  const id = champs.id ?? `el${++compteur}`
-  doc.getMap('elements').set(id, { id, x: 0, y: 0, largeur: 34, plan: `p${String(compteur).padStart(4, '0')}`, ...champs, contenu })
+  const rang = ++compteur
+  const id = champs.id ?? `el${rang}`
+  doc.getMap('elements').set(id, { id, x: 0, y: 0, largeur: 34, plan: `p${String(rang).padStart(4, '0')}`, ...champs, contenu })
   return id
 }
 

@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import { createReadStream } from 'node:fs'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -9,9 +9,9 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { ErreurApercu, apercuDePage, rapatrierImage } from './apercu.ts'
-import type { Base, Utilisateur } from './base.ts'
+import type { Base, Fichier, Utilisateur } from './base.ts'
 import { ErreurCompte, inscrire, normaliserEmail } from './comptes.ts'
-import { type TableauLu, fichiersDe, lireEtat, lireTableau } from './contenu.ts'
+import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from './contenu.ts'
 import type { Limiteur } from './debit.ts'
 import { type Role, auMoins, role, roleHerite } from './droits.ts'
 import { estFormatExport, exporterTexte } from './exporter.ts'
@@ -37,6 +37,7 @@ export interface Contexte {
 export const FICHIER_MAX = 25 * 1024 * 1024
 const ID_TABLEAU = /^[A-Za-z0-9_-]{8,64}$/
 const ID_FICHIER = /^[0-9a-f-]{36}$/
+const JETON_PUBLIC = /^[A-Za-z0-9_-]{16,64}$/
 
 /** Un nom de fichier sûr à partir d'un titre, et l'en-tête qui le propose au téléchargement. */
 export function enTeteTelechargement(titre: string, extension: string): string {
@@ -259,6 +260,73 @@ export function creerApp(ctx: Contexte): Hono {
   }
   const titreDe = (id: string) => base.tableau(id)?.titre
 
+  // ---- Lien public ----
+
+  app.get('/api/tableaux/:id/lien', (c) => {
+    const g = garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    return c.json({ jeton: base.jetonPublic(g.id) })
+  })
+
+  app.post('/api/tableaux/:id/lien', (c) => {
+    const g = garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    // Un lien déjà publié reste le même : pour en changer, on le retire d'abord.
+    let jeton = base.jetonPublic(g.id)
+    if (!jeton) {
+      jeton = randomBytes(16).toString('base64url')
+      base.definirJetonPublic(g.id, jeton, ctx.maintenant())
+    }
+    return c.json({ jeton }, 201)
+  })
+
+  app.delete('/api/tableaux/:id/lien', (c) => {
+    const g = garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    if (!base.retirerJetonPublic(g.id)) return c.json({ erreur: 'introuvable' }, 404)
+    return c.body(null, 204)
+  })
+
+  /**
+   * Ce que voit quelqu'un qui n'a pas de compte : le tableau sans la corbeille, les non triés ni les commentaires
+   * (ce sont les échanges de ceux qui y travaillent), et les lignes qui n'ont plus leurs deux bouts.
+   */
+  const vuePublique = (id: string) => {
+    const t = lireLe(id)
+    const visibles = t.elements.filter((e) => e.corbeille === undefined && e.nonTrie === undefined && e.contenu.type !== 'commentaire')
+    const ids = new Set(visibles.map((e) => e.id))
+    const bout = (b: unknown) => !(b && typeof b === 'object' && 'element' in b) || ids.has(String((b as { element: unknown }).element))
+    const elements = visibles.filter((e) => e.contenu.type !== 'ligne' || (bout(e.contenu.depart) && bout(e.contenu.arrivee)))
+    const titres: Record<string, string> = {}
+    for (const e of elements) {
+      if (e.contenu.type !== 'tableau' || typeof e.contenu.cible !== 'string') continue
+      const titre = titreDe(e.contenu.cible)
+      if (titre !== undefined) titres[e.contenu.cible] = titre
+    }
+    return { titre: t.titre, ...(t.couleur ? { couleur: t.couleur } : {}), elements, titres }
+  }
+
+  const tableauPublic = (c: Context): string | null => {
+    const jeton = c.req.param('jeton') ?? ''
+    return JETON_PUBLIC.test(jeton) ? base.tableauDuJeton(jeton) : null
+  }
+
+  app.get('/api/public/:jeton', (c) => {
+    const id = tableauPublic(c)
+    if (!id) return c.json({ erreur: 'introuvable' }, 404)
+    return c.json(vuePublique(id), 200, { 'cache-control': 'no-store', 'x-robots-tag': 'noindex' })
+  })
+
+  // Seuls les fichiers que le tableau montre se lisent par son lien.
+  app.get('/api/public/:jeton/fichiers/:fichier', (c) => {
+    const id = tableauPublic(c)
+    const fichier = c.req.param('fichier') ?? ''
+    if (!id || !ID_FICHIER.test(fichier) || !idsDeFichiers(vuePublique(id).elements).has(fichier)) return c.json({ erreur: 'introuvable' }, 404)
+    const f = base.fichier(fichier)
+    if (!f) return c.json({ erreur: 'introuvable' }, 404)
+    return servirFichier(f, 'private, max-age=300')
+  })
+
   // ---- Export ----
 
   app.get('/api/tableaux/:id/export', (c) => {
@@ -353,22 +421,26 @@ export function creerApp(ctx: Contexte): Hono {
     }
   })
 
-  app.get('/api/fichiers/:id', (c) => {
-    if (!utilisateurCourant(c)) return c.json({ erreur: 'non connecté' }, 401)
-    const id = c.req.param('id')
-    const f = ID_FICHIER.test(id) ? base.fichier(id) : null
-    if (!f) return c.json({ erreur: 'introuvable' }, 404)
+  /** Le contenu d'un fichier rangé, servi pour qu'il ne s'exécute jamais dans l'origine de l'application. */
+  const servirFichier = (f: Fichier, cache: string): Response => {
     const flux = Readable.toWeb(createReadStream(join(ctx.dossierFichiers, f.id))) as ReadableStream
     return new Response(flux, {
       headers: {
         'content-type': f.type,
         'content-length': String(f.taille),
-        'cache-control': 'private, max-age=31536000, immutable',
-        // Un fichier déposé ne doit jamais s'exécuter dans l'origine de l'application.
+        'cache-control': cache,
         'x-content-type-options': 'nosniff',
         'content-security-policy': "sandbox; default-src 'none'; img-src data:; media-src 'self'; style-src 'unsafe-inline'",
       },
     })
+  }
+
+  app.get('/api/fichiers/:id', (c) => {
+    if (!utilisateurCourant(c)) return c.json({ erreur: 'non connecté' }, 401)
+    const id = c.req.param('id')
+    const f = ID_FICHIER.test(id) ? base.fichier(id) : null
+    if (!f) return c.json({ erreur: 'introuvable' }, 404)
+    return servirFichier(f, 'private, max-age=31536000, immutable')
   })
 
   // ---- Aperçus ----
