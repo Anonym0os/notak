@@ -8,7 +8,7 @@ import type { MutableRefObject } from 'react'
 import type { NoeudTexte } from '../../coeur/tableau'
 import { glisserTache } from './glisse'
 import { htmlEnTaches } from './html'
-import { PROFONDEUR_MAX, hauteur, lignesEnTaches, peutDescendre, peutPoserAuNiveau } from './liste'
+import { PROFONDEUR_MAX, type Place, hauteur, lignesEnTaches, peutDescendre, peutPoserAuNiveau, placeDe } from './liste'
 import { DRAPEAU, type GenrePuce, assigneDe, attrsAllumes, attrsEteints, attrsVides, echeanceDe, jourDe, puces } from './puces'
 import { animerCase } from './animation'
 import { ClavierTitre, NOM_TITRE, TitreListe, ajouterTitre, curseurAuTitre, titreDe } from './titre'
@@ -103,7 +103,7 @@ const Tache = TaskItem.extend({
         e.preventDefault()
         e.stopPropagation()
         const racine = li.closest<HTMLElement>('.notak-taches')
-        if (racine) glisserTache(e, racine, li, (de, vers, avant) => deplacerDansEditeur(editor, de, vers, avant))
+        if (racine) glisserTache(e, racine, li, (de, vers, place, copie) => deplacerDansEditeur(editor, de, vers, place, copie))
       })
       li.append(poignee, case_, contenu, zonePuces, suppr)
       const dessinerPuces = (n: NoeudPM) => {
@@ -159,36 +159,57 @@ function tachesAvecPosition(doc: NoeudPM) {
 }
 
 /**
- * Passe la tâche `de` (son rang dans l'ordre de lecture) avant ou après la tâche `vers`, au même niveau ;
- * ses sous-tâches la suivent. Même règle que `deplacer` (liste.ts), mais en une transaction : le curseur
- * et le texte partagé ne sont pas touchés ailleurs. Rend faux si rien n'a bougé.
+ * Passe la tâche `de` (son rang dans l'ordre de lecture) avant, après ou dans la tâche `vers` ; ses sous-tâches la
+ * suivent. Même règle que `deplacer` (liste.ts), mais en une transaction : le curseur et le texte partagé ne sont pas
+ * touchés ailleurs. Avec `copie`, la tâche reste en place et une copie prend la place. Rend faux si rien n'a bougé.
  */
-export function deplacerDansEditeur(editor: Editor, de: number, vers: number, avant: boolean): boolean {
+export function deplacerDansEditeur(editor: Editor, de: number, vers: number, place: Place | boolean, copie = false): boolean {
+  const lieu = placeDe(place)
   const { state } = editor
   const taches = tachesAvecPosition(state.doc)
   const source = taches[de]
   const cible = taches[vers]
   if (!source || !cible) return false
   const finSource = source.pos + source.noeud.nodeSize
-  // Sur soi, ou dans ses propres sous-tâches.
-  if (cible.pos >= source.pos && cible.pos < finSource) return false
+  // Sur soi ou dans ses sous-tâches : non, sauf pour doubler la tâche à côté d'elle.
+  if (cible.pos >= source.pos && cible.pos < finSource && !(copie && cible.pos === source.pos && lieu !== 'dans')) return false
   const $cible = state.doc.resolve(cible.pos)
   let niveau = 1
   for (let d = $cible.depth; d > 0; d--) if ($cible.node(d).type.name === 'taskItem') niveau += 1
-  if (!peutPoserAuNiveau(niveau, hauteur(source.noeud.toJSON() as NoeudTexte))) return false
+  if (!peutPoserAuNiveau(niveau + (lieu === 'dans' ? 1 : 0), hauteur(source.noeud.toJSON() as NoeudTexte))) return false
 
-  const ou = avant ? cible.pos : cible.pos + cible.noeud.nodeSize
-  const $source = state.doc.resolve(source.pos)
   const tr = state.tr
-  // Seule dans sa sous-liste, la tâche emporte la sous-liste ; la liste du haut n'est jamais vidée (la cible est ailleurs).
-  if ($source.parent.childCount === 1 && $source.depth > 1) tr.delete(source.pos - 1, finSource + 1)
-  else tr.delete(source.pos, finSource)
-  let arrivee = tr.mapping.map(ou)
-  const dedans = tr.doc.resolve(arrivee)
-  // Avant ou après une tâche, on est toujours dans une liste ; par prudence, rien ne bouge sinon.
-  if (dedans.parent.type.name !== 'taskList') return false
-  tr.insert(arrivee, source.noeud)
-  tr.setSelection(TextSelection.near(tr.doc.resolve(arrivee + 2)))
+  if (!copie) {
+    const $source = state.doc.resolve(source.pos)
+    // Seule dans sa sous-liste, la tâche emporte la sous-liste ; la liste du haut n'est jamais vidée (la cible est ailleurs).
+    if ($source.parent.childCount === 1 && $source.depth > 1) tr.delete(source.pos - 1, finSource + 1)
+    else tr.delete(source.pos, finSource)
+  }
+  const posCible = tr.mapping.map(cible.pos)
+  const noeudCible = tr.doc.nodeAt(posCible)
+  if (!noeudCible) return false
+  let arrivee: number
+  let curseur: number
+  if (lieu === 'dans') {
+    const { taskList } = state.schema.nodes
+    if (noeudCible.childCount > 1) {
+      arrivee = posCible + noeudCible.nodeSize - 2
+      tr.insert(arrivee, source.noeud)
+      curseur = arrivee + 2
+    } else {
+      // La tâche n'avait pas de sous-liste : elle en reçoit une.
+      arrivee = posCible + noeudCible.nodeSize - 1
+      tr.insert(arrivee, taskList!.create(null, source.noeud))
+      curseur = arrivee + 3
+    }
+  } else {
+    arrivee = lieu === 'avant' ? posCible : posCible + noeudCible.nodeSize
+    // Avant ou après une tâche, on est toujours dans une liste ; par prudence, rien ne bouge sinon.
+    if (tr.doc.resolve(arrivee).parent.type.name !== 'taskList') return false
+    tr.insert(arrivee, source.noeud)
+    curseur = arrivee + 2
+  }
+  tr.setSelection(TextSelection.near(tr.doc.resolve(curseur)))
   editor.view.dispatch(tr.scrollIntoView())
   return true
 }

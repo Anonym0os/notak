@@ -208,6 +208,14 @@ export function regler(doc: NoeudTexte, chemin: Chemin, attrs: Record<string, un
 
 // ———— Réordonner ————
 
+/**
+ * Où une tâche se pose par rapport à la tâche visée : `avant` elle, `apres` elle (et ses sous-tâches), ou `dans` elle,
+ * en dernière sous-tâche. Un booléen dit `avant` (vrai) ou `apres` (faux), pour les gestes qui n'ont que ces deux-là.
+ */
+export type Place = 'avant' | 'apres' | 'dans'
+
+export const placeDe = (p: Place | boolean): Place => (p === true ? 'avant' : p === false ? 'apres' : p)
+
 /** Les chemins de toutes les tâches, dans l'ordre où elles se lisent (une tâche, puis ses sous-tâches). */
 export function cheminsEnOrdre(doc: NoeudTexte): Chemin[] {
   const suite = (parent: NoeudTexte, prefixe: Chemin): Chemin[] =>
@@ -221,7 +229,7 @@ function tacheA(doc: NoeudTexte, chemin: Chemin): NoeudTexte | undefined {
   return n === doc ? undefined : n
 }
 
-/** Pose `tache` à l'indice `indice` des sous-tâches de `parent` (le document si son chemin est vide). */
+/** Pose `tache` à l'indice `indice` des sous-tâches de `parent` (le document si son chemin est vide) ; après la dernière si l'indice dépasse. */
 function inserer(doc: NoeudTexte, parent: Chemin, indice: number, tache: NoeudTexte): NoeudTexte {
   const dans = (n: NoeudTexte): NoeudTexte => {
     const i = (n.content ?? []).findIndex((x) => x.type === 'taskList')
@@ -237,25 +245,49 @@ function inserer(doc: NoeudTexte, parent: Chemin, indice: number, tache: NoeudTe
 /** Une tâche de cette hauteur peut-elle prendre place à ce niveau (1 = en haut) sans passer le sixième ? */
 export const peutPoserAuNiveau = (niveau: number, hauteurTache: number) => niveau + hauteurTache - 1 <= PROFONDEUR_MAX
 
+const jusqueFin = Number.MAX_SAFE_INTEGER
+
+/** Le chemin du dessus et l'indice où la tâche se pose, selon la tâche visée et la place. */
+function destination(cible: Chemin, place: Place): { parent: Chemin; indice: number } {
+  if (place === 'dans') return { parent: cible, indice: jusqueFin }
+  return { parent: cible.slice(0, -1), indice: cible.at(-1)! + (place === 'avant' ? 0 : 1) }
+}
+
+/** Le niveau (1 = en haut) où la tâche se pose, selon la tâche visée et la place. */
+export const niveauDeDepot = (cible: Chemin, place: Place): number => cible.length + (place === 'dans' ? 1 : 0)
+
+const estPrefixe = (a: Chemin, b: Chemin) => a.length <= b.length && a.every((x, k) => b[k] === x)
+
 /**
- * Le document où la tâche `de` (son rang dans l'ordre de lecture) est passée avant ou après la tâche `vers`,
- * au même niveau qu'elle ; ses sous-tâches la suivent. Rien ne change si la cible est la tâche elle-même ou
- * l'une de ses sous-tâches, ou si elle passerait le sixième niveau.
+ * Le document où la tâche `de` (son rang dans l'ordre de lecture) est passée avant, après ou dans la tâche `vers` ;
+ * ses sous-tâches la suivent. Rien ne change si la cible est la tâche elle-même ou l'une de ses sous-tâches, ou si elle
+ * passerait le sixième niveau. Avec `copie`, la tâche reste où elle est et une copie prend la place : la cible peut alors
+ * être la tâche elle-même (on la double), mais jamais l'une de ses sous-tâches.
  */
-export function deplacer(doc: NoeudTexte, de: number, vers: number, avant: boolean): NoeudTexte {
+export function deplacer(doc: NoeudTexte, de: number, vers: number, place: Place | boolean, copie = false): NoeudTexte {
+  const lieu = placeDe(place)
   const chemins = cheminsEnOrdre(doc)
   const source = chemins[de]
   const cible = chemins[vers]
-  if (!source || !cible || source.every((x, k) => cible[k] === x)) return doc
+  if (!source || !cible) return doc
+  // La cible est la tâche elle-même ou l'une de ses sous-tâches : impossible, sauf pour doubler la tâche à côté d'elle.
+  const dansSource = estPrefixe(source, cible)
+  const surSoi = dansSource && source.length === cible.length
+  if (dansSource && !(copie && surSoi && lieu !== 'dans')) return doc
   const tache = tacheA(doc, source)
-  if (!tache || !peutPoserAuNiveau(cible.length, hauteur(tache))) return doc
+  if (!tache || !peutPoserAuNiveau(niveauDeDepot(cible, lieu), hauteur(tache))) return doc
+  if (copie) {
+    const d = destination(cible, lieu)
+    return inserer(doc, d.parent, d.indice, tache)
+  }
   // Une fois la tâche retirée, les frères d'après elle ont un rang de moins.
   const parentSource = source.length - 1
   const ajuste = [...cible]
   if (cible.length > parentSource && source.slice(0, parentSource).every((x, k) => cible[k] === x) && cible[parentSource]! > source[parentSource]!) {
     ajuste[parentSource] = cible[parentSource]! - 1
   }
-  return inserer(retirer(doc, source), ajuste.slice(0, -1), ajuste.at(-1)! + (avant ? 0 : 1), tache)
+  const d = destination(ajuste, lieu)
+  return inserer(retirer(doc, source), d.parent, d.indice, tache)
 }
 
 // ———— Passer d'une liste à une autre ————
@@ -276,37 +308,41 @@ const texteDeTache = (tache: NoeudTexte): string =>
 
 /**
  * Les deux documents où la tâche `de` de `source` (son rang dans l'ordre de lecture, sous-tâches avec elle) est
- * passée dans `destination`, avant ou après la tâche `vers`, au même niveau qu'elle. Une liste de destination
- * encore vierge est remplacée par la tâche. `null` si un rang n'existe pas ou si la tâche passerait le sixième niveau.
+ * passée dans `destination`, avant, après ou dans la tâche `vers`. Une liste de destination encore vierge est
+ * remplacée par la tâche. Avec `copie`, la source reste telle quelle. `null` si un rang n'existe pas ou si la tâche
+ * passerait le sixième niveau.
  */
 export function transferer(
   source: NoeudTexte,
   de: number,
-  destination: NoeudTexte,
+  destination_: NoeudTexte,
   vers: number,
-  avant: boolean,
+  place: Place | boolean,
+  copie = false,
 ): { source: NoeudTexte; destination: NoeudTexte } | null {
+  const lieu = placeDe(place)
   const chemin = cheminsEnOrdre(source)[de]
-  const cible = cheminsEnOrdre(destination)[vers]
+  const cible = cheminsEnOrdre(destination_)[vers]
   if (!chemin || !cible) return null
   const tache = tacheA(source, chemin)
-  if (!tache || !peutPoserAuNiveau(cible.length, hauteur(tache))) return null
-  const vierge = estListeVierge(destination)
-  const apres = vierge ? { ...destination, content: [{ type: 'taskList', content: [tache] }] } : inserer(destination, cible.slice(0, -1), cible.at(-1)! + (avant ? 0 : 1), tache)
-  return { source: retirer(source, chemin), destination: apres }
+  if (!tache || !peutPoserAuNiveau(niveauDeDepot(cible, lieu), hauteur(tache))) return null
+  const vierge = estListeVierge(destination_)
+  const d = destination(cible, lieu)
+  const apres = vierge ? { ...destination_, content: [{ type: 'taskList', content: [tache] }] } : inserer(destination_, d.parent, d.indice, tache)
+  return { source: copie ? source : retirer(source, chemin), destination: apres }
 }
 
 /**
  * La tâche `de` de `source` posée seule sur une nouvelle liste, en `x`, `y` (UG) ; `null` si le rang n'existe pas.
- * Rend aussi la source privée de la tâche.
+ * Rend aussi la source privée de la tâche (avec `copie`, telle quelle).
  */
-export function detacher(source: NoeudTexte, de: number, x: number, y: number): { source: NoeudTexte; liste: Element<Taches> } | null {
+export function detacher(source: NoeudTexte, de: number, x: number, y: number, copie = false): { source: NoeudTexte; liste: Element<Taches> } | null {
   const chemin = cheminsEnOrdre(source)[de]
   const tache = chemin && tacheA(source, chemin)
   if (!chemin || !tache) return null
   const neuve = nouvelleListeTaches(x, y)
   return {
-    source: retirer(source, chemin),
+    source: copie ? source : retirer(source, chemin),
     liste: { ...neuve, contenu: { ...neuve.contenu, texte: { type: 'doc', content: [{ type: 'taskList', content: [tache] }] } } },
   }
 }

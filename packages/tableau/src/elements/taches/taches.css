@@ -647,9 +647,10 @@
   pointer-events: none !important;
 }
 
-/* Pendant le glisser : la tâche prise s'efface un peu, un trait montre où elle se posera. */
-.notak-taches li[data-glisse] {
+/* Pendant le glisser : la tâche prise reste en place, grise à 40 % (sauf pour une copie) ; un trait montre où elle se posera. */
+.notak-taches li[data-glisse]:not([data-copie]) {
   opacity: 0.4;
+  filter: grayscale(1);
 }
 
 .notak-glisse-repere {
@@ -660,36 +661,46 @@
   pointer-events: none;
 }
 
+.notak-glisse-repere[data-fixe] {
+  position: fixed;
+  z-index: 1000;
+}
+
 .notak-glisse-repere[hidden] {
   display: none;
 }
 
-/* Une tâche qu'on porte hors de sa liste : une pastille derrière le pointeur, pointillée au-dessus du vide de la toile. */
-.notak-glisse-fantome {
+/*
+ * Ce qui suit le pointeur : la tâche et ses sous-tâches dans une carte de liste (blanche, avec son ombre). Elle devient
+ * transparente au-dessus d'une autre liste ou d'une colonne.
+ */
+.notak-glisse-apercu {
   position: fixed;
   top: 0;
   left: 0;
   z-index: 1000;
-  max-width: 220px;
-  padding: 4px 10px;
-  overflow: hidden;
-  border: 1px solid var(--notak-accent);
-  border-radius: 6px;
+  box-sizing: border-box;
+  padding: 19px 24px;
+  transform-origin: 0 0;
   background: var(--notak-carte, #fff);
-  box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
+  box-shadow: var(--notak-ombre-vol, 0 8px 22px -6px rgb(27 37 54 / 0.2));
   color: var(--notak-texte, #1f2328);
-  font-size: 13px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   pointer-events: none;
+  transition: opacity 100ms linear;
 }
 
-.notak-glisse-fantome[hidden] {
+.notak-glisse-apercu[data-dessus='liste'],
+.notak-glisse-apercu[data-dessus='colonne'] {
+  opacity: 0.5;
+}
+
+.notak-glisse-apercu[hidden] {
   display: none;
 }
 
-.notak-glisse-fantome[data-toile] {
-  border-style: dashed;
+.notak-glisse-apercu .notak-tache-poignee,
+.notak-glisse-apercu .notak-tache-suppr {
+  display: none;
 }
 
 /* La liste qui recevra la tâche. */

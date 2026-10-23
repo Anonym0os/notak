@@ -1,6 +1,7 @@
 import { EditorContent, getSchema, useEditor, useEditorState } from '@tiptap/react'
 import { type ReactNode, memo, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { cleEntre, comparerOrdre } from '../../coeur/ordre'
 import { type CouleurNote, type Element, type Id, type NoeudTexte, type Taches, aimanter } from '../../coeur/tableau'
 import { extensionsDuPartage, textePartage } from '../partage'
 import { MenuCouleur } from '../note/MenuCouleur'
@@ -12,7 +13,7 @@ import { type Personne, type Puce, attrsAllumes, attrsEteints, attrsVides, jourD
 import { animerCase } from './animation'
 import { ajouterTitre, avecTitre, contenuDepuis, curseurAuTitre, docEditeur, sansTitre } from './titre'
 import { type Sortie, glisserTache } from './glisse'
-import { type Chemin, basculer, compter, deplacer, detacher, docTaches, effacerFaites, estFaite, regler, retirer, sousTaches, transferer } from './liste'
+import { type Chemin, type Place, basculer, compter, deplacer, detacher, docTaches, effacerFaites, estFaite, regler, retirer, sousTaches, transferer } from './liste'
 import { t } from '../../langue'
 import { BoutonOutil } from '../../BoutonOutil'
 import { ContexteBarreEdition } from '../../barreEdition'
@@ -54,11 +55,11 @@ const Figee = memo(function Figee({ id, contenu, largeur, seule, changer, contex
   const cocher = (chemin: Chemin, enCascade: boolean) =>
     changer({ ...contenu, texte: basculer(doc, chemin, enCascade) })
   const supprimer = (chemin: Chemin) => changer({ ...contenu, texte: retirer(doc, chemin) })
-  const bouger = (de: number, vers: number, avant: boolean) => changer({ ...contenu, texte: deplacer(doc, de, vers, avant) })
+  const bouger = (de: number, vers: number, place: Place, copie: boolean) => changer({ ...contenu, texte: deplacer(doc, de, vers, place, copie) })
   // Hors de sa liste : dans une autre liste du tableau, ou sur la toile (une nouvelle liste d'une tâche).
-  const sortir = (de: number, ou: Sortie) => {
+  const sortir = (de: number, ou: Sortie, copie: boolean) => {
     if (contexte.services.lectureSeule || contexte.services.presentation) return
-    const ops = operationsDeSortie(contexte, id, de, ou)
+    const ops = operationsDeSortie(contexte, id, de, ou, copie)
     if (!ops) return
     contexte.magasin.faire(ops.operations)
     if (ops.nouvelle) contexte.choisir([ops.nouvelle])
@@ -110,8 +111,8 @@ interface PropsListe {
   cocher(c: Chemin, cascade: boolean): void
   supprimer(c: Chemin): void
   ouvrir(c: Chemin, genre: Puce['genre'], ancre: HTMLElement): void
-  deplacer(de: number, vers: number, avant: boolean): void
-  sortir(de: number, ou: Sortie): void
+  deplacer(de: number, vers: number, place: Place, copie: boolean): void
+  sortir(de: number, ou: Sortie, copie: boolean): void
 }
 
 function Liste({ noeud, chemin, cocher, supprimer, ouvrir, deplacer, sortir }: PropsListe) {
@@ -195,15 +196,18 @@ function Liste({ noeud, chemin, cocher, supprimer, ouvrir, deplacer, sortir }: P
 
 /**
  * Ce que change le tableau quand une tâche est lâchée hors de sa liste, d'un seul pas : les deux listes qui
- * changent, ou la liste qui perd la tâche et celle qui naît sur la toile. `nouvelle` : l'id de la liste née.
+ * changent, ou la liste qui perd la tâche et celle qui naît (sur la toile, ou rangée dans une colonne). `nouvelle` :
+ * l'id de la liste née. Avec `copie`, la liste d'origine ne perd rien.
  */
 export function operationsDeSortie(
   contexte: ContexteToile,
   id: Id,
   de: number,
   ou: Sortie,
+  copie = false,
 ): { operations: Operation[]; nouvelle?: Id } | null {
-  const elements = contexte.magasin.lire().elements
+  const tableau = contexte.magasin.lire()
+  const elements = tableau.elements
   const source = elements.find((e) => e.id === id)
   if (source?.contenu.type !== 'taches') return null
   const avant = source.contenu
@@ -211,23 +215,34 @@ export function operationsDeSortie(
   if (ou.genre === 'liste') {
     const cible = elements.find((e) => e.id === ou.carte)
     if (cible?.contenu.type !== 'taches' || cible.id === id) return null
-    const r = transferer(docSource, de, docTaches(cible.contenu.texte), ou.vers, ou.avant)
+    const r = transferer(docSource, de, docTaches(cible.contenu.texte), ou.vers, ou.place, copie)
     if (!r) return null
     return {
       operations: [
-        { type: 'contenu', id, avant, apres: { ...avant, texte: r.source } },
+        ...(copie ? [] : [{ type: 'contenu' as const, id, avant, apres: { ...avant, texte: r.source } }]),
         { type: 'contenu', id: cible.id, avant: cible.contenu, apres: { ...cible.contenu, texte: r.destination } },
       ],
     }
   }
+  if (ou.genre === 'colonne') {
+    const colonne = elements.find((e) => e.id === ou.colonne)
+    if (colonne?.contenu.type !== 'colonne') return null
+    const r = detacher(docSource, de, colonne.x, colonne.y, copie)
+    if (!r) return null
+    // Rangée parmi les éléments de la colonne, à l'index visé.
+    const freres = elements.filter((e) => e.parent === colonne.id && e.corbeille === undefined).sort((a, b) => comparerOrdre(a.ordre, b.ordre))
+    const i = Math.max(0, Math.min(ou.index, freres.length))
+    const rangee: Element<Taches> = { ...r.liste, parent: colonne.id, ordre: cleEntre(freres[i - 1]?.ordre, freres[i]?.ordre) }
+    return {
+      operations: [...(copie ? [] : [{ type: 'contenu' as const, id, avant, apres: { ...avant, texte: r.source } }]), { type: 'creer', element: rangee }],
+      nouvelle: rangee.id,
+    }
+  }
   const [x, y] = aimanter(contexte.versTableau({ x: ou.x, y: ou.y }))
-  const r = detacher(docSource, de, x, y)
+  const r = detacher(docSource, de, x, y, copie)
   if (!r) return null
   return {
-    operations: [
-      { type: 'contenu', id, avant, apres: { ...avant, texte: r.source } },
-      { type: 'creer', element: r.liste },
-    ],
+    operations: [...(copie ? [] : [{ type: 'contenu' as const, id, avant, apres: { ...avant, texte: r.source } }]), { type: 'creer', element: r.liste }],
     nouvelle: r.liste.id,
   }
 }
