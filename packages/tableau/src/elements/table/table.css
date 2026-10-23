@@ -14,6 +14,8 @@
   font-size: 14px;
   line-height: 20px;
   color: var(--notak-texte);
+  /* Ce qu'on mêle au fond d'une cellule colorée pour en faire le filet (voir `filets.ts`). */
+  --notak-table-filet-melange: #323b4a;
 }
 
 .notak-tableur[data-titre] {
@@ -727,4 +729,32 @@ tr:first-child:last-child .notak-table-repere-ligne {
 .notak-table-alignements button[aria-checked='true'] {
   background: rgb(0 0 0 / 0.08) !important;
   color: inherit;
+}
+
+/* L'éditeur d'une cellule de texte : un élément éditable calé sur le miroir de l'éditeur simple. */
+.notak-table-riche {
+  box-sizing: border-box;
+  min-height: calc(var(--notak-grille-pas, 10px) * 3);
+  margin: 0;
+  padding: 5px 8px;
+  font: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  outline: none;
+  caret-color: var(--notak-texte);
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.notak-table-riche a,
+.notak-tableur td a {
+  color: var(--notak-accent);
+  text-decoration: underline;
+}
+
+.notak-table-riche s,
+.notak-tableur td s {
+  text-decoration: line-through;
 }

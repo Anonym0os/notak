@@ -9,6 +9,7 @@ import type { ContexteToile } from '../types'
 import { OutilsTable } from './Outils'
 import { RenduTable } from './Table'
 import { lireEtat, oublierEtat, poserEtat } from './etat'
+import { poserSelection } from './richeDom'
 import { formatsDe, nouvelleTable } from './grille'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -52,8 +53,10 @@ function monde(plus: Partial<Table> = {}, options: { lectureSeule?: boolean; par
     services: { lectureSeule: !!options.lectureSeule },
     camera: { echelle: 1, origine: { x: 0, y: 0 } },
     selection: new Set([ID]),
-    choisir: () => {},
-  } as unknown as ContexteToile
+    choisir: (ids: Iterable<string>) => {
+      contexte.selection = new Set(ids)
+    },
+  } as unknown as { selection: Set<string> } & ContexteToile
   const lire = () => magasin.lire().elements[0] as Element<Table>
   return { magasin, contexte, lire }
 }
@@ -90,14 +93,26 @@ const cliquer = (l: number, c: number, init: MouseEventInit = {}) =>
 const relacher = () => act(() => void hote.querySelector('.notak-tableur')!.dispatchEvent(new MouseEvent('pointerup', { bubbles: true })))
 const bouton = (texte: string) => [...hote.querySelectorAll('button')].find((b) => b.textContent?.includes(texte) || b.getAttribute('aria-label')?.includes(texte))!
 
-function taper(champ: HTMLTextAreaElement, texte: string) {
+function taper(champ: HTMLElement, texte: string) {
   act(() => {
-    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(champ, texte)
-    champ.setSelectionRange(texte.length, texte.length)
+    if (champ instanceof HTMLTextAreaElement) {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(champ, texte)
+      champ.setSelectionRange(texte.length, texte.length)
+    } else {
+      // L'éditeur d'une cellule de texte est un élément éditable : on y écrit, le curseur au bout.
+      champ.textContent = texte
+      if (champ.firstChild) document.getSelection()!.collapse(champ.firstChild, texte.length)
+    }
     champ.dispatchEvent(new Event('input', { bubbles: true }))
   })
 }
 const champ = () => hote.querySelector<HTMLTextAreaElement>('.notak-table-champ')!
+/** Là où une cellule s'écrit : l'éditeur de texte, ou le champ des formules, des nombres et des dates. */
+const zone = () => hote.querySelector<HTMLElement>('.notak-table-riche, .notak-table-champ')!
+const valeur = () => {
+  const z = zone()
+  return z instanceof HTMLTextAreaElement ? z.value : z.textContent
+}
 
 describe('le rendu', () => {
   it('une grille aux largeurs des colonnes, le texte formaté selon le type', () => {
@@ -199,7 +214,15 @@ describe('la sélection de cellules', () => {
     expect(hote.querySelector('.notak-table-editeur')).toBeNull()
     cliquer(1, 0)
     relacher()
-    expect(champ().value).toBe('a')
+    expect(valeur()).toBe('a')
+  })
+
+  it('Cmd+clic sur la table seule choisie, sans cellule choisie, la déchoisit au lieu de choisir une cellule', () => {
+    const m = monde()
+    monter(m)
+    cliquer(1, 0, { metaKey: true })
+    expect(lireEtat(ID).plages).toEqual([])
+    expect(m.contexte.selection.has(ID)).toBe(false)
   })
 
   it('un clic sur une lettre choisit la colonne entière, sur un numéro la ligne', () => {
@@ -333,9 +356,9 @@ describe('l’édition d’une cellule', () => {
     appuyer(clavier()!, { key: 'z' })
     // La touche tombe dans le champ caché, qui ouvre l'édition avec ce qu'il reçoit (accents à touche morte compris).
     taper(clavier() as HTMLTextAreaElement, 'z')
-    expect(champ().value).toBe('z')
-    taper(champ(), 'zèbre')
-    appuyer(champ(), { key: 'Enter' })
+    expect(valeur()).toBe('z')
+    taper(zone(), 'zèbre')
+    appuyer(zone(), { key: 'Enter' })
     expect(m.lire().contenu.cellules[1]![0]).toBe('zèbre')
     expect(hote.querySelector('.notak-table-editeur')).toBeNull()
     expect(lireEtat(ID).tete).toEqual({ l: 2, c: 0 })
@@ -349,9 +372,9 @@ describe('l’édition d’une cellule', () => {
     monter(m)
     cliquer(1, 0)
     appuyer(clavier()!, { key: 'Enter' })
-    expect(champ().value).toBe('a')
-    taper(champ(), 'autre')
-    appuyer(champ(), { key: 'Escape' })
+    expect(valeur()).toBe('a')
+    taper(zone(), 'autre')
+    appuyer(zone(), { key: 'Escape' })
     expect(m.lire().contenu.cellules[1]![0]).toBe('a')
     expect(lireEtat(ID).edition).toBeNull()
   })
@@ -361,10 +384,10 @@ describe('l’édition d’une cellule', () => {
     monter(m)
     cliquer(1, 0)
     appuyer(clavier()!, { key: 'F2' })
-    taper(champ(), 'xy')
-    appuyer(champ(), { key: 'Enter', shiftKey: true })
-    expect(champ().value).toBe('xy\n')
-    appuyer(champ(), { key: 'Tab' })
+    taper(zone(), 'xy')
+    appuyer(zone(), { key: 'Enter', shiftKey: true })
+    expect(valeur()).toBe('xy\n')
+    appuyer(zone(), { key: 'Tab' })
     expect(m.lire().contenu.cellules[1]![0]).toBe('xy\n')
     expect(lireEtat(ID).tete).toEqual({ l: 1, c: 1 })
   })
@@ -374,8 +397,8 @@ describe('l’édition d’une cellule', () => {
     monter(m)
     cliquer(3, 0)
     appuyer(clavier()!, { key: 'Enter' })
-    taper(champ(), '12,5 %')
-    appuyer(champ(), { key: 'Enter' })
+    taper(zone(), '12,5 %')
+    appuyer(zone(), { key: 'Enter' })
     expect(m.lire().contenu.cellules[3]![0]).toBe('0.125')
     expect(formatsDe(m.lire().contenu)[3]![0]?.type).toBe('pourcent')
   })
@@ -385,8 +408,8 @@ describe('l’édition d’une cellule', () => {
     monter(m)
     cliquer(3, 1)
     appuyer(clavier()!, { key: 'Enter' })
-    taper(champ(), '=SUM(B2:B3')
-    appuyer(champ(), { key: 'Enter' })
+    taper(zone(), '=SUM(B2:B3')
+    appuyer(zone(), { key: 'Enter' })
     expect(m.lire().contenu.cellules[3]![1]).toBe('=SUM(B2:B3)')
     expect(cellule(3, 1).textContent).toBe('30')
   })
@@ -396,14 +419,14 @@ describe('l’édition d’une cellule', () => {
     monter(m)
     cliquer(3, 1)
     appuyer(clavier()!, { key: 'Enter' })
-    taper(champ(), '=')
+    taper(zone(), '=')
     expect([...hote.querySelectorAll('.notak-table-fonctions li')].map((li) => li.textContent)).toEqual(['SUM', 'IF', 'MIN', 'MAX', 'COUNT', 'AVERAGE'])
-    appuyer(champ(), { key: 'ArrowUp' })
+    appuyer(zone(), { key: 'ArrowUp' })
     expect(hote.querySelector('.notak-table-fonctions li[data-choisie]')?.textContent).toBe('AVERAGE')
-    taper(champ(), '=ave')
+    taper(zone(), '=ave')
     expect(hote.querySelector('.notak-table-fonctions li b')?.textContent).toBe('AVE')
-    appuyer(champ(), { key: 'Enter' })
-    expect(champ().value).toBe('=AVERAGE(')
+    appuyer(zone(), { key: 'Enter' })
+    expect(valeur()).toBe('=AVERAGE(')
     expect(m.lire().contenu.cellules[3]![1]).toBe('')
   })
 
@@ -412,12 +435,12 @@ describe('l’édition d’une cellule', () => {
     monter(m)
     cliquer(3, 1)
     appuyer(clavier()!, { key: 'Enter' })
-    taper(champ(), '=B2+')
+    taper(zone(), '=B2+')
     cliquer(2, 1)
-    expect(champ().value).toBe('=B2+B3')
+    expect(valeur()).toBe('=B2+B3')
     // Un autre clic remplace la référence qu'on vient de citer.
     cliquer(1, 2)
-    expect(champ().value).toBe('=B2+C2')
+    expect(valeur()).toBe('=B2+C2')
     // Les références sont colorées sur la grille.
     expect(hote.querySelectorAll('.notak-table-ref')).toHaveLength(2)
   })
@@ -428,9 +451,66 @@ describe('l’édition d’une cellule', () => {
     cliquer(3, 1)
     appuyer(clavier()!, { key: 'Enter' })
     // Le curseur est collé à B2, tapé à la main : un clic sur C3 prend sa place.
-    taper(champ(), '=B2')
+    taper(zone(), '=B2')
     cliquer(2, 2)
-    expect(champ().value).toBe('=C3')
+    expect(valeur()).toBe('=C3')
+  })
+
+  it('du gras sur un mot : la sélection, le bouton, puis la cellule garde son texte simple et ses passages', () => {
+    const m = monde()
+    monter(m)
+    cliquer(3, 0)
+    appuyer(clavier()!, { key: 'Enter' })
+    taper(zone(), 'bonjour tous')
+    act(() => {
+      poserSelection(zone(), 8, 12)
+      document.dispatchEvent(new Event('selectionchange'))
+    })
+    expect(lireEtat(ID).edition?.selection).toEqual({ de: 8, a: 12 })
+    act(() => bouton('Gras').click())
+    expect(zone().querySelector('b')?.textContent).toBe('tous')
+    appuyer(zone(), { key: 'Enter' })
+    expect(m.lire().contenu.cellules[3]![0]).toBe('bonjour tous')
+    expect(formatsDe(m.lire().contenu)[3]![0]?.riche).toEqual({ texte: 'bonjour tous', passages: [{ de: 8, a: 12, gras: true }] })
+    expect(cellule(3, 0).querySelector('b')?.textContent).toBe('tous')
+    // Rouvrir la cellule rend les passages.
+    cliquer(3, 0)
+    appuyer(clavier()!, { key: 'Enter' })
+    expect(zone().querySelector('b')?.textContent).toBe('tous')
+  })
+
+  it('une adresse écrite dans la cellule devient un lien, et le texte change : les passages d’avant tombent', () => {
+    const m = monde()
+    monter(m)
+    cliquer(3, 0)
+    appuyer(clavier()!, { key: 'Enter' })
+    taper(zone(), 'voir https://exemple.fr ici')
+    appuyer(zone(), { key: 'Enter' })
+    expect(cellule(3, 0).querySelector('a')?.getAttribute('href')).toBe('https://exemple.fr')
+    expect(cellule(3, 0).querySelector('.notak-table-texte')?.textContent).toBe('voir https://exemple.fr ici')
+    cliquer(3, 0)
+    appuyer(clavier()!, { key: 'Enter' })
+    taper(zone(), 'autre chose')
+    appuyer(zone(), { key: 'Enter' })
+    expect(formatsDe(m.lire().contenu)[3]![0]?.riche).toBeUndefined()
+  })
+
+  it('un « = » en tête rend la main au champ des formules, sans passages', () => {
+    const m = monde()
+    monter(m)
+    cliquer(3, 0)
+    appuyer(clavier()!, { key: 'Enter' })
+    taper(zone(), '=A')
+    expect(hote.querySelector('.notak-table-riche')).toBeNull()
+    expect(champ().value).toBe('=A')
+    expect(lireEtat(ID).edition?.passages).toBeUndefined()
+  })
+
+  it('une cellule d’avant, sans texte riche, se lit comme du texte simple', () => {
+    const m = monde()
+    monter(m)
+    expect(formatsDe(m.lire().contenu)[1]![0]?.riche).toBeUndefined()
+    expect(cellule(1, 0).querySelector('.notak-table-texte')?.textContent).toBe('a')
   })
 
   it('une cellule date ouvre un calendrier ; le jour choisi garde le format de la cellule', () => {
@@ -438,14 +518,14 @@ describe('l’édition d’une cellule', () => {
     monter(m)
     cliquer(0, 0)
     appuyer(clavier()!, { key: 'Enter' })
-    expect(champ().value).toBe('2026-02-01')
+    expect(valeur()).toBe('2026-02-01')
     const jour = hote.querySelector<HTMLInputElement>('.notak-table-calendrier input[type=date]')!
     act(() => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(jour, '2026-03-15')
       jour.dispatchEvent(new Event('input', { bubbles: true }))
     })
-    expect(champ().value).toBe('2026-03-15')
-    appuyer(champ(), { key: 'Enter' })
+    expect(valeur()).toBe('2026-03-15')
+    appuyer(zone(), { key: 'Enter' })
     expect(formatsDe(m.lire().contenu)[0]![0]).toEqual({ type: 'date', date: 'long' })
     expect(m.lire().contenu.cellules[0]![0]).toBe('46096')
   })

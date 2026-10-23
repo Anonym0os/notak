@@ -340,6 +340,31 @@ export interface FormatCellule {
   fond?: string
   alignement?: 'gauche' | 'centre' | 'droite'
   vertical?: 'haut' | 'milieu' | 'bas'
+  /**
+   * Du texte riche partiel : gras, lien ou couleur sur quelques mots de la cellule. Le texte de la cellule reste
+   * du texte simple (les formules, la recherche et la copie le lisent tel quel) ; les passages se posent dessus
+   * tant que `riche.texte` est encore le texte de la cellule. Absent : une cellule d'avant, lue comme du texte.
+   */
+  riche?: RicheCellule
+}
+
+/** Un passage du texte d'une cellule, de `de` (compris) à `a` (exclu), en unités UTF-16. */
+export interface PassageCellule {
+  de: number
+  a: number
+  gras?: true
+  italique?: true
+  barre?: true
+  lien?: string
+  /** Un nom de la palette ou un `#rrggbb`, comme `FormatCellule.couleur` et `surligne`. */
+  couleur?: string
+  surligne?: string
+}
+
+/** Le texte riche d'une cellule : les passages, et le texte sur lequel ils ont été posés (garde contre un texte changé depuis). */
+export interface RicheCellule {
+  texte: string
+  passages: PassageCellule[]
 }
 
 /**

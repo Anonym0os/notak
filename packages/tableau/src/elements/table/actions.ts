@@ -1,4 +1,4 @@
-import { type Element, type FormatCellule, type Table, type TypeCellule, nouvelId } from '../../coeur/tableau'
+import { type Element, type FormatCellule, type PassageCellule, type Table, type TypeCellule, nouvelId } from '../../coeur/tableau'
 import { textesAffiches } from './affichage'
 import type { Cellule } from './etat'
 import { deduireType, peutPrendreType, saisir, type Regional } from './formats'
@@ -39,6 +39,7 @@ import {
   grilleVide,
 } from './grille'
 import { type DonneesCollage, coller, recopier, versHtml, versTexte } from './pressePapiers'
+import { avecRiche, peutEtreRiche, richeDe } from './riche'
 
 /**
  * Les gestes de la table sur une sélection, tous purs : une table et des plages en entrée, une table (et la
@@ -273,7 +274,8 @@ export function droitsDe(t: Table, plages: readonly Plage[]): Droits {
 export function viderSelection(t: Table, plages: readonly Plage[]): Table {
   const vide = plages.reduce((table, p) => viderPlage(table, p), t)
   if (!t.formats) return vide
-  return appliquerFormat(vide, plages, (f) => (f?.type === 'case' ? sansType(f) : f))
+  // Le texte riche s'en va avec le texte.
+  return appliquerFormat(vide, plages, (f) => avecRiche(f?.type === 'case' ? sansType(f) : f, undefined))
 }
 
 export { basculerStyle }
@@ -360,6 +362,7 @@ export function ecrireCellule(
   saisie: string,
   lg: Regional,
   calendrier?: { serie: string; avecHeure?: boolean },
+  passages?: readonly PassageCellule[],
 ): Table {
   const formats = formatsDe(t)
   const ancien = formats[l]?.[c] ?? null
@@ -386,6 +389,9 @@ export function ecrireCellule(
     texte = s.texte
     format = s.format
   }
+  // Le texte riche ne tient que pour le texte tel qu'il a été écrit, dans une cellule qui reste du texte.
+  const riche = !saisie.startsWith('=') && texte === saisie && peutEtreRiche(format, texte) ? richeDe(texte, passages ?? []) : undefined
+  format = avecRiche(format, riche)
   if (texte === t.cellules[l]?.[c] && JSON.stringify(format) === JSON.stringify(ancien)) return t
   return appliquerFormat(changerCellule(t, l, c, texte), [plageDe({ l, c })], () => format)
 }

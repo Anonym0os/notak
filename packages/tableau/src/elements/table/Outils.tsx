@@ -17,6 +17,7 @@ import {
   poserFormat,
 } from './actions'
 import { ouvrirEdition } from './edition'
+import { OutilsRiche } from './OutilsRiche'
 import { demanderTitre, focaliser, poserEtat, useEtatTable } from './etat'
 import { COULEURS_TEXTE, FOND_ENTETE, FONDS_CELLULE, SURLIGNAGES, afficher, alignementDe, couleurSurlignage, couleurTexte, localeDe, regional } from './formats'
 import { dateVersSerie } from './formules'
@@ -34,6 +35,9 @@ export function OutilsTable({ elements, contexte }: PropsOutils<Table>) {
   const un = elements.length === 1 ? elements[0]! : null
   const etat = useEtatTable(un?.id ?? '')
   if (contexte.services.lectureSeule) return null
+  // Des mots choisis dans une cellule de texte en cours d'écriture : leurs outils (style, gras, italique, barré, lien).
+  const ed = un ? etat.edition : null
+  if (un && ed?.passages !== undefined && ed.selection && ed.selection.de !== ed.selection.a && !ed.texte.startsWith('=')) return <OutilsRiche id={un.id} edition={ed} />
   // Les cellules choisies que l'historique ou un retrait ont laissées hors de la table ne comptent plus.
   const plages = un ? bornerPlages(etat.plages, un.contenu) : []
   if (un && plages.length > 0) return <OutilsCellules element={un} plages={plages} contexte={contexte} />

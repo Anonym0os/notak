@@ -1,5 +1,6 @@
 import type { FormatCellule, Table } from '../../coeur/tableau'
 import { type Regional, hexSurlignage, hexTexte, saisir } from './formats'
+import { morceaux, passagesDe } from './riche'
 import {
   COLONNES_MAX,
   LIGNES_MAX,
@@ -63,12 +64,31 @@ function styleCss(f: FormatCellule | null): string {
   return css.length ? ` style="${css.join(';')}"` : ''
 }
 
+/** Le corps d'une cellule en HTML : son texte, avec ses passages (gras, lien, couleur…) s'il en a. */
+function corpsCellule(texte: string, f: FormatCellule | null): string {
+  const saut = (s: string) => echapper(s).replace(/\n/g, '<br>')
+  const passages = passagesDe(f, texte)
+  if (passages.length === 0) return saut(texte)
+  return morceaux(texte, passages)
+    .map((m) => {
+      let h = saut(m.texte)
+      if (m.couleur) h = `<span style="color:${hexTexte(m.couleur)}">${h}</span>`
+      else if (m.surligne) h = `<span style="background:${hexSurlignage(m.surligne)}">${h}</span>`
+      if (m.barre) h = `<s>${h}</s>`
+      if (m.italique) h = `<i>${h}</i>`
+      if (m.gras) h = `<b>${h}</b>`
+      if (m.lien) h = `<a href="${echapper(m.lien)}">${h}</a>`
+      return h
+    })
+    .join('')
+}
+
 /** Le HTML copié : une `<table>` lisible par les autres applications, qui porte aussi nos données complètes. */
 export function versHtml(t: Table, plage: Plage): string {
   const { cellules, formats } = extraire(t, plage)
   const donnees = echapper(JSON.stringify({ cellules, formats }))
   const lignes = cellules
-    .map((l, i) => `<tr>${l.map((v, j) => `<td${styleCss(formats[i]![j]!)}>${echapper(v).replace(/\n/g, '<br>')}</td>`).join('')}</tr>`)
+    .map((l, i) => `<tr>${l.map((v, j) => `<td${styleCss(formats[i]![j]!)}>${corpsCellule(v, formats[i]![j]!)}</td>`).join('')}</tr>`)
     .join('')
   return `<table ${ATTRIBUT_DONNEES}="${donnees}"><tbody>${lignes}</tbody></table>`
 }

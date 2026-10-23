@@ -3,6 +3,7 @@ import type { ContexteToile } from '../types'
 import { isoDeSerie } from './dates'
 import { lireEtat, poserEtat } from './etat'
 import { formatsDe } from './grille'
+import { passagesDe, peutEtreRiche } from './riche'
 import { plageDe } from './actions'
 
 /** Où le texte a été cliqué : le décalage dans le texte de la cellule, si le texte affiché est le texte écrit. */
@@ -49,6 +50,8 @@ export function ouvrirEdition(contexte: ContexteToile, id: Id, l: number, col: n
   const initial = options.texte ?? (f?.type === 'date' && !brut.startsWith('=') ? (isoDeSerie(brut) ?? brut) : brut)
   const auPoint = options.point && options.texte === undefined ? positionAuPoint(options.noeud ?? null, options.point.x, options.point.y, brut) : null
   const plages = lireEtat(id).plages
+  // Un texte simple s'écrit dans l'éditeur riche, avec les passages qu'il porte ; un texte tapé d'emblée repart de zéro.
+  const passages = peutEtreRiche(f, initial) ? (options.texte === undefined ? passagesDe(f, brut) : []) : undefined
   poserEtat(id, {
     plages: plages.length ? plages : [plageDe({ l, c: col })],
     edition: {
@@ -61,6 +64,7 @@ export function ouvrirEdition(contexte: ContexteToile, id: Id, l: number, col: n
       suggestion: 0,
       citation: null,
       depuisCalendrier: false,
+      ...(passages ? { passages } : {}),
     },
   })
 }

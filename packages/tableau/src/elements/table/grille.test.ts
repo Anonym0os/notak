@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import type { Table } from '../../coeur/tableau'
 import {
+  LIGNES_MAX,
   ajusterALaPoignee,
   continuation,
   appliquerFormat,
@@ -174,7 +175,9 @@ describe('insérer et retirer des lignes', () => {
     expect(r.cellules[1]).toEqual(['', '', ''])
   })
   test('le nombre de lignes est borné', () => {
-    expect(insererLignes(table(), 0, 500).cellules.length).toBeLessThanOrEqual(200)
+    // Milanote ne borne pas la table : 500 lignes d'un coup passent, seul un plafond de garde existe.
+    expect(insererLignes(table(), 0, 500).cellules.length).toBe(503)
+    expect(insererLignes(table(), 0, 50_000).cellules.length).toBeLessThanOrEqual(LIGNES_MAX)
     const t = table()
     expect(insererLignes(t, 0, 0)).toBe(t)
   })
