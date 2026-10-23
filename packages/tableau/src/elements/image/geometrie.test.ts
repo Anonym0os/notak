@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import type { Image } from '../../coeur/tableau'
-import { aUneOmbre, avecLegende, hauteurPour, largeurInitiale, largeurNaturelleImage, nombreColonnes, placerImages } from './geometrie'
+import { aUneOmbre, avecLegende, hauteurCalee, hauteurPour, largeurInitiale, largeurNaturelleImage, nombreColonnes, placerImages } from './geometrie'
 
 const image = (largeurOrigine: number, hauteurOrigine = 100): Image => ({ type: 'image', fichier: 'f', largeurOrigine, hauteurOrigine })
 
@@ -32,6 +32,17 @@ describe('taille d’une image', () => {
     expect(aUneOmbre('image/png', false)).toBe(true)
     expect(aUneOmbre('image/webp', true)).toBe(false)
     expect(aUneOmbre('image/jpeg', true)).toBe(false)
+  })
+})
+
+describe('hauteur calée sur la grille', () => {
+  test('arrondie à l’unité de grille la plus proche', () => {
+    expect(hauteurCalee(20, 2)).toBe(10)
+    expect(hauteurCalee(20, 3)).toBe(7)
+    expect(hauteurCalee(34, 1.5)).toBe(23)
+  })
+  test('jamais sous une unité', () => {
+    expect(hauteurCalee(4, 100)).toBe(1)
   })
 })
 

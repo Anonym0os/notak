@@ -2,16 +2,25 @@
   min-height: 0;
 }
 
+.notak-image-cadre {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 2px;
+  container-type: size;
+}
+
+.notak-image-cadre[data-ombre] {
+  box-shadow: var(--notak-ombre);
+}
+
 .notak-image {
   display: block;
   width: 100%;
-  height: auto;
-  border-radius: 2px;
+  height: 100%;
+  object-fit: cover;
   -webkit-user-drag: none;
-}
-
-.notak-image[data-ombre] {
-  box-shadow: var(--notak-ombre);
 }
 
 .notak-image-vide {

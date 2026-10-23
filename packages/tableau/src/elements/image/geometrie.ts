@@ -35,6 +35,9 @@ export const hauteurPour = (largeur: number, c: Pick<Image, 'largeurOrigine' | '
 export const aUneOmbre = (typeMime: string | undefined, transparente?: boolean) =>
   transparente !== undefined ? !transparente : typeMime !== 'image/png' && typeMime !== 'image/gif' && typeMime !== 'image/svg+xml'
 
+/** La hauteur d'une image posée sur la toile, en UG entières : ses bords tombent sur la grille. */
+export const hauteurCalee = (largeur: number, proportions: number) => Math.max(1, Math.round(largeur / proportions))
+
 export const nombreColonnes = (largeurVuePx: number) => Math.max(3, Math.floor(largeurVuePx / 360))
 
 /**
