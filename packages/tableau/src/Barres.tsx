@@ -4,6 +4,7 @@ import { BoutonEtiquettes } from './elements/decor/BoutonEtiquettes'
 import { t } from './langue'
 import { definition, tousLesOutilsCommuns, tousLesTypes } from './elements/registre'
 import type { ContexteToile, Outil } from './elements/types'
+import { Icone } from './icones'
 
 /** Un outil de la barre, avec le type qui l'apporte. */
 export interface OutilDeBarre {
@@ -96,7 +97,7 @@ export function BarreOutils({
             title={t('barre.plusOutils')}
             onClick={() => setTiroir((t) => !t)}
           >
-            <span className="notak-outil-icone">⋯</span>
+            <span className="notak-outil-icone"><Icone nom="plus" /></span>
             <span className="notak-outil-libelle">{t('barre.plus')}</span>
           </button>
           {tiroir && <div className="notak-tiroir">{caches.map((o) => bouton(o, true))}</div>}
@@ -105,7 +106,7 @@ export function BarreOutils({
       <div className="notak-barre-sep" />
       <BoutonEtiquettes />
       <button type="button" className="notak-outil" aria-expanded={nonTries.ouverte} title={t('nonTries.titre') + ' (⌘\\)'} onClick={nonTries.basculer}>
-        <span className="notak-outil-icone">📥</span>
+        <span className="notak-outil-icone"><Icone nom="nonTries" /></span>
         <span className="notak-outil-libelle">{t('nonTries.titre')}{nonTries.nombre > 0 ? ` (${nonTries.nombre})` : ''}</span>
       </button>
       <button
@@ -116,7 +117,7 @@ export function BarreOutils({
         title={t('corbeille.titre')}
         onClick={corbeille.basculer}
       >
-        <span className="notak-outil-icone">🗑</span>
+        <span className="notak-outil-icone"><Icone nom="corbeille" /></span>
         <span className="notak-outil-libelle">{t('corbeille.titre')}{corbeille.nombre > 0 ? ` (${corbeille.nombre})` : ''}</span>
       </button>
     </nav>
@@ -171,7 +172,7 @@ export function BarreSelection({
       {mele && blocs.length > 0 && (
         <span className="notak-barre-plus">
           <button type="button" title={t('barre.outilsParType')} aria-expanded={plus} aria-pressed={plus} onClick={() => setPlus((p) => !p)}>
-            …
+            <Icone nom="plus" />
           </button>
           {plus && (
             <div className="notak-barre-plus-menu" role="menu">

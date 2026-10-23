@@ -3,6 +3,7 @@ import type { Element, Id } from './coeur/tableau'
 import { definition } from './elements/registre'
 import { t, tn } from './langue'
 import type { ContexteToile, ResultatRecherche } from './elements/types'
+import { Icone } from './icones'
 
 /** Une entrée du menu ; `null` trace un séparateur. */
 export type Entree = { libelle: string; raccourci?: string; coche?: boolean; faire(): void } | null
@@ -62,7 +63,7 @@ export function MenuContextuel({ x, y, entrees, fermer }: { x: number; y: number
               e.faire()
             }}
           >
-            <span className="notak-menu-coche">{e.coche ? '✓' : ''}</span>
+            <span className="notak-menu-coche">{e.coche ? <Icone nom="coche" taille={14} /> : null}</span>
             <span className="notak-menu-libelle">{e.libelle}</span>
             {e.raccourci && <kbd>{e.raccourci}</kbd>}
           </button>
@@ -100,7 +101,7 @@ export function PanneauCorbeille({
       <div className="notak-corbeille-tete">
         <strong>{t('corbeille.titre')}</strong>
         <button type="button" aria-label={t('commun.fermer')} onClick={fermer}>
-          ×
+          <Icone nom="fermer" />
         </button>
       </div>
       {elements.length === 0 ? (
@@ -208,14 +209,14 @@ export function Recherche(props: {
       <span className="notak-recherche-compte" aria-live="polite">
         {compte}
       </span>
-      <button type="button" title={t('recherche.precedent')} disabled={nombre === 0} onClick={() => aller(-1)}>
-        ↑
+      <button type="button" title={t('recherche.precedent')} aria-label={t('recherche.precedent')} disabled={nombre === 0} onClick={() => aller(-1)}>
+        <Icone nom="haut" />
       </button>
-      <button type="button" title={t('recherche.suivant')} disabled={nombre === 0} onClick={() => aller(1)}>
-        ↓
+      <button type="button" title={t('recherche.suivant')} aria-label={t('recherche.suivant')} disabled={nombre === 0} onClick={() => aller(1)}>
+        <Icone nom="bas" />
       </button>
-      <button type="button" title={t('recherche.fermer')} onClick={fermer}>
-        ×
+      <button type="button" title={t('recherche.fermer')} aria-label={t('recherche.fermer')} onClick={fermer}>
+        <Icone nom="fermer" />
       </button>
       {ailleurs.length > 0 && (
         <ul className="notak-recherche-ailleurs" aria-label={t('recherche.ailleurs')}>
@@ -330,7 +331,7 @@ export function FenetreRaccourcis({ fermer }: { fermer(): void }) {
         <div className="notak-raccourcis-tete">
           <strong>{t('raccourcis.titre')}</strong>
           <button type="button" aria-label={t('commun.fermer')} onClick={fermer}>
-            ×
+            <Icone nom="fermer" />
           </button>
         </div>
         <div className="notak-raccourcis-corps">
@@ -382,7 +383,7 @@ export function PanneauNonTries({
       <div className="notak-corbeille-tete">
         <strong>{t('nonTries.titre')}</strong>
         <button type="button" aria-label={t('commun.fermer')} onClick={fermer}>
-          ×
+          <Icone nom="fermer" />
         </button>
       </div>
       {elements.length === 0 ? (
