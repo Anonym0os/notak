@@ -808,6 +808,26 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     setSelection(new Set([e.id]))
   }
 
+  const collerStyle = () => {
+    const source = copie.paquet?.elements[0]
+    if (!source || selection.size === 0) return
+    const defSource = definition(source.contenu.type)
+    const couleur = defSource?.couleur?.lire(source as never, contexte)
+    const pas: Operation[] = []
+    for (const e of choisis()) {
+      if (e.verrou) continue
+      const c = definition(e.contenu.type)?.couleur
+      if (c?.vers && (couleur !== undefined || defSource?.couleur?.vers)) {
+        const apres = c.vers(e.contenu as never, couleur)
+        if (JSON.stringify(apres) !== JSON.stringify(e.contenu)) pas.push({ type: 'contenu', id: e.id, avant: e.contenu, apres })
+      } else if (couleur && c?.ailleurs) c.ailleurs(e as never, couleur, contexte)
+      if (e.contenu.type === source.contenu.type && !e.parent && e.largeur !== source.largeur)
+        pas.push({ type: 'redimensionner', id: e.id, de: e.largeur, vers: source.largeur })
+    }
+    if (pas.length > 0) magasin.faire(pas)
+    annoncer({ texte: 'Style collé' })
+  }
+
   /** Un élément des non triés prend sa place sur la toile, à `ou` (son coin haut gauche, en UG). */
   const poserNonTrie = (id: Id, ou: Point) => {
     const e = complet.lire().elements.find((x) => x.id === id)
@@ -892,6 +912,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       { libelle: 'Premier plan', raccourci: '⇧⌘↑', faire: () => changerPlan('haut', false) },
       { libelle: 'Arrière-plan', raccourci: '⇧⌘↓', faire: () => changerPlan('bas', false) },
       null,
+      ...(copie.paquet ? [{ libelle: 'Coller le style', raccourci: '⌥⌘V', faire: collerStyle }] : []),
       { libelle: 'Mettre dans les non triés', raccourci: '⌥`', faire: () => ecarter(selection, 'nonTrie') },
       { libelle: 'Mettre à la corbeille', raccourci: '⌫', faire: () => jeter(selection) },
     ]
@@ -1024,6 +1045,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (e.key === 'Escape') return setSelection(new Set())
       if (!cmd && touche === 'z' && !e.repeat) ajuster()
       return
+    }
+    // Cmd+Alt+V : le style de l'élément copié (sa couleur, sa largeur pour un même type) passe à la sélection.
+    if (cmd && e.altKey && e.code === 'KeyV') {
+      e.preventDefault()
+      return collerStyle()
     }
     // Les non triés : Cmd+\ ouvre le panneau, Alt+` y met la sélection (`code`, car Alt change `key` sur Mac).
     if (cmd && e.code === 'Backslash') {

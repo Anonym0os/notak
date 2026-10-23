@@ -66,6 +66,11 @@
   box-shadow: 0 0 0 2px var(--notak-accent);
 }
 
+/* Un élément verrouillé choisi : un contour gris, qui dit qu'il ne bougera pas. */
+.notak-carte[data-verrou][data-choisie] {
+  box-shadow: 0 0 0 2px #9aa0a8;
+}
+
 /* En édition, le contour s'écarte de la carte : on voit qu'on écrit dedans. */
 .notak-carte[data-edition]:not([data-sans-fond]) {
   box-shadow: none;

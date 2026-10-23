@@ -46,6 +46,7 @@ export const Cadre = memo(function Cadre({ element, choisie, enEdition, contexte
       data-sans-fond={sansFond || undefined}
       data-audessus={audessus || undefined}
       data-plafond={plafond !== undefined || undefined}
+      data-verrou={element.verrou || undefined}
       style={{ ...place, ...(plafond !== undefined ? { maxHeight: plafond } : {}), ...(plancher !== undefined ? { minHeight: plancher } : {}) }}
     >
       <Rendu
