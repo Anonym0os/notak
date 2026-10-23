@@ -25,6 +25,8 @@ export interface Monde {
   /** Crée un tableau à `proprietaire` et y écrit ce que fait `ecrire` ; l'état est enregistré comme le ferait la synchro. */
   tableau(proprietaire: Compte, id: string, titre: string, ecrire?: (doc: Y.Doc) => void, parent?: string): void
   appeler(chemin: string, options?: { methode?: string; compte?: Compte; cookie?: string; json?: unknown; corps?: Uint8Array; type?: string }): Promise<Response>
+  /** L'application appelée telle quelle (en-têtes et corps à la main), pour ce que `appeler` ne sait pas dire. */
+  appelerBrut(chemin: string, init?: RequestInit): Promise<Response>
   fermer(): void
 }
 
@@ -73,6 +75,7 @@ export function monde(): Monde {
         }),
       )
     },
+    appelerBrut: (chemin, init) => Promise.resolve(app.request(chemin, init)),
     fermer() {
       base.fermer()
       rmSync(dossier, { recursive: true, force: true })

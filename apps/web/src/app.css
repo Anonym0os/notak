@@ -248,7 +248,8 @@ body {
   letter-spacing: 0.04em;
 }
 
-.compte-menu button small {
+.compte-menu button small,
+.compte-menu a small {
   padding: 0;
 }
 
@@ -458,6 +459,136 @@ body {
 
 .arrivee-carte .bouton-lien {
   align-self: flex-start;
+}
+
+/* La page « Envoyer vers Notak » : des cartes les unes sous les autres, la page défile. */
+.envoyer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 16px;
+  background: var(--fond);
+  color: var(--texte);
+}
+
+.envoyer-carte {
+  width: min(640px, 100%);
+}
+
+.envoyer-carte h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.envoyer-carte h3 {
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+
+.envoyer-carte code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--fond);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.envoyer-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.envoyer-form input {
+  flex: 1 1 200px;
+  min-width: 0;
+  height: 40px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid rgb(0 0 0 / 0.15);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--texte);
+  font: inherit;
+  /* 16 px : en dessous, Safari sur iPhone zoome la page à la prise de focus. */
+  font-size: 16px;
+}
+
+.envoyer-form input:focus {
+  border-color: var(--accent);
+  outline: 2px solid rgb(47 111 235 / 0.25);
+}
+
+.envoyer-form .bouton {
+  height: 40px;
+}
+
+.envoyer-neuf {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f4f8ff;
+  border: 1px solid rgb(47 111 235 / 0.3);
+}
+
+.envoyer-carte .envoyer-jeton {
+  align-self: stretch;
+  padding: 8px 10px;
+  user-select: all;
+  font-size: 13px;
+}
+
+.envoyer-liste {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.envoyer-liste li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid #eef0f3;
+}
+
+.envoyer-qui {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 14px;
+}
+
+.envoyer-qui small {
+  color: #6b7280;
+}
+
+.envoyer-etapes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding-left: 22px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.envoyer-note {
+  color: #5b616a;
+}
+
+.envoyer-favori {
+  height: 40px;
+  cursor: grab;
 }
 
 /* Le tableau protégé se couvre d'un écran qui demande son mot de passe. */

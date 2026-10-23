@@ -16,6 +16,7 @@ import { createRoot } from 'react-dom/client'
 import { type Moi, moi as lireMoi, rechercherPartout, reglerCompte, seDeconnecter } from './api'
 import { importDejaPropose, lireAncienEspace, noterImportPropose } from './ancien'
 import { PagePartage, PageRapide } from './Arrivees'
+import { PageEnvoyer } from './Envoyer'
 import { Activite } from './Activite'
 import { Cloche } from './Cloche'
 import { Compte } from './Compte'
@@ -148,9 +149,10 @@ function Application() {
     )
   }
   if (etat.type === 'anonyme') return <EcranConnexion surConnexion={(m) => setEtat({ type: 'connecte', moi: m })} />
-  // Deux pages légères, sans la toile : le partage vers Notak, et la note rapide du téléphone.
+  // Trois pages légères, sans la toile : le partage vers Notak, la note rapide du téléphone, et les jetons pour envoyer d'ailleurs.
   if (location.pathname === '/rapide') return <PageRapide espace={espacePour(etat.moi)} />
   if (location.pathname === '/partage') return <PagePartage espace={espacePour(etat.moi)} />
+  if (location.pathname === '/envoyer') return <PageEnvoyer />
   return (
     <Espace
       moi={etat.moi}

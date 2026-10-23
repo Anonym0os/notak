@@ -71,6 +71,9 @@ export function Compte({ moi, deconnexion, ouvrir, aide }: { moi: Moi; deconnexi
           >
             {t('compte.aide')} <small>· {t('compte.raccourcis')}</small>
           </button>
+          <a role="menuitem" href="/envoyer">
+            Envoyer vers Notak <small>· iPhone, favori</small>
+          </a>
           <button type="button" role="menuitem" onClick={deconnexion}>
             {t('compte.deconnexion')}
           </button>
