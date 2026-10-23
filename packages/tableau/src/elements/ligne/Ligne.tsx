@@ -6,16 +6,18 @@ import {
   useSyncExternalStore,
 } from "react";
 import { PX_PAR_UG } from "../../coeur/camera";
-import { type Point, type Rect, centre, contient, point } from "../../coeur/geometrie";
+import { type Point, type Rect, contient, point } from "../../coeur/geometrie";
 import {
   TAILLE_POINTE,
   aimanterAngle,
+  ancreDeposee,
   auMoins,
   courbeDepuisPoint,
   longueurMin,
   pointControle,
   sommetsFleche,
   tracer,
+  viser,
 } from "../../coeur/lignes";
 import {
   type Extremite,
@@ -24,9 +26,9 @@ import {
   aimanter,
 } from "../../coeur/tableau";
 import { couleurTexteSur } from "../note/couleurs";
-import { definition } from "../registre";
 import type { PropsRendu } from "../types";
 import { LIBELLE_MAX, couleurDeLigne } from "./couleur";
+import { elementSous } from "./accroche";
 import { editionLibelle } from "./edition";
 
 type Mesures = { depart: Rect | null; arrivee: Rect | null };
@@ -44,24 +46,6 @@ const memesRects = (a: Rect | null, b: Rect | null) =>
       a.max.y - b.max.y,
     ].every((d) => Math.abs(d) < 1e-6));
 const px = (p: Point) => `${p.x * PX_PAR_UG} ${p.y * PX_PAR_UG}`;
-
-/** Le premier élément (hors lignes) sous le pointeur, sauf la ligne elle-même et l'élément de l'autre bout. */
-function elementSous(
-  x: number,
-  y: number,
-  interdits: (Id | null)[],
-  contexte: PropsRendu<Ligne>["contexte"],
-): Id | null {
-  const tableau = contexte.magasin.lire();
-  for (const n of document.elementsFromPoint(x, y)) {
-    if (!n.closest(".notak-toile")) continue;
-    const id = n.closest("[data-id]")?.getAttribute("data-id");
-    if (!id || interdits.includes(id)) continue;
-    const el = tableau.elements.find((e) => e.id === id);
-    if (el && definition(el.contenu.type)?.calque !== "lignes") return id;
-  }
-  return null;
-}
 
 export function RenduLigne({
   element,
@@ -116,14 +100,14 @@ export function RenduLigne({
     return () => obs.disconnect();
   }, [idD, idA]);
 
-  const bout = (x: Extremite, r: Rect | null): Point | null =>
-    "element" in x ? (r ? centre(r) : null) : point(x.x, x.y);
-  const [a, b] = [
-    bout(l.depart, mesures.depart),
-    bout(l.arrivee, mesures.arrivee),
-  ];
-  cordes.current = a && b ? { a, b } : null;
-  if (!a || !b) return <g ref={ancre} />;
+  const estColonne = (id: Id | null) =>
+    !!id && contexte.magasin.lire().elements.find((e) => e.id === id)?.contenu.type === "colonne";
+  // Les points visés : centres des éléments, ou le point précis où un bout s'accroche ; deux colonnes alignées
+  // se relient d'un trait horizontal à la hauteur de leurs titres.
+  const visee = viser(l.depart, l.arrivee, mesures, estColonne(idD) && estColonne(idA));
+  cordes.current = visee && { a: visee.a, b: visee.b };
+  if (!visee) return <g ref={ancre} />;
+  const { a, b } = visee;
 
   const couleur = couleurDeLigne(l);
   const taille = TAILLE_POINTE[l.epaisseur] / PX_PAR_UG;
@@ -132,8 +116,8 @@ export function RenduLigne({
   const entree = {
     a,
     b,
-    rectA: idD ? mesures.depart : null,
-    rectB: idA ? mesures.arrivee : null,
+    rectA: visee.rectA,
+    rectB: visee.rectB,
     courbe: l.courbe,
     reculA: recul(l.pointeDepart),
     reculB: recul(l.pointeArrivee),
@@ -240,7 +224,13 @@ export function RenduLigne({
       libre = auMoins(fixe, libre, longueurMin(g.avant.pointeDepart, g.avant.pointeArrivee));
     }
     const [x, y] = e.shiftKey ? [Math.round(libre.x * 2) / 2, Math.round(libre.y * 2) / 2] : aimanter(libre);
-    poser({ ...g.avant, [g.quoi]: cible ? { element: cible } : { x, y } });
+    // Lâché sur le bord de l'élément, le bout s'y accroche à ce point ; ailleurs dans la carte, il vise le centre.
+    const rectSur = cible ? (rectCible ?? contexte.rect(cible)) : null;
+    const ancreSur = rectSur ? ancreDeposee(rectSur, p) : null;
+    poser({
+      ...g.avant,
+      [g.quoi]: cible ? { element: cible, ...(ancreSur ? { ancre: ancreSur } : {}) } : { x, y },
+    });
   };
   const finir = (e: React.PointerEvent) => {
     const g = geste.current;

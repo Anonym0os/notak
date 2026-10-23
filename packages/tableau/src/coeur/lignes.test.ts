@@ -2,6 +2,11 @@ import { describe, expect, test } from 'vitest'
 import { depuisTaille, point } from './geometrie'
 import {
   SEUIL_DROIT,
+  aligneesEnColonnes,
+  ancreDeposee,
+  ancreSous,
+  pointAncre,
+  viser,
   aimanterAngle,
   auMoins,
   longueurMin,
@@ -241,5 +246,120 @@ describe('angle et longueur', () => {
     expect(longueurMin('fleche', 'fleche')).toBe(1.5)
     expect(auMoins(o, point(0.5, 0), longueurMin('rien', 'fleche'))).toEqual(point(1, 0))
     expect(auMoins(o, point(3, 4), 1)).toEqual(point(3, 4))
+  })
+})
+
+describe('accroche à un point précis', () => {
+  // 20 × 10 UG, coin haut gauche en (10, 10)
+  const carte = depuisTaille(point(10, 10), 20, 10)
+
+  test('un point de l’ancre se retrouve sur l’élément, et le suit s’il change de taille', () => {
+    expect(pointAncre(carte, { x: 1, y: 0 })).toEqual(point(30, 10))
+    expect(pointAncre(carte, { x: 0.25, y: 0.5 })).toEqual(point(15, 15))
+    const grande = depuisTaille(point(0, 0), 40, 20)
+    expect(pointAncre(grande, { x: 0.25, y: 0.5 })).toEqual(point(10, 10))
+  })
+
+  test('près d’un bord, le point se colle au bord', () => {
+    expect(ancreSous(carte, point(10.4, 12))).toEqual({ x: 0, y: 0.2 })
+    expect(ancreSous(carte, point(18, 19.5))).toEqual({ x: 0.4, y: 1 })
+  })
+
+  test('près d’un coin, d’un milieu de bord, il se colle au repère', () => {
+    expect(ancreSous(carte, point(10.3, 10.4))).toEqual({ x: 0, y: 0 })
+    expect(ancreSous(carte, point(30.5, 20.2))).toEqual({ x: 1, y: 1 })
+    expect(ancreSous(carte, point(19.2, 10.3))).toEqual({ x: 0.5, y: 0 })
+  })
+
+  test('le centre se vise sans ancre', () => {
+    expect(ancreSous(carte, point(20, 15))).toBeNull()
+    expect(ancreSous(carte, point(20.8, 14.4))).toBeNull()
+  })
+
+  test('hors de l’élément, le point est ramené dedans', () => {
+    expect(ancreSous(carte, point(50, 15))).toEqual({ x: 1, y: 0.5 })
+  })
+
+  test('lâché dans la carte, loin des bords : le centre ; sur le bord : le point précis', () => {
+    expect(ancreDeposee(carte, point(14, 13))).toBeNull()
+    expect(ancreDeposee(carte, point(20, 15))).toBeNull()
+    expect(ancreDeposee(carte, point(29.6, 17))).toEqual({ x: 1, y: 0.7 })
+    expect(ancreDeposee(carte, point(10.2, 10.2))).toEqual({ x: 0, y: 0 })
+  })
+})
+
+describe('viser', () => {
+  const a = depuisTaille(point(0, 0), 20, 10)
+  const b = depuisTaille(point(40, 0), 20, 10)
+
+  test('sans ancre, les centres, et le trait s’arrête sur les bords', () => {
+    expect(viser({ element: 'a' }, { element: 'b' }, { depart: a, arrivee: b })).toEqual({
+      a: point(10, 5),
+      b: point(50, 5),
+      rectA: a,
+      rectB: b,
+    })
+  })
+
+  test('avec une ancre, ce point, et plus de bord où s’arrêter de ce côté', () => {
+    const v = viser({ element: 'a', ancre: { x: 1, y: 0.2 } }, { element: 'b' }, { depart: a, arrivee: b })!
+    expect(v.a).toEqual(point(20, 2))
+    expect(v.rectA).toBeNull()
+    expect(v.b).toEqual(point(50, 5))
+    expect(v.rectB).toBe(b)
+  })
+
+  test('un point libre reste libre', () => {
+    const v = viser({ x: 3, y: 4 }, { element: 'b', ancre: { x: 0, y: 0 } }, { depart: null, arrivee: b })!
+    expect([v.a, v.b, v.rectA, v.rectB]).toEqual([point(3, 4), point(40, 0), null, null])
+  })
+
+  test('rien à tracer tant que l’élément accroché n’est pas mesuré', () => {
+    expect(viser({ element: 'a' }, { x: 0, y: 0 }, { depart: null, arrivee: null })).toBeNull()
+  })
+
+  test('l’ancre suit l’élément qui se déplace', () => {
+    const decale = depuisTaille(point(100, 50), 20, 10)
+    expect(viser({ element: 'a', ancre: { x: 1, y: 0.5 } }, { x: 0, y: 0 }, { depart: decale, arrivee: null })!.a).toEqual(point(120, 55))
+  })
+
+  test('deux colonnes alignées : un trait horizontal à la hauteur des titres', () => {
+    const c1 = depuisTaille(point(0, 10), 34, 40)
+    const c2 = depuisTaille(point(50, 12), 34, 90)
+    const v = viser({ element: 'c1' }, { element: 'c2' }, { depart: c1, arrivee: c2 }, true)!
+    expect(v.a.y).toBe(v.b.y)
+    expect(v.a.y).toBeCloseTo(12 + 2.3)
+    expect(v.a.x).toBe(17)
+    expect(v.b.x).toBe(67)
+    expect(v.rectA).toBe(c1)
+    expect(v.rectB).toBe(c2)
+  })
+
+  test('deux colonnes qui ne sont pas alignées : les centres, comme pour n’importe quels éléments', () => {
+    const c1 = depuisTaille(point(0, 10), 34, 40)
+    const c2 = depuisTaille(point(50, 30), 34, 40)
+    expect(aligneesEnColonnes(point(17, 30), point(67, 50), c1, c2)).toBeNull()
+    const v = viser({ element: 'c1' }, { element: 'c2' }, { depart: c1, arrivee: c2 }, true)!
+    expect([v.a, v.b]).toEqual([point(17, 30), point(67, 50)])
+  })
+
+  test('sans le drapeau « colonnes », les centres même si les hauts sont alignés', () => {
+    const c1 = depuisTaille(point(0, 10), 34, 40)
+    const c2 = depuisTaille(point(50, 10), 34, 90)
+    expect(viser({ element: 'c1' }, { element: 'c2' }, { depart: c1, arrivee: c2 })!.b).toEqual(point(67, 55))
+  })
+
+  test('une ancre sur une colonne la garde : le trait ne se redresse pas', () => {
+    const c1 = depuisTaille(point(0, 10), 34, 40)
+    const c2 = depuisTaille(point(50, 10), 34, 90)
+    const v = viser({ element: 'c1', ancre: { x: 1, y: 1 } }, { element: 'c2' }, { depart: c1, arrivee: c2 }, true)!
+    expect(v.a).toEqual(point(34, 50))
+  })
+
+  test('la ligne droite vue de dessus part bien du point d’ancre et s’arrête au bord de l’autre', () => {
+    const v = viser({ element: 'a', ancre: { x: 1, y: 0.5 } }, { element: 'b' }, { depart: a, arrivee: b })!
+    const t = tracer({ a: v.a, b: v.b, rectA: v.rectA, rectB: v.rectB })!
+    proche(t.debut, 20, 5)
+    proche(t.fin, 40, 5)
   })
 })
