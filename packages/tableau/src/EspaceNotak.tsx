@@ -81,8 +81,12 @@ const saisissable = (cible: EventTarget | null) =>
 export interface Adresse {
   lire(): Id | null
   ecrire(id: Id): void
+  /** L'élément que l'adresse ouvre en grand (`/t/<tableau>/e/<élément>`), s'il y en a un. */
+  lireElement?(): Id | null
+  /** Écrit (ou retire, avec `null`) l'élément ouvert en grand ; fermer ramène à l'adresse du tableau. */
+  ecrireElement?(tableau: Id, element: Id | null): void
   /** Prévenu quand l'adresse change sans nous (retour, avance) ; `null` : l'accueil. */
-  ecouter(f: (id: Id | null) => void): () => void
+  ecouter(f: (id: Id | null, element?: Id | null) => void): () => void
 }
 
 /**
@@ -192,9 +196,25 @@ export function EspaceNotak({
     return espace.ecouter(voir)
   }, [espace, courant])
 
+  // L'élément que l'adresse ouvre en grand, avec son tableau : la toile de ce tableau l'ouvre une fois prête.
+  const [elementAdresse, setElementAdresse] = useState<{ tableau: Id; element: Id | null } | null>(() => {
+    const element = adresse?.lireElement?.() ?? null
+    return adresse && element ? { tableau: adresse.lire() ?? racine, element } : null
+  })
+  const pleinEcran = useCallback(
+    (element: Id | null) => {
+      const tableau = etat.current.courant
+      setElementAdresse(element ? { tableau, element } : null)
+      adresse?.ecrireElement?.(tableau, element)
+    },
+    [adresse],
+  )
+
   const services = useMemo<Services>(
     () => ({
       ...hote,
+      pleinEcran,
+      elementAdresse: elementAdresse?.tableau === courant ? elementAdresse.element : null,
       ouvrirTableau: ouvrir,
       tableau: espace.tableau,
       ecouterEspace: espace.ecouter,
@@ -247,7 +267,7 @@ export function EspaceNotak({
         return neufs
       },
     }),
-    [hote, espace, ouvrir, courant, lectureSeule, reglages.doubleClic, reglages.barre, presentation],
+    [hote, espace, ouvrir, courant, lectureSeule, reglages.doubleClic, reglages.barre, presentation, pleinEcran, elementAdresse],
   )
 
   // L'adresse suit le tableau ouvert ; une adresse qu'on suit (retour du navigateur) ne se réécrit pas.
@@ -266,8 +286,10 @@ export function EspaceNotak({
   useEffect(() => {
     if (!adresse) return
     // Le tableau de l'adresse n'est peut-être pas encore connu (un partage qui se charge) : on l'attend un peu.
-    const aller = (id: Id | null) => {
+    const aller = (id: Id | null, element: Id | null = null) => {
       const cible = id ?? racine
+      // L'élément de l'adresse s'ouvre (ou se referme, au retour du navigateur) dans le tableau visé.
+      setElementAdresse((avant) => (avant?.tableau === cible && avant.element === element ? avant : element ? { tableau: cible, element } : null))
       if (cible === etat.current.courant) {
         enAttente.current = false
         return
@@ -292,7 +314,7 @@ export function EspaceNotak({
         clearTimeout(minuteur)
       }
     }
-    aller(adresse.lire())
+    aller(adresse.lire(), adresse.lireElement?.() ?? null)
     return adresse.ecouter(aller)
   }, [adresse, espace, ouvrir, racine])
 

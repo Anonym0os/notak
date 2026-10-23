@@ -2,6 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { toileSuspendue } from './elements/dessin/mode'
 import { PanneauBanque } from './elements/image/Banque'
 import { avecLegende } from './elements/image/geometrie'
+import { ouvrirImage, useImageOuverte } from './elements/image/visionneuse'
+import { ouvrirFenetreFichier, useFichierOuvert } from './elements/fichier/ouverture'
 import { PanneauEnvoi } from './elements/fichier/PanneauEnvoi'
 import { BarreOutils, BarreSelection, type OutilDeBarre, outilsDeBarre } from './Barres'
 import { BarreEdition, ContexteBarreEdition } from './barreEdition'
@@ -174,6 +176,9 @@ function choisirAxe(actuel: 'h' | 'v' | null, d: Point): 'h' | 'v' {
 
 /** Un doigt posé sans bouger ce temps-là ouvre le menu du clic droit, en millisecondes. */
 const APPUI_LONG = 500
+
+/** Les types qui s'ouvrent en grand, et dont le plein écran a donc une adresse. */
+const PLEIN_ECRAN: ReadonlySet<string> = new Set(['image', 'fichier', 'document', 'croquis'])
 
 /** Les types que propose le menu de la toile vide. */
 const TYPES_DU_MENU: ReadonlySet<string> = new Set(['note', 'lien', 'taches', 'ligne', 'tableau', 'colonne', 'commentaire', 'table'])
@@ -1518,6 +1523,64 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const lignes = lignesDeTrace(complet.trace?.(id), services.presence?.moi?.()?.id)
     return lignes.length === 0 ? [] : [null, ...lignes.map((l) => ({ libelle: l.texte, info: { nom: l.auteur.nom, ...(l.auteur.couleur ? { couleur: l.auteur.couleur } : {}) }, faire: () => {} }))]
   }
+
+  // — Le plein écran d'un élément a une adresse (`/t/<tableau>/e/<élément>`) : l'ouvrir l'écrit, l'adresse l'ouvre. —
+  const imageGrande = useImageOuverte()
+  const fichierGrand = useFichierOuvert()
+  const enGrand = useMemo(() => {
+    const id = imageGrande ?? fichierGrand ?? (edition ?? null)
+    const el = id ? tableau.elements.find((x) => x.id === id) : undefined
+    return el && PLEIN_ECRAN.has(el.contenu.type) && (el.id === imageGrande || el.id === fichierGrand || definition(el.contenu.type)?.ouvreAuDoubleClic) ? el.id : null
+  }, [imageGrande, fichierGrand, edition, tableau])
+  const enGrandRef = useRef<Id | null>(null)
+  enGrandRef.current = enGrand
+  const annonce = useRef<Id | null>(null)
+  useEffect(() => {
+    // Seuls les changements sont dits : une toile qui vient de naître ne referme pas l'élément que l'adresse attend.
+    if (enGrand === annonce.current) return
+    annonce.current = enGrand
+    services.pleinEcran?.(enGrand)
+  }, [enGrand, services])
+  const ouvertParAdresse = useRef<Id | null>(null)
+  const adresseElement = services.elementAdresse ?? null
+  useEffect(() => {
+    // Retour du navigateur : l'élément ouvert en grand se referme.
+    if (adresseElement || !enGrandRef.current || annonce.current !== enGrandRef.current) return
+    const id = enGrandRef.current
+    ouvertParAdresse.current = null
+    annonce.current = null
+    const type = etat.current.magasin.lire().elements.find((x) => x.id === id)?.contenu.type
+    if (type === 'image') ouvrirImage(null)
+    else if (type === 'fichier') ouvrirFenetreFichier(null)
+    else finirEdition()
+  }, [adresseElement])
+  useEffect(() => {
+    // L'adresse nomme un élément : il est choisi et ouvert une seule fois, dès que le tableau l'a.
+    if (!adresseElement) {
+      ouvertParAdresse.current = null
+      return
+    }
+    if (ouvertParAdresse.current === adresseElement || lectureSeule) return
+    const el = tableau.elements.find((x) => x.id === adresseElement)
+    if (!el) return
+    ouvertParAdresse.current = adresseElement
+    if (!PLEIN_ECRAN.has(el.contenu.type)) return
+    annonce.current = adresseElement
+    setSelection(new Set([el.id]))
+    definition(el.contenu.type)?.ouvrir?.(el, contexte)
+  }, [adresseElement, tableau, contexte, lectureSeule])
+  // Espace referme l'image ou le fichier ouvert en grand.
+  useEffect(() => {
+    if (!imageGrande && !fichierGrand) return
+    const touche = (e: KeyboardEvent) => {
+      if (e.key !== ' ' || e.repeat || (e.target instanceof HTMLElement && (e.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName)))) return
+      e.preventDefault()
+      ouvrirImage(null)
+      ouvrirFenetreFichier(null)
+    }
+    document.addEventListener('keydown', touche)
+    return () => document.removeEventListener('keydown', touche)
+  }, [imageGrande, fichierGrand])
 
   const trouves = useMemo(
     () => (requete ? chercher(tableau.elements, requete, (id) => services.tableau?.(id)?.titre) : []),

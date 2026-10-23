@@ -133,6 +133,10 @@ export interface Services {
   recemmentModifies?(): ReadonlyMap<Id, ModifiePar>
   /** Prévenu quand `recemmentModifies` change (un élément s'y ajoute, ou en sort). Rend de quoi arrêter. */
   ecouterRecemmentModifies?(f: () => void): () => void
+  /** L'élément que l'adresse du navigateur ouvre en grand (`/t/<tableau>/e/<élément>`) : la toile l'ouvre dès qu'elle l'a. */
+  elementAdresse?: Id | null
+  /** La toile dit quel élément est ouvert en grand, ou plus aucun (`null`) : l'application en écrit l'adresse. */
+  pleinEcran?(id: Id | null): void
   /** On peut regarder et défiler, rien de plus : la toile refuse tout ce qui modifie. */
   lectureSeule?: boolean
   /** L'aperçu d'un modèle : lecture seule, mais la barre de gauche reste là, grisée et sans clic. */
