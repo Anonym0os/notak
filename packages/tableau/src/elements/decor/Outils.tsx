@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { type Auteur, type Element, annoter } from '../../coeur/tableau'
 import { AUTEUR_INCONNU } from '../commentaire/fil'
 import type { ContexteToile } from '../types'
@@ -9,6 +8,7 @@ import { ECHEANCE, EMOJIS, basculerReaction, pasPour } from './annotations'
 import { ouvrirFil, useFilOuvert } from './etat'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
+import { useMenu } from '../../menuUnique'
 
 interface Props {
   elements: Element[]
@@ -17,9 +17,9 @@ interface Props {
 
 /** Un bouton de la barre de sélection et la fenêtre qu'il ouvre dessous. */
 function Menu({ titre, libelle, children }: { titre: string; libelle: string; children: (fermer: () => void) => React.ReactNode }) {
-  const [ouvert, setOuvert] = useState(false)
+  const [ouvert, setOuvert, ancre] = useMenu()
   return (
-    <div className="notak-note-menu-ancre">
+    <div className="notak-note-menu-ancre" ref={ancre}>
       <button type="button" title={titre} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
         {libelle}
       </button>

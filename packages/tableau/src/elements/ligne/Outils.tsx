@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { COULEURS_NOTE, type CouleurNote, type Ligne, type Pointe } from '../../coeur/tableau'
 import { FOND_NOTE, LIBELLES_COULEUR } from '../note/couleurs'
 import type { PropsOutils } from '../types'
@@ -6,6 +5,7 @@ import { GRIS_LIGNE } from './couleur'
 import { editionLibelle } from './edition'
 import { t } from '../../langue'
 import { type NomIcone, Icone } from '../../icones'
+import { useMenu } from '../../menuUnique'
 
 const EPAISSEURS = [1, 2, 4] as const
 const TRAITS = [
@@ -16,7 +16,7 @@ const TRAITS = [
 
 /** La barre des lignes choisies. Plusieurs lignes : chaque changement s'applique à toutes, en un seul pas d'historique. */
 export function OutilsLigne({ elements, contexte }: PropsOutils<Ligne>) {
-  const [palette, setPalette] = useState(false)
+  const [palette, setPalette, ancre] = useMenu()
   const modifier = (f: (l: Ligne) => Ligne) => {
     const pas = elements.flatMap((e) => {
       const apres = f(e.contenu)
@@ -68,7 +68,7 @@ export function OutilsLigne({ elements, contexte }: PropsOutils<Ligne>) {
         </button>
       ))}
       <span className="notak-ligne-sep" />
-      <div className="notak-ligne-ancre">
+      <div className="notak-ligne-ancre" ref={ancre}>
         <button type="button" title={t('couleur.titre')} aria-expanded={palette} onClick={() => setPalette(!palette)}>
           {t('couleur.titre')}
         </button>

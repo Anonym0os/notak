@@ -1,9 +1,10 @@
-import { useState, useSyncExternalStore } from 'react'
+import { useSyncExternalStore } from 'react'
 import { COULEURS_NOTE, type CouleurNote, type Element, type Operation } from '../../coeur/tableau'
 import { LIBELLES_COULEUR } from '../note/couleurs'
 import { definition, registre } from '../registre'
 import type { ContexteToile } from '../types'
 import { t } from '../../langue'
+import { useMenu } from '../../menuUnique'
 
 const sans = () => () => {}
 
@@ -12,7 +13,7 @@ const sans = () => () => {}
  * Elle ne paraît que si chaque type choisi sait se colorer ; une sélection d'un seul type garde son propre outil.
  */
 function OutilCouleur({ elements, contexte }: { elements: Element[]; contexte: ContexteToile }) {
-  const [ouvert, setOuvert] = useState(false)
+  const [ouvert, setOuvert, ancre] = useMenu()
   const types = new Set(elements.map((e) => e.contenu.type))
   const colorations = [...types].map((t) => definition(t)?.couleur)
   const actuelle = useSyncExternalStore(contexte.services.ecouterEspace ?? sans, () => {
@@ -34,7 +35,7 @@ function OutilCouleur({ elements, contexte }: { elements: Element[]; contexte: C
     setOuvert(false)
   }
   return (
-    <div className="notak-note-menu-ancre">
+    <div className="notak-note-menu-ancre" ref={ancre}>
       <button type="button" title={t('couleur.titre')} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
         {t('couleur.titre')}
       </button>

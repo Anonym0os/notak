@@ -1,20 +1,20 @@
-import { useState } from 'react'
 import { COULEURS_NOTE, type CouleurNote } from '../../coeur/tableau'
 import { LIBELLES_COULEUR } from './couleurs'
 import { t } from '../../langue'
+import { useMenu } from '../../menuUnique'
 
 /**
  * « Couleur » : la palette des notes, en menu. Partagée par tout ce qui se colore comme une note.
  * `transparent` ajoute le choix sans fond, qui n'a de sens que pour une note.
  */
 export function MenuCouleur({ actuelle, choisir, transparent = false }: { actuelle: CouleurNote | undefined; choisir(c: CouleurNote | undefined): void; transparent?: boolean }) {
-  const [ouvert, setOuvert] = useState(false)
+  const [ouvert, setOuvert, ancre] = useMenu()
   const poser = (c: CouleurNote | undefined) => {
     choisir(c)
     setOuvert(false)
   }
   return (
-    <div className="notak-note-menu-ancre">
+    <div className="notak-note-menu-ancre" ref={ancre}>
       <button type="button" title={t('couleur.titre')} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
         {t('couleur.titre')}
       </button>

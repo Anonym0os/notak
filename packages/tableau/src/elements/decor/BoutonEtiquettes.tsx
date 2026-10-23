@@ -1,8 +1,8 @@
-import { useState } from 'react'
 import { PanneauEtiquettes } from './Etiquettes'
 import { useContexteRetenu, useFiltre } from './etat'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
+import { useMenu } from '../../menuUnique'
 
 /**
  * Le bouton de la barre de gauche : gérer les étiquettes du tableau et le filtrer, sans rien avoir choisi.
@@ -11,10 +11,10 @@ import { Icone } from '../../icones'
 export function BoutonEtiquettes() {
   const contexte = useContexteRetenu()
   const filtre = useFiltre()
-  const [ouvert, setOuvert] = useState(false)
+  const [ouvert, setOuvert, ancre] = useMenu()
   if (!contexte) return null
   return (
-    <div className="notak-outil-place">
+    <div className="notak-outil-place" ref={ancre}>
       <button type="button" className="notak-outil" aria-expanded={ouvert} title={t('etiquettes.filtre')} onClick={() => setOuvert(!ouvert)}>
         <span className="notak-outil-icone"><Icone nom="etiquette" /></span>
         <span className="notak-outil-libelle">{t('etiquettes.titre')}{filtre.size > 0 ? ` (${filtre.size})` : ''}</span>

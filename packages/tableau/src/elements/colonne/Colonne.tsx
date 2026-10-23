@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 import { Rangees, useEmpreintes, useRanges } from '../../Cadre'
 import { COULEURS_NOTE, type Colonne, type CouleurNote } from '../../coeur/tableau'
 import { composition } from '../composition'
@@ -6,6 +6,7 @@ import { LIBELLES_COULEUR } from '../note/couleurs'
 import type { PropsOutils, PropsRendu } from '../types'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
+import { useMenu } from '../../menuUnique'
 
 /** Le titre en édition : tout le texte est choisi à l'ouverture, Entrée valide (Échap est géré par la toile). */
 function Saisie({ titre, surChangement, valider }: { titre: string; surChangement(t: string): void; valider(): void }) {
@@ -94,7 +95,7 @@ export function RenduColonne({ element, choisie, enEdition, contexte, brouillon,
 
 /** « Couleur » : la palette des colonnes choisies. Un seul pas d'historique. */
 export function OutilsColonne({ elements, contexte }: PropsOutils<Colonne>) {
-  const [ouvert, setOuvert] = useState(false)
+  const [ouvert, setOuvert, ancre] = useMenu()
   const choisir = (couleur: CouleurNote | undefined) => {
     contexte.magasin.faire(
       elements.map((e) => {
@@ -106,7 +107,7 @@ export function OutilsColonne({ elements, contexte }: PropsOutils<Colonne>) {
   }
   const actuelle = elements.every((e) => e.contenu.couleur === elements[0]!.contenu.couleur) ? elements[0]!.contenu.couleur : undefined
   return (
-    <div className="notak-colonne-menu-ancre">
+    <div className="notak-colonne-menu-ancre" ref={ancre}>
       <button type="button" title={t('couleur.titre')} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
         {t('couleur.titre')}
       </button>

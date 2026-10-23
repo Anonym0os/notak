@@ -5,6 +5,7 @@ import { t } from './langue'
 import { definition, tousLesOutilsCommuns, tousLesTypes } from './elements/registre'
 import type { ContexteToile, Outil } from './elements/types'
 import { Icone } from './icones'
+import { useMenu } from './menuUnique'
 
 /** Un outil de la barre, avec le type qui l'apporte. */
 export interface OutilDeBarre {
@@ -51,7 +52,7 @@ export function BarreOutils({
   /** Les non triés, juste au-dessus : Cmd+\ les ouvre aussi. */
   nonTries: { nombre: number; ouverte: boolean; basculer(): void }
 }) {
-  const [tiroir, setTiroir] = useState(false)
+  const [tiroir, setTiroir, ancreTiroir] = useMenu()
   const nav = useRef<HTMLElement>(null)
   useEchapFerme(nav, () => setTiroir(false))
   const tous = outilsDeBarre()
@@ -89,13 +90,13 @@ export function BarreOutils({
     <nav ref={nav} className="notak-barre-outils" onPointerDown={(e) => e.stopPropagation()}>
       {tous.filter((o) => !o.outil.tiroir).map((o) => bouton(o))}
       {caches.length > 0 && (
-        <div className="notak-outil-place">
+        <div className="notak-outil-place" ref={ancreTiroir}>
           <button
             type="button"
             className="notak-outil"
             aria-expanded={tiroir}
             title={t('barre.plusOutils')}
-            onClick={() => setTiroir((t) => !t)}
+            onClick={() => setTiroir(!tiroir)}
           >
             <span className="notak-outil-icone"><Icone nom="plus" /></span>
             <span className="notak-outil-libelle">{t('barre.plus')}</span>
@@ -137,7 +138,7 @@ export function BarreSelection({
   /** À la place de la barre de gauche, en colonne, plutôt qu'au-dessus de la sélection. */
   aGauche?: boolean
 }) {
-  const [plus, setPlus] = useState(false)
+  const [plus, setPlus, ancrePlus] = useMenu<HTMLSpanElement>()
   // Échap referme le menu ouvert : la barre repart de zéro, chaque outil avec ses menus fermés.
   const [cle, setCle] = useState(0)
   const barre = useRef<HTMLDivElement>(null)
@@ -170,8 +171,8 @@ export function BarreSelection({
       {!mele && blocs.map((b) => b.rendu)}
       {communs}
       {mele && blocs.length > 0 && (
-        <span className="notak-barre-plus">
-          <button type="button" title={t('barre.outilsParType')} aria-expanded={plus} aria-pressed={plus} onClick={() => setPlus((p) => !p)}>
+        <span className="notak-barre-plus" ref={ancrePlus}>
+          <button type="button" title={t('barre.outilsParType')} aria-expanded={plus} aria-pressed={plus} onClick={() => setPlus(!plus)}>
             <Icone nom="plus" />
           </button>
           {plus && (

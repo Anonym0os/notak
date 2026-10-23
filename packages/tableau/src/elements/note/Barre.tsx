@@ -7,6 +7,7 @@ import { augmenterRetrait, diminuerRetrait } from './texte'
 import { COULEURS_TEXTE, SURLIGNAGES, valeurCouleurTexte } from './couleurs'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
+import { useMenu } from '../../menuUnique'
 
 const STYLES: { style: StyleBloc; libelle: string }[] = [
   { style: 'titre1', get libelle() { return t('barre.style.grandTitre') } },
@@ -47,8 +48,8 @@ export function BarreTexte({ editor, lien, surLien, commenter }: Props) {
       surlignage: ed.isActive('highlight') ? ((ed.getAttributes('highlight').color as string | null) ?? '') : null,
     }),
   })
-  const [menu, setMenu] = useState(false)
-  const [insertion, setInsertion] = useState(false)
+  const [menu, setMenu, ancreMenu] = useMenu()
+  const [insertion, setInsertion, ancreInsertion] = useMenu()
   const ouvrirLien = () => {
     if (etat.vide && !etat.surLien) return
     setMenu(false)
@@ -71,8 +72,8 @@ export function BarreTexte({ editor, lien, surLien, commenter }: Props) {
         if (!(e.target as HTMLElement).closest('input')) e.preventDefault()
       }}
     >
-      <div className="notak-note-menu-ancre">
-        <button type="button" title={t('barre.style')} aria-expanded={menu} onClick={() => { setInsertion(false); setMenu(!menu) }}>
+      <div className="notak-note-menu-ancre" ref={ancreMenu}>
+        <button type="button" title={t('barre.style')} aria-expanded={menu} onClick={() => setMenu(!menu)}>
           {STYLES.find((s) => s.style === etat.style)?.libelle} <Icone nom="chevronBas" taille={14} />
         </button>
         {menu && <MenuStyle editor={editor} etat={etat} ferme={() => setMenu(false)} />}
@@ -94,8 +95,8 @@ export function BarreTexte({ editor, lien, surLien, commenter }: Props) {
       {commenter &&
         bouton(t('barre.commenterPassage'), etat.surFil, commenter, <Icone nom="commenterPassage" />, etat.vide && !etat.surFil)}
       <i />
-      <div className="notak-note-menu-ancre">
-        <button type="button" title={t('barre.inserer')} aria-expanded={insertion} onClick={() => { setMenu(false); setInsertion(!insertion) }}>
+      <div className="notak-note-menu-ancre" ref={ancreInsertion}>
+        <button type="button" title={t('barre.inserer')} aria-expanded={insertion} onClick={() => setInsertion(!insertion)}>
           {t('barre.inserer')} <Icone nom="chevronBas" taille={14} />
         </button>
         {insertion && <MenuInsertion editor={editor} ferme={() => setInsertion(false)} />}

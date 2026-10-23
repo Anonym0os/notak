@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react'
+import { useSyncExternalStore } from 'react'
 import { COULEURS_NOTE, type CouleurNote, type RenvoiTableau } from '../../coeur/tableau'
 import { ICONES_TABLEAU, avecIcone, avecImage } from './icones'
 import { FOND_NOTE, LIBELLES_COULEUR } from '../note/couleurs'
@@ -8,6 +8,7 @@ import { peutPoserModele } from './poserModele'
 import { demanderRenommage } from './renommage'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
+import { useMenu } from '../../menuUnique'
 
 const sans = () => () => {}
 
@@ -18,7 +19,7 @@ function changerIcone(elements: PropsOutils<RenvoiTableau>['elements'], contexte
 
 /** « Icône » : la bibliothèque, aucune (retour à l'initiale), ou une image à envoyer. */
 function ChoixIcone({ elements, contexte }: PropsOutils<RenvoiTableau>) {
-  const [ouvert, setOuvert] = useState(false)
+  const [ouvert, setOuvert, ancre] = useMenu()
   const depot = contexte.services.fichiers
   const commune = elements.every((e) => e.contenu.icone === elements[0]!.contenu.icone && !e.contenu.image) ? elements[0]!.contenu.icone : undefined
   const envoyer = () => {
@@ -33,7 +34,7 @@ function ChoixIcone({ elements, contexte }: PropsOutils<RenvoiTableau>) {
     champ.click()
   }
   return (
-    <div className="notak-colonne-menu-ancre">
+    <div className="notak-colonne-menu-ancre" ref={ancre}>
       <button type="button" title={t('tableau.icone.titre')} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
         {t('tableau.icone')}
       </button>
@@ -86,7 +87,7 @@ function ChoixIcone({ elements, contexte }: PropsOutils<RenvoiTableau>) {
 }
 
 export function OutilsRenvoi({ elements, contexte }: PropsOutils<RenvoiTableau>) {
-  const [ouvert, setOuvert] = useState(false)
+  const [ouvert, setOuvert, ancre] = useMenu()
   const { tableau, ecouterEspace, colorerTableau } = contexte.services
   const cibles = elements.map((e) => e.contenu.cible)
   const actuelle = useSyncExternalStore(ecouterEspace ?? sans, () => {
@@ -100,7 +101,7 @@ export function OutilsRenvoi({ elements, contexte }: PropsOutils<RenvoiTableau>)
   return (
     <>
       {colorerTableau && (
-        <div className="notak-colonne-menu-ancre">
+        <div className="notak-colonne-menu-ancre" ref={ancre}>
           <button type="button" title={t('tableau.couleur')} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
             {t('couleur.titre')}
           </button>
