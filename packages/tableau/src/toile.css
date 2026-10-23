@@ -15,7 +15,8 @@
   --notak-ombre: 0 1px 2px rgb(0 0 0 / 0.07);
 
   position: relative;
-  overflow: hidden;
+  /* `clip` et non `hidden` : un champ hors de l'écran qui prend le focus ferait défiler la toile, barres comprises. */
+  overflow: clip;
   width: 100%;
   height: 100%;
   background-color: var(--notak-fond);
