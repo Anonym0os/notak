@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Element } from './coeur/tableau'
 import { BoutonEtiquettes } from './elements/decor/BoutonEtiquettes'
 import { t } from './langue'
@@ -54,6 +54,16 @@ export function BarreOutils({
   nonTries: { nombre: number; ouverte: boolean; basculer(): void }
 }) {
   const [tiroir, setTiroir, ancreTiroir] = useMenu()
+  const grille = useRef<HTMLDivElement>(null)
+  // La grille s'ouvre à droite de « ••• » ; si elle dépasse le bas de la fenêtre, elle remonte d'autant.
+  useLayoutEffect(() => {
+    const g = grille.current
+    if (!tiroir || !g) return
+    g.style.removeProperty('--notak-tiroir-remonte')
+    const r = g.getBoundingClientRect()
+    const depasse = r.bottom - (window.innerHeight - 8)
+    if (depasse > 0) g.style.setProperty('--notak-tiroir-remonte', `${Math.min(depasse, r.top - 8)}px`)
+  }, [tiroir])
   const nav = useRef<HTMLElement>(null)
   useEchapFerme(nav, () => setTiroir(false))
   const tous = outilsDeBarre()
@@ -107,7 +117,11 @@ export function BarreOutils({
             >
               <Icone nom="plus" />
             </button>
-            {tiroir && <div className="notak-tiroir">{caches.map((o) => bouton(o, true))}</div>}
+            {tiroir && (
+              <div ref={grille} className="notak-tiroir">
+                {caches.map((o) => bouton(o, true))}
+              </div>
+            )}
           </div>
         )}
         <div className="notak-barre-sep" />

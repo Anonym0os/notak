@@ -654,7 +654,7 @@
 .notak-tiroir {
   position: absolute;
   z-index: 5;
-  top: -8px;
+  top: calc(-8px - var(--notak-tiroir-remonte, 0px));
   left: calc(100% + 10px);
   display: grid;
   grid-template-columns: repeat(3, 76px);
@@ -669,7 +669,7 @@
 .notak-tiroir::before {
   content: '';
   position: absolute;
-  top: 16px;
+  top: calc(16px + var(--notak-tiroir-remonte, 0px));
   left: -6px;
   border: 6px solid transparent;
   border-left: 0;
@@ -1455,4 +1455,36 @@
 .notak-toile :is(input, textarea) {
   -webkit-user-select: text;
   user-select: text;
+}
+
+/* Une fenêtre basse resserre la barre de gauche plutôt que de la couper : vignettes plus petites, puis sans libellé. */
+@media (max-height: 900px) {
+  .notak-barre-outils {
+    gap: 0;
+    padding: 6px 0;
+  }
+
+  .notak-barre-outils .notak-vignette {
+    width: 44px;
+    height: 33px;
+  }
+
+  .notak-barre-outils .notak-outil:is([data-genre='tuile'], :not([data-genre])) .notak-outil-icone {
+    width: 38px;
+    height: 32px;
+  }
+
+  .notak-barre-outils .notak-outil {
+    padding: 2px 0 4px;
+  }
+}
+
+@media (max-height: 720px) {
+  .notak-barre-outils .notak-outil-libelle {
+    display: none;
+  }
+
+  .notak-tiroir .notak-outil-libelle {
+    display: block;
+  }
 }
