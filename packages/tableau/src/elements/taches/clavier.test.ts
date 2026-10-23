@@ -2,7 +2,8 @@
 import { Editor } from '@tiptap/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { NoeudTexte } from '../../coeur/tableau'
-import { EXTENSIONS_TACHES, cocherDansEditeur } from './extensions'
+import { Slice } from '@tiptap/pm/model'
+import { EXTENSIONS_TACHES, cocherDansEditeur, deplacerDansEditeur } from './extensions'
 
 /** Une liste décrite en JS : un texte est une tâche, un tableau est la sous-liste de la tâche d'avant. */
 type Plan = (string | Plan)[]
@@ -229,7 +230,7 @@ describe('Collage', () => {
   const coller = (html: string, texte = '') => {
     const donnees = { getData: (type: string) => (type === 'text/html' ? html : type === 'text/plain' ? texte : '') }
     const e = { clipboardData: donnees } as unknown as ClipboardEvent
-    return editeur.view.someProp('handlePaste', (f) => f(editeur.view, e)) === true
+    return editeur.view.someProp('handlePaste', (f) => f(editeur.view, e, Slice.empty)) === true
   }
 
   it('une liste HTML (Google Docs) devient des tâches avec leurs sous-tâches', () => {
@@ -247,6 +248,67 @@ describe('Collage', () => {
   it('une phrase seule se colle comme du texte', () => {
     ouvrir([''])
     expect(coller('<p>une phrase</p>', 'une phrase')).toBe(false)
+  })
+})
+
+describe('Déplacer une tâche (poignée)', () => {
+  it('passe une tâche avant une autre', () => {
+    ouvrir(['A', 'B', 'C'])
+    expect(deplacerDansEditeur(editeur, 2, 0, true)).toBe(true)
+    expect(actuel()).toEqual(['C', 'A', 'B'])
+  })
+
+  it('passe une tâche après une autre, avec ses sous-tâches', () => {
+    ouvrir(['A', ['a1', 'a2'], 'B'])
+    expect(deplacerDansEditeur(editeur, 0, 3, false)).toBe(true)
+    expect(actuel()).toEqual(['B', 'A', ['a1', 'a2']])
+  })
+
+  it('range une tâche parmi les sous-tâches d’une autre', () => {
+    ouvrir(['A', ['a1', 'a2'], 'B'])
+    expect(deplacerDansEditeur(editeur, 3, 2, true)).toBe(true)
+    expect(actuel()).toEqual(['A', ['a1', 'B', 'a2']])
+  })
+
+  it('sort la seule sous-tâche et ferme la sous-liste', () => {
+    ouvrir(['A', ['a1'], 'B'])
+    expect(deplacerDansEditeur(editeur, 1, 2, false)).toBe(true)
+    expect(actuel()).toEqual(['A', 'B', 'a1'])
+  })
+
+  it('un frère d’après garde le bon rang', () => {
+    ouvrir(['A', ['a1', 'a2', 'a3']])
+    expect(deplacerDansEditeur(editeur, 1, 3, false)).toBe(true)
+    expect(actuel()).toEqual(['A', ['a2', 'a3', 'a1']])
+  })
+
+  it('refuse de se poser sur soi ou dans ses sous-tâches', () => {
+    ouvrir(['A', ['a1'], 'B'])
+    expect(deplacerDansEditeur(editeur, 0, 0, true)).toBe(false)
+    expect(deplacerDansEditeur(editeur, 0, 1, false)).toBe(false)
+    expect(actuel()).toEqual(['A', ['a1'], 'B'])
+  })
+
+  it('refuse de passer le sixième niveau', () => {
+    ouvrir(['1', ['2', ['3', ['4', ['5', ['6']]]]], 'X', ['x1']])
+    expect(deplacerDansEditeur(editeur, 6, 5, true)).toBe(false)
+    expect(actuel()).toEqual(['1', ['2', ['3', ['4', ['5', ['6']]]]], 'X', ['x1']])
+  })
+
+  it('suit le même ordre que le JSON', async () => {
+    const { deplacer } = await import('./liste')
+    const depart: Plan = ['A', ['a1', 'a2'], 'B', ['b1'], 'C']
+    for (let de = 0; de < 6; de++) {
+      for (let vers = 0; vers < 6; vers++) {
+        for (const avant of [true, false]) {
+          ouvrir(depart)
+          const attendu = plan(deplacer(doc(depart), de, vers, avant))
+          deplacerDansEditeur(editeur, de, vers, avant)
+          expect(actuel(), `${de} -> ${vers} ${avant}`).toEqual(attendu)
+          editeur.destroy()
+        }
+      }
+    }
   })
 })
 

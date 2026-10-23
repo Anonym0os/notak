@@ -365,3 +365,54 @@
   line-height: 20px;
   text-align: center;
 }
+
+/* À gauche d'une tâche, au survol : la poignée pour la changer de place (six points). */
+.notak-taches {
+  position: relative;
+}
+
+.notak-taches li[data-type='taskItem'] {
+  position: relative;
+}
+
+.notak-tache-poignee {
+  position: absolute;
+  left: -20px;
+  top: 6px;
+  width: 12px;
+  height: 18px;
+  background: radial-gradient(circle at 3px 3px, currentColor 1.2px, transparent 1.6px) 0 0 / 6px 6px;
+  opacity: 0;
+  cursor: grab;
+  transition: opacity 100ms;
+}
+
+.notak-taches li[data-type='taskItem']:hover > .notak-tache-poignee {
+  opacity: 0.35;
+}
+
+.notak-taches li[data-type='taskItem'] > .notak-tache-poignee:hover {
+  opacity: 0.8;
+}
+
+/* La sous-tâche survolée montre la sienne, pas celle de sa parente. */
+.notak-taches li[data-type='taskItem']:has(li[data-type='taskItem']:hover) > .notak-tache-poignee {
+  opacity: 0;
+}
+
+/* Pendant le glisser : la tâche prise s'efface un peu, un trait montre où elle se posera. */
+.notak-taches li[data-glisse] {
+  opacity: 0.4;
+}
+
+.notak-glisse-repere {
+  position: absolute;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--notak-accent);
+  pointer-events: none;
+}
+
+.notak-glisse-repere[hidden] {
+  display: none;
+}

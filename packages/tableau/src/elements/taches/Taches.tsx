@@ -9,7 +9,8 @@ import type { ContexteToile, PropsOutils, PropsRendu, ServicePresence } from '..
 import { EXTENSIONS_TACHES, EXTENSIONS_TACHES_PARTAGEE, type GestesTaches, clavierListe, ouvreursPuces } from './extensions'
 import { MenuPuce, type OuverturePuce } from './MenuPuce'
 import { type Personne, type Puce, assigneDe, echeanceDe, jourDe, personnes, puces } from './puces'
-import { type Chemin, basculer, compter, docTaches, effacerFaites, estFaite, regler, retirer, sousTaches } from './liste'
+import { glisserTache } from './glisse'
+import { type Chemin, basculer, deplacer, compter, docTaches, effacerFaites, estFaite, regler, retirer, sousTaches } from './liste'
 
 /** Les listes dont le titre vient d'être ajouté : leur édition y met le curseur. */
 const titreAFocaliser = new Set<Id>()
@@ -43,13 +44,14 @@ const Figee = memo(function Figee({ contenu, changer, presence }: { contenu: Tac
   const cocher = (chemin: Chemin, enCascade: boolean) =>
     changer({ ...contenu, texte: basculer(doc, chemin, enCascade) })
   const supprimer = (chemin: Chemin) => changer({ ...contenu, texte: retirer(doc, chemin) })
+  const bouger = (de: number, vers: number, avant: boolean) => changer({ ...contenu, texte: deplacer(doc, de, vers, avant) })
   const [menu, setMenu] = useState<(OuverturePuce & { chemin: Chemin }) | null>(null)
   const ouvrir = (chemin: Chemin, genre: Puce['genre'], ancre: HTMLElement) => setMenu(ouverturePuce(chemin, genre, ancre))
   const cible = menu && sousTachePar(doc, menu.chemin)
   return (
     <>
       {contenu.titre && <div className="notak-taches-titre">{contenu.titre}</div>}
-      <Liste noeud={doc} chemin={[]} cocher={cocher} supprimer={supprimer} ouvrir={ouvrir} />
+      <Liste noeud={doc} chemin={[]} cocher={cocher} supprimer={supprimer} ouvrir={ouvrir} deplacer={bouger} />
       {menu && (
         <MenuPuce
           ouverture={menu}
@@ -69,9 +71,10 @@ interface PropsListe {
   cocher(c: Chemin, cascade: boolean): void
   supprimer(c: Chemin): void
   ouvrir(c: Chemin, genre: Puce['genre'], ancre: HTMLElement): void
+  deplacer(de: number, vers: number, avant: boolean): void
 }
 
-function Liste({ noeud, chemin, cocher, supprimer, ouvrir }: PropsListe) {
+function Liste({ noeud, chemin, cocher, supprimer, ouvrir, deplacer }: PropsListe) {
   const aujourdhui = jourDe(new Date())
   const taches = sousTaches(noeud)
   if (taches.length === 0) return null
@@ -82,6 +85,17 @@ function Liste({ noeud, chemin, cocher, supprimer, ouvrir }: PropsListe) {
         const faite = estFaite(tache)
         return (
           <li key={i} data-type="taskItem" data-checked={faite}>
+            <span
+              className="notak-tache-poignee"
+              title="Déplacer la tâche"
+              onPointerDown={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                const racine = e.currentTarget.closest<HTMLElement>('.notak-taches')
+                const li = e.currentTarget.closest<HTMLElement>('li')
+                if (racine && li) glisserTache(e.nativeEvent, racine, li, deplacer)
+              }}
+            />
             <button
               type="button"
               tabIndex={-1}
@@ -98,7 +112,7 @@ function Liste({ noeud, chemin, cocher, supprimer, ouvrir }: PropsListe) {
               {(tache.content ?? []).map((n, k) =>
                 n.type === 'paragraph' ? <p key={k}>{inline(n)}</p> : null,
               )}
-              <Liste noeud={tache} chemin={ici} cocher={cocher} supprimer={supprimer} ouvrir={ouvrir} />
+              <Liste noeud={tache} chemin={ici} cocher={cocher} supprimer={supprimer} ouvrir={ouvrir} deplacer={deplacer} />
             </div>
             <span className="notak-puces">
               {puces(tache.attrs, aujourdhui).map((p) => (
