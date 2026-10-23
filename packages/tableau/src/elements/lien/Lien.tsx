@@ -143,14 +143,22 @@ function Carte({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<
   const ecrire = (champ: 'titre' | 'legende', v: string) => brouillon({ ...contenu, [champ]: v })
 
   // Le domaine ouvre toujours le lien ; le titre seulement tant que le lien n'est pas choisi (sinon, on le renomme).
+  // L'appui va à la toile, qui glisse ou choisit la carte : seul un clic sans mouvement ouvre la page.
+  const appui = useRef<{ x: number; y: number } | null>(null)
   const lien = (children: React.ReactNode, classe: string, toujours: boolean) => (
     <a
       className={classe}
       href={url}
       target="_blank"
       rel={REL}
-      onPointerDown={(e) => (toujours || !choisie) && e.stopPropagation()}
-      onClick={(e) => !toujours && choisie && e.preventDefault()}
+      draggable={false}
+      onPointerDown={(e) => void (appui.current = { x: e.clientX, y: e.clientY })}
+      onClick={(e) => {
+        const a = appui.current
+        const glisse = !!a && Math.hypot(e.clientX - a.x, e.clientY - a.y) > 4
+        if (glisse || (!toujours && choisie)) e.preventDefault()
+        e.stopPropagation()
+      }}
     >
       {children}
     </a>
