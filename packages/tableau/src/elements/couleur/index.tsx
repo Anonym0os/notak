@@ -3,6 +3,7 @@ import { COULEURS_NOTE, type CouleurNote, type Element, type Operation } from '.
 import { LIBELLES_COULEUR } from '../note/couleurs'
 import { definition, registre } from '../registre'
 import type { ContexteToile } from '../types'
+import { t } from '../../langue'
 
 const sans = () => () => {}
 
@@ -34,14 +35,14 @@ function OutilCouleur({ elements, contexte }: { elements: Element[]; contexte: C
   }
   return (
     <div className="notak-note-menu-ancre">
-      <button type="button" title="Couleur" aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
-        Couleur
+      <button type="button" title={t('couleur.titre')} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
+        {t('couleur.titre')}
       </button>
       {ouvert && (
         <div className="notak-note-palette" role="menu">
           {sansCouleur && (
             <button type="button" role="menuitem" aria-pressed={actuelle === undefined} onClick={() => choisir(undefined)}>
-              Aucune
+              {t('couleur.aucune')}
             </button>
           )}
           <div className="notak-note-pastilles">

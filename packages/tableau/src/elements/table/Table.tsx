@@ -15,6 +15,7 @@ import {
   LIGNES_MAX,
   LIGNES_MIN,
 } from './grille'
+import { t } from '../../langue'
 
 /** Les boutons et les champs de la table ne lancent pas de glisser. */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
@@ -98,7 +99,7 @@ function Edition({ contenu, contexte, ecrire }: { contenu: Table; contexte: Prop
             {cellules[0]!.map((_, j) => (
               <td key={j}>
                 {colonnes > COLONNES_MIN && (
-                  <button type="button" title="Retirer la colonne" onPointerDown={garder} onClick={() => poser(retirerColonne(cellules, j))}>
+                  <button type="button" title={t('table.retirerColonne')} onPointerDown={garder} onClick={() => poser(retirerColonne(cellules, j))}>
                     ×
                   </button>
                 )}
@@ -117,7 +118,7 @@ function Edition({ contenu, contexte, ecrire }: { contenu: Table; contexte: Prop
                     rows={1}
                     value={texte}
                     maxLength={2000}
-                    aria-label={`Ligne ${i + 1}, colonne ${j + 1}`}
+                    aria-label={t('table.cellule', { ligne: i + 1, colonne: j + 1 })}
                     onPointerDown={garder}
                     onChange={(e) => poser(changerCellule(cellules, i, j, e.target.value))}
                     onKeyDown={(e) => touche(e, i, j)}
@@ -126,7 +127,7 @@ function Edition({ contenu, contexte, ecrire }: { contenu: Table; contexte: Prop
               ))}
               <td className="notak-table-retrait-ligne">
                 {cellules.length > LIGNES_MIN && (
-                  <button type="button" title="Retirer la ligne" onPointerDown={garder} onClick={() => poser(retirerLigne(cellules, i))}>
+                  <button type="button" title={t('table.retirerLigne')} onPointerDown={garder} onClick={() => poser(retirerLigne(cellules, i))}>
                     ×
                   </button>
                 )}
@@ -159,25 +160,25 @@ export function OutilsTable({ elements, contexte }: PropsOutils<Table>) {
     <>
       <button
         type="button"
-        title="Mettre la première ligne en en-tête"
+        title={t('table.entete.titre')}
         aria-pressed={avecEntete}
         onClick={() => appliquer((c) => (avecEntete ? { ...c, sansEntete: true } : sansEntete(c)))}
       >
-        En-tête
+        {t('table.entete')}
       </button>
       {un && (
         <>
-          <button type="button" title="Ajouter une ligne en bas" disabled={lignes >= LIGNES_MAX} onClick={() => appliquer((c) => ({ ...c, cellules: ajouterLigne(c.cellules) }))}>
-            + Ligne
+          <button type="button" title={t('table.ajouterLigne')} disabled={lignes >= LIGNES_MAX} onClick={() => appliquer((c) => ({ ...c, cellules: ajouterLigne(c.cellules) }))}>
+            + {t('table.ligne')}
           </button>
-          <button type="button" title="Ajouter une colonne à droite" disabled={cols >= COLONNES_MAX} onClick={() => appliquer((c) => ({ ...c, cellules: ajouterColonne(c.cellules) }))}>
-            + Colonne
+          <button type="button" title={t('table.ajouterColonne')} disabled={cols >= COLONNES_MAX} onClick={() => appliquer((c) => ({ ...c, cellules: ajouterColonne(c.cellules) }))}>
+            + {t('type.colonne')}
           </button>
-          <button type="button" title="Retirer la dernière ligne" disabled={lignes <= LIGNES_MIN} onClick={() => appliquer((c) => ({ ...c, cellules: retirerLigne(c.cellules, c.cellules.length - 1) }))}>
-            − Ligne
+          <button type="button" title={t('table.retirerDerniereLigne')} disabled={lignes <= LIGNES_MIN} onClick={() => appliquer((c) => ({ ...c, cellules: retirerLigne(c.cellules, c.cellules.length - 1) }))}>
+            − {t('table.ligne')}
           </button>
-          <button type="button" title="Retirer la dernière colonne" disabled={cols <= COLONNES_MIN} onClick={() => appliquer((c) => ({ ...c, cellules: retirerColonne(c.cellules, nombreColonnes(c.cellules) - 1) }))}>
-            − Colonne
+          <button type="button" title={t('table.retirerDerniereColonne')} disabled={cols <= COLONNES_MIN} onClick={() => appliquer((c) => ({ ...c, cellules: retirerColonne(c.cellules, nombreColonnes(c.cellules) - 1) }))}>
+            − {t('type.colonne')}
           </button>
         </>
       )}

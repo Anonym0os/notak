@@ -3,6 +3,7 @@ import type { Nuancier } from '../../coeur/tableau'
 import { couleurTexteSur } from '../note/couleurs'
 import type { PropsOutils, PropsRendu } from '../types'
 import { codeAffiche, normaliserHex, piocherCouleur, pipetteDisponible } from './couleur'
+import { t } from '../../langue'
 
 /** Les champs de la carte ne lancent pas de glisser. */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
@@ -34,11 +35,11 @@ function Reglage({ contenu, ecrire, finir }: { contenu: Nuancier; ecrire(c: Nuan
   }
   return (
     <div className="notak-nuancier-reglage" onPointerDown={garder} onDoubleClick={(e) => e.stopPropagation()}>
-      <input type="color" aria-label="Choisir la couleur" value={contenu.couleur} onChange={(e) => poser(e.target.value)} />
+      <input type="color" aria-label={t('nuancier.choisir')} value={contenu.couleur} onChange={(e) => poser(e.target.value)} />
       <input
         ref={champ}
         type="text"
-        aria-label="Code de la couleur"
+        aria-label={t('nuancier.codeCouleur')}
         spellCheck={false}
         maxLength={7}
         value={texte}
@@ -57,8 +58,8 @@ function Reglage({ contenu, ecrire, finir }: { contenu: Nuancier; ecrire(c: Nuan
         }}
       />
       {pipetteDisponible() && (
-        <button type="button" title="Prendre une couleur à l’écran" onClick={() => void piocherCouleur().then((h) => h && poser(h))}>
-          Pipette
+        <button type="button" title={t('nuancier.pipette.titre')} onClick={() => void piocherCouleur().then((h) => h && poser(h))}>
+          {t('nuancier.pipette')}
         </button>
       )}
     </div>
@@ -73,26 +74,26 @@ export function OutilsNuancier({ elements, contexte }: PropsOutils<Nuancier>) {
   return (
     <>
       {elements.length === 1 && (
-        <button type="button" title="Changer la couleur" onClick={() => contexte.commencerEdition(elements[0]!.id)}>
-          Couleur
+        <button type="button" title={t('nuancier.changer')} onClick={() => contexte.commencerEdition(elements[0]!.id)}>
+          {t('couleur.titre')}
         </button>
       )}
       {elements.length === 1 && pipetteDisponible() && (
         <button
           type="button"
-          title="Prendre une couleur à l’écran"
+          title={t('nuancier.pipette.titre')}
           onClick={() => void piocherCouleur().then((h) => h && appliquer((e) => ({ ...e.contenu, couleur: h })))}
         >
-          Pipette
+          {t('nuancier.pipette')}
         </button>
       )}
       <button
         type="button"
-        title={avecCode ? 'Cacher le code' : 'Montrer le code'}
+        title={avecCode ? t('nuancier.cacherCode') : t('nuancier.montrerCode')}
         aria-pressed={avecCode}
         onClick={() => appliquer(({ contenu: { sansCode: _, ...reste } }) => (avecCode ? { ...reste, sansCode: true } : reste))}
       >
-        Code
+        {t('nuancier.code')}
       </button>
     </>
   )

@@ -4,6 +4,7 @@ import { COULEURS_NOTE, type Colonne, type CouleurNote } from '../../coeur/table
 import { composition } from '../composition'
 import { LIBELLES_COULEUR } from '../note/couleurs'
 import type { PropsOutils, PropsRendu } from '../types'
+import { t } from '../../langue'
 
 /** Le titre en édition : tout le texte est choisi à l'ouverture, Entrée valide (Échap est géré par la toile). */
 function Saisie({ titre, surChangement, valider }: { titre: string; surChangement(t: string): void; valider(): void }) {
@@ -107,13 +108,13 @@ export function OutilsColonne({ elements, contexte }: PropsOutils<Colonne>) {
   const actuelle = elements.every((e) => e.contenu.couleur === elements[0]!.contenu.couleur) ? elements[0]!.contenu.couleur : undefined
   return (
     <div className="notak-colonne-menu-ancre">
-      <button type="button" title="Couleur" aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
-        Couleur
+      <button type="button" title={t('couleur.titre')} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
+        {t('couleur.titre')}
       </button>
       {ouvert && (
         <div className="notak-colonne-palette" role="menu">
           <button type="button" role="menuitem" aria-pressed={actuelle === undefined} onClick={() => choisir(undefined)}>
-            Aucune
+            {t('couleur.aucune')}
           </button>
           <div className="notak-colonne-pastilles">
             {COULEURS_NOTE.map((c) => (

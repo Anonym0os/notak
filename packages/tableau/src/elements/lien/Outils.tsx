@@ -3,6 +3,7 @@ import type { PropsOutils } from '../types'
 import { adresseAEditer } from './Lien'
 import { type Partie, affichage, avecPartie } from './affichage'
 import { aDesReglagesDeLecture, lecteurDe } from './lecteurs'
+import { t } from '../../langue'
 
 type Reglage = 'lectureAuto' | 'boucle'
 
@@ -43,32 +44,32 @@ export function OutilsLien({ elements, contexte }: PropsOutils<Lien>) {
   return (
     <>
       {urls.length === 1 && (
-        <button title="Ouvrir dans un nouvel onglet" onClick={() => window.open(urls[0], '_blank', 'noopener,noreferrer')}>
-          Ouvrir
+        <button title={t('menu.ouvrirOnglet')} onClick={() => window.open(urls[0], '_blank', 'noopener,noreferrer')}>
+          {t('commun.ouvrir')}
         </button>
       )}
       {elements.length === 1 && !contexte.services.lectureSeule && (
         <button
-          title="Changer l’adresse du lien"
+          title={t('lien.changerAdresse')}
           onClick={() => {
             adresseAEditer.add(elements[0]!.id)
             contexte.commencerEdition(elements[0]!.id)
           }}
         >
-          Adresse
+          {t('lien.adresse')}
         </button>
       )}
       {!contexte.services.lectureSeule && (
         <>
-          {partie('apercu', 'Aperçu', 'Montrer ou cacher l’image ou le lecteur')}
-          {partie('infos', 'Infos', 'Montrer ou cacher le domaine et le titre')}
-          {partie('legende', 'Légende', 'Montrer ou cacher la légende')}
+          {partie('apercu', t('lien.apercu'), t('lien.apercu.titre'))}
+          {partie('infos', t('lien.infos'), t('lien.infos.titre'))}
+          {partie('legende', t('note.legende'), t('lien.legende.titre'))}
         </>
       )}
-      {lectureReglable && reglage('lectureAuto', 'Lecture auto', 'Lancer la vidéo à l’ouverture du tableau, sans le son')}
-      {lectureReglable && reglage('boucle', 'Boucle', 'Reprendre la vidéo au début quand elle se termine')}
-      <button title="Copier l’adresse" onClick={() => void navigator.clipboard.writeText(urls.join('\n'))}>
-        Copier
+      {lectureReglable && reglage('lectureAuto', t('lien.lectureAuto'), t('lien.lectureAuto.titre'))}
+      {lectureReglable && reglage('boucle', t('lien.boucle'), t('lien.boucle.titre'))}
+      <button title={t('lien.copierAdresse')} onClick={() => void navigator.clipboard.writeText(urls.join('\n'))}>
+        {t('commun.copier')}
       </button>
     </>
   )

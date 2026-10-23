@@ -12,6 +12,7 @@ import { MenuPuce, type OuverturePuce } from './MenuPuce'
 import { type Personne, type Puce, assigneDe, echeanceDe, jourDe, personnes, puces } from './puces'
 import { type Sortie, glisserTache } from './glisse'
 import { type Chemin, basculer, compter, deplacer, detacher, docTaches, effacerFaites, estFaite, regler, retirer, sousTaches, transferer } from './liste'
+import { t } from '../../langue'
 
 /** Les listes dont le titre vient d'être ajouté : leur édition y met le curseur. */
 const titreAFocaliser = new Set<Id>()
@@ -404,12 +405,12 @@ export function OutilsTaches({ elements, contexte }: PropsOutils<Taches>) {
   return (
     <>
       {total > 0 && (
-        <span className="notak-taches-compteur" title="Faites">
+        <span className="notak-taches-compteur" title={t('taches.faites')}>
           {faites}/{total}
         </span>
       )}
       <button type="button" aria-pressed={toutesTitrees} onClick={basculerTitre}>
-        Titre
+        {t('taches.titre')}
       </button>
       <MenuCouleur
         actuelle={elements.every((e) => e.contenu.couleur === elements[0]!.contenu.couleur) ? elements[0]!.contenu.couleur : undefined}
@@ -422,7 +423,7 @@ export function OutilsTaches({ elements, contexte }: PropsOutils<Taches>) {
           type="button"
           onClick={() => changerTout((e) => ({ ...e.contenu, texte: effacerFaites(docTaches(e.contenu.texte)) }))}
         >
-          Effacer les faites
+          {t('taches.effacerFaites')}
         </button>
       )}
     </>

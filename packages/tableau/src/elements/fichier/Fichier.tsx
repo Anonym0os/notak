@@ -3,6 +3,7 @@ import type { Fichier } from '../../coeur/tableau'
 import { useFichier } from '../envois'
 import type { PropsOutils, PropsRendu } from '../types'
 import { adresseApercuPdf, apercuDe, extensionDe, genreDe, lisible, tailleLisible } from './genre'
+import { t } from '../../langue'
 
 const sansTitre = ({ titre: _, ...reste }: Fichier): Fichier => reste
 /** Les liens et les lecteurs de la carte ne lancent pas de glisser. */
@@ -135,25 +136,25 @@ export function OutilsFichier({ elements, contexte }: PropsOutils<Fichier>) {
   return (
     <>
       {!contexte.services.lectureSeule && (
-        <button type="button" title="Renommer le fichier, écrire une légende" onClick={() => contexte.commencerEdition(el.id)}>
-          Renommer
+        <button type="button" title={t('fichier.renommer.titre')} onClick={() => contexte.commencerEdition(el.id)}>
+          {t('menu.renommer')}
         </button>
       )}
       {!contexte.services.lectureSeule && (
         <button
           type="button"
-          title={el.contenu.icone ? 'Montrer l’aperçu' : 'Réduire à l’icône et au nom'}
+          title={el.contenu.icone ? t('fichier.montrerApercu') : t('fichier.reduire')}
           aria-pressed={!!el.contenu.icone}
           onClick={() => {
             const { icone: _, ...reste } = el.contenu
             contexte.magasin.faire([{ type: 'contenu', id: el.id, avant: el.contenu, apres: el.contenu.icone ? reste : { ...reste, icone: true } }])
           }}
         >
-          Icône
+          {t('tableau.icone')}
         </button>
       )}
-      <button type="button" title="Ouvrir dans un nouvel onglet" onClick={() => void ouvrirFichier(el.contenu, contexte)}>
-        Ouvrir
+      <button type="button" title={t('menu.ouvrirOnglet')} onClick={() => void ouvrirFichier(el.contenu, contexte)}>
+        {t('commun.ouvrir')}
       </button>
     </>
   )

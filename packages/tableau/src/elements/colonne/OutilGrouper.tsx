@@ -2,6 +2,7 @@ import type { Element } from '../../coeur/tableau'
 import type { ContexteToile, EntreeMenu, OutilCommun } from '../types'
 import { pasDeGroupement } from './grouper'
 import { accepteDansColonne } from './regles'
+import { t } from '../../langue'
 
 const groupables = (elements: Element[], contexte: ContexteToile) =>
   elements.flatMap((element) => {
@@ -19,7 +20,9 @@ export function grouper(elements: Element[], contexte: ContexteToile) {
 }
 
 export const entreeGrouper: EntreeMenu = {
-  libelle: 'Grouper en colonne',
+  get libelle() {
+    return t('colonne.grouper')
+  },
   visible: (elements, contexte) => groupables(elements, contexte).length > 0,
   faire: grouper,
 }
@@ -31,10 +34,10 @@ export const OutilGrouper: OutilCommun = ({ elements, contexte }) => {
   return (
     <button
       type="button"
-      title="Mettre en colonne"
+      title={t('colonne.mettre')}
       onClick={() => grouper(elements, contexte)}
     >
-      Colonne
+      {t('type.colonne')}
     </button>
   )
 }

@@ -2,6 +2,7 @@ import { useState, useSyncExternalStore } from 'react'
 import { COULEURS_NOTE, type CouleurNote, type Note } from '../../coeur/tableau'
 import type { PropsOutils } from '../types'
 import { FOND_NOTE, LIBELLES_COULEUR, couleursSuggerees, lireHex } from './couleurs'
+import { t } from '../../langue'
 
 type Cle = 'fond' | 'barre' | 'couleurTexte'
 
@@ -35,7 +36,7 @@ export function OutilsNote({ elements, contexte }: PropsOutils<Note>) {
   return (
     <>
       <div className="notak-note-menu-ancre">
-        {bascule('couleur', 'Couleur')}
+        {bascule('couleur', t('couleur.titre'))}
         {ouvert === 'couleur' && (
           <PaletteFond
             actuelle={commun((c) => c.fond ?? c.couleur)}
@@ -50,15 +51,15 @@ export function OutilsNote({ elements, contexte }: PropsOutils<Note>) {
         )}
       </div>
       <div className="notak-note-menu-ancre">
-        {bascule('barre', 'Barre')}
+        {bascule('barre', t('note.barre'))}
         {ouvert === 'barre' && <PaletteHex cle="barre" actuelle={commun((c) => c.barre)} suggerees={suggerees} appliquer={appliquer} />}
       </div>
       <div className="notak-note-menu-ancre">
-        {bascule('couleurTexte', 'Texte')}
+        {bascule('couleurTexte', t('note.texte'))}
         {ouvert === 'couleurTexte' && <PaletteHex cle="couleurTexte" actuelle={commun((c) => c.couleurTexte)} suggerees={suggerees} appliquer={appliquer} />}
       </div>
       <div className="notak-note-menu-ancre">
-        {bascule('legende', 'Légende')}
+        {bascule('legende', t('note.legende'))}
         {ouvert === 'legende' && <ChampLegende depart={commun((c) => c.legende) ?? ''} appliquer={appliquer} />}
       </div>
     </>
@@ -70,7 +71,7 @@ function PaletteFond({ actuelle, suggerees, choisir }: { actuelle: string | unde
   return (
     <div className="notak-note-palette" role="menu">
       <button type="button" role="menuitem" aria-pressed={actuelle === undefined} onClick={() => choisir()}>
-        Aucune
+        {t('couleur.aucune')}
       </button>
       <div className="notak-note-pastilles">
         {COULEURS_NOTE.map((c) => (
@@ -78,7 +79,7 @@ function PaletteFond({ actuelle, suggerees, choisir }: { actuelle: string | unde
         ))}
       </div>
       <button type="button" role="menuitem" aria-pressed={actuelle === 'transparent'} onClick={() => choisir('transparent')}>
-        Transparent
+        {t('couleur.transparent')}
       </button>
       <Libre actuelle={actuelle} suggerees={suggerees} choisir={(hex) => choisir(undefined, hex)} />
     </div>
@@ -91,7 +92,7 @@ function PaletteHex({ cle, actuelle, suggerees, appliquer }: { cle: Cle; actuell
   return (
     <div className="notak-note-palette" role="menu">
       <button type="button" role="menuitem" aria-pressed={actuelle === undefined} onClick={() => poser()}>
-        Aucune
+        {t('couleur.aucune')}
       </button>
       <div className="notak-note-pastilles">
         {COULEURS_NOTE.map((c) => (
@@ -110,7 +111,7 @@ function Libre({ actuelle, suggerees, choisir }: { actuelle: string | undefined;
   return (
     <>
       {suggerees.length > 0 && (
-        <div className="notak-note-pastilles" aria-label="Couleurs du tableau">
+        <div className="notak-note-pastilles" aria-label={t('note.couleursTableau')}>
           {suggerees.map((c) => (
             <button key={c} type="button" role="menuitem" title={c} aria-label={c} aria-pressed={actuelle === c} style={{ background: c }} onClick={() => choisir(c)} />
           ))}
@@ -120,7 +121,7 @@ function Libre({ actuelle, suggerees, choisir }: { actuelle: string | undefined;
         className="notak-note-hex"
         value={saisie}
         placeholder="#a1b2c3"
-        aria-label="Couleur en hexadécimal"
+        aria-label={t('note.hex')}
         aria-invalid={saisie !== '' && !hex}
         onChange={(e) => setSaisie(e.target.value)}
         onKeyDown={(e) => {
@@ -140,8 +141,8 @@ function ChampLegende({ depart, appliquer }: { depart: string; appliquer(f: Chan
         className="notak-note-hex"
         autoFocus
         value={texte}
-        placeholder="Légende"
-        aria-label="Légende sous la note"
+        placeholder={t('note.legende')}
+        aria-label={t('note.legendeSous')}
         onChange={(e) => setTexte(e.target.value)}
         onKeyDown={(e) => {
           e.stopPropagation()

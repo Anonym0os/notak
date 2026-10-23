@@ -3,6 +3,7 @@ import type { Clone, Element } from '../../coeur/tableau'
 import { definition } from '../registre'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { originalAffichable, originalDe } from './original'
+import { t } from '../../langue'
 
 const rien = () => {}
 
@@ -64,12 +65,12 @@ export function OutilsClone({ elements, contexte }: PropsOutils<Clone>) {
   }
   return (
     <>
-      <button type="button" title="Choisir l’original" disabled={!original} onClick={() => original && contexte.choisir([original.id])}>
-        Original
+      <button type="button" title={t('clone.choisirOriginal')} disabled={!original} onClick={() => original && contexte.choisir([original.id])}>
+        {t('clone.original')}
       </button>
       {!contexte.services.lectureSeule && (
-        <button type="button" title="Rendre ce clone indépendant de l’original" disabled={!aDetacher} onClick={detacher}>
-          Détacher
+        <button type="button" title={t('clone.detacher.titre')} disabled={!aDetacher} onClick={detacher}>
+          {t('clone.detacher')}
         </button>
       )}
     </>

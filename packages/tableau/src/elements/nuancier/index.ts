@@ -2,11 +2,14 @@ import type { Nuancier } from '../../coeur/tableau'
 import { registre } from '../registre'
 import { OutilsNuancier, RenduNuancier } from './Nuancier'
 import { LARGEUR_NUANCIER, PROPORTION_NUANCIER, codeAffiche, normaliserHex, nouveauNuancier } from './couleur'
+import { t } from '../../langue'
 import './nuancier.css'
 
 registre.type<Nuancier>({
   type: 'nuancier',
-  nom: 'Nuancier',
+  get nom() {
+    return t('type.nuancier')
+  },
   resume: (c) => codeAffiche(c.couleur),
   Rendu: RenduNuancier,
   Outils: OutilsNuancier,
@@ -19,7 +22,9 @@ registre.type<Nuancier>({
   suivant: (e, places) => ({ ...nouveauNuancier(places.dessous.x, places.dessous.y, e.contenu.couleur), largeur: e.largeur }),
   outils: [
     {
-      libelle: 'Nuancier',
+      get libelle() {
+        return t('type.nuancier')
+      },
       icone: '🎨',
       rang: 110,
       tiroir: true,

@@ -1,4 +1,5 @@
 import { type Croquis, type Element, type Trait, nouvelId } from '../../coeur/tableau'
+import { t } from '../../langue'
 
 /** La feuille sur laquelle on dessine, en unités de feuille (le rendu la met à l'échelle). */
 export const LARGEUR_FEUILLE = 640
@@ -7,9 +8,9 @@ export const LARGEUR_CROQUIS = 30
 
 export const COULEURS_TRAIT = ['#1f2328', '#d84b4b', '#ef8a2f', '#3c9d5b', '#3a76df', '#8a5fd1'] as const
 export const EPAISSEURS_TRAIT = [
-  { libelle: 'Fin', valeur: 2 },
-  { libelle: 'Moyen', valeur: 5 },
-  { libelle: 'Épais', valeur: 10 },
+  { get libelle() { return t('croquis.fin') }, valeur: 2 },
+  { get libelle() { return t('croquis.moyen') }, valeur: 5 },
+  { get libelle() { return t('croquis.epais') }, valeur: 10 },
 ] as const
 
 /** Sous cette distance, un point de plus n'apporte rien au tracé. */

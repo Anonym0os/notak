@@ -10,6 +10,7 @@ import { annoter, choisirCouleur, choisirOutil, useAnnotation } from './modeAnno
 import { COULEURS_TRAIT, avecTraits } from './annotation'
 import { adresseALargeur, finesse, largeurCadrePx, largeurEntiereAffichee, palierPour } from './tailles'
 import { Visionneuse, useImageOuverte } from './visionneuse'
+import { t } from '../../langue'
 
 /**
  * L'adresse du fichier à la taille que l'affichage demande : le plus petit palier net pour la largeur à l'écran,
@@ -143,32 +144,32 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
   return (
     <>
       {!contexte.services.lectureSeule && (
-        <button type="button" title="Tourner d’un quart de tour vers la droite" onClick={pivoterTout}>
-          Pivoter
+        <button type="button" title={t('image.pivoter.titre')} onClick={pivoterTout}>
+          {t('image.pivoter')}
         </button>
       )}
       {elements.length === 1 && !contexte.services.lectureSeule && (
-        <button type="button" title="Garder une partie de l’image" aria-pressed={!!el.contenu.recadrage} onClick={() => recadrer(el.id)}>
-          Recadrer
+        <button type="button" title={t('image.recadrer.titre')} aria-pressed={!!el.contenu.recadrage} onClick={() => recadrer(el.id)}>
+          {t('image.recadrer')}
         </button>
       )}
       {elements.length === 1 && !contexte.services.lectureSeule && (
         <button
           type="button"
-          title="Dessiner sur l’image (Maj+D)"
+          title={t('image.dessiner.titre')}
           aria-pressed={enDessin}
           onClick={() => annoter(enDessin ? null : el.id)}
         >
-          Dessiner
+          {t('croquis.dessiner')}
         </button>
       )}
       {enDessin && (
         <>
           <button type="button" aria-pressed={dessin.outil === 'crayon'} onClick={() => choisirOutil('crayon')}>
-            Crayon
+            {t('dessin.crayon')}
           </button>
-          <button type="button" aria-pressed={dessin.outil === 'gomme'} title="Effacer le trait qu’on touche" onClick={() => choisirOutil('gomme')}>
-            Gomme
+          <button type="button" aria-pressed={dessin.outil === 'gomme'} title={t('image.gommeTitre')} onClick={() => choisirOutil('gomme')}>
+            {t('dessin.gomme')}
           </button>
           {COULEURS_TRAIT.map((c) => (
             <button
@@ -176,7 +177,7 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
               type="button"
               className="notak-pastille-trait"
               style={{ background: c }}
-              aria-label={`Couleur ${c}`}
+              aria-label={t('image.couleurTrait', { couleur: c })}
               aria-pressed={dessin.outil === 'crayon' && dessin.couleur === c}
               onClick={() => choisirCouleur(c)}
             />
@@ -184,10 +185,10 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
           {!!el.contenu.traits?.length && (
             <button
               type="button"
-              title="Effacer tous les traits"
+              title={t('image.effacerTraits')}
               onClick={() => contexte.magasin.faire([{ type: 'contenu', id: el.id, avant: el.contenu, apres: avecTraits(el.contenu, []) }])}
             >
-              Tout effacer
+              {t('dessin.toutEffacer')}
             </button>
           )}
         </>
@@ -195,11 +196,11 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
       {elements.length === 1 && (
         <button
           type="button"
-          title="Ajouter une légende"
+          title={t('image.ajouterLegende')}
           aria-pressed={!!el.contenu.legende}
           onClick={() => contexte.commencerEdition(el.id)}
         >
-          Légende
+          {t('note.legende')}
         </button>
       )}
     </>

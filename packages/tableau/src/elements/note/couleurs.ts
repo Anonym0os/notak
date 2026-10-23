@@ -1,4 +1,5 @@
 import { COULEURS_NOTE, type CouleurNote, type Element, type Note } from '../../coeur/tableau'
+import { t } from '../../langue'
 
 /**
  * Les fonds de note. Les mêmes valeurs sont déclinées en variables CSS (`--notak-note-<nom>`
@@ -91,36 +92,36 @@ export function couleursSuggerees(elements: readonly Element[]): string[] {
 }
 
 export const LIBELLES_COULEUR: Record<CouleurNote, string> = {
-  gris: 'Gris',
-  cyan: 'Cyan',
-  vert: 'Vert',
-  brun: 'Brun',
-  jaune: 'Jaune',
-  orange: 'Orange',
-  rouge: 'Rouge',
-  rose: 'Rose',
-  violet: 'Violet',
-  bleu: 'Bleu',
-  bleu_nuit: 'Bleu nuit',
-  transparent: 'Transparent',
+  get gris() { return t('couleur.gris') },
+  get cyan() { return t('couleur.cyan') },
+  get vert() { return t('couleur.vert') },
+  get brun() { return t('couleur.brun') },
+  get jaune() { return t('couleur.jaune') },
+  get orange() { return t('couleur.orange') },
+  get rouge() { return t('couleur.rouge') },
+  get rose() { return t('couleur.rose') },
+  get violet() { return t('couleur.violet') },
+  get bleu() { return t('couleur.bleu') },
+  get bleu_nuit() { return t('couleur.bleuNuit') },
+  get transparent() { return t('couleur.transparent') },
 }
 
 /** Couleurs du texte et surlignages : des noms, les valeurs sont des variables CSS de `note.css`. */
 export const COULEURS_TEXTE = [
-  { nom: 'bleu', libelle: 'Bleu' },
-  { nom: 'vert', libelle: 'Vert' },
-  { nom: 'orange', libelle: 'Orange' },
-  { nom: 'rouge', libelle: 'Rouge' },
-  { nom: 'gris', libelle: 'Gris' },
+  { nom: 'bleu', get libelle() { return t('couleur.bleu') } },
+  { nom: 'vert', get libelle() { return t('couleur.vert') } },
+  { nom: 'orange', get libelle() { return t('couleur.orange') } },
+  { nom: 'rouge', get libelle() { return t('couleur.rouge') } },
+  { nom: 'gris', get libelle() { return t('couleur.gris') } },
 ] as const
 
 export const SURLIGNAGES = [
-  { nom: 'gris-fonce', libelle: 'Gris foncé' },
-  { nom: 'bleu', libelle: 'Bleu' },
-  { nom: 'vert', libelle: 'Vert' },
-  { nom: 'orange', libelle: 'Orange' },
-  { nom: 'rose', libelle: 'Rose' },
-  { nom: 'gris', libelle: 'Gris' },
+  { nom: 'gris-fonce', get libelle() { return t('couleur.grisFonce') } },
+  { nom: 'bleu', get libelle() { return t('couleur.bleu') } },
+  { nom: 'vert', get libelle() { return t('couleur.vert') } },
+  { nom: 'orange', get libelle() { return t('couleur.orange') } },
+  { nom: 'rose', get libelle() { return t('couleur.rose') } },
+  { nom: 'gris', get libelle() { return t('couleur.gris') } },
 ] as const
 
 export const valeurCouleurTexte = (nom: string) => `var(--notak-texte-${nom})`

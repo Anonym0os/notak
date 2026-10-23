@@ -6,10 +6,13 @@ import { largeurNaturelleImage } from './geometrie'
 import { raccourciAnnoter } from './raccourciAnnotation'
 import { recevoirImages } from './recepteur'
 import { ouvrirImage } from './visionneuse'
+import { t } from '../../langue'
 
 registre.type<Image>({
   suivant: () => null,
-  nom: 'Image',
+  get nom() {
+    return t('type.image')
+  },
   resume: (c) => c.legende ?? '',
   type: 'image',
   Rendu: RenduImage,

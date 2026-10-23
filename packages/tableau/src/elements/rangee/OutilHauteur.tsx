@@ -2,6 +2,7 @@ import type { Element } from '../../coeur/tableau'
 import { definition } from '../registre'
 import type { ContexteToile, OutilCommun } from '../types'
 import { hauteurApresCran } from './hauteur'
+import { t } from '../../langue'
 
 /** Ce dont la hauteur se règle ici : un élément rangé dans une colonne, de ceux qui savent être bornés. */
 const reglable = (e: Element) => !!e.parent && !e.verrou && !!definition(e.contenu.type)?.hauteurBornable
@@ -25,19 +26,19 @@ export const OutilHauteur: OutilCommun = ({ elements, contexte }) => {
   const reglee = elements.some((e) => e.hauteur)
   return (
     <>
-      <button type="button" title="Moins haut" aria-label="Moins haut" onClick={() => cran(elements, contexte, -1)}>
-        Hauteur −
+      <button type="button" title={t('hauteur.moins')} aria-label={t('hauteur.moins')} onClick={() => cran(elements, contexte, -1)}>
+        {t('hauteur.titre')} −
       </button>
-      <button type="button" title="Plus haut" aria-label="Plus haut" onClick={() => cran(elements, contexte, 1)}>
-        Hauteur +
+      <button type="button" title={t('hauteur.plus')} aria-label={t('hauteur.plus')} onClick={() => cran(elements, contexte, 1)}>
+        {t('hauteur.titre')} +
       </button>
       {reglee && (
         <button
           type="button"
-          title="Rendre la hauteur au contenu"
+          title={t('hauteur.auto.titre')}
           onClick={() => contexte.magasin.faire(elements.flatMap((e) => (e.hauteur ? [{ type: 'borner' as const, id: e.id, de: e.hauteur, vers: null }] : [])))}
         >
-          Auto
+          {t('hauteur.auto')}
         </button>
       )}
     </>

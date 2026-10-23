@@ -5,10 +5,13 @@ import { OutilGrouper, entreeGrouper } from './OutilGrouper'
 import { accepteDansColonne } from './regles'
 import './colonne.css'
 import { couleurDuContenu } from '../couleur'
+import { t } from '../../langue'
 
 registre.type<Colonne>({
   type: 'colonne',
-  nom: 'Colonne',
+  get nom() {
+    return t('type.colonne')
+  },
   resume: (c) => c.titre,
   Rendu: RenduColonne,
   Outils: OutilsColonne,
@@ -22,7 +25,9 @@ registre.type<Colonne>({
   aussiSupprimer: (colonne, tableau) => tableau.elements.filter((e) => e.parent === colonne.id),
   outils: [
     {
-      libelle: 'Colonne',
+      get libelle() {
+        return t('type.colonne')
+      },
       icone: '▥',
       rang: 60,
       fantome: () => nouvelleColonne(0, 0),

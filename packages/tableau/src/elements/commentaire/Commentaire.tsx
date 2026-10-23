@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { type Auteur, type Commentaire, type Message, nouvelId } from '../../coeur/tableau'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { AUTEUR_INCONNU, ajouterMessage, filVide, dateLisible, initiales, replier, resoudre, retirerMessage } from './fil'
+import { t } from '../../langue'
 
 /** Les boutons et le champ de la carte ne lancent pas de glisser. */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
@@ -166,12 +167,12 @@ export function OutilsCommentaire({ elements, contexte }: PropsOutils<Commentair
   return (
     <>
       {elements.length === 1 && (
-        <button type="button" title="Répondre dans le fil" onClick={() => contexte.commencerEdition(elements[0]!.id)}>
-          Répondre
+        <button type="button" title={t('commentaire.repondreFil')} onClick={() => contexte.commencerEdition(elements[0]!.id)}>
+          {t('commentaire.repondre')}
         </button>
       )}
-      <button type="button" title={tousResolus ? 'Rouvrir le fil' : 'Résoudre le fil'} onClick={basculer}>
-        {tousResolus ? 'Rouvrir' : 'Résoudre'}
+      <button type="button" title={tousResolus ? t('commentaire.rouvrirFil') : t('commentaire.resoudreFil')} onClick={basculer}>
+        {tousResolus ? t('commentaire.rouvrir') : t('commentaire.resoudre')}
       </button>
     </>
   )

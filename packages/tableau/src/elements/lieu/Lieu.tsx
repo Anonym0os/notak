@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { Lieu } from '../../coeur/tableau'
 import type { PropsOutils, PropsRendu } from '../types'
 import { avecPosition, positionValable, requete, urlCarte, urlCarteIntegree } from './adresse'
+import { t } from '../../langue'
 
 /** Le lien et les champs de la carte ne lancent pas de glisser. */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
@@ -131,13 +132,13 @@ export function OutilsLieu({ elements, contexte }: PropsOutils<Lieu>) {
   return (
     <>
       {url && (
-        <a className="notak-lieu-outil" href={url} target="_blank" rel="noopener noreferrer" title="Ouvrir la carte dans un nouvel onglet">
-          Voir sur la carte
+        <a className="notak-lieu-outil" href={url} target="_blank" rel="noopener noreferrer" title={t('lieu.ouvrirCarte')}>
+          {t('lieu.voirCarte')}
         </a>
       )}
       {elements.length === 1 && !contexte.services.lectureSeule && (
-        <button type="button" title="Modifier l’adresse" onClick={() => contexte.commencerEdition(elements[0]!.id)}>
-          Modifier
+        <button type="button" title={t('lieu.modifierAdresse')} onClick={() => contexte.commencerEdition(elements[0]!.id)}>
+          {t('commun.modifier')}
         </button>
       )}
     </>

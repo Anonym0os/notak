@@ -7,6 +7,7 @@ import { EXTENSIONS_NOTE } from '../note/extensions'
 import { Surcouche } from '../surcouche'
 import type { PropsOutils, PropsRendu } from '../types'
 import { compterMots, mesure, premiersBlocs } from './texte'
+import { t } from '../../langue'
 
 /** Le texte tel qu'une note le dessine : mêmes extensions, en lecture seule. */
 const Lu = memo(function Lu({ texte }: { texte: NoeudTexte }) {
@@ -130,8 +131,8 @@ function Grand({ contenu, ecrire, finir }: { contenu: DocumentTexte; ecrire(c: D
 export function OutilsDocument({ elements, contexte }: PropsOutils<DocumentTexte>) {
   if (elements.length !== 1) return null
   return (
-    <button type="button" title="Ouvrir le document en grand" onClick={() => contexte.commencerEdition(elements[0]!.id)}>
-      Ouvrir
+    <button type="button" title={t('document.ouvrirGrand')} onClick={() => contexte.commencerEdition(elements[0]!.id)}>
+      {t('commun.ouvrir')}
     </button>
   )
 }

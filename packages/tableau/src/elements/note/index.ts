@@ -8,6 +8,7 @@ import { nouvelleListeTaches } from '../taches/liste'
 import { EXTENSIONS_NOTE } from './extensions'
 import './note.css'
 import { couleurDuContenu } from '../couleur'
+import { t } from '../../langue'
 
 const enNote = (x: number, y: number, texte?: NoeudTexte) => {
   const note = nouvelleNote(Math.round(x), Math.round(y))
@@ -21,7 +22,9 @@ const enTitre = (x: number, y: number) => {
 
 registre.type<Note>({
   type: 'note',
-  nom: 'Note',
+  get nom() {
+    return t('type.note')
+  },
   resume: (c) => texteBrut(c.texte),
   Rendu: RenduNote,
   Outils: OutilsNote,
@@ -51,14 +54,18 @@ registre.type<Note>({
   },
   outils: [
     {
-      libelle: 'Note',
+      get libelle() {
+        return t('type.note')
+      },
       icone: '¶',
       rang: 10,
       fantome: () => enNote(0, 0),
       creer: (ou) => [{ type: 'creer', element: enNote(ou.x, ou.y) }],
     },
     {
-      libelle: 'Titre',
+      get libelle() {
+        return t('outil.titre')
+      },
       icone: 'T',
       rang: 10,
       tiroir: true,
