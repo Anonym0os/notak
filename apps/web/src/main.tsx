@@ -149,7 +149,7 @@ function Espace({ moi, deconnexion }: { moi: Moi; deconnexion(): void }) {
             <Favori tableau={courant} accueil={moi.racine} />
             <Cloche ouvrir={ouvrir} />
             <Activite tableau={courant} moi={moi.id} surNouveaux={recents.noter} />
-            <Export tableau={courant} />
+            <Export tableau={courant} titre={() => espace.tableau(courant)?.titre ?? ''} />
             <Partage tableau={courant} moi={moi} />
             <Compte moi={moi} deconnexion={deconnexion} ouvrir={ouvrir} />
           </>
