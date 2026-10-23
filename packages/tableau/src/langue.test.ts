@@ -98,7 +98,7 @@ describe('textes des éléments en anglais', () => {
     expect(tailleLisible(2400)).toBe('2.4 kB')
     expect(libelleEcheance('2026-10-23', '2026-10-23')).toBe('Today')
     expect(libelleEcheance('2026-10-12', '2026-10-23')).toBe('Oct 12')
-    expect(puces({}, '2026-10-23')[0]?.texte).toBe('Due date')
+    expect(puces({ montreEcheance: true }, '2026-10-23')[0]?.texte).toBe('Set due date')
     expect(resume({ traits: [] } as never)).toBe('Empty sketch')
   })
 })

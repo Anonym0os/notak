@@ -7,17 +7,31 @@ import { langue, t } from '../../langue'
 
 export type GenrePuce = 'echeance' | 'assigne'
 
-/** Ce que la tâche dessine à droite de son texte, pour un genre. */
+/** L'état d'une puce d'échéance, qui en décide la couleur. */
+export type StatutPuce = 'futur' | 'aujourdhui' | 'retard' | 'fait' | 'aucun'
+
+/** Ce que la tâche dessine sous son texte, pour un genre. */
 export interface Puce {
   genre: GenrePuce
-  /** Rien n'est posé : la puce n'apparaît qu'au survol, pour inviter à la poser. */
+  /** Rien n'est posé : la puce est là parce qu'on l'a demandée (outil ou raccourci), pour inviter à la poser. */
   vide: boolean
+  statut: StatutPuce
   texte: string
   titre: string
   /** L'échéance est passée et la tâche n'est pas faite. */
   retard: boolean
-  /** La couleur de la pastille d'une personne. */
-  teinte?: string
+}
+
+/** L'attribut de tâche qui dit qu'une puce vide est demandée, par genre. */
+export const DRAPEAU: Record<GenrePuce, 'montreEcheance' | 'montreAssigne'> = { echeance: 'montreEcheance', assigne: 'montreAssigne' }
+
+/**
+ * Les attributs à écrire quand la puce `genre` prend la valeur `v` : poser une valeur allume la puce, l'effacer
+ * la laisse vide, et l'effacer quand elle est déjà vide l'éteint.
+ */
+export function attrsPuce(genre: GenrePuce, v: string | null, avait: string | null): Record<string, unknown> {
+  if (v !== null) return { [genre]: v, [DRAPEAU[genre]]: true }
+  return avait === null ? { [DRAPEAU[genre]]: null } : { [genre]: null }
 }
 
 /** Quelqu'un à qui confier une tâche. */
@@ -59,32 +73,53 @@ export function libelleEcheance(jour: string, aujourdhui: string): string {
   return String(a) === aujourdhui.slice(0, 4) ? court : en ? `${court}, ${a}` : `${court} ${a}`
 }
 
+/** « Due today », « Due Oct 12 » : le préfixe, puis le jour (« Pour aujourd'hui », « Pour le 12 oct. »). */
+export function texteEcheance(jour: string, aujourdhui: string): string {
+  const relatif = [aujourdhui, decaler(aujourdhui, 1), decaler(aujourdhui, -1)].includes(jour)
+  const libelle = libelleEcheance(jour, aujourdhui)
+  if (langue() === 'en') return `${t('taches.pour')} ${relatif ? libelle.toLowerCase() : libelle}`
+  return relatif ? `${t('taches.pour')} ${libelle.toLowerCase()}` : `${t('taches.pourLe')} ${libelle}`
+}
+
 /** L'échéance d'une tâche, si elle en a une valable. */
 export const echeanceDe = (attrs: Record<string, unknown> | undefined): string | null =>
   jourValide(attrs?.echeance) ? attrs.echeance : null
 
-/** Les puces d'une tâche, dans l'ordre où elles se dessinent. `aujourdhui` : `AAAA-MM-JJ`. */
+/** L'état d'une échéance : à venir, aujourd'hui, en retard ; une tâche faite ou sans date est neutre. */
+export function statutEcheance(jour: string | null, faite: boolean, aujourdhui: string): StatutPuce {
+  if (jour === null) return 'aucun'
+  if (faite) return 'fait'
+  return jour < aujourdhui ? 'retard' : jour === aujourdhui ? 'aujourdhui' : 'futur'
+}
+
+/**
+ * Les puces d'une tâche, dans l'ordre où elles se dessinent. `aujourdhui` : `AAAA-MM-JJ`. Une puce paraît quand
+ * elle porte une valeur ou quand on l'a demandée ; sinon, rien.
+ */
 export function puces(attrs: Record<string, unknown> | undefined, aujourdhui: string): Puce[] {
   const jour = echeanceDe(attrs)
   const faite = attrs?.checked === true
   const nom = assigneDe(attrs)
-  return [
-    {
+  const res: Puce[] = []
+  if (jour !== null || attrs?.montreEcheance === true)
+    res.push({
       genre: 'echeance',
       vide: jour === null,
-      texte: jour ? libelleEcheance(jour, aujourdhui) : t('taches.echeance'),
+      statut: statutEcheance(jour, faite, aujourdhui),
+      texte: jour ? texteEcheance(jour, aujourdhui) : t('taches.fixerEcheance'),
       titre: jour ? t('taches.changerEcheance') : t('taches.ajouterEcheance'),
       retard: jour !== null && !faite && jour < aujourdhui,
-    },
-    {
+    })
+  if (nom !== null || attrs?.montreAssigne === true)
+    res.push({
       genre: 'assigne',
       vide: nom === null,
-      texte: nom ? initiales(nom) : t('taches.assigner'),
+      statut: 'aucun',
+      texte: nom ? `@${nom}` : t('taches.assignerA'),
       titre: nom ? t('taches.assigneeA', { nom }) : t('taches.assignerQuelquun'),
       retard: false,
-      ...(nom ? { teinte: teinteDe(nom) } : {}),
-    },
-  ]
+    })
+  return res
 }
 
 /** Le nom de la personne assignée, s'il y en a une. */

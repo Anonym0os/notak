@@ -105,11 +105,9 @@ export function MenuPuce({ ouverture, valeur, personnes, regler, fermer }: {
           </div>
         </>
       )}
-      {valeur && (
-        <button type="button" role="menuitem" className="notak-menu-puce-retirer" onClick={() => choisir(null)}>
-          {ouverture.genre === 'echeance' ? t('taches.retirerEcheance') : t('taches.retirerPersonne')}
-        </button>
-      )}
+      <button type="button" role="menuitem" className="notak-menu-puce-retirer" onClick={() => choisir(null)}>
+        {ouverture.genre === 'echeance' ? t('taches.retirerEcheance') : t('taches.retirerPersonne')}
+      </button>
     </div>,
     ouverture.hote,
   )

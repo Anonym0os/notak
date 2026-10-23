@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { type NoeudTexte } from '../../coeur/tableau'
 import { regler, docVide, sousTaches } from './liste'
-import { assigneDe, decaler, echeanceDe, initiales, jourDe, jourValide, libelleEcheance, personnes, puces, teinteDe } from './puces'
+import { assigneDe, attrsPuce, decaler, echeanceDe, initiales, jourDe, jourValide, libelleEcheance, personnes, puces, teinteDe } from './puces'
 
 describe('jours', () => {
   it('écrit le jour de la machine AAAA-MM-JJ', () => {
@@ -37,13 +37,29 @@ describe('libelleEcheance', () => {
 })
 
 describe('puces', () => {
-  it('sans échéance, la puce est vide', () => {
-    const [p] = puces({ checked: false }, '2026-10-23')
-    expect(p).toMatchObject({ genre: 'echeance', vide: true, retard: false })
+  it('sans échéance, rien ne se dessine tant qu’on n’a pas demandé la puce', () => {
+    expect(puces({ checked: false }, '2026-10-23')).toEqual([])
+    const [p] = puces({ montreEcheance: true }, '2026-10-23')
+    expect(p).toMatchObject({ genre: 'echeance', vide: true, retard: false, statut: 'aucun', texte: 'Fixer l’échéance' })
+  })
+
+  it('écrit « Pour » devant le jour, et donne à chaque état sa couleur', () => {
+    const ajd = '2026-10-23'
+    expect(puces({ echeance: '2026-10-23' }, ajd)[0]).toMatchObject({ texte: 'Pour aujourd\'hui', statut: 'aujourdhui' })
+    expect(puces({ echeance: '2026-10-24' }, ajd)[0]).toMatchObject({ texte: 'Pour demain', statut: 'futur' })
+    expect(puces({ echeance: '2026-12-01' }, ajd)[0]).toMatchObject({ texte: 'Pour le 1 déc.', statut: 'futur' })
+    expect(puces({ echeance: '2026-10-20' }, ajd)[0]!.statut).toBe('retard')
+    expect(puces({ echeance: '2026-10-20', checked: true }, ajd)[0]!.statut).toBe('fait')
+  })
+
+  it('poser une valeur allume la puce, l’effacer la laisse vide, l’effacer encore l’éteint', () => {
+    expect(attrsPuce('echeance', '2026-10-23', null)).toEqual({ echeance: '2026-10-23', montreEcheance: true })
+    expect(attrsPuce('assigne', null, 'Léa')).toEqual({ assigne: null })
+    expect(attrsPuce('assigne', null, null)).toEqual({ montreAssigne: null })
   })
 
   it('une échéance passée est en retard tant que la tâche n’est pas faite', () => {
-    expect(puces({ echeance: '2026-10-20' }, '2026-10-23')[0]).toMatchObject({ vide: false, texte: '20 oct.', retard: true })
+    expect(puces({ echeance: '2026-10-20' }, '2026-10-23')[0]).toMatchObject({ vide: false, texte: 'Pour le 20 oct.', retard: true })
     expect(puces({ echeance: '2026-10-20', checked: true }, '2026-10-23')[0]!.retard).toBe(false)
     expect(puces({ echeance: '2026-10-23' }, '2026-10-23')[0]!.retard).toBe(false)
   })
@@ -67,10 +83,10 @@ describe('personne assignée', () => {
   })
 
   it('une puce pleine montre les initiales, une puce vide invite à assigner', () => {
-    const [, pleine] = puces({ assigne: 'Samy Agher' }, '2026-10-23')
-    expect(pleine).toMatchObject({ genre: 'assigne', vide: false, texte: 'SA', titre: 'Assignée à Samy Agher' })
-    expect(pleine!.teinte).toBeDefined()
-    expect(puces({ assigne: '   ' }, '2026-10-23')[1]).toMatchObject({ vide: true, texte: 'Assigner' })
+    const [pleine] = puces({ assigne: 'Samy Agher' }, '2026-10-23')
+    expect(pleine).toMatchObject({ genre: 'assigne', vide: false, texte: '@Samy Agher', titre: 'Assignée à Samy Agher' })
+    expect(puces({ assigne: '   ' }, '2026-10-23')).toEqual([])
+    expect(puces({ montreAssigne: true }, '2026-10-23')[0]).toMatchObject({ vide: true, texte: 'Assigner à' })
     expect(assigneDe({ assigne: ' Léa ' })).toBe('Léa')
   })
 
