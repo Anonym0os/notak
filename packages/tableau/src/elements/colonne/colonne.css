@@ -35,11 +35,11 @@
 
 /* Dans une colonne, les éléments n'ont pas d'ombre : un liseré les sépare. */
 .notak-colonne-corps > .notak-carte:not([data-sans-fond]) {
-  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.07);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.1);
 }
 
 .notak-colonne-corps > .notak-carte[data-choisie]:not([data-sans-fond], [data-edition]) {
-  box-shadow: 0 0 0 2px var(--notak-accent);
+  box-shadow: 0 0 0 2px var(--notak-selection);
 }
 
 .notak-colonne[data-couleur='gris'] { background: var(--notak-colonne-gris); }

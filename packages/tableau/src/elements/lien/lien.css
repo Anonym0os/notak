@@ -1,12 +1,13 @@
 .notak-lien {
   box-sizing: border-box;
   overflow: hidden;
-  border-radius: 2px;
+  border-radius: 0;
   background: var(--notak-carte);
   box-shadow: var(--notak-ombre);
   color: var(--notak-texte);
   font-size: 14px;
-  line-height: 1.35;
+  line-height: 20px;
+  letter-spacing: -0.1px;
 }
 
 .notak-lien-media {
@@ -57,8 +58,8 @@
 .notak-lien-texte {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 12px;
+  gap: 12px;
+  padding: 25px 24px 12px;
 }
 
 .notak-lien a {
@@ -71,7 +72,7 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  color: #6b7280;
+  color: rgb(0 0 0 / 0.4);
   font-size: 12px;
 }
 
@@ -93,7 +94,12 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   overflow-wrap: anywhere;
-  font-weight: 700;
+  color: var(--notak-accent);
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: -0.2px;
+  line-height: 1.5;
+  text-decoration: underline;
 }
 
 .notak-lien-titre:hover,

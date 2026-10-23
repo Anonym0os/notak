@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { COULEURS_NOTE } from '../../coeur/tableau'
 import { readFileSync } from 'node:fs'
 import type { Element } from '../../coeur/tableau'
-import { FOND_NOTE, TEXTE_CLAIR, TEXTE_SOMBRE, contraste, couleurTexteSur, couleursSuggerees, fondDeNote, lireHex, luminance, texteDeNote, texteDuContenu } from './couleurs'
+import { FOND_NOTE, SEUIL_SOMBRE, TEXTE_CLAIR, TEXTE_SOMBRE, contraste, couleurTexteSur, couleursSuggerees, fondDeNote, lireHex, luminance, texteDeNote, texteDuContenu } from './couleurs'
 
 describe('contraste', () => {
   it('mesure le noir et le blanc aux deux bouts', () => {
@@ -22,8 +22,9 @@ describe('contraste', () => {
   it('choisit pour chaque couleur de la palette le texte qui se lit le mieux', () => {
     for (const c of COULEURS_NOTE) {
       const texte = couleurTexteSur(FOND_NOTE[c])
-      const autre = texte === TEXTE_CLAIR ? TEXTE_SOMBRE : TEXTE_CLAIR
-      expect(contraste(FOND_NOTE[c], texte)).toBeGreaterThanOrEqual(contraste(FOND_NOTE[c], autre))
+      // Le seuil de Milanote : le blanc l'emporte tant qu'il contraste au moins autant que le gris-bleu #3d4554.
+      const autre = texte === TEXTE_CLAIR ? SEUIL_SOMBRE : TEXTE_CLAIR
+      expect(contraste(FOND_NOTE[c], texte === TEXTE_CLAIR ? TEXTE_CLAIR : SEUIL_SOMBRE)).toBeGreaterThanOrEqual(contraste(FOND_NOTE[c], autre))
       expect(contraste(FOND_NOTE[c], texte)).toBeGreaterThan(3)
     }
   })

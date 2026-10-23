@@ -3,7 +3,7 @@ import { type RefObject, useLayoutEffect } from 'react'
 /** Ce qu'on laisse entre un menu et le bord de l'écran. */
 const MARGE = 8
 /** La largeur de la barre de gauche : une barre flottante ne se glisse jamais dessous. */
-export const LARGEUR_BARRE_GAUCHE = 76
+export const LARGEUR_BARRE_GAUCHE = 72
 
 /** Les menus de la barre de sélection : les menus déroulants, et le tiroir « … » de la barre de gauche. */
 export const MENUS_BORNES = '[role="menu"], .notak-tiroir'

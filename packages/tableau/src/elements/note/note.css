@@ -1,16 +1,16 @@
 /* Les couleurs de la note : fonds, texte, surlignages. Les fonds sont aussi dans couleurs.ts (un test les compare). */
 .notak-toile {
-  --notak-note-gris: #8b939d;
-  --notak-note-cyan: #1db4c6;
-  --notak-note-vert: #3c9d5b;
-  --notak-note-brun: #8c6446;
-  --notak-note-jaune: #f3c534;
-  --notak-note-orange: #ef8a2f;
-  --notak-note-rouge: #d84b4b;
-  --notak-note-rose: #e8729f;
-  --notak-note-violet: #8a5fd1;
-  --notak-note-bleu: #3a76df;
-  --notak-note-bleu_nuit: #27344f;
+  --notak-note-gris: #bbbec3;
+  --notak-note-cyan: #62dbc8;
+  --notak-note-vert: #7cd651;
+  --notak-note-brun: #d58558;
+  --notak-note-jaune: #ffd14d;
+  --notak-note-orange: #ff8d48;
+  --notak-note-rouge: #ff5757;
+  --notak-note-rose: #ff6ed4;
+  --notak-note-violet: #ad6fff;
+  --notak-note-bleu: #4ebafd;
+  --notak-note-bleu_nuit: #5882f8;
 
   --notak-texte-bleu: #4ebafd;
   --notak-texte-vert: #4eb85a;
@@ -288,9 +288,9 @@
 /* Une note vide dit qu'on peut y écrire, même hors édition. */
 .notak-note:not([data-variante='titre']) .notak-texte:has(> p:only-child:empty)::before,
 .notak-note:not([data-variante='titre']) .notak-texte:has(> p:only-child > br.ProseMirror-trailingBreak:only-child)::before {
-  content: var(--notak-ph-note, 'Écrivez quelque chose…');
+  content: var(--notak-ph-note, 'Commencez à écrire…');
   position: absolute;
-  color: var(--notak-pale);
+  color: var(--notak-attente, var(--notak-pale));
   pointer-events: none;
 }
 
@@ -303,7 +303,7 @@
   text-align: center;
   font-size: 22px;
   font-weight: 700;
-  color: var(--notak-pale);
+  color: var(--notak-attente, var(--notak-pale));
   pointer-events: none;
 }
 
@@ -667,4 +667,17 @@
   font-size: 12px;
   color: #6b7280;
   cursor: pointer;
+}
+
+/* Sur une note de couleur, le texte d'attente est une transparence du texte, noir ou blanc selon le fond. */
+.notak-note[style*='color'] .notak-texte:has(> p:only-child:empty)::before,
+.notak-note[style*='color'] .notak-texte:has(> p:only-child > br.ProseMirror-trailingBreak:only-child)::before,
+.notak-note[style*='color'] .notak-texte:has(> h1:only-child:empty)::before,
+.notak-note[style*='color'] .notak-texte:has(> h1:only-child > br.ProseMirror-trailingBreak:only-child)::before {
+  color: color-mix(in srgb, currentColor 30%, transparent);
+}
+
+/* Une carte de couleur garde l'ombre simple, sans l'anneau qui détoure une carte blanche. */
+.notak-carte:has(> .notak-note[style*='color']):not([data-choisie], [data-edition]) {
+  box-shadow: 0 1px 2px rgb(27 37 54 / 0.1);
 }

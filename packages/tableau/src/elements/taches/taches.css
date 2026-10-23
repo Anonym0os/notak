@@ -1,6 +1,7 @@
 .notak-taches {
   font-size: 14px;
-  line-height: 1.45;
+  line-height: 20px;
+  letter-spacing: -0.1px;
   overflow-wrap: anywhere;
   color: var(--notak-texte);
 }
@@ -38,7 +39,7 @@
   color: #9aa0a8;
 }
 
-/* La zone de clic fait 24 px ; la case ronde en fait 16, dessinée au centre. */
+/* La zone de clic fait 24 px ; la case carrée en fait 16, dessinée au centre. */
 .notak-case {
   position: relative;
   flex: none;
@@ -58,18 +59,18 @@
   position: absolute;
   inset: 4px;
   box-sizing: border-box;
-  border: 1.5px solid #b3b9c1;
-  border-radius: 50%;
-  transition: background-color 150ms, border-color 150ms;
+  border: 1.5px solid var(--notak-texte);
+  border-radius: 2px;
+  transition: background-color 100ms, border-color 100ms, transform 150ms;
 }
 
-.notak-case:hover::before {
-  border-color: var(--notak-accent);
+.notak-case:active::before {
+  transform: scale(0.8);
 }
 
 .notak-case[aria-checked='true']::before {
-  border-color: var(--notak-accent);
-  background: var(--notak-accent);
+  border-color: var(--notak-texte);
+  background: var(--notak-texte);
 }
 
 .notak-case[aria-checked='true']::after {
