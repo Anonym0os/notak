@@ -3,6 +3,7 @@ import type { Duplex } from 'node:stream'
 import { Database } from '@hocuspocus/extension-database'
 import { Hocuspocus } from '@hocuspocus/server'
 import { WebSocketServer } from 'ws'
+import { type Acteur, suivreActivite } from './activite.ts'
 import type { Base } from './base.ts'
 import { roleHerite } from './droits.ts'
 import { indexerDocument } from './indexation.ts'
@@ -19,6 +20,7 @@ export function nomDuDocument(tableau: string): string {
 }
 
 export function creerHocuspocus(base: Base, maintenant: () => number = Date.now): Hocuspocus {
+  const activite = suivreActivite(base, maintenant)
   return new Hocuspocus({
     extensions: [
       new Database({
@@ -40,6 +42,12 @@ export function creerHocuspocus(base: Base, maintenant: () => number = Date.now)
       const meta = document.getMap('meta')
       const titre = id ? base.tableau(id)?.titre : undefined
       if (titre && !meta.get('titre')) document.transact(() => meta.set('titre', titre))
+      // Après ce réglage du serveur : seul ce que font les personnes entre dans l'activité.
+      activite.suivre(document)
+    },
+    // Qui a envoyé la mise à jour : la session, posée par `onAuthenticate`. Le serveur seul n'a pas de contexte.
+    async onChange({ documentName, document, context }) {
+      activite.noter(idDuDocument(documentName), document, (context as { utilisateur?: Acteur } | undefined)?.utilisateur)
     },
     async onAuthenticate({ documentName, requestHeaders, connectionConfig }) {
       const id = idDuDocument(documentName)

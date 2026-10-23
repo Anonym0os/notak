@@ -32,6 +32,42 @@ export interface Fichier {
   auteur: string
 }
 
+export type GenreActivite = 'cree' | 'modifie' | 'deplace' | 'supprime' | 'restaure' | 'commente' | 'titre'
+
+export interface NouvelleActivite {
+  tableau: string
+  auteur: string
+  genre: GenreActivite
+  /** L'élément touché ; vide pour le titre du tableau. */
+  element: string
+  typeElement: string
+  libelle: string
+  instant: number
+}
+
+export interface LigneActivite extends Omit<NouvelleActivite, 'auteur'> {
+  id: number
+  auteur: { id: string; nom: string; couleur: string }
+}
+
+export type GenreNotification = 'commentaire' | 'mention' | 'modification' | 'partage'
+
+export interface NouvelleNotification {
+  destinataire: string
+  genre: GenreNotification
+  tableau: string
+  element: string
+  auteur: string
+  extrait: string
+  instant: number
+}
+
+export interface LigneNotification extends Omit<NouvelleNotification, 'auteur' | 'destinataire'> {
+  id: number
+  auteur: { id: string; nom: string; couleur: string }
+  lu: boolean
+}
+
 export interface Base {
   /** Exécute `travail` dans une transaction : annulée si elle lève. */
   transaction<T>(travail: () => T): T
@@ -83,6 +119,25 @@ export interface Base {
   /** Les tableaux ouverts en dernier par un compte, le plus récent d'abord. */
   recents(utilisateur: string, limite: number): string[]
 
+  /**
+   * Note ce qu'une personne vient de faire dans un tableau. Le même geste sur le même élément par la même personne
+   * dans les `fenetre` ms qui précèdent n'ajoute pas de ligne : il renouvelle l'instant de la précédente.
+   */
+  noterActivite(a: NouvelleActivite, fenetre: number): void
+  /** Les gestes d'un tableau, le plus récent d'abord ; `apres` : seulement ceux d'un numéro supérieur. */
+  activite(tableau: string, limite: number, apres?: number): LigneActivite[]
+
+  /**
+   * Ajoute une notification. Avec `fusionner` (ms), une notification non lue du même genre, sur le même tableau,
+   * du même auteur et au même destinataire, notée dans cette fenêtre, est renouvelée au lieu d'être doublée.
+   */
+  noterNotification(n: NouvelleNotification, fusionner?: number): void
+  /** Les notifications d'un compte, la plus récente d'abord. */
+  notifications(destinataire: string, limite: number): LigneNotification[]
+  nonLues(destinataire: string): number
+  /** Marque comme lues ces notifications de ce compte, ou toutes si `ids` est `null` ; rend leur nombre. */
+  marquerLues(destinataire: string, ids: readonly number[] | null): number
+
   /** Remplace tout ce qu'on sait chercher dans ce tableau. `element` vide : le titre du tableau. */
   indexer(tableau: string, entrees: readonly EntreeIndex[]): void
   /** Les tableaux dont le document est enregistré mais que l'index n'a jamais vus. */
@@ -104,6 +159,9 @@ export interface Trouve {
 
 /** Combien de tableaux récents on garde par compte. */
 export const RECENTS_GARDES = 50
+/** Combien de gestes on garde par tableau, et de notifications par compte. */
+export const ACTIVITE_GARDEE = 500
+export const NOTIFICATIONS_GARDEES = 200
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS utilisateurs (
@@ -154,6 +212,24 @@ CREATE VIRTUAL TABLE IF NOT EXISTS recherche USING fts5(
   tableau UNINDEXED, element UNINDEXED, texte, tokenize = 'unicode61 remove_diacritics 2'
 );
 CREATE TABLE IF NOT EXISTS recherche_etat (tableau TEXT PRIMARY KEY);
+CREATE TABLE IF NOT EXISTS activite (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  auteur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  genre TEXT NOT NULL, element TEXT NOT NULL, type_element TEXT NOT NULL, libelle TEXT NOT NULL,
+  instant INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS activite_tableau ON activite(tableau, id DESC);
+CREATE TABLE IF NOT EXISTS notifications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  destinataire TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  genre TEXT NOT NULL,
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  element TEXT NOT NULL,
+  auteur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  extrait TEXT NOT NULL, instant INTEGER NOT NULL, lu INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS notifications_destinataire ON notifications(destinataire, id DESC);
 CREATE TABLE IF NOT EXISTS liens_publics (
   tableau TEXT PRIMARY KEY REFERENCES tableaux(id) ON DELETE CASCADE,
   jeton TEXT NOT NULL UNIQUE, cree INTEGER NOT NULL
@@ -305,6 +381,110 @@ export function ouvrirBase(chemin: string): Base {
         JSON.stringify(tableaux),
         limite,
       ) as unknown as Trouve[],
+    noterActivite(a, fenetre) {
+      const renouvelle = executer(
+        `UPDATE activite SET instant = ?, libelle = ? WHERE id = (
+           SELECT id FROM activite WHERE tableau = ? AND auteur = ? AND element = ? AND genre = ? AND instant >= ? ORDER BY id DESC LIMIT 1)`,
+        a.instant,
+        a.libelle,
+        a.tableau,
+        a.auteur,
+        a.element,
+        a.genre,
+        a.instant - fenetre,
+      )
+      if (Number(renouvelle.changes) > 0) return
+      executer(
+        'INSERT INTO activite (tableau,auteur,genre,element,type_element,libelle,instant) VALUES (?,?,?,?,?,?,?)',
+        a.tableau,
+        a.auteur,
+        a.genre,
+        a.element,
+        a.typeElement,
+        a.libelle,
+        a.instant,
+      )
+      executer(
+        'DELETE FROM activite WHERE tableau = ? AND id <= (SELECT id FROM activite WHERE tableau = ? ORDER BY id DESC LIMIT 1 OFFSET ?)',
+        a.tableau,
+        a.tableau,
+        ACTIVITE_GARDEE,
+      )
+    },
+    activite: (tableau, limite, apres = 0) =>
+      (
+        tous(
+          `SELECT a.id, a.tableau, a.genre, a.element, a.type_element AS typeElement, a.libelle, a.instant,
+                  u.id AS auteurId, u.nom AS auteurNom, u.couleur AS auteurCouleur
+           FROM activite a JOIN utilisateurs u ON u.id = a.auteur
+           WHERE a.tableau = ? AND a.id > ? ORDER BY a.id DESC LIMIT ?`,
+          tableau,
+          apres,
+          limite,
+        ) as unknown as (Omit<LigneActivite, 'auteur'> & { auteurId: string; auteurNom: string; auteurCouleur: string })[]
+      ).map(({ auteurId, auteurNom, auteurCouleur, ...reste }) => ({ ...reste, auteur: { id: auteurId, nom: auteurNom, couleur: auteurCouleur } })),
+
+    noterNotification(n, fusionner) {
+      if (fusionner !== undefined) {
+        const renouvelle = executer(
+          `UPDATE notifications SET instant = ?, extrait = ?, element = ? WHERE id = (
+             SELECT id FROM notifications
+             WHERE destinataire = ? AND genre = ? AND tableau = ? AND auteur = ? AND lu = 0 AND instant >= ? ORDER BY id DESC LIMIT 1)`,
+          n.instant,
+          n.extrait,
+          n.element,
+          n.destinataire,
+          n.genre,
+          n.tableau,
+          n.auteur,
+          n.instant - fusionner,
+        )
+        if (Number(renouvelle.changes) > 0) return
+      }
+      executer(
+        'INSERT INTO notifications (destinataire,genre,tableau,element,auteur,extrait,instant) VALUES (?,?,?,?,?,?,?)',
+        n.destinataire,
+        n.genre,
+        n.tableau,
+        n.element,
+        n.auteur,
+        n.extrait,
+        n.instant,
+      )
+      executer(
+        'DELETE FROM notifications WHERE destinataire = ? AND id <= (SELECT id FROM notifications WHERE destinataire = ? ORDER BY id DESC LIMIT 1 OFFSET ?)',
+        n.destinataire,
+        n.destinataire,
+        NOTIFICATIONS_GARDEES,
+      )
+    },
+    notifications: (destinataire, limite) =>
+      (
+        tous(
+          `SELECT n.id, n.genre, n.tableau, n.element, n.extrait, n.instant, n.lu,
+                  u.id AS auteurId, u.nom AS auteurNom, u.couleur AS auteurCouleur
+           FROM notifications n JOIN utilisateurs u ON u.id = n.auteur
+           WHERE n.destinataire = ? ORDER BY n.id DESC LIMIT ?`,
+          destinataire,
+          limite,
+        ) as unknown as (Omit<LigneNotification, 'auteur' | 'lu'> & { lu: number; auteurId: string; auteurNom: string; auteurCouleur: string })[]
+      ).map(({ auteurId, auteurNom, auteurCouleur, lu, ...reste }) => ({
+        ...reste,
+        lu: lu === 1,
+        auteur: { id: auteurId, nom: auteurNom, couleur: auteurCouleur },
+      })),
+    nonLues: (destinataire) =>
+      Number(un('SELECT COUNT(*) AS n FROM notifications WHERE destinataire = ? AND lu = 0', destinataire)?.n ?? 0),
+    marquerLues(destinataire, ids) {
+      if (ids === null) return Number(executer('UPDATE notifications SET lu = 1 WHERE destinataire = ? AND lu = 0', destinataire).changes)
+      return Number(
+        executer(
+          'UPDATE notifications SET lu = 1 WHERE destinataire = ? AND lu = 0 AND id IN (SELECT value FROM json_each(?))',
+          destinataire,
+          JSON.stringify(ids),
+        ).changes,
+      )
+    },
     tableauDuJeton: (jeton) => (un('SELECT tableau FROM liens_publics WHERE jeton = ?', jeton)?.tableau as string | undefined) ?? null,
   }
 }
