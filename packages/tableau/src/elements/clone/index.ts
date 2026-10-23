@@ -25,6 +25,7 @@ export function cloner(elements: readonly Element[], contexte: ContexteToile) {
 
 registre.type<Clone>({
   type: 'clone',
+  redimensionnable: false,
   get nom() {
     return t('type.clone')
   },

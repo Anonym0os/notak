@@ -9,6 +9,7 @@ import { ico } from '../../icones'
 
 registre.type<Taches>({
   type: 'taches',
+  redimensionnable: false,
   get nom() {
     return t('type.taches')
   },

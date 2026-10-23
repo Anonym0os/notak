@@ -11,6 +11,7 @@ import { OutilCouleurCarte } from '../couleur/OutilCouleurCarte'
 
 registre.type<DocumentTexte>({
   type: 'document',
+  redimensionnable: false,
   get nom() {
     return t('type.document')
   },

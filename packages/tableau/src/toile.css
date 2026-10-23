@@ -164,8 +164,8 @@
 .notak-lasso {
   position: absolute;
   pointer-events: none;
-  border: 1px solid var(--notak-accent);
-  background: rgb(47 111 235 / 0.08);
+  border: 1px solid #8d929a;
+  background: rgb(0 0 0 / 0.05);
 }
 
 
@@ -179,9 +179,9 @@
   box-shadow: 0 0 0 2px var(--notak-selection);
 }
 
-/* Une note transparente se devine au survol. */
-.notak-carte[data-type='note'][data-sans-fond]:not([data-choisie]):hover {
-  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.14);
+/* Une carte transparente se devine au survol : un liseré de 1 px à 10 % de noir. */
+.notak-carte[data-sans-fond]:not([data-choisie], [data-type='ligne'], [data-type='dessin']):hover {
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.1);
 }
 
 .notak-calque-lignes {
@@ -631,8 +631,8 @@
 .notak-trait-depot {
   position: absolute;
   height: 2px;
-  border-radius: 1px;
-  background: var(--notak-accent);
+  border-radius: 0;
+  background: var(--notak-selection);
   pointer-events: none;
 }
 

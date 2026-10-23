@@ -88,7 +88,7 @@ type Geste =
       type: 'redimensionnerGroupe'
       depart: Point
       cadre: Rect
-      items: { id: Id; x: number; y: number; largeur: number; min: number; ligne: boolean }[]
+      items: { id: Id; x: number; y: number; largeur: number; min: number; ligne: boolean; proportion?: boolean }[]
     }
   | {
       type: 'redimensionner'
@@ -103,18 +103,20 @@ type Geste =
     }
 
 /**
- * Où en est le groupe tiré jusqu'à `ici` : une seule échelle, celle de la plus grande traction, qui ne descend pas
- * sous la largeur minimale d'aucun élément. Chaque élément s'éloigne du coin haut gauche en proportion ; une ligne
- * ne fait que suivre. Les opérations vont de l'état présent à l'état voulu.
+ * Où en est le groupe tiré jusqu'à `ici` : une échelle par axe, celle en x ne descendant pas sous la largeur minimale
+ * d'aucun élément. Chaque élément s'éloigne du coin haut gauche en proportion ; une ligne ne fait que suivre. Les opérations vont de l'état présent à l'état voulu.
  */
-function pasDuGroupe(g: Extract<Geste, { type: 'redimensionnerGroupe' }>, ici: Point): Operation[] {
+function pasDuGroupe(g: Extract<Geste, { type: 'redimensionnerGroupe' }>, ici: Point, libre = false): Operation[] {
   const [l, h] = [g.cadre.max.x - g.cadre.min.x, g.cadre.max.y - g.cadre.min.y]
   const plancher = Math.max(0.1, ...g.items.filter((i) => !i.ligne).map((i) => i.min / i.largeur))
-  const echelle = Math.max(plancher, 1 + Math.max((ici.x - g.depart.x) / l, (ici.y - g.depart.y) / h))
+  // Chaque axe a sa propre échelle ; un média du groupe qui garde ses proportions ramène les deux à l'échelle en x (Cmd les libère).
+  const echelleX = Math.max(plancher, 1 + (ici.x - g.depart.x) / l)
+  const echelleY = !libre && g.items.some((i) => i.proportion) ? echelleX : Math.max(0.1, 1 + (ici.y - g.depart.y) / h)
   const o = g.cadre.min
   return g.items.flatMap((i): Operation[] => {
-    const x = Math.round(o.x + (i.x - o.x) * echelle)
-    const y = Math.round(o.y + (i.y - o.y) * echelle)
+    const x = Math.round(o.x + (i.x - o.x) * echelleX)
+    const y = Math.round(o.y + (i.y - o.y) * echelleY)
+    const echelle = echelleX
     const pas: Operation[] = [{ type: 'deplacer', id: i.id, de: [i.x, i.y], vers: [x, y] }]
     if (!i.ligne) pas.push({ type: 'redimensionner', id: i.id, de: i.largeur, vers: Math.max(i.min, Math.round(i.largeur * echelle)) })
     return pas
@@ -365,6 +367,19 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const cible = useRef<Cible | null>(null)
   /** Le tableau où tombera ce qu'on glisse (sa carte sur la toile, ou un segment du fil d'Ariane), et son nœud. */
   const tableauVise = useRef<{ id: Id; noeud: HTMLElement } | null>(null)
+  // Le paquet glissé rétrécit au-dessus d'un tableau, de la corbeille ou du fil d'Ariane (0,8 et 75 %), et pâlit sur une colonne (75 %).
+  const reduction = useRef({ cible: { echelle: 1, opacite: 1 }, actuel: { echelle: 1, opacite: 1 }, instant: 0 })
+  const reductionVol = () => {
+    const r = reduction.current
+    const t = performance.now()
+    const k = 1 - Math.exp(-Math.min(t - r.instant, 100) / 70)
+    r.instant = t
+    r.actuel = {
+      echelle: r.actuel.echelle + (r.cible.echelle - r.actuel.echelle) * k,
+      opacite: r.actuel.opacite + (r.cible.opacite - r.actuel.opacite) * k,
+    }
+    return r.actuel
+  }
   // L'entrée au survol en attente, et le dernier point du pointeur (écran) pour la reprise dans l'autre tableau.
   const entree = useRef<{ noeud: HTMLElement; minuteur: ReturnType<typeof setTimeout> } | null>(null)
   const dernierPointeur = useRef<{ ecran: Point; id: number } | null>(null)
@@ -1083,7 +1098,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     g.envol = new Envol(reglageVol(choisis, 0), (v) => {
       for (const id of g.vols) {
         const n = noeudDe(id)
-        if (n) dessinerSur(n, transformation(v, g.base), v.ombre)
+        if (n) dessinerSur(n, transformation(v, g.base), v.ombre, reductionVol())
       }
     })
     geste.current = g
@@ -1548,7 +1563,19 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     } else if (e.button === 0) {
       const ici = cam.versTableau(camera, p)
       const el = id && tableau.elements.find((x) => x.id === id)
-      if (el && !lectureSeule && !el.verrou && (e.target as HTMLElement).closest('[data-poignee]')) {
+      if (el && !lectureSeule && !el.verrou && (e.target as HTMLElement).closest('[data-poignee]') && selection.size > 1 && selection.has(el.id)) {
+        // Une poignée dans une sélection de plusieurs : chacune lance le redimensionnement du groupe.
+        const choisis = tableau.elements.filter((x) => selection.has(x.id))
+        const rects = choisis.flatMap((x) => rect(x.id) ?? [])
+        const items = choisis
+          .filter((x) => !x.parent && !x.verrou && definition(x.contenu.type)?.calque !== 'lignes')
+          .map((x) => {
+            const def = definition(x.contenu.type)
+            return { id: x.id, x: x.x, y: x.y, largeur: x.largeur, min: largeurMinDe(def?.largeurMin, x.contenu), ligne: false, proportion: !!def?.proportion?.(x.contenu as never) }
+          })
+        const cadre = englobant(rects)
+        if (cadre) geste.current = { type: 'redimensionnerGroupe', depart: ici, cadre, items }
+      } else if (el && !lectureSeule && !el.verrou && (e.target as HTMLElement).closest('[data-poignee]')) {
         const def = definition(el.contenu.type)
         const min = largeurMinDe(def?.largeurMin, el.contenu)
         const n = def?.hauteurBornable && !el.parent ? noeudDe(el.id) : null
@@ -1703,7 +1730,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       return setPrisLasso(lasso(zone, rects, g.avant, g.inverser))
     }
     if (g.type === 'redimensionnerGroupe') {
-      return magasin.appliquerSeulement(pasDuGroupe(g, ici))
+      return magasin.appliquerSeulement(pasDuGroupe(g, ici, e.metaKey || e.ctrlKey))
     }
     if (g.type === 'redimensionner' && g.avant) {
       // Une poignée qui change le contenu (une table gagne des colonnes) : le type dit ce que devient l'élément.
@@ -1734,6 +1761,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (Math.hypot(p.x - g.ecran.x, p.y - g.ecran.y) < SEUIL_GLISSER) return
       g.demarre = true
       g.reduire = undefined
+      reduction.current = { cible: { echelle: 1, opacite: 1 }, actuel: { echelle: 1, opacite: 1 }, instant: performance.now() }
       arreterDepose()
       // Les colonnes telles qu'au départ : celle qu'on quitte et celle qu'on vise changent de taille au dépôt.
       colonnesAuDepart.current = tableau.elements.flatMap((x) => {
@@ -1774,7 +1802,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       g.envol = new Envol(reglageVol(choisis, cote), (v) => {
         for (const id of g.vols) {
           const n = noeudDe(id)
-          if (n) dessinerSur(n, transformation(v, g.base), v.ombre)
+          if (n) dessinerSur(n, transformation(v, g.base), v.ombre, reductionVol())
         }
       })
       setGlisses(new Set(ids))
@@ -1842,9 +1870,19 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (freres.length === 0) {
         const zone = noeud.querySelector('[data-depot]')?.getBoundingClientRect()
         if (zone) y = (zone.top + zone.bottom) / 2
-      } else y = index < freres.length ? freres[index]!.top - 4 * k : freres[freres.length - 1]!.bottom + 4 * k
+      } else y = index < freres.length ? freres[index]!.top - 6 * k : freres[freres.length - 1]!.bottom + 6 * k
       trouvee = { colonne: conteneur.id, index, acceptes }
-      nouveauTrait = { x0: c.left - o.left + 8 * k, x1: c.right - o.left - 8 * k, y: y - o.top }
+      // Pas de trait quand le dépôt ne changerait rien : un seul élément, remis à sa place dans sa colonne.
+      let sansEffet = false
+      const g = geste.current
+      if (glisses.size === 1 && g?.type === 'glisser') {
+        const origine = g.origines.get([...glisses][0]!)
+        if (origine?.place.parent === conteneur.id && origine.place.ordre !== undefined) {
+          const avant = elements.filter((x) => x.parent === conteneur.id && !glisses.has(x.id) && comparerOrdre(x.ordre, origine.place.ordre!) < 0).length
+          sansEffet = avant === index
+        }
+      }
+      nouveauTrait = sansEffet ? null : { x0: c.left - o.left, x1: c.right - o.left, y: y - o.top }
       break
     }
     if (tableauVise.current?.noeud !== versTableau?.noeud) {
@@ -1867,6 +1905,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     }
     tableauVise.current = versTableau
     if (versTableau) nouveauTrait = null
+    const surCorbeille = !!document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-corbeille]')
+    reduction.current.cible = versTableau || surCorbeille ? { echelle: 0.8, opacite: 0.75 } : trouvee ? { echelle: 1, opacite: 0.75 } : { echelle: 1, opacite: 1 }
     cible.current = versTableau ? null : trouvee
     setTrait((t) => (t && nouveauTrait && t.x0 === nouveauTrait.x0 && t.x1 === nouveauTrait.x1 && t.y === nouveauTrait.y ? t : nouveauTrait))
   }
@@ -2031,6 +2071,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     setTrait(null)
     setGlisses(null)
     setEmpreintes(AUCUNE)
+    reduction.current.cible = { echelle: 1, opacite: 1 }
     if (g?.type === 'outil') return lacherOutil(g, e, visee, versTableau?.id)
     if (g?.type !== 'glisser') return
     if (g.demarre) {
@@ -2240,7 +2281,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
               choisie={vueChoix.has(e.id)}
               seule={e.id === seule}
               enEdition={edition === e.id}
-              poignee={!lectureSeule && !e.verrou && !edition && (e.id === seule || !selection.has(e.id))}
+              poignee={!lectureSeule && !e.verrou && !edition && definition(e.contenu.type)?.redimensionnable !== false && (e.id === seule || !selection.has(e.id) || selection.size > 1)}
               audessus={glisses?.has(e.id)}
               contexte={contexte}
               brouillon={surBrouillon}
@@ -2278,27 +2319,6 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         />
       )}
       {trait && <div className="notak-trait-depot" style={{ left: trait.x0, top: trait.y - 1, width: trait.x1 - trait.x0 }} />}
-      {barre && elementsChoisis.length > 1 && (
-        <div
-          className="notak-poignee-groupe"
-          data-poignee-groupe
-          title={t('toile.redimensionner')}
-          style={{ left: barre.max.x - 5, top: barre.max.y - 5 }}
-          onPointerDown={(e) => {
-            if (e.button !== 0) return
-            e.stopPropagation()
-            const items = elementsChoisis
-              .filter((x) => !x.parent && !x.verrou && definition(x.contenu.type)?.calque !== 'lignes')
-              .map((x) => {
-                const def = definition(x.contenu.type)
-                return { id: x.id, x: x.x, y: x.y, largeur: x.largeur, min: largeurMinDe(def?.largeurMin, x.contenu), ligne: def?.calque === 'lignes' }
-              })
-            geste.current = { type: 'redimensionnerGroupe', depart: cam.versTableau(camera, local(e)), cadre: cadreChoisis!, items }
-            setEnGeste(true)
-            racine.current?.setPointerCapture?.(e.pointerId)
-          }}
-        />
-      )}
       {barre && (
         <BarreSelection
           elements={elementsChoisis}
