@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { Apercu, Id, Lien } from '../../coeur/tableau'
+import type { Apercu, CauseEchec, Id, Lien } from '../../coeur/tableau'
 import type { PropsRendu } from '../types'
 import { domaineDe, lireAdresse } from './adresse'
+import { lireCause, messageEchec } from './echec'
 import { lecteurDe } from './lecteurs'
 import { Media } from './Media'
 
@@ -34,21 +35,22 @@ function useChargementApercu({ element, contexte }: PropsRendu<Lien>) {
     if (statut !== 'attente' || !url || marque.current === `${id}|${url}`) return
     marque.current = `${id}|${url}`
     const chercheur = contexte.services.apercu
-    const terminer = (statutFinal: 'pret' | 'echec', apercu?: Apercu) => {
+    const terminer = (statutFinal: 'pret' | 'echec', apercu?: Apercu, cause?: CauseEchec) => {
       const actuel = contexte.magasin.lire().elements.find((e) => e.id === id)?.contenu
       // L'élément a disparu ou changé d'adresse entre-temps : ce résultat ne le concerne plus.
       if (!actuel || actuel.type !== 'lien' || actuel.url !== url || actuel.statut !== 'attente') return
-      const apres: Lien = { ...actuel, statut: statutFinal, apercu }
+      const { echec: _, ...sans } = actuel
+      const apres: Lien = { ...sans, statut: statutFinal, apercu, ...(cause ? { echec: cause } : {}) }
       contexte.magasin.corriger([{ type: 'contenu', id, avant: actuel, apres }])
     }
-    if (!chercheur) return terminer('echec')
+    if (!chercheur) return terminer('echec', undefined, 'injoignable')
     let minuteur: ReturnType<typeof setTimeout>
     const limite = new Promise<never>((_, rejeter) => {
-      minuteur = setTimeout(() => rejeter(new Error('délai')), DELAI_APERCU)
+      minuteur = setTimeout(() => rejeter(new Error('délai', { cause: 'delai' })), DELAI_APERCU)
     })
     Promise.race([chercheur(url), limite])
       .then((a) => terminer('pret', a))
-      .catch(() => terminer('echec'))
+      .catch((e: unknown) => terminer('echec', undefined, lireCause(e)))
       .finally(() => clearTimeout(minuteur))
   }, [id, url, statut, contexte])
 }
@@ -164,6 +166,11 @@ function Carte({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<
           <span className="notak-lien-chargement" role="status" aria-label="Chargement" />
         ) : (
           <>
+            {statut === 'echec' && (
+              <div className="notak-lien-echec" role="status">
+                {messageEchec(contenu.echec)}
+              </div>
+            )}
             {partie === 'titre' ? (
               <Champ classe="notak-lien-titre" valeur={titre ?? ''} max={500} toutChoisir ligne ecrire={(v) => ecrire('titre', v)} finir={contexte.finirEdition} />
             ) : (

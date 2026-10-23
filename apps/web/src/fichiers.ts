@@ -19,5 +19,10 @@ export const fichiers: DepotFichiers = {
   adresse: async (id) => adresseFichier(id),
 }
 
-export const apercu = (url: string) =>
-  fetch('/api/apercu?url=' + encodeURIComponent(url)).then((r) => (r.ok ? r.json() : Promise.reject(new Error('Aperçu indisponible'))))
+/** Un aperçu manqué porte sa cause (`introuvable`, `refuse`…) : la carte la dit. */
+export async function apercu(url: string) {
+  const r = await fetch('/api/apercu?url=' + encodeURIComponent(url), { credentials: 'same-origin' })
+  if (r.ok) return r.json()
+  const { cause } = (await r.json().catch(() => ({}))) as { cause?: unknown }
+  throw new Error('Aperçu indisponible', { cause })
+}

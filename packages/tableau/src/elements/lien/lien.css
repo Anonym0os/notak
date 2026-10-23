@@ -175,3 +175,10 @@
 .notak-lien-titre.notak-lien-edition {
   font-weight: 700;
 }
+
+/* L'aperçu a échoué : la cause, sous l'adresse. */
+.notak-lien-echec {
+  color: #b45309;
+  font-size: 12px;
+  line-height: 1.35;
+}
