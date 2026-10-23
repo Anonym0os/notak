@@ -4,13 +4,14 @@ import type { Dessin, Trait } from '../../coeur/tableau'
 import { cheminLisse } from '../croquis/trace'
 import type { ContexteToile, PropsRendu } from '../types'
 import { dessinDepuis } from './trace'
+import { t } from '../../langue'
 
 export function RenduDessin({ element }: PropsRendu<Dessin>) {
   const c = element.contenu
   return (
     <svg className="notak-dessin" viewBox={`0 0 ${c.largeurOrigine} ${c.hauteurOrigine}`} style={{ aspectRatio: `${c.largeurOrigine} / ${c.hauteurOrigine}` }}>
-      {c.traits.map((t, i) => (
-        <path key={i} d={cheminLisse(t.points)} stroke={t.couleur} strokeWidth={t.epaisseur} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      {c.traits.map((tr, i) => (
+        <path key={i} d={cheminLisse(tr.points)} stroke={tr.couleur} strokeWidth={tr.epaisseur} fill="none" strokeLinecap="round" strokeLinejoin="round" />
       ))}
     </svg>
   )
@@ -92,24 +93,24 @@ function Couche({ contexte, hote, fermer }: { contexte: ContexteToile; hote: HTM
           setEnCours((pts) => (pts ? [...pts, p.x, p.y] : pts))
         }}
         onPointerUp={() => {
-          if (enCours && enCours.length >= 2) setTraits((t) => [...t, { points: enCours, couleur, epaisseur }])
+          if (enCours && enCours.length >= 2) setTraits((tr) => [...tr, { points: enCours, couleur, epaisseur }])
           setEnCours(null)
         }}
       >
-        {[...traits, ...(enCours ? [{ points: enCours, couleur, epaisseur }] : [])].map((t, i) => (
-          <path key={i} d={cheminLisse(versEcran(t.points))} stroke={t.couleur} strokeWidth={t.epaisseur * echelle} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        {[...traits, ...(enCours ? [{ points: enCours, couleur, epaisseur }] : [])].map((tr, i) => (
+          <path key={i} d={cheminLisse(versEcran(tr.points))} stroke={tr.couleur} strokeWidth={tr.epaisseur * echelle} fill="none" strokeLinecap="round" strokeLinejoin="round" />
         ))}
       </svg>
       <div className="notak-dessin-libre-barre" onPointerDown={(e) => e.stopPropagation()}>
-        <span>Dessinez sur la toile</span>
+        <span>{t('dessin.surToile')}</span>
         {COULEURS.map((c) => (
-          <button key={c} type="button" aria-label={`Couleur ${c}`} aria-pressed={couleur === c} style={{ background: c }} onClick={() => setCouleur(c)} />
+          <button key={c} type="button" aria-label={t('image.couleurTrait', { couleur: c })} aria-pressed={couleur === c} style={{ background: c }} onClick={() => setCouleur(c)} />
         ))}
-        <button type="button" className="notak-dessin-libre-texte" disabled={traits.length === 0} onClick={() => setTraits((t) => t.slice(0, -1))}>
-          Annuler le trait
+        <button type="button" className="notak-dessin-libre-texte" disabled={traits.length === 0} onClick={() => setTraits((tr) => tr.slice(0, -1))}>
+          {t('dessin.annulerTrait')}
         </button>
         <button type="button" className="notak-dessin-libre-texte notak-dessin-libre-fin" onClick={() => fermer(traits)}>
-          Terminer
+          {t('commun.terminer')}
         </button>
       </div>
     </>

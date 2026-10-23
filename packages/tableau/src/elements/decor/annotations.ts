@@ -1,5 +1,6 @@
 import { COULEURS_NOTE, type CouleurNote, type Element, type Etiquette, type Id, type Operation, type Reactions, nouvelId } from '../../coeur/tableau'
 import type { TypeElement } from '../types'
+import { langue, t } from '../../langue'
 
 // ---- Étiquettes ----
 
@@ -94,6 +95,7 @@ export function etatEcheance(echeance: string, maintenant = new Date()): 'passee
 }
 
 const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
+const MOIS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 /** Une échéance dite comme on la dit : « aujourd'hui », « demain », « hier », « 12 oct. ». */
 export function libelleEcheance(echeance: string, maintenant = new Date()): string {
@@ -103,11 +105,12 @@ export function libelleEcheance(echeance: string, maintenant = new Date()): stri
     d.setDate(d.getDate() + n)
     return jourDe(d)
   }
-  if (echeance === jourDe(maintenant)) return 'aujourd’hui'
-  if (echeance === decale(1)) return 'demain'
-  if (echeance === decale(-1)) return 'hier'
+  if (echeance === jourDe(maintenant)) return t('decor.aujourdhui')
+  if (echeance === decale(1)) return t('decor.demain')
+  if (echeance === decale(-1)) return t('fil.hier')
   const [a, m, j] = echeance.split('-').map(Number) as [number, number, number]
-  return `${j} ${MOIS[m - 1]}${a === maintenant.getFullYear() ? '' : ` ${a}`}`
+  const annee = a === maintenant.getFullYear() ? '' : langue() === 'en' ? `, ${a}` : ` ${a}`
+  return langue() === 'en' ? `${MOIS_EN[m - 1]} ${j}${annee}` : `${j} ${MOIS[m - 1]}${annee}`
 }
 
 // ---- Mode d'affichage ----

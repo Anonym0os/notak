@@ -56,7 +56,7 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
   return (
     <>
       {enRoute && (
-        <span className="notak-envoi" role="status" aria-label="Envoi en cours">
+        <span className="notak-envoi" role="status" aria-label={t('image.envoiEnCours')}>
           <span className="notak-roue" />
         </span>
       )}
@@ -75,7 +75,7 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
             {traits && traits.length > 0 && <Traits contenu={contenu} traits={traits} style={page.image} />}
           </div>
         ) : (
-          <div className="notak-image notak-image-vide">{adresse === null && <span>Image introuvable</span>}</div>
+          <div className="notak-image notak-image-vide">{adresse === null && <span>{t('image.introuvable')}</span>}</div>
         )}
         {enDessin && adresse && <Annotateur element={element} contexte={contexte} brouillon={setEnCours} />}
       </div>
@@ -94,7 +94,7 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
             onPointerDown={(e) => choisie && e.stopPropagation()}
             onClick={() => choisie && !contexte.services.lectureSeule && contexte.commencerEdition(element.id)}
           >
-            {contenu.legende || 'Légende'}
+            {contenu.legende || t('note.legende')}
           </p>
         )
       )}
@@ -118,7 +118,7 @@ function Legende({ texte, surChangement, valider }: { texte: string; surChangeme
       rows={1}
       value={valeur}
       autoFocus
-      placeholder="Légende"
+      placeholder={t('note.legende')}
       onFocus={(e) => e.currentTarget.setSelectionRange(valeur.length, valeur.length)}
       onChange={(e) => {
         const v = e.target.value.replace(/\n/g, ' ')

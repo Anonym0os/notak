@@ -7,6 +7,7 @@ import { lecteurDe } from './lecteurs'
 import { Media } from './Media'
 import { convertirEnImage } from './versImage'
 import { affichage } from './affichage'
+import { t } from '../../langue'
 
 const DELAI_APERCU = 15_000
 const REL = 'noopener noreferrer nofollow'
@@ -110,7 +111,7 @@ function Saisie({ element, contexte, changer }: PropsRendu<Lien>) {
           }
         }}
       />
-      {erreur && <div className="notak-lien-erreur">Adresse invalide</div>}
+      {erreur && <div className="notak-lien-erreur">{t('lien.invalide')}</div>}
     </div>
   )
 }
@@ -172,7 +173,7 @@ function Carte({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<
               true,
             )}
           {statut === 'attente' ? (
-            <span className="notak-lien-chargement" role="status" aria-label="Chargement" />
+            <span className="notak-lien-chargement" role="status" aria-label={t('lien.chargement')} />
           ) : (
             <>
               {statut === 'echec' && (

@@ -99,7 +99,7 @@ function Liste({ noeud, chemin, cocher, supprimer, ouvrir, deplacer, sortir }: P
           <li key={i} data-type="taskItem" data-checked={faite}>
             <span
               className="notak-tache-poignee"
-              title="Déplacer la tâche"
+              title={t('taches.deplacer')}
               onPointerDown={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
@@ -114,7 +114,7 @@ function Liste({ noeud, chemin, cocher, supprimer, ouvrir, deplacer, sortir }: P
               className="notak-case"
               role="checkbox"
               aria-checked={faite}
-              aria-label="Fait"
+              aria-label={t('taches.fait')}
               onPointerDown={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.preventDefault()}
               onDoubleClick={(e) => e.stopPropagation()}
@@ -150,7 +150,7 @@ function Liste({ noeud, chemin, cocher, supprimer, ouvrir, deplacer, sortir }: P
               type="button"
               tabIndex={-1}
               className="notak-tache-suppr"
-              title="Supprimer la tâche"
+              title={t('taches.supprimer')}
               onPointerDown={(e) => e.stopPropagation()}
               onDoubleClick={(e) => e.stopPropagation()}
               onClick={() => supprimer(ici)}
@@ -348,7 +348,7 @@ function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surC
           ref={champ}
           className="notak-taches-titre"
           value={titre}
-          placeholder="Titre"
+          placeholder={t('taches.titre')}
           onChange={(e) => titreTape(e.target.value)}
           onKeyDown={clavier}
         />

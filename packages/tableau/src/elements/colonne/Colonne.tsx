@@ -18,7 +18,7 @@ function Saisie({ titre, surChangement, valider }: { titre: string; surChangemen
       ref={champ}
       className="notak-colonne-saisie"
       defaultValue={titre}
-      aria-label="Titre"
+      aria-label={t('colonne.titre')}
       maxLength={100}
       spellCheck={false}
       onChange={(e) => surChangement(e.target.value)}
@@ -59,14 +59,14 @@ export function RenduColonne({ element, choisie, enEdition, contexte, brouillon,
           <Saisie titre={contenu.titre} surChangement={(titre) => brouillon({ ...contenu, titre: titre.trim() ? titre : contenu.titre })} valider={contexte.finirEdition} />
         ) : (
           <span className="notak-colonne-titre" data-vide={contenu.titre ? undefined : true}>
-            {contenu.titre || 'Colonne'}
+            {contenu.titre || t('type.colonne')}
           </span>
         )}
         <button
           type="button"
           className="notak-colonne-plier"
-          title={contenu.repliee ? 'Déplier' : 'Replier'}
-          aria-label={contenu.repliee ? 'Déplier' : 'Replier'}
+          title={contenu.repliee ? t('decor.deplier') : t('colonne.replier')}
+          aria-label={contenu.repliee ? t('decor.deplier') : t('colonne.replier')}
           aria-expanded={!contenu.repliee}
           onPointerDown={(e) => e.stopPropagation()}
           onDoubleClick={(e) => e.stopPropagation()}
@@ -85,7 +85,7 @@ export function RenduColonne({ element, choisie, enEdition, contexte, brouillon,
           </div>
         ) : (
           <div className="notak-colonne-vide" data-depot>
-            Déposer ici
+            {t('colonne.deposer')}
           </div>
         ))}
       {enfants.length > 0 && <div className="notak-colonne-compte">{composition(enfants)}</div>}

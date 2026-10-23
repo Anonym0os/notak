@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'reac
 import type { Contenu, Element } from '../coeur/tableau'
 import { annoncer } from '../avis'
 import type { ContexteToile, DepotFichiers } from './types'
+import { t } from '../langue'
 
 /**
  * Les fichiers que ce navigateur est en train d'envoyer. L'élément naît tout de suite avec un fichier
@@ -40,9 +41,9 @@ export function commencerEnvoi(fichier: Blob, depot: DepotFichiers): string {
     },
     (e: unknown) => {
       enRoute--
-      const nom = fichier instanceof File && fichier.name ? `« ${fichier.name} »` : 'Le fichier'
-      const cause = e instanceof Error ? e.message : 'Envoi impossible'
-      envois.set(id, { ...envois.get(id)!, echec: `${nom} n'a pas été envoyé : ${cause.charAt(0).toLowerCase()}${cause.slice(1)}.` })
+      const nom = fichier instanceof File && fichier.name ? `« ${fichier.name} »` : t('envois.leFichier')
+      const cause = e instanceof Error ? e.message : t('envois.impossible')
+      envois.set(id, { ...envois.get(id)!, echec: t('envois.echec', { nom, cause: `${cause.charAt(0).toLowerCase()}${cause.slice(1)}` }) })
       prevenir()
     },
   )

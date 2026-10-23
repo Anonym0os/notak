@@ -5,6 +5,7 @@ import { Ligne } from '../commentaire/Commentaire'
 import { AUTEUR_INCONNU, ajouterMessage, initiales, resoudre, retirerMessage } from '../commentaire/fil'
 import type { ContexteToile } from '../types'
 import { type Fils, MARQUE_FIL, filsDuTexte, placerEnMarge } from './fils'
+import { t } from '../../langue'
 
 const garder = (e: React.SyntheticEvent) => e.stopPropagation()
 
@@ -69,7 +70,7 @@ export function Marge({ editeur, fils, ouvert, surOuvert, ecrire, contexte }: Pr
 
   if (liste.length === 0) return null
   return (
-    <aside className="notak-note-marge" aria-label="Commentaires du texte" onPointerDown={garder} onDoubleClick={garder}>
+    <aside className="notak-note-marge" aria-label={t('commentaire.dutexte')} onPointerDown={garder} onDoubleClick={garder}>
       {liste.map((id, i) => (
         <Fiche
           key={id}
@@ -148,7 +149,7 @@ function Fiche({
             rows={1}
             value={texte}
             maxLength={5000}
-            placeholder={n > 0 ? 'Répondre…' : 'Écrire un commentaire…'}
+            placeholder={n > 0 ? t('commentaire.repondrePoints') : t('commentaire.ecrire')}
             onChange={(e) => setTexte(e.target.value)}
             onKeyDown={(e) => {
               // Le champ garde ses touches : la note n'en sort pas, et Échap ne ferme que le fil.
@@ -167,10 +168,10 @@ function Fiche({
       {actif && peutEcrire && n > 0 && (
         <div className="notak-fil-marge-actions">
           <button type="button" onClick={() => ecrire(resoudre(fil, !fil.resolu))}>
-            {fil.resolu ? 'Rouvrir' : 'Résoudre'}
+            {fil.resolu ? t('commentaire.rouvrir') : t('commentaire.resoudre')}
           </button>
           <button type="button" onClick={fermer}>
-            Fermer
+            {t('commun.fermer')}
           </button>
         </div>
       )}

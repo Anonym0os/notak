@@ -20,14 +20,14 @@ export function RenduFichier({ element, enEdition, contexte, brouillon }: PropsR
     <div className="notak-fichier" data-genre={genre} data-icone={c.icone || undefined}>
       {apercu === 'pdf' && adresse && !enRoute && (
         // La première page seulement ; le cadre n'attrape pas le pointeur, la carte reste glissable.
-        <iframe className="notak-fichier-pdf" title={`Première page de ${c.titre ?? c.nom}`} src={adresseApercuPdf(adresse)} loading="lazy" tabIndex={-1} />
+        <iframe className="notak-fichier-pdf" title={t('fichier.premierePage', { nom: c.titre ?? c.nom })} src={adresseApercuPdf(adresse)} loading="lazy" tabIndex={-1} />
       )}
       {lecteur === 'video' && adresse && (
         <video className="notak-fichier-video" src={adresse} controls preload="metadata" onPointerDown={garder} onDoubleClick={(e) => e.stopPropagation()} />
       )}
       <div className="notak-fichier-tete">
         <span className="notak-fichier-badge" aria-hidden>
-          {extension ? extension.slice(0, 4).toUpperCase() : 'FICHIER'}
+          {extension ? extension.slice(0, 4).toUpperCase() : t('type.fichier').toUpperCase()}
         </span>
         <div className="notak-fichier-infos">
           {enEdition ? (
@@ -42,22 +42,22 @@ export function RenduFichier({ element, enEdition, contexte, brouillon }: PropsR
             {enRoute && (
               <>
                 {' · '}
-                <span className="notak-roue" aria-hidden /> Envoi…
+                <span className="notak-roue" aria-hidden /> {t('fichier.envoi')}
               </>
             )}
             {adresse && !enRoute && (
               <>
                 {' · '}
                 <a href={adresse} download={c.nom} onPointerDown={garder}>
-                  Télécharger
+                  {t('fichier.telecharger')}
                 </a>
                 {' · '}
                 <a href={adresse} target="_blank" rel="noopener noreferrer" onPointerDown={garder}>
-                  Ouvrir
+                  {t('commun.ouvrir')}
                 </a>
               </>
             )}
-            {adresse === null && ' · introuvable'}
+            {adresse === null && ` · ${t('fichier.introuvable')}`}
           </span>
         </div>
       </div>
@@ -110,8 +110,8 @@ function Legende({ contenu, ecrire, finir }: { contenu: Fichier; ecrire(c: Fichi
   return (
     <input
       className="notak-fichier-legende notak-fichier-champ"
-      aria-label="Légende"
-      placeholder="Légende…"
+      aria-label={t('note.legende')}
+      placeholder={t('fichier.legendePoints')}
       maxLength={500}
       defaultValue={contenu.legende ?? ''}
       onPointerDown={garder}

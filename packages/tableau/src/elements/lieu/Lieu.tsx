@@ -54,7 +54,7 @@ export function RenduLieu({ element, enEdition, choisie, contexte, brouillon }: 
         // Le cadre ne laisse passer le pointeur que lorsque le lieu est choisi : sinon il avalerait le glisser.
         <iframe
           className="notak-lieu-carte"
-          title={`Carte : ${requete(c)}`}
+          title={t('lieu.carte', { adresse: requete(c) })}
           src={urlCarteIntegree(position)}
           loading="lazy"
           referrerPolicy="no-referrer"
@@ -71,10 +71,10 @@ export function RenduLieu({ element, enEdition, choisie, contexte, brouillon }: 
       ) : (
         <div className="notak-lieu-infos">
           {c.nom && <strong className="notak-lieu-nom">{c.nom}</strong>}
-          {c.adresse ? <p className="notak-lieu-adresse">{c.adresse}</p> : !c.nom && <p className="notak-lieu-vide">Adresse du lieu…</p>}
+          {c.adresse ? <p className="notak-lieu-adresse">{c.adresse}</p> : !c.nom && <p className="notak-lieu-vide">{t('lieu.adressePoints')}</p>}
           {url && (
             <a href={url} target="_blank" rel="noopener noreferrer" onPointerDown={garder} onDoubleClick={(e) => e.stopPropagation()}>
-              Voir sur la carte
+              {t('lieu.voirCarte')}
             </a>
           )}
         </div>
@@ -94,8 +94,8 @@ function Saisie({ contenu, ecrire, finir }: { contenu: Lieu; ecrire(c: Lieu): vo
     <div className="notak-lieu-infos" data-edition>
       <input
         type="text"
-        aria-label="Nom du lieu"
-        placeholder="Nom (facultatif)"
+        aria-label={t('lieu.nom')}
+        placeholder={t('lieu.nomFacultatif')}
         maxLength={200}
         value={contenu.nom ?? ''}
         onPointerDown={garder}
@@ -110,8 +110,8 @@ function Saisie({ contenu, ecrire, finir }: { contenu: Lieu; ecrire(c: Lieu): vo
       <textarea
         ref={adresse}
         rows={2}
-        aria-label="Adresse du lieu"
-        placeholder="Adresse du lieu…"
+        aria-label={t('lieu.adresse')}
+        placeholder={t('lieu.adressePoints')}
         maxLength={500}
         value={contenu.adresse}
         onPointerDown={garder}

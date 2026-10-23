@@ -24,14 +24,14 @@ export function RenduDocument({ element, enEdition, contexte, brouillon }: Props
   return (
     <div className="notak-document" onDoubleClick={lectureSeule ? () => setEnLecture(true) : undefined}>
       <div className="notak-document-titre" data-vide={c.titre.trim() ? undefined : ''}>
-        {c.titre.trim() || 'Sans titre'}
+        {c.titre.trim() || t('commun.sansTitre')}
       </div>
       {compterMots(c.texte) > 0 && (
         <div className="notak-document-apercu">
           <Lu texte={apercu} />
         </div>
       )}
-      <div className="notak-document-pied">{compterMots(c.texte) > 0 ? mesure(c.texte) : lectureSeule ? 'Vide' : 'Double-cliquez pour écrire'}</div>
+      <div className="notak-document-pied">{compterMots(c.texte) > 0 ? mesure(c.texte) : lectureSeule ? t('document.vide') : t('document.ecrire')}</div>
       {enEdition && <Grand contenu={c} ecrire={brouillon} finir={contexte.finirEdition} />}
       {enLecture && <Lecture contenu={c} fermer={() => setEnLecture(false)} />}
     </div>
@@ -40,16 +40,16 @@ export function RenduDocument({ element, enEdition, contexte, brouillon }: Props
 
 function Lecture({ contenu, fermer }: { contenu: DocumentTexte; fermer(): void }) {
   return (
-    <Surcouche etiquette={contenu.titre || 'Document'} className="notak-document-fond" fermer={fermer}>
+    <Surcouche etiquette={contenu.titre || t('type.document')} className="notak-document-fond" fermer={fermer}>
       <article className="notak-document-feuille">
-        <h2 className="notak-document-grand-titre">{contenu.titre.trim() || 'Sans titre'}</h2>
+        <h2 className="notak-document-grand-titre">{contenu.titre.trim() || t('commun.sansTitre')}</h2>
         <div className="notak-document-corps">
           <Lu texte={contenu.texte} />
         </div>
         <footer className="notak-document-bas">
           <span>{mesure(contenu.texte)}</span>
           <button type="button" onClick={fermer}>
-            Fermer
+            {t('commun.fermer')}
           </button>
         </footer>
       </article>
@@ -74,7 +74,7 @@ function Grand({ contenu, ecrire, finir }: { contenu: DocumentTexte; ecrire(c: D
   const editeur = useEditor({
     extensions: EXTENSIONS_NOTE,
     content: contenu.texte,
-    editorProps: { attributes: { class: 'notak-texte', 'aria-label': 'Texte du document' } },
+    editorProps: { attributes: { class: 'notak-texte', 'aria-label': t('document.texte') } },
     onUpdate: ({ editor }) => poser({ texte: editor.getJSON() as NoeudTexte }),
   })
   const [mots, setMots] = useState(() => mesure(contenu.texte))
@@ -98,8 +98,8 @@ function Grand({ contenu, ecrire, finir }: { contenu: DocumentTexte; ecrire(c: D
           ref={champTitre}
           className="notak-document-grand-titre"
           type="text"
-          aria-label="Titre du document"
-          placeholder="Sans titre"
+          aria-label={t('document.titre')}
+          placeholder={t('commun.sansTitre')}
           maxLength={300}
           value={titre}
           onChange={(e) => {
@@ -120,7 +120,7 @@ function Grand({ contenu, ecrire, finir }: { contenu: DocumentTexte; ecrire(c: D
         <footer className="notak-document-bas">
           <span>{mots}</span>
           <button type="button" onClick={finir}>
-            Terminer
+            {t('commun.terminer')}
           </button>
         </footer>
       </div>

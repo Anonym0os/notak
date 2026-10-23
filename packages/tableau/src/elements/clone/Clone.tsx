@@ -22,7 +22,7 @@ export function RenduClone({ element, choisie, contexte }: PropsRendu<Clone>) {
   if (!original || !def) {
     return (
       <p className="notak-clone-absent" data-vide={element.contenu.cible ? undefined : ''}>
-        {element.contenu.cible ? 'L’original de ce clone n’existe plus' : 'Clone'}
+        {element.contenu.cible ? t('clone.absent') : t('type.clone')}
       </p>
     )
   }
@@ -42,7 +42,7 @@ export function RenduClone({ element, choisie, contexte }: PropsRendu<Clone>) {
         }}
       />
       {sansFond && <span className="notak-clone-nu" hidden />}
-      <span className="notak-clone-marque" title="Clone : le même élément à plusieurs endroits" aria-label="Clone">
+      <span className="notak-clone-marque" title={t('clone.marque')} aria-label={t('type.clone')}>
         <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
           <rect x="5.5" y="5.5" width="8" height="8" rx="1" />
           <path d="M10.5 3.5v-1a1 1 0 0 0-1-1h-7a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h1" />
