@@ -26,8 +26,10 @@ export function hoteInterdit(hote: string): boolean {
 
 /** Un échec dont on sait la cause, pour que la carte la dise. */
 export class ErreurApercu extends Error {
-  constructor(readonly cause: CauseEchec) {
-    super(cause)
+  // Écrit à la main : Node exécute ce fichier en retirant les types, sans les propriétés de paramètre.
+  declare readonly cause: CauseEchec
+  constructor(cause: CauseEchec) {
+    super(cause, { cause })
   }
 }
 
