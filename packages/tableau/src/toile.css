@@ -164,8 +164,8 @@
 .notak-lasso {
   position: absolute;
   pointer-events: none;
-  border: 1px solid var(--notak-accent);
-  background: rgb(47 111 235 / 0.08);
+  border: 1px solid #8d929a;
+  background: rgb(0 0 0 / 0.05);
 }
 
 
@@ -179,9 +179,9 @@
   box-shadow: 0 0 0 2px var(--notak-selection);
 }
 
-/* Une note transparente se devine au survol. */
-.notak-carte[data-type='note'][data-sans-fond]:not([data-choisie]):hover {
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.1);
+/* Une carte transparente se devine au survol : un liseré de 1 px à 10 % de noir. */
+.notak-carte[data-sans-fond]:not([data-choisie], [data-type='ligne'], [data-type='dessin']):hover {
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.1);
 }
 
 .notak-calque-lignes {
@@ -631,7 +631,7 @@
 .notak-trait-depot {
   position: absolute;
   height: 2px;
-  border-radius: 1px;
+  border-radius: 0;
   background: var(--notak-selection);
   pointer-events: none;
 }
@@ -673,9 +673,53 @@
   white-space: nowrap;
 }
 
+/* Choisi par un autre : un filet de 2 px collé au bord, à sa couleur, et sa pastille au coin haut droit. */
 [data-autre] {
   outline: 2px solid var(--notak-autre);
-  outline-offset: 2px;
+  outline-offset: 0;
+}
+
+.notak-carte[data-autre]:not([data-modifie-par])::after {
+  content: attr(data-autre);
+  position: absolute;
+  z-index: 45;
+  top: -15px;
+  right: -14px;
+  box-sizing: border-box;
+  max-width: 160px;
+  overflow: hidden;
+  padding: 0 12px;
+  border-radius: 15px;
+  background: var(--notak-autre);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 30px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  transform-origin: bottom left;
+  animation:
+    notak-pastille-pop 0.4s cubic-bezier(0.665, 0.1, 0, 2.5) both,
+    notak-pastille-pulse 1.5s ease-out 0.4s infinite;
+}
+
+@keyframes notak-pastille-pop {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes notak-pastille-pulse {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--notak-autre) 60%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 15px transparent;
+  }
 }
 
 .notak-lecture {
@@ -1025,10 +1069,20 @@
   background: rgb(0 0 0 / 0.04);
 }
 
+.notak-espace[data-theme='sombre'] .notak-empreinte {
+  background: rgb(0 0 0 / 0.12);
+}
+
 /* Un tableau qui va recevoir ce qu'on glisse : sa carte, ou son segment du fil d'Ariane. */
 .notak-carte[data-survol-depot] .notak-renvoi-carre {
-  outline: 3px solid var(--notak-accent);
+  outline: 2px solid var(--notak-selection);
   outline-offset: 3px;
+}
+
+/* Une colonne vide ou repliée qui va recevoir : un filet de 2 px autour de sa zone de dépôt. */
+[data-cible-depot] {
+  outline: 2px solid var(--notak-selection);
+  outline-offset: 0;
 }
 
 .notak-fil-segment[data-survol-depot] {
@@ -1558,12 +1612,14 @@
 .notak-barre-retour {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 36px;
+  width: 100%;
+  height: 25px;
   margin-bottom: 2px;
   border: 0;
-  border-radius: 8px;
+  border-bottom: 1px solid rgb(0 0 0 / 0.08);
+  border-radius: 0;
   background: none;
+  transition: opacity 0.1s linear;
   color: #5f656d;
   cursor: pointer;
 }
@@ -1621,6 +1677,53 @@
 .notak-barre-selection[data-a-gauche] button.notak-outil-plus:hover,
 .notak-barre-selection[data-a-gauche] button.notak-outil-plus[aria-expanded='true'] {
   background: rgb(0 0 0 / 0.14);
+}
+
+/*
+ * La tuile des outils d'une sélection, comme Milanote : une icône carrée de 32 px aux coins de 4 px, plus claire que la
+ * barre, un libellé de 10 px dessous ; allumée, elle prend un contour de 2 px au lieu d'un fond ; grisée, seul son
+ * glyphe pâlit ; au survol, rien ne bouge.
+ */
+.notak-barre-selection[data-a-gauche] button.notak-outil .notak-outil-icone {
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--notak-barre, var(--notak-fond)) 40%, white);
+  color: var(--notak-texte);
+  transform: none;
+}
+
+.notak-barre-selection[data-a-gauche] button.notak-outil .notak-ico {
+  width: 20px;
+  height: 20px;
+}
+
+.notak-barre-selection[data-a-gauche] button.notak-outil:hover .notak-outil-icone {
+  background: color-mix(in srgb, var(--notak-barre, var(--notak-fond)) 40%, white);
+  transform: none;
+}
+
+.notak-barre-selection[data-a-gauche] button.notak-outil[aria-expanded='true'] .notak-outil-icone {
+  background: color-mix(in srgb, var(--notak-barre, var(--notak-fond)) 20%, white);
+}
+
+.notak-barre-selection[data-a-gauche] button.notak-outil[aria-pressed='true'] .notak-outil-icone {
+  background: none;
+  box-shadow: inset 0 0 0 2px currentColor;
+}
+
+.notak-barre-selection[data-a-gauche] button.notak-outil .notak-outil-libelle {
+  font-size: 10px;
+  color: color-mix(in srgb, var(--notak-texte) 60%, transparent);
+}
+
+.notak-barre-selection[data-a-gauche] button.notak-outil:disabled {
+  opacity: 1;
+}
+
+.notak-barre-selection[data-a-gauche] button.notak-outil:disabled .notak-ico {
+  opacity: 0.2;
 }
 
 /* La couleur d'à présent, dans la tuile « Couleur ». */
@@ -2528,4 +2631,63 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 
 .notak-carte[data-teinte] .notak-document-papier path:first-child {
   fill: var(--notak-teinte);
+}
+
+/* La suggestion sous un élément : une bande de 40 px qui glisse vers le bas. */
+.notak-suggestion {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 40px;
+  padding: 0 8px;
+  color: rgb(0 0 0 / 0.5);
+  font-size: 13px;
+  white-space: nowrap;
+  animation: notak-suggestion-entre 0.2s ease-out;
+}
+
+.notak-suggestion-question {
+  flex: none;
+}
+
+.notak-suggestion button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.notak-suggestion button:hover {
+  color: var(--notak-texte);
+}
+
+@keyframes notak-suggestion-entre {
+  from {
+    opacity: 0;
+    transform: translateY(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* L'activité qu'on n'a pas vue : un point de 7 px, à la couleur de la marque, au coin haut droit de l'élément. */
+.notak-activite {
+  position: absolute;
+  z-index: 40;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f4511c;
+  transform: scale(var(--notak-zoom-inverse, 1));
+  transform-origin: top right;
 }

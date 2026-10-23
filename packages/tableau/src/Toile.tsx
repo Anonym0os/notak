@@ -31,6 +31,7 @@ import {
   type Ligne,
   type Operation,
   type Tableau,
+  type TypeContenu,
   HAUTEUR_NOTE_MIN,
   aLaCorbeille,
   nonTriesDe,
@@ -44,6 +45,7 @@ import {
 } from './coeur/tableau'
 import './elements'
 import { definition, tousLesRaccourcis, tousLesRecepteurs, tousLesTypes, toutesLesEntreesMenu } from './elements/registre'
+import { demanderRenommage } from './elements/tableau/renommage'
 import type { ContexteToile, Presence, Services } from './elements/types'
 import { t, tn } from './langue'
 import { PastilleZoom } from './PastilleZoom'
@@ -92,7 +94,7 @@ type Geste =
       type: 'redimensionnerGroupe'
       depart: Point
       cadre: Rect
-      items: { id: Id; x: number; y: number; largeur: number; min: number; ligne: boolean }[]
+      items: { id: Id; x: number; y: number; largeur: number; min: number; ligne: boolean; proportion?: boolean }[]
     }
   | {
       /** Une ligne prise par son trait : ses bouts libres suivent le pointeur, ceux qui tiennent à un élément restent. */
@@ -116,18 +118,20 @@ type Geste =
     }
 
 /**
- * Où en est le groupe tiré jusqu'à `ici` : une seule échelle, celle de la plus grande traction, qui ne descend pas
- * sous la largeur minimale d'aucun élément. Chaque élément s'éloigne du coin haut gauche en proportion ; une ligne
- * ne fait que suivre. Les opérations vont de l'état présent à l'état voulu.
+ * Où en est le groupe tiré jusqu'à `ici` : une échelle par axe, celle en x ne descendant pas sous la largeur minimale
+ * d'aucun élément. Chaque élément s'éloigne du coin haut gauche en proportion ; une ligne ne fait que suivre. Les opérations vont de l'état présent à l'état voulu.
  */
-function pasDuGroupe(g: Extract<Geste, { type: 'redimensionnerGroupe' }>, ici: Point): Operation[] {
+function pasDuGroupe(g: Extract<Geste, { type: 'redimensionnerGroupe' }>, ici: Point, libre = false): Operation[] {
   const [l, h] = [g.cadre.max.x - g.cadre.min.x, g.cadre.max.y - g.cadre.min.y]
   const plancher = Math.max(0.1, ...g.items.filter((i) => !i.ligne).map((i) => i.min / i.largeur))
-  const echelle = Math.max(plancher, 1 + Math.max((ici.x - g.depart.x) / l, (ici.y - g.depart.y) / h))
+  // Chaque axe a sa propre échelle ; un média du groupe qui garde ses proportions ramène les deux à l'échelle en x (Cmd les libère).
+  const echelleX = Math.max(plancher, 1 + (ici.x - g.depart.x) / l)
+  const echelleY = !libre && g.items.some((i) => i.proportion) ? echelleX : Math.max(0.1, 1 + (ici.y - g.depart.y) / h)
   const o = g.cadre.min
   return g.items.flatMap((i): Operation[] => {
-    const x = Math.round(o.x + (i.x - o.x) * echelle)
-    const y = Math.round(o.y + (i.y - o.y) * echelle)
+    const x = Math.round(o.x + (i.x - o.x) * echelleX)
+    const y = Math.round(o.y + (i.y - o.y) * echelleY)
+    const echelle = echelleX
     const pas: Operation[] = [{ type: 'deplacer', id: i.id, de: [i.x, i.y], vers: [x, y] }]
     if (!i.ligne) pas.push({ type: 'redimensionner', id: i.id, de: i.largeur, vers: Math.max(i.min, Math.round(i.largeur * echelle)) })
     return pas
@@ -154,13 +158,35 @@ const ENTREE_CLIGNEMENT = 300
 /** Le verrou d'axe de Maj : choisi d'après le plus grand déplacement, il ne bascule que si l'autre le dépasse franchement. */
 function choisirAxe(actuel: 'h' | 'v' | null, d: Point): 'h' | 'v' {
   const [ax, ay] = [Math.abs(d.x), Math.abs(d.y)]
-  if (actuel === 'h' && ay < ax * 2) return 'h'
-  if (actuel === 'v' && ax < ay * 2) return 'v'
+  // Milanote ne bascule que si l'autre axe dépasse le premier de 50 px.
+  if (actuel === 'h' && ay < ax + 50 / cam.PX_PAR_UG) return 'h'
+  if (actuel === 'v' && ax < ay + 50 / cam.PX_PAR_UG) return 'v'
   return ax >= ay ? 'h' : 'v'
 }
 
 /** Un doigt posé sans bouger ce temps-là ouvre le menu du clic droit, en millisecondes. */
 const APPUI_LONG = 500
+
+/** Les types que propose le menu de la toile vide. */
+const TYPES_DU_MENU: ReadonlySet<string> = new Set(['note', 'lien', 'taches', 'ligne', 'tableau', 'colonne', 'commentaire', 'table'])
+
+/** L'âge d'une activité, en quelques mots : « il y a quelques secondes », « il y a 3 min ». */
+const ageCourt = (quand: number) => {
+  const m = Math.floor((Date.now() - quand) / 60000)
+  return m < 1 ? t('toile.ageSecondes') : t('toile.ageMinutes', { n: m })
+}
+
+/** Ce que Cmd+Entrée fait naître, pour les types où Milanote diffère de la suite propre du type. */
+const SUIVANT_COMMUN: Partial<Record<TypeContenu, 'note' | 'rien' | 'droite'>> = {
+  table: 'rien',
+  document: 'droite',
+  nuancier: 'note',
+  lieu: 'note',
+  fichier: 'note',
+  croquis: 'note',
+  clone: 'note',
+  dessin: 'note',
+}
 
 /** Sous ce déplacement (pixels écran), un appui reste un clic : rien ne bouge, rien ne quitte sa colonne. */
 const SEUIL_GLISSER = 3
@@ -335,6 +361,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     presence?.ecouter ?? sansEcoute,
     presence ? presence.autres : aucun,
   )
+  // Ce qu'un autre a choisi ou écrit en ce moment : ni vous ni le lasso n'y touchez.
+  const prisParUnAutre = useMemo(() => new Set(autres.flatMap((a) => [...a.selection, ...(a.edition ? [a.edition] : [])])), [autres])
   const tableau = useSyncExternalStore(magasin.ecouter, magasin.lire)
   const [camera, setCamera] = useState<cam.Camera>(cameraInitiale ?? cam.CAMERA_DEPART)
   const [vue, setVue] = useState<cam.Vue>({ largeur: 1, hauteur: 1 })
@@ -370,6 +398,24 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       n.style.setProperty('--notak-modifie', qui.couleur)
     }
   })
+  // L'activité qu'on n'a pas vue : un point sur l'élément qu'un autre a modifié, jusqu'à ce qu'on l'ait choisi puis lâché.
+  const [nonVus, setNonVus] = useState<ReadonlyMap<Id, { nom: string; quand: number }>>(new Map())
+  useEffect(() => {
+    setNonVus((avant) => {
+      let suivant: Map<Id, { nom: string; quand: number }> | null = null
+      for (const [id, qui] of modifies) {
+        if (avant.has(id) || selection.has(id)) continue
+        suivant ??= new Map(avant)
+        suivant.set(id, { nom: qui.nom, quand: Date.now() })
+      }
+      return suivant ?? avant
+    })
+  }, [modifies, selection])
+  useEffect(() => {
+    if (enGeste || nonVus.size === 0) return
+    const vus = [...nonVus.keys()].filter((id) => selection.has(id))
+    if (vus.length > 0) setNonVus((avant) => new Map([...avant].filter(([id]) => !vus.includes(id))))
+  }, [selection, enGeste, nonVus])
   // L'élément montré en grand pendant une présentation.
   const [focus, setFocus] = useState<{ noeud: HTMLElement; depart: DOMRect } | null>(null)
   const [glisses, setGlisses] = useState<ReadonlySet<Id> | null>(null)
@@ -378,6 +424,20 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const cible = useRef<Cible | null>(null)
   /** Le tableau où tombera ce qu'on glisse (sa carte sur la toile, ou un segment du fil d'Ariane), et son nœud. */
   const tableauVise = useRef<{ id: Id; noeud: HTMLElement } | null>(null)
+  const zoneMarquee = useRef<HTMLElement | null>(null)
+  // Le paquet glissé rétrécit au-dessus d'un tableau, de la corbeille ou du fil d'Ariane (0,8 et 75 %), et pâlit sur une colonne (75 %).
+  const reduction = useRef({ cible: { echelle: 1, opacite: 1 }, actuel: { echelle: 1, opacite: 1 }, instant: 0 })
+  const reductionVol = () => {
+    const r = reduction.current
+    const t = performance.now()
+    const k = 1 - Math.exp(-Math.min(t - r.instant, 100) / 70)
+    r.instant = t
+    r.actuel = {
+      echelle: r.actuel.echelle + (r.cible.echelle - r.actuel.echelle) * k,
+      opacite: r.actuel.opacite + (r.cible.opacite - r.actuel.opacite) * k,
+    }
+    return r.actuel
+  }
   // L'entrée au survol en attente, et le dernier point du pointeur (écran) pour la reprise dans l'autre tableau.
   const entree = useRef<{ noeud: HTMLElement; minuteur: ReturnType<typeof setTimeout> } | null>(null)
   const dernierPointeur = useRef<{ ecran: Point; id: number } | null>(null)
@@ -565,9 +625,14 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const r = rect(id)
     const bas = r ? Math.round(r.max.y) + 1 : el.y + (def?.hauteurParDefaut ?? HAUTEUR_NOTE_MIN) + 1
     const places = { dessous: point(el.x, bas), droite: point(el.x + el.largeur + 2, el.y) }
-    const neuf = def?.suivant ? def.suivant(el as never, places, format, contexteRef.current!) : nouvelleNote(places.dessous.x, places.dessous.y)
+    // Comme Milanote : une table ne donne rien, un document naît 17 UG à droite, le reste des éléments sans suite propre donne une note dessous.
+    const usage = SUIVANT_COMMUN[el.contenu.type]
+    if (usage === 'rien') return
+    const propre = usage === 'note' ? undefined : def?.suivant
+    const neuf = propre ? propre(el as never, places, format, contexteRef.current!) : nouvelleNote(places.dessous.x, places.dessous.y)
     if (!neuf) return
-    let element: Element = def?.suivant ? neuf : { ...neuf, largeur: el.largeur }
+    let element: Element = propre ? neuf : { ...neuf, largeur: el.largeur }
+    if (usage === 'droite') element = { ...element, x: el.x + 17, y: el.y }
     // Dans une colonne, l'élément neuf se range juste après.
     if (el.parent) {
       const freres = t.elements.filter((x) => x.parent === el.parent).sort((a, b) => comparerOrdre(a.ordre, b.ordre))
@@ -950,7 +1015,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       } catch {
         p = null
       }
-      if (p) return collerPaquet(p)
+      if (p) {
+        const choisie = etat.current.selection.size === 1 ? etat.current.magasin.lire().elements.find((x) => etat.current.selection.has(x.id)) : undefined
+        if (choisie?.contenu.type === 'colonne' && collerDansColonne(p, choisie)) return
+        return collerPaquet(p)
+      }
       // Du texte collé sur une ligne seule choisie devient son libellé (400 caractères au plus, tel quel).
       const texte = e.clipboardData.getData('text/plain')
       const choisie = etat.current.selection.size === 1 ? etat.current.magasin.lire().elements.find((x) => x.id === [...etat.current.selection][0]) : undefined
@@ -994,6 +1063,21 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const neufs = deballer(p, d)
     magasin.faire(neufs.map((element): Operation => ({ type: 'creer', element })))
     setSelection(new Set(neufs.filter((x) => !x.parent).map((x) => x.id)))
+  }
+
+  /** Colle un paquet dans une colonne, en tête, si tout peut y entrer ; la sélection ne change pas. */
+  const collerDansColonne = (p: Paquet, colonne: Element) => {
+    const def = definition(colonne.contenu.type)
+    if (lectureSeule || !def?.accepte) return false
+    const neufs = deballer(p, point(0, 0))
+    const racines = neufs.filter((x) => !x.parent)
+    if (racines.length === 0 || !racines.every((x) => def.accepte!(x, colonne))) return false
+    const tete = magasin.lire().elements.filter((x) => x.parent === colonne.id).sort((a, b) => comparerOrdre(a.ordre, b.ordre))[0]
+    let avant: string | undefined
+    const rangs = new Map(racines.map((x) => [x.id, (avant = cleEntre(avant, tete?.ordre))] as const))
+    retenirPaquet(p)
+    magasin.faire(neufs.map((element): Operation => ({ type: 'creer', element: rangs.has(element.id) ? { ...element, parent: colonne.id, ordre: rangs.get(element.id)! } : element })))
+    return true
   }
 
   /** Cmd+D : une copie à 2 UG en bas à droite ; dans une colonne, juste après l'original. */
@@ -1103,7 +1187,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     g.envol = new Envol(reglageVol(choisis, 0), (v) => {
       for (const id of g.vols) {
         const n = noeudDe(id)
-        if (n) dessinerSur(n, transformation(v, g.base), v.ombre)
+        if (n) dessinerSur(n, transformation(v, g.base), v.ombre, reductionVol())
       }
     })
     geste.current = g
@@ -1200,9 +1284,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const ou = menu.ou
     const avecPaquet = !lectureSeule && copie.paquet ? [{ libelle: t('toile.coller'), raccourci: '⌘V', faire: () => collerPaquet(copie.paquet!, ou) }] : []
     if (!menu.surElement) {
+      // Milanote ne propose ici que huit créations ; les autres se prennent dans la barre.
       const creer = lectureSeule
         ? []
-        : outilsDeBarre().map((o) => ({
+        : outilsDeBarre().filter((o) => o.outil.groupe !== 'action' && TYPES_DU_MENU.has(o.outil.fantome().contenu.type)).map((o) => ({
             libelle: o.outil.libelle,
             faire: () => {
               const pas = o.outil.creer(point(Math.round(ou.x), Math.round(ou.y)), contexte)
@@ -1210,15 +1295,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
               apresCreation(pas.flatMap((op) => (op.type === 'creer' ? [op.element.id] : [])))
             },
           }))
+      // Annuler et Rétablir disparaissent quand il n'y a rien à défaire ; Tout sélectionner, quand la toile est vide.
       return [
         ...avecPaquet,
         null,
-        ...(lectureSeule ? [] : [{ libelle: t('espace.annuler'), raccourci: '⌘Z', faire: () => void magasin.annuler() }, { libelle: t('espace.retablir'), raccourci: '⇧⌘Z', faire: () => void magasin.retablir() }]),
-        { libelle: t('raccourcis.toutSelectionner'), raccourci: '⌘A', faire: () => setSelection(new Set(tableau.elements.filter((x) => !x.parent).map((x) => x.id))) },
+        ...(lectureSeule || !magasin.peutAnnuler() ? [] : [{ libelle: t('espace.annuler'), raccourci: '⌘Z', faire: () => void magasin.annuler() }]),
+        ...(lectureSeule || !magasin.peutRetablir() ? [] : [{ libelle: t('espace.retablir'), raccourci: '⇧⌘Z', faire: () => void magasin.retablir() }]),
+        ...(tableau.elements.length === 0 ? [] : [{ libelle: t('raccourcis.toutSelectionner'), raccourci: '⌘A', faire: () => setSelection(new Set(tableau.elements.filter((x) => !x.parent).map((x) => x.id))) }]),
         null,
         ...creer,
-        null,
-        { libelle: t('raccourcis.titre'), raccourci: '/', faire: () => setRaccourcis(true) },
       ]
     }
     const els = choisis()
@@ -1226,32 +1311,32 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const verrouilles = els.length > 0 && els.every((x) => x.verrou)
     const seul = els.length === 1 ? els[0] : undefined
     const defSeul = seul && definition(seul.contenu.type)
+    // Comme Milanote : le presse-papiers et la suppression d'abord, puis le nom, les entrées des types, le verrou et le plan.
+    // « Coller » ne paraît que sur des colonnes (le collage y entre, en tête).
+    const colonnes = els.length > 0 && els.every((x) => x.contenu.type === 'colonne')
+    const collage = !!copie.paquet && colonnes && seul ? [{ libelle: t('toile.coller'), raccourci: '⌘V', faire: () => void collerDansColonne(copie.paquet!, seul) }] : []
+    const renommable = !!seul && ['colonne', 'document', 'fichier'].includes(seul.contenu.type) && !!defSeul?.editable
     return [
       { libelle: t('toile.couper'), raccourci: '⌘X', faire: () => document.execCommand('cut') },
       { libelle: t('commun.copier'), raccourci: '⌘C', faire: () => document.execCommand('copy') },
-      ...avecPaquet,
+      ...collage,
+      ...(copie.paquet ? [{ libelle: t('toile.collerStyle'), raccourci: '⌥⌘V', faire: collerStyle }] : []),
       { libelle: t('raccourcis.dupliquer'), raccourci: '⌘D', faire: dupliquer },
+      { libelle: t('menu.supprimer'), raccourci: '⌫', faire: () => jeter(selection) },
       null,
-      ...(seul && defSeul?.ouvrir ? [{ libelle: t('commun.ouvrir'), raccourci: t('raccourcis.touche.espace'), faire: () => defSeul.ouvrir!(seul, contexte) }] : []),
-      ...(seul && defSeul?.editable ? [{ libelle: t('commun.modifier'), raccourci: '↩', faire: () => commencerEdition(seul.id) }] : []),
+      ...(renommable ? [{ libelle: t('menu.renommer'), raccourci: '↩', faire: () => commencerEdition(seul!.id) }] : []),
       null,
       ...toutesLesEntreesMenu()
         .filter((x) => x.visible(els, contexte))
         .map((x) => ({ libelle: x.libelle, ...(x.raccourci ? { raccourci: x.raccourci } : {}), ...(x.coche ? { coche: x.coche(els, contexte) } : {}), faire: () => x.faire(els, contexte) })),
       null,
-      { libelle: t('toile.verrouiller'), coche: verrouilles, faire: () => verrouiller(!verrouilles) },
+      { libelle: t('toile.verrouiller'), coche: verrouilles, reste: true, faire: () => verrouiller(!verrouilles) },
+      null,
       { libelle: t('toile.premierPlan'), raccourci: '⇧⌘↑', faire: () => changerPlan('haut', false) },
       // Une ligne accrochée à un élément ne passe pas à l'arrière-plan.
       ...(els.some((x) => x.contenu.type === 'ligne' && accroches(x.contenu).length > 0)
         ? []
         : [{ libelle: t('toile.arrierePlan'), raccourci: '⇧⌘↓', faire: () => changerPlan('bas', false) }]),
-      null,
-      ...(copie.paquet ? [{ libelle: t('toile.collerStyle'), raccourci: '⌥⌘V', faire: collerStyle }] : []),
-      // Une ligne n'a pas de place dans les non triés.
-      ...(els.every((x) => x.contenu.type === 'ligne')
-        ? []
-        : [{ libelle: t('toile.mettreNonTries'), raccourci: '⌥`', faire: () => ecarter(selection, 'nonTrie') }]),
-      { libelle: t('raccourcis.corbeille'), raccourci: '⌫', faire: () => jeter(selection) },
     ]
   }
 
@@ -1418,7 +1503,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       // Avec des éléments choisis dans une colonne : toute la colonne ; sinon toute la toile.
       const parents = new Set(choisis().map((x) => x.parent))
       const dans = parents.size === 1 ? [...parents][0] : undefined
-      return setSelection(new Set(tableau.elements.filter((x) => x.parent === dans).map((x) => x.id)))
+      return setSelection(new Set(tableau.elements.filter((x) => x.parent === dans && !prisParUnAutre.has(x.id)).map((x) => x.id)))
     }
     if (cmd && touche === 'd' && !e.shiftKey) {
       e.preventDefault()
@@ -1433,10 +1518,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (selection.size === 1) creerSuivant([...selection][0]!, true)
       return
     }
+    // Cmd+Retour arrière et Cmd+Suppr mettent aussi à la corbeille.
+    if (cmd && (e.key === 'Backspace' || e.key === 'Delete') && selection.size > 0) {
+      e.preventDefault()
+      return jeter(selection)
+    }
     if (e.altKey && !cmd && e.key === 'Enter' && selection.size === 1) {
       // Alt+Entrée sur une colonne choisie : une note neuve en tête.
       const colonne = tableau.elements.find((x) => x.id === [...selection][0])
-      if (colonne?.contenu.type === 'colonne') {
+      if (colonne?.contenu.type === 'colonne' && !lectureSeule) {
         e.preventDefault()
         return noteDansColonne(colonne, null)
       }
@@ -1476,6 +1566,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           const id = [...selection][0]!
           const el = tableau.elements.find((x) => x.id === id)
           const def = el && definition(el.contenu.type)
+          if (el?.contenu.type === 'tableau' && !lectureSeule) return demanderRenommage(el.id)
           if (el && def?.entreeOuvre && def.ouvrir) def.ouvrir(el, contexte)
           else commencerEdition(id)
         }
@@ -1559,6 +1650,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const ouvrirMenu = (e: React.MouseEvent) => {
     e.preventDefault()
     if (dansEdition(racine.current, e.target)) return
+    // En lecture seule, comme Milanote : aucun des deux menus.
+    if (lectureSeule) return
     const p = local(e)
     const id = sous(document.elementFromPoint(e.clientX, e.clientY))
     setMenu({ x: p.x, y: p.y, ou: cam.versTableau(camera, p), surElement: !!id })
@@ -1596,7 +1689,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     racine.current!.focus({ preventScroll: true })
     setRebond(null)
     const p = local(e)
-    const id = sous(e.target)
+    const idBrut = sous(e.target)
+    const id = idBrut && prisParUnAutre.has(idBrut) ? null : idBrut
     // Au doigt, le vide se tire comme au bouton du milieu : le lasso n'a pas de sens sous un pouce.
     if (e.button === 1 || (e.button === 0 && (espace || (e.pointerType === 'touch' && !id)))) {
       e.preventDefault()
@@ -1611,7 +1705,19 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     } else if (e.button === 0) {
       const ici = cam.versTableau(camera, p)
       const el = id && tableau.elements.find((x) => x.id === id)
-      if (el && !lectureSeule && !el.verrou && (e.target as HTMLElement).closest('[data-poignee]')) {
+      if (el && !lectureSeule && !el.verrou && (e.target as HTMLElement).closest('[data-poignee]') && selection.size > 1 && selection.has(el.id)) {
+        // Une poignée dans une sélection de plusieurs : chacune lance le redimensionnement du groupe.
+        const choisis = tableau.elements.filter((x) => selection.has(x.id))
+        const rects = choisis.flatMap((x) => rect(x.id) ?? [])
+        const items = choisis
+          .filter((x) => !x.parent && !x.verrou && definition(x.contenu.type)?.calque !== 'lignes')
+          .map((x) => {
+            const def = definition(x.contenu.type)
+            return { id: x.id, x: x.x, y: x.y, largeur: x.largeur, min: largeurMinDe(def?.largeurMin, x.contenu), ligne: false, proportion: !!def?.proportion?.(x.contenu as never) }
+          })
+        const cadre = englobant(rects)
+        if (cadre) geste.current = { type: 'redimensionnerGroupe', depart: ici, cadre, items }
+      } else if (el && !lectureSeule && !el.verrou && (e.target as HTMLElement).closest('[data-poignee]')) {
         const def = definition(el.contenu.type)
         const min = largeurMinDe(def?.largeurMin, el.contenu)
         const n = def?.hauteurBornable && !el.parent ? noeudDe(el.id) : null
@@ -1777,7 +1883,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (g.type === 'lasso') {
       const zone = depuisCoins(g.depart, ici)
       setZoneLasso(zone)
-      const rects = tableau.elements.filter((x) => !x.parent).flatMap((x): [Id, Rect | Point[]][] => {
+      const rects = tableau.elements.filter((x) => !x.parent && !prisParUnAutre.has(x.id)).flatMap((x): [Id, Rect | Point[]][] => {
         const trace = definition(x.contenu.type)?.calque === 'lignes' ? traceDe(x.id) : null
         if (trace) return [[x.id, trace]]
         const r = rect(x.id)
@@ -1786,7 +1892,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       return setPrisLasso(lasso(zone, rects, g.avant, g.inverser))
     }
     if (g.type === 'redimensionnerGroupe') {
-      return magasin.appliquerSeulement(pasDuGroupe(g, ici))
+      return magasin.appliquerSeulement(pasDuGroupe(g, ici, e.metaKey || e.ctrlKey))
     }
     if (g.type === 'redimensionner' && g.avant) {
       // Une poignée qui change le contenu (une table gagne des colonnes) : le type dit ce que devient l'élément.
@@ -1817,6 +1923,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (Math.hypot(p.x - g.ecran.x, p.y - g.ecran.y) < SEUIL_GLISSER) return
       g.demarre = true
       g.reduire = undefined
+      reduction.current = { cible: { echelle: 1, opacite: 1 }, actuel: { echelle: 1, opacite: 1 }, instant: performance.now() }
       arreterDepose()
       // Les colonnes telles qu'au départ : celle qu'on quitte et celle qu'on vise changent de taille au dépôt.
       colonnesAuDepart.current = tableau.elements.flatMap((x) => {
@@ -1857,7 +1964,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       g.envol = new Envol(reglageVol(choisis, cote), (v) => {
         for (const id of g.vols) {
           const n = noeudDe(id)
-          if (n) dessinerSur(n, transformation(v, g.base), v.ombre)
+          if (n) dessinerSur(n, transformation(v, g.base), v.ombre, reductionVol())
         }
       })
       setGlisses(new Set(ids))
@@ -1930,17 +2037,24 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (freres.length === 0) {
         const zone = noeud.querySelector('[data-depot]')?.getBoundingClientRect()
         if (zone) y = (zone.top + zone.bottom) / 2
-      } else y = index < freres.length ? freres[index]!.top - 4 * k : freres[freres.length - 1]!.bottom + 4 * k
+      } else y = index < freres.length ? freres[index]!.top - 6 * k : freres[freres.length - 1]!.bottom + 6 * k
       trouvee = { colonne: conteneur.id, index, acceptes }
-      // Rien à montrer si le dépôt ne changerait rien : l'élément glissé est seul et vise sa propre place.
-      const seul = portes.length === 1 && portes[0]!.parent === conteneur.id ? portes[0]! : null
-      const place = seul ? elements.filter((x) => x.parent === conteneur.id).sort((a, b) => comparerOrdre(a.ordre, b.ordre)).findIndex((x) => x.id === seul.id) : -1
+      // Pas de trait quand le dépôt ne changerait rien : un seul élément, remis à sa place dans sa colonne.
+      let sansEffet = false
+      const g = geste.current
+      if (glisses.size === 1 && g?.type === 'glisser') {
+        const origine = g.origines.get([...glisses][0]!)
+        if (origine?.place.parent === conteneur.id && origine.place.ordre !== undefined) {
+          const avant = elements.filter((x) => x.parent === conteneur.id && !glisses.has(x.id) && comparerOrdre(x.ordre, origine.place.ordre!) < 0).length
+          sansEffet = avant === index
+        }
+      }
       const vide = freres.length === 0 && conteneur.contenu.type === 'colonne' && !!conteneur.contenu.repliee === false
       if (conteneur.contenu.type === 'colonne' && (conteneur.contenu.repliee || vide)) {
         // Repliée ou vide : un cadre de 2 px autour de la colonne entière (ou de son bloc vide), pas de trait.
         const zone = (vide ? noeud.querySelector('[data-depot]') : null)?.getBoundingClientRect() ?? c
         nouveauTrait = { x0: zone.left - o.left, x1: zone.right - o.left, y: zone.top - o.top, cadre: zone.bottom - zone.top }
-      } else if (!(seul && place === index)) nouveauTrait = { x0: c.left - o.left + 8 * k, x1: c.right - o.left - 8 * k, y: y - o.top }
+      } else nouveauTrait = sansEffet ? null : { x0: c.left - o.left, x1: c.right - o.left, y: y - o.top }
       break
     }
     if (tableauVise.current?.noeud !== versTableau?.noeud) {
@@ -1963,6 +2077,16 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     }
     tableauVise.current = versTableau
     if (versTableau) nouveauTrait = null
+    // Une colonne vide ou repliée qui va recevoir : sa zone « déposer ici » prend un filet.
+    const zone = !versTableau && trouvee ? (noeudDe(trouvee.colonne)?.querySelector<HTMLElement>('[data-depot]') ?? null) : null
+    const videVisee = zone && (zone.classList.contains('notak-colonne-repliee') || !elements.some((x) => x.parent === trouvee!.colonne && !glisses.has(x.id))) ? zone : null
+    if (zoneMarquee.current !== videVisee) {
+      if (zoneMarquee.current) delete zoneMarquee.current.dataset.cibleDepot
+      if (videVisee) videVisee.dataset.cibleDepot = ''
+      zoneMarquee.current = videVisee
+    }
+    const surCorbeille = !!document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-corbeille]')
+    reduction.current.cible = versTableau || surCorbeille ? { echelle: 0.8, opacite: 0.75 } : trouvee ? { echelle: 1, opacite: 0.75 } : { echelle: 1, opacite: 1 }
     cible.current = versTableau ? null : trouvee
     setTrait((t) => (t && nouveauTrait && t.x0 === nouveauTrait.x0 && t.x1 === nouveauTrait.x1 && t.y === nouveauTrait.y && t.cadre === nouveauTrait.cadre ? t : nouveauTrait))
   }
@@ -2137,8 +2261,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     tableauVise.current = null
     oublierEntree()
     setTrait(null)
+    if (zoneMarquee.current) delete zoneMarquee.current.dataset.cibleDepot
+    zoneMarquee.current = null
     setGlisses(null)
     setEmpreintes(AUCUNE)
+    reduction.current.cible = { echelle: 1, opacite: 1 }
     if (g?.type === 'outil') return lacherOutil(g, e, visee, versTableau?.id)
     if (g?.type !== 'glisser') return
     if (g.demarre) {
@@ -2246,7 +2373,21 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (vers !== el.largeur) magasin.faire([{ type: 'redimensionner', id: el.id, de: el.largeur, vers }])
       return
     }
+    // La zone « déposer ici » d'une colonne : un double-clic y crée une note, à la fin de la colonne (sauf repliée).
+    const zone = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('[data-depot]')
+    if (zone && !zone.classList.contains('notak-colonne-repliee')) {
+      const colonne = tableau.elements.find((x) => x.id === sous(zone))
+      if (colonne?.contenu.type === 'colonne') {
+        const dernier = tableau.elements.filter((x) => x.parent === colonne.id).sort((a, b) => comparerOrdre(a.ordre, b.ordre)).at(-1)
+        const note = { ...nouvelleNote(colonne.x, colonne.y), parent: colonne.id, ordre: cleEntre(dernier?.ordre, undefined) }
+        magasin.faire([{ type: 'creer', element: note }])
+        neSous.current = note.id
+        commencerEdition(note.id)
+        return
+      }
+    }
     const id = sous(document.elementFromPoint(e.clientX, e.clientY))
+    if (id && prisParUnAutre.has(id)) return
     if (id) {
       const el = tableau.elements.find((x) => x.id === id)
       // Un double-clic sur le trait ou le libellé d'une ligne la redresse ; une ligne ne s'écrit pas.
@@ -2374,7 +2515,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
               choisie={vueChoix.has(e.id)}
               seule={e.id === seule}
               enEdition={edition === e.id}
-              poignee={!lectureSeule && !e.verrou && !edition && (e.id === seule || !selection.has(e.id))}
+              poignee={!lectureSeule && !e.verrou && !edition && definition(e.contenu.type)?.redimensionnable !== false && (e.id === seule || !selection.has(e.id) || selection.size > 1)}
               audessus={glisses?.has(e.id)}
               contexte={contexte}
               brouillon={surBrouillon}
@@ -2382,6 +2523,18 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
             />
           ))}
         </ContexteRangement.Provider>
+        {[...nonVus].map(([id, v]) => {
+          const r = rect(id)
+          if (!r) return null
+          return (
+            <span
+              key={`activite:${id}`}
+              className="notak-activite"
+              title={t('toile.modifiePar', { nom: v.nom, age: ageCourt(v.quand) })}
+              style={{ left: r.max.x * cam.PX_PAR_UG - 6 - 7, top: r.min.y * cam.PX_PAR_UG + 6 }}
+            />
+          )
+        })}
         <svg className="notak-calque-lignes" aria-hidden>
           {lignes.map((e) => {
             const Rendu = definition(e.contenu.type)!.Rendu
@@ -2413,27 +2566,6 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       )}
       {trait && trait.cadre === undefined && <div className="notak-trait-depot" style={{ left: trait.x0, top: trait.y - 1, width: trait.x1 - trait.x0 }} />}
       {trait && trait.cadre !== undefined && <div className="notak-cadre-depot" style={{ left: trait.x0, top: trait.y, width: trait.x1 - trait.x0, height: trait.cadre }} />}
-      {barre && elementsChoisis.length > 1 && (
-        <div
-          className="notak-poignee-groupe"
-          data-poignee-groupe
-          title={t('toile.redimensionner')}
-          style={{ left: barre.max.x - 5, top: barre.max.y - 5 }}
-          onPointerDown={(e) => {
-            if (e.button !== 0) return
-            e.stopPropagation()
-            const items = elementsChoisis
-              .filter((x) => !x.parent && !x.verrou && definition(x.contenu.type)?.calque !== 'lignes')
-              .map((x) => {
-                const def = definition(x.contenu.type)
-                return { id: x.id, x: x.x, y: x.y, largeur: x.largeur, min: largeurMinDe(def?.largeurMin, x.contenu), ligne: def?.calque === 'lignes' }
-              })
-            geste.current = { type: 'redimensionnerGroupe', depart: cam.versTableau(camera, local(e)), cadre: cadreChoisis!, items }
-            setEnGeste(true)
-            racine.current?.setPointerCapture?.(e.pointerId)
-          }}
-        />
-      )}
       {barre && (
         <BarreSelection
           elements={elementsChoisis}

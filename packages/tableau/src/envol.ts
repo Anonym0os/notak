@@ -87,8 +87,10 @@ const prevenir = (noeud: HTMLElement) => {
   for (const f of suiveurs) f(noeud)
 }
 
-export function dessinerSur(noeud: HTMLElement, transformation: string, ombre: number) {
-  noeud.style.transform = transformation
+export function dessinerSur(noeud: HTMLElement, transformation: string, ombre: number, reduction?: { echelle: number; opacite: number }) {
+  noeud.style.transform = reduction && reduction.echelle !== 1 ? `${transformation} scale(${reduction.echelle})` : transformation
+  if (reduction && reduction.opacite !== 1) noeud.style.opacity = String(reduction.opacite)
+  else noeud.style.removeProperty('opacity')
   noeud.style.setProperty('--notak-soulevement', String(ombre))
   noeud.dataset.vol = ''
   prevenir(noeud)
@@ -96,6 +98,7 @@ export function dessinerSur(noeud: HTMLElement, transformation: string, ombre: n
 
 export function oublierVol(noeud: HTMLElement) {
   noeud.style.removeProperty('transform')
+  noeud.style.removeProperty('opacity')
   noeud.style.removeProperty('--notak-soulevement')
   delete noeud.dataset.vol
   prevenir(noeud)

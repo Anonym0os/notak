@@ -69,6 +69,7 @@ registre.entreeMenu({
 
 registre.type<RenvoiTableau>({
   type: 'tableau',
+  redimensionnable: false,
   get nom() {
     return t('type.tableau')
   },

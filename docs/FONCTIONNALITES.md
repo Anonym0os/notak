@@ -13,7 +13,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 
 | Partie | Fait | En partie | Absent | Avancement |
 |---|---|---|---|---|
-| 1. Toile | 27 | 0 | 0 | 100 % |
+| 1. Toile | 28 | 0 | 0 | 100 % |
 | 2. Création | 16 | 1 | 0 | 97 % |
 | 3. Note et texte | 31 | 2 | 4 | 86 % |
 | 4. Colonne | 11 | 1 | 0 | 96 % |
@@ -26,11 +26,11 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 11. Commun aux éléments | 11 | 1 | 0 | 96 % |
 | 12. Organiser | 16 | 0 | 0 | 100 % |
 | 13. Naviguer | 13 | 0 | 0 | 100 % |
-| 14. À plusieurs | 17 | 0 | 0 | 100 % |
+| 14. À plusieurs | 19 | 0 | 0 | 100 % |
 | 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 6 | 1 | 0 | 93 % |
-| **Total** | **256** | **11** | **4** | **96 %** |
+| **Total** | **259** | **11** | **4** | **97 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -50,7 +50,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Tailles de grille 8, 9, 10 px (Cmd+Maj+, et .) | ✅ | Réglage « Grille » (Cmd+,) ; le texte garde sa taille. |
 | Clic, Maj+clic, Cmd+clic, clic droit qui choisit | ✅ | |
 | Clic dans une sélection multiple qui la réduit au relâchement | ✅ | |
-| Lasso, posé au relâchement | ✅ | |
+| Lasso, posé au relâchement | ✅ | Trait gris #8d929a, fond noir à 5 %. |
 | Lasso qui prend une ligne par son trait | ✅ | |
 | Cmd+A (dans la colonne active aussi) | ✅ | |
 | Échap désélectionne | ✅ | |
@@ -60,7 +60,8 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Flèches : déplacer d'une UG (Maj : plus loin) | ✅ | |
 | Redimensionner un élément (largeur, double-clic sur la poignée) | ✅ | |
 | Hauteur bornée par la poignée (note, lien) | ✅ | |
-| Redimensionner un groupe | ✅ | |
+| Redimensionner un groupe | ✅ | Une échelle par axe ; une poignée sur chaque élément choisi. Reste : fin animée en cascade. |
+| Pas de poignée de taille sur une liste de tâches, un tableau, un document, un clone | ✅ | `redimensionnable: false` dans le registre. |
 | Proportions gardées pour les médias, Cmd pour les libérer, Échap pendant le geste | ✅ | |
 | Collisions : ce qui grandit pousse ses voisins du dessous | ✅ | Édition, Cmd+Entrée, colonne qui reçoit ou perd un élément, note bornée qui se replie, lignes horizontales libres. |
 | Entrer dans un tableau en le survolant pendant un glisser (700 ms puis 300 ms de clignement, 400 ms ensuite) | ✅ | |
@@ -305,7 +306,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Répartir (Cmd+Alt+Maj+H, V) | ✅ | |
 | Aligner les centres sur la valeur commune | ✅ | |
 | Premier plan, arrière-plan (Cmd+Maj+↑, ↓), d'un cran | ✅ | |
-| Menu du clic droit, sur la toile et sur un élément | ✅ | |
+| Menu du clic droit, sur la toile et sur un élément | ✅ | Ordre de Milanote, coche à droite, création limitée à huit types, rien en lecture seule. Reste : sous-menu d'arrière-plan, métadonnées avec avatar. |
 | Grouper en colonne | ✅ | |
 | Relier par une ligne (Cmd+K) | ✅ | |
 | Envoyer dans un tableau, sur le fil d'Ariane | ✅ | |
@@ -340,7 +341,9 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Partager un tableau par adresse, invitation en attente | ✅ | |
 | Rôles lecture, édition, propriétaire ; changés en direct | ✅ | |
 | Partage hérité par les sous-tableaux | ✅ | |
-| Présence : pastilles, curseurs, sélections des autres | ✅ | |
+| Présence : pastilles, curseurs, sélections des autres | ✅ | Pastille avec prénom qui pulse ; un élément tenu par un autre ne se choisit ni ne s'édite. |
+| Point d'activité non vue sur un élément modifié par un autre | ✅ | Reste : pastille « New » des tableaux, pointeurs de bord de vue. |
+| Suggestion sous l'élément (« Convertir en document ? ») | ✅ | Mécanisme `suggestionSous` ; reste : copie synchronisée, titre et tâches terminées d'une liste. |
 | Fusion des modifications sans conflit (Yjs) | ✅ | |
 | Lecture seule | ✅ | |
 | Pastilles plafonnées à 5 et « +N » | ✅ |  |

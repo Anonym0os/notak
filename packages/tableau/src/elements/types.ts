@@ -252,6 +252,8 @@ export interface TypeElement<C extends Contenu = Contenu> {
   hauteurParDefaut?: number
   /** Le cadre commun n'a ni fond ni ombre (une image, un titre) : le type dessine les siens. */
   sansFond?: boolean | ((c: C) => boolean)
+  /** Faux : pas de poignée de taille pour ce type (une liste de tâches, un tableau, un document, un clone), comme chez Milanote. */
+  redimensionnable?: boolean
   /** Largeur minimale quand on redimensionne, en UG (17 par défaut) ; ou ce que le contenu en dit (un lien qui montre un aperçu). */
   largeurMin?: number | ((c: C) => number)
   /** Pas de poignée de redimensionnement pour ce contenu (un fichier en icône : il se déplace, c'est tout). */
@@ -296,6 +298,11 @@ export interface TypeElement<C extends Contenu = Contenu> {
    * prêtes, en UG. `null` : rien (une ligne, une image). Absent : une note dessous.
    */
   suivant?(element: Element<C>, places: { dessous: Point; droite: Point }, format: boolean, contexte: ContexteToile): Element | null
+  /**
+   * Une proposition sous l'élément (« Convertir en document ? ») quand `hauteur` (UG, stable depuis une seconde) ou
+   * le contenu s'y prête ; `null` : rien. `cle` nomme la suggestion (trois refus la font taire pour de bon).
+   */
+  suggestionSous?(element: Element<C>, contexte: ContexteToile, hauteur: number): { cle: string; question: string; oui(): void; non?(): void } | null
   /** À la sortie de l'édition, ce que devient le contenu (une note qui n'est qu'une adresse devient un lien). */
   convertir?(c: C): Contenu | null
   /** Son nom de type, pour qui le lit (« Note », « Colonne »). */

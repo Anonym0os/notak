@@ -10,6 +10,7 @@ import { definition } from './elements/registre'
 import { MarqueClone } from './elements/clone/Marque'
 import { peutCloner } from './elements/clone/original'
 import { PoigneeHauteur } from './elements/rangee/PoigneeHauteur'
+import { SuggestionSous } from './elements/suggestionSous'
 import type { ContexteToile } from './elements/types'
 
 interface Props {
@@ -90,6 +91,7 @@ export const Cadre = memo(function Cadre({ element, choisie, seule, enEdition, c
       {peutCloner(element.contenu) && <MarqueClone cible={element.id} contexte={contexte} />}
       {poignee && !def.sansPoignee?.(element.contenu) && <div className="notak-poignee" data-poignee aria-hidden />}
       {rangeReglable && <PoigneeHauteur element={element} carte={noeud} contexte={contexte} />}
+      {def.suggestionSous && (seule || enEdition) && !icone && !contexte.services.lectureSeule && <SuggestionSous element={element} def={def} carte={noeud} contexte={contexte} />}
     </div>
   )
 })
