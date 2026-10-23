@@ -9,7 +9,7 @@ import {
   nouvelId,
 } from '@notak/tableau'
 import * as Y from 'yjs'
-import type { EspaceLocal } from './espace'
+import { type EspaceLocal, espaceIntact } from './espace'
 import { garderFichier, lireFichier } from './fichiers'
 
 /** L'origine des changements qu'un fichier `.notak` rouvert apporte. */
@@ -74,12 +74,6 @@ export interface CopieRouverte {
   accueil: boolean
 }
 
-/** Un espace où l'on n'a encore rien fait : un seul tableau, l'accueil, vide. */
-async function vide({ index, reseau }: EspaceLocal): Promise<boolean> {
-  if (index.lister().length > 1) return false
-  return reseau.avec(index.racine(), (doc) => doc.getMap('elements').size === 0)
-}
-
 /**
  * Rouvre une copie `.notak`. Tout fusionne (Yjs) : sa propre copie se fond dans ce qu'on a, sans doublon ; la copie
  * de quelqu'un d'autre s'ajoute, son tableau de tête rangé dans `ici`.
@@ -91,7 +85,7 @@ export async function rouvrirCopie(el: EspaceLocal, octets: Uint8Array, ici: Id)
   const racine = index.racine()
   // Déjà là : sa propre copie, ou une copie déjà rouverte. Tout se fond, rien ne s'ajoute.
   const fusion = c.racine === racine || index.entree(c.racine) !== undefined
-  const accueil = !fusion && (await vide(el))
+  const accueil = !fusion && (await espaceIntact(el))
   for (const t of c.tableaux) {
     await reseau.avec(t.id, (doc) => Y.applyUpdate(doc, t.etat, ORIGINE_COPIE))
     const parent = t.parent ?? (t.id === c.racine && !fusion && !accueil ? ici : undefined)

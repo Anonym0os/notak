@@ -11,7 +11,7 @@ import {
 } from '@notak/tableau'
 import { t } from '../langue'
 import { type PoigneeDossier, dossierNavigateur } from './dossierNavigateur'
-import type { EspaceLocal } from './espace'
+import { type EspaceLocal, accueilIntact, espaceIntact } from './espace'
 
 /**
  * « Synchroniser avec un dossier » (expérimental, Chrome et Edge sur ordinateur) : l'espace local est recopié en
@@ -100,12 +100,6 @@ function acces({ index, reseau }: EspaceLocal): AccesTableaux {
   }
 }
 
-/** Rien n'a encore été fait ici : l'accueil seul, vide. */
-async function espaceVide({ index, reseau, espace }: EspaceLocal): Promise<boolean> {
-  if (index.lister().some((e) => e.id !== espace.racine)) return false
-  return reseau.avec(espace.racine, (doc) => doc.getMap('elements').size === 0)
-}
-
 /**
  * L'index venu du dossier a pu changer d'accueil (deux appareils qui avaient chacun le leur). L'ancien accueil,
  * s'il contient quelque chose, est rangé dans le nouveau ; vide, il disparaît. La page devra se recharger.
@@ -115,8 +109,7 @@ async function verifierAccueil(el: EspaceLocal): Promise<'vide' | 'range' | null
   const ancien = espace.racine
   const nouveau = index.racine()
   if (ancien === nouveau) return null
-  const plein = await reseau.avec(ancien, (doc) => doc.getMap('elements').size > 0)
-  if (!plein) {
+  if (await accueilIntact(el, ancien).catch(() => false)) {
     index.retirer(ancien)
     return 'vide'
   }
@@ -163,7 +156,7 @@ async function boucle(el: EspaceLocal, poignee: PoigneeDossier, signal: { arrete
       const debut = premier
       if (premier) {
         // Un appareil neuf qui rejoint un dossier prend l'accueil du dossier, plutôt que d'imposer le sien, vide.
-        if (await espaceVide(el)) el.index.cederAccueil()
+        if (await espaceIntact(el, el.espace.racine)) el.index.cederAccueil()
         premier = false
       } else if (sales.size > 0) {
         const liste = [...sales]

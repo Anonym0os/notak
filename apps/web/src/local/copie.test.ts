@@ -23,12 +23,13 @@ describe('copies .notak', () => {
     expect(c.tableaux.map((t) => t.titre)).toContain('Voyage')
 
     const avant = index.lister().length
+    const elements = () => el.reseau.avec(racine, (d) => d.getMap('elements').size)
+    const notesAvant = await elements()
     const r = await rouvrirCopie(el, octets, racine)
     expect(r).toMatchObject({ fusion: true, accueil: false })
     await attendre()
     expect(index.lister().length).toBe(avant)
-    const notes = await el.reseau.avec(racine, (d) => d.getMap('elements').size)
-    expect(notes).toBe(1)
+    expect(await elements()).toBe(notesAvant)
   })
 
   it('la copie de quelqu’un d’autre s’ajoute, rangée dans le tableau ouvert, une seule fois', async () => {

@@ -320,6 +320,7 @@ export const fr: Textes = {
   'synchro.erreur': 'La synchro a échoué ; elle réessaiera.',
   'local.aPropos': 'À propos de Notak',
   'local.code': 'Le code (AGPL-3.0)',
+  'local.titreAccueil': 'Accueil',
   // FIN fr
 }
 
@@ -637,6 +638,7 @@ export const en: Textes = {
   'synchro.erreur': 'Sync failed; it will try again.',
   'local.aPropos': 'About Notak',
   'local.code': 'Source code (AGPL-3.0)',
+  'local.titreAccueil': 'Home',
   // FIN en
 }
 
