@@ -55,6 +55,7 @@ import type { ContexteToile, Presence, Services } from './elements/types'
 import { t, tn } from './langue'
 import { PastilleZoom } from './PastilleZoom'
 import { PastilleAutre } from './PastilleAutre'
+import { PointActivite } from './PointActivite'
 import { PointeursBord } from './PointeursBord'
 import type { CibleBord } from './coeur/pointeurs'
 import { lignesDeTrace } from './trace'
@@ -2872,11 +2873,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           const r = rect(id)
           if (!r) return null
           return (
-            <span
+            <PointActivite
               key={`activite:${id}`}
-              className="notak-activite"
-              title={t('toile.modifiePar', { nom: v.nom, age: ageCourt(v.quand) })}
-              style={{ left: r.max.x * cam.PX_PAR_UG - 6 - 7, top: r.min.y * cam.PX_PAR_UG + 6 }}
+              texte={t('toile.modifiePar', { nom: v.nom, age: ageCourt(v.quand) })}
+              gauche={r.max.x * cam.PX_PAR_UG - 6 - 7}
+              haut={r.min.y * cam.PX_PAR_UG + 6}
             />
           )
         })}
