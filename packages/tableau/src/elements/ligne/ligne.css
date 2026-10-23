@@ -1,6 +1,6 @@
 .notak-calque-lignes .notak-ligne-trait,
 .notak-calque-lignes .notak-ligne-clic,
-.notak-calque-lignes .notak-ligne-halo {
+.notak-calque-lignes .notak-ligne-fantome {
   fill: none;
 }
 
@@ -8,10 +8,12 @@
   pointer-events: none;
 }
 
-.notak-calque-lignes .notak-ligne-halo {
-  stroke: var(--notak-accent);
-  stroke-width: 8px;
-  stroke-opacity: 0.22;
+/* Choisie, une ligne n'a ni halo ni contour : ses poignées suffisent. Ce que le trait cache dans les éléments
+   reliés réapparaît en points très légers. */
+.notak-calque-lignes .notak-ligne-fantome {
+  stroke-width: 2px;
+  stroke-opacity: 0.3;
+  stroke-dasharray: 0.1 6;
   stroke-linecap: round;
   pointer-events: none;
 }
@@ -20,7 +22,6 @@
 .notak-calque-lignes .notak-ligne-clic {
   stroke: transparent;
   stroke-width: 20px;
-  cursor: pointer;
 }
 
 .notak-calque-lignes .notak-ligne-libelle-zone {
@@ -36,79 +37,121 @@
   pointer-events: none;
 }
 
+/* L'étiquette : la couleur de la ligne, 150 px de large au plus, 5 px sur les côtés, 2 px en haut et en bas. */
 .notak-calque-lignes .notak-ligne-libelle[data-id] {
   display: block;
-  max-width: 280px;
-  padding: 2px 8px;
+  box-sizing: content-box;
+  max-width: 150px;
+  padding: 2px 5px;
   border-radius: 4px;
   font-size: 12px;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.3;
   text-align: center;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
   pointer-events: auto;
-  cursor: pointer;
+  cursor: default;
   user-select: none;
 }
 
+/* Une étiquette de ligne choisie se prend et se tire : elle déplace la courbe. */
+.notak-calque-lignes .notak-ligne-libelle[data-choisie] {
+  cursor: move;
+}
+
+/* L'édition en place : même position et même taille, sur fond blanc. */
 .notak-calque-lignes .notak-ligne-champ {
-  box-sizing: border-box;
-  width: 220px;
-  height: 26px;
-  padding: 0 8px;
-  border: 2px solid var(--notak-accent);
+  box-sizing: content-box;
+  display: block;
+  width: 150px;
+  min-height: 1.3em;
+  padding: 2px 5px;
+  border: 0;
   border-radius: 4px;
   outline: none;
+  background: #ffffff;
+  color: #323b4a;
   font: inherit;
   font-size: 12px;
   font-weight: 600;
+  line-height: 1.3;
   text-align: center;
+  resize: none;
+  overflow: hidden;
   pointer-events: auto;
+  cursor: text;
 }
 
+.notak-calque-lignes .notak-ligne-champ[data-sombre] {
+  background: #2b313c;
+  color: #f2f3f5;
+}
+
+/* Une poignée de ligne : un disque blanc de 8 px, de taille constante à l'écran, dans une zone de prise de
+   30 px. Elle ne réagit pas au survol. */
 .notak-calque-lignes .notak-ligne-poignee {
   pointer-events: all;
-  cursor: grab;
+  cursor: move;
 }
 
 .notak-calque-lignes .notak-ligne-poignee-prise {
   fill: transparent;
 }
 
-.notak-calque-lignes .notak-ligne-poignee-anneau {
-  fill: var(--notak-carte);
-  stroke: var(--notak-accent);
-  stroke-width: 2px;
-  transition: r 120ms ease-out;
-}
-
-.notak-calque-lignes .notak-ligne-poignee-coeur {
-  fill: var(--notak-accent);
+.notak-calque-lignes .notak-ligne-poignee-disque {
+  fill: #ffffff;
+  stroke: rgb(0 0 0 / 0.08);
+  stroke-width: 0.5px;
+  filter: drop-shadow(0 1px 2px rgb(27 37 54 / 0.1));
   pointer-events: none;
-  transition: r 120ms ease-out;
 }
 
-/* Au survol, l'anneau s'ouvre un peu : on sait qu'on peut la prendre. */
-.notak-calque-lignes .notak-ligne-poignee:hover .notak-ligne-poignee-anneau {
-  r: 8px;
+/* Un bout accroché : plein de la couleur de la ligne, cerclé de blanc. */
+.notak-calque-lignes .notak-ligne-poignee[data-accrochee] .notak-ligne-poignee-disque {
+  stroke: #ffffff;
+  stroke-width: 1.5px;
 }
 
-.notak-calque-lignes .notak-ligne-poignee:hover .notak-ligne-poignee-coeur {
-  r: 3px;
+/* Verrouillée ou en lecture seule : trois poignées grises qu'on ne prend pas. */
+.notak-calque-lignes .notak-ligne-poignee[data-inerte] {
+  pointer-events: none;
+  cursor: default;
 }
 
-/* Le point de contrôle : un anneau plus discret, sans cœur. */
-.notak-calque-lignes .notak-ligne-poignee[data-extremite='courbe'] .notak-ligne-poignee-anneau {
-  r: 5px;
+.notak-calque-lignes .notak-ligne-poignee[data-inerte] .notak-ligne-poignee-disque {
+  fill: #bbbec3;
 }
 
-.notak-calque-lignes .notak-ligne-poignee[data-extremite='courbe'] .notak-ligne-poignee-coeur {
-  r: 0;
+/* Les huit repères d'accroche du mode dedans : éteints tant que le pointeur n'est pas près d'eux. */
+.notak-calque-lignes .notak-ligne-guide,
+.notak-ligne-rapide-apercu .notak-ligne-guide {
+  opacity: 0;
+  transition: opacity 100ms ease-out;
+  pointer-events: none;
 }
 
-.notak-calque-lignes .notak-ligne-poignee[data-extremite='courbe']:hover .notak-ligne-poignee-anneau {
-  r: 6.5px;
+.notak-calque-lignes .notak-ligne-guide[data-allume],
+.notak-ligne-rapide-apercu .notak-ligne-guide[data-allume] {
+  opacity: 1;
+}
+
+.notak-calque-lignes .notak-ligne-guide circle,
+.notak-ligne-rapide-apercu .notak-ligne-guide circle {
+  fill: #ffffff;
+  stroke: #bbbec3;
+  stroke-width: 2px;
+}
+
+/* L'élément qu'un bout tiré va viser : un contour foncé ; en mode dedans, un contour gris et plus d'ombre. */
+.notak-toile [data-cible-ligne] {
+  outline: 2px solid #323b4a;
+  outline-offset: 0;
+}
+
+.notak-toile [data-cible-ligne='dedans'] {
+  outline-color: #bbbec3;
+  box-shadow: none;
 }
 
 .notak-ligne-sep {
@@ -150,7 +193,8 @@
   box-shadow: 0 0 0 2px var(--notak-accent);
 }
 
-/* La poignée de la ligne rapide : une pastille au coin haut droit de l'élément seul choisi. */
+/* La poignée de la ligne rapide : une zone de prise de 30 px centrée sur le coin haut droit de l'élément seul choisi.
+   Au repos, un petit point blanc ; au survol, il grossit et une flèche s'y glisse. */
 .notak-ligne-rapide {
   position: absolute;
   z-index: 3;
@@ -158,24 +202,48 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  margin: -22px 0 0 2px;
-  border: 1px solid rgb(0 0 0 / 0.12);
-  border-radius: 50%;
-  background: var(--notak-carte);
-  color: var(--notak-texte);
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.16);
-  cursor: crosshair;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  cursor: default;
   touch-action: none;
-  opacity: 0.85;
-  transition: opacity 100ms, transform 100ms;
+  transition: opacity 100ms ease-out;
 }
 
-.notak-ligne-rapide:hover,
-.notak-ligne-rapide[data-tirage] {
+.notak-ligne-rapide-point {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #323b4a;
+  box-shadow: 0 1px 2px rgb(27 37 54 / 0.18), 0 0 0 0.5px rgb(0 0 0 / 0.08);
+  transform: scale(0.5);
+  transition: transform 100ms ease-out, box-shadow 100ms ease-out;
+}
+
+.notak-ligne-rapide-point > * {
+  opacity: 0;
+  transform: translate(-3px, 3px);
+  transition: opacity 30ms linear, transform 100ms ease-out;
+}
+
+.notak-ligne-rapide:hover .notak-ligne-rapide-point {
+  transform: scale(1);
+  box-shadow: 0 1px 2px rgb(27 37 54 / 0.18);
+}
+
+.notak-ligne-rapide:hover .notak-ligne-rapide-point > * {
   opacity: 1;
-  transform: scale(1.12);
+  transform: none;
+}
+
+/* Pendant le tirage, la poignée s'efface : l'aperçu prend le relais. */
+.notak-ligne-rapide[data-tirage] {
+  opacity: 0;
 }
 
 /* Le trait qui suit le pointeur pendant le tirage, au-dessus de tout, sans rien prendre. */

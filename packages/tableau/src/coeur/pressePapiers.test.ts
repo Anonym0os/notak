@@ -31,6 +31,14 @@ describe('presse-papiers', () => {
     expect(empaqueter(t, [note.id], rect)!.elements.map((e) => e.id)).toEqual([note.id])
   })
 
+  it('copie une ligne choisie seule : ses bouts gardent les éléments d’origine', () => {
+    const p = empaqueter(t, ['L'], rect)!
+    expect(p.elements.map((e) => e.id)).toEqual(['L'])
+    const [l] = deballer(p, { x: 2, y: 2 })
+    expect(l!.id).not.toBe('L')
+    expect(l!.contenu).toMatchObject({ depart: { element: colonne.id }, arrivee: { element: note.id } })
+  })
+
   it('pose sur la toile, là où on le voit, ce qu’on tire seul de sa colonne', () => {
     const [e] = empaqueter(t, [rangee.id], rect)!.elements
     expect(e).toMatchObject({ x: 1, y: 6 })

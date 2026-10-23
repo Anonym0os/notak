@@ -3,7 +3,8 @@
  * rien ici ne touche au DOM.
  *
  * Une ligne va d'un point à un autre. Accrochée à un élément, elle vise son centre et s'arrête sur son bord.
- * Une courbe est une Bézier quadratique dont le point de contrôle vient de `{ ecart, position }`.
+ * Une courbe est une Bézier quadratique qui PASSE par le point que donne `{ ecart, position }` (la poignée est sur
+ * le trait, comme dans Milanote) : son vrai point de contrôle s'en déduit.
  */
 import { type Point, type Rect, centre, contient, hauteur, largeur, point } from './geometrie'
 import type { Ancre, Element, Extremite, Id, Ligne, Pointe, Tableau } from './tableau'
@@ -24,20 +25,31 @@ const distance = (p: Point, q: Point) => Math.hypot(p.x - q.x, p.y - q.y)
 const milieu = (p: Point, q: Point) => point((p.x + q.x) / 2, (p.y + q.y) / 2)
 const arrondi = (v: number) => Math.round(v * 100) / 100
 
-/** Le point de contrôle d'une courbe sur la corde `a`→`b`, ou `null` si le trait est droit. */
-export function pointControle(a: Point, b: Point, courbe?: Courbe): Point | null {
+/** Le point que la poignée de courbe occupe, sur le trait, ou `null` si le trait est droit. */
+export function pointCourbe(a: Point, b: Point, courbe?: Courbe): Point | null {
   if (!courbe) return null
   const [dx, dy] = [b.x - a.x, b.y - a.y]
   const long = Math.hypot(dx, dy)
   if (long < 1e-9) return null
   const base = point(a.x + dx * courbe.position, a.y + dy * courbe.position)
-  const c = point(base.x - (dy / long) * courbe.ecart, base.y + (dx / long) * courbe.ecart)
-  return distance(c, milieu(a, b)) < SEUIL_DROIT ? null : c
+  const p = point(base.x - (dy / long) * courbe.ecart, base.y + (dx / long) * courbe.ecart)
+  return distance(p, milieu(a, b)) < SEUIL_DROIT ? null : p
 }
 
 /**
- * La courbe qui a son point de contrôle en `p`, ou `undefined` (trait droit) si `p` est à moins de
- * `SEUIL_DROIT` du milieu de la corde. L'inverse de `pointControle`.
+ * Le point de contrôle de la quadratique d'une courbe sur la corde `a`→`b`, ou `null` si le trait est droit.
+ * La courbe passe par `pointCourbe` au milieu de son parcours (t = 0,5) : `P = (a + 2c + b) / 4`.
+ */
+export function pointControle(a: Point, b: Point, courbe?: Courbe): Point | null {
+  const p = pointCourbe(a, b, courbe)
+  if (!p) return null
+  const m = milieu(a, b)
+  return point(2 * p.x - m.x, 2 * p.y - m.y)
+}
+
+/**
+ * La courbe dont la poignée est en `p`, un point du trait, ou `undefined` (trait droit) si `p` est à moins de
+ * `SEUIL_DROIT` du milieu de la corde. L'inverse de `pointCourbe`.
  */
 export function courbeDepuisPoint(a: Point, b: Point, p: Point): Courbe | undefined {
   const [dx, dy] = [b.x - a.x, b.y - a.y]
@@ -160,10 +172,13 @@ export function tracer(e: EntreeTrace): Trace | null {
   }
 }
 
-/** Les trois sommets d'une pointe en flèche : la pointe sur `bout`, la base à `taille` en arrière. */
+/**
+ * Les trois sommets d'une pointe en flèche : la pointe sur `bout`, la base à `taille` en arrière. Le triangle est
+ * aussi large que long (8 × 8, 10 × 10, 13 × 13 px), comme dans Milanote.
+ */
 export function sommetsFleche(bout: Point, vers: Point, taille: number): [Point, Point, Point] {
   const base = point(bout.x - vers.x * taille, bout.y - vers.y * taille)
-  const demi = taille * 0.45
+  const demi = taille * 0.5
   return [
     bout,
     point(base.x - vers.y * demi, base.y + vers.x * demi),
@@ -241,6 +256,30 @@ export function auMoins(fixe: Point, p: Point, min: number): Point {
   return point(fixe.x + ((p.x - fixe.x) / d) * min, fixe.y + ((p.y - fixe.y) / d) * min)
 }
 
+/** À la pose d'un bout libre, la ligne fait au moins cette longueur (UG) : plus courte, le bout est repoussé. */
+export const LONGUEUR_POSE = 4
+
+/** Un bout libre se pose où est le curseur, au centième d'UG : aucun aimant de grille. */
+export const poserExact = (p: Point): Point => point(arrondi(p.x), arrondi(p.y))
+
+/** Dans cet écart (px) et sous cette pente, un trait presque droit se cale à l'horizontale ou à la verticale. */
+const ECART_AIMANT_PX = 10
+const PENTE_AIMANT = 1 / 30
+
+/**
+ * Sans Maj, quand rien d'autre ne tient le bout : un trait à peine penché (écart sous 10 px et pente sous 1/30)
+ * se cale à l'horizontale, ou à la verticale.
+ */
+export function aimanterAuto(fixe: Point, p: Point, pxParUg: number): Point {
+  const [dx, dy] = [Math.abs(p.x - fixe.x), Math.abs(p.y - fixe.y)]
+  if (dy * pxParUg < ECART_AIMANT_PX && dy < dx * PENTE_AIMANT) return point(p.x, fixe.y)
+  if (dx * pxParUg < ECART_AIMANT_PX && dx < dy * PENTE_AIMANT) return point(fixe.x, p.y)
+  return p
+}
+
+/** Le rectangle élargi de `d` de chaque côté : le trait s'arrête 1 px avant le bord de l'élément. */
+export const elargir = (r: Rect, d: number): Rect => ({ min: point(r.min.x - d, r.min.y - d), max: point(r.max.x + d, r.max.y + d) })
+
 // ———— Accroche à un point précis ————
 
 /** Le point du tableau que désigne une ancre sur ce rectangle. */
@@ -277,16 +316,16 @@ export function ancreSous(r: Rect, p: Point, pres = PRES_ANCRE): Ancre | null {
 // ———— Deux colonnes côte à côte ————
 
 /** Deux colonnes dont les hauts sont à moins de cet écart (UG) se relient d'un trait horizontal. */
-export const ECART_COLONNES_ALIGNEES = 4
-/** La hauteur du milieu de l'en-tête d'une colonne, depuis son haut (UG) : le trait passe à la hauteur des titres. */
-export const MILIEU_TITRE_COLONNE = 2.3
+export const ECART_COLONNES_ALIGNEES = 3
+/** La hauteur du trait entre deux colonnes alignées, sous le plus bas des deux hauts (UG). */
+export const MILIEU_TITRE_COLONNE = 3.2
 
 /**
  * Une ligne entre deux colonnes à peu près alignées : les deux bouts visent la hauteur des titres, sous le plus
  * bas des deux hauts, et le trait est horizontal. `null` si elles ne sont pas alignées.
  */
 export function aligneesEnColonnes(a: Point, b: Point, rectA: Rect, rectB: Rect): { a: Point; b: Point } | null {
-  if (Math.abs(rectA.min.y - rectB.min.y) > ECART_COLONNES_ALIGNEES) return null
+  if (Math.abs(rectA.min.y - rectB.min.y) >= ECART_COLONNES_ALIGNEES) return null
   const y = Math.max(rectA.min.y, rectB.min.y) + MILIEU_TITRE_COLONNE
   return { a: point(a.x, y), b: point(b.x, y) }
 }
@@ -301,6 +340,34 @@ export function aligneesEnColonnes(a: Point, b: Point, rectA: Rect, rectB: Rect)
 export function ancreDeposee(r: Rect, p: Point, pres = PRES_ANCRE): Ancre | null {
   const a = ancreSous(r, p, pres)
   return a && (a.x === 0 || a.x === 1 || a.y === 0 || a.y === 1) ? a : null
+}
+
+/** Les huit repères d'accroche du « mode dedans » : coins et milieux des côtés (jamais le centre). */
+export const GUIDES = REPERES.filter((r) => !(r.x === 0.5 && r.y === 0.5))
+
+/** Le repère à moins de `PRES_GUIDE` (UG) de `p` sur ce rectangle, ou `null`. */
+export const PRES_GUIDE = 1
+export function guideSous(r: Rect, p: Point): Ancre | null {
+  for (const g of GUIDES) if (distance(pointAncre(r, g), p) < PRES_GUIDE) return g
+  return null
+}
+
+/**
+ * Le point précis d'un bout tenu immobile sur un élément (« mode dedans ») : le repère tout proche, sinon le point
+ * lui-même, rapporté au bord ou au milieu à une demi-UG près. `null` pour le centre exact. Toujours dans l'élément.
+ */
+export function ancreDedans(r: Rect, p: Point): Ancre | null {
+  const guide = guideSous(r, p)
+  if (guide) return guide
+  const [l, h] = [largeur(r), hauteur(r)]
+  if (l < 1e-9 || h < 1e-9) return null
+  const caler = (v: number, min: number, taille: number) => {
+    const f = Math.max(0, Math.min(1, (v - min) / taille))
+    for (const k of [0, 0.5, 1]) if (Math.abs(f * taille - k * taille) < 0.5) return k
+    return arrondi(f)
+  }
+  const ancre = { x: caler(p.x, r.min.x, l), y: caler(p.y, r.min.y, h) }
+  return ancre.x === 0.5 && ancre.y === 0.5 ? null : ancre
 }
 
 /** Ce que vise une ligne : ses deux points, et pour chacun le rectangle où le trait s'arrête, s'il y en a un. */

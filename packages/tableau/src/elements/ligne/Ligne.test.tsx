@@ -51,7 +51,8 @@ describe('RenduLigne, accroche à un point précis', () => {
 
   it('sans ancre, le trait part du bord de l’élément, vers le centre de l’autre', () => {
     const [x0, y0] = nombres(trait([a, b], rects, { element: a.id }, { element: b.id }, { pointeArrivee: 'rien' }))
-    expect(x0).toBeCloseTo(200, 3)
+    // Le trait s'arrête 1 px avant le bord (x = 200).
+    expect(x0).toBeCloseTo(201, 3)
     expect(y0).toBeCloseTo(50, 3)
   })
 
@@ -80,9 +81,9 @@ describe('RenduLigne, deux colonnes alignées', () => {
   it('le trait est horizontal, à la hauteur des titres', () => {
     const rects = { [c1.id]: depuisTaille(point(0, 10), 34, 40), [c2.id]: depuisTaille(point(50, 12), 34, 90) }
     const n = nombres(trait([c1, c2], rects, { element: c1.id }, { element: c2.id }, { pointeArrivee: 'rien' }))
-    // M x0 y0 L x1 y1 : les deux hauteurs sont celles du titre de la plus basse (12 + 2,3 UG).
-    expect(n[1]).toBe(143)
-    expect(n[3]).toBe(143)
+    // M x0 y0 L x1 y1 : les deux hauteurs sont à 3,2 UG sous le plus bas des deux hauts (12 + 3,2 UG).
+    expect(n[1]).toBeCloseTo(152, 3)
+    expect(n[3]).toBeCloseTo(152, 3)
   })
 
   it('des colonnes de hauteurs de départ éloignées gardent le trait de centre à centre', () => {
@@ -95,5 +96,76 @@ describe('RenduLigne, deux colonnes alignées', () => {
     const rects = { [c1.id]: depuisTaille(point(0, 10), 34, 40), [note.id]: depuisTaille(point(50, 12), 20, 10) }
     const n = nombres(trait([c1, note], rects, { element: c1.id }, { element: note.id }, { pointeArrivee: 'rien' }))
     expect(n[1]).not.toBe(n[3])
+  })
+})
+
+/** Rend une ligne libre et rend le conteneur. */
+function monter(ligne: Partial<ContenuLigne>, choisie = false, verrou = false) {
+  const l = { ...nouvelleLigne({ x: 0, y: 0 }, { x: 20, y: 0 }, ligne), ...(verrou ? { verrou: true } : {}) }
+  const tableau: Tableau = { titre: '', elements: [l] }
+  const contexte = {
+    magasin: { lire: () => tableau, appliquerSeulement() {}, inscrire() {} },
+    rect: () => null,
+    versTableau: (p: { x: number; y: number }) => p,
+    camera: { origine: point(0, 0), echelle: 1 },
+  } as unknown as ContexteToile
+  hote = document.createElement('div')
+  document.body.append(hote)
+  racine = createRoot(hote)
+  act(() => {
+    racine!.render(
+      <svg>
+        <RenduLigne element={l} choisie={choisie} enEdition={false} contexte={contexte} brouillon={() => {}} changer={() => {}} />
+      </svg>,
+    )
+  })
+  return hote
+}
+
+describe('RenduLigne, rendu', () => {
+  it('la flèche dépasse le point d’arrivée de l’épaisseur du trait et le trait n’est pas raccourci', () => {
+    const h = monter({ epaisseur: 2 })
+    // Le trait va jusqu’au bout (200 px), la pointe est à 2 px au-delà.
+    expect(nombres(h.querySelector('.notak-ligne-trait')!.getAttribute('d')!).slice(-2)).toEqual([200, 0])
+    const pts = nombres(h.querySelector('polygon')!.getAttribute('points')!)
+    expect(pts[0]).toBeCloseTo(202, 3)
+    // Aussi large que long : base à 10 px en arrière, 5 px de part et d’autre.
+    expect(pts[2]).toBeCloseTo(192, 3)
+    expect(Math.abs(pts[3]! - pts[5]!)).toBeCloseTo(10, 3)
+  })
+
+  it('un bout sans pointe est arrondi (un petit rond au diamètre du trait)', () => {
+    const h = monter({ pointeDepart: 'rien', pointeArrivee: 'rien', epaisseur: 4 })
+    const ronds = [...h.querySelectorAll('circle')]
+    expect(ronds).toHaveLength(2)
+    expect(ronds[0]!.getAttribute('r')).toBe('2')
+  })
+
+  it('choisie : ni halo, trois poignées de 8 px', () => {
+    const h = monter({}, true)
+    expect(h.querySelector('.notak-ligne-halo')).toBeNull()
+    const poignees = [...h.querySelectorAll('.notak-ligne-poignee')]
+    expect(poignees.map((p) => p.getAttribute('data-extremite'))).toEqual(['depart', 'arrivee', 'courbe'])
+    expect(h.querySelector('.notak-ligne-poignee-disque')!.getAttribute('r')).toBe('4')
+  })
+
+  it('verrouillée, ses poignées sont inertes', () => {
+    const h = monter({}, true, true)
+    expect([...h.querySelectorAll('.notak-ligne-poignee')].every((p) => p.hasAttribute('data-inerte'))).toBe(true)
+  })
+
+  it('le libellé masqué ne se montre pas ; la poignée de courbe reparaît', () => {
+    const visible = monter({ libelle: 'Oui' }, true)
+    expect(visible.querySelector('.notak-ligne-libelle')!.textContent).toBe('Oui')
+    expect(visible.querySelector('[data-extremite="courbe"]')).toBeNull()
+    act(() => racine!.unmount())
+    visible.remove()
+    const masque = monter({ libelle: 'Oui', libelleMasque: true }, true)
+    expect(masque.querySelector('.notak-ligne-libelle')).toBeNull()
+    expect(masque.querySelector('[data-extremite="courbe"]')).not.toBeNull()
+  })
+
+  it('le trait fantôme n’existe que pour une ligne reliée à un élément', () => {
+    expect(monter({}, true).querySelector('.notak-ligne-fantome')).toBeNull()
   })
 })

@@ -13,16 +13,24 @@ describe('ligne rapide, où se pose le bout lâché', () => {
     expect(a.rect).toBe(autre.rect)
   })
 
-  it('lâché sur le bord d’un autre élément : il s’y accroche à ce point précis', () => {
+  it('lâché sur le bord d’un autre élément, sans mode dedans : toujours le centre', () => {
     const a = arriveeDe(source, point(40.2, 8), autre, false)!
+    expect(a.extremite).toEqual({ element: 'b' })
+    expect(a.vise).toEqual(point(50, 5))
+  })
+
+  it('en mode dedans : il s’accroche au point précis, collé à un repère tout proche', () => {
+    const a = arriveeDe(source, point(40.2, 8), autre, false, true)!
     expect(a.extremite).toEqual({ element: 'b', ancre: { x: 0, y: 0.8 } })
     expect(a.vise).toEqual(point(40, 8))
     expect(a.rect).toBeNull()
+    const coin = arriveeDe(source, point(59.5, 0.4), autre, false, true)!
+    expect(coin.extremite).toEqual({ element: 'b', ancre: { x: 1, y: 0 } })
   })
 
-  it('lâché dans le vide : un point libre, sur la grille', () => {
+  it('lâché dans le vide : un point libre, exactement où est le curseur', () => {
     const a = arriveeDe(source, point(33.4, 7.6), null, false)!
-    expect(a.extremite).toEqual({ x: 33, y: 8 })
+    expect(a.extremite).toEqual({ x: 33.4, y: 7.6 })
     expect(a.rect).toBeNull()
   })
 

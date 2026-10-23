@@ -49,7 +49,7 @@ export const OutilArrangement: OutilCommun = ({ elements, contexte }) => {
         <OutilAvecMenu menu={aligner_} classeAncre="notak-arrangement" icone="alignerGauche" libelle={t('arrangement.aligner')}>
           <span className="notak-arrangement-menu" role="menu">
             {SENS.map((s) => (
-              <button key={s.sens} type="button" role="menuitem" title={s.libelle} aria-label={s.libelle} onClick={() => appliquer(enOperations(aligner(items, s.sens)))}>
+              <button key={s.sens} type="button" role="menuitem" title={s.libelle} aria-label={s.libelle} onClick={() => appliquer(enOperations(aligner(items, s.sens), contexte.magasin.lire().elements))}>
                 <Icone nom={s.icone} />
               </button>
             ))}
@@ -60,7 +60,7 @@ export const OutilArrangement: OutilCommun = ({ elements, contexte }) => {
         <OutilAvecMenu menu={repartir_} classeAncre="notak-arrangement" icone="repartirH" libelle={t('arrangement.repartir')}>
           <span className="notak-arrangement-menu" role="menu">
             {AXES.map((a) => (
-              <button key={a.axe} type="button" role="menuitem" title={a.libelle} aria-label={a.libelle} onClick={() => appliquer(enOperations(repartir(items, a.axe)))}>
+              <button key={a.axe} type="button" role="menuitem" title={a.libelle} aria-label={a.libelle} onClick={() => appliquer(enOperations(repartir(items, a.axe), contexte.magasin.lire().elements))}>
                 <Icone nom={a.icone} />
               </button>
             ))}

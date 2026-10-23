@@ -4,6 +4,7 @@ import type { Element, Id, Ligne } from '../../coeur/tableau'
 import { definition } from '../registre'
 import type { ContexteToile, EntreeMenu, Raccourci } from '../types'
 import { nouvelleLigne } from './creation'
+import { editionLibelle } from './edition'
 import { t } from '../../langue'
 
 const libre = (e: Element) => !e.parent && definition(e.contenu.type)?.calque !== 'lignes'
@@ -12,6 +13,20 @@ const libre = (e: Element) => !e.parent && definition(e.contenu.type)?.calque !=
 export const raccourciRelier: Raccourci = (e, contexte) => {
   if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 'k') return false
   return relierChoisis(contexte)
+}
+
+/**
+ * Une touche qui est un caractère (ni Entrée, Espace, Tab, Retour arrière, flèches ou Échap, ni avec Cmd, Ctrl ou
+ * Alt), sur une ligne seule choisie : le libellé s'ouvre et la touche s'y écrit à la place du mot d'attente.
+ */
+export const raccourciLibelle: Raccourci = (e, contexte) => {
+  if (e.metaKey || e.ctrlKey || e.altKey || e.isComposing || e.key.length !== 1 || e.key === ' ') return false
+  if (contexte.selection.size !== 1) return false
+  const [id] = contexte.selection
+  const el = contexte.magasin.lire().elements.find((x) => x.id === id)
+  if (!el || el.contenu.type !== 'ligne' || el.verrou) return false
+  editionLibelle.ouvrir(el.id, e.key)
+  return true
 }
 
 export const entreeRelier: EntreeMenu = {
