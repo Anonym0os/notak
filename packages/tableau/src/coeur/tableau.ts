@@ -264,6 +264,8 @@ export interface RenvoiTableau {
   image?: Id
   /** Un raccourci : le même tableau posé à un autre endroit. Le jeter ne jette pas le tableau. */
   raccourci?: boolean
+  /** La couleur propre d'un raccourci ; absente, il montre celle du tableau. */
+  couleur?: CouleurNote
 }
 
 /** Qui a écrit un message, tel qu'il se présentait à ce moment-là. */

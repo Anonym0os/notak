@@ -85,13 +85,16 @@ function ChoixIcone({ elements, contexte }: PropsOutils<RenvoiTableau>) {
 export function OutilsRenvoi({ elements, contexte }: PropsOutils<RenvoiTableau>) {
   const [ouvert, setOuvert, ancre] = useMenu()
   const { tableau, ecouterEspace, colorerTableau } = contexte.services
-  const cibles = elements.map((e) => e.contenu.cible)
   const actuelle = useSyncExternalStore(ecouterEspace ?? sans, () => {
-    const couleurs = new Set(cibles.map((c) => tableau?.(c)?.couleur))
+    // La couleur d'un raccourci est la sienne, sinon celle du tableau.
+    const couleurs = new Set(elements.map((e) => (e.contenu.raccourci && e.contenu.couleur) || tableau?.(e.contenu.cible)?.couleur))
     return couleurs.size === 1 ? [...couleurs][0] : undefined
   })
   const choisir = (couleur: CouleurNote) => {
-    for (const c of cibles) colorerTableau?.(c, couleur)
+    // Un raccourci se colore lui seul ; un tableau, pour toutes les cartes qui le montrent.
+    const propres = elements.filter((e) => e.contenu.raccourci)
+    if (propres.length > 0) contexte.magasin.faire(propres.map((e) => ({ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: { ...e.contenu, couleur } })))
+    for (const e of elements) if (!e.contenu.raccourci) colorerTableau?.(e.contenu.cible, couleur)
     setOuvert(false)
   }
   return (

@@ -1,4 +1,5 @@
 import { type Element, type RenvoiTableau, nouvelId } from '../../coeur/tableau'
+import { cleEntre, comparerOrdre } from '../../coeur/ordre'
 import { registre } from '../registre'
 import type { Point } from '../../coeur/geometrie'
 import type { ContexteToile } from '../types'
@@ -40,12 +41,18 @@ registre.entreeMenu({
   get libelle() {
     return t('menu.creerRaccourci')
   },
-  visible: (els, contexte) => els.length > 0 && els.every((e) => e.contenu.type === 'tableau') && !contexte.services.lectureSeule,
+  // Un seul tableau, qui n'est pas lui-même un raccourci.
+  visible: (els, contexte) => els.length === 1 && els[0]!.contenu.type === 'tableau' && !els[0]!.contenu.raccourci && !contexte.services.lectureSeule,
   faire(els, contexte) {
-    // À droite de chaque carte, sur sa ligne : le raccourci naît là où l'œil le trouve.
-    const neufs = els.flatMap((e) =>
-      e.contenu.type === 'tableau' ? [nouveauRaccourci(e as Element<RenvoiTableau>, { x: e.x + e.largeur + 4, y: e.y })] : [],
-    )
+    // Un raccourci naît à 6 UG à droite et 5 UG plus bas que son tableau ; rangé dans une colonne, juste après lui.
+    const neufs = els.flatMap((e) => {
+      if (e.contenu.type !== 'tableau') return []
+      const neuf = nouveauRaccourci(e as Element<RenvoiTableau>, { x: e.x + 6, y: e.y + 5 })
+      if (!e.parent) return [neuf]
+      const freres = contexte.magasin.lire().elements.filter((x) => x.parent === e.parent).sort((a, b) => comparerOrdre(a.ordre, b.ordre))
+      const apres = freres[freres.findIndex((x) => x.id === e.id) + 1]
+      return [{ ...neuf, x: e.x, y: e.y, parent: e.parent, ordre: cleEntre(e.ordre, apres?.ordre) }]
+    })
     contexte.magasin.faire(neufs.map((element) => ({ type: 'creer' as const, element })))
     contexte.choisir(neufs.map((e) => e.id))
   },
@@ -65,13 +72,17 @@ registre.type<RenvoiTableau>({
   get nom() {
     return t('type.tableau')
   },
-  resume: (c, contexte) => contexte.services.tableau?.(c.cible)?.titre ?? '',
+  resume: (c, contexte) => (c.raccourci && c.titre) || (contexte.services.tableau?.(c.cible)?.titre ?? ''),
   Rendu: RenduRenvoi,
   Outils: OutilsRenvoi,
   // Sa couleur est celle du tableau, rangée dans l'espace : la changer ne passe pas par l'historique de celui-ci.
   couleur: {
-    lire: (e, contexte) => contexte.services.tableau?.(e.contenu.cible)?.couleur,
-    ailleurs: (e, couleur, contexte) => contexte.services.colorerTableau?.(e.contenu.cible, couleur),
+    lire: (e, contexte) => (e.contenu.raccourci && e.contenu.couleur) || contexte.services.tableau?.(e.contenu.cible)?.couleur,
+    // Un raccourci a sa couleur : elle se range dans sa carte, et le tableau garde la sienne.
+    ailleurs: (e, couleur, contexte) =>
+      e.contenu.raccourci
+        ? contexte.magasin.faire([{ type: 'contenu', id: e.id, avant: e.contenu, apres: { ...e.contenu, couleur } }])
+        : contexte.services.colorerTableau?.(e.contenu.cible, couleur),
   },
   sansFond: true,
   sansInclinaison: true,

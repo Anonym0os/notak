@@ -158,7 +158,7 @@ describe('le menu « ••• » de la sélection', () => {
   it('est un menu d’actions : verrouiller, premier plan, arrière-plan, convertir', () => {
     ouvrirPlus()
     const libelles = [...hote.querySelectorAll('.notak-menu-actions button')].map((b) => b.querySelector('.notak-menu-actions-texte')!.textContent)
-    expect(libelles).toEqual(['Convertir en document', 'Cloner', 'Verrouiller la position', 'Premier plan', 'Arrière-plan'])
+    expect(libelles).toEqual(['Convertir en document', 'Créer une copie synchronisée', 'Verrouiller la position', 'Premier plan', 'Arrière-plan'])
   })
 
   it('Verrouiller coche la position, et un second clic la libère', () => {

@@ -1,7 +1,8 @@
-import { useLayoutEffect, useRef } from 'react'
+import { useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Rangees, useEmpreintes, useRanges } from '../../Cadre'
 import type { Colonne, CouleurNote } from '../../coeur/tableau'
 import { composition } from '../composition'
+import { ecouterRecherche, ouverteParRecherche } from './recherche'
 import { LIBELLES_COULEUR } from '../note/couleurs'
 import type { PropsOutils, PropsRendu } from '../types'
 import { t } from '../../langue'
@@ -9,8 +10,8 @@ import { Icone } from '../../icones'
 import { useMenu } from '../../menuUnique'
 import { BoutonOutil, OutilAvecMenu } from '../../BoutonOutil'
 
-/** Le titre en édition : tout le texte est choisi à l'ouverture, Entrée valide (Échap est géré par la toile). */
-function Saisie({ titre, surChangement, valider }: { titre: string; surChangement(t: string): void; valider(): void }) {
+/** Le titre en édition : tout le texte est choisi à l'ouverture, Entrée valide et désélectionne (Échap, géré par la toile, garde le choix). */
+function Saisie({ titre, surChangement, valider }: { titre: string; surChangement(t: string): void; valider(garder: boolean): void }) {
   const champ = useRef<HTMLInputElement>(null)
   useLayoutEffect(() => {
     champ.current?.focus({ preventScroll: true })
@@ -28,7 +29,8 @@ function Saisie({ titre, surChangement, valider }: { titre: string; surChangemen
       onKeyDown={(e) => {
         if (e.key !== 'Enter' || e.nativeEvent.isComposing) return
         e.preventDefault()
-        valider()
+        // Entrée valide et désélectionne ; avec Maj, Alt ou Cmd, la colonne reste choisie.
+        valider(e.shiftKey || e.altKey || e.metaKey || e.ctrlKey)
       }}
     />
   )
@@ -38,28 +40,43 @@ export function RenduColonne({ element, choisie, enEdition, contexte, brouillon,
   const { contenu } = element
   const enfants = useRanges(element.id)
   const empreintes = useEmpreintes(element.id)
+  // En lecture seule, le repli reste utilisable, mais ne s'enregistre pas : il vaut pour cet écran seulement.
+  const lectureSeule = !!contexte.services.lectureSeule
+  const [local, setLocal] = useState<boolean>()
+  // Repliée, elle s'ouvre d'elle-même quand la recherche trouve un de ses éléments.
+  const ouverteParLaRecherche = useSyncExternalStore(ecouterRecherche, () => ouverteParRecherche(element.id))
+  const repliee = !ouverteParLaRecherche && (lectureSeule && local !== undefined ? local : !!contenu.repliee)
 
   const replier = () => {
     const { repliee: _, ...reste } = contenu
-    if (!contenu.repliee) {
+    if (!repliee) {
       // Ce qui disparaît de l'écran ne reste pas choisi.
       const caches = new Set(enfants.map((e) => e.id))
       const restants = [...contexte.selection].filter((id) => !caches.has(id))
       contexte.choisir(restants.length > 0 ? restants : [element.id])
     }
-    changer(contenu.repliee ? reste : { ...reste, repliee: true })
+    if (lectureSeule) return setLocal(!repliee)
+    changer(repliee ? reste : { ...reste, repliee: true })
   }
+  const libelleRepli = repliee ? t('decor.deplier') : t('colonne.replier')
 
   return (
     <div
       className="notak-colonne"
       data-couleur={contenu.couleur}
-      data-repliee={contenu.repliee || undefined}
+      data-repliee={repliee || undefined}
       data-choisie={choisie || undefined}
     >
       <div className="notak-colonne-tete">
         {enEdition ? (
-          <Saisie titre={contenu.titre} surChangement={(titre) => brouillon({ ...contenu, titre: titre.trim() ? titre : contenu.titre })} valider={contexte.finirEdition} />
+          <Saisie
+            titre={contenu.titre}
+            surChangement={(titre) => brouillon({ ...contenu, titre: titre.trim() ? titre : contenu.titre })}
+            valider={(garder) => {
+              contexte.finirEdition()
+              if (!garder) contexte.choisir([])
+            }}
+          />
         ) : (
           <span className="notak-colonne-titre" data-vide={contenu.titre ? undefined : true}>
             {contenu.titre || t('type.colonne')}
@@ -68,34 +85,32 @@ export function RenduColonne({ element, choisie, enEdition, contexte, brouillon,
         <button
           type="button"
           className="notak-colonne-plier"
-          title={contenu.repliee ? t('decor.deplier') : t('colonne.replier')}
-          aria-label={contenu.repliee ? t('decor.deplier') : t('colonne.replier')}
-          aria-expanded={!contenu.repliee}
+          title={libelleRepli}
+          aria-label={libelleRepli}
+          aria-expanded={!repliee}
           onPointerDown={(e) => e.stopPropagation()}
           onDoubleClick={(e) => e.stopPropagation()}
           onClick={replier}
         >
-          <Icone nom="chevronBas" taille={14} />
+          <Icone nom={repliee ? 'colonneDeplier' : 'colonneReplier'} taille={16} />
         </button>
       </div>
-      {contenu.repliee && <div className="notak-colonne-repliee" data-depot />}
-      {!contenu.repliee &&
+      <div className="notak-colonne-compte">{enfants.length > 0 ? composition(enfants) : t('colonne.vide')}</div>
+      {repliee && <div className="notak-colonne-repliee" data-depot />}
+      {!repliee &&
         (enfants.length > 0 || empreintes.length > 0 ? (
           <div className="notak-colonne-corps">
             <Rangees enfants={enfants} empreintes={empreintes} contexte={contexte} />
           </div>
         ) : (
-          <div className="notak-colonne-vide" data-depot>
-            {t('colonne.deposer')}
-          </div>
+          <div className="notak-colonne-vide" data-depot />
         ))}
-      {enfants.length > 0 && <div className="notak-colonne-compte">{composition(enfants)}</div>}
     </div>
   )
 }
 
-/** Les teintes d'une colonne, dans l'ordre de Milanote : dix, sans le brun, le gris à la fin. */
-const COULEURS_COLONNE = ['cyan', 'vert', 'jaune', 'orange', 'rouge', 'rose', 'violet', 'bleu', 'bleu_nuit', 'gris'] as const satisfies readonly CouleurNote[]
+/** Les teintes d'une colonne, dans l'ordre de Milanote : dix, sans le brun, le gris en tête. */
+const COULEURS_COLONNE = ['gris', 'cyan', 'vert', 'jaune', 'orange', 'rouge', 'rose', 'violet', 'bleu', 'bleu_nuit'] as const satisfies readonly CouleurNote[]
 
 /** « Couleur » (la palette des colonnes choisies, un seul pas d'historique) et « Renommer » pour une colonne seule. */
 export function OutilsColonne({ elements, contexte }: PropsOutils<Colonne>) {

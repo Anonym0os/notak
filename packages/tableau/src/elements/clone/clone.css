@@ -4,26 +4,43 @@
   font-size: 13px;
 }
 
-/* Un petit repère sur le coin : cet élément existe ailleurs, le toucher touche les deux. */
+/* Le repère de copie synchronisée : 12 px dans une zone de 22 px, en bas à gauche, à 30 %, toujours là. */
 .notak-clone-marque {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
   display: grid;
   place-items: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  background: rgb(0 0 0 / 0.45);
-  color: #fff;
-  opacity: 0;
-  transition: opacity 120ms ease;
-  pointer-events: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  opacity: 0.3;
+  cursor: pointer;
 }
 
-.notak-carte:hover > .notak-clone-marque,
-.notak-carte[data-choisie] > .notak-clone-marque {
-  opacity: 1;
+.notak-clone-marque:hover {
+  opacity: 0.6;
+}
+
+/* La bulle qui compte les copies, sous la carte. */
+.notak-clone-bulle {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 5;
+  box-sizing: border-box;
+  width: 200px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--notak-carte);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.16), 0 0 0 1px rgb(0 0 0 / 0.05);
+  color: var(--notak-texte);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 /* Le clone d'une image, d'un nuancier ou d'un titre n'a pas de cadre non plus, comme son original. */

@@ -47,6 +47,10 @@ describe('un raccourci', () => {
     expect(r).toMatchObject({ x: 20, y: 8, largeur: 10, contenu: { cible: 'T', icone: 'livre', raccourci: true } })
     expect(r.contenu.titre).toBeUndefined()
   })
+  it('ne reprend pas la couleur propre de la carte d’où il vient', () => {
+    const r = nouveauRaccourci(carte({ couleur: 'rouge' }), { x: 0, y: 0 })
+    expect(r.contenu.couleur).toBeUndefined()
+  })
   it('un raccourci de raccourci reste un raccourci du même tableau', () => {
     const r = nouveauRaccourci(nouveauRaccourci(carte(), { x: 0, y: 0 }), { x: 5, y: 5 })
     expect(r.contenu).toMatchObject({ cible: 'T', raccourci: true })

@@ -32,8 +32,8 @@ describe('le clone', () => {
   })
 
   test('le clone naît à droite de l’original', () => {
-    expect(placeAcote(10, 4, 34)).toEqual({ x: 46, y: 4 })
-    expect(placeAcote(10.4, 4.6, 34)).toEqual({ x: 46, y: 5 })
+    expect(placeAcote(10, 4)).toEqual({ x: 12, y: 6 })
+    expect(placeAcote(10.4, 4.6)).toEqual({ x: 12, y: 7 })
   })
 })
 

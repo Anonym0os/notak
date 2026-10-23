@@ -632,7 +632,16 @@
   position: absolute;
   height: 2px;
   border-radius: 1px;
-  background: var(--notak-accent);
+  background: var(--notak-selection);
+  pointer-events: none;
+}
+
+/* Une colonne repliée ou vide qui va recevoir ce qu'on glisse : un cadre de 2 px tout autour. */
+.notak-cadre-depot {
+  position: absolute;
+  box-sizing: border-box;
+  outline: 2px solid var(--notak-selection);
+  outline-offset: 2px;
   pointer-events: none;
 }
 
@@ -1013,9 +1022,7 @@
 /* La place laissée dans une colonne par ce qu'on en a tiré. */
 .notak-empreinte {
   box-sizing: border-box;
-  border: 1.5px dashed rgb(0 0 0 / 0.14);
-  border-radius: 3px;
-  background: rgb(0 0 0 / 0.03);
+  background: rgb(0 0 0 / 0.04);
 }
 
 /* Un tableau qui va recevoir ce qu'on glisse : sa carte, ou son segment du fil d'Ariane. */

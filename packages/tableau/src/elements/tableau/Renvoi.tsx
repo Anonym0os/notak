@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { RenvoiTableau } from '../../coeur/tableau'
-import { FOND_NOTE } from '../note/couleurs'
+import { FOND_NOTE, couleurTexteSur } from '../note/couleurs'
 import type { PropsRendu } from '../types'
-import { pastilleDe } from './icones'
+import { avecIcone, pastilleDe } from './icones'
+import { couleurDuTitre, iconeDuTitre } from './initialisation'
 import { initiale, libelleContenu } from './libelles'
 import { PlanTableau, useApercuAuSurvol } from './Apercu'
 import { ChoixModele } from './ChoixModele'
@@ -38,7 +39,12 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
     const t = tableau?.(cible)
     return t ? JSON.stringify([t.titre, t.couleur, libelleContenu(t)]) : ''
   })
-  const [titre = '', couleur, contenu = ''] = cle ? (JSON.parse(cle) as [string, string?, string?]) : []
+  const [titreCible = '', couleurCible, contenu = ''] = cle ? (JSON.parse(cle) as [string, string?, string?]) : []
+  // Un raccourci a son titre et sa couleur : ils suivent le tableau tant qu'on ne lui en a pas donné.
+  const raccourci = !!element.contenu.raccourci
+  const titre = raccourci ? (nomDonne ?? titreCible) : titreCible
+  const couleur = raccourci ? (element.contenu.couleur ?? couleurCible) : couleurCible
+  const fond = FOND_NOTE[couleur && couleur !== 'transparent' ? (couleur as keyof typeof FOND_NOTE) : 'gris']
   const pastille = pastilleDe(element.contenu)
   const image = useImage(pastille.genre === 'image' ? pastille.fichier : undefined, contexte)
   const enRenommage = useSyncExternalStore(ecouterRenommage, renommageEnCours) === element.id
@@ -66,7 +72,7 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
   useEffect(() => {
     if (vu.current === nomDonne) return
     vu.current = nomDonne
-    if (nomDonne !== undefined && nomDonne !== titre) renommerTableau?.(cible, nomDonne)
+    if (!raccourci && nomDonne !== undefined && nomDonne !== titre) renommerTableau?.(cible, nomDonne)
   })
 
   const valider = (valeur: string) => {
@@ -76,9 +82,17 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
     // `avant` porte l'ancien nom : sans lui, annuler ne saurait pas quoi remettre.
     const actuel = contexte.magasin.lire().elements.find((e) => e.id === element.id)?.contenu
     if (actuel?.type !== 'tableau') return
+    // Le titre d'un raccourci lui appartient : le tableau d'origine n'est pas renommé.
+    // Le premier vrai nom d'un tableau neuf lui trouve une couleur (si le titre en parle) et une icône (jamais celle d'un voisin).
+    const premierNom = !raccourci && titre === t('tableau.nouveau') && !actuel.icone && !actuel.image
+    const voisines = new Set(contexte.magasin.lire().elements.flatMap((e) => (e.contenu.type === 'tableau' && e.contenu.icone ? [e.contenu.icone] : [])))
+    const icone = premierNom ? iconeDuTitre(nom, voisines) : undefined
+    const teinte = premierNom ? couleurDuTitre(nom) : undefined
+    const apres = { ...actuel, titre: nom }
     contexte.magasin.faire([
-      { type: 'contenu', id: element.id, avant: { ...actuel, titre }, apres: { ...actuel, titre: nom } },
+      { type: 'contenu', id: element.id, avant: raccourci ? actuel : { ...actuel, titre }, apres: icone ? avecIcone(apres, icone) : apres },
     ])
+    if (teinte) contexte.services.colorerTableau?.(cible, teinte)
   }
 
   return (
@@ -118,13 +132,13 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
         {...apercu.proprietes}
         onClick={() => apresClic('icone')}
         className="notak-renvoi-carre"
-        style={{ background: FOND_NOTE[couleur && couleur !== 'transparent' ? (couleur as keyof typeof FOND_NOTE) : 'gris'] }}
+        style={{ background: fond, color: couleurTexteSur(fond) }}
       >
         {pastille.genre === 'image' ? (
           image && <img className="notak-renvoi-image" src={image} alt="" draggable={false} />
         ) : pastille.genre === 'icone' ? (
           <span className="notak-renvoi-signe" role="img" aria-label={pastille.libelle}>
-            <Icone nom={pastille.icone} taille={38} trait={1.5} />
+            <Icone nom={pastille.icone} taille={35} trait={1.5} />
           </span>
         ) : // Sans icône ni image, la tuile reste unie : l'initiale ne vient qu'avec une couleur choisie.
         couleur && couleur !== 'transparent' ? (
@@ -132,7 +146,7 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
         ) : null}
         {element.contenu.raccourci && (
           <span className="notak-renvoi-raccourci" title={t('tableau.raccourci.titre')} aria-label={t('tableau.raccourci')}>
-            <Icone nom="ligne" taille={12} trait={2} />
+            <Icone nom="ligne" taille={16} trait={2} />
           </span>
         )}
       </div>
