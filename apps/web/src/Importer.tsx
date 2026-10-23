@@ -1,9 +1,10 @@
 import { type Element, type EspaceNavigable, type Id, nouvelId, type Operation } from '@notak/tableau'
 import { t, tn } from './langue'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { envoyerFichier } from './fichiers'
 import { CIBLE_FICHIER, CIBLE_TABLEAU, ErreurImport, type PlanImport, lireExportMilanote } from './milanote'
 import { Icone } from '@notak/tableau'
+import { usePanneau } from './panneaux'
 
 /** Les dimensions d'une image, lues dans ses pixels ; un format que le navigateur ne lit pas garde un 4:3. */
 async function dimensions(blob: Blob): Promise<{ largeur: number; hauteur: number }> {
@@ -101,21 +102,9 @@ export async function poserLePlan(plan: PlanImport, espace: EspaceNavigable, par
 
 /** Le bouton « Importer » : un export Markdown de Milanote (zip) devient un tableau, ses sous-tableaux et ses fichiers. */
 export function Importer({ espace, tableau, ouvrir }: { espace: EspaceNavigable; tableau: Id; ouvrir(id: Id): void }) {
-  const [ouvert, setOuvert] = useState(false)
+  const { ouvert, regler, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
   const [etat, setEtat] = useState<{ type: 'repos' } | { type: 'cours' } | { type: 'fini'; texte: string } | { type: 'echec'; texte: string }>({ type: 'repos' })
   const choix = useRef<HTMLInputElement>(null)
-  useEffect(() => {
-    if (!ouvert) return
-    const hors = (e: PointerEvent) => !(e.target as HTMLElement).closest('.importer') && setOuvert(false)
-    const touche = (e: KeyboardEvent) => e.key === 'Escape' && setOuvert(false)
-    document.addEventListener('pointerdown', hors)
-    document.addEventListener('keydown', touche)
-    return () => {
-      document.removeEventListener('pointerdown', hors)
-      document.removeEventListener('keydown', touche)
-    }
-  }, [ouvert])
-
   if (espace.lectureSeule?.(tableau)) return null
 
   const importer = async (fichier: File) => {
@@ -136,13 +125,13 @@ export function Importer({ espace, tableau, ouvrir }: { espace: EspaceNavigable;
   }
 
   return (
-    <div className="importer">
-      <button type="button" className="bouton" aria-expanded={ouvert} disabled={etat.type === 'cours'} onClick={() => setOuvert((o) => !o)}>
+    <div className="importer" ref={ancre}>
+      <button type="button" ref={bouton} className="bouton" aria-expanded={ouvert} disabled={etat.type === 'cours'} onClick={basculer}>
         <Icone nom="importer" taille={16} />
         {etat.type === 'cours' ? t('importer.encours') : t('importer.titre')}
       </button>
       {ouvert && (
-        <div className="compte-menu" role="menu">
+        <div className="compte-menu" ref={panneau} role="menu">
           <button type="button" role="menuitem" onClick={() => choix.current?.click()}>
             {t('importer.milanote')}
           </button>
@@ -157,7 +146,7 @@ export function Importer({ espace, tableau, ouvrir }: { espace: EspaceNavigable;
         onChange={(e) => {
           const f = e.target.files?.[0]
           e.target.value = ''
-          setOuvert(false)
+          regler(false)
           if (f) void importer(f)
         }}
       />

@@ -3,6 +3,7 @@ import { type GenreNotification, type ListeNotifications, type Notification, lis
 import { quand } from './Activite'
 import { t, tn } from './langue'
 import { Icone } from '@notak/tableau'
+import { usePanneau } from './panneaux'
 
 const RAFRAICHIR_MS = 30_000
 
@@ -15,7 +16,7 @@ const TEXTES: Record<GenreNotification, (n: Notification) => string> = {
 
 /** La cloche de l'en-tête : le nombre de notifications non lues, et leur liste. */
 export function Cloche({ ouvrir }: { ouvrir(tableau: string): void }) {
-  const [ouvert, setOuvert] = useState(false)
+  const { ouvert, regler, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
   const [liste, setListe] = useState<ListeNotifications | null>(null)
   const [erreur, setErreur] = useState(false)
 
@@ -38,18 +39,6 @@ export function Cloche({ ouvrir }: { ouvrir(tableau: string): void }) {
     if (ouvert) charger()
   }, [ouvert, charger])
 
-  useEffect(() => {
-    if (!ouvert) return
-    const touche = (e: KeyboardEvent) => e.key === 'Escape' && setOuvert(false)
-    const hors = (e: PointerEvent) => !(e.target as HTMLElement).closest('.cloche') && setOuvert(false)
-    document.addEventListener('keydown', touche)
-    document.addEventListener('pointerdown', hors)
-    return () => {
-      document.removeEventListener('keydown', touche)
-      document.removeEventListener('pointerdown', hors)
-    }
-  }, [ouvert])
-
   const lire = (ids?: number[]) => {
     // Lues tout de suite à l'écran ; le serveur suit, et la relecture corrige si besoin.
     setListe((l) =>
@@ -64,26 +53,27 @@ export function Cloche({ ouvrir }: { ouvrir(tableau: string): void }) {
   }
   const aller = (n: Notification) => {
     if (!n.lu) lire([n.id])
-    setOuvert(false)
+    regler(false)
     ouvrir(n.tableau)
   }
 
   const nonLues = liste?.nonLues ?? 0
   return (
-    <div className="cloche">
+    <div className="cloche" ref={ancre}>
       <button
         type="button"
+        ref={bouton}
         className="bouton bouton-cloche"
         aria-expanded={ouvert}
         title={nonLues > 0 ? tn('cloche.nonLues', nonLues) : t('cloche.titre')}
-        onClick={() => setOuvert((o) => !o)}
+        onClick={basculer}
       >
         <Icone nom="cloche" />
         <span className="sr-seulement">{t('cloche.titre')}</span>
         {nonLues > 0 && <span className="cloche-compte">{nonLues > 99 ? '99+' : nonLues}</span>}
       </button>
       {ouvert && (
-        <div className="cloche-panneau" role="dialog" aria-label={t('cloche.titre')}>
+        <div className="cloche-panneau" ref={panneau} role="dialog" aria-label={t('cloche.titre')}>
           <div className="cloche-tete">
             <strong>{t('cloche.titre')}</strong>
             <button type="button" className="bouton-lien" disabled={nonLues === 0} onClick={() => lire()}>

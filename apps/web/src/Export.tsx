@@ -1,9 +1,10 @@
 import { avecToutLeTableau } from '@notak/tableau'
 import { langue, t } from './langue'
 import { toJpeg, toPng } from 'html-to-image'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { octetsDeDataUrl, pdfDepuisJpeg } from './pdf'
 import { Icone } from '@notak/tableau'
+import { usePanneau } from './panneaux'
 
 /** Ce que la capture laisse de côté : les pastilles et les curseurs posés sur la toile, pas le tableau. */
 const HORS_CAPTURE = ['notak-echelle', 'notak-lecture', 'notak-lasso', 'notak-curseur']
@@ -53,14 +54,14 @@ async function photographier(format: 'png' | 'pdf', titre: string, rapport: numb
 
 /** Le bouton « Exporter » : le texte du tableau, ses médias, ou une capture de la vue, à télécharger. */
 export function Export({ tableau, titre }: { tableau: string; titre(): string }) {
-  const [ouvert, setOuvert] = useState(false)
+  const { ouvert, regler, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
   const [capture, setCapture] = useState<'png' | 'pdf' | null>(null)
   const [echec, setEchec] = useState(false)
   const photographierVue = (format: 'png' | 'pdf', portee: Portee) => {
     setCapture(format)
     setEchec(false)
     // Le menu se ferme avant la prise de vue : il ne doit pas figurer sur l'image.
-    setOuvert(false)
+    regler(false)
     requestAnimationFrame(() => {
       capturer(format, titre(), portee).then(
         () => setCapture(null),
@@ -72,33 +73,22 @@ export function Export({ tableau, titre }: { tableau: string; titre(): string })
       )
     })
   }
-  useEffect(() => {
-    if (!ouvert) return
-    const hors = (e: PointerEvent) => !(e.target as HTMLElement).closest('.export') && setOuvert(false)
-    const touche = (e: KeyboardEvent) => e.key === 'Escape' && setOuvert(false)
-    document.addEventListener('pointerdown', hors)
-    document.addEventListener('keydown', touche)
-    return () => {
-      document.removeEventListener('pointerdown', hors)
-      document.removeEventListener('keydown', touche)
-    }
-  }, [ouvert])
   const base = `/api/tableaux/${encodeURIComponent(tableau)}`
   return (
-    <div className="export">
-      <button type="button" className="bouton" aria-expanded={ouvert} onClick={() => setOuvert((o) => !o)}>
+    <div className="export" ref={ancre}>
+      <button type="button" ref={bouton} className="bouton" aria-expanded={ouvert} onClick={basculer}>
         <Icone nom="exporter" taille={16} />
         {capture ? t('exporter.encours') : echec ? t('exporter.impossible') : t('exporter.titre')}
       </button>
       {ouvert && (
-        <div className="compte-menu" role="menu">
-          <a role="menuitem" href={`${base}/export?format=md&langue=${langue()}`} download onClick={() => setOuvert(false)}>
+        <div className="compte-menu" ref={panneau} role="menu">
+          <a role="menuitem" href={`${base}/export?format=md&langue=${langue()}`} download onClick={() => regler(false)}>
             {t('exporter.markdown')}
           </a>
-          <a role="menuitem" href={`${base}/export?format=txt&langue=${langue()}`} download onClick={() => setOuvert(false)}>
+          <a role="menuitem" href={`${base}/export?format=txt&langue=${langue()}`} download onClick={() => regler(false)}>
             {t('exporter.texte')}
           </a>
-          <a role="menuitem" href={`${base}/medias?langue=${langue()}`} download onClick={() => setOuvert(false)}>
+          <a role="menuitem" href={`${base}/medias?langue=${langue()}`} download onClick={() => regler(false)}>
             {t('exporter.medias')}
           </a>
           <small className="compte-rubrique">{t('exporter.ecran')}</small>

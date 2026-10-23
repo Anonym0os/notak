@@ -137,13 +137,13 @@ body {
   position: relative;
 }
 
-.partage-panneau,
 .compte-pastille img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
+.partage-panneau,
 .compte-menu {
   position: absolute;
   z-index: 40;
@@ -450,7 +450,8 @@ body {
   /* 16 px : en dessous, Safari sur iPhone zoome la page à la prise de focus. */
   font-size: 16px;
   line-height: 1.4;
-  resize: vertical;
+  /* Pas de poignée de redimensionnement : sur un téléphone elle ne sert à rien et déborde du cadre. */
+  resize: none;
 }
 
 .rapide-champ:focus {
@@ -781,4 +782,180 @@ body {
 .plus-entete-menu .bouton {
   justify-content: flex-start;
   width: 100%;
+}
+
+/* Les panneaux de l'en-tête restent dans la fenêtre : jamais plus hauts qu'elle, et (voir panneaux.ts) jamais plus à droite ni à gauche. */
+.partage-panneau,
+.compte-menu,
+.plus-entete-menu {
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+}
+
+/* Dans le menu « … », les panneaux des actions se déplient à la suite, sans se superposer au menu. */
+.plus-entete-menu :is(.activite-panneau, .compte-menu, .partage-panneau) {
+  position: static;
+  width: auto;
+  max-height: 50vh;
+  margin-top: 4px;
+  padding: 8px;
+  background: none;
+  box-shadow: none;
+}
+
+.activite-panneau,
+.cloche-panneau {
+  max-height: min(70vh, 520px, calc(100vh - 64px));
+}
+
+@media (max-width: 640px) {
+  /* Sur un téléphone, un panneau se cale sur l'en-tête, sous lui, et prend la largeur de la fenêtre moins 16 px. */
+  .notak-entete {
+    position: relative;
+  }
+
+  .partage,
+  .compte,
+  .activite,
+  .cloche,
+  .plus-entete,
+  .importer,
+  .export {
+    position: static;
+  }
+
+  .partage-panneau,
+  .activite-panneau,
+  .cloche-panneau,
+  .compte-menu,
+  .plus-entete-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 8px;
+    left: 8px;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    translate: none;
+  }
+
+  .plus-entete-menu :is(.activite-panneau, .compte-menu, .partage-panneau) {
+    position: static;
+    margin-top: 4px;
+  }
+
+  /* Les boutons de l'en-tête se réduisent à leur icône ; le nom reste dit par l'infobulle et par aria-label. */
+  .partage > .bouton .bouton-texte,
+  .compte-nom .bouton-texte {
+    display: none;
+  }
+
+  .partage > .bouton,
+  .compte-nom {
+    padding: 0 8px;
+  }
+
+  /* Le fil d'Ariane passe sur sa propre ligne : pas écrasé, pas sous le bouton annuler. */
+  .notak-entete {
+    flex-wrap: wrap;
+    align-content: center;
+    gap: 4px 6px;
+    height: auto;
+    min-height: 44px;
+    padding: 4px 12px;
+  }
+
+  .notak-fil {
+    flex: 1 0 100%;
+    overflow: hidden;
+  }
+
+  .notak-fil-segment {
+    flex: 0 1 auto;
+    min-width: 3.5em;
+  }
+
+  .notak-fil-segment[aria-current='page'] {
+    flex-shrink: 0;
+    max-width: 55vw;
+  }
+
+  .notak-entete-actions {
+    gap: 6px;
+    margin-left: auto;
+  }
+}
+
+/* Thème sombre : l'en-tête, le fil d'Ariane et les panneaux repeints avec les jetons du thème. */
+.notak-espace[data-theme='sombre'] :is(.partage-panneau, .activite-panneau, .cloche-panneau, .compte-menu, .plus-entete-menu) {
+  background: var(--notak-carte);
+  color: var(--notak-texte);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.08);
+}
+
+.notak-espace[data-theme='sombre'] .plus-entete-menu :is(.activite-panneau, .compte-menu, .partage-panneau) {
+  background: none;
+  box-shadow: none;
+}
+
+.notak-espace[data-theme='sombre'] :is(.partage-qui small, .partage-role, .partage-note, .compte-menu small, .activite-texte small, .cloche-texte small) {
+  color: #a3aab4;
+}
+
+.notak-espace[data-theme='sombre'] :is(.compte-menu .compte-rubrique, .partage-lien) {
+  border-top-color: rgb(255 255 255 / 0.1);
+}
+
+.notak-espace[data-theme='sombre'] :is(.compte-menu button, .compte-menu a, .cloche-liste button) {
+  color: var(--notak-texte);
+}
+
+.notak-espace[data-theme='sombre'] :is(.compte-menu button, .compte-menu a, .cloche-liste button):hover {
+  background: rgb(255 255 255 / 0.08);
+}
+
+.notak-espace[data-theme='sombre'] :is(.partage-form input, .partage-form select, .partage-lien-ligne input) {
+  border-color: rgb(255 255 255 / 0.18);
+  background: var(--notak-fond);
+  color: var(--notak-texte);
+}
+
+.notak-espace[data-theme='sombre'] :is(.partage-panneau, .compte-menu, .cloche-panneau) .bouton:not(.bouton-plein) {
+  border-color: rgb(255 255 255 / 0.14);
+  background: #353a42;
+  color: var(--notak-texte);
+}
+
+.notak-espace[data-theme='sombre'] .bouton-lien {
+  color: var(--notak-accent);
+}
+
+.notak-espace[data-theme='sombre'] .connexion-erreur {
+  color: #ff8a80;
+}
+
+.notak-espace[data-theme='sombre'] .notak-fil-segment {
+  color: #b4bac3;
+}
+
+.notak-espace[data-theme='sombre'] .notak-fil-segment[aria-current='page'] {
+  color: var(--notak-texte);
+}
+
+.notak-espace[data-theme='sombre'] .notak-fil-sep {
+  color: #8b929c;
+}
+
+.notak-espace[data-theme='sombre'] .notak-fil-segment:hover,
+.notak-espace[data-theme='sombre'] .notak-fil-segment[aria-expanded='true'] {
+  background: rgb(255 255 255 / 0.08);
+}
+
+.notak-espace[data-theme='sombre'] .notak-entete-actions .bouton:hover {
+  color: var(--notak-texte);
+  background: #3a3f47;
+}
+
+.notak-espace[data-theme='sombre'] .bouton-etoile[aria-pressed='true'] {
+  color: #f5b82e;
 }
