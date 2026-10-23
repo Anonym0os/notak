@@ -23,7 +23,7 @@ import { Compte } from './Compte'
 import { EcranConnexion } from './connexion'
 import { Export } from './Export'
 import { Favori } from './Favori'
-import { adressePhoto, apercu, envoyerFichier, fichiers, rapatrier } from './fichiers'
+import { adressePhoto, apercu, banqueImages, envoyerFichier, fichiers, rapatrier } from './fichiers'
 import { localiser } from './geocodage'
 import { importerEspaceLocal } from './importLocal'
 import { Importer } from './Importer'
@@ -54,6 +54,7 @@ const services = {
   fichiers,
   apercu,
   rapatrier,
+  banqueImages,
   rechercherPartout,
   localiser,
   listerTableaux: () => tableauxConnus,

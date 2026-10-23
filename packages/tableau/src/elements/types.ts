@@ -22,6 +22,27 @@ export interface DepotFichiers {
 /** Qui ramène une image du web dans les fichiers du tableau : elle ne dépendra plus du site qui la sert. */
 export type Rapatrieur = (url: string) => Promise<{ id: Id; type: string }>
 
+/** Une photo de la banque d'images, telle que le serveur la rend (le client n'appelle jamais le fournisseur). */
+export interface ImageDeBanque {
+  id: number
+  /** Une petite copie, pour la vignette. */
+  vignette: string
+  /** La copie qu'on rapatrie sur la toile. */
+  grande: string
+  /** Les dimensions de l'original, pour garder les proportions. */
+  largeur: number
+  hauteur: number
+  auteur: string
+  lienAuteur: string
+  lienPhoto: string
+}
+
+/**
+ * Qui cherche dans la banque d'images (`page` à partir de 1 ; une requête vide donne la sélection du jour).
+ * Sans clé côté serveur, la promesse échoue avec `cause: 'non_configuree'` : le panneau ne propose alors que l'envoi.
+ */
+export type ChercheurBanque = (requete: string, page: number) => Promise<{ resultats: ImageDeBanque[]; total: number }>
+
 /** Qui va chercher l'aperçu d'une page web : un serveur, puisqu'un navigateur ne lit pas les autres sites. */
 export type ChercheurApercu = (url: string) => Promise<Apercu>
 
@@ -71,6 +92,8 @@ export interface Services {
   fichiers?: DepotFichiers
   apercu?: ChercheurApercu
   rapatrier?: Rapatrieur
+  /** La banque d'images du panneau « Image ». Absente, l'outil Image ouvre le sélecteur de fichiers. */
+  banqueImages?: ChercheurBanque
   /** Ouvrir un tableau imbriqué. */
   ouvrirTableau?(id: Id): void
   /**

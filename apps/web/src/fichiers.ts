@@ -1,4 +1,4 @@
-import type { DepotFichiers } from '@notak/tableau'
+import type { ChercheurBanque, DepotFichiers } from '@notak/tableau'
 import { t } from './langue'
 
 /** Les fichiers vivent sur le serveur : l'adresse d'un fichier est une route, le cookie de session suffit. */
@@ -42,4 +42,12 @@ export async function rapatrier(url: string): Promise<{ id: string; type: string
   if (r.ok) return r.json()
   const { cause } = (await r.json().catch(() => ({}))) as { cause?: unknown }
   throw new Error(t('fichiers.imageIndispo'), { cause })
+}
+
+/** La banque d'images : le serveur interroge le fournisseur avec sa clé. Sans clé (503), l'échec le dit en `cause`. */
+export const banqueImages: ChercheurBanque = async (requete, page) => {
+  const r = await fetch(`/api/images/recherche?q=${encodeURIComponent(requete)}&page=${page}`, { credentials: 'same-origin' })
+  if (r.ok) return r.json()
+  const { code } = (await r.json().catch(() => ({}))) as { code?: unknown }
+  throw new Error(t('fichiers.imagesIndispo'), { cause: code === 'images_non_configurees' ? 'non_configuree' : 'indisponible' })
 }
