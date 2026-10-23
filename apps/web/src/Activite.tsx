@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { type ActiviteTableau, type EvenementActivite, type GroupeActivite, lireActivite } from './api'
 import { phraseDuGroupe } from './phrases'
 import { langue, t } from './langue'
 import { Icone } from '@notak/tableau'
+import { usePanneau } from './panneaux'
 
 const RAFRAICHIR_MS = 8000
 
@@ -28,7 +29,7 @@ export function Activite({
   moi: string
   surNouveaux?(tableau: string, evenements: EvenementActivite[], moi: string): void
 }) {
-  const [ouvert, setOuvert] = useState(false)
+  const { ouvert, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
   const [activite, setActivite] = useState<ActiviteTableau | null>(null)
   const [erreur, setErreur] = useState(false)
 
@@ -65,27 +66,14 @@ export function Activite({
     }
   }, [tableau, moi, surNouveaux])
 
-  const fermer = useCallback(() => setOuvert(false), [])
-  useEffect(() => {
-    if (!ouvert) return
-    const touche = (e: KeyboardEvent) => e.key === 'Escape' && fermer()
-    const hors = (e: PointerEvent) => !(e.target as HTMLElement).closest('.activite') && fermer()
-    document.addEventListener('keydown', touche)
-    document.addEventListener('pointerdown', hors)
-    return () => {
-      document.removeEventListener('keydown', touche)
-      document.removeEventListener('pointerdown', hors)
-    }
-  }, [ouvert, fermer])
-
   return (
-    <div className="activite">
-      <button type="button" className="bouton" aria-expanded={ouvert} onClick={() => setOuvert((o) => !o)}>
+    <div className="activite" ref={ancre}>
+      <button type="button" ref={bouton} className="bouton" aria-expanded={ouvert} onClick={basculer}>
         <Icone nom="activite" taille={16} />
         {t('activite.titre')}
       </button>
       {ouvert && (
-        <div className="activite-panneau" role="dialog" aria-label={t('activite.titre')}>
+        <div className="activite-panneau" ref={panneau} role="dialog" aria-label={t('activite.titre')}>
           {erreur && !activite && <p className="partage-note">{t('activite.indisponible')}</p>}
           {activite && activite.groupes.length === 0 && <p className="partage-note">{t('activite.rien')}</p>}
           <ol className="activite-liste">

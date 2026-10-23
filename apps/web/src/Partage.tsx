@@ -19,6 +19,7 @@ import {
 } from './api'
 import { t } from './langue'
 import { Icone } from '@notak/tableau'
+import { usePanneau } from './panneaux'
 
 const LIBELLE_ROLE: Record<Role, () => string> = {
   proprietaire: () => t('partage.proprietaire'),
@@ -28,19 +29,19 @@ const LIBELLE_ROLE: Record<Role, () => string> = {
 
 /** Le bouton « Partager » et son panneau : qui a accès à ce tableau, et l'invitation d'une adresse. */
 export function Partage({ tableau, moi }: { tableau: string; moi: Moi }) {
-  const [ouvert, setOuvert] = useState(false)
+  const { ouvert, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
   return (
-    <div className="partage">
-      <button type="button" className="bouton" aria-expanded={ouvert} onClick={() => setOuvert((o) => !o)}>
+    <div className="partage" ref={ancre}>
+      <button type="button" ref={bouton} className="bouton" aria-expanded={ouvert} aria-label={t('partage.titre')} title={t('partage.titre')} onClick={basculer}>
         <Icone nom="partager" taille={16} />
-        {t('partage.titre')}
+        <span className="bouton-texte">{t('partage.titre')}</span>
       </button>
-      {ouvert && <Panneau key={tableau} tableau={tableau} moi={moi} fermer={() => setOuvert(false)} />}
+      {ouvert && <Panneau key={tableau} tableau={tableau} moi={moi} reference={panneau} />}
     </div>
   )
 }
 
-function Panneau({ tableau, moi, fermer }: { tableau: string; moi: Moi; fermer(): void }) {
+function Panneau({ tableau, moi, reference }: { tableau: string; moi: Moi; reference(el: HTMLElement | null): void }) {
   const [acces, setAcces] = useState<Acces[] | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
   const [email, setEmail] = useState('')
@@ -51,17 +52,6 @@ function Panneau({ tableau, moi, fermer }: { tableau: string; moi: Moi; fermer()
     listerAcces(tableau).then(setAcces, (x: Error) => setErreur(x.message))
   }, [tableau])
   useEffect(charger, [charger])
-
-  useEffect(() => {
-    const touche = (e: KeyboardEvent) => e.key === 'Escape' && fermer()
-    const hors = (e: PointerEvent) => !(e.target as HTMLElement).closest('.partage') && fermer()
-    document.addEventListener('keydown', touche)
-    document.addEventListener('pointerdown', hors)
-    return () => {
-      document.removeEventListener('keydown', touche)
-      document.removeEventListener('pointerdown', hors)
-    }
-  }, [fermer])
 
   const proprietaire = acces?.some((a) => a.utilisateur === moi.id && a.role === 'proprietaire') ?? false
 
@@ -89,7 +79,7 @@ function Panneau({ tableau, moi, fermer }: { tableau: string; moi: Moi; fermer()
   }
 
   return (
-    <div className="partage-panneau" role="dialog" aria-label={t('partage.titre')}>
+    <div className="partage-panneau" ref={reference} role="dialog" aria-label={t('partage.titre')}>
       <ul className="partage-liste">
         {acces?.map((a) => (
           <li key={a.email}>

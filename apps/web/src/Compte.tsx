@@ -3,17 +3,16 @@ import { t } from './langue'
 import { type Moi, type TableauAccessible, listerFavoris, listerRecents, listerTableaux } from './api'
 import { adressePhoto } from './fichiers'
 import { Icone, PastillePersonne } from '@notak/tableau'
+import { usePanneau } from './panneaux'
 
 /** Le menu au nom de la personne connectée, avec les tableaux que d'autres lui partagent. */
 export function Compte({ moi, deconnexion, ouvrir, aide }: { moi: Moi; deconnexion(): void; ouvrir(id: string): void; aide(): void }) {
-  const [ouvert, setOuvert] = useState(false)
+  const { ouvert, regler, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
   const [partages, setPartages] = useState<TableauAccessible[] | null>(null)
   const [favoris, setFavoris] = useState<TableauAccessible[]>([])
   const [recents, setRecents] = useState<TableauAccessible[]>([])
   useEffect(() => {
     if (!ouvert) return
-    const hors = (e: PointerEvent) => !(e.target as HTMLElement).closest('.compte') && setOuvert(false)
-    document.addEventListener('pointerdown', hors)
     // La liste se relit à chaque ouverture : un partage peut arriver à tout moment.
     let vivant = true
     listerTableaux().then(
@@ -24,21 +23,20 @@ export function Compte({ moi, deconnexion, ouvrir, aide }: { moi: Moi; deconnexi
     listerRecents().then((l) => vivant && setRecents(l), () => {})
     return () => {
       vivant = false
-      document.removeEventListener('pointerdown', hors)
     }
   }, [ouvert])
   const aller = (id: string) => {
-    setOuvert(false)
+    regler(false)
     ouvrir(id)
   }
   return (
-    <div className="compte">
-      <button type="button" className="bouton compte-nom" aria-expanded={ouvert} onClick={() => setOuvert((o) => !o)}>
+    <div className="compte" ref={ancre}>
+      <button type="button" ref={bouton} className="bouton compte-nom" aria-expanded={ouvert} aria-label={moi.nom} title={moi.nom} onClick={basculer}>
         <PastillePersonne className="compte-pastille" nom={moi.nom} couleur={moi.couleur} adresse={moi.photo ? adressePhoto(moi.photo) : undefined} titre="" />
-        {moi.nom}
+        <span className="bouton-texte">{moi.nom}</span>
       </button>
       {ouvert && (
-        <div className="compte-menu" role="menu">
+        <div className="compte-menu" ref={panneau} role="menu">
           <small>{moi.email}</small>
           <Rubrique titre={t('compte.favoris')} tableaux={favoris} ouvrir={aller} />
           <Rubrique titre={t('compte.recents')} tableaux={recents} ouvrir={aller} />
@@ -51,7 +49,7 @@ export function Compte({ moi, deconnexion, ouvrir, aide }: { moi: Moi; deconnexi
                   type="button"
                   role="menuitem"
                   onClick={() => {
-                    setOuvert(false)
+                    regler(false)
                     ouvrir(tb.id)
                   }}
                 >
@@ -66,7 +64,7 @@ export function Compte({ moi, deconnexion, ouvrir, aide }: { moi: Moi; deconnexi
             role="menuitem"
             className="compte-ligne"
             onClick={() => {
-              setOuvert(false)
+              regler(false)
               aide()
             }}
           >

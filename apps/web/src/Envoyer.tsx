@@ -1,7 +1,7 @@
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { t, langue } from './langue'
 import { type JetonArrivee, creerJeton, listerJetons, revoquerJeton } from './api'
-import { JETON_A_REMPLACER, adresseArrivee, enteteAutorisation, etapesRaccourciImage, etapesRaccourciTexte, favori } from './raccourcis'
+import { jetonARemplacer, adresseArrivee, enteteAutorisation, etapesRaccourciImage, etapesRaccourciTexte, favori } from './raccourcis'
 
 const quand = (instant: number) => new Date(instant).toLocaleString(langue() === 'en' ? 'en-US' : 'fr-FR', { dateStyle: 'medium', timeStyle: 'short' })
 
@@ -104,7 +104,7 @@ export function PageEnvoyer() {
     })
   }
 
-  const jeton = neuf?.jeton ?? JETON_A_REMPLACER
+  const jeton = neuf?.jeton ?? jetonARemplacer()
   const origine = location.origin
 
   return (
@@ -172,7 +172,7 @@ export function PageEnvoyer() {
         <h2 id="envoyer-iphone">{t('envoyer.iphone')}</h2>
         {!neuf && (
           <p className="envoyer-note">
-            <Ligne texte={t('envoyer.sansJeton', { jeton: JETON_A_REMPLACER })} />
+            <Ligne texte={t('envoyer.sansJeton', { jeton: jetonARemplacer() })} />
           </p>
         )}
         <h3>{t('envoyer.pourTexte')}</h3>

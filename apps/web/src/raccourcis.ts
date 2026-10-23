@@ -2,8 +2,8 @@
 // favori du bureau. Du texte et du code, sans écran : les essais s'y tiennent.
 import { t } from './langue'
 
-/** Ce que la page montre à la place du jeton tant qu'aucun n'a été créé ici. */
-export const JETON_A_REMPLACER = 'VOTRE_JETON'
+/** Ce que la page montre à la place du jeton tant qu'aucun n'a été créé ici (« VOTRE_JETON » / « YOUR_TOKEN »). */
+export const jetonARemplacer = () => t('envoyer.jetonExemple')
 
 export const adresseArrivee = (origine: string) => `${origine}/api/arrivee`
 
