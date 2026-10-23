@@ -18,7 +18,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 3. Note et texte | 36 | 1 | 1 | 96 % |
 | 4. Colonne | 13 | 0 | 0 | 100 % |
 | 5. Tableau imbriqué | 13 | 1 | 0 | 96 % |
-| 6. Lien | 13 | 0 | 0 | 100 % |
+| 6. Lien | 15 | 1 | 0 | 97 % |
 | 7. Image | 17 | 0 | 0 | 100 % |
 | 8. Liste de tâches | 18 | 0 | 0 | 100 % |
 | 9. Ligne | 16 | 2 | 0 | 94 % |
@@ -30,7 +30,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 6 | 1 | 0 | 93 % |
-| **Total** | **268** | **10** | **1** | **98 %** |
+| **Total** | **270** | **11** | **1** | **98 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
