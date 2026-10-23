@@ -198,11 +198,15 @@ function Espace({ moi, changerMoi, deconnexion }: { moi: Moi; changerMoi(m: Moi)
             <PlusEntete>
               <Activite tableau={courant} moi={moi.id} surNouveaux={recents.noter} />
               <Importer espace={espace} tableau={courant} ouvrir={ouvrir} />
-              <Export tableau={courant} titre={() => espace.tableau(courant)?.titre ?? ''} />
             </PlusEntete>
-            <Partage tableau={courant} moi={moi} />
             <VerrouTableau tableau={courant} accueil={moi.racine} ouvrir={ouvrir} />
             <Compte moi={moi} deconnexion={deconnexion} ouvrir={ouvrir} aide={aide} />
+          </>
+        )}
+        actionsTableau={(courant) => (
+          <>
+            <Partage tableau={courant} moi={moi} />
+            <Export tableau={courant} titre={() => espace.tableau(courant)?.titre ?? ''} />
           </>
         )}
       />

@@ -1,7 +1,7 @@
 import { t } from './langue'
 import { useEffect, useState } from 'react'
 import { definirFavori, listerFavoris, noterVu } from './api'
-import { Icone } from '@notak/tableau'
+import { Icone, Infobulle } from '@notak/tableau'
 
 /**
  * L'étoile du tableau ouvert : le mettre en favori ou l'en retirer. Montrer le tableau ici, c'est aussi
@@ -31,16 +31,11 @@ export function Favori({ tableau, accueil }: { tableau: string; accueil: string 
     definirFavori(tableau, voulu).catch(() => setFavori(!voulu))
   }
   return (
-    <button
-      type="button"
-      className="bouton bouton-etoile"
-      disabled={favori === null}
-      aria-pressed={favori === true}
-      title={favori ? t('favori.retirer') : t('favori.mettre')}
-      onClick={bascule}
-    >
-      <Icone nom={favori ? 'favoriPlein' : 'favori'} />
-      <span className="sr-seulement">{favori ? t('favori.retirer') : t('favori.mettre')}</span>
-    </button>
+    <Infobulle libelle={favori ? t('favori.retirer') : t('favori.mettre')}>
+      <button type="button" className="bouton bouton-etoile" disabled={favori === null} aria-pressed={favori === true} onClick={bascule}>
+        <Icone nom={favori ? 'favoriPlein' : 'favori'} />
+        <span className="sr-seulement">{favori ? t('favori.retirer') : t('favori.mettre')}</span>
+      </button>
+    </Infobulle>
   )
 }

@@ -39,6 +39,8 @@ import './elements'
 import { definition, tousLesRaccourcis, tousLesRecepteurs, tousLesTypes, toutesLesEntreesMenu } from './elements/registre'
 import type { ContexteToile, Presence, Services } from './elements/types'
 import { t, tn } from './langue'
+import { PastilleZoom } from './PastilleZoom'
+import { usePublierVue } from './vueZoom'
 
 type Geste =
   | { type: 'attraper'; dernier: Point }
@@ -2138,6 +2140,21 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     })
   }, [tableau])
 
+  // [vue] Revenir à 100 % sur ce qu'on regarde, et dire à l'en-tête (bouton « Vue ») où en est le zoom.
+  const remettreA100 = () => lancerAnimation(cam.centree(cam.centreCamera(camera, vue), 1, vue))
+  usePublierVue(
+    { echelle: camera.echelle },
+    {
+      details: () => {
+        const cadre = cam.ajuster(contenu(), vue)
+        return { min: cam.echelleMin(contenu(), vue), toutAffiche: !!cadre && cam.revenirA100(camera.echelle, cadre.echelle) && Math.abs(camera.echelle - 1) > 1e-3 }
+      },
+      zoomer: zoomerVers,
+      tout: ajuster,
+      cent: remettreA100,
+    },
+  )
+
   const k = cam.PX_PAR_UG * camera.echelle
   const grille = Math.abs(camera.echelle - 1) < 1e-3 && !anime
   // La grille ne paraît qu'à 100 % : elle revient en fondu quand on y retombe (voir `.notak-toile::before`).
@@ -2340,7 +2357,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         />
       )}
       {lectureSeule && !services.presentation && <div className="notak-lecture">{t('toile.lectureSeule')}</div>}
-      <div className="notak-echelle">{Math.round(camera.echelle * 100)} %</div>
+      <PastilleZoom echelle={camera.echelle} remettre={remettreA100} />
     </div>
     </ContexteBarreEdition.Provider>
   )

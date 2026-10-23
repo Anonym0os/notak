@@ -15,7 +15,10 @@ import {
 } from './coeur/espace'
 import { point } from './coeur/geometrie'
 import { deballer } from './coeur/pressePapiers'
-import { type Element, type Id, type Tableau, surLeTableau } from './coeur/tableau'
+import { creerMagasin } from './coeur/magasin'
+import { type Element, type Id, type Tableau, nouvelId, surLeTableau } from './coeur/tableau'
+import { ChoixModele } from './elements/tableau/ChoixModele'
+import { poserModele } from './elements/tableau/poserModele'
 import { demanderRenommage } from './elements/tableau/renommage'
 import type { Presence, Services } from './elements/types'
 import { Toile } from './Toile'
@@ -23,6 +26,12 @@ import { annoncer } from './avis'
 import { ecouterEnvois, envoisEnCours } from './elements/envois'
 import { t, tn, useLangue } from './langue'
 import { FenetreRaccourcis } from './Menus'
+import { BoutonVue } from './BoutonVue'
+import { Infobulle } from './Infobulle'
+import { modelesDe } from './modeles/langues'
+import { elementsDuModele, sansExemple } from './modeles/construire'
+import { PanneauModeles, modelesProposes } from './PanneauModeles'
+import { TitreTableau } from './TitreTableau'
 import { PastillePersonne } from './pastille'
 import { FenetreReglages, type ServiceCompte, useReglages } from './reglages'
 import './theme.css'
@@ -102,6 +111,7 @@ export function EspaceNotak({
   espace,
   services: hote = {},
   actions,
+  actionsTableau,
   adresse,
   compte,
 }: {
@@ -115,6 +125,8 @@ export function EspaceNotak({
    * fenêtre des raccourcis, la même que « / ».
    */
   actions?(courant: Id, ouvrir: (id: Id) => void, aide: () => void): ReactNode
+  /** Ce que l'application ajoute à droite de la seconde rangée, à côté du bouton de vue (partager, exporter). */
+  actionsTableau?(courant: Id, ouvrir: (id: Id) => void): ReactNode
 }) {
   const racine = espace.racine
   const [parcours, setParcours] = useState(() => parcoursDepart(racine))
@@ -347,6 +359,64 @@ export function EspaceNotak({
     [espace, courant, services],
   )
 
+  const magasinCourant = espace.magasin(courant)
+  const peutAnnuler = useSyncExternalStore(magasinCourant.ecouter, magasinCourant.peutAnnuler)
+  const peutRetablir = useSyncExternalStore(magasinCourant.ecouter, magasinCourant.peutRetablir)
+
+  // [modèles] Le choix d'un modèle sur un tableau vide qu'on vient d'ouvrir.
+  const vide = useSyncExternalStore(espace.ecouter, () => espace.tableau(courant)?.elements.length === 0)
+  const [fermes, setFermes] = useState<ReadonlySet<Id>>(() => new Set())
+  const [modeleChoisi, setModeleChoisi] = useState<string | null>(null)
+  const [garderExemple, setGarderExemple] = useState(false)
+  const [plusDeModeles, setPlusDeModeles] = useState(false)
+  const [clignote, setClignote] = useState(0)
+  const [modelesPrets, setModelesPrets] = useState(false)
+  const modelesVus = useRef(false)
+  const peutChoisir = vide && charge && courant !== racine && !lectureSeule && !hote.lectureSeule && !presentation && !fermes.has(courant)
+  // Un délai de 200 ms : un élément qu'on dépose en arrivant ne fait pas clignoter le panneau.
+  useEffect(() => {
+    if (!peutChoisir) return setModelesPrets(false)
+    const minuteur = setTimeout(() => setModelesPrets(true), 200)
+    return () => clearTimeout(minuteur)
+  }, [peutChoisir, courant])
+  const modelesAffiches = modelesPrets && peutChoisir
+  const fermerModeles = useCallback(() => {
+    setFermes((f) => new Set(f).add(etat.current.courant))
+    setModeleChoisi(null)
+    setPlusDeModeles(false)
+  }, [])
+  useEffect(() => {
+    setModeleChoisi(null)
+    setPlusDeModeles(false)
+    modelesVus.current = false
+  }, [courant])
+  // Un élément posé ferme le choix pour de bon (annuler ne le ramène pas) ; commencer à glisser aussi.
+  useEffect(() => {
+    if (modelesAffiches) modelesVus.current = true
+    else if (modelesVus.current && !vide) {
+      modelesVus.current = false
+      fermerModeles()
+    }
+  }, [modelesAffiches, vide, fermerModeles])
+  useEffect(() => {
+    if (!modelesAffiches) return
+    document.addEventListener('dragstart', fermerModeles)
+    return () => document.removeEventListener('dragstart', fermerModeles)
+  }, [modelesAffiches, fermerModeles])
+  const catalogue = modelesDe(langue)
+  const proposes = useMemo(() => modelesProposes(catalogue), [catalogue])
+  const modeleVoulu = modelesAffiches ? (catalogue.find((m) => m.id === modeleChoisi) ?? null) : null
+  const apercu = useMemo(
+    () => (modeleVoulu ? creerMagasin({ titre: '', elements: elementsDuModele(garderExemple ? modeleVoulu : sansExemple(modeleVoulu), nouvelId) }) : null),
+    [modeleVoulu, garderExemple],
+  )
+  const appliquerModele = (m: (typeof catalogue)[number] | null) => {
+    fermerModeles()
+    if (!m) return
+    poserModele(garderExemple ? m : sansExemple(m), courant, services, { identite: !espace.tableau(courant)?.titre })
+  }
+  const servicesApercu = useMemo<Services>(() => ({ ...services, lectureSeule: true, presence: undefined }), [services])
+
   const surCamera = useCallback(
     (c: Camera) => {
       vues.current = memoriserVue(vues.current ?? {}, courant, c, Date.now())
@@ -367,20 +437,50 @@ export function EspaceNotak({
         presence={espace.presence?.(courant)}
         adressePhoto={hote.adressePhoto}
         actions={actions?.(courant, ouvrir, ouvrirAide)}
+        actionsTableau={actionsTableau?.(courant, ouvrir)}
         historique={lectureSeule ? undefined : historique}
+        peutAnnuler={peutAnnuler}
+        peutRetablir={peutRetablir}
         envoi={envoi}
       />
       <div className="notak-espace-corps" ref={corps}>
         <GardeToile key={courant}>
-          <Toile
-            // Une autre grille ou une autre langue redessine tout : pixels et textes changent.
-            key={`${courant}:${reglages.grille}:${langue}`}
-            magasin={espace.magasin(courant)}
-            services={services}
-            cameraInitiale={vues.current[courant]?.camera}
-            surCamera={surCamera}
-          />
+          {apercu ? (
+            // L'aperçu vivant : le modèle dans la toile, sans l'écrire, derrière un voile qui bloque les gestes.
+            <div className="notak-modele-apercu">
+              <Toile key={`apercu:${courant}:${modeleChoisi}:${garderExemple}:${langue}`} magasin={apercu} services={servicesApercu} />
+              <div className="notak-modele-voile" onPointerDown={() => setClignote((n) => n + 1)} />
+            </div>
+          ) : (
+            <Toile
+              // Une autre grille ou une autre langue redessine tout : pixels et textes changent.
+              key={`${courant}:${reglages.grille}:${langue}`}
+              magasin={espace.magasin(courant)}
+              services={services}
+              cameraInitiale={vues.current[courant]?.camera}
+              surCamera={surCamera}
+            />
+          )}
         </GardeToile>
+        {modelesAffiches && (
+          <PanneauModeles
+            modeles={proposes}
+            choisi={modeleChoisi}
+            surChoix={setModeleChoisi}
+            garder={garderExemple}
+            surGarder={setGarderExemple}
+            continuer={() => appliquerModele(modeleVoulu)}
+            plus={() => setPlusDeModeles(true)}
+            fermer={fermerModeles}
+            signal={clignote}
+          />
+        )}
+        {plusDeModeles && (
+          // La fenêtre du choix complet prend ses couleurs à la toile qui l'entoure : elle lui en trouve une, cachée.
+          <div className="notak-toile" hidden>
+            <ChoixModele choisir={(m) => (setPlusDeModeles(false), appliquerModele(m))} laisser={() => setPlusDeModeles(false)} />
+          </div>
+        )}
       </div>
       {aideOuverte && <FenetreRaccourcis fermer={fermerAide} />}
       {reglagesOuverts && <FenetreReglages reglages={reglages} changer={changerReglages} fermer={() => setReglagesOuverts(false)} {...(compte ? { compte } : {})} />}
@@ -396,20 +496,28 @@ function Entete({
   presence,
   adressePhoto,
   actions,
+  actionsTableau,
   historique,
+  peutAnnuler = true,
+  peutRetablir = true,
   envoi,
   charge = true,
 }: {
   segments: Segment[]
   courant: Id
   ouvrir(id: Id): void
-  /** Le titre du tableau ouvert se change en cliquant dessus (pas celui de l'accueil). */
+  /** Le titre du tableau ouvert se change en place, dans la seconde rangée (pas celui de l'accueil). */
   renommer?(titre: string): void
   presence?: Services['presence']
   adressePhoto?: Services['adressePhoto']
   actions?: ReactNode
+  /** À droite de la seconde rangée, avant le bouton de vue. */
+  actionsTableau?: ReactNode
   /** Annuler et rétablir le tableau ouvert ; absent en lecture seule. */
   historique?: { annuler(): void; retablir(): void }
+  /** Les piles du magasin : un bouton dont la pile est vide est grisé. */
+  peutAnnuler?: boolean
+  peutRetablir?: boolean
   envoi?: EtatEnvoi
   /** Faux tant que le tableau ouvert n'a pas rattrapé le serveur. */
   charge?: boolean
@@ -417,8 +525,6 @@ function Entete({
   const entete = useRef<HTMLElement>(null)
   const [largeur, setLargeur] = useState(Number.POSITIVE_INFINITY)
   const [menu, setMenu] = useState(false)
-  const [enRenommage, setEnRenommage] = useState(false)
-  useEffect(() => setEnRenommage(false), [courant])
 
   useLayoutEffect(() => {
     const n = entete.current!
@@ -447,29 +553,6 @@ function Entete({
   const segment = (i: number) => {
     const s = segments[i]!
     const ici = i === segments.length - 1 && s.id === courant
-    if (ici && enRenommage && renommer) {
-      const valider = (v: string) => {
-        setEnRenommage(false)
-        const titre = v.trim()
-        if (titre && titre !== s.titre) renommer(titre)
-      }
-      return (
-        <input
-          key="renommage"
-          className="notak-fil-saisie"
-          aria-label={t('espace.titreTableau')}
-          defaultValue={s.titre}
-          autoFocus
-          onFocus={(e) => e.currentTarget.select()}
-          onBlur={(e) => valider(e.currentTarget.value)}
-          onKeyDown={(e) => {
-            e.stopPropagation()
-            if (e.key === 'Enter') valider(e.currentTarget.value)
-            if (e.key === 'Escape') setEnRenommage(false)
-          }}
-        />
-      )
-    }
     return (
       <button
         key={`${s.id}:${i}`}
@@ -479,57 +562,79 @@ function Entete({
         title={ici && !charge ? t('espace.chargement') : s.titre}
         data-depot-tableau={s.id}
         data-charge={(ici && !charge) || undefined}
-        onClick={() => (ici && renommer ? setEnRenommage(true) : aller(s.id))}
+        // Le maillon du tableau ouvert mène à son titre, qui se change dans la seconde rangée.
+        onClick={() => (ici ? document.querySelector<HTMLInputElement>('.notak-titre-champ')?.focus() : aller(s.id))}
       >
         {s.titre || t('commun.sansTitre')}
       </button>
     )
   }
+  const titre = segments.at(-1)?.titre ?? ''
 
   return (
     <header className="notak-entete" ref={entete}>
-      <nav className="notak-fil" aria-label={t('espace.fil')}>
-        {visibles.flatMap((i, rang) => [
-          rang > 0 && <span key={`s${i}`} className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,
-          rang === 1 && caches.length > 0 && (
-            <span key="susp" className="notak-fil-bloc">
-              <button
-                type="button"
-                className="notak-fil-segment notak-fil-suspension"
-                title={t('espace.niveauxCaches')}
-                aria-expanded={menu}
-                onClick={() => setMenu((m) => !m)}
-              >
-                <Icone nom="plus" taille={16} />
-              </button>
-              {menu && (
-                <div className="notak-fil-menu" role="menu">
-                  {caches.map((c) => (
-                    <button key={c} type="button" role="menuitem" onClick={() => aller(segments[c]!.id)}>
-                      {segments[c]!.titre || t('commun.sansTitre')}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </span>
-          ),
-          rang === 1 && caches.length > 0 && <span key="s-susp" className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,
-          segment(i),
-        ])}
-      </nav>
-      {historique && (
-        <div className="notak-historique">
-          <button type="button" title={t('espace.annuler') + ' (⌘Z)'} aria-label={t('espace.annuler')} onClick={historique.annuler}>
-            <Icone nom="annuler" />
-          </button>
-          <button type="button" title={t('espace.retablir') + ' (⇧⌘Z)'} aria-label={t('espace.retablir')} onClick={historique.retablir}>
-            <Icone nom="retablir" />
-          </button>
+      <div className="notak-entete-haut">
+        <nav className="notak-fil" aria-label={t('espace.fil')}>
+          {visibles.flatMap((i, rang) => [
+            rang > 0 && <span key={`s${i}`} className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,
+            rang === 1 && caches.length > 0 && (
+              <span key="susp" className="notak-fil-bloc">
+                <button
+                  type="button"
+                  className="notak-fil-segment notak-fil-suspension"
+                  title={t('espace.niveauxCaches')}
+                  aria-expanded={menu}
+                  onClick={() => setMenu((m) => !m)}
+                >
+                  <Icone nom="plus" taille={16} />
+                </button>
+                {menu && (
+                  <div className="notak-fil-menu" role="menu">
+                    {caches.map((c) => (
+                      <button key={c} type="button" role="menuitem" onClick={() => aller(segments[c]!.id)}>
+                        {segments[c]!.titre || t('commun.sansTitre')}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </span>
+            ),
+            rang === 1 && caches.length > 0 && <span key="s-susp" className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,
+            segment(i),
+          ])}
+        </nav>
+        <div className="notak-entete-droite">
+          {historique && (
+            <>
+              <div className="notak-historique">
+                <Infobulle libelle={t('espace.annuler')} raccourci="⌘Z">
+                  <button type="button" aria-label={t('espace.annuler')} disabled={!peutAnnuler} onClick={historique.annuler}>
+                    <Icone nom="annuler" taille={24} />
+                  </button>
+                </Infobulle>
+                <Infobulle libelle={t('espace.retablir')} raccourci="⇧⌘Z">
+                  <button type="button" aria-label={t('espace.retablir')} disabled={!peutRetablir} onClick={historique.retablir}>
+                    <Icone nom="retablir" taille={24} />
+                  </button>
+                </Infobulle>
+              </div>
+              <span className="notak-entete-filet" aria-hidden />
+            </>
+          )}
+          <Pastilles presence={presence} adressePhoto={adressePhoto} />
+          {actions && <div className="notak-entete-actions">{actions}</div>}
         </div>
-      )}
-      <EtatEnregistrement etat={envoi} />
-      <Pastilles presence={presence} adressePhoto={adressePhoto} />
-      {actions && <div className="notak-entete-actions">{actions}</div>}
+      </div>
+      <div className="notak-entete-bas">
+        <div className="notak-entete-gauche">
+          <EtatEnregistrement etat={envoi} />
+        </div>
+        <TitreTableau titre={titre} {...(renommer ? { renommer } : {})} />
+        <div className="notak-entete-droite notak-entete-actions">
+          {actionsTableau}
+          <BoutonVue />
+        </div>
+      </div>
     </header>
   )
 }

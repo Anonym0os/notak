@@ -7,7 +7,7 @@ import { Icone } from '@notak/tableau'
 import { usePanneau } from './panneaux'
 
 /** Ce que la capture laisse de côté : les pastilles et les curseurs posés sur la toile, pas le tableau. */
-const HORS_CAPTURE = ['notak-echelle', 'notak-lecture', 'notak-lasso', 'notak-curseur']
+const HORS_CAPTURE = ['notak-zoom-pastille', 'notak-choix-modele', 'notak-lecture', 'notak-lasso', 'notak-curseur']
 const ECHELLE_CAPTURE = 2
 
 function telecharger(blob: Blob, nom: string) {
@@ -79,6 +79,7 @@ export function Export({ tableau, titre }: { tableau: string; titre(): string })
       <button type="button" ref={bouton} className="bouton" aria-expanded={ouvert} onClick={basculer}>
         <Icone nom="exporter" taille={16} />
         {capture ? t('exporter.encours') : echec ? t('exporter.impossible') : t('exporter.titre')}
+        <Icone nom="chevronBas" taille={16} />
       </button>
       {ouvert && (
         <div className="compte-menu" ref={panneau} role="menu">
