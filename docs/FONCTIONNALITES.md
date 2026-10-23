@@ -242,11 +242,11 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 |---|---|---|
 | Fichier joint : extension, nom, taille, Télécharger, Ouvrir, lecteur du son et de la vidéo, renommer | ✅ | Aperçu de la première page d'un PDF, légende, mode icône. |
 | Commentaire (fil de discussion posé sur la toile) | ✅ |  |
-| Table : un petit tableur (sélection de plages, clavier, types, formules, repères, clic droit, presse-papiers, titre, légende) | ✅ | Relevé dans `docs/ecarts/table.md`, repris d'après le code de Milanote le 23/10. Pas de mise en forme partielle dans une cellule ; ⌃⌘N attend les raccourcis de création. |
-| Croquis à main levée | ✅ |  |
+| Table : un petit tableur (sélection de plages, clavier, types, formules, repères, clic droit, presse-papiers, titre, légende) | ✅ | Relevé dans `docs/ecarts/table.md`, repris d'après le code de Milanote le 23/10. Pas de mise en forme partielle dans une cellule ; ⌃⌘N attend les raccourcis de création. Environ 210 fonctions de formule (Milanote : environ 380). |
+| Croquis à main levée | ✅ | Fenêtre de couleur à cinq colonnes, gomme de 14 px, légende, « Télécharger en SVG », ordre d'empilement. Pas de fond au choix en transparent, ni de couleurs suggérées du tableau dans la fenêtre. |
 | Dessin libre sur la toile | ✅ | Outil « Dessin libre » du tiroir : on trace à même la toile, Entrée pose le dessin. |
-| Nuancier (couleur, code, pipette) | ✅ |  |
-| Document (texte long, ouvert en grand) | ✅ |  |
+| Nuancier (couleur, code, légende) | ✅ | Code en haut à gauche (HEX, RGB, HSL), édité sur place, redimensionnement libre, légende au nom de la couleur. Pas de sélecteur du système au double-clic ni de couleurs suggérées du tableau. |
+| Document (texte long, ouvert en grand) | ✅ | Icône ou vue carte (34 unités, aperçu du texte), Renommer, légende, export PDF, Word, Markdown et texte brut. Pas d'outil Commentaire dans le texte. |
 | Lien vidéo | ✅ | Outil « Vidéo » du tiroir. |
 | Lien audio | ✅ | Outil « Audio » du tiroir. |
 | Carte (lieu) | ✅ |  |
