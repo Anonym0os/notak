@@ -36,6 +36,7 @@ import {
 import './elements'
 import { definition, tousLesRaccourcis, tousLesRecepteurs, tousLesTypes, toutesLesEntreesMenu } from './elements/registre'
 import type { ContexteToile, Presence, Services } from './elements/types'
+import { t, tn } from './langue'
 
 type Geste =
   | { type: 'attraper'; dernier: Point }
@@ -626,10 +627,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     (ids: Iterable<Id>, vers: 'corbeille' | 'nonTrie') => {
       if (etat.current.services.lectureSeule) return
       const m = etat.current.magasin
-      const t = m.lire()
+      const tab = m.lire()
       const voulus = new Set(ids)
-      const choisis = t.elements.filter((e) => voulus.has(e.id) && !e.verrou)
-      const partants = vers === 'corbeille' ? avecLiees(choisis, t) : choisis.filter((e) => definition(e.contenu.type)?.calque !== 'lignes')
+      const choisis = tab.elements.filter((e) => voulus.has(e.id) && !e.verrou)
+      const partants = vers === 'corbeille' ? avecLiees(choisis, tab) : choisis.filter((e) => definition(e.contenu.type)?.calque !== 'lignes')
       const dedans = new Set(partants.map((e) => e.id))
       const date = Date.now()
       const pas = partants
@@ -645,10 +646,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       annoncer({
         texte:
           vers === 'corbeille'
-            ? n === 1 ? 'Mis à la corbeille' : `${n} éléments mis à la corbeille`
-            : n === 1 ? 'Mis dans les non triés' : `${n} éléments mis dans les non triés`,
+            ? tn('toile.misCorbeille', n)
+            : tn('toile.misNonTries', n),
         // Défaire ce geste-là, même si d'autres l'ont suivi : Cmd+Z, lui, défait le dernier.
-        action: { libelle: 'Annuler', faire: () => m.faire(pas.map(inverse).reverse()) },
+        action: { libelle: t('espace.annuler'), faire: () => m.faire(pas.map(inverse).reverse()) },
       })
     },
     [rect],
@@ -1082,7 +1083,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         pas.push({ type: 'redimensionner', id: e.id, de: e.largeur, vers: source.largeur })
     }
     if (pas.length > 0) magasin.faire(pas)
-    annoncer({ texte: 'Style collé' })
+    annoncer({ texte: t('toile.styleColle') })
   }
 
   /** Un élément des non triés prend sa place sur la toile, à `ou` (son coin haut gauche, en UG). */
@@ -1122,7 +1123,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const entreesMenu = (): Entree[] => {
     if (!menu) return []
     const ou = menu.ou
-    const avecPaquet = !lectureSeule && copie.paquet ? [{ libelle: 'Coller', raccourci: '⌘V', faire: () => collerPaquet(copie.paquet!, ou) }] : []
+    const avecPaquet = !lectureSeule && copie.paquet ? [{ libelle: t('toile.coller'), raccourci: '⌘V', faire: () => collerPaquet(copie.paquet!, ou) }] : []
     if (!menu.surElement) {
       const creer = lectureSeule
         ? []
@@ -1139,39 +1140,39 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       return [
         ...avecPaquet,
         null,
-        ...(lectureSeule ? [] : [{ libelle: 'Annuler', raccourci: '⌘Z', faire: () => void magasin.annuler() }, { libelle: 'Rétablir', raccourci: '⇧⌘Z', faire: () => void magasin.retablir() }]),
-        { libelle: 'Tout sélectionner', raccourci: '⌘A', faire: () => setSelection(new Set(tableau.elements.filter((x) => !x.parent).map((x) => x.id))) },
+        ...(lectureSeule ? [] : [{ libelle: t('espace.annuler'), raccourci: '⌘Z', faire: () => void magasin.annuler() }, { libelle: t('espace.retablir'), raccourci: '⇧⌘Z', faire: () => void magasin.retablir() }]),
+        { libelle: t('raccourcis.toutSelectionner'), raccourci: '⌘A', faire: () => setSelection(new Set(tableau.elements.filter((x) => !x.parent).map((x) => x.id))) },
         null,
         ...creer,
         null,
-        { libelle: 'Raccourcis clavier', raccourci: '/', faire: () => setRaccourcis(true) },
+        { libelle: t('raccourcis.titre'), raccourci: '/', faire: () => setRaccourcis(true) },
       ]
     }
     const els = choisis()
-    if (lectureSeule) return [{ libelle: 'Copier', raccourci: '⌘C', faire: () => document.execCommand('copy') }]
+    if (lectureSeule) return [{ libelle: t('commun.copier'), raccourci: '⌘C', faire: () => document.execCommand('copy') }]
     const verrouilles = els.length > 0 && els.every((x) => x.verrou)
     const seul = els.length === 1 ? els[0] : undefined
     const defSeul = seul && definition(seul.contenu.type)
     return [
-      { libelle: 'Couper', raccourci: '⌘X', faire: () => document.execCommand('cut') },
-      { libelle: 'Copier', raccourci: '⌘C', faire: () => document.execCommand('copy') },
+      { libelle: t('toile.couper'), raccourci: '⌘X', faire: () => document.execCommand('cut') },
+      { libelle: t('commun.copier'), raccourci: '⌘C', faire: () => document.execCommand('copy') },
       ...avecPaquet,
-      { libelle: 'Dupliquer', raccourci: '⌘D', faire: dupliquer },
+      { libelle: t('raccourcis.dupliquer'), raccourci: '⌘D', faire: dupliquer },
       null,
-      ...(seul && defSeul?.ouvrir ? [{ libelle: 'Ouvrir', raccourci: 'Espace', faire: () => defSeul.ouvrir!(seul, contexte) }] : []),
-      ...(seul && defSeul?.editable ? [{ libelle: 'Modifier', raccourci: '↩', faire: () => commencerEdition(seul.id) }] : []),
+      ...(seul && defSeul?.ouvrir ? [{ libelle: t('commun.ouvrir'), raccourci: t('raccourcis.touche.espace'), faire: () => defSeul.ouvrir!(seul, contexte) }] : []),
+      ...(seul && defSeul?.editable ? [{ libelle: t('commun.modifier'), raccourci: '↩', faire: () => commencerEdition(seul.id) }] : []),
       null,
       ...toutesLesEntreesMenu()
         .filter((x) => x.visible(els, contexte))
         .map((x) => ({ libelle: x.libelle, ...(x.raccourci ? { raccourci: x.raccourci } : {}), faire: () => x.faire(els, contexte) })),
       null,
-      { libelle: 'Verrouiller la position', coche: verrouilles, faire: () => verrouiller(!verrouilles) },
-      { libelle: 'Premier plan', raccourci: '⇧⌘↑', faire: () => changerPlan('haut', false) },
-      { libelle: 'Arrière-plan', raccourci: '⇧⌘↓', faire: () => changerPlan('bas', false) },
+      { libelle: t('toile.verrouiller'), coche: verrouilles, faire: () => verrouiller(!verrouilles) },
+      { libelle: t('toile.premierPlan'), raccourci: '⇧⌘↑', faire: () => changerPlan('haut', false) },
+      { libelle: t('toile.arrierePlan'), raccourci: '⇧⌘↓', faire: () => changerPlan('bas', false) },
       null,
-      ...(copie.paquet ? [{ libelle: 'Coller le style', raccourci: '⌥⌘V', faire: collerStyle }] : []),
-      { libelle: 'Mettre dans les non triés', raccourci: '⌥`', faire: () => ecarter(selection, 'nonTrie') },
-      { libelle: 'Mettre à la corbeille', raccourci: '⌫', faire: () => jeter(selection) },
+      ...(copie.paquet ? [{ libelle: t('toile.collerStyle'), raccourci: '⌥⌘V', faire: collerStyle }] : []),
+      { libelle: t('toile.mettreNonTries'), raccourci: '⌥`', faire: () => ecarter(selection, 'nonTrie') },
+      { libelle: t('raccourcis.corbeille'), raccourci: '⌫', faire: () => jeter(selection) },
     ]
   }
 
@@ -1979,10 +1980,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const cibleId = versTableau.id
       const n = g.origines.size
       envoyerDans(cibleId, [...g.origines.keys()])
-      const titre = services.tableau?.(cibleId)?.titre || 'Sans titre'
+      const titre = services.tableau?.(cibleId)?.titre || t('commun.sansTitre')
       annoncer({
-        texte: `${n === 1 ? 'Déplacé' : `${n} éléments déplacés`} dans « ${titre} »`,
-        ...(services.ouvrirTableau ? { action: { libelle: 'Ouvrir', faire: () => services.ouvrirTableau!(cibleId) } } : {}),
+        texte: tn('toile.deplaces', n, { titre }),
+        ...(services.ouvrirTableau ? { action: { libelle: t('commun.ouvrir'), faire: () => services.ouvrirTableau!(cibleId) } } : {}),
       })
       return
     }
@@ -2186,7 +2187,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         <div
           className="notak-poignee-groupe"
           data-poignee-groupe
-          title="Redimensionner le groupe"
+          title={t('toile.redimensionner')}
           style={{ left: barre.max.x - 5, top: barre.max.y - 5 }}
           onPointerDown={(e) => {
             if (e.button !== 0) return

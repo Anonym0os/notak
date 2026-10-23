@@ -7,6 +7,7 @@ import { OutilsRenvoi } from './Outils'
 import { RenduRenvoi } from './Renvoi'
 import { demanderRenommage } from './renommage'
 import { demanderModele } from './modele'
+import { t } from '../../langue'
 import './tableau.css'
 
 const LARGEUR_RENVOI = 10
@@ -27,13 +28,17 @@ function nouveauRenvoi(ou: Point, contexte: ContexteToile, renommer = true): Ele
 }
 
 registre.entreeMenu({
-  libelle: 'Ouvrir dans un nouvel onglet',
+  get libelle() {
+    return t('menu.ouvrirOnglet')
+  },
   visible: (els, contexte) => els.length === 1 && els[0]!.contenu.type === 'tableau' && !!contexte.services.ouvrirDansOnglet,
   faire: ([e], contexte) => e?.contenu.type === 'tableau' && contexte.services.ouvrirDansOnglet?.(e.contenu.cible),
 })
 
 registre.entreeMenu({
-  libelle: 'Créer un raccourci',
+  get libelle() {
+    return t('menu.creerRaccourci')
+  },
   visible: (els, contexte) => els.length > 0 && els.every((e) => e.contenu.type === 'tableau') && !contexte.services.lectureSeule,
   faire(els, contexte) {
     // À droite de chaque carte, sur sa ligne : le raccourci naît là où l'œil le trouve.
@@ -46,14 +51,18 @@ registre.entreeMenu({
 })
 
 registre.entreeMenu({
-  libelle: 'Renommer',
+  get libelle() {
+    return t('menu.renommer')
+  },
   visible: (els) => els.length === 1 && els[0]!.contenu.type === 'tableau',
   faire: ([e]) => e && demanderRenommage(e.id),
 })
 
 registre.type<RenvoiTableau>({
   type: 'tableau',
-  nom: 'Tableau',
+  get nom() {
+    return t('type.tableau')
+  },
   resume: (c, contexte) => contexte.services.tableau?.(c.cible)?.titre ?? '',
   Rendu: RenduRenvoi,
   Outils: OutilsRenvoi,
@@ -70,7 +79,9 @@ registre.type<RenvoiTableau>({
   largeurMin: LARGEUR_RENVOI,
   outils: [
     {
-      libelle: 'Tableau',
+      get libelle() {
+        return t('type.tableau')
+      },
       icone: '▣',
       rang: 50,
       fantome: () => ({ id: '', x: 0, y: 0, largeur: LARGEUR_RENVOI, contenu: { type: 'tableau', cible: '' } }),
@@ -82,7 +93,9 @@ registre.type<RenvoiTableau>({
     },
     {
       // Un tableau neuf qui propose d'abord ses modèles ; le laisser vide ramène au renommage de l'outil ordinaire.
-      libelle: 'Tableau modèle',
+      get libelle() {
+        return t('outil.tableauModele')
+      },
       icone: '▤',
       rang: 51,
       tiroir: true,
