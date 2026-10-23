@@ -1,5 +1,5 @@
 import { type Croquis, type Element, type Trait, nouvelId } from '../../coeur/tableau'
-import { t } from '../../langue'
+import { t, tn } from '../../langue'
 
 /** La feuille sur laquelle on dessine, en unités de feuille (le rendu la met à l'échelle). */
 export const LARGEUR_FEUILLE = 640
@@ -119,5 +119,5 @@ export function gommer(traits: readonly Trait[], x: number, y: number, rayon = 6
 /** Ce qu'on lit d'un croquis dans une liste. */
 export function resume(c: Croquis): string {
   const n = c.traits.length
-  return n === 0 ? 'Croquis vide' : `Croquis (${n} trait${n > 1 ? 's' : ''})`
+  return n === 0 ? t('croquis.resumeVide') : tn('croquis.resume', n)
 }

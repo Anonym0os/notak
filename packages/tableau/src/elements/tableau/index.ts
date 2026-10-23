@@ -14,7 +14,7 @@ const LARGEUR_RENVOI = 10
 
 /** Un tableau neuf, vide, et son renvoi posé là ; son titre se saisit aussitôt. */
 function nouveauRenvoi(ou: Point, contexte: ContexteToile, renommer = true): Element<RenvoiTableau> | null {
-  const cible = contexte.services.creerTableau?.('Nouveau tableau')
+  const cible = contexte.services.creerTableau?.(t('tableau.nouveau'))
   if (!cible) return null
   const element: Element<RenvoiTableau> = {
     id: nouvelId(),

@@ -1,3 +1,11 @@
+.notak-toile:lang(en),
+:root:lang(en) {
+  /* Les textes que le CSS écrit lui-même (notes et listes vides) ; le français est dans les règles qui les emploient. */
+  --notak-ph-note: 'Write something…';
+  --notak-ph-titre: 'Title';
+  --notak-ph-tache: 'Add a task…';
+}
+
 .notak-toile {
   --notak-fond: #eef0f2;
   --notak-point: #c4c8ce;

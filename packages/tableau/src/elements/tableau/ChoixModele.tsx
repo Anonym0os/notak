@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { MODELES } from '../../modeles/catalogue'
+import { t, useLangue } from '../../langue'
+import { modelesDe } from '../../modeles/langues'
 import type { ModeleTableau } from '../../modeles/construire'
 import { Surcouche } from '../surcouche'
 import { ApercuModele } from './ApercuModele'
@@ -9,7 +10,11 @@ import { ApercuModele } from './ApercuModele'
  * « Tableau vide » ou Échap laissent le tableau comme il est.
  */
 export function ChoixModele({ choisir, laisser }: { choisir(m: ModeleTableau): void; laisser(): void }) {
-  const [courant, setCourant] = useState<ModeleTableau>(MODELES[0]!)
+  // Le catalogue suit la langue ; le modèle choisi se retient par son identifiant, pour survivre à un changement de langue.
+  const MODELES = modelesDe(useLangue())
+  const [choisi, setChoisi] = useState(MODELES[0]!.id)
+  const courant = MODELES.find((m) => m.id === choisi) ?? MODELES[0]!
+  const setCourant = (m: ModeleTableau) => setChoisi(m.id)
   const aller = (e: React.KeyboardEvent): boolean => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return false
     const rang = MODELES.indexOf(courant) + (e.key === 'ArrowDown' ? 1 : -1)
@@ -18,16 +23,16 @@ export function ChoixModele({ choisir, laisser }: { choisir(m: ModeleTableau): v
     return true
   }
   return (
-    <Surcouche etiquette="Choisir un modèle de tableau" className="notak-modeles-fond" fermer={laisser} surTouche={aller}>
+    <Surcouche etiquette={t('modele.choisir')} className="notak-modeles-fond" fermer={laisser} surTouche={aller}>
       <div className="notak-modeles">
         <div className="notak-modeles-tete">
-          <strong>Un modèle pour ce tableau</strong>
-          <button type="button" aria-label="Fermer" onClick={laisser}>
+          <strong>{t('modele.titre')}</strong>
+          <button type="button" aria-label={t('commun.fermer')} onClick={laisser}>
             ×
           </button>
         </div>
         <div className="notak-modeles-corps">
-          <ul className="notak-modeles-liste" role="listbox" aria-label="Modèles">
+          <ul className="notak-modeles-liste" role="listbox" aria-label={t('modele.liste')}>
             {MODELES.map((m) => (
               <li key={m.id}>
                 <button type="button" role="option" aria-selected={m === courant} onClick={() => setCourant(m)} onDoubleClick={() => choisir(m)}>
@@ -43,10 +48,10 @@ export function ChoixModele({ choisir, laisser }: { choisir(m: ModeleTableau): v
         </div>
         <div className="notak-modeles-pied">
           <button type="button" onClick={laisser}>
-            Tableau vide
+            {t('modele.vide')}
           </button>
           <button type="button" className="notak-modeles-valider" onClick={() => choisir(courant)}>
-            Utiliser « {courant.titre} »
+            {t('modele.utiliser', { titre: courant.titre })}
           </button>
         </div>
       </div>

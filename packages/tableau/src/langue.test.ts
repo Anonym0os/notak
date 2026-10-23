@@ -82,3 +82,23 @@ describe('t', () => {
     }
   })
 })
+
+describe('textes des éléments en anglais', () => {
+  it('compte, résume et date dans la langue choisie', async () => {
+    const { composition } = await import('./elements/composition')
+    const { tailleLisible } = await import('./elements/fichier/genre')
+    const { libelleEcheance, puces } = await import('./elements/taches/puces')
+    const { resume } = await import('./elements/croquis/trace')
+    const note = { id: 'a', x: 0, y: 0, largeur: 10, contenu: { type: 'note' } } as never
+    expect(composition([note, note])).toBe('2 notes')
+    definirLangue('en')
+    expect(composition([note])).toBe('1 note')
+    expect(composition([note, note])).toBe('2 notes')
+    expect(tailleLisible(812)).toBe('812 B')
+    expect(tailleLisible(2400)).toBe('2.4 kB')
+    expect(libelleEcheance('2026-10-23', '2026-10-23')).toBe('Today')
+    expect(libelleEcheance('2026-10-12', '2026-10-23')).toBe('Oct 12')
+    expect(puces({}, '2026-10-23')[0]?.texte).toBe('Due date')
+    expect(resume({ traits: [] } as never)).toBe('Empty sketch')
+  })
+})

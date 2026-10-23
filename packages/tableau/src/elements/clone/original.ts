@@ -1,4 +1,5 @@
 import { type Clone, type Contenu, type Element, type Id, type TypeContenu, nouvelId } from '../../coeur/tableau'
+import { t } from '../../langue'
 
 /** Ce qu'on peut cloner : les cartes de contenu. Ni un clone (on clone son original), ni une colonne, un tableau, une ligne. */
 const CLONABLES: ReadonlySet<TypeContenu> = new Set<TypeContenu>([
@@ -53,7 +54,7 @@ export const nouveauClone = (x: number, y: number, cible: Id, largeur: number): 
 export const placeAcote = (x: number, y: number, largeur: number): { x: number; y: number } => ({ x: Math.round(x + largeur) + 2, y: Math.round(y) })
 
 /** Ce qu'on lit d'un clone dans une liste, quand son original n'est plus là. */
-export const RESUME_SANS_ORIGINAL = 'Clone sans original'
+export const resumeSansOriginal = () => t('clone.sansOriginal')
 
 /**
  * Les clones qui partent avec leur original quand il part à la corbeille. Un clone n'a pas de contenu à lui : sans

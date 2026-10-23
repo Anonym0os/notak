@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { type EspaceNavigable } from './coeur/espace'
 import { type Id, surLeTableau } from './coeur/tableau'
+import { t, useLangue } from './langue'
 import { type GesteDecouverte, bulleAMontrer, vuesDuCompte } from './decouverte'
 
 /**
@@ -16,6 +17,7 @@ export function BullesDecouverte({
   tableau: Id
   compte: string
 }) {
+  useLangue()
   const vues = useMemo(() => vuesDuCompte(compte), [compte])
   const [vu, setVu] = useState(() => vues.lire())
   // Tant que le tableau n'a pas rattrapé le serveur, « vide » ne veut encore rien dire.
@@ -40,9 +42,9 @@ export function BullesDecouverte({
   if (!bulle) return null
   return (
     <div className="notak-bulle-decouverte" data-ou={bulle.ou} role="status">
-      <span>{bulle.texte}</span>
+      <span>{t(bulle.texte)}</span>
       <button type="button" onClick={() => noter(bulle.geste)}>
-        Compris
+        {t('decouverte.compris')}
       </button>
     </div>
   )

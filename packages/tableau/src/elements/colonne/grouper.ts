@@ -1,6 +1,7 @@
 import type { Rect } from '../../coeur/geometrie'
 import { clesEntre, trierLecture } from '../../coeur/ordre'
 import { type Element, type Id, type Operation, aimanter, nouvelleColonne, placeDe } from '../../coeur/tableau'
+import { t } from '../../langue'
 
 export interface Groupable {
   element: Element
@@ -16,7 +17,7 @@ export function pasDeGroupement(items: readonly Groupable[]): { colonne: Id; pas
     x: Math.min(...items.map((i) => i.rect.min.x)),
     y: Math.min(...items.map((i) => i.rect.min.y)),
   })
-  const colonne = nouvelleColonne(x, y)
+  const colonne = nouvelleColonne(x, y, t('type.colonne'))
   const ranges = trierLecture(items.map((i) => ({ ...i, x: i.rect.min.x, y: i.rect.min.y })))
   const cles = clesEntre(undefined, undefined, ranges.length)
   const pas: Operation[] = [

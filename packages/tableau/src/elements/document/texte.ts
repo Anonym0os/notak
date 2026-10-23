@@ -49,5 +49,5 @@ export const documentVide = (c: DocumentTexte) => !c.titre.trim() && compterMots
 
 /** Ce qu'on lit d'un document dans une liste : son titre, sinon le début de son texte. */
 export function resume(c: DocumentTexte): string {
-  return c.titre.trim() || extrait(c.texte, 80) || 'Document vide'
+  return c.titre.trim() || extrait(c.texte, 80) || t('document.resumeVide')
 }

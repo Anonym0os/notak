@@ -1,3 +1,4 @@
+import { langue, t } from '../../langue'
 /**
  * Ce qui se pose sur une tâche en plus de son texte : une échéance, une personne. Des règles pures sur les
  * attributs de la tâche (`echeance` : `AAAA-MM-JJ`, `assigne` : un nom, libre ou celui d'une personne présente) ; le rendu les lit, hors édition en React, en édition
@@ -26,6 +27,7 @@ export interface Personne {
 }
 
 const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
+const MOIS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 const nb = (n: number, largeur = 2) => String(n).padStart(largeur, '0')
 
@@ -48,12 +50,13 @@ export function jourValide(valeur: unknown): valeur is string {
 
 /** « Aujourd'hui », « Demain », « Hier », sinon « 12 oct. » (avec l'année si ce n'est pas la même). */
 export function libelleEcheance(jour: string, aujourdhui: string): string {
-  if (jour === aujourdhui) return "Aujourd'hui"
-  if (jour === decaler(aujourdhui, 1)) return 'Demain'
-  if (jour === decaler(aujourdhui, -1)) return 'Hier'
+  if (jour === aujourdhui) return t('taches.aujourdhui')
+  if (jour === decaler(aujourdhui, 1)) return t('taches.demain')
+  if (jour === decaler(aujourdhui, -1)) return t('taches.hier')
   const [a, m, j] = jour.split('-').map(Number) as [number, number, number]
-  const court = `${j} ${MOIS[m - 1]}`
-  return String(a) === aujourdhui.slice(0, 4) ? court : `${court} ${a}`
+  const en = langue() === 'en'
+  const court = en ? `${MOIS_EN[m - 1]} ${j}` : `${j} ${MOIS[m - 1]}`
+  return String(a) === aujourdhui.slice(0, 4) ? court : en ? `${court}, ${a}` : `${court} ${a}`
 }
 
 /** L'échéance d'une tâche, si elle en a une valable. */
@@ -69,15 +72,15 @@ export function puces(attrs: Record<string, unknown> | undefined, aujourdhui: st
     {
       genre: 'echeance',
       vide: jour === null,
-      texte: jour ? libelleEcheance(jour, aujourdhui) : 'Échéance',
-      titre: jour ? 'Changer l’échéance' : 'Ajouter une échéance',
+      texte: jour ? libelleEcheance(jour, aujourdhui) : t('taches.echeance'),
+      titre: jour ? t('taches.changerEcheance') : t('taches.ajouterEcheance'),
       retard: jour !== null && !faite && jour < aujourdhui,
     },
     {
       genre: 'assigne',
       vide: nom === null,
-      texte: nom ? initiales(nom) : 'Assigner',
-      titre: nom ? `Assignée à ${nom}` : 'Assigner à quelqu’un',
+      texte: nom ? initiales(nom) : t('taches.assigner'),
+      titre: nom ? t('taches.assigneeA', { nom }) : t('taches.assignerQuelquun'),
       retard: false,
       ...(nom ? { teinte: teinteDe(nom) } : {}),
     },

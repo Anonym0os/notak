@@ -8,6 +8,7 @@
  */
 
 import type { Id } from '../../coeur/tableau'
+import { t } from '../../langue'
 
 const TACHES = 'li[data-type="taskItem"]'
 /** En deçà de ce déplacement (px), c'est un clic, pas un glisser. */
@@ -81,7 +82,7 @@ export function glisserTache(
   // Ce qui suit le pointeur : la tâche, en miniature.
   const fantome = document.createElement('div')
   fantome.className = 'notak-glisse-fantome'
-  fantome.textContent = source.querySelector('p')?.textContent?.trim() || 'Tâche'
+  fantome.textContent = source.querySelector('p')?.textContent?.trim() || t('taches.tache')
   fantome.hidden = true
   document.body.append(fantome)
 

@@ -34,7 +34,7 @@ registre.type<Fichier>({
       },
       icone: '🖼',
       rang: 80,
-      fantome: () => fantome('Image', 'image/png'),
+      fantome: () => fantome(t('type.image'), 'image/png'),
       // L'élément naît du choix fait dans le sélecteur, là où l'on a lâché l'outil.
       creer: (ou, contexte) => {
         choisirFichiers(ou, contexte, 'image/*')
@@ -48,7 +48,7 @@ registre.type<Fichier>({
       },
       icone: '📎',
       rang: 90,
-      fantome: () => fantome('Fichier', ''),
+      fantome: () => fantome(t('type.fichier'), ''),
       creer: (ou, contexte) => {
         choisirFichiers(ou, contexte)
         return []

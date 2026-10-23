@@ -2275,7 +2275,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           {...(toutLeTableau.id ? { ici: toutLeTableau.id } : {})}
         />
       )}
-      {lectureSeule && !services.presentation && <div className="notak-lecture">Lecture seule</div>}
+      {lectureSeule && !services.presentation && <div className="notak-lecture">{t('toile.lectureSeule')}</div>}
       <div className="notak-echelle">{Math.round(camera.echelle * 100)} %</div>
     </div>
   )

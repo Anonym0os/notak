@@ -10,7 +10,7 @@ registre.type<Commentaire>({
   get nom() {
     return t('type.commentaire')
   },
-  resume: (c) => c.messages.map((m) => `${m.auteur.nom} : ${m.texte}`).join(' · ') || 'Commentaire vide',
+  resume: (c) => c.messages.map((m) => `${m.auteur.nom} : ${m.texte}`).join(' · ') || t('commentaire.vide'),
   Rendu: RenduCommentaire,
   Outils: OutilsCommentaire,
   editable: true,

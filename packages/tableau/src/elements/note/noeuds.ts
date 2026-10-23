@@ -18,6 +18,10 @@ const MOTS_ICONE: Record<string, string> = {
   ok: '✅',
   non: '❌',
   note: '📌',
+  idea: '💡',
+  warning: '⚠️',
+  yes: '✅',
+  no: '❌',
 }
 
 /** `!` en début de ligne, suivi d'un mot connu ou d'un émoji, puis d'une espace. */

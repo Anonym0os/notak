@@ -1,4 +1,5 @@
 import { type Element, type Lieu, type PositionLieu, nouvelId } from '../../coeur/tableau'
+import { t } from '../../langue'
 
 export const LARGEUR_LIEU = 24
 
@@ -26,7 +27,7 @@ export function urlCarte(c: Lieu): string | null {
 
 /** Ce qu'on lit d'un lieu dans une liste : son nom, sinon la première ligne de son adresse. */
 export function resume(c: Lieu): string {
-  return c.nom?.trim() || c.adresse.split('\n')[0]?.trim() || 'Lieu'
+  return c.nom?.trim() || c.adresse.split('\n')[0]?.trim() || t('type.lieu')
 }
 
 /** Un lieu qui n'a ni nom ni adresse. */

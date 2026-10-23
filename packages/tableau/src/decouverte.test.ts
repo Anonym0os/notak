@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { en, fr } from './langue'
 import { BULLES, bulleAMontrer, cleDecouverte, vuesDuCompte } from './decouverte'
 
 const rien = new Set<string>()
@@ -32,7 +33,10 @@ describe('bulles de découverte', () => {
 
   it('chaque geste a un texte et une place', () => {
     expect(new Set(BULLES.map((b) => b.geste)).size).toBe(BULLES.length)
-    for (const b of BULLES) expect(b.texte.length).toBeGreaterThan(10)
+    for (const b of BULLES) {
+      expect(fr[b.texte]?.length, b.texte).toBeGreaterThan(10)
+      expect(en[b.texte]?.length, b.texte).toBeGreaterThan(10)
+    }
   })
 })
 

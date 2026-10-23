@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Lien } from '../../coeur/tableau'
 import { BAC_A_SABLE, type Lecteur, PERMISSIONS, adresseDeLecture, demarreSeul, formeDe } from './lecteurs'
+import { t } from '../../langue'
 
 /**
  * Le haut de la carte : le lecteur intégré (une vidéo, un morceau, une carte) ou l'image d'aperçu.
@@ -32,7 +33,7 @@ export function Media({ lecteur, image, titre, lien }: { lecteur: Lecteur | null
       ) : (
         <>
           {image && <img src={image} alt="" draggable={false} referrerPolicy="no-referrer" />}
-          <button className="notak-lien-lecture" title="Lire" onClick={() => setClic(true)}>
+          <button className="notak-lien-lecture" title={t('lien.lire')} onClick={() => setClic(true)}>
             <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
               <path d="M8 5v14l11-7z" fill="currentColor" />
             </svg>

@@ -10,6 +10,7 @@ import { glisserTache } from './glisse'
 import { htmlEnTaches } from './html'
 import { PROFONDEUR_MAX, hauteur, lignesEnTaches, peutDescendre, peutPoserAuNiveau } from './liste'
 import { type GenrePuce, jourDe, puces } from './puces'
+import { t } from '../../langue'
 
 /** Le document n'est qu'une liste de tâches. */
 const Document = Node.create({ name: 'doc', topNode: true, content: 'taskList' })
@@ -64,7 +65,7 @@ const Tache = TaskItem.extend({
       const suppr = document.createElement('span')
       suppr.className = 'notak-tache-suppr'
       suppr.contentEditable = 'false'
-      suppr.title = 'Supprimer la tâche'
+      suppr.title = t('taches.supprimer')
       suppr.addEventListener('mousedown', (e) => e.preventDefault())
       suppr.addEventListener('click', (e) => {
         e.preventDefault()
@@ -79,7 +80,7 @@ const Tache = TaskItem.extend({
       const poignee = document.createElement('span')
       poignee.className = 'notak-tache-poignee'
       poignee.contentEditable = 'false'
-      poignee.title = 'Déplacer la tâche'
+      poignee.title = t('taches.deplacer')
       poignee.addEventListener('pointerdown', (e) => {
         e.preventDefault()
         e.stopPropagation()

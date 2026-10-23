@@ -164,7 +164,7 @@
 /* Une liste vide dit quoi y mettre. */
 .notak-taches > ul[data-type='taskList'] > li:only-child > div > p:only-child:empty::before,
 .notak-taches-texte > ul[data-type='taskList'] > li:only-child > div > p:only-child:has(> br.ProseMirror-trailingBreak:only-child)::before {
-  content: 'Ajoutez une tâche…';
+  content: var(--notak-ph-tache, 'Ajoutez une tâche…');
   position: absolute;
   color: rgb(0 0 0 / 0.35);
   pointer-events: none;
