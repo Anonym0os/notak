@@ -367,7 +367,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Web | ✅ | |
 | Hors ligne complet (écrire sans réseau, rattraper au retour) | ✅ | IndexedDB pour les tableaux, service worker pour l'application. |
 | Bureau (Tauri) | 🟡 | Coque Tauri 2 écrite (apps/bureau), pas encore compilée. |
-| iPhone | 🟡 | S'installe sur l'écran d'accueil (manifeste, icône) ; attend les gestes tactiles. |
+| iPhone | ✅ | Application web installable (manifeste, icône, hors ligne) et gestes tactiles. |
 | Notes rapides sur le téléphone | ✅ | Page /rapide, vers les non triés de l'accueil. |
 | Partager vers Notak depuis le téléphone | 🟡 | Android et Chrome ; iOS Safari ne reçoit pas les partages des sites. |
-| Gestes tactiles (pincer, toucher long) | ⬜ | |
+| Gestes tactiles (pincer, toucher long) | ✅ | Pincer, un doigt sur le vide pour tirer la toile, appui long pour le menu. |

@@ -136,6 +136,9 @@ function choisirAxe(actuel: 'h' | 'v' | null, d: Point): 'h' | 'v' {
   return ax >= ay ? 'h' : 'v'
 }
 
+/** Un doigt posé sans bouger ce temps-là ouvre le menu du clic droit, en millisecondes. */
+const APPUI_LONG = 500
+
 /** Sous ce déplacement (pixels écran), un appui reste un clic : rien ne bouge, rien ne quitte sa colonne. */
 const SEUIL_GLISSER = 3
 /** Près du bord pendant un glisser ou un lasso, la vue défile : zone de 40 px, jusqu'à 18 px par image. */
@@ -732,6 +735,82 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     }
   }, [contenu])
 
+  // Au doigt : pincer zoome autour du milieu des deux doigts et les suit ; un appui long ouvre le menu du clic droit.
+  useEffect(() => {
+    const div = racine.current
+    if (!div) return
+    const doigts = new Map<number, Point>()
+    let pince: { ecart: number; milieu: Point; camera: cam.Camera } | null = null
+    let appuiLong: { minuteur: ReturnType<typeof setTimeout>; depart: Point } | null = null
+    const ici = (e: PointerEvent) => {
+      const r = div.getBoundingClientRect()
+      return point(e.clientX - r.left, e.clientY - r.top)
+    }
+    const mesure = () => {
+      const [a, b] = [...doigts.values()] as [Point, Point]
+      return { ecart: Math.hypot(a.x - b.x, a.y - b.y), milieu: point((a.x + b.x) / 2, (a.y + b.y) / 2) }
+    }
+    const lacherAppuiLong = () => {
+      if (appuiLong) clearTimeout(appuiLong.minuteur)
+      appuiLong = null
+    }
+    const appui = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch') return
+      doigts.set(e.pointerId, ici(e))
+      if (doigts.size === 1) {
+        const { clientX, clientY, target } = e
+        appuiLong = {
+          depart: ici(e),
+          minuteur: setTimeout(() => {
+            appuiLong = null
+            geste.current = null
+            setEnGeste(false)
+            setZoneLasso(null)
+            ouvrirMenuRef.current({ preventDefault() {}, clientX, clientY, target } as unknown as React.MouseEvent)
+          }, APPUI_LONG),
+        }
+      } else if (doigts.size === 2) {
+        // Un second doigt change le geste en pincement : ce que le premier avait commencé s'arrête là.
+        lacherAppuiLong()
+        geste.current = null
+        setEnGeste(false)
+        setZoneLasso(null)
+        animation.current = null
+        pince = { ...mesure(), camera: etat.current.camera }
+        e.stopPropagation()
+      }
+    }
+    const mouvement = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch' || !doigts.has(e.pointerId)) return
+      doigts.set(e.pointerId, ici(e))
+      if (appuiLong && Math.hypot(ici(e).x - appuiLong.depart.x, ici(e).y - appuiLong.depart.y) > 8) lacherAppuiLong()
+      if (!pince || doigts.size < 2) return
+      e.stopPropagation()
+      const { ecart, milieu } = mesure()
+      const { vue: v } = etat.current
+      const echelle = Math.min(cam.ECHELLE_MAX, Math.max(cam.echelleMin(contenu(), v), (pince.camera.echelle * ecart) / Math.max(1, pince.ecart)))
+      const zoomee = cam.echelleAutour(pince.camera, echelle, pince.milieu)
+      setCamera(cam.defiler(zoomee, milieu.x - pince.milieu.x, milieu.y - pince.milieu.y))
+    }
+    const fin = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch') return
+      doigts.delete(e.pointerId)
+      lacherAppuiLong()
+      if (doigts.size < 2) pince = null
+    }
+    div.addEventListener('pointerdown', appui)
+    div.addEventListener('pointermove', mouvement)
+    div.addEventListener('pointerup', fin)
+    div.addEventListener('pointercancel', fin)
+    return () => {
+      lacherAppuiLong()
+      div.removeEventListener('pointerdown', appui)
+      div.removeEventListener('pointermove', mouvement)
+      div.removeEventListener('pointerup', fin)
+      div.removeEventListener('pointercancel', fin)
+    }
+  }, [contenu])
+
   // Copier, couper, coller sur la toile, hors édition.
   useEffect(() => {
     const actif = () => document.activeElement === racine.current && !etat.current.edition
@@ -1295,6 +1374,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   }
 
   const fermerMenu = useCallback(() => setMenu(null), [])
+  const ouvrirMenuRef = useRef<(e: React.MouseEvent) => void>(() => {})
   const ouvrirMenu = (e: React.MouseEvent) => {
     e.preventDefault()
     if (dansEdition(racine.current, e.target)) return
@@ -1302,6 +1382,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const id = sous(document.elementFromPoint(e.clientX, e.clientY))
     setMenu({ x: p.x, y: p.y, ou: cam.versTableau(camera, p), surElement: !!id })
   }
+
+  ouvrirMenuRef.current = ouvrirMenu
 
   /** Espace relâchée sans avoir attrapé la toile : elle ouvre l'élément choisi (un tableau). */
   const relacherEspace = (e: React.KeyboardEvent) => {
@@ -1332,7 +1414,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     setRebond(null)
     const p = local(e)
     const id = sous(e.target)
-    if (e.button === 1 || (e.button === 0 && espace)) {
+    // Au doigt, le vide se tire comme au bouton du milieu : le lasso n'a pas de sens sous un pouce.
+    if (e.button === 1 || (e.button === 0 && (espace || (e.pointerType === 'touch' && !id)))) {
       e.preventDefault()
       espaceBref.current = false
       geste.current = { type: 'attraper', dernier: p }
