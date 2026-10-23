@@ -1,3 +1,5 @@
+import * as Y from 'yjs'
+import { Awareness } from 'y-protocols/awareness'
 import { describe, expect, it } from 'vitest'
 import { type Connexion, type Reseau, creerEspaceDistant, presenceDe } from './espaceDistant'
 
@@ -113,6 +115,30 @@ describe('état d’envoi', () => {
     // Un tableau qu'on n'a pas ouvert n'a pas de lien : rien n'en est parti.
     expect(e.envoi!('X')).toBe('hors-ligne')
     rendre()
+    e.detruire()
+  })
+})
+
+describe('photo et couleur du compte dans la présence', () => {
+  it('relit la photo d’un autre client, et l’écarte si elle est vide ou n’est pas du texte', () => {
+    const base = { id: 'a', nom: 'A', couleur: '#fff' }
+    expect(presenceDe(1, { utilisateur: { ...base, photo: 'f1' } })?.utilisateur).toEqual({ ...base, photo: 'f1' })
+    expect(presenceDe(1, { utilisateur: { ...base, photo: '' } })?.utilisateur).toEqual(base)
+    expect(presenceDe(1, { utilisateur: { ...base, photo: 7 } })?.utilisateur).toEqual(base)
+  })
+
+  it('un compte qui change de couleur ou de photo le dit aussitôt sur ses tableaux ouverts', () => {
+    const awareness = new Awareness(new Y.Doc())
+    const reseau: Reseau = {
+      connecter: (): Connexion => ({ awareness, lectureSeule: () => false, refuse: () => false, synchronise: () => true, detruire() {} }),
+      async declarer() {},
+    }
+    const e = creerEspaceDistant({ racine: 'R', utilisateur, reseau })
+    e.retenir?.('R')
+    e.magasin('R')
+    expect(awareness.getLocalState()?.utilisateur).toEqual(utilisateur)
+    e.changerUtilisateur({ ...utilisateur, couleur: '#112233', photo: 'f9' })
+    expect(awareness.getLocalState()?.utilisateur).toEqual({ ...utilisateur, couleur: '#112233', photo: 'f9' })
     e.detruire()
   })
 })

@@ -5,6 +5,8 @@ export interface Moi {
   nom: string
   couleur: string
   racine: string
+  /** Le fichier de sa photo (voir `adressePhoto`), ou `null`. */
+  photo: string | null
 }
 
 export type Role = 'proprietaire' | 'edition' | 'lecture'
@@ -61,6 +63,13 @@ export async function seConnecter(email: string, motDePasse: string): Promise<Mo
 export async function sInscrire(email: string, motDePasse: string, nom: string): Promise<Moi> {
   const r = await appeler('/api/inscription', { email, motDePasse, nom })
   if (!r.ok) throw refus(r, { 409: 'Cette adresse a déjà un compte', 400: 'Adresse ou mot de passe invalide', 422: 'Adresse ou mot de passe invalide' })
+  return (await r.json()) as Moi
+}
+
+/** Change la couleur et/ou la photo du compte (`photo: null` la retire) ; rend le compte à jour. */
+export async function reglerCompte(reglages: { couleur?: string; photo?: string | null }): Promise<Moi> {
+  const r = await appeler('/api/moi', reglages, 'PATCH')
+  if (!r.ok) throw refus(r, { 400: 'Ce réglage est refusé', 415: 'Cette image n’est pas acceptée' })
   return (await r.json()) as Moi
 }
 

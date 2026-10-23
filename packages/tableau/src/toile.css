@@ -420,6 +420,16 @@
   font-weight: 600;
 }
 
+.notak-pastille {
+  overflow: hidden;
+}
+
+.notak-pastille img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .notak-entete-actions {
   display: flex;
   align-items: center;

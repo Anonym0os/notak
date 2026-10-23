@@ -48,6 +48,8 @@ export interface Utilisateur {
   id: string
   nom: string
   couleur: string
+  /** Le fichier de sa photo. */
+  photo?: string
 }
 
 /** Où garder les déclarations pas encore reçues par le serveur, pour les reprendre au prochain chargement. */
@@ -77,6 +79,8 @@ export interface EspaceDistant extends EspaceNavigable {
   synchronise(id: Id): boolean
   /** Le serveur refuse ce tableau à ce compte. */
   refuse(id: Id): boolean
+  /** Le compte a changé de nom, de couleur ou de photo : les tableaux ouverts le disent aux autres sans attendre. */
+  changerUtilisateur(u: Utilisateur): void
   /** Ferme tout : à la déconnexion. */
   detruire(): void
 }
@@ -112,7 +116,7 @@ export function presenceDe(client: number, etat: Record<string, unknown>): Prese
   const selection = Array.isArray(etat.selection) ? etat.selection.filter((s): s is string => typeof s === 'string') : []
   return {
     client,
-    utilisateur: { id: u.id, nom: u.nom, couleur: u.couleur },
+    utilisateur: { id: u.id, nom: u.nom, couleur: u.couleur, ...(typeof u.photo === 'string' && u.photo ? { photo: u.photo } : {}) },
     curseur: estPoint(etat.curseur) ? { x: etat.curseur.x, y: etat.curseur.y } : null,
     selection,
     edition: typeof etat.edition === 'string' ? etat.edition : null,
@@ -123,7 +127,8 @@ const hachage = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)
 
 /** L'espace d'un compte : les tableaux sont des documents Yjs, ouverts à la demande et refermés quand plus rien ne les regarde. */
 export function creerEspaceDistant(options: OptionsEspaceDistant): EspaceDistant {
-  const { racine, utilisateur, reseau, memoire } = options
+  const { racine, reseau, memoire } = options
+  let utilisateur = options.utilisateur
   const delaiFermeture = options.delaiFermeture ?? DELAI_FERMETURE
   const delaiReprise = options.delaiReprise ?? DELAI_REPRISE
   const entrees = new Map<Id, Entree>()
@@ -379,6 +384,10 @@ export function creerEspaceDistant(options: OptionsEspaceDistant): EspaceDistant
       const c = entrees.get(id)?.connexion
       if (!c || c.enLigne?.() === false) return 'hors-ligne'
       return c.enAttente?.() ? 'envoi' : 'enregistre'
+    },
+    changerUtilisateur(u) {
+      utilisateur = u
+      for (const e of entrees.values()) e.connexion?.awareness?.setLocalStateField('utilisateur', u)
     },
     detruire() {
       detruit = true

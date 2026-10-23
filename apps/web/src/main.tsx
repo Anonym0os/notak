@@ -5,21 +5,22 @@ import {
   type Adresse,
   BullesDecouverte,
   EspaceNotak,
+  type ServiceCompte,
   type EspaceDistant,
   type Declaration,
   creerEspaceDistant,
   creerReseauNavigateur,
 } from '@notak/tableau'
-import { StrictMode, useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { StrictMode, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
-import { type Moi, moi as lireMoi, rechercherPartout, seDeconnecter } from './api'
+import { type Moi, moi as lireMoi, rechercherPartout, reglerCompte, seDeconnecter } from './api'
 import { importDejaPropose, lireAncienEspace, noterImportPropose } from './ancien'
 import { PagePartage, PageRapide } from './Arrivees'
 import { Compte } from './Compte'
 import { EcranConnexion } from './connexion'
 import { Export } from './Export'
 import { Favori } from './Favori'
-import { apercu, fichiers, rapatrier } from './fichiers'
+import { adressePhoto, apercu, envoyerFichier, fichiers, rapatrier } from './fichiers'
 import { localiser } from './geocodage'
 import { importerEspaceLocal } from './importLocal'
 import { PagePublique } from './PagePublique'
@@ -46,6 +47,7 @@ const services = {
   rechercherPartout,
   localiser,
   listerTableaux: () => tableauxConnus,
+  adressePhoto,
   ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank'),
 }
 
@@ -76,7 +78,7 @@ function espacePour(moi: Moi): EspaceDistant {
   const cle = `notak:declarations:${moi.id}`
   const espace = creerEspaceDistant({
     racine: moi.racine,
-    utilisateur: { id: moi.id, nom: moi.nom, couleur: moi.couleur },
+    utilisateur: { id: moi.id, nom: moi.nom, couleur: moi.couleur, ...(moi.photo ? { photo: moi.photo } : {}) },
     reseau: creerReseauNavigateur(moi.id),
     memoire: {
       lire() {
@@ -141,6 +143,7 @@ function Application() {
   return (
     <Espace
       moi={etat.moi}
+      changerMoi={(m) => setEtat({ type: 'connecte', moi: m })}
       deconnexion={async () => {
         await seDeconnecter().catch(() => {})
         setEtat({ type: 'anonyme' })
@@ -149,12 +152,28 @@ function Application() {
   )
 }
 
-function Espace({ moi, deconnexion }: { moi: Moi; deconnexion(): void }) {
+function Espace({ moi, changerMoi, deconnexion }: { moi: Moi; changerMoi(m: Moi): void; deconnexion(): void }) {
   const espace = espacePour(moi)
   const [adresse] = useState(() => adressePour(moi.racine))
+  // La section « Compte » des réglages : photo et couleur. Ce qui change se dit aussitôt aux autres, sur les tableaux ouverts.
+  const compte = useMemo<ServiceCompte>(
+    () => ({
+      nom: moi.nom,
+      email: moi.email,
+      couleur: moi.couleur,
+      photo: moi.photo ? adressePhoto(moi.photo) : null,
+      changerCouleur: async (couleur) => changerMoi(await reglerCompte({ couleur })),
+      changerPhoto: async (fichier) => changerMoi(await reglerCompte({ photo: fichier ? await envoyerFichier(fichier) : null })),
+    }),
+    [moi, changerMoi],
+  )
+  useEffect(() => {
+    espace.changerUtilisateur({ id: moi.id, nom: moi.nom, couleur: moi.couleur, ...(moi.photo ? { photo: moi.photo } : {}) })
+  }, [espace, moi])
   return (
     <>
       <EspaceNotak
+        compte={compte}
         espace={espace}
         services={services}
         adresse={adresse}

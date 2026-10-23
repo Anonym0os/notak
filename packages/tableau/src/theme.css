@@ -142,6 +142,80 @@
   font-weight: 600;
 }
 
+/* La section « Compte » : la personne, sa photo, sa couleur. */
+.notak-reglages-compte {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgb(128 128 128 / 0.2);
+}
+
+.notak-reglages-identite {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.notak-reglages-identite > div:last-child {
+  display: grid;
+  min-width: 0;
+}
+
+.notak-reglages-identite small {
+  overflow: hidden;
+  color: #7a7f87;
+  text-overflow: ellipsis;
+}
+
+.notak-reglages-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.notak-reglages-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.notak-reglages-compte button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.notak-reglages-couleurs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.notak-reglages-couleurs button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.notak-reglages-couleurs button[aria-checked='true'] {
+  border-color: var(--notak-carte);
+  box-shadow: 0 0 0 2px var(--notak-texte);
+}
+
+.notak-reglages-erreur {
+  margin: 0;
+  color: #d84b4b;
+}
+
 /* La présentation : rien que le tableau, sans en-tête ni barres. */
 .notak-espace[data-presentation] :is(.notak-entete, .notak-barre-outils, .notak-barre-selection, .notak-non-tries, .notak-corbeille) {
   display: none;

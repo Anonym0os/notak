@@ -22,7 +22,8 @@ import { Toile } from './Toile'
 import { annoncer } from './avis'
 import { ecouterEnvois, envoisEnCours } from './elements/envois'
 import { FenetreRaccourcis } from './Menus'
-import { FenetreReglages, useReglages } from './reglages'
+import { PastillePersonne } from './pastille'
+import { FenetreReglages, type ServiceCompte, useReglages } from './reglages'
 import './theme.css'
 
 const CLE_VUES = 'notak:vues'
@@ -89,10 +90,13 @@ export function EspaceNotak({
   services: hote = {},
   actions,
   adresse,
+  compte,
 }: {
   espace: EspaceNavigable
   services?: Services
   adresse?: Adresse
+  /** La section « Compte » des réglages (photo, couleur) ; sans elle, les réglages restent ceux de l'interface. */
+  compte?: ServiceCompte
   /**
    * Ce que l'application ajoute à droite de l'en-tête (partage, compte), pour le tableau ouvert. `aide` ouvre la
    * fenêtre des raccourcis, la même que « / ».
@@ -319,6 +323,7 @@ export function EspaceNotak({
         ouvrir={ouvrir}
         renommer={courant === racine || lectureSeule ? undefined : (titre) => espace.renommer(courant, titre)}
         presence={espace.presence?.(courant)}
+        adressePhoto={hote.adressePhoto}
         actions={actions?.(courant, ouvrir, ouvrirAide)}
         historique={lectureSeule ? undefined : historique}
         envoi={envoi}
@@ -333,7 +338,7 @@ export function EspaceNotak({
         />
       </div>
       {aideOuverte && <FenetreRaccourcis fermer={fermerAide} />}
-      {reglagesOuverts && <FenetreReglages reglages={reglages} changer={changerReglages} fermer={() => setReglagesOuverts(false)} />}
+      {reglagesOuverts && <FenetreReglages reglages={reglages} changer={changerReglages} fermer={() => setReglagesOuverts(false)} {...(compte ? { compte } : {})} />}
     </div>
   )
 }
@@ -344,6 +349,7 @@ function Entete({
   ouvrir,
   renommer,
   presence,
+  adressePhoto,
   actions,
   historique,
   envoi,
@@ -354,6 +360,7 @@ function Entete({
   /** Le titre du tableau ouvert se change en cliquant dessus (pas celui de l'accueil). */
   renommer?(titre: string): void
   presence?: Services['presence']
+  adressePhoto?: Services['adressePhoto']
   actions?: ReactNode
   /** Annuler et rétablir le tableau ouvert ; absent en lecture seule. */
   historique?: { annuler(): void; retablir(): void }
@@ -472,7 +479,7 @@ function Entete({
         </div>
       )}
       <EtatEnregistrement etat={envoi} />
-      <Pastilles presence={presence} />
+      <Pastilles presence={presence} adressePhoto={adressePhoto} />
       {actions && <div className="notak-entete-actions">{actions}</div>}
     </header>
   )
@@ -533,7 +540,7 @@ const aucune: Presence[] = []
 /** Les personnes présentes sur ce tableau, une pastille chacune (initiale, couleur), sans doublon. */
 const PASTILLES_MAX = 5
 
-function Pastilles({ presence }: { presence?: Services['presence'] }) {
+function Pastilles({ presence, adressePhoto }: { presence?: Services['presence']; adressePhoto?: Services['adressePhoto'] }) {
   const autres = useSyncExternalStore(presence?.ecouter ?? sansEcoute, presence ? presence.autres : () => aucune)
   const personnes = [...new Map(autres.map((a) => [a.utilisateur.id, a.utilisateur])).values()]
   // Au-delà de cinq, les suivants se comptent dans une dernière pastille, qui les nomme au survol.
@@ -542,9 +549,7 @@ function Pastilles({ presence }: { presence?: Services['presence'] }) {
   return (
     <div className="notak-pastilles">
       {vus.map((u) => (
-        <span key={u.id} className="notak-pastille" style={{ background: u.couleur }} title={u.nom}>
-          {[...u.nom.trim()][0]?.toLocaleUpperCase('fr') ?? '?'}
-        </span>
+        <PastillePersonne key={u.id} nom={u.nom} couleur={u.couleur} adresse={u.photo ? adressePhoto?.(u.photo) : undefined} />
       ))}
       {reste.length > 0 && (
         <span className="notak-pastille notak-pastille-reste" title={reste.map((u) => u.nom).join(', ')}>
