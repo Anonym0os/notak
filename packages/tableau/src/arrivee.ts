@@ -3,6 +3,9 @@ import { type Element, type Operation, LARGEUR_NOTE, nouvelId, nouvelleNote } fr
 import { TAILLE_MAX, TYPES_ACCEPTES, largeurInitiale } from './elements/image/geometrie'
 import { lireDimensions, lireTransparence } from './elements/image/lecture'
 import type { DepotFichiers } from './elements/types'
+import { decomposerArrivee } from './decomposer'
+
+export { type Brouillon, adresseWeb, decomposerArrivee } from './decomposer'
 
 /**
  * Ce qui arrive de l'extérieur et doit aller dans les non triés de l'accueil : une page ou un texte partagés depuis
@@ -15,41 +18,7 @@ export interface Arrivee {
   fichiers?: File[]
 }
 
-/** Ce qu'une arrivée devient, avant de recevoir un identifiant et une place. */
-export type Brouillon = { genre: 'lien'; url: string } | { genre: 'note'; texte: string }
-
 const LARGEUR_LIEN = 34
-
-/** Une adresse web, ou `null`. */
-export function adresseWeb(saisie: string | undefined): string | null {
-  const s = saisie?.trim()
-  if (!s || /\s/.test(s) || !/^https?:\/\//i.test(s)) return null
-  try {
-    new URL(s)
-    return s
-  } catch {
-    return null
-  }
-}
-
-const premiereAdresse = (texte: string) => /https?:\/\/[^\s<>"']+/i.exec(texte)?.[0] ?? null
-
-/**
- * Ce qu'on garde d'un partage. Une adresse (donnée à part, ou seule dans le texte, comme le font beaucoup
- * d'applications) devient un lien et le titre de la page n'est pas recopié : l'aperçu le retrouvera. Le texte qui
- * l'accompagne devient une note. Sans adresse, le titre et le texte font une seule note.
- */
-export function decomposerArrivee(a: Pick<Arrivee, 'titre' | 'texte' | 'adresse'>): Brouillon[] {
-  const titre = a.titre?.trim() ?? ''
-  const texte = a.texte?.trim() ?? ''
-  const url = adresseWeb(a.adresse) ?? adresseWeb(texte) ?? premiereAdresse(texte)
-  if (url) {
-    const reste = texte.replace(url, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
-    return [{ genre: 'lien', url }, ...(reste ? [{ genre: 'note' as const, texte: reste }] : [])]
-  }
-  const corps = [titre, texte].filter((p, i, tout) => p && tout.indexOf(p) === i && !(i === 1 && titre.includes(p)))
-  return corps.length > 0 ? [{ genre: 'note', texte: corps.join('\n') }] : []
-}
 
 /** Les éléments d'une arrivée de texte, posés dans les non triés depuis `maintenant`. */
 export function elementsDeTexte(a: Pick<Arrivee, 'titre' | 'texte' | 'adresse'>, maintenant: number): Element[] {

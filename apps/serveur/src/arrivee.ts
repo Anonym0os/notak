@@ -1,21 +1,17 @@
 import { randomBytes } from 'node:crypto'
 import type * as Y from 'yjs'
+import { decomposerArrivee } from '@notak/tableau/decomposer'
 import type { ContenuLu, ElementLu, NoeudTexte } from './contenu.ts'
 
 // Ce qui arrive du dehors (un jeton personnel, la route `POST /api/arrivee`) et doit aller dans les non triés de
-// l'accueil. C'est la même décision que `decomposerArrivee` et `poserDansNonTries` de `@notak/tableau`, que la page
-// `/partage` applique côté navigateur : le serveur ne peut pas charger ces fichiers (leurs imports n'ont pas
-// d'extension, Node ne les résout pas), il en reprend donc le résultat, sans la toile. Un changement de l'un se
-// reporte sur l'autre ; les essais de `arrivee.test.ts` tiennent les deux d'accord sur ce qu'on voit.
+// l'accueil. Ce que devient un partage (lien ou note) est décidé par `decomposerArrivee` du paquet, comme sur la page
+// `/partage` ; ce fichier n'y ajoute que l'identifiant, la place et l'écriture dans le document, sans la toile.
 
 export interface Arrivee {
   titre?: string
   texte?: string
   adresse?: string
 }
-
-/** Ce qu'une arrivée de texte devient, avant de recevoir un identifiant. */
-type Brouillon = { genre: 'lien'; url: string } | { genre: 'note'; texte: string }
 
 export type ElementArrive = ElementLu & { nonTrie: number }
 
@@ -36,40 +32,9 @@ const docDepuisTexte = (texte: string): NoeudTexte => ({
   content: texte.split('\n').map((ligne) => (ligne ? { type: 'paragraph', content: [{ type: 'text', text: ligne }] } : { type: 'paragraph' })),
 })
 
-/** Une adresse web, ou `null`. */
-function adresseWeb(saisie: string | undefined): string | null {
-  const s = saisie?.trim()
-  if (!s || /\s/.test(s) || !/^https?:\/\//i.test(s)) return null
-  try {
-    new URL(s)
-    return s
-  } catch {
-    return null
-  }
-}
-
-const premiereAdresse = (texte: string) => /https?:\/\/[^\s<>"']+/i.exec(texte)?.[0] ?? null
-
-/**
- * Ce qu'on garde d'une arrivée. Une adresse (donnée à part, ou seule dans le texte, comme le font beaucoup
- * d'applications) devient un lien et le titre de la page n'est pas recopié : l'aperçu le retrouvera. Le texte qui
- * l'accompagne devient une note. Sans adresse, le titre et le texte font une seule note.
- */
-export function decomposer(a: Arrivee): Brouillon[] {
-  const titre = a.titre?.trim() ?? ''
-  const texte = a.texte?.trim() ?? ''
-  const url = adresseWeb(a.adresse) ?? adresseWeb(texte) ?? premiereAdresse(texte)
-  if (url) {
-    const reste = texte.replace(url, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
-    return [{ genre: 'lien', url }, ...(reste ? [{ genre: 'note' as const, texte: reste }] : [])]
-  }
-  const corps = [titre, texte].filter((p, i, tout) => p && tout.indexOf(p) === i && !(i === 1 && titre.includes(p)))
-  return corps.length > 0 ? [{ genre: 'note', texte: corps.join('\n') }] : []
-}
-
 /** Les éléments d'une arrivée de texte, posés dans les non triés depuis `maintenant`. */
 export function elementsDeTexte(a: Arrivee, maintenant: number): ElementArrive[] {
-  return decomposer(a).map((b, i): ElementArrive => {
+  return decomposerArrivee(a).map((b, i): ElementArrive => {
     const nonTrie = maintenant + i
     const contenu: ContenuLu = b.genre === 'lien' ? { type: 'lien', url: b.url, statut: 'attente' } : { type: 'note', texte: docDepuisTexte(b.texte) }
     return { id: nouvelId(maintenant), x: 0, y: 0, largeur: b.genre === 'lien' ? LARGEUR_LIEN : LARGEUR_NOTE, nonTrie, contenu }

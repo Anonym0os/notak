@@ -8,7 +8,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./toile.css": "./src/toile.css",
-    "./modeles/*": "./src/modeles/*.ts"
+    "./modeles/*": "./src/modeles/*.ts",
+    "./decomposer": "./src/decomposer.ts"
   },
   "peerDependencies": {
     "@hocuspocus/provider": "4.7.1",

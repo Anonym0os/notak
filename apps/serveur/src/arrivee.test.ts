@@ -9,7 +9,7 @@ import { ouvrirBase } from './base.ts'
 import { type ElementLu, lireEtat } from './contenu.ts'
 import { creerLimiteur } from './debit.ts'
 import { type Compte, type Monde, monde } from './essai.ts'
-import { decomposer, elementsDeTexte, poserDansNonTries } from './arrivee.ts'
+import { elementsDeTexte, poserDansNonTries } from './arrivee.ts'
 import { demarrer } from './serveur.ts'
 import { nomDuDocument } from './synchro.ts'
 
@@ -267,18 +267,7 @@ describe('POST /api/arrivee : le débit', () => {
   })
 })
 
-describe('decomposer : même décision que la page /partage', () => {
-  it('lien seul, lien et note, note seule, rien', () => {
-    expect(decomposer({ titre: 'Une page', adresse: 'https://exemple.fr/p' })).toEqual([{ genre: 'lien', url: 'https://exemple.fr/p' }])
-    expect(decomposer({ texte: 'À lire https://exemple.fr/p merci' })).toEqual([
-      { genre: 'lien', url: 'https://exemple.fr/p' },
-      { genre: 'note', texte: 'À lire  merci' },
-    ])
-    expect(decomposer({ titre: 'Courses', texte: 'Lait, pain' })).toEqual([{ genre: 'note', texte: 'Courses\nLait, pain' }])
-    expect(decomposer({ titre: 'Idée', texte: 'Idée' })).toEqual([{ genre: 'note', texte: 'Idée' }])
-    expect(decomposer({ titre: ' ', texte: '\n' })).toEqual([])
-  })
-
+describe('poserDansNonTries', () => {
   it('poserDansNonTries n’écrase pas un élément du même identifiant', () => {
     const doc = new Y.Doc()
     const [e] = elementsDeTexte({ texte: 'a' }, 5)
