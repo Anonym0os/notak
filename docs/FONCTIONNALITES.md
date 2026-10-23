@@ -60,7 +60,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Flèches : déplacer d'une UG (Maj : plus loin) | ✅ | |
 | Redimensionner un élément (largeur, double-clic sur la poignée) | ✅ | |
 | Hauteur bornée par la poignée (note, lien) | ✅ | |
-| Redimensionner un groupe | ⬜ | |
+| Redimensionner un groupe | ✅ | |
 | Proportions gardées pour les médias, Cmd pour les libérer, Échap pendant le geste | ✅ | |
 | Collisions : ce qui grandit pousse ses voisins du dessous | 🟡 | Pendant l'édition et à Cmd+Entrée, colonnes comprises ; pas encore quand on dépose dans une colonne, ni pour les lignes horizontales, ni au retour d'une note bornée à sa hauteur. |
 | Entrer dans un tableau en le survolant pendant un glisser (700 ms puis 300 ms de clignement, 400 ms ensuite) | ✅ | |

@@ -1108,3 +1108,16 @@
   opacity: 0.45;
   transition: left 0.1s linear, top 0.1s linear, opacity 0.6s ease;
 }
+
+/* La poignée d'un groupe choisi, au coin bas droit de son cadre commun. */
+.notak-poignee-groupe {
+  position: absolute;
+  z-index: 3;
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--notak-accent);
+  border-radius: 2px;
+  background: var(--notak-carte);
+  cursor: nwse-resize;
+}

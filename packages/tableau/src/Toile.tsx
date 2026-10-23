@@ -76,6 +76,13 @@ type Geste =
       envol?: Envol
     }
   | {
+      /** Le groupe choisi s'étire autour de son coin haut gauche, positions et largeurs ensemble. */
+      type: 'redimensionnerGroupe'
+      depart: Point
+      cadre: Rect
+      items: { id: Id; x: number; y: number; largeur: number; min: number; ligne: boolean }[]
+    }
+  | {
       type: 'redimensionner'
       id: Id
       depart: Point
@@ -84,6 +91,25 @@ type Geste =
       /** Pour un type à hauteur bornable : sa hauteur donnée au départ, et celle de sa carte (px du plan). */
       borne?: { de: Hauteur | undefined; px: number }
     }
+
+/**
+ * Où en est le groupe tiré jusqu'à `ici` : une seule échelle, celle de la plus grande traction, qui ne descend pas
+ * sous la largeur minimale d'aucun élément. Chaque élément s'éloigne du coin haut gauche en proportion ; une ligne
+ * ne fait que suivre. Les opérations vont de l'état présent à l'état voulu.
+ */
+function pasDuGroupe(g: Extract<Geste, { type: 'redimensionnerGroupe' }>, ici: Point): Operation[] {
+  const [l, h] = [g.cadre.max.x - g.cadre.min.x, g.cadre.max.y - g.cadre.min.y]
+  const plancher = Math.max(0.1, ...g.items.filter((i) => !i.ligne).map((i) => i.min / i.largeur))
+  const echelle = Math.max(plancher, 1 + Math.max((ici.x - g.depart.x) / l, (ici.y - g.depart.y) / h))
+  const o = g.cadre.min
+  return g.items.flatMap((i): Operation[] => {
+    const x = Math.round(o.x + (i.x - o.x) * echelle)
+    const y = Math.round(o.y + (i.y - o.y) * echelle)
+    const pas: Operation[] = [{ type: 'deplacer', id: i.id, de: [i.x, i.y], vers: [x, y] }]
+    if (!i.ligne) pas.push({ type: 'redimensionner', id: i.id, de: i.largeur, vers: Math.max(i.min, Math.round(i.largeur * echelle)) })
+    return pas
+  })
+}
 
 /** La hauteur que demande le contenu d'une carte, plafond ou non (px du plan). */
 function hauteurNaturelle(carte: HTMLElement): number {
@@ -1470,6 +1496,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       })
       return setPrisLasso(lasso(zone, rects, g.avant, g.inverser))
     }
+    if (g.type === 'redimensionnerGroupe') {
+      return magasin.appliquerSeulement(pasDuGroupe(g, ici))
+    }
     if (g.type === 'redimensionner') {
       // Un média garde ses proportions : on suit la plus grande des deux tractions, ramenée en largeur.
       const el = magasin.lire().elements.find((x) => x.id === g.id)
@@ -1681,6 +1710,16 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   /** Échap pendant un glisser : tout revient à sa place, en douceur. */
   const annulerGlisser = () => {
     const g = geste.current
+    if (g?.type === 'redimensionnerGroupe') {
+      // Échap rend à chacun sa place et sa largeur de départ.
+      magasin.appliquerSeulement(g.items.flatMap((i): Operation[] => [
+        { type: 'deplacer', id: i.id, de: [i.x, i.y], vers: [i.x, i.y] },
+        { type: 'redimensionner', id: i.id, de: i.largeur, vers: i.largeur },
+      ]))
+      geste.current = null
+      setEnGeste(false)
+      return true
+    }
     if (g?.type === 'redimensionner') {
       // Échap rend la taille de départ ; rien n'entre dans l'historique.
       const el = magasin.lire().elements.find((x) => x.id === g.id)
@@ -1726,6 +1765,19 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         if (pris) setSelection(pris)
         return null
       })
+      return
+    }
+    if (g?.type === 'redimensionnerGroupe') {
+      // Le pas inscrit va du départ à la fin du geste, quel que soit le chemin parcouru.
+      const t = magasin.lire()
+      const pas: Operation[] = []
+      for (const i of g.items) {
+        const el = t.elements.find((x) => x.id === i.id)
+        if (!el) continue
+        if (el.x !== i.x || el.y !== i.y) pas.push({ type: 'deplacer', id: i.id, de: [i.x, i.y], vers: [el.x, el.y] })
+        if (el.largeur !== i.largeur) pas.push({ type: 'redimensionner', id: i.id, de: i.largeur, vers: el.largeur })
+      }
+      magasin.inscrire(pas)
       return
     }
     if (g?.type === 'redimensionner') {
@@ -1954,6 +2006,27 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         />
       )}
       {trait && <div className="notak-trait-depot" style={{ left: trait.x0, top: trait.y - 1, width: trait.x1 - trait.x0 }} />}
+      {barre && elementsChoisis.length > 1 && (
+        <div
+          className="notak-poignee-groupe"
+          data-poignee-groupe
+          title="Redimensionner le groupe"
+          style={{ left: barre.max.x - 5, top: barre.max.y - 5 }}
+          onPointerDown={(e) => {
+            if (e.button !== 0) return
+            e.stopPropagation()
+            const items = elementsChoisis
+              .filter((x) => !x.parent && !x.verrou && definition(x.contenu.type)?.calque !== 'lignes')
+              .map((x) => {
+                const def = definition(x.contenu.type)
+                return { id: x.id, x: x.x, y: x.y, largeur: x.largeur, min: def?.largeurMin ?? LARGEUR_MIN_DEFAUT, ligne: def?.calque === 'lignes' }
+              })
+            geste.current = { type: 'redimensionnerGroupe', depart: cam.versTableau(camera, local(e)), cadre: cadreChoisis!, items }
+            setEnGeste(true)
+            racine.current?.setPointerCapture?.(e.pointerId)
+          }}
+        />
+      )}
       {barre && (
         <BarreSelection
           elements={elementsChoisis}
