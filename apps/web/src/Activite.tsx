@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { type ActiviteTableau, type EvenementActivite, type GroupeActivite, lireActivite } from './api'
 import { phraseDuGroupe } from './phrases'
+import { langue, t } from './langue'
 
 const RAFRAICHIR_MS = 8000
 
 /** Une date dite comme on la dit : « à l'instant », « il y a 5 min », « il y a 3 h », puis le jour. */
 export function quand(instant: number, maintenant = Date.now()): string {
   const s = Math.max(0, (maintenant - instant) / 1000)
-  if (s < 60) return 'à l’instant'
-  if (s < 3600) return `il y a ${Math.floor(s / 60)} min`
-  if (s < 86_400) return `il y a ${Math.floor(s / 3600)} h`
-  return new Date(instant).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+  if (s < 60) return t('fil.instant')
+  if (s < 3600) return t('fil.minutes', { n: Math.floor(s / 60) })
+  if (s < 86_400) return t('fil.heures', { n: Math.floor(s / 3600) })
+  return new Date(instant).toLocaleDateString(langue() === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'short' })
 }
 
 /**
@@ -79,12 +80,12 @@ export function Activite({
   return (
     <div className="activite">
       <button type="button" className="bouton" aria-expanded={ouvert} onClick={() => setOuvert((o) => !o)}>
-        Activité
+        {t('activite.titre')}
       </button>
       {ouvert && (
-        <div className="activite-panneau" role="dialog" aria-label="Activité">
-          {erreur && !activite && <p className="partage-note">Activité indisponible.</p>}
-          {activite && activite.groupes.length === 0 && <p className="partage-note">Rien pour l’instant. Les gestes de chacun apparaîtront ici.</p>}
+        <div className="activite-panneau" role="dialog" aria-label={t('activite.titre')}>
+          {erreur && !activite && <p className="partage-note">{t('activite.indisponible')}</p>}
+          {activite && activite.groupes.length === 0 && <p className="partage-note">{t('activite.rien')}</p>}
           <ol className="activite-liste">
             {activite?.groupes.map((g, i) => (
               <Ligne key={`${g.auteur.id}-${g.fin}-${i}`} groupe={g} moi={moi} />
@@ -103,7 +104,7 @@ function Ligne({ groupe, moi }: { groupe: GroupeActivite; moi: string }) {
       <span className="activite-pastille" style={{ background: groupe.auteur.couleur }} aria-hidden />
       <div className="activite-texte">
         <p>
-          <strong>{groupe.auteur.id === moi ? 'Vous' : groupe.auteur.nom}</strong> {phraseDuGroupe(groupe).replace(/^a /, groupe.auteur.id === moi ? 'avez ' : 'a ')}
+          <strong>{groupe.auteur.id === moi ? t('activite.vous') : groupe.auteur.nom}</strong> {phraseDuGroupe(groupe, groupe.auteur.id === moi)}
         </p>
         {citees.length > 0 && <small className="activite-elements">{citees.map((e) => `« ${e.libelle} »`).join(', ')}</small>}
         <small>{quand(groupe.fin)}</small>

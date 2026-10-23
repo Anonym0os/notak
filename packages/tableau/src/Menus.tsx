@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Element, Id } from './coeur/tableau'
 import { definition } from './elements/registre'
+import { t, tn } from './langue'
 import type { ContexteToile, ResultatRecherche } from './elements/types'
 
 /** Une entrée du menu ; `null` trace un séparateur. */
@@ -73,7 +74,7 @@ export function MenuContextuel({ x, y, entrees, fermer }: { x: number; y: number
 
 const resume = (e: Element, contexte: ContexteToile) => {
   const def = definition(e.contenu.type)
-  return def?.resume?.(e.contenu as never, contexte).trim() || def?.nom || 'Élément'
+  return def?.resume?.(e.contenu as never, contexte).trim() || def?.nom || t('menu.element')
 }
 
 /**
@@ -95,22 +96,22 @@ export function PanneauCorbeille({
 }) {
   const [confirmer, setConfirmer] = useState(false)
   return (
-    <div className="notak-corbeille" role="dialog" aria-label="Corbeille" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+    <div className="notak-corbeille" role="dialog" aria-label={t('corbeille.titre')} onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
       <div className="notak-corbeille-tete">
-        <strong>Corbeille</strong>
-        <button type="button" aria-label="Fermer" onClick={fermer}>
+        <strong>{t('corbeille.titre')}</strong>
+        <button type="button" aria-label={t('commun.fermer')} onClick={fermer}>
           ×
         </button>
       </div>
       {elements.length === 0 ? (
-        <p className="notak-corbeille-vide">Rien à la corbeille.</p>
+        <p className="notak-corbeille-vide">{t('corbeille.vide')}</p>
       ) : (
         <ul>
           {elements.map((e) => (
             <li key={e.id}>
               <span className="notak-corbeille-nom">{resume(e, contexte)}</span>
               <button type="button" onClick={() => restaurer(e)}>
-                Remettre
+                {t('corbeille.remettre')}
               </button>
             </li>
           ))}
@@ -119,18 +120,18 @@ export function PanneauCorbeille({
       {elements.length > 0 &&
         (confirmer ? (
           <div className="notak-corbeille-pied">
-            <span>Effacer pour de bon ?</span>
+            <span>{t('corbeille.confirmer')}</span>
             <button type="button" className="notak-danger" onClick={vider}>
-              Effacer
+              {t('corbeille.effacer')}
             </button>
             <button type="button" onClick={() => setConfirmer(false)}>
-              Annuler
+              {t('commun.annuler')}
             </button>
           </div>
         ) : (
           <div className="notak-corbeille-pied">
             <button type="button" onClick={() => setConfirmer(true)}>
-              Vider la corbeille
+              {t('corbeille.vider')}
             </button>
           </div>
         ))}
@@ -179,14 +180,14 @@ export function Recherche(props: {
     champ.current?.focus()
     champ.current?.select()
   }, [appel])
-  const compte = !requete.trim() ? '' : nombre === 0 ? 'Aucun résultat' : rang < 0 ? `${nombre} résultat${nombre > 1 ? 's' : ''}` : `${rang + 1} sur ${nombre}`
+  const compte = !requete.trim() ? '' : nombre === 0 ? t('recherche.aucun') : rang < 0 ? tn('recherche.resultats', nombre) : t('recherche.rang', { rang: rang + 1, n: nombre })
   return (
     <div className="notak-recherche" role="search" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
       <input
         ref={champ}
         type="search"
-        placeholder={partout ? 'Chercher dans les tableaux' : 'Chercher dans ce tableau'}
-        aria-label="Chercher dans ce tableau"
+        placeholder={partout ? t('recherche.partout') : t('recherche.ici')}
+        aria-label={t('recherche.ici')}
         value={requete}
         spellCheck={false}
         onChange={(e) => changer(e.target.value)}
@@ -207,17 +208,17 @@ export function Recherche(props: {
       <span className="notak-recherche-compte" aria-live="polite">
         {compte}
       </span>
-      <button type="button" title="Résultat précédent (Maj+Entrée)" disabled={nombre === 0} onClick={() => aller(-1)}>
+      <button type="button" title={t('recherche.precedent')} disabled={nombre === 0} onClick={() => aller(-1)}>
         ↑
       </button>
-      <button type="button" title="Résultat suivant (Entrée)" disabled={nombre === 0} onClick={() => aller(1)}>
+      <button type="button" title={t('recherche.suivant')} disabled={nombre === 0} onClick={() => aller(1)}>
         ↓
       </button>
-      <button type="button" title="Fermer (Échap)" onClick={fermer}>
+      <button type="button" title={t('recherche.fermer')} onClick={fermer}>
         ×
       </button>
       {ailleurs.length > 0 && (
-        <ul className="notak-recherche-ailleurs" aria-label="Dans les autres tableaux">
+        <ul className="notak-recherche-ailleurs" aria-label={t('recherche.ailleurs')}>
           {ailleurs.map((r) => (
             <li key={`${r.tableau}/${r.element ?? ''}`}>
               <button
@@ -228,7 +229,7 @@ export function Recherche(props: {
                   fermer()
                 }}
               >
-                <strong>{r.titre || 'Sans titre'}</strong>
+                <strong>{r.titre || t('commun.sansTitre')}</strong>
                 {r.element && <span>{r.extrait}</span>}
               </button>
             </li>
@@ -241,66 +242,75 @@ export function Recherche(props: {
 
 const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
 /** Les touches telles qu'on les lit sur son clavier : ⌘ sur Mac, Ctrl ailleurs. */
-const touches = (t: string) => (MAC ? t : t.replace(/⌘/g, 'Ctrl+').replace(/⌥/g, 'Alt+').replace(/⇧/g, 'Maj+'))
+const touches = (v: string) =>
+  MOTS_DE_TOUCHE[v] ? t(MOTS_DE_TOUCHE[v]) : MAC ? v : v.replace(/⌘/g, 'Ctrl+').replace(/⌥/g, 'Alt+').replace(/⇧/g, t('raccourcis.touche.maj'))
 
+/** Les groupes de la fenêtre des raccourcis : le titre et le quoi sont des clés de texte, les touches sont à lire telles quelles. */
 const RACCOURCIS: { titre: string; lignes: [string, string][] }[] = [
   {
-    titre: 'Éléments',
+    titre: 'raccourcis.elements',
     lignes: [
-      ['Modifier l’élément choisi', '↩'],
-      ['Finir la modification', 'Échap'],
-      ['Nouvel élément dessous', '⌘↩'],
-      ['Dupliquer', '⌘D'],
-      ['Couper, copier, coller', '⌘X  ⌘C  ⌘V'],
-      ['Mettre à la corbeille', '⌫'],
-      ['Déplacer (de 5 avec Maj)', '←  →  ↑  ↓'],
-      ['Premier plan, arrière-plan', '⇧⌘↑  ⇧⌘↓'],
-      ['Relier par une ligne', '⌘K'],
-      ['Tout sélectionner', '⌘A'],
-      ['Annuler, rétablir', '⌘Z  ⇧⌘Z'],
+      ['raccourcis.modifier', '↩'],
+      ['raccourcis.finirModif', 'Échap'],
+      ['raccourcis.nouveauDessous', '⌘↩'],
+      ['raccourcis.dupliquer', '⌘D'],
+      ['raccourcis.presspapiers', '⌘X  ⌘C  ⌘V'],
+      ['raccourcis.corbeille', '⌫'],
+      ['raccourcis.deplacer', '←  →  ↑  ↓'],
+      ['raccourcis.plans', '⇧⌘↑  ⇧⌘↓'],
+      ['raccourcis.relier', '⌘K'],
+      ['raccourcis.toutSelectionner', '⌘A'],
+      ['raccourcis.annulerRetablir', '⌘Z  ⇧⌘Z'],
     ],
   },
   {
-    titre: 'Arranger',
+    titre: 'raccourcis.arranger',
     lignes: [
-      ['Aligner à gauche, à droite', '⌥A  ⌥D'],
-      ['Aligner en haut, en bas', '⌥W  ⌥S'],
-      ['Centrer en largeur, en hauteur', '⌥H  ⌥V'],
-      ['Répartir en largeur, en hauteur', '⌥⇧⌘H  ⌥⇧⌘V'],
+      ['raccourcis.alignerHorizontal', '⌥A  ⌥D'],
+      ['raccourcis.alignerVertical', '⌥W  ⌥S'],
+      ['raccourcis.centrer', '⌥H  ⌥V'],
+      ['raccourcis.repartir', '⌥⇧⌘H  ⌥⇧⌘V'],
     ],
   },
   {
-    titre: 'Vue et navigation',
+    titre: 'raccourcis.vue',
     lignes: [
-      ['Zoomer, dézoomer, 100 %', '⌘+  ⌘−  ⌘0'],
-      ['Tout voir', 'Z'],
-      ['Attraper la toile', 'Espace + glisser'],
-      ['Chercher dans le tableau', '⌘F'],
-      ['Ouvrir le tableau choisi', 'Espace'],
-      ['Tableau parent, redescendre', '⌘U  ⇧⌘U'],
-      ['Reculer, avancer', '⌘[  ⌘]'],
-      ['Thème sombre', '⇧⌘D'],
-      ['Présentation', '⌥⌘P'],
-      ['Grille plus serrée, plus large', '⇧⌘,  ⇧⌘.'],
-      ['Réglages', '⌘,'],
-      ['Ces raccourcis', '/'],
+      ['raccourcis.zoom', '⌘+  ⌘−  ⌘0'],
+      ['raccourcis.toutVoir', 'Z'],
+      ['raccourcis.attraper', 'Espace + glisser'],
+      ['raccourcis.chercher', '⌘F'],
+      ['raccourcis.ouvrirTableau', 'Espace'],
+      ['raccourcis.parent', '⌘U  ⇧⌘U'],
+      ['raccourcis.reculer', '⌘[  ⌘]'],
+      ['raccourcis.themeSombre', '⇧⌘D'],
+      ['raccourcis.presentation', '⌥⌘P'],
+      ['raccourcis.grille', '⇧⌘,  ⇧⌘.'],
+      ['raccourcis.reglages', '⌘,'],
+      ['raccourcis.aide', '/'],
     ],
   },
   {
-    titre: 'Texte',
+    titre: 'raccourcis.texte',
     lignes: [
-      ['Gras, italique, barré', '⌘B  ⌘I  ⇧⌘X'],
-      ['Titre, sous-titre', '⇧⌘1  ⇧⌘2'],
-      ['Texte normal, petit texte', '⇧⌘0  ⇧⌘9'],
-      ['Liste à puces, numérotée', '⇧⌘8  ⇧⌘7'],
-      ['Citation, bloc de code', '⇧⌘B  ⌘.'],
-      ['Code dans la ligne', '⌘E'],
-      ['Centrer', '⌘\\'],
-      ['Surligner', '⌘J'],
-      ['Lien', '⌘K'],
+      ['raccourcis.gras', '⌘B  ⌘I  ⇧⌘X'],
+      ['raccourcis.titres', '⇧⌘1  ⇧⌘2'],
+      ['raccourcis.paragraphe', '⇧⌘0  ⇧⌘9'],
+      ['raccourcis.listes', '⇧⌘8  ⇧⌘7'],
+      ['raccourcis.citation', '⇧⌘B  ⌘.'],
+      ['raccourcis.codeLigne', '⌘E'],
+      ['raccourcis.centrerTexte', '⌘\\'],
+      ['raccourcis.surligner', '⌘J'],
+      ['raccourcis.lien', '⌘K'],
     ],
   },
 ]
+
+/** Les touches écrites en toutes lettres dans la liste ci-dessus, avec le texte qui les dit. */
+const MOTS_DE_TOUCHE: Record<string, string> = {
+  Échap: 'raccourcis.touche.echap',
+  Espace: 'raccourcis.touche.espace',
+  'Espace + glisser': 'raccourcis.touche.espaceGlisser',
+}
 
 /** La fenêtre des raccourcis, que « / » ouvre et ferme. Échap ou un clic dehors la ferment aussi. */
 export function FenetreRaccourcis({ fermer }: { fermer(): void }) {
@@ -316,23 +326,23 @@ export function FenetreRaccourcis({ fermer }: { fermer(): void }) {
   }, [fermer])
   return (
     <div className="notak-raccourcis-fond" onPointerDown={(e) => (e.stopPropagation(), e.target === e.currentTarget && fermer())} onDoubleClick={(e) => e.stopPropagation()}>
-      <div className="notak-raccourcis" role="dialog" aria-label="Raccourcis clavier">
+      <div className="notak-raccourcis" role="dialog" aria-label={t('raccourcis.titre')}>
         <div className="notak-raccourcis-tete">
-          <strong>Raccourcis clavier</strong>
-          <button type="button" aria-label="Fermer" onClick={fermer}>
+          <strong>{t('raccourcis.titre')}</strong>
+          <button type="button" aria-label={t('commun.fermer')} onClick={fermer}>
             ×
           </button>
         </div>
         <div className="notak-raccourcis-corps">
           {RACCOURCIS.map((g) => (
             <section key={g.titre}>
-              <h3>{g.titre}</h3>
+              <h3>{t(g.titre)}</h3>
               <dl>
-                {g.lignes.map(([quoi, t]) => (
+                {g.lignes.map(([quoi, combinaison]) => (
                   <div key={quoi}>
-                    <dt>{quoi}</dt>
+                    <dt>{t(quoi)}</dt>
                     <dd>
-                      {touches(t)
+                      {touches(combinaison)
                         .split('  ')
                         .map((k) => (
                           <kbd key={k}>{k}</kbd>
@@ -368,22 +378,22 @@ export function PanneauNonTries({
   fermer(): void
 }) {
   return (
-    <div className="notak-corbeille notak-non-tries" role="dialog" aria-label="Non triés" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+    <div className="notak-corbeille notak-non-tries" role="dialog" aria-label={t('nonTries.titre')} onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
       <div className="notak-corbeille-tete">
-        <strong>Non triés</strong>
-        <button type="button" aria-label="Fermer" onClick={fermer}>
+        <strong>{t('nonTries.titre')}</strong>
+        <button type="button" aria-label={t('commun.fermer')} onClick={fermer}>
           ×
         </button>
       </div>
       {elements.length === 0 ? (
-        <p className="notak-corbeille-vide">Rien en attente. Alt+` y met la sélection.</p>
+        <p className="notak-corbeille-vide">{t('nonTries.vide')}</p>
       ) : (
         <ul>
           {elements.map((e) => (
             <li
               key={e.id}
               draggable
-              title="Glisser sur la toile"
+              title={t('nonTries.glisser')}
               onDragStart={(ev) => {
                 ev.dataTransfer.setData(GLISSER_NON_TRIE, e.id)
                 ev.dataTransfer.effectAllowed = 'move'
@@ -391,7 +401,7 @@ export function PanneauNonTries({
             >
               <span className="notak-corbeille-nom">{resume(e, contexte)}</span>
               <button type="button" onClick={() => poser(e)}>
-                Poser
+                {t('nonTries.poser')}
               </button>
             </li>
           ))}

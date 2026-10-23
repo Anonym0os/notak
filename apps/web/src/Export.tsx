@@ -1,4 +1,5 @@
 import { avecToutLeTableau } from '@notak/tableau'
+import { t } from './langue'
 import { toJpeg, toPng } from 'html-to-image'
 import { useEffect, useState } from 'react'
 import { octetsDeDataUrl, pdfDepuisJpeg } from './pdf'
@@ -17,7 +18,7 @@ function telecharger(blob: Blob, nom: string) {
 }
 
 /** Un nom de fichier sûr à partir d'un titre. */
-const nomDeFichier = (titre: string, extension: string) => `${titre.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').trim().slice(0, 100) || 'tableau'}.${extension}`
+const nomDeFichier = (titre: string, extension: string) => `${titre.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').trim().slice(0, 100) || t('exporter.nomFichier')}.${extension}`
 
 /** Ce que la capture montre : la vue telle qu'elle est, ou le tableau entier (la toile cadre tout le contenu le temps de la prise). */
 type Portee = 'ecran' | 'tout'
@@ -33,7 +34,7 @@ function capturer(format: 'png' | 'pdf', titre: string, portee: Portee): Promise
 
 async function photographier(format: 'png' | 'pdf', titre: string, rapport: number): Promise<void> {
   const toile = document.querySelector<HTMLElement>('.notak-toile')
-  if (!toile) throw new Error('Aucun tableau à exporter')
+  if (!toile) throw new Error(t('exporter.aucun'))
   const options = {
     pixelRatio: rapport,
     backgroundColor: getComputedStyle(toile).backgroundColor,
@@ -85,32 +86,32 @@ export function Export({ tableau, titre }: { tableau: string; titre(): string })
   return (
     <div className="export">
       <button type="button" className="bouton" aria-expanded={ouvert} onClick={() => setOuvert((o) => !o)}>
-        {capture ? 'Export…' : echec ? 'Export impossible' : 'Exporter'}
+        {capture ? t('exporter.encours') : echec ? t('exporter.impossible') : t('exporter.titre')}
       </button>
       {ouvert && (
         <div className="compte-menu" role="menu">
           <a role="menuitem" href={`${base}/export?format=md`} download onClick={() => setOuvert(false)}>
-            Texte en Markdown
+            {t('exporter.markdown')}
           </a>
           <a role="menuitem" href={`${base}/export?format=txt`} download onClick={() => setOuvert(false)}>
-            Texte brut
+            {t('exporter.texte')}
           </a>
           <a role="menuitem" href={`${base}/medias`} download onClick={() => setOuvert(false)}>
-            Images et fichiers (zip)
+            {t('exporter.medias')}
           </a>
-          <small className="compte-rubrique">Ce qui est à l’écran</small>
+          <small className="compte-rubrique">{t('exporter.ecran')}</small>
           <button type="button" role="menuitem" disabled={capture !== null} onClick={() => photographierVue('png', 'ecran')}>
-            Image (PNG)
+            {t('exporter.png')}
           </button>
           <button type="button" role="menuitem" disabled={capture !== null} onClick={() => photographierVue('pdf', 'ecran')}>
-            Page PDF
+            {t('exporter.pdf')}
           </button>
-          <small className="compte-rubrique">Le tableau entier</small>
+          <small className="compte-rubrique">{t('exporter.tout')}</small>
           <button type="button" role="menuitem" disabled={capture !== null} onClick={() => photographierVue('png', 'tout')}>
-            Image (PNG)
+            {t('exporter.png')}
           </button>
           <button type="button" role="menuitem" disabled={capture !== null} onClick={() => photographierVue('pdf', 'tout')}>
-            Page PDF
+            {t('exporter.pdf')}
           </button>
         </div>
       )}

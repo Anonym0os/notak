@@ -4,12 +4,13 @@ import { FOND_NOTE, LIBELLES_COULEUR } from '../note/couleurs'
 import type { PropsOutils } from '../types'
 import { GRIS_LIGNE } from './couleur'
 import { editionLibelle } from './edition'
+import { t } from '../../langue'
 
 const EPAISSEURS = [1, 2, 4] as const
 const TRAITS = [
-  { trait: 'plein', icone: '—', titre: 'Trait plein' },
-  { trait: 'tirets', icone: '┄', titre: 'Tirets' },
-  { trait: 'points', icone: '···', titre: 'Points' },
+  { trait: 'plein', icone: '—', get titre() { return t('ligne.plein') } },
+  { trait: 'tirets', icone: '┄', get titre() { return t('ligne.tirets') } },
+  { trait: 'points', icone: '···', get titre() { return t('ligne.points') } },
 ] as const
 
 /** La barre des lignes choisies. Plusieurs lignes : chaque changement s'applique à toutes, en un seul pas d'historique. */
@@ -47,32 +48,32 @@ export function OutilsLigne({ elements, contexte }: PropsOutils<Ligne>) {
 
   return (
     <>
-      <button type="button" title="Pointe de départ : flèche, rond ou rien" aria-pressed={!tous((l) => l.pointeDepart, 'rien')} onClick={() => bascule('pointeDepart')}>
+      <button type="button" title={t('ligne.pointeDepart')} aria-pressed={!tous((l) => l.pointeDepart, 'rien')} onClick={() => bascule('pointeDepart')}>
         {signe('pointeDepart', '◀')}
       </button>
-      <button type="button" title="Pointe d’arrivée : flèche, rond ou rien" aria-pressed={!tous((l) => l.pointeArrivee, 'rien')} onClick={() => bascule('pointeArrivee')}>
+      <button type="button" title={t('ligne.pointeArrivee')} aria-pressed={!tous((l) => l.pointeArrivee, 'rien')} onClick={() => bascule('pointeArrivee')}>
         {signe('pointeArrivee', '▶')}
       </button>
       <span className="notak-ligne-sep" />
-      {TRAITS.map((t) => (
-        <button key={t.trait} type="button" title={t.titre} aria-pressed={tous((l) => l.trait, t.trait)} onClick={() => modifier((l) => ({ ...l, trait: t.trait }))}>
-          {t.icone}
+      {TRAITS.map((x) => (
+        <button key={x.trait} type="button" title={x.titre} aria-pressed={tous((l) => l.trait, x.trait)} onClick={() => modifier((l) => ({ ...l, trait: x.trait }))}>
+          {x.icone}
         </button>
       ))}
       <span className="notak-ligne-sep" />
       {EPAISSEURS.map((n) => (
-        <button key={n} type="button" title={`Épaisseur ${n}`} aria-pressed={tous((l) => l.epaisseur, n)} onClick={() => modifier((l) => ({ ...l, epaisseur: n }))}>
+        <button key={n} type="button" title={t('ligne.epaisseur', { n })} aria-pressed={tous((l) => l.epaisseur, n)} onClick={() => modifier((l) => ({ ...l, epaisseur: n }))}>
           {n}
         </button>
       ))}
       <span className="notak-ligne-sep" />
       <div className="notak-ligne-ancre">
-        <button type="button" title="Couleur" aria-expanded={palette} onClick={() => setPalette(!palette)}>
-          Couleur
+        <button type="button" title={t('couleur.titre')} aria-expanded={palette} onClick={() => setPalette(!palette)}>
+          {t('couleur.titre')}
         </button>
         {palette && (
           <div className="notak-ligne-palette" role="menu">
-            <button type="button" role="menuitem" title="Gris foncé" aria-label="Gris foncé" aria-pressed={actuelle === undefined} style={{ background: GRIS_LIGNE }} onClick={() => colorier(undefined)} />
+            <button type="button" role="menuitem" title={t('couleur.grisFonce')} aria-label={t('couleur.grisFonce')} aria-pressed={actuelle === undefined} style={{ background: GRIS_LIGNE }} onClick={() => colorier(undefined)} />
             {COULEURS_NOTE.map((c) => (
               <button key={c} type="button" role="menuitem" title={LIBELLES_COULEUR[c]} aria-label={LIBELLES_COULEUR[c]} aria-pressed={actuelle === c} style={{ background: FOND_NOTE[c] }} onClick={() => colorier(c)} />
             ))}
@@ -80,8 +81,8 @@ export function OutilsLigne({ elements, contexte }: PropsOutils<Ligne>) {
         )}
       </div>
       {elements.length === 1 && (
-        <button type="button" title="Libellé" aria-pressed={!!elements[0]!.contenu.libelle} onClick={() => editionLibelle.ouvrir(elements[0]!.id)}>
-          Libellé
+        <button type="button" title={t('ligne.libelle')} aria-pressed={!!elements[0]!.contenu.libelle} onClick={() => editionLibelle.ouvrir(elements[0]!.id)}>
+          {t('ligne.libelle')}
         </button>
       )}
     </>

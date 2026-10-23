@@ -12,6 +12,7 @@ import { MenuPuce, type OuverturePuce } from './MenuPuce'
 import { type Personne, type Puce, assigneDe, echeanceDe, jourDe, personnes, puces } from './puces'
 import { type Sortie, glisserTache } from './glisse'
 import { type Chemin, basculer, compter, deplacer, detacher, docTaches, effacerFaites, estFaite, regler, retirer, sousTaches, transferer } from './liste'
+import { t } from '../../langue'
 
 /** Les listes dont le titre vient d'être ajouté : leur édition y met le curseur. */
 const titreAFocaliser = new Set<Id>()
@@ -98,7 +99,7 @@ function Liste({ noeud, chemin, cocher, supprimer, ouvrir, deplacer, sortir }: P
           <li key={i} data-type="taskItem" data-checked={faite}>
             <span
               className="notak-tache-poignee"
-              title="Déplacer la tâche"
+              title={t('taches.deplacer')}
               onPointerDown={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
@@ -113,7 +114,7 @@ function Liste({ noeud, chemin, cocher, supprimer, ouvrir, deplacer, sortir }: P
               className="notak-case"
               role="checkbox"
               aria-checked={faite}
-              aria-label="Fait"
+              aria-label={t('taches.fait')}
               onPointerDown={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.preventDefault()}
               onDoubleClick={(e) => e.stopPropagation()}
@@ -149,7 +150,7 @@ function Liste({ noeud, chemin, cocher, supprimer, ouvrir, deplacer, sortir }: P
               type="button"
               tabIndex={-1}
               className="notak-tache-suppr"
-              title="Supprimer la tâche"
+              title={t('taches.supprimer')}
               onPointerDown={(e) => e.stopPropagation()}
               onDoubleClick={(e) => e.stopPropagation()}
               onClick={() => supprimer(ici)}
@@ -347,7 +348,7 @@ function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surC
           ref={champ}
           className="notak-taches-titre"
           value={titre}
-          placeholder="Titre"
+          placeholder={t('taches.titre')}
           onChange={(e) => titreTape(e.target.value)}
           onKeyDown={clavier}
         />
@@ -404,12 +405,12 @@ export function OutilsTaches({ elements, contexte }: PropsOutils<Taches>) {
   return (
     <>
       {total > 0 && (
-        <span className="notak-taches-compteur" title="Faites">
+        <span className="notak-taches-compteur" title={t('taches.faites')}>
           {faites}/{total}
         </span>
       )}
       <button type="button" aria-pressed={toutesTitrees} onClick={basculerTitre}>
-        Titre
+        {t('taches.titre')}
       </button>
       <MenuCouleur
         actuelle={elements.every((e) => e.contenu.couleur === elements[0]!.contenu.couleur) ? elements[0]!.contenu.couleur : undefined}
@@ -422,7 +423,7 @@ export function OutilsTaches({ elements, contexte }: PropsOutils<Taches>) {
           type="button"
           onClick={() => changerTout((e) => ({ ...e.contenu, texte: effacerFaites(docTaches(e.contenu.texte)) }))}
         >
-          Effacer les faites
+          {t('taches.effacerFaites')}
         </button>
       )}
     </>

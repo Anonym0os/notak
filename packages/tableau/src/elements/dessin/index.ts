@@ -1,11 +1,14 @@
 import type { Dessin } from '../../coeur/tableau'
 import { registre } from '../registre'
 import { RenduDessin, ouvrirDessinLibre } from './Dessin'
+import { t } from '../../langue'
 import './dessin.css'
 
 registre.type<Dessin>({
   type: 'dessin',
-  nom: 'Dessin',
+  get nom() {
+    return t('type.dessin')
+  },
   resume: (c) => `Dessin (${c.traits.length} trait${c.traits.length > 1 ? 's' : ''})`,
   Rendu: RenduDessin,
   sansFond: true,
@@ -14,7 +17,9 @@ registre.type<Dessin>({
   suivant: () => null,
   outils: [
     {
-      libelle: 'Dessin libre',
+      get libelle() {
+        return t('outil.dessin')
+      },
       icone: '〰',
       rang: 135,
       tiroir: true,

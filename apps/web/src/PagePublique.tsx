@@ -1,6 +1,7 @@
 import { type Services, Toile, creerMagasin } from '@notak/tableau'
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { ErreurApi, type TableauPublic, deverrouillerPublic, lirePublic } from './api'
+import { t } from './langue'
 
 type Etat = { type: 'chargement' } | { type: 'absent' } | { type: 'erreur' } | { type: 'protege' } | { type: 'pret'; tableau: TableauPublic }
 
@@ -22,7 +23,7 @@ export function PagePublique({ jeton }: { jeton: string }) {
   useEffect(() => {
     if (etat.type !== 'pret') return
     const avant = document.title
-    document.title = `${etat.tableau.titre || 'Sans titre'} · Notak`
+    document.title = `${etat.tableau.titre || t('commun.sansTitre')} · Notak`
     return () => {
       document.title = avant
     }
@@ -35,7 +36,7 @@ export function PagePublique({ jeton }: { jeton: string }) {
       <main className="connexion">
         <div className="connexion-carte">
           <h1>Notak</h1>
-          <p>{etat.type === 'absent' ? 'Ce lien n’existe plus : son propriétaire l’a retiré.' : 'Le tableau ne se charge pas pour le moment.'}</p>
+          <p>{etat.type === 'absent' ? t('publique.absent') : t('publique.erreur')}</p>
         </div>
       </main>
     )
@@ -49,7 +50,7 @@ function Lecture({ jeton, tableau }: { jeton: string; tableau: TableauPublic }) 
     () => ({
       lectureSeule: true,
       fichiers: {
-        enregistrer: () => Promise.reject(new Error('Lecture seule')),
+        enregistrer: () => Promise.reject(new Error(t('publique.lectureSeule'))),
         adresse: async (id) => `/api/public/${encodeURIComponent(jeton)}/fichiers/${encodeURIComponent(id)}`,
       },
       tableau: (id) => (tableau.titres[id] === undefined ? undefined : { titre: tableau.titres[id], elements: [] }),
@@ -59,8 +60,8 @@ function Lecture({ jeton, tableau }: { jeton: string; tableau: TableauPublic }) 
   return (
     <div className="public">
       <header className="public-entete">
-        <strong className="public-titre">{tableau.titre || 'Sans titre'}</strong>
-        <span className="public-note">Lecture seule</span>
+        <strong className="public-titre">{tableau.titre || t('commun.sansTitre')}</strong>
+        <span className="public-note">{t('publique.lectureSeule')}</span>
         <a className="bouton" href="/">
           Notak
         </a>
@@ -85,7 +86,7 @@ function MotDePasseRequis({ jeton, surOuverture }: { jeton: string; surOuverture
       await deverrouillerPublic(jeton, motDePasse)
       surOuverture()
     } catch (x) {
-      setErreur(x instanceof Error ? x.message : 'Échec')
+      setErreur(x instanceof Error ? x.message : t('commun.echec'))
       setEnvoi(false)
     }
   }
@@ -93,9 +94,9 @@ function MotDePasseRequis({ jeton, surOuverture }: { jeton: string; surOuverture
     <main className="connexion">
       <form className="connexion-carte" onSubmit={valider} noValidate>
         <h1>Notak</h1>
-        <p className="partage-note">Ce tableau est protégé par un mot de passe.</p>
+        <p className="partage-note">{t('publique.protege')}</p>
         <label>
-          Mot de passe
+          {t('connexion.mdp')}
           <input type="password" value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} autoComplete="off" autoFocus />
         </label>
         {erreur && (
@@ -104,7 +105,7 @@ function MotDePasseRequis({ jeton, surOuverture }: { jeton: string; surOuverture
           </p>
         )}
         <button type="submit" className="bouton bouton-plein" disabled={envoi || !motDePasse}>
-          Ouvrir
+          {t('commun.ouvrir')}
         </button>
       </form>
     </main>

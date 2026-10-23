@@ -17,8 +17,13 @@ import {
   retirerMotDePasse,
   retirerMotDePasseDuLien,
 } from './api'
+import { t } from './langue'
 
-const LIBELLE_ROLE: Record<Role, string> = { proprietaire: 'Propriétaire', edition: 'Édition', lecture: 'Lecture' }
+const LIBELLE_ROLE: Record<Role, () => string> = {
+  proprietaire: () => t('partage.proprietaire'),
+  edition: () => t('partage.edition'),
+  lecture: () => t('partage.lecture'),
+}
 
 /** Le bouton « Partager » et son panneau : qui a accès à ce tableau, et l'invitation d'une adresse. */
 export function Partage({ tableau, moi }: { tableau: string; moi: Moi }) {
@@ -26,7 +31,7 @@ export function Partage({ tableau, moi }: { tableau: string; moi: Moi }) {
   return (
     <div className="partage">
       <button type="button" className="bouton" aria-expanded={ouvert} onClick={() => setOuvert((o) => !o)}>
-        Partager
+        {t('partage.titre')}
       </button>
       {ouvert && <Panneau key={tableau} tableau={tableau} moi={moi} fermer={() => setOuvert(false)} />}
     </div>
@@ -65,7 +70,7 @@ function Panneau({ tableau, moi, fermer }: { tableau: string; moi: Moi; fermer()
       await f()
       charger()
     } catch (x) {
-      setErreur(x instanceof Error ? x.message : 'Échec')
+      setErreur(x instanceof Error ? x.message : t('commun.echec'))
     } finally {
       setOccupe(false)
     }
@@ -74,7 +79,7 @@ function Panneau({ tableau, moi, fermer }: { tableau: string; moi: Moi; fermer()
   const inviter = (e: FormEvent) => {
     e.preventDefault()
     const adresse = email.trim().toLowerCase()
-    if (!adresse.includes('@')) return setErreur('Adresse invalide')
+    if (!adresse.includes('@')) return setErreur(t('connexion.adresseInvalide'))
     void agir(async () => {
       await partager(tableau, adresse, role)
       setEmail('')
@@ -82,7 +87,7 @@ function Panneau({ tableau, moi, fermer }: { tableau: string; moi: Moi; fermer()
   }
 
   return (
-    <div className="partage-panneau" role="dialog" aria-label="Partager">
+    <div className="partage-panneau" role="dialog" aria-label={t('partage.titre')}>
       <ul className="partage-liste">
         {acces?.map((a) => (
           <li key={a.email}>
@@ -91,9 +96,9 @@ function Panneau({ tableau, moi, fermer }: { tableau: string; moi: Moi; fermer()
               {a.nom && <small>{a.email}</small>}
             </span>
             <span className="partage-role">
-              {LIBELLE_ROLE[a.role]}
-              {a.enAttente && <em> · en attente</em>}
-              {a.herite && <em> · par le tableau parent</em>}
+              {LIBELLE_ROLE[a.role]()}
+              {a.enAttente && <em> · {t('partage.enAttente')}</em>}
+              {a.herite && <em> · {t('partage.parent')}</em>}
             </span>
             {proprietaire && a.role !== 'proprietaire' && !a.herite && (
               <button
@@ -102,7 +107,7 @@ function Panneau({ tableau, moi, fermer }: { tableau: string; moi: Moi; fermer()
                 disabled={occupe}
                 onClick={() => agir(() => retirerAcces(tableau, a.email))}
               >
-                Retirer
+                {t('partage.retirer')}
               </button>
             )}
           </li>
@@ -113,23 +118,23 @@ function Panneau({ tableau, moi, fermer }: { tableau: string; moi: Moi; fermer()
         <form className="partage-form" onSubmit={inviter} noValidate>
           <input
             type="email"
-            placeholder="Adresse"
-            aria-label="Adresse à inviter"
+            placeholder={t('connexion.adresse')}
+            aria-label={t('partage.adresseInviter')}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <select value={role} aria-label="Droit" onChange={(e) => setRole(e.target.value as 'edition' | 'lecture')}>
-            <option value="edition">Édition</option>
-            <option value="lecture">Lecture</option>
+          <select value={role} aria-label={t('partage.droit')} onChange={(e) => setRole(e.target.value as 'edition' | 'lecture')}>
+            <option value="edition">{t('partage.edition')}</option>
+            <option value="lecture">{t('partage.lecture')}</option>
           </select>
           <button type="submit" className="bouton bouton-plein" disabled={occupe}>
-            Inviter
+            {t('partage.inviter')}
           </button>
         </form>
       )}
       {proprietaire && <MotDePasse tableau={tableau} />}
       {proprietaire && <LienPublic tableau={tableau} />}
-      {acces && !proprietaire && <p className="partage-note">Seul le propriétaire invite.</p>}
+      {acces && !proprietaire && <p className="partage-note">{t('partage.seulProprio')}</p>}
       {erreur && (
         <p className="connexion-erreur" role="alert">
           {erreur}
@@ -159,42 +164,42 @@ function MotDePasse({ tableau }: { tableau: string }) {
       setProtege(await f())
       setSaisie('')
     } catch (x) {
-      setErreur(x instanceof Error ? x.message : 'Échec')
+      setErreur(x instanceof Error ? x.message : t('commun.echec'))
     } finally {
       setOccupe(false)
     }
   }
   const poser = (e: FormEvent) => {
     e.preventDefault()
-    if (saisie.length < 6) return setErreur('6 caractères au moins')
+    if (saisie.length < 6) return setErreur(t('partage.mdp6'))
     void agir(async () => (await poserMotDePasse(tableau, saisie), true))
   }
   return (
     <div className="partage-lien">
-      <strong>Mot de passe du tableau</strong>
+      <strong>{t('partage.mdpTableau')}</strong>
       {protege === undefined ? (
         <span className="partage-note">…</span>
       ) : (
         <>
           <span className="partage-note">
-            {protege ? 'Les autres comptes doivent le donner pour ouvrir ce tableau.' : 'Sans mot de passe, tout compte invité ouvre ce tableau.'}
+            {protege ? t('partage.mdpActif') : t('partage.mdpInactif')}
           </span>
           <form className="partage-lien-ligne" onSubmit={poser} noValidate>
             <input
               type="password"
               autoComplete="new-password"
-              aria-label={protege ? 'Nouveau mot de passe du tableau' : 'Mot de passe du tableau'}
-              placeholder={protege ? 'Nouveau mot de passe' : 'Mot de passe'}
+              aria-label={protege ? t('partage.nouveauMdpTableau') : t('partage.mdpTableau')}
+              placeholder={protege ? t('partage.nouveauMdp') : t('connexion.mdp')}
               value={saisie}
               onChange={(e) => setSaisie(e.target.value)}
             />
             <button type="submit" className="bouton" disabled={occupe || !saisie}>
-              {protege ? 'Changer' : 'Protéger'}
+              {protege ? t('partage.changer') : t('partage.proteger')}
             </button>
           </form>
           {protege && (
             <button type="button" className="bouton-lien" disabled={occupe} onClick={() => agir(async () => (await retirerMotDePasse(tableau), false))}>
-              Retirer le mot de passe
+              {t('partage.retirerMdp')}
             </button>
           )}
         </>
@@ -225,7 +230,7 @@ function LienPublic({ tableau }: { tableau: string }) {
       setJeton(await f())
       setCopie(false)
     } catch (x) {
-      setErreur(x instanceof Error ? x.message : 'Échec')
+      setErreur(x instanceof Error ? x.message : t('commun.echec'))
     } finally {
       setOccupe(false)
     }
@@ -235,33 +240,33 @@ function LienPublic({ tableau }: { tableau: string }) {
       await navigator.clipboard.writeText(adressePublique(jeton!))
       setCopie(true)
     } catch {
-      setErreur('Copie impossible : sélectionnez l’adresse')
+      setErreur(t('partage.copieImpossible'))
     }
   }
 
   return (
     <div className="partage-lien">
-      <strong>Lien de lecture</strong>
+      <strong>{t('partage.lienLecture')}</strong>
       {jeton === undefined ? (
         <span className="partage-note">…</span>
       ) : jeton === null ? (
         <>
-          <span className="partage-note">Toute personne qui a le lien voit ce tableau, sans compte.</span>
+          <span className="partage-note">{t('partage.lienNote')}</span>
           <button type="button" className="bouton" disabled={occupe} onClick={() => agir(() => creerLienPublic(tableau))}>
-            Créer un lien
+            {t('partage.creerLien')}
           </button>
         </>
       ) : (
         <>
           <div className="partage-lien-ligne">
-            <input readOnly aria-label="Adresse du lien de lecture" value={adressePublique(jeton)} onFocus={(e) => e.target.select()} />
+            <input readOnly aria-label={t('partage.adresseLien')} value={adressePublique(jeton)} onFocus={(e) => e.target.select()} />
             <button type="button" className="bouton" onClick={copier}>
-              {copie ? 'Copié' : 'Copier'}
+              {copie ? t('partage.copie') : t('partage.copier')}
             </button>
           </div>
           <MotDePasseDuLien tableau={tableau} />
           <button type="button" className="bouton-lien" disabled={occupe} onClick={() => agir(async () => (await retirerLienPublic(tableau), null))}>
-            Fermer le lien
+            {t('partage.fermerLien')}
           </button>
         </>
       )}
@@ -291,35 +296,35 @@ function MotDePasseDuLien({ tableau }: { tableau: string }) {
       setProtege(await f())
       setSaisie('')
     } catch (x) {
-      setErreur(x instanceof Error ? x.message : 'Échec')
+      setErreur(x instanceof Error ? x.message : t('commun.echec'))
     } finally {
       setOccupe(false)
     }
   }
   const poser = (e: FormEvent) => {
     e.preventDefault()
-    if (saisie.length < 6) return setErreur('6 caractères au moins')
+    if (saisie.length < 6) return setErreur(t('partage.mdp6'))
     void agir(async () => (await poserMotDePasseDuLien(tableau, saisie), true))
   }
   return (
     <div className="partage-mdp-lien">
-      <span className="partage-note">{protege ? 'Ce lien demande un mot de passe.' : 'Ce lien s’ouvre sans mot de passe.'}</span>
+      <span className="partage-note">{protege ? t('partage.lienMdpActif') : t('partage.lienMdpInactif')}</span>
       <form className="partage-lien-ligne" onSubmit={poser} noValidate>
         <input
           type="password"
           autoComplete="new-password"
-          aria-label={protege ? 'Nouveau mot de passe du lien' : 'Mot de passe du lien'}
-          placeholder={protege ? 'Nouveau mot de passe' : 'Mot de passe du lien'}
+          aria-label={protege ? t('partage.nouveauMdpLien') : t('partage.mdpLien')}
+          placeholder={protege ? t('partage.nouveauMdp') : t('partage.mdpLien')}
           value={saisie}
           onChange={(e) => setSaisie(e.target.value)}
         />
         <button type="submit" className="bouton" disabled={occupe || protege === undefined || !saisie}>
-          {protege ? 'Changer' : 'Protéger'}
+          {protege ? t('partage.changer') : t('partage.proteger')}
         </button>
       </form>
       {protege && (
         <button type="button" className="bouton-lien" disabled={occupe} onClick={() => agir(async () => (await retirerMotDePasseDuLien(tableau), false))}>
-          Retirer le mot de passe du lien
+          {t('partage.retirerMdpLien')}
         </button>
       )}
       {erreur && (

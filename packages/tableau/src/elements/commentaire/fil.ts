@@ -1,4 +1,5 @@
 import { type Auteur, type Commentaire, type Element, type Id, type Message, nouvelId } from '../../coeur/tableau'
+import { langue, t } from '../../langue'
 
 export const LARGEUR_COMMENTAIRE = 28
 
@@ -40,20 +41,21 @@ export function initiales(nom: string): string {
 }
 
 const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
+const MOIS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 /** Une date dite comme on la dit : « à l'instant », « il y a 5 min », « hier », « 12 oct. ». */
 export function dateLisible(date: number, maintenant = Date.now()): string {
   const s = Math.max(0, (maintenant - date) / 1000)
-  if (s < 60) return 'à l’instant'
-  if (s < 3600) return `il y a ${Math.floor(s / 60)} min`
+  if (s < 60) return t('fil.instant')
+  if (s < 3600) return t('fil.minutes', { n: Math.floor(s / 60) })
   const d = new Date(date)
   const auj = new Date(maintenant)
   const jour = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
   const ecartJours = Math.round((jour(auj) - jour(d)) / 86_400_000)
-  if (ecartJours === 0) return `il y a ${Math.floor(s / 3600)} h`
-  if (ecartJours === 1) return 'hier'
-  const base = `${d.getDate()} ${MOIS[d.getMonth()]}`
-  return d.getFullYear() === auj.getFullYear() ? base : `${base} ${d.getFullYear()}`
+  if (ecartJours === 0) return t('fil.heures', { n: Math.floor(s / 3600) })
+  if (ecartJours === 1) return t('fil.hier')
+  const base = langue() === 'en' ? `${MOIS_EN[d.getMonth()]} ${d.getDate()}` : `${d.getDate()} ${MOIS[d.getMonth()]}`
+  return d.getFullYear() === auj.getFullYear() ? base : langue() === 'en' ? `${base}, ${d.getFullYear()}` : `${base} ${d.getFullYear()}`
 }
 
 /**

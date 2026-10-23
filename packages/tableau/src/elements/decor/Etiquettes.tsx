@@ -12,6 +12,7 @@ import {
   supprimerEtiquette,
 } from './annotations'
 import { basculerFiltre, useFiltre, viderFiltre } from './etat'
+import { t } from '../../langue'
 
 /**
  * Les étiquettes du tableau : en créer, les renommer, les colorer, les poser sur la sélection, et filtrer le
@@ -29,12 +30,12 @@ export function PanneauEtiquettes({ elements, contexte }: { elements: readonly E
 
   const changerListe = (vers: Etiquette[]) => magasin.faire([{ type: 'etiquettes', de: liste, vers }])
   const creer = () => {
-    const t = nouvelleEtiquette(liste, nom)
-    if (!t) return
+    const et = nouvelleEtiquette(liste, nom)
+    if (!et) return
     // Une étiquette créée avec des éléments choisis se pose aussitôt dessus.
     const pas = [
-      { type: 'etiquettes' as const, de: liste, vers: [...liste, t] },
-      ...elements.flatMap((e) => annoter(e, { etiquettes: basculerEtiquette(e.etiquettes, t.id) }) ?? []),
+      { type: 'etiquettes' as const, de: liste, vers: [...liste, et] },
+      ...elements.flatMap((e) => annoter(e, { etiquettes: basculerEtiquette(e.etiquettes, et.id) }) ?? []),
     ]
     magasin.faire(pas)
     setNom('')
@@ -59,63 +60,63 @@ export function PanneauEtiquettes({ elements, contexte }: { elements: readonly E
   }
 
   return (
-    <div className="notak-etiquettes" role="group" aria-label="Étiquettes" onKeyDown={(e) => e.stopPropagation()}>
-      {liste.length === 0 && <p className="notak-etiquettes-vide">Aucune étiquette</p>}
-      {liste.map((t) => {
-        const etat = etatEtiquette(elements, t.id)
+    <div className="notak-etiquettes" role="group" aria-label={t('etiquettes.titre')} onKeyDown={(e) => e.stopPropagation()}>
+      {liste.length === 0 && <p className="notak-etiquettes-vide">{t('etiquettes.aucune')}</p>}
+      {liste.map((et) => {
+        const etat = etatEtiquette(elements, et.id)
         return (
-          <div key={t.id} className="notak-etiquettes-ligne">
+          <div key={et.id} className="notak-etiquettes-ligne">
             {ecrire && elements.length > 0 && (
               <input
                 type="checkbox"
-                aria-label={`Poser « ${t.nom} » sur la sélection`}
+                aria-label={t('etiquettes.poser', { nom: et.nom })}
                 checked={etat === 'tous'}
                 ref={(n) => {
                   if (n) n.indeterminate = etat === 'certains'
                 }}
-                onChange={() => poser(t.id)}
+                onChange={() => poser(et.id)}
               />
             )}
             <button
               type="button"
               className="notak-etiquettes-pastille"
-              data-fond={t.couleur}
-              title={`Couleur : ${LIBELLES_COULEUR[t.couleur]}`}
+              data-fond={et.couleur}
+              title={t('etiquettes.couleur', { couleur: LIBELLES_COULEUR[et.couleur] })}
               disabled={!ecrire}
-              onClick={() => setCouleurDe(couleurDe === t.id ? null : t.id)}
+              onClick={() => setCouleurDe(couleurDe === et.id ? null : et.id)}
             />
             {ecrire ? (
               <input
                 className="notak-etiquettes-nom"
-                defaultValue={t.nom}
+                defaultValue={et.nom}
                 maxLength={NOM_ETIQUETTE_MAX}
-                aria-label="Nom de l’étiquette"
+                aria-label={t('etiquettes.nom')}
                 onBlur={(e) => {
-                  const suite = renommerEtiquette(liste, t.id, e.target.value)
-                  if (suite.find((x) => x.id === t.id)!.nom !== t.nom) changerListe(suite)
-                  else e.target.value = t.nom
+                  const suite = renommerEtiquette(liste, et.id, e.target.value)
+                  if (suite.find((x) => x.id === et.id)!.nom !== et.nom) changerListe(suite)
+                  else e.target.value = et.nom
                 }}
                 onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
               />
             ) : (
-              <span className="notak-etiquettes-nom">{t.nom}</span>
+              <span className="notak-etiquettes-nom">{et.nom}</span>
             )}
             <button
               type="button"
               className="notak-etiquettes-filtre"
-              aria-pressed={filtre.has(t.id)}
-              aria-label={`Filtrer par « ${t.nom} »`}
-              title={filtre.has(t.id) ? 'Ne plus filtrer par cette étiquette' : 'Filtrer le tableau par cette étiquette'}
-              onClick={() => basculerFiltre(t.id)}
+              aria-pressed={filtre.has(et.id)}
+              aria-label={t('etiquettes.filtrerPar', { nom: et.nom })}
+              title={filtre.has(et.id) ? t('etiquettes.nePlusFiltrer') : t('etiquettes.filtrer')}
+              onClick={() => basculerFiltre(et.id)}
             >
               👁
             </button>
             {ecrire && (
-              <button type="button" className="notak-etiquettes-retirer" title="Supprimer l’étiquette" aria-label={`Supprimer « ${t.nom} »`} onClick={() => retirer(t.id)}>
+              <button type="button" className="notak-etiquettes-retirer" title={t('etiquettes.supprimer')} aria-label={t('etiquettes.supprimerNom', { nom: et.nom })} onClick={() => retirer(et.id)}>
                 ×
               </button>
             )}
-            {couleurDe === t.id && (
+            {couleurDe === et.id && (
               <div className="notak-note-pastilles notak-etiquettes-palette">
                 {COULEURS_NOTE.map((c: CouleurNote) => (
                   <button
@@ -124,9 +125,9 @@ export function PanneauEtiquettes({ elements, contexte }: { elements: readonly E
                     data-fond={c}
                     title={LIBELLES_COULEUR[c]}
                     aria-label={LIBELLES_COULEUR[c]}
-                    aria-pressed={t.couleur === c}
+                    aria-pressed={et.couleur === c}
                     onClick={() => {
-                      changerListe(colorerEtiquette(liste, t.id, c))
+                      changerListe(colorerEtiquette(liste, et.id, c))
                       setCouleurDe(null)
                     }}
                   />
@@ -138,7 +139,7 @@ export function PanneauEtiquettes({ elements, contexte }: { elements: readonly E
       })}
       {filtre.size > 0 && (
         <button type="button" className="notak-etiquettes-lien" onClick={viderFiltre}>
-          Tout montrer
+          {t('etiquettes.toutMontrer')}
         </button>
       )}
       {ecrire && (
@@ -149,9 +150,9 @@ export function PanneauEtiquettes({ elements, contexte }: { elements: readonly E
             creer()
           }}
         >
-          <input value={nom} maxLength={NOM_ETIQUETTE_MAX} placeholder="Nouvelle étiquette…" aria-label="Nom de la nouvelle étiquette" onChange={(e) => setNom(e.target.value)} />
+          <input value={nom} maxLength={NOM_ETIQUETTE_MAX} placeholder={t('etiquettes.nouvelle')} aria-label={t('etiquettes.nomNouvelle')} onChange={(e) => setNom(e.target.value)} />
           <button type="submit" disabled={!nom.trim()}>
-            Créer
+            {t('etiquettes.creer')}
           </button>
         </form>
       )}

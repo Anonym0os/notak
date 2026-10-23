@@ -3,6 +3,7 @@ import type { Fichier } from '../../coeur/tableau'
 import { useFichier } from '../envois'
 import type { PropsOutils, PropsRendu } from '../types'
 import { adresseApercuPdf, apercuDe, extensionDe, genreDe, lisible, tailleLisible } from './genre'
+import { t } from '../../langue'
 
 const sansTitre = ({ titre: _, ...reste }: Fichier): Fichier => reste
 /** Les liens et les lecteurs de la carte ne lancent pas de glisser. */
@@ -19,14 +20,14 @@ export function RenduFichier({ element, enEdition, contexte, brouillon }: PropsR
     <div className="notak-fichier" data-genre={genre} data-icone={c.icone || undefined}>
       {apercu === 'pdf' && adresse && !enRoute && (
         // La première page seulement ; le cadre n'attrape pas le pointeur, la carte reste glissable.
-        <iframe className="notak-fichier-pdf" title={`Première page de ${c.titre ?? c.nom}`} src={adresseApercuPdf(adresse)} loading="lazy" tabIndex={-1} />
+        <iframe className="notak-fichier-pdf" title={t('fichier.premierePage', { nom: c.titre ?? c.nom })} src={adresseApercuPdf(adresse)} loading="lazy" tabIndex={-1} />
       )}
       {lecteur === 'video' && adresse && (
         <video className="notak-fichier-video" src={adresse} controls preload="metadata" onPointerDown={garder} onDoubleClick={(e) => e.stopPropagation()} />
       )}
       <div className="notak-fichier-tete">
         <span className="notak-fichier-badge" aria-hidden>
-          {extension ? extension.slice(0, 4).toUpperCase() : 'FICHIER'}
+          {extension ? extension.slice(0, 4).toUpperCase() : t('type.fichier').toUpperCase()}
         </span>
         <div className="notak-fichier-infos">
           {enEdition ? (
@@ -41,22 +42,22 @@ export function RenduFichier({ element, enEdition, contexte, brouillon }: PropsR
             {enRoute && (
               <>
                 {' · '}
-                <span className="notak-roue" aria-hidden /> Envoi…
+                <span className="notak-roue" aria-hidden /> {t('fichier.envoi')}
               </>
             )}
             {adresse && !enRoute && (
               <>
                 {' · '}
                 <a href={adresse} download={c.nom} onPointerDown={garder}>
-                  Télécharger
+                  {t('fichier.telecharger')}
                 </a>
                 {' · '}
                 <a href={adresse} target="_blank" rel="noopener noreferrer" onPointerDown={garder}>
-                  Ouvrir
+                  {t('commun.ouvrir')}
                 </a>
               </>
             )}
-            {adresse === null && ' · introuvable'}
+            {adresse === null && ` · ${t('fichier.introuvable')}`}
           </span>
         </div>
       </div>
@@ -109,8 +110,8 @@ function Legende({ contenu, ecrire, finir }: { contenu: Fichier; ecrire(c: Fichi
   return (
     <input
       className="notak-fichier-legende notak-fichier-champ"
-      aria-label="Légende"
-      placeholder="Légende…"
+      aria-label={t('note.legende')}
+      placeholder={t('fichier.legendePoints')}
       maxLength={500}
       defaultValue={contenu.legende ?? ''}
       onPointerDown={garder}
@@ -135,25 +136,25 @@ export function OutilsFichier({ elements, contexte }: PropsOutils<Fichier>) {
   return (
     <>
       {!contexte.services.lectureSeule && (
-        <button type="button" title="Renommer le fichier, écrire une légende" onClick={() => contexte.commencerEdition(el.id)}>
-          Renommer
+        <button type="button" title={t('fichier.renommer.titre')} onClick={() => contexte.commencerEdition(el.id)}>
+          {t('menu.renommer')}
         </button>
       )}
       {!contexte.services.lectureSeule && (
         <button
           type="button"
-          title={el.contenu.icone ? 'Montrer l’aperçu' : 'Réduire à l’icône et au nom'}
+          title={el.contenu.icone ? t('fichier.montrerApercu') : t('fichier.reduire')}
           aria-pressed={!!el.contenu.icone}
           onClick={() => {
             const { icone: _, ...reste } = el.contenu
             contexte.magasin.faire([{ type: 'contenu', id: el.id, avant: el.contenu, apres: el.contenu.icone ? reste : { ...reste, icone: true } }])
           }}
         >
-          Icône
+          {t('tableau.icone')}
         </button>
       )}
-      <button type="button" title="Ouvrir dans un nouvel onglet" onClick={() => void ouvrirFichier(el.contenu, contexte)}>
-        Ouvrir
+      <button type="button" title={t('menu.ouvrirOnglet')} onClick={() => void ouvrirFichier(el.contenu, contexte)}>
+        {t('commun.ouvrir')}
       </button>
     </>
   )

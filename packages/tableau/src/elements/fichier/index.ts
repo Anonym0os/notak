@@ -3,6 +3,7 @@ import { registre } from '../registre'
 import { OutilsFichier, RenduFichier, ouvrirFichier } from './Fichier'
 import './fichier.css'
 import { LARGEUR_FICHIER, choisirFichiers, recevoirFichiers } from './recepteur'
+import { t } from '../../langue'
 
 /** Le fantôme des outils d'envoi : une carte de fichier sans fichier. */
 const fantome = (nom: string, typeMime: string) => ({
@@ -15,7 +16,9 @@ const fantome = (nom: string, typeMime: string) => ({
 
 registre.type<Fichier>({
   type: 'fichier',
-  nom: 'Fichier',
+  get nom() {
+    return t('type.fichier')
+  },
   resume: (c) => c.titre ?? c.nom,
   suivant: () => null,
   Rendu: RenduFichier,
@@ -26,7 +29,9 @@ registre.type<Fichier>({
   ouvrir: (e, contexte) => void ouvrirFichier(e.contenu, contexte),
   outils: [
     {
-      libelle: 'Image',
+      get libelle() {
+        return t('type.image')
+      },
       icone: '🖼',
       rang: 80,
       fantome: () => fantome('Image', 'image/png'),
@@ -38,7 +43,9 @@ registre.type<Fichier>({
       clic: (ou, contexte) => choisirFichiers(ou, contexte, 'image/*'),
     },
     {
-      libelle: 'Fichier',
+      get libelle() {
+        return t('type.fichier')
+      },
       icone: '📎',
       rang: 90,
       fantome: () => fantome('Fichier', ''),

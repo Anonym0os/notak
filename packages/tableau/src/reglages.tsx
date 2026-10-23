@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { type ChoixLangue, definirLangue, t } from './langue'
 import { PastillePersonne } from './pastille'
 
 /**
@@ -14,6 +15,8 @@ export interface Reglages {
   grille: 8 | 9 | 10
   /** Où paraissent les outils d'une sélection : au-dessus d'elle, ou à la place de la barre de gauche. */
   barre: 'flottante' | 'gauche'
+  /** La langue de l'interface ; `auto` suit le navigateur. Absente : `auto`. */
+  langue?: ChoixLangue
 }
 
 /**
@@ -40,13 +43,13 @@ export const PHOTO_MAX = 5 * 1024 * 1024
 
 /** Pourquoi une photo est refusée, avec des mots ; `null` si elle convient. */
 export function refusDePhoto(f: { type: string; size: number }): string | null {
-  if (!TYPES_PHOTO.includes(f.type)) return 'Choisissez une image PNG, JPEG, WebP ou GIF.'
-  if (f.size > PHOTO_MAX) return 'Cette image dépasse 5 Mo.'
+  if (!TYPES_PHOTO.includes(f.type)) return t('reglages.photo.type')
+  if (f.size > PHOTO_MAX) return t('reglages.photo.poids')
   return null
 }
 
 const CLE = 'notak:reglages'
-const DEFAUT: Reglages = { theme: 'clair', taille: 'moyenne', doubleClic: true, grille: 10, barre: 'flottante' }
+const DEFAUT: Reglages = { theme: 'clair', taille: 'moyenne', doubleClic: true, grille: 10, barre: 'flottante', langue: 'auto' }
 
 function lire(): Reglages {
   try {
@@ -59,6 +62,7 @@ function lire(): Reglages {
       doubleClic: brut.doubleClic !== false,
       grille: brut.grille === 8 || brut.grille === 9 ? brut.grille : 10,
       barre: brut.barre === 'gauche' ? 'gauche' : 'flottante',
+      langue: brut.langue === 'fr' || brut.langue === 'en' ? brut.langue : 'auto',
     }
   } catch {
     return DEFAUT
@@ -74,7 +78,11 @@ export function useReglages() {
       // Sans stockage (navigation privée), les réglages valent pour la page.
     }
   }, [reglages])
-  const changer = useCallback((r: Partial<Reglages>) => setReglages((v) => ({ ...v, ...r })), [])
+  const changer = useCallback((r: Partial<Reglages>) => {
+    // La langue change avant le rendu : tout ce qui se redessine ensuite parle déjà la nouvelle.
+    if (r.langue) definirLangue(r.langue)
+    setReglages((v) => ({ ...v, ...r }))
+  }, [])
   return [reglages, changer] as const
 }
 
@@ -88,7 +96,7 @@ export function SectionCompte({ compte }: { compte: ServiceCompte }) {
     try {
       await travail()
     } catch (e) {
-      setErreur(e instanceof Error && e.message ? e.message : 'Le changement a échoué.')
+      setErreur(e instanceof Error && e.message ? e.message : t('reglages.compte.echec'))
     } finally {
       setOccupe(false)
     }
@@ -101,7 +109,7 @@ export function SectionCompte({ compte }: { compte: ServiceCompte }) {
     void faire(() => compte.changerPhoto(f))
   }
   return (
-    <section className="notak-reglages-compte" aria-label="Compte">
+    <section className="notak-reglages-compte" aria-label={t('reglages.compte')}>
       <div className="notak-reglages-identite">
         <PastillePersonne className="notak-reglages-avatar" nom={compte.nom} couleur={compte.couleur} adresse={compte.photo ?? undefined} />
         <div>
@@ -111,17 +119,17 @@ export function SectionCompte({ compte }: { compte: ServiceCompte }) {
       </div>
       <div className="notak-reglages-choix">
         <button type="button" disabled={occupe} onClick={() => champ.current?.click()}>
-          {compte.photo ? 'Changer la photo' : 'Choisir une photo'}
+          {compte.photo ? t('reglages.compte.photoChanger') : t('reglages.compte.photoChoisir')}
         </button>
         {compte.photo && (
           <button type="button" disabled={occupe} onClick={() => void faire(() => compte.changerPhoto(null))}>
-            Retirer la photo
+            {t('reglages.compte.photoRetirer')}
           </button>
         )}
-        <input ref={champ} type="file" accept={TYPES_PHOTO.join(',')} hidden aria-label="Photo du compte" onChange={(e) => choisirPhoto(e.target.files?.[0])} />
+        <input ref={champ} type="file" accept={TYPES_PHOTO.join(',')} hidden aria-label={t('reglages.compte.photoChamp')} onChange={(e) => choisirPhoto(e.target.files?.[0])} />
       </div>
-      <label>Couleur du compte</label>
-      <div className="notak-reglages-couleurs" role="radiogroup" aria-label="Couleur du compte">
+      <label>{t('reglages.compte.couleur')}</label>
+      <div className="notak-reglages-couleurs" role="radiogroup" aria-label={t('reglages.compte.couleur')}>
         {COULEURS_COMPTE.map((c) => (
           <button
             key={c}
@@ -168,7 +176,7 @@ export function FenetreReglages({
   const choix = <K extends keyof Reglages>(cle: K, valeurs: [Reglages[K], string][]) => (
     <div className="notak-reglages-choix" role="radiogroup">
       {valeurs.map(([v, libelle]) => (
-        <button key={String(v)} type="button" role="radio" aria-checked={reglages[cle] === v} onClick={() => changer({ [cle]: v } as Partial<Reglages>)}>
+        <button key={String(v)} type="button" role="radio" aria-checked={(reglages[cle] ?? DEFAUT[cle]) === v} onClick={() => changer({ [cle]: v } as Partial<Reglages>)}>
           {libelle}
         </button>
       ))}
@@ -176,41 +184,47 @@ export function FenetreReglages({
   )
   return (
     <div className="notak-raccourcis-fond" onPointerDown={(e) => (e.stopPropagation(), e.target === e.currentTarget && fermer())}>
-      <div className="notak-raccourcis notak-reglages" role="dialog" aria-label="Réglages">
+      <div className="notak-raccourcis notak-reglages" role="dialog" aria-label={t('reglages.titre')}>
         <div className="notak-raccourcis-tete">
-          <strong>Réglages</strong>
-          <button type="button" aria-label="Fermer" onClick={fermer}>
+          <strong>{t('reglages.titre')}</strong>
+          <button type="button" aria-label={t('commun.fermer')} onClick={fermer}>
             ×
           </button>
         </div>
         <div className="notak-reglages-corps">
           {compte && <SectionCompte compte={compte} />}
-          <label>Thème</label>
+          <label>{t('reglages.theme')}</label>
           {choix('theme', [
-            ['clair', 'Clair'],
-            ['sombre', 'Sombre'],
+            ['clair', t('reglages.theme.clair')],
+            ['sombre', t('reglages.theme.sombre')],
           ])}
-          <label>Taille de l’interface</label>
+          <label>{t('reglages.taille')}</label>
           {choix('taille', [
-            ['petite', 'Petite'],
-            ['moyenne', 'Moyenne'],
-            ['grande', 'Grande'],
+            ['petite', t('reglages.taille.petite')],
+            ['moyenne', t('reglages.taille.moyenne')],
+            ['grande', t('reglages.taille.grande')],
           ])}
-          <label>Grille</label>
+          <label>{t('reglages.grille')}</label>
           {choix('grille', [
-            [8, 'Serrée'],
-            [9, 'Moyenne'],
-            [10, 'Large'],
+            [8, t('reglages.grille.serree')],
+            [9, t('reglages.grille.moyenne')],
+            [10, t('reglages.grille.large')],
           ])}
-          <label>Outils de la sélection</label>
+          <label>{t('reglages.barre')}</label>
           {choix('barre', [
-            ['flottante', 'Au-dessus d’elle'],
-            ['gauche', 'Dans la barre de gauche'],
+            ['flottante', t('reglages.barre.flottante')],
+            ['gauche', t('reglages.barre.gauche')],
           ])}
-          <label>Double-clic sur le vide</label>
+          <label>{t('reglages.doubleClic')}</label>
           {choix('doubleClic', [
-            [true, 'Crée une note'],
-            [false, 'Ne fait rien'],
+            [true, t('reglages.doubleClic.note')],
+            [false, t('reglages.doubleClic.rien')],
+          ])}
+          <label>{t('reglages.langue')}</label>
+          {choix('langue', [
+            ['auto', t('reglages.langue.auto')],
+            ['fr', t('reglages.langue.fr')],
+            ['en', t('reglages.langue.en')],
           ])}
         </div>
       </div>

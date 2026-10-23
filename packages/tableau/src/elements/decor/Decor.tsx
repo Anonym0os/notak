@@ -6,6 +6,7 @@ import { definition } from '../registre'
 import type { ContexteToile } from '../types'
 import { basculerReaction, compterReactions, etatEcheance, etiquettesDe, libelleEcheance } from './annotations'
 import { ouvrirFil, retenirContexte, useFilOuvert } from './etat'
+import { t } from '../../langue'
 
 const garder = (e: React.SyntheticEvent) => e.stopPropagation()
 
@@ -42,9 +43,9 @@ function Bande({ element, contexte, mode, ouvert }: { element: Element; contexte
     <div className="notak-decor" data-mode={mode} onPointerDown={garder} onDoubleClick={garder}>
       {etiquettes.length > 0 && (
         <div className="notak-decor-ligne">
-          {etiquettes.map((t) => (
-            <span key={t.id} className="notak-etiquette" data-fond={t.couleur} title={`Étiquette : ${t.nom}`}>
-              {t.nom}
+          {etiquettes.map((et) => (
+            <span key={et.id} className="notak-etiquette" data-fond={et.couleur} title={t('decor.etiquette', { nom: et.nom })}>
+              {et.nom}
             </span>
           ))}
         </div>
@@ -52,7 +53,7 @@ function Bande({ element, contexte, mode, ouvert }: { element: Element; contexte
       {(element.echeance || element.assigne || messages > 0 || reactions.length > 0) && (
         <div className="notak-decor-ligne">
           {element.echeance && (
-            <span className="notak-echeance" data-etat={etatEcheance(element.echeance)} title={`Échéance : ${element.echeance}`}>
+            <span className="notak-echeance" data-etat={etatEcheance(element.echeance)} title={t('decor.echeanceLe', { jour: element.echeance })}>
               <span aria-hidden>📅</span> {libelleEcheance(element.echeance)}
             </span>
           )}
@@ -60,8 +61,8 @@ function Bande({ element, contexte, mode, ouvert }: { element: Element; contexte
             <span
               className="notak-assigne"
               style={element.assigne.couleur ? { background: element.assigne.couleur } : undefined}
-              title={`Confié à ${element.assigne.nom}`}
-              aria-label={`Confié à ${element.assigne.nom}`}
+              title={t('decor.confieANom', { nom: element.assigne.nom })}
+              aria-label={t('decor.confieANom', { nom: element.assigne.nom })}
             >
               {initiales(element.assigne.nom)}
             </span>
@@ -72,7 +73,7 @@ function Bande({ element, contexte, mode, ouvert }: { element: Element; contexte
               className="notak-decor-fil"
               data-resolu={element.commentaire?.resolu || undefined}
               aria-expanded={ouvert}
-              title={ouvert ? 'Fermer les commentaires' : 'Ouvrir les commentaires'}
+              title={ouvert ? t('decor.fermerCommentaires') : t('decor.ouvrirCommentaires')}
               onClick={() => ouvrirFil(ouvert ? null : element.id)}
             >
               <span aria-hidden>💬</span> {messages}
@@ -85,7 +86,7 @@ function Bande({ element, contexte, mode, ouvert }: { element: Element; contexte
               className="notak-reaction"
               aria-pressed={r.moi}
               disabled={!ecrire}
-              title={r.moi ? 'Retirer ma réaction' : 'Réagir aussi'}
+              title={r.moi ? t('decor.retirerReaction') : t('decor.reagirAussi')}
               onClick={() => reagir(r.emoji)}
             >
               <span aria-hidden>{r.emoji}</span> {r.n}
@@ -102,7 +103,7 @@ function Bande({ element, contexte, mode, ouvert }: { element: Element; contexte
 export function Pastille({ element, contexte }: { element: Element; contexte: ContexteToile }) {
   const def = definition(element.contenu.type)
   const glyphe: ReactNode = def?.outils?.[0]?.icone ?? '▫️'
-  const texte = def?.resume?.(element.contenu as never, contexte).trim() || def?.nom || 'Élément'
+  const texte = def?.resume?.(element.contenu as never, contexte).trim() || def?.nom || t('menu.element')
   return (
     <div className="notak-icone" title={texte}>
       <span className="notak-icone-glyphe" aria-hidden>

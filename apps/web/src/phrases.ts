@@ -1,46 +1,29 @@
+import { t, tn } from './langue'
 import type { GenreActivite, GroupeActivite } from './api'
 
-/** Pour chaque type d'élément : l'article indéfini, le singulier, le pluriel. */
-const TYPES: Record<string, [string, string, string]> = {
-  note: ['une', 'note', 'notes'],
-  colonne: ['une', 'colonne', 'colonnes'],
-  image: ['une', 'image', 'images'],
-  lien: ['un', 'lien', 'liens'],
-  taches: ['une', 'liste de tâches', 'listes de tâches'],
-  tableau: ['un', 'tableau', 'tableaux'],
-  fichier: ['un', 'fichier', 'fichiers'],
-  ligne: ['une', 'ligne', 'lignes'],
-  commentaire: ['un', 'commentaire', 'commentaires'],
-}
+/** Les types d'élément qu'on sait nommer (accord et article) ; un autre est un « élément ». */
+const TYPES = ['note', 'colonne', 'image', 'lien', 'taches', 'tableau', 'fichier', 'ligne', 'commentaire']
 
 /** « une note », « 3 notes » ; un type inconnu est un élément. */
 export function nomDuType(type: string, n: number): string {
-  const [article, singulier, pluriel] = TYPES[type] ?? ['un', 'élément', 'éléments']
-  return n === 1 ? `${article} ${singulier}` : `${n} ${pluriel}`
+  return tn(TYPES.includes(type) ? `activite.type.${type}` : 'activite.type.inconnu', n)
 }
 
-const PARTICIPES: Record<Exclude<GenreActivite, 'titre'>, string> = {
-  cree: 'créé',
-  commente: 'commenté',
-  modifie: 'modifié',
-  deplace: 'déplacé',
-  restaure: 'rétabli',
-  supprime: 'jeté',
-}
-const ORDRE = ['cree', 'commente', 'modifie', 'deplace', 'restaure', 'supprime'] as const
+const ORDRE = ['cree', 'commente', 'modifie', 'deplace', 'restaure', 'supprime'] as const satisfies readonly Exclude<GenreActivite, 'titre'>[]
 
 /**
  * Ce que dit un groupe, sans le nom de la personne : « a créé 3 notes, modifié un lien ».
  * Le type n'est nommé que si tous les éléments montrés en sont du même ; sinon, ce sont des éléments.
+ * `vous` : la personne, c'est soi (« avez créé »).
  */
-export function phraseDuGroupe(g: GroupeActivite): string {
+export function phraseDuGroupe(g: GroupeActivite, vous = false): string {
   const types = new Set(g.elements.map((e) => e.typeElement))
   const type = types.size === 1 ? [...types][0]! : ''
   const parties: string[] = ORDRE.flatMap((genre) => {
     const n = g.resume[genre]
     if (!n) return []
-    return [`${PARTICIPES[genre]} ${type ? nomDuType(type, n) : n === 1 ? 'un élément' : `${n} éléments`}`]
+    return [t('activite.partie', { participe: t(`activite.${genre}`), objet: type ? nomDuType(type, n) : nomDuType('', n) })]
   })
-  if (g.resume.titre) parties.push('renommé le tableau')
-  return parties.length === 0 ? '' : `a ${parties.join(', ')}`
+  if (g.resume.titre) parties.push(t('activite.renomme'))
+  return parties.length === 0 ? '' : t(vous ? 'activite.phrase.vous' : 'activite.phrase', { liste: parties.join(', ') })
 }

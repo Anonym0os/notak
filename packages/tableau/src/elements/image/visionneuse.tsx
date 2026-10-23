@@ -1,6 +1,7 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import type { Id } from '../../coeur/tableau'
+import { t } from '../../langue'
 
 /** L'image montrée en grand, une seule à la fois : la carte qui la porte l'affiche par-dessus la page. */
 let ouverte: Id | null = null
@@ -32,7 +33,7 @@ export function Visionneuse({ adresse, legende }: { adresse: string; legende?: s
     return () => document.removeEventListener('keydown', touche, true)
   }, [])
   return createPortal(
-    <div className="notak-visionneuse" role="dialog" aria-label={legende || 'Image'} onPointerDown={() => ouvrirImage(null)}>
+    <div className="notak-visionneuse" role="dialog" aria-label={legende || t('type.image')} onPointerDown={() => ouvrirImage(null)}>
       <img src={adresse} alt={legende ?? ''} />
       {legende && <p>{legende}</p>}
     </div>,

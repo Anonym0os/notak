@@ -1,4 +1,5 @@
 import type { CauseEchec } from '../../coeur/tableau'
+import { t } from '../../langue'
 
 const CAUSES: readonly CauseEchec[] = ['introuvable', 'refuse', 'injoignable', 'delai', 'interdit', 'illisible']
 
@@ -12,18 +13,18 @@ export function lireCause(erreur: unknown): CauseEchec | undefined {
 export function messageEchec(cause: CauseEchec | undefined): string {
   switch (cause) {
     case 'introuvable':
-      return 'Page introuvable : l’adresse n’existe plus ou comporte une faute.'
+      return t('lien.echec.introuvable')
     case 'refuse':
-      return 'Le site refuse qu’on lise sa page.'
+      return t('lien.echec.refuse')
     case 'injoignable':
-      return 'Site injoignable : vérifiez l’adresse.'
+      return t('lien.echec.injoignable')
     case 'delai':
-      return 'Le site a mis trop de temps à répondre.'
+      return t('lien.echec.delai')
     case 'interdit':
-      return 'Cette adresse ne peut pas être lue ici.'
+      return t('lien.echec.interdit')
     case 'illisible':
-      return 'La page n’a rien d’affichable.'
+      return t('lien.echec.illisible')
     default:
-      return 'Aperçu indisponible.'
+      return t('lien.echec.defaut')
   }
 }

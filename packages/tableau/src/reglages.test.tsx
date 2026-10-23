@@ -109,3 +109,23 @@ describe('section Compte des réglages', () => {
     expect(appels).toEqual(['photo:moi.png'])
   })
 })
+
+describe('langue des réglages', () => {
+  it('propose automatique, français et anglais, et passe l’interface en anglais', async () => {
+    const { definirLangue } = await import('./langue')
+    const choisis: unknown[] = []
+    act(() => racine.render(<FenetreReglages reglages={reglages} changer={(r) => choisis.push(r)} fermer={() => {}} />))
+    const boutons = [...hote.querySelectorAll<HTMLElement>('[role="radio"]')].map((b) => b.textContent)
+    expect(boutons).toEqual(expect.arrayContaining(['Automatique (navigateur)', 'Français', 'English']))
+    ;[...hote.querySelectorAll<HTMLElement>('[role="radio"]')].find((b) => b.textContent === 'English')?.click()
+    expect(choisis).toEqual([{ langue: 'en' }])
+    try {
+      definirLangue('en')
+      act(() => racine.render(<FenetreReglages reglages={{ ...reglages, langue: 'en' }} changer={() => {}} fermer={() => {}} />))
+      expect(hote.querySelector('[role="dialog"]')?.getAttribute('aria-label')).toBe('Settings')
+      expect(hote.textContent).toContain('Interface size')
+    } finally {
+      definirLangue('fr')
+    }
+  })
+})

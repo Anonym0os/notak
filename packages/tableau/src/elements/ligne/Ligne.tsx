@@ -1,3 +1,4 @@
+import { t } from "../../langue";
 import {
   useEffect,
   useLayoutEffect,
@@ -372,7 +373,7 @@ function ChampLibelle({
         data-edition
         value={texte}
         maxLength={LIBELLE_MAX}
-        aria-label="Libellé"
+        aria-label={t('ligne.libelle')}
         style={{ background: couleur, color: couleurTexteSur(couleur) }}
         onChange={(e) => setTexte(e.target.value)}
         onBlur={() => valider(false)}

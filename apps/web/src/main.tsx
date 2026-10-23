@@ -32,6 +32,7 @@ import { Partage } from './Partage'
 import { PlusEntete } from './PlusEntete'
 import { enregistrerServiceWorker } from './pwa'
 import { VerrouTableau } from './Verrou'
+import { t } from './langue'
 
 /**
  * Les tableaux du compte, pour les citer avec `[[` dans une note : gardés en mémoire, relus au chargement et quand
@@ -233,12 +234,12 @@ function BandeauImport({ moi, espace }: { moi: Moi; espace: EspaceDistant }) {
   }
   return (
     <aside className="bandeau" role="status">
-      <span>{etat === 'echec' ? 'Import impossible pour le moment.' : 'Un tableau de cet appareil attend.'}</span>
+      <span>{etat === 'echec' ? t('bandeau.echec') : t('bandeau.attend')}</span>
       <button type="button" className="bouton bouton-plein" disabled={etat === 'cours'} onClick={importer}>
-        {etat === 'echec' ? 'Réessayer' : 'Importer mon tableau local'}
+        {etat === 'echec' ? t('bandeau.reessayer') : t('bandeau.importer')}
       </button>
       <button type="button" className="bouton-lien" onClick={fermer}>
-        Non merci
+        {t('bandeau.nonMerci')}
       </button>
     </aside>
   )

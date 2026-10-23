@@ -3,6 +3,7 @@ import type { Id, Image } from '../../coeur/tableau'
 import type { ContexteToile } from '../types'
 import { miseEnPage, proportionsAffichees } from './geometrie'
 import { CADRE_PLEIN, type Cadre, type Poignee, avecRecadrage, deplacerCadre, tirerCadre } from './recadrage'
+import { t } from '../../langue'
 
 /** L'image dont on règle le recadrage, une seule à la fois. */
 let ouvert: Id | null = null
@@ -99,13 +100,13 @@ export function Recadreur({ id, contenu, adresse, contexte }: { id: Id; contenu:
       </div>
       <div className="notak-recadreur-actions">
         <button type="button" onClick={valider}>
-          Valider
+          {t('recadreur.valider')}
         </button>
         <button type="button" onClick={() => recadrer(null)}>
-          Annuler
+          {t('commun.annuler')}
         </button>
         <button type="button" onClick={() => setCadre(CADRE_PLEIN)}>
-          Toute l’image
+          {t('recadreur.toute')}
         </button>
       </div>
     </div>

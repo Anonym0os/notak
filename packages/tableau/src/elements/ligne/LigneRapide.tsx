@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { t } from "../../langue";
 import { PX_PAR_UG, versEcran } from "../../coeur/camera";
 import { type Point, centre, point } from "../../coeur/geometrie";
 import { TAILLE_POINTE, sommetsFleche, tracer } from "../../coeur/lignes";
@@ -105,7 +106,7 @@ export function LigneRapide({ elements, contexte }: { elements: Element[]; conte
               className="notak-ligne-rapide"
               data-tirage={apercu ? "" : undefined}
               style={{ left: coin.x, top: coin.y }}
-              title="Glisser pour tirer une ligne"
+              title={t('ligne.glisser')}
               onPointerDown={commencer}
               onDoubleClick={(e) => e.stopPropagation()}
             >

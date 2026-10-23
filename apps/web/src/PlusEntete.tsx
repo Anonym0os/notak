@@ -1,3 +1,4 @@
+import { t } from './langue'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 
 /**
@@ -24,7 +25,7 @@ export function PlusEntete({ children }: { children: ReactNode }) {
   }, [ouvert])
   return (
     <div className="plus-entete" ref={boite}>
-      <button type="button" className="bouton" title="Plus d’actions" aria-expanded={ouvert} onClick={() => setOuvert((o) => !o)}>
+      <button type="button" className="bouton" title={t('plus.actions')} aria-expanded={ouvert} onClick={() => setOuvert((o) => !o)}>
         …
       </button>
       <div className="plus-entete-menu" hidden={!ouvert}>

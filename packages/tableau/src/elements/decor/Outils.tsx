@@ -7,6 +7,7 @@ import { PanneauEtiquettes } from './Etiquettes'
 import { appliquerAffichage, estReduit, peutSeReduire } from './affichage'
 import { ECHEANCE, EMOJIS, basculerReaction, pasPour } from './annotations'
 import { ouvrirFil, useFilOuvert } from './etat'
+import { t } from '../../langue'
 
 interface Props {
   elements: Element[]
@@ -32,7 +33,7 @@ function Menu({ titre, libelle, children }: { titre: string; libelle: string; ch
 
 export function OutilEtiquettes({ elements, contexte }: Props) {
   return (
-    <Menu titre="Étiquettes" libelle="Étiquettes">
+    <Menu titre={t('etiquettes.titre')} libelle={t('etiquettes.titre')}>
       {() => <PanneauEtiquettes elements={elements} contexte={contexte} />}
     </Menu>
   )
@@ -53,11 +54,11 @@ export function OutilReactions({ elements, contexte }: Props) {
     fermer()
   }
   return (
-    <Menu titre="Réagir avec un émoji" libelle="Réagir">
+    <Menu titre={t('decor.reagirEmoji')} libelle={t('decor.reagir')}>
       {(fermer) => (
         <div className="notak-decor-emojis">
           {EMOJIS.map((m) => (
-            <button key={m} type="button" role="menuitem" aria-label={`Réagir avec ${m}`} onClick={() => reagir(m, fermer)}>
+            <button key={m} type="button" role="menuitem" aria-label={t('decor.reagirAvec', { emoji: m })} onClick={() => reagir(m, fermer)}>
               {m}
             </button>
           ))}
@@ -85,19 +86,19 @@ export function OutilEcheance({ elements, contexte }: Props) {
   const echeance = (jour: string | null) => contexte.magasin.faire(pasPour(elements, (e) => annoter(e, { echeance: jour })))
   const assigner = (p: Auteur | null) => contexte.magasin.faire(pasPour(elements, (e) => annoter(e, { assigne: p })))
   return (
-    <Menu titre="Échéance et personne assignée" libelle="Échéance">
+    <Menu titre={t('decor.echeanceTitre')} libelle={t('decor.echeance')}>
       {() => (
         <div className="notak-decor-echeance">
           <label>
-            <span>Pour le</span>
-            <input type="date" value={commune ?? ''} onChange={(e) => (ECHEANCE.test(e.target.value) ? echeance(e.target.value) : undefined)} aria-label="Échéance" />
+            <span>{t('decor.pourLe')}</span>
+            <input type="date" value={commune ?? ''} onChange={(e) => (ECHEANCE.test(e.target.value) ? echeance(e.target.value) : undefined)} aria-label={t('decor.echeance')} />
           </label>
           {elements.some((e) => e.echeance) && (
             <button type="button" className="notak-etiquettes-lien" onClick={() => echeance(null)}>
-              Retirer l’échéance
+              {t('decor.retirerEcheance')}
             </button>
           )}
-          <span className="notak-decor-titre">Confié à</span>
+          <span className="notak-decor-titre">{t('decor.confieA')}</span>
           {personnes(contexte).map((p) => (
             <button key={p.id} type="button" role="menuitemradio" aria-checked={assigneCommun === p.id} onClick={() => assigner(assigneCommun === p.id ? null : p)}>
               {assigneCommun === p.id ? '✓ ' : ''}
@@ -106,7 +107,7 @@ export function OutilEcheance({ elements, contexte }: Props) {
           ))}
           {elements.some((e) => e.assigne) && (
             <button type="button" className="notak-etiquettes-lien" onClick={() => assigner(null)}>
-              Ne plus confier
+              {t('decor.neplusConfier')}
             </button>
           )}
         </div>
@@ -121,8 +122,8 @@ export function OutilAffichage({ elements, contexte }: Props) {
   const toutIcone = elements.every(estReduit)
   const basculer = () => appliquerAffichage(elements, !toutIcone, contexte)
   return (
-    <button type="button" title={elements.every((e) => e.contenu.type === 'colonne') ? (toutIcone ? 'Déplier' : 'Replier en icône') : toutIcone ? 'Afficher en détail' : 'Afficher en icône'} aria-pressed={toutIcone} onClick={basculer}>
-      {toutIcone ? 'Détail' : 'Icône'}
+    <button type="button" title={elements.every((e) => e.contenu.type === 'colonne') ? (toutIcone ? t('decor.deplier') : t('decor.replierIcone')) : toutIcone ? t('menu.enDetail') : t('menu.enIcone')} aria-pressed={toutIcone} onClick={basculer}>
+      {toutIcone ? t('decor.detail') : t('tableau.icone')}
     </button>
   )
 }
@@ -134,8 +135,8 @@ export function OutilCommentaire({ elements, contexte }: Props) {
   // En lecture seule, on ne rouvre un fil que s'il y en a un.
   if (contexte.services.lectureSeule && !e.commentaire?.messages.length) return null
   return (
-    <button type="button" title="Commentaires sur cet élément" aria-pressed={ouvert === e.id} onClick={() => ouvrirFil(ouvert === e.id ? null : e.id)}>
-      Commenter
+    <button type="button" title={t('decor.commentairesSur')} aria-pressed={ouvert === e.id} onClick={() => ouvrirFil(ouvert === e.id ? null : e.id)}>
+      {t('menu.commenter')}
     </button>
   )
 }

@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { type GenreNotification, type ListeNotifications, type Notification, listerNotifications, marquerLues } from './api'
 import { quand } from './Activite'
+import { t, tn } from './langue'
 
 const RAFRAICHIR_MS = 30_000
 
 const TEXTES: Record<GenreNotification, (n: Notification) => string> = {
-  commentaire: (n) => `${n.auteur.nom} a commenté dans « ${n.titreTableau || 'Sans titre'} »`,
-  mention: (n) => `${n.auteur.nom} vous a cité dans « ${n.titreTableau || 'Sans titre'} »`,
-  modification: (n) => `${n.auteur.nom} a modifié « ${n.titreTableau || 'Sans titre'} »`,
-  partage: (n) => `${n.auteur.nom} a partagé « ${n.titreTableau || 'Sans titre'} » avec vous`,
+  commentaire: (n) => t('cloche.commentaire', { nom: n.auteur.nom, tableau: n.titreTableau || t('commun.sansTitre') }),
+  mention: (n) => t('cloche.mention', { nom: n.auteur.nom, tableau: n.titreTableau || t('commun.sansTitre') }),
+  modification: (n) => t('cloche.modification', { nom: n.auteur.nom, tableau: n.titreTableau || t('commun.sansTitre') }),
+  partage: (n) => t('cloche.partage', { nom: n.auteur.nom, tableau: n.titreTableau || t('commun.sansTitre') }),
 }
 
 /** La cloche de l'en-tête : le nombre de notifications non lues, et leur liste. */
@@ -73,23 +74,23 @@ export function Cloche({ ouvrir }: { ouvrir(tableau: string): void }) {
         type="button"
         className="bouton bouton-cloche"
         aria-expanded={ouvert}
-        title={nonLues > 0 ? `${nonLues} notification${nonLues > 1 ? 's' : ''} non lue${nonLues > 1 ? 's' : ''}` : 'Notifications'}
+        title={nonLues > 0 ? tn('cloche.nonLues', nonLues) : t('cloche.titre')}
         onClick={() => setOuvert((o) => !o)}
       >
         <span aria-hidden>🔔</span>
-        <span className="sr-seulement">Notifications</span>
+        <span className="sr-seulement">{t('cloche.titre')}</span>
         {nonLues > 0 && <span className="cloche-compte">{nonLues > 99 ? '99+' : nonLues}</span>}
       </button>
       {ouvert && (
-        <div className="cloche-panneau" role="dialog" aria-label="Notifications">
+        <div className="cloche-panneau" role="dialog" aria-label={t('cloche.titre')}>
           <div className="cloche-tete">
-            <strong>Notifications</strong>
+            <strong>{t('cloche.titre')}</strong>
             <button type="button" className="bouton-lien" disabled={nonLues === 0} onClick={() => lire()}>
-              Tout marquer comme lu
+              {t('cloche.toutLu')}
             </button>
           </div>
-          {erreur && !liste && <p className="partage-note">Notifications indisponibles.</p>}
-          {liste && liste.notifications.length === 0 && <p className="partage-note">Rien de neuf. Les commentaires, les mentions et les modifications des autres arriveront ici.</p>}
+          {erreur && !liste && <p className="partage-note">{t('cloche.indisponibles')}</p>}
+          {liste && liste.notifications.length === 0 && <p className="partage-note">{t('cloche.rien')}</p>}
           <ul className="cloche-liste">
             {liste?.notifications.map((n) => (
               <li key={n.id} data-lu={n.lu || undefined}>

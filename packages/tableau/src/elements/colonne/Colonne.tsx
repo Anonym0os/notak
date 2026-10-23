@@ -4,6 +4,7 @@ import { COULEURS_NOTE, type Colonne, type CouleurNote } from '../../coeur/table
 import { composition } from '../composition'
 import { LIBELLES_COULEUR } from '../note/couleurs'
 import type { PropsOutils, PropsRendu } from '../types'
+import { t } from '../../langue'
 
 /** Le titre en édition : tout le texte est choisi à l'ouverture, Entrée valide (Échap est géré par la toile). */
 function Saisie({ titre, surChangement, valider }: { titre: string; surChangement(t: string): void; valider(): void }) {
@@ -17,7 +18,7 @@ function Saisie({ titre, surChangement, valider }: { titre: string; surChangemen
       ref={champ}
       className="notak-colonne-saisie"
       defaultValue={titre}
-      aria-label="Titre"
+      aria-label={t('colonne.titre')}
       maxLength={100}
       spellCheck={false}
       onChange={(e) => surChangement(e.target.value)}
@@ -58,14 +59,14 @@ export function RenduColonne({ element, choisie, enEdition, contexte, brouillon,
           <Saisie titre={contenu.titre} surChangement={(titre) => brouillon({ ...contenu, titre: titre.trim() ? titre : contenu.titre })} valider={contexte.finirEdition} />
         ) : (
           <span className="notak-colonne-titre" data-vide={contenu.titre ? undefined : true}>
-            {contenu.titre || 'Colonne'}
+            {contenu.titre || t('type.colonne')}
           </span>
         )}
         <button
           type="button"
           className="notak-colonne-plier"
-          title={contenu.repliee ? 'Déplier' : 'Replier'}
-          aria-label={contenu.repliee ? 'Déplier' : 'Replier'}
+          title={contenu.repliee ? t('decor.deplier') : t('colonne.replier')}
+          aria-label={contenu.repliee ? t('decor.deplier') : t('colonne.replier')}
           aria-expanded={!contenu.repliee}
           onPointerDown={(e) => e.stopPropagation()}
           onDoubleClick={(e) => e.stopPropagation()}
@@ -84,7 +85,7 @@ export function RenduColonne({ element, choisie, enEdition, contexte, brouillon,
           </div>
         ) : (
           <div className="notak-colonne-vide" data-depot>
-            Déposer ici
+            {t('colonne.deposer')}
           </div>
         ))}
       {enfants.length > 0 && <div className="notak-colonne-compte">{composition(enfants)}</div>}
@@ -107,13 +108,13 @@ export function OutilsColonne({ elements, contexte }: PropsOutils<Colonne>) {
   const actuelle = elements.every((e) => e.contenu.couleur === elements[0]!.contenu.couleur) ? elements[0]!.contenu.couleur : undefined
   return (
     <div className="notak-colonne-menu-ancre">
-      <button type="button" title="Couleur" aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
-        Couleur
+      <button type="button" title={t('couleur.titre')} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
+        {t('couleur.titre')}
       </button>
       {ouvert && (
         <div className="notak-colonne-palette" role="menu">
           <button type="button" role="menuitem" aria-pressed={actuelle === undefined} onClick={() => choisir(undefined)}>
-            Aucune
+            {t('couleur.aucune')}
           </button>
           <div className="notak-colonne-pastilles">
             {COULEURS_NOTE.map((c) => (

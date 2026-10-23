@@ -1,4 +1,5 @@
 import type { GenreLien, Lien } from '../../coeur/tableau'
+import { t } from '../../langue'
 const LONGUEUR_MAX = 300
 
 /**
@@ -39,10 +40,18 @@ export function domaineDe(url: string): string {
 
 /** Ce que la saisie d'adresse demande, selon l'outil qui a fait naître le lien. */
 export const INVITES: Record<GenreLien | 'lien', string> = {
-  lien: 'Adresse',
-  video: 'Adresse de la vidéo',
-  audio: 'Adresse du morceau ou du podcast',
-  carte: 'Adresse de la carte',
+  get lien() {
+    return t('lien.invite.lien')
+  },
+  get video() {
+    return t('lien.invite.video')
+  },
+  get audio() {
+    return t('lien.invite.audio')
+  },
+  get carte() {
+    return t('lien.invite.carte')
+  },
 }
 
 /** Le lien à une autre adresse : son aperçu est à refaire, mais son genre et ses réglages d'affichage restent. */

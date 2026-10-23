@@ -4,6 +4,7 @@ import type { Element, Id, Ligne } from '../../coeur/tableau'
 import { definition } from '../registre'
 import type { ContexteToile, EntreeMenu, Raccourci } from '../types'
 import { nouvelleLigne } from './creation'
+import { t } from '../../langue'
 
 const libre = (e: Element) => !e.parent && definition(e.contenu.type)?.calque !== 'lignes'
 
@@ -14,7 +15,9 @@ export const raccourciRelier: Raccourci = (e, contexte) => {
 }
 
 export const entreeRelier: EntreeMenu = {
-  libelle: 'Relier par des lignes',
+  get libelle() {
+    return t('menu.relier')
+  },
   raccourci: '⌘K',
   visible: (elements) => elements.filter(libre).length >= 2,
   faire: (_e, contexte) => void relierChoisis(contexte),

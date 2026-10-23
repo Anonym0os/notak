@@ -1,3 +1,4 @@
+import { t } from './langue'
 import { useEffect, useState } from 'react'
 import { definirFavori, listerFavoris, noterVu } from './api'
 
@@ -34,11 +35,11 @@ export function Favori({ tableau, accueil }: { tableau: string; accueil: string 
       className="bouton bouton-etoile"
       disabled={favori === null}
       aria-pressed={favori === true}
-      title={favori ? 'Retirer des favoris' : 'Mettre en favori'}
+      title={favori ? t('favori.retirer') : t('favori.mettre')}
       onClick={bascule}
     >
       <span aria-hidden>{favori ? '★' : '☆'}</span>
-      <span className="sr-seulement">{favori ? 'Retirer des favoris' : 'Mettre en favori'}</span>
+      <span className="sr-seulement">{favori ? t('favori.retirer') : t('favori.mettre')}</span>
     </button>
   )
 }

@@ -6,6 +6,7 @@ import type { PropsOutils } from '../types'
 import { demanderModele } from './modele'
 import { peutPoserModele } from './poserModele'
 import { demanderRenommage } from './renommage'
+import { t } from '../../langue'
 
 const sans = () => () => {}
 
@@ -32,8 +33,8 @@ function ChoixIcone({ elements, contexte }: PropsOutils<RenvoiTableau>) {
   }
   return (
     <div className="notak-colonne-menu-ancre">
-      <button type="button" title="Icône du tableau" aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
-        Icône
+      <button type="button" title={t('tableau.icone.titre')} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
+        {t('tableau.icone')}
       </button>
       {ouvert && (
         <div className="notak-colonne-palette" role="menu">
@@ -63,7 +64,7 @@ function ChoixIcone({ elements, contexte }: PropsOutils<RenvoiTableau>) {
               setOuvert(false)
             }}
           >
-            Initiale
+            {t('tableau.initiale')}
           </button>
           {depot && (
             <button
@@ -74,7 +75,7 @@ function ChoixIcone({ elements, contexte }: PropsOutils<RenvoiTableau>) {
                 envoyer()
               }}
             >
-              Une image…
+              {t('tableau.uneImage')}
             </button>
           )}
         </div>
@@ -99,8 +100,8 @@ export function OutilsRenvoi({ elements, contexte }: PropsOutils<RenvoiTableau>)
     <>
       {colorerTableau && (
         <div className="notak-colonne-menu-ancre">
-          <button type="button" title="Couleur du tableau" aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
-            Couleur
+          <button type="button" title={t('tableau.couleur')} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
+            {t('couleur.titre')}
           </button>
           {ouvert && (
             <div className="notak-colonne-palette" role="menu">
@@ -124,13 +125,13 @@ export function OutilsRenvoi({ elements, contexte }: PropsOutils<RenvoiTableau>)
       )}
       {!contexte.services.lectureSeule && <ChoixIcone elements={elements} contexte={contexte} />}
       {elements.length === 1 && peutPoserModele(elements[0]!.contenu.cible, contexte.services) && (
-        <button type="button" title="Remplir ce tableau vide avec un modèle" onClick={() => demanderModele(elements[0]!.id)}>
-          Modèle
+        <button type="button" title={t('tableau.modele.titre')} onClick={() => demanderModele(elements[0]!.id)}>
+          {t('tableau.modele')}
         </button>
       )}
       {elements.length === 1 && (
-        <button type="button" title="Renommer le tableau" onClick={() => demanderRenommage(elements[0]!.id)}>
-          Renommer
+        <button type="button" title={t('tableau.renommer.titre')} onClick={() => demanderRenommage(elements[0]!.id)}>
+          {t('menu.renommer')}
         </button>
       )}
     </>

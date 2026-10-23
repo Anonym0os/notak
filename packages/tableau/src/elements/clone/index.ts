@@ -4,6 +4,7 @@ import type { ContexteToile } from '../types'
 import { OutilsClone, RenduClone } from './Clone'
 import './clone.css'
 import { RESUME_SANS_ORIGINAL, cibleDe, clonesEmportes, nouveauClone, originalAffichable, originalDe, peutCloner, placeAcote } from './original'
+import { t } from '../../langue'
 
 /**
  * Les clones de ces éléments, posés à côté de chacun. Un élément déjà clone donne un clone de son original.
@@ -23,7 +24,9 @@ export function cloner(elements: readonly Element[], contexte: ContexteToile) {
 
 registre.type<Clone>({
   type: 'clone',
-  nom: 'Clone',
+  get nom() {
+    return t('type.clone')
+  },
   resume: (c, contexte) => {
     const original = originalAffichable(contexte.magasin.lire().elements, c.cible)
     const texte = original && definition(original.contenu.type)?.resume?.(original.contenu as never, contexte)
@@ -44,7 +47,9 @@ registre.type<Clone>({
   suivant: () => null,
   outils: [
     {
-      libelle: 'Clone',
+      get libelle() {
+        return t('type.clone')
+      },
       icone: '⧉',
       rang: 150,
       tiroir: true,
@@ -64,7 +69,9 @@ const clonables = (elements: readonly Element[]) =>
   elements.length > 0 && elements.every((e) => peutCloner(e.contenu as Contenu) || e.contenu.type === 'clone')
 
 registre.entreeMenu({
-  libelle: 'Cloner',
+  get libelle() {
+    return t('clone.cloner')
+  },
   visible: (elements, contexte) => clonables(elements) && !contexte.services.lectureSeule,
   faire: (elements, contexte) => cloner(elements, contexte),
 })

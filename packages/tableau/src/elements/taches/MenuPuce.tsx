@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { type GenrePuce, type Personne, decaler, initiales, jourDe, teinteDe } from './puces'
+import { t } from '../../langue'
 
 /** Où le menu s'ouvre : sous la puce touchée, en coordonnées d'écran. */
 export interface OuverturePuce {
@@ -62,20 +63,20 @@ export function MenuPuce({ ouverture, valeur, personnes, regler, fermer }: {
         <>
           <input
             type="date"
-            aria-label="Échéance"
+            aria-label={t('decor.echeance')}
             value={valeur ?? ''}
             autoFocus
             onChange={(e) => e.target.value && choisir(e.target.value)}
           />
           <div className="notak-menu-puce-raccourcis">
             <button type="button" role="menuitem" onClick={() => choisir(aujourdhui)}>
-              Aujourd'hui
+              {t('taches.aujourdhui')}
             </button>
             <button type="button" role="menuitem" onClick={() => choisir(decaler(aujourdhui, 1))}>
-              Demain
+              {t('taches.demain')}
             </button>
             <button type="button" role="menuitem" onClick={() => choisir(decaler(aujourdhui, 7))}>
-              Dans une semaine
+              {t('taches.semaine')}
             </button>
           </div>
         </>
@@ -83,8 +84,8 @@ export function MenuPuce({ ouverture, valeur, personnes, regler, fermer }: {
         <>
           <input
             type="text"
-            aria-label="Nom"
-            placeholder="Un nom…"
+            aria-label={t('taches.nom')}
+            placeholder={t('taches.unNom')}
             value={nom}
             autoFocus
             onChange={(e) => setNom(e.target.value)}

@@ -1,3 +1,4 @@
+import { t } from './langue'
 import { type FormEvent, useState } from 'react'
 import { type Moi, seConnecter, sInscrire } from './api'
 
@@ -13,15 +14,15 @@ export function EcranConnexion({ surConnexion }: { surConnexion(moi: Moi): void 
   const valider = async (e: FormEvent) => {
     e.preventDefault()
     const adresse = email.trim().toLowerCase()
-    if (!adresse.includes('@')) return setErreur('Adresse invalide')
-    if (inscription && !nom.trim()) return setErreur('Dis-nous ton nom')
-    if (inscription && motDePasse.length < 8) return setErreur('8 caractères au moins')
+    if (!adresse.includes('@')) return setErreur(t('connexion.adresseInvalide'))
+    if (inscription && !nom.trim()) return setErreur(t('connexion.nomRequis'))
+    if (inscription && motDePasse.length < 8) return setErreur(t('connexion.mdpCourt'))
     setErreur(null)
     setEnvoi(true)
     try {
       surConnexion(inscription ? await sInscrire(adresse, motDePasse, nom.trim()) : await seConnecter(adresse, motDePasse))
     } catch (x) {
-      setErreur(x instanceof Error ? x.message : 'Échec')
+      setErreur(x instanceof Error ? x.message : t('commun.echec'))
       setEnvoi(false)
     }
   }
@@ -37,12 +38,12 @@ export function EcranConnexion({ surConnexion }: { surConnexion(moi: Moi): void 
         <h1>Notak</h1>
         {inscription && (
           <label>
-            Nom
+            {t('connexion.nom')}
             <input value={nom} onChange={(e) => setNom(e.target.value)} autoComplete="name" autoFocus />
           </label>
         )}
         <label>
-          Adresse
+          {t('connexion.adresse')}
           <input
             type="email"
             value={email}
@@ -52,7 +53,7 @@ export function EcranConnexion({ surConnexion }: { surConnexion(moi: Moi): void 
           />
         </label>
         <label>
-          Mot de passe
+          {t('connexion.mdp')}
           <input
             type="password"
             value={motDePasse}
@@ -66,10 +67,10 @@ export function EcranConnexion({ surConnexion }: { surConnexion(moi: Moi): void 
           </p>
         )}
         <button type="submit" className="bouton bouton-plein" disabled={envoi}>
-          {inscription ? 'Créer un compte' : 'Se connecter'}
+          {inscription ? t('connexion.creer') : t('connexion.seConnecter')}
         </button>
         <button type="button" className="bouton-lien" onClick={basculer}>
-          {inscription ? 'J’ai déjà un compte' : 'Créer un compte'}
+          {inscription ? t('connexion.dejaCompte') : t('connexion.creer')}
         </button>
       </form>
     </main>

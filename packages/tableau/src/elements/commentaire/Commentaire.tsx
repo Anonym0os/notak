@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { type Auteur, type Commentaire, type Message, nouvelId } from '../../coeur/tableau'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { AUTEUR_INCONNU, ajouterMessage, filVide, dateLisible, initiales, replier, resoudre, retirerMessage } from './fil'
+import { langue, t, tn } from '../../langue'
 
 /** Les boutons et le champ de la carte ne lancent pas de glisser. */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
@@ -15,7 +16,7 @@ export function RenduCommentaire({ element, choisie, enEdition, contexte, brouil
   if (c.resolu) {
     return (
       <div className="notak-commentaire" data-resolu>
-        <span className="notak-commentaire-resolu">✓ Résolu · {n} message{n > 1 ? 's' : ''}</span>
+        <span className="notak-commentaire-resolu">✓ {t('commentaire.resolu')} · {tn('commentaire.messages', n)}</span>
         {c.messages[0] && <p className="notak-commentaire-extrait">{c.messages[0].texte}</p>}
       </div>
     )
@@ -25,20 +26,20 @@ export function RenduCommentaire({ element, choisie, enEdition, contexte, brouil
   return (
     <div className="notak-commentaire">
       {n > 0 && ecrire && (
-        <button type="button" className="notak-commentaire-resoudre" title="Résoudre le fil" onPointerDown={garder} onClick={() => changer(resoudre(c, true))}>
+        <button type="button" className="notak-commentaire-resoudre" title={t('commentaire.resoudreFil')} onPointerDown={garder} onClick={() => changer(resoudre(c, true))}>
           ✓
         </button>
       )}
-      {n === 0 && <p className="notak-commentaire-vide">Commentaire vide</p>}
+      {n === 0 && <p className="notak-commentaire-vide">{t('commentaire.vide')}</p>}
       {montres.map((m, i) => (
         <div key={m.id}>
           <Ligne message={m} />
-          {i === 0 && caches > 0 && <p className="notak-commentaire-caches">{caches} autres réponses</p>}
+          {i === 0 && caches > 0 && <p className="notak-commentaire-caches">{tn('commentaire.autresReponses', caches)}</p>}
         </div>
       ))}
       {choisie && ecrire && (
         <button type="button" className="notak-commentaire-repondre" onPointerDown={garder} onClick={() => contexte.commencerEdition(element.id)}>
-          {n > 0 ? 'Répondre…' : 'Écrire un commentaire…'}
+          {n > 0 ? t('commentaire.repondrePoints') : t('commentaire.ecrire')}
         </button>
       )}
     </div>
@@ -55,11 +56,11 @@ export function Ligne({ message, retirer }: { message: Message; retirer?: () => 
       <div className="notak-commentaire-corps">
         <div className="notak-commentaire-entete">
           <strong>{auteur.nom}</strong>
-          <time dateTime={new Date(message.date).toISOString()} title={new Date(message.date).toLocaleString('fr-FR')}>
+          <time dateTime={new Date(message.date).toISOString()} title={new Date(message.date).toLocaleString(langue() === 'en' ? 'en-US' : 'fr-FR')}>
             {dateLisible(message.date)}
           </time>
           {retirer && (
-            <button type="button" className="notak-commentaire-retirer" title="Supprimer ce message" onPointerDown={garder} onClick={retirer}>
+            <button type="button" className="notak-commentaire-retirer" title={t('commentaire.supprimerMessage')} onPointerDown={garder} onClick={retirer}>
               ×
             </button>
           )}
@@ -137,7 +138,7 @@ function Fil({ id, contenu, contexte, ecrire }: { id: string; contenu: Commentai
           rows={1}
           value={texte}
           maxLength={5000}
-          placeholder={envoye.messages.length > 0 ? 'Répondre…' : 'Écrire un commentaire…'}
+          placeholder={envoye.messages.length > 0 ? t('commentaire.repondrePoints') : t('commentaire.ecrire')}
           onPointerDown={garder}
           onChange={(e) => {
             setTexte(e.target.value)
@@ -151,7 +152,7 @@ function Fil({ id, contenu, contexte, ecrire }: { id: string; contenu: Commentai
           }}
         />
       </div>
-      <p className="notak-commentaire-aide">Entrée pour envoyer · Échap pour fermer</p>
+      <p className="notak-commentaire-aide">{t('commentaire.aide')}</p>
     </div>
   )
 }
@@ -166,12 +167,12 @@ export function OutilsCommentaire({ elements, contexte }: PropsOutils<Commentair
   return (
     <>
       {elements.length === 1 && (
-        <button type="button" title="Répondre dans le fil" onClick={() => contexte.commencerEdition(elements[0]!.id)}>
-          Répondre
+        <button type="button" title={t('commentaire.repondreFil')} onClick={() => contexte.commencerEdition(elements[0]!.id)}>
+          {t('commentaire.repondre')}
         </button>
       )}
-      <button type="button" title={tousResolus ? 'Rouvrir le fil' : 'Résoudre le fil'} onClick={basculer}>
-        {tousResolus ? 'Rouvrir' : 'Résoudre'}
+      <button type="button" title={tousResolus ? t('commentaire.rouvrirFil') : t('commentaire.resoudreFil')} onClick={basculer}>
+        {tousResolus ? t('commentaire.rouvrir') : t('commentaire.resoudre')}
       </button>
     </>
   )

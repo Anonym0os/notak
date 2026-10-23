@@ -5,14 +5,15 @@ import { normaliserUrl } from './conversion'
 import { EMOJIS } from './insertion'
 import { augmenterRetrait, diminuerRetrait } from './texte'
 import { COULEURS_TEXTE, SURLIGNAGES, valeurCouleurTexte } from './couleurs'
+import { t } from '../../langue'
 
 const STYLES: { style: StyleBloc; libelle: string }[] = [
-  { style: 'titre1', libelle: 'Grand titre' },
-  { style: 'titre2', libelle: 'Titre' },
-  { style: 'texte', libelle: 'Texte' },
-  { style: 'petit', libelle: 'Petit texte' },
-  { style: 'citation', libelle: 'Citation' },
-  { style: 'code', libelle: 'Code' },
+  { style: 'titre1', get libelle() { return t('barre.style.grandTitre') } },
+  { style: 'titre2', get libelle() { return t('barre.style.titre') } },
+  { style: 'texte', get libelle() { return t('barre.style.texte') } },
+  { style: 'petit', get libelle() { return t('barre.style.petit') } },
+  { style: 'citation', get libelle() { return t('barre.style.citation') } },
+  { style: 'code', get libelle() { return t('barre.style.code') } },
 ]
 
 const Trait = ({ d }: { d: string }) => (
@@ -70,37 +71,37 @@ export function BarreTexte({ editor, lien, surLien, commenter }: Props) {
     <div
       className="notak-note-barre"
       role="toolbar"
-      aria-label="Mise en forme"
+      aria-label={t('barre.miseEnForme')}
       onMouseDown={(e) => {
         if (!(e.target as HTMLElement).closest('input')) e.preventDefault()
       }}
     >
       <div className="notak-note-menu-ancre">
-        <button type="button" title="Style" aria-expanded={menu} onClick={() => { setInsertion(false); setMenu(!menu) }}>
+        <button type="button" title={t('barre.style')} aria-expanded={menu} onClick={() => { setInsertion(false); setMenu(!menu) }}>
           {STYLES.find((s) => s.style === etat.style)?.libelle} ▾
         </button>
         {menu && <MenuStyle editor={editor} etat={etat} ferme={() => setMenu(false)} />}
       </div>
       <i />
-      {bouton('Gras', etat.gras, () => chaine().toggleBold().run(), <b>B</b>)}
-      {bouton('Italique', etat.italique, () => chaine().toggleItalic().run(), <i>I</i>)}
-      {bouton('Barré', etat.barre, () => chaine().toggleStrike().run(), <s>S</s>)}
-      {bouton('Souligné', etat.souligne, () => chaine().toggleUnderline().run(), <u>U</u>)}
+      {bouton(t('barre.gras'), etat.gras, () => chaine().toggleBold().run(), <b>B</b>)}
+      {bouton(t('barre.italique'), etat.italique, () => chaine().toggleItalic().run(), <i>I</i>)}
+      {bouton(t('barre.barre'), etat.barre, () => chaine().toggleStrike().run(), <s>S</s>)}
+      {bouton(t('barre.souligne'), etat.souligne, () => chaine().toggleUnderline().run(), <u>U</u>)}
       <i />
-      {bouton('Puces', etat.puces, () => chaine().toggleBulletList().run(), <Trait d="M6 4h8M6 8h8M6 12h8M2.5 4h.01M2.5 8h.01M2.5 12h.01" />)}
-      {bouton('Numérotée', etat.numerotee, () => chaine().toggleOrderedList().run(), <Trait d="M6 4h8M6 8h8M6 12h8M2 3.5l1-.5v3M2 9.5h2l-2 2h2" />)}
+      {bouton(t('barre.puces'), etat.puces, () => chaine().toggleBulletList().run(), <Trait d="M6 4h8M6 8h8M6 12h8M2.5 4h.01M2.5 8h.01M2.5 12h.01" />)}
+      {bouton(t('barre.numerotee'), etat.numerotee, () => chaine().toggleOrderedList().run(), <Trait d="M6 4h8M6 8h8M6 12h8M2 3.5l1-.5v3M2 9.5h2l-2 2h2" />)}
       <i />
-      {bouton('Centrer', etat.centre, () => basculerCentre(editor), <Trait d="M2 4h12M4 8h8M3 12h10" />)}
-      {bouton('Retrait −', false, () => { editor.commands.focus(); diminuerRetrait(editor) }, <Trait d="M2 3h12M7 6.5h7M7 9.5h7M2 13h12M5 6.5 2.5 8 5 9.5" />)}
-      {bouton('Retrait +', false, () => { editor.commands.focus(); augmenterRetrait(editor) }, <Trait d="M2 3h12M7 6.5h7M7 9.5h7M2 13h12M2.5 6.5 5 8 2.5 9.5" />)}
-      {bouton('Code', etat.code, () => chaine().toggleCode().run(), <Trait d="M5.5 4.5 2 8l3.5 3.5M10.5 4.5 14 8l-3.5 3.5" />)}
-      {bouton('Lien', etat.surLien || lien !== null, ouvrirLien, <Trait d="M6.5 9.5a3 3 0 0 0 4.2 0l2-2a3 3 0 0 0-4.2-4.2l-.7.7M9.5 6.5a3 3 0 0 0-4.2 0l-2 2a3 3 0 0 0 4.2 4.2l.7-.7" />, etat.vide && !etat.surLien)}
+      {bouton(t('barre.centrer'), etat.centre, () => basculerCentre(editor), <Trait d="M2 4h12M4 8h8M3 12h10" />)}
+      {bouton(t('barre.retraitMoins'), false, () => { editor.commands.focus(); diminuerRetrait(editor) }, <Trait d="M2 3h12M7 6.5h7M7 9.5h7M2 13h12M5 6.5 2.5 8 5 9.5" />)}
+      {bouton(t('barre.retraitPlus'), false, () => { editor.commands.focus(); augmenterRetrait(editor) }, <Trait d="M2 3h12M7 6.5h7M7 9.5h7M2 13h12M2.5 6.5 5 8 2.5 9.5" />)}
+      {bouton(t('barre.codeLigne'), etat.code, () => chaine().toggleCode().run(), <Trait d="M5.5 4.5 2 8l3.5 3.5M10.5 4.5 14 8l-3.5 3.5" />)}
+      {bouton(t('barre.lien'), etat.surLien || lien !== null, ouvrirLien, <Trait d="M6.5 9.5a3 3 0 0 0 4.2 0l2-2a3 3 0 0 0-4.2-4.2l-.7.7M9.5 6.5a3 3 0 0 0-4.2 0l-2 2a3 3 0 0 0 4.2 4.2l.7-.7" />, etat.vide && !etat.surLien)}
       {commenter &&
-        bouton('Commenter le passage (⌘⌥M)', etat.surFil, commenter, <Trait d="M2.5 3.5h11v7h-5l-3 2.5v-2.5h-3z" />, etat.vide && !etat.surFil)}
+        bouton(t('barre.commenterPassage'), etat.surFil, commenter, <Trait d="M2.5 3.5h11v7h-5l-3 2.5v-2.5h-3z" />, etat.vide && !etat.surFil)}
       <i />
       <div className="notak-note-menu-ancre">
-        <button type="button" title="Insérer" aria-expanded={insertion} onClick={() => { setMenu(false); setInsertion(!insertion) }}>
-          Insérer ▾
+        <button type="button" title={t('barre.inserer')} aria-expanded={insertion} onClick={() => { setMenu(false); setInsertion(!insertion) }}>
+          {t('barre.inserer')} ▾
         </button>
         {insertion && <MenuInsertion editor={editor} ferme={() => setInsertion(false)} />}
       </div>
@@ -118,19 +119,19 @@ function MenuStyle({ editor, etat, ferme }: { editor: Editor; etat: { couleur: s
         </button>
       ))}
       <hr />
-      <div className="notak-note-pastilles" aria-label="Couleur du texte">
-        <button type="button" title="Défaut" aria-label="Couleur par défaut" aria-pressed={etat.couleur === null} data-vide onClick={() => poserCouleurTexte(editor, null)}>
+      <div className="notak-note-pastilles" aria-label={t('barre.couleurTexte')}>
+        <button type="button" title={t('barre.defaut')} aria-label={t('barre.couleurDefaut')} aria-pressed={etat.couleur === null} data-vide onClick={() => poserCouleurTexte(editor, null)}>
           A
         </button>
         {COULEURS_TEXTE.map(({ nom, libelle }) => (
-          <button key={nom} type="button" title={libelle} aria-label={`Texte ${libelle}`} aria-pressed={etat.couleur === valeurCouleurTexte(nom)} data-texte={nom} onClick={() => poserCouleurTexte(editor, nom)}>
+          <button key={nom} type="button" title={libelle} aria-label={t('barre.texteCouleur', { couleur: libelle })} aria-pressed={etat.couleur === valeurCouleurTexte(nom)} data-texte={nom} onClick={() => poserCouleurTexte(editor, nom)}>
             A
           </button>
         ))}
       </div>
-      <div className="notak-note-pastilles" aria-label="Surlignage">
+      <div className="notak-note-pastilles" aria-label={t('barre.surlignage')}>
         {SURLIGNAGES.map(({ nom, libelle }) => (
-          <button key={nom} type="button" title={libelle} aria-label={`Surlignage ${libelle}`} aria-pressed={etat.surlignage === nom} data-surligne={nom} onClick={() => basculerSurlignage(editor, nom)} />
+          <button key={nom} type="button" title={libelle} aria-label={t('barre.surlignageCouleur', { couleur: libelle })} aria-pressed={etat.surlignage === nom} data-surligne={nom} onClick={() => basculerSurlignage(editor, nom)} />
         ))}
       </div>
     </div>
@@ -142,10 +143,10 @@ function MenuInsertion({ editor, ferme }: { editor: Editor; ferme(): void }) {
   return (
     <div className="notak-note-menu" role="menu">
       <button type="button" role="menuitem" className="notak-note-menu-ligne" onClick={() => { editor.chain().focus().setHorizontalRule().run(); ferme() }}>
-        Séparateur
+        {t('barre.separateur')}
       </button>
       <hr />
-      <div className="notak-note-emojis" role="group" aria-label="Émojis">
+      <div className="notak-note-emojis" role="group" aria-label={t('barre.emojis')}>
         {EMOJIS.map((e) => (
           <button key={e} type="button" role="menuitem" aria-label={e} onClick={() => { editor.chain().focus().insertContent(e).run(); ferme() }}>
             {e}
@@ -172,8 +173,8 @@ function ChampLien({ editor, depart, fini }: { editor: Editor; depart: string; f
       ref={champ}
       className="notak-note-lien"
       value={valeur}
-      placeholder="Adresse"
-      aria-label="Adresse du lien"
+      placeholder={t('lien.adresse')}
+      aria-label={t('barre.adresseLien')}
       onChange={(e) => setValeur(e.target.value)}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {

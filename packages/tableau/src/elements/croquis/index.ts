@@ -3,10 +3,13 @@ import { registre } from '../registre'
 import { OutilsCroquis, RenduCroquis } from './Croquis'
 import './croquis.css'
 import { nouveauCroquis, resume } from './trace'
+import { t } from '../../langue'
 
 registre.type<Croquis>({
   type: 'croquis',
-  nom: 'Croquis',
+  get nom() {
+    return t('type.croquis')
+  },
   resume,
   Rendu: RenduCroquis,
   Outils: OutilsCroquis,
@@ -16,7 +19,9 @@ registre.type<Croquis>({
   suivant: () => null,
   outils: [
     {
-      libelle: 'Croquis',
+      get libelle() {
+        return t('type.croquis')
+      },
       icone: '✎',
       rang: 130,
       tiroir: true,

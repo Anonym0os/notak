@@ -2,6 +2,7 @@ import { type RefObject, useRef } from 'react'
 import { type Hauteur, hauteurTiree, memeHauteur } from '../../coeur/hauteur'
 import type { Element, Operation } from '../../coeur/tableau'
 import type { ContexteToile } from '../types'
+import { t } from '../../langue'
 
 /** La hauteur que demande le contenu d'une carte, plafond ou non (px du plan). */
 function hauteurNaturelle(carte: HTMLElement): number {
@@ -48,8 +49,8 @@ export function PoigneeHauteur({ element, carte, contexte }: { element: Element;
       data-poignee-hauteur
       role="separator"
       aria-orientation="horizontal"
-      aria-label="Hauteur"
-      title="Tirer pour régler la hauteur (double-clic : celle du contenu)"
+      aria-label={t('hauteur.titre')}
+      title={t('hauteur.poignee')}
       onPointerDown={(e) => {
         const noeud = carte.current
         if (e.button !== 0 || !noeud) return

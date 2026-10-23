@@ -6,13 +6,14 @@ import { lireAdresse } from './adresse'
 import { RenduLien, titreDuLien } from './Lien'
 import './lien.css'
 import { OutilsLien } from './Outils'
+import { t } from '../../langue'
 
 const LARGEUR_LIEN = 34
 
 const GENRES: { genre: GenreLien; libelle: string; icone: string; rang: number }[] = [
-  { genre: 'video', libelle: 'Vidéo', icone: '▶', rang: 21 },
-  { genre: 'audio', libelle: 'Audio', icone: '♪', rang: 22 },
-  { genre: 'carte', libelle: 'Carte', icone: '⌖', rang: 23 },
+  { genre: 'video', get libelle() { return t('lien.video') }, icone: '▶', rang: 21 },
+  { genre: 'audio', get libelle() { return t('lien.audio') }, icone: '♪', rang: 22 },
+  { genre: 'carte', get libelle() { return t('lien.carte') }, icone: '⌖', rang: 23 },
 ]
 
 const nouveauLien = (ou: Point, url: string, genre?: GenreLien): Element<Lien> => ({
@@ -25,7 +26,9 @@ const nouveauLien = (ou: Point, url: string, genre?: GenreLien): Element<Lien> =
 
 registre.type<Lien>({
   type: 'lien',
-  nom: 'Lien',
+  get nom() {
+    return t('type.lien')
+  },
   resume: (c) => titreDuLien(c) || c.url,
   Rendu: RenduLien,
   editable: true,
@@ -35,7 +38,9 @@ registre.type<Lien>({
   Outils: OutilsLien,
   outils: [
     {
-      libelle: 'Lien',
+      get libelle() {
+        return t('type.lien')
+      },
       icone: '↗',
       rang: 20,
       fantome: () => nouveauLien({ x: 0, y: 0 }, ''),

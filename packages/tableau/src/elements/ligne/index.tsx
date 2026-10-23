@@ -10,10 +10,13 @@ import { TAILLE_LIGNE_NEUVE, ligneLibre } from './creation'
 import './ligne.css'
 import { entreeRelier, raccourciRelier } from './raccourci'
 import { couleurDuContenu } from '../couleur'
+import { t } from '../../langue'
 
 registre.type<Ligne>({
   type: 'ligne',
-  nom: 'Ligne',
+  get nom() {
+    return t('type.ligne')
+  },
   resume: (c) => c.libelle ?? '',
   calque: 'lignes',
   Rendu: RenduLigne,
@@ -23,7 +26,9 @@ registre.type<Ligne>({
   suivant: () => null,
   outils: [
     {
-      libelle: 'Ligne',
+      get libelle() {
+        return t('type.ligne')
+      },
       icone: createElement(IconeLigne),
       rang: 40,
       fantome: () => ligneLibre({ x: 0, y: 0 }),

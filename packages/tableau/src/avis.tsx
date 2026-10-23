@@ -1,4 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react'
+import { t } from './langue'
 
 /**
  * Les avis en bas de la toile : une phrase courte (« Mis à la corbeille »), parfois un bouton qui défait le
@@ -51,7 +52,7 @@ export function BandeauAvis() {
           {avis.action.libelle}
         </button>
       )}
-      <button type="button" className="notak-avis-fermer" aria-label="Fermer" onClick={retirerAvis}>
+      <button type="button" className="notak-avis-fermer" aria-label={t('commun.fermer')} onClick={retirerAvis}>
         ×
       </button>
     </div>

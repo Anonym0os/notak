@@ -2,11 +2,14 @@ import type { Table } from '../../coeur/tableau'
 import { registre } from '../registre'
 import { OutilsTable, RenduTable } from './Table'
 import { nouvelleTable, resume } from './grille'
+import { t } from '../../langue'
 import './table.css'
 
 registre.type<Table>({
   type: 'table',
-  nom: 'Table',
+  get nom() {
+    return t('type.table')
+  },
   resume,
   Rendu: RenduTable,
   Outils: OutilsTable,
@@ -16,7 +19,9 @@ registre.type<Table>({
   suivant: (e, places) => ({ ...nouvelleTable(places.dessous.x, places.dessous.y), largeur: e.largeur }),
   outils: [
     {
-      libelle: 'Table',
+      get libelle() {
+        return t('type.table')
+      },
       icone: '▦',
       rang: 100,
       tiroir: true,

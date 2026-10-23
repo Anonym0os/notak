@@ -3,11 +3,14 @@ import { registre } from '../registre'
 import { RenduTaches, OutilsTaches } from './Taches'
 import { HAUTEUR_TACHES_MIN, nouvelleListeTaches } from './liste'
 import { type Taches, texteBrut } from '../../coeur/tableau'
+import { t } from '../../langue'
 import './taches.css'
 
 registre.type<Taches>({
   type: 'taches',
-  nom: 'Liste de tâches',
+  get nom() {
+    return t('type.taches')
+  },
   resume: (c) => c.titre || texteBrut(c.texte),
   Rendu: RenduTaches,
   Outils: OutilsTaches,
@@ -22,7 +25,9 @@ registre.type<Taches>({
   },
   outils: [
     {
-      libelle: 'Tâches',
+      get libelle() {
+        return t('outil.taches')
+      },
       icone: '☑',
       rang: 30,
       fantome: () => nouvelleListeTaches(0, 0),

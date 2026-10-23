@@ -3,10 +3,13 @@ import { registre } from '../registre'
 import { OutilsDocument, RenduDocument } from './Document'
 import './document.css'
 import { nouveauDocument, resume } from './texte'
+import { t } from '../../langue'
 
 registre.type<DocumentTexte>({
   type: 'document',
-  nom: 'Document',
+  get nom() {
+    return t('type.document')
+  },
   resume,
   Rendu: RenduDocument,
   Outils: OutilsDocument,
@@ -16,7 +19,9 @@ registre.type<DocumentTexte>({
   suivant: (e, places) => ({ ...nouveauDocument(places.dessous.x, places.dessous.y), largeur: e.largeur }),
   outils: [
     {
-      libelle: 'Document',
+      get libelle() {
+        return t('type.document')
+      },
       icone: '📄',
       rang: 140,
       tiroir: true,

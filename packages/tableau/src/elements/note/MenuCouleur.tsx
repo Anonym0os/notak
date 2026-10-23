@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { COULEURS_NOTE, type CouleurNote } from '../../coeur/tableau'
 import { LIBELLES_COULEUR } from './couleurs'
+import { t } from '../../langue'
 
 /**
  * « Couleur » : la palette des notes, en menu. Partagée par tout ce qui se colore comme une note.
@@ -14,13 +15,13 @@ export function MenuCouleur({ actuelle, choisir, transparent = false }: { actuel
   }
   return (
     <div className="notak-note-menu-ancre">
-      <button type="button" title="Couleur" aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
-        Couleur
+      <button type="button" title={t('couleur.titre')} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
+        {t('couleur.titre')}
       </button>
       {ouvert && (
         <div className="notak-note-palette" role="menu">
           <button type="button" role="menuitem" aria-pressed={actuelle === undefined} onClick={() => poser(undefined)}>
-            Aucune
+            {t('couleur.aucune')}
           </button>
           <div className="notak-note-pastilles">
             {COULEURS_NOTE.map((c) => (
@@ -29,7 +30,7 @@ export function MenuCouleur({ actuelle, choisir, transparent = false }: { actuel
           </div>
           {transparent && (
             <button type="button" role="menuitem" aria-pressed={actuelle === 'transparent'} onClick={() => poser('transparent')}>
-              Transparent
+              {t('couleur.transparent')}
             </button>
           )}
         </div>

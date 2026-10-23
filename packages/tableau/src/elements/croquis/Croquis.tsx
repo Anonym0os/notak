@@ -12,6 +12,7 @@ import {
   gommer,
   simplifier,
 } from './trace'
+import { t } from '../../langue'
 
 /** Les traits d'une feuille, en SVG : un chemin lissé par trait. */
 function Traits({ traits }: { traits: readonly Trait[] }) {
@@ -29,10 +30,10 @@ export function RenduCroquis({ element, enEdition, contexte, brouillon }: PropsR
   const c = element.contenu
   return (
     <div className="notak-croquis">
-      <svg viewBox={`0 0 ${LARGEUR_FEUILLE} ${HAUTEUR_FEUILLE}`} role="img" aria-label="Croquis">
+      <svg viewBox={`0 0 ${LARGEUR_FEUILLE} ${HAUTEUR_FEUILLE}`} role="img" aria-label={t('type.croquis')}>
         <Traits traits={c.traits} />
       </svg>
-      {c.traits.length === 0 && <p className="notak-croquis-vide">Double-cliquez pour dessiner</p>}
+      {c.traits.length === 0 && <p className="notak-croquis-vide">{t('croquis.vide')}</p>}
       {enEdition && <Feuille contenu={c} ecrire={brouillon} finir={contexte.finirEdition} />}
     </div>
   )
@@ -135,18 +136,18 @@ function Feuille({ contenu, ecrire, finir }: { contenu: Croquis; ecrire(c: Croqu
   }
 
   return (
-    <Surcouche etiquette="Dessiner" className="notak-croquis-fond" fermer={finir} surTouche={touche}>
+    <Surcouche etiquette={t('croquis.dessiner')} className="notak-croquis-fond" fermer={finir} surTouche={touche}>
       <div className="notak-croquis-feuille">
         <div className="notak-croquis-outils">
-          <div role="group" aria-label="Outil">
+          <div role="group" aria-label={t('croquis.outil')}>
             <button type="button" aria-pressed={outil === 'crayon'} onClick={() => setOutil('crayon')}>
-              Crayon
+              {t('dessin.crayon')}
             </button>
             <button type="button" aria-pressed={outil === 'gomme'} onClick={() => setOutil('gomme')}>
-              Gomme
+              {t('dessin.gomme')}
             </button>
           </div>
-          <div role="group" aria-label="Couleur">
+          <div role="group" aria-label={t('couleur.titre')}>
             {COULEURS_TRAIT.map((c) => (
               <button
                 key={c}
@@ -162,7 +163,7 @@ function Feuille({ contenu, ecrire, finir }: { contenu: Croquis; ecrire(c: Croqu
               />
             ))}
           </div>
-          <div role="group" aria-label="Épaisseur">
+          <div role="group" aria-label={t('croquis.epaisseur')}>
             {EPAISSEURS_TRAIT.map((e) => (
               <button key={e.valeur} type="button" aria-pressed={epaisseur === e.valeur} onClick={() => {
                 setEpaisseur(e.valeur)
@@ -172,19 +173,19 @@ function Feuille({ contenu, ecrire, finir }: { contenu: Croquis; ecrire(c: Croqu
               </button>
             ))}
           </div>
-          <div role="group" aria-label="Historique">
+          <div role="group" aria-label={t('croquis.historique')}>
             <button type="button" disabled={passe.length === 0} onClick={annuler}>
-              Annuler
+              {t('espace.annuler')}
             </button>
             <button type="button" disabled={futur.length === 0} onClick={retablir}>
-              Rétablir
+              {t('espace.retablir')}
             </button>
             <button type="button" disabled={traits.length === 0} onClick={() => valider([], traits)}>
-              Tout effacer
+              {t('dessin.toutEffacer')}
             </button>
           </div>
           <button type="button" className="notak-croquis-terminer" onClick={finir}>
-            Terminer
+            {t('commun.terminer')}
           </button>
         </div>
         <svg
@@ -208,8 +209,8 @@ function Feuille({ contenu, ecrire, finir }: { contenu: Croquis; ecrire(c: Croqu
 export function OutilsCroquis({ elements, contexte }: PropsOutils<Croquis>) {
   if (contexte.services.lectureSeule || elements.length !== 1) return null
   return (
-    <button type="button" title="Ouvrir le croquis pour dessiner" onClick={() => contexte.commencerEdition(elements[0]!.id)}>
-      Dessiner
+    <button type="button" title={t('croquis.ouvrir')} onClick={() => contexte.commencerEdition(elements[0]!.id)}>
+      {t('croquis.dessiner')}
     </button>
   )
 }

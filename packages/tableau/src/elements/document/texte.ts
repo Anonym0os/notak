@@ -1,4 +1,5 @@
 import { type DocumentTexte, type Element, type NoeudTexte, nouvelId, texteBrut } from '../../coeur/tableau'
+import { t, tn } from '../../langue'
 
 export const LARGEUR_DOCUMENT = 24
 /** Combien de blocs du texte la carte dessine : le reste est caché de toute façon. */
@@ -30,9 +31,9 @@ export function compterMots(doc: NoeudTexte): number {
 /** « 1 mot », « 250 mots · 2 min de lecture ». */
 export function mesure(doc: NoeudTexte): string {
   const n = compterMots(doc)
-  if (n <= 1) return `${n} mot`
+  if (n <= 1) return tn('document.mots', n)
   const minutes = Math.ceil(n / MOTS_PAR_MINUTE)
-  return minutes > 1 ? `${n} mots · ${minutes} min de lecture` : `${n} mots`
+  return minutes > 1 ? t('document.motsLecture', { n, minutes }) : tn('document.mots', n)
 }
 
 /** Le début du texte sur une ligne, coupé au mot près et suivi de « … » s'il est plus long. */
