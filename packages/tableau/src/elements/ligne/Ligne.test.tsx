@@ -169,3 +169,72 @@ describe('RenduLigne, rendu', () => {
     expect(monter({}, true).querySelector('.notak-ligne-fantome')).toBeNull()
   })
 })
+
+/** Une ligne entre deux éléments d'un tableau donné, dans une toile qui a son calque de poignées. */
+function monterReliee(autre: Element, services: object, contexteEn: object = {}) {
+  // jsdom n'a pas CSS.escape.
+  ;(globalThis as { CSS?: { escape(s: string): string } }).CSS ??= { escape: (x: string) => x }
+  const note = nouvelleNote(0, 0)
+  const l = nouvelleLigne({ element: note.id }, { element: autre.id })
+  const tableau: Tableau = { titre: '', elements: [note, autre, l] }
+  const rects = { [note.id]: depuisTaille(point(0, 0), 20, 10), [autre.id]: depuisTaille(point(40, 0), 20, 10) }
+  const contexte = {
+    magasin: { lire: () => tableau, appliquerSeulement() {}, inscrire() {} },
+    rect: (id: string) => (rects as Record<string, Rect>)[id] ?? null,
+    versTableau: (p: { x: number; y: number }) => p,
+    camera: { origine: point(0, 0), echelle: 1 },
+    services,
+    ...contexteEn,
+  } as unknown as ContexteToile
+  hote = document.createElement('div')
+  document.body.append(hote)
+  racine = createRoot(hote)
+  act(() => {
+    racine!.render(
+      <div className="notak-toile">
+        <div className="notak-plan">
+          <svg className="notak-calque-lignes">
+            <RenduLigne element={l} choisie enEdition={false} contexte={contexte} brouillon={() => {}} changer={() => {}} />
+          </svg>
+          <svg className="notak-calque-poignees" />
+        </div>
+      </div>,
+    )
+  })
+  return hote
+}
+
+describe('RenduLigne, empilement et présentation', () => {
+  it('les poignées vont dans le calque du dessus, le trait reste dans celui de la ligne', () => {
+    const h = monterReliee(nouvelleNote(40, 0), {})
+    expect(h.querySelectorAll('.notak-calque-poignees .notak-ligne-poignee')).toHaveLength(3)
+    expect(h.querySelectorAll('.notak-calque-lignes:not(.notak-calque-poignees) .notak-ligne-poignee')).toHaveLength(0)
+    expect(h.querySelector('.notak-calque-lignes .notak-ligne-trait')).not.toBeNull()
+  })
+
+  const commentaire = (): Element => ({ id: 'com', x: 40, y: 0, contenu: { type: 'commentaire', messages: [] } }) as unknown as Element
+
+  it('en présentation, une ligne reliée à un commentaire disparaît', () => {
+    expect(monterReliee(commentaire(), { presentation: true }).querySelector('.notak-ligne-trait')).toBeNull()
+  })
+
+  it('hors présentation, elle se montre', () => {
+    expect(monterReliee(commentaire(), {}).querySelector('.notak-ligne-trait')).not.toBeNull()
+  })
+})
+
+describe('RenduLigne, défilement au bord', () => {
+  it('tirer un bout prévient la toile à chaque mouvement, et la prévient de la fin', () => {
+    const appels: string[] = []
+    ;(document as unknown as { elementsFromPoint: () => Element[] }).elementsFromPoint = () => []
+    const h = monterReliee(nouvelleNote(40, 0), {}, { suivreBord: () => appels.push('suivre'), arreterBord: () => appels.push('arreter') })
+    const prise = h.querySelector('[data-extremite="arrivee"]')!
+    const evt = (type: string, x: number, y: number) =>
+      act(() => void prise.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: x, clientY: y })))
+    evt('pointerdown', 100, 100)
+    evt('pointermove', 160, 100)
+    evt('pointerup', 160, 100)
+    expect(appels).toContain('suivre')
+    expect(appels.at(-1)).toBe('arreter')
+  })
+})

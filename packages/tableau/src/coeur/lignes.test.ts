@@ -16,6 +16,7 @@ import {
   auMoins,
   longueurMin,
   courbeDepuisPoint,
+  courbeGardee,
   decouper,
   evaluer,
   lignesASupprimer,
@@ -410,5 +411,23 @@ describe('mode dedans', () => {
   })
   test('le centre exact vise le centre', () => {
     expect(ancreDedans(carte, point(20, 15))).toBeNull()
+  })
+})
+
+describe('courbeGardee', () => {
+  test('la nouvelle courbe passe par la poignée de l’ancienne, même si la corde a changé', () => {
+    const avant = { a: point(0, 0), b: point(20, 0) }
+    const apres = { a: point(0, 0), b: point(30, 10) }
+    const courbe = { ecart: 8, position: 0.5 }
+    const poignee = pointCourbe(avant.a, avant.b, courbe)!
+    const neuve = courbeGardee(avant, courbe, apres)!
+    const retrouvee = pointCourbe(apres.a, apres.b, neuve)!
+    expect(retrouvee.x).toBeCloseTo(poignee.x, 1)
+    expect(retrouvee.y).toBeCloseTo(poignee.y, 1)
+  })
+
+  test('une poignée qui tombe sur la nouvelle corde redresse le trait', () => {
+    const avant = { a: point(0, 0), b: point(20, 0) }
+    expect(courbeGardee(avant, { ecart: 8, position: 0.5 }, { a: point(0, 0), b: point(20, 16) })).toBeUndefined()
   })
 })

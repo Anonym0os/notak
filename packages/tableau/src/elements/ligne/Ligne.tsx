@@ -1,4 +1,5 @@
 import { t } from "../../langue";
+import { createPortal } from "react-dom";
 import {
   useEffect,
   useLayoutEffect,
@@ -16,6 +17,7 @@ import {
   ancreDedans,
   auMoins,
   courbeDepuisPoint,
+  courbeGardee,
   elargir,
   longueurMin,
   pointCourbe,
@@ -133,13 +135,23 @@ export function RenduLigne({
   // Le bout tenu immobile ~0,5 s au-dessus d'un élément entre dans le « mode dedans ».
   const suivi = useRef<ReturnType<typeof suiviDedans>>(null as never);
   suivi.current ??= suiviDedans(() => rejouer.current?.());
-  useEffect(() => () => suivi.current.arreter(), []);
+  useEffect(
+    () => () => {
+      suivi.current.arreter();
+      contexte.arreterBord?.();
+    },
+    [],
+  );
+  // Les poignées vont dans le calque du dessus, pour qu'une ligne passée derrière une carte reste prenable.
+  const [haut, setHaut] = useState<Element | null>(null);
   // Verrouillée ou en lecture seule, une ligne ne se remodèle pas.
   const inerte = !!element.verrou || !!contexte.services?.lectureSeule;
   // Le thème sombre éclaircit le gris par défaut du trait.
   useLayoutEffect(() => {
     const s = ancre.current?.closest("[data-theme]")?.getAttribute("data-theme") === "sombre";
     if (s !== sombre) setSombre(s);
+    const calque = ancre.current?.closest(".notak-plan")?.querySelector(".notak-calque-poignees") ?? null;
+    if (calque !== haut) setHaut(calque);
   });
 
   const estColonne = (id: Id | null) =>
@@ -149,6 +161,12 @@ export function RenduLigne({
   const visee = viser(l.depart, l.arrivee, mesures, estColonne(idD) && estColonne(idA));
   cordes.current = visee && { a: visee.a, b: visee.b };
   if (!visee) return <g ref={ancre} />;
+  // En présentation, une ligne reliée à un commentaire ne se montre pas.
+  if (contexte.services?.presentation) {
+    const tout = contexte.magasin.lire().elements;
+    if ([idD, idA].some((id) => !!id && tout.find((x) => x.id === id)?.contenu.type === "commentaire"))
+      return <g ref={ancre} />;
+  }
   const { a, b } = visee;
 
   const couleur = couleurDeLigne(l, sombre);
@@ -309,12 +327,15 @@ export function RenduLigne({
     g.bouge = true;
     dernier.current = { x: e.clientX, y: e.clientY, maj: e.shiftKey };
     deplacer(e.clientX, e.clientY, e.shiftKey);
+    // Près d'un bord de la vue, elle défile et le bout tenu suit.
+    contexte.suivreBord?.({ clientX: e.clientX, clientY: e.clientY }, () => rejouer.current?.());
   };
   const finir = (e: React.PointerEvent) => {
     const g = geste.current;
     if (!g) return;
     e.stopPropagation();
     geste.current = null;
+    contexte.arreterBord?.();
     setEnGeste(false);
     setGuides(null);
     surbrillance(toileDe(), null);
@@ -326,7 +347,24 @@ export function RenduLigne({
     if (g.quoi !== "courbe" && g.bouge) {
       let fin = enCours();
       // Lâché sur un élément (hors mode dedans), le bout s'accroche à son centre.
-      if (g.cible && !dedans) fin = { ...fin, [g.quoi]: { element: g.cible } };
+      if (g.cible && !dedans) {
+        const vue = cordes.current;
+        const avant = fin;
+        fin = { ...fin, [g.quoi]: { element: g.cible } };
+        // La courbe garde la forme qu'on voyait : sa poignée reste où elle était, la corde change.
+        if (avant.courbe && vue) {
+          const rects = {
+            depart: "element" in fin.depart ? contexte.rect(fin.depart.element) : null,
+            arrivee: "element" in fin.arrivee ? contexte.rect(fin.arrivee.element) : null,
+          };
+          const nouvelle = viser(fin.depart, fin.arrivee, rects);
+          if (nouvelle) {
+            const { courbe: _, ...sans } = fin;
+            const courbe = courbeGardee(vue, avant.courbe, nouvelle);
+            fin = courbe ? { ...sans, courbe } : sans;
+          }
+        }
+      }
       // Deux bouts libres : la ligne fait au moins 4 UG, le bout tenu est repoussé s'il le faut.
       const [tenu, autre] = g.quoi === "depart" ? [fin.depart, fin.arrivee] : [fin.arrivee, fin.depart];
       if ("x" in tenu && "x" in autre) {
@@ -356,6 +394,31 @@ export function RenduLigne({
   const [cx, cy] = [controle.x * PX_PAR_UG, controle.y * PX_PAR_UG];
   const accrocheD = !!idD;
   const accrocheA = !!idA;
+
+  const surDessus = (
+    <>
+      {(choisie || enGeste) && guides && (
+        <Guides rect={guides.rect} p={guides.p} vers={(q) => point(q.x * PX_PAR_UG, q.y * PX_PAR_UG)} inverse={1 / contexte.camera.echelle} />
+      )}
+      {choisie && (
+        <>
+          <Poignee quoi="depart" p={trace.debut} accrochee={accrocheD} couleur={couleur} inerte={inerte} onPointerDown={commencer("depart")} {...prises} />
+          <Poignee quoi="arrivee" p={trace.fin} accrochee={accrocheA} couleur={couleur} inerte={inerte} onPointerDown={commencer("arrivee")} {...prises} />
+          {!montreLibelle && !enLibelle && (
+            <Poignee
+              quoi="courbe"
+              p={point(cx / PX_PAR_UG, cy / PX_PAR_UG)}
+              couleur={couleur}
+              inerte={inerte}
+              onPointerDown={commencer("courbe")}
+              onDoubleClick={redresser}
+              {...prises}
+            />
+          )}
+        </>
+      )}
+    </>
+  );
 
   return (
     <g ref={ancre} className="notak-ligne" data-choisie={choisie || undefined} data-inerte={inerte || undefined}>
@@ -410,26 +473,7 @@ export function RenduLigne({
           )}
         </foreignObject>
       )}
-      {(choisie || enGeste) && guides && (
-        <Guides rect={guides.rect} p={guides.p} vers={(q) => point(q.x * PX_PAR_UG, q.y * PX_PAR_UG)} inverse={1 / contexte.camera.echelle} />
-      )}
-      {choisie && (
-        <>
-          <Poignee quoi="depart" p={trace.debut} accrochee={accrocheD} couleur={couleur} inerte={inerte} onPointerDown={commencer("depart")} {...prises} />
-          <Poignee quoi="arrivee" p={trace.fin} accrochee={accrocheA} couleur={couleur} inerte={inerte} onPointerDown={commencer("arrivee")} {...prises} />
-          {!montreLibelle && !enLibelle && (
-            <Poignee
-              quoi="courbe"
-              p={point(cx / PX_PAR_UG, cy / PX_PAR_UG)}
-              couleur={couleur}
-              inerte={inerte}
-              onPointerDown={commencer("courbe")}
-              onDoubleClick={redresser}
-              {...prises}
-            />
-          )}
-        </>
-      )}
+      {haut ? createPortal(surDessus, haut) : surDessus}
     </g>
   );
 }

@@ -827,6 +827,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         return p
       },
       finirEdition,
+      suivreBord: (e, rejouer) => suivreBordTenu(e, rejouer),
+      arreterBord: () => arreterBordTenu(),
       recevoir: (donnees, ou) => void recevoirCourant.current(donnees, ou),
     }),
     [rect, commencerEdition, finirEdition, creerSuivant, jeter, surBrouillon],
@@ -1374,6 +1376,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const id = n.getAttribute('data-id')!
       if (gardes && requete!.trim() && !gardes.has(id)) n.dataset.horsRecherche = ''
       else delete n.dataset.horsRecherche
+      // Les étiquettes de ligne trouvées se mettent en valeur.
+      if (gardes && requete!.trim() && gardes.has(id)) n.dataset.trouve = ''
+      else delete n.dataset.trouve
     }
   })
   /** Montre le résultat suivant (ou précédent) : il est choisi, et la vue s'y centre. */
@@ -1857,6 +1862,35 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const arreterBord = () => {
     if (bord.current) cancelAnimationFrame(bord.current.image)
     bord.current = null
+  }
+  // Le tirage d'un bout de ligne garde le pointeur pour lui : il rend la main à la toile pour défiler au bord.
+  const bordTenu = useRef<{ image: number; e: { clientX: number; clientY: number }; rejouer: () => void } | null>(null)
+  const suivreBordTenu = (e: { clientX: number; clientY: number }, rejouer: () => void) => {
+    const copie = { clientX: e.clientX, clientY: e.clientY }
+    if (bordTenu.current) {
+      bordTenu.current.e = copie
+      bordTenu.current.rejouer = rejouer
+      return
+    }
+    if (!vitesseBord(copie)) return
+    const b = { image: 0, e: copie, rejouer }
+    bordTenu.current = b
+    const pas = () => {
+      const v = bordTenu.current === b ? vitesseBord(b.e) : null
+      if (!v) {
+        if (bordTenu.current === b) bordTenu.current = null
+        return
+      }
+      animation.current = null
+      setCamera((c) => cam.defiler(c, -v.x, -v.y))
+      b.rejouer()
+      b.image = requestAnimationFrame(pas)
+    }
+    b.image = requestAnimationFrame(pas)
+  }
+  const arreterBordTenu = () => {
+    if (bordTenu.current) cancelAnimationFrame(bordTenu.current.image)
+    bordTenu.current = null
   }
 
   const mouvement = (e: React.PointerEvent) => {
@@ -2535,7 +2569,23 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   // Ce qui est verrouillé reste dessous.
   const cartes = [...tableau.elements.filter((x) => libre(x) && x.verrou), ...tableau.elements.filter((x) => libre(x) && !x.verrou)]
   const seule = !edition && selection.size === 1 && !tableau.elements.find((x) => selection.has(x.id))?.verrou ? [...selection][0] : undefined
-  const lignes = tableau.elements.filter((e) => definition(e.contenu.type)?.calque === 'lignes')
+  // L'empilement suit l'ordre du plan : une ligne s'intercale avec les cartes (chacune dans son calque SVG), et ses
+  // poignées vont dans un calque au-dessus de tout.
+  const pile = [...cartes.filter((x) => x.verrou), ...tableau.elements.filter((x) => (libre(x) && !x.verrou) || definition(x.contenu.type)?.calque === 'lignes')]
+
+  const rendreLigne = (e: Element) => {
+    const Rendu = definition(e.contenu.type)!.Rendu
+    return (
+      <Rendu
+        element={e}
+        choisie={vueChoix.has(e.id)}
+        enEdition={edition === e.id}
+        contexte={contexte}
+        brouillon={(c) => surBrouillon(e, c)}
+        changer={(c) => surChanger(e, c)}
+      />
+    )
+  }
 
   return (
     <ContexteBarreEdition.Provider value={emplacementEdition}>
@@ -2568,7 +2618,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         }}
       >
         <ContexteRangement.Provider value={rangement}>
-          {cartes.map((e) => (
+          {pile.map((e) => definition(e.contenu.type)?.calque === 'lignes' ? (
+            <svg key={e.id} className="notak-calque-lignes" aria-hidden>
+              {rendreLigne(e)}
+            </svg>
+          ) : (
             <Cadre
               key={e.id}
               element={e}
@@ -2595,22 +2649,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
             />
           )
         })}
-        <svg className="notak-calque-lignes" aria-hidden>
-          {lignes.map((e) => {
-            const Rendu = definition(e.contenu.type)!.Rendu
-            return (
-              <Rendu
-                key={e.id}
-                element={e}
-                choisie={vueChoix.has(e.id)}
-                enEdition={edition === e.id}
-                contexte={contexte}
-                brouillon={(c) => surBrouillon(e, c)}
-                changer={(c) => surChanger(e, c)}
-              />
-            )
-          })}
-        </svg>
+        <svg className="notak-calque-lignes notak-calque-poignees" aria-hidden />
         {autres.map((a) => (a.curseur ? <CurseurAutre key={a.client} presence={a} echelle={camera.echelle} /> : null))}
       </div>
       {lassoEcran && (

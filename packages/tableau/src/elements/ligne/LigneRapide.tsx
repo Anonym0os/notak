@@ -87,15 +87,21 @@ export function LigneRapide({ elements, contexte }: { elements: Element[]; conte
     };
     const bouge = (m: PointerEvent) => {
       if (!parti && Math.hypot(m.clientX - depart.x, m.clientY - depart.y) < SEUIL_TIRAGE) return;
+      // L'élément d'origine paraît désélectionné pendant le tirage (la poignée, elle, reste montée).
+      toile.setAttribute("data-tirage-ligne", "");
       parti = true;
       dernier = m;
       viser(m);
+      // Près d'un bord de la vue, elle défile et l'aperçu suit.
+      contexte.suivreBord?.(m, () => dernier && viser(dernier));
     };
     const arreter = () => {
       document.removeEventListener("pointermove", bouge, true);
       document.removeEventListener("pointerup", lache, true);
       document.removeEventListener("keydown", touche, true);
       fin.current = null;
+      toile.removeAttribute("data-tirage-ligne");
+      contexte.arreterBord?.();
       suivi.arreter();
       surbrillance(toile, null);
       setApercu(null);

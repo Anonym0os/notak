@@ -61,6 +61,15 @@ export function courbeDepuisPoint(a: Point, b: Point, p: Point): Courbe | undefi
   return { ecart: arrondi(ecart), position: arrondi(position) }
 }
 
+/**
+ * La courbe qui garde la forme visible quand la corde change (un bout lâché sur un élément passe de son point libre
+ * au centre de l'élément) : la poignée reste où elle était, la nouvelle courbe passe par elle.
+ */
+export function courbeGardee(avant: { a: Point; b: Point }, courbe: Courbe, apres: { a: Point; b: Point }): Courbe | undefined {
+  const sur = pointCourbe(avant.a, avant.b, courbe)
+  return sur ? courbeDepuisPoint(apres.a, apres.b, sur) : undefined
+}
+
 export function evaluer(q: Quadratique, t: number): Point {
   const u = 1 - t
   return point(u * u * q.a.x + 2 * u * t * q.c.x + t * t * q.b.x, u * u * q.a.y + 2 * u * t * q.c.y + t * t * q.b.y)
