@@ -57,6 +57,8 @@ const Tache = TaskItem.extend({
   addAttributes() {
     return { ...this.parent?.(), echeance: attributTexte('echeance'),
       assigne: attributTexte('assigne'),
+      heure: attributTexte('heure'),
+      rappel: attributTexte('rappel'),
       montreEcheance: attributDrapeau('montreEcheance', 'data-montre-echeance'),
       montreAssigne: attributDrapeau('montreAssigne', 'data-montre-assigne'),
     }
@@ -114,6 +116,7 @@ const Tache = TaskItem.extend({
             b.dataset.genre = p.genre
             if (p.vide) b.dataset.vide = ''
             b.dataset.statut = p.statut
+            if (p.rappel) b.dataset.rappel = ''
             b.title = p.titre
             b.textContent = p.texte
             b.addEventListener('mousedown', (e) => e.preventDefault())
