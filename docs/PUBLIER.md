@@ -1,214 +1,211 @@
-# Publier Notak gratuitement, sans que ça coûte quoi que ce soit
+# Publier Notak gratuitement, souverain, sans stocker les données des autres
 
-> Proposition du 23/10/2026. But : n'importe qui ouvre notak.app et s'en sert gratuitement, retrouve ses tableaux
-> sur tous ses appareils, partage un tableau, et l'hébergeur (nous) ne paie rien d'autre que le nom de domaine.
-> Le serveur actuel (`apps/serveur`, un conteneur Docker) reste l'édition auto-hébergée ; cette page décrit
-> l'édition publique.
+> Proposition du 23/10/2026, revue le même jour. Contraintes :
+> - **100 % souverain** : aucun service tiers (ni Cloudflare, ni Google, ni Dropbox, ni S3, ni CDN), aucune API
+>   extérieure appelée par l'application.
+> - **Un seul serveur, le nôtre**, qui sert l'application et quelques services légers.
+> - **Aucun stockage à payer pour les utilisateurs** : le serveur ne garde ni leurs tableaux ni leurs fichiers.
+> - **Gratuit pour les gens**, et pourtant leurs tableaux les suivent d'un appareil à l'autre et se partagent.
+>
+> Le serveur actuel (`apps/serveur`, comptes et stockage) reste l'édition auto-hébergée, pour qui veut tout chez
+> soi (association, entreprise, famille). Cette page décrit l'édition publique de notak.app.
 
-## 1. Pourquoi le modèle actuel coûte
+## 1. Le principe : les données vivent sur les appareils, le serveur ne fait que mettre en relation
 
-Le conteneur fait tout : comptes, mots de passe, fichiers envoyés, aperçus de liens, synchro, recherche, activité.
-Le publier tel quel, c'est payer et porter :
-
-| Poste | Ce que ça implique |
-|---|---|
-| Machine toujours allumée | un VPS (5 à 20 €/mois), qui grandit avec le nombre de gens |
-| Fichiers envoyés | du disque qui ne fait que grossir, des sauvegardes |
-| Comptes | mots de passe à protéger, courriels de réinitialisation (un service d'envoi), RGPD complet |
-| Contenu hébergé | statut d'hébergeur (LCEN) : signalements, retraits, abus |
-| Exploitation | mises à jour, pannes, attaques |
-
-Rien de cela n'est gratuit, même avec une offre « toujours gratuite » (Oracle Cloud, par exemple) : la machine
-est offerte, pas le temps, ni la responsabilité des données des autres.
-
-## 2. Le principe : chacun apporte sa place
-
-Notak est déjà *local d'abord* (SPEC : « Le serveur relaie et conserve, il n'arbitre pas »). Les tableaux sont des
-documents Yjs gardés dans IndexedDB ; deux copies d'un même document se fusionnent toujours sans conflit, dans
-n'importe quel ordre. Il n'y a donc pas besoin d'un serveur qui tranche : il suffit d'un endroit où **déposer** les
-changements et de les **relire** ailleurs.
-
-D'où trois étages, chacun gratuit pour nous :
+Notak est déjà *local d'abord* : chaque tableau est un document Yjs gardé dans IndexedDB, et deux copies d'un même
+tableau se fusionnent toujours, sans conflit, dans n'importe quel ordre. Un serveur qui conserve n'est donc pas
+nécessaire. Il suffit que les appareils **se trouvent** et **s'échangent** ce qui leur manque.
 
 ```
- ┌──────────────── notak.app : des fichiers statiques (Cloudflare Pages) ────────────────┐
- │                                                                                        │
- │  1. Cet appareil       IndexedDB (tableaux) + OPFS (images)          toujours, sans compte
- │  2. Mes appareils      le Drive / Dropbox / OneDrive / dossier de l'utilisateur        │
- │                        → sa place, son quota, son compte ; nous n'y voyons rien        │
- │  3. À plusieurs        un relais chiffré de bout en bout (Cloudflare Workers gratuit) │
- │                        → il transporte des octets illisibles, plafonné, jamais facturé│
- └────────────────────────────────────────────────────────────────────────────────────────┘
+   Téléphone ◄──────── WebRTC direct (chiffré) ────────► Ordinateur
+       │                                                     │
+       └──────────► notre serveur : se trouver, ◄────────────┘
+                    relayer si le direct échoue,
+                    garder un transit chiffré borné
+                    (jamais la seule copie, jamais d'images)
 ```
 
-Ce qu'il en coûte : le domaine (≈ 15 €/an pour un `.app`). Aucune carte bancaire enregistrée chez Cloudflare :
-l'offre gratuite **refuse** au-delà de ses quotas au lieu de facturer, donc aucune facture possible.
+Le serveur rend six services, tous sans compte et sans stockage qui grossisse avec les utilisateurs :
 
-Le précédent existe : Excalidraw fonctionne ainsi depuis des années (local, liens de partage chiffrés dont la clé
-est dans le `#` de l'adresse, relais pour le direct).
+| Service | Ce qu'il fait | Ce qu'il coûte |
+|---|---|---|
+| Fichiers de l'application | sert le site (HTML, JS, CSS, polices) | rien de plus qu'aujourd'hui |
+| Rendez-vous | met en relation les appareils d'une même salle (signalisation WebRTC) | des messages de quelques octets |
+| STUN / TURN (`coturn`) | aide les appareils à se joindre en direct ; relaie quand le direct est impossible | de la bande passante seulement |
+| Relais WebSocket | rediffuse les mises à jour **chiffrées** entre présents, en mémoire | de la bande passante seulement |
+| Boîte de transit | garde les mises à jour chiffrées le temps qu'un autre appareil vienne les chercher | **un plafond fixe**, voir § 4.4 |
+| Aperçus de liens | lit une page et rend titre et image (déjà fait par `apercu.ts`) | du calcul ; rien n'est gardé |
+
+Le serveur ne voit jamais un tableau en clair : la clé ne quitte pas les appareils. Il n'a pas de base
+d'utilisateurs, pas de mots de passe, pas de fichiers envoyés. Côté RGPD et LCEN, il n'est pas l'hébergeur des
+contenus : il transporte des octets illisibles.
+
+## 2. Les espaces et les salles, sans compte
+
+- **Un espace** = tous les tableaux d'une personne. Au premier lancement, l'appareil tire au hasard une clé d'espace
+  (256 bits). C'est elle qui chiffre tout, et son empreinte nomme la salle de rendez-vous sur le serveur.
+- **Relier un appareil** = lui donner cette clé, par un **QR code** ou un **code de 6 mots** affiché sur le premier
+  appareil. Le code ne sert qu'une fois et expire au bout de 10 minutes : le premier appareil envoie la vraie clé,
+  chiffrée, par la salle d'appariement.
+- **Un tableau partagé** a sa propre clé et sa propre salle, séparées de l'espace : on peut partager un tableau sans
+  ouvrir son espace.
 
 ## 3. L'expérience, du premier clic au travail à plusieurs
 
 ### 3.1 Arriver
-- notak.app → **un tableau vide tout de suite**, sans inscription, sans écran de bienvenue. C'est la différence la
-  plus visible avec Milanote, qui demande un compte avant tout.
-- Les bulles de découverte existantes (`BullesDecouverte`) font le reste : double-clic pour une note, glisser un
-  outil depuis la barre de gauche.
-- On ne demande **rien** : ni nom, ni courriel. Le prénom ne sert qu'à la présence ; on le demande au premier
-  partage, une fois.
+- notak.app → **un tableau vide tout de suite**, sans inscription ni écran de bienvenue. C'est la différence la plus
+  visible avec Milanote.
+- Les bulles de découverte existantes (`BullesDecouverte`) font le reste.
+- On ne demande rien. Le prénom ne sert qu'à la présence ; on le demande au premier partage, une fois.
 
-### 3.2 Ne rien perdre (le vrai risque du local)
-Un navigateur peut effacer ce qu'un site a rangé chez lui. Safari le fait au bout de 7 jours sans visite pour un
-site non installé. C'est le premier ennemi de l'édition gratuite, il faut le traiter dans l'interface :
+### 3.2 Ne rien perdre
+Sans serveur qui garde une copie, l'appareil est le coffre. Ça doit se voir dans l'interface, dès la première
+version :
 
-- Au premier contenu, on appelle `navigator.storage.persist()` (silencieux sur Chrome pour un site visité souvent).
-- Une **pastille d'état** dans l'en-tête, toujours au même endroit, dit où vivent les tableaux :
-  - « Sur cet appareil » (gris) → au clic : *Installer Notak*, *Synchroniser mes appareils*, *Télécharger une copie*
-  - « Synchronisé · il y a 2 min » (vert)
-  - « Hors ligne · 3 changements en attente » (orange, rien n'est perdu)
-  - « Drive déconnecté · Reconnecter » (rouge, un seul bouton)
-- Après 5 minutes de travail ou à la deuxième visite, une seule invitation discrète : *Installer Notak* (la PWA
-  existe déjà, `apps/web/pwa`). Installée, l'application n'est plus soumise à l'effacement de Safari.
-- Sans synchro branchée, un rappel par mois : « Dernière copie il y a 30 jours — Télécharger (.notak) ».
-- **Exporter / Importer** un `.notak` (zip : documents Yjs + images) marche toujours, sans réseau.
+- `navigator.storage.persist()` au premier contenu, et une invitation à **installer** Notak (la PWA existe :
+  `apps/web/pwa`). Installé, Safari n'efface plus les données au bout de 7 jours sans visite.
+- Une **pastille d'état** dans l'en-tête, toujours au même endroit :
+  - « Sur cet appareil seulement » (gris) → *Relier un autre appareil*, *Télécharger une copie*
+  - « À jour avec 2 appareils » (vert)
+  - « 3 changements en route vers votre téléphone » (orange : ils attendent dans le transit ou sur l'appareil)
+  - « Votre téléphone n'a rien reçu depuis 12 jours » (rouge doux : l'ouvrir suffit)
+- **Exporter / Importer** un `.notak` (zip : documents Yjs et images) marche toujours, sans réseau.
+- Sans second appareil relié, un rappel par mois : « Dernière copie il y a 30 jours ».
+- Un **dossier de sauvegarde** au choix : l'application de bureau (Tauri) et Chrome (API d'accès aux fichiers)
+  peuvent écrire une copie continue dans un dossier. Si ce dossier est synchronisé par un outil que la personne a
+  déjà (Syncthing, Nextcloud, kDrive, une clé USB), c'est son affaire et sa place, pas la nôtre.
 
 ### 3.3 Retrouver ses tableaux sur un autre appareil
-- Réglages → **Mes appareils** → *Google Drive*, *Dropbox*, *OneDrive*, ou *Un dossier* (bureau Tauri, WebDAV/Nextcloud).
-- Une phrase, pas plus : « Notak range vos tableaux dans un dossier de votre Drive. Personne d'autre que vous ne
-  les voit, Notak n'a pas de serveur. »
-- Une fenêtre d'autorisation, puis c'est fini. Sur l'autre appareil : premier écran → **Retrouver mes tableaux** →
-  même compte → tout arrive.
-- Si les deux appareils avaient déjà des tableaux, **ils s'additionnent** (fusion Yjs) : on n'a jamais à choisir
-  « garder celui-ci ou celui-là ».
-- iCloud : pas d'accès web gratuit (CloudKit demande un compte développeur Apple payant). Mais l'application de
-  bureau (et plus tard iPhone) peut viser *un dossier*, donc le dossier iCloud Drive, Dropbox ou Syncthing : même
-  format de fichiers, aucune ligne de code de plus.
+- Réglages → **Mes appareils** → *Relier un appareil* → QR code + code de 6 mots.
+- Sur l'autre appareil : premier écran → **J'ai déjà Notak ailleurs** → scanner ou taper les mots.
+- Les deux espaces **s'additionnent** (fusion Yjs) : on ne choisit jamais « garder celui-ci ou celui-là ».
+- Chaque appareil relié apparaît dans la liste avec son nom et sa dernière vue (« iPhone · il y a 3 h »), et se
+  retire d'un geste (la clé d'espace change alors, les autres appareils la reçoivent).
+- Les changements partent **en direct** si l'autre appareil est allumé, sinon **par le transit** (§ 4.4), qui les
+  lui remet à sa prochaine ouverture.
 
-### 3.4 Partager et travailler à plusieurs
-- **Partager** → *Peut modifier* / *Peut voir* → le lien est copié. Le lien porte la clé (`notak.app/p/<salle>#<clé>`) :
-  la partie après `#` ne quitte jamais le navigateur, le relais ne voit que des octets chiffrés.
-- La personne invitée ouvre le lien, tape son prénom une fois, et travaille. Pas de compte. Le tableau apparaît
-  ensuite dans son espace, sous « Partagés avec moi » (et dans son Drive si elle en a branché un).
+### 3.4 Les images
+Elles ne passent jamais par le stockage du serveur. Le texte voyage partout, les images voyagent d'appareil à
+appareil :
+
+- À l'ajout, l'image est réduite dans le navigateur (1600 px, WebP), rangée en OPFS sous son empreinte, et le
+  tableau garde une **miniature floue** (quelques centaines d'octets) et ses proportions.
+- Un appareil qui n'a pas encore l'image affiche la miniature floue, à la bonne taille, et la demande aux autres
+  appareils présents. Dès qu'il l'a, il peut à son tour la donner (comme un essaim).
+- Si personne qui l'a n'est en ligne, la carte le dit simplement : « L'image arrivera quand votre ordinateur sera
+  allumé » (ou « quand Léa sera en ligne » sur un tableau partagé).
+- Les transferts passent en WebRTC direct ; quand le direct est impossible, par TURN : c'est de la bande passante,
+  pas du disque.
+
+### 3.5 Partager et travailler à plusieurs
+- **Partager** → *Peut modifier* / *Peut voir* → le lien est copié : `notak.app/p/<salle>#<clé>`. La partie après
+  `#` ne quitte jamais le navigateur.
+- La personne invitée ouvre le lien, tape son prénom, travaille. Le tableau rejoint son espace, sous « Partagés
+  avec moi », et la suit sur ses propres appareils.
 - *Peut voir* : le relais refuse toute écriture qui ne présente pas le secret d'écriture, que seul le lien
-  « modifier » contient.
-- **Retirer l'accès** = changer de clé : le tableau part dans une nouvelle salle, les anciens liens meurent.
-  L'interface le dit ainsi : « Les personnes qui avaient le lien n'y ont plus accès. Renvoyez le nouveau lien à
-  celles qui doivent le garder. »
-- **Mot de passe** sur un tableau : la clé est tirée du mot de passe. Pas de mot de passe dans le lien, et le
-  relais ne peut pas le deviner à notre place.
-- **Page publique** : un lien *voir* sans présence ni curseurs.
+  *modifier* contient.
+- **Retirer l'accès** = changer de clé. Le tableau passe dans une nouvelle salle, les anciens liens meurent ; on
+  renvoie le nouveau lien à qui doit le garder.
+- **Mot de passe** sur un tableau : la clé est tirée du mot de passe (Argon2id dans le navigateur).
+- **Asynchrone** : Léa modifie le soir, Samy ouvre le lendemain matin. Les mises à jour attendent Samy dans le
+  transit ; les images, elles, attendent qu'un appareil qui les a soit en ligne.
 
-### 3.5 Quand un quota gratuit est atteint
-Le local ne dépend de personne, donc rien ne casse : la pastille passe à « Direct en pause jusqu'à demain, vos
-changements partent dès que possible » et, si un Drive est branché, ils y partent quand même. Personne ne perd une
-ligne ; seul le temps réel attend.
+### 3.6 Quand le plafond du transit est atteint
+Rien ne se perd, puisque le transit n'est jamais la seule copie : les changements restent sur l'appareil qui les a
+faits et partent en direct dès que l'autre est là. La pastille le dit : « Votre téléphone recevra ces changements
+la prochaine fois que les deux seront ouverts en même temps. »
 
 ## 4. Comment ça marche dessous
 
 ### 4.1 Les coutures existent déjà
-`packages/tableau/src/coeur/espaceDistant.ts` définit `Reseau` (`persister`, `connecter`, `declarer`) et l'interface
-`DepotFichiers` sert les images. Le serveur n'est qu'une implémentation (`creerReseauNavigateur`). L'édition
-publique en ajoute d'autres, qu'on compose :
+`packages/tableau/src/coeur/espaceDistant.ts` définit `Reseau` (`persister`, `connecter`, `declarer`) ;
+`DepotFichiers` sert les images. Le serveur actuel n'est qu'une implémentation (`creerReseauNavigateur`). L'édition
+publique en ajoute deux, qu'on compose :
 
 | Implémentation | Rôle |
 |---|---|
-| `creerReseauLocal` | IndexedDB seul ; `declarer` range le tableau dans un index local |
-| `creerReseauCoffre(coffre)` | dépose et relit le journal dans un *coffre* (Drive, Dropbox, OneDrive, dossier, WebDAV) |
-| `creerReseauRelais(salle, cle)` | le direct et la présence, chiffrés, pour les tableaux partagés |
+| `creerReseauLocal` | IndexedDB seul ; `declarer` range le tableau dans l'index de l'espace (`index.yjs`) |
+| `creerReseauPair(salle, cle)` | WebRTC entre appareils d'une salle, repli sur le relais WebSocket, puis sur le transit ; chiffrement AES-GCM de chaque mise à jour |
 | `creerReseauNavigateur` | l'actuel, pour l'édition auto-hébergée |
+| `DepotFichiers` en OPFS + essaim | images rangées par empreinte, demandées aux pairs présents |
 
 L'application choisit à la construction (`VITE_EDITION=publique|serveur`).
 
-### 4.2 Le format dans le coffre
-Le coffre n'est qu'un endroit où l'on dépose des fichiers ; il ne sait pas fusionner. On évite donc que deux
-appareils écrivent le **même** fichier :
+### 4.2 Le serveur de l'édition publique
+Un petit programme Node à côté de l'actuel, sans base de comptes (`apps/relais`) :
 
-```
-Notak/                                   (appDataFolder sur Drive, « App folder » sur Dropbox)
-  index.yjs                              la liste des tableaux, elle-même un document Yjs
-  tableaux/<id>/base.yjs                 un instantané
-  tableaux/<id>/journal/<appareil>-<n>.maj   les mises à jour d'un appareil, numérotées
-  fichiers/<sha256>                      les images, nommées par leur contenu (jamais deux fois)
-```
+- `/salle` (WebSocket) : on rejoint une salle par l'empreinte de sa clé ; le serveur relaie la signalisation WebRTC
+  et, à défaut de direct, les mises à jour chiffrées. Tout en mémoire.
+- `/transit` : dépôt et retrait de mises à jour chiffrées (§ 4.4).
+- `/apercu` : l'actuel `apercu.ts`, limité en débit par adresse IP (`debit.ts` existe), avec un cache en mémoire.
+- `coturn` à côté pour STUN/TURN, avec des identifiants temporaires délivrés par `/salle`.
 
-- Chaque appareil n'écrit que **ses** fichiers de journal : pas de conflit d'écriture possible.
-- Lire = télécharger `base.yjs` et les journaux qu'on n'a pas encore vus, `Y.applyUpdate` sur chacun, dans
-  n'importe quel ordre.
-- Écrire = regrouper ce qui a changé (même rythme qu'aujourd'hui, une seconde) et déposer un fichier toutes les
-  10 à 30 s au plus, pour ménager les quotas des API.
-- Compacter = un appareil réécrit `base.yjs` avec l'état fusionné, puis efface les journaux dont le vecteur d'état
-  est contenu dans la nouvelle base. Si deux appareils compactent en même temps, il reste deux bases correctes :
-  la fusion est idempotente.
-- Savoir qu'il y a du nouveau : l'API de changements du coffre (`changes.list` sur Drive, `list_folder/longpoll`
-  sur Dropbox), au retour sur l'onglet et toutes les 30 s tant qu'il est visible.
+### 4.3 Ce qui voyage
+- Les mises à jour Yjs, chiffrées une à une, regroupées à la seconde comme aujourd'hui.
+- À l'arrivée dans une salle : chacun annonce son vecteur d'état (chiffré), et l'on s'envoie seulement ce qui
+  manque. C'est le protocole de synchro Yjs habituel, simplement chiffré.
+- La présence et les curseurs (awareness), chiffrés aussi, jamais gardés.
 
-Portées demandées : `drive.appdata` sur Google (non sensible : vérification de base seulement, gratuite),
-« App folder » sur Dropbox, `Files.ReadWrite.AppFolder` sur OneDrive. Notak ne voit jamais le reste du Drive, et
-c'est ce qu'on peut écrire honnêtement dans la fenêtre d'autorisation.
+### 4.4 La boîte de transit, bornée
+C'est le seul disque utilisé sur le serveur, et il est **plafonné quel que soit le nombre d'utilisateurs** :
 
-### 4.3 Le relais chiffré
-Un Worker Cloudflare et un Durable Object par salle (stockage SQLite, seul permis sur l'offre gratuite) :
+- Elle garde des **mises à jour texte chiffrées**, jamais d'images.
+- Une salle annonce ses membres (appareils ou personnes, sous un nom opaque) ; une mise à jour est effacée dès que
+  tous l'ont accusée reçue. En régime normal, la boîte est presque vide.
+- Plafonds : 1 Mo par salle, 30 jours au plus par mise à jour, et un plafond global choisi une fois pour toutes
+  (2 Go par exemple, dans un fichier SQLite). Au-delà, les plus anciennes partent d'abord.
+- Le transit n'est **jamais la seule copie** : ce qu'il perd reste sur l'appareil d'origine et repartira en direct.
 
-- Il reçoit des mises à jour Yjs **chiffrées** (AES-GCM, clé du lien), les rediffuse aux présents et les garde
-  pour les absents. Il ne peut ni les lire ni les fusionner.
-- Le compactage se fait donc côté client : de temps en temps, un participant envoie un instantané chiffré qui
-  remplace le journal.
-- Images d'un tableau partagé : réduites dans le navigateur (1600 px, WebP), chiffrées, rangées dans la salle par
-  morceaux, avec un plafond par salle (50 Mo par exemple).
-- Une salle que personne n'a ouverte depuis 6 mois s'efface (l'alarme du Durable Object). Les copies locales et
-  les coffres des participants, eux, restent.
-- Il est protocolaire et petit (de l'ordre de 200 lignes) : le protocole Yjs est déjà là, on ajoute le chiffrement.
+Pour un ordre de grandeur, une journée de travail sur un tableau de texte pèse quelques dizaines de Ko de mises à
+jour Yjs. 2 Go absorbent des dizaines de milliers de salles actives. Et si l'on refuse même ce disque-là, il suffit
+de régler le plafond à zéro : tout marche encore, mais seulement entre appareils ouverts en même temps.
 
-Ordre de grandeur de l'offre gratuite (à revérifier au moment de brancher) : 100 000 requêtes par jour (messages
-WebSocket compris), 5 Go de stockage SQLite en tout, 100 000 lignes écrites par jour ; au-delà, refus jusqu'à minuit
-UTC, jamais de facture. D'où le regroupement des envois et la priorité au coffre pour la synchro entre ses propres
-appareils : le relais ne sert qu'aux tableaux réellement partagés.
-
-### 4.4 Ce que fait aujourd'hui le serveur, et où ça va
+### 4.5 Ce que fait le serveur actuel, et où ça va
 
 | Aujourd'hui (`/api/…`) | Édition publique |
 |---|---|
-| inscription, connexion, sessions | supprimé : pas de compte. L'identité d'un coffre est le compte Drive ; celle d'une salle, un prénom et une couleur |
-| `fichiers`, `fichiers/:id` | OPFS sur l'appareil, `fichiers/<sha256>` dans le coffre, morceaux chiffrés dans la salle |
-| `apercu`, `fichiers/rapatrier` | un second Worker gratuit qui lit la page et rend titre/image (l'origine du navigateur ne le peut pas, CORS), avec cache |
-| `recherche` | dans le navigateur, sur les documents locaux (`coeur/recherche.ts` existe) |
+| inscription, connexion, sessions | supprimé : la clé d'espace remplace le compte |
+| `fichiers`, `fichiers/:id` | OPFS sur chaque appareil, échange entre pairs |
+| `apercu`, `fichiers/rapatrier` | `/apercu` du relais ; l'image rapatriée est rangée sur l'appareil |
+| `recherche` | dans le navigateur (`coeur/recherche.ts` existe) |
 | `tableaux/:id/export`, `medias` | dans le navigateur (`fflate` est déjà une dépendance du web) |
-| `partage`, `acces`, `lien`, `mot-de-passe`, `public` | clés de salle (§ 4.3) |
+| `partage`, `acces`, `lien`, `mot-de-passe`, `public` | clés de salle (§ 3.5) |
 | `activite`, `notifications`, `recents` | tirés du document Yjs (qui a changé quoi depuis ma dernière visite), sans notification poussée |
-| `favoris`, `vu`, réglages du compte | `index.yjs` dans le coffre, donc suivis d'un appareil à l'autre |
+| `favoris`, `vu`, réglages du compte | `index.yjs`, le document de l'espace, donc suivis d'un appareil à l'autre |
 | `jetons`, `arrivee` (Raccourci iOS, envoi par jeton) | la cible de partage de la PWA suffit sur l'appareil ; l'envoi par jeton reste une fonction de l'édition serveur |
+| page publique | un lien *voir* ; elle ne s'affiche que si un appareil qui a le tableau est en ligne, ou si l'auteur l'a « publiée » en fichier statique (export HTML qu'il héberge où il veut) |
 
 ## 5. Ce qu'on a écarté
 
 | Piste | Pourquoi non |
 |---|---|
-| Le conteneur sur une machine gratuite (Oracle) | gratuit en argent, pas en responsabilité : on héberge les données et les fichiers des autres, on surveille, on sauvegarde, et le compte peut fermer du jour au lendemain |
-| Firebase, Supabase gratuits | comptes à gérer, données chez nous, quotas facturés ou projets mis en pause ; on garde le rôle d'hébergeur |
-| Pair à pair pur (WebRTC) | les deux appareils doivent être allumés en même temps, et il faut quand même un serveur pour se trouver |
-| Faire payer, ou un abonnement « Pro » | contraire au but ; si Notak a du succès, des dons (Liberapay, Open Collective) couvrent l'offre payante Cloudflare (≈ 5 $/mois) |
-| R2 pour les images partagées | demande une carte bancaire, et facture au-delà du gratuit : la seule brique qui pourrait coûter sans prévenir |
+| Cloudflare, Google Drive, Dropbox, OneDrive, S3 | services tiers, non souverains |
+| Le serveur actuel ouvert à tous | on stockerait les tableaux et les fichiers de chacun : un disque qui grossit, des sauvegardes, le statut d'hébergeur |
+| Pair à pair sans aucun serveur | les appareils ne se trouvent pas sans rendez-vous, et le direct échoue derrière beaucoup de réseaux mobiles sans TURN |
+| Stockage chez l'utilisateur par WebDAV (Nextcloud…) | souverain, mais rare chez le grand public, et les règles CORS des serveurs WebDAV obligent souvent à passer par un proxy ; à garder pour plus tard, en option |
+| Faire payer | contraire au but ; si la bande passante devient un sujet, des dons (Liberapay) ou l'édition auto-hébergée |
 
 ## 6. Les risques, dits franchement
 
-- **Données perdues sans coffre** : c'est le prix de « sans compte ». La pastille d'état, l'installation et le
-  rappel mensuel sont là pour ça ; ils font partie du minimum, pas des finitions.
-- **Vérification Google** : sans elle, 100 utilisateurs au plus et un écran « application non vérifiée ». Avec la
-  portée `drive.appdata`, elle demande un domaine vérifié, une politique de confidentialité et un logo — rien de
-  payant. Dropbox demande de même un passage « production » gratuit.
-- **Les conditions gratuites peuvent changer** : le relais n'est qu'un étage. S'il disparaît, le local et le coffre
-  continuent ; seuls le partage et le direct s'arrêtent, et un autre relais (le serveur auto-hébergé, par exemple)
-  peut le remplacer, le protocole étant le même.
-- **Lien = clé** : qui a le lien a le tableau. C'est le comportement attendu de ce genre d'outil, mais il faut le
-  dire au moment de copier le lien.
+- **Un seul appareil, pas de copie** : on perd tout en perdant l'appareil. La pastille, l'installation, le
+  rappel mensuel et la liaison d'un second appareil sont là pour ça ; ils font partie du minimum.
+- **Images en attente** : entre deux appareils jamais allumés ensemble, une image n'arrive pas tant que celui qui
+  l'a n'est pas rouvert. C'est le prix de « pas de stockage » ; la miniature floue rend l'attente lisible.
+- **Clé perdue = espace perdu** : pas de « mot de passe oublié ». Tant qu'un appareil relié existe, on relie les
+  nouveaux à partir de lui.
+- **Lien = clé** : qui a le lien a le tableau. Il faut le dire au moment de copier le lien.
+- **Bande passante TURN** : c'est le seul poste qui grandit avec l'usage. Sur un serveur à trafic illimité (offre
+  courante chez les hébergeurs français), ça ne change pas la facture ; on peut aussi plafonner le débit par salle.
 
 ## 7. Dans quel ordre
 
 | Passe | Contenu | Livre |
 |---|---|---|
-| A | `creerReseauLocal`, images en OPFS, aperçus par un Worker, construction statique, mise en ligne sur Cloudflare Pages | notak.app utilisable, sans compte, gratuit |
-| B | pastille d'état, `persist()`, invitation à installer, export/import `.notak`, rappel de copie | on ne perd plus rien par surprise |
-| C | coffre Google Drive (journal par appareil, compactage), puis Dropbox, OneDrive, dossier (Tauri), WebDAV | ses tableaux sur tous ses appareils |
-| D | relais chiffré : partage *voir*/*modifier*, présence, curseurs, mot de passe, page publique | le travail à plusieurs |
-| E | `VITE_EDITION` : la même interface, l'édition serveur garde comptes, notifications et envoi par jeton | deux éditions, un seul code |
+| A | `creerReseauLocal`, images en OPFS, `/apercu` sans compte, construction statique servie par notre serveur | notak.app utilisable, sans compte, sur un appareil |
+| B | pastille d'état, `persist()`, invitation à installer, export/import `.notak`, rappel de copie, dossier de sauvegarde | on ne perd plus rien par surprise |
+| C | `apps/relais` + `coturn` : salles, appariement par QR code et 6 mots, synchro chiffrée entre ses appareils, images par essaim | ses tableaux sur tous ses appareils |
+| D | boîte de transit bornée | la synchro quand les appareils ne sont pas allumés ensemble |
+| E | tableaux partagés : liens *voir* / *modifier*, présence, curseurs, mot de passe, retrait d'accès | le travail à plusieurs |
+| F | `VITE_EDITION` : la même interface ; l'édition serveur garde comptes, notifications et envoi par jeton | deux éditions, un seul code |
 
-La passe A suffit déjà à publier. Chaque passe suivante ajoute un étage sans rien retirer au précédent.
+La passe A suffit à publier. Chaque passe suivante ajoute un étage sans rien retirer au précédent.
