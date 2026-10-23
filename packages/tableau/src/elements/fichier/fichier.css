@@ -1,56 +1,108 @@
-.notak-fichier {
-  font-size: 14px;
-  line-height: 20px;
-  letter-spacing: -0.1px;
+/* La carte d'un fichier : l'aperçu touche les bords, la ligne du titre a ses 24 px de marge. */
+.notak-carte[data-type='fichier'] {
+  min-height: 0;
+  padding: 0;
+}
+
+/* Sa couleur est une barre de 5 px en haut de la carte (la feuille du mode icône, elle, se teinte). */
+.notak-carte[data-type='fichier'][data-teinte]:not([data-sans-fond]) {
+  background: var(--notak-carte);
   color: var(--notak-texte);
 }
 
-.notak-fichier-tete {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
+.notak-carte[data-type='fichier'][data-teinte]:not([data-sans-fond])::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  height: 5px;
+  background: var(--notak-teinte);
+  pointer-events: none;
 }
 
-/* L'extension, sur une pastille de la couleur de sa famille. */
-.notak-fichier-badge {
+.notak-fichier {
+  font-size: 15px;
+  line-height: 1.5;
+  letter-spacing: -0.1px;
+  color: var(--notak-texte);
+  --notak-genre: #8a94a3;
+}
+
+.notak-fichier[data-genre='pdf'] { --notak-genre: #d6453d; }
+.notak-fichier[data-genre='texte'] { --notak-genre: #3f74d1; }
+.notak-fichier[data-genre='tableur'] { --notak-genre: #2f9a5a; }
+.notak-fichier[data-genre='presentation'] { --notak-genre: #e07a2e; }
+.notak-fichier[data-genre='archive'] { --notak-genre: #7c6a55; }
+.notak-fichier[data-genre='son'] { --notak-genre: #9a4fc4; }
+.notak-fichier[data-genre='video'] { --notak-genre: #c43f7d; }
+.notak-fichier[data-genre='code'] { --notak-genre: #3c4654; }
+.notak-fichier[data-genre='image'] { --notak-genre: #3b8f8a; }
+
+/* La ligne du titre : le pictogramme à gauche, le titre et les détails à droite. */
+.notak-fichier-meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  padding: 24px;
+}
+
+.notak-fichier-meta[data-apercu] {
+  padding: 25px 24px;
+}
+
+.notak-fichier[data-colonne] .notak-fichier-meta {
+  padding: 25px 24px;
+}
+
+/* Une feuille de papier : un contour fin, le coin plié, le pictogramme de la famille dedans. */
+.notak-feuille {
+  position: relative;
   flex: none;
   display: grid;
   place-items: center;
-  align-content: center;
-  gap: 3px;
-  width: 40px;
-  height: 48px;
-  border-radius: 3px;
-  background: #8a94a3;
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
+  width: 32px;
+  height: 40px;
+  color: var(--notak-genre);
 }
 
-.notak-fichier[data-genre='pdf'] .notak-fichier-badge { background: #d6453d; }
-.notak-fichier[data-genre='texte'] .notak-fichier-badge { background: #3f74d1; }
-.notak-fichier[data-genre='tableur'] .notak-fichier-badge { background: #2f9a5a; }
-.notak-fichier[data-genre='presentation'] .notak-fichier-badge { background: #e07a2e; }
-.notak-fichier[data-genre='archive'] .notak-fichier-badge { background: #7c6a55; }
-.notak-fichier[data-genre='son'] .notak-fichier-badge { background: #9a4fc4; }
-.notak-fichier[data-genre='video'] .notak-fichier-badge { background: #c43f7d; }
-.notak-fichier[data-genre='code'] .notak-fichier-badge { background: #3c4654; }
+.notak-feuille > .notak-feuille-dessin {
+  position: absolute;
+  inset: 0;
+}
+
+.notak-feuille > .notak-ico {
+  position: relative;
+  margin-top: 8px;
+}
+
+.notak-feuille-papier {
+  fill: #fff;
+  stroke: #bbbec3;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.notak-feuille-pli {
+  fill: none;
+  stroke: #bbbec3;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
 
 .notak-fichier-infos {
   display: flex;
   flex-direction: column;
-  gap: 3px;
   min-width: 0;
   flex: 1;
 }
 
 .notak-fichier-nom {
-  overflow: hidden;
+  margin: -4px 0 4px;
   font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .notak-fichier-champ {
@@ -67,63 +119,475 @@
   user-select: text;
 }
 
+/* Les détails : 18 px de haut, 12 px, le gris tertiaire ; les liens sont soulignés. */
 .notak-fichier-details {
-  color: #6b7280;
+  min-height: 18px;
+  color: #8d929a;
   font-size: 12px;
+  line-height: 18px;
 }
 
-.notak-fichier-details a {
+.notak-fichier-details a,
+.notak-fichier-lien {
   color: inherit;
+  text-decoration: underline;
 }
 
-.notak-fichier-details a:hover {
+.notak-fichier-details a:hover,
+.notak-fichier-lien:hover {
   color: var(--notak-texte);
 }
 
-.notak-fichier-video {
-  display: block;
-  width: calc(100% + 44px);
-  margin: -24px -20px 14px -24px;
-  background: #000;
+.notak-fichier-lien {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
 }
 
-.notak-fichier-son {
-  display: block;
-  width: 100%;
-  height: 32px;
-  margin-top: 12px;
+.notak-fichier-details .notak-roue {
+  width: 10px;
+  height: 10px;
+  border-width: 1.5px;
+  vertical-align: -1px;
 }
 
-/* La première page d'un PDF : un cadre à hauteur de page, qui laisse passer le pointeur (la carte reste glissable). */
+/* L'aperçu, de bord à bord. */
 .notak-fichier-pdf {
   display: block;
   box-sizing: border-box;
   width: 100%;
-  height: 220px;
-  margin-bottom: 8px;
+  aspect-ratio: 1 / 1.2941;
   border: 0;
-  border-radius: 4px;
   background: #fff;
   pointer-events: none;
 }
 
+.notak-fichier-image,
+.notak-fichier-video {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #f3f3f4;
+}
+
+/* Un format dont Milanote fabrique un aperçu et que nous ne savons pas montrer. */
+.notak-fichier-sans-apercu {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  min-height: 160px;
+  background: #f3f3f4;
+  color: #8d929a;
+  font-size: 12px;
+}
+
 .notak-fichier-legende {
-  margin-top: 8px;
+  padding: 0 24px 20px;
+  margin-top: -3px;
   color: var(--notak-texte);
   font-size: 12px;
-  line-height: 1.35;
-  opacity: 0.75;
+  line-height: 20px;
   overflow-wrap: anywhere;
 }
 
 .notak-fichier-legende.notak-fichier-champ {
   box-sizing: border-box;
-  width: 100%;
+  width: calc(100% - 48px);
+  margin: 0 24px 20px;
   padding: 2px 4px;
   border: 1px solid var(--notak-point);
   border-radius: 4px;
   background: none;
-  font: inherit;
-  opacity: 1;
+  font-weight: 400;
   outline: none;
+}
+
+/* Le mode icône : une feuille de 56 × 72 px, le nom centré dessous (sur 180 px), la taille. */
+.notak-fichier[data-feuille] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.notak-fichier[data-feuille] .notak-feuille-grande {
+  width: 56px;
+  height: 72px;
+  filter: drop-shadow(0 1px 2px rgb(27 37 54 / 0.1));
+}
+
+.notak-feuille-grande .notak-feuille-papier {
+  fill: var(--notak-teinte, #fff);
+  stroke: none;
+}
+
+.notak-feuille-grande .notak-feuille-pli {
+  fill: var(--notak-teinte, #fdfdfd);
+  stroke: rgb(27 37 54 / 0.12);
+  stroke-width: 1;
+}
+
+.notak-feuille-grande > .notak-ico {
+  position: absolute;
+  bottom: 8px;
+  margin-top: 0;
+}
+
+.notak-fichier-texte {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 180px;
+  margin: 8px -40px 0;
+  text-align: center;
+}
+
+.notak-fichier-texte .notak-fichier-nom,
+.notak-fichier-texte .notak-fichier-champ {
+  max-width: 100%;
+  margin: 0;
+  text-align: center;
+  font-weight: 500;
+}
+
+.notak-fichier-texte .notak-fichier-details {
+  margin-top: 2px;
+}
+
+/* Dans une colonne, la feuille passe à gauche et le texte à droite, sur un fond noir à 4 %. */
+.notak-fichier[data-feuille][data-colonne] {
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  background: rgb(0 0 0 / 0.04);
+}
+
+.notak-fichier[data-feuille][data-colonne] .notak-feuille-grande {
+  flex: none;
+  transform: scale(0.857);
+  transform-origin: left center;
+  margin-right: -8px;
+}
+
+.notak-fichier[data-feuille][data-colonne] .notak-fichier-texte {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  margin: 0;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.notak-fichier[data-feuille][data-colonne] .notak-fichier-texte .notak-fichier-nom,
+.notak-fichier[data-feuille][data-colonne] .notak-fichier-texte .notak-fichier-champ {
+  text-align: left;
+}
+
+/* Une feuille teintée par la couleur choisie. */
+.notak-carte[data-type='fichier'][data-sans-fond][data-teinte] .notak-fichier {
+  color: var(--notak-texte);
+}
+
+/* La fenêtre du fichier. */
+.notak-fenetre {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 0.7);
+  cursor: default;
+}
+
+.notak-fenetre-lecteur {
+  width: 80vw;
+  height: 90vh;
+  border: 0;
+  background: #fff;
+}
+
+.notak-fenetre-image {
+  max-width: 80vw;
+  max-height: 90vh;
+  object-fit: contain;
+  background: #fff;
+}
+
+.notak-fenetre-carte {
+  display: flex;
+  flex-direction: column;
+  width: min(1280px, calc(100vw - 200px));
+  min-width: min(450px, 100vw);
+  max-height: 90vh;
+  overflow: auto;
+  background: var(--notak-carte, #fff);
+  color: var(--notak-texte, #323b4a);
+  box-shadow: 0 8px 22px -6px rgb(27 37 54 / 0.12), 0 14px 32px -4px rgb(27 37 54 / 0.14);
+}
+
+.notak-fenetre-icone {
+  display: grid;
+  place-items: center;
+  padding: 48px;
+  background: #f3f3f4;
+  color: #8d929a;
+}
+
+.notak-fenetre-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 24px;
+}
+
+.notak-fenetre-titre {
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.notak-fenetre-details {
+  color: #8d929a;
+  font-size: 12px;
+}
+
+.notak-fenetre-details a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.notak-fenetre-legende {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+/* Les lecteurs. */
+.notak-lecteur-son {
+  display: grid;
+  grid-template-columns: 37px 30px 1fr auto;
+  align-items: center;
+  height: 50px;
+  padding: 0 16px 0 12px;
+  background: rgb(0 0 0 / 0.04);
+  font-size: 11px;
+}
+
+.notak-lecteur-lecture {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0 0 0 2px;
+  border: 0;
+  border-radius: 50%;
+  background: #5f6672;
+  color: #fff;
+  cursor: pointer;
+}
+
+.notak-lecteur-bouton {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.notak-lecteur-temps {
+  margin-left: 10px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.notak-lecteur-erreur {
+  grid-column: 1 / -1;
+  color: #8d929a;
+  font-size: 12px;
+}
+
+/* La barre de progression : 4 px, un rond au survol. */
+.notak-curseur {
+  position: relative;
+  height: 4px;
+  border-radius: 2px;
+  background: #e8e9eb;
+  cursor: pointer;
+  touch-action: none;
+}
+
+/* Une zone de prise plus large que le trait. */
+.notak-curseur::before {
+  content: '';
+  position: absolute;
+  inset: -8px 0;
+}
+
+.notak-curseur-plein {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+  background: #5f6672;
+}
+
+.notak-curseur-rond {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #5f6672;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+
+.notak-curseur:hover .notak-curseur-rond,
+.notak-curseur:focus-visible .notak-curseur-rond {
+  opacity: 1;
+}
+
+/* Le volume : un bouton, et au survol un curseur vertical de 32 × 100 px. */
+.notak-lecteur-volume {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.notak-lecteur-volume-volet {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  display: none;
+  width: 32px;
+  height: 100px;
+  box-sizing: border-box;
+  padding: 14px 14px;
+  transform: translateX(-50%);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(27 37 54 / 0.25);
+}
+
+.notak-lecteur-volume:hover .notak-lecteur-volume-volet,
+.notak-lecteur-volume:focus-within .notak-lecteur-volume-volet {
+  display: block;
+}
+
+.notak-curseur-volume {
+  width: 4px;
+  height: 100%;
+  margin: 0 auto;
+}
+
+.notak-curseur-volume .notak-curseur-plein {
+  top: auto;
+  left: 0;
+  right: 0;
+  width: auto;
+}
+
+.notak-curseur-volume .notak-curseur-rond {
+  left: 50%;
+  top: auto;
+  transform: translate(-50%, 50%);
+}
+
+.notak-curseur-volume::before {
+  inset: 0 -8px;
+}
+
+/* La vidéo : l'image, un cercle de lecture au centre, une barre de contrôle sur l'image. */
+.notak-lecteur-video {
+  position: relative;
+  display: block;
+  background: #000;
+  line-height: 0;
+}
+
+.notak-lecteur-video > video {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 60px;
+}
+
+.notak-lecteur-rond {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  padding: 0 0 0 2px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.5);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+}
+
+.notak-lecteur-barre {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: 30px 30px 1fr auto 30px;
+  align-items: center;
+  height: 30px;
+  padding: 0 4px;
+  background: rgb(0 0 0 / 0.5);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  line-height: 1;
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.notak-lecteur-barre .notak-curseur {
+  background: rgb(255 255 255 / 0.3);
+}
+
+.notak-lecteur-barre .notak-curseur-plein,
+.notak-lecteur-barre .notak-curseur-rond {
+  background: #fff;
+}
+
+.notak-lecteur-barre .notak-curseur-rond {
+  border-color: rgb(0 0 0 / 0.5);
+}
+
+.notak-lecteur-video:hover .notak-lecteur-barre,
+.notak-lecteur-video:focus-within .notak-lecteur-barre,
+.notak-carte[data-choisie] .notak-lecteur-barre {
+  opacity: 1;
+}
+
+.notak-lecteur-video > .notak-lecteur-erreur {
+  display: block;
+  padding: 24px;
+  line-height: 1.4;
 }

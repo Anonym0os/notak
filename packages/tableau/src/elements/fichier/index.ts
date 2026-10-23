@@ -1,6 +1,8 @@
-import type { Fichier } from '../../coeur/tableau'
+import type { Element, Fichier } from '../../coeur/tableau'
 import { registre } from '../registre'
-import { OutilsFichier, RenduFichier, ouvrirFichier } from './Fichier'
+import { OutilsFichier, RenduFichier, copierLienFichier } from './Fichier'
+import { apercuDe, lisible } from './genre'
+import { amorcerLegendeFichier, ouvrirFenetreFichier, viserEdition } from './ouverture'
 import './fichier.css'
 import { LARGEUR_FICHIER, choisirFichiers, recevoirFichiers } from './recepteur'
 import { basculerBanque } from '../image/banqueImages'
@@ -34,8 +36,18 @@ registre.type<Fichier>({
   OutilsApres: OutilsFichier,
   editable: true,
   hauteurParDefaut: 8,
-  largeurMin: 12,
-  ouvrir: (e, contexte) => void ouvrirFichier(e.contenu, contexte),
+  // Une feuille (le mode icône) n'a pas de poignée : on la déplace, c'est tout. Sans aperçu ni lecteur, la carte garde ses 34 UG.
+  largeurMin: 4,
+  sansFond: (c) => !!c.icone,
+  sansPoignee: (c) => !!c.icone || !!c.sansApercu || (apercuDe(c.nom, c.typeMime, false) === null && lisible(c.typeMime) === null),
+  // Le double-clic montre le fichier dans sa fenêtre : un PDF ou un texte se lit, le reste s'agrandit.
+  ouvrir: (e) => ouvrirFenetreFichier(e.id),
+  surFrappe: (e, caractere, contexte) => {
+    if (contexte.services.lectureSeule || e.contenu.icone || e.contenu.sansInfos) return false
+    viserEdition('legende')
+    amorcerLegendeFichier(caractere)
+    return true
+  },
   outils: [
     {
       get libelle() {
@@ -77,18 +89,38 @@ registre.type<Fichier>({
 
 registre.recepteur({ priorite: 35, cumulable: true, recevoir: recevoirFichiers })
 
+const tousDe = (els: Element[], type: Element['contenu']['type']) => els.length > 0 && els.every((e) => e.contenu.type === type)
+
+// Le même geste porte trois noms, comme chez Milanote : « Download original image », « …images » et « Download ».
 registre.entreeMenu({
   get libelle() {
-    return t('menu.telechargerOriginal')
+    return t('menu.telechargerImage')
   },
-  visible: (els, contexte) => peutTelecharger(els, contexte),
+  visible: (els, contexte) => els.length === 1 && tousDe(els, 'image') && peutTelecharger(els, contexte),
   faire: (els, contexte) => void telecharger(els, contexte),
 })
 
 registre.entreeMenu({
   get libelle() {
-    return t('fichier.ouvrirFichier')
+    return t('menu.telechargerImages')
+  },
+  visible: (els, contexte) => els.length > 1 && tousDe(els, 'image') && peutTelecharger(els, contexte),
+  faire: (els, contexte) => void telecharger(els, contexte),
+})
+
+registre.entreeMenu({
+  get libelle() {
+    return t('menu.telecharger')
+  },
+  visible: (els, contexte) => !tousDe(els, 'image') && peutTelecharger(els, contexte),
+  faire: (els, contexte) => void telecharger(els, contexte),
+})
+
+// Copier l'adresse du fichier ; sans presse-papiers, c'est le fichier lui-même qu'on ouvre.
+registre.entreeMenu({
+  get libelle() {
+    return t('fichier.copierLien')
   },
   visible: (els) => els.length === 1 && els[0]!.contenu.type === 'fichier',
-  faire: ([e], contexte) => e?.contenu.type === 'fichier' && void ouvrirFichier(e.contenu, contexte),
+  faire: ([e], contexte) => e?.contenu.type === 'fichier' && void copierLienFichier(e.contenu, contexte),
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { adresseApercuPdf, apercuDe, extensionDe, genreDe, tailleLisible } from './genre'
+import { adresseApercuPdf, apercuDe, extensionDe, genreDe, naitEnIcone, seLitEnLigne, tailleLisible } from './genre'
 
 describe('genre d’un fichier', () => {
   it('lit l’extension', () => {
@@ -13,10 +13,25 @@ describe('genre d’un fichier', () => {
     expect(genreDe('piste', 'audio/mpeg')).toBe('son')
     expect(genreDe('inconnu.xyz', '')).toBe('autre')
   })
-  it('écrit la taille à la française', () => {
-    expect(tailleLisible(812)).toBe('812 o')
-    expect(tailleLisible(14_200)).toBe('14 ko')
-    expect(tailleLisible(2_400_000)).toBe('2,4 Mo')
+  it('écrit la taille comme Milanote : décimale, base 1000, B KB MB GB', () => {
+    expect(tailleLisible(812)).toBe('812 B')
+    expect(tailleLisible(14_200)).toBe('14 KB')
+    expect(tailleLisible(2_400_000)).toBe('2,4 MB')
+    expect(tailleLisible(12_340_000)).toBe('12,3 MB')
+    expect(tailleLisible(120_000_000)).toBe('120 MB')
+    expect(tailleLisible(3_000_000_000)).toBe('3 GB')
+  })
+  it('un fichier naît en icône, sauf le son, la vidéo et les formats à aperçu forcé', () => {
+    expect(naitEnIcone('a.pdf', 'application/pdf')).toBe(true)
+    expect(naitEnIcone('a.docx', '')).toBe(true)
+    expect(naitEnIcone('a.mp3', 'audio/mpeg')).toBe(false)
+    expect(naitEnIcone('a.mp4', 'video/mp4')).toBe(false)
+    expect(naitEnIcone('maquette.sketch', '')).toBe(false)
+  })
+  it('seuls le PDF et le texte se lisent dans la fenêtre', () => {
+    expect(seLitEnLigne('a.pdf', 'application/pdf')).toBe(true)
+    expect(seLitEnLigne('a.txt', 'text/plain')).toBe(true)
+    expect(seLitEnLigne('a.docx', '')).toBe(false)
   })
 })
 
@@ -25,8 +40,9 @@ describe('aperçu d’un fichier', () => {
     expect(adresseApercuPdf('/api/fichiers/ab')).toBe('/api/fichiers/ab#page=1&toolbar=0&navpanes=0&scrollbar=0&view=FitH')
     expect(adresseApercuPdf('blob:x#page=9')).toBe('blob:x#page=1&toolbar=0&navpanes=0&scrollbar=0&view=FitH')
   })
-  it('montre un PDF, une vidéo, et rien d’autre ; le mode icône ne montre rien', () => {
+  it('montre un PDF, une image, une vidéo, et rien d’autre ; le mode icône ne montre rien', () => {
     expect(apercuDe('a.pdf', 'application/pdf', undefined)).toBe('pdf')
+    expect(apercuDe('a.tiff', 'image/tiff', undefined)).toBe('image')
     expect(apercuDe('a.mp4', 'video/mp4', false)).toBe('video')
     expect(apercuDe('a.docx', '', undefined)).toBeNull()
     expect(apercuDe('a.pdf', 'application/pdf', true)).toBeNull()

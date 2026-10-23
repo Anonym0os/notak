@@ -1,5 +1,29 @@
 .notak-carte[data-type='image'] {
   min-height: 0;
+  padding: 0;
+}
+
+/* La carte de l'image : fond blanc, l'ombre légère de l'élévation 1 sans l'anneau ; elle porte l'image et sa légende. */
+.notak-carte[data-type='image']:not([data-sans-fond], [data-choisie]) {
+  box-shadow: 0 1px 2px rgb(27 37 54 / 0.1);
+}
+
+/* Une image transparente se devine au survol : un filet de 1 px. */
+.notak-carte[data-type='image'][data-sans-fond]:not([data-choisie]):hover {
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.1);
+}
+
+/* La barre de couleur : 5 px en haut de la carte, au lieu d'une teinte sur la carte. */
+.notak-carte[data-type='image'][data-teinte]::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  height: 5px;
+  background: var(--notak-teinte);
+  pointer-events: none;
 }
 
 .notak-image-cadre {
@@ -11,10 +35,6 @@
   container-type: size;
 }
 
-.notak-image-cadre[data-ombre] {
-  box-shadow: var(--notak-ombre);
-}
-
 .notak-image-plan {
   position: absolute;
   top: 50%;
@@ -22,7 +42,7 @@
   overflow: hidden;
 }
 
-/* L'image remplit son plan (ou, recadrée, le déborde : le plan cache le reste). */
+/* L'image remplit son plan, qui recouvre le cadre (ou, recadrée, le déborde : le cadre cache le reste). */
 .notak-image {
   display: block;
   width: 100%;
@@ -47,21 +67,28 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #e6e8eb;
-  color: #7a7f87;
-  font-size: 11px;
+  background: #f3f3f4;
+  color: #8d929a;
 }
 
-.notak-legende {
-  margin: 4px 0 0;
-  font-size: 11px;
-  line-height: 1.4;
-  color: #5b6169;
+/* La légende, dans la carte, sous l'image : 12 px sur 20, retrait de 24 px. */
+.notak-carte[data-type='image'] .notak-legende {
+  margin: 0;
+  padding: 20px 24px;
+  font-size: 12px;
+  line-height: 20px;
+  letter-spacing: normal;
+  color: #323b4a;
   overflow-wrap: anywhere;
 }
 
-.notak-legende[data-vide] {
-  color: #9aa0a8;
+.notak-carte[data-type='image'][data-teinte] .notak-legende {
+  background: none;
+  color: #323b4a;
+}
+
+.notak-carte[data-type='image'] .notak-legende[data-vide] {
+  color: #d1d3d6;
   cursor: text;
 }
 
@@ -76,39 +103,154 @@
   overflow: hidden;
   background: none;
   font: inherit;
-  font-size: 11px;
-  line-height: 1.4;
+  font-size: 12px;
+  line-height: 20px;
   color: inherit;
   user-select: text;
 }
 
-/* L'image en grand. */
+.notak-carte[data-type='image'] .notak-legende-champ {
+  width: 100%;
+}
+
+/* L'image en grand (la fenêtre V2 de Milanote) : un voile à 70 %, l'image à sa taille au plus, une barre sombre. */
 .notak-visionneuse {
   position: fixed;
   z-index: 1000;
   inset: 0;
   display: flex;
-  flex-direction: column;
+  background: rgb(0 0 0 / 0.7);
+  cursor: default;
+  overflow: hidden;
+}
+
+.notak-visionneuse-zone {
+  flex: 1;
+  min-width: 0;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 40px;
-  background: rgb(15 17 20 / 0.86);
-  cursor: zoom-out;
-  animation: notak-voile 0.15s ease-out;
+  box-sizing: border-box;
+  padding: 48px 60px;
 }
 
-.notak-visionneuse img {
-  max-width: 100%;
-  max-height: calc(100% - 40px);
-  object-fit: contain;
-  box-shadow: 0 20px 60px rgb(0 0 0 / 0.4);
-}
-
-.notak-visionneuse p {
+.notak-visionneuse-figure {
   margin: 0;
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+}
+
+.notak-visionneuse-image {
+  display: block;
+  min-height: 0;
+  max-width: 100%;
+  max-height: calc(100vh - 96px);
+  object-fit: contain;
+  will-change: transform;
+  transition: transform 0.12s ease-out;
+}
+
+.notak-visionneuse-image[data-zoom] {
+  cursor: grab;
+  transition: none;
+}
+
+.notak-visionneuse-image[data-zoom]:active {
+  cursor: grabbing;
+}
+
+/* Une image transparente se montre sur un damier de 32 px. */
+.notak-visionneuse-image[data-damier] {
+  background: repeating-conic-gradient(#d9d9d9 0% 25%, #fff 0% 50%) 0 0 / 32px 32px;
+}
+
+.notak-visionneuse-legende {
+  box-sizing: border-box;
+  max-width: 100%;
+  max-height: calc(50vh - 48px);
+  overflow: auto;
+  padding: 16px 24px 20px;
+  background: #fff;
+  color: #323b4a;
+  font-size: 12px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.notak-visionneuse-vide {
+  display: grid;
+  place-items: center;
+  width: 160px;
+  height: 120px;
+  background: #f3f3f4;
+  color: #8d929a;
+}
+
+/* La barre : 40 px, sombre, au bas de la fenêtre ; elle s'estompe le temps du zoom. */
+.notak-visionneuse-barre {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  height: 40px;
+  transform: translateX(-50%);
+  border-radius: 6px;
+  background: #262626;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
   color: #fff;
-  font-size: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: opacity 0.1s ease-out;
+}
+
+.notak-visionneuse-barre[data-estompee] {
+  opacity: 0.35;
+}
+
+.notak-visionneuse-texte,
+.notak-visionneuse-outil {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  margin: 0;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.notak-visionneuse-texte:hover,
+.notak-visionneuse-outil:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.1);
+}
+
+.notak-visionneuse-texte:focus-visible,
+.notak-visionneuse-outil:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -2px;
+}
+
+.notak-visionneuse-outil:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.notak-visionneuse-sep {
+  align-self: stretch;
+  width: 1px;
+  margin: 8px 2px;
+  background: rgb(255 255 255 / 0.2);
 }
 
 @keyframes notak-voile {

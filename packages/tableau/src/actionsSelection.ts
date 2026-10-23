@@ -44,7 +44,13 @@ export function actionsSelection(elements: Element[], contexte: ContexteToile): 
   }
   const modules: ActionMenu[] = toutesLesEntreesMenu()
     .filter((x) => !x.tuile && x.visible(elements, contexte))
-    .map((x) => ({ cle: `m:${x.libelle}`, libelle: x.libelle, ...(x.raccourci ? { raccourci: x.raccourci } : {}), faire: () => x.faire(elements, contexte) }))
+    .map((x) => ({
+      cle: `m:${x.libelle}`,
+      libelle: x.libelle,
+      ...(x.raccourci ? { raccourci: x.raccourci } : {}),
+      ...(x.coche ? { coche: x.coche(elements, contexte) } : {}),
+      faire: () => x.faire(elements, contexte),
+    }))
   const seul = elements.length === 1 ? creeLe(elements[0]!.id) : null
   return [
     ...modules,

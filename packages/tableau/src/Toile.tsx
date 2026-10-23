@@ -1237,7 +1237,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       null,
       ...toutesLesEntreesMenu()
         .filter((x) => x.visible(els, contexte))
-        .map((x) => ({ libelle: x.libelle, ...(x.raccourci ? { raccourci: x.raccourci } : {}), faire: () => x.faire(els, contexte) })),
+        .map((x) => ({ libelle: x.libelle, ...(x.raccourci ? { raccourci: x.raccourci } : {}), ...(x.coche ? { coche: x.coche(els, contexte) } : {}), faire: () => x.faire(els, contexte) })),
       null,
       { libelle: t('toile.verrouiller'), coche: verrouilles, faire: () => verrouiller(!verrouilles) },
       { libelle: t('toile.premierPlan'), raccourci: '⇧⌘↑', faire: () => changerPlan('haut', false) },
@@ -1456,6 +1456,14 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (dans && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) return reordonner(dans, e.key === 'ArrowUp' ? -1 : 1)
       return deplacer(...fleches[e.key]!)
     }
+    // Taper sur un élément choisi seul commence ce qu'il écrit (la légende d'une image).
+    if (selection.size === 1 && e.key.length === 1 && !cmd && !e.altKey && e.key !== ' ' && e.key !== '/') {
+      const el = tableau.elements.find((x) => x.id === [...selection][0])
+      if (el && !el.verrou && definition(el.contenu.type)?.surFrappe?.(el as never, e.key, contexte)) {
+        e.preventDefault()
+        return commencerEdition(el.id)
+      }
+    }
     switch (e.key) {
       case '/':
         e.preventDefault()
@@ -1465,7 +1473,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       case 'Enter':
         if (selection.size === 1) {
           e.preventDefault()
-          commencerEdition([...selection][0]!)
+          const id = [...selection][0]!
+          const el = tableau.elements.find((x) => x.id === id)
+          const def = el && definition(el.contenu.type)
+          if (el && def?.entreeOuvre && def.ouvrir) def.ouvrir(el, contexte)
+          else commencerEdition(id)
         }
         return
       case 'Delete':

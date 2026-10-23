@@ -79,14 +79,14 @@ describe('la barre de gauche, type par type (ordre de Milanote)', () => {
     expect(visibles).toEqual(['Couleur', ...COMMUNS, 'Aperçu', 'Infos du lien', 'Renommer', 'Légende', 'Adresse'])
   })
 
-  it('image : Dessiner et Légende visibles ; pivoter, recadrer et détourer dans « ••• »', () => {
+  it('image : Dessiner dessus et Légende visibles ; pivoter, recadrer et détourer dans « ••• »', () => {
     const { visibles, rangees } = listes('image')
-    expect(visibles).toEqual(['Couleur', ...COMMUNS, 'Dessiner', 'Légende'])
+    expect(visibles).toEqual(['Couleur', ...COMMUNS, 'Dessiner dessus', 'Légende'])
     expect(rangees).toEqual(expect.arrayContaining(['Pivoter', 'Recadrer', 'Détourer']))
   })
 
-  it('fichier : Mode, Renommer, Légende', () => {
-    expect(listes('fichier').visibles).toEqual(['Couleur', ...COMMUNS, 'Icône', 'Renommer', 'Légende'])
+  it('fichier : Mode, Aperçu, Renommer, Légende, Infos', () => {
+    expect(listes('fichier').visibles).toEqual(['Couleur', ...COMMUNS, 'Icône', 'Aperçu', 'Renommer', 'Légende', 'Infos'])
   })
 
   it('document : Mode (visible) ; Ouvrir dans « ••• »', () => {

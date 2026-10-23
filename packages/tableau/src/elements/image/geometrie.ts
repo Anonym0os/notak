@@ -6,7 +6,6 @@ export const TYPES_ACCEPTES = ['image/png', 'image/jpeg', 'image/webp', 'image/g
 export const TAILLE_MAX = 25 * 1024 * 1024
 
 const LARGEUR_MAX_UG = 34
-const LARGEUR_MIN_UG = 4
 /** La largeur naturelle ne dépasse pas 1600 px. */
 const LARGEUR_NATURELLE_MAX_PX = 1600
 export const LARGEUR_COLONNE = 36
@@ -18,9 +17,11 @@ export interface TailleUG {
   hauteur: number
 }
 
-/** La largeur d'une image neuve, en UG : sa taille en pixels sur dix, entre 4 et 34. */
-export const largeurInitiale = (largeurOrigine: number) =>
-  Math.max(LARGEUR_MIN_UG, Math.min(Math.round(largeurOrigine / PX_PAR_UG), LARGEUR_MAX_UG))
+/**
+ * La largeur d'une image neuve, en UG : sa taille en pixels sur dix, au plus 34. Milanote ne fixe aucun plancher à la
+ * création (les 4 UG ne jouent qu'au redimensionnement) : une vignette de 20 px naît petite.
+ */
+export const largeurInitiale = (largeurOrigine: number) => Math.max(1, Math.min(Math.round(largeurOrigine / PX_PAR_UG), LARGEUR_MAX_UG))
 
 /** La largeur « naturelle » : la taille d'origine, au plus 1600 px. */
 export const largeurNaturelleImage = (c: Image) => Math.min(c.largeurOrigine, LARGEUR_NATURELLE_MAX_PX) / PX_PAR_UG
@@ -36,8 +37,26 @@ export const hauteurPour = (largeur: number, c: Pick<Image, 'largeurOrigine' | '
 export const aUneOmbre = (typeMime: string | undefined, transparente?: boolean) =>
   transparente !== undefined ? !transparente : typeMime !== 'image/png' && typeMime !== 'image/gif' && typeMime !== 'image/svg+xml'
 
+/**
+ * Cette image a-t-elle sa carte blanche (fond et ombre) ? Une image transparente non : sauf si l'outil « Transparent »
+ * lui a rendu son fond.
+ */
+export const aUneCarte = (c: Pick<Image, 'typeMime' | 'transparente' | 'fondBlanc'>) => !!c.fondBlanc || aUneOmbre(c.typeMime, c.transparente)
+
+/** Le retrait de la carte sur la toile, en pixels : la bordure de sélection de Milanote est à l'extérieur, la carte fait 2 px de moins. */
+export const RETRAIT_PX = 2
+
 /** La hauteur d'une image posée sur la toile, en UG entières : ses bords tombent sur la grille. */
 export const hauteurCalee = (largeur: number, proportions: number) => Math.max(1, Math.round(largeur / proportions))
+
+/**
+ * La hauteur de la carte sur la toile, en pixels : l'image est rognée pour tomber sur la grille (moins le retrait),
+ * ou garde ses proportions exactes si on l'a demandé (la hauteur suit alors la largeur de la carte).
+ */
+export function hauteurCartePx(largeurUG: number, proportions: number, exactes: boolean | undefined): number {
+  if (exactes) return Math.max(1, ((largeurUG * PX_PAR_UG - RETRAIT_PX) / proportions))
+  return hauteurCalee(largeurUG, proportions) * PX_PAR_UG - RETRAIT_PX
+}
 
 export const nombreColonnes = (largeurVuePx: number) => Math.max(3, Math.floor(largeurVuePx / 360))
 
@@ -91,10 +110,10 @@ type Rotation = NonNullable<Image['rotation']>
 
 export const rotationDe = (c: Pick<Image, 'rotation'>): Rotation => c.rotation ?? 0
 
-/** Un quart de tour de plus dans le sens des aiguilles d'une montre ; revenu à zéro, la clé disparaît. */
+/** Un quart de tour de plus vers la gauche (« Rotate left » de Milanote) ; revenu à zéro, la clé disparaît. */
 export function pivoter(c: Image): Image {
   const { rotation: _, ...reste } = c
-  const suivante = ((rotationDe(c) + 90) % 360) as Rotation
+  const suivante = ((rotationDe(c) + 270) % 360) as Rotation
   return suivante === 0 ? reste : { ...reste, rotation: suivante }
 }
 
@@ -120,15 +139,25 @@ export interface MiseEnPage {
 const pct = (v: number) => `${+(v * 100).toFixed(4)}%`
 
 /**
+ * Un point de la boîte (fractions de sa largeur et de sa hauteur) vers le plan de l'image montrée : le plan
+ * recouvre la boîte (l'image est rognée, jamais étirée), il la déborde donc d'un côté.
+ */
+export function versPlan(fx: number, fy: number, ratioBoite: number, proportions: number): [number, number] {
+  if (ratioBoite < proportions) return [(fx - 0.5) * (ratioBoite / proportions) + 0.5, fy]
+  return [fx, (fy - 0.5) * (proportions / ratioBoite) + 0.5]
+}
+
+/**
  * Où poser le plan et l'image dans la boîte, en unités de conteneur (`cqw`, `cqh`) pour que le quart de tour
  * échange sans mesure les deux côtés. Le recadrage est en fractions de l'image d'origine.
  */
 export function miseEnPage(c: Image, plein = false): MiseEnPage {
   const rot = rotationDe(c)
   const r: Recadrage = (!plein && c.recadrage) || { x: 0, y: 0, largeur: 1, hauteur: 1 }
-  const plan = couche(rot)
-    ? { width: '100cqh', height: '100cqw' }
-    : { width: '100cqw', height: '100cqh' }
+  // Le plan recouvre la boîte à ses proportions (comme `object-fit: cover`) : ce qui dépasse est coupé, rien n'est étiré.
+  const p = +proportionsAffichees(c, plein).toFixed(6)
+  const montree = { width: `max(100cqw, calc(100cqh * ${p}))`, height: `max(100cqh, calc(100cqw / ${p}))` }
+  const plan = couche(rot) ? { width: montree.height, height: montree.width } : montree
   return {
     plan: { ...plan, ...(rot ? { transform: `translate(-50%, -50%) rotate(${rot}deg)` } : { transform: 'translate(-50%, -50%)' }) },
     image: { width: pct(1 / r.largeur), height: pct(1 / r.hauteur), left: pct(-r.x / r.largeur), top: pct(-r.y / r.hauteur) },

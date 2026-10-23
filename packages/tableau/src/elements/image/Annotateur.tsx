@@ -16,7 +16,7 @@ import {
   traitVise,
   versImage,
 } from './annotation'
-import { miseEnPage } from './geometrie'
+import { miseEnPage, proportionsAffichees, versPlan } from './geometrie'
 import { annoter, choisirCouleur, choisirEpaisseur, choisirOutil, useAnnotation } from './modeAnnotation'
 import { largeurEntiereAffichee } from './tailles'
 import { BarreEpaisseur, VoletCouleur, VoletEpaisseur } from '../croquis/partage'
@@ -189,7 +189,11 @@ export function Annotateur({
   const point = (e: { clientX: number; clientY: number }): { p: Point2; largeurPx: number } | null => {
     const r = boite.current?.getBoundingClientRect()
     if (!r || r.width === 0 || r.height === 0) return null
-    return { p: versImage((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height, actuel()), largeurPx: r.width }
+    // Le plan de l'image recouvre le cadre : il le déborde d'un côté, et c'est lui qui donne l'échelle.
+    const c = actuel()
+    const prop = proportionsAffichees(c)
+    const [fx, fy] = versPlan((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height, r.width / r.height, prop)
+    return { p: versImage(fx, fy, c), largeurPx: Math.max(r.width, r.height * prop) }
   }
 
   const descendre = (e: React.PointerEvent) => {
@@ -259,7 +263,8 @@ export function Annotateur({
 
   const c = actuel()
   const cible = vise >= 0 && outil === 'gomme' ? traits[vise] : undefined
-  const largeurPx = boite.current?.getBoundingClientRect().width ?? 0
+  const rBoite = boite.current?.getBoundingClientRect()
+  const largeurPx = rBoite ? Math.max(rBoite.width, rBoite.height * proportionsAffichees(c)) : 0
   const extra = largeurPx > 0 ? CONTOUR_GOMME_PX / largeurEntiereAffichee(c, largeurPx) : 0
 
   return (

@@ -99,6 +99,12 @@ export interface Image {
   traits?: TraitImage[]
   /** Après un détourage : le fichier d'avant, gardé pour « Rétablir l'original » et pour régler le détourage de nouveau. */
   original?: OriginalImage
+  /** Une image transparente garde pourtant sa carte blanche (l'outil « Transparent » de Milanote, `showBackground`). */
+  fondBlanc?: boolean
+  /** Garde les proportions exactes au lieu de rogner sur la grille de points (« Rogner l'image sur la grille » décoché). */
+  proportionsExactes?: boolean
+  /** La légende reste affichée, même vide (avec son invite), tant qu'on ne l'a pas retirée. */
+  legendeAffichee?: boolean
 }
 
 /** Ce qu'une image était avant son détourage. */
@@ -204,6 +210,14 @@ export interface Fichier {
   couleur?: CouleurNote
   /** Rien que l'icône et le nom : ni aperçu des pages, ni lecteur. */
   icone?: boolean
+  /** L'aperçu (première page, image) est masqué : la carte garde son titre et ses détails. */
+  sansApercu?: boolean
+  /** « Infos du fichier » décoché : ni titre ni détails, rien que l'aperçu ou le lecteur. */
+  sansInfos?: boolean
+  /** Le son ou la vidéo repart au début quand il finit. */
+  boucle?: boolean
+  /** Le son ou la vidéo se lance dès que la carte est là. */
+  lectureAuto?: boolean
 }
 
 /** Une colonne : ses éléments portent `parent` = l'id de la colonne, et un `ordre`. */

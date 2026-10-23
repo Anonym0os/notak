@@ -226,10 +226,13 @@ export function BarreSelection({
     const def = definition(type as Element['contenu']['type'])
     const Outils = def?.Outils
     const Apres = def?.OutilsApres
-    if (!Outils && !Apres) return []
+    const Fin = def?.OutilsFin
+    if (!Outils && !Apres && !Fin) return []
     const tete = Outils ? <Outils key={type} elements={els} contexte={contexte} /> : null
     const suite = Apres ? <Apres key={`${type}:apres`} elements={els} contexte={contexte} /> : null
-    return [{ type, nom: def?.nom ?? type, n: els.length, tete, suite, rendu: <>{tete}{suite}</> }]
+    // `OutilsFin` : après l'arrangement (la légende d'une image, chez Milanote).
+    const fin = Fin ? <Fin key={`${type}:fin`} elements={els} contexte={contexte} /> : null
+    return [{ type, nom: def?.nom ?? type, n: els.length, tete, suite, fin, rendu: <>{tete}{suite}{fin}</> }]
   })
   // Les outils communs, dans l'ordre de leur rang ; ceux du type qui suivent les étiquettes, réactions et commentaire
   // (`OutilsApres`) s'intercalent avant l'arrangement.
@@ -256,6 +259,7 @@ export function BarreSelection({
             {communs}
             {!mele && blocs.map((b) => b.suite)}
             {communsSuite}
+            {!mele && blocs.map((b) => b.fin)}
             <div className="notak-outil-place notak-selection-plus" ref={ancreTiroir}>
               <Infobulle libelle={t('barre.plusOutils')} cote="droite" contenu>
                 <button type="button" className="notak-outil-plus" aria-expanded={tiroir} aria-label={t('barre.plusOutils')} onClick={() => setTiroir(!tiroir)}>
@@ -299,6 +303,7 @@ export function BarreSelection({
       {communs}
       {!mele && blocs.map((b) => b.suite)}
       {communsSuite}
+      {!mele && blocs.map((b) => b.fin)}
       {mele && blocs.length > 0 && (
         <span className="notak-barre-plus" ref={ancrePlus}>
           <Infobulle libelle={t('barre.outilsParType')} contenu>
