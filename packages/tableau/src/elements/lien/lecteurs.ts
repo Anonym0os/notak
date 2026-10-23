@@ -272,8 +272,15 @@ export function formeDe(l: Lecteur): Forme {
   return { aspectRatio: String(l.proportions ?? 16 / 9) }
 }
 
-/** Le lecteur s'ouvre sans clic : une carte, ou une vidéo réglée en lecture automatique. */
-export const demarreSeul = (l: Lecteur, r: ReglagesLecture) => l.genre === 'carte' || (aDesReglagesDeLecture(l) && !!r.lectureAuto)
+/** Les fournisseurs dont le lecteur n'est monté qu'au clic, comme chez Milanote. */
+const AU_CLIC = new Set(['youtube', 'vimeo', 'soundcloud', 'loom', 'wistia'])
+
+/**
+ * Le lecteur s'ouvre sans clic : une carte, un morceau ou une maquette incrustés d'emblée (hors les fournisseurs
+ * « au clic »), ou une vidéo réglée en lecture automatique.
+ */
+export const demarreSeul = (l: Lecteur, r: ReglagesLecture) =>
+  (l.genre !== 'video' && !AU_CLIC.has(l.fournisseur)) || (aDesReglagesDeLecture(l) && !!r.lectureAuto)
 
 /** L'adresse de l'iframe. Un clic sur « Lire » lance le son ; la lecture automatique, elle, le coupe. */
 export function adresseDeLecture(l: Lecteur, r: ReglagesLecture, parClic: boolean): string {

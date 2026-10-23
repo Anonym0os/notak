@@ -2470,17 +2470,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   background: var(--notak-fond);
 }
 
-/* === Teinte des cartes : la couleur choisie colore l'en-tête d'un lien, la légende d'une image, la carte d'un fichier ou d'un croquis, la feuille d'un document === */
-.notak-carte[data-teinte] .notak-lien {
-  background: var(--notak-teinte);
-  color: var(--notak-teinte-texte, var(--notak-texte));
-}
-
-.notak-carte[data-teinte] .notak-lien-titre,
-.notak-carte[data-teinte] .notak-lien-description {
-  color: inherit;
-}
-
+/* === Teinte des cartes : la couleur choisie colore la légende d'une image, la carte d'un fichier ou d'un croquis, la feuille d'un document === */
 .notak-carte[data-teinte] .notak-legende {
   margin: 0;
   padding: 4px 8px 6px;

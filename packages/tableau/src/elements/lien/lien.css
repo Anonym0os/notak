@@ -1,4 +1,5 @@
 .notak-lien {
+  position: relative;
   box-sizing: border-box;
   overflow: hidden;
   border-radius: 0;
@@ -10,9 +11,19 @@
   letter-spacing: -0.1px;
 }
 
+/* La couleur d'un lien : une barre de 5 px en haut de la carte, par-dessus l'aperçu ; le fond reste blanc. */
+.notak-lien-barre {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 12;
+  height: 5px;
+  pointer-events: none;
+}
+
 .notak-lien-media {
   position: relative;
-  background: var(--notak-fond);
+  overflow: hidden;
+  background: #000;
 }
 
 .notak-lien-media img,
@@ -24,10 +35,38 @@
 }
 
 /* Un lecteur a la forme que lui donne la carte (proportions ou hauteur fixe) : l'aperçu le remplit. */
-.notak-lien-media[data-genre] img,
-.notak-lien-media[data-genre] iframe {
+.notak-lien-media[data-genre] {
+  container-type: size;
+}
+
+.notak-lien-media[data-genre] img {
   height: 100%;
   object-fit: cover;
+}
+
+/* Le lecteur déborde de 2 px de chaque côté pour cacher le filet du sien ; invisible tant qu'il n'est pas prêt. */
+.notak-lien-media[data-genre] iframe {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  z-index: 10;
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
+  background: #fdfdfd;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.notak-lien-media[data-genre] iframe[data-pret] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Tant que la carte n'est pas choisie seule, le lecteur ne reçoit aucun clic : ils vont à la carte. */
+.notak-lien-voile {
+  position: absolute;
+  inset: 0;
+  z-index: 11;
 }
 
 /* Un morceau n'a pas de vignette à montrer en grand : un fond de lecteur, et le bouton au centre. */
@@ -35,31 +74,83 @@
   background: #1f2328;
 }
 
+.notak-lien-media[data-clic] {
+  cursor: pointer;
+}
+
+/* L'image d'aperçu ne s'est pas chargée. */
+.notak-lien-cassee {
+  display: grid;
+  place-items: center;
+  height: 96px;
+  color: rgb(255 255 255 / 0.6);
+}
+
+/* Le bouton de lecture suit la taille de la carte : 20 à 56 px, avec 40 % de son plus petit côté. */
 .notak-lien-lecture {
   position: absolute;
   inset: 0;
   margin: auto;
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
-  padding: 0 0 0 3px;
+  width: max(min(40cqh, 40cqw, 56px), 20px);
+  aspect-ratio: 1;
+  padding: 0;
   border: 0;
   border-radius: 50%;
-  background: rgb(0 0 0 / 0.65);
+  background: rgb(0 0 0 / 0.5);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
   color: #fff;
   cursor: pointer;
+  pointer-events: none;
 }
 
-.notak-lien-lecture:hover {
-  background: rgb(0 0 0 / 0.8);
+.notak-lien-lecture svg {
+  width: 36%;
+  height: 36%;
+  transform: translateX(7%);
+}
+
+/* Après le clic, une roue blanche tourne sur l'aperçu jusqu'à ce que le lecteur soit prêt. */
+.notak-lien-attente {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 28px;
+  height: 28px;
+  box-sizing: border-box;
+  border: 3px solid rgb(255 255 255 / 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: notak-lien-tour 0.8s linear infinite;
+}
+
+.notak-lien-illisible {
+  position: absolute;
+  inset: 0;
+  z-index: 13;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: rgb(0 0 0 / 0.48);
+  color: #fff;
+  font-size: 12px;
+  text-align: center;
 }
 
 .notak-lien-texte {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 25px 24px 12px;
+  padding: 25px 24px;
+}
+
+/* Avec une légende, elle porte les 20 px du bas. */
+.notak-lien-texte[data-legende] {
+  padding-bottom: 0;
 }
 
 .notak-lien a {
@@ -70,9 +161,9 @@
 .notak-lien-domaine {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
   min-width: 0;
-  color: rgb(0 0 0 / 0.4);
+  color: #8d929a;
   font-size: 12px;
 }
 
@@ -88,13 +179,17 @@
   height: 16px;
 }
 
+.notak-lien-domaine > svg {
+  flex: none;
+}
+
 .notak-lien-titre {
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   overflow-wrap: anywhere;
-  color: var(--notak-accent);
+  color: #f4511c;
   font-size: 15px;
   font-weight: 400;
   letter-spacing: -0.2px;
@@ -102,9 +197,12 @@
   text-decoration: underline;
 }
 
-.notak-lien-titre:hover,
 .notak-lien-domaine:hover span {
   text-decoration: underline;
+}
+
+.notak-espace[data-theme='sombre'] .notak-lien-titre {
+  color: #fb7051;
 }
 
 .notak-lien-description {
@@ -113,11 +211,15 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   overflow-wrap: anywhere;
-  color: #6b7280;
-  font-size: 13px;
+  margin: 3px 0 20px;
+  color: var(--notak-texte);
+  font-size: 12px;
+  line-height: 20px;
 }
 
 .notak-lien-chargement {
+  display: block;
+  box-sizing: border-box;
   width: 14px;
   height: 14px;
   border: 2px solid var(--notak-point);
@@ -132,30 +234,55 @@
   }
 }
 
+/* La saisie : une ligne, l'icône d'état à gauche et le champ sans cadre ; le message prend la place du champ. */
 .notak-lien-saisie {
-  padding: 12px;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 12px;
+  padding: 24px;
   cursor: text;
 }
 
+.notak-lien-icone {
+  display: grid;
+  place-items: center;
+  grid-row: 1;
+  grid-column: 1;
+  color: #8d929a;
+}
+
 .notak-lien-champ {
+  grid-row: 1;
+  grid-column: 2;
   box-sizing: border-box;
   width: 100%;
-  padding: 6px 8px;
-  border: 1px solid var(--notak-point);
-  border-radius: 4px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
   font: inherit;
+  font-size: 14px;
+  line-height: 20px;
   color: inherit;
   outline: none;
 }
 
-.notak-lien-champ:focus {
-  border-color: var(--notak-accent);
+.notak-lien-champ::placeholder {
+  color: #8d929a;
 }
 
-.notak-lien-erreur {
-  margin-top: 6px;
-  color: #c0392b;
-  font-size: 12px;
+.notak-lien-saisie[data-etat='chargement'] {
+  cursor: default;
+}
+
+/* Une adresse refusée ou un aperçu manqué : un message gris, 2 secondes, à la place du champ. */
+.notak-lien-message {
+  grid-row: 1;
+  grid-column: 2;
+  color: #8d929a;
+  font-size: 14px;
+  line-height: 20px;
 }
 
 /* Le titre ou la légende en cours d'écriture : le même texte, à la même place. */
@@ -179,12 +306,11 @@
 }
 
 .notak-lien-titre.notak-lien-edition {
+  color: var(--notak-texte);
   font-weight: 700;
+  text-decoration: none;
 }
 
-/* L'aperçu a échoué : la cause, sous l'adresse. */
-.notak-lien-echec {
-  color: #b45309;
-  font-size: 12px;
-  line-height: 1.35;
+.notak-lien-description.notak-lien-edition {
+  margin: 3px 0 20px;
 }

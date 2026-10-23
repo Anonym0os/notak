@@ -163,17 +163,17 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
 | Fonctionnalité | État | Reste |
 |---|---|---|
-| Champ d'adresse, adresse invalide signalée | ✅ | |
+| Champ d'adresse, adresse invalide signalée | ✅ | Une ligne à icône d'état ; l'adresse se lit en quittant le champ ; échec : message gris 2 s puis adresse modifiable. |
 | Aperçu : image, favicon, domaine, titre, description | ✅ | |
 | Image d'aperçu à ses proportions | ✅ | |
 | Titre modifiable, légende | ✅ | |
 | Outil « Adresse » | ✅ | |
-| Ouvrir, copier l'adresse | ✅ | |
+| Ouvrir (en-tête, titre), copier l'adresse | ✅ | Pas d'« Ajouter / Remplacer l'image » d'aperçu. |
 | Hauteur bornée | ✅ | |
 | Lecteurs intégrés (vidéo, audio, carte, contenus riches) | ✅ |  |
-| Réglages d'affichage : aperçu, infos, légende | ✅ |  |
+| Réglages d'affichage : aperçu, infos du lien (média seul), légende | ✅ | Légende en texte brut (pas de texte riche). |
 | Lecture auto et en boucle d'une vidéo | ✅ |  |
-| Adresse d'image changée en image | ✅ |  |
+| Adresse d'image changée en image | ✅ | Après l'aperçu et par rapatriement (Milanote la convertit tout de suite). |
 | Outils Vidéo, Audio et Carte dans le tiroir | ✅ |  |
 | Message d'échec selon la cause | ✅ |  |
 

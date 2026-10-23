@@ -30,6 +30,7 @@ const el = (contenu: Contenu, plus: Partial<Element> = {}): Element => ({ id: no
 const CONTENUS: Record<string, Contenu> = {
   note: { type: 'note', texte },
   lien: { type: 'lien', url: 'https://exemple.fr', statut: 'attente' },
+  'lien-video': { type: 'lien', url: 'https://youtu.be/dQw4w9WgXcQ', statut: 'pret' },
   image: { type: 'image', fichier: 'f', largeurOrigine: 100, hauteurOrigine: 100 },
   fichier: { type: 'fichier', fichier: 'f', nom: 'a.pdf', typeMime: 'application/pdf', taille: 10 },
   document: { type: 'document', titre: '', texte },
@@ -67,10 +68,15 @@ describe('la barre de gauche, type par type (ordre de Milanote)', () => {
     expect(listes('note').visibles).toEqual(['Couleur', ...COMMUNS])
   })
 
-  it('lien : Couleur, étiquettes, réactions, commentaire, puis Aperçu, Infos, Adresse, Légende', () => {
+  it('lien sans média : Renommer, Légende, Adresse (Aperçu et Infos du lien n’ont rien à montrer)', () => {
     const { visibles, rangees } = listes('lien')
-    expect(visibles).toEqual(['Couleur', ...COMMUNS, 'Aperçu', 'Infos', 'Adresse', 'Légende'])
+    expect(visibles).toEqual(['Couleur', ...COMMUNS, 'Renommer', 'Légende', 'Adresse'])
     expect(rangees).not.toContain('Ouvrir')
+  })
+
+  it('lien à média : Couleur, étiquettes, réactions, commentaire, puis Aperçu, Infos du lien, Renommer, Légende', () => {
+    const { visibles } = listes('lien-video')
+    expect(visibles).toEqual(['Couleur', ...COMMUNS, 'Aperçu', 'Infos du lien', 'Renommer', 'Légende', 'Adresse'])
   })
 
   it('image : Dessiner et Légende visibles ; pivoter, recadrer et détourer dans « ••• »', () => {

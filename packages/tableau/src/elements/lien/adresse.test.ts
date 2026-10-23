@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Lien } from '../../coeur/tableau'
-import { INVITES, avecAdresse, domaineDe, lireAdresse } from './adresse'
+import { INVITES, adresseAffichee, avecAdresse, domaineDe, lireAdresse } from './adresse'
 
 describe('lireAdresse', () => {
   it('garde une adresse complète', () => {
@@ -60,5 +60,12 @@ describe('avecAdresse', () => {
 describe('INVITES', () => {
   it('a une invite par genre', () => {
     expect(Object.keys(INVITES).sort()).toEqual(['audio', 'carte', 'lien', 'video'])
+  })
+})
+
+describe('adresseAffichee', () => {
+  it('montre l’adresse complète, sans le schéma ni la barre finale', () => {
+    expect(adresseAffichee('https://www.exemple.fr/a/b?x=1')).toBe('www.exemple.fr/a/b?x=1')
+    expect(adresseAffichee('http://exemple.fr/')).toBe('exemple.fr')
   })
 })

@@ -99,7 +99,10 @@ describe('la boîte du lecteur', () => {
     expect(demarreSeul(carte, {})).toBe(true)
     expect(demarreSeul(video, {})).toBe(false)
     expect(demarreSeul(video, { lectureAuto: true })).toBe(true)
-    expect(demarreSeul(morceau, { lectureAuto: true })).toBe(false)
+    // Un morceau ou une maquette est incrusté d'emblée ; SoundCloud, comme les vidéos, attend un clic.
+    expect(demarreSeul(morceau, {})).toBe(true)
+    expect(demarreSeul(lecteurDe('https://soundcloud.com/artiste/un-morceau')!, {})).toBe(false)
+    expect(demarreSeul(lecteurDe('https://www.figma.com/design/AbCdEf123/Maquette?node-id=1')!, {})).toBe(true)
   })
 
   it('la lecture automatique coupe le son, le clic non', () => {

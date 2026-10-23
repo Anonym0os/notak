@@ -245,8 +245,8 @@ export interface TypeElement<C extends Contenu = Contenu> {
   hauteurParDefaut?: number
   /** Le cadre commun n'a ni fond ni ombre (une image, un titre) : le type dessine les siens. */
   sansFond?: boolean | ((c: C) => boolean)
-  /** Largeur minimale quand on redimensionne, en UG (17 par défaut). */
-  largeurMin?: number
+  /** Largeur minimale quand on redimensionne, en UG (17 par défaut) ; ou ce que le contenu en dit (un lien qui montre un aperçu). */
+  largeurMin?: number | ((c: C) => number)
   /** La largeur « naturelle », en UG : celle où revient le double-clic sur la poignée, depuis 34. */
   largeurNaturelle?(c: C): number
   /**

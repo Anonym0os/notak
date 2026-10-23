@@ -11,7 +11,7 @@ import { type Point, type Rect, centre, chevauche, depuisCoins, englobant, point
 import { type Hauteur, hauteurTiree, memeHauteur } from './coeur/hauteur'
 import { creerLimiteur } from './coeur/limiteur'
 import { type Magasin, enLectureSeule, sansCorbeille } from './coeur/magasin'
-import { largeurDoubleClic, largeurTiree, LARGEUR_MIN_DEFAUT } from './coeur/largeur'
+import { largeurDoubleClic, largeurMinDe, largeurTiree } from './coeur/largeur'
 import { type Cible, type Deplace, cleEntre, clesEntre, comparerOrdre, indexInsertion, pasDeDepot } from './coeur/ordre'
 import { cliquer, lasso } from './coeur/selection'
 import { type Paquet, TYPE_PAQUET, decalageDeCollage, deballer, empaqueter, texteDuPaquet } from './coeur/pressePapiers'
@@ -1550,7 +1550,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const el = id && tableau.elements.find((x) => x.id === id)
       if (el && !lectureSeule && !el.verrou && (e.target as HTMLElement).closest('[data-poignee]')) {
         const def = definition(el.contenu.type)
-        const min = def?.largeurMin ?? LARGEUR_MIN_DEFAUT
+        const min = largeurMinDe(def?.largeurMin, el.contenu)
         const n = def?.hauteurBornable && !el.parent ? noeudDe(el.id) : null
         geste.current = {
           type: 'redimensionner',
@@ -2117,7 +2117,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const el = tableau.elements.find((x) => selection.has(x.id))
       const def = el && definition(el.contenu.type)
       if (!el || !def) return
-      const vers = largeurDoubleClic(el.largeur, def.largeurNaturelle?.(el.contenu), def.largeurMin)
+      const vers = largeurDoubleClic(el.largeur, def.largeurNaturelle?.(el.contenu), largeurMinDe(def.largeurMin, el.contenu))
       if (vers !== el.largeur) magasin.faire([{ type: 'redimensionner', id: el.id, de: el.largeur, vers }])
       return
     }
@@ -2291,7 +2291,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
               .filter((x) => !x.parent && !x.verrou && definition(x.contenu.type)?.calque !== 'lignes')
               .map((x) => {
                 const def = definition(x.contenu.type)
-                return { id: x.id, x: x.x, y: x.y, largeur: x.largeur, min: def?.largeurMin ?? LARGEUR_MIN_DEFAUT, ligne: def?.calque === 'lignes' }
+                return { id: x.id, x: x.x, y: x.y, largeur: x.largeur, min: largeurMinDe(def?.largeurMin, x.contenu), ligne: def?.calque === 'lignes' }
               })
             geste.current = { type: 'redimensionnerGroupe', depart: cam.versTableau(camera, local(e)), cadre: cadreChoisis!, items }
             setEnGeste(true)

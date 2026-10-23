@@ -1,33 +1,45 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { Apercu, CauseEchec, Id, Lien } from '../../coeur/tableau'
+import type { Apercu, CauseEchec, GenreLien, Id, Lien } from '../../coeur/tableau'
 import type { PropsRendu } from '../types'
-import { INVITES, avecAdresse, domaineDe, lireAdresse } from './adresse'
+import { INVITES, adresseAffichee, avecAdresse, domaineDe, lireAdresse } from './adresse'
 import { lireCause, messageEchec } from './echec'
 import { lecteurDe } from './lecteurs'
 import { Media } from './Media'
 import { convertirEnImage } from './versImage'
-import { affichage } from './affichage'
+import { affichage, mediaSeul } from './affichage'
 import { t } from '../../langue'
+import { Icone, type NomIcone } from '../../icones'
+import { FOND_NOTE } from '../note/couleurs'
 
 const DELAI_APERCU = 15_000
 const REL = 'noopener noreferrer nofollow'
+/** Un message passager (adresse invalide, aperçu manqué) reste 2 secondes, puis le champ revient. */
+const DUREE_MESSAGE = 2000
 
 /** Les liens dont la prochaine édition porte sur l'adresse, pas sur le titre (outil « Adresse »). */
 export const adresseAEditer = new Set<Id>()
+/** Les liens dont la prochaine édition porte sur la légende (l'outil « Légende » vient de l'allumer). */
+export const legendeAEditer = new Set<Id>()
 
 export function RenduLien(props: PropsRendu<Lien>) {
   useChargementApercu(props)
   useSuppressionSiVide(props)
   const { element, enEdition } = props
-  const saisie = enEdition && (!element.contenu.url || adresseAEditer.has(element.id))
+  const { url, statut } = element.contenu
+  // Sans aperçu, la carte est une ligne de saisie : l'adresse à taper, l'aperçu en lecture (la roue), ou l'aperçu
+  // manqué (le message, puis l'adresse tapée de nouveau modifiable).
+  const saisie = !url || (enEdition && adresseAEditer.has(element.id)) || statut === 'echec' || statut === 'attente'
   useEffect(() => {
-    if (!enEdition) adresseAEditer.delete(element.id)
+    if (!enEdition) {
+      adresseAEditer.delete(element.id)
+      legendeAEditer.delete(element.id)
+    }
   }, [enEdition, element.id])
   return saisie ? <Saisie {...props} /> : <Carte {...props} />
 }
 
 /** Le titre affiché : celui qu'on a donné, sinon celui de l'aperçu, sinon l'adresse si l'aperçu a échoué. */
-export const titreDuLien = (c: Lien) => c.titre ?? (c.statut === 'echec' ? c.url : c.apercu?.titre)
+export const titreDuLien = (c: Lien) => c.titre || (c.statut === 'echec' ? c.url : c.apercu?.titre)
 
 /** Va chercher l'aperçu, une seule fois par adresse (React rejoue les effets en mode strict). */
 function useChargementApercu({ element, contexte }: PropsRendu<Lien>) {
@@ -35,6 +47,8 @@ function useChargementApercu({ element, contexte }: PropsRendu<Lien>) {
   const id = element.id
   const marque = useRef<string | null>(null)
   useEffect(() => {
+    // Un aperçu rendu (ou manqué) libère la marque : la même adresse, retapée, se cherche de nouveau.
+    if (statut !== 'attente') marque.current = null
     if (statut !== 'attente' || !url || marque.current === `${id}|${url}`) return
     marque.current = `${id}|${url}`
     const chercheur = contexte.services.apercu
@@ -76,55 +90,128 @@ function useSuppressionSiVide({ element, enEdition, contexte }: PropsRendu<Lien>
   }, [enEdition, element.id, contexte])
 }
 
-function Saisie({ element, contexte, changer }: PropsRendu<Lien>) {
+const ICONE_GENRE: Record<GenreLien | 'lien', NomIcone> = { lien: 'lien', video: 'lecture', audio: 'audio', carte: 'carte' }
+
+/**
+ * La carte sans aperçu : une ligne, l'icône d'état à gauche (le genre, la roue pendant la lecture, l'échec) et le champ
+ * d'adresse sans cadre. L'adresse se lit en quittant le champ (Entrée, Échap, un clic ailleurs) ; un message (adresse
+ * invalide, aperçu manqué) prend la place du champ pendant 2 secondes.
+ */
+function Saisie({ element, enEdition, contexte }: PropsRendu<Lien>) {
   const { contenu } = element
+  const etat = contenu.statut === 'attente' && contenu.url ? 'chargement' : contenu.statut === 'echec' ? 'echec' : 'saisie'
   const [texte, setTexte] = useState(contenu.url)
-  const [erreur, setErreur] = useState(false)
+  const [message, setMessage] = useState<string | null>(etat === 'echec' ? messageEchec(contenu.echec) : null)
+  const champ = useRef<HTMLInputElement>(null)
+  const dernier = useRef(texte)
+  const depart = useRef(contenu.url)
+  const fait = useRef(false)
+
+  // L'aperçu qui vient de manquer : sa cause remplace le champ un instant.
   useEffect(() => {
-    if (!erreur) return
-    const t = setTimeout(() => setErreur(false), 2000)
-    return () => clearTimeout(t)
-  }, [erreur])
+    if (contenu.statut === 'echec') setMessage(messageEchec(contenu.echec))
+  }, [contenu.statut, contenu.echec])
+  useEffect(() => {
+    if (!message) return
+    const minuteur = setTimeout(() => setMessage(null), DUREE_MESSAGE)
+    return () => clearTimeout(minuteur)
+  }, [message])
+  useEffect(() => {
+    if (enEdition && etat === 'saisie') champ.current?.focus()
+  }, [enEdition, etat])
+
+  /** Pose l'adresse tapée sur la carte, qui en cherche l'aperçu. Faux si ce n'est pas une adresse. */
+  const enregistrer = () => {
+    const url = lireAdresse(dernier.current)
+    if (!url) return false
+    fait.current = true
+    adresseAEditer.delete(element.id)
+    const actuel = contexte.magasin.lire().elements.find((e) => e.id === element.id)?.contenu
+    if (actuel?.type === 'lien' && (actuel.url !== url || actuel.statut === 'echec')) {
+      contexte.magasin.faire([{ type: 'contenu', id: element.id, avant: actuel, apres: avecAdresse(actuel, url) }])
+    }
+    return true
+  }
+  // Quitter la carte (un clic ailleurs) vaut valider : l'adresse tapée n'est pas perdue.
+  useEffect(
+    () => () => {
+      if (!fait.current && dernier.current.trim() !== depart.current) enregistrer()
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  )
 
   const valider = () => {
-    const url = lireAdresse(texte)
-    if (!url) return setErreur(true)
-    adresseAEditer.delete(element.id)
-    if (url !== contenu.url) changer(avecAdresse(contenu, url))
-    contexte.finirEdition()
+    if (enregistrer() || dernier.current.trim() === '') return contexte.finirEdition()
+    setMessage(t('lien.invalide'))
   }
 
   return (
-    <div className="notak-lien notak-lien-saisie">
+    <div className="notak-lien notak-lien-saisie" data-etat={etat}>
+      <span className="notak-lien-icone" aria-hidden="true">
+        {etat === 'chargement' ? (
+          <span className="notak-lien-chargement" role="status" aria-label={t('lien.chargement')} />
+        ) : (
+          <Icone nom={etat === 'echec' ? 'attention' : ICONE_GENRE[contenu.genre ?? 'lien']} taille={16} />
+        )}
+      </span>
+      {message && (
+        <div className="notak-lien-message" role="status">
+          {message}
+        </div>
+      )}
       <input
+        ref={champ}
         className="notak-lien-champ"
         type="url"
-        autoFocus
         spellCheck={false}
+        autoCapitalize="off"
+        autoCorrect="off"
+        disabled={etat === 'chargement'}
+        readOnly={!!contexte.services.lectureSeule}
+        style={message ? { opacity: 0 } : undefined}
         placeholder={INVITES[contenu.genre ?? 'lien']}
         value={texte}
-        onChange={(e) => setTexte(e.target.value)}
+        onChange={(e) => {
+          dernier.current = e.target.value
+          setTexte(e.target.value)
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault()
             valider()
+          } else if (e.key === 'Escape') {
+            e.preventDefault()
+            e.stopPropagation()
+            valider()
+          } else if ((e.key === 'Backspace' || e.key === 'Delete') && texte === '' && !contenu.url) {
+            // Un champ d'adresse vide : le geste jette la carte tout de suite.
+            e.preventDefault()
+            e.stopPropagation()
+            fait.current = true
+            contexte.jeter([element.id])
           }
         }}
       />
-      {erreur && <div className="notak-lien-erreur">{t('lien.invalide')}</div>}
     </div>
   )
 }
 
-function Carte({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<Lien>) {
+/** Le titre se termine par une espace insécable : jamais un mot seul sur la dernière ligne. */
+const sansOrphelin = (titre: string) => titre.replace(/ (\S+)\s*$/, ' $1')
+
+function Carte({ element, choisie, seule, enEdition, contexte, brouillon }: PropsRendu<Lien>) {
   const { contenu } = element
   const { url, statut, apercu } = contenu
   const domaine = domaineDe(url)
   const lecteur = lecteurDe(url)
   const image = statut === 'pret' ? apercu?.image : undefined
-  const aff = affichage(contenu)
+  // Dans une colonne, la largeur de la carte n'est pas la sienne : le média seul ne s'y décide pas par la largeur.
+  const aff = affichage(contenu, element.parent ? undefined : element.largeur)
+  const seulMedia = mediaSeul(contenu, element.parent ? undefined : element.largeur)
   const titre = titreDuLien(contenu)
   const legende = contenu.legende ?? (statut === 'pret' && !lecteur ? apercu?.description : undefined)
+  const fond = contenu.couleur && contenu.couleur !== 'transparent' ? FOND_NOTE[contenu.couleur] : undefined
   // Entré en édition par un clic sur la légende, on l'écrit ; sinon on renomme. Le choix se fait une fois
   // par édition (le mode strict rejoue l'effet, et le point d'édition ne se lit qu'une fois).
   const [partie, setPartie] = useState<'titre' | 'legende' | null>(null)
@@ -137,14 +224,15 @@ function Carte({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<
     if (choix.current) return
     const ou = contexte.prendrePointEdition()
     const sous = ou && document.elementFromPoint(ou.x, ou.y)
-    choix.current = sous?.closest('.notak-lien-description') || !aff.infos ? 'legende' : 'titre'
+    choix.current = legendeAEditer.has(element.id) || sous?.closest('.notak-lien-description') || !aff.infos ? 'legende' : 'titre'
     setPartie(choix.current)
-  }, [enEdition, contexte, aff.infos])
+  }, [enEdition, contexte, aff.infos, element.id])
   const ecrire = (champ: 'titre' | 'legende', v: string) => brouillon({ ...contenu, [champ]: v })
 
-  // Le domaine ouvre toujours le lien ; le titre seulement tant que le lien n'est pas choisi (sinon, on le renomme).
+  // Le domaine ouvre toujours le lien ; le titre tant que la carte n'est pas choisie seule (alors, on le renomme).
   // L'appui va à la toile, qui glisse ou choisit la carte : seul un clic sans mouvement ouvre la page.
   const appui = useRef<{ x: number; y: number } | null>(null)
+  const renomme = choisie && !!seule
   const lien = (children: React.ReactNode, classe: string, toujours: boolean) => (
     <a
       className={classe}
@@ -156,7 +244,7 @@ function Carte({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<
       onClick={(e) => {
         const a = appui.current
         const glisse = !!a && Math.hypot(e.clientX - a.x, e.clientY - a.y) > 4
-        if (glisse || (!toujours && choisie)) e.preventDefault()
+        if (glisse || (!toujours && renomme)) e.preventDefault()
         e.stopPropagation()
       }}
     >
@@ -164,42 +252,35 @@ function Carte({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<
     </a>
   )
 
+  const montreLegende = partie === 'legende' || (aff.legende && !!legende)
   return (
     <div className="notak-lien">
-      {aff.apercu && <Media lecteur={lecteur} image={image} titre={titre ?? domaine} lien={contenu} />}
-      {(aff.infos || aff.legende || statut !== 'pret' || partie) && (
-        <div className="notak-lien-texte">
+      {fond && <div className="notak-lien-barre" style={{ background: fond }} />}
+      {aff.apercu && <Media lecteur={lecteur} image={image} titre={titre ?? domaine} lien={contenu} actif={choisie && !!seule} bouton={!seulMedia} />}
+      {(aff.infos || aff.legende || partie) && (
+        <div className="notak-lien-texte" data-legende={montreLegende ? '' : undefined}>
           {aff.infos &&
             lien(
               <>
-                {apercu?.favicon && statut === 'pret' && (
+                {apercu?.favicon && statut === 'pret' ? (
                   <img className="notak-lien-favicon" src={apercu.favicon} alt="" draggable={false} referrerPolicy="no-referrer" />
+                ) : (
+                  <Icone nom="lien" taille={16} />
                 )}
-                <span>{domaine}</span>
+                <span>{adresseAffichee(url)}</span>
               </>,
               'notak-lien-domaine',
               true,
             )}
-          {statut === 'attente' ? (
-            <span className="notak-lien-chargement" role="status" aria-label={t('lien.chargement')} />
+          {partie === 'titre' ? (
+            <Champ classe="notak-lien-titre" valeur={titre ?? ''} max={500} toutChoisir ligne ecrire={(v) => ecrire('titre', v)} finir={contexte.finirEdition} />
           ) : (
-            <>
-              {statut === 'echec' && (
-                <div className="notak-lien-echec" role="status">
-                  {messageEchec(contenu.echec)}
-                </div>
-              )}
-              {partie === 'titre' ? (
-                <Champ classe="notak-lien-titre" valeur={titre ?? ''} max={500} toutChoisir ligne ecrire={(v) => ecrire('titre', v)} finir={contexte.finirEdition} />
-              ) : (
-                aff.infos && titre && lien(titre, 'notak-lien-titre', false)
-              )}
-              {partie === 'legende' ? (
-                <Champ classe="notak-lien-description" valeur={legende ?? ''} ecrire={(v) => ecrire('legende', v)} finir={contexte.finirEdition} />
-              ) : (
-                aff.legende && legende && <div className="notak-lien-description">{legende}</div>
-              )}
-            </>
+            aff.infos && titre && lien(sansOrphelin(titre), 'notak-lien-titre', false)
+          )}
+          {partie === 'legende' ? (
+            <Champ classe="notak-lien-description" valeur={legende ?? ''} ecrire={(v) => ecrire('legende', v)} finir={contexte.finirEdition} />
+          ) : (
+            aff.legende && legende && <div className="notak-lien-description">{legende}</div>
           )}
         </div>
       )}
@@ -207,7 +288,10 @@ function Carte({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<
   )
 }
 
-/** Un champ de texte posé à la place du titre ou de la légende, à sa taille, écrit à chaque frappe. */
+/**
+ * Un champ de texte posé à la place du titre ou de la légende, à sa taille, écrit à chaque frappe.
+ * Un titre vidé est refusé : l'ancien reste.
+ */
 function Champ(props: { classe: string; valeur: string; max?: number; toutChoisir?: boolean; ligne?: boolean; ecrire(v: string): void; finir(): void }) {
   const { classe, valeur, max, toutChoisir, ligne, ecrire, finir } = props
   const [texte, setTexte] = useState(valeur)
@@ -231,7 +315,7 @@ function Champ(props: { classe: string; valeur: string; max?: number; toutChoisi
       onChange={(e) => {
         const v = ligne ? e.target.value.replace(/\n/g, ' ') : e.target.value
         setTexte(v)
-        ecrire(v)
+        ecrire(ligne && !v.trim() ? valeur : v)
       }}
       onKeyDown={(e) => {
         if (e.key === 'Enter' && (ligne || e.metaKey || e.ctrlKey)) {

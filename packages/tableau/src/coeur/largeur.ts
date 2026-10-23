@@ -5,6 +5,12 @@ export const LARGEUR_STANDARD = 34
 /** À moins de cet écart de la largeur standard, la largeur s'y colle. */
 export const ECART_AIMANT = 2
 
+/** La largeur minimale d'un type pour ce contenu : un nombre fixe, ou ce que le contenu en dit. */
+export function largeurMinDe(min: number | ((c: never) => number) | undefined, contenu: unknown): number {
+  if (typeof min === 'function') return min(contenu as never)
+  return min ?? LARGEUR_MIN_DEFAUT
+}
+
 /** La largeur que prend un élément quand la poignée est tirée jusqu'à `brute` (UG, fractionnaire). */
 export function largeurTiree(brute: number, min: number = LARGEUR_MIN_DEFAUT): number {
   let largeur = Math.round(brute)

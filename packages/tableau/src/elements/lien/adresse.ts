@@ -38,6 +38,9 @@ export function domaineDe(url: string): string {
   }
 }
 
+/** L'adresse telle que l'en-tête de la carte la montre : complète, sans le schéma. */
+export const adresseAffichee = (url: string) => url.replace(/^https?:\/\//i, '').replace(/\/$/, '')
+
 /** Ce que la saisie d'adresse demande, selon l'outil qui a fait naître le lien. */
 export const INVITES: Record<GenreLien | 'lien', string> = {
   get lien() {

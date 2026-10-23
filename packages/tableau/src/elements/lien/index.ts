@@ -3,6 +3,7 @@ import type { Point } from '../../coeur/geometrie'
 import { type Element, nouvelId } from '../../coeur/tableau'
 import { registre } from '../registre'
 import { lireAdresse } from './adresse'
+import { largeurMinLien, proportionLien } from './affichage'
 import { RenduLien, titreDuLien } from './Lien'
 import './lien.css'
 import { OutilsLien } from './Outils'
@@ -36,12 +37,15 @@ registre.type<Lien>({
   resume: (c) => titreDuLien(c) || c.url,
   Rendu: RenduLien,
   editable: true,
-  hauteurParDefaut: 20,
+  hauteurParDefaut: 7,
   sansFond: true,
   hauteurBornable: true,
+  // 4 UG avec un média (comme une image), 17 sans ; une vidéo seule garde ses proportions.
+  largeurMin: largeurMinLien,
+  proportion: proportionLien,
   Outils: OutilCouleurCarte,
+  // La couleur est une barre de 5 px en haut de la carte (le fond reste blanc), pas une teinte.
   couleur: couleurDuContenu<Lien>(),
-  teinte: true,
   OutilsApres: OutilsLien,
   outils: [
     {
@@ -83,17 +87,9 @@ registre.recepteur({
   },
 })
 
-// Ouvrir et copier l'adresse n'ont pas de tuile : ils sont au menu « ••• » de la barre, comme chez Milanote.
+// Copier l'adresse n'a pas de tuile : il est au menu « ••• » de la barre, comme chez Milanote (on ouvre en cliquant l'en-tête).
 const liensAvecAdresse = (els: Element[]) => els.length > 0 && els.every((e) => e.contenu.type === 'lien' && !!e.contenu.url)
 const adressesDe = (els: Element[]) => els.flatMap((e) => (e.contenu.type === 'lien' ? [e.contenu.url] : []))
-
-registre.entreeMenu({
-  get libelle() {
-    return t('lien.ouvrirLien')
-  },
-  visible: (els) => els.length === 1 && liensAvecAdresse(els),
-  faire: (els) => void window.open(adressesDe(els)[0], '_blank', 'noopener,noreferrer'),
-})
 
 registre.entreeMenu({
   get libelle() {
