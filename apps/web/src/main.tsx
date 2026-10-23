@@ -14,6 +14,7 @@ import { createRoot } from 'react-dom/client'
 import { type Moi, moi as lireMoi, rechercherPartout, seDeconnecter } from './api'
 import { importDejaPropose, lireAncienEspace, noterImportPropose } from './ancien'
 import { Activite } from './Activite'
+import { Cloche } from './Cloche'
 import { Compte } from './Compte'
 import { EcranConnexion } from './connexion'
 import { Export } from './Export'
@@ -134,6 +135,7 @@ function Espace({ moi, deconnexion }: { moi: Moi; deconnexion(): void }) {
         actions={(courant, ouvrir) => (
           <>
             <Favori tableau={courant} accueil={moi.racine} />
+            <Cloche ouvrir={ouvrir} />
             <Activite tableau={courant} moi={moi.id} />
             <Export tableau={courant} />
             <Partage tableau={courant} moi={moi} />
