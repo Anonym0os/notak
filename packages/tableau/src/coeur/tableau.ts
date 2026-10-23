@@ -228,7 +228,17 @@ export interface Commentaire {
   resolu?: boolean
 }
 
-export type Contenu = Note | Image | Fichier | Lien | Taches | Colonne | Ligne | RenvoiTableau | Commentaire
+/**
+ * Une table : des lignes de cellules de texte, toutes de la même longueur. La première ligne est l'en-tête
+ * (en gras, sur un fond teinté) tant que `sansEntete` n'est pas posé.
+ */
+export interface Table {
+  type: 'table'
+  cellules: string[][]
+  sansEntete?: boolean
+}
+
+export type Contenu = Note | Image | Fichier | Lien | Taches | Colonne | Ligne | RenvoiTableau | Commentaire | Table
 export type TypeContenu = Contenu['type']
 
 export interface Element<C extends Contenu = Contenu> {

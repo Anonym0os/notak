@@ -9,5 +9,6 @@ import './ligne'
 import './colonne'
 import './fichier'
 import './commentaire'
+import './table'
 // L'outil de couleur commun, une fois tous les types inscrits.
 import './couleur'
