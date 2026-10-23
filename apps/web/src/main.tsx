@@ -21,6 +21,7 @@ import { apercu, fichiers, rapatrier } from './fichiers'
 import { importerEspaceLocal } from './importLocal'
 import { PagePublique } from './PagePublique'
 import { Partage } from './Partage'
+import { VerrouTableau } from './Verrou'
 
 const services = { fichiers, apercu, rapatrier, rechercherPartout, ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank') }
 
@@ -135,6 +136,7 @@ function Espace({ moi, deconnexion }: { moi: Moi; deconnexion(): void }) {
             <Favori tableau={courant} accueil={moi.racine} />
             <Export tableau={courant} />
             <Partage tableau={courant} moi={moi} />
+            <VerrouTableau tableau={courant} accueil={moi.racine} ouvrir={ouvrir} />
             <Compte moi={moi} deconnexion={deconnexion} ouvrir={ouvrir} />
           </>
         )}

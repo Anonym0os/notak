@@ -375,3 +375,14 @@ body {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* Le tableau protégé se couvre d'un écran qui demande son mot de passe. */
+.verrou {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--fond);
+  color: var(--texte);
+}

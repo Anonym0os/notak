@@ -167,3 +167,36 @@ export async function rechercherPartout(requete: string): Promise<ResultatRecher
   const trouves = (await r.json()) as { tableau: string; titre: string; element: string | null; extrait: string }[]
   return trouves.map((t) => ({ tableau: t.tableau, titre: t.titre, ...(t.element ? { element: t.element } : {}), extrait: t.extrait }))
 }
+
+export interface EtatVerrou {
+  /** Ce tableau-ci a un mot de passe. */
+  protege: boolean
+  /** Il est fermé pour ce compte, par lui ou par un tableau au-dessus. */
+  verrouille: boolean
+  /** Le tableau dont il faut le mot de passe. */
+  par: string | null
+}
+
+const verrouDe = (tableau: string) => `/api/tableaux/${encodeURIComponent(tableau)}`
+
+export async function etatVerrou(tableau: string): Promise<EtatVerrou> {
+  const r = await appeler(`${verrouDe(tableau)}/verrou`)
+  if (!r.ok) throw refus(r, { 404: 'Tableau introuvable' })
+  return (await r.json()) as EtatVerrou
+}
+
+/** Donne le mot de passe : le tableau s'ouvre pour ce compte. */
+export async function deverrouiller(tableau: string, motDePasse: string): Promise<void> {
+  const r = await appeler(`${verrouDe(tableau)}/deverrouiller`, { motDePasse })
+  if (!r.ok) throw refus(r, { 401: 'Mot de passe incorrect', 429: 'Trop d’essais, patientez un instant', 404: 'Tableau introuvable' })
+}
+
+export async function poserMotDePasse(tableau: string, motDePasse: string): Promise<void> {
+  const r = await appeler(`${verrouDe(tableau)}/mot-de-passe`, { motDePasse }, 'PUT')
+  if (!r.ok) throw refus(r, { 400: '6 caractères au moins', 403: 'Réservé au propriétaire', 404: 'Tableau introuvable' })
+}
+
+export async function retirerMotDePasse(tableau: string): Promise<void> {
+  const r = await appeler(`${verrouDe(tableau)}/mot-de-passe`, undefined, 'DELETE')
+  if (!r.ok && r.status !== 404) throw refus(r, { 403: 'Réservé au propriétaire' })
+}
