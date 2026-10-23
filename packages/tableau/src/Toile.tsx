@@ -145,15 +145,15 @@ const ENTREE_CLIGNEMENT = 300
 /** Le verrou d'axe de Maj : choisi d'après le plus grand déplacement, il ne bascule que si l'autre le dépasse franchement. */
 function choisirAxe(actuel: 'h' | 'v' | null, d: Point): 'h' | 'v' {
   const [ax, ay] = [Math.abs(d.x), Math.abs(d.y)]
-  if (actuel === 'h' && ay < ax * 2) return 'h'
-  if (actuel === 'v' && ax < ay * 2) return 'v'
+  // Milanote ne bascule que si l'autre axe dépasse le premier de 50 px.
+  if (actuel === 'h' && ay < ax + 50 / cam.PX_PAR_UG) return 'h'
+  if (actuel === 'v' && ax < ay + 50 / cam.PX_PAR_UG) return 'v'
   return ax >= ay ? 'h' : 'v'
 }
 
 /** Un doigt posé sans bouger ce temps-là ouvre le menu du clic droit, en millisecondes. */
 const APPUI_LONG = 500
 
-/** Sous ce déplacement (pixels écran), un appui reste un clic : rien ne bouge, rien ne quitte sa colonne. */
 /** Les types que propose le menu de la toile vide. */
 const TYPES_DU_MENU: ReadonlySet<string> = new Set(['note', 'lien', 'taches', 'ligne', 'tableau', 'colonne', 'commentaire', 'table'])
 
@@ -175,6 +175,7 @@ const SUIVANT_COMMUN: Partial<Record<TypeContenu, 'note' | 'rien' | 'droite'>> =
   dessin: 'note',
 }
 
+/** Sous ce déplacement (pixels écran), un appui reste un clic : rien ne bouge, rien ne quitte sa colonne. */
 const SEUIL_GLISSER = 3
 /** Près du bord pendant un glisser ou un lasso, la vue défile : zone de 40 px, jusqu'à 18 px par image. */
 const BORD = 40
@@ -1605,6 +1606,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const ouvrirMenu = (e: React.MouseEvent) => {
     e.preventDefault()
     if (dansEdition(racine.current, e.target)) return
+    // En lecture seule, comme Milanote : aucun des deux menus.
+    if (lectureSeule) return
     const p = local(e)
     const id = sous(document.elementFromPoint(e.clientX, e.clientY))
     setMenu({ x: p.x, y: p.y, ou: cam.versTableau(camera, p), surElement: !!id })
@@ -2266,6 +2269,19 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const vers = largeurDoubleClic(el.largeur, def.largeurNaturelle?.(el.contenu), largeurMinDe(def.largeurMin, el.contenu))
       if (vers !== el.largeur) magasin.faire([{ type: 'redimensionner', id: el.id, de: el.largeur, vers }])
       return
+    }
+    // La zone « déposer ici » d'une colonne : un double-clic y crée une note, à la fin de la colonne (sauf repliée).
+    const zone = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('[data-depot]')
+    if (zone && !zone.classList.contains('notak-colonne-repliee')) {
+      const colonne = tableau.elements.find((x) => x.id === sous(zone))
+      if (colonne?.contenu.type === 'colonne') {
+        const dernier = tableau.elements.filter((x) => x.parent === colonne.id).sort((a, b) => comparerOrdre(a.ordre, b.ordre)).at(-1)
+        const note = { ...nouvelleNote(colonne.x, colonne.y), parent: colonne.id, ordre: cleEntre(dernier?.ordre, undefined) }
+        magasin.faire([{ type: 'creer', element: note }])
+        neSous.current = note.id
+        commencerEdition(note.id)
+        return
+      }
     }
     const id = sous(document.elementFromPoint(e.clientX, e.clientY))
     if (id && prisParUnAutre.has(id)) return
