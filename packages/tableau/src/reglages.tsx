@@ -16,6 +16,8 @@ export interface Reglages {
   grille: 8 | 9 | 10
   /** Où paraissent les outils d'une sélection : au-dessus d'elle, ou à la place de la barre de gauche. */
   barre: 'flottante' | 'gauche'
+  /** La barre a été choisie dans les réglages (et pas seulement enregistrée par défaut). */
+  barreChoisie?: true
   /** La langue de l'interface ; `auto` suit le navigateur. Absente : `auto`. */
   langue?: ChoixLangue
 }
@@ -62,7 +64,9 @@ function lire(): Reglages {
       taille: brut.taille === 'petite' || brut.taille === 'grande' ? brut.taille : 'moyenne',
       doubleClic: brut.doubleClic !== false,
       grille: brut.grille === 8 || brut.grille === 9 ? brut.grille : 10,
-      barre: brut.barre === 'flottante' ? 'flottante' : 'gauche',
+      // Avant le 23/10, « flottante » était la valeur par défaut et s'enregistrait seule : elle ne compte que choisie.
+      barre: brut.barreChoisie && brut.barre === 'flottante' ? 'flottante' : 'gauche',
+      ...(brut.barreChoisie ? { barreChoisie: true } : {}),
       langue: brut.langue === 'fr' || brut.langue === 'en' ? brut.langue : 'auto',
     }
   } catch {
@@ -82,7 +86,7 @@ export function useReglages() {
   const changer = useCallback((r: Partial<Reglages>) => {
     // La langue change avant le rendu : tout ce qui se redessine ensuite parle déjà la nouvelle.
     if (r.langue) definirLangue(r.langue)
-    setReglages((v) => ({ ...v, ...r }))
+    setReglages((v) => ({ ...v, ...r, ...(r.barre ? { barreChoisie: true } : {}) }))
   }, [])
   return [reglages, changer] as const
 }
