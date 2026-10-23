@@ -1,4 +1,4 @@
-import type { EspaceDistant } from '@notak/tableau'
+import type { Arrivee, EspaceDistant } from '@notak/tableau'
 import { useEffect, useRef, useState } from 'react'
 import { deposerDansAccueil, messageDuDepot } from './deposer'
 import { lireArrivee, oublierArrivee } from './recuDuPartage'
@@ -51,6 +51,76 @@ export function PagePartage({ espace }: { espace: EspaceDistant }) {
           </a>
         )}
       </div>
+    </main>
+  )
+}
+
+/**
+ * La page `/rapide`, pour jeter une idée depuis le téléphone : un champ, « Envoyer », et la note part dans les non
+ * triés de l'accueil. Rien d'autre à charger, rien d'autre à regarder.
+ */
+export function PageRapide({ espace }: { espace: EspaceDistant }) {
+  const [texte, setTexte] = useState('')
+  const [etat, setEtat] = useState<{ type: 'repos' } | { type: 'envoi' } | { type: 'fait'; local: boolean } | { type: 'echec' }>({ type: 'repos' })
+  const champ = useRef<HTMLTextAreaElement>(null)
+  const vide = texte.trim() === ''
+
+  const envoyer = async () => {
+    if (vide || etat.type === 'envoi') return
+    setEtat({ type: 'envoi' })
+    const arrivee: Arrivee = { texte }
+    try {
+      const depot = await deposerDansAccueil(espace, arrivee)
+      if (depot.ajoutes === 0) return setEtat({ type: 'echec' })
+      setTexte('')
+      setEtat({ type: 'fait', local: depot.etat === 'local' })
+      champ.current?.focus()
+    } catch {
+      setEtat({ type: 'echec' })
+    }
+  }
+
+  return (
+    <main className="arrivee">
+      <form
+        className="arrivee-carte rapide"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void envoyer()
+        }}
+      >
+        <h1>Note rapide</h1>
+        <textarea
+          ref={champ}
+          className="rapide-champ"
+          value={texte}
+          autoFocus
+          rows={6}
+          placeholder="Une idée, une chose à ne pas oublier…"
+          aria-label="Note"
+          onChange={(e) => {
+            setTexte(e.target.value)
+            if (etat.type !== 'envoi') setEtat({ type: 'repos' })
+          }}
+          onKeyDown={(e) => {
+            // Cmd ou Ctrl + Entrée envoie, sur un clavier.
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault()
+              void envoyer()
+            }
+          }}
+        />
+        <button type="submit" className="bouton bouton-plein rapide-envoyer" disabled={vide || etat.type === 'envoi'}>
+          {etat.type === 'envoi' ? 'Envoi…' : 'Envoyer'}
+        </button>
+        <p className="rapide-etat" role="status">
+          {etat.type === 'fait' && (etat.local ? 'Note gardée sur cet appareil : elle partira au retour du réseau.' : 'Note ajoutée aux non triés.')}
+          {etat.type === 'echec' && 'La note n’a pas pu être envoyée. Elle est toujours là : réessayez.'}
+        </p>
+        <a className="bouton-lien" href="/">
+          Ouvrir Notak
+        </a>
+      </form>
     </main>
   )
 }

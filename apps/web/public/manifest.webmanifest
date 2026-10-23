@@ -15,6 +15,15 @@
     { "src": "/icones/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
     { "src": "/icones/icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ],
+  "shortcuts": [
+    {
+      "name": "Note rapide",
+      "short_name": "Note rapide",
+      "description": "Jeter une idée dans les non triés",
+      "url": "/rapide",
+      "icons": [{ "src": "/icones/192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
   "share_target": {
     "action": "/partage",
     "method": "POST",

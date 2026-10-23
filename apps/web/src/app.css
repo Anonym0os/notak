@@ -276,7 +276,7 @@ body {
   transform: translateX(-50%);
 }
 
-/* Les pages légères : l'arrivée d'un partage. */
+/* Les pages légères : la note rapide du téléphone, et l'arrivée d'un partage. */
 .arrivee {
   display: grid;
   place-items: center;
@@ -315,6 +315,37 @@ body {
   align-items: center;
   align-self: flex-start;
   text-decoration: none;
+}
+
+.rapide-champ {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 140px;
+  padding: 10px 12px;
+  border: 1px solid rgb(0 0 0 / 0.15);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--texte);
+  font: inherit;
+  /* 16 px : en dessous, Safari sur iPhone zoome la page à la prise de focus. */
+  font-size: 16px;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.rapide-champ:focus {
+  border-color: var(--accent);
+  outline: 2px solid rgb(47 111 235 / 0.25);
+}
+
+.rapide-envoyer {
+  height: 44px;
+  font-size: 16px;
+}
+
+.rapide-etat {
+  min-height: 1.45em;
+  color: #5b616a;
 }
 
 .arrivee-carte .bouton-lien {
