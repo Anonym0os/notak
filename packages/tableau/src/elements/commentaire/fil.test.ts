@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import type { Commentaire, Message } from '../../coeur/tableau'
-import { ajouterMessage, dateLisible, filVide, initiales, plier, replier, resoudre, retirerMessage } from './fil'
+import { ajouterMessage, dateLisible, filVide, initiales, modifierMessage, morceauxDeTexte, plier, prenom, replier, resoudre, retirerMessage } from './fil'
 
 const auteur = { id: 'a', nom: 'Samy' }
 const msg = (id: string, texte = 'Bonjour'): Message => ({ id, auteur, date: 0, texte })
@@ -57,12 +57,37 @@ test('initiales', () => {
   expect(initiales('Élodie de la Tour')).toBe('ÉT')
 })
 
-test('la date se dit comme on la dit', () => {
+test('la date se dit comme chez Milanote', () => {
   const maintenant = new Date(2026, 9, 23, 15, 0).getTime()
   expect(dateLisible(maintenant - 10_000, maintenant)).toBe('à l’instant')
   expect(dateLisible(maintenant - 5 * 60_000, maintenant)).toBe('il y a 5 min')
-  expect(dateLisible(new Date(2026, 9, 23, 9, 0).getTime(), maintenant)).toBe('il y a 6 h')
-  expect(dateLisible(new Date(2026, 9, 22, 23, 0).getTime(), maintenant)).toBe('hier')
-  expect(dateLisible(new Date(2026, 9, 12).getTime(), maintenant)).toBe('12 oct.')
+  expect(dateLisible(maintenant - 6 * 3600_000, maintenant)).toBe('il y a 6 h')
+  expect(dateLisible(maintenant - 26 * 3600_000, maintenant)).toBe('il y a 1 jour')
+  expect(dateLisible(maintenant - 3 * 86_400_000, maintenant)).toBe('il y a 3 jours')
+  expect(dateLisible(maintenant - 8 * 86_400_000, maintenant)).toBe('il y a 1 semaine')
+  expect(dateLisible(maintenant - 28 * 86_400_000, maintenant)).toBe('il y a 4 semaines')
+  expect(dateLisible(new Date(2026, 8, 12).getTime(), maintenant)).toBe('12 sept. 2026')
   expect(dateLisible(new Date(2025, 0, 3).getTime(), maintenant)).toBe('3 janv. 2025')
+})
+
+test('le prénom est le premier mot du nom', () => {
+  expect(prenom('Samy Agher')).toBe('Samy')
+  expect(prenom('  ')).toBe('Quelqu’un')
+})
+
+test('modifier un message garde les autres et refuse un texte vide', () => {
+  const c = ajouterMessage(ajouterMessage(vide, msg('1')), msg('2'))
+  expect(modifierMessage(c, '2', ' Corrigé ').messages.map((m) => m.texte)).toEqual([c.messages[0]!.texte, 'Corrigé'])
+  expect(modifierMessage(c, '2', '  ')).toBe(c)
+})
+
+test('les adresses d’un texte deviennent des liens, sans la ponctuation finale', () => {
+  expect(morceauxDeTexte('Voir https://exemple.fr/a?b=1, puis http://x.org.')).toEqual([
+    { texte: 'Voir ' },
+    { texte: 'https://exemple.fr/a?b=1', lien: 'https://exemple.fr/a?b=1' },
+    { texte: ', puis ' },
+    { texte: 'http://x.org', lien: 'http://x.org' },
+    { texte: '.' },
+  ])
+  expect(morceauxDeTexte('rien')).toEqual([{ texte: 'rien' }])
 })

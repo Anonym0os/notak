@@ -863,6 +863,14 @@ export const fr: Textes = {
   'decor.aReagi.one': 'a réagi',
   'decor.aReagi.other': 'ont réagi',
   'decor.avezReagi': 'avez réagi',
+  'fil.jours.one': 'il y a {n} jour',
+  'fil.jours.other': 'il y a {n} jours',
+  'fil.semaines.one': 'il y a {n} semaine',
+  'fil.semaines.other': 'il y a {n} semaines',
+  'commentaire.publier': 'Publier',
+  'commentaire.modifier': 'Modifier',
+  'commentaire.enregistrer': 'Enregistrer',
+  'commentaire.modifierPoints': 'Modifier le commentaire…',
 }
 
 export const en: Textes = {
@@ -1643,4 +1651,12 @@ export const en: Textes = {
   'decor.aReagi.one': 'reacted',
   'decor.aReagi.other': 'reacted',
   'decor.avezReagi': 'reacted',
+  'fil.jours.one': '{n} day ago',
+  'fil.jours.other': '{n} days ago',
+  'fil.semaines.one': '{n} week ago',
+  'fil.semaines.other': '{n} weeks ago',
+  'commentaire.publier': 'Post',
+  'commentaire.modifier': 'Edit',
+  'commentaire.enregistrer': 'Save',
+  'commentaire.modifierPoints': 'Update comment…',
 }

@@ -32,11 +32,11 @@ const note = (id: string, plus: Partial<Element> = {}): Element => ({
 })
 
 describe('étiquettes', () => {
-  it('une étiquette neuve prend la couleur la moins employée, et refuse un nom vide ou déjà pris', () => {
+  it('une étiquette neuve prend la couleur que dit son nom, et refuse un nom vide ou déjà pris', () => {
     const a = nouvelleEtiquette([], ' Urgent ')!
     expect(a.nom).toBe('Urgent')
-    const b = nouvelleEtiquette([a], 'À voir')!
-    expect(b.couleur).not.toBe(a.couleur)
+    expect(a.couleur).toBe('rouge')
+    expect(nouvelleEtiquette([a], 'À voir')!.couleur).toBeDefined()
     expect(nouvelleEtiquette([a], 'urgent')).toBeNull()
     expect(nouvelleEtiquette([a], '   ')).toBeNull()
     expect(nouvelleEtiquette([], 'x'.repeat(80))!.nom).toHaveLength(30)

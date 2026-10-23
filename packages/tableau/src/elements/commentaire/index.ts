@@ -15,8 +15,8 @@ registre.type<Commentaire>({
   Rendu: RenduCommentaire,
   OutilsApres: OutilsCommentaire,
   editable: true,
-  hauteurParDefaut: 10,
-  largeurMin: 20,
+  hauteurParDefaut: 7,
+  largeurMin: 34,
   suivant: () => null,
   outils: [
     {

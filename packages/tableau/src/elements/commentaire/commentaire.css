@@ -2,9 +2,30 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  font-size: 14px;
-  line-height: 1.4;
+  gap: 0;
+  padding-bottom: 8px;
+  font-size: 12px;
+  line-height: 20px;
+  color: #323b4a;
+}
+
+/* La fiche d'un fil : bleu très pâle, ombre fine ; rangée dans une colonne, un filet bleu clair à la place de l'ombre. */
+.notak-carte[data-type='commentaire'] {
+  --notak-ombre: 0 1px 2px #1b25361a;
+  min-height: 60px;
+  padding: 4px 0;
+  background: #f4f7fe;
+}
+
+.notak-colonne .notak-carte[data-type='commentaire'] {
+  --notak-ombre: 0 0 0 1px #bacbfc;
+}
+
+.notak-espace[data-theme='sombre'] .notak-carte[data-type='commentaire'] {
+  background: #262c3a;
+}
+
+.notak-espace[data-theme='sombre'] .notak-commentaire {
   color: var(--notak-texte);
 }
 
@@ -29,22 +50,30 @@
 .notak-commentaire-message,
 .notak-commentaire-saisie {
   display: flex;
-  gap: 10px;
+  gap: 16px;
   align-items: flex-start;
   min-width: 0;
+  padding: 8px 14px 0 24px;
 }
 
+.notak-commentaire > :first-child.notak-commentaire-message,
+.notak-commentaire > :first-child.notak-commentaire-saisie {
+  padding-top: 17px;
+}
+
+/* L'avatar : un rond de 24 px, les initiales en 40 % de sa taille. */
 .notak-commentaire-pastille {
   flex: none;
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: #8a94a3;
   color: #fff;
-  font-size: 11px;
+  font-size: 9.6px;
   font-weight: 700;
+  line-height: 1;
 }
 
 .notak-commentaire-corps {
@@ -55,27 +84,60 @@
 .notak-commentaire-entete {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 6px;
 }
 
-.notak-commentaire-entete time,
-.notak-commentaire-caches,
-.notak-commentaire-aide,
-.notak-commentaire-vide {
-  color: #6b7280;
+.notak-commentaire-entete strong {
+  color: #323b4a;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.notak-commentaire-entete time {
+  color: #8d929a;
   font-size: 12px;
 }
 
 .notak-commentaire-caches,
 .notak-commentaire-aide,
 .notak-commentaire-vide {
-  margin: 8px 0 0 38px;
+  color: #8d929a;
+  font-size: 12px;
+}
+
+.notak-commentaire-caches,
+.notak-commentaire-aide,
+.notak-commentaire-vide {
+  margin: 8px 14px 0 64px;
 }
 
 .notak-commentaire-texte {
-  margin: 2px 0 0;
+  margin: 0 0 0 6px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.notak-commentaire-lien {
+  color: #f4511c;
+  text-decoration: none;
+}
+
+.notak-commentaire-lien:hover {
+  text-decoration: underline;
+}
+
+/* « Modifier » : à droite de l'en-tête, au survol, sur mes messages. */
+.notak-commentaire-modifier {
+  margin-left: auto;
+  color: #2f63f7 !important;
+  font-size: 12px !important;
+  opacity: 0;
+}
+
+.notak-commentaire-message:hover .notak-commentaire-modifier,
+.notak-commentaire-message[data-edition] .notak-commentaire-modifier,
+.notak-commentaire-modifier:focus-visible {
+  opacity: 1;
 }
 
 .notak-commentaire button {
@@ -108,27 +170,38 @@
 }
 
 .notak-commentaire-retirer {
-  margin-left: auto;
-  color: #6b7280;
+  color: #8d929a;
 }
 
+/* « Répondre » : un lien bleu sous les messages. */
 .notak-commentaire-repondre {
-  margin-left: 38px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  background: var(--notak-fond) !important;
-  color: #6b7280 !important;
+  align-self: flex-start;
+  margin: 8px 14px 4px 64px;
+  padding: 0;
+  color: #2f63f7 !important;
+  font-size: 12px !important;
   text-align: left;
 }
 
-.notak-commentaire-saisie textarea {
+.notak-commentaire-repondre:hover {
+  text-decoration: underline;
+}
+
+.notak-commentaire-zone {
+  position: relative;
   flex: 1;
+  min-width: 0;
+}
+
+.notak-commentaire-saisie textarea,
+.notak-commentaire-champ {
   box-sizing: border-box;
+  width: 100%;
   min-height: 28px;
-  padding: 5px 8px;
-  border: 1px solid var(--notak-point);
-  border-radius: 6px;
-  background: none;
+  padding: 4px 8px;
+  border: 1px solid #00000026;
+  border-radius: 4px;
+  background: #fff;
   font: inherit;
   color: inherit;
   resize: none;
@@ -139,8 +212,34 @@
   max-height: 160px;
 }
 
-.notak-commentaire-saisie textarea:focus {
-  border-color: var(--notak-accent);
+.notak-commentaire-saisie textarea {
+  padding-bottom: 28px;
+}
+
+.notak-commentaire-saisie textarea:focus,
+.notak-commentaire-champ:focus {
+  border-color: #2f63f7;
+}
+
+.notak-commentaire-champ {
+  margin-left: 6px;
+  width: calc(100% - 6px);
+}
+
+/* « Publier » : dans le coin bas droit du champ, bleu, grisé tant qu'il est vide. */
+.notak-commentaire-publier {
+  position: absolute;
+  right: 8px;
+  bottom: 7px;
+  padding: 0;
+  color: #2f63f7 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+.notak-commentaire-publier:disabled {
+  color: #8d929a !important;
+  cursor: default !important;
 }
 
 /* Un fil replié à la main : une ligne, la pastille du premier auteur et le nombre de messages. */

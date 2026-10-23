@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { type Auteur, type Commentaire, type Message, nouvelId } from '../../coeur/tableau'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
-import { AUTEUR_INCONNU, ajouterMessage, filVide, dateLisible, initiales, plier, replier, resoudre, retirerMessage } from './fil'
+import { AUTEUR_INCONNU, ajouterMessage, filVide, dateLisible, initiales, modifierMessage, morceauxDeTexte, plier, prenom, replier, resoudre, retirerMessage } from './fil'
 import { langue, t, tn } from '../../langue'
 import { Icone } from '../../icones'
 import { BoutonOutil } from '../../BoutonOutil'
@@ -46,39 +46,116 @@ export function RenduCommentaire({ element, choisie, enEdition, contexte, brouil
       {n === 0 && <p className="notak-commentaire-vide">{t('commentaire.vide')}</p>}
       {montres.map((m, i) => (
         <div key={m.id}>
-          <Ligne message={m} />
+          <Ligne message={m} {...(ecrire && m.auteur.id === moi(contexte).id ? { modifier: (texte: string) => changer(modifierMessage(c, m.id, texte)) } : {})} />
           {i === 0 && caches > 0 && <p className="notak-commentaire-caches">{tn('commentaire.autresReponses', caches)}</p>}
         </div>
       ))}
-      {choisie && ecrire && (
+      {ecrire && (choisie || n > 0) && (
         <button type="button" className="notak-commentaire-repondre" onPointerDown={garder} onClick={() => contexte.commencerEdition(element.id)}>
-          {n > 0 ? t('commentaire.repondrePoints') : t('commentaire.ecrire')}
+          {n > 0 ? t('commentaire.repondre') : t('commentaire.ecrire')}
         </button>
       )}
     </div>
   )
 }
 
-export function Ligne({ message, retirer }: { message: Message; retirer?: () => void }) {
-  const { auteur } = message
+/** Un battement par minute : les dates relatives (« il y a 5 min ») se rafraîchissent d'elles-mêmes. */
+function useMinute(): number {
+  const [maintenant, setMaintenant] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setMaintenant(Date.now()), 60_000)
+    return () => clearInterval(id)
+  }, [])
+  return maintenant
+}
+
+/** Le texte d'un message : les adresses web y sont des liens. */
+function TexteMessage({ texte }: { texte: string }) {
   return (
-    <div className="notak-commentaire-message">
+    <>
+      {morceauxDeTexte(texte).map((m, i) =>
+        m.lien ? (
+          <a key={i} className="notak-commentaire-lien" href={m.lien} target="_blank" rel="noopener noreferrer" onPointerDown={garder}>
+            {m.texte}
+          </a>
+        ) : (
+          m.texte
+        ),
+      )}
+    </>
+  )
+}
+
+/**
+ * Un message : l'avatar, le prénom, la date, et le texte. `modifier` (mes messages seulement) montre « Modifier » au
+ * survol, qui ouvre le texte dans un champ, « Enregistrer » le remplace.
+ */
+export function Ligne({ message, retirer, modifier }: { message: Message; retirer?: () => void; modifier?: (texte: string) => void }) {
+  const { auteur } = message
+  const maintenant = useMinute()
+  const [edition, setEdition] = useState(false)
+  const [brouillon, setBrouillon] = useState(message.texte)
+  const enregistrer = () => {
+    if (brouillon.trim() && brouillon.trim() !== message.texte) modifier?.(brouillon)
+    setEdition(false)
+  }
+  return (
+    <div className="notak-commentaire-message" data-edition={edition || undefined}>
       <span className="notak-commentaire-pastille" style={auteur.couleur ? { background: auteur.couleur } : undefined} aria-hidden>
         {initiales(auteur.nom)}
       </span>
       <div className="notak-commentaire-corps">
         <div className="notak-commentaire-entete">
-          <strong>{auteur.nom}</strong>
+          <strong title={auteur.nom}>{prenom(auteur.nom)}</strong>
           <time dateTime={new Date(message.date).toISOString()} title={new Date(message.date).toLocaleString(langue() === 'en' ? 'en-US' : 'fr-FR')}>
-            {dateLisible(message.date)}
+            {dateLisible(message.date, maintenant)}
           </time>
+          {modifier && (
+            <button
+              type="button"
+              className="notak-commentaire-modifier"
+              onPointerDown={garder}
+              onClick={() => {
+                if (edition) enregistrer()
+                else {
+                  setBrouillon(message.texte)
+                  setEdition(true)
+                }
+              }}
+            >
+              {edition ? t('commentaire.enregistrer') : t('commentaire.modifier')}
+            </button>
+          )}
           {retirer && (
             <button type="button" className="notak-commentaire-retirer" title={t('commentaire.supprimerMessage')} onPointerDown={garder} onClick={retirer}>
               <Icone nom="fermer" />
             </button>
           )}
         </div>
-        <p className="notak-commentaire-texte">{message.texte}</p>
+        {edition ? (
+          <textarea
+            className="notak-commentaire-champ"
+            autoFocus
+            rows={1}
+            value={brouillon}
+            maxLength={5000}
+            placeholder={t('commentaire.modifierPoints')}
+            onPointerDown={garder}
+            onChange={(e) => setBrouillon(e.target.value)}
+            onKeyDown={(e) => {
+              e.stopPropagation()
+              if (e.key === 'Escape') setEdition(false)
+              else if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault()
+                enregistrer()
+              }
+            }}
+          />
+        ) : (
+          <p className="notak-commentaire-texte">
+            <TexteMessage texte={message.texte} />
+          </p>
+        )}
       </div>
     </div>
   )
@@ -130,6 +207,11 @@ function Fil({ id, contenu, contexte, ecrire }: { id: string; contenu: Commentai
     setEnvoye(suite)
     ecrire(brouillonDe(suite, texte))
   }
+  const modifier = (id: string, nouveau: string) => {
+    const suite = modifierMessage(envoye, id, nouveau)
+    setEnvoye(suite)
+    ecrire(brouillonDe(suite, texte))
+  }
   const auto = (n: HTMLTextAreaElement | null) => {
     if (!n) return
     n.style.height = 'auto'
@@ -140,30 +222,43 @@ function Fil({ id, contenu, contexte, ecrire }: { id: string; contenu: Commentai
   return (
     <div className="notak-commentaire" data-edition>
       {envoye.messages.map((m) => (
-        <Ligne key={m.id} message={m} retirer={m.auteur.id === auteur.id ? () => retirer(m.id) : undefined} />
+        <Ligne
+          key={m.id}
+          message={m}
+          {...(m.auteur.id === auteur.id ? { retirer: () => retirer(m.id), modifier: (texte: string) => modifier(m.id, texte) } : {})}
+        />
       ))}
       <div className="notak-commentaire-saisie">
         <span className="notak-commentaire-pastille" style={auteur.couleur ? { background: auteur.couleur } : undefined} aria-hidden>
           {initiales(auteur.nom)}
         </span>
-        <textarea
-          ref={champ}
-          rows={1}
-          value={texte}
-          maxLength={5000}
-          placeholder={envoye.messages.length > 0 ? t('commentaire.repondrePoints') : t('commentaire.ecrire')}
-          onPointerDown={garder}
-          onChange={(e) => {
-            setTexte(e.target.value)
-            ecrire(brouillonDe(envoye, e.target.value))
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-              e.preventDefault()
-              envoyer()
-            }
-          }}
-        />
+        <div className="notak-commentaire-zone">
+          <textarea
+            ref={champ}
+            rows={1}
+            value={texte}
+            maxLength={5000}
+            placeholder={envoye.messages.length > 0 ? t('commentaire.repondrePoints') : t('commentaire.ecrire')}
+            onPointerDown={garder}
+            onChange={(e) => {
+              setTexte(e.target.value)
+              ecrire(brouillonDe(envoye, e.target.value))
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault()
+                envoyer()
+              } else if (e.key === 'Backspace' && texte === '' && envoye.messages.length === 0) {
+                // Retour arrière dans le champ d'un fil neuf resté vide : le fil est jeté.
+                e.preventDefault()
+                contexte.jeter([id])
+              }
+            }}
+          />
+          <button type="button" className="notak-commentaire-publier" disabled={!texte.trim()} onPointerDown={garder} onClick={envoyer}>
+            {t('commentaire.publier')}
+          </button>
+        </div>
       </div>
       <p className="notak-commentaire-aide">{t('commentaire.aide')}</p>
     </div>
