@@ -86,7 +86,11 @@ function Feuille({ contenu, ecrire, finir }: { contenu: Croquis; ecrire(c: Croqu
   }
   const debut = (e: React.PointerEvent) => {
     if (e.button !== 0) return
-    e.currentTarget.setPointerCapture(e.pointerId)
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch {
+      // Un pointeur que le navigateur ne suit plus : le trait se fait sans capture.
+    }
     const { x, y } = dansFeuille(e)
     if (outil === 'crayon') {
       tire.current = { points: [x, y], avant: traits }

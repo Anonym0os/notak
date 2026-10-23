@@ -23,7 +23,7 @@
   height: 31px;
 }
 
-.notak-table tr[data-entete] td {
+.notak-table tr[data-entete] td:not(.notak-table-retrait-ligne) {
   background: rgb(47 111 235 / 0.08);
   font-weight: 700;
 }

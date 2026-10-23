@@ -22,15 +22,15 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 7. Image | 9 | 1 | 2 | 79 % |
 | 8. Liste de tâches | 11 | 0 | 6 | 65 % |
 | 9. Ligne | 11 | 0 | 3 | 79 % |
-| 10. Autres éléments | 0 | 2 | 10 | 8 % |
+| 10. Autres éléments | 7 | 3 | 2 | 71 % |
 | 11. Commun aux éléments | 6 | 0 | 6 | 50 % |
 | 12. Organiser | 15 | 1 | 0 | 97 % |
 | 13. Naviguer | 8 | 2 | 3 | 69 % |
-| 14. À plusieurs | 9 | 2 | 6 | 59 % |
-| 15. Habillage | 7 | 3 | 5 | 57 % |
+| 14. À plusieurs | 11 | 0 | 6 | 65 % |
+| 15. Habillage | 8 | 3 | 4 | 63 % |
 | 16. Exporter, importer | 0 | 0 | 4 | 0 % |
 | 17. Plateformes | 1 | 1 | 5 | 21 % |
-| **Total** | **166** | **19** | **64** | **70 %** |
+| **Total** | **176** | **18** | **55** | **74 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -241,16 +241,16 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Fonctionnalité | État | Reste |
 |---|---|---|
 | Fichier joint : extension, nom, taille, Télécharger, Ouvrir, lecteur du son et de la vidéo, renommer | 🟡 | Pas d'aperçu des pages d'un PDF, de légende ni de mode icône. |
-| Commentaire (fil de discussion posé sur la toile) | 🟡 | Réponses, auteur, date, « Résoudre » ; un fil vide reste sur la toile. |
-| Table (lignes, colonnes, cellules) | ⬜ | |
-| Croquis à main levée | ⬜ | |
+| Commentaire (fil de discussion posé sur la toile) | ✅ |  |
+| Table (lignes, colonnes, cellules) | ✅ |  |
+| Croquis à main levée | ✅ |  |
 | Dessin libre sur la toile | ⬜ | |
-| Nuancier (couleur, code, pipette) | ⬜ | |
-| Document (texte long, ouvert en grand) | ⬜ | |
-| Lien vidéo | ⬜ | Le lien YouTube existe (§ 6), pas l'outil. |
-| Lien audio | ⬜ | |
-| Carte (lieu) | ⬜ | |
-| Clone (le même élément à plusieurs endroits) | ⬜ | |
+| Nuancier (couleur, code, pipette) | ✅ |  |
+| Document (texte long, ouvert en grand) | ✅ |  |
+| Lien vidéo | ✅ | Outil « Vidéo » du tiroir. |
+| Lien audio | ✅ | Outil « Audio » du tiroir. |
+| Carte (lieu) | 🟡 | Adresse et lien vers OpenStreetMap ; pas de carte intégrée. |
+| Clone (le même élément à plusieurs endroits) | 🟡 | Suit l'original, se détache ; un clone dont l'original est jeté le dit. |
 | Raccourci vers un tableau | ⬜ | Compté aussi au § 5. |
 
 ## 11. Commun aux éléments
@@ -320,8 +320,8 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Présence : pastilles, curseurs, sélections des autres | ✅ | |
 | Fusion des modifications sans conflit (Yjs) | ✅ | |
 | Lecture seule | ✅ | |
-| Pastilles plafonnées à 5 et « +N » | 🟡 | |
-| Curseur des autres au repos | 🟡 | |
+| Pastilles plafonnées à 5 et « +N » | ✅ |  |
+| Curseur des autres au repos | ✅ |  |
 | Cache local, reprise après coupure | ✅ | Copie locale (IndexedDB), « Hors ligne » dans l'en-tête. |
 | Texte écrit à plusieurs dans une même note | ✅ | Voir § 3. |
 | Lien public, publication en lecture | ⬜ | |
@@ -347,7 +347,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Réglages du compte (Cmd+,), photo, couleur | 🟡 | Thème, taille, double-clic ; pas encore la photo ni la couleur du compte. |
 | Langues de l'interface | ⬜ | Français seulement. |
 | Avis en bas d'écran (toasts) avec annulation | 🟡 | Corbeille (« Annuler ») et envoi raté ; pas encore les autres gestes. |
-| Envoi de fichier : progression dans l'en-tête | ⬜ | |
+| Envoi de fichier : progression dans l'en-tête | ✅ |  |
 | Cmd+S rassure (« déjà enregistré ») | ✅ | |
 | Raccourci Échap sur les menus de la barre | ⬜ | |
 
