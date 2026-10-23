@@ -30,7 +30,11 @@ function Menu({ titre, libelle, icone, secondaire, children }: { titre: string; 
   )
 }
 
+/** Un fil de commentaires ne porte ni étiquette, ni réaction, ni fil attaché : il est lui-même le fil. */
+const queDesFils = (elements: readonly Element[]) => elements.every((e) => e.contenu.type === 'commentaire')
+
 export function OutilEtiquettes({ elements, contexte }: Props) {
+  if (queDesFils(elements)) return null
   return (
     <Menu titre={t('etiquettes.titre')} libelle={t('etiquettes.titre')} icone="etiquette">
       {() => <PanneauEtiquettes elements={elements} contexte={contexte} />}
@@ -39,7 +43,7 @@ export function OutilEtiquettes({ elements, contexte }: Props) {
 }
 
 export function OutilReactions({ elements, contexte }: Props) {
-  if (contexte.services.lectureSeule) return null
+  if (contexte.services.lectureSeule || queDesFils(elements)) return null
   const moi = moiDe(contexte).id
   // La fenêtre reste ouverte après le choix : on peut poser ou retirer plusieurs émojis de suite.
   const reagir = (emoji: string) => contexte.magasin.faire(reagirSurPlusieurs(elements, emoji, moi))
@@ -137,7 +141,7 @@ export function OutilCommentaire({ elements, contexte }: Props) {
       if (ici) ouvrirFil(null)
     }
   }, [menuOuvert, ici])
-  if (elements.length !== 1 || !e) return null
+  if (elements.length !== 1 || !e || queDesFils(elements)) return null
   // En lecture seule, on ne rouvre un fil que s'il y en a un.
   if (contexte.services.lectureSeule && !e.commentaire?.messages.length) return null
   const basculer = () => {

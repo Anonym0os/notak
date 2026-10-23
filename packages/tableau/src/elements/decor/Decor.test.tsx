@@ -6,10 +6,13 @@ import { creerMagasin } from '../../coeur/magasin'
 import { type Element, annoter, nouvelleNote } from '../../coeur/tableau'
 import type { ContexteToile } from '../types'
 import '../note'
+import '../commentaire'
 import './index'
 import { Decor, Pastille } from './Decor'
 import { PanneauEtiquettes } from './Etiquettes'
-import { OutilReactions } from './Outils'
+import { OutilEtiquettes, OutilReactions } from './Outils'
+import { OutilsCommentaire } from '../commentaire/Commentaire'
+import { nouveauCommentaire } from '../commentaire/fil'
 import { SelecteurEmojis } from './SelecteurEmojis'
 import { basculerFiltre, useFiltre, viderFiltre } from './etat'
 
@@ -296,6 +299,28 @@ describe('le sélecteur d’émojis', () => {
     monter(new Set(['🍕']))
     const pizza = boutons().find((b) => b.textContent === '🍕')!
     expect(pizza.getAttribute('aria-pressed')).toBe('true')
+  })
+})
+
+describe('un fil de commentaires choisi', () => {
+  it('ne propose ni étiquettes ni réactions, et se colore d’une bande', () => {
+    const { contexte, magasin } = monde()
+    const fil = nouveauCommentaire(40, 0)
+    magasin.faire([{ type: 'creer', element: fil }])
+    const el = () => magasin.lire().elements.find((e) => e.id === fil.id)!
+    act(() => racine.render(<OutilEtiquettes elements={[el()]} contexte={contexte} />))
+    expect(hote.querySelector('button')).toBeNull()
+    act(() => racine.render(<OutilReactions elements={[el()]} contexte={contexte} />))
+    expect(hote.querySelector('button')).toBeNull()
+    const rendre = () => act(() => racine.render(<OutilsCommentaire elements={[el()] as never} contexte={contexte} />))
+    rendre()
+    act(() => bouton('Couleur').click())
+    act(() => bouton('Rouge').click())
+    expect(el().contenu).toMatchObject({ couleur: 'rouge' })
+    rendre()
+    act(() => bouton('Couleur').click())
+    act(() => bouton('Aucune').click())
+    expect('couleur' in el().contenu).toBe(false)
   })
 })
 

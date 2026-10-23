@@ -4,7 +4,13 @@ import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { AUTEUR_INCONNU, ajouterMessage, filVide, dateLisible, initiales, modifierMessage, morceauxDeTexte, plier, prenom, replier, resoudre, retirerMessage } from './fil'
 import { langue, t, tn } from '../../langue'
 import { Icone } from '../../icones'
-import { BoutonOutil } from '../../BoutonOutil'
+import { BoutonOutil, OutilAvecMenu } from '../../BoutonOutil'
+import { useMenu } from '../../menuUnique'
+import { COULEURS_NOTE, type CouleurNote } from '../../coeur/tableau'
+import { LIBELLES_COULEUR } from '../note/couleurs'
+
+/** La bande de 5 px en haut de la fiche, de la couleur du fil (passée par une variable CSS). */
+const bande = (c: Commentaire) => (c.couleur ? { 'data-bande': '', style: { '--bande': `var(--notak-note-${c.couleur})` } as React.CSSProperties } : {})
 
 /** Les boutons et le champ de la carte ne lancent pas de glisser. */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
@@ -37,7 +43,7 @@ export function RenduCommentaire({ element, choisie, enEdition, contexte, brouil
   const { montres, caches } = choisie ? { montres: c.messages, caches: 0 } : replier(c.messages)
   const ecrire = !contexte.services.lectureSeule
   return (
-    <div className="notak-commentaire">
+    <div className="notak-commentaire" {...bande(c)}>
       {n > 0 && ecrire && (
         <button type="button" className="notak-commentaire-resoudre" title={t('commentaire.resoudreFil')} onPointerDown={garder} onClick={() => changer(resoudre(c, true))}>
           <Icone nom="coche" taille={16} />
@@ -220,7 +226,7 @@ function Fil({ id, contenu, contexte, ecrire }: { id: string; contenu: Commentai
   useEffect(() => auto(champ.current), [texte])
 
   return (
-    <div className="notak-commentaire" data-edition>
+    <div className="notak-commentaire" data-edition {...bande(contenu)}>
       {envoye.messages.map((m) => (
         <Ligne
           key={m.id}
@@ -265,6 +271,33 @@ function Fil({ id, contenu, contexte, ecrire }: { id: string; contenu: Commentai
   )
 }
 
+/** « Couleur » : la bande du haut de la fiche, une des teintes de la note ou aucune. */
+function OutilCouleurFil({ elements, contexte }: PropsOutils<Commentaire>) {
+  const menu = useMenu()
+  const actuelle = elements.every((e) => e.contenu.couleur === elements[0]!.contenu.couleur) ? elements[0]!.contenu.couleur : undefined
+  const choisir = (couleur: CouleurNote | undefined) => {
+    contexte.magasin.faire(
+      elements.map((e) => {
+        const { couleur: _, ...reste } = e.contenu
+        return { type: 'contenu' as const, id: e.id, avant: e.contenu, apres: couleur ? { ...reste, couleur } : reste }
+      }),
+    )
+    menu[1](false)
+  }
+  return (
+    <OutilAvecMenu menu={menu} icone="palette" titre={t('couleur.titre')} libelle={t('couleur.titre')} pastille={actuelle ? `var(--notak-note-${actuelle})` : undefined}>
+      <div className="notak-note-palette notak-decor-menu" role="menu">
+        <div className="notak-note-pastilles">
+          <button type="button" role="menuitem" className="notak-pastille-aucune" title={t('couleur.aucune')} aria-label={t('couleur.aucune')} aria-pressed={actuelle === undefined} onClick={() => choisir(undefined)} />
+          {COULEURS_NOTE.map((c) => (
+            <button key={c} type="button" role="menuitem" data-fond={c} title={LIBELLES_COULEUR[c]} aria-label={LIBELLES_COULEUR[c]} aria-pressed={actuelle === c} onClick={() => choisir(c)} />
+          ))}
+        </div>
+      </div>
+    </OutilAvecMenu>
+  )
+}
+
 export function OutilsCommentaire({ elements, contexte }: PropsOutils<Commentaire>) {
   if (contexte.services.lectureSeule) return null
   const tousResolus = elements.every((e) => e.contenu.resolu)
@@ -279,6 +312,7 @@ export function OutilsCommentaire({ elements, contexte }: PropsOutils<Commentair
     )
   return (
     <>
+      <OutilCouleurFil elements={elements} contexte={contexte} />
       {!elements.some((e) => e.contenu.resolu) && (
         <BoutonOutil icone={tousReplies ? 'chevronDroite' : 'chevronBas'} secondaire actif={tousReplies} titre={tousReplies ? t('commentaire.deplierFil') : t('commentaire.replierFil')} libelle={tousReplies ? t('commentaire.deplier') : t('commentaire.replier')} onClick={plierTout} />
       )}
