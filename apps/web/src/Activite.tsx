@@ -47,8 +47,9 @@ export function Activite({
             // Du neuf : on relit tout, les groupes en dépendent.
             void lireActivite(tableau).then((t) => vivant && setActivite(t), () => {})
           }
-          // La première lecture ne met rien en valeur : ce qui s'est passé avant l'ouverture est de l'histoire.
-          if (dernier !== undefined) surNouveaux?.(tableau, a.evenements, moi)
+          // La première lecture ne met rien en valeur (ce qui s'est passé avant l'ouverture est de l'histoire),
+          // mais elle dit quel tableau est ouvert.
+          surNouveaux?.(tableau, dernier === undefined ? [] : a.evenements, moi)
           dernier = a.dernier
         },
         () => vivant && setErreur(true),

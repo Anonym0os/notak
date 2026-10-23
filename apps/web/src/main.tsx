@@ -21,10 +21,22 @@ import { Export } from './Export'
 import { Favori } from './Favori'
 import { apercu, fichiers, rapatrier } from './fichiers'
 import { importerEspaceLocal } from './importLocal'
+import { creerRecents } from './recents'
 import { PagePublique } from './PagePublique'
 import { Partage } from './Partage'
 
-const services = { fichiers, apercu, rapatrier, rechercherPartout, ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank') }
+/** Ce que les autres viennent de faire sur le tableau ouvert : `Activite` le remplit, la toile le lit. */
+const recents = creerRecents()
+
+const services = {
+  fichiers,
+  apercu,
+  rapatrier,
+  rechercherPartout,
+  recemmentModifies: recents.lire,
+  ecouterRecemmentModifies: recents.ecouter,
+  ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank'),
+}
 
 /** Chaque tableau a son adresse, `/t/<id>` ; l'accueil est `/`. Le retour du navigateur ramène au précédent. */
 function adressePour(racine: string): Adresse {
@@ -136,7 +148,7 @@ function Espace({ moi, deconnexion }: { moi: Moi; deconnexion(): void }) {
           <>
             <Favori tableau={courant} accueil={moi.racine} />
             <Cloche ouvrir={ouvrir} />
-            <Activite tableau={courant} moi={moi.id} />
+            <Activite tableau={courant} moi={moi.id} surNouveaux={recents.noter} />
             <Export tableau={courant} />
             <Partage tableau={courant} moi={moi} />
             <Compte moi={moi} deconnexion={deconnexion} ouvrir={ouvrir} />
