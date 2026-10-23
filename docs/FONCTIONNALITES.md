@@ -345,7 +345,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Présentation (Cmd+Alt+P), mode focus sur un élément | ✅ |  |
 | Aide, bulles de découverte, accueil d'un nouveau compte | ✅ |  |
 | Réglages du compte (Cmd+,), photo, couleur | ✅ |  |
-| Langues de l'interface | ✅ | Français et anglais, au choix dans les réglages ou d'après le navigateur ; un test vérifie que les deux dictionnaires ont les mêmes clés. Les modèles de tableau et les bulles de découverte restent en français. |
+| Langues de l'interface | ✅ | Français et anglais, au choix dans les réglages ou d'après le navigateur ; un test vérifie que les deux dictionnaires ont les mêmes clés. Modèles, accueil d'un compte neuf, pages du téléphone, erreurs de l'API et export compris. |
 | Avis en bas d'écran (toasts) avec annulation | ✅ | Corbeille et non triés (« Annuler »), envoi raté, déplacement dans un tableau (« Ouvrir »), Cmd+S, style collé. |
 | Envoi de fichier : progression dans l'en-tête | ✅ |  |
 | Cmd+S rassure (« déjà enregistré ») | ✅ | |
