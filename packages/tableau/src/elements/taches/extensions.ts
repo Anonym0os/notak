@@ -6,6 +6,7 @@ import { Fragment, type Node as NoeudPM, Slice } from '@tiptap/pm/model'
 import { type EditorState, Plugin, TextSelection } from '@tiptap/pm/state'
 import type { MutableRefObject } from 'react'
 import type { NoeudTexte } from '../../coeur/tableau'
+import { htmlEnTaches } from './html'
 import { PROFONDEUR_MAX, hauteur, lignesEnTaches, peutDescendre } from './liste'
 import { type GenrePuce, jourDe, puces } from './puces'
 
@@ -252,13 +253,17 @@ function ouvertsAuBout(n: NoeudPM | null): number {
   return d + 1
 }
 
-/** Des lignes collées (d'un autre logiciel) deviennent des tâches ; ce qui vient de Notak se colle tel quel. */
+/**
+ * Des lignes ou une liste collées (d'un autre logiciel) deviennent des tâches ; ce qui vient de Notak se colle tel quel.
+ * Le HTML passe en premier (puces et sous-listes de Google Docs), le texte brut sinon.
+ */
 const CollageEnTaches = new Plugin({
   props: {
     handlePaste(view, event) {
       const donnees = event.clipboardData
-      if (!donnees || donnees.getData('text/html').includes('data-pm-slice')) return false
-      const taches = lignesEnTaches(donnees.getData('text/plain'))
+      const html = donnees?.getData('text/html') ?? ''
+      if (!donnees || html.includes('data-pm-slice')) return false
+      const taches = htmlEnTaches(html) ?? lignesEnTaches(donnees.getData('text/plain'))
       if (!taches) return false
       const noeuds = taches.map((t) => view.state.schema.nodeFromJSON(t))
       const tranche = new Slice(Fragment.fromArray(noeuds), 2, ouvertsAuBout(noeuds.at(-1) ?? null))

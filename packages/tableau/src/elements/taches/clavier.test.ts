@@ -224,6 +224,32 @@ describe('Échéance', () => {
   })
 })
 
+describe('Collage', () => {
+  /** Colle comme le fait le navigateur ; rend vrai si l'éditeur a pris le collage. */
+  const coller = (html: string, texte = '') => {
+    const donnees = { getData: (type: string) => (type === 'text/html' ? html : type === 'text/plain' ? texte : '') }
+    const e = { clipboardData: donnees } as unknown as ClipboardEvent
+    return editeur.view.someProp('handlePaste', (f) => f(editeur.view, e)) === true
+  }
+
+  it('une liste HTML (Google Docs) devient des tâches avec leurs sous-tâches', () => {
+    ouvrir([''])
+    curseur(0, 'debut')
+    expect(coller('<b id="docs-internal-guid-1"><ul><li><p>Un</p></li><li><p>Deux</p><ul><li><p>deux-a</p></li></ul></li></ul></b>', 'Un\nDeux\ndeux-a')).toBe(true)
+    expect(actuel().filter((x) => x !== '')).toEqual(['Un', 'Deux', ['deux-a']])
+  })
+
+  it('un copier de Notak se colle tel quel', () => {
+    ouvrir([''])
+    expect(coller('<ul data-pm-slice="1 1 []"><li>a</li><li>b</li></ul>', 'a\nb')).toBe(false)
+  })
+
+  it('une phrase seule se colle comme du texte', () => {
+    ouvrir([''])
+    expect(coller('<p>une phrase</p>', 'une phrase')).toBe(false)
+  })
+})
+
 describe('Tab', () => {
   it('fait de la tâche une sous-tâche de la précédente', () => {
     ouvrir(['A', 'B'])
