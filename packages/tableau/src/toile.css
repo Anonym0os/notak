@@ -189,8 +189,26 @@
 }
 
 .notak-outil-icone {
+  display: flex;
   font-size: 18px;
   line-height: 1;
+}
+
+/* Les icônes (Tabler, par `icones.tsx`) : en ligne avec un texte, elles descendent un peu sous la ligne de base ;
+   seules dans un bouton, elles le remplissent au centre. */
+.notak-ico {
+  flex: none;
+  vertical-align: -0.2em;
+}
+
+.notak-ico:not(:only-child) {
+  margin-inline: 1px;
+}
+
+:where(button:has(> .notak-ico:only-child)) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .notak-outil-libelle {

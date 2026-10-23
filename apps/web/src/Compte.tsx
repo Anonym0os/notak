@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { PastillePersonne } from '@notak/tableau'
 import { t } from './langue'
 import { type Moi, type TableauAccessible, listerFavoris, listerRecents, listerTableaux } from './api'
 import { adressePhoto } from './fichiers'
+import { Icone, PastillePersonne } from '@notak/tableau'
 
 /** Le menu au nom de la personne connectée, avec les tableaux que d'autres lui partagent. */
 export function Compte({ moi, deconnexion, ouvrir, aide }: { moi: Moi; deconnexion(): void; ouvrir(id: string): void; aide(): void }) {
@@ -64,17 +64,21 @@ export function Compte({ moi, deconnexion, ouvrir, aide }: { moi: Moi; deconnexi
           <button
             type="button"
             role="menuitem"
+            className="compte-ligne"
             onClick={() => {
               setOuvert(false)
               aide()
             }}
           >
-            {t('compte.aide')} <small>· {t('compte.raccourcis')}</small>
+            <Icone nom="aide" taille={16} />
+            <span>{t('compte.aide')} <small>· {t('compte.raccourcis')}</small></span>
           </button>
-          <a role="menuitem" href="/envoyer">
-            {t('compte.envoyer')} <small>· {t('compte.envoyer.detail')}</small>
+          <a role="menuitem" className="compte-ligne" href="/envoyer">
+            <Icone nom="envoyer" taille={16} />
+            <span>{t('compte.envoyer')} <small>· {t('compte.envoyer.detail')}</small></span>
           </a>
-          <button type="button" role="menuitem" onClick={deconnexion}>
+          <button type="button" role="menuitem" className="compte-ligne" onClick={deconnexion}>
+            <Icone nom="deconnexion" taille={16} />
             {t('compte.deconnexion')}
           </button>
         </div>

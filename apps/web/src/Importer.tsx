@@ -3,6 +3,7 @@ import { t, tn } from './langue'
 import { useEffect, useRef, useState } from 'react'
 import { envoyerFichier } from './fichiers'
 import { CIBLE_FICHIER, CIBLE_TABLEAU, ErreurImport, type PlanImport, lireExportMilanote } from './milanote'
+import { Icone } from '@notak/tableau'
 
 /** Les dimensions d'une image, lues dans ses pixels ; un format que le navigateur ne lit pas garde un 4:3. */
 async function dimensions(blob: Blob): Promise<{ largeur: number; hauteur: number }> {
@@ -137,6 +138,7 @@ export function Importer({ espace, tableau, ouvrir }: { espace: EspaceNavigable;
   return (
     <div className="importer">
       <button type="button" className="bouton" aria-expanded={ouvert} disabled={etat.type === 'cours'} onClick={() => setOuvert((o) => !o)}>
+        <Icone nom="importer" taille={16} />
         {etat.type === 'cours' ? t('importer.encours') : t('importer.titre')}
       </button>
       {ouvert && (

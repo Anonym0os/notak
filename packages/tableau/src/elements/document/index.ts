@@ -4,6 +4,7 @@ import { OutilsDocument, RenduDocument } from './Document'
 import './document.css'
 import { nouveauDocument, resume } from './texte'
 import { t } from '../../langue'
+import { ico } from '../../icones'
 
 registre.type<DocumentTexte>({
   type: 'document',
@@ -22,7 +23,7 @@ registre.type<DocumentTexte>({
       get libelle() {
         return t('type.document')
       },
-      icone: '📄',
+      icone: ico('document'),
       rang: 140,
       tiroir: true,
       fantome: () => nouveauDocument(0, 0),

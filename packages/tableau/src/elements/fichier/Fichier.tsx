@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import type { Fichier } from '../../coeur/tableau'
 import { useFichier } from '../envois'
 import type { PropsOutils, PropsRendu } from '../types'
-import { adresseApercuPdf, apercuDe, extensionDe, genreDe, lisible, tailleLisible } from './genre'
+import { ICONE_DU_GENRE, adresseApercuPdf, apercuDe, extensionDe, genreDe, lisible, tailleLisible } from './genre'
 import { t } from '../../langue'
+import { Icone } from '../../icones'
 
 const sansTitre = ({ titre: _, ...reste }: Fichier): Fichier => reste
 /** Les liens et les lecteurs de la carte ne lancent pas de glisser. */
@@ -27,6 +28,7 @@ export function RenduFichier({ element, enEdition, contexte, brouillon }: PropsR
       )}
       <div className="notak-fichier-tete">
         <span className="notak-fichier-badge" aria-hidden>
+          <Icone nom={ICONE_DU_GENRE[genre]} taille={22} trait={1.5} />
           {extension ? extension.slice(0, 4).toUpperCase() : t('type.fichier').toUpperCase()}
         </span>
         <div className="notak-fichier-infos">

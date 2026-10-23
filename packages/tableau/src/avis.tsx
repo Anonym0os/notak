@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { t } from './langue'
+import { Icone } from './icones'
 
 /**
  * Les avis en bas de la toile : une phrase courte (« Mis à la corbeille »), parfois un bouton qui défait le
@@ -53,7 +54,7 @@ export function BandeauAvis() {
         </button>
       )}
       <button type="button" className="notak-avis-fermer" aria-label={t('commun.fermer')} onClick={retirerAvis}>
-        ×
+        <Icone nom="fermer" />
       </button>
     </div>
   )

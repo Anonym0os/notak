@@ -3,6 +3,7 @@ import { registre } from '../registre'
 import { RenduDessin, ouvrirDessinLibre } from './Dessin'
 import { t, tn } from '../../langue'
 import './dessin.css'
+import { ico } from '../../icones'
 
 registre.type<Dessin>({
   type: 'dessin',
@@ -20,7 +21,7 @@ registre.type<Dessin>({
       get libelle() {
         return t('outil.dessin')
       },
-      icone: '〰',
+      icone: ico('dessin'),
       rang: 135,
       tiroir: true,
       fantome: () => ({ id: 'fantome', x: 0, y: 0, largeur: 6, contenu: { type: 'dessin', traits: [], largeurOrigine: 6, hauteurOrigine: 4 } }),

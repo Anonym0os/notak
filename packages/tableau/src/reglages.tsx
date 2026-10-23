@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { type ChoixLangue, definirLangue, t } from './langue'
 import { PastillePersonne } from './pastille'
+import { Icone } from './icones'
 
 /**
  * Les réglages de l'interface, gardés par navigateur : thème, taille de l'interface, et ce que fait un double-clic
@@ -188,7 +189,7 @@ export function FenetreReglages({
         <div className="notak-raccourcis-tete">
           <strong>{t('reglages.titre')}</strong>
           <button type="button" aria-label={t('commun.fermer')} onClick={fermer}>
-            ×
+            <Icone nom="fermer" />
           </button>
         </div>
         <div className="notak-reglages-corps">

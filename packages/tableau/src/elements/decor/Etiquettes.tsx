@@ -13,6 +13,7 @@ import {
 } from './annotations'
 import { basculerFiltre, useFiltre, viderFiltre } from './etat'
 import { t } from '../../langue'
+import { Icone } from '../../icones'
 
 /**
  * Les étiquettes du tableau : en créer, les renommer, les colorer, les poser sur la sélection, et filtrer le
@@ -109,11 +110,11 @@ export function PanneauEtiquettes({ elements, contexte }: { elements: readonly E
               title={filtre.has(et.id) ? t('etiquettes.nePlusFiltrer') : t('etiquettes.filtrer')}
               onClick={() => basculerFiltre(et.id)}
             >
-              👁
+              <Icone nom="oeil" taille={16} />
             </button>
             {ecrire && (
               <button type="button" className="notak-etiquettes-retirer" title={t('etiquettes.supprimer')} aria-label={t('etiquettes.supprimerNom', { nom: et.nom })} onClick={() => retirer(et.id)}>
-                ×
+                <Icone nom="fermer" />
               </button>
             )}
             {couleurDe === et.id && (

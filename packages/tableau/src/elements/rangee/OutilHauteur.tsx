@@ -3,6 +3,7 @@ import { definition } from '../registre'
 import type { ContexteToile, OutilCommun } from '../types'
 import { hauteurApresCran } from './hauteur'
 import { t } from '../../langue'
+import { Icone } from '../../icones'
 
 /** Ce dont la hauteur se règle ici : un élément rangé dans une colonne, de ceux qui savent être bornés. */
 const reglable = (e: Element) => !!e.parent && !e.verrou && !!definition(e.contenu.type)?.hauteurBornable
@@ -27,10 +28,10 @@ export const OutilHauteur: OutilCommun = ({ elements, contexte }) => {
   return (
     <>
       <button type="button" title={t('hauteur.moins')} aria-label={t('hauteur.moins')} onClick={() => cran(elements, contexte, -1)}>
-        {t('hauteur.titre')} −
+        {t('hauteur.titre')} <Icone nom="retirer" taille={14} />
       </button>
       <button type="button" title={t('hauteur.plus')} aria-label={t('hauteur.plus')} onClick={() => cran(elements, contexte, 1)}>
-        {t('hauteur.titre')} +
+        {t('hauteur.titre')} <Icone nom="ajouter" taille={14} />
       </button>
       {reglee && (
         <button

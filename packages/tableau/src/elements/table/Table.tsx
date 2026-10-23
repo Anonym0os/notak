@@ -16,6 +16,7 @@ import {
   LIGNES_MIN,
 } from './grille'
 import { t } from '../../langue'
+import { Icone } from '../../icones'
 
 /** Les boutons et les champs de la table ne lancent pas de glisser. */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
@@ -100,7 +101,7 @@ function Edition({ contenu, contexte, ecrire }: { contenu: Table; contexte: Prop
               <td key={j}>
                 {colonnes > COLONNES_MIN && (
                   <button type="button" title={t('table.retirerColonne')} onPointerDown={garder} onClick={() => poser(retirerColonne(cellules, j))}>
-                    ×
+                    <Icone nom="fermer" />
                   </button>
                 )}
               </td>
@@ -128,7 +129,7 @@ function Edition({ contenu, contexte, ecrire }: { contenu: Table; contexte: Prop
               <td className="notak-table-retrait-ligne">
                 {cellules.length > LIGNES_MIN && (
                   <button type="button" title={t('table.retirerLigne')} onPointerDown={garder} onClick={() => poser(retirerLigne(cellules, i))}>
-                    ×
+                    <Icone nom="fermer" />
                   </button>
                 )}
               </td>
@@ -169,16 +170,16 @@ export function OutilsTable({ elements, contexte }: PropsOutils<Table>) {
       {un && (
         <>
           <button type="button" title={t('table.ajouterLigne')} disabled={lignes >= LIGNES_MAX} onClick={() => appliquer((c) => ({ ...c, cellules: ajouterLigne(c.cellules) }))}>
-            + {t('table.ligne')}
+            <Icone nom="ajouter" taille={14} /> {t('table.ligne')}
           </button>
           <button type="button" title={t('table.ajouterColonne')} disabled={cols >= COLONNES_MAX} onClick={() => appliquer((c) => ({ ...c, cellules: ajouterColonne(c.cellules) }))}>
-            + {t('type.colonne')}
+            <Icone nom="ajouter" taille={14} /> {t('type.colonne')}
           </button>
           <button type="button" title={t('table.retirerDerniereLigne')} disabled={lignes <= LIGNES_MIN} onClick={() => appliquer((c) => ({ ...c, cellules: retirerLigne(c.cellules, c.cellules.length - 1) }))}>
-            − {t('table.ligne')}
+            <Icone nom="retirer" taille={14} /> {t('table.ligne')}
           </button>
           <button type="button" title={t('table.retirerDerniereColonne')} disabled={cols <= COLONNES_MIN} onClick={() => appliquer((c) => ({ ...c, cellules: retirerColonne(c.cellules, nombreColonnes(c.cellules) - 1) }))}>
-            − {t('type.colonne')}
+            <Icone nom="retirer" taille={14} /> {t('type.colonne')}
           </button>
         </>
       )}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { type GenreNotification, type ListeNotifications, type Notification, listerNotifications, marquerLues } from './api'
 import { quand } from './Activite'
 import { t, tn } from './langue'
+import { Icone } from '@notak/tableau'
 
 const RAFRAICHIR_MS = 30_000
 
@@ -77,7 +78,7 @@ export function Cloche({ ouvrir }: { ouvrir(tableau: string): void }) {
         title={nonLues > 0 ? tn('cloche.nonLues', nonLues) : t('cloche.titre')}
         onClick={() => setOuvert((o) => !o)}
       >
-        <span aria-hidden>🔔</span>
+        <Icone nom="cloche" />
         <span className="sr-seulement">{t('cloche.titre')}</span>
         {nonLues > 0 && <span className="cloche-compte">{nonLues > 99 ? '99+' : nonLues}</span>}
       </button>

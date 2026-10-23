@@ -26,6 +26,7 @@ import { FenetreRaccourcis } from './Menus'
 import { PastillePersonne } from './pastille'
 import { FenetreReglages, type ServiceCompte, useReglages } from './reglages'
 import './theme.css'
+import { Icone } from './icones'
 
 const CLE_VUES = 'notak:vues'
 /**
@@ -486,7 +487,7 @@ function Entete({
     <header className="notak-entete" ref={entete}>
       <nav className="notak-fil" aria-label={t('espace.fil')}>
         {visibles.flatMap((i, rang) => [
-          rang > 0 && <span key={`s${i}`} className="notak-fil-sep" aria-hidden>›</span>,
+          rang > 0 && <span key={`s${i}`} className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,
           rang === 1 && caches.length > 0 && (
             <span key="susp" className="notak-fil-bloc">
               <button
@@ -496,7 +497,7 @@ function Entete({
                 aria-expanded={menu}
                 onClick={() => setMenu((m) => !m)}
               >
-                …
+                <Icone nom="plus" taille={16} />
               </button>
               {menu && (
                 <div className="notak-fil-menu" role="menu">
@@ -509,17 +510,17 @@ function Entete({
               )}
             </span>
           ),
-          rang === 1 && caches.length > 0 && <span key="s-susp" className="notak-fil-sep" aria-hidden>›</span>,
+          rang === 1 && caches.length > 0 && <span key="s-susp" className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,
           segment(i),
         ])}
       </nav>
       {historique && (
         <div className="notak-historique">
           <button type="button" title={t('espace.annuler') + ' (⌘Z)'} aria-label={t('espace.annuler')} onClick={historique.annuler}>
-            ↶
+            <Icone nom="annuler" />
           </button>
           <button type="button" title={t('espace.retablir') + ' (⇧⌘Z)'} aria-label={t('espace.retablir')} onClick={historique.retablir}>
-            ↷
+            <Icone nom="retablir" />
           </button>
         </div>
       )}

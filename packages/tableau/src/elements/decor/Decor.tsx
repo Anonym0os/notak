@@ -7,6 +7,7 @@ import type { ContexteToile } from '../types'
 import { basculerReaction, compterReactions, etatEcheance, etiquettesDe, libelleEcheance } from './annotations'
 import { ouvrirFil, retenirContexte, useFilOuvert } from './etat'
 import { t } from '../../langue'
+import { Icone } from '../../icones'
 
 const garder = (e: React.SyntheticEvent) => e.stopPropagation()
 
@@ -54,7 +55,7 @@ function Bande({ element, contexte, mode, ouvert }: { element: Element; contexte
         <div className="notak-decor-ligne">
           {element.echeance && (
             <span className="notak-echeance" data-etat={etatEcheance(element.echeance)} title={t('decor.echeanceLe', { jour: element.echeance })}>
-              <span aria-hidden>📅</span> {libelleEcheance(element.echeance)}
+              <Icone nom="calendrier" taille={13} /> {libelleEcheance(element.echeance)}
             </span>
           )}
           {element.assigne && (
@@ -76,7 +77,7 @@ function Bande({ element, contexte, mode, ouvert }: { element: Element; contexte
               title={ouvert ? t('decor.fermerCommentaires') : t('decor.ouvrirCommentaires')}
               onClick={() => ouvrirFil(ouvert ? null : element.id)}
             >
-              <span aria-hidden>💬</span> {messages}
+              <Icone nom="commentaire" taille={13} /> {messages}
             </button>
           )}
           {reactions.map((r) => (
@@ -102,7 +103,7 @@ function Bande({ element, contexte, mode, ouvert }: { element: Element; contexte
 /** L'élément replié : le glyphe de son type et ce qu'on y lit. Double-clic, on l'ouvre pour l'éditer. */
 export function Pastille({ element, contexte }: { element: Element; contexte: ContexteToile }) {
   const def = definition(element.contenu.type)
-  const glyphe: ReactNode = def?.outils?.[0]?.icone ?? '▫️'
+  const glyphe: ReactNode = def?.outils?.[0]?.icone ?? <Icone nom="document" />
   const texte = def?.resume?.(element.contenu as never, contexte).trim() || def?.nom || t('menu.element')
   return (
     <div className="notak-icone" title={texte}>

@@ -5,6 +5,7 @@ import { HAUTEUR_TACHES_MIN, nouvelleListeTaches } from './liste'
 import { type Taches, texteBrut } from '../../coeur/tableau'
 import { t } from '../../langue'
 import './taches.css'
+import { ico } from '../../icones'
 
 registre.type<Taches>({
   type: 'taches',
@@ -28,7 +29,7 @@ registre.type<Taches>({
       get libelle() {
         return t('outil.taches')
       },
-      icone: '☑',
+      icone: ico('tache'),
       rang: 30,
       fantome: () => nouvelleListeTaches(0, 0),
       creer: (ou) => [{ type: 'creer', element: nouvelleListeTaches(Math.round(ou.x), Math.round(ou.y)) }],

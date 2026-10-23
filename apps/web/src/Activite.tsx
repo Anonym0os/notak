@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { type ActiviteTableau, type EvenementActivite, type GroupeActivite, lireActivite } from './api'
 import { phraseDuGroupe } from './phrases'
 import { langue, t } from './langue'
+import { Icone } from '@notak/tableau'
 
 const RAFRAICHIR_MS = 8000
 
@@ -80,6 +81,7 @@ export function Activite({
   return (
     <div className="activite">
       <button type="button" className="bouton" aria-expanded={ouvert} onClick={() => setOuvert((o) => !o)}>
+        <Icone nom="activite" taille={16} />
         {t('activite.titre')}
       </button>
       {ouvert && (

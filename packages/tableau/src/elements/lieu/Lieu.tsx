@@ -3,15 +3,10 @@ import type { Lieu } from '../../coeur/tableau'
 import type { PropsOutils, PropsRendu } from '../types'
 import { avecPosition, positionValable, requete, urlCarte, urlCarteIntegree } from './adresse'
 import { t } from '../../langue'
+import { Icone } from '../../icones'
 
 /** Le lien et les champs de la carte ne lancent pas de glisser. */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
-
-const Epingle = () => (
-  <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden>
-    <path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5Z" />
-  </svg>
-)
 
 /**
  * Trouve la position de l'adresse quand le service existe et qu'elle a changé. Hors historique (`corriger`) :
@@ -63,7 +58,7 @@ export function RenduLieu({ element, enEdition, choisie, contexte, brouillon }: 
         />
       ) : (
         <div className="notak-lieu-plan">
-          <Epingle />
+          <Icone nom="epingle" taille={22} />
         </div>
       )}
       {enEdition ? (

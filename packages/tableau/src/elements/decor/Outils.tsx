@@ -8,6 +8,7 @@ import { appliquerAffichage, estReduit, peutSeReduire } from './affichage'
 import { ECHEANCE, EMOJIS, basculerReaction, pasPour } from './annotations'
 import { ouvrirFil, useFilOuvert } from './etat'
 import { t } from '../../langue'
+import { Icone } from '../../icones'
 
 interface Props {
   elements: Element[]
@@ -101,7 +102,7 @@ export function OutilEcheance({ elements, contexte }: Props) {
           <span className="notak-decor-titre">{t('decor.confieA')}</span>
           {personnes(contexte).map((p) => (
             <button key={p.id} type="button" role="menuitemradio" aria-checked={assigneCommun === p.id} onClick={() => assigner(assigneCommun === p.id ? null : p)}>
-              {assigneCommun === p.id ? '✓ ' : ''}
+              {assigneCommun === p.id && <Icone nom="coche" taille={14} />}
               {p.nom}
             </button>
           ))}

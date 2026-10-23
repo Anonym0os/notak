@@ -11,6 +11,7 @@ import { elementSous } from "./accroche";
 import { GRIS_LIGNE } from "./couleur";
 import { nouvelleLigne } from "./creation";
 import { SEUIL_TIRAGE, type Arrivee, arriveeDe, coinPoignee } from "./rapide";
+import { Icone } from '../../icones'
 
 /** Ce qu'on voit pendant le tirage : le trait et sa pointe, en pixels de la toile. */
 interface Apercu {
@@ -110,9 +111,7 @@ export function LigneRapide({ elements, contexte }: { elements: Element[]; conte
               onPointerDown={commencer}
               onDoubleClick={(e) => e.stopPropagation()}
             >
-              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
-                <path d="M3 9 L9 3 M4.5 3 H9 V7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-              </svg>
+              <Icone nom="ligne" taille={13} trait={2} />
             </div>
             {apercu && (
               <svg className="notak-ligne-rapide-apercu" aria-hidden>

@@ -135,8 +135,14 @@
 }
 
 .notak-icone-glyphe {
+  display: flex;
   flex: none;
   font-size: 16px;
+}
+
+.notak-icone-glyphe .notak-ico {
+  width: 16px;
+  height: 16px;
 }
 
 .notak-icone-texte {

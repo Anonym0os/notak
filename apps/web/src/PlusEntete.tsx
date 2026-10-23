@@ -1,5 +1,6 @@
 import { t } from './langue'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { Icone } from '@notak/tableau'
 
 /**
  * Les actions de l'en-tête dont on se sert moins (activité, import, export) : rangées derrière « … » pour laisser
@@ -25,8 +26,8 @@ export function PlusEntete({ children }: { children: ReactNode }) {
   }, [ouvert])
   return (
     <div className="plus-entete" ref={boite}>
-      <button type="button" className="bouton" title={t('plus.actions')} aria-expanded={ouvert} onClick={() => setOuvert((o) => !o)}>
-        …
+      <button type="button" className="bouton" title={t('plus.actions')} aria-expanded={ouvert} aria-label={t('plus.actions')} onClick={() => setOuvert((o) => !o)}>
+        <Icone nom="plus" />
       </button>
       <div className="plus-entete-menu" hidden={!ouvert}>
         {children}

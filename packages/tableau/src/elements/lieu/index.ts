@@ -4,6 +4,7 @@ import { OutilsLieu, RenduLieu } from './Lieu'
 import { nouveauLieu, resume } from './adresse'
 import { t } from '../../langue'
 import './lieu.css'
+import { ico } from '../../icones'
 
 registre.type<Lieu>({
   type: 'lieu',
@@ -22,7 +23,7 @@ registre.type<Lieu>({
       get libelle() {
         return t('type.lieu')
       },
-      icone: '📍',
+      icone: ico('epingle'),
       rang: 120,
       tiroir: true,
       fantome: () => nouveauLieu(0, 0),

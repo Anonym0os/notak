@@ -33,7 +33,7 @@
 }
 
 .notak-renvoi-signe {
-  font-size: 0.9em;
+  display: flex;
 }
 
 /* Le raccourci : une petite flèche dans le coin, comme sur l'icône d'un alias. */

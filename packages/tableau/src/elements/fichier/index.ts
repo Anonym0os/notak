@@ -4,6 +4,7 @@ import { OutilsFichier, RenduFichier, ouvrirFichier } from './Fichier'
 import './fichier.css'
 import { LARGEUR_FICHIER, choisirFichiers, recevoirFichiers } from './recepteur'
 import { t } from '../../langue'
+import { ico } from '../../icones'
 
 /** Le fantôme des outils d'envoi : une carte de fichier sans fichier. */
 const fantome = (nom: string, typeMime: string) => ({
@@ -32,7 +33,7 @@ registre.type<Fichier>({
       get libelle() {
         return t('type.image')
       },
-      icone: '🖼',
+      icone: ico('image'),
       rang: 80,
       fantome: () => fantome(t('type.image'), 'image/png'),
       // L'élément naît du choix fait dans le sélecteur, là où l'on a lâché l'outil.
@@ -46,7 +47,7 @@ registre.type<Fichier>({
       get libelle() {
         return t('type.fichier')
       },
-      icone: '📎',
+      icone: ico('trombone'),
       rang: 90,
       fantome: () => fantome(t('type.fichier'), ''),
       creer: (ou, contexte) => {

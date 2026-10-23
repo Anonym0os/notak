@@ -3,6 +3,7 @@ import { type Auteur, type Commentaire, type Message, nouvelId } from '../../coe
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { AUTEUR_INCONNU, ajouterMessage, filVide, dateLisible, initiales, replier, resoudre, retirerMessage } from './fil'
 import { langue, t, tn } from '../../langue'
+import { Icone } from '../../icones'
 
 /** Les boutons et le champ de la carte ne lancent pas de glisser. */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
@@ -16,7 +17,7 @@ export function RenduCommentaire({ element, choisie, enEdition, contexte, brouil
   if (c.resolu) {
     return (
       <div className="notak-commentaire" data-resolu>
-        <span className="notak-commentaire-resolu">✓ {t('commentaire.resolu')} · {tn('commentaire.messages', n)}</span>
+        <span className="notak-commentaire-resolu"><Icone nom="coche" taille={13} /> {t('commentaire.resolu')} · {tn('commentaire.messages', n)}</span>
         {c.messages[0] && <p className="notak-commentaire-extrait">{c.messages[0].texte}</p>}
       </div>
     )
@@ -27,7 +28,7 @@ export function RenduCommentaire({ element, choisie, enEdition, contexte, brouil
     <div className="notak-commentaire">
       {n > 0 && ecrire && (
         <button type="button" className="notak-commentaire-resoudre" title={t('commentaire.resoudreFil')} onPointerDown={garder} onClick={() => changer(resoudre(c, true))}>
-          ✓
+          <Icone nom="coche" taille={16} />
         </button>
       )}
       {n === 0 && <p className="notak-commentaire-vide">{t('commentaire.vide')}</p>}
@@ -61,7 +62,7 @@ export function Ligne({ message, retirer }: { message: Message; retirer?: () => 
           </time>
           {retirer && (
             <button type="button" className="notak-commentaire-retirer" title={t('commentaire.supprimerMessage')} onPointerDown={garder} onClick={retirer}>
-              ×
+              <Icone nom="fermer" />
             </button>
           )}
         </div>

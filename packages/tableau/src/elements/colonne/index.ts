@@ -6,6 +6,7 @@ import { accepteDansColonne } from './regles'
 import './colonne.css'
 import { couleurDuContenu } from '../couleur'
 import { t } from '../../langue'
+import { ico } from '../../icones'
 
 registre.type<Colonne>({
   type: 'colonne',
@@ -28,7 +29,7 @@ registre.type<Colonne>({
       get libelle() {
         return t('type.colonne')
       },
-      icone: '▥',
+      icone: ico('colonne'),
       rang: 60,
       fantome: () => nouvelleColonne(0, 0, t('type.colonne')),
       creer: (ou) => [{ type: 'creer', element: nouvelleColonne(Math.round(ou.x), Math.round(ou.y), t('type.colonne')) }],
