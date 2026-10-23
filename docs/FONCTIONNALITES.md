@@ -15,7 +15,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 |---|---|---|---|---|
 | 1. Toile | 21 | 3 | 3 | 83 % |
 | 2. Création | 11 | 3 | 3 | 74 % |
-| 3. Note et texte | 18 | 3 | 10 | 63 % |
+| 3. Note et texte | 26 | 2 | 3 | 87 % |
 | 4. Colonne | 9 | 0 | 2 | 82 % |
 | 5. Tableau imbriqué | 8 | 0 | 3 | 73 % |
 | 6. Lien | 7 | 2 | 4 | 62 % |
@@ -23,14 +23,14 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 8. Liste de tâches | 11 | 0 | 6 | 65 % |
 | 9. Ligne | 11 | 0 | 3 | 79 % |
 | 10. Autres éléments | 0 | 2 | 10 | 8 % |
-| 11. Commun aux éléments | 3 | 1 | 8 | 29 % |
+| 11. Commun aux éléments | 6 | 0 | 6 | 50 % |
 | 12. Organiser | 15 | 1 | 0 | 97 % |
 | 13. Naviguer | 8 | 2 | 3 | 69 % |
 | 14. À plusieurs | 9 | 2 | 6 | 59 % |
 | 15. Habillage | 5 | 2 | 8 | 40 % |
 | 16. Exporter, importer | 0 | 0 | 4 | 0 % |
 | 17. Plateformes | 1 | 1 | 5 | 21 % |
-| **Total** | **142** | **24** | **83** | **62 %** |
+| **Total** | **153** | **22** | **74** | **66 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -105,22 +105,22 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Texte écrit à plusieurs en même temps (curseurs dans la note) | ✅ | Notes et listes de tâches ; le titre d'une liste reste un champ simple. |
 | Hauteur bornée, voile, étendue en édition | ✅ | |
 | Styles : grand titre, titre, texte, petit texte, citation, code | ✅ | |
-| Encadré à icône | ⬜ | |
+| Encadré à icône | ✅ |  |
 | Gras, italique, barré, souligné, code en ligne, lien | ✅ | |
 | Puces, liste numérotée | ✅ | |
-| Retraits du texte (Tab, retrait + et −) | 🟡 | Tab et Maj+Tab ; pas encore les boutons de la barre. |
+| Retraits du texte (Tab, retrait + et −) | ✅ |  |
 | Centrer | ✅ | |
 | Couleurs du texte et surlignages, exclusifs | ✅ | |
-| Menu d'insertion (émoji, séparateur, lien vers un tableau, mention) | ⬜ | Le séparateur se tape `---`. |
+| Menu d'insertion (émoji, séparateur, lien vers un tableau, mention) | 🟡 | Émoji et séparateur ; pas encore le lien vers un tableau ni la mention. |
 | Commentaire dans le texte | ⬜ | |
-| Raccourcis de mise en forme de Milanote | 🟡 | Maj+F3 et Tab faits ; manque Cmd+Maj+6 (encadré). |
+| Raccourcis de mise en forme de Milanote | ✅ |  |
 | Markdown tapé : `*gras*`, `_italique_`, `~barré~`, `==surligné==`, `[t](url)`, `# `, `> `, `---` | ✅ | |
-| Collage : tableau HTML en table, lignes à cases en tâches | ⬜ | |
-| Adresse collée laissée en texte repéré | 🟡 | Tiptap la change en lien. |
-| Barre de couleur en haut de la note | ⬜ | |
-| Couleur libre (hexadécimal), couleurs suggérées du tableau | ⬜ | |
-| Couleur de texte propre à la note | ⬜ | |
-| Légende sous la note | ⬜ | |
+| Collage : tableau HTML en table, lignes à cases en tâches | ✅ |  |
+| Adresse collée laissée en texte repéré | ✅ |  |
+| Barre de couleur en haut de la note | ✅ |  |
+| Couleur libre (hexadécimal), couleurs suggérées du tableau | ✅ |  |
+| Couleur de texte propre à la note | ✅ |  |
+| Légende sous la note | 🟡 | Coupée sur une note à hauteur bornée. |
 | Lien cliquable hors édition | ✅ | |
 | Lecture seule : rien ne s'édite | ✅ | |
 | Barre de mise en forme | ✅ | Posée sur la note, pas dans la barre de gauche (choix). |
@@ -260,13 +260,13 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Ombre légère, coins carrés | ✅ | |
 | Contour choisi sans ombre, contour écarté en édition | ✅ | |
 | Verrouiller | ✅ | |
-| État « verrouillé » visible (autre couleur de contour) | 🟡 | Le verrou existe ; son contour propre, non. |
+| État « verrouillé » visible (autre couleur de contour) | ✅ |  |
 | Étiquettes (créer, colorer, renommer, filtrer) | ⬜ | |
 | Réactions (émojis) | ⬜ | |
 | Commentaire attaché à un élément | ⬜ | |
 | Échéance, personne assignée sur un élément | ⬜ | |
-| Barre de couleur, couleur libre | ⬜ | Voir § 3. |
-| Copier le style d'un élément (Cmd+Alt+V) | ⬜ | |
+| Barre de couleur, couleur libre | ✅ | Notes (voir § 3). |
+| Copier le style d'un élément (Cmd+Alt+V) | ✅ |  |
 | Protéger par mot de passe | ⬜ | |
 | Mode d'affichage (icône, détail) | ⬜ | |
 
