@@ -1,5 +1,8 @@
 # Ce qui reste à rapprocher de Milanote
 
+> La liste complète des fonctionnalités, avec l'état de chacune et l'avancement par partie, est
+> `docs/FONCTIONNALITES.md`. Celle-ci garde l'historique des passes.
+
 Établi le 23/10/2026, après les quatre relevés de ce dossier et les passes `3bbd196` à `3d50004`.
 Chaque ligne renvoie au relevé qui la détaille.
 
