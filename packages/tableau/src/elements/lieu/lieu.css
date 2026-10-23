@@ -1,0 +1,86 @@
+.notak-lieu {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--notak-texte);
+}
+
+/* Un petit plan : quadrillage de rues et une épingle. */
+.notak-lieu-plan {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  background:
+    linear-gradient(90deg, transparent 46%, #fff 46% 54%, transparent 54%),
+    linear-gradient(0deg, transparent 30%, #fff 30% 38%, transparent 38% 70%, #fff 70% 76%, transparent 76%),
+    #dfe9d8;
+  color: #d84b4b;
+}
+
+.notak-lieu-infos {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.notak-lieu-nom {
+  overflow-wrap: anywhere;
+}
+
+.notak-lieu-adresse,
+.notak-lieu-vide {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.notak-lieu-vide {
+  color: #6b7280;
+}
+
+.notak-lieu-infos a {
+  align-self: flex-start;
+  color: var(--notak-accent);
+  font-size: 12px;
+}
+
+.notak-lieu-infos input,
+.notak-lieu-infos textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--notak-point);
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  resize: none;
+  outline: none;
+}
+
+.notak-lieu-infos input:focus,
+.notak-lieu-infos textarea:focus {
+  border-color: var(--notak-accent);
+}
+
+.notak-lieu-outil {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 6px;
+  color: var(--notak-texte);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.notak-lieu-outil:hover {
+  background: var(--notak-fond);
+}

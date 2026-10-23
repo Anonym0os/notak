@@ -245,7 +245,14 @@ export interface Nuancier {
   sansCode?: boolean
 }
 
-export type Contenu = Note | Image | Fichier | Lien | Taches | Colonne | Ligne | RenvoiTableau | Commentaire | Table | Nuancier
+/** Un lieu : son nom (facultatif) et son adresse, avec un lien vers une carte en ligne. */
+export interface Lieu {
+  type: 'lieu'
+  adresse: string
+  nom?: string
+}
+
+export type Contenu = Note | Image | Fichier | Lien | Taches | Colonne | Ligne | RenvoiTableau | Commentaire | Table | Nuancier | Lieu
 export type TypeContenu = Contenu['type']
 
 export interface Element<C extends Contenu = Contenu> {

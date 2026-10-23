@@ -11,5 +11,6 @@ import './fichier'
 import './commentaire'
 import './table'
 import './nuancier'
+import './lieu'
 // L'outil de couleur commun, une fois tous les types inscrits.
 import './couleur'
