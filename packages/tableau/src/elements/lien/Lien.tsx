@@ -6,6 +6,7 @@ import { lireCause, messageEchec } from './echec'
 import { lecteurDe } from './lecteurs'
 import { Media } from './Media'
 import { convertirEnImage } from './versImage'
+import { affichage } from './affichage'
 
 const DELAI_APERCU = 15_000
 const REL = 'noopener noreferrer nofollow'
@@ -120,6 +121,7 @@ function Carte({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<
   const domaine = domaineDe(url)
   const lecteur = lecteurDe(url)
   const image = statut === 'pret' ? apercu?.image : undefined
+  const aff = affichage(contenu)
   const titre = titreDuLien(contenu)
   const legende = contenu.legende ?? (statut === 'pret' && !lecteur ? apercu?.description : undefined)
   // Entré en édition par un clic sur la légende, on l'écrit ; sinon on renomme. Le choix se fait une fois
@@ -134,9 +136,9 @@ function Carte({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<
     if (choix.current) return
     const ou = contexte.prendrePointEdition()
     const sous = ou && document.elementFromPoint(ou.x, ou.y)
-    choix.current = sous?.closest('.notak-lien-description') ? 'legende' : 'titre'
+    choix.current = sous?.closest('.notak-lien-description') || !aff.infos ? 'legende' : 'titre'
     setPartie(choix.current)
-  }, [enEdition, contexte])
+  }, [enEdition, contexte, aff.infos])
   const ecrire = (champ: 'titre' | 'legende', v: string) => brouillon({ ...contenu, [champ]: v })
 
   // Le domaine ouvre toujours le lien ; le titre seulement tant que le lien n'est pas choisi (sinon, on le renomme).
@@ -155,40 +157,43 @@ function Carte({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<
 
   return (
     <div className="notak-lien">
-      <Media lecteur={lecteur} image={image} titre={titre ?? domaine} lien={contenu} />
-      <div className="notak-lien-texte">
-        {lien(
-          <>
-            {apercu?.favicon && statut === 'pret' && (
-              <img className="notak-lien-favicon" src={apercu.favicon} alt="" draggable={false} referrerPolicy="no-referrer" />
+      {aff.apercu && <Media lecteur={lecteur} image={image} titre={titre ?? domaine} lien={contenu} />}
+      {(aff.infos || aff.legende || statut !== 'pret' || partie) && (
+        <div className="notak-lien-texte">
+          {aff.infos &&
+            lien(
+              <>
+                {apercu?.favicon && statut === 'pret' && (
+                  <img className="notak-lien-favicon" src={apercu.favicon} alt="" draggable={false} referrerPolicy="no-referrer" />
+                )}
+                <span>{domaine}</span>
+              </>,
+              'notak-lien-domaine',
+              true,
             )}
-            <span>{domaine}</span>
-          </>,
-          'notak-lien-domaine',
-          true,
-        )}
-        {statut === 'attente' ? (
-          <span className="notak-lien-chargement" role="status" aria-label="Chargement" />
-        ) : (
-          <>
-            {statut === 'echec' && (
-              <div className="notak-lien-echec" role="status">
-                {messageEchec(contenu.echec)}
-              </div>
-            )}
-            {partie === 'titre' ? (
-              <Champ classe="notak-lien-titre" valeur={titre ?? ''} max={500} toutChoisir ligne ecrire={(v) => ecrire('titre', v)} finir={contexte.finirEdition} />
-            ) : (
-              titre && lien(titre, 'notak-lien-titre', false)
-            )}
-            {partie === 'legende' ? (
-              <Champ classe="notak-lien-description" valeur={legende ?? ''} ecrire={(v) => ecrire('legende', v)} finir={contexte.finirEdition} />
-            ) : (
-              legende && <div className="notak-lien-description">{legende}</div>
-            )}
-          </>
-        )}
-      </div>
+          {statut === 'attente' ? (
+            <span className="notak-lien-chargement" role="status" aria-label="Chargement" />
+          ) : (
+            <>
+              {statut === 'echec' && (
+                <div className="notak-lien-echec" role="status">
+                  {messageEchec(contenu.echec)}
+                </div>
+              )}
+              {partie === 'titre' ? (
+                <Champ classe="notak-lien-titre" valeur={titre ?? ''} max={500} toutChoisir ligne ecrire={(v) => ecrire('titre', v)} finir={contexte.finirEdition} />
+              ) : (
+                aff.infos && titre && lien(titre, 'notak-lien-titre', false)
+              )}
+              {partie === 'legende' ? (
+                <Champ classe="notak-lien-description" valeur={legende ?? ''} ecrire={(v) => ecrire('legende', v)} finir={contexte.finirEdition} />
+              ) : (
+                aff.legende && legende && <div className="notak-lien-description">{legende}</div>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }
