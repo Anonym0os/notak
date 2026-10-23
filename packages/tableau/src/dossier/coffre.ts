@@ -399,8 +399,12 @@ export async function ouvrirCoffre(o: OptionsCoffre): Promise<Coffre> {
     }
 
     const nouveaux: { chemin: string; taille: number; appareil: string; nom: string; contenu: Enregistrement[] }[] = []
+    const presents = new Set<string>()
+    const listes = new Set<string>()
     for (const a of appareils) {
       const entrees = await dossier.lister(chez(a))
+      if (entrees.length > 0) listes.add(`${chez(a)}/`)
+      for (const e of entrees) presents.add(chez(a, e.nom))
       // Les bases qu'il a effacées depuis n'ont plus à figurer dans ce que j'ai vu.
       if (basesVues[a] && entrees.length > 0) basesVues[a] = basesVues[a].filter((n) => entrees.some((e) => e.nom === n))
       for (const e of entrees) {
@@ -472,6 +476,8 @@ export async function ouvrirCoffre(o: OptionsCoffre): Promise<Coffre> {
       lus[n.chemin] = n.taille
       fichiers++
     }
+    // Ce qui a disparu du dossier n'a plus à figurer parmi les fichiers lus (sauf si son dossier n'a pas pu être listé).
+    for (const chemin of Object.keys(lus)) if (!presents.has(chemin) && listes.has(chemin.slice(0, chemin.lastIndexOf('/') + 1))) delete lus[chemin]
     await depot.ecrire(CLE_LUS, lus)
     if (enSuspens.size > 0) enAttente = true
 

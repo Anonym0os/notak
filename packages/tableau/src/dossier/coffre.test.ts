@@ -316,3 +316,23 @@ describe('le coffre : divergence', () => {
     expect(await b.coffre.divergences()).toEqual([])
   })
 })
+
+describe('le coffre : ce qu’il garde pour lui', () => {
+  it('oublie les fichiers lus qui ont disparu du dossier', async () => {
+    const { nuage, temps, appareils } = await monde(['a', 'b'])
+    const [a, b] = appareils as [AppareilSimule, AppareilSimule]
+    for (let i = 0; i < 4; i++) {
+      a.doc('t').getMap('elements').set(`k${i}`, i)
+      await a.coffre.enregistrer()
+    }
+    await stabiliser(nuage, appareils)
+    const lus = () => Object.keys(b.depot.donnees.get('coffre:lus') as object).filter((c) => c.includes(`/${a.coffre.id()}/maj-`)).length
+    expect(lus()).toBe(4)
+    temps.maintenant += 31 * JOUR
+    await a.coffre.compacter()
+    await stabiliser(nuage, appareils)
+    await a.coffre.compacter()
+    await stabiliser(nuage, appareils)
+    expect(lus()).toBe(0)
+  })
+})
