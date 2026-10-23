@@ -16,7 +16,7 @@ registre.type<Lieu>({
   OutilsApres: OutilsLieu,
   editable: true,
   hauteurParDefaut: 9,
-  largeurMin: 16,
+  largeurMin: (c: Lieu) => (c.position ? 4 : 17),
   suivant: (e, places) => ({ ...nouveauLieu(places.dessous.x, places.dessous.y), largeur: e.largeur }),
   outils: [
     {

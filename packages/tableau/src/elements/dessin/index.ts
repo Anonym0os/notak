@@ -16,7 +16,7 @@ registre.type<Dessin>({
   resume: (c) => tn('dessin.resume', c.traits.length),
   Rendu: RenduDessin,
   sansFond: true,
-  largeurMin: 2,
+  largeurMin: 4,
   proportion: (c) => c.largeurOrigine / c.hauteurOrigine,
   suivant: () => null,
   // Un double-clic rouvre le dessin dans le mode de dessin, avec ses traits.

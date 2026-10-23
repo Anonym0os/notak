@@ -26,7 +26,7 @@ registre.type<Croquis>({
   ouvreAuDoubleClic: true,
   aLaCreation: 'rien',
   hauteurParDefaut: 21,
-  largeurMin: 12,
+  largeurMin: 4,
   suivant: () => null,
   outils: [
     {

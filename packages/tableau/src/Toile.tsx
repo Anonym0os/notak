@@ -1985,7 +1985,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           .filter((x) => !x.parent && !x.verrou && definition(x.contenu.type)?.calque !== 'lignes')
           .map((x) => {
             const def = definition(x.contenu.type)
-            return { id: x.id, x: x.x, y: x.y, largeur: x.largeur, min: largeurMinDe(def?.largeurMin, x.contenu), ligne: false, proportion: !!def?.proportion?.(x.contenu as never) }
+            return { id: x.id, x: x.x, y: x.y, largeur: x.largeur, min: Math.min(largeurMinDe(def?.largeurMin, x.contenu), x.largeur), ligne: false, proportion: !!def?.proportion?.(x.contenu as never) }
           })
         const cadre = englobant(rects)
         if (cadre) geste.current = { type: 'redimensionnerGroupe', depart: ici, cadre, items }
