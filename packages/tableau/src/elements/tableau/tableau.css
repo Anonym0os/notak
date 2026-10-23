@@ -11,7 +11,7 @@
   place-items: center;
   width: 80px;
   height: 80px;
-  border-radius: 6px;
+  border-radius: 16px;
   box-shadow: var(--notak-ombre);
   color: #fff;
   font-size: 40px;
@@ -95,10 +95,10 @@
 }
 
 .notak-renvoi .notak-renvoi-carre {
-  width: 72px;
-  height: 72px;
+  width: 80px;
+  height: 80px;
   border-radius: 16px;
-  font-size: 34px;
+  font-size: 40px;
   transition: transform 0.12s, filter 0.12s;
 }
 
@@ -112,7 +112,7 @@
 }
 
 .notak-carte[data-type='tableau'][data-choisie] .notak-renvoi-carre {
-  box-shadow: var(--notak-ombre), 0 0 0 2px var(--notak-carte), 0 0 0 4px var(--notak-accent);
+  box-shadow: var(--notak-ombre), 0 0 0 2px var(--notak-carte), 0 0 0 4px var(--notak-selection);
 }
 
 /* Survolé pendant un glisser : il grossit et s'assombrit, prêt à recevoir. */

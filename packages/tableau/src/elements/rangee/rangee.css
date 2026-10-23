@@ -5,16 +5,19 @@
   left: 50%;
   z-index: 2;
   box-sizing: border-box;
+  /* Une zone de prise de 36 x 16 px ; seuls trois traits fins se voient, comme les hachures de la poignée de coin. */
   width: 36px;
-  height: 8px;
+  height: 16px;
   transform: translateX(-50%);
-  border: 2px solid var(--notak-accent);
-  border-radius: 4px;
-  background: var(--notak-carte);
+  background:
+    linear-gradient(rgb(27 37 54 / 0.5), rgb(27 37 54 / 0.5)) center 5px / 16px 1px no-repeat,
+    linear-gradient(rgb(255 255 255 / 0.4), rgb(255 255 255 / 0.4)) center 6px / 16px 1px no-repeat,
+    linear-gradient(rgb(27 37 54 / 0.5), rgb(27 37 54 / 0.5)) center 9px / 16px 1px no-repeat,
+    linear-gradient(rgb(255 255 255 / 0.4), rgb(255 255 255 / 0.4)) center 10px / 16px 1px no-repeat;
   cursor: ns-resize;
   opacity: 0;
   touch-action: none;
-  transition: opacity 0.12s;
+  transition: opacity 0.1s linear;
 }
 
 .notak-carte:hover > .notak-poignee-hauteur,

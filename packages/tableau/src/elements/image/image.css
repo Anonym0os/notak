@@ -7,7 +7,7 @@
   box-sizing: border-box;
   width: 100%;
   overflow: hidden;
-  border-radius: 2px;
+  border-radius: 0;
   container-type: size;
 }
 

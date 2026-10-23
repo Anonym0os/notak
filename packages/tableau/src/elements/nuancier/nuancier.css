@@ -6,7 +6,7 @@
   display: flex;
   align-items: flex-end;
   padding: 8px 10px;
-  border-radius: 2px;
+  border-radius: 0;
   box-shadow: var(--notak-ombre);
   font-size: 13px;
   font-weight: 600;

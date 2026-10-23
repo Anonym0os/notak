@@ -7,21 +7,23 @@ import { t } from '../../langue'
  * la couleur du texte.
  */
 export const FOND_NOTE: Record<(typeof COULEURS_NOTE)[number], string> = {
-  gris: '#8b939d',
-  cyan: '#1db4c6',
-  vert: '#3c9d5b',
-  brun: '#8c6446',
-  jaune: '#f3c534',
-  orange: '#ef8a2f',
-  rouge: '#d84b4b',
-  rose: '#e8729f',
-  violet: '#8a5fd1',
-  bleu: '#3a76df',
-  bleu_nuit: '#27344f',
+  gris: '#bbbec3',
+  cyan: '#62dbc8',
+  vert: '#7cd651',
+  brun: '#d58558',
+  jaune: '#ffd14d',
+  orange: '#ff8d48',
+  rouge: '#ff5757',
+  rose: '#ff6ed4',
+  violet: '#ad6fff',
+  bleu: '#4ebafd',
+  bleu_nuit: '#5882f8',
 }
 
 export const TEXTE_CLAIR = '#ffffff'
-export const TEXTE_SOMBRE = '#1f2328'
+export const TEXTE_SOMBRE = '#323b4a'
+/** Le gris-bleu contre lequel on mesure le contraste : au-dessus de lui, blanc ; en dessous, `TEXTE_SOMBRE` (le seuil de Milanote). */
+export const SEUIL_SOMBRE = '#3d4554'
 
 const canal = (v: number) => {
   const c = v / 255
@@ -42,7 +44,7 @@ export function contraste(a: string, b: string): number {
 
 /** Blanc ou presque-noir, selon ce qui se lit le mieux sur ce fond. */
 export function couleurTexteSur(fond: string): string {
-  return contraste(fond, TEXTE_CLAIR) >= contraste(fond, TEXTE_SOMBRE) ? TEXTE_CLAIR : TEXTE_SOMBRE
+  return contraste(fond, TEXTE_CLAIR) >= contraste(fond, SEUIL_SOMBRE) ? TEXTE_CLAIR : TEXTE_SOMBRE
 }
 
 /** La couleur du texte d'une note : celle que son fond impose, `undefined` pour le style par défaut. */

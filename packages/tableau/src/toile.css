@@ -1,23 +1,32 @@
 .notak-toile:lang(en),
 :root:lang(en) {
   /* Les textes que le CSS écrit lui-même (notes et listes vides) ; le français est dans les règles qui les emploient. */
-  --notak-ph-note: 'Write something…';
+  --notak-ph-note: 'Start typing...';
   --notak-ph-titre: 'Title';
   --notak-ph-tache: 'Add a task…';
 }
 
 .notak-toile {
-  --notak-fond: #eef0f2;
+  --notak-fond: #ebedee;
   --notak-point: #c4c8ce;
   --notak-carte: #ffffff;
-  --notak-texte: #1f2328;
+  --notak-texte: #323b4a;
   --notak-accent: #2f6feb;
-  --notak-ombre: 0 1px 2px rgb(0 0 0 / 0.07);
+  /* Le filet de sélection des cartes : gris-bleu foncé, distinct de l'accent de l'interface. */
+  --notak-selection: #323b4a;
+  --notak-selection-verrou: #bbbec3;
+  --notak-ombre: 0 1px 2px rgb(27 37 54 / 0.1), 0 0 0 1px var(--notak-fond);
+  /* Le glisser : trois couches teintées. */
+  --notak-ombre-vol: 0 8px 22px -6px rgb(27 37 54 / 0.12), 0 14px 32px -4px rgb(27 37 54 / 0.14), 0 2px 20px 4px rgb(27 37 54 / 0.06);
+  /* Les six hachures de la poignée de redimensionnement (16 px) : trois traits sombres, trois clairs intercalés. */
+  --notak-poignee-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke-linecap='round'%3E%3Cpath d='M15 12L12 15M15 8L8 15M15 4L4 15' stroke='%231b2536' stroke-opacity='.5'/%3E%3Cpath d='M15 10.5L10.5 15M15 6.5L6.5 15M15 2.5L2.5 15' stroke='%23fff' stroke-opacity='.4'/%3E%3C/svg%3E");
   /* La table : son corps et le gris de son en-tête. */
   --notak-table-corps: #ffffff;
   --notak-table-entete: #d1d3d6;
   /* Ce qui invite à écrire (« Écrivez quelque chose… ») et les textes d'appoint. */
   --notak-pale: rgb(0 0 0 / 0.35);
+  /* Le texte d'attente d'une note vide. */
+  --notak-attente: #d1d3d6;
 
   position: relative;
   /* `clip` et non `hidden` : un champ hors de l'écran qui prend le focus ferait défiler la toile, barres comprises. */
@@ -72,26 +81,56 @@
   box-sizing: border-box;
   min-height: 58px;
   padding: 24px 20px 14px 24px;
-  border-radius: 1px;
+  border-radius: 0;
   background: var(--notak-carte);
   box-shadow: var(--notak-ombre);
   color: var(--notak-texte);
 }
 
+/* Le filet de sélection : 2 px à l'extérieur de la carte, coins carrés ; en édition il s'écarte de 2 px en glissant. */
+.notak-carte:not([data-sans-fond], [data-type='tableau'])::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  box-shadow: 0 0 0 2px transparent;
+  pointer-events: none;
+  transition: inset 0.1s ease-out;
+}
+
+.notak-carte[data-choisie]:not([data-sans-fond], [data-type='tableau'])::before {
+  box-shadow: 0 0 0 2px var(--notak-selection);
+}
+
 .notak-carte[data-choisie] {
-  box-shadow: 0 0 0 2px var(--notak-accent);
+  box-shadow: 0 0 0 2px var(--notak-selection);
+}
+
+.notak-carte[data-choisie]:not([data-sans-fond], [data-type='tableau']) {
+  box-shadow: var(--notak-ombre);
 }
 
 /* Un élément verrouillé choisi : un contour gris, qui dit qu'il ne bougera pas. */
-.notak-carte[data-verrou][data-choisie] {
-  box-shadow: 0 0 0 2px #9aa0a8;
+.notak-carte[data-verrou][data-choisie]:not([data-sans-fond], [data-type='tableau'])::before {
+  box-shadow: 0 0 0 2px var(--notak-selection-verrou);
 }
 
-/* En édition, le contour s'écarte de la carte : on voit qu'on écrit dedans. */
-.notak-carte[data-edition]:not([data-sans-fond]) {
+.notak-carte[data-verrou][data-choisie] {
+  box-shadow: 0 0 0 2px var(--notak-selection-verrou);
+}
+
+.notak-carte[data-verrou][data-choisie]:not([data-sans-fond], [data-type='tableau']) {
+  box-shadow: var(--notak-ombre);
+}
+
+/* En édition, le contour s'écarte de la carte (de 2 px, en 0,1 s) : on voit qu'on écrit dedans. */
+.notak-carte[data-edition]:not([data-sans-fond], [data-type='tableau']) {
   box-shadow: none;
-  outline: 2px solid var(--notak-accent);
-  outline-offset: 2px;
+}
+
+.notak-carte[data-edition]:not([data-sans-fond], [data-type='tableau'])::before {
+  inset: -2px;
+  box-shadow: 0 0 0 2px var(--notak-selection);
 }
 
 .notak-carte[data-edition] {
@@ -102,7 +141,8 @@
 
 .notak-texte {
   font-size: 14px;
-  line-height: 1.45;
+  line-height: 20px;
+  letter-spacing: -0.1px;
   overflow-wrap: anywhere;
   outline: none;
 }
@@ -117,7 +157,7 @@
 
 .notak-texte p {
   margin: 0 0 0.4em;
-  min-height: 1.45em;
+  min-height: 20px;
 }
 
 .notak-lasso {
@@ -175,10 +215,10 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  width: 76px;
+  width: 72px;
   padding: 10px 0;
-  border-right: 1px solid rgb(0 0 0 / 0.07);
-  background: var(--notak-barre, #eceef1);
+  box-shadow: 1px 0 0 0 rgb(0 0 0 / 0.08);
+  background: var(--notak-barre, var(--notak-fond));
 }
 
 .notak-outil {
@@ -347,26 +387,26 @@
 
 .notak-poignee {
   position: absolute;
-  right: -5px;
-  bottom: -5px;
+  right: -1px;
+  bottom: -1px;
   opacity: 0;
   transform: scale(var(--notak-zoom-inverse, 1));
-  transition: opacity 0.12s;
+  transform-origin: 100% 100%;
+  transition: opacity 0.1s linear;
   box-sizing: border-box;
-  width: 10px;
-  height: 10px;
-  border: 2px solid var(--notak-accent);
-  border-radius: 2px;
-  background: var(--notak-carte);
+  width: 26px;
+  height: 26px;
+  background: var(--notak-poignee-image) no-repeat right bottom / 16px 16px;
   cursor: nwse-resize;
 }
 
 /* L'espace de tableaux : l'en-tête et la toile du tableau courant. */
 .notak-espace {
-  --notak-fond: #eef0f2;
+  --notak-fond: #ebedee;
   --notak-carte: #ffffff;
-  --notak-texte: #1f2328;
+  --notak-texte: #323b4a;
   --notak-accent: #2f6feb;
+  --notak-selection: #323b4a;
 
   display: flex;
   flex-direction: column;
@@ -576,7 +616,7 @@
   inset: 0;
   z-index: -1;
   border-radius: inherit;
-  box-shadow: 0 22px 44px rgb(0 0 0 / 0.16), 0 8px 16px rgb(0 0 0 / 0.1);
+  box-shadow: var(--notak-ombre-vol);
   opacity: var(--notak-soulevement, 0);
   pointer-events: none;
 }
@@ -602,7 +642,7 @@
   inset: 0;
   z-index: -1;
   border-radius: inherit;
-  box-shadow: 0 22px 44px rgb(0 0 0 / 0.16), 0 8px 16px rgb(0 0 0 / 0.1);
+  box-shadow: var(--notak-ombre-vol);
   opacity: var(--notak-soulevement, 0);
 }
 
@@ -777,7 +817,7 @@
   position: absolute;
   z-index: 35;
   bottom: 12px;
-  left: 88px;
+  left: 84px;
   display: flex;
   flex-direction: column;
   width: 320px;
@@ -1294,12 +1334,19 @@
   position: absolute;
   z-index: 3;
   box-sizing: border-box;
-  width: 10px;
-  height: 10px;
-  border: 2px solid var(--notak-accent);
-  border-radius: 2px;
-  background: var(--notak-carte);
+  width: 26px;
+  height: 26px;
+  /* Le style en ligne place le coin de 10 px d'avant : la zone de 26 px se recale sur le coin bas droit du cadre. */
+  margin: -20px 0 0 -20px;
+  background: var(--notak-poignee-image) no-repeat right bottom / 16px 16px;
   cursor: nwse-resize;
+  animation: notak-poignee-apparait 0.1s linear;
+}
+
+@keyframes notak-poignee-apparait {
+  from {
+    opacity: 0;
+  }
 }
 
 /* Le tableau ouvert pas encore rattrapé : son nom dans le fil d'Ariane pulse doucement. */
@@ -1368,7 +1415,7 @@
 
 .notak-bulle-decouverte[data-ou='barre'] {
   top: 96px;
-  left: 86px;
+  left: 82px;
 }
 
 .notak-bulle-decouverte[data-ou='milieu'] {

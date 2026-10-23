@@ -5,11 +5,15 @@
 .notak-espace[data-theme='sombre'],
 .notak-espace[data-theme='sombre'] .notak-toile {
   --notak-fond: #1b1e23;
+  --notak-selection: #e8e9eb;
+  --notak-selection-verrou: #6b7280;
   --notak-point: #3a3f47;
   --notak-carte: #2a2e35;
   --notak-texte: #e3e5e9;
   --notak-accent: #5b8ff9;
-  --notak-ombre: 0 1px 3px rgb(0 0 0 / 0.45);
+  --notak-ombre: 0 1px 3px rgb(0 0 0 / 0.45), 0 0 0 1px var(--notak-fond);
+  --notak-ombre-vol: 0 8px 22px -6px rgb(0 0 0 / 0.4), 0 14px 32px -4px rgb(0 0 0 / 0.45), 0 2px 20px 4px rgb(0 0 0 / 0.2);
+  --notak-attente: rgb(255 255 255 / 0.3);
   --notak-table-corps: #282828;
   --notak-table-entete: #414141;
   --notak-voile: #2a2e35;
@@ -42,9 +46,9 @@
 }
 
 .notak-espace[data-theme='sombre'] .notak-barre-outils {
-  --notak-barre: #23262c;
+  --notak-barre: var(--notak-fond);
   --notak-vignette-trait: #4a505a;
-  border-right-color: rgb(255 255 255 / 0.06);
+  box-shadow: 1px 0 0 0 rgb(255 255 255 / 0.08);
 }
 
 .notak-espace[data-theme='sombre'] .notak-tiroir {
@@ -61,7 +65,7 @@
 }
 
 /* Les panneaux, menus et barres flottantes reposent déjà sur --notak-carte ; leurs ombres et séparateurs s'éclaircissent. */
-.notak-espace[data-theme='sombre'] :is(.notak-menu, .notak-barre-selection, .notak-barre-plus-menu, .notak-corbeille, .notak-recherche, .notak-raccourcis, .notak-barre-outils, .notak-tiroir) {
+.notak-espace[data-theme='sombre'] :is(.notak-menu, .notak-barre-selection, .notak-barre-plus-menu, .notak-corbeille, .notak-recherche, .notak-raccourcis, .notak-tiroir) {
   box-shadow: 0 6px 24px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.06);
 }
 
