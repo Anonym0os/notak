@@ -2,8 +2,9 @@
 import { generateJSON } from '@tiptap/react'
 import { describe, expect, it } from 'vitest'
 import { type NoeudTexte, docDepuisTexte } from '../../coeur/tableau'
-import { adresseSeule, caseSeule, contientDuTexte, docDepuisCollage, docEstVide, normaliserUrl, sansCouleursCollees } from './conversion'
+import { adresseSeule, adressesEnLiens, caseSeule, contientDuTexte, decouperAdresses, tachesDepuisTexte, docDepuisCollage, docEstVide, normaliserUrl, sansCouleursCollees } from './conversion'
 import { EXTENSIONS_NOTE } from './extensions'
+import { ICONES_ENCADRE, iconeSuivante } from './noeuds'
 
 const paragraphe = (texte?: string): NoeudTexte => ({ type: 'paragraph', ...(texte ? { content: [{ type: 'text', text: texte }] } : {}) })
 const doc = (...content: NoeudTexte[]): NoeudTexte => ({ type: 'doc', content })
@@ -94,5 +95,88 @@ describe('conversions en tapant', () => {
     expect(caseSeule(doc('[ ] '))).toBe(false)
     expect(caseSeule(doc('[x] '))).toBe(true)
     expect(caseSeule(doc('[] lait'))).toBeNull()
+  })
+})
+
+describe('decouperAdresses', () => {
+  it('repère une adresse avec protocole, www ou extension connue', () => {
+    expect(decouperAdresses('voir https://a.fr/x, puis www.b.com et c.io.')).toEqual([
+      { texte: 'voir ' },
+      { texte: 'https://a.fr/x', url: 'https://a.fr/x' },
+      { texte: ', puis ' },
+      { texte: 'www.b.com', url: 'https://www.b.com' },
+      { texte: ' et ' },
+      { texte: 'c.io', url: 'https://c.io' },
+      { texte: '.' },
+    ])
+  })
+  it('laisse tel quel un nom de fichier ou un mot ordinaire', () => {
+    expect(decouperAdresses('node.js et notes.txt')).toEqual([{ texte: 'node.js et notes.txt' }])
+  })
+})
+
+describe('adressesEnLiens', () => {
+  it('coupe le texte et pose un lien sur l\'adresse, en gardant les marques', () => {
+    const gras = [{ type: 'bold' }]
+    expect(adressesEnLiens(doc({ type: 'paragraph', content: [{ type: 'text', text: 'va sur a.fr', marks: gras }] }))).toEqual(
+      doc({
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: 'va sur ', marks: gras },
+          { type: 'text', text: 'a.fr', marks: [...gras, { type: 'link', attrs: { href: 'https://a.fr' } }] },
+        ],
+      }),
+    )
+  })
+  it('ne touche ni un lien existant ni le code', () => {
+    const d = doc({
+      type: 'paragraph',
+      content: [
+        { type: 'text', text: 'a.fr', marks: [{ type: 'link', attrs: { href: 'https://x.fr' } }] },
+        { type: 'text', text: 'b.fr', marks: [{ type: 'code' }] },
+      ],
+    })
+    expect(adressesEnLiens(d)).toEqual(d)
+  })
+})
+
+describe('tachesDepuisTexte', () => {
+  const tache = (t: string, checked: boolean): NoeudTexte => ({
+    type: 'taskItem',
+    attrs: { checked },
+    content: [{ type: 'paragraph', ...(t ? { content: [{ type: 'text', text: t }] } : {}) }],
+  })
+  it('fait une liste de tâches de lignes à cases', () => {
+    expect(tachesDepuisTexte('- [ ] lait\n[x] pain\r\n☑ thé\n\n☐ ')).toEqual(
+      doc({ type: 'taskList', content: [tache('lait', false), tache('pain', true), tache('thé', true), tache('', false)] }),
+    )
+  })
+  it('refuse dès qu\'une ligne n\'est pas une case, ou s\'il n\'y a rien', () => {
+    expect(tachesDepuisTexte('[ ] a\nb')).toBeNull()
+    expect(tachesDepuisTexte('- a\n- b')).toBeNull()
+    expect(tachesDepuisTexte('  \n')).toBeNull()
+  })
+})
+
+describe('collage dans la note', () => {
+  it('un tableau HTML devient une table, la ligne d\'en-tête en têtes', () => {
+    const d = docDepuisCollage(
+      { html: '<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>', texte: '' },
+      (html) => generateJSON(html, EXTENSIONS_NOTE) as NoeudTexte,
+    )
+    expect(d?.content?.[0]?.type).toBe('table')
+    const lignes = d!.content![0]!.content!
+    expect(lignes.map((l) => l.content!.map((c) => c.type))).toEqual([['enteteTable', 'enteteTable'], ['celluleTable', 'celluleTable']])
+  })
+})
+
+describe('encadré', () => {
+  it('se relit depuis le HTML avec son icône', () => {
+    const d = generateJSON('<div data-type="encadre" data-icone="⚠️"><p>x</p></div>', EXTENSIONS_NOTE)
+    expect(d.content[0]).toMatchObject({ type: 'encadre', attrs: { icone: '⚠️' } })
+  })
+  it('l\'icône suivante fait le tour', () => {
+    expect(iconeSuivante('💡')).toBe('ℹ️')
+    expect(iconeSuivante(ICONES_ENCADRE.at(-1)!)).toBe('💡')
   })
 })

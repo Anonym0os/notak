@@ -71,3 +71,71 @@ export function caseSeule(doc: NoeudTexte): boolean | null {
   if (t === '[x]' || t === '[X]') return true
   return null
 }
+
+/** Les extensions qu'on reconnaît sans protocole ni `www.` : assez pour l'usage, sans prendre « node.js » pour une adresse. */
+const EXTENSIONS_CONNUES = new Set(
+  'com fr org net io app dev co eu be ch ca de uk es it nl info me ai tv fm so xyz site page link studio design gouv edu'.split(' '),
+)
+
+export type MorceauTexte = { texte: string; url?: string }
+
+/**
+ * Le texte coupé autour des adresses web qu'il contient : elles restent du texte, que l'affichage repère
+ * (souligné, cliquable). La ponctuation qui suit une adresse ne lui appartient pas.
+ */
+export function decouperAdresses(texte: string): MorceauTexte[] {
+  const morceaux: MorceauTexte[] = []
+  let reste = 0
+  for (const m of texte.matchAll(/\S+/g)) {
+    const brut = m[0].replace(/[.,;:!?»"')\]]+$/, '')
+    const url = brut && lireAdresse(brut)
+    if (!url) continue
+    const hote = new URL(url).hostname
+    const explicite = /^https?:\/\//i.test(brut) || /^www\./i.test(brut)
+    if (!explicite && !EXTENSIONS_CONNUES.has(hote.split('.').pop()!.toLowerCase())) continue
+    if (m.index > reste) morceaux.push({ texte: texte.slice(reste, m.index) })
+    morceaux.push({ texte: brut, url })
+    reste = m.index + brut.length
+  }
+  if (reste < texte.length) morceaux.push({ texte: texte.slice(reste) })
+  return morceaux
+}
+
+/** Une ligne à case : `- [ ] texte`, `* [x] texte`, `[ ] texte`, `☐ texte`, `☑ texte`. */
+const LIGNE_A_CASE = /^\s*(?:[-*+]\s+)?(?:\[([ xX]?)\]|([☐☑☒✓✔]))\s*(.*)$/u
+
+/**
+ * Des lignes qui ne sont que des cases deviennent une liste de tâches (le document d'une liste) ;
+ * sinon `null`. Les lignes vides ne comptent pas, une seule ligne sans case suffit à refuser.
+ */
+export function tachesDepuisTexte(texte: string): NoeudTexte | null {
+  const lignes = texte.replace(/\r\n?/g, '\n').split('\n').filter((l) => l.trim())
+  if (lignes.length === 0) return null
+  const items: NoeudTexte[] = []
+  for (const l of lignes) {
+    const m = LIGNE_A_CASE.exec(l)
+    if (!m) return null
+    const cochee = m[1] !== undefined ? m[1].toLowerCase() === 'x' : m[2] !== '☐'
+    const t = m[3]!.trim()
+    items.push({ type: 'taskItem', attrs: { checked: cochee }, content: [{ type: 'paragraph', ...(t ? { content: [{ type: 'text', text: t }] } : {}) }] })
+  }
+  return { type: 'doc', content: [{ type: 'taskList', content: items }] }
+}
+
+/**
+ * Pour l'affichage figé : les adresses du texte deviennent des liens, afin qu'on puisse les ouvrir.
+ * Le document enregistré n'est pas touché ; une adresse déjà dans un lien ou du code reste telle quelle.
+ */
+export function adressesEnLiens(n: NoeudTexte): NoeudTexte {
+  if (n.text !== undefined) return n
+  if (!n.content) return n
+  const content = n.content.flatMap((enfant): NoeudTexte[] => {
+    if (enfant.text === undefined || enfant.marks?.some((m) => m.type === 'link' || m.type === 'code')) return [adressesEnLiens(enfant)]
+    return decouperAdresses(enfant.text).map((m) => ({
+      type: 'text',
+      text: m.texte,
+      ...(m.url || enfant.marks?.length ? { marks: [...(enfant.marks ?? []), ...(m.url ? [{ type: 'link', attrs: { href: m.url } }] : [])] } : {}),
+    }))
+  })
+  return { ...n, content }
+}

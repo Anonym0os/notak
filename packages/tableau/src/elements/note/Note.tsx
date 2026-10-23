@@ -5,7 +5,7 @@ import type { Note, NoeudTexte } from '../../coeur/tableau'
 import { extensionsDuPartage, textePartage } from '../partage'
 import type { PropsRendu } from '../types'
 import { BarreTexte } from './Barre'
-import { adresseSeule, caseSeule, docEstVide } from './conversion'
+import { adresseSeule, adressesEnLiens, caseSeule, docEstVide } from './conversion'
 import { docVide } from '../taches/liste'
 import { texteDeNote } from './couleurs'
 import { EXTENSIONS_NOTE, EXTENSIONS_NOTE_PARTAGEE, type GestesEdition, raccourcisEdition } from './extensions'
@@ -29,7 +29,7 @@ export function RenduNote(props: PropsRendu<Note>) {
 }
 
 const TexteFige = memo(function TexteFige({ texte }: { texte: NoeudTexte }) {
-  const rendu = useMemo(() => renderToReactElement({ content: texte, extensions: EXTENSIONS_NOTE }), [texte])
+  const rendu = useMemo(() => renderToReactElement({ content: adressesEnLiens(texte), extensions: EXTENSIONS_NOTE }), [texte])
   return <div className="notak-texte">{rendu}</div>
 })
 
