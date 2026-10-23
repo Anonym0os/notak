@@ -2,6 +2,7 @@ import { type Element, type RenvoiTableau, nouvelId } from '../../coeur/tableau'
 import { registre } from '../registre'
 import type { Point } from '../../coeur/geometrie'
 import type { ContexteToile } from '../types'
+import { nouveauRaccourci } from './icones'
 import { OutilsRenvoi } from './Outils'
 import { RenduRenvoi } from './Renvoi'
 import { demanderRenommage } from './renommage'
@@ -28,6 +29,19 @@ registre.entreeMenu({
   libelle: 'Ouvrir dans un nouvel onglet',
   visible: (els, contexte) => els.length === 1 && els[0]!.contenu.type === 'tableau' && !!contexte.services.ouvrirDansOnglet,
   faire: ([e], contexte) => e?.contenu.type === 'tableau' && contexte.services.ouvrirDansOnglet?.(e.contenu.cible),
+})
+
+registre.entreeMenu({
+  libelle: 'Créer un raccourci',
+  visible: (els, contexte) => els.length > 0 && els.every((e) => e.contenu.type === 'tableau') && !contexte.services.lectureSeule,
+  faire(els, contexte) {
+    // À droite de chaque carte, sur sa ligne : le raccourci naît là où l'œil le trouve.
+    const neufs = els.flatMap((e) =>
+      e.contenu.type === 'tableau' ? [nouveauRaccourci(e as Element<RenvoiTableau>, { x: e.x + e.largeur + 4, y: e.y })] : [],
+    )
+    contexte.magasin.faire(neufs.map((element) => ({ type: 'creer' as const, element })))
+    contexte.choisir(neufs.map((e) => e.id))
+  },
 })
 
 registre.entreeMenu({

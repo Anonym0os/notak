@@ -216,6 +216,12 @@ export interface RenvoiTableau {
    * remet ce champ, et la carte en reporte la valeur sur le tableau cible.
    */
   titre?: string
+  /** Une icône de la bibliothèque (voir `elements/tableau/icones.ts`), à la place de l'initiale. */
+  icone?: string
+  /** Une image envoyée (clé du dépôt de fichiers), à la place de l'initiale ; elle prime sur `icone`. */
+  image?: Id
+  /** Un raccourci : le même tableau posé à un autre endroit. Le jeter ne jette pas le tableau. */
+  raccourci?: boolean
 }
 
 /** Qui a écrit un message, tel qu'il se présentait à ce moment-là. */

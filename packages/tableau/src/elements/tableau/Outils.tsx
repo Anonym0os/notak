@@ -1,10 +1,85 @@
 import { useState, useSyncExternalStore } from 'react'
 import { COULEURS_NOTE, type CouleurNote, type RenvoiTableau } from '../../coeur/tableau'
+import { ICONES_TABLEAU, avecIcone, avecImage } from './icones'
 import { FOND_NOTE, LIBELLES_COULEUR } from '../note/couleurs'
 import type { PropsOutils } from '../types'
 import { demanderRenommage } from './renommage'
 
 const sans = () => () => {}
+
+/** Un seul pas d'historique pour tous les tableaux choisis. */
+function changerIcone(elements: PropsOutils<RenvoiTableau>['elements'], contexte: PropsOutils<RenvoiTableau>['contexte'], faire: (c: RenvoiTableau) => RenvoiTableau) {
+  contexte.magasin.faire(elements.map((e) => ({ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: faire(e.contenu) })))
+}
+
+/** « Icône » : la bibliothèque, aucune (retour à l'initiale), ou une image à envoyer. */
+function ChoixIcone({ elements, contexte }: PropsOutils<RenvoiTableau>) {
+  const [ouvert, setOuvert] = useState(false)
+  const depot = contexte.services.fichiers
+  const commune = elements.every((e) => e.contenu.icone === elements[0]!.contenu.icone && !e.contenu.image) ? elements[0]!.contenu.icone : undefined
+  const envoyer = () => {
+    const champ = document.createElement('input')
+    champ.type = 'file'
+    champ.accept = 'image/*'
+    champ.addEventListener('change', () => {
+      const f = champ.files?.[0]
+      if (!f || !depot) return
+      depot.enregistrer(f).then((id) => changerIcone(elements, contexte, (c) => avecImage(c, id)), () => {})
+    })
+    champ.click()
+  }
+  return (
+    <div className="notak-colonne-menu-ancre">
+      <button type="button" title="Icône du tableau" aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
+        Icône
+      </button>
+      {ouvert && (
+        <div className="notak-colonne-palette" role="menu">
+          <div className="notak-renvoi-icones">
+            {Object.entries(ICONES_TABLEAU).map(([nom, { signe, libelle }]) => (
+              <button
+                key={nom}
+                type="button"
+                role="menuitem"
+                title={libelle}
+                aria-label={libelle}
+                aria-pressed={commune === nom}
+                onClick={() => {
+                  changerIcone(elements, contexte, (c) => avecIcone(c, nom))
+                  setOuvert(false)
+                }}
+              >
+                {signe}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              changerIcone(elements, contexte, (c) => avecIcone(c, undefined))
+              setOuvert(false)
+            }}
+          >
+            Initiale
+          </button>
+          {depot && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOuvert(false)
+                envoyer()
+              }}
+            >
+              Une image…
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function OutilsRenvoi({ elements, contexte }: PropsOutils<RenvoiTableau>) {
   const [ouvert, setOuvert] = useState(false)
@@ -45,6 +120,7 @@ export function OutilsRenvoi({ elements, contexte }: PropsOutils<RenvoiTableau>)
           )}
         </div>
       )}
+      {!contexte.services.lectureSeule && <ChoixIcone elements={elements} contexte={contexte} />}
       {elements.length === 1 && (
         <button type="button" title="Renommer le tableau" onClick={() => demanderRenommage(elements[0]!.id)}>
           Renommer

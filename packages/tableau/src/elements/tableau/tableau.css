@@ -19,6 +19,38 @@
   line-height: 1;
 }
 
+.notak-renvoi-carre {
+  position: relative;
+  overflow: hidden;
+}
+
+.notak-renvoi-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.notak-renvoi-signe {
+  font-size: 0.9em;
+}
+
+/* Le raccourci : une petite flèche dans le coin, comme sur l'icône d'un alias. */
+.notak-renvoi-raccourci {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: rgb(255 255 255 / 0.92);
+  color: #3d4349;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+}
+
 .notak-renvoi-titre {
   display: -webkit-box;
   max-width: 100%;
@@ -143,4 +175,23 @@
   25% { filter: brightness(0.75); }
   50% { filter: brightness(0.9); }
   100% { filter: brightness(0.8); }
+}
+
+.notak-renvoi-icones {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 2px;
+  width: 224px;
+}
+
+.notak-renvoi-icones button {
+  height: 32px;
+  border-radius: 6px;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.notak-renvoi-icones button[aria-pressed='true'] {
+  background: var(--notak-fond);
+  box-shadow: inset 0 0 0 2px var(--notak-accent);
 }
