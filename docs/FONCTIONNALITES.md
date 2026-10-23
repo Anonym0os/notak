@@ -15,14 +15,14 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 |---|---|---|---|---|
 | 1. Toile | 21 | 3 | 3 | 83 % |
 | 2. Création | 10 | 3 | 4 | 68 % |
-| 3. Note et texte | 18 | 2 | 11 | 61 % |
+| 3. Note et texte | 18 | 3 | 10 | 63 % |
 | 4. Colonne | 9 | 0 | 2 | 82 % |
 | 5. Tableau imbriqué | 8 | 0 | 3 | 73 % |
 | 6. Lien | 7 | 2 | 4 | 62 % |
 | 7. Image | 5 | 2 | 5 | 50 % |
 | 8. Liste de tâches | 11 | 0 | 6 | 65 % |
-| 9. Ligne | 9 | 2 | 3 | 71 % |
-| 10. Autres éléments | 0 | 1 | 11 | 4 % |
+| 9. Ligne | 11 | 0 | 3 | 79 % |
+| 10. Autres éléments | 0 | 2 | 10 | 8 % |
 | 11. Commun aux éléments | 3 | 1 | 8 | 29 % |
 | 12. Organiser | 14 | 1 | 1 | 91 % |
 | 13. Naviguer | 8 | 2 | 3 | 69 % |
@@ -30,7 +30,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 15. Habillage | 5 | 2 | 8 | 40 % |
 | 16. Exporter, importer | 0 | 0 | 4 | 0 % |
 | 17. Plateformes | 1 | 1 | 5 | 21 % |
-| **Total** | **138** | **24** | **87** | **60 %** |
+| **Total** | **140** | **24** | **85** | **61 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -108,12 +108,12 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Encadré à icône | ⬜ | |
 | Gras, italique, barré, souligné, code en ligne, lien | ✅ | |
 | Puces, liste numérotée | ✅ | |
-| Retraits du texte (Tab, retrait + et −) | ⬜ | Seules les listes descendent. |
+| Retraits du texte (Tab, retrait + et −) | 🟡 | Tab et Maj+Tab ; pas encore les boutons de la barre. |
 | Centrer | ✅ | |
 | Couleurs du texte et surlignages, exclusifs | ✅ | |
 | Menu d'insertion (émoji, séparateur, lien vers un tableau, mention) | ⬜ | Le séparateur se tape `---`. |
 | Commentaire dans le texte | ⬜ | |
-| Raccourcis de mise en forme de Milanote | 🟡 | Manquent Maj+F3 (casse), Cmd+Maj+6 (encadré), Tab. |
+| Raccourcis de mise en forme de Milanote | 🟡 | Maj+F3 et Tab faits ; manque Cmd+Maj+6 (encadré). |
 | Markdown tapé : `*gras*`, `_italique_`, `~barré~`, `==surligné==`, `[t](url)`, `# `, `> `, `---` | ✅ | |
 | Collage : tableau HTML en table, lignes à cases en tâches | ⬜ | |
 | Adresse collée laissée en texte repéré | 🟡 | Tiptap la change en lien. |
@@ -170,12 +170,12 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Outil « Adresse » | ✅ | |
 | Ouvrir, copier l'adresse | ✅ | |
 | Hauteur bornée | ✅ | |
-| Lecteurs intégrés (vidéo, audio, carte, contenus riches) | 🟡 | YouTube et Vimeo seulement. |
+| Lecteurs intégrés (vidéo, audio, carte, contenus riches) | 🟡 | Seize fournisseurs reconnus ; la carte les dessine encore tous en 16/9. |
 | Réglages d'affichage : aperçu, infos, légende | ⬜ | |
 | Lecture auto et en boucle d'une vidéo | ⬜ | |
 | Adresse d'image changée en image | ⬜ | Il faut d'abord rapatrier le fichier. |
 | Outils Vidéo, Audio et Carte dans le tiroir | ⬜ | |
-| Message d'échec selon la cause | 🟡 | L'adresse sert de titre. |
+| Message d'échec selon la cause | 🟡 | Le serveur dit la cause ; la carte ne l'affiche pas encore. |
 
 ## 7. Image
 
@@ -229,10 +229,10 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Maj pour 45° | ✅ | |
 | Longueur minimale selon les flèches | ✅ | |
 | Pointes flèche, rond, rien | ✅ | |
-| Traits plein, tirets, points | 🟡 | Les points ne se choisissent pas. |
+| Traits plein, tirets, points | ✅ |  |
 | Épaisseurs 1, 2, 4 ; couleurs | ✅ | |
 | Libellé | ✅ | |
-| Poignées rondes à anneau | 🟡 | Carrés. |
+| Poignées rondes à anneau | ✅ |  |
 | Outil de ligne rapide au coin d'un élément choisi | ⬜ | |
 | Ligne horizontale entre deux colonnes alignées | ⬜ | Voir § 4. |
 
@@ -241,7 +241,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Fonctionnalité | État | Reste |
 |---|---|---|
 | Fichier joint : extension, nom, taille, Télécharger, Ouvrir, lecteur du son et de la vidéo, renommer | 🟡 | Pas d'aperçu des pages d'un PDF, de légende ni de mode icône. |
-| Commentaire (fil de discussion posé sur la toile) | ⬜ | |
+| Commentaire (fil de discussion posé sur la toile) | 🟡 | Réponses, auteur, date, « Résoudre » ; un fil vide reste sur la toile. |
 | Table (lignes, colonnes, cellules) | ⬜ | |
 | Croquis à main levée | ⬜ | |
 | Dessin libre sur la toile | ⬜ | |
