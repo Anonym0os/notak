@@ -38,10 +38,21 @@ export function empaqueter(t: Tableau, ids: Iterable<Id>, rect: (id: Id) => Rect
     if (e.contenu.type !== 'ligne') continue
     const bouts = ancres(e)
     const avecLesSiens = bouts.length > 0 && bouts.every((a) => pris.has(a))
-    if (avecLesSiens || (choisis.has(e.id) && bouts.every((a) => pris.has(a)))) pris.set(e.id, e)
+    // Une ligne choisie se copie même seule : ses bouts gardent alors les éléments d'origine.
+    if (avecLesSiens || choisis.has(e.id)) pris.set(e.id, e)
   }
   const elements = [...pris.values()]
   const cadres = elements.filter((e) => !e.parent && e.contenu.type !== 'ligne').flatMap((e) => rect(e.id) ?? [])
+  // Des lignes seules n'ont pas de carte pour cadre : leurs bouts libres et les éléments où elles tiennent.
+  if (cadres.length === 0) {
+    for (const e of elements) {
+      if (e.contenu.type !== 'ligne') continue
+      for (const x of [e.contenu.depart, e.contenu.arrivee]) {
+        if ('element' in x) cadres.push(...[rect(x.element)].flatMap((r) => r ?? []))
+        else cadres.push({ min: { x: x.x, y: x.y }, max: { x: x.x, y: x.y } })
+      }
+    }
+  }
   const cadre = englobant(cadres)
   if (elements.length === 0 || !cadre) return null
   return { ...(t.id ? { tableau: t.id } : {}), elements, cadre }

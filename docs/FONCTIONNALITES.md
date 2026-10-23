@@ -21,7 +21,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 6. Lien | 13 | 0 | 0 | 100 % |
 | 7. Image | 12 | 0 | 0 | 100 % |
 | 8. Liste de tâches | 17 | 0 | 0 | 100 % |
-| 9. Ligne | 14 | 0 | 0 | 100 % |
+| 9. Ligne | 16 | 2 | 0 | 94 % |
 | 10. Autres éléments | 12 | 0 | 0 | 100 % |
 | 11. Commun aux éléments | 12 | 0 | 0 | 100 % |
 | 12. Organiser | 16 | 0 | 0 | 100 % |
@@ -30,7 +30,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 6 | 1 | 0 | 93 % |
-| **Total** | **246** | **3** | **0** | **99 %** |
+| **Total** | **248** | **5** | **0** | **99 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -222,19 +222,23 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Fonctionnalité | État | Reste |
 |---|---|---|
 | Création par l'outil, Cmd+K relie la sélection | ✅ | |
-| Zone de clic de 20 px | ✅ | |
-| Accroche au centre d'un élément, arrêt au bord | ✅ | |
-| Accroche à un point précis de l'élément | ✅ |  |
-| Courbe par le point de contrôle, redressée près du milieu | ✅ | |
-| Maj pour 45° | ✅ | |
-| Longueur minimale selon les flèches | ✅ | |
-| Pointes flèche, rond, rien | ✅ | |
-| Traits plein, tirets, points | ✅ |  |
-| Épaisseurs 1, 2, 4 ; couleurs | ✅ | |
-| Libellé | ✅ | |
-| Poignées rondes à anneau | ✅ |  |
-| Outil de ligne rapide au coin d'un élément choisi | ✅ |  |
-| Ligne horizontale entre deux colonnes alignées | ✅ | Voir § 9. |
+| Zone de clic de 20 px ; glisser la ligne par son trait | ✅ | Les bouts libres suivent, ceux qui tiennent à un élément restent. |
+| Accroche au centre d'un élément, arrêt à 1 px du bord | ✅ | |
+| Mode dedans : point précis après 500 ms immobile, 8 repères, contour de la cible, élément verrouillé refusé | ✅ | |
+| Courbe qui passe par la poignée, redressée près du milieu ou d'un double-clic | ✅ | |
+| Bouts libres exacts, Maj pour 45°, aimant horizontal / vertical | ✅ | |
+| Longueur minimale (4 UG à la pose), ligne masquée si trop courte | ✅ | |
+| Pointes flèche (aussi large que longue) ou rien (bout arrondi) | ✅ | Plus de pointe ronde ni de trait en points. |
+| Traits plein, tirets | ✅ | |
+| Épaisseurs 1, 2, 4 suivant la grille ; palette, couleur libre, gris par défaut selon le thème | ✅ | |
+| Libellé : étiquette, édition en place, masquer, frappe, glisser, texte collé | ✅ | |
+| Poignées blanches de 8 px, taille constante au zoom, grises quand la ligne est verrouillée | ✅ | |
+| Trait fantôme dans les éléments reliés | ✅ | |
+| Outil de ligne rapide au coin d'un élément choisi | ✅ | Le point de 8 px grossit au survol ; l'élément reste choisi pendant le tirage. |
+| Aligner et répartir les lignes libres, coller le style entre lignes, copier une ligne seule | ✅ | |
+| Ligne horizontale entre deux colonnes alignées | ✅ | Voir § 4. |
+| Empilement : une ligne passe derrière une carte | 🟡 | Toutes les lignes sont dans un calque au-dessus des cartes. |
+| Sons, présence des collaborateurs, défilement au bord pendant le tirage | 🟡 | Rien de tout cela sur les lignes. |
 
 ## 10. Autres éléments
 

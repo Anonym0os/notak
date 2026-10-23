@@ -18,13 +18,16 @@ import { type Paquet, TYPE_PAQUET, decalageDeCollage, deballer, empaqueter, text
 import { type Entree, FenetreRaccourcis, GLISSER_NON_TRIE, MenuContextuel, PanneauCorbeille, PanneauNonTries, Recherche } from './Menus'
 import { chercher } from './coeur/recherche'
 import { poussees } from './coeur/collisions'
+import { accroches } from './coeur/lignes'
 import { VOL_REPOS, type Vol, inclinaisonMax, transformation } from './coeur/vol'
 import { Envol, dessinerSur, oublierVol } from './envol'
 import { BandeauAvis, annoncer } from './avis'
 import {
   type Contenu,
   type Element,
+  type Extremite,
   type Id,
+  type Ligne,
   type Operation,
   type Tableau,
   HAUTEUR_NOTE_MIN,
@@ -89,6 +92,15 @@ type Geste =
       depart: Point
       cadre: Rect
       items: { id: Id; x: number; y: number; largeur: number; min: number; ligne: boolean }[]
+    }
+  | {
+      /** Une ligne prise par son trait : ses bouts libres suivent le pointeur, ceux qui tiennent à un élément restent. */
+      type: 'ligneEntiere'
+      id: Id
+      depart: Point
+      ecran: Point
+      demarre: boolean
+      avant: Ligne
     }
   | {
       type: 'redimensionner'
@@ -938,6 +950,13 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         p = null
       }
       if (p) return collerPaquet(p)
+      // Du texte collé sur une ligne seule choisie devient son libellé (400 caractères au plus, tel quel).
+      const texte = e.clipboardData.getData('text/plain')
+      const choisie = etat.current.selection.size === 1 ? etat.current.magasin.lire().elements.find((x) => x.id === [...etat.current.selection][0]) : undefined
+      if (texte.trim() && e.clipboardData.files.length === 0 && choisie?.contenu.type === 'ligne' && !choisie.verrou && !etat.current.services.lectureSeule) {
+        const { libelleMasque: _m, ...sans } = choisie.contenu
+        return etat.current.magasin.faire([{ type: 'contenu', id: choisie.id, avant: choisie.contenu, apres: { ...sans, libelle: texte.slice(0, 400) } }])
+      }
       void recevoir(e.clipboardData, contexte.centreVue())
     }
     const copier = (couper: boolean) => (e: ClipboardEvent) => {
@@ -1113,6 +1132,22 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const pas: Operation[] = []
     for (const e of choisis()) {
       if (e.verrou) continue
+      // D'une ligne à une autre, tout le style passe : couleur, pointes, trait et épaisseur.
+      if (source.contenu.type === 'ligne' && e.contenu.type === 'ligne') {
+        const { couleur: _c, fond: _f, ...nu } = e.contenu
+        const s = source.contenu
+        const apres: Ligne = {
+          ...nu,
+          pointeDepart: s.pointeDepart,
+          pointeArrivee: s.pointeArrivee,
+          trait: s.trait,
+          epaisseur: s.epaisseur,
+          ...(s.couleur ? { couleur: s.couleur } : {}),
+          ...(s.fond ? { fond: s.fond } : {}),
+        }
+        if (JSON.stringify(apres) !== JSON.stringify(e.contenu)) pas.push({ type: 'contenu', id: e.id, avant: e.contenu, apres })
+        continue
+      }
       const c = definition(e.contenu.type)?.couleur
       if (c?.vers && (couleur !== undefined || defSource?.couleur?.vers)) {
         const apres = c.vers(e.contenu as never, couleur)
@@ -1205,10 +1240,16 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       null,
       { libelle: t('toile.verrouiller'), coche: verrouilles, faire: () => verrouiller(!verrouilles) },
       { libelle: t('toile.premierPlan'), raccourci: '⇧⌘↑', faire: () => changerPlan('haut', false) },
-      { libelle: t('toile.arrierePlan'), raccourci: '⇧⌘↓', faire: () => changerPlan('bas', false) },
+      // Une ligne accrochée à un élément ne passe pas à l'arrière-plan.
+      ...(els.some((x) => x.contenu.type === 'ligne' && accroches(x.contenu).length > 0)
+        ? []
+        : [{ libelle: t('toile.arrierePlan'), raccourci: '⇧⌘↓', faire: () => changerPlan('bas', false) }]),
       null,
       ...(copie.paquet ? [{ libelle: t('toile.collerStyle'), raccourci: '⌥⌘V', faire: collerStyle }] : []),
-      { libelle: t('toile.mettreNonTries'), raccourci: '⌥`', faire: () => ecarter(selection, 'nonTrie') },
+      // Une ligne n'a pas de place dans les non triés.
+      ...(els.every((x) => x.contenu.type === 'ligne')
+        ? []
+        : [{ libelle: t('toile.mettreNonTries'), raccourci: '⌥`', faire: () => ecarter(selection, 'nonTrie') }]),
       { libelle: t('raccourcis.corbeille'), raccourci: '⌫', faire: () => jeter(selection) },
     ]
   }
@@ -1569,6 +1610,13 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         // Sur un élément déjà choisi, l'appui garde le groupe pour le glisser ; le relâchement décide.
         const reduire = !basculer && selection.has(id) ? { id, seul: selection.size === 1, ou: point(e.clientX, e.clientY) } : undefined
         if (!s.has(id) || lectureSeule) return
+        // Une ligne se prend par son trait et se déplace en bloc (sans l'envol des cartes).
+        if (el && el.contenu.type === 'ligne' && !el.verrou && s.size === 1) {
+          geste.current = { type: 'ligneEntiere', id, depart: ici, ecran: p, demarre: false, avant: el.contenu }
+          setEnGeste(true)
+          racine.current!.setPointerCapture(e.pointerId)
+          return
+        }
         // Un élément rangé se glisse aussi, sauf si sa colonne est choisie avec lui : il la suit.
         const origines = new Map(
           tableau.elements
@@ -1691,6 +1739,19 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       return viser(e, [g.fantome])
     }
     const ici = cam.versTableau(camera, p)
+    if (g.type === 'ligneEntiere') {
+      if (!g.demarre) {
+        if (Math.hypot(p.x - g.ecran.x, p.y - g.ecran.y) < SEUIL_GLISSER) return
+        g.demarre = true
+      }
+      const d = soustraire(ici, g.depart)
+      const bout = (x: Extremite): Extremite => ('element' in x ? x : { x: Math.round((x.x + d.x) * 100) / 100, y: Math.round((x.y + d.y) * 100) / 100 })
+      const actuel = magasin.lire().elements.find((x) => x.id === g.id)
+      if (!actuel) return
+      return magasin.appliquerSeulement([
+        { type: 'contenu', id: g.id, avant: actuel.contenu, apres: { ...g.avant, depart: bout(g.avant.depart), arrivee: bout(g.avant.arrivee) } },
+      ])
+    }
     if (g.type === 'lasso') {
       const zone = depuisCoins(g.depart, ici)
       setZoneLasso(zone)
@@ -1949,6 +2010,13 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       setEnGeste(false)
       return true
     }
+    if (g?.type === 'ligneEntiere') {
+      const el = magasin.lire().elements.find((x) => x.id === g.id)
+      if (el && g.demarre) magasin.appliquerSeulement([{ type: 'contenu', id: g.id, avant: el.contenu, apres: g.avant }])
+      geste.current = null
+      setEnGeste(false)
+      return true
+    }
     if (g?.type === 'redimensionner') {
       // Échap rend la taille de départ ; rien n'entre dans l'historique.
       const el = magasin.lire().elements.find((x) => x.id === g.id)
@@ -2008,6 +2076,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         if (el.largeur !== i.largeur) pas.push({ type: 'redimensionner', id: i.id, de: i.largeur, vers: el.largeur })
       }
       magasin.inscrire(pas)
+      return
+    }
+    if (g?.type === 'ligneEntiere') {
+      const el = magasin.lire().elements.find((x) => x.id === g.id)
+      if (g.demarre && el && !memes(el.contenu, g.avant)) magasin.inscrire([{ type: 'contenu', id: g.id, avant: g.avant, apres: el.contenu }])
       return
     }
     if (g?.type === 'redimensionner') {
@@ -2124,6 +2197,14 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const id = sous(document.elementFromPoint(e.clientX, e.clientY))
     if (id) {
       const el = tableau.elements.find((x) => x.id === id)
+      // Un double-clic sur le trait ou le libellé d'une ligne la redresse ; une ligne ne s'écrit pas.
+      if (el?.contenu.type === 'ligne') {
+        if (el.contenu.courbe && !el.verrou) {
+          const { courbe: _c, ...droite } = el.contenu
+          magasin.faire([{ type: 'contenu', id: el.id, avant: el.contenu, apres: droite }])
+        }
+        return
+      }
       const ouvrir = el && definition(el.contenu.type)?.ouvrir
       return ouvrir ? ouvrir(el, contexte) : commencerEdition(id, point(e.clientX, e.clientY))
     }

@@ -8,6 +8,11 @@ import {
   pointAncre,
   viser,
   aimanterAngle,
+  aimanterAuto,
+  ancreDedans,
+  elargir,
+  poserExact,
+  guideSous,
   auMoins,
   longueurMin,
   courbeDepuisPoint,
@@ -15,6 +20,7 @@ import {
   evaluer,
   lignesASupprimer,
   pointControle,
+  pointCourbe,
   quadratique,
   relier,
   sommetsFleche,
@@ -34,23 +40,31 @@ describe('point de contrôle', () => {
     expect(pointControle(a, b)).toBeNull()
   })
   test('l’écart est perpendiculaire à la corde, à la position donnée', () => {
-    const c = pointControle(a, b, { ecart: 10, position: 0.5 })!
+    const c = pointCourbe(a, b, { ecart: 10, position: 0.5 })!
     proche(c, 10, 10)
-    proche(pointControle(a, b, { ecart: -6, position: 0.25 })!, 5, -6)
+    proche(pointCourbe(a, b, { ecart: -6, position: 0.25 })!, 5, -6)
+  })
+  test('la courbe passe par la poignée, au milieu de son parcours', () => {
+    const courbe = { ecart: 10, position: 0.5 }
+    const q = quadratique(a, b, courbe)
+    proche(evaluer(q, 0.5), 10, 10)
+    // Le vrai point de contrôle est plus loin que la poignée : 2P − milieu.
+    proche(pointControle(a, b, courbe)!, 10, 20)
   })
   test('moins de 2 UG du milieu : droit', () => {
+    expect(pointCourbe(a, b, { ecart: SEUIL_DROIT - 0.1, position: 0.5 })).toBeNull()
+    expect(pointCourbe(a, b, { ecart: SEUIL_DROIT, position: 0.5 })).not.toBeNull()
     expect(pointControle(a, b, { ecart: SEUIL_DROIT - 0.1, position: 0.5 })).toBeNull()
-    expect(pointControle(a, b, { ecart: SEUIL_DROIT, position: 0.5 })).not.toBeNull()
-    expect(pointControle(a, b, { ecart: 0, position: 0.5 })).toBeNull()
+    expect(pointCourbe(a, b, { ecart: 0, position: 0.5 })).toBeNull()
   })
   test('corde nulle : droit', () => {
-    expect(pointControle(a, a, { ecart: 10, position: 0.5 })).toBeNull()
+    expect(pointCourbe(a, a, { ecart: 10, position: 0.5 })).toBeNull()
   })
-  test('courbeDepuisPoint est l’inverse de pointControle', () => {
+  test('courbeDepuisPoint est l’inverse de pointCourbe', () => {
     const courbe = { ecart: 7, position: 0.3 }
-    const c = pointControle(a, b, courbe)!
+    const c = pointCourbe(a, b, courbe)!
     expect(courbeDepuisPoint(a, b, c)).toEqual(courbe)
-    const oblique = pointControle(point(3, 4), point(13, -8), { ecart: -9, position: 0.6 })!
+    const oblique = pointCourbe(point(3, 4), point(13, -8), { ecart: -9, position: 0.6 })!
     const retour = courbeDepuisPoint(point(3, 4), point(13, -8), oblique)!
     expect(retour.ecart).toBeCloseTo(-9, 1)
     expect(retour.position).toBeCloseTo(0.6, 1)
@@ -117,7 +131,7 @@ describe('tracer', () => {
     proche(t.fin, 30, 5)
   })
   test('courbe : elle sort du rectangle sur le bord, et suit la courbe', () => {
-    const courbe = { ecart: 20, position: 0.5 }
+    const courbe = { ecart: -20, position: 0.5 }
     const t = tracer({ a: point(5, 5), b: point(45, 5), rectA: gauche, rectB: droite, courbe })!
     const q = quadratique(point(5, 5), point(45, 5), courbe)
     expect(t.droit).toBe(false)
@@ -152,8 +166,9 @@ describe('pointes', () => {
   test('flèche : pointe sur le bout, base en arrière', () => {
     const [bout, g, d] = sommetsFleche(point(10, 0), point(1, 0), 1)
     proche(bout, 10, 0)
-    proche(g, 9, 0.45)
-    proche(d, 9, -0.45)
+    // Aussi large que long, comme Milanote.
+    proche(g, 9, 0.5)
+    proche(d, 9, -0.5)
   })
 })
 
@@ -328,7 +343,7 @@ describe('viser', () => {
     const c2 = depuisTaille(point(50, 12), 34, 90)
     const v = viser({ element: 'c1' }, { element: 'c2' }, { depart: c1, arrivee: c2 }, true)!
     expect(v.a.y).toBe(v.b.y)
-    expect(v.a.y).toBeCloseTo(12 + 2.3)
+    expect(v.a.y).toBeCloseTo(12 + 3.2)
     expect(v.a.x).toBe(17)
     expect(v.b.x).toBe(67)
     expect(v.rectA).toBe(c1)
@@ -361,5 +376,39 @@ describe('viser', () => {
     const t = tracer({ a: v.a, b: v.b, rectA: v.rectA, rectB: v.rectB })!
     proche(t.debut, 20, 5)
     proche(t.fin, 40, 5)
+  })
+})
+
+describe('bouts libres', () => {
+  test('un bout se pose au centième d’UG, sans aimant de grille', () => {
+    expect(poserExact(point(3.456, 7.004))).toEqual(point(3.46, 7))
+  })
+  test('un trait presque horizontal ou vertical se redresse, un autre non', () => {
+    const fixe = point(0, 0)
+    // 0,5 UG d’écart sur 30 : sous 10 px et sous la pente 1/30.
+    expect(aimanterAuto(fixe, point(30, 0.5), 10)).toEqual(point(30, 0))
+    expect(aimanterAuto(fixe, point(0.5, 30), 10)).toEqual(point(0, 30))
+    // Trop penché : 2 UG sur 30.
+    expect(aimanterAuto(fixe, point(30, 2), 10)).toEqual(point(30, 2))
+    // Sous la pente mais à plus de 10 px.
+    expect(aimanterAuto(fixe, point(300, 1.5), 10)).toEqual(point(300, 1.5))
+  })
+  test('le rectangle s’élargit de chaque côté', () => {
+    expect(elargir(depuisTaille(point(10, 10), 20, 10), 1)).toEqual({ min: point(9, 9), max: point(31, 21) })
+  })
+})
+
+describe('mode dedans', () => {
+  const carte = depuisTaille(point(10, 10), 20, 10)
+  test('un repère tout proche attire le point', () => {
+    expect(guideSous(carte, point(10.5, 10.4))).toEqual({ x: 0, y: 0 })
+    expect(ancreDedans(carte, point(29.6, 15))).toEqual({ x: 1, y: 0.5 })
+  })
+  test('ailleurs, le point intérieur est gardé, au bord ou au milieu à une demi-UG près', () => {
+    expect(ancreDedans(carte, point(14, 17))).toEqual({ x: 0.2, y: 0.7 })
+    expect(ancreDedans(carte, point(20.2, 17))).toEqual({ x: 0.5, y: 0.7 })
+  })
+  test('le centre exact vise le centre', () => {
+    expect(ancreDedans(carte, point(20, 15))).toBeNull()
   })
 })

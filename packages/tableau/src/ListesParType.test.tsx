@@ -98,10 +98,11 @@ describe('la barre de gauche, type par type (ordre de Milanote)', () => {
     expect(visibles.slice(0, 3)).toEqual(['Couleur', 'Icône', 'Renommer'])
   })
 
-  it('ligne : Couleur, Début, Fin, Libellé, Pointillé, Épaisseur ; les ronds et les points dans « ••• »', () => {
+  it('ligne : Couleur, Début, Fin, Libellé, Pointillé, Épaisseur ; ni points ni ronds', () => {
     const { visibles, rangees } = listes('ligne')
     expect(visibles.slice(0, 6)).toEqual(['Couleur', 'Début', 'Fin', 'Libellé', 'Pointillé', 'Épaisseur'])
-    expect(rangees).toEqual(expect.arrayContaining(['Points', 'Début rond', 'Fin rond']))
+    expect(rangees).not.toEqual(expect.arrayContaining(['Points']))
+    expect(rangees).not.toEqual(expect.arrayContaining(['Début rond']))
   })
 
   it('nuancier : Couleur, étiquettes, réactions, commentaire, Affichage', () => {

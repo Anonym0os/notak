@@ -242,7 +242,11 @@ export interface Ligne {
   trait: 'plein' | 'tirets' | 'points'
   epaisseur: 1 | 2 | 4
   couleur?: CouleurNote
+  /** Une couleur libre (`#rrggbb`) : elle prime sur `couleur`. */
+  fond?: string
   libelle?: string
+  /** Le libellé est gardé mais caché (la tuile Libellé l'éteint) ; un nouveau texte le rallume. */
+  libelleMasque?: boolean
 }
 
 /** Un tableau imbriqué, posé sur la toile de son parent. */

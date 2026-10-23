@@ -6,7 +6,7 @@ import { LigneRapide } from './LigneRapide'
 import { OutilsLigne } from './Outils'
 import { TAILLE_LIGNE_NEUVE, ligneLibre } from './creation'
 import './ligne.css'
-import { entreeRelier, raccourciRelier } from './raccourci'
+import { entreeRelier, raccourciLibelle, raccourciRelier } from './raccourci'
 import { couleurDuContenu } from '../couleur'
 import { t } from '../../langue'
 import { ico } from '../../icones'
@@ -21,7 +21,14 @@ registre.type<Ligne>({
   aLaCreation: 'choisir',
   Rendu: RenduLigne,
   Outils: OutilsLigne,
-  couleur: couleurDuContenu<Ligne>(),
+  couleur: {
+    ...couleurDuContenu<Ligne>(),
+    // Une couleur nommée prend la place d'une couleur libre.
+    vers: (c: Ligne, couleur) => {
+      const { couleur: _, fond: _f, ...reste } = c
+      return couleur ? { ...reste, couleur } : reste
+    },
+  },
   emporterAvec: lignesASupprimer,
   suivant: () => null,
   outils: [
@@ -46,4 +53,5 @@ registre.type<Ligne>({
 
 registre.outilCommun(LigneRapide)
 registre.raccourci(raccourciRelier)
+registre.raccourci(raccourciLibelle)
 registre.entreeMenu(entreeRelier)
