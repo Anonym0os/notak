@@ -60,6 +60,26 @@ export function echelleAutour(c: Camera, echelle: number, fixe: Point): Camera {
 
 export const centreCamera = (c: Camera, v: Vue) => versTableau(c, centreVue(v))
 
+/** La marge laissée autour du contenu, en UG : la vue ne remonte pas au-delà, à gauche ni en haut. */
+export const MARGE_DOCUMENT = point(50, 40)
+
+/**
+ * Le tableau est un document borné en haut et à gauche : la vue n'y remonte pas plus loin que le contenu, marge
+ * comprise. Sur un axe où tout le contenu tient avec ses marges (on a dézoomé), il se recentre.
+ */
+export function bornerVue(c: Camera, contenu: Rect | null, v: Vue): Camera {
+  if (!contenu) return c
+  const k = pxParUg(c)
+  const vue = point(v.largeur / k, v.hauteur / k)
+  const axe = (o: number, min: number, max: number, marge: number, taille: number) => {
+    if (max - min + 2 * marge <= taille) return (min + max) / 2 - taille / 2
+    return Math.max(o, min - marge)
+  }
+  const x = axe(c.origine.x, contenu.min.x, contenu.max.x, MARGE_DOCUMENT.x, vue.x)
+  const y = axe(c.origine.y, contenu.min.y, contenu.max.y, MARGE_DOCUMENT.y, vue.y)
+  return x === c.origine.x && y === c.origine.y ? c : { ...c, origine: point(x, y) }
+}
+
 export function centree(centre: Point, echelle: number, v: Vue): Camera {
   const k = PX_PAR_UG * echelle
   return { echelle, origine: point(centre.x - v.largeur / 2 / k, centre.y - v.hauteur / 2 / k) }

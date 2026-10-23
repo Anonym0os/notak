@@ -200,6 +200,21 @@ describe('caméra', () => {
     expect(cam.revenirA100(0.7, 0.4)).toBe(false)
   })
 
+  test('le document est borné en haut à gauche, et se recentre quand tout tient', () => {
+    const grand = depuisTaille(point(0, 0), 400, 300)
+    // Trop à gauche et trop haut : la vue revient à la marge (50 × 40 UG).
+    const c = cam.bornerVue({ origine: point(-200, -100), echelle: 1 }, grand, VUE)
+    expect([c.origine.x, c.origine.y]).toEqual([-50, -40])
+    // Plus loin à droite ou en bas : rien n'arrête la vue.
+    expect(cam.bornerVue({ origine: point(120, 90), echelle: 1 }, grand, VUE).origine).toEqual(point(120, 90))
+    // Dézoomé au point que tout tient : le contenu se centre.
+    const petit = depuisTaille(point(0, 0), 20, 10)
+    const centre = cam.centreCamera(cam.bornerVue({ origine: point(300, 300), echelle: 0.25 }, petit, VUE), VUE)
+    proche(centre.x, 10)
+    proche(centre.y, 5)
+    expect(cam.bornerVue(cam.CAMERA_DEPART, null, VUE)).toBe(cam.CAMERA_DEPART)
+  })
+
   test('la courbe part de zéro et finit à un', () => {
     proche(cam.adoucir(0), 0)
     proche(cam.adoucir(1), 1)

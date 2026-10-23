@@ -45,7 +45,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Zoom molette et pincement, lissé, effleurement corrigé, inertie filtrée | ✅ | |
 | Cmd+plus, Cmd+moins, Cmd+0 | ✅ | |
 | Crans de zoom et Ajuster | 🟡 | Ajuster et son retour à 100 % comme Milanote ; crans du bas encore calculés à notre façon. |
-| Document borné (bord haut-gauche, marges de 50 × 40 UG), recentrage en dézoomant | ⬜ | |
+| Document borné (bord haut-gauche, marges de 50 × 40 UG), recentrage en dézoomant | ✅ | |
 | Grille de points | ✅ | |
 | Tailles de grille 8, 9, 10 px (Cmd+Maj+, et .) | ⬜ | Notak fixe 10 px. |
 | Clic, Maj+clic, Cmd+clic, clic droit qui choisit | ✅ | |

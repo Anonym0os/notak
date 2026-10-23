@@ -462,6 +462,14 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     () => englobant(etat.current.tableau.elements.filter(libre).flatMap((e) => rect(e.id) ?? [])),
     [rect],
   )
+  // Le document borné : après chaque mouvement de vue, la caméra revient dans ses bornes. Pas pendant un geste ni
+  // une animation : la vue ne doit pas bouger sous le pointeur pendant qu'on tire un élément.
+  useLayoutEffect(() => {
+    if (enGeste || anime || edition) return
+    const bornee = cam.bornerVue(camera, contenu(), vue)
+    if (bornee !== camera) setCamera(bornee)
+  }, [camera, enGeste, anime, edition, vue, tableau, contenu])
+
   const sous = (cible: EventTarget | null): Id | null => {
     const n = (cible as HTMLElement | null)?.closest?.('[data-id]')
     return n && racine.current?.contains(n) ? n.getAttribute('data-id') : null
