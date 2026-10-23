@@ -22,15 +22,15 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 7. Image | 12 | 0 | 0 | 100 % |
 | 8. Liste de tâches | 17 | 0 | 0 | 100 % |
 | 9. Ligne | 14 | 0 | 0 | 100 % |
-| 10. Autres éléments | 11 | 1 | 0 | 96 % |
+| 10. Autres éléments | 12 | 0 | 0 | 100 % |
 | 11. Commun aux éléments | 12 | 0 | 0 | 100 % |
 | 12. Organiser | 16 | 0 | 0 | 100 % |
 | 13. Naviguer | 13 | 0 | 0 | 100 % |
 | 14. À plusieurs | 17 | 0 | 0 | 100 % |
-| 15. Habillage | 13 | 1 | 1 | 90 % |
+| 15. Habillage | 14 | 0 | 1 | 93 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
-| 17. Plateformes | 5 | 2 | 0 | 86 % |
-| **Total** | **242** | **6** | **1** | **98 %** |
+| 17. Plateformes | 6 | 1 | 0 | 93 % |
+| **Total** | **245** | **3** | **1** | **99 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -250,7 +250,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Lien vidéo | ✅ | Outil « Vidéo » du tiroir. |
 | Lien audio | ✅ | Outil « Audio » du tiroir. |
 | Carte (lieu) | ✅ |  |
-| Clone (le même élément à plusieurs endroits) | 🟡 | Les clones suivent l'original à la corbeille ; Milanote ne laisse voir que des indices de sa règle. |
+| Clone (le même élément à plusieurs endroits) | ✅ | Suit l'original et le suit à la corbeille, comme le laissent voir les indices de Milanote ; se détache. |
 | Raccourci vers un tableau | ✅ |  |
 
 ## 11. Commun aux éléments
