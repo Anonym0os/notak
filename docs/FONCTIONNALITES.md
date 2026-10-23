@@ -25,12 +25,12 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 10. Autres éléments | 11 | 1 | 0 | 96 % |
 | 11. Commun aux éléments | 12 | 0 | 0 | 100 % |
 | 12. Organiser | 16 | 0 | 0 | 100 % |
-| 13. Naviguer | 12 | 0 | 1 | 92 % |
+| 13. Naviguer | 13 | 0 | 0 | 100 % |
 | 14. À plusieurs | 17 | 0 | 0 | 100 % |
 | 15. Habillage | 13 | 1 | 1 | 90 % |
 | 16. Exporter, importer | 2 | 2 | 0 | 75 % |
 | 17. Plateformes | 5 | 2 | 0 | 86 % |
-| **Total** | **237** | **9** | **3** | **97 %** |
+| **Total** | **238** | **9** | **2** | **97 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -47,7 +47,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Crans de zoom et Ajuster | ✅ | |
 | Document borné (bord haut-gauche, marges de 50 × 40 UG), recentrage en dézoomant | ✅ | |
 | Grille de points | ✅ | |
-| Tailles de grille 8, 9, 10 px (Cmd+Maj+, et .) | ⬜ | Notak fixe 10 px. |
+| Tailles de grille 8, 9, 10 px (Cmd+Maj+, et .) | ✅ | Réglage « Grille » (Cmd+,) ; le texte garde sa taille. |
 | Clic, Maj+clic, Cmd+clic, clic droit qui choisit | ✅ | |
 | Clic dans une sélection multiple qui la réduit au relâchement | ✅ | |
 | Lasso, posé au relâchement | ✅ | |

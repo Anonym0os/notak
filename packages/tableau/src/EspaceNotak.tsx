@@ -1,5 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import type { Camera } from './coeur/camera'
+import { type Camera, TAILLES_GRILLE, definirTailleGrille } from './coeur/camera'
 import {
   type EspaceNavigable,
   type EtatEnvoi,
@@ -119,6 +119,8 @@ export function EspaceNotak({
   const courant = courantDe(parcours)
   const lectureSeule = useSyncExternalStore(espace.ecouter, () => espace.lectureSeule?.(courant) ?? false)
   const [reglages, changerReglages] = useReglages()
+  // Posée avant de dessiner la toile, qui la lit à chaque mesure.
+  definirTailleGrille(reglages.grille)
   const [reglagesOuverts, setReglagesOuverts] = useState(false)
   const [presentation, setPresentation] = useState(false)
   const [aideOuverte, setAideOuverte] = useState(false)
@@ -253,6 +255,7 @@ export function EspaceNotak({
   const basculerThemeRef = useRef(() => {})
   const ouvrirReglagesRef = useRef(() => {})
   const basculerPresentationRef = useRef(() => {})
+  const changerGrilleRef = useRef((_sens: 1 | -1) => {})
   const etat = useRef({ courant, ouvrir, espace, parcours })
   etat.current = { courant, ouvrir, espace, parcours }
   useEffect(() => {
@@ -275,6 +278,7 @@ export function EspaceNotak({
       if (!(e.metaKey || e.ctrlKey) || e.altKey || saisissable(e.target)) return
       const { courant: ici, ouvrir: aller, espace: esp, parcours: p } = etat.current
       if (e.key.toLowerCase() === 'd' && e.shiftKey) basculerThemeRef.current()
+      else if (e.shiftKey && (e.code === 'Comma' || e.code === 'Period')) changerGrilleRef.current(e.code === 'Period' ? 1 : -1)
       else if (e.key.toLowerCase() === 'u' && e.shiftKey) {
         // Redescendre : dans le tableau qu'on vient de quitter, s'il est rangé dans celui-ci.
         const quitte = p.pile[p.index - 1]
@@ -304,6 +308,13 @@ export function EspaceNotak({
   const basculerTheme = useCallback(() => changerReglages({ theme: reglages.theme === 'sombre' ? 'clair' : 'sombre' }), [reglages.theme, changerReglages])
   ouvrirReglagesRef.current = () => setReglagesOuverts(true)
   basculerPresentationRef.current = () => setPresentation((p) => !p)
+  changerGrilleRef.current = (sens) => {
+    const i = TAILLES_GRILLE.indexOf(reglages.grille)
+    const suivante = TAILLES_GRILLE[Math.max(0, Math.min(TAILLES_GRILLE.length - 1, i + sens))]!
+    if (suivante === reglages.grille) return
+    changerReglages({ grille: suivante })
+    annoncer({ texte: `Grille ${suivante === 8 ? 'serrée' : suivante === 9 ? 'moyenne' : 'large'} (${suivante} px)` })
+  }
   // La présentation passe en plein écran ; en sortir (Échap du navigateur compris) la referme.
   const racineEspace = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -355,7 +366,8 @@ export function EspaceNotak({
       />
       <div className="notak-espace-corps" ref={corps}>
         <Toile
-          key={courant}
+          // Une autre grille redessine tout : positions et largeurs changent de pixels.
+          key={`${courant}:${reglages.grille}`}
           magasin={espace.magasin(courant)}
           services={services}
           cameraInitiale={vues.current[courant]?.camera}

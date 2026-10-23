@@ -281,6 +281,7 @@ const RACCOURCIS: { titre: string; lignes: [string, string][] }[] = [
       ['Reculer, avancer', '⌘[  ⌘]'],
       ['Thème sombre', '⇧⌘D'],
       ['Présentation', '⌥⌘P'],
+      ['Grille plus serrée, plus large', '⇧⌘,  ⇧⌘.'],
       ['Réglages', '⌘,'],
       ['Ces raccourcis', '/'],
     ],

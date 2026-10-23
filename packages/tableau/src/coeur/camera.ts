@@ -5,7 +5,15 @@
  */
 import { type Point, type Rect, centre as centreRect, hauteur, largeur, point } from './geometrie'
 
-export const PX_PAR_UG = 10
+/**
+ * La taille d'une UG à l'échelle 1 : 8, 9 ou 10 pixels, le réglage « Grille » de chacun. Une grille plus serrée
+ * resserre positions et largeurs, pas le texte. Lue en direct par tous ceux qui l'importent.
+ */
+export let PX_PAR_UG = 10
+export const TAILLES_GRILLE = [8, 9, 10] as const
+export function definirTailleGrille(px: (typeof TAILLES_GRILLE)[number]) {
+  PX_PAR_UG = px
+}
 export const ECHELLE_MAX = 3
 /** Le zoom arrière s'arrête au plus tard ici, plus bas si le contenu l'exige. */
 export const ECHELLE_MIN_PLAFOND = 0.4

@@ -10,6 +10,8 @@ export interface Reglages {
   taille: 'petite' | 'moyenne' | 'grande'
   /** Un double-clic sur le vide crée une note. */
   doubleClic: boolean
+  /** La taille d'une UG, en pixels (Cmd+Maj+, et Cmd+Maj+.). */
+  grille: 8 | 9 | 10
 }
 
 /**
@@ -42,7 +44,7 @@ export function refusDePhoto(f: { type: string; size: number }): string | null {
 }
 
 const CLE = 'notak:reglages'
-const DEFAUT: Reglages = { theme: 'clair', taille: 'moyenne', doubleClic: true }
+const DEFAUT: Reglages = { theme: 'clair', taille: 'moyenne', doubleClic: true, grille: 10 }
 
 function lire(): Reglages {
   try {
@@ -53,6 +55,7 @@ function lire(): Reglages {
       theme: theme === 'sombre' ? 'sombre' : 'clair',
       taille: brut.taille === 'petite' || brut.taille === 'grande' ? brut.taille : 'moyenne',
       doubleClic: brut.doubleClic !== false,
+      grille: brut.grille === 8 || brut.grille === 9 ? brut.grille : 10,
     }
   } catch {
     return DEFAUT
@@ -189,6 +192,12 @@ export function FenetreReglages({
             ['petite', 'Petite'],
             ['moyenne', 'Moyenne'],
             ['grande', 'Grande'],
+          ])}
+          <label>Grille</label>
+          {choix('grille', [
+            [8, 'Serrée'],
+            [9, 'Moyenne'],
+            [10, 'Large'],
           ])}
           <label>Double-clic sur le vide</label>
           {choix('doubleClic', [
