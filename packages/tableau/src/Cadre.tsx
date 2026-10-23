@@ -8,6 +8,7 @@ import { useFiltre } from './elements/decor/etat'
 import { teinteDeCarte } from './elements/couleur/teinte'
 import { definition } from './elements/registre'
 import { PoigneeHauteur } from './elements/rangee/PoigneeHauteur'
+import { SuggestionSous } from './elements/suggestionSous'
 import type { ContexteToile } from './elements/types'
 
 interface Props {
@@ -85,6 +86,7 @@ export const Cadre = memo(function Cadre({ element, choisie, seule, enEdition, c
       <Decor element={element} contexte={contexte} mode={mode} />
       {poignee && <div className="notak-poignee" data-poignee aria-hidden />}
       {rangeReglable && <PoigneeHauteur element={element} carte={noeud} contexte={contexte} />}
+      {def.suggestionSous && (seule || enEdition) && !icone && !contexte.services.lectureSeule && <SuggestionSous element={element} def={def} carte={noeud} contexte={contexte} />}
     </div>
   )
 })

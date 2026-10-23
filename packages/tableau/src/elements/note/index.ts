@@ -50,6 +50,15 @@ registre.type<Note>({
     const forme = format ? { ...(couleur && { couleur }), ...(fond && { fond }), ...(barre && { barre }), ...(couleurTexte && { couleurTexte }) } : {}
     return { ...neuve, largeur: e.largeur, contenu: { ...neuve.contenu, ...forme } }
   },
+  // Une note qui dépasse une page (48 UG de haut) propose de devenir un document.
+  suggestionSous: (e, contexte, hauteur) =>
+    hauteur > 48
+      ? {
+          cle: 'noteEnDocument',
+          question: t('suggestion.document'),
+          oui: () => contexte.magasin.faire([{ type: 'contenu', id: e.id, avant: e.contenu, apres: enDocument(e.contenu) }]),
+        }
+      : null,
   convertir: (c) => {
     const url = adresseSeule(c.texte)
     return url ? { type: 'lien', url, statut: 'attente' } : null

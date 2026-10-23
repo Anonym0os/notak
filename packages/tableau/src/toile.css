@@ -2593,3 +2593,50 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 .notak-carte[data-teinte] .notak-document-papier path:first-child {
   fill: var(--notak-teinte);
 }
+
+/* La suggestion sous un élément : une bande de 40 px qui glisse vers le bas. */
+.notak-suggestion {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 40px;
+  padding: 0 8px;
+  color: rgb(0 0 0 / 0.5);
+  font-size: 13px;
+  white-space: nowrap;
+  animation: notak-suggestion-entre 0.2s ease-out;
+}
+
+.notak-suggestion-question {
+  flex: none;
+}
+
+.notak-suggestion button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.notak-suggestion button:hover {
+  color: var(--notak-texte);
+}
+
+@keyframes notak-suggestion-entre {
+  from {
+    opacity: 0;
+    transform: translateY(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
