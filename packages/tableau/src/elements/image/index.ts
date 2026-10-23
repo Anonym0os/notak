@@ -16,7 +16,7 @@ registre.type<Image>({
   resume: (c) => c.legende ?? '',
   type: 'image',
   Rendu: RenduImage,
-  Outils: OutilsImage,
+  OutilsApres: OutilsImage,
   editable: true,
   // Le double-clic et Espace la montrent en grand ; Entrée édite sa légende.
   ouvrir: (e) => ouvrirImage(e.id),

@@ -5,7 +5,8 @@ import type { ContexteToile } from '../types'
 import { moiDe } from './Decor'
 import { PanneauEtiquettes } from './Etiquettes'
 import { appliquerAffichage, estReduit, peutSeReduire } from './affichage'
-import { ECHEANCE, EMOJIS, basculerReaction, pasPour } from './annotations'
+import { ECHEANCE, basculerReaction, pasPour } from './annotations'
+import { SelecteurEmojis } from './SelecteurEmojis'
 import { ouvrirFil, useFilOuvert } from './etat'
 import { t } from '../../langue'
 import { BoutonOutil, OutilAvecMenu } from '../../BoutonOutil'
@@ -53,15 +54,7 @@ export function OutilReactions({ elements, contexte }: Props) {
   }
   return (
     <Menu titre={t('decor.reagirEmoji')} libelle={t('decor.reagir')} icone="reaction">
-      {(fermer) => (
-        <div className="notak-decor-emojis">
-          {EMOJIS.map((m) => (
-            <button key={m} type="button" role="menuitem" aria-label={t('decor.reagirAvec', { emoji: m })} onClick={() => reagir(m, fermer)}>
-              {m}
-            </button>
-          ))}
-        </div>
-      )}
+      {(fermer) => <SelecteurEmojis choisir={(m) => reagir(m, fermer)} />}
     </Menu>
   )
 }
@@ -120,12 +113,14 @@ export function OutilEcheance({ elements, contexte }: Props) {
 export function OutilAffichage({ elements, contexte }: Props) {
   if (contexte.services.lectureSeule) return null
   if (!elements.every(peutSeReduire)) return null
+  // Le fichier a son propre mode (aperçu ou icône) ; le document a celui-ci, visible comme chez Milanote, les autres types dans « ••• ».
+  if (elements.every((e) => e.contenu.type === 'fichier')) return null
   const toutIcone = elements.every(estReduit)
   const basculer = () => appliquerAffichage(elements, !toutIcone, contexte)
   return (
     <BoutonOutil
       icone={toutIcone ? 'agrandir' : 'reduire'}
-      secondaire
+      secondaire={!elements.every((e) => e.contenu.type === 'document')}
       titre={elements.every((e) => e.contenu.type === 'colonne') ? (toutIcone ? t('decor.deplier') : t('decor.replierIcone')) : toutIcone ? t('menu.enDetail') : t('menu.enIcone')}
       libelle={toutIcone ? t('decor.detail') : t('tableau.icone')}
       actif={toutIcone}

@@ -3,7 +3,7 @@ import { HAUTEUR_NOTE_MIN, type Note, type NoeudTexte, nouvelleNote, texteBrut }
 import { registre } from '../registre'
 import { RenduNote } from './Note'
 import { OutilsNote } from './Outils'
-import { adresseSeule, docDepuisCollage, tachesDepuisTexte } from './conversion'
+import { adresseSeule, docDepuisCollage, enDocument, tachesDepuisTexte } from './conversion'
 import { nouvelleListeTaches } from '../taches/liste'
 import { EXTENSIONS_NOTE } from './extensions'
 import './note.css'
@@ -70,7 +70,7 @@ registre.type<Note>({
         return t('outil.titre')
       },
       icone: ico('titre'),
-      rang: 10,
+      rang: 260,
       vignette: 'titre',
       tiroir: true,
       fantome: () => enTitre(0, 0),
@@ -100,4 +100,13 @@ registre.recepteur({
     const liste = nouvelleListeTaches(Math.round(ou.x), Math.round(ou.y))
     return [{ type: 'creer', element: { ...liste, contenu: { type: 'taches', texte } } }]
   },
+})
+
+registre.entreeMenu({
+  get libelle() {
+    return t('menu.convertirDocument')
+  },
+  visible: (els, contexte) => !contexte.services.lectureSeule && els.length > 0 && els.every((e) => e.contenu.type === 'note'),
+  faire: (els, contexte) =>
+    contexte.magasin.faire(els.flatMap((e) => (e.contenu.type === 'note' ? [{ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: enDocument(e.contenu) }] : []))),
 })

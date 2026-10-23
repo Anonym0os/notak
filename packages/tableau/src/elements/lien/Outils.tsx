@@ -34,15 +34,19 @@ export function OutilsLien({ elements, contexte }: PropsOutils<Lien>) {
     )
   }
   const partie = (p: Partie, libelle: string, titre: string, icone: NomIcone) => (
-    <BoutonOutil icone={icone} secondaire titre={titre} libelle={libelle} actif={elements.every((e) => affichage(e.contenu)[p])} onClick={() => montrer(p)} />
+    <BoutonOutil icone={icone} titre={titre} libelle={libelle} actif={elements.every((e) => affichage(e.contenu)[p])} onClick={() => montrer(p)} />
   )
   const reglage = (champ: Reglage, libelle: string, titre: string, icone: NomIcone) => (
     <BoutonOutil icone={icone} secondaire titre={titre} libelle={libelle} actif={elements.every((e) => e.contenu[champ])} onClick={() => basculer(champ)} />
   )
+  // Après les étiquettes, réactions et commentaire : Aperçu, Infos, Adresse, Légende. Ouvrir et Copier l'adresse sont au menu « ••• ».
   return (
     <>
-      {urls.length === 1 && (
-        <BoutonOutil icone="ouvrir" titre={t('menu.ouvrirOnglet')} libelle={t('commun.ouvrir')} onClick={() => window.open(urls[0], '_blank', 'noopener,noreferrer')} />
+      {!contexte.services.lectureSeule && (
+        <>
+          {partie('apercu', t('lien.apercu'), t('lien.apercu.titre'), 'image')}
+          {partie('infos', t('lien.infos'), t('lien.infos.titre'), 'infos')}
+        </>
       )}
       {elements.length === 1 && !contexte.services.lectureSeule && (
         <BoutonOutil
@@ -55,16 +59,9 @@ export function OutilsLien({ elements, contexte }: PropsOutils<Lien>) {
           }}
         />
       )}
-      {!contexte.services.lectureSeule && (
-        <>
-          {partie('apercu', t('lien.apercu'), t('lien.apercu.titre'), 'image')}
-          {partie('infos', t('lien.infos'), t('lien.infos.titre'), 'infos')}
-          {partie('legende', t('note.legende'), t('lien.legende.titre'), 'legende')}
-        </>
-      )}
+      {!contexte.services.lectureSeule && partie('legende', t('note.legende'), t('lien.legende.titre'), 'legende')}
       {lectureReglable && reglage('lectureAuto', t('lien.lectureAuto'), t('lien.lectureAuto.titre'), 'lecture')}
       {lectureReglable && reglage('boucle', t('lien.boucle'), t('lien.boucle.titre'), 'boucle')}
-      <BoutonOutil icone="copie" secondaire titre={t('lien.copierAdresse')} libelle={t('commun.copier')} onClick={() => void navigator.clipboard.writeText(urls.join('\n'))} />
     </>
   )
 }

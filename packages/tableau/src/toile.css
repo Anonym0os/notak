@@ -1566,7 +1566,7 @@
 }
 
 /* Le « ••• » ne paraît que s'il y a quelque chose à ranger dedans. */
-.notak-selection-plus:not(:has(.notak-tiroir-grille > *, .notak-tiroir-type)) {
+.notak-selection-plus:not(:has(.notak-tiroir-grille > *, .notak-tiroir-type, .notak-menu-actions)) {
   display: none;
 }
 
@@ -1894,4 +1894,67 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   .notak-barre-outils[data-selection] > :not(.notak-barre-ressort) {
     animation: none;
   }
+/* Le menu d'actions du « ••• » : des rangées sous la grille des outils secondaires. */
+.notak-menu-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  min-width: 232px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.notak-tiroir-grille:has(> *) + .notak-menu-actions {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid rgb(0 0 0 / 0.1);
+}
+
+.notak-menu-actions button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--notak-texte);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notak-menu-actions button:hover {
+  background: rgb(0 0 0 / 0.07);
+}
+
+.notak-menu-actions-icone {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+  opacity: 0.7;
+}
+
+.notak-menu-actions-texte {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.notak-menu-actions kbd {
+  font: inherit;
+  font-size: 11px;
+  opacity: 0.55;
+}
+
+.notak-menu-actions-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 0;
+  padding: 6px 8px 0;
+  border-top: 1px solid rgb(0 0 0 / 0.1);
+  font-size: 11px;
+  opacity: 0.6;
 }

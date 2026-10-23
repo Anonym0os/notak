@@ -1,5 +1,5 @@
 import { lireAdresse } from '../lien/adresse'
-import { type NoeudTexte, docDepuisTexte } from '../../coeur/tableau'
+import { type DocumentTexte, type NoeudTexte, type Note, docDepuisTexte } from '../../coeur/tableau'
 
 /** Vrai s'il y a au moins un caractère visible dans le document. */
 export function contientDuTexte(n: NoeudTexte): boolean {
@@ -138,4 +138,17 @@ export function adressesEnLiens(n: NoeudTexte): NoeudTexte {
     }))
   })
   return { ...n, content }
+}
+
+/** Une note devient un document : son texte devient le corps, le titre reste à écrire. Fond, bande et fils ne suivent pas. */
+export const enDocument = (c: Note): DocumentTexte => ({ type: 'document', titre: '', texte: c.texte })
+
+/** Un document devient une note : son titre, s'il en a un, ouvre le texte en grand titre. */
+export function documentEnNote(c: DocumentTexte): Note {
+  const titre = c.titre.trim()
+  const blocs = c.texte.content ?? []
+  return {
+    type: 'note',
+    texte: titre ? { ...c.texte, content: [{ type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: titre }] }, ...blocs] } : c.texte,
+  }
 }

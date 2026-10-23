@@ -13,7 +13,7 @@ registre.type<Commentaire>({
   },
   resume: (c) => c.messages.map((m) => `${m.auteur.nom} : ${m.texte}`).join(' · ') || t('commentaire.vide'),
   Rendu: RenduCommentaire,
-  Outils: OutilsCommentaire,
+  OutilsApres: OutilsCommentaire,
   editable: true,
   hauteurParDefaut: 10,
   largeurMin: 20,

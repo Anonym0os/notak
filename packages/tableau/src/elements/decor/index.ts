@@ -6,11 +6,11 @@ import { appliquerAffichage, estReduit, peutSeReduire } from './affichage'
 import { ouvrirFil } from './etat'
 import { t } from '../../langue'
 
-registre.outilCommun(OutilEtiquettes)
-registre.outilCommun(OutilReactions)
-registre.outilCommun(OutilEcheance)
-registre.outilCommun(OutilAffichage)
-registre.outilCommun(OutilCommentaire)
+registre.outilCommun(OutilEtiquettes, 20)
+registre.outilCommun(OutilReactions, 30)
+registre.outilCommun(OutilEcheance, 70)
+registre.outilCommun(OutilAffichage, 44)
+registre.outilCommun(OutilCommentaire, 40)
 
 const modifiables = (elements: Element[], contexte: { services: { lectureSeule?: boolean } }) => !contexte.services.lectureSeule && elements.length > 0
 const repliables = (elements: Element[]) => elements.every(peutSeReduire)
@@ -20,6 +20,7 @@ registre.entreeMenu({
     return t('menu.commenter')
   },
   visible: (elements) => elements.length === 1,
+  tuile: true,
   faire: (elements) => ouvrirFil(elements[0]!.id),
 })
 registre.entreeMenu({
@@ -27,6 +28,7 @@ registre.entreeMenu({
     return t('menu.enIcone')
   },
   visible: (elements, contexte) => modifiables(elements, contexte) && repliables(elements) && elements.some((e) => !estReduit(e)),
+  tuile: true,
   faire: (elements, contexte) => appliquerAffichage(elements, true, contexte),
 })
 registre.entreeMenu({
@@ -34,5 +36,6 @@ registre.entreeMenu({
     return t('menu.enDetail')
   },
   visible: (elements, contexte) => modifiables(elements, contexte) && repliables(elements) && elements.some(estReduit),
+  tuile: true,
   faire: (elements, contexte) => appliquerAffichage(elements, false, contexte),
 })

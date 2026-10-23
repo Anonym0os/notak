@@ -169,9 +169,9 @@ export function OutilsCommentaire({ elements, contexte }: PropsOutils<Commentair
   return (
     <>
       {elements.length === 1 && (
-        <BoutonOutil icone="commenterPassage" titre={t('commentaire.repondreFil')} libelle={t('commentaire.repondre')} onClick={() => contexte.commencerEdition(elements[0]!.id)} />
+        <BoutonOutil icone="commenterPassage" secondaire titre={t('commentaire.repondreFil')} libelle={t('commentaire.repondre')} onClick={() => contexte.commencerEdition(elements[0]!.id)} />
       )}
-      <BoutonOutil icone={tousResolus ? 'rouvrir' : 'resoudre'} titre={tousResolus ? t('commentaire.rouvrirFil') : t('commentaire.resoudreFil')} libelle={tousResolus ? t('commentaire.rouvrir') : t('commentaire.resoudre')} onClick={basculer} />
+      <BoutonOutil icone={tousResolus ? 'rouvrir' : 'resoudre'} secondaire titre={tousResolus ? t('commentaire.rouvrirFil') : t('commentaire.resoudreFil')} libelle={tousResolus ? t('commentaire.rouvrir') : t('commentaire.resoudre')} onClick={basculer} />
     </>
   )
 }

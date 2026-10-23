@@ -8,9 +8,10 @@ import {
 } from '../../coeur/arrangement'
 import type { OutilCommun } from '../types'
 import { disposables } from './disposables'
+import { entreeRelier } from '../ligne/raccourci'
 import { enOperations } from './raccourcis'
 import { t } from '../../langue'
-import { OutilAvecMenu } from '../../BoutonOutil'
+import { BoutonOutil, OutilAvecMenu } from '../../BoutonOutil'
 import { type NomIcone, Icone } from '../../icones'
 import { useMenu } from '../../menuUnique'
 
@@ -45,7 +46,7 @@ export const OutilArrangement: OutilCommun = ({ elements, contexte }) => {
   return (
     <>
       {peutAligner && (
-        <OutilAvecMenu menu={aligner_} classeAncre="notak-arrangement" icone="alignerGauche" libelle={t('arrangement.aligner')} secondaire>
+        <OutilAvecMenu menu={aligner_} classeAncre="notak-arrangement" icone="alignerGauche" libelle={t('arrangement.aligner')}>
           <span className="notak-arrangement-menu" role="menu">
             {SENS.map((s) => (
               <button key={s.sens} type="button" role="menuitem" title={s.libelle} aria-label={s.libelle} onClick={() => appliquer(enOperations(aligner(items, s.sens)))}>
@@ -56,7 +57,7 @@ export const OutilArrangement: OutilCommun = ({ elements, contexte }) => {
         </OutilAvecMenu>
       )}
       {peutRepartir && (
-        <OutilAvecMenu menu={repartir_} classeAncre="notak-arrangement" icone="repartirH" libelle={t('arrangement.repartir')} secondaire>
+        <OutilAvecMenu menu={repartir_} classeAncre="notak-arrangement" icone="repartirH" libelle={t('arrangement.repartir')}>
           <span className="notak-arrangement-menu" role="menu">
             {AXES.map((a) => (
               <button key={a.axe} type="button" role="menuitem" title={a.libelle} aria-label={a.libelle} onClick={() => appliquer(enOperations(repartir(items, a.axe)))}>
@@ -65,6 +66,9 @@ export const OutilArrangement: OutilCommun = ({ elements, contexte }) => {
             ))}
           </span>
         </OutilAvecMenu>
+      )}
+      {entreeRelier.visible(elements, contexte) && (
+        <BoutonOutil icone="relier" titre={t('menu.relier')} libelle={t('arrangement.relier')} onClick={() => entreeRelier.faire(elements, contexte)} />
       )}
     </>
   )

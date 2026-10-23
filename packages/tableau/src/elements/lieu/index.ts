@@ -13,7 +13,7 @@ registre.type<Lieu>({
   },
   resume,
   Rendu: RenduLieu,
-  Outils: OutilsLieu,
+  OutilsApres: OutilsLieu,
   editable: true,
   hauteurParDefaut: 9,
   largeurMin: 16,
@@ -24,7 +24,7 @@ registre.type<Lieu>({
         return t('type.lieu')
       },
       icone: ico('epingle'),
-      rang: 120,
+      rang: 280,
       vignette: 'lieu',
       tiroir: true,
       fantome: () => nouveauLieu(0, 0),

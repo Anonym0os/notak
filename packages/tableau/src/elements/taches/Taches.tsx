@@ -418,13 +418,13 @@ export function OutilsTaches({ elements, contexte }: PropsOutils<Taches>) {
           {faites}/{total}
         </span>
       )}
-      <BoutonOutil icone="titre" libelle={t('taches.titre')} actif={toutesTitrees} onClick={basculerTitre} />
       <MenuCouleur
         actuelle={elements.every((e) => e.contenu.couleur === elements[0]!.contenu.couleur) ? elements[0]!.contenu.couleur : undefined}
         choisir={(couleur: CouleurNote | undefined) =>
           changerTout((e) => (couleur ? { ...sansCouleur(e.contenu), couleur } : sansCouleur(e.contenu)))
         }
       />
+      <BoutonOutil icone="titre" libelle={t('taches.titre')} actif={toutesTitrees} onClick={basculerTitre} />
       {faites >= 2 && (
         <BoutonOutil
           icone="gomme"

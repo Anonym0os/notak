@@ -14,6 +14,7 @@ import { ico } from '../../icones'
 
 registre.type<Table>({
   type: 'table',
+  aLaCreation: 'choisir',
   get nom() {
     return t('type.table')
   },

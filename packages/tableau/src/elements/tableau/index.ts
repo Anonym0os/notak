@@ -56,6 +56,7 @@ registre.entreeMenu({
     return t('menu.renommer')
   },
   visible: (els) => els.length === 1 && els[0]!.contenu.type === 'tableau',
+  tuile: true,
   faire: ([e]) => e && demanderRenommage(e.id),
 })
 
@@ -99,7 +100,7 @@ registre.type<RenvoiTableau>({
         return t('outil.tableauModele')
       },
       icone: ico('modele'),
-      rang: 51,
+      rang: 270,
       vignette: 'modele',
       tiroir: true,
       fantome: () => ({ id: '', x: 0, y: 0, largeur: LARGEUR_RENVOI, contenu: { type: 'tableau', cible: '' } }),

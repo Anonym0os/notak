@@ -1,7 +1,7 @@
 import { type Colonne, LARGEUR_COLONNE, nouvelleColonne } from '../../coeur/tableau'
 import { registre } from '../registre'
 import { OutilsColonne, RenduColonne } from './Colonne'
-import { OutilGrouper, entreeGrouper } from './OutilGrouper'
+import { entreeGrouper } from './OutilGrouper'
 import { accepteDansColonne } from './regles'
 import './colonne.css'
 import { couleurDuContenu } from '../couleur'
@@ -38,5 +38,4 @@ registre.type<Colonne>({
   ],
 })
 
-registre.outilCommun(OutilGrouper)
 registre.entreeMenu(entreeGrouper)

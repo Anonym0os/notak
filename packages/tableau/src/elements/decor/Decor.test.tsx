@@ -10,6 +10,7 @@ import './index'
 import { Decor, Pastille } from './Decor'
 import { PanneauEtiquettes } from './Etiquettes'
 import { OutilReactions } from './Outils'
+import { SelecteurEmojis } from './SelecteurEmojis'
 import { basculerFiltre, useFiltre, viderFiltre } from './etat'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -190,6 +191,48 @@ describe('l’outil Réagir', () => {
     act(() => bouton('Réagir').click())
     act(() => bouton('Réagir avec 🔥').click())
     expect(choisis().every((e) => e.reactions === undefined)).toBe(true)
+  })
+})
+
+describe('le sélecteur d’émojis', () => {
+  const monter = () => {
+    const choisis: string[] = []
+    act(() => racine.render(<SelecteurEmojis choisir={(e) => choisis.push(e)} />))
+    return choisis
+  }
+  const grille = () => [...hote.querySelectorAll<HTMLButtonElement>('.notak-emojis-grille button')].map((b) => b.textContent)
+
+  it('ouvre sur les fréquents, avec des catégories et une recherche', () => {
+    localStorage.clear()
+    monter()
+    expect(grille()).toEqual(['👍', '❤️', '😂', '🎉', '👀', '✅', '🙏', '🔥'])
+    expect([...hote.querySelectorAll('[role="tab"]')].map((b) => b.getAttribute('data-categorie'))).toEqual([
+      'frequents', 'visages', 'gestes', 'symboles', 'nature', 'nourriture', 'activites', 'objets',
+    ])
+    act(() => hote.querySelector<HTMLButtonElement>('[data-categorie="nourriture"]')!.click())
+    expect(grille()).toContain('🍕')
+    expect(grille().length).toBeGreaterThan(8)
+  })
+
+  it('cherche par mot, sans accent ni casse', () => {
+    monter()
+    const champ = hote.querySelector<HTMLInputElement>('input')!
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(champ, 'FÊTE')
+      champ.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    expect(grille()).toContain('🥳')
+    expect(hote.querySelector('[role="tab"]')).toBeNull()
+  })
+
+  it('retient le dernier choisi en tête des fréquents', () => {
+    localStorage.clear()
+    const choisis = monter()
+    act(() => hote.querySelector<HTMLButtonElement>('[data-categorie="nourriture"]')!.click())
+    act(() => [...hote.querySelectorAll<HTMLButtonElement>('.notak-emojis-grille button')].find((b) => b.textContent === '🍕')!.click())
+    expect(choisis).toEqual(['🍕'])
+    act(() => hote.querySelector<HTMLButtonElement>('[data-categorie="frequents"]')!.click())
+    expect(grille()[0]).toBe('🍕')
   })
 })
 

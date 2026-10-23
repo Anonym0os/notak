@@ -1,32 +1,32 @@
 import { COULEURS_NOTE, type CouleurNote } from '../../coeur/tableau'
-import { LIBELLES_COULEUR, teinteDe } from './couleurs'
+import { FOND_NOTE, LIBELLES_COULEUR, teinteDe } from './couleurs'
+import { PanneauCouleur } from './PanneauCouleur'
 import { OutilAvecMenu } from '../../BoutonOutil'
 import { t } from '../../langue'
 import { useMenu } from '../../menuUnique'
 
 /**
- * « Couleur » : la palette des notes, en menu. Partagée par tout ce qui se colore comme une note.
- * `transparent` ajoute le choix sans fond, qui n'a de sens que pour une note.
+ * « Couleur » : la palette des notes, en menu (la grille de cinq colonnes de la note, sans onglets). Partagée par
+ * tout ce qui se colore comme une note. `transparent` ajoute le choix sans fond, qui n'a de sens que pour une note.
  */
 export function MenuCouleur({ actuelle, choisir, transparent = false, secondaire }: { actuelle: CouleurNote | undefined; choisir(c: CouleurNote | undefined): void; transparent?: boolean; secondaire?: boolean }) {
   const menu = useMenu()
-  const poser = (c: CouleurNote | undefined) => {
-    choisir(c)
-    menu[1](false)
-  }
   return (
     <OutilAvecMenu menu={menu} icone="palette" titre={t('couleur.titre')} libelle={t('couleur.titre')} pastille={teinteDe(actuelle)} secondaire={secondaire}>
-      <div className="notak-note-palette" role="menu">
-        <div className="notak-note-pastilles">
-          <button type="button" role="menuitem" className="notak-pastille-aucune" title={t('couleur.aucune')} aria-label={t('couleur.aucune')} aria-pressed={actuelle === undefined} onClick={() => poser(undefined)} />
-          {transparent && (
-            <button type="button" role="menuitem" className="notak-pastille-transparente" title={t('couleur.transparent')} aria-label={t('couleur.transparent')} aria-pressed={actuelle === 'transparent'} onClick={() => poser('transparent')} />
-          )}
-          {COULEURS_NOTE.map((c) => (
-            <button key={c} type="button" role="menuitem" title={LIBELLES_COULEUR[c]} aria-label={LIBELLES_COULEUR[c]} aria-pressed={actuelle === c} data-fond={c} onClick={() => poser(c)} />
-          ))}
-        </div>
-      </div>
+      <PanneauCouleur
+        onglets={[
+          {
+            cle: 'couleur',
+            libelle: t('couleur.titre'),
+            icone: 'palette',
+            pastilles: [
+              { cle: 'aucune', libelle: t('couleur.aucune'), genre: 'aucune', actif: actuelle === undefined, choisir: () => choisir(undefined) },
+              ...COULEURS_NOTE.map((c) => ({ cle: c, libelle: LIBELLES_COULEUR[c], teinte: FOND_NOTE[c], actif: actuelle === c, choisir: () => choisir(c) })),
+              ...(transparent ? [{ cle: 'transparent', libelle: t('couleur.transparent'), genre: 'transparente' as const, actif: actuelle === 'transparent', choisir: () => choisir('transparent' as const) }] : []),
+            ],
+          },
+        ]}
+      />
     </OutilAvecMenu>
   )
 }

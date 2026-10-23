@@ -210,6 +210,12 @@ export interface TypeElement<C extends Contenu = Contenu> {
    * (voir `barreEdition.tsx`). Sans cela, la barre de gauche garde les outils de sa sélection.
    */
   outilsEdition?: boolean
+  /**
+   * Ce que devient un élément de ce type quand un outil de la barre de gauche vient de le créer (comme Milanote) :
+   * `editer` (par défaut) le choisit et ouvre son édition s'il en a une ; `choisir` le choisit seulement (une ligne,
+   * une table) ; `rien` le laisse là, ni choisi ni édité (un croquis, un nuancier).
+   */
+  aLaCreation?: 'editer' | 'choisir' | 'rien'
   /** Hauteur avant la première mesure, en UG. */
   hauteurParDefaut?: number
   /** Le cadre commun n'a ni fond ni ombre (une image, un titre) : le type dessine les siens. */
@@ -236,8 +242,10 @@ export interface TypeElement<C extends Contenu = Contenu> {
    * Les enfants portent `parent` = l'id du conteneur, et se rendent par `Rangees` (Cadre.tsx).
    */
   accepte?(enfant: Element, conteneur: Element<C>): boolean
-  /** Outils de la barre de sélection propres au type. */
+  /** Outils de la barre de sélection propres au type, en tête : la couleur, avant les étiquettes et les réactions. */
   Outils?: ComponentType<PropsOutils<C>>
+  /** Outils propres au type qui suivent les étiquettes, les réactions et le commentaire (aperçu, infos, légende…). */
+  OutilsApres?: ComponentType<PropsOutils<C>>
   /**
    * Les éléments qui partent avec ceux qu'on supprime (les lignes accrochées à une carte supprimée).
    * La toile l'interroge sur chaque type inscrit ; elle écarte les doublons.
@@ -318,6 +326,8 @@ export interface EntreeMenu {
   libelle: string
   raccourci?: string
   visible(elements: Element[], contexte: ContexteToile): boolean
+  /** Le geste a déjà sa tuile dans la barre de gauche : l'entrée reste au clic droit, et ne se répète pas dans « ••• ». */
+  tuile?: boolean
   faire(elements: Element[], contexte: ContexteToile): void
 }
 

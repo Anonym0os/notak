@@ -97,6 +97,134 @@ describe('la barre de sélection à gauche', () => {
   })
 })
 
+describe('la couleur de la note', () => {
+  const ouvrir = () => {
+    const m = monde()
+    act(() => racine.render(<BarreSelection elements={[m.note]} contexte={m.contexte} position={{ x: 0, y: 0 }} aGauche />))
+    act(() => tuile('Couleur').click())
+    return m
+  }
+  const pastilles = () => [...hote.querySelectorAll<HTMLButtonElement>('.notak-pastilles-grille')[0]!.querySelectorAll('button')]
+
+  it('un seul outil, deux onglets : le fond d’abord, puis la bande du haut', () => {
+    ouvrir()
+    expect([...hote.querySelectorAll('.notak-barre-selection > .notak-outil-place [role="tab"], .notak-barre-selection > div [role="tab"]')].map((b) => b.textContent)).toEqual(['Fond', 'Bande du haut'])
+    expect([...hote.querySelectorAll<HTMLButtonElement>('button.notak-outil')].filter((b) => b.textContent === 'Barre')).toHaveLength(0)
+  })
+
+  it('le fond : Aucune, onze teintes dans l’ordre, Transparent en dernier', () => {
+    ouvrir()
+    expect(pastilles().map((b) => b.getAttribute('data-pastille'))).toEqual([
+      'aucune', 'gris', 'cyan', 'vert', 'brun', 'jaune', 'orange', 'rouge', 'rose', 'violet', 'bleu', 'bleu_nuit', 'transparent',
+    ])
+  })
+
+  it('une teinte se pose sur le fond, le panneau reste ouvert, la bande a son onglet', () => {
+    const { note, contexte } = ouvrir()
+    act(() => pastilles().find((b) => b.getAttribute('data-pastille') === 'rouge')!.click())
+    expect(contexte.magasin.lire().elements.find((e) => e.id === note.id)!.contenu).toMatchObject({ couleur: 'rouge' })
+    expect(hote.querySelector('.notak-panneau-couleur')).not.toBeNull()
+    // La toile rend la barre avec les éléments à jour.
+    act(() => racine.render(<BarreSelection elements={contexte.magasin.lire().elements} contexte={contexte} position={{ x: 0, y: 0 }} aGauche />))
+    act(() => hote.querySelector<HTMLButtonElement>('[data-onglet="bande"]')!.click())
+    expect(pastilles()).toHaveLength(12)
+    act(() => pastilles().find((b) => b.getAttribute('data-pastille') === 'vert')!.click())
+    expect(contexte.magasin.lire().elements.find((e) => e.id === note.id)!.contenu).toMatchObject({ couleur: 'rouge', barre: '#7cd651' })
+  })
+
+  it('« Couleur personnalisée » ouvre le sélecteur natif et pose la teinte choisie', () => {
+    const { note, contexte } = ouvrir()
+    const champ = hote.querySelector<HTMLInputElement>('.notak-couleur-libre input[type="color"]')!
+    expect(champ).not.toBeNull()
+    act(() => {
+      champ.value = '#123456'
+      champ.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    expect(contexte.magasin.lire().elements.find((e) => e.id === note.id)!.contenu).toMatchObject({ fond: '#123456' })
+  })
+})
+
+describe('le menu « ••• » de la sélection', () => {
+  const ouvrirPlus = (elements: Element[] = [], plusieurs = false) => {
+    const m = monde()
+    const els = [m.note]
+    if (plusieurs) m.contexte.magasin.faire(elements.map((element) => ({ type: 'creer' as const, element })))
+    act(() => racine.render(<BarreSelection elements={els} contexte={m.contexte} position={{ x: 0, y: 0 }} aGauche />))
+    act(() => hote.querySelector<HTMLButtonElement>('.notak-selection-plus .notak-outil-plus')!.click())
+    return m
+  }
+  const action = (cle: string) => hote.querySelector<HTMLButtonElement>(`.notak-menu-actions [data-action="${cle}"]`)!
+
+  it('est un menu d’actions : verrouiller, premier plan, arrière-plan, convertir', () => {
+    ouvrirPlus()
+    const libelles = [...hote.querySelectorAll('.notak-menu-actions button')].map((b) => b.querySelector('.notak-menu-actions-texte')!.textContent)
+    expect(libelles).toEqual(['Convertir en document', 'Cloner', 'Verrouiller la position', 'Premier plan', 'Arrière-plan'])
+  })
+
+  it('Verrouiller coche la position, et un second clic la libère', () => {
+    const { note, contexte } = ouvrirPlus()
+    act(() => action('verrou').click())
+    expect(contexte.magasin.lire().elements.find((e) => e.id === note.id)!.verrou).toBe(true)
+    act(() => racine.render(<BarreSelection elements={contexte.magasin.lire().elements} contexte={contexte} position={{ x: 0, y: 0 }} aGauche />))
+    expect(action('verrou').getAttribute('aria-checked')).toBe('true')
+  })
+
+  it('Arrière-plan passe la note sous les autres, Premier plan au-dessus', () => {
+    const autre = nouvelleNote(40, 0, 'Autre')
+    const { note, contexte } = ouvrirPlus([autre], true)
+    act(() => action('bas').click())
+    expect(contexte.magasin.lire().elements.map((e) => e.id)).toEqual([note.id, autre.id])
+    act(() => hote.querySelector<HTMLButtonElement>('.notak-selection-plus .notak-outil-plus')!.click())
+    act(() => action('haut').click())
+    expect(contexte.magasin.lire().elements.at(-1)!.id).toBe(note.id)
+  })
+
+  it('Convertir en document change le type et garde le texte', () => {
+    const { note, contexte } = ouvrirPlus()
+    act(() => hote.querySelector<HTMLButtonElement>('.notak-menu-actions [data-action="m:Convertir en document"]')!.click())
+    const apres = contexte.magasin.lire().elements.find((e) => e.id === note.id)!.contenu
+    expect(apres.type).toBe('document')
+    expect(apres.type === 'document' && apres.texte).toEqual(note.contenu.type === 'note' && note.contenu.texte)
+  })
+
+  it('l’action referme le menu', () => {
+    ouvrirPlus()
+    act(() => action('bas').click())
+    expect(hote.querySelector('.notak-tiroir')?.hasAttribute('hidden')).toBe(true)
+  })
+})
+
+describe('aligner, répartir et relier', () => {
+  const monter3 = (n: number) => {
+    const m = monde()
+    const autres = [nouvelleNote(40, 0, 'B'), nouvelleNote(80, 0, 'C')].slice(0, n - 1)
+    m.contexte.magasin.faire(autres.map((element) => ({ type: 'creer' as const, element })))
+    const rects = new Map(m.contexte.magasin.lire().elements.map((e) => [e.id, { min: { x: e.x, y: e.y }, max: { x: e.x + 10, y: e.y + 10 } }]))
+    const contexte = { ...m.contexte, rect: (id: string) => rects.get(id) ?? null, selection: new Set(rects.keys()) } as unknown as ContexteToile
+    act(() => racine.render(<BarreSelection elements={m.contexte.magasin.lire().elements} contexte={contexte} position={{ x: 0, y: 0 }} aGauche />))
+    return contexte
+  }
+  const visibles = () => [...hote.querySelectorAll('.notak-barre-selection > .notak-arrangement .notak-outil-libelle, .notak-barre-selection > .notak-outil .notak-outil-libelle')].map((b) => b.textContent).filter((l) => ['Aligner', 'Répartir', 'Relier'].includes(l!))
+
+  it('une note seule : aucun', () => {
+    monter(true)
+    expect(visibles()).toEqual([])
+  })
+
+  it('deux éléments : Aligner et Relier, tuiles visibles', () => {
+    monter3(2)
+    expect(visibles()).toEqual(['Aligner', 'Relier'])
+  })
+
+  it('trois éléments : Répartir en plus ; Relier crée les lignes', () => {
+    const contexte = monter3(3)
+    expect(visibles()).toEqual(['Aligner', 'Répartir', 'Relier'])
+    const avant = contexte.magasin.lire().elements.length
+    act(() => tuile('Relier').click())
+    expect(contexte.magasin.lire().elements.length).toBeGreaterThan(avant)
+  })
+})
+
 describe('la barre de sélection flottante', () => {
   it('garde ses boutons de texte, au-dessus de la sélection', () => {
     monter(false)

@@ -77,3 +77,14 @@
   color: inherit;
   cursor: pointer;
 }
+
+/* Le sélecteur de couleur du système, ouvert par la tuile « Couleur » : invisible, c'est le navigateur qui dessine la fenêtre. */
+.notak-nuancier-natif {
+  position: absolute;
+  width: 0;
+  height: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}

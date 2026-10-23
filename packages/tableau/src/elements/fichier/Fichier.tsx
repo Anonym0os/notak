@@ -133,28 +133,30 @@ function Legende({ contenu, ecrire, finir }: { contenu: Fichier; ecrire(c: Fichi
   )
 }
 
+/**
+ * Mode (aperçu ou icône), Renommer, Légende : visibles. Ouvrir, Télécharger, Copier sont au menu « ••• ». Plusieurs
+ * fichiers : le mode seulement, qui vaut pour tous.
+ */
 export function OutilsFichier({ elements, contexte }: PropsOutils<Fichier>) {
-  if (elements.length !== 1) return null
+  if (contexte.services.lectureSeule) return null
   const el = elements[0]!
+  const toutIcone = elements.every((e) => e.contenu.icone)
+  const basculerMode = () =>
+    contexte.magasin.faire(
+      elements.map((e) => {
+        const { icone: _, ...reste } = e.contenu
+        return { type: 'contenu' as const, id: e.id, avant: e.contenu, apres: toutIcone ? reste : { ...reste, icone: true } }
+      }),
+    )
   return (
     <>
-      {!contexte.services.lectureSeule && (
-        <BoutonOutil icone="modifier" secondaire titre={t('fichier.renommer.titre')} libelle={t('menu.renommer')} onClick={() => contexte.commencerEdition(el.id)} />
+      <BoutonOutil icone="reduire" titre={toutIcone ? t('fichier.montrerApercu') : t('fichier.reduire')} libelle={t('tableau.icone')} actif={toutIcone} onClick={basculerMode} />
+      {elements.length === 1 && !el.contenu.icone && (
+        <>
+          <BoutonOutil icone="modifier" titre={t('fichier.renommer.titre')} libelle={t('menu.renommer')} onClick={() => contexte.commencerEdition(el.id)} />
+          <BoutonOutil icone="legende" titre={t('image.ajouterLegende')} libelle={t('note.legende')} actif={!!el.contenu.legende} onClick={() => contexte.commencerEdition(el.id)} />
+        </>
       )}
-      {!contexte.services.lectureSeule && (
-        <BoutonOutil
-          icone="reduire"
-          secondaire
-          titre={el.contenu.icone ? t('fichier.montrerApercu') : t('fichier.reduire')}
-          libelle={t('tableau.icone')}
-          actif={!!el.contenu.icone}
-          onClick={() => {
-            const { icone: _, ...reste } = el.contenu
-            contexte.magasin.faire([{ type: 'contenu', id: el.id, avant: el.contenu, apres: el.contenu.icone ? reste : { ...reste, icone: true } }])
-          }}
-        />
-      )}
-      <BoutonOutil icone="ouvrir" titre={t('menu.ouvrirOnglet')} libelle={t('commun.ouvrir')} onClick={() => void ouvrirFichier(el.contenu, contexte)} />
     </>
   )
 }

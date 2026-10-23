@@ -132,6 +132,6 @@ function Grand({ contenu, ecrire, finir }: { contenu: DocumentTexte; ecrire(c: D
 export function OutilsDocument({ elements, contexte }: PropsOutils<DocumentTexte>) {
   if (elements.length !== 1) return null
   return (
-    <BoutonOutil icone="ouvrir" titre={t('document.ouvrirGrand')} libelle={t('commun.ouvrir')} onClick={() => contexte.commencerEdition(elements[0]!.id)} />
+    <BoutonOutil icone="ouvrir" secondaire titre={t('document.ouvrirGrand')} libelle={t('commun.ouvrir')} onClick={() => contexte.commencerEdition(elements[0]!.id)} />
   )
 }

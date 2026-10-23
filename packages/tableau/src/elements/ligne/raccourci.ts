@@ -20,6 +20,7 @@ export const entreeRelier: EntreeMenu = {
   },
   raccourci: '⌘K',
   visible: (elements) => elements.filter(libre).length >= 2,
+  tuile: true,
   faire: (_e, contexte) => void relierChoisis(contexte),
 }
 

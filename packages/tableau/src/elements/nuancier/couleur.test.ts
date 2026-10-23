@@ -26,3 +26,13 @@ describe('le code couleur', () => {
     expect([n.x, n.y]).toEqual([3, 4])
   })
 })
+
+describe('le code affiché', () => {
+  test('hexadécimal par défaut, puis rgb et hsl', () => {
+    expect(codeAffiche('#4f8cff')).toBe('#4F8CFF')
+    expect(codeAffiche('#4f8cff', 'rgb')).toBe('rgb(79, 140, 255)')
+    expect(codeAffiche('#4f8cff', 'hsl')).toBe('hsl(219, 100%, 65%)')
+    expect(codeAffiche('#ff0000', 'hsl')).toBe('hsl(0, 100%, 50%)')
+    expect(codeAffiche('#808080', 'hsl')).toBe('hsl(0, 0%, 50%)')
+  })
+})
