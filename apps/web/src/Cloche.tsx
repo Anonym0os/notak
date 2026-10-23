@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { type GenreNotification, type ListeNotifications, type Notification, listerNotifications, marquerLues } from './api'
 import { quand } from './Activite'
 import { t, tn } from './langue'
-import { Icone } from '@notak/tableau'
+import { Icone, Infobulle } from '@notak/tableau'
 import { usePanneau } from './panneaux'
 
 const RAFRAICHIR_MS = 30_000
@@ -60,18 +60,13 @@ export function Cloche({ ouvrir }: { ouvrir(tableau: string): void }) {
   const nonLues = liste?.nonLues ?? 0
   return (
     <div className="cloche" ref={ancre}>
-      <button
-        type="button"
-        ref={bouton}
-        className="bouton bouton-cloche"
-        aria-expanded={ouvert}
-        title={nonLues > 0 ? tn('cloche.nonLues', nonLues) : t('cloche.titre')}
-        onClick={basculer}
-      >
-        <Icone nom="cloche" />
-        <span className="sr-seulement">{t('cloche.titre')}</span>
-        {nonLues > 0 && <span className="cloche-compte">{nonLues > 99 ? '99+' : nonLues}</span>}
-      </button>
+      <Infobulle libelle={nonLues > 0 ? tn('cloche.nonLues', nonLues) : t('cloche.titre')} desactivee={ouvert}>
+        <button type="button" ref={bouton} className="bouton bouton-cloche" aria-expanded={ouvert} onClick={basculer}>
+          <Icone nom="cloche" />
+          <span className="sr-seulement">{t('cloche.titre')}</span>
+          {nonLues > 0 && <span className="cloche-compte">{nonLues > 99 ? '99+' : nonLues}</span>}
+        </button>
+      </Infobulle>
       {ouvert && (
         <div className="cloche-panneau" ref={panneau} role="dialog" aria-label={t('cloche.titre')}>
           <div className="cloche-tete">

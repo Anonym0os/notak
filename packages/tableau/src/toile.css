@@ -168,14 +168,6 @@
   background: rgb(47 111 235 / 0.08);
 }
 
-.notak-echelle {
-  position: absolute;
-  right: 16px;
-  bottom: 12px;
-  font-size: 12px;
-  color: #7a7f87;
-  pointer-events: none;
-}
 
 .notak-carte[data-sans-fond] {
   padding: 0;
@@ -416,6 +408,7 @@
 }
 
 .notak-espace-corps {
+  position: relative;
   flex: 1;
   min-height: 0;
 }
@@ -423,14 +416,132 @@
 .notak-entete {
   display: flex;
   flex: none;
-  align-items: center;
+  flex-direction: column;
   box-sizing: border-box;
-  height: 44px;
-  padding: 0 16px;
   border-bottom: 1px solid rgb(0 0 0 / 0.08);
   background: var(--notak-carte);
   color: var(--notak-texte);
   font-size: 14px;
+}
+
+/* Première rangée : le fil d'Ariane à gauche, l'historique et les outils à droite. */
+.notak-entete-haut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  height: 44px;
+  padding: 0 14px 0 16px;
+}
+
+/* Seconde rangée : le titre centré, l'enregistrement à gauche, partage, export et vue à droite. */
+.notak-entete-bas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  box-sizing: border-box;
+  height: 46px;
+  margin-top: -4px;
+  padding: 0 14px 0 16px;
+}
+
+.notak-entete-gauche {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.notak-entete-droite {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  gap: 8px;
+}
+
+.notak-entete-bas .notak-entete-droite {
+  margin-left: 0;
+  gap: 18px;
+}
+
+.notak-entete-filet {
+  width: 1px;
+  height: 24px;
+  margin: 0 8px;
+  background: rgb(0 0 0 / 0.08);
+}
+
+.notak-espace[data-theme='sombre'] .notak-entete-filet {
+  background: rgb(255 255 255 / 0.1);
+}
+
+/* Le titre du tableau : serif libre déjà sur la machine, 22 px, semi-gras, modifiable en place. */
+.notak-titre {
+  display: inline-grid;
+  max-width: min(1000px, 56vw);
+  margin: 0;
+  font-family: 'Iowan Old Style', 'Charter', Georgia, serif;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  line-height: 30px;
+}
+
+.notak-titre::after {
+  content: attr(data-valeur) ' ';
+  grid-area: 1 / 1;
+  min-width: 4ch;
+  padding: 0 5px;
+  overflow: hidden;
+  visibility: hidden;
+  white-space: pre;
+}
+
+.notak-titre-champ {
+  grid-area: 1 / 1;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0 5px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 3px;
+  outline: none;
+  background: transparent;
+  color: var(--notak-texte);
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-titre-champ:not(:read-only):hover {
+  background: var(--notak-fond);
+}
+
+.notak-titre-champ:not(:read-only):focus {
+  background: var(--notak-fond);
+  box-shadow: 0 0 0 2px var(--notak-accent);
+  text-overflow: clip;
+}
+
+/* Les boutons de la seconde rangée : du texte et une icône, sans cadre. */
+.notak-entete-bas .bouton,
+.notak-entete-bas .notak-vue-bouton {
+  height: 28px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--notak-texte);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.notak-entete-bas .bouton:hover,
+.notak-entete-bas .notak-vue-bouton:hover {
+  background: var(--notak-fond);
 }
 
 .notak-fil {
@@ -895,20 +1006,6 @@
   color: #fff;
 }
 
-/* Le titre du tableau ouvert, en cours de renommage. */
-.notak-fil-saisie {
-  width: 200px;
-  height: 28px;
-  padding: 0 8px;
-  border: 1px solid var(--notak-accent);
-  border-radius: 6px;
-  outline: none;
-  background: var(--notak-carte);
-  color: var(--notak-texte);
-  font: inherit;
-  font-weight: 600;
-}
-
 /* La place laissée dans une colonne par ce qu'on en a tiré. */
 .notak-empreinte {
   box-sizing: border-box;
@@ -1263,8 +1360,11 @@
 }
 
 .notak-historique button {
-  width: 28px;
-  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
   border: 0;
   border-radius: 6px;
   background: none;
@@ -1273,8 +1373,14 @@
   cursor: pointer;
 }
 
-.notak-historique button:hover {
+.notak-historique button:hover:not(:disabled) {
   background: var(--notak-fond);
+}
+
+/* La pile est vide : le bouton s'efface à 20 %. */
+.notak-historique button:disabled {
+  opacity: 0.2;
+  cursor: default;
 }
 
 .notak-enregistrement {
@@ -1966,4 +2072,370 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 .notak-barre-outils[data-eteinte] {
   opacity: 0.5;
   pointer-events: none;
+}
+
+/* Les infobulles maison : ardoise, blanc 12 px 600, fondu de 0,1 s, raccourci en pastilles. */
+.notak-infobulle-hote {
+  display: inline-flex;
+}
+
+.notak-infobulle {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  padding: 5px 10px;
+  border-radius: 4px;
+  background: #323b4a;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s linear;
+}
+
+.notak-infobulle[data-montre] {
+  opacity: 1;
+}
+
+.notak-infobulle .notak-menu-touches {
+  gap: 2px;
+  margin-left: 0;
+}
+
+.notak-infobulle .notak-menu-touches kbd {
+  min-width: 18px;
+  padding: 0 2px;
+  box-sizing: border-box;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 0.18);
+  color: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notak-infobulle {
+    transition: none;
+  }
+}
+
+/* La pastille du zoom en cours, centrée en bas de la toile. */
+.notak-zoom-pastille {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  box-sizing: border-box;
+  width: 54px;
+  padding: 8px 0 7px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--notak-carte);
+  box-shadow: 0 8px 22px -6px rgb(0 0 0 / 0.25), 0 14px 32px -4px rgb(0 0 0 / 0.2);
+  color: var(--notak-texte);
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 17px;
+  text-align: center;
+  cursor: pointer;
+  opacity: 0;
+  transform: translate(-50%, 10px);
+  transition: opacity 0.1s linear, transform 0.1s linear;
+  pointer-events: none;
+}
+
+.notak-zoom-pastille[data-visible] {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notak-zoom-pastille {
+    transition: none;
+  }
+}
+
+/* Le choix d'un modèle à l'ouverture d'un tableau vide : un panneau sombre en bas à droite, sans fenêtre. */
+.notak-choix-modele {
+  position: absolute;
+  z-index: 30;
+  right: 30px;
+  bottom: 30px;
+  box-sizing: border-box;
+  width: 300px;
+  padding: 20px 20px 0;
+  border-radius: 6px;
+  background: #323b4a;
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.4);
+  color: #f4f5f7;
+  font-size: 14px;
+  animation: notak-choix-modele-entree 0.2s ease-out;
+}
+
+.notak-espace[data-theme='sombre'] .notak-choix-modele {
+  background: #282828;
+}
+
+@keyframes notak-choix-modele-entree {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+.notak-choix-modele-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.notak-choix-modele-tete button {
+  display: flex;
+  padding: 2px;
+  border: 0;
+  background: none;
+  color: rgb(255 255 255 / 0.5);
+  cursor: pointer;
+}
+
+.notak-choix-modele-tete button:hover {
+  color: #fff;
+}
+
+.notak-choix-modele-corps {
+  max-height: 244px;
+  padding-bottom: 20px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.notak-choix-modele-corps ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notak-choix-modele-corps button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 15px 7px;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notak-choix-modele-corps button[data-vide] {
+  font-weight: 600;
+}
+
+.notak-choix-modele-corps button:hover,
+.notak-choix-modele-corps button[aria-selected='true'] {
+  background: rgb(255 255 255 / 0.12);
+}
+
+.notak-choix-modele-plus {
+  justify-content: space-between;
+  color: rgb(255 255 255 / 0.7);
+}
+
+.notak-choix-modele-badge {
+  margin-left: 10px;
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 0.3);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.notak-choix-modele-pied {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 20px;
+}
+
+.notak-choix-modele-continuer {
+  width: 100%;
+  padding: 9px 20px 11px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--notak-accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notak-choix-modele-continuer:hover {
+  filter: brightness(1.08);
+}
+
+.notak-choix-modele-continuer[data-clignote] {
+  animation: notak-choix-modele-clignote 0.4s ease-in-out 2;
+}
+
+@keyframes notak-choix-modele-clignote {
+  50% {
+    background: #e8a33d;
+  }
+}
+
+.notak-choix-modele-pied label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.notak-choix-modele-pied label[data-desactive] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.notak-choix-modele-pied input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: var(--notak-accent);
+}
+
+/* L'aperçu vivant : la toile du modèle, derrière un voile qui bloque les gestes. */
+.notak-modele-apercu {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.notak-modele-apercu .notak-lecture {
+  display: none;
+}
+
+.notak-modele-voile {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notak-choix-modele,
+  .notak-choix-modele-continuer[data-clignote] {
+    animation: none;
+  }
+}
+
+/* Le bouton de vue et son panneau de zoom. */
+.notak-vue {
+  position: relative;
+}
+
+.notak-vue-bouton {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.notak-vue-texte {
+  display: inline-grid;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Les deux mots occupent la même place : le bouton garde sa largeur, l'un s'efface devant l'autre. */
+.notak-vue-texte > span {
+  grid-area: 1 / 1;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.notak-vue-texte > span[data-actif] {
+  opacity: 1;
+}
+
+.notak-vue-texte > .notak-vue-pourcent {
+  transition: none;
+}
+
+.notak-vue-panneau {
+  position: absolute;
+  z-index: 40;
+  top: 34px;
+  right: 0;
+  box-sizing: border-box;
+  width: 290px;
+  padding: 16px 20px 20px;
+  border-radius: 10px;
+  background: var(--notak-carte);
+  box-shadow: 0 4px 20px rgb(0 0 0 / 0.14), 0 1px 3px rgb(0 0 0 / 0.1);
+  color: var(--notak-texte);
+  font-size: 12px;
+}
+
+.notak-vue-panneau h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.notak-vue-panneau p {
+  margin: 0 0 12px;
+  color: var(--notak-pale, #7a7f87);
+}
+
+.notak-vue-curseur {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.notak-vue-curseur input {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--notak-accent);
+}
+
+.notak-vue-curseur output {
+  min-width: 38px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.notak-vue-tout {
+  padding: 6px 12px;
+  border: 1px solid rgb(0 0 0 / 0.15);
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notak-vue-tout:hover {
+  background: var(--notak-fond);
 }

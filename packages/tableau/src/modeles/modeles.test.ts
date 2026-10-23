@@ -6,7 +6,7 @@ import { ACCUEIL } from './accueil'
 import { ACCUEIL_EN } from './accueil.en'
 import { MODELES } from './catalogue'
 import { MODELES_EN } from './catalogue.en'
-import { type ElementModele, type ModeleTableau, elementsDuModele, hauteurEstimee } from './construire'
+import { type ElementModele, type ModeleTableau, elementsDuModele, hauteurEstimee, sansExemple } from './construire'
 
 let n = 0
 const id = () => `id${++n}`
@@ -132,5 +132,49 @@ describe('modèles en anglais', () => {
   it.each([...MODELES_EN, ACCUEIL_EN].map((m) => [m.id, m] as const))('%s est valide et ne superpose rien', (_nom, m) => {
     expect(problemes(elementsDuModele(m, id))).toEqual([])
     expect(chevauchements(m)).toEqual([])
+  })
+})
+
+describe('modèles sans exemples', () => {
+  const tous = [...MODELES, ...MODELES_EN]
+
+  it.each(tous.map((m) => [m.id, m] as const))('%s garde ses titres, ses colonnes et ses positions', (_nom, m) => {
+    const vide = sansExemple(m)
+    expect(vide.elements.map((e) => [e.genre, e.x, e.y])).toEqual(m.elements.map((e) => [e.genre, e.x, e.y]))
+    expect(vide.elements.flatMap((e) => (e.genre === 'titre' ? [e.texte] : e.genre === 'colonne' ? [e.titre] : []))).toEqual(
+      m.elements.flatMap((e) => (e.genre === 'titre' ? [e.texte] : e.genre === 'colonne' ? [e.titre] : [])),
+    )
+    expect([vide.id, vide.titre, vide.couleur]).toEqual([m.id, m.titre, m.couleur])
+  })
+
+  it.each(tous.map((m) => [m.id, m] as const))('%s est un tableau valide, sans superposition', (_nom, m) => {
+    const vide = sansExemple(m)
+    expect(problemes(elementsDuModele(vide, id))).toEqual([])
+    expect(chevauchements(vide)).toEqual([])
+  })
+
+  it('vide les notes (sauf leur sous-titre), les tâches et les colonnes', () => {
+    const modele: ModeleTableau = {
+      id: 'x',
+      titre: 'X',
+      resume: 'Un modèle pour le test.',
+      couleur: 'bleu',
+      elements: [
+        { genre: 'titre', texte: 'Titre', x: 0, y: 0 },
+        { genre: 'note', texte: '# Objectif\nUn long exemple.', x: 0, y: 8 },
+        { genre: 'note', texte: 'Un exemple sans sous-titre.', x: 38, y: 8 },
+        { genre: 'taches', titre: 'À faire', taches: ['a', { texte: 'b', faite: true }], x: 76, y: 8 },
+        { genre: 'colonne', titre: 'En cours', x: 0, y: 24, contenu: [{ genre: 'note', texte: 'Exemple' }] },
+      ],
+    }
+    expect(sansExemple(modele).elements).toEqual([
+      { genre: 'titre', texte: 'Titre', x: 0, y: 0 },
+      { genre: 'note', texte: '# Objectif', x: 0, y: 8 },
+      { genre: 'note', texte: '', x: 38, y: 8 },
+      { genre: 'taches', titre: 'À faire', taches: [''], x: 76, y: 8 },
+      { genre: 'colonne', titre: 'En cours', x: 0, y: 24, contenu: [] },
+    ])
+    // L'original n'est pas touché.
+    expect((modele.elements[1] as { texte: string }).texte).toContain('exemple')
   })
 })

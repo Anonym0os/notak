@@ -12,6 +12,14 @@ export class Historique {
   private passe: Operation[][] = []
   private futur: Operation[][] = []
 
+  get peutAnnuler(): boolean {
+    return this.passe.length > 0
+  }
+
+  get peutRetablir(): boolean {
+    return this.futur.length > 0
+  }
+
   /** Inscrit un geste déjà appliqué au tableau. */
   inscrire(pas: Operation[]) {
     if (pas.length === 0) return
