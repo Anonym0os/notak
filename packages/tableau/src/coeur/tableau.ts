@@ -284,6 +284,8 @@ export interface Commentaire {
   messages: Message[]
   /** Résolu : le fil se replie en une pastille, et se rouvre. */
   resolu?: boolean
+  /** Replié à la main : une ligne (le premier auteur et le nombre de messages) au lieu du fil. */
+  replie?: boolean
 }
 
 /** Le type d'une cellule ; absent : « auto », déduit de ce qu'on tape. */
