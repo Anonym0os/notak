@@ -30,6 +30,9 @@ export interface Magasin {
   ligne?(id: Id): YText
   annuler(): boolean
   retablir(): boolean
+  /** Il y a un geste à annuler (ou à rétablir) : l'en-tête grise ses boutons sinon. Prévient `ecouter` quand cela change. */
+  peutAnnuler(): boolean
+  peutRetablir(): boolean
 }
 
 export function creerMagasin(initial: Tableau): Magasin {
@@ -49,13 +52,17 @@ export function creerMagasin(initial: Tableau): Magasin {
     },
     faire(pas) {
       if (pas.length === 0) return
-      poser(pas.reduce(appliquer, tableau))
+      // Inscrit avant de prévenir : ceux qui écoutent lisent déjà la pile à jour.
       historique.inscrire(pas)
+      poser(pas.reduce(appliquer, tableau))
     },
     appliquerSeulement(pas) {
       if (pas.length > 0) poser(pas.reduce(appliquer, tableau))
     },
-    inscrire: (pas) => historique.inscrire(pas),
+    inscrire(pas) {
+      historique.inscrire(pas)
+      for (const f of ecouteurs) f()
+    },
     corriger(pas) {
       if (pas.length > 0) poser(pas.reduce(appliquer, tableau))
     },
@@ -65,6 +72,8 @@ export function creerMagasin(initial: Tableau): Magasin {
       if (t) poser(t)
       return t !== null
     },
+    peutAnnuler: () => historique.peutAnnuler,
+    peutRetablir: () => historique.peutRetablir,
     retablir() {
       const t = historique.retablir(tableau)
       if (t) poser(t)
@@ -85,6 +94,8 @@ export function enLectureSeule(m: Magasin): Magasin {
     remplacer() {},
     annuler: () => false,
     retablir: () => false,
+    peutAnnuler: () => false,
+    peutRetablir: () => false,
   }
 }
 

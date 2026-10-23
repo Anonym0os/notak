@@ -130,6 +130,13 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id): MagasinYjs {
   }
   elements.observeDeep(changer)
   meta.observe(changer)
+  // Les boutons Annuler et Rétablir suivent les piles : prévenus aussi quand seule une pile change.
+  const prevenir = () => {
+    for (const f of ecouteurs) f()
+  }
+  historique.on('stack-item-added', prevenir)
+  historique.on('stack-item-popped', prevenir)
+  historique.on('stack-cleared', prevenir)
 
   const lire = () => (cache ??= construire())
 
@@ -257,6 +264,8 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id): MagasinYjs {
     },
     annuler: () => historique.undo() !== null,
     retablir: () => historique.redo() !== null,
+    peutAnnuler: () => historique.undoStack.length > 0,
+    peutRetablir: () => historique.redoStack.length > 0,
     detruire() {
       elements.unobserveDeep(changer)
       meta.unobserve(changer)
