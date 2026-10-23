@@ -21,6 +21,15 @@ export interface LigneTableau {
   parent: string | null
 }
 
+/** Un jeton personnel d'arrivée : ce que la base en garde, jamais le jeton lui-même. */
+export interface JetonArrivee {
+  id: string
+  nom: string
+  cree: number
+  /** Le dernier instant où il a servi, ou `null` s'il n'a jamais servi. */
+  dernierUsage: number | null
+}
+
 export interface Invitation {
   tableau: string
   email: string
@@ -86,6 +95,14 @@ export interface Base {
   creerSession(empreinte: string, utilisateur: string, expire: number): void
   utilisateurDeSession(empreinte: string, maintenant: number): Utilisateur | null
   supprimerSession(empreinte: string): void
+
+  /** Crée un jeton d'arrivée. Seule l'empreinte (SHA-256 du jeton) est gardée. */
+  creerJetonArrivee(j: { id: string; utilisateur: string; nom: string; empreinte: string; cree: number }): void
+  jetonsArrivee(utilisateur: string): JetonArrivee[]
+  /** Révoque un jeton du compte ; rend faux s'il n'y en avait pas. */
+  retirerJetonArrivee(utilisateur: string, id: string): boolean
+  /** Le compte à qui appartient ce jeton (par empreinte), et note qu'il vient de servir. */
+  utilisateurDuJetonArrivee(empreinte: string, maintenant: number): Utilisateur | null
 
   tableau(id: string): LigneTableau | null
   creerTableau(t: LigneTableau): void
@@ -247,6 +264,11 @@ CREATE TABLE IF NOT EXISTS ouvertures (
 CREATE TABLE IF NOT EXISTS acces_publics (
   empreinte TEXT PRIMARY KEY, tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE, expire INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS jetons_arrivee (
+  id TEXT PRIMARY KEY, utilisateur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  nom TEXT NOT NULL, empreinte TEXT NOT NULL UNIQUE, cree INTEGER NOT NULL, dernier_usage INTEGER
+);
+CREATE INDEX IF NOT EXISTS jetons_arrivee_utilisateur ON jetons_arrivee(utilisateur, cree);
 CREATE VIRTUAL TABLE IF NOT EXISTS recherche USING fts5(
   tableau UNINDEXED, element UNINDEXED, texte, tokenize = 'unicode61 remove_diacritics 2'
 );
@@ -335,6 +357,17 @@ export function ouvrirBase(chemin: string): Base {
       )
     },
     supprimerSession: (empreinte) => void executer('DELETE FROM sessions WHERE empreinte = ?', empreinte),
+
+    creerJetonArrivee: (j) =>
+      void executer('INSERT INTO jetons_arrivee (id,utilisateur,nom,empreinte,cree) VALUES (?,?,?,?,?)', j.id, j.utilisateur, j.nom, j.empreinte, j.cree),
+    jetonsArrivee: (utilisateur) =>
+      tous('SELECT id, nom, cree, dernier_usage AS dernierUsage FROM jetons_arrivee WHERE utilisateur = ? ORDER BY cree, id', utilisateur) as unknown as JetonArrivee[],
+    retirerJetonArrivee: (utilisateur, id) => Number(executer('DELETE FROM jetons_arrivee WHERE utilisateur = ? AND id = ?', utilisateur, id).changes) > 0,
+    utilisateurDuJetonArrivee(empreinte, maintenant) {
+      const u = utilisateur(un('SELECT u.* FROM jetons_arrivee j JOIN utilisateurs u ON u.id = j.utilisateur WHERE j.empreinte = ?', empreinte))
+      if (u) executer('UPDATE jetons_arrivee SET dernier_usage = ? WHERE empreinte = ?', maintenant, empreinte)
+      return u
+    },
 
     tableau: (id) => (un('SELECT * FROM tableaux WHERE id = ?', id) as LigneTableau | null),
     creerTableau: (t) => void executer('INSERT INTO tableaux (id,titre,proprietaire,parent) VALUES (?,?,?,?)', t.id, t.titre, t.proprietaire, t.parent),

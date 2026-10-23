@@ -8,7 +8,10 @@ import { getConnInfo } from '@hono/node-server/conninfo'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
+import sharp from 'sharp'
+import * as Y from 'yjs'
 import { regrouper } from './activite.ts'
+import { type ElementArrive, elementImage, elementsDeTexte, poserDansNonTries } from './arrivee.ts'
 import { ErreurApercu, apercuDePage, rapatrierImage } from './apercu.ts'
 import { type Base, DUREE_ACCES_PUBLIC_MS, type Fichier, type Utilisateur } from './base.ts'
 import { ErreurCompte, inscrire, normaliserEmail } from './comptes.ts'
@@ -16,7 +19,7 @@ import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from
 import type { Limiteur } from './debit.ts'
 import { type Role, auMoins, role, roleHerite } from './droits.ts'
 import { estFormatExport, exporterTexte } from './exporter.ts'
-import { requeteIndex } from './indexation.ts'
+import { indexerDocument, requeteIndex } from './indexation.ts'
 import { hacher, verifier } from './motsDePasse.ts'
 import { DUREE_SESSION_S, NOM_COOKIE, cookieAccesPublic, cookieEfface, cookieSession, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
 import { nomDuDocument } from './synchro.ts'
@@ -28,6 +31,8 @@ export interface Contexte {
   base: Base
   dossierFichiers: string
   limiteur: Limiteur
+  /** Pour `POST /api/arrivee`, appelée à la chaîne par des raccourcis : à défaut, le limiteur commun. */
+  limiteurArrivee?: Limiteur
   maintenant: () => number
   /** Lu à chaque requête : le serveur de synchro naît après l'application. */
   synchro: () => Hocuspocus | null
@@ -53,6 +58,16 @@ const ACTIVITE_DEFAUT = 100
 const ACTIVITE_MAX = 200
 /** Combien de notifications la liste rend au plus. */
 const NOTIFICATIONS_AFFICHEES = 50
+/** Combien de jetons d'arrivée un compte garde au plus, et la longueur de leur nom. */
+const JETONS_ARRIVEE_MAX = 20
+const NOM_JETON_MAX = 60
+/** Ce que `POST /api/arrivee` lit de plus qu'un fichier : le texte, les adresses et les noms de champs. */
+const ARRIVEE_TEXTE_MAX = 256 * 1024
+const ARRIVEE_CHAMP_MAX = 20_000
+/** Les formats qu'une arrivée accepte en image, par leur nom chez `sharp`. Un HEIC d'iPhone n'y est pas. */
+const FORMATS_ARRIVEE: Record<string, string> = { png: 'image/png', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif' }
+/** Ce qui ouvre un jeton d'arrivée : de quoi le reconnaître dans un presse-papiers ou un dépôt. */
+const PREFIXE_JETON = 'nk_'
 const JETON_PUBLIC = /^[A-Za-z0-9_-]{16,64}$/
 /** Les mots de passe d'un tableau : ni trop courts pour valoir quelque chose, ni assez longs pour coûter au hachage. */
 const MOT_DE_PASSE_MIN = 6
@@ -68,6 +83,25 @@ export function enTeteTelechargement(titre: string, extension: string): string {
 }
 
 const moi = (u: Utilisateur) => ({ id: u.id, email: u.email, nom: u.nom, couleur: u.couleur, racine: u.racine, photo: u.photo ?? null })
+
+/** Lit un corps de requête jusqu'à `max` octets : `null` s'il est vide, `'trop gros'` s'il dépasse (la lecture s'arrête alors). */
+async function lireBorne(flux: ReadableStream<Uint8Array> | null, max: number): Promise<Buffer | null | 'trop gros'> {
+  if (!flux) return null
+  const morceaux: Uint8Array[] = []
+  let taille = 0
+  const lecteur = flux.getReader()
+  for (;;) {
+    const { done, value } = await lecteur.read()
+    if (done) break
+    taille += value.length
+    if (taille > max) {
+      void lecteur.cancel().catch(() => {})
+      return 'trop gros'
+    }
+    morceaux.push(value)
+  }
+  return taille === 0 ? null : Buffer.concat(morceaux)
+}
 
 export function creerApp(ctx: Contexte): Hono {
   const { base } = ctx
@@ -90,11 +124,11 @@ export function creerApp(ctx: Contexte): Hono {
     }
   }
 
-  const limiter = (c: Context, route: string): Response | null => {
+  const limiter = (c: Context, route: string, limiteur: Limiteur = ctx.limiteur): Response | null => {
     const cle = `${route}:${adresseIp(c)}`
     const maintenant = ctx.maintenant()
-    if (ctx.limiteur.autoriser(cle, maintenant)) return null
-    const secondes = Math.ceil(ctx.limiteur.attente(cle, maintenant) / 1000)
+    if (limiteur.autoriser(cle, maintenant)) return null
+    const secondes = Math.ceil(limiteur.attente(cle, maintenant) / 1000)
     return c.json({ erreur: 'trop d’essais' }, 429, { 'retry-after': String(secondes) })
   }
 
@@ -655,26 +689,12 @@ export function creerApp(ctx: Contexte): Hono {
     if (!u) return c.json({ erreur: 'non connecté' }, 401)
     const annonce = Number(c.req.header('content-length') ?? 0)
     if (annonce > FICHIER_MAX) return c.json({ erreur: 'trop gros' }, 413)
-    const flux = c.req.raw.body
-    if (!flux) return c.json({ erreur: 'fichier vide' }, 400)
-
-    const morceaux: Uint8Array[] = []
-    let taille = 0
-    const lecteur = flux.getReader()
-    for (;;) {
-      const { done, value } = await lecteur.read()
-      if (done) break
-      taille += value.length
-      if (taille > FICHIER_MAX) {
-        void lecteur.cancel().catch(() => {})
-        return c.json({ erreur: 'trop gros' }, 413)
-      }
-      morceaux.push(value)
-    }
-    if (taille === 0) return c.json({ erreur: 'fichier vide' }, 400)
+    const octets = await lireBorne(c.req.raw.body, FICHIER_MAX)
+    if (octets === 'trop gros') return c.json({ erreur: 'trop gros' }, 413)
+    if (!octets) return c.json({ erreur: 'fichier vide' }, 400)
 
     const type = (c.req.header('content-type') ?? 'application/octet-stream').slice(0, 200)
-    return c.json({ id: await ranger(Buffer.concat(morceaux), type, u.id) }, 201)
+    return c.json({ id: await ranger(octets, type, u.id) }, 201)
   })
 
   /** Range un fichier reçu sur le disque et dans la base ; rend son id. */
@@ -773,6 +793,130 @@ export function creerApp(ctx: Contexte): Hono {
       const cause = e instanceof ErreurApercu ? e.cause : 'injoignable'
       return c.json({ erreur: 'aperçu indisponible', cause }, 502)
     }
+  })
+
+  // ---- Jetons d'arrivée ----
+  // Un jeton personnel ne sert qu'à `POST /api/arrivee` : de quoi poser un élément dans les non triés de l'accueil
+  // depuis un Raccourci iOS ou un favori, là où Safari ne reçoit pas les partages. Il est aléatoire sur 256 bits, donc
+  // une empreinte SHA-256 suffit (pas d'argon2, fait pour des mots de passe devinables : il coûterait un hachage de
+  // 20 Mo à chaque appel d'un raccourci pour rien) ; elle sert aussi de clé de recherche, ce qu'argon2 interdit.
+  // Le jeton n'est montré qu'à sa création.
+
+  app.get('/api/jetons', (c) => {
+    const u = utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    return c.json(base.jetonsArrivee(u.id))
+  })
+
+  app.post('/api/jetons', async (c) => {
+    const u = utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    const nom = texte((await corps(c))?.nom).trim()
+    if (!nom || nom.length > NOM_JETON_MAX) return c.json({ erreur: `nom de 1 à ${NOM_JETON_MAX} caractères` }, 400)
+    if (base.jetonsArrivee(u.id).length >= JETONS_ARRIVEE_MAX) return c.json({ erreur: 'trop de jetons : révoquez-en un' }, 409)
+    const jeton = PREFIXE_JETON + nouveauJeton().jeton
+    const j = { id: randomUUID(), nom, cree: ctx.maintenant() }
+    base.creerJetonArrivee({ ...j, utilisateur: u.id, empreinte: empreinteDe(jeton) })
+    return c.json({ ...j, dernierUsage: null, jeton }, 201)
+  })
+
+  app.delete('/api/jetons/:id', (c) => {
+    const u = utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    return base.retirerJetonArrivee(u.id, c.req.param('id')) ? c.body(null, 204) : c.json({ erreur: 'introuvable' }, 404)
+  })
+
+  // ---- Arrivée ----
+
+  // Un favori sur une autre page appelle cette route d'une autre origine : le jeton est dans un en-tête, jamais dans
+  // un cookie, donc n'importe quelle origine peut la demander sans rien risquer.
+  const ouverte = { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'retry-after' }
+  app.options('/api/arrivee', (c) =>
+    c.body(null, 204, { ...ouverte, 'access-control-allow-methods': 'POST', 'access-control-allow-headers': 'authorization, content-type', 'access-control-max-age': '86400' }),
+  )
+
+  /** Pose les éléments dans les non triés de l'accueil : le document en direct s'il est ouvert (ceux qui l'ont devant eux le voient arriver), sinon l'état enregistré. */
+  const poserDansLAccueil = async (u: Utilisateur, elements: readonly ElementArrive[]) => {
+    const nom = nomDuDocument(u.racine)
+    const synchro = ctx.synchro()
+    if (synchro) {
+      const liaison = await synchro.openDirectConnection(nom, { utilisateur: { id: u.id, nom: u.nom, couleur: u.couleur } })
+      try {
+        await liaison.transact((doc) => poserDansNonTries(doc, elements))
+      } finally {
+        await liaison.disconnect()
+      }
+      return
+    }
+    const doc = new Y.Doc()
+    try {
+      const etat = base.document(nom)
+      if (etat) Y.applyUpdate(doc, etat)
+      poserDansNonTries(doc, elements)
+      base.enregistrerDocument(nom, Y.encodeStateAsUpdate(doc))
+      indexerDocument(base, u.racine, doc)
+    } finally {
+      doc.destroy()
+    }
+  }
+
+  app.post('/api/arrivee', async (c) => {
+    const repondre = (donnees: object, statut: 200 | 201 | 400 | 401 | 413 | 415 | 429, entetes: Record<string, string> = {}) =>
+      c.json(donnees, statut, { ...ouverte, ...entetes })
+    const refus = limiter(c, 'arrivee', ctx.limiteurArrivee)
+    if (refus) {
+      for (const [k, v] of Object.entries(ouverte)) refus.headers.set(k, v)
+      return refus
+    }
+    const porteur = /^Bearer +(\S+)$/i.exec(c.req.header('authorization') ?? '')?.[1]
+    const u = porteur ? base.utilisateurDuJetonArrivee(empreinteDe(porteur), ctx.maintenant()) : null
+    if (!u) return repondre({ erreur: 'jeton absent ou révoqué' }, 401, { 'www-authenticate': 'Bearer' })
+
+    const multipart = /^multipart\/form-data/i.test(c.req.header('content-type') ?? '')
+    const octets = await lireBorne(c.req.raw.body, multipart ? FICHIER_MAX + ARRIVEE_TEXTE_MAX : ARRIVEE_TEXTE_MAX)
+    if (octets === 'trop gros') return repondre({ erreur: 'trop gros' }, 413)
+    if (!octets) return repondre({ erreur: 'corps vide' }, 400)
+
+    // Le même sens des champs, en JSON ou en formulaire : `texte`, `url`, `titre`, et `image` pour un fichier.
+    let champs: Record<string, unknown>
+    let image: File | null = null
+    try {
+      if (multipart) {
+        const formulaire = await new Response(octets, { headers: { 'content-type': c.req.header('content-type')! } }).formData()
+        champs = Object.fromEntries([...formulaire.entries()].filter(([, v]) => typeof v === 'string'))
+        const f = formulaire.get('image')
+        image = f && typeof f !== 'string' && f.size > 0 ? f : null
+      } else {
+        const valeur: unknown = JSON.parse(octets.toString('utf8'))
+        if (!valeur || typeof valeur !== 'object' || Array.isArray(valeur)) throw new Error('pas un objet')
+        champs = valeur as Record<string, unknown>
+      }
+    } catch {
+      return repondre({ erreur: 'corps invalide' }, 400)
+    }
+    const champ = (nom: string) => texte(champs[nom]).slice(0, ARRIVEE_CHAMP_MAX)
+    const maintenant = ctx.maintenant()
+    const elements = elementsDeTexte({ titre: champ('titre'), texte: champ('texte'), adresse: champ('url') }, maintenant)
+
+    if (image) {
+      if (image.size > FICHIER_MAX) return repondre({ erreur: 'trop gros' }, 413)
+      const brut = Buffer.from(await image.arrayBuffer())
+      const lu = await sharp(brut).metadata().catch(() => null)
+      const type = lu?.format ? FORMATS_ARRIVEE[lu.format] : undefined
+      if (!lu || !type || !lu.width || !lu.height) {
+        return repondre({ erreur: 'image illisible : PNG, JPEG, WebP ou GIF (un HEIC se convertit en JPEG avant l’envoi)' }, 415)
+      }
+      // Une photo d'iPhone est enregistrée couchée, avec un indicateur de rotation : l'affichage la redresse.
+      const tournee = (lu.orientation ?? 1) >= 5
+      const fichier = await ranger(brut, type, u.id)
+      elements.push(
+        elementImage({ fichier, largeur: tournee ? lu.height : lu.width, hauteur: tournee ? lu.width : lu.height, typeMime: type }, maintenant, elements.length),
+      )
+    }
+    if (elements.length === 0) return repondre({ erreur: 'rien à poser : ni texte, ni adresse, ni image' }, 400)
+
+    await poserDansLAccueil(u, elements)
+    return repondre({ ajoutes: elements.length }, 201)
   })
 
   app.all('/api/*', (c) => c.json({ erreur: 'introuvable' }, 404))
