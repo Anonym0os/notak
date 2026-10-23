@@ -1,5 +1,6 @@
 import { type Editor, useEditorState } from '@tiptap/react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { type Commentaire, type Id, nouvelId } from '../../coeur/tableau'
 import { Ligne } from '../commentaire/Commentaire'
 import { AUTEUR_INCONNU, ajouterMessage, initiales, resoudre, retirerMessage } from '../commentaire/fil'
@@ -177,5 +178,61 @@ function Fiche({
         </div>
       )}
     </section>
+  )
+}
+
+/**
+ * Le fil d'un passage commenté, ouvert d'un clic hors édition : la même fiche que dans la marge, posée à droite de la
+ * note à la hauteur du passage. Elle vit dans le plan de la toile (la carte d'une note bornée rogne ce qui dépasse).
+ * Un clic ailleurs, ou Échap, la referme.
+ */
+export function FilOuvert({
+  carte,
+  id,
+  fil,
+  ecrire,
+  fermer,
+  contexte,
+}: {
+  /** La carte de la note : on y retrouve le passage. */
+  carte: HTMLElement
+  id: Id
+  fil: Commentaire | undefined
+  ecrire(f: Commentaire): void
+  fermer(): void
+  contexte: ContexteToile
+}) {
+  const plan = carte.closest<HTMLElement>('.notak-plan')
+  const [place, setPlace] = useState<{ x: number; y: number } | null>(null)
+  useLayoutEffect(() => {
+    if (!plan) return
+    const passage = [...carte.querySelectorAll<HTMLElement>('[data-fil]')].find((n) => n.dataset.fil === id)
+    const rc = carte.getBoundingClientRect()
+    const rp = plan.getBoundingClientRect()
+    const echelle = carte.offsetWidth > 0 ? rc.width / carte.offsetWidth : 1
+    const haut = passage ? passage.getBoundingClientRect().top : rc.top
+    const x = (rc.right - rp.left) / echelle + 16
+    const y = (haut - rp.top) / echelle
+    setPlace((avant) => (avant && Math.abs(avant.x - x) < 0.5 && Math.abs(avant.y - y) < 0.5 ? avant : { x, y }))
+  })
+  useEffect(() => {
+    const hors = (e: PointerEvent) => {
+      const cible = e.target as HTMLElement | null
+      if (!cible?.closest?.('.notak-note-marge, [data-fil]')) fermer()
+    }
+    const touche = (e: KeyboardEvent) => e.key === 'Escape' && fermer()
+    document.addEventListener('pointerdown', hors, true)
+    document.addEventListener('keydown', touche)
+    return () => {
+      document.removeEventListener('pointerdown', hors, true)
+      document.removeEventListener('keydown', touche)
+    }
+  }, [fermer])
+  if (!plan || !place) return null
+  return createPortal(
+    <aside className="notak-note-marge" data-fige aria-label={t('commentaire.dutexte')} style={{ left: place.x, top: place.y }} onPointerDown={garder} onPointerUp={garder} onDoubleClick={garder} onClick={garder}>
+      <Fiche ref={() => {}} haut={0} {...(fil ? { fil } : {})} actif ouvrir={() => {}} fermer={fermer} ecrire={ecrire} contexte={contexte} />
+    </aside>,
+    plan,
   )
 }

@@ -66,8 +66,11 @@ export interface Note {
   barre?: string
   /** La couleur du texte de cette note (`#rrggbb`), à la place de celle que son fond impose. */
   couleurTexte?: string
-  /** Un mot sous la note. */
-  legende?: string
+  /**
+   * La légende, au bas de la carte : un texte riche (gras, italique, lien, couleur…). Les notes d'avant la gardaient en
+   * texte brut, ce que la lecture accepte encore (`legende.ts`).
+   */
+  legende?: string | NoeudTexte
   /**
    * Les fils de discussion posés sur des passages du texte, par leur clé : un passage porte la marque
    * `commentaireTexte` dont l'attribut `fil` est cette clé. Un fil dont le passage a disparu disparaît aussi.

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { NoeudTexte } from '../../coeur/tableau'
 import { basculerCentre, basculerCode, basculerSurlignage, poserCouleurTexte, poserStyle } from './commandes'
 import { EXTENSIONS_NOTE } from './extensions'
+import { entreGuillemets } from './noeuds'
 
 // Un éditeur laissé vivant garde un minuteur de ProseMirror, qui part après le démontage de jsdom.
 const ouverts: Editor[] = []
@@ -94,5 +95,44 @@ describe('mise en forme', () => {
   it('ne connaît que deux niveaux de titre', () => {
     const e = editeur()
     expect(e.commands.setHeading({ level: 3 })).toBe(false)
+  })
+})
+
+describe('entrée en tête d\'un bloc', () => {
+  const avecBloc = (type: 'blockquote' | 'encadre') => {
+    const e = new Editor({
+      extensions: EXTENSIONS_NOTE,
+      content: { type: 'doc', content: [{ type, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'abc' }] }] }] },
+    })
+    ouverts.push(e)
+    return e
+  }
+  const entree = (e: Editor) => e.view.someProp('handleKeyDown', (f) => f(e.view, new KeyboardEvent('keydown', { key: 'Enter' })))
+
+  it.each(['blockquote', 'encadre'] as const)('crée un paragraphe avant %s, hors du bloc', (type) => {
+    const e = avecBloc(type)
+    e.commands.setTextSelection(2)
+    expect(entree(e)).toBe(true)
+    const types = e.getJSON().content!.map((n) => n.type)
+    expect(types.slice(0, 2)).toEqual(['paragraph', type])
+    expect(e.state.selection.$from.parent.content.size).toBe(0)
+    expect(e.state.selection.$from.depth).toBe(1)
+  })
+
+  it('ne touche pas une Entrée au milieu du texte', () => {
+    const e = avecBloc('blockquote')
+    e.commands.setTextSelection(3)
+    entree(e)
+    // Le bloc est coupé en deux, il n'y a rien avant lui.
+    expect(e.getJSON().content![0]!.type).toBe('blockquote')
+  })
+})
+
+describe('citation entre guillemets', () => {
+  it('se repère à son texte', () => {
+    expect(entreGuillemets('« bonjour »')).toBe(true)
+    expect(entreGuillemets('“hello”')).toBe(true)
+    expect(entreGuillemets('bonjour')).toBe(false)
+    expect(entreGuillemets('“hello')).toBe(false)
   })
 })

@@ -49,3 +49,19 @@ describe('une citation dans le texte', () => {
     expect(texteBrut(doc)).toBe('@Claire\nVoyage')
   })
 })
+
+describe('les personnes proposées', () => {
+  it('portent leur photo et leur courriel', async () => {
+    const { personnesProposees } = await import('./Propositions')
+    const contexte = {
+      services: {
+        presence: { autres: () => [], moi: () => ({ id: 'u1', nom: 'Moi', couleur: '#111111', photo: 'f1' }), ecouter: () => () => {}, signaler: () => {} },
+        membres: () => [{ id: 'u2', nom: 'Ana', courriel: 'ana@exemple.fr' }],
+      },
+    } as never
+    expect(personnesProposees(contexte)).toEqual([
+      { id: 'u1', libelle: 'Moi', teinte: '#111111', photo: 'f1' },
+      { id: 'u2', libelle: 'Ana', courriel: 'ana@exemple.fr' },
+    ])
+  })
+})

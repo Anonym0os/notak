@@ -18,6 +18,8 @@ interface Props {
   commenter?(): void
   /** Terminer l'édition : la note reste choisie. */
   finir(): void
+  /** `legende` : le texte riche de la légende, sans blocs ni listes ni code ni commentaire. */
+  variante?: 'note' | 'legende'
 }
 
 export interface PropsOutil {
@@ -55,7 +57,8 @@ export function OutilTexte({ icone, libelle, raccourci, actif, grise, onClick, e
  * texte » (le seul avec son nom) et les marques, dans l'ordre de Milanote. Ils ne prennent jamais le focus à l'éditeur.
  * Retrait et « Insérer » n'y sont pas ; leurs raccourcis clavier restent.
  */
-export function OutilsTexteGauche({ editor, lien, surLien, commenter, finir }: Props) {
+export function OutilsTexteGauche({ editor, lien, surLien, commenter, finir, variante = 'note' }: Props) {
+  const legende = variante === 'legende'
   const etat: EtatTexte = useEditorState({ editor, selector: etatTexte })
   const [menu, setMenu, ancreMenu] = useMenu()
   const [tiroir, setTiroir, ancreTiroir] = useMenu()
@@ -91,7 +94,7 @@ export function OutilsTexteGauche({ editor, lien, surLien, commenter, finir }: P
 
   // Les outils dans l'ordre de la barre, avec leur ordre de repli (relevé) : trop court, Code, Souligné, Barré,
   // Alignement, Lien partent d'abord dans le « ••• » ; Commentaire ne se replie jamais.
-  const outils: (PropsOutil & { id: string; ordre: number })[] = [
+  const tous: (PropsOutil & { id: string; ordre: number })[] = [
     { id: 'gras', ordre: 100, icone: 'gras', libelle: t('barre.gras'), raccourci: '⌘B', actif: etat.gras, onClick: () => chaine().toggleBold().run() },
     { id: 'italique', ordre: 100, icone: 'italique', libelle: t('barre.italique'), raccourci: '⌘I', actif: etat.italique, onClick: () => chaine().toggleItalic().run() },
     { id: 'barre', ordre: 1003, icone: 'barre', libelle: t('barre.barre'), raccourci: '⌘⇧X', actif: etat.barre, onClick: () => chaine().toggleStrike().run() },
@@ -117,6 +120,10 @@ export function OutilsTexteGauche({ editor, lien, surLien, commenter, finir }: P
         ]
       : []),
   ]
+  // La légende : Gras, Italique, Barré, Souligné, Lien, Centrer, et rien d'autre.
+  const outils = legende
+    ? ORDRE_LEGENDE.map((id) => tous.find((o) => o.id === id)!)
+    : tous
   const entrees = useMemo<EntreeRepli[]>(
     () => [{ id: 'style', genre: 'tuile', ordre: 10 }, ...outils.map((o): EntreeRepli => ({ id: o.id, genre: 'icone', ordre: o.ordre }))],
     [outils.map((o) => o.id).join('|')], // eslint-disable-line react-hooks/exhaustive-deps
@@ -132,7 +139,7 @@ export function OutilsTexteGauche({ editor, lien, surLien, commenter, finir }: P
           <span className="notak-outil-libelle">{t('barre.styleTexte')}</span>
         </button>
       </Infobulle>
-      {menu && <MenuStyle editor={editor} etat={etat} />}
+      {menu && <MenuStyle editor={editor} etat={etat} sansBlocs={legende} />}
     </div>
   )
   const popupLien = lien !== null && (
@@ -186,6 +193,9 @@ export function OutilsTexteGauche({ editor, lien, surLien, commenter, finir }: P
     </div>
   )
 }
+
+/** Les outils de la légende, dans l'ordre. */
+const ORDRE_LEGENDE = ['gras', 'italique', 'barre', 'souligne', 'lien', 'centrer']
 
 /** La place de ce qui ne se replie pas dans la barre de texte : marges, flèche retour, « ••• », corbeille. */
 const fixeTexte = (p: Palier) => (p === 'grande' ? 20 : 12) + 44 + 34 + 60 + 12

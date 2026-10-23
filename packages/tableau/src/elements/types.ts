@@ -143,7 +143,7 @@ export interface Services {
    * Les membres de l'espace (nom, couleur), pour citer quelqu'un avec `@` dans une note. Les personnes présentes
    * sur le tableau sont proposées dans tous les cas ; ce service y ajoute celles qui n'y sont pas.
    */
-  membres?(): { id: string; nom: string; couleur?: string }[]
+  membres?(): { id: string; nom: string; couleur?: string; courriel?: string; photo?: Id }[]
   /**
    * Les tableaux de l'espace (id, titre, couleur), pour en citer un avec `[[` dans une note. Sans lui, la note ne
    * propose que les tableaux déjà posés sur le tableau ouvert.

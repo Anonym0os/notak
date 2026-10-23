@@ -15,7 +15,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 |---|---|---|---|---|
 | 1. Toile | 28 | 0 | 0 | 100 % |
 | 2. Création | 16 | 1 | 0 | 97 % |
-| 3. Note et texte | 31 | 2 | 4 | 86 % |
+| 3. Note et texte | 36 | 1 | 1 | 96 % |
 | 4. Colonne | 13 | 0 | 0 | 100 % |
 | 5. Tableau imbriqué | 13 | 1 | 0 | 96 % |
 | 6. Lien | 13 | 0 | 0 | 100 % |
@@ -30,7 +30,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 6 | 1 | 0 | 93 % |
-| **Total** | **263** | **11** | **4** | **97 %** |
+| **Total** | **268** | **10** | **1** | **98 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -121,18 +121,19 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Barre de couleur en haut de la note | ✅ |  |
 | Couleur libre (hexadécimal), couleurs suggérées du tableau | ✅ |  |
 | Couleur de texte propre à la note | ✅ |  |
-| Légende sous la note | ✅ |  |
+| Légende sous la note | ✅ | Bouton « Légende » de « ••• » : ajoute ou retire la légende. |
+| Paires fond + texte déjà employées, couleur du texte sous la grille du fond | ✅ | Remplace l'outil « Texte » de « ••• ». |
 | Lien cliquable hors édition | ✅ | |
 | Lecture seule : rien ne s'édite | ✅ | |
 | Barre de mise en forme | ✅ | Posée sur la note, pas dans la barre de gauche (choix). |
 | Mention d'une personne (@) | ✅ |  |
 | Lien vers un tableau dans le texte | ✅ |  |
-| Légende riche dans la carte (gras, lien, centrer) | 🟡 | Posée dans la carte, en 12 px ; reste du texte brut (relevé `ecart-note.md` § 3). |
-| Extraction d'un passage en note (icône à tirer, Alt copie) | ⬜ | |
-| Aperçu de couleur dans le texte, note qui n'est qu'une couleur → nuancier | ⬜ | |
-| Suggestion « Convertir en document » sur une note longue | ⬜ | |
+| Légende riche dans la carte (gras, lien, centrer) | ✅ | Texte riche avec sa barre dans la barre de gauche ; le texte brut d'avant se lit comme un texte riche. Les autres éléments à légende (image, lien) gardent un texte brut. |
+| Extraction d'un passage en note (icône à tirer, Alt copie) | ✅ | Sur le tableau ou dans une colonne. |
+| Aperçu de couleur dans le texte, note qui n'est qu'une couleur → nuancier | 🟡 | Nuancier : fait (Entrée et sortie de l'édition). Aperçu : pendant l'écriture seulement, la pastille ne se tire pas sur la toile. |
+| Suggestion « Convertir en document » sur une note longue | ✅ | |
 | Sélecteur d'émojis complet pour l'encadré et le menu d'insertion | ⬜ | L'icône de l'encadré défile parmi 8 ; le menu d'insertion n'a que 32 émojis. |
-| Commentaire sur un passage : fil ouvert au clic hors édition | 🟡 | Le passage a le style de Milanote ; le fil ne s'affiche qu'en édition. |
+| Commentaire sur un passage : fil ouvert au clic hors édition | ✅ | |
 
 ## 4. Colonne
 

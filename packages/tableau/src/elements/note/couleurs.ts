@@ -93,6 +93,45 @@ export function couleursSuggerees(elements: readonly Element[]): string[] {
   return [...compte].sort((a, b) => b[1] - a[1]).slice(0, SUGGEREES_MAX).map(([c]) => c)
 }
 
+/** Un fond et le texte qui s'y lit : ce que Milanote appelle une paire. */
+export interface PaireCouleur {
+  fond: string
+  texte: string
+}
+
+/** Le nombre de paires proposées au plus. */
+export const PAIRES_MAX = 10
+
+/**
+ * Les paires fond + texte déjà employées sur le tableau (une note qui a un fond), les plus fréquentes d'abord :
+ * de quoi reprendre un habillage entier d'un geste. Le texte est celui que la note affiche, imposé ou choisi.
+ */
+export function pairesUtilisees(elements: readonly Element[]): PaireCouleur[] {
+  const compte = new Map<string, { paire: PaireCouleur; n: number }>()
+  for (const e of elements) {
+    if (e.contenu.type !== 'note') continue
+    const fond = fondDeNote(e.contenu)
+    const texte = texteDuContenu(e.contenu)
+    if (!fond || !texte) continue
+    const cle = `${fond}|${texte}`
+    const vu = compte.get(cle)
+    if (vu) vu.n += 1
+    else compte.set(cle, { paire: { fond, texte }, n: 1 })
+  }
+  return [...compte.values()].sort((a, b) => b.n - a.n).slice(0, PAIRES_MAX).map((x) => x.paire)
+}
+
+/** Ce qu'une paire pose sur une note : la couleur nommée si le fond en est une, sinon le fond libre ; le texte seulement s'il n'est pas celui que le fond impose. */
+export function contenuAvecPaire(c: Note, { fond, texte }: PaireCouleur): Note {
+  const { couleur: _c, fond: _f, couleurTexte: _t, ...reste } = c
+  const nom = (Object.keys(FOND_NOTE) as (keyof typeof FOND_NOTE)[]).find((k) => FOND_NOTE[k] === fond)
+  return {
+    ...reste,
+    ...(nom ? { couleur: nom } : { fond }),
+    ...(texte.toLowerCase() === couleurTexteSur(fond).toLowerCase() ? {} : { couleurTexte: texte }),
+  }
+}
+
 export const LIBELLES_COULEUR: Record<CouleurNote, string> = {
   get gris() { return t('couleur.gris') },
   get cyan() { return t('couleur.cyan') },

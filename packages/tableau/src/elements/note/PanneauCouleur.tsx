@@ -26,6 +26,23 @@ export interface OngletCouleur {
   poserLibre?(hex: string): void
 }
 
+/** Une paire fond + texte déjà employée : le « A » du texte sur le fond. */
+export interface PairePastille {
+  cle: string
+  libelle: string
+  fond: string
+  texte: string
+  actif: boolean
+  choisir(): void
+}
+
+/** La couleur du texte de la note, sous la grille de l'onglet Fond : automatique, claire, sombre, ou libre. */
+export interface ReglageTexte {
+  pastilles: Pastille[]
+  libre?: string | undefined
+  poserLibre(hex: string): void
+}
+
 /** La grille : cinq colonnes, 24 × 20, huit pixels entre les pastilles. */
 export function GrillePastilles({ pastilles, nom }: { pastilles: Pastille[]; nom?: string }) {
   return (
@@ -81,7 +98,21 @@ export function CouleurPersonnalisee({ actuelle, choisir }: { actuelle: string |
  * Le panneau « Couleur » : des onglets (Fond, Bande du haut) quand il y en a plusieurs, la grille de l'onglet,
  * les teintes déjà employées sur le tableau, puis « Couleur personnalisée ».
  */
-export function PanneauCouleur({ onglets, depart = 0, suggerees = [] }: { onglets: OngletCouleur[]; depart?: number; suggerees?: string[] }) {
+export function PanneauCouleur({
+  onglets,
+  depart = 0,
+  suggerees = [],
+  paires = [],
+  texte,
+}: {
+  onglets: OngletCouleur[]
+  depart?: number
+  suggerees?: string[]
+  /** Les paires fond + texte déjà employées : sous la grille du premier onglet, derrière un trait. */
+  paires?: PairePastille[]
+  /** La couleur du texte, avec le premier onglet. */
+  texte?: ReglageTexte
+}) {
   const [rang, setRang] = useState(depart)
   const onglet = onglets[Math.min(rang, onglets.length - 1)]!
   return (
@@ -97,7 +128,30 @@ export function PanneauCouleur({ onglets, depart = 0, suggerees = [] }: { onglet
         </div>
       )}
       <GrillePastilles pastilles={onglet.pastilles} nom={onglet.libelle} />
-      {suggerees.length > 0 && onglet.poserLibre && (
+      {onglet === onglets[0] && paires.length > 0 && (
+        <>
+          <hr className="notak-couleur-trait" />
+          <div className="notak-pastilles-grille" role="group" aria-label={t('couleur.paires')}>
+            {paires.map((p) => (
+              <button
+                key={p.cle}
+                type="button"
+                role="menuitem"
+                className="notak-pastille-paire"
+                title={p.libelle}
+                aria-label={p.libelle}
+                aria-pressed={p.actif}
+                data-paire={p.cle}
+                style={{ background: p.fond, color: p.texte }}
+                onClick={p.choisir}
+              >
+                A
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      {!(onglet === onglets[0] && paires.length > 0) && suggerees.length > 0 && onglet.poserLibre && (
         <>
           <span className="notak-decor-titre">{t('couleur.recentes')}</span>
           <GrillePastilles
@@ -107,6 +161,14 @@ export function PanneauCouleur({ onglets, depart = 0, suggerees = [] }: { onglet
         </>
       )}
       {onglet.poserLibre && <CouleurPersonnalisee actuelle={onglet.libre} choisir={onglet.poserLibre} />}
+      {onglet === onglets[0] && texte && (
+        <>
+          <hr className="notak-couleur-trait" />
+          <span className="notak-decor-titre">{t('couleur.couleurTexte')}</span>
+          <GrillePastilles pastilles={texte.pastilles} nom={t('couleur.couleurTexte')} />
+          <CouleurPersonnalisee actuelle={texte.libre} choisir={texte.poserLibre} />
+        </>
+      )}
     </div>
   )
 }

@@ -34,7 +34,14 @@ export interface Proposition {
   libelle: string
   /** Une teinte (couleur d'une personne, d'un tableau), si on la connaît. */
   teinte?: string
+  /** Le fichier de la photo d'une personne (voir `Services.adressePhoto`). */
+  photo?: string
+  /** Le courriel d'une personne, montré sous son nom. */
+  courriel?: string
 }
+
+/** Au plus cinq personnes à la fois, comme chez Milanote ; six tableaux. */
+export const MAX_MENTION = 5
 
 /**
  * Les propositions qui répondent à `requete`, celles qui commencent par elle d'abord, puis celles qui la contiennent,
