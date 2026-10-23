@@ -1,12 +1,14 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Element } from './coeur/tableau'
 import { BoutonEtiquettes } from './elements/decor/BoutonEtiquettes'
 import { t } from './langue'
 import { RANG_APRES_TETE, definition, tousLesOutilsCommunsRanges, tousLesTypes } from './elements/registre'
 import type { ContexteToile, Outil } from './elements/types'
 import { ContexteOutils } from './BoutonOutil'
+import { type EntreeRepli, ORDRE, type Palier, useRepli } from './repli'
 import { useBarreBornee, useMenusBornes } from './borner'
 import { Icone } from './icones'
+import { Infobulle } from './Infobulle'
 import { MenuActions } from './MenuActions'
 import { useMenu } from './menuUnique'
 import { Vignette } from './vignettes'
@@ -17,6 +19,24 @@ export interface OutilDeBarre {
   type: string
   outil: Outil
 }
+
+const cleOutil = (o: OutilDeBarre) => `${o.type}:${o.outil.libelle}`
+
+/**
+ * Ce qu'occupe, en px, ce qui ne se replie pas dans la barre de création : les marges, le « ••• », le séparateur, la
+ * corbeille en bas, et un peu d'air. Les marges baissent avec la taille des tuiles.
+ */
+const fixeCreation = (p: Palier) => (p === 'grande' ? 20 : 12) + 30 + 21 + 60 + 12
+/** Idem pour la barre de sélection : la flèche retour s'y ajoute, pas le séparateur. */
+const fixeSelection = (p: Palier) => (p === 'grande' ? 20 : 12) + 44 + 34 + 60 + 12
+
+/** L'ordre de repli d'un outil de la barre de création (relevé : Tableau 10, Image, Upload et Draw 2, le tiroir toujours). */
+const entreeDeBarre = (o: OutilDeBarre): EntreeRepli => ({
+  id: cleOutil(o),
+  genre: 'tuile',
+  ordre: o.outil.tiroir ? ORDRE.toujours : o.outil.groupe === 'action' ? 2 : o.type === 'tableau' ? ORDRE.tard : ORDRE.defaut,
+  ...(o.outil.groupe === 'action' && !o.outil.tiroir ? { masque: true } : {}),
+})
 
 export const outilsDeBarre = (): OutilDeBarre[] =>
   tousLesTypes()
@@ -45,11 +65,14 @@ function useEchapFerme(barre: { current: HTMLElement | null }, fermer: () => voi
  * Un simple clic ne crée rien : l'outil rebondit et une bulle rappelle qu'on le glisse (`rebond`).
  */
 export function BarreOutils({
+  grisee = false,
   surAppui,
   rebond,
   corbeille,
   nonTries,
 }: {
+  /** Aperçu d'un modèle : la barre reste visible, grisée à 30 % et sans clic. */
+  grisee?: boolean
   surAppui(o: OutilDeBarre, e: React.PointerEvent): void
   rebond: { libelle: string; n: number } | null
   /** La corbeille, en bas de la barre : elle s'ouvre au clic et reçoit ce qu'on y lâche. */
@@ -73,16 +96,20 @@ export function BarreOutils({
   // DESSIN-LIBRE : pendant le mode, la barre s'éteint et le bouton du dessin se montre ouvert.
   const dessinOuvert = useDessinLibreOuvert()
   const tous = outilsDeBarre()
+  // La barre trop courte réduit ses tuiles, puis range des outils dans le « ••• » (jamais la corbeille).
+  const entrees = useMemo(() => tous.filter((o) => !o.outil.tiroir).map(entreeDeBarre), [tous.map(cleOutil).join('|')]) // eslint-disable-line react-hooks/exhaustive-deps
+  const { ranges, visibles } = useRepli(nav, entrees, fixeCreation)
   const bouton = (o: OutilDeBarre, dansTiroir = false) => {
     const rebondit = rebond?.libelle === o.outil.libelle
     const vignette = o.outil.vignette ? <Vignette nom={o.outil.vignette} /> : null
     return (
       <div key={`${o.type}:${o.outil.libelle}`} className="notak-outil-place">
+        <Infobulle libelle={o.outil.libelle} cote="droite" contenu>
         <button
           type="button"
           className="notak-outil"
           data-genre={vignette ? 'vignette' : 'tuile'}
-          title={o.outil.libelle}
+          aria-label={o.outil.libelle}
           aria-expanded={o.type === 'dessin' && dessinOuvert ? true : undefined}
           // La clé change à chaque clic : l'animation du rebond repart.
           data-rebond={rebondit ? rebond.n % 2 : undefined}
@@ -97,6 +124,7 @@ export function BarreOutils({
           <span className="notak-outil-icone">{vignette ?? o.outil.icone}</span>
           <span className="notak-outil-libelle">{o.outil.libelle}</span>
         </button>
+        </Infobulle>
         {rebondit && (
           <div key={rebond.n} className="notak-bulle-outil" role="status">
             {t('barre.glisser')}
@@ -105,25 +133,20 @@ export function BarreOutils({
       </div>
     )
   }
-  const elementsVisibles = tous.filter((o) => !o.outil.tiroir && o.outil.groupe !== 'action')
-  const caches = tous.filter((o) => o.outil.tiroir)
-  const actions = tous.filter((o) => !o.outil.tiroir && o.outil.groupe === 'action')
+  const elementsVisibles = tous.filter((o) => !o.outil.tiroir && o.outil.groupe !== 'action' && visibles.has(cleOutil(o)))
+  const caches = tous.filter((o) => o.outil.tiroir || ranges.has(cleOutil(o))).sort((a, b) => a.outil.rang - b.outil.rang)
+  const actions = tous.filter((o) => !o.outil.tiroir && o.outil.groupe === 'action' && visibles.has(cleOutil(o)))
   return (
     <>
-      <nav ref={nav} className="notak-barre-outils" data-eteinte={dessinOuvert || undefined} onPointerDown={(e) => e.stopPropagation()}>
+      <nav ref={nav} className="notak-barre-outils" data-eteinte={dessinOuvert || undefined} data-grisee={grisee || undefined} onPointerDown={(e) => e.stopPropagation()}>
         {elementsVisibles.map((o) => bouton(o))}
         {caches.length > 0 && (
           <div className="notak-outil-place" ref={ancreTiroir}>
-            <button
-              type="button"
-              className="notak-outil-plus"
-              aria-expanded={tiroir}
-              aria-label={t('barre.plusOutils')}
-              title={t('barre.plusOutils')}
-              onClick={() => setTiroir(!tiroir)}
-            >
-              <Icone nom="plus" />
-            </button>
+            <Infobulle libelle={t('barre.plusOutils')} cote="droite" contenu>
+              <button type="button" className="notak-outil-plus" aria-expanded={tiroir} aria-label={t('barre.plusOutils')} onClick={() => setTiroir(!tiroir)}>
+                <Icone nom="plus" />
+              </button>
+            </Infobulle>
             {tiroir && (
               <div ref={grille} className="notak-tiroir">
                 {caches.map((o) => bouton(o, true))}
@@ -135,30 +158,27 @@ export function BarreOutils({
         {actions.map((o) => bouton(o))}
         <BoutonEtiquettes />
         <div className="notak-barre-ressort" />
-        <button
-          type="button"
-          className="notak-outil"
-          data-genre="corbeille"
-          data-corbeille
-          aria-expanded={corbeille.ouverte}
-          title={t('corbeille.titre')}
-          onClick={corbeille.basculer}
-        >
-          <span className="notak-outil-icone"><Icone nom="corbeille" taille={26} /></span>
-          <span className="notak-outil-libelle">{t('corbeille.titre')}{corbeille.nombre > 0 ? ` (${corbeille.nombre})` : ''}</span>
-        </button>
+        <Infobulle libelle={t('corbeille.titre')} cote="droite" contenu>
+          <button
+            type="button"
+            className="notak-outil"
+            data-genre="corbeille"
+            data-corbeille
+            aria-expanded={corbeille.ouverte}
+            aria-label={t('corbeille.titre')}
+            onClick={corbeille.basculer}
+          >
+            <span className="notak-outil-icone"><Icone nom="corbeille" taille={26} /></span>
+            <span className="notak-outil-libelle">{t('corbeille.titre')}{corbeille.nombre > 0 ? ` (${corbeille.nombre})` : ''}</span>
+          </button>
+        </Infobulle>
       </nav>
       {/* Les non triés, en haut à droite de la toile : leur nombre, et Cmd+\ les ouvre aussi. */}
-      <button
-        type="button"
-        className="notak-non-tries-bouton"
-        aria-expanded={nonTries.ouverte}
-        title={t('nonTries.titre') + ' (⌘\\)'}
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={nonTries.basculer}
-      >
-        <strong>{nonTries.nombre}</strong> {t('nonTries.titre')}
-      </button>
+      <Infobulle libelle={t('nonTries.titre')} raccourci="⌘\\" contenu>
+        <button type="button" className="notak-non-tries-bouton" aria-expanded={nonTries.ouverte} onPointerDown={(e) => e.stopPropagation()} onClick={nonTries.basculer}>
+          <strong>{nonTries.nombre}</strong> {t('nonTries.titre')}
+        </button>
+      </Infobulle>
     </>
   )
 }
@@ -192,6 +212,13 @@ export function BarreSelection({
   useMenusBornes(aGauche ? nav : barre, !aGauche)
   useBarreBornee(barre, position.x, !aGauche)
   const dessinOuvert = useDessinLibreOuvert()
+  // Les outils s'inscrivent ici ; trop nombreux pour la hauteur, les moins prioritaires passent dans le « ••• ».
+  const [inscrits, setInscrits] = useState<EntreeRepli[]>([])
+  const inscrire = useCallback((e: EntreeRepli) => {
+    setInscrits((l) => [...l.filter((x) => x.id !== e.id), e])
+    return () => setInscrits((l) => l.filter((x) => x.id !== e.id))
+  }, [])
+  const { ranges } = useRepli(nav, inscrits, fixeSelection)
   const parType = new Map<string, Element[]>()
   for (const e of elements) parType.set(e.contenu.type, [...(parType.get(e.contenu.type) ?? []), e])
   const blocs = [...parType].flatMap(([type, els]) => {
@@ -217,19 +244,23 @@ export function BarreSelection({
   if (aGauche) {
     return (
       <nav ref={nav} className="notak-barre-outils" data-selection data-eteinte={dessinOuvert || undefined} onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-        <button type="button" className="notak-barre-retour" title={t('barre.retour')} aria-label={t('barre.retour')} onClick={() => contexte.choisir([])}>
-          <Icone nom="gauche" taille={22} />
-        </button>
-        <ContexteOutils.Provider value={{ aGauche: true, plus: cibleTiroir }}>
+        <Infobulle libelle={t('barre.retour')} cote="droite" contenu>
+          <button type="button" className="notak-barre-retour" aria-label={t('barre.retour')} onClick={() => contexte.choisir([])}>
+            <Icone nom="gauche" taille={22} />
+          </button>
+        </Infobulle>
+        <ContexteOutils.Provider value={{ aGauche: true, plus: cibleTiroir, ranges, inscrire }}>
           <div key={cle} className="notak-barre-selection" data-a-gauche>
             {!mele && blocs.map((b) => b.tete)}
             {communs}
             {!mele && blocs.map((b) => b.suite)}
             {communsSuite}
             <div className="notak-outil-place notak-selection-plus" ref={ancreTiroir}>
-              <button type="button" className="notak-outil-plus" aria-expanded={tiroir} aria-label={t('barre.plusOutils')} title={t('barre.plusOutils')} onClick={() => setTiroir(!tiroir)}>
-                <Icone nom="plus" />
-              </button>
+              <Infobulle libelle={t('barre.plusOutils')} cote="droite" contenu>
+                <button type="button" className="notak-outil-plus" aria-expanded={tiroir} aria-label={t('barre.plusOutils')} onClick={() => setTiroir(!tiroir)}>
+                  <Icone nom="plus" />
+                </button>
+              </Infobulle>
               <div className="notak-tiroir" hidden={!tiroir}>
                 <div className="notak-tiroir-grille" ref={setCibleTiroir} />
                 {/* Le menu d'actions du « ••• » : Verrouiller, plans, convertir, ouvrir… */}
@@ -269,9 +300,11 @@ export function BarreSelection({
       {communsSuite}
       {mele && blocs.length > 0 && (
         <span className="notak-barre-plus" ref={ancrePlus}>
-          <button type="button" title={t('barre.outilsParType')} aria-expanded={plus} aria-pressed={plus} onClick={() => setPlus(!plus)}>
-            <Icone nom="plus" />
-          </button>
+          <Infobulle libelle={t('barre.outilsParType')} contenu>
+            <button type="button" aria-label={t('barre.outilsParType')} aria-expanded={plus} aria-pressed={plus} onClick={() => setPlus(!plus)}>
+              <Icone nom="plus" />
+            </button>
+          </Infobulle>
           {plus && (
             <div className="notak-barre-plus-menu" role="menu">
               {blocs.map((b) => (

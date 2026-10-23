@@ -7,7 +7,7 @@ const libelles = (f: (o: ReturnType<typeof outilsDeBarre>[number]) => boolean) =
 
 describe('la barre de création, dans l’ordre de Milanote', () => {
   it('les éléments visibles : Note, Lien, À faire, Ligne, Tableau, Colonne, Commentaire, Table', () => {
-    expect(libelles((o) => !o.outil.tiroir && o.outil.groupe !== 'action')).toEqual(['Note', 'Lien', 'Tâches', 'Ligne', 'Tableau', 'Colonne', 'Commentaire', 'Table'])
+    expect(libelles((o) => !o.outil.tiroir && o.outil.groupe !== 'action')).toEqual(['Note', 'Lien', 'À faire', 'Ligne', 'Tableau', 'Colonne', 'Commentaire', 'Table'])
   })
 
   it('le tiroir : Croquis, Nuancier, Document, Audio, Carte, Vidéo, Titre, puis ce qui est propre à Notak', () => {
@@ -17,7 +17,7 @@ describe('la barre de création, dans l’ordre de Milanote', () => {
   })
 
   it('après le séparateur : Image, Fichier, Dessin', () => {
-    expect(libelles((o) => o.outil.groupe === 'action')).toEqual(['Image', 'Fichier', 'Dessin libre'])
+    expect(libelles((o) => o.outil.groupe === 'action')).toEqual(['Ajouter une image', 'Envoyer', 'Dessiner'])
   })
 })
 

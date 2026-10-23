@@ -32,12 +32,18 @@ export function Infobulle({
   raccourci,
   children,
   desactivee = false,
+  cote = 'bas',
+  contenu = false,
 }: {
   libelle: string
   /** Les touches, comme dans les menus : « ⇧⌘Z ». */
   raccourci?: string
   children: ReactElement | ReactNode
   desactivee?: boolean
+  /** Où elle paraît : sous le bouton (défaut), ou à sa droite pour un outil de la barre de gauche. */
+  cote?: 'bas' | 'droite'
+  /** L'enveloppe ne pèse rien dans la mise en page (`display: contents`) : le bouton garde sa place dans la barre. */
+  contenu?: boolean
 }) {
   const hote = useRef<HTMLSpanElement>(null)
   const bulle = useRef<HTMLDivElement>(null)
@@ -80,15 +86,22 @@ export function Infobulle({
     [],
   )
 
-  // Posée sous l'hôte, centrée, ramenée dans la fenêtre ; mesurée avant d'être peinte.
+  // Posée sous le bouton (ou à sa droite), centrée, ramenée dans la fenêtre ; mesurée avant d'être peinte.
   useEffect(() => {
     if (!present || !hote.current || !bulle.current) return
-    const h = hote.current.getBoundingClientRect()
+    const cible = hote.current.firstElementChild ?? hote.current
+    const h = cible.getBoundingClientRect()
     const largeur = bulle.current.offsetWidth
+    const hauteur = bulle.current.offsetHeight
     const fenetre = document.documentElement.clientWidth || window.innerWidth
+    if (cote === 'droite') {
+      const y = Math.max(BORD, Math.min(h.top + h.height / 2 - hauteur / 2, (window.innerHeight || 0) - hauteur - BORD))
+      setPlace({ x: Math.min(h.right + ECART, Math.max(BORD, fenetre - largeur - BORD)), y })
+      return
+    }
     const x = Math.max(BORD, Math.min(h.left + h.width / 2 - largeur / 2, fenetre - largeur - BORD))
     setPlace({ x, y: h.bottom + ECART })
-  }, [present, libelle, raccourci])
+  }, [present, libelle, raccourci, cote])
 
   useEffect(() => {
     if (!montre) return
@@ -101,6 +114,7 @@ export function Infobulle({
     <span
       ref={hote}
       className="notak-infobulle-hote"
+      data-contenu={contenu ? '' : undefined}
       onPointerEnter={(e) => e.pointerType !== 'touch' && ouvrir()}
       onPointerLeave={fermer}
       onPointerDown={fermer}

@@ -4,6 +4,7 @@ import { OutilsFichier, RenduFichier, ouvrirFichier } from './Fichier'
 import './fichier.css'
 import { LARGEUR_FICHIER, choisirFichiers, recevoirFichiers } from './recepteur'
 import { basculerBanque } from '../image/banqueImages'
+import { basculerEnvoi, fermerEnvoi } from './etatEnvoi'
 import { peutTelecharger, telecharger } from './telechargement'
 import { t } from '../../langue'
 import { ico } from '../../icones'
@@ -38,7 +39,7 @@ registre.type<Fichier>({
   outils: [
     {
       get libelle() {
-        return t('type.image')
+        return t('outil.image')
       },
       icone: ico('image'),
       rang: 80,
@@ -50,11 +51,15 @@ registre.type<Fichier>({
         return []
       },
       // Avec une banque d'images, le clic ouvre son panneau (« Envoyer les vôtres » y mène au sélecteur) ; sans, le sélecteur.
-      clic: (ou, contexte) => (contexte.services.banqueImages ? basculerBanque() : choisirFichiers(ou, contexte, 'image/*')),
+      clic: (ou, contexte) => {
+        fermerEnvoi()
+        if (contexte.services.banqueImages) basculerBanque()
+        else choisirFichiers(ou, contexte, 'image/*')
+      },
     },
     {
       get libelle() {
-        return t('type.fichier')
+        return t('outil.fichier')
       },
       icone: ico('trombone'),
       rang: 90,
@@ -64,7 +69,8 @@ registre.type<Fichier>({
         choisirFichiers(ou, contexte)
         return []
       },
-      clic: (ou, contexte) => choisirFichiers(ou, contexte),
+      // Un clic ouvre le panneau d'envoi (bouton et zone de dépôt) ; le glisser de l'outil garde le sélecteur.
+      clic: () => basculerEnvoi(),
     },
   ],
 })

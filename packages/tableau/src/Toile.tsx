@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { toileSuspendue } from './elements/dessin/mode'
 import { PanneauBanque } from './elements/image/Banque'
+import { PanneauEnvoi } from './elements/fichier/PanneauEnvoi'
 import { BarreOutils, BarreSelection, type OutilDeBarre, outilsDeBarre } from './Barres'
 import { BarreEdition, ContexteBarreEdition } from './barreEdition'
 import { Cadre, ContexteRangement, type Empreinte, type Rangement } from './Cadre'
@@ -2326,8 +2327,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           )}
         </div>
       )}
-      {!lectureSeule && !(services.barreAGauche && (barre || editionAGauche)) && (
+      {(!lectureSeule || services.apercuModele) && !(services.barreAGauche && (barre || editionAGauche)) && (
         <BarreOutils
+          grisee={lectureSeule}
           surAppui={surAppuiOutil}
           rebond={rebond}
           corbeille={{ nombre: corbeille.length, ouverte: corbeilleOuverte, basculer: () => setCorbeilleOuverte((o) => !o) }}
@@ -2345,7 +2347,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       {corbeilleOuverte && !lectureSeule && (
         <PanneauCorbeille elements={corbeille} contexte={contexte} restaurer={restaurer} vider={viderCorbeille} fermer={() => setCorbeilleOuverte(false)} />
       )}
-      {!lectureSeule && <PanneauBanque contexte={contexte} libelleOutil={t('type.image')} />}
+      {!lectureSeule && <PanneauBanque contexte={contexte} libelleOutil={t('outil.image')} />}
+      {!lectureSeule && <PanneauEnvoi contexte={contexte} libelleOutil={t('outil.fichier')} />}
       <BandeauAvis />
       {focus && <CoucheFocus noeud={focus.noeud} depart={focus.depart} fermer={() => setFocus(null)} />}
       {raccourcis && <FenetreRaccourcis fermer={fermerRaccourcis} />}
