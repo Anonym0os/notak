@@ -40,7 +40,7 @@
   color: inherit;
   font-family: inherit;
   text-align: center;
-  outline: 2px solid var(--notak-accent, #2f6feb);
+  outline: 2px solid var(--notak-selection, #323b4a);
 }
 
 .notak-document-mots {

@@ -184,7 +184,7 @@
 }
 
 .notak-carte[data-sans-fond][data-choisie] {
-  box-shadow: 0 0 0 2px var(--notak-accent);
+  box-shadow: 0 0 0 2px var(--notak-selection);
 }
 
 /* Une note transparente se devine au survol. */

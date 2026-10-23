@@ -77,8 +77,12 @@ export function RenduDocument({ element, enEdition, contexte, brouillon, changer
   // Un document que l'outil vient de poser : son titre s'écrit sur la carte, la modale attend le double-clic.
   const [titreSurCarte, setTitreSurCarte] = useState(false)
   useEffect(() => {
-    if (lectureSeule || !doitEtreTitre(element.id)) return
-    const delai = setTimeout(() => setTitreSurCarte(true), 100)
+    // Le drapeau ne se retire qu'au déclenchement : en mode strict, React monte l'effet deux fois.
+    if (lectureSeule || !doitEtreTitre(element.id, false)) return
+    const delai = setTimeout(() => {
+      doitEtreTitre(element.id)
+      setTitreSurCarte(true)
+    }, 100)
     return () => clearTimeout(delai)
   }, [element.id, lectureSeule])
   const mots = useMemo(() => compterMots(c.texte), [c.texte])

@@ -59,7 +59,8 @@ export function resume(c: DocumentTexte): string {
  */
 const aTitrer = new Set<string>()
 export const titrerALaCreation = (id: string) => void aTitrer.add(id)
-export const doitEtreTitre = (id: string): boolean => aTitrer.delete(id)
+/** `retirer` : le drapeau est consommé (par défaut) ; sinon on regarde seulement. */
+export const doitEtreTitre = (id: string, retirer = true): boolean => (retirer ? aTitrer.delete(id) : aTitrer.has(id))
 
 /** Le document que pose l'outil : son titre « Nouveau document » est prêt à être remplacé. */
 export function documentCree(x: number, y: number): Element<DocumentTexte> {
