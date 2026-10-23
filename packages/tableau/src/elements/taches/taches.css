@@ -416,3 +416,38 @@
 .notak-glisse-repere[hidden] {
   display: none;
 }
+
+/* Une tâche qu'on porte hors de sa liste : une pastille derrière le pointeur, pointillée au-dessus du vide de la toile. */
+.notak-glisse-fantome {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  max-width: 220px;
+  padding: 4px 10px;
+  overflow: hidden;
+  border: 1px solid var(--notak-accent);
+  border-radius: 6px;
+  background: var(--notak-carte, #fff);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
+  color: var(--notak-texte, #1f2328);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.notak-glisse-fantome[hidden] {
+  display: none;
+}
+
+.notak-glisse-fantome[data-toile] {
+  border-style: dashed;
+}
+
+/* La liste qui recevra la tâche. */
+.notak-taches[data-depot] {
+  outline: 2px dashed var(--notak-accent);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
