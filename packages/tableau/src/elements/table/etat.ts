@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { Id } from '../../coeur/tableau'
+import type { Id, PassageCellule } from '../../coeur/tableau'
 import type { Plage } from './grille'
 
 /**
@@ -37,6 +37,13 @@ export interface EditionCellule {
   depuisCalendrier: boolean
   /** « Avec l'heure », demandé au calendrier ; absent : celui que dit le format de la cellule. */
   avecHeure?: boolean
+  /**
+   * Les passages du texte riche (gras, lien, couleur…) quand la cellule s'écrit dans l'éditeur riche ; absent : elle
+   * s'écrit dans le champ simple (une formule, un nombre, une date).
+   */
+  passages?: PassageCellule[]
+  /** La sélection dans le texte riche, en décalages (`de` ≤ `a`). */
+  selection?: { de: number; a: number }
 }
 
 export interface EtatTable {

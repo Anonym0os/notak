@@ -14,7 +14,7 @@ const garder = (e: React.PointerEvent) => e.stopPropagation()
 /** Ce que l'édition doit viser en premier : le code (par défaut) ou la légende, quand on a cliqué dessus. */
 let viser: 'code' | 'legende' = 'code'
 
-export function RenduNuancier({ element, choisie, enEdition, contexte, brouillon }: PropsRendu<Nuancier>) {
+export function RenduNuancier({ element, choisie, seule, enEdition, contexte, brouillon }: PropsRendu<Nuancier>) {
   const c = element.contenu
   // Libre en hauteur : celle qu'on a tirée (en UG) remplace le rapport 17 : 12.
   const h = element.hauteur ? ('min' in element.hauteur ? element.hauteur.min : element.hauteur.max) : undefined
@@ -26,7 +26,18 @@ export function RenduNuancier({ element, choisie, enEdition, contexte, brouillon
   return (
     <div className="notak-nuancier-carte" data-legende={c.avecLegende || undefined}>
       <div className="notak-nuancier" style={style}>
-        {montrer && (enEdition ? <CodeEnPlace contenu={c} ecrire={brouillon} finir={contexte.finirEdition} focus={but === 'code'} /> : <span className="notak-nuancier-code">{codeAffiche(c.couleur, c.format)}</span>)}
+        {montrer && (enEdition ? <CodeEnPlace contenu={c} ecrire={brouillon} finir={contexte.finirEdition} focus={but === 'code'} /> : <span
+            className="notak-nuancier-code"
+            // Le code d'un nuancier choisi seul s'écrit d'un clic ; ailleurs un appui le glisse comme le reste.
+            onPointerDown={(e) => seule && modifiable && e.stopPropagation()}
+            onClick={() => {
+              if (!seule || !modifiable) return
+              viser = 'code'
+              contexte.commencerEdition(element.id)
+            }}
+          >
+            {codeAffiche(c.couleur, c.format)}
+          </span>)}
       </div>
       {c.avecLegende &&
         (enEdition ? (

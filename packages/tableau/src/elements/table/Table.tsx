@@ -57,6 +57,9 @@ import {
   nombreColonnes,
   normaliserPlage,
 } from './grille'
+import { filetsDeCellule } from './filets'
+import { passagesDe } from './riche'
+import { PassagesRendus } from './RichePassages'
 import { entreesTable } from './menu'
 import { largeurDesColonnes, modifierTable } from './modifier'
 
@@ -305,6 +308,11 @@ export function RenduTable({ element, seule, contexte, changer }: PropsRendu<Tab
   const colonnes = nombreColonnes(c.cellules)
 
   const formats = useMemo(() => formatsDe(c), [c])
+  // Les filets entre cellules colorées dépendent du thème (la plus foncée l'emporte) : on lit celui de l'espace.
+  const [sombre, setSombre] = useState(false)
+  useLayoutEffect(() => {
+    setSombre(racine.current?.closest('.notak-espace')?.getAttribute('data-theme') === 'sombre')
+  })
   const resultats = useMemo(() => evaluerTable(c.cellules), [c.cellules])
   const largeurs = useMemo(() => largeursDe(c, element.largeur), [c, element.largeur])
   const plages = useMemo(() => bornerPlages(etat.plages, c), [etat.plages, c])
@@ -390,7 +398,7 @@ export function RenduTable({ element, seule, contexte, changer }: PropsRendu<Tab
     poserEtat(id, { edition: null })
     const calendrier = e.depuisCalendrier ? serieDeIso(e.texte) : null
     modifierTable(contexte, id, (tab) => ({
-      table: ecrireCellule(tab, e.l, e.c, e.texte, regional(), calendrier ? { serie: calendrier, ...(e.avecHeure !== undefined ? { avecHeure: e.avecHeure } : {}) } : undefined),
+      table: ecrireCellule(tab, e.l, e.c, e.texte, regional(), calendrier ? { serie: calendrier, ...(e.avecHeure !== undefined ? { avecHeure: e.avecHeure } : {}) } : undefined, e.passages),
     }))
     if (deplacement !== 'aucun') {
       const d = { bas: [1, 0], haut: [-1, 0], droite: [0, 1], gauche: [0, -1] }[deplacement]
@@ -464,6 +472,12 @@ export function RenduTable({ element, seule, contexte, changer }: PropsRendu<Tab
     const maj = e.shiftKey
     const cmd = e.metaKey || e.ctrlKey
     const ed = lireEtat(id).edition
+    // Cmd+clic sur la table seule choisie, sans cellule choisie : la table se déchoisit au lieu de choisir une cellule.
+    if (cmd && !maj && !ed && lireEtat(id).plages.length === 0) {
+      e.preventDefault()
+      contexte.choisir([...contexte.selection].filter((x) => x !== id))
+      return
+    }
     if (ed) {
       if (ed.l === cel.l && ed.c === cel.c) return
       if (ed.texte.startsWith('=') && (ed.citation || modeCitation(ed.texte, ed.curseur) || referenceSous(ed.texte, ed.curseur))) {
@@ -889,6 +903,18 @@ export function RenduTable({ element, seule, contexte, changer }: PropsRendu<Tab
     setBulle(null)
   }
 
+  /** Les filets de la cellule quand elle touche une voisine colorée : le mélange du fond le plus foncé des deux. */
+  const bordsColores = (i: number, j: number): CSSProperties => {
+    const b = filetsDeCellule(formats, i, j, sombre)
+    return {
+      ...(b.haut ? { borderTopColor: b.haut } : {}),
+      ...(b.bas ? { borderBottomColor: b.bas } : {}),
+      // Pas de filet extérieur à gauche ni à droite.
+      ...(b.gauche && j > 0 ? { borderLeftColor: b.gauche } : {}),
+      ...(b.droite && j < colonnes - 1 ? { borderRightColor: b.droite } : {}),
+    }
+  }
+
   const cellule = (i: number, j: number): ReactNode => {
     const brut = c.cellules[i]?.[j] ?? ''
     const f = formats[i]?.[j] ?? null
@@ -927,6 +953,12 @@ export function RenduTable({ element, seule, contexte, changer }: PropsRendu<Tab
           )}
         </span>
       )
+    } else if (!estFormule && passagesDe(f, brut).length > 0 && affiche === brut) {
+      contenu = (
+        <span className="notak-table-texte" style={f?.surligne ? { background: couleurSurlignage(f.surligne), color: f.surligne === 'grisFonce' ? '#fff' : 'var(--notak-surligne-texte)' } : undefined}>
+          <PassagesRendus texte={brut} passages={passagesDe(f, brut)} />
+        </span>
+      )
     } else if (!estFormule && LIEN.test(brut.trim())) {
       contenu = (
         <a
@@ -954,12 +986,15 @@ export function RenduTable({ element, seule, contexte, changer }: PropsRendu<Tab
         data-cellule={cle}
         data-edition={enEdition || undefined}
         data-case={f?.type === 'case' || undefined}
-        style={styleDeCellule(
-          // Le résultat d'une formule s'aligne comme sa valeur : un nombre à droite ; seule l'écriture reste à gauche.
-          estFormule && !enEdition && !f?.type && typeof r?.valeur === 'number' && !r.erreur ? { ...f, type: 'nombre' } : f,
-          estFormule && enEdition,
-          dansSel ? apercu : undefined,
-        )}
+        style={{
+          ...styleDeCellule(
+            // Le résultat d'une formule s'aligne comme sa valeur : un nombre à droite ; seule l'écriture reste à gauche.
+            estFormule && !enEdition && !f?.type && typeof r?.valeur === 'number' && !r.erreur ? { ...f, type: 'nombre' } : f,
+            estFormule && enEdition,
+            dansSel ? apercu : undefined,
+          ),
+          ...bordsColores(i, j),
+        }}
       >
         {contenu}
         {ref && (

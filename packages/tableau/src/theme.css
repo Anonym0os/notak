@@ -24,6 +24,7 @@
 /* La table : repères, fantôme de déplacement et filets de la grille à la mode sombre de Milanote. */
 .notak-espace[data-theme='sombre'] .notak-tableur {
   --notak-table-filet: rgb(255 255 255 / 0.1);
+  --notak-table-filet-melange: #fff;
   --notak-repere-fond: #282828;
   --notak-repere-texte: #a3a3a3;
   --notak-repere-filet: rgb(255 255 255 / 0.08);

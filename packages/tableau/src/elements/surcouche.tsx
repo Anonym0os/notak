@@ -34,6 +34,7 @@ const VARIABLES = [
   '--notak-surligne-orange',
   '--notak-surligne-rose',
   '--notak-surligne-gris',
+  '--notak-trait-defaut',
 ]
 
 export function variablesDe(noeud: Element): Record<string, string> {

@@ -1,6 +1,7 @@
 import type { Nuancier } from '../../coeur/tableau'
 import { registre } from '../registre'
 import { OutilsNuancier, OutilsNuancierApres, RenduNuancier } from './Nuancier'
+import { ouvrirSelecteur } from './selecteur'
 import { LARGEUR_NUANCIER, analyserCode, avecNomEnLegende, codeAffiche, couleurSuivante, nouveauNuancier } from './couleur'
 import { t } from '../../langue'
 import './nuancier.css'
@@ -16,6 +17,9 @@ registre.type<Nuancier>({
   Outils: OutilsNuancier,
   OutilsApres: OutilsNuancierApres,
   editable: true,
+  // Comme Milanote : le double-clic ouvre le sélecteur de couleur du système (Entrée écrit le code, un clic sur le code d'un nuancier choisi aussi).
+  ouvreAuDoubleClic: true,
+  ouvrir: (element, contexte) => ouvrirSelecteur(element, contexte),
   aLaCreation: 'rien',
   // Sans légende, l'aplat seul ; avec, un cadre blanc dont l'aplat est la partie haute.
   sansFond: (c) => !c.avecLegende,

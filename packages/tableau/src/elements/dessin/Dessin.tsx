@@ -9,12 +9,14 @@ import {
   ajouterPoint,
   arrondir,
   cheminLisse,
+  couleurAffichee,
   ecrireReglage,
   epaisseurFeuille,
   gommer,
   lireReglage,
   traitVise,
 } from '../croquis/trace'
+import { couleursDuTableau } from '../couleur/suggestions'
 import { BoutonOutil } from '../../BoutonOutil'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { type Historique, defaire, historiqueVide, noter, refaire } from './historique'
@@ -29,7 +31,7 @@ export function RenduDessin({ element }: PropsRendu<Dessin>) {
   return (
     <svg className="notak-dessin" viewBox={`0 0 ${c.largeurOrigine} ${c.hauteurOrigine}`} style={{ aspectRatio: `${c.largeurOrigine} / ${c.hauteurOrigine}` }}>
       {c.traits.map((tr, i) => (
-        <path key={i} d={cheminLisse(tr.points)} stroke={tr.couleur} strokeWidth={tr.epaisseur} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path key={i} d={cheminLisse(tr.points)} stroke={couleurAffichee(tr.couleur, true)} strokeWidth={tr.epaisseur} fill="none" strokeLinecap="round" strokeLinejoin="round" />
       ))}
     </svg>
   )
@@ -126,6 +128,8 @@ function Couche({
   const [enCours, setEnCours] = useState<number[] | null>(null)
   const [marquise, setMarquise] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
   const [effacee, setEffacee] = useState(false)
+  // Les couleurs déjà employées sur le tableau, relevées à l'ouverture, sous la palette.
+  const suggerees = useMemo(() => couleursDuTableau(contexte.magasin.lire().elements, { exclure: COULEURS_TRAIT }), [contexte])
   const geste = useRef<Geste | null>(null)
   const doigts = useRef(new Set<number>())
   const modifie = histo.passe.length > 0
@@ -426,11 +430,11 @@ function Couche({
             {outil === 'selection' && choix.has(tr) && (
               <path d={chemins.get(tr)} fill="none" stroke="var(--notak-accent)" strokeWidth={px(tr) + 2 * CONTOUR_PX} strokeLinecap="round" strokeLinejoin="round" />
             )}
-            <path d={chemins.get(tr)} fill="none" stroke={tr.couleur} strokeWidth={px(tr)} strokeLinecap="round" strokeLinejoin="round" />
+            <path d={chemins.get(tr)} fill="none" stroke={couleurAffichee(tr.couleur, true)} strokeWidth={px(tr)} strokeLinecap="round" strokeLinejoin="round" />
           </g>
         ))}
         {enCoursTrait && (
-          <path d={cheminLisse(versEcran(enCoursTrait.points))} fill="none" stroke={couleur} strokeWidth={px(enCoursTrait)} strokeLinecap="round" strokeLinejoin="round" />
+          <path d={cheminLisse(versEcran(enCoursTrait.points))} fill="none" stroke={couleurAffichee(couleur, true)} strokeWidth={px(enCoursTrait)} strokeLinecap="round" strokeLinejoin="round" />
         )}
         {marquise && (
           <rect
@@ -471,7 +475,7 @@ function Couche({
           >
             <span className="notak-croquis-pastille" style={{ background: couleur }} />
           </button>
-          {volet === 'couleur' && !desactive.couleur && <VoletCouleur couleur={couleur} choisir={choisirCouleur} />}
+          {volet === 'couleur' && !desactive.couleur && <VoletCouleur couleur={couleur} choisir={choisirCouleur} suggerees={suggerees} />}
         </span>
         <span className="notak-croquis-volet-hote">
           <button

@@ -7,7 +7,7 @@ import { telecharger } from '../document/export'
 import { t } from '../../langue'
 import { ico } from '../../icones'
 import { couleurDuContenu } from '../couleur'
-import { OutilCouleurCarte } from '../couleur/OutilCouleurCarte'
+import { OutilCouleurCroquis } from './OutilCouleur'
 import { OutilLegende } from '../LegendeLocale'
 
 registre.type<Croquis>({
@@ -17,9 +17,11 @@ registre.type<Croquis>({
   },
   resume,
   Rendu: RenduCroquis,
-  Outils: OutilCouleurCarte,
+  Outils: OutilCouleurCroquis,
   couleur: couleurDuContenu<Croquis>(),
   teinte: true,
+  // Transparent (sans légende dessous) : plus de carte, la feuille est celle du tableau.
+  sansFond: (c) => c.couleur === 'transparent' && !c.avecLegende,
   OutilsApres: OutilLegende,
   editable: true,
   // Comme Milanote : un clic sur le croquis déjà choisi ne l'ouvre pas, il faut un double-clic (ou Entrée).

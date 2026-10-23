@@ -282,11 +282,11 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Fichier joint : aperçu d'un PDF dessiné dans le navigateur (pdf.js), état « Traitement » | ✅ | |
 | Fichier joint : aperçus fabriqués par un service (Word, Excel, PowerPoint, polices, Photoshop…) | ⬜ | Pas de service d'aperçu : « Aucun aperçu disponible ». |
 | Commentaire (fil de discussion posé sur la toile) | ✅ | Fiche bleu pâle de 34 unités, éditeur riche (gras, liens, mentions « @ », émojis), réaction par message, « est en train d'écrire », point non lu, défilement interne et hauteur réglable à la poignée, outils Couleur et Épingle (le fil se réduit en épingle). Pas de « Résoudre » (Milanote n'en a pas ; la donnée reste, l'interface la cache). Reste : « Nouveau commentaire » au clic droit de la toile, aperçu glissé réduit en épingle, brouillon non envoyé. |
-| Table : un petit tableur (sélection de plages, clavier, types, formules, repères, clic droit, presse-papiers, titre, légende) | ✅ | Relevé dans `docs/ecarts/table.md`, repris d'après le code de Milanote le 23/10. Pas de mise en forme partielle dans une cellule ; ⌃⌘N attend les raccourcis de création. |
 | Croquis à main levée | ✅ |  |
+| Table : un petit tableur (sélection de plages, clavier, types, formules, repères, clic droit, presse-papiers, titre, légende) | ✅ | Relevé dans `docs/ecarts/table.md`, repris d'après le code de Milanote le 23/10. Gras, italique, barré, lien, couleur et surlignage sur quelques mots d'une cellule de texte, filets mêlés au fond des cellules colorées, plus de plafond à 200 × 30. Pas de mention « @ » dans une cellule ; Milanote n'a pas de raccourci de création de table dans ce qu'on a lu. |
 | Dessin libre sur la toile | ✅ | Outil « Dessin libre » du tiroir : on trace à même la toile, Entrée pose le dessin. |
-| Nuancier (couleur, code, légende) | ✅ | Code en haut à gauche (HEX, RGB, HSL), édité sur place, redimensionnement libre, légende au nom de la couleur. Pas de sélecteur du système au double-clic ni de couleurs suggérées du tableau. |
-| Document (texte long, ouvert en grand) | ✅ | Icône ou vue carte (34 unités, aperçu du texte), Renommer, légende, export PDF, Word, Markdown et texte brut. Pas d'outil Commentaire dans le texte. |
+| Nuancier (couleur, code, légende) | ✅ | Code en haut à gauche (HEX, RGB, HSL), édité sur place, redimensionnement libre, légende au nom de la couleur. Le double-clic ouvre le sélecteur de couleur du système, avec les couleurs du tableau en suggestions. |
+| Document (texte long, ouvert en grand) | ✅ | Icône ou vue carte (34 unités, aperçu du texte), Renommer, légende, export PDF, Word, Markdown et texte brut. Outil Commentaire dans le texte (fils en marge, ⌘⌥M), colonne d'outils réduite en lecture seule. |
 | Lien vidéo | ✅ | Outil « Vidéo » du tiroir. |
 | Lien audio | ✅ | Outil « Audio » du tiroir. |
 | Carte (lieu) | ✅ |  |

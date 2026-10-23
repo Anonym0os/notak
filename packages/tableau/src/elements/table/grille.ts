@@ -5,8 +5,9 @@ export const LIGNES_DEPART = 4
 export const COLONNES_DEPART = 3
 export const LIGNES_MIN = 2
 export const COLONNES_MIN = 1
-export const LIGNES_MAX = 200
-export const COLONNES_MAX = 30
+/** Milanote ne borne pas la table : ces plafonds ne sont qu'une garde contre un collage démesuré. */
+export const LIGNES_MAX = 10_000
+export const COLONNES_MAX = 1_000
 /** Largeur d'une colonne à la création, en UG. */
 export const LARGEUR_COLONNE = 12
 

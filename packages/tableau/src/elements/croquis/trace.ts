@@ -30,6 +30,17 @@ export const COULEURS_TRAIT = [
   '#ffffff',
 ] as const
 
+/** L'encre par défaut. */
+export const ENCRE_DEFAUT = COULEURS_TRAIT[0]
+
+/**
+ * La couleur dont un trait se dessine. Sur un fond qui suit le thème (un croquis transparent, un dessin sur la toile),
+ * l'encre par défaut suit la couleur de ligne du thème, qui s'inverse en sombre ; le trait garde `#323b4a` dans le
+ * document. Partout ailleurs, la couleur écrite.
+ */
+export const couleurAffichee = (couleur: string, suitLeTheme: boolean): string =>
+  suitLeTheme && couleur.toLowerCase() === ENCRE_DEFAUT ? 'var(--notak-trait-defaut)' : couleur
+
 /** Les épaisseurs, en pixels d'écran : le trait garde la même allure quelle que soit la taille de la fenêtre. */
 export const EPAISSEURS_TRAIT = [
   { get libelle() { return t('croquis.fin') }, px: 2 },

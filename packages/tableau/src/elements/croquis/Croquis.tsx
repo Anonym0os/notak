@@ -5,6 +5,7 @@ import type { PropsRendu } from '../types'
 import {
   COULEURS_TRAIT,
   type CroquisFeuille,
+  couleurAffichee,
   EPAISSEURS_TRAIT,
   EPAISSEUR_DEFAUT,
   LARGEUR_FEUILLE,
@@ -19,6 +20,9 @@ import {
   traitVise,
 } from './trace'
 import { BarreEpaisseur, CURSEUR_GOMME, VoletCouleur, VoletEpaisseur, curseurCrayon } from './partage'
+import { couleursDuTableau } from '../couleur/suggestions'
+import { presDuBas } from '../dessin/trace'
+import type { ContexteToile } from '../types'
 import { appliquerAuChoix, appuiSurTrait, couleurSous, decalageFleche, deplacerTraits, ordonnerTraits, sansTraits, traitsDansMarquise } from './selection'
 import { t } from '../../langue'
 import { LegendeLocale, avecTexteLegende } from '../LegendeLocale'
@@ -36,7 +40,7 @@ const CONTOUR_CHOIX_PX = 3
 const CAPTURE_PX = 6
 
 /** Les traits d'une feuille, en SVG : un chemin lissé par trait. `vise` : le trait que la gomme viserait, cerné de rouge. */
-function Traits({ traits, vise, choisis, contour = 0 }: { traits: readonly Trait[]; vise?: { i: number; extra: number } | null; choisis?: ReadonlySet<Trait>; contour?: number }) {
+function Traits({ traits, vise, choisis, contour = 0, suitLeTheme = false }: { traits: readonly Trait[]; vise?: { i: number; extra: number } | null; choisis?: ReadonlySet<Trait>; contour?: number; suitLeTheme?: boolean }) {
   const chemins = useMemo(() => traits.map((t) => cheminLisse(t.points)), [traits])
   return (
     <>
@@ -48,7 +52,7 @@ function Traits({ traits, vise, choisis, contour = 0 }: { traits: readonly Trait
           {choisis?.has(t) && (
             <path d={chemins[i]} fill="none" stroke="var(--notak-accent)" strokeWidth={t.epaisseur + 2 * contour} strokeLinecap="round" strokeLinejoin="round" />
           )}
-          <path d={chemins[i]} fill="none" stroke={t.couleur} strokeWidth={t.epaisseur} strokeLinecap="round" strokeLinejoin="round" />
+          <path d={chemins[i]} fill="none" stroke={couleurAffichee(t.couleur, suitLeTheme)} strokeWidth={t.epaisseur} strokeLinecap="round" strokeLinejoin="round" />
         </g>
       ))}
     </>
@@ -57,10 +61,12 @@ function Traits({ traits, vise, choisis, contour = 0 }: { traits: readonly Trait
 
 export function RenduCroquis({ element, choisie, enEdition, contexte, brouillon, changer }: PropsRendu<Croquis>) {
   const c = element.contenu as CroquisFeuille
+  // Sans fond, la feuille est celle du tableau : l'encre par défaut suit le thème.
+  const transparent = c.couleur === 'transparent'
   return (
     <div className="notak-croquis">
       <svg viewBox={`0 0 ${LARGEUR_FEUILLE} ${hauteurFeuille(c)}`} role="img" aria-label={t('type.croquis')}>
-        <Traits traits={c.traits} />
+        <Traits traits={c.traits} suitLeTheme={transparent} />
       </svg>
       {c.traits.length === 0 && (
         <div className="notak-croquis-vide" data-etroit={element.largeur <= 12 || undefined}>
@@ -77,7 +83,7 @@ export function RenduCroquis({ element, choisie, enEdition, contexte, brouillon,
           valider={(texte) => changer(avecTexteLegende(c, texte))}
         />
       )}
-      {enEdition && <Feuille contenu={c} ecrire={brouillon} finir={contexte.finirEdition} />}
+      {enEdition && <Feuille contenu={c} ecrire={brouillon} finir={contexte.finirEdition} contexte={contexte} />}
     </div>
   )
 }
@@ -99,8 +105,14 @@ const couleurValide = (v: string | null): v is string => v !== null && /^#[0-9a-
  * pas. Enregistrer (ou ⌘S, ou un appui hors de la feuille) referme en gardant ; Échap ou Abandonner restaurent
  * la feuille d'avant.
  */
-function Feuille({ contenu, ecrire, finir }: { contenu: CroquisFeuille; ecrire(c: Croquis): void; finir(): void }) {
+function Feuille({ contenu, ecrire, finir, contexte }: { contenu: CroquisFeuille; ecrire(c: Croquis): void; finir(): void; contexte: ContexteToile }) {
   const depart = useRef(contenu)
+  const transparent = contenu.couleur === 'transparent'
+  // Les couleurs déjà employées sur le tableau, relevées à l'ouverture : les plus utilisées, sous la palette.
+  const suggerees = useMemo(() => couleursDuTableau(contexte.magasin.lire().elements, { exclure: COULEURS_TRAIT }), [contexte])
+  // La barre s'efface quand le pointeur s'approche du bas de la fenêtre pendant un tracé ; plus de deux doigts annulent le geste.
+  const [effacee, setEffacee] = useState(false)
+  const doigts = useRef(new Set<number>())
   const hauteur = hauteurFeuille(contenu)
   const [traits, setTraits] = useState<Trait[]>(contenu.traits)
   const [passe, setPasse] = useState<Trait[][]>([])
@@ -216,8 +228,22 @@ function Feuille({ contenu, ecrire, finir }: { contenu: CroquisFeuille; ecrire(c
     const r = surface.current!.getBoundingClientRect()
     return { x: ((e.clientX - r.left) / r.width) * LARGEUR_FEUILLE, y: ((e.clientY - r.top) / r.height) * hauteur }
   }
+  /** Un geste qu'un troisième doigt annule : le tracé s'en va, la gomme et le glisser rendent les traits d'avant. */
+  const abandonnerGeste = () => {
+    const g = tire.current
+    tire.current = null
+    setEnCours(null)
+    setMarquise(null)
+    setEffacee(false)
+    if (g && (g.type === 'gomme' || g.type === 'deplacer')) setTraits(g.avant)
+    if (g?.type === 'deplacer') setChoix(g.choix)
+  }
   const debut = (e: React.PointerEvent) => {
     if (e.button !== 0) return
+    doigts.current.add(e.pointerId)
+    if (doigts.current.size > 2) return abandonnerGeste()
+    // Un deuxième doigt ne commence pas un geste par-dessus celui qui court.
+    if (tire.current) return
     setVolet(null)
     try {
       e.currentTarget.setPointerCapture(e.pointerId)
@@ -254,6 +280,7 @@ function Feuille({ contenu, ecrire, finir }: { contenu: CroquisFeuille; ecrire(c
   }
   const deplacement = (e: React.PointerEvent) => {
     const g = tire.current
+    if (g) setEffacee(presDuBas(e.clientY, window.innerHeight))
     if (!g) {
       if (outil === 'gomme') {
         const { x, y } = dansFeuille(e)
@@ -292,9 +319,11 @@ function Feuille({ contenu, ecrire, finir }: { contenu: CroquisFeuille; ecrire(c
       setMarquise({ x0: g.depart.x, y0: g.depart.y, x1: x, y1: y })
     }
   }
-  const fin = () => {
+  const fin = (e?: React.PointerEvent) => {
+    if (e) doigts.current.delete(e.pointerId)
     const g = tire.current
     tire.current = null
+    setEffacee(false)
     if (!g) return
     if (g.type === 'trace') {
       setEnCours(null)
@@ -372,16 +401,17 @@ function Feuille({ contenu, ecrire, finir }: { contenu: CroquisFeuille; ecrire(c
           ref={surface}
           className="notak-croquis-surface"
           data-outil={outil}
+          data-transparent={transparent || undefined}
           style={outil === 'crayon' ? { cursor: curseurCrayon(couleur) } : outil === 'gomme' ? { cursor: CURSEUR_GOMME } : undefined}
           viewBox={`0 0 ${LARGEUR_FEUILLE} ${hauteur}`}
           onPointerDown={debut}
           onPointerMove={deplacement}
           onPointerUp={fin}
-          onPointerCancel={fin}
+          onPointerCancel={(e) => (doigts.current.delete(e.pointerId), abandonnerGeste())}
           onPointerLeave={() => setVise(null)}
         >
-          <Traits traits={traits} vise={outil === 'gomme' ? vise : null} choisis={outil === 'selection' ? choix : undefined} contour={CONTOUR_CHOIX_PX / echelle()} />
-          <Traits traits={encours} />
+          <Traits traits={traits} vise={outil === 'gomme' ? vise : null} choisis={outil === 'selection' ? choix : undefined} contour={CONTOUR_CHOIX_PX / echelle()} suitLeTheme={transparent} />
+          <Traits traits={encours} suitLeTheme={transparent} />
           {marquise && (
             <rect
               className="notak-croquis-marquise"
@@ -392,7 +422,7 @@ function Feuille({ contenu, ecrire, finir }: { contenu: CroquisFeuille; ecrire(c
             />
           )}
         </svg>
-        <div className="notak-croquis-barre" role="toolbar" aria-label={t('croquis.outil')}>
+        <div className="notak-croquis-barre" role="toolbar" aria-label={t('croquis.outil')} data-effacee={effacee || undefined}>
           <button type="button" title={`${t('dessin.crayon')} (D)`} aria-label={t('dessin.crayon')} aria-pressed={outil === 'crayon'} onClick={() => changerOutil('crayon')}>
             {ico('croquis')}
           </button>
@@ -407,7 +437,7 @@ function Feuille({ contenu, ecrire, finir }: { contenu: CroquisFeuille; ecrire(c
             <button type="button" title={`${t('couleur.titre')} (C)`} aria-label={t('couleur.titre')} aria-expanded={volet === 'couleur'} disabled={couleurGrisee} onClick={() => setVolet(volet === 'couleur' ? null : 'couleur')}>
               <span className="notak-croquis-pastille" style={{ background: couleur }} />
             </button>
-            {volet === 'couleur' && !couleurGrisee && <VoletCouleur couleur={couleur} choisir={choisirCouleur} />}
+            {volet === 'couleur' && !couleurGrisee && <VoletCouleur couleur={couleur} choisir={choisirCouleur} suggerees={suggerees} />}
           </span>
           <span className="notak-croquis-volet-hote">
             <button type="button" title={`${t('croquis.epaisseur')} (1-4)`} aria-label={t('croquis.epaisseur')} aria-expanded={volet === 'epaisseur'} disabled={epaisseurGrisee} onClick={() => setVolet(volet === 'epaisseur' ? null : 'epaisseur')}>

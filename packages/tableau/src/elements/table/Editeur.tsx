@@ -2,6 +2,7 @@ import { Fragment, useLayoutEffect, useRef } from 'react'
 import type { FormatCellule, Id } from '../../coeur/tableau'
 import { t } from '../../langue'
 import { moitiesIso } from './dates'
+import { EditeurRiche } from './EditeurRiche'
 import { type EditionCellule, majEdition } from './etat'
 import { COULEURS_REFERENCES, alignementDe } from './formats'
 import { citerReferences, requeteAutocompletion, suggererFonctions } from './formules'
@@ -98,6 +99,23 @@ export function Editeur({ id, edition, format, valider, abandonner }: Props) {
     }
   }
 
+  /** Perdre le focus ferme l'écriture, sauf vers ce qui lui appartient : le calendrier, la liste des fonctions, les outils de texte. */
+  const surPerteDeFocus = (e: React.FocusEvent) => {
+    const vers = e.relatedTarget
+    if (vers instanceof Node && racine.current?.contains(vers)) return
+    if (vers instanceof Element && vers.closest('[data-garde-focus]')) return
+    valider('aucun')
+  }
+
+  // Un texte simple s'écrit dans l'éditeur riche (gras d'un mot, lien…) ; une formule, un nombre, une date, dans le champ.
+  if (edition.passages !== undefined && !formule) {
+    return (
+      <div ref={racine} className="notak-table-editeur" onBlur={surPerteDeFocus}>
+        <EditeurRiche id={id} edition={edition} format={format} valider={valider} abandonner={abandonner} />
+      </div>
+    )
+  }
+
   const alignement = alignementDe(format, formule)
   const style = {
     textAlign: alignement === 'gauche' ? 'left' : alignement === 'droite' ? 'right' : 'center',
@@ -110,11 +128,7 @@ export function Editeur({ id, edition, format, valider, abandonner }: Props) {
     <div
       ref={racine}
       className="notak-table-editeur"
-      onBlur={(e) => {
-        // Le focus passe au calendrier ou à la liste des fonctions : l'écriture continue.
-        if (e.relatedTarget instanceof Node && racine.current?.contains(e.relatedTarget)) return
-        valider('aucun')
-      }}
+      onBlur={surPerteDeFocus}
     >
       <div className="notak-table-miroir" style={style} aria-hidden>
         {formule ? <Colore texte={edition.texte} /> : edition.texte}

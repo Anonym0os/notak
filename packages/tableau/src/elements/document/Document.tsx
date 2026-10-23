@@ -2,8 +2,10 @@ import { EditorContent, useEditor } from '@tiptap/react'
 import { renderToReactElement } from '@tiptap/static-renderer/pm/react'
 import { type ReactNode, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import type { DocumentTexte, NoeudTexte } from '../../coeur/tableau'
+import { type Commentaire, type DocumentTexte, type Id, type NoeudTexte, nouvelId } from '../../coeur/tableau'
 import { EXTENSIONS_NOTE } from '../note/extensions'
+import { type Fils, MARQUE_FIL, avecFil, filsVivants, sansPassagesMuets } from '../note/fils'
+import { Marge } from '../note/Marge'
 import { type Pont, Propositions, extensionPropositions } from '../note/Propositions'
 import { Surcouche } from '../surcouche'
 import { LegendeLocale, OutilLegende, avecTexteLegende } from '../LegendeLocale'
@@ -18,8 +20,9 @@ import { Icone } from '../../icones'
 import { fermerMenus, useMenu } from '../../menuUnique'
 
 /** Le texte tel qu'une note le dessine : mêmes extensions, en lecture seule. */
-const Lu = memo(function Lu({ texte }: { texte: NoeudTexte }) {
-  const rendu = useMemo(() => renderToReactElement({ content: texte, extensions: EXTENSIONS_NOTE }), [texte])
+const Lu = memo(function Lu({ texte, fils }: { texte: NoeudTexte; fils?: Fils | undefined }) {
+  // Un passage dont le fil n'a aucun message (marqué, rien écrit) ne se souligne pas.
+  const rendu = useMemo(() => renderToReactElement({ content: sansPassagesMuets(texte, fils), extensions: EXTENSIONS_NOTE }), [texte, fils])
   return <div className="notak-texte">{rendu}</div>
 })
 
@@ -214,6 +217,8 @@ function MenuExport({ titre, lireTexte }: { titre: string; lireTexte(): NoeudTex
 }
 
 interface PropsModale {
+  /** Ouvert pour lire seulement : la colonne d'outils se réduit à 35 px et le texte remonte de 9 px. */
+  lecture?: boolean
   titre: ReactNode
   /** Le titre est celui du document : il se modifie ici. */
   lireTexte(): NoeudTexte
@@ -228,7 +233,7 @@ interface PropsModale {
  * un en-tête de 56 px (le titre au centre, « Export » à droite), la colonne d'outils à gauche et le texte à côté.
  * Pas de croix : Échap ou un appui sur le fond referment.
  */
-function Modale({ titre, titreTexte, lireTexte, outils, fermer, children }: PropsModale) {
+function Modale({ titre, titreTexte, lireTexte, outils, fermer, children, lecture }: PropsModale) {
   return (
     <Surcouche
       etiquette={t('type.document')}
@@ -244,7 +249,7 @@ function Modale({ titre, titreTexte, lireTexte, outils, fermer, children }: Prop
         return true
       }}
     >
-      <div className="notak-document-boite">
+      <div className="notak-document-boite" data-marge-ancre data-lecture={lecture || undefined}>
         <header className="notak-document-entete">
           <span className="notak-document-entete-vide" />
           <div className="notak-document-entete-titre">{titre}</div>
@@ -262,8 +267,8 @@ function Modale({ titre, titreTexte, lireTexte, outils, fermer, children }: Prop
 function Lecture({ contenu, fermer }: { contenu: DocumentTexte; fermer(): void }) {
   const titre = contenu.titre.trim() || t('commun.sansTitre')
   return (
-    <Modale titre={<span className="notak-document-titre-lu">{titre}</span>} titreTexte={contenu.titre} lireTexte={() => contenu.texte} fermer={fermer}>
-      <Lu texte={contenu.texte} />
+    <Modale lecture titre={<span className="notak-document-titre-lu">{titre}</span>} titreTexte={contenu.titre} lireTexte={() => contenu.texte} fermer={fermer}>
+      <Lu texte={contenu.texte} fils={contenu.fils} />
     </Modale>
   )
 }
@@ -275,21 +280,50 @@ function Lecture({ contenu, fermer }: { contenu: DocumentTexte; fermer(): void }
 function Grand({ contenu, ecrire, finir, contexte }: { contenu: DocumentTexte; ecrire(c: DocumentTexte): void; finir(): void; contexte: ContexteToile }) {
   const [titre, setTitre] = useState(contenu.titre)
   const [lien, setLien] = useState<string | null>(null)
-  // Le titre et le texte changent chacun de leur côté : le brouillon porte toujours les deux derniers.
-  const dernier = useRef({ titre: contenu.titre, texte: contenu.texte })
+  // Le titre, le texte et les fils des passages changent chacun de leur côté : le brouillon porte toujours les derniers.
+  const dernier = useRef<{ titre: string; texte: NoeudTexte; fils: Fils | undefined }>({ titre: contenu.titre, texte: contenu.texte, fils: contenu.fils })
+  const [filsVus, setFilsVus] = useState<Fils | undefined>(contenu.fils)
+  const [ouvert, setOuvert] = useState<Id | null>(null)
   const poser = (suite: Partial<typeof dernier.current>) => {
     dernier.current = { ...dernier.current, ...suite }
-    ecrire({ ...contenu, ...dernier.current })
+    setFilsVus(dernier.current.fils)
+    const { fils: _, ...reste } = contenu
+    ecrire({ ...reste, titre: dernier.current.titre, texte: dernier.current.texte, ...(dernier.current.fils ? { fils: dernier.current.fils } : {}) })
   }
+  const commenterRef = useRef<() => void>(() => {})
   // `[[` propose les tableaux, `@` les personnes : la même liste que la note.
   const pont = useRef<Pont | null>(null)
   const extensions = useMemo(() => [...EXTENSIONS_NOTE, extensionPropositions(pont)], [])
   const editeur = useEditor({
     extensions,
     content: contenu.texte,
-    editorProps: { attributes: { class: 'notak-texte', 'aria-label': t('document.texte') } },
-    onUpdate: ({ editor }) => poser({ texte: editor.getJSON() as NoeudTexte }),
+    editorProps: {
+      attributes: { class: 'notak-texte', 'aria-label': t('document.texte') },
+      // ⌘⌥M : commenter le passage choisi, comme dans une note.
+      handleKeyDown: (_, e) => {
+        if (!(e.metaKey || e.ctrlKey) || !e.altKey || e.code !== 'KeyM') return false
+        e.preventDefault()
+        commenterRef.current()
+        return true
+      },
+    },
+    onUpdate: ({ editor }) => {
+      const texte = editor.getJSON() as NoeudTexte
+      poser({ texte, fils: filsVivants(dernier.current.fils, texte) })
+    },
   })
+  const peutCommenter = !contexte.services.lectureSeule
+  // Dans un passage déjà commenté : on ouvre son fil. Sinon, le passage choisi reçoit un fil neuf.
+  commenterRef.current = () => {
+    if (!editeur || !peutCommenter) return
+    const present = editeur.isActive(MARQUE_FIL) ? (editeur.getAttributes(MARQUE_FIL).fil as Id | null) : null
+    if (present) return setOuvert(present)
+    if (editeur.state.selection.empty || editeur.isActive('code') || editeur.isActive('codeBlock')) return
+    const id = nouvelId()
+    editeur.chain().focus().setMark(MARQUE_FIL, { fil: id }).run()
+    poser({ texte: editeur.getJSON() as NoeudTexte, fils: avecFil(dernier.current.fils, id, { type: 'commentaire', messages: [] }) })
+    setOuvert(id)
+  }
   useEffect(() => {
     if (!editeur || editeur.isDestroyed) return
     editeur.commands.focus('end')
@@ -324,9 +358,21 @@ function Grand({ contenu, ecrire, finir, contexte }: { contenu: DocumentTexte; e
       }
       titreTexte={titre}
       lireTexte={() => (editeur ? (editeur.getJSON() as NoeudTexte) : dernier.current.texte)}
-      outils={editeur && <ColonneOutils editor={editeur} lien={lien} surLien={setLien} />}
+      outils={editeur && <ColonneOutils editor={editeur} lien={lien} surLien={setLien} {...(peutCommenter ? { commenter: () => commenterRef.current() } : {})} />}
       fermer={finir}
     >
+      {editeur && (
+        <Marge
+          editeur={editeur}
+          fils={filsVus}
+          ouvert={ouvert}
+          surOuvert={setOuvert}
+          ecrire={(id: Id, fil: Commentaire) =>
+            poser({ texte: editeur.getJSON() as NoeudTexte, fils: avecFil(dernier.current.fils, id, fil) })
+          }
+          contexte={contexte}
+        />
+      )}
       {editeur && <Propositions editeur={editeur} contexte={contexte} pont={pont} />}
       <EditorContent editor={editeur} />
     </Modale>
