@@ -16,8 +16,8 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 1. Toile | 28 | 0 | 0 | 100 % |
 | 2. Création | 16 | 1 | 0 | 97 % |
 | 3. Note et texte | 31 | 2 | 4 | 86 % |
-| 4. Colonne | 11 | 1 | 0 | 96 % |
-| 5. Tableau imbriqué | 11 | 0 | 0 | 100 % |
+| 4. Colonne | 13 | 0 | 0 | 100 % |
+| 5. Tableau imbriqué | 13 | 1 | 0 | 96 % |
 | 6. Lien | 13 | 0 | 0 | 100 % |
 | 7. Image | 17 | 0 | 0 | 100 % |
 | 8. Liste de tâches | 18 | 0 | 0 | 100 % |
@@ -30,7 +30,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 6 | 1 | 0 | 93 % |
-| **Total** | **259** | **11** | **4** | **97 %** |
+| **Total** | **263** | **11** | **4** | **97 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -139,14 +139,15 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Fonctionnalité | État | Reste |
 |---|---|---|
 | Largeur 34 UG au minimum, hauteur de 15 UG vide | ✅ | |
-| Titre centré, 100 caractères, vide refusé, clic sur le titre d'une colonne choisie | ✅ | Le titre initial est « Colonne » enregistré, pas vide avec une invite ; pas de Maj+Entrée dans le titre. |
+| Titre centré, 100 caractères, vide refusé, clic sur le titre d'une colonne choisie | ✅ | Titre initial vide avec une invite pâle ; Maj+Entrée passe à la ligne ; collage en texte brut. |
 | Compteur sous le titre (« Vide » si rien), double-clic ou Alt+Entrée pour ajouter une note | ✅ | |
 | Replier, déposer sur une colonne repliée | ✅ | |
 | Ranger, sortir, réordonner par glisser, empreinte jusqu'au dépôt | ✅ | |
 | Flèches et Cmd+A dans la colonne | ✅ | |
-| Couleurs | ✅ | |
+| Couleurs : dix teintes, fond libre (couleur personnalisée), couleurs déjà employées sur le tableau | ✅ | Le texte passe en blanc sur un fond sombre. |
+| Raccourci de création ⌃⌘G (Ctrl+Alt+G), affiché dans l'infobulle de l'outil | ✅ | |
 | Grouper la sélection en colonne (deux éléments au moins, colonne centrée, lignes attachées à la corbeille) | ✅ | |
-| Convertir en tableau | 🟡 | Les éléments passent sur la toile du tableau neuf, pas dans des « non triés » (le dépôt d'un autre tableau ne sait pas les y mettre). |
+| Convertir en tableau | ✅ | Les cartes entrent dans les non triés du tableau neuf, dans l'ordre de la colonne ; les lignes qui les relient ne suivent pas. |
 | Supprimer emporte le contenu | ✅ | |
 | Hauteur réglable, hauteur bornée d'un élément rangé | ✅ |  |
 | Ligne horizontale entre deux colonnes alignées | ✅ |  |
@@ -162,7 +163,10 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Couleur modifiable | ✅ | |
 | Déposer sur un tableau pour l'y envoyer | ✅ | |
 | Survol pendant un glisser : l'icône grossit, s'assombrit, clignote avant d'entrer | ✅ | |
-| Icône de la bibliothèque ou image à la place de l'initiale | ✅ |  |
+| Icône (recherche par mot dans un catalogue de plus de 200 icônes, en français et en anglais) ou image à la place de l'initiale | ✅ | Le catalogue est tiré du jeu Tabler (MIT), pas de Milanote. |
+| Couleur personnalisée, couleur du glyphe, paires de couleurs et couleurs déjà employées | ✅ | Le fond libre est celui de la carte, pas du tableau. |
+| Pastille d'activité : un point quand le tableau a changé depuis la dernière visite | 🟡 | Calculée sur cet appareil (empreinte du contenu), pas par personne ni par le serveur ; un tableau jamais ouvert ne s'allume pas. |
+| Raccourci de création ⌃⌘B (Ctrl+Alt+B), affiché dans l'infobulle de l'outil | ✅ | |
 | Disposition en ligne dans une colonne | ✅ |  |
 | Raccourci vers un tableau (le même tableau à deux endroits) | ✅ |  |
 | Un tableau supprimé part à la corbeille, restaurable | ✅ | |
@@ -274,8 +278,8 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Lien vidéo | ✅ | Outil « Vidéo » du tiroir. |
 | Lien audio | ✅ | Outil « Audio » du tiroir. |
 | Carte (lieu) | ✅ |  |
-| Clone (le même élément à plusieurs endroits) | 🟡 | Suit l'original et le suit à la corbeille ; repère en bas à gauche avec bulle du nombre de copies, aussi sur l'original. Reste : l'édition sur place (elle passe encore par l'original) et la liste des copies sur plusieurs tableaux. |
-| Raccourci vers un tableau | 🟡 | Titre et couleur propres, créé à +6 / +5 UG ; l'icône est copiée à la création, elle ne suit pas celle du tableau. « Retrouver le tableau d'origine » et « Dupliquer le tableau lié » manquent. |
+| Clone (le même élément à plusieurs endroits) | 🟡 | Suit l'original et le suit à la corbeille ; s'écrit sur place (le texte va à l'original) ; repère en bas à gauche, aussi sur l'original, dont un clic liste les copies (un clic sur une rangée la montre). Reste : un clone n'existe que sur le tableau de son original, donc pas de liste sur plusieurs tableaux. |
+| Raccourci vers un tableau | 🟡 | Titre et couleur propres, créé à +6 / +5 UG ; « Retrouver le tableau d'origine » (le tableau qui le contient, la carte choisie et centrée) et « Dupliquer le tableau lié ». L'icône est copiée à la création, elle ne suit pas celle du tableau ; l'original n'est cherché que dans le tableau parent et le tableau ouvert. |
 
 ## 11. Commun aux éléments
 

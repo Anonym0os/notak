@@ -1,7 +1,8 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import type { Element, Id } from '../../coeur/tableau'
 import type { ContexteToile } from '../types'
-import { originalAffichable } from './original'
+import { clonesDe, originalAffichable } from './original'
+import { definition } from '../registre'
 import { t, tn } from '../../langue'
 import { Icone } from '../../icones'
 
@@ -27,6 +28,17 @@ export function texteDuGroupe(copies: number): string {
   return copies <= 1 ? t('clone.plusDeCopie') : tn('clone.copies', copies)
 }
 
+/** Les exemplaires d'un groupe de copies, l'original d'abord : leur nom et ce qu'ils disent. */
+function lister(contexte: ContexteToile, cible: Id): { id: Id; nom: string; texte: string }[] {
+  const elements = contexte.magasin.lire().elements
+  const original = originalAffichable(elements, cible)
+  const texteDe = (e: Element) => definition(e.contenu.type)?.resume?.(e.contenu as never, contexte) ?? ''
+  return [
+    ...(original ? [{ id: original.id, nom: t('clone.original'), texte: texteDe(original) }] : []),
+    ...clonesDe(elements, cible).map((c, i) => ({ id: c.id, nom: `${t('clone.copie')} ${i + 1}`, texte: texteDe(original ?? c) })),
+  ]
+}
+
 /**
  * Le repère « cet élément existe en plusieurs exemplaires » : une petite icône en bas à gauche de la carte, à 30 %,
  * toujours là. Un clic ouvre la bulle qui compte les copies. Sur l'original, il n'y est que s'il a des clones.
@@ -42,6 +54,8 @@ export function MarqueClone({ cible, contexte, toujours }: { cible: Id; contexte
   }, [ouverte])
   if (clones === 0 && !toujours) return null
   const copies = clones + (originalAffichable(contexte.magasin.lire().elements, cible) ? 1 : 0)
+  // Chaque exemplaire, l'original en tête : un clic le montre.
+  const lignes = ouverte ? lister(contexte, cible) : []
   return (
     <>
       <button
@@ -61,7 +75,27 @@ export function MarqueClone({ cible, contexte, toujours }: { cible: Id; contexte
       </button>
       {ouverte && (
         <div className="notak-clone-bulle" role="status" onPointerDown={(e) => e.stopPropagation()}>
-          {texteDuGroupe(copies)}
+          <p className="notak-clone-bulle-texte">{texteDuGroupe(copies)}</p>
+          {copies > 1 && (
+            <ul className="notak-clone-liste">
+              {lignes.map((l) => (
+                <li key={l.id}>
+                  <button
+                    type="button"
+                    className="notak-clone-rangee"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOuverte(false)
+                      contexte.montrer(l.id)
+                    }}
+                  >
+                    <span className="notak-clone-rangee-nom">{l.nom}</span>
+                    <span className="notak-clone-rangee-texte">{l.texte}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </>

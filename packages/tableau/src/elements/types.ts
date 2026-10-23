@@ -98,10 +98,14 @@ export interface Services {
   ouvrirTableau?(id: Id): void
   /**
    * Pose ces éléments dans un autre tableau (on les y a lâchés) : ils s'y rangent à la suite du contenu,
-   * ou gardent leur disposition si le tableau est vide.
+   * ou gardent leur disposition si le tableau est vide. `nonTries` : ils vont dans les non triés du tableau, dans l'ordre.
    */
   /** Pose ces éléments dans un autre tableau, à la suite de son contenu ; rend ce qui y a été créé (mêmes rangs). */
-  deposerDans?(tableau: Id, elements: Element[]): Element[] | void
+  deposerDans?(tableau: Id, elements: Element[], nonTries?: boolean): Element[] | void
+  /** Copie un tableau et son contenu dans l'espace ; rend l'id de la copie. */
+  dupliquerTableau?(id: Id): Id | undefined
+  /** Où est la carte d'origine du tableau `cible` (celle qui n'est pas un raccourci), ou `undefined` si on ne la trouve pas. */
+  retrouverOriginal?(cible: Id): { tableau: Id; element: Id } | undefined
   /** L'ouvrir dans un nouvel onglet (Cmd+clic, menu), là où l'application a des adresses. */
   ouvrirDansOnglet?(id: Id): void
   /** Le tableau d'un renvoi (titre, couleur, contenu), ou `undefined` s'il n'existe pas. */
@@ -183,6 +187,10 @@ export interface ContexteToile {
   choisir(ids: Iterable<Id>): void
   /** `ou` : le point de l'écran (`clientX`, `clientY`) où poser le curseur de texte, sinon la fin. */
   commencerEdition(id: Id, ou?: Point): void
+  /** Le brouillon d'un autre élément que celui en édition (un clone écrit son original) ; inscrit à la sortie de l'édition. */
+  brouillonDe(element: Element, apres: Contenu): void
+  /** Choisit cet élément et y centre la vue. */
+  montrer(id: Id): void
   /** Met ces éléments à la corbeille du tableau (avec leurs lignes accrochées), d'un seul pas. */
   jeter(ids: Iterable<Id>): void
   /**
@@ -244,6 +252,8 @@ export interface TypeElement<C extends Contenu = Contenu> {
   ouvreAuDoubleClic?: boolean
   surEntree?(element: Element<C>, contexte: ContexteToile): void
   /* `surFrappe` (plus haut) peut aussi tout faire lui-même et ne rien rendre : un document s'ouvre avec ce caractère. */
+  /** L'élément dont l'édition de celui-ci écrit le texte (un clone : son original) ; `null` si rien ne s'écrit. Absent : lui-même. */
+  edite?(element: Element<C>, tableau: Tableau): Element | null
   /**
    * En édition, le type range ses propres outils (de texte) dans la barre de gauche, par `ContexteBarreEdition`
    * (voir `barreEdition.tsx`). Sans cela, la barre de gauche garde les outils de sa sélection.
@@ -343,6 +353,8 @@ export interface Outil {
   icone: ReactNode
   /** Sa place dans la barre, croissante vers le bas. */
   rang: number
+  /** Les touches qui créent l'élément au clavier, affichées dans l'infobulle (« ⌃⌘G »). */
+  raccourci?: string
   /** Rangé dans le tiroir « Plus » plutôt que dans la barre. */
   tiroir?: boolean
   /** Le dessin de l'élément en petit (`vignettes.tsx`), à la place de l'icône. */

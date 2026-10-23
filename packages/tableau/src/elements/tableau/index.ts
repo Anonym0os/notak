@@ -1,6 +1,7 @@
 import { type Element, type RenvoiTableau, nouvelId } from '../../coeur/tableau'
 import { cleEntre, comparerOrdre } from '../../coeur/ordre'
-import { registre } from '../registre'
+import { definition, registre } from '../registre'
+import { creerAuCentre, estCreation, touchesCreation } from '../raccourciCreation'
 import type { Point } from '../../coeur/geometrie'
 import type { ContexteToile } from '../types'
 import { nouveauRaccourci } from './icones'
@@ -8,6 +9,8 @@ import { OutilsRenvoi } from './Outils'
 import { RenduRenvoi } from './Renvoi'
 import { demanderRenommage } from './renommage'
 import { demanderModele } from './modele'
+import { demanderAMontrer } from './montrer'
+import { annoncer } from '../../avis'
 import { t } from '../../langue'
 import './tableau.css'
 import { ico } from '../../icones'
@@ -58,6 +61,44 @@ registre.entreeMenu({
   },
 })
 
+// Un raccourci seul : aller voir la carte du tableau qu'il montre, là où elle est.
+registre.entreeMenu({
+  get libelle() {
+    return t('menu.retrouverOrigine')
+  },
+  visible: (els, contexte) => els.length === 1 && els[0]!.contenu.type === 'tableau' && !!els[0]!.contenu.raccourci && !!contexte.services.retrouverOriginal,
+  faire([e], contexte) {
+    if (e?.contenu.type !== 'tableau') return
+    const origine = contexte.services.retrouverOriginal?.(e.contenu.cible)
+    if (!origine) return annoncer({ texte: t('tableau.origineIntrouvable') })
+    // Sur ce tableau-ci, on la montre ; ailleurs, on l'ouvre et elle se montre à l'arrivée.
+    if (contexte.magasin.lire().elements.some((x) => x.id === origine.element)) return contexte.montrer(origine.element)
+    demanderAMontrer(origine.element)
+    contexte.services.ouvrirTableau?.(origine.tableau)
+  },
+})
+
+// Le raccourci devient un vrai tableau : une copie du tableau lié, avec son contenu.
+registre.entreeMenu({
+  get libelle() {
+    return t('menu.dupliquerLie')
+  },
+  visible: (els, contexte) =>
+    els.length === 1 && els[0]!.contenu.type === 'tableau' && !!els[0]!.contenu.raccourci && !contexte.services.lectureSeule && !!contexte.services.dupliquerTableau,
+  faire([e], contexte) {
+    if (e?.contenu.type !== 'tableau') return
+    const { tableau, dupliquerTableau, colorerTableau, renommerTableau } = contexte.services
+    const neuf = dupliquerTableau?.(e.contenu.cible)
+    if (!neuf) return
+    const { raccourci: _r, titre, couleur, ...propre } = e.contenu
+    if (titre) renommerTableau?.(neuf, titre)
+    // La copie garde la couleur que montrait le raccourci.
+    const teinte = couleur ?? tableau?.(e.contenu.cible)?.couleur
+    if (teinte) colorerTableau?.(neuf, teinte)
+    contexte.magasin.faire([{ type: 'contenu', id: e.id, avant: e.contenu, apres: { ...propre, cible: neuf } }])
+  },
+})
+
 registre.entreeMenu({
   get libelle() {
     return t('menu.renommer')
@@ -80,10 +121,13 @@ registre.type<RenvoiTableau>({
   couleur: {
     lire: (e, contexte) => (e.contenu.raccourci && e.contenu.couleur) || contexte.services.tableau?.(e.contenu.cible)?.couleur,
     // Un raccourci a sa couleur : elle se range dans sa carte, et le tableau garde la sienne.
-    ailleurs: (e, couleur, contexte) =>
-      e.contenu.raccourci
-        ? contexte.magasin.faire([{ type: 'contenu', id: e.id, avant: e.contenu, apres: { ...e.contenu, couleur } }])
-        : contexte.services.colorerTableau?.(e.contenu.cible, couleur),
+    ailleurs: (e, couleur, contexte) => {
+      // Une teinte nommée chasse le fond libre et la couleur du glyphe de la carte.
+      const { fond: _f, glyphe: _g, ...base } = e.contenu
+      const propre = e.contenu.raccourci ? { ...base, couleur } : base
+      if (!e.contenu.raccourci) contexte.services.colorerTableau?.(e.contenu.cible, couleur)
+      if (JSON.stringify(propre) !== JSON.stringify(e.contenu)) contexte.magasin.faire([{ type: 'contenu', id: e.id, avant: e.contenu, apres: propre }])
+    },
   },
   sansFond: true,
   sansInclinaison: true,
@@ -98,6 +142,9 @@ registre.type<RenvoiTableau>({
       },
       icone: ico('tableau'),
       rang: 50,
+      get raccourci() {
+        return touchesCreation('B')
+      },
       vignette: 'tableau',
       fantome: () => ({ id: '', x: 0, y: 0, largeur: LARGEUR_RENVOI, contenu: { type: 'tableau', cible: '' } }),
       prise: { x: LARGEUR_RENVOI / 2, y: LARGEUR_RENVOI / 2 },
@@ -127,3 +174,10 @@ registre.type<RenvoiTableau>({
   ],
 })
 
+
+// ⌃⌘B (Ctrl+Alt+B ailleurs que sur Mac) : un tableau au centre de la vue, son titre à saisir.
+registre.raccourci((e, contexte) => {
+  if (!estCreation(e, 'B')) return false
+  const outil = definition('tableau')?.outils?.[0]
+  return !!outil && creerAuCentre(outil, contexte, { x: LARGEUR_RENVOI / 2, y: 7 })
+})

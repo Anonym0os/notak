@@ -42,7 +42,7 @@ export function couleurDuTitre(titre: string): CouleurNote | undefined {
 }
 
 /** Les mots qui évoquent chaque icône de la bibliothèque (français et anglais, sans accents). */
-const MOTS_ICONE: Readonly<Record<string, readonly string[]>> = {
+export const MOTS_ICONE: Readonly<Record<string, readonly string[]>> = {
   maison: ['maison', 'home', 'house', 'appartement', 'logement', 'demenagement'],
   voyage: ['voyage', 'vacances', 'trip', 'travel', 'vol', 'avion', 'holiday'],
   idee: ['idee', 'idees', 'idea', 'ideas', 'brainstorm', 'inspiration'],

@@ -16,9 +16,10 @@ import {
 import { point } from './coeur/geometrie'
 import { deballer } from './coeur/pressePapiers'
 import { creerMagasin } from './coeur/magasin'
-import { type Element, type Id, type Tableau, nouvelId, surLeTableau } from './coeur/tableau'
+import { type Element, type Id, type Tableau, nonTriesDe, nouvelId, surLeTableau } from './coeur/tableau'
 import { ChoixModele } from './elements/tableau/ChoixModele'
 import { poserModele } from './elements/tableau/poserModele'
+import { marquerVu } from './elements/tableau/activite'
 import { demanderRenommage } from './elements/tableau/renommage'
 import type { Presence, Services } from './elements/types'
 import { Toile } from './Toile'
@@ -101,6 +102,29 @@ export function placerALaSuite(t: Tableau, elements: Element[]): Element[] {
   return deballer({ elements, cadre: { min: point(minX, minY), max: point(minX, minY) } }, d)
 }
 
+/**
+ * Des éléments venus d'un autre tableau, rangés dans ses non triés à la suite de ceux qui y attendent, dans l'ordre
+ * où ils arrivent. Les lignes ne les suivent pas : rien ne les relierait sur la toile.
+ */
+export function versLesNonTries(t: Tableau, elements: Element[], maintenant = Date.now()): Element[] {
+  const apres = Math.max(maintenant, ...nonTriesDe(t).map((e) => e.nonTrie! + 1))
+  return deballer({ elements, cadre: { min: point(0, 0), max: point(0, 0) } }, point(0, 0))
+    .filter((e) => e.contenu.type !== 'ligne')
+    .map((e, i) => (e.parent ? e : { ...e, x: 0, y: 0, nonTrie: apres + i }))
+}
+
+/**
+ * Le contenu d'un tableau pour sa copie : mêmes éléments, identifiants neufs, lignes recâblées, verrous et non
+ * triés gardés. Ce qui est à la corbeille n'est pas copié.
+ */
+export function copieDuContenu(elements: readonly Element[]): Element[] {
+  const gardes = elements.filter((e) => e.corbeille === undefined)
+  return deballer({ elements: gardes, cadre: { min: point(0, 0), max: point(0, 0) } }, point(0, 0)).map((e, i) => {
+    const source = gardes[i]!
+    return { ...e, ...(source.verrou ? { verrou: source.verrou } : {}), ...(source.nonTrie !== undefined ? { nonTrie: source.nonTrie } : {}) }
+  })
+}
+
 interface Segment {
   id: Id
   titre: string
@@ -157,6 +181,17 @@ export function EspaceNotak({
     [espace],
   )
 
+  // Le tableau qu'on regarde est vu tel qu'il est, à chaque changement : la pastille d'activité des cartes ne s'allume
+  // que pour ce qui change pendant qu'on est ailleurs.
+  useEffect(() => {
+    const voir = () => {
+      const t = espace.tableau(courant)
+      if (t && t.elements.length > 0) marquerVu(courant, t)
+    }
+    voir()
+    return espace.ecouter(voir)
+  }, [espace, courant])
+
   const services = useMemo<Services>(
     () => ({
       ...hote,
@@ -187,10 +222,27 @@ export function EspaceNotak({
         setParcours(avancer)
         return true
       },
-      deposerDans: (cible, elements) => {
+      dupliquerTableau: (id) => {
+        const source = espace.tableau(id)
+        if (!source) return undefined
+        const neuf = espace.creerTableau(source.titre, courant)
+        const m = espace.magasin(neuf)
+        m.appliquerSeulement(copieDuContenu(source.elements).map((element) => ({ type: 'creer' as const, element })))
+        if (source.couleur) m.remplacer({ ...m.lire(), couleur: source.couleur })
+        return neuf
+      },
+      retrouverOriginal: (cible) => {
+        // Le tableau qui le contient, puis celui où l'on est : la carte qui n'est pas un raccourci.
+        for (const id of [espace.parent(cible), courant]) {
+          const carte = id ? espace.tableau(id)?.elements.find((e) => e.contenu.type === 'tableau' && e.contenu.cible === cible && !e.contenu.raccourci && e.corbeille === undefined && e.nonTrie === undefined) : undefined
+          if (id && carte) return { tableau: id, element: carte.id }
+        }
+        return undefined
+      },
+      deposerDans: (cible, elements, nonTries) => {
         if (espace.lectureSeule?.(cible)) return
         const m = espace.magasin(cible)
-        const neufs = placerALaSuite(m.lire(), elements)
+        const neufs = nonTries ? versLesNonTries(m.lire(), elements) : placerALaSuite(m.lire(), elements)
         m.appliquerSeulement(neufs.map((element) => ({ type: 'creer' as const, element })))
         return neufs
       },

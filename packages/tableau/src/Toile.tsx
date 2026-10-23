@@ -284,6 +284,16 @@ function CurseurAutre({ presence: a, echelle }: { presence: Presence; echelle: n
 const sansEcoute = () => () => {}
 const rien = () => {}
 
+/** L'élément dont on écrit le texte quand on « édite » celui-ci (un clone écrit son original) ; `null` : rien à écrire. */
+const ecrivain = (el: Element, tableau: Tableau): Element | null => {
+  const def = definition(el.contenu.type)
+  return def?.edite ? def.edite(el as never, tableau) : el
+}
+const defEcrite = (el: Element, tableau: Tableau) => {
+  const ecrit = ecrivain(el, tableau)
+  return ecrit ? definition(ecrit.contenu.type) : undefined
+}
+
 /** Une ligne fantôme se dessine par son type, dans un calque SVG à elle. */
 function rendreFantome(e: Element, contexte: ContexteToile) {
   const Rendu = definition(e.contenu.type)!.Rendu
@@ -478,7 +488,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     presence?.signaler({ selection: [...selection] })
   }, [presence, selection])
   // Qui écrit dans quelle note : celui qui arrive rejoint le texte en cours au lieu de le remettre à zéro.
-  useEffect(() => presence?.signaler({ edition }), [presence, edition])
+  useEffect(() => {
+    // Un clone s'écrit dans son original : c'est lui que les autres voient s'écrire.
+    const el = edition ? etat.current.magasin.lire().elements.find((x) => x.id === edition) : undefined
+    presence?.signaler({ edition: el ? (ecrivain(el, etat.current.tableau)?.id ?? edition) : edition })
+  }, [presence, edition])
   useEffect(() => () => presence?.signaler({ curseur: null, selection: [], edition: null }), [presence])
 
   // Le contour d'un élément choisi par un autre : posé sur le nœud, dans la couleur de cette personne.
@@ -604,7 +618,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (etat.current.services.lectureSeule) return
       // Le magasin, pas l'état rendu : l'élément vient peut-être d'être créé.
       const el = etat.current.magasin.lire().elements.find((x) => x.id === id)
-      if (!el || !definition(el.contenu.type)?.editable) return
+      if (!el || !defEcrite(el, etat.current.magasin.lire())?.editable) return
       if (etat.current.edition) finirEdition()
       brouillon.current = null
       pousses.current = []
@@ -802,6 +816,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       centreVue: () => cam.centreCamera(etat.current.camera, etat.current.vue),
       choisir: (ids) => setSelection(new Set(ids)),
       commencerEdition,
+      brouillonDe: (el, apres) => surBrouillon(el, apres),
+      montrer: (id) => montrerCourant.current(id),
       jeter,
       creerSuivant,
       prendrePointEdition: () => {
@@ -812,10 +828,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       finirEdition,
       recevoir: (donnees, ou) => void recevoirCourant.current(donnees, ou),
     }),
-    [rect, commencerEdition, finirEdition, creerSuivant, jeter],
+    [rect, commencerEdition, finirEdition, creerSuivant, jeter, surBrouillon],
   )
   contexteRef.current = contexte
 
+  const montrerCourant = useRef<(id: Id) => void>(() => {})
   const recevoirCourant = useRef<(d: DataTransfer, ou: Point) => Promise<void>>(async () => {})
   /** `dans` : la colonne où l'on a déposé ; ce qui peut y entrer s'y range, à la suite. */
   const recevoir = async (original: DataTransfer, ou: Point, dans?: Id) => {
@@ -1371,6 +1388,13 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     setRequete(null)
     setRangTrouve(-1)
     racine.current?.focus()
+  }
+
+  /** Choisit un élément et y centre la vue (le contexte l'appelle par `montrerCourant`, toujours à jour). */
+  montrerCourant.current = (id) => {
+    setSelection(new Set([id]))
+    const zone = rect(id)
+    if (zone) lancerAnimation(cam.centree(centre(zone), camera.echelle, vue))
   }
 
   const lancerAnimation = (cible: cam.Camera) => {
@@ -2310,7 +2334,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (!r) return
       const el = tableau.elements.find((x) => x.id === r.id)
       const surTitre = el?.contenu.type !== 'colonne' || !!document.elementFromPoint(r.ou.x, r.ou.y)?.closest('.notak-colonne-titre')
-      if (r.seul && el && !lectureSeule && surTitre && definition(el.contenu.type)?.editable && !definition(el.contenu.type)?.ouvreAuDoubleClic && e.type === 'pointerup') commencerEdition(r.id, r.ou)
+      if (r.seul && el && !lectureSeule && surTitre && defEcrite(el, tableau)?.editable && !definition(el.contenu.type)?.ouvreAuDoubleClic && e.type === 'pointerup') commencerEdition(r.id, r.ou)
       else setSelection(new Set([r.id]))
       return
     }
@@ -2466,7 +2490,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   // texte, par un portail) ; un type sans outils d'édition garde la barre de sa sélection.
   const elementEnEdition = edition && !enGeste ? tableau.elements.find((x) => x.id === edition) : undefined
   const editionAGauche = !!services.barreAGauche && !lectureSeule && !!elementEnEdition
-  const barreEdition = editionAGauche && !!definition(elementEnEdition!.contenu.type)?.outilsEdition
+  const barreEdition = editionAGauche && !!defEcrite(elementEnEdition!, tableau)?.outilsEdition
   const selectionEnEdition = editionAGauche && !barreEdition ? [elementEnEdition!] : null
   const emplacementEdition = useMemo(() => ({ attendue: barreEdition, cible: barreEdition ? cibleEdition : null }), [barreEdition, cibleEdition])
 

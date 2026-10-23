@@ -1,7 +1,6 @@
 import type { Rect } from '../../coeur/geometrie'
 import { clesEntre, trierLecture } from '../../coeur/ordre'
 import { type Element, type Id, LARGEUR_COLONNE, type Operation, aimanter, nouvelleColonne, placeDe } from '../../coeur/tableau'
-import { t } from '../../langue'
 
 export interface Groupable {
   element: Element
@@ -18,7 +17,7 @@ export function pasDeGroupement(items: readonly Groupable[], lignes: readonly El
   const [x1, y1] = [Math.max(...items.map((i) => i.rect.max.x)), Math.max(...items.map((i) => i.rect.max.y))]
   const hauteur = 15 + items.reduce((somme, i) => somme + (i.rect.max.y - i.rect.min.y), 0)
   const [x, y] = aimanter({ x: (x0 + x1) / 2 - LARGEUR_COLONNE / 2, y: (y0 + y1) / 2 - hauteur / 2 })
-  const colonne = nouvelleColonne(x, y, t('type.colonne'))
+  const colonne = nouvelleColonne(x, y)
   const ranges = trierLecture(items.map((i) => ({ ...i, x: i.rect.min.x, y: i.rect.min.y })))
   const cles = clesEntre(undefined, undefined, ranges.length)
   const pas: Operation[] = [

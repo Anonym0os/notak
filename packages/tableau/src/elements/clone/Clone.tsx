@@ -7,8 +7,6 @@ import { originalAffichable, originalDe } from './original'
 import { t } from '../../langue'
 import { BoutonOutil } from '../../BoutonOutil'
 
-const rien = () => {}
-
 /** L'original d'un clone, suivi à chaque changement du tableau, même s'il est à la corbeille. */
 function useOriginal(cible: string, contexte: ContexteToile): Element | undefined {
   return useSyncExternalStore(contexte.magasin.ecouter, () => originalAffichable(contexte.magasin.lire().elements, cible))
@@ -18,7 +16,7 @@ function useOriginal(cible: string, contexte: ContexteToile): Element | undefine
  * Le clone dessine son original, sans cadre de plus : le rendu du type est celui de l'original, et ce qu'on y
  * change (cocher une case, résoudre) change l'original. Seuls la place et la largeur sont ceux du clone.
  */
-export function RenduClone({ element, choisie, contexte }: PropsRendu<Clone>) {
+export function RenduClone({ element, choisie, seule, enEdition, contexte }: PropsRendu<Clone>) {
   const original = useOriginal(element.contenu.cible, contexte)
   const def = original && definition(original.contenu.type)
   if (!original || !def) {
@@ -35,9 +33,11 @@ export function RenduClone({ element, choisie, contexte }: PropsRendu<Clone>) {
       <Original
         element={original}
         choisie={choisie}
-        enEdition={false}
+        {...(seule !== undefined ? { seule } : {})}
+        enEdition={enEdition}
         contexte={contexte}
-        brouillon={rien}
+        // On écrit dans le clone, sur place, mais c'est le contenu de l'original qui change.
+        brouillon={(apres) => contexte.brouillonDe(original, apres)}
         changer={(apres) => {
           const actuel = contexte.magasin.lire().elements.find((e) => e.id === original.id)
           if (actuel) contexte.magasin.faire([{ type: 'contenu', id: original.id, avant: actuel.contenu, apres }])

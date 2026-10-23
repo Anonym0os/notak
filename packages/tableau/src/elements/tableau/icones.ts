@@ -2,6 +2,8 @@ import type { Element, Id, RenvoiTableau } from '../../coeur/tableau'
 import { nouvelId } from '../../coeur/tableau'
 import { t } from '../../langue'
 import type { NomIcone } from '../../icones'
+import type { TablerIcon } from '@tabler/icons-react'
+import { CATALOGUE, libelleCatalogue } from './catalogue'
 
 /** La bibliothèque d'icônes d'un tableau : un nom stable (c'est lui qu'on garde) et le signe qu'il dessine. */
 export const ICONES_TABLEAU: Readonly<Record<string, { icone: NomIcone; libelle: string }>> = {
@@ -50,18 +52,27 @@ export const ICONES_TABLEAU: Readonly<Record<string, { icone: NomIcone; libelle:
 }
 
 /** Ce qu'une carte de tableau dessine dans son carré : l'image, sinon l'icône, sinon l'initiale. */
-export type Pastille = { genre: 'image'; fichier: Id } | { genre: 'icone'; icone: NomIcone; libelle: string } | { genre: 'initiale' }
+export type Pastille =
+  | { genre: 'image'; fichier: Id }
+  | { genre: 'icone'; icone: NomIcone; libelle: string }
+  | { genre: 'catalogue'; dessin: TablerIcon; libelle: string }
+  | { genre: 'initiale' }
 
 export function pastilleDe(c: Pick<RenvoiTableau, 'icone' | 'image'>): Pastille {
   if (c.image) return { genre: 'image', fichier: c.image }
   const icone = c.icone ? ICONES_TABLEAU[c.icone] : undefined
-  return icone ? { genre: 'icone', ...icone } : { genre: 'initiale' }
+  if (icone) return { genre: 'icone', ...icone }
+  const autre = c.icone ? CATALOGUE[c.icone] : undefined
+  return autre ? { genre: 'catalogue', dessin: autre.dessin, libelle: libelleCatalogue(c.icone!) } : { genre: 'initiale' }
 }
+
+/** Ce nom désigne une icône qu'on connaît : de la petite bibliothèque, ou du catalogue. */
+export const iconeConnue = (nom: string) => nom in ICONES_TABLEAU || nom in CATALOGUE
 
 /** Le contenu avec cette icône (ou celle-ci en moins : `undefined`) ; une image et une icône ne vont pas ensemble. */
 export function avecIcone(c: RenvoiTableau, icone: string | undefined): RenvoiTableau {
   const { icone: _i, image: _m, ...reste } = c
-  return icone && ICONES_TABLEAU[icone] ? { ...reste, icone } : reste
+  return icone && iconeConnue(icone) ? { ...reste, icone } : reste
 }
 
 /** Le contenu avec cette image à la place de l'initiale. */
