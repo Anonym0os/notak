@@ -20,6 +20,7 @@ import { demanderRenommage } from './elements/tableau/renommage'
 import type { Presence, Services } from './elements/types'
 import { Toile } from './Toile'
 import { annoncer } from './avis'
+import './theme.css'
 
 const CLE_VUES = 'notak:vues'
 const LIBELLE_RACINE = 'Accueil'
@@ -208,6 +209,7 @@ export function EspaceNotak({
   }, [fil, racine])
 
   // Les raccourcis de navigation, sur le document : la toile qui avait le focus disparaît à chaque changement.
+  const basculerThemeRef = useRef(() => {})
   const etat = useRef({ courant, ouvrir, espace, parcours })
   etat.current = { courant, ouvrir, espace, parcours }
   useEffect(() => {
@@ -221,7 +223,8 @@ export function EspaceNotak({
       }
       if (!(e.metaKey || e.ctrlKey) || e.altKey || saisissable(e.target)) return
       const { courant: ici, ouvrir: aller, espace: esp, parcours: p } = etat.current
-      if (e.key.toLowerCase() === 'u' && e.shiftKey) {
+      if (e.key.toLowerCase() === 'd' && e.shiftKey) basculerThemeRef.current()
+      else if (e.key.toLowerCase() === 'u' && e.shiftKey) {
         // Redescendre : dans le tableau qu'on vient de quitter, s'il est rangé dans celui-ci.
         const quitte = p.pile[p.index - 1]
         if (quitte && esp.parent(quitte) === ici) aller(quitte)
@@ -246,6 +249,25 @@ export function EspaceNotak({
   }, [courant])
 
   const envoi = useSyncExternalStore(espace.ecouter, () => espace.envoi?.(courant))
+  const [theme, setTheme] = useState<'clair' | 'sombre'>(() => {
+    try {
+      return localStorage.getItem(CLE_THEME) === 'sombre' ? 'sombre' : 'clair'
+    } catch {
+      return 'clair'
+    }
+  })
+  const basculerTheme = useCallback(() => {
+    setTheme((t) => {
+      const suivant = t === 'sombre' ? 'clair' : 'sombre'
+      try {
+        localStorage.setItem(CLE_THEME, suivant)
+      } catch {
+        // Sans stockage (navigation privée), le thème vaut pour la page.
+      }
+      return suivant
+    })
+  }, [])
+  basculerThemeRef.current = basculerTheme
   const historique = useMemo(
     () => ({
       annuler: () => void espace.magasin(courant).annuler(),
@@ -263,7 +285,7 @@ export function EspaceNotak({
   )
 
   return (
-    <div className="notak-espace">
+    <div className="notak-espace" data-theme={theme}>
       <Entete
         segments={segments}
         courant={courant}
@@ -467,6 +489,9 @@ function EtatEnregistrement({ etat }: { etat: EtatEnvoi | undefined }) {
     </span>
   )
 }
+
+/** Le thème choisi, gardé par navigateur. */
+const CLE_THEME = 'notak:theme'
 
 const sansEcoute = () => () => {}
 const aucune: Presence[] = []

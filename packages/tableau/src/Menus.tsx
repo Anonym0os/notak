@@ -238,6 +238,7 @@ const RACCOURCIS: { titre: string; lignes: [string, string][] }[] = [
       ['Ouvrir le tableau choisi', 'Espace'],
       ['Tableau parent, redescendre', '⌘U  ⇧⌘U'],
       ['Reculer, avancer', '⌘[  ⌘]'],
+      ['Thème sombre', '⇧⌘D'],
       ['Ces raccourcis', '/'],
     ],
   },

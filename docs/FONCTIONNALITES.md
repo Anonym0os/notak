@@ -27,10 +27,10 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 12. Organiser | 15 | 1 | 0 | 97 % |
 | 13. Naviguer | 8 | 2 | 3 | 69 % |
 | 14. À plusieurs | 9 | 2 | 6 | 59 % |
-| 15. Habillage | 5 | 2 | 8 | 40 % |
+| 15. Habillage | 6 | 2 | 7 | 47 % |
 | 16. Exporter, importer | 0 | 0 | 4 | 0 % |
 | 17. Plateformes | 1 | 1 | 5 | 21 % |
-| **Total** | **153** | **22** | **74** | **66 %** |
+| **Total** | **154** | **22** | **73** | **66 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -339,7 +339,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Barre d'outils contextuelle | 🟡 | Flottante au-dessus de la sélection (choix) ; voir § 12 pour son contenu. |
 | Annuler et rétablir dans l'en-tête | ✅ | |
 | État d'enregistrement (« enregistré », « hors ligne ») | ✅ | |
-| Thème sombre (Cmd+Maj+D) | ⬜ | |
+| Thème sombre (Cmd+Maj+D) | ✅ | |
 | Tailles d'interface (petite, moyenne, grande) | ⬜ | |
 | Fenêtre des raccourcis (/) | ✅ | |
 | Présentation (Cmd+Alt+P), mode focus sur un élément | ⬜ | |

@@ -1,0 +1,92 @@
+/*
+ * Le thème sombre (Cmd+Maj+D) : les mêmes jetons que le thème clair, repeints. Les notes de couleur gardent
+ * leur teinte ; ce qui était blanc ou gris clair passe dans les gris profonds.
+ */
+.notak-espace[data-theme='sombre'],
+.notak-espace[data-theme='sombre'] .notak-toile {
+  --notak-fond: #1b1e23;
+  --notak-point: #3a3f47;
+  --notak-carte: #2a2e35;
+  --notak-texte: #e3e5e9;
+  --notak-accent: #5b8ff9;
+  --notak-ombre: 0 1px 3px rgb(0 0 0 / 0.45);
+  --notak-voile: #2a2e35;
+  color-scheme: dark;
+}
+
+.notak-espace[data-theme='sombre'] {
+  background: var(--notak-fond);
+  color: var(--notak-texte);
+}
+
+.notak-espace[data-theme='sombre'] .notak-entete {
+  border-bottom-color: rgb(255 255 255 / 0.08);
+}
+
+/* Les panneaux, menus et barres flottantes reposent déjà sur --notak-carte ; leurs ombres et séparateurs s'éclaircissent. */
+.notak-espace[data-theme='sombre'] :is(.notak-menu, .notak-barre-selection, .notak-barre-plus-menu, .notak-corbeille, .notak-recherche, .notak-raccourcis, .notak-barre-outils, .notak-tiroir) {
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.06);
+}
+
+.notak-espace[data-theme='sombre'] :is(.notak-menu-sep, .notak-barre-sep) {
+  background: rgb(255 255 255 / 0.1);
+}
+
+.notak-espace[data-theme='sombre'] .notak-image-vide {
+  background: #33383f;
+  color: #9aa0a8;
+}
+
+.notak-espace[data-theme='sombre'] .notak-raccourcis kbd,
+.notak-espace[data-theme='sombre'] .notak-historique button:hover {
+  background: #3a3f47;
+}
+
+.notak-espace[data-theme='sombre'] .notak-avis {
+  background: #e3e5e9;
+  color: #1b1e23;
+}
+
+.notak-espace[data-theme='sombre'] .notak-avis button {
+  color: #2f6feb;
+}
+
+.notak-espace[data-theme='sombre'] .notak-enregistrement[data-etat='hors-ligne'] {
+  background: #4a3a14;
+  color: #f3d27a;
+}
+
+/* Le passage d'un thème à l'autre se fait en fondu. */
+.notak-espace,
+.notak-espace .notak-toile,
+.notak-espace .notak-carte,
+.notak-espace .notak-entete {
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* Les colonnes : un gris à peine plus clair que la toile, et leurs teintes assourdies. */
+.notak-espace[data-theme='sombre'] .notak-toile {
+  --notak-colonne: #24282e;
+  --notak-colonne-gris: #30353c;
+  --notak-colonne-cyan: #1f3a3f;
+  --notak-colonne-vert: #223a2b;
+  --notak-colonne-brun: #3a2f26;
+  --notak-colonne-jaune: #3d3720;
+  --notak-colonne-orange: #3f3020;
+  --notak-colonne-rouge: #402828;
+  --notak-colonne-rose: #40293a;
+  --notak-colonne-violet: #322a42;
+  --notak-colonne-bleu: #243250;
+  --notak-colonne-bleu_nuit: #252c3b;
+}
+
+.notak-espace[data-theme='sombre'] .notak-colonne-corps > .notak-carte:not([data-sans-fond]) {
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.06);
+}
+
+/* Les boutons de l'application posés dans l'en-tête (Partager, le compte). */
+.notak-espace[data-theme='sombre'] .notak-entete-actions .bouton:not(.bouton-plein) {
+  border-color: rgb(255 255 255 / 0.14);
+  background: #2f343b;
+  color: var(--notak-texte);
+}
