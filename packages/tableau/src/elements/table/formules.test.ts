@@ -434,7 +434,7 @@ describe('suggererFonctions', () => {
   test('sans requête', () => expect(suggererFonctions('')).toEqual(['SUM', 'IF', 'MIN', 'MAX', 'COUNT', 'AVERAGE']))
   test('préfixe, tri par longueur puis alphabet', () => {
     const r = suggererFonctions('co')
-    expect(r.slice(0, 6)).toEqual(['COS', 'CODE', 'COUNT', 'COLUMN', 'CONCAT', 'COUNTA'])
+    expect(r.slice(0, 6)).toEqual(['COS', 'CODE', 'COSH', 'COUNT', 'COVAR', 'COLUMN'])
     expect(r.every((n) => n.startsWith('CO'))).toBe(true)
   })
   test('insensible à la casse', () => expect(suggererFonctions('su')).toEqual(['SUM', 'SUMIF', 'SUMSQ', 'SUMIFS', 'SUBSTITUTE', 'SUMPRODUCT']))
@@ -602,5 +602,62 @@ describe('typeDuResultat', () => {
   })
   test('une boucle ne tourne pas', () => {
     expect(typeDuResultat('=SUM(A1)', [['=SUM(A1)']])).toBeUndefined()
+  })
+})
+
+describe('les fonctions ajoutées', () => {
+  test('combinatoire et hyperboliques', () => {
+    expect(v('=COMBIN(5,2)')).toBe(10)
+    expect(v('=PERMUT(5,2)')).toBe(20)
+    expect(v('=FACTDOUBLE(7)')).toBe(105)
+    expect(v('=MROUND(10,3)')).toBe(9)
+    expect(v('=SINH(0)')).toBe(0)
+    expect(e('=ACOSH(0.5)')).toBe('#VALUE!')
+  })
+
+  test('statistiques à deux séries', () => {
+    const d = [['1', '2'], ['2', '4'], ['3', '6'], ['4', '8']]
+    expect(v('=CORREL(A1:A4,B1:B4)', ...d)).toBe(1)
+    expect(v('=SLOPE(B1:B4,A1:A4)', ...d)).toBe(2)
+    expect(v('=INTERCEPT(B1:B4,A1:A4)', ...d)).toBe(0)
+    expect(v('=FORECAST(5,B1:B4,A1:A4)', ...d)).toBe(10)
+    expect(v('=PERCENTILE(A1:A4,0.5)', ...d)).toBe(2.5)
+    expect(v('=QUARTILE(A1:A4,2)', ...d)).toBe(2.5)
+    expect(v('=GEOMEAN(2,8)')).toBe(4)
+  })
+
+  test('finance', () => {
+    expect(v('=ROUND(PMT(0.05/12,60,-20000),2)')).toBe(377.42)
+    expect(v('=ROUND(FV(0.06/12,10,-200,-500,1),2)')).toBe(2581.4)
+    expect(v('=ROUND(PV(0.08/12,240,500),2)')).toBe(-59777.15)
+    expect(v('=ROUND(NPER(0.01,-100,-1000,10000,1),2)')).toBe(59.67)
+    expect(v('=ROUND(NPER(0.01,-100,-1000,10000),2)')).toBe(60.08)
+    expect(v('=ROUND(NPV(0.1,-100,60,60),4)')).toBe(3.7566)
+    expect(v('=ROUND(IRR(A1:A4),4)', ['-1000'], ['300'], ['400'], ['500'])).toBe(0.089)
+    expect(v('=ROUND(RATE(48,-200,8000),6)')).toBe(0.007701)
+  })
+
+  test('bases et bits', () => {
+    expect(v('=DEC2BIN(9)')).toBe('1001')
+    expect(v('=DEC2HEX(255)')).toBe('FF')
+    expect(v('=DEC2BIN(9,8)')).toBe('00001001')
+    expect(v('=BIN2DEC("1111111111")')).toBe(-1)
+    expect(v('=HEX2DEC("FF")')).toBe(255)
+    expect(v('=BITAND(12,10)')).toBe(8)
+    expect(v('=BITOR(12,10)')).toBe(14)
+    expect(v('=BITXOR(12,10)')).toBe(6)
+    expect(v('=BITLSHIFT(1,4)')).toBe(16)
+    expect(v('=BITRSHIFT(16,2)')).toBe(4)
+  })
+
+  test('divers', () => {
+    expect(v('=COUNTUNIQUE(A1:A4)', ['a'], ['A'], ['b'], [''])).toBe(2)
+    expect(v('=ROMAN(1994)')).toBe('MCMXCIV')
+    expect(v('=UNICODE("é")')).toBe(233)
+    expect(v('=HYPERLINK("https://x.fr","ici")')).toBe('ici')
+  })
+
+  test('elles sont proposées par l’autocomplétion', () => {
+    for (const n of ['PMT', 'FV', 'IRR', 'CORREL', 'DEC2BIN', 'BITAND']) expect(FONCTIONS).toContain(n)
   })
 })
