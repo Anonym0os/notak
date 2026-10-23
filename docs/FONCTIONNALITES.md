@@ -19,10 +19,10 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 4. Colonne | 11 | 1 | 0 | 96 % |
 | 5. Tableau imbriqué | 11 | 0 | 0 | 100 % |
 | 6. Lien | 13 | 0 | 0 | 100 % |
-| 7. Image | 17 | 0 | 0 | 100 % |
+| 7. Image | 19 | 0 | 0 | 100 % |
 | 8. Liste de tâches | 18 | 0 | 0 | 100 % |
 | 9. Ligne | 16 | 2 | 0 | 94 % |
-| 10. Autres éléments | 15 | 2 | 0 | 94 % |
+| 10. Autres éléments | 16 | 2 | 1 | 89 % |
 | 11. Commun aux éléments | 11 | 1 | 0 | 96 % |
 | 12. Organiser | 16 | 0 | 0 | 100 % |
 | 13. Naviguer | 13 | 0 | 0 | 100 % |
@@ -30,7 +30,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 6 | 1 | 0 | 93 % |
-| **Total** | **259** | **11** | **4** | **97 %** |
+| **Total** | **262** | **11** | **5** | **96 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -190,22 +190,24 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Fonctionnalité | État | Reste |
 |---|---|---|
 | Largeur de départ tirée de l'image, 4 UG au minimum | ✅ | |
-| Visionneuse plein écran (double-clic, Espace, Entrée) | ✅ | Voile à 70 %, barre sombre (Dessiner, Modifier, Fond, précédente, suivante, ouvrir, télécharger), zoom de 1 à 4, flèches ; pas d'étape d'envoi dans la fenêtre. |
+| Visionneuse plein écran (double-clic, Espace, Entrée) | ✅ | Voile à 70 %, barre sombre (Dessiner, Modifier, Fond, précédente, suivante, ouvrir, télécharger), zoom de 1 à 4, flèches ; tant que l'image part, barre de 4 px et « Envoi de l'image… » dans la fenêtre. |
 | Carte blanche, légende dedans (12 px, retrait de 24 px), masquée sous 8 UG | ✅ | Légende en texte brut, sans mise en forme. |
 | Image rognée sur la grille (jamais étirée), carte 2 px plus petite que la grille | ✅ | « Rogner l'image sur la grille de points » décoche pour garder les proportions exactes. |
 | Frappe directe sur une image choisie = début de sa légende ; Entrée l'ouvre | ✅ | |
 | Outil Transparent, Dessiner dessus, Légende après l'arrangement | ✅ | Pivoter, Recadrer, Détourer restent dans « ••• ». |
 | Télécharger l'image d'origine, Remplacer l'image | ✅ | |
-| Pivoter vers la gauche | ✅ | Pas de miroirs. |
+| Pivoter vers la gauche, miroirs horizontal et vertical (à l'écran, après le quart de tour) | ✅ | |
+| Redimensionner avec Cmd : cadrage libre (4 × 4 UG au moins, l'image recouvre le cadre), double-clic sur la poignée qui le retire | ✅ | |
+| Palette de l'image (dix couleurs dominantes) dans les couleurs suggérées | ✅ | Lue à l'arrivée d'une image ; les images déjà posées n'en ont pas. |
 | Ombre selon la transparence | ✅ |  |
 | Miniature et roue pendant l'envoi | ✅ | |
 | Tailles adaptées à l'affichage (400, 800, 1600 px) | ✅ |  |
 | Hauteur calée sur la grille | ✅ |  |
 | Recadrer, pivoter, détourer | ✅ | Détourer retire un fond uni, avec une tolérance ; l'original se rétablit. |
 | Dessiner sur l'image (annotation, Maj+D) | ✅ |  |
-| Remplacer en déposant une autre image dessus | ✅ |  |
+| Remplacer en déposant une autre image dessus : filet puis voile « Remplacer l'image » après 500 ms | ✅ | Lâchée avant 500 ms, c'est une image de plus. |
 | Image cassée signalée | ✅ | |
-| Outils Image et Fichier : choisir dans le Finder, au clic ou en glissant l'outil | ✅ | |
+| Outil Image : le clic ouvre le panneau d'images, le glisser rebondit et la bulle invite à cliquer ; outil Envoyer : panneau d'envoi | ✅ | |
 
 ## 8. Liste de tâches
 
@@ -258,13 +260,14 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
 | Fonctionnalité | État | Reste |
 |---|---|---|
-| Fichier joint : mode icône (feuille de 56 × 72 px, 10 UG), naît en icône sauf son et vidéo | ✅ | Pictogrammes de Notak (neuf familles), pas les 31 de Milanote. |
+| Fichier joint : mode icône (feuille de 56 × 72 px, 10 UG), naît en icône sauf son et vidéo | ✅ | Dix-huit pictogrammes à nous (3D, polices, courriels, pages web, vecteur, photo brute, montage, maquette en plus des dix premiers), le contour de sélection suit la feuille. |
 | Fichier joint : carte détaillée, aperçu de bord à bord, « Télécharger - Ouvrir - 1,2 MB » | ✅ | Aperçu : première page d'un PDF, image, vidéo ; « Aucun aperçu disponible » pour Word, Excel, PowerPoint, texte, code. |
 | Fenêtre du fichier (PDF et texte dans le lecteur du navigateur, le reste en carte agrandie) | ✅ | |
 | Barre du fichier : Mode, Aperçu, Renommer, Légende, Infos, Boucle, Lecture auto | ✅ | |
 | Lecteurs audio et vidéo à nous (volume au survol, durée, cercle de lecture, plein écran, relances) | ✅ | |
-| Fichiers refusés avec un message (extension, nom, taille de 25 Mio) | ✅ | Liste d'extensions de Notak, plus courte que celle de Milanote ; plafond unique, sans offre. |
-| Fichier joint : aperçus fabriqués par un service, état « Processing » | ❌ | Pas de service d'aperçu. |
+| Fichiers refusés avec un message (extension, nom, taille de 25 Mio) | ✅ | Les 43 extensions de Milanote ; plafond unique, sans offre. |
+| Fichier joint : aperçu d'un PDF dessiné dans le navigateur (pdf.js), état « Traitement » | ✅ | |
+| Fichier joint : aperçus fabriqués par un service (Word, Excel, PowerPoint, polices, Photoshop…) | ⬜ | Pas de service d'aperçu : « Aucun aperçu disponible ». |
 | Commentaire (fil de discussion posé sur la toile) | ✅ | Fiche bleu pâle de 34 unités, prénom et date relative, liens, Modifier au survol, Publier, couleur (bande). Reste : éditeur riche, mentions et émojis dans le fil, indicateur de frappe, hauteur réglable. |
 | Table : un petit tableur (sélection de plages, clavier, types, formules, repères, clic droit, presse-papiers, titre, légende) | ✅ | Relevé dans `docs/ecarts/table.md`, repris d'après le code de Milanote le 23/10. Pas de mise en forme partielle dans une cellule ; ⌃⌘N attend les raccourcis de création. |
 | Croquis à main levée | ✅ |  |
