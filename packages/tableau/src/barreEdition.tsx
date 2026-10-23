@@ -1,5 +1,6 @@
 import { createContext } from 'react'
 import { Icone } from './icones'
+import { Infobulle } from './Infobulle'
 import { t } from './langue'
 
 /**
@@ -30,29 +31,26 @@ export function BarreEdition({ cible, corbeille, nonTries }: { cible(el: HTMLEle
       <nav className="notak-barre-outils" data-selection data-edition onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
         <div className="notak-barre-edition-liste" ref={cible} />
         <div className="notak-barre-ressort" />
-        <button
-          type="button"
-          className="notak-outil"
-          data-genre="corbeille"
-          data-corbeille
-          aria-expanded={corbeille.ouverte}
-          title={t('corbeille.titre')}
-          onClick={corbeille.basculer}
-        >
-          <span className="notak-outil-icone"><Icone nom="corbeille" taille={26} /></span>
-          <span className="notak-outil-libelle">{t('corbeille.titre')}{corbeille.nombre > 0 ? ` (${corbeille.nombre})` : ''}</span>
-        </button>
+        <Infobulle libelle={t('corbeille.titre')} cote="droite" contenu>
+          <button
+            type="button"
+            className="notak-outil"
+            data-genre="corbeille"
+            data-corbeille
+            aria-expanded={corbeille.ouverte}
+            aria-label={t('corbeille.titre')}
+            onClick={corbeille.basculer}
+          >
+            <span className="notak-outil-icone"><Icone nom="corbeille" taille={26} /></span>
+            <span className="notak-outil-libelle">{t('corbeille.titre')}{corbeille.nombre > 0 ? ` (${corbeille.nombre})` : ''}</span>
+          </button>
+        </Infobulle>
       </nav>
-      <button
-        type="button"
-        className="notak-non-tries-bouton"
-        aria-expanded={nonTries.ouverte}
-        title={t('nonTries.titre') + ' (⌘\\)'}
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={nonTries.basculer}
-      >
-        <strong>{nonTries.nombre}</strong> {t('nonTries.titre')}
-      </button>
+      <Infobulle libelle={t('nonTries.titre')} raccourci="⌘\\" contenu>
+        <button type="button" className="notak-non-tries-bouton" aria-expanded={nonTries.ouverte} onPointerDown={(e) => e.stopPropagation()} onClick={nonTries.basculer}>
+          <strong>{nonTries.nombre}</strong> {t('nonTries.titre')}
+        </button>
+      </Infobulle>
     </>
   )
 }

@@ -131,6 +131,8 @@ export interface Services {
   ecouterRecemmentModifies?(f: () => void): () => void
   /** On peut regarder et défiler, rien de plus : la toile refuse tout ce qui modifie. */
   lectureSeule?: boolean
+  /** L'aperçu d'un modèle : lecture seule, mais la barre de gauche reste là, grisée et sans clic. */
+  apercuModele?: boolean
   /** La présentation (Cmd+Alt+P) : rien ne se modifie, et un clic sur un élément le montre en grand. */
   presentation?: boolean
   /**

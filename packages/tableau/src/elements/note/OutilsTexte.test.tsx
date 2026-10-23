@@ -4,6 +4,7 @@ import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BarreEdition } from '../../barreEdition'
+import { DELAI_INFOBULLE, oublierInfobulle } from '../../Infobulle'
 import { fermerMenus } from '../../menuUnique'
 import { OutilsTexteGauche } from './OutilsTexte'
 import { EXTENSIONS_NOTE } from './extensions'
@@ -48,14 +49,23 @@ describe('les outils de texte dans la barre de gauche', () => {
     expect(noms).toEqual(['Gras', 'Italique', 'Barré', 'Souligné', 'Puces', 'Numérotée', 'Centrer', 'Code', 'Lien', 'Commenter le passage'])
     // Icône seule : pas de libellé dans la tuile ; ni retrait ni « Insérer » dans cette barre.
     expect(outil('Gras').textContent).toBe('')
-    expect(hote.querySelector('button[aria-label^="Retrait"], button[title^="Insérer"]')).toBeNull()
+    expect(hote.querySelector('button[aria-label^="Retrait"], button[aria-label^="Insérer"]')).toBeNull()
   })
 
-  it('l’infobulle porte le raccourci', () => {
-    monter()
-    expect(outil('Gras').title).toBe('Gras (⌘B)')
-    expect(outil('Barré').title).toBe('Barré (⌘⇧X)')
-    expect(outil('Lien').title).toBe('Lien (⌘K)')
+  it('l’infobulle maison remplace le title natif, et porte le raccourci en pastilles', () => {
+    vi.useFakeTimers()
+    try {
+      oublierInfobulle()
+      monter()
+      expect(outil('Gras').hasAttribute('title')).toBe(false)
+      act(() => void outil('Gras').dispatchEvent(new MouseEvent('pointerover', { bubbles: true })))
+      act(() => void vi.advanceTimersByTime(DELAI_INFOBULLE))
+      const bulle = hote.querySelector('.notak-infobulle')!
+      expect(bulle.textContent).toContain('Gras')
+      expect([...bulle.querySelectorAll('kbd')].map((k) => k.textContent)).toEqual(['⌘', 'B'])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('Lien et Commentaire sont grisés sans texte choisi, et ne font rien', () => {

@@ -415,7 +415,7 @@ export function EspaceNotak({
     if (!m) return
     poserModele(garderExemple ? m : sansExemple(m), courant, services, { identite: !espace.tableau(courant)?.titre })
   }
-  const servicesApercu = useMemo<Services>(() => ({ ...services, lectureSeule: true, presence: undefined }), [services])
+  const servicesApercu = useMemo<Services>(() => ({ ...services, lectureSeule: true, apercuModele: true, presence: undefined }), [services])
 
   const surCamera = useCallback(
     (c: Camera) => {

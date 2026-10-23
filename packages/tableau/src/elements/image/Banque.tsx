@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
 import type { ContexteToile, ImageDeBanque } from '../types'
@@ -6,8 +6,8 @@ import { envoyerFichiers, fermerBanque, lireHistorique, motsDuMenu, noterRecherc
 import './banque.css'
 
 /** Le libellé de l'outil Image : c'est lui qui nomme son bouton dans la barre, où le panneau s'accroche. */
-const boutonOutil = (libelle: string) => [...document.querySelectorAll('.notak-barre-outils .notak-outil')].find((b) => b.getAttribute('title') === libelle) ?? null
-const estLOutil = (cible: Element, libelle: string) => cible.closest('.notak-barre-outils .notak-outil')?.getAttribute('title') === libelle
+export const boutonOutil = (libelle: string) => [...document.querySelectorAll('.notak-barre-outils .notak-outil')].find((b) => b.getAttribute('aria-label') === libelle) ?? null
+export const estLOutil = (cible: Element, libelle: string) => cible.closest('.notak-barre-outils .notak-outil')?.getAttribute('aria-label') === libelle
 
 type Mode = { genre: 'recommande' } | { genre: 'mot'; mot: string } | { genre: 'envoyer' }
 
@@ -241,14 +241,30 @@ function Banque({ contexte, libelleOutil }: { contexte: ContexteToile; libelleOu
   )
 }
 
-/** Le bouton d'envoi et la zone de dépôt : les fichiers pris ou lâchés ici partent aux récepteurs de la toile. */
-function Envoi({ surFichiers }: { surFichiers(f: Iterable<File>): void }) {
+/**
+ * Le bouton d'envoi et la zone de dépôt : les fichiers pris ou lâchés ici partent aux récepteurs de la toile.
+ * `accepte` : le filtre du sélecteur (des images pour la banque, rien pour l'outil d'envoi de fichiers) ;
+ * `dessin` : l'illustration, celle de la banque par défaut.
+ */
+export function Envoi({
+  surFichiers,
+  accepte = 'image/*',
+  choisir: libelleChoisir = t('image.banque.choisir'),
+  astuce = t('image.banque.astuce'),
+  dessin,
+}: {
+  surFichiers(f: Iterable<File>): void
+  accepte?: string
+  choisir?: string
+  astuce?: string
+  dessin?: ReactNode
+}) {
   const [survol, setSurvol] = useState(false)
   const choisir = () => {
     const champ = document.createElement('input')
     champ.type = 'file'
     champ.multiple = true
-    champ.accept = 'image/*'
+    if (accepte) champ.accept = accepte
     champ.addEventListener('change', () => champ.files && surFichiers(champ.files))
     champ.click()
   }
@@ -269,14 +285,16 @@ function Envoi({ surFichiers }: { surFichiers(f: Iterable<File>): void }) {
         surFichiers(e.dataTransfer.files)
       }}
     >
-      <svg viewBox="0 0 96 64" width="96" height="64" aria-hidden>
-        <rect x="6" y="6" width="84" height="52" rx="6" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="5 4" />
-        <path d="M48 44V22m0 0-8 8m8-8 8 8" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
+      {dessin ?? (
+        <svg viewBox="0 0 96 64" width="96" height="64" aria-hidden>
+          <rect x="6" y="6" width="84" height="52" rx="6" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="5 4" />
+          <path d="M48 44V22m0 0-8 8m8-8 8 8" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
       <button type="button" className="notak-banque-principal" onClick={choisir}>
-        {t('image.banque.choisir')}
+        {libelleChoisir}
       </button>
-      <p>{t('image.banque.astuce')}</p>
+      <p>{astuce}</p>
     </div>
   )
 }

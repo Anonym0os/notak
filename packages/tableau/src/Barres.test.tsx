@@ -68,7 +68,7 @@ describe('la barre de sélection à gauche', () => {
     // La légende, la barre et le texte d'une note sont secondaires : dans le tiroir, pas dans la colonne.
     expect(plus.querySelector('.notak-tiroir-grille')!.textContent).toContain('Légende')
     expect(hote.querySelector('.notak-barre-selection > .notak-outil-place')).not.toBeNull()
-    expect([...hote.querySelectorAll('.notak-barre-selection > button.notak-outil')].map((b) => b.textContent)).not.toContain('Légende')
+    expect([...hote.querySelectorAll('.notak-barre-selection > .notak-infobulle-hote > button.notak-outil')].map((b) => b.textContent)).not.toContain('Légende')
     act(() => plus.querySelector<HTMLButtonElement>('.notak-outil-plus')!.click())
     expect(plus.querySelector('.notak-tiroir')?.hasAttribute('hidden')).toBe(false)
   })
@@ -204,7 +204,7 @@ describe('aligner, répartir et relier', () => {
     act(() => racine.render(<BarreSelection elements={m.contexte.magasin.lire().elements} contexte={contexte} position={{ x: 0, y: 0 }} aGauche />))
     return contexte
   }
-  const visibles = () => [...hote.querySelectorAll('.notak-barre-selection > .notak-arrangement .notak-outil-libelle, .notak-barre-selection > .notak-outil .notak-outil-libelle')].map((b) => b.textContent).filter((l) => ['Aligner', 'Répartir', 'Relier'].includes(l!))
+  const visibles = () => [...hote.querySelectorAll('.notak-barre-selection > .notak-arrangement .notak-outil-libelle, .notak-barre-selection > .notak-infobulle-hote > .notak-outil .notak-outil-libelle')].map((b) => b.textContent).filter((l) => ['Aligner', 'Répartir', 'Relier'].includes(l!))
 
   it('une note seule : aucun', () => {
     monter(true)

@@ -88,7 +88,7 @@ const appuyer = (cible: EventTarget, init: KeyboardEventInit) =>
 const cliquer = (l: number, c: number, init: MouseEventInit = {}) =>
   act(() => void cellule(l, c).dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0, ...init })))
 const relacher = () => act(() => void hote.querySelector('.notak-tableur')!.dispatchEvent(new MouseEvent('pointerup', { bubbles: true })))
-const bouton = (texte: string) => [...hote.querySelectorAll('button')].find((b) => b.textContent?.includes(texte) || b.title.includes(texte))!
+const bouton = (texte: string) => [...hote.querySelectorAll('button')].find((b) => b.textContent?.includes(texte) || b.getAttribute('aria-label')?.includes(texte))!
 
 function taper(champ: HTMLTextAreaElement, texte: string) {
   act(() => {
@@ -635,7 +635,7 @@ describe('les outils de la barre', () => {
     const m = monde()
     monter(m)
     cliquer(1, 1)
-    const noms = [...hote.querySelectorAll('button')].filter((b) => b.closest('.notak-note-menu-ancre') || b.title).map((b) => b.title)
+    const noms = [...hote.querySelectorAll('button')].filter((b) => b.closest('.notak-note-menu-ancre') || b.getAttribute('aria-label')).map((b) => b.getAttribute('aria-label'))
     expect(noms).toEqual(
       expect.arrayContaining(['Couleur du texte et surlignage', 'Type de cellule', 'Couleur de la cellule', 'Écrire une formule dans la cellule', 'Alignement dans la cellule', 'Autres gestes sur les cellules']),
     )

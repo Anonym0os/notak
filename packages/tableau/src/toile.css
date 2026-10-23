@@ -437,7 +437,8 @@
 /* Seconde rangée : le titre centré, l'enregistrement à gauche, partage, export et vue à droite. */
 .notak-entete-bas {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  /* Le titre cède la place aux boutons de droite (points de suspension), et reste centré quand il y en a. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(max-content, 1fr);
   align-items: center;
   box-sizing: border-box;
   height: 46px;
@@ -478,7 +479,10 @@
 /* Le titre du tableau : serif libre déjà sur la machine, 22 px, semi-gras, modifiable en place. */
 .notak-titre {
   display: inline-grid;
-  max-width: min(1000px, 56vw);
+  grid-template-columns: minmax(0, 1fr);
+  justify-self: center;
+  min-width: 0;
+  max-width: min(1000px, 56vw, 100%);
   margin: 0;
   font-family: 'Iowan Old Style', 'Charter', Georgia, serif;
   font-size: 22px;
@@ -1792,35 +1796,56 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 }
 
 /* Une fenêtre basse resserre la barre de gauche plutôt que de la couper : vignettes plus petites, puis sans libellé. */
-@media (max-height: 900px) {
-  .notak-barre-outils {
-    gap: 0;
-    padding: 6px 0;
-  }
-
-  .notak-barre-outils .notak-vignette {
-    width: 44px;
-    height: 33px;
-  }
-
-  .notak-barre-outils .notak-outil:is([data-genre='tuile'], :not([data-genre])) .notak-outil-icone {
-    width: 38px;
-    height: 32px;
-  }
-
-  .notak-barre-outils .notak-outil {
-    padding: 2px 0 4px;
-  }
+/*
+ * Les trois tailles de la barre de gauche (`repli.ts`) : grande (tuiles de 32 px, barre de 72 px), puis moyenne (28 px)
+ * et petite (26 px) dans 63 px quand la fenêtre est basse. Si cela ne suffit pas, des outils passent dans le « ••• ».
+ */
+.notak-barre-outils {
+  --notak-tuile: 32px;
+  --notak-tuile-l: 44px;
+  --notak-ecart-texte: 17px;
 }
 
-@media (max-height: 720px) {
-  .notak-barre-outils .notak-outil-libelle {
-    display: none;
-  }
+.notak-barre-outils[data-palier='moyenne'] {
+  --notak-tuile: 28px;
+  --notak-tuile-l: 40px;
+  --notak-ecart-texte: 15px;
+  width: 63px;
+  padding: 6px 0;
+}
 
-  .notak-tiroir .notak-outil-libelle {
-    display: block;
-  }
+.notak-barre-outils[data-palier='petite'] {
+  --notak-tuile: 26px;
+  --notak-tuile-l: 36px;
+  --notak-ecart-texte: 13px;
+  width: 63px;
+  padding: 6px 0;
+}
+
+.notak-barre-outils .notak-vignette {
+  width: var(--notak-tuile-l);
+  height: calc(var(--notak-tuile) + 1px);
+}
+
+.notak-barre-outils .notak-outil:is([data-genre='tuile'], :not([data-genre])) .notak-outil-icone {
+  width: var(--notak-tuile-l);
+  height: var(--notak-tuile);
+}
+
+.notak-barre-outils[data-palier='moyenne'] .notak-outil,
+.notak-barre-outils[data-palier='petite'] .notak-outil {
+  width: 59px;
+}
+
+.notak-barre-outils[data-palier='moyenne'] .notak-outil-libelle,
+.notak-barre-outils[data-palier='petite'] .notak-outil-libelle {
+  font-size: 9px;
+}
+
+/* L'aperçu d'un modèle : la barre de gauche reste là, à 30 %, sans clic. */
+.notak-barre-outils[data-grisee] {
+  opacity: 0.3;
+  pointer-events: none;
 }
 
 /* La garde de la toile : elle prend toute la place, et montre l'erreur au milieu. */
@@ -1871,14 +1896,14 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 
 /* Un outil de texte : l'icône seule, 32 px, sans fond ; 49 px d'un outil au suivant. */
 .notak-barre-edition {
-  gap: 17px;
+  gap: var(--notak-ecart-texte, 17px);
 }
 
 .notak-barre-edition button.notak-outil-texte {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: var(--notak-tuile, 32px);
+  height: var(--notak-tuile, 32px);
   margin: 0 auto;
   padding: 0;
   border: 0;
@@ -1911,10 +1936,10 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 .notak-barre-edition .notak-note-menu-ancre {
   display: grid;
   place-items: center;
-  width: 68px;
+  width: min(68px, 100%);
 }
 
-.notak-barre-edition .notak-note-menu-ancre > .notak-outil-selection {
+.notak-barre-edition .notak-note-menu-ancre .notak-outil-selection {
   justify-self: center;
 }
 
@@ -2077,6 +2102,11 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 /* Les infobulles maison : ardoise, blanc 12 px 600, fondu de 0,1 s, raccourci en pastilles. */
 .notak-infobulle-hote {
   display: inline-flex;
+}
+
+/* Autour d'un outil de la barre : l'enveloppe ne pèse rien, le bouton garde sa place. */
+.notak-infobulle-hote[data-contenu] {
+  display: contents;
 }
 
 .notak-infobulle {
