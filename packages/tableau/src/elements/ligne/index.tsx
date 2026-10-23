@@ -4,6 +4,7 @@ import type { Ligne } from '../../coeur/tableau'
 import { registre } from '../registre'
 import { IconeLigne } from './Icone'
 import { RenduLigne } from './Ligne'
+import { LigneRapide } from './LigneRapide'
 import { OutilsLigne } from './Outils'
 import { TAILLE_LIGNE_NEUVE, ligneLibre } from './creation'
 import './ligne.css'
@@ -37,5 +38,6 @@ registre.type<Ligne>({
   ],
 })
 
+registre.outilCommun(LigneRapide)
 registre.raccourci(raccourciRelier)
 registre.entreeMenu(entreeRelier)

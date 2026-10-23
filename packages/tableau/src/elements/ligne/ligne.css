@@ -149,3 +149,42 @@
 .notak-barre-selection .notak-ligne-palette button[aria-pressed='true'] {
   box-shadow: 0 0 0 2px var(--notak-accent);
 }
+
+/* La poignée de la ligne rapide : une pastille au coin haut droit de l'élément seul choisi. */
+.notak-ligne-rapide {
+  position: absolute;
+  z-index: 3;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin: -22px 0 0 2px;
+  border: 1px solid rgb(0 0 0 / 0.12);
+  border-radius: 50%;
+  background: var(--notak-carte);
+  color: var(--notak-texte);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.16);
+  cursor: crosshair;
+  touch-action: none;
+  opacity: 0.85;
+  transition: opacity 100ms, transform 100ms;
+}
+
+.notak-ligne-rapide:hover,
+.notak-ligne-rapide[data-tirage] {
+  opacity: 1;
+  transform: scale(1.12);
+}
+
+/* Le trait qui suit le pointeur pendant le tirage, au-dessus de tout, sans rien prendre. */
+.notak-ligne-rapide-apercu {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
