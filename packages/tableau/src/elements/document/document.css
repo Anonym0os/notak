@@ -335,3 +335,8 @@
   top: 160px;
   transform: none;
 }
+
+/* La liste de `[[` et de `@` s'ouvre au-dessus de la modale du document. */
+.notak-propositions {
+  z-index: 1100;
+}

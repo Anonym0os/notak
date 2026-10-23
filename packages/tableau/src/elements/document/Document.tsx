@@ -4,8 +4,9 @@ import { type ReactNode, memo, useEffect, useLayoutEffect, useMemo, useRef, useS
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { DocumentTexte, NoeudTexte } from '../../coeur/tableau'
 import { EXTENSIONS_NOTE } from '../note/extensions'
+import { type Pont, Propositions, extensionPropositions } from '../note/Propositions'
 import { Surcouche } from '../surcouche'
-import type { PropsOutils, PropsRendu } from '../types'
+import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { ColonneOutils } from './ColonneOutils'
 import { type FormatDocument, documentEnTexte, imprimer, nomFichier, pageImpression, telecharger } from './export'
 import { compterMots, doitEtreTitre } from './texte'
@@ -97,7 +98,7 @@ export function RenduDocument({ element, enEdition, contexte, brouillon, changer
         </div>
       )}
       <div className="notak-document-mots">{tn('document.mots', mots)}</div>
-      {enEdition && <Grand contenu={c} ecrire={brouillon} finir={contexte.finirEdition} />}
+      {enEdition && <Grand contenu={c} ecrire={brouillon} finir={contexte.finirEdition} contexte={contexte} />}
       {enLecture && <Lecture contenu={c} fermer={() => setEnLecture(false)} />}
     </div>
   )
@@ -160,6 +161,8 @@ function Modale({ titre, titreTexte, lireTexte, outils, fermer, children }: Prop
       className="notak-document-fond"
       fermer={fermer}
       surTouche={(e) => {
+        // Échap ferme d'abord la liste de `[[` ou de `@`, sans quitter le document.
+        if (e.key === 'Escape' && document.querySelector('.notak-propositions')) return true
         // Échap referme d'abord le menu ouvert, sans quitter le document.
         if (e.key !== 'Escape' || !(e.currentTarget as HTMLElement).querySelector('[aria-expanded="true"]')) return false
         e.preventDefault()
@@ -195,7 +198,7 @@ function Lecture({ contenu, fermer }: { contenu: DocumentTexte; fermer(): void }
  * Le document ouvert en grand. Ce qu'on tape part au brouillon (le titre en haut comme le texte) ; le curseur
  * est dans le texte dès l'ouverture.
  */
-function Grand({ contenu, ecrire, finir }: { contenu: DocumentTexte; ecrire(c: DocumentTexte): void; finir(): void }) {
+function Grand({ contenu, ecrire, finir, contexte }: { contenu: DocumentTexte; ecrire(c: DocumentTexte): void; finir(): void; contexte: ContexteToile }) {
   const [titre, setTitre] = useState(contenu.titre)
   const [lien, setLien] = useState<string | null>(null)
   // Le titre et le texte changent chacun de leur côté : le brouillon porte toujours les deux derniers.
@@ -204,8 +207,11 @@ function Grand({ contenu, ecrire, finir }: { contenu: DocumentTexte; ecrire(c: D
     dernier.current = { ...dernier.current, ...suite }
     ecrire({ ...contenu, ...dernier.current })
   }
+  // `[[` propose les tableaux, `@` les personnes : la même liste que la note.
+  const pont = useRef<Pont | null>(null)
+  const extensions = useMemo(() => [...EXTENSIONS_NOTE, extensionPropositions(pont)], [])
   const editeur = useEditor({
-    extensions: EXTENSIONS_NOTE,
+    extensions,
     content: contenu.texte,
     editorProps: { attributes: { class: 'notak-texte', 'aria-label': t('document.texte') } },
     onUpdate: ({ editor }) => poser({ texte: editor.getJSON() as NoeudTexte }),
@@ -243,6 +249,7 @@ function Grand({ contenu, ecrire, finir }: { contenu: DocumentTexte; ecrire(c: D
       outils={editeur && <ColonneOutils editor={editeur} lien={lien} surLien={setLien} />}
       fermer={finir}
     >
+      {editeur && <Propositions editeur={editeur} contexte={contexte} pont={pont} />}
       <EditorContent editor={editeur} />
     </Modale>
   )
