@@ -190,3 +190,37 @@
   font: inherit;
   cursor: pointer;
 }
+
+/* Annotation : les traits dessinés par-dessus l'image, et la couche qui prend le crayon. */
+.notak-traits {
+  position: absolute;
+  max-width: none;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.notak-annotation {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.notak-annotation[data-outil='gomme'] {
+  cursor: cell;
+}
+
+.notak-pastille-trait {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1.5px solid var(--notak-point);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.notak-pastille-trait[aria-pressed='true'] {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}

@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 import { createReadStream } from 'node:fs'
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import type { Hocuspocus } from '@hocuspocus/server'
@@ -19,6 +19,7 @@ import { requeteIndex } from './indexation.ts'
 import { hacher, verifier } from './motsDePasse.ts'
 import { DUREE_SESSION_S, NOM_COOKIE, cookieEfface, cookieSession, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
 import { nomDuDocument } from './synchro.ts'
+import { largeurDemandee, nomReduit, reduire, reductible } from './tailles.ts'
 import { creerZip, nommerLesMedias } from './zip.ts'
 
 export interface Contexte {
@@ -497,23 +498,52 @@ export function creerApp(ctx: Contexte): Hono {
   /** Le contenu d'un fichier rangé, servi pour qu'il ne s'exécute jamais dans l'origine de l'application. */
   const servirFichier = (f: Fichier, cache: string): Response => {
     const flux = Readable.toWeb(createReadStream(join(ctx.dossierFichiers, f.id))) as ReadableStream
-    return new Response(flux, {
-      headers: {
-        'content-type': f.type,
-        'content-length': String(f.taille),
-        'cache-control': cache,
-        'x-content-type-options': 'nosniff',
-        'content-security-policy': "sandbox; default-src 'none'; img-src data:; media-src 'self'; style-src 'unsafe-inline'",
-      },
-    })
+    return new Response(flux, { headers: { ...entetesFichier(cache), 'content-type': f.type, 'content-length': String(f.taille) } })
+  }
+  const entetesFichier = (cache: string) => ({
+    'cache-control': cache,
+    'x-content-type-options': 'nosniff',
+    'content-security-policy': "sandbox; default-src 'none'; img-src data:; media-src 'self'; style-src 'unsafe-inline'",
+  })
+
+  /** La copie réduite d'une image, fabriquée à la première demande puis gardée à côté de l'original ; `null` : servir l'original. */
+  const copieReduite = async (id: string, type: string, largeur: number): Promise<Buffer | null> => {
+    if (!reductible(type)) return null
+    const chemin = join(ctx.dossierFichiers, nomReduit(id, largeur))
+    try {
+      return await readFile(chemin)
+    } catch {
+      // pas encore fabriquée
+    }
+    const fabriquee = await reduire(await readFile(join(ctx.dossierFichiers, id)), type, largeur)
+    if (!fabriquee) return null
+    // Écrite sous un nom provisoire, puis posée d'un coup : deux demandes ensemble ne se lisent jamais à moitié.
+    const provisoire = `${chemin}.${randomUUID()}.tmp`
+    await writeFile(provisoire, fabriquee)
+    await rename(provisoire, chemin)
+    return fabriquee
   }
 
-  app.get('/api/fichiers/:id', (c) => {
+  app.get('/api/fichiers/:id', async (c) => {
     if (!utilisateurCourant(c)) return c.json({ erreur: 'non connecté' }, 401)
     const id = c.req.param('id')
     const f = ID_FICHIER.test(id) ? base.fichier(id) : null
     if (!f) return c.json({ erreur: 'introuvable' }, 404)
-    return servirFichier(f, 'private, max-age=31536000, immutable')
+    const cache = 'private, max-age=31536000, immutable'
+
+    // `?l=800` : l'image réduite à cette largeur (400, 800 ou 1600), quand elle y gagne.
+    const demande = c.req.query('l')
+    if (demande !== undefined) {
+      const largeur = largeurDemandee(demande)
+      if (largeur === null) return c.json({ erreur: 'largeur invalide' }, 400)
+      const reduite = await copieReduite(f.id, f.type, largeur)
+      if (reduite) {
+        return new Response(new Uint8Array(reduite), {
+          headers: { ...entetesFichier(cache), 'content-type': f.type, 'content-length': String(reduite.length) },
+        })
+      }
+    }
+    return servirFichier(f, cache)
   })
 
   // ---- Aperçus ----
@@ -534,6 +564,8 @@ export function creerApp(ctx: Contexte): Hono {
 
   // En production, le même serveur sert l'application web construite ; toute autre adresse (`/t/…`) reçoit la page.
   if (ctx.dossierWeb) {
+    // Un partage vers Notak est reçu par le service worker ; sans lui (pas encore installé), on ne perd que le partage, pas la page.
+    app.post('/partage', (c) => c.redirect('/', 303))
     app.use('*', serveStatic({ root: ctx.dossierWeb }))
     app.get('*', serveStatic({ root: ctx.dossierWeb, path: 'index.html' }))
   }

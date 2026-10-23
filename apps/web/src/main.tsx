@@ -13,6 +13,7 @@ import { StrictMode, useCallback, useEffect, useState, useSyncExternalStore } fr
 import { createRoot } from 'react-dom/client'
 import { type Moi, moi as lireMoi, rechercherPartout, seDeconnecter } from './api'
 import { importDejaPropose, lireAncienEspace, noterImportPropose } from './ancien'
+import { PagePartage, PageRapide } from './Arrivees'
 import { Compte } from './Compte'
 import { EcranConnexion } from './connexion'
 import { Export } from './Export'
@@ -21,6 +22,7 @@ import { apercu, fichiers, rapatrier } from './fichiers'
 import { importerEspaceLocal } from './importLocal'
 import { PagePublique } from './PagePublique'
 import { Partage } from './Partage'
+import { enregistrerServiceWorker } from './pwa'
 
 const services = { fichiers, apercu, rapatrier, rechercherPartout, ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank') }
 
@@ -110,6 +112,9 @@ function Application() {
     )
   }
   if (etat.type === 'anonyme') return <EcranConnexion surConnexion={(m) => setEtat({ type: 'connecte', moi: m })} />
+  // Deux pages légères, sans la toile : le partage vers Notak, et la note rapide du téléphone.
+  if (location.pathname === '/rapide') return <PageRapide espace={espacePour(etat.moi)} />
+  if (location.pathname === '/partage') return <PagePartage espace={espacePour(etat.moi)} />
   return (
     <Espace
       moi={etat.moi}
@@ -182,6 +187,7 @@ function BandeauImport({ moi, espace }: { moi: Moi; espace: EspaceDistant }) {
 
 /** `/p/<jeton>` : un tableau publié, lu sans compte. */
 const publie = /^\/p\/([A-Za-z0-9_-]+)\/?$/.exec(location.pathname)
+enregistrerServiceWorker()
 
 createRoot(document.getElementById('racine')!).render(
   <StrictMode>{publie ? <PagePublique jeton={publie[1]!} /> : <Application />}</StrictMode>,

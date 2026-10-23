@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { type ServeurDemarre, demarrer } from './serveur.ts'
 
@@ -136,7 +137,7 @@ describe('serveur de bout en bout', () => {
     expect((await appeler('/api/moi', { cookie: ana.cookie })).statut).toBe(401)
   })
 
-  it('les fichiers : dépôt, lecture, refus sans session', async () => {
+  it('les fichiers : dépôt, lecture, refus sans session, largeur demandée', async () => {
     const ana = await appeler('/api/connexion', { json: { email: 'ana@exemple.fr', motDePasse: 'motdepasse' } })
     const octets = new Uint8Array([1, 2, 3, 4, 5])
     expect((await appeler('/api/fichiers', { corps: octets, type: 'image/png' })).statut).toBe(401)
@@ -149,6 +150,43 @@ describe('serveur de bout en bout', () => {
     expect(lu.reponse.headers.get('cache-control')).toBe('private, max-age=31536000, immutable')
     expect(new Uint8Array(await lu.reponse.arrayBuffer())).toEqual(octets)
     expect((await appeler('/api/fichiers/../../etc/passwd', { cookie: ana.cookie })).statut).toBe(404)
+
+    // `?l=` : une image à la largeur demandée (la limite de connexions de la minute interdit une seconde ouverture de session).
+    const grande = await sharp({ create: { width: 2000, height: 1000, channels: 3, background: '#3366cc' } }).jpeg().toBuffer()
+    const idGrande = (await lire<{ id: string }>(await appeler('/api/fichiers', { cookie: ana.cookie, corps: new Uint8Array(grande), type: 'image/jpeg' }))).id
+
+    const largeurDe = async (chemin: string) => {
+      const r = await appeler(chemin, { cookie: ana.cookie })
+      const octets = Buffer.from(await r.reponse.arrayBuffer())
+      const largeur = r.statut === 200 && !octets.subarray(0, 4).equals(Buffer.from('<svg')) ? (await sharp(octets).metadata()).width : undefined
+      return { statut: r.statut, octets, entetes: r.reponse.headers, largeur }
+    }
+
+    expect((await appeler(`/api/fichiers/${idGrande}?l=800`)).statut).toBe(401)
+    const reduite = await largeurDe(`/api/fichiers/${idGrande}?l=800`)
+    expect(reduite.statut).toBe(200)
+    expect(reduite.largeur).toBe(800)
+    expect(reduite.entetes.get('content-type')).toBe('image/jpeg')
+    expect(reduite.entetes.get('content-length')).toBe(String(reduite.octets.length))
+    expect(reduite.octets.length).toBeLessThan(grande.length)
+    expect(reduite.entetes.get('cache-control')).toBe('private, max-age=31536000, immutable')
+    // Une seconde demande relit la copie gardée.
+    expect((await largeurDe(`/api/fichiers/${idGrande}?l=800`)).octets.equals(reduite.octets)).toBe(true)
+    expect((await largeurDe(`/api/fichiers/${idGrande}?l=300`)).largeur).toBe(400)
+    expect((await largeurDe(`/api/fichiers/${idGrande}?l=9999`)).largeur).toBe(1600)
+    // Sans `l`, l'original.
+    expect((await largeurDe(`/api/fichiers/${idGrande}`)).largeur).toBe(2000)
+
+    expect((await appeler(`/api/fichiers/${idGrande}?l=abc`, { cookie: ana.cookie })).statut).toBe(400)
+    expect((await appeler(`/api/fichiers/${idGrande}?l=0`, { cookie: ana.cookie })).statut).toBe(400)
+
+    // Une image plus étroite que la demande, et un format qu'on ne réduit pas, sont servis tels quels.
+    const petite = await sharp({ create: { width: 300, height: 200, channels: 3, background: '#000' } }).png().toBuffer()
+    const idPetite = (await lire<{ id: string }>(await appeler('/api/fichiers', { cookie: ana.cookie, corps: new Uint8Array(petite), type: 'image/png' }))).id
+    expect((await largeurDe(`/api/fichiers/${idPetite}?l=800`)).octets.equals(petite)).toBe(true)
+    const svg = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>')
+    const idSvg = (await lire<{ id: string }>(await appeler('/api/fichiers', { cookie: ana.cookie, corps: svg, type: 'image/svg+xml' }))).id
+    expect(new Uint8Array((await largeurDe(`/api/fichiers/${idSvg}?l=400`)).octets)).toEqual(svg)
   })
 
   it('l’aperçu refuse le réseau local', async () => {
@@ -201,5 +239,11 @@ describe("l'application web servie par le serveur", () => {
     const api = await fetch(`${adresse}/api/inexistant`)
     expect(api.status).toBe(404)
     expect(await api.json()).toEqual({ erreur: 'introuvable' })
+  })
+
+  it('un partage reçu sans service worker revient à l’accueil au lieu d’une erreur', async () => {
+    const r = await fetch(`${adresse}/partage`, { method: 'POST', body: new FormData(), redirect: 'manual' })
+    expect(r.status).toBe(303)
+    expect(r.headers.get('location')).toBe('/')
   })
 })

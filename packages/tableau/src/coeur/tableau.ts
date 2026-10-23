@@ -88,6 +88,21 @@ export interface Image {
   rotation?: 0 | 90 | 180 | 270
   /** La partie gardée, en fractions de l'image d'origine (0 à 1). Absent : toute l'image. */
   recadrage?: Recadrage
+  /** Les traits dessinés par-dessus (annotation), du plus ancien au plus récent. */
+  traits?: TraitImage[]
+}
+
+/**
+ * Un trait à main levée sur une image. Les points sont en fractions de l'image d'origine (0 à 1, avant
+ * recadrage et rotation) : le trait suit l'image quand on la recadre, la tourne ou l'agrandit.
+ */
+/** Un trait d'annotation posé sur une image (Maj+D). */
+export interface TraitImage {
+  /** `#rrggbb`. */
+  couleur: string
+  /** Fraction de la largeur de l'image d'origine. */
+  epaisseur: number
+  points: [number, number][]
 }
 
 export interface TailleImage {
