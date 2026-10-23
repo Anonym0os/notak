@@ -153,6 +153,8 @@ function retenirPaquet(p: Paquet) {
 }
 
 const AUCUNE: readonly Empreinte[] = []
+const RIEN_MODIFIE = new Map<Id, { couleur: string; nom: string }>()
+const aucunModifie = () => RIEN_MODIFIE
 
 /**
  * La présentation montre un élément en grand : une copie de sa carte part de sa place et grandit au centre, sur un
@@ -325,6 +327,24 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const [enGeste, setEnGeste] = useState(false)
   // La main se ferme tant qu'on tient la toile, au bouton du milieu comme avec Espace.
   const [attrape, setAttrape] = useState(false)
+  // Ce qu'un autre vient de toucher : un contour à sa couleur et son prénom, quelques secondes (voir le service).
+  const modifies = useSyncExternalStore(services.ecouterRecemmentModifies ?? sansEcoute, services.recemmentModifies ?? aucunModifie)
+  useLayoutEffect(() => {
+    const div = racine.current
+    if (!div) return
+    for (const n of div.querySelectorAll<HTMLElement>('.notak-carte[data-modifie-par]')) {
+      if (!modifies.has(n.dataset.id!)) {
+        delete n.dataset.modifiePar
+        n.style.removeProperty('--notak-modifie')
+      }
+    }
+    for (const [id, qui] of modifies) {
+      const n = div.querySelector<HTMLElement>(`.notak-carte[data-id="${CSS.escape(id)}"]`)
+      if (!n) continue
+      n.dataset.modifiePar = qui.nom.split(' ')[0] ?? qui.nom
+      n.style.setProperty('--notak-modifie', qui.couleur)
+    }
+  })
   // L'élément montré en grand pendant une présentation.
   const [focus, setFocus] = useState<{ noeud: HTMLElement; depart: DOMRect } | null>(null)
   const [glisses, setGlisses] = useState<ReadonlySet<Id> | null>(null)
