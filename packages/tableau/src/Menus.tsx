@@ -197,3 +197,109 @@ export function Recherche(props: {
     </div>
   )
 }
+
+const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
+/** Les touches telles qu'on les lit sur son clavier : ⌘ sur Mac, Ctrl ailleurs. */
+const touches = (t: string) => (MAC ? t : t.replace(/⌘/g, 'Ctrl+').replace(/⌥/g, 'Alt+').replace(/⇧/g, 'Maj+'))
+
+const RACCOURCIS: { titre: string; lignes: [string, string][] }[] = [
+  {
+    titre: 'Éléments',
+    lignes: [
+      ['Modifier l’élément choisi', '↩'],
+      ['Finir la modification', 'Échap'],
+      ['Nouvel élément dessous', '⌘↩'],
+      ['Dupliquer', '⌘D'],
+      ['Couper, copier, coller', '⌘X  ⌘C  ⌘V'],
+      ['Mettre à la corbeille', '⌫'],
+      ['Déplacer (de 5 avec Maj)', '←  →  ↑  ↓'],
+      ['Premier plan, arrière-plan', '⇧⌘↑  ⇧⌘↓'],
+      ['Relier par une ligne', '⌘K'],
+      ['Tout sélectionner', '⌘A'],
+      ['Annuler, rétablir', '⌘Z  ⇧⌘Z'],
+    ],
+  },
+  {
+    titre: 'Arranger',
+    lignes: [
+      ['Aligner à gauche, à droite', '⌥A  ⌥D'],
+      ['Aligner en haut, en bas', '⌥W  ⌥S'],
+      ['Centrer en largeur, en hauteur', '⌥H  ⌥V'],
+      ['Répartir en largeur, en hauteur', '⌥⇧⌘H  ⌥⇧⌘V'],
+    ],
+  },
+  {
+    titre: 'Vue et navigation',
+    lignes: [
+      ['Zoomer, dézoomer, 100 %', '⌘+  ⌘−  ⌘0'],
+      ['Tout voir', 'Z'],
+      ['Attraper la toile', 'Espace + glisser'],
+      ['Chercher dans le tableau', '⌘F'],
+      ['Ouvrir le tableau choisi', 'Espace'],
+      ['Tableau parent, redescendre', '⌘U  ⇧⌘U'],
+      ['Reculer, avancer', '⌘[  ⌘]'],
+      ['Ces raccourcis', '/'],
+    ],
+  },
+  {
+    titre: 'Texte',
+    lignes: [
+      ['Gras, italique, barré', '⌘B  ⌘I  ⇧⌘X'],
+      ['Titre, sous-titre', '⇧⌘1  ⇧⌘2'],
+      ['Texte normal, petit texte', '⇧⌘0  ⇧⌘9'],
+      ['Liste à puces, numérotée', '⇧⌘8  ⇧⌘7'],
+      ['Citation, bloc de code', '⇧⌘B  ⌘.'],
+      ['Code dans la ligne', '⌘E'],
+      ['Centrer', '⌘\\'],
+      ['Surligner', '⌘J'],
+      ['Lien', '⌘K'],
+    ],
+  },
+]
+
+/** La fenêtre des raccourcis, que « / » ouvre et ferme. Échap ou un clic dehors la ferment aussi. */
+export function FenetreRaccourcis({ fermer }: { fermer(): void }) {
+  useEffect(() => {
+    const touche = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' && e.key !== '/') return
+      e.preventDefault()
+      e.stopPropagation()
+      fermer()
+    }
+    document.addEventListener('keydown', touche, true)
+    return () => document.removeEventListener('keydown', touche, true)
+  }, [fermer])
+  return (
+    <div className="notak-raccourcis-fond" onPointerDown={(e) => (e.stopPropagation(), e.target === e.currentTarget && fermer())} onDoubleClick={(e) => e.stopPropagation()}>
+      <div className="notak-raccourcis" role="dialog" aria-label="Raccourcis clavier">
+        <div className="notak-raccourcis-tete">
+          <strong>Raccourcis clavier</strong>
+          <button type="button" aria-label="Fermer" onClick={fermer}>
+            ×
+          </button>
+        </div>
+        <div className="notak-raccourcis-corps">
+          {RACCOURCIS.map((g) => (
+            <section key={g.titre}>
+              <h3>{g.titre}</h3>
+              <dl>
+                {g.lignes.map(([quoi, t]) => (
+                  <div key={quoi}>
+                    <dt>{quoi}</dt>
+                    <dd>
+                      {touches(t)
+                        .split('  ')
+                        .map((k) => (
+                          <kbd key={k}>{k}</kbd>
+                        ))}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}

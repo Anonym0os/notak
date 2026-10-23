@@ -207,13 +207,18 @@ export function EspaceNotak({
   }, [fil, racine])
 
   // Les raccourcis de navigation, sur le document : la toile qui avait le focus disparaît à chaque changement.
-  const etat = useRef({ courant, ouvrir, espace })
-  etat.current = { courant, ouvrir, espace }
+  const etat = useRef({ courant, ouvrir, espace, parcours })
+  etat.current = { courant, ouvrir, espace, parcours }
   useEffect(() => {
     const touche = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || saisissable(e.target)) return
-      const { courant: ici, ouvrir: aller, espace: esp } = etat.current
-      if (e.key.toLowerCase() === 'u') {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || saisissable(e.target)) return
+      const { courant: ici, ouvrir: aller, espace: esp, parcours: p } = etat.current
+      if (e.key.toLowerCase() === 'u' && e.shiftKey) {
+        // Redescendre : dans le tableau qu'on vient de quitter, s'il est rangé dans celui-ci.
+        const quitte = p.pile[p.index - 1]
+        if (quitte && esp.parent(quitte) === ici) aller(quitte)
+      } else if (e.shiftKey) return
+      else if (e.key.toLowerCase() === 'u') {
         const parent = esp.parent(ici)
         if (parent) aller(parent)
       } else if (e.key === '[' || e.code === 'BracketLeft') setParcours(reculer)

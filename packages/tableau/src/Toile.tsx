@@ -10,7 +10,7 @@ import { largeurDoubleClic, largeurTiree, LARGEUR_MIN_DEFAUT } from './coeur/lar
 import { type Cible, type Deplace, cleEntre, clesEntre, comparerOrdre, indexInsertion, pasDeDepot } from './coeur/ordre'
 import { cliquer, lasso } from './coeur/selection'
 import { type Paquet, TYPE_PAQUET, decalageDeCollage, deballer, empaqueter, texteDuPaquet } from './coeur/pressePapiers'
-import { type Entree, MenuContextuel, PanneauCorbeille, Recherche } from './Menus'
+import { type Entree, FenetreRaccourcis, MenuContextuel, PanneauCorbeille, Recherche } from './Menus'
 import { chercher } from './coeur/recherche'
 import { poussees } from './coeur/collisions'
 import { VOL_REPOS, type Vol, inclinaisonMax, transformation } from './coeur/vol'
@@ -191,6 +191,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const [corbeilleOuverte, setCorbeilleOuverte] = useState(false)
   // La recherche dans le tableau (Cmd+F) : `null` fermée ; le rang du résultat montré ; chaque appel refocalise.
   const [requete, setRequete] = useState<string | null>(null)
+  const [raccourcis, setRaccourcis] = useState(false)
+  const fermerRaccourcis = useCallback(() => setRaccourcis(false), [])
   const [rangTrouve, setRangTrouve] = useState(-1)
   const [appelRecherche, setAppelRecherche] = useState(0)
   const [menu, setMenu] = useState<{ x: number; y: number; ou: Point; surElement: boolean } | null>(null)
@@ -838,6 +840,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         { libelle: 'Tout sélectionner', raccourci: '⌘A', faire: () => setSelection(new Set(tableau.elements.filter((x) => !x.parent).map((x) => x.id))) },
         null,
         ...creer,
+        null,
+        { libelle: 'Raccourcis clavier', raccourci: '/', faire: () => setRaccourcis(true) },
       ]
     }
     const els = choisis()
@@ -1038,6 +1042,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       return deplacer(...fleches[e.key]!)
     }
     switch (e.key) {
+      case '/':
+        e.preventDefault()
+        return setRaccourcis(true)
       case 'Escape':
         return setSelection(new Set())
       case 'Enter':
@@ -1799,6 +1806,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         <PanneauCorbeille elements={corbeille} contexte={contexte} restaurer={restaurer} vider={viderCorbeille} fermer={() => setCorbeilleOuverte(false)} />
       )}
       <BandeauAvis />
+      {raccourcis && <FenetreRaccourcis fermer={fermerRaccourcis} />}
       {menu && <MenuContextuel x={menu.x} y={menu.y} entrees={entreesMenu()} fermer={fermerMenu} />}
       {requete !== null && (
         <Recherche

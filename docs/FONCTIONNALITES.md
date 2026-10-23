@@ -24,13 +24,13 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 9. Ligne | 9 | 2 | 3 | 71 % |
 | 10. Autres éléments | 0 | 1 | 11 | 4 % |
 | 11. Commun aux éléments | 3 | 1 | 8 | 29 % |
-| 12. Organiser | 13 | 2 | 1 | 88 % |
-| 13. Naviguer | 6 | 3 | 4 | 58 % |
+| 12. Organiser | 14 | 1 | 1 | 91 % |
+| 13. Naviguer | 8 | 2 | 3 | 69 % |
 | 14. À plusieurs | 7 | 3 | 7 | 50 % |
-| 15. Habillage | 1 | 4 | 10 | 20 % |
+| 15. Habillage | 2 | 4 | 9 | 27 % |
 | 16. Exporter, importer | 0 | 0 | 4 | 0 % |
 | 17. Plateformes | 1 | 1 | 5 | 21 % |
-| **Total** | **123** | **32** | **94** | **56 %** |
+| **Total** | **127** | **30** | **92** | **57 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -302,8 +302,8 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Titre du tableau modifiable dans l'en-tête | ✅ | |
 | Vue gardée par tableau (position, zoom) | ✅ | |
 | Fil d'Ariane : « … », largeurs, état de chargement | 🟡 | Largeurs estimées, pas d'état de chargement. |
-| Retour et avance au clavier (Ctrl+[, Ctrl+]) | 🟡 | Les boutons du navigateur marchent, pas les touches. |
-| Monter d'un niveau, redescendre (Cmd+U, Cmd+Maj+U) | ⬜ | |
+| Retour et avance au clavier (Ctrl+[, Ctrl+]) | ✅ | |
+| Monter d'un niveau, redescendre (Cmd+U, Cmd+Maj+U) | ✅ | |
 | Recherche (Cmd+F) : ce qui ne correspond pas s'efface, Entrée va au résultat suivant | 🟡 | Dans le tableau ouvert seulement : pas encore dans tous les tableaux (il faut un index au serveur), ni de tri ou de tableaux récents. |
 | Tableaux récents, favoris | ⬜ | |
 | Aperçu d'un tableau au survol | ⬜ | |
@@ -341,7 +341,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | État d'enregistrement (« enregistré », « hors ligne ») | 🟡 | Rien ne le dit. |
 | Thème sombre (Cmd+Maj+D) | ⬜ | |
 | Tailles d'interface (petite, moyenne, grande) | ⬜ | |
-| Fenêtre des raccourcis (/) | ⬜ | |
+| Fenêtre des raccourcis (/) | ✅ | |
 | Présentation (Cmd+Alt+P), mode focus sur un élément | ⬜ | |
 | Aide, bulles de découverte, accueil d'un nouveau compte | ⬜ | |
 | Réglages du compte (Cmd+,), photo, couleur | ⬜ | |
