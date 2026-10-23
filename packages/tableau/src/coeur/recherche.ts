@@ -30,6 +30,9 @@ export function texteCherchable(e: Element, titreDe: (id: string) => string | un
       return c.libelle ?? ''
     case 'commentaire':
       return c.messages.map((m) => `${m.auteur.nom}\n${m.texte}`).join('\n')
+    case 'clone':
+      // L'original est déjà cherché : le clone ne doit pas le doubler dans les résultats.
+      return ''
     case 'document':
       return [c.titre, doc(c.texte)].join('\n')
     case 'croquis':

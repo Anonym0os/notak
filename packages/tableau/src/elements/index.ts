@@ -14,5 +14,6 @@ import './nuancier'
 import './lieu'
 import './croquis'
 import './document'
+import './clone'
 // L'outil de couleur commun, une fois tous les types inscrits.
 import './couleur'

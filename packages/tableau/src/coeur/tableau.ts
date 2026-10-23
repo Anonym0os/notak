@@ -272,6 +272,15 @@ export interface DocumentTexte {
   texte: NoeudTexte
 }
 
+/**
+ * Le même élément à un autre endroit : le clone ne garde que la clé de son original, qu'il dessine à sa place.
+ * Changer l'un change l'autre ; seuls la place et la largeur sont à chacun.
+ */
+export interface Clone {
+  type: 'clone'
+  cible: Id
+}
+
 export type Contenu =
   | Note
   | Image
@@ -287,6 +296,7 @@ export type Contenu =
   | Lieu
   | Croquis
   | DocumentTexte
+  | Clone
 export type TypeContenu = Contenu['type']
 
 export interface Element<C extends Contenu = Contenu> {
