@@ -80,9 +80,9 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Cmd+Entrée : l'élément suivant (dessous, à droite, dans la colonne) | ✅ | |
 | Note vide qui invite à écrire | ✅ | |
 | Conversions en tapant : adresse → lien, `[] ` → tâches | ✅ | |
-| Conversion d'un code couleur en nuancier | ⬜ | Attend le nuancier (§ 10). |
+| Conversion d'un code couleur en nuancier | ✅ | Un « #rrggbb » collé devient un nuancier. |
 | Coller des éléments copiés, décalés de 2 UG | ✅ | |
-| Coller du texte, une adresse, une image hors édition | 🟡 | N'arrive pas dans les non triés ; la note collée n'est pas éditée. |
+| Coller du texte, une adresse, une image hors édition | ✅ | La note collée s'ouvre en édition. |
 | Déposer des images depuis le Finder | ✅ | |
 | Déposer un fichier quelconque, plusieurs adresses, dans une colonne | 🟡 | Les fichiers se posent sur la toile, pas encore dans la colonne visée ; une seule adresse est gardée. |
 | Non triés : bac latéral, Cmd+\, Alt+` | ✅ | |

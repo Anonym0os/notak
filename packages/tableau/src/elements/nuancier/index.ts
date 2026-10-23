@@ -1,7 +1,7 @@
 import type { Nuancier } from '../../coeur/tableau'
 import { registre } from '../registre'
 import { OutilsNuancier, RenduNuancier } from './Nuancier'
-import { LARGEUR_NUANCIER, PROPORTION_NUANCIER, codeAffiche, nouveauNuancier } from './couleur'
+import { LARGEUR_NUANCIER, PROPORTION_NUANCIER, codeAffiche, normaliserHex, nouveauNuancier } from './couleur'
 import './nuancier.css'
 
 registre.type<Nuancier>({
@@ -27,4 +27,15 @@ registre.type<Nuancier>({
       creer: (ou) => [{ type: 'creer', element: nouveauNuancier(Math.round(ou.x), Math.round(ou.y)) }],
     },
   ],
+})
+
+// Un code couleur collé seul (« #3a76df ») devient un nuancier, avant les liens et les notes.
+registre.recepteur({
+  priorite: 32,
+  recevoir(donnees, ou) {
+    const texte = donnees.getData('text/plain').trim()
+    // Le dièse est exigé : « cafe » ou « add » sont des mots avant d'être des couleurs.
+    const couleur = texte.startsWith('#') && texte.length <= 7 ? normaliserHex(texte) : null
+    return couleur ? [{ type: 'creer', element: nouveauNuancier(Math.round(ou.x), Math.round(ou.y), couleur) }] : null
+  },
 })

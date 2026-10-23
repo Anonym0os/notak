@@ -664,7 +664,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     }
     if (tous.length === 0) return
     magasin.faire(tous)
-    setSelection(new Set(tous.flatMap((op) => (op.type === 'creer' ? [op.element.id] : []))))
+    const crees = tous.flatMap((op) => (op.type === 'creer' ? [op.element] : []))
+    setSelection(new Set(crees.map((e) => e.id)))
+    // Une seule note née d'un collage s'ouvre en édition : on la complète aussitôt, comme si on l'avait tapée.
+    if (crees.length === 1 && crees[0]!.contenu.type === 'note') commencerEdition(crees[0]!.id)
   }
 
   recevoirCourant.current = recevoir
