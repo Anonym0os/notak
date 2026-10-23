@@ -1,10 +1,10 @@
 /**
  * Ce qui se pose sur une tâche en plus de son texte : une échéance, une personne. Des règles pures sur les
- * attributs de la tâche (`echeance` : `AAAA-MM-JJ`) ; le rendu les lit, hors édition en React, en édition
+ * attributs de la tâche (`echeance` : `AAAA-MM-JJ`, `assigne` : un nom, libre ou celui d'une personne présente) ; le rendu les lit, hors édition en React, en édition
  * dans la vue du nœud.
  */
 
-export type GenrePuce = 'echeance'
+export type GenrePuce = 'echeance' | 'assigne'
 
 /** Ce que la tâche dessine à droite de son texte, pour un genre. */
 export interface Puce {
@@ -15,6 +15,14 @@ export interface Puce {
   titre: string
   /** L'échéance est passée et la tâche n'est pas faite. */
   retard: boolean
+  /** La couleur de la pastille d'une personne. */
+  teinte?: string
+}
+
+/** Quelqu'un à qui confier une tâche. */
+export interface Personne {
+  nom: string
+  couleur?: string
 }
 
 const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
@@ -56,6 +64,7 @@ export const echeanceDe = (attrs: Record<string, unknown> | undefined): string |
 export function puces(attrs: Record<string, unknown> | undefined, aujourdhui: string): Puce[] {
   const jour = echeanceDe(attrs)
   const faite = attrs?.checked === true
+  const nom = assigneDe(attrs)
   return [
     {
       genre: 'echeance',
@@ -64,5 +73,44 @@ export function puces(attrs: Record<string, unknown> | undefined, aujourdhui: st
       titre: jour ? 'Changer l’échéance' : 'Ajouter une échéance',
       retard: jour !== null && !faite && jour < aujourdhui,
     },
+    {
+      genre: 'assigne',
+      vide: nom === null,
+      texte: nom ? initiales(nom) : 'Assigner',
+      titre: nom ? `Assignée à ${nom}` : 'Assigner à quelqu’un',
+      retard: false,
+      ...(nom ? { teinte: teinteDe(nom) } : {}),
+    },
   ]
+}
+
+/** Le nom de la personne assignée, s'il y en a une. */
+export const assigneDe = (attrs: Record<string, unknown> | undefined): string | null => {
+  const nom = typeof attrs?.assigne === 'string' ? attrs.assigne.trim() : ''
+  return nom === '' ? null : nom
+}
+
+/** Les initiales d'un nom (deux au plus), en majuscules. */
+export function initiales(nom: string): string {
+  const mots = nom.trim().split(/[\s-]+/).filter(Boolean)
+  const lettres = mots.length > 1 ? [mots[0]!, mots.at(-1)!] : mots
+  return lettres.map((m) => [...m][0]!.toUpperCase()).join('').slice(0, 2)
+}
+
+/** Une couleur de pastille tirée du nom : la même partout, sans rien à stocker. */
+export function teinteDe(nom: string): string {
+  let h = 0
+  for (const c of nom.toLowerCase()) h = (h * 31 + c.codePointAt(0)!) % 360
+  return `hsl(${h} 45% 40%)`
+}
+
+/** Soi d'abord, puis les autres présents ; un nom ne paraît qu'une fois. */
+export function personnes(moi: Personne | undefined, autres: readonly Personne[]): Personne[] {
+  const vues = new Set<string>()
+  return [...(moi ? [moi] : []), ...autres].filter((p) => {
+    const cle = p.nom.trim().toLowerCase()
+    if (cle === '' || vues.has(cle)) return false
+    vues.add(cle)
+    return true
+  })
 }

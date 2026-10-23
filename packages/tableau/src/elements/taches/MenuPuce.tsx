@@ -1,7 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { decaler, jourDe } from './puces'
-import type { GenrePuce } from './puces'
+import { type GenrePuce, type Personne, decaler, initiales, jourDe, teinteDe } from './puces'
 
 /** Où le menu s'ouvre : sous la puce touchée, en coordonnées d'écran. */
 export interface OuverturePuce {
@@ -14,15 +13,18 @@ export interface OuverturePuce {
 const LARGEUR_MENU = 232
 
 /**
- * Le petit menu d'une puce : l'échéance se choisit au calendrier ou d'un raccourci. Il se ferme d'un clic
- * ailleurs ou d'Échap ; `regler(null)` retire ce qui était posé.
+ * Le petit menu d'une puce : l'échéance se choisit au calendrier ou d'un raccourci, la personne parmi ceux qui
+ * sont là ou en tapant un nom. Il se ferme d'un clic ailleurs ou d'Échap ; `regler(null)` retire ce qui était posé.
  */
-export function MenuPuce({ ouverture, valeur, regler, fermer }: {
+export function MenuPuce({ ouverture, valeur, personnes, regler, fermer }: {
   ouverture: OuverturePuce
   valeur: string | null
+  /** Ceux qu'on propose d'assigner. */
+  personnes: Personne[]
   regler(valeur: string | null): void
   fermer(): void
 }) {
+  const [nom, setNom] = useState('')
   const racine = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const hors = (e: PointerEvent) => {
@@ -56,27 +58,55 @@ export function MenuPuce({ ouverture, valeur, regler, fermer }: {
       onDoubleClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.stopPropagation()}
     >
-      <input
-        type="date"
-        aria-label="Échéance"
-        value={valeur ?? ''}
-        autoFocus
-        onChange={(e) => e.target.value && choisir(e.target.value)}
-      />
-      <div className="notak-menu-puce-raccourcis">
-        <button type="button" role="menuitem" onClick={() => choisir(aujourdhui)}>
-          Aujourd'hui
-        </button>
-        <button type="button" role="menuitem" onClick={() => choisir(decaler(aujourdhui, 1))}>
-          Demain
-        </button>
-        <button type="button" role="menuitem" onClick={() => choisir(decaler(aujourdhui, 7))}>
-          Dans une semaine
-        </button>
-      </div>
+      {ouverture.genre === 'echeance' ? (
+        <>
+          <input
+            type="date"
+            aria-label="Échéance"
+            value={valeur ?? ''}
+            autoFocus
+            onChange={(e) => e.target.value && choisir(e.target.value)}
+          />
+          <div className="notak-menu-puce-raccourcis">
+            <button type="button" role="menuitem" onClick={() => choisir(aujourdhui)}>
+              Aujourd'hui
+            </button>
+            <button type="button" role="menuitem" onClick={() => choisir(decaler(aujourdhui, 1))}>
+              Demain
+            </button>
+            <button type="button" role="menuitem" onClick={() => choisir(decaler(aujourdhui, 7))}>
+              Dans une semaine
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <input
+            type="text"
+            aria-label="Nom"
+            placeholder="Un nom…"
+            value={nom}
+            autoFocus
+            onChange={(e) => setNom(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && nom.trim() !== '') choisir(nom.trim())
+            }}
+          />
+          <div className="notak-menu-puce-raccourcis">
+            {personnes.map((p) => (
+              <button key={p.nom} type="button" role="menuitem" aria-pressed={p.nom === valeur} onClick={() => choisir(p.nom)}>
+                <span className="notak-menu-puce-pastille" style={{ background: p.couleur ?? teinteDe(p.nom) }}>
+                  {initiales(p.nom)}
+                </span>
+                {p.nom}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       {valeur && (
         <button type="button" role="menuitem" className="notak-menu-puce-retirer" onClick={() => choisir(null)}>
-          Retirer l’échéance
+          {ouverture.genre === 'echeance' ? 'Retirer l’échéance' : 'Retirer la personne'}
         </button>
       )}
     </div>,

@@ -42,7 +42,7 @@ const attributTexte = (nom: string) => ({
 const Tache = TaskItem.extend({
   content: 'paragraph taskList?',
   addAttributes() {
-    return { ...this.parent?.(), echeance: attributTexte('echeance') }
+    return { ...this.parent?.(), echeance: attributTexte('echeance'), assigne: attributTexte('assigne') }
   },
   addNodeView() {
     return ({ node, getPos, editor }) => {
@@ -86,6 +86,7 @@ const Tache = TaskItem.extend({
             if (p.retard) b.dataset.retard = ''
             b.title = p.titre
             b.textContent = p.texte
+            if (p.teinte) b.style.setProperty('--teinte', p.teinte)
             b.addEventListener('mousedown', (e) => e.preventDefault())
             b.addEventListener('click', (e) => {
               e.preventDefault()

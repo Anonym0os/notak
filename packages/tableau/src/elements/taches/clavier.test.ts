@@ -205,6 +205,16 @@ describe('Échéance', () => {
     expect(echeances()).toEqual(['2026-10-30', null])
   })
 
+  it('la personne assignée ne se recopie pas non plus, mais reste dans le JSON', () => {
+    ouvrir(['abcd'])
+    editeur.view.dispatch(editeur.state.tr.setNodeMarkup(1, undefined, { ...editeur.state.doc.nodeAt(1)!.attrs, assigne: 'Léa' }))
+    editeur.commands.setTextSelection(5)
+    touche('Enter')
+    const noms: unknown[] = []
+    editeur.state.doc.descendants((n) => void (n.type.name === 'taskItem' && noms.push(n.attrs.assigne)))
+    expect(noms).toEqual(['Léa', null])
+  })
+
   it('se relit depuis le JSON', () => {
     editeur = new Editor({
       extensions: EXTENSIONS_TACHES,

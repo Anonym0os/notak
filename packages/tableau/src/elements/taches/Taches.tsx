@@ -1,14 +1,14 @@
 import { EditorContent, getSchema, useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
-import { type KeyboardEvent, type ReactNode, memo, useEffect, useMemo, useRef, useState } from 'react'
+import { type CSSProperties, type KeyboardEvent, type ReactNode, memo, useEffect, useMemo, useRef, useState } from 'react'
 import type { CouleurNote, Element, Id, NoeudTexte, Taches } from '../../coeur/tableau'
 import { extensionsDuPartage, textePartage } from '../partage'
 import { texteDeNote } from '../note/couleurs'
 import { MenuCouleur } from '../note/MenuCouleur'
-import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
+import type { ContexteToile, PropsOutils, PropsRendu, ServicePresence } from '../types'
 import { EXTENSIONS_TACHES, EXTENSIONS_TACHES_PARTAGEE, type GestesTaches, clavierListe, ouvreursPuces } from './extensions'
 import { MenuPuce, type OuverturePuce } from './MenuPuce'
-import { type Puce, echeanceDe, jourDe, puces } from './puces'
+import { type Personne, type Puce, assigneDe, echeanceDe, jourDe, personnes, puces } from './puces'
 import { type Chemin, basculer, compter, docTaches, effacerFaites, estFaite, regler, retirer, sousTaches } from './liste'
 
 /** Les listes dont le titre vient d'être ajouté : leur édition y met le curseur. */
@@ -30,7 +30,7 @@ export function RenduTaches({ element, enEdition, contexte, brouillon, changer }
       {enEdition ? (
         <Edition id={element.id} contenu={contenu} contexte={contexte} surChangement={brouillon} jeter={jeter} />
       ) : (
-        <Figee contenu={contenu} changer={changer} />
+        <Figee contenu={contenu} changer={changer} presence={contexte.services.presence} />
       )}
     </div>
   )
@@ -38,7 +38,7 @@ export function RenduTaches({ element, enEdition, contexte, brouillon, changer }
 
 // ———— Hors édition : la liste se dessine à partir du JSON, cases cliquables ————
 
-const Figee = memo(function Figee({ contenu, changer }: { contenu: Taches; changer(apres: Taches): void }) {
+const Figee = memo(function Figee({ contenu, changer, presence }: { contenu: Taches; changer(apres: Taches): void; presence?: ServicePresence }) {
   const doc = docTaches(contenu.texte)
   const cocher = (chemin: Chemin, enCascade: boolean) =>
     changer({ ...contenu, texte: basculer(doc, chemin, enCascade) })
@@ -53,8 +53,9 @@ const Figee = memo(function Figee({ contenu, changer }: { contenu: Taches; chang
       {menu && (
         <MenuPuce
           ouverture={menu}
-          valeur={echeanceDe(cible?.attrs)}
-          regler={(v) => changer({ ...contenu, texte: regler(doc, menu.chemin, { echeance: v }) })}
+          valeur={valeurPuce(menu.genre, cible?.attrs)}
+          personnes={personnesPresentes(presence)}
+          regler={(v) => changer({ ...contenu, texte: regler(doc, menu.chemin, { [menu.genre]: v }) })}
           fermer={() => setMenu(null)}
         />
       )}
@@ -110,6 +111,7 @@ function Liste({ noeud, chemin, cocher, supprimer, ouvrir }: PropsListe) {
                   data-vide={p.vide ? '' : undefined}
                   data-retard={p.retard ? '' : undefined}
                   title={p.titre}
+                  style={p.teinte ? ({ '--teinte': p.teinte } as CSSProperties) : undefined}
                   onPointerDown={(e) => e.stopPropagation()}
                   onDoubleClick={(e) => e.stopPropagation()}
                   onClick={(e) => ouvrir(ici, p.genre, e.currentTarget)}
@@ -139,6 +141,17 @@ function sousTachePar(doc: NoeudTexte, chemin: Chemin): NoeudTexte | undefined {
   let n: NoeudTexte | undefined = doc
   for (const i of chemin) n = n && sousTaches(n)[i]
   return n
+}
+
+/** Ce que la puce de ce genre porte déjà. */
+const valeurPuce = (genre: Puce['genre'], attrs: Record<string, unknown> | undefined) =>
+  genre === 'echeance' ? echeanceDe(attrs) : assigneDe(attrs)
+
+/** Soi et ceux qui sont là sur le tableau : les noms qu'on propose d'assigner. */
+function personnesPresentes(presence: ServicePresence | undefined): Personne[] {
+  const vers = (u: { nom: string; couleur: string }): Personne => ({ nom: u.nom, couleur: u.couleur })
+  const moi = presence?.moi?.()
+  return personnes(moi && vers(moi), (presence?.autres() ?? []).map((p) => vers(p.utilisateur)))
 }
 
 /** Où ouvrir le menu d'une puce : sous elle, dans la toile qui la porte. */
@@ -279,10 +292,11 @@ function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surC
       {menu && editeur && (
         <MenuPuce
           ouverture={menu}
-          valeur={echeanceDe(tacheDuMenu ? tacheDuMenu.attrs : undefined)}
+          valeur={valeurPuce(menu.genre, tacheDuMenu ? tacheDuMenu.attrs : undefined)}
+          personnes={personnesPresentes(contexte.services.presence)}
           regler={(v) => {
             const t = editeur.state.doc.nodeAt(menu.pos)
-            if (t?.type.name === 'taskItem') editeur.view.dispatch(editeur.state.tr.setNodeMarkup(menu.pos, undefined, { ...t.attrs, echeance: v }))
+            if (t?.type.name === 'taskItem') editeur.view.dispatch(editeur.state.tr.setNodeMarkup(menu.pos, undefined, { ...t.attrs, [menu.genre]: v }))
           }}
           fermer={() => setMenu(null)}
         />
