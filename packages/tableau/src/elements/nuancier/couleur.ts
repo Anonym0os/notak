@@ -1,4 +1,5 @@
 import { type Element, type Nuancier, nouvelId } from '../../coeur/tableau'
+import { langue } from '../../langue'
 
 export const LARGEUR_NUANCIER = 17
 /** Largeur sur hauteur : 17 × 12 UG. */
@@ -103,6 +104,66 @@ export function analyserCode(texte: string): string | null {
   return `#${[a, b, c].map(hex2).join('')}`
 }
 
+/** Quelques couleurs nommées (hex, anglais, français) : la légende d'un nuancier neuf porte le nom de la plus proche. */
+const NOMS: readonly (readonly [string, string, string])[] = [
+  ['#000000', 'Black', 'Noir'],
+  ['#ffffff', 'White', 'Blanc'],
+  ['#808080', 'Gray', 'Gris'],
+  ['#c0c0c0', 'Silver', 'Argent'],
+  ['#ff0000', 'Red', 'Rouge'],
+  ['#8b0000', 'Dark Red', 'Rouge sombre'],
+  ['#ff6347', 'Tomato', 'Tomate'],
+  ['#ff7f50', 'Coral', 'Corail'],
+  ['#fa8072', 'Salmon', 'Saumon'],
+  ['#ffa500', 'Orange', 'Orange'],
+  ['#ff8c00', 'Dark Orange', 'Orange foncé'],
+  ['#ffd700', 'Gold', 'Or'],
+  ['#ffff00', 'Yellow', 'Jaune'],
+  ['#f0e68c', 'Khaki', 'Kaki clair'],
+  ['#bfff00', 'Lime', 'Citron vert'],
+  ['#32cd32', 'Lime Green', 'Vert lime'],
+  ['#008000', 'Green', 'Vert'],
+  ['#006400', 'Dark Green', 'Vert foncé'],
+  ['#3cb371', 'Sea Green', 'Vert mer'],
+  ['#98fb98', 'Mint', 'Menthe'],
+  ['#008080', 'Teal', 'Sarcelle'],
+  ['#40e0d0', 'Turquoise', 'Turquoise'],
+  ['#00ffff', 'Cyan', 'Cyan'],
+  ['#87ceeb', 'Sky Blue', 'Bleu ciel'],
+  ['#4f8cff', 'Cornflower Blue', 'Bleuet'],
+  ['#1e90ff', 'Dodger Blue', 'Bleu vif'],
+  ['#0000ff', 'Blue', 'Bleu'],
+  ['#000080', 'Navy', 'Bleu marine'],
+  ['#4b0082', 'Indigo', 'Indigo'],
+  ['#800080', 'Purple', 'Pourpre'],
+  ['#9370db', 'Lavender Purple', 'Lavande'],
+  ['#ee82ee', 'Violet', 'Violet'],
+  ['#ff00ff', 'Magenta', 'Magenta'],
+  ['#ff69b4', 'Hot Pink', 'Rose vif'],
+  ['#ffc0cb', 'Pink', 'Rose'],
+  ['#dc143c', 'Crimson', 'Cramoisi'],
+  ['#800000', 'Maroon', 'Bordeaux'],
+  ['#a52a2a', 'Brown', 'Brun'],
+  ['#d2691e', 'Chocolate', 'Chocolat'],
+  ['#deb887', 'Tan', 'Beige'],
+  ['#f5f5dc', 'Beige', 'Écru'],
+]
+
+/** Le nom de la couleur la plus proche (`langue` : « fr » ou « en »). */
+export function nomDeCouleur(couleur: string, langue: 'fr' | 'en' = 'en'): string {
+  if (!/^#[0-9a-f]{6}$/i.test(couleur)) return ''
+  const [r, g, b] = canaux(couleur)
+  let meilleur = NOMS[0]!
+  let ecart = Infinity
+  for (const n of NOMS) {
+    const [r2, g2, b2] = canaux(n[0])
+    // Les verts comptent un peu plus : l'œil les distingue mieux.
+    const d = 2 * (r - r2) ** 2 + 4 * (g - g2) ** 2 + 3 * (b - b2) ** 2
+    if (d < ecart) [meilleur, ecart] = [n, d]
+  }
+  return langue === 'fr' ? meilleur[2] : meilleur[1]
+}
+
 export const nouveauNuancier = (x: number, y: number, couleur = COULEUR_DEPART): Element<Nuancier> => {
   const format = formatPrefere()
   return {
@@ -132,3 +193,9 @@ export async function piocherCouleur(): Promise<string | null> {
     return null
   }
 }
+
+/** Un nuancier posé par un geste (l'outil, un collage) naît avec sa légende : le nom de sa couleur. */
+export const avecNomEnLegende = (e: Element<Nuancier>): Element<Nuancier> => ({
+  ...e,
+  contenu: { ...e.contenu, avecLegende: true, legende: nomDeCouleur(e.contenu.couleur, langue()) },
+})

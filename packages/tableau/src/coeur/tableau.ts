@@ -346,6 +346,9 @@ export interface Nuancier {
   sansCode?: boolean
   /** Le code montré : hexadécimal (par défaut), `rgb(…)` ou `hsl(…)`. `sansCode` le cache. */
   format?: 'hex' | 'rgb' | 'hsl'
+  /** La légende sous l'aplat (le nom de la couleur à la naissance), montrée tant que `avecLegende` est posé. */
+  legende?: string
+  avecLegende?: boolean
 }
 
 /** Un lieu : son nom (facultatif) et son adresse, avec un lien vers une carte en ligne. */

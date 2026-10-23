@@ -1,7 +1,7 @@
 import type { Nuancier } from '../../coeur/tableau'
 import { registre } from '../registre'
 import { OutilsNuancier, OutilsNuancierApres, RenduNuancier } from './Nuancier'
-import { LARGEUR_NUANCIER, analyserCode, codeAffiche, couleurSuivante, nouveauNuancier } from './couleur'
+import { LARGEUR_NUANCIER, analyserCode, avecNomEnLegende, codeAffiche, couleurSuivante, nouveauNuancier } from './couleur'
 import { t } from '../../langue'
 import './nuancier.css'
 import { ico } from '../../icones'
@@ -17,7 +17,8 @@ registre.type<Nuancier>({
   OutilsApres: OutilsNuancierApres,
   editable: true,
   aLaCreation: 'rien',
-  sansFond: true,
+  // Sans légende, l'aplat seul ; avec, un cadre blanc dont l'aplat est la partie haute.
+  sansFond: (c) => !c.avecLegende,
   hauteurParDefaut: 12,
   largeurMin: 4,
   largeurNaturelle: () => LARGEUR_NUANCIER,
@@ -34,7 +35,7 @@ registre.type<Nuancier>({
       vignette: 'nuancier',
       tiroir: true,
       fantome: () => nouveauNuancier(0, 0),
-      creer: (ou) => [{ type: 'creer', element: nouveauNuancier(Math.round(ou.x), Math.round(ou.y), couleurSuivante()) }],
+      creer: (ou) => [{ type: 'creer', element: avecNomEnLegende(nouveauNuancier(Math.round(ou.x), Math.round(ou.y), couleurSuivante())) }],
     },
   ],
 })
@@ -49,6 +50,6 @@ registre.recepteur({
     if (!couleur) return null
     const format = texte.toLowerCase().startsWith('rgb') ? 'rgb' : texte.toLowerCase().startsWith('hsl') ? 'hsl' : undefined
     const n = nouveauNuancier(Math.round(ou.x), Math.round(ou.y), couleur)
-    return [{ type: 'creer', element: format ? { ...n, contenu: { ...n.contenu, format } } : n }]
+    return [{ type: 'creer', element: avecNomEnLegende(format ? { ...n, contenu: { ...n.contenu, format } } : n) }]
   },
 })

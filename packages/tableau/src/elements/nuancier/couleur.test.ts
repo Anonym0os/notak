@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { PALETTE_DEPART, analyserCode, codeAffiche, couleurSuivante, normaliserHex, nouveauNuancier } from './couleur'
+import { PALETTE_DEPART, analyserCode, avecNomEnLegende, nomDeCouleur, codeAffiche, couleurSuivante, normaliserHex, nouveauNuancier } from './couleur'
 
 describe('le code couleur', () => {
   test('six chiffres, avec ou sans dièse, en minuscules', () => {
@@ -56,4 +56,18 @@ test('les couleurs de naissance se suivent', () => {
   const b = couleurSuivante()
   expect(a).not.toBe(b)
   expect(PALETTE_DEPART).toContain(b)
+})
+
+describe('la légende de naissance', () => {
+  test('le nom de la couleur la plus proche', () => {
+    expect(nomDeCouleur('#ff0000')).toBe('Red')
+    expect(nomDeCouleur('#fe0101', 'fr')).toBe('Rouge')
+    expect(nomDeCouleur('#000001')).toBe('Black')
+    expect(nomDeCouleur('pas une couleur')).toBe('')
+  })
+
+  test('un nuancier posé par un geste porte sa légende', () => {
+    const e = avecNomEnLegende(nouveauNuancier(0, 0, '#ffffff'))
+    expect(e.contenu).toMatchObject({ avecLegende: true, legende: expect.stringMatching(/White|Blanc/) })
+  })
 })

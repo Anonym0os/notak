@@ -104,8 +104,8 @@ describe('la barre de gauche, type par type (ordre de Milanote)', () => {
     expect(rangees).toEqual(expect.arrayContaining(['Points', 'Début rond', 'Fin rond']))
   })
 
-  it('nuancier : Couleur, étiquettes, réactions, commentaire, Affichage', () => {
-    expect(listes('nuancier').visibles).toEqual(['Couleur', ...COMMUNS, 'HEX'])
+  it('nuancier : Couleur, étiquettes, réactions, commentaire, Affichage, Légende', () => {
+    expect(listes('nuancier').visibles).toEqual(['Couleur', ...COMMUNS, 'HEX', 'Légende'])
   })
 
   it('croquis : Couleur, étiquettes, réactions, commentaire (ni « Dessiner » : le double-clic ouvre)', () => {

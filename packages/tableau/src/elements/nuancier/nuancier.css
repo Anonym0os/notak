@@ -86,3 +86,43 @@
   opacity: 0;
   pointer-events: none;
 }
+
+/* Avec une légende, la carte devient un cadre blanc (fond d'élément) dont l'aplat est la partie haute. */
+.notak-carte[data-type='nuancier']:not([data-sans-fond]) {
+  padding: 0;
+}
+
+.notak-nuancier-carte[data-legende] .notak-nuancier {
+  box-shadow: none;
+}
+
+.notak-nuancier-legende {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 12px 24px 14px;
+  color: var(--notak-texte);
+  font-size: 12px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.notak-nuancier-legende[data-vide] {
+  color: var(--notak-pale);
+}
+
+.notak-carte[data-choisie] .notak-nuancier-legende {
+  cursor: text;
+}
+
+.notak-nuancier-legende-champ {
+  display: block;
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  line-height: 20px;
+}
