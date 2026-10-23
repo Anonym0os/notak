@@ -1,3 +1,14 @@
+/* L'encre par défaut suit la couleur de ligne du thème : sombre sur clair, blanche en thème sombre. */
+.notak-espace,
+.notak-toile {
+  --notak-trait-defaut: #323b4a;
+}
+
+.notak-espace[data-theme='sombre'],
+.notak-espace[data-theme='sombre'] .notak-toile {
+  --notak-trait-defaut: #ffffff;
+}
+
 .notak-croquis {
   position: relative;
   color: var(--notak-texte);
@@ -15,7 +26,8 @@
   background: #fff;
 }
 
-.notak-carte[data-teinte] .notak-croquis > svg {
+.notak-carte[data-teinte] .notak-croquis > svg,
+.notak-carte[data-type='croquis'][data-sans-fond] .notak-croquis > svg {
   background: transparent;
 }
 
@@ -118,6 +130,10 @@
   user-select: none;
 }
 
+.notak-croquis-surface[data-transparent] {
+  background: var(--notak-carte, #fff);
+}
+
 .notak-croquis-surface[data-outil='gomme'],
 .notak-croquis-surface[data-outil='selection'] {
   cursor: default;
@@ -134,6 +150,7 @@
   min-width: min(511px, 92vw);
   padding: 6px 10px;
   animation: notak-croquis-barre-entree 150ms ease-out;
+  transition: opacity 150ms linear, transform 150ms ease-in;
   border-radius: 999px;
   background: var(--notak-carte, #fff);
   box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.2), 0 8px 10px -6px rgb(0 0 0 / 0.2);
@@ -329,4 +346,11 @@
   background: none;
   box-shadow: 0 0 0 2px var(--notak-selection, #323b4a);
   border-radius: 4px;
+}
+
+/* Pendant un tracé près du bord de la fenêtre, la barre descend de 15 px et s'efface. */
+.notak-croquis-feuille .notak-croquis-barre[data-effacee] {
+  opacity: 0;
+  transform: translate(-50%, 15px);
+  pointer-events: none;
 }
