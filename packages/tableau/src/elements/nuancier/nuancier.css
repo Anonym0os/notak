@@ -126,3 +126,8 @@
   font-size: 12px;
   line-height: 20px;
 }
+
+/* Le code d'un nuancier choisi seul s'écrit d'un clic. */
+.notak-carte[data-choisie] .notak-nuancier-code {
+  cursor: text;
+}
