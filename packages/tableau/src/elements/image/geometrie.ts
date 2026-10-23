@@ -1,4 +1,5 @@
-import type { Image } from '../../coeur/tableau'
+import type { Rect } from '../../coeur/geometrie'
+import type { Element, Id, Image } from '../../coeur/tableau'
 
 /** Les formats acceptés, et la taille maximale d'un fichier. */
 export const TYPES_ACCEPTES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml']
@@ -60,4 +61,28 @@ export function avecLegende(c: Image, texte: string): Image {
   const { legende: _, ...reste } = c
   const propre = texte.replace(/\s+/g, ' ').trim()
   return propre ? { ...reste, legende: propre } : reste
+}
+
+/**
+ * L'image qu'un dépôt a visée : la plus haute dans l'empilement dont le rectangle contient le point.
+ * Une image à la corbeille ou verrouillée ne se remplace pas.
+ */
+export function imageSous(elements: readonly Element[], rect: (id: Id) => Rect | null, ou: { x: number; y: number }): Element<Image> | null {
+  for (let i = elements.length - 1; i >= 0; i--) {
+    const e = elements[i]!
+    if (e.contenu.type !== 'image' || e.corbeille !== undefined || e.verrou) continue
+    const r = rect(e.id)
+    if (r && ou.x >= r.min.x && ou.x <= r.max.x && ou.y >= r.min.y && ou.y <= r.max.y) return e as Element<Image>
+  }
+  return null
+}
+
+/**
+ * L'image qui en prend une autre : le nouveau fichier et ses dimensions, la légende de l'ancienne.
+ * Le recadrage et la rotation étaient faits pour l'ancienne image : ils ne la suivent pas.
+ */
+export function remplacerContenu(ancien: Image, nouveau: Omit<Image, 'fichier'>, fichier: Id): Image {
+  const { legende } = ancien
+  const { legende: _, recadrage: _r, rotation: _o, tailles: _t, ...propre } = nouveau
+  return { ...propre, fichier, ...(legende ? { legende } : {}) }
 }

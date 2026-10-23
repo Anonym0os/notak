@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import type { Image } from '../../coeur/tableau'
-import { aUneOmbre, avecLegende, hauteurCalee, hauteurPour, largeurInitiale, largeurNaturelleImage, nombreColonnes, placerImages } from './geometrie'
+import type { Element, Image } from '../../coeur/tableau'
+import { aUneOmbre, avecLegende, hauteurCalee, hauteurPour, imageSous, largeurInitiale, largeurNaturelleImage, nombreColonnes, placerImages, remplacerContenu } from './geometrie'
 
 const image = (largeurOrigine: number, hauteurOrigine = 100): Image => ({ type: 'image', fichier: 'f', largeurOrigine, hauteurOrigine })
 
@@ -88,5 +88,41 @@ describe('légende', () => {
 
   test('une légende tient sur une ligne', () => {
     expect(avecLegende(image(10), ' un\ndeux ').legende).toBe('un deux')
+  })
+})
+
+describe('remplacer une image', () => {
+  const el = (id: string, extra: Partial<Element> = {}, contenu: Image = image(100)): Element => ({ id, x: 0, y: 0, largeur: 10, contenu, ...extra })
+  const rects: Record<string, { min: { x: number; y: number }; max: { x: number; y: number } }> = {
+    bas: { min: { x: 0, y: 0 }, max: { x: 20, y: 20 } },
+    haut: { min: { x: 10, y: 10 }, max: { x: 30, y: 30 } },
+  }
+  const rect = (id: string) => rects[id] ?? null
+
+  test('le dépôt vise l’image la plus haute sous le point', () => {
+    const els = [el('bas'), el('haut')]
+    expect(imageSous(els, rect, { x: 15, y: 15 })?.id).toBe('haut')
+    expect(imageSous(els, rect, { x: 5, y: 5 })?.id).toBe('bas')
+    expect(imageSous(els, rect, { x: 50, y: 50 })).toBeNull()
+  })
+
+  test('une image verrouillée, à la corbeille, ou une note, ne se remplace pas', () => {
+    expect(imageSous([el('bas', { verrou: true })], rect, { x: 5, y: 5 })).toBeNull()
+    expect(imageSous([el('bas', { corbeille: 1 })], rect, { x: 5, y: 5 })).toBeNull()
+    expect(imageSous([el('bas', {}, { type: 'note' } as never)], rect, { x: 5, y: 5 })).toBeNull()
+  })
+
+  test('la légende reste, le recadrage et la rotation s’en vont', () => {
+    const ancien: Image = { ...image(100), legende: 'Port', rotation: 90, recadrage: { x: 0, y: 0, largeur: 0.5, hauteur: 0.5 } }
+    const nouveau = { type: 'image' as const, largeurOrigine: 800, hauteurOrigine: 600, typeMime: 'image/png', transparente: true, rotation: 180 as const }
+    expect(remplacerContenu(ancien, nouveau, 'f2')).toEqual({
+      type: 'image',
+      fichier: 'f2',
+      largeurOrigine: 800,
+      hauteurOrigine: 600,
+      typeMime: 'image/png',
+      transparente: true,
+      legende: 'Port',
+    })
   })
 })
