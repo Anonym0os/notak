@@ -21,13 +21,13 @@ import type { Presence, Services } from './elements/types'
 import { Toile } from './Toile'
 import { annoncer } from './avis'
 import { ecouterEnvois, envoisEnCours } from './elements/envois'
+import { t, tn, useLangue } from './langue'
 import { FenetreRaccourcis } from './Menus'
 import { PastillePersonne } from './pastille'
 import { FenetreReglages, type ServiceCompte, useReglages } from './reglages'
 import './theme.css'
 
 const CLE_VUES = 'notak:vues'
-const LIBELLE_RACINE = 'Accueil'
 /**
  * La largeur d'un segment du fil (texte, marges, séparateur), en pixels : le titre est mesuré dans la police du fil,
  * puis coupé à 160. Sans canvas (un test), on retombe sur une estimation.
@@ -38,7 +38,7 @@ function largeurSegment(titre: string): number {
   // La police vraiment employée par un segment déjà dessiné, sinon celle de la page.
   const modele = mesureur && (document.querySelector('.notak-fil-segment') ?? document.body)
   if (mesureur && modele) mesureur.font = getComputedStyle(modele).font
-  const texte = mesureur ? mesureur.measureText(titre || 'Sans titre').width : (titre.length || 10) * 7.2
+  const texte = mesureur ? mesureur.measureText(titre || t('commun.sansTitre')).width : (titre.length || 10) * 7.2
   return Math.min(160, 8 + texte) + 24
 }
 const LARGEUR_SUSPENSION = 44
@@ -119,6 +119,8 @@ export function EspaceNotak({
   const courant = courantDe(parcours)
   const lectureSeule = useSyncExternalStore(espace.ecouter, () => espace.lectureSeule?.(courant) ?? false)
   const [reglages, changerReglages] = useReglages()
+  // Un changement de langue redessine l'en-tête et la toile : les textes se relisent à la nouvelle langue.
+  const langue = useLangue()
   const [reglagesOuverts, setReglagesOuverts] = useState(false)
   const [presentation, setPresentation] = useState(false)
   const [aideOuverte, setAideOuverte] = useState(false)
@@ -232,7 +234,7 @@ export function EspaceNotak({
   const refuse = useSyncExternalStore(espace.ecouter, () => espace.refuse?.(courant) ?? false)
   useEffect(() => {
     if (!refuse || courant === racine) return
-    annoncer({ texte: 'Accès retiré' })
+    annoncer({ texte: t('espace.accesRetire') })
     setParcours(parcoursDepart(racine))
   }, [refuse, courant, racine])
 
@@ -244,10 +246,10 @@ export function EspaceNotak({
   const segments = useMemo(() => {
     const chemin = (JSON.parse(fil) as [Id, string][]).map(([id, titre]): Segment => ({ id, titre }))
     // Un tableau orphelin n'est pas sous l'accueil, mais on garde une sortie.
-    if (chemin[0]?.id !== racine) chemin.unshift({ id: racine, titre: LIBELLE_RACINE })
-    else chemin[0] = { id: racine, titre: LIBELLE_RACINE }
+    if (chemin[0]?.id !== racine) chemin.unshift({ id: racine, titre: t('espace.accueil') })
+    else chemin[0] = { id: racine, titre: t('espace.accueil') }
     return chemin
-  }, [fil, racine])
+  }, [fil, racine, langue])
 
   // Les raccourcis de navigation, sur le document : la toile qui avait le focus disparaît à chaque changement.
   const basculerThemeRef = useRef(() => {})
@@ -269,7 +271,7 @@ export function EspaceNotak({
       if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 's') {
         e.preventDefault()
         const envoi = etat.current.espace.envoi?.(etat.current.courant)
-        annoncer({ texte: envoi === 'hors-ligne' ? 'Hors ligne : gardé sur cet appareil, envoyé au retour du réseau' : 'Tout s’enregistre tout seul' })
+        annoncer({ texte: envoi === 'hors-ligne' ? t('espace.horsLigneGarde') : t('espace.toutSEnregistre') })
         return
       }
       if (!(e.metaKey || e.ctrlKey) || e.altKey || saisissable(e.target)) return
@@ -342,6 +344,7 @@ export function EspaceNotak({
   return (
     <div ref={racineEspace} className="notak-espace" data-theme={reglages.theme} data-taille={reglages.taille} data-presentation={presentation || undefined}>
       <Entete
+        key={`entete:${langue}`}
         segments={segments}
         charge={charge}
         courant={courant}
@@ -355,7 +358,7 @@ export function EspaceNotak({
       />
       <div className="notak-espace-corps" ref={corps}>
         <Toile
-          key={courant}
+          key={`${courant}:${langue}`}
           magasin={espace.magasin(courant)}
           services={services}
           cameraInitiale={vues.current[courant]?.camera}
@@ -437,7 +440,7 @@ function Entete({
         <input
           key="renommage"
           className="notak-fil-saisie"
-          aria-label="Titre du tableau"
+          aria-label={t('espace.titreTableau')}
           defaultValue={s.titre}
           autoFocus
           onFocus={(e) => e.currentTarget.select()}
@@ -456,19 +459,19 @@ function Entete({
         type="button"
         className="notak-fil-segment"
         aria-current={ici ? 'page' : undefined}
-        title={ici && !charge ? 'Chargement…' : s.titre}
+        title={ici && !charge ? t('espace.chargement') : s.titre}
         data-depot-tableau={s.id}
         data-charge={(ici && !charge) || undefined}
         onClick={() => (ici && renommer ? setEnRenommage(true) : aller(s.id))}
       >
-        {s.titre || 'Sans titre'}
+        {s.titre || t('commun.sansTitre')}
       </button>
     )
   }
 
   return (
     <header className="notak-entete" ref={entete}>
-      <nav className="notak-fil" aria-label="Fil d’Ariane">
+      <nav className="notak-fil" aria-label={t('espace.fil')}>
         {visibles.flatMap((i, rang) => [
           rang > 0 && <span key={`s${i}`} className="notak-fil-sep" aria-hidden>›</span>,
           rang === 1 && caches.length > 0 && (
@@ -476,7 +479,7 @@ function Entete({
               <button
                 type="button"
                 className="notak-fil-segment notak-fil-suspension"
-                title="Niveaux cachés"
+                title={t('espace.niveauxCaches')}
                 aria-expanded={menu}
                 onClick={() => setMenu((m) => !m)}
               >
@@ -486,7 +489,7 @@ function Entete({
                 <div className="notak-fil-menu" role="menu">
                   {caches.map((c) => (
                     <button key={c} type="button" role="menuitem" onClick={() => aller(segments[c]!.id)}>
-                      {segments[c]!.titre || 'Sans titre'}
+                      {segments[c]!.titre || t('commun.sansTitre')}
                     </button>
                   ))}
                 </div>
@@ -499,10 +502,10 @@ function Entete({
       </nav>
       {historique && (
         <div className="notak-historique">
-          <button type="button" title="Annuler (⌘Z)" aria-label="Annuler" onClick={historique.annuler}>
+          <button type="button" title={t('espace.annuler') + ' (⌘Z)'} aria-label={t('espace.annuler')} onClick={historique.annuler}>
             ↶
           </button>
-          <button type="button" title="Rétablir (⇧⌘Z)" aria-label="Rétablir" onClick={historique.retablir}>
+          <button type="button" title={t('espace.retablir') + ' (⇧⌘Z)'} aria-label={t('espace.retablir')} onClick={historique.retablir}>
             ↷
           </button>
         </div>
@@ -544,21 +547,21 @@ function EtatEnregistrement({ etat }: { etat: EtatEnvoi | undefined }) {
   }, [etat])
   if (vu === 'hors-ligne')
     return (
-      <span className="notak-enregistrement" data-etat="hors-ligne" title="Vos modifications sont gardées sur cet appareil ; elles partiront au retour du réseau.">
-        Hors ligne
+      <span className="notak-enregistrement" data-etat="hors-ligne" title={t('espace.horsLigneInfo')}>
+        {t('espace.horsLigne')}
       </span>
     )
   // Un fichier en route se dit tout de suite : il peut durer, et quitter la page le perdrait.
   if (fichiers > 0)
     return (
       <span className="notak-enregistrement" data-etat="envoi" role="status">
-        <span className="notak-roue" aria-hidden /> Envoi de {fichiers} fichier{fichiers > 1 ? 's' : ''}…
+        <span className="notak-roue" aria-hidden /> {tn('espace.envoiFichiers', fichiers)}
       </span>
     )
   if (!vu) return null
   return (
     <span className="notak-enregistrement" data-etat={vu} role="status">
-      {vu === 'envoi' ? 'Enregistrement…' : 'Enregistré'}
+      {vu === 'envoi' ? t('espace.enregistrement') : t('espace.enregistre')}
     </span>
   )
 }

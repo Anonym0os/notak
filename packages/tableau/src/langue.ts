@@ -109,6 +109,24 @@ export const fr: Textes = {
   'reglages.compte.echec': 'Le changement a échoué.',
   'reglages.photo.type': 'Choisissez une image PNG, JPEG, WebP ou GIF.',
   'reglages.photo.poids': 'Cette image dépasse 5 Mo.',
+  'commun.sansTitre': 'Sans titre',
+
+  'espace.accueil': 'Accueil',
+  'espace.accesRetire': 'Accès retiré',
+  'espace.horsLigneGarde': 'Hors ligne : gardé sur cet appareil, envoyé au retour du réseau',
+  'espace.toutSEnregistre': 'Tout s’enregistre tout seul',
+  'espace.titreTableau': 'Titre du tableau',
+  'espace.chargement': 'Chargement…',
+  'espace.fil': 'Fil d’Ariane',
+  'espace.niveauxCaches': 'Niveaux cachés',
+  'espace.annuler': 'Annuler',
+  'espace.retablir': 'Rétablir',
+  'espace.horsLigne': 'Hors ligne',
+  'espace.horsLigneInfo': 'Vos modifications sont gardées sur cet appareil ; elles partiront au retour du réseau.',
+  'espace.envoiFichiers.one': 'Envoi de {n} fichier…',
+  'espace.envoiFichiers.other': 'Envoi de {n} fichiers…',
+  'espace.enregistrement': 'Enregistrement…',
+  'espace.enregistre': 'Enregistré',
   // FIN fr
 }
 
@@ -139,5 +157,23 @@ export const en: Textes = {
   'reglages.compte.echec': 'The change failed.',
   'reglages.photo.type': 'Choose a PNG, JPEG, WebP or GIF image.',
   'reglages.photo.poids': 'This image is larger than 5 MB.',
+  'commun.sansTitre': 'Untitled',
+
+  'espace.accueil': 'Home',
+  'espace.accesRetire': 'Access removed',
+  'espace.horsLigneGarde': 'Offline: kept on this device, sent when the network returns',
+  'espace.toutSEnregistre': 'Everything saves itself',
+  'espace.titreTableau': 'Board title',
+  'espace.chargement': 'Loading…',
+  'espace.fil': 'Breadcrumb',
+  'espace.niveauxCaches': 'Hidden levels',
+  'espace.annuler': 'Undo',
+  'espace.retablir': 'Redo',
+  'espace.horsLigne': 'Offline',
+  'espace.horsLigneInfo': 'Your changes are kept on this device; they will be sent when the network returns.',
+  'espace.envoiFichiers.one': 'Uploading {n} file…',
+  'espace.envoiFichiers.other': 'Uploading {n} files…',
+  'espace.enregistrement': 'Saving…',
+  'espace.enregistre': 'Saved',
   // FIN en
 }
