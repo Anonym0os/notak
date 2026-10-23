@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import type { Element, Image } from '../../coeur/tableau'
-import { aUneOmbre, avecLegende, hauteurCalee, hauteurPour, imageSous, largeurInitiale, largeurNaturelleImage, nombreColonnes, placerImages, remplacerContenu } from './geometrie'
+import { aUneOmbre, avecLegende, hauteurCalee, hauteurPour, imageSous, miseEnPage, pivoter, proportionsAffichees, rotationDe, largeurInitiale, largeurNaturelleImage, nombreColonnes, placerImages, remplacerContenu } from './geometrie'
 
 const image = (largeurOrigine: number, hauteurOrigine = 100): Image => ({ type: 'image', fichier: 'f', largeurOrigine, hauteurOrigine })
 
@@ -124,5 +124,53 @@ describe('remplacer une image', () => {
       transparente: true,
       legende: 'Port',
     })
+  })
+})
+
+describe('quart de tour', () => {
+  test('quatre quarts de tour reviennent au départ, sans clé en trop', () => {
+    let c = image(100, 50)
+    const vus: number[] = []
+    for (let i = 0; i < 4; i++) {
+      c = pivoter(c)
+      vus.push(rotationDe(c))
+    }
+    expect(vus).toEqual([90, 180, 270, 0])
+    expect('rotation' in c).toBe(false)
+  })
+
+  test('les proportions s’échangent à 90° et 270°, pas à 180°', () => {
+    const c = image(200, 100)
+    expect(proportionsAffichees(c)).toBe(2)
+    expect(proportionsAffichees({ ...c, rotation: 90 })).toBe(0.5)
+    expect(proportionsAffichees({ ...c, rotation: 180 })).toBe(2)
+    expect(proportionsAffichees({ ...c, rotation: 270 })).toBe(0.5)
+  })
+
+  test('le recadrage change les proportions, sauf à les montrer en plein', () => {
+    const c: Image = { ...image(200, 100), recadrage: { x: 0.25, y: 0, largeur: 0.5, hauteur: 1 } }
+    expect(proportionsAffichees(c)).toBe(1)
+    expect(proportionsAffichees(c, true)).toBe(2)
+    expect(proportionsAffichees({ ...c, rotation: 90 })).toBe(1)
+  })
+})
+
+describe('mise en page', () => {
+  test('sans recadrage ni rotation, l’image remplit la boîte', () => {
+    const m = miseEnPage(image(100))
+    expect(m.image).toEqual({ width: '100%', height: '100%', left: '0%', top: '0%' })
+    expect(m.plan.width).toBe('100cqw')
+  })
+
+  test('un quart de tour échange les deux côtés du plan', () => {
+    const m = miseEnPage({ ...image(100), rotation: 90 })
+    expect(m.plan).toMatchObject({ width: '100cqh', height: '100cqw' })
+    expect(m.plan.transform).toContain('rotate(90deg)')
+  })
+
+  test('le recadrage agrandit l’image et la décale', () => {
+    const m = miseEnPage({ ...image(100), recadrage: { x: 0.25, y: 0.5, largeur: 0.5, hauteur: 0.25 } })
+    expect(m.image).toEqual({ width: '200%', height: '400%', left: '-50%', top: '-200%' })
+    expect(miseEnPage({ ...image(100), recadrage: { x: 0.25, y: 0.5, largeur: 0.5, hauteur: 0.25 } }, true).image.width).toBe('100%')
   })
 })

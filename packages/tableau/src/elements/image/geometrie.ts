@@ -1,5 +1,5 @@
 import type { Rect } from '../../coeur/geometrie'
-import type { Element, Id, Image } from '../../coeur/tableau'
+import type { Element, Id, Image, Recadrage } from '../../coeur/tableau'
 
 /** Les formats acceptés, et la taille maximale d'un fichier. */
 export const TYPES_ACCEPTES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml']
@@ -85,4 +85,52 @@ export function remplacerContenu(ancien: Image, nouveau: Omit<Image, 'fichier'>,
   const { legende } = ancien
   const { legende: _, recadrage: _r, rotation: _o, tailles: _t, ...propre } = nouveau
   return { ...propre, fichier, ...(legende ? { legende } : {}) }
+}
+
+type Rotation = NonNullable<Image['rotation']>
+
+export const rotationDe = (c: Pick<Image, 'rotation'>): Rotation => c.rotation ?? 0
+
+/** Un quart de tour de plus dans le sens des aiguilles d'une montre ; revenu à zéro, la clé disparaît. */
+export function pivoter(c: Image): Image {
+  const { rotation: _, ...reste } = c
+  const suivante = ((rotationDe(c) + 90) % 360) as Rotation
+  return suivante === 0 ? reste : { ...reste, rotation: suivante }
+}
+
+const couche = (r: Rotation) => r === 90 || r === 270
+
+/**
+ * Largeur sur hauteur de l'image montrée : la partie gardée par le recadrage, puis le quart de tour.
+ * `plein` : sans recadrage, pour le montrer en entier le temps de le régler.
+ */
+export function proportionsAffichees(c: Image, plein = false): number {
+  const r = plein ? undefined : c.recadrage
+  const p = (c.largeurOrigine * (r?.largeur ?? 1)) / (c.hauteurOrigine * (r?.hauteur ?? 1))
+  return couche(rotationDe(c)) ? 1 / p : p
+}
+
+export interface MiseEnPage {
+  /** Le plan de l'image avant rotation : il tourne autour du centre de la boîte. */
+  plan: { width: string; height: string; transform?: string }
+  /** L'image dans son plan : entière, ou décalée pour que seule la partie gardée apparaisse. */
+  image: { width: string; height: string; left: string; top: string }
+}
+
+const pct = (v: number) => `${+(v * 100).toFixed(4)}%`
+
+/**
+ * Où poser le plan et l'image dans la boîte, en unités de conteneur (`cqw`, `cqh`) pour que le quart de tour
+ * échange sans mesure les deux côtés. Le recadrage est en fractions de l'image d'origine.
+ */
+export function miseEnPage(c: Image, plein = false): MiseEnPage {
+  const rot = rotationDe(c)
+  const r: Recadrage = (!plein && c.recadrage) || { x: 0, y: 0, largeur: 1, hauteur: 1 }
+  const plan = couche(rot)
+    ? { width: '100cqh', height: '100cqw' }
+    : { width: '100cqw', height: '100cqh' }
+  return {
+    plan: { ...plan, ...(rot ? { transform: `translate(-50%, -50%) rotate(${rot}deg)` } : { transform: 'translate(-50%, -50%)' }) },
+    image: { width: pct(1 / r.largeur), height: pct(1 / r.hauteur), left: pct(-r.x / r.largeur), top: pct(-r.y / r.hauteur) },
+  }
 }
