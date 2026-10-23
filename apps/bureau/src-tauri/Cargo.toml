@@ -1,0 +1,24 @@
+[package]
+name = "notak-bureau"
+version = "0.1.0"
+description = "La coque de bureau de Notak : une fenêtre sur l'application web du serveur."
+edition = "2021"
+publish = false
+
+[lib]
+name = "notak_bureau_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+
+[profile.release]
+# Une coque qui ne fait qu'ouvrir une fenêtre : on la veut petite.
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
