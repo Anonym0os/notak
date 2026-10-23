@@ -664,9 +664,53 @@
   white-space: nowrap;
 }
 
+/* Choisi par un autre : un filet de 2 px collé au bord, à sa couleur, et sa pastille au coin haut droit. */
 [data-autre] {
   outline: 2px solid var(--notak-autre);
-  outline-offset: 2px;
+  outline-offset: 0;
+}
+
+.notak-carte[data-autre]:not([data-modifie-par])::after {
+  content: attr(data-autre);
+  position: absolute;
+  z-index: 45;
+  top: -15px;
+  right: -14px;
+  box-sizing: border-box;
+  max-width: 160px;
+  overflow: hidden;
+  padding: 0 12px;
+  border-radius: 15px;
+  background: var(--notak-autre);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 30px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  transform-origin: bottom left;
+  animation:
+    notak-pastille-pop 0.4s cubic-bezier(0.665, 0.1, 0, 2.5) both,
+    notak-pastille-pulse 1.5s ease-out 0.4s infinite;
+}
+
+@keyframes notak-pastille-pop {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes notak-pastille-pulse {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--notak-autre) 60%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 15px transparent;
+  }
 }
 
 .notak-lecture {
@@ -1013,15 +1057,23 @@
 /* La place laissée dans une colonne par ce qu'on en a tiré. */
 .notak-empreinte {
   box-sizing: border-box;
-  border: 1.5px dashed rgb(0 0 0 / 0.14);
-  border-radius: 3px;
-  background: rgb(0 0 0 / 0.03);
+  background: rgb(0 0 0 / 0.04);
+}
+
+.notak-espace[data-theme='sombre'] .notak-empreinte {
+  background: rgb(0 0 0 / 0.12);
 }
 
 /* Un tableau qui va recevoir ce qu'on glisse : sa carte, ou son segment du fil d'Ariane. */
 .notak-carte[data-survol-depot] .notak-renvoi-carre {
-  outline: 3px solid var(--notak-accent);
+  outline: 2px solid var(--notak-selection);
   outline-offset: 3px;
+}
+
+/* Une colonne vide ou repliée qui va recevoir : un filet de 2 px autour de sa zone de dépôt. */
+[data-cible-depot] {
+  outline: 2px solid var(--notak-selection);
+  outline-offset: 0;
 }
 
 .notak-fil-segment[data-survol-depot] {

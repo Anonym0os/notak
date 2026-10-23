@@ -341,6 +341,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     presence?.ecouter ?? sansEcoute,
     presence ? presence.autres : aucun,
   )
+  // Ce qu'un autre a choisi ou écrit en ce moment : ni vous ni le lasso n'y touchez.
+  const prisParUnAutre = useMemo(() => new Set(autres.flatMap((a) => [...a.selection, ...(a.edition ? [a.edition] : [])])), [autres])
   const tableau = useSyncExternalStore(magasin.ecouter, magasin.lire)
   const [camera, setCamera] = useState<cam.Camera>(cameraInitiale ?? cam.CAMERA_DEPART)
   const [vue, setVue] = useState<cam.Vue>({ largeur: 1, hauteur: 1 })
@@ -384,6 +386,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const cible = useRef<Cible | null>(null)
   /** Le tableau où tombera ce qu'on glisse (sa carte sur la toile, ou un segment du fil d'Ariane), et son nœud. */
   const tableauVise = useRef<{ id: Id; noeud: HTMLElement } | null>(null)
+  const zoneMarquee = useRef<HTMLElement | null>(null)
   // Le paquet glissé rétrécit au-dessus d'un tableau, de la corbeille ou du fil d'Ariane (0,8 et 75 %), et pâlit sur une colonne (75 %).
   const reduction = useRef({ cible: { echelle: 1, opacite: 1 }, actuel: { echelle: 1, opacite: 1 }, instant: 0 })
   const reductionVol = () => {
@@ -1435,7 +1438,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       // Avec des éléments choisis dans une colonne : toute la colonne ; sinon toute la toile.
       const parents = new Set(choisis().map((x) => x.parent))
       const dans = parents.size === 1 ? [...parents][0] : undefined
-      return setSelection(new Set(tableau.elements.filter((x) => x.parent === dans).map((x) => x.id)))
+      return setSelection(new Set(tableau.elements.filter((x) => x.parent === dans && !prisParUnAutre.has(x.id)).map((x) => x.id)))
     }
     if (cmd && touche === 'd' && !e.shiftKey) {
       e.preventDefault()
@@ -1615,7 +1618,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     racine.current!.focus({ preventScroll: true })
     setRebond(null)
     const p = local(e)
-    const id = sous(e.target)
+    const idBrut = sous(e.target)
+    const id = idBrut && prisParUnAutre.has(idBrut) ? null : idBrut
     // Au doigt, le vide se tire comme au bouton du milieu : le lasso n'a pas de sens sous un pouce.
     if (e.button === 1 || (e.button === 0 && (espace || (e.pointerType === 'touch' && !id)))) {
       e.preventDefault()
@@ -1788,7 +1792,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (g.type === 'lasso') {
       const zone = depuisCoins(g.depart, ici)
       setZoneLasso(zone)
-      const rects = tableau.elements.filter((x) => !x.parent).flatMap((x): [Id, Rect | Point[]][] => {
+      const rects = tableau.elements.filter((x) => !x.parent && !prisParUnAutre.has(x.id)).flatMap((x): [Id, Rect | Point[]][] => {
         const trace = definition(x.contenu.type)?.calque === 'lignes' ? traceDe(x.id) : null
         if (trace) return [[x.id, trace]]
         const r = rect(x.id)
@@ -1972,6 +1976,14 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     }
     tableauVise.current = versTableau
     if (versTableau) nouveauTrait = null
+    // Une colonne vide ou repliée qui va recevoir : sa zone « déposer ici » prend un filet.
+    const zone = !versTableau && trouvee ? (noeudDe(trouvee.colonne)?.querySelector<HTMLElement>('[data-depot]') ?? null) : null
+    const videVisee = zone && (zone.classList.contains('notak-colonne-repliee') || !elements.some((x) => x.parent === trouvee!.colonne && !glisses.has(x.id))) ? zone : null
+    if (zoneMarquee.current !== videVisee) {
+      if (zoneMarquee.current) delete zoneMarquee.current.dataset.cibleDepot
+      if (videVisee) videVisee.dataset.cibleDepot = ''
+      zoneMarquee.current = videVisee
+    }
     const surCorbeille = !!document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-corbeille]')
     reduction.current.cible = versTableau || surCorbeille ? { echelle: 0.8, opacite: 0.75 } : trouvee ? { echelle: 1, opacite: 0.75 } : { echelle: 1, opacite: 1 }
     cible.current = versTableau ? null : trouvee
@@ -2136,6 +2148,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     tableauVise.current = null
     oublierEntree()
     setTrait(null)
+    if (zoneMarquee.current) delete zoneMarquee.current.dataset.cibleDepot
+    zoneMarquee.current = null
     setGlisses(null)
     setEmpreintes(AUCUNE)
     reduction.current.cible = { echelle: 1, opacite: 1 }
@@ -2230,6 +2244,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       return
     }
     const id = sous(document.elementFromPoint(e.clientX, e.clientY))
+    if (id && prisParUnAutre.has(id)) return
     if (id) {
       const el = tableau.elements.find((x) => x.id === id)
       const ouvrir = el && definition(el.contenu.type)?.ouvrir
