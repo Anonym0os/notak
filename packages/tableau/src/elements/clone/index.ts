@@ -52,7 +52,7 @@ registre.type<Clone>({
         return t('type.clone')
       },
       icone: ico('copie'),
-      rang: 150,
+      rang: 290,
       vignette: 'clone',
       tiroir: true,
       fantome: () => nouveauClone(0, 0, '', 17),

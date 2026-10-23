@@ -205,6 +205,12 @@ export interface TypeElement<C extends Contenu = Contenu> {
   ouvrir?(element: Element<C>, contexte: ContexteToile): void
   /** Le double-clic et Entrée ouvrent l'édition. */
   editable?: boolean
+  /**
+   * Ce que devient un élément de ce type quand un outil de la barre de gauche vient de le créer (comme Milanote) :
+   * `editer` (par défaut) le choisit et ouvre son édition s'il en a une ; `choisir` le choisit seulement (une ligne,
+   * une table) ; `rien` le laisse là, ni choisi ni édité (un croquis, un nuancier).
+   */
+  aLaCreation?: 'editer' | 'choisir' | 'rien'
   /** Hauteur avant la première mesure, en UG. */
   hauteurParDefaut?: number
   /** Le cadre commun n'a ni fond ni ombre (une image, un titre) : le type dessine les siens. */

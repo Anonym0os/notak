@@ -69,7 +69,7 @@ registre.type<Note>({
         return t('outil.titre')
       },
       icone: ico('titre'),
-      rang: 10,
+      rang: 260,
       vignette: 'titre',
       tiroir: true,
       fantome: () => enTitre(0, 0),

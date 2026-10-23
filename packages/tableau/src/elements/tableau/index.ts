@@ -100,7 +100,7 @@ registre.type<RenvoiTableau>({
         return t('outil.tableauModele')
       },
       icone: ico('modele'),
-      rang: 51,
+      rang: 270,
       vignette: 'modele',
       tiroir: true,
       fantome: () => ({ id: '', x: 0, y: 0, largeur: LARGEUR_RENVOI, contenu: { type: 'tableau', cible: '' } }),

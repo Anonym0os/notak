@@ -25,7 +25,7 @@ registre.type<DocumentTexte>({
         return t('type.document')
       },
       icone: ico('document'),
-      rang: 140,
+      rang: 220,
       vignette: 'document',
       tiroir: true,
       fantome: () => nouveauDocument(0, 0),

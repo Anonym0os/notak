@@ -15,6 +15,7 @@ registre.type<Croquis>({
   Rendu: RenduCroquis,
   OutilsApres: OutilsCroquis,
   editable: true,
+  aLaCreation: 'rien',
   hauteurParDefaut: 21,
   largeurMin: 12,
   suivant: () => null,
@@ -24,7 +25,7 @@ registre.type<Croquis>({
         return t('type.croquis')
       },
       icone: ico('croquis'),
-      rang: 130,
+      rang: 200,
       vignette: 'croquis',
       tiroir: true,
       fantome: () => nouveauCroquis(0, 0),

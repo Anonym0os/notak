@@ -16,6 +16,7 @@ registre.type<Nuancier>({
   Outils: OutilsNuancier,
   OutilsApres: OutilsNuancierApres,
   editable: true,
+  aLaCreation: 'rien',
   sansFond: true,
   hauteurParDefaut: 12,
   largeurMin: 4,
@@ -28,7 +29,7 @@ registre.type<Nuancier>({
         return t('type.nuancier')
       },
       icone: ico('palette'),
-      rang: 110,
+      rang: 210,
       vignette: 'nuancier',
       tiroir: true,
       fantome: () => nouveauNuancier(0, 0),

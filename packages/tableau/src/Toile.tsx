@@ -1163,9 +1163,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
             faire: () => {
               const pas = o.outil.creer(point(Math.round(ou.x), Math.round(ou.y)), contexte)
               magasin.faire(pas)
-              const ids = pas.flatMap((op) => (op.type === 'creer' ? [op.element.id] : []))
-              setSelection(new Set(ids))
-              if (ids[0]) commencerEdition(ids[0])
+              apresCreation(pas.flatMap((op) => (op.type === 'creer' ? [op.element.id] : [])))
             },
           }))
       return [
@@ -1859,6 +1857,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     setTrait((t) => (t && nouveauTrait && t.x0 === nouveauTrait.x0 && t.x1 === nouveauTrait.x1 && t.y === nouveauTrait.y ? t : nouveauTrait))
   }
 
+  // — Après la création par un outil : le type dit s'il est édité, seulement choisi, ou laissé tel quel. —
+  const apresCreation = (ids: Id[]) => {
+    const premier = ids[0] ? magasin.lire().elements.find((x) => x.id === ids[0]) : undefined
+    const mode = (premier && definition(premier.contenu.type)?.aLaCreation) ?? 'editer'
+    if (mode === 'rien' || !premier) return
+    setSelection(new Set(ids))
+    if (mode === 'editer') commencerEdition(premier.id)
+  }
+
   /** Lâcher un outil : l'élément naît sous le fantôme (ou dans la colonne visée), puis se pose en douceur. */
   const lacherOutil = (g: Extract<Geste, { type: 'outil' }>, e: React.PointerEvent, visee: Cible | null, versTableau?: Id) => {
     g.envol?.arreter()
@@ -1899,8 +1906,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       })
     }
     magasin.faire(pas)
-    setSelection(new Set(ids))
-    commencerEdition(ids[0]!)
+    apresCreation(ids)
     if (range) return
     // Le nouvel élément part de là où était le fantôme, et rejoint sa case de grille.
     const ecart = point((ghost.x - x) * cam.PX_PAR_UG, (ghost.y - y) * cam.PX_PAR_UG)

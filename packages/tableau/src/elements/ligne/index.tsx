@@ -18,6 +18,7 @@ registre.type<Ligne>({
   },
   resume: (c) => c.libelle ?? '',
   calque: 'lignes',
+  aLaCreation: 'choisir',
   Rendu: RenduLigne,
   Outils: OutilsLigne,
   couleur: couleurDuContenu<Ligne>(),

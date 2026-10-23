@@ -12,9 +12,10 @@ import { type NomIcone, ico } from '../../icones'
 const LARGEUR_LIEN = 34
 
 const GENRES: { genre: GenreLien; libelle: string; icone: NomIcone; rang: number }[] = [
-  { genre: 'video', get libelle() { return t('lien.video') }, icone: 'lecture', rang: 21 },
-  { genre: 'audio', get libelle() { return t('lien.audio') }, icone: 'audio', rang: 22 },
-  { genre: 'carte', get libelle() { return t('lien.carte') }, icone: 'carte', rang: 23 },
+  // Dans « ••• » de la barre de création, l'ordre de Milanote : Audio, Carte, Vidéo.
+  { genre: 'audio', get libelle() { return t('lien.audio') }, icone: 'audio', rang: 230 },
+  { genre: 'carte', get libelle() { return t('lien.carte') }, icone: 'carte', rang: 240 },
+  { genre: 'video', get libelle() { return t('lien.video') }, icone: 'lecture', rang: 250 },
 ]
 
 const nouveauLien = (ou: Point, url: string, genre?: GenreLien): Element<Lien> => ({
