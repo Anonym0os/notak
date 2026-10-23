@@ -1,4 +1,4 @@
-/* La bande sous une carte : étiquettes, échéance, personne, fil, réactions. */
+/* La bande des étiquettes, de l'échéance, de la personne, du fil et des réactions. */
 .notak-decor {
   display: flex;
   flex-direction: column;
@@ -8,8 +8,13 @@
   color: var(--notak-texte);
 }
 
-/* Sur la toile elle déborde sous la carte sans en changer la taille ; dans une colonne elle prend sa place. */
-.notak-decor[data-mode='toile'] {
+/* Dans une carte pleine : sous le contenu, dans son flux, comme chez Milanote (marge haute de −10 px, 16 px sous la bande). */
+.notak-carte[data-decor-dedans] > .notak-decor:not([data-sans-ligne]) {
+  margin: -10px 0 -5px;
+}
+
+/* Un élément sans fond (image, lien, colonne…) : la bande déborde sous la carte sans en changer la taille. */
+.notak-carte:not([data-decor-dedans]) > .notak-decor[data-mode='toile'] {
   position: absolute;
   top: 100%;
   left: 0;
@@ -17,9 +22,24 @@
   margin-top: 6px;
 }
 
-.notak-decor[data-mode='liste'] {
+.notak-carte:not([data-decor-dedans]) > .notak-decor[data-mode='liste'] {
   position: relative;
   margin-top: 8px;
+}
+
+/* Une image sans légende : les pastilles se posent sur l'image, en bas à gauche, à 7 px du bord. */
+.notak-carte[data-type='image'] > .notak-decor {
+  position: absolute !important;
+  top: auto !important;
+  right: 7px;
+  bottom: 7px;
+  left: 7px;
+  margin: 0 !important;
+}
+
+.notak-carte[data-type='image'] > .notak-decor .notak-etiquette,
+.notak-carte[data-type='image'] > .notak-decor .notak-reaction {
+  box-shadow: 0 1px 2px #1b25361a;
 }
 
 .notak-decor-ligne {
@@ -29,21 +49,58 @@
   gap: 4px;
 }
 
+/* Une pastille d'étiquette : 20 px de haut, coins de 4 px, texte noir ou blanc selon son fond. */
 .notak-etiquette {
-  padding: 2px 8px;
-  border-radius: 10px;
+  box-sizing: border-box;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 4px;
   background: var(--notak-fond);
   color: #1f2430;
+  font-size: 12px;
   font-weight: 500;
+  line-height: 20px;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* Une pastille qui se confond avec la carte : un contour de 1 px à 30 %. */
+.notak-etiquette[role='button'] {
+  cursor: pointer;
+  outline: none;
+}
+
+/* La pastille choisie : un anneau de 2 px de la couleur de sélection. */
+.notak-etiquette[data-choisie],
+.notak-etiquette[data-choisie][data-contour] {
+  box-shadow: 0 0 0 2px var(--notak-selection);
+}
+
+.notak-etiquette[data-renomme] input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 4ch;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.notak-etiquette[data-contour='clair'] {
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.3);
+}
+
+.notak-etiquette[data-contour='sombre'] {
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.3);
+}
+
 .notak-echeance,
-.notak-decor-fil,
-.notak-reaction {
+.notak-decor-fil {
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -57,18 +114,69 @@
   white-space: nowrap;
 }
 
-.notak-decor-fil,
-.notak-reaction {
+.notak-decor-fil {
   cursor: pointer;
 }
 
-.notak-reaction:disabled {
-  cursor: default;
+/* Une réaction : un rectangle de 20 px, coins de 2 px, l'émoji puis le compte. */
+.notak-reaction {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-width: 35px;
+  height: 20px;
+  padding: 2px 3px 3px;
+  border: 0;
+  border-radius: 2px;
+  background: #e8e9eb;
+  color: #5f6672;
+  font: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
 .notak-reaction[aria-pressed='true'] {
-  border-color: var(--notak-accent);
-  background: color-mix(in srgb, var(--notak-accent) 14%, var(--notak-carte));
+  background: #eaeffe;
+  color: #2f63f7;
+}
+
+.notak-reaction[aria-disabled='true'] {
+  cursor: default;
+}
+
+.notak-reaction-emoji {
+  font-size: 14px;
+  line-height: 16px;
+}
+
+.notak-reaction-compte {
+  min-width: 10px;
+  margin-left: 2px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Qui a réagi, au-dessus de la pastille. */
+.notak-reaction-bulle {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 5;
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: #323b4a;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.3;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.notak-reaction-bulle strong {
+  font-weight: 700;
 }
 
 .notak-decor-fil[data-resolu] {
@@ -151,21 +259,97 @@
   white-space: nowrap;
 }
 
-/* Le fil accroché, sous la carte. */
+/* L'épingle d'un fil attaché : sa pointe tombe à 20 px du bord droit et du haut de la carte. */
+.notak-epingle {
+  position: absolute;
+  top: 20px;
+  left: calc(100% - 20px);
+  z-index: 4;
+}
+
+.notak-epingle-bouton {
+  position: absolute;
+  top: -29px;
+  left: -12px;
+  width: 24px;
+  height: 29px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.notak-epingle-bouton[aria-expanded='true'] .notak-epingle-forme path {
+  stroke: #323b4a;
+  stroke-width: 2;
+}
+
+.notak-epingle-bouton[data-resolu] {
+  opacity: 0.6;
+}
+
+.notak-epingle-forme {
+  display: block;
+  filter: drop-shadow(0 1px 1px #1b253633);
+}
+
+.notak-epingle-compte {
+  position: absolute;
+  top: 5px;
+  right: 0;
+  left: 0;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+}
+
+/* Le fil accroché : une bulle à droite de l'épingle, 15 px plus loin, avec sa flèche de 13 × 8 px. */
 .notak-fil-attache {
-  position: relative;
+  position: absolute;
+  top: -29px;
+  left: 27px;
   z-index: 3;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 240px;
-  max-width: 340px;
-  max-height: 320px;
-  padding: 10px;
+  box-sizing: border-box;
+  width: 340px;
+  max-height: min(600px, 80vh);
+  padding: 10px 0;
   overflow-y: auto;
   border-radius: 8px;
-  background: var(--notak-carte);
+  background: #f4f7fe;
+  color: #323b4a;
+  font-size: 12px;
+  line-height: 20px;
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
+}
+
+.notak-fil-attache > :not(.notak-commentaire-message, .notak-commentaire-saisie) {
+  margin-inline: 14px;
+}
+
+.notak-fil-attache[data-bande]::before {
+  content: '';
+  display: block;
+  flex: none;
+  height: 5px;
+  margin: -10px 0 0;
+  background: var(--bande);
+}
+
+.notak-fil-attache::after {
+  content: '';
+  position: absolute;
+  top: 36px;
+  left: -8px;
+  border: 4px solid transparent;
+  border-right-color: #f4f7fe;
+  border-left-width: 0;
+  border-top-width: 6.5px;
+  border-bottom-width: 6.5px;
+  border-right-width: 8px;
 }
 
 .notak-fil-attache-entete {
@@ -237,61 +421,146 @@
   text-transform: uppercase;
 }
 
-/* Les étiquettes du tableau. */
+/* Les étiquettes du tableau : un champ qui cherche et crée, puis la liste (380 px au plus, qui défile). */
 .notak-etiquettes {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  width: 260px;
   min-width: 230px;
   text-align: left;
   white-space: normal;
 }
 
+.notak-etiquettes-recherche {
+  box-sizing: border-box;
+  width: 100%;
+  font: inherit;
+}
+
+.notak-etiquettes-creer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 4px;
+  text-align: left;
+}
+
+.notak-etiquettes-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 380px;
+  padding-bottom: 6px;
+  overflow-y: auto;
+}
+
+.notak-etiquettes-liste ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .notak-etiquettes-vide {
   margin: 0;
-  opacity: 0.6;
+  padding: 8px 4px;
+  color: #8d929a;
+  font-size: 14px;
 }
 
 .notak-etiquettes-ligne {
+  position: relative;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  padding: 3px 4px;
+  border-radius: 4px;
 }
 
-.notak-etiquettes-pastille {
-  flex: none;
-  width: 16px;
-  height: 16px;
-  min-width: 16px !important;
-  padding: 0 !important;
-  border-radius: 50% !important;
-  border: 1px solid rgb(0 0 0 / 0.15) !important;
-  background: var(--notak-etiq) !important;
+.notak-etiquettes-ligne:hover,
+.notak-etiquettes-ligne[data-ouvert] {
+  background: #f3f3f4;
+}
+
+.notak-etiquettes-chip {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .notak-etiquettes-nom {
   flex: 1;
   min-width: 0;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  background: none;
-  color: inherit;
   font: inherit;
 }
 
-input.notak-etiquettes-nom:hover,
-input.notak-etiquettes-nom:focus {
-  border-color: rgb(0 0 0 / 0.2);
+.notak-etiquettes-plus {
+  margin-left: auto;
+  padding: 2px 4px !important;
+  color: #8d929a !important;
 }
 
-.notak-etiquettes-filtre[aria-pressed='true'] {
-  background: var(--notak-fond) !important;
-  box-shadow: 0 0 0 1px var(--notak-accent);
+.notak-etiquettes-ligne[data-ouvert] .notak-etiquettes-plus,
+.notak-etiquettes-plus:hover {
+  color: #323b4a !important;
+}
+
+/* Le menu d'une étiquette, déplié sous sa ligne. */
+.notak-etiquettes-menu {
+  display: flex;
+  flex-direction: column;
+  flex-basis: 100%;
+  min-width: 208px;
+  padding: 4px 0;
+  border-top: 1px solid #00000014;
+}
+
+.notak-etiquettes-menu > button {
+  padding: 6px 8px !important;
+  text-align: left;
+}
+
+.notak-etiquettes-menu > button:hover {
+  background: #ebedee !important;
+}
+
+.notak-etiquettes-danger {
+  color: #d64545 !important;
+}
+
+.notak-etiquettes-usage {
+  margin-top: 4px;
+  border-top: 1px solid #00000014 !important;
+  border-radius: 0 !important;
+  color: #8d929a !important;
+  font-size: 12px;
+}
+
+.notak-etiquettes-usage[aria-pressed='true'] {
+  color: var(--notak-accent) !important;
 }
 
 .notak-etiquettes-palette {
-  flex-basis: 100%;
+  padding: 6px 8px;
+}
+
+.notak-etiquettes-confirmer {
+  padding: 8px;
+}
+
+.notak-etiquettes-confirmer p {
+  margin: 0 0 8px;
+  text-align: center;
+}
+
+.notak-etiquettes-confirmer div {
+  display: flex;
+  gap: 4px;
+}
+
+.notak-etiquettes-confirmer button {
+  flex: 1;
+  padding: 6px 0 !important;
+  border: 1px solid #00000026 !important;
 }
 
 .notak-etiquettes-lien {
@@ -300,72 +569,143 @@ input.notak-etiquettes-nom:focus {
   text-decoration: underline;
 }
 
-.notak-etiquettes-nouvelle {
-  display: flex;
-  gap: 4px;
-}
-
-.notak-etiquettes-nouvelle input {
-  flex: 1;
-  min-width: 0;
-  font: inherit;
-}
-
 .notak-decor-tiroir {
   top: auto;
   bottom: 0;
   padding: 10px;
 }
 
-/* Le sélecteur d'émojis des réactions : recherche, catégories, grille de huit colonnes qui défile. */
+/* Le sélecteur d'émojis : le menu des catégories à gauche (220 px), les émojis par sections à droite (huit par rangée). */
 .notak-decor-menu:has(.notak-emojis) {
-  width: 320px;
-  min-width: 320px;
+  width: 572px;
+  min-width: 0;
+  max-width: calc(100vw - 120px);
+  padding: 24px 10px 24px 24px;
 }
 
 .notak-emojis {
   display: flex;
+  gap: 20px;
+  height: 505px;
+  max-height: calc(100vh - 120px);
+  text-align: left;
+}
+
+.notak-emojis-menu {
+  display: flex;
+  flex: none;
   flex-direction: column;
-  gap: 6px;
+  width: 220px;
+  min-height: 0;
 }
 
 .notak-emojis-categories {
   display: flex;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--notak-point);
-  padding-bottom: 4px;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .notak-emojis-categories button {
-  min-width: 0 !important;
-  width: 34px;
-  height: 28px;
-  font-size: 16px;
-  opacity: 0.55;
+  padding: 6px 8px;
+  color: #5f6672;
+  font-size: 14px;
+  text-align: left;
 }
 
 .notak-emojis-categories button[aria-selected='true'] {
-  background: var(--notak-fond) !important;
-  opacity: 1;
+  background: #f3f3f4 !important;
+  color: #323b4a;
+  font-weight: 600;
+}
+
+.notak-emojis-categories button[data-vide] {
+  opacity: 0.4;
+}
+
+.notak-emojis-teinte {
+  position: relative;
+  margin: 8px 0;
+}
+
+.notak-emojis-teinte-lien {
+  padding: 4px 0 !important;
+  color: #8d929a !important;
+  font-size: 12px;
+  text-decoration: underline;
+}
+
+.notak-emojis-teintes {
+  display: flex;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+.notak-emojis-teintes button {
+  min-width: 0 !important;
+  width: 32px;
+  height: 32px;
+  font-size: 20px;
+}
+
+.notak-emojis-teintes button[aria-checked='true'] {
+  background: #eaeffe !important;
+}
+
+.notak-emojis-recherche {
+  box-sizing: border-box;
+  width: 100%;
+  font: inherit;
+}
+
+.notak-emojis-liste {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.notak-emojis-liste section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}
+
+.notak-emojis-liste h2 {
+  margin: 0 0 3px;
+  padding-top: 8px;
+  color: #323b4a;
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .notak-emojis-grille {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 2px;
-  max-height: 224px;
-  overflow-y: auto;
+  grid-template-columns: repeat(8, 36px);
+  grid-auto-rows: 34px;
+  margin-bottom: 12px;
 }
 
 .notak-emojis-grille button {
   min-width: 0 !important;
+  width: 36px;
   height: 34px;
   padding: 0 !important;
-  font-size: 20px;
+  border-radius: 3px !important;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.notak-emojis-grille button:hover {
+  background: #f3f3f4 !important;
+}
+
+.notak-emojis-grille button[aria-pressed='true'] {
+  background: #eaeffe !important;
 }
 
 .notak-emojis-vide {
-  grid-column: 1 / -1;
   padding: 12px 0;
   text-align: center;
   opacity: 0.6;

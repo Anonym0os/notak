@@ -3,6 +3,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { type RefObject, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { t as translate } from '../../langue'
+import { initiales } from '../commentaire/fil'
 import type { ContexteToile } from '../types'
 import { type Declencheur, type Proposition, declencheurDans, filtrer, sansDoublons } from './suggestion'
 
@@ -83,7 +84,8 @@ export function Propositions({ editeur, contexte, pont }: { editeur: Editor; con
   const [rang, setRang] = useState(0)
   const [ferme, setFerme] = useState<string | null>(null)
   const toutes = etat ? (etat.genre === 'mention' ? personnesProposees(contexte) : tableauxProposes(contexte)) : []
-  const items = etat ? filtrer(toutes, etat.requete) : []
+  // Une mention propose cinq personnes au plus.
+  const items = etat ? filtrer(toutes, etat.requete).slice(0, etat.genre === 'mention' ? 5 : undefined) : []
   const cle = etat ? `${etat.genre}:${etat.de}` : null
   const visible = !!etat && items.length > 0 && ferme !== cle
 
@@ -120,11 +122,17 @@ export function Propositions({ editeur, contexte, pont }: { editeur: Editor; con
 
   if (!visible || !etat) return null
   return createPortal(
-    <ul className="notak-propositions" role="listbox" style={{ left: etat.x, top: etat.y + 4 }} onPointerDown={(e) => e.preventDefault()}>
+    <ul className="notak-propositions" data-genre={etat.genre} role="listbox" style={{ left: etat.x, top: etat.y + 4 }} onPointerDown={(e) => e.preventDefault()}>
       {items.map((p, i) => (
         <li key={p.id} role="option" aria-selected={i === rang} data-actif={i === rang || undefined} onClick={() => choisir(p)}>
-          {p.teinte && <span className="notak-proposition-teinte" style={{ background: p.teinte }} aria-hidden />}
-          {p.libelle}
+          {etat.genre === 'mention' ? (
+            <span className="notak-proposition-avatar" style={p.teinte ? { background: p.teinte } : undefined} aria-hidden>
+              {initiales(p.libelle)}
+            </span>
+          ) : (
+            p.teinte && <span className="notak-proposition-teinte" style={{ background: p.teinte }} aria-hidden />
+          )}
+          {etat.genre === 'mention' ? <span className="notak-proposition-nom">{p.libelle}</span> : p.libelle}
         </li>
       ))}
     </ul>,

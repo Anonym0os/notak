@@ -667,6 +667,47 @@
   background: rgb(0 0 0 / 0.07);
 }
 
+/* La liste des mentions : 320 px, des personnes avec leur avatar, la choisie sur fond bleu pâle. */
+.notak-propositions[data-genre='mention'] {
+  box-sizing: border-box;
+  width: 320px;
+  max-width: none;
+  padding: 15px 0;
+}
+
+.notak-propositions[data-genre='mention'] li {
+  gap: 10px;
+  min-height: 48px;
+  margin: 0 24px;
+  padding: 0 8px;
+  border-radius: 4px;
+}
+
+.notak-propositions[data-genre='mention'] li[data-actif] {
+  background: #eaeffe;
+}
+
+.notak-proposition-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #8a94a3;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.notak-proposition-nom {
+  overflow: hidden;
+  color: #2f63f7;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+}
+
 .notak-proposition-teinte {
   flex: none;
   width: 10px;
@@ -674,12 +715,16 @@
   border-radius: 5px;
 }
 
-/* Un passage commenté : un fond bleu très pâle, souligné de pointillés bleus. */
+/* Un passage commenté : un fond bleu très pâle et un soulignement bleu de 1 px, comme chez Milanote. */
 .notak-texte .notak-fil-texte {
-  padding: 1.5px 0;
+  padding-block: 1.5px;
   background: #f4f7fe;
-  border-bottom: 1px dotted #2f63f7;
-  mix-blend-mode: multiply;
+  border-bottom: 1px solid #2f63f7;
+}
+
+.notak-espace[data-theme='sombre'] .notak-texte .notak-fil-texte {
+  background: #323b4a;
+  border-bottom-color: #537ef8;
 }
 
 /* La marge des fils, à droite de la note en édition. */
@@ -703,8 +748,8 @@
   flex-direction: column;
   gap: 10px;
   border-radius: 8px;
-  background: var(--notak-carte);
-  box-shadow: var(--notak-ombre);
+  background: #f4f7fe;
+  box-shadow: 0 1px 2px #1b25361a;
   opacity: 0.85;
   cursor: pointer;
 }

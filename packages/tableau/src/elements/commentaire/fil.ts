@@ -1,7 +1,8 @@
 import { type Auteur, type Commentaire, type Element, type Id, type Message, nouvelId } from '../../coeur/tableau'
-import { langue, t } from '../../langue'
+import { langue, t, tn } from '../../langue'
 
-export const LARGEUR_COMMENTAIRE = 28
+/** 34 unités de grille : la largeur d'une note, et la plus étroite d'un fil. */
+export const LARGEUR_COMMENTAIRE = 34
 
 /** Qui écrit, quand la toile ne sait pas qui l'on est (pas de présence) : le nom reste lisible des autres. */
 export const AUTEUR_INCONNU: Auteur = { id: 'inconnu', nom: 'Anonyme' }
@@ -49,19 +50,47 @@ export function initiales(nom: string): string {
 const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
 const MOIS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-/** Une date dite comme on la dit : « à l'instant », « il y a 5 min », « hier », « 12 oct. ». */
+/**
+ * Une date dite comme Milanote la dit : « à l'instant », « il y a 5 min », « il y a 3 h », « il y a 2 jours »,
+ * « il y a 3 semaines », puis, au-delà de quatre semaines, la date courte « 12 oct. 2026 ».
+ */
 export function dateLisible(date: number, maintenant = Date.now()): string {
   const s = Math.max(0, (maintenant - date) / 1000)
   if (s < 60) return t('fil.instant')
   if (s < 3600) return t('fil.minutes', { n: Math.floor(s / 60) })
+  if (s < 86_400) return t('fil.heures', { n: Math.floor(s / 3600) })
+  const jours = Math.floor(s / 86_400)
+  if (jours < 7) return tn('fil.jours', jours)
+  const semaines = Math.floor(jours / 7)
+  if (semaines <= 4) return tn('fil.semaines', semaines)
   const d = new Date(date)
-  const auj = new Date(maintenant)
-  const jour = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
-  const ecartJours = Math.round((jour(auj) - jour(d)) / 86_400_000)
-  if (ecartJours === 0) return t('fil.heures', { n: Math.floor(s / 3600) })
-  if (ecartJours === 1) return t('fil.hier')
-  const base = langue() === 'en' ? `${MOIS_EN[d.getMonth()]} ${d.getDate()}` : `${d.getDate()} ${MOIS[d.getMonth()]}`
-  return d.getFullYear() === auj.getFullYear() ? base : langue() === 'en' ? `${base}, ${d.getFullYear()}` : `${base} ${d.getFullYear()}`
+  return langue() === 'en' ? `${d.getDate()} ${MOIS_EN[d.getMonth()]} ${d.getFullYear()}` : `${d.getDate()} ${MOIS[d.getMonth()]} ${d.getFullYear()}`
+}
+
+/** Le prénom d'un auteur : le premier mot de son nom, « Quelqu'un » s'il n'en a pas. */
+export const prenom = (nom: string): string => nom.trim().split(/\s+/)[0] || t('decor.quelquun')
+
+/** Ce message avec un autre texte ; un texte vide ne change rien (supprimer est un autre geste). */
+export function modifierMessage(c: Commentaire, id: Id, texte: string): Commentaire {
+  const propre = texte.trim()
+  if (!propre) return c
+  return { ...c, messages: c.messages.map((m) => (m.id === id ? { ...m, texte: propre } : m)) }
+}
+
+/** Une adresse web dans un texte, à rendre cliquable. */
+const ADRESSE = /\bhttps?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]]/g
+
+/** Le texte découpé en morceaux : du texte, et les adresses qu'il contient. */
+export function morceauxDeTexte(texte: string): { texte: string; lien?: string }[] {
+  const morceaux: { texte: string; lien?: string }[] = []
+  let fin = 0
+  for (const m of texte.matchAll(ADRESSE)) {
+    if (m.index > fin) morceaux.push({ texte: texte.slice(fin, m.index) })
+    morceaux.push({ texte: m[0], lien: m[0] })
+    fin = m.index + m[0].length
+  }
+  if (fin < texte.length) morceaux.push({ texte: texte.slice(fin) })
+  return morceaux
 }
 
 /**

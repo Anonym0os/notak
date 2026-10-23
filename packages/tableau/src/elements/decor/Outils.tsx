@@ -5,7 +5,7 @@ import type { ContexteToile } from '../types'
 import { moiDe } from './Decor'
 import { PanneauEtiquettes } from './Etiquettes'
 import { appliquerAffichage, estReduit, peutSeReduire } from './affichage'
-import { ECHEANCE, basculerReaction, pasPour } from './annotations'
+import { ECHEANCE, pasPour, reagirSurPlusieurs } from './annotations'
 import { SelecteurEmojis } from './SelecteurEmojis'
 import { ouvrirFil, useFilOuvert } from './etat'
 import { t } from '../../langue'
@@ -30,7 +30,11 @@ function Menu({ titre, libelle, icone, secondaire, children }: { titre: string; 
   )
 }
 
+/** Un fil de commentaires ne porte ni étiquette, ni réaction, ni fil attaché : il est lui-même le fil. */
+const queDesFils = (elements: readonly Element[]) => elements.every((e) => e.contenu.type === 'commentaire')
+
 export function OutilEtiquettes({ elements, contexte }: Props) {
+  if (queDesFils(elements)) return null
   return (
     <Menu titre={t('etiquettes.titre')} libelle={t('etiquettes.titre')} icone="etiquette">
       {() => <PanneauEtiquettes elements={elements} contexte={contexte} />}
@@ -39,22 +43,14 @@ export function OutilEtiquettes({ elements, contexte }: Props) {
 }
 
 export function OutilReactions({ elements, contexte }: Props) {
-  if (contexte.services.lectureSeule) return null
+  if (contexte.services.lectureSeule || queDesFils(elements)) return null
   const moi = moiDe(contexte).id
-  const reagir = (emoji: string, fermer: () => void) => {
-    // Si tous l'ont déjà posé, on le retire de tous ; sinon on le pose sur ceux qui ne l'ont pas.
-    const tous = elements.every((e) => e.reactions?.[emoji]?.includes(moi))
-    contexte.magasin.faire(
-      pasPour(elements, (e) => {
-        const a = e.reactions?.[emoji]?.includes(moi) ?? false
-        return a === tous ? annoter(e, { reactions: basculerReaction(e.reactions, emoji, moi) }) : null
-      }),
-    )
-    fermer()
-  }
+  // La fenêtre reste ouverte après le choix : on peut poser ou retirer plusieurs émojis de suite.
+  const reagir = (emoji: string) => contexte.magasin.faire(reagirSurPlusieurs(elements, emoji, moi))
+  const posees = new Set(elements.flatMap((e) => Object.entries(e.reactions ?? {}).flatMap(([emoji, gens]) => (gens.includes(moi) ? [emoji] : []))))
   return (
     <Menu titre={t('decor.reagirEmoji')} libelle={t('decor.reagir')} icone="reaction">
-      {(fermer) => <SelecteurEmojis choisir={(m) => reagir(m, fermer)} />}
+      {() => <SelecteurEmojis choisir={reagir} posees={posees} />}
     </Menu>
   )
 }
@@ -145,7 +141,7 @@ export function OutilCommentaire({ elements, contexte }: Props) {
       if (ici) ouvrirFil(null)
     }
   }, [menuOuvert, ici])
-  if (elements.length !== 1 || !e) return null
+  if (elements.length !== 1 || !e || queDesFils(elements)) return null
   // En lecture seule, on ne rouvre un fil que s'il y en a un.
   if (contexte.services.lectureSeule && !e.commentaire?.messages.length) return null
   const basculer = () => {

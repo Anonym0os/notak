@@ -6,10 +6,13 @@ import { creerMagasin } from '../../coeur/magasin'
 import { type Element, annoter, nouvelleNote } from '../../coeur/tableau'
 import type { ContexteToile } from '../types'
 import '../note'
+import '../commentaire'
 import './index'
 import { Decor, Pastille } from './Decor'
 import { PanneauEtiquettes } from './Etiquettes'
-import { OutilReactions } from './Outils'
+import { OutilEtiquettes, OutilReactions } from './Outils'
+import { OutilsCommentaire } from '../commentaire/Commentaire'
+import { nouveauCommentaire } from '../commentaire/fil'
 import { SelecteurEmojis } from './SelecteurEmojis'
 import { basculerFiltre, useFiltre, viderFiltre } from './etat'
 
@@ -60,7 +63,7 @@ describe('la bande sous une carte', () => {
     expect(hote.querySelector('.notak-echeance')?.getAttribute('data-etat')).toBe('passee')
     expect(hote.querySelector('.notak-assigne')?.textContent).toBe('BM')
     const r = [...hote.querySelectorAll('.notak-reaction')]
-    expect(r.map((x) => x.textContent?.trim())).toEqual(['👍 2', '🎉 1'])
+    expect(r.map((x) => x.textContent?.trim())).toEqual(['👍2', '🎉1'])
     expect(r.map((x) => x.getAttribute('aria-pressed'))).toEqual(['true', 'false'])
   })
 
@@ -80,14 +83,16 @@ describe('la bande sous une carte', () => {
   it('en lecture seule, les réactions se lisent mais ne se changent pas', () => {
     const { contexte, element } = monde({ reactions: { '👍': ['bob'] } }, true)
     act(() => racine.render(<Decor element={element()} contexte={contexte} mode="toile" />))
-    expect(bouton('👍').disabled).toBe(true)
+    expect(bouton('👍').getAttribute('aria-disabled')).toBe('true')
+    act(() => bouton('👍').click())
+    expect(element().reactions).toEqual({ '👍': ['bob'] })
   })
 
   it('le fil accroché s’ouvre, reçoit un message signé et dissout un fil vidé', () => {
     const { contexte, element } = monde({ commentaire: { type: 'commentaire', messages: [{ id: 'm1', auteur: { id: 'bob', nom: 'Bob' }, date: Date.now(), texte: 'Bonjour' }] } })
     const rendre = () => act(() => racine.render(<Decor element={element()} contexte={contexte} mode="toile" />))
     rendre()
-    expect(bouton('1').querySelector('svg.notak-ico')).not.toBeNull()
+    expect(bouton('1').querySelector('svg.notak-epingle-forme')).not.toBeNull()
     act(() => bouton('1').click())
     expect(hote.querySelector('.notak-fil-attache')).not.toBeNull()
     expect(hote.textContent).toContain('Bonjour')
@@ -104,6 +109,47 @@ describe('la bande sous une carte', () => {
   })
 })
 
+describe('une pastille d’étiquette sur la carte', () => {
+  const puce = () => hote.querySelector<HTMLElement>('.notak-etiquette')!
+  const touche = (n: HTMLElement, key: string) => act(() => void n.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true })))
+  it('se choisit d’un clic, se retire avec Suppr', () => {
+    const { contexte, element } = monde({ etiquettes: ['e1'] })
+    act(() => racine.render(<Decor element={element()} contexte={contexte} mode="toile" />))
+    act(() => puce().click())
+    expect(puce().hasAttribute('data-choisie')).toBe(true)
+    touche(puce(), 'Delete')
+    expect(element().etiquettes).toBeUndefined()
+  })
+  it('Échap la lâche sans rien changer', () => {
+    const { contexte, element } = monde({ etiquettes: ['e1'] })
+    act(() => racine.render(<Decor element={element()} contexte={contexte} mode="toile" />))
+    act(() => puce().click())
+    touche(puce(), 'Escape')
+    expect(puce().hasAttribute('data-choisie')).toBe(false)
+    expect(element().etiquettes).toEqual(['e1'])
+  })
+  it('se renomme sur place avec Entrée, pour tout le tableau', () => {
+    const { contexte, element, magasin } = monde({ etiquettes: ['e1'] })
+    act(() => racine.render(<Decor element={element()} contexte={contexte} mode="toile" />))
+    act(() => puce().click())
+    touche(puce(), 'Enter')
+    const champ = hote.querySelector<HTMLInputElement>('.notak-etiquette input')!
+    expect(champ.value).toBe('Urgent')
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(champ, 'À faire')
+      champ.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    touche(champ, 'Enter')
+    expect(magasin.lire().etiquettes?.[0]?.nom).toBe('À faire')
+    expect(hote.querySelector('.notak-etiquette input')).toBeNull()
+  })
+  it('en lecture seule, elle n’est qu’un texte', () => {
+    const { contexte, element } = monde({ etiquettes: ['e1'] }, true)
+    act(() => racine.render(<Decor element={element()} contexte={contexte} mode="toile" />))
+    expect(puce().getAttribute('role')).toBeNull()
+  })
+})
+
 describe('l’icône', () => {
   it('replie l’élément en son glyphe et son résumé', () => {
     const { contexte, element } = monde({ affichage: 'icone' })
@@ -113,14 +159,19 @@ describe('l’icône', () => {
 })
 
 describe('le panneau des étiquettes', () => {
+  const ecrireDans = (texte: string) => {
+    const champ = hote.querySelector<HTMLInputElement>('.notak-etiquettes-recherche')!
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(champ, texte)
+      champ.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+  }
+  const entree = () => act(() => hote.querySelector('.notak-etiquettes-recherche')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })))
+
   it('crée une étiquette et la pose sur la sélection d’un seul pas', () => {
     const { contexte, element, magasin } = monde()
     act(() => racine.render(<PanneauEtiquettes elements={[element()]} contexte={contexte} />))
-    const champ = hote.querySelector<HTMLInputElement>('input[aria-label="Nom de la nouvelle étiquette"]')!
-    act(() => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(champ, 'À relire')
-      champ.dispatchEvent(new Event('input', { bubbles: true }))
-    })
+    ecrireDans('À relire')
     act(() => bouton('Créer').click())
     expect(magasin.lire().etiquettes?.map((e) => e.nom)).toEqual(['Urgent', 'À relire'])
     expect(element().etiquettes).toEqual([magasin.lire().etiquettes![1]!.id])
@@ -140,10 +191,38 @@ describe('le panneau des étiquettes', () => {
     expect(element().etiquettes).toBeUndefined()
   })
 
+  it('Entrée crée l’étiquette et la pose, puis pose celle qui existe déjà sans la doubler', () => {
+    const { contexte, element, magasin } = monde()
+    act(() => racine.render(<PanneauEtiquettes elements={[element()]} contexte={contexte} />))
+    ecrireDans('Idée')
+    entree()
+    expect(magasin.lire().etiquettes?.map((e) => e.nom)).toEqual(['Urgent', 'Idée'])
+    expect(element().etiquettes).toHaveLength(1)
+    act(() => racine.render(<PanneauEtiquettes elements={[element()]} contexte={contexte} />))
+    ecrireDans('urgent')
+    entree()
+    expect(magasin.lire().etiquettes).toHaveLength(2)
+    expect(element().etiquettes).toHaveLength(2)
+  })
+
+  it('cherche dans la liste, et dit quand rien ne correspond', () => {
+    const { contexte } = monde()
+    act(() => racine.render(<PanneauEtiquettes elements={[]} contexte={contexte} />))
+    expect(hote.querySelectorAll('.notak-etiquettes-ligne')).toHaveLength(1)
+    expect(hote.textContent).toContain('Récemment créées')
+    ecrireDans('zzz')
+    expect(hote.querySelectorAll('.notak-etiquettes-ligne')).toHaveLength(0)
+    expect(hote.querySelector('.notak-etiquettes-creer')?.textContent).toContain('Créer « zzz »')
+  })
+
   it('supprimer une étiquette la retire des éléments, et l’annulation les lui rend', () => {
     const { contexte, element, magasin } = monde({ etiquettes: ['e1'] })
     act(() => racine.render(<PanneauEtiquettes elements={[]} contexte={contexte} />))
-    act(() => bouton('Supprimer').click())
+    act(() => bouton('Options de').click())
+    act(() => [...hote.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find((b) => b.textContent === 'Supprimer')!.click())
+    // Une confirmation d'abord : rien n'est supprimé avant elle.
+    expect(magasin.lire().etiquettes).toHaveLength(1)
+    act(() => [...hote.querySelectorAll<HTMLButtonElement>('.notak-etiquettes-confirmer button')].find((b) => b.textContent === 'Supprimer')!.click())
     expect(magasin.lire().etiquettes).toBeUndefined()
     expect(element().etiquettes).toBeUndefined()
     magasin.annuler()
@@ -159,7 +238,8 @@ describe('le panneau des étiquettes', () => {
       return null
     }
     act(() => racine.render(<><PanneauEtiquettes elements={[]} contexte={contexte} /><Sonde /></>))
-    act(() => bouton('Filtrer par').click())
+    act(() => bouton('Options de').click())
+    act(() => bouton('Utilisée 0 fois').click())
     expect([...vu]).toEqual(['e1'])
     act(() => bouton('Tout montrer').click())
     expect(vu.size).toBe(0)
@@ -170,9 +250,9 @@ describe('le panneau des étiquettes', () => {
   it('en lecture seule, on ne crée ni ne supprime : on filtre', () => {
     const { contexte } = monde({}, true)
     act(() => racine.render(<PanneauEtiquettes elements={[]} contexte={contexte} />))
-    expect(hote.querySelector('form')).toBeNull()
-    expect(hote.querySelector('[aria-label^="Supprimer"]')).toBeNull()
-    expect(bouton('Filtrer par')).toBeDefined()
+    expect(hote.querySelector('.notak-etiquettes-recherche')).toBeNull()
+    act(() => bouton('Options de').click())
+    expect([...hote.querySelectorAll('[role=menuitem]')].map((b) => b.textContent)).toEqual(['Utilisée 0 fois'])
   })
 })
 
@@ -187,52 +267,101 @@ describe('l’outil Réagir', () => {
     act(() => bouton('Réagir').click())
     act(() => bouton('Réagir avec 🔥').click())
     expect(choisis().map((e) => e.reactions)).toEqual([{ '🔥': ['ana'] }, { '🔥': ['ana'] }])
+    // La fenêtre reste ouverte après le choix : le même clic le retire.
     rendre()
-    act(() => bouton('Réagir').click())
     act(() => bouton('Réagir avec 🔥').click())
     expect(choisis().every((e) => e.reactions === undefined)).toBe(true)
+  })
+  it('si l’un des éléments l’a déjà, on ne fait que le retirer de ceux qui l’ont', () => {
+    const { contexte, magasin } = monde({ reactions: { '🔥': ['ana'] } })
+    magasin.faire([{ type: 'creer', element: nouvelleNote(40, 0, 'Autre') }])
+    const choisis = () => magasin.lire().elements
+    act(() => racine.render(<OutilReactions elements={choisis()} contexte={contexte} />))
+    act(() => bouton('Réagir').click())
+    act(() => bouton('Réagir avec 🔥').click())
+    expect(choisis().map((e) => e.reactions)).toEqual([undefined, undefined])
   })
 })
 
 describe('le sélecteur d’émojis', () => {
-  const monter = () => {
+  const monter = (posees?: Set<string>) => {
     const choisis: string[] = []
-    act(() => racine.render(<SelecteurEmojis choisir={(e) => choisis.push(e)} />))
+    act(() => racine.render(<SelecteurEmojis choisir={(e) => choisis.push(e)} {...(posees ? { posees } : {})} />))
     return choisis
   }
-  const grille = () => [...hote.querySelectorAll<HTMLButtonElement>('.notak-emojis-grille button')].map((b) => b.textContent)
-
-  it('ouvre sur les fréquents, avec des catégories et une recherche', () => {
-    localStorage.clear()
-    monter()
-    expect(grille()).toEqual(['👍', '❤️', '😂', '🎉', '👀', '✅', '🙏', '🔥'])
-    expect([...hote.querySelectorAll('[role="tab"]')].map((b) => b.getAttribute('data-categorie'))).toEqual([
-      'frequents', 'visages', 'gestes', 'symboles', 'nature', 'nourriture', 'activites', 'objets',
-    ])
-    act(() => hote.querySelector<HTMLButtonElement>('[data-categorie="nourriture"]')!.click())
-    expect(grille()).toContain('🍕')
-    expect(grille().length).toBeGreaterThan(8)
-  })
-
-  it('cherche par mot, sans accent ni casse', () => {
-    monter()
-    const champ = hote.querySelector<HTMLInputElement>('input')!
+  const boutons = () => [...hote.querySelectorAll<HTMLButtonElement>('.notak-emojis-grille button')]
+  const grille = (section: string) => [...hote.querySelectorAll<HTMLButtonElement>(`[data-section="${section}"] .notak-emojis-grille button`)].map((b) => b.textContent)
+  const ecrire = (texte: string) => {
+    const champ = hote.querySelector<HTMLInputElement>('input.notak-emojis-recherche')!
     act(() => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(champ, 'FÊTE')
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(champ, texte)
       champ.dispatchEvent(new Event('input', { bubbles: true }))
     })
-    expect(grille()).toContain('🥳')
-    expect(hote.querySelector('[role="tab"]')).toBeNull()
+  }
+
+  it('ouvre sur les vingt-quatre fréquents, puis les neuf groupes d’Unicode', () => {
+    localStorage.clear()
+    monter()
+    expect(grille('frequents')).toEqual(['👍', '👎', '😊', '😀', '🙂', '🤔', '😍', '😞'])
+    expect([...hote.querySelectorAll('[role="tab"]')].map((b) => b.getAttribute('data-categorie'))).toEqual(['frequents', '0', '1', '2', '3', '4', '5', '6', '7', '8'])
+    expect(grille('3')).toContain('🍕')
+    expect(grille('8')).toContain('🇫🇷')
+    expect(boutons().length).toBeGreaterThan(1800)
   })
 
-  it('retient le dernier choisi en tête des fréquents', () => {
+  it('cherche par nom ou mot-clé, en français ou en anglais, sans accent ni casse', () => {
+    monter()
+    ecrire('FÊTE')
+    expect(boutons().map((b) => b.textContent)).toContain('🥳')
+    ecrire('pizza')
+    expect(boutons().map((b) => b.textContent)).toContain('🍕')
+    ecrire('zzzzqqq')
+    expect(hote.querySelector('.notak-emojis-vide')?.textContent).toContain('😔')
+  })
+
+  it('compte chaque choix : le plus employé passe en tête des fréquents', () => {
     localStorage.clear()
     const choisis = monter()
-    act(() => hote.querySelector<HTMLButtonElement>('[data-categorie="nourriture"]')!.click())
-    act(() => [...hote.querySelectorAll<HTMLButtonElement>('.notak-emojis-grille button')].find((b) => b.textContent === '🍕')!.click())
-    expect(choisis).toEqual(['🍕'])
-    act(() => hote.querySelector<HTMLButtonElement>('[data-categorie="frequents"]')!.click())
-    expect(grille()[0]).toBe('🍕')
+    for (let i = 0; i < 5; i++) act(() => boutons().find((b) => b.textContent === '🍕' && b.closest('[data-section="3"]'))!.click())
+    expect(choisis).toEqual(['🍕', '🍕', '🍕', '🍕', '🍕'])
+    expect(grille('frequents')[0]).toBe('🍕')
+  })
+
+  it('applique la teinte de peau choisie aux émojis qui en ont, et la retient', () => {
+    localStorage.clear()
+    monter()
+    act(() => hote.querySelector<HTMLButtonElement>('.notak-emojis-teinte-lien')!.click())
+    act(() => hote.querySelectorAll<HTMLButtonElement>('.notak-emojis-teintes button')[3]!.click())
+    expect(grille('1')).toContain('👋🏽')
+    expect(localStorage.getItem('notak:emojis-teinte')).toBe('3')
+  })
+
+  it('surligne les émojis que j’ai déjà posés', () => {
+    monter(new Set(['🍕']))
+    const pizza = boutons().find((b) => b.textContent === '🍕')!
+    expect(pizza.getAttribute('aria-pressed')).toBe('true')
+  })
+})
+
+describe('un fil de commentaires choisi', () => {
+  it('ne propose ni étiquettes ni réactions, et se colore d’une bande', () => {
+    const { contexte, magasin } = monde()
+    const fil = nouveauCommentaire(40, 0)
+    magasin.faire([{ type: 'creer', element: fil }])
+    const el = () => magasin.lire().elements.find((e) => e.id === fil.id)!
+    act(() => racine.render(<OutilEtiquettes elements={[el()]} contexte={contexte} />))
+    expect(hote.querySelector('button')).toBeNull()
+    act(() => racine.render(<OutilReactions elements={[el()]} contexte={contexte} />))
+    expect(hote.querySelector('button')).toBeNull()
+    const rendre = () => act(() => racine.render(<OutilsCommentaire elements={[el()] as never} contexte={contexte} />))
+    rendre()
+    act(() => bouton('Couleur').click())
+    act(() => bouton('Rouge').click())
+    expect(el().contenu).toMatchObject({ couleur: 'rouge' })
+    rendre()
+    act(() => bouton('Couleur').click())
+    act(() => bouton('Aucune').click())
+    expect('couleur' in el().contenu).toBe(false)
   })
 })
 

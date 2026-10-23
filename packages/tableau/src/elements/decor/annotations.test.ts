@@ -7,7 +7,13 @@ import {
   compterReactions,
   etatEcheance,
   etatEtiquette,
+  contourEtiquette,
+  couleurPourNom,
+  etiquetteNommee,
   etiquettesDe,
+  quiReagit,
+  reagirSurPlusieurs,
+  texteEtiquette,
   jourDe,
   libelleEcheance,
   nouvelleEtiquette,
@@ -26,11 +32,11 @@ const note = (id: string, plus: Partial<Element> = {}): Element => ({
 })
 
 describe('étiquettes', () => {
-  it('une étiquette neuve prend la couleur la moins employée, et refuse un nom vide ou déjà pris', () => {
+  it('une étiquette neuve prend la couleur que dit son nom, et refuse un nom vide ou déjà pris', () => {
     const a = nouvelleEtiquette([], ' Urgent ')!
     expect(a.nom).toBe('Urgent')
-    const b = nouvelleEtiquette([a], 'À voir')!
-    expect(b.couleur).not.toBe(a.couleur)
+    expect(a.couleur).toBe('rouge')
+    expect(nouvelleEtiquette([a], 'À voir')!.couleur).toBeDefined()
     expect(nouvelleEtiquette([a], 'urgent')).toBeNull()
     expect(nouvelleEtiquette([a], '   ')).toBeNull()
     expect(nouvelleEtiquette([], 'x'.repeat(80))!.nom).toHaveLength(30)
@@ -48,10 +54,10 @@ describe('étiquettes', () => {
     expect(etatEtiquette([els[0]!], 'a')).toBe('tous')
     expect(etatEtiquette([els[1]!], 'a')).toBe('aucun')
   })
-  it('ne montre que les étiquettes qui existent encore, dans l’ordre du tableau', () => {
+  it('ne montre que les étiquettes qui existent encore, dans l’ordre où on les a posées', () => {
     const a = { id: 'a', nom: 'A', couleur: 'vert' as const }
     const b = { id: 'b', nom: 'B', couleur: 'rouge' as const }
-    expect(etiquettesDe(note('1', { etiquettes: ['b', 'zzz', 'a'] }), [a, b]).map((e) => e.id)).toEqual(['a', 'b'])
+    expect(etiquettesDe(note('1', { etiquettes: ['b', 'zzz', 'a'] }), [a, b]).map((e) => e.id)).toEqual(['b', 'a'])
   })
   it('le filtre laisse passer ce qui porte une des étiquettes voulues, et tout quand il est vide', () => {
     const e = note('1', { etiquettes: ['a'] })
@@ -134,5 +140,49 @@ describe('annoter', () => {
     m.annuler()
     expect(m.lire().etiquettes).toBeUndefined()
     expect(m.lire().elements[0]!.etiquettes).toBeUndefined()
+  })
+})
+
+describe('couleur et texte des étiquettes', () => {
+  it('prend la couleur que dit le nom, puis le sens du mot, puis le hasard', () => {
+    expect(couleurPourNom('Urgent rouge')).toBe('rouge')
+    expect(couleurPourNom('Deep blue')).toBe('bleu_nuit')
+    expect(couleurPourNom('Blue sky')).toBe('bleu')
+    expect(couleurPourNom('Terminé')).toBe('vert')
+    expect(couleurPourNom('Bug')).toBe('rouge')
+    expect(couleurPourNom('Idées', () => 0)).toBe('gris')
+    expect(couleurPourNom('Idées', () => 0.999)).toBe('bleu_nuit')
+  })
+  it('écrit en noir sur un fond clair, en blanc sur un fond sombre', () => {
+    expect(texteEtiquette('jaune')).toBe('#1f2430')
+    expect(texteEtiquette('bleu_nuit')).toBe('#ffffff')
+  })
+  it('met un contour quand la pastille se confond avec la carte', () => {
+    expect(contourEtiquette('gris', '#bbbec3')).toBe('clair')
+    expect(contourEtiquette('jaune', '#ffffff')).toBeUndefined()
+    expect(contourEtiquette('bleu_nuit', '#5882f8')).toBe('sombre')
+  })
+  it('retrouve une étiquette par son nom, sans égard à la casse', () => {
+    const a = { id: 'a', nom: 'Idée', couleur: 'vert' as const }
+    expect(etiquetteNommee([a], ' idée ')).toBe(a)
+    expect(etiquetteNommee([a], 'autre')).toBeUndefined()
+  })
+})
+
+describe('qui a réagi', () => {
+  it('met soi en premier, puis les prénoms, jusqu’à six', () => {
+    expect(quiReagit(['Anna Roux', 'Marc'], true).qui).toBe('Vous, Anna et Marc')
+    expect(quiReagit(['Anna Roux'], false).qui).toBe('Anna')
+    expect(quiReagit(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'], true).qui).toBe('Vous, A, B, C, D, E et 3 autres')
+    expect(quiReagit([''], false).qui).toBe('Quelqu’un')
+  })
+})
+
+describe('réagir sur plusieurs éléments', () => {
+  it('ne fait que retirer quand l’un des éléments l’a déjà, sinon pose partout', () => {
+    const a = note('a', { reactions: { '🔥': ['ana'] } })
+    const b = note('b')
+    expect(reagirSurPlusieurs([a, b], '🔥', 'ana')).toHaveLength(1)
+    expect(reagirSurPlusieurs([b, note('c')], '🔥', 'ana')).toHaveLength(2)
   })
 })

@@ -292,6 +292,8 @@ export interface Commentaire {
   resolu?: boolean
   /** Replié à la main : une ligne (le premier auteur et le nombre de messages) au lieu du fil. */
   replie?: boolean
+  /** La couleur du fil : une bande de 5 px en haut de la fiche. */
+  couleur?: CouleurNote
 }
 
 /** Le type d'une cellule ; absent : « auto », déduit de ce qu'on tape. */

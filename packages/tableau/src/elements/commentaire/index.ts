@@ -15,9 +15,10 @@ registre.type<Commentaire>({
   Rendu: RenduCommentaire,
   OutilsApres: OutilsCommentaire,
   editable: true,
-  hauteurParDefaut: 10,
-  largeurMin: 20,
-  suivant: () => null,
+  hauteurParDefaut: 7,
+  largeurMin: 34,
+  // ⌘Entrée : un fil neuf juste dessous, à la même largeur.
+  suivant: (e, places) => ({ ...nouveauCommentaire(places.dessous.x, places.dessous.y), largeur: e.largeur }),
   outils: [
     {
       get libelle() {
