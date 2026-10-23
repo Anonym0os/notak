@@ -26,3 +26,16 @@ export async function apercu(url: string) {
   const { cause } = (await r.json().catch(() => ({}))) as { cause?: unknown }
   throw new Error('Aperçu indisponible', { cause })
 }
+
+/** L'image d'une adresse, rangée avec les fichiers du tableau. La cause d'un refus voyage dans l'erreur. */
+export async function rapatrier(url: string): Promise<{ id: string; type: string }> {
+  const r = await fetch('/api/fichiers/rapatrier', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  })
+  if (r.ok) return r.json()
+  const { cause } = (await r.json().catch(() => ({}))) as { cause?: unknown }
+  throw new Error('Image indisponible', { cause })
+}

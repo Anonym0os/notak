@@ -19,6 +19,9 @@ export interface DepotFichiers {
   adresse(id: Id): Promise<string | null>
 }
 
+/** Qui ramène une image du web dans les fichiers du tableau : elle ne dépendra plus du site qui la sert. */
+export type Rapatrieur = (url: string) => Promise<{ id: Id; type: string }>
+
 /** Qui va chercher l'aperçu d'une page web : un serveur, puisqu'un navigateur ne lit pas les autres sites. */
 export type ChercheurApercu = (url: string) => Promise<Apercu>
 
@@ -49,6 +52,7 @@ export interface ServicePresence {
 export interface Services {
   fichiers?: DepotFichiers
   apercu?: ChercheurApercu
+  rapatrier?: Rapatrieur
   /** Ouvrir un tableau imbriqué. */
   ouvrirTableau?(id: Id): void
   /**

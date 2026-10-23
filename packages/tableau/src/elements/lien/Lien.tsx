@@ -5,6 +5,7 @@ import { domaineDe, lireAdresse } from './adresse'
 import { lireCause, messageEchec } from './echec'
 import { lecteurDe } from './lecteurs'
 import { Media } from './Media'
+import { convertirEnImage } from './versImage'
 
 const DELAI_APERCU = 15_000
 const REL = 'noopener noreferrer nofollow'
@@ -49,7 +50,11 @@ function useChargementApercu({ element, contexte }: PropsRendu<Lien>) {
       minuteur = setTimeout(() => rejeter(new Error('délai', { cause: 'delai' })), DELAI_APERCU)
     })
     Promise.race([chercheur(url), limite])
-      .then((a) => terminer('pret', a))
+      .then(async (a) => {
+        // L'adresse mène à une image : on la rapatrie et la carte devient une image ; sinon elle garde l'aperçu.
+        if (a.estImage && (await convertirEnImage(id, url, contexte))) return
+        terminer('pret', a)
+      })
       .catch((e: unknown) => terminer('echec', undefined, lireCause(e)))
       .finally(() => clearTimeout(minuteur))
   }, [id, url, statut, contexte])
