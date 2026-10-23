@@ -1,15 +1,22 @@
 // @vitest-environment jsdom
 import { Editor } from '@tiptap/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import type { NoeudTexte } from '../../coeur/tableau'
 import { basculerCentre, basculerSurlignage, poserCouleurTexte, poserStyle } from './commandes'
 import { EXTENSIONS_NOTE } from './extensions'
 
-const editeur = (texte = 'abc') =>
-  new Editor({
+// Un éditeur laissé vivant garde un minuteur de ProseMirror, qui part après le démontage de jsdom.
+const ouverts: Editor[] = []
+afterEach(() => ouverts.splice(0).forEach((e) => e.destroy()))
+
+const editeur = (texte = 'abc') => {
+  const e = new Editor({
     extensions: EXTENSIONS_NOTE,
     content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: texte }] }] },
   })
+  ouverts.push(e)
+  return e
+}
 
 const marques = (e: Editor) => (e.getJSON().content![0]!.content![0] as NoeudTexte).marks?.map((m) => m.type) ?? []
 

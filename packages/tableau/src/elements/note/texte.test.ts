@@ -1,15 +1,21 @@
 // @vitest-environment jsdom
 import { Editor } from '@tiptap/react'
 import type { NoeudTexte } from '../../coeur/tableau'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { augmenterRetrait, casseSuivante, changerCasse, diminuerRetrait, enCasse, espacesAAjouter, espacesARetirer } from './texte'
 import { EXTENSIONS_NOTE } from './extensions'
 
+// Un éditeur laissé vivant garde un minuteur de ProseMirror, qui part après le démontage de jsdom.
+const ouverts: Editor[] = []
+const ouvrir = (contenu: NoeudTexte) => {
+  const e = new Editor({ extensions: EXTENSIONS_NOTE, content: contenu })
+  ouverts.push(e)
+  return e
+}
+afterEach(() => ouverts.splice(0).forEach((e) => e.destroy()))
+
 const editeur = (...lignes: string[]) =>
-  new Editor({
-    extensions: EXTENSIONS_NOTE,
-    content: { type: 'doc', content: lignes.map((t) => ({ type: 'paragraph', content: [{ type: 'text', text: t }] })) },
-  })
+  ouvrir({ type: 'doc', content: lignes.map((t) => ({ type: 'paragraph', content: [{ type: 'text', text: t }] })) })
 const lignes = (e: Editor) => (e.getJSON() as NoeudTexte).content!.map((p) => p.content?.[0]?.text ?? '')
 
 describe('retraits', () => {
@@ -44,9 +50,9 @@ describe('casse', () => {
   })
 
   it('Maj+F3 garde la mise en forme', () => {
-    const e = new Editor({
-      extensions: EXTENSIONS_NOTE,
-      content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Ab' }, { type: 'text', text: 'cd', marks: [{ type: 'bold' }] }] }] },
+    const e = ouvrir({
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Ab' }, { type: 'text', text: 'cd', marks: [{ type: 'bold' }] }] }],
     })
     e.commands.selectAll()
     changerCasse(e)
