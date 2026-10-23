@@ -22,11 +22,14 @@ export function BarreOutils({
   surAppui,
   rebond,
   corbeille,
+  nonTries,
 }: {
   surAppui(o: OutilDeBarre, e: React.PointerEvent): void
   rebond: { libelle: string; n: number } | null
   /** La corbeille, en bas de la barre : elle s'ouvre au clic et reçoit ce qu'on y lâche. */
   corbeille: { nombre: number; ouverte: boolean; basculer(): void }
+  /** Les non triés, juste au-dessus : Cmd+\ les ouvre aussi. */
+  nonTries: { nombre: number; ouverte: boolean; basculer(): void }
 }) {
   const [tiroir, setTiroir] = useState(false)
   const tous = outilsDeBarre()
@@ -79,6 +82,10 @@ export function BarreOutils({
         </div>
       )}
       <div className="notak-barre-sep" />
+      <button type="button" className="notak-outil" aria-expanded={nonTries.ouverte} title="Non triés (⌘\)" onClick={nonTries.basculer}>
+        <span className="notak-outil-icone">📥</span>
+        <span className="notak-outil-libelle">Non triés{nonTries.nombre > 0 ? ` (${nonTries.nombre})` : ''}</span>
+      </button>
       <button
         type="button"
         className="notak-outil"

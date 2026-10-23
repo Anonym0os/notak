@@ -1032,3 +1032,15 @@
   color: #8a5a00;
   animation: none;
 }
+
+/* Les non triés : le même panneau que la corbeille, à droite, et ses lignes se glissent. */
+.notak-non-tries {
+  right: 12px;
+  bottom: auto;
+  top: 12px;
+  left: auto;
+}
+
+.notak-non-tries li[draggable] {
+  cursor: grab;
+}

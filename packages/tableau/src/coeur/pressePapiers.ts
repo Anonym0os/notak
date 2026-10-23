@@ -53,7 +53,7 @@ export function deballer(p: Paquet, d: Point): Element[] {
   return p.elements.map((e) => {
     const id = neufs.get(e.id)!
     const parent = e.parent && neufs.get(e.parent)
-    const { corbeille: _c, verrou: _v, ...reste } = e
+    const { corbeille: _c, nonTrie: _n, verrou: _v, ...reste } = e
     let contenu = e.contenu
     if (contenu.type === 'ligne') {
       const bout = (x: Extremite): Extremite =>

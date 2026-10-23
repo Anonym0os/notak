@@ -10,7 +10,7 @@ import { largeurDoubleClic, largeurTiree, LARGEUR_MIN_DEFAUT } from './coeur/lar
 import { type Cible, type Deplace, cleEntre, clesEntre, comparerOrdre, indexInsertion, pasDeDepot } from './coeur/ordre'
 import { cliquer, lasso } from './coeur/selection'
 import { type Paquet, TYPE_PAQUET, decalageDeCollage, deballer, empaqueter, texteDuPaquet } from './coeur/pressePapiers'
-import { type Entree, FenetreRaccourcis, MenuContextuel, PanneauCorbeille, Recherche } from './Menus'
+import { type Entree, FenetreRaccourcis, GLISSER_NON_TRIE, MenuContextuel, PanneauCorbeille, PanneauNonTries, Recherche } from './Menus'
 import { chercher } from './coeur/recherche'
 import { poussees } from './coeur/collisions'
 import { VOL_REPOS, type Vol, inclinaisonMax, transformation } from './coeur/vol'
@@ -24,6 +24,7 @@ import {
   type Tableau,
   HAUTEUR_NOTE_MIN,
   aLaCorbeille,
+  nonTriesDe,
   aimanter,
   auDernierPlan,
   auPremierPlan,
@@ -189,6 +190,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const toutLeTableau = useSyncExternalStore(complet.ecouter, complet.lire)
   const corbeille = useMemo(() => aLaCorbeille(toutLeTableau), [toutLeTableau])
   const [corbeilleOuverte, setCorbeilleOuverte] = useState(false)
+  const nonTries = useMemo(() => nonTriesDe(toutLeTableau), [toutLeTableau])
+  const [nonTriesOuvert, setNonTriesOuvert] = useState(false)
   // La recherche dans le tableau (Cmd+F) : `null` fermée ; le rang du résultat montré ; chaque appel refocalise.
   const [requete, setRequete] = useState<string | null>(null)
   const [raccourcis, setRaccourcis] = useState(false)
@@ -449,14 +452,18 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   }, [edition, services.lectureSeule, rect])
   const contexteRef = useRef<ContexteToile | null>(null)
 
-  const jeter = useCallback(
-    (ids: Iterable<Id>) => {
+  /**
+   * Sort ces éléments de la toile, d'un seul pas, vers la corbeille ou les non triés. Un élément verrouillé reste ;
+   * une colonne garde son contenu ; les lignes accrochées partent à la corbeille avec, mais pas dans les non triés.
+   */
+  const ecarter = useCallback(
+    (ids: Iterable<Id>, vers: 'corbeille' | 'nonTrie') => {
       if (etat.current.services.lectureSeule) return
       const m = etat.current.magasin
       const t = m.lire()
       const voulus = new Set(ids)
-      // Un élément verrouillé reste ; les lignes accrochées partent avec ; une colonne garde son contenu.
-      const partants = avecLiees(t.elements.filter((e) => voulus.has(e.id) && !e.verrou), t)
+      const choisis = t.elements.filter((e) => voulus.has(e.id) && !e.verrou)
+      const partants = vers === 'corbeille' ? avecLiees(choisis, t) : choisis.filter((e) => definition(e.contenu.type)?.calque !== 'lignes')
       const dedans = new Set(partants.map((e) => e.id))
       const date = Date.now()
       const pas = partants
@@ -464,18 +471,23 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         .map((e): Operation => {
           const r = e.parent ? rect(e.id) : null
           const [x, y] = r ? aimanter(r.min) : [e.x, e.y]
-          return { type: 'ranger', id: e.id, de: placeDe(e), vers: { x, y, corbeille: date } }
+          return { type: 'ranger', id: e.id, de: placeDe(e), vers: { x, y, [vers]: date } }
         })
       if (pas.length === 0) return
       m.faire(pas)
+      const n = pas.length
       annoncer({
-        texte: pas.length === 1 ? 'Mis à la corbeille' : `${pas.length} éléments mis à la corbeille`,
+        texte:
+          vers === 'corbeille'
+            ? n === 1 ? 'Mis à la corbeille' : `${n} éléments mis à la corbeille`
+            : n === 1 ? 'Mis dans les non triés' : `${n} éléments mis dans les non triés`,
         // Défaire ce geste-là, même si d'autres l'ont suivi : Cmd+Z, lui, défait le dernier.
         action: { libelle: 'Annuler', faire: () => m.faire(pas.map(inverse).reverse()) },
       })
     },
     [rect],
   )
+  const jeter = useCallback((ids: Iterable<Id>) => ecarter(ids, 'corbeille'), [ecarter])
   const surBrouillon = useCallback(
     (el: Element, apres: Contenu) => {
       const b = brouillon.current
@@ -796,6 +808,16 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     setSelection(new Set([e.id]))
   }
 
+  /** Un élément des non triés prend sa place sur la toile, à `ou` (son coin haut gauche, en UG). */
+  const poserNonTrie = (id: Id, ou: Point) => {
+    const e = complet.lire().elements.find((x) => x.id === id)
+    if (!e || e.nonTrie === undefined) return
+    const [x, y] = aimanter(ou)
+    complet.faire([{ type: 'ranger', id, de: placeDe(e), vers: { x, y } }])
+    magasin.remplacer(auPremierPlan(magasin.lire(), [id]))
+    setSelection(new Set([id]))
+  }
+
   const viderCorbeille = () => {
     const t = complet.lire()
     const jetes = new Set(aLaCorbeille(t).map((e) => e.id))
@@ -870,6 +892,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       { libelle: 'Premier plan', raccourci: '⇧⌘↑', faire: () => changerPlan('haut', false) },
       { libelle: 'Arrière-plan', raccourci: '⇧⌘↓', faire: () => changerPlan('bas', false) },
       null,
+      { libelle: 'Mettre dans les non triés', raccourci: '⌥`', faire: () => ecarter(selection, 'nonTrie') },
       { libelle: 'Mettre à la corbeille', raccourci: '⌫', faire: () => jeter(selection) },
     ]
   }
@@ -1001,6 +1024,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (e.key === 'Escape') return setSelection(new Set())
       if (!cmd && touche === 'z' && !e.repeat) ajuster()
       return
+    }
+    // Les non triés : Cmd+\ ouvre le panneau, Alt+` y met la sélection (`code`, car Alt change `key` sur Mac).
+    if (cmd && e.code === 'Backslash') {
+      e.preventDefault()
+      return setNonTriesOuvert((o) => !o)
+    }
+    if (e.altKey && !cmd && e.code === 'Backquote' && selection.size > 0) {
+      e.preventDefault()
+      return ecarter(selection, 'nonTrie')
     }
     if (cmd && touche === 'z') {
       e.preventDefault()
@@ -1691,6 +1723,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
 
   const deposer = (e: React.DragEvent) => {
     e.preventDefault()
+    const nonTrie = e.dataTransfer.getData(GLISSER_NON_TRIE)
+    if (nonTrie) return poserNonTrie(nonTrie, cam.versTableau(camera, local(e)))
     void recevoir(e.dataTransfer, cam.versTableau(camera, local(e)))
   }
 
@@ -1843,6 +1877,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           surAppui={surAppuiOutil}
           rebond={rebond}
           corbeille={{ nombre: corbeille.length, ouverte: corbeilleOuverte, basculer: () => setCorbeilleOuverte((o) => !o) }}
+          nonTries={{ nombre: nonTries.length, ouverte: nonTriesOuvert, basculer: () => setNonTriesOuvert((o) => !o) }}
+        />
+      )}
+      {nonTriesOuvert && !lectureSeule && (
+        <PanneauNonTries
+          elements={nonTries}
+          contexte={contexte}
+          poser={(x) => poserNonTrie(x.id, contexte.centreVue())}
+          fermer={() => setNonTriesOuvert(false)}
         />
       )}
       {corbeilleOuverte && !lectureSeule && (

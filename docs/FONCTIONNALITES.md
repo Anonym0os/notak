@@ -14,7 +14,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | Partie | Fait | En partie | Absent | Avancement |
 |---|---|---|---|---|
 | 1. Toile | 21 | 3 | 3 | 83 % |
-| 2. Création | 10 | 3 | 4 | 68 % |
+| 2. Création | 11 | 3 | 3 | 74 % |
 | 3. Note et texte | 18 | 3 | 10 | 63 % |
 | 4. Colonne | 9 | 0 | 2 | 82 % |
 | 5. Tableau imbriqué | 8 | 0 | 3 | 73 % |
@@ -24,13 +24,13 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 9. Ligne | 11 | 0 | 3 | 79 % |
 | 10. Autres éléments | 0 | 2 | 10 | 8 % |
 | 11. Commun aux éléments | 3 | 1 | 8 | 29 % |
-| 12. Organiser | 14 | 1 | 1 | 91 % |
+| 12. Organiser | 15 | 1 | 0 | 97 % |
 | 13. Naviguer | 8 | 2 | 3 | 69 % |
 | 14. À plusieurs | 9 | 2 | 6 | 59 % |
 | 15. Habillage | 5 | 2 | 8 | 40 % |
 | 16. Exporter, importer | 0 | 0 | 4 | 0 % |
 | 17. Plateformes | 1 | 1 | 5 | 21 % |
-| **Total** | **140** | **24** | **85** | **61 %** |
+| **Total** | **142** | **24** | **83** | **62 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -85,7 +85,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Coller du texte, une adresse, une image hors édition | 🟡 | N'arrive pas dans les non triés ; la note collée n'est pas éditée. |
 | Déposer des images depuis le Finder | ✅ | |
 | Déposer un fichier quelconque, plusieurs adresses, dans une colonne | 🟡 | Les fichiers se posent sur la toile, pas encore dans la colonne visée ; une seule adresse est gardée. |
-| Non triés : bac latéral, Cmd+\, Alt+` | ⬜ | |
+| Non triés : bac latéral, Cmd+\, Alt+` | ✅ | |
 | Tailles et couleurs de départ de chaque type | ✅ | |
 | Modèles de tableaux | ⬜ | |
 | Sons et vibration à la création | ➖ | Pas de sons repris (salle blanche). |
@@ -288,7 +288,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Envoyer dans un tableau, sur le fil d'Ariane | ✅ | |
 | Annuler, rétablir (Cmd+Z, Cmd+Maj+Z, Cmd+Y) | ✅ | |
 | Barre de sélection : outils communs seulement, menu « … » | ✅ | |
-| Déplacer vers les non triés (Alt+`) | ⬜ | Attend les non triés (§ 2). |
+| Déplacer vers les non triés (Alt+`) | ✅ | |
 | Sélectionner tout le tableau, désélectionner | ✅ | |
 
 ## 13. Naviguer

@@ -303,3 +303,55 @@ export function FenetreRaccourcis({ fermer }: { fermer(): void }) {
     </div>
   )
 }
+
+/** Le type de glisser qui porte un élément des non triés vers la toile. */
+export const GLISSER_NON_TRIE = 'application/x-notak-non-trie'
+
+/**
+ * Les non triés du tableau : ce qu'on a mis de côté (Alt+`) en attendant de lui trouver une place. On le glisse
+ * sur la toile, ou « Poser » le met au milieu de la vue. Cmd+\ ouvre et ferme le panneau.
+ */
+export function PanneauNonTries({
+  elements,
+  contexte,
+  poser,
+  fermer,
+}: {
+  elements: Element[]
+  contexte: ContexteToile
+  poser(e: Element): void
+  fermer(): void
+}) {
+  return (
+    <div className="notak-corbeille notak-non-tries" role="dialog" aria-label="Non triés" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+      <div className="notak-corbeille-tete">
+        <strong>Non triés</strong>
+        <button type="button" aria-label="Fermer" onClick={fermer}>
+          ×
+        </button>
+      </div>
+      {elements.length === 0 ? (
+        <p className="notak-corbeille-vide">Rien en attente. Alt+` y met la sélection.</p>
+      ) : (
+        <ul>
+          {elements.map((e) => (
+            <li
+              key={e.id}
+              draggable
+              title="Glisser sur la toile"
+              onDragStart={(ev) => {
+                ev.dataTransfer.setData(GLISSER_NON_TRIE, e.id)
+                ev.dataTransfer.effectAllowed = 'move'
+              }}
+            >
+              <span className="notak-corbeille-nom">{resume(e, contexte)}</span>
+              <button type="button" onClick={() => poser(e)}>
+                Poser
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}

@@ -244,6 +244,8 @@ export interface Element<C extends Contenu = Contenu> {
   ordre?: string
   /** À la corbeille du tableau depuis cette date (ms) : hors de la toile, restaurable. */
   corbeille?: number
+  /** Dans les non triés du tableau depuis cette date (ms) : en attente d'une place sur la toile. */
+  nonTrie?: number
   /** Verrouillé : ne se glisse pas, ne se redimensionne pas, ne part pas à la corbeille, reste dessous. */
   verrou?: boolean
   /** La hauteur qu'on lui a donnée, pour les types qui le permettent (note, lien). */
@@ -257,6 +259,7 @@ export interface Place {
   x: number
   y: number
   corbeille?: number
+  nonTrie?: number
 }
 
 export const placeDe = (e: Element): Place => ({
@@ -265,10 +268,11 @@ export const placeDe = (e: Element): Place => ({
   x: e.x,
   y: e.y,
   ...(e.corbeille !== undefined ? { corbeille: e.corbeille } : {}),
+  ...(e.nonTrie !== undefined ? { nonTrie: e.nonTrie } : {}),
 })
 
 export const memePlace = (a: Place, b: Place) =>
-  a.parent === b.parent && a.ordre === b.ordre && a.x === b.x && a.y === b.y && a.corbeille === b.corbeille
+  a.parent === b.parent && a.ordre === b.ordre && a.x === b.x && a.y === b.y && a.corbeille === b.corbeille && a.nonTrie === b.nonTrie
 
 /** Un tableau : ses éléments, du plus bas au plus haut dans l'empilement. */
 export interface Tableau {
@@ -386,7 +390,7 @@ export function appliquer(t: Tableau, op: Operation): Tableau {
 }
 
 function placer(e: Element, p: Place): Element {
-  const { parent: _parent, ordre: _ordre, corbeille: _corbeille, ...reste } = e
+  const { parent: _parent, ordre: _ordre, corbeille: _corbeille, nonTrie: _nonTrie, ...reste } = e
   return {
     ...reste,
     x: borner(p.x),
@@ -394,15 +398,20 @@ function placer(e: Element, p: Place): Element {
     ...(p.parent !== undefined ? { parent: p.parent } : {}),
     ...(p.ordre !== undefined ? { ordre: p.ordre } : {}),
     ...(p.corbeille !== undefined ? { corbeille: p.corbeille } : {}),
+    ...(p.nonTrie !== undefined ? { nonTrie: p.nonTrie } : {}),
   }
 }
 
-/** Ce qui est sur le tableau : ni à la corbeille, ni rangé dans un conteneur qui y est. */
+/** Ce qui est sur le tableau : ni à la corbeille, ni dans les non triés, ni rangé dans un conteneur qui y est. */
 export function surLeTableau(t: Tableau): Element[] {
-  const jetes = new Set(t.elements.filter((e) => e.corbeille !== undefined).map((e) => e.id))
+  const jetes = new Set(t.elements.filter((e) => e.corbeille !== undefined || e.nonTrie !== undefined).map((e) => e.id))
   if (jetes.size === 0) return t.elements
   return t.elements.filter((e) => !jetes.has(e.id) && !(e.parent && jetes.has(e.parent)))
 }
+
+/** Ce qui attend dans les non triés (pas à la corbeille), du plus ancien au plus récent. */
+export const nonTriesDe = (t: Tableau): Element[] =>
+  t.elements.filter((e) => e.nonTrie !== undefined && e.corbeille === undefined).sort((a, b) => a.nonTrie! - b.nonTrie!)
 
 /** Ce qui est à la corbeille, du plus récent au plus ancien. */
 export const aLaCorbeille = (t: Tableau): Element[] =>
