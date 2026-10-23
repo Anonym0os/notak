@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { PastillePersonne } from '@notak/tableau'
+import { t } from './langue'
 import { type Moi, type TableauAccessible, listerFavoris, listerRecents, listerTableaux } from './api'
 import { adressePhoto } from './fichiers'
 
@@ -16,7 +17,7 @@ export function Compte({ moi, deconnexion, ouvrir, aide }: { moi: Moi; deconnexi
     // La liste se relit à chaque ouverture : un partage peut arriver à tout moment.
     let vivant = true
     listerTableaux().then(
-      (t) => vivant && setPartages(t.filter((x) => x.role !== 'proprietaire')),
+      (tb) => vivant && setPartages(tb.filter((x) => x.role !== 'proprietaire')),
       () => vivant && setPartages([]),
     )
     listerFavoris().then((l) => vivant && setFavoris(l), () => {})
@@ -39,23 +40,23 @@ export function Compte({ moi, deconnexion, ouvrir, aide }: { moi: Moi; deconnexi
       {ouvert && (
         <div className="compte-menu" role="menu">
           <small>{moi.email}</small>
-          <Rubrique titre="Favoris" tableaux={favoris} ouvrir={aller} />
-          <Rubrique titre="Récents" tableaux={recents} ouvrir={aller} />
+          <Rubrique titre={t('compte.favoris')} tableaux={favoris} ouvrir={aller} />
+          <Rubrique titre={t('compte.recents')} tableaux={recents} ouvrir={aller} />
           {partages && partages.length > 0 && (
             <>
-              <small className="compte-rubrique">Partagés avec moi</small>
-              {partages.map((t) => (
+              <small className="compte-rubrique">{t('compte.partages')}</small>
+              {partages.map((tb) => (
                 <button
-                  key={t.id}
+                  key={tb.id}
                   type="button"
                   role="menuitem"
                   onClick={() => {
                     setOuvert(false)
-                    ouvrir(t.id)
+                    ouvrir(tb.id)
                   }}
                 >
-                  {t.titre || 'Sans titre'}
-                  {t.role === 'lecture' && <small> · lecture</small>}
+                  {tb.titre || t('commun.sansTitre')}
+                  {tb.role === 'lecture' && <small> · {t('compte.lecture')}</small>}
                 </button>
               ))}
             </>
@@ -68,10 +69,10 @@ export function Compte({ moi, deconnexion, ouvrir, aide }: { moi: Moi; deconnexi
               aide()
             }}
           >
-            Aide <small>· raccourcis</small>
+            {t('compte.aide')} <small>· {t('compte.raccourcis')}</small>
           </button>
           <button type="button" role="menuitem" onClick={deconnexion}>
-            Se déconnecter
+            {t('compte.deconnexion')}
           </button>
         </div>
       )}
@@ -85,10 +86,10 @@ function Rubrique({ titre, tableaux, ouvrir }: { titre: string; tableaux: Tablea
   return (
     <>
       <small className="compte-rubrique">{titre}</small>
-      {tableaux.map((t) => (
-        <button key={t.id} type="button" role="menuitem" onClick={() => ouvrir(t.id)}>
-          {t.titre || 'Sans titre'}
-          {t.role === 'lecture' && <small> · lecture</small>}
+      {tableaux.map((tb) => (
+        <button key={tb.id} type="button" role="menuitem" onClick={() => ouvrir(tb.id)}>
+          {tb.titre || t('commun.sansTitre')}
+          {tb.role === 'lecture' && <small> · {t('compte.lecture')}</small>}
         </button>
       ))}
     </>

@@ -42,7 +42,10 @@ const ecouter = (f: () => void) => {
 
 /** La langue en cours, lue dans les réglages la première fois. */
 export function langue(): Langue {
-  courante ??= resoudreLangue(choixEnregistre())
+  if (courante === null) {
+    courante = resoudreLangue(choixEnregistre())
+    if (typeof document !== 'undefined') document.documentElement.lang = courante
+  }
   return courante
 }
 

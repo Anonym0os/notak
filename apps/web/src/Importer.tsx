@@ -1,4 +1,5 @@
-import { type Element, type EspaceNavigable, type Id, type Operation, nouvelId } from '@notak/tableau'
+import { type Element, type EspaceNavigable, type Id, nouvelId, type Operation } from '@notak/tableau'
+import { t, tn } from './langue'
 import { useEffect, useRef, useState } from 'react'
 import { envoyerFichier } from './fichiers'
 import { CIBLE_FICHIER, CIBLE_TABLEAU, ErreurImport, type PlanImport, lireExportMilanote } from './milanote'
@@ -23,22 +24,22 @@ async function dimensions(blob: Blob): Promise<{ largeur: number; hauteur: numbe
 export async function poserLePlan(plan: PlanImport, espace: EspaceNavigable, parent: Id): Promise<{ tete: Id; perdus: number }> {
   // Qui renvoie à qui : un sous-tableau naît sous le tableau qui le cite, sinon sous la tête.
   const citeur = new Map<string, string>()
-  for (const t of plan.tableaux) {
-    for (const e of t.elements) {
+  for (const tb of plan.tableaux) {
+    for (const e of tb.elements) {
       if (e.contenu.type === 'tableau' && e.contenu.cible.startsWith(CIBLE_TABLEAU)) {
         const cle = e.contenu.cible.slice(CIBLE_TABLEAU.length)
-        if (!citeur.has(cle) && cle !== t.cle) citeur.set(cle, t.cle)
+        if (!citeur.has(cle) && cle !== tb.cle) citeur.set(cle, tb.cle)
       }
     }
   }
   const ids = new Map<string, Id>()
   const racine = plan.tableaux[0]!
-  ids.set(racine.cle, espace.creerTableau(racine.titre || 'Import Milanote', parent))
+  ids.set(racine.cle, espace.creerTableau(racine.titre || t('importer.titreDefaut'), parent))
   for (let restants = plan.tableaux.length - 1, passes = 0; restants > 0 && passes < plan.tableaux.length; passes++) {
-    for (const t of plan.tableaux.slice(1)) {
-      const pere = ids.get(citeur.get(t.cle) ?? racine.cle)
-      if (ids.has(t.cle) || !pere) continue
-      ids.set(t.cle, espace.creerTableau(t.titre || 'Sans titre', pere))
+    for (const tb of plan.tableaux.slice(1)) {
+      const pere = ids.get(citeur.get(tb.cle) ?? racine.cle)
+      if (ids.has(tb.cle) || !pere) continue
+      ids.set(tb.cle, espace.creerTableau(tb.titre || t('commun.sansTitre'), pere))
       restants--
     }
   }
@@ -63,9 +64,9 @@ export async function poserLePlan(plan: PlanImport, espace: EspaceNavigable, par
   }
 
   let perdus = 0
-  for (const t of plan.tableaux) {
+  for (const tb of plan.tableaux) {
     const ops: Operation[] = []
-    for (const e of t.elements) {
+    for (const e of tb.elements) {
       let element: Element = e
       const c = e.contenu
       if (c.type === 'tableau' && c.cible.startsWith(CIBLE_TABLEAU)) {
@@ -85,7 +86,7 @@ export async function poserLePlan(plan: PlanImport, espace: EspaceNavigable, par
       }
       ops.push({ type: 'creer', element })
     }
-    if (ops.length > 0) espace.magasin(ids.get(t.cle)!).faire(ops)
+    if (ops.length > 0) espace.magasin(ids.get(tb.cle)!).faire(ops)
   }
 
   // Le renvoi dans le tableau d'où l'on importe : à droite de ce qui y est déjà.
@@ -125,25 +126,25 @@ export function Importer({ espace, tableau, ouvrir }: { espace: EspaceNavigable;
       const avertis = plan.avertissements.length + perdus
       setEtat({
         type: 'fini',
-        texte: `${nombre} tableau${nombre > 1 ? 'x' : ''} importé${nombre > 1 ? 's' : ''}${avertis ? `, ${avertis} élément${avertis > 1 ? 's' : ''} à revoir` : ''}.`,
+        texte: tn('importer.tableaux', nombre) + (avertis ? `, ${tn('importer.arevoir', avertis)}` : '') + '.',
       })
       ouvrir(tete)
     } catch (x) {
-      setEtat({ type: 'echec', texte: x instanceof ErreurImport ? x.message : 'Import impossible' })
+      setEtat({ type: 'echec', texte: x instanceof ErreurImport ? x.message : t('importer.impossible') })
     }
   }
 
   return (
     <div className="importer">
       <button type="button" className="bouton" aria-expanded={ouvert} disabled={etat.type === 'cours'} onClick={() => setOuvert((o) => !o)}>
-        {etat.type === 'cours' ? 'Import…' : 'Importer'}
+        {etat.type === 'cours' ? t('importer.encours') : t('importer.titre')}
       </button>
       {ouvert && (
         <div className="compte-menu" role="menu">
           <button type="button" role="menuitem" onClick={() => choix.current?.click()}>
-            Depuis Milanote (zip Markdown)
+            {t('importer.milanote')}
           </button>
-          <small>Milanote : menu du tableau, Exporter, Markdown.</small>
+          <small>{t('importer.aide')}</small>
         </div>
       )}
       <input
@@ -162,7 +163,7 @@ export function Importer({ espace, tableau, ouvrir }: { espace: EspaceNavigable;
         <div className="partage-panneau importer-etat" role="status">
           <p className="partage-note">{etat.texte}</p>
           <button type="button" className="bouton-lien" onClick={() => setEtat({ type: 'repos' })}>
-            Fermer
+            {t('commun.fermer')}
           </button>
         </div>
       )}
