@@ -21,16 +21,25 @@ const ecouter = (f: () => void) => {
 
 export const enEnvoi = (fichier: string) => fichier.startsWith(PREFIXE)
 
+/** Combien d'envois partis d'ici sont encore en route (pour l'en-tête). */
+let enRoute = 0
+export const envoisEnCours = () => enRoute
+export const ecouterEnvois = ecouter
+
 /** Lance l'envoi et rend tout de suite l'id provisoire à mettre dans l'élément. */
 export function commencerEnvoi(fichier: Blob, depot: DepotFichiers): string {
   const id = PREFIXE + crypto.randomUUID()
   envois.set(id, { local: URL.createObjectURL(fichier) })
+  enRoute++
+  prevenir()
   depot.enregistrer(fichier).then(
     (fini) => {
+      enRoute--
       envois.set(id, { ...envois.get(id)!, fini })
       prevenir()
     },
     (e: unknown) => {
+      enRoute--
       const nom = fichier instanceof File && fichier.name ? `« ${fichier.name} »` : 'Le fichier'
       const cause = e instanceof Error ? e.message : 'Envoi impossible'
       envois.set(id, { ...envois.get(id)!, echec: `${nom} n'a pas été envoyé : ${cause.charAt(0).toLowerCase()}${cause.slice(1)}.` })

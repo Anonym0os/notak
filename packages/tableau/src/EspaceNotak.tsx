@@ -20,6 +20,7 @@ import { demanderRenommage } from './elements/tableau/renommage'
 import type { Presence, Services } from './elements/types'
 import { Toile } from './Toile'
 import { annoncer } from './avis'
+import { ecouterEnvois, envoisEnCours } from './elements/envois'
 import { FenetreReglages, useReglages } from './reglages'
 import './theme.css'
 
@@ -448,6 +449,7 @@ function Entete({
  * bref quand il aboutit, et « Hors ligne » tant que le réseau manque (rien n'est perdu : tout part au retour).
  */
 function EtatEnregistrement({ etat }: { etat: EtatEnvoi | undefined }) {
+  const fichiers = useSyncExternalStore(ecouterEnvois, envoisEnCours)
   const [vu, setVu] = useState<'envoi' | 'fait' | 'hors-ligne' | null>(null)
   const passe = useRef(etat)
   useEffect(() => {
@@ -476,6 +478,13 @@ function EtatEnregistrement({ etat }: { etat: EtatEnvoi | undefined }) {
         Hors ligne
       </span>
     )
+  // Un fichier en route se dit tout de suite : il peut durer, et quitter la page le perdrait.
+  if (fichiers > 0)
+    return (
+      <span className="notak-enregistrement" data-etat="envoi" role="status">
+        <span className="notak-roue" aria-hidden /> Envoi de {fichiers} fichier{fichiers > 1 ? 's' : ''}…
+      </span>
+    )
   if (!vu) return null
   return (
     <span className="notak-enregistrement" data-etat={vu} role="status">
@@ -488,16 +497,26 @@ const sansEcoute = () => () => {}
 const aucune: Presence[] = []
 
 /** Les personnes présentes sur ce tableau, une pastille chacune (initiale, couleur), sans doublon. */
+const PASTILLES_MAX = 5
+
 function Pastilles({ presence }: { presence?: Services['presence'] }) {
   const autres = useSyncExternalStore(presence?.ecouter ?? sansEcoute, presence ? presence.autres : () => aucune)
   const personnes = [...new Map(autres.map((a) => [a.utilisateur.id, a.utilisateur])).values()]
+  // Au-delà de cinq, les suivants se comptent dans une dernière pastille, qui les nomme au survol.
+  const vus = personnes.length > PASTILLES_MAX ? personnes.slice(0, PASTILLES_MAX - 1) : personnes
+  const reste = personnes.slice(vus.length)
   return (
     <div className="notak-pastilles">
-      {personnes.map((u) => (
+      {vus.map((u) => (
         <span key={u.id} className="notak-pastille" style={{ background: u.couleur }} title={u.nom}>
           {[...u.nom.trim()][0]?.toLocaleUpperCase('fr') ?? '?'}
         </span>
       ))}
+      {reste.length > 0 && (
+        <span className="notak-pastille notak-pastille-reste" title={reste.map((u) => u.nom).join(', ')}>
+          +{reste.length}
+        </span>
+      )}
     </div>
   )
 }

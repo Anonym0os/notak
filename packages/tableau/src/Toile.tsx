@@ -124,6 +124,41 @@ function retenirPaquet(p: Paquet) {
 }
 
 const AUCUNE: readonly Empreinte[] = []
+
+/** Le nom suit le pointeur d'un autre tant qu'il bouge ; immobile, le nom s'efface, puis le pointeur pâlit. */
+const NOM_REPOS = 3_000
+const POINTEUR_REPOS = 20_000
+
+function CurseurAutre({ presence: a, echelle }: { presence: Presence; echelle: number }) {
+  const [repos, setRepos] = useState<'non' | 'nom' | 'tout'>('non')
+  const { x, y } = a.curseur!
+  useEffect(() => {
+    setRepos('non')
+    const t1 = setTimeout(() => setRepos('nom'), NOM_REPOS)
+    const t2 = setTimeout(() => setRepos('tout'), POINTEUR_REPOS)
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+    }
+  }, [x, y])
+  return (
+    <div
+      className="notak-curseur"
+      data-repos={repos === 'non' ? undefined : repos}
+      style={{
+        left: x * cam.PX_PAR_UG,
+        top: y * cam.PX_PAR_UG,
+        transform: `scale(${1 / echelle})`,
+        ['--notak-autre' as string]: a.utilisateur.couleur,
+      }}
+    >
+      <svg width="16" height="20" viewBox="0 0 16 20" aria-hidden>
+        <path d="M1 1l13 8.5-5.6 1.4L6.2 17z" fill="currentColor" stroke="#fff" strokeWidth="1.2" strokeLinejoin="round" />
+      </svg>
+      <span>{a.utilisateur.nom}</span>
+    </div>
+  )
+}
 const sansEcoute = () => () => {}
 const rien = () => {}
 
@@ -1851,25 +1886,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
             )
           })}
         </svg>
-        {autres.map((a) =>
-          a.curseur ? (
-            <div
-              key={a.client}
-              className="notak-curseur"
-              style={{
-                left: a.curseur.x * cam.PX_PAR_UG,
-                top: a.curseur.y * cam.PX_PAR_UG,
-                transform: `scale(${1 / camera.echelle})`,
-                ['--notak-autre' as string]: a.utilisateur.couleur,
-              }}
-            >
-              <svg width="16" height="20" viewBox="0 0 16 20" aria-hidden>
-                <path d="M1 1l13 8.5-5.6 1.4L6.2 17z" fill="currentColor" stroke="#fff" strokeWidth="1.2" strokeLinejoin="round" />
-              </svg>
-              <span>{a.utilisateur.nom}</span>
-            </div>
-          ) : null,
-        )}
+        {autres.map((a) => (a.curseur ? <CurseurAutre key={a.client} presence={a} echelle={camera.echelle} /> : null))}
       </div>
       {lassoEcran && (
         <div
