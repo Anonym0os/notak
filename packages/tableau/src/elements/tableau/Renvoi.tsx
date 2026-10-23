@@ -4,6 +4,7 @@ import { FOND_NOTE } from '../note/couleurs'
 import type { PropsRendu } from '../types'
 import { pastilleDe } from './icones'
 import { initiale, libelleContenu } from './libelles'
+import { PlanTableau, useApercuAuSurvol } from './Apercu'
 import { ChoixModele } from './ChoixModele'
 import { demanderModele, ecouterModele, modeleEnCours } from './modele'
 import { poserModele } from './poserModele'
@@ -40,6 +41,8 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
   const image = useImage(pastille.genre === 'image' ? pastille.fichier : undefined, contexte)
   const enRenommage = useSyncExternalStore(ecouterRenommage, renommageEnCours) === element.id
   const choixModele = useSyncExternalStore(ecouterModele, modeleEnCours) === element.id
+  const apercu = useApercuAuSurvol()
+  const plan = apercu.vu ? tableau?.(cible) : undefined
   // Un clic sur un tableau déjà choisi : sur le titre, on le renomme ; sur l'icône, une bulle dit de double-cliquer.
   const dejaChoisie = useRef(false)
   const [bulle, setBulle] = useState(false)
@@ -104,7 +107,13 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
         />
       )}
       {bulle && <div className="notak-renvoi-bulle">Double-cliquez pour ouvrir</div>}
+      {plan && !enRenommage && (
+        <div className="notak-renvoi-apercu" role="tooltip">
+          <PlanTableau tableau={plan} />
+        </div>
+      )}
       <div
+        {...apercu.proprietes}
         onClick={() => apresClic('icone')}
         className="notak-renvoi-carre"
         style={{ background: FOND_NOTE[couleur && couleur !== 'transparent' ? (couleur as keyof typeof FOND_NOTE) : 'gris'] }}

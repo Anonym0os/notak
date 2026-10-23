@@ -316,3 +316,51 @@
     max-height: 140px;
   }
 }
+
+/* Le plan d'un tableau, au survol de sa carte : au-dessus d'elle, en fondu. */
+.notak-renvoi {
+  position: relative;
+}
+
+.notak-renvoi-apercu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: 5;
+  box-sizing: border-box;
+  width: 220px;
+  height: 150px;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--notak-fond);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18), 0 0 0 1px rgb(0 0 0 / 0.05);
+  transform: translateX(-50%) scale(var(--notak-zoom-inverse, 1));
+  transform-origin: bottom center;
+  pointer-events: none;
+  animation: notak-renvoi-apercu 0.18s ease-out;
+}
+
+.notak-renvoi-apercu svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.notak-renvoi-apercu-vide {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  color: #7a7f87;
+  font-size: 12px;
+}
+
+@keyframes notak-renvoi-apercu {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Le temps du plan, la carte survolée passe devant ses voisines. */
+.notak-carte:has(.notak-renvoi-apercu) {
+  z-index: 30;
+}
