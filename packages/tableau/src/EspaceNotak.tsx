@@ -26,8 +26,19 @@ import './theme.css'
 
 const CLE_VUES = 'notak:vues'
 const LIBELLE_RACINE = 'Accueil'
-/** Largeur estimée d'un segment du fil (texte, séparateur), en pixels : le titre est coupé à 160. */
-const largeurSegment = (titre: string) => Math.min(160, 8 + titre.length * 7.2) + 24
+/**
+ * La largeur d'un segment du fil (texte, marges, séparateur), en pixels : le titre est mesuré dans la police du fil,
+ * puis coupé à 160. Sans canvas (un test), on retombe sur une estimation.
+ */
+let mesureur: CanvasRenderingContext2D | null | undefined
+function largeurSegment(titre: string): number {
+  mesureur ??= typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d')
+  // La police vraiment employée par un segment déjà dessiné, sinon celle de la page.
+  const modele = mesureur && (document.querySelector('.notak-fil-segment') ?? document.body)
+  if (mesureur && modele) mesureur.font = getComputedStyle(modele).font
+  const texte = mesureur ? mesureur.measureText(titre || 'Sans titre').width : (titre.length || 10) * 7.2
+  return Math.min(160, 8 + texte) + 24
+}
 const LARGEUR_SUSPENSION = 44
 const MARGE_ENTETE = 32
 
@@ -266,6 +277,7 @@ export function EspaceNotak({
   }, [courant])
 
   const envoi = useSyncExternalStore(espace.ecouter, () => espace.envoi?.(courant))
+  const charge = useSyncExternalStore(espace.ecouter, () => espace.synchronise?.(courant) ?? true)
   const basculerTheme = useCallback(() => changerReglages({ theme: reglages.theme === 'sombre' ? 'clair' : 'sombre' }), [reglages.theme, changerReglages])
   ouvrirReglagesRef.current = () => setReglagesOuverts(true)
   basculerPresentationRef.current = () => setPresentation((p) => !p)
@@ -308,6 +320,7 @@ export function EspaceNotak({
     <div ref={racineEspace} className="notak-espace" data-theme={reglages.theme} data-taille={reglages.taille} data-presentation={presentation || undefined}>
       <Entete
         segments={segments}
+        charge={charge}
         courant={courant}
         ouvrir={ouvrir}
         renommer={courant === racine || lectureSeule ? undefined : (titre) => espace.renommer(courant, titre)}
@@ -339,6 +352,7 @@ function Entete({
   actions,
   historique,
   envoi,
+  charge = true,
 }: {
   segments: Segment[]
   courant: Id
@@ -350,6 +364,8 @@ function Entete({
   /** Annuler et rétablir le tableau ouvert ; absent en lecture seule. */
   historique?: { annuler(): void; retablir(): void }
   envoi?: EtatEnvoi
+  /** Faux tant que le tableau ouvert n'a pas rattrapé le serveur. */
+  charge?: boolean
 }) {
   const entete = useRef<HTMLElement>(null)
   const [largeur, setLargeur] = useState(Number.POSITIVE_INFINITY)
@@ -413,8 +429,9 @@ function Entete({
         type="button"
         className="notak-fil-segment"
         aria-current={ici ? 'page' : undefined}
-        title={s.titre}
+        title={ici && !charge ? 'Chargement…' : s.titre}
         data-depot-tableau={s.id}
+        data-charge={(ici && !charge) || undefined}
         onClick={() => (ici && renommer ? setEnRenommage(true) : aller(s.id))}
       >
         {s.titre || 'Sans titre'}

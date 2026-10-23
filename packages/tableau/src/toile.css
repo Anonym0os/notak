@@ -1121,3 +1121,14 @@
   background: var(--notak-carte);
   cursor: nwse-resize;
 }
+
+/* Le tableau ouvert pas encore rattrapé : son nom dans le fil d'Ariane pulse doucement. */
+.notak-fil-segment[data-charge] {
+  animation: notak-fil-charge 1.2s ease-in-out infinite;
+}
+
+@keyframes notak-fil-charge {
+  50% {
+    opacity: 0.45;
+  }
+}

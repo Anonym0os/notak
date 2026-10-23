@@ -43,6 +43,8 @@ export interface EspaceNavigable {
   lectureSeule?(id: Id): boolean
   /** Le serveur n'en donne plus l'accès : la vue revient à l'accueil. */
   refuse?(id: Id): boolean
+  /** Le tableau a rattrapé le serveur ; tant que non, le fil d'Ariane le dit en chargement. */
+  synchronise?(id: Id): boolean
   /**
    * Où en est ce qu'on a fait sur ce tableau : reçu par le serveur, en route, ou gardé sur cet appareil faute de
    * réseau (il partira au retour). Absent : un espace sans serveur, rien à dire.
