@@ -4,7 +4,7 @@ import { type RefObject, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { t as translate } from '../../langue'
 import type { ContexteToile } from '../types'
-import { type Declencheur, type Proposition, declencheurDans, filtrer, sansDoublons } from './suggestion'
+import { type Declencheur, MAX_MENTION, type Proposition, declencheurDans, filtrer, sansDoublons } from './suggestion'
 
 /** Ce que l'éditeur dit à la liste : où est le déclencheur, et où poser la liste. */
 export interface EtatProposition extends Declencheur {
@@ -58,9 +58,15 @@ export function personnesProposees(contexte: ContexteToile): Proposition[] {
   const { presence, membres } = contexte.services
   const moi = presence?.moi?.()
   return sansDoublons([
-    ...(presence?.autres() ?? []).map((p) => ({ id: p.utilisateur.id, libelle: p.utilisateur.nom, teinte: p.utilisateur.couleur })),
-    ...(moi ? [{ id: moi.id, libelle: moi.nom, teinte: moi.couleur }] : []),
-    ...(membres?.() ?? []).map((m) => ({ id: m.id, libelle: m.nom, ...(m.couleur ? { teinte: m.couleur } : {}) })),
+    ...(presence?.autres() ?? []).map((p) => ({ id: p.utilisateur.id, libelle: p.utilisateur.nom, teinte: p.utilisateur.couleur, ...(p.utilisateur.photo ? { photo: p.utilisateur.photo } : {}) })),
+    ...(moi ? [{ id: moi.id, libelle: moi.nom, teinte: moi.couleur, ...(moi.photo ? { photo: moi.photo } : {}) }] : []),
+    ...(membres?.() ?? []).map((m) => ({
+      id: m.id,
+      libelle: m.nom,
+      ...(m.couleur ? { teinte: m.couleur } : {}),
+      ...(m.photo ? { photo: m.photo } : {}),
+      ...(m.courriel ? { courriel: m.courriel } : {}),
+    })),
   ])
 }
 
@@ -83,7 +89,7 @@ export function Propositions({ editeur, contexte, pont }: { editeur: Editor; con
   const [rang, setRang] = useState(0)
   const [ferme, setFerme] = useState<string | null>(null)
   const toutes = etat ? (etat.genre === 'mention' ? personnesProposees(contexte) : tableauxProposes(contexte)) : []
-  const items = etat ? filtrer(toutes, etat.requete) : []
+  const items = etat ? filtrer(toutes, etat.requete, etat.genre === 'mention' ? MAX_MENTION : 6) : []
   const cle = etat ? `${etat.genre}:${etat.de}` : null
   const visible = !!etat && items.length > 0 && ferme !== cle
 
@@ -119,15 +125,38 @@ export function Propositions({ editeur, contexte, pont }: { editeur: Editor; con
   useEffect(() => () => void (pont.current = null), [pont])
 
   if (!visible || !etat) return null
+  const mention = etat.genre === 'mention'
   return createPortal(
-    <ul className="notak-propositions" role="listbox" style={{ left: etat.x, top: etat.y + 4 }} onPointerDown={(e) => e.preventDefault()}>
+    <ul className="notak-propositions" data-genre={etat.genre} role="listbox" style={{ left: etat.x, top: etat.y + 4 }} onPointerDown={(e) => e.preventDefault()}>
       {items.map((p, i) => (
         <li key={p.id} role="option" aria-selected={i === rang} data-actif={i === rang || undefined} onClick={() => choisir(p)}>
-          {p.teinte && <span className="notak-proposition-teinte" style={{ background: p.teinte }} aria-hidden />}
-          {p.libelle}
+          {mention ? (
+            <>
+              <Avatar proposition={p} contexte={contexte} />
+              <span className="notak-proposition-nom">{p.libelle}</span>
+              {p.courriel && <span className="notak-proposition-courriel">{p.courriel}</span>}
+            </>
+          ) : (
+            <>
+              {p.teinte && <span className="notak-proposition-teinte" style={{ background: p.teinte }} aria-hidden />}
+              {p.libelle}
+            </>
+          )}
         </li>
       ))}
     </ul>,
     document.body,
+  )
+}
+
+/** La photo de la personne, sinon son initiale sur sa couleur. */
+function Avatar({ proposition: p, contexte }: { proposition: Proposition; contexte: ContexteToile }) {
+  const adresse = p.photo ? contexte.services.adressePhoto?.(p.photo) : undefined
+  return adresse ? (
+    <img className="notak-proposition-avatar" src={adresse} alt="" />
+  ) : (
+    <span className="notak-proposition-avatar" style={p.teinte ? { background: p.teinte } : undefined} aria-hidden>
+      {p.libelle.trim().charAt(0).toUpperCase()}
+    </span>
   )
 }

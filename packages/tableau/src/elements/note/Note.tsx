@@ -1,6 +1,6 @@
 import { type Editor, EditorContent, getSchema, useEditor } from '@tiptap/react'
 import { renderToReactElement } from '@tiptap/static-renderer/pm/react'
-import { memo, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { type Commentaire, type Id, type Note, type NoeudTexte, nouvelId } from '../../coeur/tableau'
 import { extensionsDuPartage, textePartage } from '../partage'
@@ -8,7 +8,7 @@ import type { PropsRendu } from '../types'
 import { ContexteBarreEdition } from '../../barreEdition'
 import { BarreTexte } from './Barre'
 import { OutilsTexteGauche } from './OutilsTexte'
-import { Marge } from './Marge'
+import { FilOuvert, Marge } from './Marge'
 import { MARQUE_FIL, type Fils, avecFil, filsVivants, sansPassagesMuets } from './fils'
 import { type Pont, Propositions, extensionPropositions } from './Propositions'
 import { adresseSeule, adressesEnLiens, caseSeule, couleurSeule, docEstVide } from './conversion'
@@ -36,6 +36,12 @@ export function RenduNote(props: PropsRendu<Note>) {
       carte.style.removeProperty('--notak-voile')
     }
   }, [contenu.fond])
+  // Hors édition, un clic sur un passage commenté ouvre son fil.
+  const [filOuvert, setFilOuvert] = useState<Id | null>(null)
+  useEffect(() => {
+    if (enEdition) setFilOuvert(null)
+  }, [enEdition])
+  const fermerFil = useCallback(() => setFilOuvert(null), [])
   // Sous un plafond de hauteur, le texte déborde en silence : le bas s'efface (voir `note.css`).
   const [deborde, setDeborde] = useState(false)
   useLayoutEffect(() => {
@@ -60,15 +66,27 @@ export function RenduNote(props: PropsRendu<Note>) {
       data-deborde={deborde || undefined}
       style={texte ? { color: texte } : undefined}
       // Hors édition, un lien s'ouvre : l'appui ne doit pas lancer un glisser.
-      onPointerDown={enEdition ? undefined : (e) => (e.target as HTMLElement).closest('a, [data-tableau]') && e.stopPropagation()}
-      // Un tableau cité dans le texte s'ouvre d'un clic.
+      onPointerDown={enEdition ? undefined : (e) => (e.target as HTMLElement).closest('a, [data-tableau], [data-fil]') && e.stopPropagation()}
+      // Un tableau cité dans le texte s'ouvre d'un clic ; un passage commenté ouvre son fil.
       onClick={enEdition ? undefined : (e) => {
         const cible = (e.target as HTMLElement).closest<HTMLElement>('[data-tableau]')?.dataset.tableau
         if (cible) props.contexte.services.ouvrirTableau?.(cible)
+        const fil = (e.target as HTMLElement).closest<HTMLElement>('[data-fil]')?.dataset.fil
+        if (fil) setFilOuvert((avant) => (avant === fil ? null : fil))
       }}
     >
       {contenu.barre && <div className="notak-note-bande" style={{ background: contenu.barre }} aria-hidden />}
       {enEdition ? <Editeur {...props} /> : <TexteFige texte={contenu.texte} fils={contenu.fils} />}
+      {filOuvert && !enEdition && racine.current?.parentElement && (
+        <FilOuvert
+          carte={racine.current.parentElement}
+          id={filOuvert}
+          fil={contenu.fils?.[filOuvert]}
+          ecrire={(f) => props.changer({ ...contenu, fils: avecFil(contenu.fils, filOuvert, f) })}
+          fermer={fermerFil}
+          contexte={props.contexte}
+        />
+      )}
       {!enEdition && !legendeVide(contenu.legende) && (
         <div className="notak-note-legende">
           <LegendeFigee doc={docLegende(contenu.legende)!} />

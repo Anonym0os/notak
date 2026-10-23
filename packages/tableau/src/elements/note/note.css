@@ -697,6 +697,56 @@
   background: rgb(0 0 0 / 0.07);
 }
 
+/* La liste des personnes : 320 px, des lignes de 48 px avec l'avatar, le nom en gras et le courriel en gris. */
+.notak-propositions[data-genre='mention'] {
+  width: 320px;
+  max-width: none;
+  padding: 15px 0;
+  border-radius: 8px;
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+}
+
+.notak-propositions[data-genre='mention'] li {
+  box-sizing: border-box;
+  height: 48px;
+  gap: 10px;
+  padding: 0 24px;
+  border-radius: 0;
+  font-size: 12px;
+}
+
+.notak-propositions[data-genre='mention'] li[data-actif] {
+  background: #eaeffe;
+}
+
+.notak-proposition-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #8a94a3;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  object-fit: cover;
+}
+
+.notak-proposition-nom {
+  font-weight: 700;
+  color: #2f63f7;
+  white-space: nowrap;
+}
+
+.notak-proposition-courriel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #8a9099;
+}
+
 .notak-proposition-teinte {
   flex: none;
   width: 10px;
@@ -721,6 +771,15 @@
   color: var(--notak-texte);
   font-size: 13px;
   cursor: default;
+}
+
+.notak-note-marge[data-fige] {
+  z-index: 40;
+}
+
+/* Hors édition, un passage commenté s'ouvre d'un clic. */
+.notak-carte:not([data-edition]) .notak-texte .notak-fil-texte {
+  cursor: pointer;
 }
 
 .notak-fil-marge {

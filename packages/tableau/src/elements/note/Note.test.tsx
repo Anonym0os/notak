@@ -49,6 +49,35 @@ describe('la légende de la note, hors édition', () => {
   })
 })
 
+describe('un passage commenté, hors édition', () => {
+  const commentee = {
+    texte: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'un passage', marks: [{ type: 'commentaireTexte', attrs: { fil: 'f1' } }] }] }] },
+    fils: { f1: { type: 'commentaire', messages: [{ id: 'm', auteur: { id: 'a', nom: 'Ana' }, date: 0, texte: 'Une remarque' }] } },
+  } as unknown as Partial<Note>
+
+  it('un clic sur le passage ouvre son fil, un second le referme', () => {
+    hote.className = 'notak-plan'
+    rendre(commentee)
+    const passage = () => hote.querySelector<HTMLElement>('[data-fil="f1"]')!
+    expect(hote.querySelector('.notak-note-marge')).toBeNull()
+    act(() => passage().click())
+    expect(hote.querySelector('.notak-note-marge')?.textContent).toContain('Une remarque')
+    act(() => passage().click())
+    expect(hote.querySelector('.notak-note-marge')).toBeNull()
+  })
+
+  it('un clic ailleurs le referme', () => {
+    hote.className = 'notak-plan'
+    rendre(commentee)
+    act(() => hote.querySelector<HTMLElement>('[data-fil="f1"]')!.click())
+    expect(hote.querySelector('.notak-note-marge')).not.toBeNull()
+    act(() => {
+      document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    })
+    expect(hote.querySelector('.notak-note-marge')).toBeNull()
+  })
+})
+
 describe('la note en lecture seule', () => {
   it('son texte se choisit (l\'attribut le dit au CSS)', () => {
     rendre({}, { lectureSeule: true })
