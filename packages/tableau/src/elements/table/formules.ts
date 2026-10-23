@@ -1098,6 +1098,113 @@ const PARESSEUX: Record<string, Paresseux> = {
   },
 }
 
+/* ------------------------------------------------------------------------------------------------------------ */
+/* Compléments : finance, statistiques à deux séries, conversions de base, bits                                  */
+/* ------------------------------------------------------------------------------------------------------------ */
+
+/** Les couples (x, y) de deux plages de même taille dont les deux cellules sont des nombres. */
+function couples(a: Arg[]): [number, number][] {
+  arite(a, 2)
+  const m1 = matriceArg(a[0]).flat()
+  const m2 = matriceArg(a[1]).flat()
+  if (m1.length !== m2.length) return echec('#N/A')
+  const sortie: [number, number][] = []
+  m1.forEach((c, i) => {
+    const d = m2[i]!
+    if (c.erreur) echec(c.erreur)
+    if (d.erreur) echec(d.erreur)
+    if (typeof c.valeur === 'number' && typeof d.valeur === 'number') sortie.push([c.valeur, d.valeur])
+  })
+  if (sortie.length < 2) echec('#DIV/0!')
+  return sortie
+}
+
+const moyenne = (v: number[]): number => v.reduce((p, x) => p + x, 0) / v.length
+
+/** Pente et ordonnée à l'origine de la droite des moindres carrés de y en fonction de x (arguments : y puis x). */
+function droite(a: Arg[]): { pente: number; origine: number } {
+  const c = couples(a).map(([y, x]): [number, number] => [x, y])
+  const mx = moyenne(c.map((p) => p[0]))
+  const my = moyenne(c.map((p) => p[1]))
+  const sxx = c.reduce((s, [x]) => s + (x - mx) ** 2, 0)
+  if (sxx === 0) return echec('#DIV/0!')
+  const pente = c.reduce((s, [x, y]) => s + (x - mx) * (y - my), 0) / sxx
+  return { pente, origine: my - pente * mx }
+}
+
+/** Le k-ième centile (0 à 1) par interpolation linéaire, comme un tableur. */
+function centile(valeurs: number[], k: number): number {
+  const n = valeurs.slice().sort((x, y) => x - y)
+  if (!n.length || k < 0 || k > 1) return echec('#VALUE!')
+  const pos = k * (n.length - 1)
+  const bas = Math.floor(pos)
+  const haut = Math.ceil(pos)
+  return net(n[bas]! + (n[haut]! - n[bas]!) * (pos - bas))
+}
+
+/** Les flux d'un prêt ou d'un placement : valeur future des versements `pmt` et du capital `pv` à `taux` sur `n` périodes. */
+function valeurFuture(taux: number, n: number, pmt: number, pv: number, debut: number): number {
+  if (taux === 0) return -(pv + pmt * n)
+  const f = (1 + taux) ** n
+  return -(pv * f + pmt * (1 + taux * debut) * ((f - 1) / taux))
+}
+
+/** La valeur actuelle nette des flux (le premier est dans une période). */
+const actualiser = (taux: number, flux: number[]): number => flux.reduce((s, x, i) => s + x / (1 + taux) ** (i + 1), 0)
+
+/** Le taux de rendement interne par la méthode de Newton, avec repli sur la dichotomie. */
+function tauxInterne(flux: number[], depart: number): number {
+  if (!flux.some((x) => x > 0) || !flux.some((x) => x < 0)) return echec('#VALUE!')
+  const f = (r: number) => flux.reduce((s, x, i) => s + x / (1 + r) ** i, 0)
+  let r = depart
+  for (let i = 0; i < 100; i++) {
+    const v = f(r)
+    const d = (f(r + 1e-6) - v) / 1e-6
+    if (!Number.isFinite(v) || d === 0) break
+    const suite = r - v / d
+    if (Math.abs(suite - r) < 1e-10) return fini(suite)
+    r = suite
+  }
+  let [bas, haut] = [-0.99, 10]
+  if (f(bas) * f(haut) > 0) return echec('#VALUE!')
+  for (let i = 0; i < 200; i++) {
+    const mil = (bas + haut) / 2
+    if (f(bas) * f(mil) <= 0) haut = mil
+    else bas = mil
+  }
+  return fini((bas + haut) / 2)
+}
+
+/** Un entier converti en base 2, 8 ou 16 (nombre négatif : complément à 10 chiffres), rempli de zéros à `places`. */
+function versBase(a: Arg[], base: 2 | 8 | 16, bornes: number): string {
+  arite(a, 1, 2)
+  const n = Math.trunc(nombreArg(a, 0))
+  if (n < -bornes || n >= bornes) return echec('#VALUE!')
+  const chiffres = n >= 0 ? n.toString(base) : (BigInt.asUintN(base === 16 ? 40 : base === 8 ? 30 : 10, BigInt(n))).toString(base)
+  const places = a[1] === undefined ? 0 : entier(a, 1)
+  if (places < 0 || (n >= 0 && chiffres.length > places && places > 0)) return echec('#VALUE!')
+  return (n >= 0 ? chiffres.padStart(places, '0') : chiffres).toUpperCase()
+}
+
+/** Un texte en base 2, 8 ou 16 vers un entier (complément à dix chiffres pour les négatifs). */
+function depuisBase(a: Arg[], base: 2 | 8 | 16): number {
+  arite(a, 1)
+  const x = argument(a, 0)
+  const texte = typeof x === 'number' ? String(x) : x === null ? '' : String(x)
+  const motif = base === 2 ? /^[01]{1,10}$/ : base === 8 ? /^[0-7]{1,10}$/ : /^[0-9a-f]{1,10}$/i
+  if (!motif.test(texte)) return echec('#VALUE!')
+  const n = Number.parseInt(texte, base)
+  const bits = base === 16 ? 40 : base === 8 ? 30 : 10
+  return n >= 2 ** (bits - 1) ? n - 2 ** bits : n
+}
+
+const entierPositif = (a: Arg[], i: number): number => {
+  const n = nombreArg(a, i)
+  return n < 0 || !Number.isInteger(Math.trunc(n)) ? echec('#VALUE!') : Math.trunc(n)
+}
+
+const CHIFFRES_ROMAINS: readonly [number, string][] = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']]
+
 const EAGER: Record<string, Eager> = {
   SUM: (a) => somme(nombres(a)),
   AVERAGE: (a) => {
@@ -1561,6 +1668,186 @@ const EAGER: Record<string, Eager> = {
   YEARFRAC: (a) => {
     arite(a, 2, 3)
     return fini(anneeFraction(serieDe(argument(a, 0)), serieDe(argument(a, 1)), entier(a, 2, 0)))
+  },
+  // ── Compléments : trigonométrie hyperbolique, combinatoire, statistiques, finance, bases, bits ──
+  SINH: (a) => (arite(a, 1), fini(Math.sinh(nombreArg(a, 0)))),
+  COSH: (a) => (arite(a, 1), fini(Math.cosh(nombreArg(a, 0)))),
+  TANH: (a) => (arite(a, 1), fini(Math.tanh(nombreArg(a, 0)))),
+  ASINH: (a) => (arite(a, 1), fini(Math.asinh(nombreArg(a, 0)))),
+  ACOSH: (a) => (arite(a, 1), nombreArg(a, 0) < 1 ? echec('#VALUE!') : fini(Math.acosh(nombreArg(a, 0)))),
+  ATANH: (a) => (arite(a, 1), Math.abs(nombreArg(a, 0)) >= 1 ? echec('#VALUE!') : fini(Math.atanh(nombreArg(a, 0)))),
+  COMBIN: (a) => {
+    arite(a, 2)
+    const n = entierPositif(a, 0)
+    const k = entierPositif(a, 1)
+    if (k > n) return echec('#VALUE!')
+    let r = 1
+    for (let i = 1; i <= Math.min(k, n - k); i++) r = (r * (n - i + 1)) / i
+    return fini(Math.round(r))
+  },
+  PERMUT: (a) => {
+    arite(a, 2)
+    const n = entierPositif(a, 0)
+    const k = entierPositif(a, 1)
+    if (k > n) return echec('#VALUE!')
+    let r = 1
+    for (let i = 0; i < k; i++) r *= n - i
+    return fini(r)
+  },
+  FACTDOUBLE: (a) => {
+    arite(a, 1)
+    const n = Math.trunc(nombreArg(a, 0))
+    if (n < -1 || n > 300) return echec('#VALUE!')
+    let r = 1
+    for (let i = n; i > 1; i -= 2) r *= i
+    return fini(r)
+  },
+  MROUND: (a) => {
+    arite(a, 2)
+    const x = nombreArg(a, 0)
+    const m = nombreArg(a, 1)
+    if (m === 0) return 0
+    return x * m < 0 ? echec('#VALUE!') : net(Math.round(x / m) * m)
+  },
+  SQRTPI: (a) => (arite(a, 1), nombreArg(a, 0) < 0 ? echec('#VALUE!') : fini(Math.sqrt(nombreArg(a, 0) * Math.PI))),
+  GEOMEAN: (a) => {
+    const n = nombres(a)
+    return !n.length || n.some((x) => x <= 0) ? echec('#VALUE!') : fini(Math.exp(moyenne(n.map(Math.log))))
+  },
+  HARMEAN: (a) => {
+    const n = nombres(a)
+    return !n.length || n.some((x) => x <= 0) ? echec('#VALUE!') : fini(n.length / n.reduce((s, x) => s + 1 / x, 0))
+  },
+  DEVSQ: (a) => {
+    const n = nombres(a)
+    const m = n.length ? moyenne(n) : 0
+    return fini(n.reduce((s, x) => s + (x - m) ** 2, 0))
+  },
+  CORREL: (a) => {
+    const c = couples(a)
+    const mx = moyenne(c.map((p) => p[0]))
+    const my = moyenne(c.map((p) => p[1]))
+    const sxy = c.reduce((s, [x, y]) => s + (x - mx) * (y - my), 0)
+    const sxx = c.reduce((s, [x]) => s + (x - mx) ** 2, 0)
+    const syy = c.reduce((s, [, y]) => s + (y - my) ** 2, 0)
+    return sxx === 0 || syy === 0 ? echec('#DIV/0!') : fini(sxy / Math.sqrt(sxx * syy))
+  },
+  COVAR: (a) => {
+    const c = couples(a)
+    const mx = moyenne(c.map((p) => p[0]))
+    const my = moyenne(c.map((p) => p[1]))
+    return fini(c.reduce((s, [x, y]) => s + (x - mx) * (y - my), 0) / c.length)
+  },
+  SLOPE: (a) => fini(droite(a).pente),
+  INTERCEPT: (a) => fini(droite(a).origine),
+  FORECAST: (a) => {
+    arite(a, 3)
+    const d = droite(a.slice(1))
+    return fini(d.origine + d.pente * nombreArg(a, 0))
+  },
+  PERCENTILE: (a) => (arite(a, 2), centile(nombres([a[0]!]), nombreArg(a, 1))),
+  QUARTILE: (a) => {
+    arite(a, 2)
+    const q = Math.trunc(nombreArg(a, 1))
+    return q < 0 || q > 4 ? echec('#VALUE!') : centile(nombres([a[0]!]), q / 4)
+  },
+  PMT: (a) => {
+    arite(a, 3, 5)
+    const taux = nombreArg(a, 0)
+    const n = nombreArg(a, 1)
+    const pv = nombreArg(a, 2)
+    const vf = nombreArg(a, 3, 0)
+    const debut = nombreArg(a, 4, 0) ? 1 : 0
+    if (n === 0) return echec('#VALUE!')
+    if (taux === 0) return fini(-(pv + vf) / n)
+    const f = (1 + taux) ** n
+    return fini(-(vf + pv * f) * taux / ((1 + taux * debut) * (f - 1)))
+  },
+  PV: (a) => {
+    arite(a, 3, 5)
+    const taux = nombreArg(a, 0)
+    const n = nombreArg(a, 1)
+    const pmt = nombreArg(a, 2)
+    const vf = nombreArg(a, 3, 0)
+    const debut = nombreArg(a, 4, 0) ? 1 : 0
+    if (taux === 0) return fini(-(vf + pmt * n))
+    const f = (1 + taux) ** n
+    return fini(-(vf + pmt * (1 + taux * debut) * ((f - 1) / taux)) / f)
+  },
+  FV: (a) => {
+    arite(a, 3, 5)
+    return fini(valeurFuture(nombreArg(a, 0), nombreArg(a, 1), nombreArg(a, 2), nombreArg(a, 3, 0), nombreArg(a, 4, 0) ? 1 : 0))
+  },
+  NPER: (a) => {
+    arite(a, 3, 5)
+    const taux = nombreArg(a, 0)
+    const pmt = nombreArg(a, 1)
+    const pv = nombreArg(a, 2)
+    const vf = nombreArg(a, 3, 0)
+    const debut = nombreArg(a, 4, 0) ? 1 : 0
+    if (taux === 0) return pmt === 0 ? echec('#VALUE!') : fini(-(pv + vf) / pmt)
+    const k = pmt * (1 + taux * debut)
+    const haut = k - vf * taux
+    const bas = k + pv * taux
+    return haut / bas <= 0 ? echec('#VALUE!') : fini(Math.log(haut / bas) / Math.log(1 + taux))
+  },
+  NPV: (a) => {
+    arite(a, 2, 255)
+    return fini(actualiser(nombreArg(a, 0), nombres(a.slice(1))))
+  },
+  IRR: (a) => {
+    arite(a, 1, 2)
+    return tauxInterne(nombres([a[0]!]), nombreArg(a, 1, 0.1))
+  },
+  RATE: (a) => {
+    arite(a, 3, 6)
+    const n = nombreArg(a, 0)
+    const pmt = nombreArg(a, 1)
+    const pv = nombreArg(a, 2)
+    const vf = nombreArg(a, 3, 0)
+    const debut = nombreArg(a, 4, 0) ? 1 : 0
+    const ecart = (r: number) => valeurFuture(r, n, pmt, pv, debut) + vf
+    let r = nombreArg(a, 5, 0.1)
+    for (let i = 0; i < 100; i++) {
+      const v = ecart(r)
+      const d = (ecart(r + 1e-7) - v) / 1e-7
+      if (!Number.isFinite(v) || d === 0) return echec('#VALUE!')
+      const suite = r - v / d
+      if (Math.abs(suite - r) < 1e-10) return fini(suite)
+      r = suite
+    }
+    return echec('#VALUE!')
+  },
+  DEC2BIN: (a) => versBase(a, 2, 512),
+  DEC2OCT: (a) => versBase(a, 8, 536870912),
+  DEC2HEX: (a) => versBase(a, 16, 549755813888),
+  BIN2DEC: (a) => depuisBase(a, 2),
+  OCT2DEC: (a) => depuisBase(a, 8),
+  HEX2DEC: (a) => depuisBase(a, 16),
+  BITAND: (a) => (arite(a, 2), Number(BigInt(entierPositif(a, 0)) & BigInt(entierPositif(a, 1)))),
+  BITOR: (a) => (arite(a, 2), Number(BigInt(entierPositif(a, 0)) | BigInt(entierPositif(a, 1)))),
+  BITXOR: (a) => (arite(a, 2), Number(BigInt(entierPositif(a, 0)) ^ BigInt(entierPositif(a, 1)))),
+  BITLSHIFT: (a) => (arite(a, 2), fini(entierPositif(a, 0) * 2 ** Math.trunc(nombreArg(a, 1)))),
+  BITRSHIFT: (a) => (arite(a, 2), Math.floor(entierPositif(a, 0) / 2 ** Math.trunc(nombreArg(a, 1)))),
+  COUNTUNIQUE: (a) => new Set(aPlat(a).filter((v) => v !== null && v !== '').map((v) => `${typeof v}:${String(v).toLowerCase()}`)).size,
+  HYPERLINK: (a) => (arite(a, 1, 2), a[1] === undefined ? versTexte(argument(a, 0)) : versTexte(argument(a, 1))),
+  UNICODE: (a) => {
+    arite(a, 1)
+    const t = versTexte(argument(a, 0))
+    return t === '' ? echec('#VALUE!') : t.codePointAt(0)!
+  },
+  UNICHAR: (a) => {
+    arite(a, 1)
+    const n = Math.trunc(nombreArg(a, 0))
+    return n < 1 || n > 0x10ffff ? echec('#VALUE!') : String.fromCodePoint(n)
+  },
+  ROMAN: (a) => {
+    arite(a, 1, 2)
+    let n = Math.trunc(nombreArg(a, 0))
+    if (n < 0 || n > 3999) return echec('#VALUE!')
+    let r = ''
+    for (const [v, c] of CHIFFRES_ROMAINS) for (; n >= v; n -= v) r += c
+    return r
   },
   PI: (a) => (arite(a, 0), Math.PI),
 }

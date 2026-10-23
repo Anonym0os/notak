@@ -974,11 +974,11 @@ export function RenduTable({ element, seule, contexte, changer }: PropsRendu<Tab
             className="notak-table-sel"
             aria-hidden
             // Comme Milanote : le seul contour extérieur de la plage, sans voile sur les cellules.
-            style={{ boxShadow: ombreContour(contour, 'var(--notak-accent)', 2) }}
+            style={{ boxShadow: ombreContour(contour, 'var(--notak-selection)', 2) }}
           />
         )}
-        {contour && enEdition && <i className="notak-table-sel" aria-hidden style={{ boxShadow: 'inset 0 0 0 2px var(--notak-accent)' }} />}
-        {cibleRecopie && contoursCible?.get(cle) && <i className="notak-table-cible" aria-hidden style={{ boxShadow: ombreContour(contoursCible.get(cle)!, 'var(--notak-accent)', 1) }} />}
+        {contour && enEdition && <i className="notak-table-sel" aria-hidden style={{ boxShadow: 'inset 0 0 0 2px var(--notak-selection)' }} />}
+        {cibleRecopie && contoursCible?.get(cle) && <i className="notak-table-cible" aria-hidden style={{ boxShadow: ombreContour(contoursCible.get(cle)!, 'var(--notak-selection)', 1) }} />}
         {poignee && <span className="notak-table-recopie" data-recopie title={t('table.recopier')} onPointerDown={surRecopie} />}
         {reperes && i === 0 && (
           <div
@@ -1034,6 +1034,7 @@ export function RenduTable({ element, seule, contexte, changer }: PropsRendu<Tab
       data-colonne={dansColonne || undefined}
       data-titre={c.avecTitre || undefined}
       data-legende={c.avecLegende || undefined}
+      data-pair={lignes % 2 === 0 || undefined}
       style={c.avecTitre && hTitre ? ({ '--notak-table-titre-h': `${hTitre}px` } as CSSProperties) : undefined}
       data-deplace={!!visuel.ombre || undefined}
       onPointerDown={surAppui}

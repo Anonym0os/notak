@@ -5,6 +5,8 @@ import { t, tn } from '../../langue'
 import '../croquis/croquis.css'
 import './dessin.css'
 import { ico } from '../../icones'
+import { cheminLisse } from '../croquis/trace'
+import { telecharger } from '../document/export'
 
 registre.type<Dessin>({
   type: 'dessin',
@@ -37,4 +39,20 @@ registre.type<Dessin>({
       clic: (_ou, contexte) => ouvrirDessinLibre(contexte),
     },
   ],
+})
+
+// « Télécharger en SVG » : un seul dessin est choisi (fond transparent, comme sur la toile).
+registre.entreeMenu({
+  get libelle() {
+    return t('croquis.telechargerSvg')
+  },
+  visible: (els) => els.length === 1 && els[0]!.contenu.type === 'dessin' && els[0]!.contenu.traits.length > 0,
+  faire: (els) => {
+    const c = els[0]!.contenu
+    if (c.type !== 'dessin') return
+    const chemins = c.traits
+      .map((tr) => `<path d="${cheminLisse(tr.points)}" fill="none" stroke="${tr.couleur}" stroke-width="${tr.epaisseur}" stroke-linecap="round" stroke-linejoin="round"/>`)
+      .join('')
+    telecharger(`${t('type.dessin')}.svg`, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${c.largeurOrigine} ${c.hauteurOrigine}">${chemins}</svg>`, 'image/svg+xml')
+  },
 })

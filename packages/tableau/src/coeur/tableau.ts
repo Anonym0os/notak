@@ -368,6 +368,9 @@ export interface Nuancier {
   sansCode?: boolean
   /** Le code montré : hexadécimal (par défaut), `rgb(…)` ou `hsl(…)`. `sansCode` le cache. */
   format?: 'hex' | 'rgb' | 'hsl'
+  /** La légende sous l'aplat (le nom de la couleur à la naissance), montrée tant que `avecLegende` est posé. */
+  legende?: string
+  avecLegende?: boolean
 }
 
 /** Un lieu : son nom (facultatif) et son adresse, avec un lien vers une carte en ligne. */
@@ -399,6 +402,9 @@ export interface Croquis {
   traits: Trait[]
   /** Le fond de la feuille, de la palette des notes ; sans lui, elle est blanche. */
   couleur?: CouleurNote
+  /** La légende sous la feuille, montrée tant que `avecLegende` est posé. */
+  legende?: string
+  avecLegende?: boolean
 }
 
 /**
@@ -419,6 +425,11 @@ export interface DocumentTexte {
   texte: NoeudTexte
   /** La couleur de sa feuille sur la toile, de la palette des notes. */
   couleur?: CouleurNote
+  /** Vue carte : 34 unités de large, avec un aperçu du texte ; absent, la carte n'est qu'une feuille et son titre. */
+  carte?: boolean
+  /** La légende sous la carte (vue carte seulement), montrée tant que `avecLegende` est posé. */
+  legende?: string
+  avecLegende?: boolean
 }
 
 /**

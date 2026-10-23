@@ -39,7 +39,7 @@ describe('la colonne d’outils du document', () => {
     expect(tuiles).toEqual(['Style de texte', 'Insérer'])
     expect(outil('Gras').textContent).toBe('')
     const noms = [...hote.querySelectorAll<HTMLButtonElement>('button.notak-outil-texte')].map((b) => b.getAttribute('aria-label'))
-    expect(noms.slice(0, 7)).toEqual(['Gras', 'Italique', 'Puces', 'Numérotée', 'Retrait +', 'Retrait −', 'Centrer'])
+    expect(noms.slice(0, 7)).toEqual(['Gras', 'Italique', 'Barré', 'Souligné', 'Puces', 'Numérotée', 'Retrait +'])
   })
 
   it('le retrait est grisé hors d’une liste, le lien sans sélection', () => {

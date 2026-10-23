@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Trait } from '../../coeur/tableau'
-import { appliquerAuChoix, appuiSurTrait, boiteTrait, couleurSous, decalageFleche, deplacerTraits, sansTraits, traitsDansMarquise } from './selection'
+import { appliquerAuChoix, appuiSurTrait, boiteTrait, couleurSous, decalageFleche, deplacerTraits, ordonnerTraits, sansTraits, traitsDansMarquise } from './selection'
 
 const a: Trait = { points: [0, 0, 10, 0], couleur: '#ff5757', epaisseur: 2 }
 const b: Trait = { points: [50, 50, 60, 60], couleur: '#4ebafd', epaisseur: 4 }
@@ -62,5 +62,18 @@ describe('sélection partagée', () => {
     const dessus: Trait = { points: [0, 0, 10, 0], couleur: '#7cd651', epaisseur: 2 }
     expect(couleurSous([a, dessus], 5, 0, 2)).toBe('#7cd651')
     expect(couleurSous([a, dessus], 5, 40, 2)).toBeNull()
+  })
+})
+
+describe('l’ordre d’empilement', () => {
+  it('amener devant ou derrière garde l’ordre relatif', () => {
+    expect(ordonnerTraits([a, b, c], new Set([a]), true)).toEqual([b, c, a])
+    expect(ordonnerTraits([a, b, c], new Set([c, b]), false)).toEqual([b, c, a])
+  })
+
+  it('rend le même tableau quand rien ne bouge', () => {
+    const tous = [a, b, c]
+    expect(ordonnerTraits(tous, new Set([c]), true)).toBe(tous)
+    expect(ordonnerTraits(tous, new Set([a]), false)).toBe(tous)
   })
 })

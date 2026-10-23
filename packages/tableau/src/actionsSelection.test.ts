@@ -18,7 +18,11 @@ describe('creeLe', () => {
 describe('note et document', () => {
   const texte = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Bonjour' }] }] }
   it('une note devient un document avec le même texte', () => {
-    expect(enDocument({ type: 'note', texte, couleur: 'rouge' })).toEqual({ type: 'document', titre: '', texte })
+    expect(enDocument({ type: 'note', texte, couleur: 'rouge' })).toEqual({ type: 'document', titre: 'Bonjour', texte })
+  })
+  it('le titre est la première ligne, coupée à 60 caractères', () => {
+    const long = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x'.repeat(80) }] }] }
+    expect(enDocument({ type: 'note', texte: long }).titre).toBe(`${'x'.repeat(59)}…`)
   })
   it('un document devient une note, et son titre ouvre le texte', () => {
     const note = documentEnNote({ type: 'document', titre: 'Plan', texte })

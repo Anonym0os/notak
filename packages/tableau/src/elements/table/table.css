@@ -63,7 +63,7 @@
   /* Une ligne fait au moins trois unités de grille. */
   height: calc(var(--notak-grille-pas, 10px) * 3);
   padding: 4.5px 6px;
-  border: 1px solid var(--notak-point);
+  border: 1px solid var(--notak-table-filet, rgb(0 0 0 / 0.1));
   vertical-align: top;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -95,7 +95,9 @@
   width: 100%;
   min-height: calc(var(--notak-grille-pas, 10px) * 6);
   margin: 0;
-  padding: 17px 24px 18px;
+  /* Le calage garde la hauteur sur la grille : 16 et 19 px pour un nombre impair de lignes, 18,5 et 21,5 px pour un nombre pair. */
+  padding: 16px 24px 19px;
+  margin-bottom: -1.5px;
   overflow: hidden;
   border: 0;
   background: none;
@@ -113,6 +115,10 @@
   -webkit-user-select: text;
 }
 
+.notak-tableur[data-pair] .notak-table-titre {
+  padding: 18.5px 24px 21.5px;
+}
+
 .notak-table-titre::placeholder,
 .notak-table-legende::placeholder {
   color: var(--notak-pale);
@@ -124,13 +130,14 @@
   box-sizing: border-box;
   width: 100%;
   margin: 0;
-  padding: 8px 12px 9px;
+  padding: 20px 24px;
+  margin-top: -1.75px;
   overflow: hidden;
   border: 0;
   background: none;
-  color: var(--notak-pale);
+  color: inherit;
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 20px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -177,8 +184,8 @@ a.notak-table-texte {
   left: 50%;
   z-index: 8;
   width: max-content;
-  max-width: 270px;
-  padding: 4px 8px;
+  max-width: 27rem;
+  padding: 10px 12px 9px;
   border-radius: 6px;
   background: #23262c;
   box-shadow: 0 4px 14px rgb(0 0 0 / 0.25);
@@ -204,7 +211,7 @@ a.notak-table-texte {
 }
 
 .notak-table-cible {
-  background: color-mix(in srgb, var(--notak-accent) 12%, transparent);
+  background: color-mix(in srgb, var(--notak-selection) 8%, transparent);
 }
 
 .notak-table-recopie {
@@ -217,7 +224,7 @@ a.notak-table-texte {
   height: 7px;
   border: 1px solid var(--notak-table-corps, #fff);
   border-radius: 1px;
-  background: var(--notak-accent);
+  background: var(--notak-selection);
   cursor: crosshair;
 }
 
@@ -260,7 +267,7 @@ a.notak-table-texte {
   place-items: center;
   box-sizing: border-box;
   background: var(--notak-repere-fond);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
+  box-shadow: 0 1px 2px -1px rgb(27 37 54 / 0.08), 0 1px 4px rgb(27 37 54 / 0.1);
   color: var(--notak-repere-texte);
   font-size: 11px;
   font-style: normal;
@@ -433,18 +440,19 @@ tr:first-child:last-child .notak-table-repere-ligne {
 
 .notak-table-fonctions {
   min-width: 150px;
-  max-width: 240px;
+  max-width: 24rem;
   max-height: 190px;
   overflow-y: auto;
   border-radius: 5px;
   list-style: none;
 }
 
+/* Une ligne de la liste : 12 px sur 20, 6 et 10 px de remplissage, soit 32 px de haut. */
 .notak-table-fonctions li {
-  padding: 0 10px;
+  padding: 6px 10px;
   border-radius: 4px;
   font-size: 12px;
-  line-height: 26px;
+  line-height: 20px;
   cursor: pointer;
 }
 
@@ -689,18 +697,34 @@ tr:first-child:last-child .notak-table-repere-ligne {
   text-align: center;
 }
 
+/* La fenêtre d'alignement : 150 px, deux rangées de trois icônes de 30 px (10 px d'écart), un filet entre les deux. */
+.notak-table-alignements {
+  box-sizing: border-box;
+  width: 150px;
+  min-width: 0;
+  padding: 20px;
+  gap: 0;
+}
+
 .notak-table-alignements > div {
   display: flex;
-  gap: 2px;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .notak-table-alignements > div + div {
-  margin-top: 2px;
-  padding-top: 2px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid var(--notak-point);
 }
 
+.notak-table-alignements button {
+  width: 30px !important;
+  height: 30px !important;
+  padding: 0 !important;
+}
+
 .notak-table-alignements button[aria-checked='true'] {
-  background: var(--notak-texte) !important;
-  color: var(--notak-carte);
+  background: rgb(0 0 0 / 0.08) !important;
+  color: inherit;
 }

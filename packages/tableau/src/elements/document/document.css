@@ -12,7 +12,14 @@
 
 .notak-document-papier {
   flex: none;
-  filter: drop-shadow(0 2px 4px rgb(0 0 0 / 0.14));
+  margin: -2px;
+  filter: drop-shadow(0 1px 2px rgb(27 37 54 / 0.1));
+}
+
+/* Choisi, c'est la silhouette de la feuille que cerne le trait de 2 px, pas la carte entière. */
+.notak-document-papier-choix {
+  stroke: var(--notak-selection);
+  stroke-width: 2;
 }
 
 /* Le titre tient sur 180 px, plus large que la carte : la feuille reste centrée dessus. */
@@ -20,23 +27,19 @@
 .notak-document-saisie {
   box-sizing: border-box;
   width: 180px;
-  margin: 6px -40px 0;
-  font-size: 14px;
+  margin: 6px -40px 3px;
+  padding: 3px 3px 2px;
+  font-size: 15px;
   font-weight: 600;
-  line-height: 18px;
+  letter-spacing: -0.2px;
+  line-height: 20px;
   overflow-wrap: anywhere;
 }
 
-.notak-document-titre[data-vide] {
-  color: #6b7280;
-  font-weight: 500;
-}
-
 .notak-document-saisie {
-  padding: 0 4px;
   border: 0;
   border-radius: 4px;
-  background: var(--notak-carte, #fff);
+  background: var(--notak-fond, #ebedee);
   color: inherit;
   font-family: inherit;
   text-align: center;
@@ -44,10 +47,134 @@
 }
 
 .notak-document-mots {
-  margin-top: 2px;
-  color: #6b7280;
+  margin-top: 0;
+  color: #8d929a;
   font-size: 12px;
-  line-height: 16px;
+  line-height: 15px;
+}
+
+/* Rangé dans une colonne : l'icône de 60 px à gauche, le titre et les mots à droite, sur un fond léger. */
+.notak-document[data-colonne] {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 12px;
+  box-sizing: border-box;
+  padding: 16px;
+  background: var(--notak-fond, #ebedee);
+  text-align: left;
+}
+
+.notak-document[data-colonne] .notak-document-papier {
+  grid-row: 1 / span 2;
+  width: 60px;
+  height: 60px;
+}
+
+.notak-document[data-colonne] :is(.notak-document-titre, .notak-document-saisie) {
+  width: auto;
+  margin: 0;
+}
+
+/* La vue carte : 34 unités, un aperçu du texte à l'échelle 0,6 sur 390 px de haut, puis le titre et les mots. */
+.notak-carte[data-type='document']:not([data-sans-fond]) {
+  padding: 0;
+}
+
+.notak-document[data-carte] {
+  align-items: stretch;
+  text-align: left;
+}
+
+.notak-document-apercu {
+  position: relative;
+  height: 390px;
+  overflow: hidden;
+  background: var(--notak-fond, #ebedee);
+  pointer-events: none;
+}
+
+.notak-document-apercu .notak-texte {
+  box-sizing: border-box;
+  padding: 24px;
+  font-size: 9px;
+  line-height: 12px;
+  color: rgb(50 59 74);
+}
+
+.notak-document-apercu :is(p, ul, ol, blockquote, pre) {
+  margin: 0 0 5px;
+}
+
+.notak-document-apercu h1 {
+  margin: 0 0 5px;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.notak-document-apercu h2 {
+  margin: 0 0 5px;
+  font-size: 9px;
+  line-height: 10px;
+}
+
+.notak-document-apercu blockquote {
+  margin: 3px 0;
+}
+
+.notak-document-apercu :is(code, pre) {
+  font-size: 0.6em;
+  line-height: 10px;
+}
+
+.notak-document-apercu :is(ul, ol) {
+  padding-left: 10px;
+}
+
+.notak-document-apercu a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.notak-document-apercu-vide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #8d929a;
+  font-size: 14px;
+}
+
+.notak-document-apercu-vide p {
+  margin: 0;
+}
+
+.notak-document-pied {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.notak-document-pied .notak-document-papier {
+  filter: none;
+}
+
+.notak-document-nom {
+  min-width: 0;
+}
+
+.notak-document[data-carte] :is(.notak-document-titre, .notak-document-saisie) {
+  width: auto;
+  margin: -4px 0 0;
+  padding: 0;
+}
+
+.notak-document[data-carte] .notak-document-mots {
+  height: 18px;
 }
 
 /* Le document en grand : la toile s'assombrit et se floute, la boîte blanche est collée en haut. */
@@ -104,8 +231,9 @@
   background: none;
   color: inherit;
   font: inherit;
-  font-size: 16px;
-  letter-spacing: -0.01em;
+  font-size: 15px;
+  letter-spacing: -0.2px;
+  line-height: 30px;
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -147,12 +275,38 @@
   background: rgb(0 0 0 / 0.06);
 }
 
+/* Le panneau d'export : 20 rem, une flèche vers le haut, un titre et quatre lignes à pictogramme. */
 .notak-document-export-menu {
-  top: calc(100% + 6px);
+  top: calc(100% + 14px);
   bottom: auto;
-  right: 0;
+  right: -11px;
   left: auto;
-  min-width: 160px;
+  width: 20rem;
+  padding: 8px 0;
+}
+
+.notak-document-export-menu::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  right: 24px;
+  width: 10px;
+  height: 10px;
+  background: var(--notak-carte, #fff);
+  transform: rotate(45deg);
+}
+
+.notak-document-export-titre {
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.notak-document-export-menu .notak-note-menu-ligne {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
 }
 
 /* La colonne d'outils (104 px) à gauche du texte (696 px). */
@@ -174,10 +328,19 @@
   min-width: 0;
   box-sizing: border-box;
   max-width: 716px;
-  padding: 36px 20px 80px 0;
+  padding: 36px 3px 80px 0;
   overflow-y: auto;
   user-select: text;
-  scrollbar-width: thin;
+}
+
+/* Une barre de 8 px, au curseur gris foncé arrondi. */
+.notak-document-corps::-webkit-scrollbar {
+  width: 8px;
+}
+
+.notak-document-corps::-webkit-scrollbar-thumb {
+  border-radius: 13px;
+  background: rgb(0 0 0 / 0.35);
 }
 
 /* Le texte : 16 px sur 24, titres de 24 et 21 px sur 29, 12 px entre deux paragraphes. */
@@ -208,6 +371,11 @@
 
 .notak-document-corps :first-child {
   margin-top: 0;
+}
+
+/* Un titre en tête de texte remonte de 6 px. */
+.notak-document-corps :is(h1, h2):first-child {
+  margin-top: -6px;
 }
 
 /* La colonne : « Style de texte » et « Insérer » en contour avec leur nom, puis des icônes seules de 32 px. */
@@ -245,7 +413,7 @@
   display: grid;
   place-items: center;
   box-sizing: border-box;
-  width: 40px;
+  width: 32px;
   height: 32px;
   border: 1px solid rgb(0 0 0 / 0.08);
   border-radius: 5px;
@@ -284,10 +452,9 @@
   background: rgb(0 0 0 / 0.06);
 }
 
-/* Actif : la tuile se remplit, le glyphe prend la couleur inverse. */
+/* Actif : un cadre de 2 px autour de l'icône. */
 .notak-document-outils button.notak-outil-texte[aria-pressed='true'] {
-  background: var(--notak-texte);
-  color: var(--notak-carte, #fff);
+  box-shadow: inset 0 0 0 2px var(--notak-selection, #323b4a);
 }
 
 /* Grisé : le glyphe à 20 %, le clic est reçu mais ne fait rien. */
@@ -339,4 +506,36 @@
 /* La liste de `[[` et de `@` s'ouvre au-dessus de la modale du document. */
 .notak-propositions {
   z-index: 1100;
+}
+
+/* La légende d'une carte détaillée : sous le titre, 12 px sur 20. */
+.notak-document-legende {
+  box-sizing: border-box;
+  width: 100%;
+  margin: -3px 0 0;
+  padding: 0 16px 14px;
+  color: var(--notak-texte);
+  font-size: 12px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.notak-document-legende[data-vide] {
+  color: var(--notak-pale);
+}
+
+.notak-carte[data-choisie] .notak-document-legende {
+  cursor: text;
+}
+
+.notak-document-legende-champ {
+  display: block;
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  line-height: 20px;
 }

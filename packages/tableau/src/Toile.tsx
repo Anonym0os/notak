@@ -1546,12 +1546,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (dans && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) return reordonner(dans, e.key === 'ArrowUp' ? -1 : 1)
       return deplacer(...fleches[e.key]!)
     }
-    // Taper sur un élément choisi seul commence ce qu'il écrit (la légende d'une image).
-    if (selection.size === 1 && e.key.length === 1 && !cmd && !e.altKey && e.key !== ' ' && e.key !== '/') {
+    // Taper sur un élément choisi seul : le type le prend (la légende d'une image, un document qui s'ouvre avec lui).
+    if (selection.size === 1 && e.key.length === 1 && !cmd && !e.altKey && !e.ctrlKey && e.key !== ' ' && e.key !== '/') {
       const el = tableau.elements.find((x) => x.id === [...selection][0])
-      if (el && !el.verrou && definition(el.contenu.type)?.surFrappe?.(el as never, e.key, contexte)) {
+      const frappe = el && !el.verrou ? definition(el.contenu.type)?.surFrappe : undefined
+      const pris = el && frappe ? frappe(el as never, e.key, contexte) : false
+      if (pris !== false) {
         e.preventDefault()
-        return commencerEdition(el.id)
+        if (pris === true) return commencerEdition(el!.id)
+        return
       }
     }
     switch (e.key) {
@@ -1567,6 +1570,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           const el = tableau.elements.find((x) => x.id === id)
           const def = el && definition(el.contenu.type)
           if (el?.contenu.type === 'tableau' && !lectureSeule) return demanderRenommage(el.id)
+          if (el && def?.surEntree && !lectureSeule && !el.verrou) return def.surEntree(el as never, contexte)
           if (el && def?.entreeOuvre && def.ouvrir) def.ouvrir(el, contexte)
           else commencerEdition(id)
         }
@@ -2306,7 +2310,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (!r) return
       const el = tableau.elements.find((x) => x.id === r.id)
       const surTitre = el?.contenu.type !== 'colonne' || !!document.elementFromPoint(r.ou.x, r.ou.y)?.closest('.notak-colonne-titre')
-      if (r.seul && el && !lectureSeule && surTitre && definition(el.contenu.type)?.editable && e.type === 'pointerup') commencerEdition(r.id, r.ou)
+      if (r.seul && el && !lectureSeule && surTitre && definition(el.contenu.type)?.editable && !definition(el.contenu.type)?.ouvreAuDoubleClic && e.type === 'pointerup') commencerEdition(r.id, r.ou)
       else setSelection(new Set([r.id]))
       return
     }

@@ -1,7 +1,7 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Croquis, Trait } from '../../coeur/tableau'
 import { Surcouche } from '../surcouche'
-import type { PropsOutils, PropsRendu } from '../types'
+import type { PropsRendu } from '../types'
 import {
   COULEURS_TRAIT,
   type CroquisFeuille,
@@ -18,19 +18,19 @@ import {
   lireReglage,
   traitVise,
 } from './trace'
-import { BarreEpaisseur, VoletCouleur, VoletEpaisseur } from './partage'
-import { appliquerAuChoix, appuiSurTrait, couleurSous, decalageFleche, deplacerTraits, sansTraits, traitsDansMarquise } from './selection'
+import { BarreEpaisseur, CURSEUR_GOMME, VoletCouleur, VoletEpaisseur, curseurCrayon } from './partage'
+import { appliquerAuChoix, appuiSurTrait, couleurSous, decalageFleche, deplacerTraits, ordonnerTraits, sansTraits, traitsDansMarquise } from './selection'
 import { t } from '../../langue'
-import { BoutonOutil } from '../../BoutonOutil'
+import { LegendeLocale, avecTexteLegende } from '../LegendeLocale'
 import { ico } from '../../icones'
 
 const CLE_COULEUR = 'notak.croquis.couleur'
 const CLE_EPAISSEUR = 'notak.croquis.epaisseur'
 const ROUGE_GOMME = '#ff0000'
-/** Le rayon de la gomme, en pixels d'écran. */
-const GOMME_PX = 3
-/** Le contour rouge du trait visé déborde de ce nombre de pixels d'écran. */
-const CONTOUR_GOMME_PX = 4
+/** Le rayon de la gomme, en pixels d'écran (une zone de prise de 14 px de large). */
+const GOMME_PX = 7
+/** Le contour rouge du trait visé déborde de ce nombre de pixels d'écran : 1 px de chaque côté. */
+const CONTOUR_GOMME_PX = 2
 /** Le contour d'accent d'un trait choisi, et la zone où un appui le saisit, en pixels d'écran. */
 const CONTOUR_CHOIX_PX = 3
 const CAPTURE_PX = 6
@@ -55,14 +55,28 @@ function Traits({ traits, vise, choisis, contour = 0 }: { traits: readonly Trait
   )
 }
 
-export function RenduCroquis({ element, enEdition, contexte, brouillon }: PropsRendu<Croquis>) {
+export function RenduCroquis({ element, choisie, enEdition, contexte, brouillon, changer }: PropsRendu<Croquis>) {
   const c = element.contenu as CroquisFeuille
   return (
     <div className="notak-croquis">
       <svg viewBox={`0 0 ${LARGEUR_FEUILLE} ${hauteurFeuille(c)}`} role="img" aria-label={t('type.croquis')}>
         <Traits traits={c.traits} />
       </svg>
-      {c.traits.length === 0 && <p className="notak-croquis-vide">{t('croquis.vide')}</p>}
+      {c.traits.length === 0 && (
+        <div className="notak-croquis-vide" data-etroit={element.largeur <= 12 || undefined}>
+          {ico('dessin')}
+          <p>{t('croquis.vide')}</p>
+        </div>
+      )}
+      {c.avecLegende && (
+        <LegendeLocale
+          classe="notak-croquis-legende"
+          texte={c.legende ?? ''}
+          choisie={choisie}
+          modifiable={!contexte.services.lectureSeule}
+          valider={(texte) => changer(avecTexteLegende(c, texte))}
+        />
+      )}
       {enEdition && <Feuille contenu={c} ecrire={brouillon} finir={contexte.finirEdition} />}
     </div>
   )
@@ -110,6 +124,10 @@ function Feuille({ contenu, ecrire, finir }: { contenu: CroquisFeuille; ecrire(c
   const [marquise, setMarquise] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
   const surface = useRef<SVGSVGElement>(null)
   const modifie = passe.length > 0
+  // Comme Milanote : en sélection l'épaisseur est grisée (les tracés posés ne sont pas recalculés) et la couleur
+  // n'est active qu'avec des traits choisis ; la gomme grise les deux.
+  const epaisseurGrisee = outil === 'selection' || outil === 'gomme'
+  const couleurGrisee = outil === 'gomme' || (outil === 'selection' && choix.size === 0)
 
   const valider = (suite: Trait[], avant: Trait[]) => {
     setPasse((p) => [...p.slice(-99), avant])
@@ -159,9 +177,23 @@ function Feuille({ contenu, ecrire, finir }: { contenu: CroquisFeuille; ecrire(c
   const choisirEpaisseur = (i: number) => {
     setEpaisseur(i)
     ecrireReglage(CLE_EPAISSEUR, String(i))
-    if (outil === 'selection' && surChoix((tr) => ({ ...tr, epaisseur: epaisseurFeuille(EPAISSEURS_TRAIT[i]!.px, echelle()) }))) return
+    // Comme Milanote, l'épaisseur ne change jamais des traits déjà posés : elle règle le crayon, et le volet se ferme.
+    setVolet(null)
     setOutil('crayon')
   }
+  // La barre reflète le premier trait choisi : sa couleur et sa taille y montent.
+  useEffect(() => {
+    const premier = choix.values().next().value
+    if (!premier) return
+    setCouleur(premier.couleur)
+    const px = premier.epaisseur * echelle()
+    let proche = 0
+    EPAISSEURS_TRAIT.forEach((e, i) => {
+      if (Math.abs(e.px - px) < Math.abs(EPAISSEURS_TRAIT[proche]!.px - px)) proche = i
+    })
+    setEpaisseur(proche)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [choix])
   const supprimerChoix = () => {
     if (choix.size === 0) return
     valider(sansTraits(traits, choix), traits)
@@ -266,6 +298,8 @@ function Feuille({ contenu, ecrire, finir }: { contenu: CroquisFeuille; ecrire(c
     if (!g) return
     if (g.type === 'trace') {
       setEnCours(null)
+      // Un simple clic sans déplacement laisse un trait de largeur nulle : comme Milanote, on l'écarte.
+      if (g.points.length < 4) return
       valider([...g.avant, { points: arrondir(g.points), couleur, epaisseur: g.epaisseur }], g.avant)
     } else if (g.type === 'marquise') {
       const m = marquise
@@ -296,6 +330,12 @@ function Feuille({ contenu, ecrire, finir }: { contenu: CroquisFeuille; ecrire(c
       finir()
       return true
     }
+    if (cmd && e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && outil === 'selection' && choix.size > 0) {
+      e.preventDefault()
+      const suite = ordonnerTraits(traits, choix, e.key === 'ArrowUp')
+      if (suite !== traits) valider(suite, traits)
+      return true
+    }
     if (cmd && k === 'a') {
       e.preventDefault()
       if (outil === 'selection') setChoix(new Set(traits))
@@ -317,7 +357,7 @@ function Feuille({ contenu, ecrire, finir }: { contenu: CroquisFeuille; ecrire(c
       const d = decalageFleche(k, e.shiftKey, 1 / echelle())
       if (d) decaler(d[0], d[1])
     }
-    else if (k === 'c') setVolet((v) => (v === 'couleur' ? null : 'couleur'))
+    else if (k === 'c' && outil === 'crayon') setVolet((v) => (v === 'couleur' ? null : 'couleur'))
     else if (k === 'x') choisirCouleur(precedente)
     else if (k >= '1' && k <= '4') choisirEpaisseur(Number(k) - 1)
     else return false
@@ -332,6 +372,7 @@ function Feuille({ contenu, ecrire, finir }: { contenu: CroquisFeuille; ecrire(c
           ref={surface}
           className="notak-croquis-surface"
           data-outil={outil}
+          style={outil === 'crayon' ? { cursor: curseurCrayon(couleur) } : outil === 'gomme' ? { cursor: CURSEUR_GOMME } : undefined}
           viewBox={`0 0 ${LARGEUR_FEUILLE} ${hauteur}`}
           onPointerDown={debut}
           onPointerMove={deplacement}
@@ -363,19 +404,16 @@ function Feuille({ contenu, ecrire, finir }: { contenu: CroquisFeuille; ecrire(c
           </button>
           <span className="notak-croquis-sep" role="separator" />
           <span className="notak-croquis-volet-hote">
-            <button type="button" title={`${t('couleur.titre')} (C)`} aria-label={t('couleur.titre')} aria-expanded={volet === 'couleur'} onClick={() => setVolet(volet === 'couleur' ? null : 'couleur')}>
+            <button type="button" title={`${t('couleur.titre')} (C)`} aria-label={t('couleur.titre')} aria-expanded={volet === 'couleur'} disabled={couleurGrisee} onClick={() => setVolet(volet === 'couleur' ? null : 'couleur')}>
               <span className="notak-croquis-pastille" style={{ background: couleur }} />
             </button>
-            {volet === 'couleur' && <VoletCouleur couleur={couleur} choisir={choisirCouleur} />}
+            {volet === 'couleur' && !couleurGrisee && <VoletCouleur couleur={couleur} choisir={choisirCouleur} />}
           </span>
-          <button type="button" title={`${t('croquis.pipette')} (I)`} aria-label={t('croquis.pipette')} aria-pressed={outil === 'pipette'} onClick={() => changerOutil('pipette')}>
-            {ico('pipette')}
-          </button>
           <span className="notak-croquis-volet-hote">
-            <button type="button" title={`${t('croquis.epaisseur')} (1-4)`} aria-label={t('croquis.epaisseur')} aria-expanded={volet === 'epaisseur'} onClick={() => setVolet(volet === 'epaisseur' ? null : 'epaisseur')}>
+            <button type="button" title={`${t('croquis.epaisseur')} (1-4)`} aria-label={t('croquis.epaisseur')} aria-expanded={volet === 'epaisseur'} disabled={epaisseurGrisee} onClick={() => setVolet(volet === 'epaisseur' ? null : 'epaisseur')}>
               <BarreEpaisseur i={epaisseur} />
             </button>
-            {volet === 'epaisseur' && <VoletEpaisseur epaisseur={epaisseur} choisir={choisirEpaisseur} />}
+            {volet === 'epaisseur' && !epaisseurGrisee && <VoletEpaisseur epaisseur={epaisseur} choisir={choisirEpaisseur} />}
           </span>
           <span className="notak-croquis-sep" role="separator" />
           <button type="button" title={`${t('espace.annuler')} (⌘Z)`} aria-label={t('espace.annuler')} disabled={passe.length === 0} onClick={annuler}>
@@ -394,12 +432,5 @@ function Feuille({ contenu, ecrire, finir }: { contenu: CroquisFeuille; ecrire(c
         </div>
       </div>
     </Surcouche>
-  )
-}
-
-export function OutilsCroquis({ elements, contexte }: PropsOutils<Croquis>) {
-  if (contexte.services.lectureSeule || elements.length !== 1) return null
-  return (
-    <BoutonOutil icone="croquis" titre={t('croquis.ouvrir')} libelle={t('croquis.dessiner')} onClick={() => contexte.commencerEdition(elements[0]!.id)} />
   )
 }

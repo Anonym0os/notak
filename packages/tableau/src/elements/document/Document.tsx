@@ -6,10 +6,12 @@ import type { DocumentTexte, NoeudTexte } from '../../coeur/tableau'
 import { EXTENSIONS_NOTE } from '../note/extensions'
 import { type Pont, Propositions, extensionPropositions } from '../note/Propositions'
 import { Surcouche } from '../surcouche'
+import { LegendeLocale, OutilLegende, avecTexteLegende } from '../LegendeLocale'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { ColonneOutils } from './ColonneOutils'
-import { type FormatDocument, documentEnTexte, imprimer, nomFichier, pageImpression, telecharger } from './export'
-import { compterMots, doitEtreTitre } from './texte'
+import { documentEnDocx } from './docx'
+import { type FormatDocument, TITRE_MAX, documentEnTexte, imprimer, nomFichier, pageImpression, telecharger, telechargerOctets } from './export'
+import { LARGEUR_DOCUMENT, LARGEUR_DOCUMENT_CARTE, compterMots, premiersBlocs, demanderRenommer, doitEtreTitre, ecouterRenommer, prendreTampon, titreAffiche } from './texte'
 import { t, tn } from '../../langue'
 import { BoutonOutil } from '../../BoutonOutil'
 import { Icone } from '../../icones'
@@ -21,23 +23,31 @@ const Lu = memo(function Lu({ texte }: { texte: NoeudTexte }) {
   return <div className="notak-texte">{rendu}</div>
 })
 
-/** La feuille de papier de la carte : 72 px, le coin plié, un pictogramme de texte en bas. */
-function Papier() {
+/**
+ * La feuille de papier de la carte : 72 px, le coin plié, un pictogramme de texte en bas. Choisie, c'est elle qui est
+ * cernée de 2 px (le contour suit la silhouette de la feuille), non la carte entière avec son titre.
+ */
+function Papier({ choisie, taille = 72 }: { choisie?: boolean; taille?: number }) {
   return (
-    <svg className="notak-document-papier" viewBox="0 0 72 72" width="72" height="72" aria-hidden="true">
+    <svg className="notak-document-papier" viewBox="-2 -2 76 76" width={taille * (76 / 72)} height={taille * (76 / 72)} aria-hidden="true">
       <path d="M12 2h35l15 15v50a3 3 0 0 1-3 3H12a3 3 0 0 1-3-3V5a3 3 0 0 1 3-3z" fill="var(--notak-carte, #fff)" stroke="rgb(0 0 0 / 0.14)" />
       <path d="M47 2v12a3 3 0 0 0 3 3h12z" fill="rgb(0 0 0 / 0.1)" />
       <g stroke="rgb(0 0 0 / 0.35)" strokeWidth="2.5" strokeLinecap="round">
         <path d="M20 48h32M20 55h32M20 62h20" />
       </g>
+      {choisie && <path className="notak-document-papier-choix" d="M12 2h35l15 15v50a3 3 0 0 1-3 3H12a3 3 0 0 1-3-3V5a3 3 0 0 1 3-3z" fill="none" />}
     </svg>
   )
 }
 
-/** Le titre qu'on écrit sur la carte : tout est choisi d'avance ; Entrée ou un appui ailleurs le valide, Échap le laisse. */
-function TitreSurCarte({ titre, valider, fini }: { titre: string; valider(titre: string): void; fini(): void }) {
+/**
+ * Le titre qu'on écrit sur la carte : tout est choisi d'avance ; Entrée ou un appui ailleurs le valide (un titre
+ * vidé n'est pas gardé), Échap le laisse. Entrée désélectionne ensuite le document.
+ */
+function TitreSurCarte({ titre, valider, fini }: { titre: string; valider(titre: string): void; fini(entree: boolean): void }) {
   const champ = useRef<HTMLInputElement>(null)
   const annule = useRef(false)
+  const entree = useRef(false)
   useLayoutEffect(() => {
     champ.current?.focus({ preventScroll: true })
     champ.current?.select()
@@ -49,28 +59,30 @@ function TitreSurCarte({ titre, valider, fini }: { titre: string; valider(titre:
       defaultValue={titre}
       aria-label={t('document.titre')}
       placeholder={t('document.nouveau')}
-      maxLength={300}
+      maxLength={TITRE_MAX}
       spellCheck={false}
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
         e.stopPropagation()
         if (e.nativeEvent.isComposing) return
-        if (e.key === 'Enter') champ.current?.blur()
-        else if (e.key === 'Escape') {
+        if (e.key === 'Enter') {
+          entree.current = true
+          champ.current?.blur()
+        } else if (e.key === 'Escape') {
           annule.current = true
           champ.current?.blur()
         }
       }}
       onBlur={(e) => {
-        if (!annule.current && e.target.value !== titre) valider(e.target.value)
-        fini()
+        if (!annule.current && e.target.value.trim() && e.target.value !== titre) valider(e.target.value)
+        fini(entree.current)
       }}
     />
   )
 }
 
-export function RenduDocument({ element, enEdition, contexte, brouillon, changer }: PropsRendu<DocumentTexte>) {
+export function RenduDocument({ element, choisie, enEdition, contexte, brouillon, changer }: PropsRendu<DocumentTexte>) {
   const c = element.contenu
   // Qui ne peut pas écrire peut lire en grand.
   const [enLecture, setEnLecture] = useState(false)
@@ -86,25 +98,79 @@ export function RenduDocument({ element, enEdition, contexte, brouillon, changer
     }, 100)
     return () => clearTimeout(delai)
   }, [element.id, lectureSeule])
+  // Entrée sur le document choisi, ou « Renommer » : le titre s'édite sur la carte.
+  useEffect(() => (lectureSeule ? undefined : ecouterRenommer(element.id, () => setTitreSurCarte(true))), [element.id, lectureSeule])
   const mots = useMemo(() => compterMots(c.texte), [c.texte])
-  return (
-    <div className="notak-document" onDoubleClick={lectureSeule ? () => setEnLecture(true) : undefined}>
-      <Papier />
+  const nom = (
+    <>
       {titreSurCarte ? (
-        <TitreSurCarte titre={c.titre} valider={(titre) => changer({ ...c, titre: titre.trim() })} fini={() => setTitreSurCarte(false)} />
+        <TitreSurCarte
+          titre={c.titre}
+          valider={(titre) => changer({ ...c, titre: titre.trim() })}
+          fini={(entree) => {
+            setTitreSurCarte(false)
+            if (entree) contexte.choisir([])
+          }}
+        />
       ) : (
-        <div className="notak-document-titre" data-vide={c.titre.trim() ? undefined : ''}>
-          {c.titre.trim() || t('commun.sansTitre')}
-        </div>
+        <div className="notak-document-titre">{titreAffiche(c.titre) || t('document.nouveau')}</div>
       )}
       <div className="notak-document-mots">{tn('document.mots', mots)}</div>
+    </>
+  )
+  return (
+    <div
+      className="notak-document"
+      data-carte={c.carte || undefined}
+      data-choisie={choisie || undefined}
+      data-colonne={element.parent ? '' : undefined}
+      onDoubleClick={lectureSeule ? () => setEnLecture(true) : undefined}
+    >
+      {c.carte ? (
+        <>
+          <div className="notak-document-apercu">
+            {mots === 0 ? (
+              <div className="notak-document-apercu-vide">
+                <Papier taille={48} />
+                <p>{t('document.ecrire')}</p>
+              </div>
+            ) : (
+              <Lu texte={premiersBlocsApercu(c.texte)} />
+            )}
+          </div>
+          <div className="notak-document-pied">
+            <Papier taille={32} />
+            <div className="notak-document-nom">{nom}</div>
+          </div>
+          {c.avecLegende && (
+            <LegendeLocale
+              classe="notak-document-legende"
+              texte={c.legende ?? ''}
+              choisie={choisie}
+              modifiable={!lectureSeule}
+              valider={(texte) => changer(avecTexteLegende(c, texte))}
+            />
+          )}
+        </>
+      ) : (
+        <>
+          <Papier choisie={choisie} />
+          {nom}
+        </>
+      )}
       {enEdition && <Grand contenu={c} ecrire={brouillon} finir={contexte.finirEdition} contexte={contexte} />}
       {enLecture && <Lecture contenu={c} fermer={() => setEnLecture(false)} />}
     </div>
   )
 }
 
-/** « Export ▾ » : le PDF par l'impression du navigateur, le Markdown et le texte brut téléchargés. */
+/** L'aperçu d'une carte ne dessine que le début du texte : le reste est caché de toute façon. */
+const premiersBlocsApercu = (doc: NoeudTexte): NoeudTexte => premiersBlocs(doc)
+
+/**
+ * « Export ▾ » : un panneau de 20 rem avec sa flèche, son titre et quatre lignes à pictogramme : le PDF (l'impression
+ * du navigateur), Word, Markdown et le texte brut.
+ */
 function MenuExport({ titre, lireTexte }: { titre: string; lireTexte(): NoeudTexte }) {
   const [ouvert, setOuvert, ancre] = useMenu()
   const fichier = (format: FormatDocument) => {
@@ -112,11 +178,21 @@ function MenuExport({ titre, lireTexte }: { titre: string; lireTexte(): NoeudTex
     telecharger(nomFichier(titre, format), texte, format === 'md' ? 'text/markdown' : 'text/plain')
     setOuvert(false)
   }
+  const word = () => {
+    telechargerOctets(nomFichier(titre, 'docx'), documentEnDocx(titre, lireTexte()), 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    setOuvert(false)
+  }
   const pdf = () => {
     const corps = renderToStaticMarkup(renderToReactElement({ content: lireTexte(), extensions: EXTENSIONS_NOTE }))
     imprimer(pageImpression(titre.trim() || t('commun.sansTitre'), corps))
     setOuvert(false)
   }
+  const lignes: { icone: 'fichierPdf' | 'fichierTexte' | 'fichier'; libelle: string; faire(): void }[] = [
+    { icone: 'fichierPdf', libelle: t('document.exportPdf'), faire: pdf },
+    { icone: 'fichier', libelle: t('document.exportWord'), faire: word },
+    { icone: 'fichierTexte', libelle: t('document.exportMarkdown'), faire: () => fichier('md') },
+    { icone: 'fichierTexte', libelle: t('document.exportTexte'), faire: () => fichier('txt') },
+  ]
   return (
     <div className="notak-note-menu-ancre notak-document-export" ref={ancre}>
       <button type="button" className="notak-document-export-bouton" aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
@@ -124,15 +200,13 @@ function MenuExport({ titre, lireTexte }: { titre: string; lireTexte(): NoeudTex
       </button>
       {ouvert && (
         <div className="notak-note-menu notak-document-export-menu" role="menu">
-          <button type="button" role="menuitem" className="notak-note-menu-ligne" onClick={pdf}>
-            {t('document.exportPdf')}
-          </button>
-          <button type="button" role="menuitem" className="notak-note-menu-ligne" onClick={() => fichier('md')}>
-            {t('document.exportMarkdown')}
-          </button>
-          <button type="button" role="menuitem" className="notak-note-menu-ligne" onClick={() => fichier('txt')}>
-            {t('document.exportTexte')}
-          </button>
+          <div className="notak-document-export-titre">{t('document.exportTitre')}</div>
+          {lignes.map((l) => (
+            <button key={l.libelle} type="button" role="menuitem" className="notak-note-menu-ligne" onClick={l.faire}>
+              <Icone nom={l.icone} taille={20} />
+              {l.libelle}
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -217,7 +291,11 @@ function Grand({ contenu, ecrire, finir, contexte }: { contenu: DocumentTexte; e
     onUpdate: ({ editor }) => poser({ texte: editor.getJSON() as NoeudTexte }),
   })
   useEffect(() => {
-    if (editeur && !editeur.isDestroyed) editeur.commands.focus('end')
+    if (!editeur || editeur.isDestroyed) return
+    editeur.commands.focus('end')
+    // Le caractère tapé sur la carte choisie ouvre le document et s'y écrit.
+    const frappe = prendreTampon()
+    if (frappe) editeur.commands.insertContent(frappe)
   }, [editeur])
 
   return (
@@ -228,7 +306,7 @@ function Grand({ contenu, ecrire, finir, contexte }: { contenu: DocumentTexte; e
           type="text"
           aria-label={t('document.titre')}
           placeholder={t('document.nouveau')}
-          maxLength={300}
+          maxLength={TITRE_MAX}
           spellCheck={false}
           value={titre}
           onFocus={(e) => e.target.select()}
@@ -255,9 +333,27 @@ function Grand({ contenu, ecrire, finir, contexte }: { contenu: DocumentTexte; e
   )
 }
 
+/** Vue carte (icône ou carte détaillée), puis Renommer (un seul document). */
 export function OutilsDocument({ elements, contexte }: PropsOutils<DocumentTexte>) {
-  if (elements.length !== 1) return null
+  if (contexte.services.lectureSeule) return null
+  const tous = elements.every((e) => e.contenu.carte)
+  const basculer = () =>
+    contexte.magasin.faire(
+      elements.flatMap((e) => {
+        const carte = !tous
+        const vers = carte ? LARGEUR_DOCUMENT_CARTE : LARGEUR_DOCUMENT
+        const { carte: _, ...reste } = e.contenu
+        return [
+          { type: 'contenu' as const, id: e.id, avant: e.contenu, apres: carte ? { ...reste, carte: true } : reste },
+          ...(e.largeur !== vers ? [{ type: 'redimensionner' as const, id: e.id, de: e.largeur, vers }] : []),
+        ]
+      }),
+    )
   return (
-    <BoutonOutil icone="ouvrir" secondaire titre={t('document.ouvrirGrand')} libelle={t('commun.ouvrir')} onClick={() => contexte.commencerEdition(elements[0]!.id)} />
+    <>
+      <BoutonOutil icone="vueCarte" actif={tous} titre={t('document.vueCarte')} libelle={t('document.vueCarte')} onClick={basculer} />
+      {tous && <OutilLegende elements={elements} contexte={contexte} />}
+      {elements.length === 1 && <BoutonOutil icone="renommer" titre={t('menu.renommer')} libelle={t('menu.renommer')} onClick={() => demanderRenommer(elements[0]!.id)} />}
+    </>
   )
 }

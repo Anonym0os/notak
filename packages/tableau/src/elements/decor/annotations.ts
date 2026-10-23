@@ -198,7 +198,9 @@ export function libelleEcheance(echeance: string, maintenant = new Date()): stri
  * Les cartes que le cadre commun replie en pastille. Une colonne se réduit en se repliant (`repliee`, voir `affichage.ts`),
  * un tableau imbriqué est déjà une icône, une ligne n'a pas de corps.
  */
-export const peutEtreIcone = (def: TypeElement | undefined): boolean => !!def && !def.accepte && def.type !== 'tableau' && def.calque !== 'lignes'
+export const peutEtreIcone = (def: TypeElement | undefined): boolean =>
+  // Un document est déjà une icône : sa bascule à lui est la vue carte.
+  !!def && !def.accepte && def.type !== 'tableau' && def.type !== 'document' && def.calque !== 'lignes'
 
 // ---- Commun à tous ----
 

@@ -16,15 +16,27 @@ export function BarreEpaisseur({ i }: { i: number }) {
   )
 }
 
-/** Le volet de la palette : les couleurs du croquis, et un choix libre. */
-export function VoletCouleur({ couleur, choisir }: { couleur: string; choisir(c: string): void }) {
+/**
+ * Le volet de la palette, comme Milanote : cinq colonnes de pastilles de 24 × 20 px, puis (si le tableau en propose)
+ * ses couleurs suggérées sous un filet, puis « Couleur personnalisée… ».
+ */
+export function VoletCouleur({ couleur, choisir, suggerees }: { couleur: string; choisir(c: string): void; suggerees?: readonly string[] }) {
+  const pastille = (c: string) => (
+    <button key={c} type="button" className="notak-croquis-pastille" style={{ background: c }} aria-label={c} aria-pressed={couleur.toLowerCase() === c.toLowerCase()} onClick={() => choisir(c)} />
+  )
   return (
     <div className="notak-croquis-volet notak-croquis-couleurs" role="group" aria-label={t('couleur.titre')}>
-      {COULEURS_TRAIT.map((c) => (
-        <button key={c} type="button" className="notak-croquis-pastille" style={{ background: c }} aria-label={c} aria-pressed={couleur === c} onClick={() => choisir(c)} />
-      ))}
+      <div className="notak-croquis-grille">{COULEURS_TRAIT.map(pastille)}</div>
+      {suggerees && suggerees.length > 0 && (
+        <>
+          <hr />
+          <div className="notak-croquis-grille">{suggerees.slice(0, 10).map(pastille)}</div>
+        </>
+      )}
       <label className="notak-croquis-libre" title={t('croquis.couleurLibre')}>
-        <input type="color" value={couleur} aria-label={t('croquis.couleurLibre')} onChange={(e) => choisir(e.target.value)} />
+        <span className="notak-croquis-roue" aria-hidden="true" />
+        <span>{t('croquis.couleurPerso')}</span>
+        <input type="color" value={/^#[0-9a-f]{6}$/i.test(couleur) ? couleur : '#000000'} aria-label={t('croquis.couleurLibre')} onChange={(e) => choisir(e.target.value)} />
       </label>
     </div>
   )
@@ -43,8 +55,20 @@ export function VoletEpaisseur({ epaisseur, choisir }: { epaisseur: number; choi
   )
 }
 
-/** Le crayon du curseur (pointe en bas à gauche), rempli de la couleur du trait. */
+/** Noir ou blanc, selon ce qui se lit le mieux sur `couleur` (luminance relative). */
+function contourSur(couleur: string): string {
+  const n = Number.parseInt(/^#[0-9a-f]{6}$/i.test(couleur) ? couleur.slice(1) : '000000', 16)
+  const l = (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255
+  return l > 0.55 ? 'black' : 'white'
+}
+
+/** Le petit crayon du curseur (19 px, pointe en bas à gauche), rempli de la couleur du trait et cerné de noir ou de blanc selon le contraste. */
 export function curseurCrayon(couleur: string): string {
   const remplissage = encodeURIComponent(couleur)
-  return `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M3 21l1-5L16 4l4 4L8 20z' fill='${remplissage}' stroke='black' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='M3 21l1-5 4 4z' fill='black'/%3E%3C/svg%3E") 3 21, crosshair`
+  const contour = contourSur(couleur)
+  return `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='19' height='19' viewBox='0 0 24 24'%3E%3Cpath d='M3 21l1-5L16 4l4 4L8 20z' fill='${remplissage}' stroke='${contour}' stroke-width='1.8' stroke-linejoin='round'/%3E%3Cpath d='M3 21l1-5 4 4z' fill='${contour}'/%3E%3C/svg%3E") 1 17, crosshair`
 }
+
+/** Le curseur de la gomme : un bloc incliné dont le coin bas gauche sert de pointe. */
+export const CURSEUR_GOMME =
+  `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M8.5 21.5 3 16l9-9 7 7-5.5 5.5z' fill='white' stroke='black' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='M8 12l7 7' stroke='black' stroke-width='1.5'/%3E%3C/svg%3E") 8 21, default`
