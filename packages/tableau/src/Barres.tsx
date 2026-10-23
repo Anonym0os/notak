@@ -150,13 +150,14 @@ export function BarreOutils({
             {tiroir && (
               <div ref={grille} className="notak-tiroir">
                 {caches.map((o) => bouton(o, true))}
+                {/* Milanote n'a pas d'Étiquettes dans la barre de création : elles vivent ici. */}
+                <BoutonEtiquettes />
               </div>
             )}
           </div>
         )}
         <div className="notak-barre-sep" />
         {actions.map((o) => bouton(o))}
-        <BoutonEtiquettes />
         <div className="notak-barre-ressort" />
         <Infobulle libelle={t('corbeille.titre')} cote="droite" contenu>
           <button
