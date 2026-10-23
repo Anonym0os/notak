@@ -83,7 +83,7 @@ export function imageSous(elements: readonly Element[], rect: (id: Id) => Rect |
  */
 export function remplacerContenu(ancien: Image, nouveau: Omit<Image, 'fichier'>, fichier: Id): Image {
   const { legende } = ancien
-  const { legende: _, recadrage: _r, rotation: _o, tailles: _t, ...propre } = nouveau
+  const { legende: _, recadrage: _r, rotation: _o, tailles: _t, traits: _tr, ...propre } = nouveau
   return { ...propre, fichier, ...(legende ? { legende } : {}) }
 }
 

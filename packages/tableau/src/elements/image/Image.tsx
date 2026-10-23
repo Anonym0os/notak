@@ -1,10 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { Element, Image } from '../../coeur/tableau'
+import type { Element, Image, Trait } from '../../coeur/tableau'
 import { useFichier } from '../envois'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { PX_PAR_UG } from '../../coeur/camera'
 import { aUneOmbre, avecLegende, hauteurCalee, miseEnPage, pivoter, proportionsAffichees } from './geometrie'
 import { Recadreur, recadrer, useRecadrageOuvert } from './Recadreur'
+import { Annotateur, Traits } from './Annotateur'
+import { annoter, choisirCouleur, choisirOutil, useAnnotation } from './modeAnnotation'
+import { COULEURS_TRAIT, avecTraits } from './annotation'
 import { adresseALargeur, finesse, largeurCadrePx, largeurEntiereAffichee, palierPour } from './tailles'
 import { Visionneuse, useImageOuverte } from './visionneuse'
 
@@ -35,10 +38,19 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
     : { aspectRatio: String(proportions) }
   const enGrand = useImageOuverte() === element.id
   const enRecadrage = useRecadrageOuvert() === element.id
+  const enDessin = useAnnotation().id === element.id && !contexte.services.lectureSeule && !enRecadrage
+  // Les traits tels qu'ils seront à la fin du geste en cours (tracé, gomme) ; `null` : ceux du tableau.
+  const [enCours, setEnCours] = useState<Trait[] | null>(null)
+  const traits = enCours ?? contenu.traits
   // On ne règle que l'image qu'on a sous la main : choisir autre chose referme le réglage.
   useEffect(() => {
     if (enRecadrage && !choisie) recadrer(null)
   }, [enRecadrage, choisie])
+  // Même chose pour le dessin : on ne dessine que sur l'image qu'on a sous la main.
+  const dessine = useAnnotation().id === element.id
+  useEffect(() => {
+    if (dessine && (!choisie || enRecadrage || enEdition)) annoter(null)
+  }, [dessine, choisie, enRecadrage, enEdition])
   if (enRecadrage && adresseOrigine) return <Recadreur id={element.id} contenu={contenu} adresse={adresseOrigine} contexte={contexte} />
   return (
     <>
@@ -59,10 +71,12 @@ export function RenduImage({ element, choisie, enEdition, contexte, brouillon }:
               draggable={false}
               style={page.image}
             />
+            {traits && traits.length > 0 && <Traits contenu={contenu} traits={traits} style={page.image} />}
           </div>
         ) : (
           <div className="notak-image notak-image-vide">{adresse === null && <span>Image introuvable</span>}</div>
         )}
+        {enDessin && adresse && <Annotateur element={element} contexte={contexte} brouillon={setEnCours} />}
       </div>
       {enEdition ? (
         <Legende
@@ -124,6 +138,8 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
   const pivoterTout = () =>
     contexte.magasin.faire(elements.map((e) => ({ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: pivoter(e.contenu) })))
   const el = elements[0]!
+  const dessin = useAnnotation()
+  const enDessin = elements.length === 1 && dessin.id === el.id && !contexte.services.lectureSeule
   return (
     <>
       {!contexte.services.lectureSeule && (
@@ -135,6 +151,46 @@ export function OutilsImage({ elements, contexte }: PropsOutils<Image>) {
         <button type="button" title="Garder une partie de l’image" aria-pressed={!!el.contenu.recadrage} onClick={() => recadrer(el.id)}>
           Recadrer
         </button>
+      )}
+      {elements.length === 1 && !contexte.services.lectureSeule && (
+        <button
+          type="button"
+          title="Dessiner sur l’image (Maj+D)"
+          aria-pressed={enDessin}
+          onClick={() => annoter(enDessin ? null : el.id)}
+        >
+          Dessiner
+        </button>
+      )}
+      {enDessin && (
+        <>
+          <button type="button" aria-pressed={dessin.outil === 'crayon'} onClick={() => choisirOutil('crayon')}>
+            Crayon
+          </button>
+          <button type="button" aria-pressed={dessin.outil === 'gomme'} title="Effacer le trait qu’on touche" onClick={() => choisirOutil('gomme')}>
+            Gomme
+          </button>
+          {COULEURS_TRAIT.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className="notak-pastille-trait"
+              style={{ background: c }}
+              aria-label={`Couleur ${c}`}
+              aria-pressed={dessin.outil === 'crayon' && dessin.couleur === c}
+              onClick={() => choisirCouleur(c)}
+            />
+          ))}
+          {!!el.contenu.traits?.length && (
+            <button
+              type="button"
+              title="Effacer tous les traits"
+              onClick={() => contexte.magasin.faire([{ type: 'contenu', id: el.id, avant: el.contenu, apres: avecTraits(el.contenu, []) }])}
+            >
+              Tout effacer
+            </button>
+          )}
+        </>
       )}
       {elements.length === 1 && (
         <button

@@ -3,6 +3,7 @@ import { registre } from '../registre'
 import { OutilsImage, RenduImage } from './Image'
 import './image.css'
 import { largeurNaturelleImage } from './geometrie'
+import { raccourciAnnoter } from './raccourciAnnotation'
 import { recevoirImages } from './recepteur'
 import { ouvrirImage } from './visionneuse'
 
@@ -23,3 +24,4 @@ registre.type<Image>({
 })
 
 registre.recepteur({ priorite: 40, cumulable: true, recevoir: recevoirImages })
+registre.raccourci(raccourciAnnoter)
