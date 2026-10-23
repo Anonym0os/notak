@@ -280,13 +280,51 @@ export interface Commentaire {
   resolu?: boolean
 }
 
+/** Le type d'une cellule ; absent : « auto », déduit de ce qu'on tape. */
+export type TypeCellule = 'nombre' | 'monnaie' | 'pourcent' | 'texte' | 'date' | 'case'
+
+export type FormatDate = 'aucun' | 'long' | 'court' | 'chiffres' | 'chiffresCourts' | 'tirets' | 'jour'
+export type FormatHeure = 'aucune' | '12h' | '12hs' | '24h' | '24hs'
+
+/** Mise en forme et type d'une cellule entière (voir docs/ecarts/table.md). */
+export interface FormatCellule {
+  type?: TypeCellule
+  /** Nombre, monnaie, pourcentage : 0 à 20 ; absent : autant que tapé (nombre) ou 2. */
+  decimales?: number
+  /** Séparateur des milliers ; absent : oui. */
+  sansMilliers?: boolean
+  /** Monnaie : code ISO (EUR par défaut), affichage, négatifs entre parenthèses. */
+  devise?: string
+  affichageDevise?: 'symboleEtroit' | 'symbole' | 'code' | 'nom'
+  comptable?: boolean
+  /** Date : format du jour et de l'heure, heure entre parenthèses. */
+  date?: FormatDate
+  heure?: FormatHeure
+  heureEntreParentheses?: boolean
+  gras?: boolean
+  italique?: boolean
+  barre?: boolean
+  /** Couleur du texte et surlignage (exclusifs), fond de la cellule : un code `#rrggbb` ou `entete`. */
+  couleur?: string
+  surligne?: string
+  fond?: string
+  alignement?: 'gauche' | 'centre' | 'droite'
+  vertical?: 'haut' | 'milieu' | 'bas'
+}
+
 /**
- * Une table : des lignes de cellules de texte, toutes de la même longueur. La première ligne est l'en-tête
- * (en gras, sur un fond teinté) tant que `sansEntete` n'est pas posé.
+ * Une table, un petit tableur : des lignes de cellules de texte, toutes de la même longueur. Une formule commence
+ * par `=`, une case à cocher vaut `true` ou `false`. `formats` a la même forme que `cellules`. Tant qu'il est
+ * absent, la première ligne est l'en-tête (en gras, sur fond gris) sauf si `sansEntete` est posé.
  */
 export interface Table {
   type: 'table'
   cellules: string[][]
+  formats?: (FormatCellule | null)[][]
+  /** Largeur de chaque colonne, en UG ; absent : la largeur de l'élément partagée également. */
+  largeurs?: number[]
+  titre?: string
+  avecTitre?: boolean
   sansEntete?: boolean
 }
 
