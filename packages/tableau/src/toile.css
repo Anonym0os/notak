@@ -88,7 +88,7 @@
   color: var(--notak-texte);
 }
 
-/* Le filet de sélection : 2 px à l'extérieur de la carte, coins carrés ; en édition il s'écarte de 2 px en glissant. */
+/* Le filet de sélection : 2 px à l'extérieur de la carte, coins carrés ; en édition il se resserre de 2 px en glissant. */
 .notak-carte:not([data-sans-fond], [data-type='tableau'])::before {
   content: '';
   position: absolute;
@@ -124,14 +124,35 @@
   box-shadow: var(--notak-ombre);
 }
 
-/* En édition, le contour s'écarte de la carte (de 2 px, en 0,1 s) : on voit qu'on écrit dedans. */
+/* En édition, le contour se resserre de 2 px (en 0,1 s) : il passe du dehors au dedans du bord, on voit qu'on écrit dedans. */
 .notak-carte[data-edition]:not([data-sans-fond], [data-type='tableau']) {
   box-shadow: none;
 }
 
 .notak-carte[data-edition]:not([data-sans-fond], [data-type='tableau'])::before {
-  inset: -2px;
+  inset: 2px;
   box-shadow: 0 0 0 2px var(--notak-selection);
+}
+
+/*
+ * Un fond de couleur (une note coloriée) n'a pas l'anneau de contraste, seulement le trait d'ombre ; ses tons
+ * secondaires suivent le texte : noir à 50, 40, 30 et 20 %, ou blanc à 60, 50, 40 et 30 %.
+ */
+.notak-carte:has(> .notak-note[data-teinte]) {
+  --notak-ombre: 0 1px 2px rgb(27 37 54 / 0.1);
+  --notak-secondaire: rgb(0 0 0 / 0.5);
+  --notak-pale: rgb(0 0 0 / 0.4);
+  --notak-case-faite: rgb(0 0 0 / 0.3);
+  --notak-attente: rgb(0 0 0 / 0.2);
+  --notak-lien: #000;
+}
+
+.notak-carte:has(> .notak-note[data-ton='clair']) {
+  --notak-secondaire: rgb(255 255 255 / 0.6);
+  --notak-pale: rgb(255 255 255 / 0.5);
+  --notak-case-faite: rgb(255 255 255 / 0.4);
+  --notak-attente: rgb(255 255 255 / 0.3);
+  --notak-lien: #fff;
 }
 
 .notak-carte[data-edition] {
@@ -2767,6 +2788,31 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   background: #f4511c;
   transform: scale(var(--notak-zoom-inverse, 1));
   transform-origin: top right;
+  cursor: default;
+  pointer-events: auto;
+}
+
+/* Une zone de 19 px autour du point de 7 px : la souris l'attrape sans viser. */
+.notak-activite::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+}
+
+.notak-activite-bulle {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  padding: 5px 10px;
+  border-radius: 4px;
+  background: #323b4a;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 /* Les pointeurs de bord de vue : un disque de 18 px contre le bord, une flèche tournée vers ce qu'il désigne. */

@@ -348,3 +348,8 @@
 .notak-espace[data-theme='sombre'] .notak-toile[data-fond='grisChaud'] {
   --notak-fond: #26232a;
 }
+
+/* Une note coloriée, en sombre : le trait d'ombre seul, sans l'anneau de contraste. */
+.notak-espace[data-theme='sombre'] .notak-carte:has(> .notak-note[data-teinte]) {
+  --notak-ombre: 0 1px 3px rgb(0 0 0 / 0.45);
+}
