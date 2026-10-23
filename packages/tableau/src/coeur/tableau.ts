@@ -1,4 +1,5 @@
 import { type Point, point } from './geometrie'
+import type { Fond } from './fond'
 import type { Hauteur } from './hauteur'
 
 export type Id = string
@@ -314,6 +315,14 @@ export interface Auteur {
   couleur?: string
 }
 
+/** Qui a créé un élément et qui l'a touché en dernier, et quand (ms). Gardé à part de l'élément. */
+export interface Trace {
+  par?: Auteur
+  cree?: number
+  modifiePar?: Auteur
+  modifie?: number
+}
+
 /** Un message d'un fil de discussion. */
 export interface Message {
   id: Id
@@ -627,6 +636,8 @@ export interface Tableau {
   couleur?: CouleurNote
   /** Les étiquettes qu'on peut poser sur ses éléments. */
   etiquettes?: Etiquette[]
+  /** Son arrière-plan : couleur du canevas et grille de points. Absent : le gris et les points. */
+  fond?: Fond
   elements: Element[]
 }
 
@@ -647,6 +658,8 @@ export type Operation =
   | { type: 'annoter'; id: Id; de: Annotations; vers: Annotations }
   /** Change la liste des étiquettes du tableau. */
   | { type: 'etiquettes'; de: Etiquette[]; vers: Etiquette[] }
+  /** Change l'arrière-plan du tableau (`undefined` : celui d'origine). */
+  | { type: 'fond'; de: Fond | undefined; vers: Fond | undefined }
 
 const BASE32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
 
@@ -721,6 +734,8 @@ export function inverse(op: Operation): Operation {
       return { type: 'annoter', id: op.id, de: op.vers, vers: op.de }
     case 'etiquettes':
       return { type: 'etiquettes', de: op.vers, vers: op.de }
+    case 'fond':
+      return { type: 'fond', de: op.vers, vers: op.de }
   }
 }
 
@@ -752,6 +767,10 @@ export function appliquer(t: Tableau, op: Operation): Tableau {
     case 'etiquettes': {
       const { etiquettes: _e, ...reste } = t
       return op.vers.length > 0 ? { ...reste, etiquettes: op.vers } : reste
+    }
+    case 'fond': {
+      const { fond: _f, ...reste } = t
+      return op.vers ? { ...reste, fond: op.vers } : reste
     }
   }
 }

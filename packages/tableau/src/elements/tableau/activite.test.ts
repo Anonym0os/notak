@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { nouvelleNote } from '../../coeur/tableau'
-import { aDuNouveau, empreinteDe, marquerVu, oublierLesVus } from './activite'
+import { aDuNouveau, dejaVu, empreinteDe, marquerVu, nombreDeChangements, oublierLesVus } from './activite'
 
 const tableau = (...textes: string[]) => ({ titre: 'T', elements: textes.map((x) => nouvelleNote(0, 0, x)) })
 
@@ -28,5 +28,20 @@ describe('la pastille d’activité', () => {
     const t = tableau('a')
     expect(empreinteDe(t)).toBe(empreinteDe({ ...t, elements: [...t.elements] }))
     expect(empreinteDe(t)).not.toBe(empreinteDe({ ...t, titre: 'Autre' }))
+  })
+  it('compte les éléments ajoutés, modifiés ou retirés depuis la vue', () => {
+    const avant = tableau('a', 'b', 'c')
+    marquerVu('A', avant)
+    expect(nombreDeChangements('A', avant)).toBe(0)
+    const [a, b] = avant.elements as [typeof avant.elements[0], typeof avant.elements[0]]
+    // b modifié, c retiré, d ajouté : trois changements.
+    const apres = { ...avant, elements: [a, { ...b, x: 9 }, nouvelleNote(2, 2, 'd')] }
+    expect(nombreDeChangements('A', apres)).toBe(3)
+  })
+  it('un tableau jamais regardé n’a rien compté, et dejaVu suit les vues', () => {
+    expect(nombreDeChangements('B', tableau('a'))).toBe(0)
+    expect(dejaVu('B')).toBe(false)
+    marquerVu('B', tableau('a'))
+    expect(dejaVu('B')).toBe(true)
   })
 })

@@ -192,12 +192,35 @@ export function creerEspaceDistant(options: OptionsEspaceDistant): EspaceDistant
     const locaux = new Set<() => void>()
     let local: { curseur: Point | null; selection: Id[]; edition: Id | null } = { curseur: null, selection: [], edition: null }
     let cache: Presence[] | null = null
+    // Les demandes de lâcher une sélection : chacun écrit les siennes dans son état, par personne visée, et lit celles qui le visent.
+    const demandes = new Set<(ids: Id[]) => void>()
+    const envoyees: Record<number, { ids: Id[]; n: number }> = {}
+    const traitees = new Map<number, number>()
+    let compteur = 0
     signal.f = () => {
       cache = null
       for (const f of locaux) f()
+      const a = e.connexion?.awareness
+      if (!a) return
+      for (const [client, etat] of a.getStates()) {
+        if (client === a.clientID) continue
+        const visee = (etat.deselection as Record<number, { ids?: unknown; n?: unknown }> | undefined)?.[a.clientID]
+        if (!visee || typeof visee.n !== 'number' || visee.n <= (traitees.get(client) ?? 0) || !Array.isArray(visee.ids)) continue
+        traitees.set(client, visee.n)
+        const ids = visee.ids.filter((s): s is string => typeof s === 'string')
+        for (const f of demandes) f(ids)
+      }
     }
     return {
       moi: () => utilisateur,
+      forcerDeselection(client, ids) {
+        envoyees[client] = { ids, n: ++compteur }
+        e.connexion?.awareness?.setLocalStateField('deselection', { ...envoyees })
+      },
+      surDeselection(f) {
+        demandes.add(f)
+        return () => demandes.delete(f)
+      },
       canal: () => e.connexion?.awareness ?? null,
       signaler(etat) {
         local = {
@@ -236,7 +259,7 @@ export function creerEspaceDistant(options: OptionsEspaceDistant): EspaceDistant
     let e = entrees.get(id)
     if (e) return e
     const doc = new Y.Doc()
-    const magasin = creerMagasinYjs(doc, id)
+    const magasin = creerMagasinYjs(doc, id, { auteur: () => (utilisateur ? { id: utilisateur.id, nom: utilisateur.nom, couleur: utilisateur.couleur } : undefined) })
     const signal = { f: () => {} }
     const entree: Entree = {
       id,

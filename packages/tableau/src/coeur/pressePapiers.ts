@@ -4,6 +4,8 @@ import { type Element, type Extremite, type Id, type NoeudTexte, type Tableau, a
 /** Ce qu'on a copié : les éléments, prêts à recréer, et leur cadre d'origine sur le tableau (en UG). */
 export interface Paquet {
   tableau?: Id
+  /** Posé par « Couper » : le collage déplace les originaux (masqués, jamais jetés) au lieu de les recréer. */
+  coupe?: string
   elements: Element[]
   cadre: Rect
 }

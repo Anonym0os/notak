@@ -323,3 +323,34 @@
   border-color: rgb(255 255 255 / 0.12);
   color: rgb(255 255 255 / 0.62);
 }
+
+/* Les couleurs du canevas (menu de la toile vide, « Changer l'arrière-plan ») : clair, puis sombre. */
+.notak-toile[data-fond='bleu'] {
+  --notak-fond: #dceaf6;
+}
+.notak-toile[data-fond='vert'] {
+  --notak-fond: #d9ebe6;
+}
+.notak-toile[data-fond='jaune'] {
+  --notak-fond: #f0eedf;
+}
+.notak-toile[data-fond='grisChaud'] {
+  --notak-fond: #e5e3e8;
+}
+.notak-espace[data-theme='sombre'] .notak-toile[data-fond='bleu'] {
+  --notak-fond: #1c2624;
+}
+.notak-espace[data-theme='sombre'] .notak-toile[data-fond='vert'] {
+  --notak-fond: #27241f;
+}
+.notak-espace[data-theme='sombre'] .notak-toile[data-fond='jaune'] {
+  --notak-fond: #1c2329;
+}
+.notak-espace[data-theme='sombre'] .notak-toile[data-fond='grisChaud'] {
+  --notak-fond: #26232a;
+}
+
+/* Une note coloriée, en sombre : le trait d'ombre seul, sans l'anneau de contraste. */
+.notak-espace[data-theme='sombre'] .notak-carte:has(> .notak-note[data-teinte]) {
+  --notak-ombre: 0 1px 3px rgb(0 0 0 / 0.45);
+}

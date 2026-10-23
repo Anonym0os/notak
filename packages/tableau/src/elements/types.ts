@@ -67,6 +67,13 @@ export interface ServicePresence {
   autres(): Presence[]
   /** Soi, tel que les autres le voient (nom, couleur). */
   moi?(): Presence['utilisateur']
+  /**
+   * Demande à cette personne de lâcher ces éléments (la croix de sa pastille) : son navigateur les retire de sa
+   * sélection. Absent hors connexion.
+   */
+  forcerDeselection?(client: number, ids: Id[]): void
+  /** Prévenu quand quelqu'un nous demande de lâcher ces éléments. Rend de quoi arrêter. */
+  surDeselection?(f: (ids: Id[]) => void): () => void
   /** Le canal d'awareness Yjs du tableau, pour les curseurs dans un texte partagé ; `null` hors connexion. */
   canal?(): unknown
   ecouter(f: () => void): () => void
@@ -143,6 +150,10 @@ export interface Services {
   etiquettesDesAutres?(): { id: Id; titre: string; etiquettes: Etiquette[] }[]
   /** Répercute le nom et la couleur d'une étiquette changée ici dans les autres tableaux qui la portent (même identifiant). */
   propagerEtiquette?(etiquette: Etiquette): void
+  /** L'élément que l'adresse du navigateur ouvre en grand (`/t/<tableau>/e/<élément>`) : la toile l'ouvre dès qu'elle l'a. */
+  elementAdresse?: Id | null
+  /** La toile dit quel élément est ouvert en grand, ou plus aucun (`null`) : l'application en écrit l'adresse. */
+  pleinEcran?(id: Id | null): void
   /** On peut regarder et défiler, rien de plus : la toile refuse tout ce qui modifie. */
   lectureSeule?: boolean
   /** L'aperçu d'un modèle : lecture seule, mais la barre de gauche reste là, grisée et sans clic. */

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import type { RenvoiTableau } from '../../coeur/tableau'
 import { FOND_NOTE, couleurTexteSur } from '../note/couleurs'
 import type { PropsRendu } from '../types'
-import { aDuNouveau, ecouterVus } from './activite'
+import { dejaVu, ecouterVus, nombreDeChangements } from './activite'
 import { Glyphe } from './Glyphe'
 import { avecIcone, pastilleDe } from './icones'
 import { couleurDuTitre, iconeDuTitre } from './initialisation'
@@ -62,7 +62,14 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
     },
     [ecouterEspace],
   )
-  const nouveau = useSyncExternalStore(suivreVus, () => aDuNouveau(cible, tableau?.(cible)))
+  // La pastille dit « New » pour un tableau qu'un autre vient de poser et qu'on n'a pas encore ouvert, sinon combien d'éléments ont changé.
+  const marque = useSyncExternalStore(suivreVus, () => {
+    const n = nombreDeChangements(cible, tableau?.(cible))
+    if (n > 0) return n > 99 ? '99+' : String(n)
+    const trace = contexte.magasin.trace?.(element.id)
+    const parUnAutre = !!trace?.par && trace.par.id !== contexte.services.presence?.moi?.()?.id
+    return parUnAutre && trace.cree !== undefined && Date.now() - trace.cree < 14 * 86_400_000 && !dejaVu(cible) ? 'new' : ''
+  })
   const pastille = pastilleDe(element.contenu)
   const image = useImage(pastille.genre === 'image' ? pastille.fichier : undefined, contexte)
   const enRenommage = useSyncExternalStore(ecouterRenommage, renommageEnCours) === element.id
@@ -169,7 +176,6 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
         fondLibre || (couleur && couleur !== 'transparent') ? (
           initiale(titre)
         ) : null}
-        {nouveau && <span className="notak-renvoi-activite" role="img" aria-label={t('tableau.activite')} title={t('tableau.activite')} />}
         {element.contenu.raccourci && (
           <span className="notak-renvoi-raccourci" title={t('tableau.raccourci.titre')} aria-label={t('tableau.raccourci')}>
             <Icone nom="ligne" taille={16} trait={2} />
@@ -184,6 +190,11 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
         </div>
       )}
       <div className="notak-renvoi-info">{contenu}</div>
+      {marque && (
+        <span className="notak-renvoi-marque" role="img" aria-label={t('tableau.activite')} title={t('tableau.activite')}>
+          {marque === 'new' ? t('tableau.nouveauCourt') : marque}
+        </span>
+      )}
     </div>
   )
 }
