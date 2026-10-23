@@ -28,6 +28,9 @@ export function Export({ tableau }: { tableau: string }) {
           <a role="menuitem" href={`${base}/export?format=txt`} download onClick={() => setOuvert(false)}>
             Texte brut
           </a>
+          <a role="menuitem" href={`${base}/medias`} download onClick={() => setOuvert(false)}>
+            Images et fichiers (zip)
+          </a>
         </div>
       )}
     </div>

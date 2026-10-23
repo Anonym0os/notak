@@ -1,3 +1,4 @@
+import { unzipSync } from 'fflate'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { type Compte, type Monde, monde, poser, texte } from './essai.ts'
 
@@ -52,5 +53,34 @@ describe('GET /api/tableaux/:id/export', () => {
     m.tableau(ana, 'tableau-mere-1', 'Mère', (doc) => poser(doc, { type: 'tableau', cible: 'tableau-budget' }))
     const r = await m.appeler('/api/tableaux/tableau-mere-1/export?format=txt', { compte: ana })
     expect(await r.text()).toBe('Mère\n\nTableau : Budget\n')
+  })
+})
+
+describe('GET /api/tableaux/:id/medias', () => {
+  it('une archive des images et des fichiers du tableau, sans la corbeille', async () => {
+    const png = new Uint8Array([137, 80, 78, 71, 9, 9])
+    const pdf = new Uint8Array([37, 80, 68, 70, 1])
+    const depot = async (octets: Uint8Array, type: string) =>
+      ((await (await m.appeler('/api/fichiers', { compte: ana, corps: octets, type })).json()) as { id: string }).id
+    const [idPng, idPdf, idJete] = [await depot(png, 'image/png'), await depot(pdf, 'application/pdf'), await depot(png, 'image/png')]
+    m.tableau(ana, 'tableau-medias', 'Médias', (doc) => {
+      poser(doc, { type: 'image', fichier: idPng, legende: 'Plage', largeurOrigine: 1, hauteurOrigine: 1, typeMime: 'image/png' })
+      poser(doc, { type: 'fichier', fichier: idPdf, nom: 'billet.pdf', typeMime: 'application/pdf', taille: 5 })
+      poser(doc, { type: 'image', fichier: idJete, largeurOrigine: 1, hauteurOrigine: 1 }, { corbeille: 1 })
+    })
+    const r = await m.appeler('/api/tableaux/tableau-medias/medias', { compte: ana })
+    expect(r.status).toBe(200)
+    expect(r.headers.get('content-type')).toBe('application/zip')
+    expect(r.headers.get('content-disposition')).toContain('.zip')
+    const lu = unzipSync(new Uint8Array(await r.arrayBuffer()))
+    expect(Object.keys(lu).sort()).toEqual(['Plage.png', 'billet.pdf'])
+    expect(lu['Plage.png']).toEqual(png)
+    expect(lu['billet.pdf']).toEqual(pdf)
+  })
+
+  it('refuse sans session, sans droit ; 404 s’il n’y a aucun média', async () => {
+    expect((await m.appeler('/api/tableaux/tableau-voyage/medias')).status).toBe(401)
+    expect((await m.appeler('/api/tableaux/tableau-voyage/medias', { compte: cleo })).status).toBe(404)
+    expect((await m.appeler('/api/tableaux/tableau-voyage/medias', { compte: bob })).status).toBe(404)
   })
 })

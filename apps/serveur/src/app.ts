@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { createReadStream } from 'node:fs'
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import type { Hocuspocus } from '@hocuspocus/server'
@@ -11,13 +11,14 @@ import type { Context } from 'hono'
 import { ErreurApercu, apercuDePage, rapatrierImage } from './apercu.ts'
 import type { Base, Utilisateur } from './base.ts'
 import { ErreurCompte, inscrire, normaliserEmail } from './comptes.ts'
-import { type TableauLu, lireEtat, lireTableau } from './contenu.ts'
+import { type TableauLu, fichiersDe, lireEtat, lireTableau } from './contenu.ts'
 import type { Limiteur } from './debit.ts'
 import { type Role, auMoins, role, roleHerite } from './droits.ts'
 import { estFormatExport, exporterTexte } from './exporter.ts'
 import { hacher, verifier } from './motsDePasse.ts'
 import { DUREE_SESSION_S, NOM_COOKIE, cookieEfface, cookieSession, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
 import { nomDuDocument } from './synchro.ts'
+import { creerZip, nommerLesMedias } from './zip.ts'
 
 export interface Contexte {
   base: Base
@@ -269,6 +270,27 @@ export function creerApp(ctx: Contexte): Hono {
     return c.body(exporterTexte(tableau, format, titreDe), 200, {
       'content-type': format === 'md' ? 'text/markdown; charset=utf-8' : 'text/plain; charset=utf-8',
       'content-disposition': enTeteTelechargement(tableau.titre, format),
+      'cache-control': 'no-store',
+    })
+  })
+
+  app.get('/api/tableaux/:id/medias', async (c) => {
+    const g = garde(c, 'lecture')
+    if (g instanceof Response) return g
+    const tableau = lireLe(g.id)
+    const medias = nommerLesMedias(fichiersDe(tableau.elements), (id) => base.fichier(id)?.type)
+    const entrees: { nom: string; octets: Uint8Array; type: string }[] = []
+    for (const m of medias) {
+      const f = base.fichier(m.id)
+      if (!f) continue
+      // Un fichier absent du disque ne fait pas échouer toute l'archive.
+      const octets = await readFile(join(ctx.dossierFichiers, f.id)).catch(() => null)
+      if (octets) entrees.push({ nom: m.nom, octets, type: f.type })
+    }
+    if (entrees.length === 0) return c.json({ erreur: 'aucun média' }, 404)
+    return c.body(creerZip(entrees) as Uint8Array<ArrayBuffer>, 200, {
+      'content-type': 'application/zip',
+      'content-disposition': enTeteTelechargement(`${tableau.titre} (médias)`, 'zip'),
       'cache-control': 'no-store',
     })
   })

@@ -19,6 +19,7 @@
         "@hono/node-server": "2.1.5",
         "@node-rs/argon2": "2.2.2",
         "@notak/tableau": "workspace:*",
+        "fflate": "0.8.2",
         "hono": "4.13.13",
         "ws": "8.22.0",
         "yjs": "13.6.33",
@@ -85,6 +86,7 @@
       "peerDependencies": {
         "@hocuspocus/provider": "4.7.1",
         "@tiptap/extension-collaboration": "^3.31.0",
+        "@tiptap/extension-collaboration-caret": "^3.31.0",
         "@tiptap/extension-highlight": "^3.31.0",
         "@tiptap/extension-list": "^3.31.0",
         "@tiptap/extension-text-align": "^3.31.0",
@@ -357,6 +359,8 @@
     "fast-equals": ["fast-equals@5.4.5", "", {}, "sha512-yKEpcFuRPu/pTQL2VB8YKE2yFldrLlIsoWtJeBnAdqEhvu21OgkFT0C8njf/xYc2LSZGEr3K9JGjthHJxnVLvQ=="],
 
     "fdir": ["fdir@6.5.0", "", { "peerDependencies": { "picomatch": "^3 || ^4" }, "optionalPeers": ["picomatch"] }, "sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg=="],
+
+    "fflate": ["fflate@0.8.2", "", {}, "sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A=="],
 
     "fsevents": ["fsevents@2.3.3", "", { "os": "darwin" }, "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw=="],
 
