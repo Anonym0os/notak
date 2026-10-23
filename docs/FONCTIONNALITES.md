@@ -15,22 +15,22 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 |---|---|---|---|---|
 | 1. Toile | 25 | 1 | 1 | 94 % |
 | 2. Création | 16 | 1 | 0 | 97 % |
-| 3. Note et texte | 30 | 0 | 1 | 97 % |
-| 4. Colonne | 10 | 1 | 0 | 95 % |
+| 3. Note et texte | 31 | 0 | 0 | 100 % |
+| 4. Colonne | 11 | 0 | 0 | 100 % |
 | 5. Tableau imbriqué | 11 | 0 | 0 | 100 % |
 | 6. Lien | 13 | 0 | 0 | 100 % |
 | 7. Image | 11 | 1 | 0 | 96 % |
-| 8. Liste de tâches | 16 | 1 | 0 | 97 % |
+| 8. Liste de tâches | 17 | 0 | 0 | 100 % |
 | 9. Ligne | 14 | 0 | 0 | 100 % |
 | 10. Autres éléments | 11 | 1 | 0 | 96 % |
-| 11. Commun aux éléments | 11 | 1 | 0 | 96 % |
+| 11. Commun aux éléments | 12 | 0 | 0 | 100 % |
 | 12. Organiser | 16 | 0 | 0 | 100 % |
 | 13. Naviguer | 12 | 0 | 1 | 92 % |
 | 14. À plusieurs | 17 | 0 | 0 | 100 % |
 | 15. Habillage | 13 | 1 | 1 | 90 % |
 | 16. Exporter, importer | 2 | 2 | 0 | 75 % |
 | 17. Plateformes | 5 | 2 | 0 | 86 % |
-| **Total** | **233** | **12** | **4** | **96 %** |
+| **Total** | **237** | **9** | **3** | **97 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -112,7 +112,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Centrer | ✅ | |
 | Couleurs du texte et surlignages, exclusifs | ✅ | |
 | Menu d'insertion (émoji, séparateur, lien vers un tableau, mention) | ✅ | Émoji, séparateur ; « @ » et « [[ » en tapant. |
-| Commentaire dans le texte | ⬜ | |
+| Commentaire dans le texte | ✅ | Bouton « Commenter » ou ⌘⌥M sur un passage ; le fil s'affiche en marge. |
 | Raccourcis de mise en forme de Milanote | ✅ |  |
 | Markdown tapé : `*gras*`, `_italique_`, `~barré~`, `==surligné==`, `[t](url)`, `# `, `> `, `---` | ✅ | |
 | Collage : tableau HTML en table, lignes à cases en tâches | ✅ |  |
@@ -140,7 +140,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Couleurs | ✅ | |
 | Grouper la sélection en colonne | ✅ | |
 | Supprimer emporte le contenu | ✅ | |
-| Hauteur réglable, hauteur bornée d'un élément rangé | 🟡 | Boutons Hauteur −, + et Auto ; pas encore la poignée. |
+| Hauteur réglable, hauteur bornée d'un élément rangé | ✅ |  |
 | Ligne horizontale entre deux colonnes alignées | ✅ |  |
 
 ## 5. Tableau imbriqué
@@ -210,7 +210,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Compteur, « Effacer les faites » | ✅ | En plus de Milanote. |
 | Conversion d'une note `[] ` en liste | ✅ | |
 | Case carrée | ➖ | Notak garde la case ronde. |
-| Poignée pour faire glisser une tâche (vers une autre liste, la toile) | 🟡 | Dans la liste seulement ; pas encore vers une autre liste ni la toile. |
+| Poignée pour faire glisser une tâche (vers une autre liste, la toile) | ✅ | Hors édition. |
 | Collage d'une liste HTML (Google Docs) | ✅ |  |
 | Échéance d'une tâche | ✅ |  |
 | Personne assignée | ✅ |  |
@@ -250,7 +250,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Lien vidéo | ✅ | Outil « Vidéo » du tiroir. |
 | Lien audio | ✅ | Outil « Audio » du tiroir. |
 | Carte (lieu) | ✅ |  |
-| Clone (le même élément à plusieurs endroits) | 🟡 | Les clones suivent l'original à la corbeille ; la règle de Milanote reste à vérifier. |
+| Clone (le même élément à plusieurs endroits) | 🟡 | Les clones suivent l'original à la corbeille ; Milanote ne laisse voir que des indices de sa règle. |
 | Raccourci vers un tableau | ✅ |  |
 
 ## 11. Commun aux éléments
@@ -268,7 +268,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Barre de couleur, couleur libre | ✅ | Notes (voir § 3). |
 | Copier le style d'un élément (Cmd+Alt+V) | ✅ |  |
 | Protéger par mot de passe | ✅ |  |
-| Mode d'affichage (icône, détail) | 🟡 | Cartes ; pas encore les colonnes, tableaux et lignes. |
+| Mode d'affichage (icône, détail) | ✅ | Cartes et colonnes ; un tableau est déjà une icône, une ligne n'a pas de corps à replier. |
 
 ## 12. Organiser
 
