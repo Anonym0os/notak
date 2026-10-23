@@ -169,3 +169,250 @@
   color: rgb(0 0 0 / 0.35);
   pointer-events: none;
 }
+
+/* La couleur de la liste : le fond est celui du cadre commun (la liste le lui demande à travers son enfant), comme une note. */
+.notak-carte:has(> .notak-taches[data-couleur='gris']) { background: var(--notak-note-gris); --notak-voile: var(--notak-note-gris); --notak-liste-fond: var(--notak-note-gris); }
+.notak-carte:has(> .notak-taches[data-couleur='cyan']) { background: var(--notak-note-cyan); --notak-voile: var(--notak-note-cyan); --notak-liste-fond: var(--notak-note-cyan); }
+.notak-carte:has(> .notak-taches[data-couleur='vert']) { background: var(--notak-note-vert); --notak-voile: var(--notak-note-vert); --notak-liste-fond: var(--notak-note-vert); }
+.notak-carte:has(> .notak-taches[data-couleur='brun']) { background: var(--notak-note-brun); --notak-voile: var(--notak-note-brun); --notak-liste-fond: var(--notak-note-brun); }
+.notak-carte:has(> .notak-taches[data-couleur='jaune']) { background: var(--notak-note-jaune); --notak-voile: var(--notak-note-jaune); --notak-liste-fond: var(--notak-note-jaune); }
+.notak-carte:has(> .notak-taches[data-couleur='orange']) { background: var(--notak-note-orange); --notak-voile: var(--notak-note-orange); --notak-liste-fond: var(--notak-note-orange); }
+.notak-carte:has(> .notak-taches[data-couleur='rouge']) { background: var(--notak-note-rouge); --notak-voile: var(--notak-note-rouge); --notak-liste-fond: var(--notak-note-rouge); }
+.notak-carte:has(> .notak-taches[data-couleur='rose']) { background: var(--notak-note-rose); --notak-voile: var(--notak-note-rose); --notak-liste-fond: var(--notak-note-rose); }
+.notak-carte:has(> .notak-taches[data-couleur='violet']) { background: var(--notak-note-violet); --notak-voile: var(--notak-note-violet); --notak-liste-fond: var(--notak-note-violet); }
+.notak-carte:has(> .notak-taches[data-couleur='bleu']) { background: var(--notak-note-bleu); --notak-voile: var(--notak-note-bleu); --notak-liste-fond: var(--notak-note-bleu); }
+.notak-carte:has(> .notak-taches[data-couleur='bleu_nuit']) { background: var(--notak-note-bleu_nuit); --notak-voile: var(--notak-note-bleu_nuit); --notak-liste-fond: var(--notak-note-bleu_nuit); }
+
+/* Sur un fond de couleur, tout se dessine à la couleur du texte. */
+.notak-taches[data-couleur] .notak-taches-titre {
+  color: inherit;
+}
+
+.notak-taches[data-couleur] .notak-taches-titre::placeholder {
+  color: inherit;
+  opacity: 0.55;
+}
+
+.notak-taches[data-couleur] .notak-case::before {
+  border-color: color-mix(in srgb, currentColor 60%, transparent);
+}
+
+.notak-taches[data-couleur] .notak-case:hover::before {
+  border-color: currentColor;
+}
+
+.notak-taches[data-couleur] .notak-case[aria-checked='true']::before {
+  border-color: currentColor;
+  background: currentColor;
+}
+
+.notak-taches[data-couleur] .notak-case[aria-checked='true']::after {
+  border-color: var(--notak-liste-fond, #fff);
+}
+
+.notak-taches[data-couleur] li[data-checked='true'] > div > p {
+  color: inherit;
+  opacity: 0.6;
+}
+
+.notak-taches[data-couleur] .notak-tache-suppr::before,
+.notak-taches[data-couleur] .notak-tache-suppr::after {
+  background: currentColor;
+  opacity: 0.6;
+}
+
+/* À droite du texte : l'échéance, la personne. Une puce vide n'apparaît qu'au survol de la tâche. */
+.notak-puces {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin: 3px 0 0 6px;
+}
+
+.notak-puce {
+  box-sizing: border-box;
+  height: 18px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.notak-puce:hover {
+  background: color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.notak-puce[data-retard] {
+  background: rgb(212 59 59 / 0.12);
+  color: #d43b3b;
+}
+
+.notak-taches li[data-checked='true'] > .notak-puces {
+  opacity: 0.6;
+}
+
+.notak-puce[data-vide] {
+  display: none;
+  border-style: dashed;
+  border-color: color-mix(in srgb, currentColor 35%, transparent);
+  background: none;
+  opacity: 0.7;
+}
+
+.notak-taches li[data-type='taskItem']:hover > .notak-puces > .notak-puce[data-vide] {
+  display: block;
+}
+
+.notak-taches li[data-type='taskItem']:has(li[data-type='taskItem']:hover) > .notak-puces > .notak-puce[data-vide] {
+  display: none;
+}
+
+/* Le menu d'une puce : posé sur la toile, sous la puce touchée. */
+.notak-menu-puce {
+  position: fixed;
+  z-index: 30;
+  box-sizing: border-box;
+  width: 232px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--notak-carte);
+  color: var(--notak-texte);
+  font-size: 13px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
+}
+
+.notak-menu-puce input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid #d5d9de;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+.notak-menu-puce-raccourcis {
+  display: flex;
+  flex-direction: column;
+}
+
+.notak-menu-puce button {
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notak-menu-puce button:hover {
+  background: var(--notak-fond);
+}
+
+.notak-menu-puce-retirer {
+  color: #d43b3b !important;
+}
+
+/* La personne assignée : une pastille ronde à ses initiales. */
+.notak-puce[data-genre='assigne']:not([data-vide]) {
+  width: 18px;
+  padding: 0;
+  border: 0;
+  background: var(--teinte, #7a828c);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.notak-puce[data-genre='assigne']:not([data-vide]):hover {
+  filter: brightness(1.12);
+}
+
+.notak-menu-puce-raccourcis button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notak-menu-puce-raccourcis button[aria-pressed='true'] {
+  background: var(--notak-fond);
+}
+
+.notak-menu-puce-pastille {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+}
+
+/* À gauche d'une tâche, au survol : la poignée pour la changer de place (six points). */
+.notak-taches {
+  position: relative;
+}
+
+.notak-taches li[data-type='taskItem'] {
+  position: relative;
+}
+
+.notak-tache-poignee {
+  position: absolute;
+  left: -20px;
+  top: 6px;
+  width: 12px;
+  height: 18px;
+  background: radial-gradient(circle at 3px 3px, currentColor 1.2px, transparent 1.6px) 0 0 / 6px 6px;
+  opacity: 0;
+  cursor: grab;
+  transition: opacity 100ms;
+}
+
+.notak-taches li[data-type='taskItem']:hover > .notak-tache-poignee {
+  opacity: 0.35;
+}
+
+.notak-taches li[data-type='taskItem'] > .notak-tache-poignee:hover {
+  opacity: 0.8;
+}
+
+/* La sous-tâche survolée montre la sienne, pas celle de sa parente. */
+.notak-taches li[data-type='taskItem']:has(li[data-type='taskItem']:hover) > .notak-tache-poignee {
+  opacity: 0;
+}
+
+/* Pendant le glisser : la tâche prise s'efface un peu, un trait montre où elle se posera. */
+.notak-taches li[data-glisse] {
+  opacity: 0.4;
+}
+
+.notak-glisse-repere {
+  position: absolute;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--notak-accent);
+  pointer-events: none;
+}
+
+.notak-glisse-repere[hidden] {
+  display: none;
+}

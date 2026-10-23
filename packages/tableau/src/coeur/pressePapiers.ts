@@ -57,7 +57,7 @@ export function deballer(p: Paquet, d: Point): Element[] {
     let contenu = e.contenu
     if (contenu.type === 'ligne') {
       const bout = (x: Extremite): Extremite =>
-        'element' in x ? { element: neufs.get(x.element) ?? x.element } : { x: x.x + d.x, y: x.y + d.y }
+        'element' in x ? { ...x, element: neufs.get(x.element) ?? x.element } : { x: x.x + d.x, y: x.y + d.y }
       contenu = { ...contenu, depart: bout(contenu.depart), arrivee: bout(contenu.arrivee) }
     }
     return parent

@@ -146,6 +146,8 @@ export interface Lien {
 export interface Taches {
   type: 'taches'
   titre?: string
+  /** Le fond de la liste, de la palette des notes ; sans lui, la carte est blanche. */
+  couleur?: CouleurNote
   texte: NoeudTexte
 }
 

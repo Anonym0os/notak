@@ -1,16 +1,23 @@
 import { EditorContent, getSchema, useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
-import { type KeyboardEvent, type ReactNode, memo, useEffect, useMemo, useRef, useState } from 'react'
-import type { Element, Id, NoeudTexte, Taches } from '../../coeur/tableau'
+import { type CSSProperties, type KeyboardEvent, type ReactNode, memo, useEffect, useMemo, useRef, useState } from 'react'
+import type { CouleurNote, Element, Id, NoeudTexte, Taches } from '../../coeur/tableau'
 import { extensionsDuPartage, textePartage } from '../partage'
-import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
-import { EXTENSIONS_TACHES, EXTENSIONS_TACHES_PARTAGEE, type GestesTaches, clavierListe } from './extensions'
-import { type Chemin, basculer, compter, docTaches, effacerFaites, estFaite, retirer, sousTaches } from './liste'
+import { texteDeNote } from '../note/couleurs'
+import { MenuCouleur } from '../note/MenuCouleur'
+import type { ContexteToile, PropsOutils, PropsRendu, ServicePresence } from '../types'
+import { EXTENSIONS_TACHES, EXTENSIONS_TACHES_PARTAGEE, type GestesTaches, clavierListe, ouvreursPuces } from './extensions'
+import { MenuPuce, type OuverturePuce } from './MenuPuce'
+import { type Personne, type Puce, assigneDe, echeanceDe, jourDe, personnes, puces } from './puces'
+import { glisserTache } from './glisse'
+import { type Chemin, basculer, deplacer, compter, docTaches, effacerFaites, estFaite, regler, retirer, sousTaches } from './liste'
 
 /** Les listes dont le titre vient d'être ajouté : leur édition y met le curseur. */
 const titreAFocaliser = new Set<Id>()
 
 const sansTitre = ({ titre: _, ...reste }: Taches): Taches => reste
+
+const sansCouleur = ({ couleur: _, ...reste }: Taches): Taches => reste
 
 export function RenduTaches({ element, enEdition, contexte, brouillon, changer }: PropsRendu<Taches>) {
   const { contenu } = element
@@ -18,12 +25,13 @@ export function RenduTaches({ element, enEdition, contexte, brouillon, changer }
     contexte.jeter([element.id])
     contexte.finirEdition()
   }
+  const texte = texteDeNote(contenu.couleur)
   return (
-    <div className="notak-taches">
+    <div className="notak-taches" data-couleur={contenu.couleur} style={texte ? { color: texte } : undefined}>
       {enEdition ? (
         <Edition id={element.id} contenu={contenu} contexte={contexte} surChangement={brouillon} jeter={jeter} />
       ) : (
-        <Figee contenu={contenu} changer={changer} />
+        <Figee contenu={contenu} changer={changer} presence={contexte.services.presence} />
       )}
     </div>
   )
@@ -31,15 +39,28 @@ export function RenduTaches({ element, enEdition, contexte, brouillon, changer }
 
 // ———— Hors édition : la liste se dessine à partir du JSON, cases cliquables ————
 
-const Figee = memo(function Figee({ contenu, changer }: { contenu: Taches; changer(apres: Taches): void }) {
+const Figee = memo(function Figee({ contenu, changer, presence }: { contenu: Taches; changer(apres: Taches): void; presence?: ServicePresence }) {
   const doc = docTaches(contenu.texte)
   const cocher = (chemin: Chemin, enCascade: boolean) =>
     changer({ ...contenu, texte: basculer(doc, chemin, enCascade) })
   const supprimer = (chemin: Chemin) => changer({ ...contenu, texte: retirer(doc, chemin) })
+  const bouger = (de: number, vers: number, avant: boolean) => changer({ ...contenu, texte: deplacer(doc, de, vers, avant) })
+  const [menu, setMenu] = useState<(OuverturePuce & { chemin: Chemin }) | null>(null)
+  const ouvrir = (chemin: Chemin, genre: Puce['genre'], ancre: HTMLElement) => setMenu(ouverturePuce(chemin, genre, ancre))
+  const cible = menu && sousTachePar(doc, menu.chemin)
   return (
     <>
       {contenu.titre && <div className="notak-taches-titre">{contenu.titre}</div>}
-      <Liste noeud={doc} chemin={[]} cocher={cocher} supprimer={supprimer} />
+      <Liste noeud={doc} chemin={[]} cocher={cocher} supprimer={supprimer} ouvrir={ouvrir} deplacer={bouger} />
+      {menu && (
+        <MenuPuce
+          ouverture={menu}
+          valeur={valeurPuce(menu.genre, cible?.attrs)}
+          personnes={personnesPresentes(presence)}
+          regler={(v) => changer({ ...contenu, texte: regler(doc, menu.chemin, { [menu.genre]: v }) })}
+          fermer={() => setMenu(null)}
+        />
+      )}
     </>
   )
 })
@@ -49,9 +70,12 @@ interface PropsListe {
   chemin: Chemin
   cocher(c: Chemin, cascade: boolean): void
   supprimer(c: Chemin): void
+  ouvrir(c: Chemin, genre: Puce['genre'], ancre: HTMLElement): void
+  deplacer(de: number, vers: number, avant: boolean): void
 }
 
-function Liste({ noeud, chemin, cocher, supprimer }: PropsListe) {
+function Liste({ noeud, chemin, cocher, supprimer, ouvrir, deplacer }: PropsListe) {
+  const aujourdhui = jourDe(new Date())
   const taches = sousTaches(noeud)
   if (taches.length === 0) return null
   return (
@@ -61,6 +85,17 @@ function Liste({ noeud, chemin, cocher, supprimer }: PropsListe) {
         const faite = estFaite(tache)
         return (
           <li key={i} data-type="taskItem" data-checked={faite}>
+            <span
+              className="notak-tache-poignee"
+              title="Déplacer la tâche"
+              onPointerDown={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                const racine = e.currentTarget.closest<HTMLElement>('.notak-taches')
+                const li = e.currentTarget.closest<HTMLElement>('li')
+                if (racine && li) glisserTache(e.nativeEvent, racine, li, deplacer)
+              }}
+            />
             <button
               type="button"
               tabIndex={-1}
@@ -77,8 +112,28 @@ function Liste({ noeud, chemin, cocher, supprimer }: PropsListe) {
               {(tache.content ?? []).map((n, k) =>
                 n.type === 'paragraph' ? <p key={k}>{inline(n)}</p> : null,
               )}
-              <Liste noeud={tache} chemin={ici} cocher={cocher} supprimer={supprimer} />
+              <Liste noeud={tache} chemin={ici} cocher={cocher} supprimer={supprimer} ouvrir={ouvrir} deplacer={deplacer} />
             </div>
+            <span className="notak-puces">
+              {puces(tache.attrs, aujourdhui).map((p) => (
+                <button
+                  key={p.genre}
+                  type="button"
+                  tabIndex={-1}
+                  className="notak-puce"
+                  data-genre={p.genre}
+                  data-vide={p.vide ? '' : undefined}
+                  data-retard={p.retard ? '' : undefined}
+                  title={p.titre}
+                  style={p.teinte ? ({ '--teinte': p.teinte } as CSSProperties) : undefined}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onDoubleClick={(e) => e.stopPropagation()}
+                  onClick={(e) => ouvrir(ici, p.genre, e.currentTarget)}
+                >
+                  {p.texte}
+                </button>
+              ))}
+            </span>
             <button
               type="button"
               tabIndex={-1}
@@ -93,6 +148,30 @@ function Liste({ noeud, chemin, cocher, supprimer }: PropsListe) {
       })}
     </ul>
   )
+}
+
+/** La tâche à ce chemin, ou `undefined`. */
+function sousTachePar(doc: NoeudTexte, chemin: Chemin): NoeudTexte | undefined {
+  let n: NoeudTexte | undefined = doc
+  for (const i of chemin) n = n && sousTaches(n)[i]
+  return n
+}
+
+/** Ce que la puce de ce genre porte déjà. */
+const valeurPuce = (genre: Puce['genre'], attrs: Record<string, unknown> | undefined) =>
+  genre === 'echeance' ? echeanceDe(attrs) : assigneDe(attrs)
+
+/** Soi et ceux qui sont là sur le tableau : les noms qu'on propose d'assigner. */
+function personnesPresentes(presence: ServicePresence | undefined): Personne[] {
+  const vers = (u: { nom: string; couleur: string }): Personne => ({ nom: u.nom, couleur: u.couleur })
+  const moi = presence?.moi?.()
+  return personnes(moi && vers(moi), (presence?.autres() ?? []).map((p) => vers(p.utilisateur)))
+}
+
+/** Où ouvrir le menu d'une puce : sous elle, dans la toile qui la porte. */
+function ouverturePuce(chemin: Chemin, genre: Puce['genre'], ancre: HTMLElement) {
+  const r = ancre.getBoundingClientRect()
+  return { chemin, genre, ancre: { left: r.left, bottom: r.bottom }, hote: (ancre.closest('.notak-toile') as HTMLElement | null) ?? document.body }
 }
 
 function inline(paragraphe: NoeudTexte): ReactNode {
@@ -150,6 +229,16 @@ function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surC
     onUpdate: ({ editor }) => poser({ ...courant.current, texte: editor.getJSON() as NoeudTexte }),
   })
   editeurRef.current = editeur
+  const [menu, setMenu] = useState<(OuverturePuce & { pos: number }) | null>(null)
+  useEffect(() => {
+    if (!editeur) return
+    ouvreursPuces.set(editeur, (genre, pos, ancre) => {
+      const { chemin: _, ...o } = ouverturePuce([], genre, ancre)
+      setMenu({ ...o, pos })
+    })
+    return () => void ouvreursPuces.delete(editeur)
+  }, [editeur])
+  const tacheDuMenu = menu && editeur?.state.doc.nodeAt(menu.pos)
 
   useEffect(() => {
     if (focaliserTitre.current) champ.current?.focus()
@@ -214,6 +303,18 @@ function Edition(props: { id: Id; contenu: Taches; contexte: ContexteToile; surC
         />
       )}
       <EditorContent editor={editeur} />
+      {menu && editeur && (
+        <MenuPuce
+          ouverture={menu}
+          valeur={valeurPuce(menu.genre, tacheDuMenu ? tacheDuMenu.attrs : undefined)}
+          personnes={personnesPresentes(contexte.services.presence)}
+          regler={(v) => {
+            const t = editeur.state.doc.nodeAt(menu.pos)
+            if (t?.type.name === 'taskItem') editeur.view.dispatch(editeur.state.tr.setNodeMarkup(menu.pos, undefined, { ...t.attrs, [menu.genre]: v }))
+          }}
+          fermer={() => setMenu(null)}
+        />
+      )}
     </>
   )
 }
@@ -260,6 +361,12 @@ export function OutilsTaches({ elements, contexte }: PropsOutils<Taches>) {
       <button type="button" aria-pressed={toutesTitrees} onClick={basculerTitre}>
         Titre
       </button>
+      <MenuCouleur
+        actuelle={elements.every((e) => e.contenu.couleur === elements[0]!.contenu.couleur) ? elements[0]!.contenu.couleur : undefined}
+        choisir={(couleur: CouleurNote | undefined) =>
+          changerTout((e) => (couleur ? { ...sansCouleur(e.contenu), couleur } : sansCouleur(e.contenu)))
+        }
+      />
       {faites >= 2 && (
         <button
           type="button"

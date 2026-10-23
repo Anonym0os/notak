@@ -5,8 +5,8 @@
  * Une ligne va d'un point à un autre. Accrochée à un élément, elle vise son centre et s'arrête sur son bord.
  * Une courbe est une Bézier quadratique dont le point de contrôle vient de `{ ecart, position }`.
  */
-import { type Point, type Rect, contient, hauteur, largeur, point } from './geometrie'
-import type { Ancre, Element, Id, Ligne, Pointe, Tableau } from './tableau'
+import { type Point, type Rect, centre, contient, hauteur, largeur, point } from './geometrie'
+import type { Ancre, Element, Extremite, Id, Ligne, Pointe, Tableau } from './tableau'
 
 export type Courbe = NonNullable<Ligne['courbe']>
 
@@ -289,4 +289,47 @@ export function aligneesEnColonnes(a: Point, b: Point, rectA: Rect, rectB: Rect)
   if (Math.abs(rectA.min.y - rectB.min.y) > ECART_COLONNES_ALIGNEES) return null
   const y = Math.max(rectA.min.y, rectB.min.y) + MILIEU_TITRE_COLONNE
   return { a: point(a.x, y), b: point(b.x, y) }
+}
+
+// ———— Ce que vise une ligne ————
+
+/**
+ * Où s'accroche un bout lâché en `p` sur un élément : au point précis si `p` est sur son bord (coins et milieux
+ * des bords collent), sinon `null` et la ligne vise le centre, comme d'habitude. Lâcher dans la carte ne choisit
+ * donc jamais un point au hasard.
+ */
+export function ancreDeposee(r: Rect, p: Point, pres = PRES_ANCRE): Ancre | null {
+  const a = ancreSous(r, p, pres)
+  return a && (a.x === 0 || a.x === 1 || a.y === 0 || a.y === 1) ? a : null
+}
+
+/** Ce que vise une ligne : ses deux points, et pour chacun le rectangle où le trait s'arrête, s'il y en a un. */
+export interface Visee {
+  a: Point
+  b: Point
+  rectA: Rect | null
+  rectB: Rect | null
+}
+
+/**
+ * Les points que la ligne relie, à partir de ses extrémités et des rectangles des éléments accrochés.
+ * Un bout accroché vise le centre de l'élément et s'arrête sur son bord ; avec une ancre, il vise ce point
+ * et s'y arrête. `entreColonnes` : les deux bouts sont des colonnes, que le trait relie à la hauteur de leurs
+ * titres quand elles sont alignées. `null` s'il manque le rectangle d'un élément accroché.
+ */
+export function viser(
+  depart: Extremite,
+  arrivee: Extremite,
+  rects: { depart: Rect | null; arrivee: Rect | null },
+  entreColonnes = false,
+): Visee | null {
+  const bout = (x: Extremite, r: Rect | null) => {
+    if (!('element' in x)) return { p: point(x.x, x.y), rect: null }
+    if (!r) return null
+    return x.ancre ? { p: pointAncre(r, x.ancre), rect: null } : { p: centre(r), rect: r }
+  }
+  const [d, a] = [bout(depart, rects.depart), bout(arrivee, rects.arrivee)]
+  if (!d || !a) return null
+  const droit = entreColonnes && d.rect && a.rect ? aligneesEnColonnes(d.p, a.p, d.rect, a.rect) : null
+  return { a: droit?.a ?? d.p, b: droit?.b ?? a.p, rectA: d.rect, rectB: a.rect }
 }

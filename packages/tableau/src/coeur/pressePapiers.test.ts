@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { decalageDeCollage, deballer, empaqueter, texteDuPaquet } from './pressePapiers'
-import { type Element, type Tableau, nouvelleColonne, nouvelleNote } from './tableau'
+import { type Element, type Ligne, type Tableau, nouvelleColonne, nouvelleNote } from './tableau'
 
 const boite = (e: Element) => ({ min: { x: e.x, y: e.y }, max: { x: e.x + e.largeur, y: e.y + 8 } })
 
@@ -47,6 +47,20 @@ describe('presse-papiers', () => {
     expect(col).toMatchObject({ x: 2, y: 2 })
     const l = neufs.find((e) => e.contenu.type === 'ligne')!.contenu
     expect(l.type === 'ligne' && 'element' in l.depart && l.depart.element).toBe(col.id)
+  })
+
+  it('une ligne collée garde le point précis où elle s’accroche, du côté de l’élément copié', () => {
+    const ancree: Element = {
+      ...ligne,
+      contenu: { ...(ligne.contenu as Ligne), depart: { element: colonne.id, ancre: { x: 1, y: 0.25 } }, arrivee: { element: note.id, ancre: { x: 0, y: 0 } } },
+    }
+    const t2: Tableau = { titre: '', elements: [colonne, rangee, note, ancree] }
+    const p = empaqueter(t2, [colonne.id, note.id], rect)!
+    const neufs = deballer(p, { x: 2, y: 2 })
+    const l = neufs.find((e) => e.contenu.type === 'ligne')!.contenu as Ligne
+    const [col, nt] = [neufs.find((e) => e.contenu.type === 'colonne')!, neufs.find((e) => e.contenu.type === 'note')!]
+    expect(l.depart).toEqual({ element: col.id, ancre: { x: 1, y: 0.25 } })
+    expect(l.arrivee).toEqual({ element: nt.id, ancre: { x: 0, y: 0 } })
   })
 
   it('décale de 2 UG par collage en vue, centre sinon', () => {

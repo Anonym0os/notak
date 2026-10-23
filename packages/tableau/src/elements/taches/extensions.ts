@@ -6,7 +6,10 @@ import { Fragment, type Node as NoeudPM, Slice } from '@tiptap/pm/model'
 import { type EditorState, Plugin, TextSelection } from '@tiptap/pm/state'
 import type { MutableRefObject } from 'react'
 import type { NoeudTexte } from '../../coeur/tableau'
-import { PROFONDEUR_MAX, hauteur, lignesEnTaches, peutDescendre } from './liste'
+import { glisserTache } from './glisse'
+import { htmlEnTaches } from './html'
+import { PROFONDEUR_MAX, hauteur, lignesEnTaches, peutDescendre, peutPoserAuNiveau } from './liste'
+import { type GenrePuce, jourDe, puces } from './puces'
 
 /** Le document n'est qu'une liste de tâches. */
 const Document = Node.create({ name: 'doc', topNode: true, content: 'taskList' })
@@ -26,9 +29,23 @@ export function cocherDansEditeur(editor: Editor, pos: number, enCascade: boolea
   editor.view.dispatch(tr)
 }
 
+/** Qui ouvre le menu d'une puce, par éditeur : la vue du nœud est du DOM nu, le menu est en React (voir `Taches.tsx`). */
+export const ouvreursPuces = new WeakMap<Editor, (genre: GenrePuce, pos: number, ancre: HTMLElement) => void>()
+
+/** Les attributs d'une tâche qui ne se recopient pas sur la tâche née d'une scission (Entrée). */
+const attributTexte = (nom: string) => ({
+  default: null,
+  keepOnSplit: false,
+  parseHTML: (el: HTMLElement) => el.getAttribute(`data-${nom}`),
+  renderHTML: (attrs: Record<string, unknown>) => (attrs[nom] ? { [`data-${nom}`]: String(attrs[nom]) } : {}),
+})
+
 /** La case ronde : un nœud à elle, pour garder la main sur le clic (Maj+clic) et la zone de clic. */
 const Tache = TaskItem.extend({
   content: 'paragraph taskList?',
+  addAttributes() {
+    return { ...this.parent?.(), echeance: attributTexte('echeance'), assigne: attributTexte('assigne') }
+  },
   addNodeView() {
     return ({ node, getPos, editor }) => {
       const li = document.createElement('li')
@@ -54,8 +71,47 @@ const Tache = TaskItem.extend({
         const pos = getPos()
         if (typeof pos === 'number') retirerDansEditeur(editor, pos)
       })
-      li.append(case_, contenu, suppr)
+      // À droite du texte : l'échéance, la personne.
+      const zonePuces = document.createElement('span')
+      zonePuces.className = 'notak-puces'
+      zonePuces.contentEditable = 'false'
+      // À gauche, au survol : la poignée pour changer la tâche de place.
+      const poignee = document.createElement('span')
+      poignee.className = 'notak-tache-poignee'
+      poignee.contentEditable = 'false'
+      poignee.title = 'Déplacer la tâche'
+      poignee.addEventListener('pointerdown', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        const racine = li.closest<HTMLElement>('.notak-taches')
+        if (racine) glisserTache(e, racine, li, (de, vers, avant) => deplacerDansEditeur(editor, de, vers, avant))
+      })
+      li.append(poignee, case_, contenu, zonePuces, suppr)
+      const dessinerPuces = (n: NoeudPM) => {
+        zonePuces.replaceChildren(
+          ...puces(n.attrs, jourDe(new Date())).map((p) => {
+            const b = document.createElement('button')
+            b.type = 'button'
+            b.tabIndex = -1
+            b.className = 'notak-puce'
+            b.dataset.genre = p.genre
+            if (p.vide) b.dataset.vide = ''
+            if (p.retard) b.dataset.retard = ''
+            b.title = p.titre
+            b.textContent = p.texte
+            if (p.teinte) b.style.setProperty('--teinte', p.teinte)
+            b.addEventListener('mousedown', (e) => e.preventDefault())
+            b.addEventListener('click', (e) => {
+              e.preventDefault()
+              const pos = getPos()
+              if (typeof pos === 'number') ouvreursPuces.get(editor)?.(p.genre, pos, b)
+            })
+            return b
+          }),
+        )
+      }
       const poser = (n: NoeudPM) => {
+        dessinerPuces(n)
         li.dataset.type = 'taskItem'
         li.dataset.checked = String(n.attrs.checked === true)
         case_.setAttribute('aria-checked', String(n.attrs.checked === true))
@@ -73,6 +129,50 @@ const Tache = TaskItem.extend({
     }
   },
 }).configure({ nested: true })
+
+/** Les tâches du document avec leur position, dans l'ordre de lecture. */
+function tachesAvecPosition(doc: NoeudPM) {
+  const res: { pos: number; noeud: NoeudPM }[] = []
+  doc.descendants((noeud, pos) => {
+    if (noeud.type.name === 'taskItem') res.push({ pos, noeud })
+  })
+  return res
+}
+
+/**
+ * Passe la tâche `de` (son rang dans l'ordre de lecture) avant ou après la tâche `vers`, au même niveau ;
+ * ses sous-tâches la suivent. Même règle que `deplacer` (liste.ts), mais en une transaction : le curseur
+ * et le texte partagé ne sont pas touchés ailleurs. Rend faux si rien n'a bougé.
+ */
+export function deplacerDansEditeur(editor: Editor, de: number, vers: number, avant: boolean): boolean {
+  const { state } = editor
+  const taches = tachesAvecPosition(state.doc)
+  const source = taches[de]
+  const cible = taches[vers]
+  if (!source || !cible) return false
+  const finSource = source.pos + source.noeud.nodeSize
+  // Sur soi, ou dans ses propres sous-tâches.
+  if (cible.pos >= source.pos && cible.pos < finSource) return false
+  const $cible = state.doc.resolve(cible.pos)
+  let niveau = 1
+  for (let d = $cible.depth; d > 0; d--) if ($cible.node(d).type.name === 'taskItem') niveau += 1
+  if (!peutPoserAuNiveau(niveau, hauteur(source.noeud.toJSON() as NoeudTexte))) return false
+
+  const ou = avant ? cible.pos : cible.pos + cible.noeud.nodeSize
+  const $source = state.doc.resolve(source.pos)
+  const tr = state.tr
+  // Seule dans sa sous-liste, la tâche emporte la sous-liste ; la liste du haut n'est jamais vidée (la cible est ailleurs).
+  if ($source.parent.childCount === 1 && $source.depth > 1) tr.delete(source.pos - 1, finSource + 1)
+  else tr.delete(source.pos, finSource)
+  let arrivee = tr.mapping.map(ou)
+  const dedans = tr.doc.resolve(arrivee)
+  // Avant ou après une tâche, on est toujours dans une liste ; par prudence, rien ne bouge sinon.
+  if (dedans.parent.type.name !== 'taskList') return false
+  tr.insert(arrivee, source.noeud)
+  tr.setSelection(TextSelection.near(tr.doc.resolve(arrivee + 2)))
+  editor.view.dispatch(tr.scrollIntoView())
+  return true
+}
 
 /** Retire la tâche en `pos` ; seule dans sa liste, elle emporte la liste, ou laisse une tâche vide tout en haut. */
 export function retirerDansEditeur(editor: Editor, pos: number) {
@@ -102,29 +202,37 @@ export interface GestesTaches {
  * Retour arrière dans la première tâche, vide : avec d'autres tâches, elle devient le titre ; seule, le curseur
  * remonte au titre, ou la liste part à la corbeille s'il n'y en a pas.
  */
-export const clavierListe = (gestes: MutableRefObject<GestesTaches>) =>
-  Extension.create({
+export const clavierListe = (gestes: MutableRefObject<GestesTaches>) => {
+  const retour = ({ editor }: { editor: Editor }) => {
+    const { $from, empty } = editor.state.selection
+    if (!empty || $from.parentOffset !== 0 || $from.depth !== 3) return false
+    const tache = $from.node(2)
+    if ($from.index(1) !== 0 || tache.childCount > 1 || tache.textContent !== '') return false
+    const liste = $from.node(1)
+    if (liste.childCount > 1) {
+      const pos = $from.before(2)
+      editor.view.dispatch(editor.state.tr.delete(pos, pos + tache.nodeSize))
+      gestes.current.versTitre()
+    } else if (gestes.current.aUnTitre()) gestes.current.versTitre()
+    else gestes.current.jeter()
+    return true
+  }
+  // Cmd ou Alt + retour arrière sur une tâche vide : comme le retour arrière seul (voir `ClavierTaches`).
+  const retourModifie = (p: { editor: Editor }) => texteVide(p.editor.state) && retour(p)
+  return Extension.create({
     name: 'clavierListe',
     priority: 300,
     addKeyboardShortcuts() {
-      return {
-        Backspace: ({ editor }) => {
-          const { $from, empty } = editor.state.selection
-          if (!empty || $from.parentOffset !== 0 || $from.depth !== 3) return false
-          const tache = $from.node(2)
-          if ($from.index(1) !== 0 || tache.childCount > 1 || tache.textContent !== '') return false
-          const liste = $from.node(1)
-          if (liste.childCount > 1) {
-            const pos = $from.before(2)
-            editor.view.dispatch(editor.state.tr.delete(pos, pos + tache.nodeSize))
-            gestes.current.versTitre()
-          } else if (gestes.current.aUnTitre()) gestes.current.versTitre()
-          else gestes.current.jeter()
-          return true
-        },
-      }
+      return { Backspace: retour, 'Mod-Backspace': retourModifie, 'Alt-Backspace': retourModifie }
     },
   })
+}
+
+/** Le curseur est dans le texte d'une tâche, et ce texte est vide. */
+export function texteVide(etat: EditorState): boolean {
+  const { $from, empty } = etat.selection
+  return empty && $from.parent.type.name === 'paragraph' && $from.parent.content.size === 0 && $from.node(-1).type.name === 'taskItem'
+}
 
 /** Les tâches parmi les ancêtres de la sélection : leur niveau (1 = en haut) et leur hauteur. */
 function tachesAutour(etat: EditorState) {
@@ -180,6 +288,17 @@ export function fusionnerAvecPrecedente(editor: Editor): boolean {
   return true
 }
 
+/**
+ * Cmd ou Alt + retour arrière sur une tâche vide la réduit : elle se fond dans la précédente, ou, première
+ * de sa sous-liste, remonte d'un niveau. Sur une tâche qui a du texte, c'est l'effacement d'un mot, comme partout.
+ */
+export function reduireVide(editor: Editor): boolean {
+  if (!texteVide(editor.state)) return false
+  if (fusionnerAvecPrecedente(editor)) return true
+  editor.commands.liftListItem('taskItem')
+  return true
+}
+
 /** La profondeur des nœuds ouverts au bout d'un nœud, jusqu'à son dernier bloc de texte (compris). */
 function ouvertsAuBout(n: NoeudPM | null): number {
   let d = 0
@@ -190,13 +309,17 @@ function ouvertsAuBout(n: NoeudPM | null): number {
   return d + 1
 }
 
-/** Des lignes collées (d'un autre logiciel) deviennent des tâches ; ce qui vient de Notak se colle tel quel. */
+/**
+ * Des lignes ou une liste collées (d'un autre logiciel) deviennent des tâches ; ce qui vient de Notak se colle tel quel.
+ * Le HTML passe en premier (puces et sous-listes de Google Docs), le texte brut sinon.
+ */
 const CollageEnTaches = new Plugin({
   props: {
     handlePaste(view, event) {
       const donnees = event.clipboardData
-      if (!donnees || donnees.getData('text/html').includes('data-pm-slice')) return false
-      const taches = lignesEnTaches(donnees.getData('text/plain'))
+      const html = donnees?.getData('text/html') ?? ''
+      if (!donnees || html.includes('data-pm-slice')) return false
+      const taches = htmlEnTaches(html) ?? lignesEnTaches(donnees.getData('text/plain'))
       if (!taches) return false
       const noeuds = taches.map((t) => view.state.schema.nodeFromJSON(t))
       const tranche = new Slice(Fragment.fromArray(noeuds), 2, ouvertsAuBout(noeuds.at(-1) ?? null))
@@ -227,6 +350,8 @@ const ClavierTaches = Extension.create({
         return true
       },
       Backspace: ({ editor }) => fusionnerAvecPrecedente(editor),
+      'Mod-Backspace': ({ editor }) => reduireVide(editor),
+      'Alt-Backspace': ({ editor }) => reduireVide(editor),
       // Une tâche vide tout en haut n'a pas de niveau où remonter : on ne fait rien.
       Enter: ({ editor }) => {
         const [v] = tachesAutour(editor.state)

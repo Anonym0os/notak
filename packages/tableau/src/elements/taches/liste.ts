@@ -191,3 +191,69 @@ export function lignesEnTaches(texte: string): NoeudTexte[] | null {
     })
   return nettoyer(racine)
 }
+
+/**
+ * Le document où cette tâche a de nouveaux attributs (`echeance`, `assigne`…). Une valeur `null` ou vide
+ * retire l'attribut. Un chemin inconnu ne change rien.
+ */
+export function regler(doc: NoeudTexte, chemin: Chemin, attrs: Record<string, unknown>): NoeudTexte {
+  return (
+    modifier(doc, chemin, (t) => {
+      const apres = { ...t.attrs, ...attrs }
+      for (const [k, v] of Object.entries(apres)) if (v === null || v === undefined || v === '') delete apres[k]
+      return { ...t, attrs: apres }
+    }) ?? doc
+  )
+}
+
+// ———— Réordonner ————
+
+/** Les chemins de toutes les tâches, dans l'ordre où elles se lisent (une tâche, puis ses sous-tâches). */
+export function cheminsEnOrdre(doc: NoeudTexte): Chemin[] {
+  const suite = (parent: NoeudTexte, prefixe: Chemin): Chemin[] =>
+    sousTaches(parent).flatMap((t, i) => [[...prefixe, i], ...suite(t, [...prefixe, i])])
+  return suite(doc, [])
+}
+
+function tacheA(doc: NoeudTexte, chemin: Chemin): NoeudTexte | undefined {
+  let n: NoeudTexte | undefined = doc
+  for (const i of chemin) n = n && sousTaches(n)[i]
+  return n === doc ? undefined : n
+}
+
+/** Pose `tache` à l'indice `indice` des sous-tâches de `parent` (le document si son chemin est vide). */
+function inserer(doc: NoeudTexte, parent: Chemin, indice: number, tache: NoeudTexte): NoeudTexte {
+  const dans = (n: NoeudTexte): NoeudTexte => {
+    const i = (n.content ?? []).findIndex((x) => x.type === 'taskList')
+    if (i < 0) return { ...n, content: [...(n.content ?? []), { type: 'taskList', content: [tache] }] }
+    return {
+      ...n,
+      content: n.content!.map((x, k) => (k === i ? { ...x, content: [...x.content!.slice(0, indice), tache, ...x.content!.slice(indice)] } : x)),
+    }
+  }
+  return parent.length === 0 ? dans(doc) : (modifier(doc, parent, dans) ?? doc)
+}
+
+/** Une tâche de cette hauteur peut-elle prendre place à ce niveau (1 = en haut) sans passer le sixième ? */
+export const peutPoserAuNiveau = (niveau: number, hauteurTache: number) => niveau + hauteurTache - 1 <= PROFONDEUR_MAX
+
+/**
+ * Le document où la tâche `de` (son rang dans l'ordre de lecture) est passée avant ou après la tâche `vers`,
+ * au même niveau qu'elle ; ses sous-tâches la suivent. Rien ne change si la cible est la tâche elle-même ou
+ * l'une de ses sous-tâches, ou si elle passerait le sixième niveau.
+ */
+export function deplacer(doc: NoeudTexte, de: number, vers: number, avant: boolean): NoeudTexte {
+  const chemins = cheminsEnOrdre(doc)
+  const source = chemins[de]
+  const cible = chemins[vers]
+  if (!source || !cible || source.every((x, k) => cible[k] === x)) return doc
+  const tache = tacheA(doc, source)
+  if (!tache || !peutPoserAuNiveau(cible.length, hauteur(tache))) return doc
+  // Une fois la tâche retirée, les frères d'après elle ont un rang de moins.
+  const parentSource = source.length - 1
+  const ajuste = [...cible]
+  if (cible.length > parentSource && source.slice(0, parentSource).every((x, k) => cible[k] === x) && cible[parentSource]! > source[parentSource]!) {
+    ajuste[parentSource] = cible[parentSource]! - 1
+  }
+  return inserer(retirer(doc, source), ajuste.slice(0, -1), ajuste.at(-1)! + (avant ? 0 : 1), tache)
+}

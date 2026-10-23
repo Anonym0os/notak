@@ -1,3 +1,4 @@
+import { couleurDuContenu } from '../couleur'
 import { registre } from '../registre'
 import { RenduTaches, OutilsTaches } from './Taches'
 import { HAUTEUR_TACHES_MIN, nouvelleListeTaches } from './liste'
@@ -10,9 +11,15 @@ registre.type<Taches>({
   resume: (c) => c.titre || texteBrut(c.texte),
   Rendu: RenduTaches,
   Outils: OutilsTaches,
+  couleur: couleurDuContenu<Taches>(),
   editable: true,
   hauteurParDefaut: HAUTEUR_TACHES_MIN,
-  suivant: (e, places) => ({ ...nouvelleListeTaches(places.dessous.x, places.dessous.y), largeur: e.largeur }),
+  // La liste suivante garde la largeur ; avec la mise en forme, elle garde aussi la couleur.
+  suivant: (e, places, format) => {
+    const neuve = nouvelleListeTaches(places.dessous.x, places.dessous.y)
+    const couleur = format && e.contenu.couleur ? { couleur: e.contenu.couleur } : {}
+    return { ...neuve, largeur: e.largeur, contenu: { ...neuve.contenu, ...couleur } }
+  },
   outils: [
     {
       libelle: 'Tâches',
