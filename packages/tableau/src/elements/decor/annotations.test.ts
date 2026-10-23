@@ -108,6 +108,8 @@ describe('mode d’affichage', () => {
     expect(peutEtreIcone({ type: 'note' } as never)).toBe(true)
     expect(peutEtreIcone({ type: 'colonne', accepte: () => true } as never)).toBe(false)
     expect(peutEtreIcone({ type: 'tableau' } as never)).toBe(false)
+    expect(peutEtreIcone({ type: 'image' } as never)).toBe(false)
+    expect(peutEtreIcone({ type: 'fichier' } as never)).toBe(false)
     expect(peutEtreIcone({ type: 'ligne', calque: 'lignes' } as never)).toBe(false)
     expect(peutEtreIcone(undefined)).toBe(false)
   })

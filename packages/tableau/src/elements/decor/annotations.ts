@@ -196,9 +196,11 @@ export function libelleEcheance(echeance: string, maintenant = new Date()): stri
 
 /**
  * Les cartes que le cadre commun replie en pastille. Une colonne se réduit en se repliant (`repliee`, voir `affichage.ts`),
- * un tableau imbriqué est déjà une icône, une ligne n'a pas de corps.
+ * un tableau imbriqué est déjà une icône, une ligne n'a pas de corps. Une image n'a pas de mode d'affichage chez Milanote ;
+ * un fichier a le sien (la feuille du mode icône, `Fichier.icone`).
  */
-export const peutEtreIcone = (def: TypeElement | undefined): boolean => !!def && !def.accepte && def.type !== 'tableau' && def.calque !== 'lignes'
+export const peutEtreIcone = (def: TypeElement | undefined): boolean =>
+  !!def && !def.accepte && def.type !== 'tableau' && def.type !== 'image' && def.type !== 'fichier' && def.calque !== 'lignes'
 
 // ---- Commun à tous ----
 
