@@ -29,3 +29,4 @@ export { BULLES, bulleAMontrer, vuesDuCompte, type Bulle, type GesteDecouverte }
 export { type ServiceCompte, COULEURS_COMPTE } from './reglages'
 export { PastillePersonne } from './pastille'
 export { type ChoixLangue, type Langue, type Textes, ajouterTextes, definirLangue, en as textesEn, fr as textesFr, langue, t, tn, useLangue } from './langue'
+export { Icone, ico, type NomIcone, type PropsIcone } from './icones'
