@@ -13,8 +13,8 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 
 | Partie | Fait | En partie | Absent | Avancement |
 |---|---|---|---|---|
-| 1. Toile | 23 | 3 | 1 | 91 % |
-| 2. Création | 15 | 2 | 0 | 94 % |
+| 1. Toile | 24 | 2 | 1 | 93 % |
+| 2. Création | 16 | 1 | 0 | 97 % |
 | 3. Note et texte | 30 | 0 | 1 | 97 % |
 | 4. Colonne | 10 | 1 | 0 | 95 % |
 | 5. Tableau imbriqué | 11 | 0 | 0 | 100 % |
@@ -27,10 +27,10 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 12. Organiser | 16 | 0 | 0 | 100 % |
 | 13. Naviguer | 12 | 0 | 1 | 92 % |
 | 14. À plusieurs | 17 | 0 | 0 | 100 % |
-| 15. Habillage | 12 | 2 | 1 | 87 % |
+| 15. Habillage | 13 | 1 | 1 | 90 % |
 | 16. Exporter, importer | 2 | 2 | 0 | 75 % |
 | 17. Plateformes | 5 | 2 | 0 | 86 % |
-| **Total** | **229** | **16** | **4** | **95 %** |
+| **Total** | **232** | **13** | **4** | **96 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -44,7 +44,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Attraper la toile (Espace + glisser, bouton du milieu) | ✅ | |
 | Zoom molette et pincement, lissé, effleurement corrigé, inertie filtrée | ✅ | |
 | Cmd+plus, Cmd+moins, Cmd+0 | ✅ | |
-| Crans de zoom et Ajuster | 🟡 | Ajuster et son retour à 100 % comme Milanote ; crans du bas encore calculés à notre façon. |
+| Crans de zoom et Ajuster | ✅ | |
 | Document borné (bord haut-gauche, marges de 50 × 40 UG), recentrage en dézoomant | ✅ | |
 | Grille de points | ✅ | |
 | Tailles de grille 8, 9, 10 px (Cmd+Maj+, et .) | ⬜ | Notak fixe 10 px. |

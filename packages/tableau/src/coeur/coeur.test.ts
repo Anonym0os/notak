@@ -215,6 +215,13 @@ describe('caméra', () => {
     expect(cam.bornerVue(cam.CAMERA_DEPART, null, VUE)).toBe(cam.CAMERA_DEPART)
   })
 
+  test('les crans du bas, du minimum à 100 % : 40, 47, 57, 73 %', () => {
+    const vus: number[] = []
+    for (let e = 1; e > 0.41; ) vus.push(Math.round((e = cam.cranDessous(e, 0.4)) * 100))
+    expect(vus).toEqual([73, 57, 47, 40])
+    expect(Math.round(cam.cranDessus(0.4, 0.4) * 100)).toBe(47)
+  })
+
   test('la courbe part de zéro et finit à un', () => {
     proche(cam.adoucir(0), 0)
     proche(cam.adoucir(1), 1)

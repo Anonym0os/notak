@@ -125,8 +125,14 @@ export class GesteZoom {
  */
 export const pointFixe = (nouvelle: number, curseur: Point, v: Vue): Point => (nouvelle > 1 ? curseur : centreVue(v))
 
+/**
+ * Les crans du clavier : quatre entre l'échelle minimale et 100 %, rangés comme les focales d'un objectif
+ * (`F / (F + k)`, où `F` met le quatrième cran sur `min`) — serrés près de 100 %, plus espacés en bas.
+ */
 function crans(min: number): number[] {
-  return [min, ...[3, 2, 1].map((k) => min ** (k / 4)), 1, ...CRANS_DESSUS]
+  const f = (4 * min) / (1 - min)
+  const dessous = min < 1 ? [4, 3, 2, 1].map((k) => f / (f + k)) : []
+  return [...dessous, 1, ...CRANS_DESSUS]
 }
 
 /** Le cran du clavier juste au-dessus de l'échelle actuelle. */
