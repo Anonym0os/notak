@@ -41,6 +41,9 @@ export interface Contexte {
 export const FICHIER_MAX = 25 * 1024 * 1024
 const ID_TABLEAU = /^[A-Za-z0-9_-]{8,64}$/
 const ID_FICHIER = /^[0-9a-f-]{36}$/
+const COULEUR_COMPTE = /^#[0-9a-f]{6}$/i
+/** Les formats d'une photo de compte : ceux qu'un navigateur affiche sans script (pas de SVG). */
+const TYPES_PHOTO = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
 /** Combien de tableaux récents la liste montre. */
 const RECENTS_AFFICHES = 12
 /** Combien de résultats la recherche dans tous les tableaux rend au plus. */
@@ -64,7 +67,7 @@ export function enTeteTelechargement(titre: string, extension: string): string {
   return `attachment; filename="${ascii}.${extension}"; filename*=UTF-8''${encodeURIComponent(`${net}.${extension}`)}`
 }
 
-const moi = (u: Utilisateur) => ({ id: u.id, email: u.email, nom: u.nom, couleur: u.couleur, racine: u.racine })
+const moi = (u: Utilisateur) => ({ id: u.id, email: u.email, nom: u.nom, couleur: u.couleur, racine: u.racine, photo: u.photo ?? null })
 
 export function creerApp(ctx: Contexte): Hono {
   const { base } = ctx
@@ -150,6 +153,32 @@ export function creerApp(ctx: Contexte): Hono {
   app.get('/api/moi', (c) => {
     const u = utilisateurCourant(c)
     return u ? c.json(moi(u)) : c.json({ erreur: 'non connecté' }, 401)
+  })
+
+  // Les réglages du compte : sa couleur (curseur, pastille) et sa photo, un fichier que le compte a déposé.
+  app.patch('/api/moi', async (c) => {
+    const u = utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté' }, 401)
+    const b = await corps(c)
+    if (!b) return c.json({ erreur: 'corps invalide' }, 400)
+    const reglages: { couleur?: string; photo?: string | null } = {}
+    if ('couleur' in b) {
+      if (typeof b.couleur !== 'string' || !COULEUR_COMPTE.test(b.couleur)) return c.json({ erreur: 'couleur invalide' }, 400)
+      reglages.couleur = b.couleur.toLowerCase()
+    }
+    if ('photo' in b) {
+      if (b.photo === null) reglages.photo = null
+      else {
+        const f = typeof b.photo === 'string' && ID_FICHIER.test(b.photo) ? base.fichier(b.photo) : null
+        // Un fichier qu'on n'a pas déposé soi-même n'est pas une photo qu'on peut prendre.
+        if (!f || f.auteur !== u.id) return c.json({ erreur: 'photo introuvable' }, 400)
+        if (!TYPES_PHOTO.has(f.type)) return c.json({ erreur: 'format de photo refusé' }, 415)
+        reglages.photo = f.id
+      }
+    }
+    if (Object.keys(reglages).length === 0) return c.json({ erreur: 'rien à régler' }, 400)
+    base.reglerCompte(u.id, reglages)
+    return c.json(moi(base.utilisateurParId(u.id) ?? u))
   })
 
   // ---- Tableaux ----

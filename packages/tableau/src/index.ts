@@ -22,3 +22,8 @@ export {
 } from './coeur/espaceDistant'
 export { creerReseauNavigateur } from './reseau'
 export { type Arrivee, decomposerArrivee, elementsArrives, elementsDeTexte, poserDansNonTries } from './arrivee'
+export * from './modeles'
+export { BullesDecouverte } from './BullesDecouverte'
+export { BULLES, bulleAMontrer, vuesDuCompte, type Bulle, type GesteDecouverte } from './decouverte'
+export { type ServiceCompte, COULEURS_COMPTE } from './reglages'
+export { PastillePersonne } from './pastille'

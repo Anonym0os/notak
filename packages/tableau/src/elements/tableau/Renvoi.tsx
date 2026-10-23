@@ -4,6 +4,9 @@ import { FOND_NOTE } from '../note/couleurs'
 import type { PropsRendu } from '../types'
 import { pastilleDe } from './icones'
 import { initiale, libelleContenu } from './libelles'
+import { ChoixModele } from './ChoixModele'
+import { demanderModele, ecouterModele, modeleEnCours } from './modele'
+import { poserModele } from './poserModele'
 import { demanderRenommage, ecouterRenommage, renommageEnCours } from './renommage'
 
 const sans = () => () => {}
@@ -36,6 +39,7 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
   const pastille = pastilleDe(element.contenu)
   const image = useImage(pastille.genre === 'image' ? pastille.fichier : undefined, contexte)
   const enRenommage = useSyncExternalStore(ecouterRenommage, renommageEnCours) === element.id
+  const choixModele = useSyncExternalStore(ecouterModele, modeleEnCours) === element.id
   // Un clic sur un tableau déjà choisi : sur le titre, on le renomme ; sur l'icône, une bulle dit de double-cliquer.
   const dejaChoisie = useRef(false)
   const [bulle, setBulle] = useState(false)
@@ -87,6 +91,18 @@ export function RenduRenvoi({ element, choisie, contexte }: PropsRendu<RenvoiTab
         else ouvrirTableau?.(cible)
       }}
     >
+      {choixModele && (
+        <ChoixModele
+          choisir={(m) => {
+            demanderModele(null)
+            poserModele(m, cible, contexte.services)
+          }}
+          laisser={() => {
+            demanderModele(null)
+            demanderRenommage(element.id)
+          }}
+        />
+      )}
       {bulle && <div className="notak-renvoi-bulle">Double-cliquez pour ouvrir</div>}
       <div
         onClick={() => apresClic('icone')}

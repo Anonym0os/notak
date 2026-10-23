@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { PastillePersonne } from '@notak/tableau'
 import { type Moi, type TableauAccessible, listerFavoris, listerRecents, listerTableaux } from './api'
+import { adressePhoto } from './fichiers'
 
 /** Le menu au nom de la personne connectée, avec les tableaux que d'autres lui partagent. */
-export function Compte({ moi, deconnexion, ouvrir }: { moi: Moi; deconnexion(): void; ouvrir(id: string): void }) {
+export function Compte({ moi, deconnexion, ouvrir, aide }: { moi: Moi; deconnexion(): void; ouvrir(id: string): void; aide(): void }) {
   const [ouvert, setOuvert] = useState(false)
   const [partages, setPartages] = useState<TableauAccessible[] | null>(null)
   const [favoris, setFavoris] = useState<TableauAccessible[]>([])
@@ -31,9 +33,7 @@ export function Compte({ moi, deconnexion, ouvrir }: { moi: Moi; deconnexion(): 
   return (
     <div className="compte">
       <button type="button" className="bouton compte-nom" aria-expanded={ouvert} onClick={() => setOuvert((o) => !o)}>
-        <span className="compte-pastille" style={{ background: moi.couleur }} aria-hidden>
-          {[...moi.nom.trim()][0]?.toLocaleUpperCase('fr') ?? '?'}
-        </span>
+        <PastillePersonne className="compte-pastille" nom={moi.nom} couleur={moi.couleur} adresse={moi.photo ? adressePhoto(moi.photo) : undefined} titre="" />
         {moi.nom}
       </button>
       {ouvert && (
@@ -60,6 +60,16 @@ export function Compte({ moi, deconnexion, ouvrir }: { moi: Moi; deconnexion(): 
               ))}
             </>
           )}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOuvert(false)
+              aide()
+            }}
+          >
+            Aide <small>· raccourcis</small>
+          </button>
           <button type="button" role="menuitem" onClick={deconnexion}>
             Se déconnecter
           </button>

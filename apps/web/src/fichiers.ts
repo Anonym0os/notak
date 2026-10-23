@@ -14,6 +14,9 @@ export async function envoyerFichier(blob: Blob): Promise<string> {
   return ((await r.json()) as { id: string }).id
 }
 
+/** Une photo de compte n'a besoin que d'une petite copie : la plus étroite que le serveur sait servir. */
+export const adressePhoto = (id: string) => `${adresseFichier(id)}?l=400`
+
 export const fichiers: DepotFichiers = {
   enregistrer: envoyerFichier,
   adresse: async (id) => adresseFichier(id),

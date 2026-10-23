@@ -10,6 +10,8 @@ export interface Utilisateur {
   hash: string
   couleur: string
   racine: string
+  /** Le fichier de sa photo (déposé par `/api/fichiers`), ou rien. */
+  photo?: string | null
 }
 
 export interface LigneTableau {
@@ -78,6 +80,8 @@ export interface Base {
   creerUtilisateur(u: Utilisateur): void
   utilisateurParEmail(email: string): Utilisateur | null
   utilisateurParId(id: string): Utilisateur | null
+  /** Change la couleur et/ou la photo du compte (`null` retire la photo) ; ce qui manque ne bouge pas. */
+  reglerCompte(id: string, reglages: { couleur?: string; photo?: string | null }): void
 
   creerSession(empreinte: string, utilisateur: string, expire: number): void
   utilisateurDeSession(empreinte: string, maintenant: number): Utilisateur | null
@@ -187,7 +191,7 @@ export const NOTIFICATIONS_GARDEES = 200
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS utilisateurs (
   id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, nom TEXT NOT NULL,
-  hash TEXT NOT NULL, couleur TEXT NOT NULL, racine TEXT NOT NULL
+  hash TEXT NOT NULL, couleur TEXT NOT NULL, racine TEXT NOT NULL, photo TEXT
 );
 CREATE TABLE IF NOT EXISTS sessions (
   empreinte TEXT PRIMARY KEY, utilisateur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
@@ -277,6 +281,10 @@ export function ouvrirBase(chemin: string): Base {
   const db = new DatabaseSync(chemin)
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;')
   db.exec(SCHEMA)
+  // Une base d'avant la photo : la colonne s'ajoute, les comptes existants n'en ont pas.
+  if (!(db.prepare('PRAGMA table_info(utilisateurs)').all() as { name: string }[]).some((c) => c.name === 'photo')) {
+    db.exec('ALTER TABLE utilisateurs ADD COLUMN photo TEXT')
+  }
 
   const tous = (sql: string, ...params: (string | number | Uint8Array)[]): Ligne[] =>
     db.prepare(sql).all(...params) as Ligne[]
@@ -311,9 +319,13 @@ export function ouvrirBase(chemin: string): Base {
     fermer: () => db.close(),
 
     creerUtilisateur: (u) =>
-      void executer('INSERT INTO utilisateurs (id,email,nom,hash,couleur,racine) VALUES (?,?,?,?,?,?)', u.id, u.email, u.nom, u.hash, u.couleur, u.racine),
+      void executer('INSERT INTO utilisateurs (id,email,nom,hash,couleur,racine,photo) VALUES (?,?,?,?,?,?,?)', u.id, u.email, u.nom, u.hash, u.couleur, u.racine, u.photo ?? null),
     utilisateurParEmail: (email) => utilisateur(un('SELECT * FROM utilisateurs WHERE email = ?', email)),
     utilisateurParId: (id) => utilisateur(un('SELECT * FROM utilisateurs WHERE id = ?', id)),
+    reglerCompte(id, r) {
+      if (r.couleur !== undefined) executer('UPDATE utilisateurs SET couleur = ? WHERE id = ?', r.couleur, id)
+      if (r.photo !== undefined) executer('UPDATE utilisateurs SET photo = ? WHERE id = ?', r.photo, id)
+    },
 
     creerSession: (empreinte, u, expire) => void executer('INSERT INTO sessions (empreinte,utilisateur,expire) VALUES (?,?,?)', empreinte, u, expire),
     utilisateurDeSession(empreinte, maintenant) {

@@ -28,7 +28,8 @@ export type ChercheurApercu = (url: string) => Promise<Apercu>
 /** Qui est là : un client branché sur le tableau (une personne peut en avoir plusieurs). */
 export interface Presence {
   client: number
-  utilisateur: { id: string; nom: string; couleur: string }
+  /** `photo` : le fichier de sa photo (l'application en connaît l'adresse, voir `adressePhoto`). */
+  utilisateur: { id: string; nom: string; couleur: string; photo?: string }
   /** Où est son pointeur, en UG ; `null` s'il est sorti de la toile. */
   curseur: Point | null
   selection: Id[]
@@ -130,6 +131,8 @@ export interface Services {
    */
   annulerNavigation?(): boolean
   retablirNavigation?(): boolean
+  /** L'adresse affichable de la photo d'une personne, d'après le fichier qu'elle a choisi ; absent : l'initiale seule. */
+  adressePhoto?(fichier: Id): string
   /** Un double-clic sur le vide crée une note (le réglage de chacun) ; absent : oui. */
   doubleClicCreeNote?: boolean
 }

@@ -134,6 +134,12 @@ body {
 }
 
 .partage-panneau,
+.compte-pastille img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .compte-menu {
   position: absolute;
   z-index: 40;
@@ -209,6 +215,7 @@ body {
 }
 
 .compte-pastille {
+  overflow: hidden;
   display: grid;
   place-items: center;
   width: 22px;

@@ -3,6 +3,8 @@ import { COULEURS_NOTE, type CouleurNote, type RenvoiTableau } from '../../coeur
 import { ICONES_TABLEAU, avecIcone, avecImage } from './icones'
 import { FOND_NOTE, LIBELLES_COULEUR } from '../note/couleurs'
 import type { PropsOutils } from '../types'
+import { demanderModele } from './modele'
+import { peutPoserModele } from './poserModele'
 import { demanderRenommage } from './renommage'
 
 const sans = () => () => {}
@@ -121,6 +123,11 @@ export function OutilsRenvoi({ elements, contexte }: PropsOutils<RenvoiTableau>)
         </div>
       )}
       {!contexte.services.lectureSeule && <ChoixIcone elements={elements} contexte={contexte} />}
+      {elements.length === 1 && peutPoserModele(elements[0]!.contenu.cible, contexte.services) && (
+        <button type="button" title="Remplir ce tableau vide avec un modèle" onClick={() => demanderModele(elements[0]!.id)}>
+          Modèle
+        </button>
+      )}
       {elements.length === 1 && (
         <button type="button" title="Renommer le tableau" onClick={() => demanderRenommage(elements[0]!.id)}>
           Renommer
