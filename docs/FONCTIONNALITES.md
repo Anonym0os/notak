@@ -23,14 +23,14 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 8. Liste de tâches | 17 | 0 | 0 | 100 % |
 | 9. Ligne | 14 | 0 | 0 | 100 % |
 | 10. Autres éléments | 12 | 0 | 0 | 100 % |
-| 11. Commun aux éléments | 12 | 0 | 0 | 100 % |
+| 11. Commun aux éléments | 11 | 1 | 0 | 96 % |
 | 12. Organiser | 16 | 0 | 0 | 100 % |
 | 13. Naviguer | 13 | 0 | 0 | 100 % |
 | 14. À plusieurs | 17 | 0 | 0 | 100 % |
 | 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 6 | 1 | 0 | 93 % |
-| **Total** | **246** | **3** | **0** | **99 %** |
+| **Total** | **245** | **4** | **0** | **99 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -241,7 +241,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Fonctionnalité | État | Reste |
 |---|---|---|
 | Fichier joint : extension, nom, taille, Télécharger, Ouvrir, lecteur du son et de la vidéo, renommer | ✅ | Aperçu de la première page d'un PDF, légende, mode icône. |
-| Commentaire (fil de discussion posé sur la toile) | ✅ |  |
+| Commentaire (fil de discussion posé sur la toile) | ✅ | Fiche bleu pâle de 34 unités, prénom et date relative, liens, Modifier au survol, Publier, couleur (bande). Reste : éditeur riche, mentions et émojis dans le fil, indicateur de frappe, hauteur réglable. |
 | Table : un petit tableur (sélection de plages, clavier, types, formules, repères, clic droit, presse-papiers, titre, légende) | ✅ | Relevé dans `docs/ecarts/table.md`, repris d'après le code de Milanote le 23/10. Pas de mise en forme partielle dans une cellule ; ⌃⌘N attend les raccourcis de création. |
 | Croquis à main levée | ✅ |  |
 | Dessin libre sur la toile | ✅ | Outil « Dessin libre » du tiroir : on trace à même la toile, Entrée pose le dessin. |
@@ -261,9 +261,9 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Contour choisi sans ombre, contour écarté en édition | ✅ | |
 | Verrouiller | ✅ | |
 | État « verrouillé » visible (autre couleur de contour) | ✅ |  |
-| Étiquettes (créer, colorer, renommer, filtrer) | ✅ |  |
-| Réactions (émojis) | ✅ |  |
-| Commentaire attaché à un élément | ✅ |  |
+| Étiquettes (créer, colorer, renommer, filtrer) | ✅ | Dans la carte ; panneau avec recherche qui crée, menu par ligne ; pastille choisie, renommée et retirée sur la carte. Reste : étiquettes communes à tous les tableaux, étiquettes par tâche. |
+| Réactions (émojis) | ✅ | Pastilles de Milanote avec info-bulle « qui a réagi » ; sélecteur Unicode complet (teinte de peau, fréquents). Reste : réaction par message d'un fil. |
+| Commentaire attaché à un élément | 🟡 | Épingle au coin haut droit et bulle à droite. Reste : épingle déplaçable, glisser un fil sur un élément, commentaire en ligne ouvert hors édition. |
 | Échéance, personne assignée sur un élément | ✅ |  |
 | Barre de couleur, couleur libre | ✅ | Notes (voir § 3). |
 | Copier le style d'un élément (Cmd+Alt+V) | ✅ |  |
