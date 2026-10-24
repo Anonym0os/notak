@@ -1132,6 +1132,8 @@ export const fr: Textes = {
   'arbre.style.br.organique': 'Courbe organique',
   'arbre.carte.sq': '{groupe} {n}',
   'arbre.carte.sqMain': 'Dessiné à la main',
+  // passe fond : pitch, la séquence
+  'arbre.pitch.merci': 'Merci',
   'type.croquis': 'Croquis',
   'type.dessin': 'Dessin',
   'outil.dessin': 'Dessiner',
@@ -3042,6 +3044,8 @@ export const en: Textes = {
   'arbre.style.br.organique': 'Organic curve',
   'arbre.carte.sq': '{groupe} {n}',
   'arbre.carte.sqMain': 'Hand drawn',
+  // passe fond : pitch, la séquence
+  'arbre.pitch.merci': 'Thank you',
   'type.croquis': 'Sketch',
   'type.dessin': 'Drawing',
   'outil.dessin': 'Draw',

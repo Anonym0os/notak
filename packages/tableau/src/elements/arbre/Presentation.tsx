@@ -4,7 +4,8 @@ import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
 import { ChoixTheme, PopoverFixe } from './ChoixTheme'
 import { Diapositive } from './Diapo'
-import { diapositives, pasApresBranche, pasDe, pasDeDepart, pasParent } from './modele/diapositives'
+import { type Position, arrivee, depart as diapoDeDepart, precedente, sequence, trajet, versParent } from './modele/diapositives'
+import { ECRAN_DE_FIN } from './modele/gabarits'
 import type { Geste } from './modele/gestes'
 import type { Lecture } from './modele/sujets'
 import { themeDe } from './themes'
@@ -90,16 +91,16 @@ function BoutonOutil({ icone, info, inactif, onClick, refBouton, actif }: { icon
 }
 
 export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectureSeule, quitter }: Props) {
-  const diapos = useMemo(() => diapositives(l), [l])
-  const pas = useMemo(() => pasDe(diapos), [diapos])
-  const [index, setIndex] = useState(() => pasDeDepart(l, diapos, pas, depart))
+  // Les indices de la suite ne dépendent pas du rapport (seuls les gabarits en dépendent) : on part d'une suite sans lui.
+  const [position, setPosition] = useState<Position>(() => diapoDeDepart(sequence(l, { resumes: arbre.resumes }), l, depart))
+  const premiere = useMemo(() => diapoDeDepart(sequence(l, { resumes: arbre.resumes }), l), [l, arbre.resumes])
   const [anime, setAnime] = useState(animationEnregistree)
   const [reglages, setReglages] = useState(false)
   const [themes, setThemes] = useState(false)
   const [aide, setAide] = useState(false)
   const [discret, setDiscret] = useState(false)
   const [survol, setSurvol] = useState(false)
-  const [puce, setPuce] = useState<'attente' | 'visible' | 'fermee'>(depart !== undefined && depart !== l.central && pasDeDepart(l, diapos, pas, depart) > 0 ? 'attente' : 'fermee')
+  const [puce, setPuce] = useState<'attente' | 'visible' | 'fermee'>(depart !== undefined && depart !== l.central && position !== premiere ? 'attente' : 'fermee')
   const scene = useRef<HTMLDivElement>(null)
   const boutonReglages = useRef<HTMLButtonElement>(null)
   const boutonTheme = useRef<HTMLButtonElement>(null)
@@ -124,6 +125,7 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
   const [rl, rh] = ratio.split(':').map(Number) as [number, number]
   const k = Math.min(dim.l / rl, dim.h / rh)
   const taille = { l: Math.floor(rl * k), h: Math.floor(rh * k) }
+  const seq = useMemo(() => sequence(l, { ratio, resumes: arbre.resumes }), [l, ratio, arbre.resumes])
 
   // Plein écran : celui qu'on obtient ; en sortir (Échap du navigateur) termine la présentation.
   useEffect(() => {
@@ -166,18 +168,22 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
     return () => clearTimeout(ferme)
   }, [puce])
 
-  const total = pas.length
-  const suivant = useCallback(() => {
-    if (index >= total - 1) quitter()
-    else setIndex(index + 1)
-  }, [index, total, quitter])
-  const precedent = useCallback(() => setIndex((i) => Math.max(0, i - 1)), [])
-  const passer = useCallback(() => {
-    const x = pasApresBranche(l, diapos, pas, index)
-    if (x === null) quitter()
-    else setIndex(x)
-  }, [l, diapos, pas, index, quitter])
-  const parent = useCallback(() => setIndex(pasParent(l, diapos, pas, index)), [l, diapos, pas, index])
+  // Chaque commande joue ses pas (les enchaînements automatiques compris) ; on s'arrête au dernier.
+  const jouer = useCallback(
+    (commande: 'avancer' | 'reculer' | 'passer' | 'remonter') => {
+      const fin = arrivee(trajet(seq, l, position, commande, anime), position)
+      if (fin === 'terminer') quitter()
+      else if (fin !== null) setPosition(fin)
+    },
+    [seq, l, position, anime, quitter],
+  )
+  const suivant = useCallback(() => jouer('avancer'), [jouer])
+  const precedent = useCallback(() => jouer('reculer'), [jouer])
+  const passer = useCallback(() => jouer('passer'), [jouer])
+  const parent = useCallback(() => jouer('remonter'), [jouer])
+  const montrees = seq.diapos.filter((d) => !d.sautee).length
+  const rang = position === 'ecran-de-fin' ? montrees : seq.diapos.slice(0, position + 1).filter((d) => !d.sautee).length
+  const auDebut = typeof position === 'number' && precedente(seq, position) === null
   const basculerAnimation = useCallback(() => {
     setAnime((a) => {
       enregistrerAnimation(!a)
@@ -217,18 +223,27 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
     return () => document.removeEventListener('keydown', f, true)
   }, [])
 
-  const courant = pas[index]
-  const diapo = courant ? diapos[courant.diapo] : undefined
+  const diapo = typeof position === 'number' ? seq.diapos[position] : undefined
+  const merci = seq.diapos.at(-1)
+  const vignette = ECRAN_DE_FIN.echelle(ratio)
   const mettreAJour = (reglage: Extract<Geste, { type: 'pitch' }>['reglage']) => !lectureSeule && faire({ type: 'pitch', reglage })
 
   return (
     <div ref={scene} className="notak-arbre-pitch-scene" style={{ background: themeDe(arbre.theme).fond ?? 'var(--notak-arbre-fond)' }} onClick={suivant} aria-label={t('arbre.pitch.titre')} role="region" aria-live="polite">
-      {diapo && courant && (
-        <div key={courant.diapo} className="notak-arbre-pitch-diapo" data-anime={anime ? '' : undefined}>
-          <Diapositive lecture={l} diapo={diapo} etape={courant.etape} theme={theme} ratio={ratio} adresse={adresse} anime={anime} taille={taille} />
+      {diapo && (
+        <div key={position} className="notak-arbre-pitch-diapo" data-anime={anime ? '' : undefined}>
+          <Diapositive lecture={l} diapo={diapo} theme={theme} ratio={ratio} adresse={adresse} anime={anime} taille={taille} />
         </div>
       )}
-      <span className="notak-arbre-pitch-compte">{t('arbre.pitch.position', { i: index + 1, n: total })}</span>
+      {position === 'ecran-de-fin' && merci && (
+        // L'écran de fin, en attendant l'image de la carte : « Merci » en vignette en haut à droite.
+        <div className="notak-arbre-pitch-fin" style={{ position: 'absolute', inset: 0 }}>
+          <div style={{ position: 'absolute', top: (ECRAN_DE_FIN.marge * taille.l) / 1600, right: (ECRAN_DE_FIN.marge * taille.l) / 1600, borderRadius: ECRAN_DE_FIN.rayon, overflow: 'hidden', border: `1px solid ${ECRAN_DE_FIN.bordure}` }}>
+            <Diapositive lecture={l} diapo={merci} theme={theme} ratio={ratio} adresse={adresse} anime={false} taille={{ l: Math.round(taille.l * vignette), h: Math.round(taille.h * vignette) }} />
+          </div>
+        </div>
+      )}
+      <span className="notak-arbre-pitch-compte">{t('arbre.pitch.position', { i: rang, n: montrees })}</span>
 
       <div
         className="notak-arbre-pitch-outils"
@@ -245,8 +260,8 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
           <BoutonOutil icone="reglages" info={t('arbre.pitch.reglages')} refBouton={boutonReglages} actif={reglages} onClick={() => setReglages((o) => !o)} />
         </div>
         <div className="notak-arbre-pitch-groupe">
-          <BoutonOutil icone="triangleGauchePlein" info={t('arbre.pitch.parent')} inactif={index === 0} onClick={parent} />
-          <BoutonOutil icone="triangleGauche" info={t('arbre.pitch.precedent')} inactif={index === 0} onClick={precedent} />
+          <BoutonOutil icone="triangleGauchePlein" info={t('arbre.pitch.parent')} inactif={typeof position !== 'number' || versParent(seq, position) === null} onClick={parent} />
+          <BoutonOutil icone="triangleGauche" info={t('arbre.pitch.precedent')} inactif={auDebut} onClick={precedent} />
           <BoutonOutil icone="triangleDroite" info={t('arbre.pitch.suivant')} onClick={suivant} />
           <BoutonOutil icone="triangleDroitePlein" info={t('arbre.pitch.passer')} onClick={passer} />
         </div>
@@ -284,7 +299,7 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
       {puce === 'visible' && (
         <div className="notak-arbre-pitch-puce" role="status" onClick={(e) => e.stopPropagation()}>
           <span>{t('arbre.pitch.depuisDebut')}</span>
-          <button type="button" onClick={() => (setIndex(0), setPuce('fermee'))}>
+          <button type="button" onClick={() => (setPosition(premiere), setPuce('fermee'))}>
             {t('arbre.pitch.debut')}
           </button>
           <button type="button" onClick={() => setPuce('fermee')}>

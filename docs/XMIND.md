@@ -639,18 +639,59 @@ Le mode présentation : la carte devient une suite de diapositives.
   « Sous-sujets en liste » et, s'il est visible, « Livraison » et « Mise en page » (cinq boutons).
   Avec plusieurs sujets : « Multiple » quand ils diffèrent.
 
-**Les diapositives.** Auto : le central, les principaux et les flottants sont des diapositives, les sous-sujets non ;
-un résumé en est une ; un sujet qui est une diapositive et qui a des sous-sujets a aussi une **liste**. L'ordre : le
-sujet, sa liste, puis la branche suivante. Une liste déroule ses sous-sujets (en profondeur d'abord, sans descendre
-chez celui qui a sa propre diapositive), selon la livraison : tout d'un coup, un par un (le sous-sujet vient avec ses
-enfants), ou en descendant dans chacun. La mise en page par défaut est la liste à puces. Au moins une diapositive : le
-central.
+**Les diapositives.** Chaque étape d'une liste est une diapositive à part entière ; il y en a quatre sortes : le
+**sujet** (son titre, son image), la **liste** (le sujet en tête et ses **enfants directs** seulement, dont une partie est
+révélée), le **résumé** (le sujet de résumé et la plage de frères qu'il couvre, reliée par une accolade, ou par un trait
+s'il n'y a qu'un frère) et **« Merci »**, la diapositive de fin, traitée comme un central. Une diapositive peut exister et
+être **sautée** : elle reste dans la suite, la navigation la franchit.
+- **L'ordre** : le central, puis les flottants dans leur ordre, puis « Merci », puis l'**écran de fin**. En profondeur
+  d'abord : la diapositive du sujet, puis les étapes de sa liste, entre lesquelles s'intercale la séquence complète de
+  chaque enfant. Tout sujet qui a des enfants a ses listes, à tout niveau, même quand sa diapositive est sautée. Un
+  résumé s'insère juste après le dernier enfant qu'il couvre (le plus court d'abord s'ils finissent au même), entre deux
+  diapositives de résumé : celle d'entrée, puis la diapositive de sujet du résumé si elle apporte quelque chose et ses
+  listes, puis celle de sortie, qui s'enchaîne sur le retour à la liste. Les bulles, relations et cadres n'ont pas de
+  diapositive.
+- **Les trois livraisons**, « un par un, en profondeur » par défaut. *En profondeur* : la liste paraît avec le premier
+  enfant, on perce dans sa branche, on remonte dans la liste et l'enfant suivant paraît aussitôt ; un enfant qui n'a rien
+  à lui n'a ni diapositive ni retour, la touche suivante fait paraître le suivant. *Un par un* : les enfants paraissent
+  un à un, puis on visite ceux qui ont du contenu, en repassant brièvement par la liste entière centrée sur eux. *Tout à
+  la fois* : une étape, toute la liste, puis les mêmes visites. Sur une étape, chaque enfant est caché, déjà vu, courant
+  ou montré.
+- **Auto** décide de chaque diapositive de sujet dans cet ordre : une **chaîne d'enfants uniques** de trois maillons ou
+  plus (ancêtres puis descendants qui n'ont qu'un enfant) montre la diapositive ; le central et les flottants sont
+  montrés ; un principal aussi, sauf sous un central en arête ou en chronologie ; sinon (sous-sujet, résumé, principal
+  sous une arête) la diapositive n'est montrée que si le sujet **porte ce que la liste ne montre pas** : une note, des
+  étiquettes, une image, plus de trois marqueurs, un titre que la liste tronque, ou si la liste de son parent est sautée.
+  « Visible » et « Masqué » sont respectés sur un sujet et un résumé. Sur une liste, seul « Masqué » l'est : « Visible »
+  rend la main aux règles Auto, et une chaîne d'enfants uniques saute toujours ses listes (elle devient une suite de
+  diapositives de sujet). Une étape d'entrée ou de sortie d'enfant est sautée quand l'enfant n'a rien de montré.
+  « Merci » est toujours montrée. « Auto (…) » dans l'onglet dit ce que la règle déciderait sans le réglage du sujet.
+- **La mise en page** par défaut d'une liste : l'arête ou la chronologie si la structure du sujet sur la carte en est
+  une ; sinon l'**accolade** pour le central et pour un principal qui a plus d'un enfant et dont le titre et ceux de tous
+  ses enfants font au plus **24 caractères** ; sinon les **puces** en tout à la fois ; sinon les **paroles**. Les paroles
+  ne se jouent pas en tout à la fois. Sous un parent en arête (ou en chronologie), la liste de chaque enfant devient une
+  **tête d'arête** (ou de chronologie), quel que soit son réglage. Puis une variante d'après le contenu : un seul enfant,
+  un parent ou des enfants « illustrés » (une image sans titre), et le **portrait** (9:16, 3:4), où l'accolade, l'arête,
+  la chronologie et leurs têtes deviennent un **arbre** et le résumé une colonne qui défile.
+- **La place de l'image** en Auto : au-dessus du titre en portrait, pour une image vectorielle et pour une image au moins
+  deux fois plus large que haute ; à gauche sinon.
+- **Les mesures** se comptent dans le repère de la diapositive (1600 × 900 en 16:9, 1200 × 900, 900 × 1600, 900 × 1200),
+  les textes en centièmes du petit côté : chaque titre prend la plus grande taille qui tient entre deux bornes, au plus
+  tant de lignes, puis « ... » ; une dernière ligne trop courte fait réessayer plus petit.
+- **Les transitions** : un fondu de 600 ms vers la diapositive du central ou d'un flottant, de 400 ms au démarrage et
+  vers l'écran de fin ; 600 ms entre deux étapes d'une même liste ; un morphing de 1 000 ms partout ailleurs (percer,
+  remonter, passer au frère). Reculer n'anime jamais.
+→ Notak : le titre « Merci » est traduit (Xmind écrit « Thank you » dans toutes les langues). La suite est calculée
+d'avance plutôt que chaînée à la demande, pour la même séquence. Une image collée est réputée bitmap et sa taille affichée
+tient lieu de taille naturelle ; une équation et une illustration comptent comme vectorielles. Le dessin fidèle de chaque
+gabarit, les thèmes et les transitions sont encore à venir : en attendant, chaque gabarit retombe sur le rendu le plus
+proche, et l'écran de fin ne montre que « Merci » en vignette, sans l'image de la carte.
 
 **La présentation** (⌥⌘P, ou le bouton Pitch). Plein écran quand le navigateur le permet ; elle part du sujet choisi (une
 pastille propose de « lire à partir de la première diapositive »). Une barre en haut à droite (quitter, paramètres,
 navigation) s'estompe à 15 % après trois secondes. Touches : Espace, Entrée, →, ↓, Pg suiv. avancent ; ←, ↑, Pg préc.
 reculent ; ⇧→ passe la branche, ⇧← revient au sujet parent ; Échap et Q quittent ; A bascule l'animation ; ? montre
-les raccourcis. Un clic sur la scène avance. La dernière étape franchie, on revient à la carte. L'animation est une
+les raccourcis. Un clic sur la scène avance. Chaque commande franchit les diapositives sautées et suit les enchaînements automatiques (la première étape d'une liste percée, un retour de liste vers l'enfant suivant). ⇧→ va au retour du sujet dans la liste de son parent, et depuis le central droit à « Merci » (ou au premier flottant) ; ⇧← va à l'étape de la liste du parent où le sujet a paru, et depuis le central à sa diapositive. Partir d'un sujet ouvre sa diapositive, même sautée. Après « Merci », l'écran de fin ; l'appui suivant rend la carte. L'animation est une
 préférence de ce navigateur.
 → Notak : pas de seconde fenêtre ni de **vue du présentateur**, pas de filigrane « Presented with xmind », pas de
 limite de cinq diapositives (ces deux-là tiennent à la licence de Xmind), pas de « Présenter dans une fenêtre ».
