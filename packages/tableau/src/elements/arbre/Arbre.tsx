@@ -552,6 +552,8 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     return { x: (e.clientX - r.left - camera.x) / camera.z, y: (e.clientY - r.top - camera.y) / camera.z }
   }
   const capturer = (e: React.PointerEvent) => {
+    // Un geste qui commence efface la sélection de texte que le navigateur aurait pu amorcer.
+    window.getSelection()?.removeAllRanges()
     try {
       ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
     } catch {

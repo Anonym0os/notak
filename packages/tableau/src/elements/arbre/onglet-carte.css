@@ -55,6 +55,7 @@
   letter-spacing: 0.26px;
   text-transform: none;
   opacity: 1;
+  -webkit-user-select: none;
   user-select: none;
 }
 

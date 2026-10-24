@@ -20,10 +20,12 @@
   font-size: 13px;
   line-height: 17px;
   letter-spacing: 0.01em;
+  -webkit-user-select: none;
   user-select: none;
 }
 
 .notak-arbre-fond .notak-arbre-style .notak-arbre-contenu {
+  -webkit-user-select: text;
   user-select: text;
 }
 
@@ -289,6 +291,7 @@
   min-width: 0;
   padding: 0 4px 0 8px;
   color: var(--notak-arbre-texte);
+  -webkit-user-select: text;
   user-select: text;
 }
 
@@ -343,6 +346,7 @@
   flex: 1;
   min-width: 0;
   color: var(--notak-arbre-texte);
+  -webkit-user-select: text;
   user-select: text;
 }
 
@@ -367,6 +371,7 @@
   border-radius: 8px;
   background: var(--notak-arbre-fond);
   color: var(--notak-arbre-texte);
+  -webkit-user-select: text;
   user-select: text;
 }
 
@@ -637,6 +642,7 @@
   font-size: 13px;
   line-height: 17px;
   letter-spacing: 0.01em;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -970,6 +976,7 @@
   min-width: 0;
   color: var(--notak-arbre-texte);
   font-variant-numeric: tabular-nums;
+  -webkit-user-select: text;
   user-select: text;
 }
 

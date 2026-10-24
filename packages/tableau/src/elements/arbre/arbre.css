@@ -36,6 +36,7 @@
   width: 100%;
   height: auto;
   pointer-events: none;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -53,12 +54,16 @@
   overflow: hidden;
   cursor: default;
   touch-action: none;
+  /* Glisser un sujet ou tracer un cadre ne sélectionne jamais les textes de la carte (WebKit veut le préfixe). */
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .notak-arbre-grand {
   display: block;
   width: 100%;
   height: 100%;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -99,6 +104,8 @@
 /* Le champ d'un titre : transparent, posé sur le texte du sujet, à sa police ; rien ne le distingue du sujet que le curseur. */
 .notak-arbre-champ {
   position: absolute;
+  -webkit-user-select: text;
+  user-select: text;
   box-sizing: content-box;
   margin: 0;
   padding: 0;
