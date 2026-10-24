@@ -26,6 +26,11 @@ describe('le clavier d’une carte (docs/XMIND.md § 4)', () => {
     expect(touche('Enter', { metaKey: true })).toEqual({ type: 'parent', id: p0 })
   })
 
+  it('ouvre le panneau de gauche à Cmd+[ (et laisse Maj+Cmd+[ aux feuilles)', () => {
+    expect(touche('[', { metaKey: true })).toEqual({ type: 'mode', mode: 'navigation' })
+    expect(touche('[', { metaKey: true, shiftKey: true })).toBeNull()
+  })
+
   it('édite et supprime', () => {
     expect(touche(' ')).toEqual({ type: 'editer', id: p0 })
     expect(touche('F2')).toEqual({ type: 'editer', id: p0 })

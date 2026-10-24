@@ -18,7 +18,7 @@ import { numeroDe, resumesValides, sujetsDePlage } from './modele/elements'
 import { comptes, reperesDe, sujetsMisEnEvidence } from './modele/listes'
 import { type Geste, appliquerGeste } from './modele/gestes'
 import { type Lacher, ouLacher } from './modele/lacher'
-import { type Lecture, lire, renommer, sousCarte } from './modele/sujets'
+import { type Lecture, lire, nouvelArbre, renommer, sousCarte } from './modele/sujets'
 import { titreNeuf } from './modele/titres'
 import { type Section } from './Panneau'
 import { type OngletGauche, PanneauGauche } from './PanneauGauche'
@@ -27,7 +27,6 @@ import { PopoverNote } from './PopoverNote'
 import { Presentation } from './Presentation'
 import { Recherche, correspondances } from './Recherche'
 import { courbeRelation } from './trace/relations'
-import { nouvelArbre } from './modele/sujets'
 
 /** La carte lue, mesurée et disposée ; recalculée seulement quand elle change. */
 export function useVue(a: Arbre): { lecture: Lecture; mesures: Map<Id, Mesure>; disposition: Disposition } {

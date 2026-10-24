@@ -42,7 +42,7 @@ export function PopoverFixe({ ancre, fermer, largeur, vers = 'bas', children, cl
   }, [ancre, fermer])
   if (!ancre || !place) return ancre ? <div ref={racine} hidden /> : null
   return createPortal(
-    <div ref={racine} className={className ? `notak-pitch-popover ${className}` : 'notak-pitch-popover'} style={{ ...place, width: largeur }} role="dialog" onKeyDown={(e) => e.stopPropagation()}>
+    <div ref={racine} className={className ? `notak-pitch-popover ${className}` : 'notak-pitch-popover'} style={{ ...place, width: largeur }} role="dialog" onKeyDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
       {children}
     </div>,
     ancre.closest('.notak-arbre-fond') ?? document.body,

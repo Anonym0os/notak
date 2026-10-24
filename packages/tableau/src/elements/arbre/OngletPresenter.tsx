@@ -20,7 +20,7 @@ import { type Lecture, enfantsDe, structureDe } from './modele/sujets'
 import { RATIOS_PITCH, dimensionsDuRatio, ratioEffectif, themePitchDe } from './themesPitch'
 
 /**
- * L'onglet Pitch du panneau de côté (docs/XMIND.md § 9) : un aperçu de la diapositive du sujet, le thème et le
+ * L'onglet Pitch du panneau de côté (docs/XMIND.md § 11) : un aperçu de la diapositive du sujet, le thème et le
  * rapport de la carte, puis, pour les sujets choisis, ce qui devient diapositive et comment. Chaque réglage Auto
  * retire son champ.
  */
@@ -45,9 +45,9 @@ function commun(l: Lecture, ids: readonly Id[], champ: Reglage): string | undefi
 const LIGNE_VIDE = 'auto'
 
 /** Une ligne « libellé, menu » : le menu natif, à 24 de haut. */
-function Menu({ valeur, options, change, info, large }: { valeur: string; options: { valeur: string; libelle: string; separe?: boolean }[]; change(v: string): void; info: string; large?: boolean }) {
+function Menu({ valeur, options, change, info, libelle, large }: { valeur: string; options: { valeur: string; libelle: string }[]; change(v: string): void; info: string; libelle: string; large?: boolean }) {
   return (
-    <select className="notak-pitch-menu" data-large={large ? '' : undefined} value={valeur} title={info} aria-label={info} onChange={(e) => change(e.target.value)}>
+    <select className="notak-pitch-menu" data-large={large ? '' : undefined} value={valeur} title={info} aria-label={libelle} onChange={(e) => change(e.target.value)}>
       {valeur === 'multiple' && (
         <option value="multiple" disabled>
           {t('arbre.pitch.multiple')}
@@ -98,6 +98,7 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
     return (
       <Menu
         valeur={dit === undefined ? LIGNE_VIDE : dit}
+        libelle={t(champ === 'sujet' ? 'arbre.pitch.sujet' : champ === 'liste' ? 'arbre.pitch.liste' : 'arbre.pitch.resume')}
         info={t(champ === 'sujet' ? 'arbre.pitch.sujetInfo' : champ === 'liste' ? 'arbre.pitch.listeInfo' : 'arbre.pitch.resumeInfo')}
         options={[
           { valeur: LIGNE_VIDE, libelle: auto },
@@ -136,6 +137,7 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
         <Ligne libelle={t('arbre.pitch.ratio')}>
           <Menu
             valeur={arbre.pitch?.ratio ?? LIGNE_VIDE}
+            libelle={t('arbre.pitch.ratio')}
             info={t('arbre.pitch.ratioInfo')}
             options={[{ valeur: LIGNE_VIDE, libelle: t('arbre.pitch.auto') }, ...RATIOS_PITCH.map((r) => ({ valeur: r, libelle: r }))]}
             change={(v) => faire({ type: 'pitch', reglage: { ratio: v === LIGNE_VIDE ? null : (v as (typeof RATIOS_PITCH)[number]) } })}
@@ -153,6 +155,7 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
           <Ligne libelle={t('arbre.pitch.imagePlace')} vertical>
             <Menu
               valeur={placeImage === undefined ? LIGNE_VIDE : placeImage}
+              libelle={t('arbre.pitch.imagePlace')}
               info={t('arbre.pitch.imageInfo')}
               large
               options={[
@@ -172,6 +175,7 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
                 <Ligne libelle={t('arbre.pitch.livraison')} vertical>
                   <Menu
                     valeur={livraison === undefined ? LIGNE_VIDE : livraison}
+                    libelle={t('arbre.pitch.livraison')}
                     info={t('arbre.pitch.livraisonInfo')}
                     large
                     options={[

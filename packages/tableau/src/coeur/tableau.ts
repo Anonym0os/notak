@@ -553,7 +553,7 @@ export type StructureArbre =
   | 'matrice-lignes'
   | 'matrice-colonnes'
 
-/** Les réglages de diapositives d'une carte (docs/XMIND.md § 9). `ratio` absent : le plus proche de l'écran. */
+/** Les réglages de diapositives d'une carte (docs/XMIND.md § 11). `ratio` absent : le plus proche de l'écran. */
 export interface ReglagesPitch {
   theme?: string
   ratio?: '16:9' | '4:3' | '9:16' | '3:4'

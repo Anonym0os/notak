@@ -447,7 +447,7 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Relation entre deux sujets : courbe réglable, pointes, titre | ✅ | Maj+Cmd+R puis clic sur la cible ; deux points de contrôle à tirer, un titre (double-clic) ; courbe, droite ou coudée, pointe au départ, à l'arrivée ou aux deux. |
 | Limite autour d'une plage de frères | ✅ | Maj+Cmd+B ; un titre au double-clic. |
 | Résumé d'une plage de frères | ✅ | Bouton « Résumé » : une accolade et un sujet de résumé, qui peut avoir ses enfants. |
-| Note en texte riche sur un sujet | ✅ | Maj+Cmd+N ; l'icône sur le sujet rouvre la note. |
+| Note en texte riche sur un sujet | ✅ | Maj+Cmd+N ou l'icône du sujet : un popover de 400 × 280 posé près du sujet (gras, italique, barré, souligné, listes, lien), écrit dans la carte quand on le quitte. |
 | Étiquettes | ✅ | Maj+Cmd+L. |
 | Lien web ou vers un autre sujet | ✅ | Cmd+K ; l'icône ouvre l'adresse ou va au sujet. |
 | Image sur un sujet | 🟡 | Maj+Cmd+I, depuis un fichier ; pas encore éprouvée à l'écran, ni de poignée pour la taille. |
@@ -459,9 +459,12 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Texte, remplissage et bordure d'un sujet | ✅ | Police, taille, gras, italique, couleur ; l'encre du texte se choisit seule sur un remplissage foncé. |
 | Thèmes de carte | ✅ | Six thèmes à nous : Classique (suit le clair et le sombre de Notak), Pastel, Nuit, Sobre, Papier, Vif. |
 | Appliquer au même rang, réinitialiser, copier et coller un style | ✅ | Alt+Cmd+U, Cmd+Alt+0, Cmd+Alt+C, Cmd+Alt+V. |
-| Mode plan | ✅ | Maj+Cmd+M ou « Plan » : Entrée, Tab, Maj+Tab, Alt+flèches, Cmd+/ ; Échap revient à la carte. |
+| Mode plan | ✅ | Maj+Cmd+M ou le bouton du plan : une page de 832 au plus (central 32, principaux 24, puis 16), puces ou chevrons, pastille du nombre de sujets cachés, notes et étiquettes sous le titre ; Entrée, Tab, Maj+Tab, Alt+flèches, Cmd+/ ; le zoom du plan va de 80 à 300 %. |
 | Mode Zen | ✅ | Cmd+Alt+F : la carte seule, en plein écran quand le navigateur le permet ; Échap en sort. |
-| Présentation branche par branche | ✅ | Cmd+Alt+P : le central, puis chaque principal avec sa branche ; le cadrage glisse de l'une à l'autre. |
+| Barre du bas : feuille, compteur de sujets, zoom, quatre boutons | 🟡 | Compteur « Sujets: s / n » et son popover (sujets, mots, caractères), menu du zoom de 10 à 500 %, plan, Zen, Pitch. La feuille est une carte posée sur la toile : « + » et « Nouvelle feuille » en posent une neuve à droite, « Dupliquer » une copie ; une seule feuille par élément. Le bouton Gantt est affiché, grisé : le Gantt n'est pas construit. |
+| Panneau de gauche : plan, notes, étiquettes | ✅ | ⌘[ ou le bouton à côté de l'accueil. Plan avec recherche (mots entiers, casse) et saut au sujet ; toutes les notes de la carte ; marqueurs, étiquettes et tâches à cocher pour mettre leurs sujets en évidence. Pas de chercher-remplacer. |
+| Pitch : réglages de la carte et des sujets | ✅ | Onglet Pitch : aperçu rejoué au survol, sept thèmes, rapport d'aspect, sujet / résumé / sous-sujets comme diapositive (Auto, Visible, Masqué), position de l'image, livraison, cinq mises en page. Aller-retour `.xmind` par les propriétés de style de Xmind (emplacement déduit, pas encore éprouvé dans Xmind). |
+| Présentation Pitch | 🟡 | Cmd+Alt+P : une diapositive par sujet selon les réglages (listes déroulées étape par étape), plein écran, barre qui s'estompe, touches et raccourcis de Xmind (⇧→ passe la branche, ⇧← revient au parent, A, ?). Pas de vue du présentateur ni de seconde fenêtre. |
 | Chercher dans la carte | ✅ | Cmd+F : titres, étiquettes et notes, sans accents ; Entrée va au suivant. |
 | Importer un fichier .xmind | ✅ | Déposé sur la toile : une carte par feuille, images comprises. Éprouvé sur les 36 modèles de Xmind et sa démo. Les fichiers de Xmind 8 (content.xml) sont refusés avec un avis. |
 | Exporter en .xmind | 🟡 | Menu de la carte, une feuille par carte choisie ; aller-retour vérifié par la lecture de Notak, pas encore rouvert dans Xmind lui-même. Les styles et thèmes ne sont pas traduits. |

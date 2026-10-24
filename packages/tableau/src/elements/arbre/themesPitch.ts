@@ -1,7 +1,7 @@
 import type { ReglagesPitch } from '../../coeur/tableau'
 
 /**
- * Les thèmes des diapositives du mode Pitch (docs/XMIND.md § 9). Sept, dans l'ordre du sélecteur ; les identifiants
+ * Les thèmes des diapositives du mode Pitch (docs/XMIND.md § 11). Sept, dans l'ordre du sélecteur ; les identifiants
  * sont ceux qu'on écrit dans la feuille (`slide-appearance`), les dessins sont les nôtres.
  */
 export interface ThemePitch {

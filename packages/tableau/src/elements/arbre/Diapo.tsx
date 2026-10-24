@@ -5,7 +5,7 @@ import type { Lecture } from './modele/sujets'
 import { type RatioPitch, type ThemePitch, dimensionsDuRatio } from './themesPitch'
 
 /**
- * Une diapositive du mode Pitch (docs/XMIND.md § 9), dessinée en HTML : elle remplit son cadre, dont toutes les
+ * Une diapositive du mode Pitch (docs/XMIND.md § 11), dessinée en HTML : elle remplit son cadre, dont toutes les
  * tailles se comptent en `cqw` (un centième de la largeur du cadre), pour que la même diapositive serve en plein
  * écran, dans l'aperçu de l'onglet Pitch et dans les vignettes du sélecteur de thèmes.
  */

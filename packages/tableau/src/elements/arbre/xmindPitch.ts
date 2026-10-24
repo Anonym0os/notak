@@ -2,7 +2,7 @@ import { type ReglagesDiapo, type ReglagesPitch, nouvelId } from '../../coeur/ta
 import { RATIOS_PITCH, THEME_PITCH_DEFAUT } from './themesPitch'
 
 /**
- * Les réglages du mode Pitch dans un `.xmind` (docs/XMIND.md § 9). Xmind les écrit comme des propriétés de style
+ * Les réglages du mode Pitch dans un `.xmind` (docs/XMIND.md § 11). Xmind les écrit comme des propriétés de style
  * (`style.properties`) : ceux d'un sujet sur le sujet, le thème et le rapport de la feuille sur le sujet central.
  * Notak les range dans ses propres champs (`Sujet.diapo`, `Arbre.pitch`) et les remet à l'export ; une propriété dont
  * la valeur lui est inconnue reste dans le style, intacte.
@@ -59,10 +59,12 @@ export function extraireDiapo(style: unknown, central: boolean): { diapo?: Regla
   }
   const { properties: _p, ...reste } = style
   const neuf = Object.keys(proprietes).length > 0 ? { ...reste, properties: proprietes } : reste
+  // Un style qu'il ne reste plus qu'à identifier n'a plus rien à dire : l'export en refait un au besoin.
+  const vide = Object.keys(style.properties).length > Object.keys(proprietes).length && Object.keys(neuf).every((k) => k === 'id')
   return {
     ...(Object.keys(diapo).length ? { diapo: diapo as ReglagesDiapo } : {}),
     ...(Object.keys(pitch).length ? { pitch } : {}),
-    style: Object.keys(neuf).length > 0 ? neuf : undefined,
+    style: vide ? undefined : neuf,
   }
 }
 

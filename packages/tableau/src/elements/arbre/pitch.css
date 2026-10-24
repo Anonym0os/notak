@@ -335,7 +335,7 @@
   max-height: 100%;
   min-height: 0;
   object-fit: contain;
-  border-radius: calc(var(--d-rayon, 10px) / 2);
+  border-radius: var(--d-rayon, 10px);
 }
 
 .notak-diapo-sujet[data-image='gauche'],
@@ -382,7 +382,7 @@
   position: relative;
   z-index: 1;
   padding: 1.5cqw 3cqw;
-  border-radius: calc(var(--d-rayon, 10px) / 2);
+  border-radius: var(--d-rayon, 10px);
   background: color-mix(in srgb, var(--d-fond) 78%, transparent);
 }
 

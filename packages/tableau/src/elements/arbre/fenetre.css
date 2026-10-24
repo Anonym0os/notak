@@ -12,7 +12,7 @@
   --notak-arbre-plein: color-mix(in srgb, var(--notak-arbre-texte) 85%, var(--notak-arbre-fond));
   --notak-arbre-ombre: inset 1px 1px 2px rgb(255 255 255 / 0.4), inset 0.5px 0.5px 1px rgb(255 255 255 / 0.7), 0 6px 20px rgb(0 0 0 / 0.06), 0 0 4px rgb(0 0 0 / 0.04);
   --notak-arbre-verre: color-mix(in srgb, var(--notak-arbre-fond) 70%, transparent);
-  --notak-arbre-largeur-cote: 250px;
+  --notak-arbre-largeur-cote: 268px;
   background: var(--notak-arbre-cadre);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
   color: var(--notak-arbre-texte);

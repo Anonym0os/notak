@@ -142,8 +142,8 @@ proche (`logic-chart.right` → logique droite, `tree.branch-aligned.right` → 
 - **Plan** (Maj+Cmd+M) : la même carte en liste indentée. Entrée crée un frère, Tab indente, Maj+Tab
   désindente, Cmd+/ replie. On revient à la carte par la même touche.
 - **Zen** (Cmd+Alt+F) : la carte seule, plein écran, sans barre.
-- **Présentation** (Cmd+Alt+P) : la carte se découvre branche par branche ; Espace et flèche droite
-  avancent, flèche gauche recule, Échap sort. Le cadrage suit le sujet présenté.
+- **Présentation** (Cmd+Alt+P) : le mode Pitch, une diapositive par sujet (§ 11). Espace et flèche droite
+  avancent, flèche gauche recule, Échap sort.
 - **Afficher la branche seule** (Cmd+;) : la branche choisie devient la seule visible, comme une carte à part.
 
 → Notak : le Gantt, l'IA, les commentaires et la collaboration propres à Xmind, la note audio et la vidéo web
@@ -193,3 +193,94 @@ Les anciens fichiers (Xmind 8) n'ont qu'un `content.xml` : → Notak ne les lit 
   retour par Notak n'abîme pas un fichier.
 - Les styles et thèmes de Xmind ne sont pas traduits finement : → Notak garde la structure, la forme, la
   couleur de branche et le rang ; le reste revient au thème de Notak.
+
+## 9. La barre du bas
+
+Deux pastilles flottantes au bas de la carte ouverte (36 de haut, à 16 du bord). Quand la fenêtre se resserre, le
+compteur, le zoom, le Gantt puis les modes s'effacent dans cet ordre, puis les deux pastilles.
+
+- **Feuille** (pastille de gauche) : l'onglet de la feuille, son titre en 13/17 gras, un chevron au survol qui ouvre
+  son menu (Renommer · Dupliquer · Supprimer · Nouvelle feuille · Enregistrer la feuille en tant que…), un « + ».
+  Double-clic : renommer en place.
+  → Notak : **une feuille est une carte posée sur la toile** (le `.xmind` importé en pose une par feuille), donc un
+  élément « Carte mentale » n'a qu'une feuille. « + » et « Nouvelle feuille » posent une carte neuve à droite de celle-ci
+  et l'ouvrent ; « Dupliquer » en pose une copie ; « Supprimer » reste grisé (la corbeille de la toile est le moyen) ;
+  « Enregistrer la feuille en tant que… » exporte en `.xmind`. Pas de défilement des onglets, ni de glisser pour les
+  ranger, ni de copier-coller de feuille : rien à ranger avec une seule feuille. Changer le modèle pour plusieurs
+  feuilles par élément demanderait un second jeu de clés dans `arbres` (`coeur/arbresYjs.ts`) : écarté pour ne pas
+  casser les cartes et les serveurs d'avant.
+- **Compteur** : « Sujets: n », ou « Sujets: s / n » avec une sélection, dans une largeur réservée (la barre ne saute
+  pas). Un clic ouvre un popover : sujets, mots, caractères (titres et notes). Absent dans le plan.
+- **Zoom** : le pourcentage et un menu à cases (500, 400, 300, 200, 150, 120, 100, 80, 50, 20, 10 ; le zoom courant,
+  coché, s'y ajoute s'il n'est pas un palier), puis « Ajuster la carte ». Dans le plan : 300 à 80, sans « Ajuster ».
+  Le zoom va de 10 à 500 %.
+- **Quatre boutons** : Diagramme de Gantt, plan (« Aperçu » chez Xmind), Zen, Pitch. Dans le plan, le bouton du plan
+  devient « carte mentale », le Zen disparaît et le Gantt reste grisé. Il n'y a pas de bouton « notes » dans la barre
+  du bas : les notes sont dans le panneau de gauche (§ 10).
+  → Notak : **le Gantt est affiché, grisé** (c'est une vue entière, hors de cette passe). Zen : plein écran, la carte
+  seule. Pitch : § 11. Les infobulles sont du texte simple ; les raccourcis sont ⇧⌘M (plan), ⌥⌘F (Zen), ⌥⌘P (Pitch).
+- **Le plan** remplace la carte : une page de 832 de large au plus, centrée. Central en 32/38 gras, principaux en 24/31
+  gras, les autres en 16/1,6 ; 24 d'indentation par niveau ; une puce de 6 px, ou un chevron dans un carré de 20 (tourné
+  de −90° quand le sujet est replié, avec une pastille du nombre de sujets cachés) ; les étiquettes et la note sous le
+  titre ; les sujets flottants après un trait.
+
+## 10. Le panneau de gauche
+
+Une carte flottante de 378 de large (à 8 du haut, du bas et du bord), trois onglets en capsule, une croix. La carte se
+cale contre elle quand elle est ouverte.
+
+- **Ouverture** : ⌘[ (symétrique de ⌘] pour le format), ou le bouton « panneau de gauche » à côté de l'accueil.
+  → Notak : Xmind l'ouvre par le menu Affichage (« Afficher le menu de navigation »), qui n'existe pas ici ; le relevé
+  ne donne pas son raccourci, ⌘[ est un choix de Notak.
+- **Plan** (« Aperçu » chez Xmind) : un champ de recherche (engrenage : mots entiers, respecter la casse), le titre de la
+  feuille en 21/27 gras, l'arbre de la carte (repli, étiquettes et lien sous le titre), puis les relations et les limites.
+  Un clic choisit le sujet et centre la carte. Avec une recherche, on garde les sujets trouvés et leurs ancêtres.
+- **Notes** : toutes les notes de la carte, sous le titre de la feuille entre deux filets ; pour chacune, le titre du
+  sujet (15/19 gras) et deux lignes de texte. Un clic va au sujet. « Il n'existe aucune note. » quand il n'y en a pas.
+  → Notak : pas de « Chercher et remplacer » ni de « Fichier courant » (une seule carte).
+- **Étiquettes** (« Tags » chez Xmind) : les marqueurs, étiquettes et tâches de la carte, avec le nombre de sujets qui
+  les portent. Cocher un repère met ses sujets en évidence dans la carte (le reste s'estompe à 20 %) ; fermer le
+  panneau décoche tout.
+- **La note d'un sujet** (⇧⌘N, ou son icône) s'ouvre en popover de 400 × 280 posé à droite du sujet : gras, italique,
+  barré, souligné, listes, lien. Elle s'écrit dans la carte quand on la quitte (Échap, clic dehors).
+
+## 11. Pitch
+
+Le mode présentation : la carte devient une suite de diapositives.
+
+**Les réglages**, onglet Pitch du panneau de droite.
+- Une carte garde un **thème** (`slide-appearance`, défaut `default` = sombre) et un **rapport d'aspect**
+  (`slide-aspect-ratio` : Auto, 16:9, 4:3, 9:16, 3:4 ; en Auto, celui des quatre qui se rapproche le plus de la fenêtre).
+  Sept thèmes : Clair, Sombre, Innocence, Formes, Rose de minuit, Bulles, Carnet. → Notak : les dessins sont les nôtres ;
+  les identifiants `light`, `default`, `innocence`, `shape-for-you`, `midnight-rose`, `hubble-bubble`, `hand-drawn` sont
+  ceux qu'on écrit dans le fichier.
+- Un sujet garde, chacun absent tant qu'on est en « Auto » : `topic-slide-visibility`, `summary-slide-visibility`,
+  `list-slide-visibility` (`show` / `skip`), `list-slide-delivery` (`one-by-one-drill-in`, `one-by-one`, `all-at-once`),
+  `list-slide-layout` (`brace-list`, `bullet-list`, `lyric-list`, `fishbone`, `timeline`) et
+  `topic-slide-image-placement` (`left`, `right`, `aboveTitle`, `belowTitle`, `full`).
+  Dans Notak : `Arbre.pitch` (`theme`, `ratio`) et `Sujet.diapo` (`sujet`, `resume`, `liste`, `livraison`, `miseEnPage`,
+  `image`), posés par les gestes `pitch` et `diapo` (`null` rend la main à Auto). Dans le `.xmind`, ce sont des
+  propriétés de `style.properties` : celles de la feuille sur le sujet central, celles d'un sujet sur lui. Le relevé ne
+  dit pas où Xmind les range : → Notak le déduit de leur forme, sans l'avoir éprouvé contre Xmind lui-même. Une valeur
+  inconnue reste dans le style, intacte.
+- L'onglet montre l'aperçu de la diapositive du sujet (rejouée au survol, une étape toutes les 2 s), « Changer de thème »
+  (le sélecteur : une vignette par thème, deux par ligne), le rapport, puis « Sujet comme diapositive » (Auto / Visible /
+  Masqué, « Auto » dit ce qu'il décide), « Position de l'image » (si tous les sujets choisis portent une image),
+  « Sous-sujets comme diapositive » et, s'il est visible, « Livraison » et « Mise en page » (cinq boutons).
+  Avec plusieurs sujets : « Multiple » quand ils diffèrent.
+
+**Les diapositives.** Auto : le central, les principaux et les flottants sont des diapositives, les sous-sujets non ;
+un résumé en est une ; un sujet qui est une diapositive et qui a des sous-sujets a aussi une **liste**. L'ordre : le
+sujet, sa liste, puis la branche suivante. Une liste déroule ses sous-sujets (en profondeur d'abord, sans descendre
+chez celui qui a sa propre diapositive), selon la livraison : tout d'un coup, un par un (le sous-sujet vient avec ses
+enfants), ou en descendant dans chacun. La mise en page par défaut est la liste à puces. Au moins une diapositive : le
+central.
+
+**La présentation** (⌥⌘P, ou le bouton Pitch). Plein écran quand le navigateur le permet ; elle part du sujet choisi (une
+pastille propose de « lire à partir de la première diapositive »). Une barre en haut à droite (quitter, paramètres,
+navigation) s'estompe à 15 % après trois secondes. Touches : Espace, Entrée, →, ↓, Pg suiv. avancent ; ←, ↑, Pg préc.
+reculent ; ⇧→ passe la branche, ⇧← revient au sujet parent ; Échap et Q quittent ; A bascule l'animation ; ? montre
+les raccourcis. Un clic sur la scène avance. La dernière étape franchie, on revient à la carte. L'animation est une
+préférence de ce navigateur.
+→ Notak : pas de seconde fenêtre ni de **vue du présentateur**, pas de filigrane « Presented with xmind », pas de
+limite de cinq diapositives (ces deux-là tiennent à la licence de Xmind), pas de « Présenter dans une fenêtre ».

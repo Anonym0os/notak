@@ -5,7 +5,7 @@ import { Deroulant, Entree } from './Fenetre'
 import { enPourcent, entreesZoom } from './modele/zoom'
 
 /**
- * La barre du bas de la carte ouverte, comme celle de Xmind (docs/XMIND.md § 8) : deux pastilles flottantes. À
+ * La barre du bas de la carte ouverte, comme celle de Xmind (docs/XMIND.md § 9) : deux pastilles flottantes. À
  * gauche, l'onglet de la feuille ; à droite, le compteur de sujets, le zoom, puis Gantt, plan, Zen et Pitch.
  * Quand la fenêtre se resserre, le compteur, le zoom, le Gantt puis les modes s'effacent dans cet ordre (le CSS le
  * fait par des seuils de largeur).
@@ -198,7 +198,13 @@ export function OngletFeuille({ titre, lectureSeule, renommer, dupliquer, nouvel
 
 export function BarreBas(p: PropsBarreBas) {
   return (
-    <div className="notak-arbre-bas">
+    <div
+      className="notak-arbre-bas"
+      onKeyDown={(e) => {
+        // Espace et Entrée activent le bouton qui a le focus : la carte n'y voit pas un geste (éditer, créer).
+        if (e.key === ' ' || e.key === 'Enter' || e.target instanceof HTMLInputElement) e.stopPropagation()
+      }}
+    >
       <div className="notak-bas-pastille notak-bas-feuilles">
         <OngletFeuille titre={p.titre} lectureSeule={p.lectureSeule} renommer={p.renommer} dupliquer={p.dupliquer} nouvelle={p.nouvelle} enregistrer={p.enregistrer} />
         {!p.lectureSeule && (

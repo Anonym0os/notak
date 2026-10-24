@@ -2,7 +2,7 @@ import type { Id, ReglagesDiapo } from '../../../coeur/tableau'
 import { type Lecture, descendDe, enfantsDe, profondeur } from './sujets'
 
 /**
- * Le mode Pitch (docs/XMIND.md § 9) : une carte devient une suite de diapositives, une par sujet que les réglages
+ * Le mode Pitch (docs/XMIND.md § 11) : une carte devient une suite de diapositives, une par sujet que les réglages
  * montrent, plus une « liste » par sujet qui a des sous-sujets. Ce module ne dessine rien : il décide quelles
  * diapositives existent, dans quel ordre, et en combien d'étapes chacune se découvre.
  */

@@ -1,0 +1,199 @@
+// @vitest-environment jsdom
+import { act } from 'react'
+import { createRoot } from 'react-dom/client'
+import { describe, expect, it, vi } from 'vitest'
+import type { Arbre, Id } from '../../coeur/tableau'
+import { poserDiapo } from './modele/pitch'
+import type { Geste } from './modele/gestes'
+import { ajouterEnfant, lire, nouvelArbre } from './modele/sujets'
+import { OngletPresenter } from './OngletPresenter'
+import { Presentation } from './Presentation'
+
+;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+
+/** Central → A (A1, A2), B. */
+function carte() {
+  let a: Arbre = nouvelArbre('Cours')
+  const c = lire(a).central
+  let A: Id, B: Id
+  ;[a, A] = ajouterEnfant(a, c, 'Chapitre A')
+  ;[a, B] = ajouterEnfant(a, c, 'Chapitre B')
+  ;[a] = ajouterEnfant(a, A, 'Point 1')
+  ;[a] = ajouterEnfant(a, A, 'Point 2')
+  return { a, c, A, B }
+}
+
+const taper = (el: HTMLSelectElement, valeur: string) =>
+  act(() => {
+    el.value = valeur
+    el.dispatchEvent(new Event('change', { bubbles: true }))
+  })
+const clic = (el: Element) => act(() => void el.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+
+function onglet(a: Arbre, choisis: Id[]) {
+  const hote = document.createElement('div')
+  document.body.append(hote)
+  const racine = createRoot(hote)
+  const faire = vi.fn<(g: Geste) => void>()
+  act(() => racine.render(<OngletPresenter arbre={a} lecture={lire(a)} choisis={choisis} faire={faire} />))
+  const menu = (info: string) => hote.querySelector<HTMLSelectElement>(`select[aria-label="${info}"]`)!
+  return { hote, faire, menu, fin: () => (act(() => racine.unmount()), hote.remove()) }
+}
+
+describe('l’onglet Pitch', () => {
+  it('rien de choisi : « Sélectionner un sujet à formater. »', () => {
+    const { a } = carte()
+    const o = onglet(a, [])
+    expect(o.hote.textContent).toBe('Sélectionner un sujet à formater.')
+    o.fin()
+  })
+
+  it('un principal : l’aperçu, le sujet et la liste avec leurs Auto dits, la livraison et les cinq mises en page', () => {
+    const { a, A } = carte()
+    const o = onglet(a, [A])
+    expect(o.hote.querySelector('.notak-pitch-apercu .notak-diapo')).toBeTruthy()
+    expect([...o.menu('Sujet comme diapositive').options].map((x) => x.textContent)).toEqual(['Auto (Visible)', 'Visible', 'Masqué'])
+    expect([...o.menu('Sous-sujets comme diapositive').options].map((x) => x.textContent)).toEqual(['Auto (Visible)', 'Visible', 'Masqué'])
+    expect([...o.menu('Livraison').options].map((x) => x.textContent)).toEqual(['Auto (Un par un)', 'Un par un, en profondeur', 'Un par un', 'Tout à la fois'])
+    expect([...o.hote.querySelectorAll('.notak-pitch-segments button')].map((b) => b.getAttribute('aria-label'))).toEqual(['Liste à accolade', 'Liste à puces', 'Paroles', 'Arêtes de poisson', 'Chronologie'])
+    // Pas d’image sur ce sujet : pas de ligne « Position de l’image ».
+    expect(o.hote.textContent).not.toContain('Position de l’image')
+    o.fin()
+  })
+
+  it('un sous-sujet sans enfant : Auto (Masqué) et ni liste ni livraison', () => {
+    const { a } = carte()
+    const [, sans] = ajouterEnfant(a, Object.keys(a.sujets).find((k) => a.sujets[k]!.titre === 'Point 1')!, 'Détail')
+    const o = onglet(a, [Object.keys(a.sujets).find((k) => a.sujets[k]!.titre === 'Point 2')!])
+    expect([...o.menu('Sujet comme diapositive').options][0]!.textContent).toBe('Auto (Masqué)')
+    expect(o.hote.textContent).not.toContain('Sous-sujets comme diapositive')
+    expect(sans).toBeTruthy()
+    o.fin()
+  })
+
+  it('changer un menu écrit un geste de réglage ; Auto le retire', () => {
+    const { a, A } = carte()
+    const o = onglet(a, [A])
+    taper(o.menu('Sujet comme diapositive'), 'masque')
+    expect(o.faire).toHaveBeenLastCalledWith({ type: 'diapo', ids: [A], reglage: { sujet: 'masque' } })
+    taper(o.menu('Livraison'), 'tout')
+    expect(o.faire).toHaveBeenLastCalledWith({ type: 'diapo', ids: [A], reglage: { livraison: 'tout' } })
+    clic(o.hote.querySelectorAll('.notak-pitch-segments button')[4]!)
+    expect(o.faire).toHaveBeenLastCalledWith({ type: 'diapo', ids: [A], reglage: { miseEnPage: 'chronologie' } })
+    taper(o.menu('Rapport d’aspect'), '4:3')
+    expect(o.faire).toHaveBeenLastCalledWith({ type: 'pitch', reglage: { ratio: '4:3' } })
+    o.fin()
+    const b = poserDiapo(a, [A], { sujet: 'masque' })
+    const p = onglet(b, [A])
+    expect(p.menu('Sujet comme diapositive').value).toBe('masque')
+    taper(p.menu('Sujet comme diapositive'), 'auto')
+    expect(p.faire).toHaveBeenLastCalledWith({ type: 'diapo', ids: [A], reglage: { sujet: null } })
+    p.fin()
+  })
+
+  it('plusieurs sujets : « Plusieurs sujets sélectionnés. » à la place de l’aperçu, « Multiple » quand ils diffèrent', () => {
+    const { a, A, B } = carte()
+    const b = poserDiapo(a, [A], { sujet: 'masque' })
+    const o = onglet(b, [A, B])
+    expect(o.hote.querySelector('.notak-pitch-apercu-texte')?.textContent).toBe('Plusieurs sujets sélectionnés.')
+    expect(o.menu('Sujet comme diapositive').value).toBe('multiple')
+    o.fin()
+  })
+
+  it('« Changer de thème » ouvre les sept thèmes ; en choisir un écrit le thème de la carte', () => {
+    const { a, A } = carte()
+    const o = onglet(a, [A])
+    clic(o.hote.querySelector('.notak-pitch-bouton')!)
+    const vignettes = [...document.querySelectorAll('.notak-pitch-vignette')]
+    expect(vignettes.map((v) => v.querySelector('.notak-pitch-legende')?.textContent)).toEqual(['Clair', 'Sombre', 'Innocence', 'Formes', 'Rose de minuit', 'Bulles', 'Carnet'])
+    expect(vignettes[1]!.getAttribute('aria-pressed')).toBe('true')
+    clic(vignettes[2]!)
+    expect(o.faire).toHaveBeenLastCalledWith({ type: 'pitch', reglage: { theme: 'innocence' } })
+    o.fin()
+  })
+})
+
+function presenter(a: Arbre, depart?: Id) {
+  const hote = document.createElement('div')
+  hote.className = 'notak-arbre-fond'
+  document.body.append(hote)
+  const racine = createRoot(hote)
+  const quitter = vi.fn()
+  const faire = vi.fn<(g: Geste) => void>()
+  act(() => racine.render(<Presentation arbre={a} lecture={lire(a)} depart={depart} faire={faire} lectureSeule={false} quitter={quitter} />))
+  const touche = (key: string, mods: Partial<KeyboardEventInit> = {}) =>
+    act(() => void document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...mods })))
+  const titre = () => hote.querySelector('.notak-diapo h1, .notak-diapo h2')?.textContent
+  return { hote, quitter, faire, touche, titre, fin: () => (act(() => racine.unmount()), hote.remove()) }
+}
+
+describe('le mode présentation', () => {
+  it('commence au central ; Espace et les flèches avancent, ← recule', () => {
+    const { a } = carte()
+    const p = presenter(a)
+    expect(p.titre()).toBe('Cours')
+    p.touche(' ')
+    expect(p.hote.querySelector('.notak-diapo-liste h2')?.textContent).toBe('Cours')
+    p.touche('ArrowRight')
+    p.touche('ArrowRight')
+    expect(p.titre()).toBe('Chapitre A')
+    p.touche('ArrowLeft')
+    expect(p.hote.querySelector('.notak-diapo-liste')).toBeTruthy()
+    p.fin()
+  })
+
+  it('une liste se découvre étape par étape', () => {
+    const { a, A } = carte()
+    const p = presenter(a, A)
+    expect(p.titre()).toBe('Chapitre A')
+    p.touche('ArrowRight')
+    const etats = () => [...p.hote.querySelectorAll('.notak-diapo-liste li')].map((li) => li.getAttribute('data-etat'))
+    expect(etats()).toEqual(['courant', 'cache'])
+    p.touche('ArrowRight')
+    expect(etats()).toEqual(['passe', 'courant'])
+    p.fin()
+  })
+
+  it('Maj+→ passe la branche, Maj+← revient au parent', () => {
+    const { a, A } = carte()
+    const p = presenter(a, A)
+    p.touche('ArrowRight', { shiftKey: true })
+    expect(p.titre()).toBe('Chapitre B')
+    p.touche('ArrowLeft', { shiftKey: true })
+    expect(p.titre()).toBe('Cours')
+    p.fin()
+  })
+
+  it('Échap et Q quittent ; la fin de la dernière diapositive aussi ; ? montre les raccourcis', () => {
+    const { a } = carte()
+    const p = presenter(a)
+    p.touche('?')
+    expect(p.hote.querySelector('.notak-pitch-raccourcis')).toBeTruthy()
+    p.touche('Escape')
+    expect(p.hote.querySelector('.notak-pitch-raccourcis')).toBeNull()
+    expect(p.quitter).not.toHaveBeenCalled()
+    p.touche('Escape')
+    expect(p.quitter).toHaveBeenCalledTimes(1)
+    p.touche('q')
+    expect(p.quitter).toHaveBeenCalledTimes(2)
+    for (let i = 0; i < 12; i++) p.touche('ArrowRight')
+    expect(p.quitter.mock.calls.length).toBeGreaterThan(2)
+    p.fin()
+  })
+
+  it('le thème de la carte habille la diapositive, et la barre garde ses quatre groupes de boutons', () => {
+    const { a } = carte()
+    const p = presenter({ ...a, pitch: { theme: 'light', ratio: '4:3' } })
+    expect((p.hote.querySelector('.notak-diapo-cadre') as HTMLElement).style.getPropertyValue('--d-fond')).toBe('#fafbfc')
+    expect(p.hote.querySelector('.notak-diapo-cadre')?.getAttribute('data-ratio')).toBe('4:3')
+    expect([...p.hote.querySelectorAll('.notak-pitch-outil')].map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Quitter le mode présentation.',
+      'Paramètres',
+      'Retour au sujet parent.',
+      'Diapositive précédente',
+      'Diapositive suivante',
+      'Passer la branche actuelle.',
+    ])
+    p.fin()
+  })
+})

@@ -8,7 +8,7 @@ import { type OptionsRecherche, contient, notesDe, notesFiltrees, reperesDe } fr
 import { type Lecture, enfantsDe } from './modele/sujets'
 
 /**
- * Le panneau de gauche de la carte ouverte, comme le panneau de navigation de Xmind (docs/XMIND.md § 8) : une carte
+ * Le panneau de gauche de la carte ouverte, comme le panneau de navigation de Xmind (docs/XMIND.md § 10) : une carte
  * flottante de 378 de large, trois onglets en capsule. Le plan est l'arbre de la carte, qu'on cherche et où l'on
  * saute ; les notes listent celles de tous les sujets ; les étiquettes rassemblent marqueurs, étiquettes et tâches,
  * qu'on coche pour mettre leurs sujets en évidence dans la carte.

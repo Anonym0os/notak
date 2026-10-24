@@ -7,10 +7,11 @@ import { Diapositive } from './Diapo'
 import { diapositives, pasApresBranche, pasDe, pasDeDepart, pasParent } from './modele/diapositives'
 import type { Geste } from './modele/gestes'
 import type { Lecture } from './modele/sujets'
+import { themeDe } from './themes'
 import { RATIOS_PITCH, ratioEffectif, themePitchDe } from './themesPitch'
 
 /**
- * Le mode présentation lancé par Pitch (docs/XMIND.md § 9) : la carte devient une suite de diapositives, plein écran.
+ * Le mode présentation lancé par Pitch (docs/XMIND.md § 11) : la carte devient une suite de diapositives, plein écran.
  * Une barre flottante en haut à droite (quitter, réglages, navigation) s'estompe après trois secondes ; Espace et les
  * flèches avancent, Échap sort. Les préférences d'animation vivent dans ce navigateur, pas dans la carte.
  */
@@ -69,7 +70,20 @@ function Interrupteur({ actif, change, libelle, info }: { actif: boolean; change
 
 function BoutonOutil({ icone, info, inactif, onClick, refBouton, actif }: { icone: NomIcone; info: string; inactif?: boolean; onClick(): void; refBouton?: React.Ref<HTMLButtonElement>; actif?: boolean }) {
   return (
-    <button ref={refBouton} type="button" className="notak-pitch-outil" aria-label={info} title={info} disabled={inactif} aria-expanded={actif}  onClick={onClick}>
+    <button
+      ref={refBouton}
+      type="button"
+      className="notak-pitch-outil"
+      aria-label={info}
+      title={info}
+      disabled={inactif}
+      aria-expanded={actif}
+      onClick={(e) => {
+        // Le bouton rend la main à la présentation : Espace avance, il ne rappuie pas sur lui.
+        e.currentTarget.blur()
+        onClick()
+      }}
+    >
       <Icone nom={icone} taille={16} trait={1.6} />
     </button>
   )
@@ -181,6 +195,9 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
       else quitter()
     } else if (dansPopover && e.key !== '?') {
       return
+    } else if ((e.key === ' ' || e.key === 'Enter') && (e.target as Element | null)?.closest?.('button')) {
+      // Un bouton qui a le focus (au clavier) garde Espace et Entrée.
+      return
     } else if (e.metaKey || e.ctrlKey || e.altKey) {
       return
     } else if (e.key === 'ArrowRight' && e.shiftKey) passer()
@@ -205,7 +222,7 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
   const mettreAJour = (reglage: Extract<Geste, { type: 'pitch' }>['reglage']) => !lectureSeule && faire({ type: 'pitch', reglage })
 
   return (
-    <div ref={scene} className="notak-pitch-scene" style={{ background: 'var(--notak-arbre-fond)' }} onClick={suivant} aria-label={t('arbre.pitch.titre')} role="region" aria-live="polite">
+    <div ref={scene} className="notak-pitch-scene" style={{ background: themeDe(arbre.theme).fond ?? 'var(--notak-arbre-fond)' }} onClick={suivant} aria-label={t('arbre.pitch.titre')} role="region" aria-live="polite">
       {diapo && courant && (
         <div key={courant.diapo} className="notak-pitch-diapo" data-anime={anime ? '' : undefined}>
           <Diapositive lecture={l} diapo={diapo} etape={courant.etape} theme={theme} ratio={ratio} adresse={adresse} anime={anime} taille={taille} />
