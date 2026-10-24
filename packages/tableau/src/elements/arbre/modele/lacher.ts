@@ -200,8 +200,16 @@ function ranger(a: Arbre, parent: Id, ordre: readonly Id[], deplaces: ReadonlySe
 
 /** Pose le rangement d'un lâcher sur la carte : l'ordre des principaux et, en carte libre, le nombre de ceux de droite. */
 function rangerPrincipaux(a: Arbre, central: Id, plan: { ordre: Id[]; aDroite?: number }, deplaces: ReadonlySet<Id>): Arbre {
-  const arbre = ranger(a, central, plan.ordre, deplaces)
-  return plan.aDroite === undefined ? arbre : changerSujet(arbre, central, (s) => ({ ...s, aDroite: plan.aDroite }))
+  const avant = new Set(colonnes(lire(a), new Set())[0])
+  let arbre = ranger(a, central, plan.ordre, deplaces)
+  if (plan.aDroite !== undefined) arbre = changerSujet(arbre, central, (s) => ({ ...s, aDroite: plan.aDroite }))
+  // Un principal qui change de côté perd son décalage libre : posé pour l'autre côté, il le ferait chevaucher le central.
+  const apres = new Set(colonnes(lire(arbre), new Set())[0])
+  for (const id of plan.ordre) {
+    if (avant.has(id) === apres.has(id) || !arbre.sujets[id]?.decalage) continue
+    arbre = changerSujet(arbre, id, ({ decalage: _d, ...reste }) => reste)
+  }
+  return arbre
 }
 
 /** Le frère devant lequel s'insèrent les sujets déplacés, parmi ceux qui ne bougent pas : `undefined` pour la fin de la liste. */

@@ -324,3 +324,20 @@ describe('ailleurs que sous le central : l’ordre du modèle suit le sens où l
     expect(r.boite.y + r.boite.h).toBeLessThanOrEqual(z.y)
   })
 })
+
+describe('un principal qui change de côté', () => {
+  it('perd son décalage libre, qu’il soit glissé ou basculé pour l’équilibre ; les autres gardent le leur', () => {
+    const { a: a0, c, p } = carte('carte', 3)
+    // P0 et P1 à droite, P2 à gauche ; chacun décalé à la main.
+    let a = a0
+    for (const id of p) a = changerSujet(a, id, (s) => ({ ...s, decalage: { x: 40, y: 10 } }))
+    // P2 glissé à droite, en tête : l'équilibre fait passer P1 à gauche.
+    const b = deplacerSujets(a, [p[2]!], { type: 'carte', parent: c, cote: 'droite', rang: 0 })
+    const v = vue(b)
+    expect(v.droite).toContain('P2')
+    expect(v.gauche).toContain('P1')
+    expect(b.sujets[p[2]!]!.decalage).toBeUndefined()
+    expect(b.sujets[p[1]!]!.decalage).toBeUndefined()
+    expect(b.sujets[p[0]!]!.decalage).toEqual({ x: 40, y: 10 })
+  })
+})
