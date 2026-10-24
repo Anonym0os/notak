@@ -12,7 +12,7 @@ import type * as Y from 'yjs'
  */
 
 export const NOM_ARBRES = 'arbres'
-export const CHAMPS_ARBRE = ['sujets', 'relations', 'limites', 'resumes'] as const
+export const CHAMPS_ARBRE = ['sujets', 'relations', 'limites', 'resumes', 'zones', 'groupes'] as const
 export type ChampArbre = (typeof CHAMPS_ARBRE)[number]
 export type Dicos = Partial<Record<ChampArbre, Record<string, unknown>>>
 

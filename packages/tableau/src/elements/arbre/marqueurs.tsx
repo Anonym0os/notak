@@ -54,24 +54,97 @@ const ICONES: Record<string, NomIcone> = {
 
 const FORMES: Record<string, NomIcone> = { flag: 'marqueurDrapeau', star: 'marqueurEtoile', people: 'marqueurPersonne' }
 
-/** Les groupes du panneau, dans l'ordre : chacun est une rangée de marqueurs. */
+/**
+ * Les symboles du panneau : l'identifiant du format, le dessin (une icône blanche, ou un mot) et la teinte du disque.
+ * Seize sur la quarantaine que Xmind définit ; les autres identifiants se lisent et se rendent à l'export tels quels.
+ */
+const SYMBOLES: Record<string, { icone?: NomIcone; texte?: string; couleur: string }> = {
+  'symbol-heart': { icone: 'coeur', couleur: '#e5534b' },
+  'symbol-like': { icone: 'pouceHaut', couleur: '#e69138' },
+  'symbol-dislike': { icone: 'pouceBas', couleur: '#3a86d4' },
+  'symbol-pushpin': { icone: 'punaise', couleur: '#e5534b' },
+  'symbol-idea': { icone: 'idee', couleur: '#d4a72c' },
+  'symbol-flash': { icone: 'eclair', couleur: '#3a86d4' },
+  'symbol-hourglass': { icone: 'sablier', couleur: '#e69138' },
+  'symbol-phone': { icone: 'telephone', couleur: '#3fa66b' },
+  'symbol-pen': { icone: 'croquis', couleur: '#e69138' },
+  'symbol-music': { icone: 'musique', couleur: '#8b5cd6' },
+  'symbol-entertainment': { icone: 'jeu', couleur: '#d4a72c' },
+  'symbol-100': { texte: '100', couleur: '#e5534b' },
+  'symbol-plane': { icone: 'voyage', couleur: '#3a86d4' },
+  'symbol-run': { icone: 'sport', couleur: '#3fa66b' },
+  'symbol-exclam': { icone: 'exclamation', couleur: '#e5534b' },
+  'symbol-question': { icone: 'question', couleur: '#3a86d4' },
+}
+
+const couleurs = (prefixe: string) => Object.keys(COULEURS_MARQUEUR).map((c) => `${prefixe}-${c}`)
+
+/**
+ * Les groupes du panneau d'icônes, dans l'ordre de Xmind : 58 marqueurs. Chacun est une rangée ; un sujet n'en porte
+ * qu'un par groupe.
+ */
 export const GROUPES_MARQUEURS: { cle: string; marqueurs: string[] }[] = [
-  { cle: 'priority', marqueurs: Array.from({ length: 9 }, (_, i) => `priority-${i + 1}`) },
-  { cle: 'task', marqueurs: [...Object.keys(AVANCEMENT), 'task-pause'] },
-  { cle: 'flag', marqueurs: Object.keys(COULEURS_MARQUEUR).map((c) => `flag-${c}`) },
-  { cle: 'star', marqueurs: Object.keys(COULEURS_MARQUEUR).map((c) => `star-${c}`) },
-  { cle: 'people', marqueurs: Object.keys(COULEURS_MARQUEUR).map((c) => `people-${c}`) },
-  { cle: 'smiley', marqueurs: Object.keys(ICONES).filter((m) => m.startsWith('smiley-')) },
-  { cle: 'arrow', marqueurs: Object.keys(ICONES).filter((m) => m.startsWith('arrow-')) },
-  { cle: 'symbol', marqueurs: Object.keys(ICONES).filter((m) => m.startsWith('symbol-')) },
+  { cle: 'tag', marqueurs: couleurs('tag') },
+  { cle: 'priority', marqueurs: Array.from({ length: 7 }, (_, i) => `priority-${i + 1}`) },
+  { cle: 'task', marqueurs: ['task-start', 'task-oct', 'task-3oct', 'task-half', 'task-5oct', 'task-7oct', 'task-done'] },
+  { cle: 'flag', marqueurs: couleurs('flag') },
+  { cle: 'star', marqueurs: couleurs('star') },
+  { cle: 'people', marqueurs: couleurs('people') },
+  { cle: 'symbol', marqueurs: Object.keys(SYMBOLES) },
 ]
+
+/** Ce que Notak sait dessiner sans l'afficher au panneau : de quoi relire un fichier de Xmind sans le défigurer. */
+export const MARQUEURS_CACHES: string[] = [
+  'priority-8',
+  'priority-9',
+  'task-quarter',
+  'task-3quar',
+  'task-pause',
+  ...Object.keys(ICONES),
+]
+
+/** Un marqueur qui n'est pas de la bibliothèque : une image à soi, rangée dans un groupe de la carte (`perso-<id>`). */
+export const estPerso = (m: string) => m.startsWith('perso-')
 
 /** La taille d'un marqueur dessiné devant un titre, en px. */
 export const TAILLE_MARQUEUR = 16
 
 /** Un marqueur, dessiné dans un carré de `taille` px dont le coin haut gauche est en (0, 0). */
-export function Marqueur({ id, taille = TAILLE_MARQUEUR }: { id: string; taille?: number }): ReactNode {
+export function Marqueur({ id, taille = TAILLE_MARQUEUR, perso }: { id: string; taille?: number; perso?: (marqueur: string) => string | undefined }): ReactNode {
   const r = taille / 2
+  if (estPerso(id)) {
+    const adresse = perso?.(id)
+    return adresse ? (
+      <g>
+        <clipPath id={`mq-${id}`}>
+          <circle cx={r} cy={r} r={r} />
+        </clipPath>
+        <image href={adresse} x={0} y={0} width={taille} height={taille} preserveAspectRatio="xMidYMid slice" clipPath={`url(#mq-${id})`} />
+      </g>
+    ) : (
+      <circle cx={r} cy={r} r={r - 2} fill="#aab0b8" />
+    )
+  }
+  const tag = id.match(/^tag-(\w+)$/)
+  if (tag) return <circle cx={r} cy={r} r={r - 0.75} fill={COULEURS_MARQUEUR[tag[1]!] ?? COULEURS_MARQUEUR.gray} />
+  const symbole = SYMBOLES[id]
+  if (symbole) {
+    const g = taille * 0.62
+    return (
+      <g>
+        <circle cx={r} cy={r} r={r - 0.5} fill={symbole.couleur} />
+        {symbole.icone ? (
+          <g transform={`translate(${r - g / 2} ${r - g / 2})`} style={{ color: '#fff' }}>
+            <Icone nom={symbole.icone} taille={g} trait={2.4} />
+          </g>
+        ) : (
+          <text x={r} y={r + taille * 0.17} textAnchor="middle" fontSize={taille * 0.46} fontWeight={800} fill="#fff" fontFamily="Inter, system-ui, sans-serif">
+            {symbole.texte}
+          </text>
+        )}
+      </g>
+    )
+  }
   const priorite = id.match(/^priority-([1-9])$/)
   if (priorite) {
     return (

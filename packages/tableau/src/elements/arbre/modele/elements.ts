@@ -78,8 +78,13 @@ export function ajouterResume(a: Arbre, ids: readonly Id[], titre: string): [Arb
   return [avecChamp({ ...a, sujets }, 'resumes', { ...a.resumes, [id]: { ...p, sujet } satisfies Resume }), sujet]
 }
 
-/** Retire une relation, une limite ou un résumé (avec son sujet de résumé et ce qui en descend). */
+/** Retire une relation, une limite, une zone ou un résumé (avec son sujet de résumé et ce qui en descend). */
 export function retirer(a: Arbre, id: Id): Arbre {
+  if (a.zones?.[id]) {
+    const { [id]: _z, ...zones } = a.zones
+    const { zones: _s, ...reste } = a
+    return Object.keys(zones).length > 0 ? { ...reste, zones } : reste
+  }
   if (a.relations?.[id]) return avecChamp(a, 'relations', sans(a.relations, id))
   if (a.limites?.[id]) return avecChamp(a, 'limites', sans(a.limites, id))
   const r = a.resumes?.[id]
@@ -112,6 +117,8 @@ export const resumeDe = (a: Arbre, sujet: Id): Id | undefined => Object.entries(
 /** Les groupes de marqueurs : un sujet n'en porte qu'un par groupe. */
 export const groupeDuMarqueur = (m: string): string => {
   if (m.startsWith('task-')) return 'task'
+  // Un marqueur à soi n'exclut personne : chacun est son propre groupe.
+  if (m.startsWith('perso-')) return m
   return m.split('-')[0]!
 }
 
@@ -128,13 +135,22 @@ export function basculerMarqueur(a: Arbre, ids: readonly Id[], m: string): Arbre
   return sortie
 }
 
-type Portable = 'etiquettes' | 'lien' | 'note' | 'image' | 'tache' | 'numerotation' | 'classe'
+type Portable = 'etiquettes' | 'lien' | 'note' | 'image' | 'tache' | 'numerotation' | 'classe' | 'planning' | 'piece' | 'equation' | 'vignette'
+
+/** Ce qu'un sujet ne porte pas avec : une image et un autocollant (ou une illustration) se disputent la même place. */
+const CONTRAIRES: Partial<Record<Portable, Portable>> = { image: 'vignette', vignette: 'image' }
 
 /** Pose (ou retire, avec `undefined` ou une liste vide) ce que portent ces sujets. */
 export function porter<K extends Portable>(a: Arbre, ids: readonly Id[], champ: K, valeur: Sujet[K] | undefined): Arbre {
   let sortie = a
   const vide = valeur === undefined || (Array.isArray(valeur) && valeur.length === 0)
-  for (const id of ids) sortie = changerSujet(sortie, id, ({ [champ]: _, ...s }) => (vide ? s : { ...s, [champ]: valeur }) as Sujet)
+  const contraire = !vide ? CONTRAIRES[champ] : undefined
+  for (const id of ids)
+    sortie = changerSujet(sortie, id, ({ [champ]: _, ...s }) => {
+      const reste: Record<string, unknown> = s
+      if (contraire) delete reste[contraire]
+      return (vide ? reste : { ...reste, [champ]: valeur }) as unknown as Sujet
+    })
   return sortie
 }
 

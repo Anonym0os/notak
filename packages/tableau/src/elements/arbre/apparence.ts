@@ -176,7 +176,12 @@ export interface Decor {
   /** Les petites icônes après le titre : note, lien. */
   icones?: number
   etiquettes?: readonly string[]
+  /** Ce qui se pose comme une image : l'image elle-même, un autocollant ou une illustration. */
   image?: { l: number; h: number }
+  /** Une équation, au-dessus du titre. */
+  equation?: { l: number; h: number }
+  /** La tâche planifiée, résumée en une ligne sous le titre (« 3 → 9 janv. · 7 j »). */
+  planning?: string
 }
 
 /** La géométrie d'un sujet dessiné, relative à son coin haut gauche. */
@@ -190,11 +195,18 @@ export interface Mesure extends Taille {
   etiquettes: { y: number; largeurs: number[] } | null
   /** Où va l'image. */
   image: { x: number; y: number } | null
+  /** Où va l'équation. */
+  equation: { x: number; y: number } | null
+  /** Où va la ligne de la tâche planifiée, et sa largeur. */
+  planning: { y: number; l: number } | null
 }
 
 const TAILLE_ICONE = 16
 const PAS_ICONE = 19
 const HAUTEUR_ETIQUETTE = 18
+/** La pastille d'une tâche planifiée : un camembert d'avancement, puis les dates. */
+const POLICE_PLANNING = 11
+const DISQUE_PLANNING = 12
 const POLICE_ETIQUETTE = 11
 
 const memo = new Map<string, Mesure>()
@@ -213,20 +225,25 @@ export function mesurer(titre: string, h: Habit, decor: Decor = {}): Mesure {
   const hRangee = Math.max(hTexte, decor.tache || decor.marqueurs || decor.icones ? TAILLE_ICONE : 0)
   const largeurs = (decor.etiquettes ?? []).map((e) => Math.ceil(largeurTexte(e, POLICE_ETIQUETTE, 500) + 12))
   const lEtiquettes = largeurs.reduce((s, x, i) => s + x + (i > 0 ? 4 : 0), 0)
-  const interieur = Math.max(lRangee, lEtiquettes, decor.image?.l ?? 0)
+  const lPlanning = decor.planning ? Math.ceil(largeurTexte(decor.planning, POLICE_PLANNING, 500) + DISQUE_PLANNING + 14) : 0
+  const interieur = Math.max(lRangee, lEtiquettes, lPlanning, decor.image?.l ?? 0, decor.equation?.l ?? 0)
   const l = Math.ceil(interieur + 2 * h.marge[1])
   let y = h.marge[0]
   const image = decor.image ? { x: l / 2 - decor.image.l / 2, y } : null
   if (decor.image) y += decor.image.h + 6
+  const equation = decor.equation ? { x: l / 2 - decor.equation.l / 2, y } : null
+  if (decor.equation) y += decor.equation.h + 6
   const rangee = { x: l / 2 - lRangee / 2, y, h: hRangee }
   const texte = { x: rangee.x + avant, y: y + (hRangee - hTexte) / 2, l: lTexte, h: hTexte }
   y += hRangee
   const etiquettes = largeurs.length > 0 ? { y: y + 4, largeurs } : null
   if (etiquettes) y += 4 + HAUTEUR_ETIQUETTE
-  const mesure: Mesure = { lignes, l, h: Math.ceil(y + h.marge[0]), rangee, texte, etiquettes, image }
+  const planning = lPlanning > 0 ? { y: y + 4, l: lPlanning } : null
+  if (planning) y += 4 + HAUTEUR_ETIQUETTE
+  const mesure: Mesure = { lignes, l, h: Math.ceil(y + h.marge[0]), rangee, texte, etiquettes, image, equation, planning }
   if (memo.size > 5000) memo.clear()
   memo.set(cle, mesure)
   return mesure
 }
 
-export { HAUTEUR_ETIQUETTE, PAS_ICONE, POLICE_ETIQUETTE, TAILLE_ICONE }
+export { DISQUE_PLANNING, HAUTEUR_ETIQUETTE, PAS_ICONE, POLICE_ETIQUETTE, POLICE_PLANNING, TAILLE_ICONE }

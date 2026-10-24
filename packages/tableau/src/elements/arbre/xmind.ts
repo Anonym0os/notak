@@ -1,6 +1,6 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
 import { cleEntre } from '../../coeur/ordre'
-import { type Arbre, type Id, type Limite, type NoeudTexte, type Relation, type Resume, type StructureArbre, type Sujet, docDepuisTexte, nouvelId, texteBrut } from '../../coeur/tableau'
+import { type Arbre, type GroupeMarqueurs, type Id, type Limite, type NoeudTexte, type Relation, type Resume, type StructureArbre, type Sujet, type Zone, docDepuisTexte, nouvelId, texteBrut } from '../../coeur/tableau'
 import { type Lecture, enfantsDe, lire } from './modele/sujets'
 
 /**
@@ -74,11 +74,59 @@ export interface ImageAImporter {
   h: number
 }
 
+/** Une pièce jointe (ou une note audio) à ranger dans les fichiers après l'import, puis à poser sur son sujet. */
+export interface PieceAImporter {
+  sujet: Id
+  octets: Uint8Array
+  nom: string
+  type: string
+  audio: boolean
+}
+
+/** L'image d'un marqueur à soi, à ranger dans les fichiers : le groupe et le marqueur qui la portent. */
+export interface MarqueurAImporter {
+  groupe: Id
+  marqueur: Id
+  octets: Uint8Array
+  nom: string
+}
+
 export interface FeuilleLue {
   titre: string
   arbre: Arbre
   images: ImageAImporter[]
+  pieces: PieceAImporter[]
+  marqueurs: MarqueurAImporter[]
 }
+
+/** Ce que Notak ajoute à un sujet que Xmind ne connaît pas : rangé dans une extension à nous, que Xmind laisse en l'état. */
+const FOURNISSEUR_SUJET = 'org.notak.sujet'
+/** Ce que Notak ajoute à une feuille : les zones, les groupes de marqueurs à soi, la légende. */
+const FOURNISSEUR_FEUILLE = 'org.notak.arbre'
+
+const TYPES_PIECES: Record<string, string> = {
+  pdf: 'application/pdf',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  svg: 'image/svg+xml',
+  webp: 'image/webp',
+  txt: 'text/plain',
+  md: 'text/markdown',
+  csv: 'text/csv',
+  json: 'application/json',
+  zip: 'application/zip',
+  mp3: 'audio/mpeg',
+  m4a: 'audio/mp4',
+  wav: 'audio/wav',
+  ogg: 'audio/ogg',
+  webm: 'audio/webm',
+  mp4: 'video/mp4',
+}
+/** Un identifiant devenu nom de fichier : ce qui n'est pas lettre ou chiffre s'écrit par son code (un emoji reste unique). */
+const nomSur = (id: string) => [...id].map((c) => (/[\w-]/.test(c) ? c : `_${c.codePointAt(0)!.toString(16)}`)).join('')
+const extensionDe = (nom: string) => (nom.includes('.') ? nom.split('.').pop()!.toLowerCase().replace(/[^a-z0-9]/g, '') : '') || 'bin'
 
 const estObjet = (v: unknown): v is Json => typeof v === 'object' && v !== null && !Array.isArray(v)
 const liste = (v: unknown): Json[] => (Array.isArray(v) ? v.filter(estObjet) : [])
@@ -104,6 +152,7 @@ function lireFeuille(f: Json, fichiers: Record<string, Uint8Array>): FeuilleLue 
   const limites: Record<Id, Limite> = {}
   const resumes: Record<Id, Resume> = {}
   const images: ImageAImporter[] = []
+  const pieces: PieceAImporter[] = []
   const vus = new Set<Id>()
   const idDe = (t: Json) => {
     let id = typeof t.id === 'string' && t.id && !vus.has(t.id) ? t.id : nouvelId()
@@ -131,6 +180,7 @@ function lireFeuille(f: Json, fichiers: Record<string, Uint8Array>): FeuilleLue 
     const sac: Json = {}
     for (const [k, v] of Object.entries(t)) if (!LUS.has(k)) sac[k] = v
     const autres: Json[] = []
+    let notak: Json = {}
     for (const e of liste(t.extensions)) {
       if (e.provider === 'org.xmind.ui.numbering' && estObjet(e.content)) {
         const motif = MOTIFS[String(e.content.pattern)]
@@ -138,6 +188,8 @@ function lireFeuille(f: Json, fichiers: Record<string, Uint8Array>): FeuilleLue 
         else autres.push(e)
       } else if (e.provider === 'org.xmind.ui.task' && estObjet(e.content) && (e.content.status === 'todo' || e.content.status === 'done')) {
         s.tache = e.content.status === 'done' ? 'faite' : 'a-faire'
+      } else if (e.provider === FOURNISSEUR_SUJET && estObjet(e.content)) {
+        notak = e.content
       } else if (e.provider === 'org.xmind.ui.map.unbalanced' && Array.isArray(e.content)) {
         const n = (e.content as Json[]).find((x) => x?.name === 'right-number')?.content
         if (n !== undefined) s.aDroite = Number(n) || 0
@@ -145,8 +197,24 @@ function lireFeuille(f: Json, fichiers: Record<string, Uint8Array>): FeuilleLue 
       } else autres.push(e)
     }
     if (autres.length) sac.extensions = autres
-    // L'image d'un sujet : son fichier est dans le zip, Notak le range dans ses fichiers à l'import.
-    if (estObjet(t.image) && typeof t.image.src === 'string' && t.image.src.startsWith('xap:')) {
+    // Ce que Notak ajoute : la tâche planifiée, l'équation, l'autocollant, la case annulée, la pièce jointe.
+    if (estObjet(notak.planning)) s.planning = notak.planning as NonNullable<Sujet['planning']>
+    if (typeof notak.equation === 'string' && notak.equation) s.equation = notak.equation
+    if (notak.tache === 'annulee') s.tache = 'annulee'
+    const v = notak.vignette
+    if (estObjet(v) && typeof v.id === 'string' && (v.genre === 'autocollant' || v.genre === 'illustration')) s.vignette = { genre: v.genre, id: v.id, l: Number(v.l) || 64, h: Number(v.h) || 64 }
+    const jointe = estObjet(notak.piece) ? notak.piece : null
+    const cheminPiece = typeof jointe?.src === 'string' ? jointe.src : typeof t.href === 'string' && t.href.startsWith('xap:attachments/') ? t.href.slice(4) : null
+    if (cheminPiece && fichiers[cheminPiece]) {
+      const nom = typeof jointe?.nom === 'string' && jointe.nom ? jointe.nom : cheminPiece.split('/').pop()!
+      pieces.push({ sujet: id, octets: fichiers[cheminPiece]!, nom, type: typeof jointe?.type === 'string' && jointe.type ? jointe.type : (TYPES_PIECES[extensionDe(nom)] ?? 'application/octet-stream'), audio: jointe?.audio === true })
+      // Le lien d'une pièce jointe n'est pas un lien web.
+      if (s.lien === t.href) delete s.lien
+    }
+    // L'image d'un sujet : son fichier est dans le zip, Notak le range dans ses fichiers à l'import. Un autocollant la remplace.
+    if (s.vignette) {
+      // L'image que Notak a écrite pour que Xmind voie l'autocollant : on garde l'autocollant.
+    } else if (estObjet(t.image) && typeof t.image.src === 'string' && t.image.src.startsWith('xap:')) {
       const nom = t.image.src.slice(4)
       const octets = fichiers[nom]
       if (octets) images.push({ sujet: id, octets, nom, l: Number(t.image.width) || 120, h: Number(t.image.height) || 90 })
@@ -196,15 +264,40 @@ function lireFeuille(f: Json, fichiers: Record<string, Uint8Array>): FeuilleLue 
   const options: NonNullable<Arbre['options']> = {}
   if (f.topicPositioning === 'free') options.libre = true
   if (Number(f.compactLayoutModeLevel) > 0) options.compacte = true
+  // Ce que Notak ajoute à la feuille : zones, groupes de marqueurs à soi (leurs images vont avec), légende.
+  const notakFeuille = liste(f.extensions).find((e) => e.provider === FOURNISSEUR_FEUILLE)?.content
+  const zones: Record<Id, Zone> = {}
+  const groupes: Record<Id, GroupeMarqueurs> = {}
+  const marqueurs: MarqueurAImporter[] = []
+  let legende: Arbre['legende']
+  if (estObjet(notakFeuille)) {
+    for (const [zid, z] of Object.entries(estObjet(notakFeuille.zones) ? notakFeuille.zones : {})) {
+      if (estObjet(z) && [z.x, z.y, z.l, z.h].every((n) => typeof n === 'number')) zones[zid] = z as unknown as Zone
+    }
+    for (const [gid, g] of Object.entries(estObjet(notakFeuille.groupes) ? notakFeuille.groupes : {})) {
+      if (!estObjet(g) || typeof g.nom !== 'string') continue
+      const dedans = liste(g.marqueurs).flatMap((m) => {
+        const src = typeof m.src === 'string' ? m.src : ''
+        if (typeof m.id !== 'string' || !fichiers[src]) return []
+        marqueurs.push({ groupe: gid, marqueur: m.id, octets: fichiers[src]!, nom: src.split('/').pop()! })
+        return [{ id: m.id, nom: typeof m.nom === 'string' ? m.nom : '', fichier: '' }]
+      })
+      groupes[gid] = { ordre: typeof g.ordre === 'string' ? g.ordre : 'V', nom: g.nom, marqueurs: dedans }
+    }
+    if (estObjet(notakFeuille.legende)) legende = notakFeuille.legende as NonNullable<Arbre['legende']>
+  }
   const arbre: Arbre = {
     type: 'arbre',
     sujets,
     ...(Object.keys(relations).length ? { relations } : {}),
     ...(Object.keys(limites).length ? { limites } : {}),
     ...(Object.keys(resumes).length ? { resumes } : {}),
+    ...(Object.keys(zones).length ? { zones } : {}),
+    ...(Object.keys(groupes).length ? { groupes } : {}),
+    ...(legende ? { legende } : {}),
     ...(Object.keys(options).length ? { options } : {}),
   }
-  return { titre: typeof f.title === 'string' ? f.title : sujets[central]!.titre, arbre, images }
+  return { titre: typeof f.title === 'string' ? f.title : sujets[central]!.titre, arbre, images, pieces, marqueurs }
 }
 
 /** Une image à écrire dans le zip : le sujet qui la porte et ses octets. */
@@ -251,18 +344,36 @@ function ecrireFeuille(titre: string, a: Arbre, images: ReadonlyMap<Id, ImageAEx
       extensions.push({ provider: 'org.xmind.ui.numbering', content: { pattern, tiered: !!s.numerotation.paliers } })
     }
     if (s.tache) extensions.push({ provider: 'org.xmind.ui.task', content: { status: s.tache === 'faite' ? 'done' : 'todo' } })
+    // Ce que Xmind n'a pas : rangé dans une extension à nous. La pièce jointe passe aussi par le `href` d'une pièce de Xmind.
+    const notak: Json = {}
+    if (s.planning) notak.planning = s.planning
+    if (s.equation) notak.equation = s.equation
+    if (s.tache === 'annulee') notak.tache = 'annulee'
+    if (s.vignette) notak.vignette = s.vignette
+    if (s.piece) {
+      const fichier = images.get(s.piece.fichier)
+      const src = fichier ? `attachments/${s.piece.fichier}.${fichier.extension}` : undefined
+      if (fichier && src) {
+        ressources[src] = fichier.octets
+        if (!s.lien) t.href = `xap:${src}`
+      }
+      notak.piece = { nom: s.piece.nom, type: s.piece.type, taille: s.piece.taille, ...(s.piece.audio ? { audio: true } : {}), ...(src ? { src } : {}) }
+    }
+    if (Object.keys(notak).length > 0) extensions.push({ provider: FOURNISSEUR_SUJET, content: notak })
     if (s.structure === 'carte-libre') {
       t.structureClass = 'org.xmind.ui.map.unbalanced'
       extensions.push({ provider: 'org.xmind.ui.map.unbalanced', content: [{ name: 'right-number', content: String(s.aDroite ?? enfantsDe(l, id).length) }] })
     }
     if (extensions.length) t.extensions = extensions
     else delete t.extensions
-    if (s.image) {
-      const img = images.get(s.image.fichier)
+    // Un autocollant s'écrit aussi comme une image (un SVG), pour que Xmind le montre.
+    const imageVue = s.image ?? (s.vignette ? { fichier: `vignette:${s.vignette.genre}:${s.vignette.id}`, l: s.vignette.l, h: s.vignette.h } : undefined)
+    if (imageVue) {
+      const img = images.get(imageVue.fichier)
       if (img) {
-        const nom = `resources/${s.image.fichier}.${img.extension}`
+        const nom = `resources/${nomSur(imageVue.fichier)}.${img.extension}`
         ressources[nom] = img.octets
-        t.image = { src: `xap:${nom}`, width: s.image.l, height: s.image.h }
+        t.image = { src: `xap:${nom}`, width: imageVue.l, height: imageVue.h }
       }
     }
     const enfants: Json = {}
@@ -289,6 +400,29 @@ function ecrireFeuille(titre: string, a: Arbre, images: ReadonlyMap<Id, ImageAEx
   const feuille: Json = { id: nouvelId(), class: 'sheet', title: titre, rootTopic: ecrire(l.central) }
   const relations = Object.entries(a.relations ?? {}).filter(([, r]) => l.sujets.has(r.de) && l.sujets.has(r.vers))
   if (relations.length) feuille.relationships = relations.map(([id, r]) => ({ id, end1Id: r.de, end2Id: r.vers, ...(r.titre ? { title: r.titre } : {}) }))
+  // Les zones, les groupes de marqueurs à soi (leurs images vont dans le zip) et la légende.
+  const notakFeuille: Json = {}
+  if (a.zones && Object.keys(a.zones).length) notakFeuille.zones = a.zones
+  if (a.groupes && Object.keys(a.groupes).length) {
+    notakFeuille.groupes = Object.fromEntries(
+      Object.entries(a.groupes).map(([gid, g]) => [
+        gid,
+        {
+          nom: g.nom,
+          ordre: g.ordre,
+          marqueurs: g.marqueurs.flatMap((m) => {
+            const img = images.get(m.fichier)
+            if (!img) return []
+            const src = `resources/marqueurs/${m.fichier}.${img.extension}`
+            ressources[src] = img.octets
+            return [{ id: m.id, nom: m.nom, src }]
+          }),
+        },
+      ]),
+    )
+  }
+  if (a.legende && (a.legende.visible || a.legende.textes)) notakFeuille.legende = a.legende
+  if (Object.keys(notakFeuille).length) feuille.extensions = [{ provider: FOURNISSEUR_FEUILLE, content: notakFeuille }]
   if (a.options?.libre) feuille.topicPositioning = 'free'
   if (a.options?.compacte) feuille.compactLayoutModeLevel = 1
   return feuille
