@@ -135,16 +135,27 @@
   color: var(--notak-arbre-fond);
 }
 
-/* La barre d'outils, au centre en haut de la carte. */
+/* La barre d'outils, au centre en haut de la carte : 36 de haut, les boutons se touchent. Sa position se mesure (Outils.tsx,
+   repliBarre.ts) pour ne jamais recouvrir le titre ni les pastilles de droite ; au repos elle se centre. */
 .notak-arbre-outils {
   position: absolute;
   top: 16px;
   left: 50%;
   display: flex;
   align-items: center;
+  box-sizing: border-box;
   height: 36px;
   padding: 0 4px;
   transform: translateX(-50%);
+}
+
+.notak-arbre-outils[hidden] {
+  display: none;
+}
+
+/* Le titre cède sa place en premier, quand la barre le touche : rien ne se recouvre. */
+.notak-arbre-scene:has(> .notak-arbre-outils[data-titre='replie']) .notak-arbre-nom {
+  display: none;
 }
 
 .notak-arbre-droite {
@@ -163,159 +174,111 @@
   padding: 0 4px;
 }
 
-/* Le chevron du « + » : plus petit, collé au plus. */
-.notak-arbre-plus {
-  padding: 0 4px 0 6px;
-}
-
-.notak-arbre-plus .notak-ico + .notak-ico {
-  margin-left: -2px;
-}
-
-/* Les menus déroulants. */
+/* Les menus déroulants et contextuels : le menu web de Xmind (relevé 7 § 4.2). Rembourrage 8, entrées de 28 avec 4
+   d'écart, rayon 6 pour l'entrée et 14 pour le menu, fond à 70 % sur un flou de 12, ombre douce, séparateur fin.
+   Les barres et les panneaux ajustent ensuite leur menu (position, largeur) : ces règles viennent donc avant les leurs. */
 .notak-arbre-menu-hote {
   position: relative;
 }
 
 .notak-arbre-deroulant {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 6px);
   left: 0;
   z-index: 5;
   display: flex;
   flex-direction: column;
-  min-width: 220px;
+  gap: 4px;
+  box-sizing: border-box;
+  min-width: 200px;
   max-height: 70vh;
   overflow: auto;
-  padding: 5px;
-  border-radius: 10px;
-  background: var(--notak-arbre-fond);
-  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.1), 0 8px 24px rgb(0 0 0 / 0.14);
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--notak-arbre-texte) 7%, transparent);
+  border-radius: 14px;
+  background: var(--notak-arbre-verre);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  backdrop-filter: blur(12px) saturate(180%);
+  box-shadow: 0 8px 32px rgb(0 0 0 / 0.16), 0 4px 8px rgb(0 0 0 / 0.04);
+  color: var(--notak-arbre-texte);
   font-size: 13px;
+  line-height: 17px;
 }
 
 .notak-arbre-deroulant[data-vers='haut'] {
   top: auto;
-  bottom: calc(100% + 8px);
+  bottom: calc(100% + 6px);
 }
 
-.notak-arbre-deroulant > button {
+/* Une entrée : 28 de haut, l'icône (16), le libellé, puis le raccourci ou le chevron, collés au bord droit. */
+.notak-arbre-deroulant > button,
+.notak-arbre-deroulant > .notak-arbre-menu-hote > button {
   display: grid;
-  grid-template-columns: 20px 1fr auto;
+  grid-template-columns: 16px 1fr auto;
   align-items: center;
-  gap: 8px;
-  height: 30px;
-  padding: 0 8px;
+  column-gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 28px;
+  padding: 4px 8px;
   border: 0;
   border-radius: 6px;
   background: transparent;
   color: var(--notak-arbre-texte);
   font: inherit;
   text-align: left;
+  white-space: nowrap;
   cursor: pointer;
 }
 
-.notak-arbre-deroulant > button:hover:not(:disabled) {
+.notak-arbre-deroulant > button:hover:not(:disabled),
+.notak-arbre-deroulant > button:focus-visible,
+.notak-arbre-deroulant > .notak-arbre-menu-hote > button:hover:not(:disabled),
+.notak-arbre-deroulant > .notak-arbre-menu-hote > button:focus-visible,
+.notak-arbre-deroulant > .notak-arbre-menu-hote[data-ouvert] > button {
   background: var(--notak-arbre-survol);
+  outline: none;
 }
 
-.notak-arbre-deroulant > button:disabled {
-  opacity: 0.4;
+.notak-arbre-deroulant > button:active:not(:disabled),
+.notak-arbre-deroulant > .notak-arbre-menu-hote > button:active:not(:disabled) {
+  background: var(--notak-arbre-appui);
+}
+
+.notak-arbre-deroulant > button:disabled,
+.notak-arbre-deroulant > .notak-arbre-menu-hote > button:disabled {
+  opacity: 0.3;
   cursor: default;
 }
 
 .notak-arbre-deroulant kbd {
+  margin-left: 24px;
   font: inherit;
   font-size: 12px;
   color: var(--notak-arbre-discret);
+  text-align: right;
 }
 
+/* Le séparateur : un trait fin, en retrait de l'entrée ; l'écart de 4 de chaque côté vient de celui du menu. */
 .notak-arbre-deroulant hr {
-  width: 100%;
-  margin: 4px 0;
+  align-self: stretch;
+  height: 0;
+  margin: 0 8px;
   border: 0;
-  border-top: 1px solid var(--notak-arbre-filet-c);
+  border-top: 1px solid color-mix(in srgb, var(--notak-arbre-texte) 9%, transparent);
 }
 
 .notak-arbre-entree-icone {
   display: grid;
   place-items: center;
+  width: 16px;
+  height: 16px;
   color: var(--notak-arbre-discret);
 }
 
-/* Le panneau de côté et ses onglets. */
-.notak-arbre-cote {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  bottom: 8px;
-  display: flex;
-  flex-direction: column;
-  width: var(--notak-arbre-largeur-cote);
-  overflow: hidden;
-  border-radius: 12px;
-  background: var(--notak-arbre-cote);
-  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.06);
-  font-size: 12px;
-}
-
-.notak-arbre-onglets {
-  display: flex;
-  gap: 2px;
-  margin: 10px 10px 6px;
-  padding: 3px;
-  border-radius: 10px;
-  background: var(--notak-arbre-piste);
-}
-
-.notak-arbre-onglets button {
-  flex: 1;
-  height: 24px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--notak-arbre-discret);
-  font: inherit;
-  font-size: 12.5px;
-  cursor: pointer;
-}
-
-.notak-arbre-onglets button[aria-selected='true'] {
-  background: var(--notak-arbre-fond);
-  color: var(--notak-arbre-texte);
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
-}
-
-.notak-arbre-cote-corps {
-  flex: 1;
-  overflow-y: auto;
-  padding: 4px 10px 16px;
-}
-
-/* Le sous-menu d'une entrée (« Lien »), à droite de son menu. */
-.notak-arbre-deroulant .notak-arbre-menu-hote > button {
+.notak-arbre-entree-sous {
   display: grid;
-  grid-template-columns: 20px 1fr auto;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  height: 30px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--notak-arbre-texte);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.notak-arbre-deroulant .notak-arbre-menu-hote > button:hover {
-  background: var(--notak-arbre-survol);
-}
-
-.notak-arbre-sous-menu {
-  top: -5px;
-  left: calc(100% + 6px);
+  place-items: center;
+  margin-left: 24px;
+  color: var(--notak-arbre-discret);
 }

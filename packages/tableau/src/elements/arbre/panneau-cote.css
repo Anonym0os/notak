@@ -1,0 +1,107 @@
+/* Le panneau de côté (PanneauCote, Fenetre.tsx) et son rail d'onglets, aux mesures du panneau de Xmind
+   (docs/XMIND.md § 5 bis) : 268 de large, posé à 8 du bord, un rail de 33 de haut à 8 / 12 de marge, des onglets en
+   capsule. Chaque onglet règle lui-même ses marges (blocs de 20 de chaque côté, soit 228 utiles) : le corps ne met
+   aucun air autour. Les teintes se tirent de fenetre.css, le thème sombre suit sans rien redire.
+   Le panneau porte encore la classe de l'ancien panneau (`notak-arbre-panneau`), dont les règles (sections en grille,
+   boutons bordés, listes pleine largeur) lui arrivent par descendance : tout ce qui suit s'écrit donc avec assez de
+   poids pour les battre, et les onglets se préfixent de `.notak-arbre-fond`. */
+
+.notak-arbre-cote.notak-arbre-panneau {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  width: var(--notak-arbre-largeur-cote);
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 18px;
+  background: var(--notak-arbre-cote);
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.06);
+  font-size: 13px;
+  line-height: 17px;
+}
+
+/* La vue secondaire remplace la barre d'onglets par sa propre barre de titre. */
+.notak-arbre-cote:has(.notak-arbre-reglages[data-secondaire]) > .notak-arbre-onglets {
+  display: none;
+}
+
+/* Le rail : 244 de large (268 moins 12 de chaque côté), 4 de padding, 25 de haut par onglet, soit 33. */
+.notak-arbre-cote > .notak-arbre-onglets {
+  display: flex;
+  flex: none;
+  gap: 0;
+  margin: 8px 12px 0;
+  padding: 4px;
+  border-radius: 24px;
+  background: var(--notak-arbre-piste);
+}
+
+.notak-arbre-cote > .notak-arbre-onglets > button {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 25px;
+  padding: 4px 2px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 24px;
+  background: transparent;
+  color: color-mix(in srgb, var(--notak-arbre-texte) 70%, transparent);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 17px;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out, color 0.1s;
+}
+
+.notak-arbre-cote > .notak-arbre-onglets > button:hover:not([aria-selected='true']) {
+  color: var(--notak-arbre-texte);
+}
+
+.notak-arbre-cote > .notak-arbre-onglets > button[aria-selected='true'] {
+  background: var(--notak-arbre-fond);
+  color: var(--notak-arbre-texte);
+  font-weight: 600;
+  box-shadow: 0 0 1.5px rgb(0 0 0 / 0.06), 0 0 3px rgb(0 0 0 / 0.03);
+}
+
+.notak-arbre-cote > .notak-arbre-onglets > button:focus-visible {
+  outline: 2px solid var(--notak-arbre-choix);
+  outline-offset: -2px;
+}
+
+/* Le filet de 1 × 16 entre deux onglets, caché contre l'onglet choisi. */
+.notak-arbre-cote > .notak-arbre-onglets > button + button::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 0;
+  width: 1px;
+  height: 16px;
+  border-radius: 1px;
+  background: var(--notak-arbre-filet-c);
+}
+
+.notak-arbre-cote > .notak-arbre-onglets > button[aria-selected='true']::before,
+.notak-arbre-cote > .notak-arbre-onglets > button[aria-selected='true'] + button::before {
+  visibility: hidden;
+}
+
+/* Le corps défile, la barre de défilement fine et discrète. */
+.notak-arbre-cote > .notak-arbre-cote-corps {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--notak-arbre-texte) 28%, transparent) transparent;
+}

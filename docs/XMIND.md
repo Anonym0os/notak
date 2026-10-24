@@ -199,7 +199,65 @@ deux.
 - **Limites** : rectangle, rectangle arrondi, polygone, vagues, festons ; un titre facultatif.
 - **Résumés** : accolade ronde, carrée, crochet, droite.
 
+## 5 ter. Les rangs d'un sujet
+
+Xmind n'a pas de réduction par profondeur : ni taille de police, ni épaisseur de branche qui décroît. Chaque sujet
+prend les valeurs de sa **classe** (central, principal, sous-sujet, flottant, résumé), plus une classe de niveau
+(« level 3 » : les sous-sujets enfants d'un principal) que seul un thème qui la déclare distingue du sous-sujet
+ordinaire. Les marges, les espacements, le rayon des coins et la largeur du texte sont des constantes du moteur, pas du
+thème. Un nombre du thème en points se lit en pixels (1 pt = 1 px avant le zoom).
+
+| | Central | Principal | Sous-sujet (niveau 2 et suivants) | Flottant |
+|---|---|---|---|---|
+| Police, graisse | 28, demi-gras (600) | 18, moyenne (500) | 14, normale (400) | 14, moyenne (500) |
+| Marges intérieures, vertical / horizontal | 15 / 29 | 10 / 18 | 6 / 6 | 11 / 11 |
+| Idem, carte compacte | 12 / 22 | 6 / 12 | 4 / 4 | 9 / 9 |
+| Largeur du texte avant retour à la ligne | 300 | 300 | 300 | 300 |
+| Écart majeur (parent → enfants) | 50 | 26 | 26 | 26 |
+| Écart mineur (entre frères) | 35 | 6 | 8 | 8 |
+| Idem, carte compacte (majeur / mineur) | 28 / 10 | 22 / 5 | 22 / 5 | 24 / 5 |
+
+- **Souligné.** L'épaisseur du trait s'ajoute au bas du sujet (marge du bas, plus le trait) ; les marges du haut, de
+  gauche et de droite ne changent pas. Le trait est tout entier dans la boîte du sujet et la branche part de son
+  **axe** : le souligné du parent se prolonge ainsi jusqu'à l'enfant, et le souligné d'un enfant continue la
+  branche (une enfilade horizontale ne fait qu'un seul trait).
+- **Écart majeur.** Il dépend de la classe du parent. Pour un coude ou un coude arrondi, il vaut le nombre du
+  tableau ; pour la courbe, la droite, l'anse et le pli, hors du central, **le double** (52 sous un principal).
+- **Départ du central.** Les coudes qui partent du central sortent de **dessous son corps**, à un tiers de sa
+  largeur du centre du côté de l'enfant, par le haut ou le bas, puis tournent vers l'enfant. Un enfant à la hauteur
+  du central part du bord. Les coins arrondis des coudes ont 10 px de rayon, ceux d'un rectangle arrondi 8 px.
+- **Couleurs.** Chaque principal prend la couleur de sa place dans la liste de six, que tous ses descendants
+  héritent. Le texte d'un principal est noir (le blanc n'atteint pas un contraste de 3 sur les couleurs claires). Le
+  texte d'un sous-sujet d'une carte aux branches de couleur est **la couleur de sa branche à 20 % de luminosité**
+  (teinte et saturation conservées : `#FF6B6B` donne `#660000`). Le remplissage d'un sous-sujet cadré de niveau 2
+  est la couleur de sa branche à 20 % d'opacité ; les niveaux suivants n'ont pas de fond.
+- **Squelette à soulignés** (celui des captures 0 à 4 et 12 à 13) : central plein noir à coins arrondis ;
+  principal souligné d'un trait de 5, texte noir ; sous-sujet souligné d'un trait de 1 qui se confond avec la
+  branche ; branches à angles droits d'épaisseur 1, quel que soit le niveau.
+
+→ Notak : les valeurs ci-dessus sont celles de chaque rang (`TAILLES`, `MARGES_COMPACTES` dans `apparence.ts` ;
+`ECARTS`, `ECARTS_COMPACTS`, `ecartsDe` dans `disposition/commun.ts`). Les marges ne suivent plus la taille du texte
+du sujet. Nos thèmes gardent leurs couleurs et leurs formes ; ils précisent en plus, par rang, l'épaisseur du
+souligné (`principal.trait`, `sous.trait`), celle des branches (`branches`), le texte teinté de la branche
+(`sous.texteBranche`) et le remplissage de niveau 2 (`sous.fondNiveau2`). **Le thème par défaut (« classique »)**
+rend le squelette à soulignés : central noir, principal souligné de 5, sous-sujets soulignés de 1 au texte de la
+couleur de branche assombrie (`teinteSombre`), branches coudées de 1 à 1,5 d'épaisseur. Sur un fond qui suit le thème
+clair ou sombre de Notak, le texte du sous-sujet se mélange à 32 % de la couleur de la branche et à l'encre du thème ;
+sur un fond connu, clair, la teinte sombre exacte (sombre : la teinte claire à 85 %).
+
 ## 5 bis. L'onglet Style
+
+**Le cadre du panneau de côté** (`panneau-cote.css`, commun aux onglets Style, Présentation, Carte et au panneau
+d'icônes) : 268 de large, posé à 8 du haut, de la droite et du bas, rayon 18. Le **rail d'onglets** : marge `8 12 0`,
+padding 4, onglets de 25 de haut, soit 33 en tout, rayon 24, pastille de l'onglet choisi (graisse 600) sur un rail gris ;
+un filet de 1 × 16 entre deux onglets, caché contre le choisi. Le corps du panneau **ne met aucune marge** : chaque onglet
+pose les siennes, **20 de chaque côté** (228 utiles), des sections de `12 20`, des séparateurs de 1 avec une marge de 8
+(onglet Style) ou 20 (onglet Présentation). Hauteur de tout contrôle : 24 ; rangée courte = libellé à gauche **sur une
+seule ligne** (13/17, coupé par « … » avec son texte en infobulle s'il ne tenait pas) et contrôle de 72 à droite ; rangée
+longue = légende de 11/15 puis contrôle sur les 228. Le panneau porte encore la classe de l'ancien panneau
+(`notak-arbre-panneau`), dont les règles arrivent par descendance : les règles des onglets sont donc préfixées
+`.notak-arbre-fond` pour les battre (sans quoi les sections se collent aux bords et les listes prennent la pleine
+largeur).
 
 Le panneau de côté a trois onglets (Style, Présentation, Carte). **Style** règle ce qui est choisi ; la sélection dit
 la vue : un sujet (central, principal, sous-sujet, flottant), plusieurs sujets, une relation, une limite, le sujet
@@ -325,7 +383,8 @@ normale), `floatingTopicFlexible`, `floatingTopicAutoColor`, `relationshipAutoCo
 ## 8. La fenêtre de la carte ouverte
 
 Relevé : `notak-chantiers/interface-xmind/1-fenetre-et-barre.md` (copie de Xmind 26.05, non versionnée) et les
-captures du même dossier. Code : `elements/arbre/Fenetre.tsx`, `Outils.tsx`, `fenetre.css`.
+captures du même dossier. Code : `elements/arbre/Fenetre.tsx`, `Outils.tsx`, `BarreSujet.tsx`, `repliBarre.ts`,
+`geometrieMenus.ts`, `fenetre.css`, `menus.css`.
 
 1. **Cadre.** La carte est une feuille blanche aux coins arrondis, posée dans un cadre gris de 8 px ; les panneaux de
    côté se posent dans ce cadre, à gauche (navigation) et à droite (format ou icônes), et la carte rétrécit d'autant.
@@ -338,8 +397,29 @@ captures du même dossier. Code : `elements/arbre/Fenetre.tsx`, `Outils.tsx`, `f
    tableau), puis la pilule Marqueur (panneau d'icônes, § 13) et Format (panneau à onglets Style, Pitch, Carte) ;
    l'actif est plein, sombre. Pas de bouton « Upgrade » : rien n'est payant dans Notak.
 5. **En bas** : la feuille à gauche, l'état de la vue à droite (§ 10).
-6. → Notak, pas encore fait : Xmind replie ses boutons dans le « + » quand la fenêtre rétrécit ; Notak les garde,
-   et la barre peut chevaucher le titre quand les deux panneaux sont ouverts sur un petit écran.
+6. **Repli de la barre** (`repliBarre.ts`, fonction pure testée ; `Outils.tsx` ne fait que mesurer). Quand la place
+   manque, la barre replie, dans cet ordre et en s'arrêtant dès que ça tient : le titre, puis Tâche, Étiquette, Zone,
+   Limite, Résumé, Relation. Ce qui est replié passe **en tête du menu « + »**, dans l'ordre de la barre, suivi d'un
+   séparateur ; le « + » ne se replie jamais. Seuils (zone de la carte, panneau de côté déjà retiré ; titre de 100,
+   maison et bouton du panneau de gauche à gauche, export et pilule des panneaux à droite) : tout tient à 646 ;
+   titre replié sous 646 ; puis 534, 500, 466, 432, 398, 364, 330 pour 0 à 6 boutons repliés ; sous 330, même le « + »
+   seul ne tient pas, la barre se retire. Un seul seuil par niveau, dans les deux sens (pas d'hystérésis), comme Xmind.
+   La pilule est centrée sur la zone, poussée vers le côté libre si le titre ou les pastilles de droite la touchent,
+   avec 16 de vide au moins : elle ne recouvre rien, panneau ouvert ou non. Le panneau de côté ouvert rétrécit la zone,
+   donc fait replier. → Notak : Xmind replie aussi Partager, les panneaux et Accueil dans un bouton à double chevron ;
+   ici ils restent à leur place (ils appartiennent à `Arbre.tsx`), seule la barre cède.
+7. **Le bouton « + »** : 48 × 28, le plus (24) et son chevron (12) calés au milieu, fond gris en pilule tant que le menu
+   est ouvert. Son menu s'ouvre au bord gauche du bouton, 6 px sous lui (au-dessus s'il n'a pas la place dessous),
+   sans jamais le recouvrir (`poserMenu`, `geometrieMenus.ts`), dans la fenêtre de la carte et non dans la pilule : le
+   flou du menu voit la carte. Un clic sur le bouton le ferme ; Échap, un clic dehors et le redimensionnement aussi.
+8. **Barre du sujet** (`BarreSujet.tsx`, capture 20) : une pilule blanche ombrée qui flotte 8 px au-dessus du sujet
+   choisi, centrée sur lui, boutons de 32 × 28 : relation, lien web, image, note, tâche (la case à faire), puis un
+   filet et le pinceau de style. Pas « Grow Ideas » (IA payante). Elle reste dans la zone, passe sous le sujet si le
+   haut est sous la barre d'outils, ne prend pas le focus et ne laisse rien traverser (un appui dessus ne désélectionne
+   pas). → Notak, **pas encore montée** : `<BarreSujet x y bas? actions inactifs? />` attend que `Arbre.tsx` la pose
+   dans la surface, avec `x, y` le milieu du bord haut du sujet choisi et `bas` son bord bas, et relie `actions`
+   (`relation`, `lienWeb`, `image`, `note`, `tache`, `style`) à ses éditeurs (`insertions.actions`, `relier`,
+   `copierStyle` / `collerStyle`).
 
 ## 9. L'onglet Carte du panneau de format
 
@@ -348,10 +428,10 @@ entière** et ne dépend pas de la sélection. Ses blocs, de haut en bas, sépar
 
 1. **Squelette** : une carte large (la vignette de la structure courante, le **nom de son groupe**, un chevron).
 2. **Thème de couleur** : un sélecteur (six segments, le nom du groupe), le bouton « + », puis les variantes du groupe.
-3. **Couleur de l'arrière-plan** : une pastille.
+3. **Arrière-plan** : une pastille (en Xmind « Couleur de l'arrière-plan » ; le libellé de Notak est raccourci pour tenir sur une ligne à côté des 72 px du contrôle).
 4. **Police globale**, **Largeur de la ligne de branche**, **Branche colorée** et sa couleur.
 5. **Style de carte** : Équilibrer la carte, Carte compacte.
-6. **Affichage des sujets** : Justifier l'alignement du sujet, Afficher toutes les notes, Colorier sujet flottant auto.
+6. **Affichage des sujets** : Largeur uniforme (« Uniform Topic Length » de Xmind), Afficher toutes les notes, Flottants colorés auto (libellés raccourcis comme ci-dessus).
 7. **Relation** : Couleur ligne suit sujet.
 8. **Avancé** : Branches libres, Sujet flottant flexible, Chevauchement des sujets.
 9. **Police CJK**, et le bouton **Thèmes personnalisés**.
@@ -514,10 +594,18 @@ Le mode présentation : la carte devient une suite de diapositives.
   propriétés de `style.properties` : celles de la feuille sur le sujet central, celles d'un sujet sur lui. Le relevé ne
   dit pas où Xmind les range : → Notak le déduit de leur forme, sans l'avoir éprouvé contre Xmind lui-même. Une valeur
   inconnue reste dans le style, intacte.
+- **Les mesures de l'onglet** (relevé 7 § 1.2 à 1.4), de haut en bas : marge haute 12 + 12, titre « Affichage en mode
+  présentation » (13/17, 600, 12 dessous), aperçu **227 × 128 centré** (rayon 10), « Changer de thème » **228 × 24** (rayon 6,
+  4 au-dessus, 16 au-dessous), rangées de **24**, séparateurs de 1 entre deux marges de **20**. Les listes des rangées
+  courtes font **72 × 24** (rayon 8) et montrent « Auto » (le détail « Auto (Visible) » est dans la liste ouverte) ; celles
+  des rangées longues (Position de l'image, Livraison) font 228 ; le groupe de mise en page est un groupe segmenté de 228
+  (cellules de 24, rayon 6, filet de 12 caché contre la cellule choisie ou survolée). Les libellés de Notak sont plus courts
+  que ceux de Xmind en français (« Diapositive du sujet », « Sous-sujets en liste », « Diapositive du résumé ») : à 13 px ils
+  doivent tenir dans les 148 px que laisse la liste, là où Xmind réduit sa police à 10 px.
 - L'onglet montre l'aperçu de la diapositive du sujet (rejouée au survol, une étape toutes les 2 s), « Changer de thème »
-  (le sélecteur : une vignette par thème, deux par ligne), le rapport, puis « Sujet comme diapositive » (Auto / Visible /
+  (le sélecteur : une vignette par thème, deux par ligne), le rapport, puis « Diapositive du sujet » (Auto / Visible /
   Masqué, « Auto » dit ce qu'il décide), « Position de l'image » (si tous les sujets choisis portent une image),
-  « Sous-sujets comme diapositive » et, s'il est visible, « Livraison » et « Mise en page » (cinq boutons).
+  « Sous-sujets en liste » et, s'il est visible, « Livraison » et « Mise en page » (cinq boutons).
   Avec plusieurs sujets : « Multiple » quand ils diffèrent.
 
 **Les diapositives.** Auto : le central, les principaux et les flottants sont des diapositives, les sous-sujets non ;
@@ -542,6 +630,7 @@ Le bouton **smiley** (« Marqueur ») ouvre, dans le panneau de côté, trois on
 focus. Chacun des trois s'ouvre aussi par le menu « + » et le menu d'un sujet.
 
 **Marqueur.**
+- **Mesures** : le rail d'onglets du panneau de côté (§ 5 bis) ; le bouton de légende et celui du pied font 24 de haut sur 244 (marge `12 12 0`) ; sous le filet, la zone qui défile a `12 20 48` de padding et ses groupes 12 d'écart ; en-tête de groupe 13/600 avec un chevron plein.
 - En tête : **Afficher / Masquer la légende** (le réglage vit dans la carte : `legende.visible`).
 - Sept groupes repliables (chevron, ouverts au départ), dans l'ordre : **Étiquette** (7 couleurs), **Priorité** (1 à 7),
   **Tâche** (début, ⅛, ⅜, ½, ⅝, ⅞, fait), **Drapeau**, **Étoile**, **Personnes** (7 couleurs chacun), **Symbole** (16 sur la
@@ -583,6 +672,20 @@ devient d'abord, le fond désélectionne. Les entrées grisées restent affiché
 doublé, et un sous-menu vide, sont retirés. Échap, un clic dehors ferment ; les flèches parcourent. Les raccourcis sont
 écrits en glyphes du Mac, ou en Ctrl+ ailleurs. Le contenu se construit par `construireMenu` (`menus.ts`), ce que chaque
 entrée fait est dans `actionsMenu.ts`.
+
+**Icônes.** Xmind n'en met aucune dans ses menus contextuels (ce sont des menus du système) ; Notak en met une à
+chaque entrée, la même pour la même action quelle que soit la cible (Tabler, propositions du relevé 7 § 4.4). `Entree.icone`
+est obligatoire : `ICONES_MENU` (`menus.ts`) range un nom du registre (`icones.tsx`, famille `menu…`) par identifiant
+d'entrée, et un identifiant sans icône ne compile pas ; un test parcourt tous les menus de toutes les cibles. Écarts
+au relevé : Gauche / Centrer / Droite de l'alignement prennent les icônes d'alignement d'objets (comme Haut / Au milieu / Bas),
+et « Créer une zone » celle du bouton Zone de la barre.
+
+**Style** (le menu web de Xmind, relevé 7 § 4.2), commun aux menus contextuels, au « + » et aux menus déroulants des
+barres : rembourrage 8, entrées de 28 avec 4 d'écart (icône 16 au trait 1,6, discrète, puis le libellé, puis le raccourci
+discret aligné à droite ou le chevron d'un sous-menu), rayon 6 pour l'entrée et 14 pour le menu, fond à 70 % sur un flou
+de 12, ombre douce, séparateur d'un trait fin en retrait, grisé à 0,3. Le menu reste dans la fenêtre : il glisse, ou se
+retourne au-dessus de son bouton ; un sous-menu s'ouvre à droite, à gauche si la place manque, et remonte de ce qui
+dépasse en bas (`geometrieMenus.ts`). Survoler une entrée simple ferme le sous-menu resté ouvert à côté.
 
 - **Sujet** : Insérer ▸ (Note, Étiquette, Tâches à faire, Tâche, Lien ▸ Page web / Sujet, —, Pièce jointe, Note audio, —,
   Marqueur, Autocollant, Illustration, Image locale, Équation) · Couper, Copier, Coller, Dupliquer · Supprimer, Supprimer

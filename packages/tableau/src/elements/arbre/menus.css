@@ -1,7 +1,29 @@
-/* Les menus contextuels (MenuContextuel.tsx), les éditeurs en popover (Insertions.tsx) et ce que la carte pose en plus
-   (zones, tracé). Les teintes se tirent des variables de la carte : le thème sombre suit. */
+/* Le menu contextuel et le bouton « + » (MenuContextuel.tsx, Outils.tsx), la barre du sujet (BarreSujet.tsx), les
+   éditeurs en popover (Insertions.tsx) et ce que la carte pose en plus (zones, tracé). Les menus déroulants, eux,
+   sont dans fenetre.css. Les teintes se tirent des variables de la carte : le thème sombre suit. */
 
-/* Un menu contextuel : posé au point cliqué, par-dessus tout. Les sous-menus sortent de son cadre : il ne défile pas. */
+/* Le bouton « + » de la barre : 48 × 28, le plus (24) et son chevron (12) calés au milieu, rien de rogné. */
+.notak-arbre-bouton.notak-arbre-plus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  box-sizing: border-box;
+  width: 48px;
+  padding: 0;
+}
+
+.notak-arbre-plus .notak-ico {
+  display: block;
+  flex: none;
+}
+
+/* Ouvert : un fond gris en pilule, comme sur la capture 19 (Xmind n'a pas cet état, la capture oui). */
+.notak-arbre-bouton.notak-arbre-plus[aria-expanded='true'] {
+  background: var(--notak-arbre-appui);
+}
+
+/* Un menu contextuel : posé au point cliqué ou sous son bouton, par-dessus tout. Les sous-menus sortent de son cadre : il ne défile pas. */
 .notak-arbre-ctx {
   position: fixed;
   z-index: 40;
@@ -10,15 +32,18 @@
   overflow: visible;
 }
 
-.notak-arbre-ctx .notak-arbre-sous-menu {
+/* Un sous-menu : sa première entrée face à l'entrée parente, à 4 du bord du menu ; à gauche quand la fenêtre manque de place. */
+.notak-arbre-sous-menu {
+  top: -9px;
+  left: calc(100% + 13px);
   z-index: 41;
   max-height: none;
   overflow: visible;
 }
 
-/* Une entrée qui s'ouvre : sa flèche reste au bord droit. */
-.notak-arbre-ctx .notak-arbre-menu-hote > button kbd {
-  font-size: 14px;
+.notak-arbre-sous-menu[data-cote='gauche'] {
+  right: calc(100% + 13px);
+  left: auto;
 }
 
 /* Tracer une zone : le curseur en croix. */
@@ -282,4 +307,52 @@
 .notak-arbre-popover audio {
   width: 100%;
   height: 32px;
+}
+
+/* La barre du sujet (capture 20) : une pilule blanche ombrée au-dessus du sujet choisi, des boutons de 28 de haut. */
+.notak-arbre-sujet-barre {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  box-sizing: border-box;
+  height: 36px;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+
+.notak-arbre-sujet-bouton {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 24px;
+  background: transparent;
+  color: var(--notak-arbre-texte);
+  cursor: pointer;
+}
+
+.notak-arbre-sujet-bouton:hover:not(:disabled) {
+  background: var(--notak-arbre-survol);
+}
+
+.notak-arbre-sujet-bouton:active:not(:disabled) {
+  background: var(--notak-arbre-appui);
+}
+
+.notak-arbre-sujet-bouton:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* Le filet qui sépare le pinceau des autres boutons. */
+.notak-arbre-sujet-filet {
+  align-self: center;
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: var(--notak-arbre-filet-c);
 }

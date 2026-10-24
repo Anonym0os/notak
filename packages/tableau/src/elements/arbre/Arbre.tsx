@@ -3,11 +3,12 @@ import { type Arbre, type Id, type StyleSujet, nouvelId } from '../../coeur/tabl
 import { t } from '../../langue'
 import { Surcouche } from '../surcouche'
 import type { ContexteToile, PropsRendu, Services } from '../types'
-import { POLICE, type Mesure, habitDe, mesureDeSujet, souligne, uniformiser } from './apparence'
+import { POLICE, type Mesure, brancheDe, habitDe, mesureDeSujet, souligne, uniformiser } from './apparence'
 import { fondDe, themeDeArbre } from './themes'
 import { Dessin, type Glisses, RepereDepot } from './Dessin'
 import { exporterCartes } from './exporter'
 import { BarreBas } from './BarreBas'
+import { BarreSujet } from './BarreSujet'
 import { BoutonIcone, EnTete, type Onglet, PanneauCote } from './Fenetre'
 import { ONGLETS_FORMAT, ONGLETS_ICONES, OngletCarte, OngletIcones, OngletPresenter, OngletStyle, type OngletIcone } from './onglets'
 import { Outils } from './Outils'
@@ -18,7 +19,7 @@ import { type Ancre, useInsertions } from './Insertions'
 import { TYPE_GLISSE } from './OngletIcones'
 import { type Fragment, boitesDeBranche, choisirParGenre, contenuZone, extraire, rectAutour } from './modele/insertions'
 import { Icone } from '../../icones'
-import { type Boite, type Disposition, ECARTS, ECARTS_COMPACTS, disposer, emprise } from './disposition'
+import { type Boite, type Disposition, disposer, ecartsDe, emprise } from './disposition'
 import { gesteDe } from './modele/clavier'
 import { resumesValides, sujetsDePlage } from './modele/elements'
 import { comptes, reperesDe, sujetsMisEnEvidence } from './modele/listes'
@@ -56,7 +57,7 @@ export function useVue(a: Arbre): { lecture: Lecture; mesures: Map<Id, Mesure>; 
     for (const id of lecture.sujets.keys()) mesures.set(id, mesureDeSujet(lecture, id, theme, { compacte, toutesNotes: !!a.options?.toutesNotes, tailleEquation, planning: resumePlanning }))
     if (a.options?.uniforme) mesures = uniformiser(lecture, mesures)
     const resumes = resumesValides(a, lecture).map(([id, r]) => ({ id, sujet: r.sujet, plage: sujetsDePlage(lecture, r), ...(r.style?.forme ? { forme: r.style.forme } : {}) }))
-    const disposition = disposer(lecture, (id) => mesures.get(id) ?? { l: 40, h: 20 }, compacte ? ECARTS_COMPACTS : ECARTS, !!a.options?.libre, resumes)
+    const disposition = disposer(lecture, (id) => mesures.get(id) ?? { l: 40, h: 20 }, ecartsDe(brancheDe(lecture, lecture.central).forme ?? theme.branche, compacte), !!a.options?.libre, resumes)
     return { lecture, mesures, disposition }
   }, [a.sujets, a.options, a.resumes, a.theme, a.themePerso, a.police, a.policeCjk])
 }
@@ -985,6 +986,22 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
         })()
       : null
 
+  // La barre qui flotte au-dessus du sujet choisi seul (relation, lien, image, note, tâche, pinceau de style).
+  const pinceauDe = useRef<Id | null>(null)
+  const barreSujet =
+    seulChoisi && !edition && !enGeste && !panne && !lectureSeule && !plan && !relier && !traceZone && presentation === null && lecture.sujets.get(seulChoisi)?.genre !== 'resume' ? disposition.boites.get(seulChoisi) : undefined
+  /** Le pinceau : un premier clic copie le style du sujet choisi ; un clic sur un autre sujet le lui colle. */
+  const pinceau = () => {
+    if (!seulChoisi) return
+    if (pinceauDe.current && pinceauDe.current !== seulChoisi && styleCopie.current !== undefined) {
+      faire({ type: 'collerStyle', ids: [seulChoisi], style: styleCopie.current ?? undefined })
+      pinceauDe.current = null
+    } else {
+      styleCopie.current = lecture.sujets.get(seulChoisi)?.style ?? null
+      pinceauDe.current = seulChoisi
+    }
+  }
+
   // Un sujet que le clavier vient de créer ou de choisir, ou que la frappe agrandit : la caméra le ramène dans la vue, du
   // minimum, en 200 ms.
   useEffect(() => {
@@ -1123,6 +1140,21 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
             {depart && relier?.p && <line className="notak-arbre-relier" x1={depart.x + depart.l / 2} y1={depart.y + depart.h / 2} x2={relier.p.x} y2={relier.p.y} />}
           </g>
         </svg>
+        {barreSujet && seulChoisi && (
+          <BarreSujet
+            x={camera.x + (barreSujet.x + barreSujet.l / 2) * camera.z}
+            y={camera.y + barreSujet.y * camera.z}
+            bas={camera.y + (barreSujet.y + barreSujet.h) * camera.z}
+            actions={{
+              relation: () => setRelier({ de: seulChoisi, p: null }),
+              lienWeb: () => insertions.actions.lienWeb(),
+              image: () => insertions.actions.imageLocale(),
+              note: () => ouvrirNote(seulChoisi),
+              tache: () => faire({ type: 'tache', ids: [seulChoisi] }),
+              style: pinceau,
+            }}
+          />
+        )}
         {edition && champ && (
           // Le champ vit dans le repère de la carte : il prend la caméra, donc le texte écrit est juste à tout zoom.
           <div className="notak-arbre-repere" style={{ transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.z})` }}>

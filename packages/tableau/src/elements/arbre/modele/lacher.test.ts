@@ -28,7 +28,7 @@ describe('où lâcher un sujet', () => {
 
   it('juste au-dessus d’un frère : il s’insère avant lui', () => {
     const b = d.boites.get(ids.B!)!
-    expect(ouLacher(l, d, ids.P2!, { x: b.x + 10, y: b.y - 10 })).toEqual({ type: 'inserer', parent: ids.P0, index: 1 })
+    expect(ouLacher(l, d, ids.P2!, { x: b.x + 10, y: b.y - 3 })).toEqual({ type: 'inserer', parent: ids.P0, index: 1 })
   })
 
   it('loin de tout : il devient libre', () => {

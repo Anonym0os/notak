@@ -68,7 +68,7 @@ describe('l’onglet Carte : ce qu’il montre', () => {
     const ordre = [
       'Carte mentale',
       'Thème couleur',
-      'Couleur de l\'arrière-plan',
+      'Arrière-plan',
       'Police globale',
       'Largeur de la ligne de branche',
       'Branche colorée',
@@ -77,9 +77,9 @@ describe('l’onglet Carte : ce qu’il montre', () => {
       'Équilibrer la carte',
       'Carte compacte',
       'Affichage des sujets',
-      'Justifier l\'alignement du sujet',
+      'Largeur uniforme',
       'Afficher toutes les notes',
-      'Colorier sujet flottant auto',
+      'Flottants colorés auto',
       'Relation',
       'Couleur ligne suit sujet',
       'Avancé',
@@ -145,9 +145,9 @@ describe('l’onglet Carte : ce qu’il montre', () => {
 describe('l’onglet Carte : ce que chaque réglage envoie', () => {
   const bascules: [string, string, boolean][] = [
     ['Carte compacte', 'compacte', true],
-    ['Justifier l\'alignement du sujet', 'uniforme', true],
+    ['Largeur uniforme', 'uniforme', true],
     ['Afficher toutes les notes', 'toutesNotes', true],
-    ['Colorier sujet flottant auto', 'flottantsColores', true],
+    ['Flottants colorés auto', 'flottantsColores', true],
     ['Couleur ligne suit sujet', 'relationsColorees', true],
     ['Branches libres', 'libre', true],
     ['Sujet flottant flexible', 'flottantSouple', true],
@@ -360,7 +360,7 @@ describe('le thème de couleur', () => {
 describe('le fond, les polices, la largeur', () => {
   it('le fond : un clic sur une case du nuancier le pose et ferme la fenêtre', () => {
     monter(carte())
-    cliquer(bouton('Couleur de l\'arrière-plan'))
+    cliquer(bouton('Arrière-plan'))
     expect(document.querySelectorAll('.notak-arbre-reglages-nuancier > .notak-arbre-reglages-grille-couleurs .notak-arbre-reglages-case-couleur')).toHaveLength(45)
     cliquer(document.querySelector('.notak-arbre-reglages-case-couleur[aria-label="#fef08a"]') as HTMLElement)
     expect(dernier()).toEqual({ type: 'fond', couleur: '#fef08a' })
@@ -370,7 +370,7 @@ describe('le fond, les polices, la largeur', () => {
 
   it('l’hexa : « abc » devient #aabbcc ; l’opacité s’ajoute ; ils émettent à Entrée sans fermer', () => {
     monter(carte())
-    cliquer(bouton('Couleur de l\'arrière-plan'))
+    cliquer(bouton('Arrière-plan'))
     const hex = document.querySelector<HTMLInputElement>('input[aria-label="Code hexadécimal"]')!
     saisir(hex, 'abc')
     act(() => void hex.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })))
@@ -385,7 +385,7 @@ describe('le fond, les polices, la largeur', () => {
   it('la pastille d’une carte au fond propre montre cette couleur, avec « Couleur du thème » pour la retirer', () => {
     monter(carte('carte', { fond: '#ffeecc' }))
     expect(hote.querySelector<HTMLElement>('.notak-arbre-reglages-pastille')!.style.getPropertyValue('--c')).toBe('#ffeecc')
-    cliquer(bouton('Couleur de l\'arrière-plan'))
+    cliquer(bouton('Arrière-plan'))
     cliquer(bouton('Couleur du thème'))
     expect(dernier()).toEqual({ type: 'fond', couleur: null })
   })

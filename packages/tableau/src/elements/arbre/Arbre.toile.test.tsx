@@ -549,3 +549,47 @@ describe('le contour et les pastilles', () => {
     expect(document.querySelectorAll('.notak-arbre-ajout')).toHaveLength(0)
   })
 })
+
+describe('la barre du sujet choisi', () => {
+  const barre = () => document.querySelector('.notak-arbre-sujet-barre')
+  const clic = (e: Element) => act(() => void e.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+
+  it('flotte au-dessus d’un sujet choisi seul ; pas pendant l’édition ni pour plusieurs sujets', () => {
+    const { a } = base()
+    ouvrir(a)
+    expect(barre()).not.toBeNull()
+    choisir('Autre')
+    expect(barre()).not.toBeNull()
+    touche(' ')
+    expect(barre()).toBeNull()
+    toucheChamp('Escape')
+    expect(barre()).not.toBeNull()
+    const beta = milieu('Beta')
+    pointeur(sujet('Beta'), 'pointerdown', beta.x, beta.y, { metaKey: true })
+    pointeur(surface(), 'pointerup', beta.x, beta.y, { metaKey: true })
+    expect(barre()).toBeNull()
+  })
+
+  it('ses boutons parlent aux éditeurs : la relation arme le tracé, la tâche coche le sujet', () => {
+    const { a, autre } = base()
+    const c = ouvrir(a)
+    choisir('Autre')
+    const boutons = [...barre()!.querySelectorAll('button')]
+    clic(boutons[0]!)
+    expect(surface().hasAttribute('data-relier')).toBe(true)
+    touche('Escape')
+    clic(barre()!.querySelectorAll('button')[4]!)
+    expect(c.courant().sujets[autre]!.tache).toBe('a-faire')
+  })
+
+  it('le pinceau copie le style du sujet choisi, puis le colle sur le suivant', () => {
+    const { a, autre, idees } = base()
+    const styled = { ...a, sujets: { ...a.sujets, [autre]: { ...a.sujets[autre]!, style: { remplissage: '#ff0000' } } } }
+    const c = ouvrir(styled)
+    choisir('Autre')
+    clic(barre()!.querySelectorAll('button')[5]!)
+    choisir('Idées')
+    clic(barre()!.querySelectorAll('button')[5]!)
+    expect(c.courant().sujets[idees]!.style?.remplissage).toBe('#ff0000')
+  })
+})

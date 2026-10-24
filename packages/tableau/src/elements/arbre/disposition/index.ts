@@ -1,10 +1,10 @@
 import type { FormeResume, Id, StructureArbre } from '../../../coeur/tableau'
 import { cheminResume } from '../formes'
 import { type Lecture, enfantsDe } from '../modele/sujets'
-import { type Boite, type Disposition, type Ecarts, type Lien, type Taille, ECART_CENTRAL, ECARTS } from './commun'
+import { type Boite, type Disposition, type Ecarts, type Lien, type Taille, ECART_CENTRAL, ECARTS, mineurDe } from './commun'
 
 export type { Boite, Cote, Disposition, Lien, Taille, Trait } from './commun'
-export { ECARTS, ECARTS_COMPACTS, emprise } from './commun'
+export { ECARTS, ECARTS_COMPACTS, ecartsDe, emprise } from './commun'
 
 /**
  * Comment un sujet range ses enfants. C'est la structure de docs/XMIND.md § 2 vue d'un sujet : une famille déclarée
@@ -129,6 +129,8 @@ export function disposer(l: Lecture, taille: (id: Id) => Taille, e: Ecarts = ECA
     const enfants = visibles(id)
     if (enfants.length === 0) return cadre
     const ecart = id === l.central ? (e.central ?? ECART_CENTRAL) : e.principal
+    // Entre frères, l'écart que commande la classe du parent : le central, un principal, ou un sous-sujet.
+    const mineur = mineurDe(e, id === l.central ? 'central' : l.sujets.get(id)?.parent === l.central ? 'principal' : 'sous')
     const ranger = (ids: readonly Id[], f: (i: number) => Famille) => ids.map((x, i) => ({ id: x, t: taille(x), c: bloc(x, famille(x, f(i))) }))
     const poser = (id2: Id, dx: number, dy: number, c: Boite) => {
       const dec = libre ? l.sujets.get(id2)?.decalage : undefined
@@ -141,8 +143,8 @@ export function disposer(l: Lecture, taille: (id: Id) => Taille, e: Ecarts = ECA
       const [droite, gauche] = partager(l, id, enfants)
       const d = ranger(droite, () => 'logique-d')
       const g = ranger(gauche, () => 'logique-g')
-      empiler(d, t, e.secondaire, () => t.l + ecart, poser)
-      empiler(g, t, e.secondaire, (b) => -ecart - b.t.l, poser)
+      empiler(d, t, mineur, () => t.l + ecart, poser)
+      empiler(g, t, mineur, (b) => -ecart - b.t.l, poser)
       rangements.set(id, { famille: fam, enfants: [...droite, ...gauche], aGauche: new Set(gauche) })
       return cadre
     }
@@ -150,16 +152,16 @@ export function disposer(l: Lecture, taille: (id: Id) => Taille, e: Ecarts = ECA
     const blocs = ranger(enfants, (i) => suite(fam, i))
     switch (fam) {
       case 'logique-d':
-        empiler(blocs, t, e.secondaire, () => t.l + ecart, poser)
+        empiler(blocs, t, mineur, () => t.l + ecart, poser)
         break
       case 'logique-g':
-        empiler(blocs, t, e.secondaire, (b) => -ecart - b.t.l, poser)
+        empiler(blocs, t, mineur, (b) => -ecart - b.t.l, poser)
         break
       case 'accolade-d':
-        empiler(blocs, t, e.secondaire, () => t.l + ecart + 12, poser)
+        empiler(blocs, t, mineur, () => t.l + ecart + 12, poser)
         break
       case 'accolade-g':
-        empiler(blocs, t, e.secondaire, (b) => -ecart - 12 - b.t.l, poser)
+        empiler(blocs, t, mineur, (b) => -ecart - 12 - b.t.l, poser)
         break
       case 'org-b':
       case 'org-h': {

@@ -44,28 +44,43 @@ function commun(l: Lecture, ids: readonly Id[], champ: Reglage): string | undefi
 
 const LIGNE_VIDE = 'auto'
 
-/** Une ligne « libellé, menu » : le menu natif, à 24 de haut. */
+/**
+ * Un menu à 24 de haut. Le menu natif garde la liste et l'accessibilité ; ce qu'on voit est une valeur courte posée par
+ * dessus (« Auto », jamais « Auto (Visible) » dans les 72 px d'une rangée courte : le détail vit dans la liste ouverte).
+ */
 function Menu({ valeur, options, change, info, libelle, large }: { valeur: string; options: { valeur: string; libelle: string }[]; change(v: string): void; info: string; libelle: string; large?: boolean }) {
+  const courante = options.find((o) => o.valeur === valeur)
+  const affiche = valeur === 'multiple' ? t('arbre.pitch.multiple') : valeur === LIGNE_VIDE && !large ? t('arbre.pitch.auto') : (courante?.libelle ?? valeur)
   return (
-    <select className="notak-arbre-pitch-menu" data-large={large ? '' : undefined} value={valeur} title={info} aria-label={libelle} onChange={(e) => change(e.target.value)}>
-      {valeur === 'multiple' && (
-        <option value="multiple" disabled>
-          {t('arbre.pitch.multiple')}
-        </option>
-      )}
-      {options.map((o) => (
-        <option key={o.valeur} value={o.valeur}>
-          {o.libelle}
-        </option>
-      ))}
-    </select>
+    <span className="notak-arbre-pitch-select" data-large={large ? '' : undefined}>
+      <select value={valeur} title={info} aria-label={libelle} onChange={(e) => change(e.target.value)}>
+        {valeur === 'multiple' && (
+          <option value="multiple" disabled>
+            {t('arbre.pitch.multiple')}
+          </option>
+        )}
+        {options.map((o) => (
+          <option key={o.valeur} value={o.valeur}>
+            {o.libelle}
+          </option>
+        ))}
+      </select>
+      <span className="notak-arbre-pitch-valeur" aria-hidden>
+        {affiche}
+      </span>
+      <Icone nom="chevronBas" taille={12} trait={2} />
+    </span>
   )
 }
 
-function Ligne({ libelle, children, vertical }: { libelle: string; children: ReactNode; vertical?: boolean }) {
+/**
+ * Une rangée du panneau : courte (libellé à gauche, contrôle de 72 à droite) ou, en `vertical`, une légende de 11 puis
+ * le contrôle sur toute la largeur. Le libellé tient sur une ligne, quelle que soit la colonne.
+ */
+function Ligne({ libelle, children, vertical, ample }: { libelle: string; children: ReactNode; vertical?: boolean; ample?: boolean }) {
   return (
-    <div className="notak-arbre-pitch-ligne" data-vertical={vertical ? '' : undefined}>
-      <span>{libelle}</span>
+    <div className="notak-arbre-pitch-ligne" data-vertical={vertical ? '' : undefined} data-ample={ample ? '' : undefined}>
+      <span title={libelle}>{libelle}</span>
       {children}
     </div>
   )
@@ -146,13 +161,13 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
         <hr />
         {resumes && (
           <>
-            <Ligne libelle={t('arbre.pitch.resume')}>{menuVisibilite('resume')}</Ligne>
+            <Ligne libelle={t('arbre.pitch.resumeLigne')}>{menuVisibilite('resume')}</Ligne>
             <hr />
           </>
         )}
-        <Ligne libelle={t('arbre.pitch.sujet')}>{menuVisibilite('sujet')}</Ligne>
+        <Ligne libelle={t('arbre.pitch.sujetLigne')}>{menuVisibilite('sujet')}</Ligne>
         {toutesImages && (
-          <Ligne libelle={t('arbre.pitch.imagePlace')} vertical>
+          <Ligne libelle={t('arbre.pitch.imagePlace')} vertical ample>
             <Menu
               valeur={placeImage === undefined ? LIGNE_VIDE : placeImage}
               libelle={t('arbre.pitch.imagePlace')}
@@ -169,7 +184,7 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
         {unAuMoins((x) => enfantsDe(l, x).length > 0) && (
           <>
             <hr />
-            <Ligne libelle={t('arbre.pitch.liste')}>{menuVisibilite('liste')}</Ligne>
+            <Ligne libelle={t('arbre.pitch.listeLigne')}>{menuVisibilite('liste')}</Ligne>
             {listeVisible && (
               <>
                 <Ligne libelle={t('arbre.pitch.livraison')} vertical>
