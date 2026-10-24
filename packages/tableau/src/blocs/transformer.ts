@@ -99,10 +99,12 @@ export function transformer(editor: Editor, vers: Vers): boolean {
   for (const pos of [...positions].reverse()) {
     const n = tr.doc.nodeAt(pos)!
     const neuf = enType(n, nom, nom === 'tache' && n.type.name === 'tache' ? { ...extra, coche: n.attrs.coche } : extra)
-    tr.replaceWith(pos, pos + n.nodeSize, neuf)
+    // Le texte ne change pas : le nœud change de type sur place, le curseur ne bouge pas. Le code, lui, se réécrit.
+    if (nom === 'codeBlock' || n.type.name === 'codeBlock') tr.replaceWith(pos, pos + n.nodeSize, neuf)
+    else tr.setNodeMarkup(pos, neuf.type, neuf.attrs, n.marks)
   }
-  const ici = Math.min(tr.mapping.map(from), tr.doc.content.size)
-  const la = Math.min(tr.mapping.map(to), tr.doc.content.size)
+  const ici = Math.min(tr.mapping.map(from, -1), tr.doc.content.size)
+  const la = Math.min(tr.mapping.map(to, -1), tr.doc.content.size)
   tr.setSelection(TextSelection.between(tr.doc.resolve(ici), tr.doc.resolve(la)))
   editor.view.dispatch(choix ? choisir(editor.state, choix, tr) : tr)
   if (devenaitTitreDepliant && positions.length === 1 && titresAvant.has(positions[0]!)) rangerSousLeTitre(editor, positions[0]!)

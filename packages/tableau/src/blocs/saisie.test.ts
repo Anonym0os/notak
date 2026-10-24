@@ -135,6 +135,13 @@ describe('NOTION.md § 5 : Transformer en', () => {
     }
   })
 
+  it('le curseur reste dans le bloc transformé, même vide et suivi d’un autre', () => {
+    const ed = ouvrir(p(''), p('suite'))
+    transformer(ed, 'titre2')
+    expect(ed.state.selection.$from.parent.type.name).toBe('heading')
+    expect(ed.state.selection.$from.parent.textContent).toBe('')
+  })
+
   it('une puce devient une tâche, en gardant son id et son retrait', () => {
     const ed = ouvrir({ type: 'puce', attrs: { id: 'X', retrait: 1 }, content: [{ type: 'text', text: 'a' }] })
     transformer(ed, 'tache')
