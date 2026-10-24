@@ -1,0 +1,66 @@
+/*
+ * La coloration du code (NOTION.md § 2) : une variable par genre de jeton (`blocs/coloration.ts`). Teintes sobres,
+ * lisibles sur le fond du bloc (rgba(66 35 3 / 0.03) en clair, rgba(255 255 255 / 0.03) en sombre). Le thème sombre se
+ * pose sous `[data-theme='sombre']`, comme dans `menus.css` ; le rendu figé et l'éditeur lisent les mêmes variables.
+ */
+:root {
+  --notak-code-mot: #8250c4;
+  --notak-code-chaine: #2f7d4f;
+  --notak-code-commentaire: #7d7a75;
+  --notak-code-nombre: #c4492b;
+  --notak-code-fonction: #2563a8;
+  --notak-code-type: #9a6a0a;
+  --notak-code-propriete: #0f7490;
+  --notak-code-operateur: #6f6b64;
+  --notak-code-balise: #bb3a56;
+  --notak-code-attribut: #a1531c;
+  --notak-code-variable: #ad4d7a;
+}
+
+[data-theme='sombre'] {
+  --notak-code-mot: #c39bf0;
+  --notak-code-chaine: #7fc99a;
+  --notak-code-commentaire: #8a857c;
+  --notak-code-nombre: #f0956f;
+  --notak-code-fonction: #7db4f0;
+  --notak-code-type: #e0b25a;
+  --notak-code-propriete: #5cc2d6;
+  --notak-code-operateur: #a8a39b;
+  --notak-code-balise: #f07a93;
+  --notak-code-attribut: #e6a06a;
+  --notak-code-variable: #e49bc4;
+}
+
+.notak-code-motCle {
+  color: var(--notak-code-mot);
+}
+.notak-code-chaine {
+  color: var(--notak-code-chaine);
+}
+.notak-code-commentaire {
+  color: var(--notak-code-commentaire);
+}
+.notak-code-nombre {
+  color: var(--notak-code-nombre);
+}
+.notak-code-fonction {
+  color: var(--notak-code-fonction);
+}
+.notak-code-type {
+  color: var(--notak-code-type);
+}
+.notak-code-propriete {
+  color: var(--notak-code-propriete);
+}
+.notak-code-operateur {
+  color: var(--notak-code-operateur);
+}
+.notak-code-balise {
+  color: var(--notak-code-balise);
+}
+.notak-code-attribut {
+  color: var(--notak-code-attribut);
+}
+.notak-code-variable {
+  color: var(--notak-code-variable);
+}

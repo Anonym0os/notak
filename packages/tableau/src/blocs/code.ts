@@ -3,6 +3,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state'
 import type { EditorView, NodeView } from '@tiptap/pm/view'
 import { Extension } from '@tiptap/react'
 import { t } from '../langue'
+import { pluginColoration } from './coloration'
 
 /**
  * Le bloc de code (docs/NOTION.md § 2) : au survol, une barre en haut à droite de la boîte, avec le langage du bloc
@@ -138,6 +139,8 @@ export const CodeBlocs = Extension.create({
           nodeViews: { codeBlock: (n, view, getPos) => new VueCode(n, view, getPos) },
         },
       }),
+      // La coloration syntaxique : des décorations par jeton, recalculées pour les blocs que la transaction touche.
+      pluginColoration(),
     ]
   },
 })
