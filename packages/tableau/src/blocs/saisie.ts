@@ -1,106 +1,244 @@
-import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
-import { type Editor, Extension, InputRule, markInputRule } from '@tiptap/react'
+import type { Node as NoeudPM } from '@tiptap/pm/model'
+import { type EditorState, Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
+import { type Editor, Extension, InputRule } from '@tiptap/react'
 import { normaliserUrl } from '../elements/note/conversion'
-import { langue } from '../langue'
+import { AnnulationBlocs } from './annulation'
 import type { Vers } from './catalogue'
+import { CollageBlocs } from './collage'
+import { CopieBlocs } from './copie'
+import { FlechesBlocs } from './fleches'
+import { CONTENEURS } from './ids'
+import { blocsDe } from './modele'
 import { transformer } from './transformer'
+import { DELIMITEURS, REMPLACEMENTS, chercherMarque, dansCodeOuvert, guillemet } from './typographie'
+
+export { REMPLACEMENTS, guillemet } from './typographie'
 
 /**
- * Ce qu'on tape (docs/NOTION.md § 4 et § 5) : les raccourcis markdown que le kit n'a pas déjà (`#`, `-`, `1.`,
- * `[]`, ` ``` `, `---`, `**`, `*`, `` ` `` y sont), les remplacements typographiques, et les touches du moteur.
+ * Ce qu'on tape (docs/NOTION.md § 4 et § 5) : les raccourcis markdown (`#`, `-`, `1.`, `[]`, ` ``` `, `---`, `**`,
+ * `*`, `` ` ``…), les remplacements typographiques, et les touches du moteur. Chaque règle est une règle de saisie de
+ * Tiptap : la frappe est une transaction, la conversion en est une autre, qui forme un pas d'annulation à part
+ * (⌘Z rend le motif tapé, `annulation.ts`).
  */
 
-/** Un remplacement typographique : ce qui finit le texte tapé, et ce qui le remplace. */
-export const REMPLACEMENTS: readonly [RegExp, string][] = [
-  [/←>$/u, '↔'],
-  [/<->$/u, '↔'],
-  [/->$/u, '→'],
-  [/<-$/u, '←'],
-  [/=>$/u, '⇒'],
-  [/>=$/u, '≥'],
-  [/<=$/u, '≤'],
-  [/!=$/u, '≠'],
-  [/--$/u, '—'],
-  [/\.\.\.$/u, '…'],
-]
+/** Les types d'où un raccourci en tête de bloc part : ni un encadré, ni un code (NOTION.md § 4). */
+const DEPART = new Set(['paragraph', 'heading', 'puce', 'numero', 'tache', 'depliant', 'citation'])
 
-/**
- * Les guillemets droits deviennent typographiques selon la langue : « » en français (avec l'espace insécable),
- * “ ” en anglais. En tête de bloc, `"` reste droit tant qu'on n'a pas tapé la suite : `" ` y fait une citation.
- */
-export function guillemet(avant: string, francais: boolean): string | null {
-  const ouvrant = avant === '' || /[\s([{ ]$/u.test(avant)
-  if (ouvrant) return francais ? '« ' : '“'
-  return francais ? ' »' : '”'
+/** Le bloc de texte où le motif a été tapé, s'il peut le convertir : un bloc de la page ou d'une colonne. */
+function departDe(state: EditorState, de: number): { debut: number; bloc: NoeudPM } | null {
+  const $d = state.doc.resolve(de)
+  const bloc = $d.parent
+  if (!bloc.isTextblock || $d.depth < 1 || !DEPART.has(bloc.type.name)) return null
+  if (!CONTENEURS.has($d.node($d.depth - 1).type.name)) return null
+  return { debut: $d.before(), bloc }
 }
 
-/** L'apostrophe : droite après une lettre, elle devient courbe (`l'arbre` → `l’arbre`). */
-const APOSTROPHE = /(\p{L})'$/u
+/** Le texte du bloc jusqu'à la position. */
+const avantLe = (state: EditorState, pos: number): string => {
+  const $p = state.doc.resolve(pos)
+  return $p.parent.textBetween(0, $p.parentOffset, undefined, '￼')
+}
+
+/** Les valeurs qu'un jeton de numéro peut avoir : chiffres, lettre seule (a = 1), chiffres romains (i = 1). */
+export function valeursDeNumero(jeton: string): number[] {
+  if (/^\d+$/.test(jeton)) return [Number(jeton)]
+  const valeurs: number[] = []
+  if (/^[a-z]$/.test(jeton)) valeurs.push(jeton.charCodeAt(0) - 96)
+  const R: [string, number][] = [['m', 1000], ['cm', 900], ['d', 500], ['cd', 400], ['c', 100], ['xc', 90], ['l', 50], ['xl', 40], ['x', 10], ['ix', 9], ['v', 5], ['iv', 4], ['i', 1]]
+  let reste = jeton
+  let n = 0
+  for (const [signe, valeur] of R) while (reste.startsWith(signe)) (reste = reste.slice(signe.length)), (n += valeur)
+  if (!reste && n > 0 && /^[ivxlcdm]+$/.test(jeton)) {
+    // Le jeton doit s'écrire comme le nombre : `iiii` n'en est pas un.
+    let ecrit = ''
+    let m = n
+    for (const [signe, valeur] of R) while (m >= valeur) (ecrit += signe), (m -= valeur)
+    if (ecrit === jeton) valeurs.push(n)
+  }
+  return valeurs
+}
 
 /**
- * Un raccourci en tête de bloc (NOTION.md § 4) : le motif tapé disparaît et le bloc change de type, en gardant son
- * id, son retrait et sa couleur. Jamais dans du code, ni dans un bloc qui n'est pas de la page (une cellule).
+ * Un numéro tapé en tête de bloc est-il accepté (NOTION.md § 4) ? Seulement s'il continue la liste qui précède
+ * (`attendu` = son dernier numéro + 1) ; en tête d'une liste (`attendu` = 1) : `1.`, `a.` ou `i.`. Un autre nombre ne
+ * fait rien : Notak ne sait pas encore commencer une liste ailleurs qu'à 1.
  */
-const regleType = (find: RegExp, type: string, attrs: (m: RegExpMatchArray) => Record<string, unknown> = () => ({})) =>
+export const numeroAccepte = (jeton: string, attendu: number): boolean => valeursDeNumero(jeton).includes(attendu)
+
+/** Le dernier numéro de la liste qui précède le bloc à `pos` (ses frères numérotés juste avant lui) ; 0 s'il n'y en a pas. */
+export function numeroAvant(state: EditorState, pos: number): number {
+  const blocs = blocsDe(state.doc)
+  const b = blocs.find((x) => x.pos === pos)
+  if (!b) return 0
+  const freres = blocs.filter((x) => x.parent === b.parent && x.pos < b.pos && x.type !== 'colonne')
+  let n = 0
+  for (let i = freres.length - 1; i >= 0 && freres[i]!.type === 'numero'; i--) n++
+  return n
+}
+
+type Cible = [nom: string, attrs: Record<string, unknown>]
+
+/**
+ * Un raccourci de type en tête de bloc (NOTION.md § 4) : le motif tapé disparaît et le bloc change de type, en gardant
+ * son id, son retrait et sa couleur ; le curseur reste au début du texte qui suit. `choisir` rend le type visé, ou `null`
+ * si le motif ne doit rien faire ici. Dans une citation, le motif ne change pas le bloc : il crée un enfant du type visé,
+ * qui reçoit le reste du texte.
+ */
+const regleBloc = (find: RegExp, choisir: (m: RegExpMatchArray, bloc: NoeudPM, debut: number, state: EditorState) => Cible | null) =>
   new InputRule({
     find,
     handler: ({ state, range, match }) => {
-      const $d = state.doc.resolve(range.from)
-      const bloc = $d.parent
-      if (!bloc.isTextblock || bloc.type.name === 'codeBlock' || $d.depth < 1) return null
-      if (!['doc', 'colonne'].includes($d.node($d.depth - 1).type.name)) return null
-      const cible = state.schema.nodes[type]!
+      const depart = departDe(state, range.from)
+      if (!depart) return null
+      const { debut, bloc } = depart
+      const cible = choisir(match, bloc, debut, state)
+      const type = cible && state.schema.nodes[cible[0]]
+      if (!cible || !type) return null
       const { id, retrait, couleur } = bloc.attrs
-      state.tr.delete(range.from, range.to).setNodeMarkup($d.before(), cible, { id, retrait, couleur, ...attrs(match) })
+      const tr = state.tr.delete(range.from, range.to)
+      const reste = tr.doc.nodeAt(debut)!
+      if (!type.validContent(reste.content)) return null
+      if (bloc.type.name === 'citation' && cible[0] !== 'citation') {
+        const enfant = type.create({ retrait: Math.min(12, (Number(retrait) || 0) + 1), ...cible[1] }, reste.content)
+        tr.replaceWith(debut, debut + reste.nodeSize, [bloc.type.create({ id, retrait, couleur }), enfant])
+        tr.setSelection(TextSelection.create(tr.doc, debut + 2 + 1))
+        return
+      }
+      tr.setNodeMarkup(debut, type, { id, retrait, couleur, ...cible[1] })
     },
   })
 
 /** Les raccourcis de type en tête de bloc, dans l'ordre où ils sont essayés. */
 const reglesDeType = () => [
-  regleType(/^(#{1,3})\s$/, 'heading', (m) => ({ level: m[1]!.length })),
-  regleType(/^[-*+]\s$/, 'puce'),
-  regleType(/^(?:\d+|[a-z]|[ivx]{1,4})\.\s$/, 'numero'),
-  regleType(/^\[(x|X| )?\]\s$/, 'tache', (m) => ({ coche: !!m[1] && m[1] !== ' ' })),
-  regleType(/^>\s$/, 'depliant'),
-  regleType(/^["“«]\s$/u, 'citation'),
-  regleType(/^```([\w+#.-]*)\s?$/, 'codeBlock', (m) => ({ language: m[1] || null })),
+  regleBloc(/^\[(x|X| )?\]\s$/, (m, bloc) => {
+    const coche = !!m[1] && m[1] !== ' '
+    return bloc.type.name === 'tache' && !!bloc.attrs.coche === coche ? null : ['tache', { coche }]
+  }),
+  // Dans un dépliant, `#` fait un titre dépliant du niveau ; ailleurs un titre simple (NOTION.md § 4).
+  regleBloc(/^(#{1,3})\s$/, (m, bloc) => {
+    const level = m[1]!.length
+    const depliant = bloc.type.name === 'depliant' || (bloc.type.name === 'heading' && !!bloc.attrs.depliant)
+    if (bloc.type.name === 'heading' && bloc.attrs.level === level && !!bloc.attrs.depliant === depliant) return null
+    return ['heading', depliant ? { level, depliant: true, ouvert: bloc.attrs.ouvert !== false } : { level, depliant: false }]
+  }),
+  // Dans un titre simple, `>` fait le titre dépliant du même niveau.
+  regleBloc(/^>\s$/, (_, bloc) => {
+    if (bloc.type.name === 'depliant' || (bloc.type.name === 'heading' && bloc.attrs.depliant)) return null
+    return bloc.type.name === 'heading' ? ['heading', { level: bloc.attrs.level, depliant: true, ouvert: true }] : ['depliant', { ouvert: true }]
+  }),
+  regleBloc(/^(?:["“«]|\|)\s$/u, (_, bloc) => (bloc.type.name === 'citation' ? null : ['citation', {}])),
+  regleBloc(/^[-*+•]\s$/u, (_, bloc) => (bloc.type.name === 'puce' ? null : ['puce', {}])),
+  // Un numéro n'est accepté que s'il continue la liste d'avant, ou s'il la commence ; un titre ne devient pas une liste.
+  regleBloc(/^(\d+|[a-z]|[ivxlcdm]+)[.)]\s$/, (m, bloc, debut, state) => {
+    if (bloc.type.name === 'numero' || bloc.type.name === 'heading') return null
+    return numeroAccepte(m[1]!, numeroAvant(state, debut) + 1) ? ['numero', {}] : null
+  }),
+  regleBloc(/^```([\w+#.-]*)\s?$/, (m) => ['codeBlock', { language: m[1] || null }]),
 ]
 
-/** `---` (ou `***`, `___`) seul sur la ligne : un séparateur tout de suite, un texte neuf dessous (NOTION.md § 4). */
+/**
+ * `---` seul sur la ligne, sans espace : un séparateur tout de suite, et un texte neuf dessous qui reçoit le reste du
+ * texte et le curseur (NOTION.md § 4). Les deux tirets du début sont déjà devenus `—` ; `***` et `___` n'en font pas.
+ */
 const regleSeparateur = () =>
   new InputRule({
-    find: /^(?:---|—-|\*\*\*|___)$/,
+    find: /^(?:---|—-)$/,
     handler: ({ state, range }) => {
-      const $d = state.doc.resolve(range.from)
-      if ($d.parent.type.name === 'codeBlock' || $d.depth < 1 || !['doc', 'colonne'].includes($d.node($d.depth - 1).type.name)) return null
-      const debut = $d.before()
-      const { retrait } = $d.parent.attrs
+      const depart = departDe(state, range.from)
+      if (!depart) return null
+      const { debut, bloc } = depart
+      const { retrait } = bloc.attrs
       const tr = state.tr.delete(range.from, range.to)
-      const bloc = tr.doc.nodeAt(debut)!
-      tr.replaceWith(debut, debut + bloc.nodeSize, [state.schema.nodes.horizontalRule!.create({ retrait }), state.schema.nodes.paragraph!.create({ retrait })])
+      const reste = tr.doc.nodeAt(debut)!
+      tr.replaceWith(debut, debut + reste.nodeSize, [state.schema.nodes.horizontalRule!.create({ retrait }), state.schema.nodes.paragraph!.create({ retrait }, reste.content)])
       tr.setSelection(TextSelection.create(tr.doc, debut + 2))
     },
   })
 
-/** Remplace ce qui finit le texte tapé ; jamais dans du code (les règles de saisie n'y jouent pas). */
-const remplacer = (find: RegExp, par: string | ((m: RegExpMatchArray) => string)) =>
+/** `**gras**`, `*italique*`, `~barré~`, `` `code` `` : les délimiteurs disparaissent, la marque se pose et ne se prolonge pas. */
+const regleMarque = (delim: string, nom: string) =>
   new InputRule({
-    find,
+    find: (avant) => {
+      const m = chercherMarque(avant, delim)
+      return m ? { index: m.debut, text: avant.slice(m.debut), data: { contenu: m.contenu } } : null
+    },
     handler: ({ state, range, match }) => {
-      state.tr.insertText(typeof par === 'string' ? par : par(match), range.from, range.to)
+      const type = state.schema.marks[nom]
+      const contenu = String(match.data?.contenu ?? '')
+      if (!type || !contenu) return null
+      const n = delim.length
+      // Pas de code dans du code.
+      if (nom === 'code' && state.doc.rangeHasMark(range.from + n, range.to - n, type)) return null
+      const tr = state.tr.delete(range.to - n, range.to).delete(range.from, range.from + n)
+      tr.addMark(range.from, range.from + contenu.length, type.create())
+      tr.removeStoredMark(type)
     },
   })
+
+/** Remplace ce qui finit le texte tapé, sauf dans un code en ligne resté ouvert (dans un bloc de code, aucune règle ne joue). */
+const remplacer = (find: RegExp, par: string) =>
+  new InputRule({
+    find,
+    handler: ({ state, range }) => {
+      if (dansCodeOuvert(avantLe(state, range.from))) return null
+      state.tr.insertText(par, range.from, range.to)
+    },
+  })
+
+/** `"` et `'` : ouvrants en tête de bloc et après une espace, fermants ailleurs (NOTION.md § 4). */
+const reglesDeGuillemets = () =>
+  (['"', "'"] as const).map(
+    (signe) =>
+      new InputRule({
+        find: new RegExp(`${signe}$`, 'u'),
+        handler: ({ state, range }) => {
+          const avant = avantLe(state, range.from)
+          if (dansCodeOuvert(avant)) return null
+          state.tr.insertText(guillemet(avant, signe === "'"), range.from, range.to)
+        },
+      }),
+  )
+
+/** Les motifs de type qui ne font rien dans un encadré : la frappe passe sans que les règles du kit s'en mêlent. */
+const MOTIFS_DE_TYPE = /^(?:\[[xX ]?\]|#{1,3}|>|-|\*|\+|•|\||["“«]|\d+[.)]|[a-z][.)]|[ivxlcdm]+[.)])\s$/u
+
+/**
+ * Entre nos règles et celles du kit : un délimiteur de marque (`*`, `_`, `~`, `` ` ``) que nos règles n'ont pas pris n'est
+ * pas repris par celles du kit, qui acceptent plus que Notion (`~~x~~`, `* x*`, un code en plein mot) ; `***` et `___`
+ * suivis d'une espace non plus ne font pas de séparateur. La frappe s'écrit, et c'est tout.
+ */
+const GardeMarques = Extension.create({
+  name: 'gardeMarques',
+  priority: 500,
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: new PluginKey('gardeMarques'),
+        props: {
+          handleTextInput: (view, from, to, texte) => {
+            const delimiteur = ['*', '_', '~', '`'].includes(texte)
+            if (!delimiteur && !(texte === ' ' && /^(?:\*{3}|_{3})$/.test(avantLe(view.state, from)))) return false
+            view.dispatch(view.state.tr.insertText(texte, from, to))
+            return true
+          },
+        },
+      }),
+    ]
+  },
+})
 
 export const SaisieBlocs = Extension.create({
   name: 'saisieBlocs',
   priority: 1000,
+  addExtensions() {
+    return [AnnulationBlocs, FlechesBlocs, CollageBlocs, CopieBlocs, GardeMarques]
+  },
   addInputRules() {
-    const { strike, link } = this.editor.schema.marks
-    const francais = () => langue() !== 'en'
+    const { link } = this.editor.schema.marks
     return [
       ...reglesDeType(),
       regleSeparateur(),
-      markInputRule({ find: /(?:^|\s)(~(?!~)((?:[^~]+))~(?!~))$/, type: strike! }),
+      ...DELIMITEURS.map(([delim, nom]) => regleMarque(delim, nom)),
       new InputRule({
         find: /\[([^\]]+)\]\((\S+)\)$/,
         handler: ({ state, range, match }) => {
@@ -110,40 +248,54 @@ export const SaisieBlocs = Extension.create({
         },
       }),
       ...REMPLACEMENTS.map(([find, par]) => remplacer(find, par)),
-      remplacer(APOSTROPHE, (m) => `${m[1]}’`),
-      new InputRule({
-        find: /"$/u,
-        handler: ({ state, range }) => {
-          const $d = state.doc.resolve(range.from)
-          const avant = $d.parent.textBetween(0, $d.parentOffset, undefined, '￼')
-          // En tête de bloc, le guillemet attend : `" ` fera une citation.
-          if (avant === '') return null
-          state.tr.insertText(guillemet(avant, francais())!, range.from, range.to)
-        },
-      }),
-      // En tête de bloc, le guillemet resté droit s'ouvre quand on écrit la suite.
-      new InputRule({
-        find: /^"([^\s"])$/u,
-        handler: ({ state, range, match }) => {
-          state.tr.insertText(`${guillemet('', francais())}${match[1]}`, range.from, range.to)
-        },
-      }),
+      ...reglesDeGuillemets(),
     ]
   },
   addKeyboardShortcuts() {
     return {
-      'Mod-Enter': () => basculer(this.editor),
+      // ⌘Entrée coche une tâche, ouvre ou ferme un dépliant ; sur un texte, elle ne fait rien (NOTION.md § 5).
+      'Mod-Enter': () => {
+        basculer(this.editor)
+        return true
+      },
       'Mod-Shift-s': () => this.editor.commands.toggleStrike(),
+      'Mod-Shift-x': () => this.editor.commands.toggleStrike(),
     }
   },
   addProseMirrorPlugins() {
     const editor = this.editor
     return [
+      // Dans un encadré, les motifs de type ne convertissent rien : on écrit l'espace, et c'est tout.
+      new Plugin({
+        key: new PluginKey('motifsDansEncadre'),
+        props: {
+          handleTextInput: (view, from, to, texte) => {
+            const { $from } = view.state.selection
+            if ($from.parent.type.name !== 'encadreBloc' || !/^\s$/.test(texte)) return false
+            if (!MOTIFS_DE_TYPE.test(avantLe(view.state, from) + texte)) return false
+            view.dispatch(view.state.tr.insertText(texte, from, to))
+            return true
+          },
+        },
+      }),
       new Plugin({
         key: new PluginKey('chiffresBlocs'),
         props: {
-          handleKeyDown: (_, e) => {
-            if (!(e.metaKey || e.ctrlKey) || !e.altKey || e.shiftKey) return false
+          handleKeyDown: (view, e) => {
+            if (e.isComposing || view.composing) return false
+            const mod = e.metaKey || e.ctrlKey
+            // ⌘⌥\ efface la mise en forme, ⌘⌥T ouvre ou ferme tous les dépliants (NOTION.md § 5).
+            if (mod && e.altKey && !e.shiftKey && e.code === 'Backslash') {
+              e.preventDefault()
+              return effacerFormat(editor)
+            }
+            if (mod && e.altKey && !e.shiftKey && e.code === 'KeyT') {
+              e.preventDefault()
+              return basculerDepliants(editor)
+            }
+            // ⌘⌥chiffre (macOS) ou Ctrl+Maj+chiffre (Windows, Linux) : « Transformer en ».
+            const touche = (mod && e.altKey && !e.shiftKey) || (e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey)
+            if (!touche) return false
             const vers = TYPES_CHIFFRES[e.code]
             if (!vers) return false
             e.preventDefault()
@@ -184,6 +336,31 @@ export function basculer(editor: Editor): boolean {
   if (!attribut || pos < 0) return false
   const valeur = attribut === 'coche' ? !n.attrs.coche : n.attrs.ouvert === false
   editor.view.dispatch(editor.state.tr.setNodeAttribute(pos, attribut, valeur))
+  return true
+}
+
+/** Les marques que ⌘⌥\ retire : le gras, l'italique, le souligné, le barré, le code et les couleurs, mais pas le lien. */
+const MARQUES_EFFACEES = ['bold', 'italic', 'underline', 'strike', 'code', 'textStyle', 'highlight']
+
+/** ⌘⌥\ : retire la mise en forme du passage choisi (le lien reste). */
+export function effacerFormat(editor: Editor): boolean {
+  const c = editor.chain()
+  for (const nom of MARQUES_EFFACEES) if (editor.schema.marks[nom]) c.unsetMark(nom)
+  return c.run()
+}
+
+/** ⌘⌥T : ferme tous les dépliants si l'un est ouvert, sinon les ouvre tous. */
+export function basculerDepliants(editor: Editor): boolean {
+  const positions: [number, boolean][] = []
+  editor.state.doc.descendants((n, pos) => {
+    if (n.type.name === 'depliant' || (n.type.name === 'heading' && n.attrs.depliant)) positions.push([pos, n.attrs.ouvert !== false])
+    return n.type.name === 'colonnes' || n.type.name === 'colonne'
+  })
+  if (positions.length === 0) return true
+  const ouvrir = !positions.some(([, ouvert]) => ouvert)
+  const tr = editor.state.tr
+  for (const [pos] of positions) tr.setNodeAttribute(pos, 'ouvert', ouvrir)
+  editor.view.dispatch(tr)
   return true
 }
 

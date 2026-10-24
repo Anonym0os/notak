@@ -2,14 +2,19 @@ import type { Node as NoeudPM } from '@tiptap/pm/model'
 import { type EditorState, Selection, TextSelection, type Transaction } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
 import { Extension } from '@tiptap/react'
+import { geste } from './annulation'
 import { CONTENEURS, RETRAIT_MAX } from './ids'
 import { indenter } from './gestes'
 import { type Bloc, blocsDe } from './modele'
 
 /**
  * Le clavier du texte (docs/NOTION.md § 5) : Entrée, Retour arrière, Suppr, Tab, à la façon de Notion. Chaque geste
- * est une seule transaction, donc un seul pas d'annulation. Les règles par type sont celles du tableau du § 5.
+ * est une seule transaction, marquée comme un geste de bloc (`annulation.ts`) : un seul pas d'annulation, à part de la
+ * frappe d'avant et de celle d'après. Les règles par type sont celles du tableau du § 5.
  */
+
+/** Marque la transaction d'un geste de bloc ; `null` reste `null`. */
+const marquer = (tr: Transaction | null): Transaction | null => (tr ? geste(tr) : null)
 
 /** Les types qu'Entrée reproduit, et qui remontent d'un cran quand on les laisse vides en dernier enfant. */
 const CONTINUABLES = new Set(['paragraph', 'puce', 'numero', 'tache', 'depliant'])
@@ -49,7 +54,7 @@ const ferme = (n: NoeudPM) => (n.type.name === 'depliant' || (n.type.name === 'h
 const ouvertDepliant = (n: NoeudPM) => (n.type.name === 'depliant' || (n.type.name === 'heading' && n.attrs.depliant)) && n.attrs.ouvert !== false
 
 /** Un bloc caché par un dépliant fermé au-dessus de lui. */
-function cache(blocs: readonly Bloc[], b: Bloc): boolean {
+export function cache(blocs: readonly Bloc[], b: Bloc): boolean {
   for (let p = b.parent ? blocs.find((x) => x.id === b.parent) : undefined; p; p = p.parent ? blocs.find((x) => x.id === p!.parent) : undefined) {
     if ((p.type === 'deroulant' || p.type.startsWith('titreDeroulant')) && p.format.ouvert === false) return true
   }
@@ -75,29 +80,48 @@ function remonterEnfants(tr: Transaction, b: Bloc) {
   })
 }
 
+/** La colonne où se trouve le bloc, ou `null` s'il est dans la page. */
+function colonneDe(blocs: readonly Bloc[], b: Bloc): string | null {
+  for (let p = b.parent ? blocs.find((x) => x.id === b.parent) : undefined; p; p = p.parent ? blocs.find((x) => x.id === p!.parent) : undefined) {
+    if (p.type === 'colonne') return p.id
+  }
+  return null
+}
+
+/** Un bloc de texte qu'un autre peut rejoindre : visible, hors d'un code, et pas dans une autre colonne que celui qui le rejoint. */
+function rejoignable(c: Ici, b: Bloc): boolean {
+  const n = c.doc.nodeAt(b.pos)
+  if (!n?.isTextblock || n.type.name === 'codeBlock' || cache(c.blocs, b)) return false
+  const colonne = colonneDe(c.blocs, c.bloc)
+  return colonne === null || colonneDe(c.blocs, b) === colonne
+}
+
 /** Le bloc de texte précédent dans l'ordre d'affichage (les blocs sans texte et les blocs cachés sont sautés). */
 function texteAvant(c: Ici): Bloc | null {
   const i = c.blocs.indexOf(c.bloc)
-  for (let j = i - 1; j >= 0; j--) {
-    const b = c.blocs[j]!
-    const n = c.doc.nodeAt(b.pos)
-    if (n?.isTextblock && n.type.name !== 'codeBlock' && !cache(c.blocs, b)) return b
-  }
+  for (let j = i - 1; j >= 0; j--) if (rejoignable(c, c.blocs[j]!)) return c.blocs[j]!
   return null
 }
 
 function texteApres(c: Ici): Bloc | null {
   const i = c.blocs.indexOf(c.bloc)
-  for (let j = i + 1; j < c.blocs.length; j++) {
-    const b = c.blocs[j]!
-    const n = c.doc.nodeAt(b.pos)
-    if (n?.isTextblock && n.type.name !== 'codeBlock' && !cache(c.blocs, b)) return b
-  }
+  for (let j = i + 1; j < c.blocs.length; j++) if (rejoignable(c, c.blocs[j]!)) return c.blocs[j]!
   return null
 }
 
+/** Le bloc remonte d'un cran, avec ses enfants, hors de son parent (un encadré aussi : Entrée l'en sort, Maj+Tab non). */
+function remonter(state: EditorState, c: Ici): Transaction {
+  const tr = state.tr
+  state.doc.nodesBetween(c.bloc.pos, c.bloc.fin, (n, pos) => {
+    if (pos < c.bloc.pos || !('retrait' in n.attrs)) return false
+    tr.setNodeAttribute(pos, 'retrait', Math.max(0, (Number(n.attrs.retrait) || 0) - 1))
+    return false
+  })
+  return tr
+}
+
 /** Entrée (NOTION.md § 5, Entrée). */
-export function entree(state: EditorState): Transaction | null {
+function entreeBrute(state: EditorState): Transaction | null {
   const c = ici(state)
   if (!c || c.noeud.type.name === 'codeBlock') return null
   const { noeud, pos, bloc } = c
@@ -110,7 +134,7 @@ export function entree(state: EditorState): Transaction | null {
   // Un bloc vide qu'on quitte : il remonte d'un cran s'il est le dernier enfant de son parent, sinon il devient du texte.
   const dernierDansEncadre = noeud.type.name === 'paragraph' && parentDe(c)?.type === 'encadre' && dernierEnfant(c)
   if (empty && vide && (CONVERTIBLES.has(noeud.type.name) || dernierDansEncadre)) {
-    if (CONTINUABLES.has(noeud.type.name) && dernierEnfant(c) && bloc.id) return indenter(state, [bloc.id], -1)
+    if (CONTINUABLES.has(noeud.type.name) && dernierEnfant(c) && bloc.id) return indenter(state, [bloc.id], -1) ?? remonter(state, c)
     enTexte(tr, pos, noeud)
     return tr
   }
@@ -153,8 +177,18 @@ export function entree(state: EditorState): Transaction | null {
   return tr.scrollIntoView()
 }
 
+/** Entrée dans un bloc de code : un saut de ligne, et l'indentation de la ligne courante recopiée (NOTION.md § 5). */
+export function entreeCode(state: EditorState): Transaction | null {
+  const { $from, $to } = state.selection
+  if ($from.parent.type.name !== 'codeBlock') return null
+  const avant = $from.parent.textBetween(0, $from.parentOffset, undefined, '\n')
+  const ligne = avant.slice(avant.lastIndexOf('\n') + 1)
+  const indentation = /^[ \t]*/.exec(ligne)![0]
+  return state.tr.insertText(`\n${indentation}`, $from.pos, $to.pos).scrollIntoView()
+}
+
 /** Retour arrière en tête d'un bloc (NOTION.md § 5) ; `direct` (⌘) saute la conversion en texte. */
-export function retourArriere(state: EditorState, direct = false): Transaction | null {
+function retourArriereBrut(state: EditorState, direct = false): Transaction | null {
   const { empty, $from } = state.selection
   if (!empty || $from.parentOffset !== 0) return null
   const c = ici(state)
@@ -184,7 +218,7 @@ export function retourArriere(state: EditorState, direct = false): Transaction |
 }
 
 /** Suppr en fin de bloc : un bloc vide part ; sinon le bloc de texte suivant le rejoint (NOTION.md § 5). */
-export function suppr(state: EditorState): Transaction | null {
+function supprBrut(state: EditorState): Transaction | null {
   const { empty, $from } = state.selection
   if (!empty || $from.parentOffset !== $from.parent.content.size) return null
   const c = ici(state)
@@ -237,9 +271,28 @@ function tabCode(state: EditorState, sens: 1 | -1): Transaction {
   return tr
 }
 
+/** Le curseur est-il dans une cellule de tableau ? Tab y va à la cellule suivante, et n'indente rien. */
+const dansUnTableau = (state: EditorState): boolean => {
+  const { $from } = state.selection
+  for (let d = $from.depth; d > 0; d--) if ($from.node(d).type.name === 'table') return true
+  return false
+}
+
+/** Tab (`sens` 1) et Maj+Tab (-1) dans une cellule : la cellule d'après, ou d'avant ; au bord du tableau, rien (NOTION.md § 3). */
+function tabTableau(state: EditorState, sens: 1 | -1): Transaction {
+  const { $from } = state.selection
+  let d = $from.depth
+  while (d > 0 && !['celluleTable', 'enteteTable'].includes($from.node(d).type.name)) d--
+  if (d < 2) return state.tr
+  const cible = Selection.findFrom(state.doc.resolve(sens > 0 ? $from.after(d) : $from.before(d)), sens, true)
+  if (!cible || cible.from < $from.before(d - 2) || cible.from > $from.after(d - 2)) return state.tr
+  return state.tr.setSelection(cible).scrollIntoView()
+}
+
 /** Tab et Maj+Tab dans le texte (NOTION.md § 3) : jamais de caractère, jamais hors de l'éditeur. */
-export function tab(state: EditorState, sens: 1 | -1): Transaction | null {
+function tabBrut(state: EditorState, sens: 1 | -1): Transaction | null {
   if (state.selection.$from.parent.type.name === 'codeBlock') return tabCode(state, sens)
+  if (dansUnTableau(state)) return tabTableau(state, sens)
   const ids = blocsTouches(state)
   if (ids.length === 0) return null
   return indenter(state, ids, sens, ids.length === 1)
@@ -252,6 +305,17 @@ function sortirDuCode(state: EditorState): Transaction | null {
   const apres = $from.after()
   const tr = state.tr.insert(apres, state.schema.nodes.paragraph!.create({ retrait: $from.parent.attrs.retrait }))
   return tr.setSelection(Selection.near(tr.doc.resolve(apres + 1))).scrollIntoView()
+}
+
+export const entree = (state: EditorState) => marquer(entreeBrute(state))
+export const retourArriere = (state: EditorState, direct = false) => marquer(retourArriereBrut(state, direct))
+export const suppr = (state: EditorState) => marquer(supprBrut(state))
+export const tab = (state: EditorState, sens: 1 | -1) => marquer(tabBrut(state, sens))
+
+/** Retour arrière en tête d'un bloc de code : rien ne se passe (NOTION.md § 5), le bloc ne se convertit pas en texte. */
+const enTeteDeCode = (state: EditorState): boolean => {
+  const { empty, $from } = state.selection
+  return empty && $from.parent.type.name === 'codeBlock' && $from.parentOffset === 0
 }
 
 const jouer = (view: EditorView, tr: Transaction | null) => {
@@ -267,22 +331,25 @@ export const ClavierBlocs = Extension.create({
   addKeyboardShortcuts() {
     const v = () => this.editor.view
     const s = () => this.editor.state
+    // Pendant une composition (IME), la composition consomme ces touches : on n'y touche pas.
+    const libre = () => !v().composing
     return {
-      Enter: () => !v().composing && jouer(v(), entree(s())),
-      Backspace: () => !v().composing && jouer(v(), retourArriere(s())),
-      'Mod-Backspace': () => !v().composing && jouer(v(), retourArriere(s(), true)),
-      Delete: () => !v().composing && jouer(v(), suppr(s())),
+      Enter: () => libre() && jouer(v(), entreeCode(s()) ?? entree(s())),
+      Backspace: () => libre() && (enTeteDeCode(s()) || jouer(v(), retourArriere(s()))),
+      'Mod-Backspace': () => libre() && (enTeteDeCode(s()) || jouer(v(), retourArriere(s(), true))),
+      Delete: () => libre() && jouer(v(), suppr(s())),
+      // Tab ne sort jamais de l'éditeur et n'écrit jamais de caractère, même quand l'indentation est impossible.
       Tab: () => {
-        if (v().composing) return false
+        if (!libre()) return false
         jouer(v(), tab(s(), 1))
         return true
       },
       'Shift-Tab': () => {
-        if (v().composing) return false
+        if (!libre()) return false
         jouer(v(), tab(s(), -1))
         return true
       },
-      'Shift-Enter': () => jouer(v(), sortirDuCode(s())),
+      'Shift-Enter': () => libre() && jouer(v(), marquer(sortirDuCode(s()))),
     }
   },
 })

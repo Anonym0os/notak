@@ -3,7 +3,8 @@ import { TextSelection } from '@tiptap/pm/state'
 import { Editor } from '@tiptap/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { NoeudTexte } from '../coeur/tableau'
-import { entree, retourArriere, suppr, tab } from './clavier'
+import { CLE_GESTE } from './annulation'
+import { entree, entreeCode, retourArriere, suppr, tab } from './clavier'
 import { poserIds } from './ids'
 import { EXTENSIONS_BLOCS } from './schema'
 
@@ -145,5 +146,82 @@ describe('NOTION.md § 3 : Tab dans le texte', () => {
     expect(ed.state.doc.textContent).toBe('un\n\tdeux')
     jouer(ed, (s) => tab(s, -1))
     expect(ed.state.doc.textContent).toBe('un\ndeux')
+  })
+})
+
+describe('NOTION.md § 5 : Entrée dans le code et dans un encadré', () => {
+  it('dans un code, Entrée écrit un saut de ligne et recopie l’indentation de la ligne', () => {
+    const ed = ouvrir([{ type: 'codeBlock', content: [{ type: 'text', text: 'a\n  \tb' }] }])
+    jouer(ed, (s) => entreeCode(s))
+    expect(ed.state.doc.textContent).toBe('a\n  \tb\n  \t')
+    expect(ed.state.selection.$from.parentOffset).toBe(ed.state.doc.textContent.length)
+  })
+
+  it('Entrée sur un bloc de texte vide, dernier enfant d’un encadré, l’en fait sortir', () => {
+    const ed = ouvrir([b('encadreBloc', 'E'), p('', { retrait: 1 })], 1)
+    jouer(ed, entree)
+    expect(lire(ed)).toEqual(['encadreBloc:E', 'paragraph:'])
+  })
+
+  it('une puce vide, dernier enfant d’un encadré, en sort aussi et reste une puce', () => {
+    const ed = ouvrir([b('encadreBloc', 'E'), b('puce', '', { retrait: 1 })], 1)
+    jouer(ed, entree)
+    expect(lire(ed)).toEqual(['encadreBloc:E', 'puce:'])
+  })
+})
+
+describe('NOTION.md § 5 : touches du clavier', () => {
+  it('Retour arrière en tête d’un bloc de code ne fait rien', () => {
+    const ed = ouvrir([{ type: 'codeBlock', content: [{ type: 'text', text: 'x' }] }], 0, 0)
+    ed.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }))
+    expect(lire(ed)).toEqual(['codeBlock:x'])
+  })
+
+  it('chaque geste est marqué comme un pas d’annulation à part', () => {
+    const ed = ouvrir([p('a'), p('b')], 1, 0)
+    expect(entree(ed.state)!.getMeta(CLE_GESTE)).toBe(true)
+    expect(retourArriere(ed.state)!.getMeta(CLE_GESTE)).toBe(true)
+    expect(tab(ed.state, 1)!.getMeta(CLE_GESTE)).toBe(true)
+  })
+
+  it('Retour arrière en tête du premier bloc d’une colonne ne tire pas le texte d’une autre colonne', () => {
+    const col = (...blocs: NoeudTexte[]): NoeudTexte => ({ type: 'colonne', content: blocs })
+    editeur = new Editor({
+      extensions: EXTENSIONS_BLOCS,
+      content: { type: 'doc', content: [{ type: 'colonnes', content: [col(p('gauche')), col(p('droite'))] }] },
+    })
+    const ids = poserIds(editeur.state)
+    if (ids) editeur.view.dispatch(ids)
+    let pos = 0
+    editeur.state.doc.descendants((n, ici) => {
+      if (n.isTextblock && n.textContent === 'droite') pos = ici + 1
+    })
+    editeur.view.dispatch(editeur.state.tr.setSelection(TextSelection.create(editeur.state.doc, pos)))
+    const tr = retourArriere(editeur.state)
+    expect(tr?.docChanged).toBeFalsy()
+  })
+
+  it('Tab dans une cellule de tableau va à la cellule suivante, et n’indente pas le tableau', () => {
+    const cellule = (t: string): NoeudTexte => ({ type: 'celluleTable', content: [p(t)] })
+    const ed = ouvrir([{ type: 'table', content: [{ type: 'ligneTable', content: [cellule('un'), cellule('deux')] }] }])
+    ed.view.dispatch(ed.state.tr.setSelection(TextSelection.near(ed.state.doc.resolve(4))))
+    expect(ici(ed)).toBe('un')
+    jouer(ed, (s) => tab(s, 1))
+    expect(ici(ed)).toBe('deux')
+    expect(ed.getJSON().content?.[0]?.attrs?.retrait ?? 0).toBe(0)
+    jouer(ed, (s) => tab(s, -1))
+    expect(ici(ed)).toBe('un')
+  })
+})
+
+describe('IME : rien ne casse pendant une composition', () => {
+  it('Entrée, Retour arrière, Suppr et Tab laissent la composition faire', () => {
+    const ed = ouvrir([p('ab'), p('cd')], 0, 1)
+    ;(ed.view as unknown as { input: { composing: boolean } }).input.composing = true
+    for (const key of ['Enter', 'Backspace', 'Delete', 'Tab']) ed.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }))
+    expect(lire(ed)).toEqual(['paragraph:ab', 'paragraph:cd'])
+    ed.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true, isComposing: true }))
+    expect(lire(ed)).toEqual(['paragraph:ab', 'paragraph:cd'])
+    ;(ed.view as unknown as { input: { composing: boolean } }).input.composing = false
   })
 })
