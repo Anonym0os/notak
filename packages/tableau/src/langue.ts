@@ -1629,6 +1629,14 @@ export const fr: Textes = {
   'page.police.mono': 'Mono',
   'page.petitTexte': 'Petit texte',
   'page.pleineLargeur': 'Pleine largeur',
+  // passe éditeur : page et rendu (début)
+  // passe éditeur : page et rendu (fin)
+  // passe éditeur : saisie (début)
+  // passe éditeur : saisie (fin)
+  // passe éditeur : menus (début)
+  // passe éditeur : menus (fin)
+  // passe éditeur : sélection et glisser (début)
+  // passe éditeur : sélection et glisser (fin)
   'lien.echec.injoignable': 'Site injoignable : vérifiez l’adresse.',
   'lien.echec.delai': 'Le site a mis trop de temps à répondre.',
   'lien.echec.interdit': 'Cette adresse ne peut pas être lue ici.',
@@ -3507,6 +3515,14 @@ export const en: Textes = {
   'page.police.mono': 'Mono',
   'page.petitTexte': 'Small text',
   'page.pleineLargeur': 'Full width',
+  // passe éditeur : page et rendu (début)
+  // passe éditeur : page et rendu (fin)
+  // passe éditeur : saisie (début)
+  // passe éditeur : saisie (fin)
+  // passe éditeur : menus (début)
+  // passe éditeur : menus (fin)
+  // passe éditeur : sélection et glisser (début)
+  // passe éditeur : sélection et glisser (fin)
   'lien.chargement': 'Loading',
   'toile.misCorbeille.one': 'Moved to the trash',
   'toile.misCorbeille.other': '{n} items moved to the trash',
