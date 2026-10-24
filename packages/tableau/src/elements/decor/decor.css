@@ -8,9 +8,17 @@
   color: var(--notak-texte);
 }
 
-/* Dans une carte pleine : sous le contenu, dans son flux, comme chez Milanote (marge haute de −10 px, 16 px sous la bande). */
+/*
+ * Dans une carte pleine : sous le contenu, dans son flux, 16 px sous la bande. Une note remonte la bande de 10 px,
+ * la marge que garde son dernier paragraphe (comme chez Milanote) ; une liste de tâches ou un autre contenu n'a pas
+ * cette marge, et la bande s'y poserait sur la dernière ligne.
+ */
 .notak-carte[data-decor-dedans] > .notak-decor:not([data-sans-ligne]) {
-  margin: -10px 0 -5px;
+  margin: 0 0 -5px;
+}
+
+.notak-carte[data-decor-dedans][data-type='note'] > .notak-decor:not([data-sans-ligne]) {
+  margin-top: -10px;
 }
 
 /* Un élément sans fond (image, lien, colonne…) : la bande déborde sous la carte sans en changer la taille. */
