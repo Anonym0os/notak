@@ -1,0 +1,625 @@
+/* Le panneau de gauche (PanneauGauche.tsx), le plan en page (Plan.tsx) et le popover de note (PopoverNote.tsx).
+   Les teintes se tirent de `--notak-arbre-*` (fenetre.css) : le thème sombre suit sans rien redire. */
+
+/* Le panneau ouvert laisse sa place : la carte se cale contre lui (8 de marge, 378 de large, 8 d'écart). */
+.notak-arbre-fenetre[data-gauche] .notak-arbre-scene {
+  left: calc(var(--notak-arbre-largeur-gauche) + 16px);
+}
+
+.notak-arbre-fond {
+  --notak-arbre-largeur-gauche: 378px;
+}
+
+.notak-arbre-gauche {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 8px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  width: var(--notak-arbre-largeur-gauche);
+  overflow: hidden;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--notak-arbre-texte) 4%, var(--notak-arbre-fond) 94%);
+  backdrop-filter: blur(6px);
+  box-shadow: var(--notak-arbre-ombre);
+  color: var(--notak-arbre-texte);
+  font-size: 13px;
+  line-height: 17px;
+}
+
+.notak-gauche-entete {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 12px 12px;
+}
+
+/* Les onglets en capsule : une pastille glissante marque l'onglet ouvert. */
+.notak-gauche-onglets {
+  position: relative;
+  display: flex;
+  flex: 1;
+  padding: 4px;
+  border-radius: 24px;
+  background: var(--notak-arbre-piste);
+}
+
+.notak-gauche-onglets::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / 3);
+  border-radius: 24px;
+  background: var(--notak-arbre-fond);
+  box-shadow: 0 0 1.5px rgb(0 0 0 / 0.06), 0 0 3px rgb(0 0 0 / 0.03);
+  transition: transform 200ms ease-in-out;
+}
+
+.notak-gauche-onglets[data-actif='notes']::before {
+  transform: translateX(100%);
+}
+
+.notak-gauche-onglets[data-actif='etiquettes']::before {
+  transform: translateX(200%);
+}
+
+.notak-gauche-onglets button {
+  position: relative;
+  flex: 1;
+  padding: 4px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--notak-arbre-discret);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.notak-gauche-onglets button:hover {
+  color: var(--notak-arbre-texte);
+}
+
+.notak-gauche-onglets button[aria-selected='true'] {
+  color: var(--notak-arbre-texte);
+  font-weight: 600;
+}
+
+.notak-gauche-fermer {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 24px;
+  background: transparent;
+  color: var(--notak-arbre-discret);
+  cursor: pointer;
+}
+
+.notak-gauche-fermer:hover {
+  background: var(--notak-arbre-survol);
+  color: var(--notak-arbre-texte);
+}
+
+.notak-gauche-corps {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.notak-gauche-recherche {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 12px 8px;
+  padding: 0 4px 0 10px;
+  height: 32px;
+  border: 1px solid var(--notak-arbre-filet-c);
+  border-radius: 8px;
+  background: var(--notak-arbre-fond);
+  color: var(--notak-arbre-discret);
+}
+
+.notak-gauche-recherche:focus-within {
+  border-color: var(--notak-arbre-choix);
+}
+
+.notak-gauche-recherche input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--notak-arbre-texte);
+  font: inherit;
+  outline: none;
+}
+
+.notak-gauche-recherche input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.notak-gauche-options {
+  position: relative;
+  display: grid;
+}
+
+.notak-gauche-options > button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.notak-gauche-options > button:hover {
+  background: var(--notak-arbre-survol);
+}
+
+.notak-gauche-menu {
+  top: calc(100% + 6px);
+  right: 0;
+  left: auto;
+  min-width: 180px;
+}
+
+.notak-gauche-liste {
+  flex: 1;
+  min-height: 0;
+  padding: 0 12px 24px;
+  overflow-y: auto;
+  border-top: 1px solid var(--notak-arbre-filet-c);
+}
+
+.notak-gauche-feuille {
+  margin: 20px 0 16px;
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 27px;
+}
+
+.notak-gauche-feuille-bandeau {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0 4px;
+  font-weight: 600;
+}
+
+.notak-gauche-feuille-bandeau::before,
+.notak-gauche-feuille-bandeau::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--notak-arbre-filet-c);
+}
+
+.notak-gauche-vide,
+.notak-gauche-aide {
+  margin: 16px 0;
+  color: var(--notak-arbre-discret);
+  font-size: 12px;
+}
+
+.notak-gauche-vide-grand {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin-top: 96px;
+  color: var(--notak-arbre-discret);
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.notak-gauche-vide-grand p {
+  margin: 0;
+}
+
+/* L'arbre du plan : un sujet par ligne, l'indentation de 16 par niveau. */
+.notak-plan-noeud {
+  margin-top: 2px;
+}
+
+.notak-plan-ligne {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 28px;
+  border-radius: 6px;
+}
+
+.notak-plan-ligne:hover {
+  background: var(--notak-arbre-survol);
+}
+
+.notak-plan-ligne[data-choisi] {
+  background: color-mix(in srgb, var(--notak-arbre-choix) 16%, transparent);
+}
+
+.notak-plan-pli {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--notak-arbre-discret);
+  cursor: pointer;
+}
+
+.notak-plan-pli:disabled {
+  cursor: default;
+}
+
+.notak-plan-ferme {
+  transform: rotate(-90deg);
+}
+
+.notak-plan-titre {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 4px;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: var(--notak-arbre-texte);
+  font: inherit;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.notak-plan-titre[data-niveau='0'] {
+  font-weight: 700;
+}
+
+.notak-plan-titre[data-niveau='1'] {
+  font-weight: 600;
+}
+
+.notak-plan-picto {
+  flex: none;
+  margin-right: 6px;
+  color: var(--notak-arbre-discret);
+}
+
+.notak-plan-detail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 2px 22px;
+  color: var(--notak-arbre-discret);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.notak-plan-detail span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-plan-saut {
+  width: calc(100% - 22px);
+  padding: 3px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notak-plan-saut:hover {
+  background: var(--notak-arbre-survol);
+  color: var(--notak-arbre-texte);
+}
+
+.notak-plan-groupe {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--notak-arbre-filet-c);
+}
+
+.notak-plan-groupe h3 {
+  margin: 0 0 6px;
+  color: var(--notak-arbre-discret);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Les notes : le titre du sujet, puis deux lignes de sa note. */
+.notak-note-ligne {
+  display: block;
+  width: 100%;
+  padding: 16px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--notak-arbre-filet-c);
+  background: transparent;
+  color: var(--notak-arbre-texte);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notak-note-ligne:hover {
+  background: var(--notak-arbre-survol);
+}
+
+.notak-note-ligne strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 19px;
+}
+
+.notak-note-ligne span {
+  display: -webkit-box;
+  margin-top: 8px;
+  overflow: hidden;
+  color: var(--notak-arbre-discret);
+  font-size: 14px;
+  line-height: 18px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+/* Les repères : une case, le repère, combien de sujets le portent. */
+.notak-repere {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  padding: 2px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.notak-repere:hover {
+  background: var(--notak-arbre-survol);
+}
+
+.notak-repere-contenu {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+}
+
+.notak-repere-contenu span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-repere-nombre {
+  color: var(--notak-arbre-discret);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Le plan en page, à la place de la carte : 832 de large au plus, centré. */
+.notak-arbre-plan {
+  position: absolute;
+  inset: 64px 0 64px;
+  overflow-y: auto;
+  padding: 16px 24px 96px 44px;
+  color: var(--notak-arbre-texte);
+}
+
+.notak-plan-page {
+  max-width: 832px;
+  margin: 0 auto;
+}
+
+.notak-arbre-plan-ligne {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+  border-radius: 6px;
+}
+
+.notak-arbre-plan-ligne[data-niveau='1'] {
+  margin-top: 20px;
+}
+
+.notak-arbre-plan-puce {
+  position: absolute;
+  top: 50%;
+  left: -20px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--notak-arbre-texte);
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.notak-arbre-plan-puce:disabled {
+  cursor: default;
+}
+
+.notak-plan-point {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.notak-arbre-plan-titre {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--notak-arbre-texte);
+  font: inherit;
+  outline: none;
+}
+
+.notak-arbre-plan-ligne[data-niveau='2'] .notak-arbre-plan-titre {
+  color: color-mix(in srgb, var(--notak-arbre-texte) 70%, transparent);
+  font-size: 16px;
+  line-height: 1.6;
+  letter-spacing: 0.64px;
+}
+
+.notak-arbre-plan-ligne[data-niveau='1'] .notak-arbre-plan-titre {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 31.2px;
+}
+
+.notak-arbre-plan-titre.notak-arbre-plan-central {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 38.4px;
+}
+
+.notak-arbre-plan-titre:focus {
+  background: color-mix(in srgb, var(--notak-arbre-choix) 10%, transparent);
+}
+
+/* Ce qu'un sujet replié cache : une pastille avec le nombre de sujets. */
+.notak-plan-compte {
+  flex: none;
+  min-width: 20px;
+  height: 20px;
+  margin-left: 10px;
+  padding: 0 4.5px;
+  border-radius: 999px;
+  background: var(--notak-arbre-survol);
+  color: var(--notak-arbre-discret);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+}
+
+.notak-plan-sous {
+  margin-bottom: 4px;
+  padding-left: 4px;
+}
+
+.notak-plan-etiquettes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0;
+}
+
+.notak-plan-etiquettes span {
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--notak-arbre-etiquette);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.notak-plan-note {
+  margin: 2px 0;
+  color: var(--notak-arbre-discret);
+  font-size: 14px;
+  line-height: 20px;
+  white-space: pre-wrap;
+}
+
+.notak-plan-flottants {
+  margin: 24px 0;
+  border: 0;
+  border-top: 1px solid var(--notak-arbre-texte);
+  opacity: 0.3;
+}
+
+/* La note d'un sujet, en popover près de lui : 400 sur 280. */
+.notak-arbre-note-popover {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  width: 400px;
+  height: 280px;
+  overflow: hidden;
+  border-radius: 24px;
+  background: var(--notak-arbre-verre);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 0 0 0.5px var(--notak-arbre-filet-c), 0 8px 60px rgb(0 0 0 / 0.16), 0 4px 8px rgb(0 0 0 / 0.02);
+  color: var(--notak-arbre-texte);
+  font-size: 14px;
+}
+
+.notak-note-barre {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 12px 4px;
+}
+
+.notak-note-barre button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 24px;
+  background: transparent;
+  color: var(--notak-arbre-texte);
+  cursor: pointer;
+}
+
+.notak-note-barre button:hover {
+  background: var(--notak-arbre-survol);
+}
+
+.notak-note-barre button[aria-pressed='true'] {
+  background: var(--notak-arbre-plein);
+  color: var(--notak-arbre-fond);
+}
+
+.notak-note-barre .notak-note-titre {
+  flex: 1;
+  min-width: 0;
+  padding: 0 8px;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-note-corps {
+  flex: 1;
+  min-height: 0;
+  padding: 4px 18px 14px;
+  overflow-y: auto;
+}
+
+.notak-note-corps .notak-arbre-note {
+  min-height: 100%;
+  outline: none;
+}
+
+/* Le bouton du panneau de gauche, à côté de l'accueil : plein quand le panneau est ouvert. */
+.notak-arbre-entete .notak-arbre-pastille[aria-pressed='true'] {
+  background: var(--notak-arbre-plein);
+  color: var(--notak-arbre-fond);
+}

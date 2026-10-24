@@ -1,4 +1,5 @@
 import type { Arbre, Id, Relation, StructureArbre, StyleSujet } from '../../../coeur/tableau'
+import { type ReglageDiapo, type ReglagePitch, poserDiapo, poserPitch } from './pitch'
 import { ajouterLimite, ajouterRelation, ajouterResume, basculerMarqueur, changerLimite, changerRelation, porter, resumeDe, retirer } from './elements'
 import {
   type Lecture,
@@ -68,6 +69,9 @@ export type Geste =
   /** Alt+Cmd+U : le style de ce sujet sur tous les sujets de son rang. */
   | { type: 'styleMemeRang'; id: Id }
   | { type: 'theme'; theme: string }
+  /** Mode Pitch : des réglages de diapositive sur ces sujets (`null` : Auto), ou ceux de la carte (thème, rapport). */
+  | { type: 'diapo'; ids: Id[]; reglage: ReglageDiapo }
+  | { type: 'pitch'; reglage: ReglagePitch }
   | { type: 'relationStyle'; id: Id; forme?: Relation['forme']; pointes?: Relation['pointes'] }
   /** Ceux-là ne touchent pas la carte : la vue les fait elle-même. */
   | { type: 'editer'; id: Id; frappe?: string }
@@ -79,8 +83,8 @@ export type Geste =
   | { type: 'relier'; id: Id }
   /** Ouvrir le panneau du sujet, sur une section. */
   | { type: 'panneau'; section?: 'note' | 'etiquettes' | 'lien' | 'image' | 'marqueurs' }
-  /** Maj+Cmd+M, Cmd+Alt+F, Cmd+Alt+P, Cmd+F : le plan, le mode Zen, la présentation, la recherche. */
-  | { type: 'mode'; mode: 'plan' | 'zen' | 'presentation' | 'recherche' }
+  /** Maj+Cmd+M, Cmd+Alt+F, Cmd+Alt+P, Cmd+F, Cmd+[ : le plan, le mode Zen, la présentation, la recherche, le panneau de gauche. */
+  | { type: 'mode'; mode: 'plan' | 'zen' | 'presentation' | 'recherche' | 'navigation' }
   /** Cmd+Alt+C, Cmd+Alt+V : copier et coller un style ; la vue garde le style copié. */
   | { type: 'copierStyle'; id: Id }
   | { type: 'collerStyleCopie'; ids: Id[] }
@@ -251,6 +255,10 @@ export function appliquerGeste(a: Arbre, g: Geste, titre: Titreur): Effet | null
       const { theme: _t, ...reste } = a
       return { arbre: g.theme === 'classique' ? reste : { ...reste, theme: g.theme } }
     }
+    case 'diapo':
+      return { arbre: poserDiapo(a, g.ids, g.reglage) }
+    case 'pitch':
+      return { arbre: poserPitch(a, g.reglage) }
     case 'indenter': {
       const s = l.sujets.get(g.id)
       if (!s || s.parent === undefined || s.genre) return null

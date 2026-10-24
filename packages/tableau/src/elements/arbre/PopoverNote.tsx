@@ -1,0 +1,131 @@
+import { EditorContent, useEditor } from '@tiptap/react'
+import { useEffect, useRef } from 'react'
+import { type NoeudTexte, texteBrut } from '../../coeur/tableau'
+import { type NomIcone, Icone } from '../../icones'
+import { t } from '../../langue'
+import { EXTENSIONS_NOTE } from '../note/extensions'
+
+/**
+ * La note d'un sujet, en popover posé près de lui (Maj+Cmd+N, ou l'icône de note du sujet) : un éditeur de texte riche
+ * de 400 sur 280 (gras, italique, barré, souligné, listes, lien). Elle s'écrit dans la carte quand on la quitte.
+ */
+interface Props {
+  titre: string
+  note: NoeudTexte | undefined
+  /** Le coin haut-gauche, en px de la surface de la carte. */
+  x: number
+  y: number
+  lectureSeule: boolean
+  /** Écrit la note ; `undefined` : la retirer. */
+  valider(n: NoeudTexte | undefined): void
+  fermer(): void
+}
+
+const BOUTONS: { icone: NomIcone; cle: string; actif: string; faire: (e: NonNullable<ReturnType<typeof useEditor>>) => void }[] = [
+  { icone: 'gras', cle: 'arbre.gras', actif: 'bold', faire: (e) => e.chain().focus().toggleBold().run() },
+  { icone: 'italique', cle: 'arbre.italique', actif: 'italic', faire: (e) => e.chain().focus().toggleItalic().run() },
+  { icone: 'barre', cle: 'arbre.gauche.noteBarre', actif: 'strike', faire: (e) => e.chain().focus().toggleStrike().run() },
+  { icone: 'souligne', cle: 'arbre.gauche.noteSouligne', actif: 'underline', faire: (e) => e.chain().focus().toggleUnderline().run() },
+  { icone: 'numerotee', cle: 'arbre.gauche.noteNumerotee', actif: 'orderedList', faire: (e) => e.chain().focus().toggleOrderedList().run() },
+  { icone: 'puces', cle: 'arbre.gauche.notePuces', actif: 'bulletList', faire: (e) => e.chain().focus().toggleBulletList().run() },
+]
+
+export function PopoverNote({ titre, note, x, y, lectureSeule, valider, fermer }: Props) {
+  const racine = useRef<HTMLDivElement>(null)
+  const editeur = useEditor({
+    extensions: EXTENSIONS_NOTE,
+    content: note ?? '',
+    editable: !lectureSeule,
+    autofocus: lectureSeule ? false : 'end',
+    shouldRerenderOnTransaction: true,
+    editorProps: { attributes: { class: 'notak-texte notak-arbre-note', 'aria-label': t('arbre.note') } },
+  })
+  // Ce qui est déjà dans la carte : on n'écrit que ce qui a changé.
+  const ecrit = useRef(JSON.stringify(note))
+  const quitter = useRef(() => {})
+  quitter.current = () => {
+    if (!editeur || lectureSeule) return
+    const doc = editeur.getJSON() as NoeudTexte
+    const vide = texteBrut(doc).trim() === ''
+    const suite = JSON.stringify(vide ? undefined : doc)
+    if (suite === ecrit.current) return
+    ecrit.current = suite
+    valider(vide ? undefined : doc)
+  }
+  useEffect(() => {
+    if (!editeur) return
+    const garder = () => quitter.current()
+    editeur.on('blur', garder)
+    return () => {
+      editeur.off('blur', garder)
+    }
+  }, [editeur])
+  // Un clic dehors la ferme.
+  useEffect(() => {
+    const dehors = (e: PointerEvent) => {
+      if (racine.current?.contains(e.target as Node)) return
+      quitter.current()
+      fermer()
+    }
+    document.addEventListener('pointerdown', dehors, true)
+    return () => document.removeEventListener('pointerdown', dehors, true)
+  }, [fermer])
+  const lien = () => {
+    if (!editeur) return
+    const actuel = (editeur.getAttributes('link').href as string | undefined) ?? ''
+    const url = window.prompt(t('arbre.gauche.noteLien'), actuel)
+    if (url === null) return
+    if (url.trim() === '') editeur.chain().focus().extendMarkRange('link').unsetLink().run()
+    else editeur.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run()
+  }
+  return (
+    <div
+      ref={racine}
+      className="notak-arbre-note-popover"
+      role="dialog"
+      aria-label={t('arbre.note')}
+      style={{ left: x, top: y }}
+      onPointerDown={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        // Ses touches lui restent : la carte n'y voit pas des gestes. Échap la ferme.
+        e.stopPropagation()
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          quitter.current()
+          fermer()
+        }
+      }}
+    >
+      <div className="notak-note-barre" role="toolbar" aria-label={t('arbre.note')} onMouseDown={(e) => (e.target as Element).closest('button') && e.preventDefault()}>
+        <span className="notak-note-titre">{titre}</span>
+        {!lectureSeule &&
+          editeur &&
+          BOUTONS.map((b) => (
+            <button key={b.actif} type="button" aria-label={t(b.cle)} title={t(b.cle)} aria-pressed={editeur.isActive(b.actif)} onClick={() => b.faire(editeur)}>
+              <Icone nom={b.icone} taille={18} trait={1.5} />
+            </button>
+          ))}
+        {!lectureSeule && editeur && (
+          <button type="button" aria-label={t('arbre.lien')} title={t('arbre.lien')} aria-pressed={editeur.isActive('link')} onClick={lien}>
+            <Icone nom="lien" taille={18} trait={1.5} />
+          </button>
+        )}
+        <button
+          type="button"
+          aria-label={t('commun.fermer')}
+          title={t('commun.fermer')}
+          onClick={() => {
+            quitter.current()
+            fermer()
+          }}
+        >
+          <Icone nom="fermer" taille={18} trait={1.5} />
+        </button>
+      </div>
+      <div className="notak-note-corps">
+        <EditorContent editor={editeur} />
+      </div>
+    </div>
+  )
+}

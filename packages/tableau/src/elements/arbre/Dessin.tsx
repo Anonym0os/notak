@@ -22,6 +22,8 @@ interface Props {
   adresse?: (fichier: Id) => string | undefined
   /** En présentation : les seuls sujets montrés (les autres, et leurs branches, attendent leur tour). */
   devoiles?: ReadonlySet<Id> | null
+  /** Les sujets mis en évidence (les repères cochés du panneau de gauche) : les autres s'estompent. */
+  surlignes?: ReadonlySet<Id> | null
 }
 
 const DASH = { plein: undefined, tirets: '7 5', points: '1.5 4' } as const
@@ -31,7 +33,7 @@ const DASH = { plein: undefined, tirets: '7 5', points: '1.5 4' } as const
  * `data-relation`, `data-limite` ou `data-repli` : un clic se résout par le DOM, comme sur la toile. Les mêmes traits
  * servent à l'aperçu sur la toile et à la carte ouverte en grand. Les couleurs viennent du thème de la carte.
  */
-export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, mesures, selection, edition, adresse, devoiles }: Props) {
+export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, mesures, selection, edition, adresse, devoiles, surlignes }: Props) {
   const vu = (id: Id) => !devoiles || devoiles.has(id)
   const theme = themeDe(arbre.theme)
   const uneCouleur = !!arbre.options?.uneCouleur
@@ -69,8 +71,8 @@ export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, 
         const s = l.sujets.get(id)
         if (!m || !s || !vu(id)) return null
         return (
+          <g key={id} opacity={surlignes && !surlignes.has(id) ? 0.2 : undefined}>
           <Sujet
-            key={id}
             id={id}
             sujet={s}
             rang={rangDe(l, id)}
@@ -86,6 +88,7 @@ export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, 
             versLaGauche={cotes.get(id) === 'gauche'}
             image={s.image ? adresse?.(s.image.fichier) : undefined}
           />
+          </g>
         )
       })}
       {relationsValides(arbre, l).filter(([, r]) => vu(r.de) && vu(r.vers)).map(([id, r]) => {

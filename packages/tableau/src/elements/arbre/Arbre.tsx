@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { Arbre, Id, StyleSujet } from '../../coeur/tableau'
+import { type Arbre, type Id, type StyleSujet, nouvelId } from '../../coeur/tableau'
 import { t } from '../../langue'
 import { Surcouche } from '../surcouche'
 import type { ContexteToile, PropsRendu, Services } from '../types'
@@ -7,21 +7,27 @@ import { INTERLIGNE, POLICE, type Mesure, habitDe, mesurer } from './apparence'
 import { themeDe } from './themes'
 import { Dessin } from './Dessin'
 import { exporterCartes } from './exporter'
-import { BarreEtat, BoutonIcone, EnTete, Feuille, type Onglet, PanneauCote } from './Fenetre'
+import { BarreBas } from './BarreBas'
+import { BoutonIcone, EnTete, type Onglet, PanneauCote } from './Fenetre'
 import { ONGLETS_FORMAT, ONGLETS_ICONES, OngletCarte, OngletIcones, OngletPresenter, OngletStyle, type OngletIcone } from './onglets'
 import { Outils } from './Outils'
 import { Icone } from '../../icones'
 import { type Boite, type Disposition, ECARTS, ECARTS_COMPACTS, disposer, emprise } from './disposition'
 import { gesteDe } from './modele/clavier'
 import { numeroDe, resumesValides, sujetsDePlage } from './modele/elements'
+import { comptes, reperesDe, sujetsMisEnEvidence } from './modele/listes'
 import { type Geste, appliquerGeste } from './modele/gestes'
 import { type Lacher, ouLacher } from './modele/lacher'
-import { type Lecture, branche, enfantsDe, lire, sousCarte } from './modele/sujets'
+import { type Lecture, lire, renommer, sousCarte } from './modele/sujets'
 import { titreNeuf } from './modele/titres'
 import { type Section } from './Panneau'
+import { type OngletGauche, PanneauGauche } from './PanneauGauche'
 import { Plan } from './Plan'
+import { PopoverNote } from './PopoverNote'
+import { Presentation } from './Presentation'
 import { Recherche, correspondances } from './Recherche'
 import { courbeRelation } from './trace/relations'
+import { nouvelArbre } from './modele/sujets'
 
 /** La carte lue, mesurée et disposée ; recalculée seulement quand elle change. */
 export function useVue(a: Arbre): { lecture: Lecture; mesures: Map<Id, Mesure>; disposition: Disposition } {
@@ -96,8 +102,8 @@ interface Camera {
   z: number
 }
 
-const ZOOM_MIN = 0.2
-const ZOOM_MAX = 4
+const ZOOM_MIN = 0.1
+const ZOOM_MAX = 5
 
 type Edition = { id: Id; texte: string; tout: boolean }
 type Point = { x: number; y: number }
@@ -139,7 +145,13 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
   // Les modes de docs/XMIND.md § 6 : le plan remplace la carte ; Zen, la présentation et la recherche s'y posent.
   const [plan, setPlan] = useState(false)
   const [zen, setZen] = useState(false)
-  const [presentation, setPresentation] = useState<number | null>(null)
+  // Le mode Pitch : le sujet d'où l'on part (absent : le central) tant que la présentation dure.
+  const [presentation, setPresentation] = useState<{ depart?: Id } | null>(null)
+  // Le panneau de gauche (plan, notes, étiquettes), les repères cochés qu'il met en évidence, la note ouverte en popover.
+  const [gauche, setGauche] = useState<{ onglet: OngletGauche } | null>(null)
+  const [coches, setCoches] = useState<ReadonlySet<string>>(new Set())
+  const [noteDe, setNoteDe] = useState<Id | null>(null)
+  const [zoomPlan, setZoomPlan] = useState(1)
   const [recherche, setRecherche] = useState<{ texte: string; i: number } | null>(null)
   // Maj+Cmd+R : la relation part de ce sujet, et attend le clic sur sa cible.
   const [relier, setRelier] = useState<{ de: Id; p: Point | null } | null>(null)
@@ -199,14 +211,6 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     if (!actif || actif === document.body) surface.current?.closest<HTMLElement>('[role="dialog"]')?.focus({ preventScroll: true })
   }, [plan, panneau])
 
-  // La présentation : le central, puis chaque principal avec sa branche, l'un après l'autre.
-  const etapes = useMemo(() => [lecture.central, ...enfantsDe(lecture, lecture.central)], [lecture])
-  const devoiles = useMemo(() => {
-    if (presentation === null) return null
-    const vus = new Set<Id>([lecture.central])
-    for (const p of etapes.slice(1, presentation + 1)) for (const x of branche(lecture, p)) vus.add(x)
-    return vus
-  }, [presentation, etapes, lecture])
   /** Cadre la vue sur ces boîtes, avec une marge. */
   const cadrer = useCallback((boites: Boite[]) => {
     const r = surface.current?.getBoundingClientRect()
@@ -215,13 +219,6 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     const z = Math.min(2, Math.max(ZOOM_MIN, Math.min((r.width - 160) / e.l, (r.height - 160) / e.h)))
     setCamera({ x: r.width / 2 - (e.x + e.l / 2) * z, y: r.height / 2 - (e.y + e.h / 2) * z, z })
   }, [])
-  useEffect(() => {
-    if (presentation === null) return
-    const cible = etapes[presentation]!
-    const ids = presentation === 0 ? [cible] : branche(lecture, cible)
-    cadrer(ids.flatMap((x) => disposition.boites.get(x) ?? []))
-    setSelection(new Set([cible]))
-  }, [presentation, etapes, lecture, disposition, cadrer])
   const basculerZen = useCallback(() => {
     setZen((z) => {
       const fond = surface.current?.closest('.notak-arbre-fond') as HTMLElement | null
@@ -242,15 +239,8 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
 
   const surTouche = (e: React.KeyboardEvent): boolean => {
     if (edition) return e.key === 'Escape'
-    if (presentation !== null) {
-      // Espace et flèche droite avancent, flèche gauche recule, Échap sort.
-      if (e.key === 'Escape') setPresentation(null)
-      else if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'Enter') setPresentation((i) => Math.min(etapes.length - 1, (i ?? 0) + 1))
-      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') setPresentation((i) => Math.max(0, (i ?? 0) - 1))
-      else return false
-      e.preventDefault()
-      return true
-    }
+    // La présentation prend toutes les touches (Presentation.tsx) : la carte dessous n'en voit aucune.
+    if (presentation !== null) return true
     if (e.key === 'Escape' && zen) {
       basculerZen()
       return true
@@ -305,10 +295,9 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       case 'mode':
         if (geste.mode === 'plan') setPlan((x) => !x)
         else if (geste.mode === 'zen') basculerZen()
-        else if (geste.mode === 'presentation') {
-          setPlan(false)
-          setPresentation(0)
-        } else setRecherche({ texte: recherche?.texte ?? '', i: 0 })
+        else if (geste.mode === 'presentation') lancerPresentation()
+        else if (geste.mode === 'navigation') basculerGauche()
+        else setRecherche({ texte: recherche?.texte ?? '', i: 0 })
         return true
       case 'editer':
         if (!lectureSeule) setEdition({ id: geste.id, texte: geste.frappe ?? lecture.sujets.get(geste.id)?.titre ?? '', tout: geste.frappe === undefined })
@@ -333,7 +322,8 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
         if (!lectureSeule) setRelier({ de: geste.id, p: null })
         return true
       case 'panneau':
-        setPanneau((p) => (p && !geste.section ? null : { ...(geste.section ? { section: geste.section } : {}) }))
+        if (geste.section === 'note') ouvrirNote(courant)
+        else setPanneau((p) => (p && !geste.section ? null : { ...(geste.section ? { section: geste.section } : {}) }))
         return true
       case 'supprimer':
         faire({ type: 'supprimer', ids: [...choisis] })
@@ -457,7 +447,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
   const ouvrirIcone = (valeur: string) => {
     const [nom, sujet] = valeur.split(':') as [string, Id]
     setSelection(new Set([sujet]))
-    if (nom === 'notes') return setPanneau({ section: 'note' })
+    if (nom === 'notes') return ouvrirNote(sujet)
     const lien = lecture.sujets.get(sujet)?.lien
     if (!lien) return
     if (lien.startsWith('sujet:')) {
@@ -514,12 +504,73 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
 
   const habille = !zen && presentation === null
   const coteOuvert = habille && !lectureSeule && (!!panneau || icones)
-  const zoomerA = (z: number) => setCamera((c) => zoomer(c, z / c.z, surface.current))
+  const gaucheOuvert = habille && gauche !== null
+  const zoomerA = (z: number) => (plan ? setZoomPlan(z) : setCamera((c) => zoomer(c, z / c.z, surface.current)))
   const ajuster = () => cadrer([...disposition.boites.values()])
+
+  /** Choisit un sujet et y centre la carte (le panneau de gauche, les notes). */
+  const aller = (x: Id) => {
+    setSelection(new Set([x]))
+    const b = disposition.boites.get(x)
+    const r = surface.current?.getBoundingClientRect()
+    if (b && r && !plan) setCamera((c) => ({ ...c, x: r.width / 2 - (b.x + b.l / 2) * c.z, y: r.height / 2 - (b.y + b.h / 2) * c.z }))
+  }
+  const basculerGauche = () => setGauche((g) => (g ? null : { onglet: 'plan' }))
+  const lancerPresentation = () => {
+    setPlan(false)
+    setNoteDe(null)
+    // Un sujet choisi (autre que le central) donne le départ ; sinon la présentation commence au central.
+    setPresentation(sujetsChoisis.length === 1 && sujetsChoisis[0] !== lecture.central ? { depart: sujetsChoisis[0]! } : {})
+  }
+  /** La note d'un sujet s'ouvre en popover près de lui, comme dans Xmind. */
+  const ouvrirNote = (x: Id) => {
+    setSelection(new Set([x]))
+    setNoteDe(x)
+  }
+  const evidence = useMemo(() => (coches.size > 0 ? sujetsMisEnEvidence(reperesDe(lecture), coches) : null), [coches, lecture])
+  const basculerCoche = (cle: string) =>
+    setCoches((c) => {
+      const n = new Set(c)
+      if (n.has(cle)) n.delete(cle)
+      else n.add(cle)
+      return n
+    })
+  const statsCarte = useMemo(() => comptes(lecture), [lecture])
+  const titreCentral = lecture.sujets.get(lecture.central)?.titre ?? ''
+  /** Une feuille de Notak est une carte posée sur la toile : une feuille de plus est une carte neuve à droite de celle-ci. */
+  const elementCourant = () => {
+    const e = contexte.magasin.lire().elements.find((x) => x.id === id)
+    return e?.contenu.type === 'arbre' ? e : null
+  }
+  const poserFeuille = (contenu: Arbre) => {
+    const e = elementCourant()
+    if (!e) return
+    const neuf = { id: nouvelId(), x: e.x + e.largeur + 2, y: e.y, largeur: e.largeur, contenu }
+    contexte.magasin.faire([{ type: 'creer', element: neuf }])
+    contexte.finirEdition()
+    setTimeout(() => contexte.commencerEdition(neuf.id), 0)
+  }
+  const nouvelleFeuille = () => poserFeuille(nouvelArbre(t('arbre.central')))
+  const dupliquerFeuille = () => {
+    const e = elementCourant()
+    if (!e || e.contenu.type !== 'arbre') return
+    const central = lire(e.contenu).central
+    poserFeuille(renommer(e.contenu, central, `${lire(e.contenu).sujets.get(central)?.titre ?? ''} ${t('arbre.bas.copie')}`.trim()))
+  }
+  // Le popover de note : posé à droite du sujet, dans la surface (ou au centre dans le plan).
+  const notePlace = (() => {
+    if (!noteDe || !lecture.sujets.has(noteDe)) return null
+    const r = surface.current?.getBoundingClientRect()
+    const largeur = r?.width ?? 800
+    const hauteur = r?.height ?? 600
+    const b = disposition.boites.get(noteDe)
+    const [bx, by] = b && !plan ? [camera.x + (b.x + b.l) * camera.z + 12, camera.y + b.y * camera.z - 8] : [(largeur - 400) / 2, (hauteur - 280) / 2]
+    return { x: Math.max(8, Math.min(largeur - 408, bx)), y: Math.max(64, Math.min(hauteur - 288, by)) }
+  })()
 
   return (
     <Surcouche etiquette={t('type.arbre')} className="notak-arbre-fond" fermer={contexte.finirEdition} surTouche={surTouche}>
-      <div className="notak-arbre-fenetre" data-cote={coteOuvert ? '' : undefined} data-zen={zen ? '' : undefined}>
+      <div className="notak-arbre-fenetre" data-cote={coteOuvert ? '' : undefined} data-gauche={gaucheOuvert ? '' : undefined} data-zen={zen ? '' : undefined}>
       <div className="notak-arbre-scene">
       <div
         ref={poserSurface}
@@ -532,12 +583,11 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
         onPointerCancel={surRelache}
         onDoubleClick={surDoubleClic}
       >
-        {plan && <Plan lecture={lecture} courant={courant} choisir={(x) => setSelection(new Set([x]))} faire={faire} lectureSeule={lectureSeule} />}
+        {plan && <Plan lecture={lecture} courant={courant} choisir={(x) => setSelection(new Set([x]))} faire={faire} lectureSeule={lectureSeule} zoom={zoomPlan} />}
         <svg className="notak-arbre-grand" style={plan ? { display: 'none' } : undefined}>
           <g
             style={{
               transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.z})`,
-              transition: presentation !== null ? 'transform 450ms cubic-bezier(0.2, 0.8, 0.2, 1)' : undefined,
             }}
           >
             <Dessin
@@ -548,7 +598,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
               selection={presentation === null ? choisis : undefined}
               edition={edition?.id ?? null}
               adresse={adresse}
-              devoiles={devoiles}
+              surlignes={evidence}
             />
             {tire && <Fantome tire={tire} prise={prise.current} disposition={disposition} />}
             {depart && relier?.p && <line className="notak-arbre-relier" x1={depart.x + depart.l / 2} y1={depart.y + depart.h / 2} x2={relier.p.x} y2={relier.p.y} />}
@@ -570,11 +620,6 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
           />
         )}
         {relier && <p className="notak-arbre-consigne">{t('arbre.relier')}</p>}
-        {presentation !== null && (
-          <p className="notak-arbre-consigne">
-            {presentation + 1} / {etapes.length} · {t('arbre.presentationAide')}
-          </p>
-        )}
         {recherche && (
           <Recherche
             texte={recherche.texte}
@@ -588,7 +633,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       </div>
         {habille && (
           <>
-            <EnTete titre={lecture.sujets.get(lecture.central)?.titre ?? ''} etat={lectureSeule ? t('arbre.lectureSeule') : ''} fermer={contexte.finirEdition} />
+            <EnTete titre={titreCentral} etat={lectureSeule ? t('arbre.lectureSeule') : ''} fermer={contexte.finirEdition} navigation={{ actif: gaucheOuvert, basculer: basculerGauche }} />
             {!lectureSeule && (
               <Outils
                 arbre={vue}
@@ -597,7 +642,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
                 courant={courant}
                 faire={faire}
                 relier={() => setRelier({ de: courant, p: null })}
-                ouvrir={(section) => setPanneau({ section })}
+                ouvrir={(section) => (section === 'note' ? ouvrirNote(courant) : setPanneau({ section }))}
               />
             )}
             <div className="notak-arbre-droite">
@@ -614,23 +659,58 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
                 </div>
               )}
             </div>
-            <Feuille nom={lecture.sujets.get(lecture.central)?.titre ?? ''} />
-            <BarreEtat
-              sujets={lecture.sujets.size}
+            <BarreBas
+              titre={titreCentral}
+              lectureSeule={lectureSeule}
+              sujets={statsCarte.sujets}
               choisis={sujetsChoisis.length}
-              zoom={camera.z}
+              mots={statsCarte.mots}
+              caracteres={statsCarte.caracteres}
+              zoom={plan ? zoomPlan : camera.z}
+              enPlan={plan}
+              zenActif={zen}
+              pitchActif={presentation !== null}
               zoomer={zoomerA}
               ajuster={ajuster}
-              notes={() => setPanneau((p) => (p?.section === 'note' ? null : { section: 'note' }))}
-              notesOuvertes={panneau?.section === 'note'}
-              plan={() => setPlan((x) => !x)}
-              enPlan={plan}
+              basculerPlan={() => setPlan((x) => !x)}
               zen={basculerZen}
-              presenter={() => (setPlan(false), setPresentation(0))}
+              presenter={lancerPresentation}
+              renommer={(titre) => faire({ type: 'renommer', id: lecture.central, titre })}
+              dupliquer={dupliquerFeuille}
+              nouvelle={nouvelleFeuille}
+              enregistrer={() => {
+                const e = elementCourant()
+                if (e) void exporterCartes([e], contexte)
+              }}
             />
+            {noteDe && notePlace && (
+              <PopoverNote
+                key={noteDe}
+                titre={lecture.sujets.get(noteDe)?.titre.replace(/\n/g, ' ') ?? ''}
+                note={lecture.sujets.get(noteDe)?.note}
+                x={notePlace.x}
+                y={notePlace.y}
+                lectureSeule={lectureSeule}
+                valider={(n) => faire({ type: 'porter', ids: [noteDe], champ: 'note', valeur: n })}
+                fermer={() => setNoteDe(null)}
+              />
+            )}
           </>
         )}
       </div>
+      {gaucheOuvert && gauche && (
+        <PanneauGauche
+          onglet={gauche.onglet}
+          choisirOnglet={(o) => setGauche({ onglet: o })}
+          fermer={() => (setGauche(null), setCoches(new Set()))}
+          arbre={vue}
+          lecture={lecture}
+          choisis={choisis}
+          aller={aller}
+          coches={coches}
+          cocher={basculerCoche}
+        />
+      )}
       {coteOuvert && icones && (
         <PanneauCote onglets={ONGLETS_ICONES()} actif={ongletIcones} choisir={(o) => setOngletIcones(o as typeof ongletIcones)}>
           <OngletIcones onglet={ongletIcones} lecture={lecture} ids={sujetsChoisis.length ? sujetsChoisis : [courant]} faire={faire} />
@@ -641,11 +721,14 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
           {onglet === 'style' && (
             <OngletStyle arbre={vue} lecture={lecture} choisis={[...choisis]} courant={courant} faire={faire} contexte={contexte} section={panneau.section} />
           )}
-          {onglet === 'presenter' && <OngletPresenter arbre={vue} faire={faire} presenter={() => (setPlan(false), setPresentation(0))} />}
+          {onglet === 'presenter' && <OngletPresenter arbre={vue} lecture={lecture} choisis={sujetsChoisis} faire={faire} adresse={adresse} />}
           {onglet === 'carte' && <OngletCarte arbre={vue} lecture={lecture} faire={faire} />}
         </PanneauCote>
       )}
       </div>
+      {presentation !== null && (
+        <Presentation arbre={vue} lecture={lecture} depart={presentation.depart} faire={faire} adresse={adresse} lectureSeule={lectureSeule} quitter={() => setPresentation(null)} />
+      )}
     </Surcouche>
   )
 }

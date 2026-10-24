@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useRef } from 'react'
 import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
 
@@ -44,12 +44,24 @@ export function BoutonIcone({
 }
 
 /** En haut à gauche : la maison (retour au tableau), le nom de la carte et son état. */
-export function EnTete({ titre, etat, fermer }: { titre: string; etat: string; fermer(): void }) {
+export function EnTete({ titre, etat, fermer, navigation }: { titre: string; etat: string; fermer(): void; navigation?: { actif: boolean; basculer(): void } }) {
   return (
     <div className="notak-arbre-entete">
       <button type="button" className="notak-arbre-pastille notak-arbre-maison" aria-label={t('arbre.fermer')} title={t('arbre.fermer')} onClick={fermer}>
         <Icone nom="maison" taille={20} trait={1.5} />
       </button>
+      {navigation && (
+        <button
+          type="button"
+          className="notak-arbre-pastille"
+          aria-label={navigation.actif ? t('arbre.gauche.masquer') : t('arbre.gauche.afficher')}
+          title={`${navigation.actif ? t('arbre.gauche.masquer') : t('arbre.gauche.afficher')} (⌘[)`}
+          aria-pressed={navigation.actif}
+          onClick={navigation.basculer}
+        >
+          <Icone nom="panneauGauche" taille={20} trait={1.5} />
+        </button>
+      )}
       <div className="notak-arbre-nom">
         <strong>{titre || t('type.arbre')}</strong>
         {etat && <span>{etat}</span>}
@@ -150,77 +162,5 @@ export function PanneauCote({
         {children}
       </div>
     </aside>
-  )
-}
-
-/** Les paliers du menu du zoom, en pour cent. */
-const ZOOMS = [300, 200, 150, 125, 100, 75, 50, 25] as const
-
-/** En bas à droite : le nombre de sujets, le zoom, et les quatre modes. */
-export function BarreEtat({
-  sujets,
-  choisis,
-  zoom,
-  zoomer,
-  ajuster,
-  notes,
-  plan,
-  zen,
-  presenter,
-  enPlan,
-  notesOuvertes,
-}: {
-  sujets: number
-  choisis: number
-  zoom: number
-  zoomer(z: number): void
-  ajuster(): void
-  notes(): void
-  plan(): void
-  zen(): void
-  presenter(): void
-  enPlan: boolean
-  notesOuvertes: boolean
-}) {
-  const [menu, setMenu] = useState(false)
-  return (
-    <div className="notak-arbre-etat notak-arbre-pilule">
-      <span className="notak-arbre-compte">
-        {t('arbre.sujets')} {choisis > 0 ? `${choisis} / ${sujets}` : sujets}
-      </span>
-      <span className="notak-arbre-filet" />
-      <div className="notak-arbre-menu-hote">
-        <button type="button" className="notak-arbre-zoom" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
-          {Math.round(zoom * 100)} %
-          <Icone nom="chevronBas" taille={12} trait={2} />
-        </button>
-        <Deroulant ouvert={menu} fermer={() => setMenu(false)} vers="haut">
-          <Entree libelle={t('arbre.zoomPlus')} touche="⌘+" onClick={() => zoomer(Math.min(3, zoom * 1.25))} />
-          <Entree libelle={t('arbre.zoomMoins')} touche="⌘−" onClick={() => zoomer(Math.max(0.25, zoom / 1.25))} />
-          <Entree libelle={t('arbre.tailleReelle')} touche="⌘0" onClick={() => (zoomer(1), setMenu(false))} />
-          <Entree libelle={t('arbre.ajuster')} touche="⇧⌘H" onClick={() => (ajuster(), setMenu(false))} />
-          <hr />
-          {ZOOMS.map((z) => (
-            <Entree key={z} libelle={`${z} %`} coche={Math.round(zoom * 100) === z} onClick={() => (zoomer(z / 100), setMenu(false))} />
-          ))}
-        </Deroulant>
-      </div>
-      <span className="notak-arbre-filet" />
-      <BoutonIcone icone="notes" libelle={t('arbre.toutesNotes')} actif={notesOuvertes} onClick={notes} />
-      <BoutonIcone icone="arbrePlan" libelle={t('arbre.plan')} touche="⇧⌘M" actif={enPlan} onClick={plan} />
-      <BoutonIcone icone="pleinEcran" libelle={t('arbre.zen')} touche="⌥⌘F" onClick={zen} />
-      <BoutonIcone icone="fichierPresentation" libelle={t('arbre.presenter')} touche="⌥⌘P" onClick={presenter} />
-    </div>
-  )
-}
-
-/** En bas à gauche : la feuille, comme l'onglet de feuille de Xmind. */
-export function Feuille({ nom }: { nom: string }) {
-  return (
-    <div className="notak-arbre-feuilles notak-arbre-pilule">
-      <span className="notak-arbre-feuille" aria-current="page">
-        {nom || t('type.arbre')}
-      </span>
-    </div>
   )
 }
