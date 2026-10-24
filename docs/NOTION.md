@@ -2,7 +2,10 @@
 
 Ce document dit ce que doit faire le document de Notak quand on l'ouvre en grand. Il est écrit d'après la
 lecture de Notion Desktop 7.24.0 (octobre 2026) : son client web mis en cache, sa base locale et ses fichiers
-de langue. Comme `docs/SPEC.md` pour Milanote et `docs/XMIND.md` pour la carte mentale, il décrit des
+de langue, cartographiés avec REA (github.com/morluto/rea), puis **mesuré en direct** dans l'application (styles
+calculés, gestes rejoués sur une page de brouillon). Les relevés détaillés, non versionnés, sont dans
+`~/Documents/CODE/notak-chantiers/interface-notion/`. Le moteur de blocs deviendra l'éditeur de toute
+l'application. Comme `docs/SPEC.md` pour Milanote et `docs/XMIND.md` pour la carte mentale, il décrit des
 **comportements**. Ni code, ni icône, ni texte de Notion n'est repris.
 
 Le moteur de blocs vit dans `packages/tableau/src/blocs/`. Il ne dépend pas de l'élément document, pour
@@ -14,16 +17,24 @@ Les décisions propres à Notak, quand elles s'écartent de Notion, sont marqué
 
 ## 1. L'objet
 
-- **Tout est bloc.** Un document est une suite de blocs, et certains blocs en contiennent d'autres :
-  dépliant, colonne, élément de liste.
+- **Tout est bloc.** Un document est une suite de blocs, et tout bloc de texte peut en porter d'autres, ses
+  enfants : un paragraphe, une puce, une tâche, un dépliant, une citation. Un bloc emporte toujours ses
+  enfants (supprimer, dupliquer, déplacer, colorer).
 - **Chez Notion**, un bloc est un enregistrement `{id, type, properties, content, format, parent}`.
   `properties.title` porte le texte riche du bloc, `content` la liste ordonnée des ids de ses enfants, et
   `format` son habillage (couleur, largeur, icône…).
-- **→ Notak** : le document reste un arbre ProseMirror, dont chaque nœud de bloc porte un **`id` stable**.
-  Cet id est donné à la création du bloc, à la coupure, à la duplication et au collage (dédoublonné). La
-  couche `blocs/modele.ts` relit l'arbre comme des enregistrements à la Notion, et c'est par elle que
-  passent les gestes sur les blocs. On garde ainsi la sélection entre blocs, le collage, l'annulation et le
-  texte écrit à plusieurs, que ProseMirror et Yjs savent déjà faire.
+- **→ Notak** : le document est un texte ProseMirror dont les blocs sont **à plat** : chaque bloc est un frère
+  dans la page (ou dans une colonne) et porte un **`retrait`** ; ses enfants sont les blocs qui le suivent avec un
+  retrait plus grand. Le parent d'un bloc est le dernier bloc moins en retrait au-dessus de lui, et un retrait qui
+  saute un cran est ramené au cran d'après (`blocs/rang.ts`). Chaque bloc porte aussi un **`id` stable**, donné à
+  la création, à la coupure, à la duplication et au collage (dédoublonné). `blocs/modele.ts` relit le texte comme
+  des enregistrements à la Notion (`id`, type, parent, enfants, fin du sous-arbre), et c'est par lui que passent
+  les gestes sur les blocs. L'arbre de Notion est ainsi rendu sans nœuds imbriqués : ProseMirror garde ses gestes
+  de texte (coupure, fusion, sélection d'un bloc à l'autre), et le texte écrit à plusieurs n'a jamais de
+  structure à réécrire quand un bloc change de parent.
+- **→ Notak** : un texte écrit avant les blocs à plat (une note, un document d'avant le 24/10/2026), dont les
+  listes, citations, encadrés et dépliants contiennent leurs blocs, s'ouvre **aplati** (`blocs/migration.ts`) ;
+  les exports et la conversion en note le reçoivent **déplié** dans cette écriture imbriquée.
 - **Couleur d'un bloc.** Un bloc peut porter une couleur, soit sur le texte, soit sur le fond.
 - **Couleurs du texte.** Elles se posent aussi sur un passage, texte ou fond.
 - **Les couleurs disponibles** :
@@ -41,7 +52,8 @@ Les décisions propres à Notak, quand elles s'écartent de Notion, sont marqué
   | rose | ✓ | ✓ |
   | rouge | ✓ | ✓ |
 
-  **→ Notak** : les teintes viennent de la palette de Notak.
+  Les valeurs sont celles mesurées dans Notion : le texte d'une teinte est le même dans les deux thèmes, son fond
+  change (`blocs/blocs.css`).
 - **→ Notak** : un vieux client qui ouvre un document contenant un bloc qu'il ne connaît pas le montre **en
   lecture seule**. Il ne le remplace jamais par un document vide.
 
@@ -147,10 +159,11 @@ Les guillemets droits deviennent typographiques selon la langue : « » en fran�
 
 | Touche | Geste |
 |---|---|
-| Entrée | Nouveau bloc. Dans une liste, un élément de même type. Sur un élément de liste vide, on sort de la liste. |
-| Maj+Entrée | Saut de ligne dans le bloc |
-| Retour arrière en tête de bloc | Un bloc typé redevient texte. Un texte se fond dans le bloc précédent. |
-| Tab, Maj+Tab | Imbriquer sous le bloc précédent, ou désimbriquer |
+| Entrée | Coupe le bloc (règles ci-dessous). |
+| Maj+Entrée | Saut de ligne dans le bloc ; dans un code, on en sort par un texte neuf dessous. |
+| Retour arrière en tête de bloc | Règles ci-dessous. ⌘ + Retour arrière fusionne sans convertir. |
+| Suppr en fin de bloc | Un bloc vide part ; sinon le bloc de texte suivant (quel que soit son type) le rejoint. |
+| Tab, Maj+Tab | Imbriquer sous le frère d'avant, ou sortir du parent (règles ci-dessous). Jamais d'espace tapée. |
 | ⌘Entrée | Cocher ou décocher une tâche, ouvrir ou fermer un dépliant |
 | ⌘⌥0 | Transformer en texte |
 | ⌘⌥1, 2, 3 | Transformer en titre 1, 2, 3 |
@@ -160,6 +173,30 @@ Les guillemets droits deviennent typographiques selon la langue : « » en fran�
 | ⌘⌥7 | Transformer en dépliant |
 | ⌘⌥8 | Transformer en code |
 | ⌘/ | Ouvrir « Transformer en » sur le bloc courant |
+
+**Entrée, Retour arrière et Tab selon le bloc** (lus dans le code de Notion)
+
+| Bloc | Entrée en fin | Entrée sur un bloc vide | 1er Retour arrière en tête | Peut recevoir des enfants |
+|---|---|---|---|---|
+| Texte | texte | texte vide ajouté | fusion avec le texte d'avant | oui |
+| Titre 1 à 3 | **texte** (au milieu, la 2e moitié est du texte) | → texte | **fusion directe** | non |
+| Titre dépliant | ouvert : texte, premier enfant ; fermé : texte frère, après ses enfants | → texte | → titre simple | oui |
+| Puce, numéro | même type | remonte d'un cran si dernier enfant, sinon → texte | → texte (à sa place) | oui |
+| Tâche | tâche **décochée** | idem | décochée → texte | oui |
+| Dépliant | ouvert : texte, premier enfant ; fermé : dépliant frère après ses enfants | → texte | → texte | oui |
+| Citation | **texte** | → texte | → texte | oui |
+| Encadré | ses enfants : un premier enfant ; sinon texte | → texte | → texte, couleur effacée | non |
+| Code | saut de ligne | — | rien | non |
+
+- Entrée **en tête** d'un bloc non vide glisse un bloc vide au-dessus ; le curseur reste.
+- Une coupure fait passer les enfants du bloc sous le bloc neuf (sauf pour un dépliant).
+- La **fusion** saute les blocs sans texte (séparateur, image) et ce qu'un dépliant fermé cache ; les enfants du
+  bloc fusionné prennent sa place. Un **dernier enfant** remonte d'un cran au lieu de fusionner.
+- **Tab** range le bloc sous son frère d'avant, si celui-ci peut recevoir des enfants ; un bloc seul se décale
+  **sans** ses enfants (ils restent où ils sont), plusieurs blocs choisis se décalent avec les leurs ; un dépliant
+  fermé qui reçoit un enfant s'ouvre. **Maj+Tab** sort le bloc avec ses enfants, et ses frères d'après deviennent
+  ses enfants ; refusé sous un encadré. Dans un code, Tab met une tabulation en tête de chaque ligne touchée.
+- Chaque geste est un seul pas d'annulation.
 
 **Mise en forme**
 
@@ -252,8 +289,14 @@ Les guillemets droits deviennent typographiques selon la langue : « » en fran�
 
 ## 9. La page
 
-- **Le titre.** C'est celui de l'élément. Entrée dans le titre descend au premier bloc. → Notak : il reste dans
-  l'en-tête de la fenêtre, comme dans Milanote ; Notion l'écrit en grand au-dessus des blocs.
+- **La page.** Ouvert en grand, le document prend toute la fenêtre : une barre de 44 px en haut (fermer, le
+  titre en petit, les options, l'export), puis la page qui défile, une colonne de **720 px** entre des marges
+  d'au moins 96 px, et 30 % de la fenêtre d'air sous le dernier bloc ; un appui sous lui y écrit. Le texte :
+  16 px sur 24, police système ; 16 px entre deux paragraphes ; titres de 30, 24 et 20 px (graisse 600) avec 40,
+  36 et 32 px au-dessus ; marqueurs de liste dans 24 px, texte à 38 px du bord ; un cran de retrait vaut 32 px.
+  **→ Notak** : le bouton « fermer » remplace la barre latérale de Notion ; Échap referme aussi.
+- **Le titre.** C'est celui de l'élément, écrit en grand (40 px, graisse 700) au-dessus des blocs, sous l'icône.
+  Entrée dans le titre descend au premier bloc.
 - **Icône et couverture.** Au survol du haut de la page paraissent « Ajouter une icône » et « Ajouter une
   couverture ».
   - **L'icône** est un émoji choisi dans une liste. Elle se pose au-dessus du titre et se voit sur la carte
@@ -280,5 +323,5 @@ Les guillemets droits deviennent typographiques selon la langue : « » en fran�
   **commenter**.
 - **Quand elle disparaît.** Elle s'efface pendant qu'on tire la sélection à la souris et reparaît au
   lâcher. Elle ne paraît pas dans un bloc de code.
-- **→ Notak** : la colonne d'outils du document reste à gauche. La bulle en reprend seulement les gestes du
-  passage choisi.
+- **→ Notak** : la colonne d'outils à la Milanote est retirée : comme chez Notion, tout passe par le menu `/`,
+  la poignée et la bulle.
