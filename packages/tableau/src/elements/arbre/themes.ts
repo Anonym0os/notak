@@ -1,5 +1,6 @@
 import type { Arbre, FormeBranche, FormeSujet } from '../../coeur/tableau'
 import { pileDe } from './carte/polices'
+import { type SqueletteDef, squeletteDe } from './carte/squelettes'
 
 /**
  * Les thèmes d'une carte : un habillage cohérent par rang, le fond et les couleurs des branches (docs/XMIND.md § 5).
@@ -31,9 +32,15 @@ export interface Theme {
   police?: string
   /** Dans quelle liste du sélecteur de thèmes il se range : les colorés, ou les classiques (sobres). */
   categorie?: 'colore' | 'classique'
-  /** Ce que les réglages de la carte ajoutent au thème (`themeDeArbre`), jamais écrit dans un thème. */
+  /**
+   * Ce que les réglages de la carte ajoutent au thème (`themeDeArbre`), jamais écrit dans un thème. `squelette` : son
+   * style par rang (formes, lignes, polices) passe avant celui du thème, qui garde les couleurs. `policeCarte` : la
+   * police de toute la carte, qui passe avant celle du squelette.
+   */
   cjk?: string
   flottantsColores?: boolean
+  squelette?: SqueletteDef
+  policeCarte?: string
 }
 
 export const THEMES: readonly Theme[] = [
@@ -216,7 +223,7 @@ export function themePerso(id: string, palette: readonly string[]): Theme {
   return { ...THEMES[0]!, id, palette: jeuDeSix(palette), categorie: 'colore' }
 }
 
-type Reglages = Pick<Arbre, 'theme' | 'themePerso' | 'police' | 'policeCjk' | 'jeuCouleurs' | 'options'>
+type Reglages = Pick<Arbre, 'theme' | 'themePerso' | 'police' | 'policeCjk' | 'jeuCouleurs' | 'options'> & { squelette?: string | undefined }
 
 /** Le thème que la carte désigne (un des nôtres, ou le sien), sans ce que ses réglages y changent. */
 export const themeBase = (a: Pick<Arbre, 'theme' | 'themePerso'>): Theme =>
@@ -224,15 +231,17 @@ export const themeBase = (a: Pick<Arbre, 'theme' | 'themePerso'>): Theme =>
 
 /**
  * Le thème de cette carte : celui qu'elle désigne, puis ce que les réglages de l'onglet Carte lui changent : la police
- * de toute la carte, la police CJK, le jeu de couleurs des branches, les flottants colorés.
+ * de toute la carte, la police CJK, le jeu de couleurs des branches, les flottants colorés, le squelette.
  */
 export function themeDeArbre(a: Reglages): Theme {
   const base = themeBase(a)
   const jeu = a.jeuCouleurs?.length ? jeuDeSix(a.jeuCouleurs) : null
-  if (!a.police && !a.policeCjk && !jeu && !a.options?.flottantsColores) return base
+  const squelette = squeletteDe(a.squelette)
+  if (!a.police && !a.policeCjk && !jeu && !a.options?.flottantsColores && !squelette) return base
   return {
     ...base,
-    ...(a.police ? { police: pileDe(a.police) } : {}),
+    ...(a.police ? { police: pileDe(a.police), policeCarte: pileDe(a.police) } : {}),
+    ...(squelette ? { squelette } : {}),
     ...(a.policeCjk ? { cjk: a.policeCjk } : {}),
     ...(jeu ? { palette: jeu } : {}),
     ...(a.options?.flottantsColores ? { flottantsColores: true } : {}),

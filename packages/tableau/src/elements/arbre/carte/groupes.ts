@@ -1,6 +1,7 @@
 import type { Arbre, StructureArbre } from '../../../coeur/tableau'
 import { t } from '../../../langue'
 import type { ChoixTheme } from '../modele/reglages'
+import { GROUPES_DE_SQUELETTES, SQUELETTES, type SqueletteDef, squeletteDe, squelettesDuGroupe } from './squelettes'
 import { PREFIXE_PERSO, THEMES, type Theme, cleNomTheme, jeuDeSix, themeBase, themeDe, variantesDe } from '../themes'
 import type { ThemeCouleurPerso } from './preferences'
 
@@ -68,17 +69,26 @@ export function varianteSuivante(g: GroupeTheme, a: Pick<Arbre, 'options' | 'cou
 
 /* ------------------------------------------------------------------ squelettes */
 
-/** Les groupes de squelettes, dans l'ordre de la fenêtre de choix ; chacun nomme ses structures (`arbre.s.*`). */
-export const GROUPES_SQUELETTES: readonly { id: string; structures: readonly StructureArbre[] }[] = [
-  { id: 'carte', structures: ['carte', 'carte-horaire', 'carte-antihoraire', 'carte-libre'] },
-  { id: 'logique', structures: ['logique-droite', 'logique-gauche'] },
-  { id: 'accolade', structures: ['accolade-droite', 'accolade-gauche'] },
-  { id: 'organigramme', structures: ['organigramme-bas', 'organigramme-haut'] },
-  { id: 'arbre', structures: ['arbre-droite', 'arbre-gauche'] },
-  { id: 'chronologie', structures: ['chronologie-horizontale', 'chronologie-verticale'] },
-  { id: 'arete', structures: ['arete-gauche', 'arete-droite'] },
-  { id: 'matrice', structures: ['matrice-lignes', 'matrice-colonnes'] },
+/** Les groupes de squelettes, dans l'ordre de la fenêtre de choix ; chacun nomme ses squelettes (`arbre.carte.g.*`). */
+export const GROUPES_SQUELETTES: readonly { id: string; squelettes: readonly SqueletteDef[] }[] = GROUPES_DE_SQUELETTES.map((id) => ({ id, squelettes: squelettesDuGroupe(id) }))
+
+/** Le groupe d'une structure : celui du premier squelette qui la porte ; c'est lui que la carte du squelette nomme. */
+export const groupeDeStructure = (s: StructureArbre): string => SQUELETTES.find((x) => x.structure === s)?.groupe ?? FAMILLE_DE_STRUCTURE.find(([, ss]) => ss.includes(s))?.[0] ?? 'carte'
+
+/** Les structures de chaque groupe, pour une carte dont le central n'est celui d'aucun squelette (une variante de sens). */
+const FAMILLE_DE_STRUCTURE: readonly (readonly [string, readonly StructureArbre[]])[] = [
+  ['carte', ['carte', 'carte-horaire', 'carte-antihoraire', 'carte-libre']],
+  ['logique', ['logique-droite', 'logique-gauche']],
+  ['accolade', ['accolade-droite', 'accolade-gauche']],
+  ['organigramme', ['organigramme-bas', 'organigramme-haut']],
+  ['arbre', ['arbre-droite', 'arbre-gauche']],
+  ['chronologie', ['chronologie-horizontale', 'chronologie-verticale']],
+  ['arete', ['arete-gauche', 'arete-droite']],
+  ['matrice', ['matrice-lignes', 'matrice-colonnes']],
 ]
 
-/** Le groupe d'une structure : c'est lui que la carte du squelette nomme, jamais la structure elle-même. */
-export const groupeDeStructure = (s: StructureArbre): string => GROUPES_SQUELETTES.find((g) => g.structures.includes(s))?.id ?? 'carte'
+/** Le squelette d'une carte, s'il en a un. */
+export const squeletteDeCarte = (a: Pick<Arbre, 'squelette'>): SqueletteDef | undefined => squeletteDe(a.squelette)
+
+/** Le nom d'un squelette dans la fenêtre : celui de son groupe et son rang (« Carte mentale 3 ») ; Xmind n'en donne pas d'autre. */
+export const nomDeSquelette = (s: SqueletteDef): string => t('arbre.carte.sq', { groupe: t(`arbre.carte.g.${s.groupe}`), n: squelettesDuGroupe(s.groupe).indexOf(s) + 1 })

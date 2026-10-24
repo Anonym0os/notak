@@ -183,6 +183,22 @@ describe('les écarts de Xmind, selon la classe du parent', () => {
     expect(ecartsDe('courbe').central).toBe(50)
   })
 
+  it('un principal sans structure à lui prend celle que son squelette prescrit ; la sienne passe avant', () => {
+    const { a, principaux } = carte(2, 2, 'logique-droite')
+    // Avec des principaux en organigramme, les enfants de chacun sont rangés dessous, pas à droite.
+    const org = disposer(lire(a), () => TAILLE, ECARTS, false, [], 'organigramme-bas')
+    const [pp, fils] = [org.boites.get(principaux[0]!)!, lire(a).enfants.get(principaux[0]!)!.map((x) => org.boites.get(x)!)]
+    expect(fils.every((b) => b.y > pp.y)).toBe(true)
+    const propre = changerSujet(a, principaux[0]!, (s) => ({ ...s, structure: 'logique-droite' }))
+    const d = disposer(lire(propre), () => TAILLE, ECARTS, false, [], 'organigramme-bas')
+    const fils0 = lire(propre).enfants.get(principaux[0]!)!.map((x) => d.boites.get(x)!)
+    expect(fils0.every((b) => b.x > d.boites.get(principaux[0]!)!.x)).toBe(true)
+  })
+
+  it('l’organique double le majeur comme la courbe', () => {
+    expect(ecartsDe('organique')).toEqual({ ...ECARTS, principal: 52 })
+  })
+
   it('une carte aux écarts sans mineurs retombe sur l’écart secondaire (l’aperçu des thèmes)', () => {
     const { a, P } = arbre()
     const d = disposer(lire(a), () => T, { principal: 14, secondaire: 4, central: 20 })

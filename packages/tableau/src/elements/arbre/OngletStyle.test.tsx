@@ -328,11 +328,11 @@ describe('l’onglet Style : chaque contrôle passe par un geste', () => {
 })
 
 describe('l’onglet Style : la branche', () => {
-  it('la forme de la ligne, sept choix', () => {
+  it('la forme de la ligne, huit choix', () => {
     const { a, p } = carte()
     monter(a, [p])
     cliquer(bouton('Choisir la forme de la ligne de branche.'))
-    expect(document.body.querySelectorAll('.notak-arbre-style-pop .notak-arbre-style-tuile')).toHaveLength(7)
+    expect(document.body.querySelectorAll('.notak-arbre-style-pop .notak-arbre-style-tuile')).toHaveLength(8)
     cliquer(bouton('Anse'))
     expect(faire).toHaveBeenLastCalledWith({ type: 'style', ids: [p], style: { branche: 'anse' } })
   })
@@ -349,13 +349,13 @@ describe('l’onglet Style : la branche', () => {
     expect(bouton('Choisir la couleur de la ligne.', hote).hasAttribute('disabled')).toBe(true)
   })
 
-  it('les largeurs effilées ne sont offertes qu’aux formes qui les permettent', () => {
+  it('les largeurs effilées sont offertes à toutes les formes de ligne, comme chez Xmind', () => {
     const { a: avant, p } = carte()
-    // Une branche en coude ne s'effile pas.
+    // Une branche en coude s'effile aussi : seule « aucune » n'a pas de trait.
     const a = appliquerGeste(avant, { type: 'style', ids: [p], style: { branche: 'coudee' } }, () => 'x')!.arbre
     monter(a, [p])
     cliquer(bouton('Définir la largeur de ligne.'))
-    expect(document.body.querySelectorAll('[role=option]')).toHaveLength(5)
+    expect(document.body.querySelectorAll('[role=option]')).toHaveLength(10)
     cliquer(bouton('Moyen'))
     const b = appliquerGeste(a, { type: 'style', ids: [p], style: { branche: 'courbe' } }, () => 'x')!.arbre
     monter(b, [p])

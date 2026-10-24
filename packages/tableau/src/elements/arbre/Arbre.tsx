@@ -32,7 +32,7 @@ import { type DebutEdition, type ChampPose, debutEdition, positionDuChamp, titre
 import { PASTILLE, ZOOM_PASTILLES, pastillesDe } from './modele/contour'
 import { repereDeDepot } from './modele/depot'
 import { copierSujets, deplacerSujets, ouLacher } from './modele/lacher'
-import { type Lecture, branche, enfantsDe, lire, nouvelArbre, renommer, sousCarte } from './modele/sujets'
+import { type Lecture, branche, carteNeuve, enfantsDe, lire, renommer, sousCarte } from './modele/sujets'
 import { titreNeuf } from './modele/titres'
 import { type Section } from './Panneau'
 import { type OngletGauche, PanneauGauche } from './PanneauGauche'
@@ -57,9 +57,12 @@ export function useVue(a: Arbre): { lecture: Lecture; mesures: Map<Id, Mesure>; 
     for (const id of lecture.sujets.keys()) mesures.set(id, mesureDeSujet(lecture, id, theme, { compacte, toutesNotes: !!a.options?.toutesNotes, tailleEquation, planning: resumePlanning }))
     if (a.options?.uniforme) mesures = uniformiser(lecture, mesures)
     const resumes = resumesValides(a, lecture).map(([id, r]) => ({ id, sujet: r.sujet, plage: sujetsDePlage(lecture, r), ...(r.style?.forme ? { forme: r.style.forme } : {}) }))
-    const disposition = disposer(lecture, (id) => mesures.get(id) ?? { l: 40, h: 20 }, ecartsDe(brancheDe(lecture, lecture.central).forme ?? theme.branche, compacte), !!a.options?.libre, resumes)
+    // L'écart entre un parent et ses enfants tient à la forme de ses branches : avec un squelette, c'est celle d'un principal.
+    const parentDeReference = theme.squelette ? (lecture.enfants.get(lecture.central)?.[0] ?? lecture.central) : lecture.central
+    const branche = brancheDe(lecture, parentDeReference, {}, theme)
+    const disposition = disposer(lecture, (id) => mesures.get(id) ?? { l: 40, h: 20 }, ecartsDe(branche.forme ?? branche.formeSquelette ?? theme.branche, compacte), !!a.options?.libre, resumes, theme.squelette?.principaux)
     return { lecture, mesures, disposition }
-  }, [a.sujets, a.options, a.resumes, a.theme, a.themePerso, a.police, a.policeCjk])
+  }, [a.sujets, a.options, a.resumes, a.theme, a.themePerso, a.police, a.policeCjk, a.squelette])
 }
 
 /** Les adresses affichables des images d'une carte, chargées au besoin. */
@@ -1071,7 +1074,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     contexte.finirEdition()
     setTimeout(() => contexte.commencerEdition(neuf.id), 0)
   }
-  const nouvelleFeuille = () => poserFeuille(nouvelArbre(t('arbre.central')))
+  const nouvelleFeuille = () => poserFeuille(carteNeuve(t('arbre.central')))
   const dupliquerFeuille = () => {
     const e = elementCourant()
     if (!e || e.contenu.type !== 'arbre') return

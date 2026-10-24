@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { StructureArbre } from '../../../coeur/tableau'
 import { fr } from '../../../langue'
 import { THEMES, variantesDe } from '../themes'
-import { GROUPES_SQUELETTES, accentCourant, choixDe, groupeCourant, groupeDeStructure, groupesThemes, themeDuGroupe, varianteActive, varianteSuivante } from './groupes'
+import { GROUPES_SQUELETTES, accentCourant, choixDe, groupeCourant, groupeDeStructure, groupesThemes, nomDeSquelette, squeletteDeCarte, themeDuGroupe, varianteActive, varianteSuivante } from './groupes'
+import { SQUELETTES } from './squelettes'
 
 const TOUTES: StructureArbre[] = [
   'carte', 'carte-libre', 'carte-horaire', 'carte-antihoraire', 'logique-droite', 'logique-gauche', 'accolade-droite', 'accolade-gauche', 'organigramme-bas', 'organigramme-haut',
@@ -10,20 +11,30 @@ const TOUTES: StructureArbre[] = [
 ]
 
 describe('les squelettes', () => {
-  it('chaque structure est dans un groupe, une seule fois', () => {
-    const vues = GROUPES_SQUELETTES.flatMap((g) => g.structures)
-    expect([...vues].sort()).toEqual([...TOUTES].sort())
+  it('chaque squelette est dans un groupe, une seule fois, et chaque groupe en a au moins un', () => {
+    const vus = GROUPES_SQUELETTES.flatMap((g) => g.squelettes.map((s) => s.id))
+    expect(new Set(vus).size).toBe(vus.length)
+    expect(vus).toHaveLength(SQUELETTES.length)
+    for (const g of GROUPES_SQUELETTES) expect(g.squelettes.length, g.id).toBeGreaterThan(0)
   })
 
-  it('chaque groupe a un nom, et chaque structure le sien', () => {
+  it('chaque groupe a un nom, chaque structure le sien, et chaque squelette un nom qui le numérote', () => {
     for (const g of GROUPES_SQUELETTES) expect(fr[`arbre.carte.g.${g.id}`], g.id).toBeTruthy()
     for (const s of TOUTES) expect(fr[`arbre.s.${s}`], s).toBeTruthy()
+    expect(nomDeSquelette(SQUELETTES.find((s) => s.id === 'logique-3')!)).toBe('Diagramme logique 3')
   })
 
   it('la carte du squelette nomme le groupe de la structure', () => {
     expect(groupeDeStructure('carte-antihoraire')).toBe('carte')
     expect(groupeDeStructure('arete-droite')).toBe('arete')
     expect(groupeDeStructure('matrice-colonnes')).toBe('matrice')
+    expect(groupeDeStructure('organigramme-haut')).toBe('organigramme')
+  })
+
+  it('le squelette d’une carte : celui qu’elle désigne, ou aucun', () => {
+    expect(squeletteDeCarte({ squelette: 'arbre-2' })?.groupe).toBe('arbre')
+    expect(squeletteDeCarte({})).toBeUndefined()
+    expect(squeletteDeCarte({ squelette: 'inconnu' })).toBeUndefined()
   })
 })
 

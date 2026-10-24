@@ -102,7 +102,7 @@ function Tremble({ actif, boite, children }: { actif: boolean; boite: readonly [
  */
 export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, mesures, selection, edition, adresse, devoiles, surlignes, survol, zoom = 1, glisses }: Props) {
   const vu = (id: Id) => !devoiles || devoiles.has(id)
-  const theme = useMemo(() => themeDeArbre(arbre), [arbre.theme, arbre.themePerso, arbre.police, arbre.policeCjk, arbre.jeuCouleurs, arbre.options?.flottantsColores])
+  const theme = useMemo(() => themeDeArbre(arbre), [arbre.theme, arbre.themePerso, arbre.police, arbre.policeCjk, arbre.jeuCouleurs, arbre.options?.flottantsColores, arbre.squelette])
   const uneCouleur = !!arbre.options?.uneCouleur
   const compacte = !!arbre.options?.compacte
   const encre = theme.encre ?? 'var(--notak-arbre-encre)'
@@ -168,16 +168,17 @@ export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, 
           const e = d.boites.get(lien.vers)
           if (!p || !e || lien.forme === 'aucune' || !vu(lien.vers)) return null
           const style = brancheDe(l, lien.de, globales, theme)
-          // La forme d'une branche : la sienne, sinon celle du thème là où la structure laisse le choix (carte, logique).
-          const forme = style.forme ?? (lien.forme === 'courbe' ? theme.branche : lien.forme)
+          // La forme d'une branche : la sienne, sinon celle du squelette (là où la structure laisse le choix : carte, logique,
+          // coude d'un organigramme), sinon celle du thème.
+          const forme = style.forme ?? (lien.forme === 'courbe' || lien.forme === 'coudee' ? style.formeSquelette : null) ?? (lien.forme === 'courbe' ? theme.branche : lien.forme)
           const epaisseur = style.epaisseur ?? (lien.de === l.central ? 2.5 : 1.75)
           // « Aucun » : un motif nul, ou une épaisseur nulle, ne laisse pas de trait.
           if (forme === 'aucune' || style.motif === 'aucun' || epaisseur <= 0) return null
           // Un sujet souligné : l'épaisseur de son trait (la branche suit son axe) ; le central : ses coudes sortent de dessous.
           const soulignement = (id: Id) => (souligne(habits.get(id)!.forme) ? epaisseurSouligne(habits.get(id)!) : 0)
-          const s = { parent: soulignement(lien.de), enfant: soulignement(lien.vers), centre: lien.de === l.central }
+          const s = { parent: soulignement(lien.de), enfant: soulignement(lien.vers), centre: lien.de === l.central, radial: style.radial }
           const trait = couleur(lien.vers) ?? encre
-          const effile = style.effilee ? cheminEffile(p, e, lien.cote, forme, s, epaisseur * 2.4, epaisseur * 0.6) : null
+          const effile = style.effilee ? cheminEffile(p, e, lien.cote, forme, s, epaisseur) : null
           const [[ax, ay], [bx, by]] = extremites(p, e, lien.cote, s)
           const pointe = cheminPointe(style.pointe, bx, by, { droite: 0, gauche: Math.PI, bas: Math.PI / 2, haut: -Math.PI / 2 }[lien.cote], Math.max(8, epaisseur * 4.5))
           const branche = (
@@ -409,10 +410,10 @@ export function RepereDepot({ arbre, lecture: l, disposition: d, repere }: { arb
   const theme = themeDeArbre(arbre)
   const style = brancheDe(l, repere.parent, { largeur: arbre.largeurBranche, effilee: arbre.effile }, theme)
   const epaisseur = style.epaisseur ?? (repere.parent === l.central ? 2.5 : 1.75)
-  const forme = style.forme ?? (repere.forme === 'courbe' ? theme.branche : repere.forme)
+  const forme = style.forme ?? (repere.forme === 'courbe' || repere.forme === 'coudee' ? style.formeSquelette : null) ?? (repere.forme === 'courbe' ? theme.branche : repere.forme)
   const habit = habitDe(l, repere.parent, theme, !!arbre.options?.compacte)
   const soulignement = souligne(habit.forme) ? epaisseurSouligne(habit) : 0
-  const trace = forme === 'aucune' || epaisseur <= 0 ? '' : cheminBranche(parent, repere.boite, repere.cote, forme, { parent: soulignement, centre: repere.parent === l.central })
+  const trace = forme === 'aucune' || epaisseur <= 0 ? '' : cheminBranche(parent, repere.boite, repere.cote, forme, { parent: soulignement, centre: repere.parent === l.central, radial: style.radial })
   const b = repere.boite
   return (
     <g className="notak-arbre-depot-repere" pointerEvents="none">

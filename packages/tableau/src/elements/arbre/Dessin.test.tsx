@@ -6,14 +6,15 @@ import { mesureDeSujet } from './apparence'
 import { disposer } from './disposition'
 import { ajouterLimite, ajouterRelation, ajouterResume, resumesValides, sujetsDePlage } from './modele/elements'
 import { appliquerGeste } from './modele/gestes'
+import { appliquerSquelette } from './modele/reglages'
 import { ajouterEnfant, lire, nouvelArbre } from './modele/sujets'
-import { themeDe } from './themes'
+import { themeDeArbre } from './themes'
 import type { Mesure } from './apparence'
 
 /** Dessine la carte comme la fenêtre : lecture, mesures, disposition, puis le SVG. */
 function svg(a: Arbre): string {
   const lecture = lire(a)
-  const theme = themeDe(a.theme)
+  const theme = themeDeArbre(a)
   const mesures = new Map<Id, Mesure>([...lecture.sujets.keys()].map((id) => [id, mesureDeSujet(lecture, id, theme)]))
   const resumes = resumesValides(a, lecture).map(([id, r]) => ({ id, sujet: r.sujet, plage: sujetsDePlage(lecture, r), ...(r.style?.forme ? { forme: r.style.forme } : {}) }))
   const disposition = disposer(lecture, (id) => mesures.get(id) ?? { l: 40, h: 20 }, undefined, false, resumes)
@@ -115,9 +116,15 @@ describe('le rendu d’une branche', () => {
     expect(svg(stylise(a, c, { motif: 'main' }))).toContain('<g filter="url(#notak-arbre-main)"><rect')
   })
 
-  it('la forme « anse » se trace d’un seul arc', () => {
+  it('la forme « anse » se trace d’une seule courbe cubique', () => {
     const { a, c } = base()
     const html = svg(stylise(a, c, { branche: 'anse' }))
+    expect(html.slice(html.indexOf('notak-arbre-branches'))).toMatch(/d="M[\d. -]+C[\d. -]+"/)
+  })
+
+  it('la forme organique se trace d’un seul arc quadratique', () => {
+    const { a, c } = base()
+    const html = svg(stylise(a, c, { branche: 'organique' }))
     expect(html.slice(html.indexOf('notak-arbre-branches'))).toMatch(/d="M[\d. -]+Q[\d. -]+"/)
   })
 })
@@ -171,5 +178,54 @@ describe('le rendu d’une relation, d’une limite, d’un résumé', () => {
     expect(trait).toContain('stroke-width="5"')
     expect(trait).toContain('stroke-dasharray="7 5"')
     expect(trait).toMatch(/d="M[\d. -]+H[\d. -]+V[\d. -]+H[\d. -]+M[\d. -]+H[\d. -]+"/)
+  })
+})
+
+describe('le rendu d’une carte à squelette', () => {
+  /** Le dernier chemin d'une branche, par ordre d'apparition : les `d` des `<path>` du groupe des branches. */
+  const branches = (html: string) => {
+    const g = html.slice(html.indexOf('notak-arbre-branches'), html.indexOf('data-sujet'))
+    return [...g.matchAll(/<path d="([^"]+)"([^>]*)>/g)].map((m) => ({ d: m[1]!, attrs: m[2]! }))
+  }
+
+  it('le squelette par défaut : une courbe organique sort du central, des coudes arrondis ensuite', () => {
+    const { a } = base()
+    const b = branches(svg(appliquerSquelette(a, 'carte-1')))
+    // Le central a deux principaux : deux arcs quadratiques ; le sous-sujet d'Alpha un coude arrondi.
+    expect(b.filter((x) => /^M[\d. -]+Q[\d. -]+$/.test(x.d))).toHaveLength(2)
+    expect(b.filter((x) => x.d.includes('H') || x.d.includes('Q'))).toHaveLength(3)
+  })
+
+  it('sans squelette, la carte garde son rendu : le coude du thème classique, pas d’arc organique', () => {
+    const { a } = base()
+    const b = branches(svg(a))
+    expect(b.every((x) => !/^M[\d. -]+Q[\d. -]+$/.test(x.d))).toBe(true)
+  })
+
+  it('un squelette effilé : les branches du central sont des surfaces pleines, les suivantes des traits', () => {
+    const { a } = base()
+    const b = branches(svg(appliquerSquelette(a, 'carte-2')))
+    const pleines = b.filter((x) => x.d.endsWith('Z'))
+    expect(pleines).toHaveLength(2)
+    expect(pleines.every((x) => x.attrs.includes('stroke="none"'))).toBe(true)
+    expect(b.filter((x) => !x.d.endsWith('Z'))).toHaveLength(1)
+  })
+
+  it('un squelette dessiné à la main fait trembler ses branches', () => {
+    const { a } = base()
+    expect(svg(appliquerSquelette(a, 'carte-10'))).toContain('<g filter="url(#notak-arbre-main)">')
+  })
+
+  it('le style d’un sujet passe avant celui du squelette : sa branche garde la forme choisie', () => {
+    const { a, c } = base()
+    const b = branches(svg(stylise(appliquerSquelette(a, 'carte-1'), c, { branche: 'droite' })))
+    expect(b.filter((x) => /^M[\d. -]+L[\d. -]+$/.test(x.d)).length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('la forme du sujet vient du squelette : des soulignés, ici', () => {
+    const { a, p } = base()
+    const html = svg(appliquerSquelette(a, 'carte-5'))
+    // Un souligné se dessine par une ligne, pas par un contour.
+    expect(sujet(html, p)).toContain('<line')
   })
 })

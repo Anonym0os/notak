@@ -211,17 +211,35 @@ describe('l’onglet Carte : ce que chaque réglage envoie', () => {
 })
 
 describe('le squelette', () => {
-  it('la fenêtre a ses huit groupes ; un choix applique la structure et la laisse ouverte', () => {
-    monter(carte())
+  it('la fenêtre a ses huit groupes ; un choix applique le squelette et la laisse ouverte', () => {
+    monter(carte('carte', { squelette: 'carte-1' }))
     cliquer(bouton('Choisir le squelette.'))
     const groupes = [...document.querySelectorAll('.notak-arbre-reglages-groupe-titre')].map((x) => x.textContent)
     expect(groupes).toEqual(['Carte mentale', 'Diagramme logique', "Carte d'accolade", 'Organigramme', 'Arbre graphique', 'Chronologie', 'Diagramme en arêtes de poisson', 'Matrice'])
-    cliquer(bouton('Diagramme logique à droite'))
-    expect(gestes).toEqual([{ type: 'squelette', structure: 'logique-droite' }])
+    cliquer(bouton('Diagramme logique 1'))
+    expect(gestes).toEqual([{ type: 'squelette', squelette: 'logique-1' }])
     expect(document.querySelector('.notak-arbre-reglages-squelettes')).not.toBeNull()
     // Le squelette actif ne se réapplique pas.
-    cliquer(bouton('Carte mentale'))
+    cliquer(bouton('Carte mentale 1'))
     expect(gestes).toHaveLength(1)
+  })
+
+  it('une grille de trois vignettes par groupe : douze pour la carte mentale, neuf pour le diagramme logique', () => {
+    monter(carte())
+    cliquer(bouton('Choisir le squelette.'))
+    const groupes = [...document.querySelectorAll('.notak-arbre-reglages-groupe-squelettes')]
+    expect(groupes.map((g) => g.querySelectorAll('.notak-arbre-reglages-vignette').length)).toEqual([12, 9, 6, 6, 6, 6, 3, 3])
+    // Un squelette dessiné à la main porte son petit crayon.
+    expect(groupes[0]!.querySelectorAll('.notak-arbre-reglages-vignette-main')).toHaveLength(4)
+  })
+
+  it('chaque vignette porte le style de son squelette : les branches effilées sont des surfaces, les autres des traits', () => {
+    monter(carte())
+    cliquer(bouton('Choisir le squelette.'))
+    const pleines = (nom: string) => [...bouton(nom).querySelectorAll('svg path')].filter((p) => !p.getAttribute('transform') && p.getAttribute('fill') && p.getAttribute('fill') !== 'none' && p.getAttribute('stroke') === 'none')
+    // Le deuxième squelette de la carte mentale est effilé : ses branches du central sont pleines.
+    expect(pleines('Carte mentale 2').length).toBeGreaterThanOrEqual(4)
+    expect(pleines('Carte mentale 1').length).toBe(0)
   })
 
   it('un groupe se replie au clic sur son titre', () => {
@@ -232,12 +250,18 @@ describe('le squelette', () => {
     expect(document.querySelectorAll('.notak-arbre-reglages-vignette').length).toBeLessThan(avant)
   })
 
-  it('la structure active est marquée', () => {
-    monter(carte('logique-gauche'))
+  it('le squelette actif est marqué', () => {
+    monter(carte('logique-droite', { squelette: 'logique-2' }))
     cliquer(bouton('Choisir le squelette.'))
     const actives = document.querySelectorAll('.notak-arbre-reglages-grille-squelettes .notak-arbre-reglages-vignette[data-actif]')
     expect(actives).toHaveLength(1)
-    expect(actives[0]!.querySelector('button')!.getAttribute('aria-label')).toBe('Diagramme logique à gauche')
+    expect(actives[0]!.querySelector('button')!.getAttribute('aria-label')).toBe('Diagramme logique 2')
+  })
+
+  it('la carte du squelette montre la vignette du squelette courant, et le nom de son groupe', () => {
+    monter(carte('logique-droite', { squelette: 'logique-3' }))
+    expect(hote.querySelector('.notak-arbre-reglages-squelette-nom')!.textContent).toBe('Diagramme logique')
+    expect(hote.querySelector('.notak-arbre-reglages-squelette-vignette svg')).not.toBeNull()
   })
 
   it('chaque structure a une vignette calculée avec la mise en page de la carte', () => {

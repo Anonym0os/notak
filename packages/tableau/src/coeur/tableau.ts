@@ -632,8 +632,11 @@ export type FormeSujet =
   | 'decision' | 'saisie-manuelle' | 'processus-predefini' | 'operation-manuelle' | 'base-de-donnees' | 'document' | 'multi-documents' | 'delai' | 'donnees' | 'renvoi-page' | 'renvoi-hors-page' | 'double-cercle' | 'drapeau' | 'trapeze' | 'trapeze-inverse'
   | 'aucune'
 
-/** Les formes d'une branche (`line-class`). */
-export type FormeBranche = 'courbe' | 'droite' | 'coudee' | 'coudee-arrondie' | 'anse' | 'pli' | 'pli-arrondi' | 'aucune'
+/**
+ * Les formes d'une branche (`line-class`). `courbe` : un S symétrique (celui des thèmes de Notak). `organique` : la
+ * courbe de Xmind, qui quitte le parent presque en travers puis se couche sur l'enfant (`curve`).
+ */
+export type FormeBranche = 'courbe' | 'organique' | 'droite' | 'coudee' | 'coudee-arrondie' | 'anse' | 'pli' | 'pli-arrondi' | 'aucune'
 
 /** Le motif d'un trait ou d'un contour (`line-pattern`, `border-line-pattern`). `main` et `tirets-main` : tracés à main levée. */
 export type MotifTrait = 'plein' | 'tirets' | 'points' | 'tiret-point' | 'tiret-point-point' | 'main' | 'tirets-main' | 'aucun'
@@ -804,6 +807,12 @@ export interface Arbre {
     flottantSouple?: boolean
     chevauchement?: boolean
   }
+  /**
+   * Le squelette de la carte (`elements/arbre/carte/squelettes.ts`) : une structure et le style de chaque rang (formes,
+   * lignes, épaisseurs, polices). Absent : la carte garde le style que son thème donne à chaque rang. Le thème, lui,
+   * garde les couleurs.
+   */
+  squelette?: string
   /** Le thème de la carte (`elements/arbre/themes.ts`) ; absent : le classique. `perso:<id>` : un thème de couleur à soi (`themePerso`). */
   theme?: string
   /** Le thème de couleur à soi que `theme` désigne : son nom et ses six couleurs, gardés dans la carte pour qu'elle voyage seule. */

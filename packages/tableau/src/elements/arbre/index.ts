@@ -7,7 +7,7 @@ import { ico } from '../../icones'
 import { t } from '../../langue'
 import { registre } from '../registre'
 import { RenduArbre } from './Arbre'
-import { lire, nouvelArbre } from './modele/sujets'
+import { carteNeuve, lire } from './modele/sujets'
 import './arbre.css'
 import './fenetre.css'
 import './panneau-cote.css'
@@ -23,7 +23,7 @@ import './onglet-icones.css'
 export const LARGEUR_ARBRE = 40
 
 export function nouvelleCarteMentale(x: number, y: number): Element<Arbre> {
-  return { id: nouvelId(), x, y, largeur: LARGEUR_ARBRE, contenu: nouvelArbre(t('arbre.central')) }
+  return { id: nouvelId(), x, y, largeur: LARGEUR_ARBRE, contenu: carteNeuve(t('arbre.central')) }
 }
 
 registre.type<Arbre>({

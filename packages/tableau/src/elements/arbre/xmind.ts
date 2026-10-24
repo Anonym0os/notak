@@ -1,6 +1,7 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
 import { cleEntre } from '../../coeur/ordre'
 import { type Arbre, type GroupeMarqueurs, type Id, type Limite, type NoeudTexte, type Relation, type Resume, type StructureArbre, type Sujet, type Zone, docDepuisTexte, nouvelId, texteBrut } from '../../coeur/tableau'
+import { type SqueletteDef, type RangSquelette, squeletteDe, squeletteDeXmind } from './carte/squelettes'
 import { type Lecture, enfantsDe, lire } from './modele/sujets'
 import { ajouterDiapo, extraireDiapo } from './xmindPitch'
 import { ecrireStyleLimite, ecrireStyleRelation, ecrireStyleResume, ecrireStyleSujet, lireStyleLimite, lireStyleRelation, lireStyleResume, lireStyleSujet, proprietesDe } from './xmind-style'
@@ -330,7 +331,10 @@ function lireFeuille(f: Json, fichiers: Record<string, Uint8Array>): FeuilleLue 
   if (typeof feuilleStyle['cjk-font-family'] === 'string' && feuilleStyle['cjk-font-family']) reglages.policeCjk = feuilleStyle['cjk-font-family']
   const largeur = Number.parseFloat(String(global['line-width']))
   if (Number.isFinite(largeur) && largeur > 0) reglages.largeurBranche = Math.round(largeur * 10) / 10
-  if (feuilleStyle['line-tapered'] === 'tapered') reglages.effile = true
+  // Le squelette : son identifiant dans le thème de la feuille. Xmind écrit `lineTapered` dans la feuille ; à défaut, celui du squelette.
+  const squelette = squeletteDeXmind(estObjet(f.theme) && typeof f.theme.skeletonThemeId === 'string' ? f.theme.skeletonThemeId : undefined)
+  if (squelette) reglages.squelette = squelette.id
+  if (feuilleStyle['line-tapered'] === 'tapered' || (squelette?.effile && feuilleStyle['line-tapered'] === undefined)) reglages.effile = true
   const multi = feuilleStyle['multi-line-colors']
   if (multi === 'none') {
     options.uneCouleur = true
@@ -379,6 +383,47 @@ function lireFeuille(f: Json, fichiers: Record<string, Uint8Array>): FeuilleLue 
     ...(pitch ? { pitch } : {}),
   }
   return { titre: typeof f.title === 'string' ? f.title : sujets[central]!.titre, arbre, images, pieces, marqueurs }
+}
+
+/** La structure d'un squelette, comme Xmind l'écrit : la carte équilibrée est `map.clockwise`. */
+const classeDeStructure = (st: StructureArbre) => (st === 'carte' ? 'org.xmind.ui.map.clockwise' : classeDepuis(st))
+
+/** Les propriétés de style qu'un squelette prescrit à un rang, dans les clés de Xmind (`shape-class`, `line-class`…). */
+function proprietesDuSquelette(sq: SqueletteDef, rang: RangSquelette): Record<string, string> {
+  const c = sq[rang]
+  return ecrireStyleSujet({
+    forme: c.forme,
+    branche: c.branche,
+    motifRemplissage: c.remplissage,
+    ...(c.epaisseur !== undefined ? { epaisseurBranche: c.epaisseur } : {}),
+    ...(c.motif ? { motif: c.motif } : {}),
+    ...(c.pointe ? { pointeBranche: c.pointe } : {}),
+    police: c.police ?? 'NeverMind',
+    taille: c.taille,
+    graisse: c.graisse,
+    alignement: c.alignement,
+    ...(c.bordure !== undefined ? { epaisseurBordure: c.bordure } : {}),
+    ...(c.motifBordure ? { motifBordure: c.motifBordure } : {}),
+  })
+}
+
+/**
+ * Le squelette de la carte dans la feuille : son identifiant, ses structures (l'extension de feuille de Xmind) et le
+ * style de chaque rang. Une feuille qui portait déjà ce squelette (celle d'un fichier de Xmind) garde les styles qu'elle
+ * avait : Xmind y écrit ce qu'on a réglé sur toute une classe de sujets.
+ */
+function ecrireSquelette(feuille: Json, theme: Json, sq: SqueletteDef) {
+  const memeSquelette = theme.skeletonThemeId === sq.xmind
+  theme.skeletonThemeId = sq.xmind
+  if (!memeSquelette) {
+    for (const [cle, rang] of [['centralTopic', 'central'], ['mainTopic', 'principal'], ['subTopic', 'sous'], ['floatingTopic', 'flottant']] as const) {
+      const avant = estObjet(theme[cle]) ? theme[cle] : {}
+      theme[cle] = { ...avant, properties: proprietesDuSquelette(sq, rang) }
+    }
+  }
+  const structures = { centralTopic: classeDeStructure(sq.structure), ...(sq.principaux ? { mainTopic: classeDeStructure(sq.principaux) } : {}) }
+  const FOURNISSEUR = 'org.xmind.ui.skeleton.structure.style'
+  feuille.extensions = [...liste(feuille.extensions).filter((e) => e.provider !== FOURNISSEUR), { provider: FOURNISSEUR, content: structures }]
 }
 
 /** Une image à écrire dans le zip : le sujet qui la porte et ses octets. */
@@ -510,6 +555,8 @@ function ecrireFeuille(titre: string, a: Arbre, images: ReadonlyMap<Id, ImageAEx
     'multi-line-colors': o.uneCouleur ? 'none' : a.jeuCouleurs?.length ? a.jeuCouleurs.join(' ') : undefined,
   })
   const theme: Json = estObjet(feuille.theme) ? { ...feuille.theme } : {}
+  const squelette = squeletteDe(a.squelette)
+  if (squelette) ecrireSquelette(feuille, theme, squelette)
   fusionnerStyle(theme, 'global', { 'fo:font-family': a.police, 'line-width': a.largeurBranche ? `${a.largeurBranche}pt` : undefined })
   if (Object.keys(theme).length > 0) feuille.theme = theme
   else delete feuille.theme

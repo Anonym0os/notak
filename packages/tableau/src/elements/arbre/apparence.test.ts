@@ -24,7 +24,7 @@ import {
 } from './apparence'
 import { appliquerGeste } from './modele/gestes'
 import { ajouterEnfant, ajouterFlottant, lire, nouvelArbre } from './modele/sujets'
-import { THEMES } from './themes'
+import { THEMES, themeDeArbre } from './themes'
 
 const theme = THEMES[0]!
 
@@ -138,8 +138,8 @@ describe('la branche d’un sujet', () => {
   it('hérite du premier ancêtre qui la règle, pointe et motif compris', () => {
     const { a, l, c, p } = carte()
     const b = appliquerGeste(a, { type: 'style', ids: [c], style: { motif: 'tirets', pointeBranche: 'diamant', epaisseurBranche: 5, branche: 'anse' } }, () => 'x')!.arbre
-    expect(brancheDe(lire(b), p)).toEqual({ forme: 'anse', epaisseur: 5, effilee: false, motif: 'tirets', pointe: 'diamant' })
-    expect(brancheDe(l, p)).toEqual({ forme: null, epaisseur: null, effilee: false, motif: 'plein', pointe: 'aucune' })
+    expect(brancheDe(lire(b), p)).toEqual({ forme: 'anse', formeSquelette: null, epaisseur: 5, effilee: false, motif: 'tirets', pointe: 'diamant', radial: false })
+    expect(brancheDe(l, p)).toEqual({ forme: null, formeSquelette: null, epaisseur: null, effilee: false, motif: 'plein', pointe: 'aucune', radial: false })
   })
 
   it('la série de couleurs du central remplace celle du thème ; une seule couleur : celle du central', () => {
@@ -400,5 +400,113 @@ describe('l’épaisseur des branches du thème', () => {
     expect(brancheDe(lire(b), principaux[0]!, {}, theme).epaisseur).toBe(5)
     expect(brancheDe(l, c, {}, THEMES.find((t) => t.id === 'pastel')!).epaisseur).toBeNull()
     expect(brancheDe(l, c).epaisseur).toBeNull()
+  })
+})
+
+describe('le squelette passe avant le thème, et le style du sujet avant le squelette', () => {
+  const avecSquelette = (squelette: string, extra: Partial<Arbre> = {}) => themeDeArbre({ squelette, ...extra })
+  function exemple(style?: StyleSujet) {
+    let a: Arbre = nouvelArbre('Centre')
+    const c = lire(a).central
+    let p: Id, s: Id, f: Id
+    ;[a, p] = ajouterEnfant(a, c, 'Principal')
+    ;[a, s] = ajouterEnfant(a, p, 'Sous')
+    ;[a, f] = ajouterFlottant(a, { x: 300, y: 0 }, 'Libre')
+    if (style) a = appliquerGeste(a, { type: 'style', ids: [p], style }, () => 'x')!.arbre
+    return { l: lire(a), c, p, s, f }
+  }
+
+  it('sans squelette, rien ne change : l’habit est celui du thème', () => {
+    const { l, c, p } = exemple()
+    expect(habitDe(l, c, themeDeArbre({}))).toEqual(habitDe(l, c, theme))
+    expect(habitDe(l, p, themeDeArbre({}))).toEqual(habitDe(l, p, theme))
+  })
+
+  it('le squelette par défaut : central de 30 en 800 sans fond, principal plein de 18 en 500, sous-sujet de 14', () => {
+    const { l, c, p, s, f } = exemple()
+    const t = avecSquelette('carte-1')
+    expect(habitDe(l, c, t)).toMatchObject({ police: 30, graisse: 800, forme: 'arrondi', motifRemplissage: 'aucun', alignement: 'centre', epaisseurBordure: 0 })
+    expect(habitDe(l, c, t).remplissage).toBeUndefined()
+    expect(habitDe(l, p, t)).toMatchObject({ police: 18, graisse: 500, forme: 'arrondi', plein: true })
+    expect(habitDe(l, s, t)).toMatchObject({ police: 14, graisse: 400, plein: false })
+    expect(habitDe(l, f, t)).toMatchObject({ police: 14, graisse: 500 })
+  })
+
+  it('ses sous-sujets du premier niveau ont un fond pâle de leur branche, pas les suivants', () => {
+    let { l, s } = exemple()
+    const t = avecSquelette('carte-1')
+    expect(habitDe(l, s, t).fondBranche).toBe(0.2)
+    // Un sous-sujet de deuxième niveau n'en a pas.
+    let a: Arbre = { type: 'arbre', sujets: { ...l.sujets.size ? Object.fromEntries(l.sujets) : {} } }
+    let petit: Id
+    ;[a, petit] = ajouterEnfant(a, s, 'Petit')
+    expect(habitDe(lire(a), petit, t).fondBranche).toBeUndefined()
+  })
+
+  it('un squelette à soulignés : le trait d’un principal est sa bordure, celui d’un sous-sujet la branche qui arrive', () => {
+    const { l, p, s } = exemple()
+    const t = avecSquelette('carte-5')
+    expect(habitDe(l, p, t)).toMatchObject({ forme: 'souligne', epaisseurBordure: 5 })
+    expect(habitDe(l, s, t)).toMatchObject({ forme: 'souligne', epaisseurBordure: 1 })
+  })
+
+  it('le style posé sur le sujet passe avant le squelette', () => {
+    const { l, p } = exemple({ forme: 'etoile', taille: 40, graisse: 300, alignement: 'droite' })
+    const h = habitDe(l, p, avecSquelette('carte-1'))
+    expect(h).toMatchObject({ forme: 'etoile', police: 40, graisse: 300, alignement: 'droite' })
+  })
+
+  it('la police : celle de toute la carte passe avant celle du squelette, qui passe avant celle du thème', () => {
+    const { l, p } = exemple()
+    expect(habitDe(l, p, avecSquelette('carte-2')).famille).toBe('"Roboto", sans-serif')
+    expect(habitDe(l, p, avecSquelette('carte-2', { police: 'Georgia' })).famille).toBe('"Georgia", serif')
+    // Le thème « papier » a sa police ; un squelette sans police (NeverMind) prend celle de Notak, pas celle du thème.
+    expect(habitDe(l, p, avecSquelette('carte-1', { theme: 'papier' })).famille).toBe(habitDe(l, p, theme).famille)
+  })
+
+  it('le remplissage d’un squelette dessiné à la main est une hachure, et un fond hachuré garde le texte du thème', () => {
+    const { l, p } = exemple()
+    const t = avecSquelette('carte-10')
+    const h = habitDe(l, p, t)
+    expect(h.motifRemplissage).toBe('diagonales-fines')
+    const c = couleursDe(h, 'principal', t, undefined, '#e76f8a')
+    expect(c.encre).not.toBe('#ffffff')
+  })
+
+  it('la bordure d’un squelette a la couleur de la branche', () => {
+    const { l, p, c } = exemple()
+    const t = avecSquelette('carte-7')
+    const h = habitDe(l, p, t)
+    expect(h).toMatchObject({ epaisseurBordure: 3, bordureBranche: true })
+    expect(couleursDe(h, 'principal', t, undefined, '#e76f8a').bordure).toBe('#e76f8a')
+    // Le central de ce squelette a un fond et une bordure de 0 (héritée) : pas de bordure.
+    expect(couleursDe(habitDe(l, c, t), 'central', t, undefined, null).bordure).toBe('none')
+  })
+
+  it('les branches : la forme, l’épaisseur, le motif et la pointe du rang du parent', () => {
+    const { l, c, p } = exemple()
+    const t = avecSquelette('carte-1')
+    expect(brancheDe(l, c, {}, t)).toMatchObject({ forme: null, formeSquelette: 'organique', epaisseur: 2, effilee: false, radial: true })
+    expect(brancheDe(l, p, {}, t)).toMatchObject({ formeSquelette: 'coudee-arrondie', epaisseur: 2 })
+    const main = avecSquelette('carte-10')
+    expect(brancheDe(l, c, {}, main).motif).toBe('main')
+    expect(brancheDe(l, c, {}, avecSquelette('carte-7')).pointe).toBe('triangle')
+    // Un squelette éteint les épaisseurs du thème.
+    expect(brancheDe(l, c, {}, avecSquelette('carte-5')).epaisseur).toBe(1)
+  })
+
+  it('la largeur de toute la carte passe avant celle du squelette ; celle du sujet avant tout', () => {
+    const { l, c, p } = exemple()
+    const t = avecSquelette('carte-1')
+    expect(brancheDe(l, c, { largeur: 3 }, t).epaisseur).toBe(4)
+    const a = appliquerGeste({ type: 'arbre', sujets: Object.fromEntries(l.sujets) }, { type: 'style', ids: [c], style: { epaisseurBranche: 7, branche: 'droite' } }, () => 'x')!.arbre
+    expect(brancheDe(lire(a), p, { largeur: 3 }, t)).toMatchObject({ epaisseur: 7, forme: 'droite', formeSquelette: 'coudee-arrondie' })
+  })
+
+  it('l’effilé est celui de la carte (le squelette l’y a écrit), et ne concerne que le central', () => {
+    const { l, c, p } = exemple()
+    const t = avecSquelette('carte-2')
+    expect(brancheDe(l, c, { effilee: true }, t).effilee).toBe(true)
+    expect(brancheDe(l, p, { effilee: true }, t).effilee).toBe(false)
   })
 })

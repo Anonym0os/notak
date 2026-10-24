@@ -153,7 +153,10 @@ describe('les règles qui lient des réglages', () => {
     expect(patchEpaisseurBranche(3, true)).toEqual({ epaisseurBranche: 3, effilee: true })
     expect(patchEpaisseurBranche(3, false)).toEqual({ epaisseurBranche: 3, effilee: undefined })
     expect(peutEffiler('courbe')).toBe(true)
-    expect(peutEffiler('coudee')).toBe(false)
+    expect(peutEffiler('coudee')).toBe(true)
+    expect(peutEffiler('organique')).toBe(true)
+    expect(peutEffiler('aucune')).toBe(false)
+    expect(peutEffiler(null)).toBe(false)
   })
 
   it('le gras passe de 700 à 400 et l’inverse', () => {

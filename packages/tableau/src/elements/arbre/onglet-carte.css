@@ -419,6 +419,21 @@
   border-color: transparent;
 }
 
+/* Un squelette dessiné à la main : un petit crayon en haut à droite. */
+.notak-arbre-reglages-vignette-main {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--notak-arbre-fond) 85%, transparent);
+  color: var(--notak-arbre-discret);
+  pointer-events: none;
+}
+
 /* L'étoile des favoris : en haut à droite, au survol seulement. */
 .notak-arbre-reglages .notak-arbre-reglages-vignette .notak-arbre-reglages-etoile,
 .notak-arbre-reglages-popover .notak-arbre-reglages-vignette .notak-arbre-reglages-etoile {
