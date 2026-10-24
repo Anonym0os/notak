@@ -121,9 +121,16 @@ const TEXTE: readonly Propriete[] = [
   simple<string>(
     'fo:font-family',
     'police',
-    // « NeverMind » est la police de Xmind : Notak garde la sienne.
-    (v) => (/^nevermind/i.test(v.trim()) || !v.trim() ? undefined : v.includes(',') ? v : `"${v.trim()}", ui-sans-serif, system-ui, sans-serif`),
-    (x) => x.split(',')[0]!.trim().replace(/^["']|["']$/g, ''),
+    // « NeverMind » est la police de Xmind : on l'écarte de la pile, et Notak garde la sienne si rien d'autre n'y est.
+    (v) => {
+      const familles = v
+        .split(',')
+        .map((x) => x.trim())
+        .filter((x) => x && !/^["']?nevermind(ui)?["']?$/i.test(x))
+      if (!familles.some((x) => !/^["']?(sans-serif|serif|monospace|cursive|system-ui)["']?$/i.test(x))) return undefined
+      return familles.length === 1 ? `"${familles[0]!.replace(/^["']|["']$/g, '')}", ui-sans-serif, system-ui, sans-serif` : familles.join(', ')
+    },
+    (x) => x,
   ),
   points('fo:font-size', 'taille'),
   simple<number>(

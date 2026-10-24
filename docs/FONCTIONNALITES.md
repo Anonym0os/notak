@@ -444,9 +444,9 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Structure matrice | ✅ | En lignes ou en colonnes. |
 | Structure par sujet, héritée par défaut | ✅ | « Suivre le sujet parent » la retire. |
 | Carte compacte, placement libre, chevauchement | 🟡 | Compacte : des écarts plus serrés, sans l'emboîtement des branches de Xmind. Placement libre : une branche glissée reste où on la lâche, « Réaligner » la remet ; le chevauchement est alors permis. |
-| Relation entre deux sujets : courbe réglable, pointes, titre | ✅ | Maj+Cmd+R puis clic sur la cible ; deux points de contrôle à tirer, un titre (double-clic) ; courbe, droite ou coudée, pointe au départ, à l'arrivée ou aux deux. |
-| Limite autour d'une plage de frères | ✅ | Maj+Cmd+B ; un titre au double-clic. |
-| Résumé d'une plage de frères | ✅ | Bouton « Résumé » : une accolade et un sujet de résumé, qui peut avoir ses enfants. |
+| Relation entre deux sujets : courbe réglable, pointes, titre | ✅ | Maj+Cmd+R puis clic sur la cible ; deux points de contrôle à tirer, un titre (double-clic) ; onglet Style : courbe, droite, anguleuse, zigzag (les trois « souples » se tracent comme leurs sœurs), onze pointes au départ et à l'arrivée, sept motifs, épaisseur, couleur, texte. |
+| Limite autour d'une plage de frères | ✅ | Maj+Cmd+B ; un titre au double-clic ; onglet Style : neuf formes, remplissage (opacité jusqu'à 20 %), bordure, texte. |
+| Résumé d'une plage de frères | ✅ | Bouton « Résumé » : une accolade et un sujet de résumé, qui peut avoir ses enfants ; onglet Style : cinq formes d'accolade (motif, couleur, épaisseur) et le style du sujet de résumé. |
 | Note en texte riche sur un sujet | ✅ | Maj+Cmd+N ; l'icône sur le sujet rouvre la note. |
 | Étiquettes | ✅ | Maj+Cmd+L. |
 | Lien web ou vers un autre sujet | ✅ | Cmd+K ; l'icône ouvre l'adresse ou va au sujet. |
@@ -454,17 +454,18 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Marqueurs : priorité, avancement, drapeaux, étoiles, personnes… | ✅ | Un par groupe ; Cmd+1…7 pour les priorités. Dessins et icônes à nous. |
 | Tâche à cocher, numérotation des enfants | ✅ | Cmd+Alt+T ; la case se coche d'un clic. Numérotation 1, I, A, a, avec ou sans le numéro du parent. |
 | Rang : important, secondaire, barré | ✅ | Maj+Alt+1, 2, 3, 0. |
-| Formes de sujet | ✅ | Rectangle, arrondi, gélule, ellipse, souligné, double souligné, losange, hexagone, parallélogramme, sans cadre. |
-| Styles de branche, épaisseur, effilé, couleurs arc-en-ciel | ✅ | Courbe, droite, coudée, coudée arrondie, sans trait ; motif plein, tirets, pointillés ; « Branches de couleur » ou une seule encre. |
-| Texte, remplissage et bordure d'un sujet | ✅ | Police, taille, gras, italique, couleur ; l'encre du texte se choisit seule sur un remplissage foncé. |
+| Formes de sujet | ✅ | 47 formes en quatre groupes (basiques, avancées, ponctuation, organigramme) : cercle, nuage, étoile, cœur, flèches, signes, symboles d'organigramme… ; chacune se dessine à l'écran, en vignette et dans le `.xmind`. |
+| Styles de branche, épaisseur, effilé, couleurs arc-en-ciel | ✅ | Coude arrondi, coude, droite, courbe, anse, pli, pli arrondi ; sept motifs dont la main levée, ou aucun ; onze pointes de fin ; cinq épaisseurs, effilées pour la courbe et la droite ; « Branche colorée » et série de couleurs au choix, ou une seule couleur. |
+| Texte, remplissage et bordure d'un sujet | ✅ | Onglet Style, comme celui de Xmind : police, taille, graisse (100 à 900), italique, barré, souligné, casse, alignement, couleur ; remplissage (plein, hachures, main levée) et bordure (motif, épaisseur, couleur) ; largeur imposée. L'encre du texte se choisit seule sur un remplissage foncé. |
+| Onglet Style du panneau de côté | ✅ | Une vue par sélection (sujet, plusieurs, relation, limite, résumé, rien) ; sections repliables ; sélecteur de couleur (nuancier 9 × 5, hexadécimal, opacité, récentes) ; mettre à jour le niveau ou les sous-sujets ; numérotation. Pas de bulle ni de zone (écartées). |
 | Thèmes de carte | ✅ | Six thèmes à nous : Classique (suit le clair et le sombre de Notak), Pastel, Nuit, Sobre, Papier, Vif. |
-| Appliquer au même rang, réinitialiser, copier et coller un style | ✅ | Alt+Cmd+U, Cmd+Alt+0, Cmd+Alt+C, Cmd+Alt+V. |
+| Appliquer au même rang, réinitialiser, copier et coller un style | ✅ | Alt+Cmd+U, Cmd+Alt+0, Cmd+Alt+C, Cmd+Alt+V ; l'onglet Style propose aussi « Mettre à jour » (même niveau, ou sous-sujets) et « Réinitialiser le style ». |
 | Mode plan | ✅ | Maj+Cmd+M ou « Plan » : Entrée, Tab, Maj+Tab, Alt+flèches, Cmd+/ ; Échap revient à la carte. |
 | Mode Zen | ✅ | Cmd+Alt+F : la carte seule, en plein écran quand le navigateur le permet ; Échap en sort. |
 | Présentation branche par branche | ✅ | Cmd+Alt+P : le central, puis chaque principal avec sa branche ; le cadrage glisse de l'une à l'autre. |
 | Chercher dans la carte | ✅ | Cmd+F : titres, étiquettes et notes, sans accents ; Entrée va au suivant. |
 | Importer un fichier .xmind | ✅ | Déposé sur la toile : une carte par feuille, images comprises. Éprouvé sur les 36 modèles de Xmind et sa démo. Les fichiers de Xmind 8 (content.xml) sont refusés avec un avis. |
-| Exporter en .xmind | 🟡 | Menu de la carte, une feuille par carte choisie ; aller-retour vérifié par la lecture de Notak, pas encore rouvert dans Xmind lui-même. Les styles et thèmes ne sont pas traduits. |
+| Exporter en .xmind | 🟡 | Menu de la carte, une feuille par carte choisie ; aller-retour vérifié par la lecture de Notak, pas encore rouvert dans Xmind lui-même. Le style des sujets, relations, limites et résumés est écrit (`style.properties`, `customWidth`) et relu sur les 36 modèles de Xmind ; les thèmes ne sont pas traduits. |
 | Texte de la carte dans la recherche et l'export texte du tableau | ✅ | L'export la rend en liste indentée. |
 | Grille, tableau-arbre | ➖ | Écartés (docs/XMIND.md § 2). |
 | Gantt, IA, commentaires et collaboration propres à Xmind, note audio, vidéo web | ➖ | Écartés (docs/XMIND.md § 6). |

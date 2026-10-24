@@ -137,6 +137,63 @@ proche (`logic-chart.right` → logique droite, `tree.branch-aligned.right` → 
 - **Limites** : rectangle, rectangle arrondi, polygone, vagues, festons ; un titre facultatif.
 - **Résumés** : accolade ronde, carrée, crochet, droite.
 
+## 5 bis. L'onglet Style
+
+Le panneau de côté a trois onglets (Style, Présentation, Carte). **Style** règle ce qui est choisi ; la sélection dit
+la vue : un sujet (central, principal, sous-sujet, flottant), plusieurs sujets, une relation, une limite, le sujet
+d'un résumé, ou rien (« Sélectionner un objet à formater. »). Un mélange (un sujet et une relation) donne l'état vide.
+Chaque contrôle passe par un geste de la carte (donc l'historique), montre la valeur **effective** (celle du rendu,
+thème compris), « Multiple » quand les objets diffèrent, et se grise quand il ne s'applique pas.
+
+**Sujet**, de haut en bas :
+
+- **Style rapide** (principal, sous-sujet, flottant, seuls ou du même type) : une vignette et quatre choix, Très
+  important, Important, Barré, Par défaut (`importantTopic`, `minorTopic`, `expiredTopic`, ou rien).
+- **Forme** : la forme (quatre groupes : 12 basiques, 13 avancées, 7 de ponctuation, 15 d'organigramme ; les 12
+  premières d'abord, puis « Plus de formes »), le remplissage (six motifs : plein, plein à main levée, diagonales,
+  diagonales fines, horizontales, horizontales fines, ou aucun) et sa couleur, la bordure (plein, tirets, main levée,
+  tirets à main levée, ou aucune), sa couleur et son épaisseur (1, 2, 3, 5, 8 pt), puis la **longueur** (largeur imposée
+  en px, « Adapter » la retire).
+- **Texte** : police, taille (1 à 200), style de police (graisse de 100 à 900, avec italique), couleur, gras, italique,
+  barré, souligné, casse (MAJUSCULES, minuscules, Mettre en majuscules), alignement.
+- **Structure** : la famille (carte mentale, logique, accolade, organigramme, arbre, chronologie, arête de poisson,
+  matrice), sa variante (grisée tant que le sujet suit son parent), « Suivre la structure du sujet parent ».
+- **Branche** : la forme de la ligne (coude arrondi, coude, droite, courbe, anse, pli, pli arrondi), son motif (sept,
+  ou aucun), la pointe de fin (onze), l'épaisseur (cinq, plus cinq effilées pour la courbe et la droite) et la couleur.
+  Sur le central seul : **Branche colorée** (bascule) et la série de couleurs des branches principales.
+- **Numérotation** (principal, sous-sujet) : 1.2.3., A.B.C., a.b.c., I.II.III. ; « Appliquer aux sujets frères » ;
+  numéros échelonnés ; commencer depuis le début.
+- **Mettre à jour** (appliquer le style de ce sujet à tous les sujets de son niveau, ou à tous ses sous-sujets) et
+  **Réinitialiser le style**, visibles seulement quand ils servent.
+
+Des règles lient des réglages : « aucune bordure » met l'épaisseur à 0, un motif choisi à 0 la remet à 2 ; une couleur de
+remplissage choisie sans remplissage le rend plein ; « aucune » ligne de branche met l'épaisseur à 0.
+
+**Relation** : forme (courbe, droite, anguleuse, zigzag, et leurs trois « souples »), pointe de début, motif de ligne
+(sept), pointe de fin, épaisseur, couleur, texte. **Limite** : forme (rectangle, rectangle arrondi, polygone, festons,
+vagues, tension, polygone arrondi, focus, croix), remplissage (opacité de la couleur plafonnée à 20 %), bordure (sept
+motifs), épaisseur, texte. **Résumé** : ligne (angle, carré, ronde, accolade, droite ; motif, couleur, épaisseur), sujet
+du résumé (comme un sujet), texte, branche.
+
+**Sélecteur de couleur** : un bouton de 72 × 24 px (barré d'un pointillé s'il n'y a pas de couleur, trois points s'il y en a
+plusieurs) ; son popover offre un nuancier de 9 × 5 (45 couleurs), un champ hexadécimal (les caractères non
+hexadécimaux valent 0, trois chiffres se doublent, plus de six donnent blanc), l'opacité (stockée en canal alpha
+`#rrggbbaa`), la couleur du système, « Par défaut », les couleurs du thème et les neuf dernières utilisées.
+
+→ Notak : pas de badge PRO ni de bouton « Upgrade » : tout est libre. Pas de bulle (callout), de zone, de cellule de grille ni
+de vue Image (Notak n'a pas ces objets). Les 45 couleurs du nuancier, les formes, les pointes et les vignettes sont à nous ;
+la police de Xmind (NeverMind) n'est pas reprise, Notak garde la sienne et propose des polices que tous les systèmes ont.
+La numérotation se règle sur le sujet dont elle numérote les enfants. Les relations « souples » se tracent comme leurs
+sœurs. Le **style rapide** d'un sujet de rang « important » reste celui des rangs d'importance de Notak (pas les
+couleurs du thème de Xmind). L'ordre de la liste de variantes de structure est celui de Notak.
+
+Dans le `.xmind`, le style d'un sujet, d'une relation, d'une limite et d'un résumé est écrit dans `style.properties`
+(`shape-class`, `fill-pattern`, `svg:fill`, `border-line-*`, `fo:*`, `line-class`, `line-pattern`, `line-width`,
+`line-tapered`, `line-color`, `arrow-begin-class`, `arrow-end-class`, `multi-line-colors`) ; `customWidth` porte la
+largeur imposée. Une propriété que Notak ne règle pas, ou qu'il ne sait pas lire, reste dans le fichier et en ressort
+telle quelle. À valider contre un fichier sauvegardé par Xmind : la valeur de `line-tapered`, et la clé `startsHere` de
+« commencer depuis le début ».
+
 ## 6. Modes
 
 - **Plan** (Maj+Cmd+M) : la même carte en liste indentée. Entrée crée un frère, Tab indente, Maj+Tab
