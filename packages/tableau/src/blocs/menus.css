@@ -38,9 +38,10 @@
   --notak-m-ombre: 0 0 0 1px #383836, 0 14px 28px -6px rgb(25 25 25 / 0.2), 0 2px 4px -1px rgb(25 25 25 / 0.118);
 }
 
+/* Au-dessus de la page du document ouverte en grand (z-index 1000, voir `document.css`). */
 .notak-menu-blocs-panneau,
 .notak-bulle-panneau {
-  z-index: 1000;
+  z-index: 1100;
 }
 
 /* L'ouverture : opacité et échelle de 0,96 à 1 en 200 ms ; l'origine est le coin du menu « / », le centre des autres. La fermeture est instantanée. */
