@@ -48,6 +48,29 @@ describe('lâcher une tâche hors de sa liste', () => {
     expect(noms(lire('A'))).toEqual(['a1', 'a2', 'a3'])
   })
 
+  it('la seule tâche d’une liste sans titre emporte la liste : elle part à la corbeille, rien de vide ne reste', () => {
+    const { magasin, contexte, lire } = monde()
+    const r = operationsDeSortie(contexte, 'B', 0, { genre: 'liste', carte: 'A', vers: 2, place: 'apres' })!
+    magasin.faire(r.operations)
+    expect(noms(lire('A'))).toEqual(['a1', 'a2', 'a3', 'b1'])
+    expect(lire('B').corbeille).toBeTypeOf('number')
+    expect(noms(lire('B'))).toEqual(['b1'])
+    magasin.annuler()
+    expect(lire('B').corbeille).toBeUndefined()
+    expect(noms(lire('A'))).toEqual(['a1', 'a2', 'a3'])
+  })
+
+  it('en copie, ou avec un titre, la liste d’une seule tâche reste', () => {
+    const { magasin, contexte, lire } = monde()
+    magasin.faire(operationsDeSortie(contexte, 'B', 0, { genre: 'liste', carte: 'A', vers: 0, place: 'avant' }, true)!.operations)
+    expect(lire('B').corbeille).toBeUndefined()
+    expect(noms(lire('B'))).toEqual(['b1'])
+    const b = lire('B') as Element<Taches>
+    magasin.faire([{ type: 'contenu', id: 'B', avant: b.contenu, apres: { ...b.contenu, titre: 'Courses' } }])
+    magasin.faire(operationsDeSortie(contexte, 'B', 0, { genre: 'toile', x: 0, y: 0 })!.operations)
+    expect(lire('B').corbeille).toBeUndefined()
+  })
+
   it('refuse une cible qui n’est pas une liste, ou la liste elle-même', () => {
     const { contexte } = monde()
     expect(operationsDeSortie(contexte, 'A', 0, { genre: 'liste', carte: 'Z', vers: 0, place: 'avant' })).toBeNull()

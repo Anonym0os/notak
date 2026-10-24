@@ -4,7 +4,7 @@
  * rend des rangs dans l'ordre de lecture, que `deplacer` (JSON) et `deplacerDansEditeur` (Tiptap) comprennent.
  *
  * Ce qui suit le pointeur est une carte de liste (la tâche et ses sous-tâches, en blanc, avec son ombre), qui se
- * fait transparente au-dessus d'une autre liste ; la tâche reste à sa place, en gris à 40 %. Un trait de 2 px montre
+ * fait transparente au-dessus d'une liste (la sienne comprise) ; la tâche reste à sa place, en gris à 40 %. Un trait de 2 px montre
  * où elle se posera, entre deux tâches ; c'est la case de la carte, et non le pointeur, qui choisit le niveau : on la
  * glisse vers la droite pour la ranger sous la tâche d'au-dessus, vers la gauche pour la sortir. Alt (Option) copie
  * la tâche au lieu de la déplacer.
@@ -286,8 +286,8 @@ export function glisserTache(
     apercu.hidden = false
     apercu.style.transform = `translate(${caseX - MARGE_COTE * echelle}px, ${rs.top + dy - MARGE_HAUT * echelle}px) scale(${echelle})`
     const vise: Vise = sortie ? viserAilleurs(document.elementsFromPoint(e.clientX, e.clientY).filter((n) => !apercu.contains(n)), carteSource) : { genre: 'ici' }
-    // Au-dessus d'une autre liste, la carte devient transparente : on voit où la tâche ira.
-    apercu.dataset.dessus = vise.genre === 'liste' || vise.genre === 'colonne' ? vise.genre : ''
+    // Au-dessus d'une liste (la sienne comprise) ou d'une colonne, la carte devient transparente : on voit le trait.
+    apercu.dataset.dessus = ''
     marquer(null)
     but = null
     repere.hidden = true
@@ -297,17 +297,20 @@ export function glisserTache(
       const c = viserColonne(vise.colonne, e.clientY)
       but = { dans: 'colonne', colonne: vise.colonne, index: c.index }
       placerColonne(c)
+      apercu.dataset.dessus = 'colonne'
     } else if (vise.genre === 'liste') {
       const v = viser(vise.racine, null, e.clientY, caseX)
       if (!v) return
       but = { dans: 'liste', carte: vise.carte, racine: vise.racine, v }
       marquer(vise.racine)
+      apercu.dataset.dessus = 'liste'
       placer(vise.racine, v)
     } else if (vise.genre === 'ici') {
       const v = viser(racine, copie ? null : source, e.clientY, caseX)
       if (!v) return
       but = { dans: 'ici', v }
       placer(racine, v)
+      apercu.dataset.dessus = 'liste'
     }
   }
   const lache = (e: PointerEvent) => {

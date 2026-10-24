@@ -194,8 +194,10 @@
   background: none;
   opacity: 0;
   pointer-events: none;
+  /* Invisible, elle ne prend aucun clic : elle attend derrière la poignée pendant sa demi-seconde d'attente. */
+  visibility: hidden;
   transform: translateX(31px);
-  transition: transform 160ms ease-in, opacity 160ms ease-in;
+  transition: transform 160ms ease-in, opacity 160ms ease-in, visibility 0s 160ms;
   cursor: pointer;
 }
 
@@ -228,8 +230,9 @@
 .notak-taches li[data-type='taskItem'][data-checked='true']:hover > .notak-tache-suppr {
   opacity: 1;
   pointer-events: auto;
+  visibility: visible;
   transform: none;
-  transition: transform 160ms ease-out 500ms, opacity 160ms ease-out 500ms;
+  transition: transform 160ms ease-out 500ms, opacity 160ms ease-out 500ms, visibility 0s 500ms;
 }
 
 /* La sous-tâche survolée montre la sienne, pas celle de sa parente. */
@@ -614,6 +617,8 @@
   opacity: 0;
   cursor: grab;
   transition: opacity 100ms;
+  /* Au-dessus de la corbeille, qui glisse dessous en arrivant. */
+  z-index: 1;
 }
 
 .notak-taches li[data-type='taskItem']:hover > .notak-tache-poignee {
@@ -663,7 +668,7 @@
 
 /*
  * Ce qui suit le pointeur : la tâche et ses sous-tâches dans une carte de liste (blanche, avec son ombre). Elle devient
- * transparente au-dessus d'une autre liste ou d'une colonne.
+ * transparente au-dessus d'une liste (la sienne comprise) ou d'une colonne.
  */
 .notak-glisse-apercu {
   position: fixed;
