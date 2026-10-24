@@ -1,6 +1,8 @@
 import type { Arbre, Id } from '../../coeur/tableau'
+import type { NomIcone } from '../../icones'
 import { t } from '../../langue'
 import { type Lecture, enfantsDe } from './modele/sujets'
+import type { BoutonBarre } from './repliBarre'
 
 /**
  * Les menus contextuels de la carte (docs/XMIND.md § 14) : ce que contient chaque menu selon ce qu'on clique et ce qui est
@@ -27,6 +29,8 @@ export interface Entree {
   /** L'action que `actionsMenu.ts` exécute ; le libellé vient de la langue. */
   id: string
   libelle: string
+  /** L'icône de l'entrée (Tabler, par le registre de `icones.tsx`) : chaque entrée de chaque menu en porte une. */
+  icone: NomIcone
   touche?: string
   inactif?: boolean
   sous?: Item[]
@@ -47,8 +51,115 @@ export interface ContexteMenu {
   brancheSeule: Id | null
 }
 
-const e = (id: string, touche?: string, inactif?: boolean, libelle?: string): Entree => ({ id, libelle: libelle ?? t(`arbre.menu.${id}`), ...(touche ? { touche } : {}), ...(inactif ? { inactif: true } : {}) })
-const sous = (id: string, items: Item[], libelle?: string): Entree => ({ id, libelle: libelle ?? t(`arbre.menu.${id}`), sous: items })
+/**
+ * L'icône de chaque entrée, d'après le relevé de Xmind (docs/XMIND.md § 14) : Xmind n'en met aucune dans ses menus, Notak
+ * en met partout, la même pour la même action quelle que soit la cible. Un identifiant sans icône ne compile pas.
+ */
+const ICONES_MENU = {
+  inserer: 'ajouter',
+  'inserer.note': 'note',
+  'inserer.etiquette': 'etiquette',
+  'inserer.aFaire': 'menuListeCochee',
+  'inserer.tache': 'menuTache',
+  'inserer.lien': 'lien',
+  'inserer.pageWeb': 'monde',
+  'inserer.lienSujet': 'menuSousSujets',
+  'inserer.piece': 'trombone',
+  'inserer.audio': 'micro',
+  'inserer.marqueur': 'humeurSourire',
+  'inserer.autocollant': 'menuAutocollant',
+  'inserer.illustration': 'palette',
+  'inserer.image': 'image',
+  'inserer.equation': 'formule',
+  couper: 'menuCouper',
+  copier: 'menuCopier',
+  coller: 'menuColler',
+  dupliquer: 'menuDupliquer',
+  supprimer: 'corbeille',
+  supprimerSeul: 'menuSupprimerSeul',
+  viderTexte: 'gomme',
+  oter: 'gomme',
+  'oter.marqueur': 'menuMarqueurOter',
+  'oter.etiquette': 'menuEtiquetteOter',
+  'oter.lien': 'detacher',
+  'tache.faite': 'menuTacheFaite',
+  'tache.nonFaite': 'menuTacheNonFaite',
+  'tache.annulee': 'menuTacheAnnulee',
+  'tache.oter': 'menuTacheOter',
+  'planning.oter': 'menuPlanningOter',
+  'style.copier': 'menuStyleCopier',
+  'style.coller': 'menuStyleColler',
+  'style.reinit': 'menuStyleReinit',
+  selectionner: 'menuSelectionner',
+  'sel.sousSujets': 'menuSousSujets',
+  'sel.freres': 'menuFreres',
+  'sel.memeNiveau': 'menuMemeNiveau',
+  'sel.tout': 'menuSelectionner',
+  'sel.flottants': 'menuSelectionner',
+  'sel.resumes': 'menuSelectionner',
+  'sel.relations': 'menuSelectionner',
+  'sel.limites': 'menuSelectionner',
+  'sel.images': 'menuSelectionner',
+  'sel.equations': 'menuSelectionner',
+  'sel.zones': 'menuSelectionner',
+  replier: 'colonneReplier',
+  deplier: 'colonneDeplier',
+  replierTout: 'menuReplierTout',
+  deplierTout: 'menuReplierTout',
+  brancheSeule: 'menuBrancheSeule',
+  toutAfficher: 'oeil',
+  aligner: 'menuAligner',
+  'aligner.gauche': 'alignerGauche',
+  'aligner.centre': 'alignerCentreH',
+  'aligner.droite': 'alignerDroite',
+  'aligner.haut': 'alignerHaut',
+  'aligner.milieu': 'alignerCentreV',
+  'aligner.bas': 'alignerBas',
+  'aligner.distribuerH': 'repartirH',
+  'aligner.distribuerV': 'repartirV',
+  reinitPosition: 'annuler',
+  'zone.creer': 'arbreEncadre',
+  flottant: 'menuFlottant',
+  'relation.inserer': 'arbreRelation',
+  central: 'menuCentrer',
+  'relation.modifier': 'menuCrayon',
+  'relation.styleCopier': 'menuStyleCopier',
+  'relation.styleColler': 'menuStyleColler',
+  'relation.styleReinit': 'menuStyleReinit',
+  'relation.pointReinit': 'menuPointReinit',
+  'zone.flottant': 'menuFlottant',
+  'zone.supprimer': 'corbeille',
+  'zone.retirer': 'menuSupprimerZone',
+  'zone.effacer': 'gomme',
+  'zone.ajuster': 'menuAjuster',
+  enregistrerImage: 'menuEnregistrer',
+  'supprimer.champ': 'corbeille',
+  'marqueur.panneau': 'menuCrayon',
+  surligner: 'menuSurligner',
+  modifierNote: 'menuCrayon',
+  toutesNotes: 'notes',
+  modifierLien: 'menuCrayon',
+  'piece.ouvrir': 'ouvrir',
+  'piece.enregistrer': 'menuEnregistrer',
+  // Les boutons de la barre d'outils, quand ils passent dans le menu « + » : l'icône de leur bouton.
+  'replie.relation': 'arbreRelation',
+  'replie.resume': 'arbreResume',
+  'replie.limite': 'arbreLimite',
+  'replie.zone': 'arbreEncadre',
+  'replie.etiquette': 'etiquette',
+  'replie.tache': 'arbreTache',
+} as const satisfies Record<string, NomIcone>
+type IdEntree = keyof typeof ICONES_MENU
+
+/** Une entrée. Le libellé de `arbre.menu.<id>` et l'icône de `ICONES_MENU` sauf si l'appelant les donne (une entrée qui en réemploie une autre). */
+const e = (id: IdEntree, touche?: string, inactif?: boolean, libelle?: string, icone?: NomIcone): Entree => ({
+  id,
+  libelle: libelle ?? t(`arbre.menu.${id}`),
+  icone: icone ?? ICONES_MENU[id],
+  ...(touche ? { touche } : {}),
+  ...(inactif ? { inactif: true } : {}),
+})
+const sous = (id: IdEntree, items: Item[], libelle?: string): Entree => ({ id, libelle: libelle ?? t(`arbre.menu.${id}`), icone: ICONES_MENU[id], sous: items })
 
 /** Un séparateur qui se retrouve en tête, en queue ou doublé est retiré ; un sous-menu vide aussi. */
 export function nettoyer(items: Item[]): Item[] {
@@ -85,6 +196,54 @@ export function menuInserer(unSeul: boolean, auMoinsUn: boolean): Item[] {
     e('inserer.image', K('⇧⌘I'), !unSeul),
     e('inserer.equation', undefined, !unSeul),
   ]
+}
+
+/** Ce que le menu « + » peut insérer selon la sélection : `true` quand l'entrée est active (`etatBarre`, Outils.tsx). */
+export interface EtatInsertion {
+  note: boolean
+  aFaire: boolean
+  lienWeb: boolean
+  lienSujet: boolean
+  piece: boolean
+  audio: boolean
+  vignette: boolean
+  image: boolean
+  equation: boolean
+}
+
+/** Les raccourcis des boutons de la barre, repris par leur entrée quand elle passe dans le menu « + ». */
+const TOUCHES_BARRE: Record<BoutonBarre, string | undefined> = { relation: '⇧⌘R', resume: undefined, limite: '⇧⌘B', zone: '⌥⌘Z', etiquette: '⇧⌘L', tache: undefined }
+/** Leur libellé court : celui des entrées de menu de Xmind (Relation, Résumé, Limite, Zone, Étiquette, Tâche). */
+const LIBELLES_BARRE: Record<BoutonBarre, string> = {
+  relation: 'arbre.relation',
+  resume: 'arbre.resume',
+  limite: 'arbre.limite',
+  zone: 'arbre.inserer.zone',
+  etiquette: 'arbre.menu.inserer.etiquette',
+  tache: 'arbre.menu.inserer.tache',
+}
+
+/**
+ * Le menu du bouton « + » de la barre (capture 19) : Note, Tâches à faire, Lien ▸, puis les pièces jointes, puis les
+ * images. Les boutons que la barre a replié faute de place passent en tête, dans l'ordre de la barre, suivis d'un
+ * séparateur (docs/XMIND.md § 8).
+ */
+export function menuPlus(etat: EtatInsertion, replies: readonly { id: BoutonBarre; inactif: boolean }[] = []): Item[] {
+  return nettoyer([
+    ...replies.map((r) => e(`replie.${r.id}`, TOUCHES_BARRE[r.id] && K(TOUCHES_BARRE[r.id]!), r.inactif, t(LIBELLES_BARRE[r.id]))),
+    'sep',
+    e('inserer.note', K('⇧⌘N'), !etat.note),
+    e('inserer.aFaire', K('⌥⌘T'), !etat.aFaire),
+    sous('inserer.lien', [e('inserer.pageWeb', K('⌘K'), !etat.lienWeb), e('inserer.lienSujet', undefined, !etat.lienSujet)]),
+    'sep',
+    e('inserer.piece', undefined, !etat.piece),
+    e('inserer.audio', undefined, !etat.audio),
+    'sep',
+    e('inserer.autocollant', undefined, !etat.vignette),
+    e('inserer.illustration', undefined, !etat.vignette),
+    e('inserer.image', K('⇧⌘I'), !etat.image),
+    e('inserer.equation', undefined, !etat.equation),
+  ])
 }
 
 /** Ce que ses sous-branches offrent : y en a-t-il qui se replient, et en reste-t-il d'ouvertes (« replier » ou « déplier ») ? */
@@ -260,7 +419,7 @@ export function construireMenu(c: ContexteMenu): Item[] {
     case 'image':
       return nettoyer([c.lecture.sujets.get(cible.id)?.image ? e('enregistrerImage') : 'sep', 'sep', e('supprimer.champ'), 'sep', e('sel.images')])
     case 'equation':
-      return nettoyer([e('inserer.equation', undefined, false, t('arbre.menu.modifier')), 'sep', e('supprimer.champ'), 'sep', e('sel.equations')])
+      return nettoyer([e('inserer.equation', undefined, false, t('arbre.menu.modifier'), 'menuCrayon'), 'sep', e('supprimer.champ'), 'sep', e('sel.equations')])
     case 'marqueur':
       return nettoyer([e('marqueur.panneau', undefined, false, t('arbre.menu.modifier')), 'sep', e('supprimer.champ'), 'sep', e('surligner')])
     case 'etiquette':
@@ -272,7 +431,7 @@ export function construireMenu(c: ContexteMenu): Item[] {
     case 'piece':
       return nettoyer([e('piece.ouvrir'), 'sep', e('supprimer.champ'), 'sep', e('piece.enregistrer')])
     case 'planning':
-      return nettoyer([e('inserer.tache', undefined, false, t('arbre.menu.modifier')), 'sep', e('planning.oter')])
+      return nettoyer([e('inserer.tache', undefined, false, t('arbre.menu.modifier'), 'menuCrayon'), 'sep', e('planning.oter')])
     case 'tache':
       return nettoyer([e('supprimer.champ'), e('tache.annulee'), 'sep', e('tache.faite')])
   }

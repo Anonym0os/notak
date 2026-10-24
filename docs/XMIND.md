@@ -277,7 +277,8 @@ normale), `floatingTopicFlexible`, `floatingTopicAutoColor`, `relationshipAutoCo
 ## 8. La fenêtre de la carte ouverte
 
 Relevé : `notak-chantiers/interface-xmind/1-fenetre-et-barre.md` (copie de Xmind 26.05, non versionnée) et les
-captures du même dossier. Code : `elements/arbre/Fenetre.tsx`, `Outils.tsx`, `fenetre.css`.
+captures du même dossier. Code : `elements/arbre/Fenetre.tsx`, `Outils.tsx`, `BarreSujet.tsx`, `repliBarre.ts`,
+`geometrieMenus.ts`, `fenetre.css`, `menus.css`.
 
 1. **Cadre.** La carte est une feuille blanche aux coins arrondis, posée dans un cadre gris de 8 px ; les panneaux de
    côté se posent dans ce cadre, à gauche (navigation) et à droite (format ou icônes), et la carte rétrécit d'autant.
@@ -290,8 +291,29 @@ captures du même dossier. Code : `elements/arbre/Fenetre.tsx`, `Outils.tsx`, `f
    tableau), puis la pilule Marqueur (panneau d'icônes, § 13) et Format (panneau à onglets Style, Pitch, Carte) ;
    l'actif est plein, sombre. Pas de bouton « Upgrade » : rien n'est payant dans Notak.
 5. **En bas** : la feuille à gauche, l'état de la vue à droite (§ 10).
-6. → Notak, pas encore fait : Xmind replie ses boutons dans le « + » quand la fenêtre rétrécit ; Notak les garde,
-   et la barre peut chevaucher le titre quand les deux panneaux sont ouverts sur un petit écran.
+6. **Repli de la barre** (`repliBarre.ts`, fonction pure testée ; `Outils.tsx` ne fait que mesurer). Quand la place
+   manque, la barre replie, dans cet ordre et en s'arrêtant dès que ça tient : le titre, puis Tâche, Étiquette, Zone,
+   Limite, Résumé, Relation. Ce qui est replié passe **en tête du menu « + »**, dans l'ordre de la barre, suivi d'un
+   séparateur ; le « + » ne se replie jamais. Seuils (zone de la carte, panneau de côté déjà retiré ; titre de 100,
+   maison et bouton du panneau de gauche à gauche, export et pilule des panneaux à droite) : tout tient à 646 ;
+   titre replié sous 646 ; puis 534, 500, 466, 432, 398, 364, 330 pour 0 à 6 boutons repliés ; sous 330, même le « + »
+   seul ne tient pas, la barre se retire. Un seul seuil par niveau, dans les deux sens (pas d'hystérésis), comme Xmind.
+   La pilule est centrée sur la zone, poussée vers le côté libre si le titre ou les pastilles de droite la touchent,
+   avec 16 de vide au moins : elle ne recouvre rien, panneau ouvert ou non. Le panneau de côté ouvert rétrécit la zone,
+   donc fait replier. → Notak : Xmind replie aussi Partager, les panneaux et Accueil dans un bouton à double chevron ;
+   ici ils restent à leur place (ils appartiennent à `Arbre.tsx`), seule la barre cède.
+7. **Le bouton « + »** : 48 × 28, le plus (24) et son chevron (12) calés au milieu, fond gris en pilule tant que le menu
+   est ouvert. Son menu s'ouvre au bord gauche du bouton, 6 px sous lui (au-dessus s'il n'a pas la place dessous),
+   sans jamais le recouvrir (`poserMenu`, `geometrieMenus.ts`), dans la fenêtre de la carte et non dans la pilule : le
+   flou du menu voit la carte. Un clic sur le bouton le ferme ; Échap, un clic dehors et le redimensionnement aussi.
+8. **Barre du sujet** (`BarreSujet.tsx`, capture 20) : une pilule blanche ombrée qui flotte 8 px au-dessus du sujet
+   choisi, centrée sur lui, boutons de 32 × 28 : relation, lien web, image, note, tâche (la case à faire), puis un
+   filet et le pinceau de style. Pas « Grow Ideas » (IA payante). Elle reste dans la zone, passe sous le sujet si le
+   haut est sous la barre d'outils, ne prend pas le focus et ne laisse rien traverser (un appui dessus ne désélectionne
+   pas). → Notak, **pas encore montée** : `<BarreSujet x y bas? actions inactifs? />` attend que `Arbre.tsx` la pose
+   dans la surface, avec `x, y` le milieu du bord haut du sujet choisi et `bas` son bord bas, et relie `actions`
+   (`relation`, `lienWeb`, `image`, `note`, `tache`, `style`) à ses éditeurs (`insertions.actions`, `relier`,
+   `copierStyle` / `collerStyle`).
 
 ## 9. L'onglet Carte du panneau de format
 
@@ -544,6 +566,20 @@ devient d'abord, le fond désélectionne. Les entrées grisées restent affiché
 doublé, et un sous-menu vide, sont retirés. Échap, un clic dehors ferment ; les flèches parcourent. Les raccourcis sont
 écrits en glyphes du Mac, ou en Ctrl+ ailleurs. Le contenu se construit par `construireMenu` (`menus.ts`), ce que chaque
 entrée fait est dans `actionsMenu.ts`.
+
+**Icônes.** Xmind n'en met aucune dans ses menus contextuels (ce sont des menus du système) ; Notak en met une à
+chaque entrée, la même pour la même action quelle que soit la cible (Tabler, propositions du relevé 7 § 4.4). `Entree.icone`
+est obligatoire : `ICONES_MENU` (`menus.ts`) range un nom du registre (`icones.tsx`, famille `menu…`) par identifiant
+d'entrée, et un identifiant sans icône ne compile pas ; un test parcourt tous les menus de toutes les cibles. Écarts
+au relevé : Gauche / Centrer / Droite de l'alignement prennent les icônes d'alignement d'objets (comme Haut / Au milieu / Bas),
+et « Créer une zone » celle du bouton Zone de la barre.
+
+**Style** (le menu web de Xmind, relevé 7 § 4.2), commun aux menus contextuels, au « + » et aux menus déroulants des
+barres : rembourrage 8, entrées de 28 avec 4 d'écart (icône 16 au trait 1,6, discrète, puis le libellé, puis le raccourci
+discret aligné à droite ou le chevron d'un sous-menu), rayon 6 pour l'entrée et 14 pour le menu, fond à 70 % sur un flou
+de 12, ombre douce, séparateur d'un trait fin en retrait, grisé à 0,3. Le menu reste dans la fenêtre : il glisse, ou se
+retourne au-dessus de son bouton ; un sous-menu s'ouvre à droite, à gauche si la place manque, et remonte de ce qui
+dépasse en bas (`geometrieMenus.ts`). Survoler une entrée simple ferme le sous-menu resté ouvert à côté.
 
 - **Sujet** : Insérer ▸ (Note, Étiquette, Tâches à faire, Tâche, Lien ▸ Page web / Sujet, —, Pièce jointe, Note audio, —,
   Marqueur, Autocollant, Illustration, Image locale, Équation) · Couper, Copier, Coller, Dupliquer · Supprimer, Supprimer

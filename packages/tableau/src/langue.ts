@@ -1122,6 +1122,9 @@ export const fr: Textes = {
   'arbre.pitch.sujetLigne': 'Diapositive du sujet',
   'arbre.pitch.listeLigne': 'Sous-sujets en liste',
   'arbre.pitch.resumeLigne': 'Diapositive du résumé',
+  // passe fond : menus, barre d'outils, barre du sujet
+  'arbre.sujet.barre': 'Actions du sujet',
+  'arbre.sujet.pinceau': 'Pinceau de style',
   'type.croquis': 'Croquis',
   'type.dessin': 'Dessin',
   'outil.dessin': 'Dessiner',
@@ -2967,6 +2970,9 @@ export const en: Textes = {
   'arbre.pitch.sujetLigne': 'Topic as a Slide',
   'arbre.pitch.listeLigne': 'Subtopics as a Slide',
   'arbre.pitch.resumeLigne': 'Summary as a Slide',
+  // passe fond : menus, barre d'outils, barre du sujet
+  'arbre.sujet.barre': 'Topic actions',
+  'arbre.sujet.pinceau': 'Format painter',
   'type.croquis': 'Sketch',
   'type.dessin': 'Drawing',
   'outil.dessin': 'Draw',
