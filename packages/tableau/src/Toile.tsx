@@ -185,9 +185,9 @@ function choisirAxe(actuel: 'h' | 'v' | null, d: Point): 'h' | 'v' {
 const APPUI_LONG = 500
 
 /** Les types qui s'ouvrent en grand, et dont le plein écran a donc une adresse. */
-const SANS_CROIX: ReadonlySet<string> = new Set(['croquis', 'document'])
+const SANS_CROIX: ReadonlySet<string> = new Set(['croquis', 'document', 'arbre'])
 
-const PLEIN_ECRAN: ReadonlySet<string> = new Set(['image', 'fichier', 'document', 'croquis'])
+const PLEIN_ECRAN: ReadonlySet<string> = new Set(['image', 'fichier', 'document', 'croquis', 'arbre'])
 
 /** Les types que propose le menu de la toile vide. */
 const TYPES_DU_MENU: ReadonlySet<string> = new Set(['note', 'lien', 'taches', 'ligne', 'tableau', 'colonne', 'commentaire', 'table'])

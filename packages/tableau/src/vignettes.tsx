@@ -106,6 +106,18 @@ const DESSINS: Record<string, ReactNode> = {
       <path d="M14 26 c4 -10 8 -10 9 -4 s5 6 8 -2 s5 -6 7 2" fill="none" stroke="var(--notak-texte)" strokeWidth="2" strokeLinecap="round" />
     </Carte>
   ),
+  arbre: (
+    <Carte>
+      <g fill="none" stroke={TRAIT} strokeWidth="1.5" strokeLinecap="round">
+        <path d="M23 21 C18 21 18 13 13 13 M23 21 C18 21 18 29 13 29 M33 21 C38 21 38 13 43 13 M33 21 C38 21 38 29 43 29" />
+      </g>
+      <rect x="21" y="17" width="14" height="8" rx="2.5" fill="var(--notak-texte)" />
+      <Ligne x={7} y={12} l={6} e={2} c={ACCENT} />
+      <Ligne x={7} y={28} l={6} e={2} c={ACCENT} />
+      <Ligne x={43} y={12} l={6} e={2} c={ACCENT} />
+      <Ligne x={43} y={28} l={6} e={2} c={ACCENT} />
+    </Carte>
+  ),
   nuancier: (
     <>
       <rect x="9" y="4" width="22" height="26" rx="2" fill="#3f7d8c" />

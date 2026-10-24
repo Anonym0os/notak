@@ -37,6 +37,8 @@ export function texteCherchable(e: Element, titreDe: (id: string) => string | un
       return ''
     case 'document':
       return [c.titre, doc(c.texte)].join('\n')
+    case 'arbre':
+      return Object.values(c.sujets).map((x) => (typeof x?.titre === 'string' ? x.titre : '')).filter(Boolean).join('\n')
     case 'croquis':
     case 'dessin':
       return ''

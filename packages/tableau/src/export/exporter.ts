@@ -175,6 +175,8 @@ function lignesDe(e: ElementLu, r: Rendu, enfants: Map<string, ElementLu[]>, niv
       const ligne = `${r.mots.fichier}${r.mots.deuxPoints}${nom}`
       return [r.md ? `*${ligne}*` : ligne]
     }
+    case 'arbre':
+      return planDeCarte(c.sujets, r)
     case 'commentaire': {
       const messages = (c.messages as { auteur?: { nom?: string }; texte?: string }[] | undefined) ?? []
       const lignes = messages.map((m) => `${r.md ? '> ' : ''}${chaine(m.auteur?.nom)} : ${chaine(m.texte).replace(/\n/g, ' ')}`)
@@ -184,6 +186,38 @@ function lignesDe(e: ElementLu, r: Rendu, enfants: Map<string, ElementLu[]>, niv
     default:
       return []
   }
+}
+
+/**
+ * Une carte mentale, en plan : le central en tête, puis chaque sujet en liste indentée (en texte brut, deux espaces
+ * par niveau). Les flottants suivent le central, à leur niveau. Lu sans le module de la carte : l'export tourne aussi
+ * sur le serveur.
+ */
+function planDeCarte(brut: unknown, r: Rendu): string[] {
+  type S = { parent?: unknown; ordre?: unknown; titre?: unknown; genre?: unknown }
+  const sujets = Object.entries((brut && typeof brut === 'object' ? brut : {}) as Record<string, S>).filter(([, s]) => s && typeof s.titre === 'string')
+  const enfants = new Map<string, [string, S][]>()
+  for (const x of sujets) {
+    if (typeof x[1].parent !== 'string' || x[1].genre === 'resume') continue
+    const l = enfants.get(x[1].parent) ?? []
+    l.push(x)
+    enfants.set(x[1].parent, l)
+  }
+  const cle = (s: S) => chaine(s.ordre)
+  for (const l of enfants.values()) l.sort(([a, x], [b, y]) => (cle(x) < cle(y) ? -1 : cle(x) > cle(y) ? 1 : a < b ? -1 : 1))
+  const central = sujets.find(([, s]) => s.parent === undefined)
+  if (!central) return []
+  const sortie = [r.md ? `**${chaine(central[1].titre).replace(/\n/g, ' ')}**` : chaine(central[1].titre).replace(/\n/g, ' ')]
+  const parcourir = (id: string, niveau: number, vus: Set<string>) => {
+    for (const [e, s] of enfants.get(id) ?? []) {
+      if (vus.has(e)) continue
+      vus.add(e)
+      sortie.push(`${'  '.repeat(niveau)}${r.md ? '- ' : ''}${chaine(s.titre).replace(/\n/g, ' ')}`)
+      parcourir(e, niveau + 1, vus)
+    }
+  }
+  parcourir(central[0], 0, new Set([central[0]]))
+  return sortie
 }
 
 /** Les blocs de chaque enfant, un par élément qui a quelque chose à dire. */

@@ -3,10 +3,14 @@ import { type Fond, lireFond } from './fond'
 import type { Magasin } from './magasin'
 import { cleEntre, comparerOrdre } from './ordre'
 import { lireElement } from './valider'
+import { fusionnerParCles } from './fusion'
 import { type Auteur, type CouleurNote, type Element, type Etiquette, type Id, type Operation, type Tableau, type Trace, appliquer, inverse } from './tableau'
 
 /** Un élément tel qu'il vit dans le document : l'`Element` entier, plus sa place dans l'empilement. */
 export type ElementStocke = Element & { plan: string }
+
+/** Les dictionnaires d'une carte mentale qui se fusionnent entrée par entrée (`fusion.ts`). */
+const CLES_FUSIONNEES = ['sujets', 'relations', 'limites', 'resumes'] as const
 
 /** Les gestes d'une personne : seuls ceux-là entrent dans son historique. */
 export const ORIGINE_GESTE = 'notak:geste'
@@ -199,7 +203,12 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
       } else {
         const actuel = lisible(op.id)
         if (!actuel) continue
-        const apres = appliquer({ titre: '', elements: [sansPlan(actuel)] }, op).elements[0]!
+        // Une carte mentale ne reçoit que les sujets que le geste a touchés : ceux qu'un autre change au même moment restent.
+        const fusionne =
+          op.type === 'contenu' && op.avant.type === 'arbre' && op.apres.type === 'arbre' && actuel.contenu.type === 'arbre'
+            ? { ...op, apres: fusionnerParCles(actuel.contenu, op.avant, op.apres, CLES_FUSIONNEES) }
+            : op
+        const apres = appliquer({ titre: '', elements: [sansPlan(actuel)] }, fusionne).elements[0]!
         // Un déplacement qui n'en est pas un ne réveille personne.
         if (op.type !== 'contenu' && JSON.stringify(apres) === JSON.stringify(sansPlan(actuel))) continue
         elements.set(op.id, { ...apres, plan: actuel.plan })

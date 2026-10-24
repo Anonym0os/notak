@@ -108,6 +108,8 @@ export function texteCherchable(e: ElementLu, titreDe: (id: string) => string | 
       return [c.titre, c.nom].map(chaine).filter(Boolean).join('\n')
     case 'ligne':
       return chaine(c.libelle)
+    case 'arbre':
+      return Object.values((c.sujets ?? {}) as Record<string, { titre?: unknown }>).map((x) => chaine(x?.titre)).filter(Boolean).join('\n')
     case 'commentaire':
       return ((c.messages as { auteur?: { nom?: string }; texte?: string }[] | undefined) ?? [])
         .map((m) => `${chaine(m.auteur?.nom)}\n${chaine(m.texte)}`)

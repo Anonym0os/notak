@@ -30,8 +30,8 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
-| 18. Carte mentale | 0 | 0 | 41 | 0 % |
-| **Total** | **282** | **10** | **43** | **86 %** |
+| 18. Carte mentale | 8 | 4 | 29 | 24 % |
+| **Total** | **290** | **14** | **31** | **89 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -424,18 +424,18 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 
 | Fonctionnalité | État | Reste |
 |---|---|---|
-| Élément « Carte mentale » sur la toile, aperçu réduit, ouverture en grand | ⬜ |  |
-| Sujets enregistrés un par un (saisies simultanées sans perte), annuler et rétablir | ⬜ |  |
-| Créer au clavier : enfant (Tab), frère (Entrée, Maj+Entrée), parent (Cmd+Entrée) | ⬜ |  |
-| Éditer un titre (Espace, F2, frappe directe), sur plusieurs lignes | ⬜ |  |
-| Supprimer une branche, ou le sujet seul (Cmd+Retour arrière) ; dupliquer (Cmd+D) | ⬜ |  |
-| Naviguer aux flèches dans l'espace de la carte, étendre la sélection | ⬜ |  |
-| Échanger avec un frère (Alt+Haut/Bas) | ⬜ |  |
-| Replier et déplier, tout replier, déplier jusqu'au niveau N | ⬜ |  |
-| Revenir au central (Cmd+R), afficher la branche seule (Cmd+;) | ⬜ |  |
+| Élément « Carte mentale » sur la toile, aperçu réduit, ouverture en grand | ✅ | Dans le tiroir « Plus » ; double-clic ou Entrée l'ouvre, l'adresse `/t/…/e/…` aussi. |
+| Sujets enregistrés un par un (saisies simultanées sans perte), annuler et rétablir | 🟡 | Chaque geste ne réécrit que les sujets qu'il touche (`coeur/fusion.ts`) ; deux écritures vraiment simultanées sur la même carte restent au dernier arrivé (une clé Yjs). |
+| Créer au clavier : enfant (Tab), frère (Entrée, Maj+Entrée), parent (Cmd+Entrée) | ✅ | Insert aussi ; titres « Sujet principal n », « Sous-sujet n » comme Xmind. |
+| Éditer un titre (Espace, F2, frappe directe), sur plusieurs lignes | ✅ | Maj+Entrée va à la ligne ; un titre long passe à la ligne de lui-même. |
+| Supprimer une branche, ou le sujet seul (Cmd+Retour arrière) ; dupliquer (Cmd+D) | ✅ |  |
+| Naviguer aux flèches dans l'espace de la carte, étendre la sélection | ✅ | Maj+flèches et Maj+clic étendent la sélection. |
+| Échanger avec un frère (Alt+Haut/Bas) | ✅ |  |
+| Replier et déplier, tout replier, déplier jusqu'au niveau N | ✅ | Cmd+/, Cmd+Alt+/, Alt+Cmd+1…9 ; la pastille compte les sujets cachés et se clique. |
+| Revenir au central (Cmd+R), afficher la branche seule (Cmd+;) | 🟡 | Cmd+R fait ; la branche seule reste. |
 | Glisser un sujet pour le rattacher, l'insérer ou le détacher (Maj inverse) | ⬜ |  |
-| Sujet flottant | ⬜ |  |
-| Structure carte : équilibrée, non équilibrée, horaire, antihoraire | ⬜ |  |
+| Sujet flottant | 🟡 | Double-clic dans le vide ; il ne se déplace pas encore à la souris. |
+| Structure carte : équilibrée, non équilibrée, horaire, antihoraire | 🟡 | Les quatre se disposent ; aucun menu ne les choisit encore. |
 | Structure logique et accolade | ⬜ |  |
 | Structure organigramme et arbre | ⬜ |  |
 | Structure chronologie | ⬜ |  |
@@ -464,6 +464,6 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Chercher dans la carte | ⬜ |  |
 | Importer un fichier .xmind | ⬜ |  |
 | Exporter en .xmind | ⬜ |  |
-| Texte de la carte dans la recherche et l'export texte du tableau | ⬜ |  |
+| Texte de la carte dans la recherche et l'export texte du tableau | ✅ | L'export la rend en liste indentée. |
 | Grille, tableau-arbre | ➖ | Écartés (docs/XMIND.md § 2). |
 | Gantt, IA, commentaires et collaboration propres à Xmind, note audio, vidéo web | ➖ | Écartés (docs/XMIND.md § 6). |

@@ -35,6 +35,13 @@ const VARIABLES = [
   '--notak-surligne-rose',
   '--notak-surligne-gris',
   '--notak-trait-defaut',
+  '--notak-arbre-fond',
+  '--notak-arbre-encre',
+  '--notak-arbre-texte',
+  '--notak-arbre-central',
+  '--notak-arbre-sur-plein',
+  '--notak-arbre-flottant',
+  '--notak-arbre-choix',
 ]
 
 export function variablesDe(noeud: Element): Record<string, string> {

@@ -514,7 +514,56 @@ export interface Clone {
   cible: Id
 }
 
+/**
+ * Comment les enfants d'un sujet se disposent (docs/XMIND.md § 2). Un sujet sans structure suit celle de son parent ;
+ * le central en a toujours une.
+ */
+export type StructureArbre =
+  | 'carte'
+  | 'carte-libre'
+  | 'carte-horaire'
+  | 'carte-antihoraire'
+  | 'logique-droite'
+  | 'logique-gauche'
+  | 'accolade-droite'
+  | 'accolade-gauche'
+  | 'organigramme-bas'
+  | 'organigramme-haut'
+  | 'arbre-droite'
+  | 'arbre-gauche'
+  | 'chronologie-horizontale'
+  | 'chronologie-verticale'
+  | 'arete-gauche'
+  | 'arete-droite'
+  | 'matrice-lignes'
+  | 'matrice-colonnes'
+
+/** Un sujet de carte mentale. Le central est le seul sans `parent` ; ses frères se rangent par `ordre`. */
+export interface Sujet {
+  parent?: Id
+  /** Son rang parmi ses frères : une clé fractionnaire (`coeur/ordre.ts`). */
+  ordre: string
+  titre: string
+  /** `detache` : un sujet flottant, posé à `position` (px, depuis le centre du central). `resume` : le sujet d'un résumé. */
+  genre?: 'detache' | 'resume'
+  position?: { x: number; y: number }
+  /** Ses descendants sont cachés. */
+  replie?: boolean
+  structure?: StructureArbre
+  /** Carte non équilibrée : combien de principaux vont à droite (sur le central seulement). */
+  aDroite?: number
+  /** Ce que Notak ne lit pas d'un sujet venu d'un `.xmind`, gardé pour le lui rendre à l'export. */
+  xmind?: Record<string, unknown>
+}
+
+/** Une carte mentale (docs/XMIND.md) : ses sujets, à plat, par identifiant. */
+export interface Arbre {
+  type: 'arbre'
+  sujets: Record<Id, Sujet>
+}
+
 export type Contenu =
+  | Arbre
   | Note
   | Image
   | Fichier

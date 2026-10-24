@@ -27,6 +27,7 @@ const REQUIS: Record<TypeContenu, Record<string, Attendu>> = {
   dessin: { traits: 'tableau', largeurOrigine: 'nombre', hauteurOrigine: 'nombre' },
   document: { titre: 'chaine', texte: 'objet' },
   clone: { cible: 'chaine' },
+  arbre: { sujets: 'objet' },
 }
 
 /** Le plus large qu'un élément puisse être, en unités de grille. */

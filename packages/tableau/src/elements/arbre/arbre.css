@@ -1,0 +1,103 @@
+/* La carte mentale : son aperçu sur la toile, et la carte ouverte en grand (docs/XMIND.md). */
+
+.notak-toile,
+.notak-arbre-fond {
+  --notak-arbre-fond: #ffffff;
+  --notak-arbre-encre: #3b3f45;
+  --notak-arbre-texte: #22252a;
+  --notak-arbre-central: #2d3540;
+  --notak-arbre-sur-plein: #ffffff;
+  --notak-arbre-flottant: #f3f4f6;
+  --notak-arbre-choix: #3a86d4;
+}
+
+.notak-espace[data-theme='sombre'] .notak-toile {
+  --notak-arbre-fond: #1f2227;
+  --notak-arbre-encre: #c3c8d0;
+  --notak-arbre-texte: #e8eaee;
+  --notak-arbre-central: #e8eaee;
+  --notak-arbre-sur-plein: #16181c;
+  --notak-arbre-flottant: #2b2f36;
+  --notak-arbre-choix: #6aa8ea;
+}
+
+.notak-arbre {
+  background: var(--notak-arbre-fond);
+  border-radius: inherit;
+}
+
+.notak-arbre-apercu {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+}
+
+.notak-arbre-fond {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: var(--notak-arbre-fond);
+  outline: none;
+}
+
+.notak-arbre-surface {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: default;
+  touch-action: none;
+}
+
+.notak-arbre-grand {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+}
+
+.notak-arbre-sujet {
+  cursor: pointer;
+}
+
+.notak-arbre-choix {
+  stroke: var(--notak-arbre-choix);
+  stroke-width: 2;
+}
+
+.notak-arbre-repli {
+  cursor: pointer;
+}
+
+.notak-arbre-champ {
+  position: absolute;
+  box-sizing: border-box;
+  margin: 0;
+  border: 2px solid var(--notak-arbre-choix);
+  background: var(--notak-arbre-fond);
+  color: var(--notak-arbre-texte);
+  text-align: center;
+  resize: none;
+  overflow: hidden;
+  outline: none;
+  white-space: pre-wrap;
+}
+
+.notak-arbre-fermer {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 6px 12px;
+  border: 1px solid rgb(0 0 0 / 0.12);
+  border-radius: 6px;
+  background: var(--notak-arbre-fond);
+  color: var(--notak-arbre-texte);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.notak-arbre-fermer:hover {
+  background: var(--notak-arbre-flottant);
+}
