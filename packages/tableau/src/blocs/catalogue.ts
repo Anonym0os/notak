@@ -41,7 +41,7 @@ export function couleurDeAttribut(v: unknown): Couleur | null {
   return COULEURS.includes(nom) ? { nom, fond } : null
 }
 
-export type Action = 'dupliquer' | 'supprimer' | 'transformer'
+export type Action = 'dupliquer' | 'supprimer' | 'transformer' | 'couleur' | 'lien' | 'commenter'
 
 export type Categorie = 'base' | 'medias' | 'miseEnPage' | 'couleurs' | 'actions'
 
@@ -137,6 +137,28 @@ export const ACTIONS: readonly Entree[] = (['transformer', 'dupliquer', 'supprim
   effet: { genre: 'action', action },
 }))
 
+/** Le menu de la poignée (NOTION.md § 6) : les actions sur les blocs choisis, que le champ de filtre cherche. */
+export const ACTIONS_BLOC: readonly Entree[] = (
+  [
+    ['supprimer', '⌫', ['supprimer', 'effacer', 'delete', 'remove'], 'Suppr'],
+    ['dupliquer', '⧉', ['dupliquer', 'copier', 'duplicate'], '⌘D'],
+    ['transformer', '⇄', ['transformer', 'turn', 'convertir'], '⌘/'],
+    ['couleur', 'A', ['couleur', 'color', 'fond', 'background'], undefined],
+    ['lien', '🔗', ['lien', 'adresse', 'link', 'copy'], undefined],
+    ['commenter', '💬', ['commenter', 'commentaire', 'comment'], '⌘⌥M'],
+  ] as const
+).map(([action, signe, mots, raccourci]) => ({
+  id: `bloc-${action}`,
+  categorie: 'actions' as const,
+  get libelle() {
+    return t(`blocs.action.${action}`)
+  },
+  mots,
+  signe,
+  ...(raccourci ? { raccourci } : {}),
+  effet: { genre: 'action' as const, action },
+}))
+
 /** Le catalogue du menu « / » : les blocs, puis, dès qu'on cherche, les couleurs et les actions. */
 export const CATALOGUE: readonly Entree[] = [...BLOCS, ...ENTREES_COULEURS, ...ACTIONS]
 
@@ -160,7 +182,12 @@ export function chercher(entrees: readonly Entree[], requete: string): Entree[] 
     if (!q.every((m) => tous.some((x) => x.startsWith(m)))) return []
     // Le nom commence par la requête, ou un mot-clé lui est égal : en tête.
     const exact = cles.includes(q.join('')) || cles.includes(q.join(' '))
-    const parNom = q.every((m) => nom.some((x) => x.startsWith(m)))
+    // Chaque mot tapé commence un mot différent du nom : « bleu f » choisit « Fond bleu » plutôt que « Bleu ».
+    const libres = [...nom]
+    const parNom = q.every((m) => {
+      const i = libres.findIndex((x) => x.startsWith(m))
+      return i >= 0 && libres.splice(i, 1).length > 0
+    })
     return [{ e, note: exact ? 0 : parNom ? 1 : 2 }]
   })
   return notes.sort((a, b) => a.note - b.note).map((n) => n.e)

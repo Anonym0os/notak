@@ -4,6 +4,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { EXTENSIONS_NOTE, KIT } from '../elements/note/extensions'
 import { IdsDeBlocs } from './ids'
 import { SaisieBlocs } from './saisie'
+import { SelectionBlocs } from './selection'
 import { ApercuLien, CitationBloc, Colonne, Colonnes, Deroulant, ImageBloc, ResumeDeroulant } from './noeuds'
 
 /**
@@ -29,6 +30,7 @@ const communs = [
   ApercuLien,
   IdsDeBlocs,
   SaisieBlocs,
+  SelectionBlocs,
 ]
 
 export const EXTENSIONS_BLOCS = [StarterKit.configure(KIT_BLOCS), ...communs]

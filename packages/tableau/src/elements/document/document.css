@@ -325,13 +325,15 @@
 }
 
 .notak-document-corps {
+  position: relative;
   flex: 1;
   min-width: 0;
   /* Les colonnes du texte s'empilent sur une page étroite (voir `blocs/blocs.css`). */
   container-type: inline-size;
   box-sizing: border-box;
-  max-width: 716px;
-  padding: 36px 3px 80px 0;
+  /* À gauche, la marge de la poignée des blocs (`+` et `⋮⋮`). */
+  max-width: 764px;
+  padding: 36px 3px 80px 48px;
   overflow-y: auto;
   user-select: text;
 }
@@ -554,7 +556,10 @@
 }
 
 .notak-document-boite[data-lecture] .notak-document-corps {
+  /* En lecture, pas de poignée : le texte reprend sa marge. */
+  max-width: 716px;
   padding-top: 27px;
+  padding-left: 0;
 }
 
 /* Un document qu'une version plus récente a écrit : il se lit, l'avis dit pourquoi il ne s'édite pas. */

@@ -431,3 +431,82 @@ button.notak-menu-blocs-entree:hover {
   width: 24px;
   height: 24px;
 }
+
+/* La sélection de blocs (NOTION.md § 7) : un fond bleu pâle, et plus de surlignage du texte ni de curseur. */
+.notak-blocs .notak-bloc-choisi {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--notak-accent, #2f6feb) 14%, transparent);
+}
+
+.notak-blocs[data-choix-blocs] {
+  caret-color: transparent;
+}
+
+.notak-blocs[data-choix-blocs] ::selection {
+  background: transparent;
+}
+
+/* Un bloc qu'une adresse a nommé clignote une fois. */
+.notak-blocs .notak-bloc-signale {
+  animation: notak-bloc-signale 1.6s ease-out;
+}
+
+@keyframes notak-bloc-signale {
+  0%,
+  40% { background: color-mix(in srgb, var(--notak-accent, #2f6feb) 22%, transparent); }
+  100% { background: transparent; }
+}
+
+/* La poignée : `+` et `⋮⋮` dans la marge gauche du bloc survolé. */
+.notak-blocs-poignee {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  gap: 1px;
+  transform: translateX(calc(-100% - 4px));
+}
+
+.notak-blocs-poignee button {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--notak-pale, rgb(0 0 0 / 0.35));
+  font: 600 15px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.notak-blocs-poignee button:hover {
+  background: color-mix(in srgb, currentColor 18%, transparent);
+  color: var(--notak-texte, #323b4a);
+}
+
+.notak-blocs-poignee .notak-blocs-poignee-tenir {
+  width: 18px;
+  font-size: 13px;
+  letter-spacing: -3px;
+  cursor: grab;
+}
+
+/* Où le bloc tiré tombera : un trait bleu. */
+.notak-blocs-depot {
+  position: absolute;
+  z-index: 3;
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--notak-accent, #2f6feb) 60%, transparent);
+  pointer-events: none;
+}
+
+/* Le rectangle qu'on tire depuis la marge. */
+.notak-blocs-rectangle {
+  position: absolute;
+  z-index: 3;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--notak-accent, #2f6feb) 12%, transparent);
+  pointer-events: none;
+}

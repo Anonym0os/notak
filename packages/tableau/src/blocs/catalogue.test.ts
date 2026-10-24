@@ -40,6 +40,7 @@ describe('NOTION.md § 3 : le menu « / »', () => {
   it('les couleurs et les actions se cherchent', () => {
     expect(ids('rouge')).toEqual(['couleur-rouge', 'couleur-rouge-fond'])
     expect(ids('fond bleu')).toEqual(['couleur-bleu-fond'])
+    expect(ids('bleu f')[0]).toBe('couleur-bleu-fond')
     expect(ids('dupli')).toEqual(['action-dupliquer'])
   })
 

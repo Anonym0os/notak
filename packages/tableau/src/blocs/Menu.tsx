@@ -3,7 +3,10 @@ import { type Editor, Extension } from '@tiptap/react'
 import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { PanneauFlottant } from '../PanneauFlottant'
 import { t } from '../langue'
-import { CATALOGUE, type Couleur, type Entree, TRANSFORMATIONS, chercher, declencheurSlash, tropLoin } from './catalogue'
+import type { Transaction } from '@tiptap/pm/state'
+import { ACTIONS_BLOC, CATALOGUE, type Couleur, ENTREES_COULEURS, type Entree, TRANSFORMATIONS, chercher, couleurEnAttribut, declencheurSlash, tropLoin } from './catalogue'
+import { colorerBlocs, dupliquer, racines, supprimer } from './gestes'
+import { blocsChoisis } from './selection'
 import { blocDuCurseur, blocVide, colorer, dupliquerBloc, inserer, insererDessous, supprimerBloc, transformer, versActuel } from './transformer'
 
 /**
@@ -66,37 +69,62 @@ export const extensionSlash = (pont: RefObject<PontMenu | null>) =>
 interface Props {
   editeur: Editor
   pont: RefObject<PontMenu | null>
-  /** « Transformer en » est demandé (⌘/, la bulle) : le compteur change à chaque demande. */
-  transformerEn: number
+  /**
+   * Un menu demandé hors du `/` : « Transformer en » (⌘/, la bulle), le menu de la poignée, ses couleurs. `n` change à
+   * chaque demande.
+   */
+  demande: Demande | null
+  /** Copie l'adresse du bloc (le menu de la poignée). */
+  copierLien?: (id: string) => void
+  /** Commente le texte du bloc (le menu de la poignée). */
+  commenterBloc?: (id: string) => void
   /** Choisir une image dans les fichiers ; absent, l'entrée Image n'est pas proposée. */
   choisirImage?: () => void
   /** La couleur choisie, pour ⌘⇧H et la bulle. */
   surCouleur(c: Couleur): void
 }
 
-type Mode = { genre: 'slash'; etat: EtatSlash } | { genre: 'transformer'; requete: string }
+export interface Demande {
+  mode: 'transformer' | 'bloc' | 'couleur'
+  n: number
+}
 
-export function MenuBlocs({ editeur, pont, transformerEn, choisirImage, surCouleur }: Props) {
+type Mode = { genre: 'slash'; etat: EtatSlash } | { genre: Demande['mode']; requete: string }
+
+/** Ce que chaque menu propose. */
+function catalogueDe(mode: Mode, image: boolean): readonly Entree[] {
+  if (mode.genre === 'transformer') return TRANSFORMATIONS
+  if (mode.genre === 'bloc') return ACTIONS_BLOC
+  if (mode.genre === 'couleur') return ENTREES_COULEURS
+  return CATALOGUE.filter((e) => image || e.id !== 'image')
+}
+
+export function MenuBlocs({ editeur, pont, demande, choisirImage, surCouleur, copierLien, commenterBloc }: Props) {
   const [mode, setMode] = useState<Mode | null>(null)
   const [rang, setRang] = useState(0)
   // La requête qui trouvait encore quelque chose, et le `/` qu'Échap a fermé.
   const trouvee = useRef(0)
   const [ferme, setFerme] = useState<number | null>(null)
   const liste = useRef<HTMLDivElement>(null)
+  const champ = useRef<HTMLInputElement>(null)
 
-  const catalogue = mode?.genre === 'transformer' ? TRANSFORMATIONS : CATALOGUE.filter((e) => choisirImage || e.id !== 'image')
   const requete = mode ? (mode.genre === 'slash' ? mode.etat.requete : mode.requete) : ''
-  const items = mode ? chercher(catalogue, requete) : []
+  // Les couleurs et les actions se montrent toutes dans leurs propres menus, même sans requête.
+  const items = mode ? (mode.genre !== 'slash' && mode.genre !== 'transformer' && !requete.trim() ? [...catalogueDe(mode, !!choisirImage)] : chercher(catalogueDe(mode, !!choisirImage), requete)) : []
   const slashFerme = mode?.genre === 'slash' && (ferme === mode.etat.de || (items.length === 0 && tropLoin(requete, trouvee.current)))
   const visible = !!mode && !slashFerme
   if (items.length > 0) trouvee.current = requete.length
 
   useEffect(() => {
-    if (transformerEn > 0) {
-      setMode({ genre: 'transformer', requete: '' })
-      setRang(0)
-    }
-  }, [transformerEn])
+    if (!demande) return
+    setMode({ genre: demande.mode, requete: '' })
+    setRang(0)
+  }, [demande])
+
+  const ouvrir = (genre: Demande['mode']) => {
+    setMode({ genre, requete: '' })
+    setRang(0)
+  }
 
   const fermer = () => {
     setMode(null)
@@ -105,11 +133,19 @@ export function MenuBlocs({ editeur, pont, transformerEn, choisirImage, surCoule
 
   const choisir = (e: Entree) => {
     if (!mode) return
+    // Un sous-menu (couleur, transformer) remplace celui-ci : le focus reste dans son champ.
+    if (e.effet.genre === 'action' && (e.effet.action === 'couleur' || e.effet.action === 'transformer')) {
+      if (mode.genre === 'slash') editeur.chain().deleteRange({ from: mode.etat.de, to: mode.etat.a }).run()
+      return ouvrir(e.effet.action)
+    }
     // Le `/` et ce qu'on a tapé derrière s'en vont d'abord.
     if (mode.genre === 'slash') editeur.chain().focus().deleteRange({ from: mode.etat.de, to: mode.etat.a }).run()
     else editeur.commands.focus()
     setMode(null)
+    // Les blocs choisis (la poignée, Échap) : les gestes valent pour eux tous.
+    const choisis = blocsChoisis(editeur.state)
     const effet = e.effet
+    const faire = (tr: Transaction | null) => tr && editeur.view.dispatch(tr)
     if (effet.genre === 'vers') {
       if (mode.genre === 'transformer' || blocVide(editeur)) transformer(editeur, effet.vers)
       else insererDessous(editeur, effet.vers)
@@ -117,14 +153,17 @@ export function MenuBlocs({ editeur, pont, transformerEn, choisirImage, surCoule
       if (effet.quoi === 'image') choisirImage?.()
       else inserer(editeur, effet.quoi)
     } else if (effet.genre === 'couleur') {
-      colorer(editeur, effet.couleur)
+      if (choisis.length) faire(colorerBlocs(editeur.state, choisis, couleurEnAttribut(effet.couleur)))
+      else colorer(editeur, effet.couleur)
       surCouleur(effet.couleur)
-    } else if (effet.action === 'dupliquer') dupliquerBloc(editeur)
-    else if (effet.action === 'supprimer') supprimerBloc(editeur)
-    else {
-      setMode({ genre: 'transformer', requete: '' })
-      setRang(0)
-    }
+    } else if (effet.action === 'dupliquer') {
+      if (choisis.length) faire(dupliquer(editeur.state, choisis))
+      else dupliquerBloc(editeur)
+    } else if (effet.action === 'supprimer') {
+      if (choisis.length) faire(supprimer(editeur.state, choisis))
+      else supprimerBloc(editeur)
+    } else if (effet.action === 'lien' && choisis[0]) copierLien?.(choisis[0])
+    else if (effet.action === 'commenter' && choisis[0]) commenterBloc?.(choisis[0])
   }
 
   const toucher = (k: string) => {
@@ -148,7 +187,7 @@ export function MenuBlocs({ editeur, pont, transformerEn, choisirImage, surCoule
     pont.current = {
       slash: (etat) => {
         setMode((avant) => {
-          if (avant?.genre === 'transformer') return avant
+          if (avant && avant.genre !== 'slash') return avant
           if (!etat) return null
           if (avant?.genre !== 'slash' || avant.etat.de !== etat.de) {
             setRang(0)
@@ -166,26 +205,44 @@ export function MenuBlocs({ editeur, pont, transformerEn, choisirImage, surCoule
     liste.current?.querySelector('[data-actif]')?.scrollIntoView?.({ block: 'nearest' })
   }, [rang, requete])
 
+  // Le champ d'un sous-menu prend le focus une fois le panneau placé : caché, il ne le prendrait pas.
+  const genre = mode?.genre
+  useEffect(() => {
+    if (!genre || genre === 'slash') return
+    let image = 0
+    let essais = 0
+    const viser = () => {
+      champ.current?.focus()
+      if (document.activeElement !== champ.current && ++essais < 20) image = requestAnimationFrame(viser)
+    }
+    image = requestAnimationFrame(viser)
+    return () => cancelAnimationFrame(image)
+  }, [genre])
+
   if (!visible || !mode) return null
   const cible = () => {
     if (mode.genre === 'slash') return mode.etat.ou()
-    const dom = editeur.view.nodeDOM(blocDuCurseur(editeur))
-    return dom instanceof HTMLElement ? dom.getBoundingClientRect() : null
+    const choisis = racines(editeur.state.doc, blocsChoisis(editeur.state))
+    const dom = editeur.view.nodeDOM(choisis[0]?.pos ?? blocDuCurseur(editeur))
+    if (!(dom instanceof HTMLElement)) return null
+    // Le bord gauche du bloc seulement : un bloc large toucherait le bord de la fenêtre, et le panneau se cacherait.
+    const r = dom.getBoundingClientRect()
+    return { left: r.left, right: r.left + 1, top: r.top, bottom: r.bottom }
   }
   const actuel = mode.genre === 'transformer' ? versActuel(editeur) : null
   let categorie = ''
   return (
     <PanneauFlottant cible={cible} cote="bas" alignement="debut" distance={6} fleche={false} className="notak-menu-blocs-panneau" onPointerDown={(e) => mode.genre === 'slash' && e.preventDefault()}>
-      <div className="notak-menu-blocs" role="dialog" aria-label={mode.genre === 'transformer' ? t('blocs.action.transformer') : t('blocs.menu')}>
-        {mode.genre === 'transformer' && (
+      <div className="notak-menu-blocs" role="dialog" aria-label={mode.genre === 'slash' ? t('blocs.menu') : t(`blocs.action.${mode.genre === 'bloc' ? 'transformer' : mode.genre}`)}>
+        {mode.genre !== 'slash' && (
           <input
+            ref={champ}
             className="notak-menu-blocs-filtre"
-            autoFocus
             value={mode.requete}
-            placeholder={t('blocs.filtrer')}
-            aria-label={t('blocs.filtrer')}
+            placeholder={t(mode.genre === 'transformer' ? 'blocs.filtrer' : 'blocs.filtrerActions')}
+            aria-label={t(mode.genre === 'transformer' ? 'blocs.filtrer' : 'blocs.filtrerActions')}
             onChange={(e) => {
-              setMode({ genre: 'transformer', requete: e.target.value })
+              setMode({ genre: mode.genre, requete: e.target.value })
               setRang(0)
             }}
             onKeyDown={(e) => {
@@ -196,13 +253,13 @@ export function MenuBlocs({ editeur, pont, transformerEn, choisirImage, surCoule
                 toucher(e.key)
               }
             }}
-            onBlur={() => setTimeout(() => setMode((m) => (m?.genre === 'transformer' && !document.activeElement?.closest('.notak-menu-blocs') ? null : m)), 0)}
+            onBlur={() => setTimeout(() => setMode((m) => (m && m.genre !== 'slash' && !document.activeElement?.closest('.notak-menu-blocs') ? null : m)), 0)}
           />
         )}
         <div className="notak-menu-blocs-liste" ref={liste} role="listbox">
           {items.length === 0 && <div className="notak-menu-blocs-vide">{t('blocs.aucun')}</div>}
           {items.map((e, i) => {
-            const titre = e.categorie !== categorie && mode.genre === 'slash' ? t(`blocs.categorie.${e.categorie}`) : null
+            const titre = e.categorie !== categorie && (mode.genre === 'slash' || mode.genre === 'couleur') ? t(`blocs.categorie.${e.categorie}`) : null
             categorie = e.categorie
             const couleur = e.effet.genre === 'couleur' ? e.effet.couleur : null
             return (

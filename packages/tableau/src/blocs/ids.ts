@@ -67,18 +67,18 @@ export function poserIds(state: EditorState): Transaction | null {
   return tr.setMeta(CLE_IDS, true).setMeta('addToHistory', false)
 }
 
-/** Un attribut de bloc qui ne suit pas le bloc coupé par Entrée. */
-const attribut = (nom: string) => ({
+/** Un attribut de bloc, écrit `data-<html>` dans la page, qui ne suit pas le bloc coupé par Entrée. */
+const attribut = (cle: string, html: string) => ({
   default: null,
   keepOnSplit: false,
-  parseHTML: (el: HTMLElement) => el.getAttribute(`data-${nom}`),
-  renderHTML: (attrs: Record<string, unknown>) => (attrs[nom] ? { [`data-${nom}`]: attrs[nom] } : {}),
+  parseHTML: (el: HTMLElement) => el.getAttribute(`data-${html}`),
+  renderHTML: (attrs: Record<string, unknown>) => (attrs[cle] ? { [`data-${html}`]: attrs[cle] } : {}),
 })
 
 export const IdsDeBlocs = Extension.create({
   name: 'idsDeBlocs',
   addGlobalAttributes() {
-    return [{ types: [...TYPES_BLOCS], attributes: { id: attribut('bloc'), couleur: attribut('couleur') } }]
+    return [{ types: [...TYPES_BLOCS], attributes: { id: attribut('id', 'bloc'), couleur: attribut('couleur', 'couleur') } }]
   },
   addProseMirrorPlugins() {
     return [

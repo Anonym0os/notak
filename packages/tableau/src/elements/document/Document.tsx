@@ -1,6 +1,6 @@
 import { EditorContent, useEditor } from '@tiptap/react'
 import { renderToReactElement } from '@tiptap/static-renderer/pm/react'
-import { type ReactNode, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, type RefObject, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { type Commentaire, type DocumentTexte, type Id, type NoeudTexte, nouvelId } from '../../coeur/tableau'
 import { type Fils, MARQUE_FIL, avecFil, filsVivants, sansPassagesMuets } from '../note/fils'
@@ -12,11 +12,15 @@ import { degrader, lisible } from '../../blocs/lisible'
 import { Bulle } from '../../blocs/Bulle'
 import type { Couleur } from '../../blocs/catalogue'
 import { Invite } from '../../blocs/invite'
-import { MenuBlocs, type PontMenu, extensionSlash } from '../../blocs/Menu'
+import { type Demande, MenuBlocs, type PontMenu, extensionSlash } from '../../blocs/Menu'
+import { Poignee } from '../../blocs/Poignee'
+import { CLE_CHOIX } from '../../blocs/selection'
+import { blocDe } from '../../blocs/modele'
 import { ImageBloc, remplirImages } from '../../blocs/noeuds'
 import { type GestesBlocs, raccourcisBlocs } from '../../blocs/saisie'
 import { EXTENSIONS_BLOCS, SCHEMA_BLOCS as SCHEMA } from '../../blocs/schema'
 import { colorer, insererImage } from '../../blocs/transformer'
+import { TextSelection } from '@tiptap/pm/state'
 import { LegendeLocale, OutilLegende, avecTexteLegende } from '../LegendeLocale'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { ColonneOutils } from './ColonneOutils'
@@ -258,6 +262,8 @@ interface PropsModale {
   outils?: ReactNode
   fermer(): void
   children: ReactNode
+  /** La zone du texte, qui défile : la poignée des blocs s'y place. */
+  corps?: RefObject<HTMLDivElement | null>
 }
 
 /**
@@ -265,7 +271,7 @@ interface PropsModale {
  * un en-tête de 56 px (le titre au centre, « Export » à droite), la colonne d'outils à gauche et le texte à côté.
  * Pas de croix : Échap ou un appui sur le fond referment.
  */
-function Modale({ titre, titreTexte, lireTexte, outils, fermer, children, lecture }: PropsModale) {
+function Modale({ titre, titreTexte, lireTexte, outils, fermer, children, lecture, corps }: PropsModale) {
   return (
     <Surcouche
       etiquette={t('type.document')}
@@ -274,6 +280,8 @@ function Modale({ titre, titreTexte, lireTexte, outils, fermer, children, lectur
       surTouche={(e) => {
         // Échap ferme d'abord la liste de `[[` ou de `@`, sans quitter le document.
         if (e.key === 'Escape' && document.querySelector('.notak-propositions, .notak-menu-blocs')) return true
+        // Échap que l'éditeur a pris (il a choisi le bloc du curseur, NOTION.md § 7) ne ferme pas le document.
+        if (e.key === 'Escape' && e.defaultPrevented) return true
         // Échap referme d'abord le menu ouvert, sans quitter le document.
         if (e.key !== 'Escape' || !(e.currentTarget as HTMLElement).querySelector('[aria-expanded="true"]')) return false
         e.preventDefault()
@@ -289,7 +297,9 @@ function Modale({ titre, titreTexte, lireTexte, outils, fermer, children, lectur
         </header>
         <div className="notak-document-zone">
           <aside className="notak-document-cote">{outils}</aside>
-          <div className="notak-document-corps">{children}</div>
+          <div className="notak-document-corps" ref={corps}>
+            {children}
+          </div>
         </div>
       </div>
     </Surcouche>
@@ -333,7 +343,9 @@ function Grand({ contenu, ecrire, finir, contexte }: { contenu: DocumentTexte; e
   const pont = useRef<Pont | null>(null)
   // `/` ouvre le menu des blocs ; ⌘/ et la bulle, « Transformer en » (docs/NOTION.md § 3).
   const pontMenu = useRef<PontMenu | null>(null)
-  const [transformerEn, setTransformerEn] = useState(0)
+  const [demande, setDemande] = useState<Demande | null>(null)
+  const demander = (mode: Demande['mode']) => setDemande((d) => ({ mode, n: (d?.n ?? 0) + 1 }))
+  const corps = useRef<HTMLDivElement>(null)
   const [derniere, setDerniere] = useState<Couleur | null>(null)
   const gestes = useRef<GestesBlocs>({ transformerEn: () => {}, derniereCouleur: () => {} })
   const fichiers = contexte.services.fichiers
@@ -380,7 +392,7 @@ function Grand({ contenu, ecrire, finir, contexte }: { contenu: DocumentTexte; e
     setOuvert(id)
   }
   gestes.current = {
-    transformerEn: () => setTransformerEn((n) => n + 1),
+    transformerEn: () => demander('transformer'),
     derniereCouleur: () => {
       if (editeur && derniere) colorer(editeur, derniere)
     },
@@ -399,6 +411,31 @@ function Grand({ contenu, ecrire, finir, contexte }: { contenu: DocumentTexte; e
         champ.click()
       }
     : undefined
+  // « Copier le lien du bloc » : l'adresse du document ouvert, l'id du bloc en ancre (NOTION.md § 6).
+  const copierLien = (id: string) => {
+    void navigator.clipboard?.writeText(`${location.origin}${location.pathname}#${id}`)
+  }
+  // « Commenter » sur un bloc : son texte est choisi, puis commenté comme un passage.
+  const commenterBloc = (id: string) => {
+    if (!editeur) return
+    const b = blocDe(editeur.state.doc, id)
+    if (!b) return
+    const { doc } = editeur.state
+    editeur.view.dispatch(editeur.state.tr.setMeta(CLE_CHOIX, null).setSelection(TextSelection.between(doc.resolve(b.pos), doc.resolve(b.pos + b.taille))))
+    commenterRef.current()
+  }
+  // Une adresse qui nomme un bloc l'amène à l'écran et le fait clignoter.
+  useEffect(() => {
+    if (!editeur || editeur.isDestroyed) return
+    const id = decodeURIComponent(location.hash.slice(1))
+    if (!id) return
+    const el = editeur.view.dom.querySelector<HTMLElement>(`[data-bloc="${CSS.escape(id)}"]`)
+    if (!el) return
+    el.scrollIntoView?.({ block: 'center' })
+    el.classList.add('notak-bloc-signale')
+    const fin = setTimeout(() => el.classList.remove('notak-bloc-signale'), 1600)
+    return () => clearTimeout(fin)
+  }, [editeur])
   useEffect(() => {
     if (!editeur || editeur.isDestroyed) return
     editeur.commands.focus('end')
@@ -435,6 +472,7 @@ function Grand({ contenu, ecrire, finir, contexte }: { contenu: DocumentTexte; e
       lireTexte={() => (editeur ? (editeur.getJSON() as NoeudTexte) : dernier.current.texte)}
       outils={editeur && <ColonneOutils editor={editeur} lien={lien} surLien={setLien} {...(peutCommenter ? { commenter: () => commenterRef.current() } : {})} />}
       fermer={finir}
+      corps={corps}
     >
       {editeur && (
         <Marge
@@ -449,11 +487,22 @@ function Grand({ contenu, ecrire, finir, contexte }: { contenu: DocumentTexte; e
         />
       )}
       {editeur && <Propositions editeur={editeur} contexte={contexte} pont={pont} />}
-      {editeur && <MenuBlocs editeur={editeur} pont={pontMenu} transformerEn={transformerEn} surCouleur={setDerniere} {...(choisirImage ? { choisirImage } : {})} />}
+      {editeur && (
+        <MenuBlocs
+          editeur={editeur}
+          pont={pontMenu}
+          demande={demande}
+          surCouleur={setDerniere}
+          copierLien={copierLien}
+          {...(peutCommenter ? { commenterBloc } : {})}
+          {...(choisirImage ? { choisirImage } : {})}
+        />
+      )}
+      {editeur && <Poignee editeur={editeur} zone={corps} ouvrirMenu={() => demander('bloc')} />}
       {editeur && (
         <Bulle
           editeur={editeur}
-          transformerEn={() => setTransformerEn((n) => n + 1)}
+          transformerEn={() => demander('transformer')}
           lien={() => setLien((editeur.getAttributes('link').href as string | undefined) ?? '')}
           {...(peutCommenter ? { commenter: () => commenterRef.current() } : {})}
           derniere={derniere}

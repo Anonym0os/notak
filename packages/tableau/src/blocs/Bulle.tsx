@@ -4,6 +4,7 @@ import { PanneauFlottant } from '../PanneauFlottant'
 import { Icone } from '../icones'
 import { t } from '../langue'
 import { COULEURS, type Couleur } from './catalogue'
+import { CLE_CHOIX } from './selection'
 import { colorer } from './transformer'
 
 /**
@@ -28,7 +29,7 @@ const etat = ({ editor: ed }: { editor: Editor }) => {
   const texte = selection.toJSON().type === 'text' && !selection.empty
   return {
     // `view.hasFocus()` (l'élément actif) plutôt que `isFocused`, qui ne suit pas quand la fenêtre n'a pas le focus.
-    ouverte: texte && ed.view.hasFocus() && !ed.isActive('codeBlock'),
+    ouverte: texte && ed.view.hasFocus() && !ed.isActive('codeBlock') && !CLE_CHOIX.getState(ed.state),
     de: selection.from,
     a: selection.to,
     gras: ed.isActive('bold'),
