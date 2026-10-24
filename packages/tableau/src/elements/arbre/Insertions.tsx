@@ -1,5 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { Arbre, Id } from '../../coeur/tableau'
+import type { Id } from '../../coeur/tableau'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
 import type { ContexteToile } from '../types'
@@ -55,7 +55,6 @@ export async function tailleImage(f: Blob): Promise<{ l: number; h: number }> {
 }
 
 interface Props {
-  arbre: Arbre
   lecture: Lecture
   /** Les sujets choisis. */
   ids: Id[]
@@ -208,7 +207,9 @@ export function Popover({ ancre, titre, fermer, children, largeur = 300 }: { anc
     setPos({ x, y })
   }, [ancre.x, ancre.y, ancre.l, ancre.h, largeur])
   useEffect(() => {
-    racine.current?.querySelector<HTMLElement>('input:not([type=range]), textarea, button')?.focus({ preventScroll: true })
+    // Le premier champ du corps ; à défaut son premier bouton. Jamais la croix de l'en-tête.
+    const corps = racine.current?.querySelector<HTMLElement>(':scope > :not(header)')
+    ;(corps?.querySelector<HTMLElement>('input:not([type=range]), textarea') ?? corps?.querySelector<HTMLElement>('button, audio'))?.focus({ preventScroll: true })
     const dehors = (e: PointerEvent) => {
       if (!racine.current?.contains(e.target as Node)) fermer()
     }

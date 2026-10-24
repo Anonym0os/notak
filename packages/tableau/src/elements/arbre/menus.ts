@@ -87,16 +87,21 @@ export function menuInserer(unSeul: boolean, auMoinsUn: boolean): Item[] {
   ]
 }
 
-/** Combien de descendants sont repliables, et s'il en reste d'ouverts : pour dire « replier » ou « déplier » toutes les branches. */
-function brancheOuverte(l: Lecture, id: Id): boolean {
+/** Ce que ses sous-branches offrent : y en a-t-il qui se replient, et en reste-t-il d'ouvertes (« replier » ou « déplier ») ? */
+function sousBranches(l: Lecture, id: Id): { existent: boolean; ouvertes: boolean } {
+  let existent = false
+  let ouvertes = false
   const pile = [...enfantsDe(l, id)]
   while (pile.length) {
     const x = pile.pop()!
     const enfants = enfantsDe(l, x)
-    if (enfants.length > 0 && !l.sujets.get(x)?.replie) return true
+    if (enfants.length > 0) {
+      existent = true
+      if (!l.sujets.get(x)?.replie) ouvertes = true
+    }
     pile.push(...enfants)
   }
-  return false
+  return { existent, ouvertes }
 }
 
 /** Le menu d'un sujet : le complet, ou l'ordinaire d'un sujet de résumé. */
@@ -111,6 +116,7 @@ function menuSujet(c: ContexteMenu, id: Id): Item[] {
   const tous = choisis.map((x) => l.sujets.get(x)!)
   const unSeul = choisis.length === 1
   const aDesEnfants = enfantsDe(l, id).length > 0
+  const branches = sousBranches(l, id)
   const marqueurs = tous.some((x) => x.marqueurs?.length)
   const etiquettes = tous.some((x) => x.etiquettes?.length)
   const liens = tous.some((x) => x.lien)
@@ -141,7 +147,7 @@ function menuSujet(c: ContexteMenu, id: Id): Item[] {
   items.push(e('style.copier', K('⌥⌘C')), e('style.coller', K('⌥⌘V'), !c.styleCopie), e('style.reinit', K('⌥⌘0')), 'sep')
   items.push(sous('selectionner', menuSelection(c, id, central, resume, flottant)), 'sep')
   if (!central) items.push(e(s.replie ? 'deplier' : 'replier', K('⌘/'), !aDesEnfants))
-  items.push(e(brancheOuverte(l, id) ? 'replierTout' : 'deplierTout', K('⌥⌘/'), !aDesEnfants))
+  items.push(e(branches.ouvertes ? 'replierTout' : 'deplierTout', K('⌥⌘/'), !branches.existent))
   if (!central && !resume) {
     items.push('sep', e(c.brancheSeule === id ? 'toutAfficher' : 'brancheSeule', K('⌘;')))
   }

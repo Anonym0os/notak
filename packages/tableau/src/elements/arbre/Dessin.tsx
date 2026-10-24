@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useMemo } from 'react'
 import type { Arbre, FormeSujet, Id, Limite, Relation, Sujet as DonneesSujet, Zone } from '../../coeur/tableau'
 import { Icone } from '../../icones'
 import { type Habit, DISQUE_PLANNING, HAUTEUR_ETIQUETTE, INTERLIGNE, PAS_ICONE, POLICE, POLICE_ETIQUETTE, POLICE_PLANNING, TAILLE_ICONE, type Mesure, type Rang, brancheDe, couleurDe, habitDe, rangDe, souligne } from './apparence'
@@ -42,10 +42,14 @@ export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, 
   const couleur = (id: Id) => couleurDe(l, id, theme, uneCouleur)
   const cotes = new Map(d.liens.map((x) => [x.vers, x.cote]))
   const habits = new Map([...d.boites.keys()].map((id) => [id, habitDe(l, id, theme)]))
-  const perso = (m: string) => {
-    const x = marqueurPerso(arbre, m)
-    return x ? adresse?.(x.fichier) : undefined
-  }
+  // Stable d'un rendu à l'autre : sans quoi chaque sujet se redessinerait à chaque changement de sélection.
+  const perso = useMemo(
+    () => (m: string) => {
+      const x = marqueurPerso(arbre, m)
+      return x ? adresse?.(x.fichier) : undefined
+    },
+    [arbre.groupes, adresse],
+  )
   return (
     <>
       {zonesValides(arbre).map(([id, z]) => (

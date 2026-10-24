@@ -241,7 +241,6 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sujetsChoisis.join(','), lecture, disposition, faire])
   const insertions = useInsertions({
-    arbre: vue,
     lecture,
     ids: sujetsChoisis,
     faire,
@@ -755,7 +754,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
 
   return (
     <Surcouche etiquette={t('type.arbre')} className="notak-arbre-fond" fermer={contexte.finirEdition} surTouche={surTouche}>
-      <div className="notak-arbre-fenetre" data-cote={coteOuvert ? '' : undefined} data-zen={zen ? '' : undefined}>
+      <div className="notak-arbre-fenetre" data-cote={coteOuvert ? '' : undefined} data-zen={zen ? '' : undefined} onContextMenu={(e) => !(e.target as Element).closest('input, textarea') && e.preventDefault()}>
       <div className="notak-arbre-scene">
       <div
         ref={poserSurface}

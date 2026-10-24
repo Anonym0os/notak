@@ -36,7 +36,7 @@ const TAILLE_MAX_IMPORT = 20 * 1024 * 1024
 
 export function OngletIcones({ onglet, ...reste }: Props) {
   return (
-    <div className="notak-icones" data-onglet={onglet}>
+    <div className="notak-arbre-icones" data-onglet={onglet}>
       {onglet === 'marqueurs' ? <Marqueurs {...reste} /> : onglet === 'autocollants' ? <Autocollants {...reste} /> : <Illustrations {...reste} />}
     </div>
   )
@@ -45,10 +45,10 @@ export function OngletIcones({ onglet, ...reste }: Props) {
 /** Un groupe qui se replie : son titre, et sa grille. */
 function Repliable({ titre, ouvert, basculer, droite, children, surMenu }: { titre: ReactNode; ouvert: boolean; basculer(): void; droite?: ReactNode; children: ReactNode; surMenu?: (e: React.MouseEvent) => void }) {
   return (
-    <section className="notak-icones-groupe" data-ouvert={ouvert ? '' : undefined}>
-      <div className="notak-icones-entete" onContextMenu={surMenu}>
+    <section className="notak-arbre-icones-groupe" data-ouvert={ouvert ? '' : undefined}>
+      <div className="notak-arbre-icones-entete" onContextMenu={surMenu}>
         <button type="button" aria-expanded={ouvert} onClick={basculer}>
-          <span aria-hidden className="notak-icones-chevron" />
+          <span aria-hidden className="notak-arbre-icones-chevron" />
           {titre}
         </button>
         {droite}
@@ -69,7 +69,7 @@ export function libelleMarqueur(m: string): string {
 
 function Cellule({ marqueur, actif, surClic, surMenu, perso, titre, coche, estompe }: { marqueur: string; actif: boolean; surClic(): void; surMenu?: (e: React.MouseEvent) => void; perso?: (m: string) => string | undefined; titre?: string; coche?: boolean; estompe?: boolean }) {
   return (
-    <button type="button" className="notak-icones-marqueur" aria-pressed={actif} aria-label={titre ?? libelleMarqueur(marqueur)} title={titre} data-perso={perso ? '' : undefined} data-coche={coche ? '' : undefined} data-estompe={estompe ? '' : undefined} onClick={surClic} onContextMenu={surMenu} onMouseDown={(e) => e.preventDefault()}>
+    <button type="button" className="notak-arbre-icones-marqueur" aria-pressed={actif} aria-label={titre ?? libelleMarqueur(marqueur)} title={titre} data-perso={perso ? '' : undefined} data-coche={coche ? '' : undefined} data-estompe={estompe ? '' : undefined} onClick={surClic} onContextMenu={surMenu} onMouseDown={(e) => e.preventDefault()}>
       <svg width={22} height={22} viewBox="0 0 16 16" aria-hidden>
         <Marqueur id={marqueur} perso={perso} />
       </svg>
@@ -167,13 +167,13 @@ function Marqueurs({ arbre, lecture, ids, faire, contexte, adresse }: Omit<Props
 
   return (
     <>
-      <button type="button" className="notak-icones-legende" aria-pressed={visible} title={visible ? undefined : t('arbre.icones.legendeAide')} onClick={() => faire({ type: 'legende' })}>
+      <button type="button" className="notak-arbre-icones-legende" aria-pressed={visible} title={visible ? undefined : t('arbre.icones.legendeAide')} onClick={() => faire({ type: 'legende' })}>
         {visible ? t('arbre.icones.masquerLegende') : t('arbre.icones.afficherLegende')}
       </button>
-      <div className="notak-icones-defile">
+      <div className="notak-arbre-icones-defile">
         {GROUPES_MARQUEURS.map((g) => (
           <Repliable key={g.cle} titre={t(`arbre.icones.g.${g.cle}`)} ouvert={!replies.has(g.cle)} basculer={() => basculer(g.cle)}>
-            <div className="notak-icones-grille" data-genre="marqueurs" role="group" aria-label={t(`arbre.icones.g.${g.cle}`)}>
+            <div className="notak-arbre-icones-grille" data-genre="marqueurs" role="group" aria-label={t(`arbre.icones.g.${g.cle}`)}>
               {g.marqueurs.map((m) => (
                 <Cellule key={m} marqueur={m} actif={sujets.length > 0 && sujets.every((s) => s.marqueurs?.includes(m))} surClic={() => faire({ type: 'marqueur', ids, marqueur: m })} />
               ))}
@@ -188,35 +188,35 @@ function Marqueurs({ arbre, lecture, ids, faire, contexte, adresse }: Omit<Props
               renommer === gid ? (
                 <NomDeGroupe nom={g.nom} valider={(nom) => (faire({ type: 'groupe', action: 'renommer', id: gid, nom }), setRenommer(null))} annuler={() => setRenommer(null)} />
               ) : (
-                <span className="notak-icones-nom">{g.nom}</span>
+                <span className="notak-arbre-icones-nom">{g.nom}</span>
               )
             }
             ouvert={!replies.has(gid)}
             basculer={() => basculer(gid)}
             droite={
-              <button type="button" className="notak-icones-plus" aria-label={t('arbre.icones.ajouterMarqueur')} title={t('arbre.icones.ajouterMarqueur')} onClick={() => void importer(gid)}>
+              <button type="button" className="notak-arbre-icones-plus" aria-label={t('arbre.icones.ajouterMarqueur')} title={t('arbre.icones.ajouterMarqueur')} onClick={() => void importer(gid)}>
                 <Icone nom="ajouter" taille={14} />
               </button>
             }
           >
             {aSupprimer === gid && (
-              <div className="notak-icones-confirme" role="alertdialog" aria-label={t('arbre.icones.supprimerGroupe', { nom: g.nom })}>
+              <div className="notak-arbre-icones-confirme" role="alertdialog" aria-label={t('arbre.icones.supprimerGroupe', { nom: g.nom })}>
                 <strong>{t('arbre.icones.supprimerGroupe', { nom: g.nom })}</strong>
                 <p>{t('arbre.icones.supprimerGroupeAide')}</p>
                 <div>
                   <button type="button" onClick={() => setASupprimer(null)}>
                     {t('arbre.icones.annuler')}
                   </button>
-                  <button type="button" className="notak-icones-danger" onClick={() => (faire({ type: 'groupe', action: 'supprimer', id: gid }), setASupprimer(null))}>
+                  <button type="button" className="notak-arbre-icones-danger" onClick={() => (faire({ type: 'groupe', action: 'supprimer', id: gid }), setASupprimer(null))}>
                     {t('arbre.icones.supprimer')}
                   </button>
                 </div>
               </div>
             )}
             {g.marqueurs.length === 0 ? (
-              <p className="notak-icones-vide">{t('arbre.icones.groupeVide')}</p>
+              <p className="notak-arbre-icones-vide">{t('arbre.icones.groupeVide')}</p>
             ) : (
-              <div className="notak-icones-grille" data-genre="marqueurs" role="group" aria-label={g.nom}>
+              <div className="notak-arbre-icones-grille" data-genre="marqueurs" role="group" aria-label={g.nom}>
                 {g.marqueurs.map((m) => {
                   const id = `perso-${m.id}`
                   const choisi = selection?.has(id) ?? false
@@ -238,9 +238,9 @@ function Marqueurs({ arbre, lecture, ids, faire, contexte, adresse }: Omit<Props
             )}
           </Repliable>
         ))}
-        {visible && <Legende arbre={arbre} lecture={lecture} faire={faire} />}
+        {visible && <Legende arbre={arbre} lecture={lecture} faire={faire} perso={perso} />}
       </div>
-      <button type="button" className="notak-icones-pied" onClick={nouveauGroupe}>
+      <button type="button" className="notak-arbre-icones-pied" onClick={nouveauGroupe}>
         {t('arbre.icones.nouveauGroupe')}
       </button>
       {menu && (
@@ -265,7 +265,7 @@ function NomDeGroupe({ nom, valider, annuler }: { nom: string; valider(n: string
   const [v, setV] = useState(nom)
   return (
     <input
-      className="notak-icones-renomme"
+      className="notak-arbre-icones-renomme"
       autoFocus
       value={v}
       aria-label={t('arbre.icones.renommer')}
@@ -283,27 +283,27 @@ function NomDeGroupe({ nom, valider, annuler }: { nom: string; valider(n: string
 }
 
 /** La légende : ce que veut dire chaque marqueur de la carte, à écrire en face. */
-function Legende({ arbre, lecture, faire }: { arbre: Arbre; lecture: Lecture; faire(g: Geste): void }) {
+function Legende({ arbre, lecture, faire, perso }: { arbre: Arbre; lecture: Lecture; faire(g: Geste): void; perso(m: string): string | undefined }) {
   const marqueurs = marqueursUtilises(arbre, lecture)
-  if (marqueurs.length === 0) return <p className="notak-icones-vide">{t('arbre.icones.legendeVide')}</p>
+  if (marqueurs.length === 0) return <p className="notak-arbre-icones-vide">{t('arbre.icones.legendeVide')}</p>
   return (
-    <section className="notak-icones-groupe notak-icones-legende-liste" data-ouvert="">
+    <section className="notak-arbre-icones-groupe notak-arbre-icones-legende-liste" data-ouvert="">
       <h4>{t('arbre.icones.legende')}</h4>
       {marqueurs.map((m) => (
-        <TexteDeLegende key={m} marqueur={m} texte={arbre.legende?.textes?.[m] ?? ''} perso={arbre.groupes ? m : undefined} valider={(texte) => faire({ type: 'legendeTexte', marqueur: m, texte })} />
+        <TexteDeLegende key={m} marqueur={m} texte={arbre.legende?.textes?.[m] ?? ''} perso={perso} valider={(texte) => faire({ type: 'legendeTexte', marqueur: m, texte })} />
       ))}
     </section>
   )
 }
 
-function TexteDeLegende({ marqueur, texte, valider }: { marqueur: string; texte: string; perso?: string | undefined; valider(t: string): void }) {
+function TexteDeLegende({ marqueur, texte, perso, valider }: { marqueur: string; texte: string; perso(m: string): string | undefined; valider(t: string): void }) {
   const [v, setV] = useState(texte)
   useEffect(() => setV(texte), [texte])
   const ecrire = () => v !== texte && valider(v)
   return (
-    <label className="notak-icones-ligne-legende">
+    <label className="notak-arbre-icones-ligne-legende">
       <svg width={18} height={18} viewBox="0 0 16 16" aria-hidden>
-        <Marqueur id={marqueur} />
+        <Marqueur id={marqueur} perso={perso} />
       </svg>
       <input
         type="text"
@@ -329,7 +329,7 @@ function Autocollants({ ids, faire }: Omit<Props, 'onglet'>) {
   const poser = (emoji: string) => faire({ type: 'porter', ids, champ: 'vignette', valeur: { genre: 'autocollant', id: emoji, l: TAILLE_VIGNETTE, h: TAILLE_VIGNETTE } })
   return (
     <>
-      <label className="notak-icones-categorie">
+      <label className="notak-arbre-icones-categorie">
         <span>{t('arbre.icones.categorie')}</span>
         <select value={categorie} onChange={(e) => setCategorie(e.target.value)} aria-label={t('arbre.icones.categorie')}>
           <option value="">{t('arbre.icones.tout')}</option>
@@ -340,15 +340,15 @@ function Autocollants({ ids, faire }: Omit<Props, 'onglet'>) {
           ))}
         </select>
       </label>
-      <div className="notak-icones-defile">
+      <div className="notak-arbre-icones-defile">
         {AUTOCOLLANTS.filter((c) => !categorie || c.cle === categorie).map((c) => (
           <Repliable key={c.cle} titre={t(`arbre.icones.cat.${c.cle}`)} ouvert={!replies.has(c.cle)} basculer={() => setReplies((r) => (r.has(c.cle) ? new Set([...r].filter((x) => x !== c.cle)) : new Set([...r, c.cle])))}>
-            <div className="notak-icones-grille" data-genre="autocollants" role="group" aria-label={t(`arbre.icones.cat.${c.cle}`)}>
+            <div className="notak-arbre-icones-grille" data-genre="autocollants" role="group" aria-label={t(`arbre.icones.cat.${c.cle}`)}>
               {c.emojis.map((emoji) => (
                 <button
                   key={emoji}
                   type="button"
-                  className="notak-icones-autocollant"
+                  className="notak-arbre-icones-autocollant"
                   aria-label={emoji}
                   draggable
                   onDragStart={(e) => e.dataTransfer.setData(TYPE_GLISSE, JSON.stringify({ genre: 'autocollant', id: emoji, l: TAILLE_VIGNETTE, h: TAILLE_VIGNETTE }))}
@@ -389,7 +389,7 @@ function Illustrations({ ids, faire }: Omit<Props, 'onglet'>) {
   }, [requete, groupe])
   const ouvert = groupe ? ILLUSTRATIONS.find((g) => g.cle === groupe) : undefined
   const vignette = (id: string) => (
-    <button key={id} type="button" className="notak-icones-illustration" aria-label={id} draggable onDragStart={(e) => e.dataTransfer.setData(TYPE_GLISSE, JSON.stringify({ genre: 'illustration', id, l: TAILLE_VIGNETTE, h: TAILLE_VIGNETTE }))} onMouseDown={(e) => e.preventDefault()} onClick={() => poser(id)}>
+    <button key={id} type="button" className="notak-arbre-icones-illustration" aria-label={id} draggable onDragStart={(e) => e.dataTransfer.setData(TYPE_GLISSE, JSON.stringify({ genre: 'illustration', id, l: TAILLE_VIGNETTE, h: TAILLE_VIGNETTE }))} onMouseDown={(e) => e.preventDefault()} onClick={() => poser(id)}>
       <svg width={68} height={68} viewBox="0 0 68 68" aria-hidden>
         <DessinIllustration id={id} l={68} h={68} />
       </svg>
@@ -398,26 +398,26 @@ function Illustrations({ ids, faire }: Omit<Props, 'onglet'>) {
   return (
     <>
       {ouvert && !requete && (
-        <div className="notak-icones-retour">
+        <div className="notak-arbre-icones-retour">
           <button type="button" onClick={() => setGroupe(null)} aria-label={t('arbre.icones.retour')}>
             <Icone nom="precedent" taille={14} />
           </button>
           <strong>{t(`arbre.icones.ill.${ouvert.cle}`)}</strong>
         </div>
       )}
-      <label className="notak-icones-recherche">
+      <label className="notak-arbre-icones-recherche">
         <Icone nom="recherche" taille={14} />
         <input type="search" value={recherche} placeholder={t('arbre.icones.chercherIllustrations')} aria-label={t('arbre.icones.chercherIllustrations')} onChange={(e) => setRecherche(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
       </label>
-      <div className="notak-icones-defile">
+      <div className="notak-arbre-icones-defile">
         {trouvees ? (
           trouvees.length === 0 ? (
-            <p className="notak-icones-aucun">{t('arbre.icones.aucunResultat')}</p>
+            <p className="notak-arbre-icones-aucun">{t('arbre.icones.aucunResultat')}</p>
           ) : (
             trouvees.map(({ g, illustrations }) => (
-              <section key={g.cle} className="notak-icones-groupe" data-ouvert="">
+              <section key={g.cle} className="notak-arbre-icones-groupe" data-ouvert="">
                 <h4>{t(`arbre.icones.ill.${g.cle}`)}</h4>
-                <div className="notak-icones-grille" data-genre="illustrations">
+                <div className="notak-arbre-icones-grille" data-genre="illustrations">
                   {illustrations.map((x) => vignette(x.id))}
                 </div>
               </section>
@@ -429,13 +429,13 @@ function Illustrations({ ids, faire }: Omit<Props, 'onglet'>) {
           ILLUSTRATIONS.map((g) => {
             const toutes = g.sous.flatMap((s) => s.illustrations)
             return (
-              <section key={g.cle} className="notak-icones-groupe" data-ouvert="">
-                <button type="button" className="notak-icones-titre-groupe" onClick={() => setGroupe(g.cle)}>
+              <section key={g.cle} className="notak-arbre-icones-groupe" data-ouvert="">
+                <button type="button" className="notak-arbre-icones-titre-groupe" onClick={() => setGroupe(g.cle)}>
                   <strong>{t(`arbre.icones.ill.${g.cle}`)}</strong>
                   <span>{toutes.length}</span>
                   <Icone nom="chevronDroite" taille={12} />
                 </button>
-                <div className="notak-icones-grille" data-genre="illustrations">
+                <div className="notak-arbre-icones-grille" data-genre="illustrations">
                   {toutes.slice(0, 3).map((x) => vignette(x.id))}
                 </div>
               </section>
@@ -452,9 +452,9 @@ function GroupeOuvert({ groupe, vignette }: { groupe: GroupeIllustrations; vigne
   return (
     <>
       {groupe.sous.map((s) => (
-        <section key={s.cle} className="notak-icones-groupe" data-ouvert="">
+        <section key={s.cle} className="notak-arbre-icones-groupe" data-ouvert="">
           {groupe.sous.length > 1 && <h4>{t(`arbre.icones.ill.${s.cle}`)}</h4>}
-          <div className="notak-icones-grille" data-genre="illustrations">
+          <div className="notak-arbre-icones-grille" data-genre="illustrations">
             {s.illustrations.map((x) => vignette(x.id))}
           </div>
         </section>

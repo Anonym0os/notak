@@ -30,9 +30,9 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
-| 18. Carte mentale | 38 | 3 | 0 | 96 % |
+| 18. Carte mentale | 49 | 6 | 0 | 95 % |
 | 19. Document à blocs | 21 | 3 | 1 | 90 % |
-| **Total** | **341** | **16** | **3** | **97 %** |
+| **Total** | **352** | **19** | **3** | **97 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -466,8 +466,20 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Importer un fichier .xmind | ✅ | Déposé sur la toile : une carte par feuille, images comprises. Éprouvé sur les 36 modèles de Xmind et sa démo. Les fichiers de Xmind 8 (content.xml) sont refusés avec un avis. |
 | Exporter en .xmind | 🟡 | Menu de la carte, une feuille par carte choisie ; aller-retour vérifié par la lecture de Notak, pas encore rouvert dans Xmind lui-même. Les styles et thèmes ne sont pas traduits. |
 | Texte de la carte dans la recherche et l'export texte du tableau | ✅ | L'export la rend en liste indentée. |
+| Panneau d'icônes : Marqueur, Autocollant, Illustration | ✅ | Le smiley l'ouvre ; groupes repliables, un marqueur par groupe, 58 marqueurs en 7 groupes. Les autocollants (emojis) et les illustrations (icônes Tabler en couleur) ont les catégories de Xmind, pas ses dessins (docs/XMIND.md § 9). |
+| Groupes de marqueurs à soi, légende | ✅ | « Nouveau groupe », images importées, renommer, déplacer, supprimer ; la légende se montre sur la carte. |
+| Autocollants et illustrations sur un sujet | 🟡 | À la place de l'image ; glissés ou cliqués. Emojis et icônes Tabler, pas les 468 + 349 dessins de Xmind ; pas éprouvés dans Xmind lui-même (ils partent en SVG). |
+| Menus contextuels : sujet, fond, relation, limite, zone, pastilles | ✅ | Chaque entrée appelle un geste ; celles qui dépendent d'une fonction absente de Notak sont retirées (docs/XMIND.md § 10). |
+| Copier, couper, coller des branches | ✅ | Cmd+C, Cmd+X, Cmd+V, et le menu ; la branche est gardée dans la carte ouverte, pas dans le presse-papiers du système. |
+| Zone | 🟡 | Autour de flottants ou tracée ; se tire, se titre, s'ajuste. Pas de poignée de redimensionnement, ni de couleur au panneau. |
+| Tâche planifiée : durée, dates, avancement | ✅ | Éditeur en popover ; une ligne sous le titre. Aller-retour .xmind par une extension à nous. |
+| Étiquettes en popover | ✅ | Maj+Cmd+L, près du sujet ; sur plusieurs sujets, ajoute à tous. |
+| Lien vers une page web ou un sujet, en popover | ✅ | Cmd+K ; liste filtrable pour un sujet. |
+| Pièce jointe | ✅ | Un fichier rangé comme les images ; `href xap:attachments/…` dans le .xmind. |
+| Note audio | 🟡 | Le micro du navigateur ; non éprouvée sur un vrai micro dans cette passe. |
+| Équation en LaTeX | ✅ | Temml (MathML) ; aperçu à mesure, Cmd+Entrée valide. |
 | Grille, tableau-arbre | ➖ | Écartés (docs/XMIND.md § 2). |
-| Gantt, IA, commentaires et collaboration propres à Xmind, note audio, vidéo web | ➖ | Écartés (docs/XMIND.md § 6). |
+| Gantt, IA, commentaires et collaboration propres à Xmind, vidéo web | ➖ | Écartés (docs/XMIND.md § 6). |
 
 ## 19. Document à blocs
 

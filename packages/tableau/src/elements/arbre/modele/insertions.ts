@@ -399,7 +399,9 @@ export function choisirParGenre(a: Arbre, l: Lecture, depuis: Id | null, genre: 
     case 'memeNiveau': {
       if (!depuis || !l.sujets.has(depuis)) return []
       const n = profondeur(l, depuis)
-      return [...l.sujets.keys()].filter((x) => x !== depuis && l.sujets.get(x)!.genre !== 'resume' && profondeur(l, x) === n)
+      // Un flottant compte comme un principal pour la profondeur, mais n'est pas du même niveau : chaque genre a le sien.
+      const genreDe = l.sujets.get(depuis)!.genre
+      return [...l.sujets.keys()].filter((x) => x !== depuis && l.sujets.get(x)!.genre === genreDe && profondeur(l, x) === n)
     }
     case 'tout':
       return [...l.sujets.keys(), ...Object.keys(a.relations ?? {}), ...Object.keys(a.limites ?? {})]
