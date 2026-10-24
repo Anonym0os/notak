@@ -462,6 +462,9 @@
   max-width: 100%;
 }
 
+/* Elle ne dépasse jamais sa rangée (les 6 px de marge de chaque côté compris). */
+.notak-texte.notak-blocs > .notak-image-bloc,
+.notak-blocs .notak-blocs-colonne > .notak-image-bloc { max-width: calc(100% - 12px); }
 .notak-texte.notak-blocs > .notak-image-bloc[data-alignement='centre'] { margin-inline: auto; }
 .notak-texte.notak-blocs > .notak-image-bloc[data-alignement='droite'] { margin-left: auto; }
 
