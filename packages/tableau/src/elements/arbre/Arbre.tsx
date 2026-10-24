@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { type Arbre, type Id, type StyleSujet, nouvelId, texteBrut } from '../../coeur/tableau'
+import { type Arbre, type Id, type StyleSujet, nouvelId } from '../../coeur/tableau'
 import { t } from '../../langue'
 import { Surcouche } from '../surcouche'
 import type { ContexteToile, PropsRendu, Services } from '../types'
-import { INTERLIGNE, POLICE, type Mesure, habitDe, mesurer, uniformiser } from './apparence'
+import { INTERLIGNE, POLICE, type Mesure, habitDe, mesureDeSujet, uniformiser } from './apparence'
 import { fondDe, themeDeArbre } from './themes'
 import { Dessin } from './Dessin'
 import { exporterCartes } from './exporter'
@@ -14,7 +14,7 @@ import { Outils } from './Outils'
 import { Icone } from '../../icones'
 import { type Boite, type Disposition, ECARTS, ECARTS_COMPACTS, disposer, emprise } from './disposition'
 import { gesteDe } from './modele/clavier'
-import { numeroDe, resumesValides, sujetsDePlage } from './modele/elements'
+import { resumesValides, sujetsDePlage } from './modele/elements'
 import { comptes, reperesDe, sujetsMisEnEvidence } from './modele/listes'
 import { type Geste, appliquerGeste } from './modele/gestes'
 import { type Lacher, ouLacher } from './modele/lacher'
@@ -35,21 +35,9 @@ export function useVue(a: Arbre): { lecture: Lecture; mesures: Map<Id, Mesure>; 
     const theme = themeDeArbre(a)
     const compacte = !!a.options?.compacte
     let mesures = new Map<Id, Mesure>()
-    for (const [id, s] of lecture.sujets)
-      mesures.set(
-        id,
-        mesurer(s.titre, habitDe(lecture, id, theme, compacte), {
-          tache: !!s.tache,
-          marqueurs: s.marqueurs?.length ?? 0,
-          prefixe: numeroDe(lecture, id),
-          icones: (s.note && !a.options?.toutesNotes ? 1 : 0) + (s.lien ? 1 : 0),
-          ...(s.etiquettes?.length ? { etiquettes: s.etiquettes } : {}),
-          ...(s.image ? { image: { l: s.image.l, h: s.image.h } } : {}),
-          ...(s.note && a.options?.toutesNotes ? { note: texteBrut(s.note) } : {}),
-        }),
-      )
+    for (const id of lecture.sujets.keys()) mesures.set(id, mesureDeSujet(lecture, id, theme, { compacte, toutesNotes: !!a.options?.toutesNotes }))
     if (a.options?.uniforme) mesures = uniformiser(lecture, mesures)
-    const resumes = resumesValides(a, lecture).map(([, r]) => ({ sujet: r.sujet, plage: sujetsDePlage(lecture, r) }))
+    const resumes = resumesValides(a, lecture).map(([id, r]) => ({ id, sujet: r.sujet, plage: sujetsDePlage(lecture, r), ...(r.style?.forme ? { forme: r.style.forme } : {}) }))
     const disposition = disposer(lecture, (id) => mesures.get(id) ?? { l: 40, h: 20 }, compacte ? ECARTS_COMPACTS : ECARTS, !!a.options?.libre, resumes)
     return { lecture, mesures, disposition }
   }, [a.sujets, a.options, a.resumes, a.theme, a.themePerso, a.police, a.policeCjk])

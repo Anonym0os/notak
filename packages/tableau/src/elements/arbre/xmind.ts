@@ -3,6 +3,7 @@ import { cleEntre } from '../../coeur/ordre'
 import { type Arbre, type Id, type Limite, type NoeudTexte, type Relation, type Resume, type StructureArbre, type Sujet, docDepuisTexte, nouvelId, texteBrut } from '../../coeur/tableau'
 import { type Lecture, enfantsDe, lire } from './modele/sujets'
 import { ajouterDiapo, extraireDiapo } from './xmindPitch'
+import { ecrireStyleLimite, ecrireStyleRelation, ecrireStyleResume, ecrireStyleSujet, lireStyleLimite, lireStyleRelation, lireStyleResume, lireStyleSujet, proprietesDe } from './xmind-style'
 
 /**
  * Le format `.xmind` (docs/XMIND.md § 7) : un zip, avec `content.json` (un tableau de feuilles), `metadata.json`,
@@ -64,7 +65,7 @@ const MOTIFS: Record<string, NonNullable<Sujet['numerotation']>['motif']> = {
 const CLASSES: Record<string, Sujet['classe']> = { importantTopic: 'important', minorTopic: 'secondaire', expiredTopic: 'barre' }
 
 /** Les champs d'un sujet que Notak lit lui-même ; le reste part au sac. */
-const LUS = new Set(['id', 'class', 'title', 'structureClass', 'children', 'boundaries', 'summaries', 'notes', 'labels', 'href', 'markers', 'branch', 'position', 'image', 'extensions'])
+const LUS = new Set(['id', 'class', 'title', 'style', 'customWidth', 'structureClass', 'children', 'boundaries', 'summaries', 'notes', 'labels', 'href', 'markers', 'branch', 'position', 'image', 'extensions'])
 
 /** Une image à poser sur un sujet après l'import : son octets, son nom dans le zip, sa taille. */
 export interface ImageAImporter {
@@ -126,6 +127,8 @@ function lireFeuille(f: Json, fichiers: Record<string, Uint8Array>): FeuilleLue 
   const images: ImageAImporter[] = []
   const vus = new Set<Id>()
   let pitch: Arbre['pitch']
+  /** Le central demandait `multi-line-colors: none` : toutes les branches d'une seule couleur. */
+  let uneCouleur = false
   const idDe = (t: Json) => {
     let id = typeof t.id === 'string' && t.id && !vus.has(t.id) ? t.id : nouvelId()
     while (vus.has(id)) id = nouvelId()
@@ -151,6 +154,18 @@ function lireFeuille(f: Json, fichiers: Record<string, Uint8Array>): FeuilleLue 
     if (typeof t.class === 'string' && CLASSES[t.class]) s.classe = CLASSES[t.class]
     const sac: Json = {}
     for (const [k, v] of Object.entries(t)) if (!LUS.has(k)) sac[k] = v
+    // Son style : ce que Notak règle devient son `style` ; le reste des propriétés retourne au fichier tel quel.
+    const brut = estObjet(t.style) ? t.style : undefined
+    const props = proprietesDe(brut)
+    const { style, restes } = lireStyleSujet(props)
+    if (props['multi-line-colors'] === 'none') {
+      uneCouleur = true
+      delete restes['multi-line-colors']
+    }
+    if (Object.keys(style).length) s.style = style
+    if (brut && Object.keys(restes).length) sac.style = { ...brut, properties: restes }
+    if (Number(t.customWidth) >= 1) s.largeur = Math.round(Number(t.customWidth))
+    else if (t.customWidth !== undefined) sac.customWidth = t.customWidth
     // Les réglages du mode Pitch sortent du style du sujet (le thème et le rapport, du sujet central).
     if (sac.style !== undefined) {
       const lu = extraireDiapo(sac.style, parent === undefined)
@@ -163,7 +178,7 @@ function lireFeuille(f: Json, fichiers: Record<string, Uint8Array>): FeuilleLue 
     for (const e of liste(t.extensions)) {
       if (e.provider === 'org.xmind.ui.numbering' && estObjet(e.content)) {
         const motif = MOTIFS[String(e.content.pattern)]
-        if (motif) s.numerotation = { motif, ...(e.content.tiered ? { paliers: true } : {}) }
+        if (motif) s.numerotation = { motif, ...(e.content.tiered ? { paliers: true } : {}), ...(e.content.startsHere ? { debut: true } : {}) }
         else autres.push(e)
       } else if (e.provider === 'org.xmind.ui.task' && estObjet(e.content) && (e.content.status === 'todo' || e.content.status === 'done')) {
         s.tache = e.content.status === 'done' ? 'faite' : 'a-faire'
@@ -202,13 +217,16 @@ function lireFeuille(f: Json, fichiers: Record<string, Uint8Array>): FeuilleLue 
         b.range === 'master' ? { de: id } : p && attaches[p[0]] && attaches[p[1]] ? { de: attaches[p[0]]!, ...(p[1] !== p[0] ? { a: attaches[p[1]]! } : {}) } : null
       if (!limite) continue
       if (typeof b.title === 'string' && b.title) limite.titre = b.title
+      const styleLimite = lireStyleLimite(proprietesDe(b.style))
+      if (Object.keys(styleLimite).length) limite.style = styleLimite
       limites[typeof b.id === 'string' ? b.id : nouvelId()] = limite
     }
     for (const r of liste(t.summaries)) {
       const p = plageDe(r.range)
       const sujet = typeof r.topicId === 'string' ? deResume.get(r.topicId) : undefined
       if (!p || !sujet || !attaches[p[0]] || !attaches[p[1]]) continue
-      resumes[typeof r.id === 'string' ? r.id : nouvelId()] = { de: attaches[p[0]]!, ...(p[1] !== p[0] ? { a: attaches[p[1]]! } : {}), sujet }
+      const styleResume = lireStyleResume(proprietesDe(r.style))
+      resumes[typeof r.id === 'string' ? r.id : nouvelId()] = { de: attaches[p[0]]!, ...(p[1] !== p[0] ? { a: attaches[p[1]]! } : {}), sujet, ...(Object.keys(styleResume).length ? { style: styleResume } : {}) }
     }
     return id
   }
@@ -220,10 +238,12 @@ function lireFeuille(f: Json, fichiers: Record<string, Uint8Array>): FeuilleLue 
   const relations: Record<Id, Relation> = {}
   for (const r of liste(f.relationships)) {
     if (typeof r.end1Id !== 'string' || typeof r.end2Id !== 'string' || !sujets[r.end1Id] || !sujets[r.end2Id]) continue
-    relations[typeof r.id === 'string' ? r.id : nouvelId()] = { de: r.end1Id, vers: r.end2Id, ...(typeof r.title === 'string' && r.title ? { titre: r.title } : {}) }
+    const style = lireStyleRelation(proprietesDe(r.style))
+    relations[typeof r.id === 'string' ? r.id : nouvelId()] = { de: r.end1Id, vers: r.end2Id, ...(typeof r.title === 'string' && r.title ? { titre: r.title } : {}), ...(Object.keys(style).length ? { style } : {}) }
   }
   const options: NonNullable<Arbre['options']> = {}
   if (f.topicPositioning === 'free') options.libre = true
+  if (uneCouleur) options.uneCouleur = true
   // Xmind écrit « Second » pour compact et « Third » pour normal ; les premiers fichiers de Notak écrivaient 1.
   if (f.compactLayoutModeLevel === 'Second' || Number(f.compactLayoutModeLevel) > 0) options.compacte = true
   if (f.topicOverlapping === 'overlap') options.chevauchement = true
@@ -295,6 +315,12 @@ function ecrireFeuille(titre: string, a: Arbre, images: ReadonlyMap<Id, ImageAEx
   const ecrire = (id: Id): Json => {
     const s = l.sujets.get(id)!
     const t: Json = { ...(s.xmind ?? {}), id, title: s.titre }
+    // Son style : les propriétés que Notak ne lit pas (gardées dans le sac), puis celles de son style.
+    const brut = estObjet(t.style) ? t.style : {}
+    const proprietes = { ...proprietesDe(brut), ...ecrireStyleSujet(s.style ?? {}), ...(id === l.central && a.options?.uneCouleur ? { 'multi-line-colors': 'none' } : {}) }
+    if (Object.keys(proprietes).length) t.style = { ...brut, id: typeof brut.id === 'string' ? brut.id : nouvelId(), properties: proprietes }
+    else delete t.style
+    if (s.largeur) t.customWidth = s.largeur
     if (id === l.central) t.class = 'topic'
     else if (s.classe) t.class = Object.entries(CLASSES).find(([, v]) => v === s.classe)![0]
     if (s.structure) t.structureClass = classeDepuis(s.structure)
@@ -310,7 +336,7 @@ function ecrireFeuille(titre: string, a: Arbre, images: ReadonlyMap<Id, ImageAEx
     const extensions: Json[] = Array.isArray(t.extensions) ? [...(t.extensions as Json[])] : []
     if (s.numerotation) {
       const pattern = Object.entries(MOTIFS).find(([, v]) => v === s.numerotation!.motif)![0]
-      extensions.push({ provider: 'org.xmind.ui.numbering', content: { pattern, tiered: !!s.numerotation.paliers } })
+      extensions.push({ provider: 'org.xmind.ui.numbering', content: { pattern, tiered: !!s.numerotation.paliers, ...(s.numerotation.debut ? { startsHere: true } : {}) } })
     }
     if (s.tache) extensions.push({ provider: 'org.xmind.ui.task', content: { status: s.tache === 'faite' ? 'done' : 'todo' } })
     if (s.structure === 'carte-libre') {
@@ -343,11 +369,11 @@ function ecrireFeuille(titre: string, a: Arbre, images: ReadonlyMap<Id, ImageAEx
     const resumes = Object.entries(a.resumes ?? {}).filter(([, r]) => l.sujets.get(r.de)?.parent === id && l.sujets.has(r.sujet))
     if (resumes.length) {
       enfants.summary = resumes.map(([, r]) => ecrire(r.sujet))
-      t.summaries = resumes.map(([rid, r]) => ({ id: rid, range: `(${rang(r.de)},${rang(r.a ?? r.de)})`, topicId: r.sujet }))
+      t.summaries = resumes.map(([rid, r]) => ({ id: rid, range: `(${rang(r.de)},${rang(r.a ?? r.de)})`, topicId: r.sujet, ...styleDe(ecrireStyleResume(r.style ?? {})) }))
     }
     const bornes = Object.entries(a.limites ?? {}).flatMap(([lid, x]) => {
-      if (!x.a && x.de === id) return [{ id: lid, range: 'master', ...(x.titre ? { title: x.titre } : {}) }]
-      if (x.a && l.sujets.get(x.de)?.parent === id) return [{ id: lid, range: `(${rang(x.de)},${rang(x.a)})`, ...(x.titre ? { title: x.titre } : {}) }]
+      if (!x.a && x.de === id) return [{ id: lid, range: 'master', ...(x.titre ? { title: x.titre } : {}), ...styleDe(ecrireStyleLimite(x.style ?? {})) }]
+      if (x.a && l.sujets.get(x.de)?.parent === id) return [{ id: lid, range: `(${rang(x.de)},${rang(x.a)})`, ...(x.titre ? { title: x.titre } : {}), ...styleDe(ecrireStyleLimite(x.style ?? {})) }]
       // Une limite sur une seule branche (sans `a`) se pose comme « master » sur ce sujet.
       return []
     })
@@ -357,7 +383,7 @@ function ecrireFeuille(titre: string, a: Arbre, images: ReadonlyMap<Id, ImageAEx
   }
   const feuille: Json = { ...(a.xmind ?? {}), id: nouvelId(), class: 'sheet', title: titre, rootTopic: ecrire(l.central) }
   const relations = Object.entries(a.relations ?? {}).filter(([, r]) => l.sujets.has(r.de) && l.sujets.has(r.vers))
-  if (relations.length) feuille.relationships = relations.map(([id, r]) => ({ id, end1Id: r.de, end2Id: r.vers, ...(r.titre ? { title: r.titre } : {}) }))
+  if (relations.length) feuille.relationships = relations.map(([id, r]) => ({ id, end1Id: r.de, end2Id: r.vers, ...(r.titre ? { title: r.titre } : {}), ...styleDe(ecrireStyleRelation(r.style ?? {})) }))
   // Les réglages de l'onglet Carte : une clé n'est écrite que si l'option est allumée (docs/XMIND.md § 9).
   const o = a.options ?? {}
   if (o.libre) feuille.topicPositioning = 'free'
@@ -401,6 +427,9 @@ function fusionnerStyle(parent: Json, cle: string, valeurs: Record<string, strin
   if (Object.keys(objet).length > 0) parent[cle] = objet
   else delete parent[cle]
 }
+
+/** Le champ `style` d'un objet du fichier (relation, limite, résumé) : absent s'il n'a pas de propriété. */
+const styleDe = (proprietes: Record<string, string>): { style?: Json } => (Object.keys(proprietes).length ? { style: { id: nouvelId(), properties: proprietes } } : {})
 
 /** La note en HTML simple, pour le champ `realHTML` que Xmind affiche : un paragraphe par ligne. */
 function enHtml(n: NoeudTexte): string {

@@ -30,6 +30,8 @@ export interface Trait {
   /** Le sujet dont il part : il prend la couleur de sa branche. */
   de: Id
   d: string
+  /** L'accolade d'un résumé : son identifiant (son style est celui du résumé). */
+  resume?: Id
 }
 
 export interface Disposition {

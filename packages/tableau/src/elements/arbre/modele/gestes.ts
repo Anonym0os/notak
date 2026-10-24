@@ -1,6 +1,7 @@
 import type { Arbre, Id, Relation, StructureArbre, StyleSujet } from '../../../coeur/tableau'
 import { type GesteCarte, GESTES_CARTE, appliquerGesteCarte } from './reglages'
 import { type ReglageDiapo, type ReglagePitch, poserDiapo, poserPitch } from './pitch'
+import { type GesteStyle, appliquerGesteStyle } from './gestes-style'
 import { ajouterLimite, ajouterRelation, ajouterResume, basculerMarqueur, changerLimite, changerRelation, porter, resumeDe, retirer } from './elements'
 import {
   type Lecture,
@@ -91,6 +92,8 @@ export type Geste =
   /** Cmd+Alt+C, Cmd+Alt+V : copier et coller un style ; la vue garde le style copié. */
   | { type: 'copierStyle'; id: Id }
   | { type: 'collerStyleCopie'; ids: Id[] }
+  /** L'onglet Style : largeur imposée, style d'une relation, d'une limite ou d'un résumé, mise à jour, numérotation des frères. */
+  | GesteStyle
 
 /** Ce que devient la carte, et quel sujet choisir ou éditer ensuite. */
 export interface Effet {
@@ -300,7 +303,7 @@ export function appliquerGeste(a: Arbre, g: Geste, titre: Titreur): Effet | null
         }),
       }
     default:
-      return null
+      return appliquerGesteStyle(a, g, l)
   }
 }
 

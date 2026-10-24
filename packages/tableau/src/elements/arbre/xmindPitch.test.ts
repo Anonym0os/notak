@@ -80,7 +80,7 @@ describe('les réglages du mode Pitch dans un .xmind', () => {
         id: 'r',
         title: 'Racine',
         style: { id: 'st', properties: { 'fo:font-family': 'Georgia', 'slide-appearance': 'innocence' } },
-        children: { attached: [{ id: 'a', title: 'A', style: { id: 'sa', properties: { 'topic-slide-visibility': 'skip', 'svg:fill': '#ff0000' } } }] },
+        children: { attached: [{ id: 'a', title: 'A', style: { id: 'sa', properties: { 'topic-slide-visibility': 'skip', 'svg:fill': '#FF0000' } } }] },
       },
     }
     const zip = zipSync({ 'content.json': strToU8(JSON.stringify([feuille])), 'metadata.json': strToU8('{}'), 'manifest.json': strToU8('{"file-entries":{}}') })
@@ -88,7 +88,8 @@ describe('les réglages du mode Pitch dans un .xmind', () => {
     expect(lu.pitch).toEqual({ theme: 'innocence' })
     expect(lu.sujets['a']!.diapo).toEqual({ sujet: 'masque' })
     const sorti = JSON.parse(strFromU8(unzipSync(ecrireXmind([{ titre: 'Démo', arbre: lu }]))['content.json']!)) as (typeof feuille)[]
-    expect(sorti[0]!.rootTopic.style).toEqual(feuille.rootTopic.style)
-    expect(sorti[0]!.rootTopic.children.attached[0]!.style).toEqual(feuille.rootTopic.children.attached[0]!.style)
+    // L'identifiant du style se refait à l'écriture ; ses propriétés reviennent telles quelles.
+    expect(sorti[0]!.rootTopic.style.properties).toEqual(feuille.rootTopic.style.properties)
+    expect(sorti[0]!.rootTopic.children.attached[0]!.style.properties).toEqual(feuille.rootTopic.children.attached[0]!.style.properties)
   })
 })
