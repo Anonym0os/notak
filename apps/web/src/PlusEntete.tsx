@@ -13,8 +13,8 @@ export function PlusEntete({ children }: { children: ReactNode }) {
   return (
     <div className="plus-entete" ref={ancre}>
       <Infobulle libelle={t('plus.actions')} desactivee={ouvert}>
-        <button type="button" ref={bouton} className="bouton" aria-expanded={ouvert} aria-label={t('plus.actions')} onClick={basculer}>
-          <Icone nom="plus" />
+        <button type="button" ref={bouton} className="bouton bouton-nu" aria-expanded={ouvert} aria-label={t('plus.actions')} onClick={basculer}>
+          <Icone nom="plus" taille={22} trait={1.5} />
         </button>
       </Infobulle>
       {/* Toujours monté : l'activité se relit en continu, menu fermé aussi. */}

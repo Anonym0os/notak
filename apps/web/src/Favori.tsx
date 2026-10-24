@@ -32,8 +32,8 @@ export function Favori({ tableau, accueil }: { tableau: string; accueil: string 
   }
   return (
     <Infobulle libelle={favori ? t('favori.retirer') : t('favori.mettre')}>
-      <button type="button" className="bouton bouton-etoile" disabled={favori === null} aria-pressed={favori === true} onClick={bascule}>
-        <Icone nom={favori ? 'favoriPlein' : 'favori'} />
+      <button type="button" className="bouton bouton-nu bouton-etoile" disabled={favori === null} aria-pressed={favori === true} onClick={bascule}>
+        <Icone nom={favori ? 'favoriPlein' : 'favori'} taille={22} trait={1.5} />
         <span className="sr-seulement">{favori ? t('favori.retirer') : t('favori.mettre')}</span>
       </button>
     </Infobulle>

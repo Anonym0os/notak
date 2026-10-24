@@ -31,9 +31,8 @@ export function Compte({ moi, deconnexion, ouvrir, aide }: { moi: Moi; deconnexi
   }
   return (
     <div className="compte" ref={ancre}>
-      <button type="button" ref={bouton} className="bouton compte-nom" aria-expanded={ouvert} aria-label={moi.nom} title={moi.nom} onClick={basculer}>
+      <button type="button" ref={bouton} className="bouton bouton-nu compte-nom" aria-expanded={ouvert} aria-label={moi.nom} title={moi.nom} onClick={basculer}>
         <PastillePersonne className="compte-pastille" nom={moi.nom} couleur={moi.couleur} adresse={moi.photo ? adressePhoto(moi.photo) : undefined} titre="" />
-        <span className="bouton-texte">{moi.nom}</span>
       </button>
       {ouvert && (
         <div className="compte-menu" ref={panneau} role="menu">

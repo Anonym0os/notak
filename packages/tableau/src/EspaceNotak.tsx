@@ -524,6 +524,7 @@ export function EspaceNotak({
   return (
     <div ref={racineEspace} className="notak-espace" data-theme={reglages.theme} data-taille={reglages.taille} data-presentation={presentation || undefined}>
       <Entete
+        ouvrirReglages={() => setReglagesOuverts(true)}
         key={`entete:${langue}`}
         segments={segments}
         charge={charge}
@@ -598,6 +599,7 @@ function Entete({
   peutRetablir = true,
   envoi,
   charge = true,
+  ouvrirReglages,
 }: {
   segments: Segment[]
   courant: Id
@@ -617,6 +619,8 @@ function Entete({
   envoi?: EtatEnvoi
   /** Faux tant que le tableau ouvert n'a pas rattrapé le serveur. */
   charge?: boolean
+  /** La roue de la première rangée ouvre les réglages. */
+  ouvrirReglages(): void
 }) {
   const entete = useRef<HTMLElement>(null)
   const [largeur, setLargeur] = useState(Number.POSITIVE_INFINITY)
@@ -705,12 +709,12 @@ function Entete({
               <div className="notak-historique">
                 <Infobulle libelle={t('espace.annuler')} raccourci="⌘Z">
                   <button type="button" aria-label={t('espace.annuler')} disabled={!peutAnnuler} onClick={historique.annuler}>
-                    <Icone nom="annuler" taille={24} />
+                    <Icone nom="annuler" taille={22} trait={1.5} />
                   </button>
                 </Infobulle>
                 <Infobulle libelle={t('espace.retablir')} raccourci="⇧⌘Z">
                   <button type="button" aria-label={t('espace.retablir')} disabled={!peutRetablir} onClick={historique.retablir}>
-                    <Icone nom="retablir" taille={24} />
+                    <Icone nom="retablir" taille={22} trait={1.5} />
                   </button>
                 </Infobulle>
               </div>
@@ -719,6 +723,11 @@ function Entete({
           )}
           <Pastilles presence={presence} adressePhoto={adressePhoto} />
           {actions && <div className="notak-entete-actions">{actions}</div>}
+          <Infobulle libelle={t('reglages.titre')} raccourci="⌘,">
+            <button type="button" className="notak-reglages-bouton" aria-label={t('reglages.titre')} onClick={ouvrirReglages}>
+              <Icone nom="reglages" taille={22} trait={1.5} />
+            </button>
+          </Infobulle>
         </div>
       </div>
       {/* Comme Milanote : l'accueil n'a que la première rangée ; titre, partage, export et vue ne viennent qu'avec un tableau. */}

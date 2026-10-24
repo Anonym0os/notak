@@ -41,6 +41,7 @@ import {
   IconDeviceGamepad2,
   IconDeviceLaptop,
   IconDots,
+  IconSettings,
   IconDownload,
   IconEye,
   IconFile,
@@ -280,6 +281,7 @@ const ICONES = {
   audio: IconMusic,
   // En bas de la barre et dans l'en-tête.
   plus: IconDots,
+  reglages: IconSettings,
   nonTries: IconInbox,
   corbeille: IconTrash,
   etiquette: IconTag,
