@@ -1,4 +1,5 @@
 import { type RefObject, useEffect, useId, useRef, useSyncExternalStore } from 'react'
+import { horsPanneau } from './PanneauFlottant'
 
 /**
  * Les menus qui s'ouvrent sous un bouton (une palette, une échéance, des réactions, le tiroir de la barre) : un seul
@@ -68,9 +69,11 @@ export function useMenu<T extends HTMLElement = HTMLDivElement>(options: Options
   useEffect(() => {
     if (!ouvert || !dehorsFerme) return
     const dehors = (e: PointerEvent) => {
-      // Seul le menu courant se referme : ses parents restent ouverts si l'appui tombe chez eux.
-      if (courant !== id || ancre.current?.contains(e.target as Node)) return
-      changer(parentContenant(id, e.target as Node))
+      // Seul le menu courant se referme : ses parents restent ouverts si l'appui tombe chez eux. Un appui dans un
+      // panneau ouvert depuis le menu compte comme un appui sur ce qui l'a ouvert.
+      const cible = horsPanneau(e.target as Node) ?? (e.target as Node)
+      if (courant !== id || ancre.current?.contains(cible)) return
+      changer(parentContenant(id, cible))
     }
     document.addEventListener('pointerdown', dehors, true)
     return () => document.removeEventListener('pointerdown', dehors, true)

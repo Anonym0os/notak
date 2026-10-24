@@ -91,6 +91,23 @@ export function placer(
 /** Ce que vise le panneau : un élément (relu à chaque image) ou un rectangle d'écran déjà calculé. */
 export type Cible = () => Element | Boite | null | undefined
 
+const cibles = new WeakMap<Element, Cible>()
+
+/**
+ * Le nœud qui compte pour un appui tombé dans un panneau : sa cible (remontée de panneau en panneau). Un menu qui se
+ * referme au clic dehors garde ainsi ouvert ce qu'un panneau ouvert depuis lui contient.
+ */
+export function horsPanneau(noeud: Node | null): Node | null {
+  let n = noeud
+  for (let i = 0; i < 8 && n; i++) {
+    const panneau = (n instanceof Element ? n : n.parentElement)?.closest('.notak-panneau-flottant')
+    const c = panneau && cibles.get(panneau)?.()
+    if (!(c instanceof Element)) return n
+    n = c
+  }
+  return n
+}
+
 interface Props extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
   cible: Cible
   /** Où le panneau se range dans le document ; `document.body` par défaut. */
@@ -141,6 +158,7 @@ export function PanneauFlottant({ cible, hote, cote, distance, alignement, flech
   }, [cote, distance, alignement])
   const attacher = (n: HTMLDivElement | null) => {
     noeud.current = n
+    if (n) cibles.set(n, () => viser.current())
     if (typeof panneau === 'function') panneau(n)
     else if (panneau) panneau.current = n
   }

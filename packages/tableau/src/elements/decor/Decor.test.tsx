@@ -50,7 +50,7 @@ function monde(plus: Partial<Element> = {}, lectureSeule = false) {
   return { magasin, contexte, element }
 }
 
-const bouton = (texte: string) => [...hote.querySelectorAll('button')].find((b) => b.textContent?.includes(texte) || b.getAttribute('aria-label')?.includes(texte))!
+const bouton = (texte: string) => [...document.querySelectorAll('button')].find((b) => b.textContent?.includes(texte) || b.getAttribute('aria-label')?.includes(texte))!
 
 describe('la bande sous une carte', () => {
   it('ne dessine rien sans étiquette, échéance ni réaction', () => {
@@ -197,6 +197,26 @@ describe('le panneau des étiquettes', () => {
     expect(element().etiquettes).toBeUndefined()
   })
 
+  it('un appui n’importe où sur la ligne pose puis retire l’étiquette, sans passer par la case', () => {
+    const { contexte, element } = monde()
+    const rendre = () => act(() => racine.render(<PanneauEtiquettes elements={[element()]} contexte={contexte} />))
+    rendre()
+    act(() => hote.querySelector<HTMLElement>('.notak-etiquettes-chip')!.click())
+    expect(element().etiquettes).toEqual(['e1'])
+    rendre()
+    act(() => hote.querySelector<HTMLElement>('.notak-etiquettes-ligne')!.click())
+    expect(element().etiquettes).toBeUndefined()
+  })
+
+  it('le « ••• » ouvre son menu hors de la ligne, sans la cocher', () => {
+    const { contexte, element } = monde()
+    act(() => racine.render(<PanneauEtiquettes elements={[element()]} contexte={contexte} />))
+    act(() => bouton('Options de').click())
+    expect(element().etiquettes).toBeUndefined()
+    const menu = document.querySelector('.notak-etiquettes-menu')!
+    expect(hote.querySelector('.notak-etiquettes-ligne')!.contains(menu)).toBe(false)
+  })
+
   it('Entrée crée l’étiquette et la pose, puis pose celle qui existe déjà sans la doubler', () => {
     const { contexte, element, magasin } = monde()
     act(() => racine.render(<PanneauEtiquettes elements={[element()]} contexte={contexte} />))
@@ -225,10 +245,10 @@ describe('le panneau des étiquettes', () => {
     const { contexte, element, magasin } = monde({ etiquettes: ['e1'] })
     act(() => racine.render(<PanneauEtiquettes elements={[]} contexte={contexte} />))
     act(() => bouton('Options de').click())
-    act(() => [...hote.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find((b) => b.textContent === 'Supprimer')!.click())
+    act(() => [...document.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find((b) => b.textContent === 'Supprimer')!.click())
     // Une confirmation d'abord : rien n'est supprimé avant elle.
     expect(magasin.lire().etiquettes).toHaveLength(1)
-    act(() => [...hote.querySelectorAll<HTMLButtonElement>('.notak-etiquettes-confirmer button')].find((b) => b.textContent === 'Supprimer')!.click())
+    act(() => [...document.querySelectorAll<HTMLButtonElement>('.notak-etiquettes-confirmer button')].find((b) => b.textContent === 'Supprimer')!.click())
     expect(magasin.lire().etiquettes).toBeUndefined()
     expect(element().etiquettes).toBeUndefined()
     magasin.annuler()
@@ -258,7 +278,7 @@ describe('le panneau des étiquettes', () => {
     act(() => racine.render(<PanneauEtiquettes elements={[]} contexte={contexte} />))
     expect(hote.querySelector('.notak-etiquettes-recherche')).toBeNull()
     act(() => bouton('Options de').click())
-    expect([...hote.querySelectorAll('[role=menuitem]')].map((b) => b.textContent)).toEqual(['Utilisée 0 fois'])
+    expect([...document.querySelectorAll('[role=menuitem]')].map((b) => b.textContent)).toEqual(['Utilisée 0 fois'])
   })
 })
 

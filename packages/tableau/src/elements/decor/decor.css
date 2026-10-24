@@ -494,6 +494,15 @@
   background: #f3f3f4;
 }
 
+/* Toute la ligne pose ou ôte l'étiquette. */
+.notak-etiquettes-ligne[data-posable] {
+  cursor: pointer;
+}
+
+.notak-etiquettes-ligne[data-posable] input[type='checkbox'] {
+  cursor: pointer;
+}
+
 .notak-etiquettes-chip {
   flex: 0 1 auto;
   min-width: 0;
@@ -516,35 +525,68 @@
   color: #323b4a !important;
 }
 
-/* Le menu d'une étiquette, déplié sous sa ligne. */
+/* Le menu d'une étiquette : une fenêtre à droite de son « ••• », puis ses sous-menus à droite de leur entrée. */
+.notak-etiquettes-menu,
+.notak-etiquettes-sousmenu {
+  z-index: 1000;
+  box-sizing: border-box;
+  border-radius: 8px;
+  background: #fff;
+  color: #323b4a;
+  font-size: 14px;
+  text-align: left;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.18), 0 0 0 1px rgb(0 0 0 / 0.06);
+}
+
 .notak-etiquettes-menu {
   display: flex;
   flex-direction: column;
-  flex-basis: 100%;
   min-width: 208px;
-  padding: 4px 0;
-  border-top: 1px solid #00000014;
+  padding: 4px 0 0;
 }
 
-.notak-etiquettes-menu > button {
-  padding: 6px 8px !important;
+.notak-etiquettes-menu button,
+.notak-etiquettes-sousmenu button {
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.notak-etiquettes-entrees {
+  display: flex;
+  flex-direction: column;
+  padding: 0 4px 4px;
+}
+
+.notak-etiquettes-entrees > button {
+  padding: 7px 10px;
   text-align: left;
 }
 
-.notak-etiquettes-menu > button:hover {
-  background: #ebedee !important;
+.notak-etiquettes-entrees > button:hover,
+.notak-etiquettes-entrees > button[data-ouvert] {
+  background: #f1f2f3;
 }
 
 .notak-etiquettes-danger {
   color: #d64545 !important;
 }
 
+/* Le pied : combien d'éléments la portent ; un appui filtre le tableau dessus. */
 .notak-etiquettes-usage {
-  margin-top: 4px;
+  padding: 9px 14px !important;
   border-top: 1px solid #00000014 !important;
-  border-radius: 0 !important;
+  border-radius: 0 0 8px 8px !important;
   color: #8d929a !important;
-  font-size: 12px;
+  font-size: 12px !important;
+  text-align: left;
+}
+
+.notak-etiquettes-usage:hover {
+  color: #323b4a !important;
 }
 
 .notak-etiquettes-usage[aria-pressed='true'] {
@@ -552,27 +594,37 @@
 }
 
 .notak-etiquettes-palette {
-  padding: 6px 8px;
+  padding: 14px;
 }
 
+/* La confirmation : 220 px, la phrase centrée, puis Annuler et Supprimer à parts égales. */
 .notak-etiquettes-confirmer {
-  padding: 8px;
+  width: 220px;
+  padding: 20px;
 }
 
 .notak-etiquettes-confirmer p {
-  margin: 0 0 8px;
+  margin: 0 0 16px;
+  color: #6b7280;
   text-align: center;
 }
 
 .notak-etiquettes-confirmer div {
   display: flex;
-  gap: 4px;
+  gap: 12px;
 }
 
 .notak-etiquettes-confirmer button {
   flex: 1;
-  padding: 6px 0 !important;
+  padding: 7px 0;
   border: 1px solid #00000026 !important;
+  font-weight: 500;
+}
+
+.notak-etiquettes-confirmer button.notak-etiquettes-danger {
+  border-color: #d64545 !important;
+  background: #d64545;
+  color: #fff !important;
 }
 
 .notak-etiquettes-lien {
