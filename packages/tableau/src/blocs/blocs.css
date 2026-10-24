@@ -591,6 +591,33 @@
 .notak-blocs mark[data-color='fond-rose'] { background: var(--notak-bloc-rose-fond); color: inherit; }
 .notak-blocs mark[data-color='fond-rouge'] { background: var(--notak-bloc-rouge-fond); color: inherit; }
 
+/* Les poignées de largeur d'une image : deux traits sombres sur ses bords, au survol. */
+.notak-blocs .notak-image-poignee {
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 48px;
+  max-height: 50%;
+  border: 1px solid rgb(255 255 255 / 0.9);
+  border-radius: 20px;
+  background: rgb(0 0 0 / 0.6);
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity 0.15s;
+  cursor: col-resize;
+}
+
+.notak-blocs .notak-image-poignee[data-cote='gauche'] { left: 8px; }
+.notak-blocs .notak-image-poignee[data-cote='droite'] { right: 8px; }
+
+.notak-blocs .notak-image-bloc:hover .notak-image-poignee {
+  opacity: 1;
+}
+
+.notak-blocs .notak-image-bloc.ProseMirror-selectednode img {
+  outline: 3px solid var(--notak-page-halo);
+}
+
 /* Une image dont l'adresse n'est pas encore arrivée ne montre pas son cadre vide. */
 .notak-blocs .notak-image-bloc img:not([src]),
 .notak-blocs .notak-image-bloc img[src=''] {

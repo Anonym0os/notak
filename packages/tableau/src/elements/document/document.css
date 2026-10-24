@@ -433,12 +433,42 @@
   width: min(280px, calc(100% - 40px));
 }
 
+/* Une marge trop étroite : les fils se posent sur le bord droit, sans retenir les clics destinés au texte ; un fil fermé
+   n'y est qu'une pastille 💬, qu'un appui rouvre. */
 @media (max-width: 1360px) {
   .notak-page > .notak-note-marge {
     grid-column: 2 / 4;
     left: auto;
     right: 12px;
-    width: 260px;
+    width: 280px;
+    pointer-events: none;
+  }
+
+  .notak-page > .notak-note-marge > .notak-fil-marge {
+    pointer-events: auto;
+  }
+
+  .notak-page > .notak-note-marge > .notak-fil-marge:not([data-actif]) {
+    left: auto;
+    width: 36px;
+    height: 28px;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 14px;
+    cursor: pointer;
+  }
+
+  .notak-page > .notak-note-marge > .notak-fil-marge:not([data-actif]) > * {
+    display: none;
+  }
+
+  .notak-page > .notak-note-marge > .notak-fil-marge:not([data-actif])::before {
+    content: '💬';
+    display: grid;
+    place-items: center;
+    height: 100%;
+    font-size: 14px;
   }
 }
 

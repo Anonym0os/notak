@@ -76,6 +76,13 @@ export function Marge({ editeur, fils, ouvert, surOuvert, ecrire, contexte }: Pr
     selector: ({ editor }) => (editor.isActive(MARQUE_FIL) ? ((editor.getAttributes(MARQUE_FIL).fil as string | null) ?? null) : null),
   })
   const actif = ouvert ?? sous
+  // Un fil sans message ne se montre que pendant qu'on l'écrit ; quitté vide, sa marque part (comme un commentaire
+  // jamais envoyé chez Notion), et ceux qu'une version d'avant a laissés partent à l'ouverture.
+  useEffect(() => {
+    for (const id of liste) if (id !== actif && !fils?.[id]?.messages.length) retirerMarque(editeur, id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actif])
+  const visibles = liste.filter((id) => id === actif || !!fils?.[id]?.messages.length)
   const fiches = useRef(new Map<Id, HTMLElement>())
   const [places, setPlaces] = useState<number[]>([])
 
@@ -85,7 +92,7 @@ export function Marge({ editeur, fils, ouvert, surOuvert, ecrire, contexte }: Pr
     const rect = carte.getBoundingClientRect()
     // La toile peut être zoomée : la marge vit dans le plan, pas à l'écran.
     const echelle = carte.offsetWidth > 0 ? rect.width / carte.offsetWidth : 1
-    const voulues = liste.map((id) => {
+    const voulues = visibles.map((id) => {
       let pos = -1
       editeur.state.doc.descendants((n, p) => {
         if (pos < 0 && n.isText && n.marks.some((m) => m.type.name === MARQUE_FIL && m.attrs.fil === id)) pos = p
@@ -93,10 +100,10 @@ export function Marge({ editeur, fils, ouvert, surOuvert, ecrire, contexte }: Pr
       })
       return pos < 0 ? 0 : (editeur.view.coordsAtPos(pos).top - rect.top) / echelle
     })
-    const hauteurs = liste.map((id) => fiches.current.get(id)?.offsetHeight ?? 0)
+    const hauteurs = visibles.map((id) => fiches.current.get(id)?.offsetHeight ?? 0)
     const apres = placerEnMarge(voulues, hauteurs)
     setPlaces((avant) => (avant.length === apres.length && avant.every((v, i) => Math.abs(v - apres[i]!) < 0.5) ? avant : apres))
-  }, [editeur, ids])
+  }, [editeur, ids, visibles.join('|')])
 
   // Après chaque rendu (une fiche qui grandit pousse les suivantes), et quand le texte bouge.
   useLayoutEffect(mesurer)
@@ -105,17 +112,21 @@ export function Marge({ editeur, fils, ouvert, surOuvert, ecrire, contexte }: Pr
     editeur.on('selectionUpdate', mesurer)
     // Un texte qui défile (le document ouvert en grand) emporte ses passages : les fiches les suivent.
     document.addEventListener('scroll', mesurer, true)
+    // La mise en page qui change (ouverture, polices chargées, fenêtre retaillée) déplace les passages.
+    const taille = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => mesurer())
+    taille?.observe(editeur.view.dom)
     return () => {
       editeur.off('update', mesurer)
       editeur.off('selectionUpdate', mesurer)
       document.removeEventListener('scroll', mesurer, true)
+      taille?.disconnect()
     }
   }, [editeur, mesurer])
 
-  if (liste.length === 0) return null
+  if (visibles.length === 0) return null
   return (
     <aside className="notak-note-marge" aria-label={t('commentaire.dutexte')} onPointerDown={garder} onDoubleClick={garder}>
-      {liste.map((id, i) => (
+      {visibles.map((id, i) => (
         <Fiche
           key={id}
           ref={(n) => {

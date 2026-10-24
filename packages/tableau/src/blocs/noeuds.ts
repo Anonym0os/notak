@@ -138,26 +138,86 @@ export const ImageBloc = Node.create<OptionsImage>({
     return ['figure', attrs, ['img', { src: String(url ?? ''), alt: texte }], ...(legende ? [['figcaption', {}, texte] as const] : [])]
   },
   // Dans l'éditeur, l'image d'un fichier du tableau va chercher son adresse ; hors édition, voir `remplirImages`.
+  // Au survol, deux poignées sur ses bords règlent sa largeur (NOTION.md § 2), écrite au lâcher en part de la colonne.
   addNodeView() {
     const { adresse } = this.options
-    return ({ node }) => {
+    return ({ node: depart, view, getPos }) => {
+      let node = depart
       const figure = document.createElement('figure')
       figure.className = 'notak-image-bloc'
       figure.dataset.type = 'image'
-      figure.dataset.alignement = String(node.attrs.alignement ?? 'centre')
-      if (node.attrs.id) figure.dataset.bloc = String(node.attrs.id)
-      if (node.attrs.largeur) figure.style.width = `${Math.round(Number(node.attrs.largeur) * 100)}%`
       const img = document.createElement('img')
-      img.alt = String(node.attrs.legende ?? '')
-      if (node.attrs.url) img.src = String(node.attrs.url)
-      else if (node.attrs.fichier && adresse) void adresse(String(node.attrs.fichier)).then((u) => u && (img.src = u))
-      figure.append(img)
-      if (node.attrs.legende) {
-        const legende = document.createElement('figcaption')
-        legende.textContent = String(node.attrs.legende)
-        figure.append(legende)
+      img.draggable = false
+      const legende = document.createElement('figcaption')
+      let source = ''
+      const peindre = () => {
+        const a = node.attrs as Record<string, unknown>
+        figure.dataset.alignement = String(a.alignement ?? 'centre')
+        for (const [cle, v] of [['bloc', a.id], ['couleur', a.couleur], ['retrait', Number(a.retrait) || null]] as const) {
+          if (v) figure.dataset[cle] = String(v)
+          else delete figure.dataset[cle]
+        }
+        figure.style.width = a.largeur ? `${Math.round(Number(a.largeur) * 1000) / 10}%` : ''
+        img.alt = String(a.legende ?? '')
+        const voulue = String(a.url ?? a.fichier ?? '')
+        if (voulue !== source) {
+          source = voulue
+          if (a.url) img.src = String(a.url)
+          else if (a.fichier && adresse) void adresse(String(a.fichier)).then((u) => u && source === voulue && (img.src = u))
+        }
+        legende.textContent = String(a.legende ?? '')
+        if (a.legende) figure.append(legende)
+        else legende.remove()
       }
-      return { dom: figure, update: (n) => n === node }
+      const poignee = (cote: 'gauche' | 'droite') => {
+        const p = document.createElement('div')
+        p.className = 'notak-image-poignee'
+        p.dataset.cote = cote
+        p.contentEditable = 'false'
+        p.addEventListener('pointerdown', (e) => {
+          if (e.button !== 0 || !view.editable) return
+          e.preventDefault()
+          e.stopPropagation()
+          const conteneur = figure.parentElement
+          if (!conteneur) return
+          // La place qu'elle peut prendre : sa colonne, moins les marges de la rangée de bloc.
+          const max = conteneur.clientWidth - 12
+          const largeur0 = figure.getBoundingClientRect().width
+          const centree = figure.dataset.alignement === 'centre'
+          const x0 = e.clientX
+          let largeur = largeur0
+          const bouger = (m: PointerEvent) => {
+            const dx = (m.clientX - x0) * (cote === 'droite' ? 1 : -1) * (centree ? 2 : 1)
+            largeur = Math.max(64, Math.min(max, largeur0 + dx))
+            figure.style.width = `${largeur}px`
+          }
+          const lacher = () => {
+            window.removeEventListener('pointermove', bouger, true)
+            window.removeEventListener('pointerup', lacher, true)
+            const pos = getPos()
+            if (pos === undefined) return
+            const part = largeur / max
+            view.dispatch(view.state.tr.setNodeAttribute(pos, 'largeur', part >= 0.99 ? null : Math.round(part * 1000) / 1000))
+          }
+          window.addEventListener('pointermove', bouger, true)
+          window.addEventListener('pointerup', lacher, true)
+        })
+        return p
+      }
+      const poignees = [poignee('gauche'), poignee('droite')]
+      figure.append(img, ...poignees)
+      peindre()
+      return {
+        dom: figure,
+        update: (n) => {
+          if (n.type !== node.type) return false
+          node = n
+          peindre()
+          return true
+        },
+        stopEvent: (e) => poignees.some((p) => p.contains(e.target as HTMLElement)),
+        ignoreMutation: () => true,
+      }
     }
   },
 })
