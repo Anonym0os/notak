@@ -2,6 +2,8 @@ import { Fragment, type Node as NoeudPM } from '@tiptap/pm/model'
 import { TextSelection } from '@tiptap/pm/state'
 import type { Editor } from '@tiptap/react'
 import { type Couleur, type Insertion, type Vers, couleurDeAttribut, couleurEnAttribut } from './catalogue'
+import { dupliquer, supprimer } from './gestes'
+import { poserIds } from './ids'
 
 /**
  * Les gestes de « Transformer en », du menu « / » et des couleurs (docs/NOTION.md § 3 et § 5), sur le bloc du
@@ -222,35 +224,27 @@ export function colorer(editor: Editor, couleur: Couleur): boolean {
 /** La couleur du bloc du curseur, s'il en porte une. */
 export const couleurDuBloc = (editor: Editor): Couleur | null => couleurDeAttribut(editor.state.doc.nodeAt(blocDuCurseur(editor))?.attrs.couleur)
 
-/** Duplique le bloc du curseur juste après lui ; la copie reçoit ses propres ids (voir `ids.ts`). */
-export function dupliquerBloc(editor: Editor): boolean {
-  const pos = blocDuCurseur(editor)
-  const noeud = editor.state.doc.nodeAt(pos)
-  if (!noeud) return false
-  const fin = pos + noeud.nodeSize
-  const tr = editor.state.tr.insert(fin, noeud.copy(noeud.content))
-  editor.view.dispatch(tr.setSelection(TextSelection.near(tr.doc.resolve(fin + 1))).scrollIntoView())
-  return true
+/** L'id du bloc du curseur ; les blocs qui n'en ont pas encore (juste à l'ouverture) le reçoivent d'abord. */
+function idDuCurseur(editor: Editor): string | null {
+  const tr = poserIds(editor.state)
+  if (tr) editor.view.dispatch(tr)
+  return (editor.state.doc.nodeAt(blocDuCurseur(editor))?.attrs.id as string | null) ?? null
 }
 
-/**
- * Supprime le bloc du curseur. Le seul élément d'une liste emporte sa liste ; un texte, une colonne ou un dépliant
- * qui n'avait que lui garde un paragraphe vide.
- */
+/** Duplique le bloc du curseur juste après lui ; la copie reçoit ses propres ids (voir `ids.ts`). */
+export function dupliquerBloc(editor: Editor): boolean {
+  const id = idDuCurseur(editor)
+  const tr = id ? dupliquer(editor.state, [id]) : null
+  if (tr) editor.view.dispatch(tr)
+  return !!tr
+}
+
+/** Supprime le bloc du curseur, avec la liste ou la colonne qu'il laisserait vide (voir `gestes.ts`). */
 export function supprimerBloc(editor: Editor): boolean {
-  const { doc, schema } = editor.state
-  let pos = blocDuCurseur(editor)
-  let $pos = doc.resolve(pos)
-  while ($pos.depth > 0 && $pos.parent.childCount === 1 && !['colonne', 'deroulant'].includes($pos.parent.type.name)) {
-    pos = $pos.before()
-    $pos = doc.resolve(pos)
-  }
-  const noeud = doc.nodeAt(pos)
-  if (!noeud) return false
-  const fin = pos + noeud.nodeSize
-  const tr = $pos.parent.childCount === 1 ? editor.state.tr.replaceWith(pos, fin, schema.nodes.paragraph!.create()) : editor.state.tr.delete(pos, fin)
-  editor.view.dispatch(tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(pos, tr.doc.content.size)), -1)).scrollIntoView())
-  return true
+  const id = idDuCurseur(editor)
+  const tr = id ? supprimer(editor.state, [id]) : null
+  if (tr) editor.view.dispatch(tr)
+  return !!tr
 }
 
 /** Pose une image du tableau sous le bloc du curseur (ou à la place du bloc vide). */

@@ -2,6 +2,7 @@ import { TextSelection } from '@tiptap/pm/state'
 import type { Editor } from '@tiptap/react'
 import { type RefObject, useEffect, useRef, useState } from 'react'
 import { t } from '../langue'
+import { type Flanc, enColonnes } from './colonnes'
 import { type Cote, blocA, deplacer } from './gestes'
 import { CLE_CHOIX, blocsChoisis, choisir, parcours } from './selection'
 
@@ -21,11 +22,16 @@ interface Survol {
 
 interface Depot {
   id: string
-  cote: Cote
+  /** Dessus, dessous, ou sur un flanc : une colonne (NOTION.md § 8). */
+  cote: Cote | Flanc
   haut: number
   gauche: number
   largeur: number
+  hauteur: number
 }
+
+/** La part de la largeur d'un bloc, de chaque côté, où lâcher fait une colonne. */
+const FLANC = 0.2
 
 interface Props {
   editeur: Editor
@@ -106,7 +112,7 @@ export function Poignee({ editeur, zone, ouvrirMenu }: Props) {
     const z = zone.current
     if (!z) return
     const bas = (e: PointerEvent) => {
-      if (e.button !== 0 || (e.target as Element).closest('.notak-blocs-poignee, .ProseMirror > *, .notak-note-marge')) return
+      if (e.button !== 0 || (e.target as Element).closest('.notak-blocs-poignee, .notak-blocs-largeur, .ProseMirror > *, .notak-note-marge')) return
       // L'éditeur ne voit pas cet appui : sa propre sélection à la souris ne doit pas se mêler au rectangle.
       e.preventDefault()
       const rz = z.getBoundingClientRect()
@@ -185,8 +191,16 @@ export function Poignee({ editeur, zone, ouvrirMenu }: Props) {
       }
       const rz = z.getBoundingClientRect()
       const rb = b.dom.getBoundingClientRect()
-      const cote: Cote = m.clientY < rb.top + rb.height / 2 ? 'dessus' : 'dessous'
-      ici = { id: b.id, cote, haut: (cote === 'dessus' ? rb.top : rb.bottom) - rz.top + z.scrollTop, gauche: rb.left - rz.left, largeur: rb.width }
+      const haut = rb.top - rz.top + z.scrollTop
+      // Un flanc : seulement pour un bloc du flux ou d'une colonne (pas dans une liste, un dépliant…).
+      const parent = vue.state.doc.resolve(b.pos).parent.type.name
+      const flanc: Flanc | null =
+        parent !== 'doc' && parent !== 'colonne' ? null : m.clientX < rb.left + rb.width * FLANC ? 'gauche' : m.clientX > rb.right - rb.width * FLANC ? 'droite' : null
+      if (flanc) ici = { id: b.id, cote: flanc, haut, gauche: (flanc === 'gauche' ? rb.left : rb.right) - rz.left, largeur: 0, hauteur: rb.height }
+      else {
+        const cote: Cote = m.clientY < rb.top + rb.height / 2 ? 'dessus' : 'dessous'
+        ici = { id: b.id, cote, haut: cote === 'dessus' ? haut : haut + rb.height, gauche: rb.left - rz.left, largeur: rb.width, hauteur: 0 }
+      }
       setDepot(ici)
     }
     const lacher = (u: PointerEvent) => {
@@ -200,7 +214,8 @@ export function Poignee({ editeur, zone, ouvrirMenu }: Props) {
         ouvrirMenu()
         return
       }
-      const tr = ici ? deplacer(vue.state, ids, ici.id, ici.cote, u.altKey) : null
+      const d = ici as Depot | null
+      const tr = !d ? null : d.cote === 'gauche' || d.cote === 'droite' ? enColonnes(vue.state, ids, d.id, d.cote, u.altKey) : deplacer(vue.state, ids, d.id, d.cote, u.altKey)
       // Les blocs déplacés restent choisis ; une copie laisse le texte.
       if (tr) vue.dispatch(choisir(vue.state, u.altKey ? null : { ancre: ids[0]!, tete: ids[ids.length - 1]! }, tr))
       vue.focus()
@@ -235,7 +250,12 @@ export function Poignee({ editeur, zone, ouvrirMenu }: Props) {
           </button>
         </div>
       )}
-      {depot && <div className="notak-blocs-depot" style={{ top: depot.haut - 2, left: depot.gauche, width: depot.largeur }} aria-hidden />}
+      {depot &&
+        (depot.hauteur ? (
+          <div className="notak-blocs-depot" data-flanc="" style={{ top: depot.haut, left: depot.gauche - 2, height: depot.hauteur }} aria-hidden />
+        ) : (
+          <div className="notak-blocs-depot" style={{ top: depot.haut - 2, left: depot.gauche, width: depot.largeur }} aria-hidden />
+        ))}
       {rectangle && <div className="notak-blocs-rectangle" style={{ left: rectangle.x, top: rectangle.y, width: rectangle.l, height: rectangle.h }} aria-hidden />}
     </>
   )

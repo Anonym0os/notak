@@ -248,7 +248,7 @@ Les guillemets droits deviennent typographiques selon la langue : « » en fran�
 - **Dissolution.**
   - Une colonne vidée disparaît.
   - Quand il n'en reste qu'une, la rangée se dissout et ses blocs reprennent leur place dans le flux.
-- **Petits écrans.** Sous 640 px de large, les colonnes s'empilent.
+- **Petits écrans.** Sous 480 px de large, les colonnes s'empilent.
 
 ## 9. La page
 

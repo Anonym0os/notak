@@ -2,6 +2,7 @@ import { getSchema } from '@tiptap/react'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import StarterKit from '@tiptap/starter-kit'
 import { EXTENSIONS_NOTE, KIT } from '../elements/note/extensions'
+import { DissolutionColonnes } from './colonnes'
 import { IdsDeBlocs } from './ids'
 import { SaisieBlocs } from './saisie'
 import { SelectionBlocs } from './selection'
@@ -31,6 +32,7 @@ const communs = [
   IdsDeBlocs,
   SaisieBlocs,
   SelectionBlocs,
+  DissolutionColonnes,
 ]
 
 export const EXTENSIONS_BLOCS = [StarterKit.configure(KIT_BLOCS), ...communs]

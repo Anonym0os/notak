@@ -79,7 +79,7 @@ export const Colonnes = Node.create({
   content: 'colonne+',
   isolating: true,
   parseHTML: () => [{ tag: 'div[data-type="colonnes"]' }],
-  renderHTML: ({ HTMLAttributes }) => ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'colonnes', class: 'notak-colonnes' }), 0],
+  renderHTML: ({ HTMLAttributes }) => ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'colonnes', class: 'notak-blocs-rangee' }), 0],
 })
 
 /** Une colonne : des blocs, et sa part de la largeur (`ratio`, absente : parts égales). */
@@ -97,7 +97,7 @@ export const Colonne = Node.create({
     }
   },
   parseHTML: () => [{ tag: 'div[data-type="colonne"]' }],
-  renderHTML: ({ HTMLAttributes }) => ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'colonne', class: 'notak-colonne' }), 0],
+  renderHTML: ({ HTMLAttributes }) => ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'colonne', class: 'notak-blocs-colonne' }), 0],
 })
 
 /**

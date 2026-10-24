@@ -31,8 +31,8 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
 | 18. Carte mentale | 18 | 2 | 21 | 46 % |
-| 19. Document à blocs | 17 | 3 | 5 | 74 % |
-| **Total** | **317** | **15** | **28** | **90 %** |
+| 19. Document à blocs | 18 | 3 | 4 | 78 % |
+| **Total** | **318** | **15** | **27** | **90 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -495,7 +495,7 @@ dans `packages/tableau/src/blocs/`, pour resservir à d'autres éléments.
 | Sélection de blocs : Échap, Maj+flèches, Maj+clic, rectangle | ✅ | Le rectangle part de la marge du texte. |
 | Supprimer, dupliquer (⌘D), monter et descendre (⌘⇧↑/↓), imbriquer (Tab) | 🟡 | Tab imbrique dans les listes ; hors d’une liste, il garde le retrait du texte de la note au lieu de ranger le bloc sous le précédent. |
 | Glisser un bloc ou une sélection, ⌥ copie | ✅ | Un élément de liste sorti de sa liste en retrouve une ; un texte posé dans une liste en devient un élément. |
-| Colonnes : dépôt sur le côté, 2 à 5, largeurs aimantées, dissolution | ⬜ |  |
+| Colonnes : dépôt sur le côté, 2 à 5, largeurs aimantées, dissolution | ✅ | Aussi par « / » (2 à 5 colonnes) ; elles s’empilent sous 480 px. |
 | Copier le lien d'un bloc, l'adresse amène au bloc | ✅ | `/t/…/e/…#<bloc>` : le bloc vient à l’écran et clignote. |
 | Icône et couverture de la page | ⬜ |  |
 | Police, petit texte, pleine largeur | ⬜ |  |

@@ -33,15 +33,36 @@ export function blocA($pos: ResolvedPos): number | null {
   return null
 }
 
+/**
+ * Ce qu'on retire pour ôter un bloc : lui, ou le conteneur qu'il laisserait vide (sa liste, sa colonne), de proche en
+ * proche. Une colonne vidée disparaît ainsi (NOTION.md § 8), ce que ProseMirror ne fait pas seul.
+ */
+export function etendue(doc: NoeudPM, pos: number, taille: number): [number, number] {
+  let de = pos
+  let a = pos + taille
+  for (;;) {
+    const $de = doc.resolve(de)
+    if ($de.depth === 0 || $de.parent.childCount !== 1) return [de, a]
+    if (!['bulletList', 'orderedList', 'taskList', 'colonne'].includes($de.parent.type.name)) return [de, a]
+    de = $de.before()
+    a = de + $de.parent.nodeSize
+  }
+}
+
+/** Retire les blocs de la transaction, du dernier au premier. */
+export function retirer(tr: Transaction, doc: NoeudPM, r: readonly { pos: number; noeud: NoeudPM }[]) {
+  for (const { pos, noeud } of [...r].reverse()) {
+    const [de, a] = etendue(doc, pos, noeud.nodeSize)
+    tr.deleteRange(tr.mapping.map(de), tr.mapping.map(a))
+  }
+}
+
 /** Supprime les blocs ; un conteneur vidé (liste, colonne) part avec eux, un document vidé garde un paragraphe. */
 export function supprimer(state: EditorState, ids: readonly string[]): Transaction | null {
   const r = racines(state.doc, ids)
   if (r.length === 0) return null
   const tr = state.tr
-  for (const { pos, noeud } of [...r].reverse()) {
-    const de = tr.mapping.map(pos)
-    tr.deleteRange(de, de + noeud.nodeSize)
-  }
+  retirer(tr, state.doc, r)
   if (tr.doc.childCount === 0 || tr.doc.content.size === 0) tr.insert(0, state.schema.nodes.paragraph!.create())
   const ici = Math.min(tr.mapping.map(r[0]!.pos), tr.doc.content.size)
   return tr.setSelection(TextSelection.near(tr.doc.resolve(ici), -1)).scrollIntoView()
@@ -62,7 +83,7 @@ export type Cote = 'dessus' | 'dessous'
  * Enveloppe ce qu'on pose là où le parent ne l'accepte pas tel quel : un élément de liste hors d'une liste retrouve une
  * liste du même genre ; un bloc posé entre des éléments de liste devient un élément.
  */
-function adapter(noeuds: readonly NoeudPM[], parent: NoeudPM, index: number, listeDOrigine: Map<NoeudPM, NodeType>): NoeudPM[] | null {
+export function adapter(noeuds: readonly NoeudPM[], parent: NoeudPM, index: number, listeDOrigine: Map<NoeudPM, NodeType>): NoeudPM[] | null {
   const schema = parent.type.schema
   const sortie = noeuds.map((n) => {
     if (parent.canReplaceWith(index, index, n.type)) return n
@@ -95,12 +116,7 @@ export function deplacer(state: EditorState, ids: readonly string[], cible: stri
   }
   const tr = state.tr
   const arrivee = c.pos + (cote === 'dessous' ? c.taille : 0)
-  if (!copier) {
-    for (const { pos, noeud } of [...r].reverse()) {
-      const de = tr.mapping.map(pos)
-      tr.deleteRange(de, de + noeud.nodeSize)
-    }
-  }
+  if (!copier) retirer(tr, state.doc, r)
   const ou = tr.mapping.map(arrivee, cote === 'dessous' ? -1 : 1)
   const $ou = tr.doc.resolve(ou)
   const noeuds = adapter(

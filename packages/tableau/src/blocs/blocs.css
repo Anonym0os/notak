@@ -103,23 +103,23 @@
 .notak-blocs .notak-deroulant[data-niveau] > .notak-deroulant-resume::before { top: calc(50% - 5px); }
 
 /* Les colonnes côte à côte ; sous 640 px de large, elles s'empilent. */
-.notak-blocs .notak-colonnes {
+.notak-blocs .notak-blocs-rangee {
   display: flex;
   gap: 32px;
   margin: 0 0 12px;
 }
 
-.notak-blocs .notak-colonne {
+.notak-blocs .notak-blocs-colonne {
   flex: 1 1 0;
   min-width: 0;
 }
 
-.notak-blocs .notak-colonne > :last-child {
+.notak-blocs .notak-blocs-colonne > :last-child {
   margin-bottom: 0;
 }
 
-@container (max-width: 640px) {
-  .notak-blocs .notak-colonnes { flex-direction: column; gap: 0; }
+@container (max-width: 480px) {
+  .notak-blocs .notak-blocs-rangee { flex-direction: column; gap: 0; }
 }
 
 /* L'image : sa part de la largeur, alignée ; la légende dessous, plus petite. */
@@ -497,6 +497,7 @@ button.notak-menu-blocs-entree:hover {
   position: absolute;
   z-index: 3;
   height: 4px;
+  min-width: 4px;
   border-radius: 2px;
   background: color-mix(in srgb, var(--notak-accent, #2f6feb) 60%, transparent);
   pointer-events: none;
@@ -509,4 +510,35 @@ button.notak-menu-blocs-entree:hover {
   border-radius: 2px;
   background: color-mix(in srgb, var(--notak-accent, #2f6feb) 12%, transparent);
   pointer-events: none;
+}
+
+/* Lâché sur un flanc : un trait vertical, là où la colonne naîtra. */
+.notak-blocs-depot[data-flanc] {
+  width: 4px;
+}
+
+/* La poignée de largeur entre deux colonnes : invisible, un trait au survol. */
+.notak-blocs-largeur {
+  position: absolute;
+  z-index: 2;
+  width: 16px;
+  transform: translateX(-50%);
+  cursor: col-resize;
+}
+
+.notak-blocs-largeur::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 7px;
+  width: 2px;
+  border-radius: 1px;
+  background: transparent;
+  transition: background 120ms ease;
+}
+
+.notak-blocs-largeur:hover::after,
+.notak-blocs-largeur[data-tire]::after {
+  background: color-mix(in srgb, var(--notak-accent, #2f6feb) 50%, transparent);
 }
