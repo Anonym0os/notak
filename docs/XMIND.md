@@ -141,6 +141,18 @@ proche (`logic-chart.right` → logique droite, `tree.branch-aligned.right` → 
 
 ## 5 bis. L'onglet Style
 
+**Le cadre du panneau de côté** (`panneau-cote.css`, commun aux onglets Style, Présentation, Carte et au panneau
+d'icônes) : 268 de large, posé à 8 du haut, de la droite et du bas, rayon 18. Le **rail d'onglets** : marge `8 12 0`,
+padding 4, onglets de 25 de haut, soit 33 en tout, rayon 24, pastille de l'onglet choisi (graisse 600) sur un rail gris ;
+un filet de 1 × 16 entre deux onglets, caché contre le choisi. Le corps du panneau **ne met aucune marge** : chaque onglet
+pose les siennes, **20 de chaque côté** (228 utiles), des sections de `12 20`, des séparateurs de 1 avec une marge de 8
+(onglet Style) ou 20 (onglet Présentation). Hauteur de tout contrôle : 24 ; rangée courte = libellé à gauche **sur une
+seule ligne** (13/17, coupé par « … » avec son texte en infobulle s'il ne tenait pas) et contrôle de 72 à droite ; rangée
+longue = légende de 11/15 puis contrôle sur les 228. Le panneau porte encore la classe de l'ancien panneau
+(`notak-arbre-panneau`), dont les règles arrivent par descendance : les règles des onglets sont donc préfixées
+`.notak-arbre-fond` pour les battre (sans quoi les sections se collent aux bords et les listes prennent la pleine
+largeur).
+
 Le panneau de côté a trois onglets (Style, Présentation, Carte). **Style** règle ce qui est choisi ; la sélection dit
 la vue : un sujet (central, principal, sous-sujet, flottant), plusieurs sujets, une relation, une limite, le sujet
 d'un résumé, ou rien (« Sélectionner un objet à formater. »). Un mélange (un sujet et une relation) donne l'état vide.
@@ -288,10 +300,10 @@ entière** et ne dépend pas de la sélection. Ses blocs, de haut en bas, sépar
 
 1. **Squelette** : une carte large (la vignette de la structure courante, le **nom de son groupe**, un chevron).
 2. **Thème de couleur** : un sélecteur (six segments, le nom du groupe), le bouton « + », puis les variantes du groupe.
-3. **Couleur de l'arrière-plan** : une pastille.
+3. **Arrière-plan** : une pastille (en Xmind « Couleur de l'arrière-plan » ; le libellé de Notak est raccourci pour tenir sur une ligne à côté des 72 px du contrôle).
 4. **Police globale**, **Largeur de la ligne de branche**, **Branche colorée** et sa couleur.
 5. **Style de carte** : Équilibrer la carte, Carte compacte.
-6. **Affichage des sujets** : Justifier l'alignement du sujet, Afficher toutes les notes, Colorier sujet flottant auto.
+6. **Affichage des sujets** : Largeur uniforme (« Uniform Topic Length » de Xmind), Afficher toutes les notes, Flottants colorés auto (libellés raccourcis comme ci-dessus).
 7. **Relation** : Couleur ligne suit sujet.
 8. **Avancé** : Branches libres, Sujet flottant flexible, Chevauchement des sujets.
 9. **Police CJK**, et le bouton **Thèmes personnalisés**.
@@ -454,10 +466,18 @@ Le mode présentation : la carte devient une suite de diapositives.
   propriétés de `style.properties` : celles de la feuille sur le sujet central, celles d'un sujet sur lui. Le relevé ne
   dit pas où Xmind les range : → Notak le déduit de leur forme, sans l'avoir éprouvé contre Xmind lui-même. Une valeur
   inconnue reste dans le style, intacte.
+- **Les mesures de l'onglet** (relevé 7 § 1.2 à 1.4), de haut en bas : marge haute 12 + 12, titre « Affichage en mode
+  présentation » (13/17, 600, 12 dessous), aperçu **227 × 128 centré** (rayon 10), « Changer de thème » **228 × 24** (rayon 6,
+  4 au-dessus, 16 au-dessous), rangées de **24**, séparateurs de 1 entre deux marges de **20**. Les listes des rangées
+  courtes font **72 × 24** (rayon 8) et montrent « Auto » (le détail « Auto (Visible) » est dans la liste ouverte) ; celles
+  des rangées longues (Position de l'image, Livraison) font 228 ; le groupe de mise en page est un groupe segmenté de 228
+  (cellules de 24, rayon 6, filet de 12 caché contre la cellule choisie ou survolée). Les libellés de Notak sont plus courts
+  que ceux de Xmind en français (« Diapositive du sujet », « Sous-sujets en liste », « Diapositive du résumé ») : à 13 px ils
+  doivent tenir dans les 148 px que laisse la liste, là où Xmind réduit sa police à 10 px.
 - L'onglet montre l'aperçu de la diapositive du sujet (rejouée au survol, une étape toutes les 2 s), « Changer de thème »
-  (le sélecteur : une vignette par thème, deux par ligne), le rapport, puis « Sujet comme diapositive » (Auto / Visible /
+  (le sélecteur : une vignette par thème, deux par ligne), le rapport, puis « Diapositive du sujet » (Auto / Visible /
   Masqué, « Auto » dit ce qu'il décide), « Position de l'image » (si tous les sujets choisis portent une image),
-  « Sous-sujets comme diapositive » et, s'il est visible, « Livraison » et « Mise en page » (cinq boutons).
+  « Sous-sujets en liste » et, s'il est visible, « Livraison » et « Mise en page » (cinq boutons).
   Avec plusieurs sujets : « Multiple » quand ils diffèrent.
 
 **Les diapositives.** Auto : le central, les principaux et les flottants sont des diapositives, les sous-sujets non ;
@@ -482,6 +502,7 @@ Le bouton **smiley** (« Marqueur ») ouvre, dans le panneau de côté, trois on
 focus. Chacun des trois s'ouvre aussi par le menu « + » et le menu d'un sujet.
 
 **Marqueur.**
+- **Mesures** : le rail d'onglets du panneau de côté (§ 5 bis) ; le bouton de légende et celui du pied font 24 de haut sur 244 (marge `12 12 0`) ; sous le filet, la zone qui défile a `12 20 48` de padding et ses groupes 12 d'écart ; en-tête de groupe 13/600 avec un chevron plein.
 - En tête : **Afficher / Masquer la légende** (le réglage vit dans la carte : `legende.visible`).
 - Sept groupes repliables (chevron, ouverts au départ), dans l'ordre : **Étiquette** (7 couleurs), **Priorité** (1 à 7),
   **Tâche** (début, ⅛, ⅜, ½, ⅝, ⅞, fait), **Drapeau**, **Étoile**, **Personnes** (7 couleurs chacun), **Symbole** (16 sur la

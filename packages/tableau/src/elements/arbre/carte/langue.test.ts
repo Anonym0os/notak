@@ -46,6 +46,6 @@ describe('les textes de l’onglet Carte', () => {
     } finally {
       definirLangue('fr')
     }
-    expect(t('arbre.carte.uniforme')).toBe('Justifier l\'alignement du sujet')
+    expect(t('arbre.carte.uniforme')).toBe('Largeur uniforme')
   })
 })

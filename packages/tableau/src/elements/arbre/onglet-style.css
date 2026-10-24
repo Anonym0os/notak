@@ -12,9 +12,10 @@
   --notak-arbre-style-bleu: #0f66de;
 }
 
-/* Le panneau : les sections vont d'un bord à l'autre, le panneau de côté ayant déjà ses 10 px de marge. */
+/* Le panneau : les sections vont d'un bord à l'autre du panneau de côté, qui ne met aucune marge au corps. */
 .notak-arbre-fond .notak-arbre-style {
-  margin: 0 -10px;
+  margin: 0;
+  padding: 12px 0 32px;
   color: var(--notak-arbre-texte);
   font-size: 13px;
   line-height: 17px;
@@ -26,9 +27,14 @@
   user-select: text;
 }
 
+.notak-arbre-fond .notak-arbre-style,
+.notak-arbre-fond .notak-arbre-style * {
+  box-sizing: border-box;
+}
+
 /* — La section — */
 .notak-arbre-fond .notak-arbre-style-section {
-  padding: 12px 16px;
+  padding: 12px 20px;
   display: block;
   border: 0;
 }
@@ -83,7 +89,7 @@
 
 .notak-arbre-fond .notak-arbre-style-separateur {
   height: 0;
-  margin: 8px 16px;
+  margin: 8px 20px;
   border: 0;
   border-top: 1px solid var(--notak-arbre-style-bord);
 }
@@ -156,7 +162,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 12px 16px 24px;
+  padding: 12px 20px 24px;
 }
 
 .notak-arbre-fond .notak-arbre-style-contenu {
@@ -196,6 +202,15 @@
   flex: none;
   width: 72px;
   padding: 0 4px;
+}
+
+.notak-arbre-fond .notak-arbre-style-select.notak-arbre-style-flex {
+  flex: 1;
+  min-width: 0;
+}
+
+.notak-arbre-fond .notak-arbre-style-select.notak-arbre-style-pleine {
+  width: 100%;
 }
 
 .notak-arbre-fond .notak-arbre-style-select:hover:not(:disabled),

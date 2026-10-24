@@ -91,6 +91,27 @@ describe('l’onglet Pitch', () => {
     p.fin()
   })
 
+  it('les rangées : un libellé court sur une ligne, un menu natif sous une valeur courte (« Auto »), 72 ou pleine largeur', () => {
+    const { a, A } = carte()
+    const o = onglet(a, [A])
+    const rangees = [...o.hote.querySelectorAll<HTMLElement>('.notak-arbre-pitch-ligne')]
+    // Rapport d'aspect, sujet, liste : courtes ; livraison, mise en page : verticales.
+    expect(rangees.filter((r) => r.dataset.vertical === undefined).map((r) => r.firstElementChild!.textContent)).toEqual(['Rapport d’aspect', 'Diapositive du sujet', 'Sous-sujets en liste'])
+    expect(rangees.filter((r) => r.dataset.vertical !== undefined).map((r) => r.firstElementChild!.textContent)).toEqual(['Livraison', 'Mise en page'])
+    // Chaque libellé porte son texte en infobulle : coupé par « … » s'il ne tenait pas, jamais sur deux lignes.
+    for (const r of rangees) expect(r.firstElementChild!.getAttribute('title')).toBe(r.firstElementChild!.textContent)
+    // Le menu natif (clavier, liste) garde son nom accessible ; ce qu'on lit est « Auto », le détail est dans la liste.
+    const court = o.hote.querySelector('.notak-arbre-pitch-select:not([data-large])')!
+    expect(court.querySelector('select')!.getAttribute('aria-label')).toBe('Rapport d’aspect')
+    expect(court.querySelector('.notak-arbre-pitch-valeur')!.textContent).toBe('Auto')
+    const sujet = o.menu('Sujet comme diapositive').parentElement!
+    expect(sujet.querySelector('.notak-arbre-pitch-valeur')!.textContent).toBe('Auto')
+    const large = o.menu('Livraison').parentElement!
+    expect(large.hasAttribute('data-large')).toBe(true)
+    expect(large.querySelector('.notak-arbre-pitch-valeur')!.textContent).toBe('Auto (Un par un)')
+    o.fin()
+  })
+
   it('plusieurs sujets : « Plusieurs sujets sélectionnés. » à la place de l’aperçu, « Multiple » quand ils diffèrent', () => {
     const { a, A, B } = carte()
     const b = poserDiapo(a, [A], { sujet: 'masque' })

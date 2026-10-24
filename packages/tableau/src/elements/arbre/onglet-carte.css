@@ -8,18 +8,8 @@
   --notak-arbre-largeur-cote: 268px;
 }
 
-/* Le cadre : l'onglet occupe toute la largeur du panneau, sans les marges du corps ni celles du panneau d'avant. */
-.notak-arbre-cote.notak-arbre-panneau {
-  padding: 0;
-}
-
-/* La vue secondaire remplace la barre d'onglets par sa propre barre de titre. */
-.notak-arbre-cote:has(.notak-arbre-reglages[data-secondaire]) > .notak-arbre-onglets {
-  display: none;
-}
-
 .notak-arbre-reglages {
-  margin: 0 -10px;
+  margin: 0;
   padding-bottom: 32px;
   color: var(--notak-arbre-texte);
   font-size: 13px;
@@ -81,8 +71,13 @@
 }
 
 .notak-arbre-reglages-libelle {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
   font-weight: 400;
   letter-spacing: 0.52px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .notak-arbre-reglages-ligne[data-inactif] .notak-arbre-reglages-libelle {
