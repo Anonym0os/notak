@@ -705,9 +705,9 @@ s'il n'y a qu'un frère) et **« Merci »**, la diapositive de fin, traitée com
     rendent à sa place ; pendant ce temps, les touches ne font rien d'autre.
 → Notak : le titre « Merci » est traduit (Xmind écrit « Thank you » dans toutes les langues). La suite est calculée
 d'avance plutôt que chaînée à la demande, pour la même séquence. Une image collée est réputée bitmap et sa taille affichée
-tient lieu de taille naturelle ; une équation et une illustration comptent comme vectorielles. Le dessin fidèle de chaque
-gabarit et les thèmes sont encore à venir : en attendant, chaque gabarit retombe sur le rendu le plus
-proche, et l'écran de fin ne montre que « Merci » en vignette, sans l'image de la carte.
+tient lieu de taille naturelle ; une équation et une illustration comptent comme vectorielles. Les polices
+propriétaires de Xmind sont remplacées par des polices libres (Signika, Nunito, Kalam) ; l'écran de fin prend le fond
+de la carte plutôt que la palette du thème, et la flèche des paroles ne change pas avec le thème.
 Entre deux étapes d'une liste, Notak superpose les deux diapositives au lieu de réutiliser la même vue : le mouvement est
 le même. Les couleurs des décors ne s'interpolent pas, et les formes de fond qui changent de dessin se croisent au lieu
 de se déformer.
