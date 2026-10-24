@@ -1,0 +1,387 @@
+/* L'habillage de la carte ouverte, disposé comme la fenêtre de Xmind (Fenetre.tsx). Les teintes se tirent du fond et
+   de l'encre de la carte : le thème sombre suit sans rien redire. */
+
+.notak-arbre-fond {
+  --notak-arbre-cadre: color-mix(in srgb, var(--notak-arbre-texte) 7%, var(--notak-arbre-fond));
+  --notak-arbre-cote: color-mix(in srgb, var(--notak-arbre-texte) 4.5%, var(--notak-arbre-fond));
+  --notak-arbre-piste: color-mix(in srgb, var(--notak-arbre-texte) 9%, var(--notak-arbre-fond));
+  --notak-arbre-filet-c: color-mix(in srgb, var(--notak-arbre-texte) 10%, transparent);
+  --notak-arbre-discret: color-mix(in srgb, var(--notak-arbre-texte) 55%, transparent);
+  --notak-arbre-survol: color-mix(in srgb, var(--notak-arbre-texte) 8%, transparent);
+  --notak-arbre-appui: color-mix(in srgb, var(--notak-arbre-texte) 12%, transparent);
+  --notak-arbre-plein: color-mix(in srgb, var(--notak-arbre-texte) 85%, var(--notak-arbre-fond));
+  --notak-arbre-ombre: inset 1px 1px 2px rgb(255 255 255 / 0.4), inset 0.5px 0.5px 1px rgb(255 255 255 / 0.7), 0 6px 20px rgb(0 0 0 / 0.06), 0 0 4px rgb(0 0 0 / 0.04);
+  --notak-arbre-verre: color-mix(in srgb, var(--notak-arbre-fond) 70%, transparent);
+  --notak-arbre-largeur-cote: 250px;
+  background: var(--notak-arbre-cadre);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  color: var(--notak-arbre-texte);
+}
+
+/* Le cadre couvre toute la surcouche : un clic sur sa marge ne tombe jamais sur le fond, qui fermerait la carte. */
+.notak-arbre-fenetre {
+  position: absolute;
+  inset: 0;
+}
+
+/* La carte, posée dans le cadre comme une feuille ; elle laisse la place au panneau de côté quand il est ouvert. */
+.notak-arbre-scene {
+  position: absolute;
+  inset: 8px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--notak-arbre-fond);
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.08);
+}
+
+.notak-arbre-fenetre[data-cote] .notak-arbre-scene {
+  right: calc(var(--notak-arbre-largeur-cote) + 16px);
+}
+
+.notak-arbre-fenetre[data-zen] .notak-arbre-scene {
+  inset: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Ce qui flotte sur la carte : blanc, arrondi, une ombre légère. */
+.notak-arbre-pilule,
+.notak-arbre-pastille {
+  background: var(--notak-arbre-verre);
+  box-shadow: var(--notak-arbre-ombre);
+  border-radius: 24px;
+  backdrop-filter: blur(13px) saturate(300%);
+}
+
+.notak-arbre-pastille {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 36px;
+  border: 0;
+  padding: 0;
+  color: var(--notak-arbre-texte);
+  cursor: pointer;
+}
+
+.notak-arbre-pastille:hover {
+  background: color-mix(in srgb, var(--notak-arbre-texte) 4%, var(--notak-arbre-fond));
+}
+
+.notak-arbre-entete {
+  position: absolute;
+  top: 16px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.notak-arbre-nom {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 100px;
+  max-width: 260px;
+}
+
+.notak-arbre-nom strong {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 19px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.notak-arbre-nom span {
+  font-size: 11px;
+  line-height: 15px;
+  letter-spacing: 0.44px;
+}
+
+/* Les boutons à icône, communs aux barres. */
+.notak-arbre-bouton {
+  display: inline-grid;
+  place-items: center;
+  grid-auto-flow: column;
+  gap: 2px;
+  min-width: 34px;
+  height: 28px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 24px;
+  background: transparent;
+  color: var(--notak-arbre-texte);
+  cursor: pointer;
+}
+
+.notak-arbre-bouton:hover:not(:disabled, [aria-pressed='true']) {
+  background: var(--notak-arbre-survol);
+}
+
+.notak-arbre-bouton:active:not(:disabled, [aria-pressed='true']) {
+  background: var(--notak-arbre-appui);
+}
+
+.notak-arbre-bouton:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.notak-arbre-bouton[aria-pressed='true'] {
+  background: var(--notak-arbre-plein);
+  color: var(--notak-arbre-fond);
+}
+
+/* La barre d'outils, au centre en haut de la carte. */
+.notak-arbre-outils {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 4px;
+  transform: translateX(-50%);
+}
+
+.notak-arbre-droite {
+  position: absolute;
+  top: 16px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.notak-arbre-droite .notak-arbre-pilule {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 4px;
+}
+
+/* Le chevron du « + » : plus petit, collé au plus. */
+.notak-arbre-plus {
+  padding: 0 4px 0 6px;
+}
+
+.notak-arbre-plus .notak-ico + .notak-ico {
+  margin-left: -2px;
+}
+
+/* En bas : la feuille à gauche, l'état de la vue à droite. */
+.notak-arbre-feuilles {
+  position: absolute;
+  bottom: 12px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 5px;
+}
+
+.notak-arbre-feuille {
+  max-width: 220px;
+  overflow: hidden;
+  padding: 5px 16px;
+  border-radius: 999px;
+  background: var(--notak-arbre-piste);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.notak-arbre-etat {
+  position: absolute;
+  right: 8px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 6px 0 14px;
+  font-size: 12px;
+}
+
+.notak-arbre-compte {
+  padding-right: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.notak-arbre-filet {
+  width: 1px;
+  height: 16px;
+  margin: 0 6px;
+  background: var(--notak-arbre-filet-c);
+}
+
+.notak-arbre-zoom {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.notak-arbre-zoom:hover {
+  background: var(--notak-arbre-survol);
+}
+
+/* Les menus déroulants. */
+.notak-arbre-menu-hote {
+  position: relative;
+}
+
+.notak-arbre-deroulant {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  max-height: 70vh;
+  overflow: auto;
+  padding: 5px;
+  border-radius: 10px;
+  background: var(--notak-arbre-fond);
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.1), 0 8px 24px rgb(0 0 0 / 0.14);
+  font-size: 13px;
+}
+
+.notak-arbre-deroulant[data-vers='haut'] {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
+.notak-arbre-deroulant > button {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--notak-arbre-texte);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notak-arbre-deroulant > button:hover:not(:disabled) {
+  background: var(--notak-arbre-survol);
+}
+
+.notak-arbre-deroulant > button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.notak-arbre-deroulant kbd {
+  font: inherit;
+  font-size: 12px;
+  color: var(--notak-arbre-discret);
+}
+
+.notak-arbre-deroulant hr {
+  width: 100%;
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid var(--notak-arbre-filet-c);
+}
+
+.notak-arbre-entree-icone {
+  display: grid;
+  place-items: center;
+  color: var(--notak-arbre-discret);
+}
+
+/* Le panneau de côté et ses onglets. */
+.notak-arbre-cote {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  width: var(--notak-arbre-largeur-cote);
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--notak-arbre-cote);
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.06);
+  font-size: 12px;
+}
+
+.notak-arbre-onglets {
+  display: flex;
+  gap: 2px;
+  margin: 10px 10px 6px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--notak-arbre-piste);
+}
+
+.notak-arbre-onglets button {
+  flex: 1;
+  height: 24px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--notak-arbre-discret);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.notak-arbre-onglets button[aria-selected='true'] {
+  background: var(--notak-arbre-fond);
+  color: var(--notak-arbre-texte);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+}
+
+.notak-arbre-cote-corps {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 10px 16px;
+}
+
+/* Le sous-menu d'une entrée (« Lien »), à droite de son menu. */
+.notak-arbre-deroulant .notak-arbre-menu-hote > button {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--notak-arbre-texte);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notak-arbre-deroulant .notak-arbre-menu-hote > button:hover {
+  background: var(--notak-arbre-survol);
+}
+
+.notak-arbre-sous-menu {
+  top: -5px;
+  left: calc(100% + 6px);
+}

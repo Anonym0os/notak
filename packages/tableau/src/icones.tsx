@@ -183,6 +183,14 @@ import {
   IconZoomIn,
   IconPhotoOff,
   IconReplace,
+  IconArrowCurveRight,
+  IconBracketsContainEnd,
+  IconSquareDashed,
+  IconLayoutSidebarRight,
+  IconSubtask,
+  IconListTree,
+  IconChecklist,
+  IconAppWindow,
   type TablerIcon,
 } from '@tabler/icons-react'
 import { type ReactElement, type ReactNode, createElement, forwardRef } from 'react'
@@ -486,6 +494,16 @@ const ICONES = {
   convertir: IconArrowsExchange,
   relier: IconRelier,
   roue: IconRoue,
+  // La carte mentale ouverte en grand (barre d'outils, panneaux).
+  arbreRelation: IconArrowCurveRight,
+  arbreResume: IconBracketsContainEnd,
+  arbreLimite: IconSquareDashed,
+  arbreCote: IconLayoutSidebarRight,
+  arbreSousSujet: IconSubtask,
+  arbreStructure: IconSitemap,
+  arbrePlan: IconListTree,
+  arbreTache: IconChecklist,
+  arbreEncadre: IconAppWindow,
 } as const satisfies Record<string, TablerIcon>
 
 export type NomIcone = keyof typeof ICONES
