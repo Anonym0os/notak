@@ -22,6 +22,29 @@ export function gesteDe(e: Touche, choisis: readonly Id[], l: Lecture, d: Dispos
   const courant = choisis.at(-1) ?? l.central
   const k = e.key
   if (cmd) {
+    const ids = choisis.length > 0 ? [...choisis] : [courant]
+    if (e.shiftKey && !e.altKey) {
+      // Maj+Cmd+lettre : la lettre arrive en capitale.
+      switch (k.toLowerCase()) {
+        case 'r':
+          return { type: 'relier', id: courant }
+        case 'b':
+          return { type: 'limite', ids }
+        case 'n':
+          return { type: 'panneau', section: 'note' }
+        case 'l':
+          return { type: 'panneau', section: 'etiquettes' }
+        case 'i':
+          return { type: 'panneau', section: 'image' }
+      }
+    }
+    if (k.toLowerCase() === 'k' && !e.shiftKey) return { type: 'panneau', section: 'lien' }
+    if (k === ']') return { type: 'panneau' }
+    if (e.altKey && k.toLowerCase() === 't') return { type: 'tache', ids }
+    if (e.altKey && (e as Partial<KeyboardEvent>).code === 'KeyT') return { type: 'tache', ids }
+    // Cmd+1…7 : une priorité (la même touche l'ôte). Lue sur la touche physique : en AZERTY, Cmd+& est Cmd+1.
+    const priorite = !e.altKey && !e.shiftKey ? chiffreDe(e) : null
+    if (priorite && priorite <= 7) return { type: 'marqueur', ids, marqueur: `priority-${priorite}` }
     if (k === 'Enter') return { type: 'parent', id: courant }
     if (k === 'Backspace' || k === 'Delete') return { type: 'supprimerSeul', id: courant }
     if (k === '/') return e.altKey ? { type: 'toutReplier' } : { type: 'replier', id: courant }
@@ -37,6 +60,12 @@ export function gesteDe(e: Touche, choisis: readonly Id[], l: Lecture, d: Dispos
     return null
   }
   if (e.altKey && (k === 'ArrowUp' || k === 'ArrowDown')) return { type: 'echanger', id: courant, sens: k === 'ArrowUp' ? -1 : 1 }
+  // Maj+Alt+1, 2, 3, 0 : important, secondaire, barré, ordinaire.
+  if (e.altKey && e.shiftKey) {
+    const c = (e as Partial<KeyboardEvent>).code
+    const classe = { Digit1: 'important', Digit2: 'secondaire', Digit3: 'barre', Digit0: null }[c ?? '']
+    if (classe !== undefined) return { type: 'porter', ids: [...choisis], champ: 'classe', valeur: classe ?? undefined }
+  }
   if (e.altKey) return null
   switch (k) {
     case 'Tab':

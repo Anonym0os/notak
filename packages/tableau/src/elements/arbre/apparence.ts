@@ -85,22 +85,67 @@ export function lignesDe(titre: string, police: number, graisse: number, largeur
   return sortie
 }
 
-/** Ce qu'il faut pour dessiner un sujet : ses lignes et sa taille. */
+/** Ce qu'un sujet porte autour de son titre, et qui prend de la place. */
+export interface Decor {
+  tache?: boolean
+  marqueurs?: number
+  /** Le numéro devant le titre (« 1.2 »). */
+  prefixe?: string | null
+  /** Les petites icônes après le titre : note, lien. */
+  icones?: number
+  etiquettes?: readonly string[]
+  image?: { l: number; h: number }
+}
+
+/** La géométrie d'un sujet dessiné, relative à son coin haut gauche. */
 export interface Mesure extends Taille {
   lignes: string[]
+  /** Où commence la rangée du titre (case, marqueurs, numéro, texte, icônes), et sa hauteur. */
+  rangee: { x: number; y: number; h: number }
+  /** Où va le texte du titre : la zone du champ de saisie. */
+  texte: { x: number; y: number; l: number; h: number }
+  /** Où vont les étiquettes (une rangée sous le titre). */
+  etiquettes: { y: number; largeurs: number[] } | null
+  /** Où va l'image. */
+  image: { x: number; y: number } | null
 }
+
+const TAILLE_ICONE = 16
+const PAS_ICONE = 19
+const HAUTEUR_ETIQUETTE = 18
+const POLICE_ETIQUETTE = 11
 
 const memo = new Map<string, Mesure>()
 
-export function mesurer(titre: string, rang: Rang): Mesure {
-  const cle = `${rang}\u0000${titre}`
+export function mesurer(titre: string, rang: Rang, decor: Decor = {}): Mesure {
+  const cle = `${rang}\u0000${titre}\u0000${JSON.stringify(decor)}`
   const deja = memo.get(cle)
   if (deja) return deja
   const h = HABITS[rang]
   const lignes = lignesDe(titre, h.police, h.graisse, h.largeurMax)
-  const l = Math.max(...lignes.map((x) => largeurTexte(x, h.police, h.graisse)), h.police * 1.5)
-  const mesure = { lignes, l: Math.ceil(l + 2 * h.marge[1]), h: Math.ceil(lignes.length * h.police * INTERLIGNE + 2 * h.marge[0]) }
+  const lTexte = Math.max(...lignes.map((x) => largeurTexte(x, h.police, h.graisse)), h.police * 1.5)
+  const hTexte = lignes.length * h.police * INTERLIGNE
+  const prefixe = decor.prefixe ? largeurTexte(`${decor.prefixe} `, h.police, h.graisse) : 0
+  const avant = (decor.tache ? PAS_ICONE : 0) + (decor.marqueurs ?? 0) * PAS_ICONE + prefixe
+  const apres = (decor.icones ?? 0) * PAS_ICONE + (decor.icones ? 4 : 0)
+  const lRangee = avant + lTexte + apres
+  const hRangee = Math.max(hTexte, decor.tache || decor.marqueurs || decor.icones ? TAILLE_ICONE : 0)
+  const largeurs = (decor.etiquettes ?? []).map((e) => Math.ceil(largeurTexte(e, POLICE_ETIQUETTE, 500) + 12))
+  const lEtiquettes = largeurs.reduce((s, x, i) => s + x + (i > 0 ? 4 : 0), 0)
+  const interieur = Math.max(lRangee, lEtiquettes, decor.image?.l ?? 0)
+  const l = Math.ceil(interieur + 2 * h.marge[1])
+  let y = h.marge[0]
+  const image = decor.image ? { x: l / 2 - decor.image.l / 2, y } : null
+  if (decor.image) y += decor.image.h + 6
+  const rangee = { x: l / 2 - lRangee / 2, y, h: hRangee }
+  const texte = { x: rangee.x + avant, y: y + (hRangee - hTexte) / 2, l: lTexte, h: hTexte }
+  y += hRangee
+  const etiquettes = largeurs.length > 0 ? { y: y + 4, largeurs } : null
+  if (etiquettes) y += 4 + HAUTEUR_ETIQUETTE
+  const mesure: Mesure = { lignes, l, h: Math.ceil(y + h.marge[0]), rangee, texte, etiquettes, image }
   if (memo.size > 5000) memo.clear()
   memo.set(cle, mesure)
   return mesure
 }
+
+export { HAUTEUR_ETIQUETTE, PAS_ICONE, POLICE_ETIQUETTE, TAILLE_ICONE }

@@ -2,26 +2,64 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { Arbre, Id } from '../../coeur/tableau'
 import { t } from '../../langue'
 import { Surcouche } from '../surcouche'
-import type { ContexteToile, PropsRendu } from '../types'
+import type { ContexteToile, PropsRendu, Services } from '../types'
 import { HABITS, INTERLIGNE, POLICE, type Mesure, mesurer, rangDe } from './apparence'
+import { Barre } from './Barre'
 import { Dessin } from './Dessin'
 import { type Disposition, ECARTS, ECARTS_COMPACTS, disposer, emprise } from './disposition'
-import { Barre } from './Barre'
-import { type Lecture, lire, sousCarte } from './modele/sujets'
-import { type Lacher, ouLacher } from './modele/lacher'
 import { gesteDe } from './modele/clavier'
-import { titreNeuf } from './modele/titres'
+import { numeroDe, resumesValides, sujetsDePlage } from './modele/elements'
 import { type Geste, appliquerGeste } from './modele/gestes'
+import { type Lacher, ouLacher } from './modele/lacher'
+import { type Lecture, lire, sousCarte } from './modele/sujets'
+import { titreNeuf } from './modele/titres'
+import { Panneau, type Section } from './Panneau'
+import { courbeRelation } from './trace/relations'
 
-/** La carte lue, mesurée et disposée ; recalculée seulement quand ses sujets changent. */
+/** La carte lue, mesurée et disposée ; recalculée seulement quand elle change. */
 export function useVue(a: Arbre): { lecture: Lecture; mesures: Map<Id, Mesure>; disposition: Disposition } {
   return useMemo(() => {
     const lecture = lire(a)
     const mesures = new Map<Id, Mesure>()
-    for (const id of lecture.sujets.keys()) mesures.set(id, mesurer(lecture.sujets.get(id)!.titre, rangDe(lecture, id)))
-    const disposition = disposer(lecture, (id) => mesures.get(id) ?? { l: 40, h: 20 }, a.options?.compacte ? ECARTS_COMPACTS : ECARTS, !!a.options?.libre)
+    for (const [id, s] of lecture.sujets)
+      mesures.set(
+        id,
+        mesurer(s.titre, rangDe(lecture, id), {
+          tache: !!s.tache,
+          marqueurs: s.marqueurs?.length ?? 0,
+          prefixe: numeroDe(lecture, id),
+          icones: (s.note ? 1 : 0) + (s.lien ? 1 : 0),
+          ...(s.etiquettes?.length ? { etiquettes: s.etiquettes } : {}),
+          ...(s.image ? { image: { l: s.image.l, h: s.image.h } } : {}),
+        }),
+      )
+    const resumes = resumesValides(a, lecture).map(([, r]) => ({ sujet: r.sujet, plage: sujetsDePlage(lecture, r) }))
+    const disposition = disposer(lecture, (id) => mesures.get(id) ?? { l: 40, h: 20 }, a.options?.compacte ? ECARTS_COMPACTS : ECARTS, !!a.options?.libre, resumes)
     return { lecture, mesures, disposition }
-  }, [a.sujets, a.options])
+  }, [a.sujets, a.options, a.resumes])
+}
+
+/** Les adresses affichables des images d'une carte, chargées au besoin. */
+function useAdresses(a: Arbre, services: Services): (fichier: Id) => string | undefined {
+  const [adresses, setAdresses] = useState<ReadonlyMap<Id, string>>(new Map())
+  const fichiers = useMemo(() => [...new Set(Object.values(a.sujets).flatMap((s) => (s?.image?.fichier ? [s.image.fichier] : [])))], [a.sujets])
+  useEffect(() => {
+    let vivant = true
+    const manquants = fichiers.filter((f) => !adresses.has(f))
+    if (manquants.length === 0 || !services.fichiers) return
+    void Promise.all(manquants.map(async (f) => [f, await services.fichiers!.adresse(f)] as const)).then((paires) => {
+      if (!vivant) return
+      setAdresses((m) => {
+        const n = new Map(m)
+        for (const [f, adr] of paires) if (adr) n.set(f, adr)
+        return n
+      })
+    })
+    return () => {
+      vivant = false
+    }
+  }, [fichiers, adresses, services])
+  return useCallback((f: Id) => adresses.get(f), [adresses])
 }
 
 /** La marge autour de la carte dans l'aperçu, en px de carte. */
@@ -29,13 +67,15 @@ const MARGE_APERCU = 24
 
 /** Sur la toile : la carte en réduction. Ouverte (double-clic, Entrée), elle passe en grand. */
 export function RenduArbre({ element, enEdition, contexte, changer }: PropsRendu<Arbre>) {
-  const { lecture, mesures, disposition } = useVue(element.contenu)
+  const a = element.contenu
+  const { lecture, mesures, disposition } = useVue(a)
+  const adresse = useAdresses(a, contexte.services)
   const cadre = emprise(disposition.boites.values())
   const [x, y, l, h] = [cadre.x - MARGE_APERCU, cadre.y - MARGE_APERCU, cadre.l + 2 * MARGE_APERCU, cadre.h + 2 * MARGE_APERCU]
   return (
     <div className="notak-arbre">
       <svg className="notak-arbre-apercu" viewBox={`${x} ${y} ${l} ${h}`} style={{ aspectRatio: `${Math.min(3, Math.max(0.75, l / h))}` }} aria-label={lecture.sujets.get(lecture.central)?.titre || t('arbre.vide')} role="img">
-        <Dessin lecture={lecture} disposition={disposition} mesures={mesures} />
+        <Dessin arbre={a} lecture={lecture} disposition={disposition} mesures={mesures} adresse={adresse} />
       </svg>
       {enEdition && <Grand id={element.id} contexte={contexte} changer={changer} />}
     </div>
@@ -51,6 +91,9 @@ interface Camera {
 const ZOOM_MIN = 0.2
 const ZOOM_MAX = 4
 
+type Edition = { id: Id; texte: string; tout: boolean }
+type Point = { x: number; y: number }
+
 /**
  * La carte ouverte en grand : on y choisit, crée, écrit et range les sujets au clavier et à la souris
  * (docs/XMIND.md § 4). Chaque geste part de l'état le plus récent du tableau, jamais d'une copie gardée : un geste
@@ -62,18 +105,27 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     return e?.contenu.type === 'arbre' ? e.contenu : null
   }, [contexte, id])
   const [a, setA] = useState<Arbre>(() => actuel() ?? { type: 'arbre', sujets: {} })
-  useEffect(() => contexte.magasin.ecouter(() => {
-    const neuf = actuel()
-    if (neuf) setA(neuf)
-  }), [contexte, actuel])
+  useEffect(
+    () =>
+      contexte.magasin.ecouter(() => {
+        const neuf = actuel()
+        if (neuf) setA(neuf)
+      }),
+    [contexte, actuel],
+  )
   // « Afficher la branche seule » (Cmd+;) : la vue ne montre que cette branche, les gestes touchent la carte entière.
   const [seule, setSeule] = useState<Id | null>(null)
   const vue = useMemo(() => (seule && a.sujets[seule] ? sousCarte(a, seule) : a), [a, seule])
   const { lecture, mesures, disposition } = useVue(vue)
+  const adresse = useAdresses(a, contexte.services)
   const lectureSeule = !!contexte.services.lectureSeule
 
+  // La sélection mêle des sujets, des relations et des limites : chacun est un identifiant.
   const [selection, setSelection] = useState<ReadonlySet<Id>>(() => new Set([lecture.central]))
-  const [edition, setEdition] = useState<{ id: Id; texte: string; tout: boolean } | null>(null)
+  const [edition, setEdition] = useState<Edition | null>(null)
+  const [panneau, setPanneau] = useState<{ section?: Section } | null>(null)
+  // Maj+Cmd+R : la relation part de ce sujet, et attend le clic sur sa cible.
+  const [relier, setRelier] = useState<{ de: Id; p: Point | null } | null>(null)
   const surface = useRef<HTMLDivElement | null>(null)
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, z: 1 })
   const [montee, setMontee] = useState(false)
@@ -87,9 +139,11 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     setMontee(true)
   }, [])
 
-  // Un sujet choisi qui disparaît (effacé, ou par un autre) laisse la place au central.
-  const choisis = useMemo(() => new Set([...selection].filter((x) => disposition.boites.has(x))), [selection, disposition])
-  const courant = [...choisis].at(-1) ?? lecture.central
+  const estObjet = useCallback((x: Id) => !!(vue.relations?.[x] || vue.limites?.[x]), [vue])
+  // Ce qui a disparu (effacé, ou par un autre) sort de la sélection.
+  const choisis = useMemo(() => new Set([...selection].filter((x) => disposition.boites.has(x) || estObjet(x))), [selection, disposition, estObjet])
+  const sujetsChoisis = [...choisis].filter((x) => disposition.boites.has(x))
+  const courant = sujetsChoisis.at(-1) ?? lecture.central
 
   const faire = useCallback(
     (geste: Geste) => {
@@ -108,13 +162,26 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     if (!edition) return
     const avant = actuel()
     setEdition(null)
-    if (avant && avant.sujets[edition.id] && avant.sujets[edition.id]!.titre !== edition.texte) faire({ type: 'renommer', id: edition.id, titre: edition.texte })
+    if (!avant) return
+    if (avant.sujets[edition.id]) {
+      if (avant.sujets[edition.id]!.titre !== edition.texte) faire({ type: 'renommer', id: edition.id, titre: edition.texte })
+    } else faire({ type: 'titrer', id: edition.id, titre: edition.texte })
   }, [edition, actuel, faire])
+
+  const titreObjet = (x: Id) => vue.relations?.[x]?.titre ?? vue.limites?.[x]?.titre ?? ''
 
   const surTouche = (e: React.KeyboardEvent): boolean => {
     if (edition) return e.key === 'Escape'
-    // Atteinte au clavier, la barre garde ses touches.
-    if ((e.target as Element).closest?.('.notak-arbre-barre')) return false
+    // La barre et le panneau gardent leurs touches.
+    if ((e.target as Element).closest?.('.notak-arbre-barre, .notak-arbre-panneau')) return false
+    if (e.key === 'Escape' && relier) {
+      setRelier(null)
+      return true
+    }
+    if (e.key === 'Escape' && panneau) {
+      setPanneau(null)
+      return true
+    }
     // Échap sort de la branche seule avant de fermer la carte.
     if (e.key === 'Escape' && seule) {
       setSeule(null)
@@ -126,40 +193,64 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       else contexte.magasin.annuler()
       return true
     }
-    const geste = gesteDe(e.nativeEvent, [...choisis].length ? [...choisis] : [courant], lecture, disposition)
+    // Une relation ou une limite choisie seule : Espace édite son titre, Suppr la retire.
+    const objet = [...choisis].find(estObjet)
+    if (objet && sujetsChoisis.length === 0) {
+      if (e.key === ' ' || e.key === 'F2' || e.key === 'Enter') {
+        e.preventDefault()
+        if (!lectureSeule) setEdition({ id: objet, texte: titreObjet(objet), tout: true })
+        return true
+      }
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        e.preventDefault()
+        faire({ type: 'retirer', ids: [...choisis] })
+        setSelection(new Set([lecture.central]))
+        return true
+      }
+    }
+    const geste = gesteDe(e.nativeEvent, sujetsChoisis.length ? sujetsChoisis : [courant], lecture, disposition)
     if (!geste) return false
     e.preventDefault()
-    if (geste.type === 'editer') {
-      if (!lectureSeule) setEdition({ id: geste.id, texte: geste.frappe ?? lecture.sujets.get(geste.id)?.titre ?? '', tout: geste.frappe === undefined })
-      return true
-    }
-    if (geste.type === 'choisir') {
-      setSelection(new Set(geste.ids))
-      return true
-    }
-    if (geste.type === 'recadrer') {
-      const r = surface.current?.getBoundingClientRect()
-      if (r) setCamera((c) => ({ ...c, x: r.width / 2, y: r.height / 2 }))
-      setSelection(new Set([lecture.central]))
-      return true
-    }
-    if (geste.type === 'brancheSeule') {
-      setSeule((x) => (x ? null : geste.id === lecture.central ? null : geste.id))
-      setSelection(new Set([geste.id]))
-      return true
-    }
-    if (geste.type === 'zoom') {
-      setCamera((c) => zoomer(c, geste.facteur === 0 ? 1 / c.z : geste.facteur, surface.current))
-      return true
+    switch (geste.type) {
+      case 'editer':
+        if (!lectureSeule) setEdition({ id: geste.id, texte: geste.frappe ?? lecture.sujets.get(geste.id)?.titre ?? '', tout: geste.frappe === undefined })
+        return true
+      case 'choisir':
+        setSelection(new Set(geste.ids))
+        return true
+      case 'recadrer': {
+        const r = surface.current?.getBoundingClientRect()
+        if (r) setCamera((c) => ({ ...c, x: r.width / 2, y: r.height / 2 }))
+        setSelection(new Set([lecture.central]))
+        return true
+      }
+      case 'brancheSeule':
+        setSeule((x) => (x ? null : geste.id === lecture.central ? null : geste.id))
+        setSelection(new Set([geste.id]))
+        return true
+      case 'zoom':
+        setCamera((c) => zoomer(c, geste.facteur === 0 ? 1 / c.z : geste.facteur, surface.current))
+        return true
+      case 'relier':
+        if (!lectureSeule) setRelier({ de: geste.id, p: null })
+        return true
+      case 'panneau':
+        setPanneau((p) => (p && !geste.section ? null : { ...(geste.section ? { section: geste.section } : {}) }))
+        return true
+      case 'supprimer':
+        faire({ type: 'supprimer', ids: [...choisis] })
+        return true
     }
     faire(geste)
     return true
   }
 
-  // Le glisser du fond fait défiler la carte ; celui d'un sujet le déplace (au-delà de quelques pixels).
+  // Le glisser du fond fait défiler la carte ; celui d'un sujet le déplace (au-delà de quelques pixels) ; celui d'un
+  // point de contrôle courbe une relation.
   const glisse = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null)
   const prise = useRef<{ id: Id; x: number; y: number; dx: number; dy: number } | null>(null)
-  const [tire, setTire] = useState<{ id: Id; p: { x: number; y: number }; lacher: Lacher; maj: boolean } | null>(null)
+  const [tire, setTire] = useState<{ id: Id; p: Point; lacher: Lacher; maj: boolean } | null>(null)
+  const [controle, setControle] = useState<{ relation: Id; i: 0 | 1; p: Point } | null>(null)
   const versCarte = (e: { clientX: number; clientY: number }) => {
     const r = surface.current!.getBoundingClientRect()
     return { x: (e.clientX - r.left - camera.x) / camera.z, y: (e.clientY - r.top - camera.y) / camera.z }
@@ -167,11 +258,36 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
   const surAppui = (e: React.PointerEvent) => {
     const cible = e.target as Element
     // Un bouton garde son clic : capturer le pointeur pour défiler l'enverrait à la surface.
-    if (cible.closest('button, textarea, label, .notak-arbre-barre')) return
-    const repli =cible.closest('[data-repli]')?.getAttribute('data-repli')
+    if (cible.closest('button, textarea, input, select, label, .notak-arbre-barre, .notak-arbre-panneau')) return
+    const attribut = (nom: string) => cible.closest(`[${nom}]`)?.getAttribute(nom) ?? null
+    const repli = attribut('data-repli')
     if (repli) return faire({ type: 'replier', id: repli })
-    const sujet = cible.closest('[data-sujet]')?.getAttribute('data-sujet')
+    const tache = attribut('data-tache')
+    if (tache && !lectureSeule) {
+      const s = lecture.sujets.get(tache)
+      return faire({ type: 'porter', ids: [tache], champ: 'tache', valeur: s?.tache === 'faite' ? 'a-faire' : 'faite' })
+    }
+    const icone = attribut('data-icone')
+    if (icone) return ouvrirIcone(icone)
+    const ctrl = attribut('data-controle')
+    if (ctrl && !lectureSeule) {
+      const [rel, i] = ctrl.split(':') as [Id, string]
+      setControle({ relation: rel, i: i === '1' ? 1 : 0, p: versCarte(e) })
+      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+      return
+    }
+    const sujet = attribut('data-sujet')
     if (edition && sujet !== edition.id) valider()
+    if (relier) {
+      if (sujet && sujet !== relier.de) faire({ type: 'relation', de: relier.de, vers: sujet })
+      setRelier(null)
+      return
+    }
+    const objet = attribut('data-relation') ?? attribut('data-limite')
+    if (objet && !sujet) {
+      setSelection((s) => (e.shiftKey || e.metaKey ? basculer(s, objet) : new Set([objet])))
+      return
+    }
     if (sujet) {
       setSelection((s) => (e.shiftKey || e.metaKey ? basculer(s, sujet) : new Set([sujet])))
       const b = disposition.boites.get(sujet)
@@ -186,6 +302,8 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   }
   const surMouvement = (e: React.PointerEvent) => {
+    if (relier) return setRelier({ ...relier, p: versCarte(e) })
+    if (controle) return setControle({ ...controle, p: versCarte(e) })
     const g = glisse.current
     if (g) return setCamera((c) => ({ ...c, x: g.cx + e.clientX - g.x, y: g.cy + e.clientY - g.y }))
     const pr = prise.current
@@ -195,6 +313,11 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
   }
   const surRelache = () => {
     glisse.current = null
+    if (controle) {
+      lacherControle(controle)
+      setControle(null)
+      return
+    }
     const pr = prise.current
     prise.current = null
     if (!tire || !pr) return setTire(null)
@@ -215,20 +338,50 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       faire({ type: 'poser', id: tire.id, position: { x: tire.p.x - pr.dx + b.l / 2, y: tire.p.y - pr.dy + b.h / 2 } })
     }
   }
+  /** Un point de contrôle lâché : il se compte depuis le bout de la relation auquel il tient. */
+  const lacherControle = (c: { relation: Id; i: 0 | 1; p: Point }) => {
+    const r = vue.relations?.[c.relation]
+    const [ba, bb] = [r && disposition.boites.get(r.de), r && disposition.boites.get(r.vers)]
+    if (!r || !ba || !bb) return
+    const courbe = courbeRelation(ba, bb, r.controles)
+    const bouts = [courbe.depart, courbe.arrivee] as const
+    const actuels = courbe.controles.map((p, i) => ({ x: p.x - bouts[i]!.x, y: p.y - bouts[i]!.y }))
+    actuels[c.i] = { x: c.p.x - bouts[c.i].x, y: c.p.y - bouts[c.i].y }
+    faire({ type: 'controles', id: c.relation, controles: [actuels[0]!, actuels[1]!] })
+  }
+  /** L'icône de note ouvre le panneau sur la note ; celle du lien ouvre l'adresse, ou va au sujet visé. */
+  const ouvrirIcone = (valeur: string) => {
+    const [nom, sujet] = valeur.split(':') as [string, Id]
+    setSelection(new Set([sujet]))
+    if (nom === 'notes') return setPanneau({ section: 'note' })
+    const lien = lecture.sujets.get(sujet)?.lien
+    if (!lien) return
+    if (lien.startsWith('sujet:')) {
+      const cible = lien.slice(6)
+      const b = disposition.boites.get(cible)
+      const r = surface.current?.getBoundingClientRect()
+      if (b && r) setCamera((c) => ({ ...c, x: r.width / 2 - (b.x + b.l / 2) * c.z, y: r.height / 2 - (b.y + b.h / 2) * c.z }))
+      setSelection(new Set([cible]))
+    } else window.open(/^[a-z][\w+.-]*:/i.test(lien) ? lien : `https://${lien}`, '_blank', 'noopener')
+  }
   const surDoubleClic = (e: React.MouseEvent) => {
     if (lectureSeule) return
-    const sujet = (e.target as Element).closest('[data-sujet]')?.getAttribute('data-sujet')
+    const cible = e.target as Element
+    if (cible.closest('.notak-arbre-barre, .notak-arbre-panneau')) return
+    const sujet = cible.closest('[data-sujet]')?.getAttribute('data-sujet')
     if (sujet) return setEdition({ id: sujet, texte: lecture.sujets.get(sujet)?.titre ?? '', tout: true })
+    const objet = cible.closest('[data-relation]')?.getAttribute('data-relation') ?? cible.closest('[data-limite]')?.getAttribute('data-limite')
+    if (objet) return setEdition({ id: objet, texte: titreObjet(objet), tout: true })
     // Dans la branche seule, les positions ne sont pas celles de la carte : pas de flottant.
     if (seule) return
-    const r = surface.current!.getBoundingClientRect()
-    faire({ type: 'flottant', position: { x: (e.clientX - r.left - camera.x) / camera.z, y: (e.clientY - r.top - camera.y) / camera.z } })
+    faire({ type: 'flottant', position: versCarte(e) })
   }
   // La molette fait défiler ; avec Cmd (ou le pincement du pavé), elle zoome autour du pointeur.
   useEffect(() => {
     const s = surface.current
     if (!s) return
     const roue = (e: WheelEvent) => {
+      if ((e.target as Element).closest('.notak-arbre-panneau, .notak-arbre-menu')) return
       e.preventDefault()
       if (e.ctrlKey || e.metaKey) {
         const r = s.getBoundingClientRect()
@@ -239,14 +392,28 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     return () => s.removeEventListener('wheel', roue)
   }, [montee])
 
-  const boite = edition ? disposition.boites.get(edition.id) : undefined
-  const habit = edition ? HABITS[rangDe(lecture, edition.id)] : undefined
+  // Pendant qu'on courbe une relation, elle suit le pointeur.
+  const vueAffichee = useMemo(() => {
+    if (!controle) return vue
+    const r = vue.relations?.[controle.relation]
+    const [ba, bb] = [r && disposition.boites.get(r.de), r && disposition.boites.get(r.vers)]
+    if (!r || !ba || !bb) return vue
+    const courbe = courbeRelation(ba, bb, r.controles)
+    const bouts = [courbe.depart, courbe.arrivee] as const
+    const c = courbe.controles.map((p, i) => ({ x: p.x - bouts[i]!.x, y: p.y - bouts[i]!.y }))
+    c[controle.i] = { x: controle.p.x - bouts[controle.i].x, y: controle.p.y - bouts[controle.i].y }
+    return { ...vue, relations: { ...vue.relations, [controle.relation]: { ...r, controles: [c[0]!, c[1]!] as [Point, Point] } } }
+  }, [vue, controle, disposition])
+
+  const champ = edition ? positionDuChamp(edition.id, lecture, disposition, mesures, vue) : null
+  const depart = relier ? disposition.boites.get(relier.de) : undefined
 
   return (
     <Surcouche etiquette={t('type.arbre')} className="notak-arbre-fond" fermer={contexte.finirEdition} surTouche={surTouche}>
       <div
         ref={poserSurface}
         className="notak-arbre-surface"
+        data-relier={relier ? '' : undefined}
         onPointerDown={surAppui}
         onPointerMove={surMouvement}
         onPointerUp={surRelache}
@@ -255,28 +422,40 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       >
         <svg className="notak-arbre-grand">
           <g transform={`translate(${camera.x} ${camera.y}) scale(${camera.z})`}>
-            <Dessin lecture={lecture} disposition={disposition} mesures={mesures} selection={choisis} edition={edition?.id ?? null} />
+            <Dessin arbre={vueAffichee} lecture={lecture} disposition={disposition} mesures={mesures} selection={choisis} edition={edition?.id ?? null} adresse={adresse} />
             {tire && <Fantome tire={tire} prise={prise.current} disposition={disposition} />}
+            {depart && relier?.p && <line className="notak-arbre-relier" x1={depart.x + depart.l / 2} y1={depart.y + depart.h / 2} x2={relier.p.x} y2={relier.p.y} />}
           </g>
         </svg>
-        {edition && boite && habit && (
+        {edition && champ && (
           <ChampTitre
             texte={edition.texte}
             tout={edition.tout}
             style={{
-              left: camera.x + boite.x * camera.z,
-              top: camera.y + boite.y * camera.z,
-              minWidth: boite.l * camera.z,
-              minHeight: boite.h * camera.z,
-              padding: `${habit.marge[0] * camera.z}px ${habit.marge[1] * camera.z}px`,
-              font: `${habit.graisse} ${habit.police * camera.z}px/${INTERLIGNE} ${POLICE}`,
-              borderRadius: (habit.arrondi ?? 4) * camera.z,
+              left: camera.x + champ.x * camera.z,
+              top: camera.y + champ.y * camera.z,
+              minWidth: champ.l * camera.z,
+              minHeight: champ.h * camera.z,
+              font: `${champ.graisse} ${champ.police * camera.z}px/${INTERLIGNE} ${POLICE}`,
             }}
             changer={(texte) => setEdition({ ...edition, texte, tout: false })}
             valider={valider}
           />
         )}
-        {!lectureSeule && <Barre arbre={a} lecture={lecture} choisis={[...choisis]} faire={faire} />}
+        {relier && <p className="notak-arbre-consigne">{t('arbre.relier')}</p>}
+        {!lectureSeule && (
+          <Barre
+            arbre={vue}
+            lecture={lecture}
+            choisis={sujetsChoisis}
+            faire={faire}
+            relier={() => setRelier({ de: courant, p: null })}
+            panneau={() => setPanneau((p) => (p ? null : {}))}
+          />
+        )}
+        {panneau && !lectureSeule && (
+          <Panneau lecture={lecture} ids={sujetsChoisis.length ? sujetsChoisis : [courant]} section={panneau.section} faire={faire} contexte={contexte} fermer={() => setPanneau(null)} />
+        )}
         <button type="button" className="notak-arbre-fermer" onClick={contexte.finirEdition}>
           {t('arbre.fermer')}
         </button>
@@ -285,11 +464,41 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
   )
 }
 
+/** Où poser le champ de saisie d'un titre : sur le texte d'un sujet, au milieu d'une relation, en tête d'une limite. */
+function positionDuChamp(
+  id: Id,
+  l: Lecture,
+  d: Disposition,
+  mesures: ReadonlyMap<Id, Mesure>,
+  a: Arbre,
+): { x: number; y: number; l: number; h: number; police: number; graisse: number } | null {
+  const b = d.boites.get(id)
+  const m = mesures.get(id)
+  if (b && m) {
+    const h = HABITS[rangDe(l, id)]
+    return { x: b.x + m.texte.x - 4, y: b.y + m.texte.y - 2, l: m.texte.l + 8, h: m.texte.h + 4, police: h.police, graisse: h.graisse }
+  }
+  const r = a.relations?.[id]
+  if (r) {
+    const [ba, bb] = [d.boites.get(r.de), d.boites.get(r.vers)]
+    if (!ba || !bb) return null
+    const c = courbeRelation(ba, bb, r.controles)
+    return { x: c.milieu.x - 80, y: c.milieu.y - 22, l: 160, h: 22, police: 12, graisse: 400 }
+  }
+  const x = a.limites?.[id]
+  if (x) {
+    const boites = sujetsDePlage(l, x).flatMap((s) => d.boites.get(s) ?? [])
+    if (boites.length === 0) return null
+    return { x: Math.min(...boites.map((v) => v.x)) - 2, y: Math.min(...boites.map((v) => v.y)) - 36, l: 160, h: 22, police: 12, graisse: 600 }
+  }
+  return null
+}
+
 /**
  * Pendant qu'on glisse un sujet : son cadre suit le pointeur, et la cible du lâcher se signale (le sujet qui le
  * recevra, ou le trait où il s'insérera).
  */
-function Fantome({ tire, prise, disposition: d }: { tire: { id: Id; p: { x: number; y: number }; lacher: Lacher; maj: boolean }; prise: { dx: number; dy: number } | null; disposition: Disposition }) {
+function Fantome({ tire, prise, disposition: d }: { tire: { id: Id; p: Point; lacher: Lacher }; prise: { dx: number; dy: number } | null; disposition: Disposition }) {
   const b = d.boites.get(tire.id)
   if (!b || !prise) return null
   const l = tire.lacher
@@ -314,7 +523,7 @@ function Insertion({ lacher, d }: { lacher: { parent: Id; index: number }; d: Di
   return <line x1={ref.x} x2={ref.x + ref.l} y1={y} y2={y} className="notak-arbre-cible" />
 }
 
-/** Le champ où l'on écrit le titre d'un sujet, posé sur lui. Entrée valide, Maj+Entrée va à la ligne, Échap valide. */
+/** Le champ où l'on écrit un titre, posé sur lui. Entrée valide, Maj+Entrée va à la ligne, Échap valide. */
 function ChampTitre({ texte, tout, style, changer, valider }: { texte: string; tout: boolean; style: React.CSSProperties; changer(t: string): void; valider(): void }) {
   const champ = useRef<HTMLTextAreaElement>(null)
   useLayoutEffect(() => {
@@ -364,7 +573,7 @@ function basculer(s: ReadonlySet<Id>, id: Id): Set<Id> {
 }
 
 /** Zoome de `facteur` autour de `autour` (px de la surface ; son milieu par défaut). */
-function zoomer(c: Camera, facteur: number, s: HTMLElement | null, autour?: { x: number; y: number }): Camera {
+function zoomer(c: Camera, facteur: number, s: HTMLElement | null, autour?: Point): Camera {
   const r = s?.getBoundingClientRect()
   const p = autour ?? { x: (r?.width ?? 0) / 2, y: (r?.height ?? 0) / 2 }
   const z = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, c.z * facteur))

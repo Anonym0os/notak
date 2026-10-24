@@ -554,14 +554,52 @@ export interface Sujet {
   aDroite?: number
   /** Placement libre : de combien (px) la branche a été tirée hors de la place que sa structure lui donne. */
   decalage?: { x: number; y: number }
+  /** Les marqueurs devant le titre, un par groupe, par leur identifiant Xmind (`priority-1`, `task-half`, `flag-red`…). */
+  marqueurs?: string[]
+  etiquettes?: string[]
+  /** Une adresse web, ou `sujet:<id>` vers un autre sujet de la carte. */
+  lien?: string
+  note?: NoeudTexte
+  /** Une image au-dessus du titre : le fichier, et sa taille affichée en px. */
+  image?: { fichier: Id; l: number; h: number }
+  tache?: 'a-faire' | 'faite'
+  /** La numérotation de ses enfants : 1, 2, 3 ; I, II ; A, B ; a, b. `paliers` : préfixée de celle du parent (1.2). */
+  numerotation?: { motif: 'arabe' | 'romain' | 'majuscule' | 'minuscule'; paliers?: boolean }
+  /** Son rang d'importance, qui change son habillage. */
+  classe?: 'important' | 'secondaire' | 'barre'
   /** Ce que Notak ne lit pas d'un sujet venu d'un `.xmind`, gardé pour le lui rendre à l'export. */
   xmind?: Record<string, unknown>
+}
+
+/** Une flèche entre deux sujets quelconques. `controles` : ses deux points de contrôle, en px depuis chaque bout. */
+export interface Relation {
+  de: Id
+  vers: Id
+  titre?: string
+  controles?: [{ x: number; y: number }, { x: number; y: number }]
+}
+
+/** Un cadre autour de la branche `de`, ou des frères de `de` à `a` (inclus). */
+export interface Limite {
+  de: Id
+  a?: Id
+  titre?: string
+}
+
+/** Une accolade qui rassemble les frères de `de` à `a` (ou la branche `de`) vers le sujet `sujet`, de genre `resume`. */
+export interface Resume {
+  de: Id
+  a?: Id
+  sujet: Id
 }
 
 /** Une carte mentale (docs/XMIND.md) : ses sujets, à plat, par identifiant. */
 export interface Arbre {
   type: 'arbre'
   sujets: Record<Id, Sujet>
+  relations?: Record<Id, Relation>
+  limites?: Record<Id, Limite>
+  resumes?: Record<Id, Resume>
   /** `compacte` : des branches plus serrées. `libre` : un sujet glissé garde la place où on le lâche. */
   options?: { compacte?: boolean; libre?: boolean }
 }

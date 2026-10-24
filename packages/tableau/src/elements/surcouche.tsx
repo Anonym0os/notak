@@ -42,6 +42,7 @@ const VARIABLES = [
   '--notak-arbre-sur-plein',
   '--notak-arbre-flottant',
   '--notak-arbre-choix',
+  '--notak-arbre-etiquette',
 ]
 
 export function variablesDe(noeud: Element): Record<string, string> {

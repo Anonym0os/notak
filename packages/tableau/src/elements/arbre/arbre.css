@@ -9,6 +9,7 @@
   --notak-arbre-sur-plein: #ffffff;
   --notak-arbre-flottant: #f3f4f6;
   --notak-arbre-choix: #3a86d4;
+  --notak-arbre-etiquette: #eceef1;
 }
 
 .notak-espace[data-theme='sombre'] .notak-toile {
@@ -19,6 +20,7 @@
   --notak-arbre-sur-plein: #16181c;
   --notak-arbre-flottant: #2b2f36;
   --notak-arbre-choix: #6aa8ea;
+  --notak-arbre-etiquette: #343943;
 }
 
 .notak-arbre {
@@ -201,4 +203,158 @@
 .notak-arbre-pas output {
   min-width: 1.5em;
   text-align: center;
+}
+
+.notak-arbre-sep {
+  width: 1px;
+  align-self: stretch;
+  background: rgb(0 0 0 / 0.1);
+}
+
+.notak-arbre-surface[data-relier] {
+  cursor: crosshair;
+}
+
+.notak-arbre-relier {
+  stroke: var(--notak-arbre-choix);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+  pointer-events: none;
+}
+
+.notak-arbre-consigne {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: var(--notak-arbre-texte);
+  color: var(--notak-arbre-fond);
+  font-size: 13px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.notak-arbre-tache,
+.notak-arbre-sujet [data-icone],
+.notak-arbre-relation,
+.notak-arbre-limite {
+  cursor: pointer;
+}
+
+.notak-arbre-relation [data-controle] {
+  cursor: grab;
+}
+
+.notak-arbre-panneau {
+  position: absolute;
+  top: 56px;
+  right: 12px;
+  bottom: 12px;
+  width: 280px;
+  overflow-y: auto;
+  padding: 12px;
+  border: 1px solid rgb(0 0 0 / 0.1);
+  border-radius: 10px;
+  background: var(--notak-arbre-fond);
+  color: var(--notak-arbre-texte);
+  font-size: 13px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.1);
+}
+
+.notak-arbre-panneau header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.notak-arbre-panneau header strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-arbre-panneau section {
+  display: grid;
+  gap: 6px;
+  padding: 10px 0;
+  border-top: 1px solid rgb(0 0 0 / 0.06);
+}
+
+.notak-arbre-panneau h3 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.notak-arbre-panneau button,
+.notak-arbre-panneau input[type='text'],
+.notak-arbre-panneau select {
+  padding: 4px 8px;
+  border: 1px solid rgb(0 0 0 / 0.12);
+  border-radius: 5px;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+.notak-arbre-panneau button {
+  cursor: pointer;
+}
+
+.notak-arbre-panneau header button {
+  border: 0;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.notak-arbre-marqueurs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.notak-arbre-marqueurs button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-color: transparent;
+}
+
+.notak-arbre-panneau button[aria-pressed='true'],
+.notak-arbre-panneau button[aria-checked='true'] {
+  border-color: var(--notak-arbre-choix);
+  background: color-mix(in srgb, var(--notak-arbre-choix) 12%, transparent);
+}
+
+.notak-arbre-choix-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.notak-arbre-note {
+  min-height: 80px;
+  padding: 6px 8px;
+  border: 1px solid rgb(0 0 0 / 0.12);
+  border-radius: 5px;
+  outline: none;
+}
+
+.notak-arbre-panneau {
+  overflow-x: hidden;
+}
+
+.notak-arbre-panneau input[type='text'],
+.notak-arbre-panneau select {
+  box-sizing: border-box;
+  width: 100%;
 }

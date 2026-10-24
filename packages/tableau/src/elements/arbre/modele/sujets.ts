@@ -14,6 +14,8 @@ export interface Lecture {
   /** Les enfants attachés de chaque sujet, dans l'ordre (sans flottants ni résumés). */
   enfants: ReadonlyMap<Id, readonly Id[]>
   flottants: readonly Id[]
+  /** Les sujets de résumé (posés à côté de l'accolade de leur plage). */
+  resumes: readonly Id[]
 }
 
 const estSujet = (s: unknown): s is Sujet => {
@@ -39,13 +41,17 @@ export function lire(a: Arbre): Lecture {
   const central = racines[0]?.[0] ?? ''
   const brut = new Map<Id, Id[]>()
   const flottants: Id[] = []
+  const resumes: Id[] = []
   for (const [id, s] of sujets) {
     if (s.parent === undefined) continue
     if (s.genre === 'detache') {
       if (s.parent === central) flottants.push(id)
       continue
     }
-    if (s.genre === 'resume') continue
+    if (s.genre === 'resume') {
+      resumes.push(id)
+      continue
+    }
     const l = brut.get(s.parent)
     if (l) l.push(id)
     else brut.set(s.parent, [id])
@@ -66,8 +72,11 @@ export function lire(a: Arbre): Lecture {
   if (central) parcourir(central)
   flottants.sort(parOrdre)
   for (const f of flottants) parcourir(f)
-  for (const id of [...sujets.keys()]) if (!atteints.has(id) && sujets.get(id)!.genre !== 'resume') sujets.delete(id)
-  const lecture: Lecture = { central, sujets, enfants, flottants }
+  // Un résumé tient à sa plage : il vit tant que son parent est dans la carte.
+  const resumesVivants = resumes.filter((r) => atteints.has(sujets.get(r)!.parent!))
+  for (const r of resumesVivants) parcourir(r)
+  for (const id of [...sujets.keys()]) if (!atteints.has(id)) sujets.delete(id)
+  const lecture: Lecture = { central, sujets, enfants, flottants, resumes: resumesVivants }
   caches.set(a.sujets, lecture)
   return lecture
 }

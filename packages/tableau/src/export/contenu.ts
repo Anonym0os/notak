@@ -109,7 +109,10 @@ export function texteCherchable(e: ElementLu, titreDe: (id: string) => string | 
     case 'ligne':
       return chaine(c.libelle)
     case 'arbre':
-      return Object.values((c.sujets ?? {}) as Record<string, { titre?: unknown }>).map((x) => chaine(x?.titre)).filter(Boolean).join('\n')
+      return Object.values((c.sujets ?? {}) as Record<string, { titre?: unknown; etiquettes?: unknown; note?: unknown }>)
+        .flatMap((x) => [chaine(x?.titre), ...(Array.isArray(x?.etiquettes) ? x.etiquettes.map(chaine) : []), doc(x?.note) ? texteBrut(doc(x?.note)!) : ''])
+        .filter(Boolean)
+        .join('\n')
     case 'commentaire':
       return ((c.messages as { auteur?: { nom?: string }; texte?: string }[] | undefined) ?? [])
         .map((m) => `${chaine(m.auteur?.nom)}\n${chaine(m.texte)}`)

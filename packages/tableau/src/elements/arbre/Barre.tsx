@@ -21,13 +21,17 @@ interface Props {
   /** Les sujets choisis : la structure choisie s'applique à eux. */
   choisis: Id[]
   faire(g: Geste): void
+  /** Commencer une relation depuis le sujet courant. */
+  relier(): void
+  /** Ouvrir ou fermer le panneau du sujet. */
+  panneau(): void
 }
 
 /**
  * La barre de la carte ouverte : la structure des sujets choisis (celle du central si rien n'est choisi), et les
  * réglages de la carte entière. Les mots seuls, comme le menu « Structure » de Xmind.
  */
-export function Barre({ arbre, lecture: l, choisis, faire }: Props) {
+export function Barre({ arbre, lecture: l, choisis, faire, relier, panneau }: Props) {
   const [ouvert, setOuvert] = useState(false)
   const cibles = choisis.length > 0 ? choisis : [l.central]
   const actuelle = l.sujets.get(cibles[0]!)?.structure ?? null
@@ -84,6 +88,20 @@ export function Barre({ arbre, lecture: l, choisis, faire }: Props) {
           </button>
         </span>
       )}
+      <span className="notak-arbre-sep" role="separator" />
+      <button type="button" title="⇧⌘R" onClick={relier}>
+        {t('arbre.relation')}
+      </button>
+      <button type="button" title="⇧⌘B" disabled={choisis.length === 0 || !aucunCentral} onClick={() => faire({ type: 'limite', ids: choisis })}>
+        {t('arbre.limite')}
+      </button>
+      <button type="button" disabled={choisis.length === 0 || !aucunCentral} onClick={() => faire({ type: 'resume', ids: choisis })}>
+        {t('arbre.resume')}
+      </button>
+      <button type="button" title="⌘]" onClick={panneau}>
+        {t('arbre.panneau')}
+      </button>
+      <span className="notak-arbre-sep" role="separator" />
       <label className="notak-arbre-case">
         <input type="checkbox" checked={!!options.compacte} onChange={(e) => faire({ type: 'options', options: { ...options, compacte: e.target.checked } })} />
         {t('arbre.compacte')}

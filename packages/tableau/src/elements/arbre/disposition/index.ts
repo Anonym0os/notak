@@ -97,7 +97,13 @@ const MARGE_CASE = 14
  * range les blocs de ses enfants selon sa famille, puis son propre bloc est rangé par son parent. Le central est
  * centré en (0, 0) ; les flottants restent là où on les a posés. Linéaire en nombre de sujets.
  */
-export function disposer(l: Lecture, taille: (id: Id) => Taille, e: Ecarts = ECARTS, libre = false): Disposition {
+/** Un résumé à poser : son sujet, et les sujets de sa plage (déjà disposés) que son accolade rassemble. */
+export interface ResumeAPoser {
+  sujet: Id
+  plage: Id[]
+}
+
+export function disposer(l: Lecture, taille: (id: Id) => Taille, e: Ecarts = ECARTS, libre = false, resumes: readonly ResumeAPoser[] = []): Disposition {
   const sortie: Disposition = { boites: new Map(), liens: [], traits: [] }
   if (!l.central) return sortie
   const places = new Map<Id, Place>()
@@ -268,6 +274,21 @@ export function disposer(l: Lecture, taille: (id: Id) => Taille, e: Ecarts = ECA
     const p = s.position ?? { x: 0, y: 0 }
     bloc(f, famille(f, p.x < 0 ? 'logique-g' : 'logique-d'))
     descendre(f, p.x - t.l / 2, p.y - t.h / 2)
+  }
+  // Les résumés, une fois leurs plages posées : une accolade le long de la plage, le sujet de résumé derrière elle.
+  for (const r of resumes) {
+    const boites = r.plage.map((x) => sortie.boites.get(x)).filter((b): b is Boite => !!b)
+    if (boites.length === 0 || !l.sujets.has(r.sujet)) continue
+    const [x0, x1] = [Math.min(...boites.map((b) => b.x)), Math.max(...boites.map((b) => b.x + b.l))]
+    const [y0, y1] = [Math.min(...boites.map((b) => b.y)), Math.max(...boites.map((b) => b.y + b.h))]
+    const gauche = x0 + (x1 - x0) / 2 < 0
+    const t = taille(r.sujet)
+    const xa = gauche ? x0 - 12 : x1 + 12
+    const ym = (y0 + y1) / 2
+    bloc(r.sujet, famille(r.sujet, gauche ? 'logique-g' : 'logique-d'))
+    descendre(r.sujet, gauche ? xa - 24 - t.l : xa + 24, ym - t.h / 2)
+    // La pointe de l'accolade regarde le sujet de résumé, ses bouts la plage.
+    sortie.traits.push({ de: r.sujet, d: accolade(xa, y0, y1, ym, gauche ? 1 : -1) })
   }
   for (const [id, r] of rangements) tracer(id, r, sortie, grilles.get(id))
   return sortie

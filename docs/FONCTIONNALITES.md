@@ -30,9 +30,9 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
-| 18. Carte mentale | 18 | 2 | 21 | 46 % |
+| 18. Carte mentale | 26 | 4 | 11 | 68 % |
 | 19. Document à blocs | 1 | 0 | 24 | 4 % |
-| **Total** | **301** | **12** | **47** | **85 %** |
+| **Total** | **309** | **14** | **37** | **88 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -444,16 +444,16 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Structure matrice | ✅ | En lignes ou en colonnes. |
 | Structure par sujet, héritée par défaut | ✅ | « Suivre le sujet parent » la retire. |
 | Carte compacte, placement libre, chevauchement | 🟡 | Compacte : des écarts plus serrés, sans l'emboîtement des branches de Xmind. Placement libre : une branche glissée reste où on la lâche, « Réaligner » la remet ; le chevauchement est alors permis. |
-| Relation entre deux sujets : courbe réglable, pointes, titre | ⬜ |  |
-| Limite autour d'une plage de frères | ⬜ |  |
-| Résumé d'une plage de frères | ⬜ |  |
-| Note en texte riche sur un sujet | ⬜ |  |
-| Étiquettes | ⬜ |  |
-| Lien web ou vers un autre sujet | ⬜ |  |
-| Image sur un sujet | ⬜ |  |
-| Marqueurs : priorité, avancement, drapeaux, étoiles, personnes… | ⬜ |  |
-| Tâche à cocher, numérotation des enfants | ⬜ |  |
-| Rang : important, secondaire, barré | ⬜ |  |
+| Relation entre deux sujets : courbe réglable, pointes, titre | 🟡 | Maj+Cmd+R puis clic sur la cible ; deux points de contrôle à tirer, un titre (double-clic). Une seule pointe, à l'arrivée, pour l'instant. |
+| Limite autour d'une plage de frères | ✅ | Maj+Cmd+B ; un titre au double-clic. |
+| Résumé d'une plage de frères | ✅ | Bouton « Résumé » : une accolade et un sujet de résumé, qui peut avoir ses enfants. |
+| Note en texte riche sur un sujet | ✅ | Maj+Cmd+N ; l'icône sur le sujet rouvre la note. |
+| Étiquettes | ✅ | Maj+Cmd+L. |
+| Lien web ou vers un autre sujet | ✅ | Cmd+K ; l'icône ouvre l'adresse ou va au sujet. |
+| Image sur un sujet | 🟡 | Maj+Cmd+I, depuis un fichier ; pas encore éprouvée à l'écran, ni de poignée pour la taille. |
+| Marqueurs : priorité, avancement, drapeaux, étoiles, personnes… | ✅ | Un par groupe ; Cmd+1…7 pour les priorités. Dessins et icônes à nous. |
+| Tâche à cocher, numérotation des enfants | ✅ | Cmd+Alt+T ; la case se coche d'un clic. Numérotation 1, I, A, a, avec ou sans le numéro du parent. |
+| Rang : important, secondaire, barré | ✅ | Maj+Alt+1, 2, 3, 0. |
 | Formes de sujet | ⬜ |  |
 | Styles de branche, épaisseur, effilé, couleurs arc-en-ciel | ⬜ |  |
 | Texte, remplissage et bordure d'un sujet | ⬜ |  |

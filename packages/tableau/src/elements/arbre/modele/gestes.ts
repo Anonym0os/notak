@@ -1,4 +1,5 @@
 import type { Arbre, Id, StructureArbre } from '../../../coeur/tableau'
+import { ajouterLimite, ajouterRelation, ajouterResume, basculerMarqueur, changerLimite, changerRelation, porter, resumeDe, retirer } from './elements'
 import {
   type Lecture,
   ajouterEnfant,
@@ -46,12 +47,27 @@ export type Geste =
   | { type: 'aDroite'; n: number }
   /** Placement libre : rendre aux sujets la place que leur structure leur donne. */
   | { type: 'realigner' }
+  | { type: 'relation'; de: Id; vers: Id }
+  | { type: 'limite'; ids: Id[] }
+  | { type: 'resume'; ids: Id[] }
+  /** Retire des relations, des limites ou des résumés. */
+  | { type: 'retirer'; ids: Id[] }
+  | { type: 'titrer'; id: Id; titre: string }
+  | { type: 'controles'; id: Id; controles: [{ x: number; y: number }, { x: number; y: number }] }
+  | { type: 'marqueur'; ids: Id[]; marqueur: string }
+  | { type: 'porter'; ids: Id[]; champ: 'etiquettes' | 'lien' | 'note' | 'image' | 'tache' | 'numerotation' | 'classe'; valeur: unknown }
+  /** Cmd+Alt+T : la case à cocher d'une tâche, mise ou ôtée. */
+  | { type: 'tache'; ids: Id[] }
   /** Ceux-là ne touchent pas la carte : la vue les fait elle-même. */
   | { type: 'editer'; id: Id; frappe?: string }
   | { type: 'choisir'; ids: Id[] }
   | { type: 'recadrer' }
   | { type: 'zoom'; facteur: number }
   | { type: 'brancheSeule'; id: Id }
+  /** Commencer une relation depuis ce sujet : la vue attend le clic sur la cible. */
+  | { type: 'relier'; id: Id }
+  /** Ouvrir le panneau du sujet, sur une section. */
+  | { type: 'panneau'; section?: 'note' | 'etiquettes' | 'lien' | 'image' | 'marqueurs' }
 
 /** Ce que devient la carte, et quel sujet choisir ou éditer ensuite. */
 export interface Effet {
@@ -61,7 +77,7 @@ export interface Effet {
 }
 
 /** Le titre d'un sujet qui naît : selon ce qu'il est (principal, sous-sujet…) et combien il a de frères. */
-export type Titreur = (l: Lecture, parent: Id | null, genre: 'enfant' | 'parent' | 'flottant') => string
+export type Titreur = (l: Lecture, parent: Id | null, genre: 'enfant' | 'parent' | 'flottant' | 'resume') => string
 
 /** Applique un geste qui touche la carte ; `null` pour un geste de vue. */
 export function appliquerGeste(a: Arbre, g: Geste, titre: Titreur): Effet | null {
@@ -90,8 +106,17 @@ export function appliquerGeste(a: Arbre, g: Geste, titre: Titreur): Effet | null
     case 'renommer':
       return { arbre: renommer(a, g.id, g.titre) }
     case 'supprimer': {
+      // Dans la sélection, il peut y avoir des relations, des limites, des résumés : ils partent aussi.
+      let base = a
+      for (const id of g.ids) if (!a.sujets[id]) base = retirer(base, id)
+      // Un sujet de résumé supprimé emporte son accolade.
+      for (const id of g.ids) {
+        const r = resumeDe(base, id)
+        if (r) base = retirer(base, r)
+      }
       const premier = g.ids.map((x) => l.sujets.get(x)).find((s) => s?.parent !== undefined)
-      const apres = supprimerBranches(a, g.ids)
+      const apres = supprimerBranches(base, g.ids.filter((x) => !!base.sujets[x]))
+      if (!g.ids.some((x) => l.sujets.has(x))) return { arbre: apres }
       return { arbre: apres, choisir: suivantApresSuppression(l, g.ids[0]!) ?? premier?.parent ?? l.central }
     }
     case 'supprimerSeul': {
@@ -153,6 +178,35 @@ export function appliquerGeste(a: Arbre, g: Geste, titre: Titreur): Effet | null
       let arbre = a
       for (const [id, s] of l.sujets) if (s.decalage) arbre = changerSujet(arbre, id, ({ decalage: _d, ...reste }) => reste)
       return { arbre }
+    }
+    case 'relation': {
+      const [arbre, id] = ajouterRelation(a, g.de, g.vers)
+      return id ? { arbre, choisir: id } : null
+    }
+    case 'limite': {
+      const [arbre, id] = ajouterLimite(a, g.ids)
+      return id ? { arbre, choisir: id } : null
+    }
+    case 'resume': {
+      const [arbre, sujet] = ajouterResume(a, g.ids, titre(l, null, 'resume'))
+      return sujet ? { arbre, choisir: sujet, editer: sujet } : null
+    }
+    case 'retirer':
+      return { arbre: g.ids.reduce(retirer, a) }
+    case 'titrer': {
+      const nettoye = g.titre.trim()
+      if (a.relations?.[g.id]) return { arbre: changerRelation(a, g.id, ({ titre: _t, ...r }) => (nettoye ? { ...r, titre: nettoye } : r)) }
+      return { arbre: changerLimite(a, g.id, ({ titre: _t, ...x }) => (nettoye ? { ...x, titre: nettoye } : x)) }
+    }
+    case 'controles':
+      return { arbre: changerRelation(a, g.id, (r) => ({ ...r, controles: g.controles })) }
+    case 'marqueur':
+      return { arbre: basculerMarqueur(a, g.ids, g.marqueur) }
+    case 'porter':
+      return { arbre: porter(a, g.ids, g.champ, g.valeur as never) }
+    case 'tache': {
+      const toutes = g.ids.every((x) => a.sujets[x]?.tache)
+      return { arbre: porter(a, g.ids, 'tache', toutes ? undefined : 'a-faire') }
     }
     default:
       return null
