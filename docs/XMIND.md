@@ -162,7 +162,9 @@ Un `.xmind` est un **zip**. Notak lit et écrit :
 Les anciens fichiers (Xmind 8) n'ont qu'un `content.xml` : → Notak ne les lit pas et le dit.
 
 **Feuille** : `id`, `class: "sheet"`, `title`, `rootTopic`, `relationships[]`, `topicPositioning`
-(`"free"` = placement libre), `topicOverlapping` (`"overlap"`), `compactLayoutModeLevel`, `theme`, `style`.
+(`"free"` = placement libre), `topicOverlapping` (`"overlap"`), `compactLayoutModeLevel` (`"Second"` = compacte, `"Third"` =
+normale), `floatingTopicFlexible`, `floatingTopicAutoColor`, `relationshipAutoColor`, `topicNotesDisplay`, `theme`,
+`style`. Les clés que l'onglet Carte règle sont au § 9.
 
 **Sujet** :
 
@@ -193,3 +195,108 @@ Les anciens fichiers (Xmind 8) n'ont qu'un `content.xml` : → Notak ne les lit 
   retour par Notak n'abîme pas un fichier.
 - Les styles et thèmes de Xmind ne sont pas traduits finement : → Notak garde la structure, la forme, la
   couleur de branche et le rang ; le reste revient au thème de Notak.
+
+## 9. L'onglet Carte du panneau de format
+
+Le panneau de droite de Xmind a trois onglets (Style, Présentation, Carte). Celui de la carte règle la **feuille
+entière** et ne dépend pas de la sélection. Ses blocs, de haut en bas, séparés par un filet :
+
+1. **Squelette** : une carte large (la vignette de la structure courante, le **nom de son groupe**, un chevron).
+2. **Thème de couleur** : un sélecteur (six segments, le nom du groupe), le bouton « + », puis les variantes du groupe.
+3. **Couleur de l'arrière-plan** : une pastille.
+4. **Police globale**, **Largeur de la ligne de branche**, **Branche colorée** et sa couleur.
+5. **Style de carte** : Équilibrer la carte, Carte compacte.
+6. **Affichage des sujets** : Justifier l'alignement du sujet, Afficher toutes les notes, Colorier sujet flottant auto.
+7. **Relation** : Couleur ligne suit sujet.
+8. **Avancé** : Branches libres, Sujet flottant flexible, Chevauchement des sujets.
+9. **Police CJK**, et le bouton **Thèmes personnalisés**.
+
+Ce qu'un réglage efface en passant, Xmind le fait sans confirmer, et Notak aussi : une police globale retire les
+polices posées sujet par sujet ; une largeur de ligne retire les largeurs et les effilements posés ; un thème de
+couleur retire les couleurs posées à la main, le fond choisi et le jeu de couleurs ; un squelette retire les
+structures posées sur les sujets principaux ; éteindre les branches libres remet chaque sujet à sa place ; allumer
+les flottants colorés retire leur remplissage choisi. Chaque réglage est un geste (`modele/reglages.ts`) : il
+passe par l'historique, et un seul annuler le défait.
+
+| Réglage | Dans Notak (`Arbre`) | Clé de la feuille `.xmind` |
+|---|---|---|
+| Squelette | structure du central (et plus de structure sur les principaux) | `rootTopic.structureClass` |
+| Thème de couleur | `theme`, `themePerso`, et `couleurLigne` + `options.uneCouleur` pour une variante à une couleur | `theme.colorThemeId` (non écrit, voir plus bas) |
+| Couleur de l'arrière-plan | `fond` (`#rrggbb`, ou `#rrggbbaa`) | `style.properties["svg:fill"]` |
+| Police globale | `police` | `theme.global.properties["fo:font-family"]` |
+| Largeur de la ligne de branche | `largeurBranche` (points : 1, 2, 3, 5, 8) | `theme.global.properties["line-width"]` (`"5pt"`) |
+| Branches effilées | `effile` | `style.properties["line-tapered"]` (`"tapered"`) |
+| Branche colorée, éteinte | `options.uneCouleur` | `style.properties["multi-line-colors"]` = `"none"` |
+| Jeu de couleurs des branches | `jeuCouleurs` | `style.properties["multi-line-colors"]` = couleurs séparées par des espaces |
+| Couleur de ligne (branche colorée éteinte) | `couleurLigne` | `rootTopic.style.properties["line-color"]` |
+| Équilibrer la carte | structure du central : `carte-horaire` (allumée) ou `carte-libre` | `rootTopic.structureClass` (`clockwise`, `unbalanced`) |
+| Carte compacte | `options.compacte` | `compactLayoutModeLevel` = `"Second"` |
+| Justifier l'alignement du sujet | `options.uniforme` | `rootTopic.style.properties["alignment-by-level"]` = `"actived"` |
+| Afficher toutes les notes | `options.toutesNotes` | `topicNotesDisplay` = `"block"`, et `notesDisplay` sur chaque sujet à note |
+| Colorier sujet flottant auto | `options.flottantsColores` | `floatingTopicAutoColor` = `"follow-color-theme"` |
+| Couleur ligne suit sujet | `options.relationsColorees` | `relationshipAutoColor` = `"follow-target-topic"` |
+| Branches libres | `options.libre` | `topicPositioning` = `"free"` |
+| Sujet flottant flexible | `options.flottantSouple` | `floatingTopicFlexible` = `true` |
+| Chevauchement des sujets | `options.chevauchement` | `topicOverlapping` = `"overlap"` |
+| Police CJK | `policeCjk` | `style.properties["cjk-font-family"]` |
+
+Une option éteinte n'écrit pas sa clé, et une clé absente se lit comme éteinte. Les cartes d'avant n'ont aucun de ces
+champs : elles gardent leur apparence. Ce que Notak ne lit pas de la feuille (le thème et le style de Xmind, ses
+extensions) est gardé dans `Arbre.xmind` et rendu à l'export ; ce que l'onglet règle l'emporte sur ce sac.
+
+**Squelette.** Xmind en compte 60, en dix groupes, chacun portant une structure *et* un style complet.
+→ Notak : un squelette est une structure, celle du sujet central, rangée dans huit groupes (carte mentale, diagramme
+logique, carte d'accolade, organigramme, arbre graphique, chronologie, arêtes de poisson, matrice) ; le tableau-arbre
+et la grille sont écartés (§ 2). Les vignettes sont calculées par le moteur de mise en page de la carte, sur un
+exemple de sept sujets, et la carte du squelette nomme le groupe, jamais la structure. La fenêtre (388 × 450) s'ouvre
+à gauche du panneau, ses groupes se replient, et elle ne se ferme pas au choix.
+
+**Thème de couleur.** Un groupe a ses variantes : celle à branches de couleur, puis une par couleur d'accent (six au
+plus). Un clic sur un groupe prend sa première variante, ou la dernière qu'on y a prise dans la session ; sur le
+groupe courant, la variante suivante (« Alterner »). La fenêtre (316 × 370) a des onglets Favori, Ma couleur, Coloré
+et Classique, les deux premiers n'existant que s'ils ont de quoi montrer.
+→ Notak : douze thèmes à nous (Xmind en a quarante-trois), aux couleurs de Notak, rangés en Coloré et Classique.
+Les favoris, les thèmes de couleur à soi et les thèmes personnalisés sont des préférences de la personne, dans le
+navigateur ; la carte garde ce qu'elle utilise (`themePerso`, ses réglages), pour voyager seule. Le thème de Notak
+n'est pas écrit dans le `.xmind` : Xmind le relirait comme un thème inconnu.
+
+**Boîte de thème de couleur** (« + », 540 × 480). Six cases qui se remplissent dans l'ordre (seules les cases remplies
+et la première vide sont ouvertes), un nom (« Personnalisé », « Personnalisé 2 »…), l'aperçu des variantes que ces
+couleurs donnent, Annuler et Enregistrer (inactif sans nom ou sans les six couleurs). Enregistrer n'applique pas le
+thème : il rejoint l'onglet Ma couleur, dont un clic droit propose Modifier, Renommer, Dupliquer, Supprimer.
+
+**Nuancier.** Une grille de 45 couleurs sur neuf colonnes (neuf neutres, puis quatre rangées de teintes), un champ
+hexadécimal (« abc » devient « aabbcc », un hexa trop court est complété de zéros), l'opacité, le sélecteur natif,
+puis les couleurs du thème et les récentes. Une case émet et ferme ; l'hexa et l'opacité émettent à Entrée ou en
+quittant le champ. → Notak : le sélecteur natif émet quand on le lâche, pas à chaque mouvement (l'historique
+se noierait) ; un lien « Couleur du thème » retire la couleur choisie du fond.
+
+**Branche colorée.** Allumée : un sélecteur de jeu de couleurs (un anneau de six secteurs ; le jeu du thème d'abord,
+puis neuf jeux à nous). Éteinte : une pastille, la couleur de toutes les branches (`couleurLigne`).
+
+**Largeur de ligne.** Par défaut, cinq niveaux (très fin 1 pt, mince 2, moyen 3, gras 5, très gras 8), puis les mêmes
+effilés. L'effilement vaut pour les branches du central.
+
+**Carte compacte.** → Notak : les marges de chaque rang et l'écart du central à ses principaux se resserrent, avec
+les écarts entre frères. L'emboîtement des branches de Xmind n'y est pas.
+
+**Justifier l'alignement du sujet.** Les sujets d'un même niveau prennent la largeur du plus large ; le central,
+les flottants et les résumés gardent la leur.
+
+**Afficher toutes les notes.** Le texte de la note se montre sous le titre, huit lignes au plus (la suite se coupe en
+« … ») ; un clic dessus rouvre la note.
+
+**Avancé.** Branches libres : seulement pour les structures de la famille carte (la bascule est grisée ailleurs).
+→ Notak : Sujet flottant flexible : un flottant glissé ne se rattache à rien ; Maj suspend le réglage le temps du
+geste. Chevauchement des sujets : un sujet lâché *sur* un autre y reste (Xmind ne montre pas de comportement visible
+pour ce réglage dans son panneau) ; l'insertion à côté d'un frère reste possible, et Maj redonne le rattachement.
+
+**Thèmes personnalisés.** Une vue secondaire (une barre de titre avec une croix remplace la barre d'onglets) : une
+tuile « Créer un thème » qui garde le style actuel de la carte (thème, fond, polices, largeur, couleurs, densité), puis
+chaque thème gardé. Un clic l'applique à la carte, un clic sur le nom le renomme, un clic droit ouvre Mettre à jour,
+Renommer, Dupliquer, Supprimer. → Notak : pas d'éditeur de thème à part, « Modifier » devient « Mettre à jour d'après
+la carte » ; la vue ne se ferme pas toute seule quand on choisit un sujet. Un thème règle l'aspect, pas le
+comportement : branches libres, chevauchement et flottant flexible restent à la carte.
+
+→ Notak : ni bouton « Upgrade », ni badge PRO : tout est libre. Pas de voile « rendu en cours » : le calcul est
+assez rapide pour s'en passer.

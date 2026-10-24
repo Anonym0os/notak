@@ -3,6 +3,11 @@
    le thème sombre suit sans rien redire. Les fenêtres flottantes sont posées dans la carte ouverte (`.notak-arbre-fond`),
    hors du panneau qui coupe ce qui déborde. */
 
+/* Le panneau de droite fait 268 px chez Xmind : 228 px utiles dans les blocs, une fois leurs marges de 20 px ôtées. */
+.notak-arbre-fond {
+  --notak-arbre-largeur-cote: 268px;
+}
+
 /* Le cadre : l'onglet occupe toute la largeur du panneau, sans les marges du corps ni celles du panneau d'avant. */
 .notak-arbre-cote.notak-arbre-panneau {
   padding: 0;
@@ -140,6 +145,11 @@
 
 .notak-carte-bascule input:disabled {
   cursor: default;
+}
+
+.notak-carte-bascule input:focus-visible + .notak-carte-piste {
+  outline: 2px solid var(--notak-arbre-choix);
+  outline-offset: 2px;
 }
 
 .notak-carte-piste {
@@ -362,7 +372,8 @@
   min-width: 0;
 }
 
-.notak-carte-vignette-bouton {
+.notak-carte .notak-carte-vignette .notak-carte-vignette-bouton,
+.notak-carte-popover .notak-carte-vignette .notak-carte-vignette-bouton {
   display: block;
   box-sizing: border-box;
   width: 100%;
@@ -373,7 +384,7 @@
   cursor: pointer;
 }
 
-.notak-carte-vignette[data-taille='petite'] .notak-carte-vignette-bouton {
+.notak-carte .notak-carte-vignette[data-taille='petite'] .notak-carte-vignette-bouton {
   padding: 3px;
   border-width: 1px;
   border-radius: 9px;
@@ -404,7 +415,8 @@
   border-color: color-mix(in srgb, var(--notak-arbre-texte) 28%, transparent);
 }
 
-.notak-carte-vignette[data-actif] .notak-carte-vignette-bouton {
+.notak-carte .notak-carte-vignette[data-actif] .notak-carte-vignette-bouton,
+.notak-carte-popover .notak-carte-vignette[data-actif] .notak-carte-vignette-bouton {
   border-color: var(--notak-arbre-plein);
 }
 
@@ -413,7 +425,8 @@
 }
 
 /* L'étoile des favoris : en haut à droite, au survol seulement. */
-.notak-carte .notak-carte-etoile {
+.notak-carte .notak-carte-vignette .notak-carte-etoile,
+.notak-carte-popover .notak-carte-vignette .notak-carte-etoile {
   position: absolute;
   top: 6px;
   right: 6px;

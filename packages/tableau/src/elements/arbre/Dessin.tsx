@@ -33,7 +33,7 @@ const DASH = { plein: undefined, tirets: '7 5', points: '1.5 4' } as const
  */
 export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, mesures, selection, edition, adresse, devoiles }: Props) {
   const vu = (id: Id) => !devoiles || devoiles.has(id)
-  const theme = useMemo(() => themeDeArbre(arbre), [arbre.theme, arbre.themePerso, arbre.police, arbre.policeCjk, arbre.jeuCouleurs, arbre.options?.flottantsColores]) // eslint-disable-line react-hooks/exhaustive-deps
+  const theme = useMemo(() => themeDeArbre(arbre), [arbre.theme, arbre.themePerso, arbre.police, arbre.policeCjk, arbre.jeuCouleurs, arbre.options?.flottantsColores])
   const uneCouleur = !!arbre.options?.uneCouleur
   const compacte = !!arbre.options?.compacte
   const encre = theme.encre ?? 'var(--notak-arbre-encre)'

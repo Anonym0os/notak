@@ -30,9 +30,9 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
-| 18. Carte mentale | 38 | 3 | 0 | 96 % |
+| 18. Carte mentale | 49 | 5 | 0 | 95 % |
 | 19. Document à blocs | 21 | 3 | 1 | 90 % |
-| **Total** | **341** | **16** | **3** | **97 %** |
+| **Total** | **352** | **18** | **3** | **97 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -443,7 +443,20 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Structure arête de poisson | ✅ | Tête à gauche ou à droite. |
 | Structure matrice | ✅ | En lignes ou en colonnes. |
 | Structure par sujet, héritée par défaut | ✅ | « Suivre le sujet parent » la retire. |
-| Carte compacte, placement libre, chevauchement | 🟡 | Compacte : des écarts plus serrés, sans l'emboîtement des branches de Xmind. Placement libre : une branche glissée reste où on la lâche, « Réaligner » la remet ; le chevauchement est alors permis. |
+| Carte compacte | 🟡 | Marges des sujets et écarts resserrés, sans l'emboîtement des branches de Xmind. |
+| Branches libres | ✅ | Une branche glissée reste où on la lâche (carte seulement) ; éteindre le réglage remet tout en place. |
+| Chevauchement des sujets, sujet flottant flexible | ✅ | Un sujet lâché sur un autre y reste ; un flottant glissé ne se rattache à rien ; Maj inverse l'un et l'autre. |
+| Onglet Carte du panneau de format : les blocs de l'onglet Map de Xmind, dans son ordre | 🟡 | Chaque réglage fait son geste (annulable), change le rendu et fait l'aller-retour `.xmind` ; pas encore éprouvé à l'écran. Voir `docs/XMIND.md` § 9. |
+| Squelette : carte nommant le groupe, fenêtre de choix par groupes repliables | ✅ | Huit groupes, dix-huit structures, vignettes calculées par la mise en page de la carte. Tableau-arbre et grille écartés ; un squelette n'est qu'une structure. |
+| Thème de couleur : sélecteur, variantes, liste (Favori, Ma couleur, Coloré, Classique), alterner | ✅ | Douze thèmes à nous ; les favoris et les thèmes à soi sont des préférences de la personne (navigateur). |
+| Créer, modifier, renommer, dupliquer, supprimer un thème de couleur à soi | ✅ | Six couleurs, un nom, l'aperçu des variantes ; la carte garde les couleurs du thème qu'elle utilise. |
+| Couleur de l'arrière-plan, et le nuancier (45 couleurs, hexa, opacité, thème actuel, récents) | ✅ | Le sélecteur natif émet quand on le lâche. |
+| Police globale, police CJK | ✅ | Vingt polices latines et quatorze CJK que les systèmes ont ; les récentes en tête. Pas de fichier de police fourni. |
+| Largeur de la ligne de branche, branches effilées | ✅ | Cinq niveaux, puis les mêmes effilés. |
+| Branche colorée et jeux de couleurs des branches | ✅ | Le jeu du thème et neuf jeux à nous ; éteinte, la couleur de toutes les branches. |
+| Équilibrer la carte | ✅ | Allumée : sens horaire ; éteinte : carte non équilibrée (le nombre de branches à droite se règle dessous). |
+| Justifier l'alignement du sujet, afficher toutes les notes, colorier les flottants, couleur de relation | ✅ | |
+| Thèmes personnalisés (vue secondaire) | 🟡 | Créer d'après la carte, appliquer, renommer, dupliquer, supprimer. Pas d'éditeur de thème à part (« Mettre à jour d'après la carte »), et la vue ne se ferme pas quand on choisit un sujet. |
 | Relation entre deux sujets : courbe réglable, pointes, titre | ✅ | Maj+Cmd+R puis clic sur la cible ; deux points de contrôle à tirer, un titre (double-clic) ; courbe, droite ou coudée, pointe au départ, à l'arrivée ou aux deux. |
 | Limite autour d'une plage de frères | ✅ | Maj+Cmd+B ; un titre au double-clic. |
 | Résumé d'une plage de frères | ✅ | Bouton « Résumé » : une accolade et un sujet de résumé, qui peut avoir ses enfants. |
@@ -457,14 +470,14 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Formes de sujet | ✅ | Rectangle, arrondi, gélule, ellipse, souligné, double souligné, losange, hexagone, parallélogramme, sans cadre. |
 | Styles de branche, épaisseur, effilé, couleurs arc-en-ciel | ✅ | Courbe, droite, coudée, coudée arrondie, sans trait ; motif plein, tirets, pointillés ; « Branches de couleur » ou une seule encre. |
 | Texte, remplissage et bordure d'un sujet | ✅ | Police, taille, gras, italique, couleur ; l'encre du texte se choisit seule sur un remplissage foncé. |
-| Thèmes de carte | ✅ | Six thèmes à nous : Classique (suit le clair et le sombre de Notak), Pastel, Nuit, Sobre, Papier, Vif. |
+| Thèmes de carte | ✅ | Douze thèmes à nous : Classique (suit le clair et le sombre de Notak), Pastel, Nuit, Sobre, Papier, Vif, Aurore, Océan, Forêt, Braise, Lavande, Ardoise. |
 | Appliquer au même rang, réinitialiser, copier et coller un style | ✅ | Alt+Cmd+U, Cmd+Alt+0, Cmd+Alt+C, Cmd+Alt+V. |
 | Mode plan | ✅ | Maj+Cmd+M ou « Plan » : Entrée, Tab, Maj+Tab, Alt+flèches, Cmd+/ ; Échap revient à la carte. |
 | Mode Zen | ✅ | Cmd+Alt+F : la carte seule, en plein écran quand le navigateur le permet ; Échap en sort. |
 | Présentation branche par branche | ✅ | Cmd+Alt+P : le central, puis chaque principal avec sa branche ; le cadrage glisse de l'une à l'autre. |
 | Chercher dans la carte | ✅ | Cmd+F : titres, étiquettes et notes, sans accents ; Entrée va au suivant. |
 | Importer un fichier .xmind | ✅ | Déposé sur la toile : une carte par feuille, images comprises. Éprouvé sur les 36 modèles de Xmind et sa démo. Les fichiers de Xmind 8 (content.xml) sont refusés avec un avis. |
-| Exporter en .xmind | 🟡 | Menu de la carte, une feuille par carte choisie ; aller-retour vérifié par la lecture de Notak, pas encore rouvert dans Xmind lui-même. Les styles et thèmes ne sont pas traduits. |
+| Exporter en .xmind | 🟡 | Menu de la carte, une feuille par carte choisie ; aller-retour vérifié par la lecture de Notak, pas encore rouvert dans Xmind lui-même. Le fond, les polices, la largeur et les couleurs des branches, et les réglages de l'onglet Carte s'écrivent avec les clés de Xmind (`docs/XMIND.md` § 9) ; les styles de sujet par rang et les thèmes de Notak ne sont pas traduits. |
 | Texte de la carte dans la recherche et l'export texte du tableau | ✅ | L'export la rend en liste indentée. |
 | Grille, tableau-arbre | ➖ | Écartés (docs/XMIND.md § 2). |
 | Gantt, IA, commentaires et collaboration propres à Xmind, note audio, vidéo web | ➖ | Écartés (docs/XMIND.md § 6). |

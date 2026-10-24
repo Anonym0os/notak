@@ -27,7 +27,7 @@ const distance = (b: Boite, p: { x: number; y: number }) => {
  *
  * Deux réglages de la carte (onglet Carte) y changent : « Sujet flottant flexible » (un flottant glissé ne se rattache
  * à rien, Maj le permet le temps du geste) et « Chevauchement des sujets » (un sujet lâché sur un autre reste là, au
- * lieu d'en devenir l'enfant ; l'insertion à côté d'un frère reste possible).
+ * lieu d'en devenir l'enfant, sauf avec Maj ; l'insertion à côté d'un frère reste possible).
  */
 export function ouLacher(l: Lecture, d: Disposition, glisse: Id, p: { x: number; y: number }, inverse = false, options: Arbre['options'] = {}): Lacher {
   if (options?.flottantSouple && l.sujets.get(glisse)?.genre === 'detache') return inverse ? ouLacher(l, d, glisse, p, false, { ...options, flottantSouple: false }) : { type: 'libre' }
@@ -49,6 +49,8 @@ export function ouLacher(l: Lecture, d: Disposition, glisse: Id, p: { x: number;
       : proche.dist <= PORTEE_LACHER
         ? insertionPres(l, proche.id, proche.b, p, glisse)
         : null
+  // Chevauchement : Maj rend le rattachement qu'il retient d'ordinaire, sur un sujet.
+  if (inverse && options?.chevauchement && proche?.dist === 0) return { type: 'enfant', parent: proche.id }
   if (inverse) return attache ? { type: 'libre' } : proche ? { type: 'enfant', parent: proche.id } : { type: 'libre' }
   return attache ?? { type: 'libre' }
 }
