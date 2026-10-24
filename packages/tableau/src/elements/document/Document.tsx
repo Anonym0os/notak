@@ -15,6 +15,7 @@ import { EXTENSIONS_NOTE } from '../note/extensions'
 import { Bulle } from '../../blocs/Bulle'
 import type { Couleur } from '../../blocs/catalogue'
 import { Invite } from '../../blocs/invite'
+import { derniereCouleur } from '../../blocs/menuCouleurs'
 import { type Demande, MenuBlocs, type PontMenu, extensionSlash } from '../../blocs/Menu'
 import { Largeurs } from '../../blocs/Largeurs'
 import { Poignee } from '../../blocs/Poignee'
@@ -405,8 +406,6 @@ function Lecture({ contenu, fermer, plusRecent, adresse, fichiers }: { contenu: 
  */
 function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: DocumentTexte; ecrire(c: DocumentTexte): void; finir(): void; contexte: ContexteToile }) {
   const [titre, setTitre] = useState(contenu.titre)
-  // L'éditeur de lien vit dans la bulle (`blocs/Bulle.tsx`).
-  const [, setLien] = useState<string | null>(null)
   // Le titre, le texte et les fils des passages changent chacun de leur côté : le brouillon porte toujours les derniers.
   // Un document d'avant les blocs à plat (ou une note convertie) s'ouvre aplati (NOTION.md § 1).
   const initial = useMemo(() => aplatir(contenu.texte), [])
@@ -441,7 +440,8 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
   const [demande, setDemande] = useState<Demande | null>(null)
   const demander = (mode: Demande['mode']) => setDemande((d) => ({ mode, n: (d?.n ?? 0) + 1 }))
   const corps = useRef<HTMLDivElement>(null)
-  const [derniere, setDerniere] = useState<Couleur | null>(null)
+  // La dernière couleur employée (⌘⇧H), gardée d'une ouverture à l'autre.
+  const [derniere, setDerniere] = useState<Couleur | null>(() => derniereCouleur())
   const gestes = useRef<GestesBlocs>({ transformerEn: () => {}, derniereCouleur: () => {} })
   const fichiers = contexte.services.fichiers
   // À plusieurs, le texte vit dans le fragment Yjs du document ; lu une fois, à l'entrée en édition (NOTION.md § 9).
@@ -449,7 +449,7 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
   const extensions = useMemo(
     () => [
       ...(fragment ? [...EXTENSIONS_BLOCS_PARTAGEE, ...extensionsDuPartage(fragment, contexte)] : EXTENSIONS_BLOCS).map((x) => (x.name === 'image' && fichiers ? ImageBloc.configure({ adresse: (id) => fichiers.adresse(id) }) : x)),
-      Invite.configure({ texte: () => t('blocs.invite') }),
+      Invite,
       extensionPropositions(pont),
       extensionSlash(pontMenu),
       raccourcisBlocs(gestes),
@@ -609,8 +609,7 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
       {editeur && (
         <Bulle
           editeur={editeur}
-          transformerEn={() => demander('transformer')}
-          lien={() => setLien((editeur.getAttributes('link').href as string | undefined) ?? '')}
+          menuBloc={() => demander('bloc')}
           {...(peutCommenter ? { commenter: () => commenterRef.current() } : {})}
           derniere={derniere}
           surCouleur={setDerniere}
