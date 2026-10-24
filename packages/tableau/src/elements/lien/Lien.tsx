@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Apercu, CauseEchec, GenreLien, Id, Lien } from '../../coeur/tableau'
 import type { PropsRendu } from '../types'
-import { INVITES, adresseAffichee, avecAdresse, domaineDe, lireAdresse } from './adresse'
+import { INVITES, adresseAffichee, adresseSure, avecAdresse, domaineDe, lireAdresse } from './adresse'
 import { lireCause, messageEchec } from './echec'
 import { lecteurDe } from './lecteurs'
 import { Media } from './Media'
@@ -243,7 +243,7 @@ function Carte({ element, choisie, seule, enEdition, contexte, brouillon }: Prop
   const lecteur = lecteurDe(url)
   // L'image qu'on a donnée à la carte prime sur celle de la page.
   const perso = useAdresseFichier(contenu.image?.fichier, contexte)
-  const image = contenu.image ? perso : statut === 'pret' ? apercu?.image : undefined
+  const image = contenu.image ? perso : statut === 'pret' ? adresseSure(apercu?.image, 'image') : undefined
   // Dans une colonne, la largeur de la carte n'est pas la sienne : le média seul ne s'y décide pas par la largeur.
   const aff = affichage(contenu, element.parent ? undefined : element.largeur)
   const seulMedia = mediaSeul(contenu, element.parent ? undefined : element.largeur)
@@ -278,7 +278,7 @@ function Carte({ element, choisie, seule, enEdition, contexte, brouillon }: Prop
   const lien = (children: React.ReactNode, classe: string, toujours: boolean) => (
     <a
       className={classe}
-      href={url}
+      href={adresseSure(url)}
       target="_blank"
       rel={REL}
       draggable={false}
@@ -317,8 +317,8 @@ function Carte({ element, choisie, seule, enEdition, contexte, brouillon }: Prop
           {aff.infos &&
             lien(
               <>
-                {apercu?.favicon && statut === 'pret' ? (
-                  <img className="notak-lien-favicon" src={apercu.favicon} alt="" draggable={false} referrerPolicy="no-referrer" />
+                {adresseSure(apercu?.favicon, 'image') && statut === 'pret' ? (
+                  <img className="notak-lien-favicon" src={adresseSure(apercu?.favicon, 'image')} alt="" draggable={false} referrerPolicy="no-referrer" />
                 ) : (
                   <Icone nom="lien" taille={16} />
                 )}

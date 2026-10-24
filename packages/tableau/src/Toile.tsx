@@ -53,6 +53,7 @@ import './elements'
 import { definition, marquerDepot, tousLesCollages, tousLesRaccourcis, tousLesRecepteurs, tousLesTypes, toutesLesEntreesMenu } from './elements/registre'
 import { demanderRenommage } from './elements/tableau/renommage'
 import { figerDepot, glisseUneImage, libererDepot, survolerImage } from './elements/image/survolDepot'
+import { GardeElement } from './garde'
 import type { ContexteToile, Presence, Services } from './elements/types'
 import { t, tn } from './langue'
 import { PastilleZoom } from './PastilleZoom'
@@ -2989,7 +2990,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         <ContexteRangement.Provider value={rangement}>
           {pile.map((e) => definition(e.contenu.type)?.calque === 'lignes' ? (
             <svg key={e.id} className="notak-calque-lignes" aria-hidden>
-              {rendreLigne(e)}
+              <GardeElement element={e} repli={null}>
+                {rendreLigne(e)}
+              </GardeElement>
             </svg>
           ) : (
             <Cadre

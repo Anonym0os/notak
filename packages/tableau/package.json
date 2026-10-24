@@ -9,7 +9,8 @@
     ".": "./src/index.ts",
     "./toile.css": "./src/toile.css",
     "./modeles/*": "./src/modeles/*.ts",
-    "./decomposer": "./src/decomposer.ts"
+    "./decomposer": "./src/decomposer.ts",
+    "./essais/contrat": "./src/dossier/essais/contrat.ts"
   },
   "peerDependencies": {
     "@hocuspocus/provider": "4.7.1",
@@ -25,6 +26,7 @@
     "@tiptap/starter-kit": "^3.31.0",
     "@tiptap/static-renderer": "^3.31.0",
     "@tiptap/y-tiptap": "^3.0.10",
+    "fflate": "0.8.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "y-indexeddb": "9.0.12",
@@ -46,6 +48,7 @@
     "@tiptap/y-tiptap": "3.0.10",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "fflate": "0.8.2",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "y-indexeddb": "9.0.12",

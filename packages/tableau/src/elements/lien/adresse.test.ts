@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Lien } from '../../coeur/tableau'
-import { INVITES, adresseAffichee, avecAdresse, domaineDe, lireAdresse } from './adresse'
+import { INVITES, adresseAffichee, adresseSure, avecAdresse, domaineDe, lireAdresse } from './adresse'
 
 describe('lireAdresse', () => {
   it('garde une adresse complète', () => {
@@ -67,5 +67,17 @@ describe('adresseAffichee', () => {
   it('montre l’adresse complète, sans le schéma ni la barre finale', () => {
     expect(adresseAffichee('https://www.exemple.fr/a/b?x=1')).toBe('www.exemple.fr/a/b?x=1')
     expect(adresseAffichee('http://exemple.fr/')).toBe('exemple.fr')
+  })
+})
+
+describe('adresseSure', () => {
+  it('ne laisse passer que le web (et mailto, tel pour un lien)', () => {
+    expect(adresseSure('https://exemple.fr/a')).toBe('https://exemple.fr/a')
+    expect(adresseSure('http://exemple.fr')).toBe('http://exemple.fr')
+    expect(adresseSure('mailto:a@b.fr')).toBe('mailto:a@b.fr')
+    expect(adresseSure('mailto:a@b.fr', 'image')).toBeUndefined()
+    for (const mauvaise of ['javascript:alert(1)', ' JavaScript:alert(1)', 'data:text/html,<script>', 'vbscript:x', 'file:///etc/passwd', '/relatif', 42, null, undefined])
+      expect(adresseSure(mauvaise)).toBeUndefined()
+    expect(adresseSure('data:image/png;base64,AAAA', 'image')).toBeUndefined()
   })
 })

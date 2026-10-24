@@ -23,6 +23,12 @@
   color: #d84b4b;
 }
 
+button.notak-lieu-plan {
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
 .notak-lieu-infos {
   flex: 1;
   display: flex;

@@ -1,7 +1,6 @@
-import { type Element, type EspaceNavigable, type Id, nouvelId, type Operation } from '@notak/tableau'
+import { type DepotFichiers, type Element, type EspaceNavigable, type Id, nouvelId, type Operation } from '@notak/tableau'
 import { t, tn } from './langue'
 import { useRef, useState } from 'react'
-import { envoyerFichier } from './fichiers'
 import { CIBLE_FICHIER, CIBLE_TABLEAU, ErreurImport, type PlanImport, lireExportMilanote } from './milanote'
 import { Icone } from '@notak/tableau'
 import { usePanneau } from './panneaux'
@@ -20,10 +19,11 @@ async function dimensions(blob: Blob): Promise<{ largeur: number; hauteur: numbe
 
 /**
  * Pose un plan d'import dans l'espace : le premier tableau devient un tableau neuf sous `parent` (avec son renvoi,
- * à droite de ce qui s'y trouve), les autres des sous-tableaux. Les fichiers partent au serveur.
+ * à droite de ce qui s'y trouve), les autres des sous-tableaux. Les fichiers vont au dépôt de l'édition (le serveur, ou
+ * l'appareil).
  * Rend l'id du tableau de tête et le nombre de fichiers qu'on n'a pas pu envoyer.
  */
-export async function poserLePlan(plan: PlanImport, espace: EspaceNavigable, parent: Id): Promise<{ tete: Id; perdus: number }> {
+export async function poserLePlan(plan: PlanImport, espace: EspaceNavigable, parent: Id, fichiers: DepotFichiers): Promise<{ tete: Id; perdus: number }> {
   // Qui renvoie à qui : un sous-tableau naît sous le tableau qui le cite, sinon sous la tête.
   const citeur = new Map<string, string>()
   for (const tb of plan.tableaux) {
@@ -55,7 +55,7 @@ export async function poserLePlan(plan: PlanImport, espace: EspaceNavigable, par
         const blob = new Blob([f.octets as Uint8Array<ArrayBuffer>], { type: f.type })
         envoyes.set(
           chemin,
-          await envoyerFichier(blob).then(
+          await fichiers.enregistrer(blob).then(
             async (id) => ({ id, ...(f.type.startsWith('image/') ? await dimensions(blob) : { largeur: 0, hauteur: 0 }) }),
             () => null,
           ),
@@ -101,7 +101,7 @@ export async function poserLePlan(plan: PlanImport, espace: EspaceNavigable, par
 }
 
 /** Le bouton « Importer » : un export Markdown de Milanote (zip) devient un tableau, ses sous-tableaux et ses fichiers. */
-export function Importer({ espace, tableau, ouvrir }: { espace: EspaceNavigable; tableau: Id; ouvrir(id: Id): void }) {
+export function Importer({ espace, tableau, ouvrir, fichiers }: { espace: EspaceNavigable; tableau: Id; ouvrir(id: Id): void; fichiers: DepotFichiers }) {
   const { ouvert, regler, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
   const [etat, setEtat] = useState<{ type: 'repos' } | { type: 'cours' } | { type: 'fini'; texte: string } | { type: 'echec'; texte: string }>({ type: 'repos' })
   const choix = useRef<HTMLInputElement>(null)
@@ -111,7 +111,7 @@ export function Importer({ espace, tableau, ouvrir }: { espace: EspaceNavigable;
     setEtat({ type: 'cours' })
     try {
       const plan = lireExportMilanote(new Uint8Array(await fichier.arrayBuffer()), nouvelId)
-      const { tete, perdus } = await poserLePlan(plan, espace, tableau)
+      const { tete, perdus } = await poserLePlan(plan, espace, tableau, fichiers)
       const nombre = plan.tableaux.length
       const avertis = plan.avertissements.length + perdus
       setEtat({

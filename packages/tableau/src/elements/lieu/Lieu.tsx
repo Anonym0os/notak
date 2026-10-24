@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Lieu } from '../../coeur/tableau'
 import type { PropsOutils, PropsRendu } from '../types'
 import { avecPosition, positionValable, requete, urlCarte, urlCarteIntegree } from './adresse'
+import { adresseSure } from '../lien/adresse'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
 import { BoutonOutil } from '../../BoutonOutil'
@@ -42,11 +43,13 @@ function useLocalisation(element: PropsRendu<Lieu>['element'], contexte: PropsRe
 export function RenduLieu({ element, enEdition, choisie, contexte, brouillon }: PropsRendu<Lieu>) {
   const c = element.contenu
   const url = urlCarte(c)
-  useLocalisation(element, contexte, !enEdition)
+  // La carte et la recherche de l'adresse interrogent OpenStreetMap depuis l'appareil : seulement quand on le demande.
+  const [voir, setVoir] = useState(false)
+  useLocalisation(element, contexte, !enEdition && voir)
   const position = positionValable(c)
   return (
     <div className="notak-lieu">
-      {position && !enEdition ? (
+      {voir && position && !enEdition ? (
         // Le cadre ne laisse passer le pointeur que lorsque le lieu est choisi : sinon il avalerait le glisser.
         <iframe
           className="notak-lieu-carte"
@@ -57,6 +60,18 @@ export function RenduLieu({ element, enEdition, choisie, contexte, brouillon }: 
           sandbox="allow-scripts allow-same-origin"
           data-actif={choisie || undefined}
         />
+      ) : url && !enEdition && !voir ? (
+        <button
+          type="button"
+          className="notak-lieu-plan"
+          title={t('lieu.afficherCarte')}
+          aria-label={t('lieu.afficherCarte')}
+          onPointerDown={garder}
+          onDoubleClick={(e) => e.stopPropagation()}
+          onClick={() => setVoir(true)}
+        >
+          <Icone nom="epingle" taille={22} />
+        </button>
       ) : (
         <div className="notak-lieu-plan">
           <Icone nom="epingle" taille={22} />
@@ -69,7 +84,7 @@ export function RenduLieu({ element, enEdition, choisie, contexte, brouillon }: 
           {c.nom && <strong className="notak-lieu-nom">{c.nom}</strong>}
           {c.adresse ? <p className="notak-lieu-adresse">{c.adresse}</p> : !c.nom && <p className="notak-lieu-vide">{t('lieu.adressePoints')}</p>}
           {url && (
-            <a href={url} target="_blank" rel="noopener noreferrer" onPointerDown={garder} onDoubleClick={(e) => e.stopPropagation()}>
+            <a href={adresseSure(url)} target="_blank" rel="noopener noreferrer" onPointerDown={garder} onDoubleClick={(e) => e.stopPropagation()}>
               {t('lieu.voirCarte')}
             </a>
           )}

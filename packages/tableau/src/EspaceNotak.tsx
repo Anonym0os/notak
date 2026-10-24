@@ -142,6 +142,7 @@ export function EspaceNotak({
   actionsTableau,
   adresse,
   compte,
+  enregistrer,
 }: {
   espace: EspaceNavigable
   services?: Services
@@ -155,6 +156,11 @@ export function EspaceNotak({
   actions?(courant: Id, ouvrir: (id: Id) => void, aide: () => void): ReactNode
   /** Ce que l'application ajoute à droite de la seconde rangée, à côté du bouton de vue (partager, exporter). */
   actionsTableau?(courant: Id, ouvrir: (id: Id) => void): ReactNode
+  /**
+   * Ce que fait Cmd+S. Sans lui, tout s'enregistre déjà seul et la toile le dit ; l'édition locale, elle, y range une
+   * copie dans un fichier `.notak`.
+   */
+  enregistrer?(): void
 }) {
   const racine = espace.racine
   const [parcours, setParcours] = useState(() => parcoursDepart(racine))
@@ -369,8 +375,8 @@ export function EspaceNotak({
   const ouvrirReglagesRef = useRef(() => {})
   const basculerPresentationRef = useRef(() => {})
   const changerGrilleRef = useRef((_sens: 1 | -1) => {})
-  const etat = useRef({ courant, ouvrir, espace, parcours })
-  etat.current = { courant, ouvrir, espace, parcours }
+  const etat = useRef({ courant, ouvrir, espace, parcours, enregistrer })
+  etat.current = { courant, ouvrir, espace, parcours, enregistrer }
   useEffect(() => {
     const touche = (e: KeyboardEvent) => {
       // Cmd+S, même en écrivant : tout s'enregistre seul, on le dit plutôt que d'ouvrir « Enregistrer la page ».
@@ -384,6 +390,7 @@ export function EspaceNotak({
       }
       if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 's') {
         e.preventDefault()
+        if (etat.current.enregistrer) return etat.current.enregistrer()
         const envoi = etat.current.espace.envoi?.(etat.current.courant)
         annoncer({ texte: envoi === 'hors-ligne' ? t('espace.horsLigneGarde') : t('espace.toutSEnregistre') })
         return

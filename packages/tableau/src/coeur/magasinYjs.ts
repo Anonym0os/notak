@@ -2,6 +2,7 @@ import * as Y from 'yjs'
 import { type Fond, lireFond } from './fond'
 import type { Magasin } from './magasin'
 import { cleEntre, comparerOrdre } from './ordre'
+import { lireElement } from './valider'
 import { type Auteur, type CouleurNote, type Element, type Etiquette, type Id, type Operation, type Tableau, type Trace, appliquer, inverse } from './tableau'
 
 /** Un élément tel qu'il vit dans le document : l'`Element` entier, plus sa place dans l'empilement. */
@@ -88,6 +89,11 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
   let cache: Tableau | null = null
   // Un élément inchangé garde le même objet d'une lecture à l'autre : les cartes ne se redessinent pas.
   const reperes = new Map<Id, { brut: ElementStocke; element: Element }>()
+  /** Un élément tel que la toile peut le lire, ou `undefined` : ce que d'autres ont écrit passe par `lireElement`. */
+  const lisible = (cle: Id): ElementStocke | undefined => {
+    const brut = elements.get(cle)
+    return brut === undefined ? undefined : (lireElement<ElementStocke>(brut, cle) ?? undefined)
+  }
 
   /** Les étiquettes du tableau, lues dans `meta` (un autre client a pu y écrire n'importe quoi). */
   let etiquettesLues: { brut: unknown; liste: Etiquette[] } = { brut: undefined, liste: [] }
@@ -113,13 +119,16 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
     const liste: { id: Id; plan: string; element: Element }[] = []
     const vus = new Set<Id>()
     elements.forEach((brut, cle) => {
-      vus.add(cle)
       let r = reperes.get(cle)
       if (!r || r.brut !== brut) {
-        r = { brut, element: sansPlan(brut) }
+        // Un élément illisible (abîmé, d'un type inconnu de cette version) reste dans le document, hors de la toile.
+        const propre = lireElement<ElementStocke>(brut, cle)
+        if (!propre) return
+        r = { brut, element: sansPlan(propre) }
         reperes.set(cle, r)
       }
-      liste.push({ id: cle, plan: brut.plan, element: r.element })
+      vus.add(cle)
+      liste.push({ id: cle, plan: typeof brut.plan === 'string' ? brut.plan : '', element: r.element })
     })
     for (const cle of reperes.keys()) if (!vus.has(cle)) reperes.delete(cle)
     liste.sort((a, b) => comparerOrdre(a.plan, b.plan) || comparerOrdre(a.id, b.id))
@@ -156,7 +165,8 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
   const plusHaut = () => {
     let max: string | undefined
     elements.forEach((s) => {
-      if (max === undefined || comparerOrdre(s.plan, max) > 0) max = s.plan
+      const plan = (s as { plan?: unknown } | null)?.plan
+      if (typeof plan === 'string' && (max === undefined || comparerOrdre(plan, max) > 0)) max = plan
     })
     return max
   }
@@ -187,7 +197,7 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
         if (op.vers) meta.set('fond', op.vers)
         else meta.delete('fond')
       } else {
-        const actuel = elements.get(op.id)
+        const actuel = lisible(op.id)
         if (!actuel) continue
         const apres = appliquer({ titre: '', elements: [sansPlan(actuel)] }, op).elements[0]!
         // Un déplacement qui n'en est pas un ne réveille personne.
@@ -296,12 +306,18 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
           else meta.delete('fond')
         }
         const voulus = new Set(t.elements.map((e) => e.id))
-        for (const cle of [...elements.keys()]) if (!voulus.has(cle)) elements.delete(cle)
+        // Ce que la toile ne sait pas lire n'est pas dans `t` : ce n'est pas une raison de l'effacer.
+        for (const cle of [...elements.keys()]) if (!voulus.has(cle) && lisible(cle)) elements.delete(cle)
 
-        const actuel = [...elements].map(([cle, s]) => ({ id: cle, plan: s.plan })).sort((a, b) => comparerOrdre(a.plan, b.plan) || comparerOrdre(a.id, b.id))
+        const actuel = [...elements.keys()]
+          .flatMap((cle) => {
+            const s = lisible(cle)
+            return s ? [{ id: cle, plan: s.plan }] : []
+          })
+          .sort((a, b) => comparerOrdre(a.plan, b.plan) || comparerOrdre(a.id, b.id))
         const plans = plansPour(actuel, t.elements.map((e) => e.id))
         for (const e of t.elements) {
-          const brut = elements.get(e.id)
+          const brut = lisible(e.id)
           const plan = plans.get(e.id) ?? brut?.plan
           if (plan === undefined) continue
           const change = !brut || reperes.get(e.id)?.element !== e && JSON.stringify(sansPlan(brut)) !== JSON.stringify(e)

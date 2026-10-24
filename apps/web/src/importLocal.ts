@@ -1,14 +1,13 @@
-import { type Element, type EspaceNavigable, type Id, type Operation } from '@notak/tableau'
+import { type DepotFichiers, type Element, type EspaceNavigable, type Id, type Operation } from '@notak/tableau'
 import { lireAncienEspace, lireAncienFichier } from './ancien'
-import { envoyerFichier } from './fichiers'
 import { t } from './langue'
 
 /**
  * Recopie l'ancien espace local dans le compte : la racine dans la racine, chaque tableau imbriqué dans un
- * tableau neuf, les images renvoyées au serveur. Les ids de tableaux changent, les renvois suivent.
+ * tableau neuf, les images renvoyées au dépôt de l'édition. Les ids de tableaux changent, les renvois suivent.
  * Rend le nombre d'images qu'on n'a pas retrouvées.
  */
-export async function importerEspaceLocal(espace: EspaceNavigable): Promise<number> {
+export async function importerEspaceLocal(espace: EspaceNavigable, fichiers: DepotFichiers): Promise<number> {
   const ancien = lireAncienEspace()
   if (!ancien) return 0
   const nouveaux = new Map<Id, Id>([[ancien.racine, espace.racine]])
@@ -19,7 +18,7 @@ export async function importerEspaceLocal(espace: EspaceNavigable): Promise<numb
   const image = async (fichier: Id): Promise<Id | null> => {
     if (!images.has(fichier)) {
       const blob = await lireAncienFichier(fichier)
-      images.set(fichier, blob ? await envoyerFichier(blob).catch(() => null) : null)
+      images.set(fichier, blob ? await fichiers.enregistrer(blob).catch(() => null) : null)
     }
     return images.get(fichier) ?? null
   }

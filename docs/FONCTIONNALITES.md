@@ -29,8 +29,8 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 14. À plusieurs | 19 | 0 | 0 | 100 % |
 | 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
-| 17. Plateformes | 6 | 1 | 0 | 93 % |
-| **Total** | **281** | **9** | **2** | **98 %** |
+| 17. Plateformes | 7 | 2 | 0 | 89 % |
+| **Total** | **282** | **10** | **2** | **98 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -414,3 +414,5 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Notes rapides sur le téléphone | ✅ | Page /rapide, vers les non triés de l'accueil. |
 | Partager vers Notak depuis le téléphone | 🟡 | Android et Chrome ; iPhone par un Raccourci et un jeton personnel (`POST /api/arrivee`, éprouvé en local), le Raccourci reste à essayer sur un iPhone. Favori du bureau pour les autres navigateurs. |
 | Gestes tactiles (pincer, toucher long) | ✅ | Pincer, un doigt sur le vide pour tirer la toile, appui long pour le menu. |
+| Édition locale, sans compte ni serveur (notak.app) | ✅ | Propre à Notak : tableaux dans le navigateur, copies `.notak` (Cmd+S, Cmd+O), panneau « Où sont mes tableaux ? ». Sans aperçu de lien ni travail à plusieurs en direct (l'édition serveur les a). |
+| Synchroniser avec un dossier (iCloud Drive, OneDrive, Dropbox) | 🟡 | Propre à Notak, expérimental : Chrome et Edge sur ordinateur ; le moteur est éprouvé contre un faux logiciel de synchro, reste à l'essayer sur de vrais nuages (docs/STOCKAGE.md). |

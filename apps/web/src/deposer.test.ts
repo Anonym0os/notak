@@ -25,6 +25,9 @@ describe('attendre', () => {
   })
 })
 
+/** Un dépôt de fichiers qui n'en reçoit pas (les arrivées de ces essais sont du texte). */
+const depot = { enregistrer: async () => 'f', adresse: async () => null }
+
 /** Un espace réduit à ce que `deposerDansAccueil` touche. */
 function faux(options: { synchronise?: () => boolean; envoi?: () => 'enregistre' | 'envoi' | 'hors-ligne' }) {
   const magasin = creerMagasin({ titre: 'Accueil', elements: [] } satisfies Tableau)
@@ -45,7 +48,7 @@ function faux(options: { synchronise?: () => boolean; envoi?: () => 'enregistre'
 describe('deposerDansAccueil', () => {
   it('pose la note dans les non triés, retient l’accueil le temps du geste, et dit que le serveur l’a reçue', async () => {
     const { espace, magasin, retenu } = faux({})
-    const p = deposerDansAccueil(espace, { texte: 'Une idée' }, 1000)
+    const p = deposerDansAccueil(espace, { texte: 'Une idée' }, depot, 1000)
     await vi.advanceTimersByTimeAsync(500)
     expect(await p).toEqual({ etat: 'enregistre', ajoutes: 1, ignores: 0 })
     const [note] = nonTriesDe(magasin.lire())
@@ -55,7 +58,7 @@ describe('deposerDansAccueil', () => {
 
   it('sans réseau : la pose se fait quand même, et le dépôt est dit local', async () => {
     const { espace, magasin } = faux({ synchronise: () => false, envoi: () => 'hors-ligne' })
-    const p = deposerDansAccueil(espace, { texte: 'Dans le train' }, 5)
+    const p = deposerDansAccueil(espace, { texte: 'Dans le train' }, depot, 5)
     await vi.advanceTimersByTimeAsync(10_000)
     expect(await p).toMatchObject({ etat: 'local', ajoutes: 1 })
     expect(nonTriesDe(magasin.lire())).toHaveLength(1)
@@ -64,7 +67,7 @@ describe('deposerDansAccueil', () => {
   it('attend que le serveur ait rattrapé l’accueil avant de poser', async () => {
     let synchro = false
     const { espace, magasin } = faux({ synchronise: () => synchro })
-    const p = deposerDansAccueil(espace, { texte: 'x' }, 1)
+    const p = deposerDansAccueil(espace, { texte: 'x' }, depot, 1)
     await vi.advanceTimersByTimeAsync(400)
     expect(magasin.lire().elements).toHaveLength(0)
     synchro = true
@@ -75,7 +78,7 @@ describe('deposerDansAccueil', () => {
 
   it('ne pose rien d’une arrivée vide', async () => {
     const { espace, magasin } = faux({})
-    const p = deposerDansAccueil(espace, {}, 1)
+    const p = deposerDansAccueil(espace, {}, depot, 1)
     await vi.advanceTimersByTimeAsync(500)
     expect(await p).toMatchObject({ ajoutes: 0 })
     expect(magasin.lire().elements).toHaveLength(0)

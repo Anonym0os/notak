@@ -5,7 +5,10 @@
     "noEmit": false,
     "emitDeclarationOnly": true,
     "outDir": "../../node_modules/.tsbuild/tableau",
-    "tsBuildInfoFile": "../../node_modules/.tsbuild/tableau.tsbuildinfo"
+    "tsBuildInfoFile": "../../node_modules/.tsbuild/tableau.tsbuildinfo",
+    "allowImportingTsExtensions": true
   },
-  "include": ["src"]
+  "include": [
+    "src"
+  ]
 }

@@ -1,35 +1,64 @@
 # Notak
 
-Des tableaux visuels libres, à plusieurs : notes, images, liens, colonnes, flèches, tâches, croquis.
-Une alternative open source à Milanote, en TypeScript et React, qu'on pose aussi dans d'autres applications.
+**Free-form visual boards: notes, images, links, columns, arrows, tasks, sketches, on an infinite canvas.**
+An open-source alternative to Milanote, in TypeScript and React. *[Lire en français](README.fr.md)*
 
-> État : passe 1, la toile. On pose des notes, on zoome, on défile, on sélectionne et on déplace.
-> Le tableau est un fichier local ; rien n'est encore partagé.
+![Notak's welcome board](docs/captures/accueil.en.png)
+
+## Try it
+
+**[notak.app](https://notak.app)** runs entirely in your browser: no account, no server, nothing leaves your
+device. Your boards live in the browser; press **Cmd+S** to keep a `.notak` copy wherever you like (your disk,
+iCloud Drive, a USB stick), **Cmd+O** to open one. On Chrome and Edge for desktop you can also sync a folder of your
+cloud drive (experimental).
+
+Want to work together in real time (accounts, sharing, live cursors)? Install your own Notak: it is free software
+and fits in one container (see [Self-host](#self-host)).
+
+## Two editions, one codebase
+
+| | **Local** (notak.app) | **Server** (self-hosted) |
+|---|---|---|
+| Where boards live | in the browser (IndexedDB), plus `.notak` copies | on your server (SQLite), cached offline in the browser |
+| Accounts | none | yes |
+| Working together | swap `.notak` files, or sync a shared folder | live: presence, cursors, comments, sharing by address or link |
+| Link previews | address only (browsers can't read other sites) | title, image, player |
+| Runs on | any static host | one Docker container |
+
+Both are built from `apps/web`; `VITE_EDITION=locale` selects the local one at build time, and neither bundle
+contains the other's code.
+
+Notak covers almost all of Milanote's features: see [`docs/FONCTIONNALITES.md`](docs/FONCTIONNALITES.md).
+
+## Develop
+
+You need [Bun](https://bun.sh) 1.3 and Node 22.13 or later.
 
 ```bash
 bun install
-bun run dev
+bun run dev:locale          # the local edition, at http://localhost:5173
 ```
 
-| Geste | Effet |
-|---|---|
-| Double-clic sur le vide | nouvelle note |
-| Double-clic sur une note, ou Entrée | écrire dedans ; Échap pour sortir |
-| Glisser une note | la déplacer (Maj : sur un seul axe) |
-| Glisser sur le vide | lasso (Maj ou Cmd : inverse) |
-| Molette, espace + glisser, bouton du milieu | défiler |
-| Cmd + molette, pincement | zoomer |
-| Z | tout voir ; encore Z : 100 % |
-| Cmd+= / Cmd+− / Cmd+0 | zoom avant, arrière, 100 % |
-| Flèches (Maj : ×5) | déplacer la sélection |
-| Suppr | supprimer |
-| Cmd+Z / Cmd+Maj+Z | annuler, rétablir |
-| Cmd+A, Échap | tout sélectionner, désélectionner |
+The server edition needs its server too:
 
-## Héberger
+```bash
+bun run serveur             # terminal 1: API, accounts and live sync on :3005
+bun run dev                 # terminal 2: the app, proxied to the server
+```
 
-Un seul conteneur sert l'application, les comptes et le travail à plusieurs, sur le port 3005.
-Les données (base SQLite et fichiers envoyés) vivent dans le volume `/donnees`.
+Checks: `bun run typecheck` and `bun run test` (about 1,500 tests, including a few hundred randomised sync
+scenarios). Contributions are welcome: start with [`CONTRIBUTING.md`](CONTRIBUTING.md) and
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+> The code, comments and design notes are written in French (`creerTableau`, `magasin`, `toile`…). Issues and
+> pull requests are welcome in English or French; `CONTRIBUTING.md` has a short glossary.
+
+## Self-host
+
+### The server edition (accounts, live collaboration)
+
+One container serves the app, the accounts and live collaboration on port 3005. Data (SQLite database and uploaded
+files) lives in the `/donnees` volume.
 
 ```bash
 git clone https://github.com/Anonym0os/notak
@@ -38,29 +67,41 @@ docker build -t notak .
 docker run -d -p 3005:3005 -v notak-donnees:/donnees notak
 ```
 
-L'image suppose un relais HTTPS devant elle (cookie `Secure`, adresse du client lue dans `X-Forwarded-For`).
-Pour l'essayer en HTTP sur sa machine : `-e NOTAK_COOKIE_SECURISE=0 -e NOTAK_RELAIS=0`.
+The image expects an HTTPS reverse proxy in front of it (`Secure` cookie, client address read from
+`X-Forwarded-For`). To try it over plain HTTP on your machine: `-e NOTAK_COOKIE_SECURISE=0 -e NOTAK_RELAIS=0`.
 
-La banque d'images du panneau « Image » interroge Pexels : donner une clé gratuite par `-e PEXELS_API_KEY=…`. Sans elle, le panneau ne propose que l'envoi de ses propres fichiers.
+The "Image" panel's photo library queries Pexels: pass a free key with `-e PEXELS_API_KEY=…`. Without it, the panel
+only offers uploading your own files.
 
-## Pile
+### The local edition (like notak.app)
 
-- Interface : React 19, toile en DOM (une transformation CSS pour le zoom)
-- Texte riche : Tiptap 3 (ProseMirror), enregistré dans son format JSON
-- Collaboration : Yjs (à venir)
-- Coques : web, bureau par Tauri, iPhone (à venir)
+Static files served by nginx, no API:
 
-## Dépôt
+```bash
+docker build -f apps/site/Dockerfile --build-arg VITE_CONTACT=you@example.org -t notak-site .
+docker run -d -p 8080:80 notak-site
+```
 
-| Dossier | Rôle |
+`VITE_CONTACT` is the address offered under "Write to us" in the app; leave it out to show only the link to this
+repository. Or build the files yourself (`bun run build:locale`, output in `apps/web/dist`) and put them on any
+static host, with every unknown path falling back to `index.html`.
+
+## Repository
+
+| Path | What |
 |---|---|
-| `docs/SPEC.md` | ce que Notak doit faire, geste par geste |
-| `packages/tableau` | `@notak/tableau` : le cœur (caméra, sélection, historique) et la toile React |
-| `apps/web` | l'application web |
-| `apps/site` | la page d’attente de notak.app |
+| `packages/tableau` | `@notak/tableau`: the core (camera, selection, history, Yjs store), the React canvas, element types, the folder sync engine |
+| `apps/web` | the web app, both editions |
+| `apps/serveur` | the server edition's backend (Hono, Hocuspocus, SQLite) |
+| `apps/site` | notak.app: the local edition behind nginx, and the About page |
+| `apps/bureau` | the desktop shell (Tauri) |
+| `docs/` | the spec, the feature list, the architecture, the storage format, the publishing model |
 
-Tests : `bun run test`. Types : `bun run typecheck`.
+## Stack
 
-## Licence
+React 19 (the canvas is DOM, zoomed with a CSS transform), Tiptap 3 for rich text, Yjs for everything that syncs,
+IndexedDB in the browser, Hono and Hocuspocus on the server, Tauri for the desktop.
 
-AGPL-3.0. Qui héberge une version modifiée doit en publier le code.
+## License
+
+AGPL-3.0. Whoever runs a modified version for others must publish its code.
