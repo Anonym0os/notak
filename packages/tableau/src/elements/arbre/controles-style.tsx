@@ -1,7 +1,7 @@
-import { type CSSProperties, type ReactNode, type RefObject, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { type CSSProperties, type ReactNode, type RefObject, useEffect, useId, useRef, useState } from 'react'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
+import { Flottant } from './Flottant'
 
 /**
  * Les petits contrôles de l'onglet Style, d'après ceux du panneau de Xmind (docs/XMIND.md § 5 bis) : une section
@@ -72,8 +72,9 @@ export const Legende = ({ children }: { children: ReactNode }) => <span classNam
 // — Le popover —
 
 /**
- * Une carte posée sous son ancre, qu'on ferme d'un clic dehors ou d'Échap. Elle vit dans la fenêtre de la carte, hors du
- * panneau (qui coupe ce qui dépasse), et se cale pour ne pas en sortir.
+ * Une carte posée sous son ancre, qu'on ferme d'un clic dehors ou d'Échap. Elle vit dans le fond de la carte, hors du
+ * panneau (qui coupe ce qui dépasse), et reste dans la fenêtre : par-dessous, retournée au-dessus si la place manque,
+ * glissée ou bornée (le contenu défile) sinon (Flottant).
  */
 export function Popover({
   ancre,
@@ -89,19 +90,6 @@ export function Popover({
   children: ReactNode
 }) {
   const carte = useRef<HTMLDivElement>(null)
-  const hote = (ancre.current?.closest('.notak-arbre-fenetre') as HTMLElement | null) ?? document.body
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
-  useLayoutEffect(() => {
-    const a = ancre.current?.getBoundingClientRect()
-    const h = hote.getBoundingClientRect()
-    if (!a) return
-    const [lc, hc] = [carte.current?.offsetWidth ?? largeur ?? 168, carte.current?.offsetHeight ?? 0]
-    // Le bord droit de la carte sur celui de l'ancre : le panneau est contre le bord droit de la fenêtre.
-    const x = Math.max(8, Math.min(a.right - h.left - lc, h.width - lc - 8))
-    const dessous = a.bottom - h.top + 6
-    const y = dessous + hc > h.height - 8 ? Math.max(8, h.height - hc - 8) : dessous
-    setPos({ x, y })
-  }, [ancre, hote, largeur])
   useEffect(() => {
     const dehors = (e: PointerEvent) => {
       const cible = e.target as Node
@@ -120,12 +108,11 @@ export function Popover({
       document.removeEventListener('keydown', echap, true)
     }
   }, [ancre, fermer])
-  const style: CSSProperties = { left: pos?.x ?? 0, top: pos?.y ?? 0, ...(largeur ? { width: largeur } : {}), visibility: pos ? 'visible' : 'hidden' }
-  return createPortal(
-    <div ref={carte} className={`notak-arbre-style-pop${className ? ` ${className}` : ''}`} style={style} role="dialog" data-popover="">
+  // Le bord droit de la carte sur celui de l'ancre : le panneau est contre le bord droit de la fenêtre.
+  return (
+    <Flottant racine={carte} ancre={ancre.current} cote="bas" alignement="fin" largeur={largeur} hauteur={0} className={`notak-arbre-style-pop${className ? ` ${className}` : ''}`} role="dialog" data-popover="">
       {children}
-    </div>,
-    hote,
+    </Flottant>
   )
 }
 

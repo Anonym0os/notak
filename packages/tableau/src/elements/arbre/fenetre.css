@@ -185,7 +185,7 @@
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  z-index: 5;
+  z-index: 30;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -203,11 +203,6 @@
   color: var(--notak-arbre-texte);
   font-size: 13px;
   line-height: 17px;
-}
-
-.notak-arbre-deroulant[data-vers='haut'] {
-  top: auto;
-  bottom: calc(100% + 6px);
 }
 
 /* Une entrée : 28 de haut, l'icône (16), le libellé, puis le raccourci ou le chevron, collés au bord droit. */

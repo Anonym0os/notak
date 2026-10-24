@@ -631,7 +631,6 @@
 
 /* — Le popover : une carte translucide posée dans la fenêtre — */
 .notak-arbre-fond .notak-arbre-style-pop {
-  position: absolute;
   z-index: 30;
   box-sizing: border-box;
   border-radius: 16px;

@@ -84,7 +84,7 @@ describe('la carte ouverte : barre du bas, panneau de gauche, Pitch', () => {
     expect(m.q('.notak-arbre-plan')).toBeTruthy()
     expect(m.q('.notak-arbre-bas-compteur')).toBeNull()
     m.clic(m.q('.notak-arbre-bas-zoom button'))
-    m.clic([...document.querySelectorAll('.notak-arbre-bas-zoom [role^=menuitem]')][1]!)
+    m.clic([...document.querySelectorAll('.notak-arbre-bas-menu [role^=menuitem]')][1]!)
     expect(m.q('.notak-arbre-bas-zoom .notak-arbre-bas-valeur')?.textContent).toBe('200%')
     expect((m.q('.notak-arbre-plan') as HTMLElement).style.zoom).toBe('2')
   })

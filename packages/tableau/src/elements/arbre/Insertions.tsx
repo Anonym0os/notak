@@ -1,10 +1,11 @@
-import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Id } from '../../coeur/tableau'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
 import type { ContexteToile } from '../types'
 import type { ActionsInsertion } from './actionsMenu'
 import { enMathml } from './equation'
+import { Flottant } from './Flottant'
 import type { Geste } from './modele/gestes'
 import type { Planning } from './modele/insertions'
 import type { Lecture } from './modele/sujets'
@@ -193,19 +194,11 @@ export function useInsertions({ lecture, ids, faire, contexte, ancre, ouvrirIcon
 }
 
 /**
- * Une bulle près d'un sujet : elle se pose dessous (dessus si la place manque), garde le focus sur son premier champ,
- * se ferme à Échap ou au clic dehors. Les touches qu'on tape dedans ne vont pas à la carte.
+ * Une bulle près d'un sujet : elle se pose dessous (dessus si la place manque), reste dans la fenêtre (Flottant), garde
+ * le focus sur son premier champ, se ferme à Échap ou au clic dehors. Les touches qu'on tape dedans ne vont pas à la carte.
  */
 export function Popover({ ancre, titre, fermer, children, largeur = 300 }: { ancre: Ancre; titre: string; fermer(): void; children: ReactNode; largeur?: number }) {
   const racine = useRef<HTMLDivElement>(null)
-  const [pos, setPos] = useState<{ x: number; y: number }>({ x: ancre.x + ancre.l / 2 - largeur / 2, y: ancre.y + ancre.h + 10 })
-  useLayoutEffect(() => {
-    const h = racine.current?.getBoundingClientRect().height ?? 0
-    const x = Math.max(8, Math.min(ancre.x + ancre.l / 2 - largeur / 2, window.innerWidth - largeur - 8))
-    const dessous = ancre.y + ancre.h + 10
-    const y = dessous + h > window.innerHeight - 8 ? Math.max(8, ancre.y - h - 10) : dessous
-    setPos({ x, y })
-  }, [ancre.x, ancre.y, ancre.l, ancre.h, largeur])
   useEffect(() => {
     // Le premier champ du corps ; à défaut son premier bouton. Jamais la croix de l'en-tête.
     const corps = racine.current?.querySelector<HTMLElement>(':scope > :not(header)')
@@ -227,12 +220,16 @@ export function Popover({ ancre, titre, fermer, children, largeur = 300 }: { anc
     }
   }, [fermer])
   return (
-    <div
-      ref={racine}
+    <Flottant
+      racine={racine}
+      ancre={ancre}
+      cote="bas"
+      alignement="centre"
+      ecart={10}
+      largeur={largeur}
       className="notak-arbre-popover notak-arbre-menu"
       role="dialog"
       aria-label={titre}
-      style={{ left: pos.x, top: pos.y, width: largeur }}
       onKeyDown={(e) => e.stopPropagation()}
       onContextMenu={(e) => e.stopPropagation()}
     >
@@ -243,7 +240,7 @@ export function Popover({ ancre, titre, fermer, children, largeur = 300 }: { anc
         </button>
       </header>
       {children}
-    </div>
+    </Flottant>
   )
 }
 

@@ -4,6 +4,7 @@ import { type NoeudTexte, texteBrut } from '../../coeur/tableau'
 import { type NomIcone, Icone } from '../../icones'
 import { t } from '../../langue'
 import { EXTENSIONS_NOTE } from '../note/extensions'
+import { Flottant } from './Flottant'
 
 /**
  * La note d'un sujet, en popover posé près de lui (Maj+Cmd+N, ou l'icône de note du sujet) : un éditeur de texte riche
@@ -12,7 +13,7 @@ import { EXTENSIONS_NOTE } from '../note/extensions'
 interface Props {
   titre: string
   note: NoeudTexte | undefined
-  /** Le coin haut-gauche, en px de la surface de la carte. */
+  /** Le coin haut-gauche voulu, en px de la surface de la carte ; la fenêtre le retient dans l'écran (Flottant). */
   x: number
   y: number
   lectureSeule: boolean
@@ -78,13 +79,16 @@ export function PopoverNote({ titre, note, x, y, lectureSeule, valider, fermer }
     if (url.trim() === '') editeur.chain().focus().extendMarkRange('link').unsetLink().run()
     else editeur.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run()
   }
+  // Le coin demandé est dans le repère de la surface de la carte ; la fenêtre flottante le veut dans celui de l'écran.
+  const surface = document.querySelector('.notak-arbre-surface')?.getBoundingClientRect()
   return (
-    <div
-      ref={racine}
+    <Flottant
+      racine={racine}
+      ancre={{ x: (surface?.left ?? 0) + x, y: (surface?.top ?? 0) + y, l: 0, h: 0 }}
+      cote="libre"
       className="notak-arbre-note-popover"
       role="dialog"
       aria-label={t('arbre.note')}
-      style={{ left: x, top: y }}
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
@@ -126,6 +130,6 @@ export function PopoverNote({ titre, note, x, y, lectureSeule, valider, fermer }
       <div className="notak-arbre-note-corps">
         <EditorContent editor={editeur} />
       </div>
-    </div>
+    </Flottant>
   )
 }
