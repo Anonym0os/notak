@@ -453,6 +453,7 @@ export function MenuBlocs({ editeur, pont, demande, choisirImage, surCouleur, co
         alignement={slash ? 'debut' : 'centre'}
         distance={slash ? 12 : 5}
         fleche={false}
+        garderCote={slash}
         className="notak-menu-blocs-panneau"
         onPointerDown={(e) => {
           // Le menu « / » laisse le focus au texte ; les autres le laissent à leur champ.

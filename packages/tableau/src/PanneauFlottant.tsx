@@ -117,17 +117,20 @@ interface Props extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
   alignement?: 'centre' | 'debut'
   /** La petite flèche tournée vers la cible ; oui par défaut. */
   fleche?: boolean
+  /** Le panneau garde le côté pris à sa première pose tant qu'il reste ouvert : il ne va-et-vient pas quand sa taille change. */
+  garderCote?: boolean
   /** Le nœud du panneau, pour qui doit savoir si un clic tombe dedans. */
   panneau?: Ref<HTMLDivElement>
   children: ReactNode
 }
 
-export function PanneauFlottant({ cible, hote, cote, distance, alignement, fleche = true, panneau, className, children, ...reste }: Props) {
+export function PanneauFlottant({ cible, hote, cote, distance, alignement, fleche = true, garderCote = false, panneau, className, children, ...reste }: Props) {
   const noeud = useRef<HTMLDivElement | null>(null)
   const viser = useRef(cible)
   viser.current = cible
   useLayoutEffect(() => {
     let image = 0
+    let pris: Cote | undefined
     const suivre = () => {
       const div = noeud.current
       if (!div) return
@@ -138,7 +141,7 @@ export function PanneauFlottant({ cible, hote, cote, distance, alignement, flech
       const p =
         boite &&
         placer(boite, { largeur: div.offsetWidth, hauteur: div.offsetHeight }, { largeur: window.innerWidth, hauteur: window.innerHeight }, {
-          ...(cote ? { cote } : {}),
+          ...((pris ?? cote) ? { cote: pris ?? cote } : {}),
           ...(distance !== undefined ? { distance } : {}),
           ...(alignement ? { alignement } : {}),
           ...(toile ? { bornes: toile.getBoundingClientRect() } : {}),
@@ -150,12 +153,13 @@ export function PanneauFlottant({ cible, hote, cote, distance, alignement, flech
         div.style.top = `${p.top}px`
         div.style.setProperty('--notak-fleche', `${p.fleche}px`)
         div.dataset.cote = p.cote
+        if (garderCote) pris ??= p.cote
       }
       image = requestAnimationFrame(suivre)
     }
     suivre()
     return () => cancelAnimationFrame(image)
-  }, [cote, distance, alignement])
+  }, [cote, distance, alignement, garderCote])
   const attacher = (n: HTMLDivElement | null) => {
     noeud.current = n
     if (n) cibles.set(n, () => viser.current())

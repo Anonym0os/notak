@@ -8,7 +8,8 @@
 /* Les jetons des menus : clair par défaut, repeints dans le thème sombre de l'espace. */
 .notak-menu-blocs,
 .notak-bulle,
-.notak-bulle-sous {
+.notak-bulle-sous,
+.notak-image-barre {
   --notak-m-fond: #fff;
   --notak-m-texte: #2c2c2b;
   --notak-m-icone: #383836;
@@ -24,7 +25,7 @@
   --notak-m-focus: #2383e2;
 }
 
-[data-theme='sombre'] :is(.notak-menu-blocs, .notak-bulle, .notak-bulle-sous) {
+[data-theme='sombre'] :is(.notak-menu-blocs, .notak-bulle, .notak-bulle-sous, .notak-image-barre) {
   --notak-m-fond: #252525;
   --notak-m-texte: #f0efed;
   --notak-m-icone: #e6e5e3;
@@ -92,6 +93,11 @@
   width: 375px;
   max-height: min(448px, 40vh);
   transform-origin: 0 0;
+}
+
+/* Ouvert au-dessus de la ligne, il grandit depuis son coin bas. */
+[data-cote='haut'] > .notak-menu-blocs[data-genre='slash'] {
+  transform-origin: 0 100%;
 }
 
 .notak-menu-blocs[data-genre='bloc'] {
