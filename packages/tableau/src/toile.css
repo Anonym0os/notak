@@ -88,6 +88,14 @@
   color: var(--notak-texte);
 }
 
+/*
+ * Le plancher de 62 px est celui des cartes de texte. Le dessin, le croquis, le nuancier et le lien suivent leur
+ * contenu ; la table garde le sien (deux lignes de 30 px), posé dans sa feuille.
+ */
+.notak-carte:is([data-type='dessin'], [data-type='croquis'], [data-type='nuancier'], [data-type='lien'], [data-type='table']) {
+  min-height: 0;
+}
+
 /* Le filet de sélection : 2 px à l'extérieur de la carte, coins carrés ; en édition il se resserre de 2 px en glissant. */
 .notak-carte:not([data-sans-fond], [data-type='tableau'])::before {
   content: '';

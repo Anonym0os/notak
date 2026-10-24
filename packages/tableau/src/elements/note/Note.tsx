@@ -15,7 +15,7 @@ import { type Pont, Propositions, extensionPropositions } from './Propositions'
 import { adresseSeule, adressesEnLiens, caseSeule, collageEnTaches, couleurSeule, docEstVide } from './conversion'
 import { docVide } from '../taches/liste'
 import { fondDeNote, luminance, texteDuContenu } from './couleurs'
-import { EXTENSIONS_NOTE, EXTENSIONS_NOTE_PARTAGEE, type GestesEdition, raccourcisEdition } from './extensions'
+import { EXTENSIONS_NOTE, EXTENSIONS_NOTE_PARTAGEE, type GestesEdition, centreParDefaut, raccourcisEdition } from './extensions'
 import { type ActionsLegende, LegendeEditeur, LegendeFigee } from './LegendeRiche'
 import { docLegende, legendeNeuve, legendeVide } from './legende'
 
@@ -77,7 +77,7 @@ export function RenduNote(props: PropsRendu<Note>) {
       }}
     >
       {contenu.barre && <div className="notak-note-bande" style={{ background: contenu.barre }} aria-hidden />}
-      {enEdition ? <Editeur {...props} /> : <TexteFige texte={contenu.texte} fils={contenu.fils} />}
+      {enEdition ? <Editeur {...props} /> : <TexteFige texte={contenu.variante === 'titre' ? sansLignesVidesEnFin(contenu.texte) : contenu.texte} fils={contenu.fils} />}
       {filOuvert && !enEdition && racine.current?.parentElement && (
         <FilOuvert
           carte={racine.current.parentElement}
@@ -108,6 +108,13 @@ const TexteFige = memo(function TexteFige({ texte, fils }: { texte: NoeudTexte; 
 
 const SCHEMA = getSchema(EXTENSIONS_NOTE)
 
+/** Le texte sans les paragraphes vides qui le terminent ; le premier bloc reste, même vide. */
+export function sansLignesVidesEnFin(doc: NoeudTexte): NoeudTexte {
+  const blocs = [...(doc.content ?? [])]
+  while (blocs.length > 1 && blocs.at(-1)!.type === 'paragraph' && !(blocs.at(-1)!.content ?? []).length) blocs.pop()
+  return blocs.length === (doc.content ?? []).length ? doc : { ...doc, content: blocs }
+}
+
 function Editeur(props: PropsRendu<Note>) {
   const { element, contexte, brouillon } = props
   const { contenu } = element
@@ -123,7 +130,8 @@ function Editeur(props: PropsRendu<Note>) {
     fils.current = apres
     setFilsVus(apres)
     const { fils: _, ...reste } = courant.current
-    poser({ ...reste, texte, ...(apres ? { fils: apres } : {}) })
+    // Un titre ne garde pas de lignes vides sous lui : elles grandiraient la carte sans rien montrer.
+    poser({ ...reste, texte: reste.variante === 'titre' ? sansLignesVidesEnFin(texte) : texte, ...(apres ? { fils: apres } : {}) })
   }
   const pont = useRef<Pont | null>(null)
   // Le dernier contenu écrit : le texte et la légende s'écrivent chacun de son côté, sans se défaire l'un l'autre.
@@ -141,9 +149,10 @@ function Editeur(props: PropsRendu<Note>) {
   const pointDepart = useRef<{ x: number; y: number } | null>(null)
   // Lu une fois, à l'entrée en édition : la suite du texte arrive par le fragment.
   const fragment = useMemo(() => textePartage(contexte, element.id, contenu.texte, SCHEMA), [])
+  const titre = contenu.variante === 'titre'
   const extensions = useMemo(
     () => [
-      ...(fragment ? [...EXTENSIONS_NOTE_PARTAGEE, ...extensionsDuPartage(fragment, contexte)] : EXTENSIONS_NOTE),
+      ...(titre ? centreParDefaut : (x: typeof EXTENSIONS_NOTE) => x)(fragment ? [...EXTENSIONS_NOTE_PARTAGEE, ...extensionsDuPartage(fragment, contexte)] : EXTENSIONS_NOTE),
       raccourcisEdition(gestes),
       extensionPropositions(pont),
     ],

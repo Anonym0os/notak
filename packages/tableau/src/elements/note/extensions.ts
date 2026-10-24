@@ -1,6 +1,6 @@
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
-import { type Editor, Extension, InputRule, Mark, markInputRule, mergeAttributes } from '@tiptap/react'
+import { type AnyExtension, type Editor, Extension, InputRule, Mark, markInputRule, mergeAttributes } from '@tiptap/react'
 import Highlight from '@tiptap/extension-highlight'
 import TextAlign from '@tiptap/extension-text-align'
 import { Color, TextStyle } from '@tiptap/extension-text-style'
@@ -280,7 +280,14 @@ const MarkdownTape = Extension.create({
  * Une seule liste, pour l'éditeur comme pour le rendu figé. Une adresse tapée ou collée ne devient pas un lien
  * d'elle-même (`autolink`, `linkOnPaste`) : elle reste du texte, que `AdressesReperees` souligne.
  */
-const KIT = { code: false as const, blockquote: false as const, heading: { levels: [1, 2] as (1 | 2)[] }, link: { openOnClick: false, autolink: false, linkOnPaste: false } }
+// Pas de paragraphe vide ajouté d'office en fin de note (comme Milanote) : il grandissait la carte d'une ligne.
+const KIT = {
+  code: false as const,
+  blockquote: false as const,
+  heading: { levels: [1, 2] as (1 | 2)[] },
+  link: { openOnClick: false, autolink: false, linkOnPaste: false },
+  trailingNode: false as const,
+}
 
 export const EXTENSIONS_NOTE = [
   StarterKit.configure(KIT),
@@ -313,6 +320,10 @@ export const EXTENSIONS_NOTE = [
 
 /** Les mêmes, quand le texte s'écrit à plusieurs : l'annulation est alors celle du partage (voir `partage.ts`). */
 export const EXTENSIONS_NOTE_PARTAGEE = [StarterKit.configure({ ...KIT, undoRedo: false }), ...EXTENSIONS_NOTE.slice(1)]
+
+/** Dans un titre, un bloc neuf (Entrée, passage en titre) naît centré, comme le titre lui-même. */
+export const centreParDefaut = (extensions: readonly AnyExtension[]): AnyExtension[] =>
+  extensions.map((x) => (x.name === 'textAlign' ? TextAlign.configure({ types: ['heading', 'paragraph'], alignments: ['left', 'center'], defaultAlignment: 'center' }) : x))
 
 /**
  * La légende : gras, italique, barré, souligné, lien, couleur, surlignage et centrage ; ni titre, ni liste, ni citation,
