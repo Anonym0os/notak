@@ -87,7 +87,7 @@ interface Rangement {
 }
 
 /** Le tracé indenté d'un arbre (organigramme, arbre) : à cette distance du bord du parent. */
-const RETRAIT_ARBRE = 24
+export const RETRAIT_ARBRE = 24
 /** L'écart vertical d'un organigramme ou d'un arbre. */
 const ECART_VERTICAL = 32
 /** La marge intérieure d'une case de matrice. */
@@ -340,7 +340,7 @@ function empiler(
  * haut (on fait le tour). Antihoraire : la gauche d'abord, de haut en bas, puis la droite de bas en haut. Non
  * équilibrée : `aDroite` principaux à droite, le reste à gauche.
  */
-function partager(l: Lecture, central: Id, principaux: readonly Id[]): [Id[], Id[]] {
+export function partager(l: Lecture, central: Id, principaux: readonly Id[]): [Id[], Id[]] {
   const c = l.sujets.get(central)!
   const structure = c.structure ?? 'carte'
   const n = principaux.length

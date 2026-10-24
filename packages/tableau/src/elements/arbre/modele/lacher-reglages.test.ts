@@ -30,7 +30,8 @@ describe('« Chevauchement des sujets »', () => {
   it('l’insertion à côté d’un frère reste possible', () => {
     const b = d.boites.get(ids.P1!)!
     const r = ouLacher(l, d, ids.P2!, { x: b.x + 10, y: b.y - 10 }, false, { chevauchement: true })
-    expect(r.type).toBe('inserer')
+    // P1 est un principal de la carte : l'insertion se compte par côté et par rang à l'écran.
+    expect(r.type).toBe('carte')
   })
 
   it('Maj lui rend le rattachement', () => {

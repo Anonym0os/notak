@@ -1,7 +1,7 @@
 import type { Id } from '../../../coeur/tableau'
-import { type Boite, type Cote, type Disposition, type Lien, ECARTS } from '../disposition'
+import { type Boite, type Cote, type Disposition, type Lien, ECARTS, RETRAIT_ARBRE } from '../disposition'
 import { ECART_CENTRAL } from '../disposition/commun'
-import type { Lacher } from './lacher'
+import { type Lacher, type Sens, sensDe } from './lacher'
 import type { Lecture } from './sujets'
 
 /**
@@ -32,26 +32,48 @@ export function repereDeDepot(l: Lecture, d: Disposition, cible: Lacher, deplace
   const parent = d.boites.get(cible.parent)
   if (!parent) return null
   const tous = d.liens.filter((x) => x.de === cible.parent && !deplaces.has(x.vers))
-  const rang = cible.type === 'enfant' ? tous.length : Math.max(0, Math.min(cible.index, tous.length))
-  // Le central range ses enfants des deux côtés : le repère se met du côté de celui devant lequel il s'insère.
-  const modele = tous[rang] ?? tous[rang - 1] ?? d.liens.find((x) => x.vers === cible.parent)
-  const cote: Cote = modele?.cote ?? 'droite'
+  let cote: Cote
+  let modele: Lien | undefined
+  let index: number
+  if (cible.type === 'carte') {
+    // Une carte : le côté et le rang sont ceux de l'écran, la colonne de ce côté se lit déjà de haut en bas.
+    cote = cible.cote
+    const colonne = tous.filter((x) => x.cote === cote)
+    index = Math.max(0, Math.min(cible.rang, colonne.length))
+    modele = colonne[index] ?? colonne[index - 1] ?? tous[0]
+  } else {
+    const rang = cible.type === 'enfant' ? tous.length : Math.max(0, Math.min(cible.index, tous.length))
+    // Le central range ses enfants des deux côtés : le repère se met du côté de celui devant lequel il s'insère.
+    modele = tous[rang] ?? tous[rang - 1] ?? d.liens.find((x) => x.vers === cible.parent)
+    cote = modele?.cote ?? 'droite'
+    index = tous.slice(0, rang).filter((x) => x.cote === cote).length
+  }
   const liens = tous.filter((x) => x.cote === cote)
   const freres = liens.flatMap((x) => d.boites.get(x.vers) ?? [])
   const forme: Lien['forme'] = modele?.forme ?? 'courbe'
-  const index = tous.slice(0, rang).filter((x) => x.cote === cote).length
-  const [avant, apres] = [freres[index - 1], freres[index]]
   const ecart = cible.parent === l.central ? ECART_CENTRAL : ECARTS.principal
-  const horizontal = cote === 'droite' || cote === 'gauche'
   const { l: largeur, h: hauteur } = REPERE
-  if (horizontal) {
-    // La colonne des frères : leur bord de départ, sinon à un écart du parent.
-    const x = cote === 'droite' ? (freres[0]?.x ?? parent.x + parent.l + ecart) : (freres[0] ? freres[0].x + freres[0].l : parent.x - ecart) - largeur
-    const y = avant && apres ? (avant.y + avant.h + apres.y) / 2 - hauteur / 2 : apres ? apres.y - ECART_FRERE - hauteur : avant ? avant.y + avant.h + ECART_FRERE : parent.y + parent.h / 2 - hauteur / 2
+  // Sans frère, la structure se lit au côté du parent d'où partent les branches ; avec des frères, à leur propre forme.
+  const sens: Sens = liens.length > 0 ? sensDe(modele) : cote === 'bas' || cote === 'haut' ? 'droite' : 'bas'
+  const [avant, apres] = [freres[index - 1], freres[index]]
+  if (sens === 'droite') {
+    // Des frères côte à côte (organigramme, chronologie horizontale) : les voisins sont à gauche et à droite.
+    const [y0, y1] = [freres[0]?.y, freres[0] ? freres[0].y + freres[0].h : undefined]
+    const y =
+      cote === 'bas' ? (y0 ?? parent.y + parent.h + ecart)
+      : cote === 'haut' ? (y1 ?? parent.y - ecart) - hauteur
+      : freres[0] ? freres[0].y + (freres[0].h - hauteur) / 2
+      : parent.y + parent.h / 2 - hauteur / 2
+    const x = avant && apres ? (avant.x + avant.l + apres.x) / 2 - largeur / 2 : apres ? apres.x - ECART_FRERE - largeur : avant ? avant.x + avant.l + ECART_FRERE : parent.x + parent.l / 2 - largeur / 2
     return { parent: cible.parent, boite: { x, y, l: largeur, h: hauteur }, cote, forme }
   }
-  // Un organigramme : les frères sont côte à côte, sous (ou sur) le parent.
-  const y = cote === 'bas' ? (freres[0]?.y ?? parent.y + parent.h + ecart) : (freres[0] ? freres[0].y + freres[0].h : parent.y - ecart) - hauteur
-  const x = avant && apres ? (avant.x + avant.l + apres.x) / 2 - largeur / 2 : apres ? apres.x - ECART_FRERE - largeur : avant ? avant.x + avant.l + ECART_FRERE : parent.x + parent.l / 2 - largeur / 2
+  // Des frères l'un sous l'autre : à droite ou à gauche du parent, ou en arbre (indentés sous lui, ou au-dessus s'il monte).
+  // Dans un arbre qui monte, le premier frère est le plus bas : les voisins du repère sont à l'envers.
+  const [dessus, dessous] = sens === 'haut' ? [apres, avant] : [avant, apres]
+  const x =
+    cote === 'droite' ? (freres[0]?.x ?? parent.x + parent.l + ecart)
+    : cote === 'gauche' ? (freres[0] ? freres[0].x + freres[0].l : parent.x - ecart) - largeur
+    : (freres[0]?.x ?? (forme === 'arbre-g' ? parent.x + parent.l - RETRAIT_ARBRE - largeur : forme === 'arbre' ? parent.x + RETRAIT_ARBRE : parent.x + parent.l / 2 - largeur / 2))
+  const y = dessus && dessous ? (dessus.y + dessus.h + dessous.y) / 2 - hauteur / 2 : dessous ? dessous.y - ECART_FRERE - hauteur : dessus ? dessus.y + dessus.h + ECART_FRERE : parent.y + parent.h / 2 - hauteur / 2
   return { parent: cible.parent, boite: { x, y, l: largeur, h: hauteur }, cote, forme }
 }
