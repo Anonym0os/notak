@@ -142,10 +142,7 @@
 
 /* Le popover des comptes, au-dessus du compteur. */
 .notak-arbre-bas-popover {
-  position: absolute;
-  bottom: calc(100% + 12px);
-  left: 50%;
-  z-index: 5;
+  z-index: 30;
   min-width: 72px;
   padding: 8px;
   border-radius: 24px;
@@ -155,7 +152,6 @@
   font-size: 13px;
   line-height: 17px;
   white-space: nowrap;
-  transform: translateX(-50%);
 }
 
 .notak-arbre-bas-popover p {
@@ -164,15 +160,11 @@
 }
 
 .notak-arbre-bas-menu {
-  left: 50%;
   min-width: 120px;
-  transform: translateX(-50%);
 }
 
 .notak-arbre-bas-menu-feuille {
-  left: 0;
   min-width: 220px;
-  transform: none;
 }
 
 /* L'onglet de la feuille : 28 de haut, 24 à 220 de large, le chevron paraît au survol. */

@@ -50,15 +50,15 @@ const BOUTONS: { id: keyof ActionsBarreSujet; icone: NomIcone; libelle: string }
  */
 export function BarreSujet({ x, y, bas, actions, inactifs = {} }: PropsBarreSujet) {
   const racine = useRef<HTMLDivElement>(null)
-  const [taille, setTaille] = useState({ l: 0, h: 0, zone: 0 })
+  const [taille, setTaille] = useState({ l: 0, h: 0, zone: 0, zoneH: 0 })
   // Mesurée à chaque rendu, d'un bord à l'autre : la barre change de largeur avec ses boutons, la zone avec la fenêtre.
   useLayoutEffect(() => {
     const el = racine.current
     if (!el) return
-    const mesure = { l: el.offsetWidth, h: el.offsetHeight, zone: el.parentElement?.clientWidth ?? 0 }
-    setTaille((avant) => (avant.l === mesure.l && avant.h === mesure.h && avant.zone === mesure.zone ? avant : mesure))
+    const mesure = { l: el.offsetWidth, h: el.offsetHeight, zone: el.parentElement?.clientWidth ?? 0, zoneH: el.parentElement?.clientHeight ?? 0 }
+    setTaille((avant) => (avant.l === mesure.l && avant.h === mesure.h && avant.zone === mesure.zone && avant.zoneH === mesure.zoneH ? avant : mesure))
   })
-  const place = placerBarreSujet({ x, y, bas }, { l: taille.l, h: taille.h }, { l: taille.zone, h: 0 })
+  const place = placerBarreSujet({ x, y, bas }, { l: taille.l, h: taille.h }, { l: taille.zone, h: taille.zoneH })
   const arreter = (e: React.SyntheticEvent) => e.stopPropagation()
   return (
     <div

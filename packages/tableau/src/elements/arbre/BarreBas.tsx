@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
 import { Deroulant, Entree } from './Fenetre'
+import { Flottant } from './Flottant'
 import { enPourcent, entreesZoom } from './modele/zoom'
 
 /**
@@ -51,7 +52,8 @@ function useFermeture(ouvert: boolean, fermer: () => void) {
   useEffect(() => {
     if (!ouvert) return
     const dehors = (e: PointerEvent) => {
-      if (!racine.current?.contains(e.target as Node)) fermer()
+      // La bulle des comptes est posée hors de la barre (Flottant) : la cliquer ne la ferme pas.
+      if (!racine.current?.contains(e.target as Node) && !(e.target as Element).closest?.('.notak-arbre-bas-popover')) fermer()
     }
     const echap = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
@@ -83,11 +85,11 @@ export function Compteur({ sujets, choisis, mots, caracteres }: Pick<PropsBarreB
         <span className="notak-arbre-bas-valeur">{libelle}</span>
       </button>
       {ouvert && (
-        <div className="notak-arbre-bas-popover" role="dialog" aria-label={t('arbre.bas.compteInfo')}>
+        <Flottant ancre={racine.current} cote="haut" alignement="centre" ecart={12} className="notak-arbre-bas-popover" role="dialog" aria-label={t('arbre.bas.compteInfo')}>
           <p>{t('arbre.bas.compte', { n: sujets })}</p>
           <p>{t('arbre.bas.mots', { n: mots })}</p>
           <p>{t('arbre.bas.caracteres', { n: caracteres })}</p>
-        </div>
+        </Flottant>
       )}
     </div>
   )
@@ -105,7 +107,7 @@ export function MenuZoom({ zoom, enPlan, zoomer, ajuster }: Pick<PropsBarreBas, 
         <span className="notak-arbre-bas-valeur">{formaterZoom(enPourcent(zoom))}</span>
         <Icone nom="chevronBas" taille={12} trait={2} />
       </button>
-      <Deroulant ouvert={ouvert} fermer={() => setOuvert(false)} vers="haut" className="notak-arbre-bas-menu">
+      <Deroulant ouvert={ouvert} fermer={() => setOuvert(false)} vers="haut" alignement="centre" className="notak-arbre-bas-menu">
         {entreesZoom(zoom, enPlan).map((e) => (
           <Entree
             key={e.valeur}

@@ -1,6 +1,8 @@
-import { type ReactNode, useEffect, useRef } from 'react'
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
+import { Flottant } from './Flottant'
+import type { AlignementFlottant } from './geometrieMenus'
 
 /**
  * L'habillage de la carte ouverte, disposé comme la fenêtre de Xmind (docs/XMIND.md § 8) : l'en-tête en haut à
@@ -70,25 +72,34 @@ export function EnTete({ titre, etat, fermer, navigation }: { titre: string; eta
   )
 }
 
-/** Un menu déroulant, posé sous son bouton ; il se ferme au clic dehors et à Échap. */
+/**
+ * Un menu déroulant, posé sous son bouton (ou au-dessus avec `vers="haut"`) : il s'ouvre depuis le conteneur où on le
+ * range, qui porte le bouton. Il reste dans la fenêtre (Flottant) et se ferme au clic dehors et à Échap.
+ */
 export function Deroulant({
   ouvert,
   fermer,
   children,
   vers = 'bas',
+  alignement = 'debut',
   className,
 }: {
   ouvert: boolean
   fermer(): void
   children: ReactNode
   vers?: 'bas' | 'haut'
+  /** Le bord du bouton sur lequel le menu s'aligne : son début (gauche), son milieu ou sa fin (droite). */
+  alignement?: AlignementFlottant
   className?: string
 }) {
   const racine = useRef<HTMLDivElement>(null)
+  // Le conteneur du bouton : c'est l'ancre, et un clic dedans (sur le bouton) ne ferme pas le menu, le bouton le bascule.
+  const [porteur, setPorteur] = useState<HTMLElement | null>(null)
+  const marque = useCallback((n: HTMLElement | null) => setPorteur(n?.parentElement ?? null), [])
   useEffect(() => {
     if (!ouvert) return
     const dehors = (e: PointerEvent) => {
-      if (!racine.current?.parentElement?.contains(e.target as Node)) fermer()
+      if (!racine.current?.contains(e.target as Node) && !porteur?.contains(e.target as Node)) fermer()
     }
     const echap = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
@@ -101,12 +112,16 @@ export function Deroulant({
       document.removeEventListener('pointerdown', dehors, true)
       document.removeEventListener('keydown', echap, true)
     }
-  }, [ouvert, fermer])
-  if (!ouvert) return null
+  }, [ouvert, fermer, porteur])
   return (
-    <div ref={racine} className={`notak-arbre-deroulant${className ? ` ${className}` : ''}`} data-vers={vers} role="menu">
-      {children}
-    </div>
+    <>
+      <span ref={marque} hidden />
+      {ouvert && porteur && (
+        <Flottant racine={racine} ancre={porteur} cote={vers} alignement={alignement} className={`notak-arbre-deroulant${className ? ` ${className}` : ''}`} role="menu">
+          {children}
+        </Flottant>
+      )}
+    </>
   )
 }
 

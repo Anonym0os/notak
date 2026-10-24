@@ -1,7 +1,7 @@
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
+import { Flottant } from './Flottant'
 import { COLONNES_GRILLE, GRILLE_COULEURS, assemblerCouleur, decouperCouleur, degradeConique, estCouleur, normaliserHex } from './carte/couleurs'
 
 /**
@@ -81,53 +81,24 @@ interface PropsPopover {
   ancre: HTMLElement | null
   ouvert: boolean
   fermer(): void
-  /** `gauche` : à gauche du panneau, en haut de l'ancre (les grands choix). `dessous` : sous l'ancre (les listes). */
+  /** `gauche` : à gauche du panneau, en haut de l'ancre (les grands choix). `dessous` : sous l'ancre (les listes). Quand la place manque, elle passe de l'autre côté (Flottant.tsx). */
   cote?: 'gauche' | 'dessous'
   /** Sa largeur en px, ou `ancre` : celle du bouton. */
   largeur?: number | 'ancre'
-  /** Sa hauteur en px, quand elle est connue : elle sert à ne pas sortir de l'écran. */
+  /** Sa hauteur en px, quand la mise en page ne la dit pas (jamais dans un navigateur). */
   hauteur?: number
   className?: string
   etiquette?: string
   children: ReactNode
 }
 
-interface Position {
-  left: number
-  top?: number
-  bottom?: number
-  width?: number
-  maxHeight: number
-}
-
-const MARGE_ECRAN = 8
-
 /**
  * Une fenêtre flottante, sortie du panneau (qui coupe ce qui déborde) et posée dans la carte ouverte, pour que les
- * variables de thème s'y appliquent. Elle se ferme au clic dehors et à Échap, jamais au choix : c'est à son contenu
- * de la fermer quand il doit.
+ * variables de thème s'y appliquent. Elle reste dans la fenêtre du navigateur (Flottant) et se ferme au clic dehors et à
+ * Échap, jamais au choix : c'est à son contenu de la fermer quand il doit.
  */
 export function Popover({ ancre, ouvert, fermer, cote = 'dessous', largeur = 'ancre', hauteur = 320, className, etiquette, children }: PropsPopover) {
   const ref = useRef<HTMLDivElement>(null)
-  const [pos, setPos] = useState<Position | null>(null)
-  useLayoutEffect(() => {
-    if (!ouvert || !ancre) return
-    const r = ancre.getBoundingClientRect()
-    const [vw, vh] = [window.innerWidth, window.innerHeight]
-    const w = largeur === 'ancre' ? r.width : largeur
-    if (cote === 'gauche') {
-      const panneau = ancre.closest('.notak-arbre-cote')?.getBoundingClientRect() ?? r
-      const h = Math.min(hauteur, vh - 2 * MARGE_ECRAN)
-      const top = Math.max(MARGE_ECRAN, Math.min(r.top, vh - h - MARGE_ECRAN))
-      setPos({ left: Math.max(MARGE_ECRAN, panneau.left - w - MARGE_ECRAN), top, width: w, maxHeight: vh - top - MARGE_ECRAN })
-      return
-    }
-    const left = largeur === 'ancre' ? r.left : Math.max(MARGE_ECRAN, Math.min(r.right - w, vw - w - MARGE_ECRAN))
-    const dessous = vh - r.bottom - MARGE_ECRAN
-    const dessus = r.top - MARGE_ECRAN
-    if (dessous < Math.min(hauteur, 220) && dessus > dessous) setPos({ left, bottom: vh - r.top + 4, width: w, maxHeight: dessus - 4 })
-    else setPos({ left, top: r.bottom + 4, width: w, maxHeight: dessous - 4 })
-  }, [ouvert, ancre, cote, largeur, hauteur])
   useEffect(() => {
     if (!ouvert) return
     const dehors = (e: PointerEvent) => {
@@ -149,20 +120,20 @@ export function Popover({ ancre, ouvert, fermer, cote = 'dessous', largeur = 'an
     }
   }, [ouvert, ancre, fermer])
   if (!ouvert || !ancre) return null
-  const hote = ancre.closest('.notak-arbre-fond') ?? document.body
-  return createPortal(
-    <div
-      ref={ref}
+  return (
+    <Flottant
+      racine={ref}
+      ancre={ancre}
+      {...(cote === 'gauche' ? { cote: 'gauche', bord: '.notak-arbre-cote', ecart: 8 } : { cote: 'bas', ecart: 4, alignement: largeur === 'ancre' ? 'debut' : 'fin' })}
+      largeur={largeur}
+      hauteur={hauteur}
       className={`notak-arbre-reglages-popover${className ? ` ${className}` : ''}`}
       role="dialog"
       aria-label={etiquette}
-      data-cote={cote}
-      style={{ ...pos, visibility: pos ? undefined : 'hidden' }}
       onKeyDown={(e) => e.key !== 'Escape' && e.stopPropagation()}
     >
       {children}
-    </div>,
-    hote,
+    </Flottant>
   )
 }
 
@@ -414,7 +385,7 @@ export interface EntreeMenu {
   separateurAvant?: boolean
 }
 
-/** Le menu d'un clic droit, posé au pointeur dans la carte ouverte ; il se ferme au clic dehors, à Échap et au choix. */
+/** Le menu d'un clic droit, posé au pointeur dans la carte ouverte ; il glisse pour rester dans la fenêtre, et se ferme au clic dehors, à Échap et au choix. */
 export function MenuContextuel({ ancre, point, entrees, fermer }: { ancre: HTMLElement | null; point: { x: number; y: number } | null; entrees: readonly EntreeMenu[]; fermer(): void }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -435,9 +406,8 @@ export function MenuContextuel({ ancre, point, entrees, fermer }: { ancre: HTMLE
     }
   }, [point, fermer])
   if (!point || !ancre) return null
-  const hote = ancre.closest('.notak-arbre-fond') ?? document.body
-  return createPortal(
-    <div ref={ref} className="notak-arbre-reglages-popover notak-arbre-reglages-menu" role="menu" style={{ left: point.x, top: point.y }}>
+  return (
+    <Flottant racine={ref} ancre={{ x: point.x, y: point.y, l: 0, h: 0 }} cote="libre" hote={ancre.closest('.notak-arbre-fond') ?? undefined} className="notak-arbre-reglages-popover notak-arbre-reglages-menu" role="menu">
       {entrees.map((e) => (
         <div key={e.libelle} role="presentation">
           {e.separateurAvant && <hr className="notak-arbre-reglages-separateur" />}
@@ -454,8 +424,7 @@ export function MenuContextuel({ ancre, point, entrees, fermer }: { ancre: HTMLE
           </button>
         </div>
       ))}
-    </div>,
-    hote,
+    </Flottant>
   )
 }
 

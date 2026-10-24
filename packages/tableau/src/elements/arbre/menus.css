@@ -356,3 +356,10 @@
   margin: 0 4px;
   background: var(--notak-arbre-filet-c);
 }
+
+/* Les fenêtres flottantes (Flottant.tsx) : posées en `position: fixed` dans le fond de la carte, à la place que la règle de
+   geometrieMenus.ts leur donne. Quand elles sont plus hautes que la fenêtre, leur hauteur est bornée et leur contenu défile. */
+.notak-arbre-fond [data-borne] {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}

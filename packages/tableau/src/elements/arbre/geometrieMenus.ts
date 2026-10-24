@@ -30,41 +30,96 @@ export const ECART_SOUS_MENU = 4
 /** Une valeur gardée entre deux bornes ; si elles se croisent (la fenêtre est trop petite), c'est la borne basse. */
 export const borner = (v: number, min: number, max: number): number => (max < min ? min : Math.max(min, Math.min(v, max)))
 
+/** Le côté d'une ancre où s'ouvre une fenêtre flottante ; `libre` : à un point, sans ancre (un clic droit), qui glisse seulement. */
+export type CoteFlottant = 'bas' | 'haut' | 'gauche' | 'droite' | 'libre'
+/** Sur l'autre axe : le bord de départ de l'ancre (haut ou gauche), son milieu, ou son bord de fin (bas ou droite). */
+export type AlignementFlottant = 'debut' | 'centre' | 'fin'
+
+export interface OptionsFlottant {
+  /** Le côté voulu de l'ancre. `bas` par défaut. */
+  cote?: CoteFlottant
+  alignement?: AlignementFlottant
+  /** L'écart entre l'ancre et la fenêtre. 6 px par défaut. */
+  ecart?: number
+  /** Ajouté à la position transversale, après l'alignement (un sous-menu monte de `RETRAIT_MENU` pour s'aligner sur son entrée). */
+  decalage?: number
+  /** Ce qu'elle laisse au bord de la fenêtre. 8 px par défaut. */
+  marge?: number
+}
+
+export interface PlaceFlottant extends Point, Taille {
+  /** Le côté où la fenêtre est vraiment posée : `bas` demandé mais `haut` rendu veut dire qu'elle s'est retournée. */
+  cote: CoteFlottant
+  /** Vrai quand la fenêtre est plus haute (ou plus large) que la place : `h` (ou `l`) est alors la limite, et le contenu défile. */
+  borneH: boolean
+  borneL: boolean
+}
+
 /**
- * La place d'un menu. Au point voulu s'il tient ; sinon il glisse pour rester dans la fenêtre. Sous un bouton (`ancre`) :
- * à 6 px sous lui, à son bord gauche ; s'il ne tient pas dessous, au-dessus du bouton. Il ne recouvre jamais son bouton
- * tant que l'un des deux côtés a la place.
+ * LA règle de placement de tout ce qui flotte (menus, popovers, listes, fenêtres de réglages). Une fenêtre de taille
+ * `taille` se pose du côté voulu de son ancre ; si elle y sort de la fenêtre (`fenetre`, de 0 à `l` et `h`), elle se
+ * retourne de l'autre côté ; si elle sort encore des deux, elle glisse pour tenir avec `marge` de chaque bord (et recouvre
+ * alors son ancre, faute de mieux). Sur l'autre axe, elle s'aligne sur l'ancre puis glisse de même. Enfin, plus grande que
+ * la fenêtre moins ses marges, elle est bornée à cette place : `borneH` et `borneL` disent qu'il faut limiter sa
+ * hauteur (le contenu défile) ou sa largeur. Toutes les mesures sont dans le repère de la fenêtre.
  */
-export function poserMenu(voulu: Point, menu: Taille, fenetre: Taille, ancre?: Ancre): Point {
-  const x = borner(voulu.x, MARGE_FENETRE, fenetre.l - menu.l - MARGE_FENETRE)
-  if (!ancre) return { x, y: borner(voulu.y, MARGE_FENETRE, fenetre.h - menu.h - MARGE_FENETRE) }
-  const dessous = ancre.bas + ECART_ANCRE
-  if (dessous + menu.h <= fenetre.h - MARGE_FENETRE) return { x, y: dessous }
-  const dessus = ancre.haut - ECART_ANCRE - menu.h
-  if (dessus >= MARGE_FENETRE) return { x, y: dessus }
-  // Ni dessus ni dessous : le côté qui a le plus de place, le menu contre le bord de la fenêtre.
-  const placeDessous = fenetre.h - MARGE_FENETRE - dessous
-  const placeDessus = ancre.haut - ECART_ANCRE - MARGE_FENETRE
-  return { x, y: placeDessous >= placeDessus ? borner(dessous, MARGE_FENETRE, fenetre.h - menu.h - MARGE_FENETRE) : MARGE_FENETRE }
+export function placerFlottant(ancre: Boite, taille: Taille, fenetre: Taille, options: OptionsFlottant = {}): PlaceFlottant {
+  const { cote = 'bas', alignement = 'debut', ecart = ECART_ANCRE, decalage = 0, marge = MARGE_FENETRE } = options
+  const l = Math.min(taille.l, Math.max(0, fenetre.l - 2 * marge))
+  const h = Math.min(taille.h, Math.max(0, fenetre.h - 2 * marge))
+  const borneL = l < taille.l
+  const borneH = h < taille.h
+  const colle = (x: number, y: number, effectif: CoteFlottant): PlaceFlottant => ({
+    x: borner(x, marge, fenetre.l - marge - l),
+    y: borner(y, marge, fenetre.h - marge - h),
+    l,
+    h,
+    cote: effectif,
+    borneH,
+    borneL,
+  })
+  if (cote === 'libre') return colle(ancre.x, ancre.y, cote)
+  const sur = (debut: number, longueur: number, propre: number) => debut + (alignement === 'debut' ? 0 : alignement === 'centre' ? (longueur - propre) / 2 : longueur - propre) + decalage
+  if (cote === 'bas' || cote === 'haut') {
+    const x = sur(ancre.x, ancre.l, l)
+    const dessous = ancre.y + ancre.h + ecart
+    const dessus = ancre.y - ecart - h
+    const tientDessous = dessous + h <= fenetre.h - marge
+    const tientDessus = dessus >= marge
+    if (cote === 'bas') return tientDessous ? colle(x, dessous, 'bas') : tientDessus ? colle(x, dessus, 'haut') : colle(x, dessous, 'bas')
+    return tientDessus ? colle(x, dessus, 'haut') : tientDessous ? colle(x, dessous, 'bas') : colle(x, dessus, 'haut')
+  }
+  const y = sur(ancre.y, ancre.h, h)
+  const adroite = ancre.x + ancre.l + ecart
+  const agauche = ancre.x - ecart - l
+  const tientDroite = adroite + l <= fenetre.l - marge
+  const tientGauche = agauche >= marge
+  if (cote === 'droite') return tientDroite ? colle(adroite, y, 'droite') : tientGauche ? colle(agauche, y, 'gauche') : colle(adroite, y, 'droite')
+  return tientGauche ? colle(agauche, y, 'gauche') : tientDroite ? colle(adroite, y, 'droite') : colle(agauche, y, 'gauche')
 }
 
 /**
  * Où s'ouvre un sous-menu : à droite de son menu s'il y a la place, sinon à gauche ; et, s'il dépasse en bas (ou en
- * haut), décalé juste ce qu'il faut. `decalage` s'ajoute à l'alignement ordinaire (sa première entrée face à l'entrée parente).
+ * haut), décalé juste ce qu'il faut. `decalage` s'ajoute à l'alignement ordinaire (sa première entrée face à l'entrée
+ * parente). Plus haut que la fenêtre, il se cale contre le haut et `hauteurMax` donne la place : il défile.
  */
-export function poserSousMenu(parent: Boite, entree: Boite, sous: Taille, fenetre: Taille): { cote: 'droite' | 'gauche'; decalage: number } {
-  const aDroite = parent.x + parent.l + ECART_SOUS_MENU + sous.l <= fenetre.l - MARGE_FENETRE
-  const aGauche = parent.x - ECART_SOUS_MENU - sous.l >= MARGE_FENETRE
-  const cote = aDroite || !aGauche ? 'droite' : 'gauche'
-  const haut = entree.y - RETRAIT_MENU
-  const decalage = borner(fenetre.h - MARGE_FENETRE - (haut + sous.h), MARGE_FENETRE - haut, 0)
-  return { cote, decalage }
+export function poserSousMenu(
+  parent: Boite,
+  entree: Boite,
+  sous: Taille,
+  fenetre: Taille,
+): { cote: 'droite' | 'gauche'; decalage: number; hauteurMax?: number } {
+  const p = placerFlottant({ x: parent.x, y: entree.y, l: parent.l, h: entree.h }, sous, fenetre, { cote: 'droite', ecart: ECART_SOUS_MENU, decalage: -RETRAIT_MENU })
+  // Ni à droite ni à gauche : le sous-menu reste du côté naturel, il ne glisse pas sur son menu.
+  const cote = p.cote === 'gauche' ? 'gauche' : 'droite'
+  return { cote, decalage: p.y - (entree.y - RETRAIT_MENU), ...(p.borneH ? { hauteurMax: p.h } : {}) }
 }
 
 /**
  * La barre qui flotte au-dessus d'un sujet (capture 20) : centrée sur le sujet (`x`), à 8 px au-dessus de son bord haut
  * (`y`) ; elle ne sort pas de la zone. Si le haut ne laisse pas la place (sous la barre d'outils, hors de la zone), elle
- * passe sous le sujet (`bas`, son bord bas). Sans mesure de la zone (largeur nulle), elle se centre sans se borner.
+ * passe sous le sujet (`bas`, son bord bas). Sans mesure de la zone (largeur nulle), elle se centre sans se borner ; sa
+ * hauteur, quand la zone la donne, l'empêche de sortir par le bas.
  */
 export function placerBarreSujet(
   sujet: { x: number; y: number; bas?: number | undefined },
@@ -76,5 +131,6 @@ export function placerBarreSujet(
   const x = zone.l > 0 ? borner(sujet.x - barre.l / 2, MARGE_FENETRE, zone.l - barre.l - MARGE_FENETRE) : sujet.x - barre.l / 2
   const dessus = sujet.y - barre.h - ecart
   if (dessus >= hautMin || sujet.bas === undefined) return { x, y: dessus, dessous: false }
-  return { x, y: sujet.bas + ecart, dessous: true }
+  const dessous = sujet.bas + ecart
+  return { x, y: zone.h > 0 ? Math.max(dessus, Math.min(dessous, zone.h - barre.h - MARGE_FENETRE)) : dessous, dessous: true }
 }

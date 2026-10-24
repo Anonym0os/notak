@@ -863,8 +863,11 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  min-width: 368px;
-  min-height: 312px;
+  min-width: min(368px, calc(100% - 16px));
+  min-height: min(312px, calc(100% - 16px));
+  max-width: calc(100% - 16px);
+  max-height: calc(100% - 16px);
+  overflow: auto;
   border-radius: 6px;
   background: var(--notak-arbre-fond);
   box-shadow: 0 5px 30px rgb(0 0 0 / 0.2);

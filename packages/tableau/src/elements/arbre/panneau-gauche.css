@@ -166,9 +166,6 @@
 }
 
 .notak-arbre-gauche-menu {
-  top: calc(100% + 6px);
-  right: 0;
-  left: auto;
   min-width: 180px;
 }
 
@@ -552,8 +549,7 @@
 
 /* La note d'un sujet, en popover près de lui : 400 sur 280. */
 .notak-arbre-note-popover {
-  position: absolute;
-  z-index: 3;
+  z-index: 30;
   display: flex;
   flex-direction: column;
   width: 400px;

@@ -209,7 +209,7 @@ function OptionsRecherchePanneau({ options, changer }: { options: OptionsRecherc
       <button type="button" aria-haspopup="menu" aria-expanded={ouvert} aria-label={t('arbre.gauche.options')} title={t('arbre.gauche.options')} onClick={() => setOuvert((o) => !o)}>
         <Icone nom="reglages" taille={16} trait={1.6} />
       </button>
-      <Deroulant ouvert={ouvert} fermer={() => setOuvert(false)} className="notak-arbre-gauche-menu">
+      <Deroulant ouvert={ouvert} fermer={() => setOuvert(false)} alignement="fin" className="notak-arbre-gauche-menu">
         <Entree libelle={t('arbre.gauche.motsEntiers')} coche={!!options.motsEntiers} onClick={() => changer({ ...options, motsEntiers: !options.motsEntiers })} />
         <Entree libelle={t('arbre.gauche.casse')} coche={!!options.casse} onClick={() => changer({ ...options, casse: !options.casse })} />
       </Deroulant>

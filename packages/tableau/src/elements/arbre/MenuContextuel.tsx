@@ -1,7 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Entree } from './Fenetre'
-import { ECART_ANCRE, RETRAIT_MENU, poserMenu, poserSousMenu } from './geometrieMenus'
+import { Flottant } from './Flottant'
+import { ECART_ANCRE, RETRAIT_MENU, poserSousMenu } from './geometrieMenus'
 import type { Item } from './menus'
 
 interface Props {
@@ -21,26 +21,14 @@ interface Props {
   etiquette?: string
 }
 
-/** Le point où le menu voudrait s'ouvrir : le bord gauche et le bas de son bouton, ou le point cliqué. */
-function voulu(ancre: HTMLElement | null | undefined, x: number, y: number) {
-  const r = ancre?.getBoundingClientRect()
-  return r ? { point: { x: r.left, y: r.bottom + ECART_ANCRE }, ancre: { haut: r.top, bas: r.bottom } } : { point: { x, y }, ancre: undefined }
-}
-
 /**
  * Un menu contextuel : posé au point cliqué (ou sous son bouton), il garde la fenêtre (il glisse, ou se retourne, s'il
- * déborde), s'ouvre en sous-menus, se parcourt aux flèches et se ferme à Échap, au clic dehors ou quand la fenêtre change
- * de taille. Les entrées grisées restent visibles, comme chez Xmind.
+ * déborde ; plus haut qu'elle, il défile), s'ouvre en sous-menus, se parcourt aux flèches et se ferme à Échap, au clic
+ * dehors ou quand la fenêtre change de taille. Les entrées grisées restent visibles, comme chez Xmind.
  */
 export function MenuContextuel({ x = 0, y = 0, ancre, items, choisir, fermer, etiquette }: Props) {
   const racine = useRef<HTMLDivElement>(null)
-  const [pos, setPos] = useState(() => voulu(ancre, x, y).point)
-  useLayoutEffect(() => {
-    const r = racine.current?.getBoundingClientRect()
-    if (!r) return
-    const v = voulu(ancre, x, y)
-    setPos(poserMenu(v.point, { l: r.width, h: r.height }, { l: window.innerWidth, h: window.innerHeight }, v.ancre))
-  }, [x, y, ancre, items])
+  const point = useMemo(() => ({ x, y, l: 0, h: 0 }), [x, y])
   useEffect(() => {
     const dehors = (e: PointerEvent) => {
       const cible = e.target as Node
@@ -69,13 +57,11 @@ export function MenuContextuel({ x = 0, y = 0, ancre, items, choisir, fermer, et
       window.removeEventListener('resize', fermer)
     }
   }, [fermer, ancre])
-  const menu = (
-    <div ref={racine} className="notak-arbre-deroulant notak-arbre-ctx" role="menu" aria-label={etiquette} style={{ left: pos.x, top: pos.y }} onContextMenu={(e) => e.preventDefault()}>
+  return (
+    <Flottant racine={racine} ancre={ancre ?? point} cote={ancre ? 'bas' : 'libre'} ecart={ECART_ANCRE} className="notak-arbre-deroulant notak-arbre-ctx" role="menu" aria-label={etiquette} onContextMenu={(e) => e.preventDefault()}>
       <Liste items={items} choisir={choisir} />
-    </div>
+    </Flottant>
   )
-  const fenetre = ancre?.closest('.notak-arbre-fenetre')
-  return ancre ? createPortal(menu, fenetre ?? document.body) : menu
 }
 
 function Liste({ items, choisir }: { items: Item[]; choisir(action: string): void }) {
@@ -98,10 +84,10 @@ function Liste({ items, choisir }: { items: Item[]; choisir(action: string): voi
   )
 }
 
-/** Un sous-menu, à droite de son entrée ; il passe à gauche s'il sortirait de la fenêtre, et remonte s'il en sortirait par le bas. */
+/** Un sous-menu, à droite de son entrée ; il passe à gauche s'il sortirait de la fenêtre, remonte s'il en sortirait par le bas, et défile s'il est plus haut que la fenêtre. */
 function SousMenu({ items, choisir }: { items: Item[]; choisir(action: string): void }) {
   const racine = useRef<HTMLDivElement>(null)
-  const [place, setPlace] = useState<{ cote: 'droite' | 'gauche'; decalage: number }>({ cote: 'droite', decalage: 0 })
+  const [place, setPlace] = useState<{ cote: 'droite' | 'gauche'; decalage: number; hauteurMax?: number }>({ cote: 'droite', decalage: 0 })
   useLayoutEffect(() => {
     const sous = racine.current?.getBoundingClientRect()
     const entree = racine.current?.parentElement?.getBoundingClientRect()
@@ -111,7 +97,14 @@ function SousMenu({ items, choisir }: { items: Item[]; choisir(action: string): 
     setPlace(poserSousMenu(boite(parent), boite(entree), { l: sous.width, h: sous.height }, { l: window.innerWidth, h: window.innerHeight }))
   }, [])
   return (
-    <div ref={racine} className="notak-arbre-deroulant notak-arbre-sous-menu" role="menu" data-cote={place.cote} style={place.decalage ? { top: place.decalage - RETRAIT_MENU } : undefined}>
+    <div
+      ref={racine}
+      className="notak-arbre-deroulant notak-arbre-sous-menu"
+      role="menu"
+      data-cote={place.cote}
+      data-borne={place.hauteurMax ? '' : undefined}
+      style={{ ...(place.decalage ? { top: place.decalage - RETRAIT_MENU } : {}), ...(place.hauteurMax ? { maxHeight: place.hauteurMax } : {}) }}
+    >
       <Liste items={items} choisir={choisir} />
     </div>
   )

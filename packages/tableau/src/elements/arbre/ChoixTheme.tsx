@@ -1,26 +1,16 @@
-import { type ReactNode, useLayoutEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { type ReactNode, useLayoutEffect, useRef } from 'react'
 import { t } from '../../langue'
 import { CadreDiapo } from './Diapo'
+import { Flottant } from './Flottant'
 import { type RatioPitch, THEMES_PITCH, dimensionsDuRatio } from './themesPitch'
 
 /**
  * Un popover posé sous (ou au-dessus de) son ancre, hors du panneau qui le lance : le panneau défile et rogne, le
- * popover non. Il se ferme au clic dehors et à Échap.
+ * popover non. Il reste dans la fenêtre : centré sur l'ancre, ramené contre le bord s'il le dépasse, retourné de l'autre
+ * côté si la place manque, borné et défilant sinon (Flottant). Il se ferme au clic dehors et à Échap.
  */
 export function PopoverFixe({ ancre, fermer, largeur, vers = 'bas', children, className }: { ancre: HTMLElement | null; fermer(): void; largeur: number; vers?: 'bas' | 'haut'; children: ReactNode; className?: string }) {
   const racine = useRef<HTMLDivElement>(null)
-  const [place, setPlace] = useState<{ left: number; top?: number; bottom?: number; maxHeight: number } | null>(null)
-  useLayoutEffect(() => {
-    if (!ancre) return
-    const r = ancre.getBoundingClientRect()
-    const left = Math.min(window.innerWidth - largeur - 8, Math.max(8, r.left + r.width / 2 - largeur / 2))
-    setPlace(
-      vers === 'bas'
-        ? { left, top: r.bottom + 8, maxHeight: window.innerHeight - r.bottom - 28 }
-        : { left, bottom: window.innerHeight - r.top + 8, maxHeight: r.top - 28 },
-    )
-  }, [ancre, largeur, vers])
   useLayoutEffect(() => {
     const dehors = (e: PointerEvent) => {
       const cible = e.target as Node
@@ -40,12 +30,23 @@ export function PopoverFixe({ ancre, fermer, largeur, vers = 'bas', children, cl
       document.removeEventListener('keydown', echap, true)
     }
   }, [ancre, fermer])
-  if (!ancre || !place) return ancre ? <div ref={racine} hidden /> : null
-  return createPortal(
-    <div ref={racine} className={className ? `notak-arbre-pitch-popover ${className}` : 'notak-arbre-pitch-popover'} style={{ ...place, width: largeur }} role="dialog" onKeyDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+  if (!ancre) return null
+  return (
+    <Flottant
+      racine={racine}
+      ancre={ancre}
+      cote={vers}
+      alignement="centre"
+      ecart={8}
+      largeur={largeur}
+      className={className ? `notak-arbre-pitch-popover ${className}` : 'notak-arbre-pitch-popover'}
+      role="dialog"
+      onKeyDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+    >
       {children}
-    </div>,
-    ancre.closest('.notak-arbre-fond') ?? document.body,
+    </Flottant>
   )
 }
 
