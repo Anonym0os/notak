@@ -73,7 +73,7 @@ describe('la carte ouverte : barre du bas, panneau de gauche, Pitch', () => {
     const m = monter()
     m.clic(m.q('.notak-arbre-bas-controles [aria-label^="Accédez au mode présentation"]'))
     expect(m.q('.notak-arbre-pitch-scene')).toBeTruthy()
-    expect(m.q('.notak-arbre-pitch-scene h1')?.textContent).toBe('Cours')
+    expect(m.q('.notak-arbre-pitch-scene .notak-arbre-diapo-texte[data-titre]')?.textContent).toBe('Cours')
     act(() => void document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })))
     expect(m.q('.notak-arbre-pitch-scene')).toBeNull()
   })

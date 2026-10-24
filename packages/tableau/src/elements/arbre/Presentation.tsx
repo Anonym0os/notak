@@ -4,11 +4,10 @@ import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
 import { ChoixTheme, PopoverFixe } from './ChoixTheme'
 import { Diapositive } from './Diapo'
+import { EcranDeFin } from './diapo/EcranDeFin'
 import { type Position, arrivee, depart as diapoDeDepart, precedente, sequence, trajet, versParent } from './modele/diapositives'
-import { ECRAN_DE_FIN } from './modele/gabarits'
 import type { Geste } from './modele/gestes'
 import type { Lecture } from './modele/sujets'
-import { themeDe } from './themes'
 import { RATIOS_PITCH, ratioEffectif, themePitchDe } from './themesPitch'
 
 /**
@@ -95,6 +94,8 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
   const [position, setPosition] = useState<Position>(() => diapoDeDepart(sequence(l, { resumes: arbre.resumes }), l, depart))
   const premiere = useMemo(() => diapoDeDepart(sequence(l, { resumes: arbre.resumes }), l), [l, arbre.resumes])
   const [anime, setAnime] = useState(animationEnregistree)
+  // Le mélange des décors : tiré une fois par présentation.
+  const [graine] = useState(() => Math.floor(Math.random() * 2 ** 31))
   const [reglages, setReglages] = useState(false)
   const [themes, setThemes] = useState(false)
   const [aide, setAide] = useState(false)
@@ -225,22 +226,18 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
 
   const diapo = typeof position === 'number' ? seq.diapos[position] : undefined
   const merci = seq.diapos.at(-1)
-  const vignette = ECRAN_DE_FIN.echelle(ratio)
   const mettreAJour = (reglage: Extract<Geste, { type: 'pitch' }>['reglage']) => !lectureSeule && faire({ type: 'pitch', reglage })
 
   return (
-    <div ref={scene} className="notak-arbre-pitch-scene" style={{ background: themeDe(arbre.theme).fond ?? 'var(--notak-arbre-fond)' }} onClick={suivant} aria-label={t('arbre.pitch.titre')} role="region" aria-live="polite">
+    <div ref={scene} className="notak-arbre-pitch-scene" style={{ background: '#000' }} onClick={suivant} aria-label={t('arbre.pitch.titre')} role="region" aria-live="polite">
       {diapo && (
         <div key={position} className="notak-arbre-pitch-diapo" data-anime={anime ? '' : undefined}>
-          <Diapositive lecture={l} diapo={diapo} theme={theme} ratio={ratio} adresse={adresse} anime={anime} taille={taille} />
+          <Diapositive lecture={l} diapo={diapo} theme={theme} ratio={ratio} adresse={adresse} anime={anime} graine={graine} taille={taille} />
         </div>
       )}
       {position === 'ecran-de-fin' && merci && (
-        // L'écran de fin, en attendant l'image de la carte : « Merci » en vignette en haut à droite.
         <div className="notak-arbre-pitch-fin" style={{ position: 'absolute', inset: 0 }}>
-          <div style={{ position: 'absolute', top: (ECRAN_DE_FIN.marge * taille.l) / 1600, right: (ECRAN_DE_FIN.marge * taille.l) / 1600, borderRadius: ECRAN_DE_FIN.rayon, overflow: 'hidden', border: `1px solid ${ECRAN_DE_FIN.bordure}` }}>
-            <Diapositive lecture={l} diapo={merci} theme={theme} ratio={ratio} adresse={adresse} anime={false} taille={{ l: Math.round(taille.l * vignette), h: Math.round(taille.h * vignette) }} />
-          </div>
+          <EcranDeFin arbre={arbre} ratio={ratio} taille={taille} adresse={adresse} vignette={(petite) => <Diapositive lecture={l} diapo={merci} theme={theme} ratio={ratio} adresse={adresse} anime={false} graine={graine} taille={petite} />} />
         </div>
       )}
       <span className="notak-arbre-pitch-compte">{t('arbre.pitch.position', { i: rang, n: montrees })}</span>

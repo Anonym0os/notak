@@ -144,7 +144,7 @@ function presenter(a: Arbre, depart?: Id) {
   act(() => racine.render(<Presentation arbre={a} lecture={lire(a)} depart={depart} faire={faire} lectureSeule={false} quitter={quitter} />))
   const touche = (key: string, mods: Partial<KeyboardEventInit> = {}) =>
     act(() => void document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...mods })))
-  const titre = () => hote.querySelector('.notak-arbre-diapo h1, .notak-arbre-diapo h2')?.textContent
+  const titre = () => hote.querySelector('.notak-arbre-pitch-diapo .notak-arbre-diapo-texte[data-titre]')?.textContent
   return { hote, quitter, faire, touche, titre, fin: () => (act(() => racine.unmount()), hote.remove()) }
 }
 
@@ -155,11 +155,11 @@ describe('le mode présentation', () => {
     expect(p.titre()).toBe('Cours')
     // La liste du central paraît avec son premier enfant ; on perce dans A.
     p.touche(' ')
-    expect(p.hote.querySelector('.notak-arbre-diapo-liste h2')?.textContent).toBe('Cours')
+    expect(p.hote.querySelector('.notak-arbre-diapo[data-type="liste"] .notak-arbre-diapo-texte[data-titre]')?.textContent).toBe('Cours')
     p.touche('ArrowRight')
     expect(p.titre()).toBe('Chapitre A')
     p.touche('ArrowLeft')
-    expect(p.hote.querySelector('.notak-arbre-diapo-liste')).toBeTruthy()
+    expect(p.hote.querySelector('.notak-arbre-diapo[data-type="liste"]')).toBeTruthy()
     p.fin()
   })
 
@@ -168,7 +168,7 @@ describe('le mode présentation', () => {
     const p = presenter(a, A)
     expect(p.titre()).toBe('Chapitre A')
     p.touche('ArrowRight')
-    const etats = () => [...p.hote.querySelectorAll('.notak-arbre-diapo-liste li')].map((li) => li.getAttribute('data-etat'))
+    const etats = () => [...p.hote.querySelectorAll('.notak-arbre-diapo[data-type="liste"] .notak-arbre-diapo-texte[data-etat]')].map((li) => li.getAttribute('data-etat'))
     expect(etats()).toEqual(['courant', 'cache'])
     p.touche('ArrowRight')
     expect(etats()).toEqual(['passe', 'courant'])
@@ -180,7 +180,7 @@ describe('le mode présentation', () => {
     const p = presenter(a, A)
     // Retour dans la liste du central, où B paraît aussitôt.
     p.touche('ArrowRight', { shiftKey: true })
-    expect(p.hote.querySelector('.notak-arbre-diapo-liste li[data-etat="courant"]')?.textContent).toBe('Chapitre B')
+    expect(p.hote.querySelector('.notak-arbre-diapo[data-type="liste"] .notak-arbre-diapo-texte[data-etat="courant"]')?.textContent).toBe('Chapitre B')
     // Depuis la liste du central, le parent est la diapositive du central.
     p.touche('ArrowLeft', { shiftKey: true })
     expect(p.titre()).toBe('Cours')
