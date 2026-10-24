@@ -128,7 +128,9 @@ export function Marge({ editeur, fils, ouvert, surOuvert, ecrire, contexte }: Pr
           ouvrir={() => surOuvert(id)}
           fermer={() => {
             surOuvert(null)
-            editeur.commands.focus()
+            // Un fil jamais écrit part avec sa marque ; le curseur quitte le passage, sinon le fil se rouvrirait.
+            if (!fils?.[id]?.messages.length) retirerMarque(editeur, id)
+            editeur.chain().focus().setTextSelection(editeur.state.selection.to).run()
           }}
           ecrire={(f) => ecrire(id, f)}
           retirer={() => {

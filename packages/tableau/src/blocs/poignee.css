@@ -84,6 +84,11 @@
   cursor: grab;
 }
 
+/* Son menu ouvert, la poignée reste teintée. */
+.notak-blocs-poignee[data-menu] .notak-blocs-poignee-tenir {
+  background: var(--notak-page-survol);
+}
+
 /* Pendant un glisser, rien d'autre ne réagit à la souris, et le curseur ne change plus. */
 [data-glisse],
 [data-glisse] * {

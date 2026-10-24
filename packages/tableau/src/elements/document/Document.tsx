@@ -18,6 +18,7 @@ import { Invite } from '../../blocs/invite'
 import { derniereCouleur } from '../../blocs/menuCouleurs'
 import { type Demande, MenuBlocs, type PontMenu, extensionSlash } from '../../blocs/Menu'
 import { Largeurs } from '../../blocs/Largeurs'
+import { LienSurvol } from '../../blocs/LienSurvol'
 import { Poignee } from '../../blocs/Poignee'
 import { CLE_CHOIX } from '../../blocs/selection'
 import { blocDe } from '../../blocs/modele'
@@ -597,6 +598,7 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
       )}
       {editeur && <Poignee editeur={editeur} zone={corps} ouvrirMenu={() => demander('bloc')} />}
       {editeur && <Largeurs editeur={editeur} zone={corps} />}
+      {editeur && <LienSurvol editeur={editeur} />}
       {editeur && (
         <Bulle
           editeur={editeur}

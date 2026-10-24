@@ -128,6 +128,18 @@ function Halos({ editeur, zone }: { editeur: Editor; zone: RefObject<HTMLElement
 
 export function Poignee({ editeur, zone, ouvrirMenu, ouvrirAjout }: Props) {
   const [survol, setSurvol] = useState<Survol | null>(null)
+  // Le menu ouvert par ⋮⋮ : la poignée reste là, teintée, tant qu'il est ouvert (NOTION.md § 6).
+  const [menuOuvert, setMenuOuvert] = useState(false)
+  useEffect(() => {
+    if (!menuOuvert) return
+    const verifier = () => window.setTimeout(() => !document.querySelector('.notak-menu-blocs') && setMenuOuvert(false), 0)
+    window.addEventListener('pointerdown', verifier, true)
+    window.addEventListener('keydown', verifier, true)
+    return () => {
+      window.removeEventListener('pointerdown', verifier, true)
+      window.removeEventListener('keydown', verifier, true)
+    }
+  }, [menuOuvert])
   const [depot, setDepot] = useState<Depot | null>(null)
   const [rectangle, setRectangle] = useState<{ x: number; y: number; l: number; h: number } | null>(null)
   const [glisse, setGlisse] = useState(false)
@@ -168,6 +180,8 @@ export function Poignee({ editeur, zone, ouvrirMenu, ouvrirAjout }: Props) {
     }
     const sortir = () => {
       point = null
+      // La souris part vers le menu du bloc : la poignée reste.
+      if (document.querySelector('.notak-menu-blocs')) return
       setSurvol(null)
     }
     const taper = () => setSurvol(null)
@@ -361,6 +375,7 @@ export function Poignee({ editeur, zone, ouvrirMenu, ouvrirAjout }: Props) {
       if (!bouge) {
         // Un clic : le bloc est choisi et son menu s'ouvre.
         vue.dispatch(choisir(vue.state, choixClic))
+        setMenuOuvert(true)
         ouvrirMenu(ancre)
         return
       }
@@ -408,7 +423,7 @@ export function Poignee({ editeur, zone, ouvrirMenu, ouvrirAjout }: Props) {
     <>
       {!glisse && <Halos editeur={editeur} zone={zone} />}
       {survol && !glisse && (
-        <div className="notak-blocs-poignee" style={{ top: survol.haut, left: survol.gauche }} onPointerDown={(e) => e.stopPropagation()}>
+        <div className="notak-blocs-poignee" data-menu={menuOuvert || undefined} style={{ top: survol.haut, left: survol.gauche }} onPointerDown={(e) => e.stopPropagation()}>
           <button type="button" className="notak-blocs-poignee-plus" title={t('selection.poignee.ajouter')} aria-label={t('selection.poignee.ajouter')} onMouseDown={(e) => e.preventDefault()} onClick={(e) => ajouter(e, survol)}>
             <Plus />
           </button>

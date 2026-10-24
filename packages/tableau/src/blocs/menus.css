@@ -577,3 +577,49 @@
     animation-delay: 0ms;
   }
 }
+
+/* Le survol d'un lien : un panneau de 32 px sous lui, l'adresse puis « Modifier ». */
+.notak-lien-survol {
+  position: fixed;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 360px;
+  height: 32px;
+  padding: 0 4px;
+  border-radius: 6px;
+  background: var(--notak-m-fond, var(--notak-page-fond));
+  box-shadow: var(--notak-m-ombre, 0 0 0 1px rgb(0 0 0 / 0.08), 0 4px 12px rgb(0 0 0 / 0.12));
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.notak-lien-survol-adresse {
+  min-width: 0;
+  overflow: hidden;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--notak-page-discret);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-lien-survol-modifier {
+  flex: none;
+  height: 24px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--notak-page-texte);
+  font: inherit;
+  cursor: pointer;
+}
+
+.notak-lien-survol-adresse:hover,
+.notak-lien-survol-modifier:hover {
+  background: var(--notak-page-survol);
+}
+

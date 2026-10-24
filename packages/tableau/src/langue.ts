@@ -1633,6 +1633,11 @@ export const fr: Textes = {
   'page.petitTexte': 'Petit texte',
   'page.pleineLargeur': 'Pleine largeur',
   // passe éditeur : page et rendu (début)
+  'blocs.code.langage': 'Langage du code',
+  'blocs.code.copier': 'Copier',
+  'blocs.code.copie': 'Copié',
+  'blocs.code.texteBrut': 'Texte brut',
+  'blocs.lien.modifier': 'Modifier',
   // passe éditeur : page et rendu (fin)
   // passe éditeur : saisie (début)
   // passe éditeur : saisie (fin)
@@ -3569,6 +3574,11 @@ export const en: Textes = {
   'page.petitTexte': 'Small text',
   'page.pleineLargeur': 'Full width',
   // passe éditeur : page et rendu (début)
+  'blocs.code.langage': 'Code language',
+  'blocs.code.copier': 'Copy',
+  'blocs.code.copie': 'Copied',
+  'blocs.code.texteBrut': 'Plain text',
+  'blocs.lien.modifier': 'Edit',
   // passe éditeur : page et rendu (fin)
   // passe éditeur : saisie (début)
   // passe éditeur : saisie (fin)
