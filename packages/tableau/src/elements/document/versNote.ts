@@ -1,6 +1,7 @@
 import { getSchema } from '@tiptap/react'
 import type { DocumentTexte, NoeudTexte, Note } from '../../coeur/tableau'
 import { degrader } from '../../blocs/lisible'
+import { aplatir, deplier } from '../../blocs/migration'
 import { documentEnNote } from '../note/conversion'
 import { EXTENSIONS_NOTE } from '../note/extensions'
 
@@ -16,4 +17,4 @@ function titresAuPlus2(n: NoeudTexte): NoeudTexte {
  * Un document devient une note : les blocs que la note ne sait pas dessiner (dépliants, colonnes, tâches, images)
  * sont défaits en ce qu'elle connaît, sans perdre leur texte (docs/NOTION.md § 1).
  */
-export const documentVersNote = (c: DocumentTexte): Note => documentEnNote({ ...c, texte: degrader(titresAuPlus2(c.texte), SCHEMA_NOTE) })
+export const documentVersNote = (c: DocumentTexte): Note => documentEnNote({ ...c, texte: degrader(titresAuPlus2(deplier(aplatir(c.texte))), SCHEMA_NOTE) })

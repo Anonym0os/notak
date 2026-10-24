@@ -1,71 +1,61 @@
-import type { Node as NoeudPM, NodeType } from '@tiptap/pm/model'
+import type { Node as NoeudPM } from '@tiptap/pm/model'
 import { type EditorState, Plugin, PluginKey, TextSelection, type Transaction } from '@tiptap/pm/state'
 import { Extension } from '@tiptap/react'
-import { racines, retirer } from './gestes'
+import { racines, retirer, sousArbre } from './gestes'
 import { blocsDe } from './modele'
 
 /**
  * Les colonnes (docs/NOTION.md § 8) : lâcher un bloc sur le côté d'un autre crée une rangée, ou y ajoute une colonne
- * (cinq au plus) ; une rangée réduite à une colonne se dissout ; la largeur se règle par paire, aimantée.
+ * (sans limite, comme chez Notion) ; une rangée réduite à une colonne se dissout ; la largeur se règle par paire,
+ * aimantée.
  */
-
-export const COLONNES_MAX = 5
 
 export type Flanc = 'gauche' | 'droite'
 
-/** Les blocs posés dans une colonne neuve : un élément de liste retrouve sa liste. */
-function dansColonne(state: EditorState, r: ReturnType<typeof racines>): NoeudPM[] {
-  const listes = new Map<NoeudPM, NodeType>()
-  for (const { pos, noeud } of r) {
-    const parent = state.doc.resolve(pos).parent
-    if (['bulletList', 'orderedList', 'taskList'].includes(parent.type.name)) listes.set(noeud, parent.type)
-  }
-  return r.map(({ noeud }) => {
-    const liste = listes.get(noeud)
-    return liste ? liste.create(null, noeud) : noeud
-  })
-}
-
 /**
  * Pose les blocs sur le flanc du bloc `cible` : à côté d'un bloc du flux, une rangée de deux colonnes les réunit ; à
- * côté d'un bloc déjà dans une colonne, une colonne s'ajoute à sa rangée. `null` si la rangée est pleine ou si la cible
- * est parmi les blocs tirés.
+ * côté d'un bloc déjà dans une colonne, une colonne s'ajoute à sa rangée, de part 1/n, les autres gardant leurs
+ * proportions. `null` si la cible est parmi les blocs tirés.
  */
 export function enColonnes(state: EditorState, ids: readonly string[], cible: string, flanc: Flanc, copier = false): Transaction | null {
   const r = racines(state.doc, ids)
   const c = blocsDe(state.doc).find((b) => b.id === cible)
-  if (r.length === 0 || !c) return null
-  for (const { pos, noeud } of r) if (c.pos >= pos && c.pos < pos + noeud.nodeSize) return null
+  if (r.length === 0 || !c || c.type === 'colonne') return null
+  for (const { pos, fin } of r) if (c.pos >= pos && c.pos < fin) return null
+  if (r.some((x) => x.noeud.type.name === 'colonnes')) return null
   const { colonnes, colonne } = state.schema.nodes
   const $c = state.doc.resolve(c.pos)
   const dansUneColonne = $c.parent.type === colonne
-  const nouvelle = colonne!.create(null, dansColonne(state, r.map((x) => (copier ? { ...x, noeud: x.noeud.copy(x.noeud.content) } : x))))
+  // Les blocs tirés, avec leurs enfants, au premier rang de leur colonne neuve.
+  const nouvelle = colonne!.create(null, r.flatMap((x) => sousArbre(state.doc, x, 0, copier)))
 
   const tr = state.tr
   if (dansUneColonne) {
     const rangee = $c.node($c.depth - 1)
-    if (rangee.childCount >= COLONNES_MAX) return null
+    const indice = $c.index($c.depth - 1)
+    const fractions = parts(Array.from({ length: rangee.childCount }, (_, i) => rangee.child(i).attrs.ratio as number | null))
     const posColonne = $c.before()
     const fin = posColonne + $c.parent.nodeSize
     if (!copier) retirer(tr, state.doc, r)
-    // Une colonne de plus : les largeurs repartent à parts égales.
+    // Une colonne de plus : elle prend 1/n, et les autres gardent leurs proportions sur le reste.
     const ou = flanc === 'gauche' ? tr.mapping.map(posColonne, 1) : tr.mapping.map(fin, -1)
     tr.insert(ou, nouvelle)
-    const $rangee = tr.doc.resolve(ou)
-    const debutRangee = $rangee.before()
-    tr.doc.nodeAt(debutRangee)?.forEach((_, decalage) => tr.setNodeAttribute(debutRangee + 1 + decalage, 'ratio', null))
+    const ratios = ratiosDe(avecColonne(fractions, flanc === 'gauche' ? indice : indice + 1))
+    const debutRangee = tr.doc.resolve(ou).before()
+    tr.doc.nodeAt(debutRangee)?.forEach((_, decalage, i) => tr.setNodeAttribute(debutRangee + 1 + decalage, 'ratio', ratios[i] ?? null))
     return tr.setSelection(TextSelection.near(tr.doc.resolve(ou + 1))).scrollIntoView()
   }
 
-  // La cible doit pouvoir être remplacée par une rangée dans son parent.
-  if (!$c.parent.canReplaceWith($c.index(), $c.index() + 1, colonnes!)) return null
+  // La cible et ses enfants passent dans la première colonne, au premier rang.
+  if (c.type === 'colonnes') return null
+  const cibleRacine = racines(state.doc, [cible])[0]
+  if (!cibleRacine) return null
+  const ancienne = colonne!.create(null, sousArbre(state.doc, cibleRacine, 0, false))
   if (!copier) retirer(tr, state.doc, r)
   const debut = tr.mapping.map(c.pos, 1)
-  const cibleNoeud = tr.doc.nodeAt(debut)
-  if (!cibleNoeud) return null
-  const ancienne = colonne!.create(null, cibleNoeud)
+  const fin = tr.mapping.map(c.fin, -1)
   const rangee = colonnes!.create(null, flanc === 'gauche' ? [nouvelle, ancienne] : [ancienne, nouvelle])
-  tr.replaceWith(debut, debut + cibleNoeud.nodeSize, rangee)
+  tr.replaceWith(debut, fin, rangee)
   const curseur = debut + 1 + (flanc === 'gauche' ? 1 : rangee.firstChild!.nodeSize + 1)
   return tr.setSelection(TextSelection.near(tr.doc.resolve(curseur))).scrollIntoView()
 }
@@ -94,6 +84,16 @@ export const DissolutionColonnes = Extension.create({
     ]
   },
 })
+
+/**
+ * Les parts d'une rangée après l'ajout d'une colonne au rang `rang` : la neuve prend 1/n (n colonnes après l'ajout),
+ * chacune des autres est multipliée par 1 − 1/n, si bien que la somme reste 1 et que les réglages sont gardés.
+ */
+export function avecColonne(fractions: readonly number[], rang: number): number[] {
+  const n = fractions.length + 1
+  const autres = fractions.map((f) => f * (1 - 1 / n))
+  return [...autres.slice(0, rang), 1 / n, ...autres.slice(rang)]
+}
 
 /** Les parts de largeur d'une rangée, qui font 1 au total ; une part absente vaut une part égale. */
 export function parts(ratios: readonly (number | null)[]): number[] {

@@ -47,19 +47,21 @@ function monter(element: Element<DocumentTexte>, options: { lectureSeule?: boole
 }
 
 describe('le document ouvert en grand', () => {
-  it('en édition, la colonne d’outils finit par l’outil Commentaire, et la boîte est l’ancre des fils', () => {
+  it('en édition, une page à la Notion : la barre du haut, le titre dans la page, la boîte ancre des fils (NOTION.md § 9)', () => {
     monter(doc('bonjour'), { enEdition: true })
     expect(document.querySelector('.notak-document-boite[data-marge-ancre]')).not.toBeNull()
-    const noms = [...document.querySelectorAll<HTMLButtonElement>('.notak-document-outils button.notak-outil-texte')].map((b) => b.getAttribute('aria-label'))
-    expect(noms.some((n) => n === 'Commenter le passage')).toBe(true)
+    expect(document.querySelector('.notak-document-entete .notak-document-fermer')).not.toBeNull()
+    expect(document.querySelector('.notak-page textarea.notak-page-titre')).not.toBeNull()
+    expect(document.querySelector('.notak-document-outils')).toBeNull()
   })
 
-  it('en lecture seule, la colonne d’outils est réduite et vide', () => {
+  it('en lecture seule, le titre de la page n’est pas un champ', () => {
     monter(doc('bonjour'), { lectureSeule: true })
     act(() => void hote.querySelector('.notak-document')!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
     const boite = document.querySelector('.notak-document-boite')!
     expect(boite.getAttribute('data-lecture')).toBe('true')
-    expect(boite.querySelector('.notak-document-cote')!.children).toHaveLength(0)
+    expect(boite.querySelector('h1.notak-page-titre')).not.toBeNull()
+    expect(boite.querySelector('textarea')).toBeNull()
   })
 
   it('un bloc d’une version plus récente ouvre le document en lecture seule, sans rien perdre (NOTION.md § 1)', () => {

@@ -31,8 +31,8 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
 | 18. Carte mentale | 61 | 10 | 0 | 93 % |
-| 19. Document à blocs | 21 | 3 | 1 | 90 % |
-| **Total** | **364** | **23** | **3** | **96 %** |
+| 19. Document à blocs | 26 | 3 | 1 | 92 % |
+| **Total** | **369** | **23** | **3** | **96 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -507,6 +507,9 @@ dans `packages/tableau/src/blocs/`, pour resservir à d'autres éléments.
 | Fonctionnalité | État | Reste |
 |---|---|---|
 | Un id stable sur chaque bloc, le document relu comme des enregistrements de blocs | ✅ | `blocs/ids.ts`, `blocs/modele.ts` (`blocsDe`). |
+| Tout bloc de texte porte des enfants (blocs à plat rangés par leur retrait) ; un bloc emporte ses enfants | ✅ | `blocs/plats.ts`, `blocs/rang.ts` ; les documents d’avant et les notes s’ouvrent aplatis (`blocs/migration.ts`). |
+| Entrée, Retour arrière, Suppr et Tab selon les règles de Notion par type de bloc | ✅ | `blocs/clavier.ts` ; chaque geste est un pas d’annulation, la frappe se groupe sur 700 ms. |
+| La page de Notion : plein écran, colonne de 720 px, titre de 40 px, espacements et couleurs mesurés | ✅ | Mesurés en direct dans Notion ; la colonne d’outils à la Milanote est retirée. |
 | Un vieux client ouvre un bloc inconnu en lecture seule, sans rien perdre | ✅ | Le texte se dessine réduit à ce qu’il connaît, un avis dit pourquoi (`blocs/lisible.ts`). |
 | Titres 1 à 3, titres dépliants | ✅ | Un titre rendu dépliant range dessous les blocs jusqu’au prochain titre de son rang. |
 | Listes à puces, numérotées (1, a, i selon la profondeur), tâches | ✅ |  |
@@ -517,15 +520,17 @@ dans `packages/tableau/src/blocs/`, pour resservir à d'autres éléments.
 | Aperçu de lien | ⬜ |  |
 | Menu « / » : filtre par mots-clés, catégories, couleurs et actions | ✅ |  |
 | Raccourcis markdown en début de bloc et en ligne | ✅ | `>` fait un dépliant dans le document, une citation dans la note. |
-| Remplacements typographiques (→, —, …, ≥, guillemets) | ✅ |  |
-| Transformer en (⌘/, ⌘⌥0…8) | ✅ |  |
-| Couleur de texte et de fond, sur un bloc ou un passage | ✅ | Neuf teintes de Notak, dans les deux thèmes ; ⌘⇧H reprend la dernière. |
-| Bulle de mise en forme sur une sélection | ✅ |  |
+| Remplacements typographiques (→, —, …, ≥, guillemets) | ✅ | Guillemets “ ” comme chez Notion. |
+| Collage et copie : Markdown, HTML (Google Docs, Notion), code, adresse ; copie en Markdown et HTML | 🟡 | Le menu « coller comme » et le collage de fichiers restent. |
+| Flèches à travers les blocs sans texte, ⌘A en deux temps | ✅ |  |
+| Transformer en (menu du bloc, bulle, ⌘⌥0…8) | ✅ | ⌘/ ouvre le menu du bloc, comme chez Notion. |
+| Couleur de texte et de fond, sur un bloc ou un passage | ✅ | Les neuf teintes mesurées dans Notion, dans les deux thèmes ; ⌘⇧H reprend la dernière. |
+| Bulle de mise en forme sur une sélection, éditeur de lien (⌘K) | ✅ | Le panneau vertical de Notion 7.24, en bas à droite de la sélection. |
 | Poignée ⋮⋮ et bouton + au survol, menu de bloc filtrable | ✅ | Supprimer, Dupliquer, Transformer en, Couleur, Copier le lien, Commenter. |
-| Sélection de blocs : Échap, Maj+flèches, Maj+clic, rectangle | ✅ | Le rectangle part de la marge du texte. |
-| Supprimer, dupliquer (⌘D), monter et descendre (⌘⇧↑/↓), imbriquer (Tab) | 🟡 | Tab imbrique dans les listes ; hors d’une liste, il garde le retrait du texte de la note au lieu de ranger le bloc sous le précédent. |
-| Glisser un bloc ou une sélection, ⌥ copie | ✅ | Un élément de liste sorti de sa liste en retrouve une ; un texte posé dans une liste en devient un élément. |
-| Colonnes : dépôt sur le côté, 2 à 5, largeurs aimantées, dissolution | ✅ | Aussi par « / » (2 à 5 colonnes) ; elles s’empilent sous 480 px. |
+| Sélection de blocs : Échap, Maj+flèches, Maj+clic, ⌘+clic, rectangle | ✅ | Le rectangle part de la marge, du vide ou du fond d’une colonne. |
+| Supprimer, dupliquer (⌘D), monter et descendre (⌘⇧↑/↓), imbriquer (Tab) | ✅ | Les copies de ⌘D restent choisies. |
+| Glisser un bloc ou une sélection, ⌥ copie | ✅ | Le retrait du dépôt se choisit à la souris ; fantôme, défilement automatique. |
+| Colonnes : dépôt sur le côté, largeurs aimantées, dissolution | ✅ | Aussi par « / » ; écart de 46 px, elles ne s’empilent pas. |
 | Copier le lien d'un bloc, l'adresse amène au bloc | ✅ | `/t/…/e/…#<bloc>` : le bloc vient à l’écran et clignote. |
 | Icône et couverture de la page | ✅ | Icône parmi 48 émojis, visible sur la carte ; couverture importée de l’appareil, recadrée en la tirant. |
 | Police, petit texte, pleine largeur | ✅ |  |

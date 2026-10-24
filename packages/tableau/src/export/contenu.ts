@@ -1,5 +1,6 @@
 import * as Y from 'yjs'
 import { NOM_ARBRES, toutLire } from '../coeur/arbresYjs.ts'
+import { aplatir, deplier } from '../blocs/migration.ts'
 
 // Ce que le serveur sait lire d'un tableau, sans la toile : le document Yjs, ses éléments et leur texte.
 // Les types restent à la mesure de ce dont le serveur a besoin ; la toile (React) ne se charge jamais ici.
@@ -88,6 +89,12 @@ export function texteBrut(n: NoeudTexte): string {
 const chaine = (v: unknown): string => (typeof v === 'string' ? v : '')
 const doc = (v: unknown): NoeudTexte | null => (v && typeof v === 'object' ? (v as NoeudTexte) : null)
 
+/** Le texte d'un document, dans l'écriture imbriquée que lisent les exports (docs/NOTION.md § 1). */
+const imbrique = (v: unknown): NoeudTexte | null => {
+  const d = doc(v)
+  return d ? deplier(aplatir(d)) : null
+}
+
 /** Tout le texte qu'on peut chercher dans un élément (comme la recherche de la toile). */
 export function texteCherchable(e: ElementLu, titreDe: (id: string) => string | undefined): string {
   const c = e.contenu
@@ -114,7 +121,7 @@ export function texteCherchable(e: ElementLu, titreDe: (id: string) => string | 
     case 'ligne':
       return chaine(c.libelle)
     case 'document': {
-      const d = doc(c.texte)
+      const d = imbrique(c.texte)
       return [chaine(c.titre), d ? texteBrut(d) : ''].join('\n')
     }
     case 'arbre':

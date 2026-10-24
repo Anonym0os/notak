@@ -62,6 +62,17 @@ saisie des langues à composition et l'écriture à plusieurs par Yjs sont déj�
 bloc obligerait à tout réécrire. Le prix : un bloc synchronisé (le même bloc à deux endroits) ou une base dont les
 lignes sont des pages demanderont un stockage par bloc, que l'id stable prépare.
 
+**Décision (24/10/2026) : des blocs à plat, rangés par leur retrait.** Chez Notion, tout bloc de texte peut porter
+des enfants (Tab range un paragraphe sous un autre). Plutôt que d'imbriquer des nœuds, chaque bloc est un frère dans
+la page (ou dans une colonne) et porte un `retrait` : ses enfants sont les blocs qui le suivent, plus en retrait
+(`blocs/plats.ts`, `blocs/rang.ts`). Motif : les règles de Notion tombent d'elles-mêmes (Tab sur un bloc seul laisse
+ses enfants en place ; Maj+Tab fait des frères suivants ses enfants), ProseMirror garde ses gestes de texte sur des
+frères, et un bloc qui change de parent ne change qu'un attribut, ce qui laisse le fragment Yjs intact. Le prix : la
+numérotation, ce qu'un dépliant fermé cache et le cadre d'un encadré se calculent (`blocs/structure.ts`, en
+décorations), et un texte écrit dans l'écriture imbriquée (une note, un document d'avant) passe par
+`blocs/migration.ts` : aplati à l'ouverture, déplié pour les exports et la conversion en note. Ce moteur deviendra
+l'éditeur de toute l'application.
+
 Un vieux client qui lit un bloc qu'il ne connaît pas ouvre le document en lecture seule plutôt que de le vider
 (`blocs/lisible.ts`).
 

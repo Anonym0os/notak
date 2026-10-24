@@ -1,0 +1,198 @@
+/* La sélection de blocs, la poignée, le glisser et les largeurs de colonnes (docs/NOTION.md § 6 à 8). */
+
+/* La sélection de blocs (NOTION.md § 7) : plus de curseur ni de surlignage du texte ; le halo est un calque (`Halos`). */
+.notak-blocs[data-choix-blocs] {
+  caret-color: transparent;
+}
+
+.notak-blocs[data-choix-blocs] ::selection {
+  background: transparent;
+}
+
+/* Pendant qu'un texte tiré devient une sélection de blocs, le navigateur n'étend plus rien. */
+.notak-blocs.notak-blocs-glisse,
+.notak-blocs.notak-blocs-glisse * {
+  user-select: none;
+}
+
+/* Le halo d'un bloc choisi et de ses enfants : un calque à 2 px du bord, qui apparaît en 200 ms. */
+.notak-blocs-halo {
+  position: absolute;
+  z-index: 81;
+  background: rgb(35 131 226 / 0.14);
+  pointer-events: none;
+  animation: notak-halo-entree 200ms ease;
+}
+
+@keyframes notak-halo-entree {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Le conteneur où le bloc tiré va tomber : un voile plus léger. */
+.notak-blocs-halo[data-parent] {
+  background: rgb(35 131 226 / 0.07);
+  border-radius: 4px;
+}
+
+/* Un bloc qu'une adresse a nommé clignote une fois. */
+.notak-blocs .notak-bloc-signale {
+  animation: notak-bloc-signale 1.6s ease-out;
+}
+
+@keyframes notak-bloc-signale {
+  0%,
+  40% { background: color-mix(in srgb, var(--notak-accent, #2f6feb) 22%, transparent); }
+  100% { background: transparent; }
+}
+
+/* La poignée : `+` (24 × 24) et `⋮⋮` (18 × 24) se touchent, à 10 px du bord gauche du bloc survolé. */
+.notak-blocs-poignee {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  transform: translateX(calc(-100% - 10px));
+}
+
+.notak-blocs-poignee button {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: color-mix(in srgb, var(--notak-texte, #323b4a) 40%, transparent);
+  cursor: pointer;
+  transition: background 20ms ease-in;
+}
+
+.notak-blocs-poignee button:hover {
+  background: color-mix(in srgb, var(--notak-texte, #211b17) 5.1%, transparent);
+}
+
+.notak-blocs-poignee button svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+.notak-blocs-poignee .notak-blocs-poignee-tenir {
+  width: 18px;
+  cursor: grab;
+}
+
+/* Pendant un glisser, rien d'autre ne réagit à la souris, et le curseur ne change plus. */
+[data-glisse],
+[data-glisse] * {
+  cursor: grabbing !important;
+}
+
+[data-glisse] .notak-blocs-largeur {
+  pointer-events: none;
+}
+
+/* Le fantôme du bloc tiré : sa copie, à 40 %, qui suit le pointeur. */
+.notak-blocs-fantome {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 90;
+  width: 0;
+  height: 0;
+  opacity: 0.4;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Où le bloc tiré tombera : un trait de 4 px, bleu à 43 %, d'un embout blanc de 2 × 4 px. */
+.notak-blocs-depot {
+  position: absolute;
+  z-index: 88;
+  box-sizing: border-box;
+  background: rgb(35 131 226 / 0.43);
+  pointer-events: none;
+  animation: notak-halo-entree 200ms ease;
+}
+
+.notak-blocs-depot::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -2px;
+  width: 2px;
+  height: 4px;
+  background: var(--notak-carte, #fff);
+}
+
+/* Sur un flanc, le trait est vertical : l'embout est en haut, de 4 × 2 px. */
+.notak-blocs-depot[data-flanc]::before {
+  top: -2px;
+  left: 0;
+  width: 4px;
+  height: 2px;
+}
+
+/* Dans un dépliant fermé : le bloc entier se teinte. */
+.notak-blocs-depot[data-dans] {
+  background: rgb(35 131 226 / 0.14);
+}
+
+.notak-blocs-depot[data-dans]::before {
+  content: none;
+}
+
+/* Le rectangle qu'on tire depuis la marge : bleu à 14 %, bordure de 1 px transparente, sans arrondi. */
+.notak-blocs-rectangle {
+  position: absolute;
+  z-index: 81;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  background: rgb(35 131 226 / 0.14);
+  pointer-events: none;
+}
+
+/*
+ * Les colonnes (NOTION.md § 8) : 46 px entre deux colonnes, 12 px de remplissage en haut et en bas, une largeur
+ * qui se partage selon les parts (`flex-grow`) ; elles ne s'empilent jamais dans la page.
+ */
+.notak-blocs .notak-blocs-rangee {
+  display: flex;
+  flex-direction: row;
+  gap: 46px;
+  margin: 0;
+}
+
+.notak-blocs .notak-blocs-colonne {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-block: 12px;
+}
+
+/* La poignée de largeur : un séparateur de 46 px, invisible, dont un trait de 4 px apparaît en fondu au survol. */
+.notak-blocs-largeur {
+  position: absolute;
+  z-index: 2;
+  width: 46px;
+  transform: translateX(-50%);
+  cursor: col-resize;
+}
+
+.notak-blocs-largeur::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 21px;
+  width: 4px;
+  background: color-mix(in srgb, var(--notak-texte, #323b4a) 14%, transparent);
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+
+.notak-blocs-largeur:hover::after,
+.notak-blocs-largeur[data-tire]::after {
+  opacity: 1;
+}

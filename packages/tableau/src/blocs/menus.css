@@ -1,0 +1,579 @@
+/*
+ * Les menus du moteur de blocs (docs/NOTION.md § 3 et § 4) : le menu « / », « Transformer en », le menu du bloc, la
+ * bulle de mise en forme, l'éditeur de lien et les invites des blocs vides. Les valeurs sont celles mesurées dans
+ * Notion (relevé « 4-rendu-mesures », § 5 et § 6) : rayon 10, lignes de 32 px (28 px dans le menu du bloc), icône de
+ * 20 px sans tuile, ombre « extérieur large ».
+ */
+
+/* Les jetons des menus : clair par défaut, repeints dans le thème sombre de l'espace. */
+.notak-menu-blocs,
+.notak-bulle,
+.notak-bulle-sous {
+  --notak-m-fond: #fff;
+  --notak-m-texte: #2c2c2b;
+  --notak-m-icone: #383836;
+  --notak-m-pale: #a19e99;
+  --notak-m-titre: #7d7a75;
+  --notak-m-chevron: #8e8b86;
+  --notak-m-survol: rgb(33 27 23 / 0.051);
+  --notak-m-trait: rgb(42 28 0 / 0.07);
+  --notak-m-champ: rgb(66 35 3 / 0.03);
+  --notak-m-anneau: rgb(28 19 1 / 0.11);
+  --notak-m-ombre: 0 20px 24px rgb(25 25 25 / 0.05), 0 5px 8px rgb(25 25 25 / 0.027), 0 0 0 1px rgb(42 28 0 / 0.07);
+  --notak-m-accent: #2783de;
+  --notak-m-focus: #2383e2;
+}
+
+.notak-espace[data-theme='sombre'] :is(.notak-menu-blocs, .notak-bulle, .notak-bulle-sous) {
+  --notak-m-fond: #252525;
+  --notak-m-texte: #f0efed;
+  --notak-m-icone: #e6e5e3;
+  --notak-m-pale: #7d7a75;
+  --notak-m-titre: #ada9a3;
+  --notak-m-chevron: #8e8b86;
+  --notak-m-survol: rgb(255 255 255 / 0.055);
+  --notak-m-trait: rgb(255 255 235 / 0.082);
+  --notak-m-champ: rgb(252 252 252 / 0.03);
+  --notak-m-anneau: rgb(255 255 235 / 0.1);
+  --notak-m-ombre: 0 0 0 1px #383836, 0 14px 28px -6px rgb(25 25 25 / 0.2), 0 2px 4px -1px rgb(25 25 25 / 0.118);
+}
+
+/* Au-dessus de la page du document ouverte en grand (z-index 1000, voir `document.css`). */
+.notak-menu-blocs-panneau,
+.notak-bulle-panneau {
+  z-index: 1100;
+}
+
+/* L'ouverture : opacité et échelle de 0,96 à 1 en 200 ms ; l'origine est le coin du menu « / », le centre des autres. La fermeture est instantanée. */
+@keyframes notak-menu-ouvre {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* La bulle : 100 ms après 30 ms d'attente, échelle de 0,98 à 1, et trois pixels de montée. */
+@keyframes notak-bulle-ouvre {
+  from {
+    opacity: 0;
+    transform: translateY(3px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ===== Le menu ===== */
+
+.notak-menu-blocs {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: 220px;
+  max-height: calc(100vh - 40px);
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--notak-m-fond);
+  box-shadow: var(--notak-m-ombre);
+  color: var(--notak-m-texte);
+  font: 14px/1.2 system-ui, sans-serif;
+  transform-origin: center;
+  animation: notak-menu-ouvre 200ms ease;
+}
+
+.notak-menu-blocs[data-genre='slash'] {
+  width: 375px;
+  max-height: min(448px, 40vh);
+  transform-origin: 0 0;
+}
+
+.notak-menu-blocs[data-genre='bloc'] {
+  width: 265px;
+}
+
+/* Le champ de recherche : une boîte de 28 px, bague bleue d'un pixel dedans et d'un pixel dehors. */
+.notak-menu-blocs-entete {
+  padding: 8px 4px 4px;
+}
+
+.notak-menu-blocs-filtre {
+  box-sizing: border-box;
+  display: block;
+  width: calc(100% - 8px);
+  height: 28px;
+  margin: 0 4px;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 6px;
+  outline: none;
+  background: var(--notak-m-champ);
+  color: inherit;
+  font: inherit;
+  line-height: 20px;
+}
+
+.notak-menu-blocs-filtre::placeholder {
+  color: var(--notak-m-pale);
+}
+
+.notak-menu-blocs-filtre:focus {
+  box-shadow: inset 0 0 0 1px var(--notak-m-focus), 0 0 0 1px var(--notak-m-focus);
+}
+
+.notak-menu-blocs-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-height: 0;
+  padding: 4px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.notak-menu-blocs-groupe {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* Le titre d'une section : 12 px, graisse 500, couleur secondaire. */
+.notak-menu-blocs-categorie {
+  margin: 6px 0 8px;
+  padding: 0 8px;
+  color: var(--notak-m-titre);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 14.4px;
+}
+
+/* Le trait entre deux sections, en retrait de 12 px de chaque côté de la liste. */
+.notak-menu-blocs-trait {
+  flex: none;
+  height: 1px;
+  margin: 6px 8px 0;
+  background: var(--notak-m-trait);
+}
+
+.notak-menu-blocs-entree {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notak-menu-blocs[data-genre='slash'] .notak-menu-blocs-entree {
+  height: 32px;
+}
+
+/* La ligne survolée est aussi la ligne active au clavier : même fond. */
+.notak-menu-blocs-entree[data-actif],
+:is(.notak-menu-blocs[data-genre='sous'], .notak-bulle-transformer, .notak-bulle-lien) .notak-menu-blocs-entree:hover {
+  background: var(--notak-m-survol);
+}
+
+.notak-menu-blocs-icone {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  color: var(--notak-m-icone);
+}
+
+.notak-menu-icone {
+  display: block;
+}
+
+.notak-menu-blocs-nom {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Le nom de la section, derrière le nom, dans une liste filtrée. */
+.notak-menu-blocs-suffixe {
+  color: var(--notak-m-pale);
+}
+
+.notak-menu-blocs-droite,
+.notak-menu-blocs-coche {
+  flex: none;
+  margin-right: 2px;
+  color: var(--notak-m-pale);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.notak-menu-blocs-coche {
+  color: var(--notak-m-icone);
+  font-size: 14px;
+}
+
+.notak-menu-blocs-chevron {
+  flex: none;
+  color: var(--notak-m-chevron);
+}
+
+/* La tuile « A » d'une couleur : 20 px dans le menu « / », 26 px dans le menu du bloc ; un liseré d'un pixel, de deux sur la ligne active. */
+.notak-menu-teinte {
+  box-sizing: border-box;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px var(--notak-m-anneau);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+[data-actif] > .notak-menu-teinte,
+.notak-menu-blocs-entree:hover > .notak-menu-teinte {
+  box-shadow: inset 0 0 0 2px var(--notak-m-anneau);
+}
+
+.notak-menu-blocs[data-genre='bloc'] .notak-menu-teinte,
+.notak-menu-blocs[data-genre='couleur'] .notak-menu-teinte,
+.notak-menu-blocs[data-genre='sous'] .notak-menu-teinte {
+  width: 26px;
+  height: 26px;
+  font-size: 16px;
+}
+
+/* Le pied du menu « / » : un trait pleine largeur, puis « Fermer le menu » et sa touche. */
+.notak-menu-blocs-pied {
+  flex: none;
+  padding: 4px;
+  box-shadow: 0 -1px 0 var(--notak-m-trait);
+}
+
+.notak-menu-blocs-pied .notak-menu-blocs-entree {
+  height: 32px;
+  padding: 0 8px;
+}
+
+.notak-menu-blocs-vide {
+  padding: 8px;
+  color: var(--notak-m-pale);
+}
+
+/* ===== Ce qu'on voit dans le texte pendant que le menu « / » est ouvert ===== */
+
+/* Le `/` et ce qu'on tape derrière, sur un fond gris, comme une pastille posée sur le texte. */
+.notak-blocs .notak-slash-texte {
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 7%, transparent);
+}
+
+.notak-blocs .notak-slash-fantome {
+  display: inline;
+  border-radius: 0 4px 4px 0;
+  background: color-mix(in srgb, currentColor 7%, transparent);
+  color: var(--notak-page-pale, rgb(21 14 0 / 0.286));
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ===== Les invites des blocs vides ===== */
+
+/*
+ * Posées en `::after`, car le `::before` de ces blocs dessine leur marqueur (puce, numéro, case, triangle, filet).
+ * Superposées au texte plutôt que mises derrière le `<br>` de fin de ligne, qui les renverrait à la ligne suivante ;
+ * le remplissage est celui du bloc, donc le départ du texte. Un bloc qui prend déjà son `::after` pour le cadre
+ * (l'intérieur d'un encadré ou d'une citation) n'en reçoit pas.
+ */
+.notak-blocs .notak-invite:not(.notak-dans-encadre, .notak-dans-citation) {
+  position: relative;
+}
+
+.notak-blocs .notak-invite:not(.notak-dans-encadre, .notak-dans-citation)::after {
+  content: attr(data-invite);
+  position: absolute;
+  inset: 0;
+  padding: inherit;
+  overflow: hidden;
+  color: var(--notak-page-pale, rgb(21 14 0 / 0.286));
+  pointer-events: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* L'invite d'un paragraphe vide attend le focus de l'éditeur ; celles des blocs d'un type se voient toujours. */
+.ProseMirror:not(.ProseMirror-focused) .notak-invite-texte::after {
+  display: none;
+}
+
+/* ===== La bulle de mise en forme ===== */
+
+.notak-bulle-panneau {
+  position: fixed;
+}
+
+/* Un panneau de 192 px : le type du bloc, deux rangées de boutons de 32 × 28, le commentaire. */
+.notak-bulle {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 192px;
+  padding: 8px;
+  border-radius: 14px;
+  background: var(--notak-m-fond);
+  box-shadow: var(--notak-m-ombre);
+  color: var(--notak-m-texte);
+  font: 14px/1.2 system-ui, sans-serif;
+  animation: notak-bulle-ouvre 100ms ease 30ms backwards;
+}
+
+.notak-bulle-type,
+.notak-bulle-commenter {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notak-bulle-type {
+  gap: 8px;
+  width: 176px;
+  padding: 0 8px 0 6px;
+}
+
+.notak-bulle-commenter {
+  gap: 6px;
+  align-self: flex-start;
+  padding: 0 6px;
+}
+
+.notak-bulle-type > .notak-menu-icone,
+.notak-bulle-commenter > .notak-menu-icone,
+.notak-bulle-bouton > .notak-menu-icone {
+  color: var(--notak-m-icone);
+}
+
+.notak-bulle-type-nom {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-bulle-type > .notak-bulle-chevron {
+  color: var(--notak-m-chevron);
+}
+
+.notak-bulle-trait {
+  flex: none;
+  height: 1px;
+  margin: 4px 8px;
+  background: var(--notak-m-trait);
+}
+
+.notak-bulle-rangee {
+  display: flex;
+  gap: 4px;
+}
+
+.notak-bulle-rangee + .notak-bulle-rangee {
+  margin-top: 4px;
+}
+
+.notak-bulle-bouton {
+  box-sizing: border-box;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.notak-bulle-type:hover,
+.notak-bulle-commenter:hover,
+.notak-bulle-bouton:hover,
+.notak-bulle-bouton[aria-expanded='true'],
+.notak-bulle-type[aria-expanded='true'] {
+  background: var(--notak-m-survol);
+}
+
+/* Une marque active : l'icône passe au bleu d'accent, sans fond. */
+.notak-bulle-bouton[aria-pressed='true'],
+.notak-bulle-bouton[aria-pressed='true'] > .notak-menu-icone {
+  color: var(--notak-m-accent);
+}
+
+/* Le bouton de couleur : la tuile « A » de 20 px, montrant la couleur de la sélection. */
+.notak-bulle-a {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px var(--notak-m-anneau);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+/* Les panneaux ouverts depuis la bulle : la grille des couleurs, la liste « Transformer en ». */
+.notak-bulle-sous {
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: var(--notak-m-fond);
+  box-shadow: var(--notak-m-ombre);
+  color: var(--notak-m-texte);
+  font: 14px/1.2 system-ui, sans-serif;
+  animation: notak-menu-ouvre 200ms ease;
+  transform-origin: 0 0;
+}
+
+.notak-bulle-couleurs {
+  width: 190px;
+  max-height: calc(100vh - 40px);
+  padding: 4px 0;
+  overflow-y: auto;
+}
+
+.notak-bulle-couleurs .notak-menu-blocs-categorie {
+  margin: 6px 0 8px;
+  padding: 0 12px;
+}
+
+.notak-bulle-grille {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  padding: 0 8px;
+}
+
+.notak-bulle-grille + .notak-menu-blocs-categorie {
+  margin-top: 8px;
+}
+
+.notak-bulle-grille:last-child {
+  margin-bottom: 8px;
+}
+
+.notak-bulle-pastille {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--notak-m-anneau);
+  color: var(--notak-m-texte);
+  font: 500 16px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.notak-bulle-pastille:hover,
+.notak-bulle-pastille[aria-pressed='true'] {
+  box-shadow: inset 0 0 0 2px var(--notak-m-anneau);
+}
+
+.notak-bulle-transformer {
+  min-width: 180px;
+  max-height: calc(100vh - 40px);
+  padding: 4px;
+  overflow-y: auto;
+}
+
+/* ===== L'éditeur de lien de la bulle ===== */
+
+.notak-bulle-lien {
+  width: 330px;
+  padding: 4px;
+}
+
+.notak-bulle-lien-champ {
+  box-sizing: border-box;
+  display: block;
+  width: calc(100% - 8px);
+  height: 28px;
+  margin: 4px 4px 8px;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 6px;
+  outline: none;
+  background: var(--notak-m-champ);
+  color: inherit;
+  font: inherit;
+  line-height: 20px;
+}
+
+.notak-bulle-lien-champ::placeholder {
+  color: var(--notak-m-pale);
+}
+
+.notak-bulle-lien-champ:focus {
+  box-shadow: inset 0 0 0 1px var(--notak-m-focus), 0 0 0 1px var(--notak-m-focus);
+}
+
+.notak-bulle-lien .notak-menu-blocs-entree {
+  height: 32px;
+}
+
+/* « Saisissez une adresse complète » : en rouge tant que la saisie n'est pas une adresse. */
+.notak-bulle-lien-legende {
+  flex: none;
+  color: var(--notak-m-pale);
+  font-size: 12px;
+}
+
+.notak-bulle-lien-legende[data-erreur] {
+  color: #cf5148;
+}
+
+.notak-bulle-lien .notak-menu-blocs-trait {
+  margin: 4px 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notak-menu-blocs,
+  .notak-bulle,
+  .notak-bulle-sous {
+    animation-duration: 1ms;
+    animation-delay: 0ms;
+  }
+}

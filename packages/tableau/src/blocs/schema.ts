@@ -1,35 +1,50 @@
 import { getSchema } from '@tiptap/react'
-import { TaskItem, TaskList } from '@tiptap/extension-list'
 import StarterKit from '@tiptap/starter-kit'
 import { EXTENSIONS_NOTE, KIT } from '../elements/note/extensions'
+import { ClavierBlocs } from './clavier'
 import { DissolutionColonnes } from './colonnes'
 import { IdsDeBlocs } from './ids'
+import { ApercuLien, Colonne, Colonnes, ImageBloc } from './noeuds'
+import { CitationPlate, Depliant, EncadrePlat, Numero, Puce, Tache } from './plats'
 import { SaisieBlocs } from './saisie'
 import { SelectionBlocs } from './selection'
-import { ApercuLien, CitationBloc, Colonne, Colonnes, Deroulant, ImageBloc, ResumeDeroulant } from './noeuds'
+import { StructureBlocs } from './structure'
 
 /**
- * Les extensions du moteur de blocs : celles de la note (mêmes noms de nœuds et de marques, pour qu'un texte de note
- * s'ouvre tel quel), avec les titres jusqu'au troisième, les tâches, les blocs de `noeuds.ts`, les ids de blocs et
- * la saisie du moteur (`saisie.ts`, à la place du Markdown de la note : `*mot*` y met en italique, comme Notion).
+ * Les extensions du moteur de blocs (docs/NOTION.md § 1) : les marques et les nœuds en ligne de la note (mêmes noms,
+ * pour qu'un passage collé ou converti garde sa mise en forme), et les blocs à plat du moteur. Ce que la note fait de
+ * ses blocs (listes imbriquées, retraits par espaces, Markdown de la note) est remplacé par `plats.ts`,
+ * `clavier.ts` et `saisie.ts`. Un texte imbriqué (une note, un document d'avant) passe par `migration.ts`.
  */
-const KIT_BLOCS = { ...KIT, heading: { levels: [1, 2, 3] as (1 | 2 | 3)[] } }
+const KIT_BLOCS = {
+  ...KIT,
+  heading: { levels: [1, 2, 3] as (1 | 2 | 3)[] },
+  bulletList: false as const,
+  orderedList: false as const,
+  listItem: false as const,
+  listKeymap: false as const,
+  // Une adresse tapée devient un lien à l'espace qui suit ; collée sur un passage, elle le lie (NOTION.md § 5).
+  link: { openOnClick: false, autolink: true, linkOnPaste: true },
+}
 
-/** Ce que le moteur remplace dans la liste de la note. */
-const REMPLACES = new Set(['starterKit', 'blockquote', 'markdownTape'])
+/** Ce que le moteur ne prend pas de la note : ses blocs imbriqués et les touches qui vont avec. */
+const REMPLACES = new Set(['starterKit', 'retraits', 'blocEnParagraphe', 'markdownTape', 'blockquote', 'entreeEnTeteDeBloc', 'encadre', 'raccourcisFormat'])
 
 const communs = [
   ...EXTENSIONS_NOTE.filter((x) => !REMPLACES.has(x.name)),
-  CitationBloc,
-  TaskList,
-  TaskItem.configure({ nested: true }),
-  Deroulant,
-  ResumeDeroulant,
+  Puce,
+  Numero,
+  Tache,
+  Depliant,
+  CitationPlate,
+  EncadrePlat,
   Colonnes,
   Colonne,
   ImageBloc,
   ApercuLien,
   IdsDeBlocs,
+  StructureBlocs,
+  ClavierBlocs,
   SaisieBlocs,
   SelectionBlocs,
   DissolutionColonnes,

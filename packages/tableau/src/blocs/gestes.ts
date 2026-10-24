@@ -1,155 +1,197 @@
-import { Fragment, type Node as NoeudPM, type NodeType, type ResolvedPos } from '@tiptap/pm/model'
+import type { Node as NoeudPM, ResolvedPos } from '@tiptap/pm/model'
 import { type EditorState, TextSelection, type Transaction } from '@tiptap/pm/state'
-import { blocsDe } from './modele'
+import { CONTENEURS, RETRAIT_MAX, nouvelIdBloc } from './ids'
+import { type Bloc, type TypeBloc, blocsDe } from './modele'
 
 /**
- * Les gestes sur des blocs entiers (docs/NOTION.md § 6 à § 8), désignés par leurs ids : supprimer, dupliquer, déplacer.
- * Chacun prend l'état de l'éditeur et rend une transaction (ou `null` s'il n'y a rien à faire).
+ * Les gestes sur des blocs entiers (docs/NOTION.md § 5 à § 8), désignés par leurs ids : supprimer, dupliquer, déplacer,
+ * indenter. Un bloc emporte toujours ses enfants (les blocs plus en retrait qui le suivent). Chacun prend l'état de
+ * l'éditeur et rend une transaction (ou `null` s'il n'y a rien à faire).
  */
 
+/** Un bloc choisi, avec son sous-arbre `[pos, fin)` et son retrait dans son conteneur. */
+export interface Racine {
+  id: string
+  pos: number
+  fin: number
+  noeud: NoeudPM
+  bloc: Bloc
+}
+
+/** Le retrait d'un bloc dans son conteneur (la page ou sa colonne). */
+const retraitDe = (blocs: readonly Bloc[], b: Bloc) => {
+  let base = 0
+  for (let p = b.parent ? blocs.find((x) => x.id === b.parent) : undefined; p; p = p.parent ? blocs.find((x) => x.id === p!.parent) : undefined) {
+    if (p.type === 'colonne') {
+      base = p.profondeur + 1
+      break
+    }
+  }
+  return b.profondeur - base
+}
+
 /** Les blocs de premier rang parmi ceux choisis : un bloc dont un ancêtre est aussi choisi le suit déjà. */
-export function racines(doc: NoeudPM, ids: readonly string[]): { id: string; pos: number; noeud: NoeudPM }[] {
+export function racines(doc: NoeudPM, ids: readonly string[]): Racine[] {
   const voulus = new Set(ids)
   const blocs = blocsDe(doc)
   const parId = new Map(blocs.map((b) => [b.id, b]))
   return blocs.flatMap((b) => {
     if (!b.id || !voulus.has(b.id)) return []
     for (let p = b.parent; p; p = parId.get(p)?.parent ?? null) if (voulus.has(p)) return []
-    return [{ id: b.id, pos: b.pos, noeud: doc.nodeAt(b.pos)! }]
+    return [{ id: b.id, pos: b.pos, fin: b.fin, noeud: doc.nodeAt(b.pos)!, bloc: b }]
   })
 }
 
-/** La position d'un bloc à partir d'une position dedans : l'élément de liste, le dépliant… plutôt que leur premier texte. */
+/** La position du bloc qui contient `$pos` : le bloc de la page ou de la colonne, pas un paragraphe de cellule. */
 export function blocA($pos: ResolvedPos): number | null {
   for (let d = $pos.depth; d > 0; d--) {
-    const n = $pos.node(d)
-    const parent = $pos.node(d - 1)
-    if (!('id' in n.attrs)) continue
-    // Le premier texte d'un élément de liste, d'une citation, d'un encadré est ce bloc-là.
-    if ($pos.index(d - 1) === 0 && (n.isTextblock || n.type.name === 'resumeDeroulant') && ['listItem', 'taskItem', 'blockquote', 'encadre', 'deroulant'].includes(parent.type.name)) continue
-    if (n.type.name === 'resumeDeroulant') continue
-    return $pos.before(d)
+    if (CONTENEURS.has($pos.node(d - 1).type.name) && 'id' in $pos.node(d).attrs) return $pos.before(d)
   }
   return null
 }
 
 /**
- * Ce qu'on retire pour ôter un bloc : lui, ou le conteneur qu'il laisserait vide (sa liste, sa colonne), de proche en
- * proche. Une colonne vidée disparaît ainsi (NOTION.md § 8), ce que ProseMirror ne fait pas seul.
+ * Ce qu'on retire pour ôter `[de, a)` : la colonne qu'il laisserait vide, puis la rangée qui n'aurait plus de colonne.
+ * Une colonne restée seule se dissout ensuite (`colonnes.ts`).
  */
-export function etendue(doc: NoeudPM, pos: number, taille: number): [number, number] {
-  let de = pos
-  let a = pos + taille
+export function etendue(doc: NoeudPM, de: number, a: number): [number, number] {
   for (;;) {
     const $de = doc.resolve(de)
-    if ($de.depth === 0 || $de.parent.childCount !== 1) return [de, a]
-    if (!['bulletList', 'orderedList', 'taskList', 'colonne'].includes($de.parent.type.name)) return [de, a]
+    if ($de.depth === 0 || de !== $de.start() || a !== $de.end()) return [de, a]
+    if ($de.parent.type.name !== 'colonne' && !($de.parent.type.name === 'colonnes' && $de.parent.childCount === 1)) return [de, a]
     de = $de.before()
     a = de + $de.parent.nodeSize
   }
 }
 
-/** Retire les blocs de la transaction, du dernier au premier. */
-export function retirer(tr: Transaction, doc: NoeudPM, r: readonly { pos: number; noeud: NoeudPM }[]) {
-  for (const { pos, noeud } of [...r].reverse()) {
-    const [de, a] = etendue(doc, pos, noeud.nodeSize)
+/** Retire les sous-arbres de la transaction, du dernier au premier. */
+export function retirer(tr: Transaction, doc: NoeudPM, r: readonly { pos: number; fin: number }[]) {
+  for (const { pos, fin } of [...r].reverse()) {
+    const [de, a] = etendue(doc, pos, fin)
     tr.deleteRange(tr.mapping.map(de), tr.mapping.map(a))
   }
 }
 
-/** Supprime les blocs ; un conteneur vidé (liste, colonne) part avec eux, un document vidé garde un paragraphe. */
+/** Un document vidé garde un paragraphe. */
+function jamaisVide(tr: Transaction) {
+  if (tr.doc.childCount === 0 || tr.doc.content.size === 0) tr.insert(0, tr.doc.type.schema.nodes.paragraph!.create())
+}
+
+/** Supprime les blocs et leurs enfants ; une colonne vidée part avec eux. */
 export function supprimer(state: EditorState, ids: readonly string[]): Transaction | null {
   const r = racines(state.doc, ids)
   if (r.length === 0) return null
   const tr = state.tr
   retirer(tr, state.doc, r)
-  if (tr.doc.childCount === 0 || tr.doc.content.size === 0) tr.insert(0, state.schema.nodes.paragraph!.create())
+  jamaisVide(tr)
   const ici = Math.min(tr.mapping.map(r[0]!.pos), tr.doc.content.size)
   return tr.setSelection(TextSelection.near(tr.doc.resolve(ici), -1)).scrollIntoView()
 }
 
-/** Duplique les blocs, chacun juste après lui ; les copies reçoivent leurs propres ids (voir `ids.ts`). */
-export function dupliquer(state: EditorState, ids: readonly string[]): Transaction | null {
+/** Les nœuds d'un sous-arbre, chacun avec son retrait ramené à `profondeur` pour la racine ; `neufs` : de nouveaux ids. */
+export function sousArbre(doc: NoeudPM, r: Racine, profondeur: number, neufs: boolean): NoeudPM[] {
+  const noeuds: NoeudPM[] = []
+  const base = Number(r.noeud.attrs.retrait) || 0
+  doc.nodesBetween(r.pos, r.fin, (n, pos) => {
+    if (pos < r.pos) return true
+    const retrait = 'retrait' in n.attrs ? Math.max(0, Math.min(RETRAIT_MAX, (Number(n.attrs.retrait) || 0) - base + profondeur)) : undefined
+    const attrs = { ...n.attrs, ...(retrait !== undefined ? { retrait } : {}), ...(neufs && 'id' in n.attrs ? { id: nouvelIdBloc() } : {}) }
+    noeuds.push(n.type.name === 'colonnes' && neufs ? copieColonnes(n) : n.type.create(attrs, n.content, n.marks))
+    return false
+  })
+  return noeuds
+}
+
+/** Une rangée copiée : chaque bloc de ses colonnes reçoit un id neuf. */
+function copieColonnes(n: NoeudPM): NoeudPM {
+  const neuf = (x: NoeudPM): NoeudPM =>
+    x.type.create('id' in x.attrs ? { ...x.attrs, id: nouvelIdBloc() } : x.attrs, x.isTextblock || x.isAtom ? x.content : mapFragment(x), x.marks)
+  const mapFragment = (x: NoeudPM) => {
+    const enfants: NoeudPM[] = []
+    x.forEach((c) => enfants.push(neuf(c)))
+    return enfants
+  }
+  return neuf(n)
+}
+
+/** Le retrait de la racine dans son conteneur. */
+const retraitRacine = (doc: NoeudPM, r: Racine) => retraitDe(blocsDe(doc), r.bloc)
+
+/**
+ * Duplique les blocs (et leurs enfants) : les copies se posent ensemble après le dernier bloc choisi, chacune avec ses
+ * propres ids (NOTION.md § 6). Rend la transaction et les ids des copies (pour les choisir).
+ */
+export function dupliquer(state: EditorState, ids: readonly string[]): { tr: Transaction; copies: string[] } | null {
   const r = racines(state.doc, ids)
   if (r.length === 0) return null
-  const tr = state.tr
-  for (const { pos, noeud } of [...r].reverse()) tr.insert(pos + noeud.nodeSize, noeud.copy(noeud.content))
-  return tr.scrollIntoView()
+  const dernier = r[r.length - 1]!
+  const parts = r.map((x) => sousArbre(state.doc, x, retraitRacine(state.doc, x), true))
+  const tr = state.tr.insert(dernier.fin, parts.flat())
+  const copies = parts.map((p) => p[0]!.attrs.id as string)
+  return { tr: tr.scrollIntoView(), copies }
 }
 
 export type Cote = 'dessus' | 'dessous'
 
 /**
- * Enveloppe ce qu'on pose là où le parent ne l'accepte pas tel quel : un élément de liste hors d'une liste retrouve une
- * liste du même genre ; un bloc posé entre des éléments de liste devient un élément.
+ * Pose les blocs choisis (et leurs enfants) à la position `ou`, une limite entre deux blocs d'un conteneur, chaque
+ * racine au retrait `profondeur` ; `copier` les y copie. Un bloc ne se pose pas dans ses propres enfants.
  */
-export function adapter(noeuds: readonly NoeudPM[], parent: NoeudPM, index: number, listeDOrigine: Map<NoeudPM, NodeType>): NoeudPM[] | null {
-  const schema = parent.type.schema
-  const sortie = noeuds.map((n) => {
-    if (parent.canReplaceWith(index, index, n.type)) return n
-    const liste = listeDOrigine.get(n)
-    if ((n.type.name === 'listItem' || n.type.name === 'taskItem') && liste && parent.canReplaceWith(index, index, liste)) return liste.create(null, n)
-    if (['bulletList', 'orderedList'].includes(parent.type.name)) return schema.nodes.listItem!.create(null, n.isTextblock ? n : [schema.nodes.paragraph!.create(), n])
-    if (parent.type.name === 'taskList') return schema.nodes.taskItem!.create(null, n.isTextblock ? n : [schema.nodes.paragraph!.create(), n])
-    return null
-  })
-  if (sortie.some((n) => !n)) return null
-  const fragment = Fragment.from(sortie as NoeudPM[])
-  return parent.canReplace(index, index, fragment) ? (sortie as NoeudPM[]) : null
+export function poser(state: EditorState, ids: readonly string[], ou: number, profondeur: number, copier = false): Transaction | null {
+  const r = racines(state.doc, ids)
+  if (r.length === 0) return null
+  for (const { pos, fin } of r) if (ou > pos && ou < fin) return null
+  const $ou = state.doc.resolve(ou)
+  if (!CONTENEURS.has($ou.parent.type.name)) return null
+  // Pas de rangée de colonnes dans une colonne.
+  if ($ou.parent.type.name === 'colonne' && r.some((x) => x.noeud.type.name === 'colonnes')) return null
+  const noeuds = r.flatMap((x) => sousArbre(state.doc, x, Math.max(0, profondeur), copier))
+  const tr = state.tr
+  if (!copier) retirer(tr, state.doc, r)
+  const ici = tr.mapping.map(ou, -1)
+  tr.insert(ici, noeuds)
+  jamaisVide(tr)
+  return tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(ici + 1, tr.doc.content.size)))).scrollIntoView()
 }
 
 /**
- * Déplace les blocs au-dessus ou au-dessous du bloc `cible` (NOTION.md § 8) ; `copier` les y copie. Un bloc ne se pose
- * pas dans ses propres descendants.
+ * Déplace les blocs au-dessus du bloc `cible`, ou au-dessous de lui et de ses enfants, à son rang (NOTION.md § 8) ;
+ * `copier` les y copie.
  */
 export function deplacer(state: EditorState, ids: readonly string[], cible: string, cote: Cote, copier = false): Transaction | null {
-  const r = racines(state.doc, ids)
   const blocs = blocsDe(state.doc)
   const c = blocs.find((b) => b.id === cible)
-  if (r.length === 0 || !c) return null
-  // La cible dans un bloc déplacé : refusé.
-  for (const { pos, noeud } of r) if (c.pos >= pos && c.pos < pos + noeud.nodeSize && !(copier && c.pos === pos)) return null
-  const listes = new Map<NoeudPM, NodeType>()
-  for (const { pos, noeud } of r) {
-    const parent = state.doc.resolve(pos).parent
-    if (['bulletList', 'orderedList', 'taskList'].includes(parent.type.name)) listes.set(noeud, parent.type)
+  if (!c || c.type === 'colonne') return null
+  if (ids.includes(cible) && !copier) return null
+  // La cible dans un bloc tiré : refusé.
+  if (!copier && racines(state.doc, ids).some((x) => c.pos >= x.pos && c.pos < x.fin)) return null
+  return poser(state, ids, cote === 'dessus' ? c.pos : c.fin, retraitDe(blocs, c), copier)
+}
+
+/** Les frères d'un bloc (même parent, même conteneur), dans l'ordre. */
+function freres(blocs: readonly Bloc[], b: Bloc): Bloc[] {
+  return blocs.filter((x) => x.parent === b.parent && x.type !== 'colonne' && sameConteneur(blocs, x, b))
+}
+
+const conteneurDe = (blocs: readonly Bloc[], b: Bloc): string | null => {
+  for (let p = b.parent ? blocs.find((x) => x.id === b.parent) : undefined; p; p = p.parent ? blocs.find((x) => x.id === p!.parent) : undefined) {
+    if (p.type === 'colonne') return p.id
   }
-  const tr = state.tr
-  const arrivee = c.pos + (cote === 'dessous' ? c.taille : 0)
-  if (!copier) retirer(tr, state.doc, r)
-  const ou = tr.mapping.map(arrivee, cote === 'dessous' ? -1 : 1)
-  const $ou = tr.doc.resolve(ou)
-  const noeuds = adapter(
-    r.map(({ noeud }) => (copier ? noeud.copy(noeud.content) : noeud)),
-    $ou.parent,
-    $ou.index(),
-    listes,
-  )
-  if (!noeuds) return null
-  tr.insert(ou, noeuds)
-  if (tr.doc.content.size === 0) tr.insert(0, state.schema.nodes.paragraph!.create())
-  return tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(ou + 1, tr.doc.content.size)))).scrollIntoView()
+  return null
 }
+const sameConteneur = (blocs: readonly Bloc[], a: Bloc, b: Bloc) => conteneurDe(blocs, a) === conteneurDe(blocs, b)
 
-/** Les frères du bloc, dans son parent : celui d'avant et celui d'après. */
-function voisins(state: EditorState, id: string): { avant: string | null; apres: string | null } {
-  const b = blocsDe(state.doc).find((x) => x.id === id)
-  if (!b) return { avant: null, apres: null }
-  const $pos = state.doc.resolve(b.pos)
-  const i = $pos.index()
-  const parent = $pos.parent
-  const idDe = (n: NoeudPM | null | undefined) => (n?.attrs.id as string | undefined) ?? null
-  return { avant: i > 0 ? idDe(parent.child(i - 1)) : null, apres: i + 1 < parent.childCount ? idDe(parent.child(i + 1)) : null }
-}
-
-/** ⌘⇧↑ et ⌘⇧↓ : monte ou descend les blocs d'un rang parmi leurs frères (NOTION.md § 5). */
+/** ⌘⇧↑ et ⌘⇧↓ : monte ou descend les blocs d'un rang parmi leurs frères, avec leurs enfants (NOTION.md § 5). */
 export function decaler(state: EditorState, ids: readonly string[], sens: -1 | 1): Transaction | null {
   const r = racines(state.doc, ids)
   if (r.length === 0) return null
-  const bord = sens < 0 ? r[0]! : r[r.length - 1]!
-  const { avant, apres } = voisins(state, bord.id)
-  const cible = sens < 0 ? avant : apres
-  return cible ? deplacer(state, ids, cible, sens < 0 ? 'dessus' : 'dessous') : null
+  const blocs = blocsDe(state.doc)
+  const bord = sens < 0 ? r[0]!.bloc : r[r.length - 1]!.bloc
+  const f = freres(blocs, bord)
+  const i = f.findIndex((x) => x.id === bord.id)
+  const voisin = f[i + sens]
+  if (!voisin?.id) return null
+  return deplacer(state, ids, voisin.id, sens < 0 ? 'dessus' : 'dessous')
 }
 
 /** Colore des blocs entiers, texte ou fond (NOTION.md § 6) ; `null` leur rend la couleur par défaut. */
@@ -159,4 +201,48 @@ export function colorerBlocs(state: EditorState, ids: readonly string[], couleur
   const tr = state.tr
   for (const { pos } of r) tr.setNodeAttribute(pos, 'couleur', couleur)
   return tr
+}
+
+/** Les blocs qui peuvent recevoir des enfants par Tab (NOTION.md § 3) : ni un titre simple, ni un encadré, ni un code… */
+export const PARENTS: ReadonlySet<TypeBloc> = new Set<TypeBloc>(['texte', 'puce', 'numero', 'tache', 'deroulant', 'titreDeroulant1', 'titreDeroulant2', 'titreDeroulant3', 'citation'])
+
+/**
+ * Tab (`sens` 1) et Maj+Tab (-1) sur des blocs (NOTION.md § 3).
+ * - Tab range le bloc sous son frère d'avant, si celui-ci peut porter des enfants ; un bloc seul (le curseur) se
+ *   décale sans ses enfants, qui restent où ils sont ; plusieurs blocs choisis se décalent avec leurs enfants. Un
+ *   dépliant fermé qui reçoit un enfant s'ouvre.
+ * - Maj+Tab sort le bloc de son parent avec ses enfants ; les frères qui le suivaient deviennent ses enfants. Refusé
+ *   sous un encadré.
+ */
+export function indenter(state: EditorState, ids: readonly string[], sens: 1 | -1, seul = ids.length === 1): Transaction | null {
+  const r = racines(state.doc, ids)
+  if (r.length === 0) return null
+  const blocs = blocsDe(state.doc)
+  const parId = new Map(blocs.map((b) => [b.id, b]))
+  const tr = state.tr
+  const pousser = (de: number, a: number) =>
+    state.doc.nodesBetween(de, a, (n, pos) => {
+      if (pos < de || !('retrait' in n.attrs)) return false
+      tr.setNodeAttribute(pos, 'retrait', Math.max(0, Math.min(RETRAIT_MAX, (Number(n.attrs.retrait) || 0) + sens)))
+      return false
+    })
+  if (sens > 0) {
+    const premier = r[0]!.bloc
+    const f = freres(blocs, premier)
+    const avant = f[f.findIndex((x) => x.id === premier.id) - 1]
+    if (!avant || !PARENTS.has(avant.type)) return null
+    if (avant.format.ouvert === false) tr.setNodeAttribute(avant.pos, 'ouvert', true)
+    for (const x of r) {
+      const ferme = x.bloc.type === 'deroulant' || x.bloc.type.startsWith('titreDeroulant') ? x.noeud.attrs.ouvert === false : false
+      if (seul && !ferme) pousser(x.pos, x.pos + x.noeud.nodeSize)
+      else pousser(x.pos, x.fin)
+    }
+  } else {
+    for (const x of r) {
+      const parent = x.bloc.parent ? parId.get(x.bloc.parent) : undefined
+      if (!parent || parent.type === 'colonne' || parent.type === 'colonnes' || parent.type === 'encadre') continue
+      pousser(x.pos, x.fin)
+    }
+  }
+  return tr.docChanged ? tr : null
 }

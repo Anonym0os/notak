@@ -1,4 +1,4 @@
-import { EditorContent, useEditor } from '@tiptap/react'
+import { EditorContent, getSchema, useEditor } from '@tiptap/react'
 import { renderToReactElement } from '@tiptap/static-renderer/pm/react'
 import { type ReactNode, type RefObject, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -9,9 +9,13 @@ import { type Pont, Propositions, extensionPropositions } from '../note/Proposit
 import { Surcouche } from '../surcouche'
 import { CLE_IDS } from '../../blocs/ids'
 import { degrader, lisible } from '../../blocs/lisible'
+import { aplatir, deplier } from '../../blocs/migration'
+import { annoterPage } from '../../blocs/structure'
+import { EXTENSIONS_NOTE } from '../note/extensions'
 import { Bulle } from '../../blocs/Bulle'
 import type { Couleur } from '../../blocs/catalogue'
 import { Invite } from '../../blocs/invite'
+import { derniereCouleur } from '../../blocs/menuCouleurs'
 import { type Demande, MenuBlocs, type PontMenu, extensionSlash } from '../../blocs/Menu'
 import { Largeurs } from '../../blocs/Largeurs'
 import { Poignee } from '../../blocs/Poignee'
@@ -24,7 +28,6 @@ import { colorer, insererImage } from '../../blocs/transformer'
 import { TextSelection } from '@tiptap/pm/state'
 import { LegendeLocale, OutilLegende, avecTexteLegende } from '../LegendeLocale'
 import type { ContexteToile, DepotFichiers, PropsOutils, PropsRendu } from '../types'
-import { ColonneOutils } from './ColonneOutils'
 import { EntetePage, OptionsPage, attributsPage, pageDe } from './Page'
 import { extensionsDuPartage, textePartage } from '../partage'
 import { documentEnDocx } from './docx'
@@ -41,10 +44,13 @@ import { fermerMenus, useMenu } from '../../menuUnique'
  */
 const Lu = memo(function Lu({ texte, fils, adresse }: { texte: NoeudTexte; fils?: Fils | undefined; adresse?: Adresse | undefined }) {
   // Un passage dont le fil n'a aucun message (marqué, rien écrit) ne se souligne pas.
-  const rendu = useMemo(() => renderToReactElement({ content: sansPassagesMuets(degrader(texte, SCHEMA), fils), extensions: EXTENSIONS_BLOCS }), [texte, fils])
+  const rendu = useMemo(() => renderToReactElement({ content: sansPassagesMuets(degrader(aplatir(texte), SCHEMA), fils), extensions: EXTENSIONS_BLOCS }), [texte, fils])
   const racine = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    if (racine.current && adresse) remplirImages(racine.current, adresse)
+    if (!racine.current) return
+    // Les numéros, les blocs qu'un dépliant fermé cache, le cadre des encadrés : ce que l'éditeur pose en décorations.
+    annoterPage(racine.current)
+    if (adresse) remplirImages(racine.current, adresse)
   }, [rendu, adresse])
   return (
     <div className="notak-texte notak-blocs" ref={racine}>
@@ -52,6 +58,9 @@ const Lu = memo(function Lu({ texte, fils, adresse }: { texte: NoeudTexte; fils?
     </div>
   )
 })
+
+/** Le schéma de la note, pour imprimer l'écriture imbriquée. */
+const SCHEMA_NOTE = getSchema(EXTENSIONS_NOTE)
 
 /** L'adresse affichable d'un fichier du tableau. */
 type Adresse = (fichier: string) => Promise<string | null>
@@ -139,7 +148,7 @@ export function RenduDocument({ element, choisie, enEdition, contexte, brouillon
   const icone = pageDe(c.page).icone
   const adresse = useMemo(() => (fichiers ? (id: string) => fichiers.adresse(id) : undefined), [fichiers])
   // Un texte qu'une version plus récente a écrit ne s'édite pas ici : l'éditeur le viderait (docs/NOTION.md § 1).
-  const editable = useMemo(() => lisible(c.texte, SCHEMA), [c.texte])
+  const editable = useMemo(() => lisible(aplatir(c.texte), SCHEMA), [c.texte])
   const nom = (
     <>
       {titreSurCarte ? (
@@ -211,7 +220,7 @@ export function RenduDocument({ element, choisie, enEdition, contexte, brouillon
 }
 
 /** L'aperçu d'une carte ne dessine que le début du texte : le reste est caché de toute façon. */
-const premiersBlocsApercu = (doc: NoeudTexte): NoeudTexte => premiersBlocs(doc)
+const premiersBlocsApercu = (doc: NoeudTexte): NoeudTexte => premiersBlocs(aplatir(doc))
 
 /**
  * « Export ▾ » : un panneau de 20 rem avec sa flèche, son titre et quatre lignes à pictogramme : le PDF (l'impression
@@ -220,16 +229,17 @@ const premiersBlocsApercu = (doc: NoeudTexte): NoeudTexte => premiersBlocs(doc)
 function MenuExport({ titre, lireTexte }: { titre: string; lireTexte(): NoeudTexte }) {
   const [ouvert, setOuvert, ancre] = useMenu()
   const fichier = (format: FormatDocument) => {
-    const texte = documentEnTexte(titre, lireTexte(), format)
+    const texte = documentEnTexte(titre, deplier(aplatir(lireTexte())), format)
     telecharger(nomFichier(titre, format), texte, format === 'md' ? 'text/markdown' : 'text/plain')
     setOuvert(false)
   }
   const word = () => {
-    telechargerOctets(nomFichier(titre, 'docx'), documentEnDocx(titre, lireTexte()), 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    telechargerOctets(nomFichier(titre, 'docx'), documentEnDocx(titre, deplier(aplatir(lireTexte()))), 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
     setOuvert(false)
   }
   const pdf = () => {
-    const corps = renderToStaticMarkup(renderToReactElement({ content: degrader(lireTexte(), SCHEMA), extensions: EXTENSIONS_BLOCS }))
+    // L'impression lit l'écriture imbriquée : les listes s'y numérotent seules.
+    const corps = renderToStaticMarkup(renderToReactElement({ content: degrader(deplier(aplatir(lireTexte())), SCHEMA_NOTE), extensions: EXTENSIONS_NOTE }))
     imprimer(pageImpression(titre.trim() || t('commun.sansTitre'), corps))
     setOuvert(false)
   }
@@ -260,14 +270,15 @@ function MenuExport({ titre, lireTexte }: { titre: string; lireTexte(): NoeudTex
 }
 
 interface PropsModale {
-  /** Ouvert pour lire seulement : la colonne d'outils se réduit à 35 px et le texte remonte de 9 px. */
+  /** Ouvert pour lire seulement. */
   lecture?: boolean
+  /** Le titre en petit, dans la barre du haut. */
   titre: ReactNode
-  /** Le titre est celui du document : il se modifie ici. */
   lireTexte(): NoeudTexte
   titreTexte: string
-  outils?: ReactNode
   fermer(): void
+  /** Un appui sous le dernier bloc : on écrit à la fin de la page. */
+  finDePage?(e: React.MouseEvent): void
   children: ReactNode
   /** La zone du texte, qui défile : la poignée des blocs s'y place. */
   corps?: RefObject<HTMLDivElement | null>
@@ -277,11 +288,10 @@ interface PropsModale {
 }
 
 /**
- * La modale du document, comme Milanote : le fond assombri et flou, une boîte blanche sans arrondi collée en haut,
- * un en-tête de 56 px (le titre au centre, « Export » à droite), la colonne d'outils à gauche et le texte à côté.
- * Pas de croix : Échap ou un appui sur le fond referment.
+ * Le document en grand, comme une page de Notion (docs/NOTION.md § 9) : toute la fenêtre, une barre de 44 px en haut
+ * (fermer, le titre en petit, les options et « Export »), puis la page qui défile. Échap referme aussi.
  */
-function Modale({ titre, titreTexte, lireTexte, outils, fermer, children, lecture, corps, page, options }: PropsModale) {
+function Modale({ titre, titreTexte, lireTexte, fermer, children, lecture, corps, page, options, finDePage }: PropsModale) {
   return (
     <Surcouche
       etiquette={t('type.document')}
@@ -301,17 +311,19 @@ function Modale({ titre, titreTexte, lireTexte, outils, fermer, children, lectur
     >
       <div className="notak-document-boite" data-marge-ancre data-lecture={lecture || undefined} {...attributsPage(page ?? {})}>
         <header className="notak-document-entete">
-          <span className="notak-document-entete-vide" />
+          <button type="button" className="notak-document-fermer" aria-label={t('commun.fermer')} title={t('commun.fermer')} onClick={fermer}>
+            <Icone nom="fermer" taille={18} />
+          </button>
           <div className="notak-document-entete-titre">{titre}</div>
           <div className="notak-document-entete-droite">
             {options}
             <MenuExport titre={titreTexte} lireTexte={lireTexte} />
           </div>
         </header>
-        <div className="notak-document-zone">
-          <aside className="notak-document-cote">{outils}</aside>
-          <div className="notak-document-corps" ref={corps}>
+        <div className="notak-document-corps" ref={corps}>
+          <div className="notak-page">
             {children}
+            <div className="notak-page-fin" onMouseDown={finDePage} />
           </div>
         </div>
       </div>
@@ -319,13 +331,65 @@ function Modale({ titre, titreTexte, lireTexte, outils, fermer, children, lectur
   )
 }
 
+/** Le titre en petit dans la barre du haut : l'icône de la page, puis son titre (ou « Sans titre », pâle). */
+function FilDuTitre({ icone, titre }: { icone?: string | undefined; titre: string }) {
+  return (
+    <>
+      {icone && <span aria-hidden>{icone}</span>}
+      <span {...(titre.trim() ? {} : { 'data-vide': '' })}>{titre.trim() || t('commun.sansTitre')}</span>
+    </>
+  )
+}
+
+/** Le titre de la page : 40 px, il passe à la ligne ; Entrée descend dans le texte. */
+function TitrePage({ valeur, changer, entree }: { valeur: string; changer(v: string): void; entree(): void }) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = '0'
+    el.style.height = `${el.scrollHeight}px`
+  }, [valeur])
+  return (
+    <textarea
+      ref={ref}
+      className="notak-page-titre"
+      rows={1}
+      aria-label={t('document.titre')}
+      placeholder={t('document.nouveau')}
+      maxLength={TITRE_MAX}
+      spellCheck={false}
+      value={valeur}
+      onChange={(e) => changer(e.target.value.replace(/\n/g, ' '))}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+          e.preventDefault()
+          entree()
+        }
+      }}
+    />
+  )
+}
+
+/** Un appui sous le dernier bloc : le curseur va à la fin, dans un paragraphe vide de premier rang (ajouté s'il le faut). */
+function ecrireAlaFin(editeur: NonNullable<ReturnType<typeof useEditor>>) {
+  const { doc, schema } = editeur.state
+  const dernier = doc.lastChild
+  if (!(dernier?.type.name === 'paragraph' && dernier.content.size === 0 && !dernier.attrs.retrait)) {
+    editeur.view.dispatch(editeur.state.tr.insert(doc.content.size, schema.nodes.paragraph!.create()))
+  }
+  editeur.commands.focus('end')
+}
+
 /** Le document à lire seulement. `plusRecent` : il porte des blocs qu'une version plus récente de Notak sait écrire. */
 function Lecture({ contenu, fermer, plusRecent, adresse, fichiers }: { contenu: DocumentTexte; fermer(): void; plusRecent?: boolean; adresse?: Adresse | undefined; fichiers?: DepotFichiers | undefined }) {
   const titre = contenu.titre.trim() || t('commun.sansTitre')
   const page = pageDe(contenu.page)
   return (
-    <Modale lecture titre={<span className="notak-document-titre-lu">{titre}</span>} titreTexte={contenu.titre} lireTexte={() => contenu.texte} fermer={fermer} page={page}>
-      <EntetePage page={page} changer={() => {}} fichiers={fichiers} lectureSeule />
+    <Modale lecture titre={<FilDuTitre icone={page.icone} titre={contenu.titre} />} titreTexte={contenu.titre} lireTexte={() => contenu.texte} fermer={fermer} page={page}>
+      <EntetePage page={page} changer={() => {}} fichiers={fichiers} lectureSeule>
+        <h1 className="notak-page-titre notak-document-titre-lu">{titre}</h1>
+      </EntetePage>
       {plusRecent && (
         <p className="notak-document-plus-recent" role="status">
           {t('document.plusRecent')}
@@ -342,11 +406,12 @@ function Lecture({ contenu, fermer, plusRecent, adresse, fichiers }: { contenu: 
  */
 function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: DocumentTexte; ecrire(c: DocumentTexte): void; finir(): void; contexte: ContexteToile }) {
   const [titre, setTitre] = useState(contenu.titre)
-  const [lien, setLien] = useState<string | null>(null)
   // Le titre, le texte et les fils des passages changent chacun de leur côté : le brouillon porte toujours les derniers.
+  // Un document d'avant les blocs à plat (ou une note convertie) s'ouvre aplati (NOTION.md § 1).
+  const initial = useMemo(() => aplatir(contenu.texte), [])
   const dernier = useRef<{ titre: string; texte: NoeudTexte; fils: Fils | undefined; page: PageDocument }>({
     titre: contenu.titre,
-    texte: contenu.texte,
+    texte: initial,
     fils: contenu.fils,
     page: pageDe(contenu.page),
   })
@@ -375,15 +440,16 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
   const [demande, setDemande] = useState<Demande | null>(null)
   const demander = (mode: Demande['mode']) => setDemande((d) => ({ mode, n: (d?.n ?? 0) + 1 }))
   const corps = useRef<HTMLDivElement>(null)
-  const [derniere, setDerniere] = useState<Couleur | null>(null)
+  // La dernière couleur employée (⌘⇧H), gardée d'une ouverture à l'autre.
+  const [derniere, setDerniere] = useState<Couleur | null>(() => derniereCouleur())
   const gestes = useRef<GestesBlocs>({ transformerEn: () => {}, derniereCouleur: () => {} })
   const fichiers = contexte.services.fichiers
   // À plusieurs, le texte vit dans le fragment Yjs du document ; lu une fois, à l'entrée en édition (NOTION.md § 9).
-  const fragment = useMemo(() => textePartage(contexte, id, contenu.texte, SCHEMA), [])
+  const fragment = useMemo(() => textePartage(contexte, id, initial, SCHEMA), [])
   const extensions = useMemo(
     () => [
       ...(fragment ? [...EXTENSIONS_BLOCS_PARTAGEE, ...extensionsDuPartage(fragment, contexte)] : EXTENSIONS_BLOCS).map((x) => (x.name === 'image' && fichiers ? ImageBloc.configure({ adresse: (id) => fichiers.adresse(id) }) : x)),
-      Invite.configure({ texte: () => t('blocs.invite') }),
+      Invite,
       extensionPropositions(pont),
       extensionSlash(pontMenu),
       raccourcisBlocs(gestes),
@@ -392,7 +458,7 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
   )
   const editeur = useEditor({
     extensions,
-    ...(fragment ? {} : { content: contenu.texte }),
+    ...(fragment ? {} : { content: initial }),
     editorProps: {
       attributes: { class: 'notak-texte notak-blocs', 'aria-label': t('document.texte') },
       // ⌘⌥M : commenter le passage choisi, comme dans une note.
@@ -477,32 +543,14 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
 
   return (
     <Modale
-      titre={
-        <input
-          className="notak-document-grand-titre"
-          type="text"
-          aria-label={t('document.titre')}
-          placeholder={t('document.nouveau')}
-          maxLength={TITRE_MAX}
-          spellCheck={false}
-          value={titre}
-          onFocus={(e) => e.target.select()}
-          onChange={(e) => {
-            setTitre(e.target.value)
-            poser({ titre: e.target.value })
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-              e.preventDefault()
-              editeur?.commands.focus('start')
-            }
-          }}
-        />
-      }
+      titre={<FilDuTitre icone={page.icone} titre={titre} />}
       titreTexte={titre}
       lireTexte={() => (editeur ? (editeur.getJSON() as NoeudTexte) : dernier.current.texte)}
-      outils={editeur && <ColonneOutils editor={editeur} lien={lien} surLien={setLien} {...(peutCommenter ? { commenter: () => commenterRef.current() } : {})} />}
       fermer={finir}
+      finDePage={(e) => {
+        e.preventDefault()
+        if (editeur) ecrireAlaFin(editeur)
+      }}
       corps={corps}
       page={page}
       options={
@@ -522,7 +570,16 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
           poser({ page: p })
         }}
         fichiers={fichiers}
-      />
+      >
+        <TitrePage
+          valeur={titre}
+          changer={(v) => {
+            setTitre(v)
+            poser({ titre: v })
+          }}
+          entree={() => editeur?.commands.focus('start')}
+        />
+      </EntetePage>
       {editeur && (
         <Marge
           editeur={editeur}
@@ -552,8 +609,7 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
       {editeur && (
         <Bulle
           editeur={editeur}
-          transformerEn={() => demander('transformer')}
-          lien={() => setLien((editeur.getAttributes('link').href as string | undefined) ?? '')}
+          menuBloc={() => demander('bloc')}
           {...(peutCommenter ? { commenter: () => commenterRef.current() } : {})}
           derniere={derniere}
           surCouleur={setDerniere}
