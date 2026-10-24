@@ -61,8 +61,11 @@ Les paquets sortent dans `src-tauri/target/release/bundle/` : `.app` et `.dmg` s
 
 - **Le glisser-déposer de fichiers est laissé à la page** (`dragDropEnabled: false`). Sans cela, Tauri intercepte les
   fichiers lâchés sur la fenêtre et Notak ne reçoit plus les images déposées sur la toile.
-- **Pas de plugin, pas de commande Rust, pas de droit particulier** : la page est une page web ordinaire, qui n'a
-  aucun accès à la machine par la coque.
+- **La barre de titre se fond dans l'en-tête**, comme chez Milanote (`titleBarStyle: "Overlay"`) : les trois boutons
+  de la fenêtre se posent dans la première rangée de l'en-tête, qui leur laisse 80 px et sert de poignée pour déplacer
+  la fenêtre (`data-tauri-drag-region`). L'application web le sait par `data-bureau` sur la racine du document.
+- **Pas de plugin, pas de commande Rust, un seul droit** (`capabilities/principale.json`) : déplacer la fenêtre et
+  l'agrandir d'un double clic. Pour le reste, la page est une page web ordinaire, sans accès à la machine.
 - **Pour un serveur distant, une adresse en `https`** : les webviews (macOS surtout) refusent le HTTP simple hors
   `localhost`. La connexion à Notak vit dans la fenêtre, comme dans un navigateur.
 

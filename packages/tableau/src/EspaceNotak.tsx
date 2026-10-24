@@ -635,7 +635,12 @@ function Entete({
 
   useLayoutEffect(() => {
     const n = entete.current!
-    const mesurer = () => setLargeur(n.clientWidth - MARGE_ENTETE)
+    // Les marges de la première rangée : 16 px de chaque côté, plus la place des boutons de la fenêtre dans l'application de bureau.
+    const mesurer = () => {
+      const s = getComputedStyle(n.firstElementChild!)
+      const marges = parseFloat(s.paddingLeft) + parseFloat(s.paddingRight)
+      setLargeur(n.clientWidth - (Number.isNaN(marges) ? MARGE_ENTETE : marges))
+    }
     mesurer()
     const obs = new ResizeObserver(mesurer)
     obs.observe(n)
@@ -680,7 +685,8 @@ function Entete({
 
   return (
     <header className="notak-entete" ref={entete}>
-      <div className="notak-entete-haut">
+      {/* Dans l'application de bureau, la première rangée tient lieu de barre de titre : on la saisit partout hors des boutons pour déplacer la fenêtre. */}
+      <div className="notak-entete-haut" data-tauri-drag-region="deep">
         <nav className="notak-fil" aria-label={t('espace.fil')}>
           {visibles.flatMap((i, rang) => [
             rang > 0 && <span key={`s${i}`} className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,

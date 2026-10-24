@@ -453,14 +453,25 @@
   font-size: 14px;
 }
 
-/* Première rangée : le fil d'Ariane à gauche, l'historique et les outils à droite. */
+/* Première rangée : le fil d'Ariane à gauche, l'historique et les outils à droite. 44 px, comme Milanote. */
 .notak-entete-haut {
   display: flex;
   align-items: center;
   justify-content: space-between;
   box-sizing: border-box;
-  height: 48px;
+  height: 44px;
   padding: 0 16px;
+}
+
+/* Dans l'application de bureau, la rangée tient lieu de barre de titre : 40 px, les boutons de la fenêtre à gauche
+   (80 px), qu'elle rend en plein écran. */
+:root[data-bureau] .notak-entete-haut {
+  height: 40px;
+  padding-left: 80px;
+}
+
+:root[data-bureau][data-plein-ecran] .notak-entete-haut {
+  padding-left: 16px;
 }
 
 /* Seconde rangée : le titre centré, l'enregistrement à gauche, partage, export et vue à droite. */
@@ -1730,18 +1741,21 @@
 
 /*
  * Les outils d'une sélection à la place de la barre de gauche (réglage « Outils de la sélection »), comme Milanote :
- * le même panneau gris, une flèche pour revenir aux éléments à créer, puis une tuile par outil.
+ * le même panneau gris, une flèche pour revenir aux éléments à créer, puis une tuile par outil. La flèche est collée
+ * en haut de la colonne (3 px au-dessus, 2 px dans le bouton) ; les tuiles restent où elles étaient.
  */
 .notak-barre-outils[data-selection] {
   gap: 6px;
+  padding-top: 3px;
 }
 
 .notak-barre-retour {
   display: grid;
-  place-items: center;
+  place-items: start center;
   width: 100%;
   height: 25px;
-  margin-bottom: 2px;
+  margin-bottom: 9px;
+  padding: 2px 0 0;
   border: 0;
   border-bottom: 1px solid rgb(0 0 0 / 0.08);
   border-radius: 0;

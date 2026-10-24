@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "principale",
+  "description": "Le seul droit de la page : déplacer la fenêtre en la saisissant par l'en-tête, et l'agrandir d'un double clic.",
+  "windows": ["principale"],
+  "remote": { "urls": ["http://localhost:*", "https://*"] },
+  "permissions": ["core:window:allow-start-dragging", "core:window:allow-internal-toggle-maximize"]
+}
