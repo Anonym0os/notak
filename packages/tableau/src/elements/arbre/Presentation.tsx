@@ -59,9 +59,9 @@ const RACCOURCIS: { libelle: string; touches: string[][] | null }[] = [
 
 function Interrupteur({ actif, change, libelle, info }: { actif: boolean; change(v: boolean): void; libelle: string; info: string }) {
   return (
-    <div className="notak-pitch-ligne">
+    <div className="notak-arbre-pitch-ligne">
       <span>{libelle}</span>
-      <button type="button" role="switch" className="notak-pitch-interrupteur" aria-checked={actif} title={info} aria-label={libelle} onClick={() => change(!actif)}>
+      <button type="button" role="switch" className="notak-arbre-pitch-interrupteur" aria-checked={actif} title={info} aria-label={libelle} onClick={() => change(!actif)}>
         <span />
       </button>
     </div>
@@ -73,7 +73,7 @@ function BoutonOutil({ icone, info, inactif, onClick, refBouton, actif }: { icon
     <button
       ref={refBouton}
       type="button"
-      className="notak-pitch-outil"
+      className="notak-arbre-pitch-outil"
       aria-label={info}
       title={info}
       disabled={inactif}
@@ -188,7 +188,7 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
   // Les touches sont à la présentation tant qu'elle dure : la carte dessous n'en voit aucune.
   const touche = useRef<(e: KeyboardEvent) => void>(() => {})
   touche.current = (e) => {
-    const dansPopover = (e.target as Element | null)?.closest?.('.notak-pitch-popover')
+    const dansPopover = (e.target as Element | null)?.closest?.('.notak-arbre-pitch-popover')
     if (e.key === 'Escape') {
       if (aide) setAide(false)
       else if (reglages || themes) return
@@ -222,29 +222,29 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
   const mettreAJour = (reglage: Extract<Geste, { type: 'pitch' }>['reglage']) => !lectureSeule && faire({ type: 'pitch', reglage })
 
   return (
-    <div ref={scene} className="notak-pitch-scene" style={{ background: themeDe(arbre.theme).fond ?? 'var(--notak-arbre-fond)' }} onClick={suivant} aria-label={t('arbre.pitch.titre')} role="region" aria-live="polite">
+    <div ref={scene} className="notak-arbre-pitch-scene" style={{ background: themeDe(arbre.theme).fond ?? 'var(--notak-arbre-fond)' }} onClick={suivant} aria-label={t('arbre.pitch.titre')} role="region" aria-live="polite">
       {diapo && courant && (
-        <div key={courant.diapo} className="notak-pitch-diapo" data-anime={anime ? '' : undefined}>
+        <div key={courant.diapo} className="notak-arbre-pitch-diapo" data-anime={anime ? '' : undefined}>
           <Diapositive lecture={l} diapo={diapo} etape={courant.etape} theme={theme} ratio={ratio} adresse={adresse} anime={anime} taille={taille} />
         </div>
       )}
-      <span className="notak-pitch-compte">{t('arbre.pitch.position', { i: index + 1, n: total })}</span>
+      <span className="notak-arbre-pitch-compte">{t('arbre.pitch.position', { i: index + 1, n: total })}</span>
 
       <div
-        className="notak-pitch-outils"
+        className="notak-arbre-pitch-outils"
         data-discret={discret && !survol && !reglages && !themes ? '' : undefined}
         onClick={(e) => e.stopPropagation()}
         onPointerEnter={() => setSurvol(true)}
         onPointerLeave={() => setSurvol(false)}
         onDoubleClick={(e) => e.stopPropagation()}
       >
-        <div className="notak-pitch-groupe">
+        <div className="notak-arbre-pitch-groupe">
           <BoutonOutil icone="deconnexion" info={t('arbre.pitch.quitter')} onClick={quitter} />
         </div>
-        <div className="notak-pitch-groupe">
+        <div className="notak-arbre-pitch-groupe">
           <BoutonOutil icone="reglages" info={t('arbre.pitch.reglages')} refBouton={boutonReglages} actif={reglages} onClick={() => setReglages((o) => !o)} />
         </div>
-        <div className="notak-pitch-groupe">
+        <div className="notak-arbre-pitch-groupe">
           <BoutonOutil icone="triangleGauchePlein" info={t('arbre.pitch.parent')} inactif={index === 0} onClick={parent} />
           <BoutonOutil icone="triangleGauche" info={t('arbre.pitch.precedent')} inactif={index === 0} onClick={precedent} />
           <BoutonOutil icone="triangleDroite" info={t('arbre.pitch.suivant')} onClick={suivant} />
@@ -253,15 +253,15 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
       </div>
 
       {reglages && (
-        <PopoverFixe ancre={boutonReglages.current} fermer={() => (setReglages(false), setThemes(false))} largeur={290} className="notak-pitch-reglages">
+        <PopoverFixe ancre={boutonReglages.current} fermer={() => (setReglages(false), setThemes(false))} largeur={290} className="notak-arbre-pitch-reglages">
           <h2>{t('arbre.pitch.reglages')}</h2>
-          <button ref={boutonTheme} type="button" className="notak-pitch-bouton" title={t('arbre.pitch.themeInfo')} disabled={lectureSeule} onClick={() => setThemes((o) => !o)}>
+          <button ref={boutonTheme} type="button" className="notak-arbre-pitch-bouton" title={t('arbre.pitch.themeInfo')} disabled={lectureSeule} onClick={() => setThemes((o) => !o)}>
             {t('arbre.pitch.changerTheme')}
           </button>
-          <div className="notak-pitch-ligne">
+          <div className="notak-arbre-pitch-ligne">
             <span>{t('arbre.pitch.ratio')}</span>
             <select
-              className="notak-pitch-menu"
+              className="notak-arbre-pitch-menu"
               value={arbre.pitch?.ratio ?? 'auto'}
               title={t('arbre.pitch.ratioInfo')}
               aria-label={t('arbre.pitch.ratio')}
@@ -282,7 +282,7 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
       )}
 
       {puce === 'visible' && (
-        <div className="notak-pitch-puce" role="status" onClick={(e) => e.stopPropagation()}>
+        <div className="notak-arbre-pitch-puce" role="status" onClick={(e) => e.stopPropagation()}>
           <span>{t('arbre.pitch.depuisDebut')}</span>
           <button type="button" onClick={() => (setIndex(0), setPuce('fermee'))}>
             {t('arbre.pitch.debut')}
@@ -299,13 +299,13 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
 }
 
 function Touche({ children }: { children: ReactNode }) {
-  return <kbd className="notak-pitch-touche">{children}</kbd>
+  return <kbd className="notak-arbre-pitch-touche">{children}</kbd>
 }
 
 /** La fenêtre des raccourcis : chaque action et ses touches. */
 function Raccourcis({ fermer }: { fermer(): void }) {
   return (
-    <div className="notak-pitch-raccourcis" role="dialog" aria-label={t('arbre.pitch.raccourcis')} onClick={(e) => e.stopPropagation()}>
+    <div className="notak-arbre-pitch-raccourcis" role="dialog" aria-label={t('arbre.pitch.raccourcis')} onClick={(e) => e.stopPropagation()}>
       <header>
         <button type="button" aria-label={t('commun.fermer')} onClick={fermer}>
           <Icone nom="fermer" taille={14} trait={2} />
@@ -317,7 +317,7 @@ function Raccourcis({ fermer }: { fermer(): void }) {
           r.touches ? (
             <li key={r.libelle}>
               <span>{t(r.libelle)}</span>
-              <span className="notak-pitch-touches">
+              <span className="notak-arbre-pitch-touches">
                 {r.touches.map((groupe, j) => (
                   <span key={j}>
                     {j > 0 && <i>,</i>}
@@ -332,7 +332,7 @@ function Raccourcis({ fermer }: { fermer(): void }) {
               </span>
             </li>
           ) : (
-            <li key={`sep${i}`} className="notak-pitch-sep" role="separator" />
+            <li key={`sep${i}`} className="notak-arbre-pitch-sep" role="separator" />
           ),
         )}
       </ul>

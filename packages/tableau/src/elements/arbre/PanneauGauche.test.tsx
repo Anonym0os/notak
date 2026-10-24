@@ -51,27 +51,27 @@ describe('le panneau de gauche', () => {
     expect(onglets.map((o) => o.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false'])
     a.clic(onglets[1]!)
     expect(a.p.choisirOnglet).toHaveBeenCalledWith('notes')
-    a.clic(a.hote.querySelector('.notak-gauche-fermer')!)
+    a.clic(a.hote.querySelector('.notak-arbre-gauche-fermer')!)
     expect(a.p.fermer).toHaveBeenCalled()
     a.fin()
   })
 
   it('le plan : le titre de la feuille, l’arbre, les étiquettes sous le sujet ; un clic va au sujet', () => {
     const a = monter('plan')
-    expect(a.hote.querySelector('.notak-gauche-feuille')?.textContent).toBe('Projet')
-    expect([...a.hote.querySelectorAll('.notak-plan-titre')].map((t) => t.textContent)).toEqual(['Projet', 'Idées neuves', 'Une', 'Deux'])
-    expect([...a.hote.querySelectorAll('.notak-plan-detail')].map((t) => t.textContent)).toEqual(['urgent', 'urgent'])
-    a.clic(a.hote.querySelectorAll('.notak-plan-titre')[2]!)
+    expect(a.hote.querySelector('.notak-arbre-gauche-feuille')?.textContent).toBe('Projet')
+    expect([...a.hote.querySelectorAll('.notak-arbre-gauche-plan-titre')].map((t) => t.textContent)).toEqual(['Projet', 'Idées neuves', 'Une', 'Deux'])
+    expect([...a.hote.querySelectorAll('.notak-arbre-gauche-plan-detail')].map((t) => t.textContent)).toEqual(['urgent', 'urgent'])
+    a.clic(a.hote.querySelectorAll('.notak-arbre-gauche-plan-titre')[2]!)
     expect(a.p.aller).toHaveBeenCalledWith(a.ids.y)
     a.fin()
   })
 
   it('le plan se replie, et la recherche garde les sujets trouvés avec leurs ancêtres', () => {
     const a = monter('plan')
-    a.clic(a.hote.querySelectorAll('.notak-plan-pli')[1]!)
-    expect([...a.hote.querySelectorAll('.notak-plan-titre')].map((t) => t.textContent)).toEqual(['Projet', 'Idées neuves', 'Deux'])
+    a.clic(a.hote.querySelectorAll('.notak-arbre-gauche-plan-pli')[1]!)
+    expect([...a.hote.querySelectorAll('.notak-arbre-gauche-plan-titre')].map((t) => t.textContent)).toEqual(['Projet', 'Idées neuves', 'Deux'])
     a.taper(a.hote.querySelector<HTMLInputElement>('input[type=search]')!, 'une')
-    expect([...a.hote.querySelectorAll('.notak-plan-titre')].map((t) => t.textContent)).toEqual(['Projet', 'Idées neuves', 'Une'])
+    expect([...a.hote.querySelectorAll('.notak-arbre-gauche-plan-titre')].map((t) => t.textContent)).toEqual(['Projet', 'Idées neuves', 'Une'])
     a.taper(a.hote.querySelector<HTMLInputElement>('input[type=search]')!, 'zzz')
     expect(a.hote.textContent).toContain('Aucun résultat n’a été trouvé.')
     a.fin()
@@ -79,19 +79,19 @@ describe('le panneau de gauche', () => {
 
   it('les notes : le titre du sujet puis son texte ; un clic va au sujet ; la recherche filtre', () => {
     const a = monter('notes')
-    const lignes = [...a.hote.querySelectorAll('.notak-note-ligne')]
+    const lignes = [...a.hote.querySelectorAll('.notak-arbre-note-ligne')]
     expect(lignes.map((l) => l.textContent)).toEqual(['Idées neuvesLa première note'])
     a.clic(lignes[0]!)
     expect(a.p.aller).toHaveBeenCalledWith(a.ids.x)
     a.taper(a.hote.querySelector<HTMLInputElement>('input[type=search]')!, 'inconnu')
-    expect(a.hote.querySelector('.notak-note-ligne')).toBeNull()
+    expect(a.hote.querySelector('.notak-arbre-note-ligne')).toBeNull()
     expect(a.hote.textContent).toContain('Aucun résultat')
     a.fin()
   })
 
   it('les étiquettes : un repère par ligne avec son nombre de sujets, coché ou non', () => {
     const a = monter('etiquettes')
-    const lignes = [...a.hote.querySelectorAll('.notak-repere')]
+    const lignes = [...a.hote.querySelectorAll('.notak-arbre-gauche-repere')]
     expect(lignes.map((l) => l.textContent)).toEqual(['urgent2'])
     expect((lignes[0]!.querySelector('input') as HTMLInputElement).checked).toBe(true)
     a.clic(lignes[0]!.querySelector('input')!)

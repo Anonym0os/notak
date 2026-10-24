@@ -47,7 +47,7 @@ const LIGNE_VIDE = 'auto'
 /** Une ligne « libellé, menu » : le menu natif, à 24 de haut. */
 function Menu({ valeur, options, change, info, libelle, large }: { valeur: string; options: { valeur: string; libelle: string }[]; change(v: string): void; info: string; libelle: string; large?: boolean }) {
   return (
-    <select className="notak-pitch-menu" data-large={large ? '' : undefined} value={valeur} title={info} aria-label={libelle} onChange={(e) => change(e.target.value)}>
+    <select className="notak-arbre-pitch-menu" data-large={large ? '' : undefined} value={valeur} title={info} aria-label={libelle} onChange={(e) => change(e.target.value)}>
       {valeur === 'multiple' && (
         <option value="multiple" disabled>
           {t('arbre.pitch.multiple')}
@@ -64,7 +64,7 @@ function Menu({ valeur, options, change, info, libelle, large }: { valeur: strin
 
 function Ligne({ libelle, children, vertical }: { libelle: string; children: ReactNode; vertical?: boolean }) {
   return (
-    <div className="notak-pitch-ligne" data-vertical={vertical ? '' : undefined}>
+    <div className="notak-arbre-pitch-ligne" data-vertical={vertical ? '' : undefined}>
       <span>{libelle}</span>
       {children}
     </div>
@@ -80,7 +80,7 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
 
   if (ids.length === 0)
     return (
-      <div className="notak-pitch-vide">
+      <div className="notak-arbre-pitch-vide">
         <Icone nom="fichierPresentation" taille={60} trait={1} />
         <p>{t('arbre.pitch.vide')}</p>
       </div>
@@ -124,13 +124,13 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
   const livraisons = new Set(avecEnfants.map((x) => livraisonDe(l, x).valeur))
 
   return (
-    <div className="notak-pitch">
-      <section className="notak-pitch-section">
+    <div className="notak-arbre-pitch">
+      <section className="notak-arbre-pitch-section">
         <h3>{t('arbre.pitch.affichage')}</h3>
         <Apercu lecture={l} ids={ids} arbre={arbre} ratio={ratio} adresse={adresse} />
       </section>
-      <section className="notak-pitch-section">
-        <button ref={bouton} type="button" className="notak-pitch-bouton" title={t('arbre.pitch.themeInfo')} aria-haspopup="dialog" aria-expanded={themes} onClick={() => setThemes((o) => !o)}>
+      <section className="notak-arbre-pitch-section">
+        <button ref={bouton} type="button" className="notak-arbre-pitch-bouton" title={t('arbre.pitch.themeInfo')} aria-haspopup="dialog" aria-expanded={themes} onClick={() => setThemes((o) => !o)}>
           {t('arbre.pitch.changerTheme')}
         </button>
         {themes && <ChoixTheme ancre={bouton.current} theme={theme.id} ratio={ratio} choisir={(id) => faire({ type: 'pitch', reglage: { theme: id } })} fermer={() => setThemes(false)} />}
@@ -187,7 +187,7 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
                 </Ligne>
                 {dispo && (
                   <Ligne libelle={t('arbre.pitch.miseEnPage')} vertical>
-                    <div className="notak-pitch-segments" role="radiogroup" aria-label={t('arbre.pitch.miseEnPage')}>
+                    <div className="notak-arbre-pitch-segments" role="radiogroup" aria-label={t('arbre.pitch.miseEnPage')}>
                       {MISES_EN_PAGE.map((m) => (
                         <button key={m} type="button" role="radio" aria-checked={dispo === m} disabled={tete} title={t(`arbre.pitch.mise.${m}Info`)} aria-label={t(`arbre.pitch.mise.${m}`)} onClick={() => faireDiapo(faire, avecEnfants, { miseEnPage: m })}>
                           <Icone nom={ICONE_MISE[m]} taille={18} trait={1.5} />
@@ -234,11 +234,11 @@ function Apercu({ lecture: l, ids, arbre, ratio, adresse }: { lecture: Lecture; 
   }, [survol, siens.length])
   const { l: rl, h: rh } = dimensionsDuRatio(ratio)
   const largeur = ratio === '16:9' ? 227 : Math.round((HAUTEUR_APERCU * rl) / rh)
-  if (ids.length > 1) return <p className="notak-pitch-apercu-texte">{t('arbre.pitch.plusieurs')}</p>
+  if (ids.length > 1) return <p className="notak-arbre-pitch-apercu-texte">{t('arbre.pitch.plusieurs')}</p>
   const courant = siens[Math.min(rang, siens.length - 1)]
-  if (!courant) return <p className="notak-pitch-apercu-texte">{t('arbre.pitch.invisibles')}</p>
+  if (!courant) return <p className="notak-arbre-pitch-apercu-texte">{t('arbre.pitch.invisibles')}</p>
   return (
-    <div className="notak-pitch-apercu" key={`${id}:${arbre.pitch?.theme ?? ''}:${arbre.pitch?.ratio ?? ''}`} onMouseEnter={() => setSurvol(true)} onMouseLeave={() => (setSurvol(false), setRang(0))}>
+    <div className="notak-arbre-pitch-apercu" key={`${id}:${arbre.pitch?.theme ?? ''}:${arbre.pitch?.ratio ?? ''}`} onMouseEnter={() => setSurvol(true)} onMouseLeave={() => (setSurvol(false), setRang(0))}>
       <Diapositive lecture={l} diapo={diapos[courant.diapo]!} etape={courant.etape} theme={themePitchDe(arbre.pitch?.theme)} ratio={ratio} adresse={adresse} taille={{ l: largeur, h: HAUTEUR_APERCU }} />
     </div>
   )

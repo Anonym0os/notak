@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { type Arbre, type Id } from '../../coeur/tableau'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
@@ -49,19 +49,19 @@ export function PanneauGauche({ onglet, choisirOnglet, fermer, arbre, lecture, c
         }
       }}
     >
-      <header className="notak-gauche-entete">
-        <div className="notak-gauche-onglets" role="tablist" data-actif={onglet}>
+      <header className="notak-arbre-gauche-entete">
+        <div className="notak-arbre-gauche-onglets" role="tablist" data-actif={onglet}>
           {ONGLETS_GAUCHE.map((o) => (
             <button key={o} type="button" role="tab" aria-selected={onglet === o} title={t(`arbre.gauche.${o}Info`)} onClick={() => choisirOnglet(o)}>
               {t(`arbre.gauche.${o}`)}
             </button>
           ))}
         </div>
-        <button type="button" className="notak-gauche-fermer" aria-label={t('arbre.gauche.fermer')} title={t('arbre.gauche.fermer')} onClick={fermer}>
+        <button type="button" className="notak-arbre-gauche-fermer" aria-label={t('arbre.gauche.fermer')} title={t('arbre.gauche.fermer')} onClick={fermer}>
           <Icone nom="fermer" taille={18} trait={1.6} />
         </button>
       </header>
-      <div className="notak-gauche-corps" role="tabpanel">
+      <div className="notak-arbre-gauche-corps" role="tabpanel">
         {onglet === 'plan' && <OngletPlanGauche arbre={arbre} lecture={lecture} choisis={choisis} aller={aller} />}
         {onglet === 'notes' && <OngletNotes lecture={lecture} aller={aller} />}
         {onglet === 'etiquettes' && <OngletEtiquettes lecture={lecture} coches={coches} cocher={cocher} />}
@@ -73,7 +73,7 @@ export function PanneauGauche({ onglet, choisirOnglet, fermer, arbre, lecture, c
 /** Le champ de recherche des onglets : une loupe, le texte, et au besoin le bouton des options. */
 function ChampRecherche({ valeur, change, info, options }: { valeur: string; change(v: string): void; info: string; options?: React.ReactNode }) {
   return (
-    <div className="notak-gauche-recherche" role="search">
+    <div className="notak-arbre-gauche-recherche" role="search">
       <Icone nom="recherche" taille={16} trait={1.6} />
       <input type="search" value={valeur} placeholder={info} aria-label={info} spellCheck={false} onChange={(e) => change(e.target.value)} />
       {options}
@@ -130,39 +130,39 @@ function OngletPlanGauche({ arbre, lecture: l, choisis, aller }: { arbre: Arbre;
   return (
     <>
       <ChampRecherche valeur={requete} change={setRequete} info={t('arbre.gauche.chercherPlan')} options={<OptionsRecherchePanneau options={options} changer={setOptions} />} />
-      <div className="notak-gauche-liste">
-        <h2 className="notak-gauche-feuille">{titre}</h2>
-        {cherche && lignes.length === 0 && <p className="notak-gauche-vide">{t('arbre.gauche.aucunResultat')}</p>}
+      <div className="notak-arbre-gauche-liste">
+        <h2 className="notak-arbre-gauche-feuille">{titre}</h2>
+        {cherche && lignes.length === 0 && <p className="notak-arbre-gauche-vide">{t('arbre.gauche.aucunResultat')}</p>}
         <div role="tree" aria-label={t('arbre.gauche.plan')}>
           {lignes.map(({ id, niveau, enfants }) => {
             const s = l.sujets.get(id)!
             const replie = !cherche && replies.has(id)
             return (
-              <div key={id} className="notak-plan-noeud" role="treeitem" aria-level={niveau + 1} aria-expanded={enfants ? !replie : undefined} aria-selected={choisis.has(id)} style={{ paddingLeft: niveau * 16 }}>
-                <div className="notak-plan-ligne" data-choisi={choisis.has(id) ? '' : undefined}>
+              <div key={id} className="notak-arbre-gauche-plan-noeud" role="treeitem" aria-level={niveau + 1} aria-expanded={enfants ? !replie : undefined} aria-selected={choisis.has(id)} style={{ paddingLeft: niveau * 16 }}>
+                <div className="notak-arbre-gauche-plan-ligne" data-choisi={choisis.has(id) ? '' : undefined}>
                   <button
                     type="button"
-                    className="notak-plan-pli"
+                    className="notak-arbre-gauche-plan-pli"
                     tabIndex={-1}
                     disabled={!enfants || cherche}
                     aria-label={replie ? t('arbre.gauche.deplier') : t('arbre.gauche.replier')}
                     onClick={() => setReplies((r) => (r.has(id) ? new Set([...r].filter((x) => x !== id)) : new Set([...r, id])))}
                   >
-                    {enfants ? <Icone nom="chevronBas" taille={12} trait={2} className={replie ? 'notak-plan-ferme' : undefined} /> : null}
+                    {enfants ? <Icone nom="chevronBas" taille={12} trait={2} className={replie ? 'notak-arbre-plan-ferme' : undefined} /> : null}
                   </button>
-                  <button type="button" className="notak-plan-titre" data-niveau={Math.min(niveau, 2)} onClick={() => aller(id)}>
+                  <button type="button" className="notak-arbre-gauche-plan-titre" data-niveau={Math.min(niveau, 2)} onClick={() => aller(id)}>
                     {aplatir(s.titre) || t('arbre.vide')}
                   </button>
-                  {s.note && <Icone nom="notes" taille={14} trait={1.6} className="notak-plan-picto" />}
+                  {s.note && <Icone nom="notes" taille={14} trait={1.6} className="notak-arbre-gauche-plan-picto" />}
                 </div>
                 {!!s.etiquettes?.length && (
-                  <div className="notak-plan-detail">
+                  <div className="notak-arbre-gauche-plan-detail">
                     <Icone nom="etiquette" taille={13} trait={1.6} />
                     <span>{s.etiquettes.join(', ')}</span>
                   </div>
                 )}
                 {s.lien && (
-                  <div className="notak-plan-detail">
+                  <div className="notak-arbre-gauche-plan-detail">
                     <Icone nom="lien" taille={13} trait={1.6} />
                     <span>{s.lien.startsWith('sujet:') ? aplatir(l.sujets.get(s.lien.slice(6))?.titre ?? '') : s.lien}</span>
                   </div>
@@ -172,10 +172,10 @@ function OngletPlanGauche({ arbre, lecture: l, choisis, aller }: { arbre: Arbre;
           })}
         </div>
         {relations.length > 0 && (
-          <section className="notak-plan-groupe">
+          <section className="notak-arbre-gauche-plan-groupe">
             <h3>{t('arbre.gauche.relations')}</h3>
             {relations.map((r, i) => (
-              <button key={i} type="button" className="notak-plan-detail notak-plan-saut" onClick={() => aller(r.de)}>
+              <button key={i} type="button" className="notak-arbre-gauche-plan-detail notak-arbre-gauche-plan-saut" onClick={() => aller(r.de)}>
                 <Icone nom="arbreRelation" taille={14} trait={1.6} />
                 <span>
                   {aplatir(l.sujets.get(r.de)!.titre)} → {aplatir(l.sujets.get(r.vers)!.titre)}
@@ -186,10 +186,10 @@ function OngletPlanGauche({ arbre, lecture: l, choisis, aller }: { arbre: Arbre;
           </section>
         )}
         {limites.length > 0 && (
-          <section className="notak-plan-groupe">
+          <section className="notak-arbre-gauche-plan-groupe">
             <h3>{t('arbre.gauche.limites')}</h3>
             {limites.map((x, i) => (
-              <button key={i} type="button" className="notak-plan-detail notak-plan-saut" onClick={() => aller(x.de)}>
+              <button key={i} type="button" className="notak-arbre-gauche-plan-detail notak-arbre-gauche-plan-saut" onClick={() => aller(x.de)}>
                 <Icone nom="arbreLimite" taille={14} trait={1.6} />
                 <span>{x.titre || aplatir(l.sujets.get(x.de)!.titre)}</span>
               </button>
@@ -205,11 +205,11 @@ function OngletPlanGauche({ arbre, lecture: l, choisis, aller }: { arbre: Arbre;
 function OptionsRecherchePanneau({ options, changer }: { options: OptionsRecherche; changer(o: OptionsRecherche): void }) {
   const [ouvert, setOuvert] = useState(false)
   return (
-    <span className="notak-gauche-options">
+    <span className="notak-arbre-gauche-options">
       <button type="button" aria-haspopup="menu" aria-expanded={ouvert} aria-label={t('arbre.gauche.options')} title={t('arbre.gauche.options')} onClick={() => setOuvert((o) => !o)}>
         <Icone nom="reglages" taille={16} trait={1.6} />
       </button>
-      <Deroulant ouvert={ouvert} fermer={() => setOuvert(false)} className="notak-gauche-menu">
+      <Deroulant ouvert={ouvert} fermer={() => setOuvert(false)} className="notak-arbre-gauche-menu">
         <Entree libelle={t('arbre.gauche.motsEntiers')} coche={!!options.motsEntiers} onClick={() => changer({ ...options, motsEntiers: !options.motsEntiers })} />
         <Entree libelle={t('arbre.gauche.casse')} coche={!!options.casse} onClick={() => changer({ ...options, casse: !options.casse })} />
       </Deroulant>
@@ -226,18 +226,18 @@ function OngletNotes({ lecture: l, aller }: { lecture: Lecture; aller(id: Id): v
   return (
     <>
       <ChampRecherche valeur={requete} change={setRequete} info={t('arbre.gauche.chercherNotes')} options={<OptionsRecherchePanneau options={options} changer={setOptions} />} />
-      <div className="notak-gauche-liste">
+      <div className="notak-arbre-gauche-liste">
         {toutes.length === 0 ? (
           <Vide icone="notes" texte={t('arbre.gauche.aucuneNote')} />
         ) : notes.length === 0 ? (
           <Vide icone="recherche" texte={t('arbre.gauche.aucunResultat')} />
         ) : (
           <>
-            <div className="notak-gauche-feuille-bandeau">
+            <div className="notak-arbre-gauche-feuille-bandeau">
               <span>{aplatir(l.sujets.get(l.central)?.titre ?? '') || t('type.arbre')}</span>
             </div>
             {notes.map((n) => (
-              <button key={n.id} type="button" className="notak-note-ligne" onClick={() => aller(n.id)}>
+              <button key={n.id} type="button" className="notak-arbre-note-ligne" onClick={() => aller(n.id)}>
                 <strong>{n.titre || t('arbre.vide')}</strong>
                 <span>{n.texte}</span>
               </button>
@@ -251,7 +251,7 @@ function OngletNotes({ lecture: l, aller }: { lecture: Lecture; aller(id: Id): v
 
 function Vide({ icone, texte }: { icone: 'notes' | 'recherche' | 'etiquette'; texte: string }) {
   return (
-    <div className="notak-gauche-vide-grand">
+    <div className="notak-arbre-gauche-vide-grand">
       <Icone nom={icone} taille={60} trait={1} />
       <p>{texte}</p>
     </div>
@@ -266,20 +266,19 @@ function OngletEtiquettes({ lecture: l, coches, cocher }: { lecture: Lecture; co
   const reperes = useMemo(() => reperesDe(l), [l])
   const total = reperes.marqueurs.length + reperes.etiquettes.length + reperes.taches.length
   const ligne = (cle: string, contenu: React.ReactNode, n: number) => (
-    <label key={cle} className="notak-repere" data-coche={coches.has(cle) ? '' : undefined}>
+    <label key={cle} className="notak-arbre-gauche-repere" data-coche={coches.has(cle) ? '' : undefined}>
       <input type="checkbox" checked={coches.has(cle)} onChange={() => cocher(cle)} />
-      <span className="notak-repere-contenu">{contenu}</span>
-      <span className="notak-repere-nombre">{n}</span>
+      <span className="notak-arbre-gauche-repere-contenu">{contenu}</span>
+      <span className="notak-arbre-gauche-repere-nombre">{n}</span>
     </label>
   )
-  const groupe = (titre: string, lignes: React.ReactNode[]) => lignes.length > 0 && <section className="notak-plan-groupe">
+  const groupe = (titre: string, lignes: React.ReactNode[]) => lignes.length > 0 && <section className="notak-arbre-gauche-plan-groupe">
       <h3>{titre}</h3>
       {lignes}
     </section>
-  const racine = useRef<HTMLDivElement>(null)
   return (
-    <div ref={racine} className="notak-gauche-liste">
-      <p className="notak-gauche-aide">{t('arbre.gauche.etiquettesAide')}</p>
+    <div className="notak-arbre-gauche-liste">
+      <p className="notak-arbre-gauche-aide">{t('arbre.gauche.etiquettesAide')}</p>
       {total === 0 && <Vide icone="etiquette" texte={t('arbre.gauche.aucunRepere')} />}
       {groupe(
         t('arbre.marqueurs'),

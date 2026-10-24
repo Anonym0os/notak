@@ -29,7 +29,7 @@
   line-height: 17px;
 }
 
-.notak-gauche-entete {
+.notak-arbre-gauche-entete {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -37,7 +37,7 @@
 }
 
 /* Les onglets en capsule : une pastille glissante marque l'onglet ouvert. */
-.notak-gauche-onglets {
+.notak-arbre-gauche-onglets {
   position: relative;
   display: flex;
   flex: 1;
@@ -46,7 +46,7 @@
   background: var(--notak-arbre-piste);
 }
 
-.notak-gauche-onglets::before {
+.notak-arbre-gauche-onglets::before {
   content: '';
   position: absolute;
   top: 4px;
@@ -59,15 +59,15 @@
   transition: transform 200ms ease-in-out;
 }
 
-.notak-gauche-onglets[data-actif='notes']::before {
+.notak-arbre-gauche-onglets[data-actif='notes']::before {
   transform: translateX(100%);
 }
 
-.notak-gauche-onglets[data-actif='etiquettes']::before {
+.notak-arbre-gauche-onglets[data-actif='etiquettes']::before {
   transform: translateX(200%);
 }
 
-.notak-gauche-onglets button {
+.notak-arbre-gauche-onglets button {
   position: relative;
   flex: 1;
   padding: 4px 8px;
@@ -79,16 +79,16 @@
   cursor: pointer;
 }
 
-.notak-gauche-onglets button:hover {
+.notak-arbre-gauche-onglets button:hover {
   color: var(--notak-arbre-texte);
 }
 
-.notak-gauche-onglets button[aria-selected='true'] {
+.notak-arbre-gauche-onglets button[aria-selected='true'] {
   color: var(--notak-arbre-texte);
   font-weight: 600;
 }
 
-.notak-gauche-fermer {
+.notak-arbre-gauche-fermer {
   display: grid;
   place-items: center;
   width: 28px;
@@ -100,19 +100,19 @@
   cursor: pointer;
 }
 
-.notak-gauche-fermer:hover {
+.notak-arbre-gauche-fermer:hover {
   background: var(--notak-arbre-survol);
   color: var(--notak-arbre-texte);
 }
 
-.notak-gauche-corps {
+.notak-arbre-gauche-corps {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 0;
 }
 
-.notak-gauche-recherche {
+.notak-arbre-gauche-recherche {
   position: relative;
   display: flex;
   align-items: center;
@@ -126,11 +126,11 @@
   color: var(--notak-arbre-discret);
 }
 
-.notak-gauche-recherche:focus-within {
+.notak-arbre-gauche-recherche:focus-within {
   border-color: var(--notak-arbre-choix);
 }
 
-.notak-gauche-recherche input {
+.notak-arbre-gauche-recherche input {
   flex: 1;
   min-width: 0;
   border: 0;
@@ -140,16 +140,16 @@
   outline: none;
 }
 
-.notak-gauche-recherche input::-webkit-search-cancel-button {
+.notak-arbre-gauche-recherche input::-webkit-search-cancel-button {
   display: none;
 }
 
-.notak-gauche-options {
+.notak-arbre-gauche-options {
   position: relative;
   display: grid;
 }
 
-.notak-gauche-options > button {
+.notak-arbre-gauche-options > button {
   display: grid;
   place-items: center;
   width: 26px;
@@ -161,18 +161,18 @@
   cursor: pointer;
 }
 
-.notak-gauche-options > button:hover {
+.notak-arbre-gauche-options > button:hover {
   background: var(--notak-arbre-survol);
 }
 
-.notak-gauche-menu {
+.notak-arbre-gauche-menu {
   top: calc(100% + 6px);
   right: 0;
   left: auto;
   min-width: 180px;
 }
 
-.notak-gauche-liste {
+.notak-arbre-gauche-liste {
   flex: 1;
   min-height: 0;
   padding: 0 12px 24px;
@@ -180,14 +180,14 @@
   border-top: 1px solid var(--notak-arbre-filet-c);
 }
 
-.notak-gauche-feuille {
+.notak-arbre-gauche-feuille {
   margin: 20px 0 16px;
   font-size: 21px;
   font-weight: 700;
   line-height: 27px;
 }
 
-.notak-gauche-feuille-bandeau {
+.notak-arbre-gauche-feuille-bandeau {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -195,22 +195,22 @@
   font-weight: 600;
 }
 
-.notak-gauche-feuille-bandeau::before,
-.notak-gauche-feuille-bandeau::after {
+.notak-arbre-gauche-feuille-bandeau::before,
+.notak-arbre-gauche-feuille-bandeau::after {
   content: '';
   flex: 1;
   height: 1px;
   background: var(--notak-arbre-filet-c);
 }
 
-.notak-gauche-vide,
-.notak-gauche-aide {
+.notak-arbre-gauche-vide,
+.notak-arbre-gauche-aide {
   margin: 16px 0;
   color: var(--notak-arbre-discret);
   font-size: 12px;
 }
 
-.notak-gauche-vide-grand {
+.notak-arbre-gauche-vide-grand {
   display: grid;
   justify-items: center;
   gap: 12px;
@@ -220,16 +220,16 @@
   line-height: 18px;
 }
 
-.notak-gauche-vide-grand p {
+.notak-arbre-gauche-vide-grand p {
   margin: 0;
 }
 
 /* L'arbre du plan : un sujet par ligne, l'indentation de 16 par niveau. */
-.notak-plan-noeud {
+.notak-arbre-gauche-plan-noeud {
   margin-top: 2px;
 }
 
-.notak-plan-ligne {
+.notak-arbre-gauche-plan-ligne {
   display: flex;
   align-items: center;
   gap: 2px;
@@ -237,15 +237,15 @@
   border-radius: 6px;
 }
 
-.notak-plan-ligne:hover {
+.notak-arbre-gauche-plan-ligne:hover {
   background: var(--notak-arbre-survol);
 }
 
-.notak-plan-ligne[data-choisi] {
+.notak-arbre-gauche-plan-ligne[data-choisi] {
   background: color-mix(in srgb, var(--notak-arbre-choix) 16%, transparent);
 }
 
-.notak-plan-pli {
+.notak-arbre-gauche-plan-pli {
   display: grid;
   flex: none;
   place-items: center;
@@ -258,15 +258,15 @@
   cursor: pointer;
 }
 
-.notak-plan-pli:disabled {
+.notak-arbre-gauche-plan-pli:disabled {
   cursor: default;
 }
 
-.notak-plan-ferme {
+.notak-arbre-plan-ferme {
   transform: rotate(-90deg);
 }
 
-.notak-plan-titre {
+.notak-arbre-gauche-plan-titre {
   flex: 1;
   min-width: 0;
   padding: 3px 4px;
@@ -281,21 +281,21 @@
   cursor: pointer;
 }
 
-.notak-plan-titre[data-niveau='0'] {
+.notak-arbre-gauche-plan-titre[data-niveau='0'] {
   font-weight: 700;
 }
 
-.notak-plan-titre[data-niveau='1'] {
+.notak-arbre-gauche-plan-titre[data-niveau='1'] {
   font-weight: 600;
 }
 
-.notak-plan-picto {
+.notak-arbre-gauche-plan-picto {
   flex: none;
   margin-right: 6px;
   color: var(--notak-arbre-discret);
 }
 
-.notak-plan-detail {
+.notak-arbre-gauche-plan-detail {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -305,13 +305,13 @@
   line-height: 16px;
 }
 
-.notak-plan-detail span {
+.notak-arbre-gauche-plan-detail span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.notak-plan-saut {
+.notak-arbre-gauche-plan-saut {
   width: calc(100% - 22px);
   padding: 3px 4px;
   border: 0;
@@ -323,18 +323,18 @@
   cursor: pointer;
 }
 
-.notak-plan-saut:hover {
+.notak-arbre-gauche-plan-saut:hover {
   background: var(--notak-arbre-survol);
   color: var(--notak-arbre-texte);
 }
 
-.notak-plan-groupe {
+.notak-arbre-gauche-plan-groupe {
   margin-top: 16px;
   padding-top: 12px;
   border-top: 1px solid var(--notak-arbre-filet-c);
 }
 
-.notak-plan-groupe h3 {
+.notak-arbre-gauche-plan-groupe h3 {
   margin: 0 0 6px;
   color: var(--notak-arbre-discret);
   font-size: 12px;
@@ -342,7 +342,7 @@
 }
 
 /* Les notes : le titre du sujet, puis deux lignes de sa note. */
-.notak-note-ligne {
+.notak-arbre-note-ligne {
   display: block;
   width: 100%;
   padding: 16px 4px;
@@ -355,18 +355,18 @@
   cursor: pointer;
 }
 
-.notak-note-ligne:hover {
+.notak-arbre-note-ligne:hover {
   background: var(--notak-arbre-survol);
 }
 
-.notak-note-ligne strong {
+.notak-arbre-note-ligne strong {
   display: block;
   font-size: 15px;
   font-weight: 700;
   line-height: 19px;
 }
 
-.notak-note-ligne span {
+.notak-arbre-note-ligne span {
   display: -webkit-box;
   margin-top: 8px;
   overflow: hidden;
@@ -379,7 +379,7 @@
 }
 
 /* Les repères : une case, le repère, combien de sujets le portent. */
-.notak-repere {
+.notak-arbre-gauche-repere {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -389,24 +389,24 @@
   cursor: pointer;
 }
 
-.notak-repere:hover {
+.notak-arbre-gauche-repere:hover {
   background: var(--notak-arbre-survol);
 }
 
-.notak-repere-contenu {
+.notak-arbre-gauche-repere-contenu {
   display: flex;
   flex: 1;
   align-items: center;
   min-width: 0;
 }
 
-.notak-repere-contenu span {
+.notak-arbre-gauche-repere-contenu span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.notak-repere-nombre {
+.notak-arbre-gauche-repere-nombre {
   color: var(--notak-arbre-discret);
   font-variant-numeric: tabular-nums;
 }
@@ -420,7 +420,7 @@
   color: var(--notak-arbre-texte);
 }
 
-.notak-plan-page {
+.notak-arbre-plan-page {
   max-width: 832px;
   margin: 0 auto;
 }
@@ -457,7 +457,7 @@
   cursor: default;
 }
 
-.notak-plan-point {
+.notak-arbre-plan-point {
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -500,7 +500,7 @@
 }
 
 /* Ce qu'un sujet replié cache : une pastille avec le nombre de sujets. */
-.notak-plan-compte {
+.notak-arbre-plan-compte {
   flex: none;
   min-width: 20px;
   height: 20px;
@@ -515,19 +515,19 @@
   text-align: center;
 }
 
-.notak-plan-sous {
+.notak-arbre-plan-sous {
   margin-bottom: 4px;
   padding-left: 4px;
 }
 
-.notak-plan-etiquettes {
+.notak-arbre-plan-etiquettes {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   margin: 2px 0;
 }
 
-.notak-plan-etiquettes span {
+.notak-arbre-plan-etiquettes span {
   padding: 0 8px;
   border-radius: 999px;
   background: var(--notak-arbre-etiquette);
@@ -535,7 +535,7 @@
   line-height: 18px;
 }
 
-.notak-plan-note {
+.notak-arbre-plan-note {
   margin: 2px 0;
   color: var(--notak-arbre-discret);
   font-size: 14px;
@@ -543,7 +543,7 @@
   white-space: pre-wrap;
 }
 
-.notak-plan-flottants {
+.notak-arbre-plan-flottants {
   margin: 24px 0;
   border: 0;
   border-top: 1px solid var(--notak-arbre-texte);
@@ -567,14 +567,14 @@
   font-size: 14px;
 }
 
-.notak-note-barre {
+.notak-arbre-note-barre {
   display: flex;
   align-items: center;
   gap: 2px;
   padding: 8px 12px 4px;
 }
 
-.notak-note-barre button {
+.notak-arbre-note-barre button {
   display: grid;
   place-items: center;
   width: 28px;
@@ -587,16 +587,16 @@
   cursor: pointer;
 }
 
-.notak-note-barre button:hover {
+.notak-arbre-note-barre button:hover {
   background: var(--notak-arbre-survol);
 }
 
-.notak-note-barre button[aria-pressed='true'] {
+.notak-arbre-note-barre button[aria-pressed='true'] {
   background: var(--notak-arbre-plein);
   color: var(--notak-arbre-fond);
 }
 
-.notak-note-barre .notak-note-titre {
+.notak-arbre-note-barre .notak-arbre-note-titre {
   flex: 1;
   min-width: 0;
   padding: 0 8px;
@@ -606,14 +606,14 @@
   white-space: nowrap;
 }
 
-.notak-note-corps {
+.notak-arbre-note-corps {
   flex: 1;
   min-height: 0;
   padding: 4px 18px 14px;
   overflow-y: auto;
 }
 
-.notak-note-corps .notak-arbre-note {
+.notak-arbre-note-corps .notak-arbre-note {
   min-height: 100%;
   outline: none;
 }

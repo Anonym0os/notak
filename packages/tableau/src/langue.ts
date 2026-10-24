@@ -414,7 +414,7 @@ export const fr: Textes = {
   'arbre.bas.mots': 'Mots: {n}',
   'arbre.bas.caracteres': 'Caractères: {n}',
   'arbre.bas.zoomInfo': 'Zoom avant/arrière.',
-  'arbre.bas.pourcent': '{n} %',
+  'arbre.bas.pourcent': '{n}%',
   'arbre.bas.gantt': 'Ouvrir le diagramme de Gantt dans une fenêtre séparée.',
   'arbre.bas.versPlan': 'Passer au plan.',
   'arbre.bas.versCarte': 'Passer à la carte mentale.',

@@ -25,7 +25,7 @@ export function PopoverFixe({ ancre, fermer, largeur, vers = 'bas', children, cl
     const dehors = (e: PointerEvent) => {
       const cible = e.target as Node
       // Un clic dans un autre popover du mode Pitch (le sélecteur de thèmes ouvert depuis les réglages) ne le ferme pas.
-      if (!racine.current?.contains(cible) && !ancre?.contains(cible) && !(cible as Element).closest?.('.notak-pitch-popover')) fermer()
+      if (!racine.current?.contains(cible) && !ancre?.contains(cible) && !(cible as Element).closest?.('.notak-arbre-pitch-popover')) fermer()
     }
     const echap = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
@@ -42,7 +42,7 @@ export function PopoverFixe({ ancre, fermer, largeur, vers = 'bas', children, cl
   }, [ancre, fermer])
   if (!ancre || !place) return ancre ? <div ref={racine} hidden /> : null
   return createPortal(
-    <div ref={racine} className={className ? `notak-pitch-popover ${className}` : 'notak-pitch-popover'} style={{ ...place, width: largeur }} role="dialog" onKeyDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+    <div ref={racine} className={className ? `notak-arbre-pitch-popover ${className}` : 'notak-arbre-pitch-popover'} style={{ ...place, width: largeur }} role="dialog" onKeyDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
       {children}
     </div>,
     ancre.closest('.notak-arbre-fond') ?? document.body,
@@ -62,17 +62,17 @@ const largeurPopover = (r: RatioPitch) => ({ '16:9': 276, '4:3': 276, '3:4': 316
 export function ChoixTheme({ ancre, theme, ratio, choisir, fermer, vers }: { ancre: HTMLElement | null; theme: string; ratio: RatioPitch; choisir(id: string): void; fermer(): void; vers?: 'bas' | 'haut' }) {
   const taille = tailleVignette(ratio)
   return (
-    <PopoverFixe ancre={ancre} fermer={fermer} largeur={largeurPopover(ratio)} {...(vers ? { vers } : {})} className="notak-pitch-themes">
+    <PopoverFixe ancre={ancre} fermer={fermer} largeur={largeurPopover(ratio)} {...(vers ? { vers } : {})} className="notak-arbre-pitch-themes">
       {THEMES_PITCH.map((th) => (
-        <button key={th.id} type="button" className="notak-pitch-vignette" aria-pressed={th.id === theme} onClick={() => choisir(th.id)}>
-          <span className="notak-pitch-vignette-cadre">
+        <button key={th.id} type="button" className="notak-arbre-pitch-vignette" aria-pressed={th.id === theme} onClick={() => choisir(th.id)}>
+          <span className="notak-arbre-pitch-vignette-cadre">
             <CadreDiapo ratio={ratio} theme={th} taille={taille}>
-              <div className="notak-diapo-sujet" data-central="">
+              <div className="notak-arbre-diapo-sujet" data-central="">
                 <h1>Aa</h1>
               </div>
             </CadreDiapo>
           </span>
-          <span className="notak-pitch-legende">{t(th.nom)}</span>
+          <span className="notak-arbre-pitch-legende">{t(th.nom)}</span>
         </button>
       ))}
     </PopoverFixe>

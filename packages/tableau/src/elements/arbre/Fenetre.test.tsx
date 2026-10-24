@@ -43,10 +43,10 @@ function monter() {
 describe('la carte ouverte : barre du bas, panneau de gauche, Pitch', () => {
   it('la barre du bas porte la feuille, le compteur, le zoom et les quatre boutons', () => {
     const m = monter()
-    expect(m.q('.notak-bas-onglet')?.textContent).toBe('Cours')
-    expect(m.q('.notak-bas-compteur .notak-bas-valeur')?.textContent).toBe('Sujets: 1 / 3')
-    expect(m.q('.notak-bas-zoom .notak-bas-valeur')?.textContent).toBe('100 %')
-    expect(document.querySelectorAll('.notak-bas-controles .notak-bas-bouton')).toHaveLength(4)
+    expect(m.q('.notak-arbre-bas-onglet')?.textContent).toBe('Cours')
+    expect(m.q('.notak-arbre-bas-compteur .notak-arbre-bas-valeur')?.textContent).toBe('Sujets: 1 / 3')
+    expect(m.q('.notak-arbre-bas-zoom .notak-arbre-bas-valeur')?.textContent).toBe('100%')
+    expect(document.querySelectorAll('.notak-arbre-bas-controles .notak-arbre-bas-bouton')).toHaveLength(4)
   })
 
   it('le bouton du panneau de gauche, comme Cmd+[, l’ouvre et le ferme ; la carte se cale contre lui', () => {
@@ -55,8 +55,8 @@ describe('la carte ouverte : barre du bas, panneau de gauche, Pitch', () => {
     m.clic(m.q('.notak-arbre-entete [aria-label="Afficher le panneau de navigation"]'))
     expect(m.q('.notak-arbre-gauche')).toBeTruthy()
     expect(m.q('.notak-arbre-fenetre')?.hasAttribute('data-gauche')).toBe(true)
-    expect([...document.querySelectorAll('.notak-plan-titre')].map((t) => t.textContent)).toEqual(['Cours', 'Chapitre', 'Point'])
-    m.clic(m.q('.notak-gauche-fermer'))
+    expect([...document.querySelectorAll('.notak-arbre-gauche-plan-titre')].map((t) => t.textContent)).toEqual(['Cours', 'Chapitre', 'Point'])
+    m.clic(m.q('.notak-arbre-gauche-fermer'))
     expect(m.q('.notak-arbre-gauche')).toBeNull()
     m.touche('[', { metaKey: true })
     expect(m.q('.notak-arbre-gauche')).toBeTruthy()
@@ -65,27 +65,27 @@ describe('la carte ouverte : barre du bas, panneau de gauche, Pitch', () => {
   it('cliquer un sujet du plan le choisit dans la carte', () => {
     const m = monter()
     m.touche('[', { metaKey: true })
-    m.clic([...document.querySelectorAll('.notak-plan-titre')][1]!)
-    expect(m.q('.notak-gauche-corps [data-choisi]')?.textContent).toContain('Chapitre')
+    m.clic([...document.querySelectorAll('.notak-arbre-gauche-plan-titre')][1]!)
+    expect(m.q('.notak-arbre-gauche-corps [data-choisi]')?.textContent).toContain('Chapitre')
   })
 
   it('Pitch lance la présentation par le central ; Échap revient à la carte', () => {
     const m = monter()
-    m.clic(m.q('.notak-bas-controles [aria-label^="Accédez au mode présentation"]'))
-    expect(m.q('.notak-pitch-scene')).toBeTruthy()
-    expect(m.q('.notak-pitch-scene h1')?.textContent).toBe('Cours')
+    m.clic(m.q('.notak-arbre-bas-controles [aria-label^="Accédez au mode présentation"]'))
+    expect(m.q('.notak-arbre-pitch-scene')).toBeTruthy()
+    expect(m.q('.notak-arbre-pitch-scene h1')?.textContent).toBe('Cours')
     act(() => void document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })))
-    expect(m.q('.notak-pitch-scene')).toBeNull()
+    expect(m.q('.notak-arbre-pitch-scene')).toBeNull()
   })
 
   it('le plan prend la place de la carte, avec le zoom du plan', () => {
     const m = monter()
-    m.clic(m.q('.notak-bas-controles [aria-label="Passer au plan."]'))
+    m.clic(m.q('.notak-arbre-bas-controles [aria-label="Passer au plan."]'))
     expect(m.q('.notak-arbre-plan')).toBeTruthy()
-    expect(m.q('.notak-bas-compteur')).toBeNull()
-    m.clic(m.q('.notak-bas-zoom button'))
-    m.clic([...document.querySelectorAll('.notak-bas-zoom [role^=menuitem]')][1]!)
-    expect(m.q('.notak-bas-zoom .notak-bas-valeur')?.textContent).toBe('200 %')
+    expect(m.q('.notak-arbre-bas-compteur')).toBeNull()
+    m.clic(m.q('.notak-arbre-bas-zoom button'))
+    m.clic([...document.querySelectorAll('.notak-arbre-bas-zoom [role^=menuitem]')][1]!)
+    expect(m.q('.notak-arbre-bas-zoom .notak-arbre-bas-valeur')?.textContent).toBe('200%')
     expect((m.q('.notak-arbre-plan') as HTMLElement).style.zoom).toBe('2')
   })
 
@@ -101,7 +101,7 @@ describe('la carte ouverte : barre du bas, panneau de gauche, Pitch', () => {
   it('« Nouvelle feuille » pose une carte neuve à droite et l’ouvre', () => {
     vi.useFakeTimers()
     const m = monter()
-    m.clic(m.q('.notak-bas-plus'))
+    m.clic(m.q('.notak-arbre-bas-plus'))
     expect(m.magasin.lire().elements).toHaveLength(2)
     const neuf = m.magasin.lire().elements.find((e) => e.id !== 'E')!
     expect(neuf.x).toBe(42)

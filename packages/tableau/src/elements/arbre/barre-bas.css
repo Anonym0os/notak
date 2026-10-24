@@ -16,33 +16,32 @@
   pointer-events: none;
 }
 
-.notak-bas-pastille {
+.notak-arbre-bas-pastille {
   display: flex;
   align-items: center;
   height: 36px;
   padding: 4px;
   border-radius: 24px;
-  background: color-mix(in srgb, var(--notak-arbre-fond) 30%, transparent);
-  backdrop-filter: blur(12px) saturate(200%);
-  box-shadow: 0 0 0 0.5px var(--notak-arbre-filet-c);
+  background: var(--notak-arbre-verre);
+  backdrop-filter: blur(13px) saturate(300%);
+  box-shadow: var(--notak-arbre-ombre);
   font-size: 12px;
   line-height: 16px;
   letter-spacing: 0.48px;
   pointer-events: auto;
 }
 
-.notak-bas-feuilles {
-  flex: 1;
-  min-width: 249px;
-  max-width: max-content;
+.notak-arbre-bas-feuilles {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
-.notak-bas-controles {
+.notak-arbre-bas-controles {
   flex: none;
 }
 
 /* Un séparateur de groupe : une cellule de 9, un filet de 1 sur 16. */
-.notak-bas-filet {
+.notak-arbre-bas-filet {
   display: block;
   flex: none;
   width: 1px;
@@ -51,14 +50,14 @@
   background: var(--notak-arbre-filet-c);
 }
 
-.notak-bas-hote {
+.notak-arbre-bas-hote {
   position: relative;
   display: flex;
   align-items: center;
 }
 
 /* Un bouton de la barre : 28 de haut, l'icône à 24. */
-.notak-bas-bouton {
+.notak-arbre-bas-bouton {
   display: inline-grid;
   place-items: center;
   flex: none;
@@ -72,31 +71,31 @@
   cursor: pointer;
 }
 
-.notak-bas-bouton:hover:not(:disabled, [aria-pressed='true']) {
+.notak-arbre-bas-bouton:hover:not(:disabled, [aria-pressed='true']) {
   background: var(--notak-arbre-survol);
 }
 
-.notak-bas-bouton:active:not(:disabled, [aria-pressed='true']) {
+.notak-arbre-bas-bouton:active:not(:disabled, [aria-pressed='true']) {
   background: var(--notak-arbre-appui);
 }
 
-.notak-bas-bouton:disabled {
+.notak-arbre-bas-bouton:disabled {
   opacity: 0.3;
   cursor: default;
 }
 
-.notak-bas-bouton[aria-pressed='true'] {
+.notak-arbre-bas-bouton[aria-pressed='true'] {
   background: var(--notak-arbre-plein);
   color: var(--notak-arbre-fond);
 }
 
-.notak-bas-modes {
+.notak-arbre-bas-modes {
   display: flex;
   align-items: center;
 }
 
 /* Le compteur et le zoom : 12/16, chiffres tabulaires, centrés dans la largeur que prendrait le plus long texte. */
-.notak-bas-texte {
+.notak-arbre-bas-texte {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -114,16 +113,16 @@
   cursor: pointer;
 }
 
-.notak-bas-texte:hover {
+.notak-arbre-bas-texte:hover {
   background: var(--notak-arbre-survol);
 }
 
-.notak-bas-reserve {
+.notak-arbre-bas-reserve {
   visibility: hidden;
   white-space: nowrap;
 }
 
-.notak-bas-valeur {
+.notak-arbre-bas-valeur {
   position: absolute;
   inset: 0 auto 0 8px;
   display: grid;
@@ -131,18 +130,18 @@
   white-space: nowrap;
 }
 
-.notak-bas-zoom .notak-bas-valeur {
+.notak-arbre-bas-zoom .notak-arbre-bas-valeur {
   inset: 0 22px 0 8px;
   text-align: center;
 }
 
-.notak-bas-compteur .notak-bas-valeur {
+.notak-arbre-bas-compteur .notak-arbre-bas-valeur {
   inset: 0 8px;
   justify-items: center;
 }
 
 /* Le popover des comptes, au-dessus du compteur. */
-.notak-bas-popover {
+.notak-arbre-bas-popover {
   position: absolute;
   bottom: calc(100% + 12px);
   left: 50%;
@@ -159,25 +158,25 @@
   transform: translateX(-50%);
 }
 
-.notak-bas-popover p {
+.notak-arbre-bas-popover p {
   margin: 0;
   padding: 4px 8px;
 }
 
-.notak-bas-menu {
+.notak-arbre-bas-menu {
   left: 50%;
   min-width: 120px;
   transform: translateX(-50%);
 }
 
-.notak-bas-menu-feuille {
+.notak-arbre-bas-menu-feuille {
   left: 0;
   min-width: 220px;
   transform: none;
 }
 
 /* L'onglet de la feuille : 28 de haut, 24 à 220 de large, le chevron paraît au survol. */
-.notak-bas-feuille {
+.notak-arbre-bas-feuille {
   flex: none;
   min-width: 0;
   max-width: 220px;
@@ -186,11 +185,11 @@
   background: var(--notak-arbre-appui);
 }
 
-.notak-bas-feuille:hover {
+.notak-arbre-bas-feuille:hover {
   background: color-mix(in srgb, var(--notak-arbre-texte) 18%, transparent);
 }
 
-.notak-bas-onglet {
+.notak-arbre-bas-onglet {
   flex: 1;
   min-width: 24px;
   max-width: 200px;
@@ -209,14 +208,14 @@
   cursor: default;
 }
 
-.notak-bas-onglet span {
+.notak-arbre-bas-onglet span {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.notak-bas-chevron {
+.notak-arbre-bas-chevron {
   display: grid;
   place-items: center;
   width: 24px;
@@ -229,13 +228,13 @@
   cursor: pointer;
 }
 
-.notak-bas-feuille:hover .notak-bas-chevron,
-.notak-bas-chevron[aria-expanded='true'],
-.notak-bas-chevron:focus-visible {
+.notak-arbre-bas-feuille:hover .notak-arbre-bas-chevron,
+.notak-arbre-bas-chevron[aria-expanded='true'],
+.notak-arbre-bas-chevron:focus-visible {
   opacity: 1;
 }
 
-.notak-bas-renommer {
+.notak-arbre-bas-renommer {
   width: 180px;
   height: 20px;
   margin: 0 8px 0 16px;
@@ -249,40 +248,40 @@
   outline: none;
 }
 
-.notak-bas-plus {
+.notak-arbre-bas-plus {
   margin-left: 0;
 }
 
 /* Le rétrécissement, dans l'ordre du relevé : compteur, zoom, Gantt, modes, puis les deux pastilles. */
 @container barre-bas (max-width: 600px) {
-  .notak-bas-compteur,
-  .notak-bas-coupe-compteur {
+  .notak-arbre-bas-compteur,
+  .notak-arbre-bas-coupe-compteur {
     display: none;
   }
 }
 
 @container barre-bas (max-width: 500px) {
-  .notak-bas-zoom,
-  .notak-bas-coupe-zoom {
+  .notak-arbre-bas-zoom,
+  .notak-arbre-bas-coupe-zoom {
     display: none;
   }
 }
 
 @container barre-bas (max-width: 430px) {
-  .notak-bas-gantt,
-  .notak-bas-coupe-gantt {
+  .notak-arbre-bas-gantt,
+  .notak-arbre-bas-coupe-gantt {
     display: none;
   }
 }
 
 @container barre-bas (max-width: 380px) {
-  .notak-bas-modes {
+  .notak-arbre-bas-modes {
     display: none;
   }
 }
 
 @container barre-bas (max-width: 300px) {
-  .notak-bas-controles {
+  .notak-arbre-bas-controles {
     display: none;
   }
 }

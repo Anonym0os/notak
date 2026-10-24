@@ -35,8 +35,8 @@ export function CadreDiapo({ ratio, theme, taille, className, children }: { rati
   const { l, h } = dimensionsDuRatio(ratio)
   const style: CSSProperties = { ...variablesDeTheme(theme), aspectRatio: `${l} / ${h}`, ...(taille ? { width: taille.l, height: taille.h } : { width: '100%' }) }
   return (
-    <div className={className ? `notak-diapo-cadre ${className}` : 'notak-diapo-cadre'} style={style} data-ratio={ratio}>
-      <div className="notak-diapo">{children}</div>
+    <div className={className ? `notak-arbre-diapo-cadre ${className}` : 'notak-arbre-diapo-cadre'} style={style} data-ratio={ratio}>
+      <div className="notak-arbre-diapo">{children}</div>
     </div>
   )
 }
@@ -57,7 +57,7 @@ function DiapoDeSujet({ l, id, adresse }: { l: Lecture; id: Id; adresse: Props['
   const place = placeImageDe(l, id).valeur
   const central = id === l.central
   return (
-    <div className="notak-diapo-sujet" data-central={central ? '' : undefined} data-image={src ? place : undefined}>
+    <div className="notak-arbre-diapo-sujet" data-central={central ? '' : undefined} data-image={src ? place : undefined}>
       {src && <img src={src} alt="" draggable={false} />}
       <h1>{aplatir(s.titre)}</h1>
     </div>
@@ -86,11 +86,11 @@ function DiapoDeListe({ l, diapo, etape, anime }: { l: Lecture; diapo: DiapoList
     ))
   const gs = groupes(diapo.items)
   return (
-    <div className="notak-diapo-liste" data-mise={diapo.miseEnPage}>
+    <div className="notak-arbre-diapo-liste" data-mise={diapo.miseEnPage}>
       {diapo.miseEnPage === 'accolade' && (
         <>
           <h2>{titre}</h2>
-          <svg className="notak-diapo-accolade" viewBox="0 0 20 100" preserveAspectRatio="none" aria-hidden>
+          <svg className="notak-arbre-diapo-accolade" viewBox="0 0 20 100" preserveAspectRatio="none" aria-hidden>
             <path d="M18 2 C8 2 10 10 10 22 L10 38 C10 46 6 50 2 50 C6 50 10 54 10 62 L10 78 C10 90 8 98 18 98" />
           </svg>
           <ul>{items(diapo.items)}</ul>
@@ -105,12 +105,12 @@ function DiapoDeListe({ l, diapo, etape, anime }: { l: Lecture; diapo: DiapoList
       {(diapo.miseEnPage === 'arete' || diapo.miseEnPage === 'chronologie') && (
         <>
           <h2>{titre}</h2>
-          <div className="notak-diapo-axe">
-            <div className="notak-diapo-trait" />
+          <div className="notak-arbre-diapo-axe">
+            <div className="notak-arbre-diapo-trait" />
             {gs.map((g, rang) => (
-              <div key={g[0]!.id} className="notak-diapo-etape" data-cote={rang % 2 === 0 ? 'haut' : 'bas'} data-etat={etat(g[0]!)} data-anime={anime ? '' : undefined}>
-                <span className="notak-diapo-point" />
-                <div className="notak-diapo-etiquette">
+              <div key={g[0]!.id} className="notak-arbre-diapo-etape" data-cote={rang % 2 === 0 ? 'haut' : 'bas'} data-etat={etat(g[0]!)} data-anime={anime ? '' : undefined}>
+                <span className="notak-arbre-diapo-point" />
+                <div className="notak-arbre-diapo-etiquette">
                   <strong>{texte(g[0]!.id)}</strong>
                   {g.slice(1).map((i) => (
                     <em key={i.id}>{texte(i.id)}</em>
@@ -118,7 +118,7 @@ function DiapoDeListe({ l, diapo, etape, anime }: { l: Lecture; diapo: DiapoList
                 </div>
               </div>
             ))}
-            {diapo.miseEnPage === 'arete' && <div className="notak-diapo-tete">{titre}</div>}
+            {diapo.miseEnPage === 'arete' && <div className="notak-arbre-diapo-tete">{titre}</div>}
           </div>
         </>
       )}

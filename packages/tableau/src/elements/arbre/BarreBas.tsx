@@ -39,7 +39,7 @@ export const formaterZoom = (pourcent: number) => t('arbre.bas.pourcent', { n: p
 /** Un bouton de la pastille de droite : 28 de haut, l'icône à 24. */
 function BoutonBas({ icone, info, touche, actif, inactif, classe, onClick }: { icone: NomIcone; info: string; touche?: string; actif?: boolean; inactif?: boolean; classe?: string; onClick?: () => void }) {
   return (
-    <button type="button" className={classe ? `notak-bas-bouton ${classe}` : 'notak-bas-bouton'} aria-label={info} title={info} aria-keyshortcuts={touche} aria-pressed={actif} disabled={inactif} onClick={onClick}>
+    <button type="button" className={classe ? `notak-arbre-bas-bouton ${classe}` : 'notak-arbre-bas-bouton'} aria-label={info} title={info} aria-keyshortcuts={touche} aria-pressed={actif} disabled={inactif} onClick={onClick}>
       <Icone nom={icone} taille={24} trait={1.4} />
     </button>
   )
@@ -74,16 +74,16 @@ export function Compteur({ sujets, choisis, mots, caracteres }: Pick<PropsBarreB
   const racine = useFermeture(ouvert, () => setOuvert(false))
   const libelle = choisis > 0 ? t('arbre.bas.compteSel', { s: choisis, n: sujets }) : t('arbre.bas.compte', { n: sujets })
   return (
-    <div ref={racine} className="notak-bas-hote notak-bas-compteur">
-      <button type="button" className="notak-bas-texte" aria-haspopup="dialog" aria-expanded={ouvert} title={t('arbre.bas.compteInfo')} onClick={() => setOuvert((o) => !o)}>
+    <div ref={racine} className="notak-arbre-bas-hote notak-arbre-bas-compteur">
+      <button type="button" className="notak-arbre-bas-texte" aria-haspopup="dialog" aria-expanded={ouvert} title={t('arbre.bas.compteInfo')} onClick={() => setOuvert((o) => !o)}>
         {/* Une largeur réservée par le texte le plus long : la barre ne saute pas quand on sélectionne. */}
-        <span aria-hidden className="notak-bas-reserve">
+        <span aria-hidden className="notak-arbre-bas-reserve">
           {t('arbre.bas.compteSel', { s: sujets, n: sujets })}
         </span>
-        <span className="notak-bas-valeur">{libelle}</span>
+        <span className="notak-arbre-bas-valeur">{libelle}</span>
       </button>
       {ouvert && (
-        <div className="notak-bas-popover" role="dialog" aria-label={t('arbre.bas.compteInfo')}>
+        <div className="notak-arbre-bas-popover" role="dialog" aria-label={t('arbre.bas.compteInfo')}>
           <p>{t('arbre.bas.compte', { n: sujets })}</p>
           <p>{t('arbre.bas.mots', { n: mots })}</p>
           <p>{t('arbre.bas.caracteres', { n: caracteres })}</p>
@@ -97,15 +97,15 @@ export function Compteur({ sujets, choisis, mots, caracteres }: Pick<PropsBarreB
 export function MenuZoom({ zoom, enPlan, zoomer, ajuster }: Pick<PropsBarreBas, 'zoom' | 'enPlan' | 'zoomer' | 'ajuster'>) {
   const [ouvert, setOuvert] = useState(false)
   return (
-    <div className="notak-bas-hote notak-bas-zoom">
-      <button type="button" className="notak-bas-texte" aria-haspopup="menu" aria-expanded={ouvert} title={t('arbre.bas.zoomInfo')} onClick={() => setOuvert((o) => !o)}>
-        <span aria-hidden className="notak-bas-reserve">
+    <div className="notak-arbre-bas-hote notak-arbre-bas-zoom">
+      <button type="button" className="notak-arbre-bas-texte" aria-haspopup="menu" aria-expanded={ouvert} title={t('arbre.bas.zoomInfo')} onClick={() => setOuvert((o) => !o)}>
+        <span aria-hidden className="notak-arbre-bas-reserve">
           {formaterZoom(500)}
         </span>
-        <span className="notak-bas-valeur">{formaterZoom(enPourcent(zoom))}</span>
+        <span className="notak-arbre-bas-valeur">{formaterZoom(enPourcent(zoom))}</span>
         <Icone nom="chevronBas" taille={12} trait={2} />
       </button>
-      <Deroulant ouvert={ouvert} fermer={() => setOuvert(false)} vers="haut" className="notak-bas-menu">
+      <Deroulant ouvert={ouvert} fermer={() => setOuvert(false)} vers="haut" className="notak-arbre-bas-menu">
         {entreesZoom(zoom, enPlan).map((e) => (
           <Entree
             key={e.valeur}
@@ -157,15 +157,15 @@ export function OngletFeuille({ titre, lectureSeule, renommer, dupliquer, nouvel
     setEdition(null)
   }
   return (
-    <div className="notak-bas-hote notak-bas-feuille" data-actif="">
+    <div className="notak-arbre-bas-hote notak-arbre-bas-feuille" data-actif="">
       {edition === null ? (
-        <button type="button" className="notak-bas-onglet" aria-current="page" title={nom} onDoubleClick={() => !lectureSeule && setEdition(titre)} onContextMenu={(e) => (e.preventDefault(), !lectureSeule && setMenu(true))}>
+        <button type="button" className="notak-arbre-bas-onglet" aria-current="page" title={nom} onDoubleClick={() => !lectureSeule && setEdition(titre)} onContextMenu={(e) => (e.preventDefault(), !lectureSeule && setMenu(true))}>
           <span>{nom}</span>
         </button>
       ) : (
         <input
           ref={champ}
-          className="notak-bas-renommer"
+          className="notak-arbre-bas-renommer"
           value={edition}
           aria-label={t('arbre.bas.renommer')}
           onChange={(e) => setEdition(e.target.value)}
@@ -178,11 +178,11 @@ export function OngletFeuille({ titre, lectureSeule, renommer, dupliquer, nouvel
         />
       )}
       {!lectureSeule && edition === null && (
-        <button type="button" className="notak-bas-chevron" aria-haspopup="menu" aria-expanded={menu} aria-label={t('arbre.bas.feuilleMenu')} onClick={() => setMenu((m) => !m)}>
+        <button type="button" className="notak-arbre-bas-chevron" aria-haspopup="menu" aria-expanded={menu} aria-label={t('arbre.bas.feuilleMenu')} onClick={() => setMenu((m) => !m)}>
           <Icone nom="chevronBas" taille={12} trait={2} />
         </button>
       )}
-      <Deroulant ouvert={menu} fermer={() => setMenu(false)} vers="haut" className="notak-bas-menu notak-bas-menu-feuille">
+      <Deroulant ouvert={menu} fermer={() => setMenu(false)} vers="haut" className="notak-arbre-bas-menu notak-arbre-bas-menu-feuille">
         <Entree libelle={t('arbre.bas.renommer')} onClick={() => (setMenu(false), setEdition(titre))} />
         <hr />
         <Entree libelle={t('arbre.bas.dupliquer')} onClick={() => (setMenu(false), dupliquer())} />
@@ -205,29 +205,29 @@ export function BarreBas(p: PropsBarreBas) {
         if (e.key === ' ' || e.key === 'Enter' || e.target instanceof HTMLInputElement) e.stopPropagation()
       }}
     >
-      <div className="notak-bas-pastille notak-bas-feuilles">
+      <div className="notak-arbre-bas-pastille notak-arbre-bas-feuilles">
         <OngletFeuille titre={p.titre} lectureSeule={p.lectureSeule} renommer={p.renommer} dupliquer={p.dupliquer} nouvelle={p.nouvelle} enregistrer={p.enregistrer} />
         {!p.lectureSeule && (
           <>
-            <span className="notak-bas-filet" />
-            <button type="button" className="notak-bas-bouton notak-bas-plus" aria-label={t('arbre.bas.nouvelleInfo')} title={t('arbre.bas.nouvelleInfo')} aria-keyshortcuts="Alt+Meta+N" onClick={p.nouvelle}>
+            <span className="notak-arbre-bas-filet" />
+            <button type="button" className="notak-arbre-bas-bouton notak-arbre-bas-plus" aria-label={t('arbre.bas.nouvelleInfo')} title={t('arbre.bas.nouvelleInfo')} aria-keyshortcuts="Alt+Meta+N" onClick={p.nouvelle}>
               <Icone nom="ajouter" taille={24} trait={1.4} />
             </button>
           </>
         )}
       </div>
-      <div className="notak-bas-pastille notak-bas-controles">
+      <div className="notak-arbre-bas-pastille notak-arbre-bas-controles">
         {!p.enPlan && (
           <>
             <Compteur sujets={p.sujets} choisis={p.choisis} mots={p.mots} caracteres={p.caracteres} />
-            <span className="notak-bas-filet notak-bas-coupe-compteur" />
+            <span className="notak-arbre-bas-filet notak-arbre-bas-coupe-compteur" />
           </>
         )}
         <MenuZoom zoom={p.zoom} enPlan={p.enPlan} zoomer={p.zoomer} ajuster={p.ajuster} />
-        <span className="notak-bas-filet notak-bas-coupe-zoom" />
-        <BoutonBas icone="gantt" info={t('arbre.bas.gantt')} touche="Alt+Meta+G" classe="notak-bas-gantt" inactif />
-        <span className="notak-bas-filet notak-bas-coupe-gantt" />
-        <div className="notak-bas-modes">
+        <span className="notak-arbre-bas-filet notak-arbre-bas-coupe-zoom" />
+        <BoutonBas icone="gantt" info={t('arbre.bas.gantt')} touche="Alt+Meta+G" classe="notak-arbre-bas-gantt" inactif />
+        <span className="notak-arbre-bas-filet notak-arbre-bas-coupe-gantt" />
+        <div className="notak-arbre-bas-modes">
           {p.enPlan ? (
             <BoutonBas icone="carteMentale" info={t('arbre.bas.versCarte')} touche="Shift+Meta+M" onClick={p.basculerPlan} />
           ) : (

@@ -4,7 +4,7 @@
 
 /* — L'onglet — */
 
-.notak-pitch {
+.notak-arbre-pitch {
   display: flex;
   flex-direction: column;
   margin: 0 -10px;
@@ -13,29 +13,29 @@
   line-height: 17px;
 }
 
-.notak-pitch-section {
+.notak-arbre-pitch-section {
   padding: 12px 20px;
 }
 
-.notak-pitch-section:first-child {
+.notak-arbre-pitch-section:first-child {
   padding-bottom: 0;
 }
 
-.notak-pitch-section h3 {
+.notak-arbre-pitch-section h3 {
   margin: 0 0 12px;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.26px;
 }
 
-.notak-pitch-section hr {
+.notak-arbre-pitch-section hr {
   height: 1px;
   margin: 20px 0;
   border: 0;
   background: var(--notak-arbre-filet-c);
 }
 
-.notak-pitch-vide {
+.notak-arbre-pitch-vide {
   display: grid;
   justify-items: center;
   gap: 12px;
@@ -46,23 +46,23 @@
   text-align: center;
 }
 
-.notak-pitch-vide p {
+.notak-arbre-pitch-vide p {
   margin: 0;
 }
 
 /* L'aperçu : la diapositive du sujet, 128 de haut, centrée, qui se fond à chaque changement. */
-.notak-pitch-apercu {
+.notak-arbre-pitch-apercu {
   display: grid;
   justify-content: center;
-  animation: notak-pitch-fondu 300ms ease-out;
+  animation: notak-arbre-pitch-fondu 300ms ease-out;
 }
 
-.notak-pitch-apercu .notak-diapo-cadre {
+.notak-arbre-pitch-apercu .notak-arbre-diapo-cadre {
   border-radius: 10px;
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.05), 0 4px 15px rgb(0 0 0 / 0.1);
 }
 
-.notak-pitch-apercu-texte {
+.notak-arbre-pitch-apercu-texte {
   display: grid;
   place-items: center;
   width: 228px;
@@ -77,13 +77,13 @@
   text-align: center;
 }
 
-@keyframes notak-pitch-fondu {
+@keyframes notak-arbre-pitch-fondu {
   from {
     opacity: 0;
   }
 }
 
-.notak-pitch-bouton {
+.notak-arbre-pitch-bouton {
   width: 100%;
   height: 24px;
   margin: 4px 0 16px;
@@ -98,11 +98,11 @@
   cursor: pointer;
 }
 
-.notak-pitch-bouton:hover {
+.notak-arbre-pitch-bouton:hover {
   background: var(--notak-arbre-survol);
 }
 
-.notak-pitch-ligne {
+.notak-arbre-pitch-ligne {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -110,48 +110,50 @@
   min-height: 24px;
 }
 
-.notak-pitch-ligne[data-vertical] {
+.notak-arbre-pitch-ligne[data-vertical] {
   flex-direction: column;
   align-items: stretch;
   gap: 8px;
   margin-top: 16px;
 }
 
-.notak-pitch-ligne > span {
+.notak-arbre-pitch-ligne > span {
   letter-spacing: 0.52px;
 }
 
-.notak-pitch-menu {
+.notak-arbre-pitch-menu {
   min-width: 0;
   max-width: 150px;
   height: 24px;
   padding: 0 8px;
   border: 1px solid var(--notak-arbre-piste);
   border-radius: 8px;
-  background: var(--notak-arbre-fond);
+  background: var(--notak-arbre-fond) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8f95' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 6px center;
+  appearance: none;
   color: var(--notak-arbre-texte);
   font: inherit;
+  padding-right: 24px;
 }
 
-.notak-pitch-menu:hover {
+.notak-arbre-pitch-menu:hover {
   border-color: var(--notak-arbre-discret);
 }
 
-.notak-pitch-menu[data-large],
-.notak-pitch-ligne[data-vertical] .notak-pitch-menu {
+.notak-arbre-pitch-menu[data-large],
+.notak-arbre-pitch-ligne[data-vertical] .notak-arbre-pitch-menu {
   width: 100%;
   max-width: none;
 }
 
 /* Les mises en page d'une liste : un groupe de boutons segmentés. */
-.notak-pitch-segments {
+.notak-arbre-pitch-segments {
   display: flex;
   overflow: hidden;
   border: 1px solid var(--notak-arbre-piste);
   border-radius: 8px;
 }
 
-.notak-pitch-segments button {
+.notak-arbre-pitch-segments button {
   display: grid;
   flex: 1;
   place-items: center;
@@ -164,21 +166,21 @@
   cursor: pointer;
 }
 
-.notak-pitch-segments button:first-child {
+.notak-arbre-pitch-segments button:first-child {
   border-left: 0;
 }
 
-.notak-pitch-segments button[aria-checked='true'] {
+.notak-arbre-pitch-segments button[aria-checked='true'] {
   background: var(--notak-arbre-appui);
 }
 
-.notak-pitch-segments button:disabled {
+.notak-arbre-pitch-segments button:disabled {
   opacity: 0.4;
   cursor: default;
 }
 
 /* Les popovers (thèmes, réglages), posés hors du panneau. */
-.notak-pitch-popover {
+.notak-arbre-pitch-popover {
   position: fixed;
   z-index: 20;
   padding: 16px;
@@ -192,14 +194,14 @@
   line-height: 17px;
 }
 
-.notak-pitch-themes {
+.notak-arbre-pitch-themes {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 4px 8px;
 }
 
-.notak-pitch-vignette {
+.notak-arbre-pitch-vignette {
   display: grid;
   justify-items: center;
   min-width: 80px;
@@ -210,49 +212,49 @@
   cursor: pointer;
 }
 
-.notak-pitch-vignette-cadre {
+.notak-arbre-pitch-vignette-cadre {
   padding: 3px;
   border: 1px solid transparent;
   border-radius: 5px;
 }
 
-.notak-pitch-vignette[aria-pressed='true'] .notak-pitch-vignette-cadre {
+.notak-arbre-pitch-vignette[aria-pressed='true'] .notak-arbre-pitch-vignette-cadre {
   border-color: var(--notak-arbre-texte);
 }
 
-.notak-pitch-vignette .notak-diapo-cadre {
+.notak-arbre-pitch-vignette .notak-arbre-diapo-cadre {
   border-radius: 3px;
   box-shadow: 0 0 0 1px var(--notak-arbre-piste);
 }
 
-.notak-pitch-vignette:hover .notak-diapo-cadre {
+.notak-arbre-pitch-vignette:hover .notak-arbre-diapo-cadre {
   box-shadow: 0 0 0 1px var(--notak-arbre-discret);
 }
 
-.notak-pitch-legende {
+.notak-arbre-pitch-legende {
   padding: 8px 0 12px;
   font-size: 11px;
   line-height: 13px;
   text-align: center;
 }
 
-.notak-pitch-reglages {
+.notak-arbre-pitch-reglages {
   display: grid;
   gap: 12px;
 }
 
-.notak-pitch-reglages h2 {
+.notak-arbre-pitch-reglages h2 {
   margin: 0;
   font-size: 21px;
   font-weight: 700;
   line-height: 27px;
 }
 
-.notak-pitch-reglages .notak-pitch-bouton {
+.notak-arbre-pitch-reglages .notak-arbre-pitch-bouton {
   margin: 0;
 }
 
-.notak-pitch-interrupteur {
+.notak-arbre-pitch-interrupteur {
   position: relative;
   width: 36px;
   height: 16px;
@@ -263,11 +265,11 @@
   cursor: pointer;
 }
 
-.notak-pitch-interrupteur[aria-checked='true'] {
+.notak-arbre-pitch-interrupteur[aria-checked='true'] {
   background: var(--notak-arbre-plein);
 }
 
-.notak-pitch-interrupteur span {
+.notak-arbre-pitch-interrupteur span {
   position: absolute;
   top: 1.5px;
   left: 2px;
@@ -279,13 +281,13 @@
   transition: transform 150ms ease-out;
 }
 
-.notak-pitch-interrupteur[aria-checked='true'] span {
+.notak-arbre-pitch-interrupteur[aria-checked='true'] span {
   transform: translateX(11px);
 }
 
 /* — La diapositive — */
 
-.notak-diapo-cadre {
+.notak-arbre-diapo-cadre {
   position: relative;
   flex: none;
   overflow: hidden;
@@ -296,21 +298,21 @@
   font-family: var(--d-police);
 }
 
-.notak-diapo {
+.notak-arbre-diapo {
   position: absolute;
   inset: 0;
   display: grid;
   padding: 7cqw 8cqw;
 }
 
-.notak-diapo h1,
-.notak-diapo h2,
-.notak-diapo ul {
+.notak-arbre-diapo h1,
+.notak-arbre-diapo h2,
+.notak-arbre-diapo ul {
   margin: 0;
   padding: 0;
 }
 
-.notak-diapo-sujet {
+.notak-arbre-diapo-sujet {
   display: grid;
   align-items: center;
   justify-items: center;
@@ -318,7 +320,7 @@
   text-align: center;
 }
 
-.notak-diapo-sujet h1 {
+.notak-arbre-diapo-sujet h1 {
   max-width: 100%;
   font-size: 7cqw;
   font-weight: 700;
@@ -326,11 +328,11 @@
   overflow-wrap: anywhere;
 }
 
-.notak-diapo-sujet[data-central] h1 {
+.notak-arbre-diapo-sujet[data-central] h1 {
   font-size: 9cqw;
 }
 
-.notak-diapo-sujet img {
+.notak-arbre-diapo-sujet img {
   max-width: 100%;
   max-height: 100%;
   min-height: 0;
@@ -338,36 +340,36 @@
   border-radius: var(--d-rayon, 10px);
 }
 
-.notak-diapo-sujet[data-image='gauche'],
-.notak-diapo-sujet[data-image='droite'] {
+.notak-arbre-diapo-sujet[data-image='gauche'],
+.notak-arbre-diapo-sujet[data-image='droite'] {
   grid-template-columns: 1fr 1fr;
   text-align: left;
 }
 
-.notak-diapo-sujet[data-image='droite'] img {
+.notak-arbre-diapo-sujet[data-image='droite'] img {
   order: 2;
 }
 
-.notak-diapo-sujet[data-image='gauche'] h1,
-.notak-diapo-sujet[data-image='droite'] h1 {
+.notak-arbre-diapo-sujet[data-image='gauche'] h1,
+.notak-arbre-diapo-sujet[data-image='droite'] h1 {
   font-size: 5.6cqw;
   justify-self: start;
 }
 
-.notak-diapo-sujet[data-image='dessus'] {
+.notak-arbre-diapo-sujet[data-image='dessus'] {
   grid-template-rows: minmax(0, 1fr) auto;
 }
 
-.notak-diapo-sujet[data-image='dessous'] {
+.notak-arbre-diapo-sujet[data-image='dessous'] {
   grid-template-rows: auto minmax(0, 1fr);
 }
 
-.notak-diapo-sujet[data-image='dessous'] img {
+.notak-arbre-diapo-sujet[data-image='dessous'] img {
   order: 2;
 }
 
 /* Une image « Fond » couvre toute la diapositive, le titre par-dessus. */
-.notak-diapo-sujet[data-image='fond'] img {
+.notak-arbre-diapo-sujet[data-image='fond'] img {
   position: absolute;
   inset: 0;
   z-index: 0;
@@ -378,7 +380,7 @@
   object-fit: cover;
 }
 
-.notak-diapo-sujet[data-image='fond'] h1 {
+.notak-arbre-diapo-sujet[data-image='fond'] h1 {
   position: relative;
   z-index: 1;
   padding: 1.5cqw 3cqw;
@@ -387,13 +389,13 @@
 }
 
 /* Les listes : le titre du sujet, ses sous-sujets qui arrivent un à un. */
-.notak-diapo-liste {
+.notak-arbre-diapo-liste {
   display: grid;
   align-content: center;
   gap: 4cqw;
 }
 
-.notak-diapo-liste h2 {
+.notak-arbre-diapo-liste h2 {
   color: var(--d-accent);
   font-size: 5cqw;
   font-weight: 700;
@@ -401,44 +403,44 @@
   overflow-wrap: anywhere;
 }
 
-.notak-diapo-liste ul {
+.notak-arbre-diapo-liste ul {
   display: grid;
   gap: 1.4cqw;
   list-style: none;
 }
 
-.notak-diapo-liste li {
+.notak-arbre-diapo-liste li {
   font-size: 3.6cqw;
   line-height: 1.3;
   overflow-wrap: anywhere;
 }
 
-.notak-diapo-liste li[data-niveau='1'] {
+.notak-arbre-diapo-liste li[data-niveau='1'] {
   padding-left: 3cqw;
   font-size: 3cqw;
 }
 
-.notak-diapo-liste li[data-niveau='2'],
-.notak-diapo-liste li[data-niveau='3'] {
+.notak-arbre-diapo-liste li[data-niveau='2'],
+.notak-arbre-diapo-liste li[data-niveau='3'] {
   padding-left: 6cqw;
   font-size: 2.6cqw;
   opacity: 0.85;
 }
 
-.notak-diapo-liste li[data-etat='cache'] {
+.notak-arbre-diapo-liste li[data-etat='cache'] {
   opacity: 0;
 }
 
-.notak-diapo-liste li[data-anime] {
+.notak-arbre-diapo-liste li[data-anime] {
   transition: opacity 300ms ease-out, transform 300ms ease-out;
 }
 
-.notak-diapo-liste li[data-anime][data-etat='cache'] {
+.notak-arbre-diapo-liste li[data-anime][data-etat='cache'] {
   transform: translateY(1cqw);
 }
 
 /* Puces : un point à la couleur d'accent devant chaque ligne. */
-.notak-diapo-liste[data-mise='puces'] li::before {
+.notak-arbre-diapo-liste[data-mise='puces'] li::before {
   content: '';
   display: inline-block;
   width: 0.9cqw;
@@ -450,13 +452,13 @@
 }
 
 /* Accolade : le titre à gauche, une accolade, la liste à droite. */
-.notak-diapo-liste[data-mise='accolade'] {
+.notak-arbre-diapo-liste[data-mise='accolade'] {
   grid-template-columns: minmax(0, 0.8fr) 4cqw minmax(0, 1.4fr);
   align-items: center;
   gap: 2cqw;
 }
 
-.notak-diapo-accolade {
+.notak-arbre-diapo-accolade {
   width: 4cqw;
   height: 34cqh;
   fill: none;
@@ -465,40 +467,40 @@
   vector-effect: non-scaling-stroke;
 }
 
-.notak-diapo-accolade path {
+.notak-arbre-diapo-accolade path {
   vector-effect: non-scaling-stroke;
   stroke-width: 3px;
   stroke-linecap: round;
 }
 
 /* Paroles : de grandes lignes centrées, la dernière arrivée en pleine clarté. */
-.notak-diapo-liste[data-mise='paroles'] {
+.notak-arbre-diapo-liste[data-mise='paroles'] {
   text-align: center;
 }
 
-.notak-diapo-liste[data-mise='paroles'] h2 {
+.notak-arbre-diapo-liste[data-mise='paroles'] h2 {
   font-size: 3.4cqw;
   opacity: 0.8;
 }
 
-.notak-diapo-liste[data-mise='paroles'] li {
+.notak-arbre-diapo-liste[data-mise='paroles'] li {
   padding-left: 0;
   font-size: 5.2cqw;
   font-weight: 600;
 }
 
-.notak-diapo-liste[data-mise='paroles'] li[data-etat='passe'] {
+.notak-arbre-diapo-liste[data-mise='paroles'] li[data-etat='passe'] {
   opacity: 0.35;
 }
 
 /* Arête de poisson et chronologie : un axe horizontal, les étapes de part et d'autre. */
-.notak-diapo-liste[data-mise='arete'],
-.notak-diapo-liste[data-mise='chronologie'] {
+.notak-arbre-diapo-liste[data-mise='arete'],
+.notak-arbre-diapo-liste[data-mise='chronologie'] {
   grid-template-rows: auto 1fr;
   align-content: stretch;
 }
 
-.notak-diapo-axe {
+.notak-arbre-diapo-axe {
   position: relative;
   display: flex;
   align-items: stretch;
@@ -506,7 +508,7 @@
   padding-right: 0;
 }
 
-.notak-diapo-trait {
+.notak-arbre-diapo-trait {
   position: absolute;
   top: 50%;
   right: 0;
@@ -517,15 +519,15 @@
   transform: translateY(-50%);
 }
 
-.notak-diapo-liste[data-mise='arete'] .notak-diapo-axe {
+.notak-arbre-diapo-liste[data-mise='arete'] .notak-arbre-diapo-axe {
   padding-right: 14cqw;
 }
 
-.notak-diapo-liste[data-mise='arete'] .notak-diapo-trait {
+.notak-arbre-diapo-liste[data-mise='arete'] .notak-arbre-diapo-trait {
   right: 12cqw;
 }
 
-.notak-diapo-tete {
+.notak-arbre-diapo-tete {
   position: absolute;
   top: 50%;
   right: 0;
@@ -543,13 +545,13 @@
   transform: translateY(-50%);
 }
 
-.notak-diapo-etape {
+.notak-arbre-diapo-etape {
   position: relative;
   flex: 1;
   min-width: 0;
 }
 
-.notak-diapo-point {
+.notak-arbre-diapo-point {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -560,7 +562,7 @@
   transform: translate(-50%, -50%);
 }
 
-.notak-diapo-etiquette {
+.notak-arbre-diapo-etiquette {
   position: absolute;
   left: 0;
   right: 0;
@@ -573,31 +575,31 @@
   overflow-wrap: anywhere;
 }
 
-.notak-diapo-etiquette em {
+.notak-arbre-diapo-etiquette em {
   font-size: 2cqw;
   font-style: normal;
   opacity: 0.8;
 }
 
-.notak-diapo-etape[data-cote='haut'] .notak-diapo-etiquette {
+.notak-arbre-diapo-etape[data-cote='haut'] .notak-arbre-diapo-etiquette {
   bottom: calc(50% + 2.4cqw);
 }
 
-.notak-diapo-etape[data-cote='bas'] .notak-diapo-etiquette {
+.notak-arbre-diapo-etape[data-cote='bas'] .notak-arbre-diapo-etiquette {
   top: calc(50% + 2.4cqw);
 }
 
-.notak-diapo-etape[data-etat='cache'] {
+.notak-arbre-diapo-etape[data-etat='cache'] {
   opacity: 0;
 }
 
-.notak-diapo-etape[data-anime] {
+.notak-arbre-diapo-etape[data-anime] {
   transition: opacity 300ms ease-out;
 }
 
 /* — La présentation — */
 
-.notak-pitch-scene {
+.notak-arbre-pitch-scene {
   position: absolute;
   inset: 0;
   z-index: 10;
@@ -607,11 +609,11 @@
   cursor: default;
 }
 
-.notak-pitch-diapo[data-anime] {
-  animation: notak-pitch-fondu 300ms ease-out;
+.notak-arbre-pitch-diapo[data-anime] {
+  animation: notak-arbre-pitch-fondu 300ms ease-out;
 }
 
-.notak-pitch-compte {
+.notak-arbre-pitch-compte {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -620,7 +622,7 @@
 }
 
 /* La barre flottante : en haut à droite, à 100 % au début, à 15 % après trois secondes, à 100 % au survol. */
-.notak-pitch-outils {
+.notak-arbre-pitch-outils {
   position: absolute;
   top: 30px;
   right: 30px;
@@ -629,11 +631,11 @@
   transition: opacity 200ms ease;
 }
 
-.notak-pitch-outils[data-discret] {
+.notak-arbre-pitch-outils[data-discret] {
   opacity: 0.15;
 }
 
-.notak-pitch-groupe {
+.notak-arbre-pitch-groupe {
   display: flex;
   overflow: hidden;
   border-radius: 8px;
@@ -641,7 +643,7 @@
   box-shadow: 0 0 0 0.5px var(--notak-arbre-filet-c), 0 2px 8px rgb(0 0 0 / 0.14);
 }
 
-.notak-pitch-outil {
+.notak-arbre-pitch-outil {
   display: grid;
   place-items: center;
   min-width: 24px;
@@ -653,21 +655,21 @@
   cursor: pointer;
 }
 
-.notak-pitch-outil:hover:not(:disabled) {
+.notak-arbre-pitch-outil:hover:not(:disabled) {
   background: var(--notak-arbre-survol);
 }
 
-.notak-pitch-outil:disabled {
+.notak-arbre-pitch-outil:disabled {
   opacity: 0.3;
   cursor: default;
 }
 
-.notak-pitch-outil[aria-expanded='true'] {
+.notak-arbre-pitch-outil[aria-expanded='true'] {
   background: var(--notak-arbre-appui);
 }
 
 /* La pastille « lire depuis le début ». */
-.notak-pitch-puce {
+.notak-arbre-pitch-puce {
   position: absolute;
   bottom: 40px;
   left: 50%;
@@ -681,10 +683,10 @@
   color: var(--notak-arbre-texte);
   font-size: 13px;
   transform: translateX(-50%);
-  animation: notak-pitch-fondu 300ms ease-out;
+  animation: notak-arbre-pitch-fondu 300ms ease-out;
 }
 
-.notak-pitch-puce button {
+.notak-arbre-pitch-puce button {
   height: 24px;
   padding: 0 12px;
   border: 0;
@@ -696,12 +698,12 @@
   cursor: pointer;
 }
 
-.notak-pitch-puce button:hover {
+.notak-arbre-pitch-puce button:hover {
   background: var(--notak-arbre-survol);
 }
 
 /* La fenêtre des raccourcis. */
-.notak-pitch-raccourcis {
+.notak-arbre-pitch-raccourcis {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -715,14 +717,14 @@
   transform: translate(-50%, -50%);
 }
 
-.notak-pitch-raccourcis header {
+.notak-arbre-pitch-raccourcis header {
   position: relative;
   display: grid;
   place-items: center;
   height: 29px;
 }
 
-.notak-pitch-raccourcis header button {
+.notak-arbre-pitch-raccourcis header button {
   position: absolute;
   top: 5px;
   left: 8px;
@@ -735,7 +737,7 @@
   cursor: pointer;
 }
 
-.notak-pitch-raccourcis ul {
+.notak-arbre-pitch-raccourcis ul {
   display: grid;
   gap: 9px;
   margin: 0;
@@ -743,24 +745,24 @@
   list-style: none;
 }
 
-.notak-pitch-raccourcis li {
+.notak-arbre-pitch-raccourcis li {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
 }
 
-.notak-pitch-sep {
+.notak-arbre-pitch-sep {
   height: 1px;
   background: var(--notak-arbre-filet-c);
 }
 
-.notak-pitch-touches {
+.notak-arbre-pitch-touches {
   display: inline-flex;
   align-items: center;
 }
 
-.notak-pitch-touches i {
+.notak-arbre-pitch-touches i {
   display: inline-block;
   width: 10px;
   color: #949494;
@@ -769,7 +771,7 @@
   opacity: 0.5;
 }
 
-.notak-pitch-touche {
+.notak-arbre-pitch-touche {
   display: inline-grid;
   place-items: center;
   min-width: 25px;

@@ -97,8 +97,8 @@ export function PopoverNote({ titre, note, x, y, lectureSeule, valider, fermer }
         }
       }}
     >
-      <div className="notak-note-barre" role="toolbar" aria-label={t('arbre.note')} onMouseDown={(e) => (e.target as Element).closest('button') && e.preventDefault()}>
-        <span className="notak-note-titre">{titre}</span>
+      <div className="notak-arbre-note-barre" role="toolbar" aria-label={t('arbre.note')} onMouseDown={(e) => (e.target as Element).closest('button') && e.preventDefault()}>
+        <span className="notak-arbre-note-titre">{titre}</span>
         {!lectureSeule &&
           editeur &&
           BOUTONS.map((b) => (
@@ -123,7 +123,7 @@ export function PopoverNote({ titre, note, x, y, lectureSeule, valider, fermer }
           <Icone nom="fermer" taille={18} trait={1.5} />
         </button>
       </div>
-      <div className="notak-note-corps">
+      <div className="notak-arbre-note-corps">
         <EditorContent editor={editeur} />
       </div>
     </div>

@@ -219,6 +219,8 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     setCamera({ x: r.width / 2 - (e.x + e.l / 2) * z, y: r.height / 2 - (e.y + e.h / 2) * z, z })
   }, [])
   const basculerZen = useCallback(() => {
+    // Le Zen ferme le panneau de gauche, comme Xmind.
+    setGauche(null)
     setZen((z) => {
       const fond = surface.current?.closest('.notak-arbre-fond') as HTMLElement | null
       if (!z) void fond?.requestFullscreen?.().catch(() => {})

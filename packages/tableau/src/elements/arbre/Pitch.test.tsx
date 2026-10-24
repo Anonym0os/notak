@@ -51,11 +51,11 @@ describe('l’onglet Pitch', () => {
   it('un principal : l’aperçu, le sujet et la liste avec leurs Auto dits, la livraison et les cinq mises en page', () => {
     const { a, A } = carte()
     const o = onglet(a, [A])
-    expect(o.hote.querySelector('.notak-pitch-apercu .notak-diapo')).toBeTruthy()
+    expect(o.hote.querySelector('.notak-arbre-pitch-apercu .notak-arbre-diapo')).toBeTruthy()
     expect([...o.menu('Sujet comme diapositive').options].map((x) => x.textContent)).toEqual(['Auto (Visible)', 'Visible', 'Masqué'])
     expect([...o.menu('Sous-sujets comme diapositive').options].map((x) => x.textContent)).toEqual(['Auto (Visible)', 'Visible', 'Masqué'])
     expect([...o.menu('Livraison').options].map((x) => x.textContent)).toEqual(['Auto (Un par un)', 'Un par un, en profondeur', 'Un par un', 'Tout à la fois'])
-    expect([...o.hote.querySelectorAll('.notak-pitch-segments button')].map((b) => b.getAttribute('aria-label'))).toEqual(['Liste à accolade', 'Liste à puces', 'Paroles', 'Arêtes de poisson', 'Chronologie'])
+    expect([...o.hote.querySelectorAll('.notak-arbre-pitch-segments button')].map((b) => b.getAttribute('aria-label'))).toEqual(['Liste à accolade', 'Liste à puces', 'Paroles', 'Arêtes de poisson', 'Chronologie'])
     // Pas d’image sur ce sujet : pas de ligne « Position de l’image ».
     expect(o.hote.textContent).not.toContain('Position de l’image')
     o.fin()
@@ -78,7 +78,7 @@ describe('l’onglet Pitch', () => {
     expect(o.faire).toHaveBeenLastCalledWith({ type: 'diapo', ids: [A], reglage: { sujet: 'masque' } })
     taper(o.menu('Livraison'), 'tout')
     expect(o.faire).toHaveBeenLastCalledWith({ type: 'diapo', ids: [A], reglage: { livraison: 'tout' } })
-    clic(o.hote.querySelectorAll('.notak-pitch-segments button')[4]!)
+    clic(o.hote.querySelectorAll('.notak-arbre-pitch-segments button')[4]!)
     expect(o.faire).toHaveBeenLastCalledWith({ type: 'diapo', ids: [A], reglage: { miseEnPage: 'chronologie' } })
     taper(o.menu('Rapport d’aspect'), '4:3')
     expect(o.faire).toHaveBeenLastCalledWith({ type: 'pitch', reglage: { ratio: '4:3' } })
@@ -95,7 +95,7 @@ describe('l’onglet Pitch', () => {
     const { a, A, B } = carte()
     const b = poserDiapo(a, [A], { sujet: 'masque' })
     const o = onglet(b, [A, B])
-    expect(o.hote.querySelector('.notak-pitch-apercu-texte')?.textContent).toBe('Plusieurs sujets sélectionnés.')
+    expect(o.hote.querySelector('.notak-arbre-pitch-apercu-texte')?.textContent).toBe('Plusieurs sujets sélectionnés.')
     expect(o.menu('Sujet comme diapositive').value).toBe('multiple')
     o.fin()
   })
@@ -103,9 +103,9 @@ describe('l’onglet Pitch', () => {
   it('« Changer de thème » ouvre les sept thèmes ; en choisir un écrit le thème de la carte', () => {
     const { a, A } = carte()
     const o = onglet(a, [A])
-    clic(o.hote.querySelector('.notak-pitch-bouton')!)
-    const vignettes = [...document.querySelectorAll('.notak-pitch-vignette')]
-    expect(vignettes.map((v) => v.querySelector('.notak-pitch-legende')?.textContent)).toEqual(['Clair', 'Sombre', 'Innocence', 'Formes', 'Rose de minuit', 'Bulles', 'Carnet'])
+    clic(o.hote.querySelector('.notak-arbre-pitch-bouton')!)
+    const vignettes = [...document.querySelectorAll('.notak-arbre-pitch-vignette')]
+    expect(vignettes.map((v) => v.querySelector('.notak-arbre-pitch-legende')?.textContent)).toEqual(['Clair', 'Sombre', 'Innocence', 'Formes', 'Rose de minuit', 'Bulles', 'Carnet'])
     expect(vignettes[1]!.getAttribute('aria-pressed')).toBe('true')
     clic(vignettes[2]!)
     expect(o.faire).toHaveBeenLastCalledWith({ type: 'pitch', reglage: { theme: 'innocence' } })
@@ -123,7 +123,7 @@ function presenter(a: Arbre, depart?: Id) {
   act(() => racine.render(<Presentation arbre={a} lecture={lire(a)} depart={depart} faire={faire} lectureSeule={false} quitter={quitter} />))
   const touche = (key: string, mods: Partial<KeyboardEventInit> = {}) =>
     act(() => void document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...mods })))
-  const titre = () => hote.querySelector('.notak-diapo h1, .notak-diapo h2')?.textContent
+  const titre = () => hote.querySelector('.notak-arbre-diapo h1, .notak-arbre-diapo h2')?.textContent
   return { hote, quitter, faire, touche, titre, fin: () => (act(() => racine.unmount()), hote.remove()) }
 }
 
@@ -133,12 +133,12 @@ describe('le mode présentation', () => {
     const p = presenter(a)
     expect(p.titre()).toBe('Cours')
     p.touche(' ')
-    expect(p.hote.querySelector('.notak-diapo-liste h2')?.textContent).toBe('Cours')
+    expect(p.hote.querySelector('.notak-arbre-diapo-liste h2')?.textContent).toBe('Cours')
     p.touche('ArrowRight')
     p.touche('ArrowRight')
     expect(p.titre()).toBe('Chapitre A')
     p.touche('ArrowLeft')
-    expect(p.hote.querySelector('.notak-diapo-liste')).toBeTruthy()
+    expect(p.hote.querySelector('.notak-arbre-diapo-liste')).toBeTruthy()
     p.fin()
   })
 
@@ -147,7 +147,7 @@ describe('le mode présentation', () => {
     const p = presenter(a, A)
     expect(p.titre()).toBe('Chapitre A')
     p.touche('ArrowRight')
-    const etats = () => [...p.hote.querySelectorAll('.notak-diapo-liste li')].map((li) => li.getAttribute('data-etat'))
+    const etats = () => [...p.hote.querySelectorAll('.notak-arbre-diapo-liste li')].map((li) => li.getAttribute('data-etat'))
     expect(etats()).toEqual(['courant', 'cache'])
     p.touche('ArrowRight')
     expect(etats()).toEqual(['passe', 'courant'])
@@ -168,9 +168,9 @@ describe('le mode présentation', () => {
     const { a } = carte()
     const p = presenter(a)
     p.touche('?')
-    expect(p.hote.querySelector('.notak-pitch-raccourcis')).toBeTruthy()
+    expect(p.hote.querySelector('.notak-arbre-pitch-raccourcis')).toBeTruthy()
     p.touche('Escape')
-    expect(p.hote.querySelector('.notak-pitch-raccourcis')).toBeNull()
+    expect(p.hote.querySelector('.notak-arbre-pitch-raccourcis')).toBeNull()
     expect(p.quitter).not.toHaveBeenCalled()
     p.touche('Escape')
     expect(p.quitter).toHaveBeenCalledTimes(1)
@@ -184,9 +184,9 @@ describe('le mode présentation', () => {
   it('le thème de la carte habille la diapositive, et la barre garde ses quatre groupes de boutons', () => {
     const { a } = carte()
     const p = presenter({ ...a, pitch: { theme: 'light', ratio: '4:3' } })
-    expect((p.hote.querySelector('.notak-diapo-cadre') as HTMLElement).style.getPropertyValue('--d-fond')).toBe('#fafbfc')
-    expect(p.hote.querySelector('.notak-diapo-cadre')?.getAttribute('data-ratio')).toBe('4:3')
-    expect([...p.hote.querySelectorAll('.notak-pitch-outil')].map((b) => b.getAttribute('aria-label'))).toEqual([
+    expect((p.hote.querySelector('.notak-arbre-diapo-cadre') as HTMLElement).style.getPropertyValue('--d-fond')).toBe('#fafbfc')
+    expect(p.hote.querySelector('.notak-arbre-diapo-cadre')?.getAttribute('data-ratio')).toBe('4:3')
+    expect([...p.hote.querySelectorAll('.notak-arbre-pitch-outil')].map((b) => b.getAttribute('aria-label'))).toEqual([
       'Quitter le mode présentation.',
       'Paramètres',
       'Retour au sujet parent.',

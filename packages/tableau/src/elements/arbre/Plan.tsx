@@ -49,7 +49,7 @@ export function Plan({ lecture: l, courant, choisir, faire, lectureSeule, zoom =
   const premierFlottant = l.flottants[0] === undefined ? -1 : lignes.findIndex((x) => x.id === l.flottants[0])
   return (
     <div ref={racine} className="notak-arbre-plan" role="tree" aria-label={t('arbre.plan')} style={zoom === 1 ? undefined : { zoom }}>
-      <div className="notak-plan-page">
+      <div className="notak-arbre-plan-page">
         {lignes.map(({ id, niveau }, i) => {
           const s = l.sujets.get(id)!
           const enfants = enfantsDe(l, id).length
@@ -57,7 +57,7 @@ export function Plan({ lecture: l, courant, choisir, faire, lectureSeule, zoom =
           const note = s.note ? texteBrut(s.note).trim() : ''
           return (
             <div key={id}>
-              {i === premierFlottant && <hr className="notak-plan-flottants" />}
+              {i === premierFlottant && <hr className="notak-arbre-plan-flottants" />}
               <div
                 className="notak-arbre-plan-ligne"
                 data-ligne={id}
@@ -69,7 +69,7 @@ export function Plan({ lecture: l, courant, choisir, faire, lectureSeule, zoom =
                 style={{ marginLeft: Math.max(0, niveau - 1) * 24 }}
               >
                 <button type="button" className="notak-arbre-plan-puce" tabIndex={-1} aria-label={s.replie ? t('arbre.gauche.deplier') : t('arbre.gauche.replier')} disabled={!enfants} onClick={() => faire({ type: 'replier', id })}>
-                  {enfants ? <Icone nom="chevronBas" taille={12} trait={2.2} className={s.replie ? 'notak-plan-ferme' : undefined} /> : <span className="notak-plan-point" />}
+                  {enfants ? <Icone nom="chevronBas" taille={12} trait={2.2} className={s.replie ? 'notak-arbre-plan-ferme' : undefined} /> : <span className="notak-arbre-plan-point" />}
                 </button>
                 <ChampLigne
                   titre={s.titre}
@@ -112,18 +112,18 @@ export function Plan({ lecture: l, courant, choisir, faire, lectureSeule, zoom =
                     e.stopPropagation()
                   }}
                 />
-                {masques > 0 && <span className="notak-plan-compte" title={t('arbre.gauche.masques', { n: masques })}>{masques}</span>}
+                {masques > 0 && <span className="notak-arbre-plan-compte" title={t('arbre.gauche.masques', { n: masques })}>{masques}</span>}
               </div>
               {(note || !!s.etiquettes?.length) && (
-                <div className="notak-plan-sous" style={{ marginLeft: Math.max(0, niveau - 1) * 24 }}>
+                <div className="notak-arbre-plan-sous" style={{ marginLeft: Math.max(0, niveau - 1) * 24 }}>
                   {!!s.etiquettes?.length && (
-                    <p className="notak-plan-etiquettes">
+                    <p className="notak-arbre-plan-etiquettes">
                       {s.etiquettes.map((e) => (
                         <span key={e}>{e}</span>
                       ))}
                     </p>
                   )}
-                  {note && <p className="notak-plan-note">{note}</p>}
+                  {note && <p className="notak-arbre-plan-note">{note}</p>}
                 </div>
               )}
             </div>
