@@ -31,8 +31,8 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
 | 18. Carte mentale | 61 | 10 | 0 | 93 % |
-| 19. Document à blocs | 26 | 3 | 1 | 92 % |
-| **Total** | **369** | **23** | **3** | **96 %** |
+| 19. Document à blocs | 28 | 1 | 1 | 95 % |
+| **Total** | **371** | **21** | **3** | **97 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -512,11 +512,11 @@ dans `packages/tableau/src/blocs/`, pour resservir à d'autres éléments.
 | La page de Notion : plein écran, colonne de 720 px, titre de 40 px, espacements et couleurs mesurés | ✅ | Mesurés en direct dans Notion ; la colonne d’outils à la Milanote est retirée. |
 | Un vieux client ouvre un bloc inconnu en lecture seule, sans rien perdre | ✅ | Le texte se dessine réduit à ce qu’il connaît, un avis dit pourquoi (`blocs/lisible.ts`). |
 | Titres 1 à 3, titres dépliants | ✅ | Un titre rendu dépliant range dessous les blocs jusqu’au prochain titre de son rang. |
-| Listes à puces, numérotées (1, a, i selon la profondeur), tâches | ✅ |  |
+| Listes à puces, numérotées (1, a, i selon la profondeur), tâches | ✅ | « 3. » en tête fait une liste qui part de 3. |
 | Dépliant | ✅ | → Notak : ouvert ou fermé pour tout le monde (Notion le garde par personne). |
 | Citation, encadré avec icône, séparateur | ✅ |  |
-| Code avec langage, bouton Copier, retour à la ligne | 🟡 | Le bloc de code ; le choix du langage, Copier et le retour à la ligne restent. |
-| Image avec largeur, alignement et légende | 🟡 | Posée par « / » depuis l’appareil, rangée avec les fichiers du tableau ; largeur, alignement et légende restent à régler à la souris. |
+| Code avec langage, bouton Copier, retour à la ligne | ✅ | Barre au survol (langage, Copier), coloration selon le langage, sans dépendance ; le rendu figé reste monochrome. |
+| Image avec largeur, alignement et légende | ✅ | Poignées de largeur sur les bords, barre au survol (alignement, « Légende »), légende écrite sur place. |
 | Aperçu de lien | ⬜ |  |
 | Menu « / » : filtre par mots-clés, catégories, couleurs et actions | ✅ |  |
 | Raccourcis markdown en début de bloc et en ligne | ✅ | `>` fait un dépliant dans le document, une citation dans la note. |
