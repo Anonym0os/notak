@@ -10,6 +10,7 @@ import { RenduArbre } from './Arbre'
 import { lire, nouvelArbre } from './modele/sujets'
 import './arbre.css'
 import './fenetre.css'
+import './onglet-carte.css'
 
 /** Largeur d'une carte mentale posée sur la toile, en UG. */
 export const LARGEUR_ARBRE = 40

@@ -68,23 +68,29 @@ function marges(forme: FormeSujet, [v, h]: [number, number]): [number, number] {
   }
 }
 
-/** L'habillage d'un sujet : son rang dans le thème, puis son style. */
-export function habitDe(l: Lecture, id: Id, theme: Theme): Habit {
+/** Ce que la carte compacte retire des marges de chaque rang (docs/XMIND.md § 9 : « réduire la taille et l'espacement des éléments »). */
+export const MARGES_COMPACTES: Record<Rang, number> = { central: 0.78, principal: 0.65, sous: 0.67, flottant: 0.82 }
+
+/** L'habillage d'un sujet : son rang dans le thème, puis son style. `compacte` : la carte compacte, aux marges réduites. */
+export function habitDe(l: Lecture, id: Id, theme: Theme, compacte = false): Habit {
   const rang = rangDe(l, id)
   const t = TAILLES[rang]
+  const k = compacte ? MARGES_COMPACTES[rang] : 1
   const s = l.sujets.get(id)?.style
   const formeTheme = rang === 'central' ? theme.central.forme : rang === 'principal' ? theme.principal.forme : rang === 'sous' ? theme.sous.forme : theme.flottant.forme
   const forme = s?.forme ?? formeTheme
   const police = s?.taille ?? t.police
+  const latin = s?.police ?? theme.police ?? POLICE
   return {
     police,
     graisse: s?.gras === undefined ? t.graisse : s.gras ? 700 : 400,
     italique: !!s?.italique,
-    famille: s?.police ?? theme.police ?? POLICE,
-    marge: marges(forme, [t.marge[0] * (police / t.police), t.marge[1] * (police / t.police)]),
+    // La police CJK vient après la latine : un caractère que la première n'a pas passe à la seconde.
+    famille: theme.cjk ? `${latin}, "${theme.cjk}"` : latin,
+    marge: marges(forme, [t.marge[0] * k * (police / t.police), t.marge[1] * k * (police / t.police)]),
     forme,
     largeurMax: t.largeurMax,
-    plein: rang === 'principal' && theme.principal.plein,
+    plein: (rang === 'principal' && theme.principal.plein) || (rang === 'flottant' && !!theme.flottantsColores),
     ...(s?.remplissage ? { remplissage: s.remplissage } : rang === 'central' && theme.central.remplissage ? { remplissage: theme.central.remplissage } : {}),
     ...(s?.bordure ? { bordure: s.bordure } : {}),
     ...(s?.epaisseurBordure !== undefined ? { epaisseurBordure: s.epaisseurBordure } : {}),
@@ -95,18 +101,28 @@ export function habitDe(l: Lecture, id: Id, theme: Theme): Habit {
 /** Les couleurs des branches principales, dans l'ordre (« arc-en-ciel ») du thème classique. */
 export const COULEURS_BRANCHES = THEMES[0]!.palette
 
+/** Ce que les réglages de la carte changent aux couleurs : la couleur unique des branches, les flottants colorés. */
+export interface ReglagesCouleur {
+  /** Sans branches de couleur : la couleur de toutes les branches ; absente, l'encre du thème. */
+  ligne?: string | undefined
+  /** Chaque sujet flottant (et sa branche) prend une couleur du thème, tour à tour. */
+  flottants?: boolean
+}
+
 /**
  * La couleur de la branche d'un sujet : celle qu'un ancêtre (ou lui-même) déclare, sinon celle de son principal dans
- * la palette du thème. Le central et un flottant : `null` (l'encre du thème). `uneCouleur` : jamais d'arc-en-ciel.
+ * la palette du thème. Le central : `null` (l'encre du thème), un flottant aussi, sauf si `flottants` les colore.
+ * `uneCouleur` : jamais d'arc-en-ciel, la couleur unique `ligne` ou l'encre.
  */
-export function couleurDe(l: Lecture, id: Id, theme: Theme = THEMES[0]!, uneCouleur = false): string | null {
+export function couleurDe(l: Lecture, id: Id, theme: Theme = THEMES[0]!, uneCouleur = false, r: ReglagesCouleur = {}): string | null {
   let x: Id | undefined = id
   while (x !== undefined) {
     const s = l.sujets.get(x)
     if (!s) return null
     if (s.style?.couleurBranche) return s.style.couleurBranche
-    if (s.parent === undefined || s.genre === 'detache') return null
-    if (s.parent === l.central) return uneCouleur ? null : (theme.palette[enfantsDe(l, l.central).indexOf(x) % theme.palette.length] ?? null)
+    if (s.genre === 'detache') return r.flottants ? (theme.palette[Math.max(0, l.flottants.indexOf(x)) % theme.palette.length] ?? null) : null
+    if (s.parent === undefined) return null
+    if (s.parent === l.central) return uneCouleur ? (r.ligne ?? null) : (theme.palette[enfantsDe(l, l.central).indexOf(x) % theme.palette.length] ?? null)
     x = s.parent
   }
   return null
@@ -120,7 +136,18 @@ export interface StyleDeBranche {
   motif: 'plein' | 'tirets' | 'points'
 }
 
-export function brancheDe(l: Lecture, parent: Id): StyleDeBranche {
+/** Ce que la carte impose à toutes ses branches, à moins qu'un sujet n'en dise autrement. */
+export interface BranchesGlobales {
+  /** La largeur, en points. */
+  largeur?: number | undefined
+  /** Les branches du central s'amincissent jusqu'en pointe. */
+  effilee?: boolean | undefined
+}
+
+/** Un point (1/72 de pouce) en pixels d'écran. */
+export const PX_PAR_POINT = 4 / 3
+
+export function brancheDe(l: Lecture, parent: Id, globales: BranchesGlobales = {}): StyleDeBranche {
   const r: StyleDeBranche = { forme: null, epaisseur: null, effilee: false, motif: 'plein' }
   const vus = { forme: false, epaisseur: false, effilee: false, motif: false }
   for (let s = l.sujets.get(parent); s; s = s.parent !== undefined ? l.sujets.get(s.parent) : undefined) {
@@ -131,6 +158,8 @@ export function brancheDe(l: Lecture, parent: Id): StyleDeBranche {
     if (!vus.effilee && st.effilee !== undefined) ((r.effilee = st.effilee), (vus.effilee = true))
     if (!vus.motif && st.motif) ((r.motif = st.motif), (vus.motif = true))
   }
+  if (!vus.epaisseur && globales.largeur) r.epaisseur = Math.round(globales.largeur * PX_PAR_POINT * 10) / 10
+  if (!vus.effilee && globales.effilee && parent === l.central) r.effilee = true
   return r
 }
 
@@ -177,6 +206,8 @@ export interface Decor {
   icones?: number
   etiquettes?: readonly string[]
   image?: { l: number; h: number }
+  /** « Afficher toutes les notes » : le texte de la note, montré en bloc sous le titre. */
+  note?: string
 }
 
 /** La géométrie d'un sujet dessiné, relative à son coin haut gauche. */
@@ -190,14 +221,27 @@ export interface Mesure extends Taille {
   etiquettes: { y: number; largeurs: number[] } | null
   /** Où va l'image. */
   image: { x: number; y: number } | null
+  /** Où va le bloc de la note, quand toutes les notes s'affichent : sa première ligne, et ses lignes. */
+  note: { y: number; lignes: string[]; l: number } | null
 }
 
 const TAILLE_ICONE = 16
 const PAS_ICONE = 19
 const HAUTEUR_ETIQUETTE = 18
 const POLICE_ETIQUETTE = 11
+/** Le bloc d'une note : sa police, sa largeur, le nombre de lignes montrées (le reste se coupe en « … »). */
+export const POLICE_NOTE = 11
+const LARGEUR_NOTE = 200
+const LIGNES_NOTE = 8
 
 const memo = new Map<string, Mesure>()
+
+/** Les lignes d'une note : coupées à la largeur du bloc, les premières seulement. */
+function lignesDeNote(texte: string): string[] {
+  const lignes = lignesDe(texte.trim(), POLICE_NOTE, 400, LARGEUR_NOTE)
+  if (lignes.length <= LIGNES_NOTE) return lignes
+  return [...lignes.slice(0, LIGNES_NOTE - 1), `${lignes[LIGNES_NOTE - 1]}…`]
+}
 
 export function mesurer(titre: string, h: Habit, decor: Decor = {}): Mesure {
   const cle = `${titre}\u0000${h.police}|${h.graisse}|${h.italique}|${h.famille}|${h.marge}|${h.largeurMax}\u0000${JSON.stringify(decor)}`
@@ -213,7 +257,9 @@ export function mesurer(titre: string, h: Habit, decor: Decor = {}): Mesure {
   const hRangee = Math.max(hTexte, decor.tache || decor.marqueurs || decor.icones ? TAILLE_ICONE : 0)
   const largeurs = (decor.etiquettes ?? []).map((e) => Math.ceil(largeurTexte(e, POLICE_ETIQUETTE, 500) + 12))
   const lEtiquettes = largeurs.reduce((s, x, i) => s + x + (i > 0 ? 4 : 0), 0)
-  const interieur = Math.max(lRangee, lEtiquettes, decor.image?.l ?? 0)
+  const lignesNote = decor.note ? lignesDeNote(decor.note) : null
+  const lNote = lignesNote ? Math.max(...lignesNote.map((x) => largeurTexte(x, POLICE_NOTE, 400))) : 0
+  const interieur = Math.max(lRangee, lEtiquettes, decor.image?.l ?? 0, lNote)
   const l = Math.ceil(interieur + 2 * h.marge[1])
   let y = h.marge[0]
   const image = decor.image ? { x: l / 2 - decor.image.l / 2, y } : null
@@ -223,10 +269,40 @@ export function mesurer(titre: string, h: Habit, decor: Decor = {}): Mesure {
   y += hRangee
   const etiquettes = largeurs.length > 0 ? { y: y + 4, largeurs } : null
   if (etiquettes) y += 4 + HAUTEUR_ETIQUETTE
-  const mesure: Mesure = { lignes, l, h: Math.ceil(y + h.marge[0]), rangee, texte, etiquettes, image }
+  const note = lignesNote ? { y: y + 6, lignes: lignesNote, l: lNote } : null
+  if (note) y += 6 + lignesNote!.length * POLICE_NOTE * INTERLIGNE
+  const mesure: Mesure = { lignes, l, h: Math.ceil(y + h.marge[0]), rangee, texte, etiquettes, image, note }
   if (memo.size > 5000) memo.clear()
   memo.set(cle, mesure)
   return mesure
+}
+
+/**
+ * « Justifier l'alignement du sujet » : les sujets d'un même niveau (les principaux ensemble, les sous-sujets de
+ * même profondeur ensemble) prennent la largeur du plus large. Le central, les flottants et les résumés gardent la leur.
+ */
+export function uniformiser(l: Lecture, mesures: ReadonlyMap<Id, Mesure>): Map<Id, Mesure> {
+  const largeurs = new Map<number, number>()
+  const niveau = (id: Id) => {
+    const s = l.sujets.get(id)
+    return !s || s.parent === undefined || s.genre ? 0 : profondeur(l, id)
+  }
+  for (const [id, m] of mesures) {
+    const n = niveau(id)
+    if (n > 0) largeurs.set(n, Math.max(largeurs.get(n) ?? 0, m.l))
+  }
+  const sortie = new Map<Id, Mesure>()
+  for (const [id, m] of mesures) {
+    const n = niveau(id)
+    const cible = n > 0 ? largeurs.get(n)! : m.l
+    if (cible <= m.l) {
+      sortie.set(id, m)
+      continue
+    }
+    const d = (cible - m.l) / 2
+    sortie.set(id, { ...m, l: cible, rangee: { ...m.rangee, x: m.rangee.x + d }, texte: { ...m.texte, x: m.texte.x + d }, image: m.image && { ...m.image, x: m.image.x + d } })
+  }
+  return sortie
 }
 
 export { HAUTEUR_ETIQUETTE, PAS_ICONE, POLICE_ETIQUETTE, TAILLE_ICONE }

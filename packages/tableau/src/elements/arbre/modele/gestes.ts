@@ -1,4 +1,5 @@
 import type { Arbre, Id, Relation, StructureArbre, StyleSujet } from '../../../coeur/tableau'
+import { type GesteCarte, GESTES_CARTE, appliquerGesteCarte } from './reglages'
 import { ajouterLimite, ajouterRelation, ajouterResume, basculerMarqueur, changerLimite, changerRelation, porter, resumeDe, retirer } from './elements'
 import {
   type Lecture,
@@ -68,6 +69,8 @@ export type Geste =
   /** Alt+Cmd+U : le style de ce sujet sur tous les sujets de son rang. */
   | { type: 'styleMemeRang'; id: Id }
   | { type: 'theme'; theme: string }
+  /** Les réglages de l'onglet Carte (`modele/reglages.ts`). */
+  | GesteCarte
   | { type: 'relationStyle'; id: Id; forme?: Relation['forme']; pointes?: Relation['pointes'] }
   /** Ceux-là ne touchent pas la carte : la vue les fait elle-même. */
   | { type: 'editer'; id: Id; frappe?: string }
@@ -251,6 +254,18 @@ export function appliquerGeste(a: Arbre, g: Geste, titre: Titreur): Effet | null
       const { theme: _t, ...reste } = a
       return { arbre: g.theme === 'classique' ? reste : { ...reste, theme: g.theme } }
     }
+    case 'squelette':
+    case 'themeCouleur':
+    case 'fond':
+    case 'policeGlobale':
+    case 'policeCjk':
+    case 'largeurBranche':
+    case 'jeuCouleurs':
+    case 'couleurLigne':
+    case 'equilibrer':
+    case 'reglage':
+    case 'styleCarte':
+      return GESTES_CARTE.has(g.type) ? { arbre: appliquerGesteCarte(a, g) } : null
     case 'indenter': {
       const s = l.sujets.get(g.id)
       if (!s || s.parent === undefined || s.genre) return null

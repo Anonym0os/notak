@@ -42,11 +42,13 @@ export interface Disposition {
 export interface Ecarts {
   principal: number
   secondaire: number
+  /** Entre le central et ses principaux ; absent : `ECART_CENTRAL`. */
+  central?: number
 }
 
 export const ECARTS: Ecarts = { principal: 40, secondaire: 12 }
 /** La carte compacte : des branches plus serrées. */
-export const ECARTS_COMPACTS: Ecarts = { principal: 28, secondaire: 4 }
+export const ECARTS_COMPACTS: Ecarts = { principal: 28, secondaire: 4, central: 40 }
 /** Le central est plus loin de ses principaux que les autres sujets de leurs enfants. */
 export const ECART_CENTRAL = 64
 

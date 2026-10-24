@@ -123,7 +123,7 @@ export function disposer(l: Lecture, taille: (id: Id) => Taille, e: Ecarts = ECA
     const cadre: Boite = { x: 0, y: 0, ...t }
     const enfants = visibles(id)
     if (enfants.length === 0) return cadre
-    const ecart = id === l.central ? ECART_CENTRAL : e.principal
+    const ecart = id === l.central ? (e.central ?? ECART_CENTRAL) : e.principal
     const ranger = (ids: readonly Id[], f: (i: number) => Famille) => ids.map((x, i) => ({ id: x, t: taille(x), c: bloc(x, famille(x, f(i))) }))
     const poser = (id2: Id, dx: number, dy: number, c: Boite) => {
       const dec = libre ? l.sujets.get(id2)?.decalage : undefined

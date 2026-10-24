@@ -645,10 +645,46 @@ export interface Arbre {
   relations?: Record<Id, Relation>
   limites?: Record<Id, Limite>
   resumes?: Record<Id, Resume>
-  /** `compacte` : des branches plus serrées. `libre` : un sujet glissé garde la place où on le lâche. `uneCouleur` : toutes les branches de l'encre du thème, sans arc-en-ciel. */
-  options?: { compacte?: boolean; libre?: boolean; uneCouleur?: boolean }
-  /** Le thème de la carte (`elements/arbre/themes.ts`) ; absent : le classique. */
+  /**
+   * Les réglages de l'onglet Carte (docs/XMIND.md § 9), tous éteints par défaut.
+   * `compacte` : des branches plus serrées. `libre` : un sujet glissé garde la place où on le lâche. `uneCouleur` :
+   * toutes les branches d'une seule couleur, sans arc-en-ciel. `uniforme` : les sujets d'un même niveau ont la même
+   * largeur. `toutesNotes` : les notes s'affichent sous leur sujet. `flottantsColores` : les sujets flottants
+   * prennent les couleurs du thème. `relationsColorees` : une relation prend la couleur du sujet qu'elle désigne.
+   * `flottantSouple` : un flottant glissé ne se rattache à aucun sujet. `chevauchement` : un sujet lâché sur un autre
+   * ne s'y rattache pas.
+   */
+  options?: {
+    compacte?: boolean
+    libre?: boolean
+    uneCouleur?: boolean
+    uniforme?: boolean
+    toutesNotes?: boolean
+    flottantsColores?: boolean
+    relationsColorees?: boolean
+    flottantSouple?: boolean
+    chevauchement?: boolean
+  }
+  /** Le thème de la carte (`elements/arbre/themes.ts`) ; absent : le classique. `perso:<id>` : un thème de couleur à soi (`themePerso`). */
   theme?: string
+  /** Le thème de couleur à soi que `theme` désigne : son nom et ses six couleurs, gardés dans la carte pour qu'elle voyage seule. */
+  themePerso?: { nom: string; palette: string[] }
+  /** Le fond de la carte, `#rrggbb` ou `#rrggbbaa` ; absent : celui du thème. */
+  fond?: string
+  /** La police de toute la carte, qui l'emporte sur celle du thème (pas sur celle d'un sujet) ; absente : celle du thème. */
+  police?: string
+  /** La police des caractères chinois, japonais et coréens, derrière la police latine. */
+  policeCjk?: string
+  /** La largeur des branches, en points (1, 2, 3, 5, 8) ; absente : celle du thème. */
+  largeurBranche?: number
+  /** Les branches principales s'amincissent jusqu'en pointe. */
+  effile?: boolean
+  /** Les couleurs des branches principales, dans l'ordre, à la place de celles du thème. */
+  jeuCouleurs?: string[]
+  /** Sans branches de couleur : la couleur de toutes les branches. */
+  couleurLigne?: string
+  /** Ce que Notak ne lit pas de la feuille d'un `.xmind` (son thème, son style), gardé pour le lui rendre à l'export. */
+  xmind?: Record<string, unknown>
 }
 
 export type Contenu =

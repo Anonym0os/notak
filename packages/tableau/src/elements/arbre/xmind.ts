@@ -80,6 +80,25 @@ export interface FeuilleLue {
   images: ImageAImporter[]
 }
 
+/** Les clés d'une feuille que Notak lit lui-même ; les autres vont dans le sac `xmind` de la carte. */
+const FEUILLE_LUE = new Set([
+  'id',
+  'class',
+  'title',
+  'rootTopic',
+  'relationships',
+  'topicPositioning',
+  'compactLayoutModeLevel',
+  'topicOverlapping',
+  'floatingTopicFlexible',
+  'relationshipAutoColor',
+  'floatingTopicAutoColor',
+  'topicNotesDisplay',
+])
+
+/** Une couleur `#rrggbb`, avec ou sans l'opacité (`#rrggbbaa`). */
+const couleurValide = (v: unknown): v is string => typeof v === 'string' && /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(v)
+
 const estObjet = (v: unknown): v is Json => typeof v === 'object' && v !== null && !Array.isArray(v)
 const liste = (v: unknown): Json[] => (Array.isArray(v) ? v.filter(estObjet) : [])
 
@@ -195,7 +214,37 @@ function lireFeuille(f: Json, fichiers: Record<string, Uint8Array>): FeuilleLue 
   }
   const options: NonNullable<Arbre['options']> = {}
   if (f.topicPositioning === 'free') options.libre = true
-  if (Number(f.compactLayoutModeLevel) > 0) options.compacte = true
+  // Xmind écrit « Second » pour compact et « Third » pour normal ; les premiers fichiers de Notak écrivaient 1.
+  if (f.compactLayoutModeLevel === 'Second' || Number(f.compactLayoutModeLevel) > 0) options.compacte = true
+  if (f.topicOverlapping === 'overlap') options.chevauchement = true
+  if (f.floatingTopicFlexible === true) options.flottantSouple = true
+  if (f.relationshipAutoColor === 'follow-target-topic') options.relationsColorees = true
+  if (f.floatingTopicAutoColor === 'follow-color-theme') options.flottantsColores = true
+  if (f.topicNotesDisplay === 'block') options.toutesNotes = true
+  const proprietes = (v: unknown): Json => (estObjet(v) && estObjet(v.properties) ? v.properties : {})
+  const feuilleStyle = proprietes(f.style)
+  const global = estObjet(f.theme) ? proprietes(f.theme.global) : {}
+  const centreStyle = proprietes(racine.style)
+  if (centreStyle['alignment-by-level'] === 'actived') options.uniforme = true
+  // Les réglages de la feuille : fond, police, largeur, branches colorées. Xmind les écrit tous dans `style` et `theme.global`.
+  const reglages: Partial<Arbre> = {}
+  if (couleurValide(feuilleStyle['svg:fill'])) reglages.fond = feuilleStyle['svg:fill']
+  if (typeof global['fo:font-family'] === 'string' && global['fo:font-family']) reglages.police = global['fo:font-family']
+  if (typeof feuilleStyle['cjk-font-family'] === 'string' && feuilleStyle['cjk-font-family']) reglages.policeCjk = feuilleStyle['cjk-font-family']
+  const largeur = Number.parseFloat(String(global['line-width']))
+  if (Number.isFinite(largeur) && largeur > 0) reglages.largeurBranche = Math.round(largeur * 10) / 10
+  if (feuilleStyle['line-tapered'] === 'tapered') reglages.effile = true
+  const multi = feuilleStyle['multi-line-colors']
+  if (multi === 'none') {
+    options.uneCouleur = true
+    if (couleurValide(centreStyle['line-color'])) reglages.couleurLigne = centreStyle['line-color']
+  } else if (typeof multi === 'string') {
+    const jeu = multi.split(/\s+/).filter(couleurValide)
+    if (jeu.length > 0) reglages.jeuCouleurs = jeu
+  }
+  // Ce que Notak ne lit pas de la feuille (le thème et le style de Xmind, ses extensions…) est gardé pour l'export.
+  const sacFeuille: Json = {}
+  for (const [k, v] of Object.entries(f)) if (!FEUILLE_LUE.has(k)) sacFeuille[k] = v
   const arbre: Arbre = {
     type: 'arbre',
     sujets,
@@ -203,6 +252,8 @@ function lireFeuille(f: Json, fichiers: Record<string, Uint8Array>): FeuilleLue 
     ...(Object.keys(limites).length ? { limites } : {}),
     ...(Object.keys(resumes).length ? { resumes } : {}),
     ...(Object.keys(options).length ? { options } : {}),
+    ...reglages,
+    ...(Object.keys(sacFeuille).length ? { xmind: sacFeuille } : {}),
   }
   return { titre: typeof f.title === 'string' ? f.title : sujets[central]!.titre, arbre, images }
 }
@@ -257,6 +308,11 @@ function ecrireFeuille(titre: string, a: Arbre, images: ReadonlyMap<Id, ImageAEx
     }
     if (extensions.length) t.extensions = extensions
     else delete t.extensions
+    if (s.note && a.options?.toutesNotes) t.notesDisplay = 'block'
+    if (id === l.central) {
+      const o = a.options ?? {}
+      fusionnerStyle(t, 'style', { 'alignment-by-level': o.uniforme ? 'actived' : undefined, ...(o.uneCouleur ? { 'line-color': a.couleurLigne } : {}) })
+    }
     if (s.image) {
       const img = images.get(s.image.fichier)
       if (img) {
@@ -286,12 +342,51 @@ function ecrireFeuille(titre: string, a: Arbre, images: ReadonlyMap<Id, ImageAEx
     if (Object.keys(enfants).length) t.children = enfants
     return t
   }
-  const feuille: Json = { id: nouvelId(), class: 'sheet', title: titre, rootTopic: ecrire(l.central) }
+  const feuille: Json = { ...(a.xmind ?? {}), id: nouvelId(), class: 'sheet', title: titre, rootTopic: ecrire(l.central) }
   const relations = Object.entries(a.relations ?? {}).filter(([, r]) => l.sujets.has(r.de) && l.sujets.has(r.vers))
   if (relations.length) feuille.relationships = relations.map(([id, r]) => ({ id, end1Id: r.de, end2Id: r.vers, ...(r.titre ? { title: r.titre } : {}) }))
-  if (a.options?.libre) feuille.topicPositioning = 'free'
-  if (a.options?.compacte) feuille.compactLayoutModeLevel = 1
+  // Les réglages de l'onglet Carte : une clé n'est écrite que si l'option est allumée (docs/XMIND.md § 9).
+  const o = a.options ?? {}
+  if (o.libre) feuille.topicPositioning = 'free'
+  if (o.compacte) feuille.compactLayoutModeLevel = 'Second'
+  if (o.chevauchement) feuille.topicOverlapping = 'overlap'
+  if (o.flottantSouple) feuille.floatingTopicFlexible = true
+  if (o.relationsColorees) feuille.relationshipAutoColor = 'follow-target-topic'
+  if (o.flottantsColores) feuille.floatingTopicAutoColor = 'follow-color-theme'
+  if (o.toutesNotes) feuille.topicNotesDisplay = 'block'
+  fusionnerStyle(feuille, 'style', {
+    'svg:fill': a.fond,
+    'cjk-font-family': a.policeCjk,
+    'line-tapered': a.effile ? 'tapered' : undefined,
+    'multi-line-colors': o.uneCouleur ? 'none' : a.jeuCouleurs?.length ? a.jeuCouleurs.join(' ') : undefined,
+  })
+  const theme: Json = estObjet(feuille.theme) ? { ...feuille.theme } : {}
+  fusionnerStyle(theme, 'global', { 'fo:font-family': a.police, 'line-width': a.largeurBranche ? `${a.largeurBranche}pt` : undefined })
+  if (Object.keys(theme).length > 0) feuille.theme = theme
+  else delete feuille.theme
   return feuille
+}
+
+/**
+ * Pose (ou retire, si la valeur manque) des propriétés dans `parent[cle].properties`, sans toucher à l'objet du sac
+ * de la carte : on en travaille une copie. Sans propriété, le style s'efface avec elles, s'il ne portait rien d'autre.
+ */
+function fusionnerStyle(parent: Json, cle: string, valeurs: Record<string, string | undefined>) {
+  const objet: Json = estObjet(parent[cle]) ? { ...parent[cle] } : {}
+  const proprietes: Json = estObjet(objet.properties) ? { ...objet.properties } : {}
+  for (const [k, v] of Object.entries(valeurs)) {
+    if (v === undefined || v === '') delete proprietes[k]
+    else proprietes[k] = v
+  }
+  if (Object.keys(proprietes).length > 0) {
+    objet.properties = proprietes
+    objet.id ??= nouvelId()
+    parent[cle] = objet
+    return
+  }
+  delete objet.properties
+  if (Object.keys(objet).length > 0) parent[cle] = objet
+  else delete parent[cle]
 }
 
 /** La note en HTML simple, pour le champ `realHTML` que Xmind affiche : un paragraphe par ligne. */

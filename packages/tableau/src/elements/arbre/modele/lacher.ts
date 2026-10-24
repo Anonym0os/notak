@@ -1,4 +1,4 @@
-import type { Id } from '../../../coeur/tableau'
+import type { Arbre, Id } from '../../../coeur/tableau'
 import type { Boite, Disposition } from '../disposition'
 import { type Lecture, branche, enfantsDe } from './sujets'
 
@@ -24,8 +24,13 @@ const distance = (b: Boite, p: { x: number; y: number }) => {
  * Où lâcher `glisse` quand le pointeur est en `p` (px de carte). Sur un sujet : il en devient l'enfant. Près d'un sujet
  * (à moins de `PORTEE_LACHER`) : il s'insère à côté de lui, avant ou après selon le côté du pointeur. Ailleurs : libre.
  * Jamais dans sa propre branche. `inverse` (Maj tenue) échange l'attaché et le libre, comme Xmind.
+ *
+ * Deux réglages de la carte (onglet Carte) y changent : « Sujet flottant flexible » (un flottant glissé ne se rattache
+ * à rien, Maj le permet le temps du geste) et « Chevauchement des sujets » (un sujet lâché sur un autre reste là, au
+ * lieu d'en devenir l'enfant ; l'insertion à côté d'un frère reste possible).
  */
-export function ouLacher(l: Lecture, d: Disposition, glisse: Id, p: { x: number; y: number }, inverse = false): Lacher {
+export function ouLacher(l: Lecture, d: Disposition, glisse: Id, p: { x: number; y: number }, inverse = false, options: Arbre['options'] = {}): Lacher {
+  if (options?.flottantSouple && l.sujets.get(glisse)?.genre === 'detache') return inverse ? ouLacher(l, d, glisse, p, false, { ...options, flottantSouple: false }) : { type: 'libre' }
   const interdits = new Set(branche(l, glisse))
   let proche: { id: Id; b: Boite; dist: number } | null = null
   for (const [id, b] of d.boites) {
@@ -33,10 +38,14 @@ export function ouLacher(l: Lecture, d: Disposition, glisse: Id, p: { x: number;
     const dist = distance(b, p)
     if (!proche || dist < proche.dist) proche = { id, b, dist }
   }
+  // Chevauchement : sur un sujet, il se pose librement ; l'inverse (Maj) lui rend le rattachement.
+  const posable = !!options?.chevauchement && !inverse
   const attache: Lacher | null = !proche
     ? null
     : proche.dist === 0
-      ? { type: 'enfant', parent: proche.id }
+      ? posable
+        ? { type: 'libre' }
+        : { type: 'enfant', parent: proche.id }
       : proche.dist <= PORTEE_LACHER
         ? insertionPres(l, proche.id, proche.b, p, glisse)
         : null

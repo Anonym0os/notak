@@ -1,12 +1,12 @@
-import { memo } from 'react'
+import { memo, useMemo } from 'react'
 import type { Arbre, FormeSujet, Id, Limite, Relation, Sujet as DonneesSujet } from '../../coeur/tableau'
 import { Icone } from '../../icones'
-import { type Habit, HAUTEUR_ETIQUETTE, INTERLIGNE, PAS_ICONE, POLICE, POLICE_ETIQUETTE, TAILLE_ICONE, type Mesure, type Rang, brancheDe, couleurDe, habitDe, rangDe, souligne } from './apparence'
+import { type Habit, HAUTEUR_ETIQUETTE, INTERLIGNE, PAS_ICONE, POLICE, POLICE_ETIQUETTE, POLICE_NOTE, TAILLE_ICONE, type Mesure, type Rang, brancheDe, couleurDe, habitDe, rangDe, souligne } from './apparence'
 import type { Boite, Disposition } from './disposition'
 import { Marqueur } from './marqueurs'
 import { limitesValides, numeroDe, relationsValides, sujetsDePlage } from './modele/elements'
 import { type Lecture, enfantsDe } from './modele/sujets'
-import { type Theme, themeDe } from './themes'
+import { type Theme, themeDeArbre } from './themes'
 import { cheminBranche, cheminEffile } from './trace/branches'
 import { type Courbe, courbeRelation } from './trace/relations'
 
@@ -33,12 +33,14 @@ const DASH = { plein: undefined, tirets: '7 5', points: '1.5 4' } as const
  */
 export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, mesures, selection, edition, adresse, devoiles }: Props) {
   const vu = (id: Id) => !devoiles || devoiles.has(id)
-  const theme = themeDe(arbre.theme)
+  const theme = useMemo(() => themeDeArbre(arbre), [arbre.theme, arbre.themePerso, arbre.police, arbre.policeCjk, arbre.jeuCouleurs, arbre.options?.flottantsColores]) // eslint-disable-line react-hooks/exhaustive-deps
   const uneCouleur = !!arbre.options?.uneCouleur
+  const compacte = !!arbre.options?.compacte
   const encre = theme.encre ?? 'var(--notak-arbre-encre)'
-  const couleur = (id: Id) => couleurDe(l, id, theme, uneCouleur)
+  const globales = { largeur: arbre.largeurBranche, effilee: arbre.effile }
+  const couleur = (id: Id) => couleurDe(l, id, theme, uneCouleur, { ligne: arbre.couleurLigne, flottants: !!arbre.options?.flottantsColores })
   const cotes = new Map(d.liens.map((x) => [x.vers, x.cote]))
-  const habits = new Map([...d.boites.keys()].map((id) => [id, habitDe(l, id, theme)]))
+  const habits = new Map([...d.boites.keys()].map((id) => [id, habitDe(l, id, theme, compacte)]))
   return (
     <>
       {limitesValides(arbre, l).filter(([, x]) => vu(x.de)).map(([id, x]) => (
@@ -49,7 +51,7 @@ export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, 
           const p = d.boites.get(lien.de)
           const e = d.boites.get(lien.vers)
           if (!p || !e || lien.forme === 'aucune' || !vu(lien.vers)) return null
-          const style = brancheDe(l, lien.de)
+          const style = brancheDe(l, lien.de, globales)
           // La forme d'une branche : la sienne, sinon celle du thème là où la structure laisse le choix (carte, logique).
           const forme = style.forme ?? (lien.forme === 'courbe' ? theme.branche : lien.forme)
           if (forme === 'aucune') return null
@@ -90,7 +92,7 @@ export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, 
       })}
       {relationsValides(arbre, l).filter(([, r]) => vu(r.de) && vu(r.vers)).map(([id, r]) => {
         const [a, b] = [d.boites.get(r.de), d.boites.get(r.vers)]
-        return a && b ? <Fleche key={id} id={id} relation={r} courbe={courbeRelation(a, b, r.controles, r.forme)} encre={encre} choisie={selection?.has(id) ?? false} enEdition={edition === id} /> : null
+        return a && b ? <Fleche key={id} id={id} relation={r} courbe={courbeRelation(a, b, r.controles, r.forme)} encre={arbre.options?.relationsColorees ? (couleur(r.vers) ?? encre) : encre} choisie={selection?.has(id) ?? false} enEdition={edition === id} /> : null
       })}
     </>
   )
@@ -186,7 +188,7 @@ const Sujet = memo(function Sujet({ id, sujet: s, rang, habit: h, theme, boite: 
     )
     x += PAS_ICONE
   }
-  const icones = [s.note ? 'notes' : null, s.lien ? 'lien' : null].filter((v): v is 'notes' | 'lien' => !!v)
+  const icones = [s.note && !m.note ? 'notes' : null, s.lien ? 'lien' : null].filter((v): v is 'notes' | 'lien' => !!v)
   const xIcones = m.texte.x + m.texte.l + 4
   const chemin = contour(h.forme, m.l, m.h)
   return (
@@ -213,6 +215,15 @@ const Sujet = memo(function Sujet({ id, sujet: s, rang, habit: h, theme, boite: 
           <Icone nom={nom} taille={TAILLE_ICONE} trait={1.75} />
         </g>
       ))}
+      {m.note && (
+        <g data-icone={`notes:${id}`} className="notak-arbre-note-bloc" style={{ color: plein ? encre : encreTheme }}>
+          {m.note.lignes.map((ligne, i) => (
+            <text key={i} x={m.l / 2} y={m.note!.y + POLICE_NOTE * INTERLIGNE * (i + 0.8)} textAnchor="middle" fontFamily={h.famille} fontSize={POLICE_NOTE} fill="currentColor" fillOpacity={0.7}>
+              {ligne}
+            </text>
+          ))}
+        </g>
+      )}
       {m.etiquettes && <Etiquettes noms={s.etiquettes ?? []} largeurs={m.etiquettes.largeurs} y={m.etiquettes.y} l={m.l} />}
       {replie > 0 && (
         <g className="notak-arbre-repli" data-repli={id} transform={`translate(${versLaGauche ? -14 : m.l + 14} ${m.h / 2})`}>

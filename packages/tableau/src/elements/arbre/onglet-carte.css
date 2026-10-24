@@ -1,0 +1,1057 @@
+/* L'onglet Carte du panneau de format, et les contrôles qu'il partage avec l'onglet Style (controles.tsx). Les mesures
+   sont celles de l'onglet « Map » de Xmind (docs/XMIND.md § 9) ; les teintes se tirent des variables de fenetre.css,
+   le thème sombre suit sans rien redire. Les fenêtres flottantes sont posées dans la carte ouverte (`.notak-arbre-fond`),
+   hors du panneau qui coupe ce qui déborde. */
+
+/* Le cadre : l'onglet occupe toute la largeur du panneau, sans les marges du corps ni celles du panneau d'avant. */
+.notak-arbre-cote.notak-arbre-panneau {
+  padding: 0;
+}
+
+/* La vue secondaire remplace la barre d'onglets par sa propre barre de titre. */
+.notak-arbre-cote:has(.notak-carte[data-secondaire]) > .notak-arbre-onglets {
+  display: none;
+}
+
+.notak-carte {
+  margin: 0 -10px;
+  padding-bottom: 32px;
+  color: var(--notak-arbre-texte);
+  font-size: 13px;
+  line-height: 17px;
+}
+
+.notak-carte button,
+.notak-carte input,
+.notak-carte-popover button,
+.notak-carte-popover input,
+.notak-carte-dialogue button,
+.notak-carte-dialogue input {
+  font: inherit;
+  color: inherit;
+}
+
+/* ------------------------------------------------------------------ blocs, lignes, champs */
+
+.notak-carte .notak-carte-bloc {
+  display: block;
+  margin: 0;
+  padding: 12px 20px;
+  border: 0;
+  box-shadow: none;
+}
+
+.notak-carte .notak-carte-bloc-squelette {
+  padding: 12px;
+}
+
+.notak-carte-separateur {
+  height: 1px;
+  margin: 8px 20px;
+  border: 0;
+  background: var(--notak-arbre-filet-c);
+}
+
+.notak-carte-titre {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 17px;
+  letter-spacing: 0.26px;
+  text-transform: none;
+  opacity: 1;
+  user-select: none;
+}
+
+.notak-carte-ligne {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 12px;
+}
+
+.notak-carte-ligne:last-child {
+  padding-bottom: 0;
+}
+
+.notak-carte-libelle {
+  font-weight: 400;
+  letter-spacing: 0.52px;
+}
+
+.notak-carte-ligne[data-inactif] .notak-carte-libelle {
+  color: color-mix(in srgb, var(--notak-arbre-texte) 30%, transparent);
+}
+
+.notak-carte-champ {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 12px;
+}
+
+.notak-carte-champ:last-child {
+  padding-bottom: 0;
+}
+
+.notak-carte-champ-libelle {
+  height: 15px;
+  margin-bottom: 4px;
+  color: var(--notak-arbre-discret);
+  font-size: 11px;
+  line-height: 15px;
+  letter-spacing: 0.44px;
+}
+
+.notak-carte-aide {
+  margin: 6px 0 0;
+  color: var(--notak-arbre-discret);
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: 0.4px;
+}
+
+.notak-carte-filet-section {
+  height: 1px;
+  margin: 8px 0 20px;
+  border: 0;
+  background: var(--notak-arbre-filet-c);
+}
+
+/* ------------------------------------------------------------------ la bascule : 36 × 16, poignée ovale de 21 × 13 */
+
+.notak-carte-bascule {
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 16px;
+}
+
+.notak-carte-bascule input {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.notak-carte-bascule input:disabled {
+  cursor: default;
+}
+
+.notak-carte-piste {
+  position: absolute;
+  inset: 0;
+  border-radius: 80px;
+  background: color-mix(in srgb, var(--notak-arbre-texte) 13%, transparent);
+  box-shadow: inset 0 0 1px rgb(0 0 0 / 0.2), inset 0 0.5px 2px rgb(0 0 0 / 0.1);
+  transition: background 250ms cubic-bezier(0.4, 0.1, 0.3, 1);
+}
+
+.notak-carte-piste::after {
+  content: '';
+  position: absolute;
+  top: 1.5px;
+  left: 1.5px;
+  width: 21px;
+  height: 13px;
+  border-radius: 80px;
+  background: #fff;
+  box-shadow: 0 0 4px rgb(0 0 0 / 0.12), 0 0 1.8px rgb(0 0 0 / 0.08);
+  transition: left 250ms cubic-bezier(0.4, 0.1, 0.3, 1), opacity 250ms;
+}
+
+.notak-carte-bascule[data-actif] .notak-carte-piste {
+  background: var(--notak-arbre-plein);
+}
+
+.notak-carte-bascule[data-actif] .notak-carte-piste::after {
+  left: calc(100% - 1.5px - 21px);
+}
+
+.notak-carte-bascule input:active + .notak-carte-piste {
+  background: color-mix(in srgb, var(--notak-arbre-texte) 22%, transparent);
+}
+
+.notak-carte-bascule[data-actif] input:active + .notak-carte-piste {
+  background: color-mix(in srgb, var(--notak-arbre-plein) 85%, var(--notak-arbre-fond));
+}
+
+.notak-carte-bascule[data-inactif] .notak-carte-piste {
+  background: color-mix(in srgb, var(--notak-arbre-texte) 8%, transparent);
+}
+
+.notak-carte-bascule[data-inactif][data-actif] .notak-carte-piste {
+  background: color-mix(in srgb, var(--notak-arbre-texte) 20%, var(--notak-arbre-fond));
+}
+
+.notak-carte-bascule[data-inactif] .notak-carte-piste::after {
+  opacity: 0.5;
+}
+
+/* ------------------------------------------------------------------ boutons de liste : 24 px, chevron à droite */
+
+.notak-carte .notak-carte-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--notak-arbre-filet-c);
+  border-radius: 8px;
+  background: var(--notak-arbre-fond);
+  text-align: left;
+  cursor: pointer;
+}
+
+.notak-carte .notak-carte-select:hover {
+  background: color-mix(in srgb, var(--notak-arbre-texte) 3%, var(--notak-arbre-fond));
+}
+
+.notak-carte-select-texte {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-carte .notak-carte-select-jeu {
+  width: 72px;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 4px;
+}
+
+.notak-carte .notak-carte-select-theme {
+  flex: 1;
+  width: auto;
+  height: 32px;
+  padding: 4px 8px;
+}
+
+.notak-carte-rangee-theme {
+  display: flex;
+  gap: 8px;
+  height: 32px;
+}
+
+.notak-carte .notak-carte-bouton-icone {
+  display: grid;
+  flex: none;
+  place-items: center;
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--notak-arbre-filet-c);
+  border-radius: 8px;
+  background: var(--notak-arbre-fond);
+  cursor: pointer;
+}
+
+.notak-carte .notak-carte-bouton-icone:hover {
+  background: color-mix(in srgb, var(--notak-arbre-texte) 3%, var(--notak-arbre-fond));
+}
+
+.notak-carte .notak-carte-bouton-large {
+  box-sizing: border-box;
+  width: 100%;
+  height: 24px;
+  padding: 0 12px;
+  border: 1px solid var(--notak-arbre-filet-c);
+  border-radius: 6px;
+  background: var(--notak-arbre-fond);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notak-carte .notak-carte-bouton-large:hover {
+  background: color-mix(in srgb, var(--notak-arbre-texte) 4%, var(--notak-arbre-fond));
+}
+
+/* Les six segments d'un groupe de thème (84 × 12 dans le sélecteur, la bande entière dans la liste). */
+.notak-carte-segments {
+  display: flex;
+  flex: none;
+  width: 84px;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.notak-carte-segments i {
+  flex: 1;
+}
+
+/* ------------------------------------------------------------------ pastille de couleur : 72 × 24 */
+
+.notak-carte .notak-carte-pastille {
+  flex: none;
+  box-sizing: border-box;
+  width: 72px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid rgb(116 122 128 / 0.2);
+  border-radius: 8px;
+  background: var(--c);
+  cursor: pointer;
+}
+
+.notak-carte .notak-carte-pastille[data-aucune] {
+  background: linear-gradient(107deg, transparent calc(50% - 0.5px), var(--notak-arbre-discret) calc(50% - 0.5px) calc(50% + 0.5px), transparent calc(50% + 0.5px));
+}
+
+/* Un jeu de six couleurs en anneau : six secteurs de 60°, un trou au centre. */
+.notak-carte-anneau {
+  display: block;
+  flex: none;
+  border-radius: 50%;
+  mask: radial-gradient(circle closest-side, transparent 35%, #000 36%);
+}
+
+/* ------------------------------------------------------------------ la carte du squelette */
+
+.notak-carte .notak-carte-squelette {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 64px;
+  padding: 8px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--notak-arbre-fond);
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.07), 0 1px 3px rgb(0 0 0 / 0.05);
+  cursor: pointer;
+}
+
+.notak-carte-squelette-vignette {
+  display: block;
+  flex: none;
+  height: 48px;
+  aspect-ratio: 108 / 64;
+  border-radius: 4px;
+}
+
+.notak-carte-squelette-vignette svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.notak-carte-squelette-nom {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ les vignettes : moyenne 112 × 72, petite 76 × 48 */
+
+.notak-carte-vignette {
+  position: relative;
+  min-width: 0;
+}
+
+.notak-carte-vignette-bouton {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 4px;
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.notak-carte-vignette[data-taille='petite'] .notak-carte-vignette-bouton {
+  padding: 3px;
+  border-width: 1px;
+  border-radius: 9px;
+}
+
+.notak-carte-vignette-image {
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 108 / 64;
+  border: 1px solid var(--notak-arbre-filet-c);
+  border-radius: 8px;
+  background: var(--notak-arbre-fond);
+}
+
+.notak-carte-vignette[data-taille='petite'] .notak-carte-vignette-image {
+  aspect-ratio: 70 / 42;
+  border-radius: 6px;
+}
+
+.notak-carte-vignette-image svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.notak-carte-vignette-bouton:hover .notak-carte-vignette-image {
+  border-width: 1.5px;
+  border-color: color-mix(in srgb, var(--notak-arbre-texte) 28%, transparent);
+}
+
+.notak-carte-vignette[data-actif] .notak-carte-vignette-bouton {
+  border-color: var(--notak-arbre-plein);
+}
+
+.notak-carte-vignette[data-actif] .notak-carte-vignette-image {
+  border-color: transparent;
+}
+
+/* L'étoile des favoris : en haut à droite, au survol seulement. */
+.notak-carte .notak-carte-etoile {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--notak-arbre-fond) 80%, transparent);
+  opacity: 0;
+  cursor: pointer;
+}
+
+.notak-carte-vignette:hover .notak-carte-etoile,
+.notak-carte-etoile:focus-visible {
+  opacity: 1;
+}
+
+.notak-carte-variantes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  margin-top: 12px;
+}
+
+/* ------------------------------------------------------------------ fenêtres flottantes */
+
+.notak-carte-popover {
+  position: fixed;
+  z-index: 30;
+  box-sizing: border-box;
+  overflow: auto;
+  border-radius: 12px;
+  background: var(--notak-arbre-fond);
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.1), 0 8px 24px rgb(0 0 0 / 0.14);
+  color: var(--notak-arbre-texte);
+  font-size: 13px;
+  line-height: 17px;
+}
+
+.notak-carte-liste {
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.notak-carte-options {
+  overflow-y: auto;
+}
+
+.notak-carte .notak-carte-option,
+.notak-carte-popover .notak-carte-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 26px;
+  padding: 3px 8px 3px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notak-carte-popover .notak-carte-option:hover {
+  background: var(--notak-arbre-survol);
+}
+
+.notak-carte-coche {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 12px;
+  margin-right: 0;
+}
+
+.notak-carte-options .notak-carte-separateur,
+.notak-carte-menu .notak-carte-separateur {
+  margin: 4px 0;
+}
+
+.notak-carte-menu {
+  min-width: 190px;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+/* Le choix du squelette : 388 × 450, des groupes repliables, trois vignettes par ligne. */
+.notak-carte-squelettes {
+  padding: 16px 20px 20px;
+}
+
+.notak-carte-groupe-squelettes + .notak-carte-groupe-squelettes {
+  margin-top: 16px;
+}
+
+.notak-carte-popover .notak-carte-groupe-titre {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notak-carte-groupe-titre svg {
+  transition: transform 100ms;
+}
+
+.notak-carte-groupe-squelettes[data-replie] .notak-carte-groupe-titre svg {
+  transform: rotate(-90deg);
+}
+
+.notak-carte-groupe-squelettes[data-replie] .notak-carte-groupe-titre {
+  margin-bottom: 0;
+}
+
+.notak-carte-grille-squelettes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin-top: -4px;
+}
+
+/* La liste des thèmes : 316 × 370, des onglets capsule, des groupes sur deux colonnes. */
+.notak-carte-capsules {
+  display: flex;
+  margin: 8px 16px 16px;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--notak-arbre-piste);
+}
+
+.notak-carte-popover .notak-carte-capsules button {
+  flex: 1;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--notak-arbre-discret);
+  cursor: pointer;
+  transition: background 150ms;
+}
+
+.notak-carte-popover .notak-carte-capsules button[aria-selected='true'] {
+  background: var(--notak-arbre-fond);
+  color: var(--notak-arbre-texte);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
+}
+
+.notak-carte-themes-groupes,
+.notak-carte-themes-favoris {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  padding: 0 16px 24px;
+}
+
+.notak-carte-themes-groupes {
+  gap: 16px;
+}
+
+.notak-carte-themes-favoris {
+  gap: 12px;
+}
+
+.notak-carte-groupe-theme {
+  min-width: 0;
+}
+
+.notak-carte-groupe-nom {
+  display: block;
+  overflow: hidden;
+  margin-bottom: 4px;
+  font-size: 11px;
+  line-height: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-carte-popover .notak-carte-bande {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 24px;
+  padding: 2px;
+  border: 1px solid var(--notak-arbre-filet-c);
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.notak-carte-bande .notak-carte-segments {
+  width: 100%;
+  height: 100%;
+  border-radius: 5px;
+}
+
+.notak-carte-popover .notak-carte-bande[data-actif] {
+  border: 2px solid var(--notak-arbre-plein);
+  padding: 1px;
+}
+
+.notak-carte-alterner {
+  position: absolute;
+  inset: 2px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 5px;
+  background: rgb(0 0 0 / 0.2);
+  color: #fff;
+  font-size: 11px;
+}
+
+.notak-carte-bande:hover .notak-carte-alterner {
+  display: flex;
+}
+
+.notak-carte-renommer {
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--notak-arbre-filet-c);
+  background: transparent;
+  font-size: 11px;
+  line-height: 15px;
+  outline: none;
+}
+
+/* Les jeux de couleurs des branches : 184 px, des anneaux de 40 px, trois par ligne. */
+.notak-carte-popover-jeux {
+  padding: 20px;
+}
+
+.notak-carte-jeux {
+  display: grid;
+  grid-template-columns: repeat(3, 40px);
+  gap: 16px 12px;
+}
+
+.notak-carte-popover .notak-carte-jeu {
+  display: block;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.notak-carte-jeu:hover {
+  box-shadow: 0 0 0 1px var(--notak-arbre-fond), 0 0 0 3px color-mix(in srgb, var(--notak-arbre-texte) 22%, transparent);
+}
+
+.notak-carte-jeu[aria-selected='true'] {
+  box-shadow: 0 0 0 1px var(--notak-arbre-fond), 0 0 0 3px var(--notak-arbre-choix);
+}
+
+/* Le nuancier : la grille de 45 couleurs, la saisie, les couleurs du thème et les récentes. */
+.notak-carte-nuancier {
+  padding: 16px;
+}
+
+.notak-carte-grille-couleurs {
+  display: grid;
+  gap: 2px;
+}
+
+.notak-carte-popover .notak-carte-case-couleur {
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid rgb(116 122 128 / 0.2);
+  border-radius: 8px;
+  background: var(--c);
+  cursor: pointer;
+  transition: transform 100ms;
+}
+
+.notak-carte-case-couleur:hover {
+  transform: scale(1.05);
+}
+
+.notak-carte-case-couleur[aria-pressed='true'] {
+  transform: scale(0.9);
+  box-shadow: inset 0 0 0 2px var(--c), inset 0 0 0 4px var(--notak-arbre-fond);
+}
+
+.notak-carte-saisie-couleur {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.notak-carte-diese {
+  color: var(--notak-arbre-discret);
+}
+
+.notak-carte-popover .notak-carte-hex,
+.notak-carte-popover .notak-carte-opacite {
+  box-sizing: border-box;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--notak-arbre-filet-c);
+  border-radius: 6px;
+  background: var(--notak-arbre-fond);
+}
+
+.notak-carte-popover .notak-carte-hex {
+  width: 80px;
+}
+
+.notak-carte-popover .notak-carte-opacite {
+  width: 48px;
+}
+
+.notak-carte-filet-vertical {
+  width: 1px;
+  height: 16px;
+  background: var(--notak-arbre-filet-c);
+}
+
+.notak-carte-pourcent {
+  margin-left: -2px;
+  color: var(--notak-arbre-discret);
+}
+
+.notak-carte-apercu-couleur {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgb(116 122 128 / 0.2);
+  border-radius: 6px;
+  background: var(--c);
+}
+
+.notak-carte-popover .notak-carte-natif {
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.notak-carte-pliant {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--notak-arbre-filet-c);
+}
+
+.notak-carte-pliant summary {
+  margin-bottom: 8px;
+  color: var(--notak-arbre-discret);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.notak-carte-popover .notak-carte-lien {
+  display: block;
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--notak-arbre-choix);
+  cursor: pointer;
+}
+
+/* La boîte « Créer un nouveau thème de couleur » : 540 × 480. */
+.notak-carte-voile {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: rgb(0 0 0 / 0.25);
+}
+
+.notak-carte-dialogue {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 540px;
+  max-width: calc(100vw - 32px);
+  height: 480px;
+  max-height: calc(100vh - 32px);
+  padding: 11px 24px 16px;
+  border-radius: 12px;
+  background: var(--notak-arbre-fond);
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.1), 0 16px 48px rgb(0 0 0 / 0.25);
+  color: var(--notak-arbre-texte);
+  font-size: 13px;
+}
+
+.notak-carte-dialogue h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 25px;
+}
+
+.notak-carte-dlg-sous {
+  margin: 4px 0 16px;
+  color: var(--notak-arbre-discret);
+}
+
+.notak-carte-dlg-rangee {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  margin-bottom: 16px;
+}
+
+.notak-carte-cases {
+  display: flex;
+  flex: none;
+}
+
+.notak-carte-case-theme {
+  position: relative;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 44px;
+  height: 36px;
+  margin-right: 4px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background: var(--notak-arbre-cote);
+}
+
+.notak-carte-case-theme[data-vide]:not([data-inactif]) {
+  border-color: var(--notak-arbre-choix);
+}
+
+.notak-carte-case-theme[data-inactif] {
+  opacity: 0.5;
+}
+
+.notak-carte-case-theme input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+}
+
+.notak-carte-case-theme[data-vide] input {
+  opacity: 0;
+}
+
+.notak-carte-case-theme input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.notak-carte-case-theme input::-webkit-color-swatch {
+  border: 0;
+}
+
+.notak-carte-dialogue .notak-carte-dlg-nom {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--notak-arbre-filet-c);
+  border-radius: 6px;
+  background: var(--notak-arbre-fond);
+}
+
+.notak-carte-dlg-apercu {
+  height: 251px;
+  overflow: auto;
+  padding: 4px 4px 0;
+  border-radius: 8px;
+  background: var(--notak-arbre-cote);
+}
+
+.notak-carte-dlg-apercu[data-vide] {
+  display: grid;
+  place-items: center;
+  color: var(--notak-arbre-discret);
+}
+
+.notak-carte-dlg-variantes {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px 8px;
+  padding: 16px 8px;
+}
+
+.notak-carte-dlg-variantes svg {
+  display: block;
+  width: 100%;
+  height: 131.6px;
+  border-radius: 7.3px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.1);
+}
+
+.notak-carte-dialogue footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.notak-carte-dialogue footer button {
+  height: 28px;
+  padding: 0 16px;
+  border: 1px solid var(--notak-arbre-filet-c);
+  border-radius: 6px;
+  background: var(--notak-arbre-fond);
+  cursor: pointer;
+}
+
+.notak-carte-dialogue footer .notak-carte-bouton-fort {
+  border-color: transparent;
+  background: var(--notak-arbre-plein);
+  color: var(--notak-arbre-fond);
+  font-weight: 600;
+}
+
+.notak-carte-dialogue footer button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* La vue secondaire : « Thèmes personnalisés ». */
+.notak-carte-secondaire header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  font-weight: 600;
+}
+
+.notak-carte .notak-carte-secondaire header button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.notak-carte .notak-carte-secondaire header button:hover {
+  background: var(--notak-arbre-survol);
+}
+
+.notak-carte-themes-perso {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 4px;
+  padding: 12px 20px 0;
+}
+
+.notak-carte-tuile {
+  min-width: 0;
+}
+
+.notak-carte .notak-carte-tuile-image {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  aspect-ratio: 100 / 56;
+  padding: 0;
+  border: 1px solid var(--notak-arbre-filet-c);
+  border-radius: 8px;
+  background: var(--notak-arbre-fond);
+  cursor: pointer;
+}
+
+.notak-carte .notak-carte-tuile-nom {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 4px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  font-size: 11px;
+  line-height: 15px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-carte-pas {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.notak-carte .notak-carte-pas button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--notak-arbre-filet-c);
+  border-radius: 8px;
+  background: var(--notak-arbre-fond);
+  cursor: pointer;
+}
+
+.notak-carte .notak-carte-pas button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.notak-carte-pas output {
+  min-width: 1.5em;
+  text-align: center;
+}

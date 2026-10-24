@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { THEMES } from './themes'
+import { THEMES, cleNomTheme } from './themes'
 import type { Arbre, Id, Relation, StructureArbre } from '../../coeur/tableau'
 import { t } from '../../langue'
 import type { Geste } from './modele/gestes'
@@ -94,7 +94,7 @@ export function Barre({ arbre, lecture: l, choisis, faire, relier, panneau, rela
       )}
       <div className="notak-arbre-menu-hote">
         <button type="button" aria-expanded={themes} aria-haspopup="menu" onClick={() => setThemes((o) => !o)}>
-          {t('arbre.theme')} · {t(`arbre.t.${arbre.theme ?? 'classique'}`)}
+          {t('arbre.theme')} · {t(cleNomTheme(arbre.theme ?? 'classique'))}
         </button>
         {themes && (
           <div className="notak-arbre-menu" role="menu">
@@ -114,7 +114,7 @@ export function Barre({ arbre, lecture: l, choisis, faire, relier, panneau, rela
                     <i key={i} style={{ background: c }} />
                   ))}
                 </span>
-                {t(`arbre.t.${th.id}`)}
+                {t(cleNomTheme(th.id))}
               </button>
             ))}
           </div>

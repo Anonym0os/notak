@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { Arbre, Id, StyleSujet } from '../../coeur/tableau'
+import { type Arbre, type Id, type StyleSujet, texteBrut } from '../../coeur/tableau'
 import { t } from '../../langue'
 import { Surcouche } from '../surcouche'
 import type { ContexteToile, PropsRendu, Services } from '../types'
-import { INTERLIGNE, POLICE, type Mesure, habitDe, mesurer } from './apparence'
-import { themeDe } from './themes'
+import { INTERLIGNE, POLICE, type Mesure, habitDe, mesurer, uniformiser } from './apparence'
+import { fondDe, themeDeArbre } from './themes'
 import { Dessin } from './Dessin'
 import { exporterCartes } from './exporter'
 import { BarreEtat, BoutonIcone, EnTete, Feuille, type Onglet, PanneauCote } from './Fenetre'
@@ -27,24 +27,27 @@ import { courbeRelation } from './trace/relations'
 export function useVue(a: Arbre): { lecture: Lecture; mesures: Map<Id, Mesure>; disposition: Disposition } {
   return useMemo(() => {
     const lecture = lire(a)
-    const theme = themeDe(a.theme)
-    const mesures = new Map<Id, Mesure>()
+    const theme = themeDeArbre(a)
+    const compacte = !!a.options?.compacte
+    let mesures = new Map<Id, Mesure>()
     for (const [id, s] of lecture.sujets)
       mesures.set(
         id,
-        mesurer(s.titre, habitDe(lecture, id, theme), {
+        mesurer(s.titre, habitDe(lecture, id, theme, compacte), {
           tache: !!s.tache,
           marqueurs: s.marqueurs?.length ?? 0,
           prefixe: numeroDe(lecture, id),
-          icones: (s.note ? 1 : 0) + (s.lien ? 1 : 0),
+          icones: (s.note && !a.options?.toutesNotes ? 1 : 0) + (s.lien ? 1 : 0),
           ...(s.etiquettes?.length ? { etiquettes: s.etiquettes } : {}),
           ...(s.image ? { image: { l: s.image.l, h: s.image.h } } : {}),
+          ...(s.note && a.options?.toutesNotes ? { note: texteBrut(s.note) } : {}),
         }),
       )
+    if (a.options?.uniforme) mesures = uniformiser(lecture, mesures)
     const resumes = resumesValides(a, lecture).map(([, r]) => ({ sujet: r.sujet, plage: sujetsDePlage(lecture, r) }))
-    const disposition = disposer(lecture, (id) => mesures.get(id) ?? { l: 40, h: 20 }, a.options?.compacte ? ECARTS_COMPACTS : ECARTS, !!a.options?.libre, resumes)
+    const disposition = disposer(lecture, (id) => mesures.get(id) ?? { l: 40, h: 20 }, compacte ? ECARTS_COMPACTS : ECARTS, !!a.options?.libre, resumes)
     return { lecture, mesures, disposition }
-  }, [a.sujets, a.options, a.resumes, a.theme])
+  }, [a.sujets, a.options, a.resumes, a.theme, a.themePerso, a.police, a.policeCjk])
 }
 
 /** Les adresses affichables des images d'une carte, chargées au besoin. */
@@ -81,7 +84,7 @@ export function RenduArbre({ element, enEdition, contexte, changer }: PropsRendu
   const cadre = emprise(disposition.boites.values())
   const [x, y, l, h] = [cadre.x - MARGE_APERCU, cadre.y - MARGE_APERCU, cadre.l + 2 * MARGE_APERCU, cadre.h + 2 * MARGE_APERCU]
   return (
-    <div className="notak-arbre" style={themeDe(a.theme).fond ? { background: themeDe(a.theme).fond } : undefined}>
+    <div className="notak-arbre" style={fondDe(a) ? { background: fondDe(a) } : undefined}>
       <svg className="notak-arbre-apercu" viewBox={`${x} ${y} ${l} ${h}`} style={{ aspectRatio: `${Math.min(3, Math.max(0.75, l / h))}` }} aria-label={lecture.sujets.get(lecture.central)?.titre || t('arbre.vide')} role="img">
         <Dessin arbre={a} lecture={lecture} disposition={disposition} mesures={mesures} adresse={adresse} />
       </svg>
@@ -413,7 +416,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     const pr = prise.current
     if (!pr || (!tire && Math.hypot(e.clientX - pr.x, e.clientY - pr.y) < 4)) return
     const p = versCarte(e)
-    setTire({ id: pr.id, p, lacher: ouLacher(lecture, disposition, pr.id, p, e.shiftKey), maj: e.shiftKey })
+    setTire({ id: pr.id, p, lacher: ouLacher(lecture, disposition, pr.id, p, e.shiftKey, vue.options), maj: e.shiftKey })
   }
   const surRelache = () => {
     glisse.current = null
@@ -524,7 +527,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       <div
         ref={poserSurface}
         className="notak-arbre-surface"
-        style={themeDe(vue.theme).fond ? { background: themeDe(vue.theme).fond } : undefined}
+        style={fondDe(vue) ? { background: fondDe(vue) } : undefined}
         data-relier={relier ? '' : undefined}
         onPointerDown={surAppui}
         onPointerMove={surMouvement}
@@ -661,7 +664,7 @@ function positionDuChamp(
   const b = d.boites.get(id)
   const m = mesures.get(id)
   if (b && m) {
-    const h = habitDe(l, id, themeDe(a.theme))
+    const h = habitDe(l, id, themeDeArbre(a), !!a.options?.compacte)
     return { x: b.x + m.texte.x - 4, y: b.y + m.texte.y - 2, l: m.texte.l + 8, h: m.texte.h + 4, police: h.police, graisse: h.graisse, famille: h.famille }
   }
   const r = a.relations?.[id]
