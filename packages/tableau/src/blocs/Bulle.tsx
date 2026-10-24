@@ -97,10 +97,10 @@ export function Bulle({ editeur, commenter, menuBloc, surCouleur }: Props) {
   const boutonCouleur = useRef<HTMLButtonElement>(null)
 
   // Le focus de l'éditeur ne passe pas par une transaction : on relit quand il entre ou sort.
-  const [, relire] = useState(0)
+  const [focus, setFocus] = useState(() => editeur.view.hasFocus())
   useEffect(() => {
     // Partout dans la page : le focus peut partir de l'éditeur vers un champ (un commentaire) sans le traverser.
-    const changer = () => window.setTimeout(() => relire((n) => n + 1), 0)
+    const changer = () => window.setTimeout(() => setFocus(editeur.view.hasFocus()), 0)
     document.addEventListener('focusin', changer, true)
     document.addEventListener('focusout', changer, true)
     return () => {
@@ -125,7 +125,7 @@ export function Bulle({ editeur, commenter, menuBloc, surCouleur }: Props) {
 
   // Ce qui doit être vrai pour qu'elle paraisse ; l'antirebond de 200 ms la montre et la cache quand la sélection se stabilise.
   // `view.hasFocus()` (l'élément actif) plutôt que `isFocused`, qui ne suit pas quand la fenêtre n'a pas le focus.
-  const voulue = bulleVisible({ texteChoisi: e.texteChoisi, focus: editeur.view.hasFocus(), code: e.code, blocsChoisis: e.blocsChoisis, glisse: tire, lien: !!lien })
+  const voulue = bulleVisible({ texteChoisi: e.texteChoisi, focus, code: e.code, blocsChoisis: e.blocsChoisis, glisse: tire, lien: !!lien })
   const [stable, setStable] = useState<{ voulue: boolean; de: number; a: number }>({ voulue: false, de: 0, a: 0 })
   useEffect(() => {
     const id = window.setTimeout(() => setStable({ voulue, de: e.de, a: e.a }), ATTENTE_BULLE)

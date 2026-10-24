@@ -99,8 +99,10 @@ const retrait = {
   keepOnSplit: true,
   parseHTML: (el: HTMLElement) => Math.min(RETRAIT_MAX, Math.max(0, Number(el.getAttribute('data-retrait')) || 0)),
   renderHTML: (attrs: Record<string, unknown>) => {
+    // Un attribut seul (le rendu figé de Tiptap traduit mal une variable CSS en style React) : `blocs.css` en tire
+    // `--notak-retrait`, que les décorations de `structure.ts` corrigent dans l'éditeur.
     const n = Number(attrs.retrait) || 0
-    return n ? { 'data-retrait': n, style: `--notak-retrait: ${n}` } : {}
+    return n ? { 'data-retrait': n } : {}
   },
 }
 

@@ -172,11 +172,6 @@
   font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Display', 'Segoe UI', Helvetica, 'Apple Color Emoji', Arial, sans-serif, 'Segoe UI Emoji', 'Segoe UI Symbol';
   font-size: 16px;
   line-height: 24px;
-  animation: notak-page-arrivee 140ms ease-out;
-}
-
-@keyframes notak-page-arrivee {
-  from { opacity: 0; }
 }
 
 .notak-document-boite {

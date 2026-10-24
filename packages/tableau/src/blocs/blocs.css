@@ -45,6 +45,20 @@
 
 .notak-texte.notak-blocs > :first-child { margin-top: 0; }
 
+/* Le retrait écrit dans le texte (le rendu figé n'a pas les décorations de `structure.ts`, qui le corrigent). */
+.notak-blocs [data-retrait='1'] { --notak-retrait: 1; }
+.notak-blocs [data-retrait='2'] { --notak-retrait: 2; }
+.notak-blocs [data-retrait='3'] { --notak-retrait: 3; }
+.notak-blocs [data-retrait='4'] { --notak-retrait: 4; }
+.notak-blocs [data-retrait='5'] { --notak-retrait: 5; }
+.notak-blocs [data-retrait='6'] { --notak-retrait: 6; }
+.notak-blocs [data-retrait='7'] { --notak-retrait: 7; }
+.notak-blocs [data-retrait='8'] { --notak-retrait: 8; }
+.notak-blocs [data-retrait='9'] { --notak-retrait: 9; }
+.notak-blocs [data-retrait='10'] { --notak-retrait: 10; }
+.notak-blocs [data-retrait='11'] { --notak-retrait: 11; }
+.notak-blocs [data-retrait='12'] { --notak-retrait: 12; }
+
 /* Ce qu'un dépliant fermé cache. */
 .notak-blocs .notak-cache { display: none !important; }
 
@@ -364,11 +378,6 @@
   flex: 1 1 0;
   flex-direction: column;
   min-width: 0;
-}
-
-.notak-blocs .notak-blocs-colonne > * {
-  margin-left: calc(var(--notak-retrait, 0) * var(--notak-pas-retrait));
-  margin-right: 0;
 }
 
 /* Une table : ses cellules gardent le texte de la page. */
