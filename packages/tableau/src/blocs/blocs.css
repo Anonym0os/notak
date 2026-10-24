@@ -1,0 +1,166 @@
+/* Le moteur de blocs (docs/NOTION.md § 2) : ce que ses blocs ajoutent au texte de la note. Sous `.notak-blocs`. */
+
+.notak-blocs h3 {
+  margin: 14px 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 26px;
+}
+
+/* Les listes : la puce change avec la profondeur, la numérotation aussi (1, a, i). */
+.notak-blocs ul { padding-left: 1.6em; list-style-type: disc; }
+.notak-blocs ul ul { list-style-type: circle; }
+.notak-blocs ul ul ul { list-style-type: square; }
+.notak-blocs ol { padding-left: 1.6em; list-style-type: decimal; }
+.notak-blocs ol ol { list-style-type: lower-alpha; }
+.notak-blocs ol ol ol { list-style-type: lower-roman; }
+.notak-blocs li > p { margin: 0; }
+.notak-blocs li > :is(ul, ol) { margin: 2px 0 0; }
+
+/* Les tâches : la case devant, le texte d'une tâche faite grisé et barré. */
+.notak-blocs ul[data-type='taskList'] {
+  padding-left: 0;
+  list-style: none;
+}
+
+.notak-blocs ul[data-type='taskList'] ul[data-type='taskList'] {
+  padding-left: 1.6em;
+}
+
+.notak-blocs li[data-checked] {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.notak-blocs li[data-checked] > label {
+  flex: none;
+  margin-top: 4px;
+  user-select: none;
+}
+
+.notak-blocs li[data-checked] > label input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--notak-accent, #2f6feb);
+  cursor: pointer;
+}
+
+.notak-blocs li[data-checked] > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.notak-blocs li[data-checked='true'] > div > p {
+  color: var(--notak-pale, rgb(0 0 0 / 0.35));
+  text-decoration: line-through;
+}
+
+/* Le dépliant : le triangle dans la marge gauche du résumé ; fermé, ses blocs se cachent. */
+.notak-blocs .notak-deroulant {
+  margin: 0 0 12px;
+  padding-left: 26px;
+}
+
+.notak-blocs .notak-deroulant-resume {
+  position: relative;
+  min-height: 24px;
+}
+
+.notak-blocs .notak-deroulant-resume::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: -21px;
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 8px solid currentColor;
+  opacity: 0.55;
+  transform: rotate(90deg);
+  transition: transform 120ms ease;
+  cursor: pointer;
+}
+
+.notak-blocs .notak-deroulant[data-ouvert='non'] > .notak-deroulant-resume::before {
+  transform: none;
+}
+
+.notak-blocs .notak-deroulant[data-ouvert='non'] > :not(.notak-deroulant-resume) {
+  display: none;
+}
+
+.notak-blocs .notak-deroulant > :not(.notak-deroulant-resume):last-child {
+  margin-bottom: 0;
+}
+
+/* Un titre dépliant : le résumé a la taille du titre. */
+.notak-blocs .notak-deroulant[data-niveau='1'] > .notak-deroulant-resume { margin-top: 17px; font-size: 24px; font-weight: 700; line-height: 29px; }
+.notak-blocs .notak-deroulant[data-niveau='2'] > .notak-deroulant-resume { margin-top: 17px; font-size: 21px; font-weight: 700; line-height: 29px; }
+.notak-blocs .notak-deroulant[data-niveau='3'] > .notak-deroulant-resume { margin-top: 14px; font-size: 18px; font-weight: 600; line-height: 26px; }
+.notak-blocs .notak-deroulant[data-niveau] > .notak-deroulant-resume::before { top: calc(50% - 5px); }
+
+/* Les colonnes côte à côte ; sous 640 px de large, elles s'empilent. */
+.notak-blocs .notak-colonnes {
+  display: flex;
+  gap: 32px;
+  margin: 0 0 12px;
+}
+
+.notak-blocs .notak-colonne {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.notak-blocs .notak-colonne > :last-child {
+  margin-bottom: 0;
+}
+
+@container (max-width: 640px) {
+  .notak-blocs .notak-colonnes { flex-direction: column; gap: 0; }
+}
+
+/* L'image : sa part de la largeur, alignée ; la légende dessous, plus petite. */
+.notak-blocs .notak-image-bloc {
+  margin: 4px 0 16px;
+  max-width: 100%;
+}
+
+.notak-blocs .notak-image-bloc[data-alignement='centre'] { margin-inline: auto; }
+.notak-blocs .notak-image-bloc[data-alignement='droite'] { margin-left: auto; }
+
+.notak-blocs .notak-image-bloc img {
+  display: block;
+  max-width: 100%;
+  border-radius: 4px;
+}
+
+.notak-blocs .notak-image-bloc figcaption {
+  margin-top: 6px;
+  color: var(--notak-pale, rgb(0 0 0 / 0.5));
+  font-size: 13px;
+  line-height: 18px;
+}
+
+/* L'aperçu de lien : une carte cliquable, titre, description et adresse. */
+.notak-blocs .notak-apercu-lien {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  border-radius: 4px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.notak-blocs .notak-apercu-lien:hover {
+  background: color-mix(in srgb, currentColor 4%, transparent);
+}
+
+.notak-blocs .notak-apercu-lien-titre { font-size: 14px; font-weight: 600; line-height: 20px; }
+.notak-blocs .notak-apercu-lien-description { overflow: hidden; color: var(--notak-pale, rgb(0 0 0 / 0.5)); font-size: 13px; line-height: 18px; text-overflow: ellipsis; white-space: nowrap; }
+.notak-blocs .notak-apercu-lien-adresse { font-size: 12px; line-height: 16px; opacity: 0.6; }

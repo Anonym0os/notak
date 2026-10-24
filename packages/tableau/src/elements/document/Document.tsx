@@ -1,14 +1,15 @@
-import { EditorContent, getSchema, useEditor } from '@tiptap/react'
+import { EditorContent, useEditor } from '@tiptap/react'
 import { renderToReactElement } from '@tiptap/static-renderer/pm/react'
 import { type ReactNode, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { type Commentaire, type DocumentTexte, type Id, type NoeudTexte, nouvelId } from '../../coeur/tableau'
-import { EXTENSIONS_NOTE } from '../note/extensions'
 import { type Fils, MARQUE_FIL, avecFil, filsVivants, sansPassagesMuets } from '../note/fils'
 import { Marge } from '../note/Marge'
 import { type Pont, Propositions, extensionPropositions } from '../note/Propositions'
 import { Surcouche } from '../surcouche'
+import { CLE_IDS } from '../../blocs/ids'
 import { degrader, lisible } from '../../blocs/lisible'
+import { EXTENSIONS_BLOCS, SCHEMA_BLOCS as SCHEMA } from '../../blocs/schema'
 import { LegendeLocale, OutilLegende, avecTexteLegende } from '../LegendeLocale'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { ColonneOutils } from './ColonneOutils'
@@ -20,16 +21,14 @@ import { BoutonOutil } from '../../BoutonOutil'
 import { Icone } from '../../icones'
 import { fermerMenus, useMenu } from '../../menuUnique'
 
-const SCHEMA = getSchema(EXTENSIONS_NOTE)
-
 /**
- * Le texte tel qu'une note le dessine : mêmes extensions, en lecture seule. Un bloc qu'une version plus récente a
+ * Le texte tel que le moteur de blocs le dessine, en lecture seule. Un bloc qu'une version plus récente a
  * écrit se dessine réduit à son texte (docs/NOTION.md § 1).
  */
 const Lu = memo(function Lu({ texte, fils }: { texte: NoeudTexte; fils?: Fils | undefined }) {
   // Un passage dont le fil n'a aucun message (marqué, rien écrit) ne se souligne pas.
-  const rendu = useMemo(() => renderToReactElement({ content: sansPassagesMuets(degrader(texte, SCHEMA), fils), extensions: EXTENSIONS_NOTE }), [texte, fils])
-  return <div className="notak-texte">{rendu}</div>
+  const rendu = useMemo(() => renderToReactElement({ content: sansPassagesMuets(degrader(texte, SCHEMA), fils), extensions: EXTENSIONS_BLOCS }), [texte, fils])
+  return <div className="notak-texte notak-blocs">{rendu}</div>
 })
 
 /**
@@ -199,7 +198,7 @@ function MenuExport({ titre, lireTexte }: { titre: string; lireTexte(): NoeudTex
     setOuvert(false)
   }
   const pdf = () => {
-    const corps = renderToStaticMarkup(renderToReactElement({ content: degrader(lireTexte(), SCHEMA), extensions: EXTENSIONS_NOTE }))
+    const corps = renderToStaticMarkup(renderToReactElement({ content: degrader(lireTexte(), SCHEMA), extensions: EXTENSIONS_BLOCS }))
     imprimer(pageImpression(titre.trim() || t('commun.sansTitre'), corps))
     setOuvert(false)
   }
@@ -312,12 +311,12 @@ function Grand({ contenu, ecrire, finir, contexte }: { contenu: DocumentTexte; e
   const commenterRef = useRef<() => void>(() => {})
   // `[[` propose les tableaux, `@` les personnes : la même liste que la note.
   const pont = useRef<Pont | null>(null)
-  const extensions = useMemo(() => [...EXTENSIONS_NOTE, extensionPropositions(pont)], [])
+  const extensions = useMemo(() => [...EXTENSIONS_BLOCS, extensionPropositions(pont)], [])
   const editeur = useEditor({
     extensions,
     content: contenu.texte,
     editorProps: {
-      attributes: { class: 'notak-texte', 'aria-label': t('document.texte') },
+      attributes: { class: 'notak-texte notak-blocs', 'aria-label': t('document.texte') },
       // ⌘⌥M : commenter le passage choisi, comme dans une note.
       handleKeyDown: (_, e) => {
         if (!(e.metaKey || e.ctrlKey) || !e.altKey || e.code !== 'KeyM') return false
@@ -326,7 +325,9 @@ function Grand({ contenu, ecrire, finir, contexte }: { contenu: DocumentTexte; e
         return true
       },
     },
-    onUpdate: ({ editor }) => {
+    onUpdate: ({ editor, transaction }) => {
+      // Les ids posés à l'ouverture ne sont pas une écriture : ils partiront avec la prochaine.
+      if (transaction.getMeta(CLE_IDS)) return
       const texte = editor.getJSON() as NoeudTexte
       poser({ texte, fils: filsVivants(dernier.current.fils, texte) })
     },

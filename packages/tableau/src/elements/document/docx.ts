@@ -108,7 +108,7 @@ function bloc(n: NoeudTexte, niveau: number): string[] {
     case 'paragraph':
       return [paragraphe(traces(n, ''), retrait(niveau))]
     case 'heading': {
-      const taille = Number(n.attrs?.level ?? 1) === 1 ? 36 : 30
+      const taille = [36, 30, 26][Math.min(3, Math.max(1, Number(n.attrs?.level ?? 1))) - 1]
       return [paragraphe(traces(n, `<w:b/><w:sz w:val="${taille}"/>`), `<w:spacing w:before="240" w:after="120"/>${retrait(niveau)}`)]
     }
     case 'bulletList':
@@ -128,6 +128,21 @@ function bloc(n: NoeudTexte, niveau: number): string[] {
         .map((ligne) => paragraphe(trace({ type: 'text', text: ligne }, '<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>'), retrait(niveau)))
     case 'horizontalRule':
       return [paragraphe('', '<w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="999999"/></w:pBdr>')]
+    // Un dépliant s'exporte ouvert : son résumé (en titre s'il en est un), puis ce qu'il cache.
+    case 'deroulant': {
+      const [resume, ...dedans] = n.content ?? []
+      // Un titre dépliant garde ses blocs à son retrait ; un simple dépliant les décale d'un cran.
+      const rang = Number(n.attrs?.niveau) || 0
+      const tete = resume ? (rang ? bloc({ ...resume, type: 'heading', attrs: { level: rang } }, niveau) : [paragraphe(traces(resume, ''), retrait(niveau))]) : []
+      return [...tete, ...blocs(dedans, rang ? niveau : niveau + 1)]
+    }
+    case 'image':
+      return n.attrs?.legende ? [paragraphe(trace({ type: 'text', text: String(n.attrs.legende) }, '<w:i/>'), retrait(niveau))] : []
+    case 'apercuLien': {
+      const url = typeof n.attrs?.url === 'string' ? n.attrs.url : ''
+      const titre = typeof n.attrs?.titre === 'string' && n.attrs.titre ? n.attrs.titre : url
+      return url ? [paragraphe(trace({ type: 'text', text: titre === url ? url : `${titre} (${url})` }, ''), retrait(niveau))] : []
+    }
     default:
       return n.content ? blocs(n.content, niveau) : n.text ? [paragraphe(trace(n, ''))] : []
   }

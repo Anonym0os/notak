@@ -189,3 +189,20 @@ describe('exporterTexte en anglais', () => {
     expect(exporterTexte(tableau, 'txt')).toContain('Tableau : Sans titre')
   })
 })
+
+describe('le document à blocs (docs/NOTION.md)', () => {
+  const texte = doc(
+    { type: 'deroulant', attrs: { niveau: 0 }, content: [{ type: 'resumeDeroulant', content: [{ type: 'text', text: 'Plus' }] }, para('dedans')] },
+    { type: 'colonnes', content: [{ type: 'colonne', content: [para('gauche')] }, { type: 'colonne', content: [para('droite')] }] },
+  )
+  const document = el({ type: 'document', titre: 'Compte rendu', texte })
+
+  it('se cherche par son titre et son texte', () => {
+    const t = texteCherchable(document, () => undefined)
+    for (const mot of ['Compte rendu', 'Plus', 'dedans', 'gauche', 'droite']) expect(t).toContain(mot)
+  })
+
+  it('s’exporte avec le texte du tableau, son titre en tête', () => {
+    expect(exporterTexte({ titre: 'T', elements: [document] }, 'md')).toBe('# T\n\n## Compte rendu\n\nPlus\n\ndedans\n\ngauche\n\ndroite\n')
+  })
+})

@@ -327,6 +327,8 @@
 .notak-document-corps {
   flex: 1;
   min-width: 0;
+  /* Les colonnes du texte s'empilent sur une page étroite (voir `blocs/blocs.css`). */
+  container-type: inline-size;
   box-sizing: border-box;
   max-width: 716px;
   padding: 36px 3px 80px 0;

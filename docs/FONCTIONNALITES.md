@@ -31,8 +31,8 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
 | 18. Carte mentale | 18 | 2 | 21 | 46 % |
-| 19. Document à blocs | 1 | 0 | 24 | 4 % |
-| **Total** | **301** | **12** | **47** | **85 %** |
+| 19. Document à blocs | 3 | 0 | 22 | 12 % |
+| **Total** | **303** | **12** | **45** | **86 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -476,7 +476,7 @@ dans `packages/tableau/src/blocs/`, pour resservir à d'autres éléments.
 
 | Fonctionnalité | État | Reste |
 |---|---|---|
-| Un id stable sur chaque bloc, le document relu comme des enregistrements de blocs | ⬜ |  |
+| Un id stable sur chaque bloc, le document relu comme des enregistrements de blocs | ✅ | `blocs/ids.ts`, `blocs/modele.ts` (`blocsDe`). |
 | Un vieux client ouvre un bloc inconnu en lecture seule, sans rien perdre | ✅ | Le texte se dessine réduit à ce qu’il connaît, un avis dit pourquoi (`blocs/lisible.ts`). |
 | Titres 1 à 3, titres dépliants | ⬜ |  |
 | Listes à puces, numérotées (1, a, i selon la profondeur), tâches | ⬜ |  |
@@ -500,6 +500,6 @@ dans `packages/tableau/src/blocs/`, pour resservir à d'autres éléments.
 | Icône et couverture de la page | ⬜ |  |
 | Police, petit texte, pleine largeur | ⬜ |  |
 | Document écrit à plusieurs en direct, curseurs des autres | ⬜ |  |
-| Document dans la recherche du serveur et l'export texte du tableau | ⬜ |  |
+| Document dans la recherche du serveur et l'export texte du tableau | ✅ | Dépliants exportés ouverts, colonnes à la suite. |
 | Bases de données, sous-pages, blocs synchronisés, bouton, équation, onglets | ➖ | Écartés pour l'instant (docs/NOTION.md § 2). |
 | Verrouillage, table des matières flottante, historique de page | ➖ | Écartés (docs/NOTION.md § 9). |

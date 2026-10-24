@@ -1,7 +1,8 @@
 import type { DocumentTexte } from '../../coeur/tableau'
 import { registre } from '../registre'
-import { documentEnNote } from '../note/conversion'
+import { documentVersNote } from './versNote'
 import { OutilsDocument, RenduDocument } from './Document'
+import '../../blocs/blocs.css'
 import './document.css'
 import { demanderRenommer, deposerTampon, documentCree, nouveauDocument, resume } from './texte'
 import { t } from '../../langue'
@@ -61,7 +62,7 @@ registre.entreeMenu({
   },
   visible: (els, contexte) => !contexte.services.lectureSeule && els.length > 0 && els.every((e) => e.contenu.type === 'document'),
   faire: (els, contexte) =>
-    contexte.magasin.faire(els.flatMap((e) => (e.contenu.type === 'document' ? [{ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: documentEnNote(e.contenu) }] : []))),
+    contexte.magasin.faire(els.flatMap((e) => (e.contenu.type === 'document' ? [{ type: 'contenu' as const, id: e.id, avant: e.contenu, apres: documentVersNote(e.contenu) }] : []))),
 })
 
 // « Renommer » : le titre s'édite sur la carte (un seul document).

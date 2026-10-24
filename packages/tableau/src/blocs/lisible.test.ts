@@ -42,4 +42,9 @@ describe('NOTION.md § 1 : un texte d’une version plus récente', () => {
     const texte = doc({ type: 'colonnesDuFutur', content: [{ type: 'colonne', content: [p('a')] }, { type: 'colonne', content: [{ type: 'x' }] }] })
     expect(lisible(degrader(texte, SCHEMA), SCHEMA)).toBe(true)
   })
+
+  it('un attribut inconnu (l’id d’un bloc) ne gêne pas : ProseMirror l’ignore', () => {
+    const texte = doc(p('a'), { type: 'paragraph', attrs: { id: 'x1', couleur: 'rouge' }, content: [{ type: 'text', text: 'b' }] })
+    expect(lisible(texte, SCHEMA)).toBe(true)
+  })
 })

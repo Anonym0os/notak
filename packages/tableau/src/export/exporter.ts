@@ -109,6 +109,18 @@ function bloc(n: NoeudTexte, r: Rendu, decalage: number): string[] {
     case 'listItem':
     case 'taskItem':
       return blocs(n.content ?? [], r, decalage)
+    // Le résumé d'un dépliant (docs/NOTION.md § 2) : une ligne de texte, que suivent les blocs qu'il cache.
+    case 'resumeDeroulant': {
+      const t = enLigne(n, r)
+      return t === '' ? [] : [t]
+    }
+    case 'image':
+      return chaine(n.attrs?.legende) ? [chaine(n.attrs?.legende)] : []
+    case 'apercuLien': {
+      const url = chaine(n.attrs?.url)
+      const titre = chaine(n.attrs?.titre) || url
+      return url ? [r.md ? `[${titre}](${url})` : titre === url ? url : `${titre} (${url})`] : []
+    }
     default:
       return n.content ? blocs(n.content, r, decalage) : n.text ? [n.text] : []
   }
@@ -177,6 +189,12 @@ function lignesDe(e: ElementLu, r: Rendu, enfants: Map<string, ElementLu[]>, niv
     }
     case 'arbre':
       return planDeCarte(c.sujets, r)
+    case 'document': {
+      const d = doc(c.texte)
+      const titre = chaine(c.titre)
+      const entete = titre ? [r.md ? `${'#'.repeat(Math.min(6, niveau))} ${titre}` : titre] : []
+      return assembler([entete, d ? blocs(d.content ?? [], r, niveau) : []])
+    }
     case 'commentaire': {
       const messages = (c.messages as { auteur?: { nom?: string }; texte?: string }[] | undefined) ?? []
       const lignes = messages.map((m) => `${r.md ? '> ' : ''}${chaine(m.auteur?.nom)} : ${chaine(m.texte).replace(/\n/g, ' ')}`)

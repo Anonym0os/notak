@@ -281,7 +281,7 @@ const MarkdownTape = Extension.create({
  * d'elle-même (`autolink`, `linkOnPaste`) : elle reste du texte, que `AdressesReperees` souligne.
  */
 // Pas de paragraphe vide ajouté d'office en fin de note (comme Milanote) : il grandissait la carte d'une ligne.
-const KIT = {
+export const KIT = {
   code: false as const,
   blockquote: false as const,
   heading: { levels: [1, 2] as (1 | 2)[] },
