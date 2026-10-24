@@ -321,7 +321,7 @@
   opacity: 0.7;
 }
 
-/* Les colonnes côte à côte, à 46 px l'une de l'autre ; sous 480 px de large, elles s'empilent. */
+/* Les colonnes côte à côte, à 46 px l'une de l'autre (les largeurs et le séparateur : `poignee.css`). */
 .notak-texte.notak-blocs > .notak-blocs-rangee {
   display: flex;
   gap: 46px;
@@ -340,10 +340,6 @@
 .notak-blocs .notak-blocs-colonne > * {
   margin-left: calc(var(--notak-retrait, 0) * var(--notak-pas-retrait));
   margin-right: 0;
-}
-
-@container (max-width: 480px) {
-  .notak-blocs .notak-blocs-rangee { flex-direction: column; gap: 0; }
 }
 
 /* Une table : ses cellules gardent le texte de la page. */
