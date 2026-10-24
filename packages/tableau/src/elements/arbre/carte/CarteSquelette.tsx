@@ -20,22 +20,22 @@ export function CarteSquelette({ structure, faire }: { structure: StructureArbre
   const [replies, setReplies] = useState<ReadonlySet<string>>(new Set())
   return (
     <>
-      <button ref={o.poser} type="button" className="notak-carte-squelette" aria-haspopup="dialog" aria-expanded={o.ouvert} title={t('arbre.carte.squelette')} onClick={o.basculer}>
-        <span className="notak-carte-squelette-vignette">
+      <button ref={o.poser} type="button" className="notak-arbre-reglages-squelette" aria-haspopup="dialog" aria-expanded={o.ouvert} title={t('arbre.carte.squelette')} onClick={o.basculer}>
+        <span className="notak-arbre-reglages-squelette-vignette">
           <ApercuStructure structure={structure} />
         </span>
-        <span className="notak-carte-squelette-nom">{t(`arbre.carte.g.${groupeDeStructure(structure)}`)}</span>
+        <span className="notak-arbre-reglages-squelette-nom">{t(`arbre.carte.g.${groupeDeStructure(structure)}`)}</span>
         <Icone nom="chevronBas" taille={12} trait={2} />
       </button>
-      <Popover ancre={o.ancre} ouvert={o.ouvert} fermer={o.fermer} cote="gauche" largeur={388} hauteur={450} className="notak-carte-popover-squelettes" etiquette={t('arbre.carte.squelette')}>
-        <div className="notak-carte-squelettes">
+      <Popover ancre={o.ancre} ouvert={o.ouvert} fermer={o.fermer} cote="gauche" largeur={388} hauteur={450} className="notak-arbre-reglages-popover-squelettes" etiquette={t('arbre.carte.squelette')}>
+        <div className="notak-arbre-reglages-squelettes">
           {GROUPES_SQUELETTES.map((g) => {
             const ferme = replies.has(g.id)
             return (
-              <section key={g.id} className="notak-carte-groupe-squelettes" data-replie={ferme ? '' : undefined}>
+              <section key={g.id} className="notak-arbre-reglages-groupe-squelettes" data-replie={ferme ? '' : undefined}>
                 <button
                   type="button"
-                  className="notak-carte-groupe-titre"
+                  className="notak-arbre-reglages-groupe-titre"
                   aria-expanded={!ferme}
                   onClick={() =>
                     setReplies((r) => {
@@ -49,7 +49,7 @@ export function CarteSquelette({ structure, faire }: { structure: StructureArbre
                   {t(`arbre.carte.g.${g.id}`)}
                 </button>
                 {!ferme && (
-                  <div className="notak-carte-grille-squelettes">
+                  <div className="notak-arbre-reglages-grille-squelettes">
                     {g.structures.map((s) => (
                       <CarteVignette key={s} actif={s === structure} titre={t(`arbre.s.${s}`)} onClick={() => s !== structure && faire({ type: 'squelette', structure: s })}>
                         <ApercuStructure structure={s} />

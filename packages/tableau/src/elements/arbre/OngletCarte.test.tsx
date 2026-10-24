@@ -106,8 +106,8 @@ describe('l’onglet Carte : ce qu’il montre', () => {
 
   it('quatre titres de section, des séparateurs entre les blocs', () => {
     monter(carte())
-    expect([...hote.querySelectorAll('.notak-carte-titre')].map((x) => x.textContent)).toEqual(['Style de carte', 'Affichage des sujets', 'Relation', 'Avancé'])
-    expect(hote.querySelectorAll('hr.notak-carte-separateur').length).toBeGreaterThanOrEqual(8)
+    expect([...hote.querySelectorAll('.notak-arbre-reglages-titre')].map((x) => x.textContent)).toEqual(['Style de carte', 'Affichage des sujets', 'Relation', 'Avancé'])
+    expect(hote.querySelectorAll('hr.notak-arbre-reglages-separateur').length).toBeGreaterThanOrEqual(8)
   })
 
   it('une carte neuve : carte équilibrée et branches de couleur allumées, le reste éteint', () => {
@@ -125,13 +125,13 @@ describe('l’onglet Carte : ce qu’il montre', () => {
 
   it('chaque ligne à bascule porte l’infobulle de Xmind sur toute la ligne', () => {
     monter(carte())
-    const ligne = interrupteur('Carte compacte').closest('.notak-carte-ligne')!
+    const ligne = interrupteur('Carte compacte').closest('.notak-arbre-reglages-ligne')!
     expect(ligne.getAttribute('title')).toBe('Réduire la taille et l\'espacement des éléments.')
   })
 
   it('la carte du squelette nomme le groupe de la structure, jamais la structure', () => {
     monter(carte('arete-droite'))
-    expect(hote.querySelector('.notak-carte-squelette-nom')!.textContent).toBe('Diagramme en arêtes de poisson')
+    expect(hote.querySelector('.notak-arbre-reglages-squelette-nom')!.textContent).toBe('Diagramme en arêtes de poisson')
   })
 
   it('une structure qui n’est pas une carte grise « Équilibrer » et « Branches libres »', () => {
@@ -189,23 +189,23 @@ describe('l’onglet Carte : ce que chaque réglage envoie', () => {
 
   it('le jeu de couleurs : un bouton à anneau quand les branches sont de couleur, la pastille de la couleur de ligne sinon', () => {
     monter(carte())
-    expect(hote.querySelector('.notak-carte-select-jeu')).not.toBeNull()
+    expect(hote.querySelector('.notak-arbre-reglages-select-jeu')).not.toBeNull()
     cliquer(bouton('Jeu de couleurs'))
-    const jeux = document.querySelectorAll('.notak-carte-jeu')
+    const jeux = document.querySelectorAll('.notak-arbre-reglages-jeu')
     expect(jeux.length).toBe(10)
-    expect(document.querySelectorAll('.notak-carte-jeu[aria-selected=true]').length).toBe(1)
+    expect(document.querySelectorAll('.notak-arbre-reglages-jeu[aria-selected=true]').length).toBe(1)
     cliquer(jeux[1] as HTMLElement)
     expect(dernier()).toMatchObject({ type: 'jeuCouleurs', couleurs: ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#007aff', '#af52de'] })
     // Il se ferme au choix.
-    expect(document.querySelector('.notak-carte-jeu')).toBeNull()
+    expect(document.querySelector('.notak-arbre-reglages-jeu')).toBeNull()
     cliquer(bouton('Jeu de couleurs'))
-    cliquer(document.querySelectorAll('.notak-carte-jeu')[0] as HTMLElement)
+    cliquer(document.querySelectorAll('.notak-arbre-reglages-jeu')[0] as HTMLElement)
     expect(dernier()).toEqual({ type: 'jeuCouleurs', couleurs: null })
 
     monter(carte('carte', { options: { uneCouleur: true } }))
-    expect(hote.querySelector('.notak-carte-select-jeu')).toBeNull()
+    expect(hote.querySelector('.notak-arbre-reglages-select-jeu')).toBeNull()
     cliquer(bouton('Couleur'))
-    cliquer(document.querySelector('.notak-carte-case-couleur[aria-label="#dc2626"]') as HTMLElement)
+    cliquer(document.querySelector('.notak-arbre-reglages-case-couleur[aria-label="#dc2626"]') as HTMLElement)
     expect(dernier()).toEqual({ type: 'couleurLigne', couleur: '#dc2626' })
   })
 })
@@ -214,11 +214,11 @@ describe('le squelette', () => {
   it('la fenêtre a ses huit groupes ; un choix applique la structure et la laisse ouverte', () => {
     monter(carte())
     cliquer(bouton('Choisir le squelette.'))
-    const groupes = [...document.querySelectorAll('.notak-carte-groupe-titre')].map((x) => x.textContent)
+    const groupes = [...document.querySelectorAll('.notak-arbre-reglages-groupe-titre')].map((x) => x.textContent)
     expect(groupes).toEqual(['Carte mentale', 'Diagramme logique', "Carte d'accolade", 'Organigramme', 'Arbre graphique', 'Chronologie', 'Diagramme en arêtes de poisson', 'Matrice'])
     cliquer(bouton('Diagramme logique à droite'))
     expect(gestes).toEqual([{ type: 'squelette', structure: 'logique-droite' }])
-    expect(document.querySelector('.notak-carte-squelettes')).not.toBeNull()
+    expect(document.querySelector('.notak-arbre-reglages-squelettes')).not.toBeNull()
     // Le squelette actif ne se réapplique pas.
     cliquer(bouton('Carte mentale'))
     expect(gestes).toHaveLength(1)
@@ -227,15 +227,15 @@ describe('le squelette', () => {
   it('un groupe se replie au clic sur son titre', () => {
     monter(carte())
     cliquer(bouton('Choisir le squelette.'))
-    const avant = document.querySelectorAll('.notak-carte-vignette').length
-    cliquer([...document.querySelectorAll<HTMLElement>('.notak-carte-groupe-titre')][0]!)
-    expect(document.querySelectorAll('.notak-carte-vignette').length).toBeLessThan(avant)
+    const avant = document.querySelectorAll('.notak-arbre-reglages-vignette').length
+    cliquer([...document.querySelectorAll<HTMLElement>('.notak-arbre-reglages-groupe-titre')][0]!)
+    expect(document.querySelectorAll('.notak-arbre-reglages-vignette').length).toBeLessThan(avant)
   })
 
   it('la structure active est marquée', () => {
     monter(carte('logique-gauche'))
     cliquer(bouton('Choisir le squelette.'))
-    const actives = document.querySelectorAll('.notak-carte-grille-squelettes .notak-carte-vignette[data-actif]')
+    const actives = document.querySelectorAll('.notak-arbre-reglages-grille-squelettes .notak-arbre-reglages-vignette[data-actif]')
     expect(actives).toHaveLength(1)
     expect(actives[0]!.querySelector('button')!.getAttribute('aria-label')).toBe('Diagramme logique à gauche')
   })
@@ -254,14 +254,14 @@ describe('le squelette', () => {
 describe('le thème de couleur', () => {
   it('le sélecteur montre le groupe courant : six segments et son nom', () => {
     monter(carte('carte', { theme: 'ocean' }))
-    const s = hote.querySelector('.notak-carte-select-theme')!
+    const s = hote.querySelector('.notak-arbre-reglages-select-theme')!
     expect(s.textContent).toBe('Océan')
-    expect(s.querySelectorAll('.notak-carte-segments i')).toHaveLength(6)
+    expect(s.querySelectorAll('.notak-arbre-reglages-segments i')).toHaveLength(6)
   })
 
   it('six variantes au plus, la première (branches de couleur) active pour une carte neuve ; un clic en prend une', () => {
     monter(carte())
-    const v = hote.querySelectorAll('.notak-carte-variantes .notak-carte-vignette')
+    const v = hote.querySelectorAll('.notak-arbre-reglages-variantes .notak-arbre-reglages-vignette')
     expect(v.length).toBeGreaterThan(1)
     expect(v.length).toBeLessThanOrEqual(6)
     expect(v[0]!.hasAttribute('data-actif')).toBe(true)
@@ -273,10 +273,10 @@ describe('le thème de couleur', () => {
 
   it('la variante à une couleur de la carte est celle qui est active', () => {
     monter(carte('carte', { theme: 'foret', options: { uneCouleur: true }, couleurLigne: '#5a9e54' }))
-    const actives = hote.querySelectorAll('.notak-carte-variantes .notak-carte-vignette[data-actif]')
+    const actives = hote.querySelectorAll('.notak-arbre-reglages-variantes .notak-arbre-reglages-vignette[data-actif]')
     expect(actives).toHaveLength(1)
     expect(actives[0]!.hasAttribute('data-actif')).toBe(true)
-    expect(hote.querySelector('.notak-carte-variantes .notak-carte-vignette')!.hasAttribute('data-actif')).toBe(false)
+    expect(hote.querySelector('.notak-arbre-reglages-variantes .notak-arbre-reglages-vignette')!.hasAttribute('data-actif')).toBe(false)
   })
 
   it('la liste a ses onglets Coloré et Classique ; un clic sur un groupe prend sa première variante, la fenêtre reste ouverte', () => {
@@ -284,11 +284,11 @@ describe('le thème de couleur', () => {
     cliquer(bouton('Choisir le thème de couleur.'))
     expect([...document.querySelectorAll('[role=tab]')].map((x) => x.textContent)).toEqual(['Coloré', 'Classique'])
     // La carte neuve est du thème classique : la liste s'ouvre sur l'onglet Classique.
-    expect([...document.querySelectorAll('.notak-carte-bande')].map((x) => x.getAttribute('aria-label'))).toEqual(['Classique', 'Sobre', 'Papier', 'Ardoise'])
+    expect([...document.querySelectorAll('.notak-arbre-reglages-bande')].map((x) => x.getAttribute('aria-label'))).toEqual(['Classique', 'Sobre', 'Papier', 'Ardoise'])
     cliquer(bouton('Coloré'))
-    cliquer(document.querySelector<HTMLElement>('.notak-carte-bande[aria-label="Océan"]')!)
+    cliquer(document.querySelector<HTMLElement>('.notak-arbre-reglages-bande[aria-label="Océan"]')!)
     expect(dernier()).toEqual({ type: 'themeCouleur', choix: { theme: 'ocean', accent: undefined } })
-    expect(document.querySelector('.notak-carte-themes')).not.toBeNull()
+    expect(document.querySelector('.notak-arbre-reglages-themes')).not.toBeNull()
     // L'onglet choisi est retenu.
     expect(preferences().ongletThemes).toBe('colore')
   })
@@ -296,8 +296,8 @@ describe('le thème de couleur', () => {
   it('le groupe actif porte « Alterner » et passe à la variante suivante, puis revient à la première', () => {
     monter(carte('carte', { theme: 'ocean' }))
     cliquer(bouton('Choisir le thème de couleur.'))
-    expect(document.querySelector('.notak-carte-bande[data-actif] .notak-carte-alterner')!.textContent).toBe('Alterner')
-    cliquer(document.querySelector<HTMLElement>('.notak-carte-bande[aria-label="Océan"]')!)
+    expect(document.querySelector('.notak-arbre-reglages-bande[data-actif] .notak-arbre-reglages-alterner')!.textContent).toBe('Alterner')
+    cliquer(document.querySelector<HTMLElement>('.notak-arbre-reglages-bande[aria-label="Océan"]')!)
     const premier = (dernier() as Extract<Geste, { type: 'themeCouleur' }>).choix
     expect(premier.theme).toBe('ocean')
     expect(premier.accent).toBeTruthy()
@@ -305,7 +305,7 @@ describe('le thème de couleur', () => {
 
   it('un favori se pose sur l’étoile d’une variante, apparaît dans un onglet Favori, et s’en retire', () => {
     monter(carte())
-    cliquer(hote.querySelector<HTMLElement>('.notak-carte-variantes .notak-carte-etoile')!)
+    cliquer(hote.querySelector<HTMLElement>('.notak-arbre-reglages-variantes .notak-arbre-reglages-etoile')!)
     expect(preferences().favoris).toEqual(['classique|'])
     cliquer(bouton('Choisir le thème de couleur.'))
     expect([...document.querySelectorAll('[role=tab]')].map((x) => x.textContent)[0]).toBe('Favori')
@@ -315,9 +315,9 @@ describe('le thème de couleur', () => {
     monter(carte())
     cliquer(bouton('Créer un nouveau thème.'))
     const enregistrer = bouton('Enregistrer') as HTMLButtonElement
-    expect(document.querySelector('#notak-carte-dlg-titre')!.textContent).toBe('Créer un nouveau thème de couleur')
+    expect(document.querySelector('#notak-arbre-reglages-dlg-titre')!.textContent).toBe('Créer un nouveau thème de couleur')
     expect(enregistrer.disabled).toBe(true)
-    expect(document.querySelector('.notak-carte-dlg-apercu')!.textContent).toBe('Aperçu du thème de couleur')
+    expect(document.querySelector('.notak-arbre-reglages-dlg-apercu')!.textContent).toBe('Aperçu du thème de couleur')
     const couleurs = ['#111111', '#222222', '#333333', '#444444', '#555555', '#666666']
     couleurs.forEach((c, i) => {
       const champ = document.querySelector<HTMLInputElement>(`input[aria-label="Couleur ${i + 1}"]`)!
@@ -327,11 +327,11 @@ describe('le thème de couleur', () => {
     })
     expect(document.querySelector('input[aria-label="Couleur 6"]')).not.toBeNull()
     expect((bouton('Enregistrer') as HTMLButtonElement).disabled).toBe(false)
-    expect(document.querySelectorAll('.notak-carte-dlg-variantes svg').length).toBeGreaterThan(1)
-    expect((document.querySelector('.notak-carte-dlg-nom') as HTMLInputElement).value).toBe('Personnalisé')
+    expect(document.querySelectorAll('.notak-arbre-reglages-dlg-variantes svg').length).toBeGreaterThan(1)
+    expect((document.querySelector('.notak-arbre-reglages-dlg-nom') as HTMLInputElement).value).toBe('Personnalisé')
     cliquer(bouton('Enregistrer'))
     expect(preferences().couleursPerso).toMatchObject([{ nom: 'Personnalisé', palette: couleurs }])
-    expect(document.querySelector('.notak-carte-dialogue')).toBeNull()
+    expect(document.querySelector('.notak-arbre-reglages-dialogue')).toBeNull()
   })
 
   it('seule la première case vide est ouverte', () => {
@@ -340,7 +340,7 @@ describe('le thème de couleur', () => {
     expect(document.querySelector<HTMLInputElement>('input[aria-label="Couleur 1"]')!.disabled).toBe(false)
     expect(document.querySelector<HTMLInputElement>('input[aria-label="Couleur 2"]')!.disabled).toBe(true)
     cliquer(bouton('Annuler'))
-    expect(document.querySelector('.notak-carte-dialogue')).toBeNull()
+    expect(document.querySelector('.notak-arbre-reglages-dialogue')).toBeNull()
     expect(preferences().couleursPerso).toEqual([])
   })
 
@@ -353,7 +353,7 @@ describe('le thème de couleur', () => {
     cliquer(bouton('Personnalisé'))
     expect(dernier()).toEqual({ type: 'themeCouleur', choix: { theme: 'perso:a', accent: undefined, perso: { nom: 'Personnalisé', palette: ['#111111', '#222222', '#333333', '#444444', '#555555', '#666666'] } } })
     cliquer(bouton('Créer un nouveau thème.'))
-    expect((document.querySelector('.notak-carte-dlg-nom') as HTMLInputElement).value).toBe('Personnalisé 2')
+    expect((document.querySelector('.notak-arbre-reglages-dlg-nom') as HTMLInputElement).value).toBe('Personnalisé 2')
   })
 })
 
@@ -361,10 +361,10 @@ describe('le fond, les polices, la largeur', () => {
   it('le fond : un clic sur une case du nuancier le pose et ferme la fenêtre', () => {
     monter(carte())
     cliquer(bouton('Couleur de l\'arrière-plan'))
-    expect(document.querySelectorAll('.notak-carte-nuancier > .notak-carte-grille-couleurs .notak-carte-case-couleur')).toHaveLength(45)
-    cliquer(document.querySelector('.notak-carte-case-couleur[aria-label="#fef08a"]') as HTMLElement)
+    expect(document.querySelectorAll('.notak-arbre-reglages-nuancier > .notak-arbre-reglages-grille-couleurs .notak-arbre-reglages-case-couleur')).toHaveLength(45)
+    cliquer(document.querySelector('.notak-arbre-reglages-case-couleur[aria-label="#fef08a"]') as HTMLElement)
     expect(dernier()).toEqual({ type: 'fond', couleur: '#fef08a' })
-    expect(document.querySelector('.notak-carte-nuancier')).toBeNull()
+    expect(document.querySelector('.notak-arbre-reglages-nuancier')).toBeNull()
     expect(preferences().couleursRecentes).toEqual(['#fef08a'])
   })
 
@@ -375,7 +375,7 @@ describe('le fond, les polices, la largeur', () => {
     saisir(hex, 'abc')
     act(() => void hex.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })))
     expect(dernier()).toEqual({ type: 'fond', couleur: '#aabbcc' })
-    expect(document.querySelector('.notak-carte-nuancier')).not.toBeNull()
+    expect(document.querySelector('.notak-arbre-reglages-nuancier')).not.toBeNull()
     const opacite = document.querySelector<HTMLInputElement>('input[aria-label="Opacité"]')!
     saisir(opacite, '50')
     act(() => void opacite.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })))
@@ -384,7 +384,7 @@ describe('le fond, les polices, la largeur', () => {
 
   it('la pastille d’une carte au fond propre montre cette couleur, avec « Couleur du thème » pour la retirer', () => {
     monter(carte('carte', { fond: '#ffeecc' }))
-    expect(hote.querySelector<HTMLElement>('.notak-carte-pastille')!.style.getPropertyValue('--c')).toBe('#ffeecc')
+    expect(hote.querySelector<HTMLElement>('.notak-arbre-reglages-pastille')!.style.getPropertyValue('--c')).toBe('#ffeecc')
     cliquer(bouton('Couleur de l\'arrière-plan'))
     cliquer(bouton('Couleur du thème'))
     expect(dernier()).toEqual({ type: 'fond', couleur: null })
@@ -467,10 +467,10 @@ describe('les thèmes personnalisés', () => {
   it('le bouton ouvre la vue secondaire : un titre, une croix, la tuile « Créer un thème »', () => {
     monter(carte())
     cliquer(bouton('Thèmes personnalisés'))
-    const racineCarte = hote.querySelector('.notak-carte')!
+    const racineCarte = hote.querySelector('.notak-arbre-reglages')!
     expect(racineCarte.hasAttribute('data-secondaire')).toBe(true)
-    expect(hote.querySelector('.notak-carte-secondaire header strong')!.textContent).toBe('Thèmes personnalisés')
-    expect(hote.querySelector('.notak-carte-tuile-nom')!.textContent).toBe('Créer un thème')
+    expect(hote.querySelector('.notak-arbre-reglages-secondaire header strong')!.textContent).toBe('Thèmes personnalisés')
+    expect(hote.querySelector('.notak-arbre-reglages-tuile-nom')!.textContent).toBe('Créer un thème')
     expect(hote.textContent).not.toContain('Police globale')
     cliquer(bouton('Fermer'))
     expect(hote.textContent).toContain('Police globale')
@@ -479,14 +479,14 @@ describe('les thèmes personnalisés', () => {
   it('créer un thème garde le style de la carte ; un clic l’applique ; le thème actif est marqué', () => {
     monter(carte('carte', { theme: 'ocean', police: 'Verdana', options: { compacte: true } }))
     cliquer(bouton('Thèmes personnalisés'))
-    cliquer(hote.querySelector<HTMLElement>('.notak-carte-creer')!)
+    cliquer(hote.querySelector<HTMLElement>('.notak-arbre-reglages-creer')!)
     expect(preferences().themesPerso).toMatchObject([{ nom: 'Thème', style: { theme: 'ocean', police: 'Verdana', options: { compacte: true } } }])
     // La carte garde ce style : la tuile est active.
     monter(carte('carte', { theme: 'ocean', police: 'Verdana', options: { compacte: true } }))
-    expect(hote.querySelector('.notak-carte-vignette[data-actif]')).not.toBeNull()
+    expect(hote.querySelector('.notak-arbre-reglages-vignette[data-actif]')).not.toBeNull()
     // Une autre carte : un clic lui applique le style.
     monter(carte())
-    cliquer(hote.querySelector<HTMLElement>('.notak-carte-vignette button')!)
+    cliquer(hote.querySelector<HTMLElement>('.notak-arbre-reglages-vignette button')!)
     expect(dernier()).toEqual({ type: 'styleCarte', style: { theme: 'ocean', police: 'Verdana', options: { compacte: true } } })
   })
 
@@ -494,8 +494,8 @@ describe('les thèmes personnalisés', () => {
     modifierPreferences((p) => ({ ...p, themesPerso: [{ id: 'a', nom: 'Avant', style: {} }] }))
     monter(carte())
     cliquer(bouton('Thèmes personnalisés'))
-    cliquer(hote.querySelector<HTMLElement>('button.notak-carte-tuile-nom')!)
-    const champ = hote.querySelector<HTMLInputElement>('.notak-carte-renommer')!
+    cliquer(hote.querySelector<HTMLElement>('button.notak-arbre-reglages-tuile-nom')!)
+    const champ = hote.querySelector<HTMLInputElement>('.notak-arbre-reglages-renommer')!
     saisir(champ, 'Après')
     act(() => void champ.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })))
     expect(preferences().themesPerso[0]!.nom).toBe('Après')

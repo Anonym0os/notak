@@ -15,7 +15,7 @@ type OngletTheme = 'favoris' | 'perso' | 'colore' | 'classique'
 /** Les six couleurs d'un groupe, en pastille entièrement arrondie découpée en six segments égaux. */
 function Segments({ palette }: { palette: readonly string[] }) {
   return (
-    <span className="notak-carte-segments" aria-hidden>
+    <span className="notak-arbre-reglages-segments" aria-hidden>
       {palette.slice(0, 6).map((c, i) => (
         <i key={i} style={{ background: c }} />
       ))}
@@ -59,17 +59,17 @@ export function ThemeCouleur({ arbre, structure, faire }: { arbre: Arbre; struct
   const favori = (g: GroupeTheme, accent: string | undefined) => prefs.favoris.includes(cleFavori(g.id, accent))
   return (
     <>
-      <div className="notak-carte-rangee-theme">
-        <button ref={liste.poser} type="button" className="notak-carte-select notak-carte-select-theme" aria-haspopup="dialog" aria-expanded={liste.ouvert} title={t('arbre.carte.themeAide')} onClick={liste.basculer}>
+      <div className="notak-arbre-reglages-rangee-theme">
+        <button ref={liste.poser} type="button" className="notak-arbre-reglages-select notak-arbre-reglages-select-theme" aria-haspopup="dialog" aria-expanded={liste.ouvert} title={t('arbre.carte.themeAide')} onClick={liste.basculer}>
           <Segments palette={courant.palette} />
-          <span className="notak-carte-select-texte">{courant.nom}</span>
+          <span className="notak-arbre-reglages-select-texte">{courant.nom}</span>
           <Icone nom="chevronBas" taille={12} trait={2} />
         </button>
-        <button ref={plus.poser} type="button" className="notak-carte-bouton-icone" title={t('arbre.carte.themeNouveau')} aria-label={t('arbre.carte.themeNouveau')} onClick={() => setDialogue({ edition: null })}>
+        <button ref={plus.poser} type="button" className="notak-arbre-reglages-bouton-icone" title={t('arbre.carte.themeNouveau')} aria-label={t('arbre.carte.themeNouveau')} onClick={() => setDialogue({ edition: null })}>
           <Icone nom="ajouter" taille={16} trait={1.75} />
         </button>
       </div>
-      <div className="notak-carte-variantes" role="group" aria-label={t('arbre.carte.themeCouleur')}>
+      <div className="notak-arbre-reglages-variantes" role="group" aria-label={t('arbre.carte.themeCouleur')}>
         {variantesDe(themeDuGroupe(courant)).map((accent) => (
           <CarteVignette
             key={accent ?? 'couleurs'}
@@ -103,7 +103,7 @@ export function ThemeCouleur({ arbre, structure, faire }: { arbre: Arbre; struct
 
 function EtoileFavori({ actif, basculer }: { actif: boolean; basculer(): void }) {
   return (
-    <button type="button" className="notak-carte-etoile" aria-pressed={actif} aria-label={actif ? t('arbre.carte.favoriRetirer') : t('arbre.carte.favori')} title={actif ? t('arbre.carte.favoriRetirer') : t('arbre.carte.favori')} onClick={basculer}>
+    <button type="button" className="notak-arbre-reglages-etoile" aria-pressed={actif} aria-label={actif ? t('arbre.carte.favoriRetirer') : t('arbre.carte.favori')} title={actif ? t('arbre.carte.favoriRetirer') : t('arbre.carte.favori')} onClick={basculer}>
       <Icone nom={actif ? 'favoriPlein' : 'favori'} taille={12} trait={1.75} />
     </button>
   )
@@ -169,9 +169,9 @@ function ListeThemes({
   const clic = (g: GroupeTheme) => (g.id === courant.id ? appliquer(g, varianteSuivante(g, arbre)) : appliquer(g, dernieresVariantes.get(g.id)))
   return (
     <>
-    <Popover ancre={ancre} ouvert={ouvert} fermer={fermer} cote="gauche" largeur={316} hauteur={370} className="notak-carte-popover-themes" etiquette={t('arbre.carte.themeCouleur')}>
-      <div className="notak-carte-themes">
-        <div className="notak-carte-capsules" role="tablist">
+    <Popover ancre={ancre} ouvert={ouvert} fermer={fermer} cote="gauche" largeur={316} hauteur={370} className="notak-arbre-reglages-popover-themes" etiquette={t('arbre.carte.themeCouleur')}>
+      <div className="notak-arbre-reglages-themes">
+        <div className="notak-arbre-reglages-capsules" role="tablist">
           {onglets.map((o) => (
             <button key={o} type="button" role="tab" aria-selected={o === actif} onClick={() => changerOnglet(o)}>
               {t(`arbre.carte.onglet.${o}`)}
@@ -179,7 +179,7 @@ function ListeThemes({
           ))}
         </div>
         {actif === 'favoris' ? (
-          <div className="notak-carte-themes-favoris">
+          <div className="notak-arbre-reglages-themes-favoris">
             {favoris.map(({ g, accent }) => (
               <CarteVignette
                 key={cleFavori(g.id, accent)}
@@ -193,13 +193,13 @@ function ListeThemes({
             ))}
           </div>
         ) : (
-          <div className="notak-carte-themes-groupes">
+          <div className="notak-arbre-reglages-themes-groupes">
             {groupesDeLOnglet(actif, groupes).map((g) => (
-              <div key={g.id} className="notak-carte-groupe-theme">
+              <div key={g.id} className="notak-arbre-reglages-groupe-theme">
                 {renomme === g.id ? (
                   <input
                     autoFocus
-                    className="notak-carte-renommer"
+                    className="notak-arbre-reglages-renommer"
                     defaultValue={g.nom}
                     aria-label={t('arbre.carte.menu.renommer')}
                     onBlur={(e) => renommer(g.id, e.target.value)}
@@ -209,13 +209,13 @@ function ListeThemes({
                     }}
                   />
                 ) : (
-                  <span className="notak-carte-groupe-nom" onClick={() => g.perso && setRenomme(g.id)}>
+                  <span className="notak-arbre-reglages-groupe-nom" onClick={() => g.perso && setRenomme(g.id)}>
                     {g.nom}
                   </span>
                 )}
                 <button
                   type="button"
-                  className="notak-carte-bande"
+                  className="notak-arbre-reglages-bande"
                   data-actif={g.id === courant.id ? '' : undefined}
                   aria-pressed={g.id === courant.id}
                   aria-label={g.nom}
@@ -229,7 +229,7 @@ function ListeThemes({
                 >
                   <Segments palette={g.palette} />
                   {g.id === courant.id && (
-                    <span className="notak-carte-alterner">
+                    <span className="notak-arbre-reglages-alterner">
                       <Icone nom="convertir" taille={12} trait={2} />
                       {t('arbre.carte.alterner')}
                     </span>

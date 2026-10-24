@@ -14,11 +14,11 @@
 }
 
 /* La vue secondaire remplace la barre d'onglets par sa propre barre de titre. */
-.notak-arbre-cote:has(.notak-carte[data-secondaire]) > .notak-arbre-onglets {
+.notak-arbre-cote:has(.notak-arbre-reglages[data-secondaire]) > .notak-arbre-onglets {
   display: none;
 }
 
-.notak-carte {
+.notak-arbre-reglages {
   margin: 0 -10px;
   padding-bottom: 32px;
   color: var(--notak-arbre-texte);
@@ -26,19 +26,19 @@
   line-height: 17px;
 }
 
-.notak-carte button,
-.notak-carte input,
-.notak-carte-popover button,
-.notak-carte-popover input,
-.notak-carte-dialogue button,
-.notak-carte-dialogue input {
+.notak-arbre-reglages button,
+.notak-arbre-reglages input,
+.notak-arbre-reglages-popover button,
+.notak-arbre-reglages-popover input,
+.notak-arbre-reglages-dialogue button,
+.notak-arbre-reglages-dialogue input {
   font: inherit;
   color: inherit;
 }
 
 /* ------------------------------------------------------------------ blocs, lignes, champs */
 
-.notak-carte .notak-carte-bloc {
+.notak-arbre-reglages .notak-arbre-reglages-bloc {
   display: block;
   margin: 0;
   padding: 12px 20px;
@@ -46,18 +46,18 @@
   box-shadow: none;
 }
 
-.notak-carte .notak-carte-bloc-squelette {
+.notak-arbre-reglages .notak-arbre-reglages-bloc-squelette {
   padding: 12px;
 }
 
-.notak-carte-separateur {
+.notak-arbre-reglages-separateur {
   height: 1px;
   margin: 8px 20px;
   border: 0;
   background: var(--notak-arbre-filet-c);
 }
 
-.notak-carte-titre {
+.notak-arbre-reglages-titre {
   margin: 0 0 12px;
   font-size: 13px;
   font-weight: 600;
@@ -68,7 +68,7 @@
   user-select: none;
 }
 
-.notak-carte-ligne {
+.notak-arbre-reglages-ligne {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -76,30 +76,30 @@
   padding-bottom: 12px;
 }
 
-.notak-carte-ligne:last-child {
+.notak-arbre-reglages-ligne:last-child {
   padding-bottom: 0;
 }
 
-.notak-carte-libelle {
+.notak-arbre-reglages-libelle {
   font-weight: 400;
   letter-spacing: 0.52px;
 }
 
-.notak-carte-ligne[data-inactif] .notak-carte-libelle {
+.notak-arbre-reglages-ligne[data-inactif] .notak-arbre-reglages-libelle {
   color: color-mix(in srgb, var(--notak-arbre-texte) 30%, transparent);
 }
 
-.notak-carte-champ {
+.notak-arbre-reglages-champ {
   display: flex;
   flex-direction: column;
   padding-bottom: 12px;
 }
 
-.notak-carte-champ:last-child {
+.notak-arbre-reglages-champ:last-child {
   padding-bottom: 0;
 }
 
-.notak-carte-champ-libelle {
+.notak-arbre-reglages-champ-libelle {
   height: 15px;
   margin-bottom: 4px;
   color: var(--notak-arbre-discret);
@@ -108,7 +108,7 @@
   letter-spacing: 0.44px;
 }
 
-.notak-carte-aide {
+.notak-arbre-reglages-aide {
   margin: 6px 0 0;
   color: var(--notak-arbre-discret);
   font-size: 10px;
@@ -116,7 +116,7 @@
   letter-spacing: 0.4px;
 }
 
-.notak-carte-filet-section {
+.notak-arbre-reglages-filet-section {
   height: 1px;
   margin: 8px 0 20px;
   border: 0;
@@ -125,14 +125,14 @@
 
 /* ------------------------------------------------------------------ la bascule : 36 × 16, poignée ovale de 21 × 13 */
 
-.notak-carte-bascule {
+.notak-arbre-reglages-bascule {
   position: relative;
   flex: none;
   width: 36px;
   height: 16px;
 }
 
-.notak-carte-bascule input {
+.notak-arbre-reglages-bascule input {
   position: absolute;
   inset: 0;
   z-index: 1;
@@ -143,16 +143,16 @@
   cursor: pointer;
 }
 
-.notak-carte-bascule input:disabled {
+.notak-arbre-reglages-bascule input:disabled {
   cursor: default;
 }
 
-.notak-carte-bascule input:focus-visible + .notak-carte-piste {
+.notak-arbre-reglages-bascule input:focus-visible + .notak-arbre-reglages-piste {
   outline: 2px solid var(--notak-arbre-choix);
   outline-offset: 2px;
 }
 
-.notak-carte-piste {
+.notak-arbre-reglages-piste {
   position: absolute;
   inset: 0;
   border-radius: 80px;
@@ -161,7 +161,7 @@
   transition: background 250ms cubic-bezier(0.4, 0.1, 0.3, 1);
 }
 
-.notak-carte-piste::after {
+.notak-arbre-reglages-piste::after {
   content: '';
   position: absolute;
   top: 1.5px;
@@ -174,37 +174,37 @@
   transition: left 250ms cubic-bezier(0.4, 0.1, 0.3, 1), opacity 250ms;
 }
 
-.notak-carte-bascule[data-actif] .notak-carte-piste {
+.notak-arbre-reglages-bascule[data-actif] .notak-arbre-reglages-piste {
   background: var(--notak-arbre-plein);
 }
 
-.notak-carte-bascule[data-actif] .notak-carte-piste::after {
+.notak-arbre-reglages-bascule[data-actif] .notak-arbre-reglages-piste::after {
   left: calc(100% - 1.5px - 21px);
 }
 
-.notak-carte-bascule input:active + .notak-carte-piste {
+.notak-arbre-reglages-bascule input:active + .notak-arbre-reglages-piste {
   background: color-mix(in srgb, var(--notak-arbre-texte) 22%, transparent);
 }
 
-.notak-carte-bascule[data-actif] input:active + .notak-carte-piste {
+.notak-arbre-reglages-bascule[data-actif] input:active + .notak-arbre-reglages-piste {
   background: color-mix(in srgb, var(--notak-arbre-plein) 85%, var(--notak-arbre-fond));
 }
 
-.notak-carte-bascule[data-inactif] .notak-carte-piste {
+.notak-arbre-reglages-bascule[data-inactif] .notak-arbre-reglages-piste {
   background: color-mix(in srgb, var(--notak-arbre-texte) 8%, transparent);
 }
 
-.notak-carte-bascule[data-inactif][data-actif] .notak-carte-piste {
+.notak-arbre-reglages-bascule[data-inactif][data-actif] .notak-arbre-reglages-piste {
   background: color-mix(in srgb, var(--notak-arbre-texte) 20%, var(--notak-arbre-fond));
 }
 
-.notak-carte-bascule[data-inactif] .notak-carte-piste::after {
+.notak-arbre-reglages-bascule[data-inactif] .notak-arbre-reglages-piste::after {
   opacity: 0.5;
 }
 
 /* ------------------------------------------------------------------ boutons de liste : 24 px, chevron à droite */
 
-.notak-carte .notak-carte-select {
+.notak-arbre-reglages .notak-arbre-reglages-select {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -220,11 +220,11 @@
   cursor: pointer;
 }
 
-.notak-carte .notak-carte-select:hover {
+.notak-arbre-reglages .notak-arbre-reglages-select:hover {
   background: color-mix(in srgb, var(--notak-arbre-texte) 3%, var(--notak-arbre-fond));
 }
 
-.notak-carte-select-texte {
+.notak-arbre-reglages-select-texte {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -232,27 +232,27 @@
   white-space: nowrap;
 }
 
-.notak-carte .notak-carte-select-jeu {
+.notak-arbre-reglages .notak-arbre-reglages-select-jeu {
   width: 72px;
   justify-content: center;
   gap: 4px;
   padding: 0 4px;
 }
 
-.notak-carte .notak-carte-select-theme {
+.notak-arbre-reglages .notak-arbre-reglages-select-theme {
   flex: 1;
   width: auto;
   height: 32px;
   padding: 4px 8px;
 }
 
-.notak-carte-rangee-theme {
+.notak-arbre-reglages-rangee-theme {
   display: flex;
   gap: 8px;
   height: 32px;
 }
 
-.notak-carte .notak-carte-bouton-icone {
+.notak-arbre-reglages .notak-arbre-reglages-bouton-icone {
   display: grid;
   flex: none;
   place-items: center;
@@ -266,11 +266,11 @@
   cursor: pointer;
 }
 
-.notak-carte .notak-carte-bouton-icone:hover {
+.notak-arbre-reglages .notak-arbre-reglages-bouton-icone:hover {
   background: color-mix(in srgb, var(--notak-arbre-texte) 3%, var(--notak-arbre-fond));
 }
 
-.notak-carte .notak-carte-bouton-large {
+.notak-arbre-reglages .notak-arbre-reglages-bouton-large {
   box-sizing: border-box;
   width: 100%;
   height: 24px;
@@ -282,12 +282,12 @@
   cursor: pointer;
 }
 
-.notak-carte .notak-carte-bouton-large:hover {
+.notak-arbre-reglages .notak-arbre-reglages-bouton-large:hover {
   background: color-mix(in srgb, var(--notak-arbre-texte) 4%, var(--notak-arbre-fond));
 }
 
 /* Les six segments d'un groupe de thème (84 × 12 dans le sélecteur, la bande entière dans la liste). */
-.notak-carte-segments {
+.notak-arbre-reglages-segments {
   display: flex;
   flex: none;
   width: 84px;
@@ -296,13 +296,13 @@
   border-radius: 999px;
 }
 
-.notak-carte-segments i {
+.notak-arbre-reglages-segments i {
   flex: 1;
 }
 
 /* ------------------------------------------------------------------ pastille de couleur : 72 × 24 */
 
-.notak-carte .notak-carte-pastille {
+.notak-arbre-reglages .notak-arbre-reglages-pastille {
   flex: none;
   box-sizing: border-box;
   width: 72px;
@@ -314,12 +314,12 @@
   cursor: pointer;
 }
 
-.notak-carte .notak-carte-pastille[data-aucune] {
+.notak-arbre-reglages .notak-arbre-reglages-pastille[data-aucune] {
   background: linear-gradient(107deg, transparent calc(50% - 0.5px), var(--notak-arbre-discret) calc(50% - 0.5px) calc(50% + 0.5px), transparent calc(50% + 0.5px));
 }
 
 /* Un jeu de six couleurs en anneau : six secteurs de 60°, un trou au centre. */
-.notak-carte-anneau {
+.notak-arbre-reglages-anneau {
   display: block;
   flex: none;
   border-radius: 50%;
@@ -328,7 +328,7 @@
 
 /* ------------------------------------------------------------------ la carte du squelette */
 
-.notak-carte .notak-carte-squelette {
+.notak-arbre-reglages .notak-arbre-reglages-squelette {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -343,7 +343,7 @@
   cursor: pointer;
 }
 
-.notak-carte-squelette-vignette {
+.notak-arbre-reglages-squelette-vignette {
   display: block;
   flex: none;
   height: 48px;
@@ -351,13 +351,13 @@
   border-radius: 4px;
 }
 
-.notak-carte-squelette-vignette svg {
+.notak-arbre-reglages-squelette-vignette svg {
   display: block;
   width: 100%;
   height: 100%;
 }
 
-.notak-carte-squelette-nom {
+.notak-arbre-reglages-squelette-nom {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -367,13 +367,13 @@
 
 /* ------------------------------------------------------------------ les vignettes : moyenne 112 × 72, petite 76 × 48 */
 
-.notak-carte-vignette {
+.notak-arbre-reglages-vignette {
   position: relative;
   min-width: 0;
 }
 
-.notak-carte .notak-carte-vignette .notak-carte-vignette-bouton,
-.notak-carte-popover .notak-carte-vignette .notak-carte-vignette-bouton {
+.notak-arbre-reglages .notak-arbre-reglages-vignette .notak-arbre-reglages-vignette-bouton,
+.notak-arbre-reglages-popover .notak-arbre-reglages-vignette .notak-arbre-reglages-vignette-bouton {
   display: block;
   box-sizing: border-box;
   width: 100%;
@@ -384,13 +384,13 @@
   cursor: pointer;
 }
 
-.notak-carte .notak-carte-vignette[data-taille='petite'] .notak-carte-vignette-bouton {
+.notak-arbre-reglages .notak-arbre-reglages-vignette[data-taille='petite'] .notak-arbre-reglages-vignette-bouton {
   padding: 3px;
   border-width: 1px;
   border-radius: 9px;
 }
 
-.notak-carte-vignette-image {
+.notak-arbre-reglages-vignette-image {
   display: block;
   overflow: hidden;
   aspect-ratio: 108 / 64;
@@ -399,34 +399,34 @@
   background: var(--notak-arbre-fond);
 }
 
-.notak-carte-vignette[data-taille='petite'] .notak-carte-vignette-image {
+.notak-arbre-reglages-vignette[data-taille='petite'] .notak-arbre-reglages-vignette-image {
   aspect-ratio: 70 / 42;
   border-radius: 6px;
 }
 
-.notak-carte-vignette-image svg {
+.notak-arbre-reglages-vignette-image svg {
   display: block;
   width: 100%;
   height: 100%;
 }
 
-.notak-carte-vignette-bouton:hover .notak-carte-vignette-image {
+.notak-arbre-reglages-vignette-bouton:hover .notak-arbre-reglages-vignette-image {
   border-width: 1.5px;
   border-color: color-mix(in srgb, var(--notak-arbre-texte) 28%, transparent);
 }
 
-.notak-carte .notak-carte-vignette[data-actif] .notak-carte-vignette-bouton,
-.notak-carte-popover .notak-carte-vignette[data-actif] .notak-carte-vignette-bouton {
+.notak-arbre-reglages .notak-arbre-reglages-vignette[data-actif] .notak-arbre-reglages-vignette-bouton,
+.notak-arbre-reglages-popover .notak-arbre-reglages-vignette[data-actif] .notak-arbre-reglages-vignette-bouton {
   border-color: var(--notak-arbre-plein);
 }
 
-.notak-carte-vignette[data-actif] .notak-carte-vignette-image {
+.notak-arbre-reglages-vignette[data-actif] .notak-arbre-reglages-vignette-image {
   border-color: transparent;
 }
 
 /* L'étoile des favoris : en haut à droite, au survol seulement. */
-.notak-carte .notak-carte-vignette .notak-carte-etoile,
-.notak-carte-popover .notak-carte-vignette .notak-carte-etoile {
+.notak-arbre-reglages .notak-arbre-reglages-vignette .notak-arbre-reglages-etoile,
+.notak-arbre-reglages-popover .notak-arbre-reglages-vignette .notak-arbre-reglages-etoile {
   position: absolute;
   top: 6px;
   right: 6px;
@@ -442,12 +442,12 @@
   cursor: pointer;
 }
 
-.notak-carte-vignette:hover .notak-carte-etoile,
-.notak-carte-etoile:focus-visible {
+.notak-arbre-reglages-vignette:hover .notak-arbre-reglages-etoile,
+.notak-arbre-reglages-etoile:focus-visible {
   opacity: 1;
 }
 
-.notak-carte-variantes {
+.notak-arbre-reglages-variantes {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 2px;
@@ -456,7 +456,7 @@
 
 /* ------------------------------------------------------------------ fenêtres flottantes */
 
-.notak-carte-popover {
+.notak-arbre-reglages-popover {
   position: fixed;
   z-index: 30;
   box-sizing: border-box;
@@ -469,17 +469,17 @@
   line-height: 17px;
 }
 
-.notak-carte-liste {
+.notak-arbre-reglages-liste {
   padding: 4px;
   border-radius: 8px;
 }
 
-.notak-carte-options {
+.notak-arbre-reglages-options {
   overflow-y: auto;
 }
 
-.notak-carte .notak-carte-option,
-.notak-carte-popover .notak-carte-option {
+.notak-arbre-reglages .notak-arbre-reglages-option,
+.notak-arbre-reglages-popover .notak-arbre-reglages-option {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -494,11 +494,11 @@
   cursor: pointer;
 }
 
-.notak-carte-popover .notak-carte-option:hover {
+.notak-arbre-reglages-popover .notak-arbre-reglages-option:hover {
   background: var(--notak-arbre-survol);
 }
 
-.notak-carte-coche {
+.notak-arbre-reglages-coche {
   display: inline-grid;
   flex: none;
   place-items: center;
@@ -506,27 +506,27 @@
   margin-right: 0;
 }
 
-.notak-carte-options .notak-carte-separateur,
-.notak-carte-menu .notak-carte-separateur {
+.notak-arbre-reglages-options .notak-arbre-reglages-separateur,
+.notak-arbre-reglages-menu .notak-arbre-reglages-separateur {
   margin: 4px 0;
 }
 
-.notak-carte-menu {
+.notak-arbre-reglages-menu {
   min-width: 190px;
   padding: 4px;
   border-radius: 8px;
 }
 
 /* Le choix du squelette : 388 × 450, des groupes repliables, trois vignettes par ligne. */
-.notak-carte-squelettes {
+.notak-arbre-reglages-squelettes {
   padding: 16px 20px 20px;
 }
 
-.notak-carte-groupe-squelettes + .notak-carte-groupe-squelettes {
+.notak-arbre-reglages-groupe-squelettes + .notak-arbre-reglages-groupe-squelettes {
   margin-top: 16px;
 }
 
-.notak-carte-popover .notak-carte-groupe-titre {
+.notak-arbre-reglages-popover .notak-arbre-reglages-groupe-titre {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -538,19 +538,19 @@
   cursor: pointer;
 }
 
-.notak-carte-groupe-titre svg {
+.notak-arbre-reglages-groupe-titre svg {
   transition: transform 100ms;
 }
 
-.notak-carte-groupe-squelettes[data-replie] .notak-carte-groupe-titre svg {
+.notak-arbre-reglages-groupe-squelettes[data-replie] .notak-arbre-reglages-groupe-titre svg {
   transform: rotate(-90deg);
 }
 
-.notak-carte-groupe-squelettes[data-replie] .notak-carte-groupe-titre {
+.notak-arbre-reglages-groupe-squelettes[data-replie] .notak-arbre-reglages-groupe-titre {
   margin-bottom: 0;
 }
 
-.notak-carte-grille-squelettes {
+.notak-arbre-reglages-grille-squelettes {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 4px;
@@ -558,7 +558,7 @@
 }
 
 /* La liste des thèmes : 316 × 370, des onglets capsule, des groupes sur deux colonnes. */
-.notak-carte-capsules {
+.notak-arbre-reglages-capsules {
   display: flex;
   margin: 8px 16px 16px;
   padding: 2px;
@@ -566,7 +566,7 @@
   background: var(--notak-arbre-piste);
 }
 
-.notak-carte-popover .notak-carte-capsules button {
+.notak-arbre-reglages-popover .notak-arbre-reglages-capsules button {
   flex: 1;
   height: 26px;
   padding: 0;
@@ -578,33 +578,33 @@
   transition: background 150ms;
 }
 
-.notak-carte-popover .notak-carte-capsules button[aria-selected='true'] {
+.notak-arbre-reglages-popover .notak-arbre-reglages-capsules button[aria-selected='true'] {
   background: var(--notak-arbre-fond);
   color: var(--notak-arbre-texte);
   font-weight: 600;
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
 }
 
-.notak-carte-themes-groupes,
-.notak-carte-themes-favoris {
+.notak-arbre-reglages-themes-groupes,
+.notak-arbre-reglages-themes-favoris {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   padding: 0 16px 24px;
 }
 
-.notak-carte-themes-groupes {
+.notak-arbre-reglages-themes-groupes {
   gap: 16px;
 }
 
-.notak-carte-themes-favoris {
+.notak-arbre-reglages-themes-favoris {
   gap: 12px;
 }
 
-.notak-carte-groupe-theme {
+.notak-arbre-reglages-groupe-theme {
   min-width: 0;
 }
 
-.notak-carte-groupe-nom {
+.notak-arbre-reglages-groupe-nom {
   display: block;
   overflow: hidden;
   margin-bottom: 4px;
@@ -614,7 +614,7 @@
   white-space: nowrap;
 }
 
-.notak-carte-popover .notak-carte-bande {
+.notak-arbre-reglages-popover .notak-arbre-reglages-bande {
   position: relative;
   display: block;
   box-sizing: border-box;
@@ -627,18 +627,18 @@
   cursor: pointer;
 }
 
-.notak-carte-bande .notak-carte-segments {
+.notak-arbre-reglages-bande .notak-arbre-reglages-segments {
   width: 100%;
   height: 100%;
   border-radius: 5px;
 }
 
-.notak-carte-popover .notak-carte-bande[data-actif] {
+.notak-arbre-reglages-popover .notak-arbre-reglages-bande[data-actif] {
   border: 2px solid var(--notak-arbre-plein);
   padding: 1px;
 }
 
-.notak-carte-alterner {
+.notak-arbre-reglages-alterner {
   position: absolute;
   inset: 2px;
   display: none;
@@ -651,11 +651,11 @@
   font-size: 11px;
 }
 
-.notak-carte-bande:hover .notak-carte-alterner {
+.notak-arbre-reglages-bande:hover .notak-arbre-reglages-alterner {
   display: flex;
 }
 
-.notak-carte-renommer {
+.notak-arbre-reglages-renommer {
   box-sizing: border-box;
   width: 100%;
   margin-bottom: 4px;
@@ -669,17 +669,17 @@
 }
 
 /* Les jeux de couleurs des branches : 184 px, des anneaux de 40 px, trois par ligne. */
-.notak-carte-popover-jeux {
+.notak-arbre-reglages-popover-jeux {
   padding: 20px;
 }
 
-.notak-carte-jeux {
+.notak-arbre-reglages-jeux {
   display: grid;
   grid-template-columns: repeat(3, 40px);
   gap: 16px 12px;
 }
 
-.notak-carte-popover .notak-carte-jeu {
+.notak-arbre-reglages-popover .notak-arbre-reglages-jeu {
   display: block;
   width: 40px;
   height: 40px;
@@ -690,25 +690,25 @@
   cursor: pointer;
 }
 
-.notak-carte-jeu:hover {
+.notak-arbre-reglages-jeu:hover {
   box-shadow: 0 0 0 1px var(--notak-arbre-fond), 0 0 0 3px color-mix(in srgb, var(--notak-arbre-texte) 22%, transparent);
 }
 
-.notak-carte-jeu[aria-selected='true'] {
+.notak-arbre-reglages-jeu[aria-selected='true'] {
   box-shadow: 0 0 0 1px var(--notak-arbre-fond), 0 0 0 3px var(--notak-arbre-choix);
 }
 
 /* Le nuancier : la grille de 45 couleurs, la saisie, les couleurs du thème et les récentes. */
-.notak-carte-nuancier {
+.notak-arbre-reglages-nuancier {
   padding: 16px;
 }
 
-.notak-carte-grille-couleurs {
+.notak-arbre-reglages-grille-couleurs {
   display: grid;
   gap: 2px;
 }
 
-.notak-carte-popover .notak-carte-case-couleur {
+.notak-arbre-reglages-popover .notak-arbre-reglages-case-couleur {
   box-sizing: border-box;
   width: 24px;
   height: 24px;
@@ -720,28 +720,28 @@
   transition: transform 100ms;
 }
 
-.notak-carte-case-couleur:hover {
+.notak-arbre-reglages-case-couleur:hover {
   transform: scale(1.05);
 }
 
-.notak-carte-case-couleur[aria-pressed='true'] {
+.notak-arbre-reglages-case-couleur[aria-pressed='true'] {
   transform: scale(0.9);
   box-shadow: inset 0 0 0 2px var(--c), inset 0 0 0 4px var(--notak-arbre-fond);
 }
 
-.notak-carte-saisie-couleur {
+.notak-arbre-reglages-saisie-couleur {
   display: flex;
   align-items: center;
   gap: 6px;
   margin-top: 12px;
 }
 
-.notak-carte-diese {
+.notak-arbre-reglages-diese {
   color: var(--notak-arbre-discret);
 }
 
-.notak-carte-popover .notak-carte-hex,
-.notak-carte-popover .notak-carte-opacite {
+.notak-arbre-reglages-popover .notak-arbre-reglages-hex,
+.notak-arbre-reglages-popover .notak-arbre-reglages-opacite {
   box-sizing: border-box;
   height: 24px;
   padding: 0 6px;
@@ -750,26 +750,26 @@
   background: var(--notak-arbre-fond);
 }
 
-.notak-carte-popover .notak-carte-hex {
+.notak-arbre-reglages-popover .notak-arbre-reglages-hex {
   width: 80px;
 }
 
-.notak-carte-popover .notak-carte-opacite {
+.notak-arbre-reglages-popover .notak-arbre-reglages-opacite {
   width: 48px;
 }
 
-.notak-carte-filet-vertical {
+.notak-arbre-reglages-filet-vertical {
   width: 1px;
   height: 16px;
   background: var(--notak-arbre-filet-c);
 }
 
-.notak-carte-pourcent {
+.notak-arbre-reglages-pourcent {
   margin-left: -2px;
   color: var(--notak-arbre-discret);
 }
 
-.notak-carte-apercu-couleur {
+.notak-arbre-reglages-apercu-couleur {
   flex: none;
   width: 24px;
   height: 24px;
@@ -778,7 +778,7 @@
   background: var(--c);
 }
 
-.notak-carte-popover .notak-carte-natif {
+.notak-arbre-reglages-popover .notak-arbre-reglages-natif {
   width: 24px;
   height: 24px;
   margin-left: auto;
@@ -788,20 +788,20 @@
   cursor: pointer;
 }
 
-.notak-carte-pliant {
+.notak-arbre-reglages-pliant {
   margin-top: 16px;
   padding-top: 12px;
   border-top: 1px solid var(--notak-arbre-filet-c);
 }
 
-.notak-carte-pliant summary {
+.notak-arbre-reglages-pliant summary {
   margin-bottom: 8px;
   color: var(--notak-arbre-discret);
   font-size: 11px;
   cursor: pointer;
 }
 
-.notak-carte-popover .notak-carte-lien {
+.notak-arbre-reglages-popover .notak-arbre-reglages-lien {
   display: block;
   margin-top: 12px;
   padding: 0;
@@ -812,7 +812,7 @@
 }
 
 /* La boîte « Créer un nouveau thème de couleur » : 540 × 480. */
-.notak-carte-voile {
+.notak-arbre-reglages-voile {
   position: fixed;
   inset: 0;
   z-index: 40;
@@ -821,7 +821,7 @@
   background: rgb(0 0 0 / 0.25);
 }
 
-.notak-carte-dialogue {
+.notak-arbre-reglages-dialogue {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -837,31 +837,31 @@
   font-size: 13px;
 }
 
-.notak-carte-dialogue h3 {
+.notak-arbre-reglages-dialogue h3 {
   margin: 0;
   font-size: 20px;
   font-weight: 700;
   line-height: 25px;
 }
 
-.notak-carte-dlg-sous {
+.notak-arbre-reglages-dlg-sous {
   margin: 4px 0 16px;
   color: var(--notak-arbre-discret);
 }
 
-.notak-carte-dlg-rangee {
+.notak-arbre-reglages-dlg-rangee {
   display: flex;
   align-items: center;
   gap: 32px;
   margin-bottom: 16px;
 }
 
-.notak-carte-cases {
+.notak-arbre-reglages-cases {
   display: flex;
   flex: none;
 }
 
-.notak-carte-case-theme {
+.notak-arbre-reglages-case-theme {
   position: relative;
   display: grid;
   place-items: center;
@@ -875,15 +875,15 @@
   background: var(--notak-arbre-cote);
 }
 
-.notak-carte-case-theme[data-vide]:not([data-inactif]) {
+.notak-arbre-reglages-case-theme[data-vide]:not([data-inactif]) {
   border-color: var(--notak-arbre-choix);
 }
 
-.notak-carte-case-theme[data-inactif] {
+.notak-arbre-reglages-case-theme[data-inactif] {
   opacity: 0.5;
 }
 
-.notak-carte-case-theme input {
+.notak-arbre-reglages-case-theme input {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -895,19 +895,19 @@
   appearance: none;
 }
 
-.notak-carte-case-theme[data-vide] input {
+.notak-arbre-reglages-case-theme[data-vide] input {
   opacity: 0;
 }
 
-.notak-carte-case-theme input::-webkit-color-swatch-wrapper {
+.notak-arbre-reglages-case-theme input::-webkit-color-swatch-wrapper {
   padding: 0;
 }
 
-.notak-carte-case-theme input::-webkit-color-swatch {
+.notak-arbre-reglages-case-theme input::-webkit-color-swatch {
   border: 0;
 }
 
-.notak-carte-dialogue .notak-carte-dlg-nom {
+.notak-arbre-reglages-dialogue .notak-arbre-reglages-dlg-nom {
   flex: 1;
   min-width: 0;
   box-sizing: border-box;
@@ -918,7 +918,7 @@
   background: var(--notak-arbre-fond);
 }
 
-.notak-carte-dlg-apercu {
+.notak-arbre-reglages-dlg-apercu {
   height: 251px;
   overflow: auto;
   padding: 4px 4px 0;
@@ -926,20 +926,20 @@
   background: var(--notak-arbre-cote);
 }
 
-.notak-carte-dlg-apercu[data-vide] {
+.notak-arbre-reglages-dlg-apercu[data-vide] {
   display: grid;
   place-items: center;
   color: var(--notak-arbre-discret);
 }
 
-.notak-carte-dlg-variantes {
+.notak-arbre-reglages-dlg-variantes {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 16px 8px;
   padding: 16px 8px;
 }
 
-.notak-carte-dlg-variantes svg {
+.notak-arbre-reglages-dlg-variantes svg {
   display: block;
   width: 100%;
   height: 131.6px;
@@ -947,7 +947,7 @@
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.1);
 }
 
-.notak-carte-dialogue footer {
+.notak-arbre-reglages-dialogue footer {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
@@ -955,7 +955,7 @@
   padding-top: 12px;
 }
 
-.notak-carte-dialogue footer button {
+.notak-arbre-reglages-dialogue footer button {
   height: 28px;
   padding: 0 16px;
   border: 1px solid var(--notak-arbre-filet-c);
@@ -964,20 +964,20 @@
   cursor: pointer;
 }
 
-.notak-carte-dialogue footer .notak-carte-bouton-fort {
+.notak-arbre-reglages-dialogue footer .notak-arbre-reglages-bouton-fort {
   border-color: transparent;
   background: var(--notak-arbre-plein);
   color: var(--notak-arbre-fond);
   font-weight: 600;
 }
 
-.notak-carte-dialogue footer button:disabled {
+.notak-arbre-reglages-dialogue footer button:disabled {
   opacity: 0.35;
   cursor: default;
 }
 
 /* La vue secondaire : « Thèmes personnalisés ». */
-.notak-carte-secondaire header {
+.notak-arbre-reglages-secondaire header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -985,7 +985,7 @@
   font-weight: 600;
 }
 
-.notak-carte .notak-carte-secondaire header button {
+.notak-arbre-reglages .notak-arbre-reglages-secondaire header button {
   display: grid;
   place-items: center;
   width: 24px;
@@ -997,22 +997,22 @@
   cursor: pointer;
 }
 
-.notak-carte .notak-carte-secondaire header button:hover {
+.notak-arbre-reglages .notak-arbre-reglages-secondaire header button:hover {
   background: var(--notak-arbre-survol);
 }
 
-.notak-carte-themes-perso {
+.notak-arbre-reglages-themes-perso {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 12px 4px;
   padding: 12px 20px 0;
 }
 
-.notak-carte-tuile {
+.notak-arbre-reglages-tuile {
   min-width: 0;
 }
 
-.notak-carte .notak-carte-tuile-image {
+.notak-arbre-reglages .notak-arbre-reglages-tuile-image {
   display: grid;
   place-items: center;
   box-sizing: border-box;
@@ -1025,7 +1025,7 @@
   cursor: pointer;
 }
 
-.notak-carte .notak-carte-tuile-nom {
+.notak-arbre-reglages .notak-arbre-reglages-tuile-nom {
   display: block;
   box-sizing: border-box;
   width: 100%;
@@ -1041,13 +1041,13 @@
   white-space: nowrap;
 }
 
-.notak-carte-pas {
+.notak-arbre-reglages-pas {
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
 
-.notak-carte .notak-carte-pas button {
+.notak-arbre-reglages .notak-arbre-reglages-pas button {
   display: grid;
   place-items: center;
   width: 24px;
@@ -1059,12 +1059,12 @@
   cursor: pointer;
 }
 
-.notak-carte .notak-carte-pas button:disabled {
+.notak-arbre-reglages .notak-arbre-reglages-pas button:disabled {
   opacity: 0.35;
   cursor: default;
 }
 
-.notak-carte-pas output {
+.notak-arbre-reglages-pas output {
   min-width: 1.5em;
   text-align: center;
 }

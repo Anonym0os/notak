@@ -16,8 +16,8 @@ import { COLONNES_GRILLE, GRILLE_COULEURS, assemblerCouleur, decouperCouleur, de
 /** Un bloc du panneau : un titre facultatif, puis ses lignes. Deux blocs se séparent par un `Separateur`. */
 export function Bloc({ titre, children, className }: { titre?: string; children: ReactNode; className?: string }) {
   return (
-    <section className={`notak-carte-bloc${className ? ` ${className}` : ''}`}>
-      {titre && <h4 className="notak-carte-titre">{titre}</h4>}
+    <section className={`notak-arbre-reglages-bloc${className ? ` ${className}` : ''}`}>
+      {titre && <h4 className="notak-arbre-reglages-titre">{titre}</h4>}
       {children}
     </section>
   )
@@ -25,14 +25,14 @@ export function Bloc({ titre, children, className }: { titre?: string; children:
 
 /** Le filet entre deux blocs. */
 export function Separateur() {
-  return <hr className="notak-carte-separateur" />
+  return <hr className="notak-arbre-reglages-separateur" />
 }
 
 /** Une ligne d'un bloc : le libellé à gauche, le contrôle à droite. `aide` : l'infobulle de toute la ligne. */
 export function LigneReglage({ libelle, aide, inactif, children }: { libelle: string; aide?: string | undefined; inactif?: boolean | undefined; children?: ReactNode }) {
   return (
-    <div className="notak-carte-ligne" title={aide} data-inactif={inactif ? '' : undefined}>
-      <span className="notak-carte-libelle">{libelle}</span>
+    <div className="notak-arbre-reglages-ligne" title={aide} data-inactif={inactif ? '' : undefined}>
+      <span className="notak-arbre-reglages-libelle">{libelle}</span>
       {children}
     </div>
   )
@@ -41,8 +41,8 @@ export function LigneReglage({ libelle, aide, inactif, children }: { libelle: st
 /** Un champ vertical : un petit libellé gris au-dessus de son contrôle (liste, nuancier). */
 export function Champ({ libelle, aide, children, className }: { libelle: string; aide?: string | undefined; children: ReactNode; className?: string }) {
   return (
-    <div className={`notak-carte-champ${className ? ` ${className}` : ''}`} title={aide}>
-      <span className="notak-carte-champ-libelle">{libelle}</span>
+    <div className={`notak-arbre-reglages-champ${className ? ` ${className}` : ''}`} title={aide}>
+      <span className="notak-arbre-reglages-champ-libelle">{libelle}</span>
       {children}
     </div>
   )
@@ -50,7 +50,7 @@ export function Champ({ libelle, aide, children, className }: { libelle: string;
 
 /** La phrase d'aide sous un contrôle. */
 export function Aide({ children }: { children: ReactNode }) {
-  return <p className="notak-carte-aide">{children}</p>
+  return <p className="notak-arbre-reglages-aide">{children}</p>
 }
 
 /* ------------------------------------------------------------------ bascule */
@@ -58,9 +58,9 @@ export function Aide({ children }: { children: ReactNode }) {
 /** L'interrupteur : une case à cocher masquée, une piste et une poignée. Seul lui est cliquable, pas la ligne. */
 export function Bascule({ actif, onChange, inactif, libelle }: { actif: boolean; onChange(actif: boolean): void; inactif?: boolean | undefined; libelle: string }) {
   return (
-    <span className="notak-carte-bascule" data-actif={actif ? '' : undefined} data-inactif={inactif ? '' : undefined}>
+    <span className="notak-arbre-reglages-bascule" data-actif={actif ? '' : undefined} data-inactif={inactif ? '' : undefined}>
       <input type="checkbox" role="switch" checked={actif} disabled={inactif} aria-label={libelle} onChange={(e) => onChange(e.target.checked)} />
-      <span className="notak-carte-piste" aria-hidden />
+      <span className="notak-arbre-reglages-piste" aria-hidden />
     </span>
   )
 }
@@ -133,7 +133,7 @@ export function Popover({ ancre, ouvert, fermer, cote = 'dessous', largeur = 'an
     const dehors = (e: PointerEvent) => {
       const cible = e.target as Node
       // Un menu contextuel ou une boîte ouverts depuis la fenêtre sont posés à côté d'elle : les cliquer ne la ferme pas.
-      if (ref.current?.contains(cible) || ancre?.contains(cible) || (cible as Element).closest?.('.notak-carte-menu, .notak-carte-voile')) return
+      if (ref.current?.contains(cible) || ancre?.contains(cible) || (cible as Element).closest?.('.notak-arbre-reglages-menu, .notak-arbre-reglages-voile')) return
       fermer()
     }
     const echap = (e: KeyboardEvent) => {
@@ -153,7 +153,7 @@ export function Popover({ ancre, ouvert, fermer, cote = 'dessous', largeur = 'an
   return createPortal(
     <div
       ref={ref}
-      className={`notak-carte-popover${className ? ` ${className}` : ''}`}
+      className={`notak-arbre-reglages-popover${className ? ` ${className}` : ''}`}
       role="dialog"
       aria-label={etiquette}
       data-cote={cote}
@@ -211,28 +211,28 @@ export function Liste({
   const courant = options.find((x) => x.valeur === valeur)
   return (
     <>
-      <button ref={o.poser} type="button" className="notak-carte-select" aria-haspopup="listbox" aria-expanded={o.ouvert} aria-label={libelle} title={aide} onClick={o.basculer}>
-        <span className="notak-carte-select-texte" style={courant?.pile ? { fontFamily: courant.pile } : undefined}>
+      <button ref={o.poser} type="button" className="notak-arbre-reglages-select" aria-haspopup="listbox" aria-expanded={o.ouvert} aria-label={libelle} title={aide} onClick={o.basculer}>
+        <span className="notak-arbre-reglages-select-texte" style={courant?.pile ? { fontFamily: courant.pile } : undefined}>
           {courant?.libelle ?? texte ?? valeur}
         </span>
         <Icone nom="chevronBas" taille={12} trait={2} />
       </button>
-      <Popover ancre={o.ancre} ouvert={o.ouvert} fermer={o.fermer} largeur="ancre" hauteur={hauteurMax} className="notak-carte-liste" etiquette={libelle}>
-        <div role="listbox" aria-label={libelle} className="notak-carte-options" style={{ maxHeight: hauteurMax }}>
+      <Popover ancre={o.ancre} ouvert={o.ouvert} fermer={o.fermer} largeur="ancre" hauteur={hauteurMax} className="notak-arbre-reglages-liste" etiquette={libelle}>
+        <div role="listbox" aria-label={libelle} className="notak-arbre-reglages-options" style={{ maxHeight: hauteurMax }}>
           {options.map((x, i) => (
             <div key={`${i}:${x.valeur}`} role="presentation">
-              {x.separateurAvant && <hr className="notak-carte-separateur" />}
+              {x.separateurAvant && <hr className="notak-arbre-reglages-separateur" />}
               <button
                 type="button"
                 role="option"
                 aria-selected={x.valeur === valeur}
-                className="notak-carte-option"
+                className="notak-arbre-reglages-option"
                 onClick={() => {
                   onChoisir(x.valeur)
                   o.fermer()
                 }}
               >
-                <span className="notak-carte-coche">{x.valeur === valeur && <Icone nom="coche" taille={12} trait={2} />}</span>
+                <span className="notak-arbre-reglages-coche">{x.valeur === valeur && <Icone nom="coche" taille={12} trait={2} />}</span>
                 <span style={x.pile ? { fontFamily: x.pile } : undefined}>{x.libelle}</span>
               </button>
             </div>
@@ -249,9 +249,9 @@ export function Liste({
 function RangeeCouleurs({ titre, couleurs, valeur, choisir }: { titre: string; couleurs: readonly string[]; valeur: string | undefined; choisir(c: string): void }) {
   if (couleurs.length === 0) return null
   return (
-    <details open className="notak-carte-pliant">
+    <details open className="notak-arbre-reglages-pliant">
       <summary>{titre}</summary>
-      <div className="notak-carte-grille-couleurs" style={{ gridTemplateColumns: `repeat(${COLONNES_GRILLE}, 24px)` }}>
+      <div className="notak-arbre-reglages-grille-couleurs" style={{ gridTemplateColumns: `repeat(${COLONNES_GRILLE}, 24px)` }}>
         {couleurs.map((c, i) => (
           <Case key={`${c}${i}`} couleur={c} actif={valeur?.toLowerCase() === c.toLowerCase()} choisir={choisir} />
         ))}
@@ -262,7 +262,7 @@ function RangeeCouleurs({ titre, couleurs, valeur, choisir }: { titre: string; c
 
 function Case({ couleur, actif, choisir }: { couleur: string; actif: boolean; choisir(c: string): void }) {
   return (
-    <button type="button" className="notak-carte-case-couleur" aria-label={couleur} aria-pressed={actif} title={couleur} style={{ ['--c' as string]: couleur }} onClick={() => choisir(couleur)} />
+    <button type="button" className="notak-arbre-reglages-case-couleur" aria-label={couleur} aria-pressed={actif} title={couleur} style={{ ['--c' as string]: couleur }} onClick={() => choisir(couleur)} />
   )
 }
 
@@ -318,19 +318,19 @@ export function Nuancier({
     valider()
   }
   return (
-    <div className="notak-carte-nuancier">
-      <div className="notak-carte-grille-couleurs" style={{ gridTemplateColumns: `repeat(${COLONNES_GRILLE}, 24px)` }}>
+    <div className="notak-arbre-reglages-nuancier">
+      <div className="notak-arbre-reglages-grille-couleurs" style={{ gridTemplateColumns: `repeat(${COLONNES_GRILLE}, 24px)` }}>
         {GRILLE_COULEURS.map((c) => (
           <Case key={c} couleur={c} actif={!!valeur && decouperCouleur(valeur).hex === c && opacite === 100} choisir={choisir} />
         ))}
       </div>
-      <div className="notak-carte-saisie-couleur">
-        <span className="notak-carte-diese">#</span>
-        <input type="text" className="notak-carte-hex" value={saisieHex} maxLength={7} spellCheck={false} aria-label={t('arbre.carte.hex')} onChange={(e) => setSaisieHex(e.target.value)} onBlur={valider} onKeyDown={surEntree} />
-        <span className="notak-carte-filet-vertical" />
+      <div className="notak-arbre-reglages-saisie-couleur">
+        <span className="notak-arbre-reglages-diese">#</span>
+        <input type="text" className="notak-arbre-reglages-hex" value={saisieHex} maxLength={7} spellCheck={false} aria-label={t('arbre.carte.hex')} onChange={(e) => setSaisieHex(e.target.value)} onBlur={valider} onKeyDown={surEntree} />
+        <span className="notak-arbre-reglages-filet-vertical" />
         <input
           type="number"
-          className="notak-carte-opacite"
+          className="notak-arbre-reglages-opacite"
           min={0}
           max={100}
           value={saisieOpacite}
@@ -339,16 +339,16 @@ export function Nuancier({
           onBlur={valider}
           onKeyDown={surEntree}
         />
-        <span className="notak-carte-pourcent">%</span>
-        <span className="notak-carte-apercu-couleur" style={{ ['--c' as string]: assemblerCouleur(normaliserHex(saisieHex), opaciteSaisie()) }} />
-        <input ref={natif} type="color" className="notak-carte-natif" value={normaliserHex(saisieHex)} aria-label={t('arbre.carte.selecteurNatif')} onChange={(e) => setSaisieHex(e.target.value.slice(1))} />
+        <span className="notak-arbre-reglages-pourcent">%</span>
+        <span className="notak-arbre-reglages-apercu-couleur" style={{ ['--c' as string]: assemblerCouleur(normaliserHex(saisieHex), opaciteSaisie()) }} />
+        <input ref={natif} type="color" className="notak-arbre-reglages-natif" value={normaliserHex(saisieHex)} aria-label={t('arbre.carte.selecteurNatif')} onChange={(e) => setSaisieHex(e.target.value.slice(1))} />
       </div>
       <RangeeCouleurs titre={t('arbre.carte.themeActuel')} couleurs={couleursTheme} valeur={valeur} choisir={choisir} />
       <RangeeCouleurs titre={t('arbre.carte.recemment')} couleurs={recentes} valeur={valeur} choisir={choisir} />
       {reinitialiser && (
         <button
           type="button"
-          className="notak-carte-lien"
+          className="notak-arbre-reglages-lien"
           onClick={() => {
             reinitialiser()
             fermer()
@@ -390,7 +390,7 @@ export function PastilleCouleur({
       <button
         ref={o.poser}
         type="button"
-        className="notak-carte-pastille"
+        className="notak-arbre-reglages-pastille"
         aria-label={libelle}
         aria-haspopup="dialog"
         aria-expanded={o.ouvert}
@@ -398,7 +398,7 @@ export function PastilleCouleur({
         style={montre ? { ['--c' as string]: montre } : undefined}
         onClick={o.basculer}
       />
-      <Popover ancre={o.ancre} ouvert={o.ouvert} fermer={o.fermer} largeur={268} hauteur={400} className="notak-carte-popover-couleur" etiquette={libelle}>
+      <Popover ancre={o.ancre} ouvert={o.ouvert} fermer={o.fermer} largeur={268} hauteur={400} className="notak-arbre-reglages-popover-couleur" etiquette={libelle}>
         <Nuancier valeur={valeur} onChoisir={onChoisir} fermer={o.fermer} couleursTheme={couleursTheme ?? []} recentes={recentes ?? []} reinitialiser={valeur ? reinitialiser : undefined} />
       </Popover>
     </>
@@ -437,14 +437,14 @@ export function MenuContextuel({ ancre, point, entrees, fermer }: { ancre: HTMLE
   if (!point || !ancre) return null
   const hote = ancre.closest('.notak-arbre-fond') ?? document.body
   return createPortal(
-    <div ref={ref} className="notak-carte-popover notak-carte-menu" role="menu" style={{ left: point.x, top: point.y }}>
+    <div ref={ref} className="notak-arbre-reglages-popover notak-arbre-reglages-menu" role="menu" style={{ left: point.x, top: point.y }}>
       {entrees.map((e) => (
         <div key={e.libelle} role="presentation">
-          {e.separateurAvant && <hr className="notak-carte-separateur" />}
+          {e.separateurAvant && <hr className="notak-arbre-reglages-separateur" />}
           <button
             type="button"
             role="menuitem"
-            className="notak-carte-option"
+            className="notak-arbre-reglages-option"
             onClick={() => {
               fermer()
               e.onClick()
@@ -461,7 +461,7 @@ export function MenuContextuel({ ancre, point, entrees, fermer }: { ancre: HTMLE
 
 /** Un jeu de six couleurs en anneau : six secteurs de 60°, un trou au centre. */
 export function Anneau({ couleurs, taille = 17 }: { couleurs: readonly string[]; taille?: number }) {
-  return <span className="notak-carte-anneau" aria-hidden style={{ width: taille, height: taille, background: degradeConique(couleurs) }} />
+  return <span className="notak-arbre-reglages-anneau" aria-hidden style={{ width: taille, height: taille, background: degradeConique(couleurs) }} />
 }
 
 /* ------------------------------------------------------------------ vignette */
@@ -491,9 +491,9 @@ export function CarteVignette({
   className?: string
 } & Omit<React.HTMLAttributes<HTMLDivElement>, 'onClick' | 'title' | 'children'>) {
   return (
-    <div {...reste} className={`notak-carte-vignette${className ? ` ${className}` : ''}`} data-taille={taille} data-actif={actif ? '' : undefined}>
-      <button type="button" className="notak-carte-vignette-bouton" aria-pressed={actif} aria-label={titre} title={titre} onClick={onClick}>
-        <span className="notak-carte-vignette-image">{children}</span>
+    <div {...reste} className={`notak-arbre-reglages-vignette${className ? ` ${className}` : ''}`} data-taille={taille} data-actif={actif ? '' : undefined}>
+      <button type="button" className="notak-arbre-reglages-vignette-bouton" aria-pressed={actif} aria-label={titre} title={titre} onClick={onClick}>
+        <span className="notak-arbre-reglages-vignette-image">{children}</span>
       </button>
       {coin}
     </div>
@@ -503,7 +503,7 @@ export function CarteVignette({
 /** Le panneau secondaire d'un onglet : un titre, une croix qui le ferme, puis son contenu. */
 export function VueSecondaire({ titre, fermer, children }: { titre: string; fermer(): void; children: ReactNode }) {
   return (
-    <div className="notak-carte-secondaire">
+    <div className="notak-arbre-reglages-secondaire">
       <header>
         <strong>{titre}</strong>
         <button type="button" aria-label={t('commun.fermer')} onClick={fermer}>

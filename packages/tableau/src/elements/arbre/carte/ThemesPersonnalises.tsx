@@ -37,17 +37,17 @@ export function ThemesPersonnalises({ arbre, structure, faire }: { arbre: Arbre;
     if (nom.trim()) changer(id, (x) => ({ ...x, nom: nom.trim() }))
   }
   return (
-    <div className="notak-carte-themes-perso" ref={setHote}>
-      <div className="notak-carte-tuile">
-        <button type="button" className="notak-carte-tuile-image notak-carte-creer" title={t('arbre.carte.creerThemeAide')} onClick={() => modifierPreferences((p) => ({ ...p, themesPerso: [...p.themesPerso, { id: idCouleurPerso(), nom: nomSuivant(t('arbre.carte.themePerso'), noms), style: actuel }] }))}>
+    <div className="notak-arbre-reglages-themes-perso" ref={setHote}>
+      <div className="notak-arbre-reglages-tuile">
+        <button type="button" className="notak-arbre-reglages-tuile-image notak-arbre-reglages-creer" title={t('arbre.carte.creerThemeAide')} onClick={() => modifierPreferences((p) => ({ ...p, themesPerso: [...p.themesPerso, { id: idCouleurPerso(), nom: nomSuivant(t('arbre.carte.themePerso'), noms), style: actuel }] }))}>
           <Icone nom="ajouter" taille={20} trait={1.5} />
         </button>
-        <span className="notak-carte-tuile-nom">{t('arbre.carte.creerTheme')}</span>
+        <span className="notak-arbre-reglages-tuile-nom">{t('arbre.carte.creerTheme')}</span>
       </div>
       {prefs.themesPerso.map((th) => {
         const c = couleursDeStyle(th.style)
         return (
-          <div key={th.id} className="notak-carte-tuile">
+          <div key={th.id} className="notak-arbre-reglages-tuile">
             <CarteVignette
               actif={memeStyle(actuel, th.style)}
               titre={th.nom}
@@ -62,7 +62,7 @@ export function ThemesPersonnalises({ arbre, structure, faire }: { arbre: Arbre;
             {renomme === th.id ? (
               <input
                 autoFocus
-                className="notak-carte-renommer"
+                className="notak-arbre-reglages-renommer"
                 defaultValue={th.nom}
                 aria-label={t('arbre.carte.menu.renommer')}
                 onBlur={(e) => renommer(th.id, e.target.value)}
@@ -72,7 +72,7 @@ export function ThemesPersonnalises({ arbre, structure, faire }: { arbre: Arbre;
                 }}
               />
             ) : (
-              <button type="button" className="notak-carte-tuile-nom" onClick={() => setRenomme(th.id)}>
+              <button type="button" className="notak-arbre-reglages-tuile-nom" onClick={() => setRenomme(th.id)}>
                 {th.nom}
               </button>
             )}

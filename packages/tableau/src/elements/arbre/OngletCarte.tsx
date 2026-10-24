@@ -62,7 +62,7 @@ export function OngletCarte({ arbre, lecture, faire }: { arbre: Arbre; lecture: 
 
   if (secondaire)
     return (
-      <div className="notak-carte" data-secondaire>
+      <div className="notak-arbre-reglages" data-secondaire>
         <VueSecondaire titre={t('arbre.carte.themesPerso')} fermer={() => setSecondaire(false)}>
           <ThemesPersonnalises arbre={arbre} structure={structure} faire={faire} />
         </VueSecondaire>
@@ -70,8 +70,8 @@ export function OngletCarte({ arbre, lecture, faire }: { arbre: Arbre; lecture: 
     )
 
   return (
-    <div className="notak-carte">
-      <div className="notak-carte-bloc notak-carte-bloc-squelette">
+    <div className="notak-arbre-reglages">
+      <div className="notak-arbre-reglages-bloc notak-arbre-reglages-bloc-squelette">
         <CarteSquelette structure={structure} faire={faire} />
       </div>
       <Separateur />
@@ -118,7 +118,7 @@ export function OngletCarte({ arbre, lecture, faire }: { arbre: Arbre; lecture: 
             }}
           />
         </Champ>
-        <div className="notak-carte-branches-colorees">
+        <div className="notak-arbre-reglages-branches-colorees">
           <LigneBascule libelle={t('arbre.carte.brancheColoree')} aide={t('arbre.carte.brancheColoreeAide')} actif={!options.uneCouleur} onChange={(v) => faire({ type: 'reglage', cle: 'uneCouleur', actif: !v })} />
           <LigneReglage libelle={t('arbre.carte.couleur')}>
             {options.uneCouleur ? (
@@ -148,7 +148,7 @@ export function OngletCarte({ arbre, lecture, faire }: { arbre: Arbre; lecture: 
         />
         {structure === 'carte-libre' && principaux > 1 && (
           <LigneReglage libelle={t('arbre.aDroite')}>
-            <span className="notak-carte-pas" role="group" aria-label={t('arbre.aDroite')}>
+            <span className="notak-arbre-reglages-pas" role="group" aria-label={t('arbre.aDroite')}>
               <button type="button" aria-label="−" disabled={aDroite <= 0} onClick={() => faire({ type: 'aDroite', n: aDroite - 1 })}>
                 <Icone nom="retirer" taille={12} trait={2} />
               </button>
@@ -188,8 +188,8 @@ export function OngletCarte({ arbre, lecture, faire }: { arbre: Arbre; lecture: 
           />
           <Aide>{t('arbre.carte.cjkAide')}</Aide>
         </Champ>
-        <hr className="notak-carte-filet-section" />
-        <button type="button" className="notak-carte-bouton-large" title={t('arbre.carte.themesPersoAide')} onClick={() => setSecondaire(true)}>
+        <hr className="notak-arbre-reglages-filet-section" />
+        <button type="button" className="notak-arbre-reglages-bouton-large" title={t('arbre.carte.themesPersoAide')} onClick={() => setSecondaire(true)}>
           {t('arbre.carte.themesPerso')}
         </button>
       </Bloc>
@@ -222,12 +222,12 @@ function SelecteurJeu({ jeu, propre, faire }: { jeu: readonly string[]; propre: 
   const meme = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((c, i) => c.toLowerCase() === b[i]!.toLowerCase())
   return (
     <>
-      <button ref={o.poser} type="button" className="notak-carte-select notak-carte-select-jeu" aria-haspopup="dialog" aria-expanded={o.ouvert} aria-label={t('arbre.carte.jeu')} onClick={o.basculer}>
+      <button ref={o.poser} type="button" className="notak-arbre-reglages-select notak-arbre-reglages-select-jeu" aria-haspopup="dialog" aria-expanded={o.ouvert} aria-label={t('arbre.carte.jeu')} onClick={o.basculer}>
         <Anneau couleurs={jeu} />
         <Icone nom="chevronBas" taille={12} trait={2} />
       </button>
-      <Popover ancre={o.ancre} ouvert={o.ouvert} fermer={o.fermer} largeur={184} hauteur={300} className="notak-carte-popover-jeux" etiquette={t('arbre.carte.jeu')}>
-        <div className="notak-carte-jeux" role="listbox" aria-label={t('arbre.carte.jeu')}>
+      <Popover ancre={o.ancre} ouvert={o.ouvert} fermer={o.fermer} largeur={184} hauteur={300} className="notak-arbre-reglages-popover-jeux" etiquette={t('arbre.carte.jeu')}>
+        <div className="notak-arbre-reglages-jeux" role="listbox" aria-label={t('arbre.carte.jeu')}>
           {jeux.map((j) => (
             <button
               key={j.id}
@@ -236,7 +236,7 @@ function SelecteurJeu({ jeu, propre, faire }: { jeu: readonly string[]; propre: 
               aria-selected={meme(j.couleurs, jeu)}
               title={t(`arbre.carte.jeu.${j.id}`)}
               aria-label={t(`arbre.carte.jeu.${j.id}`)}
-              className="notak-carte-jeu"
+              className="notak-arbre-reglages-jeu"
               onClick={() => {
                 faire({ type: 'jeuCouleurs', couleurs: j.id === 'theme' ? null : [...j.couleurs] })
                 o.fermer()
