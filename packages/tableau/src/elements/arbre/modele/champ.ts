@@ -41,6 +41,8 @@ export interface ChampPose {
   decoration?: string
   /** La couleur du texte du sujet ; absent : celle de la fenêtre. */
   couleur?: string
+  /** La largeur où la carte coupe les lignes du titre : le champ ne la dépasse jamais, sinon il garderait sur une ligne ce que le sujet coupe. */
+  limite?: number
 }
 
 /** Où poser le champ d'un titre : sur le texte d'un sujet, au milieu d'une relation, en tête d'une limite ou d'une zone. */
@@ -68,6 +70,7 @@ export function positionDuChamp(id: Id, l: Lecture, d: Disposition, mesures: Rea
       ...(h.casse ? { casse: h.casse } : {}),
       ...(decoration ? { decoration } : {}),
       couleur: couleurs.encre,
+      ...(h.largeur ? {} : { limite: h.largeurMax }),
     }
   }
   const objet = (x: number, y: number, largeur: number, hauteur: number, police: number, graisse: number): ChampPose => ({

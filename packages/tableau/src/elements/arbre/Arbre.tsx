@@ -1355,14 +1355,16 @@ function ChampTitre({ pose, texte, tout, changer, valider, annuler }: { pose: Ch
     champ.current?.closest<HTMLElement>('[role="dialog"]')?.focus({ preventScroll: true })
   }
   const casse = { majuscules: 'uppercase', minuscules: 'lowercase', capitales: 'capitalize' } as const
-  // Un peu de marge en largeur : le navigateur ne coupe pas les lignes au pixel près comme la mesure de la carte, et un
-  // mot qui passerait trop tôt à la ligne ferait sauter le texte. Le surplus s'étend du côté où le texte peut pousser.
-  const marge = pose.genre === 'sujet' ? pose.police * 0.5 : 0
+  // Un pixel de marge en largeur : la carte mesure ses lignes avec le même moteur de texte que le champ, mais arrondit ;
+  // sans elle, le dernier mot d'une ligne passerait à la suivante. Le surplus s'étend du côté où le texte peut pousser.
+  // Jamais plus large que la ligne de la carte : le champ couperait alors moins tôt que le sujet.
+  const largeur = pose.genre === 'sujet' ? Math.min(pose.l + 1, pose.limite ?? Infinity) : pose.l
+  const marge = largeur - pose.l
   const decalage = pose.alignement === 'centre' ? marge / 2 : pose.alignement === 'droite' ? marge : 0
   const style: React.CSSProperties = {
     left: pose.x - decalage,
     top: pose.y,
-    width: pose.l + marge,
+    width: largeur,
     height: pose.h,
     font: `${pose.italique ? 'italic ' : ''}${pose.graisse} ${pose.police}px/${pose.interligne}px ${pose.famille ?? POLICE}`,
     textAlign: pose.alignement === 'centre' ? 'center' : pose.alignement === 'droite' ? 'right' : 'left',

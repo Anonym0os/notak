@@ -435,8 +435,13 @@ export function brancheDe(l: Lecture, parent: Id, globales: BranchesGlobales = {
 }
 
 let contexte2d: CanvasRenderingContext2D | null | undefined
+let regle: HTMLSpanElement | undefined
 
-/** La largeur d'un texte dans cette police : par le canevas, ou à peu près quand il n'y en a pas (les tests). */
+/**
+ * La largeur d'un texte dans cette police, mesurée par le moteur de texte de la page : le dessin et le champ d'édition
+ * passent par lui, et le canevas en diffère de quelques pixels sous WebKit (l'app macOS), assez pour qu'un mot passe à
+ * la ligne dans le champ et pas dans le sujet. Sans moteur de mise en page (les tests), une estimation.
+ */
 function largeurTexte(texte: string, police: number, graisse: number, famille = POLICE, italique = false): number {
   if (contexte2d === undefined) {
     try {
@@ -446,21 +451,46 @@ function largeurTexte(texte: string, police: number, graisse: number, famille = 
     }
   }
   if (!contexte2d) return texte.length * police * 0.55
-  contexte2d.font = `${italique ? 'italic ' : ''}${graisse} ${police}px ${famille}`
-  return contexte2d.measureText(texte).width
+  if (!regle && document.body) {
+    regle = document.createElement('span')
+    regle.setAttribute('aria-hidden', 'true')
+    regle.style.cssText = 'position:absolute;left:-10000px;top:0;visibility:hidden;white-space:pre;font-kerning:normal;letter-spacing:normal'
+    document.body.appendChild(regle)
+  }
+  const fonte = `${italique ? 'italic ' : ''}${graisse} ${police}px ${famille}`
+  if (!regle?.isConnected) {
+    contexte2d.font = fonte
+    return contexte2d.measureText(texte).width
+  }
+  regle.style.font = fonte
+  regle.textContent = texte
+  return regle.getBoundingClientRect().width
 }
 
-/** Les lignes d'un titre, coupé aux mots pour tenir dans `largeur` (un mot trop long reste seul sur sa ligne). */
+/**
+ * Les lignes d'un titre, coupé aux mots pour tenir dans `largeur` ; un mot plus long que la ligne se coupe entre deux
+ * lettres, comme le fait le champ d'édition (et Xmind).
+ */
 export function lignesDe(titre: string, police: number, graisse: number, largeur: number, famille = POLICE, italique = false): string[] {
+  const mesure = (x: string) => largeurTexte(x, police, graisse, famille, italique)
   const sortie: string[] = []
   for (const paragraphe of (titre || ' ').split('\n')) {
     let ligne = ''
     for (const mot of paragraphe.split(' ')) {
       const essai = ligne ? `${ligne} ${mot}` : mot
-      if (ligne && largeurTexte(essai, police, graisse, famille, italique) > largeur) {
-        sortie.push(ligne)
-        ligne = mot
-      } else ligne = essai
+      if (mesure(essai) <= largeur) {
+        ligne = essai
+        continue
+      }
+      if (ligne) sortie.push(ligne)
+      ligne = mot
+      // Un mot qui ne tient pas seul : on le coupe à la dernière lettre qui tient.
+      while (ligne.length > 1 && mesure(ligne) > largeur) {
+        let n = ligne.length - 1
+        while (n > 1 && mesure(ligne.slice(0, n)) > largeur) n--
+        sortie.push(ligne.slice(0, n))
+        ligne = ligne.slice(n)
+      }
     }
     sortie.push(ligne)
   }
