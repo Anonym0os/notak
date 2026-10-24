@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { Arbre, StructureArbre } from '../../../coeur/tableau'
 import { Icone } from '../../../icones'
-import { t } from '../../../langue'
+import { t, useLangue } from '../../../langue'
 import { CarteVignette, MenuContextuel, Popover, useOuvrable } from '../controles'
 import type { Geste } from '../modele/gestes'
 import { themeDuGroupe, groupeCourant, groupesThemes, type GroupeTheme, choixDe, varianteActive, varianteSuivante } from './groupes'
@@ -45,7 +45,9 @@ export function ongletsDeTheme(prefs: Pick<Preferences, 'favoris' | 'couleursPer
  */
 export function ThemeCouleur({ arbre, structure, faire }: { arbre: Arbre; structure: StructureArbre; faire(g: Geste): void }) {
   const prefs = usePreferences()
-  const groupes = useMemo(() => groupesThemes(prefs.couleursPerso), [prefs.couleursPerso])
+  const langue = useLangue()
+  // Les noms des thèmes sont dans la langue de l'interface : un changement de langue les refait.
+  const groupes = useMemo(() => groupesThemes(prefs.couleursPerso), [prefs.couleursPerso, langue])
   const courant = groupeCourant(arbre, groupes)
   const liste = useOuvrable()
   const plus = useOuvrable()
