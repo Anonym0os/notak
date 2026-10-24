@@ -6,17 +6,16 @@ import { blocsDe } from './modele'
 
 /**
  * Les colonnes (docs/NOTION.md § 8) : lâcher un bloc sur le côté d'un autre crée une rangée, ou y ajoute une colonne
- * (cinq au plus) ; une rangée réduite à une colonne se dissout ; la largeur se règle par paire, aimantée.
+ * (sans limite, comme chez Notion) ; une rangée réduite à une colonne se dissout ; la largeur se règle par paire,
+ * aimantée.
  */
-
-export const COLONNES_MAX = 5
 
 export type Flanc = 'gauche' | 'droite'
 
 /**
  * Pose les blocs sur le flanc du bloc `cible` : à côté d'un bloc du flux, une rangée de deux colonnes les réunit ; à
- * côté d'un bloc déjà dans une colonne, une colonne s'ajoute à sa rangée. `null` si la rangée est pleine ou si la cible
- * est parmi les blocs tirés.
+ * côté d'un bloc déjà dans une colonne, une colonne s'ajoute à sa rangée, de part 1/n, les autres gardant leurs
+ * proportions. `null` si la cible est parmi les blocs tirés.
  */
 export function enColonnes(state: EditorState, ids: readonly string[], cible: string, flanc: Flanc, copier = false): Transaction | null {
   const r = racines(state.doc, ids)
@@ -33,16 +32,17 @@ export function enColonnes(state: EditorState, ids: readonly string[], cible: st
   const tr = state.tr
   if (dansUneColonne) {
     const rangee = $c.node($c.depth - 1)
-    if (rangee.childCount >= COLONNES_MAX) return null
+    const indice = $c.index($c.depth - 1)
+    const fractions = parts(Array.from({ length: rangee.childCount }, (_, i) => rangee.child(i).attrs.ratio as number | null))
     const posColonne = $c.before()
     const fin = posColonne + $c.parent.nodeSize
     if (!copier) retirer(tr, state.doc, r)
-    // Une colonne de plus : les largeurs repartent à parts égales.
+    // Une colonne de plus : elle prend 1/n, et les autres gardent leurs proportions sur le reste.
     const ou = flanc === 'gauche' ? tr.mapping.map(posColonne, 1) : tr.mapping.map(fin, -1)
     tr.insert(ou, nouvelle)
-    const $rangee = tr.doc.resolve(ou)
-    const debutRangee = $rangee.before()
-    tr.doc.nodeAt(debutRangee)?.forEach((_, decalage) => tr.setNodeAttribute(debutRangee + 1 + decalage, 'ratio', null))
+    const ratios = ratiosDe(avecColonne(fractions, flanc === 'gauche' ? indice : indice + 1))
+    const debutRangee = tr.doc.resolve(ou).before()
+    tr.doc.nodeAt(debutRangee)?.forEach((_, decalage, i) => tr.setNodeAttribute(debutRangee + 1 + decalage, 'ratio', ratios[i] ?? null))
     return tr.setSelection(TextSelection.near(tr.doc.resolve(ou + 1))).scrollIntoView()
   }
 
@@ -84,6 +84,16 @@ export const DissolutionColonnes = Extension.create({
     ]
   },
 })
+
+/**
+ * Les parts d'une rangée après l'ajout d'une colonne au rang `rang` : la neuve prend 1/n (n colonnes après l'ajout),
+ * chacune des autres est multipliée par 1 − 1/n, si bien que la somme reste 1 et que les réglages sont gardés.
+ */
+export function avecColonne(fractions: readonly number[], rang: number): number[] {
+  const n = fractions.length + 1
+  const autres = fractions.map((f) => f * (1 - 1 / n))
+  return [...autres.slice(0, rang), 1 / n, ...autres.slice(rang)]
+}
 
 /** Les parts de largeur d'une rangée, qui font 1 au total ; une part absente vaut une part égale. */
 export function parts(ratios: readonly (number | null)[]): number[] {
