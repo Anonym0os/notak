@@ -1639,6 +1639,11 @@ export const fr: Textes = {
   'blocs.code.texteBrut': 'Texte brut',
   'blocs.lien.modifier': 'Modifier',
   'blocs.depliantVide': 'Dépliant vide. Cliquez ou déposez des blocs dedans.',
+  'blocs.image.gauche': 'Aligner à gauche',
+  'blocs.image.centre': 'Centrer',
+  'blocs.image.droite': 'Aligner à droite',
+  'blocs.image.legende': 'Légende',
+  'blocs.image.legendeInvite': 'Écrivez une légende…',
   // passe éditeur : page et rendu (fin)
   // passe éditeur : saisie (début)
   // passe éditeur : saisie (fin)
@@ -3581,6 +3586,11 @@ export const en: Textes = {
   'blocs.code.texteBrut': 'Plain text',
   'blocs.lien.modifier': 'Edit',
   'blocs.depliantVide': 'Empty toggle. Click or drop blocks inside.',
+  'blocs.image.gauche': 'Align left',
+  'blocs.image.centre': 'Center',
+  'blocs.image.droite': 'Align right',
+  'blocs.image.legende': 'Caption',
+  'blocs.image.legendeInvite': 'Write a caption…',
   // passe éditeur : page et rendu (fin)
   // passe éditeur : saisie (début)
   // passe éditeur : saisie (fin)

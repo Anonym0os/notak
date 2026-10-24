@@ -617,6 +617,59 @@
   opacity: 1;
 }
 
+/* La barre de l'image, en haut à droite au survol : l'alignement, puis « Légende ». */
+.notak-blocs .notak-image-barre {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.notak-blocs .notak-image-bloc:hover .notak-image-barre {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.notak-image-barre > *,
+.notak-image-barre-groupe {
+  display: flex;
+  border-radius: 6px;
+  background: var(--notak-m-fond);
+  box-shadow: var(--notak-m-ombre);
+}
+
+.notak-image-barre button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  min-width: 26px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--notak-m-texte);
+  font: 12px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.notak-image-barre-groupe > button { padding: 0; }
+.notak-image-barre-groupe > button + button { border-radius: 0 6px 6px 0; }
+.notak-image-barre-groupe > button:first-child { border-radius: 6px 0 0 6px; }
+.notak-image-barre button:hover { background: var(--notak-m-survol); }
+.notak-image-barre button[data-actif='true'] { color: var(--notak-m-focus); }
+
+/* La légende s'écrit sur place ; vide, elle montre son invite. */
+.notak-blocs .notak-image-bloc figcaption[contenteditable='true'] { outline: none; cursor: text; }
+.notak-blocs .notak-image-bloc figcaption:empty::before {
+  content: attr(data-invite);
+  color: var(--notak-page-pale);
+}
+
 .notak-blocs .notak-image-bloc.ProseMirror-selectednode img {
   outline: 3px solid var(--notak-page-halo);
 }

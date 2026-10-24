@@ -1,6 +1,19 @@
-import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import { Node, mergeAttributes } from '@tiptap/react'
 import { Citation } from '../elements/note/noeuds'
+import { t } from '../langue'
+
+/** L'icône d'un alignement : trois traits rangés à gauche, au centre ou à droite. */
+function dessinAlignement(cote: 'gauche' | 'centre' | 'droite'): SVGElement {
+  const ns = 'http://www.w3.org/2000/svg'
+  const svg = document.createElementNS(ns, 'svg')
+  for (const [k, v] of Object.entries({ width: '16', height: '16', viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round', 'aria-hidden': 'true' })) svg.setAttribute(k, v)
+  const x = (l: number) => (cote === 'gauche' ? 2 : cote === 'droite' ? 14 - l : 8 - l / 2)
+  const path = document.createElementNS(ns, 'path')
+  path.setAttribute('d', [12, 7, 10].map((l, i) => `M${x(l)} ${4 + i * 4}h${l}`).join(''))
+  svg.append(path)
+  return svg
+}
 
 /**
  * Les blocs que le moteur ajoute à ceux de la note (docs/NOTION.md § 2). Les noms des nœuds de la note restent : un
@@ -149,6 +162,9 @@ export const ImageBloc = Node.create<OptionsImage>({
       const img = document.createElement('img')
       img.draggable = false
       const legende = document.createElement('figcaption')
+      legende.dataset.invite = t('blocs.image.legendeInvite')
+      // La légende s'écrit sur place ; elle n'est écrite dans le texte qu'en la quittant.
+      let enLegende = false
       let source = ''
       const peindre = () => {
         const a = node.attrs as Record<string, unknown>
@@ -165,10 +181,69 @@ export const ImageBloc = Node.create<OptionsImage>({
           if (a.url) img.src = String(a.url)
           else if (a.fichier && adresse) void adresse(String(a.fichier)).then((u) => u && source === voulue && (img.src = u))
         }
+        for (const b of alignements) b.dataset.actif = String(b.dataset.valeur === figure.dataset.alignement)
+        legende.setAttribute('contenteditable', String(view.editable))
+        if (enLegende) return
         legende.textContent = String(a.legende ?? '')
         if (a.legende) figure.append(legende)
         else legende.remove()
       }
+      const ecrire = (attr: string, v: unknown) => {
+        const pos = getPos()
+        if (pos !== undefined && node.attrs[attr] !== v) view.dispatch(view.state.tr.setNodeAttribute(pos, attr, v))
+      }
+      // La barre au survol (NOTION.md § 2) : l'alignement, et « Légende » qui ouvre la légende à écrire.
+      const bouton = (titre: string, contenu: string | SVGElement, agir: () => void) => {
+        const b = document.createElement('button')
+        b.type = 'button'
+        b.title = titre
+        b.setAttribute('aria-label', titre)
+        b.append(contenu)
+        b.addEventListener('mousedown', (e) => e.preventDefault())
+        b.addEventListener('click', agir)
+        return b
+      }
+      const alignements = (['gauche', 'centre', 'droite'] as const).map((v) => {
+        const b = bouton(t(`blocs.image.${v}`), dessinAlignement(v), () => ecrire('alignement', v))
+        b.dataset.valeur = v
+        return b
+      })
+      const ecrireLegende = () => {
+        figure.append(legende)
+        enLegende = true
+        legende.focus()
+        const r = document.createRange()
+        r.selectNodeContents(legende)
+        r.collapse(false)
+        getSelection()?.removeAllRanges()
+        getSelection()?.addRange(r)
+      }
+      const barre = document.createElement('div')
+      barre.className = 'notak-image-barre'
+      barre.contentEditable = 'false'
+      const groupe = document.createElement('div')
+      groupe.className = 'notak-image-barre-groupe'
+      groupe.append(...alignements)
+      barre.append(groupe, bouton(t('blocs.image.legende'), t('blocs.image.legende'), ecrireLegende))
+      const quitterLegende = () => {
+        if (!enLegende) return
+        enLegende = false
+        ecrire('legende', (legende.textContent ?? '').trim())
+        peindre()
+      }
+      legende.addEventListener('focus', () => (enLegende = true))
+      legende.addEventListener('blur', quitterLegende)
+      legende.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== 'Escape') return
+        // Entrée ou Échap : la légende est écrite, le curseur repasse sous l'image.
+        e.preventDefault()
+        quitterLegende()
+        const pos = getPos()
+        if (pos === undefined) return
+        const apres = Math.min(pos + node.nodeSize, view.state.doc.content.size)
+        view.focus()
+        view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(apres))))
+      })
       const poignee = (cote: 'gauche' | 'droite') => {
         const p = document.createElement('div')
         p.className = 'notak-image-poignee'
@@ -205,7 +280,7 @@ export const ImageBloc = Node.create<OptionsImage>({
         return p
       }
       const poignees = [poignee('gauche'), poignee('droite')]
-      figure.append(img, ...poignees)
+      figure.append(img, ...poignees, barre)
       peindre()
       return {
         dom: figure,
@@ -215,7 +290,7 @@ export const ImageBloc = Node.create<OptionsImage>({
           peindre()
           return true
         },
-        stopEvent: (e) => poignees.some((p) => p.contains(e.target as HTMLElement)),
+        stopEvent: (e) => [...poignees, barre, legende].some((p) => p.contains(e.target as HTMLElement)),
         ignoreMutation: () => true,
       }
     }
