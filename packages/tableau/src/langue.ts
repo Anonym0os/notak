@@ -1638,6 +1638,7 @@ export const fr: Textes = {
   'blocs.code.copie': 'Copié',
   'blocs.code.texteBrut': 'Texte brut',
   'blocs.lien.modifier': 'Modifier',
+  'blocs.depliantVide': 'Dépliant vide. Cliquez ou déposez des blocs dedans.',
   // passe éditeur : page et rendu (fin)
   // passe éditeur : saisie (début)
   // passe éditeur : saisie (fin)
@@ -3579,6 +3580,7 @@ export const en: Textes = {
   'blocs.code.copie': 'Copied',
   'blocs.code.texteBrut': 'Plain text',
   'blocs.lien.modifier': 'Edit',
+  'blocs.depliantVide': 'Empty toggle. Click or drop blocks inside.',
   // passe éditeur : page et rendu (fin)
   // passe éditeur : saisie (début)
   // passe éditeur : saisie (fin)

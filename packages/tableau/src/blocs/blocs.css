@@ -183,6 +183,22 @@
 .notak-blocs h2[data-depliant]::before { top: 5.6px; }
 .notak-blocs h3[data-depliant]::before { top: 3px; }
 
+/* Un dépliant ouvert sans enfant : une ligne pâle, un cran plus loin, qu'un appui remplit (NOTION.md § 2). */
+.notak-blocs .notak-depliant-vide {
+  margin: 1px 6px 6px calc(6px + var(--notak-retrait, 1) * var(--notak-pas-retrait));
+  padding: 8px;
+  border-radius: 4px;
+  color: var(--notak-page-pale);
+  font-size: 16px;
+  line-height: 24px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.notak-blocs .notak-depliant-vide:hover {
+  background: var(--notak-page-survol);
+}
+
 /* La citation : un filet de 3 px de la couleur du texte, le texte 27 px plus loin. */
 .notak-blocs .notak-b-citation {
   padding-left: 27px;

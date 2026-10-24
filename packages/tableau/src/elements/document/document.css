@@ -22,10 +22,15 @@
   stroke-width: 2;
 }
 
-/* La carte en icône n'a donc ni le cadre des cartes sans fond choisies (`toile.css`), plus étroit que son titre, ni de
-   poignée de taille : comme chez Milanote, la feuille garde sa taille. */
-.notak-carte[data-type='document'][data-sans-fond][data-choisie] {
-  box-shadow: none;
+/* La carte en icône n'a donc aucune boîte : ni le cadre des cartes sans fond choisies ou survolées (`toile.css`), plus
+   étroit que son titre, ni l'ombre du vol, ni de poignée de taille. Comme chez Milanote, seule la feuille réagit. */
+.notak-carte[data-type='document'][data-sans-fond] {
+  box-shadow: none !important;
+  background: none;
+}
+
+.notak-carte[data-type='document'][data-sans-fond]::after {
+  display: none;
 }
 
 .notak-carte[data-type='document'][data-sans-fond] > .notak-poignee {

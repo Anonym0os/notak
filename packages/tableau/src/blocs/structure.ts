@@ -1,7 +1,8 @@
 import type { Node as NoeudPM } from '@tiptap/pm/model'
-import { Plugin, PluginKey } from '@tiptap/pm/state'
-import { Decoration, DecorationSet } from '@tiptap/pm/view'
+import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
+import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
 import { Extension } from '@tiptap/react'
+import { t } from '../langue'
 import { type Ligne, type Place, structurer } from './rang'
 
 export { finDuSousArbre, numeroter, replie, structurer, type Ligne, type Place } from './rang'
@@ -51,11 +52,36 @@ function decorations(doc: NoeudPM): DecorationSet {
     const places = structurer(noeuds.map(([n]) => ligneDe(n)))
     noeuds.forEach(([n, pos], i) => {
       deco.push(Decoration.node(pos, pos + n.nodeSize, attributsDePlace(places[i]!, places)))
+      // Un dépliant ouvert sans enfant invite à en mettre un (NOTION.md § 2).
+      const l = ligneDe(n)
+      const depliant = l.type === 'depliant' || (l.type === 'heading' && l.depliant)
+      if (depliant && l.ouvert !== false && !places[i]!.aEnfants && !places[i]!.cache) {
+        deco.push(Decoration.widget(pos + n.nodeSize, (view) => depliantVide(view, pos, places[i]!.profondeur), { side: -1, key: `vide-${pos}-${places[i]!.profondeur}` }))
+      }
       if (n.type.name === 'colonnes') n.forEach((colonne, d) => ranger(colonne, pos + 1 + d + 1))
     })
   }
   ranger(doc, 0)
   return DecorationSet.create(doc, deco)
+}
+
+/** L'invite d'un dépliant vide : un appui y crée son premier enfant, un paragraphe, et y met le curseur. */
+function depliantVide(view: EditorView, pos: number, profondeur: number): HTMLElement {
+  const el = document.createElement('div')
+  el.className = 'notak-depliant-vide'
+  el.contentEditable = 'false'
+  el.style.setProperty('--notak-retrait', String(profondeur + 1))
+  el.textContent = t('blocs.depliantVide')
+  el.addEventListener('mousedown', (e) => {
+    e.preventDefault()
+    const n = view.state.doc.nodeAt(pos)
+    if (!n || !view.editable) return
+    const ou = pos + n.nodeSize
+    const tr = view.state.tr.insert(ou, view.state.schema.nodes.paragraph!.create({ retrait: profondeur + 1 }))
+    view.dispatch(tr.setSelection(TextSelection.create(tr.doc, ou + 1)))
+    view.focus()
+  })
+  return el
 }
 
 export const CLE_STRUCTURE = new PluginKey<DecorationSet>('structureBlocs')
