@@ -33,6 +33,8 @@ import { contourForme, contourLimite } from './formes'
 import { Autocollant, DessinIllustration } from './catalogue'
 import { equation } from './equation'
 import { Marqueur, TAILLE_MARQUEUR } from './marqueurs'
+import { contourDe } from './modele/contour'
+import { REPERE, type Repere } from './modele/depot'
 import { limitesValides, numeroDe, relationsValides, sujetsDePlage } from './modele/elements'
 import { type Planning, marqueurPerso, marqueursUtilises, resumePlanning, zonesValides } from './modele/insertions'
 import { type Lecture, enfantsDe } from './modele/sujets'
@@ -55,7 +57,24 @@ interface Props {
   devoiles?: ReadonlySet<Id> | null
   /** Les sujets mis en évidence (les repères cochés du panneau de gauche) : les autres s'estompent. */
   surlignes?: ReadonlySet<Id> | null
+  /** Le sujet que le pointeur survole : il prend le contour de la sélection, à demi. */
+  survol?: Id | null
+  /** Le zoom de la vue : le contour de sélection reste de la même taille à l'écran sous 100 %. */
+  zoom?: number
+  /** Des sujets qu'on glisse : leurs branches s'estompent, et une copie du sujet seul suit le pointeur. */
+  glisses?: Glisses | null
 }
+
+/** Ce qu'on montre pendant qu'on glisse des sujets : ceux de tête, toutes leurs branches, et de combien ils ont bougé (px de carte). */
+export interface Glisses {
+  tetes: readonly Id[]
+  branches: ReadonlySet<Id>
+  decalage: { x: number; y: number }
+}
+
+/** L'opacité de ce qu'on glisse : la copie qui suit le pointeur, et l'original qui reste en place. */
+export const OPACITE_FANTOME = 0.7
+export const OPACITE_ORIGINAL = 0.3
 
 /** Le filtre qui fait trembler un trait : la main levée. Une seule définition pour toute la carte. */
 const MAIN = 'notak-arbre-main'
@@ -80,7 +99,7 @@ function Tremble({ actif, boite, children }: { actif: boolean; boite: readonly [
  * `data-relation`, `data-limite` ou `data-repli` : un clic se résout par le DOM, comme sur la toile. Les mêmes traits
  * servent à l'aperçu sur la toile et à la carte ouverte en grand. Les couleurs viennent du thème de la carte.
  */
-export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, mesures, selection, edition, adresse, devoiles, surlignes }: Props) {
+export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, mesures, selection, edition, adresse, devoiles, surlignes, survol, zoom = 1, glisses }: Props) {
   const vu = (id: Id) => !devoiles || devoiles.has(id)
   const theme = useMemo(() => themeDeArbre(arbre), [arbre.theme, arbre.themePerso, arbre.police, arbre.policeCjk, arbre.jeuCouleurs, arbre.options?.flottantsColores])
   const uneCouleur = !!arbre.options?.uneCouleur
@@ -98,6 +117,36 @@ export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, 
     },
     [arbre.groupes, adresse],
   )
+  /** Un sujet, à sa boîte (ou à celle de sa copie qui suit le pointeur, quand `fantome`). */
+  const sujetDe = (id: Id, b: Boite, fantome: boolean) => {
+    const m = mesures.get(id)
+    const s = l.sujets.get(id)
+    if (!m || !s || !vu(id)) return null
+    const choisi = !fantome && (selection?.has(id) ?? false)
+    const survole = !fantome && !choisi && survol === id
+    return (
+      <Sujet
+        id={id}
+        sujet={s}
+        rang={rangDe(l, id)}
+        habit={habits.get(id)!}
+        theme={theme}
+        boite={b}
+        mesure={m}
+        numero={numeroDe(l, id)}
+        couleur={couleur(id)}
+        choisi={choisi}
+        survole={survole}
+        zoom={choisi || survole ? zoom : 1}
+        enEdition={!fantome && edition === id}
+        replie={s.replie ? enfantsCaches(l, id) : 0}
+        versLaGauche={cotes.get(id) === 'gauche'}
+        image={s.image ? adresse?.(s.image.fichier) : undefined}
+        perso={perso}
+        fantome={fantome}
+      />
+    )
+  }
   return (
     <>
       <defs>
@@ -128,11 +177,19 @@ export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, 
           const effile = style.effilee ? cheminEffile(p, e, lien.cote, forme, s, epaisseur * 2.4, epaisseur * 0.6) : null
           const [[ax, ay], [bx, by]] = extremites(p, e, lien.cote, s)
           const pointe = cheminPointe(style.pointe, bx, by, { droite: 0, gauche: Math.PI, bas: Math.PI / 2, haut: -Math.PI / 2 }[lien.cote], Math.max(8, epaisseur * 4.5))
-          return (
+          const branche = (
             <Tremble key={lien.vers} actif={mainLevee(style.motif)} boite={[Math.min(ax, bx), Math.min(ay, by), Math.max(ax, bx), Math.max(ay, by)]}>
               {effile ? <path d={effile} fill={trait} stroke="none" /> : <path d={cheminBranche(p, e, lien.cote, forme, s)} stroke={trait} strokeWidth={epaisseur} strokeDasharray={tiretsDe(style.motif)} />}
               {pointe && <path d={pointe.d} fill={pointe.plein ? trait : 'none'} stroke={trait} strokeWidth={pointe.plein ? 1 : Math.max(1.5, epaisseur)} strokeLinejoin="round" />}
             </Tremble>
+          )
+          // Ce qu'on glisse reste en place, estompé, avec le trait qui le relie à son parent.
+          return glisses?.branches.has(lien.vers) ? (
+            <g key={lien.vers} opacity={OPACITE_ORIGINAL}>
+              {branche}
+            </g>
+          ) : (
+            branche
           )
         })}
         {d.traits.map((trait, i) => {
@@ -148,35 +205,22 @@ export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, 
           return <path key={`t${i}`} d={trait.d} stroke={couleur(trait.de) ?? encre} strokeWidth={trait.de === l.central ? 2.5 : 1.75} />
         })}
       </g>
-      {[...d.boites].map(([id, b]) => {
-        const m = mesures.get(id)
-        const s = l.sujets.get(id)
-        if (!m || !s || !vu(id)) return null
-        return (
-          <g key={id} opacity={surlignes && !surlignes.has(id) ? 0.2 : undefined}>
-          <Sujet
-            id={id}
-            sujet={s}
-            rang={rangDe(l, id)}
-            habit={habits.get(id)!}
-            theme={theme}
-            boite={b}
-            mesure={m}
-            numero={numeroDe(l, id)}
-            couleur={couleur(id)}
-            choisi={selection?.has(id) ?? false}
-            enEdition={edition === id}
-            replie={s.replie ? enfantsCaches(l, id) : 0}
-            versLaGauche={cotes.get(id) === 'gauche'}
-            image={s.image ? adresse?.(s.image.fichier) : undefined}
-            perso={perso}
-          />
-          </g>
-        )
-      })}
+      {[...d.boites].map(([id, b]) => (
+        <g key={id} opacity={surlignes && !surlignes.has(id) ? 0.2 : glisses?.branches.has(id) ? OPACITE_ORIGINAL : undefined}>
+          {sujetDe(id, b, false)}
+        </g>
+      ))}
       {relationsValides(arbre, l).filter(([, r]) => vu(r.de) && vu(r.vers)).map(([id, r]) => {
         const [a, b] = [d.boites.get(r.de), d.boites.get(r.vers)]
         return a && b ? <Fleche key={id} id={id} relation={r} courbe={courbeRelation(a, b, r.controles, relationEffective(r).forme)} encre={arbre.options?.relationsColorees ? (couleur(r.vers) ?? encre) : encre} choisie={selection?.has(id) ?? false} enEdition={edition === id} /> : null
+      })}
+      {glisses?.tetes.map((id) => {
+        const b = d.boites.get(id)
+        return b ? (
+          <g key={`fantome-${id}`} opacity={OPACITE_FANTOME} pointerEvents="none">
+            {sujetDe(id, { ...b, x: b.x + glisses.decalage.x, y: b.y + glisses.decalage.y }, true)}
+          </g>
+        ) : null
       })}
       {arbre.legende?.visible && <Legende arbre={arbre} lecture={l} disposition={d} perso={perso} />}
     </>
@@ -224,6 +268,10 @@ interface PropsSujet {
   numero: string | null
   couleur: string | null
   choisi: boolean
+  /** Le pointeur est dessus : le contour de la sélection, à demi. */
+  survole: boolean
+  /** Le zoom, pour la taille du contour (1 quand il n'y en a pas). */
+  zoom: number
   enEdition: boolean
   replie: number
   /** Sa branche part vers la gauche : la pastille de repli se met de ce côté. */
@@ -231,9 +279,11 @@ interface PropsSujet {
   image: string | undefined
   /** L'adresse de l'image d'un marqueur à soi. */
   perso: (marqueur: string) => string | undefined
+  /** La copie qui suit le pointeur pendant un glisser : elle ne se clique pas et n'a ni contour ni repère de clic. */
+  fantome?: boolean
 }
 
-const Sujet = memo(function Sujet({ id, sujet: s, rang, habit: h, theme, boite: b, mesure: m, numero, couleur, choisi, enEdition, replie, versLaGauche, image, perso }: PropsSujet) {
+const Sujet = memo(function Sujet({ id, sujet: s, rang, habit: h, theme, boite: b, mesure: m, numero, couleur, choisi, survole, zoom, enEdition, replie, versLaGauche, image, perso, fantome }: PropsSujet) {
   const encreTheme = theme.encre ?? 'var(--notak-arbre-encre)'
   const fondTheme = theme.fond ?? 'var(--notak-arbre-fond)'
   const { teinte, fond, plein, encre, bordure } = couleursDe(h, rang, theme, s.classe, couleur)
@@ -267,7 +317,7 @@ const Sujet = memo(function Sujet({ id, sujet: s, rang, habit: h, theme, boite: 
   const decoration = [s.classe === 'barre' || h.barre ? 'line-through' : '', h.souligne ? 'underline' : ''].filter(Boolean).join(' ')
   const traitSouligne = bordure !== 'none' ? bordure : teinte
   return (
-    <g className="notak-arbre-sujet" data-sujet={id} data-rang={rang} transform={`translate(${b.x} ${b.y})`}>
+    <g className="notak-arbre-sujet" data-sujet={fantome ? undefined : id} data-rang={rang} transform={`translate(${b.x} ${b.y})`}>
       <rect width={m.l} height={m.h} fill="transparent" />
       <Tremble actif={trembler} boite={[0, 0, m.l, m.h]}>
         {hachure && fond !== 'none' && (
@@ -282,7 +332,7 @@ const Sujet = memo(function Sujet({ id, sujet: s, rang, habit: h, theme, boite: 
         {souligne(h.forme) && <line x1={0} x2={m.l} y1={m.h} y2={m.h} stroke={traitSouligne} strokeWidth={h.epaisseurBordure || 1.75} strokeLinecap="round" strokeDasharray={tiretsDe(h.motifBordure)} />}
         {h.forme === 'double-souligne' && <line x1={0} x2={m.l} y1={m.h - 4} y2={m.h - 4} stroke={traitSouligne} strokeWidth={1.25} strokeLinecap="round" strokeDasharray={tiretsDe(h.motifBordure)} />}
       </Tremble>
-      {choisi && <rect className="notak-arbre-choix" x={-4} y={-4} width={m.l + 8} height={m.h + 8} rx={10} fill="none" />}
+      {(choisi || survole) && <Contour l={m.l} h={m.h} zoom={zoom} survole={survole} />}
       {image && m.image && s.image && <image href={image} x={m.image.x} y={m.image.y} width={s.image.l} height={s.image.h} preserveAspectRatio="xMidYMid slice" data-image={id} />}
       {m.image && s.vignette && (
         <g transform={`translate(${m.image.x} ${m.image.y})`} data-image={id}>
@@ -336,6 +386,36 @@ const Sujet = memo(function Sujet({ id, sujet: s, rang, habit: h, theme, boite: 
     </g>
   )
 })
+
+/**
+ * Le contour de sélection d'un sujet : un trait de 2 px à 1 px du bord, aux coins arrondis de 4 px. Le survol le montre à
+ * demi. La couleur et son gris de fenêtre sans focus sont dans la feuille de style.
+ */
+function Contour({ l, h, zoom, survole }: { l: number; h: number; zoom: number; survole: boolean }) {
+  const c = contourDe(l, h, zoom)
+  return <rect className={survole ? 'notak-arbre-survol' : 'notak-arbre-choix'} x={c.x} y={c.y} width={c.l} height={c.h} rx={c.rayon} fill="none" strokeWidth={c.trait} pointerEvents="none" />
+}
+
+/**
+ * Le repère de dépôt d'un sujet qu'on glisse : un faux nœud plein là où il s'insérera, relié à son futur parent par une
+ * branche de la même forme et de la même épaisseur que les siennes, toute en bleu. Rien autour du parent.
+ */
+export function RepereDepot({ arbre, lecture: l, disposition: d, repere }: { arbre: Arbre; lecture: Lecture; disposition: Disposition; repere: Repere }) {
+  const parent = d.boites.get(repere.parent)
+  if (!parent) return null
+  const theme = themeDeArbre(arbre)
+  const style = brancheDe(l, repere.parent, { largeur: arbre.largeurBranche, effilee: arbre.effile })
+  const epaisseur = style.epaisseur ?? (repere.parent === l.central ? 2.5 : 1.75)
+  const forme = style.forme ?? (repere.forme === 'courbe' ? theme.branche : repere.forme)
+  const trace = forme === 'aucune' || epaisseur <= 0 ? '' : cheminBranche(parent, repere.boite, repere.cote, forme, { parent: souligne(habitDe(l, repere.parent, theme, !!arbre.options?.compacte).forme) })
+  const b = repere.boite
+  return (
+    <g className="notak-arbre-depot-repere" pointerEvents="none">
+      {trace && <path className="notak-arbre-depot-trait" d={trace} strokeWidth={epaisseur} />}
+      <rect className="notak-arbre-depot" x={b.x} y={b.y} width={REPERE.l} height={REPERE.h} rx={REPERE.rayon} />
+    </g>
+  )
+}
 
 /** La case d'une tâche, devant le titre ; un clic la coche (`data-tache`). */
 function CaseTache({ x, y, etat, id }: { x: number; y: number; etat: 'a-faire' | 'faite' | 'annulee'; id: Id }) {
@@ -434,7 +514,7 @@ function CadreLimite({ id, limite, lecture, disposition: d, couleur, choisi, enE
 /** Une relation : son trait (forme, motif, épaisseur, couleur), ses pointes, son titre au milieu. */
 function Fleche({ id, relation, courbe: c, encre, choisie, enEdition }: { id: Id; relation: Relation; courbe: Courbe; encre: string; choisie: boolean; enEdition: boolean }) {
   const v = relationEffective(relation)
-  const teinte = choisie ? 'var(--notak-arbre-choix)' : (v.couleur ?? encre)
+  const teinte = choisie ? 'var(--notak-arbre-contour)' : (v.couleur ?? encre)
   const taille = Math.max(9, v.epaisseur * 4.5)
   const [fin, debut] = [cheminPointe(v.pointeArrivee, c.arrivee.x, c.arrivee.y, c.angles.arrivee, taille), cheminPointe(v.pointeDepart, c.depart.x, c.depart.y, c.angles.depart, taille)]
   const pts = [c.depart, c.arrivee, ...c.controles]
@@ -465,8 +545,8 @@ function Fleche({ id, relation, courbe: c, encre, choisie, enEdition }: { id: Id
       {choisie &&
         c.controles.map((p, i) => (
           <g key={i}>
-            <line x1={i === 0 ? c.depart.x : c.arrivee.x} y1={i === 0 ? c.depart.y : c.arrivee.y} x2={p.x} y2={p.y} stroke="var(--notak-arbre-choix)" strokeWidth={1} />
-            <circle cx={p.x} cy={p.y} r={5} fill="var(--notak-arbre-fond)" stroke="var(--notak-arbre-choix)" strokeWidth={1.5} data-controle={`${id}:${i}`} />
+            <line x1={i === 0 ? c.depart.x : c.arrivee.x} y1={i === 0 ? c.depart.y : c.arrivee.y} x2={p.x} y2={p.y} stroke="var(--notak-arbre-contour)" strokeWidth={1} />
+            <circle cx={p.x} cy={p.y} r={5} fill="var(--notak-arbre-fond)" stroke="var(--notak-arbre-contour)" strokeWidth={1.5} data-controle={`${id}:${i}`} />
           </g>
         ))}
     </g>
@@ -481,7 +561,7 @@ function CadreZone({ id, zone: z, encre, choisie, enEdition }: { id: Id; zone: Z
   const teinte = z.couleur ?? encre
   return (
     <g className="notak-arbre-zone" data-zone={id}>
-      <rect x={z.x} y={z.y} width={z.l} height={z.h} rx={14} fill={teinte} fillOpacity={0.06} stroke={choisie ? 'var(--notak-arbre-choix)' : teinte} strokeOpacity={choisie ? 1 : 0.5} strokeWidth={choisie ? 2.5 : 1.5} pointerEvents="none" />
+      <rect x={z.x} y={z.y} width={z.l} height={z.h} rx={14} fill={teinte} fillOpacity={0.06} stroke={choisie ? 'var(--notak-arbre-contour)' : teinte} strokeOpacity={choisie ? 1 : 0.5} strokeWidth={choisie ? 2.5 : 1.5} pointerEvents="none" />
       <rect x={z.x} y={z.y} width={z.l} height={30} fill="transparent" pointerEvents="all" />
       <rect x={z.x} y={z.y} width={z.l} height={z.h} rx={14} fill="none" stroke="transparent" strokeWidth={12} pointerEvents="stroke" />
       {z.titre && !enEdition && (

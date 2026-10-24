@@ -3,9 +3,9 @@ import { type Arbre, type Id, type StyleSujet, nouvelId } from '../../coeur/tabl
 import { t } from '../../langue'
 import { Surcouche } from '../surcouche'
 import type { ContexteToile, PropsRendu, Services } from '../types'
-import { INTERLIGNE, POLICE, type Mesure, habitDe, mesureDeSujet, uniformiser } from './apparence'
+import { POLICE, type Mesure, habitDe, mesureDeSujet, souligne, uniformiser } from './apparence'
 import { fondDe, themeDeArbre } from './themes'
-import { Dessin } from './Dessin'
+import { Dessin, type Glisses, RepereDepot } from './Dessin'
 import { exporterCartes } from './exporter'
 import { BarreBas } from './BarreBas'
 import { BoutonIcone, EnTete, type Onglet, PanneauCote } from './Fenetre'
@@ -25,8 +25,13 @@ import { comptes, reperesDe, sujetsMisEnEvidence } from './modele/listes'
 import { equation } from './equation'
 import { resumePlanning } from './modele/insertions'
 import { type Geste, appliquerGeste } from './modele/gestes'
-import { type Lacher, ouLacher } from './modele/lacher'
-import { type Lecture, lire, nouvelArbre, renommer, sousCarte } from './modele/sujets'
+import { type Camera, DUREE_REVELATION, ZOOM_MIN, borner, defilementAuto, facteurMolette, interpoler, reveler, zoomAutour } from './modele/camera'
+import { basculer, memeEnsemble, rectDeDeuxPoints, franchiLeSeuil, selectionDuCadre, selectionParPlage, sujetsDansCadre, tetesDe } from './modele/cadre'
+import { type DebutEdition, type ChampPose, debutEdition, positionDuChamp, titreRemplace } from './modele/champ'
+import { PASTILLE, ZOOM_PASTILLES, pastillesDe } from './modele/contour'
+import { repereDeDepot } from './modele/depot'
+import { copierSujets, deplacerSujets, ouLacher } from './modele/lacher'
+import { type Lecture, branche, enfantsDe, lire, nouvelArbre, renommer, sousCarte } from './modele/sujets'
 import { titreNeuf } from './modele/titres'
 import { type Section } from './Panneau'
 import { type OngletGauche, PanneauGauche } from './PanneauGauche'
@@ -107,17 +112,19 @@ export function RenduArbre({ element, enEdition, contexte, changer }: PropsRendu
   )
 }
 
-interface Camera {
-  x: number
-  y: number
-  z: number
+type Edition = DebutEdition
+type Point = { x: number; y: number }
+
+/** La taille de la surface, en px d'écran (rien : 0 sur 0, comme avant qu'elle ne soit montée). */
+const fenetreDe = (s: HTMLElement | null) => {
+  const r = s?.getBoundingClientRect()
+  return { l: r?.width ?? 0, h: r?.height ?? 0 }
 }
 
-const ZOOM_MIN = 0.1
-const ZOOM_MAX = 5
-
-type Edition = { id: Id; texte: string; tout: boolean }
-type Point = { x: number; y: number }
+/** Les gestes qui créent un sujet sans l'ouvrir à l'écriture (Entrée, Tab, Maj+Entrée, Cmd+Entrée) ; les autres (un flottant au double-clic, un résumé) l'ouvrent. */
+const GESTES_SANS_EDITION: ReadonlySet<string> = new Set(['enfant', 'frere', 'parent'])
+/** Ceux après lesquels la caméra ramène le sujet dans la vue, s'il en sort. */
+const GESTES_QUI_REVELENT: ReadonlySet<string> = new Set(['enfant', 'frere', 'parent', 'dupliquer', 'flottant', 'resume'])
 
 /**
  * La carte ouverte en grand : on y choisit, crée, écrit et range les sujets au clavier et à la souris
@@ -141,13 +148,16 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
   // « Afficher la branche seule » (Cmd+;) : la vue ne montre que cette branche, les gestes touchent la carte entière.
   const [seule, setSeule] = useState<Id | null>(null)
   const vue = useMemo(() => (seule && a.sujets[seule] ? sousCarte(a, seule) : a), [a, seule])
-  const { lecture, mesures, disposition } = useVue(vue)
+  // Le titre qu'on écrit : tant qu'il s'écrit, il remplace celui du sujet dans ce que la carte mesure et dispose, pour que
+  // le sujet grandisse et que la carte se range autour (les autres gestes, eux, partent du titre enregistré).
+  const [edition, setEdition] = useState<Edition | null>(null)
+  const vueTitree = useMemo(() => titreRemplace(vue, edition?.id, edition?.texte), [vue, edition?.id, edition?.texte])
+  const { lecture, mesures, disposition } = useVue(vueTitree)
   const adresse = useAdresses(a, contexte.services)
   const lectureSeule = !!contexte.services.lectureSeule
 
   // La sélection mêle des sujets, des relations et des limites : chacun est un identifiant.
   const [selection, setSelection] = useState<ReadonlySet<Id>>(() => new Set([lecture.central]))
-  const [edition, setEdition] = useState<Edition | null>(null)
   const [panneau, setPanneau] = useState<{ section?: Section } | null>(null)
   // Le panneau de côté, comme celui de Xmind : le format (Style, Présenter, Carte) ou les icônes.
   const [onglet, setOnglet] = useState<Onglet>('style')
@@ -188,11 +198,37 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     setMontee(true)
   }, [])
 
+  // La caméra suit la carte et se retient dans l'étendue défilable (le contenu, plus une fenêtre de marge de chaque côté).
+  const contenu = useMemo(() => emprise(disposition.boites.values()), [disposition])
+  const contenuRef = useRef(contenu)
+  contenuRef.current = contenu
+  const cameraRef = useRef(camera)
+  cameraRef.current = camera
+  const poser = useCallback((f: (c: Camera) => Camera) => setCamera((c) => borner(f(c), contenuRef.current, fenetreDe(surface.current))), [])
+  // La caméra qui rejoint un sujet glisse en 200 ms, d'un mouvement linéaire ; tout geste de l'utilisateur l'arrête.
+  const animation = useRef(0)
+  const arreterAnimation = useCallback(() => cancelAnimationFrame(animation.current), [])
+  const animerVers = useCallback((cible: Camera) => {
+    cancelAnimationFrame(animation.current)
+    const depart = cameraRef.current
+    const t0 = performance.now()
+    const pas = (t: number) => {
+      const k = Math.min(1, Math.max(0, (t - t0) / DUREE_REVELATION))
+      setCamera(interpoler(depart, cible, k))
+      if (k < 1) animation.current = requestAnimationFrame(pas)
+    }
+    animation.current = requestAnimationFrame(pas)
+  }, [])
+  useEffect(() => () => cancelAnimationFrame(animation.current), [])
+
   const estObjet = useCallback((x: Id) => !!(vue.relations?.[x] || vue.limites?.[x] || vue.zones?.[x]), [vue])
   // Ce qui a disparu (effacé, ou par un autre) sort de la sélection.
   const choisis = useMemo(() => new Set([...selection].filter((x) => disposition.boites.has(x) || estObjet(x))), [selection, disposition, estObjet])
   const sujetsChoisis = [...choisis].filter((x) => disposition.boites.has(x))
   const courant = sujetsChoisis.at(-1) ?? lecture.central
+
+  /** Le sujet qu'un geste vient de créer ou de choisir, que la caméra doit ramener dans la vue au prochain rendu. */
+  const aReveler = useRef<Id | null>(null)
 
   const faire = useCallback(
     (geste: Geste) => {
@@ -202,12 +238,14 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       if (!r) return
       if (r.arbre !== avant) changer(r.arbre)
       if (r.choisir) setSelection(new Set([r.choisir]))
-      // Dans le plan, le sujet neuf s'écrit sur sa ligne, pas dans un champ posé sur la carte.
-      if (r.editer && !plan) setEdition({ id: r.editer, texte: r.arbre.sujets[r.editer]?.titre ?? '', tout: true })
+      // Un sujet que le clavier vient de créer : la caméra le ramène dans la vue s'il en sort.
+      if (r.choisir && GESTES_QUI_REVELENT.has(geste.type)) aReveler.current = r.choisir
+      // Entrée, Tab et Maj+Entrée créent et choisissent le sujet, sans ouvrir le champ : Espace, un double-clic ou une
+      // frappe l'ouvrent. Dans le plan, le sujet neuf s'écrit sur sa ligne, pas dans un champ posé sur la carte.
+      if (r.editer && !plan && !GESTES_SANS_EDITION.has(geste.type)) setEdition(debutEdition(r.editer, r.arbre.sujets[r.editer]?.titre ?? ''))
     },
     [actuel, changer, lectureSeule, plan],
   )
-
   const valider = useCallback(() => {
     if (!edition) return
     const avant = actuel()
@@ -217,12 +255,19 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       if (avant.sujets[edition.id]!.titre !== edition.texte) faire({ type: 'renommer', id: edition.id, titre: edition.texte })
     } else faire({ type: 'titrer', id: edition.id, titre: edition.texte })
   }, [edition, actuel, faire])
+  /** Échap : le texte écrit est abandonné, le titre reste ce qu'il était. */
+  const annulerEdition = useCallback(() => setEdition(null), [])
 
   // Le style copié (Cmd+Alt+C), à coller sur d'autres sujets ; `undefined` : rien de copié, `null` : un sujet sans style.
   const styleCopie = useRef<StyleSujet | null | undefined>(undefined)
 
   const titreObjet = (x: Id) => vue.relations?.[x]?.titre ?? vue.limites?.[x]?.titre ?? vue.zones?.[x]?.titre ?? ''
-
+  /** Ouvre le champ d'un titre ; `frappe` : le caractère tapé, qui remplace le titre. */
+  const ouvrirEdition = (x: Id, frappe?: string) => {
+    if (lectureSeule) return
+    const sujet = vue.sujets[x]
+    setEdition(debutEdition(x, sujet ? sujet.titre : titreObjet(x), { ...(frappe !== undefined ? { frappe } : {}), objet: !sujet }))
+  }
 
   // — Insérer, copier, menus : ce que la barre d'outils et le clic droit posent sur la carte —
   const ouvrirIcones = useCallback((o: OngletIcone) => (setIcones(true), setOngletIcones(o), setPanneau(null)), [])
@@ -270,7 +315,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     lecture: () => lecture,
     faire,
     choisir: (ids) => setSelection(new Set(ids)),
-    editer: (x) => !lectureSeule && setEdition({ id: x, texte: titreObjet(x) || (lecture.sujets.get(x)?.titre ?? ''), tout: true }),
+    editer: (x) => ouvrirEdition(x),
     copier,
     coller: collerAu,
     copierStyle: (x) => void (styleCopie.current = lecture.sujets.get(x)?.style ?? null),
@@ -337,6 +382,11 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
 
   const surTouche = (e: React.KeyboardEvent): boolean => {
     if (edition) return e.key === 'Escape'
+    // Échap pendant un cadre ou un glisser d'un sujet : le geste s'arrête (le cadre garde ce qu'il avait pris, le sujet ne bouge pas).
+    if (e.key === 'Escape' && (tire || cadre)) {
+      abandonnerGeste()
+      return true
+    }
     // La présentation prend toutes les touches (Presentation.tsx) : la carte dessous n'en voit aucune.
     if (presentation !== null) return true
     if (e.key === 'Escape' && zen) {
@@ -379,7 +429,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     if (objet && sujetsChoisis.length === 0) {
       if (e.key === ' ' || e.key === 'F2' || e.key === 'Enter') {
         e.preventDefault()
-        if (!lectureSeule) setEdition({ id: objet, texte: titreObjet(objet), tout: true })
+        ouvrirEdition(objet)
         return true
       }
       if (e.key === 'Backspace' || e.key === 'Delete') {
@@ -426,10 +476,11 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
         else setRecherche({ texte: recherche?.texte ?? '', i: 0 })
         return true
       case 'editer':
-        if (!lectureSeule) setEdition({ id: geste.id, texte: geste.frappe ?? lecture.sujets.get(geste.id)?.titre ?? '', tout: geste.frappe === undefined })
+        ouvrirEdition(geste.id, geste.frappe)
         return true
       case 'choisir':
         setSelection(new Set(geste.ids))
+        aReveler.current = geste.ids.at(-1) ?? null
         return true
       case 'recadrer': {
         const r = surface.current?.getBoundingClientRect()
@@ -469,29 +520,114 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     return true
   }
 
-  // Le glisser du fond fait défiler la carte ; celui d'un sujet le déplace (au-delà de quelques pixels) ; celui d'un
-  // point de contrôle courbe une relation.
-  const glisse = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null)
-  const prise = useRef<{ id: Id; x: number; y: number; dx: number; dy: number } | null>(null)
-  const [tire, setTire] = useState<{ id: Id; p: Point; lacher: Lacher; maj: boolean } | null>(null)
+  // Les gestes de la souris sur la toile (docs/XMIND.md § 4 bis). Le glisser du fond trace le cadre de sélection ; celui d'un
+  // sujet le déplace ; celui du central, ou du bouton droit, fait défiler la carte ; celui d'un point de contrôle courbe
+  // une relation. Tous partent d'un appui et ne commencent qu'au-delà de 2 px : en deçà, c'est un clic.
+  const fond = useRef<{ x: number; y: number; de: Point } | null>(null)
+  const prise = useRef<{ id: Id; x: number; y: number; depart: Point; reduire: boolean } | null>(null)
+  /** Le défilement à la main : le bouton droit (le menu attend le relâchement), ou le bouton gauche sur le central. */
+  const main = useRef<{ x: number; y: number; cx: number; cy: number; bouton: 0 | 2; panne: boolean; id?: Id; reduire?: boolean; menu?: { x: number; y: number; cible: Element } } | null>(null)
+  const supprimerMenu = useRef(false)
+  const [cadre, setCadre] = useState<{ de: Point; ajout: boolean } | null>(null)
+  const [tire, setTire] = useState<{ id: Id; ids: Id[]; depart: Point; maj: boolean; alt: boolean } | null>(null)
+  const [pointeur, setPointeur] = useState<Point | null>(null)
+  const [panne, setPanne] = useState(false)
+  const [survol, setSurvol] = useState<Id | null>(null)
   const [controle, setControle] = useState<{ relation: Id; i: 0 | 1; p: Point } | null>(null)
+  // La fenêtre qui n'a plus le focus grise le contour de sélection et cache les pastilles.
+  const [fenetreActive, setFenetreActive] = useState(() => typeof document === 'undefined' || document.hasFocus())
+  useEffect(() => {
+    const activer = () => setFenetreActive(true)
+    const desactiver = () => setFenetreActive(false)
+    window.addEventListener('focus', activer)
+    window.addEventListener('blur', desactiver)
+    return () => (window.removeEventListener('focus', activer), window.removeEventListener('blur', desactiver))
+  }, [])
   const versCarte = (e: { clientX: number; clientY: number }) => {
     const r = surface.current!.getBoundingClientRect()
     return { x: (e.clientX - r.left - camera.x) / camera.z, y: (e.clientY - r.top - camera.y) / camera.z }
   }
+  const capturer = (e: React.PointerEvent) => {
+    try {
+      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    } catch {
+      // Un pointeur que le navigateur ne connaît plus : le glisser continue sans capture.
+    }
+  }
+  const abandonnerGeste = () => {
+    fond.current = null
+    prise.current = null
+    setCadre(null)
+    setTire(null)
+    setPointeur(null)
+  }
+  // Pendant un cadre ou un glisser, la sélection suit le pointeur et la caméra défile près du bord.
+  const enGeste = cadre !== null || tire !== null
+  const pointeurCarte = enGeste && pointeur ? versCarte({ clientX: pointeur.x, clientY: pointeur.y }) : null
+  const rectCadre = cadre && pointeurCarte ? rectDeDeuxPoints(cadre.de, pointeurCarte) : null
+  useEffect(() => {
+    if (!cadre || !rectCadre) return
+    const trouves = sujetsDansCadre(disposition.boites, rectCadre)
+    setSelection((s) => {
+      const suivante = selectionDuCadre(s, trouves, cadre.ajout)
+      return memeEnsemble(s, suivante) ? s : suivante
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cadre?.ajout, rectCadre?.x, rectCadre?.y, rectCadre?.l, rectCadre?.h, disposition])
+  const pointeurRef = useRef<Point | null>(null)
+  pointeurRef.current = pointeur
+  useEffect(() => {
+    if (!enGeste) return
+    let image = 0
+    const boucle = () => {
+      const r = surface.current?.getBoundingClientRect()
+      const p = pointeurRef.current
+      if (r && p) {
+        const { dx, dy } = defilementAuto({ x: p.x - r.left, y: p.y - r.top }, { l: r.width, h: r.height }, cameraRef.current.z)
+        if (dx !== 0 || dy !== 0) poser((c) => ({ ...c, x: c.x + dx, y: c.y + dy }))
+      }
+      image = requestAnimationFrame(boucle)
+    }
+    image = requestAnimationFrame(boucle)
+    return () => cancelAnimationFrame(image)
+  }, [enGeste, poser])
+  // Maj, Alt et Cmd se lisent en continu : on les presse ou les relâche en plein glisser.
+  useEffect(() => {
+    if (!enGeste) return
+    const suivre = (e: KeyboardEvent) => {
+      setTire((t) => (t && (t.maj !== e.shiftKey || t.alt !== e.altKey) ? { ...t, maj: e.shiftKey, alt: e.altKey } : t))
+      setCadre((c) => (c && c.ajout !== (e.shiftKey || e.metaKey) ? { ...c, ajout: e.shiftKey || e.metaKey } : c))
+    }
+    window.addEventListener('keydown', suivre, true)
+    window.addEventListener('keyup', suivre, true)
+    return () => (window.removeEventListener('keydown', suivre, true), window.removeEventListener('keyup', suivre, true))
+  }, [enGeste])
+
   const surAppui = (e: React.PointerEvent) => {
     const cible = e.target as Element
     // Un bouton garde son clic : capturer le pointeur pour défiler l'enverrait à la surface.
     if (cible.closest('button, textarea, input, select, label, .notak-arbre-barre, .notak-arbre-panneau')) return
+    // Le bouton droit défile la carte ; sans glisser, son menu s'ouvre au relâchement.
+    if (e.button === 2) {
+      main.current = { x: e.clientX, y: e.clientY, cx: camera.x, cy: camera.y, bouton: 2, panne: false }
+      return
+    }
+    if (e.button !== 0) return
     const attribut = (nom: string) => cible.closest(`[${nom}]`)?.getAttribute(nom) ?? null
     if (traceZone === 'arme' && !lectureSeule) {
       const p = versCarte(e)
       setTraceZone({ de: p, vers: p })
-      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+      capturer(e)
       return
     }
     const repli = attribut('data-repli')
     if (repli) return faire({ type: 'replier', id: repli })
+    // Les pastilles « + » d'un sujet choisi : un enfant, ou un frère après lui.
+    const ajout = attribut('data-ajout')
+    if (ajout && !lectureSeule) {
+      const [genre, id] = ajout.split(':') as ['enfant' | 'frere', Id]
+      return faire(genre === 'enfant' ? { type: 'enfant', id } : { type: 'frere', id, avant: false })
+    }
     const tache = attribut('data-tache')
     if (tache && !lectureSeule) {
       const s = lecture.sujets.get(tache)
@@ -503,7 +639,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     if (ctrl && !lectureSeule) {
       const [rel, i] = ctrl.split(':') as [Id, string]
       setControle({ relation: rel, i: i === '1' ? 1 : 0, p: versCarte(e) })
-      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+      capturer(e)
       return
     }
     const sujet = attribut('data-sujet')
@@ -524,37 +660,80 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       if (!lectureSeule) {
         const p = versCarte(e)
         setZoneTiree({ id: zone, depart: p, p, membres: membresDeZone(zone) })
-        ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+        capturer(e)
       }
       return
     }
+    const depart = { x: e.clientX, y: e.clientY }
     if (sujet) {
-      setSelection((s) => (e.shiftKey || e.metaKey ? basculer(s, sujet) : new Set([sujet])))
-      const b = disposition.boites.get(sujet)
-      if (b && !lectureSeule && sujet !== lecture.central) {
-        const p = versCarte(e)
-        // Pas de capture du pointeur ici : elle volerait le double-clic au sujet. La surface couvre tout l'écran.
-        prise.current = { id: sujet, x: e.clientX, y: e.clientY, dx: p.x - b.x, dy: p.y - b.y }
-      }
+      // Le sujet pressé est choisi à l'appui ; pressé dans une sélection, il la laisse entière (pour glisser le groupe).
+      // Cmd le bascule, Maj prend aussi les frères d'entre deux.
+      const suivante = e.metaKey ? basculer(choisis, sujet) : e.shiftKey ? selectionParPlage(lecture, choisis, sujet) : choisis.has(sujet) ? new Set(choisis) : new Set([sujet])
+      setSelection(suivante)
+      if (!suivante.has(sujet) || !disposition.boites.has(sujet)) return
+      // Relâché sans glisser, il réduit une sélection multiple à lui seul.
+      const reduire = !e.metaKey && !e.shiftKey && suivante.size > 1
+      // Pas de capture du pointeur ici : elle volerait le double-clic au sujet (elle viendra avec le glisser).
+      if (sujet === lecture.central) main.current = { ...depart, cx: camera.x, cy: camera.y, bouton: 0, panne: false, id: sujet, reduire }
+      else if (!lectureSeule) prise.current = { id: sujet, ...depart, depart: versCarte(e), reduire }
       return
     }
-    glisse.current = { x: e.clientX, y: e.clientY, cx: camera.x, cy: camera.y }
-    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    // Le fond : l'appui vide la sélection (Maj ou Cmd la gardent), le glisser trace le cadre.
+    if (!e.shiftKey && !e.metaKey) setSelection(new Set())
+    fond.current = { ...depart, de: versCarte(e) }
   }
   const surMouvement = (e: React.PointerEvent) => {
     if (relier) return setRelier({ ...relier, p: versCarte(e) })
     if (traceZone && traceZone !== 'arme') return setTraceZone({ ...traceZone, vers: versCarte(e) })
     if (zoneTiree) return setZoneTiree({ ...zoneTiree, p: versCarte(e) })
     if (controle) return setControle({ ...controle, p: versCarte(e) })
-    const g = glisse.current
-    if (g) return setCamera((c) => ({ ...c, x: g.cx + e.clientX - g.x, y: g.cy + e.clientY - g.y }))
+    const client = { x: e.clientX, y: e.clientY }
+    const m = main.current
+    if (m) {
+      if (!m.panne && franchiLeSeuil(m, client)) {
+        m.panne = true
+        setPanne(true)
+        setSurvol(null)
+        capturer(e)
+      }
+      if (m.panne) {
+        arreterAnimation()
+        poser((c) => ({ ...c, x: m.cx + client.x - m.x, y: m.cy + client.y - m.y }))
+      }
+      return
+    }
+    const f = fond.current
+    if (f) {
+      if (cadre || franchiLeSeuil(f, client)) {
+        if (!cadre) (capturer(e), setSurvol(null))
+        const ajout = e.shiftKey || e.metaKey
+        setCadre((c) => (c && c.ajout === ajout ? c : { de: f.de, ajout }))
+        setPointeur(client)
+      }
+      return
+    }
     const pr = prise.current
-    if (!pr || (!tire && Math.hypot(e.clientX - pr.x, e.clientY - pr.y) < 4)) return
-    const p = versCarte(e)
-    setTire({ id: pr.id, p, lacher: ouLacher(lecture, disposition, pr.id, p, e.shiftKey, vue.options), maj: e.shiftKey })
+    if (pr) {
+      if (tire || franchiLeSeuil(pr, client)) {
+        if (!tire) {
+          // Les sujets de tête de la sélection se glissent ensemble, dans l'ordre où ils sont à l'écran.
+          const ids = tetesDe(lecture, choisis)
+          if (!ids.includes(pr.id)) ids.push(pr.id)
+          const place = (x: Id) => disposition.boites.get(x) ?? { x: 0, y: 0 }
+          ids.sort((u, v) => place(u).y - place(v).y || place(u).x - place(v).x)
+          capturer(e)
+          setSurvol(null)
+          setTire({ id: pr.id, ids, depart: pr.depart, maj: e.shiftKey, alt: e.altKey })
+        } else setTire((t) => (t && (t.maj !== e.shiftKey || t.alt !== e.altKey) ? { ...t, maj: e.shiftKey, alt: e.altKey } : t))
+        setPointeur(client)
+      }
+      return
+    }
+    // Sans bouton : le sujet sous le pointeur prend le contour du survol.
+    const sous = (e.target as Element).closest?.('[data-sujet]')?.getAttribute('data-sujet') ?? null
+    setSurvol((v) => (v === sous ? v : sous))
   }
-  const surRelache = () => {
-    glisse.current = null
+  const surRelache = (e: React.PointerEvent) => {
     if (traceZone && traceZone !== 'arme') {
       // Le cadre tracé : trop petit, c'est un simple clic, on garde le mode armé.
       const [x0, x1] = [Math.min(traceZone.de.x, traceZone.vers.x), Math.max(traceZone.de.x, traceZone.vers.x)]
@@ -574,25 +753,68 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       setControle(null)
       return
     }
-    const pr = prise.current
-    prise.current = null
-    if (!tire || !pr) return setTire(null)
-    setTire(null)
-    const l = tire.lacher
-    // Placement libre : la branche reste où on la lâche, sauf sur un autre sujet (elle s'y rattache) ou avec Maj (elle flotte).
-    if (vue.options?.libre && l.type !== 'enfant' && !tire.maj && lecture.sujets.get(tire.id)?.genre !== 'detache') {
-      const b = disposition.boites.get(tire.id)
-      if (b) faire({ type: 'decaler', id: tire.id, de: { x: tire.p.x - pr.dx - b.x, y: tire.p.y - pr.dy - b.y } })
+    const m = main.current
+    if (m && e.button === m.bouton) {
+      main.current = null
+      setPanne(false)
+      if (m.bouton === 2) {
+        // Un défilement à la main n'ouvre pas de menu ; un clic droit sans glisser, si.
+        if (m.panne) {
+          supprimerMenu.current = true
+          setTimeout(() => (supprimerMenu.current = false), 0)
+        } else if (m.menu) ouvrirMenuDe(m.menu.x, m.menu.y, m.menu.cible)
+      } else if (!m.panne && m.reduire && m.id && e.type !== 'pointercancel') setSelection(new Set([m.id]))
       return
     }
-    if (l.type === 'enfant') faire({ type: 'rattacher', id: tire.id, parent: l.parent, index: Number.MAX_SAFE_INTEGER })
-    else if (l.type === 'inserer') faire({ type: 'rattacher', id: tire.id, parent: l.parent, index: l.index })
-    else {
-      // La position d'un flottant compte depuis le centre du central de la carte entière, pas de la branche montrée.
-      const b = disposition.boites.get(tire.id)
-      if (!b || seule) return
-      faire({ type: 'poser', id: tire.id, position: { x: tire.p.x - pr.dx + b.l / 2, y: tire.p.y - pr.dy + b.h / 2 } })
+    if (e.button !== 0) return
+    if (fond.current) {
+      // Au lâcher, la sélection reste telle que le cadre l'a laissée.
+      fond.current = null
+      setCadre(null)
+      setPointeur(null)
+      return
     }
+    const pr = prise.current
+    prise.current = null
+    if (!pr) return
+    if (!tire) {
+      if (pr.reduire && e.type !== 'pointercancel') setSelection(new Set([pr.id]))
+      return
+    }
+    setTire(null)
+    setPointeur(null)
+    if (e.type !== 'pointercancel') lacherTire(tire, e)
+  }
+  /** Lâcher les sujets glissés : les rattacher à la cible, les copier (Alt), ou les laisser flotter là où on les lâche. */
+  const lacherTire = (t: NonNullable<typeof tire>, e: React.PointerEvent) => {
+    const avant = actuel()
+    if (!avant || lectureSeule) return
+    const p = versCarte(e)
+    const cible = ouLacher(lecture, disposition, t.id, p, e.shiftKey, vue.options, t.ids.filter((x) => x !== t.id))
+    const decalage = { x: p.x - t.depart.x, y: p.y - t.depart.y }
+    const boite = (x: Id) => disposition.boites.get(x)
+    let arbre = avant
+    let apres: Id[] = t.ids
+    if (e.altKey) {
+      // Les copies flottent à la place que montrait le fantôme, au centre de leur boîte.
+      const centres = new Map(t.ids.flatMap((x) => { const b = boite(x); return b ? [[x, { x: Math.round(b.x + decalage.x + b.l / 2), y: Math.round(b.y + decalage.y + b.h / 2) }] as const] : [] }))
+      if (seule && cible.type === 'libre') return
+      ;[arbre, apres] = copierSujets(arbre, t.ids, cible, centres)
+    } else if (cible.type !== 'libre') {
+      arbre = deplacerSujets(arbre, t.ids, cible)
+    } else if (vue.options?.libre && !e.shiftKey && t.ids.every((x) => lecture.sujets.get(x)?.genre !== 'detache')) {
+      // Placement libre : la branche reste où on la lâche.
+      for (const id of t.ids) arbre = appliquerGeste(arbre, { type: 'decaler', id, de: decalage }, titreNeuf)?.arbre ?? arbre
+    } else {
+      // La position d'un flottant compte depuis le centre du central de la carte entière, pas de la branche montrée.
+      if (seule) return
+      for (const id of t.ids) {
+        const b = boite(id)
+        if (b) arbre = appliquerGeste(arbre, { type: 'poser', id, position: { x: b.x + decalage.x + b.l / 2, y: b.y + decalage.y + b.h / 2 } }, titreNeuf)?.arbre ?? arbre
+      }
+    }
+    if (arbre !== avant) changer(arbre)
+    if (apres.length > 0) setSelection(new Set(apres))
   }
   /** Un point de contrôle lâché : il se compte depuis le bout de la relation auquel il tient. */
   const lacherControle = (c: { relation: Id; i: 0 | 1; p: Point }) => {
@@ -658,16 +880,26 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     if (zone) return { genre: 'zone', id: zone }
     return { genre: 'fond', x: p.x, y: p.y }
   }
-  const surMenuContextuel = (e: React.MouseEvent) => {
-    e.preventDefault()
+  const ouvrirMenuDe = (x: number, y: number, element: Element) => {
     if (lectureSeule || plan || relier || traceZone) return
-    const cible = cibleDe(e.target as Element, versCarte(e))
+    const cible = cibleDe(element, versCarte({ clientX: x, clientY: y }))
     // Comme Xmind : un clic droit sur ce qui n'est pas choisi le choisit d'abord ; sur le fond, il désélectionne.
     const vise = 'id' in cible ? cible.id : null
     if (cible.genre === 'fond') setSelection(new Set())
     else if (vise && !choisis.has(vise)) setSelection(new Set([vise]))
     if (edition) valider()
-    setMenu({ x: e.clientX, y: e.clientY, cible })
+    setMenu({ x, y, cible })
+  }
+  const surMenuContextuel = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (supprimerMenu.current) return
+    // Sur macOS, le menu naît à l'appui : tant que le bouton droit est tenu, on attend de savoir s'il glisse (défilement) ou non.
+    const droit = main.current
+    if (droit?.bouton === 2) {
+      droit.menu = { x: e.clientX, y: e.clientY, cible: e.target as Element }
+      return
+    }
+    ouvrirMenuDe(e.clientX, e.clientY, e.target as Element)
   }
   /** Un autocollant ou une illustration lâchés sur un sujet : le sujet les prend. */
   const surLacher = (e: React.DragEvent) => {
@@ -686,11 +918,12 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
   const surDoubleClic = (e: React.MouseEvent) => {
     if (lectureSeule) return
     const cible = e.target as Element
-    if (cible.closest('.notak-arbre-barre, .notak-arbre-panneau')) return
+    // Le champ d'un titre, une pastille « + » : le double-clic leur appartient.
+    if (cible.closest('.notak-arbre-barre, .notak-arbre-panneau, textarea, input, [data-ajout]')) return
     const sujet = cible.closest('[data-sujet]')?.getAttribute('data-sujet')
-    if (sujet) return setEdition({ id: sujet, texte: lecture.sujets.get(sujet)?.titre ?? '', tout: true })
+    if (sujet) return ouvrirEdition(sujet)
     const objet = cible.closest('[data-relation]')?.getAttribute('data-relation') ?? cible.closest('[data-limite]')?.getAttribute('data-limite') ?? cible.closest('[data-zone]')?.getAttribute('data-zone')
-    if (objet) return setEdition({ id: objet, texte: titreObjet(objet), tout: true })
+    if (objet) return ouvrirEdition(objet)
     // Dans la branche seule, les positions ne sont pas celles de la carte : pas de flottant.
     if (seule) return
     faire({ type: 'flottant', position: versCarte(e) })
@@ -702,14 +935,17 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     const roue = (e: WheelEvent) => {
       if ((e.target as Element).closest('.notak-arbre-panneau, .notak-arbre-menu')) return
       e.preventDefault()
+      // Défiler fait disparaître le survol et arrête la caméra qui rejoignait un sujet.
+      setSurvol(null)
+      cancelAnimationFrame(animation.current)
       if (e.ctrlKey || e.metaKey) {
         const r = s.getBoundingClientRect()
-        setCamera((c) => zoomer(c, Math.exp(-e.deltaY * 0.01), s, { x: e.clientX - r.left, y: e.clientY - r.top }))
-      } else setCamera((c) => ({ ...c, x: c.x - e.deltaX, y: c.y - e.deltaY }))
+        poser((c) => zoomAutour(c, facteurMolette(e.deltaY), { x: e.clientX - r.left, y: e.clientY - r.top }))
+      } else poser((c) => ({ ...c, x: c.x - e.deltaX, y: c.y - e.deltaY }))
     }
     s.addEventListener('wheel', roue, { passive: false })
     return () => s.removeEventListener('wheel', roue)
-  }, [montee])
+  }, [montee, poser])
 
   // Pendant qu'on courbe une relation, elle suit le pointeur.
   const vueAffichee = useMemo(() => {
@@ -724,8 +960,42 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     return { ...vue, relations: { ...vue.relations, [controle.relation]: { ...r, controles: [c[0]!, c[1]!] as [Point, Point] } } }
   }, [vue, controle, disposition])
 
-  const champ = edition ? positionDuChamp(edition.id, lecture, disposition, mesures, vue) : null
+  const champ = edition ? positionDuChamp(edition.id, lecture, disposition, mesures, vueTitree) : null
   const depart = relier ? disposition.boites.get(relier.de) : undefined
+
+  // Ce qu'on glisse : les sujets de tête, ce qu'ils emportent, de combien ils ont bougé, et où ils se poseraient.
+  const lacher = tire && pointeurCarte ? ouLacher(lecture, disposition, tire.id, pointeurCarte, tire.maj, vue.options, tire.ids.filter((x) => x !== tire.id)) : null
+  const glisses: Glisses | null =
+    tire && pointeurCarte ? { tetes: tire.ids, branches: new Set(tire.ids.flatMap((x) => branche(lecture, x))), decalage: { x: pointeurCarte.x - tire.depart.x, y: pointeurCarte.y - tire.depart.y } } : null
+  const repere = lacher && glisses ? repereDeDepot(lecture, disposition, lacher, new Set(tire!.ids)) : null
+  // Les pastilles « + » d'un sujet choisi seul : un enfant à droite (à gauche pour une branche de ce côté), un frère dessous.
+  const seulChoisi = choisis.size === 1 && sujetsChoisis.length === 1 ? sujetsChoisis[0]! : null
+  const ajouts =
+    seulChoisi && !edition && !enGeste && !panne && fenetreActive && camera.z > ZOOM_PASTILLES && !lectureSeule && !plan && !relier && !traceZone && presentation === null && lecture.sujets.get(seulChoisi)?.genre !== 'resume'
+      ? (() => {
+          const b = disposition.boites.get(seulChoisi)
+          const sujet = lecture.sujets.get(seulChoisi)
+          if (!b || !sujet) return null
+          return pastillesDe(b, {
+            gauche: disposition.liens.find((x) => x.vers === seulChoisi)?.cote === 'gauche',
+            souligne: souligne(habitDe(lecture, seulChoisi, themeDeArbre(vue), !!vue.options?.compacte).forme),
+            replie: !!sujet.replie && enfantsDe(lecture, seulChoisi).length > 0,
+            frere: seulChoisi !== lecture.central && sujet.genre === undefined,
+          })
+        })()
+      : null
+
+  // Un sujet que le clavier vient de créer ou de choisir, ou que la frappe agrandit : la caméra le ramène dans la vue, du
+  // minimum, en 200 ms.
+  useEffect(() => {
+    const id = edition?.id ?? aReveler.current
+    if (!id || plan) return
+    const b = disposition.boites.get(id)
+    if (!b) return
+    if (!edition) aReveler.current = null
+    const vers = reveler(cameraRef.current, fenetreDe(surface.current), b, contenu)
+    if (vers) animerVers(vers)
+  }, [disposition, selection, edition?.id, plan]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const habille = !zen && presentation === null
   const coteOuvert = habille && !lectureSeule && (!!panneau || icones)
@@ -800,6 +1070,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
         data-cote={coteOuvert ? '' : undefined}
         data-gauche={gaucheOuvert ? '' : undefined}
         data-zen={zen ? '' : undefined}
+        data-inactif={fenetreActive ? undefined : ''}
         onContextMenu={(e) => !(e.target as Element).closest('input, textarea') && e.preventDefault()}
       >
       <div className="notak-arbre-scene">
@@ -809,6 +1080,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
         style={fondDe(vue) ? { background: fondDe(vue) } : undefined}
         data-relier={relier ? '' : undefined}
         data-trace={traceZone ? '' : undefined}
+        data-curseur={panne ? 'main' : tire ? (tire.alt ? 'copie' : 'sujet') : undefined}
         onContextMenu={surMenuContextuel}
         onDragOver={(e) => e.dataTransfer.types.includes(TYPE_GLISSE) && e.preventDefault()}
         onDrop={surLacher}
@@ -816,6 +1088,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
         onPointerMove={surMouvement}
         onPointerUp={surRelache}
         onPointerCancel={surRelache}
+        onPointerLeave={() => setSurvol(null)}
         onDoubleClick={surDoubleClic}
       >
         {plan && <Plan lecture={lecture} courant={courant} choisir={(x) => setSelection(new Set([x]))} faire={faire} lectureSeule={lectureSeule} zoom={zoomPlan} />}
@@ -834,8 +1107,13 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
               edition={edition?.id ?? null}
               adresse={adresse}
               surlignes={evidence}
+              survol={enGeste || panne ? null : survol}
+              zoom={camera.z}
+              glisses={glisses}
             />
-            {tire && <Fantome tire={tire} prise={prise.current} disposition={disposition} />}
+            {repere && <RepereDepot arbre={vueAffichee} lecture={lecture} disposition={disposition} repere={repere} />}
+            {rectCadre && <rect className="notak-arbre-cadre" x={rectCadre.x} y={rectCadre.y} width={rectCadre.l} height={rectCadre.h} strokeWidth={1 / camera.z} />}
+            {ajouts && seulChoisi && <Ajouts id={seulChoisi} pastilles={ajouts} />}
             {traceZone && traceZone !== 'arme' && (
               <rect className="notak-arbre-tire" x={Math.min(traceZone.de.x, traceZone.vers.x)} y={Math.min(traceZone.de.y, traceZone.vers.y)} width={Math.abs(traceZone.vers.x - traceZone.de.x)} height={Math.abs(traceZone.vers.y - traceZone.de.y)} rx={12} pointerEvents="none" />
             )}
@@ -846,19 +1124,10 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
           </g>
         </svg>
         {edition && champ && (
-          <ChampTitre
-            texte={edition.texte}
-            tout={edition.tout}
-            style={{
-              left: camera.x + champ.x * camera.z,
-              top: camera.y + champ.y * camera.z,
-              minWidth: champ.l * camera.z,
-              minHeight: champ.h * camera.z,
-              font: `${champ.graisse} ${champ.police * camera.z}px/${INTERLIGNE} ${champ.famille ?? POLICE}`,
-            }}
-            changer={(texte) => setEdition({ ...edition, texte, tout: false })}
-            valider={valider}
-          />
+          // Le champ vit dans le repère de la carte : il prend la caméra, donc le texte écrit est juste à tout zoom.
+          <div className="notak-arbre-repere" style={{ transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.z})` }}>
+            <ChampTitre pose={champ} texte={edition.texte} tout={edition.tout} changer={(texte) => setEdition({ ...edition, texte, tout: false })} valider={valider} annuler={annulerEdition} />
+          </div>
         )}
         {relier && <p className="notak-arbre-consigne">{t('arbre.relier')}</p>}
         {traceZone && <p className="notak-arbre-consigne">{t('arbre.inserer.zoneAide')}</p>}
@@ -990,70 +1259,34 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
   )
 }
 
-/** Où poser le champ de saisie d'un titre : sur le texte d'un sujet, au milieu d'une relation, en tête d'une limite. */
-function positionDuChamp(
-  id: Id,
-  l: Lecture,
-  d: Disposition,
-  mesures: ReadonlyMap<Id, Mesure>,
-  a: Arbre,
-): { x: number; y: number; l: number; h: number; police: number; graisse: number; famille?: string } | null {
-  const b = d.boites.get(id)
-  const m = mesures.get(id)
-  if (b && m) {
-    const h = habitDe(l, id, themeDeArbre(a), !!a.options?.compacte)
-    return { x: b.x + m.texte.x - 4, y: b.y + m.texte.y - 2, l: m.texte.l + 8, h: m.texte.h + 4, police: h.police, graisse: h.graisse, famille: h.famille }
-  }
-  const r = a.relations?.[id]
-  if (r) {
-    const [ba, bb] = [d.boites.get(r.de), d.boites.get(r.vers)]
-    if (!ba || !bb) return null
-    const c = courbeRelation(ba, bb, r.controles, r.forme)
-    return { x: c.milieu.x - 80, y: c.milieu.y - 22, l: 160, h: 22, police: 12, graisse: 400 }
-  }
-  const z = a.zones?.[id]
-  if (z) return { x: z.x + 8, y: z.y + 3, l: 220, h: 24, police: 13, graisse: 600 }
-  const x = a.limites?.[id]
-  if (x) {
-    const boites = sujetsDePlage(l, x).flatMap((s) => d.boites.get(s) ?? [])
-    if (boites.length === 0) return null
-    return { x: Math.min(...boites.map((v) => v.x)) - 2, y: Math.min(...boites.map((v) => v.y)) - 36, l: 160, h: 22, police: 12, graisse: 600 }
-  }
-  return null
-}
-
-/**
- * Pendant qu'on glisse un sujet : son cadre suit le pointeur, et la cible du lâcher se signale (le sujet qui le
- * recevra, ou le trait où il s'insérera).
- */
-function Fantome({ tire, prise, disposition: d }: { tire: { id: Id; p: Point; lacher: Lacher }; prise: { dx: number; dy: number } | null; disposition: Disposition }) {
-  const b = d.boites.get(tire.id)
-  if (!b || !prise) return null
-  const l = tire.lacher
-  const cible = l.type === 'enfant' ? d.boites.get(l.parent) : undefined
+/** Les pastilles « + » d'un sujet choisi seul : un clic ajoute un enfant ou un frère, comme Tab et Entrée. */
+function Ajouts({ id, pastilles }: { id: Id; pastilles: { enfant: Point; frere: Point | null } }) {
+  const r = PASTILLE.diametre / 2
+  const pastille = (genre: 'enfant' | 'frere', c: Point) => (
+    <g key={genre} className="notak-arbre-ajout" data-ajout={`${genre}:${id}`} transform={`translate(${c.x} ${c.y})`}>
+      <circle r={PASTILLE.prise / 2} fill="transparent" />
+      <circle className="notak-arbre-ajout-disque" r={r} />
+      <g transform="translate(-7 -7)" style={{ color: '#fff' }}>
+        <Icone nom="ajouter" taille={14} trait={2.25} />
+      </g>
+    </g>
+  )
   return (
-    <g className="notak-arbre-fantome" pointerEvents="none">
-      {cible && <rect x={cible.x - 5} y={cible.y - 5} width={cible.l + 10} height={cible.h + 10} rx={8} className="notak-arbre-cible" />}
-      {l.type === 'inserer' && <Insertion lacher={l} d={d} />}
-      <rect x={tire.p.x - prise.dx} y={tire.p.y - prise.dy} width={b.l} height={b.h} rx={6} className="notak-arbre-tire" />
+    <g className="notak-arbre-ajouts">
+      {pastille('enfant', pastilles.enfant)}
+      {pastilles.frere && pastille('frere', pastilles.frere)}
     </g>
   )
 }
 
-/** Le trait qui montre où le sujet s'insérera : entre deux frères, ou au bout de la liste. */
-function Insertion({ lacher, d }: { lacher: { parent: Id; index: number }; d: Disposition }) {
-  const freres = d.liens.filter((x) => x.de === lacher.parent).map((x) => d.boites.get(x.vers)!)
-  const avant = freres[lacher.index - 1]
-  const apres = freres[lacher.index]
-  const ref = apres ?? avant
-  if (!ref) return null
-  const y = avant && apres ? (avant.y + avant.h + apres.y) / 2 : apres ? apres.y - 6 : avant!.y + avant!.h + 6
-  return <line x1={ref.x} x2={ref.x + ref.l} y1={y} y2={y} className="notak-arbre-cible" />
-}
-
-/** Le champ où l'on écrit un titre, posé sur lui. Entrée valide, Maj+Entrée va à la ligne, Échap valide. */
-function ChampTitre({ texte, tout, style, changer, valider }: { texte: string; tout: boolean; style: React.CSSProperties; changer(t: string): void; valider(): void }) {
+/**
+ * Le champ où l'on écrit un titre : transparent, posé exactement sur le texte du sujet, à sa police, sa taille, sa graisse,
+ * sa couleur et son alignement. Entrée et Tab valident, Maj+Entrée et Cmd+Entrée vont à la ligne, Échap abandonne.
+ */
+function ChampTitre({ pose, texte, tout, changer, valider, annuler }: { pose: ChampPose; texte: string; tout: boolean; changer(t: string): void; valider(): void; annuler(): void }) {
   const champ = useRef<HTMLTextAreaElement>(null)
+  // Une fois validé ou abandonné, le champ qui disparaît perd son focus : ce blur-là ne valide pas une seconde fois.
+  const fini = useRef(false)
   useLayoutEffect(() => {
     const c = champ.current
     if (!c) return
@@ -1063,30 +1296,55 @@ function ChampTitre({ texte, tout, style, changer, valider }: { texte: string; t
     // Seulement à l'ouverture du champ.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  useLayoutEffect(() => {
-    const c = champ.current
-    if (!c) return
-    c.style.height = 'auto'
-    c.style.height = `${c.scrollHeight}px`
-  }, [texte])
+  const quitter = (issue: () => void) => {
+    fini.current = true
+    issue()
+    champ.current?.closest<HTMLElement>('[role="dialog"]')?.focus({ preventScroll: true })
+  }
+  const casse = { majuscules: 'uppercase', minuscules: 'lowercase', capitales: 'capitalize' } as const
+  const style: React.CSSProperties = {
+    left: pose.x,
+    top: pose.y,
+    width: pose.l,
+    height: pose.h,
+    font: `${pose.italique ? 'italic ' : ''}${pose.graisse} ${pose.police}px/${pose.interligne}px ${pose.famille ?? POLICE}`,
+    textAlign: pose.alignement === 'centre' ? 'center' : pose.alignement === 'droite' ? 'right' : 'left',
+    ...(pose.couleur ? { color: pose.couleur } : {}),
+    ...(pose.casse ? { textTransform: casse[pose.casse] } : {}),
+    ...(pose.decoration ? { textDecoration: pose.decoration } : {}),
+  }
   return (
     <textarea
       ref={champ}
       className="notak-arbre-champ"
+      data-objet={pose.genre === 'objet' ? '' : undefined}
       aria-label={t('arbre.titre')}
       rows={1}
       spellCheck={false}
       value={texte}
       style={style}
       onChange={(e) => changer(e.target.value)}
-      onBlur={valider}
+      onBlur={() => !fini.current && valider()}
       onKeyDown={(e) => {
         e.stopPropagation()
         if (e.nativeEvent.isComposing) return
-        if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Escape') {
+        if (e.key === 'Escape') {
           e.preventDefault()
-          valider()
-          champ.current?.closest<HTMLElement>('[role="dialog"]')?.focus({ preventScroll: true })
+          quitter(annuler)
+        } else if (e.key === 'Tab') {
+          e.preventDefault()
+          quitter(valider)
+        } else if (e.key === 'Enter') {
+          if (e.metaKey || e.ctrlKey) {
+            // Cmd+Entrée va à la ligne, comme Maj+Entrée (que le champ fait de lui-même).
+            e.preventDefault()
+            const c = e.currentTarget
+            c.setRangeText('\n', c.selectionStart, c.selectionEnd, 'end')
+            changer(c.value)
+          } else if (!e.shiftKey && !e.altKey) {
+            e.preventDefault()
+            quitter(valider)
+          }
         }
       }}
     />
@@ -1104,18 +1362,8 @@ async function ouvrirOuTelecharger(contexte: ContexteToile, fichier: Id, nom?: s
   lien.click()
 }
 
-function basculer(s: ReadonlySet<Id>, id: Id): Set<Id> {
-  const n = new Set(s)
-  if (n.has(id)) n.delete(id)
-  else n.add(id)
-  return n
-}
-
 /** Zoome de `facteur` autour de `autour` (px de la surface ; son milieu par défaut). */
 function zoomer(c: Camera, facteur: number, s: HTMLElement | null, autour?: Point): Camera {
-  const r = s?.getBoundingClientRect()
-  const p = autour ?? { x: (r?.width ?? 0) / 2, y: (r?.height ?? 0) / 2 }
-  const z = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, c.z * facteur))
-  const k = z / c.z
-  return { x: p.x - (p.x - c.x) * k, y: p.y - (p.y - c.y) * k, z }
+  const { l, h } = fenetreDe(s)
+  return zoomAutour(c, facteur, autour ?? { x: l / 2, y: h / 2 })
 }

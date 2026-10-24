@@ -10,6 +10,9 @@
   --notak-arbre-flottant: #f3f4f6;
   --notak-arbre-choix: #3a86d4;
   --notak-arbre-etiquette: #eceef1;
+  /* Le contour de sélection, le cadre, le repère de dépôt, les pastilles : le bleu de Xmind, dans les deux thèmes. */
+  --notak-arbre-contour: #2ebdff;
+  --notak-arbre-contour-inactif: #9f9f9f;
 }
 
 .notak-espace[data-theme='sombre'] .notak-toile {
@@ -60,30 +63,69 @@
 }
 
 .notak-arbre-sujet {
-  cursor: pointer;
+  cursor: default;
 }
 
-.notak-arbre-choix {
-  stroke: var(--notak-arbre-choix);
-  stroke-width: 2;
+/* L'épaisseur vient du dessin (2 px de carte, tenus à 2 px d'écran sous 100 % de zoom). */
+.notak-arbre-choix,
+.notak-arbre-survol {
+  stroke: var(--notak-arbre-contour);
+}
+
+.notak-arbre-survol {
+  stroke-opacity: 0.5;
+}
+
+/* La fenêtre n'a plus le focus : le contour passe au gris. */
+.notak-arbre-fenetre[data-inactif] .notak-arbre-choix,
+.notak-arbre-fenetre[data-inactif] .notak-arbre-survol {
+  stroke: var(--notak-arbre-contour-inactif);
 }
 
 .notak-arbre-repli {
   cursor: pointer;
 }
 
+.notak-arbre-repere {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+/* Le champ d'un titre : transparent, posé sur le texte du sujet, à sa police ; rien ne le distingue du sujet que le curseur. */
 .notak-arbre-champ {
   position: absolute;
-  box-sizing: border-box;
+  box-sizing: content-box;
   margin: 0;
-  border: 2px solid var(--notak-arbre-choix);
-  background: var(--notak-arbre-fond);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
   color: var(--notak-arbre-texte);
-  text-align: center;
   resize: none;
   overflow: hidden;
   outline: none;
   white-space: pre-wrap;
+  overflow-wrap: break-word;
+  font-kerning: normal;
+  letter-spacing: normal;
+  pointer-events: auto;
+  cursor: text;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Le titre d'une relation, d'une zone ou d'une limite n'a pas de texte dessiné dessous : le champ lui fait un fond. */
+.notak-arbre-champ[data-objet] {
+  padding: 0 4px;
+  margin-left: -4px;
+  border-radius: 4px;
+  background: var(--notak-arbre-fond);
 }
 
 .notak-arbre-coin {
@@ -120,13 +162,6 @@
   stroke: var(--notak-arbre-choix);
   stroke-width: 1.5;
   stroke-dasharray: 4 3;
-}
-
-.notak-arbre-cible {
-  fill: none;
-  stroke: var(--notak-arbre-choix);
-  stroke-width: 2.5;
-  stroke-linecap: round;
 }
 
 .notak-arbre-barre {
@@ -459,4 +494,52 @@
   color: inherit;
   font-size: 16px;
   cursor: pointer;
+}
+
+/* — La toile : cadre de sélection, repère de dépôt, pastilles, curseurs (passe fond) — */
+
+.notak-arbre-cadre {
+  fill: var(--notak-arbre-contour);
+  fill-opacity: 0.1;
+  stroke: var(--notak-arbre-contour);
+  stroke-opacity: 0.5;
+  stroke-linejoin: miter;
+  shape-rendering: crispEdges;
+  pointer-events: none;
+}
+
+.notak-arbre-depot {
+  fill: var(--notak-arbre-contour);
+  pointer-events: none;
+}
+
+.notak-arbre-depot-trait {
+  fill: none;
+  stroke: var(--notak-arbre-contour);
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.notak-arbre-ajout {
+  cursor: pointer;
+}
+
+.notak-arbre-ajout-disque {
+  fill: var(--notak-arbre-contour);
+}
+
+.notak-arbre-ajout:hover .notak-arbre-ajout-disque {
+  fill: color-mix(in srgb, var(--notak-arbre-contour) 82%, #000);
+}
+
+.notak-arbre-surface[data-curseur] {
+  cursor: grabbing;
+}
+
+.notak-arbre-surface[data-curseur] * {
+  cursor: inherit !important;
+}
+
+.notak-arbre-surface[data-curseur='copie'] {
+  cursor: copy;
 }

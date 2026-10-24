@@ -35,8 +35,8 @@ describe('« Chevauchement des sujets »', () => {
 
   it('Maj lui rend le rattachement', () => {
     expect(ouLacher(l, d, ids.P2!, milieu(ids.P1!), true, { chevauchement: true })).toEqual({ type: 'enfant', parent: ids.P1 })
-    // Ailleurs, Maj garde son sens d'ordinaire : il rattache au sujet le plus proche.
-    expect(ouLacher(l, d, ids.P2!, { x: 2000, y: 2000 }, true, { chevauchement: true }).type).toBe('enfant')
+    // Ailleurs, Maj garde son sens d'ordinaire : un sujet attaché se détache.
+    expect(ouLacher(l, d, ids.P2!, { x: 2000, y: 2000 }, true, { chevauchement: true })).toEqual({ type: 'libre' })
   })
 })
 

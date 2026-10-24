@@ -53,3 +53,53 @@ describe('le clavier d’une carte (docs/XMIND.md § 4)', () => {
     expect(touche('ArrowDown', { altKey: true })).toEqual({ type: 'echanger', id: p0, sens: 1 })
   })
 })
+
+describe('créer et écrire au clavier (docs/XMIND.md § 4 bis)', () => {
+  it('Tab, Entrée et Maj+Entrée donnent un geste de création : jamais l’ouverture du champ', () => {
+    for (const g of [touche('Tab'), touche('Enter'), touche('Enter', { shiftKey: true }), touche('Insert'), touche('Enter', { metaKey: true })]) {
+      expect(g?.type).not.toBe('editer')
+      expect(['enfant', 'frere', 'parent']).toContain(g?.type)
+    }
+  })
+
+  it('Maj+Tab n’est pas à la carte', () => {
+    expect(touche('Tab', { shiftKey: true })).toBeNull()
+  })
+
+  it('sur le central, Entrée reste un geste « frère » (la carte en fait un sous-sujet)', () => {
+    expect(gesteDe(new KeyboardEvent('keydown', { key: 'Enter' }), [c], l, d)).toEqual({ type: 'frere', id: c, avant: false })
+  })
+
+  it('Espace ouvre l’édition du sujet choisi, sans frappe : le titre reste', () => {
+    expect(touche(' ')).toEqual({ type: 'editer', id: p0 })
+  })
+
+  it('un caractère imprimable ouvre l’édition en remplaçant le titre, majuscule comprise', () => {
+    expect(touche('a')).toEqual({ type: 'editer', id: p0, frappe: 'a' })
+    expect(touche('A', { shiftKey: true })).toEqual({ type: 'editer', id: p0, frappe: 'A' })
+    expect(touche('7')).toEqual({ type: 'editer', id: p0, frappe: '7' })
+    expect(touche('?', { shiftKey: true })).toEqual({ type: 'editer', id: p0, frappe: '?' })
+    expect(touche('ç')).toEqual({ type: 'editer', id: p0, frappe: 'ç' })
+  })
+
+  it('une touche qui n’est pas un caractère n’ouvre rien', () => {
+    for (const k of ['Shift', 'Control', 'Meta', 'Alt', 'Escape', 'CapsLock', 'F5', 'Dead', 'Unidentified', 'Home', 'PageDown']) expect(touche(k)).toBeNull()
+  })
+
+  it('un caractère avec Cmd, Ctrl ou Alt n’est pas une frappe', () => {
+    expect(touche('a', { ctrlKey: true })).toBeNull()
+    expect(touche('x', { metaKey: true })?.type).not.toBe('editer')
+    expect(touche('é', { altKey: true })).toBeNull()
+  })
+
+  it('la frappe vise le dernier sujet choisi', () => {
+    expect(gesteDe(new KeyboardEvent('keydown', { key: 'z' }), [p0, p1], l, d)).toEqual({ type: 'editer', id: p1, frappe: 'z' })
+    expect(gesteDe(new KeyboardEvent('keydown', { key: 'z' }), [], l, d)).toEqual({ type: 'editer', id: c, frappe: 'z' })
+  })
+
+  it('Maj+flèche étend la sélection au voisin, sans doubler le sujet', () => {
+    expect(gesteDe(new KeyboardEvent('keydown', { key: 'ArrowLeft', shiftKey: true }), [p0], l, d)).toEqual({ type: 'choisir', ids: [p0, c] })
+    expect(gesteDe(new KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true }), [c, p0], l, d)).toEqual({ type: 'choisir', ids: [c, p0] })
+  })
+})
+

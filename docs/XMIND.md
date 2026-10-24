@@ -79,8 +79,8 @@ proche (`logic-chart.right` → logique droite, `tree.branch-aligned.right` → 
 
 | Touche | Geste |
 |---|---|
-| Tab, Insert | Sous-sujet (enfant), sélectionné et en édition |
-| Entrée | Sujet frère après ; sur le central, un sous-sujet |
+| Tab, Insert | Sous-sujet (enfant), sélectionné ; le champ ne s'ouvre pas |
+| Entrée | Sujet frère après, sélectionné ; sur le central, un sous-sujet |
 | Maj+Entrée | Sujet frère avant |
 | Cmd+Entrée | Sujet parent : s'intercale entre le sujet et son parent |
 | Double-clic dans le vide | Sujet flottant |
@@ -92,8 +92,8 @@ proche (`logic-chart.right` → logique droite, `tree.branch-aligned.right` → 
 
 | Touche | Geste |
 |---|---|
-| Espace, F2, ou taper une lettre | Éditer le titre (la lettre remplace le titre) |
-| Entrée ou Échap dans le titre | Valider ; Maj+Entrée va à la ligne |
+| Espace, F2, double-clic, ou taper une lettre | Éditer le titre (la lettre remplace le titre) |
+| Entrée ou Tab dans le titre | Valider ; Maj+Entrée et Cmd+Entrée vont à la ligne ; Échap abandonne |
 | Suppr, Retour arrière | Supprimer le sujet et ses descendants |
 | Cmd+Retour arrière | Supprimer le sujet seul ; ses enfants remontent à sa place |
 | Cmd+D | Dupliquer la branche après elle |
@@ -118,8 +118,68 @@ proche (`logic-chart.right` → logique droite, `tree.branch-aligned.right` → 
 | Cmd+F | Chercher dans la carte |
 
 - **Glisser un sujet** sur un autre le rattache comme enfant ; entre deux frères, il s'y insère. Glisser hors
-  de tout sujet en fait un sujet flottant. Maintenir Maj pendant le glisser inverse ce comportement.
+  de tout sujet en fait un sujet flottant. Maj détache, Alt copie (voir § 4 bis).
 - → Notak : les touches se lisent sur le caractère tapé (`event.key`), pour qu'elles tombent juste en AZERTY.
+
+## 4 bis. La toile : cadre, défilement, glisser, contour, édition en place
+
+Relevé : `notak-chantiers/interface-xmind/5-toile-gestes.md`, `6-rangs-et-edition.md` § 3 et `8-observe-a-l-ecran.md`
+(valeurs tirées de Xmind 26.05, jamais son code). Code : `elements/arbre/Arbre.tsx` (les événements),
+`modele/cadre.ts`, `modele/camera.ts`, `modele/depot.ts`, `modele/contour.ts`, `modele/champ.ts`, `modele/lacher.ts`
+(les décisions, en fonctions pures testées).
+
+**Un glisser commence au-delà de 2 px** (sur l'un des deux axes) ; en deçà c'est un clic. Le pointeur est alors capturé.
+
+**Cadre de sélection** (glisser sur le fond vide)
+- Remplissage `rgba(46,189,255,.10)`, trait `rgba(46,189,255,.5)` de 1 px d'écran, angles droits.
+- Un sujet est pris dès que le cadre le touche d'une aire non nulle (intersection stricte, un contact de bord ne compte
+  pas), sujets seulement (ni relations, ni limites, ni zones). La sélection suit le cadre à chaque mouvement : le
+  rétrécir lâche des sujets.
+- Maj ou Cmd (pressés avant ou pendant le glisser) ajoutent : la sélection ne fait que grandir. Un appui simple sur le
+  fond vide la sélection (Maj et Cmd la gardent). Échap arrête le cadre ; la sélection garde ce qu'il avait pris.
+
+**Défilement et zoom**
+- Molette et pavé : 1 pour 1. Cmd + molette ou pincement : zoom autour du pointeur, facteur
+  `1 + clamp(−deltaY × 0,01 ; ± 0,5)`, de 0,1 à 5.
+- **Clic droit glissé** : défile la carte (curseur de la main fermée) ; sans glisser, le menu s'ouvre au relâchement.
+  **Glisser le sujet central** : défile aussi, il ne bouge pas.
+- La carte se pousse jusqu'à ne toucher la fenêtre que par un bord (le contenu plus une fenêtre de marge de chaque côté).
+- **Auto-défilement** pendant un cadre ou un glisser : au-delà de la zone morte `max(20 px de carte ; 5 % de la
+  fenêtre)`, la caméra avance de 12 % de l'excès à chaque image, sans plafond.
+- **Révélation** : après avoir créé un sujet ou choisi un voisin au clavier (et pendant que la frappe agrandit un sujet),
+  la caméra ne bouge que si le sujet sort de la vue (marge `max(20 ; 5 %)`), du minimum, en 200 ms linéaire ; un sujet
+  trop grand est centré ; un décalage qui sortirait de l'étendue défilable est ignoré.
+
+**Glisser un sujet**
+- Les sujets de tête de la sélection se glissent ensemble (leurs descendants suivent). Un sujet d'une sélection multiple
+  la garde à l'appui ; relâché sans glisser, il la réduit à lui. Le central ne se glisse pas.
+- Une copie à 70 % suit le pointeur ; l'original, avec sa branche et son trait de parent, reste à 30 %. Curseur de la
+  main fermée, ou « copie » avec Alt.
+- **Repère de dépôt** : un faux nœud plein de 50 × 18 px (rayon 4, `#2EBDFF`), à l'endroit où le sujet s'insérera, relié
+  à son futur parent par une branche de même forme et même épaisseur, en bleu. Rien autour du parent. Hors de toute
+  cible, aucun repère : le sujet devient flottant.
+- **Maj** détache : le sujet flotte là où on le lâche, cible ou non (un flottant, lui, peut alors se rattacher).
+  **Alt** copie la branche au lieu de la déplacer. **Échap** annule. Une branche repliée qui reçoit un sujet se déplie.
+
+**Contour de sélection** : `#2EBDFF`, 2 px, à 1 px du sujet, coins de 4 px, gris `#9F9F9F` quand la fenêtre n'a pas le
+focus, le tout multiplié par `max(1, 1/zoom)` (taille constante à l'écran sous 100 %). Un contour par sujet choisi. Le
+**survol** dessine le même contour à 50 %. Sélection à l'appui ; Cmd bascule un sujet ; Maj ajoute aussi les frères d'entre
+deux.
+- **Pastilles « + »** d'un sujet choisi seul (fenêtre active, zoom > 0,3, ni édition ni geste en cours) : disques bleus de
+  18 px, à droite (ou à gauche pour une branche de ce côté) pour un enfant, dessous pour un frère après lui. Le central
+  n'a que la première.
+
+**Édition du titre en place**
+- Un champ transparent, sans bordure ni contour, posé exactement sur le texte du sujet, à sa police, sa taille, sa
+  graisse, sa couleur, son alignement et son interligne ; il vit dans le repère de la carte, donc il est juste à tout zoom.
+- Pendant la frappe, le texte en cours remplace le titre dans ce que la carte mesure et dispose : le sujet grandit, passe
+  à la ligne à la largeur maximale de son rang, et la carte se range autour. Le contour de sélection reste autour du sujet.
+- Entrée et Tab valident ; Maj+Entrée et Cmd+Entrée vont à la ligne ; **Échap annule** (le titre reste). Un sujet
+  jamais titré (son titre est celui qu'il a reçu en naissant : « Sujet principal 3 »…) s'ouvre tout sélectionné, un sujet
+  titré avec le curseur à la fin.
+- Entrée, Tab et Maj+Entrée **créent et choisissent** le sujet sans ouvrir le champ ; Espace, F2, un double-clic ou un
+  caractère imprimable l'ouvrent (le caractère remplace le titre). Un double-clic dans le vide crée un flottant et ouvre
+  son champ.
 
 ## 5. Habillage
 
