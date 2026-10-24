@@ -48,23 +48,35 @@ describe('NOTION.md § 4 : les raccourcis markdown', () => {
     }
   })
 
-  it('`> ` fait un dépliant, le curseur dans son résumé', () => {
+  it('`> ` fait un dépliant', () => {
     const ed = ouvrir()
     taper(ed, '> Plus')
-    expect(types(ed)).toEqual(['deroulant'])
-    expect(ed.state.selection.$from.parent.type.name).toBe('resumeDeroulant')
+    expect(types(ed)).toEqual(['depliant'])
     expect(texte(ed)).toBe('Plus')
+  })
+
+  it('un raccourci garde le retrait du bloc', () => {
+    const ed = ouvrir({ type: 'paragraph', attrs: { retrait: 2 } })
+    taper(ed, '- x')
+    expect(ed.getJSON().content?.[0]).toMatchObject({ type: 'puce', attrs: { retrait: 2 } })
+  })
+
+  it('`---` fait un séparateur tout de suite, un texte neuf dessous', () => {
+    const ed = ouvrir()
+    taper(ed, '---')
+    expect(types(ed)).toEqual(['horizontalRule', 'paragraph'])
+    expect(ed.state.selection.$from.parent.type.name).toBe('paragraph')
   })
 
   it('`" ` fait une citation', () => {
     const ed = ouvrir()
     taper(ed, '" cité')
-    expect(types(ed)).toEqual(['blockquote'])
+    expect(types(ed)).toEqual(['citation'])
     expect(texte(ed)).toBe('cité')
   })
 
   it('`- `, `1. `, `a. ` et `[] ` font des listes', () => {
-    for (const [signe, type] of [['- ', 'bulletList'], ['1. ', 'orderedList'], ['a. ', 'orderedList'], ['[] ', 'taskList']] as const) {
+    for (const [signe, type] of [['- ', 'puce'], ['* ', 'puce'], ['1. ', 'numero'], ['a. ', 'numero'], ['[] ', 'tache']] as const) {
       const ed = ouvrir()
       taper(ed, `${signe}x`)
       expect(types(ed)).toEqual([type])
@@ -123,10 +135,10 @@ describe('NOTION.md § 5 : Transformer en', () => {
     }
   })
 
-  it('une puce devient une tâche sans rester dans la liste à puces', () => {
-    const ed = ouvrir({ type: 'bulletList', content: [{ type: 'listItem', content: [p('a')] }] })
+  it('une puce devient une tâche, en gardant son id et son retrait', () => {
+    const ed = ouvrir({ type: 'puce', attrs: { id: 'X', retrait: 1 }, content: [{ type: 'text', text: 'a' }] })
     transformer(ed, 'tache')
-    expect(types(ed)).toEqual(['taskList'])
+    expect(ed.getJSON().content?.[0]).toMatchObject({ type: 'tache', attrs: { id: 'X', retrait: 1 } })
   })
 
   it('un titre rendu dépliant range dessous les blocs jusqu’au prochain titre de son rang', () => {
@@ -138,17 +150,16 @@ describe('NOTION.md § 5 : Transformer en', () => {
       { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Suite' }] },
     )
     transformer(ed, 'titreDeroulant2')
-    const [d, suite] = ed.getJSON().content ?? []
-    expect(d).toMatchObject({ type: 'deroulant', attrs: { niveau: 2 } })
-    expect(d!.content!.map((n) => n.type)).toEqual(['resumeDeroulant', 'paragraph', 'heading', 'paragraph'])
-    expect(suite).toMatchObject({ type: 'heading', attrs: { level: 2 } })
+    const blocs = ed.getJSON().content ?? []
+    expect(blocs[0]).toMatchObject({ type: 'heading', attrs: { level: 2, depliant: true } })
+    expect(blocs.map((n) => n.attrs?.retrait ?? 0)).toEqual([0, 1, 1, 1, 0])
   })
 
-  it('un dépliant défait rend ses blocs au flux', () => {
-    const ed = ouvrir({ type: 'deroulant', content: [{ type: 'resumeDeroulant', content: [{ type: 'text', text: 'R' }] }, p('dedans')] })
+  it('un dépliant défait garde ses enfants sous lui', () => {
+    const ed = ouvrir({ type: 'depliant', content: [{ type: 'text', text: 'R' }] }, { type: 'paragraph', attrs: { retrait: 1 }, content: [{ type: 'text', text: 'dedans' }] })
     transformer(ed, 'titre1')
     expect(types(ed)).toEqual(['heading', 'paragraph'])
-    expect(texte(ed)).toBe('Rdedans')
+    expect(ed.getJSON().content?.[1]?.attrs?.retrait).toBe(1)
   })
 
   it('⌘⌥ et un chiffre transforment, lus sur la touche', () => {
@@ -184,8 +195,8 @@ describe('les gestes du menu', () => {
     expect(y!.attrs?.id).not.toBe(x!.attrs?.id)
   })
 
-  it('supprime le bloc ; le seul élément d’une liste emporte sa liste', () => {
-    const ed = ouvrir({ type: 'bulletList', content: [{ type: 'listItem', content: [p('a')] }] }, p('b'))
+  it('supprime le bloc avec ses enfants', () => {
+    const ed = ouvrir({ type: 'puce', content: [{ type: 'text', text: 'a' }] }, { type: 'puce', attrs: { retrait: 1 }, content: [{ type: 'text', text: 'a1' }] }, p('b'))
     supprimerBloc(ed)
     expect(types(ed)).toEqual(['paragraph'])
     expect(texte(ed)).toBe('b')

@@ -33,7 +33,7 @@ describe('NOTION.md § 9 : le document écrit à plusieurs', () => {
     moi.commands.insertContent('Bonjour')
     transformer(moi, 'deroulant')
     expect(autre.getJSON()).toEqual(moi.getJSON())
-    expect(autre.getJSON().content?.[0]?.type).toBe('deroulant')
+    expect(autre.getJSON().content?.[0]?.type).toBe('depliant')
     expect(blocsDe(autre.state.doc)[0]?.id).toBeTruthy()
   })
 

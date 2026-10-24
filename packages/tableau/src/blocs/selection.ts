@@ -2,7 +2,7 @@ import type { Node as NoeudPM } from '@tiptap/pm/model'
 import { type EditorState, Plugin, PluginKey, TextSelection, type Transaction } from '@tiptap/pm/state'
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
 import { Extension } from '@tiptap/react'
-import { blocA, decaler, dupliquer, racines, supprimer } from './gestes'
+import { blocA, decaler, dupliquer, indenter, racines, supprimer } from './gestes'
 import { type Bloc, blocsDe } from './modele'
 
 /**
@@ -48,22 +48,36 @@ export function choisir(state: EditorState, choix: Choix | null, tr: Transaction
   const ids = idsDuChoix(tr.doc, choix)
   const r = racines(tr.doc, ids)
   if (r.length) {
-    const premier = r[0]!
-    const dernier = r[r.length - 1]!
-    tr.setSelection(TextSelection.between(tr.doc.resolve(premier.pos), tr.doc.resolve(dernier.pos + dernier.noeud.nodeSize)))
+    tr.setSelection(TextSelection.between(tr.doc.resolve(r[0]!.pos), tr.doc.resolve(r[r.length - 1]!.fin)))
   }
   return tr
 }
 
-/** Choisit le bloc qui contient la position (Échap, la poignée). */
-export function choisirBlocA(view: EditorView, pos: number, etendre = false): boolean {
-  const ou = blocA(view.state.doc.resolve(Math.min(pos, view.state.doc.content.size)))
-  if (ou === null) return false
-  const id = view.state.doc.nodeAt(ou)?.attrs.id as string | null
+/** L'id du bloc qui contient la position. */
+export function idA(doc: NoeudPM, pos: number): string | null {
+  const ou = blocA(doc.resolve(Math.max(0, Math.min(pos, doc.content.size))))
+  return ou === null ? null : ((doc.nodeAt(ou)?.attrs.id as string | null) ?? null)
+}
+
+/** Choisit le bloc qui contient la position (la poignée, Maj+clic) ; `jusqua` : jusqu'au bloc de cette autre position. */
+export function choisirBlocA(view: EditorView, pos: number, etendre = false, jusqua?: number): boolean {
+  const id = idA(view.state.doc, pos)
   if (!id) return false
   const avant = CLE_CHOIX.getState(view.state)
-  view.dispatch(choisir(view.state, etendre && avant ? { ancre: avant.ancre, tete: id } : { ancre: id, tete: id }))
+  const tete = jusqua === undefined ? id : (idA(view.state.doc, jusqua) ?? id)
+  view.dispatch(choisir(view.state, etendre && avant ? { ancre: avant.ancre, tete: id } : { ancre: id, tete }))
   return true
+}
+
+/** Les blocs de chaque sous-arbre choisi : ce que le surlignage couvre. */
+function noeudsDe(doc: NoeudPM, de: number, a: number): [number, NoeudPM][] {
+  const sortie: [number, NoeudPM][] = []
+  doc.nodesBetween(de, a, (n, pos) => {
+    if (pos < de) return true
+    sortie.push([pos, n])
+    return false
+  })
+  return sortie
 }
 
 /** Sort de la sélection de blocs, le curseur à la fin du bloc de tête. */
@@ -98,8 +112,12 @@ function toucheDuChoix(view: EditorView, e: KeyboardEvent, choix: Choix): boolea
   }
   if (mod && e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) return garder(decaler(state, ids, e.key === 'ArrowUp' ? -1 : 1))
   if (mod && e.key.toLowerCase() === 'd') {
-    const tr = dupliquer(state, ids)
-    if (tr) view.dispatch(tr.setMeta(CLE_CHOIX, null))
+    const d = dupliquer(state, ids)
+    if (d) view.dispatch(choisir(state, { ancre: d.copies[0]!, tete: d.copies[d.copies.length - 1]! }, d.tr))
+    return true
+  }
+  if (e.key === 'Tab') {
+    garder(indenter(state, ids, e.shiftKey ? -1 : 1, false))
     return true
   }
   if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
@@ -113,7 +131,7 @@ function toucheDuChoix(view: EditorView, e: KeyboardEvent, choix: Choix): boolea
   // ⌘⌥chiffre, ⌘/ : la transformation s'applique aux blocs choisis par la sélection de l'éditeur.
   if (mod) return false
   // Une lettre tapée n'écrase rien (NOTION.md § 7).
-  if (e.key.length === 1 || e.key === 'Tab') return true
+  if (e.key.length === 1) return true
   return false
 }
 
@@ -143,7 +161,7 @@ export const SelectionBlocs = Extension.create({
             const r = racines(state.doc, idsDuChoix(state.doc, choix))
             return DecorationSet.create(
               state.doc,
-              r.map(({ pos, noeud }) => Decoration.node(pos, pos + noeud.nodeSize, { class: 'notak-bloc-choisi' })),
+              r.flatMap(({ pos, fin }) => noeudsDe(state.doc, pos, fin).map(([p, n]) => Decoration.node(p, p + n.nodeSize, { class: 'notak-bloc-choisi' }))),
             )
           },
           attributes: (state): Record<string, string> => (CLE_CHOIX.getState(state) ? { 'data-choix-blocs': '' } : {}),
@@ -151,7 +169,8 @@ export const SelectionBlocs = Extension.create({
             if (e.isComposing) return false
             const choix = CLE_CHOIX.getState(view.state)
             if (choix) return toucheDuChoix(view, e, choix)
-            if (e.key === 'Escape' && !e.metaKey && !e.ctrlKey && !e.altKey) return choisirBlocA(view, view.state.selection.from)
+            // Échap choisit tous les blocs que la sélection de texte touche (NOTION.md § 7).
+            if (e.key === 'Escape' && !e.metaKey && !e.ctrlKey && !e.altKey) return choisirBlocA(view, view.state.selection.from, false, view.state.selection.to)
             const mod = e.metaKey || e.ctrlKey
             const ici = blocA(view.state.selection.$from)
             const id = ici === null ? null : (view.state.doc.nodeAt(ici)?.attrs.id as string | null)
@@ -162,8 +181,8 @@ export const SelectionBlocs = Extension.create({
               return true
             }
             if (!e.shiftKey && !e.altKey && e.key.toLowerCase() === 'd') {
-              const tr = dupliquer(view.state, [id])
-              if (tr) view.dispatch(tr)
+              const d = dupliquer(view.state, [id])
+              if (d) view.dispatch(choisir(view.state, { ancre: d.copies[0]!, tete: d.copies[0]! }, d.tr))
               return true
             }
             return false

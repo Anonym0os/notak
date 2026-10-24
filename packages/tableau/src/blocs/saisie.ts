@@ -1,5 +1,5 @@
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
-import { type Editor, Extension, InputRule, markInputRule, wrappingInputRule } from '@tiptap/react'
+import { type Editor, Extension, InputRule, markInputRule } from '@tiptap/react'
 import { normaliserUrl } from '../elements/note/conversion'
 import { langue } from '../langue'
 import type { Vers } from './catalogue'
@@ -37,21 +37,47 @@ export function guillemet(avant: string, francais: boolean): string | null {
 /** L'apostrophe : droite après une lettre, elle devient courbe (`l'arbre` → `l’arbre`). */
 const APOSTROPHE = /(\p{L})'$/u
 
-/** `>` puis une espace en tête d'un paragraphe : il devient un dépliant (NOTION.md § 4 ; la note garde la citation). */
-const regleDeroulant = () =>
+/**
+ * Un raccourci en tête de bloc (NOTION.md § 4) : le motif tapé disparaît et le bloc change de type, en gardant son
+ * id, son retrait et sa couleur. Jamais dans du code, ni dans un bloc qui n'est pas de la page (une cellule).
+ */
+const regleType = (find: RegExp, type: string, attrs: (m: RegExpMatchArray) => Record<string, unknown> = () => ({})) =>
   new InputRule({
-    find: /^\s*>\s$/,
+    find,
+    handler: ({ state, range, match }) => {
+      const $d = state.doc.resolve(range.from)
+      const bloc = $d.parent
+      if (!bloc.isTextblock || bloc.type.name === 'codeBlock' || $d.depth < 1) return null
+      if (!['doc', 'colonne'].includes($d.node($d.depth - 1).type.name)) return null
+      const cible = state.schema.nodes[type]!
+      const { id, retrait, couleur } = bloc.attrs
+      state.tr.delete(range.from, range.to).setNodeMarkup($d.before(), cible, { id, retrait, couleur, ...attrs(match) })
+    },
+  })
+
+/** Les raccourcis de type en tête de bloc, dans l'ordre où ils sont essayés. */
+const reglesDeType = () => [
+  regleType(/^(#{1,3})\s$/, 'heading', (m) => ({ level: m[1]!.length })),
+  regleType(/^[-*+]\s$/, 'puce'),
+  regleType(/^(?:\d+|[a-z]|[ivx]{1,4})\.\s$/, 'numero'),
+  regleType(/^\[(x|X| )?\]\s$/, 'tache', (m) => ({ coche: !!m[1] && m[1] !== ' ' })),
+  regleType(/^>\s$/, 'depliant'),
+  regleType(/^["“«]\s$/u, 'citation'),
+  regleType(/^```([\w+#.-]*)\s?$/, 'codeBlock', (m) => ({ language: m[1] || null })),
+]
+
+/** `---` (ou `***`, `___`) seul sur la ligne : un séparateur tout de suite, un texte neuf dessous (NOTION.md § 4). */
+const regleSeparateur = () =>
+  new InputRule({
+    find: /^(?:---|—-|\*\*\*|___)$/,
     handler: ({ state, range }) => {
       const $d = state.doc.resolve(range.from)
-      if ($d.parent.type.name !== 'paragraph') return null
-      const { deroulant, resumeDeroulant } = state.schema.nodes
-      const conteneur = $d.node($d.depth - 1)
-      const index = $d.index($d.depth - 1)
-      if (!conteneur.canReplaceWith(index, index + 1, deroulant!)) return null
-      const tr = state.tr.delete(range.from, range.to)
+      if ($d.parent.type.name === 'codeBlock' || $d.depth < 1 || !['doc', 'colonne'].includes($d.node($d.depth - 1).type.name)) return null
       const debut = $d.before()
-      const p = tr.doc.nodeAt(debut)!
-      tr.replaceWith(debut, debut + p.nodeSize, deroulant!.create({ id: p.attrs.id, couleur: p.attrs.couleur }, resumeDeroulant!.create(null, p.content)))
+      const { retrait } = $d.parent.attrs
+      const tr = state.tr.delete(range.from, range.to)
+      const bloc = tr.doc.nodeAt(debut)!
+      tr.replaceWith(debut, debut + bloc.nodeSize, [state.schema.nodes.horizontalRule!.create({ retrait }), state.schema.nodes.paragraph!.create({ retrait })])
       tr.setSelection(TextSelection.create(tr.doc, debut + 2))
     },
   })
@@ -70,13 +96,10 @@ export const SaisieBlocs = Extension.create({
   priority: 1000,
   addInputRules() {
     const { strike, link } = this.editor.schema.marks
-    const { blockquote, orderedList } = this.editor.schema.nodes
     const francais = () => langue() !== 'en'
     return [
-      regleDeroulant(),
-      wrappingInputRule({ find: /^\s*["“«]\s$/u, type: blockquote! }),
-      // `a. ` et `i. ` font aussi une liste numérotée ; sa numérotation suit la profondeur.
-      wrappingInputRule({ find: /^(?:[a-z]|[ivx]{1,4})\.\s$/, type: orderedList! }),
+      ...reglesDeType(),
+      regleSeparateur(),
       markInputRule({ find: /(?:^|\s)(~(?!~)((?:[^~]+))~(?!~))$/, type: strike! }),
       new InputRule({
         find: /\[([^\]]+)\]\((\S+)\)$/,
@@ -152,17 +175,16 @@ export interface GestesBlocs {
   derniereCouleur(): void
 }
 
-/** ⌘Entrée : coche la tâche du curseur, ou ouvre et ferme son dépliant. */
+/** ⌘Entrée : coche la tâche du curseur, ou ouvre et ferme son dépliant (NOTION.md § 5). */
 export function basculer(editor: Editor): boolean {
   const { $from } = editor.state.selection
-  for (let d = $from.depth; d > 0; d--) {
-    const n = $from.node(d)
-    const attribut = n.type.name === 'taskItem' ? 'checked' : n.type.name === 'deroulant' ? 'ouvert' : null
-    if (!attribut) continue
-    editor.view.dispatch(editor.state.tr.setNodeAttribute($from.before(d), attribut, !n.attrs[attribut]))
-    return true
-  }
-  return false
+  const n = $from.parent
+  const pos = $from.depth ? $from.before() : -1
+  const attribut = n.type.name === 'tache' ? 'coche' : n.type.name === 'depliant' || (n.type.name === 'heading' && n.attrs.depliant) ? 'ouvert' : null
+  if (!attribut || pos < 0) return false
+  const valeur = attribut === 'coche' ? !n.attrs.coche : n.attrs.ouvert === false
+  editor.view.dispatch(editor.state.tr.setNodeAttribute(pos, attribut, valeur))
+  return true
 }
 
 /** Les touches qui ouvrent un menu de l'élément : ⌘/ et ⌘⇧H. */

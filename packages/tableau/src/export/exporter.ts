@@ -1,4 +1,5 @@
 import type { ContenuLu, ElementLu, NoeudTexte, TableauLu } from './contenu.ts'
+import { aplatir, deplier } from '../blocs/migration.ts'
 
 /** `md` : Markdown ; `txt` : texte brut, sans aucun signe de mise en forme. */
 export type FormatExport = 'md' | 'txt'
@@ -135,6 +136,12 @@ export function texteRiche(n: NoeudTexte, format: FormatExport, titreDe: (id: st
 
 const doc = (v: unknown): NoeudTexte | null => (v && typeof v === 'object' ? (v as NoeudTexte) : null)
 
+/** Le texte d'un document, dans l'écriture imbriquée que lisent les exports (docs/NOTION.md § 1). */
+const imbrique = (v: unknown): NoeudTexte | null => {
+  const d = doc(v)
+  return d ? deplier(aplatir(d)) : null
+}
+
 function titreDeLien(c: ContenuLu): string {
   const apercu = (c.apercu ?? {}) as Record<string, unknown>
   return chaine(c.titre) || chaine(apercu.titre) || chaine(c.url)
@@ -190,7 +197,7 @@ function lignesDe(e: ElementLu, r: Rendu, enfants: Map<string, ElementLu[]>, niv
     case 'arbre':
       return planDeCarte(c.sujets, r)
     case 'document': {
-      const d = doc(c.texte)
+      const d = imbrique(c.texte)
       const titre = chaine(c.titre)
       const entete = titre ? [r.md ? `${'#'.repeat(Math.min(6, niveau))} ${titre}` : titre] : []
       return assembler([entete, d ? blocs(d.content ?? [], r, niveau) : []])

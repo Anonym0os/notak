@@ -6,7 +6,7 @@ import { t } from '../langue'
 import type { Transaction } from '@tiptap/pm/state'
 import { ACTIONS_BLOC, CATALOGUE, type Couleur, ENTREES_COULEURS, type Entree, TRANSFORMATIONS, chercher, couleurEnAttribut, declencheurSlash, tropLoin } from './catalogue'
 import { colorerBlocs, dupliquer, racines, supprimer } from './gestes'
-import { blocsChoisis } from './selection'
+import { blocsChoisis, choisir as choisirBlocs } from './selection'
 import { blocDuCurseur, blocVide, colorer, dupliquerBloc, inserer, insererDessous, supprimerBloc, transformer, versActuel } from './transformer'
 
 /**
@@ -157,8 +157,9 @@ export function MenuBlocs({ editeur, pont, demande, choisirImage, surCouleur, co
       else colorer(editeur, effet.couleur)
       surCouleur(effet.couleur)
     } else if (effet.action === 'dupliquer') {
-      if (choisis.length) faire(dupliquer(editeur.state, choisis))
-      else dupliquerBloc(editeur)
+      const d = choisis.length ? dupliquer(editeur.state, choisis) : null
+      if (d) editeur.view.dispatch(choisirBlocs(editeur.state, { ancre: d.copies[0]!, tete: d.copies[d.copies.length - 1]! }, d.tr))
+      else if (!choisis.length) dupliquerBloc(editeur)
     } else if (effet.action === 'supprimer') {
       if (choisis.length) faire(supprimer(editeur.state, choisis))
       else supprimerBloc(editeur)

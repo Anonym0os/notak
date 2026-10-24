@@ -1,4 +1,4 @@
-import { EditorContent, useEditor } from '@tiptap/react'
+import { EditorContent, getSchema, useEditor } from '@tiptap/react'
 import { renderToReactElement } from '@tiptap/static-renderer/pm/react'
 import { type ReactNode, type RefObject, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -9,6 +9,9 @@ import { type Pont, Propositions, extensionPropositions } from '../note/Proposit
 import { Surcouche } from '../surcouche'
 import { CLE_IDS } from '../../blocs/ids'
 import { degrader, lisible } from '../../blocs/lisible'
+import { aplatir, deplier } from '../../blocs/migration'
+import { annoterPage } from '../../blocs/structure'
+import { EXTENSIONS_NOTE } from '../note/extensions'
 import { Bulle } from '../../blocs/Bulle'
 import type { Couleur } from '../../blocs/catalogue'
 import { Invite } from '../../blocs/invite'
@@ -41,10 +44,13 @@ import { fermerMenus, useMenu } from '../../menuUnique'
  */
 const Lu = memo(function Lu({ texte, fils, adresse }: { texte: NoeudTexte; fils?: Fils | undefined; adresse?: Adresse | undefined }) {
   // Un passage dont le fil n'a aucun message (marqué, rien écrit) ne se souligne pas.
-  const rendu = useMemo(() => renderToReactElement({ content: sansPassagesMuets(degrader(texte, SCHEMA), fils), extensions: EXTENSIONS_BLOCS }), [texte, fils])
+  const rendu = useMemo(() => renderToReactElement({ content: sansPassagesMuets(degrader(aplatir(texte), SCHEMA), fils), extensions: EXTENSIONS_BLOCS }), [texte, fils])
   const racine = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    if (racine.current && adresse) remplirImages(racine.current, adresse)
+    if (!racine.current) return
+    // Les numéros, les blocs qu'un dépliant fermé cache, le cadre des encadrés : ce que l'éditeur pose en décorations.
+    annoterPage(racine.current)
+    if (adresse) remplirImages(racine.current, adresse)
   }, [rendu, adresse])
   return (
     <div className="notak-texte notak-blocs" ref={racine}>
@@ -52,6 +58,9 @@ const Lu = memo(function Lu({ texte, fils, adresse }: { texte: NoeudTexte; fils?
     </div>
   )
 })
+
+/** Le schéma de la note, pour imprimer l'écriture imbriquée. */
+const SCHEMA_NOTE = getSchema(EXTENSIONS_NOTE)
 
 /** L'adresse affichable d'un fichier du tableau. */
 type Adresse = (fichier: string) => Promise<string | null>
@@ -139,7 +148,7 @@ export function RenduDocument({ element, choisie, enEdition, contexte, brouillon
   const icone = pageDe(c.page).icone
   const adresse = useMemo(() => (fichiers ? (id: string) => fichiers.adresse(id) : undefined), [fichiers])
   // Un texte qu'une version plus récente a écrit ne s'édite pas ici : l'éditeur le viderait (docs/NOTION.md § 1).
-  const editable = useMemo(() => lisible(c.texte, SCHEMA), [c.texte])
+  const editable = useMemo(() => lisible(aplatir(c.texte), SCHEMA), [c.texte])
   const nom = (
     <>
       {titreSurCarte ? (
@@ -211,7 +220,7 @@ export function RenduDocument({ element, choisie, enEdition, contexte, brouillon
 }
 
 /** L'aperçu d'une carte ne dessine que le début du texte : le reste est caché de toute façon. */
-const premiersBlocsApercu = (doc: NoeudTexte): NoeudTexte => premiersBlocs(doc)
+const premiersBlocsApercu = (doc: NoeudTexte): NoeudTexte => premiersBlocs(aplatir(doc))
 
 /**
  * « Export ▾ » : un panneau de 20 rem avec sa flèche, son titre et quatre lignes à pictogramme : le PDF (l'impression
@@ -220,16 +229,17 @@ const premiersBlocsApercu = (doc: NoeudTexte): NoeudTexte => premiersBlocs(doc)
 function MenuExport({ titre, lireTexte }: { titre: string; lireTexte(): NoeudTexte }) {
   const [ouvert, setOuvert, ancre] = useMenu()
   const fichier = (format: FormatDocument) => {
-    const texte = documentEnTexte(titre, lireTexte(), format)
+    const texte = documentEnTexte(titre, deplier(aplatir(lireTexte())), format)
     telecharger(nomFichier(titre, format), texte, format === 'md' ? 'text/markdown' : 'text/plain')
     setOuvert(false)
   }
   const word = () => {
-    telechargerOctets(nomFichier(titre, 'docx'), documentEnDocx(titre, lireTexte()), 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    telechargerOctets(nomFichier(titre, 'docx'), documentEnDocx(titre, deplier(aplatir(lireTexte()))), 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
     setOuvert(false)
   }
   const pdf = () => {
-    const corps = renderToStaticMarkup(renderToReactElement({ content: degrader(lireTexte(), SCHEMA), extensions: EXTENSIONS_BLOCS }))
+    // L'impression lit l'écriture imbriquée : les listes s'y numérotent seules.
+    const corps = renderToStaticMarkup(renderToReactElement({ content: degrader(deplier(aplatir(lireTexte())), SCHEMA_NOTE), extensions: EXTENSIONS_NOTE }))
     imprimer(pageImpression(titre.trim() || t('commun.sansTitre'), corps))
     setOuvert(false)
   }
@@ -344,9 +354,11 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
   const [titre, setTitre] = useState(contenu.titre)
   const [lien, setLien] = useState<string | null>(null)
   // Le titre, le texte et les fils des passages changent chacun de leur côté : le brouillon porte toujours les derniers.
+  // Un document d'avant les blocs à plat (ou une note convertie) s'ouvre aplati (NOTION.md § 1).
+  const initial = useMemo(() => aplatir(contenu.texte), [])
   const dernier = useRef<{ titre: string; texte: NoeudTexte; fils: Fils | undefined; page: PageDocument }>({
     titre: contenu.titre,
-    texte: contenu.texte,
+    texte: initial,
     fils: contenu.fils,
     page: pageDe(contenu.page),
   })
@@ -379,7 +391,7 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
   const gestes = useRef<GestesBlocs>({ transformerEn: () => {}, derniereCouleur: () => {} })
   const fichiers = contexte.services.fichiers
   // À plusieurs, le texte vit dans le fragment Yjs du document ; lu une fois, à l'entrée en édition (NOTION.md § 9).
-  const fragment = useMemo(() => textePartage(contexte, id, contenu.texte, SCHEMA), [])
+  const fragment = useMemo(() => textePartage(contexte, id, initial, SCHEMA), [])
   const extensions = useMemo(
     () => [
       ...(fragment ? [...EXTENSIONS_BLOCS_PARTAGEE, ...extensionsDuPartage(fragment, contexte)] : EXTENSIONS_BLOCS).map((x) => (x.name === 'image' && fichiers ? ImageBloc.configure({ adresse: (id) => fichiers.adresse(id) }) : x)),
@@ -392,7 +404,7 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
   )
   const editeur = useEditor({
     extensions,
-    ...(fragment ? {} : { content: contenu.texte }),
+    ...(fragment ? {} : { content: initial }),
     editorProps: {
       attributes: { class: 'notak-texte notak-blocs', 'aria-label': t('document.texte') },
       // ⌘⌥M : commenter le passage choisi, comme dans une note.

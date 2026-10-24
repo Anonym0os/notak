@@ -1,7 +1,7 @@
-import type { Node as NoeudPM, NodeType } from '@tiptap/pm/model'
+import type { Node as NoeudPM } from '@tiptap/pm/model'
 import { type EditorState, Plugin, PluginKey, TextSelection, type Transaction } from '@tiptap/pm/state'
 import { Extension } from '@tiptap/react'
-import { racines, retirer } from './gestes'
+import { racines, retirer, sousArbre } from './gestes'
 import { blocsDe } from './modele'
 
 /**
@@ -13,19 +13,6 @@ export const COLONNES_MAX = 5
 
 export type Flanc = 'gauche' | 'droite'
 
-/** Les blocs posés dans une colonne neuve : un élément de liste retrouve sa liste. */
-function dansColonne(state: EditorState, r: ReturnType<typeof racines>): NoeudPM[] {
-  const listes = new Map<NoeudPM, NodeType>()
-  for (const { pos, noeud } of r) {
-    const parent = state.doc.resolve(pos).parent
-    if (['bulletList', 'orderedList', 'taskList'].includes(parent.type.name)) listes.set(noeud, parent.type)
-  }
-  return r.map(({ noeud }) => {
-    const liste = listes.get(noeud)
-    return liste ? liste.create(null, noeud) : noeud
-  })
-}
-
 /**
  * Pose les blocs sur le flanc du bloc `cible` : à côté d'un bloc du flux, une rangée de deux colonnes les réunit ; à
  * côté d'un bloc déjà dans une colonne, une colonne s'ajoute à sa rangée. `null` si la rangée est pleine ou si la cible
@@ -34,12 +21,14 @@ function dansColonne(state: EditorState, r: ReturnType<typeof racines>): NoeudPM
 export function enColonnes(state: EditorState, ids: readonly string[], cible: string, flanc: Flanc, copier = false): Transaction | null {
   const r = racines(state.doc, ids)
   const c = blocsDe(state.doc).find((b) => b.id === cible)
-  if (r.length === 0 || !c) return null
-  for (const { pos, noeud } of r) if (c.pos >= pos && c.pos < pos + noeud.nodeSize) return null
+  if (r.length === 0 || !c || c.type === 'colonne') return null
+  for (const { pos, fin } of r) if (c.pos >= pos && c.pos < fin) return null
+  if (r.some((x) => x.noeud.type.name === 'colonnes')) return null
   const { colonnes, colonne } = state.schema.nodes
   const $c = state.doc.resolve(c.pos)
   const dansUneColonne = $c.parent.type === colonne
-  const nouvelle = colonne!.create(null, dansColonne(state, r.map((x) => (copier ? { ...x, noeud: x.noeud.copy(x.noeud.content) } : x))))
+  // Les blocs tirés, avec leurs enfants, au premier rang de leur colonne neuve.
+  const nouvelle = colonne!.create(null, r.flatMap((x) => sousArbre(state.doc, x, 0, copier)))
 
   const tr = state.tr
   if (dansUneColonne) {
@@ -57,15 +46,16 @@ export function enColonnes(state: EditorState, ids: readonly string[], cible: st
     return tr.setSelection(TextSelection.near(tr.doc.resolve(ou + 1))).scrollIntoView()
   }
 
-  // La cible doit pouvoir être remplacée par une rangée dans son parent.
-  if (!$c.parent.canReplaceWith($c.index(), $c.index() + 1, colonnes!)) return null
+  // La cible et ses enfants passent dans la première colonne, au premier rang.
+  if (c.type === 'colonnes') return null
+  const cibleRacine = racines(state.doc, [cible])[0]
+  if (!cibleRacine) return null
+  const ancienne = colonne!.create(null, sousArbre(state.doc, cibleRacine, 0, false))
   if (!copier) retirer(tr, state.doc, r)
   const debut = tr.mapping.map(c.pos, 1)
-  const cibleNoeud = tr.doc.nodeAt(debut)
-  if (!cibleNoeud) return null
-  const ancienne = colonne!.create(null, cibleNoeud)
+  const fin = tr.mapping.map(c.fin, -1)
   const rangee = colonnes!.create(null, flanc === 'gauche' ? [nouvelle, ancienne] : [ancienne, nouvelle])
-  tr.replaceWith(debut, debut + cibleNoeud.nodeSize, rangee)
+  tr.replaceWith(debut, fin, rangee)
   const curseur = debut + 1 + (flanc === 'gauche' ? 1 : rangee.firstChild!.nodeSize + 1)
   return tr.setSelection(TextSelection.near(tr.doc.resolve(curseur))).scrollIntoView()
 }

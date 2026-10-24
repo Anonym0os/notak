@@ -53,10 +53,11 @@ describe('NOTION.md § 8 : les colonnes', () => {
     expect(forme(ed)).toEqual(['a', 'a2', 'c'])
   })
 
-  it('un élément de liste posé dans une colonne garde sa liste', () => {
-    const ed = ouvrir(p('a', 'A'), { type: 'bulletList', content: [{ type: 'listItem', attrs: { id: 'L' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x' }] }] }] })
+  it('un bloc posé dans une colonne emporte ses enfants, ramenés au premier rang', () => {
+    const ed = ouvrir(p('a', 'A'), { type: 'puce', attrs: { id: 'L', retrait: 1 }, content: [{ type: 'text', text: 'x' }] }, { type: 'puce', attrs: { id: 'L1', retrait: 2 }, content: [{ type: 'text', text: 'y' }] })
     ed.view.dispatch(enColonnes(ed.state, ['L'], 'A', 'droite')!)
-    expect(forme(ed)).toEqual([[['a'], ['bulletList']]])
+    const droite = (ed.getJSON() as NoeudTexte).content![0]!.content![1]!.content!
+    expect(droite.map((n) => [n.type, n.attrs?.retrait ?? 0])).toEqual([['puce', 0], ['puce', 1]])
   })
 
   it('régler les largeurs écrit les parts des colonnes', () => {
