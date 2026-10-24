@@ -1,0 +1,39 @@
+/* Une fenêtre accrochée à sa cible : sa place est écrite à chaque image par `PanneauFlottant`. */
+.notak-panneau-flottant {
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+/* La flèche de 13 × 8 px, du fond du panneau, tournée vers la cible. */
+.notak-panneau-fleche {
+  position: absolute;
+  left: var(--notak-fleche, 50%);
+  width: 13px;
+  height: 8px;
+  background: inherit;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  pointer-events: none;
+}
+
+.notak-panneau-flottant[data-cote='bas'] > .notak-panneau-fleche {
+  top: -8px;
+}
+
+.notak-panneau-flottant[data-cote='haut'] > .notak-panneau-fleche {
+  bottom: -8px;
+  transform: rotate(180deg);
+}
+
+.notak-panneau-flottant[data-cote='droite'] > .notak-panneau-fleche {
+  top: calc(var(--notak-fleche, 50%) + 2.5px);
+  left: -10.5px;
+  transform: rotate(-90deg);
+}
+
+.notak-panneau-flottant[data-cote='gauche'] > .notak-panneau-fleche {
+  top: calc(var(--notak-fleche, 50%) + 2.5px);
+  left: auto;
+  right: -10.5px;
+  transform: rotate(90deg);
+}

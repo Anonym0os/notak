@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { type Cible, PanneauFlottant } from '../../PanneauFlottant'
 import { Calendrier } from './Calendrier'
 import {
   type GenrePuce,
@@ -21,20 +21,20 @@ import {
 import { t } from '../../langue'
 import { Icone } from '../../icones'
 
-/** Où le menu s'ouvre : sous la puce touchée, en coordonnées d'écran. */
+/** Où le menu s'ouvre : accroché à la puce touchée, qu'il suit quand la toile bouge. */
 export interface OuverturePuce {
   genre: GenrePuce
-  ancre: { left: number; bottom: number }
+  /** La puce, relue à chaque image (en écriture, l'éditeur la redessine à chaque changement). */
+  cible: Cible
   /** Le nœud qui porte la toile, où le menu se range pour garder ses couleurs. */
   hote: HTMLElement
 }
 
-const LARGEUR_MENU = 292
 /** L'heure proposée quand on en ajoute une. */
 const HEURE_PAR_DEFAUT = '17:00'
 
 /**
- * La fenêtre d'une puce, posée sous elle. L'échéance : un calendrier mensuel, une heure facultative, un rappel.
+ * La fenêtre d'une puce, accrochée sous elle (au-dessus s'il n'y a pas la place). L'échéance : un calendrier mensuel, une heure facultative, un rappel.
  * La personne : une recherche et les collaborateurs du tableau. Elle se ferme d'un clic ailleurs ou d'Échap.
  * `regler` reçoit les attributs de la tâche à écrire ; `attrs` est ce que la tâche porte à présent.
  */
@@ -67,15 +67,15 @@ export function MenuPuce({ ouverture, attrs, personnes, regler, fermer }: {
   useEffect(() => {
     if (ouverture.genre === 'echeance') racine.current?.focus({ preventScroll: true })
   }, [ouverture.genre])
-  const { ancre } = ouverture
-  return createPortal(
-    <div
-      ref={racine}
+  return (
+    <PanneauFlottant
+      panneau={racine}
+      cible={ouverture.cible}
+      hote={ouverture.hote}
       className="notak-menu-puce"
       data-genre={ouverture.genre}
       role="dialog"
       tabIndex={-1}
-      style={{ left: Math.max(8, Math.min(ancre.left, window.innerWidth - LARGEUR_MENU - 8)), top: ancre.bottom + 6 }}
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
@@ -92,8 +92,7 @@ export function MenuPuce({ ouverture, attrs, personnes, regler, fermer }: {
       ) : (
         <PanneauPersonne valeur={assigneDe(attrs)} personnes={personnes} regler={regler} fermer={fermer} />
       )}
-    </div>,
-    ouverture.hote,
+    </PanneauFlottant>
   )
 }
 

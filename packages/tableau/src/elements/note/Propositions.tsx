@@ -1,7 +1,7 @@
 import { type Editor, Extension } from '@tiptap/react'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { type RefObject, useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { PanneauFlottant } from '../../PanneauFlottant'
 import { t as translate } from '../../langue'
 import type { ContexteToile } from '../types'
 import { type Declencheur, MAX_MENTION, type Proposition, declencheurDans, filtrer, sansDoublons } from './suggestion'
@@ -12,6 +12,8 @@ export interface EtatProposition extends Declencheur {
   a: number
   x: number
   y: number
+  /** Le curseur à l'écran, relu à chaque image : la liste le suit quand la toile bouge. */
+  ou?(): { left: number; top: number; right: number; bottom: number } | null
 }
 
 /** Le pont entre le plugin (ProseMirror) et la liste (React). */
@@ -41,7 +43,14 @@ export const extensionPropositions = (pont: RefObject<Pont | null>) =>
               const d = declencheurDans(avant)
               if (!d) return pont.current?.proposer(null)
               const c = vue.coordsAtPos(selection.from)
-              pont.current?.proposer({ ...d, de: selection.from - d.longueur, a: selection.from, x: c.left, y: c.bottom })
+              const ou = () => {
+                try {
+                  return vue.coordsAtPos(selection.from)
+                } catch {
+                  return null
+                }
+              }
+              pont.current?.proposer({ ...d, de: selection.from - d.longueur, a: selection.from, x: c.left, y: c.bottom, ou })
             },
             destroy: () => pont.current?.proposer(null),
           }),
@@ -126,8 +135,10 @@ export function Propositions({ editeur, contexte, pont }: { editeur: Editor; con
 
   if (!visible || !etat) return null
   const mention = etat.genre === 'mention'
-  return createPortal(
-    <ul className="notak-propositions" data-genre={etat.genre} role="listbox" style={{ left: etat.x, top: etat.y + 4 }} onPointerDown={(e) => e.preventDefault()}>
+  const curseur = { left: etat.x, top: etat.y, right: etat.x, bottom: etat.y }
+  return (
+    <PanneauFlottant cible={() => etat.ou?.() ?? curseur} alignement="debut" distance={4} fleche={false} className="notak-propositions-panneau" onPointerDown={(e) => e.preventDefault()}>
+    <ul className="notak-propositions" data-genre={etat.genre} role="listbox">
       {items.map((p, i) => (
         <li key={p.id} role="option" aria-selected={i === rang} data-actif={i === rang || undefined} onClick={() => choisir(p)}>
           {mention ? (
@@ -144,8 +155,8 @@ export function Propositions({ editeur, contexte, pont }: { editeur: Editor; con
           )}
         </li>
       ))}
-    </ul>,
-    document.body,
+    </ul>
+    </PanneauFlottant>
   )
 }
 

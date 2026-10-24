@@ -282,10 +282,14 @@ function personnesPresentes(presence: ServicePresence | undefined, membres?: () 
   return personnes(moi && vers(moi), [...(presence?.autres() ?? []).map((p) => vers(p.utilisateur)), ...(membres?.() ?? []).map(vers)])
 }
 
-/** Où ouvrir le menu d'une puce : sous elle, dans la toile qui la porte. */
-function ouverturePuce(chemin: Chemin, genre: Puce['genre'], ancre: HTMLElement) {
-  const r = ancre.getBoundingClientRect()
-  return { chemin, genre, ancre: { left: r.left, bottom: r.bottom }, hote: (ancre.closest('.notak-toile') as HTMLElement | null) ?? document.body }
+/** Où ouvrir le menu d'une puce : accroché à elle, rangé dans la toile qui la porte (pour ses couleurs). */
+function ouverturePuce(chemin: Chemin, genre: Puce['genre'], ancre: HTMLElement, retrouver?: () => HTMLElement | null | undefined) {
+  return {
+    chemin,
+    genre,
+    cible: () => retrouver?.() ?? (ancre.isConnected ? ancre : null),
+    hote: (ancre.closest('.notak-toile') as HTMLElement | null) ?? document.body,
+  }
 }
 
 function inline(paragraphe: NoeudTexte): ReactNode {
@@ -389,7 +393,15 @@ function Edition(props: { id: Id; contenu: Taches; largeur: number; contexte: Co
   useEffect(() => {
     if (!editeur) return
     ouvreursPuces.set(editeur, (genre, pos, ancre) => {
-      const { chemin: _, ...o } = ouverturePuce([], genre, ancre)
+      // L'éditeur redessine les puces à chaque changement : on relit celle de la tâche, là où elle est.
+      const retrouver = () => {
+        try {
+          return (editeur.view.nodeDOM(pos) as HTMLElement | null)?.querySelector<HTMLElement>(`:scope > .notak-puces > .notak-puce[data-genre="${genre}"]`)
+        } catch {
+          return null
+        }
+      }
+      const { chemin: _, ...o } = ouverturePuce([], genre, ancre, retrouver)
       setMenu({ ...o, pos })
     })
     return () => void ouvreursPuces.delete(editeur)

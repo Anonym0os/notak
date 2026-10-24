@@ -665,10 +665,12 @@
   background: rgb(0 0 0 / 0.13);
 }
 
-/* La liste des propositions, sous le curseur, hors de la toile (elle ne suit pas le zoom). */
-.notak-propositions {
-  position: fixed;
+/* La liste des propositions, sous le curseur, hors de la toile (elle ne suit pas le zoom, mais suit le curseur quand la toile bouge). */
+.notak-propositions-panneau {
   z-index: 1000;
+}
+
+.notak-propositions {
   min-width: 160px;
   max-width: 280px;
   margin: 0;

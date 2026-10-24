@@ -117,7 +117,7 @@ export function Compositeur({ contexte, initial, placeholder, autoFocus, surChan
     editeur.commands.focus('end')
   }, [editeur, autoFocus])
 
-  const [emojis, setEmojis] = useState<DOMRect | null>(null)
+  const [emojis, setEmojis] = useState<Element | null>(null)
   const boutonEmoji = useRef<HTMLButtonElement>(null)
   useImperativeHandle(
     poignee,
@@ -143,7 +143,7 @@ export function Compositeur({ contexte, initial, placeholder, autoFocus, surChan
           aria-label={t('commentaire.emoji')}
           title={t('commentaire.emoji')}
           onMouseDown={(e) => e.preventDefault()}
-          onClick={() => setEmojis(emojis ? null : boutonEmoji.current!.getBoundingClientRect())}
+          onClick={() => setEmojis(emojis ? null : boutonEmoji.current)}
         >
           <Icone nom="reaction" taille={15} />
         </button>
