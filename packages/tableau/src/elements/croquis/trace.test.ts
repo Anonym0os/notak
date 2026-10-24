@@ -1,6 +1,11 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, it, test } from 'vitest'
 import type { Trait } from '../../coeur/tableau'
 import {
+  AFFINAGE,
+  affinageDe,
+  attributsTrait,
+  dessinTrait,
+  traitEnSvg,
   COULEURS_TRAIT,
   EPAISSEURS_TRAIT,
   HAUTEUR_FEUILLE,
@@ -112,5 +117,25 @@ describe('le croquis en SVG', () => {
     expect(svg).toContain('fill="#ffffff"')
     expect(svg).toContain('stroke="#ff5757"')
     expect(svg.match(/<path/g)).toHaveLength(1)
+  })
+})
+
+describe("l'effet d'encre", () => {
+  const points = [0, 0, 10, 2, 22, 8, 30, 20, 34, 34]
+  it('dessine un trait affiné en contour plein et fermé', () => {
+    const dt = dessinTrait(points, 4, AFFINAGE)
+    expect(dt.plein).toBe(true)
+    expect(dt.d.startsWith('M') && dt.d.endsWith('Z')).toBe(true)
+    expect(traitEnSvg({ points, couleur: '#323b4a', epaisseur: 4, affinage: AFFINAGE })).toContain('fill="#323b4a"')
+  })
+  it("garde la ligne d'épaisseur constante sans affinage, et pour le très épais", () => {
+    expect(dessinTrait(points, 4).plein).toBe(false)
+    expect(affinageDe(EPAISSEURS_TRAIT.length - 1)).toBe(0)
+    expect(affinageDe(0)).toBe(AFFINAGE)
+  })
+  it('élargit un trait plein par son contour, pas par son épaisseur', () => {
+    const a = attributsTrait(dessinTrait(points, 4, AFFINAGE), 'red', 3)
+    expect([a.fill, a.stroke, a.strokeWidth]).toEqual(['red', 'red', 3])
+    expect(attributsTrait(dessinTrait(points, 4), 'red', 3).strokeWidth).toBe(7)
   })
 })

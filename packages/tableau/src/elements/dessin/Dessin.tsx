@@ -8,7 +8,9 @@ import {
   EPAISSEUR_DEFAUT,
   ajouterPoint,
   arrondir,
-  cheminLisse,
+  affinageDe,
+  attributsTrait,
+  dessinTrait,
   couleurAffichee,
   ecrireReglage,
   epaisseurFeuille,
@@ -31,7 +33,7 @@ export function RenduDessin({ element }: PropsRendu<Dessin>) {
   return (
     <svg className="notak-dessin" viewBox={`0 0 ${c.largeurOrigine} ${c.hauteurOrigine}`} style={{ aspectRatio: `${c.largeurOrigine} / ${c.hauteurOrigine}` }}>
       {c.traits.map((tr, i) => (
-        <path key={i} d={cheminLisse(tr.points)} stroke={couleurAffichee(tr.couleur, true)} strokeWidth={tr.epaisseur} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path key={i} {...attributsTrait(dessinTrait(tr.points, tr.epaisseur, tr.affinage), couleurAffichee(tr.couleur, true))} />
       ))}
     </svg>
   )
@@ -89,7 +91,7 @@ export function ouvrirDessinLibre(contexte: ContexteToile, existant?: Element<De
 type Outil = 'crayon' | 'selection' | 'gomme'
 type Volet = 'couleur' | 'epaisseur' | null
 type Geste =
-  | { type: 'trace'; points: number[]; epaisseur: number }
+  | { type: 'trace'; points: number[]; epaisseur: number; affinage: number }
   | { type: 'gomme'; avant: Trait[] }
   | { type: 'deplacer'; depart: { x: number; y: number }; avant: Trait[]; choix: ReadonlySet<Trait> }
   | { type: 'marquise'; depart: { x: number; y: number }; ecran: { x: number; y: number }; ajoute: boolean; base: ReadonlySet<Trait> }
@@ -307,7 +309,7 @@ function Couche({
     }
     const p = ici(e)
     if (outil === 'crayon') {
-      geste.current = { type: 'trace', points: [p.x, p.y], epaisseur: largeurTrait() }
+      geste.current = { type: 'trace', points: [p.x, p.y], epaisseur: largeurTrait(), affinage: affinageDe(epaisseur) }
       setEnCours([p.x, p.y])
     } else if (outil === 'gomme') {
       geste.current = { type: 'gomme', avant: traits }
@@ -378,7 +380,7 @@ function Couche({
     if (!g) return
     if (g.type === 'trace') {
       setEnCours(null)
-      valider([...traits, { points: arrondir(g.points), couleur, epaisseur: g.epaisseur }], traits)
+      valider([...traits, { points: arrondir(g.points), couleur, epaisseur: g.epaisseur, ...(g.affinage ? { affinage: g.affinage } : {}) }], traits)
     } else if (g.type === 'gomme') {
       if (traits !== g.avant) setHisto((h) => noter(h, g.avant))
     } else if (g.type === 'deplacer') {
@@ -396,12 +398,12 @@ function Couche({
 
   // Les chemins se refont quand la caméra ou les traits changent, pas à chaque survol.
   const chemins = useMemo(
-    () => new Map(traits.map((tr) => [tr, cheminLisse(versEcran(tr.points))])),
+    () => new Map(traits.map((tr) => [tr, dessinTrait(versEcran(tr.points), tr.epaisseur * echelle, tr.affinage)])),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [traits, echelle, origine.x, origine.y],
   )
   const px = (tr: Trait) => tr.epaisseur * echelle
-  const enCoursTrait: Trait | null = enCours ? { points: enCours, couleur, epaisseur: largeurTrait() } : null
+  const enCoursTrait: Trait | null = enCours ? { points: enCours, couleur, epaisseur: largeurTrait(), affinage: affinageDe(epaisseur) } : null
 
   const desactive = { couleur: outil === 'gomme' || (outil === 'selection' && choix.size === 0), epaisseur: outil !== 'crayon' }
   /** Un bouton grisé garde ses événements (aria-disabled, pas disabled) : un double-clic ne le traverse jamais vers la toile. */
@@ -425,16 +427,16 @@ function Couche({
         {traits.map((tr, i) => (
           <g key={i}>
             {outil === 'gomme' && vise === tr && (
-              <path d={chemins.get(tr)} fill="none" stroke={ROUGE_GOMME} strokeWidth={px(tr) + 2 * CONTOUR_GOMME_PX} strokeLinecap="round" strokeLinejoin="round" />
+              <path {...attributsTrait(chemins.get(tr)!, ROUGE_GOMME, 2 * CONTOUR_GOMME_PX)} />
             )}
             {outil === 'selection' && choix.has(tr) && (
-              <path d={chemins.get(tr)} fill="none" stroke="var(--notak-accent)" strokeWidth={px(tr) + 2 * CONTOUR_PX} strokeLinecap="round" strokeLinejoin="round" />
+              <path {...attributsTrait(chemins.get(tr)!, 'var(--notak-accent)', 2 * CONTOUR_PX)} />
             )}
-            <path d={chemins.get(tr)} fill="none" stroke={couleurAffichee(tr.couleur, true)} strokeWidth={px(tr)} strokeLinecap="round" strokeLinejoin="round" />
+            <path {...attributsTrait(chemins.get(tr)!, couleurAffichee(tr.couleur, true))} />
           </g>
         ))}
         {enCoursTrait && (
-          <path d={cheminLisse(versEcran(enCoursTrait.points))} fill="none" stroke={couleurAffichee(couleur, true)} strokeWidth={px(enCoursTrait)} strokeLinecap="round" strokeLinejoin="round" />
+          <path {...attributsTrait(dessinTrait(versEcran(enCoursTrait.points), px(enCoursTrait), enCoursTrait.affinage, false), couleurAffichee(couleur, true))} />
         )}
         {marquise && (
           <rect

@@ -5,7 +5,7 @@ import { t, tn } from '../../langue'
 import '../croquis/croquis.css'
 import './dessin.css'
 import { ico } from '../../icones'
-import { cheminLisse } from '../croquis/trace'
+import { traitEnSvg } from '../croquis/trace'
 import { telecharger } from '../document/export'
 
 registre.type<Dessin>({
@@ -50,9 +50,7 @@ registre.entreeMenu({
   faire: (els) => {
     const c = els[0]!.contenu
     if (c.type !== 'dessin') return
-    const chemins = c.traits
-      .map((tr) => `<path d="${cheminLisse(tr.points)}" fill="none" stroke="${tr.couleur}" stroke-width="${tr.epaisseur}" stroke-linecap="round" stroke-linejoin="round"/>`)
-      .join('')
+    const chemins = c.traits.map(traitEnSvg).join('')
     telecharger(`${t('type.dessin')}.svg`, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${c.largeurOrigine} ${c.hauteurOrigine}">${chemins}</svg>`, 'image/svg+xml')
   },
 })

@@ -463,6 +463,8 @@ export interface Trait {
   points: number[]
   couleur: string
   epaisseur: number
+  /** L'effet d'encre : la vitesse du geste amincit le trait (0 à 1). Absent : un trait d'épaisseur constante. */
+  affinage?: number
 }
 
 /** Un croquis à main levée : des traits sur une feuille de taille fixe (voir `elements/croquis`). */

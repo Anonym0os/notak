@@ -11,7 +11,9 @@ import {
   LARGEUR_FEUILLE,
   ajouterPoint,
   arrondir,
-  cheminLisse,
+  affinageDe,
+  attributsTrait,
+  dessinTrait,
   ecrireReglage,
   epaisseurFeuille,
   gommer,
@@ -40,19 +42,19 @@ const CONTOUR_CHOIX_PX = 3
 const CAPTURE_PX = 6
 
 /** Les traits d'une feuille, en SVG : un chemin lissé par trait. `vise` : le trait que la gomme viserait, cerné de rouge. */
-function Traits({ traits, vise, choisis, contour = 0, suitLeTheme = false }: { traits: readonly Trait[]; vise?: { i: number; extra: number } | null; choisis?: ReadonlySet<Trait>; contour?: number; suitLeTheme?: boolean }) {
-  const chemins = useMemo(() => traits.map((t) => cheminLisse(t.points)), [traits])
+function Traits({ traits, vise, choisis, contour = 0, suitLeTheme = false, enCours = false }: { traits: readonly Trait[]; vise?: { i: number; extra: number } | null; choisis?: ReadonlySet<Trait>; contour?: number; suitLeTheme?: boolean; enCours?: boolean }) {
+  const chemins = useMemo(() => traits.map((t) => dessinTrait(t.points, t.epaisseur, t.affinage, !enCours)), [traits, enCours])
   return (
     <>
       {traits.map((t, i) => (
         <g key={i}>
           {vise?.i === i && (
-            <path d={chemins[i]} fill="none" stroke={ROUGE_GOMME} strokeWidth={t.epaisseur + vise.extra} strokeLinecap="round" strokeLinejoin="round" />
+            <path {...attributsTrait(chemins[i]!, ROUGE_GOMME, vise.extra)} />
           )}
           {choisis?.has(t) && (
-            <path d={chemins[i]} fill="none" stroke="var(--notak-accent)" strokeWidth={t.epaisseur + 2 * contour} strokeLinecap="round" strokeLinejoin="round" />
+            <path {...attributsTrait(chemins[i]!, 'var(--notak-accent)', 2 * contour)} />
           )}
-          <path d={chemins[i]} fill="none" stroke={couleurAffichee(t.couleur, suitLeTheme)} strokeWidth={t.epaisseur} strokeLinecap="round" strokeLinejoin="round" />
+          <path {...attributsTrait(chemins[i]!, couleurAffichee(t.couleur, suitLeTheme))} />
         </g>
       ))}
     </>
@@ -90,7 +92,7 @@ export function RenduCroquis({ element, choisie, enEdition, contexte, brouillon,
 
 type Outil = 'crayon' | 'selection' | 'gomme' | 'pipette'
 type Geste =
-  | { type: 'trace'; points: number[]; avant: Trait[]; epaisseur: number }
+  | { type: 'trace'; points: number[]; avant: Trait[]; epaisseur: number; affinage: number }
   | { type: 'gomme'; avant: Trait[] }
   | { type: 'deplacer'; depart: { x: number; y: number }; avant: Trait[]; choix: ReadonlySet<Trait> }
   | { type: 'marquise'; depart: { x: number; y: number }; ajoute: boolean; base: ReadonlySet<Trait> }
@@ -252,7 +254,7 @@ function Feuille({ contenu, ecrire, finir, contexte }: { contenu: CroquisFeuille
     }
     const { x, y } = dansFeuille(e)
     if (outil === 'crayon') {
-      tire.current = { type: 'trace', points: [x, y], avant: traits, epaisseur: epaisseurFeuille(EPAISSEURS_TRAIT[epaisseur]!.px, echelle()) }
+      tire.current = { type: 'trace', points: [x, y], avant: traits, epaisseur: epaisseurFeuille(EPAISSEURS_TRAIT[epaisseur]!.px, echelle()), affinage: affinageDe(epaisseur) }
       setEnCours([x, y])
     } else if (outil === 'gomme') {
       tire.current = { type: 'gomme', avant: traits }
@@ -329,7 +331,7 @@ function Feuille({ contenu, ecrire, finir, contexte }: { contenu: CroquisFeuille
       setEnCours(null)
       // Un simple clic sans déplacement laisse un trait de largeur nulle : comme Milanote, on l'écarte.
       if (g.points.length < 4) return
-      valider([...g.avant, { points: arrondir(g.points), couleur, epaisseur: g.epaisseur }], g.avant)
+      valider([...g.avant, { points: arrondir(g.points), couleur, epaisseur: g.epaisseur, ...(g.affinage ? { affinage: g.affinage } : {}) }], g.avant)
     } else if (g.type === 'marquise') {
       const m = marquise
       setMarquise(null)
@@ -340,7 +342,7 @@ function Feuille({ contenu, ecrire, finir, contexte }: { contenu: CroquisFeuille
   }
 
   const encours = useMemo(
-    () => (enCours ? [{ points: enCours, couleur, epaisseur: epaisseurFeuille(EPAISSEURS_TRAIT[epaisseur]!.px, echelle()) }] : []),
+    () => (enCours ? [{ points: enCours, couleur, epaisseur: epaisseurFeuille(EPAISSEURS_TRAIT[epaisseur]!.px, echelle()), affinage: affinageDe(epaisseur) }] : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [enCours, couleur, epaisseur],
   )
@@ -411,7 +413,7 @@ function Feuille({ contenu, ecrire, finir, contexte }: { contenu: CroquisFeuille
           onPointerLeave={() => setVise(null)}
         >
           <Traits traits={traits} vise={outil === 'gomme' ? vise : null} choisis={outil === 'selection' ? choix : undefined} contour={CONTOUR_CHOIX_PX / echelle()} suitLeTheme={transparent} />
-          <Traits traits={encours} suitLeTheme={transparent} />
+          <Traits traits={encours} suitLeTheme={transparent} enCours />
           {marquise && (
             <rect
               className="notak-croquis-marquise"

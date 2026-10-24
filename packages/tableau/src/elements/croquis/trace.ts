@@ -1,4 +1,6 @@
 import { type Croquis, type Element, type Trait, nouvelId } from '../../coeur/tableau'
+import { getStroke } from 'perfect-freehand'
+import type { SVGProps } from 'react'
 import { t, tn } from '../../langue'
 
 /** La feuille sur laquelle on dessine, en unités de feuille (le rendu la met à l'échelle). */
@@ -105,6 +107,55 @@ export function cheminLisse(points: readonly number[]): string {
   return `${d}L${nb(xn)} ${nb(yn)}`
 }
 
+/**
+ * L'effet d'encre, comme Milanote : un trait neuf s'amincit quand le geste va vite et s'épaissit quand il ralentit.
+ * Le très épais n'en a pas : il sert à remplir des aplats.
+ */
+export const AFFINAGE = 0.6
+export const affinageDe = (indiceEpaisseur: number): number => (indiceEpaisseur === EPAISSEURS_TRAIT.length - 1 ? 0 : AFFINAGE)
+/** Un trait affiné est deux fois plus large qu'un trait constant de même réglage, à vitesse moyenne. */
+const LARGEUR_ENCRE = 2
+
+/** Les points du contour, en chemin SVG fermé : des quadratiques qui passent par le milieu de chaque côté. */
+function cheminContour(contour: readonly number[][]): string {
+  const n = contour.length
+  if (n < 3) return ''
+  const milieu = (a: number[], b: number[]) => `${nb((a[0]! + b[0]!) / 2)} ${nb((a[1]! + b[1]!) / 2)}`
+  let d = `M${milieu(contour[0]!, contour[1]!)}Q`
+  for (let i = 1; i <= n; i++) {
+    const a = contour[i % n]!
+    d += `${nb(a[0]!)} ${nb(a[1]!)} ${milieu(a, contour[(i + 1) % n]!)} `
+  }
+  return `${d.trimEnd()}Z`
+}
+
+/** Le dessin d'un trait : un contour plein pour un trait affiné, une ligne lissée à tracer de son épaisseur sinon. */
+export type DessinTrait = { d: string; plein: boolean; epaisseur: number }
+export function dessinTrait(points: readonly number[], epaisseur: number, affinage = 0, fini = true): DessinTrait {
+  if (!affinage || points.length < 4) return { d: cheminLisse(points), plein: false, epaisseur }
+  const paires: number[][] = []
+  for (let i = 0; i < points.length; i += 2) paires.push([points[i]!, points[i + 1]!])
+  const contour = getStroke(paires, { size: epaisseur * LARGEUR_ENCRE, thinning: affinage, smoothing: 0.5, streamline: 0.5, simulatePressure: true, last: fini })
+  const d = cheminContour(contour.filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1])))
+  return d ? { d, plein: true, epaisseur } : { d: cheminLisse(points), plein: false, epaisseur }
+}
+
+/** Les attributs SVG d'un trait dessiné en `couleur`, élargi de `deborde` (un contour de choix ou de gomme). */
+export function attributsTrait(dt: DessinTrait, couleur: string, deborde = 0): SVGProps<SVGPathElement> {
+  const commun = { d: dt.d, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+  return dt.plein
+    ? { ...commun, fill: couleur, stroke: deborde > 0 ? couleur : 'none', strokeWidth: deborde > 0 ? deborde : undefined }
+    : { ...commun, fill: 'none', stroke: couleur, strokeWidth: dt.epaisseur + deborde }
+}
+
+/** Un trait en balise SVG autonome, pour les téléchargements. */
+export function traitEnSvg(tr: Trait): string {
+  const dt = dessinTrait(tr.points, tr.epaisseur, tr.affinage)
+  return dt.plein
+    ? `<path d="${dt.d}" fill="${tr.couleur}"/>`
+    : `<path d="${dt.d}" fill="none" stroke="${tr.couleur}" stroke-width="${tr.epaisseur}" stroke-linecap="round" stroke-linejoin="round"/>`
+}
+
 /** Un trait touche-t-il le disque de centre (x, y) et de rayon `rayon` ? (Son épaisseur compte.) */
 export function toucheTrait(t: Trait, x: number, y: number, rayon: number): boolean {
   const n = t.points.length / 2
@@ -153,8 +204,6 @@ export function resume(c: Croquis): string {
 /** Le croquis en SVG autonome (fond blanc), pour « Télécharger en SVG ». */
 export function croquisEnSvg(c: CroquisFeuille): string {
   const h = hauteurFeuille(c)
-  const chemins = c.traits
-    .map((tr) => `<path d="${cheminLisse(tr.points)}" fill="none" stroke="${tr.couleur}" stroke-width="${tr.epaisseur}" stroke-linecap="round" stroke-linejoin="round"/>`)
-    .join('')
+  const chemins = c.traits.map(traitEnSvg).join('')
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${LARGEUR_FEUILLE} ${h}" width="${LARGEUR_FEUILLE}" height="${h}"><rect width="100%" height="100%" fill="#ffffff"/>${chemins}</svg>`
 }
