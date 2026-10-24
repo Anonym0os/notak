@@ -579,7 +579,9 @@ export interface Sujet {
   image?: { fichier: Id; l: number; h: number }
   tache?: 'a-faire' | 'faite'
   /** La numérotation de ses enfants : 1, 2, 3 ; I, II ; A, B ; a, b. `paliers` : préfixée de celle du parent (1.2). */
-  numerotation?: { motif: 'arabe' | 'romain' | 'majuscule' | 'minuscule'; paliers?: boolean }
+  numerotation?: { motif: 'arabe' | 'romain' | 'majuscule' | 'minuscule'; paliers?: boolean; /** « Commencer depuis le début » : ses enfants repartent de 1, sans le numéro de ce sujet devant. */ debut?: boolean }
+  /** Une largeur imposée, en px : le titre passe à la ligne pour y tenir (`customWidth` d'un `.xmind`). Absente : la largeur du texte. */
+  largeur?: number
   /** Son rang d'importance, qui change son habillage. */
   classe?: 'important' | 'secondaire' | 'barre'
   /** Son habillage propre, par-dessus celui du thème (docs/XMIND.md § 5). */
@@ -588,29 +590,81 @@ export interface Sujet {
   xmind?: Record<string, unknown>
 }
 
-/** Les formes d'un sujet (docs/XMIND.md § 5). */
-export type FormeSujet = 'rectangle' | 'arrondi' | 'capsule' | 'ellipse' | 'souligne' | 'double-souligne' | 'losange' | 'hexagone' | 'parallelogramme' | 'aucune'
+/**
+ * Les formes d'un sujet (docs/XMIND.md § 5, `elements/arbre/formes.ts` les dessine). `aucune` : pas de cadre.
+ * Quatre groupes, comme le panneau de Xmind : basiques, avancées, ponctuation, organigramme.
+ */
+export type FormeSujet =
+  | 'rectangle' | 'arrondi' | 'souligne' | 'double-souligne' | 'cercle' | 'ellipse' | 'losange' | 'parallelogramme' | 'capsule' | 'hexagone' | 'hexagone-arrondi' | 'rectangle-elliptique'
+  | 'coeur' | 'nuage' | 'etoile' | 'goutte' | 'losange-coupe' | 'bouclier' | 'fleche-gauche' | 'fleche-droite' | 'etiquette' | 'signet' | 'angle-brise' | 'pile' | 'carte'
+  | 'guillemet-simple' | 'guillemets-chevrons' | 'crochets' | 'parentheses' | 'accolades' | 'guillemet-carre' | 'guillemets'
+  | 'decision' | 'saisie-manuelle' | 'processus-predefini' | 'operation-manuelle' | 'base-de-donnees' | 'document' | 'multi-documents' | 'delai' | 'donnees' | 'renvoi-page' | 'renvoi-hors-page' | 'double-cercle' | 'drapeau' | 'trapeze' | 'trapeze-inverse'
+  | 'aucune'
 
-/** Les formes d'une branche. */
-export type FormeBranche = 'courbe' | 'droite' | 'coudee' | 'coudee-arrondie' | 'aucune'
+/** Les formes d'une branche (`line-class`). */
+export type FormeBranche = 'courbe' | 'droite' | 'coudee' | 'coudee-arrondie' | 'anse' | 'pli' | 'pli-arrondi' | 'aucune'
 
-export interface StyleSujet {
-  forme?: FormeSujet
-  /** `#rrggbb`. */
-  remplissage?: string
-  bordure?: string
-  epaisseurBordure?: number
+/** Le motif d'un trait ou d'un contour (`line-pattern`, `border-line-pattern`). `main` et `tirets-main` : tracés à main levée. */
+export type MotifTrait = 'plein' | 'tirets' | 'points' | 'tiret-point' | 'tiret-point-point' | 'main' | 'tirets-main' | 'aucun'
+
+/** Le motif d'un remplissage (`fill-pattern`) : plein, ou hachuré ; `aucun` : pas de remplissage. */
+export type MotifRemplissage = 'plein' | 'plein-main' | 'diagonales' | 'diagonales-fines' | 'horizontales' | 'horizontales-fines' | 'aucun'
+
+/** Le bout d'un trait (`arrow-end-class`, `arrow-begin-class`). */
+export type PointeTrait = 'aucune' | 'point' | 'triangle' | 'fer-de-lance' | 'carre' | 'diamant' | 'chevrons' | 'double-fleche' | 'anti-triangle' | 'attache' | 'crochet'
+
+/** La casse du texte (`fo:text-transform`) ; absente : celle qu'on a tapée. */
+export type CasseTexte = 'majuscules' | 'minuscules' | 'capitales'
+
+/** Ce que tout texte d'une carte peut porter : sujet, relation, limite (docs/XMIND.md § 5 bis). */
+export interface StyleTexte {
+  /** Une pile de polices CSS ; absente : celle du thème. */
   police?: string
+  /** En pt. */
   taille?: number
+  /** 100 à 900. Prime sur `gras`. */
+  graisse?: number
   gras?: boolean
   italique?: boolean
+  barre?: boolean
+  souligne?: boolean
+  casse?: CasseTexte
+  alignement?: 'gauche' | 'centre' | 'droite'
   couleurTexte?: string
+}
+
+export interface StyleSujet extends StyleTexte {
+  forme?: FormeSujet
+  /** `#rrggbb`, ou `#rrggbbaa` avec une opacité. */
+  remplissage?: string
+  motifRemplissage?: MotifRemplissage
+  bordure?: string
+  motifBordure?: MotifTrait
+  /** En pt ; 0 : pas de bordure. */
+  epaisseurBordure?: number
   /** La branche qui mène à ce sujet et à ses descendants (sauf ceux qui en déclarent une autre). */
   branche?: FormeBranche
   couleurBranche?: string
   epaisseurBranche?: number
   effilee?: boolean
-  motif?: 'plein' | 'tirets' | 'points'
+  motif?: MotifTrait
+  /** Le bout de ses branches, côté enfant. */
+  pointeBranche?: PointeTrait
+  /** Sur le central : les couleurs que prennent ses branches principales, dans l'ordre (`multi-line-colors`). */
+  serieCouleurs?: string[]
+}
+
+/** La forme d'une relation (`shape-class`). Les « souples » se tracent comme leurs sœurs (docs/XMIND.md § 5 bis). */
+export type FormeRelation = 'courbe' | 'droite' | 'coudee' | 'zigzag' | 'courbe-souple' | 'coudee-souple' | 'zigzag-souple'
+
+/** Le style d'une relation : son trait, ses pointes, son texte. Absent : le thème. */
+export interface StyleRelation extends StyleTexte {
+  forme?: FormeRelation
+  motif?: MotifTrait
+  epaisseur?: number
+  couleur?: string
+  pointeDepart?: PointeTrait
+  pointeArrivee?: PointeTrait
 }
 
 /** Une flèche entre deux sujets quelconques. `controles` : ses deux points de contrôle, en px depuis chaque bout. */
@@ -619,9 +673,24 @@ export interface Relation {
   vers: Id
   titre?: string
   controles?: [{ x: number; y: number }, { x: number; y: number }]
+  /** Avant `style` : la forme, qu'on lit encore. */
   forme?: 'courbe' | 'droite' | 'coudee'
-  /** Les pointes : à l'arrivée seule par défaut. */
+  /** Avant `style` : les pointes (à l'arrivée seule par défaut), qu'on lit encore. */
   pointes?: { depart?: boolean; arrivee?: boolean }
+  style?: StyleRelation
+}
+
+/** La forme d'une limite (`shape-class`). */
+export type FormeLimite = 'rectangle' | 'arrondi' | 'polygone' | 'festons' | 'vagues' | 'tension' | 'polygone-arrondi' | 'focus' | 'croix'
+
+export interface StyleLimite extends StyleTexte {
+  forme?: FormeLimite
+  remplissage?: string
+  motifRemplissage?: MotifRemplissage
+  /** Le contour : motif, épaisseur et couleur. */
+  motif?: MotifTrait
+  epaisseur?: number
+  couleur?: string
 }
 
 /** Un cadre autour de la branche `de`, ou des frères de `de` à `a` (inclus). */
@@ -629,6 +698,17 @@ export interface Limite {
   de: Id
   a?: Id
   titre?: string
+  style?: StyleLimite
+}
+
+/** La forme de l'accolade d'un résumé (`shape-class`) : angle, carrée, ronde, accolade, droite. */
+export type FormeResume = 'angle' | 'carre' | 'ronde' | 'accolade' | 'droite'
+
+export interface StyleResume {
+  forme?: FormeResume
+  motif?: MotifTrait
+  epaisseur?: number
+  couleur?: string
 }
 
 /** Une accolade qui rassemble les frères de `de` à `a` (ou la branche `de`) vers le sujet `sujet`, de genre `resume`. */
@@ -636,6 +716,7 @@ export interface Resume {
   de: Id
   a?: Id
   sujet: Id
+  style?: StyleResume
 }
 
 /** Une carte mentale (docs/XMIND.md) : ses sujets, à plat, par identifiant. */

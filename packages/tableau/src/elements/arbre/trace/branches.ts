@@ -1,7 +1,7 @@
 import type { Boite, Cote } from '../disposition'
 
 /** Les styles de branche de docs/XMIND.md § 5. */
-export type StyleBranche = 'courbe' | 'droite' | 'coudee' | 'coudee-arrondie' | 'aucune'
+export type StyleBranche = 'courbe' | 'droite' | 'coudee' | 'coudee-arrondie' | 'anse' | 'pli' | 'pli-arrondi' | 'aucune'
 
 /** Quels sujets sont soulignés (un sous-sujet) : leurs branches partent et arrivent au bout du trait, pas au milieu. */
 export interface Soulignes {
@@ -63,6 +63,24 @@ export function cheminBranche(p: Boite, e: Boite, cote: Cote, style: StyleBranch
       }
       const ym = (y0 + y1) / 2
       return `M${n(x0)} ${n(y0)}V${n(ym)}H${n(x1)}V${n(y1)}`
+    }
+    case 'anse': {
+      // Une anse : la branche part du parent à la verticale et arrive à l'horizontale (ou l'inverse) sur l'enfant, d'un seul arc.
+      if (horizontal) return `M${n(x0)} ${n(y0)}Q${n(x0)} ${n(y1)} ${n(x1)} ${n(y1)}`
+      return `M${n(x0)} ${n(y0)}Q${n(x1)} ${n(y0)} ${n(x1)} ${n(y1)}`
+    }
+    case 'pli':
+    case 'pli-arrondi': {
+      // Un pli : un court trait en biais depuis le parent, puis l'enfant à l'horizontale (ou à la verticale).
+      const arrondi = style === 'pli-arrondi'
+      if (horizontal) {
+        const k = Math.min(18, Math.abs(x1 - x0) / 2) * Math.sign(x1 - x0 || 1)
+        if (arrondi) return `M${n(x0)} ${n(y0)}Q${n(x0 + k)} ${n(y0)} ${n(x0 + k)} ${n(y1)}H${n(x1)}`
+        return `M${n(x0)} ${n(y0)}L${n(x0 + k)} ${n(y1)}H${n(x1)}`
+      }
+      const k = Math.min(18, Math.abs(y1 - y0) / 2) * Math.sign(y1 - y0 || 1)
+      if (arrondi) return `M${n(x0)} ${n(y0)}Q${n(x0)} ${n(y0 + k)} ${n(x1)} ${n(y0 + k)}V${n(y1)}`
+      return `M${n(x0)} ${n(y0)}L${n(x1)} ${n(y0 + k)}V${n(y1)}`
     }
     case 'courbe': {
       // Une courbe en S : elle quitte le parent à l'horizontale (ou à la verticale) et arrive de même sur l'enfant.

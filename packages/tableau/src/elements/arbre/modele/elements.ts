@@ -66,6 +66,11 @@ export function changerLimite(a: Arbre, id: Id, f: (x: Limite) => Limite): Arbre
   return x ? avecChamp(a, 'limites', { ...a.limites, [id]: f(x) }) : a
 }
 
+export function changerResume(a: Arbre, id: Id, f: (x: Resume) => Resume): Arbre {
+  const x = a.resumes?.[id]
+  return x ? avecChamp(a, 'resumes', { ...a.resumes, [id]: f(x) }) : a
+}
+
 /** Un résumé de ces frères : une accolade, et un sujet de résumé qu'on édite aussitôt. */
 export function ajouterResume(a: Arbre, ids: readonly Id[], titre: string): [Arbre, Id | null] {
   const l = lire(a)
@@ -147,7 +152,8 @@ export function numeroDe(l: Lecture, id: Id): string | null {
   if (!motif) return null
   const rang = enfantsDe(l, s.parent).indexOf(id) + 1
   const propre = ecrire(rang, motif.motif)
-  if (!motif.paliers) return propre
+  // « Commencer depuis le début » : le numéro de ce parent ne précède plus ceux de ses enfants.
+  if (!motif.paliers || motif.debut) return propre
   const dessus = numeroDe(l, s.parent)
   return dessus ? `${dessus}.${propre}` : propre
 }

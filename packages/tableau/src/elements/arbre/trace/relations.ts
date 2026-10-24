@@ -1,3 +1,4 @@
+import type { FormeRelation } from '../../../coeur/tableau'
 import type { Boite } from '../disposition'
 
 type Point = { x: number; y: number }
@@ -12,6 +13,8 @@ export interface Courbe {
   arrivee: Point
   controles: [Point, Point]
   milieu: Point
+  /** Dans quelle direction (radians, 0 : vers la droite) le trait arrive à chaque bout : pour poser une pointe. */
+  angles: { depart: number; arrivee: number }
 }
 
 const centre = (b: Boite): Point => ({ x: b.x + b.l / 2, y: b.y + b.h / 2 })
@@ -29,7 +32,8 @@ function bord(b: Boite, vers: Point): Point {
  * La courbe d'une relation de `a` vers `b` (docs/XMIND.md § 5). Sans points de contrôle enregistrés, elle se bombe
  * vers le haut, comme celles que Xmind pose ; sinon chaque contrôle se compte depuis son bout.
  */
-export function courbeRelation(a: Boite, b: Boite, controles?: [Point, Point], forme: 'courbe' | 'droite' | 'coudee' = 'courbe'): Courbe {
+export function courbeRelation(a: Boite, b: Boite, controles?: [Point, Point], formeRelation: FormeRelation | 'courbe' | 'droite' | 'coudee' = 'courbe'): Courbe {
+  const forme = formeRelation.replace('-souple', '') as 'courbe' | 'droite' | 'coudee' | 'zigzag'
   const [ca, cb] = [centre(a), centre(b)]
   const [dx, dy] = [cb.x - ca.x, cb.y - ca.y]
   const defaut: [Point, Point] = [
@@ -55,6 +59,7 @@ export function courbeRelation(a: Boite, b: Boite, controles?: [Point, Point], f
     const [bx, by] = [bout.x - ux * 9, bout.y - uy * 9]
     return `M${f(bout.x)} ${f(bout.y)}L${f(bx - uy * 4.5)} ${f(by + ux * 4.5)}L${f(bx + uy * 4.5)} ${f(by - ux * 4.5)}Z`
   }
+  const angle = (bout: Point, depuis: Point) => Math.atan2(bout.y - depuis.y, bout.x - depuis.x)
   if (forme === 'droite') {
     // Droite : de centre à centre, coupée aux bords ; les contrôles restent pour qu'on puisse la recourber.
     const [d0, d1] = [bord(a, cb), bord(b, ca)]
@@ -66,6 +71,7 @@ export function courbeRelation(a: Boite, b: Boite, controles?: [Point, Point], f
       arrivee: d1,
       controles: [c1, c2],
       milieu: { x: (d0.x + d1.x) / 2, y: (d0.y + d1.y) / 2 },
+      angles: { depart: angle(d0, d1), arrivee: angle(d1, d0) },
     }
   }
   if (forme === 'coudee') {
@@ -80,6 +86,21 @@ export function courbeRelation(a: Boite, b: Boite, controles?: [Point, Point], f
       arrivee: p3,
       controles: [c1, c2],
       milieu: { x: (p0.x + p3.x) / 2, y: ym },
+      angles: { depart: angle(p0, { x: p0.x, y: ym }), arrivee: angle(p3, { x: p3.x, y: ym }) },
+    }
+  }
+  if (forme === 'zigzag') {
+    // Zigzag : à l'horizontale depuis le départ, puis à la verticale, puis à l'horizontale jusqu'à la cible.
+    const xm = c1.x
+    return {
+      chemin: `M${f(p0.x)} ${f(p0.y)}H${f(xm)}V${f(p3.y)}H${f(p3.x)}`,
+      pointe: pointeEn(p3, { x: xm, y: p3.y }),
+      pointeDepart: pointeEn(p0, { x: xm, y: p0.y }),
+      depart: p0,
+      arrivee: p3,
+      controles: [c1, c2],
+      milieu: { x: xm, y: (p0.y + p3.y) / 2 },
+      angles: { depart: angle(p0, { x: xm, y: p0.y }), arrivee: angle(p3, { x: xm, y: p3.y }) },
     }
   }
   return {
@@ -90,5 +111,6 @@ export function courbeRelation(a: Boite, b: Boite, controles?: [Point, Point], f
     arrivee: p3,
     controles: [c1, c2],
     milieu,
+    angles: { depart: angle(p0, c1), arrivee: angle(p3, c2) },
   }
 }

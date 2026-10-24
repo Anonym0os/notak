@@ -1,4 +1,5 @@
-import type { Id, StructureArbre } from '../../../coeur/tableau'
+import type { FormeResume, Id, StructureArbre } from '../../../coeur/tableau'
+import { cheminResume } from '../formes'
 import { type Lecture, enfantsDe } from '../modele/sujets'
 import { type Boite, type Disposition, type Ecarts, type Lien, type Taille, ECART_CENTRAL, ECARTS } from './commun'
 
@@ -99,8 +100,12 @@ const MARGE_CASE = 14
  */
 /** Un résumé à poser : son sujet, et les sujets de sa plage (déjà disposés) que son accolade rassemble. */
 export interface ResumeAPoser {
+  /** L'identifiant du résumé (pas celui de son sujet). */
+  id?: Id
   sujet: Id
   plage: Id[]
+  /** La forme de l'accolade ; absente : l'accolade. */
+  forme?: FormeResume
 }
 
 export function disposer(l: Lecture, taille: (id: Id) => Taille, e: Ecarts = ECARTS, libre = false, resumes: readonly ResumeAPoser[] = []): Disposition {
@@ -288,7 +293,7 @@ export function disposer(l: Lecture, taille: (id: Id) => Taille, e: Ecarts = ECA
     bloc(r.sujet, famille(r.sujet, gauche ? 'logique-g' : 'logique-d'))
     descendre(r.sujet, gauche ? xa - 24 - t.l : xa + 24, ym - t.h / 2)
     // La pointe de l'accolade regarde le sujet de résumé, ses bouts la plage.
-    sortie.traits.push({ de: r.sujet, d: accolade(xa, y0, y1, ym, gauche ? 1 : -1) })
+    sortie.traits.push({ de: r.sujet, d: cheminResume(r.forme ?? 'accolade', xa, y0, y1, gauche ? 1 : -1), ...(r.id ? { resume: r.id } : {}) })
   }
   for (const [id, r] of rangements) tracer(id, r, sortie, grilles.get(id))
   return sortie

@@ -3,7 +3,7 @@ import type { Arbre, Id, StyleSujet } from '../../coeur/tableau'
 import { t } from '../../langue'
 import { Surcouche } from '../surcouche'
 import type { ContexteToile, PropsRendu, Services } from '../types'
-import { INTERLIGNE, POLICE, type Mesure, habitDe, mesurer } from './apparence'
+import { INTERLIGNE, POLICE, type Mesure, habitDe, mesureDeSujet } from './apparence'
 import { themeDe } from './themes'
 import { Dessin } from './Dessin'
 import { exporterCartes } from './exporter'
@@ -13,7 +13,7 @@ import { Outils } from './Outils'
 import { Icone } from '../../icones'
 import { type Boite, type Disposition, ECARTS, ECARTS_COMPACTS, disposer, emprise } from './disposition'
 import { gesteDe } from './modele/clavier'
-import { numeroDe, resumesValides, sujetsDePlage } from './modele/elements'
+import { resumesValides, sujetsDePlage } from './modele/elements'
 import { type Geste, appliquerGeste } from './modele/gestes'
 import { type Lacher, ouLacher } from './modele/lacher'
 import { type Lecture, branche, enfantsDe, lire, sousCarte } from './modele/sujets'
@@ -29,19 +29,8 @@ export function useVue(a: Arbre): { lecture: Lecture; mesures: Map<Id, Mesure>; 
     const lecture = lire(a)
     const theme = themeDe(a.theme)
     const mesures = new Map<Id, Mesure>()
-    for (const [id, s] of lecture.sujets)
-      mesures.set(
-        id,
-        mesurer(s.titre, habitDe(lecture, id, theme), {
-          tache: !!s.tache,
-          marqueurs: s.marqueurs?.length ?? 0,
-          prefixe: numeroDe(lecture, id),
-          icones: (s.note ? 1 : 0) + (s.lien ? 1 : 0),
-          ...(s.etiquettes?.length ? { etiquettes: s.etiquettes } : {}),
-          ...(s.image ? { image: { l: s.image.l, h: s.image.h } } : {}),
-        }),
-      )
-    const resumes = resumesValides(a, lecture).map(([, r]) => ({ sujet: r.sujet, plage: sujetsDePlage(lecture, r) }))
+    for (const id of lecture.sujets.keys()) mesures.set(id, mesureDeSujet(lecture, id, theme))
+    const resumes = resumesValides(a, lecture).map(([id, r]) => ({ id, sujet: r.sujet, plage: sujetsDePlage(lecture, r), ...(r.style?.forme ? { forme: r.style.forme } : {}) }))
     const disposition = disposer(lecture, (id) => mesures.get(id) ?? { l: 40, h: 20 }, a.options?.compacte ? ECARTS_COMPACTS : ECARTS, !!a.options?.libre, resumes)
     return { lecture, mesures, disposition }
   }, [a.sujets, a.options, a.resumes, a.theme])
