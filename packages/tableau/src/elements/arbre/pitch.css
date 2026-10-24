@@ -1,0 +1,784 @@
+/* Le mode Pitch : l'onglet du panneau de côté (OngletPresenter.tsx), la diapositive (Diapo.tsx) et la présentation
+   (Presentation.tsx). Les teintes de l'interface se tirent de `--notak-arbre-*` (fenetre.css) ; celles d'une diapositive
+   viennent de son thème (`--d-*`, posées par `variablesDeTheme`). */
+
+/* — L'onglet — */
+
+.notak-arbre-pitch {
+  display: flex;
+  flex-direction: column;
+  margin: 0 -10px;
+  padding: 12px 0 36px;
+  font-size: 13px;
+  line-height: 17px;
+}
+
+.notak-arbre-pitch-section {
+  padding: 12px 20px;
+}
+
+.notak-arbre-pitch-section:first-child {
+  padding-bottom: 0;
+}
+
+.notak-arbre-pitch-section h3 {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.26px;
+}
+
+.notak-arbre-pitch-section hr {
+  height: 1px;
+  margin: 20px 0;
+  border: 0;
+  background: var(--notak-arbre-filet-c);
+}
+
+.notak-arbre-pitch-vide {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin-top: 120px;
+  color: var(--notak-arbre-discret);
+  font-size: 14px;
+  line-height: 18px;
+  text-align: center;
+}
+
+.notak-arbre-pitch-vide p {
+  margin: 0;
+}
+
+/* L'aperçu : la diapositive du sujet, 128 de haut, centrée, qui se fond à chaque changement. */
+.notak-arbre-pitch-apercu {
+  display: grid;
+  justify-content: center;
+  animation: notak-arbre-pitch-fondu 300ms ease-out;
+}
+
+.notak-arbre-pitch-apercu .notak-arbre-diapo-cadre {
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.05), 0 4px 15px rgb(0 0 0 / 0.1);
+}
+
+.notak-arbre-pitch-apercu-texte {
+  display: grid;
+  place-items: center;
+  width: 228px;
+  height: 128px;
+  margin: 0 auto;
+  padding: 0 16px;
+  border-radius: 10px;
+  background: var(--notak-arbre-survol);
+  color: var(--notak-arbre-discret);
+  font-size: 11px;
+  font-weight: 500;
+  text-align: center;
+}
+
+@keyframes notak-arbre-pitch-fondu {
+  from {
+    opacity: 0;
+  }
+}
+
+.notak-arbre-pitch-bouton {
+  width: 100%;
+  height: 24px;
+  margin: 4px 0 16px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--notak-arbre-fond);
+  box-shadow: 0 0.5px 4px rgb(0 0 0 / 0.12), 0 0 1.8px rgb(0 0 0 / 0.08);
+  color: var(--notak-arbre-texte);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notak-arbre-pitch-bouton:hover {
+  background: var(--notak-arbre-survol);
+}
+
+.notak-arbre-pitch-ligne {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 24px;
+}
+
+.notak-arbre-pitch-ligne[data-vertical] {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.notak-arbre-pitch-ligne > span {
+  letter-spacing: 0.52px;
+}
+
+.notak-arbre-pitch-menu {
+  min-width: 0;
+  max-width: 150px;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--notak-arbre-piste);
+  border-radius: 8px;
+  background: var(--notak-arbre-fond) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8f95' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 6px center;
+  appearance: none;
+  color: var(--notak-arbre-texte);
+  font: inherit;
+  padding-right: 24px;
+}
+
+.notak-arbre-pitch-menu:hover {
+  border-color: var(--notak-arbre-discret);
+}
+
+.notak-arbre-pitch-menu[data-large],
+.notak-arbre-pitch-ligne[data-vertical] .notak-arbre-pitch-menu {
+  width: 100%;
+  max-width: none;
+}
+
+/* Les mises en page d'une liste : un groupe de boutons segmentés. */
+.notak-arbre-pitch-segments {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--notak-arbre-piste);
+  border-radius: 8px;
+}
+
+.notak-arbre-pitch-segments button {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--notak-arbre-piste);
+  background: transparent;
+  color: var(--notak-arbre-texte);
+  cursor: pointer;
+}
+
+.notak-arbre-pitch-segments button:first-child {
+  border-left: 0;
+}
+
+.notak-arbre-pitch-segments button[aria-checked='true'] {
+  background: var(--notak-arbre-appui);
+}
+
+.notak-arbre-pitch-segments button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Les popovers (thèmes, réglages), posés hors du panneau. */
+.notak-arbre-pitch-popover {
+  position: fixed;
+  z-index: 20;
+  padding: 16px;
+  overflow-y: auto;
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--notak-arbre-fond) 88%, transparent);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 0 0 0.5px var(--notak-arbre-filet-c), 0 8px 60px rgb(0 0 0 / 0.16), 0 4px 8px rgb(0 0 0 / 0.02);
+  color: var(--notak-arbre-texte);
+  font-size: 13px;
+  line-height: 17px;
+}
+
+.notak-arbre-pitch-themes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 8px;
+}
+
+.notak-arbre-pitch-vignette {
+  display: grid;
+  justify-items: center;
+  min-width: 80px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.notak-arbre-pitch-vignette-cadre {
+  padding: 3px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+}
+
+.notak-arbre-pitch-vignette[aria-pressed='true'] .notak-arbre-pitch-vignette-cadre {
+  border-color: var(--notak-arbre-texte);
+}
+
+.notak-arbre-pitch-vignette .notak-arbre-diapo-cadre {
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px var(--notak-arbre-piste);
+}
+
+.notak-arbre-pitch-vignette:hover .notak-arbre-diapo-cadre {
+  box-shadow: 0 0 0 1px var(--notak-arbre-discret);
+}
+
+.notak-arbre-pitch-legende {
+  padding: 8px 0 12px;
+  font-size: 11px;
+  line-height: 13px;
+  text-align: center;
+}
+
+.notak-arbre-pitch-reglages {
+  display: grid;
+  gap: 12px;
+}
+
+.notak-arbre-pitch-reglages h2 {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 27px;
+}
+
+.notak-arbre-pitch-reglages .notak-arbre-pitch-bouton {
+  margin: 0;
+}
+
+.notak-arbre-pitch-interrupteur {
+  position: relative;
+  width: 36px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 80px;
+  background: var(--notak-arbre-appui);
+  cursor: pointer;
+}
+
+.notak-arbre-pitch-interrupteur[aria-checked='true'] {
+  background: var(--notak-arbre-plein);
+}
+
+.notak-arbre-pitch-interrupteur span {
+  position: absolute;
+  top: 1.5px;
+  left: 2px;
+  width: 21px;
+  height: 13px;
+  border-radius: 80px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  transition: transform 150ms ease-out;
+}
+
+.notak-arbre-pitch-interrupteur[aria-checked='true'] span {
+  transform: translateX(11px);
+}
+
+/* — La diapositive — */
+
+.notak-arbre-diapo-cadre {
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  container-type: size;
+  background-color: var(--d-fond);
+  background-image: var(--d-motif);
+  color: var(--d-texte);
+  font-family: var(--d-police);
+}
+
+.notak-arbre-diapo {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  padding: 7cqw 8cqw;
+}
+
+.notak-arbre-diapo h1,
+.notak-arbre-diapo h2,
+.notak-arbre-diapo ul {
+  margin: 0;
+  padding: 0;
+}
+
+.notak-arbre-diapo-sujet {
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  gap: 4cqw;
+  text-align: center;
+}
+
+.notak-arbre-diapo-sujet h1 {
+  max-width: 100%;
+  font-size: 7cqw;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.notak-arbre-diapo-sujet[data-central] h1 {
+  font-size: 9cqw;
+}
+
+.notak-arbre-diapo-sujet img {
+  max-width: 100%;
+  max-height: 100%;
+  min-height: 0;
+  object-fit: contain;
+  border-radius: var(--d-rayon, 10px);
+}
+
+.notak-arbre-diapo-sujet[data-image='gauche'],
+.notak-arbre-diapo-sujet[data-image='droite'] {
+  grid-template-columns: 1fr 1fr;
+  text-align: left;
+}
+
+.notak-arbre-diapo-sujet[data-image='droite'] img {
+  order: 2;
+}
+
+.notak-arbre-diapo-sujet[data-image='gauche'] h1,
+.notak-arbre-diapo-sujet[data-image='droite'] h1 {
+  font-size: 5.6cqw;
+  justify-self: start;
+}
+
+.notak-arbre-diapo-sujet[data-image='dessus'] {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.notak-arbre-diapo-sujet[data-image='dessous'] {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.notak-arbre-diapo-sujet[data-image='dessous'] img {
+  order: 2;
+}
+
+/* Une image « Fond » couvre toute la diapositive, le titre par-dessus. */
+.notak-arbre-diapo-sujet[data-image='fond'] img {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  border-radius: 0;
+  object-fit: cover;
+}
+
+.notak-arbre-diapo-sujet[data-image='fond'] h1 {
+  position: relative;
+  z-index: 1;
+  padding: 1.5cqw 3cqw;
+  border-radius: var(--d-rayon, 10px);
+  background: color-mix(in srgb, var(--d-fond) 78%, transparent);
+}
+
+/* Les listes : le titre du sujet, ses sous-sujets qui arrivent un à un. */
+.notak-arbre-diapo-liste {
+  display: grid;
+  align-content: center;
+  gap: 4cqw;
+}
+
+.notak-arbre-diapo-liste h2 {
+  color: var(--d-accent);
+  font-size: 5cqw;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.notak-arbre-diapo-liste ul {
+  display: grid;
+  gap: 1.4cqw;
+  list-style: none;
+}
+
+.notak-arbre-diapo-liste li {
+  font-size: 3.6cqw;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.notak-arbre-diapo-liste li[data-niveau='1'] {
+  padding-left: 3cqw;
+  font-size: 3cqw;
+}
+
+.notak-arbre-diapo-liste li[data-niveau='2'],
+.notak-arbre-diapo-liste li[data-niveau='3'] {
+  padding-left: 6cqw;
+  font-size: 2.6cqw;
+  opacity: 0.85;
+}
+
+.notak-arbre-diapo-liste li[data-etat='cache'] {
+  opacity: 0;
+}
+
+.notak-arbre-diapo-liste li[data-anime] {
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+
+.notak-arbre-diapo-liste li[data-anime][data-etat='cache'] {
+  transform: translateY(1cqw);
+}
+
+/* Puces : un point à la couleur d'accent devant chaque ligne. */
+.notak-arbre-diapo-liste[data-mise='puces'] li::before {
+  content: '';
+  display: inline-block;
+  width: 0.9cqw;
+  height: 0.9cqw;
+  margin-right: 1.6cqw;
+  border-radius: var(--d-rayon-puce, 50%);
+  background: var(--d-accent);
+  vertical-align: middle;
+}
+
+/* Accolade : le titre à gauche, une accolade, la liste à droite. */
+.notak-arbre-diapo-liste[data-mise='accolade'] {
+  grid-template-columns: minmax(0, 0.8fr) 4cqw minmax(0, 1.4fr);
+  align-items: center;
+  gap: 2cqw;
+}
+
+.notak-arbre-diapo-accolade {
+  width: 4cqw;
+  height: 34cqh;
+  fill: none;
+  stroke: var(--d-accent);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.notak-arbre-diapo-accolade path {
+  vector-effect: non-scaling-stroke;
+  stroke-width: 3px;
+  stroke-linecap: round;
+}
+
+/* Paroles : de grandes lignes centrées, la dernière arrivée en pleine clarté. */
+.notak-arbre-diapo-liste[data-mise='paroles'] {
+  text-align: center;
+}
+
+.notak-arbre-diapo-liste[data-mise='paroles'] h2 {
+  font-size: 3.4cqw;
+  opacity: 0.8;
+}
+
+.notak-arbre-diapo-liste[data-mise='paroles'] li {
+  padding-left: 0;
+  font-size: 5.2cqw;
+  font-weight: 600;
+}
+
+.notak-arbre-diapo-liste[data-mise='paroles'] li[data-etat='passe'] {
+  opacity: 0.35;
+}
+
+/* Arête de poisson et chronologie : un axe horizontal, les étapes de part et d'autre. */
+.notak-arbre-diapo-liste[data-mise='arete'],
+.notak-arbre-diapo-liste[data-mise='chronologie'] {
+  grid-template-rows: auto 1fr;
+  align-content: stretch;
+}
+
+.notak-arbre-diapo-axe {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-height: 0;
+  padding-right: 0;
+}
+
+.notak-arbre-diapo-trait {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 0.5cqw;
+  border-radius: 1cqw;
+  background: var(--d-accent);
+  transform: translateY(-50%);
+}
+
+.notak-arbre-diapo-liste[data-mise='arete'] .notak-arbre-diapo-axe {
+  padding-right: 14cqw;
+}
+
+.notak-arbre-diapo-liste[data-mise='arete'] .notak-arbre-diapo-trait {
+  right: 12cqw;
+}
+
+.notak-arbre-diapo-tete {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 13cqw;
+  height: 8cqw;
+  padding: 0 1cqw;
+  border-radius: var(--d-rayon, 10px);
+  background: var(--d-accent);
+  color: var(--d-fond);
+  font-size: 2.4cqw;
+  font-weight: 700;
+  text-align: center;
+  transform: translateY(-50%);
+}
+
+.notak-arbre-diapo-etape {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.notak-arbre-diapo-point {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1.6cqw;
+  height: 1.6cqw;
+  border-radius: 50%;
+  background: var(--d-accent);
+  transform: translate(-50%, -50%);
+}
+
+.notak-arbre-diapo-etiquette {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: grid;
+  gap: 0.4cqw;
+  padding: 0 0.6cqw;
+  font-size: 2.6cqw;
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.notak-arbre-diapo-etiquette em {
+  font-size: 2cqw;
+  font-style: normal;
+  opacity: 0.8;
+}
+
+.notak-arbre-diapo-etape[data-cote='haut'] .notak-arbre-diapo-etiquette {
+  bottom: calc(50% + 2.4cqw);
+}
+
+.notak-arbre-diapo-etape[data-cote='bas'] .notak-arbre-diapo-etiquette {
+  top: calc(50% + 2.4cqw);
+}
+
+.notak-arbre-diapo-etape[data-etat='cache'] {
+  opacity: 0;
+}
+
+.notak-arbre-diapo-etape[data-anime] {
+  transition: opacity 300ms ease-out;
+}
+
+/* — La présentation — */
+
+.notak-arbre-pitch-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  cursor: default;
+}
+
+.notak-arbre-pitch-diapo[data-anime] {
+  animation: notak-arbre-pitch-fondu 300ms ease-out;
+}
+
+.notak-arbre-pitch-compte {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* La barre flottante : en haut à droite, à 100 % au début, à 15 % après trois secondes, à 100 % au survol. */
+.notak-arbre-pitch-outils {
+  position: absolute;
+  top: 30px;
+  right: 30px;
+  display: flex;
+  gap: 8px;
+  transition: opacity 200ms ease;
+}
+
+.notak-arbre-pitch-outils[data-discret] {
+  opacity: 0.15;
+}
+
+.notak-arbre-pitch-groupe {
+  display: flex;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--notak-arbre-fond);
+  box-shadow: 0 0 0 0.5px var(--notak-arbre-filet-c), 0 2px 8px rgb(0 0 0 / 0.14);
+}
+
+.notak-arbre-pitch-outil {
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--notak-arbre-texte);
+  cursor: pointer;
+}
+
+.notak-arbre-pitch-outil:hover:not(:disabled) {
+  background: var(--notak-arbre-survol);
+}
+
+.notak-arbre-pitch-outil:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.notak-arbre-pitch-outil[aria-expanded='true'] {
+  background: var(--notak-arbre-appui);
+}
+
+/* La pastille « lire depuis le début ». */
+.notak-arbre-pitch-puce {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 16px;
+  border-radius: 24px;
+  background: var(--notak-arbre-fond);
+  box-shadow: 0 0 0 0.5px var(--notak-arbre-filet-c), 0 8px 30px rgb(0 0 0 / 0.2);
+  color: var(--notak-arbre-texte);
+  font-size: 13px;
+  transform: translateX(-50%);
+  animation: notak-arbre-pitch-fondu 300ms ease-out;
+}
+
+.notak-arbre-pitch-puce button {
+  height: 24px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--notak-arbre-choix);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notak-arbre-pitch-puce button:hover {
+  background: var(--notak-arbre-survol);
+}
+
+/* La fenêtre des raccourcis. */
+.notak-arbre-pitch-raccourcis {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  min-width: 368px;
+  min-height: 312px;
+  border-radius: 6px;
+  background: var(--notak-arbre-fond);
+  box-shadow: 0 5px 30px rgb(0 0 0 / 0.2);
+  color: var(--notak-arbre-texte);
+  font-size: 13px;
+  transform: translate(-50%, -50%);
+}
+
+.notak-arbre-pitch-raccourcis header {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 29px;
+}
+
+.notak-arbre-pitch-raccourcis header button {
+  position: absolute;
+  top: 5px;
+  left: 8px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #949494;
+  cursor: pointer;
+}
+
+.notak-arbre-pitch-raccourcis ul {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 24px;
+  list-style: none;
+}
+
+.notak-arbre-pitch-raccourcis li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.notak-arbre-pitch-sep {
+  height: 1px;
+  background: var(--notak-arbre-filet-c);
+}
+
+.notak-arbre-pitch-touches {
+  display: inline-flex;
+  align-items: center;
+}
+
+.notak-arbre-pitch-touches i {
+  display: inline-block;
+  width: 10px;
+  color: #949494;
+  font-style: normal;
+  text-align: center;
+  opacity: 0.5;
+}
+
+.notak-arbre-pitch-touche {
+  display: inline-grid;
+  place-items: center;
+  min-width: 25px;
+  height: 25px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--notak-arbre-texte) 8%, var(--notak-arbre-fond));
+  color: #949494;
+  font: inherit;
+}

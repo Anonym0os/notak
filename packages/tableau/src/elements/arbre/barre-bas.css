@@ -1,0 +1,287 @@
+/* La barre du bas de la carte ouverte (BarreBas.tsx) : deux pastilles flottantes, comme celles de Xmind.
+   Les teintes se tirent de `--notak-arbre-*` (fenetre.css) : le thème sombre suit sans rien redire. */
+
+.notak-arbre-bas {
+  position: absolute;
+  right: 8px;
+  bottom: 16px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 36px;
+  /* Les seuils de rétrécissement se mesurent sur la barre, pas sur la fenêtre : un panneau ouvert la resserre aussi. */
+  container: barre-bas / inline-size;
+  pointer-events: none;
+}
+
+.notak-arbre-bas-pastille {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 4px;
+  border-radius: 24px;
+  background: var(--notak-arbre-verre);
+  backdrop-filter: blur(13px) saturate(300%);
+  box-shadow: var(--notak-arbre-ombre);
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.48px;
+  pointer-events: auto;
+}
+
+.notak-arbre-bas-feuilles {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.notak-arbre-bas-controles {
+  flex: none;
+}
+
+/* Un séparateur de groupe : une cellule de 9, un filet de 1 sur 16. */
+.notak-arbre-bas-filet {
+  display: block;
+  flex: none;
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: var(--notak-arbre-filet-c);
+}
+
+.notak-arbre-bas-hote {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Un bouton de la barre : 28 de haut, l'icône à 24. */
+.notak-arbre-bas-bouton {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  min-width: 34px;
+  height: 28px;
+  padding: 2px 5px;
+  border: 0;
+  border-radius: 24px;
+  background: transparent;
+  color: var(--notak-arbre-texte);
+  cursor: pointer;
+}
+
+.notak-arbre-bas-bouton:hover:not(:disabled, [aria-pressed='true']) {
+  background: var(--notak-arbre-survol);
+}
+
+.notak-arbre-bas-bouton:active:not(:disabled, [aria-pressed='true']) {
+  background: var(--notak-arbre-appui);
+}
+
+.notak-arbre-bas-bouton:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.notak-arbre-bas-bouton[aria-pressed='true'] {
+  background: var(--notak-arbre-plein);
+  color: var(--notak-arbre-fond);
+}
+
+.notak-arbre-bas-modes {
+  display: flex;
+  align-items: center;
+}
+
+/* Le compteur et le zoom : 12/16, chiffres tabulaires, centrés dans la largeur que prendrait le plus long texte. */
+.notak-arbre-bas-texte {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 24px;
+  background: transparent;
+  color: var(--notak-arbre-texte);
+  font: inherit;
+  letter-spacing: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.notak-arbre-bas-texte:hover {
+  background: var(--notak-arbre-survol);
+}
+
+.notak-arbre-bas-reserve {
+  visibility: hidden;
+  white-space: nowrap;
+}
+
+.notak-arbre-bas-valeur {
+  position: absolute;
+  inset: 0 auto 0 8px;
+  display: grid;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.notak-arbre-bas-zoom .notak-arbre-bas-valeur {
+  inset: 0 22px 0 8px;
+  text-align: center;
+}
+
+.notak-arbre-bas-compteur .notak-arbre-bas-valeur {
+  inset: 0 8px;
+  justify-items: center;
+}
+
+/* Le popover des comptes, au-dessus du compteur. */
+.notak-arbre-bas-popover {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  z-index: 5;
+  min-width: 72px;
+  padding: 8px;
+  border-radius: 24px;
+  background: var(--notak-arbre-verre);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 0 0 0.5px var(--notak-arbre-filet-c), 0 8px 60px rgb(0 0 0 / 0.16), 0 4px 8px rgb(0 0 0 / 0.02);
+  font-size: 13px;
+  line-height: 17px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.notak-arbre-bas-popover p {
+  margin: 0;
+  padding: 4px 8px;
+}
+
+.notak-arbre-bas-menu {
+  left: 50%;
+  min-width: 120px;
+  transform: translateX(-50%);
+}
+
+.notak-arbre-bas-menu-feuille {
+  left: 0;
+  min-width: 220px;
+  transform: none;
+}
+
+/* L'onglet de la feuille : 28 de haut, 24 à 220 de large, le chevron paraît au survol. */
+.notak-arbre-bas-feuille {
+  flex: none;
+  min-width: 0;
+  max-width: 220px;
+  height: 28px;
+  border-radius: 24px;
+  background: var(--notak-arbre-appui);
+}
+
+.notak-arbre-bas-feuille:hover {
+  background: color-mix(in srgb, var(--notak-arbre-texte) 18%, transparent);
+}
+
+.notak-arbre-bas-onglet {
+  flex: 1;
+  min-width: 24px;
+  max-width: 200px;
+  height: 28px;
+  padding: 0 0 0 16px;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: var(--notak-arbre-texte);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 17px;
+  text-align: left;
+  letter-spacing: 0.26px;
+  cursor: default;
+}
+
+.notak-arbre-bas-onglet span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-arbre-bas-chevron {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 28px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--notak-arbre-texte);
+  opacity: 0;
+  cursor: pointer;
+}
+
+.notak-arbre-bas-feuille:hover .notak-arbre-bas-chevron,
+.notak-arbre-bas-chevron[aria-expanded='true'],
+.notak-arbre-bas-chevron:focus-visible {
+  opacity: 1;
+}
+
+.notak-arbre-bas-renommer {
+  width: 180px;
+  height: 20px;
+  margin: 0 8px 0 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--notak-arbre-texte);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+}
+
+.notak-arbre-bas-plus {
+  margin-left: 0;
+}
+
+/* Le rétrécissement, dans l'ordre du relevé : compteur, zoom, Gantt, modes, puis les deux pastilles. */
+@container barre-bas (max-width: 600px) {
+  .notak-arbre-bas-compteur,
+  .notak-arbre-bas-coupe-compteur {
+    display: none;
+  }
+}
+
+@container barre-bas (max-width: 500px) {
+  .notak-arbre-bas-zoom,
+  .notak-arbre-bas-coupe-zoom {
+    display: none;
+  }
+}
+
+@container barre-bas (max-width: 430px) {
+  .notak-arbre-bas-gantt,
+  .notak-arbre-bas-coupe-gantt {
+    display: none;
+  }
+}
+
+@container barre-bas (max-width: 380px) {
+  .notak-arbre-bas-modes {
+    display: none;
+  }
+}
+
+@container barre-bas (max-width: 300px) {
+  .notak-arbre-bas-controles {
+    display: none;
+  }
+}

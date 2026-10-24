@@ -2,6 +2,7 @@ import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
 import { cleEntre } from '../../coeur/ordre'
 import { type Arbre, type Id, type Limite, type NoeudTexte, type Relation, type Resume, type StructureArbre, type Sujet, docDepuisTexte, nouvelId, texteBrut } from '../../coeur/tableau'
 import { type Lecture, enfantsDe, lire } from './modele/sujets'
+import { ajouterDiapo, extraireDiapo } from './xmindPitch'
 
 /**
  * Le format `.xmind` (docs/XMIND.md § 7) : un zip, avec `content.json` (un tableau de feuilles), `metadata.json`,
@@ -124,6 +125,7 @@ function lireFeuille(f: Json, fichiers: Record<string, Uint8Array>): FeuilleLue 
   const resumes: Record<Id, Resume> = {}
   const images: ImageAImporter[] = []
   const vus = new Set<Id>()
+  let pitch: Arbre['pitch']
   const idDe = (t: Json) => {
     let id = typeof t.id === 'string' && t.id && !vus.has(t.id) ? t.id : nouvelId()
     while (vus.has(id)) id = nouvelId()
@@ -149,6 +151,14 @@ function lireFeuille(f: Json, fichiers: Record<string, Uint8Array>): FeuilleLue 
     if (typeof t.class === 'string' && CLASSES[t.class]) s.classe = CLASSES[t.class]
     const sac: Json = {}
     for (const [k, v] of Object.entries(t)) if (!LUS.has(k)) sac[k] = v
+    // Les réglages du mode Pitch sortent du style du sujet (le thème et le rapport, du sujet central).
+    if (sac.style !== undefined) {
+      const lu = extraireDiapo(sac.style, parent === undefined)
+      if (lu.diapo) s.diapo = lu.diapo
+      if (lu.pitch) pitch = lu.pitch
+      if (lu.style === undefined) delete sac.style
+      else sac.style = lu.style
+    }
     const autres: Json[] = []
     for (const e of liste(t.extensions)) {
       if (e.provider === 'org.xmind.ui.numbering' && estObjet(e.content)) {
@@ -254,6 +264,7 @@ function lireFeuille(f: Json, fichiers: Record<string, Uint8Array>): FeuilleLue 
     ...(Object.keys(options).length ? { options } : {}),
     ...reglages,
     ...(Object.keys(sacFeuille).length ? { xmind: sacFeuille } : {}),
+    ...(pitch ? { pitch } : {}),
   }
   return { titre: typeof f.title === 'string' ? f.title : sujets[central]!.titre, arbre, images }
 }
@@ -313,6 +324,8 @@ function ecrireFeuille(titre: string, a: Arbre, images: ReadonlyMap<Id, ImageAEx
       const o = a.options ?? {}
       fusionnerStyle(t, 'style', { 'alignment-by-level': o.uniforme ? 'actived' : undefined, ...(o.uneCouleur ? { 'line-color': a.couleurLigne } : {}) })
     }
+    const style = ajouterDiapo(t.style, s.diapo, id === l.central ? a.pitch : undefined)
+    if (style !== undefined) t.style = style
     if (s.image) {
       const img = images.get(s.image.fichier)
       if (img) {

@@ -11,6 +11,9 @@ import { lire, nouvelArbre } from './modele/sujets'
 import './arbre.css'
 import './fenetre.css'
 import './onglet-carte.css'
+import './barre-bas.css'
+import './panneau-gauche.css'
+import './pitch.css'
 
 /** Largeur d'une carte mentale posée sur la toile, en UG. */
 export const LARGEUR_ARBRE = 40

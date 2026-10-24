@@ -44,6 +44,7 @@ export function gesteDe(e: Touche, choisis: readonly Id[], l: Lecture, d: Dispos
     if (!e.altKey && !e.shiftKey && k.toLowerCase() === 'f') return { type: 'mode', mode: 'recherche' }
     if (k.toLowerCase() === 'k' && !e.shiftKey) return { type: 'panneau', section: 'lien' }
     if (k === ']') return { type: 'panneau' }
+    if (k === '[' && !e.shiftKey && !e.altKey) return { type: 'mode', mode: 'navigation' }
     // Cmd+Alt+C, V, 0, U : copier, coller, réinitialiser le style, l'appliquer au même rang. Alt change le caractère sur Mac : on lit la touche.
     const code = (e as Partial<KeyboardEvent>).code
     if (e.altKey && !e.shiftKey && code === 'KeyC') return { type: 'copierStyle', id: courant }

@@ -191,6 +191,15 @@ import {
   IconListTree,
   IconChecklist,
   IconAppWindow,
+  IconBraces,
+  IconCaretLeft,
+  IconCaretLeftFilled,
+  IconCaretRight,
+  IconCaretRightFilled,
+  IconFishBone,
+  IconLayoutSidebar,
+  IconTimeline,
+  IconZoomOut,
   type TablerIcon,
 } from '@tabler/icons-react'
 import { type ReactElement, type ReactNode, createElement, forwardRef } from 'react'
@@ -260,6 +269,16 @@ const IconFichierPhoto = traits('IconFichierPhoto', 'M20.5 12a8.5 8.5 0 1 1-17 0
 const IconFichierMontage = traits('IconFichierMontage', 'M3 7h9v4H3z', 'M8 13h13v4H8z', 'M16 3v18')
 /** Un plan de travail coupé en zones : les maquettes. */
 const IconFichierMaquette = traits('IconFichierMaquette', 'M4 4h16v16H4z', 'M4 9h16', 'M9 9v11')
+
+/** Une fenêtre à bandeau plein et deux barres de tâches décalées : le diagramme de Gantt. */
+const IconGantt = dessiner(
+  'IconGantt',
+  createElement('g', null,
+    createElement('rect', { x: 3, y: 4, width: 18, height: 16, rx: 3 }),
+    createElement('path', { d: 'M3 8.5h18' }),
+    createElement('path', { d: 'M7 12.5h6M11 16h6' }),
+  ),
+)
 
 /** Une roue chromatique : un disque et ses quartiers. */
 const IconRoue = dessiner(
@@ -494,6 +513,17 @@ const ICONES = {
   convertir: IconArrowsExchange,
   relier: IconRelier,
   roue: IconRoue,
+  // La barre du bas, le panneau de gauche et le mode Pitch de la carte ouverte.
+  gantt: IconGantt,
+  zoomMoins: IconZoomOut,
+  triangleGauche: IconCaretLeft,
+  triangleGauchePlein: IconCaretLeftFilled,
+  triangleDroite: IconCaretRight,
+  triangleDroitePlein: IconCaretRightFilled,
+  listeAccolade: IconBraces,
+  listeArete: IconFishBone,
+  listeChronologie: IconTimeline,
+  panneauGauche: IconLayoutSidebar,
   // La carte mentale ouverte en grand (barre d'outils, panneaux).
   arbreRelation: IconArrowCurveRight,
   arbreResume: IconBracketsContainEnd,

@@ -553,6 +553,26 @@ export type StructureArbre =
   | 'matrice-lignes'
   | 'matrice-colonnes'
 
+/** Les réglages de diapositives d'une carte (docs/XMIND.md § 11). `ratio` absent : le plus proche de l'écran. */
+export interface ReglagesPitch {
+  theme?: string
+  ratio?: '16:9' | '4:3' | '9:16' | '3:4'
+}
+
+/**
+ * Ce qu'un sujet dit de ses diapositives. Chaque champ absent vaut « Auto » : choisir Auto retire le champ.
+ * `sujet` : le sujet comme diapositive ; `resume` : pour un sujet de résumé ; `liste` : ses sous-sujets comme diapositive.
+ */
+export interface ReglagesDiapo {
+  sujet?: 'visible' | 'masque'
+  resume?: 'visible' | 'masque'
+  liste?: 'visible' | 'masque'
+  /** Comment les sous-sujets d'une liste arrivent : en descendant dans chacun, un par un, ou tous d'un coup. */
+  livraison?: 'percer' | 'un-par-un' | 'tout'
+  miseEnPage?: 'accolade' | 'puces' | 'paroles' | 'arete' | 'chronologie'
+  image?: 'gauche' | 'droite' | 'dessus' | 'dessous' | 'fond'
+}
+
 /** Un sujet de carte mentale. Le central est le seul sans `parent` ; ses frères se rangent par `ordre`. */
 export interface Sujet {
   parent?: Id
@@ -582,6 +602,8 @@ export interface Sujet {
   numerotation?: { motif: 'arabe' | 'romain' | 'majuscule' | 'minuscule'; paliers?: boolean }
   /** Son rang d'importance, qui change son habillage. */
   classe?: 'important' | 'secondaire' | 'barre'
+  /** Ce qu'il dit de ses diapositives en mode Pitch ; un réglage absent vaut « Auto ». */
+  diapo?: ReglagesDiapo
   /** Son habillage propre, par-dessus celui du thème (docs/XMIND.md § 5). */
   style?: StyleSujet
   /** Ce que Notak ne lit pas d'un sujet venu d'un `.xmind`, gardé pour le lui rendre à l'export. */
@@ -645,6 +667,8 @@ export interface Arbre {
   relations?: Record<Id, Relation>
   limites?: Record<Id, Limite>
   resumes?: Record<Id, Resume>
+  /** Le mode Pitch de la carte : le thème et le rapport d'aspect des diapositives. Absent : thème sombre, rapport automatique. */
+  pitch?: ReglagesPitch
   /**
    * Les réglages de l'onglet Carte (docs/XMIND.md § 9), tous éteints par défaut.
    * `compacte` : des branches plus serrées. `libre` : un sujet glissé garde la place où on le lâche. `uneCouleur` :

@@ -421,55 +421,6 @@
   border: 0 !important;
 }
 
-.notak-arbre-plan {
-  position: absolute;
-  inset: 64px 0 0;
-  overflow-y: auto;
-  padding: 16px max(24px, calc(50% - 360px)) 80px;
-}
-
-.notak-arbre-plan-ligne {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 30px;
-}
-
-.notak-arbre-plan-puce {
-  width: 18px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--notak-arbre-encre);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.notak-arbre-plan-puce:disabled {
-  cursor: default;
-}
-
-.notak-arbre-plan-titre {
-  flex: 1;
-  padding: 4px 6px;
-  border: 0;
-  border-radius: 4px;
-  background: none;
-  color: var(--notak-arbre-texte);
-  font: inherit;
-  font-size: 15px;
-  outline: none;
-}
-
-.notak-arbre-plan-titre:focus {
-  background: color-mix(in srgb, var(--notak-arbre-choix) 10%, transparent);
-}
-
-.notak-arbre-plan-central {
-  font-size: 22px;
-  font-weight: 700;
-}
-
 .notak-arbre-recherche {
   position: absolute;
   top: 60px;

@@ -1,9 +1,6 @@
-import { EditorContent, useEditor } from '@tiptap/react'
 import { useEffect, useRef, useState } from 'react'
-import type { FormeBranche, FormeSujet, Id, NoeudTexte, StyleSujet, Sujet } from '../../coeur/tableau'
-import { texteBrut } from '../../coeur/tableau'
+import type { FormeBranche, FormeSujet, Id, StyleSujet, Sujet } from '../../coeur/tableau'
 import { t } from '../../langue'
-import { EXTENSIONS_NOTE } from '../note/extensions'
 import type { ContexteToile } from '../types'
 import { GROUPES_MARQUEURS, Marqueur } from './marqueurs'
 import type { Geste } from './modele/gestes'
@@ -136,11 +133,6 @@ export function Panneau({ lecture: l, ids, section, faire, contexte, fermer }: P
             </select>
           </section>
 
-          <section data-section="note">
-            <h3>{t('arbre.note')}</h3>
-            <EditeurNote key={`n${id}`} note={un.note} valider={(n) => porter('note', n)} />
-          </section>
-
           <section data-section="image">
             <h3>{t('arbre.image')}</h3>
             {contexte.services.fichiers && (
@@ -183,24 +175,6 @@ function ChampValide({ valeur, aide, valider }: { valeur: string; aide: string; 
       }}
     />
   )
-}
-
-/** La note d'un sujet, en texte riche : écrite dans la carte quand on quitte l'éditeur. */
-function EditeurNote({ note, valider }: { note: NoeudTexte | undefined; valider(n: NoeudTexte | undefined): void }) {
-  const editeur = useEditor({ extensions: EXTENSIONS_NOTE, content: note ?? '', editorProps: { attributes: { class: 'notak-texte notak-arbre-note', 'aria-label': t('arbre.note') } } })
-  useEffect(() => {
-    if (!editeur) return
-    const quitter = () => {
-      const doc = editeur.getJSON() as NoeudTexte
-      const vide = texteBrut(doc).trim() === ''
-      if (JSON.stringify(vide ? undefined : doc) !== JSON.stringify(note)) valider(vide ? undefined : doc)
-    }
-    editeur.on('blur', quitter)
-    return () => {
-      editeur.off('blur', quitter)
-    }
-  }, [editeur, note, valider])
-  return <EditorContent editor={editeur} />
 }
 
 function ChoixImage({ aImage, choisir, retirer }: { aImage: boolean; choisir(f: File): Promise<void>; retirer(): void }) {

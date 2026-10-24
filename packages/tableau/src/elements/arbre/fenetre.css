@@ -12,7 +12,7 @@
   --notak-arbre-plein: color-mix(in srgb, var(--notak-arbre-texte) 85%, var(--notak-arbre-fond));
   --notak-arbre-ombre: inset 1px 1px 2px rgb(255 255 255 / 0.4), inset 0.5px 0.5px 1px rgb(255 255 255 / 0.7), 0 6px 20px rgb(0 0 0 / 0.06), 0 0 4px rgb(0 0 0 / 0.04);
   --notak-arbre-verre: color-mix(in srgb, var(--notak-arbre-fond) 70%, transparent);
-  --notak-arbre-largeur-cote: 250px;
+  --notak-arbre-largeur-cote: 268px;
   background: var(--notak-arbre-cadre);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
   color: var(--notak-arbre-texte);
@@ -170,72 +170,6 @@
 
 .notak-arbre-plus .notak-ico + .notak-ico {
   margin-left: -2px;
-}
-
-/* En bas : la feuille à gauche, l'état de la vue à droite. */
-.notak-arbre-feuilles {
-  position: absolute;
-  bottom: 12px;
-  left: 8px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 5px;
-}
-
-.notak-arbre-feuille {
-  max-width: 220px;
-  overflow: hidden;
-  padding: 5px 16px;
-  border-radius: 999px;
-  background: var(--notak-arbre-piste);
-  font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.notak-arbre-etat {
-  position: absolute;
-  right: 8px;
-  bottom: 12px;
-  display: flex;
-  align-items: center;
-  height: 36px;
-  padding: 0 6px 0 14px;
-  font-size: 12px;
-}
-
-.notak-arbre-compte {
-  padding-right: 8px;
-  font-variant-numeric: tabular-nums;
-}
-
-.notak-arbre-filet {
-  width: 1px;
-  height: 16px;
-  margin: 0 6px;
-  background: var(--notak-arbre-filet-c);
-}
-
-.notak-arbre-zoom {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 28px;
-  padding: 0 6px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-}
-
-.notak-arbre-zoom:hover {
-  background: var(--notak-arbre-survol);
 }
 
 /* Les menus déroulants. */
