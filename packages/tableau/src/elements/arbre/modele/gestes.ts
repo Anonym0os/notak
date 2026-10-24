@@ -4,6 +4,30 @@ import { type ReglageDiapo, type ReglagePitch, poserDiapo, poserPitch } from './
 import { type GesteStyle, appliquerGesteStyle } from './gestes-style'
 import { ajouterLimite, ajouterRelation, ajouterResume, basculerMarqueur, changerLimite, changerRelation, porter, resumeDe, retirer } from './elements'
 import {
+  type Alignement,
+  type Fragment,
+  type Planning,
+  type Rect,
+  aligner,
+  ajouterMarqueurPerso,
+  ajouterZone,
+  basculerLegende,
+  changerZone,
+  coller,
+  creerGroupe,
+  deplacerMarqueursPerso,
+  deplacerZone,
+  direMarqueur,
+  effacerContenuZone,
+  etiqueter,
+  normaliserPlanning,
+  renommerGroupe,
+  replierSousBranches,
+  retirerZone,
+  supprimerGroupe,
+  supprimerMarqueursPerso,
+} from './insertions'
+import {
   type Lecture,
   ajouterEnfant,
   ajouterFlottant,
@@ -35,6 +59,8 @@ export type Geste =
   | { type: 'supprimerSeul'; id: Id }
   | { type: 'replier'; id: Id }
   | { type: 'toutReplier' }
+  /** Replier ou déplier tout ce qui descend de ce sujet. */
+  | { type: 'replierBranches'; id: Id; replier: boolean }
   | { type: 'deplierNiveau'; n: number }
   | { type: 'echanger'; id: Id; sens: -1 | 1 }
   | { type: 'dupliquer'; id: Id }
@@ -48,8 +74,8 @@ export type Geste =
   | { type: 'options'; options: NonNullable<Arbre['options']> }
   /** Carte non équilibrée : combien de principaux à droite. */
   | { type: 'aDroite'; n: number }
-  /** Placement libre : rendre aux sujets la place que leur structure leur donne. */
-  | { type: 'realigner' }
+  /** Placement libre : rendre aux sujets la place que leur structure leur donne (à ces sujets, ou à tous). */
+  | { type: 'realigner'; ids?: Id[] }
   | { type: 'relation'; de: Id; vers: Id }
   | { type: 'limite'; ids: Id[] }
   | { type: 'resume'; ids: Id[] }
@@ -58,7 +84,33 @@ export type Geste =
   | { type: 'titrer'; id: Id; titre: string }
   | { type: 'controles'; id: Id; controles: [{ x: number; y: number }, { x: number; y: number }] }
   | { type: 'marqueur'; ids: Id[]; marqueur: string }
-  | { type: 'porter'; ids: Id[]; champ: 'etiquettes' | 'lien' | 'note' | 'image' | 'tache' | 'numerotation' | 'classe'; valeur: unknown }
+  | { type: 'porter'; ids: Id[]; champ: 'etiquettes' | 'lien' | 'note' | 'image' | 'tache' | 'numerotation' | 'classe' | 'piece' | 'equation' | 'vignette'; valeur: unknown }
+  /** La barre d'outils et le menu « + » (docs/XMIND.md § 15) : une zone, une tâche planifiée, des étiquettes. */
+  | { type: 'zone'; rect: Rect; titre?: string }
+  | { type: 'zoneRect'; id: Id; rect: Rect }
+  /** Déplacer une zone : ses sujets flottants (`membres`) la suivent. */
+  | { type: 'zoneDeplacer'; id: Id; de: { x: number; y: number }; membres: Id[] }
+  /** Retirer une zone ; `membres` : les sujets qu'elle contient, qui partent avec elle si `quoi` n'est pas `zone`. */
+  | { type: 'zoneRetirer'; id: Id; membres: Id[]; quoi: 'zone' | 'contenu' | 'tout' }
+  | { type: 'planning'; ids: Id[]; planning: Planning | undefined; change?: 'debut' | 'fin' | 'duree' }
+  | { type: 'etiquettes'; ids: Id[]; ajouter?: string[]; retirer?: string[]; tout?: string[] }
+  /** Ôter ce que portent ces sujets : marqueurs, étiquettes, lien, note… */
+  | { type: 'oter'; ids: Id[]; champs: ('marqueurs' | 'etiquettes' | 'lien' | 'note' | 'image' | 'equation' | 'piece' | 'planning' | 'tache' | 'vignette')[] }
+  /** Les marqueurs à soi et la légende. */
+  | { type: 'groupe'; action: 'creer'; nom: string; id?: Id }
+  | { type: 'groupe'; action: 'renommer' | 'supprimer'; id: Id; nom?: string }
+  | { type: 'marqueurPerso'; action: 'ajouter'; groupe: Id; nom: string; fichier: Id }
+  | { type: 'marqueurPerso'; action: 'supprimer'; marqueurs: string[] }
+  | { type: 'marqueurPerso'; action: 'deplacer'; marqueurs: string[]; vers: Id }
+  | { type: 'legende'; visible?: boolean }
+  | { type: 'legendeTexte'; marqueur: string; texte: string }
+  /** Coller des branches mises de côté, sous un sujet ou en flottants. */
+  | { type: 'coller'; fragment: Fragment; parent?: Id; position?: { x: number; y: number } }
+  | { type: 'aligner'; ids: Id[]; mode: Alignement; tailles: Record<Id, { l: number; h: number }> }
+  /** Remet des relations à leur forme d'origine : le point de contrôle seul, ou tout (forme et pointes). */
+  | { type: 'relationReinit'; ids: Id[]; quoi: 'point' | 'tout' }
+  /** Coller le style d'une relation copiée (forme et pointes). */
+  | { type: 'relationStyleColler'; ids: Id[]; forme: Relation['forme'] | undefined; pointes: Relation['pointes'] | undefined }
   /** Cmd+Alt+T : la case à cocher d'une tâche, mise ou ôtée. */
   | { type: 'tache'; ids: Id[] }
   /** Dans le plan : Tab range le sujet sous son frère d'avant, Maj+Tab le remonte d'un cran. */
@@ -157,6 +209,8 @@ export function appliquerGeste(a: Arbre, g: Geste, titre: Titreur): Effet | null
       const tous = replies.length > 0 && replies.every((x) => l.sujets.get(x)?.replie)
       return { arbre: toutReplier(a, !tous) }
     }
+    case 'replierBranches':
+      return { arbre: replierSousBranches(a, g.id, g.replier) }
     case 'deplierNiveau':
       return { arbre: deplierJusquA(a, g.n) }
     case 'echanger':
@@ -202,7 +256,8 @@ export function appliquerGeste(a: Arbre, g: Geste, titre: Titreur): Effet | null
       return { arbre: changerSujet(a, l.central, (s) => ({ ...s, aDroite: Math.max(0, Math.round(g.n)) })) }
     case 'realigner': {
       let arbre = a
-      for (const [id, s] of l.sujets) if (s.decalage) arbre = changerSujet(arbre, id, ({ decalage: _d, ...reste }) => reste)
+      const cibles = g.ids ? new Set(g.ids) : null
+      for (const [id, s] of l.sujets) if (s.decalage && (!cibles || cibles.has(id))) arbre = changerSujet(arbre, id, ({ decalage: _d, ...reste }) => reste)
       return { arbre }
     }
     case 'relation': {
@@ -221,6 +276,7 @@ export function appliquerGeste(a: Arbre, g: Geste, titre: Titreur): Effet | null
       return { arbre: g.ids.reduce(retirer, a) }
     case 'titrer': {
       const nettoye = g.titre.trim()
+      if (a.zones?.[g.id]) return { arbre: changerZone(a, g.id, ({ titre: _t, ...z }) => (nettoye ? { ...z, titre: nettoye } : z)) }
       if (a.relations?.[g.id]) return { arbre: changerRelation(a, g.id, ({ titre: _t, ...r }) => (nettoye ? { ...r, titre: nettoye } : r)) }
       return { arbre: changerLimite(a, g.id, ({ titre: _t, ...x }) => (nettoye ? { ...x, titre: nettoye } : x)) }
     }
@@ -233,6 +289,65 @@ export function appliquerGeste(a: Arbre, g: Geste, titre: Titreur): Effet | null
     case 'tache': {
       const toutes = g.ids.every((x) => a.sujets[x]?.tache)
       return { arbre: porter(a, g.ids, 'tache', toutes ? undefined : 'a-faire') }
+    }
+    case 'zone': {
+      const [arbre, id] = ajouterZone(a, g.rect, g.titre ?? '')
+      return { arbre, choisir: id }
+    }
+    case 'zoneRect':
+      return { arbre: changerZone(a, g.id, (z) => ({ ...z, x: Math.round(g.rect.x), y: Math.round(g.rect.y), l: Math.round(g.rect.l), h: Math.round(g.rect.h) })) }
+    case 'zoneDeplacer':
+      return { arbre: deplacerZone(a, g.id, g.de, g.membres) }
+    case 'zoneRetirer': {
+      let arbre = a
+      if (g.quoi !== 'zone') arbre = effacerContenuZone(arbre, g.membres)
+      if (g.quoi !== 'contenu') arbre = retirerZone(arbre, g.id)
+      return { arbre, choisir: l.central }
+    }
+    case 'planning': {
+      const planning = g.planning ? normaliserPlanning(g.planning, g.change) : undefined
+      return { arbre: porter(a, g.ids, 'planning', planning) }
+    }
+    case 'etiquettes':
+      return { arbre: etiqueter(a, g.ids, g) }
+    case 'oter': {
+      let arbre = a
+      for (const champ of g.champs) arbre = champ === 'marqueurs' ? g.ids.reduce((x, id) => changerSujet(x, id, ({ marqueurs: _m, ...reste }) => reste), arbre) : porter(arbre, g.ids, champ, undefined)
+      return { arbre }
+    }
+    case 'groupe': {
+      if (g.action === 'creer') return { arbre: creerGroupe(a, g.nom, g.id)[0] }
+      if (g.action === 'renommer') return { arbre: renommerGroupe(a, g.id, g.nom ?? '') }
+      return { arbre: supprimerGroupe(a, g.id) }
+    }
+    case 'marqueurPerso': {
+      if (g.action === 'ajouter') return { arbre: ajouterMarqueurPerso(a, g.groupe, { nom: g.nom, fichier: g.fichier })[0] }
+      if (g.action === 'supprimer') return { arbre: supprimerMarqueursPerso(a, g.marqueurs) }
+      return { arbre: deplacerMarqueursPerso(a, g.marqueurs, g.vers) }
+    }
+    case 'legende':
+      return { arbre: basculerLegende(a, g.visible) }
+    case 'legendeTexte':
+      return { arbre: direMarqueur(a, g.marqueur, g.texte) }
+    case 'coller': {
+      const [arbre, collees] = coller(a, g.fragment, g.parent !== undefined ? { parent: g.parent } : { position: g.position ?? { x: 0, y: 0 } })
+      // Sous un sujet replié, on déplie : on doit voir ce qu'on colle.
+      const ouvert = g.parent !== undefined && l.sujets.get(g.parent)?.replie ? basculerRepli(arbre, g.parent) : arbre
+      return collees.length > 0 ? { arbre: ouvert, choisir: collees[0]! } : null
+    }
+    case 'aligner':
+      return { arbre: aligner(a, g.ids, g.mode, new Map(Object.entries(g.tailles))) }
+    case 'relationReinit': {
+      let arbre = a
+      for (const id of g.ids)
+        arbre = changerRelation(arbre, id, ({ controles: _c, forme, pointes, ...reste }) => (g.quoi === 'point' ? { ...reste, ...(forme ? { forme } : {}), ...(pointes ? { pointes } : {}) } : reste))
+      return { arbre }
+    }
+    case 'relationStyleColler': {
+      let arbre = a
+      for (const id of g.ids)
+        arbre = changerRelation(arbre, id, ({ forme: _f, pointes: _p, ...reste }) => ({ ...reste, ...(g.forme && g.forme !== 'courbe' ? { forme: g.forme } : {}), ...(g.pointes ? { pointes: g.pointes } : {}) }))
+      return { arbre }
     }
     case 'style': {
       let arbre = a

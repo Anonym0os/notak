@@ -15,6 +15,8 @@ import './barre-bas.css'
 import './panneau-gauche.css'
 import './pitch.css'
 import './onglet-style.css'
+import './menus.css'
+import './onglet-icones.css'
 
 /** Largeur d'une carte mentale posée sur la toile, en UG. */
 export const LARGEUR_ARBRE = 40
@@ -83,6 +85,18 @@ registre.recepteur({
             const fichier = await contexte.services.fichiers!.enregistrer(new Blob([img.octets as BlobPart], { type: MIME_IMAGE[ext] ?? 'application/octet-stream' }))
             const k = Math.min(1, 200 / img.l)
             arbre = porter(arbre, [img.sujet], 'image', { fichier, l: Math.round(img.l * k), h: Math.round(img.h * k) })
+          }
+          // Ses pièces jointes, et les images de ses marqueurs à soi.
+          for (const p of contexte.services.fichiers ? feuille.pieces : []) {
+            const fichier = await contexte.services.fichiers!.enregistrer(new Blob([p.octets as BlobPart], { type: p.type }))
+            arbre = porter(arbre, [p.sujet], 'piece', { fichier, nom: p.nom, type: p.type, taille: p.octets.length, ...(p.audio ? { audio: true } : {}) })
+          }
+          for (const m of contexte.services.fichiers ? feuille.marqueurs : []) {
+            const g = arbre.groupes?.[m.groupe]
+            if (!g) continue
+            const ext = m.nom.split('.').pop()?.toLowerCase() ?? ''
+            const fichier = await contexte.services.fichiers!.enregistrer(new Blob([m.octets as BlobPart], { type: MIME_IMAGE[ext] ?? 'application/octet-stream' }))
+            arbre = { ...arbre, groupes: { ...arbre.groupes, [m.groupe]: { ...g, marqueurs: g.marqueurs.map((x) => (x.id === m.marqueur ? { ...x, fichier } : x)) } } }
           }
           ops.push({ type: 'creer', element: { id: nouvelId(), x, y: Math.round(ou.y), largeur: LARGEUR_ARBRE, contenu: arbre } })
           x += LARGEUR_ARBRE + 4

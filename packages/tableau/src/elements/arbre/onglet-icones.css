@@ -1,0 +1,389 @@
+/* Le panneau d'icônes (OngletIcones.tsx) : Marqueur | Autocollant | Illustration. Les mesures sont celles de Xmind ;
+   les teintes se tirent des variables de la carte, pour que le thème sombre suive. */
+
+.notak-arbre-icones {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  font-size: 12px;
+}
+
+.notak-arbre-icones button {
+  font: inherit;
+  color: inherit;
+}
+
+/* Le bouton de la légende, et celui qui crée un groupe : pleine largeur, comme les boutons ordinaires du panneau. */
+.notak-arbre-icones-legende,
+.notak-arbre-icones-pied {
+  flex: none;
+  height: 28px;
+  margin: 2px 2px 0;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--notak-arbre-fond);
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.05);
+  cursor: pointer;
+}
+
+.notak-arbre-icones-legende:hover,
+.notak-arbre-icones-pied:hover {
+  background: color-mix(in srgb, var(--notak-arbre-texte) 4%, var(--notak-arbre-fond));
+}
+
+.notak-arbre-icones-pied {
+  margin: 8px 2px 0;
+}
+
+.notak-arbre-icones-defile {
+  flex: 1;
+  min-height: 0;
+  margin-top: 12px;
+  padding: 12px 8px 12px;
+  overflow-y: auto;
+  border-top: 1px solid var(--notak-arbre-filet-c);
+}
+
+.notak-arbre-icones-groupe + .notak-arbre-icones-groupe {
+  margin-top: 12px;
+}
+
+/* L'en-tête d'un groupe : un chevron qui se tourne, son titre. */
+.notak-arbre-icones-entete {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 20px;
+}
+
+.notak-arbre-icones-entete > button:first-child {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notak-arbre-icones-chevron {
+  flex: none;
+  width: 0;
+  height: 0;
+  margin-left: -1px;
+  border-top: 4.5px solid currentcolor;
+  border-right: 3.5px solid transparent;
+  border-left: 3.5px solid transparent;
+  transition: transform 100ms;
+}
+
+.notak-arbre-icones-entete button[aria-expanded='false'] .notak-arbre-icones-chevron {
+  transform: rotate(-90deg);
+}
+
+.notak-arbre-icones-nom {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-arbre-icones-groupe h4 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--notak-arbre-discret);
+}
+
+/* Les grilles : 7 marqueurs de 26 px, 4 autocollants de 40, 3 illustrations de 68. */
+.notak-arbre-icones-grille {
+  display: grid;
+  justify-content: space-between;
+}
+
+.notak-arbre-icones-grille[data-genre='marqueurs'] {
+  grid-template-columns: repeat(7, 26px);
+  row-gap: 16px;
+  padding: 8px 0;
+}
+
+.notak-arbre-icones-grille[data-genre='autocollants'] {
+  grid-template-columns: repeat(4, 40px);
+  row-gap: 8px;
+  padding: 4px 0;
+}
+
+.notak-arbre-icones-grille[data-genre='illustrations'] {
+  grid-template-columns: repeat(3, 68px);
+  row-gap: 8px;
+  padding: 8px 0;
+}
+
+.notak-arbre-icones-marqueur,
+.notak-arbre-icones-autocollant,
+.notak-arbre-icones-illustration {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.notak-arbre-icones-marqueur {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+}
+
+.notak-arbre-icones-autocollant {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.notak-arbre-icones-illustration {
+  width: 68px;
+  height: 68px;
+  border-radius: 6px;
+}
+
+.notak-arbre-icones-marqueur:hover,
+.notak-arbre-icones-autocollant:hover,
+.notak-arbre-icones-illustration:hover {
+  background: var(--notak-arbre-survol);
+}
+
+.notak-arbre-icones-marqueur:active,
+.notak-arbre-icones-autocollant:active,
+.notak-arbre-icones-illustration:active {
+  background: var(--notak-arbre-appui);
+}
+
+/* Un marqueur que portent tous les sujets choisis : cerclé. */
+.notak-arbre-icones-marqueur[aria-pressed='true'] {
+  box-shadow: inset 0 0 0 1.5px var(--notak-arbre-choix);
+}
+
+/* Le mode « sélectionner » d'un groupe à soi : une coche ronde, le reste s'estompe. */
+.notak-arbre-icones-marqueur[data-estompe] {
+  opacity: 0.35;
+}
+
+.notak-arbre-icones-marqueur[data-coche]::after {
+  content: '';
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--notak-arbre-fond);
+  border-radius: 50%;
+  background: var(--notak-arbre-choix);
+}
+
+.notak-arbre-icones-plus {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.notak-arbre-icones-plus:hover {
+  background: var(--notak-arbre-survol);
+}
+
+.notak-arbre-icones-vide,
+.notak-arbre-icones-aucun {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--notak-arbre-discret);
+}
+
+.notak-arbre-icones-aucun {
+  margin-top: 120px;
+  font-size: 14px;
+  text-align: center;
+  opacity: 0.6;
+}
+
+.notak-arbre-icones-renomme {
+  min-width: 0;
+  flex: 1;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid var(--notak-arbre-choix);
+  border-radius: 4px;
+  background: var(--notak-arbre-fond);
+  color: var(--notak-arbre-texte);
+  font: inherit;
+  outline: none;
+}
+
+.notak-arbre-icones-confirme {
+  margin: 6px 0;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--notak-arbre-piste);
+}
+
+.notak-arbre-icones-confirme p {
+  margin: 4px 0 8px;
+  color: var(--notak-arbre-discret);
+}
+
+.notak-arbre-icones-confirme div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.notak-arbre-icones-confirme button {
+  height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--notak-arbre-fond);
+  cursor: pointer;
+}
+
+.notak-arbre-icones-confirme .notak-arbre-icones-danger {
+  background: #e5534b;
+  color: #fff;
+}
+
+/* La légende : un marqueur, ce qu'il veut dire. */
+.notak-arbre-icones-ligne-legende {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.notak-arbre-icones-ligne-legende input {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--notak-arbre-fond);
+  box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 0.15);
+  color: var(--notak-arbre-texte);
+  font: inherit;
+}
+
+/* Les autocollants : le filtre de catégorie. */
+.notak-arbre-icones-categorie {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 48px;
+  padding: 0 8px;
+  color: var(--notak-arbre-discret);
+}
+
+.notak-arbre-icones-categorie select {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--notak-arbre-fond);
+  box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 0.15);
+  color: var(--notak-arbre-texte);
+  font: inherit;
+}
+
+.notak-arbre-icones-categorie + .notak-arbre-icones-defile {
+  margin-top: 0;
+}
+
+/* Les illustrations : la recherche, la liste des groupes, un groupe ouvert. */
+.notak-arbre-icones-recherche {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  margin: 8px 2px 0;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: var(--notak-arbre-fond);
+  box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 0.15);
+  color: var(--notak-arbre-discret);
+}
+
+.notak-arbre-icones-recherche input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--notak-arbre-texte);
+  font: inherit;
+  outline: none;
+}
+
+.notak-arbre-icones-titre-groupe {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notak-arbre-icones-titre-groupe strong {
+  flex: 1;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-arbre-icones-titre-groupe span {
+  color: var(--notak-arbre-discret);
+}
+
+.notak-arbre-icones-retour {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--notak-arbre-filet-c);
+}
+
+.notak-arbre-icones-retour button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.notak-arbre-icones-retour button:hover {
+  background: var(--notak-arbre-survol);
+}

@@ -1,7 +1,7 @@
 import type * as Y from 'yjs'
 
 /**
- * Les sujets d'une carte mentale (et ses relations, limites, résumés) vivent hors de l'élément, dans la carte Yjs
+ * Les sujets d'une carte mentale (et ses relations, limites, résumés, zones, groupes de marqueurs) vivent hors de l'élément, dans la carte Yjs
  * `arbres`, une entrée par sujet : `<élément>␟<dictionnaire>␟<identifiant>`. Deux personnes qui écrivent au même
  * instant dans deux sujets écrivent deux clés différentes, et Yjs garde les deux ; dans le même sujet, la dernière
  * écriture l'emporte, sujet par sujet. Une entrée à plat plutôt qu'une carte imbriquée par élément : créer une carte
@@ -12,7 +12,7 @@ import type * as Y from 'yjs'
  */
 
 export const NOM_ARBRES = 'arbres'
-export const CHAMPS_ARBRE = ['sujets', 'relations', 'limites', 'resumes'] as const
+export const CHAMPS_ARBRE = ['sujets', 'relations', 'limites', 'resumes', 'zones', 'groupes'] as const
 export type ChampArbre = (typeof CHAMPS_ARBRE)[number]
 export type Dicos = Partial<Record<ChampArbre, Record<string, unknown>>>
 

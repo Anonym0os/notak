@@ -388,9 +388,14 @@ export interface Decor {
   /** Les petites icônes après le titre : note, lien. */
   icones?: number
   etiquettes?: readonly string[]
+  /** Ce qui se pose comme une image : l'image elle-même, un autocollant ou une illustration. */
   image?: { l: number; h: number }
   /** « Afficher toutes les notes » : le texte de la note, montré en bloc sous le titre. */
   note?: string
+  /** Une équation, au-dessus du titre. */
+  equation?: { l: number; h: number }
+  /** La tâche planifiée, résumée en une ligne sous le titre (« 3 → 9 janv. · 7 j »). */
+  planning?: string
 }
 
 /** La géométrie d'un sujet dessiné, relative à son coin haut gauche. */
@@ -406,11 +411,18 @@ export interface Mesure extends Taille {
   image: { x: number; y: number } | null
   /** Où va le bloc de la note, quand toutes les notes s'affichent : sa première ligne, et ses lignes. */
   note: { y: number; lignes: string[]; l: number } | null
+  /** Où va l'équation. */
+  equation: { x: number; y: number } | null
+  /** Où va la ligne de la tâche planifiée, et sa largeur. */
+  planning: { y: number; l: number } | null
 }
 
 const TAILLE_ICONE = 16
 const PAS_ICONE = 19
 const HAUTEUR_ETIQUETTE = 18
+/** La pastille d'une tâche planifiée : un camembert d'avancement, puis les dates. */
+const POLICE_PLANNING = 11
+const DISQUE_PLANNING = 12
 const POLICE_ETIQUETTE = 11
 /** Le bloc d'une note : sa police, sa largeur, le nombre de lignes montrées (le reste se coupe en « … »). */
 export const POLICE_NOTE = 11
@@ -444,11 +456,14 @@ export function mesurer(titre: string, h: Habit, decor: Decor = {}): Mesure {
   const lEtiquettes = largeurs.reduce((s, x, i) => s + x + (i > 0 ? 4 : 0), 0)
   const lignesNote = decor.note ? lignesDeNote(decor.note) : null
   const lNote = lignesNote ? Math.max(...lignesNote.map((x) => largeurTexte(x, POLICE_NOTE, 400))) : 0
-  const interieur = Math.max(lRangee, lEtiquettes, decor.image?.l ?? 0, lNote)
+  const lPlanning = decor.planning ? Math.ceil(largeurTexte(decor.planning, POLICE_PLANNING, 500) + DISQUE_PLANNING + 14) : 0
+  const interieur = Math.max(lRangee, lEtiquettes, lPlanning, decor.image?.l ?? 0, decor.equation?.l ?? 0, lNote)
   let l = h.largeur ? Math.round(h.largeur) : Math.ceil(interieur + 2 * h.marge[1])
   let y = h.marge[0]
   const image = decor.image ? { x: l / 2 - decor.image.l / 2, y } : null
   if (decor.image) y += decor.image.h + 6
+  const equation = decor.equation ? { x: l / 2 - decor.equation.l / 2, y } : null
+  if (decor.equation) y += decor.equation.h + 6
   // Le bloc du titre se range à gauche, au centre ou à droite de l'intérieur du sujet.
   const x0 = h.alignement === 'gauche' ? h.marge[1] : h.alignement === 'droite' ? l - h.marge[1] - lRangee : l / 2 - lRangee / 2
   const rangee = { x: x0, y, h: hRangee }
@@ -456,6 +471,8 @@ export function mesurer(titre: string, h: Habit, decor: Decor = {}): Mesure {
   y += hRangee
   const etiquettes = largeurs.length > 0 ? { y: y + 4, largeurs } : null
   if (etiquettes) y += 4 + HAUTEUR_ETIQUETTE
+  const planning = lPlanning > 0 ? { y: y + 4, l: lPlanning } : null
+  if (planning) y += 4 + HAUTEUR_ETIQUETTE
   const note = lignesNote ? { y: y + 6, lignes: lignesNote, l: lNote } : null
   if (note) y += 6 + lignesNote!.length * POLICE_NOTE * INTERLIGNE
   let hauteur = Math.ceil(y + h.marge[0])
@@ -470,9 +487,11 @@ export function mesurer(titre: string, h: Habit, decor: Decor = {}): Mesure {
     if (image) ((image.x += dx), (image.y += dy))
     if (etiquettes) etiquettes.y += dy
     if (note) note.y += dy
+    if (equation) ((equation.x += dx), (equation.y += dy))
+    if (planning) planning.y += dy
     ;[l, hauteur] = [c, c]
   }
-  const mesure: Mesure = { lignes, l, h: hauteur, rangee, texte, etiquettes, image, note }
+  const mesure: Mesure = { lignes, l, h: hauteur, rangee, texte, etiquettes, image, note, equation, planning }
   if (memo.size > 5000) memo.clear()
   memo.set(cle, mesure)
   return mesure
@@ -510,17 +529,24 @@ export function uniformiser(l: Lecture, mesures: ReadonlyMap<Id, Mesure>): Map<I
  * La mesure d'un sujet de la carte, avec tout ce qu'il porte autour de son titre. `compacte` : la carte compacte.
  * `toutesNotes` : la note s'écrit sous le titre au lieu de son icône.
  */
-export function mesureDeSujet(l: Lecture, id: Id, theme: Theme, o: { compacte?: boolean; toutesNotes?: boolean } = {}): Mesure {
+export function mesureDeSujet(
+  l: Lecture,
+  id: Id,
+  theme: Theme,
+  o: { compacte?: boolean; toutesNotes?: boolean; tailleEquation?: (latex: string) => Taille; planning?: (p: NonNullable<Sujet['planning']>) => string } = {},
+): Mesure {
   const s = l.sujets.get(id)!
   return mesurer(s.titre, habitDe(l, id, theme, !!o.compacte), {
     tache: !!s.tache,
     marqueurs: s.marqueurs?.length ?? 0,
     prefixe: numeroDe(l, id),
-    icones: (s.note && !o.toutesNotes ? 1 : 0) + (s.lien ? 1 : 0),
+    icones: (s.note && !o.toutesNotes ? 1 : 0) + (s.lien ? 1 : 0) + (s.piece ? 1 : 0),
     ...(s.etiquettes?.length ? { etiquettes: s.etiquettes } : {}),
-    ...(s.image ? { image: { l: s.image.l, h: s.image.h } } : {}),
+    ...(s.image ? { image: { l: s.image.l, h: s.image.h } } : s.vignette ? { image: { l: s.vignette.l, h: s.vignette.h } } : {}),
+    ...(s.equation && o.tailleEquation ? { equation: o.tailleEquation(s.equation) } : {}),
+    ...(s.planning && o.planning ? { planning: o.planning(s.planning) } : {}),
     ...(s.note && o.toutesNotes ? { note: texteBrut(s.note) } : {}),
   })
 }
 
-export { HAUTEUR_ETIQUETTE, PAS_ICONE, POLICE_ETIQUETTE, TAILLE_ICONE }
+export { DISQUE_PLANNING, HAUTEUR_ETIQUETTE, PAS_ICONE, POLICE_ETIQUETTE, POLICE_PLANNING, TAILLE_ICONE }

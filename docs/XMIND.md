@@ -61,11 +61,13 @@ proche (`logic-chart.right` → logique droite, `tree.branch-aligned.right` → 
 - **Étiquettes** : une liste de mots, montrée sous le titre.
 - **Lien** : vers une page web, ou vers un autre sujet de la carte.
 - **Image** : posée au-dessus du titre, à une taille réglable.
-- **Marqueurs** : de petites icônes devant le titre, une seule par groupe :
+- **Marqueurs** : de petites icônes devant le titre, une seule par groupe (le panneau d'icônes, § 9) :
   - priorité 1 à 9 ;
   - avancement : début, ⅛, ¼, ⅜, ½, ⅝, ¾, ⅞, fait, en pause ;
   - drapeaux, étoiles, personnes et pastilles, en couleurs ;
   - visages, flèches, symboles, mois, jours.
+- **Tâche planifiée**, **pièce jointe**, **note audio**, **équation**, **autocollant**, **illustration** : posés par la barre
+  d'outils et le menu « + » (§ 11).
 - **Tâche** : case à cocher (à faire, fait).
 - **Numérotation** des enfants : 1, 2, 3 ; I, II, III ; A, B, C ; a, b, c ; à plusieurs niveaux ou non.
 - **Rang d'importance** : important, secondaire, ou barré (dépassé).
@@ -203,8 +205,8 @@ telle quelle. À valider contre un fichier sauvegardé par Xmind : la valeur de 
   avancent, flèche gauche recule, Échap sort.
 - **Afficher la branche seule** (Cmd+;) : la branche choisie devient la seule visible, comme une carte à part.
 
-→ Notak : le Gantt, l'IA, les commentaires et la collaboration propres à Xmind, la note audio et la vidéo web
-sont écartés : Notak a déjà ses propres moyens à plusieurs.
+→ Notak : le Gantt, l'IA, les commentaires et la collaboration propres à Xmind et la vidéo web sont écartés :
+Notak a déjà ses propres moyens à plusieurs. La note audio, elle, est reprise (§ 11).
 
 ## 7. Le format `.xmind`
 
@@ -250,6 +252,13 @@ normale), `floatingTopicFlexible`, `floatingTopicAutoColor`, `relationshipAutoCo
 - Un `markerId` inconnu de Notak est **gardé tel quel** et rendu à l'export.
 - Un champ inconnu de Notak sur un sujet est gardé dans un sac (`xmind`) et rendu à l'export, pour qu'un aller-
   retour par Notak n'abîme pas un fichier.
+- **Ce que Notak ajoute** est rangé dans une extension à nous, que Xmind laisse en l'état : sur un sujet,
+  `org.notak.sujet` → `{planning, equation, vignette, tache: "annulee", piece: {nom, type, taille, audio?, src}}` ; sur
+  une feuille, `org.notak.arbre` → `{zones, groupes, legende}`. Une pièce jointe s'écrit aussi comme Xmind : `href:
+  "xap:attachments/<fichier>"`, le fichier sous `attachments/` ; un autocollant ou une illustration s'écrit en plus
+  comme une image SVG (`xap:resources/…`), pour que Xmind la montre, et Notak la relit comme autocollant. Les images
+  des marqueurs à soi sont sous `resources/marqueurs/`. Un fichier de Xmind qui porte un `href: xap:attachments/…`
+  donne une pièce jointe.
 - Les styles et thèmes de Xmind ne sont pas traduits finement : → Notak garde la structure, la forme, la
   couleur de branche et le rang ; le reste revient au thème de Notak.
 
@@ -447,3 +456,114 @@ les raccourcis. Un clic sur la scène avance. La dernière étape franchie, on r
 préférence de ce navigateur.
 → Notak : pas de seconde fenêtre ni de **vue du présentateur**, pas de filigrane « Presented with xmind », pas de
 limite de cinq diapositives (ces deux-là tiennent à la licence de Xmind), pas de « Présenter dans une fenêtre ».
+## 13. Le panneau d'icônes
+
+Le bouton **smiley** (« Marqueur ») ouvre, dans le panneau de côté, trois onglets en capsule : **Marqueur | Autocollant
+| Illustration**. Un clic pose sur les sujets choisis (ou le sujet courant) **sans fermer le panneau** ni lui prendre le
+focus. Chacun des trois s'ouvre aussi par le menu « + » et le menu d'un sujet.
+
+**Marqueur.**
+- En tête : **Afficher / Masquer la légende** (le réglage vit dans la carte : `legende.visible`).
+- Sept groupes repliables (chevron, ouverts au départ), dans l'ordre : **Étiquette** (7 couleurs), **Priorité** (1 à 7),
+  **Tâche** (début, ⅛, ⅜, ½, ⅝, ⅞, fait), **Drapeau**, **Étoile**, **Personnes** (7 couleurs chacun), **Symbole** (16 sur la
+  quarantaine que Xmind définit). 58 marqueurs, en grille de 7 colonnes de 26 px (cellule 26 × 26, rayon 4, image 22).
+  Pas d'infobulle, comme Xmind ; le nom accessible se lit au lecteur d'écran (« Priorité 3 », « Drapeau rouge »).
+- **Un marqueur par groupe** : en poser un remplace celui du groupe ; le cliquer encore l'ôte. Les groupes ne
+  s'excluent pas entre eux. Cmd+1 … Cmd+7 posent les priorités.
+- **Groupes à soi**, après les groupes de la bibliothèque : « Nouveau groupe » (pied du panneau) en crée un
+  (« Groupe sans titre », renommé sur place, Entrée valide, Échap annule) ; son « + » importe des images (PNG, JPEG, SVG,
+  20 Mo au plus ; échec : « Échec de l'importation ») ; un groupe vide dit « Cliquez sur + pour ajouter un marqueur. ».
+  Clic droit sur un groupe : **Renommer**, **Supprimer** (confirmation : tous les marqueurs partent, jusque sur les
+  sujets). Clic droit sur un marqueur à soi : **Sélectionner** (coches rondes, Échap sort), **Déplacer vers ▸** (groupes,
+  « Nouveau groupe »), **Supprimer**. Un marqueur à soi ne s'exclut avec aucun autre.
+- **Légende** : quand elle est montrée, la carte la dessine à droite (un cadre : le marqueur, ce qu'il veut dire) et le
+  panneau liste les marqueurs utilisés, chacun avec un champ pour écrire ce qu'il veut dire.
+- → Notak : les dessins sont les nôtres (pastilles numérotées, camemberts, icônes Tabler en blanc sur un disque). Les 9
+  groupes que Xmind garde masqués (humeur, flèche, académique, mois, semaine…) restent lisibles et dessinés
+  (`MARQUEURS_CACHES`) mais ne sont pas au panneau. Les identifiants des symboles (`symbol-heart`, `symbol-like`,
+  `symbol-pushpin`…) sont une reconstitution : un identifiant inconnu est de toute façon gardé tel quel.
+
+**Autocollant.** Un filtre **Catégorie** (Tout, puis 13 catégories : Business, Éducation, Technologie, Humeur, Voyage,
+Vacances, Produits quotidiens, Animal, Météo, Sport, Nourriture et boissons, Geste, Autres), des groupes repliables, une
+grille de 4 colonnes de 40 px. Un clic pose l'autocollant à la place de l'image du sujet ; on peut aussi le **glisser** sur
+un sujet. → Notak : 436 **emojis Unicode**, pas les 468 dessins de Xmind.
+
+**Illustration.** Une recherche (200 ms après la frappe, sur les noms de groupe et de catégorie), puis les **12 groupes**
+de Xmind avec leur nombre et trois aperçus ; un groupe s'ouvre (chevron de retour), avec ses sous-catégories (le titre
+disparaît s'il n'y en a qu'une) en grille de 3 colonnes de 68 px ; pas de résultat : « Aucun résultat n'a été trouvé. ».
+→ Notak : des **icônes Tabler** (MIT) en couleur sur une pastille, 219 au lieu de 349 dessins ; pas de
+badge « pro », pas de téléchargement ni de cache disque, pas de bandeau « réseau déconnecté ».
+
+Posé sur un sujet, un autocollant ou une illustration prend la place de l'image (l'un chasse l'autre) ; le champ est
+`vignette` (`{genre, id, l, h}`).
+
+## 14. Les menus contextuels
+
+Un clic droit sur la carte ouvre un menu à l'endroit cliqué (`MenuContextuel.tsx`) ; ce qui n'était pas choisi le
+devient d'abord, le fond désélectionne. Les entrées grisées restent affichées ; un séparateur en tête, en queue ou
+doublé, et un sous-menu vide, sont retirés. Échap, un clic dehors ferment ; les flèches parcourent. Les raccourcis sont
+écrits en glyphes du Mac, ou en Ctrl+ ailleurs. Le contenu se construit par `construireMenu` (`menus.ts`), ce que chaque
+entrée fait est dans `actionsMenu.ts`.
+
+- **Sujet** : Insérer ▸ (Note, Étiquette, Tâches à faire, Tâche, Lien ▸ Page web / Sujet, —, Pièce jointe, Note audio, —,
+  Marqueur, Autocollant, Illustration, Image locale, Équation) · Couper, Copier, Coller, Dupliquer · Supprimer, Supprimer
+  le sujet seul, Effacer le texte, Supprimer le marqueur / l'étiquette / le lien (une entrée par genre, ou un sous-menu
+  « Supprimer ▸ » s'il y en a plusieurs) · Marquer comme terminé / non terminé / annulé, Supprimer la tâche à faire,
+  Supprimer la tâche · Copier / Coller / Réinitialiser le style · Sélectionner ▸ (sous-sujets, frères, même niveau, tout ;
+  « tous les résumés » pour un résumé, « tous les sujets flottants » pour un flottant) · Replier / Déplier les sous-sujets,
+  Replier / Déplier toutes les sous-branches · Afficher uniquement la branche / Afficher tous les contenus ·
+  Aligner le sujet flottant ▸ (gauche, centrer, droite, haut, au milieu, bas, distribuer ; deux flottants au moins,
+  trois pour distribuer) · Réinitialiser l'emplacement (principal, placement libre). Sujet de résumé : le menu sans
+  Couper, Coller, Dupliquer ni Supprimer le sujet seul. Le central ne se coupe, ne se duplique ni ne se supprime.
+- **Fond** : Coller (au point cliqué), Créer une zone, Insérer le sujet flottant (au point cliqué), Insérer la relation,
+  Replier / Déplier toutes les sous-branches, Se rendre sur le sujet central, Sélectionner ▸ (flottants, relations,
+  résumés, limites, images, équations, zones, tout).
+- **Relation** : Modifier, Supprimer, Copier / Coller / Réinitialiser le style (forme et pointes), Réinitialiser la
+  position du point, Sélectionner toutes les relations. **Limite** : Modifier, Supprimer, Sélectionner toutes les limites.
+- **Zone** : Insérer le sujet flottant, Supprimer (zone et contenu), Supprimer la zone, Effacer le contenu, Ajuster à la taille.
+- **Pastilles d'un sujet** : image (Enregistrer sous, Supprimer), équation (Modifier, Supprimer), marqueur (Modifier,
+  Supprimer, Mettre en surbrillance : choisit les sujets qui le portent), étiquette (Supprimer, surbrillance), icône de
+  note (Modifier, Supprimer, Afficher toutes les notes), lien (Modifier, Supprimer), pièce jointe (Ouvrir, Supprimer,
+  Enregistrer sous), tâche planifiée (Modifier, Supprimer), case à faire (Supprimer, Marquer comme annulé / terminé).
+- Cmd+C, Cmd+X, Cmd+V, Cmd+A et Alt+Cmd+Z font ce que disent les menus. → Notak : copier et couper mettent la branche
+  de côté dans la carte ouverte (pas dans le presse-papiers du système) ; coller la remet sous le sujet choisi, ou en
+  flottants au point cliqué.
+
+**Retiré** (une fonction de Xmind que Notak n'a pas) : Développer des idées et Décomposition du travail IA, Masquage des
+données, Exporter la branche vers… et Imprimer branche, Organiser ▸ (premier plan, arrière-plan : pas d'ordre de
+superposition), Nouvelle feuille à partir du sujet (une carte = un élément), Fichier local et Dossier local du lien,
+le menu abrégé d'une bulle (pas de bulles), Prévisualiser, Tourner à gauche et Réinitialiser la taille d'une image,
+Afficher / Masquer une note (icône ou bloc), Couper / Copier / Dupliquer d'une zone, Replier une zone, Copier le style
+d'une zone ou d'une limite (elles n'ont pas de style), Exporter / Imprimer la zone. Aucun menu en lecture seule.
+
+## 15. Ce que la barre d'outils et le menu « + » insèrent
+
+Le menu « + » : Note, Tâches à faire, Lien ▸ (Page web, Sujet), —, Pièce jointe, Note audio, —, Autocollant,
+Illustration, Image locale, Équation ; la barre porte Zone, Étiquette et Tâche. Chaque entrée est active selon la
+sélection : Étiquette, À faire, Page web, Autocollant, Illustration dès un sujet ; Tâche, Note, Lien vers un sujet, Pièce
+jointe, Note audio, Image locale, Équation pour un seul sujet ; Zone toujours.
+
+- **Zone** : autour des sujets flottants choisis ; sinon le bouton arme un tracé (curseur en croix, Échap annule) et le
+  rectangle tracé devient la zone. Elle contient les flottants dont le centre est dedans (sans liste : rien à garder à
+  jour) et ils la suivent quand on la tire par son bandeau ou son contour ; titre « Zone », modifiable au double-clic.
+  `Arbre.zones`. → Notak : pas de poignée de redimensionnement (« Ajuster à la taille » la refait autour de son contenu),
+  pas de couleur au panneau, pas de repli.
+- **Étiquette** (Maj+Cmd+L) : un éditeur en popover près du sujet : des pastilles à retirer, un champ (Entrée ou
+  virgule ajoute) ; sur plusieurs sujets, il ajoute à tous.
+- **Tâche** : un popover : début, fin, durée (jours), avancement (0 à 100). Changer le début ou la durée recalcule la
+  fin ; changer la fin recalcule la durée. La ligne sous le titre montre un camembert et « 3 → 9 janv. · 7 j · 40 % ».
+  `Sujet.planning`. **À faire** : la case existante, avec en plus l'état annulé (case barrée).
+- **Lien** : Page web (Cmd+K) : un champ d'adresse ; Sujet : une liste filtrable des sujets de la carte.
+- **Pièce jointe** : le sélecteur de fichiers, le fichier est rangé par `services.fichiers` ; l'icône trombone ouvre le
+  fichier. `Sujet.piece`.
+- **Note audio** : le micro du navigateur (`MediaRecorder`), un bouton qui commence et arrête, l'écoute avant de garder ;
+  le son est rangé comme un fichier (`piece.audio`), l'icône micro rouvre le lecteur. Sans micro ou refusé, le popover le dit.
+- **Autocollant, Illustration** : ouvrent l'onglet du panneau d'icônes (§ 9). **Image locale** (Maj+Cmd+I) : le sélecteur
+  de fichiers, directement.
+- **Équation** : du LaTeX, aperçu à mesure, Cmd+Entrée valide ; dessinée au-dessus du titre. → Notak : **Temml** (MIT,
+  168 Ko minifiés, sans police à charger) écrit du MathML que le navigateur dessine ; un LaTeX invalide s'affiche en
+  texte rouge dans la carte. `Sujet.equation`.
+
+Chaque élément passe par un geste (`modele/gestes.ts`), se voit dans le rendu (`Dessin.tsx`) et fait l'aller-retour
+`.xmind` (§ 7). `zones` et `groupes` sont des dictionnaires de la carte Yjs `arbres` (`CHAMPS_ARBRE`) : deux personnes
+qui posent chacune une zone ne s'effacent pas.

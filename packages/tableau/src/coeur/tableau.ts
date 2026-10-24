@@ -597,7 +597,16 @@ export interface Sujet {
   note?: NoeudTexte
   /** Une image au-dessus du titre : le fichier, et sa taille affichée en px. */
   image?: { fichier: Id; l: number; h: number }
-  tache?: 'a-faire' | 'faite'
+  /** La case à cocher (« À faire ») : à faire, faite, ou annulée (la case barrée). */
+  tache?: 'a-faire' | 'faite' | 'annulee'
+  /** La tâche planifiée (« Tâche » de la barre d'outils) : dates `aaaa-mm-jj`, durée en jours, avancement de 0 à 100. */
+  planning?: { debut?: string; fin?: string; duree?: number; progression?: number }
+  /** Un fichier porté par le sujet (pièce jointe), ou un enregistrement de la voix (`audio`). */
+  piece?: { fichier: Id; nom: string; type: string; taille: number; audio?: boolean }
+  /** Une équation en LaTeX, dessinée au-dessus du titre. */
+  equation?: string
+  /** Un autocollant (un emoji) ou une illustration de la bibliothèque, posé comme une image : l'un chasse l'autre. */
+  vignette?: { genre: 'autocollant' | 'illustration'; id: string; l: number; h: number }
   /** La numérotation de ses enfants : 1, 2, 3 ; I, II ; A, B ; a, b. `paliers` : préfixée de celle du parent (1.2). */
   numerotation?: { motif: 'arabe' | 'romain' | 'majuscule' | 'minuscule'; paliers?: boolean; /** « Commencer depuis le début » : ses enfants repartent de 1, sans le numéro de ce sujet devant. */ debut?: boolean }
   /** Une largeur imposée, en px : le titre passe à la ligne pour y tenir (`customWidth` d'un `.xmind`). Absente : la largeur du texte. */
@@ -741,6 +750,26 @@ export interface Resume {
   style?: StyleResume
 }
 
+/** Un cadre libre autour de sujets flottants (docs/XMIND.md § 3) : sa place (px de carte, coin haut gauche), son titre. */
+export interface Zone {
+  x: number
+  y: number
+  l: number
+  h: number
+  titre?: string
+  /** `#rrggbb` ; absent : l'encre de la carte. */
+  couleur?: string
+  /** Les sujets flottants qu'elle contient : ils la suivent quand on la déplace. */
+  membres?: Id[]
+}
+
+/** Un groupe de marqueurs à soi : des images, après les groupes de la bibliothèque. */
+export interface GroupeMarqueurs {
+  ordre: string
+  nom: string
+  marqueurs: { id: Id; nom: string; fichier: Id }[]
+}
+
 /** Une carte mentale (docs/XMIND.md) : ses sujets, à plat, par identifiant. */
 export interface Arbre {
   type: 'arbre'
@@ -748,6 +777,11 @@ export interface Arbre {
   relations?: Record<Id, Relation>
   limites?: Record<Id, Limite>
   resumes?: Record<Id, Resume>
+  zones?: Record<Id, Zone>
+  /** Les groupes de marqueurs à soi, par identifiant (`perso-<marqueur>` sur un sujet). */
+  groupes?: Record<Id, GroupeMarqueurs>
+  /** La légende des marqueurs : montrée ou non, et ce que chaque marqueur veut dire (par identifiant de marqueur). */
+  legende?: { visible?: boolean; textes?: Record<string, string> }
   /** Le mode Pitch de la carte : le thème et le rapport d'aspect des diapositives. Absent : thème sombre, rapport automatique. */
   pitch?: ReglagesPitch
   /**
