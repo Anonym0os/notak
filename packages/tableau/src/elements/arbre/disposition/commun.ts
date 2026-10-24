@@ -40,19 +40,41 @@ export interface Disposition {
   traits: Trait[]
 }
 
-/** Les écarts de docs/XMIND.md § 2 : entre un parent et ses enfants, entre deux frères. */
+/**
+ * Les écarts de docs/XMIND.md § 2 : entre un parent et ses enfants (l'espacement « majeur »), entre deux frères
+ * (« mineur »). Chez Xmind, c'est la classe du parent qui les commande.
+ */
 export interface Ecarts {
+  /** Majeur d'un parent qui n'est pas le central (un principal, un sous-sujet). */
   principal: number
+  /** Mineur d'un sous-sujet, et ce que les autres structures (organigramme, arbre, arête) en font. */
   secondaire: number
-  /** Entre le central et ses principaux ; absent : `ECART_CENTRAL`. */
+  /** Majeur du central : entre lui et ses principaux ; absent : `ECART_CENTRAL`. */
   central?: number
+  /** Mineur du central (entre ses principaux) et d'un principal (entre ses enfants) ; absent : `secondaire`. */
+  mineurs?: { central?: number; principal?: number }
 }
 
-export const ECARTS: Ecarts = { principal: 40, secondaire: 12 }
+/** Les écarts d'une carte aux branches en coude (le thème par défaut) : 50 et 35 du central, 26 et 6 d'un principal, 26 et 8 d'un sous-sujet. */
+export const ECARTS: Ecarts = { principal: 26, secondaire: 8, central: 50, mineurs: { central: 35, principal: 6 } }
 /** La carte compacte : des branches plus serrées. */
-export const ECARTS_COMPACTS: Ecarts = { principal: 28, secondaire: 4, central: 40 }
+export const ECARTS_COMPACTS: Ecarts = { principal: 22, secondaire: 5, central: 28, mineurs: { central: 10, principal: 5 } }
 /** Le central est plus loin de ses principaux que les autres sujets de leurs enfants. */
-export const ECART_CENTRAL = 64
+export const ECART_CENTRAL = 50
+
+/**
+ * Les écarts d'une carte selon la forme de ses branches : un coude (ou un coude arrondi) garde le majeur de base ; la
+ * courbe, la droite, l'anse et le pli le doublent, hors du central, dont l'écart ne change pas.
+ */
+export function ecartsDe(forme: StyleBranche | undefined, compacte = false): Ecarts {
+  const base = compacte ? ECARTS_COMPACTS : ECARTS
+  return forme === 'coudee' || forme === 'coudee-arrondie' || forme === undefined ? base : { ...base, principal: base.principal * 2 }
+}
+
+/** L'écart mineur entre les enfants d'un sujet du rang `rang` : celui du central, d'un principal, ou d'un sous-sujet. */
+export function mineurDe(e: Ecarts, rang: 'central' | 'principal' | 'sous'): number {
+  return (rang === 'sous' ? undefined : e.mineurs?.[rang]) ?? e.secondaire
+}
 
 /** Le rectangle qui contient toutes les boîtes (vide : un point en 0, 0). */
 export function emprise(boites: Iterable<Boite>): Boite {

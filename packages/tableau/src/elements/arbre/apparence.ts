@@ -12,13 +12,21 @@ import { type Theme, THEMES } from './themes'
  */
 export type Rang = 'central' | 'principal' | 'sous' | 'flottant'
 
-/** Les tailles de chaque rang, communes à tous les thèmes. */
+/**
+ * Ce que chaque rang prend de la classe de Xmind (docs/XMIND.md § 5) : la police et la graisse, les marges
+ * intérieures (verticale, horizontale), la largeur du texte avant le retour à la ligne. Ce sont des constantes du
+ * moteur de Xmind, communes à tous les thèmes ; seule la carte compacte les resserre. Le central est celui d'un
+ * squelette à central demi-gras de 28.
+ */
 const TAILLES: Record<Rang, { police: number; graisse: number; marge: [number, number]; largeurMax: number }> = {
-  central: { police: 20, graisse: 700, marge: [14, 24], largeurMax: 320 },
-  principal: { police: 15, graisse: 600, marge: [8, 14], largeurMax: 260 },
-  sous: { police: 13, graisse: 400, marge: [4, 6], largeurMax: 240 },
-  flottant: { police: 14, graisse: 500, marge: [7, 12], largeurMax: 260 },
+  central: { police: 28, graisse: 600, marge: [15, 29], largeurMax: 300 },
+  principal: { police: 18, graisse: 500, marge: [10, 18], largeurMax: 300 },
+  sous: { police: 14, graisse: 400, marge: [6, 6], largeurMax: 300 },
+  flottant: { police: 14, graisse: 500, marge: [11, 11], largeurMax: 300 },
 }
+
+/** L'épaisseur d'un souligné quand le thème n'en dit rien : épais pour un principal, fin pour un sous-sujet. */
+const TRAIT_SOULIGNE: Record<Rang, number> = { central: 2, principal: 2, sous: 1, flottant: 2 }
 
 export interface Habit {
   police: number
@@ -46,6 +54,8 @@ export interface Habit {
   couleurTexte?: string
   /** Un principal plein de la couleur de sa branche (sinon en contour). */
   plein: boolean
+  /** Le sujet se remplit de la couleur de sa branche à cette opacité (un sous-sujet du premier niveau, cadré). */
+  fondBranche?: number
 }
 
 export const POLICE = 'Inter, ui-sans-serif, system-ui, -apple-system, sans-serif'
@@ -62,19 +72,28 @@ export function rangDe(l: Lecture, id: Id): Rang {
 /** Une forme soulignée : le sujet n'a pas de cadre, ses branches partent du bout du trait. */
 export const souligne = (f: FormeSujet) => f === 'souligne' || f === 'double-souligne'
 
-/** Ce que la carte compacte retire des marges de chaque rang (docs/XMIND.md § 9 : « réduire la taille et l'espacement des éléments »). */
-export const MARGES_COMPACTES: Record<Rang, number> = { central: 0.78, principal: 0.65, sous: 0.67, flottant: 0.82 }
+/** L'épaisseur du trait d'un sujet souligné (celle du thème pour son rang, ou celle que son style fixe). */
+export const epaisseurSouligne = (h: Habit): number => h.epaisseurBordure || 1.75
+
+/** Les marges intérieures (verticale, horizontale) de chaque rang dans la carte compacte (docs/XMIND.md § 9 : « réduire la taille et l'espacement des éléments »). */
+export const MARGES_COMPACTES: Record<Rang, [number, number]> = { central: [12, 22], principal: [6, 12], sous: [4, 4], flottant: [9, 9] }
 
 /** L'habillage d'un sujet : son rang dans le thème, puis son style. `compacte` : la carte compacte, aux marges réduites. */
 export function habitDe(l: Lecture, id: Id, theme: Theme, compacte = false): Habit {
   const rang = rangDe(l, id)
   const t = TAILLES[rang]
-  const k = compacte ? MARGES_COMPACTES[rang] : 1
+  const marge = compacte ? MARGES_COMPACTES[rang] : t.marge
   const sujet = l.sujets.get(id)
   const s = sujet?.style
   const formeTheme = rang === 'central' ? theme.central.forme : rang === 'principal' ? theme.principal.forme : rang === 'sous' ? theme.sous.forme : theme.flottant.forme
   const forme = s?.forme ?? formeTheme
   const police = s?.taille ?? t.police
+  // Le souligné : l'épaisseur du thème, ou celle que le rang donne (le style, lui, l'emporte).
+  const traitTheme = (rang === 'principal' ? theme.principal.trait : rang === 'sous' ? theme.sous.trait : undefined) ?? TRAIT_SOULIGNE[rang]
+  const epaisseurBordure = s?.epaisseurBordure ?? (souligne(forme) ? traitTheme : undefined)
+  const fondBranche = rang === 'sous' && theme.sous.fondNiveau2 && !souligne(forme) && profondeur(l, id) === 2 ? theme.sous.fondNiveau2 : undefined
+  // Un central sans fond n'a plus le texte que le thème lui donne pour son fond.
+  const centrePlein = rang === 'central' && s?.motifRemplissage !== 'aucun'
   const latin = s?.police ?? theme.police ?? POLICE
   return {
     police,
@@ -87,16 +106,18 @@ export function habitDe(l: Lecture, id: Id, theme: Theme, compacte = false): Hab
     ...(sujet?.largeur ? { largeur: sujet.largeur } : {}),
     // La police CJK vient après la latine : un caractère que la première n'a pas passe à la seconde.
     famille: theme.cjk ? `${latin}, "${theme.cjk}"` : latin,
-    marge: margesForme(forme, [t.marge[0] * k * (police / t.police), t.marge[1] * k * (police / t.police)]),
+    // Les marges tiennent à la classe du sujet, pas à la taille de son texte.
+    marge: margesForme(forme, marge),
     forme,
     largeurMax: t.largeurMax,
     plein: (rang === 'principal' && theme.principal.plein) || (rang === 'flottant' && !!theme.flottantsColores),
-    ...(s?.remplissage ? { remplissage: s.remplissage } : rang === 'central' && theme.central.remplissage ? { remplissage: theme.central.remplissage } : {}),
+    ...(s?.remplissage ? { remplissage: s.remplissage } : centrePlein && theme.central.remplissage ? { remplissage: theme.central.remplissage } : {}),
     ...(s?.motifRemplissage ? { motifRemplissage: s.motifRemplissage } : {}),
     ...(s?.bordure ? { bordure: s.bordure } : {}),
     ...(s?.motifBordure ? { motifBordure: s.motifBordure } : {}),
-    ...(s?.epaisseurBordure !== undefined ? { epaisseurBordure: s.epaisseurBordure } : {}),
-    ...(s?.couleurTexte ? { couleurTexte: s.couleurTexte } : rang === 'central' && theme.central.texte ? { couleurTexte: theme.central.texte } : {}),
+    ...(epaisseurBordure !== undefined ? { epaisseurBordure } : {}),
+    ...(fondBranche ? { fondBranche } : {}),
+    ...(s?.couleurTexte ? { couleurTexte: s.couleurTexte } : centrePlein && theme.central.texte ? { couleurTexte: theme.central.texte } : {}),
   }
 }
 
@@ -118,6 +139,58 @@ export function appliquerCasse(texte: string, casse: CasseTexte | undefined): st
 export function separerAlpha(c: string): { couleur: string; opacite: number } {
   const m = c.match(/^(#[0-9a-f]{6})([0-9a-f]{2})$/i)
   return m ? { couleur: m[1]!, opacite: Math.round((parseInt(m[2]!, 16) / 255) * 100) / 100 } : { couleur: c, opacite: 1 }
+}
+
+/** Une couleur `#rrggbb` en teinte (0 à 360), saturation et luminosité (0 à 1) ; `null` pour toute autre écriture. */
+export function hexVersTsl(hex: string): [number, number, number] | null {
+  const m = hex.match(/^#([0-9a-f]{6})(?:[0-9a-f]{2})?$/i)
+  if (!m) return null
+  const v = parseInt(m[1]!, 16)
+  const [r, g, b] = [(v >> 16) & 255, (v >> 8) & 255, v & 255].map((c) => c / 255) as [number, number, number]
+  const [max, min] = [Math.max(r, g, b), Math.min(r, g, b)]
+  const [d, lum] = [max - min, (max + min) / 2]
+  if (d === 0) return [0, 0, lum]
+  const sat = d / (1 - Math.abs(2 * lum - 1))
+  const teinte = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4
+  return [(teinte * 60 + 360) % 360, sat, lum]
+}
+
+/** La couleur `#rrggbb` de cette teinte, saturation et luminosité. */
+export function tslVersHex(teinte: number, sat: number, lum: number): string {
+  const c = (1 - Math.abs(2 * lum - 1)) * sat
+  const x = c * (1 - Math.abs(((teinte / 60) % 2) - 1))
+  const m = lum - c / 2
+  const [r, g, b] = teinte < 60 ? [c, x, 0] : teinte < 120 ? [x, c, 0] : teinte < 180 ? [0, c, x] : teinte < 240 ? [0, x, c] : teinte < 300 ? [x, 0, c] : [c, 0, x]
+  return `#${[r, g, b].map((v) => Math.round((v + m) * 255).toString(16).padStart(2, '0')).join('')}`
+}
+
+/** La même teinte et la même saturation à une autre luminosité (0 à 1). Une couleur qui n'est pas `#rrggbb` reste telle quelle. */
+export function surLuminosite(couleur: string, luminosite: number): string {
+  const tsl = hexVersTsl(couleur)
+  return tsl ? tslVersHex(tsl[0], tsl[1], luminosite) : couleur
+}
+
+/** La teinte sombre d'une couleur de branche : sa teinte et sa saturation, à 20 % de luminosité (le texte d'un sous-sujet). */
+export const teinteSombre = (couleur: string) => surLuminosite(couleur, 0.2)
+
+/** Sa teinte claire, à 85 % : le même texte sur un fond sombre. */
+export const teinteClaire = (couleur: string) => surLuminosite(couleur, 0.85)
+
+/** Une couleur à cette opacité (0 à 1) : `#rrggbbaa` pour une couleur hexadécimale, un mélange avec le transparent sinon. */
+export function avecOpacite(couleur: string, opacite: number): string {
+  const m = couleur.match(/^(#[0-9a-f]{6})(?:[0-9a-f]{2})?$/i)
+  return m ? `${m[1]}${Math.round(opacite * 255).toString(16).padStart(2, '0')}` : `color-mix(in srgb, ${couleur} ${Math.round(opacite * 100)}%, transparent)`
+}
+
+/**
+ * Le texte d'un sous-sujet : la couleur de sa branche, assombrie sur un fond clair (éclaircie sur un fond sombre). Quand
+ * le fond suit le thème clair ou sombre de Notak (une variable CSS), la couleur se mélange à l'encre du thème, qui
+ * s'inverse avec lui.
+ */
+export function encreDeBranche(branche: string, fond: string | undefined, encreTheme: string): string {
+  if (!hexVersTsl(branche)) return encreTheme
+  if (fond && hexVersTsl(fond)) return sur(fond) === '#ffffff' ? teinteClaire(branche) : teinteSombre(branche)
+  return `color-mix(in srgb, ${branche} 32%, ${encreTheme})`
 }
 
 /** Une encre lisible sur ce fond : blanche sur un fond soutenu, presque noire sur un fond clair. Une variable CSS : blanche. */
@@ -153,14 +226,21 @@ export interface Couleurs {
 export function couleursDe(h: Habit, rang: Rang, theme: Theme, classe: Sujet['classe'], couleurBranche: string | null): Couleurs {
   const encreTheme = theme.encre ?? 'var(--notak-arbre-encre)'
   const fondTheme = theme.fond ?? 'var(--notak-arbre-fond)'
+  const texteTheme = theme.texte ?? 'var(--notak-arbre-texte)'
   const teinte = (classe === 'important' || classe === 'secondaire' ? CLASSES[classe] : null) ?? couleurBranche ?? encreTheme
   const sansFond = h.motifRemplissage === 'aucun'
+  // Un sous-sujet du premier niveau, cadré : sa branche, en filigrane.
+  const fondBranche = !sansFond && h.fondBranche && h.remplissage === undefined && couleurBranche ? avecOpacite(teinte, h.fondBranche) : null
   const fond = sansFond
     ? 'none'
     : (h.remplissage ??
+      fondBranche ??
       (rang === 'central' ? 'var(--notak-arbre-central)' : h.plein ? teinte : rang === 'flottant' ? (theme.fond ? fondTheme : 'var(--notak-arbre-flottant)') : rang === 'principal' ? fondTheme : 'none'))
-  const plein = !sansFond && (h.remplissage !== undefined || rang === 'central' || h.plein)
-  const encre = h.couleurTexte ?? (plein ? (rang === 'central' && !h.remplissage ? 'var(--notak-arbre-sur-plein)' : sur(fond)) : classe === 'secondaire' ? CLASSES.secondaire : (theme.texte ?? 'var(--notak-arbre-texte)'))
+  const plein = !sansFond && (h.remplissage !== undefined || fondBranche !== null || rang === 'central' || h.plein)
+  // Sur le filigrane de la branche, le texte se lit comme sur le fond de la carte.
+  const surFond = plein && fondBranche === null
+  const sousSombre = rang === 'sous' && theme.sous.texteBranche && couleurBranche ? encreDeBranche(teinte, theme.fond, texteTheme) : null
+  const encre = h.couleurTexte ?? (surFond ? (rang === 'central' && !h.remplissage ? 'var(--notak-arbre-sur-plein)' : sur(fond)) : classe === 'secondaire' ? CLASSES.secondaire : (sousSombre ?? texteTheme))
   const sansBordure = h.motifBordure === 'aucun' || h.epaisseurBordure === 0
   const bordure = sansBordure ? 'none' : (h.bordure ?? (rang === 'flottant' || (rang === 'principal' && !h.plein) ? teinte : 'none'))
   return { teinte, fond, plein, encre, bordure }
@@ -329,7 +409,11 @@ export interface BranchesGlobales {
 /** Un point (1/72 de pouce) en pixels d'écran. */
 export const PX_PAR_POINT = 4 / 3
 
-export function brancheDe(l: Lecture, parent: Id, globales: BranchesGlobales = {}): StyleDeBranche {
+/**
+ * Comment se trace la branche qui part de `parent`. Avec `theme`, l'épaisseur que le thème donne au rang de `parent`
+ * (central, principal, sous-sujet) s'ajoute quand ni le sujet ni la carte n'en règlent une.
+ */
+export function brancheDe(l: Lecture, parent: Id, globales: BranchesGlobales = {}, theme?: Theme): StyleDeBranche {
   const r: StyleDeBranche = { forme: null, epaisseur: null, effilee: false, motif: 'plein', pointe: 'aucune' }
   const vus = { forme: false, epaisseur: false, effilee: false, motif: false, pointe: false }
   for (let s = l.sujets.get(parent); s; s = s.parent !== undefined ? l.sujets.get(s.parent) : undefined) {
@@ -342,6 +426,10 @@ export function brancheDe(l: Lecture, parent: Id, globales: BranchesGlobales = {
     if (!vus.pointe && st.pointeBranche) ((r.pointe = st.pointeBranche), (vus.pointe = true))
   }
   if (!vus.epaisseur && globales.largeur) r.epaisseur = Math.round(globales.largeur * PX_PAR_POINT * 10) / 10
+  else if (!vus.epaisseur && theme?.branches) {
+    const rang = rangDe(l, parent)
+    r.epaisseur = theme.branches[rang === 'central' ? 'central' : rang === 'sous' ? 'sous' : 'principal']
+  }
   if (!vus.effilee && globales.effilee && parent === l.central) r.effilee = true
   return r
 }
@@ -439,7 +527,7 @@ function lignesDeNote(texte: string): string[] {
 }
 
 export function mesurer(titre: string, h: Habit, decor: Decor = {}): Mesure {
-  const cle = `${titre}\u0000${h.police}|${h.graisse}|${h.italique}|${h.famille}|${h.marge}|${h.largeurMax}|${h.largeur ?? ''}|${h.casse ?? ''}|${h.alignement}|${h.forme}\u0000${JSON.stringify(decor)}`
+  const cle = `${titre}\u0000${h.police}|${h.graisse}|${h.italique}|${h.famille}|${h.marge}|${h.largeurMax}|${h.largeur ?? ''}|${h.casse ?? ''}|${h.alignement}|${h.forme}|${h.epaisseurBordure ?? ''}\u0000${JSON.stringify(decor)}`
   const deja = memo.get(cle)
   if (deja) return deja
   const prefixe = decor.prefixe ? largeurTexte(`${decor.prefixe} `, h.police, h.graisse, h.famille, h.italique) : 0
@@ -475,7 +563,9 @@ export function mesurer(titre: string, h: Habit, decor: Decor = {}): Mesure {
   if (planning) y += 4 + HAUTEUR_ETIQUETTE
   const note = lignesNote ? { y: y + 6, lignes: lignesNote, l: lNote } : null
   if (note) y += 6 + lignesNote!.length * POLICE_NOTE * INTERLIGNE
-  let hauteur = Math.ceil(y + h.marge[0])
+  // Un sujet souligné : le trait prend sa place sous le texte, en plus de la marge (la ligne double, deux traits).
+  const dessous = souligne(h.forme) ? epaisseurSouligne(h) + (h.forme === 'double-souligne' ? 4 : 0) : 0
+  let hauteur = Math.ceil(y + h.marge[0] + dessous)
   // Un cercle tient dans un carré : le texte se recentre.
   if (formeCarree(h.forme)) {
     const c = Math.max(l, hauteur)

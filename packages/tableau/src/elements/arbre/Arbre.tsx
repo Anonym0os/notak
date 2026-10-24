@@ -3,7 +3,7 @@ import { type Arbre, type Id, type StyleSujet, nouvelId } from '../../coeur/tabl
 import { t } from '../../langue'
 import { Surcouche } from '../surcouche'
 import type { ContexteToile, PropsRendu, Services } from '../types'
-import { INTERLIGNE, POLICE, type Mesure, habitDe, mesureDeSujet, uniformiser } from './apparence'
+import { INTERLIGNE, POLICE, type Mesure, brancheDe, habitDe, mesureDeSujet, uniformiser } from './apparence'
 import { fondDe, themeDeArbre } from './themes'
 import { Dessin } from './Dessin'
 import { exporterCartes } from './exporter'
@@ -18,7 +18,7 @@ import { type Ancre, useInsertions } from './Insertions'
 import { TYPE_GLISSE } from './OngletIcones'
 import { type Fragment, boitesDeBranche, choisirParGenre, contenuZone, extraire, rectAutour } from './modele/insertions'
 import { Icone } from '../../icones'
-import { type Boite, type Disposition, ECARTS, ECARTS_COMPACTS, disposer, emprise } from './disposition'
+import { type Boite, type Disposition, disposer, ecartsDe, emprise } from './disposition'
 import { gesteDe } from './modele/clavier'
 import { resumesValides, sujetsDePlage } from './modele/elements'
 import { comptes, reperesDe, sujetsMisEnEvidence } from './modele/listes'
@@ -51,7 +51,7 @@ export function useVue(a: Arbre): { lecture: Lecture; mesures: Map<Id, Mesure>; 
     for (const id of lecture.sujets.keys()) mesures.set(id, mesureDeSujet(lecture, id, theme, { compacte, toutesNotes: !!a.options?.toutesNotes, tailleEquation, planning: resumePlanning }))
     if (a.options?.uniforme) mesures = uniformiser(lecture, mesures)
     const resumes = resumesValides(a, lecture).map(([id, r]) => ({ id, sujet: r.sujet, plage: sujetsDePlage(lecture, r), ...(r.style?.forme ? { forme: r.style.forme } : {}) }))
-    const disposition = disposer(lecture, (id) => mesures.get(id) ?? { l: 40, h: 20 }, compacte ? ECARTS_COMPACTS : ECARTS, !!a.options?.libre, resumes)
+    const disposition = disposer(lecture, (id) => mesures.get(id) ?? { l: 40, h: 20 }, ecartsDe(brancheDe(lecture, lecture.central).forme ?? theme.branche, compacte), !!a.options?.libre, resumes)
     return { lecture, mesures, disposition }
   }, [a.sujets, a.options, a.resumes, a.theme, a.themePerso, a.police, a.policeCjk])
 }

@@ -139,6 +139,52 @@ proche (`logic-chart.right` → logique droite, `tree.branch-aligned.right` → 
 - **Limites** : rectangle, rectangle arrondi, polygone, vagues, festons ; un titre facultatif.
 - **Résumés** : accolade ronde, carrée, crochet, droite.
 
+## 5 ter. Les rangs d'un sujet
+
+Xmind n'a pas de réduction par profondeur : ni taille de police, ni épaisseur de branche qui décroît. Chaque sujet
+prend les valeurs de sa **classe** (central, principal, sous-sujet, flottant, résumé), plus une classe de niveau
+(« level 3 » : les sous-sujets enfants d'un principal) que seul un thème qui la déclare distingue du sous-sujet
+ordinaire. Les marges, les espacements, le rayon des coins et la largeur du texte sont des constantes du moteur, pas du
+thème. Un nombre du thème en points se lit en pixels (1 pt = 1 px avant le zoom).
+
+| | Central | Principal | Sous-sujet (niveau 2 et suivants) | Flottant |
+|---|---|---|---|---|
+| Police, graisse | 28, demi-gras (600) | 18, moyenne (500) | 14, normale (400) | 14, moyenne (500) |
+| Marges intérieures, vertical / horizontal | 15 / 29 | 10 / 18 | 6 / 6 | 11 / 11 |
+| Idem, carte compacte | 12 / 22 | 6 / 12 | 4 / 4 | 9 / 9 |
+| Largeur du texte avant retour à la ligne | 300 | 300 | 300 | 300 |
+| Écart majeur (parent → enfants) | 50 | 26 | 26 | 26 |
+| Écart mineur (entre frères) | 35 | 6 | 8 | 8 |
+| Idem, carte compacte (majeur / mineur) | 28 / 10 | 22 / 5 | 22 / 5 | 24 / 5 |
+
+- **Souligné.** L'épaisseur du trait s'ajoute au bas du sujet (marge du bas, plus le trait) ; les marges du haut, de
+  gauche et de droite ne changent pas. Le trait est tout entier dans la boîte du sujet et la branche part de son
+  **axe** : le souligné du parent se prolonge ainsi jusqu'à l'enfant, et le souligné d'un enfant continue la
+  branche (une enfilade horizontale ne fait qu'un seul trait).
+- **Écart majeur.** Il dépend de la classe du parent. Pour un coude ou un coude arrondi, il vaut le nombre du
+  tableau ; pour la courbe, la droite, l'anse et le pli, hors du central, **le double** (52 sous un principal).
+- **Départ du central.** Les coudes qui partent du central sortent de **dessous son corps**, à un tiers de sa
+  largeur du centre du côté de l'enfant, par le haut ou le bas, puis tournent vers l'enfant. Un enfant à la hauteur
+  du central part du bord. Les coins arrondis des coudes ont 10 px de rayon, ceux d'un rectangle arrondi 8 px.
+- **Couleurs.** Chaque principal prend la couleur de sa place dans la liste de six, que tous ses descendants
+  héritent. Le texte d'un principal est noir (le blanc n'atteint pas un contraste de 3 sur les couleurs claires). Le
+  texte d'un sous-sujet d'une carte aux branches de couleur est **la couleur de sa branche à 20 % de luminosité**
+  (teinte et saturation conservées : `#FF6B6B` donne `#660000`). Le remplissage d'un sous-sujet cadré de niveau 2
+  est la couleur de sa branche à 20 % d'opacité ; les niveaux suivants n'ont pas de fond.
+- **Squelette à soulignés** (celui des captures 0 à 4 et 12 à 13) : central plein noir à coins arrondis ;
+  principal souligné d'un trait de 5, texte noir ; sous-sujet souligné d'un trait de 1 qui se confond avec la
+  branche ; branches à angles droits d'épaisseur 1, quel que soit le niveau.
+
+→ Notak : les valeurs ci-dessus sont celles de chaque rang (`TAILLES`, `MARGES_COMPACTES` dans `apparence.ts` ;
+`ECARTS`, `ECARTS_COMPACTS`, `ecartsDe` dans `disposition/commun.ts`). Les marges ne suivent plus la taille du texte
+du sujet. Nos thèmes gardent leurs couleurs et leurs formes ; ils précisent en plus, par rang, l'épaisseur du
+souligné (`principal.trait`, `sous.trait`), celle des branches (`branches`), le texte teinté de la branche
+(`sous.texteBranche`) et le remplissage de niveau 2 (`sous.fondNiveau2`). **Le thème par défaut (« classique »)**
+rend le squelette à soulignés : central noir, principal souligné de 5, sous-sujets soulignés de 1 au texte de la
+couleur de branche assombrie (`teinteSombre`), branches coudées de 1 à 1,5 d'épaisseur. Sur un fond qui suit le thème
+clair ou sombre de Notak, le texte du sous-sujet se mélange à 32 % de la couleur de la branche et à l'encre du thème ;
+sur un fond connu, clair, la teinte sombre exacte (sombre : la teinte claire à 85 %).
+
 ## 5 bis. L'onglet Style
 
 Le panneau de côté a trois onglets (Style, Présentation, Carte). **Style** règle ce qui est choisi ; la sélection dit
