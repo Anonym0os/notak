@@ -20,6 +20,8 @@ interface Props {
   edition?: Id | null
   /** L'adresse affichable d'un fichier d'image, quand elle est connue. */
   adresse?: (fichier: Id) => string | undefined
+  /** En présentation : les seuls sujets montrés (les autres, et leurs branches, attendent leur tour). */
+  devoiles?: ReadonlySet<Id> | null
 }
 
 const DASH = { plein: undefined, tirets: '7 5', points: '1.5 4' } as const
@@ -29,7 +31,8 @@ const DASH = { plein: undefined, tirets: '7 5', points: '1.5 4' } as const
  * `data-relation`, `data-limite` ou `data-repli` : un clic se résout par le DOM, comme sur la toile. Les mêmes traits
  * servent à l'aperçu sur la toile et à la carte ouverte en grand. Les couleurs viennent du thème de la carte.
  */
-export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, mesures, selection, edition, adresse }: Props) {
+export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, mesures, selection, edition, adresse, devoiles }: Props) {
+  const vu = (id: Id) => !devoiles || devoiles.has(id)
   const theme = themeDe(arbre.theme)
   const uneCouleur = !!arbre.options?.uneCouleur
   const encre = theme.encre ?? 'var(--notak-arbre-encre)'
@@ -38,14 +41,14 @@ export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, 
   const habits = new Map([...d.boites.keys()].map((id) => [id, habitDe(l, id, theme)]))
   return (
     <>
-      {limitesValides(arbre, l).map(([id, x]) => (
+      {limitesValides(arbre, l).filter(([, x]) => vu(x.de)).map(([id, x]) => (
         <CadreLimite key={id} id={id} limite={x} lecture={l} disposition={d} couleur={couleur(x.de) ?? encre} choisi={selection?.has(id) ?? false} enEdition={edition === id} />
       ))}
       <g className="notak-arbre-branches" fill="none" strokeLinecap="round">
         {d.liens.map((lien) => {
           const p = d.boites.get(lien.de)
           const e = d.boites.get(lien.vers)
-          if (!p || !e || lien.forme === 'aucune') return null
+          if (!p || !e || lien.forme === 'aucune' || !vu(lien.vers)) return null
           const style = brancheDe(l, lien.de)
           // La forme d'une branche : la sienne, sinon celle du thème là où la structure laisse le choix (carte, logique).
           const forme = style.forme ?? (lien.forme === 'courbe' ? theme.branche : lien.forme)
@@ -58,13 +61,13 @@ export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, 
           return <path key={lien.vers} d={cheminBranche(p, e, lien.cote, forme, s)} stroke={trait} strokeWidth={epaisseur} strokeDasharray={DASH[style.motif]} />
         })}
         {d.traits.map((trait, i) => (
-          <path key={`t${i}`} d={trait.d} stroke={couleur(trait.de) ?? encre} strokeWidth={trait.de === l.central ? 2.5 : 1.75} />
+          vu(trait.de) && <path key={`t${i}`} d={trait.d} stroke={couleur(trait.de) ?? encre} strokeWidth={trait.de === l.central ? 2.5 : 1.75} />
         ))}
       </g>
       {[...d.boites].map(([id, b]) => {
         const m = mesures.get(id)
         const s = l.sujets.get(id)
-        if (!m || !s) return null
+        if (!m || !s || !vu(id)) return null
         return (
           <Sujet
             key={id}
@@ -85,7 +88,7 @@ export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, 
           />
         )
       })}
-      {relationsValides(arbre, l).map(([id, r]) => {
+      {relationsValides(arbre, l).filter(([, r]) => vu(r.de) && vu(r.vers)).map(([id, r]) => {
         const [a, b] = [d.boites.get(r.de), d.boites.get(r.vers)]
         return a && b ? <Fleche key={id} id={id} relation={r} courbe={courbeRelation(a, b, r.controles, r.forme)} encre={encre} choisie={selection?.has(id) ?? false} enEdition={edition === id} /> : null
       })}

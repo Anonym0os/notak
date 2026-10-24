@@ -58,6 +58,9 @@ export type Geste =
   | { type: 'porter'; ids: Id[]; champ: 'etiquettes' | 'lien' | 'note' | 'image' | 'tache' | 'numerotation' | 'classe'; valeur: unknown }
   /** Cmd+Alt+T : la case à cocher d'une tâche, mise ou ôtée. */
   | { type: 'tache'; ids: Id[] }
+  /** Dans le plan : Tab range le sujet sous son frère d'avant, Maj+Tab le remonte d'un cran. */
+  | { type: 'indenter'; id: Id }
+  | { type: 'desindenter'; id: Id }
   /** Change le style de ces sujets (une valeur `undefined` le retire) ; `null` : le réinitialiser. */
   | { type: 'style'; ids: Id[]; style: Partial<StyleSujet> | null }
   /** Remplace le style de ces sujets (coller un style copié). */
@@ -76,6 +79,8 @@ export type Geste =
   | { type: 'relier'; id: Id }
   /** Ouvrir le panneau du sujet, sur une section. */
   | { type: 'panneau'; section?: 'note' | 'etiquettes' | 'lien' | 'image' | 'marqueurs' }
+  /** Maj+Cmd+M, Cmd+Alt+F, Cmd+Alt+P, Cmd+F : le plan, le mode Zen, la présentation, la recherche. */
+  | { type: 'mode'; mode: 'plan' | 'zen' | 'presentation' | 'recherche' }
   /** Cmd+Alt+C, Cmd+Alt+V : copier et coller un style ; la vue garde le style copié. */
   | { type: 'copierStyle'; id: Id }
   | { type: 'collerStyleCopie'; ids: Id[] }
@@ -245,6 +250,22 @@ export function appliquerGeste(a: Arbre, g: Geste, titre: Titreur): Effet | null
     case 'theme': {
       const { theme: _t, ...reste } = a
       return { arbre: g.theme === 'classique' ? reste : { ...reste, theme: g.theme } }
+    }
+    case 'indenter': {
+      const s = l.sujets.get(g.id)
+      if (!s || s.parent === undefined || s.genre) return null
+      const freres = enfantsDe(l, s.parent)
+      const avant = freres[freres.indexOf(g.id) - 1]
+      if (!avant) return null
+      const arbre = rattacher(a, g.id, avant, Number.MAX_SAFE_INTEGER)
+      return { arbre: l.sujets.get(avant)?.replie ? basculerRepli(arbre, avant) : arbre, choisir: g.id }
+    }
+    case 'desindenter': {
+      const s = l.sujets.get(g.id)
+      const p = s?.parent !== undefined ? l.sujets.get(s.parent) : undefined
+      if (!s || !p || p.parent === undefined || s.genre || p.genre) return null
+      const index = enfantsDe(l, p.parent).indexOf(s.parent!) + 1
+      return { arbre: rattacher(a, g.id, p.parent, index), choisir: g.id }
     }
     case 'relationStyle':
       return {

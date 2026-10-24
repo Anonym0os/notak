@@ -86,10 +86,15 @@
   white-space: pre-wrap;
 }
 
-.notak-arbre-fermer {
+.notak-arbre-coin {
   position: absolute;
   top: 12px;
   right: 12px;
+  display: flex;
+  gap: 6px;
+}
+
+.notak-arbre-coin button {
   padding: 6px 12px;
   border: 1px solid rgb(0 0 0 / 0.12);
   border-radius: 6px;
@@ -100,7 +105,12 @@
   cursor: pointer;
 }
 
-.notak-arbre-fermer:hover {
+.notak-arbre-coin button[aria-pressed='true'] {
+  border-color: var(--notak-arbre-choix);
+  color: var(--notak-arbre-choix);
+}
+
+.notak-arbre-coin button:hover {
   background: var(--notak-arbre-flottant);
 }
 
@@ -123,6 +133,9 @@
   position: absolute;
   top: 12px;
   left: 12px;
+  /* Les boutons du coin (plan, présenter, Zen, fermer) gardent leur place : la barre passe à la ligne avant eux. */
+  max-width: calc(100% - 360px);
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -406,4 +419,93 @@
 .notak-arbre-couleur button {
   margin-left: auto;
   border: 0 !important;
+}
+
+.notak-arbre-plan {
+  position: absolute;
+  inset: 64px 0 0;
+  overflow-y: auto;
+  padding: 16px max(24px, calc(50% - 360px)) 80px;
+}
+
+.notak-arbre-plan-ligne {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+}
+
+.notak-arbre-plan-puce {
+  width: 18px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--notak-arbre-encre);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.notak-arbre-plan-puce:disabled {
+  cursor: default;
+}
+
+.notak-arbre-plan-titre {
+  flex: 1;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--notak-arbre-texte);
+  font: inherit;
+  font-size: 15px;
+  outline: none;
+}
+
+.notak-arbre-plan-titre:focus {
+  background: color-mix(in srgb, var(--notak-arbre-choix) 10%, transparent);
+}
+
+.notak-arbre-plan-central {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.notak-arbre-recherche {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid rgb(0 0 0 / 0.12);
+  border-radius: 8px;
+  background: var(--notak-arbre-fond);
+  color: var(--notak-arbre-texte);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.1);
+  transform: translateX(-50%);
+}
+
+.notak-arbre-recherche input {
+  width: 240px;
+  padding: 4px 6px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.notak-arbre-recherche output {
+  min-width: 48px;
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.notak-arbre-recherche button {
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 16px;
+  cursor: pointer;
 }

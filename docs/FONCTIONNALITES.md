@@ -30,9 +30,9 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
-| 18. Carte mentale | 32 | 3 | 6 | 82 % |
+| 18. Carte mentale | 36 | 3 | 2 | 91 % |
 | 19. Document à blocs | 1 | 0 | 24 | 4 % |
-| **Total** | **315** | **13** | **32** | **89 %** |
+| **Total** | **319** | **13** | **28** | **90 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -459,10 +459,10 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Texte, remplissage et bordure d'un sujet | ✅ | Police, taille, gras, italique, couleur ; l'encre du texte se choisit seule sur un remplissage foncé. |
 | Thèmes de carte | ✅ | Six thèmes à nous : Classique (suit le clair et le sombre de Notak), Pastel, Nuit, Sobre, Papier, Vif. |
 | Appliquer au même rang, réinitialiser, copier et coller un style | ✅ | Alt+Cmd+U, Cmd+Alt+0, Cmd+Alt+C, Cmd+Alt+V. |
-| Mode plan | ⬜ |  |
-| Mode Zen | ⬜ |  |
-| Présentation branche par branche | ⬜ |  |
-| Chercher dans la carte | ⬜ |  |
+| Mode plan | ✅ | Maj+Cmd+M ou « Plan » : Entrée, Tab, Maj+Tab, Alt+flèches, Cmd+/ ; Échap revient à la carte. |
+| Mode Zen | ✅ | Cmd+Alt+F : la carte seule, en plein écran quand le navigateur le permet ; Échap en sort. |
+| Présentation branche par branche | ✅ | Cmd+Alt+P : le central, puis chaque principal avec sa branche ; le cadrage glisse de l'une à l'autre. |
+| Chercher dans la carte | ✅ | Cmd+F : titres, étiquettes et notes, sans accents ; Entrée va au suivant. |
 | Importer un fichier .xmind | ⬜ |  |
 | Exporter en .xmind | ⬜ |  |
 | Texte de la carte dans la recherche et l'export texte du tableau | ✅ | L'export la rend en liste indentée. |

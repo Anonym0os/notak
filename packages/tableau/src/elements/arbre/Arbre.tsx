@@ -7,14 +7,16 @@ import { INTERLIGNE, POLICE, type Mesure, habitDe, mesurer } from './apparence'
 import { themeDe } from './themes'
 import { Barre } from './Barre'
 import { Dessin } from './Dessin'
-import { type Disposition, ECARTS, ECARTS_COMPACTS, disposer, emprise } from './disposition'
+import { type Boite, type Disposition, ECARTS, ECARTS_COMPACTS, disposer, emprise } from './disposition'
 import { gesteDe } from './modele/clavier'
 import { numeroDe, resumesValides, sujetsDePlage } from './modele/elements'
 import { type Geste, appliquerGeste } from './modele/gestes'
 import { type Lacher, ouLacher } from './modele/lacher'
-import { type Lecture, lire, sousCarte } from './modele/sujets'
+import { type Lecture, branche, enfantsDe, lire, sousCarte } from './modele/sujets'
 import { titreNeuf } from './modele/titres'
 import { Panneau, type Section } from './Panneau'
+import { Plan } from './Plan'
+import { Recherche, correspondances } from './Recherche'
 import { courbeRelation } from './trace/relations'
 
 /** La carte lue, mesurée et disposée ; recalculée seulement quand elle change. */
@@ -126,6 +128,11 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
   const [selection, setSelection] = useState<ReadonlySet<Id>>(() => new Set([lecture.central]))
   const [edition, setEdition] = useState<Edition | null>(null)
   const [panneau, setPanneau] = useState<{ section?: Section } | null>(null)
+  // Les modes de docs/XMIND.md § 6 : le plan remplace la carte ; Zen, la présentation et la recherche s'y posent.
+  const [plan, setPlan] = useState(false)
+  const [zen, setZen] = useState(false)
+  const [presentation, setPresentation] = useState<number | null>(null)
+  const [recherche, setRecherche] = useState<{ texte: string; i: number } | null>(null)
   // Maj+Cmd+R : la relation part de ce sujet, et attend le clic sur sa cible.
   const [relier, setRelier] = useState<{ de: Id; p: Point | null } | null>(null)
   const surface = useRef<HTMLDivElement | null>(null)
@@ -155,9 +162,10 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       if (!r) return
       if (r.arbre !== avant) changer(r.arbre)
       if (r.choisir) setSelection(new Set([r.choisir]))
-      if (r.editer) setEdition({ id: r.editer, texte: r.arbre.sujets[r.editer]?.titre ?? '', tout: true })
+      // Dans le plan, le sujet neuf s'écrit sur sa ligne, pas dans un champ posé sur la carte.
+      if (r.editer && !plan) setEdition({ id: r.editer, texte: r.arbre.sujets[r.editer]?.titre ?? '', tout: true })
     },
-    [actuel, changer, lectureSeule],
+    [actuel, changer, lectureSeule, plan],
   )
 
   const valider = useCallback(() => {
@@ -175,8 +183,76 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
 
   const titreObjet = (x: Id) => vue.relations?.[x]?.titre ?? vue.limites?.[x]?.titre ?? ''
 
+  // Le plan ou le panneau qui se ferment emportent le champ qui avait le focus : on le rend à la carte, sans quoi le
+  // clavier ne parle plus à personne.
+  useEffect(() => {
+    if (plan || panneau) return
+    const actif = document.activeElement
+    if (!actif || actif === document.body) surface.current?.closest<HTMLElement>('[role="dialog"]')?.focus({ preventScroll: true })
+  }, [plan, panneau])
+
+  // La présentation : le central, puis chaque principal avec sa branche, l'un après l'autre.
+  const etapes = useMemo(() => [lecture.central, ...enfantsDe(lecture, lecture.central)], [lecture])
+  const devoiles = useMemo(() => {
+    if (presentation === null) return null
+    const vus = new Set<Id>([lecture.central])
+    for (const p of etapes.slice(1, presentation + 1)) for (const x of branche(lecture, p)) vus.add(x)
+    return vus
+  }, [presentation, etapes, lecture])
+  /** Cadre la vue sur ces boîtes, avec une marge. */
+  const cadrer = useCallback((boites: Boite[]) => {
+    const r = surface.current?.getBoundingClientRect()
+    if (!r || boites.length === 0) return
+    const e = emprise(boites)
+    const z = Math.min(2, Math.max(ZOOM_MIN, Math.min((r.width - 160) / e.l, (r.height - 160) / e.h)))
+    setCamera({ x: r.width / 2 - (e.x + e.l / 2) * z, y: r.height / 2 - (e.y + e.h / 2) * z, z })
+  }, [])
+  useEffect(() => {
+    if (presentation === null) return
+    const cible = etapes[presentation]!
+    const ids = presentation === 0 ? [cible] : branche(lecture, cible)
+    cadrer(ids.flatMap((x) => disposition.boites.get(x) ?? []))
+    setSelection(new Set([cible]))
+  }, [presentation, etapes, lecture, disposition, cadrer])
+  const basculerZen = useCallback(() => {
+    setZen((z) => {
+      const fond = surface.current?.closest('.notak-arbre-fond') as HTMLElement | null
+      if (!z) void fond?.requestFullscreen?.().catch(() => {})
+      else if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+      return !z
+    })
+  }, [])
+  const resultats = useMemo(() => (recherche ? correspondances(lecture, recherche.texte) : []), [recherche, lecture])
+  useEffect(() => {
+    if (!recherche || resultats.length === 0) return
+    const id = resultats[recherche.i % resultats.length]!
+    setSelection(new Set([id]))
+    const b = disposition.boites.get(id)
+    const r = surface.current?.getBoundingClientRect()
+    if (b && r) setCamera((c) => ({ ...c, x: r.width / 2 - (b.x + b.l / 2) * c.z, y: r.height / 2 - (b.y + b.h / 2) * c.z }))
+  }, [recherche, resultats, disposition])
+
   const surTouche = (e: React.KeyboardEvent): boolean => {
     if (edition) return e.key === 'Escape'
+    if (presentation !== null) {
+      // Espace et flèche droite avancent, flèche gauche recule, Échap sort.
+      if (e.key === 'Escape') setPresentation(null)
+      else if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'Enter') setPresentation((i) => Math.min(etapes.length - 1, (i ?? 0) + 1))
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') setPresentation((i) => Math.max(0, (i ?? 0) - 1))
+      else return false
+      e.preventDefault()
+      return true
+    }
+    if (e.key === 'Escape' && zen) {
+      basculerZen()
+      return true
+    }
+    // Dans le plan, la ligne garde ses touches ; seuls les raccourcis de la carte entière remontent.
+    const dansLePlan = !!(e.target as Element).closest?.('.notak-arbre-plan')
+    if (e.key === 'Escape' && plan) {
+      setPlan(false)
+      return true
+    }
     // La barre et le panneau gardent leurs touches.
     if ((e.target as Element).closest?.('.notak-arbre-barre, .notak-arbre-panneau')) return false
     if (e.key === 'Escape' && relier) {
@@ -215,8 +291,17 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     }
     const geste = gesteDe(e.nativeEvent, sujetsChoisis.length ? sujetsChoisis : [courant], lecture, disposition)
     if (!geste) return false
+    if (dansLePlan && geste.type !== 'mode') return false
     e.preventDefault()
     switch (geste.type) {
+      case 'mode':
+        if (geste.mode === 'plan') setPlan((x) => !x)
+        else if (geste.mode === 'zen') basculerZen()
+        else if (geste.mode === 'presentation') {
+          setPlan(false)
+          setPresentation(0)
+        } else setRecherche({ texte: recherche?.texte ?? '', i: 0 })
+        return true
       case 'editer':
         if (!lectureSeule) setEdition({ id: geste.id, texte: geste.frappe ?? lecture.sujets.get(geste.id)?.titre ?? '', tout: geste.frappe === undefined })
         return true
@@ -432,9 +517,24 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
         onPointerCancel={surRelache}
         onDoubleClick={surDoubleClic}
       >
-        <svg className="notak-arbre-grand">
-          <g transform={`translate(${camera.x} ${camera.y}) scale(${camera.z})`}>
-            <Dessin arbre={vueAffichee} lecture={lecture} disposition={disposition} mesures={mesures} selection={choisis} edition={edition?.id ?? null} adresse={adresse} />
+        {plan && <Plan lecture={lecture} courant={courant} choisir={(x) => setSelection(new Set([x]))} faire={faire} lectureSeule={lectureSeule} />}
+        <svg className="notak-arbre-grand" style={plan ? { display: 'none' } : undefined}>
+          <g
+            style={{
+              transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.z})`,
+              transition: presentation !== null ? 'transform 450ms cubic-bezier(0.2, 0.8, 0.2, 1)' : undefined,
+            }}
+          >
+            <Dessin
+              arbre={vueAffichee}
+              lecture={lecture}
+              disposition={disposition}
+              mesures={mesures}
+              selection={presentation === null ? choisis : undefined}
+              edition={edition?.id ?? null}
+              adresse={adresse}
+              devoiles={devoiles}
+            />
             {tire && <Fantome tire={tire} prise={prise.current} disposition={disposition} />}
             {depart && relier?.p && <line className="notak-arbre-relier" x1={depart.x + depart.l / 2} y1={depart.y + depart.h / 2} x2={relier.p.x} y2={relier.p.y} />}
           </g>
@@ -455,7 +555,22 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
           />
         )}
         {relier && <p className="notak-arbre-consigne">{t('arbre.relier')}</p>}
-        {!lectureSeule && (
+        {presentation !== null && (
+          <p className="notak-arbre-consigne">
+            {presentation + 1} / {etapes.length} · {t('arbre.presentationAide')}
+          </p>
+        )}
+        {recherche && (
+          <Recherche
+            texte={recherche.texte}
+            trouves={resultats.length}
+            rang={resultats.length ? (recherche.i % resultats.length) + 1 : 0}
+            changer={(texte) => setRecherche({ texte, i: 0 })}
+            suivant={(sens) => setRecherche((r) => (r ? { ...r, i: (r.i + sens + resultats.length) % Math.max(1, resultats.length) } : r))}
+            fermer={() => setRecherche(null)}
+          />
+        )}
+        {!lectureSeule && !zen && presentation === null && (
           <Barre
             arbre={vue}
             lecture={lecture}
@@ -466,12 +581,25 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
             panneau={() => setPanneau((p) => (p ? null : {}))}
           />
         )}
-        {panneau && !lectureSeule && (
+        {panneau && !lectureSeule && !zen && presentation === null && (
           <Panneau lecture={lecture} ids={sujetsChoisis.length ? sujetsChoisis : [courant]} section={panneau.section} faire={faire} contexte={contexte} fermer={() => setPanneau(null)} />
         )}
-        <button type="button" className="notak-arbre-fermer" onClick={contexte.finirEdition}>
-          {t('arbre.fermer')}
-        </button>
+        {!zen && presentation === null && (
+          <div className="notak-arbre-coin">
+            <button type="button" aria-pressed={plan} title="⇧⌘M" onClick={() => setPlan((x) => !x)}>
+              {t('arbre.plan')}
+            </button>
+            <button type="button" title="⌥⌘P" onClick={() => (setPlan(false), setPresentation(0))}>
+              {t('arbre.presenter')}
+            </button>
+            <button type="button" title="⌥⌘F" onClick={basculerZen}>
+              {t('arbre.zen')}
+            </button>
+            <button type="button" onClick={contexte.finirEdition}>
+              {t('arbre.fermer')}
+            </button>
+          </div>
+        )}
       </div>
     </Surcouche>
   )

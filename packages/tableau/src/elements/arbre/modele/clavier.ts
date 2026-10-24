@@ -38,6 +38,10 @@ export function gesteDe(e: Touche, choisis: readonly Id[], l: Lecture, d: Dispos
           return { type: 'panneau', section: 'image' }
       }
     }
+    if (e.shiftKey && !e.altKey && k.toLowerCase() === 'm') return { type: 'mode', mode: 'plan' }
+    if (e.altKey && !e.shiftKey && (e as Partial<KeyboardEvent>).code === 'KeyF') return { type: 'mode', mode: 'zen' }
+    if (e.altKey && !e.shiftKey && (e as Partial<KeyboardEvent>).code === 'KeyP') return { type: 'mode', mode: 'presentation' }
+    if (!e.altKey && !e.shiftKey && k.toLowerCase() === 'f') return { type: 'mode', mode: 'recherche' }
     if (k.toLowerCase() === 'k' && !e.shiftKey) return { type: 'panneau', section: 'lien' }
     if (k === ']') return { type: 'panneau' }
     // Cmd+Alt+C, V, 0, U : copier, coller, réinitialiser le style, l'appliquer au même rang. Alt change le caractère sur Mac : on lit la touche.
