@@ -223,6 +223,8 @@ export function segmentsDe(d: string): Segment[] {
 export interface Trajet {
   segments: Segment[]
   debut: number
+  /** Coupé à la sortie du central : le bord qu'il franchit, vertical (`x`) ou horizontal (`y`). */
+  bord?: 'x' | 'y'
 }
 
 /**
@@ -242,7 +244,9 @@ export function horsDuCadre(segments: Segment[], b: Boite): Trajet {
         if (dedans(pointDe(g, milieu))) bas = milieu
         else haut = milieu
       }
-      return { segments: [couper(g, haut)[1], ...segments.slice(i + 1)], debut: (i + haut) / segments.length }
+      const [x, y] = pointDe(g, haut)
+      const bord = Math.min(Math.abs(x - b.x), Math.abs(x - b.x - b.l)) <= Math.min(Math.abs(y - b.y), Math.abs(y - b.y - b.h)) ? 'x' : 'y'
+      return { segments: [couper(g, haut)[1], ...segments.slice(i + 1)], debut: (i + haut) / segments.length, bord }
     }
   }
   return { segments, debut: 0 }
@@ -321,6 +325,15 @@ export function largeursEffile(style: Exclude<StyleBranche, 'aucune'>, segments:
   return Array.from({ length: segments + 1 }, (_, i) => (segments === 1 ? (i === 0 ? depart : 1) : i < segments ? depart : 1))
 }
 
+/** Un côté du départ glissé le long de la tangente jusqu'à la ligne du bord franchi (au plus de trois demi-largeurs). */
+function aPlat(q: Pt, depart: Pt, [dx, dy]: Pt, bord: 'x' | 'y', w: number): Pt {
+  const [axe, pente] = bord === 'x' ? [0, dx] : [1, dy]
+  if (Math.abs(pente) < 1e-6) return q
+  const long = Math.hypot(dx, dy) || 1
+  const pas = Math.max(-3 * w, Math.min(3 * w, ((depart[axe]! - q[axe]!) / pente) * long))
+  return [q[0] + (dx / long) * pas, q[1] + (dy / long) * pas]
+}
+
 /**
  * Une branche effilée (docs/XMIND.md § 5) : un trait plein dont la largeur décroît le long du trajet, du parent à
  * l'enfant, comme chez Xmind (voir `largeursEffile`). `epaisseur` : celle du trait ordinaire. Tracée comme une surface,
@@ -342,8 +355,15 @@ export function cheminEffile(p: Boite, e: Boite, cote: Cote, style: StyleBranche
       const [dx, dy] = tangente(g, u)
       const long = Math.hypot(dx, dy) || 1
       const w = (epaisseur * (largeurs[i]! + (largeurs[i + 1]! - largeurs[i]!) * u)) / 2
-      gauche.push(`${n(x - (dy / long) * w)} ${n(y + (dx / long) * w)}`)
-      droite.push(`${n(x + (dy / long) * w)} ${n(y - (dx / long) * w)}`)
+      let bords: [Pt, Pt] = [
+        [x - (dy / long) * w, y + (dx / long) * w],
+        [x + (dy / long) * w, y - (dx / long) * w],
+      ]
+      // Sortie du central en biais : le départ, en travers de la courbe, repasserait dans le cadre par un coin. Il se
+      // pose à plat sur le bord franchi, chaque côté glissé le long de la courbe jusqu'à lui.
+      if (i === 0 && k === 0 && t.bord) bords = bords.map((q) => aPlat(q, [x, y], [dx, dy], t.bord!, w)) as [Pt, Pt]
+      gauche.push(`${n(bords[0][0])} ${n(bords[0][1])}`)
+      droite.push(`${n(bords[1][0])} ${n(bords[1][1])}`)
     }
   }
   return `M${gauche.join('L')}L${droite.reverse().join('L')}Z`

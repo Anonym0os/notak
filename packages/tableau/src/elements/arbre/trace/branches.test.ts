@@ -230,6 +230,21 @@ describe('l’effilé', () => {
     expect(largeur).toBeGreaterThan(5)
   })
 
+  it('sortie du central en biais, son départ se pose à plat sur le bord : aucun coin ne repasse dans le cadre', () => {
+    // La coupe se fait à 0,5 du bord (horsDuCadre) : le trait du cadre couvre ce demi-point.
+    const dedans = ([x, y]: readonly number[]) => x! > central.x + 0.6 && x! < central.x + central.l - 0.6 && y! > central.y + 0.6 && y! < central.y + central.h - 0.6
+    for (const [cote, cible] of [
+      ['droite', principal],
+      ['droite', { ...principal, y: 100 }],
+      ['droite', { ...principal, y: -20 }],
+      ['gauche', { ...principal, x: -250 }],
+      ['gauche', { ...principal, x: -250, y: 120 }],
+    ] as const) {
+      const p = points(cheminEffile(central, cible, cote, 'organique', { centre: true }, 4)!)
+      expect(p.filter(dedans), `${cote} ${cible.y}`).toEqual([])
+    }
+  })
+
   it('toute forme s’effile ; « aucune » et les troncs d’arbre gardent leur trait', () => {
     for (const f of ['courbe', 'organique', 'droite', 'coudee', 'coudee-arrondie', 'anse', 'pli', 'pli-arrondi'] as const) expect(cheminEffile(principal, enfant, 'droite', f, { parent: 5, enfant: 1 }, 2), f).toMatch(/^M.*Z$/)
     expect(cheminEffile(parent, haut, 'droite', 'aucune', {}, 2)).toBeNull()
