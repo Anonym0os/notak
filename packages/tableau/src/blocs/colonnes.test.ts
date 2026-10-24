@@ -2,7 +2,7 @@
 import { Editor } from '@tiptap/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { NoeudTexte } from '../coeur/tableau'
-import { enColonnes, partager, parts, ratiosDe, regler } from './colonnes'
+import { avecColonne, enColonnes, partager, parts, ratiosDe, regler } from './colonnes'
 import { supprimer } from './gestes'
 import { EXTENSIONS_BLOCS } from './schema'
 
@@ -34,17 +34,19 @@ describe('NOTION.md § 8 : les colonnes', () => {
     expect(forme(ed)).toEqual([[['b'], ['a']]])
   })
 
-  it('à côté d’un bloc d’une colonne, une colonne s’ajoute, jusqu’à cinq, à parts égales', () => {
+  it('à côté d’un bloc d’une colonne, une colonne s’ajoute, de part 1/n, les autres gardant leurs proportions', () => {
     const ed = ouvrir({ type: 'colonnes', content: [{ ...col(p('a', 'A')), attrs: { ratio: 1.5 } }, { ...col(p('b', 'B')), attrs: { ratio: 0.5 } }] }, p('c', 'C'))
     ed.view.dispatch(enColonnes(ed.state, ['C'], 'B', 'droite')!)
     expect(forme(ed)).toEqual([[['a'], ['b'], ['c']]])
     const ratios = (ed.getJSON() as NoeudTexte).content![0]!.content!.map((c) => c.attrs?.ratio)
-    expect(ratios).toEqual([null, null, null])
+    expect(ratios).toEqual([1.5, 0.5, null])
   })
 
-  it('une rangée pleine refuse une sixième colonne', () => {
+  it('une colonne ajoutée à gauche prend la première place, sans limite de nombre', () => {
     const ed = ouvrir({ type: 'colonnes', content: ['1', '2', '3', '4', '5'].map((x) => col(p(x, x))) }, p('c', 'C'))
-    expect(enColonnes(ed.state, ['C'], '1', 'droite')).toBeNull()
+    ed.view.dispatch(enColonnes(ed.state, ['C'], '1', 'gauche')!)
+    expect(forme(ed)).toEqual([[['c'], ['1'], ['2'], ['3'], ['4'], ['5']]])
+    expect((ed.getJSON() as NoeudTexte).content![0]!.content!.map((c) => c.attrs?.ratio)).toEqual([null, null, null, null, null, null])
   })
 
   it('une colonne vidée disparaît ; une rangée réduite à une colonne se dissout dans le flux', () => {
@@ -64,6 +66,20 @@ describe('NOTION.md § 8 : les colonnes', () => {
     const ed = ouvrir({ type: 'colonnes', content: [col(p('a', 'A')), col(p('b', 'B'))] })
     ed.view.dispatch(regler(ed.state, 0, [1.5, 0.5])!)
     expect((ed.getJSON() as NoeudTexte).content![0]!.content!.map((c) => c.attrs?.ratio)).toEqual([1.5, 0.5])
+  })
+})
+
+describe('NOTION.md § 8 : l’ajout d’une colonne', () => {
+  it('la neuve prend 1/n, les autres sont multipliées par 1 − 1/n et la somme reste 1', () => {
+    const f = avecColonne([0.75, 0.25], 2)
+    expect(f[2]).toBeCloseTo(1 / 3)
+    expect(f[0]).toBeCloseTo(0.5)
+    expect(f[1]).toBeCloseTo(1 / 6)
+    expect(f.reduce((a, b) => a + b, 0)).toBeCloseTo(1)
+  })
+
+  it('à gauche, la neuve vient en tête', () => {
+    expect(avecColonne([0.5, 0.5], 0)[0]).toBeCloseTo(1 / 3)
   })
 })
 

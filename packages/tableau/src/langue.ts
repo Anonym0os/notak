@@ -1636,6 +1636,8 @@ export const fr: Textes = {
   // passe éditeur : menus (début)
   // passe éditeur : menus (fin)
   // passe éditeur : sélection et glisser (début)
+  'selection.poignee.tenir': 'Faites glisser pour déplacer, cliquez pour ouvrir le menu',
+  'selection.poignee.ajouter': 'Cliquez pour ajouter un bloc en dessous. Cliquez en appuyant sur la touche Option pour l’ajouter au-dessus.',
   // passe éditeur : sélection et glisser (fin)
   'lien.echec.injoignable': 'Site injoignable : vérifiez l’adresse.',
   'lien.echec.delai': 'Le site a mis trop de temps à répondre.',
@@ -3522,6 +3524,8 @@ export const en: Textes = {
   // passe éditeur : menus (début)
   // passe éditeur : menus (fin)
   // passe éditeur : sélection et glisser (début)
+  'selection.poignee.tenir': 'Drag to move, click to open the menu',
+  'selection.poignee.ajouter': 'Click to add a block below. Option-click to add it above.',
   // passe éditeur : sélection et glisser (fin)
   'lien.chargement': 'Loading',
   'toile.misCorbeille.one': 'Moved to the trash',
