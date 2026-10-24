@@ -34,8 +34,20 @@ const drapeau = (nom: string, defaut = false) => ({
 /** Un élément de liste à puces. */
 export const Puce = blocDeTexte('puce', 'notak-b-puce')
 
-/** Un élément de liste numérotée : son numéro (1., a., i.) est calculé par `structure.ts`. */
-export const Numero = blocDeTexte('numero', 'notak-b-numero')
+/**
+ * Un élément de liste numérotée : son numéro (1., a., i.) est calculé par `structure.ts`. `depart` est le numéro du
+ * premier élément d'une liste qui ne commence pas à 1 (« 3. » tapé en tête de liste, NOTION.md § 4).
+ */
+export const Numero = blocDeTexte('numero', 'notak-b-numero', {
+  addAttributes: () => ({
+    depart: {
+      default: null,
+      keepOnSplit: false,
+      parseHTML: (el: HTMLElement) => Number(el.getAttribute('data-depart')) || null,
+      renderHTML: (a: Record<string, unknown>) => (a.depart ? { 'data-depart': String(a.depart) } : {}),
+    },
+  }),
+})
 
 /** Une tâche, cochée ou non. La case est dessinée dans la marge du bloc ; `structure.ts` en reçoit le clic. */
 export const Tache = blocDeTexte('tache', 'notak-b-tache', {

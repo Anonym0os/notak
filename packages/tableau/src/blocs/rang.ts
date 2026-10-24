@@ -13,6 +13,8 @@ export interface Ligne {
   ouvert?: boolean
   /** Un titre dépliant. */
   depliant?: boolean
+  /** Le numéro d'où part une liste numérotée qui ne commence pas à 1. */
+  depart?: number | null
 }
 
 export interface Place {
@@ -63,12 +65,13 @@ export function structurer(lignes: readonly Ligne[]): Place[] {
     const parent = pile.length ? pile[pile.length - 1]! : null
     const p = parent === null ? null : places[parent]!
     const cache = !!p && (p.cache || replie(lignes[parent!]!))
-    // Le numéro suit celui du frère d'avant, s'il est lui aussi numéroté ; tout autre frère le fait repartir de 1.
+    // Le numéro suit celui du frère d'avant, s'il est lui aussi numéroté ; tout autre frère le fait repartir de 1 (ou
+    // du numéro de départ de l'élément).
     const cle = parent ?? -1
     const frere = dernierEnfant.get(cle)
     let numero: string | null = null
     if (l.type === 'numero') {
-      const n = frere !== undefined && lignes[frere]!.type === 'numero' ? rang.get(frere)! + 1 : 1
+      const n = frere !== undefined && lignes[frere]!.type === 'numero' ? rang.get(frere)! + 1 : Math.max(1, Math.floor(l.depart ?? 1))
       rang.set(i, n)
       numero = numeroter(n, profondeur)
     }

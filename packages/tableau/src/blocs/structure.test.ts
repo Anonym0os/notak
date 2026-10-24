@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { finDuSousArbre, numeroter, structurer } from './structure'
 
-const l = (type: string, retrait = 0, plus: { ouvert?: boolean; depliant?: boolean } = {}) => ({ type, retrait, ...plus })
+const l = (type: string, retrait = 0, plus: { ouvert?: boolean; depliant?: boolean; depart?: number } = {}) => ({ type, retrait, ...plus })
 
 describe('NOTION.md § 1 : les blocs à plat, rangés par leur retrait', () => {
   it('le parent est le dernier bloc moins en retrait au-dessus ; un cran sauté est ramené', () => {
@@ -15,6 +15,9 @@ describe('NOTION.md § 1 : les blocs à plat, rangés par leur retrait', () => {
     const places = structurer([l('numero'), l('numero'), l('numero', 1), l('numero', 1), l('numero'), l('paragraph'), l('numero')])
     expect(places.map((p) => p.numero)).toEqual(['1.', '2.', 'a.', 'b.', '3.', null, '1.'])
     expect(numeroter(4, 2)).toBe('iv.')
+    // Un numéro de départ ne vaut qu'en tête de liste : derrière un frère numéroté, la liste continue.
+    const depart = structurer([l('numero', 0, { depart: 3 }), l('numero'), l('numero', 0, { depart: 9 })])
+    expect(depart.map((p) => p.numero)).toEqual(['3.', '4.', '5.'])
     expect(numeroter(28, 1)).toBe('ab.')
   })
 

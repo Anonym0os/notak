@@ -33,7 +33,7 @@ interface Branche {
 
 /** Les blocs à plat en arbre, par leur retrait. */
 export function arbre(blocs: readonly NoeudTexte[]): Branche[] {
-  const places = structurer(blocs.map((n) => ({ type: n.type, retrait: Number(n.attrs?.retrait) || 0, ouvert: n.attrs?.ouvert !== false, depliant: !!n.attrs?.depliant })))
+  const places = structurer(blocs.map((n) => ({ type: n.type, retrait: Number(n.attrs?.retrait) || 0, ouvert: n.attrs?.ouvert !== false, depliant: !!n.attrs?.depliant, depart: Number(n.attrs?.depart) || null })))
   const branches = blocs.map((n): Branche => ({ n, enfants: [] }))
   const racine: Branche[] = []
   places.forEach((p, i) => (p.parent === null ? racine : branches[p.parent]!.enfants).push(branches[i]!))

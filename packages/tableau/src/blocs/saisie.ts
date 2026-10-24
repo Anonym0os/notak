@@ -60,8 +60,8 @@ export function valeursDeNumero(jeton: string): number[] {
 
 /**
  * Un numéro tapé en tête de bloc est-il accepté (NOTION.md § 4) ? Seulement s'il continue la liste qui précède
- * (`attendu` = son dernier numéro + 1) ; en tête d'une liste (`attendu` = 1) : `1.`, `a.` ou `i.`. Un autre nombre ne
- * fait rien : Notak ne sait pas encore commencer une liste ailleurs qu'à 1.
+ * (`attendu` = son dernier numéro + 1) ; en tête d'une liste (`attendu` = 1) : `1.`, `a.` ou `i.`. En tête de liste, un
+ * autre nombre en chiffres est aussi pris, comme numéro de départ (voir la règle plus bas).
  */
 export const numeroAccepte = (jeton: string, attendu: number): boolean => valeursDeNumero(jeton).includes(attendu)
 
@@ -128,10 +128,13 @@ const reglesDeType = () => [
   }),
   regleBloc(/^(?:["“«]|\|)\s$/u, (_, bloc) => (bloc.type.name === 'citation' ? null : ['citation', {}])),
   regleBloc(/^[-*+•]\s$/u, (_, bloc) => (bloc.type.name === 'puce' ? null : ['puce', {}])),
-  // Un numéro n'est accepté que s'il continue la liste d'avant, ou s'il la commence ; un titre ne devient pas une liste.
+  // Un numéro n'est accepté que s'il continue la liste d'avant, ou s'il en commence une : un nombre tapé là devient
+  // son numéro de départ (« 3. » fait une liste qui part de 3). Un titre ne devient pas une liste.
   regleBloc(/^(\d+|[a-z]|[ivxlcdm]+)[.)]\s$/, (m, bloc, debut, state) => {
     if (bloc.type.name === 'numero' || bloc.type.name === 'heading') return null
-    return numeroAccepte(m[1]!, numeroAvant(state, debut) + 1) ? ['numero', {}] : null
+    const attendu = numeroAvant(state, debut) + 1
+    if (numeroAccepte(m[1]!, attendu)) return ['numero', {}]
+    return attendu === 1 && /^\d+$/.test(m[1]!) && Number(m[1]) > 0 ? ['numero', { depart: Number(m[1]) }] : null
   }),
   regleBloc(/^```([\w+#.-]*)\s?$/, (m) => ['codeBlock', { language: m[1] || null }]),
 ]

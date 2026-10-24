@@ -118,6 +118,17 @@ describe('NOTION.md § 4 : les motifs complets', () => {
     }
   })
 
+  it('`3. ` en tête de liste la fait partir de 3 ; derrière une liste, seul le numéro suivant est pris', () => {
+    const ed = ouvrir()
+    taper(ed, '3. a')
+    expect(ed.getJSON().content?.[0]).toMatchObject({ type: 'numero', attrs: { depart: 3 } })
+    ed.destroy()
+    const suite = ouvrir({ type: 'numero', content: [{ type: 'text', text: 'un' }] }, p(''))
+    suite.commands.setTextSelection(suite.state.doc.child(0).nodeSize + 1)
+    taper(suite, '5. b')
+    expect(types(suite)).toEqual(['numero', 'paragraph'])
+  })
+
   it('`1) ` fait une liste numérotée comme `1. `', () => {
     const ed = ouvrir()
     taper(ed, '1) a')
@@ -138,11 +149,11 @@ describe('NOTION.md § 4 : les motifs complets', () => {
     expect(valeursDeNumero('xiv')).toEqual([14])
   })
 
-  it('`3. ` en tête ne fait rien ; `2. ` sous un élément numéroté continue la liste', () => {
+  it('`c. ` en tête ne fait rien ; `2. ` sous un élément numéroté continue la liste', () => {
     const ed = ouvrir()
-    taper(ed, '3. a')
+    taper(ed, 'c. a')
     expect(types(ed)).toEqual(['paragraph'])
-    expect(texte(ed)).toBe('3. a')
+    expect(texte(ed)).toBe('c. a')
     const ed2 = ouvrir({ type: 'numero', content: [{ type: 'text', text: 'un' }] }, p(''))
     ed2.commands.setTextSelection(ed2.state.doc.content.size - 1)
     taper(ed2, '2. deux')

@@ -18,6 +18,7 @@ export const ligneDe = (n: NoeudPM): Ligne => ({
   retrait: Number(n.attrs.retrait) || 0,
   ouvert: n.attrs.ouvert !== false,
   depliant: !!n.attrs.depliant,
+  depart: Number(n.attrs.depart) || null,
 })
 
 /** Les attributs de page qu'une place donne à son bloc. */
@@ -142,6 +143,7 @@ export function annoterPage(racine: HTMLElement) {
       retrait: Number(el.dataset.retrait) || 0,
       ouvert: el.dataset.ouvert !== 'non',
       depliant: el.hasAttribute('data-depliant'),
+      depart: Number(el.dataset.depart) || null,
     }))
     const places = structurer(lignes)
     els.forEach((el, i) => {

@@ -47,6 +47,13 @@ describe('NOTION.md § 1 : un texte imbriqué passe à plat, et revient', () => 
     expect(d.content?.[1]).toMatchObject({ type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph' }, { type: 'orderedList' }] }, { type: 'listItem' }] })
   })
 
+  it('le départ d’une liste numérotée passe dans les deux sens', () => {
+    const imbrique = { type: 'doc', content: [{ type: 'orderedList', attrs: { start: 4 }, content: [{ type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'a' }] }] }, { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'b' }] }] }] }] }
+    const aplati = aplatir(imbrique)
+    expect(aplati.content?.map((n) => n.attrs?.depart ?? null)).toEqual([4, null])
+    expect(deplier(aplati).content?.[0]).toMatchObject({ type: 'orderedList', attrs: { start: 4 } })
+  })
+
   it('les enfants d’un paragraphe le suivent au même rang dans l’écriture imbriquée', () => {
     expect(deplier(doc(p('a'), p('b', { retrait: 1 })))).toEqual(doc(p('a'), p('b')))
   })

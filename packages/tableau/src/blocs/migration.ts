@@ -52,8 +52,9 @@ function aplatirBlocs(noeuds: readonly NoeudTexte[], retrait: number): NoeudText
       case 'orderedList':
       case 'taskList': {
         const type = n.type === 'bulletList' ? 'puce' : n.type === 'orderedList' ? 'numero' : 'tache'
-        return (n.content ?? []).flatMap((li) =>
-          enveloppe(type, li, { ...marque(li), ...(type === 'tache' && li.attrs?.checked ? { coche: true } : {}) }, retrait),
+        const depart = type === 'numero' && Number(n.attrs?.start) > 1 ? Number(n.attrs?.start) : null
+        return (n.content ?? []).flatMap((li, k) =>
+          enveloppe(type, li, { ...marque(li), ...(type === 'tache' && li.attrs?.checked ? { coche: true } : {}), ...(k === 0 && depart ? { depart } : {}) }, retrait),
         )
       }
       case 'blockquote':
@@ -106,6 +107,7 @@ const ligne = (n: NoeudTexte): Ligne => ({
   retrait: Number(n.attrs?.retrait) || 0,
   ouvert: n.attrs?.ouvert !== false,
   depliant: !!n.attrs?.depliant,
+  depart: Number(n.attrs?.depart) || null,
 })
 
 function deplierBlocs(noeuds: readonly NoeudTexte[]): NoeudTexte[] {
@@ -118,7 +120,7 @@ function deplierBlocs(noeuds: readonly NoeudTexte[]): NoeudTexte[] {
     for (const i of indices) {
       const n = noeuds[i]!
       const dessous = emettre(enfants[i]!)
-      const attrs = sansPlat(n.attrs, ['coche', 'ouvert', 'depliant'])
+      const attrs = sansPlat(n.attrs, ['coche', 'ouvert', 'depliant', 'depart'])
       const liste = LISTES[n.type]
       if (liste) {
         const [type, element] = liste
@@ -129,7 +131,7 @@ function deplierBlocs(noeuds: readonly NoeudTexte[]): NoeudTexte[] {
         }
         const derniere = sortie[sortie.length - 1]
         if (derniere?.type === type) derniere.content!.push(item)
-        else sortie.push({ type, content: [item] })
+        else sortie.push({ type, ...(n.type === 'numero' && Number(n.attrs?.depart) > 1 ? { attrs: { start: Number(n.attrs?.depart) } } : {}), content: [item] })
         continue
       }
       switch (n.type) {

@@ -458,7 +458,7 @@
 
 /* L'image : sa part de la largeur, alignée ; la légende dessous, plus petite. */
 .notak-blocs .notak-image-bloc {
-  margin: 4px 0 16px;
+  margin-block: 4px 16px;
   max-width: 100%;
 }
 
