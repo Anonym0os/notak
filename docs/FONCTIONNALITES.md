@@ -31,7 +31,8 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
 | 18. Carte mentale | 18 | 2 | 21 | 46 % |
-| **Total** | **300** | **12** | **23** | **91 %** |
+| 19. Document à blocs | 1 | 0 | 24 | 4 % |
+| **Total** | **301** | **12** | **47** | **85 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -467,3 +468,38 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Texte de la carte dans la recherche et l'export texte du tableau | ✅ | L'export la rend en liste indentée. |
 | Grille, tableau-arbre | ➖ | Écartés (docs/XMIND.md § 2). |
 | Gantt, IA, commentaires et collaboration propres à Xmind, note audio, vidéo web | ➖ | Écartés (docs/XMIND.md § 6). |
+
+## 19. Document à blocs
+
+Propre à Notak, d'après Notion 7.24 : le comportement de référence est dans `docs/NOTION.md`. Le moteur vit
+dans `packages/tableau/src/blocs/`, pour resservir à d'autres éléments.
+
+| Fonctionnalité | État | Reste |
+|---|---|---|
+| Un id stable sur chaque bloc, le document relu comme des enregistrements de blocs | ⬜ |  |
+| Un vieux client ouvre un bloc inconnu en lecture seule, sans rien perdre | ✅ | Le texte se dessine réduit à ce qu’il connaît, un avis dit pourquoi (`blocs/lisible.ts`). |
+| Titres 1 à 3, titres dépliants | ⬜ |  |
+| Listes à puces, numérotées (1, a, i selon la profondeur), tâches | ⬜ |  |
+| Dépliant | ⬜ |  |
+| Citation, encadré avec icône, séparateur | ⬜ |  |
+| Code avec langage, bouton Copier, retour à la ligne | ⬜ |  |
+| Image avec largeur, alignement et légende | ⬜ |  |
+| Aperçu de lien | ⬜ |  |
+| Menu « / » : filtre par mots-clés, catégories, couleurs et actions | ⬜ |  |
+| Raccourcis markdown en début de bloc et en ligne | ⬜ |  |
+| Remplacements typographiques (→, —, …, ≥, guillemets) | ⬜ |  |
+| Transformer en (⌘/, ⌘⌥0…8) | ⬜ |  |
+| Couleur de texte et de fond, sur un bloc ou un passage | ⬜ |  |
+| Bulle de mise en forme sur une sélection | ⬜ |  |
+| Poignée ⋮⋮ et bouton + au survol, menu de bloc filtrable | ⬜ |  |
+| Sélection de blocs : Échap, Maj+flèches, Maj+clic, rectangle | ⬜ |  |
+| Supprimer, dupliquer (⌘D), monter et descendre (⌘⇧↑/↓), imbriquer (Tab) | ⬜ |  |
+| Glisser un bloc ou une sélection, ⌥ copie | ⬜ |  |
+| Colonnes : dépôt sur le côté, 2 à 5, largeurs aimantées, dissolution | ⬜ |  |
+| Copier le lien d'un bloc, l'adresse amène au bloc | ⬜ |  |
+| Icône et couverture de la page | ⬜ |  |
+| Police, petit texte, pleine largeur | ⬜ |  |
+| Document écrit à plusieurs en direct, curseurs des autres | ⬜ |  |
+| Document dans la recherche du serveur et l'export texte du tableau | ⬜ |  |
+| Bases de données, sous-pages, blocs synchronisés, bouton, équation, onglets | ➖ | Écartés pour l'instant (docs/NOTION.md § 2). |
+| Verrouillage, table des matières flottante, historique de page | ➖ | Écartés (docs/NOTION.md § 9). |

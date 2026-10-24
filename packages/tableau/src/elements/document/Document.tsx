@@ -1,4 +1,4 @@
-import { EditorContent, useEditor } from '@tiptap/react'
+import { EditorContent, getSchema, useEditor } from '@tiptap/react'
 import { renderToReactElement } from '@tiptap/static-renderer/pm/react'
 import { type ReactNode, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -8,6 +8,7 @@ import { type Fils, MARQUE_FIL, avecFil, filsVivants, sansPassagesMuets } from '
 import { Marge } from '../note/Marge'
 import { type Pont, Propositions, extensionPropositions } from '../note/Propositions'
 import { Surcouche } from '../surcouche'
+import { degrader, lisible } from '../../blocs/lisible'
 import { LegendeLocale, OutilLegende, avecTexteLegende } from '../LegendeLocale'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { ColonneOutils } from './ColonneOutils'
@@ -19,10 +20,15 @@ import { BoutonOutil } from '../../BoutonOutil'
 import { Icone } from '../../icones'
 import { fermerMenus, useMenu } from '../../menuUnique'
 
-/** Le texte tel qu'une note le dessine : mêmes extensions, en lecture seule. */
+const SCHEMA = getSchema(EXTENSIONS_NOTE)
+
+/**
+ * Le texte tel qu'une note le dessine : mêmes extensions, en lecture seule. Un bloc qu'une version plus récente a
+ * écrit se dessine réduit à son texte (docs/NOTION.md § 1).
+ */
 const Lu = memo(function Lu({ texte, fils }: { texte: NoeudTexte; fils?: Fils | undefined }) {
   // Un passage dont le fil n'a aucun message (marqué, rien écrit) ne se souligne pas.
-  const rendu = useMemo(() => renderToReactElement({ content: sansPassagesMuets(texte, fils), extensions: EXTENSIONS_NOTE }), [texte, fils])
+  const rendu = useMemo(() => renderToReactElement({ content: sansPassagesMuets(degrader(texte, SCHEMA), fils), extensions: EXTENSIONS_NOTE }), [texte, fils])
   return <div className="notak-texte">{rendu}</div>
 })
 
@@ -104,6 +110,8 @@ export function RenduDocument({ element, choisie, enEdition, contexte, brouillon
   // Entrée sur le document choisi, ou « Renommer » : le titre s'édite sur la carte.
   useEffect(() => (lectureSeule ? undefined : ecouterRenommer(element.id, () => setTitreSurCarte(true))), [element.id, lectureSeule])
   const mots = useMemo(() => compterMots(c.texte), [c.texte])
+  // Un texte qu'une version plus récente a écrit ne s'édite pas ici : l'éditeur le viderait (docs/NOTION.md § 1).
+  const editable = useMemo(() => lisible(c.texte, SCHEMA), [c.texte])
   const nom = (
     <>
       {titreSurCarte ? (
@@ -161,7 +169,12 @@ export function RenduDocument({ element, choisie, enEdition, contexte, brouillon
           {nom}
         </>
       )}
-      {enEdition && <Grand contenu={c} ecrire={brouillon} finir={contexte.finirEdition} contexte={contexte} />}
+      {enEdition &&
+        (editable ? (
+          <Grand contenu={c} ecrire={brouillon} finir={contexte.finirEdition} contexte={contexte} />
+        ) : (
+          <Lecture contenu={c} fermer={contexte.finirEdition} plusRecent />
+        ))}
       {enLecture && <Lecture contenu={c} fermer={() => setEnLecture(false)} />}
     </div>
   )
@@ -186,7 +199,7 @@ function MenuExport({ titre, lireTexte }: { titre: string; lireTexte(): NoeudTex
     setOuvert(false)
   }
   const pdf = () => {
-    const corps = renderToStaticMarkup(renderToReactElement({ content: lireTexte(), extensions: EXTENSIONS_NOTE }))
+    const corps = renderToStaticMarkup(renderToReactElement({ content: degrader(lireTexte(), SCHEMA), extensions: EXTENSIONS_NOTE }))
     imprimer(pageImpression(titre.trim() || t('commun.sansTitre'), corps))
     setOuvert(false)
   }
@@ -264,10 +277,16 @@ function Modale({ titre, titreTexte, lireTexte, outils, fermer, children, lectur
   )
 }
 
-function Lecture({ contenu, fermer }: { contenu: DocumentTexte; fermer(): void }) {
+/** Le document à lire seulement. `plusRecent` : il porte des blocs qu'une version plus récente de Notak sait écrire. */
+function Lecture({ contenu, fermer, plusRecent }: { contenu: DocumentTexte; fermer(): void; plusRecent?: boolean }) {
   const titre = contenu.titre.trim() || t('commun.sansTitre')
   return (
     <Modale lecture titre={<span className="notak-document-titre-lu">{titre}</span>} titreTexte={contenu.titre} lireTexte={() => contenu.texte} fermer={fermer}>
+      {plusRecent && (
+        <p className="notak-document-plus-recent" role="status">
+          {t('document.plusRecent')}
+        </p>
+      )}
       <Lu texte={contenu.texte} fils={contenu.fils} />
     </Modale>
   )

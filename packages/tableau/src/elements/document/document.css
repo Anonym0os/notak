@@ -555,6 +555,17 @@
   padding-top: 27px;
 }
 
+/* Un document qu'une version plus récente a écrit : il se lit, l'avis dit pourquoi il ne s'édite pas. */
+.notak-document-plus-recent {
+  margin: 0 0 20px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--notak-texte, #323b4a) 6%, transparent);
+  color: color-mix(in srgb, var(--notak-texte, #323b4a) 75%, transparent);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 /* Les fils des passages commentés : à droite de la boîte, sur le voile ; sur une fenêtre étroite, dans la boîte. */
 .notak-document-boite > .notak-note-marge,
 .notak-document-corps .notak-note-marge {

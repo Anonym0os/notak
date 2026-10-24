@@ -59,4 +59,16 @@ describe('le document ouvert en grand', () => {
     expect(boite.getAttribute('data-lecture')).toBe('true')
     expect(boite.querySelector('.notak-document-cote')!.children).toHaveLength(0)
   })
+
+  it('un bloc d’une version plus récente ouvre le document en lecture seule, sans rien perdre (NOTION.md § 1)', () => {
+    const recent = doc('', {
+      texte: { type: 'doc', content: [{ type: 'blocDuFutur', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'gardé' }] }] }] },
+    })
+    monter(recent, { enEdition: true })
+    const boite = document.querySelector('.notak-document-boite')!
+    expect(boite.getAttribute('data-lecture')).toBe('true')
+    expect(boite.querySelector('.ProseMirror')).toBeNull()
+    expect(boite.querySelector('.notak-document-plus-recent')).not.toBeNull()
+    expect(boite.querySelector('.notak-texte')!.textContent).toBe('gardé')
+  })
 })
