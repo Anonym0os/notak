@@ -56,8 +56,15 @@
     "yjs": "13.6.33"
   },
   "dependencies": {
+    "@fontsource-variable/nunito": "5.3.0",
+    "@fontsource-variable/signika": "5.3.0",
+    "@fontsource/audiowide": "5.3.0",
+    "@fontsource/kalam": "5.3.0",
+    "@fontsource/modak": "5.3.0",
+    "@fontsource/tenor-sans": "5.3.0",
     "pdfjs-dist": "5.4.149",
     "perfect-freehand": "1.2.2",
+    "roughjs": "4.6.6",
     "temml": "0.14.0"
   }
 }

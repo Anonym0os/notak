@@ -1,0 +1,49 @@
+/* Les thèmes du mode Pitch : la couche de décor des diapositives et les vignettes du sélecteur (relevé 12).
+   Les polices libres (OFL) sont chargées par `decor.tsx` ; les couleurs viennent des variables `--d-*` du thème. */
+
+/* La couche de décor : sous le texte, sans prise sur la souris. */
+.notak-arbre-diapo-decor {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.notak-arbre-diapo-decor-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Les traits de hand-drawn ont `pathLength` 1 : sans animation, ils sont pleins. */
+.notak-arbre-diapo-decor-svg [data-decor='cadre'],
+.notak-arbre-diapo-decor-svg [data-trait] path {
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 0;
+}
+
+/* La vignette d'un thème : « Pitch Mode » dans la police et la couleur du thème, sur le décor du sujet central. */
+.notak-arbre-pitch-vignette-diapo {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px var(--notak-arbre-piste);
+  color: var(--d-texte);
+  font-family: var(--d-police-titre);
+  font-weight: var(--d-graisse-titre);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.notak-arbre-pitch-vignette:hover .notak-arbre-pitch-vignette-diapo {
+  box-shadow: 0 0 0 1px var(--notak-arbre-discret);
+}
+
+.notak-arbre-pitch-vignette-titre {
+  position: relative;
+}

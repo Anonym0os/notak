@@ -449,7 +449,6 @@
   overflow: hidden;
   container-type: size;
   background-color: var(--d-fond);
-  background-image: var(--d-motif);
   color: var(--d-texte);
   font-family: var(--d-police);
 }
@@ -552,7 +551,7 @@
 }
 
 .notak-arbre-diapo-liste h2 {
-  color: var(--d-accent);
+  color: var(--d-texte);
   font-size: 5cqw;
   font-weight: 700;
   line-height: 1.2;
@@ -603,7 +602,7 @@
   height: 0.9cqw;
   margin-right: 1.6cqw;
   border-radius: var(--d-rayon-puce, 50%);
-  background: var(--d-accent);
+  background: var(--d-texte);
   vertical-align: middle;
 }
 
@@ -618,7 +617,7 @@
   width: 4cqw;
   height: 34cqh;
   fill: none;
-  stroke: var(--d-accent);
+  stroke: var(--d-texte);
   stroke-width: 1.6;
   vector-effect: non-scaling-stroke;
 }
@@ -671,7 +670,7 @@
   left: 0;
   height: 0.5cqw;
   border-radius: 1cqw;
-  background: var(--d-accent);
+  background: var(--d-texte);
   transform: translateY(-50%);
 }
 
@@ -693,7 +692,7 @@
   height: 8cqw;
   padding: 0 1cqw;
   border-radius: var(--d-rayon, 10px);
-  background: var(--d-accent);
+  background: var(--d-texte);
   color: var(--d-fond);
   font-size: 2.4cqw;
   font-weight: 700;
@@ -714,7 +713,7 @@
   width: 1.6cqw;
   height: 1.6cqw;
   border-radius: 50%;
-  background: var(--d-accent);
+  background: var(--d-texte);
   transform: translate(-50%, -50%);
 }
 

@@ -3,16 +3,13 @@ import type { Id } from '../../coeur/tableau'
 import { t } from '../../langue'
 import type { Diapo as DiapoDonnee, DiapoListe, DiapoResume, ItemListe, PlaceImage } from './modele/diapositives'
 import type { Lecture } from './modele/sujets'
-import { type RatioPitch, type ThemePitch, dimensionsDuRatio } from './themesPitch'
+import { type RatioPitch, type ThemePitch, dimensionsDuRatio, variablesDeTheme } from './themesPitch'
 
 /**
  * Une diapositive du mode Pitch (docs/XMIND.md § 12), dessinée en HTML : elle remplit son cadre, dont toutes les
  * tailles se comptent en `cqw` (un centième de la largeur du cadre), pour que la même diapositive serve en plein
  * écran, dans l'aperçu de l'onglet Pitch et dans les vignettes du sélecteur de thèmes.
  */
-
-export const variablesDeTheme = (th: ThemePitch): CSSProperties =>
-  ({ '--d-fond': th.fond, '--d-texte': th.texte, '--d-accent': th.accent, '--d-police': th.police, '--d-motif': th.motif, '--d-rayon': th.rayon }) as CSSProperties
 
 interface Props {
   lecture: Lecture

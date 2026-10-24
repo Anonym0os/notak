@@ -1134,6 +1134,8 @@ export const fr: Textes = {
   'arbre.carte.sqMain': 'Dessiné à la main',
   // passe fond : pitch, la séquence
   'arbre.pitch.merci': 'Merci',
+  // passe pitch : thèmes
+  'arbre.pitch.theme.vignette': 'Pitch Mode',
   'type.croquis': 'Croquis',
   'type.dessin': 'Dessin',
   'outil.dessin': 'Dessiner',
@@ -3046,6 +3048,8 @@ export const en: Textes = {
   'arbre.carte.sqMain': 'Hand drawn',
   // passe fond : pitch, la séquence
   'arbre.pitch.merci': 'Thank you',
+  // passe pitch : thèmes
+  'arbre.pitch.theme.vignette': 'Pitch Mode',
   'type.croquis': 'Sketch',
   'type.dessin': 'Drawing',
   'outil.dessin': 'Draw',

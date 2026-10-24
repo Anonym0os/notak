@@ -224,7 +224,7 @@ describe('le mode présentation', () => {
   it('le thème de la carte habille la diapositive, et la barre garde ses quatre groupes de boutons', () => {
     const { a } = carte()
     const p = presenter({ ...a, pitch: { theme: 'light', ratio: '4:3' } })
-    expect((p.hote.querySelector('.notak-arbre-diapo-cadre') as HTMLElement).style.getPropertyValue('--d-fond')).toBe('#fafbfc')
+    expect((p.hote.querySelector('.notak-arbre-diapo-cadre') as HTMLElement).style.getPropertyValue('--d-fond')).toBe('#f9f9f9')
     expect(p.hote.querySelector('.notak-arbre-diapo-cadre')?.getAttribute('data-ratio')).toBe('4:3')
     expect([...p.hote.querySelectorAll('.notak-arbre-pitch-outil')].map((b) => b.getAttribute('aria-label'))).toEqual([
       'Quitter le mode présentation.',

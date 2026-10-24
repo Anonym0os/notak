@@ -1,83 +1,171 @@
+import type { CSSProperties } from 'react'
 import type { ReglagesPitch } from '../../coeur/tableau'
+import type { FormesDiapo } from './diapo/formes'
+import { FORMES_BULLES, FORMES_CARNET, FORMES_INNOCENCE, FORMES_MINUIT, FORMES_SHAPE } from './diapo/formesDesThemes'
 
 /**
- * Les thèmes des diapositives du mode Pitch (docs/XMIND.md § 11). Sept, dans l'ordre du sélecteur ; les identifiants
- * sont ceux qu'on écrit dans la feuille (`slide-appearance`), les dessins sont les nôtres.
+ * Les thèmes des diapositives du mode Pitch (docs/XMIND.md § 11, relevé 12). Sept, dans l'ordre du sélecteur ; les
+ * identifiants sont ceux qu'on écrit dans la feuille (`slide-appearance`), les dessins sont les nôtres.
+ *
+ * Comme chez Xmind, un thème n'a pas d'accent : une seule couleur de premier plan sert au texte et à toutes les formes
+ * (accolades, puces, arêtes, chronologie, filets). Les exceptions (puces de midnight-rose et de hubble-bubble) vivent
+ * dans les formes du thème. Le décor de fond est dessiné par `diapo/decor.tsx`.
  */
 export interface ThemePitch {
   id: string
   /** La clé de langue du nom. */
   nom: string
   fond: string
+  /** Le fond de la vignette du sélecteur, quand il diffère (le clair y est blanc pur). */
+  fondVignette?: string
+  /** La couleur de premier plan : texte, accolades, puces, arêtes, chronologie, filets. */
   texte: string
-  /** Le second ton : puces, filets, texte discret. */
-  accent: string
+  /** La couleur d'un groupe survolé en mode présentateur. */
+  surbrillance: string
   police: string
-  /** Le dessin du fond (dégradés) posé par-dessus la couleur ; `none` : aucun. */
-  motif: string
-  /** Les angles des cadres : un thème dessiné à la main les veut inégaux. */
-  rayon: string
+  /** La police des titres : Modak pour hubble-bubble, la même ailleurs. */
+  policeTitre: string
+  graisse: number
+  graisseTitre: number
+  graisseNote: number
+  /** L'opacité des sous-sujets pas encore montrés, en mode présentateur. */
+  enAttente: number
+  /** L'opacité de l'ombre des zones cliquables : 25 % sur fond sombre, 15 % sur fond clair. */
+  ombreZone: number
+  /** L'opacité du titre flouté derrière les images (imageable-list). */
+  titreFloute: number
+  /** Le contour blanc des images, px de base (midnight-rose, hubble-bubble). */
+  contourImage: number
+  /** Le contenu est rogné à tant de px du bord (le cadre manuscrit de hand-drawn). */
+  rognage: number
+  /** Les formes propres au thème, par-dessus celles par défaut. */
+  formes?: Partial<FormesDiapo>
 }
 
 export const THEME_PITCH_DEFAUT = 'default'
 
+/** La pile système de Xmind ; Inter (déjà servie par l'application) avant Arial hors Apple. */
+const SYSTEME = '"SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, "Inter Variable", Arial, "PingFang SC", "Microsoft YaHei", sans-serif'
+
+const sombre: ThemePitch = {
+  id: 'default',
+  nom: 'arbre.pitch.theme.sombre',
+  fond: '#000',
+  texte: '#fff',
+  surbrillance: '#0A84FF',
+  police: SYSTEME,
+  policeTitre: SYSTEME,
+  graisse: 400,
+  graisseTitre: 700,
+  graisseNote: 400,
+  enAttente: 0.3,
+  ombreZone: 0.25,
+  titreFloute: 0.7,
+  contourImage: 0,
+  rognage: 0,
+}
+
 export const THEMES_PITCH: readonly ThemePitch[] = [
-  { id: 'light', nom: 'arbre.pitch.theme.clair', fond: '#fafbfc', texte: '#1f2326', accent: '#3a86d4', police: 'Inter, ui-sans-serif, system-ui, sans-serif', motif: 'none', rayon: '10px' },
-  { id: 'default', nom: 'arbre.pitch.theme.sombre', fond: '#14171a', texte: '#e4e7eb', accent: '#6aa8ea', police: 'Inter, ui-sans-serif, system-ui, sans-serif', motif: 'none', rayon: '10px' },
+  // Le clair est une copie du sombre (relevé 12 § 2) ; sa vignette est d'un blanc pur.
+  { ...sombre, id: 'light', nom: 'arbre.pitch.theme.clair', fond: '#f9f9f9', fondVignette: '#fff', texte: '#000', surbrillance: '#007AFF', enAttente: 0.2, ombreZone: 0.15, titreFloute: 0.5 },
+  sombre,
   {
+    ...sombre,
     id: 'innocence',
     nom: 'arbre.pitch.theme.innocence',
-    fond: '#fdf1ec',
-    texte: '#5b3b3b',
-    accent: '#ef8a79',
-    police: 'Georgia, "Times New Roman", serif',
-    motif: 'radial-gradient(circle at 12% 18%, #ffd9cf 0 9%, transparent 9.5%), radial-gradient(circle at 90% 85%, #ffe8c9 0 13%, transparent 13.5%)',
-    rayon: '999px',
+    fond: '#F7FFF4',
+    texte: '#000',
+    police: '"Signika Variable", "PingFang SC", "Microsoft YaHei", sans-serif',
+    policeTitre: '"Signika Variable", "PingFang SC", "Microsoft YaHei", sans-serif',
+    graisse: 700,
+    graisseNote: 700,
+    enAttente: 0.2,
+    ombreZone: 0.15,
+    titreFloute: 0.5,
+    formes: FORMES_INNOCENCE,
   },
   {
+    ...sombre,
     id: 'shape-for-you',
     nom: 'arbre.pitch.theme.formes',
-    fond: '#fffbe8',
-    texte: '#1b1b3a',
-    accent: '#ff6b3d',
-    police: '"Avenir Next", "Trebuchet MS", ui-sans-serif, sans-serif',
-    motif: 'radial-gradient(circle at 92% 12%, #ffcf4a 0 10%, transparent 10.5%), linear-gradient(135deg, transparent 0 82%, #6c5ce7 82% 90%, transparent 90%)',
-    rayon: '4px',
+    fond: '#FAE4E8',
+    texte: '#000',
+    police: '"Tenor Sans", "Songti SC", sans-serif',
+    policeTitre: '"Tenor Sans", "Songti SC", sans-serif',
+    graisseTitre: 400,
+    enAttente: 0.2,
+    ombreZone: 0.15,
+    titreFloute: 0.5,
+    formes: FORMES_SHAPE,
   },
   {
+    ...sombre,
     id: 'midnight-rose',
     nom: 'arbre.pitch.theme.rose',
-    fond: '#1a0f26',
-    texte: '#fbe8f0',
-    accent: '#ff7aa8',
-    police: 'Georgia, "Times New Roman", serif',
-    motif: 'radial-gradient(ellipse at 80% 0%, #4a1f55 0, transparent 60%), radial-gradient(ellipse at 0% 100%, #2a1240 0, transparent 55%)',
-    rayon: '14px',
+    fond: '#2C47D8',
+    texte: '#fff',
+    surbrillance: '#45A2FF',
+    police: 'Audiowide, "PingFang SC", "Microsoft YaHei", sans-serif',
+    policeTitre: 'Audiowide, "PingFang SC", "Microsoft YaHei", sans-serif',
+    graisse: 700,
+    graisseNote: 700,
+    contourImage: 10,
+    formes: FORMES_MINUIT,
   },
   {
+    ...sombre,
     id: 'hubble-bubble',
     nom: 'arbre.pitch.theme.bulles',
-    fond: '#0b1d3a',
-    texte: '#eaf4ff',
-    accent: '#5ad1ff',
-    police: '"Avenir Next", ui-rounded, ui-sans-serif, sans-serif',
-    motif: 'radial-gradient(circle at 15% 25%, rgb(90 209 255 / 0.22) 0 7%, transparent 7.5%), radial-gradient(circle at 85% 70%, rgb(150 120 255 / 0.2) 0 12%, transparent 12.5%), radial-gradient(circle at 60% 12%, rgb(255 255 255 / 0.1) 0 4%, transparent 4.5%)',
-    rayon: '999px',
+    fond: '#48C279',
+    texte: '#FDFF8C',
+    police: '"Nunito Variable", "Yuanti SC", sans-serif',
+    policeTitre: 'Modak, "Yuanti SC", sans-serif',
+    graisse: 700,
+    graisseNote: 700,
+    enAttente: 0.2,
+    contourImage: 10,
+    formes: FORMES_BULLES,
   },
   {
+    ...sombre,
     id: 'hand-drawn',
     nom: 'arbre.pitch.theme.carnet',
-    fond: '#fffdf7',
-    texte: '#2b2b2b',
-    accent: '#e0533d',
-    police: '"Bradley Hand", "Segoe Print", "Marker Felt", "Comic Sans MS", cursive',
-    motif: 'repeating-linear-gradient(0deg, transparent 0 31px, rgb(60 90 150 / 0.12) 31px 32px)',
-    rayon: '255px 15px 225px 15px / 15px 225px 15px 255px',
+    fond: '#EDF4E5',
+    texte: '#2F4DB5',
+    surbrillance: '#007AFF',
+    police: 'Kalam, "Xiaolai SC", cursive, sans-serif',
+    policeTitre: 'Kalam, "Xiaolai SC", cursive, sans-serif',
+    enAttente: 0.2,
+    ombreZone: 0.15,
+    titreFloute: 0.5,
+    rognage: 30,
+    formes: FORMES_CARNET,
   },
 ]
 
 /** Le thème d'un identifiant ; un identifiant inconnu (venu d'un autre logiciel) retombe sur le sombre. */
 export const themePitchDe = (id: string | undefined): ThemePitch => THEMES_PITCH.find((x) => x.id === id) ?? THEMES_PITCH[1]!
+
+/**
+ * Les variables CSS d'un thème, posées sur le cadre de la diapositive. Le dessin des gabarits lit les cinq premières ;
+ * les suivantes servent au décor, au mode présentateur et aux images.
+ */
+export const variablesDeTheme = (th: ThemePitch): CSSProperties =>
+  ({
+    '--d-fond': th.fond,
+    '--d-texte': th.texte,
+    '--d-police': th.police,
+    '--d-police-titre': th.policeTitre,
+    '--d-graisse-titre': String(th.graisseTitre),
+    '--d-graisse': String(th.graisse),
+    '--d-graisse-note': String(th.graisseNote),
+    '--d-surbrillance': th.surbrillance,
+    '--d-en-attente': String(th.enAttente),
+    '--d-ombre-zone': `rgb(0 0 0 / ${th.ombreZone})`,
+    '--d-titre-floute': String(th.titreFloute),
+    '--d-contour-image': `${th.contourImage}px`,
+    '--d-rognage': `${th.rognage}px`,
+  }) as CSSProperties
 
 export type RatioPitch = NonNullable<ReglagesPitch['ratio']>
 export const RATIOS_PITCH: readonly RatioPitch[] = ['16:9', '4:3', '9:16', '3:4']
