@@ -1,9 +1,13 @@
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { Arbre, Id } from '../../coeur/tableau'
+import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
-import { type CibleMenu, type ContexteMenu, type Item, construireMenu, entrees, nettoyer } from './menus'
+import { type CibleMenu, type ContexteMenu, type Item, construireMenu, entrees, menuPlus, nettoyer } from './menus'
 import { porter } from './modele/elements'
-import { ajouterEnfant, ajouterFlottant, lire, nouvelArbre } from './modele/sujets'
+import { ajouterEnfant, ajouterFlottant, changerSujet, lire, nouvelArbre } from './modele/sujets'
+import { BOUTONS_BARRE } from './repliBarre'
 
 function carte() {
   let a: Arbre = nouvelArbre('Central')
@@ -45,7 +49,9 @@ describe('le menu d’un sujet', () => {
       expect(m.at(-1)).not.toBe('sep')
       m.forEach((it, i) => it === 'sep' && expect(m[i + 1]).not.toBe('sep'))
     }
-    expect(nettoyer(['sep', { id: 'a', libelle: 'A' }, 'sep', 'sep', { id: 'b', libelle: 'B' }, 'sep', { id: 'v', libelle: 'V', sous: [] }, 'sep'])).toEqual([{ id: 'a', libelle: 'A' }, 'sep', { id: 'b', libelle: 'B' }])
+    const un = { id: 'a', libelle: 'A', icone: 'note' } as const
+    const deux = { id: 'b', libelle: 'B', icone: 'note' } as const
+    expect(nettoyer(['sep', un, 'sep', 'sep', deux, 'sep', { id: 'v', libelle: 'V', icone: 'note', sous: [] }, 'sep'])).toEqual([un, 'sep', deux])
   })
 
   it('le central ne se coupe, ne se duplique ni ne se supprime ; il ne se replie pas comme un sujet', () => {
@@ -200,5 +206,98 @@ describe('les autres menus', () => {
     expect(ids(menu(a, { genre: 'marqueur', id: x, marqueur: 'flag-red' }))).toEqual(['marqueur.panneau', 'supprimer.champ', 'surligner'])
     expect(ids(menu(a, { genre: 'etiquette', id: x, rang: 0 }))).toEqual(['supprimer.champ', 'surligner'])
     expect(ids(menu(a, { genre: 'piece', id: x }))).toEqual(['piece.ouvrir', 'supprimer.champ', 'piece.enregistrer'])
+  })
+})
+
+/** Tous les menus que la carte peut ouvrir, dans les états qui changent leurs entrées : chaque cible, avec tout ce qu'un sujet peut porter. */
+function tousLesMenus(): { nom: string; items: Item[] }[] {
+  const { a, c, x, y, f, g } = carte()
+  let riche = changerSujet(a, x, (s) => ({ ...s, marqueurs: ['flag-red'] }))
+  riche = porter(riche, [x], 'etiquettes', ['a'])
+  riche = porter(riche, [x], 'lien', 'https://notak.app')
+  riche = porter(riche, [x], 'tache', 'a-faire')
+  riche = porter(riche, [x], 'planning', { duree: 2 })
+  riche = porter(riche, [y], 'image', { fichier: 'f', l: 10, h: 10 })
+  const avecResume = changerSujet(riche, y, (s) => ({ ...s, genre: 'resume' as const }))
+  const plein = { ...riche, relations: { r: { de: x, vers: y, controles: [{ x: 1, y: 1 }, { x: 2, y: 2 }] as [{ x: number; y: number }, { x: number; y: number }] } }, zones: { z: { x: 0, y: 0, l: 50, h: 50 } }, limites: { m: { ids: [x] } } } as unknown as Arbre
+  const contexte = { presse: true, styleCopie: true }
+  const cibles: [string, Arbre, CibleMenu, Partial<ContexteMenu>][] = [
+    ['sujet riche', plein, { genre: 'sujet', id: x }, contexte],
+    ['sujet nu', a, { genre: 'sujet', id: x }, {}],
+    ['sujet principal en placement libre', { ...riche, options: { libre: true } }, { genre: 'sujet', id: x }, { brancheSeule: x }],
+    ['sujet replié', { ...riche, sujets: { ...riche.sujets, [x]: { ...riche.sujets[x]!, replie: true } } }, { genre: 'sujet', id: x }, {}],
+    ['central', a, { genre: 'sujet', id: c }, {}],
+    ['flottant', a, { genre: 'sujet', id: f }, { selection: [f, g] }],
+    ['résumé', avecResume, { genre: 'sujet', id: y }, {}],
+    ['fond', a, { genre: 'fond', x: 0, y: 0 }, contexte],
+    ['fond plein', plein, { genre: 'fond', x: 0, y: 0 }, {}],
+    ['relation', plein, { genre: 'relation', id: 'r' }, contexte],
+    ['limite', plein, { genre: 'limite', id: 'm' }, {}],
+    ['zone', plein, { genre: 'zone', id: 'z' }, {}],
+    ['image', plein, { genre: 'image', id: y }, {}],
+    ['équation', plein, { genre: 'equation', id: x }, {}],
+    ['marqueur', plein, { genre: 'marqueur', id: x, marqueur: 'flag-red' }, {}],
+    ['étiquette', plein, { genre: 'etiquette', id: x, rang: 0 }, {}],
+    ['note', plein, { genre: 'note', id: x }, {}],
+    ['lien', plein, { genre: 'lien', id: x }, {}],
+    ['pièce jointe', plein, { genre: 'piece', id: x }, {}],
+    ['tâche planifiée', plein, { genre: 'planning', id: x }, {}],
+    ['case à faire', plein, { genre: 'tache', id: x }, {}],
+  ]
+  return cibles.map(([nom, arbre, cible, plus]) => ({ nom, items: menu(arbre, cible, plus) }))
+}
+
+describe('les icônes des menus', () => {
+  it('chaque entrée de chaque menu, sous-menus compris, porte une icône du registre', () => {
+    const menus = [...tousLesMenus(), { nom: 'le menu « + »', items: menuPlus({ note: true, aFaire: true, lienWeb: true, lienSujet: true, piece: true, audio: true, vignette: true, image: true, equation: true }, BOUTONS_BARRE.map((id) => ({ id, inactif: false }))) }]
+    const vues = new Set<NomIcone>()
+    let total = 0
+    for (const { nom, items } of menus) {
+      expect(items.length, nom).toBeGreaterThan(0)
+      for (const e of entrees(items)) {
+        total++
+        expect(typeof e.icone, `${nom} : ${e.id}`).toBe('string')
+        expect(e.icone.length, `${nom} : ${e.id}`).toBeGreaterThan(0)
+        vues.add(e.icone)
+      }
+    }
+    expect(total).toBeGreaterThan(100)
+    // Le nom est dans le registre : l'icône se dessine (un nom inconnu ferait tomber le rendu).
+    for (const nom of vues) expect(renderToStaticMarkup(createElement(Icone, { nom })), nom).toContain('<svg')
+  })
+
+  it('une même action garde la même icône d’un menu à l’autre', () => {
+    const parId = new Map<string, Set<string>>()
+    for (const { items } of tousLesMenus()) for (const e of entrees(items)) parId.set(e.id, (parId.get(e.id) ?? new Set()).add(e.icone))
+    // Seules « Modifier » (le crayon, qui réemploie l'identifiant de ce qu'elle ouvre) en change.
+    const changeantes = [...parId].filter(([, icones]) => icones.size > 1).map(([id]) => id)
+    expect(changeantes.sort()).toEqual(['inserer.equation', 'inserer.tache'])
+  })
+})
+
+describe('le menu « + »', () => {
+  const tout = { note: true, aFaire: true, lienWeb: true, lienSujet: true, piece: true, audio: true, vignette: true, image: true, equation: true }
+  const forme = (items: Item[]) => items.map((i) => (i === 'sep' ? '—' : i.id))
+
+  it('Note, Tâches à faire, Lien ▸, pièces jointes, images : comme sur la capture 19', () => {
+    const m = menuPlus(tout)
+    expect(forme(m)).toEqual(['inserer.note', 'inserer.aFaire', 'inserer.lien', '—', 'inserer.piece', 'inserer.audio', '—', 'inserer.autocollant', 'inserer.illustration', 'inserer.image', 'inserer.equation'])
+    expect(forme((entree(m, 'inserer.lien') as Extract<Item, object>).sous!)).toEqual(['inserer.pageWeb', 'inserer.lienSujet'])
+  })
+
+  it('grise ce que la sélection ne permet pas', () => {
+    const m = menuPlus({ ...tout, note: false, piece: false })
+    expect(entree(m, 'inserer.note')!.inactif).toBe(true)
+    expect(entree(m, 'inserer.piece')!.inactif).toBe(true)
+    expect(entree(m, 'inserer.aFaire')!.inactif).toBeUndefined()
+  })
+
+  it('les boutons repliés passent en tête, dans l’ordre de la barre, avec leur raccourci, puis un séparateur', () => {
+    const m = menuPlus(tout, [{ id: 'zone', inactif: false }, { id: 'etiquette', inactif: true }, { id: 'tache', inactif: false }])
+    expect(forme(m).slice(0, 5)).toEqual(['replie.zone', 'replie.etiquette', 'replie.tache', '—', 'inserer.note'])
+    expect(entree(m, 'replie.zone')).toMatchObject({ libelle: 'Zone', icone: 'arbreEncadre' })
+    expect(entree(m, 'replie.etiquette')).toMatchObject({ libelle: 'Étiquette', inactif: true })
+    expect(entree(m, 'replie.tache')!.libelle).toBe('Tâche')
+    expect(entree(menuPlus(tout, [{ id: 'relation', inactif: false }]), 'replie.relation')!.touche).toMatch(/R$/)
   })
 })

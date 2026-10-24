@@ -160,10 +160,10 @@ describe('le popover', () => {
 
 describe('le menu contextuel', () => {
   const items: Item[] = [
-    { id: 'copier', libelle: 'Copier', touche: '⌘C' },
-    { id: 'coller', libelle: 'Coller', inactif: true },
+    { id: 'copier', libelle: 'Copier', icone: 'menuCopier', touche: '⌘C' },
+    { id: 'coller', libelle: 'Coller', icone: 'menuColler', inactif: true },
     'sep',
-    { id: 'inserer', libelle: 'Insérer', sous: [{ id: 'inserer.note', libelle: 'Note' }] },
+    { id: 'inserer', libelle: 'Insérer', icone: 'ajouter', sous: [{ id: 'inserer.note', libelle: 'Note', icone: 'note' }] },
   ]
 
   it('liste ses entrées, grise celles qui ne sont pas disponibles, ouvre un sous-menu, rend l’identifiant choisi', () => {

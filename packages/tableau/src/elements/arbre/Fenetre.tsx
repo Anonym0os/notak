@@ -110,27 +110,49 @@ export function Deroulant({
   )
 }
 
-/** Une entrée de menu : icône, libellé, raccourci à droite. */
+/**
+ * Une entrée de menu : icône (16 px, trait 1,6, discrète), libellé, raccourci à droite ; ou, pour une entrée qui ouvre un
+ * sous-menu (`sous`), un chevron à la place du raccourci.
+ */
 export function Entree({
   icone,
   libelle,
   touche,
   coche,
+  sous,
   inactif,
   onClick,
+  onSurvol,
 }: {
   icone?: NomIcone | undefined
   libelle: string
   touche?: string | undefined
   coche?: boolean | undefined
+  sous?: boolean | undefined
   inactif?: boolean | undefined
   onClick?: (() => void) | undefined
+  /** Le pointeur entre dans l'entrée : un menu y ferme le sous-menu resté ouvert à côté. */
+  onSurvol?: (() => void) | undefined
 }) {
   return (
-    <button type="button" role={coche === undefined ? 'menuitem' : 'menuitemradio'} aria-checked={coche} disabled={inactif} onClick={onClick}>
+    <button
+      type="button"
+      role={coche === undefined ? 'menuitem' : 'menuitemradio'}
+      aria-checked={coche}
+      aria-haspopup={sous ? 'menu' : undefined}
+      disabled={inactif}
+      onClick={onClick}
+      onPointerEnter={onSurvol}
+    >
       <span className="notak-arbre-entree-icone">{icone ? <Icone nom={icone} taille={16} trait={1.6} /> : coche ? <Icone nom="coche" taille={14} /> : null}</span>
       <span className="notak-arbre-entree-libelle">{libelle}</span>
-      {touche && <kbd>{touche}</kbd>}
+      {sous ? (
+        <span className="notak-arbre-entree-sous">
+          <Icone nom="chevronDroite" taille={14} trait={1.8} />
+        </span>
+      ) : (
+        touche && <kbd>{touche}</kbd>
+      )}
     </button>
   )
 }

@@ -1118,6 +1118,9 @@ export const fr: Textes = {
   'arbre.s.arete-droite': 'Arête de poisson, tête à droite',
   'arbre.s.matrice-lignes': 'Matrice en lignes',
   'arbre.s.matrice-colonnes': 'Matrice en colonnes',
+  // passe fond : menus, barre d'outils, barre du sujet
+  'arbre.sujet.barre': 'Actions du sujet',
+  'arbre.sujet.pinceau': 'Pinceau de style',
   'type.croquis': 'Croquis',
   'type.dessin': 'Dessin',
   'outil.dessin': 'Dessiner',
@@ -2959,6 +2962,9 @@ export const en: Textes = {
   'arbre.s.arete-droite': 'Fishbone, head right',
   'arbre.s.matrice-lignes': 'Matrix, rows',
   'arbre.s.matrice-colonnes': 'Matrix, columns',
+  // passe fond : menus, barre d'outils, barre du sujet
+  'arbre.sujet.barre': 'Topic actions',
+  'arbre.sujet.pinceau': 'Format painter',
   'type.croquis': 'Sketch',
   'type.dessin': 'Drawing',
   'outil.dessin': 'Draw',

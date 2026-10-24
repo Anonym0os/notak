@@ -133,7 +133,7 @@ function Marqueurs({ arbre, lecture, ids, faire, contexte, adresse }: Omit<Props
     setMenu({
       x: e.clientX,
       y: e.clientY,
-      items: [{ id: 'renommer', libelle: t('arbre.icones.renommer') }, { id: 'supprimer', libelle: t('arbre.icones.supprimer') }],
+      items: [{ id: 'renommer', libelle: t('arbre.icones.renommer'), icone: 'menuCrayon' }, { id: 'supprimer', libelle: t('arbre.icones.supprimer'), icone: 'corbeille' }],
       agir: (a) => (a === 'renommer' ? setRenommer(id) : setASupprimer(id)),
     })
   }
@@ -145,9 +145,9 @@ function Marqueurs({ arbre, lecture, ids, faire, contexte, adresse }: Omit<Props
       x: e.clientX,
       y: e.clientY,
       items: [
-        { id: 'selectionner', libelle: t('arbre.icones.selectionner') },
-        { id: 'deplacer', libelle: t('arbre.icones.deplacerVers'), sous: [...autres.map(([id, g]) => ({ id: `deplacer.${id}`, libelle: g.nom })), ...(autres.length ? ['sep' as const] : []), { id: 'deplacer.nouveau', libelle: t('arbre.icones.nouveauGroupe') }] },
-        { id: 'supprimer', libelle: t('arbre.icones.supprimer') },
+        { id: 'selectionner', libelle: t('arbre.icones.selectionner'), icone: 'menuSelectionner' },
+        { id: 'deplacer', libelle: t('arbre.icones.deplacerVers'), icone: 'dossier', sous: [...autres.map(([id, g]) => ({ id: `deplacer.${id}`, libelle: g.nom, icone: 'dossier' as const })), ...(autres.length ? ['sep' as const] : []), { id: 'deplacer.nouveau', libelle: t('arbre.icones.nouveauGroupe'), icone: 'ajouter' as const }] },
+        { id: 'supprimer', libelle: t('arbre.icones.supprimer'), icone: 'corbeille' },
       ],
       agir: (a) => {
         if (a === 'selectionner') return setSelection(new Set([m]))
