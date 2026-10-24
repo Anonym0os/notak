@@ -296,6 +296,7 @@
 }
 
 .notak-menu-blocs-liste {
+  overflow-x: hidden;
   overflow-y: auto;
   padding: 4px;
 }
@@ -308,6 +309,7 @@
 }
 
 .notak-menu-blocs-entree {
+  box-sizing: border-box;
   display: flex;
   gap: 10px;
   align-items: center;

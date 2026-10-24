@@ -1,4 +1,3 @@
-import { TextSelection } from '@tiptap/pm/state'
 import { type Editor, useEditorState } from '@tiptap/react'
 import { useEffect, useState } from 'react'
 import { PanneauFlottant } from '../PanneauFlottant'
@@ -25,9 +24,11 @@ interface Props {
 
 const etat = ({ editor: ed }: { editor: Editor }) => {
   const { selection } = ed.state
-  const texte = selection instanceof TextSelection && !selection.empty
+  // Par son type JSON plutôt que par `instanceof` : le serveur de développement peut charger deux copies de la classe.
+  const texte = selection.toJSON().type === 'text' && !selection.empty
   return {
-    ouverte: texte && ed.isFocused && !ed.isActive('codeBlock'),
+    // `view.hasFocus()` (l'élément actif) plutôt que `isFocused`, qui ne suit pas quand la fenêtre n'a pas le focus.
+    ouverte: texte && ed.view.hasFocus() && !ed.isActive('codeBlock'),
     de: selection.from,
     a: selection.to,
     gras: ed.isActive('bold'),
@@ -49,11 +50,14 @@ export function Bulle({ editeur, transformerEn, lien, commenter, derniere, surCo
     const dom = editeur.view.dom
     const bas = () => setTire(true)
     const haut = () => setTire(false)
+    // À la capture : la toile et la surcouche arrêtent le lâcher en route.
     dom.addEventListener('pointerdown', bas)
-    window.addEventListener('pointerup', haut)
+    window.addEventListener('pointerup', haut, true)
+    window.addEventListener('pointercancel', haut, true)
     return () => {
       dom.removeEventListener('pointerdown', bas)
-      window.removeEventListener('pointerup', haut)
+      window.removeEventListener('pointerup', haut, true)
+      window.removeEventListener('pointercancel', haut, true)
     }
   }, [editeur])
   useEffect(() => setCouleurs(false), [e.de, e.a])
