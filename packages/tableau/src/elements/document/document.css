@@ -94,45 +94,14 @@
   pointer-events: none;
 }
 
-.notak-document-apercu .notak-texte {
+.notak-document-apercu .notak-texte.notak-blocs {
+  /* La page en miniature : rendue à sa taille, puis réduite à 42 %. */
   box-sizing: border-box;
-  padding: 24px;
-  font-size: 9px;
-  line-height: 12px;
-  color: rgb(50 59 74);
-}
-
-.notak-document-apercu :is(p, ul, ol, blockquote, pre) {
-  margin: 0 0 5px;
-}
-
-.notak-document-apercu h1 {
-  margin: 0 0 5px;
-  font-size: 12px;
-  line-height: 20px;
-}
-
-.notak-document-apercu h2 {
-  margin: 0 0 5px;
-  font-size: 9px;
-  line-height: 10px;
-}
-
-.notak-document-apercu blockquote {
-  margin: 3px 0;
-}
-
-.notak-document-apercu :is(code, pre) {
-  font-size: 0.6em;
-  line-height: 10px;
-}
-
-.notak-document-apercu :is(ul, ol) {
-  padding-left: 10px;
+  padding: 40px 34px;
+  zoom: 0.42;
 }
 
 .notak-document-apercu a {
-  color: inherit;
   text-decoration: none;
 }
 
