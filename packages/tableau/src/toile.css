@@ -451,8 +451,8 @@
   align-items: center;
   justify-content: space-between;
   box-sizing: border-box;
-  height: 44px;
-  padding: 0 14px 0 16px;
+  height: 48px;
+  padding: 0 16px;
 }
 
 /* Seconde rangée : le titre centré, l'enregistrement à gauche, partage, export et vue à droite. */
@@ -462,9 +462,8 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(max-content, 1fr);
   align-items: center;
   box-sizing: border-box;
-  height: 46px;
-  margin-top: -4px;
-  padding: 0 14px 0 16px;
+  height: 40px;
+  padding: 0 16px;
 }
 
 .notak-entete-gauche {
@@ -478,7 +477,7 @@
   align-items: center;
   justify-content: flex-end;
   min-width: 0;
-  gap: 8px;
+  gap: 2px;
 }
 
 .notak-entete-bas .notak-entete-droite {
@@ -488,7 +487,7 @@
 
 .notak-entete-filet {
   width: 1px;
-  height: 24px;
+  height: 20px;
   margin: 0 8px;
   background: rgb(0 0 0 / 0.08);
 }
@@ -587,13 +586,15 @@
 .notak-fil-segment {
   max-width: 160px;
   height: 28px;
-  padding: 0 8px;
+  padding: 0 6px;
   overflow: hidden;
   border: 0;
   border-radius: 6px;
   background: none;
   color: #5b616a;
   font: inherit;
+  font-size: 15px;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
@@ -605,8 +606,8 @@
 }
 
 .notak-fil-segment[aria-current='page'] {
-  color: var(--notak-texte);
-  font-weight: 600;
+  color: #3f444b;
+  font-weight: 500;
 }
 
 .notak-fil-menu {
@@ -1536,29 +1537,33 @@
 .notak-historique {
   display: flex;
   margin-left: 8px;
+  gap: 2px;
 }
 
 .notak-historique button {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border: 0;
   border-radius: 6px;
   background: none;
-  color: var(--notak-texte);
+  color: var(--notak-icone-barre);
   font-size: 15px;
   cursor: pointer;
 }
 
-.notak-historique button:hover:not(:disabled) {
+.notak-historique button:hover:not(:disabled),
+.notak-entete-haut .bouton-nu:hover:not(:disabled),
+.notak-reglages-bouton:hover {
   background: var(--notak-fond);
+  color: var(--notak-texte);
 }
 
 /* La pile est vide : le bouton s'efface à 20 %. */
 .notak-historique button:disabled {
-  opacity: 0.2;
+  opacity: 0.35;
   cursor: default;
 }
 
@@ -2891,4 +2896,40 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   .notak-pointeur {
     animation: none;
   }
+}
+
+/* Les icônes de la première rangée, comme Milanote : nues (ni cadre ni fond), grises, assombries au survol. */
+.notak-entete {
+  --notak-icone-barre: #6b7280;
+}
+
+.notak-espace[data-theme='sombre'] .notak-entete {
+  --notak-icone-barre: #9aa3b0;
+}
+
+.notak-espace .notak-entete-haut .bouton-nu,
+.notak-reglages-bouton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--notak-icone-barre);
+  cursor: pointer;
+}
+
+.notak-espace[data-theme='sombre'] .notak-entete-haut .notak-entete-actions .bouton.bouton-nu {
+  border: 0;
+  background: none;
+  color: var(--notak-icone-barre);
+}
+
+.notak-espace[data-theme='sombre'] .notak-entete-haut .notak-entete-actions .bouton.bouton-nu:hover {
+  background: var(--notak-fond);
+  color: var(--notak-texte);
 }

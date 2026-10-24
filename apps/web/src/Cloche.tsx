@@ -61,8 +61,8 @@ export function Cloche({ ouvrir }: { ouvrir(tableau: string): void }) {
   return (
     <div className="cloche" ref={ancre}>
       <Infobulle libelle={nonLues > 0 ? tn('cloche.nonLues', nonLues) : t('cloche.titre')} desactivee={ouvert}>
-        <button type="button" ref={bouton} className="bouton bouton-cloche" aria-expanded={ouvert} onClick={basculer}>
-          <Icone nom="cloche" />
+        <button type="button" ref={bouton} className="bouton bouton-nu bouton-cloche" aria-expanded={ouvert} onClick={basculer}>
+          <Icone nom="cloche" taille={22} trait={1.5} />
           <span className="sr-seulement">{t('cloche.titre')}</span>
           {nonLues > 0 && <span className="cloche-compte">{nonLues > 99 ? '99+' : nonLues}</span>}
         </button>
