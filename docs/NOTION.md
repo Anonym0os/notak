@@ -248,12 +248,12 @@ Les guillemets droits deviennent typographiques selon la langue : « » en fran�
 - **Dissolution.**
   - Une colonne vidée disparaît.
   - Quand il n'en reste qu'une, la rangée se dissout et ses blocs reprennent leur place dans le flux.
-- **Petits écrans.** Sous 640 px de large, les colonnes s'empilent.
+- **Petits écrans.** Sous 480 px de large, les colonnes s'empilent.
 
 ## 9. La page
 
-- **Le titre.** C'est celui de l'élément. Il est écrit en grand au-dessus des blocs. Entrée dans le titre
-  descend au premier bloc.
+- **Le titre.** C'est celui de l'élément. Entrée dans le titre descend au premier bloc. → Notak : il reste dans
+  l'en-tête de la fenêtre, comme dans Milanote ; Notion l'écrit en grand au-dessus des blocs.
 - **Icône et couverture.** Au survol du haut de la page paraissent « Ajouter une icône » et « Ajouter une
   couverture ».
   - **L'icône** est un émoji choisi dans une liste. Elle se pose au-dessus du titre et se voit sur la carte
@@ -267,6 +267,8 @@ Les guillemets droits deviennent typographiques selon la langue : « » en fran�
   - Ces choix sont enregistrés avec le document.
 - **Écrire à plusieurs.** Le document s'écrit à plusieurs en direct, comme une note : les curseurs des
   autres portent leur prénom, et deux personnes qui écrivent en même temps ne s'écrasent plus.
+- **→ Notak** : la couverture s'importe depuis l'appareil et rejoint les fichiers du tableau ; Notion propose aussi
+  une galerie et des dégradés.
 - **→ Notak** : sont écartés le verrouillage de la page, la table des matières flottante et l'historique de
   la page. L'annulation et l'historique restent ceux du tableau.
 

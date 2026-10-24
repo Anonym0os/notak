@@ -31,8 +31,8 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
 | 18. Carte mentale | 38 | 3 | 0 | 96 % |
-| 19. Document à blocs | 1 | 0 | 24 | 4 % |
-| **Total** | **321** | **13** | **26** | **91 %** |
+| 19. Document à blocs | 21 | 3 | 1 | 90 % |
+| **Total** | **341** | **16** | **3** | **97 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -476,30 +476,30 @@ dans `packages/tableau/src/blocs/`, pour resservir à d'autres éléments.
 
 | Fonctionnalité | État | Reste |
 |---|---|---|
-| Un id stable sur chaque bloc, le document relu comme des enregistrements de blocs | ⬜ |  |
+| Un id stable sur chaque bloc, le document relu comme des enregistrements de blocs | ✅ | `blocs/ids.ts`, `blocs/modele.ts` (`blocsDe`). |
 | Un vieux client ouvre un bloc inconnu en lecture seule, sans rien perdre | ✅ | Le texte se dessine réduit à ce qu’il connaît, un avis dit pourquoi (`blocs/lisible.ts`). |
-| Titres 1 à 3, titres dépliants | ⬜ |  |
-| Listes à puces, numérotées (1, a, i selon la profondeur), tâches | ⬜ |  |
-| Dépliant | ⬜ |  |
-| Citation, encadré avec icône, séparateur | ⬜ |  |
-| Code avec langage, bouton Copier, retour à la ligne | ⬜ |  |
-| Image avec largeur, alignement et légende | ⬜ |  |
+| Titres 1 à 3, titres dépliants | ✅ | Un titre rendu dépliant range dessous les blocs jusqu’au prochain titre de son rang. |
+| Listes à puces, numérotées (1, a, i selon la profondeur), tâches | ✅ |  |
+| Dépliant | ✅ | → Notak : ouvert ou fermé pour tout le monde (Notion le garde par personne). |
+| Citation, encadré avec icône, séparateur | ✅ |  |
+| Code avec langage, bouton Copier, retour à la ligne | 🟡 | Le bloc de code ; le choix du langage, Copier et le retour à la ligne restent. |
+| Image avec largeur, alignement et légende | 🟡 | Posée par « / » depuis l’appareil, rangée avec les fichiers du tableau ; largeur, alignement et légende restent à régler à la souris. |
 | Aperçu de lien | ⬜ |  |
-| Menu « / » : filtre par mots-clés, catégories, couleurs et actions | ⬜ |  |
-| Raccourcis markdown en début de bloc et en ligne | ⬜ |  |
-| Remplacements typographiques (→, —, …, ≥, guillemets) | ⬜ |  |
-| Transformer en (⌘/, ⌘⌥0…8) | ⬜ |  |
-| Couleur de texte et de fond, sur un bloc ou un passage | ⬜ |  |
-| Bulle de mise en forme sur une sélection | ⬜ |  |
-| Poignée ⋮⋮ et bouton + au survol, menu de bloc filtrable | ⬜ |  |
-| Sélection de blocs : Échap, Maj+flèches, Maj+clic, rectangle | ⬜ |  |
-| Supprimer, dupliquer (⌘D), monter et descendre (⌘⇧↑/↓), imbriquer (Tab) | ⬜ |  |
-| Glisser un bloc ou une sélection, ⌥ copie | ⬜ |  |
-| Colonnes : dépôt sur le côté, 2 à 5, largeurs aimantées, dissolution | ⬜ |  |
-| Copier le lien d'un bloc, l'adresse amène au bloc | ⬜ |  |
-| Icône et couverture de la page | ⬜ |  |
-| Police, petit texte, pleine largeur | ⬜ |  |
-| Document écrit à plusieurs en direct, curseurs des autres | ⬜ |  |
-| Document dans la recherche du serveur et l'export texte du tableau | ⬜ |  |
+| Menu « / » : filtre par mots-clés, catégories, couleurs et actions | ✅ |  |
+| Raccourcis markdown en début de bloc et en ligne | ✅ | `>` fait un dépliant dans le document, une citation dans la note. |
+| Remplacements typographiques (→, —, …, ≥, guillemets) | ✅ |  |
+| Transformer en (⌘/, ⌘⌥0…8) | ✅ |  |
+| Couleur de texte et de fond, sur un bloc ou un passage | ✅ | Neuf teintes de Notak, dans les deux thèmes ; ⌘⇧H reprend la dernière. |
+| Bulle de mise en forme sur une sélection | ✅ |  |
+| Poignée ⋮⋮ et bouton + au survol, menu de bloc filtrable | ✅ | Supprimer, Dupliquer, Transformer en, Couleur, Copier le lien, Commenter. |
+| Sélection de blocs : Échap, Maj+flèches, Maj+clic, rectangle | ✅ | Le rectangle part de la marge du texte. |
+| Supprimer, dupliquer (⌘D), monter et descendre (⌘⇧↑/↓), imbriquer (Tab) | 🟡 | Tab imbrique dans les listes ; hors d’une liste, il garde le retrait du texte de la note au lieu de ranger le bloc sous le précédent. |
+| Glisser un bloc ou une sélection, ⌥ copie | ✅ | Un élément de liste sorti de sa liste en retrouve une ; un texte posé dans une liste en devient un élément. |
+| Colonnes : dépôt sur le côté, 2 à 5, largeurs aimantées, dissolution | ✅ | Aussi par « / » (2 à 5 colonnes) ; elles s’empilent sous 480 px. |
+| Copier le lien d'un bloc, l'adresse amène au bloc | ✅ | `/t/…/e/…#<bloc>` : le bloc vient à l’écran et clignote. |
+| Icône et couverture de la page | ✅ | Icône parmi 48 émojis, visible sur la carte ; couverture importée de l’appareil, recadrée en la tirant. |
+| Police, petit texte, pleine largeur | ✅ |  |
+| Document écrit à plusieurs en direct, curseurs des autres | ✅ | Le fragment Yjs du document, comme la note ; la copie JSON reste pour l’aperçu, l’export et la recherche. |
+| Document dans la recherche du serveur et l'export texte du tableau | ✅ | Dépliants exportés ouverts, colonnes à la suite. |
 | Bases de données, sous-pages, blocs synchronisés, bouton, équation, onglets | ➖ | Écartés pour l'instant (docs/NOTION.md § 2). |
 | Verrouillage, table des matières flottante, historique de page | ➖ | Écartés (docs/NOTION.md § 9). |

@@ -29,7 +29,7 @@ Un tableau est un document Yjs (`coeur/magasinYjs.ts`) :
 |---|---|
 | `elements` | id → l'élément entier (JSON) et sa place dans l'empilement |
 | `meta` | titre, couleur, étiquettes |
-| `textes` | le texte riche de chaque note (Tiptap, écrit à plusieurs) |
+| `textes` | le texte riche de chaque note, liste de tâches et document (Tiptap, écrit à plusieurs) |
 | `lignes` | les lignes de texte simples |
 | `arbres` | les sujets, relations, limites et résumés des cartes mentales, une entrée par objet (`<élément>␟<dictionnaire>␟<id>`, `coeur/arbresYjs.ts`) |
 
@@ -47,6 +47,23 @@ Chaque type d'élément s'inscrit au registre (`elements/registre.ts`) avec `reg
 - ses proportions, s'il s'édite, s'il range d'autres éléments.
 
 La toile ne connaît aucun type par son nom. Pour en ajouter un, voir `CONTRIBUTING.md`.
+
+## Le moteur de blocs
+
+Le document s'édite comme une page Notion (`docs/NOTION.md`) : menu « / », poignée, sélection de blocs, colonnes.
+Le moteur vit dans `blocs/`, à part de l'élément, pour qu'un autre élément puisse le monter tel quel.
+
+**Décision : un moteur hybride.** Notion range chaque bloc comme un enregistrement (`{id, type, properties,
+content, format, parent}`) et donne à chaque bloc son propre champ éditable. Notak garde un seul éditeur
+ProseMirror, dont chaque nœud de bloc porte un **id stable** (`blocs/ids.ts`), et une couche (`blocs/modele.ts`)
+qui relit l'arbre comme des enregistrements à la Notion. Les gestes sur les blocs (`blocs/gestes.ts`,
+`blocs/colonnes.ts`) les désignent par leurs ids. Motif : la sélection entre blocs, le collage, l'annulation, la
+saisie des langues à composition et l'écriture à plusieurs par Yjs sont déjà justes dans ProseMirror ; un champ par
+bloc obligerait à tout réécrire. Le prix : un bloc synchronisé (le même bloc à deux endroits) ou une base dont les
+lignes sont des pages demanderont un stockage par bloc, que l'id stable prépare.
+
+Un vieux client qui lit un bloc qu'il ne connaît pas ouvre le document en lecture seule plutôt que de le vider
+(`blocs/lisible.ts`).
 
 ## L'espace et le réseau : ce qui distingue les deux éditions
 

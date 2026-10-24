@@ -78,6 +78,27 @@ function bloc(n: NoeudTexte, md: boolean): string[] {
     }
     case 'horizontalRule':
       return md ? ['---'] : []
+    // Le moteur de blocs (docs/NOTION.md § 2) : un dépliant s'exporte ouvert, son résumé en tête (en titre s'il en
+    // est un) ; des colonnes s'exportent l'une après l'autre.
+    case 'deroulant': {
+      const [resume, ...dedans] = n.content ?? []
+      const t = resume ? enLigne(resume, md) : ''
+      const niveau = Number(n.attrs?.niveau) || 0
+      const tete = t === '' ? [] : [md && niveau ? `${'#'.repeat(Math.min(3, niveau))} ${t}` : t]
+      const suite = blocs(dedans, md)
+      return tete.length && suite.length ? [...tete, '', ...suite] : [...tete, ...suite]
+    }
+    case 'image': {
+      const legende = chaine(n.attrs?.legende)
+      const url = chaine(n.attrs?.url)
+      return md && url ? [`![${legende}](${url})`] : legende ? [legende] : []
+    }
+    case 'apercuLien': {
+      const url = chaine(n.attrs?.url)
+      const titre = chaine(n.attrs?.titre) || url
+      if (!url) return []
+      return [md ? `[${titre}](${url})` : titre === url ? url : `${titre} (${url})`]
+    }
     default:
       return n.content ? blocs(n.content, md) : n.text ? [n.text] : []
   }

@@ -31,4 +31,18 @@ describe('l’export du document', () => {
     expect(nomFichier(' Plan: 1/2 ', 'md')).toBe('Plan 1 2.md')
     expect(nomFichier('', 'txt')).toBe('document.txt')
   })
+
+  test('les blocs du moteur : dépliant ouvert, colonnes à la suite, image et aperçu de lien (NOTION.md § 2)', () => {
+    const blocs: NoeudTexte = {
+      type: 'doc',
+      content: [
+        { type: 'deroulant', attrs: { niveau: 2, ouvert: false }, content: [{ type: 'resumeDeroulant', content: [mot('Détails')] }, p(mot('caché'))] },
+        { type: 'colonnes', content: [{ type: 'colonne', content: [p(mot('gauche'))] }, { type: 'colonne', content: [p(mot('droite'))] }] },
+        { type: 'image', attrs: { url: 'https://x.fr/a.png', legende: 'Vue' } },
+        { type: 'apercuLien', attrs: { url: 'https://exemple.fr', titre: 'Exemple' } },
+      ],
+    }
+    expect(documentEnTexte('', blocs, 'md')).toBe('## Détails\n\ncaché\n\ngauche\n\ndroite\n\n![Vue](https://x.fr/a.png)\n\n[Exemple](https://exemple.fr)\n')
+    expect(documentEnTexte('', blocs, 'txt')).toBe('Détails\n\ncaché\n\ngauche\n\ndroite\n\nVue\n\nExemple (https://exemple.fr)\n')
+  })
 })
