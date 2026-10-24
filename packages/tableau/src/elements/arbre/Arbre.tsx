@@ -9,6 +9,7 @@ import { Dessin, type Glisses, RepereDepot } from './Dessin'
 import { exporterCartes } from './exporter'
 import { BarreBas } from './BarreBas'
 import { BarreSujet } from './BarreSujet'
+import { ChoixStyle } from './ChoixStyle'
 import { BoutonIcone, EnTete, type Onglet, PanneauCote } from './Fenetre'
 import { ONGLETS_FORMAT, ONGLETS_ICONES, OngletCarte, OngletIcones, OngletPresenter, OngletStyle, type OngletIcone } from './onglets'
 import { Outils } from './Outils'
@@ -373,6 +374,8 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       else if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
       return !z
     })
+    // Le bouton Zen disparaît avec la barre du bas : le clavier passe à la carte, sans quoi Échap n'en sort plus.
+    ;(surface.current?.closest('.notak-arbre-fond') as HTMLElement | null)?.focus({ preventScroll: true })
   }, [])
   const resultats = useMemo(() => (recherche ? correspondances(lecture, recherche.texte) : []), [recherche, lecture])
   useEffect(() => {
@@ -403,8 +406,8 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       setPlan(false)
       return true
     }
-    // La barre et le panneau gardent leurs touches.
-    if ((e.target as Element).closest?.('.notak-arbre-barre, .notak-arbre-panneau')) return false
+    // La barre et le panneau gardent leurs touches, sauf Échap : il ferme le panneau avant la carte.
+    if (e.key !== 'Escape' && (e.target as Element).closest?.('.notak-arbre-barre, .notak-arbre-panneau')) return false
     if (e.key === 'Escape' && relier) {
       setRelier(null)
       return true
@@ -415,6 +418,15 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     }
     if (e.key === 'Escape' && panneau) {
       setPanneau(null)
+      return true
+    }
+    // Les autres panneaux aussi se ferment avant la carte.
+    if (e.key === 'Escape' && icones) {
+      setIcones(false)
+      return true
+    }
+    if (e.key === 'Escape' && gauche) {
+      setGauche(null)
       return true
     }
     // Échap sort de la branche seule avant de fermer la carte.
@@ -1011,20 +1023,8 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       : null
 
   // La barre qui flotte au-dessus du sujet choisi seul (relation, lien, image, note, tâche, pinceau de style).
-  const pinceauDe = useRef<Id | null>(null)
   const barreSujet =
     seulChoisi && !edition && !enGeste && !panne && !lectureSeule && !plan && !relier && !traceZone && presentation === null && lecture.sujets.get(seulChoisi)?.genre !== 'resume' ? disposition.boites.get(seulChoisi) : undefined
-  /** Le pinceau : un premier clic copie le style du sujet choisi ; un clic sur un autre sujet le lui colle. */
-  const pinceau = () => {
-    if (!seulChoisi) return
-    if (pinceauDe.current && pinceauDe.current !== seulChoisi && styleCopie.current !== undefined) {
-      faire({ type: 'collerStyle', ids: [seulChoisi], style: styleCopie.current ?? undefined })
-      pinceauDe.current = null
-    } else {
-      styleCopie.current = lecture.sujets.get(seulChoisi)?.style ?? null
-      pinceauDe.current = seulChoisi
-    }
-  }
 
   // Un sujet que le clavier vient de créer ou de choisir, ou que la frappe agrandit : la caméra le ramène dans la vue, du
   // minimum, en 200 ms.
@@ -1057,6 +1057,11 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     setNoteDe(null)
     // Un sujet choisi (autre que le central) donne le départ ; sinon la présentation commence au central.
     setPresentation(sujetsChoisis.length === 1 && sujetsChoisis[0] !== lecture.central ? { depart: sujetsChoisis[0]! } : {})
+  }
+  /** La sortie de Pitch rend le clavier à la carte : ses commandes disparaissent avec lui, le focus tomberait sur la page. */
+  const quitterPresentation = () => {
+    setPresentation(null)
+    ;((surface.current?.closest('.notak-arbre-fond') ?? document.querySelector('.notak-arbre-fond')) as HTMLElement | null)?.focus({ preventScroll: true })
   }
   /** La note d'un sujet s'ouvre en popover près de lui, comme dans Xmind. */
   const ouvrirNote = (x: Id) => {
@@ -1169,6 +1174,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
         </svg>
         {barreSujet && seulChoisi && (
           <BarreSujet
+            key={seulChoisi}
             x={camera.x + (barreSujet.x + barreSujet.l / 2) * camera.z}
             y={camera.y + barreSujet.y * camera.z}
             bas={camera.y + (barreSujet.y + barreSujet.h) * camera.z}
@@ -1178,8 +1184,8 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
               image: () => insertions.actions.imageLocale(),
               note: () => ouvrirNote(seulChoisi),
               tache: () => faire({ type: 'tache', ids: [seulChoisi] }),
-              style: pinceau,
             }}
+            choixStyle={(ancre, fermer) => <ChoixStyle ancre={ancre} arbre={vue} lecture={lecture} ids={[seulChoisi]} palette={themeDeArbre(vue).palette} faire={faire} fermer={fermer} />}
           />
         )}
         {edition && champ && (
@@ -1312,7 +1318,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       {insertions.rendu}
       </div>
       {presentation !== null && (
-        <Presentation arbre={vue} lecture={lecture} depart={presentation.depart} faire={faire} adresse={adresse} lectureSeule={lectureSeule} quitter={() => setPresentation(null)} />
+        <Presentation arbre={vue} lecture={lecture} depart={presentation.depart} faire={faire} adresse={adresse} lectureSeule={lectureSeule} quitter={quitterPresentation} />
       )}
     </Surcouche>
   )

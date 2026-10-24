@@ -61,6 +61,26 @@ export function PopoverNote({ titre, note, x, y, lectureSeule, valider, fermer }
       editeur.off('blur', garder)
     }
   }, [editeur])
+  // Ouverte par un menu, elle prend quand même le clavier : le menu qui se ferme rend le focus à la carte après l'autofocus.
+  useEffect(() => {
+    if (!editeur || lectureSeule) return
+    const image = requestAnimationFrame(() => {
+      if (!racine.current?.contains(document.activeElement)) editeur.commands.focus('end')
+    })
+    return () => cancelAnimationFrame(image)
+  }, [editeur, lectureSeule])
+  // Échap la ferme, où que soit le focus : il ne remonte pas jusqu'à la carte, qui se fermerait avec.
+  useEffect(() => {
+    const echap = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.stopPropagation()
+      e.preventDefault()
+      quitter.current()
+      fermer()
+    }
+    document.addEventListener('keydown', echap, true)
+    return () => document.removeEventListener('keydown', echap, true)
+  }, [fermer])
   // Un clic dehors la ferme.
   useEffect(() => {
     const dehors = (e: PointerEvent) => {
@@ -91,15 +111,8 @@ export function PopoverNote({ titre, note, x, y, lectureSeule, valider, fermer }
       aria-label={t('arbre.note')}
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
-      onKeyDown={(e) => {
-        // Ses touches lui restent : la carte n'y voit pas des gestes. Échap la ferme.
-        e.stopPropagation()
-        if (e.key === 'Escape') {
-          e.preventDefault()
-          quitter.current()
-          fermer()
-        }
-      }}
+      // Ses touches lui restent : la carte n'y voit pas des gestes.
+      onKeyDown={(e) => e.stopPropagation()}
     >
       <div className="notak-arbre-note-barre" role="toolbar" aria-label={t('arbre.note')} onMouseDown={(e) => (e.target as Element).closest('button') && e.preventDefault()}>
         <span className="notak-arbre-note-titre">{titre}</span>

@@ -414,12 +414,12 @@ captures du même dossier. Code : `elements/arbre/Fenetre.tsx`, `Outils.tsx`, `B
    flou du menu voit la carte. Un clic sur le bouton le ferme ; Échap, un clic dehors et le redimensionnement aussi.
 8. **Barre du sujet** (`BarreSujet.tsx`, capture 20) : une pilule blanche ombrée qui flotte 8 px au-dessus du sujet
    choisi, centrée sur lui, boutons de 32 × 28 : relation, lien web, image, note, tâche (la case à faire), puis un
-   filet et le pinceau de style. Pas « Grow Ideas » (IA payante). Elle reste dans la zone, passe sous le sujet si le
+   filet et le pinceau « Style ». Pas « Grow Ideas » (IA payante). Elle reste dans la zone, passe sous le sujet si le
    haut est sous la barre d'outils, ne prend pas le focus et ne laisse rien traverser (un appui dessus ne désélectionne
-   pas). → Notak, **pas encore montée** : `<BarreSujet x y bas? actions inactifs? />` attend que `Arbre.tsx` la pose
-   dans la surface, avec `x, y` le milieu du bord haut du sujet choisi et `bas` son bord bas, et relie `actions`
-   (`relation`, `lienWeb`, `image`, `note`, `tache`, `style`) à ses éditeurs (`insertions.actions`, `relier`,
-   `copierStyle` / `collerStyle`).
+   pas). Le pinceau ne copie pas un style, comme on pourrait le croire : chez Xmind (« Apply a style to the topic »), il
+   ouvre une fenêtre sous lui (`ChoixStyle.tsx`) avec le style rapide, puis la couleur de remplissage et celle de la
+   bordure, prises dans la palette de la carte (la bordure à 30 %). Un choix s'applique en un seul geste et ferme la
+   fenêtre ; Échap la ferme sans fermer la carte. Copier et coller un style restent au menu contextuel.
 
 ## 9. L'onglet Carte du panneau de format
 

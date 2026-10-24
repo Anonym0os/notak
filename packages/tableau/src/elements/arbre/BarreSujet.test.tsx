@@ -36,18 +36,35 @@ describe('la barre du sujet', () => {
   it('six boutons : relation, lien web, image, note, tâche, pinceau de style ; pas « Grow Ideas »', () => {
     const { barre, boutons } = monter()
     expect(barre.getAttribute('role')).toBe('toolbar')
-    expect(boutons.map((b) => b.getAttribute('aria-label'))).toEqual(['Créer un lien entre deux sujets.', 'Lien web', 'Image locale', 'Note', 'Tâches à faire', 'Pinceau de style'])
+    expect(boutons.map((b) => b.getAttribute('aria-label'))).toEqual(['Créer un lien entre deux sujets.', 'Lien web', 'Image locale', 'Note', 'Tâches à faire', 'Appliquer un style au sujet.'])
     expect(barre.textContent).toBe('')
     // Chaque bouton porte son icône, et un filet sépare le pinceau.
     for (const b of boutons) expect(b.querySelector('svg')).toBeTruthy()
     expect(barre.querySelectorAll('.notak-arbre-sujet-filet')).toHaveLength(1)
-    expect(barre.querySelector('.notak-arbre-sujet-filet + .notak-arbre-sujet-bouton')!.getAttribute('aria-label')).toBe('Pinceau de style')
+    expect(barre.querySelector('.notak-arbre-sujet-filet + .notak-arbre-sujet-bouton')!.getAttribute('aria-label')).toBe('Appliquer un style au sujet.')
   })
 
   it('chaque bouton déclenche son action', () => {
     const { boutons, actions } = monter()
     boutons.forEach((b) => act(() => void b.dispatchEvent(new MouseEvent('click', { bubbles: true }))))
     for (const n of NOMS) expect(actions[n], n).toHaveBeenCalledTimes(1)
+  })
+
+  it('le pinceau ouvre et ferme la fenêtre « Style », posée sous lui', () => {
+    let ancre: HTMLElement | null = null
+    let fermer = () => {}
+    const { boutons } = monter({ choixStyle: (a, f) => ((ancre = a.current), (fermer = f), <p className="fenetre-style" />) })
+    const pinceau = boutons[5]!
+    expect(pinceau.getAttribute('aria-expanded')).toBe('false')
+    act(() => void pinceau.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    expect(document.querySelector('.fenetre-style')).toBeTruthy()
+    expect(pinceau.getAttribute('aria-expanded')).toBe('true')
+    expect(ancre).toBe(pinceau)
+    act(() => fermer())
+    expect(document.querySelector('.fenetre-style')).toBeNull()
+    act(() => void pinceau.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    act(() => void pinceau.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    expect(document.querySelector('.fenetre-style')).toBeNull()
   })
 
   it('un bouton grisé n’agit pas', () => {

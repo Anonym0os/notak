@@ -357,6 +357,66 @@
   background: var(--notak-arbre-filet-c);
 }
 
+/* Le pinceau ouvert : il garde le fond d'un bouton appuyé tant que sa fenêtre est là. */
+.notak-arbre-sujet-bouton[aria-expanded='true'] {
+  background: var(--notak-arbre-appui);
+}
+
+/* La fenêtre « Style » du pinceau (ChoixStyle.tsx) : un titre, le style rapide sur deux colonnes, puis les deux nuanciers
+   de la palette de la carte, séparés par des filets. */
+.notak-arbre-fond .notak-arbre-choix-style {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.notak-arbre-choix-style-titre {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 17px;
+}
+
+.notak-arbre-choix-style-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notak-arbre-choix-style-sous-titre {
+  color: var(--notak-arbre-discret);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.notak-arbre-choix-style-rapides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.notak-arbre-fond .notak-arbre-choix-style-rapides .notak-arbre-style-rapide-ligne {
+  padding: 6px 4px;
+}
+
+.notak-arbre-fond .notak-arbre-choix-style-rapides .notak-arbre-style-exemple {
+  max-width: 100%;
+  padding: 4px 12px;
+}
+
+.notak-arbre-choix-style-couleurs {
+  display: grid;
+  grid-template-columns: repeat(6, 24px);
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.notak-arbre-choix-style-filet {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--notak-arbre-filet-c);
+}
+
 /* Les fenêtres flottantes (Flottant.tsx) : posées en `position: fixed` dans le fond de la carte, à la place que la règle de
    geometrieMenus.ts leur donne. Quand elles sont plus hautes que la fenêtre, leur hauteur est bornée et leur contenu défile. */
 .notak-arbre-fond [data-borne] {

@@ -1124,7 +1124,10 @@ export const fr: Textes = {
   'arbre.pitch.resumeLigne': 'Diapositive du résumé',
   // passe fond : menus, barre d'outils, barre du sujet
   'arbre.sujet.barre': 'Actions du sujet',
-  'arbre.sujet.pinceau': 'Pinceau de style',
+  'arbre.sujet.pinceau': 'Appliquer un style au sujet.',
+  'arbre.style.styleRapide': 'Style rapide',
+  'arbre.style.couleurDeRemplissage': 'Couleur de remplissage',
+  'arbre.style.couleurDeBordure': 'Couleur de bordure',
   // passe fond : squelettes
   'arbre.style.br.organique': 'Courbe organique',
   'arbre.carte.sq': '{groupe} {n}',
@@ -2976,7 +2979,10 @@ export const en: Textes = {
   'arbre.pitch.resumeLigne': 'Summary as a Slide',
   // passe fond : menus, barre d'outils, barre du sujet
   'arbre.sujet.barre': 'Topic actions',
-  'arbre.sujet.pinceau': 'Format painter',
+  'arbre.sujet.pinceau': 'Apply a style to the topic.',
+  'arbre.style.styleRapide': 'Quick Style',
+  'arbre.style.couleurDeRemplissage': 'Fill Color',
+  'arbre.style.couleurDeBordure': 'Border Color',
   // passe fond : squelettes
   'arbre.style.br.organique': 'Organic curve',
   'arbre.carte.sq': '{groupe} {n}',

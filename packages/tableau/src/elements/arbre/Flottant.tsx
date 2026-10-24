@@ -1,4 +1,4 @@
-import { type HTMLAttributes, type ReactNode, type RefObject, createContext, useContext, useLayoutEffect, useRef, useState } from 'react'
+import { type HTMLAttributes, type ReactNode, type RefObject, createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { type AlignementFlottant, type Boite, type CoteFlottant, MARGE_FENETRE, type PlaceFlottant, type Taille, placerFlottant } from './geometrieMenus'
 
@@ -134,6 +134,17 @@ export function Flottant({ ancre, cote = 'bas', alignement = 'debut', ecart, dec
     // Une boîte ou un point change de visage à chaque rendu sans changer d'avis : seul compte qu'il y ait une ancre, et quel élément.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!ancre, element, ref])
+  // Fermée avec le clavier chez elle (Échap, un choix), elle le rend à la carte : sans quoi il tombe sur la page et les
+  // touches de la carte ne répondent plus jusqu'au prochain clic.
+  const fond = useRef<Element | null>(null)
+  fond.current = hote?.closest('.notak-arbre-fond') ?? null
+  useEffect(
+    () => () => {
+      const actif = document.activeElement
+      if ((!actif || actif === document.body) && fond.current?.isConnected) (fond.current as HTMLElement).focus?.({ preventScroll: true })
+    },
+    [],
+  )
 
   if (!ancre) return null
   const fenetre = (

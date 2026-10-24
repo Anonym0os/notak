@@ -184,7 +184,7 @@ function lecteur<T extends object>(valeurs: readonly T[]) {
 
 // — Le style rapide —
 
-const CLASSES_RAPIDES = [
+export const CLASSES_RAPIDES = [
   { cle: 'tresImportant', classe: 'important' as const },
   { cle: 'important', classe: 'secondaire' as const },
   { cle: 'barre', classe: 'barre' as const },
@@ -192,7 +192,7 @@ const CLASSES_RAPIDES = [
 ]
 
 /** Une pastille d'exemple : un sujet de ce rang. */
-function ExempleSujet({ classe, vals }: { classe: 'important' | 'secondaire' | 'barre' | undefined; vals?: ValeursSujet | undefined }) {
+export function ExempleSujet({ classe, vals }: { classe: 'important' | 'secondaire' | 'barre' | undefined; vals?: ValeursSujet | undefined }) {
   const couleurs = { important: '#e5534b', secondaire: '#8c939d' }
   const base = classe === 'important' || classe === 'secondaire' ? couleurs[classe] : undefined
   return (

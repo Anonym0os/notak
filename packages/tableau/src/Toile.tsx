@@ -679,6 +679,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       // Le magasin, pas l'état rendu : l'élément vient peut-être d'être créé.
       const el = etat.current.magasin.lire().elements.find((x) => x.id === id)
       if (!el || !defEcrite(el, etat.current.magasin.lire())?.editable) return
+      // Déjà ouvert (l'adresse qui suit l'ouverture le redemande) : le refermer rendrait le clavier à la toile.
+      if (etat.current.edition === id && !ou) return
       if (etat.current.edition) finirEdition()
       brouillon.current = null
       pousses.current = []

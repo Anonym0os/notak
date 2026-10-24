@@ -582,14 +582,23 @@ describe('la barre du sujet choisi', () => {
     expect(c.courant().sujets[autre]!.tache).toBe('a-faire')
   })
 
-  it('le pinceau copie le style du sujet choisi, puis le colle sur le suivant', () => {
-    const { a, autre, idees } = base()
-    const styled = { ...a, sujets: { ...a.sujets, [autre]: { ...a.sujets[autre]!, style: { remplissage: '#ff0000' } } } }
-    const c = ouvrir(styled)
+  it('le pinceau ouvre la fenêtre « Style » : un choix s’applique au sujet et la ferme ; Échap la ferme sans fermer la carte', () => {
+    const { a, autre } = base()
+    const c = ouvrir(a)
     choisir('Autre')
     clic(barre()!.querySelectorAll('button')[5]!)
-    choisir('Idées')
+    const fenetre = () => document.querySelector('.notak-arbre-choix-style')
+    expect(fenetre()).toBeTruthy()
+    const remplissage = fenetre()!.querySelectorAll('.notak-arbre-choix-style-couleurs')[0]!.querySelector('button')!
+    clic(remplissage)
+    expect(c.courant().sujets[autre]!.style?.remplissage?.toLowerCase()).toBe(remplissage.getAttribute('aria-label')!.toLowerCase())
+    expect(fenetre()).toBeNull()
     clic(barre()!.querySelectorAll('button')[5]!)
-    expect(c.courant().sujets[idees]!.style?.remplissage).toBe('#ff0000')
+    clic(fenetre()!.querySelector('.notak-arbre-style-rapide-ligne')!)
+    expect(c.courant().sujets[autre]!.classe).toBe('important')
+    clic(barre()!.querySelectorAll('button')[5]!)
+    act(() => void document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })))
+    expect(fenetre()).toBeNull()
+    expect(fond()).toBeTruthy()
   })
 })

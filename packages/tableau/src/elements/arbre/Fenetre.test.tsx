@@ -98,6 +98,28 @@ describe('la carte ouverte : barre du bas, panneau de gauche, Pitch', () => {
     expect(m.q('.notak-arbre-note-popover')).toBeNull()
   })
 
+  it('Échap ferme la note même quand le clavier est resté à la carte (ouverte par le menu « + »), sans fermer la carte', () => {
+    const m = monter()
+    m.touche('N', { metaKey: true, shiftKey: true })
+    expect(m.q('.notak-arbre-note-popover')).toBeTruthy()
+    act(() => void m.q('.notak-arbre-fond')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })))
+    expect(m.q('.notak-arbre-note-popover')).toBeNull()
+    expect(m.contexte.finirEdition).not.toHaveBeenCalled()
+  })
+
+  it('Échap tapé dans un panneau ferme le panneau, pas la carte', () => {
+    const m = monter()
+    const echap = (el: globalThis.Element) => act(() => void el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })))
+    m.touche(']', { metaKey: true })
+    expect(m.q('.notak-arbre-panneau')).toBeTruthy()
+    echap(m.q('.notak-arbre-panneau button')!)
+    expect(m.q('.notak-arbre-panneau')).toBeNull()
+    m.touche('[', { metaKey: true })
+    echap(m.q('.notak-arbre-gauche-fermer')!)
+    expect(m.q('.notak-arbre-gauche')).toBeNull()
+    expect(m.contexte.finirEdition).not.toHaveBeenCalled()
+  })
+
   it('« Nouvelle feuille » pose une carte neuve à droite et l’ouvre', () => {
     vi.useFakeTimers()
     const m = monter()

@@ -1,4 +1,4 @@
-import { Fragment, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, type ReactNode, type RefObject, useLayoutEffect, useRef, useState } from 'react'
 import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
 import { placerBarreSujet } from './geometrieMenus'
@@ -15,8 +15,8 @@ export interface ActionsBarreSujet {
   note(): void
   /** Poser une tâche à faire sur le sujet (la case à cocher). */
   tache(): void
-  /** Le pinceau de style : copier le style du sujet pour le coller sur un autre. */
-  style(): void
+  /** Le pinceau de style, quand la barre n'a pas de fenêtre à ouvrir (`choixStyle`). */
+  style?(): void
 }
 
 export interface PropsBarreSujet {
@@ -28,6 +28,8 @@ export interface PropsBarreSujet {
   actions: ActionsBarreSujet
   /** Les boutons à griser (un sujet qui ne peut pas porter d'image, par exemple). */
   inactifs?: Partial<Record<keyof ActionsBarreSujet, boolean>>
+  /** La fenêtre « Style » que le pinceau ouvre et ferme, posée sous lui. */
+  choixStyle?(ancre: RefObject<HTMLElement | null>, fermer: () => void): ReactNode
 }
 
 const BOUTONS: { id: keyof ActionsBarreSujet; icone: NomIcone; libelle: string }[] = [
@@ -41,15 +43,17 @@ const BOUTONS: { id: keyof ActionsBarreSujet; icone: NomIcone; libelle: string }
 
 /**
  * La barre qui flotte au-dessus du sujet choisi (capture 20 ; docs/XMIND.md § 8) : une pilule blanche ombrée, des
- * boutons de 28 px (relation, lien web, image, note, tâche), un filet, puis le pinceau de style. « Grow Ideas » de
- * Xmind est de l'IA payante : Notak ne l'a pas.
+ * boutons de 28 px (relation, lien web, image, note, tâche), un filet, puis le pinceau, qui ouvre la fenêtre « Style ».
+ * « Grow Ideas » de Xmind est de l'IA payante : Notak ne l'a pas.
  *
  * À monter dans la zone de la carte (la surface), en position absolue : `x` et `y` sont les coordonnées du milieu du
  * bord haut du sujet dans cette zone. Elle reste dans la zone, passe sous le sujet si le haut manque de place, ne prend
  * pas le focus (le clavier reste à la carte) et garde ses clics (ni sélection ni double-clic ne traversent).
  */
-export function BarreSujet({ x, y, bas, actions, inactifs = {} }: PropsBarreSujet) {
+export function BarreSujet({ x, y, bas, actions, inactifs = {}, choixStyle }: PropsBarreSujet) {
   const racine = useRef<HTMLDivElement>(null)
+  const pinceau = useRef<HTMLButtonElement>(null)
+  const [style, setStyle] = useState(false)
   const [taille, setTaille] = useState({ l: 0, h: 0, zone: 0, zoneH: 0 })
   // Mesurée à chaque rendu, d'un bord à l'autre : la barre change de largeur avec ses boutons, la zone avec la fenêtre.
   useLayoutEffect(() => {
@@ -76,11 +80,18 @@ export function BarreSujet({ x, y, bas, actions, inactifs = {} }: PropsBarreSuje
       {BOUTONS.map((b) => (
         <Fragment key={b.id}>
           {b.id === 'style' && <i className="notak-arbre-sujet-filet" aria-hidden="true" />}
-          <button type="button" className="notak-arbre-sujet-bouton" aria-label={t(b.libelle)} title={t(b.libelle)} disabled={inactifs[b.id]} onClick={actions[b.id]}>
-            <Icone nom={b.icone} taille={20} trait={1.5} />
-          </button>
+          {b.id === 'style' && choixStyle ? (
+            <button ref={pinceau} type="button" className="notak-arbre-sujet-bouton" aria-label={t(b.libelle)} title={t(b.libelle)} aria-haspopup="dialog" aria-expanded={style} disabled={inactifs.style} onClick={() => setStyle((o) => !o)}>
+              <Icone nom={b.icone} taille={20} trait={1.5} />
+            </button>
+          ) : (
+            <button type="button" className="notak-arbre-sujet-bouton" aria-label={t(b.libelle)} title={t(b.libelle)} disabled={inactifs[b.id]} onClick={actions[b.id]}>
+              <Icone nom={b.icone} taille={20} trait={1.5} />
+            </button>
+          )}
         </Fragment>
       ))}
+      {style && choixStyle?.(pinceau, () => setStyle(false))}
     </div>
   )
 }
