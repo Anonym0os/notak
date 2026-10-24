@@ -30,7 +30,8 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
-| **Total** | **282** | **10** | **2** | **98 %** |
+| 18. Carte mentale | 0 | 0 | 41 | 0 % |
+| **Total** | **282** | **10** | **43** | **86 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -416,3 +417,53 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Gestes tactiles (pincer, toucher long) | ✅ | Pincer, un doigt sur le vide pour tirer la toile, appui long pour le menu. |
 | Édition locale, sans compte ni serveur (notak.app) | ✅ | Propre à Notak : tableaux dans le navigateur, copies `.notak` (Cmd+S, Cmd+O), panneau « Où sont mes tableaux ? ». Sans aperçu de lien ni travail à plusieurs en direct (l'édition serveur les a). |
 | Synchroniser avec un dossier (iCloud Drive, OneDrive, Dropbox) | 🟡 | Propre à Notak, expérimental : Chrome et Edge sur ordinateur ; le moteur est éprouvé contre un faux logiciel de synchro, reste à l'essayer sur de vrais nuages (docs/STOCKAGE.md). |
+
+## 18. Carte mentale
+
+Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans `docs/XMIND.md`.
+
+| Fonctionnalité | État | Reste |
+|---|---|---|
+| Élément « Carte mentale » sur la toile, aperçu réduit, ouverture en grand | ⬜ |  |
+| Sujets enregistrés un par un (saisies simultanées sans perte), annuler et rétablir | ⬜ |  |
+| Créer au clavier : enfant (Tab), frère (Entrée, Maj+Entrée), parent (Cmd+Entrée) | ⬜ |  |
+| Éditer un titre (Espace, F2, frappe directe), sur plusieurs lignes | ⬜ |  |
+| Supprimer une branche, ou le sujet seul (Cmd+Retour arrière) ; dupliquer (Cmd+D) | ⬜ |  |
+| Naviguer aux flèches dans l'espace de la carte, étendre la sélection | ⬜ |  |
+| Échanger avec un frère (Alt+Haut/Bas) | ⬜ |  |
+| Replier et déplier, tout replier, déplier jusqu'au niveau N | ⬜ |  |
+| Revenir au central (Cmd+R), afficher la branche seule (Cmd+;) | ⬜ |  |
+| Glisser un sujet pour le rattacher, l'insérer ou le détacher (Maj inverse) | ⬜ |  |
+| Sujet flottant | ⬜ |  |
+| Structure carte : équilibrée, non équilibrée, horaire, antihoraire | ⬜ |  |
+| Structure logique et accolade | ⬜ |  |
+| Structure organigramme et arbre | ⬜ |  |
+| Structure chronologie | ⬜ |  |
+| Structure arête de poisson | ⬜ |  |
+| Structure matrice | ⬜ |  |
+| Structure par sujet, héritée par défaut | ⬜ |  |
+| Carte compacte, placement libre, chevauchement | ⬜ |  |
+| Relation entre deux sujets : courbe réglable, pointes, titre | ⬜ |  |
+| Limite autour d'une plage de frères | ⬜ |  |
+| Résumé d'une plage de frères | ⬜ |  |
+| Note en texte riche sur un sujet | ⬜ |  |
+| Étiquettes | ⬜ |  |
+| Lien web ou vers un autre sujet | ⬜ |  |
+| Image sur un sujet | ⬜ |  |
+| Marqueurs : priorité, avancement, drapeaux, étoiles, personnes… | ⬜ |  |
+| Tâche à cocher, numérotation des enfants | ⬜ |  |
+| Rang : important, secondaire, barré | ⬜ |  |
+| Formes de sujet | ⬜ |  |
+| Styles de branche, épaisseur, effilé, couleurs arc-en-ciel | ⬜ |  |
+| Texte, remplissage et bordure d'un sujet | ⬜ |  |
+| Thèmes de carte | ⬜ |  |
+| Appliquer au même rang, réinitialiser, copier et coller un style | ⬜ |  |
+| Mode plan | ⬜ |  |
+| Mode Zen | ⬜ |  |
+| Présentation branche par branche | ⬜ |  |
+| Chercher dans la carte | ⬜ |  |
+| Importer un fichier .xmind | ⬜ |  |
+| Exporter en .xmind | ⬜ |  |
+| Texte de la carte dans la recherche et l'export texte du tableau | ⬜ |  |
+| Grille, tableau-arbre | ➖ | Écartés (docs/XMIND.md § 2). |
+| Gantt, IA, commentaires et collaboration propres à Xmind, note audio, vidéo web | ➖ | Écartés (docs/XMIND.md § 6). |
