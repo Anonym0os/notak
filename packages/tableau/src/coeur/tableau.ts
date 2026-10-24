@@ -567,8 +567,35 @@ export interface Sujet {
   numerotation?: { motif: 'arabe' | 'romain' | 'majuscule' | 'minuscule'; paliers?: boolean }
   /** Son rang d'importance, qui change son habillage. */
   classe?: 'important' | 'secondaire' | 'barre'
+  /** Son habillage propre, par-dessus celui du thème (docs/XMIND.md § 5). */
+  style?: StyleSujet
   /** Ce que Notak ne lit pas d'un sujet venu d'un `.xmind`, gardé pour le lui rendre à l'export. */
   xmind?: Record<string, unknown>
+}
+
+/** Les formes d'un sujet (docs/XMIND.md § 5). */
+export type FormeSujet = 'rectangle' | 'arrondi' | 'capsule' | 'ellipse' | 'souligne' | 'double-souligne' | 'losange' | 'hexagone' | 'parallelogramme' | 'aucune'
+
+/** Les formes d'une branche. */
+export type FormeBranche = 'courbe' | 'droite' | 'coudee' | 'coudee-arrondie' | 'aucune'
+
+export interface StyleSujet {
+  forme?: FormeSujet
+  /** `#rrggbb`. */
+  remplissage?: string
+  bordure?: string
+  epaisseurBordure?: number
+  police?: string
+  taille?: number
+  gras?: boolean
+  italique?: boolean
+  couleurTexte?: string
+  /** La branche qui mène à ce sujet et à ses descendants (sauf ceux qui en déclarent une autre). */
+  branche?: FormeBranche
+  couleurBranche?: string
+  epaisseurBranche?: number
+  effilee?: boolean
+  motif?: 'plein' | 'tirets' | 'points'
 }
 
 /** Une flèche entre deux sujets quelconques. `controles` : ses deux points de contrôle, en px depuis chaque bout. */
@@ -577,6 +604,9 @@ export interface Relation {
   vers: Id
   titre?: string
   controles?: [{ x: number; y: number }, { x: number; y: number }]
+  forme?: 'courbe' | 'droite' | 'coudee'
+  /** Les pointes : à l'arrivée seule par défaut. */
+  pointes?: { depart?: boolean; arrivee?: boolean }
 }
 
 /** Un cadre autour de la branche `de`, ou des frères de `de` à `a` (inclus). */
@@ -600,8 +630,10 @@ export interface Arbre {
   relations?: Record<Id, Relation>
   limites?: Record<Id, Limite>
   resumes?: Record<Id, Resume>
-  /** `compacte` : des branches plus serrées. `libre` : un sujet glissé garde la place où on le lâche. */
-  options?: { compacte?: boolean; libre?: boolean }
+  /** `compacte` : des branches plus serrées. `libre` : un sujet glissé garde la place où on le lâche. `uneCouleur` : toutes les branches de l'encre du thème, sans arc-en-ciel. */
+  options?: { compacte?: boolean; libre?: boolean; uneCouleur?: boolean }
+  /** Le thème de la carte (`elements/arbre/themes.ts`) ; absent : le classique. */
+  theme?: string
 }
 
 export type Contenu =

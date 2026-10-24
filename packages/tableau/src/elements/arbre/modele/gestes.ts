@@ -1,4 +1,4 @@
-import type { Arbre, Id, StructureArbre } from '../../../coeur/tableau'
+import type { Arbre, Id, Relation, StructureArbre, StyleSujet } from '../../../coeur/tableau'
 import { ajouterLimite, ajouterRelation, ajouterResume, basculerMarqueur, changerLimite, changerRelation, porter, resumeDe, retirer } from './elements'
 import {
   type Lecture,
@@ -58,6 +58,14 @@ export type Geste =
   | { type: 'porter'; ids: Id[]; champ: 'etiquettes' | 'lien' | 'note' | 'image' | 'tache' | 'numerotation' | 'classe'; valeur: unknown }
   /** Cmd+Alt+T : la case à cocher d'une tâche, mise ou ôtée. */
   | { type: 'tache'; ids: Id[] }
+  /** Change le style de ces sujets (une valeur `undefined` le retire) ; `null` : le réinitialiser. */
+  | { type: 'style'; ids: Id[]; style: Partial<StyleSujet> | null }
+  /** Remplace le style de ces sujets (coller un style copié). */
+  | { type: 'collerStyle'; ids: Id[]; style: StyleSujet | undefined }
+  /** Alt+Cmd+U : le style de ce sujet sur tous les sujets de son rang. */
+  | { type: 'styleMemeRang'; id: Id }
+  | { type: 'theme'; theme: string }
+  | { type: 'relationStyle'; id: Id; forme?: Relation['forme']; pointes?: Relation['pointes'] }
   /** Ceux-là ne touchent pas la carte : la vue les fait elle-même. */
   | { type: 'editer'; id: Id; frappe?: string }
   | { type: 'choisir'; ids: Id[] }
@@ -68,6 +76,9 @@ export type Geste =
   | { type: 'relier'; id: Id }
   /** Ouvrir le panneau du sujet, sur une section. */
   | { type: 'panneau'; section?: 'note' | 'etiquettes' | 'lien' | 'image' | 'marqueurs' }
+  /** Cmd+Alt+C, Cmd+Alt+V : copier et coller un style ; la vue garde le style copié. */
+  | { type: 'copierStyle'; id: Id }
+  | { type: 'collerStyleCopie'; ids: Id[] }
 
 /** Ce que devient la carte, et quel sujet choisir ou éditer ensuite. */
 export interface Effet {
@@ -208,6 +219,42 @@ export function appliquerGeste(a: Arbre, g: Geste, titre: Titreur): Effet | null
       const toutes = g.ids.every((x) => a.sujets[x]?.tache)
       return { arbre: porter(a, g.ids, 'tache', toutes ? undefined : 'a-faire') }
     }
+    case 'style': {
+      let arbre = a
+      for (const id of g.ids)
+        arbre = changerSujet(arbre, id, ({ style, ...reste }) => {
+          if (g.style === null) return reste
+          const neuf: Record<string, unknown> = { ...style }
+          for (const [k, v] of Object.entries(g.style)) {
+            if (v === undefined) delete neuf[k]
+            else neuf[k] = v
+          }
+          return Object.keys(neuf).length > 0 ? { ...reste, style: neuf as StyleSujet } : reste
+        })
+      return { arbre }
+    }
+    case 'collerStyle':
+      return { arbre: g.ids.reduce((x, id) => changerSujet(x, id, ({ style: _s, ...reste }) => (g.style ? { ...reste, style: g.style } : reste)), a) }
+    case 'styleMemeRang': {
+      const modele = l.sujets.get(g.id)
+      if (!modele) return null
+      const rang = rangSimple(l, g.id)
+      const ids = [...l.sujets.keys()].filter((x) => x !== g.id && rangSimple(l, x) === rang)
+      return { arbre: ids.reduce((x, id) => changerSujet(x, id, ({ style: _s, ...reste }) => (modele.style ? { ...reste, style: modele.style } : reste)), a) }
+    }
+    case 'theme': {
+      const { theme: _t, ...reste } = a
+      return { arbre: g.theme === 'classique' ? reste : { ...reste, theme: g.theme } }
+    }
+    case 'relationStyle':
+      return {
+        arbre: changerRelation(a, g.id, (r) => {
+          const { forme: _f, pointes: _p, ...reste } = r
+          const forme = g.forme !== undefined ? g.forme : r.forme
+          const pointes = g.pointes !== undefined ? g.pointes : r.pointes
+          return { ...reste, ...(forme && forme !== 'courbe' ? { forme } : {}), ...(pointes ? { pointes } : {}) }
+        }),
+      }
     default:
       return null
   }
@@ -220,4 +267,12 @@ function suivantApresSuppression(l: Lecture, id: Id): Id | undefined {
   const freres = enfantsDe(l, s.parent)
   const i = freres.indexOf(id)
   return freres[i + 1] ?? freres[i - 1] ?? s.parent
+}
+
+/** Le rang d'un sujet, pour « appliquer au même rang » : central, principal, sous-sujet, flottant ou résumé. */
+function rangSimple(l: Lecture, id: Id): string {
+  const s = l.sujets.get(id)
+  if (!s || s.parent === undefined) return 'central'
+  if (s.genre) return s.genre
+  return s.parent === l.central ? 'principal' : 'sous'
 }

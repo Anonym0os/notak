@@ -40,6 +40,12 @@ export function gesteDe(e: Touche, choisis: readonly Id[], l: Lecture, d: Dispos
     }
     if (k.toLowerCase() === 'k' && !e.shiftKey) return { type: 'panneau', section: 'lien' }
     if (k === ']') return { type: 'panneau' }
+    // Cmd+Alt+C, V, 0, U : copier, coller, réinitialiser le style, l'appliquer au même rang. Alt change le caractère sur Mac : on lit la touche.
+    const code = (e as Partial<KeyboardEvent>).code
+    if (e.altKey && !e.shiftKey && code === 'KeyC') return { type: 'copierStyle', id: courant }
+    if (e.altKey && !e.shiftKey && code === 'KeyV') return { type: 'collerStyleCopie', ids }
+    if (e.altKey && !e.shiftKey && code === 'Digit0') return { type: 'style', ids, style: null }
+    if (e.altKey && !e.shiftKey && code === 'KeyU') return { type: 'styleMemeRang', id: courant }
     if (e.altKey && k.toLowerCase() === 't') return { type: 'tache', ids }
     if (e.altKey && (e as Partial<KeyboardEvent>).code === 'KeyT') return { type: 'tache', ids }
     // Cmd+1…7 : une priorité (la même touche l'ôte). Lue sur la touche physique : en AZERTY, Cmd+& est Cmd+1.

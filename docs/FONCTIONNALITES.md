@@ -30,9 +30,9 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
-| 18. Carte mentale | 26 | 4 | 11 | 68 % |
+| 18. Carte mentale | 32 | 3 | 6 | 82 % |
 | 19. Document à blocs | 1 | 0 | 24 | 4 % |
-| **Total** | **309** | **14** | **37** | **88 %** |
+| **Total** | **315** | **13** | **32** | **89 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -444,7 +444,7 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Structure matrice | ✅ | En lignes ou en colonnes. |
 | Structure par sujet, héritée par défaut | ✅ | « Suivre le sujet parent » la retire. |
 | Carte compacte, placement libre, chevauchement | 🟡 | Compacte : des écarts plus serrés, sans l'emboîtement des branches de Xmind. Placement libre : une branche glissée reste où on la lâche, « Réaligner » la remet ; le chevauchement est alors permis. |
-| Relation entre deux sujets : courbe réglable, pointes, titre | 🟡 | Maj+Cmd+R puis clic sur la cible ; deux points de contrôle à tirer, un titre (double-clic). Une seule pointe, à l'arrivée, pour l'instant. |
+| Relation entre deux sujets : courbe réglable, pointes, titre | ✅ | Maj+Cmd+R puis clic sur la cible ; deux points de contrôle à tirer, un titre (double-clic) ; courbe, droite ou coudée, pointe au départ, à l'arrivée ou aux deux. |
 | Limite autour d'une plage de frères | ✅ | Maj+Cmd+B ; un titre au double-clic. |
 | Résumé d'une plage de frères | ✅ | Bouton « Résumé » : une accolade et un sujet de résumé, qui peut avoir ses enfants. |
 | Note en texte riche sur un sujet | ✅ | Maj+Cmd+N ; l'icône sur le sujet rouvre la note. |
@@ -454,11 +454,11 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Marqueurs : priorité, avancement, drapeaux, étoiles, personnes… | ✅ | Un par groupe ; Cmd+1…7 pour les priorités. Dessins et icônes à nous. |
 | Tâche à cocher, numérotation des enfants | ✅ | Cmd+Alt+T ; la case se coche d'un clic. Numérotation 1, I, A, a, avec ou sans le numéro du parent. |
 | Rang : important, secondaire, barré | ✅ | Maj+Alt+1, 2, 3, 0. |
-| Formes de sujet | ⬜ |  |
-| Styles de branche, épaisseur, effilé, couleurs arc-en-ciel | ⬜ |  |
-| Texte, remplissage et bordure d'un sujet | ⬜ |  |
-| Thèmes de carte | ⬜ |  |
-| Appliquer au même rang, réinitialiser, copier et coller un style | ⬜ |  |
+| Formes de sujet | ✅ | Rectangle, arrondi, gélule, ellipse, souligné, double souligné, losange, hexagone, parallélogramme, sans cadre. |
+| Styles de branche, épaisseur, effilé, couleurs arc-en-ciel | ✅ | Courbe, droite, coudée, coudée arrondie, sans trait ; motif plein, tirets, pointillés ; « Branches de couleur » ou une seule encre. |
+| Texte, remplissage et bordure d'un sujet | ✅ | Police, taille, gras, italique, couleur ; l'encre du texte se choisit seule sur un remplissage foncé. |
+| Thèmes de carte | ✅ | Six thèmes à nous : Classique (suit le clair et le sombre de Notak), Pastel, Nuit, Sobre, Papier, Vif. |
+| Appliquer au même rang, réinitialiser, copier et coller un style | ✅ | Alt+Cmd+U, Cmd+Alt+0, Cmd+Alt+C, Cmd+Alt+V. |
 | Mode plan | ⬜ |  |
 | Mode Zen | ⬜ |  |
 | Présentation branche par branche | ⬜ |  |

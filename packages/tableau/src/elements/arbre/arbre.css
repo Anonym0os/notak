@@ -358,3 +358,52 @@
   box-sizing: border-box;
   width: 100%;
 }
+
+.notak-arbre-nuancier {
+  display: inline-flex;
+  gap: 2px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.notak-arbre-nuancier i {
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.notak-arbre-panneau label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.notak-arbre-panneau label select,
+.notak-arbre-panneau label input[type='range'] {
+  flex: 1;
+  width: auto;
+}
+
+.notak-arbre-panneau input[type='number'] {
+  width: 64px;
+  padding: 4px 6px;
+  border: 1px solid rgb(0 0 0 / 0.12);
+  border-radius: 5px;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+.notak-arbre-couleur input[type='color'] {
+  width: 28px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgb(0 0 0 / 0.12);
+  border-radius: 4px;
+  background: none;
+}
+
+.notak-arbre-couleur button {
+  margin-left: auto;
+  border: 0 !important;
+}

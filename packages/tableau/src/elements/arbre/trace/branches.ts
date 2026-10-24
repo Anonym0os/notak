@@ -75,3 +75,33 @@ export function cheminBranche(p: Boite, e: Boite, cote: Cote, style: StyleBranch
     }
   }
 }
+
+/**
+ * Une branche effilée (docs/XMIND.md § 5) : un trait plein qui s'amincit du parent (`l0` px) vers l'enfant (`l1`).
+ * Tracée comme une surface, pour la courbe et la droite ; `null` pour les autres formes, qui gardent un trait.
+ */
+export function cheminEffile(p: Boite, e: Boite, cote: Cote, style: StyleBranche | 'arbre' | 'arbre-g', s: Soulignes, l0: number, l1: number): string | null {
+  if (style !== 'courbe' && style !== 'droite') return null
+  const [[x0, y0], [x1, y1]] = extremites(p, e, cote, s)
+  const horizontal = cote === 'droite' || cote === 'gauche'
+  const point = (t: number): [number, number] => {
+    if (style === 'droite') return [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t]
+    const [c1, c2] = horizontal ? [[(x0 + x1) / 2, y0], [(x0 + x1) / 2, y1]] : [[x0, (y0 + y1) / 2], [x1, (y0 + y1) / 2]]
+    const u = 1 - t
+    return [u ** 3 * x0 + 3 * u * u * t * c1[0]! + 3 * u * t * t * c2[0]! + t ** 3 * x1, u ** 3 * y0 + 3 * u * u * t * c1[1]! + 3 * u * t * t * c2[1]! + t ** 3 * y1]
+  }
+  const N = 16
+  const pts = Array.from({ length: N + 1 }, (_, i) => point(i / N))
+  const gauche: string[] = []
+  const droite: string[] = []
+  pts.forEach(([x, y], i) => {
+    const [ax, ay] = pts[Math.max(0, i - 1)]!
+    const [bx, by] = pts[Math.min(N, i + 1)]!
+    const [dx, dy] = [bx - ax, by - ay]
+    const k = Math.hypot(dx, dy) || 1
+    const w = (l0 + (l1 - l0) * (i / N)) / 2
+    gauche.push(`${n(x - (dy / k) * w)} ${n(y + (dx / k) * w)}`)
+    droite.push(`${n(x + (dy / k) * w)} ${n(y - (dx / k) * w)}`)
+  })
+  return `M${gauche.join('L')}L${droite.reverse().join('L')}Z`
+}

@@ -6,6 +6,8 @@ type Point = { x: number; y: number }
 export interface Courbe {
   chemin: string
   pointe: string
+  /** La pointe au départ, si la relation en porte une. */
+  pointeDepart: string
   depart: Point
   arrivee: Point
   controles: [Point, Point]
@@ -27,7 +29,7 @@ function bord(b: Boite, vers: Point): Point {
  * La courbe d'une relation de `a` vers `b` (docs/XMIND.md § 5). Sans points de contrôle enregistrés, elle se bombe
  * vers le haut, comme celles que Xmind pose ; sinon chaque contrôle se compte depuis son bout.
  */
-export function courbeRelation(a: Boite, b: Boite, controles?: [Point, Point]): Courbe {
+export function courbeRelation(a: Boite, b: Boite, controles?: [Point, Point], forme: 'courbe' | 'droite' | 'coudee' = 'courbe'): Courbe {
   const [ca, cb] = [centre(a), centre(b)]
   const [dx, dy] = [cb.x - ca.x, cb.y - ca.y]
   const defaut: [Point, Point] = [
@@ -45,15 +47,45 @@ export function courbeRelation(a: Boite, b: Boite, controles?: [Point, Point]): 
     y: 0.125 * p0.y + 0.375 * c1.y + 0.375 * c2.y + 0.125 * p3.y,
   }
   const f = (v: number) => v.toFixed(1)
-  // La pointe suit la tangente à l'arrivée (du second contrôle vers le bout).
-  const [tx, ty] = [p3.x - c2.x, p3.y - c2.y]
-  const n = Math.hypot(tx, ty) || 1
-  const [ux, uy] = [tx / n, ty / n]
-  const [bx, by] = [p3.x - ux * 9, p3.y - uy * 9]
-  const pointe = `M${f(p3.x)} ${f(p3.y)}L${f(bx - uy * 4.5)} ${f(by + ux * 4.5)}L${f(bx + uy * 4.5)} ${f(by - ux * 4.5)}Z`
+  // Une pointe à un bout, dans l'axe de la tangente (du contrôle vers le bout).
+  const pointeEn = (bout: Point, depuis: Point) => {
+    const [tx, ty] = [bout.x - depuis.x, bout.y - depuis.y]
+    const n = Math.hypot(tx, ty) || 1
+    const [ux, uy] = [tx / n, ty / n]
+    const [bx, by] = [bout.x - ux * 9, bout.y - uy * 9]
+    return `M${f(bout.x)} ${f(bout.y)}L${f(bx - uy * 4.5)} ${f(by + ux * 4.5)}L${f(bx + uy * 4.5)} ${f(by - ux * 4.5)}Z`
+  }
+  if (forme === 'droite') {
+    // Droite : de centre à centre, coupée aux bords ; les contrôles restent pour qu'on puisse la recourber.
+    const [d0, d1] = [bord(a, cb), bord(b, ca)]
+    return {
+      chemin: `M${f(d0.x)} ${f(d0.y)}L${f(d1.x)} ${f(d1.y)}`,
+      pointe: pointeEn(d1, d0),
+      pointeDepart: pointeEn(d0, d1),
+      depart: d0,
+      arrivee: d1,
+      controles: [c1, c2],
+      milieu: { x: (d0.x + d1.x) / 2, y: (d0.y + d1.y) / 2 },
+    }
+  }
+  if (forme === 'coudee') {
+    // Coudée : par le premier contrôle à la verticale, puis à l'horizontale vers la cible.
+    const ym = c1.y
+    const chemin = `M${f(p0.x)} ${f(p0.y)}V${f(ym)}H${f(p3.x)}V${f(p3.y)}`
+    return {
+      chemin,
+      pointe: pointeEn(p3, { x: p3.x, y: ym }),
+      pointeDepart: pointeEn(p0, { x: p0.x, y: ym }),
+      depart: p0,
+      arrivee: p3,
+      controles: [c1, c2],
+      milieu: { x: (p0.x + p3.x) / 2, y: ym },
+    }
+  }
   return {
     chemin: `M${f(p0.x)} ${f(p0.y)}C${f(c1.x)} ${f(c1.y)} ${f(c2.x)} ${f(c2.y)} ${f(p3.x)} ${f(p3.y)}`,
-    pointe,
+    pointe: pointeEn(p3, c2),
+    pointeDepart: pointeEn(p0, c1),
     depart: p0,
     arrivee: p3,
     controles: [c1, c2],

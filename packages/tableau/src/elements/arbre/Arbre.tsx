@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { Arbre, Id } from '../../coeur/tableau'
+import type { Arbre, Id, StyleSujet } from '../../coeur/tableau'
 import { t } from '../../langue'
 import { Surcouche } from '../surcouche'
 import type { ContexteToile, PropsRendu, Services } from '../types'
-import { HABITS, INTERLIGNE, POLICE, type Mesure, mesurer, rangDe } from './apparence'
+import { INTERLIGNE, POLICE, type Mesure, habitDe, mesurer } from './apparence'
+import { themeDe } from './themes'
 import { Barre } from './Barre'
 import { Dessin } from './Dessin'
 import { type Disposition, ECARTS, ECARTS_COMPACTS, disposer, emprise } from './disposition'
@@ -20,11 +21,12 @@ import { courbeRelation } from './trace/relations'
 export function useVue(a: Arbre): { lecture: Lecture; mesures: Map<Id, Mesure>; disposition: Disposition } {
   return useMemo(() => {
     const lecture = lire(a)
+    const theme = themeDe(a.theme)
     const mesures = new Map<Id, Mesure>()
     for (const [id, s] of lecture.sujets)
       mesures.set(
         id,
-        mesurer(s.titre, rangDe(lecture, id), {
+        mesurer(s.titre, habitDe(lecture, id, theme), {
           tache: !!s.tache,
           marqueurs: s.marqueurs?.length ?? 0,
           prefixe: numeroDe(lecture, id),
@@ -36,7 +38,7 @@ export function useVue(a: Arbre): { lecture: Lecture; mesures: Map<Id, Mesure>; 
     const resumes = resumesValides(a, lecture).map(([, r]) => ({ sujet: r.sujet, plage: sujetsDePlage(lecture, r) }))
     const disposition = disposer(lecture, (id) => mesures.get(id) ?? { l: 40, h: 20 }, a.options?.compacte ? ECARTS_COMPACTS : ECARTS, !!a.options?.libre, resumes)
     return { lecture, mesures, disposition }
-  }, [a.sujets, a.options, a.resumes])
+  }, [a.sujets, a.options, a.resumes, a.theme])
 }
 
 /** Les adresses affichables des images d'une carte, chargées au besoin. */
@@ -73,7 +75,7 @@ export function RenduArbre({ element, enEdition, contexte, changer }: PropsRendu
   const cadre = emprise(disposition.boites.values())
   const [x, y, l, h] = [cadre.x - MARGE_APERCU, cadre.y - MARGE_APERCU, cadre.l + 2 * MARGE_APERCU, cadre.h + 2 * MARGE_APERCU]
   return (
-    <div className="notak-arbre">
+    <div className="notak-arbre" style={themeDe(a.theme).fond ? { background: themeDe(a.theme).fond } : undefined}>
       <svg className="notak-arbre-apercu" viewBox={`${x} ${y} ${l} ${h}`} style={{ aspectRatio: `${Math.min(3, Math.max(0.75, l / h))}` }} aria-label={lecture.sujets.get(lecture.central)?.titre || t('arbre.vide')} role="img">
         <Dessin arbre={a} lecture={lecture} disposition={disposition} mesures={mesures} adresse={adresse} />
       </svg>
@@ -168,6 +170,9 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     } else faire({ type: 'titrer', id: edition.id, titre: edition.texte })
   }, [edition, actuel, faire])
 
+  // Le style copié (Cmd+Alt+C), à coller sur d'autres sujets ; `undefined` : rien de copié, `null` : un sujet sans style.
+  const styleCopie = useRef<StyleSujet | null | undefined>(undefined)
+
   const titreObjet = (x: Id) => vue.relations?.[x]?.titre ?? vue.limites?.[x]?.titre ?? ''
 
   const surTouche = (e: React.KeyboardEvent): boolean => {
@@ -239,6 +244,12 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
         return true
       case 'supprimer':
         faire({ type: 'supprimer', ids: [...choisis] })
+        return true
+      case 'copierStyle':
+        styleCopie.current = lecture.sujets.get(geste.id)?.style ?? null
+        return true
+      case 'collerStyleCopie':
+        if (styleCopie.current !== undefined) faire({ type: 'collerStyle', ids: geste.ids, style: styleCopie.current ?? undefined })
         return true
     }
     faire(geste)
@@ -343,7 +354,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     const r = vue.relations?.[c.relation]
     const [ba, bb] = [r && disposition.boites.get(r.de), r && disposition.boites.get(r.vers)]
     if (!r || !ba || !bb) return
-    const courbe = courbeRelation(ba, bb, r.controles)
+    const courbe = courbeRelation(ba, bb, r.controles, r.forme)
     const bouts = [courbe.depart, courbe.arrivee] as const
     const actuels = courbe.controles.map((p, i) => ({ x: p.x - bouts[i]!.x, y: p.y - bouts[i]!.y }))
     actuels[c.i] = { x: c.p.x - bouts[c.i].x, y: c.p.y - bouts[c.i].y }
@@ -413,6 +424,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       <div
         ref={poserSurface}
         className="notak-arbre-surface"
+        style={themeDe(vue.theme).fond ? { background: themeDe(vue.theme).fond } : undefined}
         data-relier={relier ? '' : undefined}
         onPointerDown={surAppui}
         onPointerMove={surMouvement}
@@ -436,7 +448,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
               top: camera.y + champ.y * camera.z,
               minWidth: champ.l * camera.z,
               minHeight: champ.h * camera.z,
-              font: `${champ.graisse} ${champ.police * camera.z}px/${INTERLIGNE} ${POLICE}`,
+              font: `${champ.graisse} ${champ.police * camera.z}px/${INTERLIGNE} ${champ.famille ?? POLICE}`,
             }}
             changer={(texte) => setEdition({ ...edition, texte, tout: false })}
             valider={valider}
@@ -448,6 +460,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
             arbre={vue}
             lecture={lecture}
             choisis={sujetsChoisis}
+            relation={[...choisis].find((x) => vue.relations?.[x]) ?? null}
             faire={faire}
             relier={() => setRelier({ de: courant, p: null })}
             panneau={() => setPanneau((p) => (p ? null : {}))}
@@ -471,18 +484,18 @@ function positionDuChamp(
   d: Disposition,
   mesures: ReadonlyMap<Id, Mesure>,
   a: Arbre,
-): { x: number; y: number; l: number; h: number; police: number; graisse: number } | null {
+): { x: number; y: number; l: number; h: number; police: number; graisse: number; famille?: string } | null {
   const b = d.boites.get(id)
   const m = mesures.get(id)
   if (b && m) {
-    const h = HABITS[rangDe(l, id)]
-    return { x: b.x + m.texte.x - 4, y: b.y + m.texte.y - 2, l: m.texte.l + 8, h: m.texte.h + 4, police: h.police, graisse: h.graisse }
+    const h = habitDe(l, id, themeDe(a.theme))
+    return { x: b.x + m.texte.x - 4, y: b.y + m.texte.y - 2, l: m.texte.l + 8, h: m.texte.h + 4, police: h.police, graisse: h.graisse, famille: h.famille }
   }
   const r = a.relations?.[id]
   if (r) {
     const [ba, bb] = [d.boites.get(r.de), d.boites.get(r.vers)]
     if (!ba || !bb) return null
-    const c = courbeRelation(ba, bb, r.controles)
+    const c = courbeRelation(ba, bb, r.controles, r.forme)
     return { x: c.milieu.x - 80, y: c.milieu.y - 22, l: 160, h: 22, police: 12, graisse: 400 }
   }
   const x = a.limites?.[id]
