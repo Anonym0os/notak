@@ -177,78 +177,88 @@
   height: 18px;
 }
 
-/* Le document en grand : la toile s'assombrit et se floute, la boîte blanche est collée en haut. */
+/*
+ * Le document en grand : une page à la Notion (docs/NOTION.md § 9), sur toute la fenêtre. Une barre de 44 px en haut
+ * (fermer, le titre en petit, les options et l'export), puis la page qui défile : une grille marge | 720 px | marge,
+ * des marges d'au moins 96 px, la couverture sur toute la largeur.
+ */
 .notak-document-fond {
   position: fixed;
   inset: 0;
   z-index: 1000;
   display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  background: rgb(0 0 0 / 0.48);
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
+  background: var(--notak-page-fond, #fff);
   outline: none;
-  color: var(--notak-texte, #323b4a);
+  color: var(--notak-page-texte, rgb(44 44 43));
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Display', 'Segoe UI', Helvetica, 'Apple Color Emoji', Arial, sans-serif, 'Segoe UI Emoji', 'Segoe UI Symbol';
   font-size: 16px;
   line-height: 24px;
+  animation: notak-page-arrivee 140ms ease-out;
+}
+
+@keyframes notak-page-arrivee {
+  from { opacity: 0; }
 }
 
 .notak-document-boite {
   position: relative;
   display: flex;
+  flex: 1;
   flex-direction: column;
-  box-sizing: border-box;
-  width: min(820px, 100vw - 10px);
-  height: calc(100vh - 42px);
-  background: var(--notak-carte, #fff);
-  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.2), 0 8px 10px -6px rgb(0 0 0 / 0.2);
+  min-width: 0;
+  background: var(--notak-page-fond, #fff);
 }
 
-/* L'en-tête : 56 px, un filet dessous ; vide à gauche, le titre au centre, « Export » à droite. */
+/* La barre du haut : fermer à gauche, le titre en petit, puis les options et l'export à droite. */
 .notak-document-entete {
-  display: grid;
-  grid-template-columns: 140px minmax(0, 1fr) 140px;
+  display: flex;
   align-items: center;
   flex: none;
-  height: 56px;
-  border-bottom: 1px solid rgb(0 0 0 / 0.1);
+  gap: 4px;
+  height: 44px;
+  padding: 0 12px;
+}
+
+.notak-document-fermer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--notak-page-discret);
+  cursor: pointer;
+}
+
+.notak-document-fermer:hover {
+  background: var(--notak-page-survol);
+  color: var(--notak-page-texte);
 }
 
 .notak-document-entete-titre {
   display: flex;
-  justify-content: center;
+  align-items: center;
+  flex: 1;
+  gap: 6px;
   min-width: 0;
-}
-
-.notak-document-grand-titre,
-.notak-document-titre-lu {
-  box-sizing: border-box;
-  width: 100%;
-  max-width: 450px;
-  padding: 4px 8px;
-  border: 0;
-  border-radius: 4px;
-  background: none;
-  color: inherit;
-  font: inherit;
-  font-size: 15px;
-  letter-spacing: -0.2px;
-  line-height: 30px;
-  text-align: center;
+  padding: 0 6px;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 20px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.notak-document-entete-titre > span {
   overflow: hidden;
-  outline: none;
+  text-overflow: ellipsis;
 }
 
-.notak-document-grand-titre:focus {
-  text-overflow: clip;
-  background: rgb(0 0 0 / 0.04);
-}
-
-.notak-document-grand-titre::placeholder {
-  color: #9aa1ab;
+.notak-document-titre-lu[data-vide],
+.notak-document-entete-titre [data-vide] {
+  color: var(--notak-page-discret);
 }
 
 .notak-document-export {
@@ -310,202 +320,60 @@
   padding: 0 16px;
 }
 
-/* La colonne d'outils (104 px) à gauche du texte (696 px). */
-.notak-document-zone {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-}
-
-.notak-document-cote {
-  flex: none;
-  box-sizing: border-box;
-  width: 104px;
-  padding-top: 36px;
-}
-
+/* La page qui défile : la grille, 30 % de la fenêtre d'air sous le dernier bloc. */
 .notak-document-corps {
   position: relative;
   flex: 1;
-  min-width: 0;
-  /* Les colonnes du texte s'empilent sur une page étroite (voir `blocs/blocs.css`). */
-  container-type: inline-size;
-  box-sizing: border-box;
-  /* À gauche, la marge de la poignée des blocs (`+` et `⋮⋮`). */
-  max-width: 764px;
-  padding: 36px 3px 80px 48px;
+  min-height: 0;
   overflow-y: auto;
   user-select: text;
 }
 
-/* Une barre de 8 px, au curseur gris foncé arrondi. */
+.notak-page {
+  display: grid;
+  grid-template-columns: minmax(96px, 1fr) minmax(auto, 720px) minmax(96px, 1fr);
+  /* Les colonnes du texte s'empilent sur une page étroite (voir `blocs/blocs.css`). */
+  container-type: inline-size;
+}
+
+.notak-page > * {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.notak-page > .notak-page-entete {
+  display: contents;
+}
+
+.notak-page-entete > * {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.notak-page-entete > .notak-page-couverture {
+  grid-column: 1 / -1;
+}
+
+.notak-page .ProseMirror,
+.notak-page .notak-texte.notak-blocs {
+  padding-top: 16px;
+  outline: none;
+}
+
+/* Sous le dernier bloc : un appui y écrit (un paragraphe s'ajoute s'il le faut). */
+.notak-page-fin {
+  height: 30vh;
+  cursor: text;
+}
+
 .notak-document-corps::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
 }
 
 .notak-document-corps::-webkit-scrollbar-thumb {
-  border-radius: 13px;
-  background: rgb(0 0 0 / 0.35);
-}
-
-/* Le texte : 16 px sur 24, titres de 24 et 21 px sur 29, 12 px entre deux paragraphes. */
-.notak-document-corps .ProseMirror,
-.notak-document-corps .notak-texte {
-  min-height: 100%;
-  outline: none;
-  font-size: 16px;
-  line-height: 24px;
-  color: rgb(50 59 74);
-}
-
-.notak-document-corps :is(p, ul, ol, blockquote, pre) {
-  margin-block: 0 12px;
-}
-
-.notak-document-corps h1 {
-  margin: 17px 0 12px;
-  font-size: 24px;
-  line-height: 29px;
-}
-
-.notak-document-corps h2 {
-  margin: 17px 0 12px;
-  font-size: 21px;
-  line-height: 29px;
-}
-
-.notak-document-corps :first-child {
-  margin-top: 0;
-}
-
-/* Un titre en tête de texte remonte de 6 px. */
-.notak-document-corps :is(h1, h2):first-child {
-  margin-top: -6px;
-}
-
-/* La colonne : « Style de texte » et « Insérer » en contour avec leur nom, puis des icônes seules de 32 px. */
-.notak-document-outils {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  height: 100%;
-  min-height: 0;
-}
-
-.notak-document-outils .notak-note-menu-ancre {
-  display: grid;
-  place-items: center;
-  width: 68px;
-}
-
-.notak-document-tuile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  width: 68px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-
-.notak-document-tuile-icone {
-  display: grid;
-  place-items: center;
-  box-sizing: border-box;
-  width: 32px;
-  height: 32px;
-  border: 1px solid rgb(0 0 0 / 0.08);
-  border-radius: 5px;
-}
-
-.notak-document-tuile:hover .notak-document-tuile-icone,
-.notak-document-tuile[aria-expanded='true'] .notak-document-tuile-icone {
-  background: rgb(0 0 0 / 0.06);
-}
-
-.notak-document-tuile-libelle {
-  color: #5f656d;
-  font-size: 10px;
-  line-height: 12px;
-  text-align: center;
-}
-
-.notak-document-outils button.notak-outil-texte,
-.notak-document-plus {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  margin: 0 auto;
-  padding: 0;
-  border: 0;
-  border-radius: 4px;
-  background: none;
-  color: var(--notak-texte);
-  cursor: pointer;
-}
-
-.notak-document-outils button.notak-outil-texte:hover,
-.notak-document-plus:hover,
-.notak-document-plus[aria-expanded='true'] {
-  background: rgb(0 0 0 / 0.06);
-}
-
-/* Actif : un cadre de 2 px autour de l'icône. */
-.notak-document-outils button.notak-outil-texte[aria-pressed='true'] {
-  box-shadow: inset 0 0 0 2px var(--notak-selection, #323b4a);
-}
-
-/* Grisé : le glyphe à 20 %, le clic est reçu mais ne fait rien. */
-.notak-document-outils button.notak-outil-texte[aria-disabled='true'] {
-  cursor: default;
-}
-
-.notak-document-outils button.notak-outil-texte[aria-disabled='true'] .notak-ico {
-  opacity: 0.2;
-}
-
-/* Les menus s'ouvrent à droite de la colonne, pas en dessous. */
-.notak-document-outils .notak-note-menu {
-  top: 0;
-  bottom: auto;
-  left: calc(100% + 10px);
-}
-
-.notak-document-outils .notak-menu-style {
-  width: 242px;
-  padding: 4px 0;
-  gap: 0;
-}
-
-.notak-document-reste {
-  min-width: 190px;
-}
-
-.notak-document-reste .notak-note-menu-ligne {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.notak-document-reste [aria-pressed='true'] {
-  background: rgb(0 0 0 / 0.08);
-}
-
-.notak-document-reste [aria-disabled='true'] {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.notak-document-outils .notak-lien-popup {
-  top: 160px;
-  transform: none;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--notak-page-texte) 22%, transparent) padding-box;
 }
 
 /* La liste de `[[` et de `@` s'ouvre au-dessus de la modale du document. */
@@ -545,23 +413,6 @@
   line-height: 20px;
 }
 
-/* Lecture seule : la colonne d'outils se réduit à 35 px, le texte remonte de 9 px (27 au lieu de 36). */
-.notak-document-boite[data-lecture] .notak-document-zone {
-  justify-content: center;
-}
-
-.notak-document-boite[data-lecture] .notak-document-cote {
-  width: 35px;
-  padding-top: 0;
-}
-
-.notak-document-boite[data-lecture] .notak-document-corps {
-  /* En lecture, pas de poignée : le texte reprend sa marge. */
-  max-width: 716px;
-  padding-top: 27px;
-  padding-left: 0;
-}
-
 /* Un document qu'une version plus récente a écrit : il se lit, l'avis dit pourquoi il ne s'édite pas. */
 .notak-document-plus-recent {
   margin: 0 0 20px;
@@ -587,16 +438,16 @@
   }
 }
 
-/* À droite de l'en-tête : les options de la page, puis « Export ». */
+/* À droite de la barre : les options de la page, puis « Export ». */
 .notak-document-entete-droite {
   display: flex;
-  justify-self: end;
   align-items: center;
+  flex: none;
   gap: 2px;
 }
 
 .notak-document-entete-droite .notak-document-export {
-  margin-right: 20px;
+  margin-right: 0;
 }
 
 /* L'icône de la page, posée sur la feuille de la carte (docs/NOTION.md § 9). */
@@ -625,52 +476,54 @@
   transform: translate(-50%, -30%);
 }
 
-/* La police de la page, le petit texte, la pleine largeur. */
-.notak-document-boite[data-police='serif'] .notak-document-corps .notak-texte {
-  font-family: Lyon-Text, Georgia, 'Times New Roman', serif;
+/* La police de la page, le petit texte, la pleine largeur (le menu « ••• »). */
+.notak-document-boite[data-police='serif'] .notak-page {
+  font-family: Lyon-Text, Georgia, YuMincho, 'Yu Mincho', 'Hiragino Mincho ProN', 'Songti TC', serif;
 }
 
-.notak-document-boite[data-police='mono'] .notak-document-corps .notak-texte {
-  font-family: 'SF Mono', Menlo, Consolas, monospace;
+.notak-document-boite[data-police='mono'] .notak-page {
+  font-family: iawriter-mono, Nitti, Menlo, Courier, monospace;
 }
 
-.notak-document-boite[data-petit] .notak-document-corps .notak-texte {
+.notak-document-boite[data-police] .notak-page :is(.notak-blocs, .notak-page-titre) {
+  font-family: inherit;
+}
+
+.notak-document-boite[data-petit] .notak-page .notak-texte.notak-blocs > *,
+.notak-document-boite[data-petit] .notak-page .notak-blocs-colonne > * {
   font-size: 14px;
   line-height: 21px;
 }
 
-.notak-document-boite[data-large] .notak-document-corps {
-  max-width: none;
+.notak-document-boite[data-large] .notak-page {
+  grid-template-columns: 96px minmax(0, 1fr) 96px;
 }
 
-/* Le haut de la page : la couverture en bandeau sur toute la largeur, l'icône, et les ajouts au survol. */
-.notak-page-entete {
-  position: relative;
-  margin: -36px -3px 8px -48px;
-  padding: 24px 3px 0 48px;
-}
-
-.notak-page-entete[data-couverture] {
-  padding-top: 0;
-}
-
+/*
+ * Le haut de la page (NOTION.md § 9) : la couverture sur toute la largeur (30 % de la fenêtre), l'icône de 78 px qui
+ * mord dessus, une rangée de boutons fantômes qui n'apparaît qu'au survol, puis le titre de 40 px.
+ */
 .notak-page-couverture {
   position: relative;
-  height: 180px;
-  margin: 0 -3px 0 -48px;
-  background-color: color-mix(in srgb, var(--notak-texte, #323b4a) 8%, transparent);
-  background-size: cover;
+  grid-column: 1 / -1;
+  height: 30vh;
+  min-height: 140px;
+  max-height: 280px;
+  background: var(--notak-page-encadre) center / cover no-repeat;
   cursor: grab;
 }
 
 .notak-page-couverture-actions {
   position: absolute;
-  right: 16px;
+  right: max(96px, calc((100% - 720px) / 2));
   bottom: 12px;
   display: flex;
-  gap: 4px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--notak-page-fond);
+  box-shadow: 0 0 0 1px var(--notak-page-trait), 0 2px 4px rgb(0 0 0 / 0.08);
   opacity: 0;
-  transition: opacity 120ms ease;
+  transition: opacity 100ms;
 }
 
 .notak-page-couverture:hover .notak-page-couverture-actions {
@@ -678,73 +531,117 @@
 }
 
 .notak-page-couverture-actions button {
-  height: 26px;
+  height: 28px;
   padding: 0 10px;
   border: 0;
-  border-radius: 4px;
-  background: rgb(255 255 255 / 0.9);
-  color: #323b4a;
+  background: none;
+  color: var(--notak-page-discret);
   font: inherit;
   font-size: 12px;
   cursor: pointer;
 }
 
+.notak-page-couverture-actions button:hover {
+  background: var(--notak-page-survol);
+  color: var(--notak-page-texte);
+}
+
 .notak-page-tete {
   position: relative;
-  min-height: 12px;
+  padding: 80px 0 4px;
+}
+
+.notak-page-entete[data-couverture] .notak-page-tete {
+  padding-top: 0;
 }
 
 .notak-page-icone {
-  display: block;
-  margin: 0 0 4px;
-  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 78px;
+  height: 78px;
+  margin: 0 0 4px 2px;
+  padding: 0;
   border: 0;
   border-radius: 6px;
   background: none;
-  font-size: 56px;
+  font-size: 78px;
   line-height: 1.1;
   cursor: pointer;
 }
 
 .notak-page-entete[data-couverture] .notak-page-icone {
-  margin-top: -36px;
+  position: relative;
+  margin-top: -42px;
 }
 
 .notak-page-icone:hover:not(:disabled) {
-  background: color-mix(in srgb, currentColor 8%, transparent);
+  background: var(--notak-page-survol);
 }
 
+.notak-page-icone:disabled {
+  cursor: default;
+}
+
+/* Les boutons fantômes : 28 px de haut, 14 px gris ; invisibles jusqu'au survol du haut de la page. */
 .notak-page-ajouts {
   display: flex;
-  gap: 4px;
-  height: 28px;
+  gap: 6px;
+  min-height: 28px;
+  margin-bottom: 4px;
   opacity: 0;
-  transition: opacity 120ms ease;
+  transition: opacity 100ms;
 }
 
-.notak-page-entete:hover .notak-page-ajouts,
+.notak-page-tete:hover .notak-page-ajouts,
 .notak-page-ajouts:focus-within {
   opacity: 1;
 }
 
 .notak-page-lien {
   display: inline-flex;
-  gap: 6px;
   align-items: center;
+  gap: 6px;
   height: 28px;
   padding: 0 8px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 6px;
   background: none;
-  color: var(--notak-pale, rgb(0 0 0 / 0.45));
+  color: var(--notak-page-discret);
   font: inherit;
   font-size: 14px;
+  line-height: 16.8px;
   cursor: pointer;
 }
 
 .notak-page-lien:hover {
-  background: color-mix(in srgb, currentColor 10%, transparent);
-  color: var(--notak-texte, #323b4a);
+  background: var(--notak-page-survol);
+}
+
+/* Le titre de la page : 40 px sur 48, graisse 700, aligné sur le texte des blocs. */
+.notak-page-titre {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 0 8px;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 48px;
+  resize: none;
+  outline: none;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.notak-page-titre::placeholder {
+  color: var(--notak-page-pale);
 }
 
 .notak-page-emojis {
@@ -752,31 +649,36 @@
   z-index: 10;
   top: 100%;
   left: 0;
-  width: 296px;
+  width: 360px;
   padding: 8px;
-  border-radius: 8px;
-  background: var(--notak-carte, #fff);
-  box-shadow: 0 6px 24px rgb(0 0 0 / 0.18), 0 0 0 1px rgb(0 0 0 / 0.06);
+  border-radius: 10px;
+  background: var(--notak-page-fond);
+  box-shadow: 0 0 0 1px var(--notak-page-trait), 0 14px 28px -6px rgb(0 0 0 / 0.2), 0 2px 4px -1px rgb(0 0 0 / 0.12);
+}
+
+.notak-page-entete:not([data-couverture]) .notak-page-emojis {
+  top: 170px;
 }
 
 .notak-page-emojis-grille {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(12, 1fr);
   gap: 2px;
   margin-bottom: 4px;
 }
 
 .notak-page-emojis-grille button {
-  height: 34px;
+  height: 28px;
+  padding: 0;
   border: 0;
-  border-radius: 5px;
+  border-radius: 6px;
   background: none;
-  font-size: 22px;
+  font-size: 20px;
   cursor: pointer;
 }
 
 .notak-page-emojis-grille button:hover {
-  background: color-mix(in srgb, currentColor 8%, transparent);
+  background: var(--notak-page-survol);
 }
 
 /* « ••• » : la police en trois tuiles, puis deux interrupteurs. */

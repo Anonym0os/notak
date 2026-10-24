@@ -27,7 +27,6 @@ import { colorer, insererImage } from '../../blocs/transformer'
 import { TextSelection } from '@tiptap/pm/state'
 import { LegendeLocale, OutilLegende, avecTexteLegende } from '../LegendeLocale'
 import type { ContexteToile, DepotFichiers, PropsOutils, PropsRendu } from '../types'
-import { ColonneOutils } from './ColonneOutils'
 import { EntetePage, OptionsPage, attributsPage, pageDe } from './Page'
 import { extensionsDuPartage, textePartage } from '../partage'
 import { documentEnDocx } from './docx'
@@ -270,14 +269,15 @@ function MenuExport({ titre, lireTexte }: { titre: string; lireTexte(): NoeudTex
 }
 
 interface PropsModale {
-  /** Ouvert pour lire seulement : la colonne d'outils se réduit à 35 px et le texte remonte de 9 px. */
+  /** Ouvert pour lire seulement. */
   lecture?: boolean
+  /** Le titre en petit, dans la barre du haut. */
   titre: ReactNode
-  /** Le titre est celui du document : il se modifie ici. */
   lireTexte(): NoeudTexte
   titreTexte: string
-  outils?: ReactNode
   fermer(): void
+  /** Un appui sous le dernier bloc : on écrit à la fin de la page. */
+  finDePage?(e: React.MouseEvent): void
   children: ReactNode
   /** La zone du texte, qui défile : la poignée des blocs s'y place. */
   corps?: RefObject<HTMLDivElement | null>
@@ -287,11 +287,10 @@ interface PropsModale {
 }
 
 /**
- * La modale du document, comme Milanote : le fond assombri et flou, une boîte blanche sans arrondi collée en haut,
- * un en-tête de 56 px (le titre au centre, « Export » à droite), la colonne d'outils à gauche et le texte à côté.
- * Pas de croix : Échap ou un appui sur le fond referment.
+ * Le document en grand, comme une page de Notion (docs/NOTION.md § 9) : toute la fenêtre, une barre de 44 px en haut
+ * (fermer, le titre en petit, les options et « Export »), puis la page qui défile. Échap referme aussi.
  */
-function Modale({ titre, titreTexte, lireTexte, outils, fermer, children, lecture, corps, page, options }: PropsModale) {
+function Modale({ titre, titreTexte, lireTexte, fermer, children, lecture, corps, page, options, finDePage }: PropsModale) {
   return (
     <Surcouche
       etiquette={t('type.document')}
@@ -311,17 +310,19 @@ function Modale({ titre, titreTexte, lireTexte, outils, fermer, children, lectur
     >
       <div className="notak-document-boite" data-marge-ancre data-lecture={lecture || undefined} {...attributsPage(page ?? {})}>
         <header className="notak-document-entete">
-          <span className="notak-document-entete-vide" />
+          <button type="button" className="notak-document-fermer" aria-label={t('commun.fermer')} title={t('commun.fermer')} onClick={fermer}>
+            <Icone nom="fermer" taille={18} />
+          </button>
           <div className="notak-document-entete-titre">{titre}</div>
           <div className="notak-document-entete-droite">
             {options}
             <MenuExport titre={titreTexte} lireTexte={lireTexte} />
           </div>
         </header>
-        <div className="notak-document-zone">
-          <aside className="notak-document-cote">{outils}</aside>
-          <div className="notak-document-corps" ref={corps}>
+        <div className="notak-document-corps" ref={corps}>
+          <div className="notak-page">
             {children}
+            <div className="notak-page-fin" onMouseDown={finDePage} />
           </div>
         </div>
       </div>
@@ -329,13 +330,65 @@ function Modale({ titre, titreTexte, lireTexte, outils, fermer, children, lectur
   )
 }
 
+/** Le titre en petit dans la barre du haut : l'icône de la page, puis son titre (ou « Sans titre », pâle). */
+function FilDuTitre({ icone, titre }: { icone?: string | undefined; titre: string }) {
+  return (
+    <>
+      {icone && <span aria-hidden>{icone}</span>}
+      <span {...(titre.trim() ? {} : { 'data-vide': '' })}>{titre.trim() || t('commun.sansTitre')}</span>
+    </>
+  )
+}
+
+/** Le titre de la page : 40 px, il passe à la ligne ; Entrée descend dans le texte. */
+function TitrePage({ valeur, changer, entree }: { valeur: string; changer(v: string): void; entree(): void }) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = '0'
+    el.style.height = `${el.scrollHeight}px`
+  }, [valeur])
+  return (
+    <textarea
+      ref={ref}
+      className="notak-page-titre"
+      rows={1}
+      aria-label={t('document.titre')}
+      placeholder={t('document.nouveau')}
+      maxLength={TITRE_MAX}
+      spellCheck={false}
+      value={valeur}
+      onChange={(e) => changer(e.target.value.replace(/\n/g, ' '))}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+          e.preventDefault()
+          entree()
+        }
+      }}
+    />
+  )
+}
+
+/** Un appui sous le dernier bloc : le curseur va à la fin, dans un paragraphe vide de premier rang (ajouté s'il le faut). */
+function ecrireAlaFin(editeur: NonNullable<ReturnType<typeof useEditor>>) {
+  const { doc, schema } = editeur.state
+  const dernier = doc.lastChild
+  if (!(dernier?.type.name === 'paragraph' && dernier.content.size === 0 && !dernier.attrs.retrait)) {
+    editeur.view.dispatch(editeur.state.tr.insert(doc.content.size, schema.nodes.paragraph!.create()))
+  }
+  editeur.commands.focus('end')
+}
+
 /** Le document à lire seulement. `plusRecent` : il porte des blocs qu'une version plus récente de Notak sait écrire. */
 function Lecture({ contenu, fermer, plusRecent, adresse, fichiers }: { contenu: DocumentTexte; fermer(): void; plusRecent?: boolean; adresse?: Adresse | undefined; fichiers?: DepotFichiers | undefined }) {
   const titre = contenu.titre.trim() || t('commun.sansTitre')
   const page = pageDe(contenu.page)
   return (
-    <Modale lecture titre={<span className="notak-document-titre-lu">{titre}</span>} titreTexte={contenu.titre} lireTexte={() => contenu.texte} fermer={fermer} page={page}>
-      <EntetePage page={page} changer={() => {}} fichiers={fichiers} lectureSeule />
+    <Modale lecture titre={<FilDuTitre icone={page.icone} titre={contenu.titre} />} titreTexte={contenu.titre} lireTexte={() => contenu.texte} fermer={fermer} page={page}>
+      <EntetePage page={page} changer={() => {}} fichiers={fichiers} lectureSeule>
+        <h1 className="notak-page-titre notak-document-titre-lu">{titre}</h1>
+      </EntetePage>
       {plusRecent && (
         <p className="notak-document-plus-recent" role="status">
           {t('document.plusRecent')}
@@ -352,7 +405,8 @@ function Lecture({ contenu, fermer, plusRecent, adresse, fichiers }: { contenu: 
  */
 function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: DocumentTexte; ecrire(c: DocumentTexte): void; finir(): void; contexte: ContexteToile }) {
   const [titre, setTitre] = useState(contenu.titre)
-  const [lien, setLien] = useState<string | null>(null)
+  // L'éditeur de lien vit dans la bulle (`blocs/Bulle.tsx`).
+  const [, setLien] = useState<string | null>(null)
   // Le titre, le texte et les fils des passages changent chacun de leur côté : le brouillon porte toujours les derniers.
   // Un document d'avant les blocs à plat (ou une note convertie) s'ouvre aplati (NOTION.md § 1).
   const initial = useMemo(() => aplatir(contenu.texte), [])
@@ -489,32 +543,14 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
 
   return (
     <Modale
-      titre={
-        <input
-          className="notak-document-grand-titre"
-          type="text"
-          aria-label={t('document.titre')}
-          placeholder={t('document.nouveau')}
-          maxLength={TITRE_MAX}
-          spellCheck={false}
-          value={titre}
-          onFocus={(e) => e.target.select()}
-          onChange={(e) => {
-            setTitre(e.target.value)
-            poser({ titre: e.target.value })
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-              e.preventDefault()
-              editeur?.commands.focus('start')
-            }
-          }}
-        />
-      }
+      titre={<FilDuTitre icone={page.icone} titre={titre} />}
       titreTexte={titre}
       lireTexte={() => (editeur ? (editeur.getJSON() as NoeudTexte) : dernier.current.texte)}
-      outils={editeur && <ColonneOutils editor={editeur} lien={lien} surLien={setLien} {...(peutCommenter ? { commenter: () => commenterRef.current() } : {})} />}
       fermer={finir}
+      finDePage={(e) => {
+        e.preventDefault()
+        if (editeur) ecrireAlaFin(editeur)
+      }}
       corps={corps}
       page={page}
       options={
@@ -534,7 +570,16 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
           poser({ page: p })
         }}
         fichiers={fichiers}
-      />
+      >
+        <TitrePage
+          valeur={titre}
+          changer={(v) => {
+            setTitre(v)
+            poser({ titre: v })
+          }}
+          entree={() => editeur?.commands.focus('start')}
+        />
+      </EntetePage>
       {editeur && (
         <Marge
           editeur={editeur}

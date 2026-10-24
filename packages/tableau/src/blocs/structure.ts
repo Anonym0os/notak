@@ -37,6 +37,8 @@ export function attributsDePlace(place: Place, places: readonly Place[]): Record
     style: style.join('; '),
     ...(classes.length ? { class: classes.join(' ') } : {}),
     ...(place.numero ? { 'data-numero': place.numero } : {}),
+    // La forme de la puce et du numéro suit la profondeur, par cycles de trois (NOTION.md § 2).
+    'data-niveau': String(place.profondeur % 3),
   }
 }
 
@@ -121,6 +123,7 @@ export function annoterPage(racine: HTMLElement) {
       el.style.cssText += `; ${a.style}`
       if (a.class) el.classList.add(...a.class.split(' '))
       if (a['data-numero']) el.dataset.numero = a['data-numero']
+      el.dataset.niveau = a['data-niveau'] ?? '0'
       for (const colonne of el.querySelectorAll(':scope > .notak-blocs-colonne')) ranger(colonne)
     })
   }

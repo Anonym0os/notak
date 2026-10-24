@@ -1,125 +1,356 @@
-/* Le moteur de blocs (docs/NOTION.md § 2) : ce que ses blocs ajoutent au texte de la note. Sous `.notak-blocs`. */
+/*
+ * Le rendu du moteur de blocs, mesuré sur l'éditeur de pages de Notion (docs/NOTION.md § 2 et § 9). Sous `.notak-blocs`.
+ *
+ * Chaque bloc est une rangée : 6 px de marge autour, 2 px de padding, un rayon de 6 px (c'est la rangée qui prend le
+ * fond d'une couleur de bloc). La pile est un flex : les marges ne se fondent pas, deux paragraphes sont à 16 px l'un
+ * de l'autre (6 + 2 + 2 + 6). Un cran de retrait vaut 32 px ; `--notak-retrait` vient de `structure.ts`.
+ */
 
-.notak-blocs h3 {
-  margin: 14px 0 8px;
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 26px;
-}
-
-/* Les listes : la puce change avec la profondeur, la numérotation aussi (1, a, i). */
-.notak-blocs ul { padding-left: 1.6em; list-style-type: disc; }
-.notak-blocs ul ul { list-style-type: circle; }
-.notak-blocs ul ul ul { list-style-type: square; }
-.notak-blocs ol { padding-left: 1.6em; list-style-type: decimal; }
-.notak-blocs ol ol { list-style-type: lower-alpha; }
-.notak-blocs ol ol ol { list-style-type: lower-roman; }
-.notak-blocs li > p { margin: 0; }
-.notak-blocs li > :is(ul, ol) { margin: 2px 0 0; }
-
-/* Les tâches : la case devant, le texte d'une tâche faite grisé et barré. */
-.notak-blocs ul[data-type='taskList'] {
-  padding-left: 0;
-  list-style: none;
-}
-
-.notak-blocs ul[data-type='taskList'] ul[data-type='taskList'] {
-  padding-left: 1.6em;
-}
-
-.notak-blocs li[data-checked] {
+.notak-blocs {
+  --notak-pas-retrait: 32px;
+  --notak-police-code: SFMono-Regular, Menlo, Consolas, 'PT Mono', 'Liberation Mono', Courier, monospace;
   display: flex;
-  gap: 8px;
-  align-items: flex-start;
+  flex-direction: column;
+  isolation: isolate;
+  color: var(--notak-page-texte);
+  caret-color: var(--notak-page-texte);
+  font-size: 16px;
+  line-height: 24px;
 }
 
-.notak-blocs li[data-checked] > label {
-  flex: none;
-  margin-top: 4px;
-  user-select: none;
+.notak-blocs ::selection {
+  background: var(--notak-page-selection);
 }
 
-.notak-blocs li[data-checked] > label input {
+/* La rangée commune à tous les blocs de la page et des colonnes. */
+.notak-texte.notak-blocs > *,
+.notak-blocs .notak-blocs-colonne > * {
+  position: relative;
+  box-sizing: border-box;
+  min-width: 0;
+  margin: 6px 6px 6px calc(6px + var(--notak-retrait, 0) * var(--notak-pas-retrait));
+  padding: 2px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 24px;
+  letter-spacing: normal;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.notak-texte.notak-blocs > :first-child { margin-top: 0; }
+
+/* Ce qu'un dépliant fermé cache. */
+.notak-blocs .notak-cache { display: none !important; }
+
+/* Les titres : 30, 24 et 20 px, graisse 600, interligne ×1,3 ; 30, 26 et 22 px d'air au-dessus. */
+.notak-texte.notak-blocs h1,
+.notak-texte.notak-blocs h2,
+.notak-texte.notak-blocs h3,
+.notak-blocs .notak-blocs-colonne > :is(h1, h2, h3) {
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: normal;
+}
+
+.notak-texte.notak-blocs h1, .notak-blocs .notak-blocs-colonne > h1 { margin-top: 30px; font-size: 30px; line-height: 39px; }
+.notak-texte.notak-blocs h2, .notak-blocs .notak-blocs-colonne > h2 { margin-top: 26px; font-size: 24px; line-height: 31.2px; }
+.notak-texte.notak-blocs h3, .notak-blocs .notak-blocs-colonne > h3 { margin-top: 22px; font-size: 20px; line-height: 26px; }
+.notak-texte.notak-blocs > :is(h1, h2, h3):first-child { margin-top: 0; }
+
+/*
+ * Puces, numéros, tâches, dépliants : une même famille. Dans une suite, ils se touchent à 1 px (6 px entre deux lignes) ;
+ * le marqueur tient dans 24 px à gauche du texte, à 6 px de lui.
+ */
+.notak-blocs :is(.notak-b-puce, .notak-b-numero, .notak-b-tache, .notak-b-depliant) {
+  padding-left: 32px;
+}
+
+.notak-blocs :is(.notak-b-puce, .notak-b-numero, .notak-b-tache, .notak-b-depliant) + :is(.notak-b-puce, .notak-b-numero, .notak-b-tache, .notak-b-depliant) {
+  margin-top: 1px;
+}
+
+.notak-blocs :is(.notak-b-puce, .notak-b-numero, .notak-b-tache, .notak-b-depliant):has(+ :is(.notak-b-puce, .notak-b-numero, .notak-b-tache, .notak-b-depliant)) {
+  margin-bottom: 1px;
+}
+
+.notak-blocs :is(.notak-b-puce, .notak-b-numero, .notak-b-tache, .notak-b-depliant)::before {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+/* La puce change de forme avec la profondeur (`data-niveau`, posé par `structure.ts`). */
+.notak-blocs .notak-b-puce::before {
+  content: '•';
+  font-family: Arial, sans-serif;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.notak-blocs .notak-b-puce[data-niveau='1']::before { content: '◦'; }
+.notak-blocs .notak-b-puce[data-niveau='2']::before { content: '▪'; font-size: 16px; }
+
+/* Le numéro : 16 px, centré dans ses 24 px ; il s'élargit s'il le faut. Les chiffres romains s'alignent à gauche. */
+.notak-blocs .notak-b-numero::before {
+  content: attr(data-numero);
+  justify-content: center;
+  width: auto;
+  min-width: 24px;
+  white-space: nowrap;
+}
+
+.notak-blocs .notak-b-numero[data-niveau='2']::before { justify-content: flex-start; }
+
+/* La case : 16 px, bord de 1,5 px ; cochée, un fond bleu et une coche blanche, le texte pâli et barré. */
+.notak-blocs .notak-b-tache::before {
+  content: '';
+  top: 6px;
+  left: 6px;
   width: 16px;
   height: 16px;
-  margin: 0;
-  accent-color: var(--notak-accent, #2f6feb);
+  box-sizing: border-box;
+  border: 1.5px solid var(--notak-page-case);
+  border-radius: 1.5px;
   cursor: pointer;
+  transition: background 0.2s ease-out;
 }
 
-.notak-blocs li[data-checked] > div {
-  flex: 1;
-  min-width: 0;
+.notak-blocs .notak-b-tache[data-coche]::before {
+  border: 0;
+  background: var(--notak-page-coche) center / 14px no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M3 7.2l2.6 2.6L11 4.4' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
-.notak-blocs li[data-checked='true'] > div > p {
-  color: var(--notak-pale, rgb(0 0 0 / 0.35));
+.notak-blocs .notak-b-tache[data-coche] {
   text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
 }
 
-/* Le dépliant : le triangle dans la marge gauche du résumé ; fermé, ses blocs se cachent. */
-.notak-blocs .notak-deroulant {
-  margin: 0 0 12px;
-  padding-left: 26px;
+.notak-blocs .notak-b-tache[data-coche] > * { opacity: 0.7; }
+.notak-blocs .notak-b-tache[data-coche]:not(:has(> *)) { color: color-mix(in srgb, var(--notak-page-texte) 70%, transparent); }
+
+/* Le triangle du dépliant (et du titre dépliant) : pointe en bas ouvert, à droite fermé, tourné en 200 ms. */
+.notak-blocs :is(.notak-b-depliant, [data-depliant])::before {
+  content: '';
+  border-radius: 4px;
+  background-color: currentColor;
+  cursor: pointer;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.2 5.6h9.6c.5 0 .8.6.5 1l-4.8 5.4c-.3.3-.7.3-1 0L2.7 6.6c-.3-.4 0-1 .5-1z'/%3E%3C/svg%3E") center / 12.8px no-repeat;
+  transition: transform 200ms ease-out;
 }
 
-.notak-blocs .notak-deroulant-resume {
-  position: relative;
-  min-height: 24px;
+.notak-blocs :is(.notak-b-depliant, [data-depliant])[data-ouvert='non']::before {
+  transform: rotate(-90deg);
 }
 
-.notak-blocs .notak-deroulant-resume::before {
+.notak-blocs :is(h1, h2, h3)[data-depliant] {
+  padding-left: 32px;
+}
+
+.notak-blocs :is(h1, h2, h3)[data-depliant]::before {
+  position: absolute;
+  left: 2px;
+  width: 24px;
+  height: 24px;
+}
+
+.notak-blocs h1[data-depliant]::before { top: 9.5px; }
+.notak-blocs h2[data-depliant]::before { top: 5.6px; }
+.notak-blocs h3[data-depliant]::before { top: 3px; }
+
+/* La citation : un filet de 3 px de la couleur du texte, le texte 27 px plus loin. */
+.notak-blocs .notak-b-citation {
+  padding-left: 27px;
+}
+
+.notak-blocs .notak-b-citation::before {
   content: '';
   position: absolute;
-  top: 7px;
-  left: -21px;
-  width: 0;
-  height: 0;
-  border-top: 5px solid transparent;
-  border-bottom: 5px solid transparent;
-  border-left: 8px solid currentColor;
-  opacity: 0.55;
-  transform: rotate(90deg);
-  transition: transform 120ms ease;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: 3px;
+  background: currentColor;
+}
+
+/* Sous une citation, le filet continue le long de ses enfants. */
+.notak-blocs .notak-dans-citation::after {
+  content: '';
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  left: calc(2px - (var(--notak-retrait) - var(--notak-retrait-citation)) * var(--notak-pas-retrait));
+  width: 3px;
+  background: var(--notak-page-texte);
+}
+
+/* L'encadré : une boîte arrondie de 10 px sur un fond pâle, l'icône à gauche, le texte 45 px plus loin. */
+.notak-texte.notak-blocs > .notak-b-encadre,
+.notak-blocs .notak-blocs-colonne > .notak-b-encadre {
+  margin-block: 8px;
+  margin-right: 8px;
+  margin-left: calc(8px + var(--notak-retrait, 0) * var(--notak-pas-retrait));
+  padding: 20px 20px 20px 44px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--notak-page-encadre);
+}
+
+.notak-blocs .notak-b-encadre::before {
+  content: attr(data-icone);
+  position: absolute;
+  top: 20px;
+  left: 12px;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  font-size: 21.6px;
+  line-height: 24px;
+  text-align: center;
   cursor: pointer;
 }
 
-.notak-blocs .notak-deroulant[data-ouvert='non'] > .notak-deroulant-resume::before {
-  transform: none;
-}
-
-.notak-blocs .notak-deroulant[data-ouvert='non'] > :not(.notak-deroulant-resume) {
-  display: none;
-}
-
-.notak-blocs .notak-deroulant > :not(.notak-deroulant-resume):last-child {
+/* Un encadré qui a des enfants les garde dans sa boîte. */
+.notak-blocs .notak-b-encadre.notak-a-enfants {
   margin-bottom: 0;
+  padding-bottom: 8px;
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
 }
 
-/* Un titre dépliant : le résumé a la taille du titre. */
-.notak-blocs .notak-deroulant[data-niveau='1'] > .notak-deroulant-resume { margin-top: 17px; font-size: 24px; font-weight: 700; line-height: 29px; }
-.notak-blocs .notak-deroulant[data-niveau='2'] > .notak-deroulant-resume { margin-top: 17px; font-size: 21px; font-weight: 700; line-height: 29px; }
-.notak-blocs .notak-deroulant[data-niveau='3'] > .notak-deroulant-resume { margin-top: 14px; font-size: 18px; font-weight: 600; line-height: 26px; }
-.notak-blocs .notak-deroulant[data-niveau] > .notak-deroulant-resume::before { top: calc(50% - 5px); }
+.notak-blocs .notak-dans-encadre {
+  margin-block: 0;
+  padding-block: 8px;
+}
 
-/* Les colonnes côte à côte ; sous 640 px de large, elles s'empilent. */
-.notak-blocs .notak-blocs-rangee {
+.notak-blocs .notak-dans-encadre::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  right: -6px;
+  bottom: 0;
+  left: calc(2px - (var(--notak-retrait) - var(--notak-retrait-encadre)) * var(--notak-pas-retrait));
+  background: var(--notak-page-encadre);
+}
+
+.notak-blocs .notak-dans-encadre.notak-fin-encadre {
+  margin-bottom: 8px;
+  padding-bottom: 20px;
+}
+
+.notak-blocs .notak-dans-encadre.notak-fin-encadre::after {
+  border-bottom-right-radius: 10px;
+  border-bottom-left-radius: 10px;
+}
+
+/* Le code : une boîte arrondie de 10 px, 13,6 px sur 20,4 en police à chasse fixe, sans numéros de ligne. */
+.notak-texte.notak-blocs > pre,
+.notak-blocs .notak-blocs-colonne > pre {
+  margin: 8px 8px 8px calc(8px + var(--notak-retrait, 0) * var(--notak-pas-retrait));
+  padding: 36px 22px;
+  overflow-x: auto;
+  border-radius: 10px;
+  background: var(--notak-page-code);
+  color: inherit;
+  font-family: var(--notak-police-code);
+  font-size: 13.6px;
+  line-height: 20.4px;
+  tab-size: 2;
+  white-space: pre;
+}
+
+.notak-blocs pre code {
+  padding: 0;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* Le séparateur : un trait de 1 px, 6 px d'air de chaque côté. */
+.notak-texte.notak-blocs > hr,
+.notak-blocs .notak-blocs-colonne > hr {
+  height: 1px;
+  margin: 6px 8px 6px calc(8px + var(--notak-retrait, 0) * var(--notak-pas-retrait));
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--notak-page-trait);
+}
+
+.notak-blocs hr.ProseMirror-selectednode {
+  outline: 3px solid var(--notak-page-halo);
+  outline-offset: 4px;
+}
+
+/* Le texte en ligne : gras 600, code rouge sur fond pâle, lien souligné d'un trait fin. */
+.notak-blocs strong,
+.notak-blocs b {
+  font-weight: 600;
+}
+
+.notak-blocs :not(pre) > code {
+  position: relative;
+  bottom: 0.065em;
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  background: var(--notak-page-code-ligne);
+  color: rgb(207 81 72);
+  font-family: var(--notak-police-code);
+  font-size: 85%;
+  line-height: normal;
+}
+
+.notak-blocs a:not(.notak-apercu-lien) {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--notak-page-lien);
+  text-decoration-thickness: 0.05em;
+  text-underline-offset: 10%;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+/* Les colonnes côte à côte, à 46 px l'une de l'autre ; sous 480 px de large, elles s'empilent. */
+.notak-texte.notak-blocs > .notak-blocs-rangee {
   display: flex;
-  gap: 32px;
-  margin: 0 0 12px;
+  gap: 46px;
+  margin: 0;
+  padding: 0;
+  white-space: normal;
 }
 
 .notak-blocs .notak-blocs-colonne {
+  display: flex;
   flex: 1 1 0;
+  flex-direction: column;
   min-width: 0;
 }
 
-.notak-blocs .notak-blocs-colonne > :last-child {
-  margin-bottom: 0;
+.notak-blocs .notak-blocs-colonne > * {
+  margin-left: calc(var(--notak-retrait, 0) * var(--notak-pas-retrait));
+  margin-right: 0;
 }
 
 @container (max-width: 480px) {
   .notak-blocs .notak-blocs-rangee { flex-direction: column; gap: 0; }
+}
+
+/* Une table : ses cellules gardent le texte de la page. */
+.notak-texte.notak-blocs > .tableWrapper,
+.notak-texte.notak-blocs > table {
+  padding: 0;
+  overflow-x: auto;
 }
 
 /* L'image : sa part de la largeur, alignée ; la légende dessous, plus petite. */
@@ -128,8 +359,8 @@
   max-width: 100%;
 }
 
-.notak-blocs .notak-image-bloc[data-alignement='centre'] { margin-inline: auto; }
-.notak-blocs .notak-image-bloc[data-alignement='droite'] { margin-left: auto; }
+.notak-texte.notak-blocs > .notak-image-bloc[data-alignement='centre'] { margin-inline: auto; }
+.notak-texte.notak-blocs > .notak-image-bloc[data-alignement='droite'] { margin-left: auto; }
 
 .notak-blocs .notak-image-bloc img {
   display: block;
@@ -166,51 +397,67 @@
 .notak-blocs .notak-apercu-lien-adresse { font-size: 12px; line-height: 16px; opacity: 0.6; }
 
 /*
- * Les couleurs des blocs et des passages (NOTION.md § 1) : neuf teintes, en texte et en fond, dans les deux thèmes.
- * La surcouche du document les recopie (`elements/surcouche.tsx`).
+ * Les couleurs de la page et des blocs (NOTION.md § 1 et § 9), mesurées dans Notion : le texte des neuf teintes est le
+ * même dans les deux thèmes, leurs fonds changent. La surcouche du document les recopie (`elements/surcouche.tsx`).
  */
 .notak-espace,
 .notak-toile {
-  --notak-bloc-gris: #7d7f84;
-  --notak-bloc-gris-fond: #eceef0;
-  --notak-bloc-brun: #8d6748;
-  --notak-bloc-brun-fond: #f1e7df;
-  --notak-bloc-orange: #c76a1c;
-  --notak-bloc-orange-fond: #fbe9d6;
-  --notak-bloc-jaune: #a88200;
-  --notak-bloc-jaune-fond: #fbf1c9;
-  --notak-bloc-vert: #3d8a5a;
-  --notak-bloc-vert-fond: #e0f0e4;
-  --notak-bloc-bleu: #2f6fbf;
-  --notak-bloc-bleu-fond: #dcebf8;
-  --notak-bloc-violet: #8250c4;
-  --notak-bloc-violet-fond: #ece2f7;
-  --notak-bloc-rose: #c4407e;
-  --notak-bloc-rose-fond: #f8e0eb;
-  --notak-bloc-rouge: #d0443e;
-  --notak-bloc-rouge-fond: #fbe2e0;
+  --notak-page-fond: #fff;
+  --notak-page-texte: rgb(44 44 43);
+  --notak-page-pale: rgba(21 14 0 / 0.286);
+  --notak-page-discret: rgb(161 158 153);
+  --notak-page-trait: rgba(28 19 1 / 0.11);
+  --notak-page-encadre: rgb(249 248 247);
+  --notak-page-code: rgba(66 35 3 / 0.03);
+  --notak-page-code-ligne: rgba(33 27 23 / 0.05);
+  --notak-page-case: rgb(56 56 54);
+  --notak-page-coche: rgb(39 131 222);
+  --notak-page-lien: rgba(55 53 47 / 0.4);
+  --notak-page-selection: rgba(35 131 226 / 0.28);
+  --notak-page-halo: rgba(35 131 226 / 0.14);
+  --notak-page-survol: rgba(33 27 23 / 0.051);
+  --notak-bloc-gris: rgb(125 122 117);
+  --notak-bloc-gris-fond: rgb(240 239 237);
+  --notak-bloc-brun: rgb(159 118 90);
+  --notak-bloc-brun-fond: rgb(245 237 233);
+  --notak-bloc-orange: rgb(210 123 45);
+  --notak-bloc-orange-fond: rgb(251 235 222);
+  --notak-bloc-jaune: rgb(203 148 52);
+  --notak-bloc-jaune-fond: rgb(249 243 220);
+  --notak-bloc-vert: rgb(80 148 110);
+  --notak-bloc-vert-fond: rgb(232 241 236);
+  --notak-bloc-bleu: rgb(56 125 201);
+  --notak-bloc-bleu-fond: rgb(229 242 252);
+  --notak-bloc-violet: rgb(154 107 180);
+  --notak-bloc-violet-fond: rgb(243 235 249);
+  --notak-bloc-rose: rgb(193 76 138);
+  --notak-bloc-rose-fond: rgb(250 233 241);
+  --notak-bloc-rouge: rgb(207 81 72);
+  --notak-bloc-rouge-fond: rgb(252 233 231);
 }
 
 .notak-espace[data-theme='sombre'],
 .notak-espace[data-theme='sombre'] .notak-toile {
-  --notak-bloc-gris: #9ea2a8;
-  --notak-bloc-gris-fond: #2f3237;
-  --notak-bloc-brun: #b98f6e;
-  --notak-bloc-brun-fond: #3a2e26;
-  --notak-bloc-orange: #e08b45;
-  --notak-bloc-orange-fond: #43301f;
-  --notak-bloc-jaune: #d6b34a;
-  --notak-bloc-jaune-fond: #403921;
-  --notak-bloc-vert: #6cb98a;
-  --notak-bloc-vert-fond: #233a2c;
-  --notak-bloc-bleu: #6ea2e6;
-  --notak-bloc-bleu-fond: #1f3147;
-  --notak-bloc-violet: #ad86e3;
-  --notak-bloc-violet-fond: #322845;
-  --notak-bloc-rose: #e07aa8;
-  --notak-bloc-rose-fond: #40263a;
-  --notak-bloc-rouge: #ee7b74;
-  --notak-bloc-rouge-fond: #45272a;
+  --notak-page-fond: rgb(25 25 25);
+  --notak-page-texte: rgb(240 239 237);
+  --notak-page-pale: rgba(255 255 255 / 0.282);
+  --notak-page-discret: rgb(125 122 117);
+  --notak-page-trait: rgba(255 255 235 / 0.1);
+  --notak-page-encadre: rgb(56 56 54);
+  --notak-page-code: rgba(255 255 255 / 0.03);
+  --notak-page-code-ligne: rgba(255 255 255 / 0.055);
+  --notak-page-case: rgb(230 229 227);
+  --notak-page-lien: rgba(255 255 255 / 0.282);
+  --notak-page-survol: rgba(255 255 255 / 0.055);
+  --notak-bloc-gris-fond: rgb(56 56 54);
+  --notak-bloc-brun-fond: rgb(69 54 45);
+  --notak-bloc-orange-fond: rgb(83 54 31);
+  --notak-bloc-jaune-fond: rgb(80 68 37);
+  --notak-bloc-vert-fond: rgb(38 61 48);
+  --notak-bloc-bleu-fond: rgb(35 56 80);
+  --notak-bloc-violet-fond: rgb(60 45 71);
+  --notak-bloc-rose-fond: rgb(78 43 60);
+  --notak-bloc-rouge-fond: rgb(80 44 41);
 }
 
 .notak-blocs [data-couleur='gris'], [data-couleur='gris'].notak-menu-blocs-signe, .notak-bulle-a[data-couleur='gris'] { color: var(--notak-bloc-gris); }
@@ -241,24 +488,8 @@
 .notak-blocs mark[data-color='fond-rose'] { background: var(--notak-bloc-rose-fond); color: inherit; }
 .notak-blocs mark[data-color='fond-rouge'] { background: var(--notak-bloc-rouge-fond); color: inherit; }
 
-/* Un bloc sur un fond coloré : un peu d'air autour du texte. */
-.notak-blocs [data-couleur$='-fond'] {
-  border-radius: 4px;
-  padding-inline: 4px;
-}
-
 /* Une image dont l'adresse n'est pas encore arrivée ne montre pas son cadre vide. */
 .notak-blocs .notak-image-bloc img:not([src]),
 .notak-blocs .notak-image-bloc img[src=''] {
   display: none;
 }
-
-/* L'invite du bloc vide où est le curseur. */
-.notak-blocs .notak-invite::before {
-  content: attr(data-invite);
-  float: left;
-  height: 0;
-  color: var(--notak-pale, rgb(0 0 0 / 0.35));
-  pointer-events: none;
-}
-

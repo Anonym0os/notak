@@ -64,6 +64,8 @@ interface PropsEntete {
   changer(p: PageDocument): void
   fichiers?: DepotFichiers | undefined
   lectureSeule?: boolean
+  /** Le titre de la page, sous l'icône et les boutons fantômes. */
+  children?: React.ReactNode
 }
 
 /** Choisit une image sur l'appareil et la range avec les fichiers du tableau. */
@@ -79,7 +81,7 @@ function choisirImage(fichiers: DepotFichiers, fait: (id: Id) => void) {
 }
 
 /** Le haut de la page : couverture, icône, et au survol « Ajouter une icône » et « Ajouter une couverture ». */
-export function EntetePage({ page, changer, fichiers, lectureSeule }: PropsEntete) {
+export function EntetePage({ page, changer, fichiers, lectureSeule, children }: PropsEntete) {
   const [emojis, setEmojis, ancre] = useMenu()
   const [adresse, setAdresse] = useState<string | null>(null)
   const [cadrage, setCadrage] = useState<number | null>(null)
@@ -159,6 +161,7 @@ export function EntetePage({ page, changer, fichiers, lectureSeule }: PropsEntet
             )}
           </div>
         )}
+        {children}
         {emojis && (
           <ChoixIcone
             choisir={(e) => {
