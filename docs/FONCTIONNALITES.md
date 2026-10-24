@@ -31,8 +31,8 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
 | 18. Carte mentale | 18 | 2 | 21 | 46 % |
-| 19. Document à blocs | 18 | 3 | 4 | 78 % |
-| **Total** | **318** | **15** | **27** | **90 %** |
+| 19. Document à blocs | 21 | 3 | 1 | 90 % |
+| **Total** | **321** | **15** | **24** | **91 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -497,9 +497,9 @@ dans `packages/tableau/src/blocs/`, pour resservir à d'autres éléments.
 | Glisser un bloc ou une sélection, ⌥ copie | ✅ | Un élément de liste sorti de sa liste en retrouve une ; un texte posé dans une liste en devient un élément. |
 | Colonnes : dépôt sur le côté, 2 à 5, largeurs aimantées, dissolution | ✅ | Aussi par « / » (2 à 5 colonnes) ; elles s’empilent sous 480 px. |
 | Copier le lien d'un bloc, l'adresse amène au bloc | ✅ | `/t/…/e/…#<bloc>` : le bloc vient à l’écran et clignote. |
-| Icône et couverture de la page | ⬜ |  |
-| Police, petit texte, pleine largeur | ⬜ |  |
-| Document écrit à plusieurs en direct, curseurs des autres | ⬜ |  |
+| Icône et couverture de la page | ✅ | Icône parmi 48 émojis, visible sur la carte ; couverture importée de l’appareil, recadrée en la tirant. |
+| Police, petit texte, pleine largeur | ✅ |  |
+| Document écrit à plusieurs en direct, curseurs des autres | ✅ | Le fragment Yjs du document, comme la note ; la copie JSON reste pour l’aperçu, l’export et la recherche. |
 | Document dans la recherche du serveur et l'export texte du tableau | ✅ | Dépliants exportés ouverts, colonnes à la suite. |
 | Bases de données, sous-pages, blocs synchronisés, bouton, équation, onglets | ➖ | Écartés pour l'instant (docs/NOTION.md § 2). |
 | Verrouillage, table des matières flottante, historique de page | ➖ | Écartés (docs/NOTION.md § 9). |

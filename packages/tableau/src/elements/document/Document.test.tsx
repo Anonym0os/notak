@@ -33,6 +33,8 @@ const doc = (texte: string, plus: Partial<DocumentTexte> = {}): Element<Document
 function monter(element: Element<DocumentTexte>, options: { lectureSeule?: boolean; enEdition?: boolean }) {
   const contexte = {
     services: { lectureSeule: !!options.lectureSeule },
+    // Sans texte partagé : le document s'écrit seul.
+    magasin: {},
     finirEdition: () => {},
     choisir: () => {},
     selection: new Set(['D']),

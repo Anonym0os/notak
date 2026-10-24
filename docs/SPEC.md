@@ -120,9 +120,11 @@ Un document arborescent de blocs et de marques, du type ProseMirror.
 - **Alignement** : gauche ou centré, par bloc.
 - Chaque type n'accepte qu'un sous-ensemble : la note a tout ; une légende ou une cellule n'a ni titre, ni liste,
   ni bloc de code.
+- → Notak : le document a davantage, d'après Notion (titre 3, dépliants, colonnes, image, aperçu de lien, couleurs
+  de bloc) ; voir `docs/NOTION.md`.
 
-→ Notak : le texte d'un élément est un `Y.XmlFragment` (Yjs, via y-prosemirror), donc deux personnes écrivent dans la même note sans
-conflit. Milanote envoie des diffs et rejette en cas de version concurrente ; c'est son point faible.
+→ Notak : le texte d'un élément est un `Y.XmlFragment` (Yjs, via y-prosemirror), donc deux personnes écrivent dans la même note, la
+même liste ou le même document sans conflit. Milanote envoie des diffs et rejette en cas de version concurrente ; c'est son point faible.
 
 ## 6. Lignes
 

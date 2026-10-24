@@ -503,6 +503,21 @@ export interface DocumentTexte {
   avecLegende?: boolean
   /** Les fils de discussion posés sur des passages du texte, par leur clé (comme `Note.fils`). */
   fils?: Record<Id, Commentaire>
+  /** L'habillage de la page ouverte en grand (docs/NOTION.md § 9). */
+  page?: PageDocument
+}
+
+/** L'habillage d'un document ouvert en grand : icône, couverture, police, petit texte, pleine largeur. */
+export interface PageDocument {
+  /** Un émoji, au-dessus du texte et sur la carte. */
+  icone?: string
+  /** Un fichier du tableau, en bandeau en haut de la page. */
+  couverture?: Id
+  /** Le cadrage vertical de la couverture, de 0 (le haut) à 100 (le bas) ; absent : le milieu. */
+  cadrage?: number
+  police?: 'serif' | 'mono'
+  petitTexte?: boolean
+  pleineLargeur?: boolean
 }
 
 /**
