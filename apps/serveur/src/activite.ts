@@ -1,6 +1,7 @@
 import * as Y from 'yjs'
 import type { Base, GenreActivite, LigneActivite, NouvelleNotification } from './base.ts'
 import { type ElementLu, texteCherchable } from './contenu.ts'
+import { NOM_ARBRES, decouper } from '../../../packages/tableau/src/coeur/arbresYjs.ts'
 import { type Role, roleHerite } from './droits.ts'
 
 // Ce que le serveur déduit des mises à jour Yjs qu'il reçoit : qui a créé, modifié, déplacé ou jeté quoi.
@@ -144,6 +145,18 @@ export function observer(doc: Y.Doc): { ramasser(): Changement[] } {
       if (typeof id === 'string' && s && s.corbeille === undefined && contenuDe(s)) {
         attente.push({ genre: 'modifie', element: id, typeElement: contenuDe(s)!.type, libelle: libelleDe(id, s) })
       }
+    }
+  })
+  // Les sujets d'une carte mentale vivent aussi à part, dans `arbres` : une carte touchée compte une fois par passage.
+  doc.getMap<unknown>(NOM_ARBRES).observe((evenement) => {
+    const cartes = new Set<string>()
+    for (const cle of evenement.keysChanged) {
+      const d = decouper(cle)
+      if (d) cartes.add(d[0])
+    }
+    for (const id of cartes) {
+      const s = elements.get(id)
+      if (s && s.corbeille === undefined && contenuDe(s)) attente.push({ genre: 'modifie', element: id, typeElement: contenuDe(s)!.type, libelle: libelleDe(id, s) })
     }
   })
   meta.observe((evenement) => {

@@ -4,13 +4,11 @@ import type { Magasin } from './magasin'
 import { cleEntre, comparerOrdre } from './ordre'
 import { lireElement } from './valider'
 import { fusionnerParCles } from './fusion'
-import { type Auteur, type CouleurNote, type Element, type Etiquette, type Id, type Operation, type Tableau, type Trace, appliquer, inverse } from './tableau'
+import { NOM_ARBRES, dicosEnLigne, ecrireDifference, indexerArbres, sansDicos } from './arbresYjs'
+import { type Arbre, type Auteur, type CouleurNote, type Element, type Etiquette, type Id, type Operation, type Tableau, type Trace, appliquer, inverse } from './tableau'
 
 /** Un élément tel qu'il vit dans le document : l'`Element` entier, plus sa place dans l'empilement. */
 export type ElementStocke = Element & { plan: string }
-
-/** Les dictionnaires d'une carte mentale qui se fusionnent entrée par entrée (`fusion.ts`). */
-const CLES_FUSIONNEES = ['sujets', 'relations', 'limites', 'resumes'] as const
 
 /** Les gestes d'une personne : seuls ceux-là entrent dans son historique. */
 export const ORIGINE_GESTE = 'notak:geste'
@@ -84,7 +82,10 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
   // Un glisser écrit sans cesse, puis revient au départ et inscrit son geste : tout cela doit tenir dans un seul
   // pas, sinon annuler la création d'un élément déplacé ne l'atteindrait plus. Le temps ne découpe donc rien
   // (captureTimeout infini) ; les pas sont découpés à la main par `stopCapturing`, avant et après chaque geste.
-  const historique = new Y.UndoManager(elements, {
+  // Les sujets des cartes mentales, une entrée par sujet (`arbresYjs.ts`) : l'historique les suit comme les éléments.
+  const arbres = doc.getMap<unknown>(NOM_ARBRES)
+  const index = indexerArbres(arbres)
+  const historique = new Y.UndoManager([elements, arbres], {
     trackedOrigins: new Set([ORIGINE_GESTE, ORIGINE_LIBRE]),
     captureTimeout: Number.MAX_SAFE_INTEGER,
   })
@@ -92,7 +93,17 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
   const ecouteurs = new Set<() => void>()
   let cache: Tableau | null = null
   // Un élément inchangé garde le même objet d'une lecture à l'autre : les cartes ne se redessinent pas.
-  const reperes = new Map<Id, { brut: ElementStocke; element: Element }>()
+  const reperes = new Map<Id, { brut: ElementStocke; dicos: unknown; element: Element }>()
+  /**
+   * Une carte mentale telle que la toile la lit : l'élément stocké, plus ses sujets lus dans `arbres`. Une carte
+   * écrite avant `arbres` porte encore ses sujets en elle-même : elle se lit telle quelle.
+   */
+  const assembler = (e: Element, cle: Id): Element => {
+    if (e.contenu.type !== 'arbre') return e
+    const dicos = index.dicos(cle)
+    if (!dicos) return e
+    return { ...e, contenu: { ...e.contenu, ...dicos, sujets: dicos.sujets ?? {} } as Arbre }
+  }
   /** Un élément tel que la toile peut le lire, ou `undefined` : ce que d'autres ont écrit passe par `lireElement`. */
   const lisible = (cle: Id): ElementStocke | undefined => {
     const brut = elements.get(cle)
@@ -124,11 +135,11 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
     const vus = new Set<Id>()
     elements.forEach((brut, cle) => {
       let r = reperes.get(cle)
-      if (!r || r.brut !== brut) {
+      if (!r || r.brut !== brut || r.dicos !== index.dicos(cle)) {
         // Un élément illisible (abîmé, d'un type inconnu de cette version) reste dans le document, hors de la toile.
         const propre = lireElement<ElementStocke>(brut, cle)
         if (!propre) return
-        r = { brut, element: sansPlan(propre) }
+        r = { brut, dicos: index.dicos(cle), element: assembler(sansPlan(propre), cle) }
         reperes.set(cle, r)
       }
       vus.add(cle)
@@ -155,6 +166,7 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
     for (const f of ecouteurs) f()
   }
   elements.observeDeep(changer)
+  arbres.observe(changer)
   meta.observe(changer)
   // Les boutons Annuler et Rétablir suivent les piles : prévenus aussi quand seule une pile change.
   const prevenir = () => {
@@ -189,9 +201,15 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
     }
     for (const op of pas) {
       if (op.type === 'creer') {
-        if (!elements.has(op.element.id)) elements.set(op.element.id, { ...op.element, plan: auDessus() })
+        if (elements.has(op.element.id)) continue
+        const c = op.element.contenu
+        if (c.type === 'arbre') {
+          elements.set(op.element.id, { ...op.element, contenu: sansDicos(c), plan: auDessus() })
+          ecrireDifference(arbres, op.element.id, {}, c)
+        } else elements.set(op.element.id, { ...op.element, plan: auDessus() })
       } else if (op.type === 'supprimer') {
         elements.delete(op.element.id)
+        if (op.element.contenu.type === 'arbre') ecrireDifference(arbres, op.element.id, op.element.contenu, {})
       } else if (op.type === 'etiquettes') {
         // Les étiquettes vivent dans `meta`, hors de l'historique de Yjs : annuler un geste ne les rend pas.
         if (op.vers.length > 0) meta.set('etiquettes', op.vers)
@@ -203,11 +221,17 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
       } else {
         const actuel = lisible(op.id)
         if (!actuel) continue
-        // Une carte mentale ne reçoit que les sujets que le geste a touchés : ceux qu'un autre change au même moment restent.
-        const fusionne =
-          op.type === 'contenu' && op.avant.type === 'arbre' && op.apres.type === 'arbre' && actuel.contenu.type === 'arbre'
-            ? { ...op, apres: fusionnerParCles(actuel.contenu, op.avant, op.apres, CLES_FUSIONNEES) }
-            : op
+        if (op.type === 'contenu' && op.avant.type === 'arbre' && op.apres.type === 'arbre' && actuel.contenu.type === 'arbre') {
+          // Une carte écrite avant `arbres` y range d'abord ses sujets.
+          if (dicosEnLigne(actuel.contenu)) ecrireDifference(arbres, op.id, {}, actuel.contenu)
+          // Les sujets : seulement ceux que le geste a touchés, chacun sous sa clé.
+          ecrireDifference(arbres, op.id, op.avant, op.apres)
+          // Le reste du contenu (options, thème) : seulement les champs que le geste a changés.
+          const reste = sansDicos(fusionnerParCles(sansDicos(actuel.contenu), sansDicos(op.avant), sansDicos(op.apres), []))
+          if (JSON.stringify(reste) !== JSON.stringify(actuel.contenu)) elements.set(op.id, { ...actuel, contenu: reste })
+          continue
+        }
+        const fusionne = op
         const apres = appliquer({ titre: '', elements: [sansPlan(actuel)] }, fusionne).elements[0]!
         // Un déplacement qui n'en est pas un ne réveille personne.
         if (op.type !== 'contenu' && JSON.stringify(apres) === JSON.stringify(sansPlan(actuel))) continue
@@ -316,7 +340,12 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
         }
         const voulus = new Set(t.elements.map((e) => e.id))
         // Ce que la toile ne sait pas lire n'est pas dans `t` : ce n'est pas une raison de l'effacer.
-        for (const cle of [...elements.keys()]) if (!voulus.has(cle) && lisible(cle)) elements.delete(cle)
+        for (const cle of [...elements.keys()]) {
+          if (voulus.has(cle) || !lisible(cle)) continue
+          elements.delete(cle)
+          // Une carte retirée emporte ses sujets.
+          for (const k of index.cles(cle)) arbres.delete(k)
+        }
 
         const actuel = [...elements.keys()]
           .flatMap((cle) => {
@@ -329,6 +358,14 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
           const brut = lisible(e.id)
           const plan = plans.get(e.id) ?? brut?.plan
           if (plan === undefined) continue
+          if (e.contenu.type === 'arbre') {
+            // Une carte : ses sujets vont dans `arbres`, l'élément garde le reste.
+            const avant = brut ? assembler(sansPlan(brut), e.id) : undefined
+            ecrireDifference(arbres, e.id, avant?.contenu.type === 'arbre' ? avant.contenu : {}, e.contenu)
+            const stocke = { ...e, contenu: sansDicos(e.contenu) }
+            if (!brut || plan !== brut.plan || JSON.stringify(sansPlan(brut)) !== JSON.stringify(stocke)) elements.set(e.id, { ...stocke, plan })
+            continue
+          }
           const change = !brut || reperes.get(e.id)?.element !== e && JSON.stringify(sansPlan(brut)) !== JSON.stringify(e)
           if (change || plan !== brut?.plan) elements.set(e.id, { ...e, plan })
         }
@@ -340,6 +377,8 @@ export function creerMagasinYjs(doc: Y.Doc, id?: Id, options: { auteur?(): Auteu
     peutRetablir: () => historique.redoStack.length > 0,
     detruire() {
       elements.unobserveDeep(changer)
+      arbres.unobserve(changer)
+      index.detruire()
       meta.unobserve(changer)
       historique.destroy()
       ecouteurs.clear()

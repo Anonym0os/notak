@@ -1,4 +1,5 @@
 import * as Y from 'yjs'
+import { NOM_ARBRES, toutLire } from '../coeur/arbresYjs.ts'
 
 // Ce que le serveur sait lire d'un tableau, sans la toile : le document Yjs, ses éléments et leur texte.
 // Les types restent à la mesure de ce dont le serveur a besoin ; la toile (React) ne se charge jamais ici.
@@ -46,11 +47,15 @@ export interface TableauLu {
 export function lireTableau(doc: Y.Doc): TableauLu {
   const meta = doc.getMap<unknown>('meta')
   const brutes: { plan: string; id: string; element: ElementLu }[] = []
+  // Les sujets des cartes mentales vivent à part, dans `arbres` (coeur/arbresYjs.ts) : on les rend à leur carte.
+  const arbres = toutLire(doc.getMap<unknown>(NOM_ARBRES))
   doc.getMap<Record<string, unknown>>('elements').forEach((brut, id) => {
     // Un client a pu écrire n'importe quoi : seul un objet est un élément.
     if (typeof brut !== 'object' || brut === null || Array.isArray(brut)) return
     const { plan, ...element } = brut
     if (!element.contenu || typeof (element.contenu as ContenuLu).type !== 'string') return
+    const dicos = (element.contenu as ContenuLu).type === 'arbre' ? arbres.get(id) : undefined
+    if (dicos) element.contenu = { ...(element.contenu as ContenuLu), ...dicos }
     brutes.push({ plan: typeof plan === 'string' ? plan : '', id, element: { ...(element as unknown as ElementLu), id } })
   })
   brutes.sort((a, b) => (a.plan < b.plan ? -1 : a.plan > b.plan ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0))

@@ -1,10 +1,10 @@
 /**
- * Un contenu fait de dictionnaires (les sujets d'une carte mentale) s'écrit d'un bloc dans le document Yjs. Un geste
- * calculé sur un état un peu ancien (un pas d'annulation, le geste d'un autre arrivé entre-temps) effacerait ce qui
- * a changé depuis. On n'applique donc au contenu stocké que ce que le geste a changé, entrée par entrée.
+ * Un geste calculé sur un état un peu ancien (un pas d'annulation, le geste d'un autre arrivé entre-temps) effacerait
+ * ce qui a changé depuis. On n'applique donc au contenu stocké que ce que le geste a changé : champ par champ, et
+ * entrée par entrée pour les dictionnaires nommés.
  *
- * Limite connue : deux écritures vraiment simultanées (dans le délai du réseau, ou hors ligne des deux côtés) restent
- * deux écritures de la même clé de `elements`, et Yjs n'en garde qu'une.
+ * Les sujets d'une carte mentale ne passent plus par ici : ils ont chacun leur clé dans `arbres` (`arbresYjs.ts`),
+ * ce qui tient aussi les écritures vraiment simultanées. Restent les autres champs de la carte (options, thème).
  */
 
 type Dico = Record<string, unknown>

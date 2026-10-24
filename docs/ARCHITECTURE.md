@@ -31,6 +31,7 @@ Un tableau est un document Yjs (`coeur/magasinYjs.ts`) :
 | `meta` | titre, couleur, étiquettes |
 | `textes` | le texte riche de chaque note (Tiptap, écrit à plusieurs) |
 | `lignes` | les lignes de texte simples |
+| `arbres` | les sujets, relations, limites et résumés des cartes mentales, une entrée par objet (`<élément>␟<dictionnaire>␟<id>`, `coeur/arbresYjs.ts`) |
 
 La toile ne voit pas Yjs. Elle parle à un `Magasin` (`coeur/magasin.ts`) : `lire()`, `faire(opérations)`,
 `annuler()`. Les opérations (`coeur/tableau.ts`) sont des données (`creer`, `deplacer`, `contenu`, …), qu'on sait
