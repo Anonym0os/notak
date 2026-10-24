@@ -278,6 +278,21 @@ export const SaisieBlocs = Extension.create({
           },
         },
       }),
+      // Une mention est suivie d'une espace qu'on a écrite pour l'auteur ; une ponctuation tapée juste après la retire.
+      new Plugin({
+        key: new PluginKey('ponctuationApresMention'),
+        props: {
+          handleTextInput: (view, from, to, texte) => {
+            if (from !== to || from < 2 || !/^[.,;?!)\]]$/.test(texte)) return false
+            const { doc } = view.state
+            const espace = doc.textBetween(from - 1, from, undefined, '￼')
+            const mention = doc.resolve(from - 1).nodeBefore
+            if (espace !== ' ' || !mention || (mention.type.name !== 'mention' && mention.type.name !== 'lienTableau')) return false
+            view.dispatch(view.state.tr.insertText(texte, from - 1, from))
+            return true
+          },
+        },
+      }),
       new Plugin({
         key: new PluginKey('chiffresBlocs'),
         props: {

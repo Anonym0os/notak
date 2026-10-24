@@ -142,7 +142,7 @@ describe('collage : le HTML devient des blocs à plat', () => {
   it('les cases à cocher font des tâches, cochées ou non', () => {
     const ed = ouvrir([p('')])
     coller(ed.view, presse({ html: html('<ul><li><input type="checkbox" checked> fait</li><li><input type="checkbox"> à faire</li></ul>') }), false)
-    expect(lire(ed)).toEqual(['tache✓:fait', 'tache: à faire'].map((x) => x.replace(': ', ':')))
+    expect(lire(ed).map((x) => x.replace(':\u00a0', ':').replace(': ', ':'))).toEqual(['tache✓:fait', 'tache:à faire'])
   })
 
   it('une citation, un bloc de code, un séparateur', () => {

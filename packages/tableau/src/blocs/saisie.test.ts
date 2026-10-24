@@ -272,6 +272,26 @@ describe('NOTION.md § 4 : les marques en ligne', () => {
   })
 })
 
+describe('NOTION.md § 4 : ce qu’on tape à côté', () => {
+  it('une adresse tapée devient un lien à l’espace qui suit', () => {
+    const ed = ouvrir()
+    taper(ed, 'voir https://notak.fr ')
+    const contenu = ed.getJSON().content?.[0]?.content as NoeudTexte[]
+    expect(contenu.find((n) => n.marks?.some((m) => m.type === 'link'))?.text).toBe('https://notak.fr')
+  })
+
+  it('une ponctuation tapée juste après une mention retire l’espace qui la suit', () => {
+    const ed = ouvrir({ type: 'paragraph', content: [{ type: 'mention', attrs: { id: 'u', label: 'Léa' } }, { type: 'text', text: ' ' }] })
+    ed.commands.selectTextblockEnd()
+    taper(ed, '.')
+    expect((ed.getJSON().content?.[0]?.content as NoeudTexte[]).map((n) => n.text ?? n.type)).toEqual(['mention', '.'])
+    const ed2 = ouvrir({ type: 'paragraph', content: [{ type: 'mention', attrs: { id: 'u', label: 'Léa' } }, { type: 'text', text: ' ' }] })
+    ed2.commands.selectTextblockEnd()
+    taper(ed2, 'a')
+    expect((ed2.getJSON().content?.[0]?.content as NoeudTexte[]).map((n) => n.text ?? n.type)).toEqual(['mention', ' a'])
+  })
+})
+
 describe('NOTION.md § 5 : les raccourcis du moteur', () => {
   it('⌘Entrée coche une tâche et ne fait rien sur un texte', () => {
     const ed = ouvrir({ type: 'tache', content: [{ type: 'text', text: 'a' }] })

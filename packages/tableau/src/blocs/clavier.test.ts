@@ -225,3 +225,27 @@ describe('IME : rien ne casse pendant une composition', () => {
     ;(ed.view as unknown as { input: { composing: boolean } }).input.composing = false
   })
 })
+
+describe('NOTION.md § 5 : cas du relevé 1 § 1 et § 2', () => {
+  it('une puce vide imbriquée qui n’est pas la dernière devient du texte, toujours imbriquée', () => {
+    const ed = ouvrir([b('puce', 'a'), b('puce', '', { retrait: 1 }), b('puce', 'b', { retrait: 1 })], 1)
+    jouer(ed, entree)
+    expect(lire(ed)).toEqual(['puce:a', 'paragraph>1:', 'puce>1:b'])
+  })
+
+  it('Retour arrière sur une sélection de plusieurs blocs : la fin du dernier se recolle à la fin du premier, qui garde son type', () => {
+    const ed = ouvrir([b('puce', 'abc'), p('def')], 0, 2)
+    ed.view.dispatch(ed.state.tr.setSelection(TextSelection.create(ed.state.doc, 3, 8)))
+    ed.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }))
+    expect(lire(ed)).toEqual(['puce:abf'])
+  })
+
+  it('Maj+Entrée écrit un saut de ligne dans un texte, et sort d’un code', () => {
+    const ed = ouvrir([p('ab')], 0, 1)
+    ed.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, bubbles: true, cancelable: true }))
+    expect(ed.getJSON().content?.[0]?.content?.some((n) => n.type === 'hardBreak')).toBe(true)
+    const ed2 = ouvrir([{ type: 'codeBlock', content: [{ type: 'text', text: 'x' }] }])
+    ed2.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, bubbles: true, cancelable: true }))
+    expect(lire(ed2)).toEqual(['codeBlock:x', 'paragraph:'])
+  })
+})

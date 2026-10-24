@@ -1,12 +1,15 @@
 // @vitest-environment jsdom
+import Collaboration from '@tiptap/extension-collaboration'
 import { TextSelection } from '@tiptap/pm/state'
 import { Editor } from '@tiptap/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { NoeudTexte } from '../coeur/tableau'
 import { FENETRE_MS, classeDe, rejoint } from './annulation'
-import { entree } from './clavier'
+import { entree, tab } from './clavier'
 import { poserIds } from './ids'
-import { EXTENSIONS_BLOCS } from './schema'
+import { yUndoPluginKey } from '@tiptap/y-tiptap'
+import * as Y from 'yjs'
+import { EXTENSIONS_BLOCS, EXTENSIONS_BLOCS_PARTAGEE } from './schema'
 
 let editeur: Editor | null = null
 afterEach(() => {
@@ -129,5 +132,37 @@ describe('annulation : les raccourcis de saisie', () => {
     expect(texte(ed)).toBe('a →')
     ed.commands.undo()
     expect(texte(ed)).toBe('a ->')
+  })
+})
+
+describe('annulation : avec le partage (Y.UndoManager)', () => {
+  it('la fenêtre est la même : 700 ms fixes depuis la première frappe du groupe, un geste de bloc à part', () => {
+    const doc = new Y.Doc()
+    const ed = new Editor({ extensions: [...EXTENSIONS_BLOCS_PARTAGEE, Collaboration.configure({ fragment: doc.getXmlFragment('texte') })] })
+    editeur = ed
+    const ids = poserIds(ed.state)
+    if (ids) ed.view.dispatch(ids)
+    ed.view.dispatch(ed.state.tr.setSelection(TextSelection.atEnd(ed.state.doc)))
+    frapper(ed, 'a', 70_000)
+    frapper(ed, 'b', 70_300)
+    frapper(ed, 'c', 70_600)
+    frapper(ed, 'd', 70_701)
+    expect(texte(ed)).toBe('abcd')
+    ed.commands.undo()
+    expect(texte(ed)).toBe('abc')
+    ed.commands.undo()
+    expect(texte(ed)).toBe('')
+    ed.commands.redo()
+    ed.commands.redo()
+    expect(texte(ed)).toBe('abcd')
+    // Un geste de bloc (Tab) est un pas à part : [abc] [d] [Tab] [e]. (Entrée n'est pas comptée ici : les ids qu'elle
+    // fait poser sont écrits « hors historique » par `ids.ts`, et le partage ne la suit alors pas.)
+    ed.commands.setContent('<p>x</p><p></p>')
+    ed.commands.setTextSelection(ed.state.doc.content.size - 1)
+    const avant = yUndoPluginKey.getState(ed.state)!.undoManager.undoStack.length
+    frapper(ed, 'a', 80_000)
+    ed.view.dispatch(tab(ed.state, 1)!.setTime(80_050))
+    frapper(ed, 'e', 80_100)
+    expect(yUndoPluginKey.getState(ed.state)!.undoManager.undoStack.length - avant).toBe(3)
   })
 })
