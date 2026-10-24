@@ -814,11 +814,33 @@
   opacity: 0.6;
 }
 
+/* La fiche est étroite : ni le retrait ni l'écart des commentaires épinglés (`commentaire.css`). */
 .notak-fil-marge .notak-commentaire-message,
 .notak-fil-marge .notak-commentaire-saisie {
   display: flex;
   gap: 8px;
   align-items: flex-start;
+  padding: 0;
+}
+
+/* Le nom et l'heure tiennent sur une ligne ; « Modifier » et la croix d'un message ne prennent leur place qu'au survol. */
+.notak-fil-marge .notak-commentaire-entete {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.notak-fil-marge .notak-commentaire-entete strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notak-fil-marge .notak-commentaire-modifier,
+.notak-fil-marge .notak-commentaire-retirer {
+  display: none;
+}
+
+.notak-fil-marge[data-actif] .notak-commentaire-message:hover :is(.notak-commentaire-modifier, .notak-commentaire-retirer) {
+  display: inline-flex;
 }
 
 .notak-fil-marge .notak-commentaire-pastille {
@@ -852,7 +874,6 @@
 }
 
 .notak-fil-marge .notak-commentaire-retirer {
-  margin-left: auto;
   border: 0;
   background: none;
   color: #6b7280;
