@@ -74,7 +74,7 @@ Les décisions propres à Notak, quand elles s'écartent de Notion, sont marqué
 | Image | Une image du tableau ou collée, avec sa largeur réglable aux bords, son alignement et une légende. |
 | Aperçu de lien | Une adresse montrée en carte : titre, description, image, comme les liens de Notak. |
 | Tableau | Le tableau simple de la note, avec une ligne et une colonne d'en-tête au choix. |
-| Colonnes | Deux à cinq colonnes côte à côte, chacune contenant des blocs (§ 8). |
+| Colonnes | Des colonnes côte à côte, chacune contenant des blocs (§ 8). |
 
 **→ Notak** : sont écartés pour l'instant :
 - les bases de données et leurs vues ;
@@ -148,7 +148,7 @@ le moteur de blocs.
 | `--` | — |
 | `...` | … |
 
-Les guillemets droits deviennent typographiques selon la langue : « » en français, “ ” en anglais.
+Les guillemets droits deviennent typographiques : “ ” et ‘ ’, quelle que soit la langue, comme chez Notion (ouvrants en tête de bloc et après une espace, fermants ailleurs).
 
 - **Annuler un raccourci.** ⌘Z juste après un raccourci markdown ou un remplacement l'annule et rend le texte
   tapé.
@@ -172,7 +172,7 @@ Les guillemets droits deviennent typographiques selon la langue : « » en fran�
 | ⌘⌥6 | Transformer en liste numérotée |
 | ⌘⌥7 | Transformer en dépliant |
 | ⌘⌥8 | Transformer en code |
-| ⌘/ | Ouvrir « Transformer en » sur le bloc courant |
+| ⌘/ | Ouvrir le menu du bloc (avec son champ de recherche) sur le bloc courant ou les blocs choisis |
 
 **Entrée, Retour arrière et Tab selon le bloc** (lus dans le code de Notion)
 
@@ -268,7 +268,7 @@ Les guillemets droits deviennent typographiques selon la langue : « » en fran�
 
 - **Repère de dépôt.** Pendant qu'on tire un bloc par sa poignée, un trait bleu montre où il tombera.
   - Au-dessus ou au-dessous d'un bloc, le trait est horizontal.
-  - Dans la bande gauche ou droite d'un bloc (un cinquième de sa largeur), le trait est vertical.
+  - Près du bord gauche ou droit d'un bloc (jusqu'à 200 px dehors), le trait est vertical. La position horizontale de la souris choisit le retrait du dépôt (le niveau d'imbrication), un voile montre le parent qui reçoit.
 - **Plusieurs blocs.** On peut tirer une sélection de blocs d'un seul geste.
 - **Où l'on peut lâcher.** On peut lâcher dans un dépliant ouvert ou dans une colonne. Lâcher un bloc dans
   ses propres descendants est refusé.
@@ -276,7 +276,7 @@ Les guillemets droits deviennent typographiques selon la langue : « » en fran�
 - **Créer des colonnes.**
   - Lâcher sur le côté d'un bloc de premier niveau crée une **rangée de colonnes** qui réunit les deux
     blocs.
-  - Lâcher sur le côté d'une colonne existante en ajoute une, jusqu'à cinq.
+  - Lâcher sur le côté d'une colonne existante en ajoute une, à 1/n de la largeur, les autres gardant leurs proportions.
   - Le menu `/` propose aussi « 2 colonnes » à « 5 colonnes ».
 - **Largeurs des colonnes.**
   - Au départ, elles sont égales.
@@ -285,7 +285,7 @@ Les guillemets droits deviennent typographiques selon la langue : « » en fran�
 - **Dissolution.**
   - Une colonne vidée disparaît.
   - Quand il n'en reste qu'une, la rangée se dissout et ses blocs reprennent leur place dans le flux.
-- **Petits écrans.** Sous 480 px de large, les colonnes s'empilent.
+- **Petits écrans.** Comme chez Notion, les colonnes ne s'empilent pas.
 
 ## 9. La page
 
