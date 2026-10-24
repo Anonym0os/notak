@@ -31,8 +31,8 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
 | 18. Carte mentale | 18 | 2 | 21 | 46 % |
-| 19. Document à blocs | 3 | 0 | 22 | 12 % |
-| **Total** | **303** | **12** | **45** | **86 %** |
+| 19. Document à blocs | 13 | 2 | 10 | 56 % |
+| **Total** | **313** | **14** | **33** | **89 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -478,19 +478,19 @@ dans `packages/tableau/src/blocs/`, pour resservir à d'autres éléments.
 |---|---|---|
 | Un id stable sur chaque bloc, le document relu comme des enregistrements de blocs | ✅ | `blocs/ids.ts`, `blocs/modele.ts` (`blocsDe`). |
 | Un vieux client ouvre un bloc inconnu en lecture seule, sans rien perdre | ✅ | Le texte se dessine réduit à ce qu’il connaît, un avis dit pourquoi (`blocs/lisible.ts`). |
-| Titres 1 à 3, titres dépliants | ⬜ |  |
-| Listes à puces, numérotées (1, a, i selon la profondeur), tâches | ⬜ |  |
-| Dépliant | ⬜ |  |
-| Citation, encadré avec icône, séparateur | ⬜ |  |
-| Code avec langage, bouton Copier, retour à la ligne | ⬜ |  |
-| Image avec largeur, alignement et légende | ⬜ |  |
+| Titres 1 à 3, titres dépliants | ✅ | Un titre rendu dépliant range dessous les blocs jusqu’au prochain titre de son rang. |
+| Listes à puces, numérotées (1, a, i selon la profondeur), tâches | ✅ |  |
+| Dépliant | ✅ | → Notak : ouvert ou fermé pour tout le monde (Notion le garde par personne). |
+| Citation, encadré avec icône, séparateur | ✅ |  |
+| Code avec langage, bouton Copier, retour à la ligne | 🟡 | Le bloc de code ; le choix du langage, Copier et le retour à la ligne restent. |
+| Image avec largeur, alignement et légende | 🟡 | Posée par « / » depuis l’appareil, rangée avec les fichiers du tableau ; largeur, alignement et légende restent à régler à la souris. |
 | Aperçu de lien | ⬜ |  |
-| Menu « / » : filtre par mots-clés, catégories, couleurs et actions | ⬜ |  |
-| Raccourcis markdown en début de bloc et en ligne | ⬜ |  |
-| Remplacements typographiques (→, —, …, ≥, guillemets) | ⬜ |  |
-| Transformer en (⌘/, ⌘⌥0…8) | ⬜ |  |
-| Couleur de texte et de fond, sur un bloc ou un passage | ⬜ |  |
-| Bulle de mise en forme sur une sélection | ⬜ |  |
+| Menu « / » : filtre par mots-clés, catégories, couleurs et actions | ✅ |  |
+| Raccourcis markdown en début de bloc et en ligne | ✅ | `>` fait un dépliant dans le document, une citation dans la note. |
+| Remplacements typographiques (→, —, …, ≥, guillemets) | ✅ |  |
+| Transformer en (⌘/, ⌘⌥0…8) | ✅ |  |
+| Couleur de texte et de fond, sur un bloc ou un passage | ✅ | Neuf teintes de Notak, dans les deux thèmes ; ⌘⇧H reprend la dernière. |
+| Bulle de mise en forme sur une sélection | ✅ |  |
 | Poignée ⋮⋮ et bouton + au survol, menu de bloc filtrable | ⬜ |  |
 | Sélection de blocs : Échap, Maj+flèches, Maj+clic, rectangle | ⬜ |  |
 | Supprimer, dupliquer (⌘D), monter et descendre (⌘⇧↑/↓), imbriquer (Tab) | ⬜ |  |

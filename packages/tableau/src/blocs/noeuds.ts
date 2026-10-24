@@ -104,11 +104,17 @@ export const Colonne = Node.create({
  * Une image dans le texte : un fichier du tableau (`fichier`) ou une adresse (`url`), sa part de la largeur de la
  * page (`largeur`, de 0 à 1 ; absente : sa taille naturelle), son alignement et sa légende.
  */
-export const ImageBloc = Node.create({
+export interface OptionsImage {
+  /** L'adresse affichable d'un fichier du tableau (voir `DepotFichiers.adresse`). */
+  adresse: ((fichier: string) => Promise<string | null>) | null
+}
+
+export const ImageBloc = Node.create<OptionsImage>({
   name: 'image',
   group: 'block',
   atom: true,
   draggable: false,
+  addOptions: () => ({ adresse: null }),
   addAttributes() {
     return {
       fichier: { default: null, parseHTML: (el: HTMLElement) => el.getAttribute('data-fichier') },
@@ -131,7 +137,39 @@ export const ImageBloc = Node.create({
     const texte = String(node.attrs.legende ?? '')
     return ['figure', attrs, ['img', { src: String(url ?? ''), alt: texte }], ...(legende ? [['figcaption', {}, texte] as const] : [])]
   },
+  // Dans l'éditeur, l'image d'un fichier du tableau va chercher son adresse ; hors édition, voir `remplirImages`.
+  addNodeView() {
+    const { adresse } = this.options
+    return ({ node }) => {
+      const figure = document.createElement('figure')
+      figure.className = 'notak-image-bloc'
+      figure.dataset.type = 'image'
+      figure.dataset.alignement = String(node.attrs.alignement ?? 'centre')
+      if (node.attrs.id) figure.dataset.bloc = String(node.attrs.id)
+      if (node.attrs.largeur) figure.style.width = `${Math.round(Number(node.attrs.largeur) * 100)}%`
+      const img = document.createElement('img')
+      img.alt = String(node.attrs.legende ?? '')
+      if (node.attrs.url) img.src = String(node.attrs.url)
+      else if (node.attrs.fichier && adresse) void adresse(String(node.attrs.fichier)).then((u) => u && (img.src = u))
+      figure.append(img)
+      if (node.attrs.legende) {
+        const legende = document.createElement('figcaption')
+        legende.textContent = String(node.attrs.legende)
+        figure.append(legende)
+      }
+      return { dom: figure, update: (n) => n === node }
+    }
+  },
 })
+
+/** Hors édition (aperçu, lecture), les images des fichiers du tableau reçoivent leur adresse. */
+export function remplirImages(racine: HTMLElement, adresse: (fichier: string) => Promise<string | null>) {
+  for (const figure of racine.querySelectorAll<HTMLElement>('figure[data-fichier]')) {
+    const img = figure.querySelector('img')
+    if (!img || img.getAttribute('src')) continue
+    void adresse(figure.dataset.fichier!).then((u) => u && img.setAttribute('src', u))
+  }
+}
 
 /** Une adresse montrée en carte : son titre, sa description et son image, lus comme ceux des liens de la toile. */
 export const ApercuLien = Node.create({

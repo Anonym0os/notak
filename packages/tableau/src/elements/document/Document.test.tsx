@@ -71,4 +71,23 @@ describe('le document ouvert en grand', () => {
     expect(boite.querySelector('.notak-document-plus-recent')).not.toBeNull()
     expect(boite.querySelector('.notak-texte')!.textContent).toBe('gardé')
   })
+
+  it('`/` ouvre le menu des blocs, la requête le filtre, Entrée transforme le bloc vide (NOTION.md § 3)', async () => {
+    monter(doc('', { texte: { type: 'doc', content: [{ type: 'paragraph' }] } }), { enEdition: true })
+    const pm = document.querySelector('.ProseMirror') as HTMLElement & { editor: import('@tiptap/react').Editor }
+    const ed = pm.editor
+    // jsdom ne donne pas le focus à un contenteditable.
+    ed.view.hasFocus = () => true
+    await act(async () => {
+      ed.commands.focus('end')
+      ed.commands.insertContent('/tit')
+    })
+    const menu = document.querySelector('.notak-menu-blocs')
+    expect(menu).not.toBeNull()
+    expect(menu!.querySelector('[data-actif]')?.textContent).toContain('Titre 1')
+    await act(async () => void ed.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })))
+    expect(ed.getJSON().content?.[0]).toMatchObject({ type: 'heading', attrs: { level: 1 } })
+    expect(ed.state.doc.textContent).toBe('')
+    expect(document.querySelector('.notak-menu-blocs')).toBeNull()
+  })
 })

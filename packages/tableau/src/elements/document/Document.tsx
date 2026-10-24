@@ -9,7 +9,14 @@ import { type Pont, Propositions, extensionPropositions } from '../note/Proposit
 import { Surcouche } from '../surcouche'
 import { CLE_IDS } from '../../blocs/ids'
 import { degrader, lisible } from '../../blocs/lisible'
+import { Bulle } from '../../blocs/Bulle'
+import type { Couleur } from '../../blocs/catalogue'
+import { Invite } from '../../blocs/invite'
+import { MenuBlocs, type PontMenu, extensionSlash } from '../../blocs/Menu'
+import { ImageBloc, remplirImages } from '../../blocs/noeuds'
+import { type GestesBlocs, raccourcisBlocs } from '../../blocs/saisie'
 import { EXTENSIONS_BLOCS, SCHEMA_BLOCS as SCHEMA } from '../../blocs/schema'
+import { colorer, insererImage } from '../../blocs/transformer'
 import { LegendeLocale, OutilLegende, avecTexteLegende } from '../LegendeLocale'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { ColonneOutils } from './ColonneOutils'
@@ -25,11 +32,22 @@ import { fermerMenus, useMenu } from '../../menuUnique'
  * Le texte tel que le moteur de blocs le dessine, en lecture seule. Un bloc qu'une version plus récente a
  * écrit se dessine réduit à son texte (docs/NOTION.md § 1).
  */
-const Lu = memo(function Lu({ texte, fils }: { texte: NoeudTexte; fils?: Fils | undefined }) {
+const Lu = memo(function Lu({ texte, fils, adresse }: { texte: NoeudTexte; fils?: Fils | undefined; adresse?: Adresse | undefined }) {
   // Un passage dont le fil n'a aucun message (marqué, rien écrit) ne se souligne pas.
   const rendu = useMemo(() => renderToReactElement({ content: sansPassagesMuets(degrader(texte, SCHEMA), fils), extensions: EXTENSIONS_BLOCS }), [texte, fils])
-  return <div className="notak-texte notak-blocs">{rendu}</div>
+  const racine = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (racine.current && adresse) remplirImages(racine.current, adresse)
+  }, [rendu, adresse])
+  return (
+    <div className="notak-texte notak-blocs" ref={racine}>
+      {rendu}
+    </div>
+  )
 })
+
+/** L'adresse affichable d'un fichier du tableau. */
+type Adresse = (fichier: string) => Promise<string | null>
 
 /**
  * La feuille de papier de la carte : 72 px, le coin plié, un pictogramme de texte en bas. Choisie, c'est elle qui est
@@ -109,6 +127,8 @@ export function RenduDocument({ element, choisie, enEdition, contexte, brouillon
   // Entrée sur le document choisi, ou « Renommer » : le titre s'édite sur la carte.
   useEffect(() => (lectureSeule ? undefined : ecouterRenommer(element.id, () => setTitreSurCarte(true))), [element.id, lectureSeule])
   const mots = useMemo(() => compterMots(c.texte), [c.texte])
+  const fichiers = contexte.services.fichiers
+  const adresse = useMemo(() => (fichiers ? (id: string) => fichiers.adresse(id) : undefined), [fichiers])
   // Un texte qu'une version plus récente a écrit ne s'édite pas ici : l'éditeur le viderait (docs/NOTION.md § 1).
   const editable = useMemo(() => lisible(c.texte, SCHEMA), [c.texte])
   const nom = (
@@ -145,7 +165,7 @@ export function RenduDocument({ element, choisie, enEdition, contexte, brouillon
                 <p>{t('document.ecrire')}</p>
               </div>
             ) : (
-              <Lu texte={premiersBlocsApercu(c.texte)} />
+              <Lu texte={premiersBlocsApercu(c.texte)} adresse={adresse} />
             )}
           </div>
           <div className="notak-document-pied">
@@ -172,9 +192,9 @@ export function RenduDocument({ element, choisie, enEdition, contexte, brouillon
         (editable ? (
           <Grand contenu={c} ecrire={brouillon} finir={contexte.finirEdition} contexte={contexte} />
         ) : (
-          <Lecture contenu={c} fermer={contexte.finirEdition} plusRecent />
+          <Lecture contenu={c} fermer={contexte.finirEdition} adresse={adresse} plusRecent />
         ))}
-      {enLecture && <Lecture contenu={c} fermer={() => setEnLecture(false)} />}
+      {enLecture && <Lecture contenu={c} fermer={() => setEnLecture(false)} adresse={adresse} />}
     </div>
   )
 }
@@ -253,7 +273,7 @@ function Modale({ titre, titreTexte, lireTexte, outils, fermer, children, lectur
       fermer={fermer}
       surTouche={(e) => {
         // Échap ferme d'abord la liste de `[[` ou de `@`, sans quitter le document.
-        if (e.key === 'Escape' && document.querySelector('.notak-propositions')) return true
+        if (e.key === 'Escape' && document.querySelector('.notak-propositions, .notak-menu-blocs')) return true
         // Échap referme d'abord le menu ouvert, sans quitter le document.
         if (e.key !== 'Escape' || !(e.currentTarget as HTMLElement).querySelector('[aria-expanded="true"]')) return false
         e.preventDefault()
@@ -277,7 +297,7 @@ function Modale({ titre, titreTexte, lireTexte, outils, fermer, children, lectur
 }
 
 /** Le document à lire seulement. `plusRecent` : il porte des blocs qu'une version plus récente de Notak sait écrire. */
-function Lecture({ contenu, fermer, plusRecent }: { contenu: DocumentTexte; fermer(): void; plusRecent?: boolean }) {
+function Lecture({ contenu, fermer, plusRecent, adresse }: { contenu: DocumentTexte; fermer(): void; plusRecent?: boolean; adresse?: Adresse | undefined }) {
   const titre = contenu.titre.trim() || t('commun.sansTitre')
   return (
     <Modale lecture titre={<span className="notak-document-titre-lu">{titre}</span>} titreTexte={contenu.titre} lireTexte={() => contenu.texte} fermer={fermer}>
@@ -286,7 +306,7 @@ function Lecture({ contenu, fermer, plusRecent }: { contenu: DocumentTexte; ferm
           {t('document.plusRecent')}
         </p>
       )}
-      <Lu texte={contenu.texte} fils={contenu.fils} />
+      <Lu texte={contenu.texte} fils={contenu.fils} adresse={adresse} />
     </Modale>
   )
 }
@@ -311,7 +331,22 @@ function Grand({ contenu, ecrire, finir, contexte }: { contenu: DocumentTexte; e
   const commenterRef = useRef<() => void>(() => {})
   // `[[` propose les tableaux, `@` les personnes : la même liste que la note.
   const pont = useRef<Pont | null>(null)
-  const extensions = useMemo(() => [...EXTENSIONS_BLOCS, extensionPropositions(pont)], [])
+  // `/` ouvre le menu des blocs ; ⌘/ et la bulle, « Transformer en » (docs/NOTION.md § 3).
+  const pontMenu = useRef<PontMenu | null>(null)
+  const [transformerEn, setTransformerEn] = useState(0)
+  const [derniere, setDerniere] = useState<Couleur | null>(null)
+  const gestes = useRef<GestesBlocs>({ transformerEn: () => {}, derniereCouleur: () => {} })
+  const fichiers = contexte.services.fichiers
+  const extensions = useMemo(
+    () => [
+      ...EXTENSIONS_BLOCS.map((x) => (x.name === 'image' && fichiers ? ImageBloc.configure({ adresse: (id) => fichiers.adresse(id) }) : x)),
+      Invite.configure({ texte: () => t('blocs.invite') }),
+      extensionPropositions(pont),
+      extensionSlash(pontMenu),
+      raccourcisBlocs(gestes),
+    ],
+    [fichiers],
+  )
   const editeur = useEditor({
     extensions,
     content: contenu.texte,
@@ -344,6 +379,26 @@ function Grand({ contenu, ecrire, finir, contexte }: { contenu: DocumentTexte; e
     poser({ texte: editeur.getJSON() as NoeudTexte, fils: avecFil(dernier.current.fils, id, { type: 'commentaire', messages: [] }) })
     setOuvert(id)
   }
+  gestes.current = {
+    transformerEn: () => setTransformerEn((n) => n + 1),
+    derniereCouleur: () => {
+      if (editeur && derniere) colorer(editeur, derniere)
+    },
+  }
+  // L'image du menu « / » : un fichier choisi sur l'appareil, rangé avec ceux du tableau.
+  const choisirImage = fichiers
+    ? () => {
+        const champ = document.createElement('input')
+        champ.type = 'file'
+        champ.accept = 'image/*'
+        champ.onchange = async () => {
+          const fichier = champ.files?.[0]
+          if (!fichier || !editeur) return
+          insererImage(editeur, await fichiers.enregistrer(fichier))
+        }
+        champ.click()
+      }
+    : undefined
   useEffect(() => {
     if (!editeur || editeur.isDestroyed) return
     editeur.commands.focus('end')
@@ -394,6 +449,17 @@ function Grand({ contenu, ecrire, finir, contexte }: { contenu: DocumentTexte; e
         />
       )}
       {editeur && <Propositions editeur={editeur} contexte={contexte} pont={pont} />}
+      {editeur && <MenuBlocs editeur={editeur} pont={pontMenu} transformerEn={transformerEn} surCouleur={setDerniere} {...(choisirImage ? { choisirImage } : {})} />}
+      {editeur && (
+        <Bulle
+          editeur={editeur}
+          transformerEn={() => setTransformerEn((n) => n + 1)}
+          lien={() => setLien((editeur.getAttributes('link').href as string | undefined) ?? '')}
+          {...(peutCommenter ? { commenter: () => commenterRef.current() } : {})}
+          derniere={derniere}
+          surCouleur={setDerniere}
+        />
+      )}
       <EditorContent editor={editeur} />
     </Modale>
   )

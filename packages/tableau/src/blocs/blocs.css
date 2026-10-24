@@ -164,3 +164,268 @@
 .notak-blocs .notak-apercu-lien-titre { font-size: 14px; font-weight: 600; line-height: 20px; }
 .notak-blocs .notak-apercu-lien-description { overflow: hidden; color: var(--notak-pale, rgb(0 0 0 / 0.5)); font-size: 13px; line-height: 18px; text-overflow: ellipsis; white-space: nowrap; }
 .notak-blocs .notak-apercu-lien-adresse { font-size: 12px; line-height: 16px; opacity: 0.6; }
+
+/*
+ * Les couleurs des blocs et des passages (NOTION.md § 1) : neuf teintes, en texte et en fond, dans les deux thèmes.
+ * La surcouche du document les recopie (`elements/surcouche.tsx`).
+ */
+.notak-espace,
+.notak-toile {
+  --notak-bloc-gris: #7d7f84;
+  --notak-bloc-gris-fond: #eceef0;
+  --notak-bloc-brun: #8d6748;
+  --notak-bloc-brun-fond: #f1e7df;
+  --notak-bloc-orange: #c76a1c;
+  --notak-bloc-orange-fond: #fbe9d6;
+  --notak-bloc-jaune: #a88200;
+  --notak-bloc-jaune-fond: #fbf1c9;
+  --notak-bloc-vert: #3d8a5a;
+  --notak-bloc-vert-fond: #e0f0e4;
+  --notak-bloc-bleu: #2f6fbf;
+  --notak-bloc-bleu-fond: #dcebf8;
+  --notak-bloc-violet: #8250c4;
+  --notak-bloc-violet-fond: #ece2f7;
+  --notak-bloc-rose: #c4407e;
+  --notak-bloc-rose-fond: #f8e0eb;
+  --notak-bloc-rouge: #d0443e;
+  --notak-bloc-rouge-fond: #fbe2e0;
+}
+
+.notak-espace[data-theme='sombre'],
+.notak-espace[data-theme='sombre'] .notak-toile {
+  --notak-bloc-gris: #9ea2a8;
+  --notak-bloc-gris-fond: #2f3237;
+  --notak-bloc-brun: #b98f6e;
+  --notak-bloc-brun-fond: #3a2e26;
+  --notak-bloc-orange: #e08b45;
+  --notak-bloc-orange-fond: #43301f;
+  --notak-bloc-jaune: #d6b34a;
+  --notak-bloc-jaune-fond: #403921;
+  --notak-bloc-vert: #6cb98a;
+  --notak-bloc-vert-fond: #233a2c;
+  --notak-bloc-bleu: #6ea2e6;
+  --notak-bloc-bleu-fond: #1f3147;
+  --notak-bloc-violet: #ad86e3;
+  --notak-bloc-violet-fond: #322845;
+  --notak-bloc-rose: #e07aa8;
+  --notak-bloc-rose-fond: #40263a;
+  --notak-bloc-rouge: #ee7b74;
+  --notak-bloc-rouge-fond: #45272a;
+}
+
+.notak-blocs [data-couleur='gris'], [data-couleur='gris'].notak-menu-blocs-signe, .notak-bulle-a[data-couleur='gris'] { color: var(--notak-bloc-gris); }
+.notak-blocs [data-couleur='brun'], [data-couleur='brun'].notak-menu-blocs-signe, .notak-bulle-a[data-couleur='brun'] { color: var(--notak-bloc-brun); }
+.notak-blocs [data-couleur='orange'], [data-couleur='orange'].notak-menu-blocs-signe, .notak-bulle-a[data-couleur='orange'] { color: var(--notak-bloc-orange); }
+.notak-blocs [data-couleur='jaune'], [data-couleur='jaune'].notak-menu-blocs-signe, .notak-bulle-a[data-couleur='jaune'] { color: var(--notak-bloc-jaune); }
+.notak-blocs [data-couleur='vert'], [data-couleur='vert'].notak-menu-blocs-signe, .notak-bulle-a[data-couleur='vert'] { color: var(--notak-bloc-vert); }
+.notak-blocs [data-couleur='bleu'], [data-couleur='bleu'].notak-menu-blocs-signe, .notak-bulle-a[data-couleur='bleu'] { color: var(--notak-bloc-bleu); }
+.notak-blocs [data-couleur='violet'], [data-couleur='violet'].notak-menu-blocs-signe, .notak-bulle-a[data-couleur='violet'] { color: var(--notak-bloc-violet); }
+.notak-blocs [data-couleur='rose'], [data-couleur='rose'].notak-menu-blocs-signe, .notak-bulle-a[data-couleur='rose'] { color: var(--notak-bloc-rose); }
+.notak-blocs [data-couleur='rouge'], [data-couleur='rouge'].notak-menu-blocs-signe, .notak-bulle-a[data-couleur='rouge'] { color: var(--notak-bloc-rouge); }
+.notak-blocs [data-couleur='gris-fond'], [data-couleur='gris-fond'].notak-menu-blocs-signe, .notak-bulle-a[data-couleur='gris-fond'] { background: var(--notak-bloc-gris-fond); }
+.notak-blocs [data-couleur='brun-fond'], [data-couleur='brun-fond'].notak-menu-blocs-signe, .notak-bulle-a[data-couleur='brun-fond'] { background: var(--notak-bloc-brun-fond); }
+.notak-blocs [data-couleur='orange-fond'], [data-couleur='orange-fond'].notak-menu-blocs-signe, .notak-bulle-a[data-couleur='orange-fond'] { background: var(--notak-bloc-orange-fond); }
+.notak-blocs [data-couleur='jaune-fond'], [data-couleur='jaune-fond'].notak-menu-blocs-signe, .notak-bulle-a[data-couleur='jaune-fond'] { background: var(--notak-bloc-jaune-fond); }
+.notak-blocs [data-couleur='vert-fond'], [data-couleur='vert-fond'].notak-menu-blocs-signe, .notak-bulle-a[data-couleur='vert-fond'] { background: var(--notak-bloc-vert-fond); }
+.notak-blocs [data-couleur='bleu-fond'], [data-couleur='bleu-fond'].notak-menu-blocs-signe, .notak-bulle-a[data-couleur='bleu-fond'] { background: var(--notak-bloc-bleu-fond); }
+.notak-blocs [data-couleur='violet-fond'], [data-couleur='violet-fond'].notak-menu-blocs-signe, .notak-bulle-a[data-couleur='violet-fond'] { background: var(--notak-bloc-violet-fond); }
+.notak-blocs [data-couleur='rose-fond'], [data-couleur='rose-fond'].notak-menu-blocs-signe, .notak-bulle-a[data-couleur='rose-fond'] { background: var(--notak-bloc-rose-fond); }
+.notak-blocs [data-couleur='rouge-fond'], [data-couleur='rouge-fond'].notak-menu-blocs-signe, .notak-bulle-a[data-couleur='rouge-fond'] { background: var(--notak-bloc-rouge-fond); }
+.notak-blocs mark[data-color='fond-gris'] { background: var(--notak-bloc-gris-fond); color: inherit; }
+.notak-blocs mark[data-color='fond-brun'] { background: var(--notak-bloc-brun-fond); color: inherit; }
+.notak-blocs mark[data-color='fond-orange'] { background: var(--notak-bloc-orange-fond); color: inherit; }
+.notak-blocs mark[data-color='fond-jaune'] { background: var(--notak-bloc-jaune-fond); color: inherit; }
+.notak-blocs mark[data-color='fond-vert'] { background: var(--notak-bloc-vert-fond); color: inherit; }
+.notak-blocs mark[data-color='fond-bleu'] { background: var(--notak-bloc-bleu-fond); color: inherit; }
+.notak-blocs mark[data-color='fond-violet'] { background: var(--notak-bloc-violet-fond); color: inherit; }
+.notak-blocs mark[data-color='fond-rose'] { background: var(--notak-bloc-rose-fond); color: inherit; }
+.notak-blocs mark[data-color='fond-rouge'] { background: var(--notak-bloc-rouge-fond); color: inherit; }
+
+/* Un bloc sur un fond coloré : un peu d'air autour du texte. */
+.notak-blocs [data-couleur$='-fond'] {
+  border-radius: 4px;
+  padding-inline: 4px;
+}
+
+/* Une image dont l'adresse n'est pas encore arrivée ne montre pas son cadre vide. */
+.notak-blocs .notak-image-bloc img:not([src]),
+.notak-blocs .notak-image-bloc img[src=''] {
+  display: none;
+}
+
+/* L'invite du bloc vide où est le curseur. */
+.notak-blocs .notak-invite::before {
+  content: attr(data-invite);
+  float: left;
+  height: 0;
+  color: var(--notak-pale, rgb(0 0 0 / 0.35));
+  pointer-events: none;
+}
+
+/* Le menu des blocs : une liste filtrée, rangée par catégorie, la tuile d'aperçu à gauche. */
+.notak-menu-blocs-panneau,
+.notak-bulle-panneau {
+  z-index: 1000;
+}
+
+.notak-menu-blocs {
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  max-height: min(380px, 60vh);
+  border-radius: 8px;
+  background: var(--notak-carte, #fff);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.18), 0 0 0 1px rgb(0 0 0 / 0.06);
+  color: var(--notak-texte, #323b4a);
+  font: 14px/1.3 system-ui, sans-serif;
+}
+
+.notak-menu-blocs-filtre {
+  margin: 6px 6px 0;
+  padding: 6px 8px;
+  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  border-radius: 5px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.notak-menu-blocs-filtre:focus {
+  border-color: var(--notak-accent, #2f6feb);
+}
+
+.notak-menu-blocs-liste {
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.notak-menu-blocs-categorie {
+  padding: 8px 8px 4px;
+  color: var(--notak-pale, rgb(0 0 0 / 0.5));
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.notak-menu-blocs-entree {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notak-menu-blocs-entree[data-actif],
+button.notak-menu-blocs-entree:hover {
+  background: color-mix(in srgb, currentColor 7%, transparent);
+}
+
+.notak-menu-blocs-signe {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.notak-menu-blocs-nom {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-menu-blocs-raccourci,
+.notak-menu-blocs-coche {
+  flex: none;
+  color: var(--notak-pale, rgb(0 0 0 / 0.45));
+  font-size: 12px;
+}
+
+.notak-menu-blocs-vide {
+  padding: 8px;
+  color: var(--notak-pale, rgb(0 0 0 / 0.45));
+}
+
+/* La bulle : une rangée de boutons au-dessus du passage choisi. */
+.notak-bulle {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  padding: 3px;
+  border-radius: 7px;
+  background: var(--notak-carte, #fff);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.16), 0 0 0 1px rgb(0 0 0 / 0.06);
+  color: var(--notak-texte, #323b4a);
+  font: 13px/1 system-ui, sans-serif;
+}
+
+.notak-bulle-bouton,
+.notak-bulle-texte {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  height: 28px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.notak-bulle-bouton:hover,
+.notak-bulle-texte:hover,
+.notak-bulle-bouton[aria-pressed='true'] {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.notak-bulle-bouton[aria-pressed='true'] {
+  color: var(--notak-accent, #2f6feb);
+}
+
+.notak-bulle-trait {
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.notak-bulle-a {
+  padding: 0 3px;
+  border-radius: 3px;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.notak-bulle-couleurs {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 220px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--notak-carte, #fff);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.18), 0 0 0 1px rgb(0 0 0 / 0.06);
+}
+
+.notak-bulle-couleurs .notak-menu-blocs-signe {
+  width: 24px;
+  height: 24px;
+}
