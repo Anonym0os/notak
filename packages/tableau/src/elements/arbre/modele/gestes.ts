@@ -1,4 +1,4 @@
-import type { Arbre, Id } from '../../../coeur/tableau'
+import type { Arbre, Id, StructureArbre } from '../../../coeur/tableau'
 import {
   type Lecture,
   ajouterEnfant,
@@ -37,6 +37,15 @@ export type Geste =
   /** Lâcher un sujet glissé : le rattacher (en `index` parmi les enfants de `parent`), ou le poser librement. */
   | { type: 'rattacher'; id: Id; parent: Id; index: number }
   | { type: 'poser'; id: Id; position: { x: number; y: number } }
+  /** Placement libre : tirer une branche hors de sa place, de `de` px. */
+  | { type: 'decaler'; id: Id; de: { x: number; y: number } }
+  /** La structure de ces sujets ; `null` : suivre le parent. */
+  | { type: 'structure'; ids: Id[]; structure: StructureArbre | null }
+  | { type: 'options'; options: NonNullable<Arbre['options']> }
+  /** Carte non équilibrée : combien de principaux à droite. */
+  | { type: 'aDroite'; n: number }
+  /** Placement libre : rendre aux sujets la place que leur structure leur donne. */
+  | { type: 'realigner' }
   /** Ceux-là ne touchent pas la carte : la vue les fait elle-même. */
   | { type: 'editer'; id: Id; frappe?: string }
   | { type: 'choisir'; ids: Id[] }
@@ -113,6 +122,37 @@ export function appliquerGeste(a: Arbre, g: Geste, titre: Titreur): Effet | null
       if (!s || g.id === l.central) return null
       const arbre = s.genre === 'detache' ? changerSujet(a, g.id, (x) => ({ ...x, position: g.position })) : detacher(a, g.id, g.position)
       return { arbre, choisir: g.id }
+    }
+    case 'decaler': {
+      if (g.id === l.central) return null
+      const arbre = changerSujet(a, g.id, (s) => {
+        const x = (s.decalage?.x ?? 0) + g.de.x
+        const y = (s.decalage?.y ?? 0) + g.de.y
+        const { decalage: _d, ...reste } = s
+        return Math.abs(x) < 1 && Math.abs(y) < 1 ? reste : { ...reste, decalage: { x: Math.round(x), y: Math.round(y) } }
+      })
+      return { arbre, choisir: g.id }
+    }
+    case 'structure': {
+      let arbre = a
+      for (const id of g.ids) {
+        // Le central garde toujours une structure : « suivre le parent » n'a pas de sens pour lui.
+        const s = g.structure ?? (id === l.central ? 'carte' : null)
+        arbre = changerSujet(arbre, id, ({ structure: _s, ...reste }) => (s ? { ...reste, structure: s } : reste))
+      }
+      return { arbre }
+    }
+    case 'options': {
+      const options = Object.fromEntries(Object.entries(g.options).filter(([, v]) => v)) as Arbre['options']
+      const { options: _o, ...reste } = a
+      return { arbre: options && Object.keys(options).length > 0 ? { ...reste, options } : reste }
+    }
+    case 'aDroite':
+      return { arbre: changerSujet(a, l.central, (s) => ({ ...s, aDroite: Math.max(0, Math.round(g.n)) })) }
+    case 'realigner': {
+      let arbre = a
+      for (const [id, s] of l.sujets) if (s.decalage) arbre = changerSujet(arbre, id, ({ decalage: _d, ...reste }) => reste)
+      return { arbre }
     }
     default:
       return null

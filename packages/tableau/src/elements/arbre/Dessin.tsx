@@ -31,12 +31,15 @@ export const Dessin = memo(function Dessin({ lecture: l, disposition: d, mesures
           return (
             <path
               key={lien.vers}
-              d={cheminBranche(p, e, lien.cote, 'courbe', { parent: HABITS[rangDe(l, lien.de)].arrondi === null, enfant: HABITS[rangDe(l, lien.vers)].arrondi === null })}
+              d={cheminBranche(p, e, lien.cote, lien.forme, { parent: HABITS[rangDe(l, lien.de)].arrondi === null, enfant: HABITS[rangDe(l, lien.vers)].arrondi === null })}
               stroke={couleurDe(l, lien.vers) ?? 'var(--notak-arbre-encre)'}
               strokeWidth={principal ? 2.5 : 1.75}
             />
           )
         })}
+        {d.traits.map((trait, i) => (
+          <path key={`t${i}`} d={trait.d} stroke={couleurDe(l, trait.de) ?? 'var(--notak-arbre-encre)'} strokeWidth={trait.de === l.central ? 2.5 : 1.75} />
+        ))}
       </g>
       {[...d.boites].map(([id, b]) => {
         const m = mesures.get(id)

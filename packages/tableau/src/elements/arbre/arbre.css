@@ -116,3 +116,89 @@
   stroke-width: 2.5;
   stroke-linecap: round;
 }
+
+.notak-arbre-barre {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 8px;
+  border: 1px solid rgb(0 0 0 / 0.1);
+  border-radius: 8px;
+  background: var(--notak-arbre-fond);
+  color: var(--notak-arbre-texte);
+  font-size: 13px;
+}
+
+.notak-arbre-barre button {
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.notak-arbre-barre button:hover:not(:disabled) {
+  background: var(--notak-arbre-flottant);
+}
+
+.notak-arbre-barre button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.notak-arbre-menu-hote {
+  position: relative;
+}
+
+.notak-arbre-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 1;
+  display: grid;
+  gap: 4px;
+  min-width: 240px;
+  padding: 6px;
+  border: 1px solid rgb(0 0 0 / 0.1);
+  border-radius: 8px;
+  background: var(--notak-arbre-fond);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+}
+
+.notak-arbre-menu-groupe {
+  display: grid;
+  padding-top: 4px;
+  border-top: 1px solid rgb(0 0 0 / 0.06);
+}
+
+.notak-arbre-menu-groupe:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.notak-arbre-menu button {
+  text-align: left;
+}
+
+.notak-arbre-menu button[aria-checked='true'] {
+  color: var(--notak-arbre-choix);
+  font-weight: 600;
+}
+
+.notak-arbre-pas,
+.notak-arbre-case {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.notak-arbre-pas output {
+  min-width: 1.5em;
+  text-align: center;
+}

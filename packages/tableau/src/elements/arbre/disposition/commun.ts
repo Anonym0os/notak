@@ -1,5 +1,5 @@
 import type { Id } from '../../../coeur/tableau'
-import { type Lecture, cache, enfantsDe } from '../modele/sujets'
+import type { StyleBranche } from '../trace/branches'
 
 /** La taille d'un sujet dessiné, en pixels de carte. */
 export interface Taille {
@@ -16,16 +16,26 @@ export interface Boite extends Taille {
 /** De quel bord d'un sujet partent ses branches, et de quel bord elles arrivent sur ses enfants. */
 export type Cote = 'droite' | 'gauche' | 'bas' | 'haut'
 
-/** Une branche à tracer, du parent vers l'enfant. */
+/** Une branche à tracer, du parent vers l'enfant, avec la forme que sa structure lui donne. */
 export interface Lien {
   de: Id
   vers: Id
   cote: Cote
+  /** `arbre` : un tronc sur le bord gauche du parent, un coude vers chaque enfant ; `arbre-g` : sur le bord droit. */
+  forme: StyleBranche | 'arbre' | 'arbre-g'
+}
+
+/** Un trait propre à une structure (l'arête d'un poisson, l'accolade, la grille d'une matrice), en chemin SVG. */
+export interface Trait {
+  /** Le sujet dont il part : il prend la couleur de sa branche. */
+  de: Id
+  d: string
 }
 
 export interface Disposition {
   boites: Map<Id, Boite>
   liens: Lien[]
+  traits: Trait[]
 }
 
 /** Les écarts de docs/XMIND.md § 2 : entre un parent et ses enfants, entre deux frères. */
@@ -35,56 +45,10 @@ export interface Ecarts {
 }
 
 export const ECARTS: Ecarts = { principal: 40, secondaire: 12 }
+/** La carte compacte : des branches plus serrées. */
+export const ECARTS_COMPACTS: Ecarts = { principal: 28, secondaire: 4 }
 /** Le central est plus loin de ses principaux que les autres sujets de leurs enfants. */
 export const ECART_CENTRAL = 64
-
-/** Les enfants qu'on dessine : aucun si le sujet est replié. */
-export const visibles = (l: Lecture, id: Id): readonly Id[] => (l.sujets.get(id)?.replie || cache(l, id) ? [] : enfantsDe(l, id))
-
-/**
- * Une branche disposée en arbre horizontal (la structure logique, et chaque moitié d'une carte) : les enfants en
- * colonne à droite (ou à gauche) du parent, centrés sur lui. Rend la hauteur occupée par la branche ; les boîtes sont
- * posées relativement à `x0` (le bord du parent d'où partent les branches) et `yMilieu` (le milieu du parent).
- */
-export function hauteurBranche(l: Lecture, id: Id, taille: (id: Id) => Taille, e: Ecarts, memo: Map<Id, number>): number {
-  const deja = memo.get(id)
-  if (deja !== undefined) return deja
-  const enfants = visibles(l, id)
-  const propre = taille(id).h
-  const somme = enfants.reduce((s, x, i) => s + hauteurBranche(l, x, taille, e, memo) + (i > 0 ? e.secondaire : 0), 0)
-  const h = Math.max(propre, somme)
-  memo.set(id, h)
-  return h
-}
-
-/**
- * Pose en colonne les enfants de `parent`, déjà posé dans `boites`, du côté `cote` ; puis leurs propres enfants, du
- * même côté. `ecart` : la distance horizontale entre le parent et ses enfants.
- */
-export function poserEnColonne(
-  l: Lecture,
-  parent: Id,
-  enfants: readonly Id[],
-  cote: 'droite' | 'gauche',
-  taille: (id: Id) => Taille,
-  e: Ecarts,
-  ecart: number,
-  memo: Map<Id, number>,
-  sortie: Disposition,
-) {
-  const p = sortie.boites.get(parent)!
-  const total = enfants.reduce((s, x, i) => s + hauteurBranche(l, x, taille, e, memo) + (i > 0 ? e.secondaire : 0), 0)
-  let y = p.y + p.h / 2 - total / 2
-  for (const x of enfants) {
-    const hb = hauteurBranche(l, x, taille, e, memo)
-    const t = taille(x)
-    const bx = cote === 'droite' ? p.x + p.l + ecart : p.x - ecart - t.l
-    sortie.boites.set(x, { x: bx, y: y + hb / 2 - t.h / 2, ...t })
-    sortie.liens.push({ de: parent, vers: x, cote })
-    poserEnColonne(l, x, visibles(l, x), cote, taille, e, e.principal, memo, sortie)
-    y += hb + e.secondaire
-  }
-}
 
 /** Le rectangle qui contient toutes les boîtes (vide : un point en 0, 0). */
 export function emprise(boites: Iterable<Boite>): Boite {

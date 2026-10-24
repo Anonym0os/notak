@@ -30,8 +30,8 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
-| 18. Carte mentale | 11 | 2 | 28 | 29 % |
-| **Total** | **293** | **12** | **30** | **89 %** |
+| 18. Carte mentale | 18 | 2 | 21 | 46 % |
+| **Total** | **300** | **12** | **23** | **91 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -435,14 +435,14 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Revenir au central (Cmd+R), afficher la branche seule (Cmd+;) | ✅ | Échap ou Cmd+; ramènent la carte entière. |
 | Glisser un sujet pour le rattacher, l'insérer ou le détacher (Maj inverse) | ✅ | La cible se signale pendant le glisser (cadre du futur parent, trait d'insertion). |
 | Sujet flottant | ✅ | Double-clic dans le vide ; il se glisse où l'on veut, ou se rattache. |
-| Structure carte : équilibrée, non équilibrée, horaire, antihoraire | 🟡 | Les quatre se disposent ; aucun menu ne les choisit encore. |
-| Structure logique et accolade | ⬜ |  |
-| Structure organigramme et arbre | ⬜ |  |
-| Structure chronologie | ⬜ |  |
-| Structure arête de poisson | ⬜ |  |
-| Structure matrice | ⬜ |  |
-| Structure par sujet, héritée par défaut | ⬜ |  |
-| Carte compacte, placement libre, chevauchement | ⬜ |  |
+| Structure carte : équilibrée, non équilibrée, horaire, antihoraire | ✅ | Menu « Structure » de la carte ouverte ; non équilibrée : « À droite » règle le nombre de principaux à droite. |
+| Structure logique et accolade | ✅ | À droite et à gauche. |
+| Structure organigramme et arbre | ✅ | Organigramme vers le bas ou le haut, arbre à droite ou à gauche. |
+| Structure chronologie | ✅ | Horizontale (branches alternées dessous, dessus) et verticale (alternées à droite, à gauche). |
+| Structure arête de poisson | ✅ | Tête à gauche ou à droite. |
+| Structure matrice | ✅ | En lignes ou en colonnes. |
+| Structure par sujet, héritée par défaut | ✅ | « Suivre le sujet parent » la retire. |
+| Carte compacte, placement libre, chevauchement | 🟡 | Compacte : des écarts plus serrés, sans l'emboîtement des branches de Xmind. Placement libre : une branche glissée reste où on la lâche, « Réaligner » la remet ; le chevauchement est alors permis. |
 | Relation entre deux sujets : courbe réglable, pointes, titre | ⬜ |  |
 | Limite autour d'une plage de frères | ⬜ |  |
 | Résumé d'une plage de frères | ⬜ |  |

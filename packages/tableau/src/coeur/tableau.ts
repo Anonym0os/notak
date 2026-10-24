@@ -552,6 +552,8 @@ export interface Sujet {
   structure?: StructureArbre
   /** Carte non équilibrée : combien de principaux vont à droite (sur le central seulement). */
   aDroite?: number
+  /** Placement libre : de combien (px) la branche a été tirée hors de la place que sa structure lui donne. */
+  decalage?: { x: number; y: number }
   /** Ce que Notak ne lit pas d'un sujet venu d'un `.xmind`, gardé pour le lui rendre à l'export. */
   xmind?: Record<string, unknown>
 }
@@ -560,6 +562,8 @@ export interface Sujet {
 export interface Arbre {
   type: 'arbre'
   sujets: Record<Id, Sujet>
+  /** `compacte` : des branches plus serrées. `libre` : un sujet glissé garde la place où on le lâche. */
+  options?: { compacte?: boolean; libre?: boolean }
 }
 
 export type Contenu =

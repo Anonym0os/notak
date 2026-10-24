@@ -28,7 +28,15 @@ export function extremites(p: Boite, e: Boite, cote: Cote, s: Soulignes = {}): [
 const n = (v: number) => Math.round(v * 10) / 10
 
 /** Le chemin SVG d'une branche du parent `p` à l'enfant `e`. */
-export function cheminBranche(p: Boite, e: Boite, cote: Cote, style: StyleBranche = 'courbe', s: Soulignes = {}): string {
+export function cheminBranche(p: Boite, e: Boite, cote: Cote, style: StyleBranche | 'arbre' | 'arbre-g' = 'courbe', s: Soulignes = {}): string {
+  if (style === 'arbre' || style === 'arbre-g') {
+    // Un arbre : un tronc qui descend (ou monte) du parent, puis un coude vers chaque enfant.
+    const aDroite = style === 'arbre'
+    const xt = aDroite ? p.x + 12 : p.x + p.l - 12
+    const yt = cote === 'haut' ? p.y : p.y + p.h
+    const ye = s.enfant ? e.y + e.h : e.y + e.h / 2
+    return `M${n(xt)} ${n(yt)}V${n(ye)}H${n(aDroite ? e.x : e.x + e.l)}`
+  }
   const [[x0, y0], [x1, y1]] = extremites(p, e, cote, s)
   const horizontal = cote === 'droite' || cote === 'gauche'
   switch (style) {

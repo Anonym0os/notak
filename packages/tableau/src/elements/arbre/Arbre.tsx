@@ -5,7 +5,8 @@ import { Surcouche } from '../surcouche'
 import type { ContexteToile, PropsRendu } from '../types'
 import { HABITS, INTERLIGNE, POLICE, type Mesure, mesurer, rangDe } from './apparence'
 import { Dessin } from './Dessin'
-import { type Disposition, disposer, emprise } from './disposition'
+import { type Disposition, ECARTS, ECARTS_COMPACTS, disposer, emprise } from './disposition'
+import { Barre } from './Barre'
 import { type Lecture, lire, sousCarte } from './modele/sujets'
 import { type Lacher, ouLacher } from './modele/lacher'
 import { gesteDe } from './modele/clavier'
@@ -18,9 +19,9 @@ export function useVue(a: Arbre): { lecture: Lecture; mesures: Map<Id, Mesure>; 
     const lecture = lire(a)
     const mesures = new Map<Id, Mesure>()
     for (const id of lecture.sujets.keys()) mesures.set(id, mesurer(lecture.sujets.get(id)!.titre, rangDe(lecture, id)))
-    const disposition = disposer(lecture, (id) => mesures.get(id) ?? { l: 40, h: 20 })
+    const disposition = disposer(lecture, (id) => mesures.get(id) ?? { l: 40, h: 20 }, a.options?.compacte ? ECARTS_COMPACTS : ECARTS, !!a.options?.libre)
     return { lecture, mesures, disposition }
-  }, [a.sujets])
+  }, [a.sujets, a.options])
 }
 
 /** La marge autour de la carte dans l'aperçu, en px de carte. */
@@ -112,6 +113,8 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
 
   const surTouche = (e: React.KeyboardEvent): boolean => {
     if (edition) return e.key === 'Escape'
+    // Atteinte au clavier, la barre garde ses touches.
+    if ((e.target as Element).closest?.('.notak-arbre-barre')) return false
     // Échap sort de la branche seule avant de fermer la carte.
     if (e.key === 'Escape' && seule) {
       setSeule(null)
@@ -156,7 +159,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
   // Le glisser du fond fait défiler la carte ; celui d'un sujet le déplace (au-delà de quelques pixels).
   const glisse = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null)
   const prise = useRef<{ id: Id; x: number; y: number; dx: number; dy: number } | null>(null)
-  const [tire, setTire] = useState<{ id: Id; p: { x: number; y: number }; lacher: Lacher } | null>(null)
+  const [tire, setTire] = useState<{ id: Id; p: { x: number; y: number }; lacher: Lacher; maj: boolean } | null>(null)
   const versCarte = (e: { clientX: number; clientY: number }) => {
     const r = surface.current!.getBoundingClientRect()
     return { x: (e.clientX - r.left - camera.x) / camera.z, y: (e.clientY - r.top - camera.y) / camera.z }
@@ -164,7 +167,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
   const surAppui = (e: React.PointerEvent) => {
     const cible = e.target as Element
     // Un bouton garde son clic : capturer le pointeur pour défiler l'enverrait à la surface.
-    if (cible.closest('button, textarea')) return
+    if (cible.closest('button, textarea, label, .notak-arbre-barre')) return
     const repli =cible.closest('[data-repli]')?.getAttribute('data-repli')
     if (repli) return faire({ type: 'replier', id: repli })
     const sujet = cible.closest('[data-sujet]')?.getAttribute('data-sujet')
@@ -188,7 +191,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     const pr = prise.current
     if (!pr || (!tire && Math.hypot(e.clientX - pr.x, e.clientY - pr.y) < 4)) return
     const p = versCarte(e)
-    setTire({ id: pr.id, p, lacher: ouLacher(lecture, disposition, pr.id, p, e.shiftKey) })
+    setTire({ id: pr.id, p, lacher: ouLacher(lecture, disposition, pr.id, p, e.shiftKey), maj: e.shiftKey })
   }
   const surRelache = () => {
     glisse.current = null
@@ -197,6 +200,12 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     if (!tire || !pr) return setTire(null)
     setTire(null)
     const l = tire.lacher
+    // Placement libre : la branche reste où on la lâche, sauf sur un autre sujet (elle s'y rattache) ou avec Maj (elle flotte).
+    if (vue.options?.libre && l.type !== 'enfant' && !tire.maj && lecture.sujets.get(tire.id)?.genre !== 'detache') {
+      const b = disposition.boites.get(tire.id)
+      if (b) faire({ type: 'decaler', id: tire.id, de: { x: tire.p.x - pr.dx - b.x, y: tire.p.y - pr.dy - b.y } })
+      return
+    }
     if (l.type === 'enfant') faire({ type: 'rattacher', id: tire.id, parent: l.parent, index: Number.MAX_SAFE_INTEGER })
     else if (l.type === 'inserer') faire({ type: 'rattacher', id: tire.id, parent: l.parent, index: l.index })
     else {
@@ -267,6 +276,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
             valider={valider}
           />
         )}
+        {!lectureSeule && <Barre arbre={a} lecture={lecture} choisis={[...choisis]} faire={faire} />}
         <button type="button" className="notak-arbre-fermer" onClick={contexte.finirEdition}>
           {t('arbre.fermer')}
         </button>
@@ -279,7 +289,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
  * Pendant qu'on glisse un sujet : son cadre suit le pointeur, et la cible du lâcher se signale (le sujet qui le
  * recevra, ou le trait où il s'insérera).
  */
-function Fantome({ tire, prise, disposition: d }: { tire: { id: Id; p: { x: number; y: number }; lacher: Lacher }; prise: { dx: number; dy: number } | null; disposition: Disposition }) {
+function Fantome({ tire, prise, disposition: d }: { tire: { id: Id; p: { x: number; y: number }; lacher: Lacher; maj: boolean }; prise: { dx: number; dy: number } | null; disposition: Disposition }) {
   const b = d.boites.get(tire.id)
   if (!b || !prise) return null
   const l = tire.lacher
