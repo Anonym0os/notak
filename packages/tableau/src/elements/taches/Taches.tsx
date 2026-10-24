@@ -2,7 +2,7 @@ import { EditorContent, getSchema, useEditor, useEditorState } from '@tiptap/rea
 import { type ReactNode, memo, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cleEntre, comparerOrdre } from '../../coeur/ordre'
-import { type CouleurNote, type Element, type Id, type NoeudTexte, type Taches, aimanter } from '../../coeur/tableau'
+import { type CouleurNote, type Element, type Id, type NoeudTexte, type Taches, aimanter, placeDe } from '../../coeur/tableau'
 import { extensionsDuPartage, textePartage } from '../partage'
 import { MenuCouleur } from '../note/MenuCouleur'
 import type { Operation } from '../../coeur/tableau'
@@ -224,6 +224,14 @@ export function operationsDeSortie(
   if (source?.contenu.type !== 'taches') return null
   const avant = source.contenu
   const docSource = docTaches(avant.texte)
+  // La seule tâche d'une liste sans titre emporte la liste : elle part à la corbeille au lieu de rester vide derrière.
+  const emportee = !copie && de === 0 && emporteLaListe(avant, [0])
+  const perte = (texte: NoeudTexte): Operation[] =>
+    copie
+      ? []
+      : emportee
+        ? [{ type: 'ranger', id, de: placeDe(source), vers: { x: source.x, y: source.y, corbeille: Date.now() } }]
+        : [{ type: 'contenu', id, avant, apres: { ...avant, texte } }]
   if (ou.genre === 'liste') {
     const cible = elements.find((e) => e.id === ou.carte)
     if (cible?.contenu.type !== 'taches' || cible.id === id) return null
@@ -231,7 +239,7 @@ export function operationsDeSortie(
     if (!r) return null
     return {
       operations: [
-        ...(copie ? [] : [{ type: 'contenu' as const, id, avant, apres: { ...avant, texte: r.source } }]),
+        ...perte(r.source),
         { type: 'contenu', id: cible.id, avant: cible.contenu, apres: { ...cible.contenu, texte: r.destination } },
       ],
     }
@@ -246,7 +254,7 @@ export function operationsDeSortie(
     const i = Math.max(0, Math.min(ou.index, freres.length))
     const rangee: Element<Taches> = { ...r.liste, parent: colonne.id, ordre: cleEntre(freres[i - 1]?.ordre, freres[i]?.ordre) }
     return {
-      operations: [...(copie ? [] : [{ type: 'contenu' as const, id, avant, apres: { ...avant, texte: r.source } }]), { type: 'creer', element: rangee }],
+      operations: [...perte(r.source), { type: 'creer', element: rangee }],
       nouvelle: rangee.id,
     }
   }
@@ -254,7 +262,7 @@ export function operationsDeSortie(
   const r = detacher(docSource, de, x, y, copie)
   if (!r) return null
   return {
-    operations: [...(copie ? [] : [{ type: 'contenu' as const, id, avant, apres: { ...avant, texte: r.source } }]), { type: 'creer', element: r.liste }],
+    operations: [...perte(r.source), { type: 'creer', element: r.liste }],
     nouvelle: r.liste.id,
   }
 }
