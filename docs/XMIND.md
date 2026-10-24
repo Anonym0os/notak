@@ -439,13 +439,13 @@ entière** et ne dépend pas de la sélection. Ses blocs, de haut en bas, sépar
 Ce qu'un réglage efface en passant, Xmind le fait sans confirmer, et Notak aussi : une police globale retire les
 polices posées sujet par sujet ; une largeur de ligne retire les largeurs et les effilements posés ; un thème de
 couleur retire les couleurs posées à la main, le fond choisi et le jeu de couleurs ; un squelette retire les
-structures posées sur les sujets principaux ; éteindre les branches libres remet chaque sujet à sa place ; allumer
+structures posées sur les sujets principaux, la police et la largeur de ligne de toute la carte, et les largeurs de sujets ; éteindre les branches libres remet chaque sujet à sa place ; allumer
 les flottants colorés retire leur remplissage choisi. Chaque réglage est un geste (`modele/reglages.ts`) : il
 passe par l'historique, et un seul annuler le défait.
 
 | Réglage | Dans Notak (`Arbre`) | Clé de la feuille `.xmind` |
 |---|---|---|
-| Squelette | structure du central (et plus de structure sur les principaux) | `rootTopic.structureClass` |
+| Squelette | `squelette` (un de nos 51 identifiants : `carte-1`…), la structure du central (et plus de structure sur les principaux) ; `effile` suit celui du squelette | `theme.skeletonThemeId`, l'extension de feuille `org.xmind.ui.skeleton.structure.style`, le style de chaque classe dans `theme.centralTopic` etc., et `rootTopic.structureClass` |
 | Thème de couleur | `theme`, `themePerso`, et `couleurLigne` + `options.uneCouleur` pour une variante à une couleur | `theme.colorThemeId` (non écrit, voir plus bas) |
 | Couleur de l'arrière-plan | `fond` (`#rrggbb`, ou `#rrggbbaa`) | `style.properties["svg:fill"]` |
 | Police globale | `police` | `theme.global.properties["fo:font-family"]` |
@@ -469,12 +469,43 @@ Une option éteinte n'écrit pas sa clé, et une clé absente se lit comme étei
 champs : elles gardent leur apparence. Ce que Notak ne lit pas de la feuille (le thème et le style de Xmind, ses
 extensions) est gardé dans `Arbre.xmind` et rendu à l'export ; ce que l'onglet règle l'emporte sur ce sac.
 
-**Squelette.** Xmind en compte 60, en dix groupes, chacun portant une structure *et* un style complet.
-→ Notak : un squelette est une structure, celle du sujet central, rangée dans huit groupes (carte mentale, diagramme
-logique, carte d'accolade, organigramme, arbre graphique, chronologie, arêtes de poisson, matrice) ; le tableau-arbre
-et la grille sont écartés (§ 2). Les vignettes sont calculées par le moteur de mise en page de la carte, sur un
-exemple de sept sujets, et la carte du squelette nomme le groupe, jamais la structure. La fenêtre (388 × 450) s'ouvre
-à gauche du panneau, ses groupes se replient, et elle ne se ferme pas au choix.
+**Squelette.** Xmind en compte 60, en dix groupes, chacun portant une structure *et* un style complet : par classe de
+sujet (central, principal, sous-sujet, flottant, résumé), la forme, la classe de ligne, l'épaisseur et le motif de la
+ligne, la flèche, la police, la taille, la graisse, le remplissage, la bordure ; et, pour la carte, `lineTapered` (les
+branches du central s'amincissent). Le relevé complet, squelette par squelette, est dans
+`notak-chantiers/interface-xmind/9-squelettes.md`. Les couleurs n'en font pas partie : elles viennent du thème de couleur.
+La ligne d'un rang est celle des branches qui **en partent** : le central décide de la forme des branches qui vont à ses
+principaux, un principal de celles de ses enfants. Un `inherited` veut dire « celle du sujet dont il part ».
+
+→ Notak : cinquante et un squelettes, dans huit groupes (12 carte mentale, 9 diagramme logique, 6 accolade, 6
+organigramme, 6 arbre, 6 chronologie, 3 arête de poisson, 3 matrice) ; le tableau-arbre et la grille sont écartés (§ 2).
+Table : `elements/arbre/carte/squelettes-table.ts` ; chaque squelette porte son identifiant de Xmind pour le fichier.
+`Arbre.squelette` le désigne ; absent, la carte garde le style de son thème (les cartes d'avant ne changent pas).
+Ordre de résolution, du plus fort au plus faible : le style posé sur le sujet, la police et la largeur de toute la
+carte, le squelette, le thème. Le thème garde les couleurs ; le squelette donne les formes, les lignes, les
+épaisseurs, les polices, les remplissages et bordures, l'effilé, le trait à main levée. Un squelette qui prescrit une
+structure aux principaux (`principaux`) la leur donne s'ils n'en ont pas une à eux. Choisir un squelette est un geste
+de la carte (`appliquerSquelette`) : il efface les structures des principaux, la police et la largeur de ligne
+globales, les largeurs de sujets, et pose l'effilé du squelette. **Une carte neuve a le premier squelette de la carte
+mentale** (`carte-1`, celui de Xmind : courbe organique depuis le central, coudes arrondis ensuite, central de 30 en 800
+sans fond, principaux pleins). Le trait d'un sujet souligné qui n'a pas de bordure à lui est celui de la branche qui
+arrive. Une bordure de squelette (sur une forme à cadre) prend la couleur de la branche.
+La fenêtre (388 × 450) s'ouvre à gauche du panneau, ses groupes se replient, trois vignettes par ligne, et elle ne se
+ferme pas au choix. Chaque vignette est une petite carte dessinée par le moteur de mise en page sur un exemple de sept
+sujets, **avec la structure et le style du squelette** (forme et épaisseur des branches, effilé, formes de sujet, fond ou
+non, tremblé des squelettes à la main, petit crayon en haut à droite) et les couleurs de la carte ; la carte du
+squelette montre la vignette du courant et nomme son groupe, jamais la structure. À l'export, la feuille reçoit
+l'identifiant, l'extension de structures et le style de chaque classe (sauf si elle portait déjà ce squelette : les
+styles de classe qu'elle avait sont gardés) ; à l'import, un identifiant connu redonne le squelette.
+
+**Les lignes de Xmind et leur tracé** (`trace/branches.ts`). Dans le repère de la croissance (*g* du parent à
+l'enfant, *t* en travers) : la courbe (`curve`, forme `organique`) est un arc quadratique dont le point de contrôle est à
+*g* = 0,2 et *t* = 1, et dont le départ du central est caché sous lui, à un tiers de sa largeur de son centre ; l'anse
+(`bight`) une cubique aux contrôles (0,75 ; 0) et (0,5 ; 1) ; le pli (`fold`) un biais jusqu'à *g* = 2/3 puis l'axe ; le
+pli arrondi un coin à *g* = 0,5. La forme `courbe` de Notak (un S) reste, pour les thèmes de couleur. **L'effilé** est
+une surface dont la largeur décroît le long du trajet, de 3,6 épaisseurs au départ (courbe), 3 (droite, anse, pli
+arrondi) ou 2,4 (coudes, pli) à 1 à l'arrivée ; un coude ou un pli garde sa largeur jusqu'à son dernier segment, le pli
+arrondi passe par 2 à son coin ; il ne concerne que les branches du central, et toutes les formes le permettent.
 
 **Thème de couleur.** Un groupe a ses variantes : celle à branches de couleur, puis une par couleur d'accent (six au
 plus). Un clic sur un groupe prend sa première variante, ou la dernière qu'on y a prise dans la session ; sur le

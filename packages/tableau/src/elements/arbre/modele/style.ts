@@ -1,6 +1,6 @@
 import type { Arbre, CasseTexte, FormeBranche, FormeSujet, Id, MotifRemplissage, MotifTrait, PointeTrait, StructureArbre, StyleSujet } from '../../../coeur/tableau'
 import { type Rang, brancheDe, couleurDe, couleursDe, habitDe, mesureDeSujet, rangDe } from '../apparence'
-import { themeDe } from '../themes'
+import { themeDeArbre } from '../themes'
 import { resumeDe } from './elements'
 import { type Lecture, enfantsDe, profondeur, structureDe } from './sujets'
 
@@ -136,10 +136,10 @@ export const familleDe = (s: StructureArbre): FamilleStructure => FAMILLES_STRUC
 export const famillesPour = (central: boolean): readonly FamilleStructure[] => FAMILLES_STRUCTURE.filter((f) => central || !f.centralSeul)
 
 /** Les formes de branche, dans l'ordre du panneau. */
-export const FORMES_BRANCHE: readonly FormeBranche[] = ['coudee-arrondie', 'coudee', 'droite', 'courbe', 'anse', 'pli', 'pli-arrondi']
+export const FORMES_BRANCHE: readonly FormeBranche[] = ['coudee-arrondie', 'coudee', 'droite', 'courbe', 'organique', 'anse', 'pli', 'pli-arrondi']
 
-/** L'effilage n'existe que pour ces formes (le trait y est une surface). */
-export const peutEffiler = (f: FormeBranche | null): boolean => f === 'courbe' || f === 'droite'
+/** Toute forme peut s'effiler : le trait y devient une surface qui s'amincit (« aucune » n'a pas de trait). */
+export const peutEffiler = (f: FormeBranche | null): boolean => f !== null && f !== 'aucune'
 
 export const MOTIFS_REMPLISSAGE: readonly MotifRemplissage[] = ['plein', 'plein-main', 'diagonales', 'diagonales-fines', 'horizontales', 'horizontales-fines']
 export const MOTIFS_BORDURE_SUJET: readonly MotifTrait[] = ['plein', 'tirets', 'main', 'tirets-main']
@@ -220,15 +220,15 @@ export interface ValeursSujet {
 }
 
 export function valeursDe(a: Arbre, l: Lecture, id: Id): ValeursSujet {
-  const theme = themeDe(a.theme)
+  const theme = themeDeArbre(a)
   const sujet = l.sujets.get(id)!
   const rang = rangDe(l, id)
   const h = habitDe(l, id, theme)
   const cb = couleurDe(l, id, theme, !!a.options?.uneCouleur)
   const c = couleursDe(h, rang, theme, sujet.classe, cb)
-  const b = brancheDe(l, id)
+  const b = brancheDe(l, id, { largeur: a.largeurBranche, effilee: a.effile }, theme)
   const encre = theme.encre ?? 'var(--notak-arbre-encre)'
-  const forme = b.forme ?? theme.branche
+  const forme = b.forme ?? b.formeSquelette ?? theme.branche
   const sansBordure = c.bordure === 'none'
   return {
     genre: genreDe(l, id),

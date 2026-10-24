@@ -1,5 +1,6 @@
 import { cleEntre, comparerOrdre } from '../../../coeur/ordre'
 import { type Arbre, type Id, type StructureArbre, type Sujet, nouvelId } from '../../../coeur/tableau'
+import { SQUELETTE_DEFAUT } from '../carte/squelettes'
 
 /**
  * Une carte mentale se stocke à plat (un dictionnaire de sujets, chacun pointe son parent) : c'est ce qui laisse
@@ -130,6 +131,12 @@ const avec = (a: Arbre, changes: Record<Id, Sujet | undefined>): Arbre => {
 export function nouvelArbre(titreCentral: string): Arbre {
   return { type: 'arbre', sujets: { [nouvelId()]: { ordre: 'V', titre: titreCentral, structure: 'carte' } } }
 }
+
+/**
+ * Une carte telle qu'on la crée sur la toile ou dans une nouvelle feuille : au squelette de Xmind (des courbes
+ * organiques depuis le central, des coudes arrondis ensuite). `nouvelArbre` reste la carte nue, sans style de rang.
+ */
+export const carteNeuve = (titreCentral: string): Arbre => ({ ...nouvelArbre(titreCentral), squelette: SQUELETTE_DEFAUT })
 
 /** La clé de rang qui place un sujet en `index` parmi ces frères (ordonnés). */
 function ordreA(l: Lecture, freres: readonly Id[], index: number): string {

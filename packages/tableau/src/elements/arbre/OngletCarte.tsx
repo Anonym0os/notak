@@ -72,7 +72,7 @@ export function OngletCarte({ arbre, lecture, faire }: { arbre: Arbre; lecture: 
   return (
     <div className="notak-arbre-reglages">
       <div className="notak-arbre-reglages-bloc notak-arbre-reglages-bloc-squelette">
-        <CarteSquelette structure={structure} faire={faire} />
+        <CarteSquelette arbre={arbre} structure={structure} faire={faire} />
       </div>
       <Separateur />
       <Bloc>

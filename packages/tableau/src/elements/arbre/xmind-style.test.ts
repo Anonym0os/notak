@@ -231,3 +231,16 @@ describe('les modèles livrés avec Xmind', () => {
     expect(stylises).toBeGreaterThan(0)
   })
 })
+
+describe('les classes de ligne et de forme des squelettes', () => {
+  it('la courbe de Xmind se lit comme la forme organique, et les deux s’écrivent « curve »', () => {
+    expect(lireStyleSujet({ 'line-class': 'org.xmind.branchConnection.curve' }).style.branche).toBe('organique')
+    expect(ecrireStyleSujet({ branche: 'organique' })['line-class']).toBe('org.xmind.branchConnection.curve')
+    expect(ecrireStyleSujet({ branche: 'courbe' })['line-class']).toBe('org.xmind.branchConnection.curve')
+  })
+
+  it('les formes écrites sans « .compact » par les squelettes se lisent', () => {
+    for (const [classe, forme] of [['circle', 'cercle'], ['ellipserect', 'capsule'], ['heart', 'coeur'], ['fatRightArrow', 'fleche-droite'], ['roundedRect', 'arrondi'], ['doubleBookQuote', 'guillemets-chevrons']] as const)
+      expect(lireStyleSujet({ 'shape-class': `org.xmind.topicShape.${classe}` }).style.forme, classe).toBe(forme)
+  })
+})

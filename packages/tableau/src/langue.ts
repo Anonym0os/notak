@@ -1125,6 +1125,10 @@ export const fr: Textes = {
   // passe fond : menus, barre d'outils, barre du sujet
   'arbre.sujet.barre': 'Actions du sujet',
   'arbre.sujet.pinceau': 'Pinceau de style',
+  // passe fond : squelettes
+  'arbre.style.br.organique': 'Courbe organique',
+  'arbre.carte.sq': '{groupe} {n}',
+  'arbre.carte.sqMain': 'Dessiné à la main',
   'type.croquis': 'Croquis',
   'type.dessin': 'Dessin',
   'outil.dessin': 'Dessiner',
@@ -2973,6 +2977,10 @@ export const en: Textes = {
   // passe fond : menus, barre d'outils, barre du sujet
   'arbre.sujet.barre': 'Topic actions',
   'arbre.sujet.pinceau': 'Format painter',
+  // passe fond : squelettes
+  'arbre.style.br.organique': 'Organic curve',
+  'arbre.carte.sq': '{groupe} {n}',
+  'arbre.carte.sqMain': 'Hand drawn',
   'type.croquis': 'Sketch',
   'type.dessin': 'Drawing',
   'outil.dessin': 'Draw',

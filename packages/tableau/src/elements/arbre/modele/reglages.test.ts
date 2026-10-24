@@ -24,9 +24,39 @@ describe('squelette', () => {
   it('pose la structure du central et retire celles des sujets principaux', () => {
     let { a, A, c } = exemple()
     a = faire(a, { type: 'structure', ids: [A], structure: 'accolade-droite' })
-    a = faire(a, { type: 'squelette', structure: 'organigramme-bas' })
+    a = faire(a, { type: 'squelette', squelette: 'organigramme-1' })
     expect(a.sujets[c]!.structure).toBe('organigramme-bas')
     expect(a.sujets[A]!.structure).toBeUndefined()
+    expect(a.squelette).toBe('organigramme-1')
+  })
+
+  it('efface la police et la largeur de ligne de toute la carte, et les largeurs de sujets ; les couleurs restent', () => {
+    let { a, A, c } = exemple()
+    a = { ...a, police: 'Georgia', largeurBranche: 5, effile: true, theme: 'ocean', fond: '#112233' }
+    a = changerSujet(a, A, (s) => ({ ...s, largeur: 180 }))
+    a = faire(a, { type: 'squelette', squelette: 'carte-1' })
+    expect(a.police).toBeUndefined()
+    expect(a.largeurBranche).toBeUndefined()
+    expect(a.effile).toBeUndefined()
+    expect(a.sujets[A]!.largeur).toBeUndefined()
+    // Le thème de couleur et le fond sont à lui, pas au squelette ; le style posé à la main sur un sujet reste.
+    expect(a.theme).toBe('ocean')
+    expect(a.fond).toBe('#112233')
+    expect(a.sujets[A]!.style?.remplissage).toBe('#ff0000')
+    expect(a.sujets[c]!.structure).toBe('carte')
+  })
+
+  it('l’effilé suit le squelette : un squelette effilé l’allume, un autre l’éteint', () => {
+    let { a } = exemple()
+    a = faire(a, { type: 'squelette', squelette: 'carte-2' })
+    expect(a.effile).toBe(true)
+    a = faire(a, { type: 'squelette', squelette: 'carte-1' })
+    expect(a.effile).toBeUndefined()
+  })
+
+  it('un squelette inconnu ne change rien', () => {
+    const { a } = exemple()
+    expect(faire(a, { type: 'squelette', squelette: 'nexistepas' })).toBe(a)
   })
 })
 

@@ -30,9 +30,9 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
-| 18. Carte mentale | 49 | 6 | 0 | 95 % |
+| 18. Carte mentale | 61 | 10 | 0 | 93 % |
 | 19. Document à blocs | 21 | 3 | 1 | 90 % |
-| **Total** | **352** | **19** | **3** | **97 %** |
+| **Total** | **364** | **23** | **3** | **96 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -447,7 +447,8 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Branches libres | ✅ | Une branche glissée reste où on la lâche (carte seulement) ; éteindre le réglage remet tout en place. |
 | Chevauchement des sujets, sujet flottant flexible | ✅ | Un sujet lâché sur un autre y reste ; un flottant glissé ne se rattache à rien ; Maj inverse l'un et l'autre. |
 | Onglet Carte du panneau de format : les blocs de l'onglet Map de Xmind, dans son ordre | 🟡 | Chaque réglage fait son geste (annulable), change le rendu et fait l'aller-retour `.xmind` ; pas encore éprouvé à l'écran. Voir `docs/XMIND.md` § 9. |
-| Squelette : carte nommant le groupe, fenêtre de choix par groupes repliables | ✅ | Huit groupes, dix-huit structures, vignettes calculées par la mise en page de la carte. Tableau-arbre et grille écartés ; un squelette n'est qu'une structure. |
+| Squelette : une structure et un style complet par rang, choisis dans une fenêtre de groupes repliables | ✅ | Cinquante et un squelettes en huit groupes (12, 9, 6, 6, 6, 6, 3, 3), relevés sur ceux de Xmind (`notak-chantiers/interface-xmind/9-squelettes.md`) : par rang, la forme du sujet, la forme et l'épaisseur des branches, la police, la taille, la graisse, le remplissage, la bordure, l'effilé, le trait à main levée. Chaque vignette est une petite carte à la structure et au style du squelette, aux couleurs de la carte ; la carte du squelette montre celle du squelette courant. Le choix efface les structures des principaux, la police et la largeur de ligne globales, les largeurs de sujets ; les couleurs restent au thème, le style posé sur un sujet reste avant le squelette. Une carte sans squelette garde son rendu. Tableau-arbre et grille écartés (`docs/XMIND.md` § 9). |
+| Une carte neuve a le squelette de Xmind : courbes organiques depuis le central, coudes arrondis ensuite | ✅ | Carte posée sur la toile ou nouvelle feuille (`carteNeuve`). |
 | Thème de couleur : sélecteur, variantes, liste (Favori, Ma couleur, Coloré, Classique), alterner | ✅ | Douze thèmes à nous ; les favoris et les thèmes à soi sont des préférences de la personne (navigateur). |
 | Créer, modifier, renommer, dupliquer, supprimer un thème de couleur à soi | ✅ | Six couleurs, un nom, l'aperçu des variantes ; la carte garde les couleurs du thème qu'elle utilise. |
 | Couleur de l'arrière-plan, et le nuancier (45 couleurs, hexa, opacité, thème actuel, récents) | ✅ | Le sélecteur natif émet quand on le lâche. |
@@ -468,7 +469,7 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Tâche à cocher, numérotation des enfants | ✅ | Cmd+Alt+T ; la case se coche d'un clic. Numérotation 1, I, A, a, avec ou sans le numéro du parent. |
 | Rang : important, secondaire, barré | ✅ | Maj+Alt+1, 2, 3, 0. |
 | Formes de sujet | ✅ | 47 formes en quatre groupes (basiques, avancées, ponctuation, organigramme) : cercle, nuage, étoile, cœur, flèches, signes, symboles d'organigramme… ; chacune se dessine à l'écran, en vignette et dans le `.xmind`. |
-| Styles de branche, épaisseur, effilé, couleurs arc-en-ciel | ✅ | Coude arrondi, coude, droite, courbe, anse, pli, pli arrondi ; sept motifs dont la main levée, ou aucun ; onze pointes de fin ; cinq épaisseurs, effilées pour la courbe et la droite ; « Branche colorée » et série de couleurs au choix, ou une seule couleur. |
+| Styles de branche, épaisseur, effilé, couleurs arc-en-ciel | ✅ | Coude arrondi, coude, droite, courbe, courbe organique (celle de Xmind : un arc qui quitte le parent presque en travers), anse, pli, pli arrondi, tracés comme ceux de Xmind ; sept motifs dont la main levée, ou aucun ; onze pointes de fin ; cinq épaisseurs, effilées pour toutes les formes (la largeur décroît le long du trajet, de 3,6 épaisseurs au départ pour la courbe, 3 pour la droite et l'anse, 2,4 pour les coudes, à 1 à l'arrivée) ; « Branche colorée » et série de couleurs au choix, ou une seule couleur. |
 | Texte, remplissage et bordure d'un sujet | ✅ | Onglet Style, comme celui de Xmind : police, taille, graisse (100 à 900), italique, barré, souligné, casse, alignement, couleur ; remplissage (plein, hachures, main levée) et bordure (motif, épaisseur, couleur) ; largeur imposée. L'encre du texte se choisit seule sur un remplissage foncé. |
 | Onglet Style du panneau de côté | ✅ | Une vue par sélection (sujet, plusieurs, relation, limite, résumé, rien) ; sections repliables ; sélecteur de couleur (nuancier 9 × 5, hexadécimal, opacité, récentes) ; mettre à jour le niveau ou les sous-sujets ; numérotation. Pas de bulle ni de zone (écartées). |
 | Thèmes de carte | ✅ | Douze thèmes à nous : Classique (suit le clair et le sombre de Notak), Pastel, Nuit, Sobre, Papier, Vif, Aurore, Océan, Forêt, Braise, Lavande, Ardoise. |
@@ -481,7 +482,7 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Présentation Pitch | 🟡 | Cmd+Alt+P : une diapositive par sujet selon les réglages (listes déroulées étape par étape), plein écran, barre qui s'estompe, touches et raccourcis de Xmind (⇧→ passe la branche, ⇧← revient au parent, A, ?). Pas de vue du présentateur ni de seconde fenêtre. |
 | Chercher dans la carte | ✅ | Cmd+F : titres, étiquettes et notes, sans accents ; Entrée va au suivant. |
 | Importer un fichier .xmind | ✅ | Déposé sur la toile : une carte par feuille, images comprises. Éprouvé sur les 36 modèles de Xmind et sa démo. Les fichiers de Xmind 8 (content.xml) sont refusés avec un avis. |
-| Exporter en .xmind | 🟡 | Menu de la carte, une feuille par carte choisie ; aller-retour vérifié par la lecture de Notak, pas encore rouvert dans Xmind lui-même. Le fond, les polices, la largeur et les couleurs des branches, et les réglages de l'onglet Carte s'écrivent avec les clés de Xmind (`docs/XMIND.md` § 9) ; les styles de sujet par rang et les thèmes de Notak ne sont pas traduits. Le style des sujets, relations, limites et résumés est écrit (`style.properties`, `customWidth`) et relu sur les 36 modèles de Xmind ; les thèmes ne sont pas traduits. |
+| Exporter en .xmind | 🟡 | Menu de la carte, une feuille par carte choisie ; aller-retour vérifié par la lecture de Notak, pas encore rouvert dans Xmind lui-même. Le fond, les polices, la largeur et les couleurs des branches, et les réglages de l'onglet Carte s'écrivent avec les clés de Xmind (`docs/XMIND.md` § 9) ; le squelette de la carte s'écrit avec son identifiant de Xmind, ses structures et le style de chaque rang (relu, il redonne le squelette) ; les thèmes de Notak ne sont pas traduits. Le style des sujets, relations, limites et résumés est écrit (`style.properties`, `customWidth`) et relu sur les 36 modèles de Xmind ; les thèmes de couleur ne sont pas traduits. |
 | Texte de la carte dans la recherche et l'export texte du tableau | ✅ | L'export la rend en liste indentée. |
 | Panneau d'icônes : Marqueur, Autocollant, Illustration | ✅ | Le smiley l'ouvre ; groupes repliables, un marqueur par groupe, 58 marqueurs en 7 groupes. Les autocollants (emojis) et les illustrations (icônes Tabler en couleur) ont les catégories de Xmind, pas ses dessins (docs/XMIND.md § 9). |
 | Groupes de marqueurs à soi, légende | ✅ | « Nouveau groupe », images importées, renommer, déplacer, supprimer ; la légende se montre sur la carte. |

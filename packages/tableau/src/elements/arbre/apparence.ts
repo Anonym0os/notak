@@ -4,6 +4,7 @@ import { formeCarree, margesForme } from './formes'
 import type { Taille } from './disposition'
 import { numeroDe } from './modele/elements'
 import { type Lecture, enfantsDe, profondeur } from './modele/sujets'
+import { epaisseurEntrante, pileSquelette } from './carte/squelettes'
 import { type Theme, THEMES } from './themes'
 
 /**
@@ -56,6 +57,8 @@ export interface Habit {
   plein: boolean
   /** Le sujet se remplit de la couleur de sa branche à cette opacité (un sous-sujet du premier niveau, cadré). */
   fondBranche?: number
+  /** Sa bordure (celle d'un squelette) a la couleur de sa branche. */
+  bordureBranche?: boolean
 }
 
 export const POLICE = 'Inter, ui-sans-serif, system-ui, -apple-system, sans-serif'
@@ -85,24 +88,33 @@ export function habitDe(l: Lecture, id: Id, theme: Theme, compacte = false): Hab
   const marge = compacte ? MARGES_COMPACTES[rang] : t.marge
   const sujet = l.sujets.get(id)
   const s = sujet?.style
+  // Le squelette de la carte, quand elle en a un : ses valeurs passent avant celles du thème, après celles du sujet.
+  const sq = theme.squelette
+  const sc = sq?.[rang]
   const formeTheme = rang === 'central' ? theme.central.forme : rang === 'principal' ? theme.principal.forme : rang === 'sous' ? theme.sous.forme : theme.flottant.forme
-  const forme = s?.forme ?? formeTheme
-  const police = s?.taille ?? t.police
-  // Le souligné : l'épaisseur du thème, ou celle que le rang donne (le style, lui, l'emporte).
+  const forme = s?.forme ?? sc?.forme ?? formeTheme
+  const police = s?.taille ?? sc?.taille ?? t.police
+  // Le motif de remplissage que prescrit le squelette : « plein » est celui par défaut, il ne s'écrit pas.
+  const motifRemplissage = s?.motifRemplissage ?? (sc && sc.remplissage !== 'plein' ? sc.remplissage : undefined)
+  // Le souligné : l'épaisseur du thème, ou celle que le rang donne (le style, lui, l'emporte). Avec un squelette, celle de
+  // sa bordure, sinon celle de la branche qui arrive sur le sujet.
   const traitTheme = (rang === 'principal' ? theme.principal.trait : rang === 'sous' ? theme.sous.trait : undefined) ?? TRAIT_SOULIGNE[rang]
-  const epaisseurBordure = s?.epaisseurBordure ?? (souligne(forme) ? traitTheme : undefined)
-  const fondBranche = rang === 'sous' && theme.sous.fondNiveau2 && !souligne(forme) && profondeur(l, id) === 2 ? theme.sous.fondNiveau2 : undefined
+  const traitSouligne = sq && sc ? sc.bordure || (epaisseurEntrante(sq, rang) ?? traitTheme) : traitTheme
+  const epaisseurBordure = s?.epaisseurBordure ?? (souligne(forme) ? traitSouligne : sc?.bordure)
+  const sousRempli = sq ? (sq.fondNiveau2 ? profondeur(l, id) === 2 : false) || (!!sc && sc.remplissage !== 'aucun') : !!theme.sous.fondNiveau2 && profondeur(l, id) === 2
+  const fondBranche = rang === 'sous' && sousRempli && !souligne(forme) ? (theme.sous.fondNiveau2 ?? 0.2) : undefined
   // Un central sans fond n'a plus le texte que le thème lui donne pour son fond.
-  const centrePlein = rang === 'central' && s?.motifRemplissage !== 'aucun'
-  const latin = s?.police ?? theme.police ?? POLICE
+  const centrePlein = rang === 'central' && motifRemplissage !== 'aucun'
+  const latin = s?.police ?? (sq ? (theme.policeCarte ?? pileSquelette(sc?.police) ?? POLICE) : (theme.police ?? POLICE))
+  const bordureBranche = !!sq && !s?.bordure && !souligne(forme) && (epaisseurBordure ?? 0) > 0
   return {
     police,
-    graisse: s?.graisse ?? (s?.gras === undefined ? t.graisse : s.gras ? 700 : 400),
+    graisse: s?.graisse ?? (s?.gras === undefined ? (sc?.graisse ?? t.graisse) : s.gras ? 700 : 400),
     italique: !!s?.italique,
     barre: !!s?.barre,
     souligne: !!s?.souligne,
     ...(s?.casse ? { casse: s.casse } : {}),
-    alignement: s?.alignement ?? (rang === 'central' ? 'centre' : 'gauche'),
+    alignement: s?.alignement ?? sc?.alignement ?? (rang === 'central' ? 'centre' : 'gauche'),
     ...(sujet?.largeur ? { largeur: sujet.largeur } : {}),
     // La police CJK vient après la latine : un caractère que la première n'a pas passe à la seconde.
     famille: theme.cjk ? `${latin}, "${theme.cjk}"` : latin,
@@ -110,13 +122,14 @@ export function habitDe(l: Lecture, id: Id, theme: Theme, compacte = false): Hab
     marge: margesForme(forme, marge),
     forme,
     largeurMax: t.largeurMax,
-    plein: (rang === 'principal' && theme.principal.plein) || (rang === 'flottant' && !!theme.flottantsColores),
+    plein: (rang === 'principal' && (sc ? sc.remplissage !== 'aucun' : theme.principal.plein)) || (rang === 'flottant' && !!theme.flottantsColores),
     ...(s?.remplissage ? { remplissage: s.remplissage } : centrePlein && theme.central.remplissage ? { remplissage: theme.central.remplissage } : {}),
-    ...(s?.motifRemplissage ? { motifRemplissage: s.motifRemplissage } : {}),
+    ...(motifRemplissage ? { motifRemplissage } : {}),
     ...(s?.bordure ? { bordure: s.bordure } : {}),
-    ...(s?.motifBordure ? { motifBordure: s.motifBordure } : {}),
+    ...(s?.motifBordure ? { motifBordure: s.motifBordure } : sc?.motifBordure ? { motifBordure: sc.motifBordure } : {}),
     ...(epaisseurBordure !== undefined ? { epaisseurBordure } : {}),
     ...(fondBranche ? { fondBranche } : {}),
+    ...(bordureBranche ? { bordureBranche } : {}),
     ...(s?.couleurTexte ? { couleurTexte: s.couleurTexte } : centrePlein && theme.central.texte ? { couleurTexte: theme.central.texte } : {}),
   }
 }
@@ -238,11 +251,12 @@ export function couleursDe(h: Habit, rang: Rang, theme: Theme, classe: Sujet['cl
       (rang === 'central' ? 'var(--notak-arbre-central)' : h.plein ? teinte : rang === 'flottant' ? (theme.fond ? fondTheme : 'var(--notak-arbre-flottant)') : rang === 'principal' ? fondTheme : 'none'))
   const plein = !sansFond && (h.remplissage !== undefined || fondBranche !== null || rang === 'central' || h.plein)
   // Sur le filigrane de la branche, le texte se lit comme sur le fond de la carte.
-  const surFond = plein && fondBranche === null
+  // Un fond hachuré est pâle : le texte y est celui du thème, pas celui d'un fond plein.
+  const surFond = plein && fondBranche === null && !(h.motifRemplissage && h.motifRemplissage !== 'plein' && h.motifRemplissage !== 'plein-main')
   const sousSombre = rang === 'sous' && theme.sous.texteBranche && couleurBranche ? encreDeBranche(teinte, theme.fond, texteTheme) : null
   const encre = h.couleurTexte ?? (surFond ? (rang === 'central' && !h.remplissage ? 'var(--notak-arbre-sur-plein)' : sur(fond)) : classe === 'secondaire' ? CLASSES.secondaire : (sousSombre ?? texteTheme))
   const sansBordure = h.motifBordure === 'aucun' || h.epaisseurBordure === 0
-  const bordure = sansBordure ? 'none' : (h.bordure ?? (rang === 'flottant' || (rang === 'principal' && !h.plein) ? teinte : 'none'))
+  const bordure = sansBordure ? 'none' : (h.bordure ?? (rang === 'flottant' || (rang === 'principal' && !h.plein) || h.bordureBranche ? teinte : 'none'))
   return { teinte, fond, plein, encre, bordure }
 }
 
@@ -391,11 +405,16 @@ export function couleurDe(l: Lecture, id: Id, theme: Theme = THEMES[0]!, uneCoul
 
 /** Comment se trace la branche qui part de `parent` : son style, ou celui du premier ancêtre qui en déclare un. */
 export interface StyleDeBranche {
+  /** La forme que le sujet (ou un ancêtre) a choisie ; `null` : il n'en a pas choisi. */
   forme: FormeBranche | null
+  /** Celle que prescrit le squelette de la carte, au rang du parent ; `null` : pas de squelette. */
+  formeSquelette: FormeBranche | null
   epaisseur: number | null
   effilee: boolean
   motif: MotifTrait
   pointe: PointeTrait
+  /** La branche du central naît sous lui comme chez Xmind, pour toutes les formes : celle d'un squelette. */
+  radial: boolean
 }
 
 /** Ce que la carte impose à toutes ses branches, à moins qu'un sujet n'en dise autrement. */
@@ -410,11 +429,12 @@ export interface BranchesGlobales {
 export const PX_PAR_POINT = 4 / 3
 
 /**
- * Comment se trace la branche qui part de `parent`. Avec `theme`, l'épaisseur que le thème donne au rang de `parent`
- * (central, principal, sous-sujet) s'ajoute quand ni le sujet ni la carte n'en règlent une.
+ * Comment se trace la branche qui part de `parent`. D'abord ce que le sujet (ou un ancêtre) a réglé, puis la largeur
+ * de toute la carte, puis le squelette (au rang de `parent`), enfin, avec `theme`, l'épaisseur que le thème donne à ce
+ * rang (central, principal, sous-sujet) quand rien de plus fort n'en règle une.
  */
 export function brancheDe(l: Lecture, parent: Id, globales: BranchesGlobales = {}, theme?: Theme): StyleDeBranche {
-  const r: StyleDeBranche = { forme: null, epaisseur: null, effilee: false, motif: 'plein', pointe: 'aucune' }
+  const r: StyleDeBranche = { forme: null, formeSquelette: null, epaisseur: null, effilee: false, motif: 'plein', pointe: 'aucune', radial: false }
   const vus = { forme: false, epaisseur: false, effilee: false, motif: false, pointe: false }
   for (let s = l.sujets.get(parent); s; s = s.parent !== undefined ? l.sujets.get(s.parent) : undefined) {
     const st = s.style
@@ -425,11 +445,17 @@ export function brancheDe(l: Lecture, parent: Id, globales: BranchesGlobales = {
     if (!vus.motif && st.motif) ((r.motif = st.motif), (vus.motif = true))
     if (!vus.pointe && st.pointeBranche) ((r.pointe = st.pointeBranche), (vus.pointe = true))
   }
-  if (!vus.epaisseur && globales.largeur) r.epaisseur = Math.round(globales.largeur * PX_PAR_POINT * 10) / 10
-  else if (!vus.epaisseur && theme?.branches) {
-    const rang = rangDe(l, parent)
-    r.epaisseur = theme.branches[rang === 'central' ? 'central' : rang === 'sous' ? 'sous' : 'principal']
+  const rang = rangDe(l, parent)
+  const sc = theme?.squelette?.[rang]
+  if (sc) {
+    r.formeSquelette = sc.branche
+    r.radial = true
+    if (!vus.motif && sc.motif) r.motif = sc.motif
+    if (!vus.pointe && sc.pointe) r.pointe = sc.pointe
   }
+  if (!vus.epaisseur && globales.largeur) r.epaisseur = Math.round(globales.largeur * PX_PAR_POINT * 10) / 10
+  else if (!vus.epaisseur && sc?.epaisseur !== undefined) r.epaisseur = sc.epaisseur
+  else if (!vus.epaisseur && !sc && theme?.branches) r.epaisseur = theme.branches[rang === 'central' ? 'central' : rang === 'sous' ? 'sous' : 'principal']
   if (!vus.effilee && globales.effilee && parent === l.central) r.effilee = true
   return r
 }

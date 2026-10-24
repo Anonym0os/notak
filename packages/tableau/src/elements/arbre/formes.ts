@@ -301,7 +301,8 @@ export const GROUPES_FORMES: readonly GroupeForme[] = ['basique', 'avance', 'pon
 export function formeDepuisXmind(classe: unknown): FormeSujet | undefined {
   if (typeof classe !== 'string') return undefined
   const m = classe.match(/^org\.xmind\.topicShape\.(.+)$/)
-  return m ? PAR_XMIND.get(m[1]!) : undefined
+  // Les squelettes écrivent `circle`, `heart`, `ellipserect` là où la liste du panneau écrit `circle.compact`, `heart.compact`…
+  return m ? (PAR_XMIND.get(m[1]!) ?? PAR_XMIND.get(`${m[1]}.compact`)) : undefined
 }
 
 export const xmindDeForme = (f: FormeSujet): string | undefined => {

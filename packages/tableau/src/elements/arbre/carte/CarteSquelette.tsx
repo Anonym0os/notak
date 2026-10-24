@@ -1,30 +1,35 @@
 import { useState } from 'react'
-import type { StructureArbre } from '../../../coeur/tableau'
+import type { Arbre, StructureArbre } from '../../../coeur/tableau'
 import { Icone } from '../../../icones'
 import { t } from '../../../langue'
 import { CarteVignette, Popover, useOuvrable } from '../controles'
 import type { Geste } from '../modele/gestes'
+import { themeDeArbre } from '../themes'
 import { ApercuStructure } from './apercu'
-import { GROUPES_SQUELETTES, groupeDeStructure } from './groupes'
+import { GROUPES_SQUELETTES, groupeDeStructure, nomDeSquelette, squeletteDeCarte } from './groupes'
 
 /**
- * La carte du squelette : la vignette de la structure courante, le nom de son groupe (« Carte mentale »), un chevron.
- * Elle ouvre, à gauche du panneau, la fenêtre des squelettes : des groupes repliables, chacun une grille de trois
- * vignettes. Choisir n'en ferme pas la fenêtre : on essaie plusieurs structures à la suite.
+ * La carte du squelette : la vignette du squelette courant (sa structure et son style, aux couleurs de la carte), le nom
+ * de son groupe (« Carte mentale »), un chevron. Elle ouvre, à gauche du panneau, la fenêtre des squelettes : des
+ * groupes repliables, chacun une grille de trois vignettes. Choisir n'en ferme pas la fenêtre : on essaie plusieurs
+ * squelettes à la suite. Une carte sans squelette (venue d'avant) montre la vignette de sa structure seule.
  *
- * → Notak : un squelette est une structure (celle du sujet central), sans le style que Xmind y joint ; il n'y a pas de
- * « Tableau arbre » ni de « Grille » (docs/XMIND.md § 2).
+ * → Notak : cinquante et un squelettes, ceux des huit groupes dont nous avons la structure ; il n'y a pas de « Tableau
+ * arbre » ni de « Grille » (docs/XMIND.md § 2).
  */
-export function CarteSquelette({ structure, faire }: { structure: StructureArbre; faire(g: Geste): void }) {
+export function CarteSquelette({ arbre, structure, faire }: { arbre: Arbre; structure: StructureArbre; faire(g: Geste): void }) {
   const o = useOuvrable()
   const [replies, setReplies] = useState<ReadonlySet<string>>(new Set())
+  const actif = squeletteDeCarte(arbre)
+  const theme = themeDeArbre(arbre)
+  const coloration = { couleurs: theme.palette, fond: theme.fond ?? 'var(--notak-arbre-fond)', encre: theme.encre }
   return (
     <>
       <button ref={o.poser} type="button" className="notak-arbre-reglages-squelette" aria-haspopup="dialog" aria-expanded={o.ouvert} title={t('arbre.carte.squelette')} onClick={o.basculer}>
         <span className="notak-arbre-reglages-squelette-vignette">
-          <ApercuStructure structure={structure} />
+          <ApercuStructure structure={structure} squelette={actif} {...coloration} />
         </span>
-        <span className="notak-arbre-reglages-squelette-nom">{t(`arbre.carte.g.${groupeDeStructure(structure)}`)}</span>
+        <span className="notak-arbre-reglages-squelette-nom">{t(`arbre.carte.g.${actif?.groupe ?? groupeDeStructure(structure)}`)}</span>
         <Icone nom="chevronBas" taille={12} trait={2} />
       </button>
       <Popover ancre={o.ancre} ouvert={o.ouvert} fermer={o.fermer} cote="gauche" largeur={388} hauteur={450} className="notak-arbre-reglages-popover-squelettes" etiquette={t('arbre.carte.squelette')}>
@@ -50,9 +55,15 @@ export function CarteSquelette({ structure, faire }: { structure: StructureArbre
                 </button>
                 {!ferme && (
                   <div className="notak-arbre-reglages-grille-squelettes">
-                    {g.structures.map((s) => (
-                      <CarteVignette key={s} actif={s === structure} titre={t(`arbre.s.${s}`)} onClick={() => s !== structure && faire({ type: 'squelette', structure: s })}>
-                        <ApercuStructure structure={s} />
+                    {g.squelettes.map((s) => (
+                      <CarteVignette
+                        key={s.id}
+                        actif={s.id === actif?.id}
+                        titre={nomDeSquelette(s)}
+                        onClick={() => s.id !== actif?.id && faire({ type: 'squelette', squelette: s.id })}
+                        coin={s.main ? <span className="notak-arbre-reglages-vignette-main" title={t('arbre.carte.sqMain')}><Icone nom="menuCrayon" taille={10} trait={2} /></span> : undefined}
+                      >
+                        <ApercuStructure structure={s.structure} squelette={s} {...coloration} />
                       </CarteVignette>
                     ))}
                   </div>

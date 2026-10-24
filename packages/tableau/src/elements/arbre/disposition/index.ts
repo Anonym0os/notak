@@ -108,14 +108,16 @@ export interface ResumeAPoser {
   forme?: FormeResume
 }
 
-export function disposer(l: Lecture, taille: (id: Id) => Taille, e: Ecarts = ECARTS, libre = false, resumes: readonly ResumeAPoser[] = []): Disposition {
+export function disposer(l: Lecture, taille: (id: Id) => Taille, e: Ecarts = ECARTS, libre = false, resumes: readonly ResumeAPoser[] = [], principaux?: StructureArbre): Disposition {
   const sortie: Disposition = { boites: new Map(), liens: [], traits: [] }
   if (!l.central) return sortie
   const places = new Map<Id, Place>()
   const rangements = new Map<Id, Rangement>()
   const visibles = (id: Id) => (l.sujets.get(id)?.replie ? [] : enfantsDe(l, id))
   const famille = (id: Id, heritee: Famille): Famille => {
-    const s = l.sujets.get(id)?.structure
+    const sujet = l.sujets.get(id)
+    // Un principal sans structure à lui prend celle que son squelette lui prescrit, s'il en prescrit une.
+    const s = sujet?.structure ?? (sujet?.parent === l.central && !sujet.genre ? principaux : undefined)
     if (!s) return heritee
     const f = FAMILLE[s]
     // Une carte ne rayonne qu'autour du central ; déclarée ailleurs, c'est un diagramme logique.

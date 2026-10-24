@@ -4,7 +4,8 @@ import { Icone } from '../../../icones'
 import { t, useLangue } from '../../../langue'
 import { CarteVignette, MenuContextuel, Popover, useOuvrable } from '../controles'
 import type { Geste } from '../modele/gestes'
-import { themeDuGroupe, groupeCourant, groupesThemes, type GroupeTheme, choixDe, varianteActive, varianteSuivante } from './groupes'
+import { themeDuGroupe, groupeCourant, groupesThemes, squeletteDeCarte, type GroupeTheme, choixDe, varianteActive, varianteSuivante } from './groupes'
+import type { SqueletteDef } from './squelettes'
 import { variantesDe } from '../themes'
 import { ApercuStructure } from './apercu'
 import { DialogueTheme } from './DialogueTheme'
@@ -24,9 +25,9 @@ function Segments({ palette }: { palette: readonly string[] }) {
 }
 
 /** Une variante d'un thème, dessinée sur la structure de la carte : la sienne à branches de couleur, ou une seule couleur. */
-function ApercuVariante({ groupe, accent, structure }: { groupe: GroupeTheme; accent: string | undefined; structure: StructureArbre }) {
+function ApercuVariante({ groupe, accent, structure, squelette }: { groupe: GroupeTheme; accent: string | undefined; structure: StructureArbre; squelette: SqueletteDef | undefined }) {
   const th = themeDuGroupe(groupe)
-  return <ApercuStructure structure={structure} couleurs={accent ? [accent] : groupe.palette} fond={th.fond ?? 'var(--notak-arbre-fond)'} encre={th.encre} />
+  return <ApercuStructure structure={structure} squelette={squelette} couleurs={accent ? [accent] : groupe.palette} fond={th.fond ?? 'var(--notak-arbre-fond)'} encre={th.encre} />
 }
 
 /** Les groupes qui vont dans un onglet de la liste. */
@@ -79,7 +80,7 @@ export function ThemeCouleur({ arbre, structure, faire }: { arbre: Arbre; struct
             onClick={() => appliquer(courant, accent)}
             coin={<EtoileFavori actif={favori(courant, accent)} basculer={() => basculerFavori(courant.id, accent)} />}
           >
-            <ApercuVariante groupe={courant} accent={accent} structure={structure} />
+            <ApercuVariante groupe={courant} accent={accent} structure={structure} squelette={squeletteDeCarte(arbre)} />
           </CarteVignette>
         ))}
       </div>
@@ -188,7 +189,7 @@ function ListeThemes({
                 onClick={() => appliquer(g, accent)}
                 coin={<EtoileFavori actif basculer={() => basculerFavori(g.id, accent)} />}
               >
-                <ApercuVariante groupe={g} accent={accent} structure={structure} />
+                <ApercuVariante groupe={g} accent={accent} structure={structure} squelette={squeletteDeCarte(arbre)} />
               </CarteVignette>
             ))}
           </div>

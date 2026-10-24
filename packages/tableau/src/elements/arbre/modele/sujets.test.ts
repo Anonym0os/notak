@@ -5,6 +5,7 @@ import {
   ajouterFlottant,
   ajouterFrere,
   ajouterParent,
+  carteNeuve,
   basculerRepli,
   deplierJusquA,
   detacher,
@@ -126,5 +127,13 @@ describe('les gestes', () => {
     const d = detacher(b, B, { x: -200, y: 50 })
     expect(lire(d).flottants).toHaveLength(2)
     expect(enfantsDe(lire(d), c)).not.toContain(B)
+  })
+})
+
+describe('une carte neuve', () => {
+  it('se crée au squelette de Xmind ; la carte nue (nouvelArbre) n’en a pas', () => {
+    expect(carteNeuve('Idée').squelette).toBe('carte-1')
+    expect(lire(carteNeuve('Idée')).sujets.size).toBe(1)
+    expect(nouvelArbre('Idée').squelette).toBeUndefined()
   })
 })

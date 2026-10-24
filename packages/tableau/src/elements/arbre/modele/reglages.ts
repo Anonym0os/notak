@@ -1,4 +1,5 @@
 import type { Arbre, Id, StructureArbre, StyleSujet } from '../../../coeur/tableau'
+import { squeletteDe } from '../carte/squelettes'
 import { changerSujet, enfantsDe, lire } from './sujets'
 
 /**
@@ -7,7 +8,8 @@ import { changerSujet, enfantsDe, lire } from './sujets'
  *
  * Ce que Xmind efface en passant (« l'utilisateur le découvre au résultat, sans confirmation ») est repris :
  * choisir une police ou une largeur retire celles posées sujet par sujet ; choisir un thème de couleur retire les
- * couleurs posées à la main ; choisir un squelette retire les structures posées sur les sujets principaux.
+ * couleurs posées à la main ; choisir un squelette retire les structures posées sur les sujets principaux, les
+ * réglages globaux de ligne et de police, et les largeurs de sujets.
  */
 
 /** Les familles « carte » : celles où « Carte équilibrée » et « Branches libres » ont un sens. */
@@ -46,7 +48,7 @@ export interface StyleCarte {
 }
 
 export type GesteCarte =
-  | { type: 'squelette'; structure: StructureArbre }
+  | { type: 'squelette'; squelette: string }
   | { type: 'themeCouleur'; choix: ChoixTheme }
   | { type: 'fond'; couleur: string | null }
   | { type: 'policeGlobale'; police: string | null }
@@ -93,12 +95,22 @@ function avecOptions(a: Arbre, options: NonNullable<Arbre['options']>): Arbre {
   return gardees && Object.keys(gardees).length > 0 ? { ...a, options: gardees } : sans(a, 'options')
 }
 
-/** Un squelette : la structure du central, et plus aucune structure propre sur ses sujets principaux. */
-export function appliquerSquelette(a: Arbre, structure: StructureArbre): Arbre {
+/**
+ * Un squelette : sa structure sur le central, son style pour tous les rangs. Comme chez Xmind, il efface en passant les
+ * structures posées sur les sujets principaux, la police et la largeur de ligne de toute la carte (celles de l'onglet
+ * Carte) et les largeurs imposées aux sujets ; l'effilé de la carte suit le sien. Les couleurs restent : un squelette
+ * n'en porte pas. Un style posé à la main sur un sujet reste, et passe toujours avant le squelette. Un identifiant
+ * inconnu ne change rien.
+ */
+export function appliquerSquelette(a: Arbre, id: string): Arbre {
+  const def = squeletteDe(id)
+  if (!def) return a
   const l = lire(a)
-  let arbre = changerSujet(a, l.central, ({ structure: _s, ...reste }) => ({ ...reste, structure }))
+  let arbre = changerSujet(a, l.central, ({ structure: _s, ...reste }) => ({ ...reste, structure: def.structure }))
   for (const p of enfantsDe(l, l.central)) if (l.sujets.get(p)?.structure) arbre = changerSujet(arbre, p, ({ structure: _s, ...reste }) => reste)
-  return arbre
+  for (const [sid, s] of l.sujets) if (s.largeur !== undefined) arbre = changerSujet(arbre, sid, ({ largeur: _l, ...reste }) => reste)
+  arbre = sans(arbre, 'police', 'largeurBranche', 'effile')
+  return { ...arbre, squelette: def.id, ...(def.effile ? { effile: true } : {}) }
 }
 
 /** « Carte équilibrée » : allumée, le central rayonne des deux côtés (sens horaire) ; éteinte, tout va d'un côté. */
@@ -219,7 +231,7 @@ export function appliquerStyleCarte(a: Arbre, style: StyleCarte): Arbre {
 export function appliquerGesteCarte(a: Arbre, g: GesteCarte): Arbre {
   switch (g.type) {
     case 'squelette':
-      return appliquerSquelette(a, g.structure)
+      return appliquerSquelette(a, g.squelette)
     case 'themeCouleur':
       return appliquerThemeCouleur(a, g.choix)
     case 'fond':

@@ -91,6 +91,8 @@ const BRANCHES: readonly (readonly [string, FormeBranche])[] = [
   ['org.xmind.branchConnection.roundedElbow', 'coudee-arrondie'],
   ['org.xmind.branchConnection.elbow', 'coudee'],
   ['org.xmind.branchConnection.straight', 'droite'],
+  // La courbe de Xmind se lit comme la forme organique (la sienne) ; les deux s'écrivent `curve`.
+  ['org.xmind.branchConnection.curve', 'organique'],
   ['org.xmind.branchConnection.curve', 'courbe'],
   ['org.xmind.branchConnection.bight', 'anse'],
   ['org.xmind.branchConnection.fold', 'pli'],
