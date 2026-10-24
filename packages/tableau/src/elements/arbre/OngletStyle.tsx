@@ -757,7 +757,7 @@ function SectionNumerotation({ ids, lecture, faire }: { ids: Id[]; lecture: Lect
           options={options}
           titre={T('styleNumerotation')}
           className="notak-arbre-style-pleine"
-          choisir={(m) => (m === '' ? porter(undefined) : ids.forEach((id) => faire({ type: 'porter', ids: [id], champ: 'numerotation', valeur: { ...lecture.sujets.get(id)?.numerotation, motif: m } })))}
+          choisir={(m) => (m === '' ? porter(undefined) : faire({ type: 'lot', gestes: ids.map((id): Geste => ({ type: 'porter', ids: [id], champ: 'numerotation', valeur: { ...lecture.sujets.get(id)?.numerotation, motif: m } })) }))}
         />
       </Rangee>
       <Rangee>
@@ -772,14 +772,14 @@ function SectionNumerotation({ ids, lecture, faire }: { ids: Id[]; lecture: Lect
               libelle={T('paliers')}
               titre={T('paliersAide')}
               cochee={num.every((n) => !!n?.paliers)}
-              changer={(c) => ids.forEach((id) => faire({ type: 'porter', ids: [id], champ: 'numerotation', valeur: sansVide({ ...lecture.sujets.get(id)!.numerotation!, paliers: c || undefined }) }))}
+              changer={(c) => faire({ type: 'lot', gestes: ids.map((id): Geste => ({ type: 'porter', ids: [id], champ: 'numerotation', valeur: sansVide({ ...lecture.sujets.get(id)!.numerotation!, paliers: c || undefined }) })) })}
             />
           </Rangee>
           <Case
             libelle={T('depuis')}
             titre={T('depuisAide')}
             cochee={num.every((n) => !!n?.debut)}
-            changer={(c) => ids.forEach((id) => faire({ type: 'porter', ids: [id], champ: 'numerotation', valeur: sansVide({ ...lecture.sujets.get(id)!.numerotation!, debut: c || undefined }) }))}
+            changer={(c) => faire({ type: 'lot', gestes: ids.map((id): Geste => ({ type: 'porter', ids: [id], champ: 'numerotation', valeur: sansVide({ ...lecture.sujets.get(id)!.numerotation!, debut: c || undefined }) })) })}
           />
         </>
       )}

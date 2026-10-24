@@ -55,6 +55,8 @@ export type Geste =
   | { type: 'parent'; id: Id }
   | { type: 'flottant'; position: { x: number; y: number } }
   | { type: 'renommer'; id: Id; titre: string }
+  /** Plusieurs gestes d'un seul coup : un seul pas dans l'historique, qu'on annule d'un seul Cmd+Z. */
+  | { type: 'lot'; gestes: Geste[] }
   | { type: 'supprimer'; ids: Id[] }
   | { type: 'supprimerSeul'; id: Id }
   | { type: 'replier'; id: Id }
@@ -183,6 +185,11 @@ export function appliquerGeste(a: Arbre, g: Geste, titre: Titreur): Effet | null
     }
     case 'renommer':
       return { arbre: renommer(a, g.id, g.titre) }
+    case 'lot': {
+      let arbre = a
+      for (const x of g.gestes) arbre = appliquerGeste(arbre, x, titre)?.arbre ?? arbre
+      return arbre === a ? null : { arbre }
+    }
     case 'supprimer': {
       // Dans la sélection, il peut y avoir des relations, des limites, des résumés : ils partent aussi.
       let base = a

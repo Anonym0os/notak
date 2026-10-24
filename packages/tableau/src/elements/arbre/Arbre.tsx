@@ -610,7 +610,17 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
   }, [enGeste])
 
   const surAppui = (e: React.PointerEvent) => {
-    const cible = e.target as Element
+    let cible = e.target as Element
+    // La pastille « + » d'un sujet choisi déborde sur son voisin du dessous : un autre sujet sous le pointeur passe avant.
+    const pastille = cible.closest('[data-ajout]')
+    if (pastille) {
+      const proprietaire = pastille.getAttribute('data-ajout')!.split(':')[1]
+      const voisin = document.elementsFromPoint?.(e.clientX, e.clientY).find((x) => {
+        const s = x.closest('[data-sujet]')?.getAttribute('data-sujet')
+        return !pastille.contains(x) && !!s && s !== proprietaire
+      })
+      if (voisin) cible = voisin
+    }
     // Un bouton garde son clic : capturer le pointeur pour défiler l'enverrait à la surface.
     if (cible.closest('button, textarea, input, select, label, .notak-arbre-barre, .notak-arbre-panneau')) return
     // Le bouton droit défile la carte ; sans glisser, son menu s'ouvre au relâchement.

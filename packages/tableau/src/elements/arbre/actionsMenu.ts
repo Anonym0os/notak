@@ -136,7 +136,7 @@ export function executer(action: string, cible: CibleMenu, selection: readonly I
     case 'supprimerSeul':
       return h.faire({ type: 'supprimerSeul', id: id! })
     case 'viderTexte':
-      return void sujetsCibles.forEach((x) => h.faire({ type: 'renommer', id: x, titre: '' }))
+      return h.faire({ type: 'lot', gestes: sujetsCibles.map((x) => ({ type: 'renommer', id: x, titre: '' })) })
     case 'oter.marqueur':
       return h.faire({ type: 'oter', ids: sujetsCibles, champs: ['marqueurs'] })
     case 'oter.etiquette':

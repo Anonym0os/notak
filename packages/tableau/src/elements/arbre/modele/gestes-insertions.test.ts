@@ -137,3 +137,12 @@ describe('les gestes de la barre d’outils et du menu +', () => {
     expect(al.sujets[g]!.position!.y).toBe(60)
   })
 })
+
+describe('un lot de gestes', () => {
+  it('applique tous ses gestes en un seul effet, et rien quand aucun ne change la carte', () => {
+    const { a, x, y } = carte()
+    const e = faire(a, { type: 'lot', gestes: [{ type: 'renommer', id: x, titre: '' }, { type: 'renommer', id: y, titre: '' }] })
+    expect([e.arbre.sujets[x]!.titre, e.arbre.sujets[y]!.titre]).toEqual(['', ''])
+    expect(appliquerGeste(a, { type: 'lot', gestes: [] }, titre)).toBeNull()
+  })
+})

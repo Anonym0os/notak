@@ -103,7 +103,7 @@ describe('ce que fait chaque entrée des menus', () => {
     executer('planning.oter', sujet(x), [x], h)
     expect(gestes.at(-1)).toEqual({ type: 'oter', ids: [x], champs: ['planning'] })
     executer('viderTexte', sujet(x), [x], h)
-    expect(gestes.at(-1)).toEqual({ type: 'renommer', id: x, titre: '' })
+    expect(gestes.at(-1)).toEqual({ type: 'lot', gestes: [{ type: 'renommer', id: x, titre: '' }] })
     executer('oter.marqueur', sujet(x), [x], h)
     expect(gestes.at(-1)).toEqual({ type: 'oter', ids: [x], champs: ['marqueurs'] })
     executer('style.reinit', sujet(x), [x], h)
