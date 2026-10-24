@@ -367,7 +367,7 @@ export function MenuBlocs({ editeur, pont, demande, choisirImage, surCouleur, co
 
   if (!visible || !mode) return null
   const ancre = mode.ancre
-  const hote = editeur.view.dom.closest<HTMLElement>('.notak-espace')
+  const hote = editeur.view.dom.closest<HTMLElement>('[aria-modal], .notak-espace')
   // Sans mesure (une mesure qui échoue), le panneau reste caché : il se placera à la mesure suivante.
   const cibleDe = () => (ancre ? suivreDefilement(ancre.boite, ancre.defil, defilement(editeur.view.dom)) : null)
   const actuel = cible.vers

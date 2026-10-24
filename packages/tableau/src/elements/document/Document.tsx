@@ -24,7 +24,7 @@ import { blocDe } from '../../blocs/modele'
 import { ImageBloc, remplirImages } from '../../blocs/noeuds'
 import { type GestesBlocs, raccourcisBlocs } from '../../blocs/saisie'
 import { EXTENSIONS_BLOCS, EXTENSIONS_BLOCS_PARTAGEE, SCHEMA_BLOCS as SCHEMA } from '../../blocs/schema'
-import { colorer, insererImage } from '../../blocs/transformer'
+import { colorer, ecrireALaFin, insererImage } from '../../blocs/transformer'
 import { TextSelection } from '@tiptap/pm/state'
 import { LegendeLocale, OutilLegende, avecTexteLegende } from '../LegendeLocale'
 import type { ContexteToile, DepotFichiers, PropsOutils, PropsRendu } from '../types'
@@ -309,8 +309,8 @@ function Modale({ titre, titreTexte, lireTexte, fermer, children, lecture, corps
         return true
       }}
     >
-      <div className="notak-document-boite" data-marge-ancre data-lecture={lecture || undefined} {...attributsPage(page ?? {})}>
-        <header className="notak-document-entete">
+      <div className="notak-document-boite" data-lecture={lecture || undefined} {...attributsPage(page ?? {})}>
+        <header className="notak-document-entete" data-tauri-drag-region="deep">
           <button type="button" className="notak-document-fermer" aria-label={t('commun.fermer')} title={t('commun.fermer')} onClick={fermer}>
             <Icone nom="fermer" taille={18} />
           </button>
@@ -321,7 +321,8 @@ function Modale({ titre, titreTexte, lireTexte, fermer, children, lecture, corps
           </div>
         </header>
         <div className="notak-document-corps" ref={corps}>
-          <div className="notak-page">
+          {/* La page est l'ancre des fils de commentaires : ils vivent dans sa marge droite (voir `document.css`). */}
+          <div className="notak-page" data-marge-ancre>
             {children}
             <div className="notak-page-fin" onMouseDown={finDePage} />
           </div>
@@ -369,16 +370,6 @@ function TitrePage({ valeur, changer, entree }: { valeur: string; changer(v: str
       }}
     />
   )
-}
-
-/** Un appui sous le dernier bloc : le curseur va à la fin, dans un paragraphe vide de premier rang (ajouté s'il le faut). */
-function ecrireAlaFin(editeur: NonNullable<ReturnType<typeof useEditor>>) {
-  const { doc, schema } = editeur.state
-  const dernier = doc.lastChild
-  if (!(dernier?.type.name === 'paragraph' && dernier.content.size === 0 && !dernier.attrs.retrait)) {
-    editeur.view.dispatch(editeur.state.tr.insert(doc.content.size, schema.nodes.paragraph!.create()))
-  }
-  editeur.commands.focus('end')
 }
 
 /** Le document à lire seulement. `plusRecent` : il porte des blocs qu'une version plus récente de Notak sait écrire. */
@@ -549,7 +540,7 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
       fermer={finir}
       finDePage={(e) => {
         e.preventDefault()
-        if (editeur) ecrireAlaFin(editeur)
+        if (editeur) ecrireALaFin(editeur)
       }}
       corps={corps}
       page={page}

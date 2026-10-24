@@ -99,13 +99,13 @@ export function Bulle({ editeur, commenter, menuBloc, surCouleur }: Props) {
   // Le focus de l'éditeur ne passe pas par une transaction : on relit quand il entre ou sort.
   const [, relire] = useState(0)
   useEffect(() => {
-    const dom = editeur.view.dom
+    // Partout dans la page : le focus peut partir de l'éditeur vers un champ (un commentaire) sans le traverser.
     const changer = () => window.setTimeout(() => relire((n) => n + 1), 0)
-    dom.addEventListener('focusin', changer)
-    dom.addEventListener('focusout', changer)
+    document.addEventListener('focusin', changer, true)
+    document.addEventListener('focusout', changer, true)
     return () => {
-      dom.removeEventListener('focusin', changer)
-      dom.removeEventListener('focusout', changer)
+      document.removeEventListener('focusin', changer, true)
+      document.removeEventListener('focusout', changer, true)
     }
   }, [editeur])
   useEffect(() => {
@@ -171,7 +171,7 @@ export function Bulle({ editeur, commenter, menuBloc, surCouleur }: Props) {
     return () => dom.removeEventListener('keydown', touche, true)
   }, [editeur])
 
-  const hote = editeur.view.dom.closest<HTMLElement>('.notak-espace')
+  const hote = editeur.view.dom.closest<HTMLElement>('[aria-modal], .notak-espace')
   if (lien)
     return <BulleLien editeur={editeur} plage={lien.plage} ancre={lien.ancre} hote={hote} fermer={() => setLien(null)} />
   if (!place) return null

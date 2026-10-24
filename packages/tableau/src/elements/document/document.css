@@ -22,6 +22,16 @@
   stroke-width: 2;
 }
 
+/* La carte en icône n'a donc ni le cadre des cartes sans fond choisies (`toile.css`), plus étroit que son titre, ni de
+   poignée de taille : comme chez Milanote, la feuille garde sa taille. */
+.notak-carte[data-type='document'][data-sans-fond][data-choisie] {
+  box-shadow: none;
+}
+
+.notak-carte[data-type='document'][data-sans-fond] > .notak-poignee {
+  display: none;
+}
+
 /* Le titre tient sur 180 px, plus large que la carte : la feuille reste centrée dessus. */
 .notak-document-titre,
 .notak-document-saisie {
@@ -188,6 +198,17 @@
   padding: 0 12px;
 }
 
+/* Dans l'application de bureau, la barre tient lieu de barre de titre : les boutons de la fenêtre à gauche (80 px), qu'elle
+   rend en plein écran (voir `toile.css`). */
+:root[data-bureau] .notak-document-entete {
+  height: 40px;
+  padding-left: 80px;
+}
+
+:root[data-bureau][data-plein-ecran] .notak-document-entete {
+  padding-left: 12px;
+}
+
 .notak-document-fermer {
   display: inline-flex;
   align-items: center;
@@ -294,11 +315,13 @@
   position: relative;
   flex: 1;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   user-select: text;
 }
 
 .notak-page {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(96px, 1fr) minmax(auto, 720px) minmax(96px, 1fr);
   /* Les colonnes du texte s'empilent sur une page étroite (voir `blocs/blocs.css`). */
@@ -308,6 +331,12 @@
 .notak-page > * {
   grid-column: 2;
   min-width: 0;
+}
+
+/* Les calques du moteur (poignée, repère de dépôt, rectangle, halo, largeurs) se placent sur toute la page, pas sur la
+   colonne : posés en absolu, ils prendraient sinon la colonne du texte pour repère. */
+.notak-page > :is([class^='notak-blocs-'], [class*=' notak-blocs-']) {
+  grid-column: auto;
 }
 
 .notak-page > .notak-page-entete {
@@ -393,17 +422,23 @@
   line-height: 1.45;
 }
 
-/* Les fils des passages commentés : à droite de la boîte, sur le voile ; sur une fenêtre étroite, dans la boîte. */
-.notak-document-boite > .notak-note-marge,
-.notak-document-corps .notak-note-marge {
+/*
+ * Les fils des passages commentés (NOTION.md § 9) : dans la marge droite de la page, à 24 px de la colonne du texte,
+ * chacun à la hauteur de son passage. Quand la marge est trop étroite, ils se posent par-dessus le bord droit du texte.
+ */
+.notak-page > .notak-note-marge {
   z-index: 2;
+  grid-column: 3;
+  left: 24px;
+  width: min(280px, calc(100% - 40px));
 }
 
-@media (max-width: 1240px) {
-  .notak-document-corps .notak-note-marge {
+@media (max-width: 1360px) {
+  .notak-page > .notak-note-marge {
+    grid-column: 2 / 4;
     left: auto;
-    right: 8px;
-    width: 200px;
+    right: 12px;
+    width: 260px;
   }
 }
 

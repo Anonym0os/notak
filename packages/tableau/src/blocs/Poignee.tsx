@@ -8,6 +8,7 @@ import { poser, racines } from './gestes'
 import { type Ligne, PERIODE_DEFILEMENT, RETRAIT_DROIT, bordGauche, defilementAuto, estGlisse, hautPoignee, rayonHalo, retraitsHalo, survolDe } from './glisser'
 import { centrePremiereLigne, creerFantome, lignesDe, mesurer, niveauRelatif, origine, pasRetrait } from './glisserMesure'
 import { blocsDe } from './modele'
+import { ecrireALaFin } from './transformer'
 import { entreDeuxPoints, blocsTouches, departPermis, ouExclusif } from './rectangle'
 import { CLE_CHOIX, blocsChoisis, choisir, choixDeLaPoignee, idsDuChoix, parcours } from './selection'
 
@@ -245,7 +246,10 @@ export function Poignee({ editeur, zone, ouvrirMenu, ouvrirAjout }: Props) {
         if (minuteur !== undefined) clearInterval(minuteur)
         setRectangle(null)
         if (!actif) {
-          // Un simple appui dans la marge : le curseur va au texte le plus proche, à cette hauteur.
+          // Un simple appui sous le dernier bloc écrit à la fin de la page (NOTION.md § 9) ; dans la marge, le curseur va
+          // au texte le plus proche, à cette hauteur.
+          const dernier = vue.dom.lastElementChild?.getBoundingClientRect()
+          if (dernier && e.clientY > dernier.bottom) return void ecrireALaFin(editeur)
           const r = vue.dom.getBoundingClientRect()
           const ou = vue.posAtCoords({ left: Math.min(Math.max(e.clientX, r.left + 1), r.right - 1), top: e.clientY })
           if (ou) vue.dispatch(vue.state.tr.setSelection(TextSelection.near(vue.state.doc.resolve(ou.pos))))

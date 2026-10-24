@@ -244,3 +244,18 @@ export function insererImage(editor: Editor, fichier: string): boolean {
   editor.view.dispatch(tr.setSelection(TextSelection.create(tr.doc, ou + image.nodeSize + 1)).scrollIntoView())
   return true
 }
+
+/**
+ * Un appui sous le dernier bloc (NOTION.md § 9) : le curseur va à la fin de la page, dans un paragraphe vide de premier
+ * rang, ajouté s'il le faut (après un code, un encadré, une puce…).
+ */
+export function ecrireALaFin(editor: Editor): boolean {
+  const { doc, schema } = editor.state
+  const dernier = doc.lastChild
+  if (!(dernier?.type.name === 'paragraph' && dernier.content.size === 0 && !dernier.attrs.retrait)) {
+    editor.view.dispatch(editor.state.tr.insert(doc.content.size, schema.nodes.paragraph!.create()))
+  }
+  editor.commands.focus('end')
+  return true
+}
+

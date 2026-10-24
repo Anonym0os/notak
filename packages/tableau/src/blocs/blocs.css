@@ -28,7 +28,9 @@
   position: relative;
   box-sizing: border-box;
   min-width: 0;
-  margin: 6px 6px 6px calc(6px + var(--notak-retrait, 0) * var(--notak-pas-retrait));
+  /* Les marges gauche et droite du bloc (6 px, 8 px pour l'encadré, le code et le séparateur) : le cadre d'un encadré
+     se cale sur elles (voir plus bas). */
+  margin: 6px var(--notak-marge-droite, 6px) 6px calc(var(--notak-marge, 6px) + var(--notak-retrait, 0) * var(--notak-pas-retrait));
   padding: 2px;
   border-radius: 6px;
   font-family: inherit;
@@ -196,9 +198,9 @@
 /* L'encadré : une boîte arrondie de 10 px sur un fond pâle, l'icône à gauche, le texte 45 px plus loin. */
 .notak-texte.notak-blocs > .notak-b-encadre,
 .notak-blocs .notak-blocs-colonne > .notak-b-encadre {
+  --notak-marge: 8px;
+  --notak-marge-droite: 8px;
   margin-block: 8px;
-  margin-right: 8px;
-  margin-left: calc(8px + var(--notak-retrait, 0) * var(--notak-pas-retrait));
   padding: 20px 20px 20px 44px;
   border: 1px solid transparent;
   border-radius: 10px;
@@ -219,7 +221,11 @@
   cursor: pointer;
 }
 
-/* Un encadré qui a des enfants les garde dans sa boîte. */
+/*
+ * Un encadré qui a des enfants les garde dans sa boîte : chaque enfant peint, derrière lui, la bande de la boîte qui
+ * lui revient, du bord gauche de l'encadré (8 px + son retrait) au bord droit de la page (8 px). Les enfants se touchent
+ * (marges nulles, 8 px de remplissage), le dernier ferme la boîte.
+ */
 .notak-blocs .notak-b-encadre.notak-a-enfants {
   margin-bottom: 0;
   padding-bottom: 8px;
@@ -227,7 +233,8 @@
   border-bottom-left-radius: 0;
 }
 
-.notak-blocs .notak-dans-encadre {
+.notak-texte.notak-blocs > .notak-dans-encadre,
+.notak-blocs .notak-blocs-colonne > .notak-dans-encadre {
   margin-block: 0;
   padding-block: 8px;
 }
@@ -237,13 +244,14 @@
   position: absolute;
   z-index: -1;
   top: 0;
-  right: -6px;
+  right: calc(8px - var(--notak-marge-droite, 6px));
   bottom: 0;
-  left: calc(2px - (var(--notak-retrait) - var(--notak-retrait-encadre)) * var(--notak-pas-retrait));
+  left: calc(8px - var(--notak-marge, 6px) - (var(--notak-retrait) - var(--notak-retrait-encadre)) * var(--notak-pas-retrait));
   background: var(--notak-page-encadre);
 }
 
-.notak-blocs .notak-dans-encadre.notak-fin-encadre {
+.notak-texte.notak-blocs > .notak-dans-encadre.notak-fin-encadre,
+.notak-blocs .notak-blocs-colonne > .notak-dans-encadre.notak-fin-encadre {
   margin-bottom: 8px;
   padding-bottom: 20px;
 }
@@ -253,10 +261,29 @@
   border-bottom-left-radius: 10px;
 }
 
+/* Un encadré dans un encadré : un filet le détache du fond commun ; il garde son remplissage et son air. */
+.notak-blocs .notak-dans-encadre.notak-b-encadre {
+  border-color: var(--notak-page-trait);
+}
+
+.notak-texte.notak-blocs > .notak-dans-encadre.notak-b-encadre,
+.notak-blocs .notak-blocs-colonne > .notak-dans-encadre.notak-b-encadre {
+  margin-block: 8px;
+  padding-block: 20px;
+}
+
+/* Sa bande de fond couvre aussi son air, pour que la boîte de l'encadré parent reste d'un seul tenant. */
+.notak-blocs .notak-dans-encadre.notak-b-encadre::after {
+  top: -9px;
+  bottom: -9px;
+}
+
 /* Le code : une boîte arrondie de 10 px, 13,6 px sur 20,4 en police à chasse fixe, sans numéros de ligne. */
 .notak-texte.notak-blocs > pre,
 .notak-blocs .notak-blocs-colonne > pre {
-  margin: 8px 8px 8px calc(8px + var(--notak-retrait, 0) * var(--notak-pas-retrait));
+  --notak-marge: 8px;
+  --notak-marge-droite: 8px;
+  margin-block: 8px;
   padding: 36px 22px;
   overflow-x: auto;
   border-radius: 10px;
@@ -280,8 +307,10 @@
 /* Le séparateur : un trait de 1 px, 6 px d'air de chaque côté. */
 .notak-texte.notak-blocs > hr,
 .notak-blocs .notak-blocs-colonne > hr {
+  --notak-marge: 8px;
+  --notak-marge-droite: 8px;
   height: 1px;
-  margin: 6px 8px 6px calc(8px + var(--notak-retrait, 0) * var(--notak-pas-retrait));
+  margin-block: 6px;
   padding: 0;
   border: 0;
   border-radius: 0;

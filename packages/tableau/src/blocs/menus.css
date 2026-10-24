@@ -24,7 +24,7 @@
   --notak-m-focus: #2383e2;
 }
 
-.notak-espace[data-theme='sombre'] :is(.notak-menu-blocs, .notak-bulle, .notak-bulle-sous) {
+[data-theme='sombre'] :is(.notak-menu-blocs, .notak-bulle, .notak-bulle-sous) {
   --notak-m-fond: #252525;
   --notak-m-texte: #f0efed;
   --notak-m-icone: #e6e5e3;

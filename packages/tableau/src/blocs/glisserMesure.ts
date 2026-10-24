@@ -82,6 +82,8 @@ export function mesurer(editeur: Editor, zone: HTMLElement): Mesure {
  */
 export function centrePremiereLigne(dom: HTMLElement): number {
   const r = dom.getBoundingClientRect()
+  // Un bloc en boîte (code, image, tableau) : la poignée se cale en haut à gauche de la boîte, comme chez Notion.
+  if (dom.matches('pre, figure, .tableWrapper, table')) return r.top + 16
   const style = getComputedStyle(dom)
   const ligne = Number.parseFloat(style.lineHeight)
   const hauteurLigne = Number.isFinite(ligne) ? ligne : 24

@@ -109,8 +109,11 @@ export function Surcouche({ etiquette, className, fermer, surTouche, children }:
   const ancre = useRef<HTMLSpanElement>(null)
   const racine = useRef<HTMLDivElement>(null)
   const [variables, setVariables] = useState<Record<string, string> | null>(null)
+  // Le thème de l'espace suit aussi : ce qui se règle dessus (les menus du document) le retrouve dans la surcouche.
+  const [theme, setTheme] = useState<string | undefined>(undefined)
   useLayoutEffect(() => {
     const toile = ancre.current?.closest('.notak-toile')
+    setTheme(ancre.current?.closest<HTMLElement>('.notak-espace')?.dataset.theme)
     setVariables(toile ? variablesDe(toile) : {})
   }, [])
   useLayoutEffect(() => {
@@ -125,6 +128,7 @@ export function Surcouche({ etiquette, className, fermer, surTouche, children }:
             ref={racine}
             className={className}
             style={variables}
+            data-theme={theme}
             role="dialog"
             aria-modal
             aria-label={etiquette}

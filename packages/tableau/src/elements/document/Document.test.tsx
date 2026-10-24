@@ -47,9 +47,9 @@ function monter(element: Element<DocumentTexte>, options: { lectureSeule?: boole
 }
 
 describe('le document ouvert en grand', () => {
-  it('en édition, une page à la Notion : la barre du haut, le titre dans la page, la boîte ancre des fils (NOTION.md § 9)', () => {
+  it('en édition, une page à la Notion : la barre du haut, le titre dans la page, la page ancre des fils (NOTION.md § 9)', () => {
     monter(doc('bonjour'), { enEdition: true })
-    expect(document.querySelector('.notak-document-boite[data-marge-ancre]')).not.toBeNull()
+    expect(document.querySelector('.notak-page[data-marge-ancre]')).not.toBeNull()
     expect(document.querySelector('.notak-document-entete .notak-document-fermer')).not.toBeNull()
     expect(document.querySelector('.notak-page textarea.notak-page-titre')).not.toBeNull()
     expect(document.querySelector('.notak-document-outils')).toBeNull()
