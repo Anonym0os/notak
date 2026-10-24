@@ -527,7 +527,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
   const fond = useRef<{ x: number; y: number; de: Point } | null>(null)
   const prise = useRef<{ id: Id; x: number; y: number; depart: Point; reduire: boolean } | null>(null)
   /** Le défilement à la main : le bouton droit (le menu attend le relâchement), ou le bouton gauche sur le central. */
-  const main = useRef<{ x: number; y: number; cx: number; cy: number; bouton: 0 | 2; panne: boolean; id?: Id; reduire?: boolean; menu?: { x: number; y: number; cible: Element } } | null>(null)
+  const main = useRef<{ x: number; y: number; cx: number; cy: number; bouton: 0 | 1 | 2; panne: boolean; id?: Id; reduire?: boolean; menu?: { x: number; y: number; cible: Element } } | null>(null)
   const supprimerMenu = useRef(false)
   const [cadre, setCadre] = useState<{ de: Point; ajout: boolean } | null>(null)
   const [tire, setTire] = useState<{ id: Id; ids: Id[]; depart: Point; maj: boolean; alt: boolean } | null>(null)
@@ -611,6 +611,15 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     // Le bouton droit défile la carte ; sans glisser, son menu s'ouvre au relâchement.
     if (e.button === 2) {
       main.current = { x: e.clientX, y: e.clientY, cx: camera.x, cy: camera.y, bouton: 2, panne: false }
+      return
+    }
+    // Le clic molette défile la carte dès l'appui, où qu'on le prenne (ni sélection, ni menu).
+    if (e.button === 1) {
+      e.preventDefault()
+      main.current = { x: e.clientX, y: e.clientY, cx: camera.x, cy: camera.y, bouton: 1, panne: true }
+      setPanne(true)
+      setSurvol(null)
+      capturer(e)
       return
     }
     if (e.button !== 0) return
@@ -1102,6 +1111,9 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
         onDragOver={(e) => e.dataTransfer.types.includes(TYPE_GLISSE) && e.preventDefault()}
         onDrop={surLacher}
         onPointerDown={surAppui}
+        // Sans quoi le clic molette lance le défilement automatique du navigateur ou ouvre un lien.
+        onMouseDown={(e) => e.button === 1 && e.preventDefault()}
+        onAuxClick={(e) => e.button === 1 && e.preventDefault()}
         onPointerMove={surMouvement}
         onPointerUp={surRelache}
         onPointerCancel={surRelache}
@@ -1328,16 +1340,29 @@ function ChampTitre({ pose, texte, tout, changer, valider, annuler }: { pose: Ch
     // Seulement à l'ouverture du champ.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  // Le champ ne défile jamais : quand le texte passe à la ligne avant que la carte ne l'ait re-mesuré (WebKit, l'app
+  // macOS), il grandit au lieu de faire sortir la première ligne par le haut.
+  useLayoutEffect(() => {
+    const c = champ.current
+    if (!c) return
+    c.style.height = `${pose.h}px`
+    if (c.scrollHeight > c.clientHeight) c.style.height = `${c.scrollHeight}px`
+    c.scrollTop = 0
+  }, [texte, pose.h, pose.l])
   const quitter = (issue: () => void) => {
     fini.current = true
     issue()
     champ.current?.closest<HTMLElement>('[role="dialog"]')?.focus({ preventScroll: true })
   }
   const casse = { majuscules: 'uppercase', minuscules: 'lowercase', capitales: 'capitalize' } as const
+  // Un peu de marge en largeur : le navigateur ne coupe pas les lignes au pixel près comme la mesure de la carte, et un
+  // mot qui passerait trop tôt à la ligne ferait sauter le texte. Le surplus s'étend du côté où le texte peut pousser.
+  const marge = pose.genre === 'sujet' ? pose.police * 0.5 : 0
+  const decalage = pose.alignement === 'centre' ? marge / 2 : pose.alignement === 'droite' ? marge : 0
   const style: React.CSSProperties = {
-    left: pose.x,
+    left: pose.x - decalage,
     top: pose.y,
-    width: pose.l,
+    width: pose.l + marge,
     height: pose.h,
     font: `${pose.italique ? 'italic ' : ''}${pose.graisse} ${pose.police}px/${pose.interligne}px ${pose.famille ?? POLICE}`,
     textAlign: pose.alignement === 'centre' ? 'center' : pose.alignement === 'droite' ? 'right' : 'left',
@@ -1356,6 +1381,7 @@ function ChampTitre({ pose, texte, tout, changer, valider, annuler }: { pose: Ch
       value={texte}
       style={style}
       onChange={(e) => changer(e.target.value)}
+      onScroll={(e) => (e.currentTarget.scrollTop = 0)}
       onBlur={() => !fini.current && valider()}
       onKeyDown={(e) => {
         e.stopPropagation()
