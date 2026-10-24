@@ -262,6 +262,25 @@ normale), `floatingTopicFlexible`, `floatingTopicAutoColor`, `relationshipAutoCo
 - Les styles et thèmes de Xmind ne sont pas traduits finement : → Notak garde la structure, la forme, la
   couleur de branche et le rang ; le reste revient au thème de Notak.
 
+## 8. La fenêtre de la carte ouverte
+
+Relevé : `notak-chantiers/interface-xmind/1-fenetre-et-barre.md` (copie de Xmind 26.05, non versionnée) et les
+captures du même dossier. Code : `elements/arbre/Fenetre.tsx`, `Outils.tsx`, `fenetre.css`.
+
+1. **Cadre.** La carte est une feuille blanche aux coins arrondis, posée dans un cadre gris de 8 px ; les panneaux de
+   côté se posent dans ce cadre, à gauche (navigation) et à droite (format ou icônes), et la carte rétrécit d'autant.
+2. **En-tête**, en haut à gauche : Accueil (→ Notak : ferme la carte et revient au tableau), le bouton du panneau de
+   gauche, puis le titre (15 px, graisse 700). Xmind écrit dessous « Modifié » tant que le fichier n'est pas
+   enregistré ; → Notak : tout s'enregistre seul, la ligne n'apparaît qu'en lecture seule.
+3. **Barre d'outils**, au centre en haut, pilule de 36 px : Relation, Résumé, Limite, Zone, Étiquette, Tâche, puis
+   « + » et son menu Insérer (§ 15). Boutons de 34 × 28, icônes de 24, survol et appui en voile, grisé à 0,3.
+4. **À droite** : Partager (→ Notak : exporte la carte en `.xmind`, la collaboration de Notak étant celle du
+   tableau), puis la pilule Marqueur (panneau d'icônes, § 13) et Format (panneau à onglets Style, Pitch, Carte) ;
+   l'actif est plein, sombre. Pas de bouton « Upgrade » : rien n'est payant dans Notak.
+5. **En bas** : la feuille à gauche, l'état de la vue à droite (§ 10).
+6. → Notak, pas encore fait : Xmind replie ses boutons dans le « + » quand la fenêtre rétrécit ; Notak les garde,
+   et la barre peut chevaucher le titre quand les deux panneaux sont ouverts sur un petit écran.
+
 ## 9. L'onglet Carte du panneau de format
 
 Le panneau de droite de Xmind a trois onglets (Style, Présentation, Carte). Celui de la carte règle la **feuille
