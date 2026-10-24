@@ -184,6 +184,29 @@
   visibility: hidden;
 }
 
+/* — Les copies du morphing (diapo/jouer.ts) : posées par-dessus le contenu le temps d'une transition — */
+
+.notak-arbre-diapo-calque {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.notak-arbre-diapo-calque > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.notak-arbre-diapo-copie {
+  position: absolute;
+  white-space: pre;
+  will-change: transform, opacity;
+}
+
 /* — L'écran de fin — */
 
 .notak-arbre-diapo-fin {

@@ -453,8 +453,9 @@
   cursor: default;
 }
 
-.notak-arbre-pitch-diapo[data-anime] {
-  animation: notak-arbre-pitch-fondu 300ms ease-out;
+/* Pendant une transition, la diapositive quittée et la nouvelle se superposent dans la même case. */
+.notak-arbre-pitch-diapo {
+  grid-area: 1 / 1;
 }
 
 .notak-arbre-pitch-compte {
@@ -628,4 +629,93 @@
   background: color-mix(in srgb, var(--notak-arbre-texte) 8%, var(--notak-arbre-fond));
   color: #949494;
   font: inherit;
+}
+
+/* — L'agrandissement d'une image (relevé 12 § 8.5) — */
+
+/* Le bouton : un disque de 40 px gris clair à 80 %, flouté, à 20 px du coin bas droit de l'image survolée. */
+.notak-arbre-pitch-agrandir {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(223 223 223 / 0.8);
+  box-shadow: 0 4px 30px rgb(0 0 0 / 0.15), 0 0 1px rgb(0 0 0 / 0.2);
+  color: rgb(39 41 42 / 0.8);
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* La fenêtre : toute la scène, floutée de 30 px, sous un voile noir (fond sombre) ou blanc à 0,2. */
+.notak-arbre-pitch-zoom {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  cursor: zoom-out;
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+}
+
+.notak-arbre-pitch-zoom-voile {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0.2;
+}
+
+.notak-arbre-pitch-zoom[data-sombre] .notak-arbre-pitch-zoom-voile {
+  background: #000;
+}
+
+.notak-arbre-pitch-zoom-image {
+  position: absolute;
+  will-change: transform;
+}
+
+.notak-arbre-pitch-zoom-image > * {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* La croix : un cercle de 33 px cerné de 2 px à 60 %, plein au survol ; foncée sur fond clair, blanche sur fond sombre. */
+.notak-arbre-pitch-zoom-fermer {
+  --croix: #27292a;
+  position: absolute;
+  top: 20px;
+  right: 25px;
+  display: grid;
+  place-items: center;
+  width: 33px;
+  height: 33px;
+  padding: 0;
+  border: 2px solid color-mix(in srgb, var(--croix) 60%, transparent);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--croix);
+  cursor: pointer;
+}
+
+.notak-arbre-pitch-zoom[data-sombre] .notak-arbre-pitch-zoom-fermer {
+  --croix: #fff;
+}
+
+.notak-arbre-pitch-zoom-fermer[data-grand] {
+  width: 53px;
+  height: 53px;
+}
+
+.notak-arbre-pitch-zoom-fermer:hover {
+  background: var(--croix);
+  color: #000;
+}
+
+.notak-arbre-pitch-zoom:not([data-sombre]) .notak-arbre-pitch-zoom-fermer:hover {
+  color: #fff;
 }

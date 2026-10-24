@@ -681,11 +681,36 @@ s'il n'y a qu'un frère) et **« Merci »**, la diapositive de fin, traitée com
 - **Les transitions** : un fondu de 600 ms vers la diapositive du central ou d'un flottant, de 400 ms au démarrage et
   vers l'écran de fin ; 600 ms entre deux étapes d'une même liste ; un morphing de 1 000 ms partout ailleurs (percer,
   remonter, passer au frère). Reculer n'anime jamais.
+  - Le **fondu** efface l'ancienne diapositive pendant que la nouvelle paraît. Les décors du thème jouent leur entrée :
+    les traits du Carnet se dessinent, les formes de Midnight Rose grandissent, les autres arrivent du coin le plus proche
+    (les bulles de Hubble Bubble sur un ressort, puis elles gonflent et reviennent à chaque affichage).
+  - **Entre deux étapes** d'une liste, chaque élément glisse de sa place à la nouvelle et prend son opacité : l'enfant
+    qui arrive paraît, la liste défile.
+  - Le **morphing** fait voyager ce qui est commun aux deux diapositives : un titre passe de la liste du parent à sa
+    propre diapositive mot à mot, chaque mot glissant et grandissant jusqu'à sa nouvelle place (un mot qui change de
+    taille se relaie en fondu à mi-chemin) ; les mots qui n'existent que d'un côté s'effacent ou paraissent. Les formes
+    communes se déforment de l'une à l'autre, une image visible à plus de 90 % des deux côtés glisse (ou se croise avec
+    la nouvelle), les décors glissent, les bandes de couleur suivent. Le reste s'efface sur la première moitié et paraît
+    sur la seconde.
+  - Chaque gabarit a son **entrée** : sur le central, les blocs montent d'un cinquième de leur hauteur l'un après l'autre ;
+    ailleurs, tout sauf le titre paraît après l'effet ; à la première étape d'une liste, les enfants paraissent puis
+    l'accolade, la flèche ou le séparateur se dessinent ; une arête, une tige, une branche se dessinent sous l'enfant qui
+    arrive, et son titre suit. ⇧← garde l'effet sans ces entrées.
+  - Après « Merci », l'écran de fin paraît en une seconde pendant que « Merci » rétrécit jusqu'à sa vignette ; l'appui
+    suivant l'efface avant de rendre la carte. Ces deux-là ignorent le réglage d'animation.
+  - Une touche pressée pendant une transition attend qu'elle finisse ; une seule attend, les autres sont ignorées.
+    L'animation coupée (A), et la préférence « réduire les animations » du système, font tout passer d'un coup.
+  - **Agrandir une image** : au survol, un bouton rond à son coin bas droit ; la scène se floute sous un voile (noir sur
+    fond sombre, blanc sinon) et l'image grandit en 300 ms jusqu'à tenir à 72 px des bords. Un clic ou Échap la
+    rendent à sa place ; pendant ce temps, les touches ne font rien d'autre.
 → Notak : le titre « Merci » est traduit (Xmind écrit « Thank you » dans toutes les langues). La suite est calculée
 d'avance plutôt que chaînée à la demande, pour la même séquence. Une image collée est réputée bitmap et sa taille affichée
 tient lieu de taille naturelle ; une équation et une illustration comptent comme vectorielles. Le dessin fidèle de chaque
-gabarit, les thèmes et les transitions sont encore à venir : en attendant, chaque gabarit retombe sur le rendu le plus
+gabarit et les thèmes sont encore à venir : en attendant, chaque gabarit retombe sur le rendu le plus
 proche, et l'écran de fin ne montre que « Merci » en vignette, sans l'image de la carte.
+Entre deux étapes d'une liste, Notak superpose les deux diapositives au lieu de réutiliser la même vue : le mouvement est
+le même. Les couleurs des décors ne s'interpolent pas, et les formes de fond qui changent de dessin se croisent au lieu
+de se déformer.
 
 **La présentation** (⌥⌘P, ou le bouton Pitch). Plein écran quand le navigateur le permet ; elle part du sujet choisi (une
 pastille propose de « lire à partir de la première diapositive »). Une barre en haut à droite (quitter, paramètres,

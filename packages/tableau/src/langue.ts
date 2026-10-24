@@ -1136,6 +1136,9 @@ export const fr: Textes = {
   'arbre.pitch.merci': 'Merci',
   // passe pitch : thèmes
   'arbre.pitch.theme.vignette': 'Pitch Mode',
+  // passe pitch : transitions
+  'arbre.pitch.agrandir': "Agrandir l'image",
+  'arbre.pitch.fermerImage': "Fermer l'image",
   'type.croquis': 'Croquis',
   'type.dessin': 'Dessin',
   'outil.dessin': 'Dessiner',
@@ -3050,6 +3053,9 @@ export const en: Textes = {
   'arbre.pitch.merci': 'Thank you',
   // passe pitch : thèmes
   'arbre.pitch.theme.vignette': 'Pitch Mode',
+  // passe pitch : transitions
+  'arbre.pitch.agrandir': 'Zoom in on image',
+  'arbre.pitch.fermerImage': 'Close image',
   'type.croquis': 'Sketch',
   'type.dessin': 'Drawing',
   'outil.dessin': 'Draw',
