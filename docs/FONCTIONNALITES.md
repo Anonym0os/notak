@@ -30,8 +30,8 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
-| 18. Carte mentale | 8 | 4 | 29 | 24 % |
-| **Total** | **290** | **14** | **31** | **89 %** |
+| 18. Carte mentale | 11 | 2 | 28 | 29 % |
+| **Total** | **293** | **12** | **30** | **89 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -432,9 +432,9 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Naviguer aux flèches dans l'espace de la carte, étendre la sélection | ✅ | Maj+flèches et Maj+clic étendent la sélection. |
 | Échanger avec un frère (Alt+Haut/Bas) | ✅ |  |
 | Replier et déplier, tout replier, déplier jusqu'au niveau N | ✅ | Cmd+/, Cmd+Alt+/, Alt+Cmd+1…9 ; la pastille compte les sujets cachés et se clique. |
-| Revenir au central (Cmd+R), afficher la branche seule (Cmd+;) | 🟡 | Cmd+R fait ; la branche seule reste. |
-| Glisser un sujet pour le rattacher, l'insérer ou le détacher (Maj inverse) | ⬜ |  |
-| Sujet flottant | 🟡 | Double-clic dans le vide ; il ne se déplace pas encore à la souris. |
+| Revenir au central (Cmd+R), afficher la branche seule (Cmd+;) | ✅ | Échap ou Cmd+; ramènent la carte entière. |
+| Glisser un sujet pour le rattacher, l'insérer ou le détacher (Maj inverse) | ✅ | La cible se signale pendant le glisser (cadre du futur parent, trait d'insertion). |
+| Sujet flottant | ✅ | Double-clic dans le vide ; il se glisse où l'on veut, ou se rattache. |
 | Structure carte : équilibrée, non équilibrée, horaire, antihoraire | 🟡 | Les quatre se disposent ; aucun menu ne les choisit encore. |
 | Structure logique et accolade | ⬜ |  |
 | Structure organigramme et arbre | ⬜ |  |

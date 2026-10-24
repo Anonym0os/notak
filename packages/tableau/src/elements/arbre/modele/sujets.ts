@@ -284,3 +284,18 @@ export function dupliquer(a: Arbre, id: Id): [Arbre, Id | null] {
   }
   return [avec(a, changes), copie]
 }
+
+/**
+ * La branche de `id` seule, comme une carte à part (« Afficher la branche seule ») : `id` y est le central, avec la
+ * structure qu'il avait. Les sujets gardent leurs identifiants : un geste fait dans cette vue s'applique à la carte.
+ */
+export function sousCarte(a: Arbre, id: Id): Arbre {
+  const l = lire(a)
+  const racine = l.sujets.get(id)
+  if (!racine) return a
+  const sujets: Arbre['sujets'] = {}
+  for (const x of branche(l, id)) sujets[x] = l.sujets.get(x)!
+  const { parent: _p, genre: _g, position: _pos, replie: _r, ...reste } = racine
+  sujets[id] = { ...reste, structure: structureDe(l, id) }
+  return { ...a, sujets }
+}

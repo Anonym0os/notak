@@ -6,11 +6,14 @@ import {
   ajouterFrere,
   ajouterParent,
   basculerRepli,
+  changerSujet,
   deplierJusquA,
+  detacher,
   dupliquer,
   echanger,
   enfantsDe,
   lire,
+  rattacher,
   renommer,
   supprimerBranches,
   supprimerSeul,
@@ -31,11 +34,15 @@ export type Geste =
   | { type: 'deplierNiveau'; n: number }
   | { type: 'echanger'; id: Id; sens: -1 | 1 }
   | { type: 'dupliquer'; id: Id }
+  /** Lâcher un sujet glissé : le rattacher (en `index` parmi les enfants de `parent`), ou le poser librement. */
+  | { type: 'rattacher'; id: Id; parent: Id; index: number }
+  | { type: 'poser'; id: Id; position: { x: number; y: number } }
   /** Ceux-là ne touchent pas la carte : la vue les fait elle-même. */
   | { type: 'editer'; id: Id; frappe?: string }
   | { type: 'choisir'; ids: Id[] }
   | { type: 'recadrer' }
   | { type: 'zoom'; facteur: number }
+  | { type: 'brancheSeule'; id: Id }
 
 /** Ce que devient la carte, et quel sujet choisir ou éditer ensuite. */
 export interface Effet {
@@ -97,6 +104,15 @@ export function appliquerGeste(a: Arbre, g: Geste, titre: Titreur): Effet | null
     case 'dupliquer': {
       const [arbre, copie] = dupliquer(a, g.id)
       return copie ? { arbre, choisir: copie } : null
+    }
+    case 'rattacher':
+      return { arbre: rattacher(a, g.id, g.parent, g.index), choisir: g.id }
+    case 'poser': {
+      // Un flottant se déplace ; un sujet attaché se détache et devient flottant.
+      const s = l.sujets.get(g.id)
+      if (!s || g.id === l.central) return null
+      const arbre = s.genre === 'detache' ? changerSujet(a, g.id, (x) => ({ ...x, position: g.position })) : detacher(a, g.id, g.position)
+      return { arbre, choisir: g.id }
     }
     default:
       return null

@@ -27,6 +27,7 @@ export function gesteDe(e: Touche, choisis: readonly Id[], l: Lecture, d: Dispos
     if (k === '/') return e.altKey ? { type: 'toutReplier' } : { type: 'replier', id: courant }
     if (k.toLowerCase() === 'd' && !e.altKey) return { type: 'dupliquer', id: courant }
     if (k.toLowerCase() === 'r' && !e.altKey && !e.shiftKey) return { type: 'recadrer' }
+    if (k === ';') return { type: 'brancheSeule', id: courant }
     if (k === '=' || k === '+') return { type: 'zoom', facteur: 1.25 }
     if (k === '-') return { type: 'zoom', facteur: 0.8 }
     if (k === '0' && !e.altKey) return { type: 'zoom', facteur: 0 }

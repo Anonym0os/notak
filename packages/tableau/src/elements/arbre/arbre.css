@@ -101,3 +101,18 @@
 .notak-arbre-fermer:hover {
   background: var(--notak-arbre-flottant);
 }
+
+.notak-arbre-tire {
+  fill: var(--notak-arbre-choix);
+  fill-opacity: 0.15;
+  stroke: var(--notak-arbre-choix);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+.notak-arbre-cible {
+  fill: none;
+  stroke: var(--notak-arbre-choix);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
