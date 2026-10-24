@@ -1,6 +1,7 @@
 import type { Node as NoeudPM } from '@tiptap/pm/model'
 import { TextSelection } from '@tiptap/pm/state'
 import type { Editor } from '@tiptap/react'
+import { enchainer } from './annulation'
 import type { Entree } from './catalogue'
 import { blocA } from './gestes'
 import { CONTENEURS } from './ids'
@@ -57,7 +58,8 @@ export function choisirDansSlash(editor: Editor, entree: Pick<Entree, 'effet' | 
   if (!editor.isEditable) return false
   const { effet } = entree
   // Le texte d'avant le `/` reste, le `/` et le filtre partent.
-  const tr = editor.state.tr.deleteRange(zone.de, zone.a)
+  // Le geste suivant (le type, l'insertion) rejoint celui-ci : un seul ⌘Z défait le tout.
+  const tr = enchainer(editor.state.tr.deleteRange(zone.de, zone.a))
   if (effet.genre === 'action' || effet.genre === 'couleur' || (effet.genre === 'vers' && entree.section === 'transformer') || (effet.genre === 'inserer' && effet.quoi === 'image')) {
     editor.view.dispatch(tr)
     // « Transformer en » : le bloc courant change de type. L'image se pose quand le fichier est choisi.

@@ -73,12 +73,13 @@ export function idsManquants(doc: NoeudPM, tirer: () => string = nouvelIdBloc): 
 }
 
 /** La transaction qui donne leurs ids aux blocs qui n'en ont pas ; `null` s'ils en ont tous. */
-export function poserIds(state: EditorState): Transaction | null {
+export function poserIds(state: EditorState, horsHistorique = true): Transaction | null {
   const manquants = idsManquants(state.doc)
   if (manquants.length === 0) return null
   const tr = state.tr
   for (const [pos, id] of manquants) tr.setNodeAttribute(pos, 'id', id)
-  return tr.setMeta(CLE_IDS, true).setMeta('addToHistory', false)
+  tr.setMeta(CLE_IDS, true)
+  return horsHistorique ? tr.setMeta('addToHistory', false) : tr
 }
 
 /** Un attribut de bloc, écrit `data-<html>` dans la page, qui ne suit pas le bloc coupé par Entrée. */
@@ -118,7 +119,8 @@ export const IdsDeBlocs = Extension.create({
         key: CLE_IDS,
         // Ce qui arrive des autres porte déjà ses ids, posés chez celui qui l'a écrit.
         appendTransaction: (trs, _, state) =>
-          trs.some((tr) => tr.docChanged && !tr.getMeta(ySyncPluginKey)?.isChangeOrigin) ? poserIds(state) : null,
+          // Dans l'historique du geste qui a créé les blocs : annuler l'Entrée défait aussi leurs ids, même à plusieurs.
+          trs.some((tr) => tr.docChanged && !tr.getMeta(ySyncPluginKey)?.isChangeOrigin) ? poserIds(state, false) : null,
         // Un document d'avant les ids les reçoit à l'ouverture.
         view: (view) => {
           queueMicrotask(() => {

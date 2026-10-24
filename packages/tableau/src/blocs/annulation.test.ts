@@ -155,10 +155,11 @@ describe('annulation : avec le partage (Y.UndoManager)', () => {
     ed.commands.redo()
     ed.commands.redo()
     expect(texte(ed)).toBe('abcd')
-    // Un geste de bloc (Tab) est un pas à part : [abc] [d] [Tab] [e]. (Entrée n'est pas comptée ici : les ids qu'elle
-    // fait poser sont écrits « hors historique » par `ids.ts`, et le partage ne la suit alors pas.)
+    // Un geste de bloc (Tab) est un pas à part : [abc] [d] [Tab] [e]. Le contenu posé d'office (et ses ids, qui
+    // entrent dans l'historique du geste qui crée les blocs) ferme son groupe avant qu'on frappe.
     ed.commands.setContent('<p>x</p><p></p>')
     ed.commands.setTextSelection(ed.state.doc.content.size - 1)
+    yUndoPluginKey.getState(ed.state)!.undoManager.stopCapturing()
     const avant = yUndoPluginKey.getState(ed.state)!.undoManager.undoStack.length
     frapper(ed, 'a', 80_000)
     ed.view.dispatch(tab(ed.state, 1)!.setTime(80_050))

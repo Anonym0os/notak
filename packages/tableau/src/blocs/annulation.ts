@@ -27,11 +27,17 @@ export interface Groupe {
   debut: number
   classe: Classe
   ferme: boolean
+  /** La transaction suivante rejoint le groupe quoi qu'il arrive (un geste fait de deux transactions). */
+  enchaine?: boolean
 }
 
 /** Marque une transaction comme un geste de bloc : un pas d'annulation à part, avant et après. */
 export const CLE_GESTE = new PluginKey('gesteDeBloc')
 export const geste = <T extends Transaction>(tr: T): T => tr.setMeta(CLE_GESTE, true)
+
+/** Marque une transaction dont la suivante fait partie du même geste (le choix du menu « / ») : un seul ⌘Z les défait. */
+export const CLE_ENCHAINE = new PluginKey('enchaineAuSuivant')
+export const enchainer = <T extends Transaction>(tr: T): T => tr.setMeta(CLE_ENCHAINE, true)
 
 /** La transaction touche-t-elle au texte, ou seulement aux blocs ? */
 export function classeDe(tr: Transaction): Classe {
@@ -65,8 +71,9 @@ export const AnnulationBlocs = Extension.create({
           apply(tr, groupe) {
             if (tr.getMeta('history$')) return groupe && { ...groupe, ferme: true }
             const decision = tr.getMeta(DECISION) as 'rejoint' | 'neuf' | undefined
-            if (decision === 'neuf') return { debut: tr.time, classe: classeDe(tr), ferme: apart(tr) }
-            if (decision === 'rejoint' && groupe) return { ...groupe, ferme: apart(tr) }
+            const enchaine = !!tr.getMeta(CLE_ENCHAINE)
+            if (decision === 'neuf') return { debut: tr.time, classe: classeDe(tr), ferme: apart(tr) && !enchaine, enchaine }
+            if (decision === 'rejoint' && groupe) return { ...groupe, ferme: apart(tr) && !enchaine, enchaine }
             return groupe
           },
         },
@@ -74,7 +81,7 @@ export const AnnulationBlocs = Extension.create({
         filterTransaction(tr, state) {
           if (!suivie(tr)) return true
           const groupe = CLE.getState(state) ?? null
-          const gardee = rejoint(groupe, { time: tr.time, classe: classeDe(tr), apart: apart(tr) })
+          const gardee = (!!groupe?.enchaine && !groupe.ferme) || rejoint(groupe, { time: tr.time, classe: classeDe(tr), apart: apart(tr) })
           tr.setMeta(DECISION, gardee ? 'rejoint' : 'neuf')
           const annuleur = yUndoPluginKey.getState(state)?.undoManager
           if (annuleur) {
