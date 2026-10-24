@@ -30,9 +30,9 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 15. Habillage | 15 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
-| 18. Carte mentale | 36 | 3 | 2 | 91 % |
+| 18. Carte mentale | 37 | 4 | 0 | 95 % |
 | 19. Document à blocs | 1 | 0 | 24 | 4 % |
-| **Total** | **319** | **13** | **28** | **90 %** |
+| **Total** | **320** | **14** | **26** | **91 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -463,8 +463,8 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Mode Zen | ✅ | Cmd+Alt+F : la carte seule, en plein écran quand le navigateur le permet ; Échap en sort. |
 | Présentation branche par branche | ✅ | Cmd+Alt+P : le central, puis chaque principal avec sa branche ; le cadrage glisse de l'une à l'autre. |
 | Chercher dans la carte | ✅ | Cmd+F : titres, étiquettes et notes, sans accents ; Entrée va au suivant. |
-| Importer un fichier .xmind | ⬜ |  |
-| Exporter en .xmind | ⬜ |  |
+| Importer un fichier .xmind | ✅ | Déposé sur la toile : une carte par feuille, images comprises. Éprouvé sur les 36 modèles de Xmind et sa démo. Les fichiers de Xmind 8 (content.xml) sont refusés avec un avis. |
+| Exporter en .xmind | 🟡 | Menu de la carte, une feuille par carte choisie ; aller-retour vérifié par la lecture de Notak, pas encore rouvert dans Xmind lui-même. Les styles et thèmes ne sont pas traduits. |
 | Texte de la carte dans la recherche et l'export texte du tableau | ✅ | L'export la rend en liste indentée. |
 | Grille, tableau-arbre | ➖ | Écartés (docs/XMIND.md § 2). |
 | Gantt, IA, commentaires et collaboration propres à Xmind, note audio, vidéo web | ➖ | Écartés (docs/XMIND.md § 6). |

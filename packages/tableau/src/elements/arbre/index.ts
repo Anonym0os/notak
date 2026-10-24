@@ -1,4 +1,8 @@
-import { type Arbre, type Element, nouvelId } from '../../coeur/tableau'
+import { type Arbre, type Element, type Id, type Operation, nouvelId } from '../../coeur/tableau'
+import { annoncer } from '../../avis'
+import { nomFichier, telechargerOctets } from '../document/export'
+import { porter } from './modele/elements'
+import { type ImageAExporter, ecrireXmind, lireXmind } from './xmind'
 import { ico } from '../../icones'
 import { t } from '../../langue'
 import { registre } from '../registre'
@@ -46,3 +50,75 @@ registre.type<Arbre>({
     },
   ],
 })
+
+const MIME_IMAGE: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', svg: 'image/svg+xml', webp: 'image/webp' }
+
+/** Un `.xmind` déposé ou collé : chaque feuille devient une carte mentale, posées de gauche à droite. */
+registre.recepteur({
+  priorite: 40,
+  recevoir(donnees, ou, contexte) {
+    const fichiers = [...donnees.files].filter((f) => /\.xmind$/i.test(f.name))
+    if (fichiers.length === 0) return null
+    return (async () => {
+      const ops: Operation[] = []
+      let x = Math.round(ou.x)
+      for (const f of fichiers) {
+        let feuilles
+        try {
+          feuilles = lireXmind(new Uint8Array(await f.arrayBuffer()))
+        } catch (e) {
+          annoncer({ texte: t((e as Error).message === 'xmind-ancien' ? 'arbre.xmindAncien' : 'arbre.xmindIllisible', { nom: f.name }) })
+          continue
+        }
+        for (const feuille of feuilles) {
+          let arbre = feuille.arbre
+          // Les images du fichier rejoignent les fichiers du tableau.
+          for (const img of contexte.services.fichiers ? feuille.images : []) {
+            const ext = img.nom.split('.').pop()?.toLowerCase() ?? ''
+            const fichier = await contexte.services.fichiers!.enregistrer(new Blob([img.octets as BlobPart], { type: MIME_IMAGE[ext] ?? 'application/octet-stream' }))
+            const k = Math.min(1, 200 / img.l)
+            arbre = porter(arbre, [img.sujet], 'image', { fichier, l: Math.round(img.l * k), h: Math.round(img.h * k) })
+          }
+          ops.push({ type: 'creer', element: { id: nouvelId(), x, y: Math.round(ou.y), largeur: LARGEUR_ARBRE, contenu: arbre } })
+          x += LARGEUR_ARBRE + 4
+        }
+      }
+      return ops
+    })()
+  },
+})
+
+/** « Exporter en .xmind » : les cartes choisies, une feuille chacune, avec leurs images. */
+registre.entreeMenu({
+  get libelle() {
+    return t('arbre.exporterXmind')
+  },
+  visible: (els) => els.length > 0 && els.every((e) => e.contenu.type === 'arbre'),
+  faire: (els, contexte) => {
+    void (async () => {
+      const cartes = els.flatMap((e) => (e.contenu.type === 'arbre' ? [{ titre: titreDe(e.contenu), arbre: e.contenu }] : []))
+      const images = new Map<Id, ImageAExporter>()
+      for (const { arbre } of cartes)
+        for (const s of Object.values(arbre.sujets)) {
+          const fichier = s?.image?.fichier
+          if (!fichier || images.has(fichier) || !contexte.services.fichiers) continue
+          const adresse = await contexte.services.fichiers.adresse(fichier)
+          if (!adresse) continue
+          try {
+            const reponse = await fetch(adresse)
+            const type = reponse.headers.get('content-type') ?? ''
+            const extension = Object.entries(MIME_IMAGE).find(([, m]) => type.startsWith(m))?.[0] ?? 'png'
+            images.set(fichier, { fichier, octets: new Uint8Array(await reponse.arrayBuffer()), extension })
+          } catch {
+            // Une image injoignable n'empêche pas l'export : le sujet part sans elle.
+          }
+        }
+      telechargerOctets(nomFichier(cartes[0]?.titre ?? t('type.arbre'), 'xmind'), ecrireXmind(cartes, images), 'application/vnd.xmind.workbook')
+    })()
+  },
+})
+
+function titreDe(a: Arbre): string {
+  const l = lire(a)
+  return l.sujets.get(l.central)?.titre.replace(/\n/g, ' ') || t('type.arbre')
+}
