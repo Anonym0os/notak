@@ -3,16 +3,28 @@ import type { Boite, Cote } from '../disposition'
 /** Les styles de branche de docs/XMIND.md § 5. */
 export type StyleBranche = 'courbe' | 'droite' | 'coudee' | 'coudee-arrondie' | 'anse' | 'pli' | 'pli-arrondi' | 'aucune'
 
-/** Quels sujets sont soulignés (un sous-sujet) : leurs branches partent et arrivent au bout du trait, pas au milieu. */
+/**
+ * Quels sujets sont soulignés : leurs branches partent et arrivent au bout du trait, pas au milieu. Un nombre est
+ * l'épaisseur du trait, qui occupe le bas du sujet : la branche suit son axe, et le souligné du parent se prolonge
+ * ainsi jusqu'à l'enfant. `true` : le bord du sujet (un trait sans épaisseur).
+ */
 export interface Soulignes {
-  parent?: boolean
-  enfant?: boolean
+  parent?: boolean | number
+  enfant?: boolean | number
+  /** Le parent est le central : ses branches en coude sortent du dessous de son corps (voir `cheminBranche`). */
+  centre?: boolean
+}
+
+/** L'ordonnée où une branche touche un sujet : le milieu de son bord, ou l'axe de son souligné. */
+function ordonnee(b: Boite, souligne: boolean | number | undefined): number {
+  if (!souligne) return b.y + b.h / 2
+  return b.y + b.h - (typeof souligne === 'number' ? souligne / 2 : 0)
 }
 
 /** Le point d'où part une branche (le bord du parent tourné vers l'enfant), et celui où elle arrive. */
 export function extremites(p: Boite, e: Boite, cote: Cote, s: Soulignes = {}): [[number, number], [number, number]] {
-  const yp = s.parent ? p.y + p.h : p.y + p.h / 2
-  const ye = s.enfant ? e.y + e.h : e.y + e.h / 2
+  const yp = ordonnee(p, s.parent)
+  const ye = ordonnee(e, s.enfant)
   switch (cote) {
     case 'droite':
       return [[p.x + p.l, yp], [e.x, ye]]
@@ -27,6 +39,23 @@ export function extremites(p: Boite, e: Boite, cote: Cote, s: Soulignes = {}): [
 
 const n = (v: number) => Math.round(v * 10) / 10
 
+/** Le rayon des angles d'un coude arrondi. */
+const RAYON_COUDE = 10
+
+/**
+ * Où part un coude du central : à un tiers de sa largeur du centre, du côté de l'enfant, par le haut ou le bas de son
+ * corps (ce que Xmind fait en cachant le départ sous le central). Un enfant à la hauteur du central : une horizontale
+ * depuis son bord. `null` quand le parent n'est pas le central, qu'il est souligné, ou que la branche n'est pas
+ * horizontale.
+ */
+function departCentral(p: Boite, cote: Cote, s: Soulignes, y1: number): [number, number] | null {
+  if (!s.centre || s.parent || (cote !== 'droite' && cote !== 'gauche')) return null
+  const x = p.x + p.l / 2 + (cote === 'droite' ? 1 : -1) * (p.l / 3)
+  if (y1 < p.y) return [x, p.y]
+  if (y1 > p.y + p.h) return [x, p.y + p.h]
+  return [cote === 'droite' ? p.x + p.l : p.x, y1]
+}
+
 /** Le chemin SVG d'une branche du parent `p` à l'enfant `e`. */
 export function cheminBranche(p: Boite, e: Boite, cote: Cote, style: StyleBranche | 'arbre' | 'arbre-g' = 'courbe', s: Soulignes = {}): string {
   if (style === 'arbre' || style === 'arbre-g') {
@@ -34,7 +63,7 @@ export function cheminBranche(p: Boite, e: Boite, cote: Cote, style: StyleBranch
     const aDroite = style === 'arbre'
     const xt = aDroite ? p.x + 12 : p.x + p.l - 12
     const yt = cote === 'haut' ? p.y : p.y + p.h
-    const ye = s.enfant ? e.y + e.h : e.y + e.h / 2
+    const ye = ordonnee(e, s.enfant)
     return `M${n(xt)} ${n(yt)}V${n(ye)}H${n(aDroite ? e.x : e.x + e.l)}`
   }
   const [[x0, y0], [x1, y1]] = extremites(p, e, cote, s)
@@ -45,6 +74,8 @@ export function cheminBranche(p: Boite, e: Boite, cote: Cote, style: StyleBranch
     case 'droite':
       return `M${n(x0)} ${n(y0)}L${n(x1)} ${n(y1)}`
     case 'coudee': {
+      const c = departCentral(p, cote, s, y1)
+      if (c) return c[1] === y1 ? `M${n(c[0])} ${n(y1)}H${n(x1)}` : `M${n(c[0])} ${n(c[1])}V${n(y1)}H${n(x1)}`
       if (horizontal) {
         const xm = (x0 + x1) / 2
         return `M${n(x0)} ${n(y0)}H${n(xm)}V${n(y1)}H${n(x1)}`
@@ -53,9 +84,17 @@ export function cheminBranche(p: Boite, e: Boite, cote: Cote, style: StyleBranch
       return `M${n(x0)} ${n(y0)}V${n(ym)}H${n(x1)}V${n(y1)}`
     }
     case 'coudee-arrondie': {
+      const c = departCentral(p, cote, s, y1)
+      if (c) {
+        if (c[1] === y1) return `M${n(c[0])} ${n(y1)}H${n(x1)}`
+        const sx = Math.sign(x1 - c[0]) || 1
+        const sy = Math.sign(y1 - c[1])
+        const r = Math.min(RAYON_COUDE, Math.abs(y1 - c[1]), Math.abs(x1 - c[0]))
+        return `M${n(c[0])} ${n(c[1])}V${n(y1 - sy * r)}Q${n(c[0])} ${n(y1)} ${n(c[0] + sx * r)} ${n(y1)}H${n(x1)}`
+      }
       if (horizontal) {
         const xm = (x0 + x1) / 2
-        const r = Math.min(8, Math.abs(y1 - y0) / 2, Math.abs(xm - x0))
+        const r = Math.min(RAYON_COUDE, Math.abs(y1 - y0) / 2, Math.abs(xm - x0))
         const sx = Math.sign(x1 - x0) || 1
         const sy = Math.sign(y1 - y0)
         if (sy === 0) return `M${n(x0)} ${n(y0)}H${n(x1)}`

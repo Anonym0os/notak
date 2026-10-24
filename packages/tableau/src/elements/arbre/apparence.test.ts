@@ -1,8 +1,29 @@
 import { describe, expect, it } from 'vitest'
 import type { Arbre, Id, StyleSujet } from '../../coeur/tableau'
-import { appliquerCasse, brancheDe, couleurDe, couleursDe, habitDe, limiteEffective, mesurer, relationEffective, resumeEffectif, separerAlpha, sur, tiretsDe } from './apparence'
+import {
+  appliquerCasse,
+  avecOpacite,
+  brancheDe,
+  couleurDe,
+  couleursDe,
+  encreDeBranche,
+  epaisseurSouligne,
+  habitDe,
+  hexVersTsl,
+  limiteEffective,
+  mesurer,
+  rangDe,
+  relationEffective,
+  resumeEffectif,
+  separerAlpha,
+  sur,
+  teinteClaire,
+  teinteSombre,
+  tiretsDe,
+  tslVersHex,
+} from './apparence'
 import { appliquerGeste } from './modele/gestes'
-import { ajouterEnfant, lire, nouvelArbre } from './modele/sujets'
+import { ajouterEnfant, ajouterFlottant, lire, nouvelArbre } from './modele/sujets'
 import { THEMES } from './themes'
 
 const theme = THEMES[0]!
@@ -70,16 +91,19 @@ describe('la mesure d’un sujet suit son style', () => {
 
 describe('les couleurs effectives', () => {
   it('« aucun remplissage » retire le fond ; le texte se lit alors sur le fond de la carte', () => {
-    const { l, c, h } = carte({ motifRemplissage: 'aucun' })
+    const { a, c, l, p } = carte()
     const hc = habitDe(l, c, theme)
+    const b = appliquerGeste(a, { type: 'style', ids: [c], style: { motifRemplissage: 'aucun' } }, () => 'x')!.arbre
+    const hs = habitDe(lire(b), c, theme)
     const avec = couleursDe(hc, 'central', theme, undefined, null)
-    const sans = couleursDe({ ...hc, motifRemplissage: 'aucun' }, 'central', theme, undefined, null)
+    const sans = couleursDe(hs, 'central', theme, undefined, null)
     expect(avec.fond).not.toBe('none')
     expect(avec.plein).toBe(true)
     expect(sans.fond).toBe('none')
     expect(sans.plein).toBe(false)
     expect(sans.encre).toBe(theme.texte ?? 'var(--notak-arbre-texte)')
-    expect(h.motifRemplissage).toBe('aucun')
+    expect(hs.motifRemplissage).toBe('aucun')
+    expect(habitDe(l, p, theme).motifRemplissage).toBeUndefined()
   })
 
   it('une bordure d’épaisseur 0, ou « aucune », disparaît', () => {
@@ -139,5 +163,242 @@ describe('les valeurs d’une relation, d’une limite et d’un résumé', () =
     expect(limiteEffective({ de: 'a' })).toMatchObject({ forme: 'arrondi', motif: 'tirets', motifRemplissage: 'plein', remplissage: undefined })
     expect(limiteEffective({ de: 'a', style: { forme: 'croix', taille: 20, casse: 'majuscules' } }).texte).toMatchObject({ taille: 20, casse: 'majuscules' })
     expect(resumeEffectif(undefined)).toMatchObject({ forme: 'accolade', motif: 'plein' })
+  })
+})
+
+/** Un central, trois principaux, chacun avec un enfant, lui-même avec un enfant, lui-même avec un enfant (niveaux 1 à 4). */
+function profonde() {
+  let a: Arbre = nouvelArbre('Centre')
+  const l0 = lire(a)
+  const c = l0.central
+  const ids: { principaux: Id[]; n2: Id[]; n3: Id[]; n4: Id[]; flottant: Id } = { principaux: [], n2: [], n3: [], n4: [], flottant: '' }
+  for (let i = 0; i < 3; i++) {
+    let p: Id, x: Id, y: Id, z: Id
+    ;[a, p] = ajouterEnfant(a, c, `P${i}`)
+    ;[a, x] = ajouterEnfant(a, p, `S${i}`)
+    ;[a, y] = ajouterEnfant(a, x, `T${i}`)
+    ;[a, z] = ajouterEnfant(a, y, `U${i}`)
+    ids.principaux.push(p)
+    ids.n2.push(x)
+    ids.n3.push(y)
+    ids.n4.push(z)
+  }
+  ;[a, ids.flottant] = ajouterFlottant(a, { x: 300, y: 100 }, 'Flottant')
+  return { a, l: lire(a), c, ...ids }
+}
+
+describe('les rangs et leurs valeurs (le squelette à soulignés de Xmind)', () => {
+  it('chaque rang a sa police, sa graisse, ses marges et sa largeur de texte', () => {
+    const { l, c, principaux, n2, n3, flottant } = profonde()
+    const h = (id: Id) => habitDe(l, id, theme)
+    expect(rangDe(l, c)).toBe('central')
+    expect(h(c)).toMatchObject({ police: 28, graisse: 600, marge: [15, 29], largeurMax: 300 })
+    expect(h(principaux[0]!)).toMatchObject({ police: 18, graisse: 500, marge: [10, 18], largeurMax: 300 })
+    expect(h(n2[0]!)).toMatchObject({ police: 14, graisse: 400, marge: [6, 6], largeurMax: 300 })
+    expect(h(n3[0]!)).toMatchObject({ police: 14, graisse: 400, marge: [6, 6], largeurMax: 300 })
+    expect(h(flottant)).toMatchObject({ police: 14, graisse: 500, marge: [11, 11], largeurMax: 300 })
+  })
+
+  it('la carte compacte resserre les marges de chaque rang', () => {
+    const { l, c, principaux, n2, flottant } = profonde()
+    const h = (id: Id) => habitDe(l, id, theme, true).marge
+    expect([h(c), h(principaux[0]!), h(n2[0]!), h(flottant)]).toEqual([[12, 22], [6, 12], [4, 4], [9, 9]])
+  })
+
+  it('une police plus grande ne change pas les marges du rang', () => {
+    const { a, p } = carte({ taille: 40 }, 'Titre')
+    expect(habitDe(lire(a), p, theme).marge).toEqual([10, 18])
+  })
+
+  it('un texte passe à la ligne à 300 px de texte, sans les marges', () => {
+    const { h } = carte(undefined, 'mot '.repeat(80))
+    const m = mesurer('mot '.repeat(80), h)
+    expect(m.texte.l).toBeLessThanOrEqual(300)
+    expect(m.lignes.length).toBeGreaterThan(1)
+    expect(m.l).toBe(Math.ceil(m.texte.l + 2 * 18))
+  })
+
+  it('le thème par défaut : principal au souligné épais (5), sous-sujets au souligné fin (1), à tous les niveaux', () => {
+    const { l, principaux, n2, n3, n4 } = profonde()
+    const h = (id: Id) => habitDe(l, id, theme)
+    expect(h(principaux[0]!)).toMatchObject({ forme: 'souligne', epaisseurBordure: 5 })
+    for (const id of [n2[0]!, n3[0]!, n4[0]!]) expect(h(id)).toMatchObject({ forme: 'souligne', epaisseurBordure: 1 })
+    expect(epaisseurSouligne(h(principaux[0]!))).toBe(5)
+  })
+
+  it('le style d’un sujet l’emporte sur l’épaisseur du thème ; sans trait souligné, l’épaisseur du thème ne s’applique pas', () => {
+    expect(carte({ epaisseurBordure: 3 }).h.epaisseurBordure).toBe(3)
+    const cadre = carte({ forme: 'arrondi' }).h
+    expect(cadre.epaisseurBordure).toBeUndefined()
+  })
+
+  it('le souligné prend sa place sous le texte : le sujet en est plus haut de son épaisseur', () => {
+    const [epais, fin] = [carte({ epaisseurBordure: 5 }, 'Titre').h, carte({ epaisseurBordure: 1 }, 'Titre').h]
+    const [me, mf] = [mesurer('Titre', epais), mesurer('Titre', fin)]
+    expect(me.h - mf.h).toBe(4)
+    expect(me.h).toBe(Math.ceil(10 + 18 * 1.3 + 10 + 5))
+    // Le texte reste en haut : la marge du haut ne bouge pas.
+    expect(me.texte.y).toBe(mf.texte.y)
+  })
+
+  it('un sous-sujet cadré du premier niveau se remplit de sa branche à 20 %, pas les suivants (thème à cadres)', () => {
+    const vif = THEMES.find((t) => t.id === 'vif')!
+    const { l, n2, n3 } = profonde()
+    expect(habitDe(l, n2[0]!, vif).fondBranche).toBe(0.2)
+    expect(habitDe(l, n3[0]!, vif).fondBranche).toBeUndefined()
+    expect(habitDe(l, n2[0]!, theme).fondBranche).toBeUndefined()
+    const c = couleursDe(habitDe(l, n2[0]!, vif), 'sous', vif, undefined, '#ff6b6b')
+    expect(c.fond).toBe('#ff6b6b33')
+    expect(c.plein).toBe(true)
+    expect(couleursDe(habitDe(l, n3[0]!, vif), 'sous', vif, undefined, '#ff6b6b').fond).toBe('none')
+  })
+})
+
+describe('la teinte assombrie d’une branche', () => {
+  it('garde la teinte et la saturation, à 20 % de luminosité (les valeurs relevées sur les six couleurs de Xmind)', () => {
+    expect(teinteSombre('#FF6B6B')).toBe('#660000')
+    expect(teinteSombre('#FF9F69')).toBe('#662500')
+    expect(teinteSombre('#97D3B6')).toBe('#1e4834')
+    expect(teinteSombre('#88E2D7')).toBe('#14524a')
+    expect(teinteSombre('#6FD0F9')).toBe('#044662')
+    expect(teinteSombre('#E18BEE')).toBe('#4f0d59')
+  })
+
+  it('un gris reste gris ; blanc et noir ne se confondent pas avec leur teinte', () => {
+    expect(teinteSombre('#808080')).toBe('#333333')
+    expect(teinteSombre('#ffffff')).toBe('#333333')
+    expect(teinteSombre('#000000')).toBe('#333333')
+  })
+
+  it('l’aller-retour entre hexadécimal et teinte / saturation / luminosité est exact', () => {
+    for (const hex of ['#e5534b', '#3fa66b', '#3a86d4', '#8b5cd6', '#c9a227', '#123456']) {
+      const [t, sa, lu] = hexVersTsl(hex)!
+      expect(tslVersHex(t, sa, lu)).toBe(hex)
+    }
+    expect(hexVersTsl('var(--x)')).toBeNull()
+    expect(hexVersTsl('#ff000080')).toEqual(hexVersTsl('#ff0000'))
+  })
+
+  it('la teinte claire : la même teinte, à 85 %', () => {
+    expect(teinteClaire('#ff6b6b')).toBe('#ffb3b3')
+  })
+
+  it('ce qui n’est pas hexadécimal reste tel quel', () => {
+    expect(teinteSombre('var(--c)')).toBe('var(--c)')
+    expect(teinteSombre('red')).toBe('red')
+  })
+
+  it('l’opacité s’écrit sur huit chiffres ; une variable se mélange au transparent', () => {
+    expect(avecOpacite('#ff6b6b', 0.2)).toBe('#ff6b6b33')
+    expect(avecOpacite('#ff6b6bff', 0.5)).toBe('#ff6b6b80')
+    expect(avecOpacite('var(--c)', 0.2)).toBe('color-mix(in srgb, var(--c) 20%, transparent)')
+  })
+
+  it('le texte d’un sous-sujet : assombri sur un fond clair, éclairci sur un fond sombre, mélangé à l’encre quand le fond suit Notak', () => {
+    expect(encreDeBranche('#ff6b6b', '#ffffff', '#222')).toBe('#660000')
+    expect(encreDeBranche('#ff6b6b', '#161b26', '#eee')).toBe('#ffb3b3')
+    expect(encreDeBranche('#ff6b6b', undefined, 'var(--notak-arbre-texte)')).toBe('color-mix(in srgb, #ff6b6b 32%, var(--notak-arbre-texte))')
+    expect(encreDeBranche('var(--c)', '#ffffff', '#222222')).toBe('#222222')
+  })
+})
+
+describe('les couleurs par rang du thème par défaut', () => {
+  const { l, c, principaux, n2, n3, n4, flottant } = profonde()
+  const coul = (id: Id, t = theme) => couleursDe(habitDe(l, id, t), rangDe(l, id), t, undefined, couleurDe(l, id, t))
+
+  it('le central est plein noir, le texte blanc', () => {
+    expect(coul(c).fond).toBe('#000000')
+    expect(coul(c).encre).toBe('#ffffff')
+    expect(habitDe(l, c, theme).forme).toBe('arrondi')
+  })
+
+  it('un principal : sans plein, souligné de la couleur de sa branche, texte de l’encre du thème', () => {
+    const k = coul(principaux[1]!)
+    // Sans cadre à dessiner (un souligné), son fond est celui de la carte.
+    expect(k.plein).toBe(false)
+    expect(k.fond).toBe('var(--notak-arbre-fond)')
+    expect(k.bordure).toBe(theme.palette[1])
+    expect(k.encre).toBe('var(--notak-arbre-texte)')
+  })
+
+  it('un sous-sujet : sans fond, le texte de la couleur de sa branche assombrie, à tous les niveaux', () => {
+    for (const id of [n2[1]!, n3[1]!, n4[1]!]) {
+      const k = coul(id)
+      expect(k.fond).toBe('none')
+      expect(k.teinte).toBe(theme.palette[1])
+      expect(k.encre).toBe(`color-mix(in srgb, ${theme.palette[1]} 32%, var(--notak-arbre-texte))`)
+    }
+    // Sur un fond clair connu, la teinte sombre exacte.
+    const clair = { ...theme, fond: '#ffffff', texte: '#222222' }
+    expect(coul(n2[0]!, clair).encre).toBe(teinteSombre(theme.palette[0]!))
+  })
+
+  it('une classe « secondaire » ou une couleur de texte imposée l’emporte sur la teinte de la branche', () => {
+    const h = habitDe(l, n2[0]!, theme)
+    expect(couleursDe(h, 'sous', theme, 'secondaire', '#e5534b').encre).toBe('#8c939d')
+    expect(couleursDe({ ...h, couleurTexte: '#123456' }, 'sous', theme, undefined, '#e5534b').encre).toBe('#123456')
+  })
+
+  it('un sous-sujet sans branche de couleur (une seule couleur) garde le texte du thème', () => {
+    expect(couleursDe(habitDe(l, n2[0]!, theme), 'sous', theme, undefined, null).encre).toBe('var(--notak-arbre-texte)')
+  })
+
+  it('un flottant garde son cadre', () => {
+    expect(habitDe(l, flottant, theme).forme).toBe('arrondi')
+  })
+})
+
+describe('les couleurs de branches multicolores', () => {
+  it('chaque principal prend sa couleur dans la palette, tour à tour, et tous ses descendants la gardent', () => {
+    const { l, principaux, n2, n3, n4 } = profonde()
+    principaux.forEach((p, i) => {
+      const couleur = theme.palette[i % theme.palette.length]!
+      expect(couleurDe(l, p, theme)).toBe(couleur)
+      for (const d of [n2[i]!, n3[i]!, n4[i]!]) expect(couleurDe(l, d, theme)).toBe(couleur)
+    })
+    expect(new Set(principaux.map((p) => couleurDe(l, p, theme))).size).toBe(3)
+  })
+
+  it('la palette recommence après six principaux', () => {
+    let a: Arbre = nouvelArbre('C')
+    const c = lire(a).central
+    const ids: Id[] = []
+    for (let i = 0; i < 7; i++) {
+      let p: Id
+      ;[a, p] = ajouterEnfant(a, c, `P${i}`)
+      ids.push(p)
+    }
+    const l = lire(a)
+    expect(couleurDe(l, ids[6]!, theme)).toBe(theme.palette[0])
+  })
+
+  it('le central et les flottants n’ont pas de couleur de branche ; la couleur d’un sujet vaut pour ses descendants', () => {
+    const { a, l, c, principaux, n2, n3, flottant } = profonde()
+    expect(couleurDe(l, c, theme)).toBeNull()
+    expect(couleurDe(l, flottant, theme)).toBeNull()
+    const b = appliquerGeste(a, { type: 'style', ids: [n2[0]!], style: { couleurBranche: '#123456' } }, () => 'x')!.arbre
+    expect(couleurDe(lire(b), n3[0]!, theme)).toBe('#123456')
+    expect(couleurDe(lire(b), principaux[0]!, theme)).toBe(theme.palette[0])
+    expect(couleurDe(lire(b), n3[1]!, theme)).toBe(theme.palette[1])
+  })
+})
+
+describe('l’épaisseur des branches du thème', () => {
+  it('le thème par défaut : 1,5 depuis le central, 1 ensuite, celle du souligné fin des sous-sujets', () => {
+    const { l, c, principaux, n2, n3 } = profonde()
+    expect(brancheDe(l, c, {}, theme).epaisseur).toBe(1.5)
+    expect(brancheDe(l, principaux[0]!, {}, theme).epaisseur).toBe(1)
+    expect(brancheDe(l, n2[0]!, {}, theme).epaisseur).toBe(1)
+    expect(brancheDe(l, n3[0]!, {}, theme).epaisseur).toBe(1)
+    expect(habitDe(l, n2[0]!, theme).epaisseurBordure).toBe(1)
+  })
+
+  it('le réglage de la carte, puis le style d’un sujet, l’emportent ; un thème sans épaisseur laisse celle de Notak', () => {
+    const { a, l, c, principaux } = profonde()
+    expect(brancheDe(l, c, { largeur: 3 }, theme).epaisseur).toBe(4)
+    const b = appliquerGeste(a, { type: 'style', ids: [c], style: { epaisseurBranche: 5 } }, () => 'x')!.arbre
+    expect(brancheDe(lire(b), principaux[0]!, {}, theme).epaisseur).toBe(5)
+    expect(brancheDe(l, c, {}, THEMES.find((t) => t.id === 'pastel')!).epaisseur).toBeNull()
+    expect(brancheDe(l, c).epaisseur).toBeNull()
   })
 })

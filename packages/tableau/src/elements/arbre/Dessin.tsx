@@ -18,6 +18,7 @@ import {
   brancheDe,
   couleurDe,
   couleursDe,
+  epaisseurSouligne,
   habitDe,
   limiteEffective,
   mainLevee,
@@ -117,13 +118,15 @@ export const Dessin = memo(function Dessin({ arbre, lecture: l, disposition: d, 
           const p = d.boites.get(lien.de)
           const e = d.boites.get(lien.vers)
           if (!p || !e || lien.forme === 'aucune' || !vu(lien.vers)) return null
-          const style = brancheDe(l, lien.de, globales)
+          const style = brancheDe(l, lien.de, globales, theme)
           // La forme d'une branche : la sienne, sinon celle du thème là où la structure laisse le choix (carte, logique).
           const forme = style.forme ?? (lien.forme === 'courbe' ? theme.branche : lien.forme)
           const epaisseur = style.epaisseur ?? (lien.de === l.central ? 2.5 : 1.75)
           // « Aucun » : un motif nul, ou une épaisseur nulle, ne laisse pas de trait.
           if (forme === 'aucune' || style.motif === 'aucun' || epaisseur <= 0) return null
-          const s = { parent: souligne(habits.get(lien.de)!.forme), enfant: souligne(habits.get(lien.vers)!.forme) }
+          // Un sujet souligné : l'épaisseur de son trait (la branche suit son axe) ; le central : ses coudes sortent de dessous.
+          const soulignement = (id: Id) => (souligne(habits.get(id)!.forme) ? epaisseurSouligne(habits.get(id)!) : 0)
+          const s = { parent: soulignement(lien.de), enfant: soulignement(lien.vers), centre: lien.de === l.central }
           const trait = couleur(lien.vers) ?? encre
           const effile = style.effilee ? cheminEffile(p, e, lien.cote, forme, s, epaisseur * 2.4, epaisseur * 0.6) : null
           const [[ax, ay], [bx, by]] = extremites(p, e, lien.cote, s)
@@ -279,8 +282,8 @@ const Sujet = memo(function Sujet({ id, sujet: s, rang, habit: h, theme, boite: 
         )}
         {chemin && <path d={chemin} fill={hachure ? `url(#notak-hachure-${id})` : fondC} fillOpacity={hachure ? undefined : fondO} stroke={trait ? 'none' : bordure} strokeWidth={epaisseur} strokeDasharray={tiretsDe(h.motifBordure)} fillRule="evenodd" />}
         {trait && <path d={trait} fill="none" stroke={traitSouligne} strokeWidth={Math.max(1.25, epaisseur)} strokeLinecap="round" strokeLinejoin="round" />}
-        {souligne(h.forme) && <line x1={0} x2={m.l} y1={m.h} y2={m.h} stroke={traitSouligne} strokeWidth={h.epaisseurBordure || 1.75} strokeLinecap="round" strokeDasharray={tiretsDe(h.motifBordure)} />}
-        {h.forme === 'double-souligne' && <line x1={0} x2={m.l} y1={m.h - 4} y2={m.h - 4} stroke={traitSouligne} strokeWidth={1.25} strokeLinecap="round" strokeDasharray={tiretsDe(h.motifBordure)} />}
+        {souligne(h.forme) && <line x1={0} x2={m.l} y1={m.h - epaisseurSouligne(h) / 2} y2={m.h - epaisseurSouligne(h) / 2} stroke={traitSouligne} strokeWidth={epaisseurSouligne(h)} strokeLinecap="butt" strokeDasharray={tiretsDe(h.motifBordure)} />}
+        {h.forme === 'double-souligne' && <line x1={0} x2={m.l} y1={m.h - epaisseurSouligne(h) - 4} y2={m.h - epaisseurSouligne(h) - 4} stroke={traitSouligne} strokeWidth={1.25} strokeLinecap="butt" strokeDasharray={tiretsDe(h.motifBordure)} />}
       </Tremble>
       {choisi && <rect className="notak-arbre-choix" x={-4} y={-4} width={m.l + 8} height={m.h + 8} rx={10} fill="none" />}
       {image && m.image && s.image && <image href={image} x={m.image.x} y={m.image.y} width={s.image.l} height={s.image.h} preserveAspectRatio="xMidYMid slice" data-image={id} />}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Arbre, Id, StructureArbre } from '../../../coeur/tableau'
 import { ajouterEnfant, basculerRepli, changerSujet, lire, nouvelArbre } from '../modele/sujets'
-import { type Boite, disposer } from './index'
+import { type Boite, ECARTS, ECARTS_COMPACTS, disposer, ecartsDe } from './index'
 
 const TAILLE = { l: 80, h: 24 }
 
@@ -120,5 +120,73 @@ describe('disposer une carte', () => {
     const avant = disposer(lire(a), () => TAILLE).boites.get(principaux[0]!)!
     expect(disposer(lire(b), () => TAILLE).boites.get(principaux[0]!)).toEqual(avant)
     expect(disposer(lire(b), () => TAILLE, undefined, true).boites.get(principaux[0]!)).toEqual({ ...avant, x: avant.x + 30, y: avant.y - 50 })
+  })
+})
+
+describe('les écarts de Xmind, selon la classe du parent', () => {
+  /** Un central, deux principaux à droite, chacun avec deux enfants, eux-mêmes avec deux enfants (logique à droite). */
+  function arbre() {
+    let a = nouvelArbre('C')
+    const c = lire(a).central
+    a = changerSujet(a, c, (s) => ({ ...s, structure: 'logique-droite' }))
+    const [P, E, F] = [[] as Id[], [] as Id[], [] as Id[]]
+    for (let i = 0; i < 2; i++) {
+      let p: Id
+      ;[a, p] = ajouterEnfant(a, c, `P${i}`)
+      P.push(p)
+      for (let j = 0; j < 2; j++) {
+        let e: Id
+        ;[a, e] = ajouterEnfant(a, p, `E${i}${j}`)
+        E.push(e)
+        for (let k = 0; k < 2; k++) {
+          let f: Id
+          ;[a, f] = ajouterEnfant(a, e, `F${i}${j}${k}`)
+          F.push(f)
+        }
+      }
+    }
+    return { a, c, P, E, F }
+  }
+  const T = { l: 80, h: 20 }
+
+  it('le central s’écarte de ses principaux de 50 et de 35 entre eux ; un principal, de 26 et de 6 ; un sous-sujet, de 26 et de 8', () => {
+    const { a, c, P, E, F } = arbre()
+    const d = disposer(lire(a), () => T)
+    const b = (id: Id) => d.boites.get(id)!
+    // Majeur : l'espace horizontal entre le bord du parent et celui de l'enfant.
+    expect(b(P[0]!).x - (b(c).x + b(c).l)).toBe(50)
+    expect(b(E[0]!).x - (b(P[0]!).x + b(P[0]!).l)).toBe(26)
+    expect(b(F[0]!).x - (b(E[0]!).x + b(E[0]!).l)).toBe(26)
+    // Mineur : l'espace vertical entre deux frères sans descendance. Les feuilles de F : 8 ; les enfants de P0 (blocs de 2 feuilles) : 6.
+    expect(b(F[1]!).y - (b(F[0]!).y + b(F[0]!).h)).toBe(8)
+    const bloc = (e: Id, fs: Id[]) => ({ haut: Math.min(b(e).y, ...fs.map((f) => b(f).y)), bas: Math.max(b(e).y + b(e).h, ...fs.map((f) => b(f).y + b(f).h)) })
+    const [e0, e1] = [bloc(E[0]!, [F[0]!, F[1]!]), bloc(E[1]!, [F[2]!, F[3]!])]
+    expect(e1.haut - e0.bas).toBe(6)
+    const [p0, p1] = [bloc(P[0]!, [...E.slice(0, 2), ...F.slice(0, 4)]), bloc(P[1]!, [...E.slice(2), ...F.slice(4)])]
+    expect(p1.haut - p0.bas).toBe(35)
+  })
+
+  it('la carte compacte : 28 et 10 du central, 22 et 5 ensuite', () => {
+    const { a, c, P, E } = arbre()
+    const d = disposer(lire(a), () => T, ECARTS_COMPACTS)
+    const b = (id: Id) => d.boites.get(id)!
+    expect(b(P[0]!).x - (b(c).x + b(c).l)).toBe(28)
+    expect(b(E[0]!).x - (b(P[0]!).x + b(P[0]!).l)).toBe(22)
+  })
+
+  it('une courbe, une droite, une anse ou un pli doublent le majeur hors du central ; un coude le garde', () => {
+    expect(ecartsDe('coudee').principal).toBe(26)
+    expect(ecartsDe('coudee-arrondie').principal).toBe(26)
+    expect(ecartsDe(undefined).principal).toBe(26)
+    for (const f of ['courbe', 'droite', 'anse', 'pli', 'pli-arrondi'] as const) expect(ecartsDe(f)).toEqual({ ...ECARTS, principal: 52 })
+    expect(ecartsDe('courbe', true)).toEqual({ ...ECARTS_COMPACTS, principal: 44 })
+    expect(ecartsDe('courbe').central).toBe(50)
+  })
+
+  it('une carte aux écarts sans mineurs retombe sur l’écart secondaire (l’aperçu des thèmes)', () => {
+    const { a, P } = arbre()
+    const d = disposer(lire(a), () => T, { principal: 14, secondaire: 4, central: 20 })
+    const b = (id: Id) => d.boites.get(id)!
+    expect(b(P[1]!).y).toBeGreaterThan(b(P[0]!).y)
   })
 })

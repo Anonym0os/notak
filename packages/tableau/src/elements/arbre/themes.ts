@@ -14,12 +14,19 @@ export interface Theme {
   encre?: string
   texte?: string
   central: { forme: FormeSujet; remplissage?: string; texte?: string }
-  /** Un principal plein (de la couleur de sa branche) ou en contour. */
-  principal: { forme: FormeSujet; plein: boolean }
-  sous: { forme: FormeSujet }
+  /** Un principal plein (de la couleur de sa branche) ou en contour. `trait` : l'épaisseur de son souligné. */
+  principal: { forme: FormeSujet; plein: boolean; trait?: number }
+  /**
+   * `trait` : l'épaisseur du souligné d'un sous-sujet. `texteBranche` : son texte prend la couleur de sa branche,
+   * assombrie. `fondNiveau2` : les sous-sujets du premier niveau (enfants d'un principal), s'ils ont un cadre, se
+   * remplissent de la couleur de leur branche à cette opacité ; les niveaux suivants restent sans fond.
+   */
+  sous: { forme: FormeSujet; trait?: number; texteBranche?: boolean; fondNiveau2?: number }
   flottant: { forme: FormeSujet }
   palette: readonly string[]
   branche: FormeBranche
+  /** L'épaisseur du trait des branches qui partent d'un central, d'un principal, d'un sous-sujet ; absente : celle de Notak. */
+  branches?: { central: number; principal: number; sous: number }
   /** La police de la carte ; absente : celle de Notak. */
   police?: string
   /** Dans quelle liste du sélecteur de thèmes il se range : les colorés, ou les classiques (sobres). */
@@ -32,12 +39,15 @@ export interface Theme {
 export const THEMES: readonly Theme[] = [
   {
     id: 'classique',
-    central: { forme: 'arrondi' },
-    principal: { forme: 'arrondi', plein: true },
-    sous: { forme: 'souligne' },
+    // Le rendu par défaut (docs/XMIND.md § 5) : central plein arrondi, principaux au souligné épais, sous-sujets au
+    // souligné fin qui se confond avec la branche et au texte de la couleur de la branche, assombrie.
+    central: { forme: 'arrondi', remplissage: '#000000', texte: '#ffffff' },
+    principal: { forme: 'souligne', plein: false, trait: 5 },
+    sous: { forme: 'souligne', trait: 1, texteBranche: true },
     flottant: { forme: 'arrondi' },
     palette: ['#e5534b', '#e69138', '#c9a227', '#3fa66b', '#3a86d4', '#8b5cd6'],
-    branche: 'courbe',
+    branche: 'coudee',
+    branches: { central: 1.5, principal: 1, sous: 1 },
     categorie: 'classique',
   },
   {
@@ -100,7 +110,7 @@ export const THEMES: readonly Theme[] = [
     texte: '#111827',
     central: { forme: 'hexagone', remplissage: '#111827', texte: '#ffffff' },
     principal: { forme: 'capsule', plein: true },
-    sous: { forme: 'arrondi' },
+    sous: { forme: 'arrondi', fondNiveau2: 0.2 },
     flottant: { forme: 'losange' },
     palette: ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#007aff', '#af52de'],
     branche: 'droite',
