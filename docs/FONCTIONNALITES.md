@@ -31,8 +31,8 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 16. Exporter, importer | 3 | 1 | 0 | 88 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
 | 18. Carte mentale | 61 | 10 | 0 | 93 % |
-| 19. Document à blocs | 28 | 1 | 1 | 95 % |
-| **Total** | **371** | **21** | **3** | **97 %** |
+| 19. Document à blocs | 29 | 1 | 0 | 98 % |
+| **Total** | **372** | **21** | **2** | **97 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -517,11 +517,11 @@ dans `packages/tableau/src/blocs/`, pour resservir à d'autres éléments.
 | Citation, encadré avec icône, séparateur | ✅ |  |
 | Code avec langage, bouton Copier, retour à la ligne | ✅ | Barre au survol (langage, Copier), coloration selon le langage, sans dépendance ; le rendu figé reste monochrome. |
 | Image avec largeur, alignement et légende | ✅ | Poignées de largeur sur les bords, barre au survol (alignement, « Légende »), légende écrite sur place. |
-| Aperçu de lien | ⬜ |  |
+| Aperçu de lien | ✅ | Par « / » ou en collant une adresse (« coller comme » : Lien, Aperçu) ; le titre et l'image viennent du serveur, l'édition locale montre l'adresse seule. |
 | Menu « / » : filtre par mots-clés, catégories, couleurs et actions | ✅ |  |
 | Raccourcis markdown en début de bloc et en ligne | ✅ | `>` fait un dépliant dans le document, une citation dans la note. |
 | Remplacements typographiques (→, —, …, ≥, guillemets) | ✅ | Guillemets “ ” comme chez Notion. |
-| Collage et copie : Markdown, HTML (Google Docs, Notion), code, adresse ; copie en Markdown et HTML | 🟡 | Le menu « coller comme » et le collage de fichiers restent. |
+| Collage et copie : Markdown, HTML (Google Docs, Notion), code, adresse ; copie en Markdown et HTML | 🟡 | « Coller comme » propose Lien et Aperçu ; le collage de fichiers reste. |
 | Flèches à travers les blocs sans texte, ⌘A en deux temps | ✅ |  |
 | Transformer en (menu du bloc, bulle, ⌘⌥0…8) | ✅ | ⌘/ ouvre le menu du bloc, comme chez Notion. |
 | Couleur de texte et de fond, sur un bloc ou un passage | ✅ | Les neuf teintes mesurées dans Notion, dans les deux thèmes ; ⌘⇧H reprend la dernière. |

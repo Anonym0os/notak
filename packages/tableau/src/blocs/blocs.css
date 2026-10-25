@@ -539,6 +539,11 @@
   cursor: pointer;
 }
 
+/* Sans aperçu (en attente, ou introuvable), la carte n'est que l'adresse, sans hauteur réservée. */
+.notak-blocs .notak-apercu-lien:is([data-etat='attente'], [data-etat='vide']) {
+  min-height: 0;
+}
+
 .notak-blocs .notak-apercu-lien:hover {
   background: var(--notak-page-survol);
 }
