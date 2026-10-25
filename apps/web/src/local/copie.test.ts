@@ -1,9 +1,10 @@
 import 'fake-indexeddb/auto'
-import { decoderNotak, nouvelleNote } from '@notak/tableau'
+import { decoderNotak, encoderNotak, nouvelleNote } from '@notak/tableau'
 import { describe, expect, it } from 'vitest'
 import * as Y from 'yjs'
 import { fabriquerCopie, rouvrirCopie } from './copie'
 import { espaceLocal } from './espace'
+import { lireFichier } from './fichiers'
 
 const attendre = (ms = 30) => new Promise((r) => setTimeout(r, ms))
 
@@ -54,4 +55,18 @@ describe('copies .notak', () => {
     await attendre()
     expect(await renvois()).toBe(1)
   })
+
+  it('un fichier se range sous l’empreinte de son contenu, pas sous celle qu’annonce la copie', async () => {
+    const el = await espaceLocal()
+    const vraie = 'a'.repeat(64)
+    // Une copie trafiquée : un contenu quelconque sous le nom d'une autre image, qu'on poserait plus tard.
+    const copie = encoderNotak({ racine: el.index.racine(), tableaux: [], fichiers: [{ id: vraie, type: 'image/png', octets: new Uint8Array([1, 2, 3]) }] })
+    await rouvrirCopie(el, copie, el.index.racine())
+    expect(await lireFichier(vraie)).toBeUndefined()
+    // Un fichier d'une copie du serveur (un uuid, pas une empreinte) garde son nom : rien ne peut s'y confondre.
+    const uuid = '6f1c2b0e-8d4a-4c51-9a3e-2b7d9e0f1a2b'
+    await rouvrirCopie(el, encoderNotak({ racine: el.index.racine(), tableaux: [], fichiers: [{ id: uuid, type: 'image/png', octets: new Uint8Array([4]) }] }), el.index.racine())
+    expect(await lireFichier(uuid)).toBeDefined()
+  })
 })
+

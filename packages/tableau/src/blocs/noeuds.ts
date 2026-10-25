@@ -204,7 +204,8 @@ export const ImageBloc = Node.create<OptionsImage>({
         const voulue = String(a.url ?? a.fichier ?? '')
         if (voulue !== source) {
           source = voulue
-          if (a.url) img.src = String(a.url)
+          // Une adresse d'image vient du document, donc de n'importe qui : seulement le web (`adresseSure`).
+          if (a.url) img.src = adresseSure(a.url, 'image') ?? ''
           else if (a.fichier && adresse) void adresse(String(a.fichier)).then((u) => u && source === voulue && (img.src = u))
         }
         for (const b of alignements) b.dataset.actif = String(b.dataset.valeur === figure.dataset.alignement)
@@ -280,7 +281,8 @@ export const ImageBloc = Node.create<OptionsImage>({
         document.body.append(voile)
       }
       const telecharger = () => {
-        if (!img.src) return
+        // L'image d'un fichier de l'espace (`blob:`), ou une image du web ; rien d'autre ne part au clic.
+        if (!img.src || !(img.src.startsWith('blob:') || adresseSure(img.src, 'image'))) return
         const a = document.createElement('a')
         a.href = img.src
         a.download = String(node.attrs.legende || 'image')

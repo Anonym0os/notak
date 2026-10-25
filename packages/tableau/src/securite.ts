@@ -2,12 +2,14 @@
 
 /**
  * Ce que Notak a le droit de joindre, écrit une seule fois. La politique de sécurité du contenu (CSP) de notak.app
- * (`apps/site/nginx.conf`), de l'app de bureau (`apps/bureau/src-tauri/tauri.conf.json`) et des pages de l'édition
+ * (`apps/site/csp.conf`), de l'app de bureau (`apps/bureau/src-tauri/tauri.conf.json`) et des pages de l'édition
  * serveur (`apps/serveur/src/app.ts`) en découle ; un essai vérifie que chacune la porte telle quelle.
  *
- * C'est le navigateur qui la fait respecter : une requête vers un hôte qui n'est pas ici est refusée avant de
- * partir, qu'elle vienne de notre code, d'une dépendance, d'un document reçu ou d'une copie .notak. « Rien ne quitte
- * votre appareil » n'est donc pas qu'une promesse.
+ * C'est le navigateur qui la fait respecter, quoi que fasse le code de la page (le nôtre, une dépendance, un document
+ * reçu) : aucun script ne vient d'ailleurs, et aucune requête de données (`fetch`, WebSocket) ne part ailleurs que
+ * vers soi et le géocodeur. Restent, par nature, les images posées par leur adresse et les lecteurs intégrés (une
+ * vidéo, une carte) : ils se chargent chez leur hôte, comme dans n'importe quelle page. La liste complète de ce qui
+ * peut sortir de l'appareil est dans `docs/PUBLIER.md`.
  */
 
 /**
@@ -92,4 +94,22 @@ export function entetesSecurite(cible: Exclude<Cible, 'bureau'>, o: { https: boo
     // Sans `includeSubDomains` : un sous-domaine encore en HTTP ne se retrouve pas fermé du jour au lendemain.
     ...(o.https ? { 'strict-transport-security': 'max-age=31536000' } : {}),
   }
+}
+
+/** Les sortes de fichiers qu'une adresse `blob:` montre telles quelles : rien là-dedans ne s'exécute. */
+const MONTRES_TELS_QUELS = /^(image\/(png|jpeg|gif|webp|avif|bmp|x-icon|vnd\.microsoft\.icon|heic|heif|tiff|svg\+xml)|application\/pdf|audio\/[\w.+-]+|video\/[\w.+-]+)$/
+
+/**
+ * La sorte sous laquelle l'édition locale montre un fichier gardé sur l'appareil (`apps/web/src/local/fichiers.ts`).
+ * Une adresse `blob:` appartient à l'origine de Notak : un fichier qui se dirait `text/html` s'y ouvrirait comme une
+ * page de Notak, avec les toiles à portée de main. Or la sorte d'un fichier vient de qui l'a fabriqué (une copie
+ * .notak reçue, une carte Xmind, un fichier déposé). Seules les images, les PDF, les sons et les vidéos gardent la
+ * leur ; un texte, quel qu'il soit, se montre en texte brut ; le reste se télécharge au lieu de s'ouvrir.
+ * (Un SVG garde la sienne pour s'afficher en image ; la CSP, dont hérite l'adresse, y refuse tout script.)
+ */
+export function typeAffichable(type: string): string {
+  const t = type.toLowerCase().split(';')[0]!.trim()
+  if (MONTRES_TELS_QUELS.test(t)) return t
+  if (t.startsWith('text/')) return 'text/plain;charset=utf-8'
+  return 'application/octet-stream'
 }

@@ -28,4 +28,18 @@ describe('fichier .notak', () => {
     })
     expect(decoderNotak(zip)).toEqual({ racine: 'r', tableaux: [], fichiers: [] })
   })
+
+  it('un tableau qui porte le nom d’une base de l’espace (l’index, les fichiers) est ignoré, et une telle racine refusée', () => {
+    const etat = new Uint8Array([0, 0])
+    const manifeste = (racine: string, ids: string[]) =>
+      strToU8(JSON.stringify({ format: 1, application: 'notak', racine, tableaux: ids.map((id) => ({ id, titre: id })), fichiers: [] }))
+    const zip = zipSync({
+      'notak.json': manifeste('r', ['espace', 'Fichiers', 'r']),
+      'tableaux/espace.yjs': etat,
+      'tableaux/Fichiers.yjs': etat,
+      'tableaux/r.yjs': etat,
+    })
+    expect(decoderNotak(zip).tableaux.map((t) => t.id)).toEqual(['r'])
+    expect(() => decoderNotak(zipSync({ 'notak.json': manifeste('fichiers', []) }))).toThrow(ErreurNotak)
+  })
 })

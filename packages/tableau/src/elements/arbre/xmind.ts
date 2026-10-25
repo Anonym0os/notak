@@ -1,4 +1,5 @@
-import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
+import { strFromU8, strToU8, zipSync } from 'fflate'
+import { dezipper } from '../../coeur/dezipper'
 import { cleEntre } from '../../coeur/ordre'
 import { type Arbre, type GroupeMarqueurs, type Id, type Limite, type NoeudTexte, type Relation, type Resume, type StructureArbre, type Sujet, type Zone, docDepuisTexte, nouvelId, texteBrut } from '../../coeur/tableau'
 import { type SqueletteDef, type RangSquelette, squeletteDe, squeletteDeXmind } from './carte/squelettes'
@@ -160,7 +161,8 @@ function plageDe(v: unknown): [number, number] | null {
 
 /** Lit un fichier `.xmind`. Refuse un ancien fichier (Xmind 8) qui n'a que `content.xml`. */
 export function lireXmind(octets: Uint8Array): FeuilleLue[] {
-  const fichiers = unzipSync(octets)
+  // Une carte reçue peut être une bombe : bornée au dépliage (`dezipper`).
+  const fichiers = dezipper(octets)
   const contenu = fichiers['content.json']
   if (!contenu) throw new Error(fichiers['content.xml'] ? 'xmind-ancien' : 'xmind-illisible')
   const feuilles = JSON.parse(strFromU8(contenu)) as unknown

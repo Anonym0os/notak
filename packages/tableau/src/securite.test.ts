@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { urlCarteIntegree } from './elements/lieu/adresse'
 import { lecteurDe } from './elements/lien/lecteurs'
-import { ORIGINES_LECTEURS, entetesSecurite, politiqueContenu } from './securite'
+import { ORIGINES_LECTEURS, entetesSecurite, politiqueContenu, typeAffichable } from './securite'
 
 const depot = (chemin: string) => readFileSync(new URL(`../../../${chemin}`, import.meta.url), 'utf8')
 
@@ -94,5 +94,19 @@ describe('chaque cible porte la même politique', () => {
     expect(conf.app.security.csp, 'la CSP de tauri.conf.json : à recopier de politiqueContenu("bureau")').toBe(politiqueContenu('bureau'))
     // Tauri ajouterait ses empreintes à `style-src`, et un navigateur ignore alors `'unsafe-inline'` : plus aucun style posé par l'éditeur.
     expect(conf.app.security.dangerousDisableAssetCspModification).toEqual(['style-src'])
+  })
+})
+
+describe('la sorte sous laquelle un fichier de l’appareil se montre', () => {
+  it('une image, un PDF, un son, une vidéo restent ce qu’ils sont', () => {
+    for (const t of ['image/png', 'image/jpeg', 'image/svg+xml', 'application/pdf', 'audio/mpeg', 'video/mp4', 'IMAGE/WEBP']) expect(typeAffichable(t)).toBe(t.toLowerCase())
+  })
+  it('un texte, quel qu’il soit, se montre en texte brut : une page HTML reçue ne devient pas une page de Notak', () => {
+    for (const t of ['text/html', 'text/html; charset=utf-8', 'text/xml', 'text/javascript', 'text/plain', 'text/markdown']) expect(typeAffichable(t)).toBe('text/plain;charset=utf-8')
+  })
+  it('le reste se télécharge au lieu de s’ouvrir', () => {
+    for (const t of ['application/xhtml+xml', 'application/xml', 'application/javascript', 'image/svg+xml-compressed', 'video/../html', 'multipart/x-mixed-replace', '', 'n’importe quoi']) {
+      expect(typeAffichable(t)).toBe('application/octet-stream')
+    }
   })
 })

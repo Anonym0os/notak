@@ -25,6 +25,8 @@ export {
 } from './coeur/espaceDistant'
 export { creerReseauNavigateur } from './reseau'
 export { ID_INDEX, type ReseauLocal, creerReseauLocal, ouvrirIndexLocal } from './reseauLocal'
+export { ErreurTropGros, dezipper } from './coeur/dezipper'
+export { IDS_RESERVES, idReserve } from './coeur/idsReserves'
 export { type EntreeIndex, type IndexEspace, creerIndexEspace } from './coeur/indexEspace'
 export { chercher, normaliser, texteCherchable } from './coeur/recherche'
 export { exporterTexte, langueExport } from './export/exporter'

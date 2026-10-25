@@ -13,6 +13,9 @@ import * as Y from 'yjs'
 import { type EspaceLocal, espaceIntact } from './espace'
 import { garderFichier, lireFichier } from './fichiers'
 
+/** Le nom d'un fichier de l'édition locale : l'empreinte SHA-256 de son contenu (`fichiers.ts`). */
+const EMPREINTE = /^[0-9a-f]{64}$/
+
 /** L'origine des changements qu'un fichier `.notak` rouvert apporte. */
 export const ORIGINE_COPIE = 'notak:copie'
 
@@ -82,7 +85,12 @@ export interface CopieRouverte {
 export async function rouvrirCopie(el: EspaceLocal, octets: Uint8Array, ici: Id): Promise<CopieRouverte> {
   const { index, reseau, espace } = el
   const c = decoderNotak(octets)
-  for (const f of c.fichiers) await garderFichier(new Blob([f.octets as Uint8Array<ArrayBuffer>], { type: f.type }), f.id)
+  for (const f of c.fichiers) {
+    const blob = new Blob([f.octets as Uint8Array<ArrayBuffer>], { type: f.type })
+    // Un fichier nommé par son empreinte (ceux de l'édition locale) se range sous celle qu'on calcule, pas sous celle
+    // qu'annonce la copie : une copie trafiquée ne glisse pas son contenu sous le nom d'une image qu'on posera plus tard.
+    await (EMPREINTE.test(f.id) ? garderFichier(blob) : garderFichier(blob, f.id))
+  }
   const racine = index.racine()
   // Déjà là : sa propre copie, ou une copie déjà rouverte. Tout se fond, rien ne s'ajoute.
   const fusion = c.racine === racine || index.entree(c.racine) !== undefined

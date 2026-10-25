@@ -1,4 +1,4 @@
-import { unzipSync } from 'fflate'
+import { ErreurTropGros, dezipper } from '@notak/tableau'
 import type { Element, Id, NoeudTexte } from '@notak/tableau'
 import { t } from './langue'
 
@@ -431,9 +431,9 @@ const IGNORES = (chemin: string) => chemin.startsWith('__MACOSX/') || chemin.spl
 export function lireExportMilanote(zip: Uint8Array, nouvelId: () => Id = idAleatoire): PlanImport {
   let entrees: Record<string, Uint8Array>
   try {
-    entrees = unzipSync(zip)
-  } catch {
-    throw new ErreurImport(t('milanote.pasZip'))
+    entrees = dezipper(zip)
+  } catch (e) {
+    throw new ErreurImport(t(e instanceof ErreurTropGros ? 'milanote.tropGros' : 'milanote.pasZip'))
   }
   const fichiers = new Map<string, FichierARanger>()
   const markdowns = new Map<string, string>()

@@ -45,6 +45,7 @@ import { PopoverNote } from './PopoverNote'
 import { Presentation } from './Presentation'
 import { Recherche, correspondances } from './Recherche'
 import { courbeRelation } from './trace/relations'
+import { adresseSure } from '../lien/adresse'
 
 const tailleEquation = (latex: string) => {
   const { l, h } = equation(latex)
@@ -889,7 +890,11 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       const r = surface.current?.getBoundingClientRect()
       if (b && r) setCamera((c) => ({ ...c, x: r.width / 2 - (b.x + b.l / 2) * c.z, y: r.height / 2 - (b.y + b.h / 2) * c.z }))
       setSelection(new Set([cible]))
-    } else window.open(/^[a-z][\w+.-]*:/i.test(lien) ? lien : `https://${lien}`, '_blank', 'noopener')
+    } else {
+      // Le lien d'un sujet vient de la carte (un fichier Xmind, une copie reçue) : seulement le web, un courriel, un numéro.
+      const sur = adresseSure(/^[a-z][\w+.-]*:/i.test(lien) ? lien : `https://${lien}`)
+      if (sur) window.open(sur, '_blank', 'noopener')
+    }
   }
   /** Ce que le clic droit vise, d'après ce que le dessin porte : un marqueur, une étiquette, une image, un sujet, le fond… */
   const cibleDe = (cible: Element, p: Point): CibleMenu => {

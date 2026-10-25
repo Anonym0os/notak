@@ -228,10 +228,12 @@ export async function ouvrirCoffre(o: OptionsCoffre): Promise<Coffre> {
   registre.sessions.push(session)
   await depot.ecrire(CLE_REGISTRE, registre)
   /** Les fichiers déjà lus, par chemin, avec leur taille. */
-  const lus: Record<string, number> = (await depot.lire<Record<string, number>>(CLE_LUS)) ?? {}
+  const lus: Record<string, number> = Object.assign(Object.create(null), (await depot.lire<Record<string, number>>(CLE_LUS)) ?? {})
   let lectureSeule = false
   let dernierPassage = 0
-  const basesVues: Record<string, string[]> = (await depot.lire<Record<string, string[]>>(CLE_BASES_VUES)) ?? {}
+  // Rangés par nom d'appareil, c'est-à-dire par nom de dossier, écrit par n'importe qui : sans prototype, un appareil
+  // nommé `constructor` ou `__proto__` reste un appareil comme un autre.
+  const basesVues: Record<string, string[]> = Object.assign(Object.create(null), (await depot.lire<Record<string, string[]>>(CLE_BASES_VUES)) ?? {})
   let basesVuesEcrites = ''
   const oublies = (await depot.lire<{ appareils: string[]; ecrit: boolean }>(CLE_OUBLIES)) ?? { appareils: [], ecrit: true }
   const empreintes = (await depot.lire<Record<string, { sv: string; empreinte: string }>>(CLE_EMPREINTES)) ?? {}
@@ -391,7 +393,8 @@ export async function ouvrirCoffre(o: OptionsCoffre): Promise<Coffre> {
     for (const a of appareils) {
       if (a === id) continue
       const oublies = await lireJson<FicheOublies>(dossier, chez(a, 'oublies.json'))
-      if (oublies?.appareils?.includes(id)) {
+      // Écrite par un autre appareil, peut-être de travers : une liste, ou rien.
+      if (Array.isArray(oublies?.appareils) && oublies.appareils.includes(id)) {
         await prendreNouvelId()
         nouvelIdPris = id
         break
@@ -406,7 +409,7 @@ export async function ouvrirCoffre(o: OptionsCoffre): Promise<Coffre> {
       if (entrees.length > 0) listes.add(`${chez(a)}/`)
       for (const e of entrees) presents.add(chez(a, e.nom))
       // Les bases qu'il a effacées depuis n'ont plus à figurer dans ce que j'ai vu.
-      if (basesVues[a] && entrees.length > 0) basesVues[a] = basesVues[a].filter((n) => entrees.some((e) => e.nom === n))
+      if (Array.isArray(basesVues[a]) && entrees.length > 0) basesVues[a] = basesVues[a].filter((n) => entrees.some((e) => e.nom === n))
       for (const e of entrees) {
         if (e.genre !== 'fichier' || !estDonnees(e.nom)) continue
         const chemin = chez(a, e.nom)
@@ -438,7 +441,10 @@ export async function ouvrirCoffre(o: OptionsCoffre): Promise<Coffre> {
           continue
         }
         nouveaux.push({ chemin, taille: octets.length, appareil: a, nom: e.nom, contenu: f.genre === 'version' ? [] : f.enregistrements })
-        if (f.genre === 'base' && a !== id) (basesVues[a] ??= []).includes(e.nom) || basesVues[a]!.push(e.nom)
+        if (f.genre === 'base' && a !== id) {
+          if (!Array.isArray(basesVues[a])) basesVues[a] = []
+          if (!basesVues[a].includes(e.nom)) basesVues[a].push(e.nom)
+        }
       }
     }
 
@@ -647,7 +653,10 @@ export async function ouvrirCoffre(o: OptionsCoffre): Promise<Coffre> {
   const appareils = async (): Promise<AppareilVu[]> => {
     const noms = (await dossier.lister(DOSSIER_APPAREILS)).filter((e) => e.genre === 'dossier').map((e) => e.nom)
     const oublies = new Set<string>()
-    for (const a of noms) for (const x of (await lireJson<FicheOublies>(dossier, chez(a, 'oublies.json')))?.appareils ?? []) oublies.add(x)
+    for (const a of noms) {
+      const liste = (await lireJson<FicheOublies>(dossier, chez(a, 'oublies.json')))?.appareils
+      if (Array.isArray(liste)) for (const x of liste) if (typeof x === 'string') oublies.add(x)
+    }
     const vus: AppareilVu[] = []
     for (const a of noms) {
       const f = await lireJson<FicheAppareil>(dossier, chez(a, 'appareil.json'))

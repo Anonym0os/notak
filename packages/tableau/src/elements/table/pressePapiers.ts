@@ -171,6 +171,9 @@ function formatHtml(cellule: Element): FormatCellule | null {
   return Object.keys(f).length ? f : null
 }
 
+/** Ce qu'un collage déplie au plus : une feuille de 10 000 lignes sur 20 colonnes. */
+const CASES_MAX = 200_000
+
 /** Une `<table>` de tableur en grille : `colspan` et `rowspan` dépliés en cases vides, `<th>` lu comme `<td>`. */
 function lireTable(table: Element): { cellules: string[][]; formats: (FormatCellule | null)[][] } | null {
   const lignes = Array.from(table.querySelectorAll('tr')).filter((tr) => tr.closest('table') === table)
@@ -178,7 +181,11 @@ function lireTable(table: Element): { cellules: string[][]; formats: (FormatCell
   const cellules: string[][] = []
   const formats: (FormatCellule | null)[][] = []
   const occupee = new Set<string>()
+  // Ce qu'on colle vient d'ailleurs : une seule case `rowspan=10000 colspan=1000` déplierait dix millions de cases.
+  // Au-delà de la plus grande table que Notak sait tenir, le reste est ignoré.
+  let cases = 0
   lignes.forEach((tr, i) => {
+    if (cases >= CASES_MAX) return
     cellules[i] ??= []
     formats[i] ??= []
     let j = 0
@@ -186,6 +193,7 @@ function lireTable(table: Element): { cellules: string[][]; formats: (FormatCell
       while (occupee.has(`${i},${j}`)) j++
       const largeur = Math.max(1, Math.min(Number(cellule.getAttribute('colspan')) || 1, COLONNES_MAX))
       const hauteur = Math.max(1, Math.min(Number(cellule.getAttribute('rowspan')) || 1, LIGNES_MAX))
+      if ((cases += largeur * hauteur) > CASES_MAX) return
       for (let a = 0; a < hauteur; a++)
         for (let b = 0; b < largeur; b++) {
           const [l, c] = [i + a, j + b]
