@@ -72,10 +72,8 @@ function Lecture({ jeton, tableau }: { jeton: string; tableau: TableauPublic }) 
   return (
     <div className="public">
       <header className="public-entete">
-        <div className="notak-ilot">
-          <strong className="public-titre">{tableau.titre || t('commun.sansTitre')}</strong>
-          <span className="public-note">{t('publique.lectureSeule')}</span>
-        </div>
+        {/* « Lecture seule » : la toile le dit déjà, dans son coin. */}
+        <strong className="notak-ilot public-titre">{tableau.titre || t('commun.sansTitre')}</strong>
         <a className="notak-ilot public-ouvrir" href="/">
           Notak
         </a>
