@@ -77,6 +77,11 @@
   position: absolute;
   inset: 0 auto auto 0;
   transform-origin: 0 0;
+}
+
+/* Un calque à part seulement pendant que la vue bouge : au repos, WebKit (Notak.app) le rastérisait à l'échelle 1 puis
+   l'agrandissait, et le texte devenait flou dès 300 %. Sans calque, le texte se redessine net à tout zoom. */
+.notak-plan[data-bouge] {
   will-change: transform;
 }
 
