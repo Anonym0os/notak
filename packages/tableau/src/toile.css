@@ -27,6 +27,10 @@
   --notak-pale: rgb(0 0 0 / 0.35);
   /* Le texte d'attente d'une note vide. */
   --notak-attente: #d1d3d6;
+  /*
+   * Les rayons (`--notak-rayon-carte`, `-controle`, `-panneau`) et la police (`--notak-police`) ne sont déclarés que
+   * par un habillage (habillage/variables.ts) : chaque règle qui les lit garde sa valeur d'origine en repli.
+   */
 
   position: relative;
   /* `clip` et non `hidden` : un champ hors de l'écran qui prend le focus ferait défiler la toile, barres comprises. */
@@ -82,7 +86,7 @@
   /* Le texte (une ligne de 20 px) tombe au milieu de la carte : autant de marge en haut qu'en bas. */
   min-height: 62px;
   padding: 21px 20px 21px 24px;
-  border-radius: 0;
+  border-radius: var(--notak-rayon-carte, 0);
   background: var(--notak-carte);
   box-shadow: var(--notak-ombre);
   color: var(--notak-texte);
@@ -101,6 +105,7 @@
   content: '';
   position: absolute;
   inset: 0;
+  border-radius: inherit;
   z-index: 1;
   box-shadow: 0 0 0 2px transparent;
   pointer-events: none;
@@ -251,7 +256,7 @@
   width: 68px;
   padding: 4px 0 6px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--notak-rayon-controle, 8px);
   background: none;
   color: var(--notak-texte);
   font: inherit;
@@ -327,7 +332,7 @@
   height: 28px;
   padding: 0 10px;
   border: 1px solid rgb(0 0 0 / 0.1);
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: var(--notak-carte);
   color: #7a7f87;
   font: inherit;
@@ -382,7 +387,7 @@
   align-items: center;
   gap: 4px;
   padding: 4px;
-  border-radius: 8px;
+  border-radius: var(--notak-rayon-panneau, 8px);
   background: var(--notak-carte);
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
   transform: translateX(-50%);
@@ -394,7 +399,7 @@
   height: 28px;
   padding: 0 6px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: none;
   color: var(--notak-texte);
   font: inherit;
@@ -608,7 +613,7 @@
   padding: 0 6px;
   overflow: hidden;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: none;
   color: #5b616a;
   font: inherit;
@@ -638,7 +643,7 @@
   flex-direction: column;
   min-width: 160px;
   padding: 4px;
-  border-radius: 8px;
+  border-radius: var(--notak-rayon-panneau, 8px);
   background: var(--notak-carte);
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
 }
@@ -649,7 +654,7 @@
   padding: 0 8px;
   overflow: hidden;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: none;
   color: var(--notak-texte);
   font: inherit;
@@ -822,7 +827,7 @@
   right: 12px;
   bottom: 12px;
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: var(--notak-carte);
   box-shadow: var(--notak-ombre);
   color: #5b616a;
@@ -943,7 +948,7 @@
   top: 50%;
   left: calc(100% + 12px);
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: #1f2328;
   color: #fff;
   font-size: 12px;
@@ -969,7 +974,7 @@
   grid-template-columns: repeat(3, 76px);
   gap: 6px;
   padding: 14px 10px;
-  border-radius: 12px;
+  border-radius: var(--notak-rayon-panneau, 12px);
   background: var(--notak-barre, #eceef1);
   box-shadow: 0 8px 28px rgb(0 0 0 / 0.16), 0 1px 3px rgb(0 0 0 / 0.08);
 }
@@ -1001,7 +1006,7 @@
   min-width: 240px;
   max-width: 296px;
   padding: 4px 6px;
-  border-radius: 12px;
+  border-radius: var(--notak-rayon-panneau, 12px);
   background: var(--notak-carte);
   box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25), 0 0 0 1px rgb(0 0 0 / 0.04);
   color: var(--notak-menu-texte);
@@ -1017,7 +1022,7 @@
   min-height: 28px;
   padding: 4px 10px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: none;
   color: inherit;
   font: inherit;
@@ -1125,7 +1130,7 @@
   flex-direction: column;
   width: 320px;
   max-height: 60%;
-  border-radius: 10px;
+  border-radius: var(--notak-rayon-panneau, 10px);
   background: var(--notak-carte);
   box-shadow: 0 8px 28px rgb(0 0 0 / 0.16), 0 1px 3px rgb(0 0 0 / 0.1);
   color: var(--notak-texte);
@@ -1144,7 +1149,7 @@
   height: 26px;
   padding: 0 8px;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--notak-rayon-controle, 5px);
   background: var(--notak-fond);
   color: inherit;
   font: inherit;
@@ -1264,7 +1269,7 @@
   align-items: center;
   gap: 4px;
   padding: 4px 4px 4px 10px;
-  border-radius: 8px;
+  border-radius: var(--notak-rayon-panneau, 8px);
   background: var(--notak-carte);
   box-shadow: 0 2px 10px rgb(0 0 0 / 0.14);
   transform: translateX(-50%);
@@ -1297,7 +1302,7 @@
   width: 26px;
   height: 26px;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--notak-rayon-controle, 5px);
   background: none;
   color: var(--notak-texte);
   cursor: pointer;
@@ -1322,7 +1327,7 @@
   margin: 0;
   padding: 4px;
   overflow-y: auto;
-  border-radius: 8px;
+  border-radius: var(--notak-rayon-panneau, 8px);
   background: var(--notak-carte);
   box-shadow: 0 2px 10px rgb(0 0 0 / 0.14);
   list-style: none;
@@ -1385,7 +1390,7 @@
   align-items: center;
   gap: 12px;
   padding: 8px 8px 8px 14px;
-  border-radius: 8px;
+  border-radius: var(--notak-rayon-panneau, 8px);
   background: #2b2f36;
   color: #f4f5f7;
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.22);
@@ -1397,7 +1402,7 @@
 .notak-avis button {
   padding: 3px 8px;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--notak-rayon-controle, 5px);
   background: none;
   color: #8fc1ff;
   font: inherit;
@@ -1434,7 +1439,7 @@
   flex-direction: column;
   gap: 6px;
   padding: 8px;
-  border-radius: 8px;
+  border-radius: var(--notak-rayon-panneau, 8px);
   background: var(--notak-carte);
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
   transform: translateX(-50%);
@@ -1480,7 +1485,7 @@
   flex-direction: column;
   width: min(760px, 100%);
   max-height: 100%;
-  border-radius: 12px;
+  border-radius: var(--notak-rayon-panneau, 12px);
   background: var(--notak-carte);
   box-shadow: 0 12px 40px rgb(0 0 0 / 0.2);
   color: var(--notak-texte);
@@ -1566,7 +1571,7 @@
   width: 28px;
   height: 28px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: none;
   color: var(--notak-icone-barre);
   font-size: 15px;
@@ -1704,7 +1709,7 @@
   box-sizing: border-box;
   max-width: min(300px, calc(100vw - 32px));
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: var(--notak-rayon-panneau, 10px);
   background: var(--notak-accent, #3a76df);
   box-shadow: 0 6px 24px rgb(0 0 0 / 0.25);
   color: #fff;
@@ -1716,7 +1721,7 @@
   flex: none;
   padding: 4px 10px;
   border: 1px solid rgb(255 255 255 / 0.6);
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: none;
   color: inherit;
   font: inherit;
@@ -1967,7 +1972,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   height: 28px;
   padding: 0 8px;
   border: 1px solid rgb(0 0 0 / 0.12);
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: var(--notak-carte);
   color: inherit;
   font: inherit;
@@ -2127,7 +2132,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   height: 32px;
   padding: 0 14px;
   border: 1px solid rgb(0 0 0 / 0.15);
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: var(--notak-carte);
   color: inherit;
   font: inherit;
@@ -2290,7 +2295,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   left: calc(100% + 10px);
   z-index: 4;
   padding: 6px;
-  border-radius: 8px;
+  border-radius: var(--notak-rayon-panneau, 8px);
   background: var(--notak-carte);
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
   transform: translateY(-50%);
@@ -2325,7 +2330,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   height: 30px;
   padding: 0 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: none;
   color: var(--notak-texte);
   font: inherit;
@@ -2476,7 +2481,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   box-sizing: border-box;
   width: 300px;
   padding: 20px 20px 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-panneau, 6px);
   background: #323b4a;
   box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.4);
   color: #f4f5f7;
@@ -2692,7 +2697,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   box-sizing: border-box;
   width: 290px;
   padding: 16px 20px 20px;
-  border-radius: 10px;
+  border-radius: var(--notak-rayon-panneau, 10px);
   background: var(--notak-carte);
   box-shadow: 0 4px 20px rgb(0 0 0 / 0.14), 0 1px 3px rgb(0 0 0 / 0.1);
   color: var(--notak-texte);
@@ -2948,7 +2953,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: none;
   color: var(--notak-icone-barre);
   cursor: pointer;

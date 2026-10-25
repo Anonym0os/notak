@@ -28,7 +28,7 @@ export const JETONS_RAYON: Record<RoleRayon, string> = {
 
 export const JETONS_POLICE: Record<RolePolice, readonly string[]> = {
   texte: ['--notak-police'],
-  titre: ['--notak-police-titre', '--notak-serif'],
+  titre: ['--notak-serif'],
   code: ['--notak-police-code'],
 }
 
