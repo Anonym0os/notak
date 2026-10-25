@@ -20,7 +20,7 @@ import {
 } from '@notak/tableau'
 import { cleDeRang, elementsDuModele } from '@notak/tableau/modeles/construire'
 import * as Y from 'yjs'
-import type { ExportLocal } from '../Export'
+import { ErreurExport, type ExportLocal } from '../Export'
 import { langue, t } from '../langue'
 import { accueilLocal } from './accueil'
 import { lireFichier } from './fichiers'
@@ -138,7 +138,7 @@ export function exportLocal({ index, reseau }: EspaceLocal): Omit<ExportLocal, '
         const b = presents.get(m.id)
         if (b) entrees.push({ nom: m.nom, octets: new Uint8Array(await b.arrayBuffer()), type: b.type })
       }
-      if (entrees.length === 0) throw new Error(t('erreur.aucun_media'))
+      if (entrees.length === 0) throw new ErreurExport('aucun_media')
       return new Blob([creerZip(entrees) as Uint8Array<ArrayBuffer>], { type: 'application/zip' })
     },
   }

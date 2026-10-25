@@ -1,6 +1,7 @@
 import {
   BullesDecouverte,
   EspaceNotak,
+  reglerCapture,
   type ServiceCompte,
   type EspaceDistant,
   type Declaration,
@@ -18,6 +19,7 @@ import { Cloche } from '../Cloche'
 import { Compte } from '../Compte'
 import { EcranConnexion } from '../connexion'
 import { Export } from '../Export'
+import { DialogueExport } from '../DialogueExport'
 import { Favori } from '../Favori'
 import { adressePhoto, apercu, banqueImages, envoyerFichier, fichiers, rapatrier } from '../fichiers'
 import { localiser } from '../geocodage'
@@ -46,6 +48,8 @@ void relireTableaux()
 window.addEventListener('focus', () => void relireTableaux())
 /** Ce que les autres viennent de faire sur le tableau ouvert : `Activite` le remplit, la toile le lit. */
 const recents = creerRecents()
+// Les images d'un autre site, dans une capture d'export : le serveur les relaie, le navigateur refuse de les lire.
+reglerCapture({ imageDistante: (adresse) => `/api/image-distante?url=${encodeURIComponent(adresse)}` })
 
 const services = {
   fichiers,
@@ -199,6 +203,7 @@ function Espace({ moi, instance, changerMoi, deconnexion }: { moi: Moi; instance
         )}
       />
       <BandeauImport moi={moi} espace={espace} />
+      <DialogueExport />
     </>
   )
 }

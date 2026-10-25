@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DocumentTexte, Element } from '../../coeur/tableau'
 import { definirLangue } from '../../langue'
 import type { ContexteToile } from '../types'
+import { type SujetExport, brancherExport } from '../../export/sujet'
 import { RenduDocument } from './Document'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -62,6 +63,29 @@ describe('le document ouvert en grand', () => {
     expect(boite.getAttribute('data-lecture')).toBe('true')
     expect(boite.querySelector('h1.notak-page-titre')).not.toBeNull()
     expect(boite.querySelector('textarea')).toBeNull()
+  })
+
+  it('l’export ouvre le dialogue de l’application quand il y en a un, sur ce document ; sinon son menu', async () => {
+    monter(doc('bonjour'), { lectureSeule: true })
+    act(() => void hote.querySelector('.notak-document')!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
+    act(() => document.querySelector<HTMLButtonElement>('.notak-document-export-bouton')!.click())
+    expect(document.querySelector('.notak-document-export-menu')).not.toBeNull()
+    const ouvrir = vi.fn<(s: SujetExport) => void>()
+    const debrancher = brancherExport(ouvrir)
+    try {
+      monter(doc('bonjour', { titre: 'Carnet' }), { lectureSeule: true })
+      act(() => void hote.querySelector('.notak-document')!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
+      const bouton = [...document.querySelectorAll<HTMLButtonElement>('.notak-document-export-bouton')].at(-1)!
+      expect(bouton.getAttribute('aria-haspopup')).toBe('dialog')
+      act(() => bouton.click())
+      expect(ouvrir).toHaveBeenCalledTimes(1)
+      const s = ouvrir.mock.calls[0]![0]
+      expect([s.genre, s.titre, s.formats.map((f) => f.id)]).toEqual(['document', 'Carnet', ['notak', 'pdf', 'docx', 'md', 'txt']])
+      expect(s.formats.find((f) => f.recommande)?.id).toBe('notak')
+      expect((await s.formats[3]!.preparer({} as never)).apercu).toEqual({ type: 'texte', texte: '# Carnet\n\nbonjour\n' })
+    } finally {
+      debrancher()
+    }
   })
 
   it('un bloc d’une version plus récente ouvre le document en lecture seule, sans rien perdre (NOTION.md § 1)', () => {

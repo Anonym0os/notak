@@ -703,6 +703,22 @@ export function creerApp(ctx: Contexte): Hono {
     })
   })
 
+  // Une image d'un autre site, relue pour la capture d'un tableau en PNG ou en PDF : le navigateur refuse de lire
+  // lui-même une image d'une autre origine. Rien n'est gardé ; les adresses privées sont refusées comme pour l'aperçu.
+  app.get('/api/image-distante', async (c) => {
+    const u = utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    const adresse = c.req.query('url') ?? ''
+    if (!/^https?:\/\//.test(adresse)) return c.json({ erreur: 'url manquante', code: 'url_manquante' }, 400)
+    try {
+      const { octets, type } = await rapatrierImage(adresse, FICHIER_MAX)
+      return c.body(new Uint8Array(octets), 200, { 'content-type': type, 'cache-control': 'private, max-age=600', 'x-content-type-options': 'nosniff' })
+    } catch (e) {
+      if (e instanceof ErreurApercu) return c.json({ erreur: 'image indisponible', code: 'image_indisponible' }, 422)
+      throw e
+    }
+  })
+
   // Le format natif : le fichier `.notak` du tableau, de ses sous-tableaux (ceux qu'on peut ouvrir) et de ses fichiers.
   app.get('/api/tableaux/:id/notak', async (c) => {
     const g = await garde(c, 'lecture')

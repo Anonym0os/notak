@@ -2,7 +2,7 @@ import { type Editor, EditorContent, getSchema, useEditor } from '@tiptap/react'
 import { renderToReactElement } from '@tiptap/static-renderer/pm/react'
 import { type ReactNode, type RefObject, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { type Commentaire, type DocumentTexte, type Id, type NoeudTexte, type PageDocument, nouvelId } from '../../coeur/tableau'
+import { type Commentaire, type DocumentTexte, type Element as ElementTableau, type Id, type NoeudTexte, type PageDocument, nouvelId } from '../../coeur/tableau'
 import { type Fils, MARQUE_FIL, avecFil, filsVivants, sansPassagesMuets } from '../note/fils'
 import { Marge } from '../note/Marge'
 import { type Pont, Propositions, extensionPropositions } from '../note/Propositions'
@@ -41,6 +41,8 @@ import { t, tn } from '../../langue'
 import { BoutonOutil } from '../../BoutonOutil'
 import { Icone } from '../../icones'
 import { fermerMenus, useMenu } from '../../menuUnique'
+import { exportBranche, ouvrirExport } from '../../export/sujet'
+import { sujetDocument } from './sujetExport'
 
 /**
  * Le texte tel que le moteur de blocs le dessine, en lecture seule. Un bloc qu'une version plus récente a
@@ -216,15 +218,40 @@ export function RenduDocument({ element, choisie, enEdition, contexte, brouillon
         (editable ? (
           <Grand id={element.id} contenu={c} ecrire={brouillon} finir={contexte.finirEdition} contexte={contexte} />
         ) : (
-          <Lecture contenu={c} fermer={contexte.finirEdition} adresse={adresse} fichiers={fichiers} plusRecent />
+          <Lecture contenu={c} fermer={contexte.finirEdition} adresse={adresse} fichiers={fichiers} element={element} plusRecent />
         ))}
-      {enLecture && <Lecture contenu={c} fermer={() => setEnLecture(false)} adresse={adresse} fichiers={fichiers} />}
+      {enLecture && <Lecture contenu={c} fermer={() => setEnLecture(false)} adresse={adresse} fichiers={fichiers} element={element} />}
     </div>
   )
 }
 
 /** L'aperçu d'une carte ne dessine que le début du texte : le reste est caché de toute façon. */
 const premiersBlocsApercu = (doc: NoeudTexte): NoeudTexte => premiersBlocs(aplatir(doc))
+
+/**
+ * « Export » : le dialogue d'export de l'application, s'il y en a un (le même que pour le tableau et la carte, avec
+ * l'aperçu des pages) ; sinon le menu du document.
+ */
+function BoutonExport(p: { titre: string; lireTexte(): NoeudTexte; adresse?: Adresse | undefined; copie?: CopieDocument | undefined }) {
+  if (!exportBranche()) return <MenuExport titre={p.titre} lireTexte={p.lireTexte} />
+  return (
+    <div className="notak-note-menu-ancre notak-document-export">
+      <button
+        type="button"
+        className="notak-document-export-bouton"
+        aria-haspopup="dialog"
+        aria-label={t('document.exporter')}
+        title={t('document.exporter')}
+        onClick={() => {
+          fermerMenus()
+          ouvrirExport(sujetDocument(p.titre, p.lireTexte, p.adresse, p.copie))
+        }}
+      >
+        <Icone nom="exporter" taille={20} trait={1.5} />
+      </button>
+    </div>
+  )
+}
 
 /**
  * « Export ▾ » : un panneau de 20 rem avec sa flèche, son titre et quatre lignes à pictogramme : le PDF (l'impression
@@ -291,14 +318,21 @@ interface PropsModale {
   options?: ReactNode
   /** L'éditeur du document en édition : le sommaire en lit les titres (en lecture, il les lit dans le rendu). */
   editeur?: Editor | null
+  /** L'adresse d'une image rangée dans l'espace : l'export des pages en a besoin. */
+  adresse?: Adresse | undefined
+  /** Le document du moment, pour l'export en `.notak`. */
+  copie?: CopieDocument | undefined
 }
+
+/** De quoi exporter le document en `.notak` : l'élément tel qu'il est maintenant, et le dépôt de ses images. */
+type CopieDocument = { element(): ElementTableau | null; fichiers?: DepotFichiers | undefined }
 
 /**
  * Le document en grand, comme une page de Notion (docs/NOTION.md § 9) : toute la fenêtre, la barre d'îlots du tableau
  * et de la carte en haut (Ilots.tsx : le retour, le fil ; l'historique, le partage, puis les options, l'export et le
  * compte), puis la page qui défile. Échap referme aussi.
  */
-function Modale({ titre, titreTexte, lireTexte, fermer, children, lecture, corps, page, options, finDePage, editeur }: PropsModale) {
+function Modale({ titre, titreTexte, lireTexte, fermer, children, lecture, corps, page, options, finDePage, editeur, adresse, copie }: PropsModale) {
   return (
     <Surcouche
       etiquette={t('type.document')}
@@ -331,7 +365,7 @@ function Modale({ titre, titreTexte, lireTexte, fermer, children, lecture, corps
             <IlotPartage />
             <IlotCompte>
               {options}
-              <MenuExport titre={titreTexte} lireTexte={lireTexte} />
+              <BoutonExport titre={titreTexte} lireTexte={lireTexte} adresse={adresse} copie={copie} />
             </IlotCompte>
           </div>
         </header>
@@ -389,11 +423,25 @@ function TitrePage({ valeur, changer, entree }: { valeur: string; changer(v: str
 }
 
 /** Le document à lire seulement. `plusRecent` : il porte des blocs qu'une version plus récente de Notak sait écrire. */
-function Lecture({ contenu, fermer, plusRecent, adresse, fichiers }: { contenu: DocumentTexte; fermer(): void; plusRecent?: boolean; adresse?: Adresse | undefined; fichiers?: DepotFichiers | undefined }) {
+function Lecture({
+  contenu,
+  fermer,
+  plusRecent,
+  adresse,
+  fichiers,
+  element,
+}: {
+  contenu: DocumentTexte
+  fermer(): void
+  plusRecent?: boolean
+  adresse?: Adresse | undefined
+  fichiers?: DepotFichiers | undefined
+  element?: ElementTableau<DocumentTexte>
+}) {
   const titre = contenu.titre.trim() || t('commun.sansTitre')
   const page = pageDe(contenu.page)
   return (
-    <Modale lecture titre={<FilDuTitre icone={page.icone} titre={contenu.titre} />} titreTexte={contenu.titre} lireTexte={() => contenu.texte} fermer={fermer} page={page}>
+    <Modale lecture titre={<FilDuTitre icone={page.icone} titre={contenu.titre} />} titreTexte={contenu.titre} lireTexte={() => contenu.texte} fermer={fermer} page={page} adresse={adresse} copie={element ? { element: () => element, fichiers } : undefined}>
       <EntetePage page={page} changer={() => {}} fichiers={fichiers} lectureSeule>
         <h1 className="notak-page-titre notak-document-titre-lu">{titre}</h1>
       </EntetePage>
@@ -591,6 +639,17 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
       corps={corps}
       page={page}
       editeur={editeur}
+      adresse={fichiers ? (id) => fichiers.adresse(id) : undefined}
+      copie={{
+        // L'élément tel qu'il est écrit, avec le titre et le texte de l'éditeur : le brouillon n'est peut-être pas encore passé.
+        element: () => {
+          const e = contexte.magasin.lire().elements.find((x) => x.id === id)
+          if (e?.contenu.type !== 'document') return null
+          const texte = editeur && !editeur.isDestroyed ? (editeur.getJSON() as NoeudTexte) : dernier.current.texte
+          return { ...e, contenu: { ...e.contenu, titre: dernier.current.titre, texte } }
+        },
+        fichiers,
+      }}
       options={
         <OptionsPage
           page={page}

@@ -6,7 +6,8 @@ import type { ContexteToile, PropsRendu, Services } from '../types'
 import { POLICE, type Mesure, brancheDe, habitDe, mesureDeSujet, souligne, uniformiser } from './apparence'
 import { fondDe, themeDeArbre } from './themes'
 import { Dessin, type Glisses, RepereDepot } from './Dessin'
-import { exporterCartes } from './exporter'
+import { exporterCartes, sujetCarte } from './exporter'
+import { ouvrirExport } from '../../export/sujet'
 import { BarreBas } from './BarreBas'
 import { BarreSujet } from './BarreSujet'
 import { ChoixStyle } from './ChoixStyle'
@@ -1087,6 +1088,19 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     const e = contexte.magasin.lire().elements.find((x) => x.id === id)
     return e?.contenu.type === 'arbre' ? e : null
   }
+  /**
+   * L'export de la carte : le dialogue de l'application, avec l'aperçu de toute la carte, s'il y en a un ; sinon le
+   * `.xmind` directement. `format` le choisit d'emblée.
+   */
+  const exporterLaCarte = (format?: string) => {
+    const e = elementCourant()
+    if (!e) return
+    const dessin = () => {
+      const svg = surface.current?.querySelector<SVGSVGElement>('svg.notak-arbre-grand')
+      return svg ? { svg, emprise: contenuRef.current } : null
+    }
+    if (!ouvrirExport({ ...sujetCarte(e, contexte, dessin), ...(format ? { format } : {}) })) void exporterCartes([e], contexte)
+  }
   const poserFeuille = (contenu: Arbre) => {
     const e = elementCourant()
     if (!e) return
@@ -1233,10 +1247,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
                 <BoutonIlot
                   icone="exporter"
                   libelle={t('arbre.exporter')}
-                  onClick={() => {
-                    const e = contexte.magasin.lire().elements.find((x) => x.id === id)
-                    if (e) void exporterCartes([e], contexte)
-                  }}
+                  onClick={() => exporterLaCarte()}
                 />
               </IlotCompte>
               {!lectureSeule && (
@@ -1265,10 +1276,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
               renommer={(titre) => faire({ type: 'renommer', id: lecture.central, titre })}
               dupliquer={dupliquerFeuille}
               nouvelle={nouvelleFeuille}
-              enregistrer={() => {
-                const e = elementCourant()
-                if (e) void exporterCartes([e], contexte)
-              }}
+              enregistrer={() => exporterLaCarte('xmind')}
             />
             {noteDe && notePlace && (
               <PopoverNote

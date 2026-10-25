@@ -67,8 +67,11 @@ Les paquets sortent dans `src-tauri/target/release/bundle/` : `.app` et `.dmg` s
   36 px, posés à 8 px du haut, se centrent dessus. La bande du
   tableau sert de poignée pour déplacer la fenêtre (`data-tauri-drag-region`). L'application web le sait par
   `data-bureau` sur la racine du document.
-- **Pas de plugin, pas de commande Rust, un seul droit** (`capabilities/principale.json`) : déplacer la fenêtre et
-  l'agrandir d'un double clic. Pour le reste, la page est une page web ordinaire, sans accès à la machine.
+- **Un plugin, deux commandes, trois droits** (`capabilities/principale.json`) : déplacer la fenêtre, l'agrandir d'un
+  double clic, et enregistrer un export. La webview de macOS ne télécharge rien d'un lien `download` : la page appelle
+  `choisir_emplacement` (la fenêtre « Enregistrer sous » du système, par `tauri-plugin-dialog`), puis `ecrire_fichier`
+  avec les octets, que la coque n'écrit qu'au chemin choisi juste avant (`src/lib.rs`, `apps/web/src/enregistrer.ts`).
+  Pour le reste, la page est une page web ordinaire, sans accès à la machine.
 - **Pour un serveur distant, une adresse en `https`** : les webviews (macOS surtout) refusent le HTTP simple hors
   `localhost`. La connexion à Notak vit dans la fenêtre, comme dans un navigateur.
 

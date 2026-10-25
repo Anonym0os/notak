@@ -32,6 +32,22 @@ export { type DepotLocal, type Dossier, type EntreeDossier, ErreurDossier } from
 export { type AccesTableaux, type AppareilVu, type Coffre, ORIGINE_DOSSIER, type RapportLecture, ouvrirCoffre } from './dossier/coffre'
 export { creerZip, nommerLesMedias } from './export/zip'
 export { type OptionsCopie, type SourceCopie, ecrireCopie, renommer } from './export/copie'
+export {
+  type Apercu,
+  type FormatExport,
+  type OptionExport,
+  type Prepare,
+  type ReglagesExport,
+  type SujetExport,
+  ErreurExport,
+  REGLAGES_PAR_DEFAUT,
+  brancherExport,
+  exportBranche,
+  nomDeFichier,
+  ouvrirExport,
+} from './export/sujet'
+export { type Capture, capturerToile, enBlob, pdfDeCapture, reglerCapture } from './export/capture'
+export { A4, octetsDeDataUrl, pdfDePages, pdfDepuisJpeg } from './export/pdf'
 export { type Arrivee, decomposerArrivee, elementsArrives, elementsDeTexte, poserDansNonTries } from './arrivee'
 export * from './modeles'
 export { BullesDecouverte } from './BullesDecouverte'

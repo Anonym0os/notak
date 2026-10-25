@@ -1,124 +1,25 @@
-import { type NomIcone, type OptionsCopie, avecToutLeTableau } from '@notak/tableau'
-import { langue, t } from './langue'
-import { toJpeg, toPng } from 'html-to-image'
-import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { octetsDeDataUrl, pdfDepuisJpeg } from './pdf'
-import { Icone } from '@notak/tableau'
+import {
+  type Capture,
+  type FormatExport,
+  type OptionsCopie,
+  type Prepare,
+  type ReglagesExport,
+  type SujetExport,
+  ErreurExport,
+  Icone,
+  capturerToile,
+  decoderNotak,
+  enBlob,
+  ouvrirExport,
+  pdfDeCapture,
+} from '@notak/tableau'
+import { unzipSync } from 'fflate'
+import { langue, t, tn } from './langue'
 import { fermerPanneaux } from './panneaux'
+import { poids } from './DialogueExport'
 
-/** Ce que la capture laisse de côté : les pastilles et les curseurs posés sur la toile, pas le tableau. */
-const HORS_CAPTURE = ['notak-zoom-pastille', 'notak-choix-modele', 'notak-lecture', 'notak-lasso', 'notak-curseur']
-
-export function telecharger(blob: Blob, nom: string) {
-  const adresse = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = adresse
-  a.download = nom
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(adresse), 10_000)
-}
-
-/** Un nom de fichier sûr à partir d'un titre. */
-export const nomDeFichier = (titre: string, extension: string) =>
-  `${
-    titre
-      .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-')
-      .trim()
-      .slice(0, 100) || t('exporter.nomFichier')
-  }.${extension}`
-
-/** Ce que la capture montre : la vue telle qu'elle est, ou le tableau entier (la toile cadre tout le contenu le temps de la prise). */
-type Portee = 'ecran' | 'tout'
-
-/** Les formats, dans l'ordre du dialogue : le natif d'abord, les captures, puis le texte et les médias. */
-type Format = 'notak' | 'pdf' | 'png' | 'md' | 'txt' | 'medias'
-const FORMATS: readonly {
-  format: Format
-  icone: NomIcone
-  extension: string
-}[] = [
-  { format: 'notak', icone: 'tableau', extension: 'notak' },
-  { format: 'pdf', icone: 'fichierPdf', extension: 'pdf' },
-  { format: 'png', icone: 'fichierImage', extension: 'png' },
-  { format: 'md', icone: 'fichierTexte', extension: 'md' },
-  { format: 'txt', icone: 'texte', extension: 'txt' },
-  { format: 'medias', icone: 'fichierArchive', extension: 'zip' },
-]
-const AVANT_LE_TEXTE: Format = 'md'
-
-interface Reglages extends OptionsCopie {
-  format: Format
-  portee: Portee
-  /** Le PNG garde la couleur du canevas ; sans elle, il est transparent. */
-  fond: boolean
-  /** Le rapport de pixels d'une capture de l'écran (le tableau entier a le sien, borné en largeur). */
-  resolution: 1 | 2 | 3
-}
-
-const PAR_DEFAUT: Reglages = {
-  format: 'notak',
-  sousTableaux: true,
-  fichiers: true,
-  portee: 'tout',
-  fond: true,
-  resolution: 2,
-}
-const CLE_REGLAGES = 'notak.export'
-
-/** Les derniers réglages de cet appareil ; ce qu'on ne reconnaît pas reprend la valeur par défaut. */
-function reglagesRetenus(): Reglages {
-  try {
-    const lu = JSON.parse(localStorage.getItem(CLE_REGLAGES) ?? '{}') as Partial<Reglages>
-    return {
-      format: FORMATS.some((f) => f.format === lu.format) ? lu.format! : PAR_DEFAUT.format,
-      sousTableaux: typeof lu.sousTableaux === 'boolean' ? lu.sousTableaux : PAR_DEFAUT.sousTableaux,
-      fichiers: typeof lu.fichiers === 'boolean' ? lu.fichiers : PAR_DEFAUT.fichiers,
-      portee: lu.portee === 'ecran' ? 'ecran' : 'tout',
-      fond: typeof lu.fond === 'boolean' ? lu.fond : PAR_DEFAUT.fond,
-      resolution: lu.resolution === 1 || lu.resolution === 3 ? lu.resolution : 2,
-    }
-  } catch {
-    return PAR_DEFAUT
-  }
-}
-
-function retenir(r: Reglages) {
-  try {
-    localStorage.setItem(CLE_REGLAGES, JSON.stringify(r))
-  } catch {
-    // Sans stockage, les réglages valent pour cette ouverture.
-  }
-}
-
-/**
- * La toile en image (`png`) ou en page PDF (`pdf`). La capture se fait dans le navigateur : sur ce qui est à
- * l'écran, ou, pour `tout`, sur le tableau cadré en entier (4000 px de large au plus), la vue revenant ensuite.
- */
-function capturer(format: 'png' | 'pdf', titre: string, r: Reglages): Promise<void> {
-  if (r.portee === 'ecran') return photographier(format, titre, r.resolution, r.fond)
-  return avecToutLeTableau(({ rapport }) => photographier(format, titre, rapport, r.fond))
-}
-
-async function photographier(format: 'png' | 'pdf', titre: string, rapport: number, fond: boolean): Promise<void> {
-  const toile = document.querySelector<HTMLElement>('.notak-toile')
-  if (!toile) throw new Error(t('exporter.aucun'))
-  // Un PDF n'a pas de transparence : il garde toujours le fond.
-  const transparent = format === 'png' && !fond
-  const options = {
-    pixelRatio: rapport,
-    ...(transparent ? { style: { background: 'none' } } : { backgroundColor: getComputedStyle(toile).backgroundColor }),
-    filter: (n: Node) => !(n instanceof HTMLElement && HORS_CAPTURE.some((c) => n.classList.contains(c))),
-  }
-  if (format === 'png') {
-    const adresse = await toPng(toile, options)
-    telecharger(await (await fetch(adresse)).blob(), nomDeFichier(titre, 'png'))
-  } else {
-    const adresse = await toJpeg(toile, { ...options, quality: 0.92 })
-    const pdf = pdfDepuisJpeg(octetsDeDataUrl(adresse), toile.clientWidth, toile.clientHeight)
-    telecharger(new Blob([pdf as Uint8Array<ArrayBuffer>], { type: 'application/pdf' }), nomDeFichier(titre, 'pdf'))
-  }
-}
+export { ErreurExport } from '@notak/tableau'
+export { telecharger } from './enregistrer'
 
 /**
  * Ce que l'édition locale sait faire elle-même, sans serveur : le texte du tableau, ses médias et son archive
@@ -130,225 +31,175 @@ export interface ExportLocal {
   notak(tableau: string, options: OptionsCopie): Promise<Blob>
 }
 
-/** Ce que rend le serveur pour un format de fichier ; une réponse en erreur fait échouer l'export. */
+/** Ce que rend le serveur pour un format de fichier ; une réponse en erreur fait échouer l'export, avec son code. */
 async function depuisServeur(adresse: string): Promise<Blob> {
   const r = await fetch(adresse, { credentials: 'same-origin' })
-  if (!r.ok) throw new Error(String(r.status))
+  if (!r.ok) {
+    const code = ((await r.json().catch(() => null)) as { code?: string } | null)?.code
+    throw new ErreurExport(code ?? String(r.status))
+  }
   return r.blob()
 }
 
-function fabriquer(format: Exclude<Format, 'pdf' | 'png'>, tableau: string, r: Reglages, local?: ExportLocal): Promise<Blob> {
+const octets = async (b: Blob) => new Uint8Array(await b.arrayBuffer())
+/** Le texte d'un fichier, lu en UTF-8. */
+const lireTexte = async (b: Blob) => new TextDecoder().decode(await octets(b))
+
+/** Combien de lignes une liste d'aperçu montre avant de dire « et N autres ». */
+const LIGNES_MAX = 12
+
+/**
+ * Le tableau ouvert, à exporter : sa copie `.notak` (le format recommandé), sa toile en PDF ou en image, son texte,
+ * ou ses médias. Chaque aperçu est le fichier lui-même, déjà fait.
+ */
+export function sujetTableau(tableau: string, titre: string, local?: ExportLocal): SujetExport {
   const base = `/api/tableaux/${encodeURIComponent(tableau)}`
-  if (format === 'notak') {
-    const options = { sousTableaux: r.sousTableaux, fichiers: r.fichiers }
-    return local ? local.notak(tableau, options) : depuisServeur(`${base}/notak?sousTableaux=${+r.sousTableaux}&fichiers=${+r.fichiers}`)
+  const captures = new Map<string, Promise<Capture>>()
+  const capture = (r: Pick<ReglagesExport, 'portee' | 'resolution' | 'fond'>) => {
+    const k = `${r.portee}|${r.resolution}|${r.fond}`
+    let c = captures.get(k)
+    if (!c) {
+      c = capturerToile(r)
+      c.catch(() => captures.delete(k))
+      captures.set(k, c)
+    }
+    return c
   }
-  if (format === 'medias') return local ? local.medias(tableau) : depuisServeur(`${base}/medias?langue=${langue()}`)
-  return local ? local.texte(tableau, format) : depuisServeur(`${base}/export?format=${format}&langue=${langue()}`)
+
+  const texte = (format: 'md' | 'txt'): FormatExport => ({
+    id: format,
+    icone: format === 'md' ? 'fichierTexte' : 'texte',
+    libelle: t(`exporter.f.${format}`),
+    aide: t(`exporter.f.${format}.aide`),
+    extension: format,
+    type: format === 'md' ? 'text/markdown' : 'text/plain',
+    ...(format === 'md' ? { filet: true } : {}),
+    async preparer() {
+      const fichier = local ? await local.texte(tableau, format) : await depuisServeur(`${base}/export?format=${format}&langue=${langue()}`)
+      return { apercu: { type: 'texte', texte: await lireTexte(fichier) }, fichier }
+    },
+  })
+
+  return {
+    genre: 'tableau',
+    titre,
+    note: t('exporter.xmind'),
+    formats: [
+      {
+        id: 'notak',
+        icone: 'tableau',
+        libelle: t('exporter.f.notak'),
+        aide: t('exporter.f.notak.aide'),
+        extension: 'notak',
+        type: 'application/x-notak',
+        recommande: true,
+        options: ['sousTableaux', 'fichiers'],
+        async preparer(r) {
+          const options = { sousTableaux: r.sousTableaux, fichiers: r.fichiers }
+          const fichier = local ? await local.notak(tableau, options) : await depuisServeur(`${base}/notak?sousTableaux=${+r.sousTableaux}&fichiers=${+r.fichiers}`)
+          return { apercu: contenuNotak(await octets(fichier)), fichier }
+        },
+      },
+      {
+        id: 'pdf',
+        icone: 'fichierPdf',
+        libelle: t('exporter.f.pdf'),
+        aide: t('exporter.f.pdf.aide'),
+        extension: 'pdf',
+        type: 'application/pdf',
+        options: ['portee'],
+        async preparer(r) {
+          // Un PDF n'a pas de transparence : il garde toujours le fond.
+          const c = await capture({ portee: r.portee, resolution: 2, fond: true })
+          return { apercu: { type: 'images', images: [await enBlob(c.canevas, 'image/jpeg', 0.92)] }, fichier: await pdfDeCapture(c) }
+        },
+      },
+      {
+        id: 'png',
+        icone: 'fichierImage',
+        libelle: t('exporter.f.png'),
+        aide: t('exporter.f.png.aide'),
+        extension: 'png',
+        type: 'image/png',
+        options: ['portee', 'resolution', 'fond'],
+        async preparer(r) {
+          const png = await enBlob((await capture(r)).canevas, 'image/png')
+          return { apercu: { type: 'images', images: [png] }, fichier: png }
+        },
+      },
+      texte('md'),
+      texte('txt'),
+      {
+        id: 'medias',
+        icone: 'fichierArchive',
+        libelle: t('exporter.f.medias'),
+        aide: t('exporter.f.medias.aide'),
+        extension: 'zip',
+        type: 'application/zip',
+        async preparer() {
+          const fichier = local ? await local.medias(tableau) : await depuisServeur(`${base}/medias?langue=${langue()}`)
+          return { apercu: contenuZip(await octets(fichier)), fichier }
+        },
+      },
+    ],
+  }
 }
 
-type Etat = { type: 'repos' } | { type: 'cours' } | { type: 'echec' }
+/** Ce que contient un `.notak` : ses tableaux, le premier en tête, et combien d'images et de fichiers il emporte. */
+function contenuNotak(o: Uint8Array): Prepare['apercu'] {
+  const c = decoderNotak(o)
+  const tete = c.tableaux.find((x) => x.id === c.racine) ?? c.tableaux[0]
+  const autres = c.tableaux.filter((x) => x !== tete)
+  return {
+    type: 'contenu',
+    resume: [tn('exporter.tableaux', c.tableaux.length), ...(c.fichiers.length > 0 ? [tn('exporter.nbFichiers', c.fichiers.length)] : [])].join(' · '),
+    lignes: [
+      ...(tete ? [{ icone: 'tableau' as const, texte: tete.titre || t('commun.sansTitre') }] : []),
+      ...autres.slice(0, LIGNES_MAX).map((x) => ({ icone: 'tableau' as const, texte: x.titre || t('commun.sansTitre'), detail: t('exporter.sousTableau') })),
+      ...(autres.length > LIGNES_MAX ? [{ icone: 'plus' as const, texte: tn('exporter.autres', autres.length - LIGNES_MAX) }] : []),
+    ],
+  }
+}
 
-/** Le bouton « Exporter » : il ouvre le dialogue où l'on choisit le format et ses options. */
+const IMAGE = /\.(png|jpe?g|gif|webp|svg|avif|heic)$/i
+
+/** Ce que contient l'archive des médias : ses fichiers, avec leur poids, sans les décompresser. */
+function contenuZip(o: Uint8Array): Prepare['apercu'] {
+  const fichiers: { nom: string; taille: number }[] = []
+  unzipSync(o, {
+    filter: (f) => {
+      if (!f.name.endsWith('/')) fichiers.push({ nom: f.name, taille: f.originalSize })
+      return false
+    },
+  })
+  return {
+    type: 'contenu',
+    resume: tn('exporter.nbFichiers', fichiers.length),
+    lignes: [
+      ...fichiers.slice(0, LIGNES_MAX).map((f) => ({ icone: IMAGE.test(f.nom) ? ('fichierImage' as const) : ('fichier' as const), texte: f.nom, detail: poids(f.taille) })),
+      ...(fichiers.length > LIGNES_MAX ? [{ icone: 'plus' as const, texte: tn('exporter.autres', fichiers.length - LIGNES_MAX) }] : []),
+    ],
+  }
+}
+
+/** Le bouton « Exporter » du tableau : il ouvre le dialogue d'export (DialogueExport.tsx) sur le tableau ouvert. */
 export function Export({ tableau, titre, local }: { tableau: string; titre(): string; local?: ExportLocal }) {
-  const dialogue = useRef<HTMLDialogElement>(null)
-  const bouton = useRef<HTMLButtonElement>(null)
-  const [reglages, setReglages] = useState<Reglages>(reglagesRetenus)
-  const [etat, setEtat] = useState<Etat>({ type: 'repos' })
-  const [fait, setFait] = useState<string | null>(null)
-  const regler = (r: Partial<Reglages>) =>
-    setReglages((avant) => {
-      const apres = { ...avant, ...r }
-      retenir(apres)
-      return apres
-    })
-
-  useEffect(() => {
-    if (!fait) return
-    const minuterie = setTimeout(() => setFait(null), 4000)
-    return () => clearTimeout(minuterie)
-  }, [fait])
-
-  // Le dialogue vit hors du menu « … » qui porte le bouton : il survit à sa fermeture, et garde le thème de l'espace.
-  const [hote, setHote] = useState<HTMLElement | null>(null)
-  useEffect(() => setHote(bouton.current?.closest<HTMLElement>('.notak-espace') ?? document.body), [])
-
-  const ouvrir = () => {
-    setEtat({ type: 'repos' })
-    fermerPanneaux()
-    dialogue.current?.showModal()
-  }
-  const fermer = () => dialogue.current?.close()
-
-  const exporter = () => {
-    if (etat.type === 'cours') return
-    const r = reglages
-    const { format, extension } = FORMATS.find((f) => f.format === r.format)!
-    const nom = nomDeFichier(titre(), extension)
-    setEtat({ type: 'cours' })
-    const reussi = () => {
-      setEtat({ type: 'repos' })
-      setFait(nom)
-    }
-    // Une capture ne se fait qu'une fois le dialogue fermé : il ne doit pas figurer sur l'image. Elle rouvre le
-    // dialogue si elle échoue, pour qu'on y lise pourquoi.
-    if (format === 'png' || format === 'pdf') {
-      fermer()
-      requestAnimationFrame(() => {
-        capturer(format, titre(), r).then(reussi, () => {
-          setEtat({ type: 'echec' })
-          dialogue.current?.showModal()
-        })
-      })
-      return
-    }
-    fabriquer(format, tableau, r, local).then(
-      (blob) => {
-        telecharger(blob, nom)
-        fermer()
-        reussi()
-      },
-      () => setEtat({ type: 'echec' }),
-    )
-  }
-
-  const enCours = etat.type === 'cours'
-  const choisi = reglages.format
-  const extension = FORMATS.find((f) => f.format === choisi)!.extension
-
   return (
     <div className="export">
-      <button type="button" ref={bouton} className="bouton" aria-haspopup="dialog" aria-label={t('exporter.titre')} title={t('exporter.titre')} onClick={ouvrir}>
+      <button
+        type="button"
+        className="bouton"
+        aria-haspopup="dialog"
+        aria-label={t('exporter.titre')}
+        title={t('exporter.titre')}
+        onClick={() => {
+          fermerPanneaux()
+          ouvrirExport(sujetTableau(tableau, titre(), local))
+        }}
+      >
         <Icone nom="exporter" taille={16} />
-        <span className="bouton-texte">{enCours && !dialogue.current?.open ? t('exporter.encours') : t('exporter.titre')}</span>
+        <span className="bouton-texte">{t('exporter.titre')}</span>
       </button>
-      {hote &&
-        createPortal(
-          <dialog
-            ref={dialogue}
-            className="export-dialogue"
-            aria-labelledby="export-titre"
-            onCancel={(e) => {
-              if (enCours) e.preventDefault()
-            }}
-            onClose={() => bouton.current?.focus()}
-            // Un clic sur le voile (le dialogue lui-même, hors de sa carte) le ferme, sauf pendant un export.
-            onClick={(e) => {
-              if (e.target === e.currentTarget && !enCours) fermer()
-            }}
-          >
-            <form
-              className="export-carte"
-              method="dialog"
-              onSubmit={(e) => {
-                e.preventDefault()
-                exporter()
-              }}
-            >
-              <header className="export-entete">
-                <h2 id="export-titre">
-                  {t('exporter.dialogue', {
-                    titre: titre() || t('commun.sansTitre'),
-                  })}
-                </h2>
-                <button type="button" className="export-fermer" aria-label={t('commun.fermer')} disabled={enCours} onClick={fermer}>
-                  <Icone nom="fermer" taille={16} />
-                </button>
-              </header>
-
-              <fieldset className="export-formats" disabled={enCours}>
-                <legend className="export-rubrique">{t('exporter.format')}</legend>
-                {FORMATS.map(({ format, icone, extension: ext }) => (
-                  <label key={format} className={`export-format${format === AVANT_LE_TEXTE ? ' export-format-filet' : ''}`}>
-                    <input type="radio" name="format" value={format} checked={choisi === format} onChange={() => regler({ format })} />
-                    <Icone nom={icone} taille={18} />
-                    <span className="export-format-texte">
-                      <strong>
-                        {t(`exporter.f.${format}`)} <span className="export-ext">.{ext}</span>
-                        {format === 'notak' && <span className="export-pastille">{t('exporter.recommande')}</span>}
-                      </strong>
-                      <small>{t(`exporter.f.${format}.aide`)}</small>
-                    </span>
-                  </label>
-                ))}
-              </fieldset>
-
-              {choisi === 'notak' && (
-                <fieldset className="export-options" disabled={enCours}>
-                  <legend className="export-rubrique">{t('exporter.options')}</legend>
-                  <label className="export-case">
-                    <input type="checkbox" checked={reglages.sousTableaux} onChange={(e) => regler({ sousTableaux: e.target.checked })} />
-                    {t('exporter.sousTableaux')}
-                  </label>
-                  <label className="export-case">
-                    <input type="checkbox" checked={reglages.fichiers} onChange={(e) => regler({ fichiers: e.target.checked })} />
-                    {t('exporter.fichiers')}
-                  </label>
-                </fieldset>
-              )}
-
-              {(choisi === 'png' || choisi === 'pdf') && (
-                <fieldset className="export-options" disabled={enCours}>
-                  <legend className="export-rubrique">{t('exporter.options')}</legend>
-                  <div className="export-ligne">
-                    <span id="export-portee">{t('exporter.portee')}</span>
-                    <div className="export-segments" role="radiogroup" aria-labelledby="export-portee">
-                      {(['tout', 'ecran'] as const).map((p) => (
-                        <label key={p}>
-                          <input type="radio" name="portee" checked={reglages.portee === p} onChange={() => regler({ portee: p })} />
-                          {t(p === 'tout' ? 'exporter.tout' : 'exporter.ecran')}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  {choisi === 'png' && reglages.portee === 'ecran' && (
-                    <div className="export-ligne">
-                      <span id="export-resolution">{t('exporter.resolution')}</span>
-                      <div className="export-segments" role="radiogroup" aria-labelledby="export-resolution">
-                        {([1, 2, 3] as const).map((n) => (
-                          <label key={n}>
-                            <input type="radio" name="resolution" checked={reglages.resolution === n} onChange={() => regler({ resolution: n })} />
-                            {n}×
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {choisi === 'png' && (
-                    <label className="export-case">
-                      <input type="checkbox" checked={reglages.fond} onChange={(e) => regler({ fond: e.target.checked })} />
-                      {t('exporter.fond')}
-                    </label>
-                  )}
-                </fieldset>
-              )}
-
-              {etat.type === 'echec' && (
-                <p className="connexion-erreur export-erreur" role="alert">
-                  {t('exporter.echec')}
-                </p>
-              )}
-
-              <footer className="export-pied">
-                <small className="export-xmind">{t('exporter.xmind')}</small>
-                <div className="export-actions">
-                  <button type="button" className="bouton" disabled={enCours} onClick={fermer}>
-                    {t('commun.annuler')}
-                  </button>
-                  <button type="submit" className="bouton bouton-plein" disabled={enCours} autoFocus>
-                    {enCours ? t('exporter.encours') : t('exporter.action', { extension })}
-                  </button>
-                </div>
-              </footer>
-            </form>
-          </dialog>,
-          hote,
-        )}
-      {fait && (
-        <div className="bandeau" role="status">
-          {t('exporter.fait', { nom: fait })}
-        </div>
-      )}
     </div>
   )
 }
