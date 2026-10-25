@@ -24,6 +24,7 @@ import { ErreurBanque, chercherImages } from './images.ts'
 import { indexerDocument, requeteIndex } from './indexation.ts'
 import { hacher, verifier } from './motsDePasse.ts'
 import { DUREE_SESSION_S, NOM_COOKIE, cookieAccesPublic, cookieEfface, cookieSession, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
+import { TYPE_NOTAK, ecrireCopie } from './copie.ts'
 import { nomDuDocument } from './synchro.ts'
 import { largeurDemandee, nomReduit, reduire, reductible } from './tailles.ts'
 import { INSTANCE_PAR_DEFAUT, type Instance } from './instance.ts'
@@ -698,6 +699,37 @@ export function creerApp(ctx: Contexte): Hono {
     return c.body(creerZip(entrees) as Uint8Array<ArrayBuffer>, 200, {
       'content-type': 'application/zip',
       'content-disposition': enTeteTelechargement(`${tableau.titre} (${langueExport(c.req.query('langue')) === 'en' ? 'media' : 'médias'})`, 'zip'),
+      'cache-control': 'no-store',
+    })
+  })
+
+  // Le format natif : le fichier `.notak` du tableau, de ses sous-tableaux (ceux qu'on peut ouvrir) et de ses fichiers.
+  app.get('/api/tableaux/:id/notak', async (c) => {
+    const g = await garde(c, 'lecture')
+    if (g instanceof Response) return g
+    const options = { sousTableaux: c.req.query('sousTableaux') !== '0', fichiers: c.req.query('fichiers') !== '0' }
+    const octets = await ecrireCopie(
+      g.id,
+      {
+        etat: async (id) => {
+          // Un sous-tableau qu'on ne peut pas voir, ou barré par un mot de passe, reste dehors.
+          if (id !== g.id && (roleSur(g.u.id, id) === null || verrouPar(base, g.u.id, id) !== null)) return null
+          const vivant = ctx.synchro()?.documents.get(nomDuDocument(id))
+          // Un tableau jamais ouvert n'a pas encore d'état : le sien est vide.
+          return vivant ? Y.encodeStateAsUpdate(vivant) : (base.document(nomDuDocument(id)) ?? (id === g.id ? Y.encodeStateAsUpdate(new Y.Doc()) : null))
+        },
+        titre: titreDe,
+        fichier: async (id) => {
+          const f = base.fichier(id)
+          const o = f ? await readFile(join(ctx.dossierFichiers, f.id)).catch(() => null) : null
+          return f && o ? { octets: o, type: f.type } : null
+        },
+      },
+      options,
+    )
+    return c.body(octets as Uint8Array<ArrayBuffer>, 200, {
+      'content-type': TYPE_NOTAK,
+      'content-disposition': enTeteTelechargement(lireLe(g.id).titre, 'notak'),
       'cache-control': 'no-store',
     })
   })

@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { type Camera, TAILLES_GRILLE, definirTailleGrille } from './coeur/camera'
 import {
@@ -648,8 +649,15 @@ export function EspaceNotak({
           </div>
         )}
       </div>
-      {aideOuverte && <FenetreRaccourcis fermer={fermerAide} />}
-      {reglagesOuverts && <FenetreReglages reglages={reglages} changer={changerReglages} fermer={() => setReglagesOuverts(false)} habillages={habillages} {...(compte ? { compte } : {})} />}
+      {/* Par-dessus tout, la carte et le document ouverts en grand compris : leur barre ouvre aussi ces fenêtres. */}
+      {(aideOuverte || reglagesOuverts) &&
+        createPortal(
+          <div className="notak-espace notak-par-dessus" data-theme={reglages.theme} data-taille={reglages.taille}>
+            {aideOuverte && <FenetreRaccourcis fermer={fermerAide} />}
+            {reglagesOuverts && <FenetreReglages reglages={reglages} changer={changerReglages} fermer={() => setReglagesOuverts(false)} habillages={habillages} {...(compte ? { compte } : {})} />}
+          </div>,
+          document.body,
+        )}
     </div>
     </ContexteEntete.Provider>
   )
@@ -748,7 +756,7 @@ function Entete({
 
   return (
     // Dans l'application de bureau, la barre tient lieu de barre de titre : on la saisit partout hors des îlots pour déplacer la fenêtre.
-    <header className="notak-entete" data-tauri-drag-region="deep">
+    <header className="notak-entete notak-bord-flou" data-tauri-drag-region="deep">
       <div className="notak-entete-gauche">
         {(parent || outils) && (
           <Ilot>

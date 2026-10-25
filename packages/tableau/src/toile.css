@@ -237,7 +237,8 @@
 
   /* Un îlot vertical, décollé du bord comme ceux de la barre du haut (ilots.css), sous elle et à 16 px des bords. */
   position: absolute;
-  inset: 0 auto 16px 16px;
+  /* Sous la barre du haut (68 px) : la taille de l'interface les zoome toutes deux, la mesure suit d'elle-même. */
+  inset: 68px auto 16px 16px;
   z-index: 3;
   display: flex;
   flex-direction: column;
@@ -334,7 +335,7 @@
 /* Les non triés, en haut à droite de la toile. */
 .notak-non-tries-bouton {
   position: absolute;
-  top: 12px;
+  top: calc(var(--notak-haut, 0px) + 12px);
   right: 12px;
   z-index: 2;
   height: 28px;
@@ -442,11 +443,28 @@
   --notak-texte: #323b4a;
   --notak-accent: #2f6feb;
   --notak-selection: #323b4a;
+  /* La hauteur de la barre du haut, sous laquelle passe la toile : ce qui s'accroche en haut de la toile descend d'autant. */
+  --notak-haut: 68px;
 
   display: flex;
   flex-direction: column;
   width: 100%;
   height: 100%;
+}
+
+/* Les fenêtres de l'espace (réglages, raccourcis), posées sur la page entière : au-dessus de la carte et du document
+   ouverts en grand (z-index 1000), avec les couleurs et la taille de l'espace. */
+.notak-espace.notak-par-dessus[data-theme] {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: block;
+  background: none;
+  pointer-events: none;
+}
+
+.notak-par-dessus > * {
+  pointer-events: auto;
 }
 
 .notak-espace-corps {
@@ -461,22 +479,35 @@
  * le partage et le compte à droite.
  */
 .notak-entete {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 4;
   display: flex;
-  flex: none;
   align-items: center;
   gap: 12px;
   box-sizing: border-box;
   height: 68px;
   padding: 16px;
-  background: var(--notak-fond);
   color: var(--notak-texte);
   font-size: 14px;
+  /* La toile passe dessous : seuls les îlots et le fil prennent le pointeur, le reste le laisse à la toile. */
+  pointer-events: none;
 }
 
+.notak-entete-gauche > :not(.notak-fil),
+.notak-entete-droite > *,
+.notak-fil > * {
+  pointer-events: auto;
+}
+
+
 /* Dans l'application de bureau, la bande tient lieu de barre de titre : les boutons de la fenêtre à gauche (88 px),
-   centrés sur les îlots ; elle les rend en plein écran. */
+   centrés sur les îlots ; elle les rend en plein écran. Elle garde le pointeur pour qu'on y saisisse la fenêtre. */
 :root[data-bureau] .notak-entete {
   padding-left: 88px;
+  pointer-events: auto;
 }
 
 :root[data-bureau][data-plein-ecran] .notak-entete {
@@ -1068,6 +1099,13 @@
   top: -5px;
   left: calc(100% + 2px);
   min-width: 220px;
+  /* Ramenée dans la fenêtre par SousListe (Menus.tsx) : remontée, à gauche, ou qui défile si elle est trop haute. */
+  overflow-y: auto;
+}
+
+.notak-menu-sous-liste[data-a-gauche] {
+  right: calc(100% + 2px);
+  left: auto;
 }
 
 .notak-menu-pastille {
@@ -1249,7 +1287,7 @@
 /* La recherche dans le tableau : en haut, au milieu ; ce qui ne correspond pas s'efface. */
 .notak-recherche {
   position: absolute;
-  top: 12px;
+  top: calc(var(--notak-haut, 0px) + 12px);
   left: 50%;
   z-index: 20;
   display: flex;
@@ -1604,7 +1642,7 @@
 .notak-non-tries {
   right: 12px;
   bottom: auto;
-  top: 48px;
+  top: calc(var(--notak-haut, 0px) + 48px);
   left: auto;
 }
 

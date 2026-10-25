@@ -2,6 +2,7 @@ import {
   type ContenuNotak,
   type Id,
   type Magasin,
+  type OptionsCopie,
   decoderNotak,
   encoderNotak,
   idsDeFichiers,
@@ -29,11 +30,11 @@ async function atteints({ reseau }: EspaceLocal, depuis: Id): Promise<Id[]> {
 
 /**
  * Une copie `.notak` de tout l'espace, ou d'un tableau et de ce qu'il cite. Les images et fichiers des tableaux
- * copiés viennent avec.
+ * copiés viennent avec, sauf si les options (l'export d'un tableau) disent autrement.
  */
-export async function fabriquerCopie(el: EspaceLocal, depuis?: Id): Promise<Uint8Array> {
+export async function fabriquerCopie(el: EspaceLocal, depuis?: Id, options: OptionsCopie = { sousTableaux: true, fichiers: true }): Promise<Uint8Array> {
   const { index, reseau } = el
-  const ids = depuis ? await atteints(el, depuis) : [...new Set([index.racine(), ...index.lister().map((e) => e.id)])]
+  const ids = !depuis ? [...new Set([index.racine(), ...index.lister().map((e) => e.id)])] : options.sousTableaux ? await atteints(el, depuis) : [depuis]
   const contenu: ContenuNotak = { racine: depuis ?? index.racine(), tableaux: [], fichiers: [] }
   const fichiers = new Set<string>()
   for (const id of ids) {
@@ -46,7 +47,7 @@ export async function fabriquerCopie(el: EspaceLocal, depuis?: Id): Promise<Uint
       ...(e?.couleur ? { couleur: e.couleur } : {}),
       etat,
     })
-    for (const f of idsDeFichiers(elements)) fichiers.add(f)
+    if (options.fichiers) for (const f of idsDeFichiers(elements)) fichiers.add(f)
   }
   for (const id of fichiers) {
     const b = await lireFichier(id)

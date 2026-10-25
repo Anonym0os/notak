@@ -16,6 +16,7 @@
   "peerDependencies": {
     "@hocuspocus/provider": "4.7.1",
     "@tabler/icons-react": "^3.49.0",
+    "@tiptap/extension-code-block": "^3.31.0",
     "@tiptap/extension-collaboration": "^3.31.0",
     "@tiptap/extension-collaboration-caret": "^3.31.0",
     "@tiptap/extension-highlight": "^3.31.0",
@@ -36,6 +37,7 @@
   "devDependencies": {
     "@hocuspocus/provider": "4.7.1",
     "@tabler/icons-react": "3.49.0",
+    "@tiptap/extension-code-block": "3.32.0",
     "@tiptap/extension-collaboration": "3.32.0",
     "@tiptap/extension-collaboration-caret": "3.32.0",
     "@tiptap/extension-highlight": "3.32.0",

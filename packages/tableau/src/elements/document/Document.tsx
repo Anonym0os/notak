@@ -28,7 +28,8 @@ import { ApercuLien, ImageBloc, remplirImages } from '../../blocs/noeuds'
 import { type GestesBlocs, raccourcisBlocs } from '../../blocs/saisie'
 import { EXTENSIONS_BLOCS, EXTENSIONS_BLOCS_PARTAGEE, SCHEMA_BLOCS as SCHEMA } from '../../blocs/schema'
 import { colorer, ecrireALaFin, insererImage } from '../../blocs/transformer'
-import { TextSelection } from '@tiptap/pm/state'
+import { NodeSelection, TextSelection } from '@tiptap/pm/state'
+import { BLOCS_SANS_TEXTE, blocSansTexteChoisi, filDuBlocChoisi } from '../../blocs/commentaires'
 import { LegendeLocale, OutilLegende, avecTexteLegende } from '../LegendeLocale'
 import type { ContexteToile, DepotFichiers, PropsOutils, PropsRendu } from '../types'
 import { EntetePage, OptionsPage, attributsPage, pageDe } from './Page'
@@ -319,7 +320,7 @@ function Modale({ titre, titreTexte, lireTexte, fermer, children, lecture, corps
       }}
     >
       <div className="notak-document-boite" data-lecture={lecture || undefined} {...attributsPage(page ?? {})}>
-        <header className="notak-document-entete" data-tauri-drag-region="deep">
+        <header className="notak-document-entete notak-bord-flou" data-tauri-drag-region="deep">
           <Ilot>
             <BoutonIlot icone="gauche" className="notak-document-fermer" libelle={t('espace.retourTableau')} onClick={fermer} />
           </Ilot>
@@ -486,11 +487,14 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
   // Dans un passage déjà commenté : on ouvre son fil. Sinon, le passage choisi reçoit un fil neuf.
   commenterRef.current = () => {
     if (!editeur || !peutCommenter) return
-    const present = editeur.isActive(MARQUE_FIL) ? (editeur.getAttributes(MARQUE_FIL).fil as Id | null) : null
+    const present = editeur.isActive(MARQUE_FIL) ? (editeur.getAttributes(MARQUE_FIL).fil as Id | null) : filDuBlocChoisi(editeur.state)
     if (present) return setOuvert(present)
-    if (editeur.state.selection.empty || editeur.isActive('code') || editeur.isActive('codeBlock')) return
+    // Un bloc sans texte (image, séparateur, aperçu) porte son fil ; un passage, même de code, reçoit la marque.
+    const bloc = blocSansTexteChoisi(editeur.state)
+    if (!bloc && editeur.state.selection.empty) return
     const id = nouvelId()
-    editeur.chain().focus().setMark(MARQUE_FIL, { fil: id }).run()
+    if (bloc) editeur.view.dispatch(editeur.state.tr.setNodeAttribute(bloc.pos, 'fil', id))
+    else editeur.chain().focus().setMark(MARQUE_FIL, { fil: id }).run()
     poser({ texte: editeur.getJSON() as NoeudTexte, fils: avecFil(dernier.current.fils, id, { type: 'commentaire', messages: [] }) })
     setOuvert(id)
   }
@@ -524,7 +528,10 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
     const b = blocDe(editeur.state.doc, id)
     if (!b) return
     const { doc } = editeur.state
-    editeur.view.dispatch(editeur.state.tr.setMeta(CLE_CHOIX, null).setSelection(TextSelection.between(doc.resolve(b.pos), doc.resolve(b.pos + b.taille))))
+    const noeud = doc.nodeAt(b.pos)
+    // Un bloc sans texte est choisi tout entier : son fil sera son attribut.
+    const choix = noeud && BLOCS_SANS_TEXTE.has(noeud.type.name) ? NodeSelection.create(doc, b.pos) : TextSelection.between(doc.resolve(b.pos), doc.resolve(b.pos + b.taille))
+    editeur.view.dispatch(editeur.state.tr.setMeta(CLE_CHOIX, null).setSelection(choix))
     commenterRef.current()
   }
   // Une adresse qui nomme un bloc l'amène à l'écran et le fait clignoter.

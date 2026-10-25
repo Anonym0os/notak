@@ -1,10 +1,10 @@
-import { BullesDecouverte, type CouleurNote, EspaceNotak, type Id, ErreurNotak, type Services } from '@notak/tableau'
+import { BullesDecouverte, type CouleurNote, EspaceNotak, type Id, ErreurNotak, type Services, TYPE_NOTAK } from '@notak/tableau'
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
 import { adressePour } from '../adresse'
 import { importDejaPropose, lireAncienEspace, noterImportPropose } from '../ancien'
 import { PagePartage, PageRapide } from '../Arrivees'
-import { Export } from '../Export'
+import { Export, type ExportLocal } from '../Export'
 import { localiser } from '../geocodage'
 import { importerEspaceLocal } from '../importLocal'
 import { Importer } from '../Importer'
@@ -74,7 +74,13 @@ function Espace({ el }: { el: EspaceLocal }) {
     }),
     [el, index],
   )
-  const exporter = useMemo(() => exportLocal(el), [el])
+  const exporter = useMemo<ExportLocal>(
+    () => ({
+      ...exportLocal(el),
+      notak: async (tableau, options) => new Blob([(await fabriquerCopie(el, tableau, options)) as Uint8Array<ArrayBuffer>], { type: TYPE_NOTAK }),
+    }),
+    [el],
+  )
 
   const enregistrer = useCallback(
     async (nouveau = false) => {
@@ -168,7 +174,7 @@ function Espace({ el }: { el: EspaceLocal }) {
             <>
               <BullesDecouverte espace={espace} tableau={ici} compte="local" />
               <PlusEntete>
-                <Importer espace={espace} tableau={ici} ouvrir={ouvrir} fichiers={fichiersLocaux} />
+                <Importer espace={espace} tableau={ici} ouvrir={ouvrir} fichiers={fichiersLocaux} rouvrirNotak={rouvrirFichier} />
                 <Export tableau={ici} titre={() => espace.tableau(ici)?.titre ?? ''} local={exporter} />
               </PlusEntete>
               <Rangement el={el} enregistrer={() => void enregistrer()} rouvrir={() => void rouvrir()} message={message} />

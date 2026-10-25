@@ -40,6 +40,9 @@ export interface ElementLu {
 export interface TableauLu {
   titre: string
   couleur?: string
+  /** Les étiquettes du tableau et son arrière-plan, tels que `meta` les garde : seul le format `.notak` les reprend. */
+  etiquettes?: unknown[]
+  fond?: unknown
   /** Du plus bas au plus haut dans l'empilement. */
   elements: ElementLu[]
 }
@@ -62,9 +65,13 @@ export function lireTableau(doc: Y.Doc): TableauLu {
   brutes.sort((a, b) => (a.plan < b.plan ? -1 : a.plan > b.plan ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   const titre = meta.get('titre')
   const couleur = meta.get('couleur')
+  const etiquettes = meta.get('etiquettes')
+  const fond = meta.get('fond')
   return {
     titre: typeof titre === 'string' ? titre : '',
     ...(typeof couleur === 'string' ? { couleur } : {}),
+    ...(Array.isArray(etiquettes) && etiquettes.length > 0 ? { etiquettes } : {}),
+    ...(fond !== undefined && fond !== null ? { fond } : {}),
     elements: brutes.map((b) => b.element),
   }
 }

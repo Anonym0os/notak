@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { type Commentaire, type Id, type NoeudTexte, annoter, nouvelId } from '../../coeur/tableau'
 import { Ligne } from '../commentaire/Commentaire'
 import { Compositeur, type PoigneeCompositeur } from '../commentaire/Compositeur'
+import { filDuBlocChoisi, placeDuFil } from '../../blocs/commentaires'
 import { AUTEUR_INCONNU, ajouterMessage, epinglerEn, initiales, modifierMessage, reagirAuMessage, retirerMessage } from '../commentaire/fil'
 import type { ContexteToile } from '../types'
 import { type Fils, MARQUE_FIL, filsDuTexte, placerEnMarge } from './fils'
@@ -18,7 +19,11 @@ function retirerMarque(editeur: Editor, id: Id) {
   if (!type) return
   const tr = editeur.state.tr
   editeur.state.doc.descendants((n, pos) => {
-    if (!n.isText) return
+    // Le fil d'un bloc sans texte est son attribut.
+    if (!n.isText) {
+      if (n.attrs.fil === id) tr.setNodeAttribute(pos, 'fil', null)
+      return
+    }
     const m = n.marks.find((x) => x.type === type && x.attrs.fil === id)
     if (m) tr.removeMark(pos, pos + n.nodeSize, m)
   })
@@ -73,22 +78,25 @@ const AU_DESSUS_DU_PASSAGE = 18
 /** La place qu'il faut à droite de la colonne pour y poser les fiches : 32 px d'écart, 308 de fiche, un peu d'air. */
 const PLACE_MARGE = 32 + 308 + 16
 
-/** Le premier passage d'un fil dans le texte, et son texte. */
-function passageDe(editeur: Editor, id: Id): { pos: number; texte: string } {
-  let pos = -1
-  let texte = ''
-  editeur.state.doc.descendants((n, p) => {
-    if (n.isText && n.marks.some((m) => m.type.name === MARQUE_FIL && m.attrs.fil === id)) {
-      if (pos < 0) pos = p
-      texte += n.text ?? ''
-    }
-  })
-  return { pos, texte }
+/** Le premier passage d'un fil dans le texte (ou son bloc sans texte), et son texte. */
+const passageDe = (editeur: Editor, id: Id) => placeDuFil(editeur.state.doc, id)
+
+/** Le haut et le bas d'un fil à l'écran : son passage, ou tout son bloc sans texte. */
+function bornesDuFil(editeur: Editor, id: Id): { top: number; bottom: number } | null {
+  const { pos, bloc } = passageDe(editeur, id)
+  if (pos < 0) return null
+  const dom = bloc ? editeur.view.nodeDOM(pos) : null
+  if (dom instanceof HTMLElement) {
+    const r = dom.getBoundingClientRect()
+    return { top: r.top, bottom: r.bottom }
+  }
+  return editeur.view.coordsAtPos(pos)
 }
 
 /** Le passage d'un fil éclairé, au survol ou ouvert : une règle de style, sans toucher au texte (ProseMirror). */
 const reglePassage = (id: Id) =>
-  `.notak-page .notak-fil-texte[data-fil="${CSS.escape(id)}"] { background: rgb(255 203 0 / 0.24); border-bottom-color: rgb(255 203 0); }`
+  `.notak-page .notak-fil-texte[data-fil="${CSS.escape(id)}"] { background: rgb(255 203 0 / 0.24); border-bottom-color: rgb(255 203 0); }
+.notak-page [data-fil-bloc="${CSS.escape(id)}"] { outline: 2px solid rgb(255 203 0 / 0.8); outline-offset: 2px; border-radius: 4px; }`
 
 /**
  * Les fils des passages commentés, en marge de la note en édition : chacun à la hauteur de son passage, sans
@@ -102,7 +110,7 @@ export function Marge({ editeur, fils, ouvert, surOuvert, ecrire, contexte, enPa
   const liste = ids ? ids.split('|') : []
   const sous = useEditorState({
     editor: editeur,
-    selector: ({ editor }) => (editor.isActive(MARQUE_FIL) ? ((editor.getAttributes(MARQUE_FIL).fil as string | null) ?? null) : null),
+    selector: ({ editor }) => (editor.isActive(MARQUE_FIL) ? ((editor.getAttributes(MARQUE_FIL).fil as string | null) ?? null) : filDuBlocChoisi(editor.state)),
   })
   const actif = ouvert ?? sous
   // Un fil sans message ne se montre que pendant qu'on l'écrit ; quitté vide, sa marque part (comme un commentaire
@@ -139,9 +147,8 @@ export function Marge({ editeur, fils, ouvert, surOuvert, ecrire, contexte, enPa
     // La toile peut être zoomée : la marge vit dans le plan, pas à l'écran.
     const echelle = carte.offsetWidth > 0 ? rect.width / carte.offsetWidth : 1
     const bornes = visibles.map((id) => {
-      const { pos } = passageDe(editeur, id)
-      if (pos < 0) return { haut: 0, bas: 0 }
-      const c = editeur.view.coordsAtPos(pos)
+      const c = bornesDuFil(editeur, id)
+      if (!c) return { haut: 0, bas: 0 }
       return { haut: (c.top - rect.top) / echelle, bas: (c.bottom - rect.top) / echelle }
     })
     const voulues = bornes.map((b) => (enPage ? Math.max(0, b.haut - AU_DESSUS_DU_PASSAGE) : b.haut))
@@ -243,7 +250,7 @@ export function Marge({ editeur, fils, ouvert, surOuvert, ecrire, contexte, enPa
             else fiches.current.delete(id)
           }}
           haut={flottant ? (passage ? passage.bas + 6 : undefined) : places[i]}
-          {...(flottant ? { centre: colonne.centre, citation: passageDe(editeur, id).texte } : {})}
+          {...(flottant ? { centre: colonne.centre, ...(passageDe(editeur, id).texte ? { citation: passageDe(editeur, id).texte } : {}) } : {})}
           survolee={survol === id}
           surSurvol={(oui) => setSurvol(oui ? id : null)}
           fil={fils?.[id]}

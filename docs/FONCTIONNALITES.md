@@ -28,11 +28,11 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 13. Naviguer | 13 | 0 | 0 | 100 % |
 | 14. À plusieurs | 19 | 0 | 0 | 100 % |
 | 15. Habillage | 15 | 0 | 0 | 100 % |
-| 16. Exporter, importer | 3 | 1 | 0 | 88 % |
+| 16. Exporter, importer | 6 | 1 | 0 | 93 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
 | 18. Carte mentale | 61 | 10 | 0 | 93 % |
 | 19. Document à blocs | 29 | 1 | 0 | 98 % |
-| **Total** | **372** | **21** | **2** | **97 %** |
+| **Total** | **375** | **21** | **2** | **97 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -380,8 +380,9 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
 | Fonctionnalité | État | Reste |
 |---|---|---|
-| En-tête : fil d'Ariane, titre, partage, présence | ✅ | Une seule rangée d'îlots, la même sur le tableau, la carte et le document (`Ilots.tsx`) : retour et outils, fil et titre à gauche ; historique, partage, export et compte à droite. Le zoom passe en bas à droite. |
+| En-tête : fil d'Ariane, titre, partage, présence | ✅ | Une seule rangée d'îlots, la même sur le tableau, la carte et le document (`Ilots.tsx`) : retour et outils, fil et titre à gauche ; historique, partage, export et compte à droite. Le zoom passe en bas à droite. La toile, la carte et la page passent sous la barre, brouillée vers le haut (bord flou progressif, comme chez Apple). Réglages et raccourcis s'ouvrent par-dessus la carte et le document. |
 | Barre des outils de gauche en îlot, à montrer ou cacher | ✅ | Décollée du bord ; le bouton du premier îlot la cache, et la machine s'en souvient. |
+| Sous-menus toujours entiers dans la fenêtre | ✅ | Remontés, ouverts à gauche, ou qui défilent (`placerSousMenu`). |
 | Barre d'outils contextuelle | ✅ | Au-dessus de la sélection, ou dans la barre de gauche comme Milanote (réglage). |
 | Annuler et rétablir dans l'en-tête | ✅ | |
 | État d'enregistrement (« enregistré », « hors ligne ») | ✅ | |
@@ -401,7 +402,10 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
 | Fonctionnalité | État | Reste |
 |---|---|---|
-| Exporter un tableau (PDF, image) | ✅ | PNG et PDF, de ce qui est à l'écran ou du tableau entier. |
+| Dialogue d'export | ✅ | Le bouton Exporter ouvre un dialogue : le format en liste (Notak d'abord, recommandé), les seules options du format choisi dessous ; derniers réglages retenus sur l'appareil. Le .xmind reste au menu de la carte. |
+| Exporter en Notak (.notak) | ✅ | Le fichier `.notak` des copies (`fichierEspace.ts`) pour un tableau : sous-tableaux et fichiers en option. Le serveur n'y met que les sous-tableaux qu'on peut ouvrir (`export/copie.ts`). |
+| Importer un .notak | ✅ | Menu Importer. Sur le serveur, une copie neuve (identifiants refaits, renvois et fichiers suivis) ; l'édition locale le rouvre en le fusionnant. |
+| Exporter un tableau (PDF, image) | ✅ | PNG et PDF, de ce qui est à l'écran ou du tableau entier ; PNG en 1×, 2× ou 3×, fond transparent au choix. |
 | Exporter le texte (Markdown, texte brut) | ✅ |  |
 | Télécharger les médias d'un tableau (zip) | ✅ |  |
 | Importer depuis Milanote | 🟡 | Depuis l'export Markdown (zip) de Milanote ; jamais essayé sur un vrai export. |

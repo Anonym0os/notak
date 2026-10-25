@@ -94,10 +94,12 @@ describe('NOTION.md § 4 : la bulle', () => {
     expect([panneau.style.left, panneau.style.top]).toEqual(avant)
   })
 
-  it('ne vient pas dans du code', async () => {
+  it('dans du code, ne porte que « Commenter » (rien ne s’y met en forme)', async () => {
     await monter([b('codeBlock', 'let x = 1')], 1, 4)
     await attendre(260)
-    expect(document.querySelector('.notak-bulle')).toBeNull()
+    const bulle = document.querySelector('.notak-bulle')!
+    expect(bulle.querySelector('.notak-bulle-commenter')).not.toBeNull()
+    expect(bulle.querySelectorAll('.notak-bulle-bouton, .notak-bulle-type')).toHaveLength(0)
   })
 
   it('se cache 200 ms après que la sélection est vidée', async () => {
