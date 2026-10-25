@@ -3,6 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { createPortal } from 'react-dom'
 import { type Commentaire, type Id, type NoeudTexte, annoter, nouvelId } from '../../coeur/tableau'
 import { Ligne } from '../commentaire/Commentaire'
+import { Compositeur, type PoigneeCompositeur } from '../commentaire/Compositeur'
 import { AUTEUR_INCONNU, ajouterMessage, epinglerEn, initiales, modifierMessage, reagirAuMessage, retirerMessage } from '../commentaire/fil'
 import type { ContexteToile } from '../types'
 import { type Fils, MARQUE_FIL, filsDuTexte, placerEnMarge } from './fils'
@@ -183,29 +184,45 @@ function Fiche({
   detacher: (() => void) | null
   contexte: ContexteToile
 }) {
-  const [texte, setTexte] = useState('')
-  const champ = useRef<HTMLTextAreaElement>(null)
+  const champ = useRef<PoigneeCompositeur>(null)
+  const [vide, setVide] = useState(true)
   const auteur = contexte.services.presence?.moi?.() ?? AUTEUR_INCONNU
   const peutEcrire = !contexte.services.lectureSeule
-  useEffect(() => {
-    if (actif && peutEcrire) champ.current?.focus()
-  }, [actif, peutEcrire])
-  const envoyer = () => {
+  const envoyer = (texte: string, riche?: NoeudTexte) => {
     if (!texte.trim()) return
-    ecrire(ajouterMessage(fil, { id: nouvelId(), auteur, date: Date.now(), texte }))
-    setTexte('')
+    ecrire(ajouterMessage(fil, { id: nouvelId(), auteur, date: Date.now(), texte, ...(riche ? { riche } : {}) }))
+    champ.current?.vider()
+    setVide(true)
   }
   const n = fil.messages.length
+  // Les gestes du fil (NOTION.md § 9) : sur son premier message, à côté de ceux du message ; plus de pied « Fermer » :
+  // Échap, ou le curseur hors du passage, ferment la fiche.
+  const gestesFil = peutEcrire && (
+    <>
+      {detacher && n > 0 && (
+        <button type="button" className="notak-commentaire-geste" aria-label={t('commentaire.detacher')} title={t('commentaire.detacher')} onClick={detacher}>
+          <Icone nom="detacher" taille={16} />
+        </button>
+      )}
+      {retirer && (
+        <button type="button" className="notak-commentaire-geste" aria-label={t('commentaire.retirerFil')} title={t('commentaire.retirerFil')} onClick={retirer}>
+          <Icone nom="resoudre" taille={16} />
+        </button>
+      )}
+    </>
+  )
   return (
     <section ref={ref} className="notak-fil-marge" data-actif={actif || undefined} style={{ top: haut }} onClick={actif ? undefined : ouvrir}>
-      {fil.messages.map((m) => (
+      {fil.messages.map((m, i) => (
         <Ligne
           key={m.id}
           message={m}
           contexte={contexte}
+          enMarge
+          {...(i === 0 && actif ? { actionsFil: gestesFil } : {})}
           {...(peutEcrire ? { reagir: (emoji: string) => ecrire(reagirAuMessage(fil, m.id, emoji, auteur.id)) } : {})}
           {...(peutEcrire && m.auteur.id === auteur.id
-            ? { retirer: () => ecrire(retirerMessage(fil, m.id)), modifier: (texte: string, riche?: NoeudTexte) => ecrire(modifierMessage(fil, m.id, texte, riche)) }
+            ? { modifier: (texte: string, riche?: NoeudTexte) => ecrire(modifierMessage(fil, m.id, texte, riche)), ...(i > 0 ? { retirer: () => ecrire(retirerMessage(fil, m.id)) } : {}) }
             : {})}
         />
       ))}
@@ -214,42 +231,34 @@ function Fiche({
           <span className="notak-commentaire-pastille" style={auteur.couleur ? { background: auteur.couleur } : undefined} aria-hidden>
             {initiales(auteur.nom)}
           </span>
-          <textarea
-            ref={champ}
-            rows={1}
-            value={texte}
-            maxLength={5000}
+          <Compositeur
+            contexte={contexte}
+            poignee={champ}
+            autoFocus
             placeholder={n > 0 ? t('commentaire.repondrePoints') : t('commentaire.ecrire')}
-            onChange={(e) => setTexte(e.target.value)}
-            onKeyDown={(e) => {
-              // Le champ garde ses touches : la note n'en sort pas, et Échap ne ferme que le fil.
-              e.stopPropagation()
-              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault()
-                envoyer()
-              } else if (e.key === 'Escape') {
-                e.preventDefault()
-                fermer()
-              }
+            className="notak-fil-marge-champ"
+            surChangement={(texte) => setVide(!texte)}
+            envoyer={envoyer}
+            echapper={() => {
+              fermer()
+              return true
             }}
-          />
-        </div>
-      )}
-      {actif && peutEcrire && (
-        <div className="notak-fil-marge-actions">
-          {detacher && n > 0 && (
-            <button type="button" onClick={detacher}>
-              <Icone nom="detacher" taille={14} /> {t('commentaire.detacher')}
-            </button>
-          )}
-          {retirer && (
-            <button type="button" onClick={retirer}>
-              <Icone nom="corbeille" taille={14} /> {t('commentaire.retirer')}
-            </button>
-          )}
-          <button type="button" onClick={fermer}>
-            {t('commun.fermer')}
-          </button>
+          >
+            <span className="notak-compositeur-gestes">
+              <button
+                type="button"
+                className="notak-compositeur-rond"
+                data-genre="envoyer"
+                disabled={vide}
+                aria-label={t('commentaire.envoyer')}
+                title={t('commentaire.envoyer')}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => champ.current?.envoyer?.()}
+              >
+                <Icone nom="haut" taille={14} trait={2.5} />
+              </button>
+            </span>
+          </Compositeur>
         </div>
       )}
     </section>

@@ -788,59 +788,59 @@
   cursor: pointer;
 }
 
+/*
+ * La fiche d'un passage commenté, mesurée dans Notion (NOTION.md § 9) : rayon 10, un filet ; fermée, un fond à peine
+ * teinté ; ouverte, blanche avec l'ombre des menus et 16 px plus à gauche. Chaque message : avatar de 24 px, nom en
+ * 14 px graisse 500, heure en 12 px pâle, texte en 14 px sur 21 aligné sur le nom (32 px). Ses gestes sont des icônes
+ * de 24 px dans une petite barre blanche au survol, en haut à droite. Les couleurs suivent la page quand elle en donne.
+ */
 .notak-fil-marge {
+  --notak-fm-fond: var(--notak-page-fond, #fff);
+  --notak-fm-texte: var(--notak-page-texte, rgb(44 44 43));
+  --notak-fm-pale: var(--notak-page-discret, rgb(161 158 153));
+  --notak-fm-icone: rgb(142 139 134);
+  --notak-fm-trait: var(--notak-page-trait, rgb(42 28 0 / 0.07));
+  --notak-fm-survol: rgb(33 27 23 / 0.06);
+  --notak-fm-bleu: rgb(35 131 226);
   position: absolute;
   left: 0;
   right: 0;
   box-sizing: border-box;
-  padding: 10px 12px;
+  padding: 4px 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  border-radius: 8px;
-  background: #f4f7fe;
-  box-shadow: 0 1px 2px #1b25361a;
-  opacity: 0.85;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--notak-fm-texte) 2.5%, var(--notak-fm-fond));
+  box-shadow: 0 0 0 1px var(--notak-fm-trait);
+  color: var(--notak-fm-texte);
+  font-size: 14px;
+  line-height: 21px;
   cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .notak-fil-marge[data-actif] {
-  opacity: 1;
+  background: var(--notak-fm-fond);
+  box-shadow: 0 8px 12px rgb(25 25 25 / 0.027), 0 2px 6px rgb(25 25 25 / 0.027), 0 0 0 1px var(--notak-fm-trait);
+  transform: translateX(-16px);
   cursor: default;
-  outline: 2px solid var(--notak-accent);
 }
 
 .notak-fil-marge[data-resolu]:not([data-actif]) {
   opacity: 0.6;
 }
 
-/* La fiche est étroite : ni le retrait ni l'écart des commentaires épinglés (`commentaire.css`). */
+.notak-fil-marge button {
+  cursor: pointer;
+}
+
 .notak-fil-marge .notak-commentaire-message,
 .notak-fil-marge .notak-commentaire-saisie {
+  position: relative;
   display: flex;
   gap: 8px;
   align-items: flex-start;
-  padding: 0;
-}
-
-/* Le nom et l'heure tiennent sur une ligne ; « Modifier » et la croix d'un message ne prennent leur place qu'au survol. */
-.notak-fil-marge .notak-commentaire-entete {
-  min-width: 0;
-  white-space: nowrap;
-}
-
-.notak-fil-marge .notak-commentaire-entete strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.notak-fil-marge .notak-commentaire-modifier,
-.notak-fil-marge .notak-commentaire-retirer {
-  display: none;
-}
-
-.notak-fil-marge[data-actif] .notak-commentaire-message:hover :is(.notak-commentaire-modifier, .notak-commentaire-retirer) {
-  display: inline-flex;
+  padding: 8px 12px;
 }
 
 .notak-fil-marge .notak-commentaire-pastille {
@@ -852,61 +852,193 @@
   border-radius: 50%;
   background: #8a94a3;
   color: #fff;
-  font-size: 10px;
+  font-size: 9.6px;
   font-weight: 700;
+}
+
+.notak-fil-marge .notak-commentaire-corps {
+  flex: 1;
+  min-width: 0;
 }
 
 .notak-fil-marge .notak-commentaire-entete {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 6px;
+  min-width: 0;
+  height: 24px;
+  white-space: nowrap;
+}
+
+.notak-fil-marge .notak-commentaire-entete strong {
+  overflow: hidden;
+  color: var(--notak-fm-texte);
+  font-size: 14px;
+  font-weight: 500;
+  text-overflow: ellipsis;
 }
 
 .notak-fil-marge time {
-  color: #6b7280;
-  font-size: 11px;
+  color: var(--notak-fm-pale);
+  font-size: 12px;
+  line-height: 16px;
 }
 
 .notak-fil-marge .notak-commentaire-texte {
-  margin: 2px 0 0;
+  margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
-.notak-fil-marge .notak-commentaire-retirer {
-  border: 0;
-  background: none;
-  color: #6b7280;
-  cursor: pointer;
+.notak-fil-marge .notak-commentaire-texte p {
+  margin: 0;
 }
 
-.notak-fil-marge textarea {
-  flex: 1;
-  box-sizing: border-box;
-  min-height: 26px;
-  padding: 4px 8px;
-  border: 1px solid var(--notak-point);
+/* La barre des gestes : au survol d'un message de la fiche ouverte, 4 px au-dessus de lui, au bord droit. */
+.notak-fil-marge .notak-commentaire-survol {
+  position: absolute;
+  z-index: 1;
+  top: 4px;
+  right: 12px;
+  display: none;
+  padding: 2px;
+  border-radius: 6px;
+  background: var(--notak-fm-fond);
+  box-shadow: 0 0 0 1px var(--notak-fm-trait), 0 2px 4px rgb(25 25 25 / 0.04);
+}
+
+.notak-fil-marge[data-actif] .notak-commentaire-message:hover .notak-commentaire-survol,
+.notak-fil-marge .notak-commentaire-survol:has([aria-expanded='true']) {
+  display: flex;
+}
+
+.notak-fil-marge .notak-commentaire-geste {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
   border-radius: 6px;
   background: none;
-  font: inherit;
-  color: inherit;
-  resize: none;
-  outline: none;
+  color: var(--notak-fm-icone);
 }
 
-.notak-fil-marge-actions {
+.notak-fil-marge .notak-commentaire-geste:hover,
+.notak-fil-marge .notak-commentaire-geste[aria-expanded='true'] {
+  background: var(--notak-fm-survol);
+  color: var(--notak-fm-texte);
+}
+
+/*
+ * Les champs : celui de la réponse, sur une ligne à côté de l'avatar, et celui qui corrige un message, posé sur son
+ * texte (marges négatives : le texte ne bouge pas). Un anneau bleu de 2 px quand on y écrit ; leurs boutons dans le
+ * coin bas droit.
+ */
+.notak-fil-marge .notak-compositeur {
   display: flex;
-  gap: 8px;
-  justify-content: flex-end;
+  min-height: 0;
+  padding: 3.5px 4px 3px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--notak-fm-texte);
+  font-size: 14px;
+  line-height: 21px;
+  cursor: text;
 }
 
-.notak-fil-marge-actions button {
+.notak-fil-marge .notak-compositeur:focus-within {
+  box-shadow: inset 0 0 0 1px var(--notak-fm-bleu), 0 0 0 1px var(--notak-fm-bleu);
+}
+
+.notak-fil-marge .notak-compositeur > :is(.tiptap, div:has(> .tiptap)) {
+  flex: 1;
+  min-width: 0;
+}
+
+.notak-fil-marge .notak-compositeur .tiptap {
+  padding: 0;
+  line-height: 21px;
+}
+
+.notak-fil-marge .notak-compositeur-attente {
+  top: 3.5px;
+  left: 4px;
+  color: var(--notak-fm-pale);
+}
+
+.notak-fil-marge .notak-compositeur-pied {
+  position: static;
+  flex: none;
+  align-self: flex-end;
+  gap: 4px;
+}
+
+.notak-fil-marge .notak-fil-marge-champ {
+  align-items: center;
+  margin: -2px 0;
+}
+
+.notak-fil-marge .notak-commentaire-champ {
+  flex-direction: column;
+  margin: -3.5px -4px 0;
+  box-shadow: inset 0 0 0 1px var(--notak-fm-bleu), 0 0 0 1px var(--notak-fm-bleu);
+}
+
+.notak-fil-marge .notak-commentaire-champ .notak-compositeur-pied {
+  align-self: stretch;
+  padding-top: 4px;
+}
+
+.notak-fil-marge .notak-compositeur-emoji {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
   border: 0;
+  border-radius: 6px;
   background: none;
-  font: inherit;
-  font-size: 12px;
-  color: #6b7280;
+  color: var(--notak-fm-icone) !important;
+}
+
+.notak-fil-marge .notak-compositeur-emoji:hover,
+.notak-fil-marge .notak-compositeur-emoji[aria-expanded='true'] {
+  background: var(--notak-fm-survol);
+}
+
+.notak-compositeur-gestes {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* Annuler, Enregistrer, Envoyer : des ronds de 24 px, gris, bleu, et grisé tant qu'il n'y a rien à envoyer. */
+.notak-compositeur-rond {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin: 1px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
   cursor: pointer;
+}
+
+.notak-compositeur-rond[data-genre='annuler'] {
+  background: rgb(125 122 117);
+}
+
+.notak-compositeur-rond:is([data-genre='valider'], [data-genre='envoyer']) {
+  background: var(--notak-fm-bleu, rgb(35 131 226));
+}
+
+.notak-compositeur-rond:disabled {
+  background: rgb(33 27 23 / 0.15);
+  cursor: default;
 }
 
 /* Sur une note de couleur, le texte d'attente est une transparence du texte, noir ou blanc selon le fond. */

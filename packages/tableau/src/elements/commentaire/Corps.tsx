@@ -76,6 +76,14 @@ interface PropsLigne {
   nonLu?: boolean
   /** Son auteur est en train d'écrire. */
   ecrit?: boolean
+  /**
+   * La fiche d'un passage commenté, en marge du texte (NOTION.md § 9, mesuré dans Notion) : les gestes du message sont
+   * des icônes dans une petite barre au survol, le champ de correction prend la place du texte, Annuler et Enregistrer
+   * dans son coin bas droit.
+   */
+  enMarge?: boolean
+  /** Des gestes en plus dans la barre au survol (ceux du fil, sur son premier message). */
+  actionsFil?: React.ReactNode
 }
 
 /**
@@ -83,7 +91,7 @@ interface PropsLigne {
  * « Modifier » au survol, qui ouvre le message dans le champ, « Enregistrer » le remplace ; `reagir` montre le « + »
  * au survol d'un message d'un autre, puis les pastilles.
  */
-export function Ligne({ message, retirer, modifier, contexte, reagir, nonLu, ecrit }: PropsLigne) {
+export function Ligne({ message, retirer, modifier, contexte, reagir, nonLu, ecrit, enMarge, actionsFil }: PropsLigne) {
   const { auteur } = message
   const maintenant = useMinute()
   const [edition, setEdition] = useState(false)
@@ -99,17 +107,38 @@ export function Ligne({ message, retirer, modifier, contexte, reagir, nonLu, ecr
   const ecrire = !!contexte && !contexte.services.lectureSeule
   const reactions = compterReactions(message.reactions, jeSuis)
   const miennes = new Set(reactions.filter((r) => r.moi).map((r) => r.emoji))
+  const ouvrirEdition = () => {
+    brouillon.current = { texte: message.texte, ...(message.riche ? { riche: message.riche } : {}) }
+    setEdition(true)
+  }
+  const barre = enMarge && !edition && (
+    <div className="notak-commentaire-survol" onPointerDown={garder}>
+      {ecrire && reagir && <BoutonAjoutReaction className="notak-commentaire-geste" choisir={reagir} posees={miennes} />}
+      {contexte && modifier && (
+        <button type="button" className="notak-commentaire-geste" aria-label={t('commentaire.modifier')} title={t('commentaire.modifier')} onClick={ouvrirEdition}>
+          <Icone nom="modifier" taille={16} />
+        </button>
+      )}
+      {retirer && (
+        <button type="button" className="notak-commentaire-geste" aria-label={t('commentaire.supprimerMessage')} title={t('commentaire.supprimerMessage')} onClick={retirer}>
+          <Icone nom="corbeille" taille={16} />
+        </button>
+      )}
+      {actionsFil}
+    </div>
+  )
   return (
     <div className="notak-commentaire-message" data-edition={edition || undefined}>
       <Avatar auteur={auteur} ecrit={ecrit} />
       <div className="notak-commentaire-corps">
+        {barre}
         <div className="notak-commentaire-entete">
           <strong title={auteur.nom}>{prenom(auteur.nom)}</strong>
           <time dateTime={date.toISOString()} title={quand}>
             {dateLisible(message.date, maintenant)}
           </time>
           {nonLu && <span className="notak-commentaire-nonlu" role="img" aria-label={t('commentaire.nonLu')} title={t('commentaire.nonLuPar', { nom: prenom(auteur.nom), quand: dateLisible(message.date, maintenant) })} />}
-          {contexte && modifier && (
+          {!enMarge && contexte && modifier && (
             <button
               type="button"
               className="notak-commentaire-modifier"
@@ -125,8 +154,8 @@ export function Ligne({ message, retirer, modifier, contexte, reagir, nonLu, ecr
               {edition ? t('commentaire.enregistrer') : t('commentaire.modifier')}
             </button>
           )}
-          {ecrire && reagir && reactions.length === 0 && auteur.id !== jeSuis && <BoutonAjoutReaction className="notak-commentaire-reagir" choisir={reagir} />}
-          {retirer && (
+          {!enMarge && ecrire && reagir && reactions.length === 0 && auteur.id !== jeSuis && <BoutonAjoutReaction className="notak-commentaire-reagir" choisir={reagir} />}
+          {!enMarge && retirer && (
             <button type="button" className="notak-commentaire-retirer" title={t('commentaire.supprimerMessage')} onPointerDown={garder} onClick={retirer}>
               <Icone nom="fermer" />
             </button>
@@ -145,7 +174,18 @@ export function Ligne({ message, retirer, modifier, contexte, reagir, nonLu, ecr
               setEdition(false)
               return true
             }}
-          />
+          >
+            {enMarge && (
+              <span className="notak-compositeur-gestes">
+                <button type="button" className="notak-compositeur-rond" data-genre="annuler" aria-label={t('commentaire.annulerModif')} title={t('commentaire.annulerModif')} onMouseDown={(e) => e.preventDefault()} onClick={() => setEdition(false)}>
+                  <Icone nom="fermer" taille={14} trait={2.5} />
+                </button>
+                <button type="button" className="notak-compositeur-rond" data-genre="valider" aria-label={t('commentaire.enregistrer')} title={t('commentaire.enregistrer')} onMouseDown={(e) => e.preventDefault()} onClick={enregistrer}>
+                  <Icone nom="coche" taille={14} trait={2.5} />
+                </button>
+              </span>
+            )}
+          </Compositeur>
         ) : (
           <div className="notak-commentaire-texte">{message.riche ? <TexteRiche riche={message.riche} /> : <p><TexteSimple texte={message.texte} /></p>}</div>
         )}

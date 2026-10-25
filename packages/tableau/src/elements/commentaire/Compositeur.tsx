@@ -39,6 +39,8 @@ export interface PoigneeCompositeur {
   inserer(texte: string): void
   focus(): void
   vider(): void
+  /** Envoie ce qui est écrit, comme Entrée (le bouton d'envoi). */
+  envoyer?(): void
 }
 
 export interface PropsCompositeur {
@@ -125,6 +127,11 @@ export function Compositeur({ contexte, initial, placeholder, autoFocus, surChan
       inserer: (texte) => void editeur?.chain().focus().insertContent(texte).run(),
       focus: () => void editeur?.commands.focus('end'),
       vider: () => void editeur?.commands.clearContent(true),
+      envoyer: () => {
+        if (!editeur) return
+        const { texte, riche } = lire(editeur)
+        if (texte) gestes.current.envoyer(texte, riche)
+      },
     }),
     [editeur],
   )
