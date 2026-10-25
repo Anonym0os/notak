@@ -120,13 +120,21 @@ et un essai vérifie que Better Auth n'y trouve rien à ajouter.
 
 Les espaces sont les organisations de Better Auth (`espaces.ts`) : ses rôles fixes gardent leurs noms anglais
 (`owner`, `admin`, `member`, et `guest` en plus), parce que ses plugins s'y réfèrent. Un tableau appartient à un
-espace (`tableaux.espace`), et la table `espaces` donne l'accueil de chacun. Le rôle sur un tableau
-(`roleEffectif`) est le meilleur de ses partages, hérités par les tableaux parents, et de ce que donne le rôle dans
-son espace. Le SSO d'un espace passe par `@better-auth/sso` ; sa découverte OIDC se fait dans `sso.ts`, sous la
+espace (`tableaux.espace`), et la table `espaces` donne l'accueil de chacun. Le SSO d'un espace passe par `@better-auth/sso` ; sa découverte OIDC se fait dans `sso.ts`, sous la
 garde réseau des aperçus de liens.
+
+Les droits sont évalués par OpenFGA, d'après le modèle `apps/serveur/autorisation/modele.fga` et ses essais
+(`modele.fga.yaml`, lancés par la CLI d'OpenFGA). Notak décrit ce que chacun a reçu en relations (objet, relation,
+sujet) dans sa table `relations`, qui reste la vérité : un partage, un tableau qui hérite de son parent, l'espace d'un
+tableau, un rôle d'espace et ce qu'il permet, une équipe, un lien public, un blocage. Chaque changement passe par la
+`boite_envoi` dans la même transaction, puis part vers OpenFGA (`autorisation.ts`) ; une vérification vide d'abord la
+boîte, et un magasin OpenFGA disparu se refait depuis la base. Les membres, rôles et équipes que Better Auth change
+sont suivis par des déclencheurs SQL (`espaces_a_synchroniser`), puis recalculés (`synchroniserEspaces`). Le modèle
+sait aussi les droits d'un élément, que la synchro ne contrôle pas encore.
 
 ## Les essais
 
 Vitest, à côté des sources (`x.ts` → `x.test.ts`), en Node par défaut, jsdom quand un fichier commence par
-`// @vitest-environment jsdom`, `fake-indexeddb` pour ce qui touche IndexedDB. Les scénarios de synchro tirés au
+`// @vitest-environment jsdom`, `fake-indexeddb` pour ce qui touche IndexedDB. Les essais du serveur démarrent
+un OpenFGA en mémoire par Docker (`vitest.openfga.ts`), ou se servent de celui que désigne `NOTAK_OPENFGA_ESSAI`. Les scénarios de synchro tirés au
 hasard (`dossier/proprietes.test.ts`) se rejouent par leur graine : `NOTAK_GRAINE=42 bun run test proprietes`.

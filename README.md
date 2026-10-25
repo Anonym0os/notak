@@ -57,15 +57,18 @@ scenarios). Contributions are welcome: start with [`CONTRIBUTING.md`](CONTRIBUTI
 
 ### The server edition (accounts, live collaboration)
 
-One container serves the app, the accounts and live collaboration on port 3005. Data (SQLite database and uploaded
-files) lives in the `/donnees` volume.
+Two containers: Notak serves the app, the accounts and live collaboration on port 3005, and
+[OpenFGA](https://openfga.dev) evaluates permissions (who can read, comment, edit or own each board). Notak's data
+(SQLite database and uploaded files) lives in the `notak-donnees` volume and is the source of truth: OpenFGA only
+holds a copy, rebuilt from it if it is ever lost.
 
 ```bash
 git clone https://github.com/Anonym0os/notak
 cd notak
-docker build -t notak .
-docker run -d -p 3005:3005 -v notak-donnees:/donnees notak
+NOTAK_ORIGINE=https://notak.example.com docker compose up -d
 ```
+
+To run the Notak image on its own, point it at an OpenFGA server with `-e NOTAK_OPENFGA_URL=http://openfga:8080`.
 
 The image expects an HTTPS reverse proxy in front of it (`Secure` cookie, client address read from
 `X-Forwarded-For`). To try it over plain HTTP on your machine: `-e NOTAK_COOKIE_SECURISE=0 -e NOTAK_RELAIS=0`.

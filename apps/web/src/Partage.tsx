@@ -1,9 +1,19 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import {
   type Acces,
+  type Blocage,
+  type EquipeEspace,
   type Moi,
+  type NiveauLien,
   type Role,
+  type RoleDonne,
   adressePublique,
+  bloquer,
+  definirNiveauLien,
+  listerBlocages,
+  listerEquipes,
+  listerEspaces,
+  niveauLien,
   creerLienPublic,
   etatVerrou,
   lienPublic,
@@ -24,7 +34,15 @@ import { usePanneau } from './panneaux'
 const LIBELLE_ROLE: Record<Role, () => string> = {
   proprietaire: () => t('partage.proprietaire'),
   edition: () => t('partage.edition'),
+  commentaire: () => t('partage.commentaire'),
   lecture: () => t('partage.lecture'),
+}
+
+/** Les équipes des espaces d'équipe dont on est membre : on peut leur partager un tableau. */
+async function equipesPossibles(): Promise<(EquipeEspace & { espace: string })[]> {
+  const espaces = (await listerEspaces()).filter((e) => !e.personnel)
+  const listes = await Promise.all(espaces.map(async (e) => (await listerEquipes(e.id).catch(() => [])).map((q) => ({ ...q, espace: e.nom }))))
+  return listes.flat()
 }
 
 /** Le bouton « Partager » et son panneau : qui a accès à ce tableau, et l'invitation d'une adresse. */
@@ -45,8 +63,14 @@ function Panneau({ tableau, moi, reference }: { tableau: string; moi: Moi; refer
   const [acces, setAcces] = useState<Acces[] | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
   const [email, setEmail] = useState('')
-  const [role, setRole] = useState<'edition' | 'lecture'>('edition')
+  const [role, setRole] = useState<RoleDonne>('edition')
+  // À qui : une adresse (`''`) ou une équipe (son identifiant).
+  const [equipe, setEquipe] = useState('')
+  const [equipes, setEquipes] = useState<(EquipeEspace & { espace: string })[]>([])
   const [occupe, setOccupe] = useState(false)
+  useEffect(() => {
+    void equipesPossibles().then(setEquipes, () => {})
+  }, [])
 
   const charger = useCallback(() => {
     listerAcces(tableau).then(setAcces, (x: Error) => setErreur(x.message))
@@ -70,10 +94,11 @@ function Panneau({ tableau, moi, reference }: { tableau: string; moi: Moi; refer
 
   const inviter = (e: FormEvent) => {
     e.preventDefault()
+    if (equipe) return void agir(() => partager(tableau, { equipe }, role))
     const adresse = email.trim().toLowerCase()
     if (!adresse.includes('@')) return setErreur(t('connexion.adresseInvalide'))
     void agir(async () => {
-      await partager(tableau, adresse, role)
+      await partager(tableau, { email: adresse }, role)
       setEmail('')
     })
   }
@@ -82,10 +107,10 @@ function Panneau({ tableau, moi, reference }: { tableau: string; moi: Moi; refer
     <div className="partage-panneau" ref={reference} role="dialog" aria-label={t('partage.titre')}>
       <ul className="partage-liste">
         {acces?.map((a) => (
-          <li key={a.email}>
+          <li key={a.equipe ?? a.email}>
             <span className="partage-qui">
               <strong>{a.nom || a.email}</strong>
-              {a.nom && <small>{a.email}</small>}
+              {a.equipe ? <small>{t('partage.equipe')}</small> : a.nom && <small>{a.email}</small>}
             </span>
             <span className="partage-role">
               {LIBELLE_ROLE[a.role]()}
@@ -97,7 +122,7 @@ function Panneau({ tableau, moi, reference }: { tableau: string; moi: Moi; refer
                 type="button"
                 className="bouton-lien"
                 disabled={occupe}
-                onClick={() => agir(() => retirerAcces(tableau, a.email))}
+                onClick={() => agir(() => retirerAcces(tableau, a.equipe ? { equipe: a.equipe } : { email: a.email }))}
               >
                 {t('partage.retirer')}
               </button>
@@ -108,15 +133,28 @@ function Panneau({ tableau, moi, reference }: { tableau: string; moi: Moi; refer
       </ul>
       {(proprietaire || acces === null) && (
         <form className="partage-form" onSubmit={inviter} noValidate>
-          <input
-            type="email"
-            placeholder={t('connexion.adresse')}
-            aria-label={t('partage.adresseInviter')}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <select value={role} aria-label={t('partage.droit')} onChange={(e) => setRole(e.target.value as 'edition' | 'lecture')}>
+          {equipes.length > 0 && (
+            <select className="partage-cible" value={equipe} aria-label={t('partage.aQui')} onChange={(e) => setEquipe(e.target.value)}>
+              <option value="">{t('partage.uneAdresse')}</option>
+              {equipes.map((q) => (
+                <option key={q.id} value={q.id}>
+                  {q.name} · {q.espace}
+                </option>
+              ))}
+            </select>
+          )}
+          {!equipe && (
+            <input
+              type="email"
+              placeholder={t('connexion.adresse')}
+              aria-label={t('partage.adresseInviter')}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          )}
+          <select value={role} aria-label={t('partage.droit')} onChange={(e) => setRole(e.target.value as RoleDonne)}>
             <option value="edition">{t('partage.edition')}</option>
+            <option value="commentaire">{t('partage.commentaire')}</option>
             <option value="lecture">{t('partage.lecture')}</option>
           </select>
           <button type="submit" className="bouton bouton-plein" disabled={occupe}>
@@ -125,6 +163,7 @@ function Panneau({ tableau, moi, reference }: { tableau: string; moi: Moi; refer
         </form>
       )}
       {proprietaire && <MotDePasse tableau={tableau} />}
+      {proprietaire && <Blocages tableau={tableau} />}
       {proprietaire && <LienPublic tableau={tableau} />}
       {acces && !proprietaire && <p className="partage-note">{t('partage.seulProprio')}</p>}
       {erreur && (
@@ -256,6 +295,7 @@ function LienPublic({ tableau }: { tableau: string }) {
               {copie ? t('partage.copie') : t('partage.copier')}
             </button>
           </div>
+          <NiveauDuLien tableau={tableau} />
           <MotDePasseDuLien tableau={tableau} />
           <button type="button" className="bouton-lien" disabled={occupe} onClick={() => agir(async () => (await retirerLienPublic(tableau), null))}>
             {t('partage.fermerLien')}
@@ -319,6 +359,119 @@ function MotDePasseDuLien({ tableau }: { tableau: string }) {
           {t('partage.retirerMdpLien')}
         </button>
       )}
+      {erreur && (
+        <p className="connexion-erreur" role="alert">
+          {erreur}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** Ce que permet le lien : lire, commenter ou modifier, sans compte. */
+function NiveauDuLien({ tableau }: { tableau: string }) {
+  const [niveau, setNiveau] = useState<NiveauLien | null>(null)
+  const [erreur, setErreur] = useState<string | null>(null)
+  useEffect(() => {
+    niveauLien(tableau).then(setNiveau, (x: Error) => setErreur(x.message))
+  }, [tableau])
+  return (
+    <label className="partage-niveau">
+      <span className="partage-note">{t('partage.lienPermet')}</span>
+      <select
+        value={niveau ?? 'lecture'}
+        disabled={niveau === null}
+        onChange={(e) => {
+          const n = e.target.value as NiveauLien
+          setErreur(null)
+          definirNiveauLien(tableau, n).then(() => setNiveau(n), (x: Error) => setErreur(x.message))
+        }}
+      >
+        <option value="lecture">{t('partage.lienLire')}</option>
+        <option value="commentaire">{t('partage.lienCommenter')}</option>
+        <option value="edition">{t('partage.lienModifier')}</option>
+      </select>
+      {erreur && (
+        <span className="connexion-erreur" role="alert">
+          {erreur}
+        </span>
+      )}
+    </label>
+  )
+}
+
+const nomDuBlocage = (b: Blocage) => ('tous' in b ? t('partage.tousLeMonde') : b.nom)
+
+/**
+ * Bloquer le tableau (et ce qu'il contient) pour tout le monde sauf ses propriétaires ; un blocage venu d'un tableau
+ * au-dessus se lève ici pour quelqu'un.
+ */
+function Blocages({ tableau }: { tableau: string }) {
+  const [blocages, setBlocages] = useState<Blocage[] | null>(null)
+  const [erreur, setErreur] = useState<string | null>(null)
+  const [email, setEmail] = useState('')
+  const [occupe, setOccupe] = useState(false)
+  const charger = useCallback(() => {
+    listerBlocages(tableau).then(setBlocages, (x: Error) => setErreur(x.message))
+  }, [tableau])
+  useEffect(charger, [charger])
+  const agir = async (f: () => Promise<void>) => {
+    setErreur(null)
+    setOccupe(true)
+    try {
+      await f()
+      charger()
+    } catch (x) {
+      setErreur(x instanceof Error ? x.message : t('commun.echec'))
+    } finally {
+      setOccupe(false)
+    }
+  }
+  const pourTous = blocages?.some((b) => 'tous' in b && b.etat === 'bloque') ?? false
+  const lever = (e: FormEvent) => {
+    e.preventDefault()
+    const adresse = email.trim().toLowerCase()
+    if (!adresse.includes('@')) return setErreur(t('connexion.adresseInvalide'))
+    void agir(async () => {
+      await bloquer(tableau, { email: adresse }, 'debloque')
+      setEmail('')
+    })
+  }
+  return (
+    <div className="partage-lien">
+      <strong>{t('partage.blocage')}</strong>
+      <span className="partage-note">{t(pourTous ? 'partage.blocageActif' : 'partage.blocageNote')}</span>
+      <button type="button" className="bouton" disabled={occupe || blocages === null} onClick={() => agir(() => bloquer(tableau, { tous: true }, pourTous ? null : 'bloque'))}>
+        {t(pourTous ? 'partage.debloquerTous' : 'partage.bloquerTous')}
+      </button>
+      {blocages && blocages.filter((b) => !('tous' in b)).length > 0 && (
+        <ul className="partage-liste">
+          {blocages
+            .filter((b) => !('tous' in b))
+            .map((b) => (
+              <li key={'email' in b ? b.email : 'equipe' in b ? b.equipe : 'tous'}>
+                <span className="partage-qui">
+                  <strong>{nomDuBlocage(b)}</strong>
+                </span>
+                <span className="partage-role">{t(b.etat === 'bloque' ? 'partage.bloque' : 'partage.debloque')}</span>
+                <button
+                  type="button"
+                  className="bouton-lien"
+                  disabled={occupe}
+                  onClick={() => agir(() => bloquer(tableau, 'email' in b ? { email: b.email } : { equipe: (b as { equipe: string }).equipe }, null))}
+                >
+                  {t('partage.retirer')}
+                </button>
+              </li>
+            ))}
+        </ul>
+      )}
+      <form className="partage-lien-ligne" onSubmit={lever} noValidate>
+        <input type="email" placeholder={t('connexion.adresse')} aria-label={t('partage.leverPour')} value={email} onChange={(e) => setEmail(e.target.value)} />
+        <button type="submit" className="bouton" disabled={occupe || !email}>
+          {t('partage.lever')}
+        </button>
+      </form>
       {erreur && (
         <p className="connexion-erreur" role="alert">
           {erreur}

@@ -1,4 +1,5 @@
-# Notak en un seul conteneur : le serveur Node sert l'API, la synchro (/sync) et l'application web construite.
+# Le conteneur de Notak : le serveur Node sert l'API, la synchro (/sync) et l'application web construite. Les droits
+# sont évalués par OpenFGA, un second conteneur (voir docker-compose.yml) que désigne NOTAK_OPENFGA_URL.
 
 FROM oven/bun:1.3.12 AS construction
 WORKDIR /notak
@@ -30,6 +31,7 @@ COPY --from=dependances /notak/node_modules ./node_modules
 COPY --from=dependances /notak/apps/serveur/node_modules ./apps/serveur/node_modules
 COPY apps/serveur/package.json apps/serveur/
 COPY apps/serveur/src apps/serveur/src
+COPY apps/serveur/autorisation apps/serveur/autorisation
 COPY packages/tableau/src packages/tableau/src
 COPY --from=construction /notak/apps/web/dist ./web
 RUN mkdir -p /donnees && chown node:node /donnees

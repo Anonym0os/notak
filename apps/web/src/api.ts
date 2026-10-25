@@ -11,10 +11,15 @@ export interface Moi {
   photo: string | null
 }
 
-export type Role = 'proprietaire' | 'edition' | 'lecture'
+export type Role = 'proprietaire' | 'edition' | 'commentaire' | 'lecture'
+
+/** Ce qu'on peut donner en partageant : tout sauf la propriété. */
+export type RoleDonne = 'edition' | 'commentaire' | 'lecture'
 
 export interface Acces {
   utilisateur?: string
+  /** Une équipe d'un espace à qui le tableau est partagé (son nom est alors dans `nom`, et `email` est vide). */
+  equipe?: string
   email: string
   nom?: string
   role: Role
@@ -281,13 +286,16 @@ export async function listerAcces(tableau: string): Promise<Acces[]> {
   return (await r.json()) as Acces[]
 }
 
-export async function partager(tableau: string, email: string, role: 'edition' | 'lecture'): Promise<void> {
-  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/partage`, { email, role })
+/** À qui on partage : une adresse, ou une équipe. */
+export type Cible = { email: string } | { equipe: string }
+
+export async function partager(tableau: string, cible: Cible, role: RoleDonne): Promise<void> {
+  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/partage`, { ...cible, role })
   if (!r.ok) throw await refus(r, { demande_invalide: 'erreur.adresse_invalide', 400: 'erreur.adresse_invalide', ...PROPRIETAIRE, ...TABLEAU_ABSENT })
 }
 
-export async function retirerAcces(tableau: string, email: string): Promise<void> {
-  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/partage`, { email }, 'DELETE')
+export async function retirerAcces(tableau: string, cible: Cible): Promise<void> {
+  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/partage`, cible, 'DELETE')
   if (!r.ok) throw await refus(r, { 409: 'erreur.dernier_proprietaire', ...PROPRIETAIRE, ...TABLEAU_ABSENT })
 }
 
@@ -304,6 +312,34 @@ export async function creerLienPublic(tableau: string): Promise<string> {
   const r = await appeler(lienDe(tableau), {})
   if (!r.ok) throw await refus(r, { ...PROPRIETAIRE, ...TABLEAU_ABSENT })
   return ((await r.json()) as { jeton: string }).jeton
+}
+
+export type NiveauLien = 'lecture' | 'commentaire' | 'edition'
+
+/** Ce que permet le lien public : lire, commenter, ou modifier. */
+export async function niveauLien(tableau: string): Promise<NiveauLien | null> {
+  const r = await appeler(lienDe(tableau))
+  if (!r.ok) throw await refus(r, { ...PROPRIETAIRE, ...TABLEAU_ABSENT })
+  return ((await r.json()) as { niveau: NiveauLien | null }).niveau
+}
+
+export async function definirNiveauLien(tableau: string, niveau: NiveauLien): Promise<void> {
+  const r = await appeler(`${lienDe(tableau)}/niveau`, { niveau }, 'PUT')
+  if (!r.ok) throw await refus(r, { ...PROPRIETAIRE, ...TABLEAU_ABSENT })
+}
+
+/** Un blocage posé sur un tableau : pour tous, une personne ou une équipe ; `debloque` lève plus bas celui d'au-dessus. */
+export type Blocage = ({ tous: true } | { email: string; nom: string } | { equipe: string; nom: string }) & { etat: 'bloque' | 'debloque' }
+
+export async function listerBlocages(tableau: string): Promise<Blocage[]> {
+  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/blocage`)
+  if (!r.ok) throw await refus(r, { ...PROPRIETAIRE, ...TABLEAU_ABSENT })
+  return (await r.json()) as Blocage[]
+}
+
+export async function bloquer(tableau: string, sujet: { tous: true } | Cible, etat: 'bloque' | 'debloque' | null): Promise<void> {
+  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/blocage`, { ...sujet, etat })
+  if (!r.ok) throw await refus(r, { ...PROPRIETAIRE, ...TABLEAU_ABSENT })
 }
 
 export async function retirerLienPublic(tableau: string): Promise<void> {
