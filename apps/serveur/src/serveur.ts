@@ -40,6 +40,8 @@ export interface OptionsServeur {
   instance?: Instance
   /** La clé du chiffrement au repos (`NOTAK_CLE` ou `NOTAK_CLE_FICHIER`) ; sans elle, rien n'est chiffré. */
   cle?: Cle | null
+  /** Où ranger les signalements de bugs ; absent, on ne les reçoit pas. */
+  dossierSignalements?: string | null
 }
 
 export interface ServeurDemarre {
@@ -104,6 +106,7 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     dossierWeb: options.dossierWeb,
     ...(options.instance ? { instance: options.instance } : {}),
     cle,
+    dossierSignalements: options.dossierSignalements ?? null,
   })
 
   hocuspocus = creerHocuspocus(base, auth, autorisation)

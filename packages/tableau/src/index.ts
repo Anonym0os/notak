@@ -49,7 +49,7 @@ export {
   nomDeFichier,
   ouvrirExport,
 } from './export/sujet'
-export { type Capture, capturerToile, enBlob, pdfDeCapture, reglerCapture } from './export/capture'
+export { type Capture, capturerEcran, capturerToile, enBlob, pdfDeCapture, reglerCapture } from './export/capture'
 export { A4, octetsDeDataUrl, pdfDePages, pdfDepuisJpeg } from './export/pdf'
 export { type Arrivee, decomposerArrivee, elementsArrives, elementsDeTexte, poserDansNonTries } from './arrivee'
 export * from './modeles'

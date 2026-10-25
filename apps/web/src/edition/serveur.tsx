@@ -34,6 +34,7 @@ import { PagePublique } from '../PagePublique'
 import { Partage } from '../Partage'
 import { PlusEntete } from '../PlusEntete'
 import { enregistrerServiceWorker } from '../pwa'
+import { brancherSignaler } from '../signaler/Signaler'
 import { VerrouTableau } from '../Verrou'
 import { t } from '../langue'
 import { adressePour } from '../adresse'
@@ -331,6 +332,8 @@ function BandeauImport({ moi, espace }: { moi: Moi; espace: EspaceDistant }) {
 /** `/p/<jeton>` : un tableau publié, lu sans compte. */
 const publie = /^\/p\/([A-Za-z0-9_-]+)\/?$/.exec(location.pathname)
 enregistrerServiceWorker()
+// ⌥⌘S, partout : un bug se signale sans quitter ce qu'on fait (`signaler/Signaler.tsx`).
+brancherSignaler()
 
 createRoot(document.getElementById('racine')!).render(
   <StrictMode>{publie ? <PagePublique jeton={publie[1]!} /> : <Application />}</StrictMode>,

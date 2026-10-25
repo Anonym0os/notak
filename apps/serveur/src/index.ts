@@ -37,6 +37,8 @@ try {
     dossierWeb: process.env.NOTAK_WEB,
     instance: instanceDe(process.env, dossier),
     cle,
+    // Les signalements de bugs (⇧⌘S) : d'office en développement, dans les données ; ailleurs, là où le dit l'instance.
+    dossierSignalements: process.env.NOTAK_SIGNALEMENTS || (origine ? null : join(dossier, 'signalements')),
   })
 } catch (e) {
   if (!(e instanceof ErreurChiffrement)) throw e

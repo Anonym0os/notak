@@ -31,6 +31,7 @@ import { TYPE_NOTAK, ecrireCopie } from './copie.ts'
 import { nomDuDocument } from './synchro.ts'
 import { largeurDemandee, nomReduit, reduire, reductible } from './tailles.ts'
 import { INSTANCE_PAR_DEFAUT, type Instance } from './instance.ts'
+import { CAPTURE_MAX, CONTEXTE_MAX, TEXTE_MAX, deposerSignalement } from './signalements.ts'
 import { verrouPar } from './verrou.ts'
 import { creerZip, nommerLesMedias } from './zip.ts'
 
@@ -59,6 +60,8 @@ export interface Contexte {
   instance?: Instance
   /** La clé du chiffrement au repos : les fichiers déposés et leurs copies réduites sont écrits chiffrés. */
   cle?: Cle | null
+  /** Où ranger les signalements de bugs (⇧⌘S) ; absent, la route n'existe pas. */
+  dossierSignalements?: string | null
 }
 
 export interface MoyensConnexion {
@@ -1176,6 +1179,38 @@ export function creerApp(ctx: Contexte): Hono {
         ? c.json({ erreur: 'recherche d’images non configurée', code: 'images_non_configurees' }, 503)
         : c.json({ erreur: 'recherche d’images indisponible', code: 'images_indisponibles' }, 502)
     }
+  })
+
+  // ---- Signalements de bugs ----
+  // ⇧⌘S dans l'app : les mots, le contexte relevé et la capture (en base64), rangés en dossier (`signalements.ts`).
+  // Sans dossier réglé (`NOTAK_SIGNALEMENTS`, ou le développement), la route répond comme une route qui n'existe pas.
+
+  app.post('/api/signalements', async (c) => {
+    const dossier = ctx.dossierSignalements
+    if (!dossier) return c.json({ erreur: 'signalements fermés', code: 'signalements_fermes' }, 404)
+    const u = await utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    const max = Math.ceil((CAPTURE_MAX * 4) / 3) + CONTEXTE_MAX * 4 + TEXTE_MAX * 4 + 1024
+    const octets = await lireBorne(c.req.raw.body, max)
+    if (octets === 'trop gros') return c.json({ erreur: 'trop gros', code: 'trop_gros' }, 413)
+    let b: Record<string, unknown> | null = null
+    try {
+      const v: unknown = octets ? JSON.parse(octets.toString('utf8')) : null
+      if (v && typeof v === 'object' && !Array.isArray(v)) b = v as Record<string, unknown>
+    } catch {
+      b = null
+    }
+    if (!b) return c.json({ erreur: 'corps illisible', code: 'corps_illisible' }, 400)
+    const capture = typeof b.capture === 'string' && b.capture ? Buffer.from(b.capture.replace(/^data:image\/png;base64,/, ''), 'base64') : null
+    if (capture && capture.length > CAPTURE_MAX) return c.json({ erreur: 'trop gros', code: 'trop_gros' }, 413)
+    const id = await deposerSignalement(dossier, {
+      texte: texte(b.texte).slice(0, TEXTE_MAX),
+      contexte: texte(b.contexte).slice(0, CONTEXTE_MAX),
+      capture: capture && capture.length > 0 ? capture : null,
+      auteur: { nom: u.nom, email: u.email },
+      quand: new Date(ctx.maintenant()),
+    })
+    return c.json({ id }, 201)
   })
 
   // ---- Jetons d'arrivée ----
