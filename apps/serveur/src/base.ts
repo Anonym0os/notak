@@ -1,5 +1,6 @@
 import { DatabaseSync } from 'node:sqlite'
 import type { Acces, Role } from './droits.ts'
+import { migrer } from './migrations.ts'
 
 // Tout le SQL du serveur vit ici : passer à Postgres, c'est réécrire ce fichier.
 
@@ -205,108 +206,13 @@ export const RECENTS_GARDES = 50
 export const ACTIVITE_GARDEE = 500
 export const NOTIFICATIONS_GARDEES = 200
 
-const SCHEMA = `
-CREATE TABLE IF NOT EXISTS utilisateurs (
-  id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, nom TEXT NOT NULL,
-  hash TEXT NOT NULL, couleur TEXT NOT NULL, racine TEXT NOT NULL, photo TEXT
-);
-CREATE TABLE IF NOT EXISTS sessions (
-  empreinte TEXT PRIMARY KEY, utilisateur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
-  expire INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS tableaux (
-  id TEXT PRIMARY KEY, titre TEXT NOT NULL, proprietaire TEXT NOT NULL REFERENCES utilisateurs(id),
-  parent TEXT
-);
-CREATE TABLE IF NOT EXISTS acces (
-  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
-  utilisateur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
-  role TEXT NOT NULL CHECK (role IN ('lecture','edition','proprietaire')),
-  PRIMARY KEY (tableau, utilisateur)
-);
-CREATE INDEX IF NOT EXISTS acces_utilisateur ON acces(utilisateur);
-CREATE TABLE IF NOT EXISTS invitations (
-  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
-  email TEXT NOT NULL,
-  role TEXT NOT NULL CHECK (role IN ('lecture','edition','proprietaire')),
-  PRIMARY KEY (tableau, email)
-);
-CREATE INDEX IF NOT EXISTS invitations_email ON invitations(email);
-CREATE TABLE IF NOT EXISTS documents (nom TEXT PRIMARY KEY, etat BLOB NOT NULL);
-CREATE TABLE IF NOT EXISTS fichiers (
-  id TEXT PRIMARY KEY, type TEXT NOT NULL, taille INTEGER NOT NULL,
-  auteur TEXT NOT NULL REFERENCES utilisateurs(id)
-);
-CREATE TABLE IF NOT EXISTS favoris (
-  utilisateur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
-  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
-  cree INTEGER NOT NULL,
-  PRIMARY KEY (utilisateur, tableau)
-);
-CREATE TABLE IF NOT EXISTS recents (
-  utilisateur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
-  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
-  vu INTEGER NOT NULL,
-  PRIMARY KEY (utilisateur, tableau)
-);
-CREATE INDEX IF NOT EXISTS recents_vu ON recents(utilisateur, vu DESC);
-CREATE TABLE IF NOT EXISTS mots_de_passe (
-  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
-  portee TEXT NOT NULL CHECK (portee IN ('tableau','public')),
-  empreinte TEXT NOT NULL,
-  PRIMARY KEY (tableau, portee)
-);
-CREATE TABLE IF NOT EXISTS ouvertures (
-  utilisateur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
-  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
-  PRIMARY KEY (utilisateur, tableau)
-);
-CREATE TABLE IF NOT EXISTS acces_publics (
-  empreinte TEXT PRIMARY KEY, tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE, expire INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS jetons_arrivee (
-  id TEXT PRIMARY KEY, utilisateur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
-  nom TEXT NOT NULL, empreinte TEXT NOT NULL UNIQUE, cree INTEGER NOT NULL, dernier_usage INTEGER
-);
-CREATE INDEX IF NOT EXISTS jetons_arrivee_utilisateur ON jetons_arrivee(utilisateur, cree);
-CREATE VIRTUAL TABLE IF NOT EXISTS recherche USING fts5(
-  tableau UNINDEXED, element UNINDEXED, texte, tokenize = 'unicode61 remove_diacritics 2'
-);
-CREATE TABLE IF NOT EXISTS recherche_etat (tableau TEXT PRIMARY KEY);
-CREATE TABLE IF NOT EXISTS activite (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
-  auteur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
-  genre TEXT NOT NULL, element TEXT NOT NULL, type_element TEXT NOT NULL, libelle TEXT NOT NULL,
-  instant INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS activite_tableau ON activite(tableau, id DESC);
-CREATE TABLE IF NOT EXISTS notifications (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  destinataire TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
-  genre TEXT NOT NULL,
-  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
-  element TEXT NOT NULL,
-  auteur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
-  extrait TEXT NOT NULL, instant INTEGER NOT NULL, lu INTEGER NOT NULL DEFAULT 0
-);
-CREATE INDEX IF NOT EXISTS notifications_destinataire ON notifications(destinataire, id DESC);
-CREATE TABLE IF NOT EXISTS liens_publics (
-  tableau TEXT PRIMARY KEY REFERENCES tableaux(id) ON DELETE CASCADE,
-  jeton TEXT NOT NULL UNIQUE, cree INTEGER NOT NULL
-);
-`
 
 type Ligne = Record<string, unknown>
 
 export function ouvrirBase(chemin: string): Base {
   const db = new DatabaseSync(chemin)
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;')
-  db.exec(SCHEMA)
-  // Une base d'avant la photo : la colonne s'ajoute, les comptes existants n'en ont pas.
-  if (!(db.prepare('PRAGMA table_info(utilisateurs)').all() as { name: string }[]).some((c) => c.name === 'photo')) {
-    db.exec('ALTER TABLE utilisateurs ADD COLUMN photo TEXT')
-  }
+  migrer(db, chemin === ':memory:' ? undefined : (version) => `${chemin}.avant-${version}`)
 
   const tous = (sql: string, ...params: (string | number | Uint8Array)[]): Ligne[] =>
     db.prepare(sql).all(...params) as Ligne[]

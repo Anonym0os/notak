@@ -1,0 +1,149 @@
+import { existsSync } from 'node:fs'
+import type { DatabaseSync } from 'node:sqlite'
+
+// Le schéma de la base, migration par migration. La base retient la dernière appliquée dans `PRAGMA user_version` ;
+// à l'ouverture, celles qui manquent passent dans l'ordre, chacune dans sa transaction. Une migration publiée ne se
+// réécrit plus : on en ajoute une.
+
+export interface Migration {
+  version: number
+  nom: string
+  appliquer(db: DatabaseSync): void
+}
+
+const colonnes = (db: DatabaseSync, table: string) =>
+  new Set((db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name))
+
+export const MIGRATIONS: readonly Migration[] = [
+  {
+    version: 1,
+    nom: 'schéma initial',
+    // Écrite pour passer aussi sur une base d'avant les migrations : tout y est « si absent ».
+    appliquer(db) {
+      db.exec(`
+CREATE TABLE IF NOT EXISTS utilisateurs (
+  id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, nom TEXT NOT NULL,
+  hash TEXT NOT NULL, couleur TEXT NOT NULL, racine TEXT NOT NULL, photo TEXT
+);
+CREATE TABLE IF NOT EXISTS sessions (
+  empreinte TEXT PRIMARY KEY, utilisateur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  expire INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS tableaux (
+  id TEXT PRIMARY KEY, titre TEXT NOT NULL, proprietaire TEXT NOT NULL REFERENCES utilisateurs(id),
+  parent TEXT
+);
+CREATE TABLE IF NOT EXISTS acces (
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  utilisateur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('lecture','edition','proprietaire')),
+  PRIMARY KEY (tableau, utilisateur)
+);
+CREATE INDEX IF NOT EXISTS acces_utilisateur ON acces(utilisateur);
+CREATE TABLE IF NOT EXISTS invitations (
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('lecture','edition','proprietaire')),
+  PRIMARY KEY (tableau, email)
+);
+CREATE INDEX IF NOT EXISTS invitations_email ON invitations(email);
+CREATE TABLE IF NOT EXISTS documents (nom TEXT PRIMARY KEY, etat BLOB NOT NULL);
+CREATE TABLE IF NOT EXISTS fichiers (
+  id TEXT PRIMARY KEY, type TEXT NOT NULL, taille INTEGER NOT NULL,
+  auteur TEXT NOT NULL REFERENCES utilisateurs(id)
+);
+CREATE TABLE IF NOT EXISTS favoris (
+  utilisateur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  cree INTEGER NOT NULL,
+  PRIMARY KEY (utilisateur, tableau)
+);
+CREATE TABLE IF NOT EXISTS recents (
+  utilisateur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  vu INTEGER NOT NULL,
+  PRIMARY KEY (utilisateur, tableau)
+);
+CREATE INDEX IF NOT EXISTS recents_vu ON recents(utilisateur, vu DESC);
+CREATE TABLE IF NOT EXISTS mots_de_passe (
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  portee TEXT NOT NULL CHECK (portee IN ('tableau','public')),
+  empreinte TEXT NOT NULL,
+  PRIMARY KEY (tableau, portee)
+);
+CREATE TABLE IF NOT EXISTS ouvertures (
+  utilisateur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  PRIMARY KEY (utilisateur, tableau)
+);
+CREATE TABLE IF NOT EXISTS acces_publics (
+  empreinte TEXT PRIMARY KEY, tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE, expire INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS jetons_arrivee (
+  id TEXT PRIMARY KEY, utilisateur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  nom TEXT NOT NULL, empreinte TEXT NOT NULL UNIQUE, cree INTEGER NOT NULL, dernier_usage INTEGER
+);
+CREATE INDEX IF NOT EXISTS jetons_arrivee_utilisateur ON jetons_arrivee(utilisateur, cree);
+CREATE VIRTUAL TABLE IF NOT EXISTS recherche USING fts5(
+  tableau UNINDEXED, element UNINDEXED, texte, tokenize = 'unicode61 remove_diacritics 2'
+);
+CREATE TABLE IF NOT EXISTS recherche_etat (tableau TEXT PRIMARY KEY);
+CREATE TABLE IF NOT EXISTS activite (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  auteur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  genre TEXT NOT NULL, element TEXT NOT NULL, type_element TEXT NOT NULL, libelle TEXT NOT NULL,
+  instant INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS activite_tableau ON activite(tableau, id DESC);
+CREATE TABLE IF NOT EXISTS notifications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  destinataire TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  genre TEXT NOT NULL,
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  element TEXT NOT NULL,
+  auteur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  extrait TEXT NOT NULL, instant INTEGER NOT NULL, lu INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS notifications_destinataire ON notifications(destinataire, id DESC);
+CREATE TABLE IF NOT EXISTS liens_publics (
+  tableau TEXT PRIMARY KEY REFERENCES tableaux(id) ON DELETE CASCADE,
+  jeton TEXT NOT NULL UNIQUE, cree INTEGER NOT NULL
+);
+`)
+      // Une base d'avant la photo : la colonne s'ajoute, les comptes existants n'en ont pas.
+      if (!colonnes(db, 'utilisateurs').has('photo')) db.exec('ALTER TABLE utilisateurs ADD COLUMN photo TEXT')
+    },
+  },
+]
+
+/** La version de schéma de cette base : 0 pour une base neuve ou d'avant les migrations. */
+export const versionDe = (db: DatabaseSync) => Number((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version)
+
+/** Une base qui a déjà des tables : il y a quelque chose à sauvegarder avant d'y toucher. */
+const aDesDonnees = (db: DatabaseSync) => db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' LIMIT 1").get() !== undefined
+
+/**
+ * Applique les migrations qui manquent. Avant chacune, si `sauvegarde` est donné et que la base a déjà des données,
+ * une copie cohérente est écrite à `sauvegarde(version)` (par `VACUUM INTO`, sûr en WAL). Une copie qui existe déjà
+ * est gardée : elle vient d'un essai précédent qui a échoué, c'est elle qui tient la base d'avant.
+ */
+export function migrer(db: DatabaseSync, sauvegarde?: (version: number) => string, migrations: readonly Migration[] = MIGRATIONS) {
+  const depart = versionDe(db)
+  const derniere = migrations.at(-1)?.version ?? 0
+  if (depart > derniere) throw new Error(`La base est en version ${depart}, ce serveur ne connaît que la ${derniere} : il est plus ancien qu'elle.`)
+  for (const m of migrations) {
+    if (m.version <= depart) continue
+    const copie = sauvegarde?.(m.version)
+    if (copie && !existsSync(copie) && aDesDonnees(db)) db.prepare('VACUUM INTO ?').run(copie)
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      m.appliquer(db)
+      db.exec(`PRAGMA user_version = ${m.version}`)
+      db.exec('COMMIT')
+    } catch (e) {
+      db.exec('ROLLBACK')
+      throw new Error(`Migration ${m.version} (${m.nom}) : ${(e as Error).message}`, { cause: e })
+    }
+  }
+}
