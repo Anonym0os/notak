@@ -85,9 +85,9 @@
 
 .notak-arbre-nom {
   display: flex;
-  min-width: 100px;
-  /* Le fil, et le retour et le panneau qui ouvrent son îlot. */
-  max-width: 440px;
+  flex: 0 1 auto;
+  align-items: center;
+  min-width: 0;
 }
 
 /* « Lecture seule », dans l'îlot du fil, après le titre. */
@@ -169,18 +169,8 @@
 }
 
 /* Le titre cède sa place en premier, quand la barre le touche : rien ne se recouvre. */
-/* Le titre se replie : l'îlot ne garde que le retour et le panneau. */
-.notak-arbre-scene:has(> .notak-arbre-outils[data-titre='replie']) .notak-arbre-nom :is(.notak-fil-ecran > :not(.notak-fil-tete), .notak-fil-tete > .notak-ilot-filet:last-child) {
-  display: none;
-}
-
-.notak-arbre-scene:has(> .notak-arbre-outils[data-titre='replie']) .notak-arbre-nom .notak-fil-ecran {
-  min-width: 0;
-  padding-right: 3px;
-}
-
 .notak-arbre-scene:has(> .notak-arbre-outils[data-titre='replie']) .notak-arbre-nom {
-  min-width: 0;
+  display: none;
 }
 
 .notak-arbre-droite {

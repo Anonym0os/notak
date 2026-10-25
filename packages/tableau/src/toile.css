@@ -565,7 +565,7 @@
   pointer-events: none;
 }
 
-.notak-entete-gauche > :not(.notak-fil),
+.notak-entete-gauche > *,
 .notak-entete-droite > *,
 .notak-fil > * {
   pointer-events: auto;
@@ -608,10 +608,10 @@
   min-width: 0;
 }
 
-/* Le fil prend la place que laissent les îlots ; son îlot s'y ajuste, sans rogner le menu des maillons cachés. */
-.notak-entete-gauche > .notak-fil {
-  flex: 1 1 0;
-  min-width: 0;
+/* L'îlot du fil prend au plus la place que laissent les îlots de droite (ilots.css), sans rogner le menu des maillons
+   cachés. */
+.notak-entete-gauche > .notak-ilot-fil {
+  flex: 0 1 auto;
 }
 
 .notak-entete-droite {

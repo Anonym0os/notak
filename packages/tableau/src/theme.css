@@ -41,7 +41,8 @@
   opacity: 1;
 }
 
-.notak-espace[data-theme='sombre'] .notak-fil-segment,
+/* Le chemin du fil, aussi dans le document et la carte ouverts en grand (leur surcouche porte le thème). */
+[data-theme='sombre'] .notak-fil-segment,
 .notak-espace[data-theme='sombre'] .notak-outil-libelle,
 .notak-espace[data-theme='sombre'] .notak-renvoi-info {
   color: rgb(255 255 255 / 0.62);
