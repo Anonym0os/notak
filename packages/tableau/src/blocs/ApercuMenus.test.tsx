@@ -119,11 +119,12 @@ describe('NOTION.md § 2.2 : « Aperçu de lien web » dans le menu « / »', ()
 describe('NOTION.md § 10.3 : le menu « coller comme »', () => {
   const collerUrl = (ed: Editor) => act(async () => void coller(ed.view, { texte: URL1, html: '', notak: '', vscode: '' }, false))
 
-  it('s’ouvre sous le lien collé avec « Lien » (défaut) et « Aperçu »', async () => {
+  it('s’ouvre sous le lien collé, comme chez Notion : « Coller en tant que », « Aperçu » (choisi d’avance) et « URL »', async () => {
     const ed = await monter([p('')])
     await collerUrl(ed)
-    expect(lignes()).toEqual(['Lien*', 'Aperçu'])
-    expect(document.querySelector('.notak-apercu-coller')?.getAttribute('aria-label')).toBe('Coller comme')
+    expect(lignes()).toEqual(['Aperçu*', 'URL'])
+    expect(document.querySelector('.notak-apercu-coller')?.getAttribute('aria-label')).toBe('Coller en tant que')
+    expect(document.querySelector('.notak-apercu-coller .notak-menu-blocs-categorie')?.textContent).toBe('Coller en tant que')
     expect(ed.state.doc.textContent).toBe(URL1)
   })
 
@@ -146,9 +147,10 @@ describe('NOTION.md § 10.3 : le menu « coller comme »', () => {
     const ed = await monter([p('')])
     await collerUrl(ed)
     await touche(ed, 'ArrowDown')
-    expect(lignes()).toEqual(['Lien', 'Aperçu*'])
+    expect(lignes()).toEqual(['Aperçu', 'URL*'])
     await touche(ed, 'Enter')
-    expect(types(ed)).toEqual(['apercuLien', 'paragraph'])
+    expect(types(ed)).toEqual(['paragraph'])
+    expect(ed.state.doc.textContent).toBe(URL1)
   })
 
   it('taper autre chose le ferme et garde le lien', async () => {

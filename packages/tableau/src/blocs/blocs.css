@@ -526,112 +526,101 @@
   border-radius: 4px;
 }
 
-.notak-blocs .notak-image-bloc figcaption {
-  margin-top: 6px;
-  color: var(--notak-pale, rgb(0 0 0 / 0.5));
-  font-size: 13px;
-  line-height: 18px;
-}
-
 /*
- * L'aperçu de lien, le signet (NOTION.md § 10.3) : une carte cliquable à bordure fine. À gauche le titre (une ligne), la
- * description (deux lignes, pâle), puis la favicon et l'adresse (petite, une ligne) ; à droite l'image de la page, au
- * tiers de la largeur, recadrée. Les marges et le retrait viennent de la règle des blocs, plus haut.
+ * L'aperçu de lien, le signet (NOTION.md § 10.3, mesuré dans Notion, relevé 4 § 7.8) : une carte à filet fin, rayon 10,
+ * sans fond (un fond pâle au survol). À gauche l'image de la page, recadrée, sur toute la hauteur ; à droite, dans
+ * 18 / 24 / 14 px de marge et 8 px d'écart : la favicon (21 px), le titre (17 / 22, graisse 500, une ligne), la
+ * description (13 / 18, deux lignes) et, en bas, l'adresse (13 / 18, pâle). Marges et retrait : la règle des blocs.
  */
 .notak-blocs .notak-apercu-lien {
   box-sizing: border-box;
   display: flex;
-  min-height: 80px;
-  max-height: 128px;
   overflow: hidden;
   border: 1px solid var(--notak-page-trait);
-  border-radius: 6px;
+  border-radius: 10px;
   color: inherit;
   text-decoration: none;
   cursor: pointer;
-}
-
-/* Sans aperçu (en attente, ou introuvable), la carte n'est que l'adresse, sans hauteur réservée. */
-.notak-blocs .notak-apercu-lien:is([data-etat='attente'], [data-etat='vide']) {
-  min-height: 0;
+  transition: background 0.02s ease-in;
 }
 
 .notak-blocs .notak-apercu-lien:hover {
-  background: var(--notak-page-survol);
+  background: rgb(33 27 23 / 0.051);
 }
 
 .notak-blocs .notak-apercu-lien.ProseMirror-selectednode {
   outline: 3px solid var(--notak-page-halo);
 }
 
+.notak-blocs .notak-apercu-lien-image {
+  flex: 0 0 184px;
+  width: 184px;
+  min-height: 100%;
+  object-fit: cover;
+}
+
 .notak-blocs .notak-apercu-lien-texte {
   display: flex;
   flex: 1 1 0;
   flex-direction: column;
+  gap: 8px;
   min-width: 0;
-  padding: 12px 14px 14px;
+  padding: 18px 24px 14px;
   overflow: hidden;
+}
+
+.notak-blocs .notak-apercu-lien-icone {
+  flex: none;
+  width: 21px;
+  height: 21px;
+  border-radius: 4px;
+  object-fit: cover;
 }
 
 .notak-blocs .notak-apercu-lien-titre {
   overflow: hidden;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 22px;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* Tant que la page n'a rien dit d'elle (l'aperçu arrive, ou n'est pas venu), l'adresse fait le titre, discrète. */
-.notak-blocs .notak-apercu-lien[data-etat='attente'] .notak-apercu-lien-titre,
-.notak-blocs .notak-apercu-lien[data-etat='vide'] .notak-apercu-lien-titre {
-  color: color-mix(in srgb, var(--notak-page-texte) 60%, transparent);
 }
 
 .notak-blocs .notak-apercu-lien-description {
   display: -webkit-box;
   overflow: hidden;
-  color: color-mix(in srgb, var(--notak-page-texte) 65%, transparent);
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 13px;
+  line-height: 18px;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
 
-.notak-blocs .notak-apercu-lien-description[hidden],
-.notak-blocs .notak-apercu-lien-pied[hidden] {
-  display: none;
-}
-
-.notak-blocs .notak-apercu-lien-pied {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  margin-top: auto;
-  padding-top: 8px;
-  min-width: 0;
-}
-
-.notak-blocs .notak-apercu-lien-icone {
-  flex: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
-  object-fit: contain;
-}
-
 .notak-blocs .notak-apercu-lien-adresse {
+  margin-top: auto;
   overflow: hidden;
-  font-size: 12px;
-  line-height: 16px;
+  color: rgb(125 122 117);
+  font-size: 13px;
+  line-height: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.notak-blocs .notak-apercu-lien-image {
-  flex: 0 0 33.333%;
-  width: 33.333%;
-  min-width: 0;
-  object-fit: cover;
+.notak-blocs .notak-apercu-lien-description[hidden],
+.notak-blocs .notak-apercu-lien-adresse[hidden] {
+  display: none;
+}
+
+/* Tant que la page n'a rien dit d'elle (l'aperçu arrive, ou n'est pas venu), l'adresse seule fait le titre, discrète,
+   dans une carte plus basse. */
+.notak-blocs .notak-apercu-lien:is([data-etat='attente'], [data-etat='vide']) .notak-apercu-lien-texte {
+  padding: 12px 16px;
+}
+
+.notak-blocs .notak-apercu-lien:is([data-etat='attente'], [data-etat='vide']) .notak-apercu-lien-titre {
+  color: rgb(125 122 117);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
 }
 
 /*
@@ -749,57 +738,101 @@
   opacity: 1;
 }
 
-/* La barre de l'image, en haut à droite au survol : l'alignement, puis « Légende ». */
+/*
+ * La barre de l'image, mesurée dans Notion (relevé 4 § 7.7) : au survol, une pilule blanche à 12 px du coin haut droit,
+ * 28 px de haut, 2 px de marge, rayon 6, l'ombre moyenne des menus ; six icônes de 24 px, rayon 4, grises, un fond pâle
+ * au survol. L'alignement ouvre dessous une petite pilule de trois icônes séparées par des traits.
+ */
 .notak-blocs .notak-image-barre {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  z-index: 1;
+  top: 12px;
+  right: 12px;
   display: flex;
-  gap: 4px;
+  padding: 2px;
+  border-radius: 6px;
+  background: var(--notak-m-fond);
+  box-shadow: 0 8px 12px rgb(25 25 25 / 0.027), 0 2px 6px rgb(25 25 25 / 0.027), 0 0 0 1px rgb(42 28 0 / 0.07);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s;
 }
 
-.notak-blocs .notak-image-bloc:hover .notak-image-barre {
+.notak-blocs .notak-image-bloc:hover .notak-image-barre,
+.notak-blocs .notak-image-barre:has(.notak-image-alignements) {
   opacity: 1;
   pointer-events: auto;
 }
 
-.notak-image-barre > *,
-.notak-image-barre-groupe {
-  display: flex;
-  border-radius: 6px;
-  background: var(--notak-m-fond);
-  box-shadow: var(--notak-m-ombre);
+.notak-image-barre button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: rgb(142 139 134);
+  cursor: pointer;
+  transition: background 0.02s ease-in;
 }
 
-.notak-image-barre button {
+.notak-image-barre button:hover,
+.notak-image-barre button[data-actif='true'] {
+  background: rgb(33 27 23 / 0.051);
+}
+
+.notak-image-alignements {
+  position: absolute;
+  top: calc(100% + 6px);
   display: flex;
   align-items: center;
-  justify-content: center;
-  height: 26px;
-  min-width: 26px;
-  padding: 0 6px;
-  border: 0;
+  gap: 4px;
+  padding: 2px;
   border-radius: 6px;
-  background: none;
-  color: var(--notak-m-texte);
-  font: 12px/1 system-ui, sans-serif;
-  cursor: pointer;
+  background: var(--notak-m-fond);
+  box-shadow: 0 8px 12px rgb(25 25 25 / 0.027), 0 2px 6px rgb(25 25 25 / 0.027), 0 0 0 1px rgb(42 28 0 / 0.07);
+  transform: translateX(-50%);
 }
 
-.notak-image-barre-groupe > button { padding: 0; }
-.notak-image-barre-groupe > button + button { border-radius: 0 6px 6px 0; }
-.notak-image-barre-groupe > button:first-child { border-radius: 6px 0 0 6px; }
-.notak-image-barre button:hover { background: var(--notak-m-survol); }
-.notak-image-barre button[data-actif='true'] { color: var(--notak-m-focus); }
+.notak-image-alignements-trait {
+  width: 1px;
+  height: 16px;
+  background: rgb(42 28 0 / 0.07);
+}
 
-/* La légende s'écrit sur place ; vide, elle montre son invite. */
+/* « Voir en grand » : l'image seule, centrée, sur un voile sombre. */
+.notak-image-plein-ecran {
+  position: fixed;
+  z-index: 2000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 40px;
+  background: rgb(15 15 15 / 0.85);
+  cursor: zoom-out;
+}
+
+.notak-image-plein-ecran img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* La légende, mesurée dans Notion : 14 px / 19,6, gris chaud, 6 px dessus et dessous ; vide, son invite. */
+.notak-blocs .notak-image-bloc figcaption {
+  margin: 0;
+  padding: 6px 0 6px 2px;
+  color: rgb(125 122 117);
+  font-size: 14px;
+  line-height: 19.6px;
+}
+
 .notak-blocs .notak-image-bloc figcaption[contenteditable='true'] { outline: none; cursor: text; }
 .notak-blocs .notak-image-bloc figcaption:empty::before {
   content: attr(data-invite);
-  color: var(--notak-page-pale);
+  color: rgb(125 122 117);
 }
 
 .notak-blocs .notak-image-bloc.ProseMirror-selectednode img {

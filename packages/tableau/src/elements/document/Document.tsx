@@ -22,7 +22,7 @@ import { Largeurs } from '../../blocs/Largeurs'
 import { LienSurvol } from '../../blocs/LienSurvol'
 import { Poignee } from '../../blocs/Poignee'
 import { Sommaire } from '../../blocs/Sommaire'
-import { CLE_CHOIX } from '../../blocs/selection'
+import { CLE_CHOIX, choisir } from '../../blocs/selection'
 import { blocDe } from '../../blocs/modele'
 import { ApercuLien, ImageBloc, remplirImages } from '../../blocs/noeuds'
 import { type GestesBlocs, raccourcisBlocs } from '../../blocs/saisie'
@@ -534,6 +534,29 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
     editeur.view.dispatch(editeur.state.tr.setMeta(CLE_CHOIX, null).setSelection(choix))
     commenterRef.current()
   }
+  // La barre d'une image demande ce qui n'est pas à elle : commenter le bloc, ouvrir son menu (« ••• »).
+  const gestesImage = useRef({ commenter: (_id: string) => {}, menu: (_id: string) => {} })
+  gestesImage.current = {
+    commenter: (id) => peutCommenter && commenterBloc(id),
+    menu: (id) => {
+      if (!editeur) return
+      editeur.view.dispatch(choisir(editeur.state, { ancre: id, tete: id }))
+      demander('bloc')
+    },
+  }
+  useEffect(() => {
+    if (!editeur || editeur.isDestroyed) return
+    const dom = editeur.view.dom
+    const id = (e: Event) => String((e as CustomEvent<{ id: string }>).detail?.id ?? '')
+    const commenter = (e: Event) => gestesImage.current.commenter(id(e))
+    const menu = (e: Event) => gestesImage.current.menu(id(e))
+    dom.addEventListener('notak-commenter-bloc', commenter)
+    dom.addEventListener('notak-menu-bloc', menu)
+    return () => {
+      dom.removeEventListener('notak-commenter-bloc', commenter)
+      dom.removeEventListener('notak-menu-bloc', menu)
+    }
+  }, [editeur])
   // Une adresse qui nomme un bloc l'amène à l'écran et le fait clignoter.
   useEffect(() => {
     if (!editeur || editeur.isDestroyed) return

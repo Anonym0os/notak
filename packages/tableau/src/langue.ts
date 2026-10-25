@@ -1653,8 +1653,13 @@ export const fr: Textes = {
   'blocs.image.gauche': 'Aligner à gauche',
   'blocs.image.centre': 'Centrer',
   'blocs.image.droite': 'Aligner à droite',
-  'blocs.image.legende': 'Légende',
-  'blocs.image.legendeInvite': 'Écrivez une légende…',
+  'blocs.image.legende': 'Ajouter une légende',
+  'blocs.image.legendeInvite': 'Ajouter une légende…',
+  'blocs.image.commenter': 'Commenter',
+  'blocs.image.alignement': 'Alignement',
+  'blocs.image.agrandir': 'Voir en grand',
+  'blocs.image.telecharger': 'Télécharger',
+  'blocs.image.plus': 'Plus d’actions',
   'page.sommaire': 'Sommaire',
   // passe éditeur : page et rendu (fin)
   // passe éditeur : saisie (début)
@@ -1707,8 +1712,8 @@ export const fr: Textes = {
   'menus.lien.retirer': 'Supprimer le lien',
   'blocs.apercuLien': 'Aperçu de lien web',
   'menus.apercu.creer': 'Créer l’aperçu',
-  'menus.collerComme.titre': 'Coller comme',
-  'menus.collerComme.lien': 'Lien',
+  'menus.collerComme.titre': 'Coller en tant que',
+  'menus.collerComme.lien': 'URL',
   'menus.collerComme.apercu': 'Aperçu',
   // passe éditeur : menus (fin)
   // passe éditeur : sélection et glisser (début)
@@ -3623,8 +3628,13 @@ export const en: Textes = {
   'blocs.image.gauche': 'Align left',
   'blocs.image.centre': 'Center',
   'blocs.image.droite': 'Align right',
-  'blocs.image.legende': 'Caption',
-  'blocs.image.legendeInvite': 'Write a caption…',
+  'blocs.image.legende': 'Add a caption',
+  'blocs.image.legendeInvite': 'Add a caption…',
+  'blocs.image.commenter': 'Comment',
+  'blocs.image.alignement': 'Alignment',
+  'blocs.image.agrandir': 'View full size',
+  'blocs.image.telecharger': 'Download',
+  'blocs.image.plus': 'More actions',
   'page.sommaire': 'Table of contents',
   // passe éditeur : page et rendu (fin)
   // passe éditeur : saisie (début)
@@ -3678,7 +3688,7 @@ export const en: Textes = {
   'blocs.apercuLien': 'Link preview',
   'menus.apercu.creer': 'Create preview',
   'menus.collerComme.titre': 'Paste as',
-  'menus.collerComme.lien': 'Link',
+  'menus.collerComme.lien': 'URL',
   'menus.collerComme.apercu': 'Preview',
   // passe éditeur : menus (fin)
   // passe éditeur : sélection et glisser (début)
