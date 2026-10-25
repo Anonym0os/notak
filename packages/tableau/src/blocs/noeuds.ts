@@ -174,7 +174,7 @@ export const ImageBloc = Node.create<OptionsImage>({
       const peindre = () => {
         const a = node.attrs as Record<string, unknown>
         figure.dataset.alignement = String(a.alignement ?? 'centre')
-        for (const [cle, v] of [['bloc', a.id], ['couleur', a.couleur], ['retrait', Number(a.retrait) || null]] as const) {
+        for (const [cle, v] of [['bloc', a.id], ['couleur', a.couleur], ['retrait', Number(a.retrait) || null], ['filBloc', a.fil]] as const) {
           if (v) figure.dataset[cle] = String(v)
           else delete figure.dataset[cle]
         }
@@ -428,7 +428,7 @@ export const ApercuLien = Node.create<OptionsApercuLien>({
       }
       const peindre = () => {
         const a = node.attrs as Record<string, unknown>
-        for (const [cle, v] of [['bloc', a.id], ['couleur', a.couleur], ['retrait', Number(a.retrait) || null]] as const) {
+        for (const [cle, v] of [['bloc', a.id], ['couleur', a.couleur], ['retrait', Number(a.retrait) || null], ['filBloc', a.fil]] as const) {
           if (v) carte.dataset[cle] = String(v)
           else delete carte.dataset[cle]
         }
