@@ -36,6 +36,12 @@
   margin: 12px 12px 12px;
 }
 
+/* Dans l'application de bureau, les boutons de la fenêtre se posent en haut du panneau (centrés à 34 px) : comme chez
+   Xmind, les onglets descendent dessous, à 60 px du haut de la fenêtre. */
+:root[data-bureau]:not([data-plein-ecran]) .notak-arbre-gauche-entete {
+  margin-top: 52px;
+}
+
 /* Les onglets en capsule : une pastille glissante marque l'onglet ouvert. */
 .notak-arbre-gauche-onglets {
   position: relative;

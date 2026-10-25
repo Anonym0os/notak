@@ -281,10 +281,6 @@
   width: 12px;
 }
 
-:root[data-bureau]:not([data-plein-ecran]) .notak-outils-bord {
-  top: 60px;
-}
-
 /* Sans mouvement : la barre ne glisse plus, elle s'efface seulement. */
 @media (prefers-reduced-motion: reduce) {
   .notak-barre-outils:not([data-selection]) {
@@ -573,31 +569,31 @@
 
 
 /* Dans l'application de bureau, la bande tient lieu de barre de titre et garde le pointeur pour qu'on y saisisse la
-   fenêtre. Comme chez Xmind, elle se serre en haut : îlots à 8 px du haut, centrés avec les boutons de la fenêtre à
-   26 px (tauri.conf.json), le premier à 80 px du bord. En plein écran, plus de boutons : la bande d'origine. */
+   fenêtre. Comme chez Xmind, ses îlots (16 px du haut) se centrent avec les boutons de la fenêtre à 34 px
+   (tauri.conf.json), le premier à 80 px du bord, après eux. En plein écran, plus de boutons : la bande d'origine. */
 :root[data-bureau]:not([data-plein-ecran]) .notak-entete {
-  height: 60px;
-  padding: 8px 16px 16px 80px;
+  padding-left: 80px;
 }
 
 :root[data-bureau] .notak-entete {
   pointer-events: auto;
 }
 
-:root[data-bureau]:not([data-plein-ecran]) .notak-espace {
-  --notak-haut: 60px;
+/* Le cadre de la fenêtre, comme celui de la carte (fenetre.css) : 8 px tout autour, la toile arrondie à 8 px pour suivre
+   le coin de la fenêtre (16 px). Il se pose par-dessus la toile, qui reste entière dessous et garde ses mesures ; les
+   surcouches (carte, document, plein écran, z-index 1000) passent devant et portent le leur. */
+.notak-espace {
+  --notak-cadre: color-mix(in srgb, var(--notak-texte) 7%, var(--notak-fond));
 }
 
-:root[data-bureau]:not([data-plein-ecran]) .notak-espace[data-taille='petite'] {
-  --notak-haut: 53px;
-}
-
-:root[data-bureau]:not([data-plein-ecran]) .notak-espace[data-taille='grande'] {
-  --notak-haut: 69px;
-}
-
-:root[data-bureau]:not([data-plein-ecran]) .notak-barre-outils {
-  top: 60px;
+:root[data-bureau]:not([data-plein-ecran]) .notak-espace:not(.notak-par-dessus)::after {
+  content: '';
+  position: fixed;
+  inset: 8px;
+  z-index: 999;
+  border-radius: 8px;
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.08), 0 0 0 40px var(--notak-cadre);
+  pointer-events: none;
 }
 
 .notak-entete-gauche {

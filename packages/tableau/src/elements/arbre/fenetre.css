@@ -99,21 +99,20 @@
   white-space: nowrap;
 }
 
-/* Dans l'application de bureau, comme chez Xmind : la feuille monte jusqu'au haut de la fenêtre, les îlots s'y posent
-   à 8 px du haut, centrés avec les boutons de la fenêtre (26 px, tauri.conf.json), et l'en-tête commence à 80 px du
-   bord de la fenêtre, après eux. */
-:root[data-bureau]:not([data-plein-ecran]) .notak-arbre-scene {
-  top: 0;
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-}
-
+/* Dans l'application de bureau, comme chez Xmind : la feuille garde son cadre de 8 px sur les quatre côtés, les îlots
+   s'y posent à 8 px du haut, centrés avec les boutons de la fenêtre (34 px, tauri.conf.json), et l'en-tête commence à
+   80 px du bord de la fenêtre, après eux ; le panneau de gauche ouvert les porte, l'en-tête reprend alors sa place.
+   La feuille et les panneaux s'arrondissent à 8 px : avec le cadre, la courbe suit celle de la fenêtre (16 px). */
 :root[data-bureau]:not([data-plein-ecran]) :is(.notak-arbre-entete, .notak-arbre-outils, .notak-arbre-droite) {
   top: 8px;
 }
 
-:root[data-bureau]:not([data-plein-ecran]) .notak-arbre-entete {
+:root[data-bureau]:not([data-plein-ecran]) .notak-arbre-fenetre:not([data-gauche]) .notak-arbre-entete {
   left: 72px;
+}
+
+:root[data-bureau]:not([data-plein-ecran]) :is(.notak-arbre-fenetre:not([data-zen]) .notak-arbre-scene, .notak-arbre-gauche, .notak-arbre-cote.notak-arbre-panneau) {
+  border-radius: 8px;
 }
 
 /* Les boutons à icône, communs aux barres. */
