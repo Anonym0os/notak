@@ -58,3 +58,22 @@ export function useApercuOutils(racine: RefObject<HTMLElement | null>, caches: b
 
   return { apercu: caches && apercu, entrer, quitter }
 }
+
+/**
+ * Une barre de sélection ou d'édition est montrée : elle reste ouverte même rangée (`toile.css`), et le bouton du
+ * premier îlot le dit au lieu de basculer un choix qu'on ne verrait pas. La toile garde sa sélection pour elle : on lit
+ * la barre qu'elle dessine.
+ */
+export function useBarreRetenue(racine: RefObject<HTMLElement | null>): boolean {
+  const [retenue, setRetenue] = useState(false)
+  useEffect(() => {
+    const el = racine.current
+    if (!el) return
+    const lire = () => setRetenue(!!el.querySelector('.notak-barre-outils[data-selection]'))
+    lire()
+    const suivi = new MutationObserver(lire)
+    suivi.observe(el, { childList: true, subtree: true })
+    return () => suivi.disconnect()
+  }, [racine])
+  return retenue
+}

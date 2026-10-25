@@ -94,6 +94,16 @@ describe('la barre d’îlots, commune au tableau, à la carte et au document', 
     rendre(null, <BoutonIlot icone="panneauGauche" libelle="Panneau" actif onClick={() => {}} />)
     expect(document.querySelector('.notak-ilot-bouton')!.getAttribute('aria-pressed')).toBe('true')
   })
+
+  it('un bouton retenu reste enfoncé et survolable, mais ignore le clic', () => {
+    const clic = vi.fn()
+    rendre(null, <BoutonIlot icone="panneauGauche" libelle="Panneau" actif retenu onClick={clic} />)
+    const bouton = document.querySelector<HTMLButtonElement>('.notak-ilot-bouton')!
+    expect(bouton.getAttribute('aria-disabled')).toBe('true')
+    expect(bouton.disabled).toBe(false)
+    act(() => bouton.click())
+    expect(clic).not.toHaveBeenCalled()
+  })
 })
 
 describe('le document ouvert en grand porte la même barre', () => {

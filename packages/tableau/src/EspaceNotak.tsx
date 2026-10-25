@@ -44,7 +44,7 @@ import type { OffreHabillages } from './habillage/bibliotheque'
 import './theme.css'
 import { Icone } from './icones'
 import { GardeToile } from './garde'
-import { useApercuOutils } from './apercuOutils'
+import { useApercuOutils, useBarreRetenue } from './apercuOutils'
 
 const CLE_VUES = 'notak:vues'
 /**
@@ -482,6 +482,7 @@ export function EspaceNotak({
   // La présentation passe en plein écran ; en sortir (Échap du navigateur compris) la referme.
   const racineEspace = useRef<HTMLDivElement>(null)
   const apercuOutils = useApercuOutils(racineEspace, outilsCaches)
+  const outilsRetenus = useBarreRetenue(racineEspace)
   useEffect(() => {
     if (!presentation) return
     if (!document.fullscreenElement) void racineEspace.current?.requestFullscreen?.().catch(() => {})
@@ -601,7 +602,7 @@ export function EspaceNotak({
     <div ref={racineEspace} className="notak-espace" data-theme={theme} data-taille={reglages.taille} data-presentation={presentation || undefined} data-outils={outilsCaches ? 'caches' : undefined} data-outils-apercu={apercuOutils.apercu || undefined}>
       {outilsCaches && <div className="notak-outils-bord" aria-hidden onPointerEnter={apercuOutils.entrer} onPointerLeave={apercuOutils.quitter} />}
       <Entete
-        outils={{ caches: outilsCaches, basculer: basculerOutils }}
+        outils={{ caches: outilsCaches, retenus: outilsRetenus, basculer: basculerOutils }}
         key={`entete:${langue}`}
         segments={segments}
         charge={charge}
@@ -707,8 +708,8 @@ function Entete({
   envoi?: EtatEnvoi
   /** Faux tant que le tableau ouvert n'a pas rattrapé le serveur. */
   charge?: boolean
-  /** La barre des outils de gauche, qu'un bouton du premier îlot montre ou cache. */
-  outils?: { caches: boolean; basculer(): void }
+  /** La barre des outils de gauche, qu'un bouton du premier îlot montre ou cache ; retenue ouverte par une sélection. */
+  outils?: { caches: boolean; retenus?: boolean; basculer(): void }
 }) {
   const fil = useRef<HTMLElement>(null)
   const [largeur, setLargeur] = useState(Number.POSITIVE_INFINITY)
@@ -788,8 +789,9 @@ function Entete({
           {outils && (
             <BoutonIlot
               icone="panneauGauche"
-              libelle={outils.caches ? t('espace.outilsAfficher') : t('espace.outilsMasquer')}
-              actif={!outils.caches}
+              libelle={outils.retenus ? t('espace.outilsRetenus') : outils.caches ? t('espace.outilsAfficher') : t('espace.outilsMasquer')}
+              actif={outils.retenus || !outils.caches}
+              retenu={outils.retenus}
               onClick={outils.basculer}
             />
           )}

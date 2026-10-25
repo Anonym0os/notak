@@ -61,6 +61,11 @@
   cursor: default;
 }
 
+.notak-ilot .notak-ilot-bouton[aria-disabled='true'] {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* « Partager » est le bouton principal de la barre : plein et sombre, à côté des pastilles des présents. */
 .notak-ilot-partage {
   gap: 6px;
@@ -185,6 +190,11 @@
 
 .notak-ilot .notak-titre-champ {
   border-radius: 15px;
+}
+
+/* Le fil coupe ce qui dépasse (pour couper le titre trop long) : l'anneau de saisie se dessine dans le champ. */
+.notak-ilot .notak-titre-champ:not(:read-only):focus {
+  box-shadow: inset 0 0 0 2px var(--notak-accent);
 }
 
 /* En sombre, pas d'ombre : un anneau d'un pixel, et un fond à peine plus clair que la toile. */

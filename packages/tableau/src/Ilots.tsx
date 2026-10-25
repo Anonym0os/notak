@@ -43,6 +43,7 @@ export function BoutonIlot({
   raccourci,
   actif,
   inactif,
+  retenu,
   className,
   onClick,
 }: {
@@ -53,11 +54,21 @@ export function BoutonIlot({
   /** Un bouton à bascule : enfoncé, il passe en sombre plein. */
   actif?: boolean
   inactif?: boolean
+  /** Tenu dans son état par autre chose : il pâlit et ignore le clic, mais son infobulle dit pourquoi. */
+  retenu?: boolean
   onClick(): void
 }) {
   return (
     <Infobulle libelle={libelle} {...(raccourci ? { raccourci } : {})}>
-      <button type="button" className={`notak-ilot-bouton${className ? ` ${className}` : ''}`} aria-label={libelle} aria-pressed={actif} disabled={inactif} onClick={onClick}>
+      <button
+        type="button"
+        className={`notak-ilot-bouton${className ? ` ${className}` : ''}`}
+        aria-label={libelle}
+        aria-pressed={actif}
+        aria-disabled={retenu || undefined}
+        disabled={inactif}
+        onClick={retenu ? undefined : onClick}
+      >
         <Icone nom={icone} taille={20} trait={1.5} />
       </button>
     </Infobulle>
