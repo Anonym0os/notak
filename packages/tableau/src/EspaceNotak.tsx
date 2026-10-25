@@ -750,7 +750,7 @@ function Entete({
 
   return (
     // Dans l'application de bureau, la barre tient lieu de barre de titre : on la saisit partout hors des îlots pour déplacer la fenêtre.
-    <header className="notak-entete notak-bord-flou" data-tauri-drag-region="deep">
+    <header className="notak-entete" data-tauri-drag-region="deep">
       <div className="notak-entete-gauche">
         {(parent || outils) && (
           <Ilot>

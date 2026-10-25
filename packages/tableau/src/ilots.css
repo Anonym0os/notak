@@ -100,6 +100,19 @@
   padding: 0;
 }
 
+/* La barre est une barre d'outils, pas du texte : rien ne s'y sélectionne en glissant ou au double-clic (le titre du
+   tableau reste un champ qu'on modifie). */
+:is(.notak-entete, .notak-document-entete, .notak-arbre-entete, .notak-arbre-droite, .notak-ilot) {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Safari refuse la saisie dans un champ sous user-select: none : le titre du tableau garde la sienne. */
+:is(.notak-entete, .notak-document-entete, .notak-arbre-entete) :is(input, textarea) {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* Le fil : le chemin pâle, le titre de l'écran en gras. */
 .notak-fil-ecran {
   flex: 0 1 auto;
@@ -132,29 +145,4 @@
 .notak-fil-titre > span {
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/*
- * Le bord flou sous la barre du haut (tableau, carte, document) : ce qui passe dessous se brouille vers le haut, comme
- * le bord d'une vue qui défile chez Apple. Deux flous superposés, chacun effacé vers le bas par un masque, font un flou
- * progressif ; ni teinte ni filet, ce qui passe dessous garde sa couleur (un tableau peut avoir son arrière-plan). Les
- * îlots restent nets par-dessus. L'élément qui le porte doit former un empilement (position et z-index).
- */
-.notak-bord-flou::before,
-.notak-bord-flou::after {
-  content: '';
-  position: absolute;
-  inset: 0 0 -12px;
-  z-index: -1;
-  pointer-events: none;
-}
-
-.notak-bord-flou::before {
-  backdrop-filter: blur(3px);
-  mask-image: linear-gradient(to bottom, #000 60%, transparent);
-}
-
-.notak-bord-flou::after {
-  backdrop-filter: blur(10px);
-  mask-image: linear-gradient(to bottom, #000 25%, transparent 70%);
 }
