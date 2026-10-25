@@ -1218,6 +1218,13 @@
 
 .notak-menu-meta .notak-decor-personne {
   flex: none;
+  overflow: hidden;
+}
+
+.notak-menu-meta .notak-decor-personne img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .notak-menu-sep {
