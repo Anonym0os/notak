@@ -62,8 +62,9 @@ Les paquets sortent dans `src-tauri/target/release/bundle/` : `.app` et `.dmg` s
 - **Le glisser-déposer de fichiers est laissé à la page** (`dragDropEnabled: false`). Sans cela, Tauri intercepte les
   fichiers lâchés sur la fenêtre et Notak ne reçoit plus les images déposées sur la toile.
 - **La barre de titre se fond dans la barre d'îlots** (`titleBarStyle: "Overlay"`) : les trois boutons de la fenêtre
-  se posent à gauche de la barre du haut du tableau, de la carte et du document, qui leur laisse 88 px ; ils sont
-  descendus (`trafficLightPosition`, y 35) pour se centrer sur les îlots de 36 px posés à 16 px du haut. La bande du
+  se posent à gauche de la barre du haut du tableau, de la carte et du document, qui leur laisse 96 px ; comme chez
+  Xmind, ils sont descendus dans la feuille (`trafficLightPosition` x 20, y 44 : centrés à 42 px du haut), et les îlots
+  de 36 px se centrent dessus. La bande du
   tableau sert de poignée pour déplacer la fenêtre (`data-tauri-drag-region`). L'application web le sait par
   `data-bureau` sur la racine du document.
 - **Pas de plugin, pas de commande Rust, un seul droit** (`capabilities/principale.json`) : déplacer la fenêtre et
