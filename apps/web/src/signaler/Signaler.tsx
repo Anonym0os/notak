@@ -4,11 +4,26 @@ import { createRoot } from 'react-dom/client'
 import { t } from '../langue'
 import { contexteEnMarkdown, estLeRaccourci, releverContexte } from './contexte'
 import { erreursRecentes, poserJournal } from './journal'
+import {
+  type Cadre,
+  type Marque,
+  type Outil,
+  type Point,
+  cadreEntre,
+  cadreUtile,
+  commencer,
+  ellipseDe,
+  EPAISSEUR_ECRAN,
+  geometrieDeFleche,
+  marqueUtile,
+  peindreMarques,
+  prolonger,
+} from './marques'
 import './signaler.css'
 
 /**
- * Signaler un bug, par-dessus tout (⇧⌘S) : l'écran est pris tout de suite, on l'annote au stylo ou on le recadre, on
- * colle d'autres images (⌘V), on écrit deux mots, Entrée envoie. La fenêtre se ferme aussitôt et l'envoi se fait
+ * Signaler un bug, par-dessus tout (⇧⌘S) : l'écran est pris tout de suite, on y pose un trait, une flèche ou un
+ * cercle, on le recadre, on colle d'autres images (⌘V), on écrit deux mots, Entrée envoie. La fenêtre se ferme aussitôt et l'envoi se fait
  * derrière : on reprend là où on était, le focus compris. Le serveur range le signalement dans sa file
  * (`apps/serveur/src/signalements.ts`).
  *
@@ -17,17 +32,18 @@ import './signaler.css'
  * prend une à plusieurs secondes et déforme ce que le moteur rend mal.
  */
 
-type Point = readonly [number, number]
-type Cadre = { x: number; y: number; l: number; h: number }
-/** Une image du signalement : sa taille en px d'écran (le canevas est plus grand de sa densité), ses traits, son cadre. */
+/** Une image du signalement : sa taille en px d'écran (le canevas est plus grand de sa densité) et ses marques. */
 interface Image {
   id: number
   canevas: HTMLCanvasElement
   largeur: number
   hauteur: number
   url: string
-  traits: Point[][]
+  marques: Marque[]
+  /** Le cadre qu'on trace pour recadrer, tant qu'il n'est pas validé (Entrée) ; validé, l'image devient la zone gardée. */
   cadre: Cadre | null
+  /** L'image d'avant le dernier recadrage, que ⌘Z rend ; « Effacer » remonte à l'image prise. */
+  avant: Image | null
 }
 type Prise = { etat: 'en-cours' } | { etat: 'faite'; image: Image | null }
 type Avis = { texte: string; erreur?: boolean; reessayer?: () => void } | null
@@ -44,7 +60,8 @@ interface Tauri {
 const tauri = (): Tauri | undefined => (window as { __TAURI_INTERNALS__?: Tauri }).__TAURI_INTERNALS__
 
 function imageDe(canevas: HTMLCanvasElement, densite: number): Image {
-  return { id: prochainId++, canevas, largeur: canevas.width / densite, hauteur: canevas.height / densite, url: canevas.toDataURL('image/png'), traits: [], cadre: null }
+  const largeur = canevas.width / densite
+  return { id: prochainId++, canevas, largeur, hauteur: canevas.height / densite, url: canevas.toDataURL('image/png'), marques: [], cadre: null, avant: null }
 }
 
 async function canevasDe(source: Blob): Promise<HTMLCanvasElement> {
@@ -94,37 +111,80 @@ async function versionCourante(): Promise<string> {
   return (import.meta.env.VITE_NOTAK_COMMIT as string | undefined) ?? 'inconnue'
 }
 
-/** L'image envoyée : l'image, les traits par-dessus, puis le recadrage. */
-function composer(image: Image): string {
-  const k = image.canevas.width / image.largeur
+const densiteDe = (image: Image) => image.canevas.width / image.largeur
+
+/** L'image et ses marques, peintes à la densité de l'image. */
+function peindre(image: Image): HTMLCanvasElement {
   const plein = document.createElement('canvas')
   plein.width = image.canevas.width
   plein.height = image.canevas.height
   const ctx = plein.getContext('2d')!
   ctx.drawImage(image.canevas, 0, 0)
-  ctx.strokeStyle = ROUGE
-  ctx.lineWidth = 4 * k
-  ctx.lineCap = 'round'
-  ctx.lineJoin = 'round'
-  for (const trait of image.traits) {
-    ctx.beginPath()
-    trait.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x * k, y * k) : ctx.lineTo(x * k, y * k)))
-    ctx.stroke()
-  }
-  const { cadre } = image
-  if (!cadre || cadre.l < 8 || cadre.h < 8) return plein.toDataURL('image/png')
+  const k = densiteDe(image)
+  ctx.scale(k, k)
+  peindreMarques(ctx, image.marques, ROUGE)
+  return plein
+}
+
+function decouper(source: HTMLCanvasElement, cadre: Cadre, k: number): HTMLCanvasElement {
   const coupe = document.createElement('canvas')
   coupe.width = Math.round(cadre.l * k)
   coupe.height = Math.round(cadre.h * k)
-  coupe.getContext('2d')!.drawImage(plein, cadre.x * k, cadre.y * k, coupe.width, coupe.height, 0, 0, coupe.width, coupe.height)
-  return coupe.toDataURL('image/png')
+  coupe.getContext('2d')!.drawImage(source, cadre.x * k, cadre.y * k, coupe.width, coupe.height, 0, 0, coupe.width, coupe.height)
+  return coupe
 }
 
-const chemin = (trait: readonly Point[]) => trait.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ')
-
-function normaliser(a: Point, b: Point): Cadre {
-  return { x: Math.min(a[0], b[0]), y: Math.min(a[1], b[1]), l: Math.abs(b[0] - a[0]), h: Math.abs(b[1] - a[1]) }
+/** L'image envoyée : celle qu'on voit, un cadre tracé mais pas encore validé compris. */
+function composer(image: Image): string {
+  const plein = peindre(image)
+  return (cadreUtile(image.cadre) ? decouper(plein, image.cadre, densiteDe(image)) : plein).toDataURL('image/png')
 }
+
+/** Valide le recadrage : l'image devient la zone gardée, ses marques peintes dedans ; l'ancienne reste pour ⌘Z. */
+function recadrer(image: Image): Image {
+  if (!cadreUtile(image.cadre)) return { ...image, cadre: null }
+  const k = densiteDe(image)
+  const coupe = decouper(peindre(image), image.cadre, k)
+  return { ...imageDe(coupe, k), id: image.id, avant: { ...image, cadre: null } }
+}
+
+/** ⌘Z : le cadre en cours, sinon la dernière marque, sinon le dernier recadrage. */
+function defaire(image: Image): Image {
+  if (image.cadre) return { ...image, cadre: null }
+  if (image.marques.length > 0) return { ...image, marques: image.marques.slice(0, -1) }
+  return image.avant ?? image
+}
+
+/** « Effacer » : l'image telle qu'elle a été prise ou collée. */
+function effacer(image: Image): Image {
+  let i = image
+  while (i.avant) i = i.avant
+  return { ...i, marques: [], cadre: null }
+}
+
+const retouchee = (i: Image) => i.marques.length > 0 || i.cadre !== null || i.avant !== null
+
+const chemin = (points: readonly Point[]) => points.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ')
+
+function MarqueSvg({ marque }: { marque: Marque }) {
+  const { e } = marque
+  if (marque.genre === 'stylo') return <path d={chemin(marque.points)} className="notak-signaler-trait" strokeWidth={e} />
+  if (marque.genre === 'cercle') return <ellipse {...ellipseDe(marque.de, marque.vers)} className="notak-signaler-trait" strokeWidth={e} />
+  const { tige, pointe } = geometrieDeFleche(marque.de, marque.vers, e)
+  return (
+    <g>
+      <line x1={tige[0][0]} y1={tige[0][1]} x2={tige[1][0]} y2={tige[1][1]} className="notak-signaler-trait" strokeWidth={e} />
+      <polygon points={pointe.map((p) => p.join(',')).join(' ')} className="notak-signaler-pointe" />
+    </g>
+  )
+}
+
+const OUTILS: { outil: Outil; libelle: string }[] = [
+  { outil: 'stylo', libelle: 'signaler.stylo' },
+  { outil: 'fleche', libelle: 'signaler.fleche' },
+  { outil: 'cercle', libelle: 'signaler.entourer' },
+  { outil: 'recadrer', libelle: 'signaler.recadrer' },
+]
 
 interface ProprietesFenetre {
   prise: Prise
@@ -136,10 +196,12 @@ interface ProprietesFenetre {
 
 function FenetreSignaler({ prise, texteInitial, sombre, envoyer, fermer }: ProprietesFenetre) {
   const [texte, setTexte] = useState(texteInitial)
-  const [outil, setOutil] = useState<'stylo' | 'recadrer'>('stylo')
+  const [outil, setOutil] = useState<Outil>('stylo')
   const [images, setImages] = useState<Image[]>([])
   const [choisie, setChoisie] = useState(0)
   const geste = useRef<{ depart: Point } | null>(null)
+  /** Ce que ⌘Z défait : le champ garde le focus, mais si l'on vient de dessiner, c'est le dessin. */
+  const dernier = useRef<'texte' | 'image'>('texte')
   const surface = useRef<SVGSVGElement>(null)
   const champ = useRef<HTMLTextAreaElement>(null)
   const racine = useRef<HTMLDivElement>(null)
@@ -165,8 +227,21 @@ function FenetreSignaler({ prise, texteInitial, sombre, envoyer, fermer }: Propr
   }, [enCours])
 
   // Un clic à côté ferme la fenêtre tant qu'on n'y a rien fait ; après, seuls Échap et la croix la ferment.
-  const entame = texte.trim() !== '' || images.length > 1 || images.some((i) => i.traits.length > 0 || i.cadre)
-  const majImage = (maj: (i: Image) => Image) => setImages((is) => is.map((i, n) => (n === choisie ? maj(i) : i)))
+  const entame = texte.trim() !== '' || images.length > 1 || images.some(retouchee)
+  const majImage = (maj: (i: Image) => Image) => {
+    dernier.current = 'image'
+    setImages((is) => is.map((i, n) => (n === choisie ? maj(i) : i)))
+  }
+  const enRecadrage = outil === 'recadrer' && cadreUtile(image?.cadre ?? null)
+  const choisirOutil = (o: Outil) => {
+    if (o !== 'recadrer') majImage((i) => ({ ...i, cadre: null }))
+    setOutil(o)
+  }
+  const validerRecadrage = () => {
+    majImage(recadrer)
+    setOutil('stylo')
+    champ.current?.focus()
+  }
   const valider = () => {
     if (enCours) return
     envoyer(texte, images.map(composer))
@@ -182,19 +257,22 @@ function FenetreSignaler({ prise, texteInitial, sombre, envoyer, fermer }: Propr
     const touche = (e: KeyboardEvent) => {
       if (estLeRaccourci(e, SUR_MAC)) return
       e.stopImmediatePropagation()
+      // Un cadre tracé prend Échap et Entrée pour lui : l'un l'abandonne, l'autre recadre.
       if (e.key === 'Escape') {
         e.preventDefault()
-        fermer()
+        if (image?.cadre) majImage((i) => ({ ...i, cadre: null }))
+        else fermer()
         return
       }
       if (enCours) return
       const dedans = racine.current?.contains(e.target as Node) ?? false
       if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
         e.preventDefault()
-        valider()
-      } else if ((SUR_MAC ? e.metaKey : e.ctrlKey) && e.key.toLowerCase() === 'z' && e.target !== champ.current) {
+        if (enRecadrage) validerRecadrage()
+        else valider()
+      } else if ((SUR_MAC ? e.metaKey : e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && image && retouchee(image) && (dernier.current === 'image' || e.target !== champ.current)) {
         e.preventDefault()
-        majImage((i) => (i.cadre ? { ...i, cadre: null } : { ...i, traits: i.traits.slice(0, -1) }))
+        majImage(defaire)
       } else if (!dedans) champ.current?.focus()
     }
     window.addEventListener('keydown', touche, true)
@@ -234,19 +312,24 @@ function FenetreSignaler({ prise, texteInitial, sombre, envoyer, fermer }: Propr
     surface.current!.setPointerCapture(e.pointerId)
     const p = pointDe(e)
     geste.current = { depart: p }
-    if (outil === 'stylo') majImage((i) => ({ ...i, traits: [...i.traits, [p]] }))
-    else majImage((i) => ({ ...i, cadre: { x: p[0], y: p[1], l: 0, h: 0 } }))
+    if (outil === 'recadrer') majImage((i) => ({ ...i, cadre: { x: p[0], y: p[1], l: 0, h: 0 } }))
+    else {
+      const e = (EPAISSEUR_ECRAN * image.largeur) / surface.current!.getBoundingClientRect().width
+      majImage((i) => ({ ...i, marques: [...i.marques, commencer(outil, p, e)] }))
+    }
   }
   const glisse = (e: PointeurReact) => {
     const depart = geste.current?.depart
     if (!depart) return
     const p = pointDe(e)
-    if (outil === 'stylo') majImage((i) => ({ ...i, traits: [...i.traits.slice(0, -1), [...i.traits[i.traits.length - 1]!, p]] }))
-    else majImage((i) => ({ ...i, cadre: normaliser(depart, p) }))
+    if (outil === 'recadrer') majImage((i) => ({ ...i, cadre: cadreEntre(depart, p) }))
+    else majImage((i) => ({ ...i, marques: [...i.marques.slice(0, -1), prolonger(i.marques[i.marques.length - 1]!, p)] }))
   }
   const relache = () => {
+    if (!geste.current) return
     geste.current = null
-    if (outil === 'recadrer') majImage((i) => (i.cadre && (i.cadre.l < 8 || i.cadre.h < 8) ? { ...i, cadre: null } : i))
+    if (outil === 'recadrer') majImage((i) => (cadreUtile(i.cadre) ? i : { ...i, cadre: null }))
+    else majImage((i) => (i.marques.length > 0 && !marqueUtile(i.marques[i.marques.length - 1]!) ? { ...i, marques: i.marques.slice(0, -1) } : i))
     champ.current?.focus()
   }
 
@@ -256,13 +339,13 @@ function FenetreSignaler({ prise, texteInitial, sombre, envoyer, fermer }: Propr
         <div className="notak-signaler-entete">
           <span className="notak-signaler-titre">{t('signaler.titre')}</span>
           <div className="notak-signaler-outils" role="toolbar">
-            <button type="button" aria-pressed={outil === 'stylo'} onClick={() => setOutil('stylo')} disabled={!image}>
-              {t('signaler.annoter')}
-            </button>
-            <button type="button" aria-pressed={outil === 'recadrer'} onClick={() => setOutil('recadrer')} disabled={!image}>
-              {t('signaler.recadrer')}
-            </button>
-            <button type="button" onClick={() => majImage((i) => ({ ...i, traits: [], cadre: null }))} disabled={!image || (image.traits.length === 0 && !image.cadre)}>
+            {OUTILS.map((o) => (
+              <button key={o.outil} type="button" aria-pressed={outil === o.outil} onClick={() => choisirOutil(o.outil)} disabled={!image}>
+                {t(o.libelle)}
+              </button>
+            ))}
+            <span className="notak-signaler-separe" />
+            <button type="button" onClick={() => majImage(effacer)} disabled={!image || !retouchee(image)}>
               {t('signaler.effacer')}
             </button>
           </div>
@@ -295,12 +378,31 @@ function FenetreSignaler({ prise, texteInitial, sombre, envoyer, fermer }: Propr
                   />
                 )}
                 {image.cadre && <rect className="notak-signaler-cadre" x={image.cadre.x} y={image.cadre.y} width={image.cadre.l} height={image.cadre.h} />}
-                {image.traits.map((tr, i) => (
-                  <path key={i} d={chemin(tr)} className="notak-signaler-trait" />
+                {image.marques.map((m, i) => (
+                  <MarqueSvg key={i} marque={m} />
                 ))}
               </svg>
+              {enRecadrage && image.cadre && (
+                // Sous le coin bas-droit du cadre, ou dedans quand il touche le bas : elle ne cache pas ce qu'on garde.
+                <div
+                  className="notak-signaler-recadrage"
+                  style={{
+                    left: `${((image.cadre.x + image.cadre.l) / image.largeur) * 100}%`,
+                    top: `${((image.cadre.y + image.cadre.h) / image.hauteur) * 100}%`,
+                    transform: image.cadre.y + image.cadre.h > image.hauteur * 0.85 ? 'translate(-100%, calc(-100% - 8px))' : 'translate(-100%, 8px)',
+                  }}
+                >
+                  <button type="button" onClick={() => majImage((i) => ({ ...i, cadre: null }))}>
+                    {t('signaler.recadrerAnnuler')}
+                  </button>
+                  <button type="button" className="notak-signaler-recadrage-ok" onClick={validerRecadrage}>
+                    {t('signaler.recadrerOk')}
+                  </button>
+                </div>
+              )}
             </div>
           )}
+          {image && outil === 'recadrer' && !enRecadrage && <div className="notak-signaler-recadrage notak-signaler-recadrage-aide">{t('signaler.recadrerAide')}</div>}
         </div>
         <div className="notak-signaler-vignettes">
           {images.map((i, n) => (
@@ -323,7 +425,10 @@ function FenetreSignaler({ prise, texteInitial, sombre, envoyer, fermer }: Propr
           rows={2}
           placeholder={t('signaler.indication')}
           value={texte}
-          onChange={(e) => setTexte(e.target.value)}
+          onChange={(e) => {
+            dernier.current = 'texte'
+            setTexte(e.target.value)
+          }}
         />
         <div className="notak-signaler-pied">
           <span>{t('signaler.aide')}</span>
