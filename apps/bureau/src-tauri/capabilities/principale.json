@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "principale",
-  "description": "Les droits de la page : déplacer la fenêtre par l'en-tête, l'agrandir d'un double clic, et enregistrer un export là où la personne le choisit.",
+  "description": "Les droits de la page : déplacer la fenêtre par l'en-tête, l'agrandir d'un double clic, enregistrer un export là où la personne le choisit, et photographier la fenêtre pour un signalement.",
   "windows": ["principale"],
   "remote": { "urls": ["http://localhost:*", "https://*"] },
-  "permissions": ["core:window:allow-start-dragging", "core:window:allow-internal-toggle-maximize", "allow-choisir-emplacement", "allow-ecrire-fichier"]
+  "permissions": ["core:window:allow-start-dragging", "core:window:allow-internal-toggle-maximize", "allow-choisir-emplacement", "allow-ecrire-fichier", "allow-capturer-fenetre"]
 }
