@@ -8,7 +8,7 @@ import { creerApp } from './app.ts'
 import { ouvrirBase } from './base.ts'
 import { type ElementLu, lireEtat } from './contenu.ts'
 import { creerLimiteur } from './debit.ts'
-import { type Compte, type Monde, authEssai, monde } from './essai.ts'
+import { type Compte, type Monde, authEssai, autorisationEssai, monde, openfgaEssai } from './essai.ts'
 import { elementsDeTexte, poserDansNonTries } from './arrivee.ts'
 import { demarrer } from './serveur.ts'
 import { nomDuDocument } from './synchro.ts'
@@ -246,6 +246,7 @@ describe('POST /api/arrivee : le débit', () => {
       const app = creerApp({
         base,
         auth: authEssai(base),
+        autorisation: autorisationEssai(base),
         moyens: { fournisseurs: [], courriel: false },
         dossierFichiers: join(dossier, 'fichiers'),
         limiteur: creerLimiteur(1000, 60_000),
@@ -282,7 +283,7 @@ describe('poserDansNonTries', () => {
 describe('POST /api/arrivee : sur le serveur lancé, avec la synchro', () => {
   it('passe par le document en direct, et l’accueil exporté contient l’arrivée', async () => {
     const dossier = mkdtempSync(join(tmpdir(), 'notak-arrivee-'))
-    const serveur = await demarrer({ port: 0, dossier, secret: 'un-secret-d-essai-assez-long-pour-better-auth' })
+    const serveur = await demarrer({ port: 0, dossier, secret: 'un-secret-d-essai-assez-long-pour-better-auth', openfga: openfgaEssai() })
     const origine = `http://localhost:${serveur.port}`
     try {
       const inscription = await fetch(`${origine}/api/auth/sign-up/email`, {

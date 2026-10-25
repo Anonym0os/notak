@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type Acces, auMoins, role, roleHerite, titreAccueil } from './droits.ts'
+import { type Acces, auMoins, meilleurRole, role, titreAccueil } from './droits.ts'
 
 const acces: Acces[] = [
   { tableau: 't1', utilisateur: 'ana', role: 'proprietaire' },
@@ -37,33 +37,6 @@ describe('auMoins', () => {
   })
 })
 
-describe('roleHerite', () => {
-  // racine ← projet ← detail ; ana partage la racine à cleo en lecture, bob crée « detail ».
-  const tous: Acces[] = [
-    { tableau: 'racine', utilisateur: 'ana', role: 'proprietaire' },
-    { tableau: 'racine', utilisateur: 'cleo', role: 'lecture' },
-    { tableau: 'projet', utilisateur: 'cleo', role: 'edition' },
-    { tableau: 'detail', utilisateur: 'bob', role: 'proprietaire' },
-  ]
-  const parents: Record<string, string> = { projet: 'racine', detail: 'projet' }
-  const accesDe = (t: string) => tous.filter((a) => a.tableau === t)
-  const parentDe = (t: string) => parents[t] ?? null
-
-  it('le droit sur un ancêtre vaut pour tous ses descendants', () => {
-    expect(roleHerite(accesDe, parentDe, 'ana', 'detail')).toBe('proprietaire')
-    expect(roleHerite(accesDe, parentDe, 'bob', 'detail')).toBe('proprietaire')
-    expect(roleHerite(accesDe, parentDe, 'bob', 'projet')).toBeNull()
-  })
-  it('le meilleur rôle de la chaîne l’emporte', () => {
-    expect(roleHerite(accesDe, parentDe, 'cleo', 'racine')).toBe('lecture')
-    expect(roleHerite(accesDe, parentDe, 'cleo', 'detail')).toBe('edition')
-  })
-  it('une boucle dans les parents ne tourne pas sans fin', () => {
-    const boucle = (t: string) => (t === 'a' ? 'b' : 'a')
-    expect(roleHerite(() => [], boucle, 'ana', 'a')).toBeNull()
-  })
-})
-
 describe('titreAccueil', () => {
   it('élide devant une voyelle', () => {
     expect(titreAccueil('Alice')).toBe('Accueil d’Alice')
@@ -76,5 +49,14 @@ describe('titreAccueil en anglais', () => {
   it('suit la langue demandée', () => {
     expect(titreAccueil('Alice', 'en')).toBe('Alice’s home')
     expect(titreAccueil(' ', 'en')).toBe('Home')
+  })
+})
+
+describe('meilleurRole', () => {
+  it('garde le plus fort, et ce qui existe face à rien', () => {
+    expect(meilleurRole('lecture', 'commentaire')).toBe('commentaire')
+    expect(meilleurRole('proprietaire', 'edition')).toBe('proprietaire')
+    expect(meilleurRole(null, 'lecture')).toBe('lecture')
+    expect(meilleurRole(null, null)).toBeNull()
   })
 })

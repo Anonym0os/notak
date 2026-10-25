@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { openfgaEssai } from './essai.ts'
 import { type ServeurDemarre, demarrer } from './serveur.ts'
 
 const SECRET = 'un-secret-d-essai-assez-long-pour-better-auth'
@@ -13,7 +14,7 @@ let origine: string
 
 beforeAll(async () => {
   dossier = mkdtempSync(join(tmpdir(), 'notak-essai-'))
-  serveur = await demarrer({ port: 0, dossier, secret: SECRET })
+  serveur = await demarrer({ port: 0, dossier, secret: SECRET, openfga: openfgaEssai() })
   // L'adresse publique par défaut du serveur : Better Auth n'accepte que les appels qui en viennent.
   origine = `http://localhost:${serveur.port}`
 })
@@ -263,7 +264,7 @@ describe("l'application web servie par le serveur", () => {
     mkdirSync(join(racine, 'assets'))
     writeFileSync(join(racine, 'index.html'), '<!doctype html><title>Notak</title>')
     writeFileSync(join(racine, 'assets', 'app.js'), 'console.log(1)')
-    web = await demarrer({ port: 0, dossier: join(racine, 'donnees'), dossierWeb: racine, secret: SECRET })
+    web = await demarrer({ port: 0, dossier: join(racine, 'donnees'), dossierWeb: racine, secret: SECRET, openfga: openfgaEssai() })
     adresse = `http://127.0.0.1:${web.port}`
   })
   afterAll(async () => {

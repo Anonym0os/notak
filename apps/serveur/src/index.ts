@@ -16,6 +16,7 @@ const serveur = await demarrer({
   origine,
   // Sans adresse publique, on est en développement : les pages viennent du serveur de Vite.
   autresOrigines: origine ? [] : ['http://localhost:5173'],
+  openfga: process.env.NOTAK_OPENFGA_URL ?? 'http://localhost:8080',
   fournisseurs: fournisseursDe(process.env),
   idpInternes: (process.env.NOTAK_IDP_INTERNES ?? '').split(',').map((o) => o.trim()).filter(Boolean),
   smtp: process.env.NOTAK_SMTP_URL,

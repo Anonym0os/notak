@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { type Compte, type Monde, monde } from './essai.ts'
-import { roleEffectif } from './espaces.ts'
 import { decouvrirOidc } from './sso.ts'
 
 let m: Monde
@@ -76,7 +75,7 @@ describe('espaces', () => {
     await auth('/organization/accept-invitation', bob, { invitationId: inv.id })
 
     expect(await statutSur(bob, e.racine)).toBe(200)
-    expect(roleEffectif(m.base, bob.utilisateur.id, e.racine)).toBe('lecture')
+    expect(await m.autorisation.roleSur(`user:${bob.utilisateur.id}`, e.racine)).toBe('lecture')
     // Un lecteur ne change pas le mot de passe du tableau : c'est au propriétaire.
     expect((await m.appeler(`/api/tableaux/${e.racine}/mot-de-passe`, { compte: bob, methode: 'PUT', json: { motDePasse: 'secret-123' } })).status).toBe(403)
   })

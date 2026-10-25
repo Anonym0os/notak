@@ -7,6 +7,7 @@ import type { Hocuspocus } from '@hocuspocus/server'
 import type { Hono } from 'hono'
 import { creerApp } from './app.ts'
 import { type Fournisseur, type Identifiants, creerAuth } from './auth.ts'
+import { type Autorisation, ouvrirAutorisation } from './autorisation.ts'
 import { ouvrirBase } from './base.ts'
 import { creerCourrier } from './courriel.ts'
 import { creerLimiteur } from './debit.ts'
@@ -25,6 +26,10 @@ export interface OptionsServeur {
   origine?: string
   autresOrigines?: readonly string[]
   fournisseurs?: Partial<Record<Fournisseur, Identifiants>>
+  /** L'adresse d'OpenFGA, qui évalue les droits (`http://openfga:8080`). */
+  openfga: string
+  /** Le nom du magasin OpenFGA créé s'il n'y en a pas : un par base. */
+  magasinOpenfga?: string
   /** Les origines des fournisseurs d'identité du réseau interne, qu'un espace peut déclarer en SSO. */
   idpInternes?: readonly string[]
   /** L'adresse du SMTP (`smtps://compte:motdepasse@hote:465`) ; sans elle, les courriels vont au journal. */
@@ -60,15 +65,26 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     courrier,
     fournisseurs: options.fournisseurs,
     idpInternes: options.idpInternes,
-    // Un membre de plus, de moins, ou un rôle changé : les connexions ouvertes sur l'espace relisent leurs droits.
-    surChangementDEspace: (espace) => {
-      for (const t of base.tableauxDeLEspace(espace)) hocuspocus?.closeConnections(nomDuDocument(t))
-    },
   })
+
+  const autorisation = ouvrirAutorisation({ base, url: options.openfga, nom: options.magasinOpenfga })
+  // OpenFGA reçoit tout ce qui l'attend avant la première requête : au premier démarrage, toutes les relations.
+  await attendreOpenfga(autorisation)
+  // Ce qui n'a pas pu partir (OpenFGA un moment injoignable) repart de lui-même.
+  const relance = setInterval(() => {
+    autorisation.vider().then(
+      (espaces) => {
+        for (const e of espaces) for (const t of base.tableauxDeLEspace(e)) hocuspocus?.closeConnections(nomDuDocument(t))
+      },
+      () => {},
+    )
+  }, 5000)
+  relance.unref()
 
   app = creerApp({
     base,
     auth,
+    autorisation,
     moyens: { fournisseurs: Object.keys(options.fournisseurs ?? {}) as Fournisseur[], courriel: courrier.actif },
     idpInternes: options.idpInternes,
     dossierFichiers: join(options.dossier, 'fichiers'),
@@ -81,12 +97,13 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     dossierWeb: options.dossierWeb,
   })
 
-  hocuspocus = creerHocuspocus(base, auth)
+  hocuspocus = creerHocuspocus(base, auth, autorisation)
   const synchro = brancherSynchro(http, hocuspocus, [origine, ...(options.autresOrigines ?? [])])
 
   return {
     port,
     async fermer() {
+      clearInterval(relance)
       synchro.fermer()
       hocuspocus?.flushPendingStores()
       await new Promise<void>((fini) => {
@@ -95,5 +112,18 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
       })
       base.fermer()
     },
+  }
+}
+
+/** Attend qu'OpenFGA réponde et soit à jour, une minute au plus : au démarrage d'une pile, il peut venir après. */
+async function attendreOpenfga(autorisation: Autorisation): Promise<void> {
+  for (let essai = 0; ; essai++) {
+    try {
+      await autorisation.vider()
+      return
+    } catch (e) {
+      if (essai >= 60) throw new Error(`OpenFGA ne répond pas : ${(e as Error).message}`, { cause: e })
+      await new Promise((r) => setTimeout(r, 1000))
+    }
   }
 }

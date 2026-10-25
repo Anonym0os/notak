@@ -42,8 +42,6 @@ export interface OptionsAuth {
   choisirCouleur?: () => string
   /** Les fournisseurs d'identité du réseau interne (leur origine), qu'un espace peut déclarer en SSO. */
   idpInternes?: readonly string[]
-  /** Les membres ou les rôles d'un espace ont changé : ceux qui y travaillent en direct relisent leurs droits. */
-  surChangementDEspace?: (espace: string) => void
 }
 
 /** Les champs de `utilisateurs` que Better Auth ne connaît pas : il les lit, il ne laisse personne les écrire. */
@@ -69,9 +67,8 @@ const refuserSiPersonnel = (base: Base, espace: string) => {
 }
 
 /** Les plugins, à part : la migration les compare aussi à ce qu'elle a écrit. */
-export function pluginsAuth(o: Pick<OptionsAuth, 'base' | 'courrier' | 'origine' | 'surChangementDEspace'>) {
+export function pluginsAuth(o: Pick<OptionsAuth, 'base' | 'courrier' | 'origine'>) {
   const { base, courrier } = o
-  const change = (espace: string) => o.surChangementDEspace?.(espace)
   return [
     organization({
       ac,
@@ -93,9 +90,6 @@ export function pluginsAuth(o: Pick<OptionsAuth, 'base' | 'courrier' | 'origine'
         beforeCreateInvitation: async ({ organization: espace }) => refuserSiPersonnel(base, espace.id),
         beforeAddMember: async ({ organization: espace }) => refuserSiPersonnel(base, espace.id),
         beforeRemoveMember: async ({ organization: espace }) => refuserSiPersonnel(base, espace.id),
-        afterRemoveMember: async ({ organization: espace }) => change(espace.id),
-        afterUpdateMemberRole: async ({ organization: espace }) => change(espace.id),
-        afterAddMember: async ({ organization: espace }) => change(espace.id),
       },
     }),
     // Le SSO d'entreprise se déclare espace par espace (OIDC ou SAML), et ne sert qu'une fois le domaine prouvé par

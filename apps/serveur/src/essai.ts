@@ -3,7 +3,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import * as Y from 'yjs'
 import { creerApp } from './app.ts'
+import { inject } from 'vitest'
 import { type Auth, creerAuth } from './auth.ts'
+import { type Autorisation, ouvrirAutorisation } from './autorisation.ts'
 import { type Base, type Utilisateur, ouvrirBase } from './base.ts'
 import type { ElementLu, NoeudTexte } from './contenu.ts'
 import { creerLimiteur } from './debit.ts'
@@ -47,9 +49,26 @@ export function poserUtilisateur(base: Base, u: Utilisateur): void {
     .run(u.id, u.email, u.nom, u.couleur, u.racine, u.photo ?? null, maintenant, maintenant)
 }
 
+declare module 'vitest' {
+  export interface ProvidedContext {
+    /** L'adresse de l'OpenFGA lancé pour les essais (`vitest.openfga.ts`). */
+    openfga: string
+  }
+}
+
+let magasins = 0
+/** OpenFGA, celui que lance la mise en place des essais (`vitest.openfga.ts`), dans un magasin à soi. */
+export function autorisationEssai(base: Base): Autorisation {
+  return ouvrirAutorisation({ base, url: inject('openfga'), nom: `essai-${process.pid}-${++magasins}` })
+}
+
+/** L'adresse de l'OpenFGA des essais, pour un serveur lancé par `demarrer`. */
+export const openfgaEssai = (): string => inject('openfga')
+
 export interface Monde {
   base: Base
   auth: Auth
+  autorisation: Autorisation
   dossier: string
   compte(nom: string): Promise<Compte>
   /** Crée un tableau à `proprietaire` et y écrit ce que fait `ecrire` ; l'état est enregistré comme le ferait la synchro. */
@@ -64,11 +83,13 @@ export function monde(): Monde {
   const dossier = mkdtempSync(join(tmpdir(), 'notak-monde-'))
   const base = ouvrirBase(':memory:')
   const auth = authEssai(base)
+  const autorisation = autorisationEssai(base)
   // Une horloge qui avance d'une milliseconde à chaque lecture : deux gestes ne tombent jamais au même instant.
   let instant = Date.now()
   const app = creerApp({
     base,
     auth,
+    autorisation,
     moyens: { fournisseurs: [], courriel: false },
     dossierFichiers: join(dossier, 'fichiers'),
     limiteur: creerLimiteur(1000, 60_000),
@@ -80,6 +101,7 @@ export function monde(): Monde {
   return {
     base,
     auth,
+    autorisation,
     dossier,
     compte: (nom) => inscrireEssai(auth, base, nom),
     tableau(proprietaire, id, titre, ecrire, parent) {

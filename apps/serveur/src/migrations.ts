@@ -229,6 +229,84 @@ CREATE TABLE espaces (
       db.exec('UPDATE tableaux SET espace = (SELECT e.espace FROM espaces e JOIN utilisateurs u ON u.racine = e.racine WHERE u.id = tableaux.proprietaire)')
     },
   },
+  {
+    version: 4,
+    nom: 'droits évalués par OpenFGA',
+    // Les droits se décrivent en relations (objet, relation, sujet), celles du modèle `autorisation/modele.fga`.
+    // `relations` est la source de vérité, gardée par Notak ; OpenFGA en tient une copie et l'évalue. Ce qui change
+    // passe par `boite_envoi`, dans la même transaction, puis part vers OpenFGA : rien ne se perd si OpenFGA est
+    // injoignable un moment, et un OpenFGA vide se remplit entièrement depuis cette table.
+    appliquer(db) {
+      db.exec(`
+CREATE TABLE relations (
+  objet TEXT NOT NULL, relation TEXT NOT NULL, sujet TEXT NOT NULL,
+  PRIMARY KEY (objet, relation, sujet)
+);
+CREATE INDEX relations_sujet ON relations(sujet);
+CREATE TABLE boite_envoi (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  objet TEXT NOT NULL, relation TEXT NOT NULL, sujet TEXT NOT NULL,
+  UNIQUE (objet, relation, sujet)
+);
+CREATE TABLE reglages (cle TEXT PRIMARY KEY, valeur TEXT NOT NULL);
+-- Les espaces dont les membres, les rôles ou les équipes ont changé, quel que soit le chemin de Better Auth qui les a
+-- changés : Notak en recalcule les relations.
+CREATE TABLE espaces_a_synchroniser (espace TEXT PRIMARY KEY);
+CREATE TRIGGER member_ajoute AFTER INSERT ON member BEGIN INSERT OR IGNORE INTO espaces_a_synchroniser VALUES (NEW.organizationId); END;
+CREATE TRIGGER member_change AFTER UPDATE ON member BEGIN INSERT OR IGNORE INTO espaces_a_synchroniser VALUES (NEW.organizationId); END;
+CREATE TRIGGER member_retire AFTER DELETE ON member BEGIN INSERT OR IGNORE INTO espaces_a_synchroniser VALUES (OLD.organizationId); END;
+CREATE TRIGGER role_ajoute AFTER INSERT ON organizationRole BEGIN INSERT OR IGNORE INTO espaces_a_synchroniser VALUES (NEW.organizationId); END;
+CREATE TRIGGER role_change AFTER UPDATE ON organizationRole BEGIN INSERT OR IGNORE INTO espaces_a_synchroniser VALUES (NEW.organizationId); END;
+CREATE TRIGGER role_retire AFTER DELETE ON organizationRole BEGIN INSERT OR IGNORE INTO espaces_a_synchroniser VALUES (OLD.organizationId); END;
+CREATE TRIGGER equipe_ajoutee AFTER INSERT ON team BEGIN INSERT OR IGNORE INTO espaces_a_synchroniser VALUES (NEW.organizationId); END;
+CREATE TRIGGER equipe_retiree AFTER DELETE ON team BEGIN INSERT OR IGNORE INTO espaces_a_synchroniser VALUES (OLD.organizationId); END;
+CREATE TRIGGER equipier_ajoute AFTER INSERT ON teamMember BEGIN
+  INSERT OR IGNORE INTO espaces_a_synchroniser SELECT organizationId FROM team WHERE id = NEW.teamId;
+END;
+CREATE TRIGGER equipier_retire AFTER DELETE ON teamMember BEGIN
+  INSERT OR IGNORE INTO espaces_a_synchroniser SELECT organizationId FROM team WHERE id = OLD.teamId;
+END;
+CREATE TRIGGER espace_supprime AFTER DELETE ON organization BEGIN INSERT OR IGNORE INTO espaces_a_synchroniser VALUES (OLD.id); END;
+
+-- Les partages d'avant, les tableaux qui héritent de leur parent, l'espace de chaque tableau, les liens publics.
+INSERT INTO relations (objet, relation, sujet)
+  SELECT 'tableau:' || tableau,
+         CASE role WHEN 'proprietaire' THEN 'proprietaire' WHEN 'edition' THEN 'editeur' ELSE 'lecteur' END,
+         'user:' || utilisateur
+  FROM acces;
+INSERT INTO relations (objet, relation, sujet) SELECT 'tableau:' || id, 'parent', 'tableau:' || parent FROM tableaux WHERE parent IS NOT NULL;
+INSERT INTO relations (objet, relation, sujet) SELECT 'tableau:' || id, 'espace', 'espace:' || espace FROM tableaux WHERE espace IS NOT NULL;
+INSERT INTO relations (objet, relation, sujet) SELECT 'tableau:' || tableau, 'lecteur', 'lien:' || jeton FROM liens_publics;
+INSERT INTO espaces_a_synchroniser SELECT id FROM organization;
+INSERT INTO boite_envoi (objet, relation, sujet) SELECT objet, relation, sujet FROM relations;
+DROP TABLE acces;
+
+-- Une invitation peut désormais donner le commentaire.
+CREATE TABLE invitations_nouvelles (
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('lecture','commentaire','edition','proprietaire')),
+  PRIMARY KEY (tableau, email)
+);
+INSERT INTO invitations_nouvelles SELECT tableau, email, role FROM invitations;
+DROP TABLE invitations;
+ALTER TABLE invitations_nouvelles RENAME TO invitations;
+CREATE INDEX invitations_email ON invitations(email);
+
+-- Les tableaux qui montrent chaque fichier, tenus à jour à chaque enregistrement d'un document : un fichier se lit
+-- si l'on peut lire l'un d'eux.
+CREATE TABLE fichiers_tableaux (
+  fichier TEXT NOT NULL, tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  PRIMARY KEY (fichier, tableau)
+);
+CREATE INDEX fichiers_tableaux_tableau ON fichiers_tableaux(tableau);
+-- Un niveau pour le lien public : lecture, commentaire ou édition.
+ALTER TABLE liens_publics ADD COLUMN niveau TEXT NOT NULL DEFAULT 'lecture' CHECK (niveau IN ('lecture','commentaire','edition'));
+-- Tout se réindexe au prochain démarrage, ce qui remplit fichiers_tableaux.
+DELETE FROM recherche_etat;
+`)
+    },
+  },
 ]
 
 /**

@@ -1,7 +1,6 @@
 import { createAccessControl } from 'better-auth/plugins/access'
 import { defaultStatements } from 'better-auth/plugins/organization/access'
-import type { Base } from './base.ts'
-import { type Role, meilleurRole, roleHerite } from './droits.ts'
+import type { Base, Relation } from './base.ts'
 
 // Un espace d'équipe est une organisation de Better Auth : ses membres, ses équipes, ses invitations et ses rôles
 // sont à lui. Chaque compte a aussi son espace personnel, dont il est seul membre. Un tableau appartient à un espace
@@ -38,44 +37,72 @@ export const ROLES_ESPACE = {
 
 export type PermissionsEspace = Partial<Record<keyof typeof ENONCE, readonly string[]>>
 
-/** Ce que donnent sur un tableau de l'espace les permissions d'un rôle, au mieux. */
-export function roleTableauDe(permissions: PermissionsEspace): Role | null {
-  const t = permissions.tableau ?? []
-  if (t.includes('administrer')) return 'proprietaire'
-  if (t.includes('modifier')) return 'edition'
-  if (t.includes('lire') || t.includes('commenter')) return 'lecture'
-  return null
+/** La relation de l'espace que donne chaque geste sur ses tableaux (`autorisation/modele.fga`). */
+const RELATION_DU_GESTE: Record<string, string> = {
+  lire: 'lit_tableaux',
+  commenter: 'commente_tableaux',
+  modifier: 'modifie_tableaux',
+  administrer: 'administre_tableaux',
+  creer: 'cree_tableaux',
 }
 
-/** Les permissions d'un rôle fixe, ou `null` si ce nom n'en est pas un. */
-export function permissionsFixes(role: string): PermissionsEspace | null {
-  return role in ROLES_ESPACE ? (ROLES_ESPACE[role as keyof typeof ROLES_ESPACE].statements as PermissionsEspace) : null
-}
-
-/** Ce que l'appartenance à l'espace du tableau donne sur lui : le meilleur des rôles du membre. */
-export function roleParEspace(base: Base, utilisateur: string, tableau: string): Role | null {
-  const espace = base.tableau(tableau)?.espace
-  const roles = espace ? base.roleMembre(espace, utilisateur) : null
-  if (!espace || !roles) return null
-  let meilleur: Role | null = null
-  for (const nom of roles.split(',').map((r) => r.trim())) {
-    const permissions = permissionsFixes(nom) ?? base.permissionsRole(espace, nom)
-    if (permissions) meilleur = meilleurRole(meilleur, roleTableauDe(permissions))
+/**
+ * Les relations qu'un espace doit avoir, d'après ce que Better Auth en garde : chaque membre est `assignee` de ses
+ * rôles et membre de l'espace, chaque rôle (fixe ou composé) donne sur l'espace ce que ses gestes permettent, chaque
+ * équipe a ses membres.
+ */
+export function relationsVouluesDe(base: Base, espace: string): Relation[] {
+  const rel: Relation[] = []
+  const role = (nom: string) => `role:${espace}/${nom}`
+  for (const m of base.membresEspace(espace)) {
+    rel.push({ objet: `espace:${espace}`, relation: 'membre', sujet: `user:${m.utilisateur}` })
+    for (const r of m.role.split(',').map((x) => x.trim()).filter(Boolean)) rel.push({ objet: role(r), relation: 'assignee', sujet: `user:${m.utilisateur}` })
   }
-  return meilleur
-}
-
-/** Le rôle d'un compte sur un tableau : ses partages, ceux des tableaux au-dessus, et son rôle dans l'espace. */
-export function roleEffectif(base: Base, utilisateur: string, tableau: string): Role | null {
-  const partages = roleHerite((t) => base.acces(t), (t) => base.tableau(t)?.parent ?? null, utilisateur, tableau)
-  return partages === 'proprietaire' ? partages : meilleurRole(partages, roleParEspace(base, utilisateur, tableau))
-}
-
-/** Les gestes sur les tableaux que le rôle de ce compte dans l'espace permet (`creer`, `lire`…). */
-export function gestesDansEspace(base: Base, espace: string, utilisateur: string): Set<string> {
-  const gestes = new Set<string>()
-  for (const nom of (base.roleMembre(espace, utilisateur) ?? '').split(',').map((r) => r.trim()).filter(Boolean)) {
-    for (const g of (permissionsFixes(nom) ?? base.permissionsRole(espace, nom))?.tableau ?? []) gestes.add(g)
+  const roles: [string, PermissionsEspace][] = Object.entries(ROLES_ESPACE).map(([nom, r]) => [nom, r.statements as PermissionsEspace])
+  for (const c of base.rolesComposes(espace)) {
+    try {
+      roles.push([c.role, JSON.parse(c.permission) as PermissionsEspace])
+    } catch {}
   }
-  return gestes
+  for (const [nom, permissions] of roles) {
+    for (const geste of permissions.tableau ?? []) {
+      const relation = RELATION_DU_GESTE[geste]
+      if (relation) rel.push({ objet: `espace:${espace}`, relation, sujet: `${role(nom)}#assignee` })
+    }
+  }
+  for (const e of base.equipesEspace(espace)) {
+    for (const u of e.membres) rel.push({ objet: `equipe:${e.id}`, relation: 'membre', sujet: `user:${u}` })
+  }
+  return rel
+}
+
+const cle = (r: Relation) => `${r.objet}|${r.relation}|${r.sujet}`
+
+/**
+ * Met les relations des espaces signalés (par les déclencheurs de la migration 4) au niveau de ce que Better Auth en
+ * garde, et retire celles qui désignent une équipe, un rôle ou un espace disparus. Rend les espaces qui ont changé.
+ */
+export function synchroniserEspaces(base: Base): string[] {
+  const changes: string[] = []
+  base.transaction(() => {
+    for (const espace of base.espacesASynchroniser()) {
+      const voulues = new Map(relationsVouluesDe(base, espace).map((r) => [cle(r), r]))
+      const presentes = new Map(base.relationsDeLEspace(espace).map((r) => [cle(r), r]))
+      let change = false
+      for (const [k, r] of voulues) {
+        if (presentes.has(k)) continue
+        base.ajouterRelation(r)
+        change = true
+      }
+      for (const [k, r] of presentes) {
+        if (voulues.has(k)) continue
+        base.retirerRelation(r)
+        change = true
+      }
+      base.espaceSynchronise(espace)
+      if (change) changes.push(espace)
+    }
+    for (const r of base.relationsOrphelines()) base.retirerRelation(r)
+  })
+  return changes
 }

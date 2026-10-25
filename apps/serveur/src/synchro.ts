@@ -6,7 +6,7 @@ import { WebSocketServer } from 'ws'
 import { type Acteur, suivreActivite } from './activite.ts'
 import { type Auth, utilisateurDeSession } from './auth.ts'
 import type { Base } from './base.ts'
-import { roleEffectif } from './espaces.ts'
+import type { Autorisation } from './autorisation.ts'
 import { indexerDocument } from './indexation.ts'
 import { verrouPar } from './verrou.ts'
 
@@ -20,7 +20,7 @@ export function nomDuDocument(tableau: string): string {
   return PREFIXE + tableau
 }
 
-export function creerHocuspocus(base: Base, auth: Auth, maintenant: () => number = Date.now): Hocuspocus {
+export function creerHocuspocus(base: Base, auth: Auth, autorisation: Autorisation, maintenant: () => number = Date.now): Hocuspocus {
   const activite = suivreActivite(base, maintenant)
   return new Hocuspocus({
     extensions: [
@@ -50,16 +50,28 @@ export function creerHocuspocus(base: Base, auth: Auth, maintenant: () => number
     async onChange({ documentName, document, context }) {
       activite.noter(idDuDocument(documentName), document, (context as { utilisateur?: Acteur } | undefined)?.utilisateur)
     },
-    async onAuthenticate({ documentName, requestHeaders, connectionConfig }) {
+    async onAuthenticate({ documentName, requestHeaders, connectionConfig, token }) {
       const id = idDuDocument(documentName)
+      if (!id) throw new Error('refusé')
       // La session se lit sur les en-têtes de la requête de mise à niveau : le cookie y voyage comme pour l'API.
-      const utilisateur = id ? await utilisateurDeSession(auth, base, requestHeaders) : null
-      const droit = utilisateur && id ? roleEffectif(base, utilisateur.id, id) : null
-      if (!utilisateur || !droit) throw new Error('refusé')
-      // Un tableau protégé ne se synchronise qu'une fois son mot de passe donné.
-      if (id && verrouPar(base, utilisateur.id, id) !== null) throw new Error('verrouillé')
-      if (droit === 'lecture') connectionConfig.readOnly = true
-      return { utilisateur: { id: utilisateur.id, nom: utilisateur.nom, couleur: utilisateur.couleur }, role: droit }
+      const utilisateur = await utilisateurDeSession(auth, base, requestHeaders)
+      if (utilisateur) {
+        const droit = await autorisation.roleSur(`user:${utilisateur.id}`, id)
+        if (!droit) throw new Error('refusé')
+        // Un tableau protégé ne se synchronise qu'une fois son mot de passe donné.
+        if (verrouPar(base, utilisateur.id, id) !== null) throw new Error('verrouillé')
+        // Écrire demande l'édition ; le commentaire seul passera par le contrôle des mises à jour élément par élément.
+        if (droit === 'lecture' || droit === 'commentaire') connectionConfig.readOnly = true
+        return { utilisateur: { id: utilisateur.id, nom: utilisateur.nom, couleur: utilisateur.couleur }, role: droit }
+      }
+      // Sans compte, par un lien public : son jeton arrive en `token`. Un lien protégé par un mot de passe ne se
+      // synchronise pas (son accès vit dans un cookie limité aux adresses du lien).
+      const jeton = typeof token === 'string' && token.startsWith('lien:') ? token.slice(5) : null
+      if (!jeton || base.tableauDuJeton(jeton) !== id || base.motDePasse(id, 'public') !== null) throw new Error('refusé')
+      const droit = await autorisation.roleSur(`lien:${jeton}`, id)
+      if (!droit) throw new Error('refusé')
+      if (droit !== 'edition') connectionConfig.readOnly = true
+      return { lien: jeton, role: droit }
     },
   })
 }

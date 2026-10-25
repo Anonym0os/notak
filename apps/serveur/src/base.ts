@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite'
-import type { Acces, Role } from './droits.ts'
+import { type Acces, RELATION_DU_ROLE, ROLES, type Role, roleDeRelation } from './droits.ts'
 import { migrer } from './migrations.ts'
 
 // Tout le SQL du serveur vit ici : passer à Postgres, c'est réécrire ce fichier.
@@ -21,6 +21,13 @@ export interface LigneTableau {
   parent: string | null
   /** L'espace où vit le tableau ; `null` pour un tableau d'un espace supprimé. Absent : celui du parent, ou aucun. */
   espace?: string | null
+}
+
+/** Une relation du modèle d'autorisation : `sujet` a `relation` sur `objet` (`user:u1` est `editeur` de `tableau:t1`). */
+export interface Relation {
+  objet: string
+  relation: string
+  sujet: string
 }
 
 /** Un espace d'équipe (une organisation de Better Auth), vu par Notak. */
@@ -135,10 +142,39 @@ export interface Base {
   /** Les permissions d'un rôle composé par l'espace (JSON de Better Auth), ou `null` s'il n'existe pas. */
   permissionsRole(espace: string, role: string): Record<string, string[]> | null
 
+  /** Les accès donnés directement à des comptes sur ce tableau. */
   acces(tableau: string): Acces[]
+  /** Les tableaux partagés directement à ce compte. */
   tableauxAccessibles(utilisateur: string): { id: string; titre: string; role: Role }[]
+  /** Donne ce rôle à ce compte sur ce tableau, à la place de celui qu'il avait. */
   definirAcces(a: Acces): void
   retirerAcces(tableau: string, utilisateur: string): void
+  /** Donne ce rôle sur ce tableau à un autre sujet qu'un compte (`equipe:x#membre`, `lien:jeton`) ; `null` le retire. */
+  definirRoleDe(tableau: string, sujet: string, role: Role | null): void
+
+  // ---- Les relations, source de vérité des droits, et leur envoi vers OpenFGA ----
+
+  ajouterRelation(r: Relation): void
+  retirerRelation(r: Relation): void
+  relationExiste(r: Relation): boolean
+  relationsSur(objet: string): Relation[]
+  /** Les relations d'un espace : les siennes, celles de ses rôles et de ses équipes. */
+  relationsDeLEspace(espace: string): Relation[]
+  /** Les relations qui désignent une équipe, un espace ou un rôle qui n'existe plus. */
+  relationsOrphelines(): Relation[]
+  /** Les prochains changements à envoyer, du plus ancien au plus récent. */
+  boiteEnvoi(limite: number): (Relation & { id: number })[]
+  /** Retire de la boîte ce qui est parti ; un changement repassé depuis garde sa place. */
+  sortirDeBoite(lignes: readonly { id: number }[]): void
+  /** Remet toutes les relations dans la boîte : pour remplir un OpenFGA vide. */
+  remplirBoite(): void
+  reglage(cle: string): string | null
+  definirReglage(cle: string, valeur: string): void
+  espacesASynchroniser(): string[]
+  espaceSynchronise(espace: string): void
+  membresEspace(espace: string): { utilisateur: string; role: string }[]
+  rolesComposes(espace: string): { role: string; permission: string }[]
+  equipesEspace(espace: string): { id: string; membres: string[] }[]
 
   invitations(tableau: string): Invitation[]
   invitationsPour(email: string): Invitation[]
@@ -155,6 +191,11 @@ export interface Base {
   /** Le jeton du lien public du tableau, ou `null` s'il n'est pas publié. */
   jetonPublic(tableau: string): string | null
   definirJetonPublic(tableau: string, jeton: string, maintenant: number): void
+  /** Ce que permet le lien public du tableau : lire, commenter ou modifier. */
+  niveauPublic(tableau: string): 'lecture' | 'commentaire' | 'edition' | null
+  definirNiveauPublic(tableau: string, niveau: 'lecture' | 'commentaire' | 'edition'): void
+  /** Une équipe, et l'espace où elle vit. */
+  equipe(id: string): { id: string; nom: string; espace: string } | null
   retirerJetonPublic(tableau: string): boolean
   tableauDuJeton(jeton: string): string | null
 
@@ -202,8 +243,15 @@ export interface Base {
   /** Marque comme lues ces notifications de ce compte, ou toutes si `ids` est `null` ; rend leur nombre. */
   marquerLues(destinataire: string, ids: readonly number[] | null): number
 
-  /** Remplace tout ce qu'on sait chercher dans ce tableau. `element` vide : le titre du tableau. */
-  indexer(tableau: string, entrees: readonly EntreeIndex[]): void
+  /**
+   * Remplace tout ce qu'on sait chercher dans ce tableau (`element` vide : le titre du tableau), et la liste des
+   * fichiers qu'il montre.
+   */
+  indexer(tableau: string, entrees: readonly EntreeIndex[], fichiers?: readonly string[]): void
+  /** Les tableaux qui montrent ce fichier. */
+  tableauxDuFichier(fichier: string): string[]
+  /** Ce fichier est la photo d'un compte. */
+  estPhoto(fichier: string): boolean
   /** Les tableaux dont le document est enregistré mais que l'index n'a jamais vus. */
   tableauxNonIndexes(): string[]
   /** Les meilleures correspondances dans ces tableaux ; `requete` est une expression FTS5 (voir `requeteIndex`). */
@@ -267,6 +315,30 @@ export function ouvrirBase(chemin: string): Base {
     }
   }
 
+  /** Marque une relation comme à envoyer : une ligne neuve, pour qu'un envoi déjà en route ne l'emporte pas. */
+  const aEnvoyer = (r: Relation) => {
+    executer('DELETE FROM boite_envoi WHERE objet = ? AND relation = ? AND sujet = ?', r.objet, r.relation, r.sujet)
+    executer('INSERT INTO boite_envoi (objet, relation, sujet) VALUES (?, ?, ?)', r.objet, r.relation, r.sujet)
+  }
+  const ajouterRelation = (r: Relation) =>
+    transaction(() => {
+      if (Number(executer('INSERT OR IGNORE INTO relations (objet, relation, sujet) VALUES (?, ?, ?)', r.objet, r.relation, r.sujet).changes) > 0) aEnvoyer(r)
+    })
+  const retirerRelation = (r: Relation) =>
+    transaction(() => {
+      if (Number(executer('DELETE FROM relations WHERE objet = ? AND relation = ? AND sujet = ?', r.objet, r.relation, r.sujet).changes) > 0) aEnvoyer(r)
+    })
+  const relationsSur = (objet: string) => tous('SELECT objet, relation, sujet FROM relations WHERE objet = ?', objet) as unknown as Relation[]
+  /** Un sujet n'a qu'un rôle direct sur un tableau : le nouveau remplace l'ancien. */
+  const definirRoleDe = (tableau: string, sujet: string, role: Role | null) =>
+    transaction(() => {
+      for (const r of ROLES) {
+        const relation = { objet: `tableau:${tableau}`, relation: RELATION_DU_ROLE[r], sujet }
+        if (r === role) ajouterRelation(relation)
+        else retirerRelation(relation)
+      }
+    })
+
   return {
     db,
     transaction,
@@ -291,15 +363,14 @@ export function ouvrirBase(chemin: string): Base {
     },
 
     tableau: (id) => (un('SELECT * FROM tableaux WHERE id = ?', id) as LigneTableau | null),
-    creerTableau: (t) =>
-      void executer(
-        'INSERT INTO tableaux (id,titre,proprietaire,parent,espace) VALUES (?,?,?,?,?)',
-        t.id,
-        t.titre,
-        t.proprietaire,
-        t.parent,
-        t.espace !== undefined ? t.espace : t.parent ? ((un('SELECT espace FROM tableaux WHERE id = ?', t.parent)?.espace as string | null | undefined) ?? null) : null,
-      ),
+    creerTableau(t) {
+      const espace = t.espace !== undefined ? t.espace : t.parent ? ((un('SELECT espace FROM tableaux WHERE id = ?', t.parent)?.espace as string | null | undefined) ?? null) : null
+      transaction(() => {
+        executer('INSERT INTO tableaux (id,titre,proprietaire,parent,espace) VALUES (?,?,?,?,?)', t.id, t.titre, t.proprietaire, t.parent, espace)
+        if (t.parent) ajouterRelation({ objet: `tableau:${t.id}`, relation: 'parent', sujet: `tableau:${t.parent}` })
+        if (espace) ajouterRelation({ objet: `tableau:${t.id}`, relation: 'espace', sujet: `espace:${espace}` })
+      })
+    },
 
     espace(id) {
       const l = un('SELECT o.id, o.name AS nom, e.racine, e.personnel FROM organization o JOIN espaces e ON e.espace = o.id WHERE o.id = ?', id)
@@ -332,7 +403,11 @@ export function ouvrirBase(chemin: string): Base {
     },
     changerTitre: (id, titre) => void executer('UPDATE tableaux SET titre = ? WHERE id = ?', titre, id),
 
-    acces: (tableau) => tous('SELECT tableau, utilisateur, role FROM acces WHERE tableau = ?', tableau) as unknown as Acces[],
+    acces: (tableau) =>
+      relationsSur(`tableau:${tableau}`).flatMap((r) => {
+        const role = roleDeRelation(r.relation)
+        return role && r.sujet.startsWith('user:') ? [{ tableau, utilisateur: r.sujet.slice(5), role }] : []
+      }),
     descendants: (id) =>
       (
         tous(
@@ -341,19 +416,60 @@ export function ouvrirBase(chemin: string): Base {
         ) as unknown as { id: string }[]
       ).map((l) => l.id),
     tableauxAccessibles: (u) =>
-      tous('SELECT t.id, t.titre, a.role FROM acces a JOIN tableaux t ON t.id = a.tableau WHERE a.utilisateur = ?', u) as unknown as {
-        id: string
-        titre: string
-        role: Role
-      }[],
-    definirAcces: (a) =>
-      void executer(
-        'INSERT INTO acces (tableau,utilisateur,role) VALUES (?,?,?) ON CONFLICT(tableau,utilisateur) DO UPDATE SET role = excluded.role',
-        a.tableau,
-        a.utilisateur,
-        a.role,
-      ),
-    retirerAcces: (tableau, u) => void executer('DELETE FROM acces WHERE tableau = ? AND utilisateur = ?', tableau, u),
+      (
+        tous(
+          "SELECT t.id, t.titre, r.relation FROM relations r JOIN tableaux t ON 'tableau:' || t.id = r.objet WHERE r.sujet = ? AND r.objet LIKE 'tableau:%'",
+          `user:${u}`,
+        ) as unknown as { id: string; titre: string; relation: string }[]
+      ).flatMap(({ id, titre, relation }) => {
+        const role = roleDeRelation(relation)
+        return role ? [{ id, titre, role }] : []
+      }),
+    definirAcces: (a) => definirRoleDe(a.tableau, `user:${a.utilisateur}`, a.role),
+    retirerAcces: (tableau, u) => definirRoleDe(tableau, `user:${u}`, null),
+    definirRoleDe: (tableau, sujet, role) => definirRoleDe(tableau, sujet, role),
+
+    ajouterRelation: (r) => ajouterRelation(r),
+    retirerRelation: (r) => retirerRelation(r),
+    relationExiste: (r) => un('SELECT 1 AS ok FROM relations WHERE objet = ? AND relation = ? AND sujet = ?', r.objet, r.relation, r.sujet) !== null,
+    relationsSur: (objet) => relationsSur(objet),
+    relationsDeLEspace: (e) =>
+      tous(
+        `SELECT objet, relation, sujet FROM relations
+         WHERE objet = ? OR objet LIKE ? ESCAPE '\\' OR objet IN (SELECT 'equipe:' || id FROM team WHERE organizationId = ?)`,
+        `espace:${e}`,
+        `role:${e.replace(/[\\%_]/g, (c) => `\\${c}`)}/%`,
+        e,
+      ) as unknown as Relation[],
+    relationsOrphelines: () =>
+      tous(
+        `SELECT objet, relation, sujet FROM relations WHERE
+           (objet LIKE 'equipe:%' AND substr(objet, 8) NOT IN (SELECT id FROM team))
+        OR (sujet LIKE 'equipe:%#membre' AND substr(sujet, 8, length(sujet) - 14) NOT IN (SELECT id FROM team))
+        OR (objet LIKE 'espace:%' AND substr(objet, 8) NOT IN (SELECT id FROM organization))
+        OR (sujet LIKE 'espace:%' AND substr(sujet, 8) NOT IN (SELECT id FROM organization))
+        OR (objet LIKE 'role:%' AND substr(objet, 6, instr(substr(objet, 6), '/') - 1) NOT IN (SELECT id FROM organization))
+        OR (relation = 'espace' AND objet LIKE 'tableau:%'
+            AND NOT EXISTS (SELECT 1 FROM tableaux t WHERE 'tableau:' || t.id = relations.objet AND 'espace:' || t.espace = relations.sujet))`,
+      ) as unknown as Relation[],
+    boiteEnvoi: (limite) => tous('SELECT id, objet, relation, sujet FROM boite_envoi ORDER BY id LIMIT ?', limite) as unknown as (Relation & { id: number })[],
+    sortirDeBoite(lignes) {
+      transaction(() => {
+        for (const l of lignes) executer('DELETE FROM boite_envoi WHERE id = ?', l.id)
+      })
+    },
+    remplirBoite: () => void executer('INSERT OR IGNORE INTO boite_envoi (objet, relation, sujet) SELECT objet, relation, sujet FROM relations'),
+    reglage: (cle) => (un('SELECT valeur FROM reglages WHERE cle = ?', cle)?.valeur as string | undefined) ?? null,
+    definirReglage: (cle, valeur) => void executer('INSERT INTO reglages (cle, valeur) VALUES (?, ?) ON CONFLICT(cle) DO UPDATE SET valeur = excluded.valeur', cle, valeur),
+    espacesASynchroniser: () => (tous('SELECT espace FROM espaces_a_synchroniser') as unknown as { espace: string }[]).map((l) => l.espace),
+    espaceSynchronise: (e) => void executer('DELETE FROM espaces_a_synchroniser WHERE espace = ?', e),
+    membresEspace: (e) => tous('SELECT userId AS utilisateur, role FROM member WHERE organizationId = ?', e) as unknown as { utilisateur: string; role: string }[],
+    rolesComposes: (e) => tous('SELECT role, permission FROM organizationRole WHERE organizationId = ?', e) as unknown as { role: string; permission: string }[],
+    equipesEspace: (e) =>
+      (tous('SELECT id FROM team WHERE organizationId = ?', e) as unknown as { id: string }[]).map(({ id }) => ({
+        id,
+        membres: (tous('SELECT userId FROM teamMember WHERE teamId = ?', id) as unknown as { userId: string }[]).map((l) => l.userId),
+      })),
 
     invitations: (tableau) => tous('SELECT tableau, email, role FROM invitations WHERE tableau = ?', tableau) as unknown as Invitation[],
     invitationsPour: (email) => tous('SELECT tableau, email, role FROM invitations WHERE email = ?', email) as unknown as Invitation[],
@@ -378,14 +494,39 @@ export function ouvrirBase(chemin: string): Base {
     fichier: (id) => (un('SELECT * FROM fichiers WHERE id = ?', id) as Fichier | null),
 
     jetonPublic: (tableau) => (un('SELECT jeton FROM liens_publics WHERE tableau = ?', tableau)?.jeton as string | undefined) ?? null,
+    // Le lien public est un sujet du modèle d'autorisation : `lien:<jeton>` a sur le tableau le rôle de son niveau.
     definirJetonPublic: (tableau, jeton, maintenant) =>
-      void executer(
-        'INSERT INTO liens_publics (tableau,jeton,cree) VALUES (?,?,?) ON CONFLICT(tableau) DO UPDATE SET jeton = excluded.jeton, cree = excluded.cree',
-        tableau,
-        jeton,
-        maintenant,
-      ),
-    retirerJetonPublic: (tableau) => Number(executer('DELETE FROM liens_publics WHERE tableau = ?', tableau).changes) > 0,
+      transaction(() => {
+        const ancien = un('SELECT jeton FROM liens_publics WHERE tableau = ?', tableau)?.jeton as string | undefined
+        if (ancien) definirRoleDe(tableau, `lien:${ancien}`, null)
+        executer(
+          "INSERT INTO liens_publics (tableau,jeton,cree,niveau) VALUES (?,?,?,'lecture') ON CONFLICT(tableau) DO UPDATE SET jeton = excluded.jeton, cree = excluded.cree, niveau = 'lecture'",
+          tableau,
+          jeton,
+          maintenant,
+        )
+        definirRoleDe(tableau, `lien:${jeton}`, 'lecture')
+      }),
+    retirerJetonPublic: (tableau) =>
+      transaction(() => {
+        const jeton = un('SELECT jeton FROM liens_publics WHERE tableau = ?', tableau)?.jeton as string | undefined
+        if (!jeton) return false
+        definirRoleDe(tableau, `lien:${jeton}`, null)
+        executer('DELETE FROM liens_publics WHERE tableau = ?', tableau)
+        return true
+      }),
+    niveauPublic: (tableau) => (un('SELECT niveau FROM liens_publics WHERE tableau = ?', tableau)?.niveau as 'lecture' | 'commentaire' | 'edition' | undefined) ?? null,
+    definirNiveauPublic: (tableau, niveau) =>
+      transaction(() => {
+        const jeton = un('SELECT jeton FROM liens_publics WHERE tableau = ?', tableau)?.jeton as string | undefined
+        if (!jeton) return
+        executer('UPDATE liens_publics SET niveau = ? WHERE tableau = ?', niveau, tableau)
+        definirRoleDe(tableau, `lien:${jeton}`, niveau)
+      }),
+    equipe(id) {
+      const l = un('SELECT id, name AS nom, organizationId AS espace FROM team WHERE id = ?', id)
+      return l ? (l as unknown as { id: string; nom: string; espace: string }) : null
+    },
     motDePasse: (tableau, portee) =>
       (un('SELECT empreinte FROM mots_de_passe WHERE tableau = ? AND portee = ?', tableau, portee)?.empreinte as string | undefined) ?? null,
     definirMotDePasse(tableau, portee, empreinte) {
@@ -432,16 +573,22 @@ export function ouvrirBase(chemin: string): Base {
       (tous('SELECT tableau FROM recents WHERE utilisateur = ? ORDER BY vu DESC, tableau LIMIT ?', u, limite) as unknown as { tableau: string }[]).map(
         (l) => l.tableau,
       ),
-    indexer(tableau, entrees) {
+    indexer(tableau, entrees, fichiers) {
       const faire = () => {
         executer('DELETE FROM recherche WHERE tableau = ?', tableau)
         for (const e of entrees) executer('INSERT INTO recherche (tableau,element,texte) VALUES (?,?,?)', tableau, e.element, e.texte)
+        if (fichiers) {
+          executer('DELETE FROM fichiers_tableaux WHERE tableau = ?', tableau)
+          for (const f of fichiers) executer('INSERT OR IGNORE INTO fichiers_tableaux (fichier, tableau) VALUES (?, ?)', f, tableau)
+        }
         executer('INSERT OR IGNORE INTO recherche_etat (tableau) VALUES (?)', tableau)
       }
       // Déjà dans une transaction (le magasin en ouvre une autour de certains gestes) : on s'y joint.
       if (db.isTransaction) faire()
       else transaction(faire)
     },
+    estPhoto: (f) => un('SELECT 1 AS ok FROM utilisateurs WHERE photo = ?', f) !== null,
+    tableauxDuFichier: (f) => (tous('SELECT tableau FROM fichiers_tableaux WHERE fichier = ?', f) as unknown as { tableau: string }[]).map((l) => l.tableau),
     tableauxNonIndexes: () =>
       (
         tous("SELECT substr(nom, 9) AS tableau FROM documents WHERE nom LIKE 'tableau:%' AND substr(nom, 9) NOT IN (SELECT tableau FROM recherche_etat)") as unknown as {
