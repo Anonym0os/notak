@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { type Commentaire, type Element, type NoeudTexte, nouvelId } from '../../coeur/tableau'
-import { Icone } from '../../icones'
 import { t } from '../../langue'
 import { ouvrirFil, useFilOuvert } from '../decor/etat'
 import { FOND_NOTE, contraste } from '../note/couleurs'
@@ -105,9 +104,6 @@ export function BulleFil({
         if (e.key === 'Escape') fermer()
       }}
     >
-      <button type="button" className="notak-fil-attache-fermer" aria-label={t('commun.fermer')} onClick={fermer}>
-        <Icone nom="fermer" taille={14} />
-      </button>
       <div className="notak-commentaire">
         <CorpsFil
           fil={fil}

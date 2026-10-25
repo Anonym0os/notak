@@ -376,19 +376,6 @@
   border-right-width: 8px;
 }
 
-.notak-fil-attache-fermer {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  color: #8d929a !important;
-}
-
 .notak-fil-attache button,
 .notak-etiquettes button,
 .notak-decor-menu button {

@@ -100,7 +100,8 @@ interface PropsLigne {
 /**
  * Un message : l'avatar, le prénom, la date, le texte et les réactions. `modifier` (mes messages seulement) montre
  * « Modifier » au survol, qui ouvre le message dans le champ, « Enregistrer » le remplace ; `reagir` montre le « + »
- * au survol d'un message d'un autre, puis les pastilles.
+ * au survol d'un message d'un autre, puis les pastilles. Hors marge, `retirer` n'a pas de bouton : comme chez Milanote,
+ * on vide le message en le modifiant, puis Retour arrière le supprime.
  */
 export function Ligne({ message, retirer, modifier, contexte, reagir, nonLu, ecrit, enMarge, actionsFil, citation }: PropsLigne) {
   const { auteur } = message
@@ -166,11 +167,6 @@ export function Ligne({ message, retirer, modifier, contexte, reagir, nonLu, ecr
             </button>
           )}
           {!enMarge && ecrire && reagir && reactions.length === 0 && auteur.id !== jeSuis && <BoutonAjoutReaction className="notak-commentaire-reagir" choisir={reagir} />}
-          {!enMarge && retirer && (
-            <button type="button" className="notak-commentaire-retirer" title={t('commentaire.supprimerMessage')} onPointerDown={garder} onClick={retirer}>
-              <Icone nom="fermer" />
-            </button>
-          )}
         </div>
         {citation && <blockquote className="notak-commentaire-citation">{citation}</blockquote>}
         {edition && contexte && modifier ? (
@@ -186,6 +182,14 @@ export function Ligne({ message, retirer, modifier, contexte, reagir, nonLu, ecr
               setEdition(false)
               return true
             }}
+            {...(retirer
+              ? {
+                  retourVide: () => {
+                    setEdition(false)
+                    retirer()
+                  },
+                }
+              : {})}
           >
             {enMarge && (
               <span className="notak-compositeur-gestes">

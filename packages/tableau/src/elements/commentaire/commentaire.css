@@ -251,10 +251,6 @@
   cursor: pointer;
 }
 
-.notak-commentaire-retirer {
-  color: #8d929a;
-}
-
 /* « Répondre » : un lien bleu sous les messages. */
 .notak-commentaire-repondre {
   align-self: flex-start;
