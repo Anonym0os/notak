@@ -884,6 +884,239 @@ body {
   }
 }
 
+/* Le dialogue d'export : centré et modal, le format en liste, ses seules options dessous. */
+.export-dialogue {
+  box-sizing: border-box;
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: var(--carte);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.1), 0 16px 48px rgb(0 0 0 / 0.18);
+  color: var(--texte);
+  font-size: 13px;
+}
+
+.export-dialogue::backdrop {
+  background: rgb(20 24 31 / 0.32);
+}
+
+.export-carte {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 20px;
+}
+
+.export-entete {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.export-entete h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.export-fermer {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.export-fermer:hover {
+  background: var(--fond);
+}
+
+.export-formats,
+.export-options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.export-options {
+  gap: 8px;
+}
+
+.export-rubrique {
+  margin-bottom: 6px;
+  padding: 0;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.export-format {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.export-format:hover {
+  background: var(--fond);
+}
+
+.export-format:has(input:checked) {
+  background: rgb(47 111 235 / 0.08);
+  box-shadow: inset 0 0 0 1px rgb(47 111 235 / 0.45);
+}
+
+.export-format:has(input:focus-visible) {
+  outline: 2px solid rgb(47 111 235 / 0.5);
+  outline-offset: 1px;
+}
+
+/* Un filet entre les captures et le texte. */
+.export-format-filet {
+  margin-top: 4px;
+  border-top: 1px solid #eef0f3;
+  border-radius: 0 0 6px 6px;
+  padding-top: 10px;
+}
+
+.export-format-filet:has(input:checked) {
+  border-radius: 6px;
+}
+
+.export-format input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.export-format > svg {
+  flex: none;
+  color: #6b7280;
+}
+
+.export-format:has(input:checked) > svg {
+  color: var(--accent);
+}
+
+.export-format-texte {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.export-format-texte strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.export-format-texte small,
+.export-ext,
+.export-xmind {
+  color: #6b7280;
+}
+
+.export-ext {
+  font-weight: 400;
+}
+
+.export-pastille {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgb(47 111 235 / 0.12);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.export-case {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.export-case input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.export-ligne {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.export-segments {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 6px;
+  background: var(--fond);
+}
+
+.export-segments label {
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.export-segments input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.export-segments label:has(input:checked) {
+  background: var(--carte);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+  font-weight: 600;
+}
+
+.export-segments label:has(input:focus-visible) {
+  outline: 2px solid rgb(47 111 235 / 0.5);
+}
+
+.export-pied {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.export-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.export-actions .bouton {
+  height: 34px;
+}
+
 /* Thème sombre : l'en-tête, le fil d'Ariane et les panneaux repeints avec les jetons du thème. */
 .notak-espace[data-theme='sombre'] :is(.partage-panneau, .activite-panneau, .cloche-panneau, .compte-menu, .plus-entete-menu) {
   background: var(--notak-carte);
@@ -926,6 +1159,42 @@ body {
 
 .notak-espace[data-theme='sombre'] .bouton-lien {
   color: var(--notak-accent);
+}
+
+.notak-espace[data-theme='sombre'] .export-dialogue {
+  background: var(--notak-carte);
+  color: var(--notak-texte);
+  box-shadow: 0 16px 48px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.08);
+}
+
+.notak-espace[data-theme='sombre'] .export-dialogue::backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
+
+.notak-espace[data-theme='sombre'] :is(.export-format-texte small, .export-ext, .export-xmind, .export-rubrique, .export-format > svg) {
+  color: #a3aab4;
+}
+
+.notak-espace[data-theme='sombre'] :is(.export-format:hover, .export-fermer:hover) {
+  background: rgb(255 255 255 / 0.06);
+}
+
+.notak-espace[data-theme='sombre'] .export-format-filet {
+  border-top-color: rgb(255 255 255 / 0.1);
+}
+
+.notak-espace[data-theme='sombre'] .export-segments {
+  background: rgb(255 255 255 / 0.06);
+}
+
+.notak-espace[data-theme='sombre'] .export-segments label:has(input:checked) {
+  background: #3a4048;
+}
+
+.notak-espace[data-theme='sombre'] .export-dialogue .bouton:not(.bouton-plein) {
+  border-color: rgb(255 255 255 / 0.14);
+  background: #353a42;
+  color: var(--notak-texte);
 }
 
 .notak-espace[data-theme='sombre'] .connexion-erreur {
