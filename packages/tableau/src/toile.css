@@ -575,31 +575,15 @@
 
 
 /* Dans l'application de bureau, la bande tient lieu de barre de titre et garde le pointeur pour qu'on y saisisse la
-   fenêtre. Comme chez Xmind, ses îlots (16 px du haut) se centrent avec les boutons de la fenêtre à 34 px
-   (tauri.conf.json), le premier à 80 px du bord, après eux. En plein écran, plus de boutons : la bande d'origine. */
+   fenêtre. Comme chez Xmind, ses îlots (16 px du haut) se centrent avec les boutons de la fenêtre à 34 px, posés à
+   20 px du bord (tauri.conf.json), le premier à 96 px du bord, après eux. En plein écran, plus de boutons : la bande
+   d'origine. */
 :root[data-bureau]:not([data-plein-ecran]) .notak-entete {
-  padding-left: 80px;
+  padding-left: 96px;
 }
 
 :root[data-bureau] .notak-entete {
   pointer-events: auto;
-}
-
-/* Le cadre de la fenêtre, comme celui de la carte (fenetre.css) : 8 px tout autour, la toile arrondie à 8 px pour suivre
-   le coin de la fenêtre (16 px). Il se pose par-dessus la toile, qui reste entière dessous et garde ses mesures ; les
-   surcouches (carte, document, plein écran, z-index 1000) passent devant et portent le leur. */
-.notak-espace {
-  --notak-cadre: color-mix(in srgb, var(--notak-texte) 7%, var(--notak-fond));
-}
-
-:root[data-bureau]:not([data-plein-ecran]) .notak-espace:not(.notak-par-dessus)::after {
-  content: '';
-  position: fixed;
-  inset: 8px;
-  z-index: 999;
-  border-radius: 8px;
-  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.08), 0 0 0 40px var(--notak-cadre);
-  pointer-events: none;
 }
 
 .notak-entete-gauche {
