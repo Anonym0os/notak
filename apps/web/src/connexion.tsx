@@ -4,6 +4,7 @@ import {
   type Fournisseur,
   type Moi,
   connexionFournisseur,
+  connexionSso,
   demanderReinitialisation,
   jetonReinitialisation,
   moyensConnexion,
@@ -12,7 +13,7 @@ import {
   sInscrire,
 } from './api'
 
-type Mode = 'connexion' | 'inscription' | 'oubli' | 'nouveau'
+type Mode = 'connexion' | 'inscription' | 'oubli' | 'nouveau' | 'sso'
 
 const NOMS_FOURNISSEURS: Record<Fournisseur, string> = { google: 'Google', microsoft: 'Microsoft', github: 'GitHub' }
 
@@ -53,7 +54,10 @@ export function EcranConnexion({ surConnexion }: { surConnexion(moi: Moi): void 
     setErreur(null)
     setEnvoi(true)
     try {
-      if (mode === 'oubli') {
+      if (mode === 'sso') {
+        await connexionSso(adresse)
+        return
+      } else if (mode === 'oubli') {
         await demanderReinitialisation(adresse)
         setAvis(t('connexion.lienEnvoye'))
         setMode('connexion')
@@ -93,6 +97,7 @@ export function EcranConnexion({ surConnexion }: { surConnexion(moi: Moi): void 
     inscription: t('connexion.creer'),
     oubli: t('connexion.envoyerLien'),
     nouveau: t('connexion.changerMdp'),
+    sso: t('connexion.continuerSso'),
   }[mode]
 
   return (
@@ -100,6 +105,7 @@ export function EcranConnexion({ surConnexion }: { surConnexion(moi: Moi): void 
       <form className="connexion-carte" onSubmit={valider} noValidate>
         <h1>Notak</h1>
         {mode === 'oubli' && <p className="connexion-aide">{t(courriel ? 'connexion.oubliAide' : 'connexion.oubliSansCourriel')}</p>}
+        {mode === 'sso' && <p className="connexion-aide">{t('connexion.ssoAide')}</p>}
         {mode === 'inscription' && (
           <label>
             {t('connexion.nom')}
@@ -112,7 +118,7 @@ export function EcranConnexion({ surConnexion }: { surConnexion(moi: Moi): void 
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" autoFocus={mode !== 'inscription'} />
           </label>
         )}
-        {mode !== 'oubli' && (
+        {mode !== 'oubli' && mode !== 'sso' && (
           <label>
             {mode === 'nouveau' ? t('connexion.nouveauMdp') : t('connexion.mdp')}
             <input
@@ -137,7 +143,7 @@ export function EcranConnexion({ surConnexion }: { surConnexion(moi: Moi): void 
         <button type="submit" className="bouton bouton-plein" disabled={envoi}>
           {titreBouton}
         </button>
-        {mode === 'connexion' && fournisseurs.length > 0 && (
+        {mode === 'connexion' && (
           <div className="connexion-fournisseurs">
             <span className="connexion-ou">{t('connexion.ou')}</span>
             {fournisseurs.map((f) => (
@@ -145,6 +151,9 @@ export function EcranConnexion({ surConnexion }: { surConnexion(moi: Moi): void 
                 {t('connexion.avec', { fournisseur: NOMS_FOURNISSEURS[f] })}
               </button>
             ))}
+            <button type="button" className="bouton" onClick={() => passerA('sso')}>
+              {t('connexion.sso')}
+            </button>
           </div>
         )}
         {mode === 'connexion' && (

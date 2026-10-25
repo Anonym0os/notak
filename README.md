@@ -77,6 +77,7 @@ links and provider callbacks point to it: `-e NOTAK_ORIGINE=https://notak.exampl
 |---|---|
 | `NOTAK_SECRET` | Signs session cookies. Without it, one is drawn on first start and kept in `/donnees/secret`. Changing it signs everyone out. |
 | `NOTAK_GOOGLE_ID`, `NOTAK_GOOGLE_SECRET` | Adds "Continue with Google". Same pattern for `MICROSOFT` and `GITHUB`. The callback is `<NOTAK_ORIGINE>/api/auth/callback/<provider>`. |
+| `NOTAK_IDP_INTERNES` | Comma-separated origins of identity providers on your private network (e.g. `http://keycloak.lan`) that a team space may declare for SSO. Public providers (Okta, Entra ID, Google Workspace) need nothing. |
 | `NOTAK_SMTP_URL`, `NOTAK_EXPEDITEUR` | Sends password-reset and verification emails (`smtps://user:password@host:465`). Without it, the links go to the server log for the administrator to pass on. |
 
 Before upgrading, the server copies the database to `notak.db.avant-<version>` in `/donnees`, then migrates it.

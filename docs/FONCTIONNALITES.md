@@ -357,6 +357,8 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Fonctionnalité | État | Reste |
 |---|---|---|
 | Comptes, connexion | ✅ | Par Better Auth : mot de passe (les empreintes Argon2 d'avant sont reprises telles quelles), Google, Microsoft et GitHub quand le serveur les a configurés, mot de passe oublié (par courriel, ou par le journal du serveur sans SMTP). |
+| Espaces d'équipe : membres, invitations, équipes, rôles sur mesure | ✅ | Page `/espace`. Chaque compte a son espace personnel ; un espace d'équipe a son accueil, et ses membres en voient les tableaux selon leur rôle (propriétaire, admin, membre, invité, ou un rôle composé de gestes). |
+| SSO d'entreprise (OIDC, SAML) | ✅ | Déclaré par un admin d'espace d'équipe, actif une fois le domaine prouvé par un enregistrement DNS ; qui arrive par lui entre dans l'espace comme membre. |
 | Partager un tableau par adresse, invitation en attente | ✅ | |
 | Rôles lecture, édition, propriétaire ; changés en direct | ✅ | |
 | Partage hérité par les sous-tableaux | ✅ | |

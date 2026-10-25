@@ -118,6 +118,13 @@ inscription et qui est à Notak, l'accueil et les invitations en attente, est da
 de Better Auth. Le schéma vient de `migrations.ts` : des migrations numérotées, suivies par `PRAGMA user_version`,
 et un essai vérifie que Better Auth n'y trouve rien à ajouter.
 
+Les espaces sont les organisations de Better Auth (`espaces.ts`) : ses rôles fixes gardent leurs noms anglais
+(`owner`, `admin`, `member`, et `guest` en plus), parce que ses plugins s'y réfèrent. Un tableau appartient à un
+espace (`tableaux.espace`), et la table `espaces` donne l'accueil de chacun. Le rôle sur un tableau
+(`roleEffectif`) est le meilleur de ses partages, hérités par les tableaux parents, et de ce que donne le rôle dans
+son espace. Le SSO d'un espace passe par `@better-auth/sso` ; sa découverte OIDC se fait dans `sso.ts`, sous la
+garde réseau des aperçus de liens.
+
 ## Les essais
 
 Vitest, à côté des sources (`x.ts` → `x.test.ts`), en Node par défaut, jsdom quand un fichier commence par

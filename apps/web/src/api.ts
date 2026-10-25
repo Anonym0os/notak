@@ -139,6 +139,118 @@ export async function reinitialiser(jeton: string, motDePasse: string): Promise<
   if (!r.ok) throw await refus(r, REFUS_AUTH)
 }
 
+/** Part se connecter par le SSO de l'entreprise de cette adresse ; on revient sur la page courante une fois connecté. */
+export async function connexionSso(email: string): Promise<void> {
+  const r = await appeler('/api/auth/sign-in/sso', { email, callbackURL: location.href, errorCallbackURL: location.href })
+  if (!r.ok) throw await refus(r, { ...REFUS_AUTH, 404: 'erreur.sso_inconnu', 400: 'erreur.sso_inconnu', 401: 'erreur.sso_inconnu' })
+  const { url } = (await r.json()) as { url?: string }
+  if (url) location.assign(url)
+}
+
+// ---- Espaces : les organisations de Better Auth ----
+
+/** Un rôle fixe d'espace (ses noms sont ceux de Better Auth), ou le nom d'un rôle composé par l'espace. */
+export type RoleEspace = 'owner' | 'admin' | 'member' | 'guest' | (string & {})
+
+export interface EspaceLu {
+  id: string
+  nom: string
+  racine: string
+  personnel: boolean
+  role: RoleEspace
+}
+
+export interface MembreEspace {
+  id: string
+  role: RoleEspace
+  user: { id: string; name: string; email: string }
+}
+
+export interface InvitationEspace {
+  id: string
+  email: string
+  role: RoleEspace
+  status: string
+}
+
+export interface EquipeEspace {
+  id: string
+  name: string
+}
+
+export interface RoleCompose {
+  id: string
+  role: string
+  permission: Record<string, string[]>
+}
+
+export interface FournisseurSso {
+  providerId: string
+  issuer: string
+  domain: string
+  domainVerified?: boolean
+  organizationId?: string | null
+}
+
+/** Un appel à Better Auth : GET avec ses paramètres dans l'adresse, POST avec un corps. */
+async function auth<T>(chemin: string, corps?: Record<string, unknown>, params?: Record<string, string>): Promise<T> {
+  const r = await appeler(`/api/auth${chemin}${params ? `?${new URLSearchParams(params)}` : ''}`, corps)
+  if (!r.ok) throw await refus(r, REFUS_AUTH)
+  return (await r.json()) as T
+}
+
+export async function listerEspaces(): Promise<EspaceLu[]> {
+  const r = await appeler('/api/espaces')
+  if (!r.ok) throw await refus(r, {})
+  return (await r.json()) as EspaceLu[]
+}
+
+export const creerEspace = (nom: string) =>
+  auth<{ id: string }>('/organization/create', { name: nom, slug: `${nom.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'espace'}-${Date.now().toString(36)}` })
+export const renommerEspace = (espace: string, nom: string) => auth('/organization/update', { organizationId: espace, data: { name: nom } })
+export const supprimerEspace = (espace: string) => auth('/organization/delete', { organizationId: espace })
+export const quitterEspace = (espace: string) => auth('/organization/leave', { organizationId: espace })
+
+export const listerMembres = async (espace: string) =>
+  (await auth<{ members: MembreEspace[] }>('/organization/list-members', undefined, { organizationId: espace })).members
+export const inviterDansEspace = (espace: string, email: string, role: RoleEspace) =>
+  auth('/organization/invite-member', { organizationId: espace, email, role })
+export const changerRoleMembre = (espace: string, membre: string, role: RoleEspace) =>
+  auth('/organization/update-member-role', { organizationId: espace, memberId: membre, role })
+export const retirerMembre = (espace: string, membre: string) => auth('/organization/remove-member', { organizationId: espace, memberIdOrEmail: membre })
+export const listerInvitations = (espace: string) => auth<InvitationEspace[]>('/organization/list-invitations', undefined, { organizationId: espace })
+export const annulerInvitation = (invitation: string) => auth('/organization/cancel-invitation', { invitationId: invitation })
+/** Accepte une invitation reçue ; rend l'espace rejoint. */
+export const accepterInvitation = async (invitation: string) =>
+  (await auth<{ member: { organizationId: string } }>('/organization/accept-invitation', { invitationId: invitation })).member.organizationId
+
+export const listerEquipes = (espace: string) => auth<EquipeEspace[]>('/organization/list-teams', undefined, { organizationId: espace })
+export const creerEquipe = (espace: string, nom: string) => auth('/organization/create-team', { organizationId: espace, name: nom })
+export const supprimerEquipe = (espace: string, equipe: string) => auth('/organization/remove-team', { organizationId: espace, teamId: equipe })
+export const listerMembresEquipe = (equipe: string) => auth<{ userId: string }[]>('/organization/list-team-members', undefined, { teamId: equipe })
+export const ajouterAEquipe = (equipe: string, utilisateur: string) => auth('/organization/add-team-member', { teamId: equipe, userId: utilisateur })
+export const retirerDEquipe = (equipe: string, utilisateur: string) => auth('/organization/remove-team-member', { teamId: equipe, userId: utilisateur })
+
+export const listerRoles = (espace: string) => auth<RoleCompose[]>('/organization/list-roles', undefined, { organizationId: espace })
+export const creerRole = (espace: string, nom: string, permission: Record<string, string[]>) =>
+  auth('/organization/create-role', { organizationId: espace, role: nom, permission })
+export const supprimerRole = (espace: string, nom: string) => auth('/organization/delete-role', { organizationId: espace, roleName: nom })
+
+export const listerFournisseursSso = async (espace: string) =>
+  ((await auth<{ providers: FournisseurSso[] }>('/sso/providers')).providers ?? []).filter((f) => f.organizationId === espace)
+/** Déclare un SSO OIDC pour l'espace ; rend le jeton à poser en enregistrement DNS pour prouver le domaine. */
+export const declarerSsoOidc = (espace: string, f: { providerId: string; issuer: string; domain: string; clientId: string; clientSecret: string }) =>
+  auth<{ domainVerificationToken?: string }>('/sso/register', {
+    organizationId: espace,
+    providerId: f.providerId,
+    issuer: f.issuer,
+    domain: f.domain,
+    oidcConfig: { clientId: f.clientId, clientSecret: f.clientSecret },
+  })
+export const jetonDomaine = (fournisseur: string) => auth<{ domainVerificationToken: string }>('/sso/request-domain-verification', { providerId: fournisseur })
+export const verifierDomaine = (fournisseur: string) => auth('/sso/verify-domain', { providerId: fournisseur })
+export const supprimerSso = (fournisseur: string) => auth('/sso/delete-provider', { providerId: fournisseur })
+
 /** Change la couleur et/ou la photo du compte (`photo: null` la retire) ; rend le compte à jour. */
 export async function reglerCompte(reglages: { couleur?: string; photo?: string | null }): Promise<Moi> {
   const r = await appeler('/api/moi', reglages, 'PATCH')
