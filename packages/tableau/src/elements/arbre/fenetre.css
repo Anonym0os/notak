@@ -74,17 +74,6 @@
   background: color-mix(in srgb, var(--notak-arbre-texte) 4%, var(--notak-arbre-fond));
 }
 
-/* La bande du bord flou (ilots.css), au-dessus de la carte et sous les îlots qui la suivent. */
-.notak-arbre-haut {
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  z-index: 0;
-  height: 68px;
-  pointer-events: none;
-}
-
 .notak-arbre-entete {
   position: absolute;
   top: 16px;
