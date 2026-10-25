@@ -1651,6 +1651,7 @@ export const fr: Textes = {
   'blocs.image.droite': 'Aligner à droite',
   'blocs.image.legende': 'Légende',
   'blocs.image.legendeInvite': 'Écrivez une légende…',
+  'page.sommaire': 'Sommaire',
   // passe éditeur : page et rendu (fin)
   // passe éditeur : saisie (début)
   // passe éditeur : saisie (fin)
@@ -3616,6 +3617,7 @@ export const en: Textes = {
   'blocs.image.droite': 'Align right',
   'blocs.image.legende': 'Caption',
   'blocs.image.legendeInvite': 'Write a caption…',
+  'page.sommaire': 'Table of contents',
   // passe éditeur : page et rendu (fin)
   // passe éditeur : saisie (début)
   // passe éditeur : saisie (fin)

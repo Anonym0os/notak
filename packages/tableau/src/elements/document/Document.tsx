@@ -1,4 +1,4 @@
-import { EditorContent, getSchema, useEditor } from '@tiptap/react'
+import { type Editor, EditorContent, getSchema, useEditor } from '@tiptap/react'
 import { renderToReactElement } from '@tiptap/static-renderer/pm/react'
 import { type ReactNode, type RefObject, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -20,6 +20,7 @@ import { type Demande, MenuBlocs, type PontMenu, extensionSlash } from '../../bl
 import { Largeurs } from '../../blocs/Largeurs'
 import { LienSurvol } from '../../blocs/LienSurvol'
 import { Poignee } from '../../blocs/Poignee'
+import { Sommaire } from '../../blocs/Sommaire'
 import { CLE_CHOIX } from '../../blocs/selection'
 import { blocDe } from '../../blocs/modele'
 import { ApercuLien, ImageBloc, remplirImages } from '../../blocs/noeuds'
@@ -286,13 +287,15 @@ interface PropsModale {
   /** L'habillage de la page (police, petit texte, pleine largeur), et le menu qui le règle. */
   page?: PageDocument
   options?: ReactNode
+  /** L'éditeur du document en édition : le sommaire en lit les titres (en lecture, il les lit dans le rendu). */
+  editeur?: Editor | null
 }
 
 /**
  * Le document en grand, comme une page de Notion (docs/NOTION.md § 9) : toute la fenêtre, une barre de 44 px en haut
  * (fermer, le titre en petit, les options et « Export »), puis la page qui défile. Échap referme aussi.
  */
-function Modale({ titre, titreTexte, lireTexte, fermer, children, lecture, corps, page, options, finDePage }: PropsModale) {
+function Modale({ titre, titreTexte, lireTexte, fermer, children, lecture, corps, page, options, finDePage, editeur }: PropsModale) {
   return (
     <Surcouche
       etiquette={t('type.document')}
@@ -327,6 +330,7 @@ function Modale({ titre, titreTexte, lireTexte, fermer, children, lecture, corps
             {children}
             <div className="notak-page-fin" onMouseDown={finDePage} />
           </div>
+          <Sommaire editeur={editeur} lecture={lecture} />
         </div>
       </div>
     </Surcouche>
@@ -546,6 +550,7 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
       }}
       corps={corps}
       page={page}
+      editeur={editeur}
       options={
         <OptionsPage
           page={page}
