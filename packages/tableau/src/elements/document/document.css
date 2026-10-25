@@ -191,13 +191,32 @@
 /* La barre du haut : les îlots du tableau et de la carte (ilots.css). Le retour et le fil à gauche ; l'historique, le
    partage, puis les options, l'export et le compte à droite. */
 .notak-document-entete {
+  /* La page défile dessous (le corps lui laisse 68 px en haut), sous le bord flou (ilots.css). */
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  /* Au-dessus de la poignée des blocs et du sommaire (3), sous les menus et le choix d'emoji (10 et plus). */
+  z-index: 5;
   display: flex;
   align-items: center;
-  flex: none;
   gap: 12px;
   box-sizing: border-box;
   height: 68px;
   padding: 16px;
+  pointer-events: none;
+}
+
+.notak-document-entete > * {
+  pointer-events: auto;
+}
+
+.notak-document-entete > .notak-fil {
+  pointer-events: none;
+}
+
+.notak-document-entete > .notak-fil > * {
+  pointer-events: auto;
 }
 
 .notak-document-entete > .notak-fil {
@@ -210,6 +229,8 @@
    qu'elle rend en plein écran (voir `toile.css`). */
 :root[data-bureau] .notak-document-entete {
   padding-left: 88px;
+  /* La barre tient lieu de barre de titre : on y saisit la fenêtre. */
+  pointer-events: auto;
 }
 
 :root[data-bureau][data-plein-ecran] .notak-document-entete {
@@ -296,6 +317,9 @@
   position: relative;
   flex: 1;
   min-height: 0;
+  box-sizing: border-box;
+  /* La place de la barre du haut, posée par-dessus : la page commence dessous et y passe en défilant. */
+  padding-top: 68px;
   overflow-x: hidden;
   overflow-y: auto;
   user-select: text;
