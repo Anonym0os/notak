@@ -42,6 +42,7 @@ import type { OffreHabillages } from './habillage/bibliotheque'
 import './theme.css'
 import { Icone } from './icones'
 import { GardeToile } from './garde'
+import { useApercuOutils } from './apercuOutils'
 
 const CLE_VUES = 'notak:vues'
 /**
@@ -470,6 +471,7 @@ export function EspaceNotak({
   }
   // La présentation passe en plein écran ; en sortir (Échap du navigateur compris) la referme.
   const racineEspace = useRef<HTMLDivElement>(null)
+  const apercuOutils = useApercuOutils(racineEspace, outilsCaches)
   useEffect(() => {
     if (!presentation) return
     if (!document.fullscreenElement) void racineEspace.current?.requestFullscreen?.().catch(() => {})
@@ -586,7 +588,8 @@ export function EspaceNotak({
 
   return (
     <ContexteEntete.Provider value={entete}>
-    <div ref={racineEspace} className="notak-espace" data-theme={reglages.theme} data-taille={reglages.taille} data-presentation={presentation || undefined} data-outils={outilsCaches ? 'caches' : undefined}>
+    <div ref={racineEspace} className="notak-espace" data-theme={reglages.theme} data-taille={reglages.taille} data-presentation={presentation || undefined} data-outils={outilsCaches ? 'caches' : undefined} data-outils-apercu={apercuOutils.apercu || undefined}>
+      {outilsCaches && <div className="notak-outils-bord" aria-hidden onPointerEnter={apercuOutils.entrer} onPointerLeave={apercuOutils.quitter} />}
       <Entete
         outils={{ caches: outilsCaches, basculer: basculerOutils }}
         key={`entete:${langue}`}
@@ -701,14 +704,17 @@ function Entete({
   const [largeur, setLargeur] = useState(Number.POSITIVE_INFINITY)
   const [menu, setMenu] = useState(false)
 
+  const tete = useRef<HTMLSpanElement>(null)
+
   useLayoutEffect(() => {
     const n = fil.current!
     // Le fil prend la place que lui laissent les îlots : c'est sa largeur qui dit combien de maillons tiennent.
-    // Moins les marges de l'îlot qui porte les maillons (12 px).
-    const mesurer = () => setLargeur(n.clientWidth ? n.clientWidth - 12 : Number.POSITIVE_INFINITY)
+    // Moins les marges de l'îlot qui porte les maillons (12 px), et les boutons qui ouvrent cet îlot.
+    const mesurer = () => setLargeur(n.clientWidth ? n.clientWidth - 12 - (tete.current?.offsetWidth ?? 0) : Number.POSITIVE_INFINITY)
     mesurer()
     const obs = new ResizeObserver(mesurer)
     obs.observe(n)
+    if (tete.current) obs.observe(tete.current)
     return () => obs.disconnect()
   }, [])
 
@@ -759,23 +765,25 @@ function Entete({
     // Dans l'application de bureau, la barre tient lieu de barre de titre : on la saisit partout hors des îlots pour déplacer la fenêtre.
     <header className="notak-entete" data-tauri-drag-region="deep">
       <div className="notak-entete-gauche">
-        {(parent || outils) && (
-          <Ilot>
-            {parent && <BoutonIlot icone="gauche" libelle={t('espace.remonter')} onClick={() => aller(parent.id)} />}
-            {parent && outils && <FiletIlot />}
-            {outils && (
-              <BoutonIlot
-                icone="panneauGauche"
-                libelle={outils.caches ? t('espace.outilsAfficher') : t('espace.outilsMasquer')}
-                actif={!outils.caches}
-                onClick={outils.basculer}
-              />
-            )}
-          </Ilot>
-        )}
         <nav className="notak-fil" aria-label={t('espace.fil')} ref={fil}>
-          {/* Le fil a son îlot, comme les autres : la toile qui passe dessous ne le brouille pas. */}
+          {/* Le fil a son îlot, comme les autres : la toile qui passe dessous ne le brouille pas. Le retour et le
+              bouton des outils l'ouvrent, comme le nom d'un fichier suit ses boutons chez Figma ou Miro. */}
           <div className="notak-ilot notak-fil-ilot">
+            {(parent || outils) && (
+              <span className="notak-fil-tete" ref={tete}>
+                {parent && <BoutonIlot icone="gauche" libelle={t('espace.remonter')} onClick={() => aller(parent.id)} />}
+                {parent && outils && <FiletIlot />}
+                {outils && (
+                  <BoutonIlot
+                    icone="panneauGauche"
+                    libelle={outils.caches ? t('espace.outilsAfficher') : t('espace.outilsMasquer')}
+                    actif={!outils.caches}
+                    onClick={outils.basculer}
+                  />
+                )}
+                <FiletIlot />
+              </span>
+            )}
             {visibles.flatMap((i, rang) => [
               rang > 0 && <span key={`s${i}`} className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,
               rang === 1 && caches.length > 0 && (

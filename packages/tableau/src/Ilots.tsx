@@ -76,15 +76,22 @@ export function IlotHistorique({ annuler, retablir, peutAnnuler = true, peutReta
 
 /**
  * Le fil d'un écran ouvert en grand : le chemin du tableau qui le porte, puis son titre. Un maillon y ramène : l'écran
- * se ferme d'abord, pour que ce qu'il tient s'enregistre, puis le tableau voulu s'ouvre.
+ * se ferme d'abord, pour que ce qu'il tient s'enregistre, puis le tableau voulu s'ouvre. Les boutons de l'écran (le
+ * retour, le panneau) ouvrent son îlot, comme sur le tableau.
  */
-export function FilEcran({ titre, fermer, apres }: { titre: ReactNode; fermer(): void; apres?: ReactNode }) {
+export function FilEcran({ titre, fermer, avant, apres }: { titre: ReactNode; fermer(): void; avant?: ReactNode; apres?: ReactNode }) {
   const entete = useEntete()
   const fil = entete?.fil ?? []
   // Le tableau qui porte l'écran, et celui d'au-dessus : plus haut, le chemin se lit dans le tableau.
   const vus = fil.slice(-2)
   return (
     <nav className="notak-ilot notak-fil notak-fil-ecran" aria-label={t('espace.fil')}>
+      {avant && (
+        <span className="notak-fil-tete">
+          {avant}
+          <FiletIlot />
+        </span>
+      )}
       {vus.map((s, i) => (
         <span key={s.id} className="notak-fil-bloc">
           <button

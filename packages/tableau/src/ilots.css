@@ -171,3 +171,10 @@
 .notak-ilot .notak-titre-champ {
   border-radius: 15px;
 }
+
+/* Le retour et le bouton des outils ouvrent l'îlot du fil, séparés des maillons par un filet. */
+.notak-fil-tete {
+  display: flex;
+  flex: none;
+  align-items: center;
+}

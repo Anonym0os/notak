@@ -1,7 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
-import { BoutonIlot, FiletIlot, FilEcran, Ilot } from '../../Ilots'
+import { BoutonIlot, FiletIlot, FilEcran } from '../../Ilots'
 import { Flottant } from './Flottant'
 import type { AlignementFlottant } from './geometrieMenus'
 
@@ -47,29 +47,35 @@ export function BoutonIcone({
 }
 
 /**
- * En haut à gauche, comme sur le tableau et le document (Ilots.tsx) : l'îlot du retour au tableau et du panneau de
- * gauche, puis le fil (le tableau qui porte la carte, puis son nom) et son état.
+ * En haut à gauche, comme sur le tableau et le document (Ilots.tsx), un seul îlot : le retour au tableau et le panneau
+ * de gauche, puis le fil (le tableau qui porte la carte, puis son nom) et son état.
  */
 export function EnTete({ titre, etat, fermer, navigation }: { titre: string; etat: string; fermer(): void; navigation?: { actif: boolean; basculer(): void } }) {
   return (
     <div className="notak-arbre-entete">
-      <Ilot>
-        <BoutonIlot icone="gauche" libelle={t('arbre.fermer')} onClick={fermer} />
-        {navigation && (
-          <>
-            <FiletIlot />
-            <BoutonIlot
-              icone="panneauGauche"
-              libelle={navigation.actif ? t('arbre.gauche.masquer') : t('arbre.gauche.afficher')}
-              raccourci="⌘["
-              actif={navigation.actif}
-              onClick={navigation.basculer}
-            />
-          </>
-        )}
-      </Ilot>
       <div className="notak-arbre-nom">
-        <FilEcran titre={<span>{titre || t('type.arbre')}</span>} fermer={fermer} apres={etat && <span className="notak-arbre-etat">{etat}</span>} />
+        <FilEcran
+          titre={<span>{titre || t('type.arbre')}</span>}
+          fermer={fermer}
+          avant={
+            <>
+              <BoutonIlot icone="gauche" libelle={t('arbre.fermer')} onClick={fermer} />
+              {navigation && (
+                <>
+                  <FiletIlot />
+                  <BoutonIlot
+                    icone="panneauGauche"
+                    libelle={navigation.actif ? t('arbre.gauche.masquer') : t('arbre.gauche.afficher')}
+                    raccourci="⌘["
+                    actif={navigation.actif}
+                    onClick={navigation.basculer}
+                  />
+                </>
+              )}
+            </>
+          }
+          apres={etat && <span className="notak-arbre-etat">{etat}</span>}
+        />
       </div>
     </div>
   )

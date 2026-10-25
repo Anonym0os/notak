@@ -252,9 +252,44 @@
   background: var(--notak-barre, color-mix(in srgb, var(--notak-carte) 88%, transparent));
 }
 
-/* Le bouton du premier îlot cache la barre des outils ; les outils d'une sélection, eux, restent. */
-.notak-espace[data-outils='caches'] .notak-barre-outils:not([data-selection]) {
-  display: none;
+/* Le bouton du premier îlot range la barre des outils : elle glisse hors de l'écran, vers la gauche, et s'efface.
+   Le pointeur qui s'arrête sur le bord gauche la ramène par-dessus la toile (apercuOutils.ts), le temps de s'en
+   servir. Les outils d'une sélection, eux, restent. La courbe est celle des panneaux de macOS : départ vif,
+   arrivée douce. */
+.notak-barre-outils:not([data-selection]) {
+  transition:
+    transform 0.34s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.2s ease,
+    visibility 0s;
+}
+
+.notak-espace[data-outils='caches']:not([data-outils-apercu]) .notak-barre-outils:not([data-selection]) {
+  transform: translateX(calc(-100% - 24px));
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    transform 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.18s ease 0.08s,
+    visibility 0s 0.28s;
+}
+
+/* Le bord qui ramène la barre : une bande de 12 px sous la barre du haut, invisible. */
+.notak-outils-bord {
+  position: absolute;
+  inset: 68px auto 0 0;
+  z-index: 31;
+  width: 12px;
+}
+
+:root[data-bureau]:not([data-plein-ecran]) .notak-outils-bord {
+  top: 60px;
+}
+
+/* Sans mouvement : la barre ne glisse plus, elle s'efface seulement. */
+@media (prefers-reduced-motion: reduce) {
+  .notak-barre-outils:not([data-selection]) {
+    transform: none !important;
+  }
 }
 
 .notak-outil {
@@ -387,6 +422,40 @@
   font-size: 11px;
   line-height: 1.2;
   text-align: center;
+}
+
+/* Dans la barre de création, un libellé tient sur une ligne : plus large que l'outil, il est coupé en fondu et défile
+   au survol (Barres.tsx, LibelleOutil), après un temps d'arrêt, puis revient quand le pointeur repart. */
+.notak-barre-outils:not([data-selection]) .notak-outil-libelle {
+  display: block;
+  max-width: calc(100% - 8px);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.notak-barre-outils:not([data-selection]) .notak-outil-libelle > span {
+  display: inline-block;
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.notak-barre-outils:not([data-selection]) .notak-outil-libelle[data-deborde] {
+  text-align: left;
+  mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent);
+}
+
+.notak-barre-outils:not([data-selection]) .notak-outil:is(:hover, :focus-visible) .notak-outil-libelle[data-deborde] {
+  mask-image: linear-gradient(to right, transparent, #000 6px, #000 calc(100% - 6px), transparent);
+}
+
+.notak-barre-outils:not([data-selection]) .notak-outil:is(:hover, :focus-visible) .notak-outil-libelle[data-deborde] > span {
+  transform: translateX(var(--notak-defile));
+  transition: transform var(--notak-defile-duree) linear 0.4s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notak-barre-outils:not([data-selection]) .notak-outil-libelle > span {
+    transform: none !important;
+  }
 }
 
 .notak-barre-selection {
