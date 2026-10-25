@@ -65,7 +65,7 @@
 .notak-sommaire-panneau {
   position: absolute;
   top: 2px;
-  right: -2px;
+  right: 2px;
   box-sizing: border-box;
   width: 232px;
   max-height: calc(100vh - 160px);
