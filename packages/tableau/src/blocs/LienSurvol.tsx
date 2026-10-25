@@ -32,7 +32,7 @@ export function LienSurvol({ editeur }: { editeur: Editor }) {
       minuteur.current = setTimeout(f, ms)
     }
     const dessus = (e: MouseEvent) => {
-      const a = (e.target as Element).closest?.('a[href]') as HTMLAnchorElement | null
+      const a = (e.target as Element).closest?.('a[href]:not(.notak-apercu-lien)') as HTMLAnchorElement | null
       if (!a || !dom.contains(a) || e.buttons) return
       attendre(() => {
         const r = a.getBoundingClientRect()

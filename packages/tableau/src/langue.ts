@@ -1693,6 +1693,11 @@ export const fr: Textes = {
   'menus.lien.pageWeb': 'Lien vers une page web',
   'menus.lien.urlComplete': 'Saisissez une adresse complète',
   'menus.lien.retirer': 'Supprimer le lien',
+  'blocs.apercuLien': 'Aperçu de lien web',
+  'menus.apercu.creer': 'Créer l’aperçu',
+  'menus.collerComme.titre': 'Coller comme',
+  'menus.collerComme.lien': 'Lien',
+  'menus.collerComme.apercu': 'Aperçu',
   // passe éditeur : menus (fin)
   // passe éditeur : sélection et glisser (début)
   'selection.poignee.tenir': 'Faites glisser pour déplacer, cliquez pour ouvrir le menu',
@@ -3640,6 +3645,11 @@ export const en: Textes = {
   'menus.lien.pageWeb': 'Link to a web page',
   'menus.lien.urlComplete': 'Enter a full address',
   'menus.lien.retirer': 'Remove link',
+  'blocs.apercuLien': 'Link preview',
+  'menus.apercu.creer': 'Create preview',
+  'menus.collerComme.titre': 'Paste as',
+  'menus.collerComme.lien': 'Link',
+  'menus.collerComme.apercu': 'Preview',
   // passe éditeur : menus (fin)
   // passe éditeur : sélection et glisser (début)
   'selection.poignee.tenir': 'Drag to move, click to open the menu',

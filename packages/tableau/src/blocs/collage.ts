@@ -3,6 +3,8 @@ import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
 import { Extension } from '@tiptap/react'
 import { decouperAdresses } from '../elements/note/conversion'
+import { proposerCollerComme } from './apercu'
+import { CLE_APERCU } from './collerComme'
 import { MIME_NOTAK } from './copie'
 import { CONTENEURS, RETRAIT_MAX } from './ids'
 import { aDuMarkdownEnLigne, blocsDepuisMarkdown, enLigne } from './collageMarkdown'
@@ -17,9 +19,10 @@ import { blocsDe } from './modele'
  * 5. du HTML riche (titres, listes, citations, tableaux — Google Docs, Notion, une page web) devient des blocs à plat,
  *    les listes imbriquées en blocs rangés par leur retrait ;
  * 6. du texte brut sur plusieurs lignes se lit comme du Markdown et devient des blocs ;
- * 7. une adresse seule : un lien sur le passage choisi, ou un lien à son propre texte ; sinon le Markdown en ligne.
- * Le reste (un texte simple, un HTML qui n'est qu'un paragraphe) passe par le collage de ProseMirror. Le menu
- * « coller comme » (mention, signet, intégration) reste à faire : une adresse seule devient pour l'instant un lien.
+ * 7. une adresse seule : un lien sur le passage choisi, ou un lien à son propre texte, suivi — à un curseur — du menu
+ *    « coller comme » (« Lien » ou « Aperçu », voir `collerComme.ts`) ; sinon le Markdown en ligne.
+ * Le reste (un texte simple, un HTML qui n'est qu'un paragraphe) passe par le collage de ProseMirror. La mention et
+ * l'intégration du menu « coller comme » restent à faire.
  */
 
 /** Ce que le presse-papiers porte, des types qui nous intéressent. */
@@ -234,6 +237,10 @@ export function coller(view: EditorView, d: Presse, brut: boolean): boolean {
     const tr = state.tr
     if (empty) tr.replaceSelectionWith(schema.text(lignes.trim(), [lien.create({ href: adresse })]), false)
     else tr.addMark(from, to, lien.create({ href: adresse }))
+    // À un curseur, le menu « coller comme » s'ouvre sous la fin du lien (NOTION.md § 10.3).
+    const { $from } = state.selection
+    const cadre = { curseur: empty, brut, type: $from.parent.type.name, dansLaPage: $from.depth >= 1 && CONTENEURS.has($from.node($from.depth - 1).type.name) }
+    if (proposerCollerComme(cadre)) tr.setMeta(CLE_APERCU, { genre: 'coller', de: from, a: tr.selection.from, texte: lignes.trim(), url: adresse, rang: 0 })
     view.dispatch(tr.scrollIntoView().setMeta('paste', true).setMeta('uiEvent', 'paste'))
     return true
   }

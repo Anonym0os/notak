@@ -22,7 +22,7 @@ import { LienSurvol } from '../../blocs/LienSurvol'
 import { Poignee } from '../../blocs/Poignee'
 import { CLE_CHOIX } from '../../blocs/selection'
 import { blocDe } from '../../blocs/modele'
-import { ImageBloc, remplirImages } from '../../blocs/noeuds'
+import { ApercuLien, ImageBloc, remplirImages } from '../../blocs/noeuds'
 import { type GestesBlocs, raccourcisBlocs } from '../../blocs/saisie'
 import { EXTENSIONS_BLOCS, EXTENSIONS_BLOCS_PARTAGEE, SCHEMA_BLOCS as SCHEMA } from '../../blocs/schema'
 import { colorer, ecrireALaFin, insererImage } from '../../blocs/transformer'
@@ -436,17 +436,18 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
   const [derniere, setDerniere] = useState<Couleur | null>(() => derniereCouleur())
   const gestes = useRef<GestesBlocs>({ transformerEn: () => {}, derniereCouleur: () => {} })
   const fichiers = contexte.services.fichiers
+  const chercherApercu = contexte.services.apercu
   // À plusieurs, le texte vit dans le fragment Yjs du document ; lu une fois, à l'entrée en édition (NOTION.md § 9).
   const fragment = useMemo(() => textePartage(contexte, id, initial, SCHEMA), [])
   const extensions = useMemo(
     () => [
-      ...(fragment ? [...EXTENSIONS_BLOCS_PARTAGEE, ...extensionsDuPartage(fragment, contexte)] : EXTENSIONS_BLOCS).map((x) => (x.name === 'image' && fichiers ? ImageBloc.configure({ adresse: (id) => fichiers.adresse(id) }) : x)),
+      ...(fragment ? [...EXTENSIONS_BLOCS_PARTAGEE, ...extensionsDuPartage(fragment, contexte)] : EXTENSIONS_BLOCS).map((x) => (x.name === 'image' && fichiers ? ImageBloc.configure({ adresse: (id) => fichiers.adresse(id) }) : x.name === 'apercuLien' && chercherApercu ? ApercuLien.configure({ chercher: chercherApercu }) : x)),
       Invite,
       extensionPropositions(pont),
       extensionSlash(pontMenu),
       raccourcisBlocs(gestes),
     ],
-    [fichiers, fragment],
+    [fichiers, chercherApercu, fragment],
   )
   const editeur = useEditor({
     extensions,

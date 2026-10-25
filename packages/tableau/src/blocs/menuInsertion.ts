@@ -49,22 +49,23 @@ function lireBloc(doc: NoeudPM, pos: number) {
 
 /**
  * Choisit une entrée du menu « / » : `zone` est le `/` et son filtre. Rend vrai quand il y a eu un geste. `image` : le
- * sélecteur de fichier, qui pose lui-même l'image (à la place d'un paragraphe vide, sinon dessous).
+ * sélecteur de fichier, qui pose lui-même l'image (à la place d'un paragraphe vide, sinon dessous). `apercu` : le champ
+ * du lien, qui pose lui-même le signet de la même façon.
  *
  * Le `/` s'en va et, quand le bloc neuf vient dessous, son paragraphe d'accueil se pose dans la même transaction :
  * le type se règle juste après, sur ce paragraphe, et l'historique réunit le tout.
  */
-export function choisirDansSlash(editor: Editor, entree: Pick<Entree, 'effet' | 'section'>, zone: Zone, image?: () => void): boolean {
+export function choisirDansSlash(editor: Editor, entree: Pick<Entree, 'effet' | 'section'>, zone: Zone, image?: () => void, apercu?: () => void): boolean {
   if (!editor.isEditable) return false
   const { effet } = entree
   // Le texte d'avant le `/` reste, le `/` et le filtre partent.
   // Le geste suivant (le type, l'insertion) rejoint celui-ci : un seul ⌘Z défait le tout.
   const tr = enchainer(editor.state.tr.deleteRange(zone.de, zone.a))
-  if (effet.genre === 'action' || effet.genre === 'couleur' || (effet.genre === 'vers' && entree.section === 'transformer') || (effet.genre === 'inserer' && effet.quoi === 'image')) {
+  if (effet.genre === 'action' || effet.genre === 'couleur' || (effet.genre === 'vers' && entree.section === 'transformer') || (effet.genre === 'inserer' && (effet.quoi === 'image' || effet.quoi === 'apercuLien'))) {
     editor.view.dispatch(tr)
     // « Transformer en » : le bloc courant change de type. L'image se pose quand le fichier est choisi.
     if (effet.genre === 'vers') return transformer(editor, effet.vers)
-    if (effet.genre === 'inserer') image?.()
+    if (effet.genre === 'inserer') (effet.quoi === 'apercuLien' ? apercu : image)?.()
     return true
   }
   const { fin, retrait, decision } = lireBloc(tr.doc, tr.mapping.map(editor.state.selection.from))

@@ -1,7 +1,12 @@
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import { Node, mergeAttributes } from '@tiptap/react'
+import { adresseSure } from '../elements/lien/adresse'
 import { Citation } from '../elements/note/noeuds'
+import type { ChercheurApercu } from '../elements/types'
+import type { Apercu } from '../coeur/tableau'
 import { t } from '../langue'
+import { attributsDepuisApercu } from './apercu'
+import { blocsChoisis } from './selection'
 
 /** L'icône d'un alignement : trois traits rangés à gauche, au centre ou à droite. */
 function dessinAlignement(cote: 'gauche' | 'centre' | 'droite'): SVGElement {
@@ -306,29 +311,185 @@ export function remplirImages(racine: HTMLElement, adresse: (fichier: string) =>
   }
 }
 
-/** Une adresse montrée en carte : son titre, sa description et son image, lus comme ceux des liens de la toile. */
-export const ApercuLien = Node.create({
+/**
+ * Une adresse montrée en carte, le signet (NOTION.md § 10.3) : à gauche le titre, la description et l'adresse (avec la
+ * favicon du site), à droite l'image de la page. Un clic ouvre l'adresse dans un autre onglet. Dans l'éditeur, une
+ * carte sans titre va chercher l'aperçu de sa page une fois et l'écrit dans le nœud (hors historique d'annulation).
+ */
+export interface OptionsApercuLien {
+  /** Lit l'aperçu d'une adresse (`contexte.services.apercu`) ; absent, la carte garde l'adresse pour titre. */
+  chercher: ChercheurApercu | null
+}
+
+/** Un élément de la carte, avec sa classe. */
+function morceau<K extends keyof HTMLElementTagNameMap>(balise: K, classe: string): HTMLElementTagNameMap[K] {
+  const el = document.createElement(balise)
+  el.className = `notak-apercu-lien-${classe}`
+  return el
+}
+
+/** Une image de la carte (favicon, vignette) : elle se retire seule si l'adresse ne mène à rien. */
+function imageDeCarte(classe: string): HTMLImageElement {
+  const img = morceau('img', classe)
+  img.alt = ''
+  img.draggable = false
+  img.loading = 'lazy'
+  img.referrerPolicy = 'no-referrer'
+  img.addEventListener('error', () => img.remove())
+  return img
+}
+
+/**
+ * Les demandes d'aperçu en cours, par chercheur puis par adresse : l'éditeur peut dessiner deux fois la même carte
+ * (il redessine tout quand ses extensions changent), la page n'est lue qu'une fois. Une demande finie s'oublie : une
+ * adresse qui a échoué se redemande à la prochaine ouverture.
+ */
+const EN_COURS = new WeakMap<ChercheurApercu, Map<string, Promise<Apercu>>>()
+
+function demanderApercu(chercher: ChercheurApercu, url: string): Promise<Apercu> {
+  const parAdresse = EN_COURS.get(chercher) ?? new Map<string, Promise<Apercu>>()
+  EN_COURS.set(chercher, parAdresse)
+  const deja = parAdresse.get(url)
+  if (deja) return deja
+  const demande = chercher(url)
+  parAdresse.set(url, demande)
+  const oublier = () => void parAdresse.delete(url)
+  demande.then(oublier, oublier)
+  return demande
+}
+
+export const ApercuLien = Node.create<OptionsApercuLien>({
   name: 'apercuLien',
   group: 'block',
   atom: true,
+  draggable: false,
+  addOptions: () => ({ chercher: null }),
   addAttributes() {
     return {
       url: { default: '', parseHTML: (el: HTMLElement) => el.getAttribute('href') ?? '' },
       titre: { default: '', parseHTML: (el: HTMLElement) => el.querySelector('.notak-apercu-lien-titre')?.textContent ?? '' },
       description: { default: '', parseHTML: (el: HTMLElement) => el.querySelector('.notak-apercu-lien-description')?.textContent ?? '' },
-      image: { default: null },
+      image: { default: null, parseHTML: (el: HTMLElement) => el.querySelector('.notak-apercu-lien-image')?.getAttribute('src') ?? null },
+      favicon: { default: null, parseHTML: (el: HTMLElement) => el.querySelector('.notak-apercu-lien-icone')?.getAttribute('src') ?? null },
     }
   },
   parseHTML: () => [{ tag: 'a[data-type="apercu-lien"]' }],
   renderHTML: ({ node, HTMLAttributes }) => {
-    const { url, titre, description, image, ...reste } = HTMLAttributes as Record<string, unknown>
+    const { url, titre, description, image, favicon, ...reste } = HTMLAttributes as Record<string, unknown>
     const adresse = String(node.attrs.url ?? '')
+    const titreVu = String(node.attrs.titre || adresse)
+    const icone = adresseSure(node.attrs.favicon, 'image')
+    const vignette = adresseSure(node.attrs.image, 'image')
     return [
       'a',
-      mergeAttributes(reste, { 'data-type': 'apercu-lien', class: 'notak-apercu-lien', href: adresse, target: '_blank', rel: 'noopener' }),
-      ['span', { class: 'notak-apercu-lien-titre' }, String(node.attrs.titre || adresse)],
-      ...(node.attrs.description ? [['span', { class: 'notak-apercu-lien-description' }, String(node.attrs.description)] as const] : []),
-      ['span', { class: 'notak-apercu-lien-adresse' }, adresse],
+      mergeAttributes(reste, { 'data-type': 'apercu-lien', class: 'notak-apercu-lien', href: adresseSure(adresse) ?? '', target: '_blank', rel: 'noopener noreferrer', ...(node.attrs.titre ? {} : { 'data-etat': 'vide' }) }),
+      [
+        'span',
+        { class: 'notak-apercu-lien-texte' },
+        ['span', { class: 'notak-apercu-lien-titre' }, titreVu],
+        ...(node.attrs.description ? [['span', { class: 'notak-apercu-lien-description' }, String(node.attrs.description)] as const] : []),
+        // Sans titre, l'adresse est déjà le titre : elle n'est pas écrite deux fois.
+        ...(node.attrs.titre
+          ? [['span', { class: 'notak-apercu-lien-pied' }, ...(icone ? [['img', { class: 'notak-apercu-lien-icone', src: icone, alt: '' }] as const] : []), ['span', { class: 'notak-apercu-lien-adresse' }, adresse]] as const]
+          : []),
+      ],
+      ...(vignette ? [['img', { class: 'notak-apercu-lien-image', src: vignette, alt: '' }] as const] : []),
     ]
+  },
+  addNodeView() {
+    const { chercher } = this.options
+    return ({ node: depart, view, getPos }) => {
+      let node = depart
+      let detruit = false
+      // L'adresse dont l'aperçu a été demandé (une fois par adresse), et si la réponse se fait attendre.
+      let demandee = ''
+      let enAttente = false
+      const carte = document.createElement('a')
+      carte.className = 'notak-apercu-lien'
+      carte.dataset.type = 'apercu-lien'
+      carte.target = '_blank'
+      carte.rel = 'noopener noreferrer'
+      carte.draggable = false
+      const texte = morceau('span', 'texte')
+      const titre = morceau('span', 'titre')
+      const description = morceau('span', 'description')
+      const pied = morceau('span', 'pied')
+      const icone = imageDeCarte('icone')
+      const adresse = morceau('span', 'adresse')
+      pied.append(icone, adresse)
+      texte.append(titre, description, pied)
+      const vignette = imageDeCarte('image')
+      carte.append(texte, vignette)
+      // Une image qui n'a pas pu se charger a retiré son élément : on le rend à la carte avec sa nouvelle adresse.
+      const montrer = (img: HTMLImageElement, src: string | undefined, parent: HTMLElement, avant?: HTMLElement) => {
+        if (!src) return img.remove()
+        if (img.getAttribute('src') !== src) img.src = src
+        if (!img.isConnected) parent.insertBefore(img, avant ?? null)
+      }
+      const peindre = () => {
+        const a = node.attrs as Record<string, unknown>
+        for (const [cle, v] of [['bloc', a.id], ['couleur', a.couleur], ['retrait', Number(a.retrait) || null]] as const) {
+          if (v) carte.dataset[cle] = String(v)
+          else delete carte.dataset[cle]
+        }
+        const url = String(a.url ?? '')
+        const sure = adresseSure(url)
+        if (sure) carte.href = sure
+        else carte.removeAttribute('href')
+        carte.dataset.etat = a.titre ? 'pret' : enAttente ? 'attente' : 'vide'
+        titre.textContent = String(a.titre || url)
+        description.textContent = String(a.description ?? '')
+        description.hidden = !a.description
+        adresse.textContent = url
+        pied.hidden = !a.titre
+        montrer(icone, adresseSure(a.favicon, 'image'), pied, adresse)
+        montrer(vignette, adresseSure(a.image, 'image'), carte)
+      }
+      // Sans titre, la carte demande l'aperçu de sa page, une fois ; la réponse s'écrit dans le nœud, hors annulation.
+      const chercherSiVide = () => {
+        const url = String(node.attrs.url ?? '')
+        if (!chercher || !view.editable || node.attrs.titre || !adresseSure(url) || demandee === url) return
+        demandee = url
+        enAttente = true
+        peindre()
+        demanderApercu(chercher, url)
+          .then((apercu) => {
+            const pos = getPos()
+            const actuel = pos === undefined || detruit || view.isDestroyed ? null : view.state.doc.nodeAt(pos)
+            // Le bloc a disparu, changé d'adresse ou reçu un titre entre-temps : cette réponse ne le concerne plus.
+            if (!actuel || actuel.type !== node.type || actuel.attrs.url !== url || actuel.attrs.titre) return
+            view.dispatch(view.state.tr.setNodeMarkup(pos!, undefined, { ...actuel.attrs, ...attributsDepuisApercu(url, apercu) }).setMeta('addToHistory', false))
+          })
+          // Un échec garde la carte telle quelle : l'adresse fait le titre.
+          .catch(() => {})
+          .finally(() => {
+            enAttente = false
+            if (!detruit) peindre()
+          })
+      }
+      // Un clic ouvre l'adresse, sauf s'il sert à choisir : avec Maj, ou pendant que des blocs sont choisis.
+      carte.addEventListener('click', (e) => {
+        if (!view.editable) return
+        e.preventDefault()
+        const sure = adresseSure(node.attrs.url)
+        if (sure && !e.shiftKey && blocsChoisis(view.state).length === 0) window.open(sure, '_blank', 'noopener,noreferrer')
+      })
+      peindre()
+      chercherSiVide()
+      return {
+        dom: carte,
+        update: (n) => {
+          if (n.type !== node.type) return false
+          node = n
+          peindre()
+          chercherSiVide()
+          return true
+        },
+        ignoreMutation: () => true,
+        destroy: () => {
+          detruit = true
+        },
+      }
+    }
   },
 })

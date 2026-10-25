@@ -63,4 +63,15 @@ describe('NOTION.md § 1 : un texte imbriqué passe à plat, et revient', () => 
     expect(aplatir(c).content?.[0]?.content?.[0]?.content).toEqual([t('puce', 'x')])
     expect(deplier(aplatir(c))).toEqual(c)
   })
+
+  it('une carte d’aperçu de lien garde son adresse, son titre et son image dans les deux sens, même rangée sous une puce', () => {
+    const carte = { type: 'apercuLien', attrs: { id: 'c1', url: 'https://exemple.fr', titre: 'Exemple', description: 'Une page', image: 'https://exemple.fr/i.png' } }
+    const imbrique = doc({ type: 'bulletList', content: [li('parent')] }, carte)
+    const plat = aplatir(imbrique)
+    expect(plat.content?.[1]).toEqual(carte)
+    expect(deplier(plat).content?.[1]).toEqual(carte)
+    const dessous = doc(t('puce', 'parent'), { ...carte, attrs: { ...carte.attrs, retrait: 1 } })
+    expect(deplier(dessous).content?.[0]).toMatchObject({ type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph' }, { type: 'apercuLien', attrs: { url: 'https://exemple.fr', titre: 'Exemple' } }] }] })
+    expect(aplatir(deplier(dessous))).toEqual(dessous)
+  })
 })

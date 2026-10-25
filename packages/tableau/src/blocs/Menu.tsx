@@ -5,9 +5,11 @@ import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from 're
 import { PanneauFlottant } from '../PanneauFlottant'
 import { Icone } from '../icones'
 import { t } from '../langue'
+import { ApercuMenus } from './ApercuMenus'
 import { type Couleur, type Entree, declencheurSlash, fermeParEspaces, tropLoin } from './catalogue'
 import { blocA } from './gestes'
 import { type Groupe, agirSurBlocs, couleurDuPremier, idsCibles, lignesDe, listeBloc, listeCouleur, listeSlash, listeTransformer, suffixeDe, typeDeLaCible } from './menuActions'
+import { ouvrirApercu } from './collerComme'
 import { type AncreFigee, ancreBloc, ancreSlash, dansTriangle, defilement, garderAncre, suivreDefilement } from './menuAncre'
 import { lireRecentes, retenirCouleur } from './menuCouleurs'
 import { IconeMenu } from './menuIcones'
@@ -277,7 +279,7 @@ export function MenuBlocs({ editeur, pont, demande, choisirImage, surCouleur, co
     if (m.genre === 'slash') {
       const zoneSlash = { de: m.etat.de, a: m.etat.a }
       poser(null)
-      choisirDansSlash(editeur, e, zoneSlash, choisirImage)
+      choisirDansSlash(editeur, e, zoneSlash, choisirImage, () => ouvrirApercu(editeur.view, { genre: 'champ' }))
       if (effet.genre === 'action' || effet.genre === 'couleur') agirSurBlocs(editeur, effet, services)
     } else {
       poser(null)
@@ -365,7 +367,7 @@ export function MenuBlocs({ editeur, pont, demande, choisirImage, surCouleur, co
     return () => cancelAnimationFrame(image)
   }, [genre, mode?.ancre?.cle])
 
-  if (!visible || !mode) return null
+  if (!visible || !mode) return <ApercuMenus editeur={editeur} />
   const ancre = mode.ancre
   const hote = editeur.view.dom.closest<HTMLElement>('[aria-modal], .notak-espace')
   // Sans mesure (une mesure qui échoue), le panneau reste caché : il se placera à la mesure suivante.
@@ -555,6 +557,7 @@ export function MenuBlocs({ editeur, pont, demande, choisirImage, surCouleur, co
           </div>
         </PanneauFlottant>
       )}
+      <ApercuMenus editeur={editeur} />
     </>
   )
 }

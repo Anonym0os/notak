@@ -23,7 +23,7 @@ export type Vers =
   | 'code'
 
 /** Ce qu'on insère sans transformer : un bloc qui n'a pas de texte. */
-export type Insertion = 'separateur' | 'image' | 'tableau' | 'colonnes2' | 'colonnes3' | 'colonnes4' | 'colonnes5'
+export type Insertion = 'separateur' | 'image' | 'apercuLien' | 'tableau' | 'colonnes2' | 'colonnes3' | 'colonnes4' | 'colonnes5'
 
 /** Les couleurs d'un bloc ou d'un passage (NOTION.md § 1) ; `defaut` les retire. */
 export const COULEURS = ['defaut', 'gris', 'brun', 'orange', 'jaune', 'vert', 'bleu', 'violet', 'rose', 'rouge'] as const
@@ -149,6 +149,8 @@ const INSERTIONS: readonly Entree[] = [
   inserer('base', 'separateur', 'separateur', ['ligne horizontale', 'séparateur', 'ligne', 'hr', 'section', '—-'], ['horizontal rule', 'divider', 'line', 'hr', 'section', 'separator', '—-'], '---'),
   inserer('media', 'image', 'image', ['image', 'photo', 'gif', 'giphy', 'img'], ['image', 'picture', 'gif', 'giphy', 'photo', 'img']),
   ...TYPES.filter((x) => x.section === 'media').map((x) => vers('media', x.id, x.icone, x.mots, x.motsEn, x.markdown)),
+  // Le signet : le champ du lien s'ouvre sous le bloc (NOTION.md § 10.3).
+  inserer('media', 'apercuLien', 'lien', ['aperçu de lien web', 'miniature', 'lien', 'web', 'aperçu'], ['link preview', 'web link', 'bookmark', 'web', 'link', 'preview']),
   ...TYPES.filter((x) => x.section === 'avances').map((x) => vers('avances', x.id, x.icone, x.mots, x.motsEn, x.markdown)),
   colonnes(2, 'deux', 'two'),
   colonnes(3, 'trois', 'three'),

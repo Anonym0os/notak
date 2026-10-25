@@ -3,6 +3,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { EXTENSIONS_NOTE, KIT } from '../elements/note/extensions'
 import { ClavierBlocs } from './clavier'
 import { CodeBlocs } from './code'
+import { CollerComme } from './collerComme'
 import { DissolutionColonnes } from './colonnes'
 import { IdsDeBlocs } from './ids'
 import { ApercuLien, Colonne, Colonnes, ImageBloc } from './noeuds'
@@ -49,6 +50,7 @@ const communs = [
   ClavierBlocs,
   SaisieBlocs,
   SelectionBlocs,
+  CollerComme,
   DissolutionColonnes,
 ]
 
