@@ -100,6 +100,19 @@
   padding: 0;
 }
 
+/* La barre est une barre d'outils, pas du texte : rien ne s'y sélectionne en glissant ou au double-clic (le titre du
+   tableau reste un champ qu'on modifie). */
+:is(.notak-entete, .notak-document-entete, .notak-arbre-entete, .notak-arbre-droite, .notak-ilot) {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Safari refuse la saisie dans un champ sous user-select: none : le titre du tableau garde la sienne. */
+:is(.notak-entete, .notak-document-entete, .notak-arbre-entete) :is(input, textarea) {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* Le fil : le chemin pâle, le titre de l'écran en gras. */
 .notak-fil-ecran {
   flex: 0 1 auto;
