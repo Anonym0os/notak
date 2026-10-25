@@ -85,8 +85,9 @@
 
 .notak-arbre-nom {
   display: flex;
-  min-width: 100px;
-  max-width: 360px;
+  flex: 0 1 auto;
+  align-items: center;
+  min-width: 0;
 }
 
 /* « Lecture seule », dans l'îlot du fil, après le titre. */

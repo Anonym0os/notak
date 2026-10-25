@@ -703,12 +703,20 @@ function Entete({
 
   useLayoutEffect(() => {
     const n = fil.current!
-    // Le fil prend la place que lui laissent les îlots : c'est sa largeur qui dit combien de maillons tiennent.
-    // Moins les marges de l'îlot qui porte les maillons (12 px).
-    const mesurer = () => setLargeur(n.clientWidth ? n.clientWidth - 12 : Number.POSITIVE_INFINITY)
+    // Le fil vit au bout de l'îlot de gauche, qui se règle sur lui : sa place est celle que l'îlot peut prendre (la
+    // bande à gauche des îlots de droite, et au plus sa largeur maximale), moins ses boutons. C'est elle qui dit
+    // combien de maillons tiennent.
+    const ilot = n.parentElement!
+    const gauche = ilot.parentElement!
+    const mesurer = () => {
+      if (!gauche.clientWidth) return setLargeur(Number.POSITIVE_INFINITY)
+      const plafond = Math.min(gauche.clientWidth, Number.parseFloat(getComputedStyle(ilot).maxWidth) || Number.POSITIVE_INFINITY)
+      setLargeur(plafond - (ilot.offsetWidth - n.offsetWidth))
+    }
     mesurer()
     const obs = new ResizeObserver(mesurer)
-    obs.observe(n)
+    obs.observe(gauche)
+    obs.observe(ilot)
     return () => obs.disconnect()
   }, [])
 
@@ -734,7 +742,7 @@ function Entete({
     const ici = i === segments.length - 1 && s.id === courant
     if (ici && avecTitre)
       return (
-        <span key={`${s.id}:${i}`} className="notak-fil-titre" aria-current="page" data-depot-tableau={s.id} data-charge={!charge || undefined} title={!charge ? t('espace.chargement') : undefined}>
+        <span key={`${s.id}:${i}`} className="notak-fil-titre" aria-current="page" data-depot-tableau={s.id} data-charge={!charge || undefined} title={!charge ? t('espace.chargement') : s.titre}>
           <TitreTableau titre={s.titre} {...(renommer ? { renommer } : {})} />
         </span>
       )
@@ -759,23 +767,21 @@ function Entete({
     // Dans l'application de bureau, la barre tient lieu de barre de titre : on la saisit partout hors des îlots pour déplacer la fenêtre.
     <header className="notak-entete" data-tauri-drag-region="deep">
       <div className="notak-entete-gauche">
-        {(parent || outils) && (
-          <Ilot>
-            {parent && <BoutonIlot icone="gauche" libelle={t('espace.remonter')} onClick={() => aller(parent.id)} />}
-            {parent && outils && <FiletIlot />}
-            {outils && (
-              <BoutonIlot
-                icone="panneauGauche"
-                libelle={outils.caches ? t('espace.outilsAfficher') : t('espace.outilsMasquer')}
-                actif={!outils.caches}
-                onClick={outils.basculer}
-              />
-            )}
-          </Ilot>
-        )}
-        <nav className="notak-fil" aria-label={t('espace.fil')} ref={fil}>
-          {/* Le fil a son îlot, comme les autres : la toile qui passe dessous ne le brouille pas. */}
-          <div className="notak-ilot notak-fil-ilot">
+        {/* Un seul îlot : remonter, la barre des outils, puis le fil et l'état de l'enregistrement. Le reste de la bande
+            reste vide et transparent. */}
+        <Ilot className="notak-ilot-fil">
+          {parent && <BoutonIlot icone="gauche" libelle={t('espace.remonter')} onClick={() => aller(parent.id)} />}
+          {parent && outils && <FiletIlot />}
+          {outils && (
+            <BoutonIlot
+              icone="panneauGauche"
+              libelle={outils.caches ? t('espace.outilsAfficher') : t('espace.outilsMasquer')}
+              actif={!outils.caches}
+              onClick={outils.basculer}
+            />
+          )}
+          {(parent || outils) && <FiletIlot />}
+          <nav className="notak-fil" aria-label={t('espace.fil')} ref={fil}>
             {visibles.flatMap((i, rang) => [
               rang > 0 && <span key={`s${i}`} className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,
               rang === 1 && caches.length > 0 && (
@@ -804,8 +810,8 @@ function Entete({
               segment(i),
             ])}
             {avecTitre && <EtatEnregistrement etat={envoi} />}
-          </div>
-        </nav>
+          </nav>
+        </Ilot>
       </div>
       <div className="notak-entete-droite">
         {historique && <IlotHistorique annuler={historique.annuler} retablir={historique.retablir} peutAnnuler={peutAnnuler} peutRetablir={peutRetablir} />}

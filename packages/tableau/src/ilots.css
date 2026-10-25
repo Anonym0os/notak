@@ -147,19 +147,34 @@
   text-overflow: ellipsis;
 }
 
-/* Le fil a son îlot (le tableau, ou le document et la carte ouverts en grand) : la toile passe dessous sans le
-   brouiller. Ses maillons prennent la forme des boutons des îlots, 30 px et ronds. */
-.notak-fil-ilot,
-.notak-ilot.notak-fil-ecran {
-  gap: 2px;
+/*
+ * L'îlot de gauche porte le fil, après ses boutons et un filet (tableau, carte et document) : la toile passe dessous
+ * sans le brouiller, et le reste de la bande reste vide. Au plus 440 px (40 % d'une fenêtre étroite) : les niveaux du
+ * milieu passent dans le « + », puis chaque parent se coupe à 160 px, le titre en dernier. Le texte est à 8 px du
+ * filet et à 14 px du bord.
+ */
+.notak-ilot-fil {
+  flex: 0 1 auto;
   min-width: 0;
-  max-width: 100%;
-  padding: 0 6px 0 3px;
+  max-width: min(440px, 40vw);
 }
 
+.notak-ilot-fil .notak-fil {
+  flex: 0 1 auto;
+  gap: 2px;
+  min-width: 0;
+  padding-right: 5px;
+}
+
+.notak-ilot-fil > .notak-fil:first-child {
+  padding-left: 5px;
+}
+
+/* Chaque maillon garde sa largeur (coupée à 160 px) : c'est le titre qui cède. */
 .notak-ilot .notak-fil-segment {
+  flex: none;
   height: 30px;
-  padding: 0 10px;
+  padding: 0 6px;
   border-radius: 15px;
 }
 
@@ -170,4 +185,10 @@
 
 .notak-ilot .notak-titre-champ {
   border-radius: 15px;
+}
+
+/* En sombre, pas d'ombre : un anneau d'un pixel, et un fond à peine plus clair que la toile. */
+[data-theme='sombre'] .notak-ilot {
+  --notak-ilot-fond: color-mix(in oklab, var(--notak-fond, #1b1e23), white 6%);
+  --notak-ilot-ombre: 0 0 0 1px rgb(255 255 255 / 0.1);
 }

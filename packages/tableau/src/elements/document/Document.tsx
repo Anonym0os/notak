@@ -7,7 +7,7 @@ import { type Fils, MARQUE_FIL, avecFil, filsVivants, sansPassagesMuets } from '
 import { Marge } from '../note/Marge'
 import { type Pont, Propositions, extensionPropositions } from '../note/Propositions'
 import { Surcouche } from '../surcouche'
-import { BoutonIlot, FilEcran, ILOTS_APPLICATION, Ilot, IlotCompte, IlotHistorique, IlotPartage, fermerMenuDesIlots } from '../../Ilots'
+import { BoutonIlot, FilEcran, FiletIlot, ILOTS_APPLICATION, Ilot, IlotCompte, IlotHistorique, IlotPartage, fermerMenuDesIlots } from '../../Ilots'
 import { CLE_IDS } from '../../blocs/ids'
 import { degrader, lisible } from '../../blocs/lisible'
 import { aplatir, deplier } from '../../blocs/migration'
@@ -321,10 +321,11 @@ function Modale({ titre, titreTexte, lireTexte, fermer, children, lecture, corps
     >
       <div className="notak-document-boite" data-lecture={lecture || undefined} {...attributsPage(page ?? {})}>
         <header className="notak-document-entete" data-tauri-drag-region="deep">
-          <Ilot>
+          <Ilot className="notak-ilot-fil">
             <BoutonIlot icone="gauche" className="notak-document-fermer" libelle={t('espace.retourTableau')} onClick={fermer} />
+            <FiletIlot />
+            <FilEcran titre={titre} nom={titreTexte} fermer={fermer} />
           </Ilot>
-          <FilEcran titre={titre} fermer={fermer} />
           <div className="notak-document-entete-droite">
             {!lecture && editeur && <IlotHistorique annuler={() => editeur.chain().focus().undo().run()} retablir={() => editeur.chain().focus().redo().run()} />}
             <IlotPartage />
