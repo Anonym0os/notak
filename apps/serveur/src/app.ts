@@ -25,6 +25,7 @@ import { hacher, verifier } from './motsDePasse.ts'
 import { DUREE_SESSION_S, NOM_COOKIE, cookieAccesPublic, cookieEfface, cookieSession, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
 import { nomDuDocument } from './synchro.ts'
 import { largeurDemandee, nomReduit, reduire, reductible } from './tailles.ts'
+import { INSTANCE_PAR_DEFAUT, type Instance } from './instance.ts'
 import { verrouPar } from './verrou.ts'
 import { creerZip, nommerLesMedias } from './zip.ts'
 
@@ -42,6 +43,8 @@ export interface Contexte {
   cookieSecurise: boolean
   /** Le build de `apps/web`, servi à côté de l'API ; absent en développement, où Vite s'en charge. */
   dossierWeb?: string
+  /** Son nom, ses inscriptions, ses habillages ; absente, celle d'origine (`INSTANCE_PAR_DEFAUT`). */
+  instance?: Instance
 }
 
 export const FICHIER_MAX = 25 * 1024 * 1024
@@ -159,7 +162,12 @@ export function creerApp(ctx: Contexte): Hono {
   // Une empreinte réelle, pour que « adresse inconnue » coûte autant de temps que « mauvais mot de passe ».
   const empreinteLeurre = hacher('leurre')
 
+  const instance = ctx.instance ?? INSTANCE_PAR_DEFAUT
+  // Ce que l'écran de connexion lit avant tout compte : il se règle dessus (nom, inscription, thème).
+  app.get('/api/instance', (c) => c.json(instance))
+
   app.post('/api/inscription', async (c) => {
+    if (instance.inscriptions === 'fermees') return c.json({ erreur: 'inscriptions fermées', code: 'inscriptions_fermees' }, 403)
     const refus = limiter(c, 'inscription')
     if (refus) return refus
     const b = await corps(c)

@@ -58,7 +58,8 @@ export function refusDePhoto(f: { type: string; size: number }): string | null {
 const CLE = 'notak:reglages'
 const DEFAUT: Reglages = { theme: 'clair', taille: 'moyenne', doubleClic: true, grille: 10, barre: 'gauche', langue: 'auto' }
 
-function lire(): Reglages {
+/** Les réglages gardés dans ce navigateur, relus champ par champ. */
+export function lireReglages(): Reglages {
   try {
     const brut = JSON.parse(localStorage.getItem(CLE) ?? '{}') as Partial<Reglages>
     // L'ancienne clé du thème seul, d'avant la fenêtre des réglages.
@@ -80,7 +81,7 @@ function lire(): Reglages {
 }
 
 export function useReglages() {
-  const [reglages, setReglages] = useState(lire)
+  const [reglages, setReglages] = useState(lireReglages)
   useEffect(() => {
     try {
       localStorage.setItem(CLE, JSON.stringify(reglages))

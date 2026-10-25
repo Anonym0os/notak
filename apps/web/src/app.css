@@ -81,6 +81,14 @@ body {
   font-size: 13px;
 }
 
+/* À la place du lien « Créer un compte », quand le serveur n'en accepte pas. */
+.connexion-note {
+  margin: 0;
+  color: color-mix(in srgb, var(--texte) 60%, transparent);
+  font-size: 13px;
+  text-align: center;
+}
+
 .bouton {
   display: inline-flex;
   align-items: center;

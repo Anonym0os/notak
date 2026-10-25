@@ -1,5 +1,6 @@
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { instanceDe } from './instance.ts'
 import { demarrer } from './serveur.ts'
 
 const port = Number(process.env.PORT ?? 3005)
@@ -11,6 +12,7 @@ const serveur = await demarrer({
   relaisFiable: process.env.NOTAK_RELAIS === '1',
   cookieSecurise: process.env.NOTAK_COOKIE_SECURISE === '1',
   dossierWeb: process.env.NOTAK_WEB,
+  instance: instanceDe(process.env, dossier),
 })
 console.log(`Notak : serveur sur le port ${serveur.port}, données dans ${dossier}`)
 

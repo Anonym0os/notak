@@ -14,7 +14,8 @@
     "build": "bun run --cwd apps/web build",
     "build:locale": "VITE_EDITION=locale bun run --cwd apps/web build",
     "test": "vitest run",
-    "typecheck": "tsc -b && tsc -p apps/serveur"
+    "typecheck": "tsc -b && tsc -p apps/serveur",
+    "serveur:compte": "node apps/serveur/src/compte.ts"
   },
   "devDependencies": {
     "fake-indexeddb": "6.2.5",

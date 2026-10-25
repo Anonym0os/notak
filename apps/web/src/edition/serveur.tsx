@@ -9,7 +9,7 @@ import {
 } from '@notak/tableau'
 import { StrictMode, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
-import { type Moi, moi as lireMoi, rechercherPartout, reglerCompte, seDeconnecter } from '../api'
+import { type Instance, type Moi, lireInstance, moi as lireMoi, rechercherPartout, reglerCompte, seDeconnecter } from '../api'
 import { importDejaPropose, lireAncienEspace, noterImportPropose } from '../ancien'
 import { PagePartage, PageRapide } from '../Arrivees'
 import { PageEnvoyer } from '../Envoyer'
@@ -100,6 +100,9 @@ type Etat = { type: 'chargement' } | { type: 'anonyme' } | { type: 'erreur'; mes
 
 function Application() {
   const [etat, setEtat] = useState<Etat>({ type: 'chargement' })
+  // Lue une fois : le nom, les inscriptions et les thèmes ne changent qu'au redémarrage du serveur.
+  const [instance, setInstance] = useState<Instance | null>(null)
+  useEffect(() => void lireInstance().then(setInstance), [])
   const charger = useCallback(() => {
     setEtat({ type: 'chargement' })
     lireMoi().then(
@@ -113,7 +116,7 @@ function Application() {
     if (etat.type === 'anonyme') fermerEspace()
   }, [etat.type])
 
-  if (etat.type === 'chargement') return <div className="ecran-attente" aria-busy />
+  if (etat.type === 'chargement' || !instance) return <div className="ecran-attente" aria-busy />
   if (etat.type === 'erreur') {
     return (
       <main className="connexion">
@@ -127,7 +130,7 @@ function Application() {
       </main>
     )
   }
-  if (etat.type === 'anonyme') return <EcranConnexion surConnexion={(m) => setEtat({ type: 'connecte', moi: m })} />
+  if (etat.type === 'anonyme') return <EcranConnexion instance={instance} surConnexion={(m) => setEtat({ type: 'connecte', moi: m })} />
   // Trois pages légères, sans la toile : le partage vers Notak, la note rapide du téléphone, et les jetons pour envoyer d'ailleurs.
   if (location.pathname === '/rapide') return <PageRapide espace={espacePour(etat.moi)} fichiers={fichiers} />
   if (location.pathname === '/partage') return <PagePartage espace={espacePour(etat.moi)} fichiers={fichiers} />
@@ -135,6 +138,7 @@ function Application() {
   return (
     <Espace
       moi={etat.moi}
+      instance={instance}
       changerMoi={(m) => setEtat({ type: 'connecte', moi: m })}
       deconnexion={async () => {
         await seDeconnecter().catch(() => {})
@@ -144,7 +148,11 @@ function Application() {
   )
 }
 
-function Espace({ moi, changerMoi, deconnexion }: { moi: Moi; changerMoi(m: Moi): void; deconnexion(): void }) {
+function Espace({ moi, instance, changerMoi, deconnexion }: { moi: Moi; instance: Instance; changerMoi(m: Moi): void; deconnexion(): void }) {
+  const habillages = useMemo(
+    () => ({ fournis: instance.habillages, ...(instance.impose ? { impose: instance.impose } : {}), ...(instance.parDefaut ? { parDefaut: instance.parDefaut } : {}) }),
+    [instance],
+  )
   const espace = espacePour(moi)
   const [adresse] = useState(() => adressePour(moi.racine))
   // La section « Compte » des réglages : photo et couleur. Ce qui change se dit aussitôt aux autres, sur les tableaux ouverts.
@@ -166,6 +174,7 @@ function Espace({ moi, changerMoi, deconnexion }: { moi: Moi; changerMoi(m: Moi)
     <>
       <EspaceNotak
         compte={compte}
+        habillages={habillages}
         espace={espace}
         services={services}
         adresse={adresse}

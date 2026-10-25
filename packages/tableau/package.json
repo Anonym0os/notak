@@ -10,6 +10,7 @@
     "./toile.css": "./src/toile.css",
     "./modeles/*": "./src/modeles/*.ts",
     "./decomposer": "./src/decomposer.ts",
+    "./habillage": "./src/habillage/format.ts",
     "./essais/contrat": "./src/dossier/essais/contrat.ts"
   },
   "peerDependencies": {

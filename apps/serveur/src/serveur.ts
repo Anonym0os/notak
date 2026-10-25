@@ -8,6 +8,7 @@ import { creerApp } from './app.ts'
 import { ouvrirBase } from './base.ts'
 import { creerLimiteur } from './debit.ts'
 import { indexerLesAbsents } from './indexation.ts'
+import type { Instance } from './instance.ts'
 import { brancherSynchro, creerHocuspocus } from './synchro.ts'
 
 export interface OptionsServeur {
@@ -16,6 +17,7 @@ export interface OptionsServeur {
   relaisFiable?: boolean
   cookieSecurise?: boolean
   dossierWeb?: string
+  instance?: Instance
 }
 
 export interface ServeurDemarre {
@@ -39,6 +41,7 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     relaisFiable: options.relaisFiable ?? false,
     cookieSecurise: options.cookieSecurise ?? false,
     dossierWeb: options.dossierWeb,
+    ...(options.instance ? { instance: options.instance } : {}),
   })
 
   const http = await new Promise<Server>((resoudre, rejeter) => {
