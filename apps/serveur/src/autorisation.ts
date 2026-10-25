@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { ClientWriteRequestOnDuplicateWrites, ClientWriteRequestOnMissingDeletes, OpenFgaClient } from '@openfga/sdk'
 import { transformer } from '@openfga/syntax-transformer'
 import type { Base, Relation } from './base.ts'
+import type { DroitsTableau } from '../../../packages/tableau/src/coeur/droitsElements.ts'
 import type { Role } from './droits.ts'
 import { synchroniserEspaces } from './espaces.ts'
 
@@ -23,11 +24,16 @@ const ACTIONS_DES_ROLES: [Role, string][] = [
   ['lecture', 'peut_lire'],
 ]
 
+/** L'objet du modèle d'autorisation qui porte un élément d'un tableau. */
+export const objetElement = (tableau: string, element: string) => `element:${tableau}/${element}`
+
 export interface Autorisation {
   /** Vrai si `sujet` (`user:u1`, `lien:jeton`) a `relation` sur `objet` (`tableau:t1`). */
   verifier(sujet: string, relation: string, objet: string): Promise<boolean>
   /** Le meilleur rôle de ce sujet sur ce tableau, d'après le modèle, ou `null` s'il ne peut pas le lire. */
   roleSur(sujet: string, tableau: string): Promise<Role | null>
+  /** Ce que ce sujet peut faire sur ce tableau et ses éléments qui ont leurs propres droits ; `null` s'il ne le lit pas. */
+  droitsSur(sujet: string, tableau: string): Promise<DroitsTableau | null>
   /** Les identifiants des objets de ce type sur lesquels le sujet a cette relation. */
   lister(sujet: string, relation: string, type: string): Promise<string[]>
   /**
@@ -173,6 +179,21 @@ export function ouvrirAutorisation(o: OptionsAutorisation): Autorisation {
         const trouve = ACTIONS_DES_ROLES.findIndex((_, i) => permis.has(i))
         return trouve < 0 ? null : ACTIONS_DES_ROLES[trouve]![0]
       }),
+    async droitsSur(sujet, tableau) {
+      const role = await this.roleSur(sujet, tableau)
+      if (!role) return null
+      const ids = base.elementsAvecDroits(tableau)
+      if (ids.length === 0) return { role, elements: {} }
+      const verifs = ids.flatMap((id) => ['peut_ecrire', 'peut_commenter'].map((relation) => ({ user: sujet, relation, object: objetElement(tableau, id) })))
+      const { result } = await evaluer((c) =>
+        c.batchCheck({ checks: verifs.map((v, i) => ({ ...v, correlationId: String(i) })) }),
+      )
+      const permis = new Set(result.filter((r) => r.allowed).map((r) => Number(r.correlationId)))
+      return {
+        role,
+        elements: Object.fromEntries(ids.map((id, i) => [id, { ecrire: permis.has(2 * i), commenter: permis.has(2 * i + 1) }])),
+      }
+    },
     lister: (sujet, relation, type) =>
       evaluer(async (c) => (await c.listObjects({ user: sujet, relation, type })).objects.map((x) => x.slice(type.length + 1))),
     vider,

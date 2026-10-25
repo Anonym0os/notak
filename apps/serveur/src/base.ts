@@ -158,6 +158,8 @@ export interface Base {
   retirerRelation(r: Relation): void
   relationExiste(r: Relation): boolean
   relationsSur(objet: string): Relation[]
+  /** Les éléments de ce tableau qui ont leurs propres droits. */
+  elementsAvecDroits(tableau: string): string[]
   /** Les relations d'un espace : les siennes, celles de ses rôles et de ses équipes. */
   relationsDeLEspace(espace: string): Relation[]
   /** Les relations qui désignent une équipe, un espace ou un rôle qui n'existe plus. */
@@ -433,6 +435,12 @@ export function ouvrirBase(chemin: string): Base {
     retirerRelation: (r) => retirerRelation(r),
     relationExiste: (r) => un('SELECT 1 AS ok FROM relations WHERE objet = ? AND relation = ? AND sujet = ?', r.objet, r.relation, r.sujet) !== null,
     relationsSur: (objet) => relationsSur(objet),
+    elementsAvecDroits: (tableau) =>
+      (
+        tous("SELECT DISTINCT substr(objet, ?) AS id FROM relations WHERE objet LIKE ? ESCAPE '\\'", `element:${tableau}/`.length + 1, `element:${tableau.replace(/[\\%_]/g, (c) => `\\${c}`)}/%`) as unknown as {
+          id: string
+        }[]
+      ).map((l) => l.id),
     relationsDeLEspace: (e) =>
       tous(
         `SELECT objet, relation, sujet FROM relations

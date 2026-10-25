@@ -41,7 +41,7 @@ describe('le modèle', () => {
 })
 
 describe('les droits par OpenFGA', () => {
-  it('le rôle commentaire : il lit, il ne modifie pas, et la synchro le tient en lecture seule', async () => {
+  it('le rôle commentaire : il lit, il ne modifie pas, et la synchro contrôle ce qu’il envoie', async () => {
     m.tableau(ana, 'tableau-comm-1', 'Revue')
     expect((await partager(ana, 'tableau-comm-1', { email: bob.utilisateur.email, role: 'commentaire' })).status).toBe(200)
     expect(await role(bob, 'tableau-comm-1')).toBe('commentaire')
@@ -49,8 +49,10 @@ describe('les droits par OpenFGA', () => {
 
     const hp = creerHocuspocus(m.base, m.auth, m.autorisation)
     const config = { readOnly: false }
-    await hp.configuration.onAuthenticate!({ documentName: nomDuDocument('tableau-comm-1'), requestHeaders: new Headers({ cookie: bob.cookie }), connectionConfig: config } as never)
-    expect(config.readOnly).toBe(true)
+    const contexte = (await hp.configuration.onAuthenticate!({ documentName: nomDuDocument('tableau-comm-1'), requestHeaders: new Headers({ cookie: bob.cookie }), connectionConfig: config } as never)) as { controle: boolean }
+    // Il écrit ses commentaires : la connexion n'est pas en lecture seule, chaque mise à jour se vérifie.
+    expect(config.readOnly).toBe(false)
+    expect(contexte.controle).toBe(true)
   })
 
   it('un tableau partagé à une équipe vaut pour ses membres, et plus pour qui en sort', async () => {
@@ -130,6 +132,36 @@ describe('les droits par OpenFGA', () => {
     await m.appeler('/api/tableaux/tableau-lien-01/blocage', { compte: ana, json: { tous: true, etat: 'bloque' } })
     await expect(demander(`lien:${jeton}`)).rejects.toThrow('refusé')
     expect((await m.appeler(`/api/public/${jeton}`)).status).toBe(404)
+  })
+
+  it('les droits d’un élément : figé pour tous, rendu à un seul, lus par la toile et par la synchro', async () => {
+    m.tableau(ana, 'tableau-elements', 'Plan')
+    await partager(ana, 'tableau-elements', { email: bob.utilisateur.email, role: 'edition' })
+    await partager(ana, 'tableau-elements', { email: cleo.utilisateur.email, role: 'edition' })
+    const regler = (corps: Record<string, unknown>, c = ana) => m.appeler('/api/tableaux/tableau-elements/elements/carte-1/droits', { compte: c, json: corps })
+    expect((await regler({ tous: true, droit: 'bloque' })).status).toBe(200)
+    expect((await regler({ email: cleo.utilisateur.email, droit: 'edition' })).status).toBe(200)
+    expect((await regler({ tous: true, droit: 'edition' })).status).toBe(400)
+    expect((await regler({ tous: true, droit: null }, bob)).status).toBe(403)
+
+    const droits = (c: Compte) => json<{ role: string; elements: Record<string, unknown> }>(m.appeler('/api/tableaux/tableau-elements/droits', { compte: c }))
+    expect(await droits(bob)).toEqual({ role: 'edition', elements: { 'carte-1': { ecrire: false, commenter: false } } })
+    expect(await droits(cleo)).toEqual({ role: 'edition', elements: { 'carte-1': { ecrire: true, commenter: true } } })
+    expect((await droits(ana)).elements).toEqual({ 'carte-1': { ecrire: true, commenter: true } })
+    expect(await json(m.appeler('/api/tableaux/tableau-elements/elements/carte-1/droits', { compte: ana }))).toEqual(
+      expect.arrayContaining([{ tous: true, droit: 'bloque' }, { email: cleo.utilisateur.email, nom: 'Cléo', droit: 'edition' }]),
+    )
+
+    // La synchro contrôle les éditeurs de ce tableau, plus seulement les commentateurs.
+    const hp = creerHocuspocus(m.base, m.auth, m.autorisation)
+    const contexte = (await hp.configuration.onAuthenticate!({ documentName: nomDuDocument('tableau-elements'), requestHeaders: new Headers({ cookie: bob.cookie }), connectionConfig: {} } as never)) as { controle: boolean }
+    expect(contexte.controle).toBe(true)
+
+    // Tout retiré : l'élément redevient un élément comme un autre.
+    await regler({ tous: true, droit: null })
+    await regler({ email: cleo.utilisateur.email, droit: null })
+    expect(await droits(bob)).toEqual({ role: 'edition', elements: {} })
+    expect(m.base.relationsSur('element:tableau-elements/carte-1')).toEqual([])
   })
 
   it('la recherche trouve ce que l’espace donne à lire, sans partage direct', async () => {

@@ -6,11 +6,31 @@ import { WebSocketServer } from 'ws'
 import { type Acteur, suivreActivite } from './activite.ts'
 import { type Auth, utilisateurDeSession } from './auth.ts'
 import type { Base } from './base.ts'
+import type { DroitsTableau } from '../../../packages/tableau/src/coeur/droitsElements.ts'
 import type { Autorisation } from './autorisation.ts'
+import { controler, miseAJourDuMessage } from './controle.ts'
+import type { Role } from './droits.ts'
 import { indexerDocument } from './indexation.ts'
 import { verrouPar } from './verrou.ts'
 
 const PREFIXE = 'tableau:'
+
+/** Ce que la synchro retient d'une connexion : qui écrit, avec quels droits, et s'il faut contrôler ses mises à jour. */
+interface ContexteConnexion {
+  utilisateur?: Acteur
+  lien?: string
+  role: Role
+  droits: DroitsTableau
+  /** L'identifiant qui signe ses messages : un compte, ou `lien:<jeton>`. */
+  auteur: string
+  /** Commentateur, ou tableau dont des éléments ont leurs propres droits : chaque mise à jour se vérifie. */
+  controle: boolean
+}
+
+function contexteDe(droits: DroitsTableau, auteur: string, sujet: { utilisateur: Acteur } | { lien: string }): ContexteConnexion {
+  const controle = droits.role === 'commentaire' || Object.keys(droits.elements).length > 0
+  return { ...sujet, role: droits.role, droits, auteur, controle }
+}
 
 export function idDuDocument(nom: string): string | null {
   return nom.startsWith(PREFIXE) && nom.length > PREFIXE.length ? nom.slice(PREFIXE.length) : null
@@ -56,22 +76,33 @@ export function creerHocuspocus(base: Base, auth: Auth, autorisation: Autorisati
       // La session se lit sur les en-têtes de la requête de mise à niveau : le cookie y voyage comme pour l'API.
       const utilisateur = await utilisateurDeSession(auth, base, requestHeaders)
       if (utilisateur) {
-        const droit = await autorisation.roleSur(`user:${utilisateur.id}`, id)
-        if (!droit) throw new Error('refusé')
+        const droits = await autorisation.droitsSur(`user:${utilisateur.id}`, id)
+        if (!droits) throw new Error('refusé')
         // Un tableau protégé ne se synchronise qu'une fois son mot de passe donné.
         if (verrouPar(base, utilisateur.id, id) !== null) throw new Error('verrouillé')
-        // Écrire demande l'édition ; le commentaire seul passera par le contrôle des mises à jour élément par élément.
-        if (droit === 'lecture' || droit === 'commentaire') connectionConfig.readOnly = true
-        return { utilisateur: { id: utilisateur.id, nom: utilisateur.nom, couleur: utilisateur.couleur }, role: droit }
+        if (droits.role === 'lecture') connectionConfig.readOnly = true
+        return contexteDe(droits, utilisateur.id, { utilisateur: { id: utilisateur.id, nom: utilisateur.nom, couleur: utilisateur.couleur } })
       }
       // Sans compte, par un lien public : son jeton arrive en `token`. Un lien protégé par un mot de passe ne se
       // synchronise pas (son accès vit dans un cookie limité aux adresses du lien).
       const jeton = typeof token === 'string' && token.startsWith('lien:') ? token.slice(5) : null
       if (!jeton || base.tableauDuJeton(jeton) !== id || base.motDePasse(id, 'public') !== null) throw new Error('refusé')
-      const droit = await autorisation.roleSur(`lien:${jeton}`, id)
-      if (!droit) throw new Error('refusé')
-      if (droit !== 'edition') connectionConfig.readOnly = true
-      return { lien: jeton, role: droit }
+      const droits = await autorisation.droitsSur(`lien:${jeton}`, id)
+      if (!droits) throw new Error('refusé')
+      if (droits.role === 'lecture') connectionConfig.readOnly = true
+      return contexteDe(droits, `lien:${jeton}`, { lien: jeton })
+    },
+    // Ce qu'une connexion contrôlée envoie passe élément par élément : appliqué, puis annulé s'il n'est pas permis.
+    // Hocuspocus réapplique ensuite le même message, ce qui ne change plus rien.
+    async beforeHandleMessage({ update, document, context, connection }) {
+      const c = context as ContexteConnexion | undefined
+      if (!c?.controle) return
+      const miseAJour = miseAJourDuMessage(update)
+      if (!miseAJour) return
+      if (!controler(document, miseAJour, c.droits, c.auteur, { source: 'connection', connection })) {
+        activite.oublier(document)
+        console.warn(`Notak : un geste de ${c.auteur} sur ${document.name} a été annulé (droits par élément).`)
+      }
     },
   })
 }

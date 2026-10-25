@@ -15,7 +15,7 @@ import { type ElementArrive, elementImage, elementsDeTexte, poserDansNonTries } 
 import { ErreurApercu, apercuDePage, rapatrierImage } from './apercu.ts'
 import { type Base, DUREE_ACCES_PUBLIC_MS, type Fichier, type Utilisateur } from './base.ts'
 import { type Auth, CHEMIN_AUTH, type Fournisseur, utilisateurDeSession } from './auth.ts'
-import type { Autorisation } from './autorisation.ts'
+import { type Autorisation, objetElement } from './autorisation.ts'
 import { normaliserEmail } from './comptes.ts'
 import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from './contenu.ts'
 import type { Limiteur } from './debit.ts'
@@ -536,6 +536,77 @@ export function creerApp(ctx: Contexte): Hono {
     await droitsAJour()
     fermerConnexions(g.id)
     return c.json({ etat })
+  })
+
+  // Ce que ce compte peut faire ici, et sur les éléments qui ont leurs propres droits : la toile s'y règle.
+  app.get('/api/tableaux/:id/droits', async (c) => {
+    const g = await garde(c, 'lecture', true)
+    if (g instanceof Response) return g
+    return c.json(await ctx.autorisation.droitsSur(`user:${g.u.id}`, g.id), 200, { 'cache-control': 'no-store' })
+  })
+
+  // ---- Droits d'un élément ----
+
+  const ID_ELEMENT = /^[A-Za-z0-9_-]{1,64}$/
+  /** La relation qui porte chaque droit d'un élément (`autorisation/modele.fga`). */
+  const RELATION_DROIT_ELEMENT = { edition: 'editeur', commentaire: 'commentateur', bloque: 'bloque' } as const
+  type DroitElement = keyof typeof RELATION_DROIT_ELEMENT
+
+  // Qui a des droits propres sur cet élément : ce qu'on lui a rendu (écrire, commenter) ou retiré (bloqué).
+  app.get('/api/tableaux/:id/elements/:element/droits', async (c) => {
+    const g = await garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    const element = c.req.param('element')
+    if (!ID_ELEMENT.test(element)) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
+    return c.json(
+      base.relationsSur(objetElement(g.id, element)).flatMap((r): ({ droit: DroitElement } & ({ tous: true } | { equipe: string; nom: string } | { email: string; nom: string }))[] => {
+        const droit = (Object.keys(RELATION_DROIT_ELEMENT) as DroitElement[]).find((d) => RELATION_DROIT_ELEMENT[d] === r.relation)
+        if (!droit) return []
+        if (r.sujet === 'user:*') return [{ tous: true, droit }]
+        const equipe = /^equipe:(.+)#membre$/.exec(r.sujet)?.[1]
+        if (equipe) return [{ equipe, nom: base.equipe(equipe)?.nom ?? '', droit }]
+        const u = base.utilisateurParId(r.sujet.slice(5))
+        return u ? [{ email: u.email, nom: u.nom, droit }] : []
+      }),
+    )
+  })
+
+  // Donner à quelqu'un (une adresse, une équipe) le droit d'écrire ou de commenter cet élément, ou le lui retirer ;
+  // bloquer l'élément pour tout le monde (`tous`) : seuls ceux qu'on a nommés et les propriétaires l'écrivent encore.
+  app.post('/api/tableaux/:id/elements/:element/droits', async (c) => {
+    const g = await garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    const element = c.req.param('element')
+    const b = await corps(c)
+    const droit = b?.droit
+    if (!ID_ELEMENT.test(element) || (droit !== null && droit !== 'edition' && droit !== 'commentaire' && droit !== 'bloque')) {
+      return c.json({ erreur: 'demande invalide', code: 'demande_invalide' }, 400)
+    }
+    let sujet: string
+    if (b?.tous === true) {
+      if (droit !== 'bloque' && droit !== null) return c.json({ erreur: 'demande invalide', code: 'demande_invalide' }, 400)
+      sujet = 'user:*'
+    } else if (typeof b?.equipe === 'string' && base.equipe(b.equipe)) sujet = `equipe:${b.equipe}#membre`
+    else {
+      const cible = typeof b?.email === 'string' ? base.utilisateurParEmail(normaliserEmail(b.email)) : null
+      if (!cible) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
+      sujet = `user:${cible.id}`
+    }
+    const objet = objetElement(g.id, element)
+    base.transaction(() => {
+      for (const d of Object.keys(RELATION_DROIT_ELEMENT) as DroitElement[]) {
+        const r = { objet, relation: RELATION_DROIT_ELEMENT[d], sujet }
+        if (d === droit) base.ajouterRelation(r)
+        else base.retirerRelation(r)
+      }
+      // L'élément tient au tableau tant qu'il a des droits propres ; sans eux, il redevient un élément comme un autre.
+      const lien = { objet, relation: 'tableau', sujet: `tableau:${g.id}` }
+      if (base.relationsSur(objet).some((r) => r.relation !== 'tableau')) base.ajouterRelation(lien)
+      else base.retirerRelation(lien)
+    })
+    await droitsAJour()
+    fermerConnexions(g.id)
+    return c.json({ droit })
   })
 
   // Les blocages posés sur ce tableau : qui, et dans quel sens.

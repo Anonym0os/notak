@@ -270,6 +270,8 @@ export interface SuiviActivite {
   suivre(doc: Y.Doc): void
   /** À appeler à chaque mise à jour reçue ; `acteur` : qui l'a envoyée (absent : le serveur, on ne note rien). */
   noter(tableau: string | null, doc: Y.Doc, acteur: Acteur | undefined): void
+  /** Oublie ce qui a été observé et pas encore noté : un geste refusé puis annulé ne laisse pas d'activité. */
+  oublier(doc: Y.Doc): void
 }
 
 export function suivreActivite(base: Base, maintenant: () => number): SuiviActivite {
@@ -277,6 +279,9 @@ export function suivreActivite(base: Base, maintenant: () => number): SuiviActiv
   return {
     suivre(doc) {
       if (!observes.has(doc)) observes.set(doc, observer(doc))
+    },
+    oublier(doc) {
+      observes.get(doc)?.ramasser()
     },
     noter(tableau, doc, acteur) {
       const pris = observes.get(doc)?.ramasser() ?? []
