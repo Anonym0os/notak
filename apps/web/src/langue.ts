@@ -9,6 +9,7 @@ export { langue, t, tn } from '@notak/tableau'
 export const fr: Textes = {
   'commun.echec': 'Échec',
   'signaler.titre': 'Signaler un bug',
+  'signaler.bouton': 'Signaler un bug (⇧⌘S)',
   'signaler.annoter': 'Annoter',
   'signaler.recadrer': 'Recadrer',
   'signaler.effacer': 'Effacer',
@@ -503,6 +504,7 @@ export const fr: Textes = {
 export const en: Textes = {
   'commun.echec': 'Failed',
   'signaler.titre': 'Report a bug',
+  'signaler.bouton': 'Report a bug (⇧⌘S)',
   'signaler.annoter': 'Draw',
   'signaler.recadrer': 'Crop',
   'signaler.effacer': 'Clear',

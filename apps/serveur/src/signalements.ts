@@ -4,7 +4,7 @@ import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 /**
- * Les signalements de bugs (⌥⌘S dans l'app) : chacun devient un dossier, `a-traiter/<date>-<code>/`, qui porte
+ * Les signalements de bugs (⇧⌘S dans l'app) : chacun devient un dossier, `a-traiter/<date>-<code>/`, qui porte
  * `signalement.md` (les mots, puis le contexte) et ses captures, `capture.png`, `capture-2.png`… Traité, il passe
  * dans `traites/`. Rien en base : un dossier se lit d'un coup, par une personne ou par `npm run signalements`, sans
  * serveur ni compte.

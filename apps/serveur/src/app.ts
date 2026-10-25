@@ -1182,7 +1182,7 @@ export function creerApp(ctx: Contexte): Hono {
   })
 
   // ---- Signalements de bugs ----
-  // ⌥⌘S dans l'app : les mots, le contexte relevé et les captures (en base64), rangés en dossier (`signalements.ts`).
+  // ⇧⌘S dans l'app : les mots, le contexte relevé et les captures (en base64), rangés en dossier (`signalements.ts`).
   // Sans dossier réglé (`NOTAK_SIGNALEMENTS`, ou le développement), la route répond comme une route qui n'existe pas.
 
   app.post('/api/signalements', async (c) => {

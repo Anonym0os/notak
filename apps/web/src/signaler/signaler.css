@@ -1,4 +1,4 @@
-/* La fenêtre de signalement (⌥⌘S) : posée par-dessus toute l'application, hors de ses jetons de thème. */
+/* La fenêtre de signalement (⇧⌘S) : posée par-dessus toute l'application, hors de ses jetons de thème. */
 .notak-signaler {
   --s-fond: #ffffff;
   --s-texte: #323b4a;

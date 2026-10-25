@@ -261,7 +261,7 @@ export const SaisieBlocs = Extension.create({
         basculer(this.editor)
         return true
       },
-      'Mod-Shift-s': () => this.editor.commands.toggleStrike(),
+      // ⇧⌘S signale un bug, partout dans l'app (comme dans Silak) : le barré reste sur ⇧⌘X.
       'Mod-Shift-x': () => this.editor.commands.toggleStrike(),
     }
   },

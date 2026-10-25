@@ -1,4 +1,4 @@
-import { capturerEcran } from '@notak/tableau'
+import { Icone, Infobulle, capturerEcran } from '@notak/tableau'
 import { type PointerEvent as PointeurReact, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { t } from '../langue'
@@ -7,7 +7,7 @@ import { erreursRecentes, poserJournal } from './journal'
 import './signaler.css'
 
 /**
- * Signaler un bug, par-dessus tout (⌥⌘S) : l'écran est pris tout de suite, on l'annote au stylo ou on le recadre, on
+ * Signaler un bug, par-dessus tout (⇧⌘S) : l'écran est pris tout de suite, on l'annote au stylo ou on le recadre, on
  * colle d'autres images (⌘V), on écrit deux mots, Entrée envoie. La fenêtre se ferme aussitôt et l'envoi se fait
  * derrière : on reprend là où on était, le focus compris. Le serveur range le signalement dans sa file
  * (`apps/serveur/src/signalements.ts`).
@@ -350,6 +350,21 @@ function AvisSignaler({ avis }: { avis: Avis }) {
   )
 }
 
+/** Ce qu'ouvre le bouton de l'en-tête ; posé par `brancherSignaler`. */
+let ouvrirLaFenetre: (() => void) | null = null
+
+/** Le petit insecte de l'en-tête, à côté de la cloche : la même fenêtre que ⇧⌘S. */
+export function BoutonSignaler() {
+  return (
+    <Infobulle libelle={t('signaler.bouton')}>
+      <button type="button" className="bouton bouton-nu" onClick={() => ouvrirLaFenetre?.()}>
+        <Icone nom="bug" taille={22} trait={1.5} />
+        <span className="sr-seulement">{t('signaler.titre')}</span>
+      </button>
+    </Infobulle>
+  )
+}
+
 /**
  * Branche le raccourci sur toute la page, une fois. La fenêtre vit dans sa propre racine React, hors de l'application
  * (et hors de la capture, `data-hors-capture`) : elle passe par-dessus la toile, les documents, le Pitch et les panneaux.
@@ -444,6 +459,9 @@ export function brancherSignaler(): void {
     window.removeEventListener('keydown', pendantLaPrise, true)
   }
 
+  ouvrirLaFenetre = () => {
+    if (!ouverte) void ouvrir()
+  }
   window.addEventListener(
     'keydown',
     (e) => {
