@@ -455,8 +455,6 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   /** Espace vient d'être appuyée, et n'a encore rien attrapé. */
   const espaceBref = useRef(false)
   const [anime, setAnime] = useState(false)
-  // La vue bouge (molette, glisser, animation) : le plan prend un calque à part, rendu au repos 200 ms après.
-  const [bouge, setBouge] = useState(false)
   const [enGeste, setEnGeste] = useState(false)
   // Un geste qui laisse les barres telles qu'avant l'appui : la toile qu'on déplace (bouton du milieu, Espace) ne
   // change ni la sélection ni l'édition, et la barre de création peut être rangée ; un appui sur un élément qui n'a pas
@@ -601,15 +599,6 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       }
     }
   }, [autres, tableau])
-
-  const cameraVue = useRef(camera)
-  useEffect(() => {
-    if (cameraVue.current === camera) return
-    cameraVue.current = camera
-    setBouge(true)
-    const fin = setTimeout(() => setBouge(false), 200)
-    return () => clearTimeout(fin)
-  }, [camera])
 
   const signalee = useRef(camera)
   const signal = useRef<{ f?: (c: cam.Camera) => void; minuteur?: ReturnType<typeof setTimeout> }>({})
@@ -3051,11 +3040,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       }}
       onDrop={deposer}
     >
+      <div className="notak-glisse" style={{ transform: `translate(${-camera.origine.x * k}px, ${-camera.origine.y * k}px)` }}>
       <div
         className="notak-plan"
-        data-bouge={bouge || undefined}
         style={{
-          transform: `translate(${-camera.origine.x * k}px, ${-camera.origine.y * k}px) scale(${camera.echelle})`,
+          transform: `scale(${camera.echelle})`,
           ['--notak-zoom-inverse' as string]: 1 / camera.echelle,
         }}
       >
@@ -3113,6 +3102,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         )}
         <svg className="notak-calque-lignes notak-calque-poignees" aria-hidden />
         {autres.map((a) => (a.curseur ? <CurseurAutre key={a.client} presence={a} echelle={camera.echelle} /> : null))}
+      </div>
       </div>
       {lassoEcran && (
         <div

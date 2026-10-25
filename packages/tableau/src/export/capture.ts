@@ -114,7 +114,7 @@ async function photographierToile(rapport: number, fond: boolean, recadrer: bool
     canevas = await versCanevas(toile, {
       ...options(fond ? getComputedStyle(toile).backgroundColor : null, rapport),
       // Le tableau seul : la toile porte aussi la barre d'outils, les pastilles et les bulles, qui n'en sont pas.
-      filter: (n: Node) => !(n instanceof Element && ((n.parentElement === toile && !n.classList.contains('notak-plan')) || HORS_TOILE.some((c) => n.classList.contains(c)))),
+      filter: (n: Node) => !(n instanceof Element && ((n.parentElement === toile && !n.classList.contains('notak-glisse')) || HORS_TOILE.some((c) => n.classList.contains(c)))),
     })
   } finally {
     rendre()
@@ -123,6 +123,31 @@ async function photographierToile(rapport: number, fond: boolean, recadrer: bool
   if (!zone) return { canevas, largeur: toile.clientWidth, hauteur: toile.clientHeight }
   const k = canevas.width / toile.clientWidth
   return { canevas: recadrer_(canevas, zone.x * k, zone.y * k, zone.l * k, zone.h * k), largeur: zone.l, hauteur: zone.h }
+}
+
+/**
+ * Tout ce qui est à l'écran, tel qu'on le voit (le signalement d'un bug) : la page entière à la taille de la fenêtre,
+ * sauf ce qui porte `data-hors-capture`. Une reconstruction du DOM, pas une photographie : les vidéos et les cadres
+ * d'un autre site sortent vides.
+ */
+export async function capturerEcran(rapport = Math.min(window.devicePixelRatio || 1, 2)): Promise<Capture> {
+  const racine = document.body
+  const largeur = window.innerWidth
+  const hauteur = window.innerHeight
+  const rapatriees = await rapatrierLesImages(racine)
+  const defiger = figerPourCapture(racine)
+  try {
+    const canevas = await versCanevas(racine, {
+      ...options(fondDe(racine), rapport),
+      width: largeur,
+      height: hauteur,
+      filter: (n: Node) => !(n instanceof Element && n.hasAttribute('data-hors-capture')),
+    })
+    return { canevas, largeur, hauteur }
+  } finally {
+    defiger()
+    rapatriees()
+  }
 }
 
 function recadrer_(source: HTMLCanvasElement, x: number, y: number, l: number, h: number): HTMLCanvasElement {
@@ -219,7 +244,7 @@ function margeQuiTraverse(enfant: HTMLElement, parent: HTMLElement, deja?: numbe
 function zoneDuContenu(toile: HTMLElement): { x: number; y: number; l: number; h: number } | null {
   const cadre = toile.getBoundingClientRect()
   // Les cartes, et le tracé des lignes : leur calque SVG, lui, n'a pas de taille.
-  const rects = [...toile.querySelectorAll(':scope > .notak-plan > :not(svg), :scope > .notak-plan > svg :is(path, line, circle, polygon, text)')]
+  const rects = [...toile.querySelectorAll(':scope > .notak-glisse > .notak-plan > :not(svg), :scope > .notak-glisse > .notak-plan > svg :is(path, line, circle, polygon, text)')]
     .map((e) => e.getBoundingClientRect())
     .filter((r) => r.width > 0 || r.height > 0)
   if (rects.length === 0) return null
