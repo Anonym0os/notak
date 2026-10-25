@@ -8,7 +8,7 @@ import { ouvrirBase } from './base.ts'
 import { ORIGINE_ESSAI, authEssai } from './essai.ts'
 import { MIGRATIONS, type Migration, migrer, versionDe } from './migrations.ts'
 import { hacher } from './motsDePasse.ts'
-import { optionsSchema } from './auth.ts'
+import { optionsSchema, pluginsAuth } from './auth.ts'
 
 const derniere = MIGRATIONS.at(-1)!.version
 let dossiers: string[] = []
@@ -34,7 +34,8 @@ describe('migrations', () => {
 
   it('Better Auth trouve après nos migrations toutes les tables et colonnes qu’il attend', async () => {
     const base = ouvrirBase(':memory:')
-    const { toBeCreated, toBeAdded } = await getMigrations({ ...optionsSchema, database: base.db })
+    const plugins = pluginsAuth({ base, courrier: { actif: false, envoyer: async () => {} }, origine: ORIGINE_ESSAI })
+    const { toBeCreated, toBeAdded } = await getMigrations({ ...optionsSchema, plugins, database: base.db })
     expect(toBeCreated.map((t) => t.table)).toEqual([])
     expect(toBeAdded.map((t) => [t.table, Object.keys(t.fields)])).toEqual([])
     base.fermer()

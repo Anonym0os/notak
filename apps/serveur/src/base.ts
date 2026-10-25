@@ -19,6 +19,18 @@ export interface LigneTableau {
   titre: string
   proprietaire: string
   parent: string | null
+  /** L'espace où vit le tableau ; `null` pour un tableau d'un espace supprimé. Absent : celui du parent, ou aucun. */
+  espace?: string | null
+}
+
+/** Un espace d'équipe (une organisation de Better Auth), vu par Notak. */
+export interface Espace {
+  id: string
+  nom: string
+  /** Son tableau d'accueil. */
+  racine: string
+  /** L'espace personnel d'un compte, dont il est seul membre. */
+  personnel: boolean
 }
 
 /** Un jeton personnel d'arrivée : ce que la base en garde, jamais le jeton lui-même. */
@@ -102,10 +114,26 @@ export interface Base {
   utilisateurDuJetonArrivee(empreinte: string, maintenant: number): Utilisateur | null
 
   tableau(id: string): LigneTableau | null
+  /** Crée le tableau ; sans `espace`, il prend celui de son parent. */
   creerTableau(t: LigneTableau): void
   changerTitre(id: string, titre: string): void
   /** Tous les tableaux placés sous celui-ci, à toute profondeur. */
   descendants(id: string): string[]
+
+  espace(id: string): Espace | null
+  /** Rattache un tableau d'accueil à un espace qui vient de naître. */
+  definirEspace(id: string, racine: string, personnel: boolean): void
+  espacePersonnel(utilisateur: string): string | null
+  /** L'émetteur d'un fournisseur SSO déclaré, par son identifiant. */
+  emetteurSso(fournisseur: string): string | null
+  /** Tous les tableaux qui vivent dans cet espace. */
+  tableauxDeLEspace(espace: string): string[]
+  /** Les espaces dont le compte est membre, avec son rôle (plusieurs rôles se séparent par des virgules). */
+  espacesDe(utilisateur: string): (Espace & { role: string })[]
+  /** Le rôle de ce compte dans l'espace, ou `null` s'il n'en est pas membre. */
+  roleMembre(espace: string, utilisateur: string): string | null
+  /** Les permissions d'un rôle composé par l'espace (JSON de Better Auth), ou `null` s'il n'existe pas. */
+  permissionsRole(espace: string, role: string): Record<string, string[]> | null
 
   acces(tableau: string): Acces[]
   tableauxAccessibles(utilisateur: string): { id: string; titre: string; role: Role }[]
@@ -263,7 +291,45 @@ export function ouvrirBase(chemin: string): Base {
     },
 
     tableau: (id) => (un('SELECT * FROM tableaux WHERE id = ?', id) as LigneTableau | null),
-    creerTableau: (t) => void executer('INSERT INTO tableaux (id,titre,proprietaire,parent) VALUES (?,?,?,?)', t.id, t.titre, t.proprietaire, t.parent),
+    creerTableau: (t) =>
+      void executer(
+        'INSERT INTO tableaux (id,titre,proprietaire,parent,espace) VALUES (?,?,?,?,?)',
+        t.id,
+        t.titre,
+        t.proprietaire,
+        t.parent,
+        t.espace !== undefined ? t.espace : t.parent ? ((un('SELECT espace FROM tableaux WHERE id = ?', t.parent)?.espace as string | null | undefined) ?? null) : null,
+      ),
+
+    espace(id) {
+      const l = un('SELECT o.id, o.name AS nom, e.racine, e.personnel FROM organization o JOIN espaces e ON e.espace = o.id WHERE o.id = ?', id)
+      return l ? { id: l.id as string, nom: l.nom as string, racine: l.racine as string, personnel: l.personnel === 1 } : null
+    },
+    definirEspace: (id, racine, personnel) =>
+      void executer('INSERT INTO espaces (espace,racine,personnel) VALUES (?,?,?) ON CONFLICT(espace) DO UPDATE SET racine = excluded.racine', id, racine, personnel ? 1 : 0),
+    espacePersonnel: (u) =>
+      (un("SELECT e.espace FROM espaces e JOIN member m ON m.organizationId = e.espace WHERE e.personnel = 1 AND m.userId = ? AND m.role = 'owner'", u)
+        ?.espace as string | undefined) ?? null,
+    emetteurSso: (f) => (un('SELECT issuer FROM ssoProvider WHERE providerId = ?', f)?.issuer as string | undefined) ?? null,
+    tableauxDeLEspace: (espace) => (tous('SELECT id FROM tableaux WHERE espace = ?', espace) as unknown as { id: string }[]).map((l) => l.id),
+    espacesDe: (u) =>
+      (
+        tous(
+          `SELECT o.id, o.name AS nom, e.racine, e.personnel, m.role FROM member m
+           JOIN organization o ON o.id = m.organizationId JOIN espaces e ON e.espace = o.id
+           WHERE m.userId = ? ORDER BY e.personnel DESC, o.name`,
+          u,
+        ) as unknown as { id: string; nom: string; racine: string; personnel: number; role: string }[]
+      ).map((l) => ({ ...l, personnel: l.personnel === 1 })),
+    roleMembre: (espace, u) => (un('SELECT role FROM member WHERE organizationId = ? AND userId = ?', espace, u)?.role as string | undefined) ?? null,
+    permissionsRole(espace, role) {
+      const l = un('SELECT permission FROM organizationRole WHERE organizationId = ? AND role = ?', espace, role)
+      try {
+        return l ? (JSON.parse(l.permission as string) as Record<string, string[]>) : null
+      } catch {
+        return null
+      }
+    },
     changerTitre: (id, titre) => void executer('UPDATE tableaux SET titre = ? WHERE id = ?', titre, id),
 
     acces: (tableau) => tous('SELECT tableau, utilisateur, role FROM acces WHERE tableau = ?', tableau) as unknown as Acces[],

@@ -11,7 +11,7 @@ import { ouvrirBase } from './base.ts'
 import { creerCourrier } from './courriel.ts'
 import { creerLimiteur } from './debit.ts'
 import { indexerLesAbsents } from './indexation.ts'
-import { brancherSynchro, creerHocuspocus } from './synchro.ts'
+import { brancherSynchro, creerHocuspocus, nomDuDocument } from './synchro.ts'
 
 export interface OptionsServeur {
   port: number
@@ -25,6 +25,8 @@ export interface OptionsServeur {
   origine?: string
   autresOrigines?: readonly string[]
   fournisseurs?: Partial<Record<Fournisseur, Identifiants>>
+  /** Les origines des fournisseurs d'identité du réseau interne, qu'un espace peut déclarer en SSO. */
+  idpInternes?: readonly string[]
   /** L'adresse du SMTP (`smtps://compte:motdepasse@hote:465`) ; sans elle, les courriels vont au journal. */
   smtp?: string
   expediteur?: string
@@ -57,12 +59,18 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     cookieSecurise: options.cookieSecurise ?? false,
     courrier,
     fournisseurs: options.fournisseurs,
+    idpInternes: options.idpInternes,
+    // Un membre de plus, de moins, ou un rôle changé : les connexions ouvertes sur l'espace relisent leurs droits.
+    surChangementDEspace: (espace) => {
+      for (const t of base.tableauxDeLEspace(espace)) hocuspocus?.closeConnections(nomDuDocument(t))
+    },
   })
 
   app = creerApp({
     base,
     auth,
     moyens: { fournisseurs: Object.keys(options.fournisseurs ?? {}) as Fournisseur[], courriel: courrier.actif },
+    idpInternes: options.idpInternes,
     dossierFichiers: join(options.dossier, 'fichiers'),
     limiteur: creerLimiteur(10, 60_000),
     limiteurArrivee: creerLimiteur(30, 60_000),

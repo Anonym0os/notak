@@ -18,7 +18,9 @@ import { type Auth, CHEMIN_AUTH, type Fournisseur, utilisateurDeSession } from '
 import { normaliserEmail } from './comptes.ts'
 import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from './contenu.ts'
 import type { Limiteur } from './debit.ts'
-import { type Role, auMoins, role, roleHerite } from './droits.ts'
+import { type Role, auMoins, role } from './droits.ts'
+import { gestesDansEspace, roleEffectif } from './espaces.ts'
+import { decouvrirOidc } from './sso.ts'
 import { estFormatExport, exporterTexte, langueExport } from './exporter.ts'
 import { ErreurBanque, chercherImages } from './images.ts'
 import { indexerDocument, requeteIndex } from './indexation.ts'
@@ -34,6 +36,8 @@ export interface Contexte {
   auth: Auth
   /** Ce que l'écran de connexion propose, au-delà du mot de passe. */
   moyens: MoyensConnexion
+  /** Les origines de fournisseurs d'identité sur le réseau interne, que la découverte OIDC peut joindre. */
+  idpInternes?: readonly string[]
   dossierFichiers: string
   limiteur: Limiteur
   /** Pour `POST /api/arrivee`, appelée à la chaîne par des raccourcis : à défaut, le limiteur commun. */
@@ -159,10 +163,51 @@ export function creerApp(ctx: Contexte): Hono {
     '/request-password-reset': 'reinitialisation',
     '/sign-in/sso': 'connexion',
   }
+  // Le SSO d'un espace : seul un espace d'équipe en a un, et la découverte OIDC se fait ici, sous la garde réseau
+  // de Notak, plutôt que par Better Auth, qui ne l'accepte que d'origines déclarées d'avance. La demande, complétée
+  // des adresses découvertes, repart ensuite vers Better Auth, qui vérifie le reste (admin de l'espace, domaine).
+  const versSso = async (c: Context, b: Record<string, unknown>): Promise<Response> => {
+    const oidc = b.oidcConfig as Record<string, unknown> | undefined
+    if (oidc && !oidc.skipDiscovery) {
+      try {
+        // Une mise à jour sans émetteur garde celui du fournisseur déjà déclaré.
+        const emetteur = texte(b.issuer) || (base.emetteurSso(texte(b.providerId)) ?? '')
+        b.oidcConfig = { ...oidc, ...(await decouvrirOidc(emetteur, ctx.idpInternes ?? [])), skipDiscovery: true }
+      } catch (e) {
+        return c.json({ message: (e as Error).message, code: 'DECOUVERTE_OIDC_IMPOSSIBLE' }, 400)
+      }
+    }
+    const entetes = new Headers(c.req.raw.headers)
+    entetes.delete('content-length')
+    return ctx.auth.handler(new Request(c.req.raw.url, { method: 'POST', headers: entetes, body: JSON.stringify(b) }))
+  }
+  app.post(`${CHEMIN_AUTH}/sso/register`, async (c) => {
+    const refus = limiter(c, 'sso')
+    if (refus) return refus
+    const b = await corps(c)
+    const espace = typeof b?.organizationId === 'string' ? base.espace(b.organizationId) : null
+    if (!b || !espace || espace.personnel) return c.json({ message: 'espace d’équipe requis', code: 'ESPACE_EQUIPE_REQUIS' }, 400)
+    return versSso(c, b)
+  })
+  app.post(`${CHEMIN_AUTH}/sso/update-provider`, async (c) => {
+    const refus = limiter(c, 'sso')
+    if (refus) return refus
+    const b = await corps(c)
+    if (!b) return c.json({ message: 'corps invalide', code: 'CORPS_INVALIDE' }, 400)
+    return versSso(c, b)
+  })
+
   app.on(['GET', 'POST'], `${CHEMIN_AUTH}/*`, (c) => {
     const route = LIMITES_AUTH[c.req.path.slice(CHEMIN_AUTH.length)]
     const refus = c.req.method === 'POST' && route ? limiter(c, route) : null
     return refus ?? ctx.auth.handler(c.req.raw)
+  })
+
+  // Les espaces du compte, avec leur accueil et son rôle.
+  app.get('/api/espaces', async (c) => {
+    const u = await utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    return c.json(base.espacesDe(u.id))
   })
 
   // Ce que l'écran de connexion peut proposer : les fournisseurs configurés, et si les courriels partent.
@@ -202,8 +247,7 @@ export function creerApp(ctx: Contexte): Hono {
   // ---- Tableaux ----
 
   /** Le rôle hérité : un accès donné sur un tableau vaut pour tout ce qu'il contient. */
-  const roleSur = (utilisateur: string, id: string) =>
-    roleHerite((t) => base.acces(t), (t) => base.tableau(t)?.parent ?? null, utilisateur, id)
+  const roleSur = (utilisateur: string, id: string) => roleEffectif(base, utilisateur, id)
   /** Ferme les connexions ouvertes sur un tableau et ses descendants : chacun y relira son rôle. */
   const fermerConnexions = (id: string) => {
     for (const t of [id, ...base.descendants(id)]) ctx.synchro()?.closeConnections(nomDuDocument(t))
@@ -223,10 +267,14 @@ export function creerApp(ctx: Contexte): Hono {
       if (roleSur(u.id, id) !== 'proprietaire') return c.json({ erreur: 'id pris', code: 'id_pris' }, 409)
       return c.json({ id, titre: existant.titre, role: 'proprietaire' }, 201)
     }
-    // Placé sous un parent qu'on peut éditer, le tableau en hérite les accès, présents et à venir.
+    // Placé sous un parent qu'on peut éditer, le tableau en hérite les accès, présents et à venir, et son espace.
+    // Sinon il va dans l'espace demandé, si l'on peut y créer, et à défaut dans son espace personnel.
     const heritage = parent !== null && auMoins(roleSur(u.id, parent), 'edition')
+    const demande = typeof b?.espace === 'string' ? b.espace : null
+    if (!heritage && demande && !gestesDansEspace(base, demande, u.id).has('creer')) return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
+    const espace = heritage ? undefined : (demande ?? base.espacePersonnel(u.id))
     base.transaction(() => {
-      base.creerTableau({ id, titre, proprietaire: u.id, parent: heritage ? parent : null })
+      base.creerTableau({ id, titre, proprietaire: u.id, parent: heritage ? parent : null, espace })
       base.definirAcces({ tableau: id, utilisateur: u.id, role: 'proprietaire' })
     })
     return c.json({ id, titre, role: 'proprietaire' }, 201)

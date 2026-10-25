@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import type { DatabaseSync } from 'node:sqlite'
 
@@ -156,7 +157,90 @@ CREATE INDEX verification_identifier_idx ON verification(identifier);
       db.exec('ALTER TABLE utilisateurs DROP COLUMN hash; DROP TABLE sessions;')
     },
   },
+  {
+    version: 3,
+    nom: 'espaces et SSO',
+    // Les tables des plugins `organization` (équipes et rôles composés compris) et `sso` de Better Auth. Chaque compte
+    // reçoit son espace personnel, dont il est propriétaire, et ses tableaux y entrent.
+    appliquer(db) {
+      db.exec(`
+ALTER TABLE session ADD COLUMN activeOrganizationId TEXT;
+ALTER TABLE session ADD COLUMN activeTeamId TEXT;
+CREATE TABLE organization (
+  id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, slug TEXT NOT NULL UNIQUE, logo TEXT, createdAt DATE NOT NULL, metadata TEXT
+);
+CREATE TABLE organizationRole (
+  id TEXT NOT NULL PRIMARY KEY, organizationId TEXT NOT NULL REFERENCES organization(id) ON DELETE CASCADE,
+  role TEXT NOT NULL, permission TEXT NOT NULL, createdAt DATE NOT NULL, updatedAt DATE
+);
+CREATE INDEX organizationRole_organizationId_idx ON organizationRole(organizationId);
+CREATE INDEX organizationRole_role_idx ON organizationRole(role);
+CREATE TABLE team (
+  id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, memberCount INTEGER NOT NULL,
+  organizationId TEXT NOT NULL REFERENCES organization(id) ON DELETE CASCADE, createdAt DATE NOT NULL, updatedAt DATE
+);
+CREATE INDEX team_organizationId_idx ON team(organizationId);
+CREATE TABLE teamMember (
+  id TEXT NOT NULL PRIMARY KEY, teamId TEXT NOT NULL REFERENCES team(id) ON DELETE CASCADE,
+  userId TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE, membershipKey TEXT UNIQUE, createdAt DATE
+);
+CREATE INDEX teamMember_teamId_idx ON teamMember(teamId);
+CREATE INDEX teamMember_userId_idx ON teamMember(userId);
+CREATE TABLE member (
+  id TEXT NOT NULL PRIMARY KEY, organizationId TEXT NOT NULL REFERENCES organization(id) ON DELETE CASCADE,
+  userId TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE, role TEXT NOT NULL, createdAt DATE NOT NULL
+);
+CREATE INDEX member_organizationId_idx ON member(organizationId);
+CREATE INDEX member_userId_idx ON member(userId);
+CREATE TABLE invitation (
+  id TEXT NOT NULL PRIMARY KEY, organizationId TEXT NOT NULL REFERENCES organization(id) ON DELETE CASCADE,
+  email TEXT NOT NULL, role TEXT, teamId TEXT, status TEXT NOT NULL, expiresAt DATE NOT NULL, createdAt DATE NOT NULL,
+  inviterId TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE
+);
+CREATE INDEX invitation_organizationId_idx ON invitation(organizationId);
+CREATE INDEX invitation_email_idx ON invitation(email);
+CREATE TABLE ssoProvider (
+  id TEXT NOT NULL PRIMARY KEY, issuer TEXT NOT NULL, oidcConfig TEXT, samlConfig TEXT,
+  userId TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE, providerId TEXT NOT NULL UNIQUE,
+  organizationId TEXT, domain TEXT NOT NULL, domainVerified INTEGER
+);
+-- Un espace supprimé laisse ses tableaux à leurs propriétaires : ils ne valent plus que par leurs partages.
+ALTER TABLE tableaux ADD COLUMN espace TEXT REFERENCES organization(id) ON DELETE SET NULL;
+CREATE INDEX tableaux_espace ON tableaux(espace);
+-- Le tableau d'accueil de chaque espace, et si l'espace est le personnel d'un compte. À Notak, pas à Better Auth :
+-- un admin d'espace qui change les métadonnées de son espace ne doit pas pouvoir y rattacher un autre tableau.
+CREATE TABLE espaces (
+  espace TEXT PRIMARY KEY REFERENCES organization(id) ON DELETE CASCADE,
+  racine TEXT NOT NULL REFERENCES tableaux(id),
+  personnel INTEGER NOT NULL DEFAULT 0
+);
+`)
+      const maintenant = new Date().toISOString()
+      const comptes = db.prepare('SELECT id, nom, racine FROM utilisateurs').all() as { id: string; nom: string; racine: string }[]
+      for (const u of comptes) {
+        // Un compte dont l'accueil a disparu en retrouve un, vide : l'espace a besoin de sa racine.
+        if (db.prepare('INSERT OR IGNORE INTO tableaux (id, titre, proprietaire, parent) VALUES (?, ?, ?, NULL)').run(u.racine, u.nom, u.id).changes) {
+          db.prepare("INSERT OR IGNORE INTO acces (tableau, utilisateur, role) VALUES (?, ?, 'proprietaire')").run(u.racine, u.id)
+        }
+        const espace = creerOrganisationPersonnelle(db, u, maintenant)
+        db.prepare('INSERT INTO espaces (espace, racine, personnel) VALUES (?, ?, 1)').run(espace, u.racine)
+      }
+      // Chaque tableau entre dans l'espace personnel de son propriétaire.
+      db.exec('UPDATE tableaux SET espace = (SELECT e.espace FROM espaces e JOIN utilisateurs u ON u.racine = e.racine WHERE u.id = tableaux.proprietaire)')
+    },
+  },
 ]
+
+/**
+ * L'organisation de l'espace personnel d'un compte, dont il est le seul membre et le propriétaire. Son accueil s'y
+ * rattache ensuite (table `espaces`), une fois le tableau créé.
+ */
+export function creerOrganisationPersonnelle(db: DatabaseSync, u: { id: string; nom: string }, maintenant: string): string {
+  const espace = randomUUID()
+  db.prepare('INSERT INTO organization (id, name, slug, createdAt) VALUES (?, ?, ?, ?)').run(espace, u.nom, `personnel-${u.id}`, maintenant)
+  db.prepare('INSERT INTO member (id, organizationId, userId, role, createdAt) VALUES (?, ?, ?, ?, ?)').run(randomUUID(), espace, u.id, 'owner', maintenant)
+  return espace
+}
 
 /** La version de schéma de cette base : 0 pour une base neuve ou d'avant les migrations. */
 export const versionDe = (db: DatabaseSync) => Number((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version)

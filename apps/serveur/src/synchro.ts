@@ -6,7 +6,7 @@ import { WebSocketServer } from 'ws'
 import { type Acteur, suivreActivite } from './activite.ts'
 import { type Auth, utilisateurDeSession } from './auth.ts'
 import type { Base } from './base.ts'
-import { roleHerite } from './droits.ts'
+import { roleEffectif } from './espaces.ts'
 import { indexerDocument } from './indexation.ts'
 import { verrouPar } from './verrou.ts'
 
@@ -54,7 +54,7 @@ export function creerHocuspocus(base: Base, auth: Auth, maintenant: () => number
       const id = idDuDocument(documentName)
       // La session se lit sur les en-têtes de la requête de mise à niveau : le cookie y voyage comme pour l'API.
       const utilisateur = id ? await utilisateurDeSession(auth, base, requestHeaders) : null
-      const droit = utilisateur && id ? roleHerite((t) => base.acces(t), (t) => base.tableau(t)?.parent ?? null, utilisateur.id, id) : null
+      const droit = utilisateur && id ? roleEffectif(base, utilisateur.id, id) : null
       if (!utilisateur || !droit) throw new Error('refusé')
       // Un tableau protégé ne se synchronise qu'une fois son mot de passe donné.
       if (id && verrouPar(base, utilisateur.id, id) !== null) throw new Error('verrouillé')

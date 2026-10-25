@@ -21,6 +21,13 @@ export function role(acces: readonly Acces[], utilisateur: string, tableau: stri
   return meilleur
 }
 
+/** Le plus fort des deux rôles. */
+export function meilleurRole(a: Role | null, b: Role | null): Role | null {
+  if (a === null) return b
+  if (b === null) return a
+  return ROLES.indexOf(a) >= ROLES.indexOf(b) ? a : b
+}
+
 /** Vrai si `actuel` atteint au moins `minimum`. */
 export function auMoins(actuel: Role | null, minimum: Role): boolean {
   return actuel !== null && ROLES.indexOf(actuel) >= ROLES.indexOf(minimum)

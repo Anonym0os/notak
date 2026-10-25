@@ -1,11 +1,14 @@
 import { randomBytes, randomInt, randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { sso } from '@better-auth/sso'
 import { type BetterAuthOptions, betterAuth } from 'better-auth'
 import { APIError } from 'better-auth/api'
+import { organization } from 'better-auth/plugins/organization'
 import type { Base, Utilisateur } from './base.ts'
-import { COULEURS, preparerCompte } from './comptes.ts'
+import { COULEURS, preparerCompte, preparerEspace } from './comptes.ts'
 import type { Courrier } from './courriel.ts'
+import { ROLES_ESPACE, ac } from './espaces.ts'
 import { langueExport } from './exporter.ts'
 import { hacher, verifier } from './motsDePasse.ts'
 
@@ -37,6 +40,10 @@ export interface OptionsAuth {
   /** Les fournisseurs de connexion configurés ; un fournisseur absent n'est pas proposé. */
   fournisseurs?: Partial<Record<Fournisseur, Identifiants>>
   choisirCouleur?: () => string
+  /** Les fournisseurs d'identité du réseau interne (leur origine), qu'un espace peut déclarer en SSO. */
+  idpInternes?: readonly string[]
+  /** Les membres ou les rôles d'un espace ont changé : ceux qui y travaillent en direct relisent leurs droits. */
+  surChangementDEspace?: (espace: string) => void
 }
 
 /** Les champs de `utilisateurs` que Better Auth ne connaît pas : il les lit, il ne laisse personne les écrire. */
@@ -56,17 +63,62 @@ export const optionsSchema = {
   advanced: { database: { generateId: 'uuid' } },
 } satisfies BetterAuthOptions
 
+/** Un espace personnel ne s'ouvre pas aux autres, ne se quitte pas et ne se supprime pas. */
+const refuserSiPersonnel = (base: Base, espace: string) => {
+  if (base.espace(espace)?.personnel) throw new APIError('FORBIDDEN', { message: 'espace personnel', code: 'ESPACE_PERSONNEL' })
+}
+
+/** Les plugins, à part : la migration les compare aussi à ce qu'elle a écrit. */
+export function pluginsAuth(o: Pick<OptionsAuth, 'base' | 'courrier' | 'origine' | 'surChangementDEspace'>) {
+  const { base, courrier } = o
+  const change = (espace: string) => o.surChangementDEspace?.(espace)
+  return [
+    organization({
+      ac,
+      roles: ROLES_ESPACE,
+      creatorRole: 'owner',
+      teams: { enabled: true },
+      dynamicAccessControl: { enabled: true },
+      invitationExpiresIn: 7 * 24 * 3600,
+      cancelPendingInvitationsOnReInvite: true,
+      sendInvitationEmail: async ({ id, email, organization: espace, inviter }) =>
+        courrier.envoyer({
+          a: email,
+          sujet: `Notak : ${inviter.user.name} vous invite dans « ${espace.name} »`,
+          texte: `${inviter.user.name} vous invite à rejoindre l'espace « ${espace.name} ». Pour accepter, ouvrez ce lien :\n${o.origine}/?invitation=${id}`,
+        }),
+      organizationHooks: {
+        afterCreateOrganization: async ({ organization: espace, user }) => preparerEspace(base, espace, user.id),
+        beforeDeleteOrganization: async ({ organization: espace }) => refuserSiPersonnel(base, espace.id),
+        beforeCreateInvitation: async ({ organization: espace }) => refuserSiPersonnel(base, espace.id),
+        beforeAddMember: async ({ organization: espace }) => refuserSiPersonnel(base, espace.id),
+        beforeRemoveMember: async ({ organization: espace }) => refuserSiPersonnel(base, espace.id),
+        afterRemoveMember: async ({ organization: espace }) => change(espace.id),
+        afterUpdateMemberRole: async ({ organization: espace }) => change(espace.id),
+        afterAddMember: async ({ organization: espace }) => change(espace.id),
+      },
+    }),
+    // Le SSO d'entreprise se déclare espace par espace (OIDC ou SAML), et ne sert qu'une fois le domaine prouvé par
+    // un enregistrement DNS. Qui arrive par lui entre dans l'espace comme simple membre.
+    sso({
+      domainVerification: { enabled: true },
+      organizationProvisioning: { disabled: false, defaultRole: 'member' },
+    }),
+  ]
+}
+
 export function optionsAuth(o: OptionsAuth) {
   const { base, courrier } = o
   const choisirCouleur = o.choisirCouleur ?? (() => COULEURS[randomInt(COULEURS.length)]!)
   const f = o.fournisseurs ?? {}
   return {
     ...optionsSchema,
+    plugins: pluginsAuth(o),
     database: base.db,
     secret: o.secret,
     baseURL: o.origine,
     basePath: CHEMIN_AUTH,
-    trustedOrigins: [o.origine, ...(o.autresOrigines ?? [])],
+    trustedOrigins: [o.origine, ...(o.autresOrigines ?? []), ...(o.idpInternes ?? [])],
     telemetry: { enabled: false },
     // Le débit se limite devant, par adresse, comme sur le reste de l'API (`app.ts`).
     rateLimit: { enabled: false },
