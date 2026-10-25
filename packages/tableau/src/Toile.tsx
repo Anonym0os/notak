@@ -455,6 +455,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const espaceBref = useRef(false)
   const [anime, setAnime] = useState(false)
   const [enGeste, setEnGeste] = useState(false)
+  // Un geste qui laisse les barres telles qu'avant l'appui : la toile qu'on déplace (bouton du milieu, Espace) ne
+  // change ni la sélection ni l'édition, et la barre de création peut être rangée ; un appui sur un élément qui n'a pas
+  // encore franchi le seuil du glisser ne fait pas basculer, au clic ou au double-clic, la sélection vers la création.
+  const [barresGardees, setBarresGardees] = useState(false)
   // La main se ferme tant qu'on tient la toile, au bouton du milieu comme avec Espace.
   const [attrape, setAttrape] = useState(false)
   // Ce qu'un autre vient de toucher : un contour à sa couleur et son prénom, quelques secondes (voir le service).
@@ -1390,6 +1394,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     setSelection(new Set(ids))
     setGlisses(new Set(ids))
     setEnGeste(true)
+    setBarresGardees(false)
     try {
       racine.current.setPointerCapture(r.pointeur)
     } catch {
@@ -1982,6 +1987,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       demarre: false,
     }
     setEnGeste(true)
+    setBarresGardees(false)
     racine.current!.setPointerCapture(e.pointerId)
   }
 
@@ -2084,6 +2090,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         if (el && el.contenu.type === 'ligne' && !el.verrou && s.size === 1) {
           geste.current = { type: 'ligneEntiere', id, depart: ici, ecran: p, demarre: false, avant: el.contenu }
           setEnGeste(true)
+          setBarresGardees(true)
           racine.current!.setPointerCapture(e.pointerId)
           return
         }
@@ -2117,6 +2124,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       }
     } else return
     setEnGeste(true)
+    setBarresGardees(geste.current?.type === 'attraper' || (geste.current?.type === 'glisser' && !geste.current.demarre))
     racine.current!.setPointerCapture(e.pointerId)
   }
 
@@ -2247,6 +2255,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (!g.demarre) {
         if (Math.hypot(p.x - g.ecran.x, p.y - g.ecran.y) < SEUIL_GLISSER) return
         g.demarre = true
+        setBarresGardees(false)
       }
       const d = soustraire(ici, g.depart)
       const bout = (x: Extremite): Extremite => ('element' in x ? x : { x: Math.round((x.x + d.x) * 100) / 100, y: Math.round((x.y + d.y) * 100) / 100 })
@@ -2307,6 +2316,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (!g.demarre) {
       if (Math.hypot(p.x - g.ecran.x, p.y - g.ecran.y) < SEUIL_GLISSER) return
       g.demarre = true
+      setBarresGardees(false)
       g.reduire = undefined
       reduction.current = { cible: { echelle: 1, opacite: 1 }, actuel: { echelle: 1, opacite: 1 }, instant: performance.now() }
       arreterDepose()
@@ -2952,14 +2962,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     [autres, nonVus, tableau],
   )
   const elementsChoisis = choisis()
-  const cadreChoisis = !enGeste && !edition && elementsChoisis.length > 0
+  const barresCachees = enGeste && !barresGardees
+  const cadreChoisis = !barresCachees && !edition && elementsChoisis.length > 0
     ? englobant(elementsChoisis.flatMap((x) => rect(x.id) ?? []))
     : null
   const barre = cadreChoisis && !lectureSeule && versEcran(cadreChoisis)
 
   // [barre d'édition à gauche] En édition, la barre de gauche prend les outils de l'élément (la note : ses outils de
   // texte, par un portail) ; un type sans outils d'édition garde la barre de sa sélection.
-  const elementEnEdition = edition && !enGeste ? tableau.elements.find((x) => x.id === edition) : undefined
+  const elementEnEdition = edition && !barresCachees ? tableau.elements.find((x) => x.id === edition) : undefined
   const editionAGauche = !!services.barreAGauche && !lectureSeule && !!elementEnEdition
   const barreEdition = editionAGauche && !!defEcrite(elementEnEdition!, tableau)?.outilsEdition
   const selectionEnEdition = editionAGauche && !barreEdition ? [elementEnEdition!] : null
