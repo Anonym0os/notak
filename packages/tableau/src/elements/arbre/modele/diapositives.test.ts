@@ -22,6 +22,7 @@ import {
 } from './diapositives'
 import { ajouterResume } from './elements'
 import { poserDiapo } from './pitch'
+import { RYTHME } from './rythme'
 import { ajouterEnfant, changerSujet, lire, nouvelArbre } from './sujets'
 
 /** Central → A (A1, A2), B. */
@@ -278,7 +279,7 @@ describe('les diapositives d’une carte (mode Pitch)', () => {
     expect(versParent(s, 2)).toBe(s.debut.get(c))
     expect(trajet(s, l, s.debut.get(c)!, 'remonter')).toEqual([])
     // L'effet est joué, sans les animations des diapositives.
-    expect(trajet(s, l, listeA, 'remonter')[0]!.effet).toEqual({ nom: 'morphing', duree: 1000, animationsDiapo: false })
+    expect(trajet(s, l, listeA, 'remonter')[0]!.effet).toEqual({ nom: 'morphing', duree: RYTHME.morphing, animationsDiapo: false })
   })
 
   it('reculer franchit les diapositives sautées, sans animation, et traverse les sorties de liste', () => {
@@ -299,7 +300,7 @@ describe('les diapositives d’une carte (mode Pitch)', () => {
     const l = lire(a)
     const s = sequence(l)
     const merci = s.diapos.length - 1
-    expect(trajet(s, l, merci, 'avancer')).toEqual([{ de: merci, vers: 'ecran-de-fin', effet: { nom: 'fondu', duree: 400, animationsDiapo: true }, automatique: false }])
+    expect(trajet(s, l, merci, 'avancer')).toEqual([{ de: merci, vers: 'ecran-de-fin', effet: { nom: 'fondu', duree: RYTHME.fondu, animationsDiapo: true }, automatique: false }])
     expect(arrivee(trajet(s, l, 'ecran-de-fin', 'avancer'), 'ecran-de-fin')).toBe('terminer')
     const retour = trajet(s, l, 'ecran-de-fin', 'reculer')
     expect([retour[0]!.vers, retour[0]!.effet.nom]).toEqual([merci, 'aucun'])

@@ -1,4 +1,4 @@
-import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { type CSSProperties, type ReactNode, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { Id } from '../../coeur/tableau'
 import { type Ctx, sujetDEntete } from './diapo/commun'
 import { DecorDiapo } from './diapo/decor'
@@ -43,26 +43,32 @@ export const echelleDe = (ratio: RatioPitch, taille: { l: number; h: number }): 
   return Math.round(Math.min(taille.l / b.l, taille.h / b.h) * 10000) / 10000
 }
 
-/** Les polices chargent après le premier dessin : on remesure quand elles arrivent. */
-function usePolicesChargees(): number {
-  const [version, setVersion] = useState(0)
-  useEffect(() => {
-    const fonts = typeof document !== 'undefined' ? document.fonts : undefined
-    if (!fonts?.addEventListener) return
-    let vivant = true
-    const relire = () => {
-      if (!vivant) return
+/**
+ * Les polices chargent après le premier dessin : on remesure quand elles arrivent. Une seule écoute pour toutes les
+ * diapositives, et seulement sur une vraie arrivée : relire à chaque montage, comme avant, vidait le cache des mesures
+ * et redessinait la diapositive en pleine transition.
+ */
+let versionPolices = 0
+const abonnesPolices = new Set<() => void>()
+let policesEcoutees = false
+
+function ecouterPolices(rappel: () => void): () => void {
+  const fonts = typeof document !== 'undefined' ? document.fonts : undefined
+  if (!policesEcoutees && fonts?.addEventListener) {
+    policesEcoutees = true
+    fonts.addEventListener('loadingdone', (e) => {
+      if (!(e as FontFaceSetLoadEvent).fontfaces?.length) return
       oublierMesures()
-      setVersion((v) => v + 1)
-    }
-    fonts.addEventListener('loadingdone', relire)
-    void fonts.ready?.then(() => fonts.status === 'loaded' && relire())
-    return () => {
-      vivant = false
-      fonts.removeEventListener('loadingdone', relire)
-    }
-  }, [])
-  return version
+      versionPolices++
+      for (const f of abonnesPolices) f()
+    })
+  }
+  abonnesPolices.add(rappel)
+  return () => abonnesPolices.delete(rappel)
+}
+
+function usePolicesChargees(): number {
+  return useSyncExternalStore(ecouterPolices, () => versionPolices, () => 0)
 }
 
 /** Le cadre : le rapport demandé, de la taille donnée ou de toute la largeur de son parent ; dedans, la diapositive à sa taille de base. */

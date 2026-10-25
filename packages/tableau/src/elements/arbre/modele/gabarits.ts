@@ -1,5 +1,6 @@
 import type { Id, ReglagesDiapo } from '../../../coeur/tableau'
 import type { RatioPitch } from '../themesPitch'
+import { RYTHME } from './rythme'
 
 /**
  * Ce qui décide de la forme d'une diapositive du mode Pitch (docs/XMIND.md § 12, relevés 10 § 6 et § 7, 11 § 0.9) :
@@ -156,7 +157,7 @@ export function placeImageAuto(f: FaitsDImage): PlaceImage {
 
 // — Transitions (relevé 10 § 7.1), données pour le lot des transitions —
 
-/** La durée de base : toutes les durées du mode Pitch en sont des multiples. */
+/** La durée de base de Xmind : toutes ses durées en sont des multiples. Notak joue les siennes (`rythme.ts`). */
 export const DUREE_BASE = 400
 
 /** Les effets entre deux diapositives : dissolve, animateInSlide, magicMove et none chez Xmind. */
@@ -184,13 +185,13 @@ const AUCUN: Effet = { nom: 'aucun', duree: 0, animationsDiapo: false }
 
 /** L'effet tel que la paire de diapositives le veut, avant la commande (`computeTransitionEffect`). */
 function effetBrut(source: BoutDeTransition | null, cible: BoutDeTransition | null): Pick<Effet, 'nom' | 'duree'> {
-  if (cible?.type === 'sujet' && (cible.niveau === 'central' || cible.niveau === 'flottant')) return { nom: 'fondu', duree: 1.5 * DUREE_BASE }
-  if (!source || !cible) return { nom: 'fondu', duree: DUREE_BASE }
+  if (cible?.type === 'sujet' && (cible.niveau === 'central' || cible.niveau === 'flottant')) return { nom: 'fondu', duree: RYTHME.central }
+  if (!source || !cible) return { nom: 'fondu', duree: RYTHME.fondu }
   if (source.sujet === cible.sujet) {
-    if (source.type === 'liste' && cible.type === 'sujet') return { nom: 'morphing', duree: 2.5 * DUREE_BASE }
-    if (source.type === cible.type) return { nom: 'dans-la-diapo', duree: 1.5 * DUREE_BASE }
+    if (source.type === 'liste' && cible.type === 'sujet') return { nom: 'morphing', duree: RYTHME.morphing }
+    if (source.type === cible.type) return { nom: 'dans-la-diapo', duree: RYTHME.dansLaDiapo }
   }
-  return { nom: 'morphing', duree: 2.5 * DUREE_BASE }
+  return { nom: 'morphing', duree: RYTHME.morphing }
 }
 
 /**
@@ -208,10 +209,10 @@ export function effetDeTransition(source: BoutDeTransition | null, cible: BoutDe
  * durées ne suivent pas le réglage d'animation.
  */
 export const ECRAN_DE_FIN = {
-  /** L'écran paraît pendant que l'`epilogue` se fond (fondu de 400 ms) et rétrécit, en easeInOutCubic. */
-  apparition: 2.5 * DUREE_BASE,
-  /** « Suivant » sur l'écran de fin : il s'efface, linéaire, puis la présentation se termine. */
-  disparition: DUREE_BASE,
+  /** L'écran paraît pendant que l'`epilogue` se fond et rétrécit (Xmind : 1 000 ms en easeInOutCubic). */
+  apparition: RYTHME.fin.apparition,
+  /** « Suivant » sur l'écran de fin : il s'efface, puis la présentation se termine (Xmind : 400 ms linéaires). */
+  disparition: RYTHME.fin.disparition,
   /** L'échelle de la vignette : 0,2 ; 0,233 en 4:3. */
   echelle: (r: RatioPitch) => (r === '4:3' ? 0.233 : 0.2),
   /** Du bord droit et du haut, px de base. */

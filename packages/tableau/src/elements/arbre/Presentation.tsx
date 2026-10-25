@@ -6,9 +6,8 @@ import { Agrandissement, BoutonAgrandir, type ImageVisee } from './Agrandissemen
 import { ChoixTheme, PopoverFixe } from './ChoixTheme'
 import { Diapositive } from './Diapo'
 import { EcranDeFin } from './diapo/EcranDeFin'
-import { type Jeu, jouerAffichage, jouerFin, jouerSortieFin, jouerTransition, mouvementPermis } from './diapo/jouer'
+import { FINIE, type Jeu, jouerAffichage, jouerFin, jouerSortieFin, jouerTransition, mouvementPermis } from './diapo/jouer'
 import { fondSombre } from './diapo/morphing'
-import { type File, demander, fileVide, liberer } from './diapo/transitions'
 import { type Diapo, type Position, type Saut, depart as diapoDeDepart, precedente, sequence, trajet, versParent } from './modele/diapositives'
 import { type Commande, effetDeTransition, estPortrait } from './modele/gabarits'
 import type { Geste } from './modele/gestes'
@@ -21,11 +20,19 @@ import { RATIOS_PITCH, ratioEffectif, themeDuPitch } from './themesPitch'
  * flèches avancent, Échap sort. Les préférences d'animation vivent dans ce navigateur, pas dans la carte.
  *
  * Chaque pas joue sa transition (diapo/transitions.ts) : la diapositive quittée et la nouvelle sont montées l'une sur
- * l'autre le temps de l'effet, puis la nouvelle reste seule. Une demande faite pendant une transition attend la fin ; une
- * seule attend, les autres sont ignorées (relevé 10 § 5.6).
+ * l'autre le temps de l'effet, puis la nouvelle reste seule. Notak s'écarte ici de Xmind, qui fait attendre la fin d'une
+ * transition et jette les demandes en trop (relevé 10 § 5.6) : une touche pressée pendant une transition l'achève
+ * aussitôt et joue la suivante. Plusieurs appuis rapprochés passent leurs pas d'un coup, seul le dernier s'anime ; une
+ * touche maintenue fait défiler sans animation.
  */
 
 type Demande = Exclude<Commande, 'depart'>
+
+/** Une demande en attente ; `instant` : elle passe sans animation (une touche maintenue). */
+interface Attente {
+  commande: Demande
+  instant: boolean
+}
 
 /** Un pas animé en cours : d'où, vers où, avec quoi ensuite. `n` le distingue du pas suivant vers la même diapositive. */
 interface EnCours {
@@ -159,24 +166,32 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
   const taille = { l: Math.floor(rl * k), h: Math.floor(rh * k) }
   const seq = useMemo(() => sequence(l, { ratio, resumes: arbre.resumes }), [l, ratio, arbre.resumes])
 
-  // Plein écran : celui qu'on obtient ; en sortir (Échap du navigateur) termine la présentation.
+  // Plein écran : celui qu'on obtient ; en sortir (Échap du navigateur) termine la présentation. On croit le navigateur
+  // sur ce qu'il fait, pas sur la promesse : WebKit (Safari, l'app de bureau) n'émet que l'événement préfixé, et sa
+  // promesse peut échouer alors que la fenêtre est passée en plein écran. Il fallait alors un second Échap pour sortir.
   useEffect(() => {
-    const fond = scene.current?.closest<HTMLElement>('.notak-arbre-fond')
-    let demande = false
-    if (fond?.requestFullscreen) {
-      demande = true
-      void fond.requestFullscreen().catch(() => {
-        demande = false
-      })
+    const doc = document as Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => void }
+    const plein = () => !!(document.fullscreenElement ?? doc.webkitFullscreenElement)
+    const fond = scene.current?.closest<HTMLElement>('.notak-arbre-fond') as (HTMLElement & { webkitRequestFullscreen?: () => void }) | null | undefined
+    let entre = plein()
+    try {
+      const r = fond?.requestFullscreen ? fond.requestFullscreen() : fond?.webkitRequestFullscreen?.()
+      void r?.catch(() => {})
+    } catch {
+      /* Pas de plein écran (une iframe, un navigateur qui refuse) : la présentation occupe la fenêtre. */
     }
     const change = () => {
-      if (demande && !document.fullscreenElement) quitter()
+      if (plein()) entre = true
+      else if (entre) ((entre = false), quitter())
     }
     document.addEventListener('fullscreenchange', change)
+    document.addEventListener('webkitfullscreenchange', change)
     return () => {
       document.removeEventListener('fullscreenchange', change)
-      demande = false
+      document.removeEventListener('webkitfullscreenchange', change)
+      entre = false
       if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+      else if (doc.webkitFullscreenElement) doc.webkitExitFullscreen?.()
     }
     // Seulement au lancement.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -201,61 +216,73 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
   }, [puce])
 
   // Chaque commande joue ses pas (les enchaînements automatiques compris), un par un, chacun avec sa transition. Les
-  // pas sans effet passent d'un coup ; on attend la fin d'un pas animé pour jouer le suivant.
+  // pas sans effet passent d'un coup ; un pas animé joue jusqu'au bout, ou jusqu'à la demande suivante qui l'achève.
   const [enCours, setEnCours] = useState<EnCours | null>(null)
-  const file = useRef<File<Demande>>(fileVide())
+  const attentes = useRef<Attente[]>([])
+  // Un pas animé joue (ou le démarrage) : une nouvelle demande l'achève au lieu d'attendre.
+  const occupe = useRef(false)
+  const jeu = useRef<Jeu | null>(null)
   const ici = useRef(position)
   ici.current = position
   const compteur = useRef(0)
   const contexte = useRef({ seq, l, anime, quitter })
   contexte.current = { seq, l, anime, quitter }
-  const enchainer = useRef<(sauts: Saut[]) => void>(() => {})
-  enchainer.current = (sauts) => {
+  const terminer = () => {
+    attentes.current = []
+    occupe.current = false
+    setEnCours(null)
+    contexte.current.quitter()
+  }
+  /** Joue des sauts : ceux sans effet d'un coup, puis le premier animé ; `presse` : tous d'un coup, d'autres attendent. */
+  const enchainer = useRef<(sauts: Saut[], presse: boolean) => void>(() => {})
+  enchainer.current = (sauts, presse) => {
     const mouvement = mouvementPermis()
     let reste = sauts
-    while (reste.length && instantane(reste[0]!, mouvement)) {
+    while (reste.length && (presse || instantane(reste[0]!, mouvement))) {
       const s = reste[0]!
       reste = reste.slice(1)
-      if (s.vers === 'terminer') {
-        file.current = fileVide()
-        setEnCours(null)
-        return contexte.current.quitter()
-      }
+      if (s.vers === 'terminer') return terminer()
       ici.current = s.vers
       setPosition(s.vers)
     }
     if (reste.length) {
       const [saut, ...suite] = reste as [Saut, ...Saut[]]
+      occupe.current = true
       setEnCours({ saut, reste: suite, n: ++compteur.current })
       if (saut.vers !== 'terminer') ((ici.current = saut.vers), setPosition(saut.vers))
       return
     }
+    occupe.current = false
     setEnCours(null)
-    const r = liberer(file.current)
-    file.current = r.file
-    if (r.jouer) lancer.current(r.jouer)
+    suivante.current()
   }
-  const lancer = useRef<(c: Demande) => void>(() => {})
-  lancer.current = (commande) => {
-    const { seq: s, l: lec, anime: a } = contexte.current
-    enchainer.current(trajet(s, lec, ici.current, commande, a && mouvementPermis()))
+  /** La demande suivante : animée seulement si c'est la dernière en attente. */
+  const suivante = useRef<() => void>(() => {})
+  suivante.current = () => {
+    const a = attentes.current.shift()
+    if (!a) return
+    const presse = a.instant || attentes.current.length > 0
+    const { seq: s, l: lec, anime: an } = contexte.current
+    enchainer.current(trajet(s, lec, ici.current, a.commande, an && mouvementPermis() && !presse), presse)
   }
-  const jouer = useCallback((commande: Demande) => {
-    const r = demander(file.current, commande)
-    file.current = r.file
-    if (r.jouer) lancer.current(r.jouer)
+  const jouer = useCallback((commande: Demande, instant = false) => {
+    attentes.current.push({ commande, instant })
+    // Ce qui joue va à son terme tout de suite ; la fin du pas reprend la file.
+    if (occupe.current) jeu.current?.achever()
+    else suivante.current()
   }, [])
   /** Un saut direct (« depuis le début ») : ce qui joue s'arrête, ce qui attendait est oublié. */
   const allerA = useCallback((p: Position) => {
-    file.current = fileVide()
+    attentes.current = []
+    occupe.current = false
     setEnCours(null)
     ici.current = p
     setPosition(p)
   }, [])
-  const suivant = useCallback(() => jouer('avancer'), [jouer])
-  const precedent = useCallback(() => jouer('reculer'), [jouer])
-  const passer = useCallback(() => jouer('passer'), [jouer])
-  const parent = useCallback(() => jouer('remonter'), [jouer])
+  const suivant = useCallback((instant = false) => jouer('avancer', instant), [jouer])
+  const precedent = useCallback((instant = false) => jouer('reculer', instant), [jouer])
+  const passer = useCallback((instant = false) => jouer('passer', instant), [jouer])
+  const parent = useCallback((instant = false) => jouer('remonter', instant), [jouer])
   const montrees = seq.diapos.filter((d) => !d.sautee).length
   const rang = position === 'ecran-de-fin' ? montrees : seq.diapos.slice(0, position + 1).filter((d) => !d.sautee).length
   const auDebut = typeof position === 'number' && precedente(seq, position) === null
@@ -316,10 +343,10 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
       return
     } else if (e.metaKey || e.ctrlKey || e.altKey) {
       return
-    } else if (e.key === 'ArrowRight' && e.shiftKey) passer()
-    else if (e.key === 'ArrowLeft' && e.shiftKey) parent()
-    else if ([' ', 'Enter', 'ArrowRight', 'ArrowDown', 'PageDown'].includes(e.key)) suivant()
-    else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) precedent()
+    } else if (e.key === 'ArrowRight' && e.shiftKey) passer(e.repeat)
+    else if (e.key === 'ArrowLeft' && e.shiftKey) parent(e.repeat)
+    else if ([' ', 'Enter', 'ArrowRight', 'ArrowDown', 'PageDown'].includes(e.key)) suivant(e.repeat)
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) precedent(e.repeat)
     else if (e.key.toLowerCase() === 'q') quitter()
     else if (e.key.toLowerCase() === 'a') basculerAnimation()
     else if (e.key === '?' || e.code === 'Slash') setAide((x) => !x)
@@ -346,26 +373,32 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
     const racine = (p: Position | null | 'terminer') => (typeof p === 'number' ? sc.querySelector<HTMLElement>(`[data-couche="${p}"] .notak-arbre-diapo`) : null)
     const { saut } = enCours
     const fin = sc.querySelector<HTMLElement>('.notak-arbre-diapo-fin')
-    let lecture: Jeu
-    if (saut.vers === 'terminer') lecture = fin ? jouerSortieFin(fin) : { fini: Promise.resolve(true), arreter() {} }
-    else if (saut.vers === 'ecran-de-fin') lecture = fin ? jouerFin(sc.querySelector<HTMLElement>(`[data-couche="${String(saut.de)}"]`), fin) : { fini: Promise.resolve(true), arreter() {} }
-    else {
-      const cible = racine(saut.vers)
-      const source = racine(saut.de)
-      const d = contexte.current.seq.diapos
-      lecture = cible ? jouerTransition(saut.effet, source ? { racine: source, fiche: ficheDe(typeof saut.de === 'number' ? d[saut.de] : undefined) } : null, { racine: cible, fiche: ficheDe(d[saut.vers]) }) : { fini: Promise.resolve(true), arreter() {} }
+    let lecture: Jeu = FINIE
+    try {
+      if (saut.vers === 'terminer') lecture = fin ? jouerSortieFin(fin) : FINIE
+      else if (saut.vers === 'ecran-de-fin') lecture = fin ? jouerFin(sc.querySelector<HTMLElement>(`[data-couche="${String(saut.de)}"]`), fin) : FINIE
+      else {
+        const cible = racine(saut.vers)
+        const source = racine(saut.de)
+        const d = contexte.current.seq.diapos
+        if (cible) lecture = jouerTransition(saut.effet, source ? { racine: source, fiche: ficheDe(typeof saut.de === 'number' ? d[saut.de] : undefined) } : null, { racine: cible, fiche: ficheDe(d[saut.vers]) })
+      }
+    } catch (erreur) {
+      // Une transition qui ne sait pas se jouer passe d'un coup : la présentation ne reste jamais bloquée.
+      console.error(erreur)
+      lecture = FINIE
     }
+    jeu.current = lecture
     let vivant = true
     void lecture.fini.then((auBout) => {
       if (!vivant || !auBout) return
-      if (saut.vers === 'terminer') {
-        file.current = fileVide()
-        return contexte.current.quitter()
-      }
-      enchainer.current(enCours.reste)
+      jeu.current = null
+      if (saut.vers === 'terminer') return terminer()
+      enchainer.current(enCours.reste, attentes.current.length > 0)
     })
     return () => {
       vivant = false
+      if (jeu.current === lecture) jeu.current = null
       lecture.arreter()
     }
   }, [enCours])
@@ -375,7 +408,7 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
     const p = ici.current
     const d = typeof p === 'number' ? seq.diapos[p] : undefined
     if (!d || !anime || !mouvementPermis()) return
-    file.current = { occupee: true, attente: null }
+    occupe.current = true
     setEnCours({ saut: { de: null, vers: p, effet: effetDeTransition(null, d, 'depart', true), automatique: false }, reste: [], n: ++compteur.current })
     // Seulement au lancement.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -393,7 +426,7 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
   const mettreAJour = (reglage: Extract<Geste, { type: 'pitch' }>['reglage']) => !lectureSeule && faire({ type: 'pitch', reglage })
 
   return (
-    <div ref={scene} className="notak-arbre-pitch-scene" style={{ background: '#000' }} onClick={suivant} onPointerMove={viser} onPointerLeave={() => setVisee(null)} aria-label={t('arbre.pitch.titre')} role="region" aria-live="polite">
+    <div ref={scene} className="notak-arbre-pitch-scene" style={{ background: '#000' }} onClick={() => suivant()} onPointerMove={viser} onPointerLeave={() => setVisee(null)} aria-label={t('arbre.pitch.titre')} role="region" aria-live="polite">
       {couches.map((p) => {
         const d = seq.diapos[p]
         return (
