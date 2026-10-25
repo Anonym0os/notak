@@ -21,8 +21,12 @@ try {
     dossier,
     secret: secretDe(process.env, dossier),
     origine,
-    // Sans adresse publique, on est en développement : les pages viennent du serveur de Vite.
-    autresOrigines: origine ? [] : ['http://localhost:5173'],
+    // Sans adresse publique, on est en développement : les pages viennent du serveur de Vite. `NOTAK_AUTRES_ORIGINES`
+    // ajoute d'autres pages qui appellent l'API (un second serveur de Vite, l'app de bureau en développement).
+    autresOrigines: [
+      ...(origine ? [] : ['http://localhost:5173']),
+      ...(process.env.NOTAK_AUTRES_ORIGINES ?? '').split(',').map((o) => o.trim()).filter(Boolean),
+    ],
     openfga: process.env.NOTAK_OPENFGA_URL ?? 'http://localhost:8080',
     fournisseurs: fournisseursDe(process.env),
     idpInternes: (process.env.NOTAK_IDP_INTERNES ?? '').split(',').map((o) => o.trim()).filter(Boolean),

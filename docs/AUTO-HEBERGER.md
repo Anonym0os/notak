@@ -36,6 +36,7 @@ Pour un essai en HTTP sur sa machine : `NOTAK_COOKIE_SECURISE=0` et `NOTAK_RELAI
 | Variable | Par défaut | Ce qu'elle règle |
 |---|---|---|
 | `NOTAK_ORIGINE` | `http://localhost:3005` | l'adresse publique du serveur : liens envoyés, retours de connexion |
+| `NOTAK_AUTRES_ORIGINES` | aucune | d'autres origines, séparées par des virgules, dont les pages peuvent se connecter et se synchroniser (sans `NOTAK_ORIGINE`, `http://localhost:5173` l'est déjà) |
 | `NOTAK_OPENFGA_URL` | `http://localhost:8080` | l'OpenFGA qui évalue les droits (`http://openfga:8080` dans `compose.yaml`) |
 | `NOTAK_NOM` | `Notak` | le nom affiché sur l'écran de connexion |
 | `NOTAK_INSCRIPTIONS` | `ouvertes` | `fermees` : personne ne crée de compte seul (voir plus bas) |
