@@ -182,3 +182,106 @@ export function idsDeFichiers(elements: readonly ElementLu[]): Set<string> {
   }
   return ids
 }
+
+/** Ce que la bibliothèque sait d'une toile, d'une carte mentale ou d'un document, de quoi dessiner sa vignette. */
+export type ResumeContenu =
+  | {
+      genre: 'toile'
+      element: ''
+      titre: string
+      couleur?: string
+      /** Le plan : chaque élément posé, en UG, avec sa couleur de note, `colonne`, `image` ou rien (une carte blanche). */
+      boites: [x: number, y: number, largeur: number, hauteur: number, fond: string][]
+    }
+  | { genre: 'arbre'; element: string; titre: string; branches: string[] }
+  | { genre: 'document'; element: string; titre: string; lignes: string[] }
+
+/** Au plus tant de boîtes dans le plan d'une toile, de branches d'une carte, de lignes d'un document. */
+const BOITES_MAX = 120
+const BRANCHES_MAX = 8
+const LIGNES_MAX = 5
+
+/** La hauteur par défaut de chaque type, en UG (celle de sa définition, que le serveur ne charge pas). */
+const HAUTEURS: Record<string, number> = {
+  note: 7,
+  taches: 6,
+  tableau: 14,
+  arbre: 20,
+  document: 12,
+  table: 25,
+  croquis: 21,
+  nuancier: 12,
+  lien: 7,
+  fichier: 8,
+  clone: 8,
+  lieu: 9,
+  commentaire: 7,
+}
+
+/**
+ * La hauteur probable d'un élément, en UG, sans la toile pour le mesurer : celle qu'il garde, celle de son image, ou
+ * pour une note, de quoi tenir son texte (une ligne d'environ 1,4 caractère par UG, 2,6 UG de haut).
+ */
+function hauteurProbable(e: ElementLu): number {
+  const c = e.contenu
+  const h = (e as { hauteur?: { max?: number; min?: number } }).hauteur
+  if (c.type === 'image' && typeof c.largeurOrigine === 'number' && typeof c.hauteurOrigine === 'number' && c.largeurOrigine > 0)
+    return (e.largeur * c.hauteurOrigine) / c.largeurOrigine
+  if (typeof h?.max === 'number') return h.max
+  if (typeof h?.min === 'number') return h.min
+  if (c.type === 'note') {
+    const d = doc(c.texte)
+    const parLigne = Math.max(8, e.largeur * 1.4)
+    const lignes = (d ? texteBrut(d) : '').split('\n').reduce((n, l) => n + Math.max(1, Math.ceil(l.length / parLigne)), 0)
+    return Math.min(40, Math.max(HAUTEURS.note!, 2 + lignes * 2.6))
+  }
+  return HAUTEURS[c.type] ?? 6
+}
+
+const court = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s)
+
+/**
+ * La toile elle-même, puis chaque carte mentale et chaque document qu'elle porte, hors corbeille : ce que la
+ * bibliothèque montre d'elle. Les lignes, et ce qui est rangé dans une colonne, n'entrent pas dans le plan.
+ */
+export function resumesDuTableau(t: TableauLu): ResumeContenu[] {
+  const vivants = t.elements.filter((e) => e.corbeille === undefined)
+  const boites: [number, number, number, number, string][] = vivants
+    .filter((e) => !e.parent && e.nonTrie === undefined && e.contenu.type !== 'ligne')
+    .slice(0, BOITES_MAX)
+    .map((e) => {
+      const c = e.contenu
+      const fond = c.type === 'colonne' || c.type === 'image' ? c.type : chaine(c.couleur)
+      return [Math.round(e.x), Math.round(e.y), Math.max(1, Math.round(e.largeur)), Math.max(1, Math.round(hauteurProbable(e))), fond]
+    })
+  const resumes: ResumeContenu[] = [{ genre: 'toile', element: '', titre: t.titre, ...(t.couleur ? { couleur: t.couleur } : {}), boites }]
+  for (const e of vivants) {
+    const c = e.contenu
+    if (c.type === 'arbre') {
+      const sujets = Object.entries((c.sujets ?? {}) as Record<string, { parent?: unknown; ordre?: unknown; titre?: unknown; genre?: unknown }>)
+      const parOrdre = (a: [string, { ordre?: unknown }], b: [string, { ordre?: unknown }]) => {
+        const [x, y] = [chaine(a[1].ordre), chaine(b[1].ordre)]
+        return x < y ? -1 : x > y ? 1 : a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0
+      }
+      const central = sujets.filter(([, s]) => s.parent === undefined && s.genre === undefined).sort(parOrdre)[0]
+      const branches = central
+        ? sujets
+            .filter(([, s]) => s.parent === central[0] && s.genre === undefined)
+            .sort(parOrdre)
+            .slice(0, BRANCHES_MAX)
+            .map(([, s]) => court(chaine(s.titre).trim(), 40))
+        : []
+      resumes.push({ genre: 'arbre', element: e.id, titre: central ? chaine(central[1].titre).trim() : '', branches })
+    } else if (c.type === 'document') {
+      const d = imbrique(c.texte)
+      const lignes = (d ? texteBrut(d) : '')
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .slice(0, LIGNES_MAX)
+        .map((l) => court(l, 120))
+      resumes.push({ genre: 'document', element: e.id, titre: chaine(c.titre).trim(), lignes })
+    }
+  }
+  return resumes
+}

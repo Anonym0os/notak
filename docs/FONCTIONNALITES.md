@@ -25,14 +25,14 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 10. Autres éléments | 16 | 2 | 1 | 89 % |
 | 11. Commun aux éléments | 12 | 0 | 0 | 100 % |
 | 12. Organiser | 16 | 0 | 0 | 100 % |
-| 13. Naviguer | 13 | 0 | 0 | 100 % |
-| 14. À plusieurs | 19 | 0 | 0 | 100 % |
-| 15. Habillage | 15 | 0 | 0 | 100 % |
+| 13. Naviguer | 13 | 1 | 0 | 96 % |
+| 14. À plusieurs | 24 | 0 | 0 | 100 % |
+| 15. Habillage | 17 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 8 | 1 | 0 | 94 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
 | 18. Carte mentale | 61 | 10 | 0 | 93 % |
 | 19. Document à blocs | 29 | 1 | 0 | 98 % |
-| **Total** | **377** | **21** | **2** | **97 %** |
+| **Total** | **384** | **22** | **2** | **97 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -351,6 +351,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Monter d'un niveau, redescendre (Cmd+U, Cmd+Maj+U) | ✅ | |
 | Recherche (Cmd+F) : ce qui ne correspond pas s'efface, Entrée va au résultat suivant | ✅ | Dans le tableau ouvert, et dans tous les tableaux du compte par le serveur. |
 | Tableaux récents, favoris | ✅ |  |
+| Bibliothèque (⌥⌘O, menu du compte) : toutes les toiles, cartes mentales et documents en vignettes, par onglet (récents, toiles, cartes, documents, favoris, partagés) | 🟡 | → Notak, pas chez Milanote. Édition serveur seulement : l'édition locale ne l'a pas encore. |
 | Aperçu d'un tableau au survol | ✅ | Le plan du tableau, ses éléments à leur place et dans leur couleur. |
 | Annuler la navigation (à l'échelle de la session) | ✅ | Quand le tableau n'a plus rien à annuler, Cmd+Z revient au tableau d'avant. |
 

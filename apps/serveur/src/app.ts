@@ -754,6 +754,57 @@ export function creerApp(ctx: Contexte): Hono {
     return c.body(null, 204)
   })
 
+  // Et chaque carte mentale ou document qu'il ouvre en grand.
+  app.post('/api/tableaux/:id/elements/:element/vu', async (c) => {
+    const g = await garde(c, 'lecture')
+    if (g instanceof Response) return g
+    const element = c.req.param('element')
+    if (!base.contenus([g.id]).some((x) => x.element === element && x.genre !== 'toile')) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
+    base.noterElementVu(g.u.id, g.id, element, ctx.maintenant())
+    return c.body(null, 204)
+  })
+
+  /**
+   * La bibliothèque : chaque toile que le compte peut lire (sauf son accueil), et chaque carte mentale et
+   * document qu'elles portent, avec la toile qui les porte, la dernière fois qu'il les a ouverts, et ses favoris et
+   * partages. Ce qui est sous un mot de passe pas encore donné n'y est pas.
+   */
+  app.get('/api/bibliotheque', async (c) => {
+    const u = await utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    const lisibles = (await ctx.autorisation.lister(`user:${u.id}`, 'peut_lire', 'tableau')).filter((id) => verrouPar(base, u.id, id) === null)
+    const ouvrables = new Set(lisibles)
+    const vus = new Map(base.vus(u.id).map((v) => [`${v.tableau}/${v.element}`, v.vu]))
+    const favoris = new Set(base.favoris(u.id))
+    const partages = new Set(base.tableauxAccessibles(u.id).flatMap((t) => (t.role === 'proprietaire' ? [] : [t.id])))
+    const titres = new Map<string, string>()
+    const titreDe = (id: string) => {
+      if (!titres.has(id)) titres.set(id, base.tableau(id)?.titre ?? '')
+      return titres.get(id)!
+    }
+    const entrees = base.contenus(lisibles).flatMap((l) => {
+      if (l.genre === 'toile' && l.tableau === u.racine) return []
+      const ligne = base.tableau(l.tableau)
+      if (!ligne) return []
+      const parent = l.genre === 'toile' ? ligne.parent : l.tableau
+      const toile = l.genre === 'toile'
+      return [
+        {
+          tableau: l.tableau,
+          element: toile ? null : l.element,
+          genre: l.genre,
+          titre: toile ? ligne.titre : l.titre,
+          resume: JSON.parse(l.resume) as unknown,
+          ou: parent && ouvrables.has(parent) ? titreDe(parent) : null,
+          vu: vus.get(`${l.tableau}/${l.element}`) ?? null,
+          favori: toile && favoris.has(l.tableau),
+          partage: toile && partages.has(l.tableau),
+        },
+      ]
+    })
+    return c.json(entrees)
+  })
+
   // ---- Lien public ----
 
   app.get('/api/tableaux/:id/lien', async (c) => {
