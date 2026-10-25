@@ -12,6 +12,7 @@ import { compterReactions } from '../decor/annotations'
 import { Compositeur, EXTENSIONS_MESSAGE, type PoigneeCompositeur } from './Compositeur'
 import { useNonLus, useQuiEcrit } from './suivi'
 import { peutCommenter } from '../../coeur/droitsElements'
+import { personneAJour } from '../../personne'
 
 /** Les boutons et le champ de la carte ne lancent pas de glisser. */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
@@ -51,8 +52,15 @@ const TexteRiche = memo(function TexteRiche({ riche }: { riche: NoeudTexte }) {
   return <div className="notak-commentaire-riche" onPointerDown={(e) => (e.target as HTMLElement).closest('a') && e.stopPropagation()}>{rendu}</div>
 })
 
-/** L'avatar d'un auteur : un rond de 24 px et ses initiales ; un anneau de sa couleur quand il écrit. */
-export function Avatar({ auteur, ecrit }: { auteur: Auteur; ecrit?: boolean }) {
+/**
+ * L'avatar d'un auteur : un rond de 24 px et ses initiales (sa photo s'il en a une) ; un anneau de sa couleur quand il
+ * écrit. Avec le contexte, l'auteur noté dans le message prend son profil d'aujourd'hui.
+ */
+export function Avatar({ auteur: note, ecrit, contexte }: { auteur: Auteur; ecrit?: boolean; contexte?: ContexteToile | undefined }) {
+  const auteur: Auteur & { photo?: string } = contexte ? personneAJour(note, contexte.services) : note
+  const photo = auteur.photo ? contexte?.services.adressePhoto?.(auteur.photo) : undefined
+  const [cassee, setCassee] = useState(false)
+  useEffect(() => setCassee(false), [photo])
   return (
     <span
       className="notak-commentaire-pastille"
@@ -60,7 +68,7 @@ export function Avatar({ auteur, ecrit }: { auteur: Auteur; ecrit?: boolean }) {
       style={{ ...(auteur.couleur ? { background: auteur.couleur } : {}), ...(ecrit && auteur.couleur ? { '--anneau': auteur.couleur } : {}) } as React.CSSProperties}
       aria-hidden
     >
-      {initiales(auteur.nom)}
+      {photo && !cassee ? <img src={photo} alt="" draggable={false} onError={() => setCassee(true)} /> : initiales(auteur.nom)}
     </span>
   )
 }
@@ -132,7 +140,7 @@ export function Ligne({ message, retirer, modifier, contexte, reagir, nonLu, ecr
   )
   return (
     <div className="notak-commentaire-message" data-edition={edition || undefined}>
-      <Avatar auteur={auteur} ecrit={ecrit} />
+      <Avatar auteur={auteur} ecrit={ecrit} contexte={contexte} />
       <div className="notak-commentaire-corps">
         {barre}
         <div className="notak-commentaire-entete">
@@ -304,7 +312,7 @@ export function CorpsFil({
       })}
       {ecrivent.map((u) => (
         <p key={u.id} className="notak-commentaire-frappe" role="status">
-          <Avatar auteur={{ id: u.id, nom: u.nom, couleur: u.couleur }} ecrit />
+          <Avatar auteur={{ id: u.id, nom: u.nom, couleur: u.couleur }} ecrit contexte={contexte} />
           <span>{t('commentaire.ecrit', { nom: prenom(u.nom) })}</span>
           <span className="notak-commentaire-points" aria-hidden>
             <i />
@@ -315,7 +323,7 @@ export function CorpsFil({
       ))}
       {saisie && ecrire && (
         <div className="notak-commentaire-saisie">
-          <Avatar auteur={auteur} />
+          <Avatar auteur={auteur} contexte={contexte} />
           <Compositeur
             contexte={contexte}
             placeholder={fil.messages.length > 0 ? t('commentaire.repondrePoints') : t('commentaire.ecrire')}

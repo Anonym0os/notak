@@ -261,6 +261,13 @@ describe('NOTION.md § 2 : le rendu figé', () => {
     colorerCode(racine)
     expect(racine.innerHTML).toBe(avant)
   })
+
+  it('colorerCode lit aussi le langage du rendu figé de Tiptap (`code.language-<nom>`)', () => {
+    const racine = document.createElement('div')
+    racine.innerHTML = '<pre><code class="language-ts">const x = 1</code></pre>'
+    colorerCode(racine)
+    expect([...racine.querySelectorAll('span')].map((s) => s.className)).toEqual(['notak-code-motCle', 'notak-code-operateur', 'notak-code-nombre'])
+  })
 })
 
 describe('NOTION.md § 2 : la coloration dans l’éditeur', () => {

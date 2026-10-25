@@ -4,6 +4,7 @@ import { definition } from './elements/registre'
 import { t, tn } from './langue'
 import type { ContexteToile, ResultatRecherche } from './elements/types'
 import { Icone } from './icones'
+import { PastillePersonne } from './pastille'
 
 /** Une entrée du menu ; `null` trace un séparateur. */
 export type Entree = {
@@ -16,7 +17,7 @@ export type Entree = {
   /** Un sous-menu qui s'ouvre à droite (au survol, au clic ou avec la flèche droite). */
   sous?: Entree[]
   /** Une ligne d'information, sans clic : une personne (avatar) et ce qu'elle a fait. */
-  info?: { nom: string; couleur?: string }
+  info?: { nom: string; couleur?: string; photo?: string }
   /** Une pastille de couleur devant le libellé (les couleurs du canevas). */
   pastille?: string
   faire(): void
@@ -173,9 +174,7 @@ export function MenuContextuel({ x, y, entrees, fermer }: { x: number; y: number
     if (e.info) {
       return (
         <div key={e.libelle} className="notak-menu-meta">
-          <span className="notak-decor-personne" style={e.info.couleur ? { background: e.info.couleur } : undefined} aria-hidden>
-            {e.info.nom.trim().charAt(0).toUpperCase()}
-          </span>
+          <PastillePersonne className="notak-decor-personne" nom={e.info.nom} couleur={e.info.couleur ?? ''} adresse={e.info.photo} titre="" />
           <span>{e.libelle}</span>
         </div>
       )

@@ -5,6 +5,7 @@ import type { Element, FormatCellule, Table } from '../../coeur/tableau'
 import { Icone } from '../../icones'
 import { t, useLangue } from '../../langue'
 import { MenuContextuel } from '../../Menus'
+import { useSombre } from '../../themeVivant'
 import type { PropsRendu } from '../types'
 import {
   type Issue,
@@ -309,10 +310,7 @@ export function RenduTable({ element, seule, contexte, changer }: PropsRendu<Tab
 
   const formats = useMemo(() => formatsDe(c), [c])
   // Les filets entre cellules colorées dépendent du thème (la plus foncée l'emporte) : on lit celui de l'espace.
-  const [sombre, setSombre] = useState(false)
-  useLayoutEffect(() => {
-    setSombre(racine.current?.closest('.notak-espace')?.getAttribute('data-theme') === 'sombre')
-  })
+  const sombre = useSombre(racine)
   const resultats = useMemo(() => evaluerTable(c.cellules), [c.cellules])
   const largeurs = useMemo(() => largeursDe(c, element.largeur), [c, element.largeur])
   const plages = useMemo(() => bornerPlages(etat.plages, c), [etat.plages, c])

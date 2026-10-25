@@ -100,6 +100,14 @@
   line-height: 1;
 }
 
+/* Sa photo, quand l'auteur en a une ; l'anneau de « en train d'écrire » reste dehors (une ombre). */
+.notak-commentaire-pastille img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .notak-commentaire-pastille[data-ecrit] {
   box-shadow: 0 0 0 2px #f4f7fe, 0 0 0 4px var(--anneau, #2f63f7);
 }

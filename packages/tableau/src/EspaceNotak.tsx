@@ -38,6 +38,7 @@ import { TitreTableau } from './TitreTableau'
 import { PastillePersonne } from './pastille'
 import { type ServiceCompte, useReglages } from './reglages'
 import { PageReglages } from './PageReglages'
+import { themeEffectif, useSystemeSombre } from './themeVivant'
 import { useHabillages } from './habillage/appliquer'
 import type { OffreHabillages } from './habillage/bibliotheque'
 import './theme.css'
@@ -200,7 +201,9 @@ export function EspaceNotak({
   const lectureSeule = useSyncExternalStore(espace.ecouter, () => espace.lectureSeule?.(courant) ?? false)
   const droits = useSyncExternalStore(espace.ecouter, () => espace.droits?.(courant) ?? null)
   const [reglages, changerReglages] = useReglages()
-  const habillages = useHabillages(offreHabillages, reglages.habillage, reglages.theme)
+  // Le thème qui s'applique : « Système » suit macOS en direct.
+  const theme = themeEffectif(reglages.theme, useSystemeSombre())
+  const habillages = useHabillages(offreHabillages, reglages.habillage, theme)
   // Posée avant de dessiner la toile, qui la lit à chaque mesure.
   definirTailleGrille(reglages.grille)
   // Un changement de langue redessine l'en-tête et la toile : les textes se relisent à la nouvelle langue.
@@ -466,7 +469,7 @@ export function EspaceNotak({
 
   const envoi = useSyncExternalStore(espace.ecouter, () => espace.envoi?.(courant))
   const charge = useSyncExternalStore(espace.ecouter, () => espace.synchronise?.(courant) ?? true)
-  const basculerTheme = useCallback(() => changerReglages({ theme: reglages.theme === 'sombre' ? 'clair' : 'sombre' }), [reglages.theme, changerReglages])
+  const basculerTheme = useCallback(() => changerReglages({ theme: theme === 'sombre' ? 'clair' : 'sombre' }), [theme, changerReglages])
   ouvrirReglagesRef.current = () => setReglagesOuverts(true)
   basculerPresentationRef.current = () => setPresentation((p) => !p)
   changerGrilleRef.current = (sens) => {
@@ -595,7 +598,7 @@ export function EspaceNotak({
 
   return (
     <ContexteEntete.Provider value={entete}>
-    <div ref={racineEspace} className="notak-espace" data-theme={reglages.theme} data-taille={reglages.taille} data-presentation={presentation || undefined} data-outils={outilsCaches ? 'caches' : undefined} data-outils-apercu={apercuOutils.apercu || undefined}>
+    <div ref={racineEspace} className="notak-espace" data-theme={theme} data-taille={reglages.taille} data-presentation={presentation || undefined} data-outils={outilsCaches ? 'caches' : undefined} data-outils-apercu={apercuOutils.apercu || undefined}>
       {outilsCaches && <div className="notak-outils-bord" aria-hidden onPointerEnter={apercuOutils.entrer} onPointerLeave={apercuOutils.quitter} />}
       <Entete
         outils={{ caches: outilsCaches, basculer: basculerOutils }}
@@ -662,7 +665,7 @@ export function EspaceNotak({
       {/* Par-dessus tout, la carte et le document ouverts en grand compris : leur barre ouvre aussi ces fenêtres. */}
       {(aideOuverte || reglagesOuverts) &&
         createPortal(
-          <div className="notak-espace notak-par-dessus" data-theme={reglages.theme} data-taille={reglages.taille}>
+          <div className="notak-espace notak-par-dessus" data-theme={theme} data-taille={reglages.taille}>
             {aideOuverte && <FenetreRaccourcis fermer={fermerAide} />}
             {reglagesOuverts && <PageReglages reglages={reglages} changer={changerReglages} fermer={fermerReglages} habillages={habillages} compte={compte} outils={{ caches: outilsCaches, basculer: basculerOutils }} />}
           </div>,

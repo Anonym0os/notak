@@ -9,7 +9,8 @@ import { ErreurHabillage, HABILLAGE_NOTAK } from './habillage/format'
  * sur le vide. Cmd+, ouvre la fenêtre ; Cmd+Maj+D bascule le thème sans l'ouvrir.
  */
 export interface Reglages {
-  theme: 'clair' | 'sombre'
+  /** `systeme` suit le thème de macOS (ou du navigateur), en direct. */
+  theme: 'clair' | 'sombre' | 'systeme'
   taille: 'petite' | 'moyenne' | 'grande'
   /** Un double-clic sur le vide crée une note. */
   doubleClic: boolean
@@ -64,7 +65,7 @@ export function lireReglages(): Reglages {
     // L'ancienne clé du thème seul, d'avant la fenêtre des réglages.
     const theme = brut.theme ?? (localStorage.getItem('notak:theme') === 'sombre' ? 'sombre' : undefined)
     return {
-      theme: theme === 'sombre' ? 'sombre' : 'clair',
+      theme: theme === 'sombre' || theme === 'systeme' ? theme : 'clair',
       taille: brut.taille === 'petite' || brut.taille === 'grande' ? brut.taille : 'moyenne',
       doubleClic: brut.doubleClic !== false,
       grille: brut.grille === 8 || brut.grille === 9 ? brut.grille : 10,
@@ -88,6 +89,17 @@ export function useReglages() {
       // Sans stockage (navigation privée), les réglages valent pour la page.
     }
   }, [reglages])
+  // Un autre onglet change les réglages : celui-ci les reprend aussitôt (thème, langue, taille…).
+  useEffect(() => {
+    const ailleurs = (e: StorageEvent) => {
+      if (e.key !== CLE) return
+      const r = lireReglages()
+      definirLangue(r.langue)
+      setReglages((v) => (JSON.stringify(v) === JSON.stringify(r) ? v : r))
+    }
+    window.addEventListener('storage', ailleurs)
+    return () => window.removeEventListener('storage', ailleurs)
+  }, [])
   const changer = useCallback((r: Partial<Reglages>) => {
     // La langue change avant le rendu : tout ce qui se redessine ensuite parle déjà la nouvelle.
     if (r.langue) definirLangue(r.langue)
@@ -198,11 +210,11 @@ export function ChoixCouleur({ compte }: { compte: ServiceCompte }) {
   )
 }
 
-/** Clair ou sombre, chacun en petit aperçu de la toile. */
+/** Clair, sombre, ou comme le système : chacun en petit aperçu de la toile (le système, moitié l'un, moitié l'autre). */
 export function ChoixMode({ reglages, changer }: { reglages: Reglages; changer(r: Partial<Reglages>): void }) {
   return (
     <div className="notak-rg-modes" role="radiogroup" aria-label={t('reglages.mode')}>
-      {(['clair', 'sombre'] as const).map((m) => (
+      {(['clair', 'sombre', 'systeme'] as const).map((m) => (
         <button key={m} type="button" role="radio" className="notak-rg-tuile" aria-checked={reglages.theme === m} onClick={() => changer({ theme: m })}>
           <span className="notak-rg-apercu" data-mode={m} aria-hidden>
             <span />

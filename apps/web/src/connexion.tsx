@@ -1,4 +1,4 @@
-import { lireReglages, useHabillages } from '@notak/tableau'
+import { lireReglages, themeEffectif, useHabillages, useSystemeSombre } from '@notak/tableau'
 import { t } from './langue'
 import { type FormEvent, useEffect, useState } from 'react'
 import {
@@ -34,7 +34,8 @@ function erreurDeRetour(): string | null {
  */
 export function EcranConnexion({ instance, surConnexion }: { instance: Instance; surConnexion(moi: Moi): void }) {
   const [reglages] = useState(lireReglages)
-  useHabillages({ fournis: instance.habillages, ...(instance.impose ? { impose: instance.impose } : {}), ...(instance.parDefaut ? { parDefaut: instance.parDefaut } : {}) }, reglages.habillage, reglages.theme)
+  const theme = themeEffectif(reglages.theme, useSystemeSombre())
+  useHabillages({ fournis: instance.habillages, ...(instance.impose ? { impose: instance.impose } : {}), ...(instance.parDefaut ? { parDefaut: instance.parDefaut } : {}) }, reglages.habillage, theme)
   const ouvertes = instance.inscriptions === 'ouvertes'
   const [jeton] = useState(jetonReinitialisation)
   const [mode, setMode] = useState<Mode>(jeton ? 'nouveau' : 'connexion')

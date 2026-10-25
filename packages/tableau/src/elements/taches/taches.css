@@ -729,6 +729,13 @@
   animation: notak-suggestion-entree 200ms ease-out;
 }
 
+/* Dans une carte, la bulle part de son bas : les étiquettes, l'échéance et les réactions restent au-dessus. */
+.notak-carte > .notak-suggestion {
+  top: 100%;
+  left: 0;
+  right: 0;
+}
+
 .notak-suggestion button {
   padding: 0;
   border: 0;

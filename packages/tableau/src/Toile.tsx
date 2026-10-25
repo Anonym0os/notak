@@ -63,6 +63,7 @@ import { PointActivite } from './PointActivite'
 import { PointeursBord } from './PointeursBord'
 import type { CibleBord } from './coeur/pointeurs'
 import { lignesDeTrace } from './trace'
+import { personneAJour } from './personne'
 import { usePublierVue } from './vueZoom'
 
 type Geste =
@@ -1593,7 +1594,17 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   /** Les lignes « Créé par vous… » du menu d'un élément, précédées d'un filet. */
   const histoireDe = (id: Id): Entree[] => {
     const lignes = lignesDeTrace(complet.trace?.(id), services.presence?.moi?.()?.id)
-    return lignes.length === 0 ? [] : [null, ...lignes.map((l) => ({ libelle: l.texte, info: { nom: l.auteur.nom, ...(l.auteur.couleur ? { couleur: l.auteur.couleur } : {}) }, faire: () => {} }))]
+    // La trace garde le profil du moment du geste : la pastille montre la personne telle qu'elle est aujourd'hui.
+    return lignes.length === 0
+      ? []
+      : [
+          null,
+          ...lignes.map((l) => {
+            const p = personneAJour(l.auteur, services)
+            const photo = p.photo ? services.adressePhoto?.(p.photo) : undefined
+            return { libelle: l.texte, info: { nom: p.nom, ...(p.couleur ? { couleur: p.couleur } : {}), ...(photo ? { photo } : {}) }, faire: () => {} }
+          }),
+        ]
   }
 
   // — Le plein écran d'un élément a une adresse (`/t/<tableau>/e/<élément>`) : l'ouvrir l'écrit, l'adresse l'ouvre. —

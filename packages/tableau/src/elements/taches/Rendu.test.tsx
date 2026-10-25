@@ -92,6 +92,13 @@ describe('les suggestions sous la liste', () => {
     expect(hote.querySelector('.notak-suggestion')).toBeNull()
   })
 
+  it('dans une carte, la bulle se pose sous la carte, pas sous la liste : les étiquettes restent au-dessus', () => {
+    hote.className = 'notak-carte'
+    rendre(faites())
+    expect(hote.querySelector(':scope > .notak-suggestion')).not.toBeNull()
+    expect(hote.querySelector('.notak-taches .notak-suggestion')).toBeNull()
+  })
+
   it('une seule tâche faite ne propose rien', () => {
     rendre(contenu([tache('a', { checked: true }), tache('b')]))
     expect(hote.querySelector('.notak-suggestion')).toBeNull()

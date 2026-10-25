@@ -235,10 +235,11 @@
   --notak-vignette-trait: #c9cdd3;
   --notak-vignette-accent: #4f6cf0;
 
-  /* Un îlot vertical, décollé du bord comme ceux de la barre du haut (ilots.css), sous elle et à 16 px des bords. */
+  /* Un îlot vertical, décollé du bord comme ceux de la barre du haut (ilots.css), sous elle et à 16 px du bord, à la
+     hauteur de ses outils : quand la fenêtre en manque, ils se resserrent puis passent dans le « ••• » (repli.ts). */
   position: absolute;
   /* Sous la barre du haut (68 px) : la taille de l'interface les zoome toutes deux, la mesure suit d'elle-même. */
-  inset: 68px auto 16px 16px;
+  inset: 68px auto auto 16px;
   z-index: 3;
   display: flex;
   flex-direction: column;
@@ -279,10 +280,6 @@
   inset: 68px auto 0 0;
   z-index: 31;
   width: 12px;
-}
-
-:root[data-bureau]:not([data-plein-ecran]) .notak-outils-bord {
-  top: 60px;
 }
 
 /* Sans mouvement : la barre ne glisse plus, elle s'efface seulement. */
@@ -344,8 +341,13 @@
   background: rgb(0 0 0 / 0.12);
 }
 
+/* Entre les gestes et la corbeille : un filet, comme entre les éléments et les gestes. */
 .notak-barre-ressort {
-  flex: 1;
+  flex: none;
+  width: 44px;
+  height: 1px;
+  margin: 6px 0;
+  background: color-mix(in srgb, var(--notak-texte) 10%, transparent);
 }
 
 /* « ••• » : la pastille qui ouvre la grille des autres éléments. */
@@ -573,31 +575,31 @@
 
 
 /* Dans l'application de bureau, la bande tient lieu de barre de titre et garde le pointeur pour qu'on y saisisse la
-   fenêtre. Comme chez Xmind, elle se serre en haut : îlots à 8 px du haut, centrés avec les boutons de la fenêtre à
-   26 px (tauri.conf.json), le premier à 80 px du bord. En plein écran, plus de boutons : la bande d'origine. */
+   fenêtre. Comme chez Xmind, ses îlots (16 px du haut) se centrent avec les boutons de la fenêtre à 34 px
+   (tauri.conf.json), le premier à 80 px du bord, après eux. En plein écran, plus de boutons : la bande d'origine. */
 :root[data-bureau]:not([data-plein-ecran]) .notak-entete {
-  height: 60px;
-  padding: 8px 16px 16px 80px;
+  padding-left: 80px;
 }
 
 :root[data-bureau] .notak-entete {
   pointer-events: auto;
 }
 
-:root[data-bureau]:not([data-plein-ecran]) .notak-espace {
-  --notak-haut: 60px;
+/* Le cadre de la fenêtre, comme celui de la carte (fenetre.css) : 8 px tout autour, la toile arrondie à 8 px pour suivre
+   le coin de la fenêtre (16 px). Il se pose par-dessus la toile, qui reste entière dessous et garde ses mesures ; les
+   surcouches (carte, document, plein écran, z-index 1000) passent devant et portent le leur. */
+.notak-espace {
+  --notak-cadre: color-mix(in srgb, var(--notak-texte) 7%, var(--notak-fond));
 }
 
-:root[data-bureau]:not([data-plein-ecran]) .notak-espace[data-taille='petite'] {
-  --notak-haut: 53px;
-}
-
-:root[data-bureau]:not([data-plein-ecran]) .notak-espace[data-taille='grande'] {
-  --notak-haut: 69px;
-}
-
-:root[data-bureau]:not([data-plein-ecran]) .notak-barre-outils {
-  top: 60px;
+:root[data-bureau]:not([data-plein-ecran]) .notak-espace:not(.notak-par-dessus)::after {
+  content: '';
+  position: fixed;
+  inset: 8px;
+  z-index: 999;
+  border-radius: 8px;
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.08), 0 0 0 40px var(--notak-cadre);
+  pointer-events: none;
 }
 
 .notak-entete-gauche {
@@ -1216,6 +1218,13 @@
 
 .notak-menu-meta .notak-decor-personne {
   flex: none;
+  overflow: hidden;
+}
+
+.notak-menu-meta .notak-decor-personne img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .notak-menu-sep {
@@ -1230,7 +1239,7 @@
   width: 44px;
   height: 1px;
   margin: 6px 0;
-  background: rgb(0 0 0 / 0.08);
+  background: color-mix(in srgb, var(--notak-texte) 10%, transparent);
 }
 
 /* La corbeille du tableau, à côté de la barre. */
@@ -1858,46 +1867,54 @@
 }
 
 /*
- * Les outils d'une sélection à la place de la barre de gauche (réglage « Outils de la sélection »), comme Milanote :
- * le même panneau gris, une flèche pour revenir aux éléments à créer, puis une tuile par outil. La flèche est collée
- * en haut de la colonne (3 px au-dessus, 2 px dans le bouton) ; les tuiles restent où elles étaient.
+ * Les outils d'une sélection à la place de la barre de gauche (réglage « Outils de la sélection ») : la même barre, à
+ * la hauteur de ses outils. En haut le retour aux éléments à créer, rond comme les boutons des îlots, puis un filet,
+ * puis une tuile par outil, de la forme des gestes de la barre de création. Aucun panneau dans le panneau, en clair
+ * comme en sombre : les teintes partent de la couleur du texte.
  */
 .notak-barre-outils[data-selection] {
-  gap: 6px;
-  padding-top: 3px;
+  gap: 2px;
+  padding: 6px 0 10px;
 }
 
 .notak-barre-retour {
   display: grid;
-  place-items: start center;
-  width: 100%;
-  height: 25px;
-  margin-bottom: 9px;
-  padding: 2px 0 0;
+  place-items: center;
+  width: 44px;
+  height: 30px;
+  padding: 0;
   border: 0;
-  border-bottom: 1px solid rgb(0 0 0 / 0.08);
-  border-radius: 0;
+  border-radius: 15px;
   background: none;
-  transition: opacity 0.1s linear;
-  color: #5f656d;
+  color: color-mix(in srgb, var(--notak-texte) 70%, transparent);
   cursor: pointer;
 }
 
 .notak-barre-retour:hover {
-  background: rgb(0 0 0 / 0.08);
+  background: color-mix(in srgb, var(--notak-texte) 8%, transparent);
   color: var(--notak-texte);
 }
 
-/* La colonne de tuiles : plus de carte flottante, c'est le panneau gris qui porte. */
 .notak-barre-selection[data-a-gauche] {
   position: static;
   z-index: auto;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   padding: 0;
   background: none;
   box-shadow: none;
+  color: var(--notak-texte);
   transform: none;
+}
+
+/* Le filet sous le retour. */
+.notak-barre-selection[data-a-gauche]::before {
+  content: '';
+  flex: none;
+  width: 44px;
+  height: 1px;
+  margin: 4px 0 6px;
+  background: color-mix(in srgb, var(--notak-texte) 10%, transparent);
 }
 
 .notak-barre-selection[data-a-gauche] button.notak-outil {
@@ -1905,50 +1922,18 @@
   height: auto;
   padding: 4px 0 6px;
   background: none;
-  font-size: 12px;
+  color: var(--notak-texte);
   cursor: pointer;
 }
 
-.notak-barre-selection[data-a-gauche] button.notak-outil:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.notak-barre-selection[data-a-gauche] .notak-outil-libelle {
-  max-width: 68px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.notak-barre-selection[data-a-gauche] .notak-outil[aria-pressed='true'] .notak-outil-icone {
-  background: rgb(0 0 0 / 0.14);
-}
-
-.notak-barre-selection[data-a-gauche] button.notak-outil-plus {
-  min-width: 0;
-  width: 36px;
-  height: 20px;
-  padding: 0;
-  background: rgb(0 0 0 / 0.08);
-}
-
-.notak-barre-selection[data-a-gauche] button.notak-outil-plus:hover,
-.notak-barre-selection[data-a-gauche] button.notak-outil-plus[aria-expanded='true'] {
-  background: rgb(0 0 0 / 0.14);
-}
-
-/*
- * La tuile des outils d'une sélection, comme Milanote : une icône carrée de 32 px aux coins de 4 px, plus claire que la
- * barre, un libellé de 10 px dessous ; allumée, elle prend un contour de 2 px au lieu d'un fond ; grisée, seul son
- * glyphe pâlit ; au survol, rien ne bouge.
- */
 .notak-barre-selection[data-a-gauche] button.notak-outil .notak-outil-icone {
-  width: 32px;
+  display: grid;
+  place-items: center;
+  width: 40px;
   height: 32px;
   box-sizing: border-box;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--notak-barre, var(--notak-fond)) 40%, white);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--notak-texte) 7%, transparent);
   color: var(--notak-texte);
   transform: none;
 }
@@ -1959,30 +1944,52 @@
 }
 
 .notak-barre-selection[data-a-gauche] button.notak-outil:hover .notak-outil-icone {
-  background: color-mix(in srgb, var(--notak-barre, var(--notak-fond)) 40%, white);
+  background: color-mix(in srgb, var(--notak-texte) 12%, transparent);
   transform: none;
 }
 
 .notak-barre-selection[data-a-gauche] button.notak-outil[aria-expanded='true'] .notak-outil-icone {
-  background: color-mix(in srgb, var(--notak-barre, var(--notak-fond)) 20%, white);
+  background: color-mix(in srgb, var(--notak-texte) 16%, transparent);
 }
 
+/* Allumée, la tuile passe en plein, comme un bouton enfoncé des îlots. */
 .notak-barre-selection[data-a-gauche] button.notak-outil[aria-pressed='true'] .notak-outil-icone {
-  background: none;
-  box-shadow: inset 0 0 0 2px currentColor;
+  background: var(--notak-texte);
+  color: var(--notak-carte);
 }
 
 .notak-barre-selection[data-a-gauche] button.notak-outil .notak-outil-libelle {
-  font-size: 10px;
-  color: color-mix(in srgb, var(--notak-texte) 60%, transparent);
+  max-width: 68px;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--notak-texte) 70%, transparent);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .notak-barre-selection[data-a-gauche] button.notak-outil:disabled {
   opacity: 1;
+  cursor: default;
 }
 
 .notak-barre-selection[data-a-gauche] button.notak-outil:disabled .notak-ico {
-  opacity: 0.2;
+  opacity: 0.25;
+}
+
+.notak-barre-selection[data-a-gauche] button.notak-outil-plus {
+  min-width: 0;
+  width: 44px;
+  height: 24px;
+  margin: 2px 0 0;
+  padding: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--notak-texte) 7%, transparent);
+  color: var(--notak-texte);
+}
+
+.notak-barre-selection[data-a-gauche] button.notak-outil-plus:hover,
+.notak-barre-selection[data-a-gauche] button.notak-outil-plus[aria-expanded='true'] {
+  background: color-mix(in srgb, var(--notak-texte) 14%, transparent);
 }
 
 /* La couleur d'à présent, dans la tuile « Couleur ». */

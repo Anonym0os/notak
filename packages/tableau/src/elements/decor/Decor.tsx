@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { type Element, type Etiquette, annoter } from '../../coeur/tableau'
+import { type Auteur, type Element, type Etiquette, annoter } from '../../coeur/tableau'
 import { FilAttache } from '../commentaire/Attache'
 import { GlypheEpingle, aDuNouveau, couleurEpingle, useFermerAuClicDehors } from '../commentaire/Epingle'
 import { AUTEUR_INCONNU, epinglerEn, initiales, pointeEpingle } from '../commentaire/fil'
@@ -13,6 +13,7 @@ import { changerEtiquettes } from './ecriture'
 import { choisirPuce, ouvrirFil, retenirContexte, useFilOuvert, usePuce } from './etat'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
+import { personneAJour } from '../../personne'
 
 const garder = (e: React.SyntheticEvent) => e.stopPropagation()
 
@@ -315,22 +316,24 @@ function Bande({ element, contexte, mode }: { element: Element; contexte: Contex
               <Icone nom="calendrier" taille={13} /> {libelleEcheance(element.echeance)}
             </span>
           )}
-          {element.assigne && (
-            <span
-              className="notak-assigne"
-              style={element.assigne.couleur ? { background: element.assigne.couleur } : undefined}
-              title={t('decor.confieANom', { nom: element.assigne.nom })}
-              aria-label={t('decor.confieANom', { nom: element.assigne.nom })}
-            >
-              {initiales(element.assigne.nom)}
-            </span>
-          )}
+          {element.assigne && <Assigne assigne={element.assigne} contexte={contexte} />}
           {reactions.map((r) => (
             <PastilleReaction key={r.emoji} r={r} ids={element.reactions?.[r.emoji] ?? []} contexte={contexte} moi={moi} ecrire={ecrire} reagir={reagir} />
           ))}
         </div>
       )}
     </div>
+  )
+}
+
+/** La pastille de la personne chargée de l'élément, avec son profil d'aujourd'hui (photo comprise). */
+function Assigne({ assigne, contexte }: { assigne: Auteur; contexte: ContexteToile }) {
+  const p = personneAJour(assigne, contexte.services)
+  const photo = p.photo ? contexte.services.adressePhoto?.(p.photo) : undefined
+  return (
+    <span className="notak-assigne" style={p.couleur ? { background: p.couleur } : undefined} title={t('decor.confieANom', { nom: p.nom })} aria-label={t('decor.confieANom', { nom: p.nom })}>
+      {photo ? <img src={photo} alt="" draggable={false} /> : initiales(p.nom)}
+    </span>
   )
 }
 
