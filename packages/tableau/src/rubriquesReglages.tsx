@@ -208,6 +208,21 @@ export const RUBRIQUES: Rubrique[] = [
             ]),
           },
           {
+            id: 'minicarte',
+            libelle: 'reglages.minicarte',
+            aide: 'reglages.minicarte.aide',
+            controle: {
+              type: 'choix',
+              options: () => [
+                { valeur: 'mouvement', libelle: t('reglages.minicarte.mouvement') },
+                { valeur: 'toujours', libelle: t('reglages.minicarte.toujours') },
+                { valeur: 'jamais', libelle: t('reglages.minicarte.jamais') },
+              ],
+              lire: (c) => c.reglages.minicarte ?? 'mouvement',
+              ecrire: (c, v) => c.changer({ minicarte: v as Reglages['minicarte'] }),
+            },
+          },
+          {
             id: 'grille',
             libelle: 'reglages.grille',
             aide: () => t('reglages.grille.aide', { serrer: touches('⇧⌘,'), elargir: touches('⇧⌘.') }),

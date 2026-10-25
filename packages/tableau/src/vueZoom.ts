@@ -25,8 +25,8 @@ export interface CommandesVue {
   cent(): void
 }
 
-export const ZOOM_MAX_CURSEUR = 3
-export const ZOOM_MIN_CURSEUR = 0.03
+export const ZOOM_MAX_CURSEUR = 8
+export const ZOOM_MIN_CURSEUR = 0.02
 
 let etat: EtatVue | null = null
 let commandes: CommandesVue | null = null
@@ -60,8 +60,12 @@ export function usePublierVue(e: EtatVue, c: CommandesVue) {
 /** Le pourcentage affiché : l'échelle arrondie à l'entier. */
 export const pourcentage = (echelle: number): number => Math.round(echelle * 100)
 
-/** Les bornes du curseur de zoom, en pourcentage entier : de 3 % (ou du plancher du tableau) à 300 %. */
+/** Les bornes du curseur de zoom, en pourcentage entier : de 2 % (ou du plancher du tableau) à 800 %. */
 export const bornesCurseur = (min: number): { min: number; max: number } => ({
   min: Math.max(Math.round(ZOOM_MIN_CURSEUR * 100), Math.ceil(min * 100)),
   max: Math.round(ZOOM_MAX_CURSEUR * 100),
 })
+
+/** Le cran du curseur (logarithmique, 100 crans par facteur e) d'un pourcentage, et l'inverse, arrondi au pourcent. */
+export const versCran = (pct: number): number => Math.round(Math.log(pct) * 1000)
+export const depuisCran = (cran: number): number => Math.round(Math.exp(cran / 1000))

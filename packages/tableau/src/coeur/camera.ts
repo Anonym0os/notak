@@ -14,13 +14,18 @@ export const TAILLES_GRILLE = [8, 9, 10] as const
 export function definirTailleGrille(px: (typeof TAILLES_GRILLE)[number]) {
   PX_PAR_UG = px
 }
-export const ECHELLE_MAX = 3
-/** Le zoom arrière s'arrête au plus tard ici, plus bas si le contenu l'exige. */
-export const ECHELLE_MIN_PLAFOND = 0.4
+/** 800 %, comme tldraw : une écriture fine se lit encore, sans que la toile devienne un seul mot. */
+export const ECHELLE_MAX = 8
+/** Le zoom arrière s'arrête au plus tard ici (2 %, comme Figma), plus bas si le contenu l'exige. */
+export const ECHELLE_MIN_PLAFOND = 0.02
+/** Les crans du clavier se rangent comme les focales jusqu'ici, puis suivent `CRANS_DESSOUS`. */
+const CRANS_FOCALES_MIN = 0.4
 /** Marge autour du contenu pour calculer le zoom arrière minimal, en part de la vue. */
 const MARGE_ECHELLE_MIN = 0.2
 /** Crans du clavier au-dessus de 100 %. */
-const CRANS_DESSUS = [1.2, 1.5, 2, 3]
+const CRANS_DESSUS = [1.2, 1.5, 2, 3, 4, 6, 8]
+/** Crans du clavier sous les focales, jusqu'au plancher. */
+const CRANS_DESSOUS = [0.25, 0.15, 0.1, 0.05, 0.02]
 /** Un geste de zoom s'arrête quand plus rien n'arrive pendant ce temps, en millisecondes. */
 const FIN_DE_GESTE = 250
 /** Ajuster : plafonds selon que le contenu tient ou non à 100 %. */
@@ -138,13 +143,16 @@ export class GesteZoom {
 export const pointFixe = (nouvelle: number, curseur: Point, v: Vue): Point => (nouvelle > 1 ? curseur : centreVue(v))
 
 /**
- * Les crans du clavier : quatre entre l'échelle minimale et 100 %, rangés comme les focales d'un objectif
- * (`F / (F + k)`, où `F` met le quatrième cran sur `min`) — serrés près de 100 %, plus espacés en bas.
+ * Les crans du clavier : quatre entre 40 % (ou l'échelle minimale, si elle est plus haute) et 100 %, rangés comme les
+ * focales d'un objectif (`F / (F + k)`, où `F` met le quatrième cran en bas) — serrés près de 100 %, plus espacés en
+ * bas. Sous 40 %, ils descendent par `CRANS_DESSOUS` jusqu'à l'échelle minimale.
  */
 function crans(min: number): number[] {
-  const f = (4 * min) / (1 - min)
-  const dessous = min < 1 ? [4, 3, 2, 1].map((k) => f / (f + k)) : []
-  return [...dessous, 1, ...CRANS_DESSUS]
+  const bas = Math.max(min, CRANS_FOCALES_MIN)
+  const f = (4 * bas) / (1 - bas)
+  const focales = bas < 1 ? [4, 3, 2, 1].map((k) => f / (f + k)) : []
+  const loin = min < bas - 1e-3 ? [...CRANS_DESSOUS.filter((c) => c > min + 1e-3).reverse(), min] : []
+  return [...loin.sort((a, b) => a - b), ...focales, 1, ...CRANS_DESSUS]
 }
 
 /** Le cran du clavier juste au-dessus de l'échelle actuelle. */

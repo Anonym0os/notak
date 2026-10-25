@@ -114,8 +114,8 @@ describe('le dialogue d’export du tableau', () => {
     expect(dialogue()!.open).toBe(true)
     expect(document.querySelector<HTMLInputElement>('input[name=format]:checked')!.value).toBe('notak')
     expect([...document.querySelectorAll<HTMLInputElement>('.export-options input[type=checkbox]')].map((c) => c.checked)).toEqual([true, true])
-    expect(apercu().textContent).toContain('3 tableaux · 1 image ou fichier')
-    expect([...apercu().querySelectorAll('li')].map((l) => l.textContent)).toEqual(['Voyage', 'ÉtapesSous-tableau', 'BudgetSous-tableau'])
+    expect(apercu().textContent).toContain('3 toiles · 1 image ou fichier')
+    expect([...apercu().querySelectorAll('li')].map((l) => l.textContent)).toEqual(['Voyage', 'ÉtapesToile imbriquée', 'BudgetToile imbriquée'])
     expect(document.querySelector('.export-poids')!.textContent).toMatch(/^\.notak · \d+ o$/)
   })
 

@@ -25,7 +25,7 @@ describe('phrases de l’activité', () => {
   })
 
   it('le renommage du tableau ferme la phrase', () => {
-    expect(phraseDuGroupe(groupe({ titre: 1 }, ['tableau']))).toBe('a renommé le tableau')
+    expect(phraseDuGroupe(groupe({ titre: 1 }, ['tableau']))).toBe('a renommé la toile')
     expect(phraseDuGroupe(groupe({}, []))).toBe('')
   })
 

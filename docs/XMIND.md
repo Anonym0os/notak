@@ -577,9 +577,11 @@ compteur, le zoom, le Gantt puis les modes s'effacent dans cet ordre, puis les d
   casser les cartes et les serveurs d'avant.
 - **Compteur** : « Sujets: n », ou « Sujets: s / n » avec une sélection, dans une largeur réservée (la barre ne saute
   pas). Un clic ouvre un popover : sujets, mots, caractères (titres et notes). Absent dans le plan.
-- **Zoom** : le pourcentage et un menu à cases (500, 400, 300, 200, 150, 120, 100, 80, 50, 20, 10 ; le zoom courant,
-  coché, s'y ajoute s'il n'est pas un palier), puis « Ajuster la carte ». Dans le plan : 300 à 80, sans « Ajuster ».
-  Le zoom va de 10 à 500 %.
+- **Zoom** : le pourcentage et un menu à cases (800, 500, 400, 300, 200, 150, 120, 100, 80, 50, 20, 10, 5, 2 ; le zoom
+  courant, coché, s'y ajoute s'il n'est pas un palier), puis « Ajuster la carte ». Dans le plan : 300 à 80, sans
+  « Ajuster ». Le zoom va de 2 à 800 % (Xmind : 10 à 500 % ; Notak va plus loin dans les deux sens, comme le tableau).
+- **Mini-carte** : au-dessus de la barre, à droite, la carte en petit et la vue en cadre ; un clic ou un glisser y
+  amène la vue. Xmind n'en a pas. Elle paraît pendant qu'on déplace ou zoome la vue (réglage : toujours, jamais).
 - **Quatre boutons** : Diagramme de Gantt, plan (« Aperçu » chez Xmind), Zen, Pitch. Dans le plan, le bouton du plan
   devient « carte mentale », le Zen disparaît et le Gantt reste grisé. Il n'y a pas de bouton « notes » dans la barre
   du bas : les notes sont dans le panneau de gauche (§ 10).

@@ -1,6 +1,6 @@
 import * as Y from 'yjs'
 import type { Base, EntreeIndex } from './base.ts'
-import { type TableauLu, idsDeFichiers, lireEtat, lireTableau, texteCherchable } from './contenu.ts'
+import { type TableauLu, idsDeFichiers, lireEtat, lireTableau, resumesDuTableau, texteCherchable } from './contenu.ts'
 import { nomDuDocument } from './synchro.ts'
 
 /**
@@ -23,10 +23,13 @@ export function fichiersDuTableau(tableau: TableauLu): string[] {
   return [...idsDeFichiers(tableau.elements.map((e) => ({ ...e, corbeille: undefined })))]
 }
 
-/** Remet l'index d'un tableau à jour d'après son document : ce qu'on y cherche, et les fichiers qu'il montre. */
+/**
+ * Remet l'index d'un tableau à jour d'après son document : ce qu'on y cherche, les fichiers qu'il montre, et ce que
+ * la bibliothèque montre de lui.
+ */
 export function indexerDocument(base: Base, tableau: string, doc: Y.Doc): void {
   const lu = lireTableau(doc)
-  base.indexer(tableau, entreesDIndex(lu), fichiersDuTableau(lu))
+  base.indexer(tableau, entreesDIndex(lu), fichiersDuTableau(lu), resumesDuTableau(lu))
 }
 
 /** Indexe les tableaux enregistrés avant l'index (une base plus ancienne) ; rend leur nombre. */
@@ -36,7 +39,7 @@ export function indexerLesAbsents(base: Base): number {
     const etat = base.document(nomDuDocument(id))
     if (!etat) continue
     const lu = lireEtat(etat)
-    base.indexer(id, entreesDIndex(lu), fichiersDuTableau(lu))
+    base.indexer(id, entreesDIndex(lu), fichiersDuTableau(lu), resumesDuTableau(lu))
   }
   return absents.length
 }

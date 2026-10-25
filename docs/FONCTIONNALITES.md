@@ -25,14 +25,14 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 10. Autres éléments | 16 | 2 | 1 | 89 % |
 | 11. Commun aux éléments | 12 | 0 | 0 | 100 % |
 | 12. Organiser | 16 | 0 | 0 | 100 % |
-| 13. Naviguer | 13 | 0 | 0 | 100 % |
-| 14. À plusieurs | 19 | 0 | 0 | 100 % |
-| 15. Habillage | 15 | 0 | 0 | 100 % |
+| 13. Naviguer | 13 | 1 | 0 | 96 % |
+| 14. À plusieurs | 24 | 0 | 0 | 100 % |
+| 15. Habillage | 17 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 8 | 1 | 0 | 94 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
 | 18. Carte mentale | 61 | 10 | 0 | 93 % |
 | 19. Document à blocs | 29 | 1 | 0 | 98 % |
-| **Total** | **377** | **21** | **2** | **97 %** |
+| **Total** | **384** | **22** | **2** | **97 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -47,6 +47,8 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Zoom molette et pincement, lissé, effleurement corrigé, inertie filtrée | ✅ | |
 | Cmd+plus, Cmd+moins, Cmd+0 | ✅ | |
 | Crans de zoom et Ajuster | ✅ | |
+| Zoom de 2 à 800 % | ✅ | Le tableau et la carte vont de 2 à 800 % (avant : 40 à 300 % pour le tableau, 10 à 500 % pour la carte) ; le tableau dézoome plus bas si son contenu l'exige. Crans du clavier : 1,2 / 1,5 / 2 / 3 / 4 / 6 / 8 au-dessus de 100 %, quatre focales jusqu'à 40 %, puis 25 / 15 / 10 / 5 / 2 %. Curseur du panneau « Vue » en logarithme. |
+| Mini-carte | ✅ | En bas à droite du tableau et de la carte (au-dessus du zoom) : le contenu en formes grises, la vue en cadre bleu. Un clic y centre la vue, tirer le cadre la promène. Réglage « Mini-carte » (Réglages › Toile, et panneau « Vue ») : En mouvement (par défaut, elle paraît quand la vue bouge vraiment et s'efface 1,5 s après), Toujours, Jamais. |
 | Plein écran d'un élément (image, fichier, document, croquis) par adresse `/t/<tableau>/e/<élément>` | ✅ | Le retour du navigateur le referme ; l'adresse l'ouvre et le choisit ; Espace referme l'image ou le fichier. |
 | Document borné (bord haut-gauche, marges de 50 × 40 UG), recentrage en dézoomant | ✅ | |
 | Grille de points | ✅ | |
@@ -349,6 +351,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Monter d'un niveau, redescendre (Cmd+U, Cmd+Maj+U) | ✅ | |
 | Recherche (Cmd+F) : ce qui ne correspond pas s'efface, Entrée va au résultat suivant | ✅ | Dans le tableau ouvert, et dans tous les tableaux du compte par le serveur. |
 | Tableaux récents, favoris | ✅ |  |
+| Bibliothèque (⌥⌘O, menu du compte) : toutes les toiles, cartes mentales et documents en vignettes, par onglet (récents, toiles, cartes, documents, favoris, partagés) | 🟡 | → Notak, pas chez Milanote. Édition serveur seulement : l'édition locale ne l'a pas encore. |
 | Aperçu d'un tableau au survol | ✅ | Le plan du tableau, ses éléments à leur place et dans leur couleur. |
 | Annuler la navigation (à l'échelle de la session) | ✅ | Quand le tableau n'a plus rien à annuler, Cmd+Z revient au tableau d'avant. |
 
@@ -488,7 +491,7 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Appliquer au même rang, réinitialiser, copier et coller un style | ✅ | Alt+Cmd+U, Cmd+Alt+0, Cmd+Alt+C, Cmd+Alt+V ; l'onglet Style propose aussi « Mettre à jour » (même niveau, ou sous-sujets) et « Réinitialiser le style ». |
 | Mode plan | ✅ | Maj+Cmd+M ou le bouton du plan : une page de 832 au plus (central 32, principaux 24, puis 16), puces ou chevrons, pastille du nombre de sujets cachés, notes et étiquettes sous le titre ; Entrée, Tab, Maj+Tab, Alt+flèches, Cmd+/ ; le zoom du plan va de 80 à 300 %. |
 | Mode Zen | ✅ | Cmd+Alt+F : la carte seule, en plein écran quand le navigateur le permet ; Échap en sort. |
-| Barre du bas : feuille, compteur de sujets, zoom, quatre boutons | 🟡 | Compteur « Sujets: s / n » et son popover (sujets, mots, caractères), menu du zoom de 10 à 500 %, plan, Zen, Pitch. La feuille est une carte posée sur la toile : « + » et « Nouvelle feuille » en posent une neuve à droite, « Dupliquer » une copie ; une seule feuille par élément. Le bouton Gantt est affiché, grisé : le Gantt n'est pas construit. |
+| Barre du bas : feuille, compteur de sujets, zoom, quatre boutons | 🟡 | Compteur « Sujets: s / n » et son popover (sujets, mots, caractères), menu du zoom de 2 à 800 %, mini-carte au-dessus de la barre, plan, Zen, Pitch. La feuille est une carte posée sur la toile : « + » et « Nouvelle feuille » en posent une neuve à droite, « Dupliquer » une copie ; une seule feuille par élément. Le bouton Gantt est affiché, grisé : le Gantt n'est pas construit. |
 | Panneau de gauche : plan, notes, étiquettes | ✅ | ⌘[ ou le bouton à côté de l'accueil. Plan avec recherche (mots entiers, casse) et saut au sujet ; toutes les notes de la carte ; marqueurs, étiquettes et tâches à cocher pour mettre leurs sujets en évidence. Pas de chercher-remplacer. |
 | Pitch : réglages de la carte et des sujets | ✅ | Onglet Pitch : aperçu rejoué au survol, sept thèmes, rapport d'aspect, sujet / résumé / sous-sujets comme diapositive (Auto, Visible, Masqué), position de l'image, livraison, cinq mises en page. Aller-retour `.xmind` par les propriétés de style de Xmind (emplacement déduit, pas encore éprouvé dans Xmind). |
 | Présentation Pitch | 🟡 | Cmd+Alt+P : une diapositive par sujet selon les réglages (listes déroulées étape par étape), plein écran, barre qui s'estompe, touches et raccourcis de Xmind (⇧→ passe la branche, ⇧← revient au parent, A, ?). Pas de vue du présentateur ni de seconde fenêtre. |

@@ -1,12 +1,13 @@
 /**
- * Le menu du zoom de la barre du bas (docs/XMIND.md § 8). Un zoom est un pourcentage entier, de 10 à 500.
+ * Le menu du zoom de la barre du bas (docs/XMIND.md § 8). Un zoom est un pourcentage entier, de 2 à 800 (Xmind
+ * s'arrête à 10 et 500).
  */
 
-export const ZOOM_MIN_POURCENT = 10
-export const ZOOM_MAX_POURCENT = 500
+export const ZOOM_MIN_POURCENT = 2
+export const ZOOM_MAX_POURCENT = 800
 
 /** Les paliers de la carte, du plus grand au plus petit. */
-export const PALIERS_CARTE = [500, 400, 300, 200, 150, 120, 100, 80, 50, 20, 10] as const
+export const PALIERS_CARTE = [800, 500, 400, 300, 200, 150, 120, 100, 80, 50, 20, 10, 5, 2] as const
 /** Ceux du plan : une page se lit entre 80 et 300 %. */
 export const PALIERS_PLAN = [300, 200, 150, 120, 100, 80] as const
 

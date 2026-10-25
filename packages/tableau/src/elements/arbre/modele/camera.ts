@@ -18,8 +18,9 @@ export interface Fenetre {
   h: number
 }
 
-export const ZOOM_MIN = 0.1
-export const ZOOM_MAX = 5
+/** De 2 à 800 %, comme le tableau : plus loin que Xmind (10 à 500 %) dans les deux sens. */
+export const ZOOM_MIN = 0.02
+export const ZOOM_MAX = 8
 
 /** La caméra se pose sur un sujet que la frappe ou le clavier vient de lui désigner en 200 ms, d'un mouvement linéaire. */
 export const DUREE_REVELATION = 200

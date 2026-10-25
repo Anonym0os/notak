@@ -23,13 +23,13 @@ describe('le zoom à la molette', () => {
     expect((p.y - z.y) / z.z).toBeCloseTo(avant.y)
   })
 
-  it('le zoom reste entre 0,1 et 5', () => {
-    expect(ZOOM_MIN).toBe(0.1)
-    expect(ZOOM_MAX).toBe(5)
-    expect(zoomAutour({ x: 0, y: 0, z: 4 }, 3, { x: 0, y: 0 }).z).toBe(5)
-    expect(zoomAutour({ x: 0, y: 0, z: 0.2 }, 0.1, { x: 0, y: 0 }).z).toBe(0.1)
-    expect(borneZoom(7)).toBe(5)
-    expect(borneZoom(0.01)).toBe(0.1)
+  it('le zoom reste entre 0,02 et 8', () => {
+    expect(ZOOM_MIN).toBe(0.02)
+    expect(ZOOM_MAX).toBe(8)
+    expect(zoomAutour({ x: 0, y: 0, z: 4 }, 3, { x: 0, y: 0 }).z).toBe(8)
+    expect(zoomAutour({ x: 0, y: 0, z: 0.1 }, 0.1, { x: 0, y: 0 }).z).toBe(0.02)
+    expect(borneZoom(12)).toBe(8)
+    expect(borneZoom(0.001)).toBe(0.02)
   })
 })
 

@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { type Cle, ErreurChiffrement, duDisque, pourLeDisque } from './chiffrement.ts'
 import { type Acces, RELATION_DU_ROLE, ROLES, type Role, roleDeRelation } from './droits.ts'
 import { migrer } from './migrations.ts'
+import type { ResumeContenu } from './contenu.ts'
 
 // Tout le SQL du serveur vit ici : passer à Postgres, c'est réécrire ce fichier.
 
@@ -226,6 +227,10 @@ export interface Base {
   noterVu(utilisateur: string, tableau: string, maintenant: number): void
   /** Les tableaux ouverts en dernier par un compte, le plus récent d'abord. */
   recents(utilisateur: string, limite: number): string[]
+  /** Note l'ouverture en grand d'une carte mentale ou d'un document ; seuls les plus récents sont gardés. */
+  noterElementVu(utilisateur: string, tableau: string, element: string, maintenant: number): void
+  /** Quand ce compte a ouvert chaque toile (`element` vide) et chaque élément qu'on garde de lui, le plus récent d'abord. */
+  vus(utilisateur: string): { tableau: string; element: string; vu: number }[]
 
   /**
    * Note ce qu'une personne vient de faire dans un tableau. Le même geste sur le même élément par la même personne
@@ -250,7 +255,9 @@ export interface Base {
    * Remplace tout ce qu'on sait chercher dans ce tableau (`element` vide : le titre du tableau), et la liste des
    * fichiers qu'il montre.
    */
-  indexer(tableau: string, entrees: readonly EntreeIndex[], fichiers?: readonly string[]): void
+  indexer(tableau: string, entrees: readonly EntreeIndex[], fichiers?: readonly string[], contenus?: readonly ResumeContenu[]): void
+  /** Les toiles, cartes mentales et documents de ces tableaux, tels que l'index les a vus. */
+  contenus(tableaux: readonly string[]): LigneContenu[]
   /** Les tableaux qui montrent ce fichier. */
   tableauxDuFichier(fichier: string): string[]
   /** Ce fichier est la photo d'un compte. */
@@ -259,6 +266,16 @@ export interface Base {
   tableauxNonIndexes(): string[]
   /** Les meilleures correspondances dans ces tableaux ; `requete` est une expression FTS5 (voir `requeteIndex`). */
   chercher(requete: string, tableaux: readonly string[], limite: number): Trouve[]
+}
+
+export interface LigneContenu {
+  tableau: string
+  /** Vide : la toile elle-même. */
+  element: string
+  genre: ResumeContenu['genre']
+  titre: string
+  /** Le `ResumeContenu` entier, en JSON. */
+  resume: string
 }
 
 export interface EntreeIndex {
@@ -277,6 +294,8 @@ export const DUREE_ACCES_PUBLIC_MS = 24 * 3600 * 1000
 
 /** Combien de tableaux récents on garde par compte. */
 export const RECENTS_GARDES = 50
+/** Les cartes mentales et documents ouverts qu'on garde par compte. */
+export const ELEMENTS_VUS_GARDES = 200
 /** Combien de gestes on garde par tableau, et de notifications par compte. */
 export const ACTIVITE_GARDEE = 500
 export const NOTIFICATIONS_GARDEES = 200
@@ -605,10 +624,52 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
       (tous('SELECT tableau FROM recents WHERE utilisateur = ? ORDER BY vu DESC, tableau LIMIT ?', u, limite) as unknown as { tableau: string }[]).map(
         (l) => l.tableau,
       ),
-    indexer(tableau, entrees, fichiers) {
+    noterElementVu(u, t, e, maintenant) {
+      executer(
+        'INSERT INTO elements_vus (utilisateur,tableau,element,vu) VALUES (?,?,?,?) ON CONFLICT(utilisateur,tableau,element) DO UPDATE SET vu = excluded.vu',
+        u,
+        t,
+        e,
+        maintenant,
+      )
+      executer(
+        `DELETE FROM elements_vus WHERE utilisateur = ? AND (tableau, element) NOT IN (
+           SELECT tableau, element FROM elements_vus WHERE utilisateur = ? ORDER BY vu DESC LIMIT ?)`,
+        u,
+        u,
+        ELEMENTS_VUS_GARDES,
+      )
+    },
+    vus: (u) =>
+      tous(
+        `SELECT tableau, '' AS element, vu FROM recents WHERE utilisateur = ?
+         UNION ALL SELECT tableau, element, vu FROM elements_vus WHERE utilisateur = ? ORDER BY vu DESC`,
+        u,
+        u,
+      ) as unknown as { tableau: string; element: string; vu: number }[],
+    contenus: (tableaux) =>
+      tous(
+        'SELECT tableau, element, genre, titre, resume FROM contenus WHERE tableau IN (SELECT value FROM json_each(?))',
+        JSON.stringify(tableaux),
+      ) as unknown as LigneContenu[],
+    indexer(tableau, entrees, fichiers, contenus) {
       const faire = () => {
         executer('DELETE FROM recherche WHERE tableau = ?', tableau)
         for (const e of entrees) executer('INSERT INTO recherche (tableau,element,texte) VALUES (?,?,?)', tableau, e.element, e.texte)
+        if (contenus) {
+          executer('DELETE FROM contenus WHERE tableau = ?', tableau)
+          // Un document dont le tableau n'existe plus (ou pas encore) ne laisse rien.
+          for (const c of contenus)
+            executer(
+              'INSERT INTO contenus (tableau,element,genre,titre,resume) SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM tableaux WHERE id = ?)',
+              tableau,
+              c.element,
+              c.genre,
+              c.titre,
+              JSON.stringify(c),
+              tableau,
+            )
+        }
         if (fichiers) {
           executer('DELETE FROM fichiers_tableaux WHERE tableau = ?', tableau)
           for (const f of fichiers) executer('INSERT OR IGNORE INTO fichiers_tableaux (fichier, tableau) VALUES (?, ?)', f, tableau)

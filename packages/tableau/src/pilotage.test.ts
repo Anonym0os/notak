@@ -69,6 +69,6 @@ describe('avecToutLeTableau', () => {
 
   it('refuse quand aucune toile n’est là', async () => {
     debrancher?.()
-    await expect(avecToutLeTableau(async () => 1, 0)).rejects.toThrow('Aucun tableau')
+    await expect(avecToutLeTableau(async () => 1, 0)).rejects.toThrow('Aucune toile')
   })
 })

@@ -43,8 +43,8 @@ describe('l’activité en anglais', () => {
   }
 
   it('dit la phrase et le temps dans la langue choisie', () => {
-    expect(phraseDuGroupe(groupe)).toBe('a créé 3 notes, modifié une note, renommé le tableau')
-    expect(phraseDuGroupe(groupe, true)).toBe('avez créé 3 notes, modifié une note, renommé le tableau')
+    expect(phraseDuGroupe(groupe)).toBe('a créé 3 notes, modifié une note, renommé la toile')
+    expect(phraseDuGroupe(groupe, true)).toBe('avez créé 3 notes, modifié une note, renommé la toile')
     definirLangue('en')
     expect(phraseDuGroupe(groupe)).toBe('created 3 notes, modified a note, renamed the board')
     expect(quand(0 + 5 * 60_000, 10 * 60_000)).toBe('5 min ago')

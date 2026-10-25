@@ -1,34 +1,18 @@
-import { useEffect, useState } from 'react'
 import { t } from './langue'
-import { type Moi, type TableauAccessible, listerFavoris, listerRecents, listerTableaux } from './api'
+import { type Moi } from './api'
 import { adressePhoto } from './fichiers'
 import { Icone, PastillePersonne } from '@notak/tableau'
 import { usePanneau } from './panneaux'
 
-/** Le menu au nom de la personne connectée, avec les tableaux que d'autres lui partagent. */
-export function Compte({ moi, deconnexion, ouvrir, aide }: { moi: Moi; deconnexion(): void; ouvrir(id: string): void; aide(): void }) {
+/** Le raccourci de la bibliothèque, partout dans l'édition serveur (⌥⌘O). */
+export const RACCOURCI_BIBLIOTHEQUE = '⌥⌘O'
+
+/**
+ * Le menu au nom de la personne connectée. Ses toiles, cartes et documents, récents, favoris et partagés compris,
+ * sont dans la bibliothèque, une page à part.
+ */
+export function Compte({ moi, deconnexion, aide }: { moi: Moi; deconnexion(): void; aide(): void }) {
   const { ouvert, regler, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
-  const [partages, setPartages] = useState<TableauAccessible[] | null>(null)
-  const [favoris, setFavoris] = useState<TableauAccessible[]>([])
-  const [recents, setRecents] = useState<TableauAccessible[]>([])
-  useEffect(() => {
-    if (!ouvert) return
-    // La liste se relit à chaque ouverture : un partage peut arriver à tout moment.
-    let vivant = true
-    listerTableaux().then(
-      (tb) => vivant && setPartages(tb.filter((x) => x.role !== 'proprietaire')),
-      () => vivant && setPartages([]),
-    )
-    listerFavoris().then((l) => vivant && setFavoris(l), () => {})
-    listerRecents().then((l) => vivant && setRecents(l), () => {})
-    return () => {
-      vivant = false
-    }
-  }, [ouvert])
-  const aller = (id: string) => {
-    regler(false)
-    ouvrir(id)
-  }
   return (
     <div className="compte" ref={ancre}>
       <button type="button" ref={bouton} className="bouton bouton-nu compte-nom" aria-expanded={ouvert} aria-label={moi.nom} title={moi.nom} onClick={basculer}>
@@ -37,27 +21,10 @@ export function Compte({ moi, deconnexion, ouvrir, aide }: { moi: Moi; deconnexi
       {ouvert && (
         <div className="compte-menu" ref={panneau} role="menu">
           <small>{moi.email}</small>
-          <Rubrique titre={t('compte.favoris')} tableaux={favoris} ouvrir={aller} />
-          <Rubrique titre={t('compte.recents')} tableaux={recents} ouvrir={aller} />
-          {partages && partages.length > 0 && (
-            <>
-              <small className="compte-rubrique">{t('compte.partages')}</small>
-              {partages.map((tb) => (
-                <button
-                  key={tb.id}
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    regler(false)
-                    ouvrir(tb.id)
-                  }}
-                >
-                  {tb.titre || t('commun.sansTitre')}
-                  {tb.role === 'lecture' && <small> · {t('compte.lecture')}</small>}
-                </button>
-              ))}
-            </>
-          )}
+          <a role="menuitem" className="compte-ligne" href="/bibliotheque" title={`${t('compte.bibliotheque')} (${RACCOURCI_BIBLIOTHEQUE})`}>
+            <Icone nom="tableau" taille={16} />
+            <span>{t('compte.bibliotheque')} <small>· {t('compte.bibliotheque.detail')}</small></span>
+          </a>
           <button
             type="button"
             role="menuitem"
@@ -85,21 +52,5 @@ export function Compte({ moi, deconnexion, ouvrir, aide }: { moi: Moi; deconnexi
         </div>
       )}
     </div>
-  )
-}
-
-/** Une liste de tableaux dans le menu du compte ; rien si elle est vide. */
-function Rubrique({ titre, tableaux, ouvrir }: { titre: string; tableaux: TableauAccessible[]; ouvrir(id: string): void }) {
-  if (tableaux.length === 0) return null
-  return (
-    <>
-      <small className="compte-rubrique">{titre}</small>
-      {tableaux.map((tb) => (
-        <button key={tb.id} type="button" role="menuitem" onClick={() => ouvrir(tb.id)}>
-          {tb.titre || t('commun.sansTitre')}
-          {tb.role === 'lecture' && <small> · {t('compte.lecture')}</small>}
-        </button>
-      ))}
-    </>
   )
 }

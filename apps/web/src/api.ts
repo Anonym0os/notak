@@ -1,4 +1,4 @@
-import { type Element, type Habillage, type ResultatRecherche, lireHabillage, textesFr } from '@notak/tableau'
+import { type Element, type Habillage, type ResultatRecherche, type ResumeContenu, lireHabillage, textesFr } from '@notak/tableau'
 import { langue, t } from './langue'
 
 export interface Moi {
@@ -444,6 +444,35 @@ export async function listerRecents(): Promise<TableauAccessible[]> {
 /** Note l'ouverture d'un tableau, pour la liste des récents. */
 export async function noterVu(tableau: string): Promise<void> {
   await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/vu`, {}).catch(() => {})
+}
+
+/** Note l'ouverture en grand d'une carte mentale ou d'un document, pour les récents de la bibliothèque. */
+export async function noterElementVu(tableau: string, element: string): Promise<void> {
+  await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/elements/${encodeURIComponent(element)}/vu`, {}).catch(() => {})
+}
+
+/** Une toile, une carte mentale ou un document de la bibliothèque. */
+export interface EntreeBibliotheque {
+  tableau: string
+  /** `null` : la toile elle-même. */
+  element: string | null
+  genre: ResumeContenu['genre']
+  titre: string
+  resume: ResumeContenu
+  /** Le titre de la toile qui le porte, s'il la lit. */
+  ou: string | null
+  /** La dernière fois que le compte l'a ouvert, ou `null`. */
+  vu: number | null
+  favori: boolean
+  /** Une toile que d'autres lui partagent. */
+  partage: boolean
+}
+
+/** Tout ce que le compte peut lire : ses toiles (sauf l'accueil), leurs cartes mentales et leurs documents. */
+export async function lireBibliotheque(): Promise<EntreeBibliotheque[]> {
+  const r = await appeler('/api/bibliotheque')
+  if (!r.ok) throw await refus(r, {})
+  return (await r.json()) as EntreeBibliotheque[]
 }
 
 /** La recherche dans tous les tableaux du compte. */

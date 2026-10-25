@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom'
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { type Camera, TAILLES_GRILLE, definirTailleGrille } from './coeur/camera'
+import { definirAffichageMinicarte } from './minicarteModele'
 import {
   type EspaceNavigable,
   type EtatEnvoi,
@@ -206,6 +207,8 @@ export function EspaceNotak({
   const habillages = useHabillages(offreHabillages, reglages.habillage, theme)
   // Posée avant de dessiner la toile, qui la lit à chaque mesure.
   definirTailleGrille(reglages.grille)
+  // De même pour la mini-carte : le tableau et la carte la lisent sans la recevoir.
+  definirAffichageMinicarte(reglages.minicarte)
   // Un changement de langue redessine l'en-tête et la toile : les textes se relisent à la nouvelle langue.
   const langue = useLangue()
   const [reglagesOuverts, setReglagesOuverts] = useState(false)
@@ -639,7 +642,7 @@ export function EspaceNotak({
         {segments.length > 1 && (
           <div className="notak-vue-bas">
             <Ilot>
-              <BoutonVue />
+              <BoutonVue minicarte={{ valeur: reglages.minicarte ?? 'mouvement', changer: (minicarte) => changerReglages({ minicarte }) }} />
             </Ilot>
           </div>
         )}

@@ -10,13 +10,14 @@ import {
 } from '@notak/tableau'
 import { StrictMode, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
-import { type Instance, type Moi, accepterInvitation, lireInstance, moi as lireMoi, rechercherPartout, reglerCompte, seDeconnecter } from '../api'
+import { type Instance, type Moi, accepterInvitation, lireInstance, moi as lireMoi, noterElementVu, rechercherPartout, reglerCompte, seDeconnecter } from '../api'
 import { importDejaPropose, lireAncienEspace, noterImportPropose } from '../ancien'
 import { PagePartage, PageRapide } from '../Arrivees'
 import { PageEnvoyer } from '../Envoyer'
 import { PageEspaces } from '../Espaces'
 import { Activite } from '../Activite'
 import { Cloche } from '../Cloche'
+import { PageBibliotheque } from '../Bibliotheque'
 import { Compte } from '../Compte'
 import { EcranConnexion } from '../connexion'
 import { DroitsElement } from '../DroitsElement'
@@ -154,6 +155,7 @@ function Application() {
   if (location.pathname === '/partage') return <PagePartage espace={espacePour(etat.moi)} fichiers={fichiers} />
   if (location.pathname === '/envoyer') return <PageEnvoyer />
   if (location.pathname === '/espace') return <PageEspaces />
+  if (location.pathname === '/bibliotheque') return <PageBibliotheque />
   return (
     <Espace
       moi={etat.moi}
@@ -173,7 +175,31 @@ function Espace({ moi, instance, changerMoi, deconnexion }: { moi: Moi; instance
     [instance],
   )
   const espace = espacePour(moi)
-  const [adresse] = useState(() => adressePour(moi.racine))
+  const [adresse] = useState(() => {
+    // Chaque carte mentale ou document ouvert en grand entre dans les récents de la bibliothèque, qu'on l'ouvre sur la
+    // toile ou qu'on arrive par son adresse.
+    const a = adressePour(moi.racine)
+    const ouvert = a.lireElement?.()
+    if (ouvert) void noterElementVu(a.lire() ?? moi.racine, ouvert)
+    return {
+      ...a,
+      ecrireElement(tableau: string, element: string | null) {
+        a.ecrireElement?.(tableau, element)
+        if (element) void noterElementVu(tableau, element)
+      },
+    }
+  })
+  // ⌥⌘O ouvre la bibliothèque, d'où qu'on soit : écouté avant la carte ou le document ouverts, qui gardent leurs touches.
+  useEffect(() => {
+    const touche = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || !e.altKey || e.shiftKey || e.code !== 'KeyO') return
+      e.preventDefault()
+      e.stopPropagation()
+      location.assign('/bibliotheque')
+    }
+    window.addEventListener('keydown', touche, true)
+    return () => window.removeEventListener('keydown', touche, true)
+  }, [])
   // La section « Compte » des réglages : photo et couleur. Ce qui change se dit aussitôt aux autres, sur les tableaux ouverts.
   const compte = useMemo<ServiceCompte>(
     () => ({
@@ -217,7 +243,7 @@ function Espace({ moi, instance, changerMoi, deconnexion }: { moi: Moi; instance
         actionsCompte={(_courant, ouvrir, aide) => (
           <>
             <Cloche ouvrir={ouvrir} />
-            <Compte moi={moi} deconnexion={deconnexion} ouvrir={ouvrir} aide={aide} />
+            <Compte moi={moi} deconnexion={deconnexion} aide={aide} />
           </>
         )}
       />

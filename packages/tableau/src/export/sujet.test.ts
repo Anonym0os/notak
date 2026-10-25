@@ -101,7 +101,7 @@ describe('l’export d’une carte mentale', () => {
     const p = await preparer(sujetCarte(element(carte()), contexte, null), 'notak')
     expect(p.apercu).toEqual({
       type: 'contenu',
-      resume: '1 tableau',
+      resume: '1 toile',
       lignes: [
         { icone: 'tableau', texte: 'Voyage' },
         { icone: 'carteMentale', texte: 'Voyage', detail: 'Carte mentale' },
@@ -127,7 +127,7 @@ describe('l’export d’une carte mentale', () => {
     const [sujet] = Object.keys(a.sujets)
     const avecImage = { ...a, sujets: { ...a.sujets, [sujet!]: { ...a.sujets[sujet!]!, image: { fichier: 'F1', l: 10, h: 10 } } } } as Arbre
     const avec = await notakDElement(element(avecImage), 'Voyage', depot, true)
-    expect((avec.apercu as { resume: string }).resume).toBe('1 tableau · 1 image ou fichier')
+    expect((avec.apercu as { resume: string }).resume).toBe('1 toile · 1 image ou fichier')
     expect(decoderNotak(new Uint8Array(await avec.fichier!.arrayBuffer())).fichiers.map((f) => f.id)).toEqual(['F1'])
     const sans = await notakDElement(element(avecImage), 'Voyage', depot, false)
     expect(decoderNotak(new Uint8Array(await sans.fichier!.arrayBuffer())).fichiers).toEqual([])

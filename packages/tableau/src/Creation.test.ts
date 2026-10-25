@@ -6,8 +6,8 @@ import { definition } from './elements/registre'
 const libelles = (f: (o: ReturnType<typeof outilsDeBarre>[number]) => boolean) => outilsDeBarre().filter(f).map((o) => o.outil.libelle)
 
 describe('la barre de création, dans l’ordre de Milanote', () => {
-  it('les éléments visibles : Note, Lien, À faire, Ligne, Tableau, Colonne, Commentaire, Table', () => {
-    expect(libelles((o) => !o.outil.tiroir && o.outil.groupe !== 'action')).toEqual(['Note', 'Lien', 'À faire', 'Ligne', 'Tableau', 'Colonne', 'Commentaire', 'Table'])
+  it('les éléments visibles : Note, Lien, À faire, Ligne, Toile, Colonne, Commentaire, Table', () => {
+    expect(libelles((o) => !o.outil.tiroir && o.outil.groupe !== 'action')).toEqual(['Note', 'Lien', 'À faire', 'Ligne', 'Toile', 'Colonne', 'Commentaire', 'Table'])
   })
 
   it('le tiroir : Croquis, Nuancier, Document, Audio, Carte, Vidéo, Titre, puis ce qui est propre à Notak', () => {

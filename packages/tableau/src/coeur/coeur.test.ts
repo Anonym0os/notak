@@ -168,13 +168,27 @@ describe('caméra', () => {
 
   test('le zoom arrière minimal fait tenir le contenu et plafonne', () => {
     expect(cam.echelleMin(depuisTaille(point(0, 0), 10, 10), VUE)).toBe(cam.ECHELLE_MIN_PLAFOND)
-    proche(cam.echelleMin(depuisTaille(point(0, 0), 2000, 100), VUE), (1000 * 0.6) / 20_000)
+    proche(cam.echelleMin(depuisTaille(point(0, 0), 20_000, 100), VUE), (1000 * 0.6) / 200_000)
+  })
+
+  test('le zoom va de 2 à 800 %', () => {
+    expect(cam.ECHELLE_MIN_PLAFOND).toBe(0.02)
+    expect(cam.ECHELLE_MAX).toBe(8)
+    const g = new cam.GesteZoom()
+    let e = 1
+    for (let i = 0; i < 60; i++) e = g.appliquer(e, 1.2, 0.02, i * 16)
+    expect(e).toBe(8)
+    e = 1
+    for (let i = 0; i < 60; i++) e = g.appliquer(e, 0.8, 0.02, 5_000 + i * 16)
+    expect(e).toBe(0.02)
   })
 
   test('les crans du clavier montent et descendent dans l’ordre', () => {
     proche(cam.cranDessus(1, 0.4), 1.2)
     proche(cam.cranDessus(1.3, 0.4), 1.5)
-    proche(cam.cranDessus(3, 0.4), 3)
+    proche(cam.cranDessus(3, 0.4), 4)
+    proche(cam.cranDessus(6, 0.4), 8)
+    proche(cam.cranDessus(8, 0.4), 8)
     proche(cam.cranDessous(1.2, 0.4), 1)
     const sous = cam.cranDessous(1, 0.4)
     expect(sous < 1 && sous > 0.4).toBe(true)
@@ -233,6 +247,15 @@ describe('caméra', () => {
     for (let e = 1; e > 0.41; ) vus.push(Math.round((e = cam.cranDessous(e, 0.4)) * 100))
     expect(vus).toEqual([73, 57, 47, 40])
     expect(Math.round(cam.cranDessus(0.4, 0.4) * 100)).toBe(47)
+  })
+
+  test('sous 40 %, les crans descendent par 25, 15, 10, 5 % jusqu’au minimum', () => {
+    const vus: number[] = []
+    for (let e = 1; e > 0.021; ) vus.push(Math.round((e = cam.cranDessous(e, 0.02)) * 100))
+    expect(vus).toEqual([73, 57, 47, 40, 25, 15, 10, 5, 2])
+    // Un minimum qui tombe entre deux crans en devient un, et ceux d'en dessous partent.
+    proche(cam.cranDessous(0.05, 0.03), 0.03)
+    proche(cam.cranDessus(0.03, 0.03), 0.05)
   })
 
   test('la courbe part de zéro et finit à un', () => {

@@ -58,6 +58,7 @@ import { GardeElement } from './garde'
 import type { ContexteToile, Presence, Services } from './elements/types'
 import { t, tn } from './langue'
 import { PastilleZoom } from './PastilleZoom'
+import { Minicarte } from './Minicarte'
 import { PastilleAutre } from './PastilleAutre'
 import { PointActivite } from './PointActivite'
 import { PointeursBord } from './PointeursBord'
@@ -3188,6 +3189,19 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       {lectureSeule && !services.presentation && <div className="notak-lecture">{t('toile.lectureSeule')}</div>}
       <PointeursBord cibles={ciblesBord} camera={camera} vue={vue} aller={(ou) => lancerAnimation(cam.centree(ou, camera.echelle, vue))} />
       <PastilleZoom echelle={camera.echelle} remettre={remettreA100} />
+      {!services.presentation && (
+        <Minicarte
+          lieu="tableau"
+          version={tableau}
+          formes={() => tableau.elements.filter(libre).flatMap((x) => rect(x.id) ?? []).map((r) => ({ x: r.min.x, y: r.min.y, l: r.max.x - r.min.x, h: r.max.y - r.min.y }))}
+          vue={{ x: camera.origine.x, y: camera.origine.y, l: vue.largeur / k, h: vue.hauteur / k }}
+          fenetre={{ l: vue.largeur, h: vue.hauteur }}
+          aller={(ou) => {
+            animation.current = null
+            setCamera((c) => cam.centree(point(ou.x, ou.y), c.echelle, etat.current.vue))
+          }}
+        />
+      )}
     </div>
     </ContexteBarreEdition.Provider>
   )

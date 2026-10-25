@@ -137,7 +137,7 @@ describe('le document ouvert en grand porte la même barre', () => {
   it('le retour, le fil jusqu’au document, l’historique, puis le partage de l’application', () => {
     monter(() => {})
     const barre = document.querySelector('.notak-document-entete')!
-    expect(barre.querySelector('.notak-document-fermer')!.getAttribute('aria-label')).toBe('Revenir au tableau')
+    expect(barre.querySelector('.notak-document-fermer')!.getAttribute('aria-label')).toBe('Revenir à la toile')
     // Un seul îlot à gauche : le retour, un filet, puis le fil.
     const gauche = barre.querySelector('.notak-ilot-fil')!
     expect([...gauche.children].map((n) => n.className.split(' ')[0])).toEqual(['notak-infobulle-hote', 'notak-ilot-filet', 'notak-fil'])

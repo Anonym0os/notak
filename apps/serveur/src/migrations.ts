@@ -307,6 +307,35 @@ DELETE FROM recherche_etat;
 `)
     },
   },
+  {
+    version: 5,
+    nom: 'la bibliothèque',
+    appliquer(db) {
+      db.exec(`
+-- Chaque toile, et chaque carte mentale et document qu'elle porte (élément vide : la toile), avec de quoi dessiner sa
+-- vignette (JSON, voir resumesDuTableau). Tenu à jour avec l'index de recherche.
+CREATE TABLE contenus (
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  element TEXT NOT NULL,
+  genre TEXT NOT NULL CHECK (genre IN ('toile','arbre','document')),
+  titre TEXT NOT NULL,
+  resume TEXT NOT NULL,
+  PRIMARY KEY (tableau, element)
+);
+-- Les cartes mentales et les documents qu'un compte a ouverts en grand, et quand (les toiles sont dans recents).
+CREATE TABLE elements_vus (
+  utilisateur TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  element TEXT NOT NULL,
+  vu INTEGER NOT NULL,
+  PRIMARY KEY (utilisateur, tableau, element)
+);
+CREATE INDEX elements_vus_vu ON elements_vus(utilisateur, vu DESC);
+-- Tout se réindexe au prochain démarrage, ce qui remplit contenus.
+DELETE FROM recherche_etat;
+`)
+    },
+  },
 ]
 
 /**

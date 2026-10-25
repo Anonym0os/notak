@@ -11,7 +11,7 @@ export const ACCUEIL: ModeleTableau = {
     {
       genre: 'note',
       texte:
-        '# Une toile sans bords\nPosez vos idées où vous voulez, dans l’ordre que vous voulez. Ce tableau montre les gestes : modifiez-le, déplacez-le, supprimez-le, il est à vous.',
+        '# Une toile sans bords\nPosez vos idées où vous voulez, dans l’ordre que vous voulez. Cette toile montre les gestes : modifiez-la, déplacez-la, supprimez-la, elle est à vous.',
       couleur: 'jaune',
       x: 0,
       y: 8,
@@ -25,7 +25,7 @@ export const ACCUEIL: ModeleTableau = {
       y: 24,
       contenu: [
         { genre: 'note', texte: '# Une note\nDouble-cliquez sur le vide, puis écrivez.' },
-        { genre: 'note', texte: '# Un outil\nGlissez un outil de la barre de gauche sur la toile : colonne, tâches, lien, image, tableau.' },
+        { genre: 'note', texte: '# Un outil\nGlissez un outil de la barre de gauche sur le fond : colonne, tâches, lien, image, toile.' },
         { genre: 'note', texte: '# Un dépôt\nLâchez des images ou des fichiers depuis votre bureau, ou collez une adresse : elle devient une carte.' },
       ],
     },
@@ -48,9 +48,9 @@ export const ACCUEIL: ModeleTableau = {
       x: 76,
       y: 24,
       contenu: [
-        { genre: 'note', texte: '# Zoom et vue\nCmd et + ou − pour zoomer, Z pour tout voir, Espace et glisser pour attraper la toile.' },
-        { genre: 'note', texte: '# Des tableaux dans des tableaux\nL’outil Tableau pose une carte : double-cliquez dessus pour entrer, Cmd+U pour remonter.' },
-        { genre: 'note', texte: '# Chercher\nCmd+F cherche dans ce tableau, puis dans tous les vôtres.' },
+        { genre: 'note', texte: '# Zoom et vue\nCmd et + ou − pour zoomer, Z pour tout voir, Espace et glisser pour attraper le fond.' },
+        { genre: 'note', texte: '# Des toiles dans des toiles\nL’outil Toile pose une carte : double-cliquez dessus pour entrer, Cmd+U pour remonter.' },
+        { genre: 'note', texte: '# Chercher\nCmd+F cherche dans cette toile, puis dans toutes les vôtres.' },
       ],
     },
     {
@@ -61,7 +61,7 @@ export const ACCUEIL: ModeleTableau = {
       y: 24,
       contenu: [
         { genre: 'note', texte: '# Les raccourcis\nTapez / pour les voir tous. L’entrée Aide du menu de votre compte les ouvre aussi.' },
-        { genre: 'note', texte: '# Des modèles\nL’outil Tableau modèle crée un tableau déjà organisé : réunion, voyage, storyboard…' },
+        { genre: 'note', texte: '# Des modèles\nL’outil Toile modèle crée une toile déjà organisée : réunion, voyage, storyboard…' },
         { genre: 'note', texte: '# Partager\nLe bouton Partager invite par adresse ou publie un lien de lecture.' },
         { genre: 'note', texte: '# Réglages\nCmd+, règle le thème, la taille, votre photo et votre couleur.' },
       ],

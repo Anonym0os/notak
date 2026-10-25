@@ -23,8 +23,8 @@ function monde(services: Partial<Services>, elements: Element[]) {
   return { magasin, contexte, montres }
 }
 
-describe('« Retrouver le tableau d’origine »', () => {
-  const retrouver = entree('Retrouver le tableau d’origine')
+describe('« Retrouver la toile d’origine »', () => {
+  const retrouver = entree('Retrouver la toile d’origine')
   const raccourci = carte('r', { raccourci: true })
 
   it('ne sert que pour un raccourci seul', () => {
@@ -51,8 +51,8 @@ describe('« Retrouver le tableau d’origine »', () => {
   })
 })
 
-describe('« Dupliquer le tableau lié »', () => {
-  const dupliquer = entree('Dupliquer le tableau lié')
+describe('« Dupliquer la toile liée »', () => {
+  const dupliquer = entree('Dupliquer la toile liée')
 
   it('le raccourci devient un vrai tableau : la copie, avec le nom et la couleur du raccourci', () => {
     const r = carte('r', { raccourci: true, titre: 'Mon nom', couleur: 'rouge', icone: 'livre' })

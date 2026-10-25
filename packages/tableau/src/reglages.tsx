@@ -3,6 +3,7 @@ import { type ChoixLangue, definirLangue, t } from './langue'
 import { PastillePersonne } from './pastille'
 import type { Habillages } from './habillage/appliquer'
 import { ErreurHabillage, HABILLAGE_NOTAK } from './habillage/format'
+import { AFFICHAGES_MINICARTE, type AffichageMinicarte } from './minicarteModele'
 
 /**
  * Les réglages de l'interface, gardés par navigateur : thème, taille de l'interface, et ce que fait un double-clic
@@ -22,6 +23,8 @@ export interface Reglages {
   barreChoisie?: true
   /** La langue de l'interface ; `auto` suit le navigateur. Absente : `auto`. */
   langue?: ChoixLangue
+  /** Quand paraît la mini-carte du tableau et de la carte. Absente : pendant qu'on déplace ou qu'on zoome la vue. */
+  minicarte?: AffichageMinicarte
   /** L'habillage choisi sur cet appareil (`notak` : celui d'origine). Absent : celui que propose le serveur. */
   habillage?: string
 }
@@ -73,6 +76,7 @@ export function lireReglages(): Reglages {
       barre: brut.barreChoisie && brut.barre === 'flottante' ? 'flottante' : 'gauche',
       ...(brut.barreChoisie ? { barreChoisie: true } : {}),
       langue: brut.langue === 'fr' || brut.langue === 'en' ? brut.langue : 'auto',
+      ...(brut.minicarte && brut.minicarte !== 'mouvement' && AFFICHAGES_MINICARTE.includes(brut.minicarte) ? { minicarte: brut.minicarte } : {}),
       ...(typeof brut.habillage === 'string' && /^[a-z0-9][a-z0-9-]{0,39}$/.test(brut.habillage) ? { habillage: brut.habillage } : {}),
     }
   } catch {

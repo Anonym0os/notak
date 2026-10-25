@@ -1,0 +1,75 @@
+/*
+ * La mini-carte (Minicarte.tsx), en bas à droite du tableau et de la carte : une plaque de la matière des îlots, le
+ * contenu en formes grises, la vue en cadre bleu. Elle vient et s'en va en fondu, sans rien attraper quand on ne la voit pas.
+ */
+.notak-minicarte {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  /* Sous l'îlot du zoom (4) : le panneau « Vue » qui s'ouvre au-dessus la recouvre. */
+  z-index: 3;
+  overflow: hidden;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: var(--notak-ilot-fond, color-mix(in srgb, var(--notak-carte, #fff) 88%, transparent));
+  box-shadow: var(--notak-ilot-ombre, 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.08), 0 6px 16px -6px rgb(27 37 54 / 0.16));
+  color: var(--notak-ilot-texte, var(--notak-texte, #323b4a));
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  touch-action: none;
+  transition: opacity 0.2s ease;
+  user-select: none;
+}
+
+.notak-minicarte[data-visible] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@starting-style {
+  .notak-minicarte[data-visible] {
+    opacity: 0;
+  }
+}
+
+.notak-minicarte[data-tire] {
+  cursor: grabbing;
+}
+
+.notak-minicarte svg {
+  display: block;
+}
+
+.notak-minicarte-forme {
+  fill: color-mix(in srgb, currentColor 22%, transparent);
+}
+
+.notak-minicarte-vue {
+  fill: color-mix(in srgb, var(--notak-accent, #5b8ff9) 10%, transparent);
+  stroke: var(--notak-accent, #5b8ff9);
+  stroke-width: 1.5px;
+}
+
+/* Le zoom du tableau tient le coin (un îlot de 36 px à 16 px du bord) : la mini-carte se pose au-dessus. */
+.notak-espace-corps:has(> .notak-vue-bas) .notak-minicarte {
+  bottom: 62px;
+}
+
+/* La carte a sa barre du bas (36 px à 16 px du bord) : la mini-carte se pose au-dessus, alignée sur son bord droit. */
+.notak-minicarte[data-lieu='carte'] {
+  right: 8px;
+  bottom: 62px;
+}
+
+[data-theme='sombre'] .notak-minicarte {
+  --notak-ilot-fond: color-mix(in oklab, var(--notak-fond, #1b1e23), white 6%);
+  --notak-ilot-ombre: 0 0 0 1px rgb(255 255 255 / 0.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notak-minicarte {
+    transition: none;
+  }
+}

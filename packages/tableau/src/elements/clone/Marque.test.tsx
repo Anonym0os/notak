@@ -35,7 +35,7 @@ describe('la marque de copie', () => {
   it('un clic compte les copies et les liste, l’original en tête ; une rangée la montre', () => {
     act(() => racine.render(<MarqueClone cible="n" contexte={contexte} />))
     act(() => hote.querySelector<HTMLButtonElement>('.notak-clone-marque')!.click())
-    expect(hote.querySelector('.notak-clone-bulle-texte')!.textContent).toBe('3 copies sur ce tableau')
+    expect(hote.querySelector('.notak-clone-bulle-texte')!.textContent).toBe('3 copies sur cette toile')
     const rangees = [...hote.querySelectorAll<HTMLButtonElement>('.notak-clone-rangee')]
     expect(rangees.map((r) => r.querySelector('.notak-clone-rangee-nom')!.textContent)).toEqual(['Original', 'Copie 1', 'Copie 2'])
     act(() => rangees[2]!.click())
