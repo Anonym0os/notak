@@ -9,6 +9,7 @@ import { CorpsFil } from './Corps'
 import { AUTEUR_INCONNU, ajouterMessage } from './fil'
 import { type PoigneeCompositeur } from './Compositeur'
 import { marquerLu, nonLus, useSignalerFrappe } from './suivi'
+import { peutCommenter } from '../../coeur/droitsElements'
 
 /** La couleur d'une épingle sans couleur de fil : le bleu des liens de Milanote. */
 export const BLEU_EPINGLE = '#2f63f7'
@@ -80,7 +81,7 @@ export function BulleFil({
   fermer(): void
 }) {
   const auteur = contexte.services.presence?.moi?.() ?? AUTEUR_INCONNU
-  const ecrire = !contexte.services.lectureSeule
+  const ecrire = peutCommenter(contexte.services)
   const champ = useRef<PoigneeCompositeur>(null)
   const frappe = useSignalerFrappe(contexte, signal)
   const [vide, setVide] = useState(true)

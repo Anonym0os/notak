@@ -1,6 +1,7 @@
 # Installer son propre serveur Notak
 
-L'édition serveur, c'est un conteneur qui sert tout : l'application, les comptes, la synchro en temps réel. Elle tourne
+L'édition serveur, c'est un conteneur qui sert tout : l'application, les comptes, la synchro en temps réel ; à côté,
+OpenFGA évalue les droits (qui lit, commente, écrit ou possède chaque tableau et chaque élément). Elle tourne
 derrière un relais HTTPS, sous votre nom de domaine. Elle porte votre nom et votre thème, et vous décidez qui peut
 s'y inscrire.
 
@@ -12,11 +13,12 @@ cd notak
 docker compose up -d
 ```
 
-[`compose.yaml`](../compose.yaml) construit l'image (`Dockerfile`) et la sert sur le port 3005. Les données vivent
-dans le volume `/donnees` : la base SQLite (`notak.db`), les fichiers déposés (`fichiers/`) et les thèmes
-(`habillages/`).
+[`compose.yaml`](../compose.yaml) construit l'image (`Dockerfile`), la sert sur le port 3005, et lance OpenFGA à côté.
+Les données vivent dans le volume `/donnees` : la base SQLite (`notak.db`), les fichiers déposés (`fichiers/`) et les
+thèmes (`habillages/`). OpenFGA n'en tient qu'une copie, dans son propre volume : s'il la perd, Notak la refait.
 
-Sans Docker : `bun install`, `bun run build`, puis `NOTAK_WEB=apps/web/dist bun run serveur`.
+Sans Docker : lancer un OpenFGA (`openfga run`, voir openfga.dev), puis `bun install`, `bun run build`, et
+`NOTAK_OPENFGA_URL=http://localhost:8080 NOTAK_WEB=apps/web/dist bun run serveur`.
 
 ## Le relais HTTPS
 
@@ -33,12 +35,18 @@ Pour un essai en HTTP sur sa machine : `NOTAK_COOKIE_SECURISE=0` et `NOTAK_RELAI
 
 | Variable | Par défaut | Ce qu'elle règle |
 |---|---|---|
+| `NOTAK_ORIGINE` | `http://localhost:3005` | l'adresse publique du serveur : liens envoyés, retours de connexion |
+| `NOTAK_OPENFGA_URL` | `http://localhost:8080` | l'OpenFGA qui évalue les droits (`http://openfga:8080` dans `compose.yaml`) |
 | `NOTAK_NOM` | `Notak` | le nom affiché sur l'écran de connexion |
 | `NOTAK_INSCRIPTIONS` | `ouvertes` | `fermees` : personne ne crée de compte seul (voir plus bas) |
 | `NOTAK_HABILLAGES` | `/donnees/habillages` | le dossier des thèmes à fournir aux comptes |
 | `NOTAK_HABILLAGE_DEFAUT` | aucun | l'identifiant du thème proposé à qui n'en a pas choisi |
 | `NOTAK_HABILLAGE` | aucun | l'identifiant du thème imposé à tous : le choix de chacun ne compte plus |
 | `NOTAK_CLE`, `NOTAK_CLE_FICHIER` | aucune | la clé du chiffrement au repos (voir plus bas) |
+| `NOTAK_SECRET` | tiré au premier démarrage, gardé dans `/donnees/secret` | signe les cookies de session ; le changer déconnecte tout le monde |
+| `NOTAK_GOOGLE_ID`, `NOTAK_GOOGLE_SECRET` | aucun | « Continuer avec Google » ; de même `MICROSOFT` et `GITHUB`. Retour : `<NOTAK_ORIGINE>/api/auth/callback/<fournisseur>` |
+| `NOTAK_SMTP_URL`, `NOTAK_EXPEDITEUR` | aucun | les courriels (mot de passe oublié, invitations) ; sans eux, les liens vont au journal |
+| `NOTAK_IDP_INTERNES` | aucune | les origines des fournisseurs d'identité du réseau interne qu'un espace peut déclarer en SSO |
 | `PEXELS_API_KEY` | aucune | la banque d'images du panneau « Image » ; sans elle, seulement ses propres fichiers |
 | `PORT` | `3005` | le port d'écoute |
 | `NOTAK_DONNEES` | `/donnees` | le dossier des données |
@@ -50,7 +58,8 @@ que le serveur en a compris : nom, inscriptions, thèmes.
 ## Fermer les inscriptions
 
 Avec `NOTAK_INSCRIPTIONS=fermees`, l'écran de connexion ne propose plus de créer un compte, et l'API refuse
-l'inscription (`403`, code `inscriptions_fermees`). Les comptes se créent depuis la machine du serveur :
+l'inscription, par mot de passe comme par un fournisseur (`403`, code `INSCRIPTIONS_FERMEES`). Le SSO d'un espace, qu'un
+admin d'espace a déclaré, fait encore entrer les gens de son entreprise. Les comptes se créent depuis la machine du serveur :
 
 ```bash
 docker compose exec notak node apps/serveur/src/compte.ts --email ana@exemple.fr --nom Ana

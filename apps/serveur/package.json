@@ -6,20 +6,27 @@
     "start": "node src/index.ts"
   },
   "dependencies": {
+    "@better-auth/sso": "1.7.7",
     "@hocuspocus/extension-database": "4.7.1",
     "@hocuspocus/provider": "4.7.1",
     "@hocuspocus/server": "4.7.1",
     "@hono/node-server": "2.1.5",
     "@node-rs/argon2": "2.2.2",
     "@notak/tableau": "workspace:*",
+    "@openfga/sdk": "0.9.7",
+    "@openfga/syntax-transformer": "0.2.2",
+    "better-auth": "1.7.7",
     "fflate": "0.8.2",
     "hono": "4.13.13",
+    "lib0": "0.2.119",
+    "nodemailer": "8.0.11",
     "sharp": "0.35.5",
     "ws": "8.22.0",
     "yjs": "13.6.33"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
+    "@types/nodemailer": "8.0.2",
     "@types/ws": "8.18.2"
   }
 }

@@ -8,7 +8,7 @@ import { creerApp } from './app.ts'
 import { ouvrirBase } from './base.ts'
 import { type ElementLu, lireEtat } from './contenu.ts'
 import { creerLimiteur } from './debit.ts'
-import { type Compte, type Monde, monde } from './essai.ts'
+import { type Compte, type Monde, authEssai, autorisationEssai, monde, openfgaEssai } from './essai.ts'
 import { elementsDeTexte, poserDansNonTries } from './arrivee.ts'
 import { demarrer } from './serveur.ts'
 import { nomDuDocument } from './synchro.ts'
@@ -245,6 +245,9 @@ describe('POST /api/arrivee : le débit', () => {
     try {
       const app = creerApp({
         base,
+        auth: authEssai(base),
+        autorisation: autorisationEssai(base),
+        moyens: { fournisseurs: [], courriel: false },
         dossierFichiers: join(dossier, 'fichiers'),
         limiteur: creerLimiteur(1000, 60_000),
         limiteurArrivee: creerLimiteur(2, 60_000),
@@ -280,16 +283,16 @@ describe('poserDansNonTries', () => {
 describe('POST /api/arrivee : sur le serveur lancé, avec la synchro', () => {
   it('passe par le document en direct, et l’accueil exporté contient l’arrivée', async () => {
     const dossier = mkdtempSync(join(tmpdir(), 'notak-arrivee-'))
-    const serveur = await demarrer({ port: 0, dossier })
-    const origine = `http://127.0.0.1:${serveur.port}`
+    const serveur = await demarrer({ port: 0, dossier, secret: 'un-secret-d-essai-assez-long-pour-better-auth', openfga: openfgaEssai() })
+    const origine = `http://localhost:${serveur.port}`
     try {
-      const inscription = await fetch(`${origine}/api/inscription`, {
+      const inscription = await fetch(`${origine}/api/auth/sign-up/email`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email: 'eli@exemple.fr', motDePasse: 'motdepasse', nom: 'Eli' }),
+        headers: { origin: origine, 'content-type': 'application/json' },
+        body: JSON.stringify({ email: 'eli@exemple.fr', password: 'motdepasse', name: 'Eli' }),
       })
       const cookie = inscription.headers.get('set-cookie')!.split(';')[0]!
-      const racine = ((await inscription.json()) as { racine: string }).racine
+      const racine = ((await (await fetch(`${origine}/api/moi`, { headers: { cookie } })).json()) as { racine: string }).racine
       const cree = await fetch(`${origine}/api/jetons`, { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify({ nom: 'iPhone' }) })
       const { jeton } = (await cree.json()) as { jeton: string }
       const r = await fetch(`${origine}/api/arrivee`, {

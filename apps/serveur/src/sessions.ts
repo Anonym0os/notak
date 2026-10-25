@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 
-export const NOM_COOKIE = 'notak_session'
-export const DUREE_SESSION_S = 30 * 24 * 3600
+// Les sessions de compte sont à Better Auth (`auth.ts`) ; restent ici les jetons de Notak : jetons d'arrivée et
+// accès aux liens publics protégés.
 
 /** Un jeton aléatoire de 32 octets, et son empreinte : seule l'empreinte va en base. */
 export function nouveauJeton(): { jeton: string; empreinte: string } {
@@ -28,14 +28,6 @@ export function lireCookie(entete: string | null | undefined, nom: string): stri
     }
   }
   return null
-}
-
-export function cookieSession(jeton: string, securise: boolean): string {
-  return `${NOM_COOKIE}=${jeton}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${DUREE_SESSION_S}${securise ? '; Secure' : ''}`
-}
-
-export function cookieEfface(securise: boolean): string {
-  return `${NOM_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${securise ? '; Secure' : ''}`
 }
 
 /** Le cookie qui porte l'accès au lien public d'un tableau protégé : limité aux adresses de ce lien. */

@@ -16,6 +16,7 @@ import { type Hauteur, hauteurTiree, memeHauteur } from './coeur/hauteur'
 import { CANEVAS, type Fond, NOMS_CANEVAS, estLibre, estNomme, estSombre, fondParDefaut, fondRange, pointsAllumes } from './coeur/fond'
 import { creerLimiteur } from './coeur/limiteur'
 import { type Magasin, enLectureSeule, sansCorbeille } from './coeur/magasin'
+import { aFiltrer, filtrerMagasin, peutCommenter } from './coeur/droitsElements'
 import { largeurDoubleClic, largeurMinDe, largeurTiree } from './coeur/largeur'
 import { type Cible, type Deplace, cleEntre, clesEntre, comparerOrdre, indexInsertion, pasDeDepot } from './coeur/ordre'
 import { cliquer, lasso } from './coeur/selection'
@@ -395,8 +396,24 @@ const DELAI_CURSEUR = 100
 
 export function Toile({ magasin: source, services = {}, cameraInitiale, surCamera }: PropsToile) {
   const lectureSeule = !!services.lectureSeule
+  // Les droits du serveur, lus au moment du geste : ils peuvent changer sans que la toile se refasse.
+  const droitsActuels = useRef(services.droits)
+  droitsActuels.current = services.droits
+  const auteurActuel = useRef(services.presence)
+  auteurActuel.current = services.presence
+  // Un commentateur, ou des éléments à droits propres : seuls passent les gestes permis (le serveur annulerait les
+  // autres). Sinon, en lecture seule, rien ne passe.
+  const filtre = aFiltrer(services.droits) && !services.presentation && !services.apercuModele
   // Tout le tableau, corbeille comprise ; la toile, elle, ne voit pas la corbeille.
-  const complet = useMemo(() => (lectureSeule ? enLectureSeule(source) : source), [source, lectureSeule])
+  const complet = useMemo(
+    () =>
+      filtre
+        ? filtrerMagasin(source, () => droitsActuels.current!, () => auteurActuel.current?.moi?.()?.id ?? '')
+        : lectureSeule
+          ? enLectureSeule(source)
+          : source,
+    [source, lectureSeule, filtre],
+  )
   const magasin = useMemo(() => sansCorbeille(complet), [complet])
   const toutLeTableau = useSyncExternalStore(complet.ecouter, complet.lire)
   const corbeille = useMemo(() => aLaCorbeille(toutLeTableau), [toutLeTableau])
@@ -656,6 +673,14 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       }, DELAI_ECRITURE),
     [],
   )
+  /**
+   * Rien ne s'écrit d'ici : la lecture seule, sauf pour qui commente (le magasin filtré ne laisse alors passer que ses
+   * fils et ses réactions).
+   */
+  const fermeeAEcriture = () => {
+    const s = etat.current.services
+    return !!s.lectureSeule && !(aFiltrer(s.droits) && peutCommenter(s))
+  }
   const finirEdition = useCallback(() => {
     const b = brouillon.current
     brouillon.current = null
@@ -676,9 +701,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   }, [])
   const commencerEdition = useCallback(
     (id: Id, ou?: Point) => {
-      if (etat.current.services.lectureSeule) return
       // Le magasin, pas l'état rendu : l'élément vient peut-être d'être créé.
       const el = etat.current.magasin.lire().elements.find((x) => x.id === id)
+      // En lecture seule, seul un commentateur ouvre quelque chose : un fil, pour y écrire.
+      const services = etat.current.services
+      if (services.lectureSeule && !(el?.contenu.type === 'commentaire' && peutCommenter(services, id))) return
       if (!el || !defEcrite(el, etat.current.magasin.lire())?.editable) return
       // Déjà ouvert (l'adresse qui suit l'ouverture le redemande) : le refermer rendrait le clavier à la toile.
       if (etat.current.edition === id && !ou) return
@@ -847,12 +874,12 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const b = brouillon.current
       const debut = b?.id === el.id ? b.debut : (etat.current.magasin.lire().elements.find((x) => x.id === el.id)?.contenu ?? el.contenu)
       brouillon.current = { id: el.id, debut, contenu: apres }
-      if (!etat.current.services.lectureSeule) ecritureDirecte.pousser(el.id)
+      if (!fermeeAEcriture()) ecritureDirecte.pousser(el.id)
     },
     [ecritureDirecte],
   )
   const surChanger = useCallback((el: Element, apres: Contenu) => {
-    if (etat.current.services.lectureSeule) return
+    if (fermeeAEcriture()) return
     const m = etat.current.magasin
     const actuel = m.lire().elements.find((x) => x.id === el.id)
     if (actuel && !memes(actuel.contenu, apres)) m.faire([{ type: 'contenu', id: el.id, avant: actuel.contenu, apres }])
@@ -1498,10 +1525,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const ou = menu.ou
     const avecPaquet = !lectureSeule && copie.paquet ? [{ libelle: t('toile.coller'), raccourci: '⌘V', faire: () => collerPaquet(copie.paquet!, ou) }] : []
     if (!menu.surElement) {
-      // Milanote ne propose ici que huit créations ; les autres se prennent dans la barre.
-      const creer = lectureSeule
-        ? []
-        : outilsDeBarre().filter((o) => o.outil.groupe !== 'action' && TYPES_DU_MENU.has(o.outil.fantome().contenu.type)).map((o) => ({
+      // Milanote ne propose ici que huit créations ; les autres se prennent dans la barre. Un commentateur, qui
+      // n'a pas la barre, peut encore y poser un fil.
+      const creer = (
+        lectureSeule
+          ? peutCommenter(services)
+            ? outilsDeBarre().filter((o) => o.outil.fantome().contenu.type === 'commentaire')
+            : []
+          : outilsDeBarre().filter((o) => o.outil.groupe !== 'action' && TYPES_DU_MENU.has(o.outil.fantome().contenu.type))
+      ).map((o) => ({
             libelle: o.outil.libelle,
             faire: () => {
               const pas = o.outil.creer(point(Math.round(ou.x), Math.round(ou.y)), contexte)
@@ -1552,6 +1584,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       ...(els.some((x) => x.contenu.type === 'ligne' && accroches(x.contenu).length > 0)
         ? []
         : [{ libelle: t('toile.arrierePlan'), raccourci: '⇧⌘↓', faire: () => changerPlan('bas', false) }]),
+      // Le propriétaire règle qui peut écrire ou commenter cet élément.
+      ...(seul && services.reglerDroitsElement ? [null, { libelle: t('toile.droitsElement'), faire: () => services.reglerDroitsElement!(seul.id) }] : []),
       // Un élément seul dit qui l'a créé et touché, avec l'avatar de la personne (rien si l'on ne sait pas).
       ...(seul ? histoireDe(seul.id) : []),
     ]
@@ -1956,10 +1990,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const ouvrirMenu = (e: React.MouseEvent) => {
     e.preventDefault()
     if (dansEdition(racine.current, e.target)) return
-    // En lecture seule, comme Milanote : aucun des deux menus.
-    if (lectureSeule) return
-    const p = local(e)
+    // En lecture seule, comme Milanote : aucun des deux menus. Un commentateur garde celui de la toile vide, pour y
+    // poser un fil.
     const id = sous(document.elementFromPoint(e.clientX, e.clientY))
+    if (lectureSeule && (id || !peutCommenter(services))) return
+    const p = local(e)
     setMenu({ x: p.x, y: p.y, ou: cam.versTableau(camera, p), surElement: !!id })
   }
 

@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { instanceDe } from './instance.ts'
+import { openfgaEssai } from './essai.ts'
 import { type ServeurDemarre, demarrer } from './serveur.ts'
 
 const habillage = (id: string, nom: string) => JSON.stringify({ notak: 'habillage', version: 1, id, nom, rayons: { panneau: 20 } })
@@ -43,8 +44,8 @@ describe('une instance aux inscriptions fermées', () => {
   let serveur: ServeurDemarre
   let origine: string
   beforeAll(async () => {
-    serveur = await demarrer({ port: 0, dossier: join(dossier, 'donnees'), instance: instanceDe({ NOTAK_NOM: 'Silak', NOTAK_INSCRIPTIONS: 'fermees', NOTAK_HABILLAGE_DEFAUT: 'silak' }, dossier, () => {}) })
-    origine = `http://127.0.0.1:${serveur.port}`
+    serveur = await demarrer({ port: 0, dossier: join(dossier, 'donnees'), secret: 'un-secret-d-essai-assez-long-pour-better-auth', openfga: openfgaEssai(), instance: instanceDe({ NOTAK_NOM: 'Silak', NOTAK_INSCRIPTIONS: 'fermees', NOTAK_HABILLAGE_DEFAUT: 'silak' }, dossier, () => {}) })
+    origine = `http://localhost:${serveur.port}`
   })
   afterAll(() => serveur.fermer())
 
@@ -57,8 +58,12 @@ describe('une instance aux inscriptions fermées', () => {
   })
 
   it('refuse une inscription avec un code stable', async () => {
-    const r = await fetch(`${origine}/api/inscription`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'ana@exemple.fr', motDePasse: 'motdepasse', nom: 'Ana' }) })
+    const r = await fetch(`${origine}/api/auth/sign-up/email`, {
+      method: 'POST',
+      headers: { origin: origine, 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'ana@exemple.fr', password: 'motdepasse', name: 'Ana' }),
+    })
     expect(r.status).toBe(403)
-    expect(await r.json()).toEqual({ erreur: 'inscriptions fermées', code: 'inscriptions_fermees' })
+    expect(await r.json()).toMatchObject({ code: 'INSCRIPTIONS_FERMEES' })
   })
 })

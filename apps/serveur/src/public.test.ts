@@ -48,7 +48,7 @@ const jeton = async (c: Compte, methode: string) => m.appeler('/api/tableaux/tab
 
 describe('le lien public d’un tableau', () => {
   it('sans lien, rien ne se lit', async () => {
-    expect(await (await jeton(ana, 'GET')).json()).toEqual({ jeton: null })
+    expect(await (await jeton(ana, 'GET')).json()).toEqual({ jeton: null, niveau: null })
     expect((await m.appeler('/api/public/abcdefghijklmnopqrstuv')).status).toBe(404)
     expect((await jeton(ana, 'DELETE')).status).toBe(404)
   })
@@ -68,7 +68,7 @@ describe('le lien public d’un tableau', () => {
     expect(j).toMatch(/^[A-Za-z0-9_-]{22}$/)
     // Le même tant qu'on ne le retire pas.
     expect(((await (await jeton(ana, 'POST')).json()) as { jeton: string }).jeton).toBe(j)
-    expect(await (await jeton(ana, 'GET')).json()).toEqual({ jeton: j })
+    expect(await (await jeton(ana, 'GET')).json()).toEqual({ jeton: j, niveau: 'lecture' })
 
     const r = await m.appeler(`/api/public/${j}`)
     expect(r.status).toBe(200)

@@ -57,18 +57,33 @@ scenarios). Contributions are welcome: start with [`CONTRIBUTING.md`](CONTRIBUTI
 
 ### The server edition (accounts, live collaboration)
 
-One container serves the app, the accounts and live collaboration on port 3005. Data (SQLite database and uploaded
-files) lives in the `/donnees` volume.
+Two containers: Notak serves the app, the accounts and live collaboration on port 3005, and
+[OpenFGA](https://openfga.dev) evaluates permissions (who can read, comment, edit or own each board). Notak's data
+(SQLite database and uploaded files) lives in the `notak-donnees` volume and is the source of truth: OpenFGA only
+holds a copy, rebuilt from it if it is ever lost.
 
 ```bash
 git clone https://github.com/Anonym0os/notak
 cd notak
-docker build -t notak .
-docker run -d -p 3005:3005 -v notak-donnees:/donnees notak
+NOTAK_ORIGINE=https://notak.example.com docker compose up -d
 ```
+
+To run the Notak image on its own, point it at an OpenFGA server with `-e NOTAK_OPENFGA_URL=http://openfga:8080`.
 
 The image expects an HTTPS reverse proxy in front of it (`Secure` cookie, client address read from
 `X-Forwarded-For`). To try it over plain HTTP on your machine: `-e NOTAK_COOKIE_SECURISE=0 -e NOTAK_RELAIS=0`.
+
+Accounts go through [Better Auth](https://www.better-auth.com). Set the server's public address so sign-in
+links and provider callbacks point to it: `-e NOTAK_ORIGINE=https://notak.example.com`. Optional settings:
+
+| Variable | Effect |
+|---|---|
+| `NOTAK_SECRET` | Signs session cookies. Without it, one is drawn on first start and kept in `/donnees/secret`. Changing it signs everyone out. |
+| `NOTAK_GOOGLE_ID`, `NOTAK_GOOGLE_SECRET` | Adds "Continue with Google". Same pattern for `MICROSOFT` and `GITHUB`. The callback is `<NOTAK_ORIGINE>/api/auth/callback/<provider>`. |
+| `NOTAK_IDP_INTERNES` | Comma-separated origins of identity providers on your private network (e.g. `http://keycloak.lan`) that a team space may declare for SSO. Public providers (Okta, Entra ID, Google Workspace) need nothing. |
+| `NOTAK_SMTP_URL`, `NOTAK_EXPEDITEUR` | Sends password-reset and verification emails (`smtps://user:password@host:465`). Without it, the links go to the server log for the administrator to pass on. |
+
+Before upgrading, the server copies the database to `notak.db.avant-<version>` in `/donnees`, then migrates it.
 
 The "Image" panel's photo library queries Pexels: pass a free key with `-e PEXELS_API_KEY=…`. Without it, the panel
 only offers uploading your own files.

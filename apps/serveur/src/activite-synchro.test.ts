@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ouvrirBase } from './base.ts'
-import { poser } from './essai.ts'
+import { authEssai, autorisationEssai, poser, poserUtilisateur } from './essai.ts'
 import { creerHocuspocus, nomDuDocument } from './synchro.ts'
 
 // Deux personnes sur un tableau partagé : ce que l'une écrit par la synchro laisse son activité et prévient l'autre.
@@ -9,12 +9,12 @@ function monde() {
   const base = ouvrirBase(':memory:')
   let instant = 1_000_000
   for (const [id, nom] of [['ana', 'Ana Martin'], ['bob', 'Bob Éclair']] as const) {
-    base.creerUtilisateur({ id, email: `${id}@exemple.fr`, nom, hash: 'x', couleur: '#336699', racine: `racine-${id}` })
+    poserUtilisateur(base, { id, email: `${id}@exemple.fr`, nom, couleur: '#336699', racine: `racine-${id}` })
   }
   base.creerTableau({ id: 'tableau-act-1', titre: 'Voyage', proprietaire: 'ana', parent: null })
   base.definirAcces({ tableau: 'tableau-act-1', utilisateur: 'ana', role: 'proprietaire' })
   base.definirAcces({ tableau: 'tableau-act-1', utilisateur: 'bob', role: 'edition' })
-  const serveur = creerHocuspocus(base, () => (instant += 1000))
+  const serveur = creerHocuspocus(base, authEssai(base), autorisationEssai(base), () => (instant += 1000))
   const ouvrir = (id: string) =>
     serveur.openDirectConnection(nomDuDocument('tableau-act-1'), { utilisateur: { id, nom: id, couleur: '#336699' } })
   return { base, serveur, ouvrir }

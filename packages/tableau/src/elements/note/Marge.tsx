@@ -133,7 +133,14 @@ export function Marge({ editeur, fils, ouvert, surOuvert, ecrire, contexte, enPa
   const mesurerRef = useRef(() => {})
 
   const mesurer = useCallback(() => {
-    const carte = editeur.view.dom.closest<HTMLElement>('.notak-carte, [data-marge-ancre]')
+    // Un éditeur défait (la carte a quitté la toile pendant l'attente) n'a plus rien à mesurer.
+    if (editeur.isDestroyed) return
+    // Tiptap lève une erreur tant que la vue n'est pas montée : c'est le cas « pas encore accroché » ci-dessous.
+    let dom: HTMLElement | null = null
+    try {
+      dom = editeur.view.dom
+    } catch {}
+    const carte = dom?.closest<HTMLElement>('.notak-carte, [data-marge-ancre]')
     if (!carte) {
       // L'éditeur n'est pas encore accroché à sa carte (premier rendu) : on réessaie un peu plus tard.
       if (attente.current < 60) {

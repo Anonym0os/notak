@@ -2,7 +2,7 @@ import * as Y from 'yjs'
 import type { Base, GenreActivite, LigneActivite, NouvelleNotification } from './base.ts'
 import { type ElementLu, texteCherchable } from './contenu.ts'
 import { NOM_ARBRES, decouper } from '../../../packages/tableau/src/coeur/arbresYjs.ts'
-import { type Role, roleHerite } from './droits.ts'
+import { type Role, meilleurRole } from './droits.ts'
 
 // Ce que le serveur déduit des mises à jour Yjs qu'il reçoit : qui a créé, modifié, déplacé ou jeté quoi.
 // Il n'a pas le geste, seulement l'état d'avant et d'après d'un élément : il les compare.
@@ -189,17 +189,17 @@ export function sansDoublons(changements: readonly Changement[]): Changement[] {
 
 // ---- Qui est concerné ----
 
-/** Ceux qui ont accès à ce tableau, par accès direct ou hérité, avec leur rôle. */
+/**
+ * Ceux à qui ce tableau est partagé, à lui ou à un tableau au-dessus, avec le meilleur rôle donné : ceux qu'une
+ * activité peut concerner. Les droits eux-mêmes (blocages, rôles d'espace) sont à OpenFGA ; ici, on ne fait que
+ * choisir à qui écrire.
+ */
 export function membresDe(base: Base, tableau: string): Map<string, Role> {
   const lignee: string[] = []
   for (let t: string | null = tableau; t !== null && !lignee.includes(t); t = base.tableau(t)?.parent ?? null) lignee.push(t)
   const membres = new Map<string, Role>()
   for (const t of lignee) {
-    for (const a of base.acces(t)) {
-      if (membres.has(a.utilisateur)) continue
-      const r = roleHerite((x) => base.acces(x), (x) => base.tableau(x)?.parent ?? null, a.utilisateur, tableau)
-      if (r) membres.set(a.utilisateur, r)
-    }
+    for (const a of base.acces(t)) membres.set(a.utilisateur, meilleurRole(membres.get(a.utilisateur) ?? null, a.role)!)
   }
   return membres
 }
@@ -270,6 +270,8 @@ export interface SuiviActivite {
   suivre(doc: Y.Doc): void
   /** À appeler à chaque mise à jour reçue ; `acteur` : qui l'a envoyée (absent : le serveur, on ne note rien). */
   noter(tableau: string | null, doc: Y.Doc, acteur: Acteur | undefined): void
+  /** Oublie ce qui a été observé et pas encore noté : un geste refusé puis annulé ne laisse pas d'activité. */
+  oublier(doc: Y.Doc): void
 }
 
 export function suivreActivite(base: Base, maintenant: () => number): SuiviActivite {
@@ -277,6 +279,9 @@ export function suivreActivite(base: Base, maintenant: () => number): SuiviActiv
   return {
     suivre(doc) {
       if (!observes.has(doc)) observes.set(doc, observer(doc))
+    },
+    oublier(doc) {
+      observes.get(doc)?.ramasser()
     },
     noter(tableau, doc, acteur) {
       const pris = observes.get(doc)?.ramasser() ?? []

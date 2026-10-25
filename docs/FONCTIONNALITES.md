@@ -356,7 +356,12 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
 | Fonctionnalité | État | Reste |
 |---|---|---|
-| Comptes, connexion | ✅ | |
+| Comptes, connexion | ✅ | Par Better Auth : mot de passe (les empreintes Argon2 d'avant sont reprises telles quelles), Google, Microsoft et GitHub quand le serveur les a configurés, mot de passe oublié (par courriel, ou par le journal du serveur sans SMTP). |
+| Espaces d'équipe : membres, invitations, équipes, rôles sur mesure | ✅ | Page `/espace`. Chaque compte a son espace personnel ; un espace d'équipe a son accueil, et ses membres en voient les tableaux selon leur rôle (propriétaire, admin, membre, invité, ou un rôle composé de gestes). |
+| SSO d'entreprise (OIDC, SAML) | ✅ | Déclaré par un admin d'espace d'équipe, actif une fois le domaine prouvé par un enregistrement DNS ; qui arrive par lui entre dans l'espace comme membre. |
+| Droits fins : commentaire, partage à une équipe, blocage levé plus bas, lien public à niveau | ✅ | Évalués par OpenFGA (`apps/serveur/autorisation/modele.fga`). Le lien public en commentaire ou en édition est accepté par la synchro ; la page publique, elle, reste en lecture. |
+| Droits par élément | ✅ | Le propriétaire fige un élément pour tous et le rend à quelques-uns (écrire ou commenter), depuis son menu. La synchro contrôle chaque mise à jour : un geste non permis est annulé par le serveur, chez tout le monde. Un élément ne se cache pas. |
+| Commentateurs | ✅ | Ils posent des fils (menu de la toile vide), y répondent et réagissent ; le reste du tableau leur est en lecture. |
 | Partager un tableau par adresse, invitation en attente | ✅ | |
 | Rôles lecture, édition, propriétaire ; changés en direct | ✅ | |
 | Partage hérité par les sous-tableaux | ✅ | |

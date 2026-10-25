@@ -8,9 +8,11 @@ import { afterEach, describe, expect, it } from 'vitest'
 import * as Y from 'yjs'
 import { ouvrirBase } from './base.ts'
 import { type Cle, ErreurChiffrement, estChiffre } from './chiffrement.ts'
-import { monde, texte } from './essai.ts'
+import { authEssai, autorisationEssai, monde, openfgaEssai, poserUtilisateur, texte } from './essai.ts'
 import { demarrer } from './serveur.ts'
 import { creerHocuspocus, nomDuDocument } from './synchro.ts'
+
+const SECRET = 'un-secret-d-essai-assez-long-pour-better-auth'
 
 // Un serveur qui a reçu une clé : ce qu'on écrit par la synchro et ce qu'on dépose n'est plus lisible sur le disque,
 // et tout se relit comme avant par l'API.
@@ -33,9 +35,9 @@ describe('le serveur chiffré au repos', () => {
     const cle = nouvelleCle()
     const chemin = join(dossierNeuf(), 'notak.db')
     const base = ouvrirBase(chemin, cle)
-    base.creerUtilisateur({ id: 'u1', email: 'a@exemple.fr', nom: 'Ana', hash: 'x', couleur: '#000000', racine: 'racine-1' })
+    poserUtilisateur(base, { id: 'u1', email: 'a@exemple.fr', nom: 'Ana', couleur: '#000000', racine: 'racine-1' })
     base.creerTableau({ id: 'tableau-chiffre-1', titre: '', proprietaire: 'u1', parent: null })
-    const synchro = creerHocuspocus(base)
+    const synchro = creerHocuspocus(base, authEssai(base), autorisationEssai(base))
 
     const connexion = await synchro.openDirectConnection(nomDuDocument('tableau-chiffre-1'))
     await connexion.transact((doc) => {
@@ -53,7 +55,7 @@ describe('le serveur chiffré au repos', () => {
     // La recherche, elle, continue de trouver la note : l'index reste en clair, c'est le prix de la recherche.
     expect(base.chercher('"pamplemousses"*', ['tableau-chiffre-1'], 5)).toMatchObject([{ element: 'e1' }])
     // Une seconde synchro relit le document déchiffré.
-    const relu = creerHocuspocus(base)
+    const relu = creerHocuspocus(base, authEssai(base), autorisationEssai(base))
     const lecture = await relu.openDirectConnection(nomDuDocument('tableau-chiffre-1'))
     let note: unknown
     await lecture.transact((doc) => void (note = doc.getMap('elements').get('e1')))
@@ -105,15 +107,15 @@ describe('le serveur chiffré au repos', () => {
   it('redémarré avec une clé fausse, le serveur refuse de démarrer', async () => {
     const dossier = dossierNeuf()
     const cle = nouvelleCle()
-    const premier = await demarrer({ port: 0, dossier, cle })
+    const premier = await demarrer({ port: 0, dossier, cle, secret: SECRET, openfga: openfgaEssai() })
     await premier.fermer()
     const base = ouvrirBase(join(dossier, 'notak.db'), cle)
     base.enregistrerDocument('tableau:a', Y.encodeStateAsUpdate(new Y.Doc()))
     base.fermer()
 
-    await expect(demarrer({ port: 0, dossier, cle: nouvelleCle() })).rejects.toThrow(ErreurChiffrement)
-    await expect(demarrer({ port: 0, dossier })).rejects.toThrow(ErreurChiffrement)
-    const encore = await demarrer({ port: 0, dossier, cle })
+    await expect(demarrer({ port: 0, dossier, cle: nouvelleCle(), secret: SECRET, openfga: openfgaEssai() })).rejects.toThrow(ErreurChiffrement)
+    await expect(demarrer({ port: 0, dossier, secret: SECRET, openfga: openfgaEssai() })).rejects.toThrow(ErreurChiffrement)
+    const encore = await demarrer({ port: 0, dossier, cle, secret: SECRET, openfga: openfgaEssai() })
     await encore.fermer()
   })
 })

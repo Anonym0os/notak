@@ -1,0 +1,120 @@
+# Les essais du modèle, lancés par la CLI d'OpenFGA (`modele.test.ts` les lance par Docker) :
+#   docker run --rm -v "$PWD":/m openfga/cli:v0.8.1 model test --tests /m/modele.fga.yaml
+name: Droits de Notak
+model_file: ./modele.fga
+
+tuples:
+  # L'espace « atelier » : Ana le possède, Bob y est membre, Cléo invitée, Dan a un rôle « lecteur » composé.
+  - { user: user:ana, relation: assignee, object: role:atelier/owner }
+  - { user: user:bob, relation: assignee, object: role:atelier/member }
+  - { user: user:cleo, relation: assignee, object: role:atelier/guest }
+  - { user: user:dan, relation: assignee, object: role:atelier/lecteur }
+  - { user: role:atelier/owner#assignee, relation: administre_tableaux, object: espace:atelier }
+  - { user: role:atelier/owner#assignee, relation: cree_tableaux, object: espace:atelier }
+  - { user: role:atelier/member#assignee, relation: modifie_tableaux, object: espace:atelier }
+  - { user: role:atelier/member#assignee, relation: cree_tableaux, object: espace:atelier }
+  - { user: role:atelier/lecteur#assignee, relation: lit_tableaux, object: espace:atelier }
+
+  # L'accueil de l'atelier, un tableau dessous qui en hérite, et un troisième dessous.
+  - { user: espace:atelier, relation: espace, object: tableau:accueil }
+  - { user: espace:atelier, relation: espace, object: tableau:plans }
+  - { user: tableau:accueil, relation: parent, object: tableau:plans }
+  - { user: espace:atelier, relation: espace, object: tableau:details }
+  - { user: tableau:plans, relation: parent, object: tableau:details }
+
+  # Cléo, invitée, ne voit que ce qu'on lui partage ; l'équipe « graphisme » reçoit les plans en commentaire.
+  - { user: user:cleo, relation: lecteur, object: tableau:plans }
+  - { user: user:eve, relation: membre, object: equipe:graphisme }
+  - { user: equipe:graphisme#membre, relation: commentateur, object: tableau:plans }
+
+  # Le lien public des plans, en lecture.
+  - { user: lien:jeton1, relation: lecteur, object: tableau:plans }
+
+  # Les plans sont bloqués pour tout le monde ; les détails, plus bas, lèvent le blocage pour Bob.
+  - { user: "user:*", relation: bloque, object: tableau:plans }
+  - { user: "lien:*", relation: bloque, object: tableau:plans }
+  - { user: user:bob, relation: debloque, object: tableau:details }
+
+  # Un tableau à part, d'un espace personnel, partagé à Bob en édition ; une carte y est figée sauf pour Eve.
+  - { user: user:fred, relation: proprietaire, object: tableau:perso }
+  - { user: user:bob, relation: editeur, object: tableau:perso }
+  - { user: user:eve, relation: lecteur, object: tableau:perso }
+  - { user: tableau:perso, relation: tableau, object: element:carte }
+  - { user: "user:*", relation: bloque, object: element:carte }
+  - { user: user:eve, relation: editeur, object: element:carte }
+  - { user: tableau:perso, relation: tableau, object: element:libre }
+
+tests:
+  - name: Les rôles d'un espace valent sur ses tableaux
+    check:
+      - user: user:ana
+        object: tableau:accueil
+        assertions: { peut_posseder: true, peut_ecrire: true, peut_lire: true }
+      - user: user:bob
+        object: tableau:accueil
+        assertions: { peut_posseder: false, peut_ecrire: true, peut_lire: true }
+      - user: user:dan
+        object: tableau:accueil
+        assertions: { peut_ecrire: false, peut_commenter: false, peut_lire: true }
+      - user: user:cleo
+        object: tableau:accueil
+        assertions: { peut_lire: false }
+      - user: user:bob
+        object: espace:atelier
+        assertions: { peut_creer: true }
+      - user: user:cleo
+        object: espace:atelier
+        assertions: { peut_creer: false }
+
+  - name: Un partage vaut pour le tableau et ce qu'il contient
+    check:
+      - user: user:cleo
+        object: tableau:details
+        assertions: { peut_lire: false }
+      - user: lien:jeton1
+        object: tableau:plans
+        assertions: { peut_lire: false, peut_ecrire: false }
+
+  - name: Un blocage tient sous lui, se lève plus bas, et n'arrête pas le propriétaire
+    check:
+      - user: user:bob
+        object: tableau:plans
+        assertions: { peut_ecrire: false, peut_lire: false }
+      - user: user:bob
+        object: tableau:details
+        assertions: { peut_ecrire: true, peut_lire: true }
+      - user: user:dan
+        object: tableau:details
+        assertions: { peut_lire: false }
+      - user: user:ana
+        object: tableau:plans
+        assertions: { peut_posseder: true, peut_ecrire: true }
+      - user: user:eve
+        object: tableau:plans
+        assertions: { peut_commenter: false }
+
+  - name: Une équipe reçoit ce qu'on lui partage
+    check:
+      - user: user:eve
+        object: tableau:perso
+        assertions: { peut_lire: true, peut_ecrire: false }
+
+  - name: Un élément figé n'est plus écrit que par ceux qu'on a nommés, et reste lisible
+    check:
+      - user: user:bob
+        object: element:carte
+        assertions: { peut_ecrire: false, peut_commenter: false, peut_lire: true }
+      - user: user:eve
+        object: element:carte
+        assertions: { peut_ecrire: true }
+      - user: user:fred
+        object: element:carte
+        assertions: { peut_ecrire: true }
+      - user: user:bob
+        object: element:libre
+        assertions: { peut_ecrire: true }
+    list_objects:
+      - user: user:bob
+        type: tableau
+        assertions:
+          peut_ecrire: [tableau:accueil, tableau:details, tableau:perso]

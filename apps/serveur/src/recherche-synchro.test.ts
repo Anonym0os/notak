@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { ouvrirBase } from './base.ts'
+import { authEssai, autorisationEssai, poserUtilisateur } from './essai.ts'
 import { creerHocuspocus, nomDuDocument } from './synchro.ts'
 
 describe('la synchro tient l’index à jour', () => {
   it('ce qu’on écrit dans un tableau se cherche dès qu’il est enregistré', async () => {
     const base = ouvrirBase(':memory:')
-    base.creerUtilisateur({ id: 'u1', email: 'a@exemple.fr', nom: 'Ana', hash: 'x', couleur: '#000000', racine: 'racine-1' })
+    poserUtilisateur(base, { id: 'u1', email: 'a@exemple.fr', nom: 'Ana', couleur: '#000000', racine: 'racine-1' })
     base.creerTableau({ id: 'tableau-sync-1', titre: '', proprietaire: 'u1', parent: null })
-    const serveur = creerHocuspocus(base)
+    const serveur = creerHocuspocus(base, authEssai(base), autorisationEssai(base))
 
     const connexion = await serveur.openDirectConnection(nomDuDocument('tableau-sync-1'))
     await connexion.transact((doc) => {

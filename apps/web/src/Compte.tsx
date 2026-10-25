@@ -70,6 +70,10 @@ export function Compte({ moi, deconnexion, ouvrir, aide }: { moi: Moi; deconnexi
             <Icone nom="aide" taille={16} />
             <span>{t('compte.aide')} <small>· {t('compte.raccourcis')}</small></span>
           </button>
+          <a role="menuitem" className="compte-ligne" href="/espace">
+            <Icone nom="equipe" taille={16} />
+            <span>{t('compte.espaces')} <small>· {t('compte.espaces.detail')}</small></span>
+          </a>
           <a role="menuitem" className="compte-ligne" href="/envoyer">
             <Icone nom="envoyer" taille={16} />
             <span>{t('compte.envoyer')} <small>· {t('compte.envoyer.detail')}</small></span>

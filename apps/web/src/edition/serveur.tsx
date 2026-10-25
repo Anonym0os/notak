@@ -10,14 +10,16 @@ import {
 } from '@notak/tableau'
 import { StrictMode, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
-import { type Instance, type Moi, lireInstance, moi as lireMoi, rechercherPartout, reglerCompte, seDeconnecter } from '../api'
+import { type Instance, type Moi, accepterInvitation, lireInstance, moi as lireMoi, rechercherPartout, reglerCompte, seDeconnecter } from '../api'
 import { importDejaPropose, lireAncienEspace, noterImportPropose } from '../ancien'
 import { PagePartage, PageRapide } from '../Arrivees'
 import { PageEnvoyer } from '../Envoyer'
+import { PageEspaces } from '../Espaces'
 import { Activite } from '../Activite'
 import { Cloche } from '../Cloche'
 import { Compte } from '../Compte'
 import { EcranConnexion } from '../connexion'
+import { DroitsElement } from '../DroitsElement'
 import { Export } from '../Export'
 import { DialogueExport } from '../DialogueExport'
 import { Favori } from '../Favori'
@@ -115,6 +117,18 @@ function Application() {
     )
   }, [])
   useEffect(charger, [charger])
+  // Une invitation dans un espace d'équipe (le lien du courriel) s'accepte une fois connecté, puis mène à l'espace.
+  useEffect(() => {
+    const invitation = new URLSearchParams(location.search).get('invitation')
+    if (etat.type !== 'connecte' || !invitation) return
+    accepterInvitation(invitation).then(
+      (espace) => location.replace(`/espace?espace=${encodeURIComponent(espace)}`),
+      (x: Error) => {
+        history.replaceState(null, '', location.pathname)
+        alert(x.message)
+      },
+    )
+  }, [etat.type])
   // L'espace se ferme une fois l'écran rendu : fermé avant, un dernier rendu le rouvrirait.
   useEffect(() => {
     if (etat.type === 'anonyme') fermerEspace()
@@ -139,6 +153,7 @@ function Application() {
   if (location.pathname === '/rapide') return <PageRapide espace={espacePour(etat.moi)} fichiers={fichiers} />
   if (location.pathname === '/partage') return <PagePartage espace={espacePour(etat.moi)} fichiers={fichiers} />
   if (location.pathname === '/envoyer') return <PageEnvoyer />
+  if (location.pathname === '/espace') return <PageEspaces />
   return (
     <Espace
       moi={etat.moi}
@@ -174,13 +189,17 @@ function Espace({ moi, instance, changerMoi, deconnexion }: { moi: Moi; instance
   useEffect(() => {
     espace.changerUtilisateur({ id: moi.id, nom: moi.nom, couleur: moi.couleur, ...(moi.photo ? { photo: moi.photo } : {}) })
   }, [espace, moi])
+  // Les droits d'un élément, réglés par le propriétaire du tableau depuis le menu de la toile.
+  const [droitsElement, setDroitsElement] = useState<{ tableau: string; element: string } | null>(null)
+  const servicesIci = useMemo(() => ({ ...services, reglerDroitsElementDe: (tableau: string, element: string) => setDroitsElement({ tableau, element }) }), [])
   return (
     <>
+      {droitsElement && <DroitsElement {...droitsElement} fermer={() => setDroitsElement(null)} />}
       <EspaceNotak
         compte={compte}
         habillages={habillages}
         espace={espace}
-        services={services}
+        services={servicesIci}
         adresse={adresse}
         actions={(courant, ouvrir) => (
           <>

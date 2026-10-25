@@ -1,12 +1,18 @@
 # Un serveur Notak à soi (docs/AUTO-HEBERGER.md). Derrière un relais HTTPS : Caddy, Traefik, Coolify…
+#
+# Deux services : Notak, et OpenFGA qui évalue ses droits. OpenFGA ne tient qu'une copie : la vérité est dans la base
+# de Notak, et un magasin OpenFGA perdu se refait au démarrage. Son stockage SQLite évite seulement de tout renvoyer.
 services:
   notak:
     build: .
     restart: unless-stopped
     ports:
-      - '3005:3005'
+      - '${NOTAK_PORT:-3005}:3005'
     environment:
       NOTAK_NOM: Notak
+      # L'adresse publique du serveur : celle des liens envoyés et des retours de connexion (Google, SSO…).
+      NOTAK_ORIGINE: ${NOTAK_ORIGINE:-http://localhost:3005}
+      NOTAK_OPENFGA_URL: http://openfga:8080
       # `fermees` : plus d'inscription libre, les comptes se créent avec `node apps/serveur/src/compte.ts`.
       NOTAK_INSCRIPTIONS: ouvertes
       # Les thèmes sont lus dans /donnees/habillages ; l'un peut être proposé, ou imposé à tous.
@@ -14,9 +20,32 @@ services:
       # NOTAK_HABILLAGE: silak
       # Le chiffrement au repos : une clé de 32 octets en base64 (openssl rand -base64 32). La perdre, c'est perdre les données.
       # NOTAK_CLE: …
+      # Connexion par un fournisseur, et courriels (réinitialisation, invitations) : voir docs/AUTO-HEBERGER.md.
+      # NOTAK_GOOGLE_ID: …
+      # NOTAK_GOOGLE_SECRET: …
+      # NOTAK_SMTP_URL: smtps://compte:motdepasse@smtp.exemple.fr:465
       # PEXELS_API_KEY: …
     volumes:
       - notak-donnees:/donnees
+    depends_on:
+      - openfga
+
+  openfga-migration:
+    image: openfga/openfga:v1.22.0
+    command: migrate --datastore-engine sqlite --datastore-uri file:/home/nonroot/openfga.db
+    volumes:
+      - openfga:/home/nonroot
+
+  openfga:
+    image: openfga/openfga:v1.22.0
+    restart: unless-stopped
+    command: run --datastore-engine sqlite --datastore-uri file:/home/nonroot/openfga.db --playground-enabled=false
+    volumes:
+      - openfga:/home/nonroot
+    depends_on:
+      openfga-migration:
+        condition: service_completed_successfully
 
 volumes:
   notak-donnees:
+  openfga:

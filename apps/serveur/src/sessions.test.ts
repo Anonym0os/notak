@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cookieSession, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
+import { cookieAccesPublic, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
 
 describe('lireCookie', () => {
   it('trouve le cookie parmi d’autres', () => {
@@ -25,13 +25,12 @@ describe('jetons', () => {
     expect(a.empreinte).toBe(empreinteDe(a.jeton))
     expect(a.empreinte).not.toContain(a.jeton)
   })
-  it('le cookie est HttpOnly, Lax, valable 30 jours', () => {
-    const c = cookieSession('xyz', false)
+  it('le cookie d’un lien public protégé est HttpOnly, Lax, et limité aux adresses de ce lien', () => {
+    const c = cookieAccesPublic('notak_public', 'lien123', 'xyz', 86400, false)
     expect(c).toContain('HttpOnly')
     expect(c).toContain('SameSite=Lax')
-    expect(c).toContain('Path=/')
-    expect(c).toContain('Max-Age=2592000')
+    expect(c).toContain('Path=/api/public/lien123')
     expect(c).not.toContain('Secure')
-    expect(cookieSession('xyz', true)).toContain('Secure')
+    expect(cookieAccesPublic('notak_public', 'lien123', 'xyz', 86400, true)).toContain('Secure')
   })
 })

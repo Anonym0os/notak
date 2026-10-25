@@ -81,6 +81,29 @@ body {
   font-size: 13px;
 }
 
+.connexion-avis,
+.connexion-aide {
+  margin: 0;
+  color: #5b616a;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.connexion-fournisseurs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.connexion-fournisseurs .bouton {
+  height: 36px;
+}
+
+.connexion-ou {
+  color: #5b616a;
+  font-size: 12px;
+}
+
 /* À la place du lien « Créer un compte », quand le serveur n'en accepte pas. */
 .connexion-note {
   margin: 0;
@@ -211,7 +234,13 @@ body {
 
 .partage-form {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
+}
+
+/* Le choix entre une adresse et une équipe prend sa propre ligne, au-dessus. */
+.partage-form .partage-cible {
+  flex: 1 1 100%;
 }
 
 .partage-form input {
@@ -1493,4 +1522,119 @@ body {
 
 .notak-espace[data-theme='sombre'] :is(.rangement-pastille[data-alerte], .rangement-attention) {
   color: #f59e0b;
+}
+
+/* La page des espaces d'équipe : les cartes de la page « Envoyer », des listes de cases et des menus de rôle. */
+.espaces-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.espaces-actions a.bouton {
+  text-decoration: none;
+}
+
+.espaces-actions select,
+.envoyer-form select {
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid rgb(0 0 0 / 0.15);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--texte);
+  font: inherit;
+  font-size: 13px;
+}
+
+.envoyer-form select {
+  height: 40px;
+}
+
+.espaces-equipe {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+  border-top: 1px solid #eef0f3;
+}
+
+.espaces-equipe-tete {
+  display: flex;
+  justify-content: space-between;
+}
+
+.espaces-coches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 13px;
+}
+
+.espaces-coches legend {
+  margin-bottom: 4px;
+  color: #5b616a;
+  font-size: 12px;
+}
+
+.espaces-coches label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.espaces-role {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.espaces-champ {
+  box-sizing: border-box;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid rgb(0 0 0 / 0.15);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--texte);
+  font: inherit;
+  font-size: 14px;
+}
+
+.espaces-sso .envoyer-qui code {
+  font-size: 12px;
+}
+
+/* Le niveau du lien public, sous son adresse. */
+.partage-niveau {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Les droits d'un élément : une carte au-dessus de la toile, sur un voile. */
+.droits-element-fond {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 0.25);
+}
+
+.droits-element h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.droits-element > .bouton {
+  align-self: flex-start;
 }

@@ -11,6 +11,7 @@ import { ouvrirFil, useFilOuvert } from '../decor/etat'
 import { CorpsFil } from './Corps'
 import type { PoigneeCompositeur } from './Compositeur'
 import { EpingleLibre } from './Epingle'
+import { peutCommenter } from '../../coeur/droitsElements'
 
 export { Avatar, Ligne } from './Corps'
 
@@ -35,7 +36,7 @@ function FilLu({ element, choisie, contexte, changer }: { element: PropsRendu<Co
   const c = element.contenu
   const n = c.messages.length
   const { montres, caches } = choisie ? { montres: c.messages, caches: 0 } : replier(c.messages)
-  const ecrire = !contexte.services.lectureSeule
+  const ecrire = peutCommenter(contexte.services, element.id)
   return (
     <div className="notak-commentaire" {...bande(c)}>
       <CorpsFil

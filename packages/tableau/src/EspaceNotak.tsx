@@ -199,6 +199,7 @@ export function EspaceNotak({
   const [parcours, setParcours] = useState(() => parcoursDepart(racine))
   const courant = courantDe(parcours)
   const lectureSeule = useSyncExternalStore(espace.ecouter, () => espace.lectureSeule?.(courant) ?? false)
+  const droits = useSyncExternalStore(espace.ecouter, () => espace.droits?.(courant) ?? null)
   const [reglages, changerReglages] = useReglages()
   // Le thème qui s'applique : « Système » suit macOS en direct.
   const theme = themeEffectif(reglages.theme, useSystemeSombre())
@@ -293,7 +294,11 @@ export function EspaceNotak({
         }
       },
       presence: espace.presence?.(courant),
-      lectureSeule: lectureSeule || hote.lectureSeule || presentation,
+      // Un commentateur regarde le tableau sans le modifier ; ses fils, eux, s'écrivent (voir `peutCommenter`).
+      lectureSeule: lectureSeule || hote.lectureSeule || presentation || droits?.role === 'commentaire',
+      droits: droits ?? undefined,
+      reglerDroitsElement:
+        droits?.role === 'proprietaire' && hote.reglerDroitsElementDe && !presentation ? (id: Id) => hote.reglerDroitsElementDe!(courant, id) : undefined,
       presentation,
       doubleClicCreeNote: reglages.doubleClic,
       barreAGauche: reglages.barre === 'gauche',
@@ -334,7 +339,7 @@ export function EspaceNotak({
         return neufs
       },
     }),
-    [hote, espace, ouvrir, courant, lectureSeule, reglages.doubleClic, reglages.barre, presentation, pleinEcran, elementAdresse],
+    [hote, espace, ouvrir, courant, lectureSeule, droits, reglages.doubleClic, reglages.barre, presentation, pleinEcran, elementAdresse],
   )
 
   // L'adresse suit le tableau ouvert ; une adresse qu'on suit (retour du navigateur) ne se réécrit pas.

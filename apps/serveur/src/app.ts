@@ -14,16 +14,19 @@ import { regrouper } from './activite.ts'
 import { type ElementArrive, elementImage, elementsDeTexte, poserDansNonTries } from './arrivee.ts'
 import { ErreurApercu, apercuDePage, rapatrierImage } from './apercu.ts'
 import { type Base, DUREE_ACCES_PUBLIC_MS, type Fichier, type Utilisateur } from './base.ts'
+import { type Auth, CHEMIN_AUTH, type Fournisseur, utilisateurDeSession } from './auth.ts'
+import { type Autorisation, objetElement } from './autorisation.ts'
+import { normaliserEmail } from './comptes.ts'
 import { type Cle, duDisque, pourLeDisque } from './chiffrement.ts'
-import { ErreurCompte, inscrire, normaliserEmail } from './comptes.ts'
 import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from './contenu.ts'
 import type { Limiteur } from './debit.ts'
-import { type Role, auMoins, role, roleHerite } from './droits.ts'
+import { type Role, auMoins, role, roleDeRelation } from './droits.ts'
+import { decouvrirOidc } from './sso.ts'
 import { estFormatExport, exporterTexte, langueExport } from './exporter.ts'
 import { ErreurBanque, chercherImages } from './images.ts'
 import { indexerDocument, requeteIndex } from './indexation.ts'
 import { hacher, verifier } from './motsDePasse.ts'
-import { DUREE_SESSION_S, NOM_COOKIE, cookieAccesPublic, cookieEfface, cookieSession, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
+import { cookieAccesPublic, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
 import { TYPE_NOTAK, ecrireCopie } from './copie.ts'
 import { nomDuDocument } from './synchro.ts'
 import { largeurDemandee, nomReduit, reduire, reductible } from './tailles.ts'
@@ -33,6 +36,13 @@ import { creerZip, nommerLesMedias } from './zip.ts'
 
 export interface Contexte {
   base: Base
+  auth: Auth
+  /** Les droits, évalués par OpenFGA. */
+  autorisation: Autorisation
+  /** Ce que l'écran de connexion propose, au-delà du mot de passe. */
+  moyens: MoyensConnexion
+  /** Les origines de fournisseurs d'identité sur le réseau interne, que la découverte OIDC peut joindre. */
+  idpInternes?: readonly string[]
   dossierFichiers: string
   limiteur: Limiteur
   /** Pour `POST /api/arrivee`, appelée à la chaîne par des raccourcis : à défaut, le limiteur commun. */
@@ -49,6 +59,12 @@ export interface Contexte {
   instance?: Instance
   /** La clé du chiffrement au repos : les fichiers déposés et leurs copies réduites sont écrits chiffrés. */
   cle?: Cle | null
+}
+
+export interface MoyensConnexion {
+  fournisseurs: Fournisseur[]
+  /** Les courriels partent (réinitialisation du mot de passe, vérification d'adresse). */
+  courriel: boolean
 }
 
 export const FICHIER_MAX = 25 * 1024 * 1024
@@ -74,13 +90,6 @@ const ARRIVEE_TEXTE_MAX = 256 * 1024
 const ARRIVEE_CHAMP_MAX = 20_000
 /** Les formats qu'une arrivée accepte en image, par leur nom chez `sharp`. Un HEIC d'iPhone n'y est pas. */
 const FORMATS_ARRIVEE: Record<string, string> = { png: 'image/png', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif' }
-/** Le code stable que l'API rend pour chaque refus d'une inscription (le message de l'erreur, lui, reste du texte lisible). */
-const CODES_COMPTE: Record<string, string> = {
-  adresse: 'adresse_invalide',
-  nom: 'nom_invalide',
-  'mot de passe': 'mot_de_passe_invalide',
-  'adresse prise': 'adresse_prise',
-}
 /** Ce qui ouvre un jeton d'arrivée : de quoi le reconnaître dans un presse-papiers ou un dépôt. */
 const PREFIXE_JETON = 'nk_'
 const JETON_PUBLIC = /^[A-Za-z0-9_-]{16,64}$/
@@ -123,10 +132,7 @@ export function creerApp(ctx: Contexte): Hono {
   const cle = ctx.cle ?? null
   const app = new Hono()
 
-  const utilisateurCourant = (c: Context): Utilisateur | null => {
-    const jeton = lireCookie(c.req.header('cookie'), NOM_COOKIE)
-    return jeton ? base.utilisateurDeSession(empreinteDe(jeton), ctx.maintenant()) : null
-  }
+  const utilisateurCourant = (c: Context): Promise<Utilisateur | null> => utilisateurDeSession(ctx.auth, base, c.req.raw.headers)
 
   const adresseIp = (c: Context): string => {
     if (ctx.relaisFiable) {
@@ -158,61 +164,98 @@ export function creerApp(ctx: Contexte): Hono {
   }
   const texte = (v: unknown): string => (typeof v === 'string' ? v : '')
 
-  const ouvrirSession = (c: Context, u: Utilisateur) => {
-    const { jeton, empreinte } = nouveauJeton()
-    base.creerSession(empreinte, u.id, ctx.maintenant() + DUREE_SESSION_S * 1000)
-    c.header('set-cookie', cookieSession(jeton, ctx.cookieSecurise))
-  }
+  // ---- Comptes : Better Auth ----
 
-  // Une empreinte réelle, pour que « adresse inconnue » coûte autant de temps que « mauvais mot de passe ».
-  const empreinteLeurre = hacher('leurre')
+  // Les essais de mot de passe et les demandes de courriel se limitent par adresse, comme le reste.
+  const LIMITES_AUTH: Record<string, string> = {
+    '/sign-in/email': 'connexion',
+    '/sign-up/email': 'inscription',
+    '/request-password-reset': 'reinitialisation',
+    '/sign-in/sso': 'connexion',
+  }
+  // Le SSO d'un espace : seul un espace d'équipe en a un, et la découverte OIDC se fait ici, sous la garde réseau
+  // de Notak, plutôt que par Better Auth, qui ne l'accepte que d'origines déclarées d'avance. La demande, complétée
+  // des adresses découvertes, repart ensuite vers Better Auth, qui vérifie le reste (admin de l'espace, domaine).
+  /**
+   * Envoie à OpenFGA les droits qui viennent de changer, et ferme les connexions en direct sur les tableaux des espaces
+   * touchés : chacun y relit son rôle. Un OpenFGA injoignable n'empêche pas de répondre : la boîte garde le reste.
+   */
+  const droitsAJour = async () => {
+    try {
+      for (const espace of await ctx.autorisation.vider()) {
+        for (const t of base.tableauxDeLEspace(espace)) ctx.synchro()?.closeConnections(nomDuDocument(t))
+      }
+    } catch (e) {
+      console.warn(`Notak : envoi des droits à OpenFGA différé (${(e as Error).message})`)
+    }
+  }
 
   const instance = ctx.instance ?? INSTANCE_PAR_DEFAUT
   // Ce que l'écran de connexion lit avant tout compte : il se règle dessus (nom, inscription, thème).
   app.get('/api/instance', (c) => c.json(instance))
 
-  app.post('/api/inscription', async (c) => {
-    if (instance.inscriptions === 'fermees') return c.json({ erreur: 'inscriptions fermées', code: 'inscriptions_fermees' }, 403)
-    const refus = limiter(c, 'inscription')
-    if (refus) return refus
-    const b = await corps(c)
-    if (!b) return c.json({ erreur: 'corps invalide', code: 'corps_invalide' }, 400)
-    try {
-      const u = await inscrire(base, { email: texte(b.email), motDePasse: texte(b.motDePasse), nom: texte(b.nom), langue: langueExport(b.langue) })
-      ouvrirSession(c, u)
-      return c.json(moi(u), 201)
-    } catch (e) {
-      if (e instanceof ErreurCompte) return c.json({ erreur: e.message, code: CODES_COMPTE[e.message] ?? 'compte_invalide' }, e.code === 'existe' ? 409 : 400)
-      throw e
+  const versSso = async (c: Context, b: Record<string, unknown>): Promise<Response> => {
+    const oidc = b.oidcConfig as Record<string, unknown> | undefined
+    if (oidc && !oidc.skipDiscovery) {
+      try {
+        // Une mise à jour sans émetteur garde celui du fournisseur déjà déclaré.
+        const emetteur = texte(b.issuer) || (base.emetteurSso(texte(b.providerId)) ?? '')
+        b.oidcConfig = { ...oidc, ...(await decouvrirOidc(emetteur, ctx.idpInternes ?? [])), skipDiscovery: true }
+      } catch (e) {
+        return c.json({ message: (e as Error).message, code: 'DECOUVERTE_OIDC_IMPOSSIBLE' }, 400)
+      }
     }
-  })
-
-  app.post('/api/connexion', async (c) => {
-    const refus = limiter(c, 'connexion')
+    const entetes = new Headers(c.req.raw.headers)
+    entetes.delete('content-length')
+    const reponse = await ctx.auth.handler(new Request(c.req.raw.url, { method: 'POST', headers: entetes, body: JSON.stringify(b) }))
+    await droitsAJour()
+    return reponse
+  }
+  app.post(`${CHEMIN_AUTH}/sso/register`, async (c) => {
+    const refus = limiter(c, 'sso')
     if (refus) return refus
     const b = await corps(c)
-    const u = b ? base.utilisateurParEmail(normaliserEmail(texte(b.email))) : null
-    const bon = await verifier(u?.hash ?? (await empreinteLeurre), texte(b?.motDePasse))
-    if (!u || !bon) return c.json({ erreur: 'identifiants incorrects', code: 'identifiants_incorrects' }, 401)
-    ouvrirSession(c, u)
-    return c.json(moi(u), 200)
+    const espace = typeof b?.organizationId === 'string' ? base.espace(b.organizationId) : null
+    if (!b || !espace || espace.personnel) return c.json({ message: 'espace d’équipe requis', code: 'ESPACE_EQUIPE_REQUIS' }, 400)
+    return versSso(c, b)
+  })
+  app.post(`${CHEMIN_AUTH}/sso/update-provider`, async (c) => {
+    const refus = limiter(c, 'sso')
+    if (refus) return refus
+    const b = await corps(c)
+    if (!b) return c.json({ message: 'corps invalide', code: 'CORPS_INVALIDE' }, 400)
+    return versSso(c, b)
   })
 
-  app.post('/api/deconnexion', (c) => {
-    const jeton = lireCookie(c.req.header('cookie'), NOM_COOKIE)
-    if (jeton) base.supprimerSession(empreinteDe(jeton))
-    c.header('set-cookie', cookieEfface(ctx.cookieSecurise))
-    return c.body(null, 204)
+  app.on(['GET', 'POST'], `${CHEMIN_AUTH}/*`, async (c) => {
+    const route = LIMITES_AUTH[c.req.path.slice(CHEMIN_AUTH.length)]
+    const refus = c.req.method === 'POST' && route ? limiter(c, route) : null
+    if (refus) return refus
+    const reponse = await ctx.auth.handler(c.req.raw)
+    // Un membre, un rôle ou une équipe a pu changer (une invitation acceptée, un SSO qui fait entrer quelqu'un) :
+    // les droits suivent avant que la réponse parte.
+    await droitsAJour()
+    return reponse
   })
 
-  app.get('/api/moi', (c) => {
-    const u = utilisateurCourant(c)
+  // Les espaces du compte, avec leur accueil et son rôle.
+  app.get('/api/espaces', async (c) => {
+    const u = await utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    return c.json(base.espacesDe(u.id))
+  })
+
+  // Ce que l'écran de connexion peut proposer : les fournisseurs configurés, et si les courriels partent.
+  app.get('/api/connexion/moyens', async (c) => c.json(ctx.moyens))
+
+  app.get('/api/moi', async (c) => {
+    const u = await utilisateurCourant(c)
     return u ? c.json(moi(u)) : c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
   })
 
   // Les réglages du compte : sa couleur (curseur, pastille) et sa photo, un fichier que le compte a déposé.
   app.patch('/api/moi', async (c) => {
-    const u = utilisateurCourant(c)
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const b = await corps(c)
     if (!b) return c.json({ erreur: 'corps invalide', code: 'corps_invalide' }, 400)
@@ -239,15 +282,14 @@ export function creerApp(ctx: Contexte): Hono {
   // ---- Tableaux ----
 
   /** Le rôle hérité : un accès donné sur un tableau vaut pour tout ce qu'il contient. */
-  const roleSur = (utilisateur: string, id: string) =>
-    roleHerite((t) => base.acces(t), (t) => base.tableau(t)?.parent ?? null, utilisateur, id)
+  const roleSur = (utilisateur: string, id: string): Promise<Role | null> => ctx.autorisation.roleSur(`user:${utilisateur}`, id)
   /** Ferme les connexions ouvertes sur un tableau et ses descendants : chacun y relira son rôle. */
   const fermerConnexions = (id: string) => {
     for (const t of [id, ...base.descendants(id)]) ctx.synchro()?.closeConnections(nomDuDocument(t))
   }
 
   app.post('/api/tableaux', async (c) => {
-    const u = utilisateurCourant(c)
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const b = await corps(c)
     const id = texte(b?.id)
@@ -257,42 +299,53 @@ export function creerApp(ctx: Contexte): Hono {
 
     const existant = base.tableau(id)
     if (existant) {
-      if (roleSur(u.id, id) !== 'proprietaire') return c.json({ erreur: 'id pris', code: 'id_pris' }, 409)
+      if ((await roleSur(u.id, id)) !== 'proprietaire') return c.json({ erreur: 'id pris', code: 'id_pris' }, 409)
       return c.json({ id, titre: existant.titre, role: 'proprietaire' }, 201)
     }
-    // Placé sous un parent qu'on peut éditer, le tableau en hérite les accès, présents et à venir.
-    const heritage = parent !== null && auMoins(roleSur(u.id, parent), 'edition')
+    // Placé sous un parent qu'on peut éditer, le tableau en hérite les accès, présents et à venir, et son espace.
+    // Sinon il va dans l'espace demandé, si l'on peut y créer, et à défaut dans son espace personnel.
+    const heritage = parent !== null && auMoins(await roleSur(u.id, parent), 'edition')
+    const demande = typeof b?.espace === 'string' ? b.espace : null
+    if (!heritage && demande && !(await ctx.autorisation.verifier(`user:${u.id}`, 'peut_creer', `espace:${demande}`))) {
+      return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
+    }
+    const espace = heritage ? undefined : (demande ?? base.espacePersonnel(u.id))
     base.transaction(() => {
-      base.creerTableau({ id, titre, proprietaire: u.id, parent: heritage ? parent : null })
+      base.creerTableau({ id, titre, proprietaire: u.id, parent: heritage ? parent : null, espace })
       base.definirAcces({ tableau: id, utilisateur: u.id, role: 'proprietaire' })
     })
+    await droitsAJour()
     return c.json({ id, titre, role: 'proprietaire' }, 201)
   })
 
-  app.get('/api/tableaux', (c) => {
-    const u = utilisateurCourant(c)
+  app.get('/api/tableaux', async (c) => {
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     return c.json(base.tableauxAccessibles(u.id).filter((t) => t.id !== u.racine))
   })
 
   /** Ces tableaux, avec le titre et le rôle de `u` ; ceux qu'il ne peut plus ouvrir et son accueil sont écartés. */
-  const resumes = (u: Utilisateur, ids: readonly string[]) =>
-    ids.flatMap((id) => {
-      const r = roleSur(u.id, id)
-      const t = base.tableau(id)
-      return r && t && id !== u.racine ? [{ id, titre: t.titre, role: r }] : []
-    })
+  const resumes = async (u: Utilisateur, ids: readonly string[]) =>
+    (
+      await Promise.all(
+        ids.map(async (id) => {
+          const r = await roleSur(u.id, id)
+          const t = base.tableau(id)
+          return r && t && id !== u.racine ? [{ id, titre: t.titre, role: r }] : []
+        }),
+      )
+    ).flat()
 
   /**
    * Le tableau, et l'utilisateur s'il atteint au moins `minimum` ; sinon la réponse d'erreur à rendre.
    * Un tableau protégé que ce compte n'a pas ouvert répond 423 (`par` : le tableau dont il faut le mot de passe),
    * sauf pour les routes qui servent justement à l'ouvrir ou à gérer son mot de passe (`horsVerrou`).
    */
-  const garde = (c: Context, minimum: Role, horsVerrou = false): { u: Utilisateur; id: string } | Response => {
-    const u = utilisateurCourant(c)
+  const garde = async (c: Context, minimum: Role, horsVerrou = false): Promise<{ u: Utilisateur; id: string } | Response> => {
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const id = c.req.param('id') ?? ''
-    const droit = roleSur(u.id, id)
+    const droit = await roleSur(u.id, id)
     // Un tableau qu'on ne peut pas voir n'existe pas.
     if (droit === null) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     if (!auMoins(droit, minimum)) return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
@@ -312,15 +365,15 @@ export function creerApp(ctx: Contexte): Hono {
   }
 
   // Où en est ce tableau pour ce compte : protégé lui-même, et barré (par lui ou par un tableau au-dessus).
-  app.get('/api/tableaux/:id/verrou', (c) => {
-    const g = garde(c, 'lecture', true)
+  app.get('/api/tableaux/:id/verrou', async (c) => {
+    const g = await garde(c, 'lecture', true)
     if (g instanceof Response) return g
     const par = verrouPar(base, g.u.id, g.id)
     return c.json({ protege: base.motDePasse(g.id, 'tableau') !== null, verrouille: par !== null, par })
   })
 
   app.put('/api/tableaux/:id/mot-de-passe', async (c) => {
-    const g = garde(c, 'proprietaire', true)
+    const g = await garde(c, 'proprietaire', true)
     if (g instanceof Response) return g
     const m = await motDePasseDemande(c)
     if (m instanceof Response) return m
@@ -335,8 +388,8 @@ export function creerApp(ctx: Contexte): Hono {
     return c.body(null, 204)
   })
 
-  app.delete('/api/tableaux/:id/mot-de-passe', (c) => {
-    const g = garde(c, 'proprietaire', true)
+  app.delete('/api/tableaux/:id/mot-de-passe', async (c) => {
+    const g = await garde(c, 'proprietaire', true)
     if (g instanceof Response) return g
     if (!base.retirerMotDePasse(g.id, 'tableau')) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     return c.body(null, 204)
@@ -346,7 +399,7 @@ export function creerApp(ctx: Contexte): Hono {
   app.post('/api/tableaux/:id/deverrouiller', async (c) => {
     const refus = limiter(c, 'deverrouillage')
     if (refus) return refus
-    const g = garde(c, 'lecture', true)
+    const g = await garde(c, 'lecture', true)
     if (g instanceof Response) return g
     const par = verrouPar(base, g.u.id, g.id)
     if (par === null) return c.json({ verrouille: false, par: null })
@@ -358,8 +411,8 @@ export function creerApp(ctx: Contexte): Hono {
     return c.json({ verrouille: reste !== null, par: reste })
   })
 
-  app.get('/api/tableaux/:id/acces', (c) => {
-    const g = garde(c, 'lecture')
+  app.get('/api/tableaux/:id/acces', async (c) => {
+    const g = await garde(c, 'lecture')
     if (g instanceof Response) return g
     // Les accès du tableau et ceux de ses ancêtres ; `herite` : donné plus haut, il se retire là-haut.
     const chaine: string[] = []
@@ -367,8 +420,19 @@ export function creerApp(ctx: Contexte): Hono {
     const meilleurs = new Map<string, { role: Role; herite: boolean }>()
     for (const t of chaine) {
       for (const a of base.acces(t)) {
-        const r = roleSur(a.utilisateur, g.id)
-        if (r && !meilleurs.has(a.utilisateur)) meilleurs.set(a.utilisateur, { role: r, herite: role(base.acces(g.id), a.utilisateur, g.id) !== r })
+        if (meilleurs.has(a.utilisateur)) continue
+        const r = await roleSur(a.utilisateur, g.id)
+        if (r) meilleurs.set(a.utilisateur, { role: r, herite: role(base.acces(g.id), a.utilisateur, g.id) !== r })
+      }
+    }
+    // Les équipes qui ont reçu le tableau (ou un tableau au-dessus) : leur rôle donné, le plus proche l'emporte.
+    const equipes = new Map<string, { equipe: string; nom: string; role: Role; herite: boolean }>()
+    for (const t of chaine) {
+      for (const r of base.relationsSur(`tableau:${t}`)) {
+        const m = /^equipe:(.+)#membre$/.exec(r.sujet)
+        const donne = roleDeRelation(r.relation)
+        const eq = m ? base.equipe(m[1]!) : null
+        if (eq && donne && !equipes.has(eq.id)) equipes.set(eq.id, { equipe: eq.id, nom: eq.nom, role: donne, herite: t !== g.id })
       }
     }
     const membres = [...meilleurs].flatMap(([id, { role: r, herite }]) => {
@@ -383,21 +447,32 @@ export function creerApp(ctx: Contexte): Hono {
         return [{ email: i.email, role: i.role, enAttente: true, herite: t !== g.id }]
       }),
     )
-    return c.json([...membres, ...attente])
+    return c.json([...membres, ...[...equipes.values()].map((e) => ({ ...e, email: '', enAttente: false })), ...attente])
   })
 
   app.post('/api/tableaux/:id/partage', async (c) => {
-    const g = garde(c, 'proprietaire')
+    const g = await garde(c, 'proprietaire')
     if (g instanceof Response) return g
     const b = await corps(c)
     const email = normaliserEmail(texte(b?.email))
     const nouveau = b?.role
-    if (!email || (nouveau !== 'edition' && nouveau !== 'lecture')) return c.json({ erreur: 'demande invalide', code: 'demande_invalide' }, 400)
+    if (nouveau !== 'edition' && nouveau !== 'commentaire' && nouveau !== 'lecture') return c.json({ erreur: 'demande invalide', code: 'demande_invalide' }, 400)
+    // À une équipe : celle d'un espace dont on est membre.
+    if (typeof b?.equipe === 'string') {
+      const eq = base.equipe(b.equipe)
+      if (!eq || !base.roleMembre(eq.espace, g.u.id)) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
+      base.definirRoleDe(g.id, `equipe:${eq.id}#membre`, nouveau)
+      await droitsAJour()
+      fermerConnexions(g.id)
+      return c.json({ equipe: eq.id, nom: eq.nom, role: nouveau, enAttente: false })
+    }
+    if (!email) return c.json({ erreur: 'demande invalide', code: 'demande_invalide' }, 400)
     const cible = base.utilisateurParEmail(email)
     if (cible) {
       const avant = role(base.acces(g.id), cible.id, g.id)
       if (avant === 'proprietaire') return c.json({ erreur: 'propriétaire', code: 'proprietaire' }, 409)
       base.definirAcces({ tableau: g.id, utilisateur: cible.id, role: nouveau })
+      await droitsAJour()
       if (avant !== null && avant !== nouveau) fermerConnexions(g.id)
       if (avant === null && cible.id !== g.u.id) {
         base.noterNotification({
@@ -417,9 +492,17 @@ export function creerApp(ctx: Contexte): Hono {
   })
 
   app.delete('/api/tableaux/:id/partage', async (c) => {
-    const g = garde(c, 'proprietaire')
+    const g = await garde(c, 'proprietaire')
     if (g instanceof Response) return g
     const b = await corps(c)
+    if (typeof b?.equipe === 'string') {
+      const sujet = `equipe:${b.equipe}#membre`
+      if (!base.relationsSur(`tableau:${g.id}`).some((r) => r.sujet === sujet)) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
+      base.definirRoleDe(g.id, sujet, null)
+      await droitsAJour()
+      fermerConnexions(g.id)
+      return c.body(null, 204)
+    }
     const email = normaliserEmail(texte(b?.email))
     if (!email) return c.json({ erreur: 'demande invalide', code: 'demande_invalide' }, 400)
     const cible = base.utilisateurParEmail(email)
@@ -428,11 +511,133 @@ export function creerApp(ctx: Contexte): Hono {
       const proprietaires = acces.filter((a) => a.role === 'proprietaire')
       if (proprietaires.length === 1 && proprietaires[0]!.utilisateur === cible.id) return c.json({ erreur: 'dernier propriétaire', code: 'dernier_proprietaire' }, 409)
       base.retirerAcces(g.id, cible.id)
+      await droitsAJour()
       fermerConnexions(g.id)
     } else if (!base.retirerInvitation(g.id, email)) {
       return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     }
     return c.body(null, 204)
+  })
+
+  // Bloquer un tableau (et ce qu'il contient) pour quelqu'un, une équipe ou tout le monde, ou lever plus bas un
+  // blocage venu d'au-dessus. Les propriétaires ne se bloquent pas. `{ tous: true }`, `{ email }` ou `{ equipe }`,
+  // et `etat` : `bloque`, `debloque`, ou `null` pour revenir à l'héritage.
+  app.post('/api/tableaux/:id/blocage', async (c) => {
+    const g = await garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    const b = await corps(c)
+    const etat = b?.etat
+    if (etat !== 'bloque' && etat !== 'debloque' && etat !== null) return c.json({ erreur: 'demande invalide', code: 'demande_invalide' }, 400)
+    let sujets: string[]
+    if (b?.tous === true) sujets = ['user:*', 'lien:*']
+    else if (typeof b?.equipe === 'string' && base.equipe(b.equipe)) sujets = [`equipe:${b.equipe}#membre`]
+    else {
+      const cible = typeof b?.email === 'string' ? base.utilisateurParEmail(normaliserEmail(b.email)) : null
+      if (!cible) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
+      sujets = [`user:${cible.id}`]
+    }
+    base.transaction(() => {
+      for (const sujet of sujets) {
+        for (const relation of ['bloque', 'debloque'] as const) {
+          const r = { objet: `tableau:${g.id}`, relation, sujet }
+          if (relation === etat) base.ajouterRelation(r)
+          else base.retirerRelation(r)
+        }
+      }
+    })
+    await droitsAJour()
+    fermerConnexions(g.id)
+    return c.json({ etat })
+  })
+
+  // Ce que ce compte peut faire ici, et sur les éléments qui ont leurs propres droits : la toile s'y règle.
+  app.get('/api/tableaux/:id/droits', async (c) => {
+    const g = await garde(c, 'lecture', true)
+    if (g instanceof Response) return g
+    return c.json(await ctx.autorisation.droitsSur(`user:${g.u.id}`, g.id), 200, { 'cache-control': 'no-store' })
+  })
+
+  // ---- Droits d'un élément ----
+
+  const ID_ELEMENT = /^[A-Za-z0-9_-]{1,64}$/
+  /** La relation qui porte chaque droit d'un élément (`autorisation/modele.fga`). */
+  const RELATION_DROIT_ELEMENT = { edition: 'editeur', commentaire: 'commentateur', bloque: 'bloque' } as const
+  type DroitElement = keyof typeof RELATION_DROIT_ELEMENT
+
+  // Qui a des droits propres sur cet élément : ce qu'on lui a rendu (écrire, commenter) ou retiré (bloqué).
+  app.get('/api/tableaux/:id/elements/:element/droits', async (c) => {
+    const g = await garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    const element = c.req.param('element')
+    if (!ID_ELEMENT.test(element)) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
+    return c.json(
+      base.relationsSur(objetElement(g.id, element)).flatMap((r): ({ droit: DroitElement } & ({ tous: true } | { equipe: string; nom: string } | { email: string; nom: string }))[] => {
+        const droit = (Object.keys(RELATION_DROIT_ELEMENT) as DroitElement[]).find((d) => RELATION_DROIT_ELEMENT[d] === r.relation)
+        if (!droit) return []
+        if (r.sujet === 'user:*') return [{ tous: true, droit }]
+        const equipe = /^equipe:(.+)#membre$/.exec(r.sujet)?.[1]
+        if (equipe) return [{ equipe, nom: base.equipe(equipe)?.nom ?? '', droit }]
+        const u = base.utilisateurParId(r.sujet.slice(5))
+        return u ? [{ email: u.email, nom: u.nom, droit }] : []
+      }),
+    )
+  })
+
+  // Donner à quelqu'un (une adresse, une équipe) le droit d'écrire ou de commenter cet élément, ou le lui retirer ;
+  // bloquer l'élément pour tout le monde (`tous`) : seuls ceux qu'on a nommés et les propriétaires l'écrivent encore.
+  app.post('/api/tableaux/:id/elements/:element/droits', async (c) => {
+    const g = await garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    const element = c.req.param('element')
+    const b = await corps(c)
+    const droit = b?.droit
+    if (!ID_ELEMENT.test(element) || (droit !== null && droit !== 'edition' && droit !== 'commentaire' && droit !== 'bloque')) {
+      return c.json({ erreur: 'demande invalide', code: 'demande_invalide' }, 400)
+    }
+    let sujet: string
+    if (b?.tous === true) {
+      if (droit !== 'bloque' && droit !== null) return c.json({ erreur: 'demande invalide', code: 'demande_invalide' }, 400)
+      sujet = 'user:*'
+    } else if (typeof b?.equipe === 'string' && base.equipe(b.equipe)) sujet = `equipe:${b.equipe}#membre`
+    else {
+      const cible = typeof b?.email === 'string' ? base.utilisateurParEmail(normaliserEmail(b.email)) : null
+      if (!cible) return c.json({ erreur: 'adresse inconnue', code: 'adresse_inconnue' }, 404)
+      sujet = `user:${cible.id}`
+    }
+    const objet = objetElement(g.id, element)
+    base.transaction(() => {
+      for (const d of Object.keys(RELATION_DROIT_ELEMENT) as DroitElement[]) {
+        const r = { objet, relation: RELATION_DROIT_ELEMENT[d], sujet }
+        if (d === droit) base.ajouterRelation(r)
+        else base.retirerRelation(r)
+      }
+      // L'élément tient au tableau tant qu'il a des droits propres ; sans eux, il redevient un élément comme un autre.
+      const lien = { objet, relation: 'tableau', sujet: `tableau:${g.id}` }
+      if (base.relationsSur(objet).some((r) => r.relation !== 'tableau')) base.ajouterRelation(lien)
+      else base.retirerRelation(lien)
+    })
+    await droitsAJour()
+    fermerConnexions(g.id)
+    return c.json({ droit })
+  })
+
+  // Les blocages posés sur ce tableau : qui, et dans quel sens.
+  app.get('/api/tableaux/:id/blocage', async (c) => {
+    const g = await garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    return c.json(
+      base
+        .relationsSur(`tableau:${g.id}`)
+        .filter((r) => (r.relation === 'bloque' || r.relation === 'debloque') && r.sujet !== 'lien:*')
+        .map((r) => {
+          const etat = r.relation
+          if (r.sujet === 'user:*') return { tous: true, etat }
+          const equipe = /^equipe:(.+)#membre$/.exec(r.sujet)?.[1]
+          if (equipe) return { equipe, nom: base.equipe(equipe)?.nom ?? '', etat }
+          const u = base.utilisateurParId(r.sujet.slice(5))
+          return { email: u?.email ?? '', nom: u?.nom ?? '', etat }
+        }),
+    )
   })
 
   /** Le tableau tel qu'il est maintenant : le document en direct s'il est ouvert, sinon le dernier état enregistré. */
@@ -446,26 +651,26 @@ export function creerApp(ctx: Contexte): Hono {
 
   // ---- Recherche dans tous les tableaux ----
 
-  app.get('/api/recherche', (c) => {
-    const u = utilisateurCourant(c)
+  app.get('/api/recherche', async (c) => {
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const requete = requeteIndex(c.req.query('q') ?? '')
     if (!requete) return c.json([])
-    // Les tableaux du compte, et tout ce qu'ils contiennent : un accès se transmet aux sous-tableaux.
-    const ouverts = new Set<string>()
-    for (const t of base.tableauxAccessibles(u.id)) {
-      ouverts.add(t.id)
-      for (const d of base.descendants(t.id)) ouverts.add(d)
-    }
-    const trouves = base.chercher(requete, [...ouverts], RESULTATS_RECHERCHE)
+    // Tout ce que le compte peut lire, d'après OpenFGA : ses partages, leurs sous-tableaux, ses espaces.
+    const ouverts = await ctx.autorisation.lister(`user:${u.id}`, 'peut_lire', 'tableau')
+    const trouves = base.chercher(requete, ouverts, RESULTATS_RECHERCHE)
     return c.json(
-      trouves.flatMap((t) => {
-        const r = roleSur(u.id, t.tableau)
-        const ligne = base.tableau(t.tableau)
-        // Ce qui est dans un tableau protégé ne se trouve pas sans son mot de passe.
-        if (verrouPar(base, u.id, t.tableau) !== null) return []
-        return r && ligne ? [{ tableau: t.tableau, titre: ligne.titre, element: t.element || null, extrait: t.extrait, role: r }] : []
-      }),
+      (
+        await Promise.all(
+          trouves.map(async (t) => {
+            const ligne = base.tableau(t.tableau)
+            // Ce qui est dans un tableau protégé ne se trouve pas sans son mot de passe.
+            if (!ligne || verrouPar(base, u.id, t.tableau) !== null) return []
+            const r = await roleSur(u.id, t.tableau)
+            return r ? [{ tableau: t.tableau, titre: ligne.titre, element: t.element || null, extrait: t.extrait, role: r }] : []
+          }),
+        )
+      ).flat(),
     )
   })
 
@@ -476,8 +681,8 @@ export function creerApp(ctx: Contexte): Hono {
     return v !== undefined && Number.isInteger(n) ? Math.min(max, Math.max(min, n)) : defaut
   }
 
-  app.get('/api/tableaux/:id/activite', (c) => {
-    const g = garde(c, 'lecture')
+  app.get('/api/tableaux/:id/activite', async (c) => {
+    const g = await garde(c, 'lecture')
     if (g instanceof Response) return g
     const limite = entier(c.req.query('limite'), ACTIVITE_DEFAUT, 1, ACTIVITE_MAX)
     const apres = entier(c.req.query('depuis'), 0, 0, Number.MAX_SAFE_INTEGER)
@@ -485,21 +690,25 @@ export function creerApp(ctx: Contexte): Hono {
     return c.json({ evenements, groupes: regrouper(evenements), dernier: evenements[0]?.id ?? apres }, 200, { 'cache-control': 'no-store' })
   })
 
-  app.get('/api/notifications', (c) => {
-    const u = utilisateurCourant(c)
+  app.get('/api/notifications', async (c) => {
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const limite = entier(c.req.query('limite'), NOTIFICATIONS_AFFICHEES, 0, NOTIFICATIONS_AFFICHEES)
     // Un tableau qu'on ne peut plus ouvrir ne se devine pas par ses notifications.
-    const notifications = base.notifications(u.id, limite).flatMap((n) => {
-      const t = base.tableau(n.tableau)
-      return t && roleSur(u.id, n.tableau) ? [{ ...n, titreTableau: t.titre }] : []
-    })
+    const notifications = (
+      await Promise.all(
+        base.notifications(u.id, limite).map(async (n) => {
+          const t = base.tableau(n.tableau)
+          return t && (await roleSur(u.id, n.tableau)) ? [{ ...n, titreTableau: t.titre }] : []
+        }),
+      )
+    ).flat()
     return c.json({ notifications, nonLues: base.nonLues(u.id) }, 200, { 'cache-control': 'no-store' })
   })
 
   // `{ ids: [...] }` marque celles-là, `{ tout: true }` toutes les siennes ; jamais celles d'un autre.
   app.post('/api/notifications/lues', async (c) => {
-    const u = utilisateurCourant(c)
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const b = await corps(c)
     if (b?.tout === true) return c.json({ marquees: base.marquerLues(u.id, null) })
@@ -510,36 +719,36 @@ export function creerApp(ctx: Contexte): Hono {
 
   // ---- Favoris et récents ----
 
-  app.get('/api/favoris', (c) => {
-    const u = utilisateurCourant(c)
+  app.get('/api/favoris', async (c) => {
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
-    return c.json(resumes(u, base.favoris(u.id)))
+    return c.json(await resumes(u, base.favoris(u.id)))
   })
 
-  app.put('/api/tableaux/:id/favori', (c) => {
-    const g = garde(c, 'lecture')
+  app.put('/api/tableaux/:id/favori', async (c) => {
+    const g = await garde(c, 'lecture')
     if (g instanceof Response) return g
     if (g.id === g.u.racine) return c.json({ erreur: 'accueil', code: 'accueil_pas_favori' }, 400)
     base.definirFavori(g.u.id, g.id, ctx.maintenant())
     return c.body(null, 204)
   })
 
-  app.delete('/api/tableaux/:id/favori', (c) => {
-    const g = garde(c, 'lecture')
+  app.delete('/api/tableaux/:id/favori', async (c) => {
+    const g = await garde(c, 'lecture')
     if (g instanceof Response) return g
     base.retirerFavori(g.u.id, g.id)
     return c.body(null, 204)
   })
 
-  app.get('/api/recents', (c) => {
-    const u = utilisateurCourant(c)
+  app.get('/api/recents', async (c) => {
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
-    return c.json(resumes(u, base.recents(u.id, RECENTS_AFFICHES)))
+    return c.json(await resumes(u, base.recents(u.id, RECENTS_AFFICHES)))
   })
 
   // Le client note chaque tableau qu'il ouvre ; l'accueil n'entre pas dans la liste.
-  app.post('/api/tableaux/:id/vu', (c) => {
-    const g = garde(c, 'lecture')
+  app.post('/api/tableaux/:id/vu', async (c) => {
+    const g = await garde(c, 'lecture')
     if (g instanceof Response) return g
     if (g.id !== g.u.racine) base.noterVu(g.u.id, g.id, ctx.maintenant())
     return c.body(null, 204)
@@ -547,42 +756,58 @@ export function creerApp(ctx: Contexte): Hono {
 
   // ---- Lien public ----
 
-  app.get('/api/tableaux/:id/lien', (c) => {
-    const g = garde(c, 'proprietaire')
+  app.get('/api/tableaux/:id/lien', async (c) => {
+    const g = await garde(c, 'proprietaire')
     if (g instanceof Response) return g
-    return c.json({ jeton: base.jetonPublic(g.id) })
+    return c.json({ jeton: base.jetonPublic(g.id), niveau: base.niveauPublic(g.id) })
   })
 
-  app.post('/api/tableaux/:id/lien', (c) => {
-    const g = garde(c, 'proprietaire')
+  app.post('/api/tableaux/:id/lien', async (c) => {
+    const g = await garde(c, 'proprietaire')
     if (g instanceof Response) return g
     // Un lien déjà publié reste le même : pour en changer, on le retire d'abord.
     let jeton = base.jetonPublic(g.id)
     if (!jeton) {
       jeton = randomBytes(16).toString('base64url')
       base.definirJetonPublic(g.id, jeton, ctx.maintenant())
+      await droitsAJour()
     }
-    return c.json({ jeton }, 201)
+    return c.json({ jeton, niveau: base.niveauPublic(g.id) }, 201)
   })
 
-  app.delete('/api/tableaux/:id/lien', (c) => {
-    const g = garde(c, 'proprietaire')
+  // Ce que permet le lien : lire (par défaut), commenter, ou modifier.
+  app.put('/api/tableaux/:id/lien/niveau', async (c) => {
+    const g = await garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    const niveau = (await corps(c))?.niveau
+    if (niveau !== 'lecture' && niveau !== 'commentaire' && niveau !== 'edition') return c.json({ erreur: 'demande invalide', code: 'demande_invalide' }, 400)
+    if (!base.jetonPublic(g.id)) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
+    base.definirNiveauPublic(g.id, niveau)
+    await droitsAJour()
+    fermerConnexions(g.id)
+    return c.json({ niveau })
+  })
+
+  app.delete('/api/tableaux/:id/lien', async (c) => {
+    const g = await garde(c, 'proprietaire')
     if (g instanceof Response) return g
     if (!base.retirerJetonPublic(g.id)) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
+    await droitsAJour()
+    fermerConnexions(g.id)
     // Un lien retiré emporte son mot de passe : le prochain sera libre, à moins d'en poser un.
     base.retirerMotDePasse(g.id, 'public')
     return c.body(null, 204)
   })
 
   // Le mot de passe du lien public : il se pose à part de celui qui ferme le tableau aux comptes.
-  app.get('/api/tableaux/:id/lien/mot-de-passe', (c) => {
-    const g = garde(c, 'proprietaire')
+  app.get('/api/tableaux/:id/lien/mot-de-passe', async (c) => {
+    const g = await garde(c, 'proprietaire')
     if (g instanceof Response) return g
     return c.json({ protege: base.motDePasse(g.id, 'public') !== null })
   })
 
   app.put('/api/tableaux/:id/lien/mot-de-passe', async (c) => {
-    const g = garde(c, 'proprietaire')
+    const g = await garde(c, 'proprietaire')
     if (g instanceof Response) return g
     const m = await motDePasseDemande(c)
     if (m instanceof Response) return m
@@ -590,8 +815,8 @@ export function creerApp(ctx: Contexte): Hono {
     return c.body(null, 204)
   })
 
-  app.delete('/api/tableaux/:id/lien/mot-de-passe', (c) => {
-    const g = garde(c, 'proprietaire')
+  app.delete('/api/tableaux/:id/lien/mot-de-passe', async (c) => {
+    const g = await garde(c, 'proprietaire')
     if (g instanceof Response) return g
     if (!base.retirerMotDePasse(g.id, 'public')) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     return c.body(null, 204)
@@ -619,9 +844,11 @@ export function creerApp(ctx: Contexte): Hono {
     return { titre: t.titre, ...(t.couleur ? { couleur: t.couleur } : {}), elements, titres }
   }
 
-  const tableauPublic = (c: Context): string | null => {
+  /** Le tableau de ce lien, s'il existe et si OpenFGA le laisse lire (un blocage pour tous vaut aussi pour les liens). */
+  const tableauPublic = async (c: Context): Promise<string | null> => {
     const jeton = c.req.param('jeton') ?? ''
-    return JETON_PUBLIC.test(jeton) ? base.tableauDuJeton(jeton) : null
+    const id = JETON_PUBLIC.test(jeton) ? base.tableauDuJeton(jeton) : null
+    return id && (await ctx.autorisation.verifier(`lien:${jeton}`, 'peut_lire', `tableau:${id}`)) ? id : null
   }
 
   /** Le lien est protégé et ce lecteur n'a pas donné le mot de passe : la réponse à rendre, sinon `null`. */
@@ -636,7 +863,7 @@ export function creerApp(ctx: Contexte): Hono {
   app.post('/api/public/:jeton/deverrouiller', async (c) => {
     const refus = limiter(c, 'deverrouillage-public')
     if (refus) return refus
-    const id = tableauPublic(c)
+    const id = await tableauPublic(c)
     if (!id) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     const empreinte = base.motDePasse(id, 'public')
     if (empreinte === null) return c.body(null, 204)
@@ -647,8 +874,8 @@ export function creerApp(ctx: Contexte): Hono {
     return c.body(null, 204)
   })
 
-  app.get('/api/public/:jeton', (c) => {
-    const id = tableauPublic(c)
+  app.get('/api/public/:jeton', async (c) => {
+    const id = await tableauPublic(c)
     if (!id) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     const ferme = motDePasseRequis(c, id)
     if (ferme) return ferme
@@ -657,7 +884,7 @@ export function creerApp(ctx: Contexte): Hono {
 
   // Seuls les fichiers que le tableau montre se lisent par son lien.
   app.get('/api/public/:jeton/fichiers/:fichier', async (c) => {
-    const id = tableauPublic(c)
+    const id = await tableauPublic(c)
     const fichier = c.req.param('fichier') ?? ''
     const ferme = id ? motDePasseRequis(c, id) : null
     if (ferme) return ferme
@@ -669,8 +896,8 @@ export function creerApp(ctx: Contexte): Hono {
 
   // ---- Export ----
 
-  app.get('/api/tableaux/:id/export', (c) => {
-    const g = garde(c, 'lecture')
+  app.get('/api/tableaux/:id/export', async (c) => {
+    const g = await garde(c, 'lecture')
     if (g instanceof Response) return g
     const format = c.req.query('format') ?? 'md'
     if (!estFormatExport(format)) return c.json({ erreur: 'format inconnu', code: 'format_inconnu' }, 400)
@@ -683,7 +910,7 @@ export function creerApp(ctx: Contexte): Hono {
   })
 
   app.get('/api/tableaux/:id/medias', async (c) => {
-    const g = garde(c, 'lecture')
+    const g = await garde(c, 'lecture')
     if (g instanceof Response) return g
     const tableau = lireLe(g.id)
     const medias = nommerLesMedias(fichiersDe(tableau.elements), (id) => base.fichier(id)?.type)
@@ -706,7 +933,7 @@ export function creerApp(ctx: Contexte): Hono {
   // Une image d'un autre site, relue pour la capture d'un tableau en PNG ou en PDF : le navigateur refuse de lire
   // lui-même une image d'une autre origine. Rien n'est gardé ; les adresses privées sont refusées comme pour l'aperçu.
   app.get('/api/image-distante', async (c) => {
-    const u = utilisateurCourant(c)
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const adresse = c.req.query('url') ?? ''
     if (!/^https?:\/\//.test(adresse)) return c.json({ erreur: 'url manquante', code: 'url_manquante' }, 400)
@@ -729,7 +956,7 @@ export function creerApp(ctx: Contexte): Hono {
       {
         etat: async (id) => {
           // Un sous-tableau qu'on ne peut pas voir, ou barré par un mot de passe, reste dehors.
-          if (id !== g.id && (roleSur(g.u.id, id) === null || verrouPar(base, g.u.id, id) !== null)) return null
+          if (id !== g.id && ((await roleSur(g.u.id, id)) === null || verrouPar(base, g.u.id, id) !== null)) return null
           const vivant = ctx.synchro()?.documents.get(nomDuDocument(id))
           // Un tableau jamais ouvert n'a pas encore d'état : le sien est vide.
           return vivant ? Y.encodeStateAsUpdate(vivant) : (base.document(nomDuDocument(id)) ?? (id === g.id ? Y.encodeStateAsUpdate(new Y.Doc()) : null))
@@ -753,7 +980,7 @@ export function creerApp(ctx: Contexte): Hono {
   // ---- Fichiers ----
 
   app.post('/api/fichiers', async (c) => {
-    const u = utilisateurCourant(c)
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const annonce = Number(c.req.header('content-length') ?? 0)
     if (annonce > FICHIER_MAX) return c.json({ erreur: 'trop gros', code: 'trop_gros' }, 413)
@@ -781,7 +1008,7 @@ export function creerApp(ctx: Contexte): Hono {
 
   // Une adresse d'image collée sur la toile : le serveur la rapatrie, pour qu'elle ne dépende plus de son site.
   app.post('/api/fichiers/rapatrier', async (c) => {
-    const u = utilisateurCourant(c)
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const adresse = texte((await corps(c))?.url)
     if (!adresse) return c.json({ erreur: 'url manquante', code: 'url_manquante' }, 400)
@@ -835,11 +1062,24 @@ export function creerApp(ctx: Contexte): Hono {
     return fabriquee
   }
 
+  /**
+   * Un fichier se lit par celui qui l'a déposé, par qui peut lire un tableau qui le montre, et par tous s'il est la
+   * photo d'un compte (elle s'affiche dans la présence des autres). Les autres ne savent même pas qu'il existe.
+   */
+  const peutLireFichier = async (u: Utilisateur, f: Fichier): Promise<boolean> => {
+    if (f.auteur === u.id || base.estPhoto(f.id)) return true
+    for (const t of base.tableauxDuFichier(f.id)) {
+      if (await ctx.autorisation.verifier(`user:${u.id}`, 'peut_lire', `tableau:${t}`)) return true
+    }
+    return false
+  }
+
   app.get('/api/fichiers/:id', async (c) => {
-    if (!utilisateurCourant(c)) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    const u = await utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const id = c.req.param('id')
     const f = ID_FICHIER.test(id) ? base.fichier(id) : null
-    if (!f) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
+    if (!f || !(await peutLireFichier(u, f))) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     const cache = 'private, max-age=31536000, immutable'
 
     // `?l=800` : l'image réduite à cette largeur (400, 800 ou 1600), quand elle y gagne.
@@ -860,7 +1100,7 @@ export function creerApp(ctx: Contexte): Hono {
   // ---- Aperçus ----
 
   app.get('/api/apercu', async (c) => {
-    if (!utilisateurCourant(c)) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    if (!(await utilisateurCourant(c))) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const adresse = c.req.query('url')
     if (!adresse) return c.json({ erreur: 'url manquante', code: 'url_manquante' }, 400)
     try {
@@ -875,7 +1115,7 @@ export function creerApp(ctx: Contexte): Hono {
 
   // La clé Pexels vit ici et nulle part ailleurs ; sans elle, le panneau d'images le sait (503) et ne propose que l'envoi.
   app.get('/api/images/recherche', async (c) => {
-    if (!utilisateurCourant(c)) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    if (!(await utilisateurCourant(c))) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     try {
       return c.json(await chercherImages({ cle: process.env.PEXELS_API_KEY, requete: c.req.query('q') ?? '', page: Number(c.req.query('page') ?? 1) }))
     } catch (e) {
@@ -893,14 +1133,14 @@ export function creerApp(ctx: Contexte): Hono {
   // 20 Mo à chaque appel d'un raccourci pour rien) ; elle sert aussi de clé de recherche, ce qu'argon2 interdit.
   // Le jeton n'est montré qu'à sa création.
 
-  app.get('/api/jetons', (c) => {
-    const u = utilisateurCourant(c)
+  app.get('/api/jetons', async (c) => {
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     return c.json(base.jetonsArrivee(u.id))
   })
 
   app.post('/api/jetons', async (c) => {
-    const u = utilisateurCourant(c)
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const nom = texte((await corps(c))?.nom).trim()
     if (!nom || nom.length > NOM_JETON_MAX) return c.json({ erreur: `nom de 1 à ${NOM_JETON_MAX} caractères`, code: 'nom_jeton_invalide' }, 400)
@@ -911,8 +1151,8 @@ export function creerApp(ctx: Contexte): Hono {
     return c.json({ ...j, dernierUsage: null, jeton }, 201)
   })
 
-  app.delete('/api/jetons/:id', (c) => {
-    const u = utilisateurCourant(c)
+  app.delete('/api/jetons/:id', async (c) => {
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     return base.retirerJetonArrivee(u.id, c.req.param('id')) ? c.body(null, 204) : c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
   })
@@ -1015,7 +1255,7 @@ export function creerApp(ctx: Contexte): Hono {
   // En production, le même serveur sert l'application web construite ; toute autre adresse (`/t/…`) reçoit la page.
   if (ctx.dossierWeb) {
     // Un partage vers Notak est reçu par le service worker ; sans lui (pas encore installé), on ne perd que le partage, pas la page.
-    app.post('/partage', (c) => c.redirect('/', 303))
+    app.post('/partage', async (c) => c.redirect('/', 303))
     app.use('*', serveStatic({ root: ctx.dossierWeb }))
     app.get('*', serveStatic({ root: ctx.dossierWeb, path: 'index.html' }))
   }

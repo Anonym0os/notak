@@ -1,0 +1,71 @@
+model
+  schema 1.1
+
+# Le modèle des droits de Notak, évalué par OpenFGA. Les relations directes (qui a quoi sur quoi) sont écrites par
+# Notak depuis sa table `relations` ; tout le reste se déduit ici. Les essais du modèle sont dans `modele.fga.yaml`.
+
+type user
+
+# Un lien public : celui qui en a le jeton agit sous ce sujet.
+type lien
+
+# Une équipe d'un espace : on partage un tableau à tous ses membres d'un coup.
+type equipe
+  relations
+    define membre: [user]
+
+# Un rôle d'un espace, fixe (owner, admin, member, guest) ou composé par un admin. Ce qu'il permet sur les tableaux
+# de l'espace s'écrit sur l'espace, au nom de `role#assignee`.
+type role
+  relations
+    define assignee: [user]
+
+type espace
+  relations
+    define membre: [user]
+    define lit_tableaux: [role#assignee]
+    define commente_tableaux: [role#assignee]
+    define modifie_tableaux: [role#assignee]
+    define administre_tableaux: [role#assignee]
+    define cree_tableaux: [role#assignee]
+    define peut_creer: cree_tableaux
+
+type tableau
+  relations
+    # Le tableau au-dessus, quand celui-ci en hérite les droits (créé sous un parent qu'on pouvait éditer).
+    define parent: [tableau]
+    define espace: [espace]
+    define proprietaire: [user, equipe#membre]
+    define editeur: [user, equipe#membre, lien]
+    define commentateur: [user, equipe#membre, lien]
+    define lecteur: [user, equipe#membre, lien]
+    # Un blocage vaut pour le tableau et ce qu'il contient ; un tableau plus bas peut le lever. « Tout le monde »
+    # s'écrit `user:*` pour les comptes et `lien:*` pour les liens publics.
+    define bloque: [user, user:*, lien:*, equipe#membre]
+    define debloque: [user, user:*, lien:*, equipe#membre]
+    define est_bloque: bloque or (est_bloque from parent but not debloque)
+
+    # Les droits accordés, hérités des tableaux au-dessus et du rôle dans l'espace, avant tout blocage.
+    define possede: proprietaire or possede from parent or administre_tableaux from espace
+    define droit_ecrire: editeur or possede or droit_ecrire from parent or modifie_tableaux from espace
+    define droit_commenter: commentateur or droit_ecrire or droit_commenter from parent or commente_tableaux from espace
+    define droit_lire: lecteur or droit_commenter or droit_lire from parent or lit_tableaux from espace
+
+    # Ce qu'on peut faire. Un propriétaire ne se bloque pas.
+    define peut_posseder: possede
+    define peut_partager: possede
+    define peut_ecrire: possede or (droit_ecrire but not est_bloque)
+    define peut_commenter: possede or (droit_commenter but not est_bloque)
+    define peut_lire: possede or (droit_lire but not est_bloque)
+
+# Un élément d'un tableau. Il ne se cache pas (tout le document Yjs du tableau part à qui peut le lire) ; on peut en
+# revanche y retirer l'écriture ou le commentaire, et les rendre à quelques-uns.
+type element
+  relations
+    define tableau: [tableau]
+    define editeur: [user, equipe#membre]
+    define commentateur: [user, equipe#membre]
+    define bloque: [user, user:*, equipe#membre]
+    define peut_ecrire: editeur or peut_posseder from tableau or (peut_ecrire from tableau but not bloque)
+    define peut_commenter: commentateur or peut_ecrire or (peut_commenter from tableau but not bloque)
+    define peut_lire: peut_lire from tableau

@@ -17,7 +17,7 @@ apps/web              l'application : deux éditions, choisies à la constructio
   main.tsx            charge edition/locale.tsx ou edition/serveur.tsx selon VITE_EDITION
   edition/            ce qui est propre à chaque édition (services, en-tête, routes)
   local/              l'édition locale : fichiers, copies .notak, panneau « Où sont mes tableaux ? », synchro
-apps/serveur          l'édition serveur : Hono (API, comptes, fichiers), Hocuspocus (synchro), SQLite
+apps/serveur          l'édition serveur : Hono (API, fichiers), Better Auth (comptes, sessions), Hocuspocus (synchro), SQLite
 apps/site             notak.app : l'édition locale derrière nginx, et la page « À propos »
 apps/bureau           la coque de bureau (Tauri)
 ```
@@ -108,8 +108,37 @@ Un service absent fait simplement disparaître ce qui en dépend.
 ## L'édition serveur
 
 `apps/serveur/src/app.ts` décrit toutes les routes de l'API ; `synchro.ts` branche Hocuspocus, qui vérifie la
-session et les droits à chaque connexion ; `base.ts` est la base SQLite (comptes, tableaux, droits, activité, index
-de recherche). Le serveur lit les tableaux avec le même code que l'application (`packages/tableau/src/export/`).
+session et les droits à chaque connexion, et refuse une page venue d'un autre site ; `base.ts` est la base SQLite
+(comptes, tableaux, droits, activité, index de recherche). Le serveur lit les tableaux avec le même code que
+l'application (`packages/tableau/src/export/`).
+
+Les comptes et les sessions sont confiés à Better Auth (`auth.ts`), monté sur `/api/auth/*` et branché sur la même
+base : il écrit `utilisateurs` (ses champs anglais y portent nos noms), `account`, `session` et `verification`. Le
+hachage reste Argon2 (`motsDePasse.ts`), pour que les empreintes d'avant restent valables. Ce qui suit une
+inscription et qui est à Notak, l'accueil et les invitations en attente, est dans `comptes.ts`, appelé par un crochet
+de Better Auth. Le schéma vient de `migrations.ts` : des migrations numérotées, suivies par `PRAGMA user_version`,
+et un essai vérifie que Better Auth n'y trouve rien à ajouter.
+
+Les espaces sont les organisations de Better Auth (`espaces.ts`) : ses rôles fixes gardent leurs noms anglais
+(`owner`, `admin`, `member`, et `guest` en plus), parce que ses plugins s'y réfèrent. Un tableau appartient à un
+espace (`tableaux.espace`), et la table `espaces` donne l'accueil de chacun. Le SSO d'un espace passe par `@better-auth/sso` ; sa découverte OIDC se fait dans `sso.ts`, sous la
+garde réseau des aperçus de liens.
+
+Les droits sont évalués par OpenFGA, d'après le modèle `apps/serveur/autorisation/modele.fga` et ses essais
+(`modele.fga.yaml`, lancés par la CLI d'OpenFGA). Notak décrit ce que chacun a reçu en relations (objet, relation,
+sujet) dans sa table `relations`, qui reste la vérité : un partage, un tableau qui hérite de son parent, l'espace d'un
+tableau, un rôle d'espace et ce qu'il permet, une équipe, un lien public, un blocage. Chaque changement passe par la
+`boite_envoi` dans la même transaction, puis part vers OpenFGA (`autorisation.ts`) ; une vérification vide d'abord la
+boîte, et un magasin OpenFGA disparu se refait depuis la base. Les membres, rôles et équipes que Better Auth change
+sont suivis par des déclencheurs SQL (`espaces_a_synchroniser`), puis recalculés (`synchroniserEspaces`). Le modèle
+sait aussi les droits d'un élément.
+
+La synchro contrôle ce qu'envoient un commentateur et quiconque écrit un tableau dont des éléments ont leurs droits
+propres (`controle.ts`). Une mise à jour y est appliquée sous une origine suivie, ses changements relevés élément par
+élément, et annulée aussitôt par un `Y.UndoManager` si elle n'est pas permise : l'annulation part chez tout le monde,
+son auteur compris, si bien qu'un refus ne laisse ni divergence ni renvoi sans fin. La règle (écrire ou seulement
+commenter) est dans `packages/tableau/src/coeur/reglesDroits.ts`, lue telle quelle par le serveur ; la toile s'en sert
+pour ne proposer que les gestes permis (`droitsElements.ts`, `filtrerMagasin`).
 
 ### Le chiffrement au repos
 
@@ -136,5 +165,6 @@ de recherche). Le serveur lit les tableaux avec le même code que l'application 
 ## Les essais
 
 Vitest, à côté des sources (`x.ts` → `x.test.ts`), en Node par défaut, jsdom quand un fichier commence par
-`// @vitest-environment jsdom`, `fake-indexeddb` pour ce qui touche IndexedDB. Les scénarios de synchro tirés au
+`// @vitest-environment jsdom`, `fake-indexeddb` pour ce qui touche IndexedDB. Les essais du serveur démarrent
+un OpenFGA en mémoire par Docker (`vitest.openfga.ts`), ou se servent de celui que désigne `NOTAK_OPENFGA_ESSAI`. Les scénarios de synchro tirés au
 hasard (`dossier/proprietes.test.ts`) se rejouent par leur graine : `NOTAK_GRAINE=42 bun run test proprietes`.

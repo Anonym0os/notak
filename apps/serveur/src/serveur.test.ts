@@ -1,9 +1,13 @@
+import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { openfgaEssai } from './essai.ts'
 import { type ServeurDemarre, demarrer } from './serveur.ts'
+
+const SECRET = 'un-secret-d-essai-assez-long-pour-better-auth'
 
 let serveur: ServeurDemarre
 let dossier: string
@@ -11,8 +15,9 @@ let origine: string
 
 beforeAll(async () => {
   dossier = mkdtempSync(join(tmpdir(), 'notak-essai-'))
-  serveur = await demarrer({ port: 0, dossier })
-  origine = `http://127.0.0.1:${serveur.port}`
+  serveur = await demarrer({ port: 0, dossier, secret: SECRET, openfga: openfgaEssai() })
+  // L'adresse publique par défaut du serveur : Better Auth n'accepte que les appels qui en viennent.
+  origine = `http://localhost:${serveur.port}`
 })
 afterAll(async () => {
   await serveur.fermer()
@@ -24,7 +29,7 @@ type Tableau = { id: string; titre: string; role: string }
 const lire = async <T>(r: { reponse: Response }): Promise<T> => (await r.reponse.json()) as T
 
 async function appeler(chemin: string, options: { methode?: string; cookie?: string; json?: unknown; corps?: Uint8Array; type?: string } = {}) {
-  const entetes: Record<string, string> = {}
+  const entetes: Record<string, string> = { origin: origine }
   if (options.cookie) entetes.cookie = options.cookie
   if (options.json !== undefined) entetes['content-type'] = 'application/json'
   if (options.type) entetes['content-type'] = options.type
@@ -39,10 +44,10 @@ async function appeler(chemin: string, options: { methode?: string; cookie?: str
 
 describe('serveur de bout en bout', () => {
   it('inscription, moi, création, partage, liste du second compte', async () => {
-    const ana = await appeler('/api/inscription', { json: { email: 'ana@exemple.fr', motDePasse: 'motdepasse', nom: 'Ana' } })
-    expect(ana.statut).toBe(201)
-    expect(ana.reponse.headers.get('set-cookie')).toMatch(/HttpOnly.*SameSite=Lax/)
-    const moiAna = await lire<{ id: string; racine: string; couleur: string }>(ana)
+    const ana = await appeler('/api/auth/sign-up/email', { json: { email: 'ana@exemple.fr', password: 'motdepasse', name: 'Ana' } })
+    expect(ana.statut).toBe(200)
+    expect(ana.reponse.headers.get('set-cookie')).toMatch(/^notak\.session_token=.*HttpOnly.*SameSite=Lax/i)
+    const moiAna = await lire<{ id: string; racine: string; couleur: string }>(await appeler('/api/moi', { cookie: ana.cookie }))
     expect(moiAna).toMatchObject({ email: 'ana@exemple.fr', nom: 'Ana' })
     expect(moiAna.racine).toBeTruthy()
     expect(moiAna.couleur).toMatch(/^#[0-9a-f]{6}$/)
@@ -55,8 +60,8 @@ describe('serveur de bout en bout', () => {
     const creation = await appeler('/api/tableaux', { cookie: ana.cookie, json: { id: 'tableau-partage-1', titre: 'Voyage' } })
     expect(creation.statut).toBe(201)
 
-    const bob = await appeler('/api/inscription', { json: { email: 'bob@exemple.fr', motDePasse: 'motdepasse', nom: 'Bob' } })
-    expect(bob.statut).toBe(201)
+    const bob = await appeler('/api/auth/sign-up/email', { json: { email: 'bob@exemple.fr', password: 'motdepasse', name: 'Bob' } })
+    expect(bob.statut).toBe(200)
     const avant = await lire<Tableau[]>(await appeler('/api/tableaux', { cookie: bob.cookie }))
     expect(avant).toEqual([])
     expect((await appeler('/api/tableaux/tableau-partage-1/acces', { cookie: bob.cookie })).statut).toBe(404)
@@ -86,7 +91,7 @@ describe('serveur de bout en bout', () => {
   })
 
   it('une invitation vers une adresse inconnue s’active à l’inscription', async () => {
-    const ana = await appeler('/api/connexion', { json: { email: 'ana@exemple.fr', motDePasse: 'motdepasse' } })
+    const ana = await appeler('/api/auth/sign-in/email', { json: { email: 'ana@exemple.fr', password: 'motdepasse' } })
     expect(ana.statut).toBe(200)
     await appeler('/api/tableaux', { cookie: ana.cookie, json: { id: 'tableau-invite-1', titre: 'Invité' } })
     const p = await appeler('/api/tableaux/tableau-invite-1/partage', { cookie: ana.cookie, json: { email: 'Cleo@Exemple.fr', role: 'edition' } })
@@ -94,14 +99,14 @@ describe('serveur de bout en bout', () => {
     const attente = await lire<Membre[]>(await appeler('/api/tableaux/tableau-invite-1/acces', { cookie: ana.cookie }))
     expect(attente.some((a) => a.email === 'cleo@exemple.fr' && a.enAttente)).toBe(true)
 
-    const cleo = await appeler('/api/inscription', { json: { email: 'cleo@exemple.fr', motDePasse: 'motdepasse', nom: 'Cléo' } })
+    const cleo = await appeler('/api/auth/sign-up/email', { json: { email: 'cleo@exemple.fr', password: 'motdepasse', name: 'Cléo' } })
     const liste = await lire<Tableau[]>(await appeler('/api/tableaux', { cookie: cleo.cookie }))
     expect(liste).toEqual([{ id: 'tableau-invite-1', titre: 'Invité', role: 'edition' }])
   })
 
   it('un tableau sous un parent éditable en hérite les accès, présents et à venir', async () => {
-    const ana = await appeler('/api/connexion', { json: { email: 'ana@exemple.fr', motDePasse: 'motdepasse' } })
-    const bob = await appeler('/api/connexion', { json: { email: 'bob@exemple.fr', motDePasse: 'motdepasse' } })
+    const ana = await appeler('/api/auth/sign-in/email', { json: { email: 'ana@exemple.fr', password: 'motdepasse' } })
+    const bob = await appeler('/api/auth/sign-in/email', { json: { email: 'bob@exemple.fr', password: 'motdepasse' } })
     await appeler('/api/tableaux/tableau-invite-1/partage', { cookie: ana.cookie, json: { email: 'bob@exemple.fr', role: 'edition' } })
     const fils = await appeler('/api/tableaux', { cookie: bob.cookie, json: { id: 'tableau-fils-0001', titre: 'Fils', parent: 'tableau-invite-1' } })
     expect(fils.statut).toBe(201)
@@ -110,48 +115,68 @@ describe('serveur de bout en bout', () => {
     expect(membres.find((m) => m.email === 'bob@exemple.fr')).toMatchObject({ role: 'proprietaire', herite: false })
 
     // retirer l'accès au parent le retire aussi du fils
-    const cleoAvant = await appeler('/api/connexion', { json: { email: 'cleo@exemple.fr', motDePasse: 'motdepasse' } })
+    const cleoAvant = await appeler('/api/auth/sign-in/email', { json: { email: 'cleo@exemple.fr', password: 'motdepasse' } })
     expect((await appeler('/api/tableaux/tableau-fils-0001/acces', { cookie: cleoAvant.cookie })).statut).toBe(200)
     await appeler('/api/tableaux/tableau-invite-1/partage', { methode: 'DELETE', cookie: ana.cookie, json: { email: 'cleo@exemple.fr' } })
     expect((await appeler('/api/tableaux/tableau-fils-0001/acces', { cookie: cleoAvant.cookie })).statut).toBe(404)
     // un id pris par un autre
     expect((await appeler('/api/tableaux', { cookie: ana.cookie, json: { id: 'tableau-fils-0001', titre: 'X' } })).statut).toBe(201)
-    const cleo = await appeler('/api/connexion', { json: { email: 'cleo@exemple.fr', motDePasse: 'motdepasse' } })
+    const cleo = await appeler('/api/auth/sign-in/email', { json: { email: 'cleo@exemple.fr', password: 'motdepasse' } })
     expect((await appeler('/api/tableaux', { cookie: cleo.cookie, json: { id: 'tableau-partage-1', titre: 'X' } })).statut).toBe(409)
   })
 
   it('la connexion ne dit pas ce qui est faux', async () => {
-    const mauvaisMot = await appeler('/api/connexion', { json: { email: 'ana@exemple.fr', motDePasse: 'faux-faux-faux' } })
-    const inconnue = await appeler('/api/connexion', { json: { email: 'personne@exemple.fr', motDePasse: 'faux-faux-faux' } })
+    const mauvaisMot = await appeler('/api/auth/sign-in/email', { json: { email: 'ana@exemple.fr', password: 'faux-faux-faux' } })
+    const inconnue = await appeler('/api/auth/sign-in/email', { json: { email: 'personne@exemple.fr', password: 'faux-faux-faux' } })
     expect(mauvaisMot.statut).toBe(401)
     expect(inconnue.statut).toBe(401)
     const corps = await mauvaisMot.reponse.json()
     expect(corps).toEqual(await inconnue.reponse.json())
-    expect(corps).toMatchObject({ code: 'identifiants_incorrects' })
+    expect(corps).toMatchObject({ code: 'INVALID_EMAIL_OR_PASSWORD' })
   })
 
   it('chaque refus porte un code stable en plus de son message', async () => {
     const sans = await appeler('/api/moi')
     expect(sans.statut).toBe(401)
     expect(await sans.reponse.json()).toEqual({ erreur: 'non connecté', code: 'non_connecte' })
-    const adresse = await appeler('/api/inscription', { json: { email: 'pas-une-adresse', motDePasse: 'motdepasse', nom: 'Ana' } })
-    expect(await adresse.reponse.json()).toMatchObject({ code: 'adresse_invalide' })
-    const court = await appeler('/api/inscription', { json: { email: 'court@exemple.fr', motDePasse: 'abc', nom: 'Ana' } })
-    expect(await court.reponse.json()).toMatchObject({ code: 'mot_de_passe_invalide' })
+    const adresse = await appeler('/api/auth/sign-up/email', { json: { email: 'pas-une-adresse', password: 'motdepasse', name: 'Ana' } })
+    expect(adresse.statut).toBe(400)
+    expect(await adresse.reponse.json()).toMatchObject({ code: 'VALIDATION_ERROR' })
+    const court = await appeler('/api/auth/sign-up/email', { json: { email: 'court@exemple.fr', password: 'abc', name: 'Ana' } })
+    expect(await court.reponse.json()).toMatchObject({ code: 'PASSWORD_TOO_SHORT' })
+    const sansNom = await appeler('/api/auth/sign-up/email', { json: { email: 'nom@exemple.fr', password: 'motdepasse', name: '   ' } })
+    expect(sansNom.statut).toBe(400)
   })
 
-  it('une adresse prise répond 409, la déconnexion efface la session', async () => {
-    const encore = await appeler('/api/inscription', { json: { email: 'ana@exemple.fr', motDePasse: 'motdepasse', nom: 'Ana' } })
-    expect(encore.statut).toBe(409)
-    expect(await encore.reponse.json()).toMatchObject({ code: 'adresse_prise' })
-    const ana = await appeler('/api/connexion', { json: { email: 'ana@exemple.fr', motDePasse: 'motdepasse' } })
-    const sortie = await appeler('/api/deconnexion', { methode: 'POST', cookie: ana.cookie })
-    expect(sortie.statut).toBe(204)
+  it('une adresse prise est refusée, la déconnexion efface la session', async () => {
+    const encore = await appeler('/api/auth/sign-up/email', { json: { email: 'ana@exemple.fr', password: 'motdepasse', name: 'Ana' } })
+    expect(encore.statut).toBe(422)
+    expect(await encore.reponse.json()).toMatchObject({ code: 'USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL' })
+    const ana = await appeler('/api/auth/sign-in/email', { json: { email: 'ana@exemple.fr', password: 'motdepasse' } })
+    const sortie = await appeler('/api/auth/sign-out', { methode: 'POST', cookie: ana.cookie, json: {} })
+    expect(sortie.statut).toBe(200)
     expect((await appeler('/api/moi', { cookie: ana.cookie })).statut).toBe(401)
   })
 
+  it('une page d’un autre site n’agit pas avec le cookie de quelqu’un, ni sans', async () => {
+    const dana = await appeler('/api/auth/sign-up/email', { json: { email: 'dana@exemple.fr', password: 'motdepasse', name: 'Dana' } })
+    const ailleurs = (chemin: string, corps: unknown, cookie?: string) =>
+      fetch(origine + chemin, {
+        method: 'POST',
+        headers: { origin: 'https://malveillant.exemple', 'content-type': 'application/json', ...(cookie && { cookie }) },
+        body: JSON.stringify(corps),
+      })
+    expect((await ailleurs('/api/auth/update-user', { name: 'Pirate' }, dana.cookie)).status).toBe(403)
+    expect((await ailleurs('/api/auth/sign-up/email', { email: 'eve@exemple.fr', password: 'motdepasse', name: 'Ève' })).status).toBe(403)
+    expect((await lire<{ nom: string }>(await appeler('/api/moi', { cookie: dana.cookie }))).nom).toBe('Dana')
+  })
+
+  it('l’écran de connexion sait ce qu’il peut proposer', async () => {
+    expect(await lire(await appeler('/api/connexion/moyens'))).toEqual({ fournisseurs: [], courriel: false })
+  })
+
   it('les fichiers : dépôt, lecture, refus sans session, largeur demandée', async () => {
-    const ana = await appeler('/api/connexion', { json: { email: 'ana@exemple.fr', motDePasse: 'motdepasse' } })
+    const ana = await appeler('/api/auth/sign-in/email', { json: { email: 'ana@exemple.fr', password: 'motdepasse' } })
     const octets = new Uint8Array([1, 2, 3, 4, 5])
     expect((await appeler('/api/fichiers', { corps: octets, type: 'image/png' })).statut).toBe(401)
     const depot = await appeler('/api/fichiers', { cookie: ana.cookie, corps: octets, type: 'image/png' })
@@ -209,7 +234,7 @@ describe('serveur de bout en bout', () => {
   })
 
   it('l’aperçu refuse le réseau local', async () => {
-    const ana = await appeler('/api/connexion', { json: { email: 'ana@exemple.fr', motDePasse: 'motdepasse' } })
+    const ana = await appeler('/api/auth/sign-in/email', { json: { email: 'ana@exemple.fr', password: 'motdepasse' } })
     expect((await appeler('/api/apercu', { cookie: ana.cookie })).statut).toBe(400)
     const refus = await appeler(`/api/apercu?url=${encodeURIComponent('http://127.0.0.1:1/')}`, { cookie: ana.cookie })
     expect(refus.statut).toBe(502)
@@ -226,7 +251,7 @@ describe('serveur de bout en bout', () => {
 
   it('la onzième tentative de connexion de la minute est limitée', async () => {
     let dernier = 0
-    for (let i = 0; i < 12; i++) dernier = (await appeler('/api/connexion', { json: { email: 'x@exemple.fr', motDePasse: 'faux-faux-faux' } })).statut
+    for (let i = 0; i < 12; i++) dernier = (await appeler('/api/auth/sign-in/email', { json: { email: 'x@exemple.fr', password: 'faux-faux-faux' } })).statut
     expect(dernier).toBe(429)
   })
 })
@@ -240,7 +265,7 @@ describe("l'application web servie par le serveur", () => {
     mkdirSync(join(racine, 'assets'))
     writeFileSync(join(racine, 'index.html'), '<!doctype html><title>Notak</title>')
     writeFileSync(join(racine, 'assets', 'app.js'), 'console.log(1)')
-    web = await demarrer({ port: 0, dossier: join(racine, 'donnees'), dossierWeb: racine })
+    web = await demarrer({ port: 0, dossier: join(racine, 'donnees'), dossierWeb: racine, secret: SECRET, openfga: openfgaEssai() })
     adresse = `http://127.0.0.1:${web.port}`
   })
   afterAll(async () => {
@@ -265,4 +290,15 @@ describe("l'application web servie par le serveur", () => {
     expect(r.status).toBe(303)
     expect(r.headers.get('location')).toBe('/')
   })
+})
+
+describe('le serveur tel que Node le lance', () => {
+  it('charge tous ses modules sans vitest (Node veut l’extension de chaque import)', () => {
+    const ici = new URL('.', import.meta.url).pathname
+    const r = spawnSync(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(`${ici}app.ts`)}); await import(${JSON.stringify(`${ici}serveur.ts`)})`], {
+      encoding: 'utf8',
+    })
+    expect(r.stderr).toBe('')
+    expect(r.status).toBe(0)
+  }, 30_000)
 })
