@@ -14,10 +14,15 @@
     "serveur:chiffrer": "node apps/serveur/outils/chiffrer.ts",
     "build": "bun run --cwd apps/web build",
     "build:locale": "VITE_EDITION=locale bun run --cwd apps/web build",
+    "build:bureau": "VITE_EDITION=locale bun run --cwd apps/web build --outDir dist-bureau",
     "test": "vitest run",
     "typecheck": "tsc -b && tsc -p apps/serveur",
     "serveur:compte": "node apps/serveur/src/compte.ts",
-    "signalements": "node apps/serveur/outils/signalements.ts"
+    "signalements": "node apps/serveur/outils/signalements.ts",
+    "bureau:dev": "cd apps/bureau/src-tauri && bunx @tauri-apps/cli@2.12.4 dev",
+    "bureau:construire": "node scripts/bureau.ts construire",
+    "bureau:cle": "node scripts/bureau.ts cle",
+    "nouvelle-version": "node scripts/nouvelle-version.ts"
   },
   "devDependencies": {
     "fake-indexeddb": "6.2.5",

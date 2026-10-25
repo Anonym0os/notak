@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Ajouté par Tauri à l'Info.plist de Notak.app. Sans la phrase du micro, macOS arrête l'app à la première note audio d'une carte. -->
+<plist version="1.0">
+<dict>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Notak enregistre une note audio quand vous le lui demandez, dans une carte mentale. Le son reste sur votre ordinateur.</string>
+</dict>
+</plist>

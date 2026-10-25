@@ -1,6 +1,8 @@
 import { Icone } from '@notak/tableau'
 import { useEffect, useState, useSyncExternalStore } from 'react'
+import { estBureau } from '../bureau'
 import { t, tn } from '../langue'
+import { SectionMiseAJour } from '../MiseAJour'
 import { usePanneau } from '../panneaux'
 import type { EspaceLocal } from './espace'
 import { arreterSynchro, choisirDossier, ecouterSynchro, lireEtatSynchro, reprendreSynchro, synchroniserMaintenant } from './synchro'
@@ -9,17 +11,24 @@ import { arreterSynchro, choisirDossier, ecouterSynchro, lireEtatSynchro, repren
  * Où sont mes tableaux ? Une pastille dans l'en-tête dit la vérité en deux mots (« Dans ce navigateur », « Copie
  * il y a 3 j »), et son panneau l'explique : rien ne quitte l'appareil, le navigateur peut tout effacer, voici
  * comment garder une copie, et comment travailler à plusieurs en temps réel (une version à soi, ou nous écrire).
+ * Dans l'app de bureau, la même vérité dite pour un ordinateur, et ses mises à jour.
  */
 
 export const DEPOT = 'https://github.com/Anonym0os/notak'
+/** « À propos » : une page de notak.app, à côté de l'application ; dans l'app de bureau, sur le site. */
+const A_PROPOS = 'https://notak.app/a-propos'
 const CONTACT = (import.meta.env.VITE_CONTACT as string | undefined)?.trim() || null
 const JOUR = 24 * 3600 * 1000
 /** Après tant de jours sans copie, la pastille le signale. */
 export const COPIE_CONSEILLEE = 7
 
-/** Safari efface ce qu'un site garde au bout de 7 jours sans visite, sauf s'il est installé sur l'écran d'accueil. */
+/**
+ * Safari efface ce qu'un site garde au bout de 7 jours sans visite, sauf s'il est installé sur l'écran d'accueil. La
+ * webview de l'app de bureau se dit aussi Safari, sans en avoir la règle.
+ */
 export const safariNonInstalle = () =>
   typeof navigator !== 'undefined' &&
+  !estBureau() &&
   /^((?!chrome|chromium|crios|fxios|android|edg).)*safari/i.test(navigator.userAgent) &&
   !(typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches)
 
@@ -54,13 +63,14 @@ export function Rangement({ el, enregistrer, rouvrir, message }: { el: EspaceLoc
     void navigator.storage?.persisted?.().then(setGarde, () => setGarde(null))
   }, [])
 
+  const bureau = estBureau()
   const jours = depuisQuand(derniere)
   // Safari efface pour de bon après une semaine sans visite ; ailleurs, le navigateur n'efface que si on le lui
   // demande ou faute de place : pas de quoi alarmer à la première visite.
   const fragile = safariNonInstalle()
   // Jamais copié : seulement si le navigateur menace d'effacer. Sinon, au bout d'une semaine sans copie.
   const alerte = jours === null ? fragile : jours >= COPIE_CONSEILLEE
-  const etiquette = message ?? (jours === null ? t('local.pastille') : jours === 0 ? t('local.copieAujourdhui') : tn('local.copieIlYa', jours))
+  const etiquette = message ?? (jours === null ? t(bureau ? 'local.pastilleBureau' : 'local.pastille') : jours === 0 ? t('local.copieAujourdhui') : tn('local.copieIlYa', jours))
 
   const proteger = async () => setGarde((await navigator.storage?.persist?.()) ?? null)
 
@@ -73,10 +83,10 @@ export function Rangement({ el, enregistrer, rouvrir, message }: { el: EspaceLoc
       {ouvert && (
         <div className="app-panneau partage-panneau rangement-panneau" ref={panneau} role="dialog" aria-label={t('local.titre')}>
           <h2>{t('local.titre')}</h2>
-          <p>{t('local.ici')}</p>
+          <p>{t(bureau ? 'local.iciBureau' : 'local.ici')}</p>
           <ul className="rangement-faits">
             <li>{t('local.rienNePart')}</li>
-            <li>{t('local.efface')}</li>
+            <li>{t(bureau ? 'local.effaceBureau' : 'local.efface')}</li>
             {safariNonInstalle() && <li className="rangement-attention">{t('local.safari')}</li>}
           </ul>
 
@@ -116,18 +126,19 @@ export function Rangement({ el, enregistrer, rouvrir, message }: { el: EspaceLoc
                 {t('local.installer')}
               </button>
             )}
-            {garde === false && (
+            {garde === false && !bureau && (
               <button type="button" className="bouton" onClick={() => void proteger()}>
                 {t('local.proteger')}
               </button>
             )}
           </div>
-          {garde === true && <small className="rangement-note">{t('local.protege')}</small>}
+          {garde === true && !bureau && <small className="rangement-note">{t('local.protege')}</small>}
 
           <Synchro el={el} />
+          {bureau && <SectionMiseAJour />}
 
           <h3>{t('local.plusieurs')}</h3>
-          <p>{t('local.plusieursTexte')}</p>
+          <p>{t(bureau ? 'local.plusieursTexteBureau' : 'local.plusieursTexte')}</p>
           <div className="rangement-actions">
             <a className="bouton" href={DEPOT} target="_blank" rel="noopener noreferrer">
               {t('local.installerSien')}
@@ -139,7 +150,14 @@ export function Rangement({ el, enregistrer, rouvrir, message }: { el: EspaceLoc
             )}
           </div>
           <small className="rangement-note">
-            <a href="/a-propos">{t('local.aPropos')}</a> · <a href={DEPOT} target="_blank" rel="noopener noreferrer">{t('local.code')}</a>
+            {bureau ? (
+              <a href={A_PROPOS} target="_blank" rel="noopener noreferrer">
+                {t('local.aPropos')}
+              </a>
+            ) : (
+              <a href="/a-propos">{t('local.aPropos')}</a>
+            )}{' '}
+            · <a href={DEPOT} target="_blank" rel="noopener noreferrer">{t('local.code')}</a>
           </small>
         </div>
       )}

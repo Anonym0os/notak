@@ -1,7 +1,7 @@
 [package]
 name = "notak-bureau"
 version = "0.1.0"
-description = "La coque de bureau de Notak : une fenêtre sur l'application web du serveur."
+description = "Notak de bureau : l'édition locale de Notak dans sa fenêtre, sans serveur, et ses mises à jour signées."
 edition = "2021"
 publish = false
 
@@ -13,8 +13,16 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }
+# `generate_context!` s'en sert pour la configuration des plugins (celle des mises à jour).
+serde_json = "1"
 tauri = { version = "2", features = [] }
+# La fenêtre « Enregistrer sous » du système.
 tauri-plugin-dialog = "2"
+# Un lien vers un autre site, ouvert dans le navigateur de la personne (par la coque seule : la page n'y a pas droit).
+tauri-plugin-opener = "2"
+# Les mises à jour signées (`src/mise_a_jour.rs`).
+tauri-plugin-updater = "2"
 
 # La photo de la fenêtre pour un signalement : `takeSnapshot` du WKWebView, l'image exacte de la page.
 [target.'cfg(target_os = "macos")'.dependencies]

@@ -285,6 +285,20 @@ describe("l'application web servie par le serveur", () => {
     expect(await api.json()).toEqual({ erreur: 'introuvable', code: 'introuvable' })
   })
 
+  it('ses pages portent la CSP commune et refusent d’être mises dans un cadre ; l’API garde ses propres en-têtes', async () => {
+    const page = await fetch(`${adresse}/t/abcdefgh`)
+    const csp = page.headers.get('content-security-policy') ?? ''
+    expect(csp).toContain("frame-ancestors 'none'")
+    expect(csp).toContain("script-src 'self';")
+    expect(csp).toContain(`ws://localhost:${web.port}`)
+    expect(page.headers.get('x-frame-options')).toBe('DENY')
+    expect(page.headers.get('x-content-type-options')).toBe('nosniff')
+    // En HTTP, pas de HSTS : ce serait fermer la porte d'un serveur d'essai.
+    expect(page.headers.get('strict-transport-security')).toBeNull()
+    expect((await fetch(`${adresse}/assets/app.js`)).headers.get('content-security-policy')).toBe(csp)
+    expect((await fetch(`${adresse}/api/inexistant`)).headers.get('content-security-policy')).toBeNull()
+  })
+
   it('un partage reçu sans service worker revient à l’accueil au lieu d’une erreur', async () => {
     const r = await fetch(`${adresse}/partage`, { method: 'POST', body: new FormData(), redirect: 'manual' })
     expect(r.status).toBe(303)

@@ -1,8 +1,11 @@
 import { EXTENSION_NOTAK, TYPE_NOTAK } from '@notak/tableau'
+import { estBureau, invoquer } from '../bureau'
 import { telecharger } from '../Export'
 
 /**
  * Où va une copie `.notak`, selon ce que le navigateur sait faire :
+ * - l'app de bureau : la fenêtre « Enregistrer sous » du système, puis le même fichier, réécrit par la coque à chaque
+ *   Cmd+S (elle garde le chemin choisi ; la page n'en connaît que le nom) ;
  * - Chrome et Edge sur ordinateur : la fenêtre « Enregistrer sous », et les fois suivantes, le même fichier, réécrit
  *   sans rien demander (comme un document ordinaire) ;
  * - un téléphone : la feuille de partage, d'où l'on choisit iCloud Drive, Google Drive, Fichiers… ;
@@ -23,6 +26,8 @@ const TYPES = [{ description: 'Notak', accept: { [TYPE_NOTAK]: [`.${EXTENSION_NO
 
 /** La poignée du fichier choisi la première fois : Cmd+S le réécrit ensuite. Le temps de l'onglet seulement. */
 let poignee: PoigneeFichier | null = null
+/** Dans l'app de bureau, le nom du fichier choisi la première fois, dont la coque garde le chemin. */
+let copieBureau: string | null = null
 
 const tactile = () => typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
 const annule = (e: unknown) => e instanceof DOMException && e.name === 'AbortError'
@@ -31,6 +36,7 @@ export type CopieRangee = { ou: 'fichier'; nom: string } | { ou: 'partage' } | {
 
 /** Range une copie ; `nouveau` redemande où, même si un fichier a déjà été choisi. */
 export async function rangerCopie(octets: Uint8Array, nom: string, nouveau = false): Promise<CopieRangee> {
+  if (estBureau()) return rangerCopieBureau(octets, nom, nouveau)
   const fichier = new File([octets as Uint8Array<ArrayBuffer>], nom, { type: TYPE_NOTAK })
   const w = fenetre()
   if (w.showSaveFilePicker && !tactile()) {
@@ -60,8 +66,24 @@ export async function rangerCopie(octets: Uint8Array, nom: string, nouveau = fal
   return { ou: 'telechargement', nom }
 }
 
+async function rangerCopieBureau(octets: Uint8Array, nom: string, nouveau: boolean): Promise<CopieRangee> {
+  if (!copieBureau || nouveau) {
+    const choisi = await invoquer<string | null>('choisir_emplacement', { nom, extension: EXTENSION_NOTAK, description: 'Notak', garder: true })
+    if (!choisi) return { ou: 'annule' }
+    copieBureau = choisi
+  }
+  try {
+    await invoquer('ecrire_fichier', octets, { headers: { 'x-notak-usage': 'copie' } })
+  } catch (e) {
+    // Un dossier disparu, un disque plein : on redemandera où la prochaine fois.
+    copieBureau = null
+    throw e
+  }
+  return { ou: 'fichier', nom: copieBureau }
+}
+
 /** Le fichier où la copie se range aujourd'hui, s'il y en a un. */
-export const fichierDeCopie = () => poignee?.name ?? null
+export const fichierDeCopie = () => copieBureau ?? poignee?.name ?? null
 
 /** Demande un fichier `.notak` à rouvrir ; `null` si l'on renonce. */
 export async function choisirCopie(): Promise<File | null> {

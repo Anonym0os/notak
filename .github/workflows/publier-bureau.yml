@@ -1,0 +1,210 @@
+# Publier l'app de bureau : une étiquette v* poussée (`bun run nouvelle-version 0.2.0`, puis `git push origin HEAD v0.2.0`)
+# construit Notak pour macOS (Apple et Intel), Windows et Linux, signe chaque paquet de mise à jour, et prépare un
+# BROUILLON de version sur GitHub. Les apps installées n'en voient rien tant que le brouillon n'est pas publié à la main :
+# on télécharge, on essaie, puis « Publish release ». La marche à suivre et le pourquoi : docs/MISES-A-JOUR.md.
+#
+# Ce qui protège la clé de signature :
+# - elle ne vit que dans l'environnement « publication », que GitHub ne déverrouille qu'après l'accord d'une personne
+#   (Required reviewers) et seulement pour une étiquette v* ;
+# - les actions tierces sont épinglées à un commit, pas à une étiquette qu'on pourrait déplacer ;
+# - aucun cache entre les exécutions : un cache empoisonné par une autre branche n'entre pas dans un paquet signé ;
+# - le jeton GitHub n'a que les droits dont chaque tâche a besoin.
+name: Publier l'app de bureau
+
+on:
+  push:
+    tags: ['v*']
+
+permissions: {}
+
+concurrency:
+  group: publier-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CLI_TAURI: '@tauri-apps/cli@2.12.4'
+
+jobs:
+  verifier:
+    name: Vérifier la version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.12
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - name: L'étiquette, le numéro de l'app et ses notes s'accordent
+        id: version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          conf=$(node -p "require('./apps/bureau/src-tauri/tauri.conf.json').version")
+          if [ "$version" != "$conf" ]; then
+            echo "::error::L'étiquette $GITHUB_REF_NAME ne correspond pas à la version de tauri.conf.json ($conf) : passez par bun run nouvelle-version."
+            exit 1
+          fi
+          node scripts/publication.ts notes "$version" > /dev/null
+          cle=$(node -p "require('./apps/bureau/src-tauri/tauri.publication.json').plugins.updater.pubkey")
+          if [ -z "$cle" ]; then
+            echo "::error::Pas de clé publique dans tauri.publication.json : bun run bureau:cle (docs/MISES-A-JOUR.md)."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - name: Essais (sans ceux du serveur, qui ont leur propre CI)
+        run: bunx vitest run packages apps/web scripts
+
+  brouillon:
+    name: Préparer le brouillon
+    needs: verifier
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - name: Un brouillon, que personne ne voit encore
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.verifier.outputs.version }}
+        run: |
+          node scripts/publication.ts notes "$VERSION" > notes.md
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "Le brouillon de v$VERSION existe déjà : les paquets s'y ajoutent."
+          else
+            gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "Notak $VERSION" --notes-file notes.md
+          fi
+
+  construire:
+    name: Construire (${{ matrix.plateforme }})
+    needs: [verifier, brouillon]
+    # Les secrets de signature ne s'ouvrent qu'ici, après l'accord demandé par l'environnement.
+    environment: publication
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - plateforme: macos-aarch64
+            machine: macos-latest
+            cible: aarch64-apple-darwin
+          - plateforme: macos-x86_64
+            machine: macos-latest
+            cible: x86_64-apple-darwin
+          - plateforme: linux-x86_64
+            # La plus ancienne Ubuntu encore servie : l'AppImage tourne sur les systèmes qui ont au moins sa glibc.
+            machine: ubuntu-22.04
+            cible: x86_64-unknown-linux-gnu
+          - plateforme: windows-x86_64
+            machine: windows-latest
+            cible: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.machine }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.12
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - name: Rust, pour la cible
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add ${{ matrix.cible }}
+      - name: Les bibliothèques de WebKitGTK
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - run: bun install --frozen-lockfile
+      # Le certificat Apple, s'il y en a un : l'app est alors signée par un développeur identifié et notariée, et macOS
+      # l'ouvre sans avertissement. Sans lui, elle est signée « ad hoc » (tauri.publication.json) et macOS demande, à la
+      # première ouverture seulement, de confirmer dans Réglages → Confidentialité et sécurité.
+      - name: Signature Apple (si configurée)
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$APPLE_CERTIFICATE" ]; then
+            for v in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+              valeur="${!v}"
+              [ -n "$valeur" ] || continue
+              echo "::add-mask::$valeur"
+              { echo "$v<<FIN_$v"; echo "$valeur"; echo "FIN_$v"; } >> "$GITHUB_ENV"
+            done
+          else
+            echo "Pas de certificat Apple : signature ad hoc."
+          fi
+      - name: Construire et signer
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::error::Le secret TAURI_SIGNING_PRIVATE_KEY manque dans l'environnement « publication » (docs/MISES-A-JOUR.md)."
+            exit 1
+          fi
+          cd apps/bureau/src-tauri
+          bunx "$CLI_TAURI" build --ci --target ${{ matrix.cible }} --config tauri.publication.json
+      - name: Ranger les paquets sous des noms stables
+        shell: bash
+        run: node scripts/publication.ts paquets "apps/bureau/src-tauri/target/${{ matrix.cible }}/release/bundle" ${{ matrix.plateforme }} "${{ needs.verifier.outputs.version }}" livraison
+      - name: Les déposer dans le brouillon
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "v${{ needs.verifier.outputs.version }}" livraison/* --repo "$GITHUB_REPOSITORY" --clobber
+
+  annoncer:
+    name: Écrire l'annonce (latest.json)
+    needs: [verifier, construire]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - name: latest.json et SHA256SUMS.txt, une fois toutes les plateformes là
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.verifier.outputs.version }}
+        run: |
+          mkdir livraison
+          gh release download "v$VERSION" --repo "$GITHUB_REPOSITORY" --dir livraison --pattern 'Notak_*'
+          node scripts/publication.ts annonce livraison "$VERSION" "$GITHUB_REPOSITORY"
+          gh release upload "v$VERSION" livraison/latest.json livraison/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
+          {
+            echo "## Notak $VERSION est en brouillon"
+            echo
+            echo "1. Téléchargez les paquets du brouillon et essayez-les ; vérifiez qu'une app de la version d'avant se met à jour."
+            echo "2. Puis, sur la page du brouillon : **Publish release**. Les apps installées la verront à leur prochaine recherche."
+          } >> "$GITHUB_STEP_SUMMARY"

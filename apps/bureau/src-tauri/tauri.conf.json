@@ -5,12 +5,15 @@
   "identifier": "app.notak.bureau",
   "build": {
     "devUrl": "http://localhost:5173",
-    "frontendDist": "http://localhost:3005"
+    "frontendDist": "../../web/dist-bureau",
+    "beforeDevCommand": "bun run dev:locale",
+    "beforeBuildCommand": "bun run build:bureau"
   },
   "app": {
     "windows": [
       {
         "label": "principale",
+        "create": false,
         "title": "Notak",
         "width": 1280,
         "height": 800,
@@ -23,7 +26,8 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' blob: data: https://nominatim.openstreetmap.org ipc: http://ipc.localhost; frame-src 'self' blob: https://www.youtube-nocookie.com https://player.vimeo.com https://www.loom.com https://www.dailymotion.com https://fast.wistia.net https://www.tiktok.com https://open.spotify.com https://w.soundcloud.com https://embed.music.apple.com https://widget.deezer.com https://maps.google.com https://www.google.com https://www.openstreetmap.org https://www.figma.com https://miro.com https://codepen.io https://docs.google.com; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+      "dangerousDisableAssetCspModification": ["style-src"]
     }
   },
   "bundle": {

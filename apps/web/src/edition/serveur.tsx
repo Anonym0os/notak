@@ -33,6 +33,7 @@ import { creerRecents } from '../recents'
 import { PagePublique } from '../PagePublique'
 import { Partage } from '../Partage'
 import { PlusEntete } from '../PlusEntete'
+import { BandeauNouvelleVersion } from '../MiseAJour'
 import { enregistrerServiceWorker } from '../pwa'
 import { BoutonSignaler, brancherSignaler } from '../signaler/Signaler'
 import { VerrouTableau } from '../Verrou'
@@ -301,6 +302,7 @@ function Espace({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
         )}
       />
       <BandeauImport moi={moi} espace={espace} />
+      <BandeauNouvelleVersion />
       <DialogueExport />
     </>
   )

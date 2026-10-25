@@ -793,6 +793,16 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   padding: 0 10px;
 }
 
+/* Deux bandeaux à la fois (l'accueil, une mise à jour) : le second se pose au-dessus du premier. */
+.bandeau ~ .bandeau {
+  bottom: 72px;
+}
+
+.bandeau-mise-a-jour a.bouton-lien {
+  color: inherit;
+  text-decoration: underline;
+}
+
 .bouton-etoile[aria-pressed='true'] {
   color: #e8a400;
 }
@@ -2039,6 +2049,19 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
 .rangement-note {
   display: block;
   color: var(--app-pale);
+}
+
+.rangement-choix {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+  cursor: pointer;
+}
+
+.rangement-choix input {
+  margin: 0;
+  accent-color: var(--notak-accent, #2f6feb);
 }
 
 /* Sous 640 px, la pastille se réduit à son icône, comme les autres boutons de l'en-tête. */

@@ -1,8 +1,14 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "principale",
-  "description": "Les droits de la page : déplacer la fenêtre par l'en-tête, l'agrandir d'un double clic, enregistrer un export là où la personne le choisit, et photographier la fenêtre pour un signalement.",
+  "description": "Les droits de l'application embarquée, et d'elle seule (aucune adresse distante) : déplacer la fenêtre par l'en-tête, l'agrandir d'un double clic, enregistrer un export ou une copie là où la personne le choisit, et demander puis poser une mise à jour signée.",
   "windows": ["principale"],
-  "remote": { "urls": ["http://localhost:*", "https://*"] },
-  "permissions": ["core:window:allow-start-dragging", "core:window:allow-internal-toggle-maximize", "allow-choisir-emplacement", "allow-ecrire-fichier", "allow-capturer-fenetre"]
+  "permissions": [
+    "core:window:allow-start-dragging",
+    "core:window:allow-internal-toggle-maximize",
+    "allow-choisir-emplacement",
+    "allow-ecrire-fichier",
+    "allow-preparer-mise-a-jour",
+    "allow-installer-mise-a-jour"
+  ]
 }

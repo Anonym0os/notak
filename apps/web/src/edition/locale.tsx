@@ -2,11 +2,13 @@ import { BullesDecouverte, type CouleurNote, EspaceNotak, type Id, ErreurNotak, 
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
 import { adressePour } from '../adresse'
+import { estBureau } from '../bureau'
 import { importDejaPropose, lireAncienEspace, noterImportPropose } from '../ancien'
 import { PagePartage, PageRapide } from '../Arrivees'
 import { Export, type ExportLocal } from '../Export'
 import { DialogueExport } from '../DialogueExport'
 import { localiser } from '../geocodage'
+import { BandeauMiseAJour, BandeauNouvelleVersion, lancerMisesAJour } from '../MiseAJour'
 import { importerEspaceLocal } from '../importLocal'
 import { Importer } from '../Importer'
 import { PlusEntete } from '../PlusEntete'
@@ -71,7 +73,8 @@ function Espace({ el }: { el: EspaceLocal }) {
       localiser,
       rechercherPartout: (requete) => rechercherLocalement(el, requete),
       listerTableaux: () => index.lister().map((e) => ({ id: e.id, titre: e.titre, ...(e.couleur ? { couleur: e.couleur as CouleurNote } : {}) })),
-      ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank'),
+      // L'app de bureau n'a qu'une fenêtre, et n'en ouvre pas d'autre (`apps/bureau/src-tauri/src/navigation.rs`).
+      ...(estBureau() ? {} : { ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank') }),
     }),
     [el, index],
   )
@@ -184,6 +187,8 @@ function Espace({ el }: { el: EspaceLocal }) {
         }}
       />
       <Accueil el={el} />
+      <BandeauMiseAJour />
+      <BandeauNouvelleVersion />
       <DialogueExport />
     </>
   )
@@ -211,7 +216,7 @@ function Accueil({ el }: { el: EspaceLocal }) {
   }
   return (
     <aside className="bandeau" role="status">
-      <span>{t('local.accueil')}</span>
+      <span>{t(estBureau() ? 'local.accueilBureau' : 'local.accueil')}</span>
       <button type="button" className="bouton bouton-plein" onClick={fermer}>
         {t('local.compris')}
       </button>
@@ -258,6 +263,8 @@ function BandeauAncien({ el }: { el: EspaceLocal }) {
 }
 
 enregistrerServiceWorker()
+// Dans l'app de bureau : la recherche des mises à jour signées (`MiseAJour.tsx`).
+lancerMisesAJour()
 createRoot(document.getElementById('racine')!).render(
   <StrictMode>
     <Application />

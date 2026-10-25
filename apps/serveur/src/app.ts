@@ -32,6 +32,7 @@ import { nomDuDocument } from './synchro.ts'
 import { largeurDemandee, nomReduit, reduire, reductible } from './tailles.ts'
 import { INSTANCE_PAR_DEFAUT, type Instance } from './instance.ts'
 import { CAPTURES_MAX, CAPTURE_MAX, CONTEXTE_MAX, TEXTE_MAX, deposerSignalement } from './signalements.ts'
+import { entetesSecurite } from '@notak/tableau/securite'
 import { verrouPar } from './verrou.ts'
 import { creerZip, nommerLesMedias } from './zip.ts'
 
@@ -54,6 +55,8 @@ export interface Contexte {
   /** Derrière un relais de confiance : l'adresse du client vient de `X-Forwarded-For`. */
   relaisFiable: boolean
   cookieSecurise: boolean
+  /** L'adresse publique du serveur : la CSP de ses pages y laisse passer la synchro en direct (WebSocket). */
+  origine?: string
   /** Le build de `apps/web`, servi à côté de l'API ; absent en développement, où Vite s'en charge. */
   dossierWeb?: string
   /** Son nom, ses inscriptions, ses habillages ; absente, celle d'origine (`INSTANCE_PAR_DEFAUT`). */
@@ -1343,6 +1346,14 @@ export function creerApp(ctx: Contexte): Hono {
 
   // En production, le même serveur sert l'application web construite ; toute autre adresse (`/t/…`) reçoit la page.
   if (ctx.dossierWeb) {
+    // Les pages de l'application, la connexion comprise : la CSP commune (`packages/tableau/src/securite.ts`), et
+    // aucune page d'un autre site ne peut les afficher dans un cadre pour faire cliquer à l'insu de la personne.
+    // L'API, plus haut, a déjà répondu : ses fichiers gardent leur propre bac à sable.
+    const securite = entetesSecurite('serveur', { https: ctx.cookieSecurise, ...(ctx.origine ? { origineServeur: ctx.origine } : {}) })
+    app.use('*', async (c, next) => {
+      await next()
+      for (const [nom, valeur] of Object.entries(securite)) c.res.headers.set(nom, valeur)
+    })
     // Un partage vers Notak est reçu par le service worker ; sans lui (pas encore installé), on ne perd que le partage, pas la page.
     app.post('/partage', async (c) => c.redirect('/', 303))
     app.use('*', serveStatic({ root: ctx.dossierWeb }))

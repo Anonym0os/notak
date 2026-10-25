@@ -103,6 +103,7 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     synchro: () => hocuspocus,
     relaisFiable: options.relaisFiable ?? false,
     cookieSecurise: options.cookieSecurise ?? false,
+    origine,
     dossierWeb: options.dossierWeb,
     ...(options.instance ? { instance: options.instance } : {}),
     cle,
