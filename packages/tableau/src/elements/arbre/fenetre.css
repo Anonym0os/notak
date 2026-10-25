@@ -98,10 +98,21 @@
   letter-spacing: 0.44px;
 }
 
-/* Dans l'application de bureau, les boutons de la fenêtre se posent dans la feuille comme chez Xmind : centrés sur les
-   îlots (42 px du haut de la fenêtre, tauri.conf.json), et l'en-tête se pose après eux, à 96 px du bord. */
+/* Dans l'application de bureau, comme chez Xmind : la feuille monte jusqu'au haut de la fenêtre, les îlots s'y posent
+   à 8 px du haut, centrés avec les boutons de la fenêtre (26 px, tauri.conf.json), et l'en-tête commence à 80 px du
+   bord de la fenêtre, après eux. */
+:root[data-bureau]:not([data-plein-ecran]) .notak-arbre-scene {
+  top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+:root[data-bureau]:not([data-plein-ecran]) :is(.notak-arbre-entete, .notak-arbre-outils, .notak-arbre-droite) {
+  top: 8px;
+}
+
 :root[data-bureau]:not([data-plein-ecran]) .notak-arbre-entete {
-  left: 88px;
+  left: 72px;
 }
 
 /* Les boutons à icône, communs aux barres. */

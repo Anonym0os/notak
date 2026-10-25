@@ -226,18 +226,18 @@
 }
 
 /* Dans l'application de bureau, la barre tient lieu de barre de titre (on y saisit la fenêtre), et ses îlots se
-   centrent sur les boutons de la fenêtre comme ceux du tableau (voir `toile.css`) : 8 px plus bas, 96 px à gauche. */
+   centrent sur les boutons de la fenêtre comme ceux du tableau (voir `toile.css`) : 8 px du haut, 80 px à gauche. */
 :root[data-bureau] .notak-document-entete {
   pointer-events: auto;
 }
 
 :root[data-bureau]:not([data-plein-ecran]) .notak-document-entete {
-  height: 76px;
-  padding: 24px 16px 16px 96px;
+  height: 60px;
+  padding: 8px 16px 16px 80px;
 }
 
 :root[data-bureau]:not([data-plein-ecran]) .notak-document-corps {
-  padding-top: 76px;
+  padding-top: 60px;
 }
 
 .notak-document-titre-lu[data-vide],

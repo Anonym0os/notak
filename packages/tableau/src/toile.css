@@ -504,11 +504,11 @@
 
 
 /* Dans l'application de bureau, la bande tient lieu de barre de titre et garde le pointeur pour qu'on y saisisse la
-   fenêtre. Comme chez Xmind, les boutons de la fenêtre sont centrés sur les îlots, à 42 px du haut (tauri.conf.json) :
-   la bande descend ses îlots de 8 px et laisse 96 px à gauche. En plein écran, plus de boutons : la bande d'origine. */
+   fenêtre. Comme chez Xmind, elle se serre en haut : îlots à 8 px du haut, centrés avec les boutons de la fenêtre à
+   26 px (tauri.conf.json), le premier à 80 px du bord. En plein écran, plus de boutons : la bande d'origine. */
 :root[data-bureau]:not([data-plein-ecran]) .notak-entete {
-  height: 76px;
-  padding: 24px 16px 16px 96px;
+  height: 60px;
+  padding: 8px 16px 16px 80px;
 }
 
 :root[data-bureau] .notak-entete {
@@ -516,19 +516,19 @@
 }
 
 :root[data-bureau]:not([data-plein-ecran]) .notak-espace {
-  --notak-haut: 76px;
+  --notak-haut: 60px;
 }
 
 :root[data-bureau]:not([data-plein-ecran]) .notak-espace[data-taille='petite'] {
-  --notak-haut: 67px;
+  --notak-haut: 53px;
 }
 
 :root[data-bureau]:not([data-plein-ecran]) .notak-espace[data-taille='grande'] {
-  --notak-haut: 87px;
+  --notak-haut: 69px;
 }
 
 :root[data-bureau]:not([data-plein-ecran]) .notak-barre-outils {
-  top: 76px;
+  top: 60px;
 }
 
 .notak-entete-gauche {
