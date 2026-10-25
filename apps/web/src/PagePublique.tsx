@@ -69,6 +69,12 @@ function Lecture({ jeton, tableau }: { jeton: string; tableau: TableauPublic }) 
       <div className="public-corps">
         <Toile magasin={magasin} services={services} />
       </div>
+      {/* Une bande à part, sous la toile : la mention ne recouvre jamais une carte. */}
+      <footer className="public-pied">
+        <a href="https://notak.app" target="_blank" rel="noopener">
+          {t('publique.faitAvec')}
+        </a>
+      </footer>
     </div>
   )
 }

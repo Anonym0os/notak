@@ -56,6 +56,8 @@ export function pdfDePages(pages: readonly PagePdf[]): Uint8Array {
       ],
     )
   })
+  // Le dernier objet dit d'où vient le fichier, dans ses propriétés seulement : rien ne s'ajoute à la page.
+  objets.push([texte('<< /Producer (Notak) /Creator (Notak) >>')])
 
   const morceaux: Uint8Array[] = []
   let position = 0
@@ -75,7 +77,7 @@ export function pdfDePages(pages: readonly PagePdf[]): Uint8Array {
   const ligne = (n: number) => `${String(n).padStart(10, '0')} 00000 n \n`
   ecrire(
     texte(`xref\n0 ${objets.length + 1}\n0000000000 65535 f \n${decalages.map(ligne).join('')}`),
-    texte(`trailer\n<< /Size ${objets.length + 1} /Root 1 0 R >>\nstartxref\n${debutXref}\n%%EOF\n`),
+    texte(`trailer\n<< /Size ${objets.length + 1} /Root 1 0 R /Info ${objets.length} 0 R >>\nstartxref\n${debutXref}\n%%EOF\n`),
   )
 
   const sortie = new Uint8Array(position)

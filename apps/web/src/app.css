@@ -386,6 +386,25 @@ body {
   min-height: 0;
 }
 
+.public-pied {
+  display: flex;
+  flex: none;
+  justify-content: center;
+  padding: 4px 16px;
+  background: #fff;
+  box-shadow: 0 -1px 0 rgb(0 0 0 / 0.06);
+  font-size: 11px;
+}
+
+.public-pied a {
+  color: #9ca3af;
+  text-decoration: none;
+}
+
+.public-pied a:hover {
+  color: #6b7280;
+}
+
 .partage-lien {
   display: flex;
   flex-direction: column;

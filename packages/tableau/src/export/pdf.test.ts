@@ -25,8 +25,15 @@ describe('pdfDepuisJpeg', () => {
     const debutXref = Number(/startxref\n(\d+)\n/.exec(texte)![1])
     expect(texte.slice(debutXref, debutXref + 4)).toBe('xref')
     const decalages = [...texte.slice(debutXref).matchAll(/(\d{10}) 00000 n /g)].map((m) => Number(m[1]))
-    expect(decalages).toHaveLength(5)
+    expect(decalages).toHaveLength(6)
     decalages.forEach((d, i) => expect(texte.slice(d, d + `${i + 1} 0 obj`.length)).toBe(`${i + 1} 0 obj`))
+  })
+
+  it('se signe Notak dans ses propriétés, pas sur la page', () => {
+    expect(texte).toContain('6 0 obj\n<< /Producer (Notak) /Creator (Notak) >>')
+    expect(texte).toContain('/Root 1 0 R /Info 6 0 R')
+    expect(texte).toContain('/Contents 4 0 R')
+    expect(texte).toContain('q 600 0 0 300 0 0 cm /Im0 Do Q')
   })
 
   it('lit les octets d’une adresse data:', () => {
@@ -49,7 +56,7 @@ describe('pdfDePages', () => {
     expect(texte).toContain('/XObject << /Im0 11 0 R >> >> /Contents 10 0 R')
     const debutXref = Number(/startxref\n(\d+)\n/.exec(texte)![1])
     const decalages = [...texte.slice(debutXref).matchAll(/(\d{10}) 00000 n /g)].map((m) => Number(m[1]))
-    expect(decalages).toHaveLength(11)
+    expect(decalages).toHaveLength(12)
     decalages.forEach((d, i) => expect(texte.slice(d, d + `${i + 1} 0 obj`.length)).toBe(`${i + 1} 0 obj`))
   })
 })

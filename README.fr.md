@@ -47,8 +47,10 @@ bun run dev                 # terminal 2 : l'application, relayée vers le serve
 ```
 
 Vérifications : `bun run typecheck` et `bun run test` (environ 1 500 essais, dont quelques centaines de scénarios
-de synchro tirés au hasard). Les contributions sont bienvenues : commencez par [`CONTRIBUTING.md`](CONTRIBUTING.md)
-et [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+de synchro tirés au hasard). Le code est décrit dans [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+> Notak est l'outil dont on se sert chaque jour, publié tel quel et gratuit pour de bon. Les issues et les pull
+> requests ne sont pas suivies : reprenez-le, adaptez-le, servez-vous-en comme vous voulez.
 
 | Geste | Effet |
 |---|---|

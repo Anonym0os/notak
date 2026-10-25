@@ -47,11 +47,13 @@ bun run dev                 # terminal 2: the app, proxied to the server
 ```
 
 Checks: `bun run typecheck` and `bun run test` (about 1,500 tests, including a few hundred randomised sync
-scenarios). Contributions are welcome: start with [`CONTRIBUTING.md`](CONTRIBUTING.md) and
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+scenarios). The code is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-> The code, comments and design notes are written in French (`creerTableau`, `magasin`, `toile`…). Issues and
-> pull requests are welcome in English or French; `CONTRIBUTING.md` has a short glossary.
+> Notak is the tool we use every day, published as is and free for good. Issues and pull requests are not
+> followed: fork it, adapt it, use it as you like.
+
+> The code, comments and design notes are written in French (`creerTableau`, `magasin`, `toile`…);
+> `CONTRIBUTING.md` has a short glossary.
 
 ## Self-host
 
