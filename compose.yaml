@@ -12,6 +12,8 @@ services:
       # Les thèmes sont lus dans /donnees/habillages ; l'un peut être proposé, ou imposé à tous.
       # NOTAK_HABILLAGE_DEFAUT: silak
       # NOTAK_HABILLAGE: silak
+      # Le chiffrement au repos : une clé de 32 octets en base64 (openssl rand -base64 32). La perdre, c'est perdre les données.
+      # NOTAK_CLE: …
       # PEXELS_API_KEY: …
     volumes:
       - notak-donnees:/donnees

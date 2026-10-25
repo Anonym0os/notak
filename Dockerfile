@@ -30,6 +30,7 @@ COPY --from=dependances /notak/node_modules ./node_modules
 COPY --from=dependances /notak/apps/serveur/node_modules ./apps/serveur/node_modules
 COPY apps/serveur/package.json apps/serveur/
 COPY apps/serveur/src apps/serveur/src
+COPY apps/serveur/outils/chiffrer.ts apps/serveur/outils/
 COPY packages/tableau/src packages/tableau/src
 COPY --from=construction /notak/apps/web/dist ./web
 RUN mkdir -p /donnees && chown node:node /donnees

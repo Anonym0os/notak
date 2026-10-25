@@ -38,6 +38,7 @@ Pour un essai en HTTP sur sa machine : `NOTAK_COOKIE_SECURISE=0` et `NOTAK_RELAI
 | `NOTAK_HABILLAGES` | `/donnees/habillages` | le dossier des thèmes à fournir aux comptes |
 | `NOTAK_HABILLAGE_DEFAUT` | aucun | l'identifiant du thème proposé à qui n'en a pas choisi |
 | `NOTAK_HABILLAGE` | aucun | l'identifiant du thème imposé à tous : le choix de chacun ne compte plus |
+| `NOTAK_CLE`, `NOTAK_CLE_FICHIER` | aucune | la clé du chiffrement au repos (voir plus bas) |
 | `PEXELS_API_KEY` | aucune | la banque d'images du panneau « Image » ; sans elle, seulement ses propres fichiers |
 | `PORT` | `3005` | le port d'écoute |
 | `NOTAK_DONNEES` | `/donnees` | le dossier des données |
@@ -73,7 +74,15 @@ blanche que dans le navigateur. Un fichier refusé est signalé dans le journal 
 n'empêche pas le serveur de démarrer. Les thèmes du serveur apparaissent dans les réglages de chacun, à côté de ceux
 qu'on importe soi-même.
 
+## Chiffrer au repos
+
+Avec une clé (`NOTAK_CLE`, 32 octets en base64 tirés par `openssl rand -base64 32`, ou `NOTAK_CLE_FICHIER`), le
+serveur écrit chiffrés le contenu des tableaux et les fichiers déposés. **Perdre la clé, c'est perdre les données** :
+on la garde hors du serveur, et on la sauvegarde à part. Ce qui reste en clair, la migration des données existantes
+(`bun run serveur:chiffrer`) et le refus de démarrer sur une clé fausse sont décrits dans le
+[README](../README.fr.md), section « Le chiffrement au repos ».
+
 ## Sauvegarder
 
-Tout est dans `/donnees`. Une copie du volume, serveur arrêté ou avec `sqlite3 notak.db ".backup copie.db"` pour la
+Tout est dans `/donnees`. Avec le chiffrement, une sauvegarde ne se relit qu'avec la même clé. Une copie du volume, serveur arrêté ou avec `sqlite3 notak.db ".backup copie.db"` pour la
 base, suffit à tout remettre en place.
