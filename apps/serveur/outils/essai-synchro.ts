@@ -1,5 +1,6 @@
 // Essai à la main de /sync : node apps/serveur/outils/essai-synchro.ts [http://localhost:3005]
-// Inscrit un compte, écrit dans `elements`, se déconnecte, se reconnecte et relit.
+// Inscrit un compte, écrit dans `elements`, se déconnecte, se reconnecte et relit ; puis vérifie qu'une page d'un
+// autre site, même avec le cookie, n'ouvre pas la synchro.
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/provider'
 import WebSocket from 'ws'
 import * as Y from 'yjs'
@@ -10,17 +11,17 @@ const suffixe = Date.now().toString(36)
 async function api(chemin: string, json: unknown, cookie?: string) {
   const r = await fetch(origine + chemin, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
+    headers: { 'content-type': 'application/json', origin: origine, ...(cookie ? { cookie } : {}) },
     body: JSON.stringify(json),
   })
   return { statut: r.status, cookie: r.headers.get('set-cookie')?.split(';')[0], corps: (await r.json().catch(() => null)) as Record<string, unknown> | null }
 }
 
-function ouvrir(nom: string, cookie: string): Promise<{ doc: Y.Doc; fermer(): void; lectureSeule: boolean }> {
+function ouvrir(nom: string, cookie: string, depuis = origine): Promise<{ doc: Y.Doc; fermer(): void; lectureSeule: boolean }> {
   const doc = new Y.Doc()
   const Ws = class extends WebSocket {
     constructor(url: string, protocoles?: string | string[]) {
-      super(url, protocoles, { headers: { cookie } })
+      super(url, protocoles, { headers: { cookie, origin: depuis } })
     }
   }
   const socket = new HocuspocusProviderWebsocket({ url: origine.replace(/^http/, 'ws') + '/sync', WebSocketPolyfill: Ws })
@@ -37,7 +38,7 @@ function ouvrir(nom: string, cookie: string): Promise<{ doc: Y.Doc; fermer(): vo
   })
 }
 
-const compte = await api('/api/inscription', { email: `essai-${suffixe}@exemple.fr`, motDePasse: 'motdepasse', nom: 'Essai' })
+const compte = await api('/api/auth/sign-up/email', { email: `essai-${suffixe}@exemple.fr`, password: 'motdepasse', name: 'Essai' })
 if (!compte.cookie) throw new Error('inscription ratée : ' + JSON.stringify(compte))
 const cookie = compte.cookie
 const tableau = `essai-${suffixe}-tableau`
@@ -60,6 +61,8 @@ if (!relu) throw new Error('élément perdu')
 const liste = await fetch(origine + '/api/tableaux', { headers: { cookie } }).then((r) => r.json())
 console.log('GET /api/tableaux :', JSON.stringify(liste))
 
-const sansDroit = await ouvrir(nom, 'notak_session=faux').then(() => 'ouvert (anormal)', (e: Error) => e.message)
+const sansDroit = await ouvrir(nom, 'notak.session_token=faux').then(() => 'ouvert (anormal)', (e: Error) => e.message)
 console.log('sans session :', sansDroit)
+const ailleurs = await ouvrir(nom, cookie, 'https://malveillant.exemple').then(() => 'ouvert (anormal)', (e: Error) => e.message)
+console.log('depuis un autre site, avec le cookie :', ailleurs)
 process.exit(0)

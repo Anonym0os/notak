@@ -75,16 +75,68 @@ export async function moi(): Promise<Moi | null> {
   return (await r.json()) as Moi
 }
 
+// La connexion passe par Better Auth, monté par le serveur sur `/api/auth`. Ses refus portent leurs propres codes
+// (en capitales) : on les ramène aux nôtres.
+const REFUS_AUTH = {
+  INVALID_EMAIL_OR_PASSWORD: 'erreur.identifiants_incorrects',
+  USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: 'erreur.adresse_prise',
+  USER_ALREADY_EXISTS: 'erreur.adresse_prise',
+  VALIDATION_ERROR: 'erreur.compte_invalide',
+  INVALID_EMAIL: 'erreur.adresse_invalide',
+  PASSWORD_TOO_SHORT: 'erreur.mot_de_passe_invalide',
+  PASSWORD_TOO_LONG: 'erreur.mot_de_passe_invalide',
+  NOM_INVALIDE: 'erreur.nom_invalide',
+  INVALID_TOKEN: 'erreur.lien_perime',
+  401: 'erreur.identifiants_incorrects',
+}
+
 export async function seConnecter(email: string, motDePasse: string): Promise<Moi> {
-  const r = await appeler('/api/connexion', { email, motDePasse })
-  if (!r.ok) throw await refus(r, { 401: 'erreur.identifiants_incorrects', 400: 'erreur.identifiants_incorrects' })
-  return (await r.json()) as Moi
+  const r = await appeler('/api/auth/sign-in/email', { email, password: motDePasse })
+  if (!r.ok) throw await refus(r, REFUS_AUTH)
+  return (await moi())!
 }
 
 export async function sInscrire(email: string, motDePasse: string, nom: string): Promise<Moi> {
-  const r = await appeler('/api/inscription', { email, motDePasse, nom, langue: langue() })
-  if (!r.ok) throw await refus(r, { 409: 'erreur.adresse_prise', 400: 'erreur.compte_invalide', 422: 'erreur.compte_invalide' })
-  return (await r.json()) as Moi
+  const r = await appeler('/api/auth/sign-up/email', { email, password: motDePasse, name: nom, langue: langue() })
+  if (!r.ok) throw await refus(r, REFUS_AUTH)
+  return (await moi())!
+}
+
+export type Fournisseur = 'google' | 'microsoft' | 'github'
+
+/** Ce que l'écran de connexion peut proposer en plus du mot de passe. */
+export async function moyensConnexion(): Promise<{ fournisseurs: Fournisseur[]; courriel: boolean }> {
+  const r = await appeler('/api/connexion/moyens')
+  if (!r.ok) return { fournisseurs: [], courriel: false }
+  return (await r.json()) as { fournisseurs: Fournisseur[]; courriel: boolean }
+}
+
+/** Part se connecter chez le fournisseur ; on revient sur la page courante une fois connecté. */
+export async function connexionFournisseur(fournisseur: Fournisseur): Promise<void> {
+  const r = await appeler('/api/auth/sign-in/social', { provider: fournisseur, callbackURL: location.href, errorCallbackURL: location.href })
+  if (!r.ok) throw await refus(r, REFUS_AUTH)
+  const { url } = (await r.json()) as { url?: string }
+  if (url) location.assign(url)
+}
+
+/** Où revient le lien de réinitialisation : sur l'application, qui y lit le jeton (voir `jetonReinitialisation`). */
+const RETOUR_REINITIALISATION = '/?reinitialisation=1'
+
+/** Demande un lien pour changer de mot de passe. La réponse est la même que l'adresse ait un compte ou non. */
+export async function demanderReinitialisation(email: string): Promise<void> {
+  const r = await appeler('/api/auth/request-password-reset', { email, redirectTo: location.origin + RETOUR_REINITIALISATION })
+  if (!r.ok) throw await refus(r, REFUS_AUTH)
+}
+
+/** Le jeton d'un lien de réinitialisation ouvert à l'instant, ou `null`. */
+export function jetonReinitialisation(): string | null {
+  const p = new URLSearchParams(location.search)
+  return p.get('reinitialisation') === '1' ? p.get('token') : null
+}
+
+export async function reinitialiser(jeton: string, motDePasse: string): Promise<void> {
+  const r = await appeler('/api/auth/reset-password', { token: jeton, newPassword: motDePasse })
+  if (!r.ok) throw await refus(r, REFUS_AUTH)
 }
 
 /** Change la couleur et/ou la photo du compte (`photo: null` la retire) ; rend le compte à jour. */
@@ -95,7 +147,7 @@ export async function reglerCompte(reglages: { couleur?: string; photo?: string 
 }
 
 export async function seDeconnecter(): Promise<void> {
-  await appeler('/api/deconnexion', {})
+  await appeler('/api/auth/sign-out', {})
 }
 
 export interface TableauAccessible {

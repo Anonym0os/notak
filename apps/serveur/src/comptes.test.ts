@@ -1,23 +1,32 @@
 import { describe, expect, it } from 'vitest'
-import { ouvrirBase } from './base.ts'
-import { COULEURS, ErreurCompte, inscrire } from './comptes.ts'
+import { creerAuth } from './auth.ts'
+import { type Base, ouvrirBase } from './base.ts'
+import { COULEURS } from './comptes.ts'
 import { role } from './droits.ts'
 import { lireEtat } from './contenu.ts'
+import { ORIGINE_ESSAI, authEssai, poserUtilisateur } from './essai.ts'
 import { nomDuDocument } from './synchro.ts'
 
 const neuf = () => ouvrirBase(':memory:')
 
+/** L'inscription telle que la fait Better Auth ; rend le compte vu par Notak. */
+async function inscrire(base: Base, entree: { email: string; motDePasse: string; nom: string; langue?: 'fr' | 'en' }) {
+  const r = await authEssai(base).api.signUpEmail({ body: { email: entree.email, password: entree.motDePasse, name: entree.nom, langue: entree.langue } as never })
+  return base.utilisateurParId(r.user.id)!
+}
+
 describe('inscription', () => {
   it('crée le compte, son tableau d’accueil dont il est propriétaire, et une couleur de la palette', async () => {
     const base = neuf()
-    const u = await inscrire(base, { email: '  Ana@Exemple.FR ', motDePasse: 'motdepasse', nom: ' Ana ' })
+    const u = await inscrire(base, { email: 'Ana@Exemple.FR', motDePasse: 'motdepasse', nom: ' Ana ' })
     expect(u.email).toBe('ana@exemple.fr')
     expect(u.nom).toBe('Ana')
     expect(COULEURS).toContain(u.couleur)
     expect(COULEURS).toHaveLength(8)
     expect(base.tableau(u.racine)?.titre).toBe('Accueil d’Ana')
     expect(role(base.acces(u.racine), u.id, u.racine)).toBe('proprietaire')
-    expect(u.hash).not.toContain('motdepasse')
+    const compte = base.db.prepare("SELECT password FROM account WHERE userId = ? AND providerId = 'credential'").get(u.id) as { password: string }
+    expect(compte.password).toMatch(/^\$argon2id\$/)
   })
 
   it('remplit l’accueil d’un compte neuf : un document avec son titre, des colonnes et des notes qui présentent les gestes', async () => {
@@ -61,14 +70,14 @@ describe('inscription', () => {
   it('refuse une adresse déjà prise, même écrite autrement', async () => {
     const base = neuf()
     await inscrire(base, { email: 'ana@exemple.fr', motDePasse: 'motdepasse', nom: 'Ana' })
-    await expect(inscrire(base, { email: 'ANA@exemple.fr', motDePasse: 'motdepasse', nom: 'Autre' })).rejects.toMatchObject({ code: 'existe' })
+    await expect(inscrire(base, { email: 'ANA@exemple.fr', motDePasse: 'motdepasse', nom: 'Autre' })).rejects.toMatchObject({ body: { code: 'USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL' } })
   })
 
   it('refuse les entrées invalides', async () => {
     const base = neuf()
     const ok = { email: 'ana@exemple.fr', motDePasse: 'motdepasse', nom: 'Ana' }
     for (const mauvais of [{ email: 'ana' }, { motDePasse: 'court' }, { nom: '  ' }]) {
-      await expect(inscrire(base, { ...ok, ...mauvais })).rejects.toBeInstanceOf(ErreurCompte)
+      await expect(inscrire(base, { ...ok, ...mauvais })).rejects.toMatchObject({ statusCode: 400 })
     }
   })
 
@@ -97,18 +106,29 @@ describe('base', () => {
     const base = neuf()
     expect(() =>
       base.transaction(() => {
-        base.creerUtilisateur({ id: 'u', email: 'a@b.c', nom: 'A', hash: 'h', couleur: '#000', racine: 'r' })
+        poserUtilisateur(base, { id: 'u', email: 'a@b.c', nom: 'A', couleur: '#000', racine: 'r' })
         throw new Error('raté')
       }),
     ).toThrow('raté')
     expect(base.utilisateurParId('u')).toBeNull()
   })
 
-  it('oublie les sessions échues', () => {
+  it('une transaction dans une transaction s’y joint', () => {
     const base = neuf()
-    base.creerUtilisateur({ id: 'u', email: 'a@b.c', nom: 'A', hash: 'h', couleur: '#000', racine: 'r' })
-    base.creerSession('e1', 'u', 1_000)
-    expect(base.utilisateurDeSession('e1', 999)?.id).toBe('u')
-    expect(base.utilisateurDeSession('e1', 1_001)).toBeNull()
+    base.transaction(() => base.transaction(() => poserUtilisateur(base, { id: 'u', email: 'a@b.c', nom: 'A', couleur: '#000', racine: 'r' })))
+    expect(base.utilisateurParId('u')?.email).toBe('a@b.c')
+  })
+})
+
+describe('session', () => {
+  it('une session échue ne vaut plus rien', async () => {
+    const base = neuf()
+    let maintenant = Date.now()
+    const auth = creerAuth({ base, secret: 'un-secret-d-essai-assez-long-pour-better-auth', origine: ORIGINE_ESSAI, cookieSecurise: false, courrier: { actif: false, envoyer: async () => {} } })
+    const r = await auth.api.signUpEmail({ body: { email: 'ana@exemple.fr', password: 'motdepasse', name: 'Ana' }, returnHeaders: true })
+    const cookie = r.headers.get('set-cookie')!.split(';')[0]!
+    expect((await auth.api.getSession({ headers: new Headers({ cookie }) }))?.user.email).toBe('ana@exemple.fr')
+    base.db.prepare('UPDATE session SET expiresAt = ?').run(new Date(maintenant - 1000).toISOString())
+    expect(await auth.api.getSession({ headers: new Headers({ cookie }) })).toBeNull()
   })
 })

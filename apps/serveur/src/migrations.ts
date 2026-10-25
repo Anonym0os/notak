@@ -115,6 +115,47 @@ CREATE TABLE IF NOT EXISTS liens_publics (
       if (!colonnes(db, 'utilisateurs').has('photo')) db.exec('ALTER TABLE utilisateurs ADD COLUMN photo TEXT')
     },
   },
+  {
+    version: 2,
+    nom: 'comptes par Better Auth',
+    // Les tables et colonnes qu'attend Better Auth (`auth.ts`) ; `migrations.test.ts` vérifie qu'il n'en réclame pas
+    // d'autres. Les mots de passe passent dans `account`, tels quels : ce sont les mêmes empreintes Argon2. Les
+    // anciennes sessions ne se reprennent pas (on n'en a que l'empreinte) : chacun se reconnecte une fois.
+    appliquer(db) {
+      db.exec(`
+ALTER TABLE utilisateurs ADD COLUMN email_verifie INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE utilisateurs ADD COLUMN image TEXT;
+ALTER TABLE utilisateurs ADD COLUMN cree DATE NOT NULL DEFAULT '';
+ALTER TABLE utilisateurs ADD COLUMN modifie DATE NOT NULL DEFAULT '';
+CREATE TABLE session (
+  id TEXT NOT NULL PRIMARY KEY, expiresAt DATE NOT NULL, token TEXT NOT NULL UNIQUE,
+  createdAt DATE NOT NULL, updatedAt DATE NOT NULL, ipAddress TEXT, userAgent TEXT,
+  userId TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE
+);
+CREATE INDEX session_userId_idx ON session(userId);
+CREATE TABLE account (
+  id TEXT NOT NULL PRIMARY KEY, accountId TEXT NOT NULL, providerId TEXT NOT NULL,
+  userId TEXT NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  accessToken TEXT, refreshToken TEXT, idToken TEXT, accessTokenExpiresAt DATE, refreshTokenExpiresAt DATE,
+  scope TEXT, password TEXT, createdAt DATE NOT NULL, updatedAt DATE NOT NULL
+);
+CREATE INDEX account_userId_idx ON account(userId);
+CREATE TABLE verification (
+  id TEXT NOT NULL PRIMARY KEY, identifier TEXT NOT NULL, value TEXT NOT NULL,
+  expiresAt DATE NOT NULL, createdAt DATE NOT NULL, updatedAt DATE NOT NULL
+);
+CREATE INDEX verification_identifier_idx ON verification(identifier);
+`)
+      const maintenant = new Date().toISOString()
+      // Un compte d'avant avait vérifié son adresse autant qu'on pouvait le faire : on ne la lui redemande pas.
+      db.prepare('UPDATE utilisateurs SET email_verifie = 1, cree = ?, modifie = ?').run(maintenant, maintenant)
+      db.prepare(
+        `INSERT INTO account (id, accountId, providerId, userId, password, createdAt, updatedAt)
+         SELECT lower(hex(randomblob(16))), id, 'credential', id, hash, ?, ? FROM utilisateurs`,
+      ).run(maintenant, maintenant)
+      db.exec('ALTER TABLE utilisateurs DROP COLUMN hash; DROP TABLE sessions;')
+    },
+  },
 ]
 
 /** La version de schéma de cette base : 0 pour une base neuve ou d'avant les migrations. */

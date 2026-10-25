@@ -70,6 +70,17 @@ docker run -d -p 3005:3005 -v notak-donnees:/donnees notak
 The image expects an HTTPS reverse proxy in front of it (`Secure` cookie, client address read from
 `X-Forwarded-For`). To try it over plain HTTP on your machine: `-e NOTAK_COOKIE_SECURISE=0 -e NOTAK_RELAIS=0`.
 
+Accounts go through [Better Auth](https://www.better-auth.com). Set the server's public address so sign-in
+links and provider callbacks point to it: `-e NOTAK_ORIGINE=https://notak.example.com`. Optional settings:
+
+| Variable | Effect |
+|---|---|
+| `NOTAK_SECRET` | Signs session cookies. Without it, one is drawn on first start and kept in `/donnees/secret`. Changing it signs everyone out. |
+| `NOTAK_GOOGLE_ID`, `NOTAK_GOOGLE_SECRET` | Adds "Continue with Google". Same pattern for `MICROSOFT` and `GITHUB`. The callback is `<NOTAK_ORIGINE>/api/auth/callback/<provider>`. |
+| `NOTAK_SMTP_URL`, `NOTAK_EXPEDITEUR` | Sends password-reset and verification emails (`smtps://user:password@host:465`). Without it, the links go to the server log for the administrator to pass on. |
+
+Before upgrading, the server copies the database to `notak.db.avant-<version>` in `/donnees`, then migrates it.
+
 The "Image" panel's photo library queries Pexels: pass a free key with `-e PEXELS_API_KEY=…`. Without it, the panel
 only offers uploading your own files.
 

@@ -16,7 +16,7 @@ apps/web              l'application : deux éditions, choisies à la constructio
   main.tsx            charge edition/locale.tsx ou edition/serveur.tsx selon VITE_EDITION
   edition/            ce qui est propre à chaque édition (services, en-tête, routes)
   local/              l'édition locale : fichiers, copies .notak, panneau « Où sont mes tableaux ? », synchro
-apps/serveur          l'édition serveur : Hono (API, comptes, fichiers), Hocuspocus (synchro), SQLite
+apps/serveur          l'édition serveur : Hono (API, fichiers), Better Auth (comptes, sessions), Hocuspocus (synchro), SQLite
 apps/site             notak.app : l'édition locale derrière nginx, et la page « À propos »
 apps/bureau           la coque de bureau (Tauri)
 ```
@@ -107,8 +107,16 @@ Un service absent fait simplement disparaître ce qui en dépend.
 ## L'édition serveur
 
 `apps/serveur/src/app.ts` décrit toutes les routes de l'API ; `synchro.ts` branche Hocuspocus, qui vérifie la
-session et les droits à chaque connexion ; `base.ts` est la base SQLite (comptes, tableaux, droits, activité, index
-de recherche). Le serveur lit les tableaux avec le même code que l'application (`packages/tableau/src/export/`).
+session et les droits à chaque connexion, et refuse une page venue d'un autre site ; `base.ts` est la base SQLite
+(comptes, tableaux, droits, activité, index de recherche). Le serveur lit les tableaux avec le même code que
+l'application (`packages/tableau/src/export/`).
+
+Les comptes et les sessions sont confiés à Better Auth (`auth.ts`), monté sur `/api/auth/*` et branché sur la même
+base : il écrit `utilisateurs` (ses champs anglais y portent nos noms), `account`, `session` et `verification`. Le
+hachage reste Argon2 (`motsDePasse.ts`), pour que les empreintes d'avant restent valables. Ce qui suit une
+inscription et qui est à Notak, l'accueil et les invitations en attente, est dans `comptes.ts`, appelé par un crochet
+de Better Auth. Le schéma vient de `migrations.ts` : des migrations numérotées, suivies par `PRAGMA user_version`,
+et un essai vérifie que Better Auth n'y trouve rien à ajouter.
 
 ## Les essais
 

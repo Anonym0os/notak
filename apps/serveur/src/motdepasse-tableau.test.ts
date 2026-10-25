@@ -112,7 +112,7 @@ describe('le mot de passe d’un tableau', () => {
   })
 
   it('la connexion de synchro est refusée tant que le tableau est fermé', async () => {
-    const hp = creerHocuspocus(m.base)
+    const hp = creerHocuspocus(m.base, m.auth)
     const demander = (c: Compte) =>
       hp.configuration.onAuthenticate!({ documentName: 'tableau:tableau-coffre', requestHeaders: new Headers({ cookie: c.cookie }), connectionConfig: {} } as never)
     await expect(demander(ana)).resolves.toBeTruthy()

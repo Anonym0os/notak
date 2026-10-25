@@ -4,10 +4,10 @@ import { Database } from '@hocuspocus/extension-database'
 import { Hocuspocus } from '@hocuspocus/server'
 import { WebSocketServer } from 'ws'
 import { type Acteur, suivreActivite } from './activite.ts'
+import { type Auth, utilisateurDeSession } from './auth.ts'
 import type { Base } from './base.ts'
 import { roleHerite } from './droits.ts'
 import { indexerDocument } from './indexation.ts'
-import { NOM_COOKIE, empreinteDe, lireCookie } from './sessions.ts'
 import { verrouPar } from './verrou.ts'
 
 const PREFIXE = 'tableau:'
@@ -20,7 +20,7 @@ export function nomDuDocument(tableau: string): string {
   return PREFIXE + tableau
 }
 
-export function creerHocuspocus(base: Base, maintenant: () => number = Date.now): Hocuspocus {
+export function creerHocuspocus(base: Base, auth: Auth, maintenant: () => number = Date.now): Hocuspocus {
   const activite = suivreActivite(base, maintenant)
   return new Hocuspocus({
     extensions: [
@@ -52,8 +52,8 @@ export function creerHocuspocus(base: Base, maintenant: () => number = Date.now)
     },
     async onAuthenticate({ documentName, requestHeaders, connectionConfig }) {
       const id = idDuDocument(documentName)
-      const jeton = lireCookie(requestHeaders.get('cookie'), NOM_COOKIE)
-      const utilisateur = id && jeton ? base.utilisateurDeSession(empreinteDe(jeton), maintenant()) : null
+      // La session se lit sur les en-têtes de la requête de mise à niveau : le cookie y voyage comme pour l'API.
+      const utilisateur = id ? await utilisateurDeSession(auth, base, requestHeaders) : null
       const droit = utilisateur && id ? roleHerite((t) => base.acces(t), (t) => base.tableau(t)?.parent ?? null, utilisateur.id, id) : null
       if (!utilisateur || !droit) throw new Error('refusé')
       // Un tableau protégé ne se synchronise qu'une fois son mot de passe donné.
@@ -73,13 +73,29 @@ function requeteWeb(req: IncomingMessage): Request {
   return new Request(new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`), { headers: entetes })
 }
 
+/**
+ * Une page d'un autre site ne doit pas ouvrir la synchro avec le cookie de la personne : un navigateur envoie
+ * toujours `Origin` sur une mise à niveau, et il faut qu'elle soit ce serveur même (l'hôte demandé) ou une origine
+ * de confiance. Sans `Origin`, ce n'est pas un navigateur (un script, un outil d'essai) : il n'a pas ce cookie.
+ */
+export function origineAdmise(origine: string | undefined, hote: string | undefined, confiance: readonly string[]): boolean {
+  if (!origine) return true
+  if (confiance.includes(origine)) return true
+  try {
+    return hote !== undefined && new URL(origine).host === hote
+  } catch {
+    return false
+  }
+}
+
 /** Branche `/sync` sur un serveur HTTP existant. */
-export function brancherSynchro(http: Server, hocuspocus: Hocuspocus): { fermer(): void } {
+export function brancherSynchro(http: Server, hocuspocus: Hocuspocus, confiance: readonly string[] = []): { fermer(): void } {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 32 * 1024 * 1024 })
 
   const surMiseANiveau = (req: IncomingMessage, socket: Duplex, tete: Buffer) => {
     const chemin = new URL(req.url ?? '/', 'http://local').pathname
     if (chemin !== '/sync') return socket.destroy()
+    if (!origineAdmise(req.headers.origin, req.headers.host, confiance)) return socket.destroy()
     wss.handleUpgrade(req, socket, tete, (ws) => {
       const connexion = hocuspocus.handleConnection(ws, requeteWeb(req))
       ws.on('message', (donnees: Buffer) => connexion.handleMessage(donnees))

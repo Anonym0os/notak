@@ -8,7 +8,6 @@ export interface Utilisateur {
   id: string
   email: string
   nom: string
-  hash: string
   couleur: string
   racine: string
   /** Le fichier de sa photo (déposé par `/api/fichiers`), ou rien. */
@@ -83,19 +82,16 @@ export interface LigneNotification extends Omit<NouvelleNotification, 'auteur' |
 }
 
 export interface Base {
-  /** Exécute `travail` dans une transaction : annulée si elle lève. */
+  /** La base elle-même, pour Better Auth (`auth.ts`), qui y écrit ses tables par son propre SQL. */
+  readonly db: DatabaseSync
+  /** Exécute `travail` dans une transaction : annulée si elle lève. Déjà dans une transaction, il s'y joint. */
   transaction<T>(travail: () => T): T
   fermer(): void
 
-  creerUtilisateur(u: Utilisateur): void
   utilisateurParEmail(email: string): Utilisateur | null
   utilisateurParId(id: string): Utilisateur | null
   /** Change la couleur et/ou la photo du compte (`null` retire la photo) ; ce qui manque ne bouge pas. */
   reglerCompte(id: string, reglages: { couleur?: string; photo?: string | null }): void
-
-  creerSession(empreinte: string, utilisateur: string, expire: number): void
-  utilisateurDeSession(empreinte: string, maintenant: number): Utilisateur | null
-  supprimerSession(empreinte: string): void
 
   /** Crée un jeton d'arrivée. Seule l'empreinte (SHA-256 du jeton) est gardée. */
   creerJetonArrivee(j: { id: string; utilisateur: string; nom: string; empreinte: string; cree: number }): void
@@ -220,17 +216,18 @@ export function ouvrirBase(chemin: string): Base {
     (db.prepare(sql).get(...params) as Ligne | undefined) ?? null
   const executer = (sql: string, ...params: (string | number | Uint8Array | null)[]) => db.prepare(sql).run(...params)
 
-  const dansTransaction = <T>(travail: () => T): T => (db.isTransaction ? travail() : transaction(travail))
-
   /** Un mot de passe change ou disparaît : ce qui l'avait levé ne vaut plus. */
   const oublierLeves = (tableau: string, portee: Portee) => {
     if (portee === 'tableau') executer('DELETE FROM ouvertures WHERE tableau = ?', tableau)
     else executer('DELETE FROM acces_publics WHERE tableau = ?', tableau)
   }
 
-  const utilisateur = (l: Ligne | null): Utilisateur | null => (l ? (l as unknown as Utilisateur) : null)
+  // Les colonnes que Better Auth ajoute à `utilisateurs` (adresse vérifiée, dates, avatar d'un fournisseur) n'en sortent pas.
+  const utilisateur = (l: Ligne | null): Utilisateur | null =>
+    l ? { id: l.id as string, email: l.email as string, nom: l.nom as string, couleur: l.couleur as string, racine: l.racine as string, photo: (l.photo as string | null) ?? null } : null
 
   const transaction = <T>(travail: () => T): T => {
+    if (db.isTransaction) return travail()
     db.exec('BEGIN IMMEDIATE')
     try {
       const resultat = travail()
@@ -243,26 +240,16 @@ export function ouvrirBase(chemin: string): Base {
   }
 
   return {
+    db,
     transaction,
     fermer: () => db.close(),
 
-    creerUtilisateur: (u) =>
-      void executer('INSERT INTO utilisateurs (id,email,nom,hash,couleur,racine,photo) VALUES (?,?,?,?,?,?,?)', u.id, u.email, u.nom, u.hash, u.couleur, u.racine, u.photo ?? null),
     utilisateurParEmail: (email) => utilisateur(un('SELECT * FROM utilisateurs WHERE email = ?', email)),
     utilisateurParId: (id) => utilisateur(un('SELECT * FROM utilisateurs WHERE id = ?', id)),
     reglerCompte(id, r) {
       if (r.couleur !== undefined) executer('UPDATE utilisateurs SET couleur = ? WHERE id = ?', r.couleur, id)
       if (r.photo !== undefined) executer('UPDATE utilisateurs SET photo = ? WHERE id = ?', r.photo, id)
     },
-
-    creerSession: (empreinte, u, expire) => void executer('INSERT INTO sessions (empreinte,utilisateur,expire) VALUES (?,?,?)', empreinte, u, expire),
-    utilisateurDeSession(empreinte, maintenant) {
-      executer('DELETE FROM sessions WHERE expire < ?', maintenant)
-      return utilisateur(
-        un('SELECT u.* FROM sessions s JOIN utilisateurs u ON u.id = s.utilisateur WHERE s.empreinte = ? AND s.expire >= ?', empreinte, maintenant),
-      )
-    },
-    supprimerSession: (empreinte) => void executer('DELETE FROM sessions WHERE empreinte = ?', empreinte),
 
     creerJetonArrivee: (j) =>
       void executer('INSERT INTO jetons_arrivee (id,utilisateur,nom,empreinte,cree) VALUES (?,?,?,?,?)', j.id, j.utilisateur, j.nom, j.empreinte, j.cree),
@@ -336,7 +323,7 @@ export function ouvrirBase(chemin: string): Base {
     motDePasse: (tableau, portee) =>
       (un('SELECT empreinte FROM mots_de_passe WHERE tableau = ? AND portee = ?', tableau, portee)?.empreinte as string | undefined) ?? null,
     definirMotDePasse(tableau, portee, empreinte) {
-      dansTransaction(() => {
+      transaction(() => {
         executer(
           'INSERT INTO mots_de_passe (tableau,portee,empreinte) VALUES (?,?,?) ON CONFLICT(tableau,portee) DO UPDATE SET empreinte = excluded.empreinte',
           tableau,
@@ -347,7 +334,7 @@ export function ouvrirBase(chemin: string): Base {
       })
     },
     retirerMotDePasse(tableau, portee) {
-      return dansTransaction(() => {
+      return transaction(() => {
         const retire = Number(executer('DELETE FROM mots_de_passe WHERE tableau = ? AND portee = ?', tableau, portee).changes) > 0
         oublierLeves(tableau, portee)
         return retire

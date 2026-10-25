@@ -356,7 +356,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
 | Fonctionnalité | État | Reste |
 |---|---|---|
-| Comptes, connexion | ✅ | |
+| Comptes, connexion | ✅ | Par Better Auth : mot de passe (les empreintes Argon2 d'avant sont reprises telles quelles), Google, Microsoft et GitHub quand le serveur les a configurés, mot de passe oublié (par courriel, ou par le journal du serveur sans SMTP). |
 | Partager un tableau par adresse, invitation en attente | ✅ | |
 | Rôles lecture, édition, propriétaire ; changés en direct | ✅ | |
 | Partage hérité par les sous-tableaux | ✅ | |

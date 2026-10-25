@@ -14,7 +14,8 @@ import { regrouper } from './activite.ts'
 import { type ElementArrive, elementImage, elementsDeTexte, poserDansNonTries } from './arrivee.ts'
 import { ErreurApercu, apercuDePage, rapatrierImage } from './apercu.ts'
 import { type Base, DUREE_ACCES_PUBLIC_MS, type Fichier, type Utilisateur } from './base.ts'
-import { ErreurCompte, inscrire, normaliserEmail } from './comptes.ts'
+import { type Auth, CHEMIN_AUTH, type Fournisseur, utilisateurDeSession } from './auth.ts'
+import { normaliserEmail } from './comptes.ts'
 import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from './contenu.ts'
 import type { Limiteur } from './debit.ts'
 import { type Role, auMoins, role, roleHerite } from './droits.ts'
@@ -22,7 +23,7 @@ import { estFormatExport, exporterTexte, langueExport } from './exporter.ts'
 import { ErreurBanque, chercherImages } from './images.ts'
 import { indexerDocument, requeteIndex } from './indexation.ts'
 import { hacher, verifier } from './motsDePasse.ts'
-import { DUREE_SESSION_S, NOM_COOKIE, cookieAccesPublic, cookieEfface, cookieSession, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
+import { cookieAccesPublic, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
 import { nomDuDocument } from './synchro.ts'
 import { largeurDemandee, nomReduit, reduire, reductible } from './tailles.ts'
 import { verrouPar } from './verrou.ts'
@@ -30,6 +31,9 @@ import { creerZip, nommerLesMedias } from './zip.ts'
 
 export interface Contexte {
   base: Base
+  auth: Auth
+  /** Ce que l'écran de connexion propose, au-delà du mot de passe. */
+  moyens: MoyensConnexion
   dossierFichiers: string
   limiteur: Limiteur
   /** Pour `POST /api/arrivee`, appelée à la chaîne par des raccourcis : à défaut, le limiteur commun. */
@@ -42,6 +46,12 @@ export interface Contexte {
   cookieSecurise: boolean
   /** Le build de `apps/web`, servi à côté de l'API ; absent en développement, où Vite s'en charge. */
   dossierWeb?: string
+}
+
+export interface MoyensConnexion {
+  fournisseurs: Fournisseur[]
+  /** Les courriels partent (réinitialisation du mot de passe, vérification d'adresse). */
+  courriel: boolean
 }
 
 export const FICHIER_MAX = 25 * 1024 * 1024
@@ -67,13 +77,6 @@ const ARRIVEE_TEXTE_MAX = 256 * 1024
 const ARRIVEE_CHAMP_MAX = 20_000
 /** Les formats qu'une arrivée accepte en image, par leur nom chez `sharp`. Un HEIC d'iPhone n'y est pas. */
 const FORMATS_ARRIVEE: Record<string, string> = { png: 'image/png', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif' }
-/** Le code stable que l'API rend pour chaque refus d'une inscription (le message de l'erreur, lui, reste du texte lisible). */
-const CODES_COMPTE: Record<string, string> = {
-  adresse: 'adresse_invalide',
-  nom: 'nom_invalide',
-  'mot de passe': 'mot_de_passe_invalide',
-  'adresse prise': 'adresse_prise',
-}
 /** Ce qui ouvre un jeton d'arrivée : de quoi le reconnaître dans un presse-papiers ou un dépôt. */
 const PREFIXE_JETON = 'nk_'
 const JETON_PUBLIC = /^[A-Za-z0-9_-]{16,64}$/
@@ -115,10 +118,7 @@ export function creerApp(ctx: Contexte): Hono {
   const { base } = ctx
   const app = new Hono()
 
-  const utilisateurCourant = (c: Context): Utilisateur | null => {
-    const jeton = lireCookie(c.req.header('cookie'), NOM_COOKIE)
-    return jeton ? base.utilisateurDeSession(empreinteDe(jeton), ctx.maintenant()) : null
-  }
+  const utilisateurCourant = (c: Context): Promise<Utilisateur | null> => utilisateurDeSession(ctx.auth, base, c.req.raw.headers)
 
   const adresseIp = (c: Context): string => {
     if (ctx.relaisFiable) {
@@ -150,56 +150,32 @@ export function creerApp(ctx: Contexte): Hono {
   }
   const texte = (v: unknown): string => (typeof v === 'string' ? v : '')
 
-  const ouvrirSession = (c: Context, u: Utilisateur) => {
-    const { jeton, empreinte } = nouveauJeton()
-    base.creerSession(empreinte, u.id, ctx.maintenant() + DUREE_SESSION_S * 1000)
-    c.header('set-cookie', cookieSession(jeton, ctx.cookieSecurise))
+  // ---- Comptes : Better Auth ----
+
+  // Les essais de mot de passe et les demandes de courriel se limitent par adresse, comme le reste.
+  const LIMITES_AUTH: Record<string, string> = {
+    '/sign-in/email': 'connexion',
+    '/sign-up/email': 'inscription',
+    '/request-password-reset': 'reinitialisation',
+    '/sign-in/sso': 'connexion',
   }
-
-  // Une empreinte réelle, pour que « adresse inconnue » coûte autant de temps que « mauvais mot de passe ».
-  const empreinteLeurre = hacher('leurre')
-
-  app.post('/api/inscription', async (c) => {
-    const refus = limiter(c, 'inscription')
-    if (refus) return refus
-    const b = await corps(c)
-    if (!b) return c.json({ erreur: 'corps invalide', code: 'corps_invalide' }, 400)
-    try {
-      const u = await inscrire(base, { email: texte(b.email), motDePasse: texte(b.motDePasse), nom: texte(b.nom), langue: langueExport(b.langue) })
-      ouvrirSession(c, u)
-      return c.json(moi(u), 201)
-    } catch (e) {
-      if (e instanceof ErreurCompte) return c.json({ erreur: e.message, code: CODES_COMPTE[e.message] ?? 'compte_invalide' }, e.code === 'existe' ? 409 : 400)
-      throw e
-    }
+  app.on(['GET', 'POST'], `${CHEMIN_AUTH}/*`, (c) => {
+    const route = LIMITES_AUTH[c.req.path.slice(CHEMIN_AUTH.length)]
+    const refus = c.req.method === 'POST' && route ? limiter(c, route) : null
+    return refus ?? ctx.auth.handler(c.req.raw)
   })
 
-  app.post('/api/connexion', async (c) => {
-    const refus = limiter(c, 'connexion')
-    if (refus) return refus
-    const b = await corps(c)
-    const u = b ? base.utilisateurParEmail(normaliserEmail(texte(b.email))) : null
-    const bon = await verifier(u?.hash ?? (await empreinteLeurre), texte(b?.motDePasse))
-    if (!u || !bon) return c.json({ erreur: 'identifiants incorrects', code: 'identifiants_incorrects' }, 401)
-    ouvrirSession(c, u)
-    return c.json(moi(u), 200)
-  })
+  // Ce que l'écran de connexion peut proposer : les fournisseurs configurés, et si les courriels partent.
+  app.get('/api/connexion/moyens', async (c) => c.json(ctx.moyens))
 
-  app.post('/api/deconnexion', (c) => {
-    const jeton = lireCookie(c.req.header('cookie'), NOM_COOKIE)
-    if (jeton) base.supprimerSession(empreinteDe(jeton))
-    c.header('set-cookie', cookieEfface(ctx.cookieSecurise))
-    return c.body(null, 204)
-  })
-
-  app.get('/api/moi', (c) => {
-    const u = utilisateurCourant(c)
+  app.get('/api/moi', async (c) => {
+    const u = await utilisateurCourant(c)
     return u ? c.json(moi(u)) : c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
   })
 
   // Les réglages du compte : sa couleur (curseur, pastille) et sa photo, un fichier que le compte a déposé.
   app.patch('/api/moi', async (c) => {
-    const u = utilisateurCourant(c)
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const b = await corps(c)
     if (!b) return c.json({ erreur: 'corps invalide', code: 'corps_invalide' }, 400)
@@ -234,7 +210,7 @@ export function creerApp(ctx: Contexte): Hono {
   }
 
   app.post('/api/tableaux', async (c) => {
-    const u = utilisateurCourant(c)
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const b = await corps(c)
     const id = texte(b?.id)
@@ -256,8 +232,8 @@ export function creerApp(ctx: Contexte): Hono {
     return c.json({ id, titre, role: 'proprietaire' }, 201)
   })
 
-  app.get('/api/tableaux', (c) => {
-    const u = utilisateurCourant(c)
+  app.get('/api/tableaux', async (c) => {
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     return c.json(base.tableauxAccessibles(u.id).filter((t) => t.id !== u.racine))
   })
@@ -275,8 +251,8 @@ export function creerApp(ctx: Contexte): Hono {
    * Un tableau protégé que ce compte n'a pas ouvert répond 423 (`par` : le tableau dont il faut le mot de passe),
    * sauf pour les routes qui servent justement à l'ouvrir ou à gérer son mot de passe (`horsVerrou`).
    */
-  const garde = (c: Context, minimum: Role, horsVerrou = false): { u: Utilisateur; id: string } | Response => {
-    const u = utilisateurCourant(c)
+  const garde = async (c: Context, minimum: Role, horsVerrou = false): Promise<{ u: Utilisateur; id: string } | Response> => {
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const id = c.req.param('id') ?? ''
     const droit = roleSur(u.id, id)
@@ -299,15 +275,15 @@ export function creerApp(ctx: Contexte): Hono {
   }
 
   // Où en est ce tableau pour ce compte : protégé lui-même, et barré (par lui ou par un tableau au-dessus).
-  app.get('/api/tableaux/:id/verrou', (c) => {
-    const g = garde(c, 'lecture', true)
+  app.get('/api/tableaux/:id/verrou', async (c) => {
+    const g = await garde(c, 'lecture', true)
     if (g instanceof Response) return g
     const par = verrouPar(base, g.u.id, g.id)
     return c.json({ protege: base.motDePasse(g.id, 'tableau') !== null, verrouille: par !== null, par })
   })
 
   app.put('/api/tableaux/:id/mot-de-passe', async (c) => {
-    const g = garde(c, 'proprietaire', true)
+    const g = await garde(c, 'proprietaire', true)
     if (g instanceof Response) return g
     const m = await motDePasseDemande(c)
     if (m instanceof Response) return m
@@ -322,8 +298,8 @@ export function creerApp(ctx: Contexte): Hono {
     return c.body(null, 204)
   })
 
-  app.delete('/api/tableaux/:id/mot-de-passe', (c) => {
-    const g = garde(c, 'proprietaire', true)
+  app.delete('/api/tableaux/:id/mot-de-passe', async (c) => {
+    const g = await garde(c, 'proprietaire', true)
     if (g instanceof Response) return g
     if (!base.retirerMotDePasse(g.id, 'tableau')) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     return c.body(null, 204)
@@ -333,7 +309,7 @@ export function creerApp(ctx: Contexte): Hono {
   app.post('/api/tableaux/:id/deverrouiller', async (c) => {
     const refus = limiter(c, 'deverrouillage')
     if (refus) return refus
-    const g = garde(c, 'lecture', true)
+    const g = await garde(c, 'lecture', true)
     if (g instanceof Response) return g
     const par = verrouPar(base, g.u.id, g.id)
     if (par === null) return c.json({ verrouille: false, par: null })
@@ -345,8 +321,8 @@ export function creerApp(ctx: Contexte): Hono {
     return c.json({ verrouille: reste !== null, par: reste })
   })
 
-  app.get('/api/tableaux/:id/acces', (c) => {
-    const g = garde(c, 'lecture')
+  app.get('/api/tableaux/:id/acces', async (c) => {
+    const g = await garde(c, 'lecture')
     if (g instanceof Response) return g
     // Les accès du tableau et ceux de ses ancêtres ; `herite` : donné plus haut, il se retire là-haut.
     const chaine: string[] = []
@@ -374,7 +350,7 @@ export function creerApp(ctx: Contexte): Hono {
   })
 
   app.post('/api/tableaux/:id/partage', async (c) => {
-    const g = garde(c, 'proprietaire')
+    const g = await garde(c, 'proprietaire')
     if (g instanceof Response) return g
     const b = await corps(c)
     const email = normaliserEmail(texte(b?.email))
@@ -404,7 +380,7 @@ export function creerApp(ctx: Contexte): Hono {
   })
 
   app.delete('/api/tableaux/:id/partage', async (c) => {
-    const g = garde(c, 'proprietaire')
+    const g = await garde(c, 'proprietaire')
     if (g instanceof Response) return g
     const b = await corps(c)
     const email = normaliserEmail(texte(b?.email))
@@ -433,8 +409,8 @@ export function creerApp(ctx: Contexte): Hono {
 
   // ---- Recherche dans tous les tableaux ----
 
-  app.get('/api/recherche', (c) => {
-    const u = utilisateurCourant(c)
+  app.get('/api/recherche', async (c) => {
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const requete = requeteIndex(c.req.query('q') ?? '')
     if (!requete) return c.json([])
@@ -463,8 +439,8 @@ export function creerApp(ctx: Contexte): Hono {
     return v !== undefined && Number.isInteger(n) ? Math.min(max, Math.max(min, n)) : defaut
   }
 
-  app.get('/api/tableaux/:id/activite', (c) => {
-    const g = garde(c, 'lecture')
+  app.get('/api/tableaux/:id/activite', async (c) => {
+    const g = await garde(c, 'lecture')
     if (g instanceof Response) return g
     const limite = entier(c.req.query('limite'), ACTIVITE_DEFAUT, 1, ACTIVITE_MAX)
     const apres = entier(c.req.query('depuis'), 0, 0, Number.MAX_SAFE_INTEGER)
@@ -472,8 +448,8 @@ export function creerApp(ctx: Contexte): Hono {
     return c.json({ evenements, groupes: regrouper(evenements), dernier: evenements[0]?.id ?? apres }, 200, { 'cache-control': 'no-store' })
   })
 
-  app.get('/api/notifications', (c) => {
-    const u = utilisateurCourant(c)
+  app.get('/api/notifications', async (c) => {
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const limite = entier(c.req.query('limite'), NOTIFICATIONS_AFFICHEES, 0, NOTIFICATIONS_AFFICHEES)
     // Un tableau qu'on ne peut plus ouvrir ne se devine pas par ses notifications.
@@ -486,7 +462,7 @@ export function creerApp(ctx: Contexte): Hono {
 
   // `{ ids: [...] }` marque celles-là, `{ tout: true }` toutes les siennes ; jamais celles d'un autre.
   app.post('/api/notifications/lues', async (c) => {
-    const u = utilisateurCourant(c)
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const b = await corps(c)
     if (b?.tout === true) return c.json({ marquees: base.marquerLues(u.id, null) })
@@ -497,36 +473,36 @@ export function creerApp(ctx: Contexte): Hono {
 
   // ---- Favoris et récents ----
 
-  app.get('/api/favoris', (c) => {
-    const u = utilisateurCourant(c)
+  app.get('/api/favoris', async (c) => {
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     return c.json(resumes(u, base.favoris(u.id)))
   })
 
-  app.put('/api/tableaux/:id/favori', (c) => {
-    const g = garde(c, 'lecture')
+  app.put('/api/tableaux/:id/favori', async (c) => {
+    const g = await garde(c, 'lecture')
     if (g instanceof Response) return g
     if (g.id === g.u.racine) return c.json({ erreur: 'accueil', code: 'accueil_pas_favori' }, 400)
     base.definirFavori(g.u.id, g.id, ctx.maintenant())
     return c.body(null, 204)
   })
 
-  app.delete('/api/tableaux/:id/favori', (c) => {
-    const g = garde(c, 'lecture')
+  app.delete('/api/tableaux/:id/favori', async (c) => {
+    const g = await garde(c, 'lecture')
     if (g instanceof Response) return g
     base.retirerFavori(g.u.id, g.id)
     return c.body(null, 204)
   })
 
-  app.get('/api/recents', (c) => {
-    const u = utilisateurCourant(c)
+  app.get('/api/recents', async (c) => {
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     return c.json(resumes(u, base.recents(u.id, RECENTS_AFFICHES)))
   })
 
   // Le client note chaque tableau qu'il ouvre ; l'accueil n'entre pas dans la liste.
-  app.post('/api/tableaux/:id/vu', (c) => {
-    const g = garde(c, 'lecture')
+  app.post('/api/tableaux/:id/vu', async (c) => {
+    const g = await garde(c, 'lecture')
     if (g instanceof Response) return g
     if (g.id !== g.u.racine) base.noterVu(g.u.id, g.id, ctx.maintenant())
     return c.body(null, 204)
@@ -534,14 +510,14 @@ export function creerApp(ctx: Contexte): Hono {
 
   // ---- Lien public ----
 
-  app.get('/api/tableaux/:id/lien', (c) => {
-    const g = garde(c, 'proprietaire')
+  app.get('/api/tableaux/:id/lien', async (c) => {
+    const g = await garde(c, 'proprietaire')
     if (g instanceof Response) return g
     return c.json({ jeton: base.jetonPublic(g.id) })
   })
 
-  app.post('/api/tableaux/:id/lien', (c) => {
-    const g = garde(c, 'proprietaire')
+  app.post('/api/tableaux/:id/lien', async (c) => {
+    const g = await garde(c, 'proprietaire')
     if (g instanceof Response) return g
     // Un lien déjà publié reste le même : pour en changer, on le retire d'abord.
     let jeton = base.jetonPublic(g.id)
@@ -552,8 +528,8 @@ export function creerApp(ctx: Contexte): Hono {
     return c.json({ jeton }, 201)
   })
 
-  app.delete('/api/tableaux/:id/lien', (c) => {
-    const g = garde(c, 'proprietaire')
+  app.delete('/api/tableaux/:id/lien', async (c) => {
+    const g = await garde(c, 'proprietaire')
     if (g instanceof Response) return g
     if (!base.retirerJetonPublic(g.id)) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     // Un lien retiré emporte son mot de passe : le prochain sera libre, à moins d'en poser un.
@@ -562,14 +538,14 @@ export function creerApp(ctx: Contexte): Hono {
   })
 
   // Le mot de passe du lien public : il se pose à part de celui qui ferme le tableau aux comptes.
-  app.get('/api/tableaux/:id/lien/mot-de-passe', (c) => {
-    const g = garde(c, 'proprietaire')
+  app.get('/api/tableaux/:id/lien/mot-de-passe', async (c) => {
+    const g = await garde(c, 'proprietaire')
     if (g instanceof Response) return g
     return c.json({ protege: base.motDePasse(g.id, 'public') !== null })
   })
 
   app.put('/api/tableaux/:id/lien/mot-de-passe', async (c) => {
-    const g = garde(c, 'proprietaire')
+    const g = await garde(c, 'proprietaire')
     if (g instanceof Response) return g
     const m = await motDePasseDemande(c)
     if (m instanceof Response) return m
@@ -577,8 +553,8 @@ export function creerApp(ctx: Contexte): Hono {
     return c.body(null, 204)
   })
 
-  app.delete('/api/tableaux/:id/lien/mot-de-passe', (c) => {
-    const g = garde(c, 'proprietaire')
+  app.delete('/api/tableaux/:id/lien/mot-de-passe', async (c) => {
+    const g = await garde(c, 'proprietaire')
     if (g instanceof Response) return g
     if (!base.retirerMotDePasse(g.id, 'public')) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     return c.body(null, 204)
@@ -634,7 +610,7 @@ export function creerApp(ctx: Contexte): Hono {
     return c.body(null, 204)
   })
 
-  app.get('/api/public/:jeton', (c) => {
+  app.get('/api/public/:jeton', async (c) => {
     const id = tableauPublic(c)
     if (!id) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     const ferme = motDePasseRequis(c, id)
@@ -643,7 +619,7 @@ export function creerApp(ctx: Contexte): Hono {
   })
 
   // Seuls les fichiers que le tableau montre se lisent par son lien.
-  app.get('/api/public/:jeton/fichiers/:fichier', (c) => {
+  app.get('/api/public/:jeton/fichiers/:fichier', async (c) => {
     const id = tableauPublic(c)
     const fichier = c.req.param('fichier') ?? ''
     const ferme = id ? motDePasseRequis(c, id) : null
@@ -656,8 +632,8 @@ export function creerApp(ctx: Contexte): Hono {
 
   // ---- Export ----
 
-  app.get('/api/tableaux/:id/export', (c) => {
-    const g = garde(c, 'lecture')
+  app.get('/api/tableaux/:id/export', async (c) => {
+    const g = await garde(c, 'lecture')
     if (g instanceof Response) return g
     const format = c.req.query('format') ?? 'md'
     if (!estFormatExport(format)) return c.json({ erreur: 'format inconnu', code: 'format_inconnu' }, 400)
@@ -670,7 +646,7 @@ export function creerApp(ctx: Contexte): Hono {
   })
 
   app.get('/api/tableaux/:id/medias', async (c) => {
-    const g = garde(c, 'lecture')
+    const g = await garde(c, 'lecture')
     if (g instanceof Response) return g
     const tableau = lireLe(g.id)
     const medias = nommerLesMedias(fichiersDe(tableau.elements), (id) => base.fichier(id)?.type)
@@ -693,7 +669,7 @@ export function creerApp(ctx: Contexte): Hono {
   // ---- Fichiers ----
 
   app.post('/api/fichiers', async (c) => {
-    const u = utilisateurCourant(c)
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const annonce = Number(c.req.header('content-length') ?? 0)
     if (annonce > FICHIER_MAX) return c.json({ erreur: 'trop gros', code: 'trop_gros' }, 413)
@@ -721,7 +697,7 @@ export function creerApp(ctx: Contexte): Hono {
 
   // Une adresse d'image collée sur la toile : le serveur la rapatrie, pour qu'elle ne dépende plus de son site.
   app.post('/api/fichiers/rapatrier', async (c) => {
-    const u = utilisateurCourant(c)
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const adresse = texte((await corps(c))?.url)
     if (!adresse) return c.json({ erreur: 'url manquante', code: 'url_manquante' }, 400)
@@ -768,7 +744,7 @@ export function creerApp(ctx: Contexte): Hono {
   }
 
   app.get('/api/fichiers/:id', async (c) => {
-    if (!utilisateurCourant(c)) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    if (!(await utilisateurCourant(c))) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const id = c.req.param('id')
     const f = ID_FICHIER.test(id) ? base.fichier(id) : null
     if (!f) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
@@ -792,7 +768,7 @@ export function creerApp(ctx: Contexte): Hono {
   // ---- Aperçus ----
 
   app.get('/api/apercu', async (c) => {
-    if (!utilisateurCourant(c)) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    if (!(await utilisateurCourant(c))) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const adresse = c.req.query('url')
     if (!adresse) return c.json({ erreur: 'url manquante', code: 'url_manquante' }, 400)
     try {
@@ -807,7 +783,7 @@ export function creerApp(ctx: Contexte): Hono {
 
   // La clé Pexels vit ici et nulle part ailleurs ; sans elle, le panneau d'images le sait (503) et ne propose que l'envoi.
   app.get('/api/images/recherche', async (c) => {
-    if (!utilisateurCourant(c)) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    if (!(await utilisateurCourant(c))) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     try {
       return c.json(await chercherImages({ cle: process.env.PEXELS_API_KEY, requete: c.req.query('q') ?? '', page: Number(c.req.query('page') ?? 1) }))
     } catch (e) {
@@ -825,14 +801,14 @@ export function creerApp(ctx: Contexte): Hono {
   // 20 Mo à chaque appel d'un raccourci pour rien) ; elle sert aussi de clé de recherche, ce qu'argon2 interdit.
   // Le jeton n'est montré qu'à sa création.
 
-  app.get('/api/jetons', (c) => {
-    const u = utilisateurCourant(c)
+  app.get('/api/jetons', async (c) => {
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     return c.json(base.jetonsArrivee(u.id))
   })
 
   app.post('/api/jetons', async (c) => {
-    const u = utilisateurCourant(c)
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const nom = texte((await corps(c))?.nom).trim()
     if (!nom || nom.length > NOM_JETON_MAX) return c.json({ erreur: `nom de 1 à ${NOM_JETON_MAX} caractères`, code: 'nom_jeton_invalide' }, 400)
@@ -843,8 +819,8 @@ export function creerApp(ctx: Contexte): Hono {
     return c.json({ ...j, dernierUsage: null, jeton }, 201)
   })
 
-  app.delete('/api/jetons/:id', (c) => {
-    const u = utilisateurCourant(c)
+  app.delete('/api/jetons/:id', async (c) => {
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     return base.retirerJetonArrivee(u.id, c.req.param('id')) ? c.body(null, 204) : c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
   })
@@ -947,7 +923,7 @@ export function creerApp(ctx: Contexte): Hono {
   // En production, le même serveur sert l'application web construite ; toute autre adresse (`/t/…`) reçoit la page.
   if (ctx.dossierWeb) {
     // Un partage vers Notak est reçu par le service worker ; sans lui (pas encore installé), on ne perd que le partage, pas la page.
-    app.post('/partage', (c) => c.redirect('/', 303))
+    app.post('/partage', async (c) => c.redirect('/', 303))
     app.use('*', serveStatic({ root: ctx.dossierWeb }))
     app.get('*', serveStatic({ root: ctx.dossierWeb, path: 'index.html' }))
   }

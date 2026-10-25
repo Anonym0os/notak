@@ -4,8 +4,11 @@ import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { serve } from '@hono/node-server'
 import type { Hocuspocus } from '@hocuspocus/server'
+import type { Hono } from 'hono'
 import { creerApp } from './app.ts'
+import { type Fournisseur, type Identifiants, creerAuth } from './auth.ts'
 import { ouvrirBase } from './base.ts'
+import { creerCourrier } from './courriel.ts'
 import { creerLimiteur } from './debit.ts'
 import { indexerLesAbsents } from './indexation.ts'
 import { brancherSynchro, creerHocuspocus } from './synchro.ts'
@@ -16,6 +19,15 @@ export interface OptionsServeur {
   relaisFiable?: boolean
   cookieSecurise?: boolean
   dossierWeb?: string
+  /** Le secret qui signe les cookies de session (voir `secretDe`). */
+  secret: string
+  /** L'adresse publique du serveur ; à défaut, `http://localhost:<port>`. */
+  origine?: string
+  autresOrigines?: readonly string[]
+  fournisseurs?: Partial<Record<Fournisseur, Identifiants>>
+  /** L'adresse du SMTP (`smtps://compte:motdepasse@hote:465`) ; sans elle, les courriels vont au journal. */
+  smtp?: string
+  expediteur?: string
 }
 
 export interface ServeurDemarre {
@@ -28,9 +40,29 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
   const base = ouvrirBase(join(options.dossier, 'notak.db'))
   indexerLesAbsents(base)
   let hocuspocus: Hocuspocus | null = null
-
-  const app = creerApp({
+  // L'application naît une fois le port connu (le port 0 en tire un au hasard) : l'origine par défaut en dépend.
+  let app: Hono | null = null
+  const http = await new Promise<Server>((resoudre, rejeter) => {
+    const s = serve({ fetch: (requete, env) => app!.fetch(requete, env), port: options.port }, () => resoudre(s as Server))
+    s.once('error', rejeter)
+  })
+  const port = (http.address() as AddressInfo).port
+  const origine = options.origine ?? `http://localhost:${port}`
+  const courrier = creerCourrier(options.smtp, options.expediteur ?? `Notak <notak@${new URL(origine).hostname}>`)
+  const auth = creerAuth({
     base,
+    secret: options.secret,
+    origine,
+    autresOrigines: options.autresOrigines,
+    cookieSecurise: options.cookieSecurise ?? false,
+    courrier,
+    fournisseurs: options.fournisseurs,
+  })
+
+  app = creerApp({
+    base,
+    auth,
+    moyens: { fournisseurs: Object.keys(options.fournisseurs ?? {}) as Fournisseur[], courriel: courrier.actif },
     dossierFichiers: join(options.dossier, 'fichiers'),
     limiteur: creerLimiteur(10, 60_000),
     limiteurArrivee: creerLimiteur(30, 60_000),
@@ -41,15 +73,11 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     dossierWeb: options.dossierWeb,
   })
 
-  const http = await new Promise<Server>((resoudre, rejeter) => {
-    const s = serve({ fetch: app.fetch, port: options.port }, () => resoudre(s as Server))
-    s.once('error', rejeter)
-  })
-  hocuspocus = creerHocuspocus(base)
-  const synchro = brancherSynchro(http, hocuspocus)
+  hocuspocus = creerHocuspocus(base, auth)
+  const synchro = brancherSynchro(http, hocuspocus, [origine, ...(options.autresOrigines ?? [])])
 
   return {
-    port: (http.address() as AddressInfo).port,
+    port,
     async fermer() {
       synchro.fermer()
       hocuspocus?.flushPendingStores()
