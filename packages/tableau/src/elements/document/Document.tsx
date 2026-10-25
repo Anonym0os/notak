@@ -320,7 +320,7 @@ function Modale({ titre, titreTexte, lireTexte, fermer, children, lecture, corps
       }}
     >
       <div className="notak-document-boite" data-lecture={lecture || undefined} {...attributsPage(page ?? {})}>
-        <header className="notak-document-entete notak-bord-flou" data-tauri-drag-region="deep">
+        <header className="notak-document-entete" data-tauri-drag-region="deep">
           <Ilot>
             <BoutonIlot icone="gauche" className="notak-document-fermer" libelle={t('espace.retourTableau')} onClick={fermer} />
           </Ilot>

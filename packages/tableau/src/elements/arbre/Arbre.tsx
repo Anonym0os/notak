@@ -1213,8 +1213,6 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       </div>
         {habille && (
           <>
-            {/* Le bord flou du haut, sous les îlots : ce qui y passe se brouille, comme sur le tableau et le document. */}
-            <div className="notak-arbre-haut notak-bord-flou" aria-hidden />
             <EnTete titre={titreCentral} etat={lectureSeule ? t('arbre.lectureSeule') : ''} fermer={contexte.finirEdition} navigation={{ actif: gaucheOuvert, basculer: basculerGauche }} />
             {!lectureSeule && (
               <Outils
