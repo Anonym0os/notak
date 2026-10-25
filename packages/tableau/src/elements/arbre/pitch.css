@@ -441,318 +441,6 @@
   transform: translateX(11px);
 }
 
-/* — La diapositive — */
-
-.notak-arbre-diapo-cadre {
-  position: relative;
-  flex: none;
-  overflow: hidden;
-  container-type: size;
-  background-color: var(--d-fond);
-  background-image: var(--d-motif);
-  color: var(--d-texte);
-  font-family: var(--d-police);
-}
-
-.notak-arbre-diapo {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  padding: 7cqw 8cqw;
-}
-
-.notak-arbre-diapo h1,
-.notak-arbre-diapo h2,
-.notak-arbre-diapo ul {
-  margin: 0;
-  padding: 0;
-}
-
-.notak-arbre-diapo-sujet {
-  display: grid;
-  align-items: center;
-  justify-items: center;
-  gap: 4cqw;
-  text-align: center;
-}
-
-.notak-arbre-diapo-sujet h1 {
-  max-width: 100%;
-  font-size: 7cqw;
-  font-weight: 700;
-  line-height: 1.2;
-  overflow-wrap: anywhere;
-}
-
-.notak-arbre-diapo-sujet[data-central] h1 {
-  font-size: 9cqw;
-}
-
-.notak-arbre-diapo-sujet img {
-  max-width: 100%;
-  max-height: 100%;
-  min-height: 0;
-  object-fit: contain;
-  border-radius: var(--d-rayon, 10px);
-}
-
-.notak-arbre-diapo-sujet[data-image='gauche'],
-.notak-arbre-diapo-sujet[data-image='droite'] {
-  grid-template-columns: 1fr 1fr;
-  text-align: left;
-}
-
-.notak-arbre-diapo-sujet[data-image='droite'] img {
-  order: 2;
-}
-
-.notak-arbre-diapo-sujet[data-image='gauche'] h1,
-.notak-arbre-diapo-sujet[data-image='droite'] h1 {
-  font-size: 5.6cqw;
-  justify-self: start;
-}
-
-.notak-arbre-diapo-sujet[data-image='dessus'] {
-  grid-template-rows: minmax(0, 1fr) auto;
-}
-
-.notak-arbre-diapo-sujet[data-image='dessous'] {
-  grid-template-rows: auto minmax(0, 1fr);
-}
-
-.notak-arbre-diapo-sujet[data-image='dessous'] img {
-  order: 2;
-}
-
-/* Une image « Fond » couvre toute la diapositive, le titre par-dessus. */
-.notak-arbre-diapo-sujet[data-image='fond'] img {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  width: 100%;
-  height: 100%;
-  max-height: none;
-  border-radius: 0;
-  object-fit: cover;
-}
-
-.notak-arbre-diapo-sujet[data-image='fond'] h1 {
-  position: relative;
-  z-index: 1;
-  padding: 1.5cqw 3cqw;
-  border-radius: var(--d-rayon, 10px);
-  background: color-mix(in srgb, var(--d-fond) 78%, transparent);
-}
-
-/* Les listes : le titre du sujet, ses sous-sujets qui arrivent un à un. */
-.notak-arbre-diapo-liste {
-  display: grid;
-  align-content: center;
-  gap: 4cqw;
-}
-
-.notak-arbre-diapo-liste h2 {
-  color: var(--d-accent);
-  font-size: 5cqw;
-  font-weight: 700;
-  line-height: 1.2;
-  overflow-wrap: anywhere;
-}
-
-.notak-arbre-diapo-liste ul {
-  display: grid;
-  gap: 1.4cqw;
-  list-style: none;
-}
-
-.notak-arbre-diapo-liste li {
-  font-size: 3.6cqw;
-  line-height: 1.3;
-  overflow-wrap: anywhere;
-}
-
-.notak-arbre-diapo-liste li[data-niveau='1'] {
-  padding-left: 3cqw;
-  font-size: 3cqw;
-}
-
-.notak-arbre-diapo-liste li[data-niveau='2'],
-.notak-arbre-diapo-liste li[data-niveau='3'] {
-  padding-left: 6cqw;
-  font-size: 2.6cqw;
-  opacity: 0.85;
-}
-
-.notak-arbre-diapo-liste li[data-etat='cache'] {
-  opacity: 0;
-}
-
-.notak-arbre-diapo-liste li[data-anime] {
-  transition: opacity 300ms ease-out, transform 300ms ease-out;
-}
-
-.notak-arbre-diapo-liste li[data-anime][data-etat='cache'] {
-  transform: translateY(1cqw);
-}
-
-/* Puces : un point à la couleur d'accent devant chaque ligne. */
-.notak-arbre-diapo-liste[data-mise='puces'] li::before {
-  content: '';
-  display: inline-block;
-  width: 0.9cqw;
-  height: 0.9cqw;
-  margin-right: 1.6cqw;
-  border-radius: var(--d-rayon-puce, 50%);
-  background: var(--d-accent);
-  vertical-align: middle;
-}
-
-/* Accolade : le titre à gauche, une accolade, la liste à droite. */
-.notak-arbre-diapo-liste[data-mise='accolade'] {
-  grid-template-columns: minmax(0, 0.8fr) 4cqw minmax(0, 1.4fr);
-  align-items: center;
-  gap: 2cqw;
-}
-
-.notak-arbre-diapo-accolade {
-  width: 4cqw;
-  height: 34cqh;
-  fill: none;
-  stroke: var(--d-accent);
-  stroke-width: 1.6;
-  vector-effect: non-scaling-stroke;
-}
-
-.notak-arbre-diapo-accolade path {
-  vector-effect: non-scaling-stroke;
-  stroke-width: 3px;
-  stroke-linecap: round;
-}
-
-/* Paroles : de grandes lignes centrées, la dernière arrivée en pleine clarté. */
-.notak-arbre-diapo-liste[data-mise='paroles'] {
-  text-align: center;
-}
-
-.notak-arbre-diapo-liste[data-mise='paroles'] h2 {
-  font-size: 3.4cqw;
-  opacity: 0.8;
-}
-
-.notak-arbre-diapo-liste[data-mise='paroles'] li {
-  padding-left: 0;
-  font-size: 5.2cqw;
-  font-weight: 600;
-}
-
-.notak-arbre-diapo-liste[data-mise='paroles'] li[data-etat='passe'] {
-  opacity: 0.35;
-}
-
-/* Arête de poisson et chronologie : un axe horizontal, les étapes de part et d'autre. */
-.notak-arbre-diapo-liste[data-mise='arete'],
-.notak-arbre-diapo-liste[data-mise='chronologie'] {
-  grid-template-rows: auto 1fr;
-  align-content: stretch;
-}
-
-.notak-arbre-diapo-axe {
-  position: relative;
-  display: flex;
-  align-items: stretch;
-  min-height: 0;
-  padding-right: 0;
-}
-
-.notak-arbre-diapo-trait {
-  position: absolute;
-  top: 50%;
-  right: 0;
-  left: 0;
-  height: 0.5cqw;
-  border-radius: 1cqw;
-  background: var(--d-accent);
-  transform: translateY(-50%);
-}
-
-.notak-arbre-diapo-liste[data-mise='arete'] .notak-arbre-diapo-axe {
-  padding-right: 14cqw;
-}
-
-.notak-arbre-diapo-liste[data-mise='arete'] .notak-arbre-diapo-trait {
-  right: 12cqw;
-}
-
-.notak-arbre-diapo-tete {
-  position: absolute;
-  top: 50%;
-  right: 0;
-  display: grid;
-  place-items: center;
-  width: 13cqw;
-  height: 8cqw;
-  padding: 0 1cqw;
-  border-radius: var(--d-rayon, 10px);
-  background: var(--d-accent);
-  color: var(--d-fond);
-  font-size: 2.4cqw;
-  font-weight: 700;
-  text-align: center;
-  transform: translateY(-50%);
-}
-
-.notak-arbre-diapo-etape {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-}
-
-.notak-arbre-diapo-point {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 1.6cqw;
-  height: 1.6cqw;
-  border-radius: 50%;
-  background: var(--d-accent);
-  transform: translate(-50%, -50%);
-}
-
-.notak-arbre-diapo-etiquette {
-  position: absolute;
-  left: 0;
-  right: 0;
-  display: grid;
-  gap: 0.4cqw;
-  padding: 0 0.6cqw;
-  font-size: 2.6cqw;
-  line-height: 1.2;
-  text-align: center;
-  overflow-wrap: anywhere;
-}
-
-.notak-arbre-diapo-etiquette em {
-  font-size: 2cqw;
-  font-style: normal;
-  opacity: 0.8;
-}
-
-.notak-arbre-diapo-etape[data-cote='haut'] .notak-arbre-diapo-etiquette {
-  bottom: calc(50% + 2.4cqw);
-}
-
-.notak-arbre-diapo-etape[data-cote='bas'] .notak-arbre-diapo-etiquette {
-  top: calc(50% + 2.4cqw);
-}
-
-.notak-arbre-diapo-etape[data-etat='cache'] {
-  opacity: 0;
-}
-
-.notak-arbre-diapo-etape[data-anime] {
-  transition: opacity 300ms ease-out;
-}
-
 /* — La présentation — */
 
 .notak-arbre-pitch-scene {
@@ -765,8 +453,9 @@
   cursor: default;
 }
 
-.notak-arbre-pitch-diapo[data-anime] {
-  animation: notak-arbre-pitch-fondu 300ms ease-out;
+/* Pendant une transition, la diapositive quittée et la nouvelle se superposent dans la même case. */
+.notak-arbre-pitch-diapo {
+  grid-area: 1 / 1;
 }
 
 .notak-arbre-pitch-compte {
@@ -940,4 +629,93 @@
   background: color-mix(in srgb, var(--notak-arbre-texte) 8%, var(--notak-arbre-fond));
   color: #949494;
   font: inherit;
+}
+
+/* — L'agrandissement d'une image (relevé 12 § 8.5) — */
+
+/* Le bouton : un disque de 40 px gris clair à 80 %, flouté, à 20 px du coin bas droit de l'image survolée. */
+.notak-arbre-pitch-agrandir {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(223 223 223 / 0.8);
+  box-shadow: 0 4px 30px rgb(0 0 0 / 0.15), 0 0 1px rgb(0 0 0 / 0.2);
+  color: rgb(39 41 42 / 0.8);
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* La fenêtre : toute la scène, floutée de 30 px, sous un voile noir (fond sombre) ou blanc à 0,2. */
+.notak-arbre-pitch-zoom {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  cursor: zoom-out;
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+}
+
+.notak-arbre-pitch-zoom-voile {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0.2;
+}
+
+.notak-arbre-pitch-zoom[data-sombre] .notak-arbre-pitch-zoom-voile {
+  background: #000;
+}
+
+.notak-arbre-pitch-zoom-image {
+  position: absolute;
+  will-change: transform;
+}
+
+.notak-arbre-pitch-zoom-image > * {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* La croix : un cercle de 33 px cerné de 2 px à 60 %, plein au survol ; foncée sur fond clair, blanche sur fond sombre. */
+.notak-arbre-pitch-zoom-fermer {
+  --croix: #27292a;
+  position: absolute;
+  top: 20px;
+  right: 25px;
+  display: grid;
+  place-items: center;
+  width: 33px;
+  height: 33px;
+  padding: 0;
+  border: 2px solid color-mix(in srgb, var(--croix) 60%, transparent);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--croix);
+  cursor: pointer;
+}
+
+.notak-arbre-pitch-zoom[data-sombre] .notak-arbre-pitch-zoom-fermer {
+  --croix: #fff;
+}
+
+.notak-arbre-pitch-zoom-fermer[data-grand] {
+  width: 53px;
+  height: 53px;
+}
+
+.notak-arbre-pitch-zoom-fermer:hover {
+  background: var(--croix);
+  color: #000;
+}
+
+.notak-arbre-pitch-zoom:not([data-sombre]) .notak-arbre-pitch-zoom-fermer:hover {
+  color: #fff;
 }

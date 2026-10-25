@@ -1,0 +1,226 @@
+/* Les diapositives du mode Pitch (Diapo.tsx, diapo/*.tsx ; relevés 11 et 12 § 8.1). Chaque diapositive est dessinée à
+   sa taille de base, en px réels, puis réduite par une seule mise à l'échelle. Couleurs et polices : les seules
+   variables du thème posées sur le cadre (`variablesDeTheme`), avec leurs replis du thème sombre. */
+
+.notak-arbre-diapo-cadre {
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  background: var(--d-fond, #000);
+  color: var(--d-texte, #fff);
+  font-family: var(--d-police, 'SF Pro Display', -apple-system, 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif);
+  user-select: none;
+}
+
+/* La diapositive à sa taille de base, réduite depuis son coin haut gauche. */
+.notak-arbre-diapo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  background: var(--d-fond, #000);
+  transform-origin: 0 0;
+}
+
+.notak-arbre-diapo-decor,
+.notak-arbre-diapo-contenu {
+  position: absolute;
+  inset: 0;
+}
+
+/* Le contenu est rogné du cadre manuscrit (hand-drawn). */
+.notak-arbre-diapo-contenu {
+  overflow: hidden;
+  clip-path: inset(var(--d-rognage, 0px));
+}
+
+/* — Le texte, posé ligne par ligne — */
+
+.notak-arbre-diapo-texte {
+  position: absolute;
+  margin: 0;
+  font-weight: var(--d-graisse, 400);
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+.notak-arbre-diapo-texte > span {
+  display: block;
+}
+
+.notak-arbre-diapo-texte[data-titre] {
+  font-family: var(--d-police-titre, var(--d-police, sans-serif));
+  font-weight: var(--d-graisse-titre, 700);
+}
+
+.notak-arbre-diapo-texte[data-gras] {
+  font-weight: 700;
+}
+
+/* Un marqueur : un carré de la taille du texte, et sa marge. */
+.notak-arbre-diapo-marqueur {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin-right: 0.2em;
+  vertical-align: -0.15em;
+}
+
+.notak-arbre-diapo-marqueur > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* La note, à 0,8 ; le texte posé sur une image de fond, avec une ombre. */
+.notak-arbre-diapo-note {
+  font-weight: var(--d-graisse-note, var(--d-graisse, 400));
+  opacity: 0.8;
+}
+
+.notak-arbre-diapo-ombre {
+  text-shadow: 0 0 8px rgb(0 0 0 / 0.3);
+}
+
+/* Le fil d'Ariane. */
+.notak-arbre-diapo-entete {
+  overflow: hidden;
+}
+
+/* — Formes, images, étiquettes — */
+
+.notak-arbre-diapo-forme {
+  position: absolute;
+  overflow: visible;
+}
+
+.notak-arbre-diapo-image {
+  position: absolute;
+  box-sizing: border-box;
+  border: var(--d-contour-image, 0px) solid #fff;
+}
+
+.notak-arbre-diapo-image > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}
+
+/* Une image de fond ou floutée n'a pas de contour. */
+.notak-arbre-diapo-image-fond,
+.notak-arbre-diapo-image-floue {
+  border: 0;
+}
+
+.notak-arbre-diapo-image-floue {
+  opacity: var(--d-titre-floute, 0.7);
+}
+
+.notak-arbre-diapo-etiquettes {
+  position: absolute;
+}
+
+.notak-arbre-diapo-etiquette {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 2px solid var(--d-texte, #fff);
+  border-radius: 999px;
+  text-align: center;
+  white-space: pre;
+}
+
+/* — Zones qui défilent — */
+
+.notak-arbre-diapo-zone {
+  position: absolute;
+  overflow: hidden;
+}
+
+.notak-arbre-diapo-defile {
+  position: absolute;
+  inset: 0;
+}
+
+/* — Étapes : à venir cachés (0,3 dans la vue du présentateur), passés des paroles à 0,4 — */
+
+.notak-arbre-diapo [data-etat='cache'] {
+  opacity: 0;
+}
+
+.notak-arbre-diapo-cadre[data-presentateur] .notak-arbre-diapo [data-etat='cache'] {
+  opacity: var(--d-en-attente, 0.3);
+}
+
+.notak-arbre-diapo[data-gabarit='paroles'] [data-etat='passe'] {
+  opacity: 0.4;
+}
+
+/* Les paroles : le gras et la version normale superposés ; on montre l'un ou l'autre. */
+.notak-arbre-diapo-parole > span {
+  display: block;
+}
+
+.notak-arbre-diapo-parole > span > span {
+  display: block;
+}
+
+.notak-arbre-diapo-parole-gras {
+  font-weight: 700;
+  visibility: hidden;
+}
+
+.notak-arbre-diapo-parole-normale {
+  position: absolute;
+  inset: 0;
+}
+
+.notak-arbre-diapo-parole[data-courant] .notak-arbre-diapo-parole-gras {
+  visibility: visible;
+}
+
+.notak-arbre-diapo-parole[data-courant] .notak-arbre-diapo-parole-normale {
+  visibility: hidden;
+}
+
+/* — Les copies du morphing (diapo/jouer.ts) : posées par-dessus le contenu le temps d'une transition — */
+
+.notak-arbre-diapo-calque {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.notak-arbre-diapo-calque > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.notak-arbre-diapo-copie {
+  position: absolute;
+  white-space: pre;
+  will-change: transform, opacity;
+}
+
+/* — L'écran de fin — */
+
+.notak-arbre-diapo-fin {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.notak-arbre-diapo-fin-carte {
+  position: absolute;
+}
+
+.notak-arbre-diapo-fin-vignette {
+  position: absolute;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12), 0 4px 12px rgb(0 0 0 / 0.12), 0 12px 32px rgb(0 0 0 / 0.16);
+}

@@ -2,19 +2,50 @@ import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import type { Arbre, Id } from '../../coeur/tableau'
 import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
+import { Agrandissement, BoutonAgrandir, type ImageVisee } from './Agrandissement'
 import { ChoixTheme, PopoverFixe } from './ChoixTheme'
 import { Diapositive } from './Diapo'
-import { diapositives, pasApresBranche, pasDe, pasDeDepart, pasParent } from './modele/diapositives'
+import { EcranDeFin } from './diapo/EcranDeFin'
+import { type Jeu, jouerAffichage, jouerFin, jouerSortieFin, jouerTransition, mouvementPermis } from './diapo/jouer'
+import { fondSombre } from './diapo/morphing'
+import { type File, demander, fileVide, liberer } from './diapo/transitions'
+import { type Diapo, type Position, type Saut, depart as diapoDeDepart, precedente, sequence, trajet, versParent } from './modele/diapositives'
+import { type Commande, effetDeTransition, estPortrait } from './modele/gabarits'
 import type { Geste } from './modele/gestes'
 import type { Lecture } from './modele/sujets'
-import { themeDe } from './themes'
 import { RATIOS_PITCH, ratioEffectif, themePitchDe } from './themesPitch'
 
 /**
  * Le mode présentation lancé par Pitch (docs/XMIND.md § 12) : la carte devient une suite de diapositives, plein écran.
  * Une barre flottante en haut à droite (quitter, réglages, navigation) s'estompe après trois secondes ; Espace et les
  * flèches avancent, Échap sort. Les préférences d'animation vivent dans ce navigateur, pas dans la carte.
+ *
+ * Chaque pas joue sa transition (diapo/transitions.ts) : la diapositive quittée et la nouvelle sont montées l'une sur
+ * l'autre le temps de l'effet, puis la nouvelle reste seule. Une demande faite pendant une transition attend la fin ; une
+ * seule attend, les autres sont ignorées (relevé 10 § 5.6).
  */
+
+type Demande = Exclude<Commande, 'depart'>
+
+/** Un pas animé en cours : d'où, vers où, avec quoi ensuite. `n` le distingue du pas suivant vers la même diapositive. */
+interface EnCours {
+  saut: Saut
+  reste: Saut[]
+  n: number
+}
+
+/**
+ * Un pas qui passe d'un coup : l'effet nul, sauf vers l'écran de fin et hors de lui, qui ignorent le réglage d'animation
+ * (relevé 10 § 5.5) ; reculer depuis l'écran de fin, lui, ne s'anime jamais. Sans mouvement permis, rien ne s'anime.
+ */
+function instantane(s: Saut, mouvement: boolean): boolean {
+  if (s.de === 'ecran-de-fin') return s.vers !== 'terminer' || !mouvement
+  if (s.vers === 'ecran-de-fin') return !mouvement
+  return s.effet.nom === 'aucun'
+}
+
+/** Ce que le modèle sait d'une diapositive et que sa transition regarde. */
+const ficheDe = (d: Diapo | undefined) => ({ niveau: d?.niveau, premiere: d?.type === 'liste' ? d.premiere : undefined })
 
 const CLE_PREFERENCES = 'notak:pitch'
 
@@ -90,16 +121,18 @@ function BoutonOutil({ icone, info, inactif, onClick, refBouton, actif }: { icon
 }
 
 export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectureSeule, quitter }: Props) {
-  const diapos = useMemo(() => diapositives(l), [l])
-  const pas = useMemo(() => pasDe(diapos), [diapos])
-  const [index, setIndex] = useState(() => pasDeDepart(l, diapos, pas, depart))
+  // Les indices de la suite ne dépendent pas du rapport (seuls les gabarits en dépendent) : on part d'une suite sans lui.
+  const [position, setPosition] = useState<Position>(() => diapoDeDepart(sequence(l, { resumes: arbre.resumes }), l, depart))
+  const premiere = useMemo(() => diapoDeDepart(sequence(l, { resumes: arbre.resumes }), l), [l, arbre.resumes])
   const [anime, setAnime] = useState(animationEnregistree)
+  // Le mélange des décors : tiré une fois par présentation.
+  const [graine] = useState(() => Math.floor(Math.random() * 2 ** 31))
   const [reglages, setReglages] = useState(false)
   const [themes, setThemes] = useState(false)
   const [aide, setAide] = useState(false)
   const [discret, setDiscret] = useState(false)
   const [survol, setSurvol] = useState(false)
-  const [puce, setPuce] = useState<'attente' | 'visible' | 'fermee'>(depart !== undefined && depart !== l.central && pasDeDepart(l, diapos, pas, depart) > 0 ? 'attente' : 'fermee')
+  const [puce, setPuce] = useState<'attente' | 'visible' | 'fermee'>(depart !== undefined && depart !== l.central && position !== premiere ? 'attente' : 'fermee')
   const scene = useRef<HTMLDivElement>(null)
   const boutonReglages = useRef<HTMLButtonElement>(null)
   const boutonTheme = useRef<HTMLButtonElement>(null)
@@ -124,6 +157,7 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
   const [rl, rh] = ratio.split(':').map(Number) as [number, number]
   const k = Math.min(dim.l / rl, dim.h / rh)
   const taille = { l: Math.floor(rl * k), h: Math.floor(rh * k) }
+  const seq = useMemo(() => sequence(l, { ratio, resumes: arbre.resumes }), [l, ratio, arbre.resumes])
 
   // Plein écran : celui qu'on obtient ; en sortir (Échap du navigateur) termine la présentation.
   useEffect(() => {
@@ -166,18 +200,65 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
     return () => clearTimeout(ferme)
   }, [puce])
 
-  const total = pas.length
-  const suivant = useCallback(() => {
-    if (index >= total - 1) quitter()
-    else setIndex(index + 1)
-  }, [index, total, quitter])
-  const precedent = useCallback(() => setIndex((i) => Math.max(0, i - 1)), [])
-  const passer = useCallback(() => {
-    const x = pasApresBranche(l, diapos, pas, index)
-    if (x === null) quitter()
-    else setIndex(x)
-  }, [l, diapos, pas, index, quitter])
-  const parent = useCallback(() => setIndex(pasParent(l, diapos, pas, index)), [l, diapos, pas, index])
+  // Chaque commande joue ses pas (les enchaînements automatiques compris), un par un, chacun avec sa transition. Les
+  // pas sans effet passent d'un coup ; on attend la fin d'un pas animé pour jouer le suivant.
+  const [enCours, setEnCours] = useState<EnCours | null>(null)
+  const file = useRef<File<Demande>>(fileVide())
+  const ici = useRef(position)
+  ici.current = position
+  const compteur = useRef(0)
+  const contexte = useRef({ seq, l, anime, quitter })
+  contexte.current = { seq, l, anime, quitter }
+  const enchainer = useRef<(sauts: Saut[]) => void>(() => {})
+  enchainer.current = (sauts) => {
+    const mouvement = mouvementPermis()
+    let reste = sauts
+    while (reste.length && instantane(reste[0]!, mouvement)) {
+      const s = reste[0]!
+      reste = reste.slice(1)
+      if (s.vers === 'terminer') {
+        file.current = fileVide()
+        setEnCours(null)
+        return contexte.current.quitter()
+      }
+      ici.current = s.vers
+      setPosition(s.vers)
+    }
+    if (reste.length) {
+      const [saut, ...suite] = reste as [Saut, ...Saut[]]
+      setEnCours({ saut, reste: suite, n: ++compteur.current })
+      if (saut.vers !== 'terminer') ((ici.current = saut.vers), setPosition(saut.vers))
+      return
+    }
+    setEnCours(null)
+    const r = liberer(file.current)
+    file.current = r.file
+    if (r.jouer) lancer.current(r.jouer)
+  }
+  const lancer = useRef<(c: Demande) => void>(() => {})
+  lancer.current = (commande) => {
+    const { seq: s, l: lec, anime: a } = contexte.current
+    enchainer.current(trajet(s, lec, ici.current, commande, a && mouvementPermis()))
+  }
+  const jouer = useCallback((commande: Demande) => {
+    const r = demander(file.current, commande)
+    file.current = r.file
+    if (r.jouer) lancer.current(r.jouer)
+  }, [])
+  /** Un saut direct (« depuis le début ») : ce qui joue s'arrête, ce qui attendait est oublié. */
+  const allerA = useCallback((p: Position) => {
+    file.current = fileVide()
+    setEnCours(null)
+    ici.current = p
+    setPosition(p)
+  }, [])
+  const suivant = useCallback(() => jouer('avancer'), [jouer])
+  const precedent = useCallback(() => jouer('reculer'), [jouer])
+  const passer = useCallback(() => jouer('passer'), [jouer])
+  const parent = useCallback(() => jouer('remonter'), [jouer])
+  const montrees = seq.diapos.filter((d) => !d.sautee).length
+  const rang = position === 'ecran-de-fin' ? montrees : seq.diapos.slice(0, position + 1).filter((d) => !d.sautee).length
+  const auDebut = typeof position === 'number' && precedente(seq, position) === null
   const basculerAnimation = useCallback(() => {
     setAnime((a) => {
       enregistrerAnimation(!a)
@@ -185,9 +266,44 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
     })
   }, [])
 
+  // L'image survolée porte le bouton d'agrandissement ; ouverte, elle couvre la scène.
+  const [visee, setVisee] = useState<ImageVisee | null>(null)
+  const [zoom, setZoom] = useState<(ImageVisee & { sombre: boolean }) | null>(null)
+  const refermeur = useRef<(() => void) | null>(null)
+  const viser = (e: React.PointerEvent) => {
+    const sc = scene.current
+    const cible = e.target as Element
+    if (!sc || cible.closest('.notak-arbre-pitch-agrandir')) return
+    const img = cible.closest<HTMLElement>(`[data-couche="${String(position)}"] .notak-arbre-diapo-image`)
+    const valable = img && !img.classList.contains('notak-arbre-diapo-image-floue') && img.firstElementChild && img.getAttribute('data-etat') !== 'cache'
+    if (!valable) return visee && setVisee(null)
+    if (visee?.el === img) return
+    const r = img.getBoundingClientRect()
+    const o = sc.getBoundingClientRect()
+    setVisee({ el: img, rect: { x: r.left - o.left, y: r.top - o.top, l: r.width, h: r.height } })
+  }
+  // Changer de diapositive ferme l'agrandissement sans animation et oublie l'image survolée.
+  useEffect(() => {
+    setVisee(null)
+    setZoom(null)
+  }, [position])
+  const agrandir = () => {
+    if (!visee) return
+    const cadre = visee.el.closest('.notak-arbre-diapo-cadre')
+    setZoom({ ...visee, sombre: fondSombre(cadre ? getComputedStyle(cadre).backgroundColor : undefined) })
+    setVisee(null)
+  }
+
   // Les touches sont à la présentation tant qu'elle dure : la carte dessous n'en voit aucune.
   const touche = useRef<(e: KeyboardEvent) => void>(() => {})
   touche.current = (e) => {
+    // Pendant l'agrandissement d'une image, aucune demande n'est prise ; Échap le referme.
+    if (zoom) {
+      if (e.key === 'Escape') refermeur.current?.()
+      e.preventDefault()
+      e.stopPropagation()
+      return
+    }
     const dansPopover = (e.target as Element | null)?.closest?.('.notak-arbre-pitch-popover')
     if (e.key === 'Escape') {
       if (aide) setAide(false)
@@ -217,18 +333,85 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
     return () => document.removeEventListener('keydown', f, true)
   }, [])
 
-  const courant = pas[index]
-  const diapo = courant ? diapos[courant.diapo] : undefined
+  const merci = seq.diapos.at(-1)
+  // Pendant un pas animé, la diapositive quittée reste montée sous la nouvelle.
+  const quittee = enCours && typeof enCours.saut.de === 'number' && enCours.saut.de !== position ? enCours.saut.de : null
+  const couches = [...(quittee !== null ? [quittee] : []), ...(typeof position === 'number' ? [position] : [])]
+
+  // Le pas animé se joue sur les couches montées, avant la première image.
+  useLayoutEffect(() => {
+    if (!enCours) return
+    const sc = scene.current
+    if (!sc) return
+    const racine = (p: Position | null | 'terminer') => (typeof p === 'number' ? sc.querySelector<HTMLElement>(`[data-couche="${p}"] .notak-arbre-diapo`) : null)
+    const { saut } = enCours
+    const fin = sc.querySelector<HTMLElement>('.notak-arbre-diapo-fin')
+    let lecture: Jeu
+    if (saut.vers === 'terminer') lecture = fin ? jouerSortieFin(fin) : { fini: Promise.resolve(true), arreter() {} }
+    else if (saut.vers === 'ecran-de-fin') lecture = fin ? jouerFin(sc.querySelector<HTMLElement>(`[data-couche="${String(saut.de)}"]`), fin) : { fini: Promise.resolve(true), arreter() {} }
+    else {
+      const cible = racine(saut.vers)
+      const source = racine(saut.de)
+      const d = contexte.current.seq.diapos
+      lecture = cible ? jouerTransition(saut.effet, source ? { racine: source, fiche: ficheDe(typeof saut.de === 'number' ? d[saut.de] : undefined) } : null, { racine: cible, fiche: ficheDe(d[saut.vers]) }) : { fini: Promise.resolve(true), arreter() {} }
+    }
+    let vivant = true
+    void lecture.fini.then((auBout) => {
+      if (!vivant || !auBout) return
+      if (saut.vers === 'terminer') {
+        file.current = fileVide()
+        return contexte.current.quitter()
+      }
+      enchainer.current(enCours.reste)
+    })
+    return () => {
+      vivant = false
+      lecture.arreter()
+    }
+  }, [enCours])
+
+  // Le démarrage : la première diapositive paraît en fondu (600 ms pour le central, 400 sinon), avant la première image.
+  useLayoutEffect(() => {
+    const p = ici.current
+    const d = typeof p === 'number' ? seq.diapos[p] : undefined
+    if (!d || !anime || !mouvementPermis()) return
+    file.current = { occupee: true, attente: null }
+    setEnCours({ saut: { de: null, vers: p, effet: effetDeTransition(null, d, 'depart', true), automatique: false }, reste: [], n: ++compteur.current })
+    // Seulement au lancement.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Une fois arrivée, la diapositive joue son animation d'affichage (les bulles de Hubble Bubble), sans rien retenir.
+  useEffect(() => {
+    if (enCours || typeof position !== 'number' || !anime || !mouvementPermis()) return
+    const racine = scene.current?.querySelector<HTMLElement>(`[data-couche="${position}"] .notak-arbre-diapo`)
+    if (!racine) return
+    const lecture = jouerAffichage(racine)
+    return () => lecture.arreter()
+  }, [enCours, position, anime, theme.id])
+
   const mettreAJour = (reglage: Extract<Geste, { type: 'pitch' }>['reglage']) => !lectureSeule && faire({ type: 'pitch', reglage })
 
   return (
-    <div ref={scene} className="notak-arbre-pitch-scene" style={{ background: themeDe(arbre.theme).fond ?? 'var(--notak-arbre-fond)' }} onClick={suivant} aria-label={t('arbre.pitch.titre')} role="region" aria-live="polite">
-      {diapo && courant && (
-        <div key={courant.diapo} className="notak-arbre-pitch-diapo" data-anime={anime ? '' : undefined}>
-          <Diapositive lecture={l} diapo={diapo} etape={courant.etape} theme={theme} ratio={ratio} adresse={adresse} anime={anime} taille={taille} />
+    <div ref={scene} className="notak-arbre-pitch-scene" style={{ background: '#000' }} onClick={suivant} onPointerMove={viser} onPointerLeave={() => setVisee(null)} aria-label={t('arbre.pitch.titre')} role="region" aria-live="polite">
+      {couches.map((p) => {
+        const d = seq.diapos[p]
+        return (
+          d && (
+            <div key={p} className="notak-arbre-pitch-diapo" data-couche={p} aria-hidden={p !== position ? true : undefined}>
+              <Diapositive lecture={l} diapo={d} theme={theme} ratio={ratio} adresse={adresse} anime={anime} graine={graine} taille={taille} />
+            </div>
+          )
+        )
+      })}
+      {position === 'ecran-de-fin' && merci && (
+        <div className="notak-arbre-pitch-fin" style={{ position: 'absolute', inset: 0 }}>
+          <EcranDeFin arbre={arbre} ratio={ratio} taille={taille} adresse={adresse} vignette={(petite) => <Diapositive lecture={l} diapo={merci} theme={theme} ratio={ratio} adresse={adresse} anime={false} graine={graine} taille={petite} />} />
         </div>
       )}
-      <span className="notak-arbre-pitch-compte">{t('arbre.pitch.position', { i: index + 1, n: total })}</span>
+      {visee && !zoom && !enCours && <BoutonAgrandir image={visee} ouvrir={agrandir} />}
+      {zoom && <Agrandissement image={zoom} scene={dim} sombre={zoom.sombre} portrait={estPortrait(ratio)} fermer={() => setZoom(null)} refermeur={refermeur} />}
+      <span className="notak-arbre-pitch-compte">{t('arbre.pitch.position', { i: rang, n: montrees })}</span>
 
       <div
         className="notak-arbre-pitch-outils"
@@ -245,8 +428,8 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
           <BoutonOutil icone="reglages" info={t('arbre.pitch.reglages')} refBouton={boutonReglages} actif={reglages} onClick={() => setReglages((o) => !o)} />
         </div>
         <div className="notak-arbre-pitch-groupe">
-          <BoutonOutil icone="triangleGauchePlein" info={t('arbre.pitch.parent')} inactif={index === 0} onClick={parent} />
-          <BoutonOutil icone="triangleGauche" info={t('arbre.pitch.precedent')} inactif={index === 0} onClick={precedent} />
+          <BoutonOutil icone="triangleGauchePlein" info={t('arbre.pitch.parent')} inactif={typeof position !== 'number' || versParent(seq, position) === null} onClick={parent} />
+          <BoutonOutil icone="triangleGauche" info={t('arbre.pitch.precedent')} inactif={auDebut} onClick={precedent} />
           <BoutonOutil icone="triangleDroite" info={t('arbre.pitch.suivant')} onClick={suivant} />
           <BoutonOutil icone="triangleDroitePlein" info={t('arbre.pitch.passer')} onClick={passer} />
         </div>
@@ -284,7 +467,7 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
       {puce === 'visible' && (
         <div className="notak-arbre-pitch-puce" role="status" onClick={(e) => e.stopPropagation()}>
           <span>{t('arbre.pitch.depuisDebut')}</span>
-          <button type="button" onClick={() => (setIndex(0), setPuce('fermee'))}>
+          <button type="button" onClick={() => (allerA(premiere), setPuce('fermee'))}>
             {t('arbre.pitch.debut')}
           </button>
           <button type="button" onClick={() => setPuce('fermee')}>
