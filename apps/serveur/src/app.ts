@@ -743,6 +743,50 @@ export function creerApp(ctx: Contexte): Hono {
     return c.body(null, 204)
   })
 
+  /**
+   * Range une toile dans une autre (la bibliothèque, ou sa carte glissée d'une toile à l'autre). Il faut posséder la
+   * toile et pouvoir écrire dans la nouvelle ; ni l'accueil, ni dans elle-même ou ce qu'elle contient, ni d'un espace à
+   * un autre. Ses accès hérités suivent : `nouveaux` compte qui la verrait alors sans la voir encore. `essai` ne fait
+   * que compter ; `siPersonne` ne range que si personne n'y gagne l'accès.
+   */
+  app.put('/api/tableaux/:id/parent', async (c) => {
+    const g = await garde(c, 'proprietaire')
+    if (g instanceof Response) return g
+    const b = await corps(c)
+    const parent = texte(b?.parent)
+    const ligne = base.tableau(g.id)
+    const cible = parent ? base.tableau(parent) : null
+    if (!ligne || !cible) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
+    const racineDEspace = ligne.espace ? base.espace(ligne.espace)?.racine === g.id : false
+    if (g.id === g.u.racine || racineDEspace) return c.json({ erreur: 'accueil', code: 'accueil_immobile' }, 400)
+    const droit = await roleSur(g.u.id, parent)
+    if (droit === null) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
+    if (!auMoins(droit, 'edition')) return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
+    if (parent === g.id || base.descendants(g.id).includes(parent)) return c.json({ erreur: 'boucle', code: 'dossier_dans_lui' }, 400)
+    if ((cible.espace ?? null) !== (ligne.espace ?? null)) return c.json({ erreur: 'autre espace', code: 'autre_espace' }, 400)
+    if (ligne.parent === parent) return c.json({ nouveaux: 0, fait: true })
+    // Qui reçoit la nouvelle toile ou une toile au-dessus, sans rien voir de celle-ci aujourd'hui : une personne, ou
+    // une équipe qui ne la reçoit pas déjà d'en haut.
+    const donnes = (depart: string | null) => {
+      const r: { sujet: string }[] = []
+      for (let t = depart, vus = 0; t !== null && vus < 1000; t = base.tableau(t)?.parent ?? null, vus++)
+        r.push(...base.relationsSur(`tableau:${t}`).filter((x) => roleDeRelation(x.relation)))
+      return r
+    }
+    const equipesDejaLa = new Set(donnes(g.id).map((r) => r.sujet).filter((s) => s.startsWith('equipe:')))
+    const nouveaux = new Set<string>()
+    for (const { sujet } of donnes(parent)) {
+      if (nouveaux.has(sujet)) continue
+      if (sujet.startsWith('user:')) {
+        const qui = sujet.slice(5)
+        if (qui !== g.u.id && (await roleSur(qui, g.id)) === null) nouveaux.add(sujet)
+      } else if (sujet.startsWith('equipe:') && !equipesDejaLa.has(sujet)) nouveaux.add(sujet)
+    }
+    if (b?.essai === true || (b?.siPersonne === true && nouveaux.size > 0)) return c.json({ nouveaux: nouveaux.size, fait: false })
+    base.changerParent(g.id, parent)
+    return c.json({ nouveaux: nouveaux.size, fait: true })
+  })
+
   app.get('/api/recents', async (c) => {
     const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
@@ -771,6 +815,8 @@ export function creerApp(ctx: Contexte): Hono {
    * La bibliothèque : chaque toile que le compte peut lire (sauf son accueil), et chaque carte mentale et
    * document qu'elles portent, avec la toile qui les porte (son titre, `ou`, et son identifiant, `dans`), la dernière
    * fois qu'il les a ouverts, et ses favoris et partages. Ce qui est sous un mot de passe pas encore donné n'y est pas.
+   * Une toile est dans celle qui porte sa carte, où qu'on l'ait glissée ; sa carte jetée, elle est à la corbeille et
+   * n'y est plus, ni rien de ce qu'elle contient.
    */
   app.get('/api/bibliotheque', async (c) => {
     const u = await utilisateurCourant(c)
@@ -785,19 +831,41 @@ export function creerApp(ctx: Contexte): Hono {
       if (!titres.has(id)) titres.set(id, base.tableau(id)?.titre ?? '')
       return titres.get(id)!
     }
-    const entrees = base.contenus(lisibles).flatMap((l) => {
-      if (l.genre === 'toile' && l.tableau === u.racine) return []
+    const lignes = base.contenus(lisibles).map((l) => ({ ...l, lu: JSON.parse(l.resume) as { cartes?: string[]; jetees?: string[] } }))
+    const portees = new Map<string, string[]>()
+    const jetees = new Set<string>()
+    for (const l of lignes) {
+      if (l.genre !== 'toile') continue
+      for (const cible of l.lu.cartes ?? []) portees.set(cible, [...(portees.get(cible) ?? []), l.tableau])
+      for (const cible of l.lu.jetees ?? []) jetees.add(cible)
+    }
+    const dossierDe = (id: string) => {
+      const parent = base.tableau(id)?.parent ?? null
+      const la = portees.get(id) ?? []
+      return parent !== null && la.includes(parent) ? parent : (la[0] ?? parent)
+    }
+    const cachees = new Set(lisibles.filter((id) => jetees.has(id) && !portees.has(id)))
+    for (let ajoute = cachees.size > 0; ajoute; ) {
+      ajoute = false
+      for (const id of lisibles) {
+        const d = dossierDe(id)
+        if (!cachees.has(id) && d !== null && cachees.has(d)) ajoute = Boolean(cachees.add(id))
+      }
+    }
+    const entrees = lignes.flatMap((l) => {
+      if ((l.genre === 'toile' && l.tableau === u.racine) || cachees.has(l.tableau)) return []
       const ligne = base.tableau(l.tableau)
       if (!ligne) return []
-      const parent = l.genre === 'toile' ? ligne.parent : l.tableau
       const toile = l.genre === 'toile'
+      const parent = toile ? dossierDe(l.tableau) : l.tableau
+      const { cartes: _c, jetees: _j, ...resume } = l.lu
       return [
         {
           tableau: l.tableau,
           element: toile ? null : l.element,
           genre: l.genre,
           titre: toile ? ligne.titre : l.titre,
-          resume: JSON.parse(l.resume) as unknown,
+          resume,
           ou: parent && ouvrables.has(parent) ? titreDe(parent) : null,
           dans: parent && ouvrables.has(parent) ? parent : null,
           vu: vus.get(`${l.tableau}/${l.element}`) ?? null,

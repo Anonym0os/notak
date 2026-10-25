@@ -1,13 +1,9 @@
 import { type ReactNode, useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { type EspaceNavigable } from './coeur/espace'
-import { type Element, type Id, type RenvoiTableau, nouvelId } from './coeur/tableau'
-import { nouveauDocument } from './elements/document/texte'
-import { nouvelleCarteMentale } from './elements/arbre'
-import { ecrireOutilsCaches, lireOutilsCaches, placerALaSuite } from './EspaceNotak'
+import { ecrireOutilsCaches, lireOutilsCaches } from './EspaceNotak'
 import { useHabillages } from './habillage/appliquer'
 import type { OffreHabillages } from './habillage/bibliotheque'
-import { t, useLangue } from './langue'
+import { useLangue } from './langue'
 import { FenetreRaccourcis } from './Menus'
 import { PageReglages } from './PageReglages'
 import { type ServiceCompte, useReglages } from './reglages'
@@ -68,29 +64,4 @@ export function HoteNotak({
         )}
     </div>
   )
-}
-
-/** Ce que le bouton « Nouveau » de la bibliothèque sait créer. */
-export type GenreNeuf = 'toile' | 'arbre' | 'document'
-
-/** La largeur de la carte d'une toile posée sur une autre, en UG (comme l'outil Toile). */
-const LARGEUR_RENVOI = 10
-
-/**
- * Crée une toile, une carte mentale ou un document sur la toile d'accueil, à la suite de ce qui y est déjà : une toile
- * neuve y laisse sa carte. Rend où aller : la toile neuve, ou l'élément à ouvrir en grand sur l'accueil.
- */
-export function creerSurLAccueil(espace: EspaceNavigable, genre: GenreNeuf): { tableau: Id; element: Id | null } {
-  const racine = espace.racine
-  const magasin = espace.magasin(racine)
-  const cible = genre === 'toile' ? espace.creerTableau(t('tableau.nouveau'), racine) : null
-  const neuf: Element =
-    cible !== null
-      ? ({ id: nouvelId(), x: 0, y: 0, largeur: LARGEUR_RENVOI, contenu: { type: 'tableau', cible } } satisfies Element<RenvoiTableau>)
-      : genre === 'arbre'
-        ? nouvelleCarteMentale(0, 0)
-        : nouveauDocument(0, 0)
-  const [pose] = placerALaSuite(magasin.lire(), [neuf])
-  magasin.faire([{ type: 'creer', element: pose! }])
-  return cible !== null ? { tableau: cible, element: null } : { tableau: racine, element: pose!.id }
 }

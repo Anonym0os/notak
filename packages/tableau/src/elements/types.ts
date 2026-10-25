@@ -112,6 +112,11 @@ export interface Services {
    */
   /** Pose ces éléments dans un autre tableau, à la suite de son contenu ; rend ce qui y a été créé (mêmes rangs). */
   deposerDans?(tableau: Id, elements: Element[], nonTries?: boolean): Element[] | void
+  /**
+   * La carte de cette toile vient d'être posée sur une autre (glissée d'une toile à l'autre) : l'hôte l'y range, et
+   * ses accès hérités suivent.
+   */
+  toileRangee?(toile: Id, dans: Id): void
   /** Copie un tableau et son contenu dans l'espace ; rend l'id de la copie. */
   dupliquerTableau?(id: Id): Id | undefined
   /** Où est la carte d'origine du tableau `cible` (celle qui n'est pas un raccourci), ou `undefined` si on ne la trouve pas. */

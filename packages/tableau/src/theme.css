@@ -82,6 +82,10 @@
   --notak-menu-filet: rgb(255 255 255 / 0.1);
 }
 
+.notak-espace[data-theme='sombre'] .notak-menu button[data-danger]:not(:disabled) {
+  color: #ff8a80;
+}
+
 .notak-espace[data-theme='sombre'] :is(.notak-menu-sep, .notak-barre-sep) {
   background: rgb(255 255 255 / 0.1);
 }

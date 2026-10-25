@@ -434,6 +434,16 @@ export async function definirFavori(tableau: string, favori: boolean): Promise<v
   if (!r.ok) throw await refus(r, { ...TABLEAU_ABSENT, 400: 'erreur.accueil_pas_favori' })
 }
 
+/**
+ * Range une toile dans une autre ; ses accès hérités suivent. `nouveaux` : combien la verraient alors sans la voir
+ * encore. `essai` ne fait que compter ; `siPersonne` ne range que si personne n'y gagne l'accès.
+ */
+export async function rangerToile(tableau: string, parent: string, options: { essai?: boolean; siPersonne?: boolean } = {}): Promise<{ nouveaux: number; fait: boolean }> {
+  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/parent`, { parent, ...options }, 'PUT')
+  if (!r.ok) throw await refus(r, { ...TABLEAU_ABSENT, ...PROPRIETAIRE })
+  return (await r.json()) as { nouveaux: number; fait: boolean }
+}
+
 /** Les derniers tableaux ouverts par le compte. */
 export async function listerRecents(): Promise<TableauAccessible[]> {
   const r = await appeler('/api/recents')

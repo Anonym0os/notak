@@ -194,6 +194,7 @@ export const fr: Textes = {
   'reglages.recherche.resultats.one': '{n} résultat',
   'reglages.recherche.resultats.other': '{n} résultats',
   'commun.sansTitre': 'Sans titre',
+  'rangement.copie': '{titre} (copie)',
 
   'espace.accueil': 'Accueil',
   'espace.accesRetire': 'Accès retiré',
@@ -2275,6 +2276,7 @@ export const en: Textes = {
   'reglages.recherche.resultats.one': '{n} result',
   'reglages.recherche.resultats.other': '{n} results',
   'commun.sansTitre': 'Untitled',
+  'rangement.copie': '{titre} (copy)',
 
   'espace.accueil': 'Home',
   'espace.accesRetire': 'Access removed',

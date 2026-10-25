@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import {
   type Acces,
   type Blocage,
@@ -74,6 +74,30 @@ export function Partage({ tableau, moi }: { tableau: string; moi: Moi }) {
       </button>
       {ouvert && <Panneau key={tableau} tableau={tableau} moi={moi} reference={panneau} />}
     </div>
+  )
+}
+
+/** Le même panneau en fenêtre, au centre : la bibliothèque le propose au clic droit sur une toile. */
+export function PartageEnFenetre({ tableau, moi, fermer }: { tableau: string; moi: Moi; fermer(): void }) {
+  const boite = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    const d = boite.current
+    if (d && !d.open) d.showModal?.()
+  }, [])
+  return (
+    <dialog
+      ref={boite}
+      className="partage-fenetre"
+      aria-label={t('partage.titre')}
+      onCancel={(e) => {
+        e.preventDefault()
+        fermer()
+      }}
+      onClick={(e) => e.target === e.currentTarget && fermer()}
+      onKeyDown={(e) => e.stopPropagation()}
+    >
+      <Panneau tableau={tableau} moi={moi} reference={() => {}} />
+    </dialog>
   )
 }
 

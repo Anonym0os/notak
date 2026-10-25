@@ -195,6 +195,12 @@ export type ResumeContenu =
        * le nombre de lignes à y dessiner (le texte d'une note ou d'une liste, les cartes d'une colonne).
        */
       boites: BoitePlan[]
+      /**
+       * Les toiles dont elle porte la carte (pas un raccourci), et celles dont elle a jeté la carte à sa corbeille :
+       * ce qui dit dans quel dossier est une toile, et qu'elle est à la corbeille.
+       */
+      cartes?: string[]
+      jetees?: string[]
     }
   | { genre: 'arbre'; element: string; titre: string; branches: string[] }
   | { genre: 'document'; element: string; titre: string; lignes: string[] }
@@ -265,7 +271,25 @@ export function resumesDuTableau(t: TableauLu): ResumeContenu[] {
       const lignes = c.type === 'note' || c.type === 'taches' ? lignesDeTexte(e) : c.type === 'colonne' ? (enfants.get(e.id) ?? 0) : 0
       return [Math.round(e.x), Math.round(e.y), Math.max(1, Math.round(e.largeur)), Math.max(1, Math.round(hauteurProbable(e, lignes))), chaine(c.couleur), c.type, lignes]
     })
-  const resumes: ResumeContenu[] = [{ genre: 'toile', element: '', titre: t.titre, ...(t.couleur ? { couleur: t.couleur } : {}), boites }]
+  const cartesDe = (jetee: boolean) => [
+    ...new Set(
+      t.elements.flatMap((e) =>
+        e.contenu.type === 'tableau' && !e.contenu.raccourci && typeof e.contenu.cible === 'string' && (e.corbeille !== undefined) === jetee ? [e.contenu.cible] : [],
+      ),
+    ),
+  ]
+  const [cartes, jetees] = [cartesDe(false), cartesDe(true)]
+  const resumes: ResumeContenu[] = [
+    {
+      genre: 'toile',
+      element: '',
+      titre: t.titre,
+      ...(t.couleur ? { couleur: t.couleur } : {}),
+      boites,
+      ...(cartes.length ? { cartes } : {}),
+      ...(jetees.length ? { jetees } : {}),
+    },
+  ]
   for (const e of vivants) {
     const c = e.contenu
     if (c.type === 'arbre') {

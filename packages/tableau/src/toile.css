@@ -1151,6 +1151,23 @@
   flex: 1;
 }
 
+.notak-menu-icone {
+  display: inline-flex;
+  flex: none;
+  width: 16px;
+  margin-right: 4px;
+  color: var(--notak-menu-texte);
+  opacity: 0.85;
+}
+
+.notak-menu button[data-danger]:not(:disabled) {
+  color: #d64545;
+}
+
+.notak-menu button[data-danger]:not(:disabled) .notak-menu-icone {
+  color: inherit;
+}
+
 .notak-menu-touches {
   display: inline-flex;
   gap: 4px;

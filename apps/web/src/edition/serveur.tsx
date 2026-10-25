@@ -11,7 +11,7 @@ import {
 } from '@notak/tableau'
 import { type ReactNode, StrictMode, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
-import { type Instance, type Moi, accepterInvitation, lireInstance, moi as lireMoi, noterElementVu, rechercherPartout, reglerCompte, seDeconnecter } from '../api'
+import { type Instance, type Moi, accepterInvitation, lireInstance, moi as lireMoi, noterElementVu, rangerToile, rechercherPartout, reglerCompte, seDeconnecter } from '../api'
 import { importDejaPropose, lireAncienEspace, noterImportPropose } from '../ancien'
 import { PagePartage, PageRapide } from '../Arrivees'
 import { PageEnvoyer } from '../Envoyer'
@@ -31,7 +31,7 @@ import { importerEspaceLocal } from '../importLocal'
 import { Importer } from '../Importer'
 import { creerRecents } from '../recents'
 import { PagePublique } from '../PagePublique'
-import { Partage } from '../Partage'
+import { Partage, PartageEnFenetre } from '../Partage'
 import { PlusEntete } from '../PlusEntete'
 import { enregistrerServiceWorker } from '../pwa'
 import { BoutonSignaler, brancherSignaler } from '../signaler/Signaler'
@@ -69,6 +69,9 @@ const services = {
   ecouterRecemmentModifies: recents.ecouter,
   adressePhoto,
   ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank'),
+  // Glissée sur une autre toile, une toile y est rangée sans rien demander, tant que personne n'y gagne l'accès ; sinon
+  // ses accès restent ceux d'avant (la bibliothèque, elle, demande).
+  toileRangee: (toile: string, dans: string) => void rangerToile(toile, dans, { siPersonne: true }).catch(() => {}),
 }
 
 // Un espace par compte, créé une fois : React peut monter l'application deux fois, pas le réseau.
@@ -221,6 +224,7 @@ function Accueil({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
         <PageBibliotheque
           espace={espace}
           fenetres={fenetres}
+          partage={(tableau, fermer) => <PartageEnFenetre tableau={tableau} moi={moi} fermer={fermer} />}
           compte={
             <>
               <BoutonSignaler />

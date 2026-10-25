@@ -118,10 +118,81 @@ describe('GET /api/bibliotheque', () => {
     expect(r.map(cle)).not.toContain('etape/lisbonne')
   })
 
+  it('une toile est dans celle qui porte sa carte ; sa carte jetée, elle part avec ce qu’elle contient', async () => {
+    ecrire('etape', 'Étape', (d) => poser(d, carte('Lisbonne'), { id: 'lisbonne' }))
+    // « Étape » a été créée dans « Voyage », puis sa carte glissée sur l'accueil.
+    ecrire(ana.utilisateur.racine, 'Accueil', (d) => poser(d, { type: 'tableau', cible: 'etape' }, { id: 'carte-etape' }))
+    let r = (await lire(ana)) as Entree[]
+    expect(r.find((e) => cle(e) === 'etape/')).toMatchObject({ dans: ana.utilisateur.racine })
+    expect(r.find((e) => cle(e) === 'etape/')!.resume).not.toHaveProperty('cartes')
+    ecrire(ana.utilisateur.racine, 'Accueil', (d) => poser(d, { type: 'tableau', cible: 'etape' }, { id: 'carte-etape', corbeille: 1 }))
+    r = (await lire(ana)) as Entree[]
+    expect(r.map(cle)).not.toContain('etape/')
+    expect(r.map(cle)).not.toContain('etape/lisbonne')
+    expect(r.map(cle)).toContain('voyage/')
+  })
+
   it('ne garde que les éléments ouverts les plus récents', () => {
     for (let i = 0; i < ELEMENTS_VUS_GARDES + 3; i++) m.base.noterElementVu(ana.utilisateur.id, 'voyage', `e${i}`, Date.now() + 1000 + i)
     const gardes = m.base.vus(ana.utilisateur.id).filter((v) => v.element !== '')
     expect(gardes).toHaveLength(ELEMENTS_VUS_GARDES)
     expect(gardes[0]!.element).toBe(`e${ELEMENTS_VUS_GARDES + 2}`)
+  })
+})
+
+describe('PUT /api/tableaux/:id/parent', () => {
+  let m: Monde
+  let ana: Compte
+  let bob: Compte
+  let cle: Compte
+  const ranger = (c: Compte, id: string, json: Record<string, unknown>) => m.appeler(`/api/tableaux/${id}/parent`, { methode: 'PUT', compte: c, json })
+  const roleDe = (c: Compte, id: string) => m.autorisation.roleSur(`user:${c.utilisateur.id}`, id)
+
+  beforeAll(async () => {
+    m = monde()
+    ana = await m.compte('Ana')
+    bob = await m.compte('Bob')
+    cle = await m.compte('Cléo')
+    const accueil = ana.utilisateur.racine
+    m.tableau(ana, 'projets', 'Projets', undefined, accueil)
+    m.tableau(ana, 'equipe', 'Équipe', undefined, accueil)
+    m.tableau(ana, 'idee', 'Idée', undefined, accueil)
+    m.tableau(ana, 'detail', 'Détail', undefined, 'idee')
+    m.base.definirAcces({ tableau: 'equipe', utilisateur: bob.utilisateur.id, role: 'edition' })
+    m.base.definirAcces({ tableau: 'projets', utilisateur: cle.utilisateur.id, role: 'lecture' })
+  })
+  afterAll(() => m.fermer())
+
+  it('compte qui gagnerait l’accès, sans rien ranger à l’essai', async () => {
+    const r = await ranger(ana, 'idee', { parent: 'equipe', essai: true })
+    expect(await r.json()).toEqual({ nouveaux: 1, fait: false })
+    expect(m.base.tableau('idee')!.parent).toBe(ana.utilisateur.racine)
+    const prudent = await ranger(ana, 'idee', { parent: 'equipe', siPersonne: true })
+    expect(await prudent.json()).toEqual({ nouveaux: 1, fait: false })
+  })
+
+  it('range la toile : ses accès hérités et ceux de ce qu’elle contient suivent', async () => {
+    expect(await roleDe(bob, 'detail')).toBeNull()
+    const r = await ranger(ana, 'idee', { parent: 'equipe' })
+    expect(await r.json()).toEqual({ nouveaux: 1, fait: true })
+    expect(m.base.tableau('idee')!.parent).toBe('equipe')
+    expect(await roleDe(bob, 'detail')).toBe('edition')
+    // Rangée ailleurs, elle quitte ceux d'avant.
+    await ranger(ana, 'idee', { parent: 'projets' })
+    expect(await roleDe(bob, 'detail')).toBeNull()
+    expect(await roleDe(cle, 'detail')).toBe('lecture')
+    expect(m.base.tableau('idee')!.parent).toBe('projets')
+  })
+
+  it('refuse l’accueil, la toile dans elle-même ou dans ce qu’elle contient, et sans les droits', async () => {
+    expect((await ranger(ana, ana.utilisateur.racine, { parent: 'projets' })).status).toBe(400)
+    expect((await ranger(ana, 'idee', { parent: 'idee' })).status).toBe(400)
+    expect((await ranger(ana, 'idee', { parent: 'detail' })).status).toBe(400)
+    expect((await ranger(ana, 'idee', { parent: 'inconnue' })).status).toBe(404)
+    // Bob écrit dans « Équipe », mais ne possède pas « Projets » ; Cléo ne fait que lire « Projets ».
+    expect((await ranger(bob, 'equipe', { parent: 'idee' })).status).toBe(403)
+    m.tableau(cle, 'a-cleo', 'À Cléo', undefined, cle.utilisateur.racine)
+    expect((await ranger(cle, 'a-cleo', { parent: 'projets' })).status).toBe(403)
+    expect((await ranger(bob, 'idee', { parent: 'equipe' })).status).toBe(404)
   })
 })

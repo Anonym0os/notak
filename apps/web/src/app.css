@@ -2565,6 +2565,308 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   line-height: 1.45;
 }
 
+/* — Les gestes : une tuile choisie s'entoure de l'accent et son titre passe en pastille, comme dans le Finder ; le
+   cadre tracé sur le fond, la toile qui prend ce qu'on lâche, et ce qu'on glisse sous le pointeur. — */
+.biblio {
+  position: relative;
+}
+
+.biblio-corps {
+  position: relative;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.biblio-corps[data-glisse] {
+  cursor: grabbing;
+}
+
+.biblio-tuile[aria-selected='true'] .biblio-vignette,
+.biblio-tuile[aria-selected='true']:hover .biblio-vignette {
+  box-shadow: 0 0 0 2px var(--accent), 0 8px 20px -10px rgb(27 37 54 / 0.18);
+  transform: none;
+}
+
+.biblio-tuile[aria-selected='true'] .biblio-tuile-titre {
+  margin: -2px -8px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+}
+
+.biblio-tuile[data-glissee] {
+  opacity: 0.4;
+}
+
+.biblio-tuile[data-survol-depot] .biblio-vignette {
+  box-shadow: 0 0 0 3px var(--accent), 0 14px 30px -10px rgb(27 37 54 / 0.3);
+  transform: scale(1.03);
+}
+
+.biblio-section h2[data-survol-depot],
+.biblio-rubrique[data-survol-depot] {
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow: 0 0 0 2px var(--accent);
+  color: var(--texte);
+}
+
+.biblio-section h2[data-depot] {
+  align-self: flex-start;
+  width: fit-content;
+  margin-left: -6px;
+  padding: 2px 6px;
+}
+
+.biblio-cadre {
+  position: absolute;
+  z-index: 5;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  pointer-events: none;
+}
+
+.biblio-renommer {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 220px;
+  height: 24px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  outline: 2px solid var(--accent);
+  background: var(--carte);
+  color: var(--texte);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.biblio-section h2 .biblio-renommer {
+  max-width: 280px;
+  font-size: 13px;
+  text-align: left;
+}
+
+/* Ce qu'on glisse : la vignette de tête, inclinée, et le nombre emporté. */
+.biblio-fantome {
+  position: fixed;
+  z-index: 60;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 132px;
+  pointer-events: none;
+}
+
+.biblio-fantome .biblio-vignette {
+  margin-bottom: 4px;
+  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.1), 0 16px 32px -10px rgb(27 37 54 / 0.4);
+  transform: rotate(-2deg);
+}
+
+.biblio-fantome-pile {
+  position: absolute;
+  top: 5px;
+  left: 6px;
+  width: 100%;
+  aspect-ratio: 206 / 136;
+  border-radius: 12px;
+  background: var(--carte);
+  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.1);
+  transform: rotate(3deg);
+}
+
+.biblio-fantome-titre {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.biblio-fantome-nombre {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border-radius: 11px;
+  background: #e5534b;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 22px;
+  text-align: center;
+}
+
+/* La barre de la sélection prend la place du titre. */
+.biblio-barre-choix {
+  align-items: center;
+  min-width: 0;
+}
+
+.biblio-barre-compte {
+  padding: 0 10px 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Le menu du clic droit, posé au-dessus de toute la page. */
+.biblio-calque-menu {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  pointer-events: none;
+}
+
+.biblio-calque-menu .notak-menu {
+  pointer-events: auto;
+}
+
+/* Les fenêtres : Déplacer vers…, la question avant d'ouvrir à d'autres, et le partage. */
+.biblio-dialogue,
+.partage-fenetre {
+  box-sizing: border-box;
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  background: var(--carte);
+  box-shadow: var(--app-ombre-menu);
+  color: var(--texte);
+  font-size: 13px;
+}
+
+.biblio-dialogue {
+  width: min(440px, calc(100vw - 32px));
+}
+
+.biblio-dialogue::backdrop,
+.partage-fenetre::backdrop {
+  background: rgb(20 24 31 / 0.3);
+}
+
+.biblio-dialogue-carte {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 18px 16px;
+}
+
+.biblio-dialogue-carte h2 {
+  margin: 0;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.biblio-dialogue-carte p {
+  margin: 0;
+  color: var(--app-pale);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.biblio-dialogue-boutons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.biblio-deplacer-champ {
+  width: auto;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 18px;
+  background: var(--app-champ);
+  box-shadow: inset 0 0 0 1px var(--app-filet);
+}
+
+.biblio-deplacer-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: min(340px, 50vh);
+  margin: 0 -8px;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.biblio-deplacer-liste li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.biblio-deplacer-liste li svg {
+  flex: none;
+  color: var(--app-pale);
+}
+
+.biblio-deplacer-liste li[aria-selected='true'] {
+  background: var(--app-survol);
+}
+
+.biblio-deplacer-liste li[aria-disabled='true'] {
+  color: var(--app-pale);
+  cursor: default;
+}
+
+.biblio-deplacer-nom {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.biblio-deplacer-liste small {
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  color: var(--app-pale);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.biblio-deplacer-vide {
+  padding: 18px 0;
+  text-align: center;
+}
+
+.partage-fenetre .app-panneau {
+  position: static;
+  max-height: calc(100vh - 32px);
+  box-shadow: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .biblio-attente span {
     animation: none;

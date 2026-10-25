@@ -3,7 +3,7 @@ import type { Element, Id } from './coeur/tableau'
 import { definition } from './elements/registre'
 import { t, tn } from './langue'
 import type { ContexteToile, ResultatRecherche } from './elements/types'
-import { Icone } from './icones'
+import { Icone, type NomIcone } from './icones'
 import { PastillePersonne } from './pastille'
 
 /** Une entrée du menu ; `null` trace un séparateur. */
@@ -20,6 +20,10 @@ export type Entree = {
   info?: { nom: string; couleur?: string; photo?: string }
   /** Une pastille de couleur devant le libellé (les couleurs du canevas). */
   pastille?: string
+  /** L'icône devant le libellé ; dès qu'une entrée en a une, les autres gardent sa place, pour que les libellés s'alignent. */
+  icone?: NomIcone
+  /** Une action qui détruit ou retire : dite en rouge. */
+  danger?: boolean
   faire(): void
 } | null
 
@@ -146,6 +150,13 @@ export function MenuContextuel({ x, y, entrees, fermer }: { x: number; y: number
   // Pas deux séparateurs de suite, ni au bord.
   const propres = entrees.filter((e, i, t) => e !== null || (i > 0 && i < t.length - 1 && t[i - 1] !== null))
   const avecCoches = propres.some((e) => e?.coche !== undefined)
+  const avecIcones = propres.some((e) => e?.icone !== undefined)
+  const icone = (e: Exclude<Entree, null>) =>
+    avecIcones && (
+      <span className="notak-menu-icone" aria-hidden>
+        {e.icone && <Icone nom={e.icone} taille={16} />}
+      </span>
+    )
   const choisir = (e: Exclude<Entree, null>) => {
     if (!e.reste) fermer()
     e.faire()
@@ -202,6 +213,7 @@ export function MenuContextuel({ x, y, entrees, fermer }: { x: number; y: number
               requestAnimationFrame(() => ev.currentTarget.parentElement?.querySelector<HTMLButtonElement>('.notak-menu-sous-liste button:not(:disabled)')?.focus({ preventScroll: true }))
             }}
           >
+            {icone(e)}
             <span className="notak-menu-libelle">{e.libelle}</span>
             <Icone nom="chevronDroite" taille={14} />
           </button>
@@ -225,6 +237,7 @@ export function MenuContextuel({ x, y, entrees, fermer }: { x: number; y: number
         role={e.coche === undefined ? 'menuitem' : 'menuitemcheckbox'}
         aria-checked={e.coche}
         disabled={e.desactive}
+        data-danger={e.danger || undefined}
         onPointerEnter={(ev) => {
           ev.currentTarget.focus({ preventScroll: true })
           if (niveau === 0) setSousOuvert(null)
@@ -236,6 +249,7 @@ export function MenuContextuel({ x, y, entrees, fermer }: { x: number; y: number
         onClick={() => choisir(e)}
       >
         {e.pastille && <span className="notak-menu-pastille" style={{ background: e.pastille }} aria-hidden />}
+        {icone(e)}
         <span className="notak-menu-libelle">{e.libelle}</span>
         {e.raccourci && <Raccourci touches={e.raccourci} />}
         {(avecCoches || niveau > 0) && <span className="notak-menu-coche">{e.coche ? <Icone nom="coche" taille={14} /> : null}</span>}

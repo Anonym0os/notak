@@ -344,6 +344,14 @@ DELETE FROM recherche_etat;
       db.exec('DELETE FROM recherche_etat;')
     },
   },
+  {
+    version: 7,
+    nom: 'les cartes de toiles dans la bibliothèque',
+    // Le résumé d'une toile dit maintenant quelles toiles elle porte et lesquelles elle a jetées : on le refait.
+    appliquer(db) {
+      db.exec('DELETE FROM recherche_etat;')
+    },
+  },
 ]
 
 /**

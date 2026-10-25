@@ -126,6 +126,8 @@ export interface Base {
   /** Crée le tableau ; sans `espace`, il prend celui de son parent. */
   creerTableau(t: LigneTableau): void
   changerTitre(id: string, titre: string): void
+  /** Range le tableau sous un autre : ses accès hérités suivent son nouveau parent. */
+  changerParent(id: string, parent: string): void
   /** Tous les tableaux placés sous celui-ci, à toute profondeur. */
   descendants(id: string): string[]
 
@@ -443,6 +445,15 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
       }
     },
     changerTitre: (id, titre) => void executer('UPDATE tableaux SET titre = ? WHERE id = ?', titre, id),
+    changerParent(id, parent) {
+      const ancien = (un('SELECT parent FROM tableaux WHERE id = ?', id)?.parent as string | null | undefined) ?? null
+      if (ancien === parent) return
+      transaction(() => {
+        executer('UPDATE tableaux SET parent = ? WHERE id = ?', parent, id)
+        if (ancien) retirerRelation({ objet: `tableau:${id}`, relation: 'parent', sujet: `tableau:${ancien}` })
+        ajouterRelation({ objet: `tableau:${id}`, relation: 'parent', sujet: `tableau:${parent}` })
+      })
+    },
 
     acces: (tableau) =>
       relationsSur(`tableau:${tableau}`).flatMap((r) => {

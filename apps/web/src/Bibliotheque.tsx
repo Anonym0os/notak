@@ -1,20 +1,61 @@
 import {
-  type BoitePlan,
+  BandeauAvis,
   BoutonIlot,
-  type EspaceNavigable,
-  FOND_NOTE,
+  type EntreeMenu,
   type FenetresNotak,
   type GenreNeuf,
   Icone,
   Ilot,
+  MenuContextuel,
   type NomIcone,
-  type ResumeContenu,
-  creerSurLAccueil,
+  annoncer,
+  creerDans,
+  quandPretes,
 } from '@notak/tableau'
-import { type KeyboardEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { type EntreeBibliotheque, lireBibliotheque } from './api'
+import {
+  type KeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
+import { type EntreeBibliotheque, definirFavori as definirFavoriApi, lireBibliotheque, rangerToile as rangerToileApi } from './api'
+import {
+  type EspaceRangement,
+  type Outils,
+  type Resultat,
+  deplacerEntrees,
+  dupliquerEntrees,
+  favoris,
+  jeterEntrees,
+  rangerDansUneNeuve,
+  renommerEntree,
+} from './bibliotheque/actions'
+import { type Correctif, DUREE_CORRECTIF, avecCorrectifs, corriger } from './bibliotheque/correctifs'
+import { Confirmation, DeplacerVers } from './bibliotheque/Dialogues'
+import {
+  type Boite,
+  type Direction,
+  RIEN,
+  type Selection,
+  cadreEntre,
+  cadrer,
+  cleDe,
+  cliquer,
+  garder,
+  horsDAtteinte,
+  porteuseDe,
+  toutChoisir,
+  voisine,
+} from './bibliotheque/selection'
+import { Vignette } from './bibliotheque/Vignettes'
 import { allerA, surLien } from './chemin'
-import { t } from './langue'
+import { t, tn } from './langue'
 
 /**
  * La bibliothèque, page d'accueil de l'édition serveur : tout ce que le compte peut ouvrir, en vignettes, comme chez
@@ -144,55 +185,108 @@ function ecrireTri(tri: Tri) {
   }
 }
 
-/** Ce que la page sait de l'espace : sa toile d'accueil (pour son titre), et de quoi y créer. */
-type EspaceBibliotheque = Pick<EspaceNavigable, 'racine' | 'tableau' | 'ecouter' | 'magasin' | 'creerTableau'> & { synchronise?(id: string): boolean }
+/** Ce que la page demande à l'espace : de quoi lire le titre de l'accueil, créer, et ranger. */
+type EspaceBibliotheque = EspaceRangement
 
-/** Crée sur l'accueil, une fois son contenu arrivé du serveur (au plus quelques secondes), pour se poser à la suite. */
-async function creerQuandPret(espace: EspaceBibliotheque, genre: GenreNeuf) {
-  const pret = () => espace.synchronise?.(espace.racine) ?? true
-  espace.tableau(espace.racine)
-  if (!pret())
-    await new Promise<void>((fini) => {
-      const arret = setTimeout(() => (fin(), fini()), 4000)
-      const fin = espace.ecouter(() => {
-        if (!pret()) return
-        clearTimeout(arret)
-        fin()
-        fini()
-      })
-    })
-  return creerSurLAccueil(espace as EspaceNavigable, genre)
+/** Une fenêtre ouverte par-dessus la page. */
+type Fenetre =
+  | { type: 'deplacer'; cles: string[] }
+  | { type: 'partage'; tableau: string }
+  | { type: 'confirmer'; titre: string; texte: string; repondre(oui: boolean): void }
+
+/** Ce qu'on renomme sur place : une tuile, ou le titre d'un dossier (la toile qu'il regroupe). */
+type Renommage = { cle: string } | { dossier: string }
+
+/** Le menu du clic droit : sur des tuiles, sur le fond, ou sur le titre d'un dossier. */
+type Menu = { x: number; y: number } & ({ type: 'tuiles'; cles: string[] } | { type: 'fond' } | { type: 'dossier'; dans: string; titre: string })
+
+/** Le glisser de tuiles : ce qu'on glisse, où est le pointeur, et la toile survolée qui le prendrait. */
+interface Glisse {
+  cles: string[]
+  x: number
+  y: number
+  cible: string | null
 }
+
+/** Le pointeur à moins de tant de pixels du haut ou du bas de la page la fait défiler, pendant un cadre ou un glisser. */
+const BORD_DEFILEMENT = 48
 
 export function PageBibliotheque({
   charger = lireBibliotheque,
   espace,
   fenetres,
   compte,
-  creer = (genre) => creerQuandPret(espace!, genre),
+  creer = async (genre, dans) => {
+    const ou = dans ?? espace!.racine
+    await quandPretes(espace!, [ou])
+    return creerDans(espace!, ou, genre)
+  },
+  rangerToile = rangerToileApi,
+  definirFavori = definirFavoriApi,
+  partage,
 }: {
   charger?: () => Promise<EntreeBibliotheque[]>
   espace?: EspaceBibliotheque
   fenetres?: FenetresNotak
   /** Les notifications et le compte, que l'application prête à la barre. */
   compte?: ReactNode
-  creer?: (genre: GenreNeuf) => Promise<{ tableau: string; element: string | null }>
+  /** Crée sur une toile (l'accueil, sans `dans`) ; rend où aller. */
+  creer?: (genre: GenreNeuf, dans?: string) => Promise<{ tableau: string; element: string | null }>
+  rangerToile?: Outils['rangerToile']
+  definirFavori?: Outils['definirFavori']
+  /** Le partage d'une toile, en fenêtre. */
+  partage?: (tableau: string, fermer: () => void) => ReactNode
 }) {
-  const [toutes, setToutes] = useState<EntreeBibliotheque[] | null>(null)
+  const [serveur, setServeur] = useState<EntreeBibliotheque[] | null>(null)
+  const [correctifs, setCorrectifs] = useState<{ n: number; correctif: Correctif }[]>([])
   const [erreur, setErreur] = useState<string | null>(null)
   const [choisie, setChoisie] = useState<Rubrique | null>(rubriqueDeLAdresse)
   const [tri, setTri] = useState<Tri>(lireTri)
   const [requete, setRequete] = useState('')
   const [menuNeuf, setMenuNeuf] = useState(false)
+  const [sel, setSel] = useState<Selection>(RIEN)
+  const [courante, setCourante] = useState<string | null>(null)
+  const [menu, setMenu] = useState<Menu | null>(null)
+  const [fenetre, setFenetre] = useState<Fenetre | null>(null)
+  const [renommage, setRenommage] = useState<Renommage | null>(null)
+  const [glisse, setGlisse] = useState<Glisse | null>(null)
+  const [cadre, setCadre] = useState<Boite | null>(null)
   const champ = useRef<HTMLInputElement>(null)
   const nav = useRef<HTMLElement>(null)
+  const corps = useRef<HTMLElement>(null)
+  const minuteurs = useRef(new Set<ReturnType<typeof setTimeout>>())
   const titreAccueil = useSyncExternalStore(espace?.ecouter ?? (() => () => {}), () => (espace ? espace.tableau(espace.racine)?.titre : '') ?? '')
 
   const lire = useCallback(() => {
     setErreur(null)
-    charger().then(setToutes, (x: Error) => setErreur(x.message || t('commun.echec')))
+    charger().then(setServeur, (x: Error) => setErreur(x.message || t('commun.echec')))
   }, [charger])
   useEffect(lire, [lire])
+  useEffect(() => {
+    const m = minuteurs.current
+    return () => m.forEach(clearTimeout)
+  }, [])
+  const plusTard = (f: () => void, ms: number) => {
+    const id = setTimeout(() => {
+      minuteurs.current.delete(id)
+      f()
+    }, ms)
+    minuteurs.current.add(id)
+  }
+  /** Montre ces correctifs tout de suite ; la liste se relit quand le serveur a pu suivre, et ils s'effacent. */
+  const compteur = useRef(0)
+  const poser = (cs: Correctif[]) => {
+    if (cs.length === 0) return
+    const ns = cs.map((correctif) => ({ n: ++compteur.current, correctif }))
+    setCorrectifs((l) => [...l, ...ns])
+    const relire = () => void charger().then(setServeur, () => {})
+    plusTard(relire, 3500)
+    plusTard(() => {
+      setCorrectifs((l) => l.filter((x) => !ns.includes(x)))
+      relire()
+    }, DUREE_CORRECTIF)
+  }
+  const toutes = useMemo(() => (serveur ? avecCorrectifs(serveur, correctifs) : null), [serveur, correctifs])
 
   // ⌘F cherche dans la bibliothèque ; Échap vide la recherche.
   useEffect(() => {
@@ -217,6 +311,16 @@ export function PageBibliotheque({
   const visibles = toutes && parRubrique ? (cherche ? filtrer(toutes, requete).sort(parOuverture) : parRubrique[rubrique]) : []
   const sections = tri === 'dossier' ? sectionsParDossier(visibles) : sectionsParDate(visibles)
   const neuf = cherche ? undefined : NEUF_DE[rubrique]
+  // Les tuiles dans l'ordre où on les lit, de section en section : celui de ⇧ et des flèches.
+  const ordre = useMemo(() => sections.flatMap((s) => s.entrees.map(cleDe)), [sections])
+  const parCle = useMemo(() => new Map((toutes ?? []).map((e) => [cleDe(e), e])), [toutes])
+  const entreesDes = (cles: Iterable<string>) => [...cles].flatMap((c) => parCle.get(c) ?? [])
+  const choisies = ordre.filter((c) => sel.choisies.has(c))
+  const cleOrdre = ordre.join('|')
+  useEffect(() => setSel((s) => garder(s, cleOrdre ? cleOrdre.split('|') : [])), [cleOrdre])
+
+  const outils: Outils | null = espace ? { espace, rangerToile, definirFavori } : null
+  const titreToile = (id: string) => (espace && id === espace.racine ? titreAccueil || t('biblio.accueil') : parCle.get(`${id}/`)?.titre || t('commun.sansTitre'))
 
   const choisir = (r: Rubrique) => {
     setChoisie(r)
@@ -228,18 +332,407 @@ export function PageBibliotheque({
     ecrireTri(x)
   }
   const [creation, setCreation] = useState(false)
-  const creerPuisOuvrir = async (genre: GenreNeuf) => {
+  const creerPuisOuvrir = async (genre: GenreNeuf, dans?: string) => {
     setMenuNeuf(false)
     if (creation) return
     setCreation(true)
     try {
-      allerA(adresseDe(await creer(genre)))
+      allerA(adresseDe(await creer(genre, dans)))
     } finally {
       setCreation(false)
     }
   }
+  const ouvrir = (e: EntreeBibliotheque) => allerA(adresseDe(e))
+
+  // ---- Les gestes ----
+
+  /** Le dernier geste qui se défait (⌘Z, ou le bouton de l'avis). */
+  const annulable = useRef<Resultat | null>(null)
+  const defaire = async (r: Resultat) => {
+    if (annulable.current === r) annulable.current = null
+    poser((await r.annuler?.()) ?? [])
+  }
+  const executer = async <R extends Resultat>(p: Promise<R | null>): Promise<R | null> => {
+    try {
+      const r = await p
+      if (!r) return null
+      poser(r.correctifs)
+      annulable.current = r.annuler ? r : null
+      annoncer({ texte: r.texte, ...(r.annuler ? { action: { libelle: t('biblio.annuler'), faire: () => void defaire(r) } } : {}) })
+      return r
+    } catch (x) {
+      annoncer({ texte: (x as Error).message || t('commun.echec') })
+      return null
+    }
+  }
+  const confirmerOuverture = (titre: string, vers: string) => (nouveaux: number) =>
+    new Promise<boolean>((repondre) =>
+      setFenetre({
+        type: 'confirmer',
+        titre: t('biblio.confirmer.titre', { titre }),
+        texte: tn('biblio.confirmer.texte', nouveaux, { toile: titreToile(vers) }),
+        repondre: (oui) => {
+          setFenetre(null)
+          repondre(oui)
+        },
+      }),
+    )
+  const nomDe = (es: EntreeBibliotheque[]) => (es.length === 1 ? es[0]!.titre || t('commun.sansTitre') : tn('biblio.deplacer.titre', es.length).replace(/^\S+\s/, ''))
+  const deplacerVers = (es: EntreeBibliotheque[], vers: string) => {
+    if (!outils || es.length === 0) return
+    void executer(deplacerEntrees(outils, es, { id: vers, titre: titreToile(vers) }, confirmerOuverture(nomDe(es), vers)))
+  }
+  const jeterCes = (es: EntreeBibliotheque[]) => outils && es.length > 0 && void executer(jeterEntrees(outils, es, toutes ?? []))
+  const dupliquerCes = (es: EntreeBibliotheque[]) => outils && es.length > 0 && void executer(dupliquerEntrees(outils, es))
+  const rangerDansNeuveCes = (es: EntreeBibliotheque[]) => {
+    if (!outils || es.length === 0) return
+    // La toile neuve va là où tout était, sinon sur l'accueil.
+    const ou = es.every((e) => porteuseDe(e) === porteuseDe(es[0]!)) ? (porteuseDe(es[0]!) ?? outils.espace.racine) : outils.espace.racine
+    // Comme le « nouveau dossier avec la sélection » du Finder : la toile neuve est choisie, son nom prêt à changer.
+    void executer(rangerDansUneNeuve(outils, es, { id: ou, titre: titreToile(ou) }, confirmerOuverture(nomDe(es), ou))).then((r) => {
+      if (!r) return
+      const cle = `${r.toile}/`
+      setSel({ choisies: new Set([cle]), ancre: cle })
+      setCourante(cle)
+      setRenommage({ cle })
+    })
+  }
+  const renommerCe = async (cible: Pick<EntreeBibliotheque, 'tableau' | 'element' | 'titre'>, titre: string) => {
+    setRenommage(null)
+    if (!outils || !titre.trim()) return
+    try {
+      poser(await renommerEntree(outils, cible, titre, toutes ?? []))
+    } catch (x) {
+      annoncer({ texte: (x as Error).message || t('commun.echec') })
+    }
+  }
+  const favoriCes = async (es: EntreeBibliotheque[], oui: boolean) => {
+    try {
+      const cs = await favoris({ espace: espace!, rangerToile, definirFavori }, es, oui)
+      // Le serveur a déjà suivi : on corrige la liste qu'on a, sans attendre.
+      setServeur((l) => l && cs.reduce((x, c) => corriger(x, c), l))
+    } catch (x) {
+      annoncer({ texte: (x as Error).message || t('commun.echec') })
+    }
+  }
+  const copierLiens = (es: EntreeBibliotheque[]) => {
+    void navigator.clipboard?.writeText(es.map((e) => `${location.origin}${adresseDe(e)}`).join('\n')).then(
+      () => annoncer({ texte: t(es.length > 1 ? 'biblio.annonce.liens' : 'biblio.annonce.lien') }),
+      () => {},
+    )
+  }
+
+  // ---- Le menu du clic droit ----
+
+  const menuDesTuiles = (cles: string[]): EntreeMenu[] => {
+    const es = entreesDes(cles)
+    const une = es.length === 1 ? es[0]! : null
+    const toiles = es.filter((e) => e.element === null)
+    const tousFavoris = toiles.length > 0 && toiles.every((e) => e.favori)
+    const porteuse = une && porteuseDe(une)
+    const ecrit = outils !== null
+    const l: EntreeMenu[] = []
+    if (une) l.push({ libelle: t('biblio.menu.ouvrir'), icone: 'ouvrir', raccourci: '↩', faire: () => ouvrir(une) })
+    if (porteuse) l.push({ libelle: t('biblio.menu.afficher'), icone: 'tableau', faire: () => allerA(`/t/${encodeURIComponent(porteuse)}`) })
+    l.push(null)
+    if (une && ecrit) l.push({ libelle: t('biblio.menu.renommer'), icone: 'renommer', raccourci: 'F2', faire: () => setRenommage({ cle: cleDe(une) }) })
+    if (ecrit) l.push({ libelle: t('biblio.menu.dupliquer'), icone: 'menuDupliquer', raccourci: '⌘D', faire: () => dupliquerCes(es) })
+    if (toiles.length > 0)
+      l.push({
+        libelle: t(tousFavoris ? 'biblio.menu.plusFavori' : 'biblio.menu.favori'),
+        icone: tousFavoris ? 'favoriPlein' : 'favori',
+        faire: () => void favoriCes(toiles, !tousFavoris),
+      })
+    l.push(null)
+    if (ecrit) l.push({ libelle: t('biblio.menu.deplacer'), icone: 'dossier', faire: () => setFenetre({ type: 'deplacer', cles }) })
+    if (ecrit && es.length > 1) l.push({ libelle: t('biblio.menu.neuveAvec'), icone: 'ajouter', faire: () => rangerDansNeuveCes(es) })
+    l.push({ libelle: t(es.length > 1 ? 'biblio.menu.liens' : 'biblio.menu.lien'), icone: 'lien', faire: () => copierLiens(es) })
+    if (une?.element === null && partage) l.push({ libelle: t('biblio.menu.partager'), icone: 'partager', faire: () => setFenetre({ type: 'partage', tableau: une.tableau }) })
+    l.push(null)
+    if (ecrit) l.push({ libelle: t('biblio.menu.corbeille'), icone: 'corbeille', raccourci: '⌫', danger: true, faire: () => jeterCes(es) })
+    return l
+  }
+  const sousMenuCreer = (dans?: string): EntreeMenu[] =>
+    (['toile', 'arbre', 'document'] as const).map((g) => ({ libelle: t(`biblio.genre.${g}`), icone: ICONE_GENRE[g], faire: () => void creerPuisOuvrir(g, dans) }))
+  const menuDuFond = (): EntreeMenu[] => [
+    ...(espace ? [{ libelle: t('biblio.menu.nouveau'), icone: 'ajouter' as const, sous: sousMenuCreer(), faire: () => {} }, null] : []),
+    { libelle: t('biblio.tri.date'), icone: 'horloge', coche: tri === 'date', faire: () => trier('date') },
+    { libelle: t('biblio.tri.dossier'), icone: 'dossier', coche: tri === 'dossier', faire: () => trier('dossier') },
+    null,
+    { libelle: t('biblio.menu.toutChoisir'), icone: 'menuSelectionner', raccourci: '⌘A', desactive: ordre.length === 0, faire: () => setSel(toutChoisir(ordre)) },
+  ]
+  const menuDuDossier = (dans: string): EntreeMenu[] => [
+    { libelle: t('biblio.menu.ouvrirToile'), icone: 'ouvrir', faire: () => allerA(`/t/${encodeURIComponent(dans)}`) },
+    ...(espace
+      ? [
+          { libelle: t('biblio.menu.creerIci'), icone: 'ajouter' as const, sous: sousMenuCreer(dans), faire: () => {} },
+          null,
+          { libelle: t('biblio.menu.renommerToile'), icone: 'renommer' as const, faire: () => setRenommage({ dossier: dans }) },
+        ]
+      : []),
+  ]
+  const entreesDuMenu = (m: Menu) => (m.type === 'tuiles' ? menuDesTuiles(m.cles) : m.type === 'fond' ? menuDuFond() : menuDuDossier(m.dans))
+
+  const surMenu = (ev: ReactMouseEvent) => {
+    const el = ev.target as HTMLElement
+    if (el.closest('input')) return
+    ev.preventDefault()
+    const tuile = el.closest<HTMLElement>('[data-cle]')
+    const dossier = el.closest<HTMLElement>('[data-dossier]')
+    if (tuile) {
+      const cle = tuile.dataset.cle!
+      const cles = sel.choisies.has(cle) ? choisies : [cle]
+      if (!sel.choisies.has(cle)) setSel(cliquer(sel, cle, ordre))
+      setCourante(cle)
+      setMenu({ x: ev.clientX, y: ev.clientY, type: 'tuiles', cles })
+    } else if (dossier) setMenu({ x: ev.clientX, y: ev.clientY, type: 'dossier', dans: dossier.dataset.dossier!, titre: dossier.textContent ?? '' })
+    else setMenu({ x: ev.clientX, y: ev.clientY, type: 'fond' })
+  }
+
+  // ---- Le pointeur : choisir, tracer un cadre, glisser ----
+
+  const etat = useRef({ sel, ordre, choisies, parCle, toutes })
+  etat.current = { sel, ordre, choisies, parCle, toutes }
+  /** Les boîtes des tuiles, dans le repère du contenu de la page (qui défile). */
+  const boitesTuiles = () => {
+    const c = corps.current
+    const boites = new Map<string, Boite>()
+    if (!c) return boites
+    const r = c.getBoundingClientRect()
+    for (const el of c.querySelectorAll<HTMLElement>('[data-cle]')) {
+      const b = el.getBoundingClientRect()
+      boites.set(el.dataset.cle!, { gauche: b.left - r.left + c.scrollLeft, haut: b.top - r.top + c.scrollTop, droite: b.right - r.left + c.scrollLeft, bas: b.bottom - r.top + c.scrollTop })
+    }
+    return boites
+  }
+  /** Fait défiler la page tant que le pointeur reste près de son bord ; `apres` suit chaque pas. */
+  const defilement = (pointeur: { y: number }, apres: () => void) => {
+    let image = 0
+    const pas = () => {
+      const c = corps.current
+      if (c) {
+        const r = c.getBoundingClientRect()
+        const d = pointeur.y < r.top + BORD_DEFILEMENT ? -1 : pointeur.y > r.bottom - BORD_DEFILEMENT ? 1 : 0
+        if (d !== 0) {
+          c.scrollTop += d * 14
+          apres()
+        }
+      }
+      image = requestAnimationFrame(pas)
+    }
+    image = requestAnimationFrame(pas)
+    return () => cancelAnimationFrame(image)
+  }
+  /** Une toile où l'on peut lâcher ces tuiles : ni l'une d'elles ni ce qu'elles contiennent, ni là où tout est déjà. */
+  const depotPossible = (id: string, cles: string[]) => {
+    if (!outils) return false
+    const es = cles.flatMap((c) => etat.current.parCle.get(c) ?? [])
+    return !horsDAtteinte(etat.current.toutes ?? [], es).has(id) && !es.every((e) => porteuseDe(e) === id)
+  }
+
+  /** Le dernier appui venait-il d'un doigt : le clic qui suit n'en dit rien partout. */
+  const auDoigt = useRef(false)
+  const surAppui = (ev: ReactPointerEvent) => {
+    auDoigt.current = ev.pointerType === 'touch'
+    const el = ev.target as HTMLElement
+    if (ev.button !== 0 || el.closest('input')) return
+    const tuile = el.closest<HTMLElement>('[data-cle]')
+    // Au doigt, on fait défiler et on touche pour ouvrir : ni cadre ni glisser.
+    if (ev.pointerType === 'touch') return
+    const touches = { ajout: ev.metaKey || ev.ctrlKey, suite: ev.shiftKey }
+    if (tuile) {
+      const cle = tuile.dataset.cle!
+      const { sel: avant, ordre: o } = etat.current
+      const garderLesAutres = avant.choisies.has(cle) && !touches.ajout && !touches.suite
+      if (!garderLesAutres) setSel(cliquer(avant, cle, o, touches))
+      setCourante(cle)
+      ev.preventDefault()
+      tuile.focus({ preventScroll: true })
+      glisser(ev, cle, garderLesAutres)
+      return
+    }
+    if (el.closest('a, button, [data-dossier]')) return
+    tracerCadre(ev, touches)
+  }
+
+  const glisser = (ev: ReactPointerEvent, cle: string, reduireAuRelache: boolean) => {
+    const depart = { x: ev.clientX, y: ev.clientY }
+    const pointeur = { y: ev.clientY }
+    let courant: Glisse | null = null
+    let arretDefilement = () => {}
+    const viser = (x: number, y: number) => {
+      if (!courant) return
+      const sous = document.elementFromPoint?.(x, y)?.closest<HTMLElement>('[data-depot]')
+      const id = sous?.dataset.depot ?? null
+      courant = { ...courant, x, y, cible: id && depotPossible(id, courant.cles) ? id : null }
+      setGlisse(courant)
+    }
+    const bouger = (e: PointerEvent) => {
+      pointeur.y = e.clientY
+      if (!courant) {
+        if (Math.hypot(e.clientX - depart.x, e.clientY - depart.y) < 5) return
+        const { sel: s, ordre: o } = etat.current
+        courant = { cles: s.choisies.has(cle) ? o.filter((c) => s.choisies.has(c)) : [cle], x: e.clientX, y: e.clientY, cible: null }
+        setMenu(null)
+        arretDefilement = defilement(pointeur, () => {})
+      }
+      viser(e.clientX, e.clientY)
+    }
+    const fin = () => {
+      window.removeEventListener('pointermove', bouger)
+      window.removeEventListener('pointerup', lacher)
+      window.removeEventListener('pointercancel', abandon)
+      window.removeEventListener('keydown', echap, true)
+      arretDefilement()
+      setGlisse(null)
+    }
+    const lacher = () => {
+      const g = courant
+      fin()
+      if (!g) {
+        if (reduireAuRelache) setSel(cliquer(RIEN, cle, etat.current.ordre))
+        return
+      }
+      // Le clic qui suit le lâcher n'ouvre pas le lien survolé (un dossier, l'accueil).
+      const bloquer = (e: Event) => {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+      window.addEventListener('click', bloquer, { capture: true, once: true })
+      setTimeout(() => window.removeEventListener('click', bloquer, true), 0)
+      if (g.cible) deplacerVers(g.cles.flatMap((c) => etat.current.parCle.get(c) ?? []), g.cible)
+    }
+    const abandon = () => {
+      courant = null
+      fin()
+    }
+    const echap = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== 'Escape' || !courant) return
+      e.preventDefault()
+      e.stopPropagation()
+      abandon()
+    }
+    window.addEventListener('pointermove', bouger)
+    window.addEventListener('pointerup', lacher)
+    window.addEventListener('pointercancel', abandon)
+    window.addEventListener('keydown', echap, true)
+  }
+
+  const tracerCadre = (ev: ReactPointerEvent, touches: { ajout: boolean; suite: boolean }) => {
+    const c = corps.current
+    if (!c) return
+    const r = c.getBoundingClientRect()
+    const dans = (x: number, y: number) => ({ x: x - r.left + c.scrollLeft, y: y - r.top + c.scrollTop })
+    const p0 = dans(ev.clientX, ev.clientY)
+    const avant = touches.ajout || touches.suite ? etat.current.sel : RIEN
+    if (!touches.ajout && !touches.suite) setSel(RIEN)
+    setMenu(null)
+    ;(document.activeElement as HTMLElement | null)?.blur?.()
+    const boites = boitesTuiles()
+    const pointeur = { x: ev.clientX, y: ev.clientY }
+    let lance = false
+    const suivre = () => {
+      const p1 = dans(pointeur.x, pointeur.y)
+      const b = cadreEntre(p0.x, p0.y, p1.x, p1.y)
+      setCadre(b)
+      setSel(cadrer(avant, boites, b, touches))
+    }
+    let arretDefilement = () => {}
+    const bouger = (e: PointerEvent) => {
+      pointeur.x = e.clientX
+      pointeur.y = e.clientY
+      if (!lance) {
+        if (Math.hypot(e.clientX - ev.clientX, e.clientY - ev.clientY) < 4) return
+        lance = true
+        arretDefilement = defilement(pointeur, suivre)
+      }
+      suivre()
+    }
+    const fin = () => {
+      window.removeEventListener('pointermove', bouger)
+      window.removeEventListener('pointerup', fin)
+      window.removeEventListener('pointercancel', fin)
+      arretDefilement()
+      setCadre(null)
+    }
+    window.addEventListener('pointermove', bouger)
+    window.addEventListener('pointerup', fin)
+    window.addEventListener('pointercancel', fin)
+  }
+
+  const surDoubleClic = (ev: ReactMouseEvent) => {
+    const cle = (ev.target as HTMLElement).closest<HTMLElement>('[data-cle]')?.dataset.cle
+    const e = cle && !(ev.target as HTMLElement).closest('input') ? parCle.get(cle) : undefined
+    if (e) ouvrir(e)
+  }
+  // Au doigt, une tuile touchée s'ouvre, comme avant.
+  const surClic = (ev: ReactMouseEvent) => {
+    if (!auDoigt.current) return
+    const cle = (ev.target as HTMLElement).closest<HTMLElement>('[data-cle]')?.dataset.cle
+    const e = cle ? parCle.get(cle) : undefined
+    if (e) ouvrir(e)
+  }
+
+  // ---- Le clavier ----
+
+  const aller = (cle: string | null, etendre: boolean) => {
+    if (!cle) return
+    setSel((s) => (etendre ? cliquer(s, cle, ordre, { suite: true }) : cliquer(RIEN, cle, ordre)))
+    setCourante(cle)
+    const el = corps.current?.querySelector<HTMLElement>(`[data-cle="${CSS.escape(cle)}"]`)
+    el?.focus({ preventScroll: true })
+    el?.scrollIntoView?.({ block: 'nearest' })
+  }
+  /** Le renommage fini, le clavier revient à la tuile. */
+  const rendreFocus = (cle: string) =>
+    requestAnimationFrame(() => corps.current?.querySelector<HTMLElement>(`[data-cle="${CSS.escape(cle)}"]`)?.focus({ preventScroll: true }))
+  const touche = useRef<(e: globalThis.KeyboardEvent) => void>(() => {})
+  touche.current = (e) => {
+    const cible = e.target as HTMLElement
+    if (e.defaultPrevented || menu || fenetre || renommage || glisse) return
+    if (cible.closest?.('input, textarea, select, [contenteditable="true"], dialog, .notak-par-dessus')) return
+    const cmd = e.metaKey || e.ctrlKey
+    const es = entreesDes(choisies)
+    const une = es.length === 1 ? es[0]! : null
+    const fleches: Record<string, Direction> = { ArrowLeft: 'gauche', ArrowRight: 'droite', ArrowUp: 'haut', ArrowDown: 'bas' }
+    // Les flèches de la colonne restent à la colonne.
+    if (fleches[e.key] && !cmd && !nav.current?.contains(cible)) {
+      e.preventDefault()
+      aller(voisine(boitesTuiles(), ordre, courante ?? sel.ancre, fleches[e.key]!), e.shiftKey)
+    } else if (cmd && !e.shiftKey && e.key.toLowerCase() === 'a') {
+      e.preventDefault()
+      setSel(toutChoisir(ordre))
+    } else if (cmd && !e.shiftKey && e.key.toLowerCase() === 'z' && annulable.current) {
+      e.preventDefault()
+      void defaire(annulable.current)
+    } else if (cmd && e.key.toLowerCase() === 'd' && es.length > 0) {
+      e.preventDefault()
+      dupliquerCes(es)
+    } else if ((e.key === 'Backspace' || e.key === 'Delete') && es.length > 0) {
+      e.preventDefault()
+      jeterCes(es)
+    } else if (e.key === 'Enter' && une && !cible.closest('a, button')) {
+      e.preventDefault()
+      ouvrir(une)
+    } else if (e.key === 'F2' && une && outils) {
+      e.preventDefault()
+      setRenommage({ cle: cleDe(une) })
+    } else if (e.key === 'Escape' && sel.choisies.size > 0) {
+      setSel(RIEN)
+    } else if ((e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) && choisies.length > 0) {
+      e.preventDefault()
+      const b = corps.current?.querySelector<HTMLElement>(`[data-cle="${CSS.escape(courante ?? choisies[0]!)}"]`)?.getBoundingClientRect()
+      setMenu({ x: b ? b.left + 24 : 200, y: b ? b.top + 24 : 200, type: 'tuiles', cles: choisies })
+    }
+  }
+  useEffect(() => {
+    const f = (e: globalThis.KeyboardEvent) => touche.current(e)
+    window.addEventListener('keydown', f)
+    return () => window.removeEventListener('keydown', f)
+  }, [])
+
   // Les flèches passent d'une rubrique à l'autre dans la colonne, comme dans une liste.
-  const surTouche = (e: KeyboardEvent) => {
+  const surToucheColonne = (e: KeyboardEvent) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
     const boutons = [...(nav.current?.querySelectorAll<HTMLButtonElement>('[data-rubrique]') ?? [])]
     const i = boutons.indexOf(document.activeElement as HTMLButtonElement)
@@ -256,17 +749,19 @@ export function PageBibliotheque({
     </button>
   )
   const accueil = espace ? `/t/${encodeURIComponent(espace.racine)}` : '/'
+  const glissees = new Set(glisse?.cles)
+  const premiereFocalisable = courante && ordre.includes(courante) ? courante : (choisies[0] ?? ordre[0])
 
   return (
     <div className="biblio">
-      <nav className="biblio-colonne" aria-label={t('biblio.titre')} ref={nav} onKeyDown={surTouche} data-tauri-drag-region="deep">
+      <nav className="biblio-colonne" aria-label={t('biblio.titre')} ref={nav} onKeyDown={surToucheColonne} data-tauri-drag-region="deep">
         <div className="biblio-nouveau">
           <button type="button" className="biblio-nouveau-bouton" aria-expanded={menuNeuf} aria-haspopup="menu" disabled={creation} onClick={() => setMenuNeuf((o) => !o)}>
             <Icone nom="ajouter" taille={18} trait={2} />
             {t('biblio.nouveau')}
             <Icone nom="chevronBas" taille={14} trait={2} />
           </button>
-          {menuNeuf && <MenuNeuf creer={creerPuisOuvrir} fermer={() => setMenuNeuf(false)} />}
+          {menuNeuf && <MenuNeuf creer={(g) => void creerPuisOuvrir(g)} fermer={() => setMenuNeuf(false)} />}
         </div>
         {bouton('recents')}
         {bouton('favoris')}
@@ -276,7 +771,13 @@ export function PageBibliotheque({
         {bouton('cartes')}
         {bouton('documents')}
         <p className="biblio-groupe">{t('biblio.maToile')}</p>
-        <a className="biblio-rubrique" href={accueil} onClick={(e) => surLien(e, accueil)}>
+        <a
+          className="biblio-rubrique"
+          href={accueil}
+          onClick={(e) => surLien(e, accueil)}
+          data-depot={espace?.racine}
+          data-survol-depot={(espace && glisse?.cible === espace.racine) || undefined}
+        >
           <span className="biblio-maison" aria-hidden>
             <Icone nom="maison" taille={12} trait={2.4} />
           </span>
@@ -299,7 +800,16 @@ export function PageBibliotheque({
       </nav>
 
       <header className="biblio-tete" data-tauri-drag-region="deep">
-        <h1>{cherche ? t('biblio.resultats') : t(`biblio.rubrique.${rubrique}`)}</h1>
+        {choisies.length > 1 ? (
+          <Ilot className="biblio-barre-choix" etiquette={tn('biblio.selection', choisies.length)}>
+            <span className="biblio-barre-compte">{tn('biblio.selection', choisies.length)}</span>
+            {outils && <BoutonIlot icone="dossier" libelle={t('biblio.menu.deplacer')} onClick={() => setFenetre({ type: 'deplacer', cles: choisies })} />}
+            {outils && <BoutonIlot icone="corbeille" libelle={t('biblio.menu.corbeille')} raccourci="⌫" onClick={() => jeterCes(entreesDes(choisies))} />}
+            <BoutonIlot icone="fermer" libelle={t('biblio.deselectionner')} raccourci="Échap" onClick={() => setSel(RIEN)} />
+          </Ilot>
+        ) : (
+          <h1>{cherche ? t('biblio.resultats') : t(`biblio.rubrique.${rubrique}`)}</h1>
+        )}
         <div className="biblio-tete-droite">
           <Ilot className="biblio-tri" etiquette={t('biblio.tri')}>
             {(['date', 'dossier'] as const).map((x) => (
@@ -333,7 +843,16 @@ export function PageBibliotheque({
         </div>
       </header>
 
-      <main className="biblio-corps" aria-busy={!toutes && !erreur}>
+      <main
+        className="biblio-corps"
+        ref={corps}
+        aria-busy={!toutes && !erreur}
+        data-glisse={glisse ? '' : undefined}
+        onPointerDown={surAppui}
+        onDoubleClick={surDoubleClic}
+        onClick={surClic}
+        onContextMenu={surMenu}
+      >
         {erreur ? (
           <div className="biblio-vide" role="alert">
             <p>{erreur}</p>
@@ -361,9 +880,19 @@ export function PageBibliotheque({
             {(sections.length > 0 ? sections : [{ cle: 'vide', titre: '', entrees: [] } as Section]).map((s, i) => (
               <section key={s.cle} className="biblio-section" aria-label={s.titre || undefined}>
                 {s.titre && (
-                  <h2>
+                  <h2
+                    data-dossier={s.dans || undefined}
+                    data-depot={s.dans || undefined}
+                    data-survol-depot={(s.dans && glisse?.cible === s.dans) || undefined}
+                  >
                     {s.dans !== undefined && <Icone nom={s.dans ? 'tableau' : 'equipe'} taille={15} />}
-                    {s.dans ? (
+                    {s.dans && renommage && 'dossier' in renommage && renommage.dossier === s.dans ? (
+                      <ChampRenommer
+                        valeur={s.titre}
+                        valider={(titre) => void renommerCe({ tableau: s.dans!, element: null, titre: s.titre }, titre)}
+                        annuler={() => setRenommage(null)}
+                      />
+                    ) : s.dans ? (
                       <a href={`/t/${encodeURIComponent(s.dans)}`} onClick={(e) => surLien(e, `/t/${encodeURIComponent(s.dans!)}`)}>
                         {s.titre}
                       </a>
@@ -372,9 +901,9 @@ export function PageBibliotheque({
                     )}
                   </h2>
                 )}
-                <ul className="biblio-grille">
+                <ul className="biblio-grille" role="listbox" aria-multiselectable aria-label={s.titre || t(`biblio.rubrique.${rubrique}`)}>
                   {i === 0 && neuf && (
-                    <li>
+                    <li role="presentation">
                       <button type="button" className="biblio-tuile biblio-tuile-neuve" disabled={creation} onClick={() => void creerPuisOuvrir(neuf)}>
                         <span className="biblio-vignette" aria-hidden>
                           <Icone nom="ajouter" taille={36} trait={1.2} />
@@ -384,11 +913,29 @@ export function PageBibliotheque({
                       </button>
                     </li>
                   )}
-                  {s.entrees.map((e) => (
-                    <li key={`${e.tableau}/${e.element ?? ''}`}>
-                      <Tuile entree={e} parDossier={tri === 'dossier'} />
-                    </li>
-                  ))}
+                  {s.entrees.map((e) => {
+                    const cle = cleDe(e)
+                    return (
+                      <Tuile
+                        key={cle}
+                        entree={e}
+                        parDossier={tri === 'dossier'}
+                        choisie={sel.choisies.has(cle)}
+                        focalisable={cle === premiereFocalisable}
+                        glissee={glissees.has(cle)}
+                        survolee={e.element === null && glisse?.cible === e.tableau}
+                        renommer={renommage !== null && 'cle' in renommage && renommage.cle === cle}
+                        valider={(titre) => {
+                          void renommerCe(e, titre)
+                          rendreFocus(cle)
+                        }}
+                        annuler={() => {
+                          setRenommage(null)
+                          rendreFocus(cle)
+                        }}
+                      />
+                    )
+                  })}
                 </ul>
               </section>
             ))}
@@ -400,7 +947,31 @@ export function PageBibliotheque({
             )}
           </>
         )}
+        {cadre && <div className="biblio-cadre" style={{ left: cadre.gauche, top: cadre.haut, width: cadre.droite - cadre.gauche, height: cadre.bas - cadre.haut }} />}
       </main>
+
+      {glisse && <Fantome entrees={entreesDes(glisse.cles)} x={glisse.x} y={glisse.y} />}
+      {menu && (
+        <div className="biblio-calque-menu">
+          <MenuContextuel x={menu.x} y={menu.y} entrees={entreesDuMenu(menu)} fermer={() => setMenu(null)} />
+        </div>
+      )}
+      {fenetre?.type === 'deplacer' && espace && toutes && (
+        <DeplacerVers
+          entrees={entreesDes(fenetre.cles)}
+          toutes={toutes}
+          accueil={{ id: espace.racine, titre: titreAccueil || t('biblio.accueil') }}
+          fermer={() => setFenetre(null)}
+          choisir={(vers) => {
+            const es = entreesDes(fenetre.cles)
+            setFenetre(null)
+            deplacerVers(es, vers.id)
+          }}
+        />
+      )}
+      {fenetre?.type === 'confirmer' && <Confirmation titre={fenetre.titre} texte={fenetre.texte} oui={t('biblio.confirmer.oui')} repondre={fenetre.repondre} />}
+      {fenetre?.type === 'partage' && partage?.(fenetre.tableau, () => setFenetre(null))}
+      <BandeauAvis />
     </div>
   )
 }
@@ -434,211 +1005,102 @@ function MenuNeuf({ creer, fermer }: { creer(genre: GenreNeuf): void; fermer(): 
   )
 }
 
-function Tuile({ entree: e, parDossier }: { entree: EntreeBibliotheque; parDossier: boolean }) {
-  const adresse = adresseDe(e)
+/**
+ * Une tuile : sa vignette, son titre, et où elle est. Un clic la choisit, un double-clic l'ouvre ; une toile prend ce
+ * qu'on lâche sur elle.
+ */
+function Tuile({
+  entree: e,
+  parDossier,
+  choisie,
+  focalisable,
+  glissee,
+  survolee,
+  renommer,
+  valider,
+  annuler,
+}: {
+  entree: EntreeBibliotheque
+  parDossier: boolean
+  choisie: boolean
+  focalisable: boolean
+  glissee: boolean
+  survolee: boolean
+  renommer: boolean
+  valider(titre: string): void
+  annuler(): void
+}) {
   return (
-    <a className="biblio-tuile" href={adresse} onClick={(ev) => surLien(ev, adresse)}>
+    <li
+      className="biblio-tuile"
+      role="option"
+      aria-selected={choisie}
+      tabIndex={focalisable ? 0 : -1}
+      data-cle={cleDe(e)}
+      data-depot={e.element === null ? e.tableau : undefined}
+      data-survol-depot={survolee || undefined}
+      data-glissee={glissee || undefined}
+      aria-label={e.titre || t('commun.sansTitre')}
+    >
       <Vignette resume={e.resume} />
-      <span className="biblio-tuile-titre">{e.titre || t('commun.sansTitre')}</span>
+      {renommer ? (
+        <ChampRenommer valeur={e.titre} valider={valider} annuler={annuler} />
+      ) : (
+        <span className="biblio-tuile-titre">{e.titre || t('commun.sansTitre')}</span>
+      )}
       <span className="biblio-tuile-ou">
         <Icone nom={ICONE_GENRE[e.genre]} taille={13} />
         <span>{e.ou && !parDossier ? t('biblio.dans', { toile: e.ou }) : t(`biblio.genre.${e.genre}`)}</span>
       </span>
-    </a>
+    </li>
   )
 }
 
-/** Le dessin d'une entrée : le plan d'une toile, une carte mentale et ses branches, la page d'un document. */
-function Vignette({ resume }: { resume: ResumeContenu }) {
-  if (resume.genre === 'document') return <VignetteDocument titre={resume.titre} lignes={resume.lignes} />
-  if (resume.genre === 'arbre') return <VignetteCarte central={resume.titre} branches={resume.branches} />
-  return (
-    <span className="biblio-vignette" data-genre="toile" aria-hidden>
-      {resume.boites.length === 0 ? <span className="biblio-vignette-vide">{t('tableau.vide')}</span> : <PlanToile boites={resume.boites} />}
-    </span>
-  )
-}
-
-/** Le format des vignettes, celui des tuiles de Xmind. */
-const [VL, VH] = [206, 136]
-/** Les largeurs des barres de texte, d'une ligne à l'autre, pour qu'un paragraphe ait l'air d'en être un. */
-const BARRES = [0.92, 0.78, 0.86, 0.6, 0.84, 0.7]
-
-const fondNote = (couleur: string) => (couleur in FOND_NOTE ? FOND_NOTE[couleur as keyof typeof FOND_NOTE] : 'var(--notak-carte, #fff)')
-
-/** Au plus tant d'UG de large dans une vignette : au-delà, le texte des cartes ne se devine plus. */
-const PLAN_LARGEUR_MAX = 120
-
-/**
- * Le plan d'une toile : ses éléments à leur place, chacun dessiné selon ce qu'il est. Une petite toile s'y montre
- * entière ; d'une grande, on voit le coin où elle commence, à une échelle où l'on reconnaît ses cartes.
- */
-export function PlanToile({ boites }: { boites: BoitePlan[] }) {
-  let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity]
-  for (const [x, y, l, h] of boites) [x0, y0, x1, y1] = [Math.min(x0, x), Math.min(y0, y), Math.max(x1, x + l), Math.max(y1, y + h)]
-  // Pas moins qu'une toile de quelques cartes, et au format de la tuile : une seule note ne la remplit pas.
-  const marge = 8
-  let [l, h] = [Math.max(x1 - x0, 90) + 2 * marge, Math.max(y1 - y0, 50) + 2 * marge]
-  if (l / h > VL / VH) h = (l * VH) / VL
-  else l = (h * VL) / VH
-  const rogne = l > PLAN_LARGEUR_MAX
-  if (rogne) [l, h] = [PLAN_LARGEUR_MAX, (PLAN_LARGEUR_MAX * VH) / VL]
-  const [gauche, haut] = rogne ? [x0 - marge, y0 - marge] : [(x0 + x1) / 2 - l / 2, (y0 + y1) / 2 - h / 2]
-  return (
-    <svg viewBox={`${gauche} ${haut} ${l} ${h}`} preserveAspectRatio="xMidYMid meet">
-      {boites.map((b, i) => (
-        <Boite key={i} boite={b} />
-      ))}
-    </svg>
-  )
-}
-
-function Barres({ x, y, l, n, pas = 2.6, couleur = 'rgb(50 59 74 / 0.26)' }: { x: number; y: number; l: number; n: number; pas?: number; couleur?: string }) {
-  return (
-    <>
-      {Array.from({ length: n }, (_, i) => (
-        <rect key={i} x={x} y={y + i * pas} width={Math.max(2, l * BARRES[i % BARRES.length]!)} height={1.1} rx={0.55} fill={couleur} />
-      ))}
-    </>
-  )
-}
-
-function Boite({ boite: [x, y, l, h, couleur, type = 'note', lignes = 1] }: { boite: BoitePlan }) {
-  const trait = { stroke: 'rgb(27 37 54 / 0.12)', strokeWidth: 0.35 }
-  switch (type) {
-    case 'colonne': {
-      const cartes = Math.max(0, Math.min(lignes, Math.floor((h - 5) / 9)))
-      return (
-        <g>
-          <rect x={x} y={y} width={l} height={h} rx={1.2} fill={couleur ? fondNote(couleur) : 'rgb(50 59 74 / 0.12)'} />
-          <rect x={x + 1.6} y={y + 1.6} width={Math.min(l * 0.45, 12)} height={1.4} rx={0.7} fill="rgb(50 59 74 / 0.55)" />
-          {Array.from({ length: cartes }, (_, i) => (
-            <g key={i}>
-              <rect x={x + 1.5} y={y + 5 + i * 9} width={l - 3} height={7.6} rx={0.7} fill="var(--notak-carte, #fff)" {...trait} />
-              <Barres x={x + 3} y={y + 7.4 + i * 9} l={l - 7} n={2} />
-            </g>
-          ))}
-        </g>
-      )
-    }
-    case 'image':
-      return (
-        <g>
-          <rect x={x} y={y} width={l} height={h} rx={0.8} fill="#cfd4da" />
-          <path d={`M${x} ${y + h * 0.82} L${x + l * 0.32} ${y + h * 0.5} L${x + l * 0.52} ${y + h * 0.7} L${x + l * 0.7} ${y + h * 0.56} L${x + l} ${y + h * 0.84} V${y + h} H${x} Z`} fill="#b3bac3" />
-          <circle cx={x + l * 0.72} cy={y + h * 0.28} r={Math.min(l, h) * 0.08} fill="#e6e9ec" />
-        </g>
-      )
-    case 'tableau': {
-      const c = Math.min(l, h - 3.5)
-      return (
-        <g>
-          <rect x={x + (l - c) / 2} y={y} width={c} height={c} rx={c * 0.2} fill={couleur in FOND_NOTE ? fondNote(couleur) : '#5b6cf0'} />
-          <rect x={x + (l - c) / 2 + c * 0.2} y={y + c * 0.24} width={c * 0.6} height={c * 0.18} rx={0.5} fill="#fff" opacity={0.85} />
-          <rect x={x + (l - c) / 2 + c * 0.2} y={y + c * 0.5} width={c * 0.27} height={c * 0.27} rx={0.5} fill="#fff" opacity={0.85} />
-          <rect x={x + (l - c) / 2 + c * 0.53} y={y + c * 0.5} width={c * 0.27} height={c * 0.27} rx={0.5} fill="#fff" opacity={0.85} />
-          <rect x={x + l * 0.2} y={y + c + 1.6} width={l * 0.6} height={1.2} rx={0.6} fill="rgb(50 59 74 / 0.4)" />
-        </g>
-      )
-    }
-    case 'arbre':
-      return (
-        <g>
-          <rect x={x} y={y} width={l} height={h} rx={1} fill="var(--notak-carte, #fff)" {...trait} />
-          {[-0.28, 0, 0.28].map((d, i) => (
-            <path key={i} d={`M${x + l * 0.5} ${y + h / 2} C${x + l * 0.65} ${y + h / 2} ${x + l * 0.65} ${y + h * (0.5 + d)} ${x + l * 0.78} ${y + h * (0.5 + d)} h${l * 0.12}`} fill="none" stroke={BRANCHES[i]} strokeWidth={0.5} />
-          ))}
-          <rect x={x + l * 0.3} y={y + h / 2 - 1.8} width={l * 0.26} height={3.6} rx={1} fill="#323b4a" />
-        </g>
-      )
-    case 'document':
-      return (
-        <g>
-          <rect x={x} y={y} width={l} height={h} rx={0.8} fill="var(--notak-carte, #fff)" {...trait} />
-          <rect x={x + 2} y={y + 2.2} width={l * 0.5} height={1.6} rx={0.8} fill="rgb(50 59 74 / 0.7)" />
-          <Barres x={x + 2} y={y + 5.6} l={l - 4} n={Math.max(1, Math.floor((h - 7) / 2.4))} pas={2.4} />
-        </g>
-      )
-    case 'table':
-      return (
-        <g>
-          <rect x={x} y={y} width={l} height={h} rx={0.6} fill="var(--notak-carte, #fff)" {...trait} />
-          <rect x={x} y={y} width={l} height={Math.min(4, h / 4)} fill="rgb(50 59 74 / 0.08)" />
-          {[1, 2, 3].map((k) => (
-            <path key={k} d={`M${x + (l * k) / 4} ${y} V${y + h} M${x} ${y + (h * k) / 4} H${x + l}`} {...trait} />
-          ))}
-        </g>
-      )
-    default: {
-      const n = Math.max(1, Math.min(lignes, Math.floor((h - 2.4) / 2.6)))
-      return (
-        <g>
-          <rect x={x} y={y} width={l} height={h} rx={0.8} fill={fondNote(couleur)} {...trait} />
-          <Barres x={x + 2} y={y + (h - (n - 1) * 2.6 - 1.1) / 2} l={l - 4} n={n} couleur={couleur in FOND_NOTE ? 'rgb(27 37 54 / 0.3)' : 'rgb(50 59 74 / 0.26)'} />
-        </g>
-      )
-    }
+/** Le nom qu'on change sur place : Entrée le garde, Échap y renonce, cliquer ailleurs le garde aussi. */
+function ChampRenommer({ valeur, valider, annuler }: { valeur: string; valider(titre: string): void; annuler(): void }) {
+  const [texte, setTexte] = useState(valeur)
+  const fini = useRef(false)
+  const finir = (garder: boolean) => {
+    if (fini.current) return
+    fini.current = true
+    if (garder && texte.trim() && texte.trim() !== valeur) valider(texte)
+    else annuler()
   }
-}
-
-/** Les couleurs des branches principales, dans l'ordre, comme le thème par défaut de Xmind. */
-const BRANCHES = ['#e5534b', '#ef8a2b', '#d6b11d', '#4aa24f', '#3d7be0', '#8a5bd6', '#d64f9a', '#2fa39a']
-
-/** Le central au milieu, ses branches de part et d'autre, chacune de sa couleur, le titre posé sur son trait. */
-export function VignetteCarte({ central, branches }: { central: string; branches: string[] }) {
-  const coupe = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s)
-  const titre = coupe(central || t('commun.sansTitre'), 18)
-  const lc = Math.min(110, titre.length * 5.6 + 22)
-  const droite = branches.slice(0, Math.ceil(branches.length / 2))
-  const gauche = branches.slice(droite.length)
-  const cote = (liste: string[], sens: 1 | -1, decalage: number) =>
-    liste.map((b, i) => {
-      const y = (VH / (liste.length + 1)) * (i + 1) + 3
-      const texte = coupe(b || '·', 12)
-      const lb = Math.min(64, texte.length * 4.6 + 6)
-      const couleur = BRANCHES[(decalage + i) % BRANCHES.length]!
-      const depart = VL / 2 + (sens * lc) / 2
-      const bout = sens === 1 ? VL - 12 - lb : 12 + lb
-      const milieu = (depart + bout) / 2
-      return (
-        <g key={`${sens}${i}`}>
-          <path d={`M${depart} ${VH / 2} C${milieu} ${VH / 2} ${milieu} ${y} ${bout} ${y} h${sens * lb}`} fill="none" stroke={couleur} strokeWidth={1.5} strokeLinecap="round" />
-          <text x={sens === 1 ? bout + 1 : bout - 1} y={y - 3} textAnchor={sens === 1 ? 'start' : 'end'} fontSize={8.2} fill="var(--notak-texte, #323b4a)">
-            {texte}
-          </text>
-        </g>
-      )
-    })
   return (
-    <span className="biblio-vignette" data-genre="arbre" aria-hidden>
-      <svg viewBox={`0 0 ${VL} ${VH}`} preserveAspectRatio="xMidYMid meet">
-        {cote(droite, 1, 0)}
-        {cote(gauche, -1, droite.length)}
-        <rect x={(VL - lc) / 2} y={VH / 2 - 11} width={lc} height={22} rx={6} fill="#323b4a" />
-        <text x={VL / 2} y={VH / 2 + 3.4} textAnchor="middle" fontSize={9.2} fontWeight={600} fill="#fff">
-          {titre}
-        </text>
-      </svg>
-    </span>
+    <input
+      className="biblio-renommer"
+      aria-label={t('biblio.renommer.champ')}
+      value={texte}
+      // La sélection du texte entier, comme le Finder.
+      ref={(el) => {
+        if (el && document.activeElement !== el && !fini.current) {
+          el.focus()
+          el.select()
+        }
+      }}
+      onChange={(e) => setTexte(e.target.value)}
+      onPointerDown={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        e.stopPropagation()
+        if (e.key === 'Enter') finir(true)
+        else if (e.key === 'Escape') finir(false)
+      }}
+      onBlur={() => finir(true)}
+    />
   )
 }
 
-/** La page d'un document : son titre, puis une barre par ligne, à la longueur de la ligne. */
-export function VignetteDocument({ titre, lignes }: { titre: string; lignes: string[] }) {
-  const coupe = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s)
-  const largeur = 98
+/** Ce qu'on glisse, sous le pointeur : la première vignette, et combien on en emporte. */
+function Fantome({ entrees, x, y }: { entrees: EntreeBibliotheque[]; x: number; y: number }) {
+  const e = entrees[0]
+  if (!e) return null
   return (
-    <span className="biblio-vignette" data-genre="document" aria-hidden>
-      <svg viewBox={`0 0 ${VL} ${VH}`} preserveAspectRatio="xMidYMid meet">
-        <rect x={40} y={16} width={126} height={140} rx={4} fill="var(--notak-carte, #fff)" stroke="rgb(27 37 54 / 0.1)" />
-        <text x={54} y={38} fontSize={11} fontWeight={700} fill="var(--notak-texte, #323b4a)">
-          {coupe(titre || t('commun.sansTitre'), 19)}
-        </text>
-        {lignes.slice(0, 6).map((l, i) => (
-          <rect key={i} x={54} y={50 + i * 11} width={Math.max(14, Math.min(largeur, (l.length / 60) * largeur))} height={3} rx={1.5} fill="rgb(50 59 74 / 0.22)" />
-        ))}
-      </svg>
-    </span>
+    <div className="biblio-fantome" style={{ transform: `translate(${x + 14}px, ${y + 10}px)` }} aria-hidden>
+      {entrees.length > 1 && <span className="biblio-fantome-pile" />}
+      <Vignette resume={e.resume} />
+      <span className="biblio-fantome-titre">{e.titre || t('commun.sansTitre')}</span>
+      {entrees.length > 1 && <span className="biblio-fantome-nombre">{entrees.length}</span>}
+    </div>
   )
 }
-

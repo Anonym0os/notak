@@ -10,7 +10,23 @@ export type * from './elements/types'
 export { Toile } from './Toile'
 export { avecToutLeTableau, LARGEUR_EXPORT_MAX } from './pilotage'
 export { type Adresse, EspaceNotak } from './EspaceNotak'
-export { type FenetresNotak, type GenreNeuf, HoteNotak, creerSurLAccueil } from './HoteNotak'
+export { type FenetresNotak, HoteNotak } from './HoteNotak'
+export { type Entree as EntreeMenu, MenuContextuel } from './Menus'
+export { BandeauAvis, annoncer } from './avis'
+export {
+  type GenreNeuf,
+  type Place,
+  carteDeLaToile,
+  creerDans,
+  creerSurLAccueil,
+  deplacer,
+  dupliquer,
+  jeter,
+  quandPretes,
+  rangerDansNeuve,
+  renommerChose,
+  toilesPortees,
+} from './rangement'
 export { BoutonIlot, FiletIlot, Ilot } from './Ilots'
 export { creerMagasinYjs, type MagasinYjs } from './coeur/magasinYjs'
 export { enLectureSeule } from './coeur/magasin'
