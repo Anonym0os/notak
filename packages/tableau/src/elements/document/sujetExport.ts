@@ -1,6 +1,6 @@
 import { renderToReactElement } from '@tiptap/static-renderer/pm/react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import type { Element, NoeudTexte } from '../../coeur/tableau'
+import type { DocumentTexte, Element, NoeudTexte } from '../../coeur/tableau'
 import { formatNotakDElement } from '../../export/notakElement'
 import type { DepotFichiers } from '../types'
 import { degrader } from '../../blocs/lisible'
@@ -33,7 +33,9 @@ export function sujetDocument(
   let pages: Promise<{ canevas: HTMLCanvasElement[]; images: Blob[] }> | null = null
   const lesPages = () =>
     (pages ??= (async () => {
-      const canevas = await capturerPages(titreAffiche, html(), adresse)
+      // L'habillage de la page (icône, police, petit texte) suit le document dans ses pages.
+      const page = (copie?.element()?.contenu as DocumentTexte | undefined)?.page
+      const canevas = await capturerPages(titreAffiche, html(), adresse, { icone: page?.icone, police: page?.police, petitTexte: page?.petitTexte })
       return { canevas, images: await Promise.all(canevas.map((c) => enBlob(c, 'image/jpeg', 0.85))) }
     })().catch((e: unknown) => {
       pages = null

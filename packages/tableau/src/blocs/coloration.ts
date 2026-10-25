@@ -983,14 +983,16 @@ export const pluginColoration = (): Plugin<Etat> =>
 /* ── Le rendu figé ─────────────────────────────────────────────────────────────────────────────────────────────────── */
 
 /**
- * Colore les `pre[data-langage] code` d'un rendu statique (lecture, aperçu) en enveloppant les jetons de
- * `<span class="notak-code-<genre>">`. Un code qui porte déjà des éléments (déjà coloré) n'est pas retouché.
+ * Colore les `pre code` d'un rendu statique (lecture, aperçu, pages du PDF) en enveloppant les jetons de
+ * `<span class="notak-code-<genre>">`. Le langage est celui de `pre[data-langage]`, ou, dans le rendu figé de Tiptap,
+ * la classe `language-<nom>` du `code`. Un code qui porte déjà des éléments (déjà coloré) n'est pas retouché.
  */
 export function colorerCode(racine: HTMLElement): void {
-  for (const code of racine.querySelectorAll<HTMLElement>('pre[data-langage] code')) {
+  for (const code of racine.querySelectorAll<HTMLElement>('pre code')) {
     if (code.childElementCount > 0) continue
     const texte = code.textContent ?? ''
-    const liste = jetons(texte, code.closest('pre')?.getAttribute('data-langage') ?? null)
+    const langage = code.closest('pre')?.getAttribute('data-langage') ?? /(?:^|\s)language-(\S+)/.exec(code.className)?.[1] ?? null
+    const liste = jetons(texte, langage)
     if (!liste.length) continue
     const doc = code.ownerDocument
     const morceaux: Node[] = []
