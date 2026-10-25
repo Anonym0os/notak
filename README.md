@@ -73,6 +73,37 @@ The image expects an HTTPS reverse proxy in front of it (`Secure` cookie, client
 The "Image" panel's photo library queries Pexels: pass a free key with `-e PEXELS_API_KEY=…`. Without it, the panel
 only offers uploading your own files.
 
+#### Encryption at rest
+
+> **Lose the key, lose the data.** Nothing can decrypt the boards or the files without it: keep a copy outside the
+> server (a password manager, a printed sheet in a drawer), and back it up apart from the data.
+
+Give the server a key and it writes the boards' content (their Yjs state) and the uploaded files, resized copies
+included, encrypted on disk with AES-256-GCM. The server holds the key and decrypts in memory, so search, activity,
+export and public links all keep working: this protects the disk and its backups, it is not end-to-end encryption.
+
+| Variable | Meaning |
+|---|---|
+| `NOTAK_CLE` | The key: 32 random bytes in base64, made with `openssl rand -base64 32`. |
+| `NOTAK_CLE_FICHIER` | Or the path of a file holding it (a Docker secret, say), readable by the image's `node` user. Give one or the other, never both. |
+
+```bash
+docker run -d -p 3005:3005 -v notak-donnees:/donnees -e NOTAK_CLE_FICHIER=/run/secrets/notak_cle \
+  -v /root/notak_cle:/run/secrets/notak_cle:ro notak
+```
+
+Without a key, nothing changes. With one, data written before stays readable and is encrypted the next time it is
+saved; to encrypt everything at once, stop the server and run `bun run serveur:chiffrer` with the same variables
+(`NOTAK_DONNEES` for the data folder), or in the image:
+`docker run --rm -v notak-donnees:/donnees -e NOTAK_CLE=… notak node apps/serveur/outils/chiffrer.ts`.
+A wrong key, or a missing one in front of encrypted data, stops the server at startup rather than serving empty
+boards.
+
+What stays **in clear**, because the server needs to read it without opening each board: board titles, the search
+index (SQLite FTS5, which holds the text of the elements), activity and notification excerpts, and account e-mail
+addresses (plus names, colours and sharing rights). So also encrypt the host's disk (LUKS, an encrypted volume
+from your provider): the key in `NOTAK_CLE` covers the content, the disk covers the rest.
+
 ### The local edition (like notak.app)
 
 Static files served by nginx, no API:

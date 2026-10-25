@@ -6,6 +6,7 @@ import { serve } from '@hono/node-server'
 import type { Hocuspocus } from '@hocuspocus/server'
 import { creerApp } from './app.ts'
 import { ouvrirBase } from './base.ts'
+import type { Cle } from './chiffrement.ts'
 import { creerLimiteur } from './debit.ts'
 import { indexerLesAbsents } from './indexation.ts'
 import { brancherSynchro, creerHocuspocus } from './synchro.ts'
@@ -16,6 +17,8 @@ export interface OptionsServeur {
   relaisFiable?: boolean
   cookieSecurise?: boolean
   dossierWeb?: string
+  /** La clé du chiffrement au repos (`NOTAK_CLE` ou `NOTAK_CLE_FICHIER`) ; sans elle, rien n'est chiffré. */
+  cle?: Cle | null
 }
 
 export interface ServeurDemarre {
@@ -25,7 +28,8 @@ export interface ServeurDemarre {
 
 export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre> {
   mkdirSync(options.dossier, { recursive: true })
-  const base = ouvrirBase(join(options.dossier, 'notak.db'))
+  const cle = options.cle ?? null
+  const base = ouvrirBase(join(options.dossier, 'notak.db'), cle)
   indexerLesAbsents(base)
   let hocuspocus: Hocuspocus | null = null
 
@@ -39,6 +43,7 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     relaisFiable: options.relaisFiable ?? false,
     cookieSecurise: options.cookieSecurise ?? false,
     dossierWeb: options.dossierWeb,
+    cle,
   })
 
   const http = await new Promise<Server>((resoudre, rejeter) => {

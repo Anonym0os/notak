@@ -110,6 +110,28 @@ Un service absent fait simplement disparaître ce qui en dépend.
 session et les droits à chaque connexion ; `base.ts` est la base SQLite (comptes, tableaux, droits, activité, index
 de recherche). Le serveur lit les tableaux avec le même code que l'application (`packages/tableau/src/export/`).
 
+### Le chiffrement au repos
+
+**Perdre la clé, c'est perdre les données** : aucune porte de secours, c'est le principe.
+
+- **La clé** vient de `NOTAK_CLE` (32 octets en base64) ou de `NOTAK_CLE_FICHIER` (le chemin d'un fichier qui la
+  contient), lue par `index.ts` et passée à `demarrer`, puis à `ouvrirBase` et au contexte de `creerApp`.
+- **L'enveloppe** (`chiffrement.ts`) : `NKC1` | id de clé (1 octet) | nonce (12) | tag (16) | données, en
+  AES-256-GCM ; l'en-tête est authentifié avec les données. L'id de clé (1 aujourd'hui) prépare une rotation.
+- **Ce qui est chiffré** : `documents.etat`, l'état Yjs de chaque tableau (`base.ts`, `document` et
+  `enregistrerDocument`, par où passent aussi la synchro, l'export, la recherche et les pages publiques), et les
+  fichiers de `fichiers/`, originaux et copies réduites (`app.ts`, `ranger`, `servirFichier`, `copieReduite`, l'archive
+  des médias). Avec une clé, SQLite met à zéro ce qu'il efface (`secure_delete`).
+- **Ce qui reste en clair** : les titres des tableaux, l'index FTS5 de la recherche, les extraits d'activité et de
+  notification, les e-mails, noms et droits des comptes. Le serveur s'en sert sans ouvrir les tableaux ; on conseille
+  de chiffrer aussi le disque de l'hôte.
+- **La lecture est tolérante** : sans en-tête, une donnée est d'avant le chiffrement et se lit en clair ; elle repart
+  chiffrée à sa prochaine écriture. Sans clé, le serveur est exactement celui d'avant (les fichiers sont même encore
+  servis en flux). `bun run serveur:chiffrer` (`outils/chiffrer.ts`, `chiffrerTout.ts`) chiffre l'existant d'un coup :
+  les documents dans une seule transaction suivie d'un `VACUUM`, les fichiers écrits à côté puis posés par `rename`.
+- **Au démarrage**, `ouvrirBase` déchiffre un document chiffré s'il en existe un : une clé fausse, ou l'absence de
+  clé, refuse d'ouvrir. Sinon la synchro partirait d'un document vide et l'enregistrerait par-dessus le vrai.
+
 ## Les essais
 
 Vitest, à côté des sources (`x.ts` → `x.test.ts`), en Node par défaut, jsdom quand un fichier commence par

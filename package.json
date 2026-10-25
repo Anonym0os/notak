@@ -11,6 +11,7 @@
     "dev": "bun run --cwd apps/web dev",
     "dev:locale": "VITE_EDITION=locale bun run --cwd apps/web dev",
     "serveur": "node apps/serveur/src/index.ts",
+    "serveur:chiffrer": "node apps/serveur/outils/chiffrer.ts",
     "build": "bun run --cwd apps/web build",
     "build:locale": "VITE_EDITION=locale bun run --cwd apps/web build",
     "test": "vitest run",

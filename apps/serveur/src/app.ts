@@ -14,6 +14,7 @@ import { regrouper } from './activite.ts'
 import { type ElementArrive, elementImage, elementsDeTexte, poserDansNonTries } from './arrivee.ts'
 import { ErreurApercu, apercuDePage, rapatrierImage } from './apercu.ts'
 import { type Base, DUREE_ACCES_PUBLIC_MS, type Fichier, type Utilisateur } from './base.ts'
+import { type Cle, duDisque, pourLeDisque } from './chiffrement.ts'
 import { ErreurCompte, inscrire, normaliserEmail } from './comptes.ts'
 import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from './contenu.ts'
 import type { Limiteur } from './debit.ts'
@@ -42,6 +43,8 @@ export interface Contexte {
   cookieSecurise: boolean
   /** Le build de `apps/web`, servi à côté de l'API ; absent en développement, où Vite s'en charge. */
   dossierWeb?: string
+  /** La clé du chiffrement au repos : les fichiers déposés et leurs copies réduites sont écrits chiffrés. */
+  cle?: Cle | null
 }
 
 export const FICHIER_MAX = 25 * 1024 * 1024
@@ -113,6 +116,7 @@ async function lireBorne(flux: ReadableStream<Uint8Array> | null, max: number): 
 
 export function creerApp(ctx: Contexte): Hono {
   const { base } = ctx
+  const cle = ctx.cle ?? null
   const app = new Hono()
 
   const utilisateurCourant = (c: Context): Utilisateur | null => {
@@ -643,7 +647,7 @@ export function creerApp(ctx: Contexte): Hono {
   })
 
   // Seuls les fichiers que le tableau montre se lisent par son lien.
-  app.get('/api/public/:jeton/fichiers/:fichier', (c) => {
+  app.get('/api/public/:jeton/fichiers/:fichier', async (c) => {
     const id = tableauPublic(c)
     const fichier = c.req.param('fichier') ?? ''
     const ferme = id ? motDePasseRequis(c, id) : null
@@ -651,7 +655,7 @@ export function creerApp(ctx: Contexte): Hono {
     if (!id || !ID_FICHIER.test(fichier) || !idsDeFichiers(vuePublique(id).elements).has(fichier)) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     const f = base.fichier(fichier)
     if (!f) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
-    return servirFichier(f, 'private, max-age=300')
+    return await servirFichier(f, 'private, max-age=300')
   })
 
   // ---- Export ----
@@ -680,7 +684,7 @@ export function creerApp(ctx: Contexte): Hono {
       if (!f) continue
       // Un fichier absent du disque ne fait pas échouer toute l'archive.
       const octets = await readFile(join(ctx.dossierFichiers, f.id)).catch(() => null)
-      if (octets) entrees.push({ nom: m.nom, octets, type: f.type })
+      if (octets) entrees.push({ nom: m.nom, octets: duDisque(cle, octets), type: f.type })
     }
     if (entrees.length === 0) return c.json({ erreur: 'aucun média', code: 'aucun_media' }, 404)
     return c.body(creerZip(entrees) as Uint8Array<ArrayBuffer>, 200, {
@@ -709,7 +713,7 @@ export function creerApp(ctx: Contexte): Hono {
   const ranger = async (octets: Buffer, type: string, auteur: string): Promise<string> => {
     const id = randomUUID()
     await mkdir(ctx.dossierFichiers, { recursive: true })
-    await writeFile(join(ctx.dossierFichiers, id), octets)
+    await writeFile(join(ctx.dossierFichiers, id), pourLeDisque(cle, octets))
     try {
       base.creerFichier({ id, type, taille: octets.length, auteur })
     } catch (e) {
@@ -735,9 +739,17 @@ export function creerApp(ctx: Contexte): Hono {
   })
 
   /** Le contenu d'un fichier rangé, servi pour qu'il ne s'exécute jamais dans l'origine de l'application. */
-  const servirFichier = (f: Fichier, cache: string): Response => {
-    const flux = Readable.toWeb(createReadStream(join(ctx.dossierFichiers, f.id))) as ReadableStream
-    return new Response(flux, { headers: { ...entetesFichier(cache, f.type), 'content-type': f.type, 'content-length': String(f.taille) } })
+  const servirFichier = async (f: Fichier, cache: string): Promise<Response> => {
+    const chemin = join(ctx.dossierFichiers, f.id)
+    if (!cle) {
+      const flux = Readable.toWeb(createReadStream(chemin)) as ReadableStream
+      return new Response(flux, { headers: { ...entetesFichier(cache, f.type), 'content-type': f.type, 'content-length': String(f.taille) } })
+    }
+    // Chiffré, le fichier se déchiffre d'un bloc (25 Mo au plus) : GCM ne rend rien avant d'avoir vérifié le tout.
+    const octets = duDisque(cle, await readFile(chemin))
+    return new Response(new Uint8Array(octets), {
+      headers: { ...entetesFichier(cache, f.type), 'content-type': f.type, 'content-length': String(octets.length) },
+    })
   }
   const entetesFichier = (cache: string, type = '') => ({
     'cache-control': cache,
@@ -754,15 +766,15 @@ export function creerApp(ctx: Contexte): Hono {
     if (!reductible(type)) return null
     const chemin = join(ctx.dossierFichiers, nomReduit(id, largeur))
     try {
-      return await readFile(chemin)
+      return duDisque(cle, await readFile(chemin))
     } catch {
-      // pas encore fabriquée
+      // pas encore fabriquée, ou illisible : on la refait d'après l'original
     }
-    const fabriquee = await reduire(await readFile(join(ctx.dossierFichiers, id)), type, largeur)
+    const fabriquee = await reduire(duDisque(cle, await readFile(join(ctx.dossierFichiers, id))), type, largeur)
     if (!fabriquee) return null
     // Écrite sous un nom provisoire, puis posée d'un coup : deux demandes ensemble ne se lisent jamais à moitié.
     const provisoire = `${chemin}.${randomUUID()}.tmp`
-    await writeFile(provisoire, fabriquee)
+    await writeFile(provisoire, pourLeDisque(cle, fabriquee))
     await rename(provisoire, chemin)
     return fabriquee
   }
@@ -786,7 +798,7 @@ export function creerApp(ctx: Contexte): Hono {
         })
       }
     }
-    return servirFichier(f, cache)
+    return await servirFichier(f, cache)
   })
 
   // ---- Aperçus ----
