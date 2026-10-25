@@ -5,11 +5,11 @@
  */
 
 .notak-menu-blocs[data-genre='coller'] {
-  width: 160px;
+  width: 200px;
 }
 
 .notak-menu-blocs[data-genre='coller'] .notak-menu-blocs-entree {
-  height: 32px;
+  height: 28px;
 }
 
 .notak-menu-blocs[data-genre='lien'] {

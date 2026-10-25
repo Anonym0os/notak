@@ -1,4 +1,5 @@
 import { type ReactElement, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Raccourci } from './Menus'
 
 /** Le temps qu'il faut rester sur un élément avant que son infobulle paraisse, en millisecondes. */
@@ -21,6 +22,12 @@ export const oublierInfobulle = () => {
 
 const ECART = 6
 const BORD = 8
+
+/**
+ * Dans l'espace, la bulle se pose à sa racine : la barre du haut est sous la barre des outils, et une bulle restée dans
+ * son bouton passerait dessous. Hors de l'espace, elle reste près de son bouton.
+ */
+const portee = (bulle: ReactElement, espace: HTMLElement | null | undefined) => (espace ? createPortal(bulle, espace) : bulle)
 
 /**
  * Une infobulle maison, à la place de l'attribut `title` du navigateur : ardoise, texte blanc, un fondu court,
@@ -122,7 +129,7 @@ export function Infobulle({
       onBlur={fermer}
     >
       {children}
-      {present && (
+      {present && portee(
         <div
           ref={bulle}
           className="notak-infobulle"
@@ -132,7 +139,8 @@ export function Infobulle({
         >
           {libelle}
           {raccourci && <Raccourci touches={raccourci} />}
-        </div>
+        </div>,
+        hote.current?.closest<HTMLElement>('.notak-espace'),
       )}
     </span>
   )

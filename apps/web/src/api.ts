@@ -1,4 +1,4 @@
-import { type Element, type ResultatRecherche, textesFr } from '@notak/tableau'
+import { type Element, type Habillage, type ResultatRecherche, lireHabillage, textesFr } from '@notak/tableau'
 import { langue, t } from './langue'
 
 export interface Moi {
@@ -70,6 +70,45 @@ async function refus(r: Response, contexte: Record<string | number, string> = {}
   const serveur = typeof corps?.erreur === 'string' && corps.erreur ? corps.erreur : undefined
   const message = cle ? t(cle) : (serveur ?? t(r.status >= 500 ? 'erreur.serveur' : 'erreur.refusee'))
   return new ErreurApi(message, r.status, code)
+}
+
+/** Ce que le serveur dit de lui (`GET /api/instance`) : son nom, ses inscriptions, les thèmes qu'il fournit. */
+export interface Instance {
+  nom: string
+  inscriptions: 'ouvertes' | 'fermees'
+  habillages: Habillage[]
+  impose?: string
+  parDefaut?: string
+}
+
+const INSTANCE_ORIGINE: Instance = { nom: 'Notak', inscriptions: 'ouvertes', habillages: [] }
+
+/**
+ * L'instance du serveur. Un serveur qui ne la dit pas (d'avant `/api/instance`) ou injoignable est celui d'origine :
+ * l'écran de connexion n'attend pas pour si peu. Chaque thème est relu par la liste blanche, comme à l'import.
+ */
+export async function lireInstance(): Promise<Instance> {
+  try {
+    const r = await appeler('/api/instance')
+    if (!r.ok) return INSTANCE_ORIGINE
+    const brut = (await r.json()) as Partial<Record<keyof Instance, unknown>>
+    const habillages = (Array.isArray(brut.habillages) ? brut.habillages : []).flatMap((h) => {
+      try {
+        return [lireHabillage({ notak: 'habillage', version: 1, ...(h as object) })]
+      } catch {
+        return []
+      }
+    })
+    return {
+      nom: typeof brut.nom === 'string' && brut.nom ? brut.nom : INSTANCE_ORIGINE.nom,
+      inscriptions: brut.inscriptions === 'fermees' ? 'fermees' : 'ouvertes',
+      habillages,
+      ...(typeof brut.impose === 'string' ? { impose: brut.impose } : {}),
+      ...(typeof brut.parDefaut === 'string' ? { parDefaut: brut.parDefaut } : {}),
+    }
+  } catch {
+    return INSTANCE_ORIGINE
+  }
 }
 
 /** La session en cours, ou `null` sans session. */

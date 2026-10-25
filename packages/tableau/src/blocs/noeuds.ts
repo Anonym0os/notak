@@ -8,16 +8,37 @@ import { t } from '../langue'
 import { attributsDepuisApercu } from './apercu'
 import { blocsChoisis } from './selection'
 
-/** L'icône d'un alignement : trois traits rangés à gauche, au centre ou à droite. */
-function dessinAlignement(cote: 'gauche' | 'centre' | 'droite'): SVGElement {
+/** Une petite icône de trait, 16 px, à la couleur du bouton : chaque chaîne est un tracé (grille de 16). */
+function dessin(...traces: string[]): SVGElement {
   const ns = 'http://www.w3.org/2000/svg'
   const svg = document.createElementNS(ns, 'svg')
-  for (const [k, v] of Object.entries({ width: '16', height: '16', viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round', 'aria-hidden': 'true' })) svg.setAttribute(k, v)
-  const x = (l: number) => (cote === 'gauche' ? 2 : cote === 'droite' ? 14 - l : 8 - l / 2)
-  const path = document.createElementNS(ns, 'path')
-  path.setAttribute('d', [12, 7, 10].map((l, i) => `M${x(l)} ${4 + i * 4}h${l}`).join(''))
-  svg.append(path)
+  for (const [k, v] of Object.entries({ width: '16', height: '16', viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.3', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' })) svg.setAttribute(k, v)
+  for (const d of traces) {
+    const path = document.createElementNS(ns, 'path')
+    path.setAttribute('d', d)
+    svg.append(path)
+  }
   return svg
+}
+
+/** L'icône d'un alignement : le bloc (un carré) posé à gauche, au centre ou à droite d'un trait. */
+const dessinAlignement = (cote: 'gauche' | 'centre' | 'droite') => {
+  const x = cote === 'gauche' ? 2.5 : cote === 'droite' ? 7.5 : 5
+  return dessin(`M${x} 3.5h6v6h-6z`, 'M2.5 12.5h11')
+}
+
+/** Les icônes de la barre d'image (dessinées ici, dans l'esprit de celles de Notion, pas reprises). */
+const ICONES_IMAGE = {
+  commenter: () => dessin('M3 3.5h10v7H7l-3 2.5v-2.5H3z'),
+  legende: () => dessin('M3.5 2.5h9v6h-9z', 'M3.5 11h9', 'M3.5 13.5h5.5'),
+  agrandir: () => dessin('M7 2.5a4.5 4.5 0 1 0 0 9a4.5 4.5 0 1 0 0-9z', 'M10.3 10.3l3.2 3.2', 'M7 5v4M5 7h4'),
+  telecharger: () => dessin('M8 2.5v8', 'M4.5 7l3.5 3.5L11.5 7', 'M3 13.5h10'),
+  // Trois points : des traits nuls, épaissis pour se voir.
+  plus: () => {
+    const svg = dessin('M3.5 8h.01M8 8h.01M12.5 8h.01')
+    svg.setAttribute('stroke-width', '2.4')
+    return svg
+  },
 }
 
 /**
@@ -174,7 +195,7 @@ export const ImageBloc = Node.create<OptionsImage>({
       const peindre = () => {
         const a = node.attrs as Record<string, unknown>
         figure.dataset.alignement = String(a.alignement ?? 'centre')
-        for (const [cle, v] of [['bloc', a.id], ['couleur', a.couleur], ['retrait', Number(a.retrait) || null]] as const) {
+        for (const [cle, v] of [['bloc', a.id], ['couleur', a.couleur], ['retrait', Number(a.retrait) || null], ['filBloc', a.fil]] as const) {
           if (v) figure.dataset[cle] = String(v)
           else delete figure.dataset[cle]
         }
@@ -187,6 +208,7 @@ export const ImageBloc = Node.create<OptionsImage>({
           else if (a.fichier && adresse) void adresse(String(a.fichier)).then((u) => u && source === voulue && (img.src = u))
         }
         for (const b of alignements) b.dataset.actif = String(b.dataset.valeur === figure.dataset.alignement)
+        boutonAlignement.replaceChildren(dessinAlignement((figure.dataset.alignement as 'gauche' | 'centre' | 'droite') || 'centre'))
         legende.setAttribute('contenteditable', String(view.editable))
         if (enLegende) return
         legende.textContent = String(a.legende ?? '')
@@ -197,7 +219,10 @@ export const ImageBloc = Node.create<OptionsImage>({
         const pos = getPos()
         if (pos !== undefined && node.attrs[attr] !== v) view.dispatch(view.state.tr.setNodeAttribute(pos, attr, v))
       }
-      // La barre au survol (NOTION.md § 2) : l'alignement, et « Légende » qui ouvre la légende à écrire.
+      /*
+       * La barre au survol, mesurée dans Notion (relevé 4 § 7.7) : en haut à droite, six icônes — commenter, l'alignement
+       * (un menu de trois), la légende, voir en grand, télécharger, et « ••• » pour le menu du bloc.
+       */
       const bouton = (titre: string, contenu: string | SVGElement, agir: () => void) => {
         const b = document.createElement('button')
         b.type = 'button'
@@ -208,11 +233,61 @@ export const ImageBloc = Node.create<OptionsImage>({
         b.addEventListener('click', agir)
         return b
       }
+      // Le document répond aux gestes qui ne sont pas ceux de l'image : commenter le bloc, ouvrir son menu.
+      const signaler = (nom: 'notak-commenter-bloc' | 'notak-menu-bloc') => {
+        const id = node.attrs.id
+        if (id) view.dom.dispatchEvent(new CustomEvent(nom, { bubbles: true, detail: { id } }))
+      }
+      const menuAlignement = document.createElement('div')
+      menuAlignement.className = 'notak-image-alignements'
       const alignements = (['gauche', 'centre', 'droite'] as const).map((v) => {
-        const b = bouton(t(`blocs.image.${v}`), dessinAlignement(v), () => ecrire('alignement', v))
+        const b = bouton(t(`blocs.image.${v}`), dessinAlignement(v), () => {
+          ecrire('alignement', v)
+          menuAlignement.remove()
+        })
         b.dataset.valeur = v
         return b
       })
+      alignements.forEach((b, i) => {
+        if (i > 0) menuAlignement.append(Object.assign(document.createElement('span'), { className: 'notak-image-alignements-trait' }))
+        menuAlignement.append(b)
+      })
+      const boutonAlignement = bouton(t('blocs.image.alignement'), dessinAlignement('centre'), () => {
+        if (menuAlignement.isConnected) return menuAlignement.remove()
+        barre.append(menuAlignement)
+        menuAlignement.style.left = `${boutonAlignement.offsetLeft + boutonAlignement.offsetWidth / 2}px`
+      })
+      // « Voir en grand » : l'image seule sur un voile sombre ; un clic ou Échap la referment.
+      const agrandir = () => {
+        if (!img.src) return
+        const voile = document.createElement('div')
+        voile.className = 'notak-image-plein-ecran'
+        const grande = document.createElement('img')
+        grande.src = img.src
+        grande.alt = img.alt
+        voile.append(grande)
+        const fermer = () => {
+          voile.remove()
+          document.removeEventListener('keydown', touche, true)
+        }
+        const touche = (e: KeyboardEvent) => {
+          if (e.key !== 'Escape') return
+          e.stopPropagation()
+          fermer()
+        }
+        voile.addEventListener('click', fermer)
+        document.addEventListener('keydown', touche, true)
+        document.body.append(voile)
+      }
+      const telecharger = () => {
+        if (!img.src) return
+        const a = document.createElement('a')
+        a.href = img.src
+        a.download = String(node.attrs.legende || 'image')
+        a.target = '_blank'
+        a.rel = 'noopener noreferrer'
+        a.click()
+      }
       const ecrireLegende = () => {
         figure.append(legende)
         enLegende = true
@@ -226,10 +301,15 @@ export const ImageBloc = Node.create<OptionsImage>({
       const barre = document.createElement('div')
       barre.className = 'notak-image-barre'
       barre.contentEditable = 'false'
-      const groupe = document.createElement('div')
-      groupe.className = 'notak-image-barre-groupe'
-      groupe.append(...alignements)
-      barre.append(groupe, bouton(t('blocs.image.legende'), t('blocs.image.legende'), ecrireLegende))
+      barre.append(
+        bouton(t('blocs.image.commenter'), ICONES_IMAGE.commenter(), () => signaler('notak-commenter-bloc')),
+        boutonAlignement,
+        bouton(t('blocs.image.legende'), ICONES_IMAGE.legende(), ecrireLegende),
+        bouton(t('blocs.image.agrandir'), ICONES_IMAGE.agrandir(), agrandir),
+        bouton(t('blocs.image.telecharger'), ICONES_IMAGE.telecharger(), telecharger),
+        bouton(t('blocs.image.plus'), ICONES_IMAGE.plus(), () => signaler('notak-menu-bloc')),
+      )
+      barre.addEventListener('mouseleave', () => menuAlignement.remove())
       const quitterLegende = () => {
         if (!enLegende) return
         enLegende = false
@@ -383,17 +463,17 @@ export const ApercuLien = Node.create<OptionsApercuLien>({
     return [
       'a',
       mergeAttributes(reste, { 'data-type': 'apercu-lien', class: 'notak-apercu-lien', href: adresseSure(adresse) ?? '', target: '_blank', rel: 'noopener noreferrer', ...(node.attrs.titre ? {} : { 'data-etat': 'vide' }) }),
+      // Comme chez Notion : l'image à gauche, puis la favicon, le titre, la description et l'adresse.
+      ...(vignette ? [['img', { class: 'notak-apercu-lien-image', src: vignette, alt: '' }] as const] : []),
       [
         'span',
         { class: 'notak-apercu-lien-texte' },
+        ...(node.attrs.titre && icone ? [['img', { class: 'notak-apercu-lien-icone', src: icone, alt: '' }] as const] : []),
         ['span', { class: 'notak-apercu-lien-titre' }, titreVu],
         ...(node.attrs.description ? [['span', { class: 'notak-apercu-lien-description' }, String(node.attrs.description)] as const] : []),
         // Sans titre, l'adresse est déjà le titre : elle n'est pas écrite deux fois.
-        ...(node.attrs.titre
-          ? [['span', { class: 'notak-apercu-lien-pied' }, ...(icone ? [['img', { class: 'notak-apercu-lien-icone', src: icone, alt: '' }] as const] : []), ['span', { class: 'notak-apercu-lien-adresse' }, adresse]] as const]
-          : []),
+        ...(node.attrs.titre ? [['span', { class: 'notak-apercu-lien-adresse' }, adresse] as const] : []),
       ],
-      ...(vignette ? [['img', { class: 'notak-apercu-lien-image', src: vignette, alt: '' }] as const] : []),
     ]
   },
   addNodeView() {
@@ -413,13 +493,12 @@ export const ApercuLien = Node.create<OptionsApercuLien>({
       const texte = morceau('span', 'texte')
       const titre = morceau('span', 'titre')
       const description = morceau('span', 'description')
-      const pied = morceau('span', 'pied')
       const icone = imageDeCarte('icone')
       const adresse = morceau('span', 'adresse')
-      pied.append(icone, adresse)
-      texte.append(titre, description, pied)
+      texte.append(icone, titre, description, adresse)
       const vignette = imageDeCarte('image')
-      carte.append(texte, vignette)
+      // Comme chez Notion : l'image à gauche, le texte à droite (favicon, titre, description, adresse en bas).
+      carte.append(vignette, texte)
       // Une image qui n'a pas pu se charger a retiré son élément : on le rend à la carte avec sa nouvelle adresse.
       const montrer = (img: HTMLImageElement, src: string | undefined, parent: HTMLElement, avant?: HTMLElement) => {
         if (!src) return img.remove()
@@ -428,7 +507,7 @@ export const ApercuLien = Node.create<OptionsApercuLien>({
       }
       const peindre = () => {
         const a = node.attrs as Record<string, unknown>
-        for (const [cle, v] of [['bloc', a.id], ['couleur', a.couleur], ['retrait', Number(a.retrait) || null]] as const) {
+        for (const [cle, v] of [['bloc', a.id], ['couleur', a.couleur], ['retrait', Number(a.retrait) || null], ['filBloc', a.fil]] as const) {
           if (v) carte.dataset[cle] = String(v)
           else delete carte.dataset[cle]
         }
@@ -441,9 +520,9 @@ export const ApercuLien = Node.create<OptionsApercuLien>({
         description.textContent = String(a.description ?? '')
         description.hidden = !a.description
         adresse.textContent = url
-        pied.hidden = !a.titre
-        montrer(icone, adresseSure(a.favicon, 'image'), pied, adresse)
-        montrer(vignette, adresseSure(a.image, 'image'), carte)
+        adresse.hidden = !a.titre
+        montrer(icone, a.titre ? adresseSure(a.favicon, 'image') : undefined, texte, titre)
+        montrer(vignette, adresseSure(a.image, 'image'), carte, texte)
       }
       // Sans titre, la carte demande l'aperçu de sa page, une fois ; la réponse s'écrit dans le nœud, hors annulation.
       const chercherSiVide = () => {

@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { type Camera, TAILLES_GRILLE, definirTailleGrille } from './coeur/camera'
 import {
@@ -36,9 +37,12 @@ import { PanneauModeles, modelesProposes } from './PanneauModeles'
 import { TitreTableau } from './TitreTableau'
 import { PastillePersonne } from './pastille'
 import { FenetreReglages, type ServiceCompte, useReglages } from './reglages'
+import { useHabillages } from './habillage/appliquer'
+import type { OffreHabillages } from './habillage/bibliotheque'
 import './theme.css'
 import { Icone } from './icones'
 import { GardeToile } from './garde'
+import { useApercuOutils } from './apercuOutils'
 
 const CLE_VUES = 'notak:vues'
 /**
@@ -163,6 +167,7 @@ export function EspaceNotak({
   adresse,
   compte,
   enregistrer,
+  habillages: offreHabillages,
 }: {
   espace: EspaceNavigable
   services?: Services
@@ -185,6 +190,8 @@ export function EspaceNotak({
    * copie dans un fichier `.notak`.
    */
   enregistrer?(): void
+  /** Les thèmes que fournit l'application (un serveur), et celui qu'elle impose ou propose. */
+  habillages?: OffreHabillages
 }) {
   const racine = espace.racine
   const [parcours, setParcours] = useState(() => parcoursDepart(racine))
@@ -192,6 +199,7 @@ export function EspaceNotak({
   const lectureSeule = useSyncExternalStore(espace.ecouter, () => espace.lectureSeule?.(courant) ?? false)
   const droits = useSyncExternalStore(espace.ecouter, () => espace.droits?.(courant) ?? null)
   const [reglages, changerReglages] = useReglages()
+  const habillages = useHabillages(offreHabillages, reglages.habillage, reglages.theme)
   // Posée avant de dessiner la toile, qui la lit à chaque mesure.
   definirTailleGrille(reglages.grille)
   // Un changement de langue redessine l'en-tête et la toile : les textes se relisent à la nouvelle langue.
@@ -468,6 +476,7 @@ export function EspaceNotak({
   }
   // La présentation passe en plein écran ; en sortir (Échap du navigateur compris) la referme.
   const racineEspace = useRef<HTMLDivElement>(null)
+  const apercuOutils = useApercuOutils(racineEspace, outilsCaches)
   useEffect(() => {
     if (!presentation) return
     if (!document.fullscreenElement) void racineEspace.current?.requestFullscreen?.().catch(() => {})
@@ -584,7 +593,8 @@ export function EspaceNotak({
 
   return (
     <ContexteEntete.Provider value={entete}>
-    <div ref={racineEspace} className="notak-espace" data-theme={reglages.theme} data-taille={reglages.taille} data-presentation={presentation || undefined} data-outils={outilsCaches ? 'caches' : undefined}>
+    <div ref={racineEspace} className="notak-espace" data-theme={reglages.theme} data-taille={reglages.taille} data-presentation={presentation || undefined} data-outils={outilsCaches ? 'caches' : undefined} data-outils-apercu={apercuOutils.apercu || undefined}>
+      {outilsCaches && <div className="notak-outils-bord" aria-hidden onPointerEnter={apercuOutils.entrer} onPointerLeave={apercuOutils.quitter} />}
       <Entete
         outils={{ caches: outilsCaches, basculer: basculerOutils }}
         key={`entete:${langue}`}
@@ -647,8 +657,15 @@ export function EspaceNotak({
           </div>
         )}
       </div>
-      {aideOuverte && <FenetreRaccourcis fermer={fermerAide} />}
-      {reglagesOuverts && <FenetreReglages reglages={reglages} changer={changerReglages} fermer={() => setReglagesOuverts(false)} {...(compte ? { compte } : {})} />}
+      {/* Par-dessus tout, la carte et le document ouverts en grand compris : leur barre ouvre aussi ces fenêtres. */}
+      {(aideOuverte || reglagesOuverts) &&
+        createPortal(
+          <div className="notak-espace notak-par-dessus" data-theme={reglages.theme} data-taille={reglages.taille}>
+            {aideOuverte && <FenetreRaccourcis fermer={fermerAide} />}
+            {reglagesOuverts && <FenetreReglages reglages={reglages} changer={changerReglages} fermer={() => setReglagesOuverts(false)} habillages={habillages} {...(compte ? { compte } : {})} />}
+          </div>,
+          document.body,
+        )}
     </div>
     </ContexteEntete.Provider>
   )
@@ -694,11 +711,20 @@ function Entete({
 
   useLayoutEffect(() => {
     const n = fil.current!
-    // Le fil prend la place que lui laissent les îlots : c'est sa largeur qui dit combien de maillons tiennent.
-    const mesurer = () => setLargeur(n.clientWidth || Number.POSITIVE_INFINITY)
+    // Le fil vit au bout de l'îlot de gauche, qui se règle sur lui : sa place est celle que l'îlot peut prendre (la
+    // bande à gauche des îlots de droite, et au plus sa largeur maximale), moins ses boutons. C'est elle qui dit
+    // combien de maillons tiennent.
+    const ilot = n.parentElement!
+    const gauche = ilot.parentElement!
+    const mesurer = () => {
+      if (!gauche.clientWidth) return setLargeur(Number.POSITIVE_INFINITY)
+      const plafond = Math.min(gauche.clientWidth, Number.parseFloat(getComputedStyle(ilot).maxWidth) || Number.POSITIVE_INFINITY)
+      setLargeur(plafond - (ilot.offsetWidth - n.offsetWidth))
+    }
     mesurer()
     const obs = new ResizeObserver(mesurer)
-    obs.observe(n)
+    obs.observe(gauche)
+    obs.observe(ilot)
     return () => obs.disconnect()
   }, [])
 
@@ -724,7 +750,7 @@ function Entete({
     const ici = i === segments.length - 1 && s.id === courant
     if (ici && avecTitre)
       return (
-        <span key={`${s.id}:${i}`} className="notak-fil-titre" aria-current="page" data-depot-tableau={s.id} data-charge={!charge || undefined} title={!charge ? t('espace.chargement') : undefined}>
+        <span key={`${s.id}:${i}`} className="notak-fil-titre" aria-current="page" data-depot-tableau={s.id} data-charge={!charge || undefined} title={!charge ? t('espace.chargement') : s.titre}>
           <TitreTableau titre={s.titre} {...(renommer ? { renommer } : {})} />
         </span>
       )
@@ -749,50 +775,51 @@ function Entete({
     // Dans l'application de bureau, la barre tient lieu de barre de titre : on la saisit partout hors des îlots pour déplacer la fenêtre.
     <header className="notak-entete" data-tauri-drag-region="deep">
       <div className="notak-entete-gauche">
-        {(parent || outils) && (
-          <Ilot>
-            {parent && <BoutonIlot icone="gauche" libelle={t('espace.remonter')} onClick={() => aller(parent.id)} />}
-            {parent && outils && <FiletIlot />}
-            {outils && (
-              <BoutonIlot
-                icone="panneauGauche"
-                libelle={outils.caches ? t('espace.outilsAfficher') : t('espace.outilsMasquer')}
-                actif={!outils.caches}
-                onClick={outils.basculer}
-              />
-            )}
-          </Ilot>
-        )}
-        <nav className="notak-fil" aria-label={t('espace.fil')} ref={fil}>
-          {visibles.flatMap((i, rang) => [
-            rang > 0 && <span key={`s${i}`} className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,
-            rang === 1 && caches.length > 0 && (
-              <span key="susp" className="notak-fil-bloc">
-                <button
-                  type="button"
-                  className="notak-fil-segment notak-fil-suspension"
-                  title={t('espace.niveauxCaches')}
-                  aria-expanded={menu}
-                  onClick={() => setMenu((m) => !m)}
-                >
-                  <Icone nom="plus" taille={16} />
-                </button>
-                {menu && (
-                  <div className="notak-fil-menu" role="menu">
-                    {caches.map((c) => (
-                      <button key={c} type="button" role="menuitem" onClick={() => aller(segments[c]!.id)}>
-                        {segments[c]!.titre || t('commun.sansTitre')}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </span>
-            ),
-            rang === 1 && caches.length > 0 && <span key="s-susp" className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,
-            segment(i),
-          ])}
-          {avecTitre && <EtatEnregistrement etat={envoi} />}
-        </nav>
+        {/* Un seul îlot : remonter, la barre des outils, puis le fil et l'état de l'enregistrement. Le reste de la bande
+            reste vide et transparent. */}
+        <Ilot className="notak-ilot-fil">
+          {parent && <BoutonIlot icone="gauche" libelle={t('espace.remonter')} onClick={() => aller(parent.id)} />}
+          {parent && outils && <FiletIlot />}
+          {outils && (
+            <BoutonIlot
+              icone="panneauGauche"
+              libelle={outils.caches ? t('espace.outilsAfficher') : t('espace.outilsMasquer')}
+              actif={!outils.caches}
+              onClick={outils.basculer}
+            />
+          )}
+          {(parent || outils) && <FiletIlot />}
+          <nav className="notak-fil" aria-label={t('espace.fil')} ref={fil}>
+            {visibles.flatMap((i, rang) => [
+              rang > 0 && <span key={`s${i}`} className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,
+              rang === 1 && caches.length > 0 && (
+                <span key="susp" className="notak-fil-bloc">
+                  <button
+                    type="button"
+                    className="notak-fil-segment notak-fil-suspension"
+                    title={t('espace.niveauxCaches')}
+                    aria-expanded={menu}
+                    onClick={() => setMenu((m) => !m)}
+                  >
+                    <Icone nom="plus" taille={16} />
+                  </button>
+                  {menu && (
+                    <div className="notak-fil-menu" role="menu">
+                      {caches.map((c) => (
+                        <button key={c} type="button" role="menuitem" onClick={() => aller(segments[c]!.id)}>
+                          {segments[c]!.titre || t('commun.sansTitre')}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </span>
+              ),
+              rang === 1 && caches.length > 0 && <span key="s-susp" className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,
+              segment(i),
+            ])}
+            {avecTitre && <EtatEnregistrement etat={envoi} />}
+          </nav>
+        </Ilot>
       </div>
       <div className="notak-entete-droite">
         {historique && <IlotHistorique annuler={historique.annuler} retablir={historique.retablir} peutAnnuler={peutAnnuler} peutRetablir={peutRetablir} />}

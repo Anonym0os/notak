@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Element } from './coeur/tableau'
 import { BarreEtiquette } from './elements/decor/BarreEtiquette'
 import { BoutonEtiquettes } from './elements/decor/BoutonEtiquettes'
@@ -67,6 +67,41 @@ function useEchapFerme(barre: { current: HTMLElement | null }, fermer: () => voi
  * La barre de gauche. Un outil se glisse sur la toile : c'est la toile qui suit le geste (`surAppui`).
  * Un simple clic ne crée rien : l'outil rebondit et une bulle rappelle qu'on le glisse (`rebond`).
  */
+/** La vitesse du défilement d'un libellé trop long, en pixels par seconde : celle d'une lecture posée. */
+const VITESSE_DEFILEMENT = 28
+
+/**
+ * Le libellé d'un outil de la barre de création. Plus large que la barre, il reste sur une ligne, coupé en fondu,
+ * et défile au survol de son outil pour se lire en entier, puis revient.
+ */
+function LibelleOutil({ children }: { children: ReactNode }) {
+  const boite = useRef<HTMLSpanElement>(null)
+  useLayoutEffect(() => {
+    const b = boite.current!
+    const texte = b.firstElementChild as HTMLElement
+    const mesurer = () => {
+      const exces = texte.scrollWidth - b.clientWidth
+      if (exces > 1) {
+        b.dataset.deborde = ''
+        b.style.setProperty('--notak-defile', `${-exces}px`)
+        b.style.setProperty('--notak-defile-duree', `${Math.max(0.5, exces / VITESSE_DEFILEMENT).toFixed(2)}s`)
+      } else delete b.dataset.deborde
+    }
+    mesurer()
+    // La police chargée, ou la barre qui change de taille, changent la mesure.
+    if (typeof ResizeObserver === 'undefined') return
+    const obs = new ResizeObserver(mesurer)
+    obs.observe(b)
+    obs.observe(texte)
+    return () => obs.disconnect()
+  }, [children])
+  return (
+    <span ref={boite} className="notak-outil-libelle">
+      <span>{children}</span>
+    </span>
+  )
+}
+
 export function BarreOutils({
   grisee = false,
   surAppui,
@@ -126,7 +161,7 @@ export function BarreOutils({
           }}
         >
           <span className="notak-outil-icone">{vignette ?? o.outil.icone}</span>
-          <span className="notak-outil-libelle">{o.outil.libelle}</span>
+          <LibelleOutil>{o.outil.libelle}</LibelleOutil>
         </button>
         </Infobulle>
         {rebondit && (
@@ -174,7 +209,7 @@ export function BarreOutils({
             onClick={corbeille.basculer}
           >
             <span className="notak-outil-icone"><Icone nom="corbeille" taille={26} /></span>
-            <span className="notak-outil-libelle">{t('corbeille.titre')}{corbeille.nombre > 0 ? ` (${corbeille.nombre})` : ''}</span>
+            <LibelleOutil>{t('corbeille.titre')}{corbeille.nombre > 0 ? ` (${corbeille.nombre})` : ''}</LibelleOutil>
           </button>
         </Infobulle>
       </nav>

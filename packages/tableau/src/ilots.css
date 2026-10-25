@@ -100,6 +100,19 @@
   padding: 0;
 }
 
+/* La barre est une barre d'outils, pas du texte : rien ne s'y sélectionne en glissant ou au double-clic (le titre du
+   tableau reste un champ qu'on modifie). */
+:is(.notak-entete, .notak-document-entete, .notak-arbre-entete, .notak-arbre-droite, .notak-ilot) {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Safari refuse la saisie dans un champ sous user-select: none : le titre du tableau garde la sienne. */
+:is(.notak-entete, .notak-document-entete, .notak-arbre-entete) :is(input, textarea) {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* Le fil : le chemin pâle, le titre de l'écran en gras. */
 .notak-fil-ecran {
   flex: 0 1 auto;
@@ -132,4 +145,50 @@
 .notak-fil-titre > span {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/*
+ * L'îlot de gauche porte le fil, après ses boutons et un filet (tableau, carte et document) : la toile passe dessous
+ * sans le brouiller, et le reste de la bande reste vide. Au plus 440 px (40 % d'une fenêtre étroite) : les niveaux du
+ * milieu passent dans le « + », puis chaque parent se coupe à 160 px, le titre en dernier. Le texte est à 8 px du
+ * filet et à 14 px du bord.
+ */
+.notak-ilot-fil {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: min(440px, 40vw);
+}
+
+.notak-ilot-fil .notak-fil {
+  flex: 0 1 auto;
+  gap: 2px;
+  min-width: 0;
+  padding-right: 5px;
+}
+
+.notak-ilot-fil > .notak-fil:first-child {
+  padding-left: 5px;
+}
+
+/* Chaque maillon garde sa largeur (coupée à 160 px) : c'est le titre qui cède. */
+.notak-ilot .notak-fil-segment {
+  flex: none;
+  height: 30px;
+  padding: 0 6px;
+  border-radius: 15px;
+}
+
+.notak-ilot .notak-fil-segment:hover,
+.notak-ilot .notak-fil-segment[aria-expanded='true'] {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.notak-ilot .notak-titre-champ {
+  border-radius: 15px;
+}
+
+/* En sombre, pas d'ombre : un anneau d'un pixel, et un fond à peine plus clair que la toile. */
+[data-theme='sombre'] .notak-ilot {
+  --notak-ilot-fond: color-mix(in oklab, var(--notak-fond, #1b1e23), white 6%);
+  --notak-ilot-ombre: 0 0 0 1px rgb(255 255 255 / 0.1);
 }

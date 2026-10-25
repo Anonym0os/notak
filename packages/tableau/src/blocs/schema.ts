@@ -3,6 +3,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { EXTENSIONS_NOTE, KIT } from '../elements/note/extensions'
 import { ClavierBlocs } from './clavier'
 import { CodeBlocs } from './code'
+import { CodeCommentable, CommentairesBlocs } from './commentaires'
 import { CollerComme } from './collerComme'
 import { DissolutionColonnes } from './colonnes'
 import { IdsDeBlocs } from './ids'
@@ -25,6 +26,8 @@ const KIT_BLOCS = {
   orderedList: false as const,
   listItem: false as const,
   listKeymap: false as const,
+  // Le bloc de code est celui de `commentaires.ts` : on peut y commenter un passage.
+  codeBlock: false as const,
   // Une adresse tapée devient un lien à l'espace qui suit ; collée sur un passage, elle le lie (NOTION.md § 5).
   link: { openOnClick: false, autolink: true, linkOnPaste: true },
 }
@@ -46,7 +49,9 @@ const communs = [
   ApercuLien,
   IdsDeBlocs,
   StructureBlocs,
+  CodeCommentable,
   CodeBlocs,
+  CommentairesBlocs,
   ClavierBlocs,
   SaisieBlocs,
   SelectionBlocs,

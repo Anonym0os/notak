@@ -9,7 +9,10 @@ import { langageDe } from './code'
  * ces passages en décorations sur chaque bloc de code ; `colorerCode` fait de même sur un rendu figé.
  */
 
-export type Genre = 'motCle' | 'chaine' | 'commentaire' | 'nombre' | 'fonction' | 'type' | 'propriete' | 'operateur' | 'balise' | 'attribut' | 'variable'
+export type Genre = 'motCle' | 'chaine' | 'commentaire' | 'nombre' | 'fonction' | 'type' | 'propriete' | 'operateur' | 'ponctuation' | 'balise' | 'attribut' | 'variable'
+
+/** La ponctuation, grisée comme chez Notion : parenthèses, crochets, accolades, virgules, points. */
+const PONCTUATION = '()[]{},;.:'
 
 /** Un passage coloré : `[de, a[` dans le texte du code. Les jetons sont rendus dans l'ordre, sans chevauchement. */
 export interface Jeton {
@@ -80,9 +83,10 @@ const INCLUSION = /[ \t]*<[^>\n]{0,200}>/y
 const C_BLOCS = [['/*', '*/']] as const
 const OPS_C = '+-*/%=<>!&|^~?'
 
+// `null` et `undefined` sont des mots-clés chez Notion (bleus), `true` et `false` des valeurs (comme les nombres).
 const MOTS_JS =
-  'as async await break case catch class const continue debugger default delete do else export extends finally for from function if import in instanceof let new of return static super switch this throw try typeof var void while with yield'
-const LITT_JS = 'true false null undefined NaN Infinity'
+  'as async await break case catch class const continue debugger default delete do else export extends finally for from function if import in instanceof let new null of return static super switch this throw try typeof undefined var void while with yield'
+const LITT_JS = 'true false NaN Infinity'
 
 const JS: Def = {
   lignes: ['//'],
@@ -365,7 +369,7 @@ function moteur(texte: string, L: Langue, base: number, sortie: Jeton[], niveau:
     return -1
   }
 
-  /** Un gabarit JavaScript : le texte est chaîne, chaque `${…}` est du code. */
+  /** Un gabarit JavaScript : le texte est chaîne, chaque `${…}` est du code entre deux ponctuations. */
   const gabarit = (debut: number): number => {
     let seg = debut
     let j = debut + 1
@@ -376,10 +380,13 @@ function moteur(texte: string, L: Langue, base: number, sortie: Jeton[], niveau:
         pousser(seg, j + 1, 'chaine')
         return j + 1
       } else if (c === '$' && texte[j + 1] === '{' && niveau < 6) {
-        pousser(seg, j + 2, 'chaine')
+        // `${` et `}` sont de la ponctuation, comme chez Notion ; le texte autour reste chaîne.
+        if (j > seg) pousser(seg, j, 'chaine')
+        pousser(j, j + 2, 'ponctuation')
         const fin = parcourir(j + 2, true, niveau + 1)
         if (fin >= n) return n
-        seg = fin
+        pousser(fin, fin + 1, 'ponctuation')
+        seg = fin + 1
         j = fin + 1
       } else j++
     }
@@ -587,6 +594,7 @@ function moteur(texte: string, L: Langue, base: number, sortie: Jeton[], niveau:
         i = j
         continue
       } else if (shell && ch === '(') commande = true
+      if (!shell && PONCTUATION.includes(ch)) pousser(i, i + 1, 'ponctuation')
       prec = ch
       i++
     }

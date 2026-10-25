@@ -125,7 +125,8 @@ export function Bulle({ editeur, commenter, menuBloc, surCouleur }: Props) {
 
   // Ce qui doit être vrai pour qu'elle paraisse ; l'antirebond de 200 ms la montre et la cache quand la sélection se stabilise.
   // `view.hasFocus()` (l'élément actif) plutôt que `isFocused`, qui ne suit pas quand la fenêtre n'a pas le focus.
-  const voulue = bulleVisible({ texteChoisi: e.texteChoisi, focus, code: e.code, blocsChoisis: e.blocsChoisis, glisse: tire, lien: !!lien })
+  // Dans le code, rien ne se met en forme : la bulle n'y paraît que pour commenter, et ne porte que ce bouton (NOTION.md § 9).
+  const voulue = bulleVisible({ texteChoisi: e.texteChoisi, focus, code: e.code && !commenter, blocsChoisis: e.blocsChoisis, glisse: tire, lien: !!lien })
   const [stable, setStable] = useState<{ voulue: boolean; de: number; a: number }>({ voulue: false, de: 0, a: 0 })
   useEffect(() => {
     const id = window.setTimeout(() => setStable({ voulue, de: e.de, a: e.a }), ATTENTE_BULLE)
@@ -204,7 +205,7 @@ export function Bulle({ editeur, commenter, menuBloc, surCouleur }: Props) {
         onPointerDown={(ev) => ev.preventDefault()}
       >
         <div className="notak-bulle" role="toolbar" aria-label={t('document.outils')}>
-          {boutons.type && (
+          {!e.code && boutons.type && (
             <>
               <button ref={boutonType} type="button" className="notak-bulle-type" aria-haspopup="menu" aria-expanded={popup === 'type'} onClick={() => setPopup(popup === 'type' ? null : 'type')}>
                 {type ? <IconeMenu nom={type.icone} /> : <IconeMenu nom="texte" />}
@@ -214,6 +215,8 @@ export function Bulle({ editeur, commenter, menuBloc, surCouleur }: Props) {
               <div className="notak-bulle-trait" aria-hidden />
             </>
           )}
+          {!e.code && (
+          <>
           <div className="notak-bulle-rangee">
             <button
               ref={boutonCouleur}
@@ -246,9 +249,11 @@ export function Bulle({ editeur, commenter, menuBloc, surCouleur }: Props) {
               </button>
             )}
           </div>
+          </>
+          )}
           {boutons.commenter && (
             <>
-              <div className="notak-bulle-trait" aria-hidden />
+              {!e.code && <div className="notak-bulle-trait" aria-hidden />}
               <button type="button" className="notak-bulle-commenter" aria-pressed={e.surFil} onClick={commenter}>
                 <Icone nom="commenterPassage" taille={20} trait={1.6} />
                 <span>{t('blocs.action.commenter')}</span>

@@ -30,20 +30,41 @@ function ouvrir(legende = ''): { ed: Editor; figure: HTMLElement } {
 
 const image = (ed: Editor) => ed.state.doc.child(1).attrs
 const boutons = (figure: HTMLElement) => [...figure.querySelectorAll<HTMLButtonElement>('.notak-image-barre button')]
+const bouton = (figure: HTMLElement, nom: string) => boutons(figure).find((b) => b.getAttribute('aria-label') === nom)!
 
 describe('NOTION.md § 2 : la barre de l’image', () => {
-  it('aligne l’image et marque l’alignement choisi', () => {
+  it('six icônes, comme chez Notion : commenter, alignement, légende, voir en grand, télécharger, « ••• »', () => {
+    const { figure } = ouvrir()
+    expect(boutons(figure).map((b) => b.getAttribute('aria-label'))).toEqual(['Commenter', 'Alignement', 'Ajouter une légende', 'Voir en grand', 'Télécharger', 'Plus d’actions'])
+  })
+
+  it('« Commenter » et « ••• » demandent au document de commenter le bloc, d’ouvrir son menu', () => {
     const { ed, figure } = ouvrir()
-    boutons(figure)[0]!.click()
+    const vus: string[] = []
+    ed.view.dom.addEventListener('notak-commenter-bloc', () => vus.push('commenter'))
+    ed.view.dom.addEventListener('notak-menu-bloc', () => vus.push('menu'))
+    ed.view.dispatch(ed.state.tr.setNodeAttribute(ed.state.doc.child(0).nodeSize, 'id', 'img1'))
+    bouton(figure, 'Commenter').click()
+    bouton(figure, 'Plus d’actions').click()
+    expect(vus).toEqual(['commenter', 'menu'])
+  })
+
+  it('l’alignement ouvre ses trois choix ; un choix aligne l’image, se marque et referme le menu', () => {
+    const { ed, figure } = ouvrir()
+    bouton(figure, 'Alignement').click()
+    expect(figure.querySelectorAll('.notak-image-alignements button')).toHaveLength(3)
+    bouton(figure, 'Aligner à gauche').click()
+    expect(figure.querySelector('.notak-image-alignements')).toBeNull()
     expect(image(ed).alignement).toBe('gauche')
     expect(figure.dataset.alignement).toBe('gauche')
-    expect(figure.querySelector('[data-actif="true"]')?.getAttribute('data-valeur')).toBe('gauche')
+    bouton(figure, 'Alignement').click()
+    expect(figure.querySelector('.notak-image-alignements [data-actif="true"]')?.getAttribute('data-valeur')).toBe('gauche')
   })
 
   it('« Légende » ouvre une légende à écrire, Entrée l’écrit et repasse sous l’image', () => {
     const { ed, figure } = ouvrir()
     expect(figure.querySelector('figcaption')).toBeNull()
-    boutons(figure)[3]!.click()
+    bouton(figure, 'Ajouter une légende').click()
     const legende = figure.querySelector('figcaption')!
     expect(document.activeElement).toBe(legende)
     legende.textContent = '  Un port  '

@@ -95,7 +95,7 @@ export const CollerComme = Extension.create({
                 return true
               }
               if (e.key === 'Enter' && !e.shiftKey) {
-                if (etat.rang === 1) choisirApercu(view)
+                if (etat.rang === 0) choisirApercu(view)
                 else fermerApercu(view)
                 return true
               }

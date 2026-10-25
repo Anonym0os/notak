@@ -14,6 +14,8 @@ export function filsDuTexte(n: NoeudTexte): Id[] {
   const vus = new Set<Id>()
   const parcourir = (x: NoeudTexte) => {
     for (const m of x.marks ?? []) if (m.type === MARQUE_FIL && typeof m.attrs?.fil === 'string') vus.add(m.attrs.fil)
+    // Un bloc sans texte (image, séparateur…) porte son fil lui-même (voir `blocs/commentaires.ts`).
+    if (typeof x.attrs?.fil === 'string') vus.add(x.attrs.fil)
     x.content?.forEach(parcourir)
   }
   parcourir(n)

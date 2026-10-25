@@ -1,8 +1,9 @@
-import { type DepotFichiers, type Element, type EspaceNavigable, type Id, nouvelId, type Operation } from '@notak/tableau'
+import { type DepotFichiers, ErreurNotak, type Element, type EspaceNavigable, type Id, nouvelId, type Operation, decoderNotak } from '@notak/tableau'
 import { t, tn } from './langue'
 import { useRef, useState } from 'react'
 import { CIBLE_FICHIER, CIBLE_TABLEAU, ErreurImport, type PlanImport, lireExportMilanote } from './milanote'
 import { Icone } from '@notak/tableau'
+import { poserLeRenvoi, poserNotak } from './notak'
 import { usePanneau } from './panneaux'
 
 /** Les dimensions d'une image, lues dans ses pixels ; un format que le navigateur ne lit pas garde un 4:3. */
@@ -91,23 +92,53 @@ export async function poserLePlan(plan: PlanImport, espace: EspaceNavigable, par
     if (ops.length > 0) espace.magasin(ids.get(tb.cle)!).faire(ops)
   }
 
-  // Le renvoi dans le tableau d'où l'on importe : à droite de ce qui y est déjà.
-  const m = espace.magasin(parent)
-  const la = m.lire().elements.filter((e) => !e.parent && e.contenu.type !== 'ligne')
-  const x = la.length ? Math.max(...la.map((e) => e.x + e.largeur)) + 4 : 5
-  const y = la.length ? Math.min(...la.map((e) => e.y)) : 5
-  m.faire([{ type: 'creer', element: { id: nouvelId(), x, y, largeur: 10, contenu: { type: 'tableau', cible: ids.get(racine.cle)! } } }])
+  poserLeRenvoi(espace, parent, ids.get(racine.cle)!)
   return { tete: ids.get(racine.cle)!, perdus }
 }
 
-/** Le bouton « Importer » : un export Markdown de Milanote (zip) devient un tableau, ses sous-tableaux et ses fichiers. */
-export function Importer({ espace, tableau, ouvrir, fichiers }: { espace: EspaceNavigable; tableau: Id; ouvrir(id: Id): void; fichiers: DepotFichiers }) {
+/** Le bouton « Importer » : un fichier `.notak`, ou un export Markdown de Milanote (zip), devient un tableau, ses sous-tableaux et ses fichiers. */
+export function Importer({
+  espace,
+  tableau,
+  ouvrir,
+  fichiers,
+  rouvrirNotak,
+}: {
+  espace: EspaceNavigable
+  tableau: Id
+  ouvrir(id: Id): void
+  fichiers: DepotFichiers
+  /** L'édition locale rouvre un `.notak` à sa façon : en le fusionnant à ce qu'elle a (local/copie.ts). */
+  rouvrirNotak?(f: File): Promise<void>
+}) {
   const { ouvert, regler, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
   const [etat, setEtat] = useState<{ type: 'repos' } | { type: 'cours' } | { type: 'fini'; texte: string } | { type: 'echec'; texte: string }>({ type: 'repos' })
   const choix = useRef<HTMLInputElement>(null)
+  // Le sélecteur ne montre que le format choisi : `accept` est posé juste avant le clic.
+  const choisir = (types: string) => {
+    if (!choix.current) return
+    choix.current.accept = types
+    choix.current.click()
+  }
   if (espace.lectureSeule?.(tableau)) return null
 
+  const importerNotak = async (fichier: File) => {
+    setEtat({ type: 'cours' })
+    try {
+      const { tete, tableaux, perdus } = await poserNotak(decoderNotak(new Uint8Array(await fichier.arrayBuffer())), espace, tableau, fichiers)
+      setEtat({ type: 'fini', texte: tn('importer.tableaux', tableaux) + (perdus ? `, ${tn('importer.fichiersPerdus', perdus)}` : '') + '.' })
+      ouvrir(tete)
+    } catch (x) {
+      const recent = x instanceof ErreurNotak && x.message.includes('récente')
+      setEtat({ type: 'echec', texte: recent ? t('importer.notakRecent') : x instanceof ErreurNotak ? t('importer.pasNotak') : t('importer.impossible') })
+    }
+  }
+
   const importer = async (fichier: File) => {
+    if (/\.notak$/i.test(fichier.name)) {
+      if (!rouvrirNotak) return importerNotak(fichier)
+      return rouvrirNotak(fichier)
+    }
     setEtat({ type: 'cours' })
     try {
       const plan = lireExportMilanote(new Uint8Array(await fichier.arrayBuffer()), nouvelId)
@@ -132,16 +163,19 @@ export function Importer({ espace, tableau, ouvrir, fichiers }: { espace: Espace
       </button>
       {ouvert && (
         <div className="compte-menu" ref={panneau} role="menu">
-          <button type="button" role="menuitem" onClick={() => choix.current?.click()}>
+          <button type="button" role="menuitem" onClick={() => choisir('.notak')}>
+            {t('importer.notak')}
+          </button>
+          <button type="button" role="menuitem" onClick={() => choisir('.zip,application/zip')}>
             {t('importer.milanote')}
           </button>
           <small>{t('importer.aide')}</small>
+          <small>{t('importer.aideXmind')}</small>
         </div>
       )}
       <input
         ref={choix}
         type="file"
-        accept=".zip,application/zip"
         hidden
         onChange={(e) => {
           const f = e.target.files?.[0]

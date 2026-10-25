@@ -69,7 +69,14 @@ describe('la barre d’îlots, commune au tableau, à la carte et au document', 
       </>,
     )
     expect(document.querySelectorAll('.notak-fil-segment')).toHaveLength(0)
-    expect(document.querySelector('.notak-ilot')).toBeNull()
+    expect(document.querySelector('.notak-ilot-partage, .notak-ilot-compte')).toBeNull()
+  })
+
+  it('l’état de l’écran suit le titre dans le fil, et le titre porte son nom complet', () => {
+    rendre(entete(), <FilEcran titre="Carte" nom="Carte des idées" fermer={() => {}} apres={<span className="etat">Lecture seule</span>} />)
+    const fil = document.querySelector('.notak-fil-ecran')!
+    expect([...fil.children].map((n) => n.textContent)).toEqual(['Projets', 'Un steak vivant ?!', 'Carte', 'Lecture seule'])
+    expect(fil.querySelector('.notak-fil-titre')!.getAttribute('title')).toBe('Carte des idées')
   })
 
   it('le dernier îlot : les boutons de l’écran, un filet, puis le compte prêté par l’application', () => {
@@ -121,6 +128,9 @@ describe('le document ouvert en grand porte la même barre', () => {
     monter(() => {})
     const barre = document.querySelector('.notak-document-entete')!
     expect(barre.querySelector('.notak-document-fermer')!.getAttribute('aria-label')).toBe('Revenir au tableau')
+    // Un seul îlot à gauche : le retour, un filet, puis le fil.
+    const gauche = barre.querySelector('.notak-ilot-fil')!
+    expect([...gauche.children].map((n) => n.className.split(' ')[0])).toEqual(['notak-infobulle-hote', 'notak-ilot-filet', 'notak-fil'])
     expect([...barre.querySelectorAll('.notak-fil-segment')].map((n) => n.textContent)).toEqual(['Projets', 'Un steak vivant ?!'])
     expect(barre.querySelector('.notak-historique')).not.toBeNull()
     expect(barre.querySelector('.notak-ilot-partage .partage')).not.toBeNull()

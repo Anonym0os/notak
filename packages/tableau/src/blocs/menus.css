@@ -80,7 +80,7 @@
   width: 220px;
   max-height: calc(100vh - 40px);
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: var(--notak-rayon-panneau, 10px);
   background: var(--notak-m-fond);
   box-shadow: var(--notak-m-ombre);
   color: var(--notak-m-texte);
@@ -117,7 +117,7 @@
   margin: 0 4px;
   padding: 3px 6px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   outline: none;
   background: var(--notak-m-champ);
   color: inherit;
@@ -177,7 +177,7 @@
   height: 28px;
   padding: 0 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: none;
   color: inherit;
   font: inherit;
@@ -345,7 +345,7 @@
   gap: 0;
   width: 192px;
   padding: 8px;
-  border-radius: 14px;
+  border-radius: var(--notak-rayon-panneau, 14px);
   background: var(--notak-m-fond);
   box-shadow: var(--notak-m-ombre);
   color: var(--notak-m-texte);
@@ -360,7 +360,7 @@
   align-items: center;
   height: 28px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: none;
   color: inherit;
   font: inherit;
@@ -423,7 +423,7 @@
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: none;
   color: inherit;
   cursor: pointer;
@@ -450,7 +450,7 @@
   place-items: center;
   width: 20px;
   height: 20px;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   box-shadow: inset 0 0 0 1px var(--notak-m-anneau);
   font-size: 12px;
   font-weight: 500;
@@ -460,7 +460,7 @@
 /* Les panneaux ouverts depuis la bulle : la grille des couleurs, la liste « Transformer en ». */
 .notak-bulle-sous {
   box-sizing: border-box;
-  border-radius: 10px;
+  border-radius: var(--notak-rayon-panneau, 10px);
   background: var(--notak-m-fond);
   box-shadow: var(--notak-m-ombre);
   color: var(--notak-m-texte);
@@ -540,7 +540,7 @@
   margin: 4px 4px 8px;
   padding: 3px 6px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   outline: none;
   background: var(--notak-m-champ);
   color: inherit;

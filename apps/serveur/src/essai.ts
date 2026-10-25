@@ -7,6 +7,7 @@ import { inject } from 'vitest'
 import { type Auth, creerAuth } from './auth.ts'
 import { type Autorisation, ouvrirAutorisation } from './autorisation.ts'
 import { type Base, type Utilisateur, ouvrirBase } from './base.ts'
+import type { Cle } from './chiffrement.ts'
 import type { ElementLu, NoeudTexte } from './contenu.ts'
 import { creerLimiteur } from './debit.ts'
 import { nomDuDocument } from './synchro.ts'
@@ -79,9 +80,10 @@ export interface Monde {
   fermer(): void
 }
 
-export function monde(): Monde {
+/** `cle` : le monde chiffre au repos, comme un serveur qui a reçu `NOTAK_CLE`. */
+export function monde(options: { cle?: Cle } = {}): Monde {
   const dossier = mkdtempSync(join(tmpdir(), 'notak-monde-'))
-  const base = ouvrirBase(':memory:')
+  const base = ouvrirBase(':memory:', options.cle ?? null)
   const auth = authEssai(base)
   const autorisation = autorisationEssai(base)
   // Une horloge qui avance d'une milliseconde à chaque lecture : deux gestes ne tombent jamais au même instant.
@@ -97,6 +99,7 @@ export function monde(): Monde {
     synchro: () => null,
     relaisFiable: false,
     cookieSecurise: false,
+    cle: options.cle ?? null,
   })
   return {
     base,

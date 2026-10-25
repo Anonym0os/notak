@@ -9,9 +9,11 @@ import { creerApp } from './app.ts'
 import { type Fournisseur, type Identifiants, creerAuth } from './auth.ts'
 import { type Autorisation, ouvrirAutorisation } from './autorisation.ts'
 import { ouvrirBase } from './base.ts'
+import type { Cle } from './chiffrement.ts'
 import { creerCourrier } from './courriel.ts'
 import { creerLimiteur } from './debit.ts'
 import { indexerLesAbsents } from './indexation.ts'
+import type { Instance } from './instance.ts'
 import { brancherSynchro, creerHocuspocus, nomDuDocument } from './synchro.ts'
 
 export interface OptionsServeur {
@@ -35,6 +37,9 @@ export interface OptionsServeur {
   /** L'adresse du SMTP (`smtps://compte:motdepasse@hote:465`) ; sans elle, les courriels vont au journal. */
   smtp?: string
   expediteur?: string
+  instance?: Instance
+  /** La clé du chiffrement au repos (`NOTAK_CLE` ou `NOTAK_CLE_FICHIER`) ; sans elle, rien n'est chiffré. */
+  cle?: Cle | null
 }
 
 export interface ServeurDemarre {
@@ -44,7 +49,8 @@ export interface ServeurDemarre {
 
 export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre> {
   mkdirSync(options.dossier, { recursive: true })
-  const base = ouvrirBase(join(options.dossier, 'notak.db'))
+  const cle = options.cle ?? null
+  const base = ouvrirBase(join(options.dossier, 'notak.db'), cle)
   indexerLesAbsents(base)
   let hocuspocus: Hocuspocus | null = null
   // L'application naît une fois le port connu (le port 0 en tire un au hasard) : l'origine par défaut en dépend.
@@ -65,6 +71,7 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     courrier,
     fournisseurs: options.fournisseurs,
     idpInternes: options.idpInternes,
+    inscriptionsFermees: options.instance?.inscriptions === 'fermees',
   })
 
   const autorisation = ouvrirAutorisation({ base, url: options.openfga, nom: options.magasinOpenfga })
@@ -95,6 +102,8 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     relaisFiable: options.relaisFiable ?? false,
     cookieSecurise: options.cookieSecurise ?? false,
     dossierWeb: options.dossierWeb,
+    ...(options.instance ? { instance: options.instance } : {}),
+    cle,
   })
 
   hocuspocus = creerHocuspocus(base, auth, autorisation)

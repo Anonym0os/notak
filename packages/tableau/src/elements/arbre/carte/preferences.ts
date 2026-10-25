@@ -14,6 +14,8 @@ export interface ThemeCouleurPerso {
   id: string
   nom: string
   palette: string[]
+  /** Le fond de la carte qu'apporte un thème venu d'un habillage. */
+  fond?: string
 }
 
 /** Un thème personnalisé : le style d'une carte, mis de côté. */

@@ -27,6 +27,10 @@
   --notak-pale: rgb(0 0 0 / 0.35);
   /* Le texte d'attente d'une note vide. */
   --notak-attente: #d1d3d6;
+  /*
+   * Les rayons (`--notak-rayon-carte`, `-controle`, `-panneau`) et la police (`--notak-police`) ne sont déclarés que
+   * par un habillage (habillage/variables.ts) : chaque règle qui les lit garde sa valeur d'origine en repli.
+   */
 
   position: relative;
   /* `clip` et non `hidden` : un champ hors de l'écran qui prend le focus ferait défiler la toile, barres comprises. */
@@ -82,7 +86,7 @@
   /* Le texte (une ligne de 20 px) tombe au milieu de la carte : autant de marge en haut qu'en bas. */
   min-height: 62px;
   padding: 21px 20px 21px 24px;
-  border-radius: 0;
+  border-radius: var(--notak-rayon-carte, 0);
   background: var(--notak-carte);
   box-shadow: var(--notak-ombre);
   color: var(--notak-texte);
@@ -101,6 +105,7 @@
   content: '';
   position: absolute;
   inset: 0;
+  border-radius: inherit;
   z-index: 1;
   box-shadow: 0 0 0 2px transparent;
   pointer-events: none;
@@ -232,7 +237,8 @@
 
   /* Un îlot vertical, décollé du bord comme ceux de la barre du haut (ilots.css), sous elle et à 16 px des bords. */
   position: absolute;
-  inset: 0 auto 16px 16px;
+  /* Sous la barre du haut (68 px) : la taille de l'interface les zoome toutes deux, la mesure suit d'elle-même. */
+  inset: 68px auto 16px 16px;
   z-index: 3;
   display: flex;
   flex-direction: column;
@@ -246,9 +252,44 @@
   background: var(--notak-barre, color-mix(in srgb, var(--notak-carte) 88%, transparent));
 }
 
-/* Le bouton du premier îlot cache la barre des outils ; les outils d'une sélection, eux, restent. */
-.notak-espace[data-outils='caches'] .notak-barre-outils:not([data-selection]) {
-  display: none;
+/* Le bouton du premier îlot range la barre des outils : elle glisse hors de l'écran, vers la gauche, et s'efface.
+   Le pointeur qui s'arrête sur le bord gauche la ramène par-dessus la toile (apercuOutils.ts), le temps de s'en
+   servir. Les outils d'une sélection, eux, restent. La courbe est celle des panneaux de macOS : départ vif,
+   arrivée douce. */
+.notak-barre-outils:not([data-selection]) {
+  transition:
+    transform 0.34s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.2s ease,
+    visibility 0s;
+}
+
+.notak-espace[data-outils='caches']:not([data-outils-apercu]) .notak-barre-outils:not([data-selection]) {
+  transform: translateX(calc(-100% - 24px));
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    transform 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.18s ease 0.08s,
+    visibility 0s 0.28s;
+}
+
+/* Le bord qui ramène la barre : une bande de 12 px sous la barre du haut, invisible. */
+.notak-outils-bord {
+  position: absolute;
+  inset: 68px auto 0 0;
+  z-index: 31;
+  width: 12px;
+}
+
+:root[data-bureau]:not([data-plein-ecran]) .notak-outils-bord {
+  top: 60px;
+}
+
+/* Sans mouvement : la barre ne glisse plus, elle s'efface seulement. */
+@media (prefers-reduced-motion: reduce) {
+  .notak-barre-outils:not([data-selection]) {
+    transform: none !important;
+  }
 }
 
 .notak-outil {
@@ -259,7 +300,7 @@
   width: 68px;
   padding: 4px 0 6px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--notak-rayon-controle, 8px);
   background: none;
   color: var(--notak-texte);
   font: inherit;
@@ -329,13 +370,13 @@
 /* Les non triés, en haut à droite de la toile. */
 .notak-non-tries-bouton {
   position: absolute;
-  top: 12px;
+  top: calc(var(--notak-haut, 0px) + 12px);
   right: 12px;
   z-index: 2;
   height: 28px;
   padding: 0 10px;
   border: 1px solid rgb(0 0 0 / 0.1);
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: var(--notak-carte);
   color: #7a7f87;
   font: inherit;
@@ -383,6 +424,40 @@
   text-align: center;
 }
 
+/* Dans la barre de création, un libellé tient sur une ligne : plus large que l'outil, il est coupé en fondu et défile
+   au survol (Barres.tsx, LibelleOutil), après un temps d'arrêt, puis revient quand le pointeur repart. */
+.notak-barre-outils:not([data-selection]) .notak-outil-libelle {
+  display: block;
+  max-width: calc(100% - 8px);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.notak-barre-outils:not([data-selection]) .notak-outil-libelle > span {
+  display: inline-block;
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.notak-barre-outils:not([data-selection]) .notak-outil-libelle[data-deborde] {
+  text-align: left;
+  mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent);
+}
+
+.notak-barre-outils:not([data-selection]) .notak-outil:is(:hover, :focus-visible) .notak-outil-libelle[data-deborde] {
+  mask-image: linear-gradient(to right, transparent, #000 6px, #000 calc(100% - 6px), transparent);
+}
+
+.notak-barre-outils:not([data-selection]) .notak-outil:is(:hover, :focus-visible) .notak-outil-libelle[data-deborde] > span {
+  transform: translateX(var(--notak-defile));
+  transition: transform var(--notak-defile-duree) linear 0.4s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notak-barre-outils:not([data-selection]) .notak-outil-libelle > span {
+    transform: none !important;
+  }
+}
+
 .notak-barre-selection {
   position: absolute;
   z-index: 2;
@@ -390,7 +465,7 @@
   align-items: center;
   gap: 4px;
   padding: 4px;
-  border-radius: 8px;
+  border-radius: var(--notak-rayon-panneau, 8px);
   background: var(--notak-carte);
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
   transform: translateX(-50%);
@@ -402,7 +477,7 @@
   height: 28px;
   padding: 0 6px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: none;
   color: var(--notak-texte);
   font: inherit;
@@ -437,11 +512,28 @@
   --notak-texte: #323b4a;
   --notak-accent: #2f6feb;
   --notak-selection: #323b4a;
+  /* La hauteur de la barre du haut, sous laquelle passe la toile : ce qui s'accroche en haut de la toile descend d'autant. */
+  --notak-haut: 68px;
 
   display: flex;
   flex-direction: column;
   width: 100%;
   height: 100%;
+}
+
+/* Les fenêtres de l'espace (réglages, raccourcis), posées sur la page entière : au-dessus de la carte et du document
+   ouverts en grand (z-index 1000), avec les couleurs et la taille de l'espace. */
+.notak-espace.notak-par-dessus[data-theme] {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: block;
+  background: none;
+  pointer-events: none;
+}
+
+.notak-par-dessus > * {
+  pointer-events: auto;
 }
 
 .notak-espace-corps {
@@ -456,39 +548,70 @@
  * le partage et le compte à droite.
  */
 .notak-entete {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 4;
   display: flex;
-  flex: none;
   align-items: center;
   gap: 12px;
   box-sizing: border-box;
   height: 68px;
   padding: 16px;
-  background: var(--notak-fond);
   color: var(--notak-texte);
   font-size: 14px;
+  /* La toile passe dessous : seuls les îlots et le fil prennent le pointeur, le reste le laisse à la toile. */
+  pointer-events: none;
 }
 
-/* Dans l'application de bureau, la bande tient lieu de barre de titre : les boutons de la fenêtre à gauche (88 px),
-   centrés sur les îlots ; elle les rend en plein écran. */
+.notak-entete-gauche > *,
+.notak-entete-droite > *,
+.notak-fil > * {
+  pointer-events: auto;
+}
+
+
+/* Dans l'application de bureau, la bande tient lieu de barre de titre et garde le pointeur pour qu'on y saisisse la
+   fenêtre. Comme chez Xmind, elle se serre en haut : îlots à 8 px du haut, centrés avec les boutons de la fenêtre à
+   26 px (tauri.conf.json), le premier à 80 px du bord. En plein écran, plus de boutons : la bande d'origine. */
+:root[data-bureau]:not([data-plein-ecran]) .notak-entete {
+  height: 60px;
+  padding: 8px 16px 16px 80px;
+}
+
 :root[data-bureau] .notak-entete {
-  padding-left: 88px;
+  pointer-events: auto;
 }
 
-:root[data-bureau][data-plein-ecran] .notak-entete {
-  padding-left: 16px;
+:root[data-bureau]:not([data-plein-ecran]) .notak-espace {
+  --notak-haut: 60px;
+}
+
+:root[data-bureau]:not([data-plein-ecran]) .notak-espace[data-taille='petite'] {
+  --notak-haut: 53px;
+}
+
+:root[data-bureau]:not([data-plein-ecran]) .notak-espace[data-taille='grande'] {
+  --notak-haut: 69px;
+}
+
+:root[data-bureau]:not([data-plein-ecran]) .notak-barre-outils {
+  top: 60px;
 }
 
 .notak-entete-gauche {
   display: flex;
   flex: 1 1 0;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   min-width: 0;
 }
 
-.notak-entete-gauche > .notak-fil {
-  flex: 1 1 0;
-  overflow: hidden;
+/* L'îlot du fil prend au plus la place que laissent les îlots de droite (ilots.css), sans rogner le menu des maillons
+   cachés. */
+.notak-entete-gauche > .notak-ilot-fil {
+  flex: 0 1 auto;
 }
 
 .notak-entete-droite {
@@ -545,10 +668,11 @@
   white-space: pre;
 }
 
+/* Le champ se règle sur le titre (la cellule mesurée par ::after), jamais sur la largeur par défaut d'un champ. */
 .notak-titre-champ {
   grid-area: 1 / 1;
-  width: 100%;
-  min-width: 0;
+  width: 0;
+  min-width: 100%;
   box-sizing: border-box;
   padding: 0 5px;
   overflow: hidden;
@@ -594,7 +718,7 @@
   padding: 0 6px;
   overflow: hidden;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: none;
   color: #5b616a;
   font: inherit;
@@ -624,7 +748,7 @@
   flex-direction: column;
   min-width: 160px;
   padding: 4px;
-  border-radius: 8px;
+  border-radius: var(--notak-rayon-panneau, 8px);
   background: var(--notak-carte);
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
 }
@@ -635,7 +759,7 @@
   padding: 0 8px;
   overflow: hidden;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: none;
   color: var(--notak-texte);
   font: inherit;
@@ -808,7 +932,7 @@
   right: 12px;
   bottom: 12px;
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: var(--notak-carte);
   box-shadow: var(--notak-ombre);
   color: #5b616a;
@@ -929,7 +1053,7 @@
   top: 50%;
   left: calc(100% + 12px);
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: #1f2328;
   color: #fff;
   font-size: 12px;
@@ -956,7 +1080,7 @@
   grid-template-columns: repeat(3, 76px);
   gap: 6px;
   padding: 14px 10px;
-  border-radius: 12px;
+  border-radius: var(--notak-rayon-panneau, 12px);
   background: var(--notak-barre, #eceef1);
   box-shadow: 0 8px 28px rgb(0 0 0 / 0.16), 0 1px 3px rgb(0 0 0 / 0.08);
 }
@@ -988,7 +1112,7 @@
   min-width: 240px;
   max-width: 296px;
   padding: 4px 6px;
-  border-radius: 12px;
+  border-radius: var(--notak-rayon-panneau, 12px);
   background: var(--notak-carte);
   box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25), 0 0 0 1px rgb(0 0 0 / 0.04);
   color: var(--notak-menu-texte);
@@ -1004,7 +1128,7 @@
   min-height: 28px;
   padding: 4px 10px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: none;
   color: inherit;
   font: inherit;
@@ -1063,6 +1187,13 @@
   top: -5px;
   left: calc(100% + 2px);
   min-width: 220px;
+  /* Ramenée dans la fenêtre par SousListe (Menus.tsx) : remontée, à gauche, ou qui défile si elle est trop haute. */
+  overflow-y: auto;
+}
+
+.notak-menu-sous-liste[data-a-gauche] {
+  right: calc(100% + 2px);
+  left: auto;
 }
 
 .notak-menu-pastille {
@@ -1112,7 +1243,7 @@
   flex-direction: column;
   width: 320px;
   max-height: 60%;
-  border-radius: 10px;
+  border-radius: var(--notak-rayon-panneau, 10px);
   background: var(--notak-carte);
   box-shadow: 0 8px 28px rgb(0 0 0 / 0.16), 0 1px 3px rgb(0 0 0 / 0.1);
   color: var(--notak-texte);
@@ -1131,7 +1262,7 @@
   height: 26px;
   padding: 0 8px;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--notak-rayon-controle, 5px);
   background: var(--notak-fond);
   color: inherit;
   font: inherit;
@@ -1244,14 +1375,14 @@
 /* La recherche dans le tableau : en haut, au milieu ; ce qui ne correspond pas s'efface. */
 .notak-recherche {
   position: absolute;
-  top: 12px;
+  top: calc(var(--notak-haut, 0px) + 12px);
   left: 50%;
   z-index: 20;
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 4px 4px 4px 10px;
-  border-radius: 8px;
+  border-radius: var(--notak-rayon-panneau, 8px);
   background: var(--notak-carte);
   box-shadow: 0 2px 10px rgb(0 0 0 / 0.14);
   transform: translateX(-50%);
@@ -1284,7 +1415,7 @@
   width: 26px;
   height: 26px;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--notak-rayon-controle, 5px);
   background: none;
   color: var(--notak-texte);
   cursor: pointer;
@@ -1309,7 +1440,7 @@
   margin: 0;
   padding: 4px;
   overflow-y: auto;
-  border-radius: 8px;
+  border-radius: var(--notak-rayon-panneau, 8px);
   background: var(--notak-carte);
   box-shadow: 0 2px 10px rgb(0 0 0 / 0.14);
   list-style: none;
@@ -1372,7 +1503,7 @@
   align-items: center;
   gap: 12px;
   padding: 8px 8px 8px 14px;
-  border-radius: 8px;
+  border-radius: var(--notak-rayon-panneau, 8px);
   background: #2b2f36;
   color: #f4f5f7;
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.22);
@@ -1384,7 +1515,7 @@
 .notak-avis button {
   padding: 3px 8px;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--notak-rayon-controle, 5px);
   background: none;
   color: #8fc1ff;
   font: inherit;
@@ -1421,7 +1552,7 @@
   flex-direction: column;
   gap: 6px;
   padding: 8px;
-  border-radius: 8px;
+  border-radius: var(--notak-rayon-panneau, 8px);
   background: var(--notak-carte);
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
   transform: translateX(-50%);
@@ -1467,7 +1598,7 @@
   flex-direction: column;
   width: min(760px, 100%);
   max-height: 100%;
-  border-radius: 12px;
+  border-radius: var(--notak-rayon-panneau, 12px);
   background: var(--notak-carte);
   box-shadow: 0 12px 40px rgb(0 0 0 / 0.2);
   color: var(--notak-texte);
@@ -1553,7 +1684,7 @@
   width: 28px;
   height: 28px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: none;
   color: var(--notak-icone-barre);
   font-size: 15px;
@@ -1599,7 +1730,7 @@
 .notak-non-tries {
   right: 12px;
   bottom: auto;
-  top: 48px;
+  top: calc(var(--notak-haut, 0px) + 48px);
   left: auto;
 }
 
@@ -1691,7 +1822,7 @@
   box-sizing: border-box;
   max-width: min(300px, calc(100vw - 32px));
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: var(--notak-rayon-panneau, 10px);
   background: var(--notak-accent, #3a76df);
   box-shadow: 0 6px 24px rgb(0 0 0 / 0.25);
   color: #fff;
@@ -1703,7 +1834,7 @@
   flex: none;
   padding: 4px 10px;
   border: 1px solid rgb(255 255 255 / 0.6);
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: none;
   color: inherit;
   font: inherit;
@@ -1954,7 +2085,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   height: 28px;
   padding: 0 8px;
   border: 1px solid rgb(0 0 0 / 0.12);
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: var(--notak-carte);
   color: inherit;
   font: inherit;
@@ -2114,7 +2245,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   height: 32px;
   padding: 0 14px;
   border: 1px solid rgb(0 0 0 / 0.15);
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: var(--notak-carte);
   color: inherit;
   font: inherit;
@@ -2277,7 +2408,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   left: calc(100% + 10px);
   z-index: 4;
   padding: 6px;
-  border-radius: 8px;
+  border-radius: var(--notak-rayon-panneau, 8px);
   background: var(--notak-carte);
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.08);
   transform: translateY(-50%);
@@ -2312,7 +2443,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   height: 30px;
   padding: 0 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: none;
   color: var(--notak-texte);
   font: inherit;
@@ -2464,7 +2595,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   box-sizing: border-box;
   width: 300px;
   padding: 20px 20px 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-panneau, 6px);
   background: #323b4a;
   box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.4);
   color: #f4f5f7;
@@ -2680,7 +2811,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   box-sizing: border-box;
   width: 290px;
   padding: 16px 20px 20px;
-  border-radius: 10px;
+  border-radius: var(--notak-rayon-panneau, 10px);
   background: var(--notak-carte);
   box-shadow: 0 4px 20px rgb(0 0 0 / 0.14), 0 1px 3px rgb(0 0 0 / 0.1);
   color: var(--notak-texte);
@@ -2936,7 +3067,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: none;
   color: var(--notak-icone-barre);
   cursor: pointer;

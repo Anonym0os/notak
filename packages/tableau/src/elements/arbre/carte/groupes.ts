@@ -4,6 +4,7 @@ import type { ChoixTheme } from '../modele/reglages'
 import { GROUPES_DE_SQUELETTES, SQUELETTES, type SqueletteDef, squeletteDe, squelettesDuGroupe } from './squelettes'
 import { PREFIXE_PERSO, THEMES, type Theme, cleNomTheme, jeuDeSix, themeBase, themeDe, variantesDe } from '../themes'
 import type { ThemeCouleurPerso } from './preferences'
+import type { Habillage } from '../../../habillage/format'
 
 /**
  * Les thèmes de couleur d'une carte, rangés comme dans la liste de Xmind : des groupes (un thème et sa palette), dont
@@ -20,11 +21,21 @@ export interface GroupeTheme {
   categorie: Categorie
   /** Un thème de couleur à soi : ses données, que la carte garde quand on l'applique. */
   perso?: ThemeCouleurPerso
+  /** Il vient d'un habillage : on le prend tel quel, sans le renommer ni le modifier. */
+  habillage?: true
 }
 
-/** Tous les groupes : les thèmes de Notak, puis ceux qu'on s'est faits. */
-export function groupesThemes(perso: readonly ThemeCouleurPerso[]): GroupeTheme[] {
+/** Le groupe d'un habillage qui dit sa palette de carte : un thème à soi, rangé parmi les thèmes de couleur. */
+function groupeDeHabillage(h: Habillage & { carte: NonNullable<Habillage['carte']> }): GroupeTheme {
+  const id = `${PREFIXE_PERSO}habillage-${h.id}`
+  const palette = jeuDeSix(h.carte.palette)
+  return { id, nom: h.nom, palette, categorie: 'colore', habillage: true, perso: { id, nom: h.nom, palette, ...(h.carte.fond ? { fond: h.carte.fond } : {}) } }
+}
+
+/** Tous les groupes : ceux des habillages disponibles, les thèmes de Notak, puis ceux qu'on s'est faits. */
+export function groupesThemes(perso: readonly ThemeCouleurPerso[], habillages: readonly Habillage[] = []): GroupeTheme[] {
   return [
+    ...habillages.flatMap((h) => (h.carte ? [groupeDeHabillage({ ...h, carte: h.carte })] : [])),
     ...THEMES.map((th): GroupeTheme => ({ id: th.id, nom: t(cleNomTheme(th.id)), palette: [...th.palette], categorie: th.categorie ?? 'colore' })),
     ...perso.map((p): GroupeTheme => ({ id: p.id, nom: p.nom, palette: jeuDeSix(p.palette), categorie: 'perso', perso: p })),
   ]
@@ -57,7 +68,7 @@ export function varianteActive(a: Pick<Arbre, 'theme' | 'options' | 'couleurLign
 export const choixDe = (g: GroupeTheme, accent: string | undefined): ChoixTheme => ({
   theme: g.id,
   accent,
-  ...(g.perso ? { perso: { nom: g.perso.nom, palette: g.palette } } : {}),
+  ...(g.perso ? { perso: { nom: g.perso.nom, palette: g.palette, ...(g.perso.fond ? { fond: g.perso.fond } : {}) } } : {}),
 })
 
 /** La variante d'après : on boucle sur celles du groupe, de la première à la dernière et de nouveau à la première. */

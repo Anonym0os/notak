@@ -1,4 +1,5 @@
 import { DatabaseSync } from 'node:sqlite'
+import { type Cle, ErreurChiffrement, duDisque, pourLeDisque } from './chiffrement.ts'
 import { type Acces, RELATION_DU_ROLE, ROLES, type Role, roleDeRelation } from './droits.ts'
 import { migrer } from './migrations.ts'
 
@@ -283,10 +284,29 @@ export const NOTIFICATIONS_GARDEES = 200
 
 type Ligne = Record<string, unknown>
 
-export function ouvrirBase(chemin: string): Base {
+/** Les premiers octets d'un état chiffré (`NKC1`), pour en trouver un en SQL. */
+const MAGIE_CHIFFRE = new TextEncoder().encode('NKC1')
+
+/**
+ * Ouvre la base. Avec `cle`, l'état des documents est chiffré à l'écriture et déchiffré à la lecture (voir
+ * `chiffrement.ts`) ; un état d'avant, en clair, se lit tel quel et repart chiffré à sa prochaine écriture.
+ * Une clé fausse, ou l'absence de clé devant des documents chiffrés, refuse d'ouvrir : sinon la synchro partirait
+ * d'un document vide et l'enregistrerait par-dessus le vrai.
+ */
+export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
   const db = new DatabaseSync(chemin)
-  db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;')
+  // Avec une clé, ce que SQLite efface est mis à zéro : l'état en clair qu'un document chiffré remplace ne traîne pas.
+  db.exec(`PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;${cle ? ' PRAGMA secure_delete = ON;' : ''}`)
   migrer(db, chemin === ':memory:' ? undefined : (version) => `${chemin}.avant-${version}`)
+  const temoin = db.prepare('SELECT etat FROM documents WHERE substr(etat, 1, 4) = ? LIMIT 1').get(MAGIE_CHIFFRE) as { etat: Uint8Array } | undefined
+  if (temoin) {
+    try {
+      duDisque(cle, temoin.etat)
+    } catch (e) {
+      db.close()
+      throw new ErreurChiffrement(`les documents ne se déchiffrent pas : ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
 
   const tous = (sql: string, ...params: (string | number | Uint8Array)[]): Ligne[] =>
     db.prepare(sql).all(...params) as Ligne[]
@@ -493,10 +513,14 @@ export function ouvrirBase(chemin: string): Base {
 
     document(nom) {
       const l = un('SELECT etat FROM documents WHERE nom = ?', nom)
-      return l ? (l.etat as Uint8Array) : null
+      return l ? duDisque(cle, l.etat as Uint8Array) : null
     },
     enregistrerDocument: (nom, etat) =>
-      void executer('INSERT INTO documents (nom,etat) VALUES (?,?) ON CONFLICT(nom) DO UPDATE SET etat = excluded.etat', nom, etat),
+      void executer(
+        'INSERT INTO documents (nom,etat) VALUES (?,?) ON CONFLICT(nom) DO UPDATE SET etat = excluded.etat',
+        nom,
+        pourLeDisque(cle, etat),
+      ),
 
     creerFichier: (f) => void executer('INSERT INTO fichiers (id,type,taille,auteur) VALUES (?,?,?,?)', f.id, f.type, f.taille, f.auteur),
     fichier: (id) => (un('SELECT * FROM fichiers WHERE id = ?', id) as Fichier | null),

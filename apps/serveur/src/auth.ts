@@ -40,6 +40,11 @@ export interface OptionsAuth {
   /** Les fournisseurs de connexion configurés ; un fournisseur absent n'est pas proposé. */
   fournisseurs?: Partial<Record<Fournisseur, Identifiants>>
   choisirCouleur?: () => string
+  /**
+   * Les inscriptions sont fermées (`NOTAK_INSCRIPTIONS=fermees`) : aucun compte ne se crée seul, ni par mot de passe
+   * ni par un fournisseur. Restent le SSO d'un espace, qu'un admin a déclaré, et `bun run serveur:compte`.
+   */
+  inscriptionsFermees?: boolean
   /** Les fournisseurs d'identité du réseau interne (leur origine), qu'un espace peut déclarer en SSO. */
   idpInternes?: readonly string[]
 }
@@ -153,7 +158,10 @@ export function optionsAuth(o: OptionsAuth) {
         create: {
           // Toute création passe ici, par mot de passe comme par fournisseur : le nom se vérifie, la couleur et
           // l'accueil se choisissent.
-          before: async (u: { name: string; [cle: string]: unknown }) => {
+          before: async (u: { name: string; [cle: string]: unknown }, ctx: { path?: string } | null) => {
+            if (o.inscriptionsFermees && ctx?.path !== undefined && !ctx.path.startsWith('/sso/')) {
+              throw new APIError('FORBIDDEN', { message: 'inscriptions fermées', code: 'INSCRIPTIONS_FERMEES' })
+            }
             const nom = (u.name ?? '').trim()
             if (!nom || nom.length > NOM_MAX) throw new APIError('BAD_REQUEST', { message: 'nom invalide', code: 'NOM_INVALIDE' })
             return { data: { ...u, name: nom, couleur: choisirCouleur(), racine: randomUUID() } }

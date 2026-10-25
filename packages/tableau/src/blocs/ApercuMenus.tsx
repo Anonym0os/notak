@@ -1,4 +1,3 @@
-import { IconBookmark, IconLink } from '@tabler/icons-react'
 import type { Editor } from '@tiptap/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { PanneauFlottant } from '../PanneauFlottant'
@@ -13,7 +12,6 @@ import { blocA } from './gestes'
  * (`collerComme.ts`) ; le clavier du premier est le sien (↑ ↓ Entrée Échap), celui du second est le champ.
  */
 
-const icone = (Dessin: typeof IconLink) => <Dessin size={20} stroke={1.6} color="currentColor" className="notak-menu-icone" aria-hidden="true" />
 
 export function ApercuMenus({ editeur }: { editeur: Editor }) {
   const [etat, setEtat] = useState<EtatApercu>(() => CLE_APERCU.getState(editeur.state) ?? null)
@@ -28,11 +26,14 @@ export function ApercuMenus({ editeur }: { editeur: Editor }) {
   return etat.genre === 'coller' ? <MenuCollerComme editeur={editeur} etat={etat} hote={hote} /> : <ChampApercu editeur={editeur} hote={hote} />
 }
 
-/** « Lien » (garder le lien collé) ou « Aperçu » (en faire une carte), sous la fin du lien. */
+/**
+ * « Coller en tant que » (mesuré dans Notion) : « Aperçu » (en faire une carte, choisi d'avance) ou « URL » (garder le
+ * lien collé), sous la fin du lien ; des lignes de texte seul, sous un titre.
+ */
 function MenuCollerComme({ editeur, etat, hote }: { editeur: Editor; etat: Extract<EtatApercu, { genre: 'coller' }>; hote: HTMLElement | null }) {
   const choix = [
-    { cle: 'lien', libelle: t('menus.collerComme.lien'), dessin: IconLink },
-    { cle: 'apercu', libelle: t('menus.collerComme.apercu'), dessin: IconBookmark },
+    { cle: 'apercu', libelle: t('menus.collerComme.apercu') },
+    { cle: 'lien', libelle: t('menus.collerComme.lien') },
   ]
   // Sous le point où finit le lien, relu à chaque image : le menu suit la page qui défile.
   const cible = () => {
@@ -44,7 +45,7 @@ function MenuCollerComme({ editeur, etat, hote }: { editeur: Editor; etat: Extra
     }
   }
   const agir = (rang: number) => {
-    if (rang === 1) choisirApercu(editeur.view)
+    if (rang === 0) choisirApercu(editeur.view)
     else fermerApercu(editeur.view)
     editeur.commands.focus()
   }
@@ -52,6 +53,7 @@ function MenuCollerComme({ editeur, etat, hote }: { editeur: Editor; etat: Extra
     <PanneauFlottant cible={cible} hote={hote} cote="bas" alignement="debut" distance={4} fleche={false} className="notak-menu-blocs-panneau" onPointerDown={(e) => e.preventDefault()}>
       <div className="notak-menu-blocs notak-apercu-coller" data-genre="coller" role="listbox" aria-label={t('menus.collerComme.titre')}>
         <div className="notak-menu-blocs-liste">
+          <div className="notak-menu-blocs-categorie">{t('menus.collerComme.titre')}</div>
           {choix.map((c, i) => (
             <div
               key={c.cle}
@@ -63,7 +65,6 @@ function MenuCollerComme({ editeur, etat, hote }: { editeur: Editor; etat: Extra
               onPointerEnter={() => i !== etat.rang && ouvrirApercu(editeur.view, { ...etat, rang: i })}
               onClick={() => agir(i)}
             >
-              <span className="notak-menu-blocs-icone">{icone(c.dessin)}</span>
               <span className="notak-menu-blocs-nom">{c.libelle}</span>
             </div>
           ))}

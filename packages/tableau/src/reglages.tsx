@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { type ChoixLangue, definirLangue, t } from './langue'
 import { PastillePersonne } from './pastille'
 import { Icone } from './icones'
+import type { Habillages } from './habillage/appliquer'
+import { ErreurHabillage, HABILLAGE_NOTAK } from './habillage/format'
 
 /**
  * Les réglages de l'interface, gardés par navigateur : thème, taille de l'interface, et ce que fait un double-clic
@@ -20,6 +22,8 @@ export interface Reglages {
   barreChoisie?: true
   /** La langue de l'interface ; `auto` suit le navigateur. Absente : `auto`. */
   langue?: ChoixLangue
+  /** L'habillage choisi sur cet appareil (`notak` : celui d'origine). Absent : celui que propose le serveur. */
+  habillage?: string
 }
 
 /**
@@ -54,7 +58,8 @@ export function refusDePhoto(f: { type: string; size: number }): string | null {
 const CLE = 'notak:reglages'
 const DEFAUT: Reglages = { theme: 'clair', taille: 'moyenne', doubleClic: true, grille: 10, barre: 'gauche', langue: 'auto' }
 
-function lire(): Reglages {
+/** Les réglages gardés dans ce navigateur, relus champ par champ. */
+export function lireReglages(): Reglages {
   try {
     const brut = JSON.parse(localStorage.getItem(CLE) ?? '{}') as Partial<Reglages>
     // L'ancienne clé du thème seul, d'avant la fenêtre des réglages.
@@ -68,6 +73,7 @@ function lire(): Reglages {
       barre: brut.barreChoisie && brut.barre === 'flottante' ? 'flottante' : 'gauche',
       ...(brut.barreChoisie ? { barreChoisie: true } : {}),
       langue: brut.langue === 'fr' || brut.langue === 'en' ? brut.langue : 'auto',
+      ...(typeof brut.habillage === 'string' && /^[a-z0-9][a-z0-9-]{0,39}$/.test(brut.habillage) ? { habillage: brut.habillage } : {}),
     }
   } catch {
     return DEFAUT
@@ -75,7 +81,7 @@ function lire(): Reglages {
 }
 
 export function useReglages() {
-  const [reglages, setReglages] = useState(lire)
+  const [reglages, setReglages] = useState(lireReglages)
   useEffect(() => {
     try {
       localStorage.setItem(CLE, JSON.stringify(reglages))
@@ -157,16 +163,77 @@ export function SectionCompte({ compte }: { compte: ServiceCompte }) {
   )
 }
 
+/** Pourquoi un fichier de thème est refusé, avec des mots. */
+function refusDeHabillage(e: unknown): string {
+  if (!(e instanceof ErreurHabillage)) return t('reglages.habillage.refus.lecture')
+  return t(`reglages.habillage.refus.${e.raison}`, { champ: e.champ ?? '' })
+}
+
+export function SectionHabillage({ habillages, changer }: { habillages: Habillages; changer(r: Partial<Reglages>): void }) {
+  const [erreur, setErreur] = useState<string | null>(null)
+  const champ = useRef<HTMLInputElement>(null)
+  const { liste, actif, impose } = habillages
+  const actuel = actif?.id ?? HABILLAGE_NOTAK
+  const importe = liste.find((d) => d.habillage.id === actuel && d.origine === 'importe')
+  const choisirFichier = async (f: File | undefined) => {
+    if (champ.current) champ.current.value = ''
+    if (!f) return
+    setErreur(null)
+    try {
+      const h = habillages.importer(await f.text())
+      changer({ habillage: h.id })
+    } catch (e) {
+      setErreur(refusDeHabillage(e))
+    }
+  }
+  const options: [string, string][] = [[HABILLAGE_NOTAK, t('reglages.habillage.notak')], ...liste.map((d): [string, string] => [d.habillage.id, d.habillage.nom])]
+  return (
+    <>
+      <label>{t('reglages.habillage')}</label>
+      <div className="notak-reglages-choix" role="radiogroup" aria-label={t('reglages.habillage')}>
+        {options.map(([id, nom]) => (
+          <button key={id} type="button" role="radio" aria-checked={actuel === id} disabled={impose} onClick={() => changer({ habillage: id })}>
+            {nom}
+          </button>
+        ))}
+      </div>
+      {impose && actif ? (
+        <p className="notak-reglages-note">{t('reglages.habillage.impose', { nom: actif.nom })}</p>
+      ) : (
+        <div className="notak-reglages-actions">
+          <button type="button" onClick={() => champ.current?.click()}>
+            {t('reglages.habillage.importer')}
+          </button>
+          {importe && (
+            <button type="button" onClick={() => (habillages.retirer(importe.habillage.id), changer({ habillage: HABILLAGE_NOTAK }))}>
+              {t('reglages.habillage.retirer', { nom: importe.habillage.nom })}
+            </button>
+          )}
+          <input ref={champ} type="file" accept=".json,application/json" hidden aria-label={t('reglages.habillage.champ')} onChange={(e) => void choisirFichier(e.target.files?.[0])} />
+        </div>
+      )}
+      {erreur && (
+        <p className="notak-reglages-erreur" role="alert">
+          {erreur}
+        </p>
+      )}
+    </>
+  )
+}
+
 export function FenetreReglages({
   reglages,
   changer,
   fermer,
   compte,
+  habillages,
 }: {
   reglages: Reglages
   changer(r: Partial<Reglages>): void
   fermer(): void
   compte?: ServiceCompte
+  /** Le choix du thème ; sans lui, la ligne n'apparaît pas. */
+  habillages?: Habillages
 }) {
   useEffect(() => {
     const touche = (e: KeyboardEvent) => {
@@ -203,6 +270,7 @@ export function FenetreReglages({
             ['clair', t('reglages.theme.clair')],
             ['sombre', t('reglages.theme.sombre')],
           ])}
+          {habillages && <SectionHabillage habillages={habillages} changer={changer} />}
           <label>{t('reglages.taille')}</label>
           {choix('taille', [
             ['petite', t('reglages.taille.petite')],

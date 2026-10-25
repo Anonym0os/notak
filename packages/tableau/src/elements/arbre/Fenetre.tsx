@@ -47,13 +47,13 @@ export function BoutonIcone({
 }
 
 /**
- * En haut à gauche, comme sur le tableau et le document (Ilots.tsx) : l'îlot du retour au tableau et du panneau de
- * gauche, puis le fil (le tableau qui porte la carte, puis son nom) et son état.
+ * En haut à gauche, comme sur le tableau et le document (Ilots.tsx) : un seul îlot, le retour au tableau, le panneau
+ * de gauche, puis le fil (le tableau qui porte la carte, puis son nom) et son état.
  */
 export function EnTete({ titre, etat, fermer, navigation }: { titre: string; etat: string; fermer(): void; navigation?: { actif: boolean; basculer(): void } }) {
   return (
     <div className="notak-arbre-entete">
-      <Ilot>
+      <Ilot className="notak-ilot-fil">
         <BoutonIlot icone="gauche" libelle={t('arbre.fermer')} onClick={fermer} />
         {navigation && (
           <>
@@ -67,11 +67,12 @@ export function EnTete({ titre, etat, fermer, navigation }: { titre: string; eta
             />
           </>
         )}
+        {/* Le fil cède sa place en premier quand la barre de la carte le touche (fenetre.css). */}
+        <span className="notak-arbre-nom">
+          <FiletIlot />
+          <FilEcran titre={<span>{titre || t('type.arbre')}</span>} nom={titre || t('type.arbre')} fermer={fermer} apres={etat && <span className="notak-arbre-etat">{etat}</span>} />
+        </span>
       </Ilot>
-      <div className="notak-arbre-nom">
-        <FilEcran titre={<span>{titre || t('type.arbre')}</span>} fermer={fermer} />
-        {etat && <span className="notak-arbre-etat">{etat}</span>}
-      </div>
     </div>
   )
 }

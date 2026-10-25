@@ -219,7 +219,7 @@ describe('NOTION.md § 10.3 : coller une adresse ouvre « coller comme »', () =
 describe('NOTION.md § 10.3 : le clavier du menu « coller comme »', () => {
   const coller1 = (ed: Editor) => coller(ed.view, presse(URL1), false)
 
-  it('↓ puis Entrée : « Aperçu » ; ↑ revient en boucle', () => {
+  it('Entrée sur « Aperçu » (le défaut) pose la carte ; ↓ et ↑ bouclent', () => {
     const ed = ouvrir([p('')])
     coller1(ed)
     touche(ed, 'ArrowDown')
@@ -228,13 +228,15 @@ describe('NOTION.md § 10.3 : le clavier du menu « coller comme »', () => {
     expect(etat(ed)).toMatchObject({ rang: 0 })
     touche(ed, 'ArrowUp')
     expect(etat(ed)).toMatchObject({ rang: 1 })
+    touche(ed, 'ArrowUp')
     touche(ed, 'Enter')
     expect(types(ed)).toEqual(['apercuLien', 'paragraph'])
   })
 
-  it('Entrée sur « Lien » (le défaut) et Échap gardent le lien et ferment le menu', () => {
+  it('Entrée sur « URL » et Échap gardent le lien et ferment le menu', () => {
     const ed = ouvrir([p('')])
     coller1(ed)
+    touche(ed, 'ArrowDown')
     touche(ed, 'Enter')
     expect(etat(ed)).toBeNull()
     expect(types(ed)).toEqual(['paragraph'])

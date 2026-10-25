@@ -17,7 +17,7 @@ import {
 } from './modele/diapositives'
 import type { Geste } from './modele/gestes'
 import { type Lecture, enfantsDe, structureDe } from './modele/sujets'
-import { RATIOS_PITCH, dimensionsDuRatio, ratioEffectif, themePitchDe } from './themesPitch'
+import { RATIOS_PITCH, dimensionsDuRatio, ratioEffectif, themeDuPitch } from './themesPitch'
 
 /**
  * L'onglet Pitch du panneau de côté (docs/XMIND.md § 12) : un aperçu de la diapositive du sujet, le thème et le
@@ -91,7 +91,6 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
   const [themes, setThemes] = useState(false)
   const bouton = useRef<HTMLButtonElement>(null)
   const ratio = ratioEffectif(arbre.pitch, typeof window === 'undefined' ? undefined : window.innerWidth, typeof window === 'undefined' ? undefined : window.innerHeight)
-  const theme = themePitchDe(arbre.pitch?.theme)
 
   if (ids.length === 0)
     return (
@@ -148,7 +147,7 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
         <button ref={bouton} type="button" className="notak-arbre-pitch-bouton" title={t('arbre.pitch.themeInfo')} aria-haspopup="dialog" aria-expanded={themes} onClick={() => setThemes((o) => !o)}>
           {t('arbre.pitch.changerTheme')}
         </button>
-        {themes && <ChoixTheme ancre={bouton.current} theme={theme.id} ratio={ratio} choisir={(id) => faire({ type: 'pitch', reglage: { theme: id } })} fermer={() => setThemes(false)} />}
+        {themes && <ChoixTheme ancre={bouton.current} pitch={arbre.pitch} ratio={ratio} choisir={(reglage) => faire({ type: 'pitch', reglage })} fermer={() => setThemes(false)} />}
         <Ligne libelle={t('arbre.pitch.ratio')}>
           <Menu
             valeur={arbre.pitch?.ratio ?? LIGNE_VIDE}
@@ -252,8 +251,8 @@ function Apercu({ lecture: l, ids, arbre, ratio, adresse }: { lecture: Lecture; 
   const courant = siens[Math.min(rang, siens.length - 1)]
   if (!courant) return <p className="notak-arbre-pitch-apercu-texte">{t('arbre.pitch.invisibles')}</p>
   return (
-    <div className="notak-arbre-pitch-apercu" key={`${id}:${arbre.pitch?.theme ?? ''}:${arbre.pitch?.ratio ?? ''}`} onMouseEnter={() => setSurvol(true)} onMouseLeave={() => (setSurvol(false), setRang(0))}>
-      <Diapositive lecture={l} diapo={courant} theme={themePitchDe(arbre.pitch?.theme)} ratio={ratio} adresse={adresse} taille={{ l: largeur, h: HAUTEUR_APERCU }} />
+    <div className="notak-arbre-pitch-apercu" key={`${id}:${arbre.pitch?.theme ?? ''}:${arbre.pitch?.perso?.id ?? ''}:${arbre.pitch?.ratio ?? ''}`} onMouseEnter={() => setSurvol(true)} onMouseLeave={() => (setSurvol(false), setRang(0))}>
+      <Diapositive lecture={l} diapo={courant} theme={themeDuPitch(arbre.pitch)} ratio={ratio} adresse={adresse} taille={{ l: largeur, h: HAUTEUR_APERCU }} />
     </div>
   )
 }

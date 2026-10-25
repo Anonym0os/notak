@@ -255,7 +255,7 @@ describe('les popovers du mode Pitch (ChoixTheme)', () => {
   it('« Changer de thème » dans le panneau de droite : la grille des thèmes tient dans l’écran', () => {
     // Le bouton est dans le panneau de 268 px contre le bord droit ; la grille, content-box, fait 276 + 32 de rembourrage.
     const bouton = faux({ left: FENETRE.l - 250, top: 330, width: 232, height: 28 })
-    const { hote } = monter(<ChoixTheme ancre={bouton.el} theme="clair" ratio="16:9" choisir={() => {}} fermer={() => {}} />, { l: 308, h: 420 })
+    const { hote } = monter(<ChoixTheme ancre={bouton.el} pitch={{ theme: 'light' }} ratio="16:9" choisir={() => {}} fermer={() => {}} />, { l: 308, h: 420 })
     const p = posee(hote.querySelector('[role=dialog]'), { l: 308, h: 420 })
     tient(p)
     expect(p.x + p.l).toBeLessThanOrEqual(FENETRE.l - MARGE_FENETRE)

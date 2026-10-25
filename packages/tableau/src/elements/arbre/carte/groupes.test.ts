@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { StructureArbre } from '../../../coeur/tableau'
 import { fr } from '../../../langue'
+import { lireHabillage } from '../../../habillage/format'
 import { THEMES, variantesDe } from '../themes'
 import { GROUPES_SQUELETTES, accentCourant, choixDe, groupeCourant, groupeDeStructure, groupesThemes, nomDeSquelette, squeletteDeCarte, themeDuGroupe, varianteActive, varianteSuivante } from './groupes'
 import { SQUELETTES } from './squelettes'
@@ -89,5 +90,22 @@ describe('les groupes de thèmes', () => {
     const g = groupesThemes(perso).at(-1)!
     expect(choixDe(g, '#111111')).toEqual({ theme: 'perso:a', accent: '#111111', perso: { nom: 'Mien', palette: g.palette } })
     expect(choixDe(groupesThemes([])[0]!, undefined).perso).toBeUndefined()
+  })
+})
+
+describe('les thèmes de couleur des habillages', () => {
+  const silak = lireHabillage({ notak: 'habillage', version: 1, id: 'silak', nom: 'Silak', carte: { palette: ['#356673', '#d8a173', '#3fc168'], fond: '#f5f2ee' } })
+  const sans = lireHabillage({ notak: 'habillage', version: 1, id: 'nuit', nom: 'Nuit' })
+
+  it('passent devant ceux de Notak, parmi les thèmes de couleur ; un habillage sans palette n’en donne pas', () => {
+    const groupes = groupesThemes([], [silak, sans])
+    expect(groupes[0]).toMatchObject({ id: 'perso:habillage-silak', nom: 'Silak', categorie: 'colore', habillage: true })
+    expect(groupes[0]!.palette).toHaveLength(6)
+    expect(groupes.filter((g) => g.habillage)).toHaveLength(1)
+  })
+
+  it('emportent leur palette et leur fond dans la carte', () => {
+    const choix = choixDe(groupesThemes([], [silak])[0]!, undefined)
+    expect(choix.perso).toEqual({ nom: 'Silak', palette: ['#356673', '#d8a173', '#3fc168', '#356673', '#d8a173', '#3fc168'], fond: '#f5f2ee' })
   })
 })

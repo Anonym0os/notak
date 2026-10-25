@@ -191,29 +191,44 @@
 /* La barre du haut : les îlots du tableau et de la carte (ilots.css). Le retour et le fil à gauche ; l'historique, le
    partage, puis les options, l'export et le compte à droite. */
 .notak-document-entete {
+  /* La page défile dessous (le corps lui laisse 68 px en haut). */
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  /* Au-dessus de la poignée des blocs et du sommaire (3), sous les menus et le choix d'emoji (10 et plus). */
+  z-index: 5;
   display: flex;
   align-items: center;
-  flex: none;
-  gap: 12px;
+  gap: 8px;
   box-sizing: border-box;
   height: 68px;
   padding: 16px;
+  pointer-events: none;
 }
 
-.notak-document-entete > .notak-fil {
-  flex: 1 1 0;
-  min-width: 0;
-  overflow: hidden;
+.notak-document-entete > * {
+  pointer-events: auto;
 }
 
-/* Dans l'application de bureau, la barre tient lieu de barre de titre : les boutons de la fenêtre à gauche (88 px),
-   qu'elle rend en plein écran (voir `toile.css`). */
+/* Le fil est un îlot à sa mesure ; les îlots de droite gardent le bord. */
+.notak-document-entete-droite {
+  margin-left: auto;
+}
+
+/* Dans l'application de bureau, la barre tient lieu de barre de titre (on y saisit la fenêtre), et ses îlots se
+   centrent sur les boutons de la fenêtre comme ceux du tableau (voir `toile.css`) : 8 px du haut, 80 px à gauche. */
 :root[data-bureau] .notak-document-entete {
-  padding-left: 88px;
+  pointer-events: auto;
 }
 
-:root[data-bureau][data-plein-ecran] .notak-document-entete {
-  padding-left: 16px;
+:root[data-bureau]:not([data-plein-ecran]) .notak-document-entete {
+  height: 60px;
+  padding: 8px 16px 16px 80px;
+}
+
+:root[data-bureau]:not([data-plein-ecran]) .notak-document-corps {
+  padding-top: 60px;
 }
 
 .notak-document-titre-lu[data-vide],
@@ -296,6 +311,9 @@
   position: relative;
   flex: 1;
   min-height: 0;
+  box-sizing: border-box;
+  /* La place de la barre du haut, posée par-dessus : la page commence dessous et y passe en défilant. */
+  padding-top: 68px;
   overflow-x: hidden;
   overflow-y: auto;
   user-select: text;

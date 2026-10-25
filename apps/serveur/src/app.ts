@@ -17,6 +17,7 @@ import { type Base, DUREE_ACCES_PUBLIC_MS, type Fichier, type Utilisateur } from
 import { type Auth, CHEMIN_AUTH, type Fournisseur, utilisateurDeSession } from './auth.ts'
 import { type Autorisation, objetElement } from './autorisation.ts'
 import { normaliserEmail } from './comptes.ts'
+import { type Cle, duDisque, pourLeDisque } from './chiffrement.ts'
 import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from './contenu.ts'
 import type { Limiteur } from './debit.ts'
 import { type Role, auMoins, role, roleDeRelation } from './droits.ts'
@@ -26,8 +27,10 @@ import { ErreurBanque, chercherImages } from './images.ts'
 import { indexerDocument, requeteIndex } from './indexation.ts'
 import { hacher, verifier } from './motsDePasse.ts'
 import { cookieAccesPublic, empreinteDe, lireCookie, nouveauJeton } from './sessions.ts'
+import { TYPE_NOTAK, ecrireCopie } from './copie.ts'
 import { nomDuDocument } from './synchro.ts'
 import { largeurDemandee, nomReduit, reduire, reductible } from './tailles.ts'
+import { INSTANCE_PAR_DEFAUT, type Instance } from './instance.ts'
 import { verrouPar } from './verrou.ts'
 import { creerZip, nommerLesMedias } from './zip.ts'
 
@@ -52,6 +55,10 @@ export interface Contexte {
   cookieSecurise: boolean
   /** Le build de `apps/web`, servi à côté de l'API ; absent en développement, où Vite s'en charge. */
   dossierWeb?: string
+  /** Son nom, ses inscriptions, ses habillages ; absente, celle d'origine (`INSTANCE_PAR_DEFAUT`). */
+  instance?: Instance
+  /** La clé du chiffrement au repos : les fichiers déposés et leurs copies réduites sont écrits chiffrés. */
+  cle?: Cle | null
 }
 
 export interface MoyensConnexion {
@@ -122,6 +129,7 @@ async function lireBorne(flux: ReadableStream<Uint8Array> | null, max: number): 
 
 export function creerApp(ctx: Contexte): Hono {
   const { base } = ctx
+  const cle = ctx.cle ?? null
   const app = new Hono()
 
   const utilisateurCourant = (c: Context): Promise<Utilisateur | null> => utilisateurDeSession(ctx.auth, base, c.req.raw.headers)
@@ -181,6 +189,10 @@ export function creerApp(ctx: Contexte): Hono {
       console.warn(`Notak : envoi des droits à OpenFGA différé (${(e as Error).message})`)
     }
   }
+
+  const instance = ctx.instance ?? INSTANCE_PAR_DEFAUT
+  // Ce que l'écran de connexion lit avant tout compte : il se règle dessus (nom, inscription, thème).
+  app.get('/api/instance', (c) => c.json(instance))
 
   const versSso = async (c: Context, b: Record<string, unknown>): Promise<Response> => {
     const oidc = b.oidcConfig as Record<string, unknown> | undefined
@@ -879,7 +891,7 @@ export function creerApp(ctx: Contexte): Hono {
     if (!id || !ID_FICHIER.test(fichier) || !idsDeFichiers(vuePublique(id).elements).has(fichier)) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
     const f = base.fichier(fichier)
     if (!f) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
-    return servirFichier(f, 'private, max-age=300')
+    return await servirFichier(f, 'private, max-age=300')
   })
 
   // ---- Export ----
@@ -908,12 +920,43 @@ export function creerApp(ctx: Contexte): Hono {
       if (!f) continue
       // Un fichier absent du disque ne fait pas échouer toute l'archive.
       const octets = await readFile(join(ctx.dossierFichiers, f.id)).catch(() => null)
-      if (octets) entrees.push({ nom: m.nom, octets, type: f.type })
+      if (octets) entrees.push({ nom: m.nom, octets: duDisque(cle, octets), type: f.type })
     }
     if (entrees.length === 0) return c.json({ erreur: 'aucun média', code: 'aucun_media' }, 404)
     return c.body(creerZip(entrees) as Uint8Array<ArrayBuffer>, 200, {
       'content-type': 'application/zip',
       'content-disposition': enTeteTelechargement(`${tableau.titre} (${langueExport(c.req.query('langue')) === 'en' ? 'media' : 'médias'})`, 'zip'),
+      'cache-control': 'no-store',
+    })
+  })
+
+  // Le format natif : le fichier `.notak` du tableau, de ses sous-tableaux (ceux qu'on peut ouvrir) et de ses fichiers.
+  app.get('/api/tableaux/:id/notak', async (c) => {
+    const g = await garde(c, 'lecture')
+    if (g instanceof Response) return g
+    const options = { sousTableaux: c.req.query('sousTableaux') !== '0', fichiers: c.req.query('fichiers') !== '0' }
+    const octets = await ecrireCopie(
+      g.id,
+      {
+        etat: async (id) => {
+          // Un sous-tableau qu'on ne peut pas voir, ou barré par un mot de passe, reste dehors.
+          if (id !== g.id && ((await roleSur(g.u.id, id)) === null || verrouPar(base, g.u.id, id) !== null)) return null
+          const vivant = ctx.synchro()?.documents.get(nomDuDocument(id))
+          // Un tableau jamais ouvert n'a pas encore d'état : le sien est vide.
+          return vivant ? Y.encodeStateAsUpdate(vivant) : (base.document(nomDuDocument(id)) ?? (id === g.id ? Y.encodeStateAsUpdate(new Y.Doc()) : null))
+        },
+        titre: titreDe,
+        fichier: async (id) => {
+          const f = base.fichier(id)
+          const o = f ? await readFile(join(ctx.dossierFichiers, f.id)).catch(() => null) : null
+          return f && o ? { octets: o, type: f.type } : null
+        },
+      },
+      options,
+    )
+    return c.body(octets as Uint8Array<ArrayBuffer>, 200, {
+      'content-type': TYPE_NOTAK,
+      'content-disposition': enTeteTelechargement(lireLe(g.id).titre, 'notak'),
       'cache-control': 'no-store',
     })
   })
@@ -937,7 +980,7 @@ export function creerApp(ctx: Contexte): Hono {
   const ranger = async (octets: Buffer, type: string, auteur: string): Promise<string> => {
     const id = randomUUID()
     await mkdir(ctx.dossierFichiers, { recursive: true })
-    await writeFile(join(ctx.dossierFichiers, id), octets)
+    await writeFile(join(ctx.dossierFichiers, id), pourLeDisque(cle, octets))
     try {
       base.creerFichier({ id, type, taille: octets.length, auteur })
     } catch (e) {
@@ -963,9 +1006,17 @@ export function creerApp(ctx: Contexte): Hono {
   })
 
   /** Le contenu d'un fichier rangé, servi pour qu'il ne s'exécute jamais dans l'origine de l'application. */
-  const servirFichier = (f: Fichier, cache: string): Response => {
-    const flux = Readable.toWeb(createReadStream(join(ctx.dossierFichiers, f.id))) as ReadableStream
-    return new Response(flux, { headers: { ...entetesFichier(cache, f.type), 'content-type': f.type, 'content-length': String(f.taille) } })
+  const servirFichier = async (f: Fichier, cache: string): Promise<Response> => {
+    const chemin = join(ctx.dossierFichiers, f.id)
+    if (!cle) {
+      const flux = Readable.toWeb(createReadStream(chemin)) as ReadableStream
+      return new Response(flux, { headers: { ...entetesFichier(cache, f.type), 'content-type': f.type, 'content-length': String(f.taille) } })
+    }
+    // Chiffré, le fichier se déchiffre d'un bloc (25 Mo au plus) : GCM ne rend rien avant d'avoir vérifié le tout.
+    const octets = duDisque(cle, await readFile(chemin))
+    return new Response(new Uint8Array(octets), {
+      headers: { ...entetesFichier(cache, f.type), 'content-type': f.type, 'content-length': String(octets.length) },
+    })
   }
   const entetesFichier = (cache: string, type = '') => ({
     'cache-control': cache,
@@ -982,15 +1033,15 @@ export function creerApp(ctx: Contexte): Hono {
     if (!reductible(type)) return null
     const chemin = join(ctx.dossierFichiers, nomReduit(id, largeur))
     try {
-      return await readFile(chemin)
+      return duDisque(cle, await readFile(chemin))
     } catch {
-      // pas encore fabriquée
+      // pas encore fabriquée, ou illisible : on la refait d'après l'original
     }
-    const fabriquee = await reduire(await readFile(join(ctx.dossierFichiers, id)), type, largeur)
+    const fabriquee = await reduire(duDisque(cle, await readFile(join(ctx.dossierFichiers, id))), type, largeur)
     if (!fabriquee) return null
     // Écrite sous un nom provisoire, puis posée d'un coup : deux demandes ensemble ne se lisent jamais à moitié.
     const provisoire = `${chemin}.${randomUUID()}.tmp`
-    await writeFile(provisoire, fabriquee)
+    await writeFile(provisoire, pourLeDisque(cle, fabriquee))
     await rename(provisoire, chemin)
     return fabriquee
   }
@@ -1027,7 +1078,7 @@ export function creerApp(ctx: Contexte): Hono {
         })
       }
     }
-    return servirFichier(f, cache)
+    return await servirFichier(f, cache)
   })
 
   // ---- Aperçus ----

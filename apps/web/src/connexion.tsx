@@ -1,7 +1,9 @@
+import { lireReglages, useHabillages } from '@notak/tableau'
 import { t } from './langue'
 import { type FormEvent, useEffect, useState } from 'react'
 import {
   type Fournisseur,
+  type Instance,
   type Moi,
   connexionFournisseur,
   connexionSso,
@@ -25,8 +27,15 @@ function erreurDeRetour(): string | null {
   return erreur ? t('connexion.fournisseurRefuse') : null
 }
 
-/** L'écran d'entrée : se connecter, créer un compte, ou retrouver l'accès par un nouveau mot de passe. */
-export function EcranConnexion({ surConnexion }: { surConnexion(moi: Moi): void }) {
+/**
+ * L'écran d'entrée : se connecter, créer un compte quand le serveur l'accepte, ou retrouver l'accès par un nouveau mot
+ * de passe. Il porte déjà le nom de l'instance et son thème (celui qu'elle impose, sinon celui choisi sur cet
+ * appareil, sinon celui qu'elle propose).
+ */
+export function EcranConnexion({ instance, surConnexion }: { instance: Instance; surConnexion(moi: Moi): void }) {
+  const [reglages] = useState(lireReglages)
+  useHabillages({ fournis: instance.habillages, ...(instance.impose ? { impose: instance.impose } : {}), ...(instance.parDefaut ? { parDefaut: instance.parDefaut } : {}) }, reglages.habillage, reglages.theme)
+  const ouvertes = instance.inscriptions === 'ouvertes'
   const [jeton] = useState(jetonReinitialisation)
   const [mode, setMode] = useState<Mode>(jeton ? 'nouveau' : 'connexion')
   const [email, setEmail] = useState('')
@@ -103,7 +112,7 @@ export function EcranConnexion({ surConnexion }: { surConnexion(moi: Moi): void 
   return (
     <main className="connexion">
       <form className="connexion-carte" onSubmit={valider} noValidate>
-        <h1>Notak</h1>
+        <h1>{instance.nom}</h1>
         {mode === 'oubli' && <p className="connexion-aide">{t(courriel ? 'connexion.oubliAide' : 'connexion.oubliSansCourriel')}</p>}
         {mode === 'sso' && <p className="connexion-aide">{t('connexion.ssoAide')}</p>}
         {mode === 'inscription' && (
@@ -161,9 +170,17 @@ export function EcranConnexion({ surConnexion }: { surConnexion(moi: Moi): void 
             {t('connexion.oubli')}
           </button>
         )}
-        <button type="button" className="bouton-lien" onClick={() => passerA(mode === 'connexion' ? 'inscription' : 'connexion')}>
-          {mode === 'connexion' ? t('connexion.creer') : t('connexion.dejaCompte')}
-        </button>
+        {mode !== 'connexion' ? (
+          <button type="button" className="bouton-lien" onClick={() => passerA('connexion')}>
+            {t('connexion.dejaCompte')}
+          </button>
+        ) : ouvertes ? (
+          <button type="button" className="bouton-lien" onClick={() => passerA('inscription')}>
+            {t('connexion.creer')}
+          </button>
+        ) : (
+          <p className="connexion-note">{t('connexion.fermees')}</p>
+        )}
       </form>
     </main>
   )
