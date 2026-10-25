@@ -70,7 +70,7 @@ describe('les rubriques', () => {
     expect(titre()).toBe('Apparence')
     expect(lien('Apparence')?.getAttribute('aria-current')).toBe('page')
     const rubriques = [...hote.querySelectorAll('.notak-rg-lien > span:first-of-type')].map((s) => s.textContent)
-    expect(rubriques).toEqual(['Général', 'Apparence', 'Tableau', 'Raccourcis clavier'])
+    expect(rubriques).toEqual(['Général', 'Apparence', 'Toile', 'Raccourcis clavier'])
     expect([...hote.querySelectorAll('.notak-rg-groupe')].map((g) => g.textContent)).toEqual(['Notak'])
     expect(hote.textContent).toContain(`Notak ${VERSION_NOTAK}`)
   })
@@ -87,15 +87,15 @@ describe('les rubriques', () => {
 
   it('passent de l’une à l’autre, et la dernière ouverte revient à l’ouverture suivante', () => {
     monter()
-    ouvrir('Tableau')
-    expect(titre()).toBe('Tableau')
-    expect(lien('Tableau')?.getAttribute('aria-current')).toBe('page')
+    ouvrir('Toile')
+    expect(titre()).toBe('Toile')
+    expect(lien('Toile')?.getAttribute('aria-current')).toBe('page')
     expect(lien('Apparence')?.getAttribute('aria-current')).toBeNull()
     expect(hote.textContent).toContain('Double-clic sur le vide')
     act(() => racine.unmount())
     racine = createRoot(hote)
     monter()
-    expect(titre()).toBe('Tableau')
+    expect(titre()).toBe('Toile')
   })
 
   it('une rubrique retenue qui n’existe plus ici retombe sur Apparence', () => {
@@ -117,7 +117,7 @@ describe('les rubriques', () => {
   it('une pilule transmet le choix, et montre celui en cours', () => {
     const choisis: Partial<Reglages>[] = []
     monter({ changer: (r) => choisis.push(r) })
-    ouvrir('Tableau')
+    ouvrir('Toile')
     const grille = hote.querySelector('[role="radiogroup"][aria-label="Grille"]')!
     expect([...grille.querySelectorAll('[aria-checked="true"]')].map((b) => b.textContent)).toEqual(['Large10 px'])
     act(() => (grille.querySelector('[role="radio"]') as HTMLElement).click())
@@ -127,7 +127,7 @@ describe('les rubriques', () => {
   it('la barre des outils de gauche suit le bouton du premier îlot', () => {
     const basculer = vi.fn()
     monter({ outils: { caches: false, basculer } })
-    ouvrir('Tableau')
+    ouvrir('Toile')
     const groupe = hote.querySelector('[role="radiogroup"][aria-label="Barre des outils de gauche"]')!
     expect(groupe.querySelector('[aria-checked="true"]')?.textContent).toBe('Affichée')
     act(() => bouton('Affichée')!.click())
@@ -138,7 +138,7 @@ describe('les rubriques', () => {
 
   it('sans état des outils, la ligne n’est pas là', () => {
     monter()
-    ouvrir('Tableau')
+    ouvrir('Toile')
     expect(hote.textContent).not.toContain('Barre des outils de gauche')
   })
 
@@ -236,10 +236,10 @@ describe('la recherche', () => {
     chercher('grille')
     expect(titre()).toBe('2 réglages pour « grille »')
     // Les rubriques avec résultat disent combien, les autres pâlissent.
-    expect(lien('Tableau')?.querySelector('.notak-rg-nombre')?.textContent).toBe('1')
+    expect(lien('Toile')?.querySelector('.notak-rg-nombre')?.textContent).toBe('1')
     expect(lien('Raccourcis clavier')?.querySelector('.notak-rg-nombre')?.textContent).toBe('1')
     expect(lien('Apparence')?.hasAttribute('data-hors')).toBe(true)
-    expect(lien('Tableau')?.hasAttribute('data-hors')).toBe(false)
+    expect(lien('Toile')?.hasAttribute('data-hors')).toBe(false)
     // L'aide aussi : « s'alignent » n'est que dans l'aide de la grille.
     chercher('alignent')
     expect(titre()).toBe('1 réglage pour « alignent »')
@@ -252,7 +252,7 @@ describe('la recherche', () => {
     act(() => bouton('Ne fait rien')!.click())
     expect(choisis).toEqual([{ doubleClic: false }])
     act(() => hote.querySelector<HTMLButtonElement>('.notak-rg-section-titre button')!.click())
-    expect(titre()).toBe('Tableau')
+    expect(titre()).toBe('Toile')
     expect(hote.querySelector<HTMLInputElement>('input[type="search"]')!.value).toBe('')
   })
 
@@ -302,7 +302,7 @@ describe('le clavier', () => {
     monter()
     const champ = hote.querySelector<HTMLInputElement>('input[type="search"]')!
     expect(document.activeElement).toBe(champ)
-    lien('Tableau')!.focus()
+    lien('Toile')!.focus()
     touche('f', { metaKey: true })
     expect(document.activeElement).toBe(champ)
     act(() => racine.render(<></>))

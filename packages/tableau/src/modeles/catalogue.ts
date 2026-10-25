@@ -7,7 +7,7 @@ const note = (texte: string, couleur?: import('../coeur/tableau').CouleurNote) =
 export const MODELES: readonly ModeleTableau[] = [
   {
     id: 'humeur',
-    titre: 'Tableau d’humeur',
+    titre: 'Toile d’humeur',
     resume: 'Rassembler ce qui donne le ton : couleurs, mots, sons, lieux.',
     couleur: 'rose',
     elements: [
@@ -41,7 +41,7 @@ export const MODELES: readonly ModeleTableau[] = [
       },
       { genre: 'colonne', titre: 'En cours', couleur: 'bleu', x: 38, y: 24, contenu: [{ genre: 'taches', titre: 'Cette semaine', taches: ['Première version', 'Point d’étape'] }] },
       { genre: 'colonne', titre: 'À relire', couleur: 'orange', x: 76, y: 24, contenu: [{ genre: 'note', texte: 'Ce qui attend un deuxième regard.' }] },
-      { genre: 'colonne', titre: 'Terminé', couleur: 'vert', x: 114, y: 24, contenu: [{ genre: 'taches', taches: [{ texte: 'Lancer ce tableau', faite: true }] }] },
+      { genre: 'colonne', titre: 'Terminé', couleur: 'vert', x: 114, y: 24, contenu: [{ genre: 'taches', taches: [{ texte: 'Lancer cette toile', faite: true }] }] },
     ],
   },
   {

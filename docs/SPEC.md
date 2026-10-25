@@ -34,6 +34,10 @@ Les sections suivantes décrivent tout, socle et suite, pour que le modèle de d
 
 - **Un seul objet : l'élément.** Tout ce qui est posé sur un tableau est un élément : une note, une image, une colonne,
   un tableau imbriqué. Un tableau est lui-même un élément qui en contient d'autres.
+- **Les mots de l'interface.** → Notak, décidé le 25/10/2026 : à l'écran, le tableau s'appelle une **toile**
+  (« Nouvelle toile », « toile imbriquée »), et la surface où l'on pose les éléments s'appelle le **fond**
+  (« Glissez l'outil sur le fond »). « Tableau » reste au bloc Table du document. Le code et ce document gardent
+  leurs noms (`tableau`, `Toile.tsx`) : le renommage ne touche que les textes affichés en français.
 - **Une grille comme unité.** Positions et tailles se comptent en unités de grille (UG), entières. Une UG vaut 8, 9 ou
   10 px selon la taille d'interface choisie.
 - **Local d'abord.** → Notak : l'état vit dans un document CRDT sur la machine. Le serveur relaie et conserve, il

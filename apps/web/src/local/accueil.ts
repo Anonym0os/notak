@@ -9,7 +9,7 @@ import { ACCUEIL_EN } from '@notak/tableau/modeles/accueil.en'
 const REMPLACEMENTS: Record<'fr' | 'en', [RegExp, string][]> = {
   fr: [
     [/^# Les raccourcis\n.*/s, '# Les raccourcis\nTapez / pour les voir tous.'],
-    [/^# Partager\n.*/s, '# Garder une copie\nCmd+S enregistre une copie .notak, à ranger où vous voulez. La pastille en haut à droite dit où sont vos tableaux.'],
+    [/^# Partager\n.*/s, '# Garder une copie\nCmd+S enregistre une copie .notak, à ranger où vous voulez. La pastille en haut à droite dit où sont vos toiles.'],
     [/^# Réglages\n.*/s, '# Réglages\nCmd+, règle le thème et la taille.'],
   ],
   en: [

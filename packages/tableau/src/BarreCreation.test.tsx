@@ -53,7 +53,7 @@ describe('la barre de création', () => {
     avec({ libelle: 'Ajouter une image', n: 1, texte: 'barre.cliquer' })
     expect(hote.querySelector('.notak-bulle-outil')?.textContent).toBe('Cliquez sur l’outil pour ajouter une image')
     avec({ libelle: 'À faire', n: 2 })
-    expect(hote.querySelector('.notak-bulle-outil')?.textContent).toBe('Glissez l’outil sur le tableau')
+    expect(hote.querySelector('.notak-bulle-outil')?.textContent).toBe('Glissez l’outil sur le fond')
   })
 
   it('les gestes s’appellent À faire, Ajouter une image, Envoyer, Dessiner ; les Étiquettes sont dans le « ••• »', () => {

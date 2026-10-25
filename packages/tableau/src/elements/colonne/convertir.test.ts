@@ -43,7 +43,7 @@ describe('une colonne neuve', () => {
   })
 })
 
-describe('« Convertir en tableau »', () => {
+describe('« Convertir en toile »', () => {
   test('les cartes de la colonne vont dans les non triés du tableau neuf, dans l’ordre de la colonne', () => {
     const colonne = nouvelleColonne(10, 10, 'Voyage en Italie')
     const [a, b] = [
@@ -60,7 +60,7 @@ describe('« Convertir en tableau »', () => {
         deposerDans: (cible: string, elements: { id: string }[], nonTries?: boolean) => void deposes.push({ cible, ids: elements.map((e) => e.id), nonTries }),
       },
     } as unknown as ContexteToile
-    const entree = toutesLesEntreesMenu().find((e) => e.libelle === 'Convertir en tableau')!
+    const entree = toutesLesEntreesMenu().find((e) => e.libelle === 'Convertir en toile')!
     entree.faire([colonne], contexte)
     expect(deposes).toEqual([{ cible: 'T9', ids: [b.id, a.id], nonTries: true }])
     expect(magasin.lire().elements.map((e) => e.contenu.type)).toEqual(['tableau'])
