@@ -82,6 +82,9 @@ Pour l'essayer en HTTP sur sa machine : `-e NOTAK_COOKIE_SECURISE=0 -e NOTAK_REL
 La banque d'images du panneau « Image » interroge Pexels : donner une clé gratuite par `-e PEXELS_API_KEY=…`. Sans
 elle, le panneau ne propose que l'envoi de ses propres fichiers.
 
+Le nom de l'instance, les inscriptions fermées, les thèmes fournis ou imposés, Coolify et les sauvegardes :
+[`docs/AUTO-HEBERGER.md`](docs/AUTO-HEBERGER.md), avec un [`compose.yaml`](compose.yaml) prêt à l'emploi.
+
 ### L'édition locale (comme notak.app)
 
 Des fichiers statiques servis par nginx, sans API :

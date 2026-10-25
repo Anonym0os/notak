@@ -1,0 +1,20 @@
+# Un serveur Notak à soi (docs/AUTO-HEBERGER.md). Derrière un relais HTTPS : Caddy, Traefik, Coolify…
+services:
+  notak:
+    build: .
+    restart: unless-stopped
+    ports:
+      - '3005:3005'
+    environment:
+      NOTAK_NOM: Notak
+      # `fermees` : plus d'inscription libre, les comptes se créent avec `node apps/serveur/src/compte.ts`.
+      NOTAK_INSCRIPTIONS: ouvertes
+      # Les thèmes sont lus dans /donnees/habillages ; l'un peut être proposé, ou imposé à tous.
+      # NOTAK_HABILLAGE_DEFAUT: silak
+      # NOTAK_HABILLAGE: silak
+      # PEXELS_API_KEY: …
+    volumes:
+      - notak-donnees:/donnees
+
+volumes:
+  notak-donnees:

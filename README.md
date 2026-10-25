@@ -73,6 +73,9 @@ The image expects an HTTPS reverse proxy in front of it (`Secure` cookie, client
 The "Image" panel's photo library queries Pexels: pass a free key with `-e PEXELS_API_KEY=…`. Without it, the panel
 only offers uploading your own files.
 
+Your instance's name, closed sign-ups, the themes it provides or enforces, Coolify and backups:
+[`docs/AUTO-HEBERGER.md`](docs/AUTO-HEBERGER.md) (in French), with a ready-made [`compose.yaml`](compose.yaml).
+
 ### The local edition (like notak.app)
 
 Static files served by nginx, no API:
