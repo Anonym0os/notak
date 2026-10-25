@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { type Habillage, lireHabillageTexte } from './format'
 import { cssDeHabillage } from './variables'
 import { type OffreHabillages, disponibles, ecrireBibliotheque, habillageActif, lireBibliotheque } from './bibliotheque'
+import { publierHabillages } from './catalogue'
 
 /**
  * Pose un habillage sur la page : `data-habillage` et `data-mode` sur `<html>`, sa feuille dans un seul `<style>` du
@@ -54,7 +55,14 @@ export function useHabillages(offre: OffreHabillages | undefined, choix: string 
   const liste = useMemo(() => disponibles(offre, importes), [offre, importes])
   const actif = useMemo(() => habillageActif(liste, offre, choix), [liste, offre, choix])
   useEffect(() => appliquerHabillage(actif, mode), [actif, mode])
-  useEffect(() => () => appliquerHabillage(null, 'clair'), [])
+  useEffect(() => publierHabillages(liste.map((d) => d.habillage)), [liste])
+  useEffect(
+    () => () => {
+      appliquerHabillage(null, 'clair')
+      publierHabillages([])
+    },
+    [],
+  )
   const importer = useCallback((texte: string): Habillage => {
     const h = lireHabillageTexte(texte)
     setImportes((v) => {

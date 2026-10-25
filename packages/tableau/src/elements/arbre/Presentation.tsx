@@ -13,7 +13,7 @@ import { type Diapo, type Position, type Saut, depart as diapoDeDepart, preceden
 import { type Commande, effetDeTransition, estPortrait } from './modele/gabarits'
 import type { Geste } from './modele/gestes'
 import type { Lecture } from './modele/sujets'
-import { RATIOS_PITCH, ratioEffectif, themePitchDe } from './themesPitch'
+import { RATIOS_PITCH, ratioEffectif, themeDuPitch } from './themesPitch'
 
 /**
  * Le mode présentation lancé par Pitch (docs/XMIND.md § 12) : la carte devient une suite de diapositives, plein écran.
@@ -153,7 +153,7 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
     return () => o.disconnect()
   }, [])
   const ratio = ratioEffectif(arbre.pitch, dim.l, dim.h)
-  const theme = themePitchDe(arbre.pitch?.theme)
+  const theme = themeDuPitch(arbre.pitch)
   const [rl, rh] = ratio.split(':').map(Number) as [number, number]
   const k = Math.min(dim.l / rl, dim.h / rh)
   const taille = { l: Math.floor(rl * k), h: Math.floor(rh * k) }
@@ -460,7 +460,7 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
             </select>
           </div>
           <Interrupteur actif={anime} change={basculerAnimation} libelle={t('arbre.pitch.animation')} info={t('arbre.pitch.animationInfo')} />
-          {themes && <ChoixTheme ancre={boutonTheme.current} theme={theme.id} ratio={ratio} choisir={(id) => mettreAJour({ theme: id })} fermer={() => setThemes(false)} />}
+          {themes && <ChoixTheme ancre={boutonTheme.current} pitch={arbre.pitch} ratio={ratio} choisir={mettreAJour} fermer={() => setThemes(false)} />}
         </PopoverFixe>
       )}
 

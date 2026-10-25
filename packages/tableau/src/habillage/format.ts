@@ -57,11 +57,10 @@ export interface PitchHabillage {
   graisseTitre?: number
 }
 
-/** Ce qu'un habillage dit des cartes mentales : une palette de branches, et au besoin le fond et l'encre. */
+/** Ce qu'un habillage dit des cartes mentales : une palette de branches, et au besoin le fond de la carte. */
 export interface CarteHabillage {
   palette: string[]
   fond?: string
-  encre?: string
 }
 
 export interface Habillage {
@@ -80,11 +79,12 @@ export type RaisonRefus = 'json' | 'poids' | 'format' | 'version' | 'valeur'
 
 /** Un fichier refusé : `raison` dit pourquoi, `champ` dit où quand c'est une valeur (`couleurs.clair.fond`). */
 export class ErreurHabillage extends Error {
-  constructor(
-    readonly raison: RaisonRefus,
-    readonly champ?: string,
-  ) {
+  readonly raison: RaisonRefus
+  readonly champ: string | undefined
+  constructor(raison: RaisonRefus, champ?: string) {
     super(champ ? `${raison} : ${champ}` : raison)
+    this.raison = raison
+    this.champ = champ
   }
 }
 
@@ -101,67 +101,86 @@ const GRAISSE = /^[1-9]00(?: [1-9]00)?$/
 
 export const estCouleur = (v: unknown): v is string => typeof v === 'string' && (HEX.test(v) || FONCTION.test(v))
 
+const refuser = (champ: string): never => {
+  throw new ErreurHabillage('valeur', champ)
+}
+const couleurDe = (v: unknown, champ: string) => (estCouleur(v) ? v : refuser(champ))
+const sectionDe = (v: unknown, champ: string) => (estObjet(v) ? v : refuser(champ))
+function policesDe(v: unknown, champ: string): string[] {
+  if (!Array.isArray(v) || v.length === 0 || v.length > 8) return refuser(champ)
+  return v.map((f, i) => (typeof f === 'string' && FAMILLE.test(f) ? f : refuser(`${champ}.${i}`)))
+}
+
+/**
+ * Lit la section `pitch` d'un habillage. Elle sert aussi à relire celle qu'une carte garde (`ReglagesPitch.perso`),
+ * venue d'un document partagé : la même liste blanche s'y applique.
+ */
+export function lirePitch(brut: unknown, champ = 'pitch'): PitchHabillage {
+  const p = sectionDe(brut, champ)
+  const pitch: PitchHabillage = { fond: couleurDe(p.fond, `${champ}.fond`), texte: couleurDe(p.texte, `${champ}.texte`) }
+  if (p.surbrillance !== undefined) pitch.surbrillance = couleurDe(p.surbrillance, `${champ}.surbrillance`)
+  if (p.police !== undefined) pitch.police = policesDe(p.police, `${champ}.police`)
+  if (p.policeTitre !== undefined) pitch.policeTitre = policesDe(p.policeTitre, `${champ}.policeTitre`)
+  for (const cle of ['graisse', 'graisseTitre'] as const) {
+    const v = p[cle]
+    if (v === undefined) continue
+    if (typeof v !== 'number' || !GRAISSE.test(String(v))) refuser(`${champ}.${cle}`)
+    pitch[cle] = v as number
+  }
+  return pitch
+}
+
 /** Lit un habillage déjà décodé du JSON ; lève une `ErreurHabillage` si ce n'en est pas un, ou s'il est mal formé. */
 export function lireHabillage(brut: unknown): Habillage {
   if (!estObjet(brut) || brut.notak !== 'habillage') throw new ErreurHabillage('format')
   if (typeof brut.version !== 'number' || brut.version > FORMAT_HABILLAGE) throw new ErreurHabillage('version')
-  const refus = (champ: string): never => {
-    throw new ErreurHabillage('valeur', champ)
-  }
-  if (typeof brut.id !== 'string' || !ID.test(brut.id) || brut.id === HABILLAGE_NOTAK) refus('id')
+  if (typeof brut.id !== 'string' || !ID.test(brut.id) || brut.id === HABILLAGE_NOTAK) refuser('id')
   const nom = typeof brut.nom === 'string' ? brut.nom.trim() : ''
-  if (!nom || nom.length > 60) refus('nom')
+  if (!nom || nom.length > 60) refuser('nom')
   const h: Habillage = { id: brut.id as string, nom }
   if (brut.auteur !== undefined) {
-    if (typeof brut.auteur !== 'string' || brut.auteur.length > 120) refus('auteur')
+    if (typeof brut.auteur !== 'string' || brut.auteur.length > 120) refuser('auteur')
     h.auteur = brut.auteur as string
   }
 
-  const couleur = (v: unknown, champ: string) => (estCouleur(v) ? v : refus(champ))
-  const polices = (v: unknown, champ: string): string[] => {
-    if (!Array.isArray(v) || v.length === 0 || v.length > 8) return refus(champ)
-    return v.map((f, i) => (typeof f === 'string' && FAMILLE.test(f) ? f : refus(`${champ}.${i}`)))
-  }
-  const section = (v: unknown, champ: string) => (estObjet(v) ? v : refus(champ))
-
   if (brut.couleurs !== undefined) {
-    const c = section(brut.couleurs, 'couleurs')
+    const c = sectionDe(brut.couleurs, 'couleurs')
     h.couleurs = {}
     for (const mode of ['clair', 'sombre'] as const) {
       if (c[mode] === undefined) continue
-      const m = section(c[mode], `couleurs.${mode}`)
+      const m = sectionDe(c[mode], `couleurs.${mode}`)
       const lues: CouleursHabillage = {}
-      for (const role of ROLES_COULEUR) if (m[role] !== undefined) lues[role] = couleur(m[role], `couleurs.${mode}.${role}`)
+      for (const role of ROLES_COULEUR) if (m[role] !== undefined) lues[role] = couleurDe(m[role], `couleurs.${mode}.${role}`)
       h.couleurs[mode] = lues
     }
   }
 
   if (brut.rayons !== undefined) {
-    const r = section(brut.rayons, 'rayons')
+    const r = sectionDe(brut.rayons, 'rayons')
     h.rayons = {}
     for (const role of ROLES_RAYON) {
       const v = r[role]
       if (v === undefined) continue
-      if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > RAYON_MAX) refus(`rayons.${role}`)
+      if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > RAYON_MAX) refuser(`rayons.${role}`)
       h.rayons[role] = Math.round((v as number) * 10) / 10
     }
   }
 
   if (brut.polices !== undefined) {
-    const p = section(brut.polices, 'polices')
+    const p = sectionDe(brut.polices, 'polices')
     h.polices = {}
-    for (const role of ROLES_POLICE) if (p[role] !== undefined) h.polices[role] = polices(p[role], `polices.${role}`)
+    for (const role of ROLES_POLICE) if (p[role] !== undefined) h.polices[role] = policesDe(p[role], `polices.${role}`)
   }
 
   if (brut.fontes !== undefined) {
-    if (!Array.isArray(brut.fontes) || brut.fontes.length > 16) refus('fontes')
+    if (!Array.isArray(brut.fontes) || brut.fontes.length > 16) refuser('fontes')
     h.fontes = (brut.fontes as unknown[]).map((f, i) => {
       const champ = `fontes.${i}`
-      const o = section(f, champ)
-      if (typeof o.famille !== 'string' || !FAMILLE.test(o.famille)) refus(`${champ}.famille`)
-      if (typeof o.source !== 'string' || !(HTTPS.test(o.source) || DATA.test(o.source))) refus(`${champ}.source`)
-      if (o.graisse !== undefined && (typeof o.graisse !== 'string' || !GRAISSE.test(o.graisse))) refus(`${champ}.graisse`)
-      if (o.style !== undefined && o.style !== 'normal' && o.style !== 'italic') refus(`${champ}.style`)
+      const o = sectionDe(f, champ)
+      if (typeof o.famille !== 'string' || !FAMILLE.test(o.famille)) refuser(`${champ}.famille`)
+      if (typeof o.source !== 'string' || !(HTTPS.test(o.source) || DATA.test(o.source))) refuser(`${champ}.source`)
+      if (o.graisse !== undefined && (typeof o.graisse !== 'string' || !GRAISSE.test(o.graisse))) refuser(`${champ}.graisse`)
+      if (o.style !== undefined && o.style !== 'normal' && o.style !== 'italic') refuser(`${champ}.style`)
       return {
         famille: o.famille as string,
         source: o.source as string,
@@ -171,27 +190,13 @@ export function lireHabillage(brut: unknown): Habillage {
     })
   }
 
-  if (brut.pitch !== undefined) {
-    const p = section(brut.pitch, 'pitch')
-    const pitch: PitchHabillage = { fond: couleur(p.fond, 'pitch.fond'), texte: couleur(p.texte, 'pitch.texte') }
-    if (p.surbrillance !== undefined) pitch.surbrillance = couleur(p.surbrillance, 'pitch.surbrillance')
-    if (p.police !== undefined) pitch.police = polices(p.police, 'pitch.police')
-    if (p.policeTitre !== undefined) pitch.policeTitre = polices(p.policeTitre, 'pitch.policeTitre')
-    for (const cle of ['graisse', 'graisseTitre'] as const) {
-      const v = p[cle]
-      if (v === undefined) continue
-      if (typeof v !== 'number' || !GRAISSE.test(String(v))) refus(`pitch.${cle}`)
-      pitch[cle] = v as number
-    }
-    h.pitch = pitch
-  }
+  if (brut.pitch !== undefined) h.pitch = lirePitch(brut.pitch)
 
   if (brut.carte !== undefined) {
-    const c = section(brut.carte, 'carte')
-    if (!Array.isArray(c.palette) || c.palette.length < 2 || c.palette.length > 12) refus('carte.palette')
-    const carte: CarteHabillage = { palette: (c.palette as unknown[]).map((v, i) => couleur(v, `carte.palette.${i}`)) }
-    if (c.fond !== undefined) carte.fond = couleur(c.fond, 'carte.fond')
-    if (c.encre !== undefined) carte.encre = couleur(c.encre, 'carte.encre')
+    const c = sectionDe(brut.carte, 'carte')
+    if (!Array.isArray(c.palette) || c.palette.length < 2 || c.palette.length > 12) refuser('carte.palette')
+    const carte: CarteHabillage = { palette: (c.palette as unknown[]).map((v, i) => couleurDe(v, `carte.palette.${i}`)) }
+    if (c.fond !== undefined) carte.fond = couleurDe(c.fond, 'carte.fond')
     h.carte = carte
   }
   return h
