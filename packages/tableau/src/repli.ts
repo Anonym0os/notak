@@ -95,6 +95,19 @@ export function replier({
  * le repli, pose la taille des tuiles sur la barre (`data-palier`) et rend ce qui est rangé. La barre est
  * ancrée haut et bas : sa hauteur ne dépend pas de son contenu, donc le repli ne boucle pas.
  */
+/**
+ * La place de la barre, en ses propres pixels : de son haut au bas de ce qui la porte, moins 16 px de marge. La barre
+ * se règle sur ses outils, sa hauteur ne dit donc pas la place qu'elle a. Le zoom de la taille de l'interface s'en
+ * retire. Sans mise en page (un test), la hauteur de la fenêtre.
+ */
+function placeDe(barre: HTMLElement): number {
+  const porteur = barre.offsetParent ?? barre.parentElement
+  const p = porteur?.getBoundingClientRect()
+  if (!p?.height) return window.innerHeight
+  const zoom = Number.parseFloat(getComputedStyle(barre).zoom) || 1
+  return (p.bottom - barre.getBoundingClientRect().top) / zoom - 16
+}
+
 export function useRepli(
   ref: RefObject<HTMLElement | null>,
   entrees: readonly EntreeRepli[],
@@ -110,7 +123,7 @@ export function useRepli(
     if (!barre) return
     const calculer = () => {
       const { entrees: es, fixe: f } = dernier.current
-      const r = replier({ entrees: es, hauteur: barre.clientHeight || window.innerHeight, fixe: f })
+      const r = replier({ entrees: es, hauteur: placeDe(barre), fixe: f })
       barre.dataset.palier = r.palier
       const cle = `${r.palier}/${r.ranges.join(',')}/${r.visibles.join(',')}`
       setEtat((e) => (e.cle === cle ? e : { cle, ranges: new Set(r.ranges), visibles: new Set(r.visibles), palier: r.palier }))
@@ -118,6 +131,8 @@ export function useRepli(
     calculer()
     const obs = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(calculer)
     obs?.observe(barre)
+    const porteur = barre.offsetParent ?? barre.parentElement
+    if (porteur) obs?.observe(porteur)
     window.addEventListener('resize', calculer)
     return () => {
       obs?.disconnect()
