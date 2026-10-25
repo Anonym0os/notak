@@ -1,5 +1,5 @@
 import { type ReglagesDiapo, type ReglagesPitch, nouvelId } from '../../coeur/tableau'
-import { RATIOS_PITCH, THEME_PITCH_DEFAUT } from './themesPitch'
+import { RATIOS_PITCH, THEME_PITCH_DEFAUT, THEME_PITCH_PERSO } from './themesPitch'
 
 /**
  * Les réglages du mode Pitch dans un `.xmind` (docs/XMIND.md § 12). Xmind les écrit comme des propriétés de style
@@ -75,7 +75,8 @@ export function ajouterDiapo(style: unknown, diapo: ReglagesDiapo | undefined, p
     const valeur = valeurs.find(([x]) => x === diapo?.[champ])?.[1]
     if (valeur) proprietes[cle] = valeur
   }
-  if (pitch?.theme) proprietes[THEME] = pitch.theme
+  // Xmind ne connaît pas le thème d'un habillage : la feuille garde alors le thème par défaut.
+  if (pitch?.theme && pitch.theme !== THEME_PITCH_PERSO) proprietes[THEME] = pitch.theme
   if (pitch?.ratio) proprietes[RATIO] = pitch.ratio
   if (Object.keys(proprietes).length === 0) return style
   const base: Json = estObjet(style) ? style : {}

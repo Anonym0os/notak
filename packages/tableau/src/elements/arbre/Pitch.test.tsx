@@ -129,7 +129,8 @@ describe('l’onglet Pitch', () => {
     expect(vignettes.map((v) => v.querySelector('.notak-arbre-pitch-legende')?.textContent)).toEqual(['Clair', 'Sombre', 'Innocence', 'Formes', 'Rose de minuit', 'Bulles', 'Carnet'])
     expect(vignettes[1]!.getAttribute('aria-pressed')).toBe('true')
     clic(vignettes[2]!)
-    expect(o.faire).toHaveBeenLastCalledWith({ type: 'pitch', reglage: { theme: 'innocence' } })
+    // Un thème de Notak retire celui d'un habillage que la carte gardait.
+    expect(o.faire).toHaveBeenLastCalledWith({ type: 'pitch', reglage: { theme: 'innocence', perso: null } })
     o.fin()
   })
 })

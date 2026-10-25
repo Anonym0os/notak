@@ -26,8 +26,8 @@ export type CleOption = keyof NonNullable<Arbre['options']>
 export interface ChoixTheme {
   theme: string
   accent?: string | undefined
-  /** Un thème de couleur à soi : son nom et ses six couleurs, que la carte garde. */
-  perso?: { nom: string; palette: string[] } | undefined
+  /** Un thème de couleur à soi : son nom et ses six couleurs, que la carte garde ; celui d'un habillage, avec son fond. */
+  perso?: { nom: string; palette: string[]; fond?: string } | undefined
 }
 
 /**
@@ -130,6 +130,7 @@ export function appliquerThemeCouleur(a: Arbre, choix: ChoixTheme): Arbre {
   arbre = sans(arbre, 'fond', 'jeuCouleurs', 'couleurLigne', 'themePerso')
   arbre = choix.theme === 'classique' ? sans(arbre, 'theme') : { ...arbre, theme: choix.theme }
   if (choix.perso) arbre = { ...arbre, themePerso: { nom: choix.perso.nom, palette: [...choix.perso.palette] } }
+  if (choix.perso?.fond) arbre = { ...arbre, fond: choix.perso.fond }
   const options = { ...arbre.options }
   if (choix.accent) {
     options.uneCouleur = true

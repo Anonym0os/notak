@@ -37,6 +37,8 @@ import { PanneauModeles, modelesProposes } from './PanneauModeles'
 import { TitreTableau } from './TitreTableau'
 import { PastillePersonne } from './pastille'
 import { FenetreReglages, type ServiceCompte, useReglages } from './reglages'
+import { useHabillages } from './habillage/appliquer'
+import type { OffreHabillages } from './habillage/bibliotheque'
 import './theme.css'
 import { Icone } from './icones'
 import { GardeToile } from './garde'
@@ -164,6 +166,7 @@ export function EspaceNotak({
   adresse,
   compte,
   enregistrer,
+  habillages: offreHabillages,
 }: {
   espace: EspaceNavigable
   services?: Services
@@ -186,12 +189,15 @@ export function EspaceNotak({
    * copie dans un fichier `.notak`.
    */
   enregistrer?(): void
+  /** Les thèmes que fournit l'application (un serveur), et celui qu'elle impose ou propose. */
+  habillages?: OffreHabillages
 }) {
   const racine = espace.racine
   const [parcours, setParcours] = useState(() => parcoursDepart(racine))
   const courant = courantDe(parcours)
   const lectureSeule = useSyncExternalStore(espace.ecouter, () => espace.lectureSeule?.(courant) ?? false)
   const [reglages, changerReglages] = useReglages()
+  const habillages = useHabillages(offreHabillages, reglages.habillage, reglages.theme)
   // Posée avant de dessiner la toile, qui la lit à chaque mesure.
   definirTailleGrille(reglages.grille)
   // Un changement de langue redessine l'en-tête et la toile : les textes se relisent à la nouvelle langue.
@@ -648,7 +654,7 @@ export function EspaceNotak({
         createPortal(
           <div className="notak-espace notak-par-dessus" data-theme={reglages.theme} data-taille={reglages.taille}>
             {aideOuverte && <FenetreRaccourcis fermer={fermerAide} />}
-            {reglagesOuverts && <FenetreReglages reglages={reglages} changer={changerReglages} fermer={() => setReglagesOuverts(false)} {...(compte ? { compte } : {})} />}
+            {reglagesOuverts && <FenetreReglages reglages={reglages} changer={changerReglages} fermer={() => setReglagesOuverts(false)} habillages={habillages} {...(compte ? { compte } : {})} />}
           </div>,
           document.body,
         )}

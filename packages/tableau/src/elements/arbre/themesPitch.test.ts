@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { THEMES_PITCH, themePitchDe, variablesDeTheme } from './themesPitch'
+import { lireHabillage } from '../../habillage/format'
+import { THEME_PITCH_PERSO, THEMES_PITCH, reglagePitchDe, themeDuPitch, themePitchDe, variablesDeTheme } from './themesPitch'
 
 describe('les thèmes du mode Pitch', () => {
   it('gardent les sept identifiants, dans l’ordre du sélecteur ; un inconnu retombe sur le sombre', () => {
@@ -55,5 +56,29 @@ describe('les thèmes du mode Pitch', () => {
     expect(v['--d-graisse-titre']).toBe('700')
     expect(v).not.toHaveProperty('--d-accent')
     expect(v).not.toHaveProperty('--d-motif')
+  })
+})
+
+describe('le thème du Pitch d’un habillage', () => {
+  const silak = lireHabillage({ notak: 'habillage', version: 1, id: 'silak', nom: 'Silak', pitch: { fond: '#000c12', texte: '#eaf8fc', surbrillance: '#d8a173', policeTitre: ['Familjen Grotesk', 'sans-serif'] } })
+
+  it('s’écrit dans la carte avec ses valeurs, et se relit en thème', () => {
+    const reglage = reglagePitchDe({ ...silak, pitch: silak.pitch! })
+    expect(reglage).toEqual({ theme: THEME_PITCH_PERSO, perso: { ...silak.pitch, id: 'silak', nom: 'Silak' } })
+    const th = themeDuPitch(reglage)
+    expect([th.id, th.nom, th.fond, th.texte, th.surbrillance]).toEqual(['perso', 'Silak', '#000c12', '#eaf8fc', '#d8a173'])
+    expect(th.policeTitre).toBe('"Familjen Grotesk", sans-serif')
+    // Sans police de texte, il garde celle du sombre ; sans formes, celles par défaut.
+    expect(th.police).toBe(themePitchDe('default').police)
+    expect(th.formes).toBeUndefined()
+  })
+
+  it('prend les réglages fins du clair sur un fond clair', () => {
+    expect(themeDuPitch({ theme: THEME_PITCH_PERSO, perso: { id: 'x', nom: 'X', fond: '#f5f2ee', texte: '#1a4956' } }).enAttente).toBe(themePitchDe('light').enAttente)
+  })
+
+  it('retombe sur le sombre quand la carte garde des valeurs abîmées', () => {
+    const abime = { theme: THEME_PITCH_PERSO, perso: { id: 'x', nom: 'X', fond: 'url(https://exemple.fr/pixel)', texte: '#fff' } }
+    expect(themeDuPitch(abime).id).toBe('default')
   })
 })

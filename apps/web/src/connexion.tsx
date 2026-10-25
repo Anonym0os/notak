@@ -1,9 +1,16 @@
+import { lireReglages, useHabillages } from '@notak/tableau'
 import { t } from './langue'
 import { type FormEvent, useState } from 'react'
-import { type Moi, seConnecter, sInscrire } from './api'
+import { type Instance, type Moi, seConnecter, sInscrire } from './api'
 
-/** L'écran d'entrée : se connecter, ou créer un compte. */
-export function EcranConnexion({ surConnexion }: { surConnexion(moi: Moi): void }) {
+/**
+ * L'écran d'entrée : se connecter, ou créer un compte quand le serveur l'accepte. Il porte déjà le nom de l'instance
+ * et son thème (celui qu'elle impose, sinon celui choisi sur cet appareil, sinon celui qu'elle propose).
+ */
+export function EcranConnexion({ instance, surConnexion }: { instance: Instance; surConnexion(moi: Moi): void }) {
+  const [reglages] = useState(lireReglages)
+  useHabillages({ fournis: instance.habillages, ...(instance.impose ? { impose: instance.impose } : {}), ...(instance.parDefaut ? { parDefaut: instance.parDefaut } : {}) }, reglages.habillage, reglages.theme)
+  const ouvertes = instance.inscriptions === 'ouvertes'
   const [inscription, setInscription] = useState(false)
   const [email, setEmail] = useState('')
   const [motDePasse, setMotDePasse] = useState('')
@@ -35,7 +42,7 @@ export function EcranConnexion({ surConnexion }: { surConnexion(moi: Moi): void 
   return (
     <main className="connexion">
       <form className="connexion-carte" onSubmit={valider} noValidate>
-        <h1>Notak</h1>
+        <h1>{instance.nom}</h1>
         {inscription && (
           <label>
             {t('connexion.nom')}
@@ -69,9 +76,13 @@ export function EcranConnexion({ surConnexion }: { surConnexion(moi: Moi): void 
         <button type="submit" className="bouton bouton-plein" disabled={envoi}>
           {inscription ? t('connexion.creer') : t('connexion.seConnecter')}
         </button>
-        <button type="button" className="bouton-lien" onClick={basculer}>
-          {inscription ? t('connexion.dejaCompte') : t('connexion.creer')}
-        </button>
+        {ouvertes ? (
+          <button type="button" className="bouton-lien" onClick={basculer}>
+            {inscription ? t('connexion.dejaCompte') : t('connexion.creer')}
+          </button>
+        ) : (
+          <p className="connexion-note">{t('connexion.fermees')}</p>
+        )}
       </form>
     </main>
   )

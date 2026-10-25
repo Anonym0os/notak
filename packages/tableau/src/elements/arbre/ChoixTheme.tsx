@@ -2,7 +2,10 @@ import { type ReactNode, useLayoutEffect, useRef } from 'react'
 import { t } from '../../langue'
 import { DecorDiapo } from './diapo/decor'
 import { Flottant } from './Flottant'
-import { type RatioPitch, type ThemePitch, THEMES_PITCH, dimensionsDuRatio, variablesDeTheme } from './themesPitch'
+import type { ReglagesPitch } from '../../coeur/tableau'
+import { useHabillagesPublies } from '../../habillage/catalogue'
+import type { ReglagePitch } from './modele/pitch'
+import { type RatioPitch, type ThemePitch, THEME_PITCH_PERSO, THEMES_PITCH, dimensionsDuRatio, reglagePitchDe, themeDuPitch, variablesDeTheme } from './themesPitch'
 
 /**
  * Un popover posé sous (ou au-dessus de) son ancre, hors du panneau qui le lance : le panneau défile et rogne, le
@@ -72,13 +75,26 @@ export function VignetteTheme({ theme: th, ratio, taille }: { theme: ThemePitch;
   )
 }
 
-/** Le sélecteur de thèmes : une vignette par thème, deux par ligne. Le choix ne ferme pas la fenêtre. */
-export function ChoixTheme({ ancre, theme, ratio, choisir, fermer, vers }: { ancre: HTMLElement | null; theme: string; ratio: RatioPitch; choisir(id: string): void; fermer(): void; vers?: 'bas' | 'haut' }) {
+/**
+ * Le sélecteur de thèmes : une vignette par thème, deux par ligne, ceux de Notak puis ceux des habillages disponibles.
+ * Le choix ne ferme pas la fenêtre.
+ */
+export function ChoixTheme({ ancre, pitch, ratio, choisir, fermer, vers }: { ancre: HTMLElement | null; pitch: ReglagesPitch | undefined; ratio: RatioPitch; choisir(reglage: ReglagePitch): void; fermer(): void; vers?: 'bas' | 'haut' }) {
   const taille = tailleVignette(ratio)
+  const habillages = useHabillagesPublies()
+  const courant = themeDuPitch(pitch).id
+  const choix = [
+    ...THEMES_PITCH.map((th) => ({ cle: th.id, th, reglage: { theme: th.id, perso: null } as ReglagePitch, actif: th.id === courant })),
+    ...habillages.flatMap((h) => {
+      if (!h.pitch) return []
+      const reglage = reglagePitchDe({ ...h, pitch: h.pitch })
+      return [{ cle: `habillage:${h.id}`, th: themeDuPitch(reglage), reglage, actif: courant === THEME_PITCH_PERSO && pitch?.perso?.id === h.id }]
+    }),
+  ]
   return (
     <PopoverFixe ancre={ancre} fermer={fermer} largeur={largeurPopover(ratio)} {...(vers ? { vers } : {})} className="notak-arbre-pitch-themes">
-      {THEMES_PITCH.map((th) => (
-        <button key={th.id} type="button" className="notak-arbre-pitch-vignette" aria-pressed={th.id === theme} onClick={() => choisir(th.id)}>
+      {choix.map(({ cle, th, reglage, actif }) => (
+        <button key={cle} type="button" className="notak-arbre-pitch-vignette" aria-pressed={actif} onClick={() => choisir(reglage)}>
           <span className="notak-arbre-pitch-vignette-cadre">
             <VignetteTheme theme={th} ratio={ratio} taille={taille} />
           </span>

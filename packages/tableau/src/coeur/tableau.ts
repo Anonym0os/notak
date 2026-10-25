@@ -1,4 +1,5 @@
 import { type Point, point } from './geometrie'
+import type { PitchHabillage } from '../habillage/format'
 import type { Fond } from './fond'
 import type { Hauteur } from './hauteur'
 
@@ -557,6 +558,11 @@ export type StructureArbre =
 export interface ReglagesPitch {
   theme?: string
   ratio?: '16:9' | '4:3' | '9:16' | '3:4'
+  /**
+   * Le thème venu d'un habillage (`theme` vaut alors `perso`) : ses valeurs, gardées dans la carte, pour que qui n'a
+   * pas le fichier du thème voie la même présentation.
+   */
+  perso?: PitchHabillage & { id: string; nom: string }
 }
 
 /**

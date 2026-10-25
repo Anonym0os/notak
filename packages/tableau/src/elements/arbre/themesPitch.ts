@@ -1,5 +1,7 @@
 import type { CSSProperties } from 'react'
 import type { ReglagesPitch } from '../../coeur/tableau'
+import { estSombre } from '../../coeur/fond'
+import { type Habillage, lirePitch, pileCss } from '../../habillage/format'
 import type { FormesDiapo } from './diapo/formes'
 import { FORMES_BULLES, FORMES_CARNET, FORMES_INNOCENCE, FORMES_MINUIT, FORMES_SHAPE } from './diapo/formesDesThemes'
 
@@ -145,6 +147,45 @@ export const THEMES_PITCH: readonly ThemePitch[] = [
 
 /** Le thème d'un identifiant ; un identifiant inconnu (venu d'un autre logiciel) retombe sur le sombre. */
 export const themePitchDe = (id: string | undefined): ThemePitch => THEMES_PITCH.find((x) => x.id === id) ?? THEMES_PITCH[1]!
+
+/** L'identifiant d'un thème venu d'un habillage : ses valeurs sont dans `ReglagesPitch.perso`. */
+export const THEME_PITCH_PERSO = 'perso'
+
+/**
+ * Le thème d'une carte : celui qu'elle désigne, ou celui d'un habillage qu'elle garde. Ce dernier est relu par la
+ * liste blanche des habillages (il vient d'un document partagé) ; abîmé, il retombe sur le sombre. Il prend les formes
+ * par défaut, sans décor, et les réglages fins (opacités) du clair ou du sombre selon son fond.
+ */
+export function themeDuPitch(p: ReglagesPitch | undefined): ThemePitch {
+  if (p?.theme !== THEME_PITCH_PERSO || !p.perso) return themePitchDe(p?.theme)
+  try {
+    const v = lirePitch(p.perso)
+    const nom = typeof p.perso.nom === 'string' ? p.perso.nom.slice(0, 60) : ''
+    const fondClair = /^#[0-9a-f]{6}$/i.test(v.fond) && !estSombre(v.fond)
+    const base = THEMES_PITCH[fondClair ? 0 : 1]!
+    const police = v.police ? pileCss(v.police) : base.police
+    return {
+      ...base,
+      id: THEME_PITCH_PERSO,
+      // Un nom libre et non une clé de langue : `t()` rend tel quel ce qu'il ne connaît pas.
+      nom,
+      fondVignette: v.fond,
+      fond: v.fond,
+      texte: v.texte,
+      surbrillance: v.surbrillance ?? base.surbrillance,
+      police,
+      policeTitre: v.policeTitre ? pileCss(v.policeTitre) : police,
+      graisse: v.graisse ?? base.graisse,
+      graisseNote: v.graisse ?? base.graisseNote,
+      graisseTitre: v.graisseTitre ?? base.graisseTitre,
+    }
+  } catch {
+    return THEMES_PITCH[1]!
+  }
+}
+
+/** Ce qu'on écrit dans la carte pour prendre le thème du Pitch d'un habillage. */
+export const reglagePitchDe = (h: Habillage & { pitch: NonNullable<Habillage['pitch']> }) => ({ theme: THEME_PITCH_PERSO, perso: { ...h.pitch, id: h.id, nom: h.nom } })
 
 /**
  * Les variables CSS d'un thème, posées sur le cadre de la diapositive. Le dessin des gabarits lit les cinq premières ;

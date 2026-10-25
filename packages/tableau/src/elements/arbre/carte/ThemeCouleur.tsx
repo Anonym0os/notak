@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useHabillagesPublies } from '../../../habillage/catalogue'
 import type { Arbre, StructureArbre } from '../../../coeur/tableau'
 import { Icone } from '../../../icones'
 import { t, useLangue } from '../../../langue'
@@ -48,7 +49,8 @@ export function ThemeCouleur({ arbre, structure, faire }: { arbre: Arbre; struct
   const prefs = usePreferences()
   const langue = useLangue()
   // Les noms des thèmes sont dans la langue de l'interface : un changement de langue les refait.
-  const groupes = useMemo(() => groupesThemes(prefs.couleursPerso), [prefs.couleursPerso, langue])
+  const habillages = useHabillagesPublies()
+  const groupes = useMemo(() => groupesThemes(prefs.couleursPerso, habillages), [prefs.couleursPerso, habillages, langue])
   const courant = groupeCourant(arbre, groupes)
   const liste = useOuvrable()
   const plus = useOuvrable()
@@ -210,7 +212,7 @@ function ListeThemes({
                     }}
                   />
                 ) : (
-                  <span className="notak-arbre-reglages-groupe-nom" onClick={() => g.perso && setRenomme(g.id)}>
+                  <span className="notak-arbre-reglages-groupe-nom" onClick={() => g.perso && !g.habillage && setRenomme(g.id)}>
                     {g.nom}
                   </span>
                 )}
@@ -223,7 +225,7 @@ function ListeThemes({
                   title={g.nom}
                   onClick={() => clic(g)}
                   onContextMenu={(e) => {
-                    if (!g.perso) return
+                    if (!g.perso || g.habillage) return
                     e.preventDefault()
                     setMenu({ x: e.clientX, y: e.clientY, theme: g.perso })
                   }}

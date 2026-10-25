@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import * as Y from 'yjs'
 import { creerApp } from './app.ts'
 import { type Base, type Utilisateur, ouvrirBase } from './base.ts'
+import type { Cle } from './chiffrement.ts'
 import { inscrire } from './comptes.ts'
 import type { ElementLu, NoeudTexte } from './contenu.ts'
 import { creerLimiteur } from './debit.ts'
@@ -30,9 +31,10 @@ export interface Monde {
   fermer(): void
 }
 
-export function monde(): Monde {
+/** `cle` : le monde chiffre au repos, comme un serveur qui a reçu `NOTAK_CLE`. */
+export function monde(options: { cle?: Cle } = {}): Monde {
   const dossier = mkdtempSync(join(tmpdir(), 'notak-monde-'))
-  const base = ouvrirBase(':memory:')
+  const base = ouvrirBase(':memory:', options.cle ?? null)
   // Une horloge qui avance d'une milliseconde à chaque lecture : deux gestes ne tombent jamais au même instant.
   let instant = Date.now()
   const app = creerApp({
@@ -43,6 +45,7 @@ export function monde(): Monde {
     synchro: () => null,
     relaisFiable: false,
     cookieSecurise: false,
+    cle: options.cle ?? null,
   })
   return {
     base,
