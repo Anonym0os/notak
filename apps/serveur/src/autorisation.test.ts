@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DatabaseSync } from 'node:sqlite'
+import { OpenFgaClient } from '@openfga/sdk'
 import * as Y from 'yjs'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ouvrirAutorisation } from './autorisation.ts'
@@ -152,6 +153,16 @@ describe('la copie tenue par OpenFGA', () => {
     const neuve = ouvrirAutorisation({ base: m.base, url: openfgaEssai(), journal: () => {} })
     expect(await neuve.roleSur(`user:${bob.utilisateur.id}`, 'tableau-garde-1')).toBe('edition')
     expect(m.base.reglage('openfga.magasin')).not.toBe('01HZZZZZZZZZZZZZZZZZZZZZZZ')
+  })
+
+  it('un magasin perdu pendant que Notak tourne est refait à la volée, et la demande aboutit', async () => {
+    m.tableau(ana, 'tableau-perdu-1', 'Perdu')
+    await partager(ana, 'tableau-perdu-1', { email: bob.utilisateur.email, role: 'lecture' })
+    expect(await role(bob, 'tableau-perdu-1')).toBe('lecture')
+    // Un volume effacé : le magasin disparaît sous l'autorisation en marche.
+    await new OpenFgaClient({ apiUrl: openfgaEssai(), storeId: m.base.reglage('openfga.magasin')! }).deleteStore()
+    expect(await role(bob, 'tableau-perdu-1')).toBe('lecture')
+    expect(await role(cleo, 'tableau-perdu-1')).toBeNull()
   })
 
   it('ce qui n’a pas pu partir reste dans la boîte, et part dès qu’OpenFGA répond', async () => {

@@ -92,12 +92,34 @@ export function ouvrirAutorisation(o: OptionsAutorisation): Autorisation {
     return pret
   }
 
+  /** OpenFGA a perdu le magasin ou le modèle (un volume effacé, un moteur en mémoire relancé) sous un Notak lancé. */
+  const perdu = (e: unknown): boolean => {
+    const code = (e as { apiErrorCode?: string } | null)?.apiErrorCode
+    return code === 'authorization_model_not_found' || code === 'store_id_not_found' || (e as { statusCode?: number } | null)?.statusCode === 404
+  }
+  /** Oublie le client : le prochain appel retrouve ou refait le magasin, et le remplit s'il est neuf. */
+  const oublier = () => {
+    client = null
+    pret = null
+    journal('Notak : OpenFGA a perdu le magasin ou le modèle ; ils sont refaits depuis la base.')
+  }
+
   const tuple = (r: Relation) => ({ user: r.sujet, relation: r.relation, object: r.objet })
 
   // Un seul envoi à la fois : deux envois croisés pourraient remettre dans OpenFGA un état déjà dépassé.
   let enCours: Promise<string[]> = Promise.resolve([])
   const envoyer = async (): Promise<string[]> => {
     const changes = synchroniserEspaces(base)
+    try {
+      await pousser()
+    } catch (e) {
+      if (!perdu(e)) throw e
+      oublier()
+      await pousser()
+    }
+    return changes
+  }
+  const pousser = async () => {
     const c = await fga()
     for (;;) {
       const lot = base.boiteEnvoi(PAR_ENVOI)
@@ -111,7 +133,6 @@ export function ouvrirAutorisation(o: OptionsAutorisation): Autorisation {
       )
       base.sortirDeBoite(lot)
     }
-    return changes
   }
 
   const vider = (): Promise<string[]> => {
@@ -122,6 +143,18 @@ export function ouvrirAutorisation(o: OptionsAutorisation): Autorisation {
    * Avant d'évaluer : ce qui attend encore part d'abord. Une vérification voit donc toujours le dernier état écrit
    * dans la base, quel que soit le chemin qui l'a écrit.
    */
+  /** Évalue par `f` ; si OpenFGA a perdu le magasin, le refait, le remplit, et réessaie une fois. */
+  const evaluer = async <T>(f: (c: OpenFgaClient) => Promise<T>): Promise<T> => {
+    await aJour()
+    try {
+      return await f(await fga())
+    } catch (e) {
+      if (!perdu(e)) throw e
+      oublier()
+      await vider()
+      return f(await fga())
+    }
+  }
   const aJour = async () => {
     await enCours.catch(() => {})
     // Préparer d'abord : un magasin neuf remplit la boîte, qu'il faut alors envoyer avant de répondre.
@@ -130,24 +163,18 @@ export function ouvrirAutorisation(o: OptionsAutorisation): Autorisation {
   }
 
   return {
-    async verifier(sujet, relation, objet) {
-      await aJour()
-      return (await (await fga()).check({ user: sujet, relation, object: objet })).allowed === true
-    },
-    async roleSur(sujet, tableau) {
-      await aJour()
-      const { result } = await (await fga()).batchCheck({
-        checks: ACTIONS_DES_ROLES.map(([, relation], i) => ({ user: sujet, relation, object: `tableau:${tableau}`, correlationId: String(i) })),
-      })
-      const permis = new Set(result.filter((r) => r.allowed).map((r) => Number(r.correlationId)))
-      const trouve = ACTIONS_DES_ROLES.findIndex((_, i) => permis.has(i))
-      return trouve < 0 ? null : ACTIONS_DES_ROLES[trouve]![0]
-    },
-    async lister(sujet, relation, type) {
-      await aJour()
-      const { objects } = await (await fga()).listObjects({ user: sujet, relation, type })
-      return objects.map((x) => x.slice(type.length + 1))
-    },
+    verifier: (sujet, relation, objet) => evaluer(async (c) => (await c.check({ user: sujet, relation, object: objet })).allowed === true),
+    roleSur: (sujet, tableau) =>
+      evaluer(async (c) => {
+        const { result } = await c.batchCheck({
+          checks: ACTIONS_DES_ROLES.map(([, relation], i) => ({ user: sujet, relation, object: `tableau:${tableau}`, correlationId: String(i) })),
+        })
+        const permis = new Set(result.filter((r) => r.allowed).map((r) => Number(r.correlationId)))
+        const trouve = ACTIONS_DES_ROLES.findIndex((_, i) => permis.has(i))
+        return trouve < 0 ? null : ACTIONS_DES_ROLES[trouve]![0]
+      }),
+    lister: (sujet, relation, type) =>
+      evaluer(async (c) => (await c.listObjects({ user: sujet, relation, type })).objects.map((x) => x.slice(type.length + 1))),
     vider,
   }
 }
