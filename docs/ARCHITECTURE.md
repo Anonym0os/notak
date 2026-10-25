@@ -19,7 +19,7 @@ apps/web              l'application : deux éditions, choisies à la constructio
   local/              l'édition locale : fichiers, copies .notak, panneau « Où sont mes tableaux ? », synchro
 apps/serveur          l'édition serveur : Hono (API, fichiers), Better Auth (comptes, sessions), Hocuspocus (synchro), SQLite
 apps/site             notak.app : l'édition locale derrière nginx, et la page « À propos »
-apps/bureau           la coque de bureau (Tauri)
+apps/bureau           l'app de bureau (Tauri) : l'édition locale embarquée, ses mises à jour signées (docs/MISES-A-JOUR.md)
 ```
 
 ## Le cœur : un tableau est un document Yjs
@@ -161,6 +161,25 @@ pour ne proposer que les gestes permis (`droitsElements.ts`, `filtrerMagasin`).
   les documents dans une seule transaction suivie d'un `VACUUM`, les fichiers écrits à côté puis posés par `rename`.
 - **Au démarrage**, `ouvrirBase` déchiffre un document chiffré s'il en existe un : une clé fausse, ou l'absence de
   clé, refuse d'ouvrir. Sinon la synchro partirait d'un document vide et l'enregistrerait par-dessus le vrai.
+
+## L'app de bureau
+
+`apps/bureau` embarque l'édition locale (`bun run build:bureau`, dans `apps/web/dist-bureau`) : la même application que
+notak.app, sans service worker, avec des textes qui disent « sur cet ordinateur » (`estBureau`, `apps/web/src/bureau.ts`).
+La coque ajoute ce qu'une page ne sait pas faire : enregistrer un fichier là où la personne le choisit, garder la
+fenêtre chez elle (`src/navigation.rs`), et se mettre à jour de versions signées (`src/mise_a_jour.rs`,
+`apps/web/src/MiseAJour.tsx`). La publication et ce qui la protège : `docs/MISES-A-JOUR.md`.
+
+## Ce que Notak a le droit de joindre
+
+Une seule source, `packages/tableau/src/securite.ts` : la CSP et les en-têtes de notak.app (`apps/site/csp.conf`,
+`entetes.conf`), de l'app de bureau (`tauri.conf.json`) et des pages du serveur (`app.ts`), et les lecteurs intégrés
+qu'elle laisse entrer ; un essai vérifie que chacun la porte telle quelle. La CI vérifie aussi que l'application
+construite ne nomme aucun hôte inconnu (`scripts/hotes.ts`). Ce qui peut sortir de l'appareil : `docs/PUBLIER.md`.
+
+Ce qui vient d'ailleurs passe par une porte : un élément par `coeur/valider.ts` (couleurs comprises), une archive par
+`coeur/dezipper.ts` (bornée au dépliage), un fichier de l'appareil montré sous une sorte qui ne s'exécute pas
+(`typeAffichable`), une adresse par `adresseSure`, un nom de tableau hors des noms réservés (`coeur/idsReserves.ts`).
 
 ## Les essais
 

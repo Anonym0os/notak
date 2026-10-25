@@ -17,3 +17,10 @@ fil des changements ; `bun run nouvelle-version x.y.z` en fait la section de la 
   lieu de laisser des morceaux de l'ancienne échouer en silence.
 - **Sécurité** : Notak ne peut joindre que les hôtes qu'il annonce (une politique de sécurité du contenu, sur notak.app,
   dans l'app et sur les serveurs Notak) ; aucune autre page ne peut l'afficher dans un cadre.
+- **Ce qui vient d'ailleurs est tenu à distance** : un fichier reçu (une copie .notak, une carte Xmind, un fichier
+  déposé) ne s'ouvre jamais comme une page de Notak ; une archive piégée qui se déplierait en gigaoctets est refusée ;
+  une copie ou un dossier partagé ne peut plus abîmer l'index de l'espace ni ses fichiers ; une « couleur » qui
+  chargerait une image espion est ignorée ; un collage démesuré ne fige plus la page.
+- **Connexion (serveur Notak)** : on peut afficher le mot de passe, les majuscules verrouillées se signalent, la règle
+  du mot de passe se lit avant le refus, et après trop d'essais l'écran dit combien attendre. Le serveur limite aussi
+  les essais par compte, d'où qu'ils viennent.

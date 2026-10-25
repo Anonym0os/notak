@@ -45,6 +45,28 @@
    - Rouvrir la copie de quelqu'un l'ajoute, rangée dans le tableau ouvert.
    - Dans un navigateur encore vierge, la copie devient l'accueil.
 
+## Ce qui sort de l'appareil
+
+**Rien ne part vers un serveur à nous** : ni compte, ni mesure d'audience, ni rapport d'erreur, ni police chargée
+ailleurs (elles sont dans l'application). Ce n'est pas qu'une promesse : la politique de sécurité du contenu (CSP,
+`packages/tableau/src/securite.ts`), que portent notak.app et l'app de bureau, interdit au navigateur tout script venu
+d'ailleurs et toute requête de données vers un autre hôte que ceux-ci ; la CI vérifie que l'application construite
+n'en nomme pas d'autres (`scripts/hotes.ts`).
+
+Ce qui peut joindre un tiers, et quand :
+
+| Quoi | Vers qui | Quand |
+|---|---|---|
+| L'adresse d'un lieu | Nominatim (OpenStreetMap) | quand on ouvre un lieu dont la position n'est pas encore connue |
+| La carte d'un lieu | OpenStreetMap | au clic sur la carte |
+| Une vidéo intégrée (YouTube, Vimeo, Loom, Wistia, SoundCloud) | le fournisseur | au clic sur « Lire », ou si on l'a réglée en lecture automatique |
+| Un morceau, une carte, une maquette intégrés (Spotify, Apple Music, Deezer, Google Maps, OpenStreetMap, Figma, Miro, CodePen, Google Docs) | le fournisseur | dès que le tableau qui les contient s'affiche |
+| Une image posée par son adresse (ou l'aperçu d'un lien venu d'un serveur Notak) | son site | quand elle s'affiche |
+| La recherche des mises à jour (app de bureau) | GitHub | au lancement puis toutes les six heures ; se coupe dans « Où sont mes toiles ? » |
+
+Une copie `.notak` reçue de quelqu'un peut contenir des lecteurs et des images : l'ouvrir les charge, comme ouvrir
+une page web. Rien de vos toiles ne part avec : ces hôtes voient l'adresse IP et ce qu'on leur demande, rien d'autre.
+
 ## Ce qui manque à l'édition locale, et pourquoi
 
 | Absent | Pourquoi | Où le trouver |

@@ -12,6 +12,11 @@ quitte votre appareil. Vos tableaux vivent dans le navigateur ; **Cmd+S** en gar
 (votre disque, iCloud Drive, une clé USB), **Cmd+O** en rouvre une. Sur Chrome et Edge pour ordinateur, on peut
 aussi synchroniser un dossier de son nuage (expérimental).
 
+**L'app de bureau** (macOS, Windows, Linux) embarque la même édition locale : rien ne passe par un serveur, et elle se
+met à jour d'elle-même, de versions signées ([`apps/bureau`](apps/bureau/README.md),
+[`docs/MISES-A-JOUR.md`](docs/MISES-A-JOUR.md)). Ce qui peut sortir de l'appareil, et vers qui :
+[`docs/PUBLIER.md`](docs/PUBLIER.md#ce-qui-sort-de-lappareil).
+
 Pour travailler à plusieurs en temps réel (comptes, partage, curseurs en direct), installez votre propre Notak : il
 est libre et tient dans un conteneur (voir [Héberger](#héberger)).
 
@@ -142,7 +147,7 @@ les poser sur n'importe quel hébergement statique, toute adresse inconnue renvo
 | `apps/web` | l'application web, les deux éditions |
 | `apps/serveur` | le serveur de l'édition serveur (Hono, Hocuspocus, SQLite) |
 | `apps/site` | notak.app : l'édition locale derrière nginx, et la page « À propos » |
-| `apps/bureau` | la coque de bureau (Tauri) |
+| `apps/bureau` | l'app de bureau (Tauri) : l'édition locale embarquée, et ses mises à jour signées |
 | `docs/SPEC.md` | ce que Notak doit faire, geste par geste |
 | `docs/FONCTIONNALITES.md` | chaque fonctionnalité de Milanote, et où en est Notak |
 | `docs/ARCHITECTURE.md` | comment le code est rangé |

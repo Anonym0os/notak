@@ -151,7 +151,8 @@ Nouveau `packages/tableau/src/dossier/` :
   appareil (Web Locks).
 - Navigateur : `apps/web/src/local/dossierNavigateur.ts` (`showDirectoryPicker`, poignée en IndexedDB, permission
   redemandée sur un geste, `.crswap` ignorés). Commencer par l'essai sur un vrai Mac.
-- Bureau : `apps/bureau/src-tauri/tauri.conf.json` embarque `apps/web/dist`, avec une vraie CSP.
+- Bureau : `apps/bureau/src-tauri/tauri.conf.json` embarque `apps/web/dist-bureau`, avec une vraie CSP (fait le
+  25/10/2026, avec les mises à jour signées : `docs/MISES-A-JOUR.md`).
   `src-tauri/src/dossier.rs` : lister, écrire de façon atomique (fsync puis renommage), surveiller (`notify`),
   télécharger les fantômes. `src-tauri/src/apercu.rs` : aperçus de liens sur la machine (règles reprises de
   `apps/serveur/src/apercu.ts`). Plugins `dialog`, `single-instance`, fichier de capacités. Côté application :

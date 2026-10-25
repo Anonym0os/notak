@@ -12,6 +12,10 @@ device. Your boards live in the browser; press **Cmd+S** to keep a `.notak` copy
 iCloud Drive, a USB stick), **Cmd+O** to open one. On Chrome and Edge for desktop you can also sync a folder of your
 cloud drive (experimental).
 
+**The desktop app** (macOS, Windows, Linux) embeds the same local edition: nothing goes through a server, and it
+updates itself from signed releases ([`apps/bureau`](apps/bureau/README.md), [`docs/MISES-A-JOUR.md`](docs/MISES-A-JOUR.md),
+in French). What can leave your device, and to whom: [`docs/PUBLIER.md`](docs/PUBLIER.md#ce-qui-sort-de-lappareil).
+
 Want to work together in real time (accounts, sharing, live cursors)? Install your own Notak: it is free software
 and fits in one container (see [Self-host](#self-host)).
 
@@ -145,7 +149,7 @@ static host, with every unknown path falling back to `index.html`.
 | `apps/web` | the web app, both editions |
 | `apps/serveur` | the server edition's backend (Hono, Hocuspocus, SQLite) |
 | `apps/site` | notak.app: the local edition behind nginx, and the About page |
-| `apps/bureau` | the desktop shell (Tauri) |
+| `apps/bureau` | the desktop app (Tauri): the local edition embedded, with signed updates |
 | `docs/` | the spec, the feature list, the architecture, the storage format, the publishing model |
 
 ## Stack
