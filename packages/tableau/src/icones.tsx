@@ -444,6 +444,7 @@ const ICONES = {
   calendrier: IconCalendar,
   recherche: IconSearch,
   cloche: IconBell,
+  bug: IconBug,
   favori: IconStar,
   favoriPlein: IconStarFilled,
   partager: IconShare,

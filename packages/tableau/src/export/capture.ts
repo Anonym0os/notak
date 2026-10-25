@@ -126,22 +126,43 @@ async function photographierToile(rapport: number, fond: boolean, recadrer: bool
 }
 
 /**
- * Tout ce qui est à l'écran, tel qu'on le voit (le signalement d'un bug) : la page entière à la taille de la fenêtre,
- * sauf ce qui porte `data-hors-capture`. Une reconstruction du DOM, pas une photographie : les vidéos et les cadres
- * d'un autre site sortent vides.
+ * Les éléments entièrement hors de la fenêtre, et leurs descendants : la capture de l'écran ne les recopie pas. Sur un
+ * tableau chargé, c'est l'essentiel du DOM, et le plus long de la prise de vue. Un élément sans taille (un calque
+ * dont les enfants sont placés en absolu) reste : ses enfants peuvent être à l'écran.
+ */
+function horsDeLaFenetre(racine: Element, largeur: number, hauteur: number): Set<Element> {
+  const hors = new Set<Element>()
+  for (const el of racine.querySelectorAll('*')) {
+    if (el.parentElement && hors.has(el.parentElement)) {
+      hors.add(el)
+      continue
+    }
+    const r = el.getBoundingClientRect()
+    if (r.width === 0 && r.height === 0) continue
+    if (r.bottom < -50 || r.top > hauteur + 50 || r.right < -50 || r.left > largeur + 50) hors.add(el)
+  }
+  return hors
+}
+
+/**
+ * Tout ce qui est à l'écran, tel qu'on le voit (le signalement d'un bug, hors de Notak de bureau qui photographie sa
+ * fenêtre) : la page entière à la taille de la fenêtre, sauf ce qui porte `data-hors-capture`. Une reconstruction du
+ * DOM, pas une photographie : les vidéos et les cadres d'un autre site sortent vides.
  */
 export async function capturerEcran(rapport = Math.min(window.devicePixelRatio || 1, 2)): Promise<Capture> {
   const racine = document.body
   const largeur = window.innerWidth
   const hauteur = window.innerHeight
-  const rapatriees = await rapatrierLesImages(racine)
-  const defiger = figerPourCapture(racine)
+  const hors = horsDeLaFenetre(racine, largeur, hauteur)
+  for (const el of racine.querySelectorAll('[data-hors-capture], [data-hors-capture] *')) hors.add(el)
+  const rapatriees = await rapatrierLesImages(racine, (el) => !hors.has(el))
+  const defiger = figerPourCapture(racine, (el) => !hors.has(el))
   try {
     const canevas = await versCanevas(racine, {
       ...options(fondDe(racine), rapport),
       width: largeur,
       height: hauteur,
-      filter: (n: Node) => !(n instanceof Element && n.hasAttribute('data-hors-capture')),
+      filter: (n: Node) => !(n instanceof Element && hors.has(n)),
     })
     return { canevas, largeur, hauteur }
   } finally {
@@ -182,13 +203,13 @@ const PEINTURE_SVG = [
  *   parent, la marge reste dedans et ce qui suit remonte (une étiquette sous un titre). Elle est posée sur le parent
  *   lui-même : à l'écran, les deux marges fusionnent toujours en une, rien ne bouge.
  */
-export function figerPourCapture(racine: Element): () => void {
+export function figerPourCapture(racine: Element, retenu: (el: Element) => boolean = () => true): () => void {
   const avant = new Map<Element, string | null>()
   const garder = (el: Element) => {
     if (!avant.has(el)) avant.set(el, el.getAttribute('style'))
   }
   for (const el of racine.querySelectorAll('svg *')) {
-    if (!(el instanceof SVGElement) || el instanceof SVGDefsElement) continue
+    if (!(el instanceof SVGElement) || el instanceof SVGDefsElement || !retenu(el)) continue
     const calcule = getComputedStyle(el)
     garder(el)
     for (const p of PEINTURE_SVG) {
@@ -201,7 +222,7 @@ export function figerPourCapture(racine: Element): () => void {
   const marges = new Map<HTMLElement, number>()
   for (const enfant of [...racine.querySelectorAll<HTMLElement>('*')].reverse()) {
     const parent = enfant.parentElement
-    if (!(enfant instanceof HTMLElement) || !parent || !racine.contains(parent)) continue
+    if (!(enfant instanceof HTMLElement) || !parent || !racine.contains(parent) || !retenu(enfant)) continue
     const marge = margeQuiTraverse(enfant, parent, marges.get(enfant))
     if (marge !== null) marges.set(parent, marge)
   }
@@ -478,14 +499,14 @@ const pdfEnBlob = (pages: PagePdf[]) => new Blob([pdfDePages(pages) as Uint8Arra
  * n'a pas pu lire une fois, et la rendrait vide jusqu'au rechargement. Après la prise de vue, chacune retrouve son
  * adresse ; une image qu'on ne peut pas lire reste telle quelle.
  */
-async function rapatrierLesImages(racine: HTMLElement): Promise<() => void> {
+async function rapatrierLesImages(racine: HTMLElement, retenu: (el: Element) => boolean = () => true): Promise<() => void> {
   const relais = imageDistante
   const adresse = (src: string): string | null => {
     if (!/^https?:/.test(src)) return null
     if (new URL(src).origin === location.origin) return src
     return relais ? relais(src) : null
   }
-  const images = [...racine.querySelectorAll('img')].filter((i) => adresse(i.currentSrc || i.src) !== null)
+  const images = [...racine.querySelectorAll('img')].filter((i) => retenu(i) && adresse(i.currentSrc || i.src) !== null)
   const locales = new Map<string, string | null>()
   await Promise.all(
     [...new Set(images.map((i) => i.currentSrc || i.src))].map(async (src) => {

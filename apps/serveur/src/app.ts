@@ -31,7 +31,7 @@ import { TYPE_NOTAK, ecrireCopie } from './copie.ts'
 import { nomDuDocument } from './synchro.ts'
 import { largeurDemandee, nomReduit, reduire, reductible } from './tailles.ts'
 import { INSTANCE_PAR_DEFAUT, type Instance } from './instance.ts'
-import { CAPTURE_MAX, CONTEXTE_MAX, TEXTE_MAX, deposerSignalement } from './signalements.ts'
+import { CAPTURES_MAX, CAPTURE_MAX, CONTEXTE_MAX, TEXTE_MAX, deposerSignalement } from './signalements.ts'
 import { verrouPar } from './verrou.ts'
 import { creerZip, nommerLesMedias } from './zip.ts'
 
@@ -1182,7 +1182,7 @@ export function creerApp(ctx: Contexte): Hono {
   })
 
   // ---- Signalements de bugs ----
-  // ⇧⌘S dans l'app : les mots, le contexte relevé et la capture (en base64), rangés en dossier (`signalements.ts`).
+  // ⇧⌘S dans l'app : les mots, le contexte relevé et les captures (en base64), rangés en dossier (`signalements.ts`).
   // Sans dossier réglé (`NOTAK_SIGNALEMENTS`, ou le développement), la route répond comme une route qui n'existe pas.
 
   app.post('/api/signalements', async (c) => {
@@ -1190,7 +1190,7 @@ export function creerApp(ctx: Contexte): Hono {
     if (!dossier) return c.json({ erreur: 'signalements fermés', code: 'signalements_fermes' }, 404)
     const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
-    const max = Math.ceil((CAPTURE_MAX * 4) / 3) + CONTEXTE_MAX * 4 + TEXTE_MAX * 4 + 1024
+    const max = Math.ceil((CAPTURE_MAX * CAPTURES_MAX * 4) / 3) + CONTEXTE_MAX * 4 + TEXTE_MAX * 4 + 1024
     const octets = await lireBorne(c.req.raw.body, max)
     if (octets === 'trop gros') return c.json({ erreur: 'trop gros', code: 'trop_gros' }, 413)
     let b: Record<string, unknown> | null = null
@@ -1201,12 +1201,14 @@ export function creerApp(ctx: Contexte): Hono {
       b = null
     }
     if (!b) return c.json({ erreur: 'corps illisible', code: 'corps_illisible' }, 400)
-    const capture = typeof b.capture === 'string' && b.capture ? Buffer.from(b.capture.replace(/^data:image\/png;base64,/, ''), 'base64') : null
-    if (capture && capture.length > CAPTURE_MAX) return c.json({ erreur: 'trop gros', code: 'trop_gros' }, 413)
+    // `captures` : l'écran puis les images collées ; `capture`, une seule, pour une page d'avant.
+    const brutes = (Array.isArray(b.captures) ? b.captures : [b.capture]).filter((x): x is string => typeof x === 'string' && x !== '').slice(0, CAPTURES_MAX)
+    const captures = brutes.map((x) => Buffer.from(x.replace(/^data:image\/png;base64,/, ''), 'base64')).filter((x) => x.length > 0)
+    if (captures.some((x) => x.length > CAPTURE_MAX)) return c.json({ erreur: 'trop gros', code: 'trop_gros' }, 413)
     const id = await deposerSignalement(dossier, {
       texte: texte(b.texte).slice(0, TEXTE_MAX),
       contexte: texte(b.contexte).slice(0, CONTEXTE_MAX),
-      capture: capture && capture.length > 0 ? capture : null,
+      captures,
       auteur: { nom: u.nom, email: u.email },
       quand: new Date(ctx.maintenant()),
     })

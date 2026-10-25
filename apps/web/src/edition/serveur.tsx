@@ -34,7 +34,7 @@ import { PagePublique } from '../PagePublique'
 import { Partage } from '../Partage'
 import { PlusEntete } from '../PlusEntete'
 import { enregistrerServiceWorker } from '../pwa'
-import { brancherSignaler } from '../signaler/Signaler'
+import { BoutonSignaler, brancherSignaler } from '../signaler/Signaler'
 import { VerrouTableau } from '../Verrou'
 import { t } from '../langue'
 import { adressePour } from '../adresse'
@@ -223,6 +223,7 @@ function Accueil({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
           fenetres={fenetres}
           compte={
             <>
+              <BoutonSignaler />
               <Cloche ouvrir={(id) => allerA(`/t/${encodeURIComponent(id)}`)} />
               <Compte moi={moi} deconnexion={deconnexion} aide={fenetres.aide} />
             </>
@@ -293,6 +294,7 @@ function Espace({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
         partage={(courant) => <Partage tableau={courant} moi={moi} />}
         actionsCompte={(_courant, ouvrir, aide) => (
           <>
+            <BoutonSignaler />
             <Cloche ouvrir={ouvrir} />
             <Compte moi={moi} deconnexion={deconnexion} aide={aide} />
           </>
@@ -343,7 +345,7 @@ function BandeauImport({ moi, espace }: { moi: Moi; espace: EspaceDistant }) {
 /** `/p/<jeton>` : un tableau publié, lu sans compte. */
 const publie = /^\/p\/([A-Za-z0-9_-]+)\/?$/.exec(location.pathname)
 enregistrerServiceWorker()
-// ⌥⌘S, partout : un bug se signale sans quitter ce qu'on fait (`signaler/Signaler.tsx`).
+// ⇧⌘S, partout : un bug se signale sans quitter ce qu'on fait (`signaler/Signaler.tsx`).
 brancherSignaler()
 
 createRoot(document.getElementById('racine')!).render(

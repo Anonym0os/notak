@@ -3,6 +3,7 @@
 ///
 /// Seule exception, l'export : la webview de macOS ne télécharge rien, alors la page demande à la coque la fenêtre
 /// « Enregistrer sous », puis lui confie les octets. La coque n'écrit qu'au chemin que la personne vient de choisir.
+/// Et le signalement d'un bug (⌥⌘S) : la coque photographie la page telle qu'elle est peinte (`capturer_fenetre`).
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -45,12 +46,54 @@ fn ecrire_fichier(requete: Request<'_>, emplacement: State<'_, Emplacement>) -> 
     std::fs::write(&chemin, octets).map_err(|e| e.to_string())
 }
 
+/// La page telle qu'on la voit, en PNG, par `takeSnapshot` du WKWebView : l'image peinte, au pixel près, là où la
+/// recopie du DOM (html-to-image) déforme ce que WebKit rend mal. Aucune autorisation d'enregistrement de l'écran :
+/// la vue ne photographie qu'elle-même.
+#[cfg(target_os = "macos")]
+#[tauri::command]
+async fn capturer_fenetre(fenetre: tauri::WebviewWindow) -> Result<tauri::ipc::Response, String> {
+    use block2::RcBlock;
+    use objc2_app_kit::{NSBitmapImageFileType, NSBitmapImageRep, NSImage};
+    use objc2_foundation::{NSDictionary, NSError};
+    use objc2_web_kit::WKWebView;
+    use std::sync::mpsc;
+
+    let (envoi, reception) = mpsc::channel::<Result<Vec<u8>, String>>();
+    fenetre
+        .with_webview(move |vue| {
+            // SAFETY : sur macOS, `inner` est le WKWebView de la fenêtre, et ce bloc tourne sur le fil principal.
+            let vue: &WKWebView = unsafe { &*(vue.inner() as *const WKWebView) };
+            let fin = RcBlock::new(move |image: *mut NSImage, _erreur: *mut NSError| {
+                // SAFETY : WebKit passe une image valide, ou un pointeur nul en cas d'échec.
+                let png = unsafe { image.as_ref() }
+                    .and_then(|image| image.TIFFRepresentation())
+                    .and_then(|tiff| NSBitmapImageRep::imageRepWithData(&tiff))
+                    .and_then(|rep| unsafe { rep.representationUsingType_properties(NSBitmapImageFileType::PNG, &NSDictionary::new()) })
+                    .map(|png| png.to_vec())
+                    .ok_or_else(|| "la photo de la fenêtre a échoué".to_string());
+                let _ = envoi.send(png);
+            });
+            unsafe { vue.takeSnapshotWithConfiguration_completionHandler(None, &fin) };
+        })
+        .map_err(|e| e.to_string())?;
+    let png = tauri::async_runtime::spawn_blocking(move || reception.recv_timeout(std::time::Duration::from_secs(5)))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|_| "la photo de la fenêtre n'est pas venue".to_string())??;
+    Ok(tauri::ipc::Response::new(png))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(Emplacement::default())
-        .invoke_handler(tauri::generate_handler![choisir_emplacement, ecrire_fichier])
+        .invoke_handler(tauri::generate_handler![
+            choisir_emplacement,
+            ecrire_fichier,
+            #[cfg(target_os = "macos")]
+            capturer_fenetre
+        ])
         .run(tauri::generate_context!())
         .expect("Notak n'a pas pu ouvrir sa fenêtre");
 }

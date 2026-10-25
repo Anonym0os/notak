@@ -5,13 +5,13 @@ import { erreursRecentes, noterErreur } from './journal'
 const touche = (o: Partial<KeyboardEvent>) => ({ code: 'KeyS', metaKey: false, ctrlKey: false, shiftKey: false, altKey: false, ...o })
 
 describe('le raccourci de signalement', () => {
-  it('⌥⌘S sur Mac, Ctrl+Alt+S ailleurs, jamais ⇧⌘S (le barré du texte)', () => {
-    expect(estLeRaccourci(touche({ metaKey: true, altKey: true }), true)).toBe(true)
-    expect(estLeRaccourci(touche({ ctrlKey: true, altKey: true }), false)).toBe(true)
-    expect(estLeRaccourci(touche({ metaKey: true, shiftKey: true }), true)).toBe(false)
-    expect(estLeRaccourci(touche({ metaKey: true, altKey: true, shiftKey: true }), true)).toBe(false)
-    expect(estLeRaccourci(touche({ ctrlKey: true, altKey: true }), true)).toBe(false)
-    expect(estLeRaccourci(touche({ metaKey: true, altKey: true, code: 'KeyD' }), true)).toBe(false)
+  it('⇧⌘S sur Mac, comme dans Silak ; Ctrl+Maj+S ailleurs', () => {
+    expect(estLeRaccourci(touche({ metaKey: true, shiftKey: true }), true)).toBe(true)
+    expect(estLeRaccourci(touche({ ctrlKey: true, shiftKey: true }), false)).toBe(true)
+    expect(estLeRaccourci(touche({ metaKey: true, altKey: true }), true)).toBe(false)
+    expect(estLeRaccourci(touche({ metaKey: true, shiftKey: true, altKey: true }), true)).toBe(false)
+    expect(estLeRaccourci(touche({ ctrlKey: true, shiftKey: true }), true)).toBe(false)
+    expect(estLeRaccourci(touche({ metaKey: true, shiftKey: true, code: 'KeyX' }), true)).toBe(false)
   })
 })
 
