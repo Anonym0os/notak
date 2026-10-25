@@ -99,6 +99,8 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     dossierFichiers: join(options.dossier, 'fichiers'),
     limiteur: creerLimiteur(10, 60_000),
     limiteurArrivee: creerLimiteur(30, 60_000),
+    // Dix essais par compte et par quart d'heure : assez pour qui se trompe, trop peu pour deviner.
+    limiteurCompte: creerLimiteur(10, 15 * 60_000),
     maintenant: Date.now,
     synchro: () => hocuspocus,
     relaisFiable: options.relaisFiable ?? false,

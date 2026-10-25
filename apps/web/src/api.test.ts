@@ -51,6 +51,17 @@ describe('les refus du serveur, dits dans la langue de l’interface', () => {
     expect((await echec(seConnecter('a@b.fr', 'x'))).message).toBe('Wrong address or password')
   })
 
+  it('trop d’essais : combien attendre, d’après le serveur', async () => {
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ erreur: 'trop d’essais', code: 'trop_d_essais' }), { status: 429, headers: { 'retry-after': '725' } }))
+    expect((await echec(seConnecter('a@b.fr', 'x'))).message).toBe('Trop d’essais : réessayez dans 13 min')
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ code: 'trop_d_essais' }), { status: 429, headers: { 'retry-after': '41' } }))
+    definirLangue('en')
+    expect((await echec(seConnecter('a@b.fr', 'x'))).message).toBe('Too many attempts: try again in 41 s')
+    // Sans durée, le message général.
+    repond(429, { code: 'trop_d_essais' })
+    expect((await echec(seConnecter('a@b.fr', 'x'))).message).toBe('Too many attempts, please wait a moment')
+  })
+
   it('un réseau absent se dit aussi', async () => {
     vi.stubGlobal('fetch', async () => {
       throw new TypeError('offline')

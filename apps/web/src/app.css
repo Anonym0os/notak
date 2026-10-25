@@ -877,6 +877,64 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   height: 40px;
 }
 
+/* Un champ que l'erreur désigne : le filet prend la couleur du danger, jusqu'à ce qu'on le corrige. */
+.connexion-carte input[aria-invalid='true'] {
+  box-shadow: inset 0 0 0 1.5px var(--app-danger);
+}
+
+/* Le mot de passe et, à sa droite dans le champ, de quoi l'afficher. */
+.connexion-mdp {
+  position: relative;
+  display: flex;
+}
+
+.connexion-mdp input {
+  flex: 1;
+  padding-right: 44px;
+}
+
+.connexion-voir {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--app-pale);
+  cursor: pointer;
+}
+
+.connexion-voir:hover,
+.connexion-voir:focus-visible {
+  background: var(--app-survol, rgb(50 59 74 / 0.06));
+  color: var(--texte);
+}
+
+.connexion-voir[aria-pressed='true'] {
+  color: var(--accent);
+}
+
+/* La règle du mot de passe, les majuscules verrouillées : une ligne pâle sous le champ. */
+.connexion-indice {
+  color: var(--app-pale);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.connexion-indice[role='status'] {
+  color: #b45309;
+}
+
+[data-theme='sombre'] .connexion-indice[role='status'] {
+  color: #f59e0b;
+}
+
 .connexion-carte .bouton {
   height: 40px;
   border-radius: 20px;

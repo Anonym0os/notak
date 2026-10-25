@@ -49,6 +49,11 @@ export interface Contexte {
   limiteur: Limiteur
   /** Pour `POST /api/arrivee`, appelée à la chaîne par des raccourcis : à défaut, le limiteur commun. */
   limiteurArrivee?: Limiteur
+  /**
+   * Par compte, en plus de la limite par adresse IP : les essais de mot de passe et les demandes de lien visant une même
+   * adresse e-mail, d'où qu'ils viennent. À défaut, aucun.
+   */
+  limiteurCompte?: Limiteur
   maintenant: () => number
   /** Lu à chaque requête : le serveur de synchro naît après l'application. */
   synchro: () => Hocuspocus | null
@@ -177,7 +182,26 @@ export function creerApp(ctx: Contexte): Hono {
     '/sign-in/email': 'connexion',
     '/sign-up/email': 'inscription',
     '/request-password-reset': 'reinitialisation',
+    '/reset-password': 'reinitialisation',
     '/sign-in/sso': 'connexion',
+  }
+  // Ces gestes visent un compte par son adresse e-mail : ils se limitent aussi par compte. Mille machines qui se
+  // partagent les essais ne devinent pas plus vite un mot de passe, et ne remplissent pas la boîte de quelqu'un de
+  // liens qu'il n'a pas demandés. La limite tombe que le compte existe ou non : elle ne dit rien de lui.
+  const PAR_COMPTE = new Set(['/sign-in/email', '/request-password-reset'])
+  const limiterCompte = async (c: Context, chemin: string): Promise<Response | null> => {
+    if (!ctx.limiteurCompte || !PAR_COMPTE.has(chemin)) return null
+    const b: unknown = await c.req.raw
+      .clone()
+      .json()
+      .catch(() => null)
+    const email = b && typeof b === 'object' && 'email' in b ? normaliserEmail(texte(b.email)) : ''
+    if (!email) return null
+    const maintenant = ctx.maintenant()
+    const cle = `${chemin}:${email}`
+    if (ctx.limiteurCompte.autoriser(cle, maintenant)) return null
+    const secondes = Math.ceil(ctx.limiteurCompte.attente(cle, maintenant) / 1000)
+    return c.json({ erreur: 'trop d’essais', code: 'trop_d_essais' }, 429, { 'retry-after': String(secondes) })
   }
   // Le SSO d'un espace : seul un espace d'équipe en a un, et la découverte OIDC se fait ici, sous la garde réseau
   // de Notak, plutôt que par Better Auth, qui ne l'accepte que d'origines déclarées d'avance. La demande, complétée
@@ -234,8 +258,9 @@ export function creerApp(ctx: Contexte): Hono {
   })
 
   app.on(['GET', 'POST'], `${CHEMIN_AUTH}/*`, async (c) => {
-    const route = LIMITES_AUTH[c.req.path.slice(CHEMIN_AUTH.length)]
-    const refus = c.req.method === 'POST' && route ? limiter(c, route) : null
+    const chemin = c.req.path.slice(CHEMIN_AUTH.length)
+    const route = LIMITES_AUTH[chemin]
+    const refus = c.req.method === 'POST' && route ? (limiter(c, route) ?? (await limiterCompte(c, chemin))) : null
     if (refus) return refus
     const reponse = await ctx.auth.handler(c.req.raw)
     // Un membre, un rôle ou une équipe a pu changer (une invitation acceptée, un SSO qui fait entrer quelqu'un) :

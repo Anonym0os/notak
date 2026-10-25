@@ -68,9 +68,15 @@ async function refus(r: Response, contexte: Record<string | number, string> = {}
   const cleDuCode = code && `erreur.${code}` in textesFr ? `erreur.${code}` : undefined
   const cle = (code ? contexte[code] : undefined) ?? cleDuCode ?? contexte[r.status]
   const serveur = typeof corps?.erreur === 'string' && corps.erreur ? corps.erreur : undefined
+  // Trop d'essais : le serveur dit combien attendre, et la personne le saura.
+  const attente = r.status === 429 ? Number(r.headers.get('retry-after')) : NaN
+  if (attente > 0) return new ErreurApi(t('erreur.trop_d_essais_dans', { duree: duree(attente) }), r.status, code)
   const message = cle ? t(cle) : (serveur ?? t(r.status >= 500 ? 'erreur.serveur' : 'erreur.refusee'))
   return new ErreurApi(message, r.status, code)
 }
+
+/** Une attente en mots courts : « 40 s », « 12 min ». */
+export const duree = (secondes: number): string => (secondes < 60 ? `${Math.ceil(secondes)} s` : `${Math.ceil(secondes / 60)} min`)
 
 /** Ce que le serveur dit de lui (`GET /api/instance`) : son nom, ses inscriptions, les thèmes qu'il fournit. */
 export interface Instance {
