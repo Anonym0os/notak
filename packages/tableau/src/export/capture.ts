@@ -1,4 +1,5 @@
-import { toCanvas } from 'html-to-image'
+import { toSvg } from 'html-to-image'
+import { colorerCode } from '../blocs/coloration'
 import { annoterPage } from '../blocs/structure'
 import { t } from '../langue'
 import { avecToutLeTableau, rapportDeCapture } from '../pilotage'
@@ -26,6 +27,48 @@ let imageDistante: ((adresse: string) => string) | null = null
  */
 export function reglerCapture(o: { imageDistante: ((adresse: string) => string) | null }) {
   imageDistante = o.imageDistante
+}
+
+type OptionsCapture = NonNullable<Parameters<typeof toSvg>[1]>
+
+/** Le plus grand côté qu'un canevas accepte partout (au-delà, Safari le rend vide). */
+const COTE_MAX = 16384
+
+const attendre = (ms: number) => new Promise((fin) => setTimeout(fin, ms))
+const uneImage = () => new Promise((fin) => requestAnimationFrame(() => requestAnimationFrame(fin)))
+
+/**
+ * Un élément dessiné sur un canevas, comme `toCanvas` de html-to-image, mais en deux passes. WebKit (Safari, et Notak
+ * pour le bureau) ne décode les images d'un SVG (une image du document, la coche d'une case, une vignette) qu'au
+ * moment où on le dessine : le premier dessin les laisse en blanc. On dessine donc une fois pour rien, on laisse au
+ * navigateur le temps de les décoder, puis on dessine pour de bon.
+ */
+async function versCanevas(noeud: HTMLElement, o: OptionsCapture & { pixelRatio: number }): Promise<HTMLCanvasElement> {
+  const bord = (cote: string) => parseFloat(getComputedStyle(noeud).getPropertyValue(`border-${cote}-width`)) || 0
+  const largeur = o.width ?? noeud.clientWidth + bord('left') + bord('right')
+  const hauteur = o.height ?? noeud.clientHeight + bord('top') + bord('bottom')
+  const image = new Image()
+  image.decoding = 'sync'
+  image.src = await toSvg(noeud, o)
+  await image.decode()
+  const canevas = document.createElement('canvas')
+  const reduction = Math.min(1, COTE_MAX / (largeur * o.pixelRatio), COTE_MAX / (hauteur * o.pixelRatio))
+  canevas.width = Math.round(largeur * o.pixelRatio * reduction)
+  canevas.height = Math.round(hauteur * o.pixelRatio * reduction)
+  const ctx = canevas.getContext('2d')!
+  const dessiner = () => {
+    ctx.clearRect(0, 0, canevas.width, canevas.height)
+    if (o.backgroundColor) {
+      ctx.fillStyle = o.backgroundColor
+      ctx.fillRect(0, 0, canevas.width, canevas.height)
+    }
+    ctx.drawImage(image, 0, 0, canevas.width, canevas.height)
+  }
+  dessiner()
+  await uneImage()
+  await attendre(60)
+  dessiner()
+  return canevas
 }
 
 export interface Capture {
@@ -68,7 +111,7 @@ async function photographierToile(rapport: number, fond: boolean, recadrer: bool
   const rendre = () => (defiger(), rapatriees())
   let canevas: HTMLCanvasElement
   try {
-    canevas = await toCanvas(toile, {
+    canevas = await versCanevas(toile, {
       ...options(fond ? getComputedStyle(toile).backgroundColor : null, rapport),
       // Le tableau seul : la toile porte aussi la barre d'outils, les pastilles et les bulles, qui n'en sont pas.
       filter: (n: Node) => !(n instanceof Element && ((n.parentElement === toile && !n.classList.contains('notak-plan')) || HORS_TOILE.some((c) => n.classList.contains(c)))),
@@ -219,7 +262,7 @@ export async function capturerCarte(svg: SVGSVGElement, emprise: { x: number; y:
     copie.style.overflow = 'hidden'
     if (plan) plan.style.transform = `translate(${m - x0}px, ${m - y0}px)`
     figerPourCapture(copie)
-    const canevas = await toCanvas(copie as unknown as HTMLElement, {
+    const canevas = await versCanevas(copie as unknown as HTMLElement, {
       ...options(fond ? fondDe(parent) : null, rapportDeCapture(largeur, 1)),
       width: largeur,
       height: hauteur,
@@ -240,9 +283,16 @@ const PIXELS_MAX = 40_000_000
 
 /** Ce que portent les pages d'un document : une feuille blanche, le texte comme dans Notak. */
 const STYLE_PAGES = [
-  '.notak-export-pages{font:15px/1.6 system-ui,-apple-system,sans-serif;color:#323b4a;background:#fff;box-sizing:border-box}',
+  '.notak-export-pages{font:15px/1.6 system-ui,-apple-system,sans-serif;color:var(--notak-page-texte);background:#fff;box-sizing:border-box}',
   '.notak-export-pages *{box-sizing:border-box}',
-  '.notak-export-pages h1.t{font-size:30px;line-height:1.2;font-weight:700;margin:0 0 24px}',
+  // Le titre et l'icône de la page, alignés sur le texte des blocs (6 px de marge, 2 px de jour).
+  '.notak-export-pages .i{font-size:64px;line-height:1;margin:0 0 12px;padding:0 8px}',
+  '.notak-export-pages h1.t{font-size:30px;line-height:1.2;font-weight:700;margin:0 0 24px;padding:0 8px;overflow-wrap:break-word}',
+  // L'habillage de la page (le menu « ••• » du document) : sa police, son petit texte.
+  ".notak-export-pages[data-police=serif]{font-family:Lyon-Text,Georgia,YuMincho,'Yu Mincho','Hiragino Mincho ProN','Songti TC',serif}",
+  '.notak-export-pages[data-police=mono]{font-family:iawriter-mono,Nitti,Menlo,Courier,monospace}',
+  '.notak-export-pages .notak-blocs{font-family:inherit}',
+  '.notak-export-pages[data-petit] .notak-texte.notak-blocs>*,.notak-export-pages[data-petit] .notak-blocs-colonne>*{font-size:14px;line-height:21px}',
   '.notak-export-pages p{margin:0 0 12px}',
   '.notak-export-pages h1{font-size:26px;line-height:1.25;margin:28px 0 12px}',
   '.notak-export-pages h2{font-size:21px;line-height:1.3;margin:24px 0 10px}',
@@ -261,17 +311,31 @@ const STYLE_PAGES = [
   '.notak-export-pages table{border-collapse:collapse;margin:0 0 12px}.notak-export-pages td,.notak-export-pages th{border:1px solid #d5d9e0;padding:4px 8px}',
 ].join('')
 
+/** L'habillage d'une page de document qui passe dans ses pages A4 : son icône, sa police, son petit texte. */
+export interface HabillagePages {
+  icone?: string | undefined
+  police?: 'serif' | 'mono' | undefined
+  petitTexte?: boolean | undefined
+}
+
 /**
  * Les pages A4 d'un document : son titre, puis son texte (`html`, déjà rendu), mis en page hors de l'écran puis
  * coupé entre deux blocs, ou entre deux éléments d'une liste, plutôt qu'au milieu d'une ligne. `adresse` donne
  * l'adresse d'une image rangée dans l'espace.
  */
-export async function capturerPages(titre: string, html: string, adresse?: (fichier: string) => Promise<string | null>): Promise<HTMLCanvasElement[]> {
+export async function capturerPages(
+  titre: string,
+  html: string,
+  adresse?: (fichier: string) => Promise<string | null>,
+  habillage: HabillagePages = {},
+): Promise<HTMLCanvasElement[]> {
   const largeur = PAGE.l - 2 * PAGE.marge
   const hauteurUtile = PAGE.h - 2 * PAGE.marge
   const hote = document.createElement('div')
   hote.className = 'notak-export-pages'
   hote.style.cssText = `position:fixed;left:-100000px;top:0;width:${largeur}px`
+  if (habillage.police) hote.dataset.police = habillage.police
+  if (habillage.petitTexte) hote.dataset.petit = ''
   const style = document.createElement('style')
   style.textContent = STYLE_PAGES
   const tete = document.createElement('h1')
@@ -281,9 +345,11 @@ export async function capturerPages(titre: string, html: string, adresse?: (fich
   const corps = document.createElement('div')
   corps.className = 'notak-texte notak-blocs'
   corps.innerHTML = html
-  hote.append(style, tete, corps)
+  const icone = habillage.icone ? Object.assign(document.createElement('div'), { className: 'i', textContent: habillage.icone }) : null
+  hote.append(style, ...(icone ? [icone] : []), tete, corps)
   document.body.appendChild(hote)
   annoterPage(corps)
+  colorerCode(corps)
   try {
     // Une image du document est un fichier de l'espace : on va chercher son adresse, comme la lecture.
     if (adresse)
@@ -301,7 +367,7 @@ export async function capturerPages(titre: string, html: string, adresse?: (fich
     const haut = hote.getBoundingClientRect().top
     const total = hote.scrollHeight
     // Où l'on peut couper : avant chaque bloc, et avant chaque élément d'une liste ou d'une citation.
-    const coupes = [tete, ...corps.children, ...corps.querySelectorAll(':scope > :is(ul, ol, blockquote) > *')]
+    const coupes = [...corps.children, ...corps.querySelectorAll(':scope > :is(ul, ol, blockquote) > *')]
       .map((e) => e.getBoundingClientRect().top - haut)
       .filter((y) => y > 0)
       .sort((a, b) => a - b)
@@ -309,7 +375,7 @@ export async function capturerPages(titre: string, html: string, adresse?: (fich
     const k = Math.max(0.75, Math.min(RAPPORT_PAGES, Math.sqrt(PIXELS_MAX / (largeur * Math.max(1, total)))))
     let canevas: HTMLCanvasElement
     try {
-      canevas = await toCanvas(hote, {
+      canevas = await versCanevas(hote, {
         ...options('#ffffff', k),
         style: { position: 'static', left: '0' },
         filter: (n: Node) => !(n instanceof HTMLStyleElement),
@@ -317,10 +383,12 @@ export async function capturerPages(titre: string, html: string, adresse?: (fich
     } finally {
       rendre()
     }
+    // Le rapport réel : un canevas trop haut pour le navigateur a été réduit.
+    const r = canevas.width / largeur
     const pages = decouper(total, coupes, hauteurUtile).map(([debut, fin]) => {
-      const page = feuille(k)
-      const h = Math.min(fin, canevas.height / k) - debut
-      if (h > 0) page.getContext('2d')!.drawImage(canevas, 0, debut * k, canevas.width, h * k, PAGE.marge * k, PAGE.marge * k, canevas.width, h * k)
+      const page = feuille(r)
+      const h = Math.min(fin, canevas.height / r) - debut
+      if (h > 0) page.getContext('2d')!.drawImage(canevas, 0, debut * r, canevas.width, h * r, PAGE.marge * r, PAGE.marge * r, canevas.width, h * r)
       return page
     })
     return pages.length > 0 ? pages : [feuille(1)]

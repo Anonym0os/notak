@@ -104,6 +104,16 @@ describe('les rubriques', () => {
     expect(titre()).toBe('Apparence')
   })
 
+  it('le mode propose clair, sombre et système', () => {
+    const choisis: Partial<Reglages>[] = []
+    monter({ changer: (r) => choisis.push(r) })
+    const modes = [...hote.querySelectorAll<HTMLButtonElement>('[aria-label="Mode"] [role="radio"]')]
+    expect(modes.map((b) => b.textContent)).toEqual(['Clair', 'Sombre', 'Système'])
+    expect(modes[0]!.getAttribute('aria-checked')).toBe('true')
+    act(() => modes[2]!.click())
+    expect(choisis).toEqual([{ theme: 'systeme' }])
+  })
+
   it('une pilule transmet le choix, et montre celui en cours', () => {
     const choisis: Partial<Reglages>[] = []
     monter({ changer: (r) => choisis.push(r) })

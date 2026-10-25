@@ -11,6 +11,7 @@ import { BoutonIlot, FilEcran, FiletIlot, ILOTS_APPLICATION, Ilot, IlotCompte, I
 import { CLE_IDS } from '../../blocs/ids'
 import { degrader, lisible } from '../../blocs/lisible'
 import { aplatir, deplier } from '../../blocs/migration'
+import { colorerCode } from '../../blocs/coloration'
 import { annoterPage } from '../../blocs/structure'
 import { EXTENSIONS_NOTE } from '../note/extensions'
 import { Bulle } from '../../blocs/Bulle'
@@ -56,6 +57,7 @@ const Lu = memo(function Lu({ texte, fils, adresse }: { texte: NoeudTexte; fils?
     if (!racine.current) return
     // Les numéros, les blocs qu'un dépliant fermé cache, le cadre des encadrés : ce que l'éditeur pose en décorations.
     annoterPage(racine.current)
+    colorerCode(racine.current)
     if (adresse) remplirImages(racine.current, adresse)
   }, [rendu, adresse])
   return (

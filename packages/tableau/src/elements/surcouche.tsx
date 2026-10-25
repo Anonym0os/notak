@@ -112,12 +112,29 @@ export function Surcouche({ etiquette, className, fermer, surTouche, children }:
   // Le thème de l'espace suit aussi : ce qui se règle dessus (les menus du document) le retrouve dans la surcouche.
   const [theme, setTheme] = useState<string | undefined>(undefined)
   useLayoutEffect(() => {
-    const toile = ancre.current?.closest('.notak-toile')
-    setTheme(ancre.current?.closest<HTMLElement>('.notak-espace')?.dataset.theme)
-    setVariables(toile ? variablesDe(toile) : {})
+    const espace = ancre.current?.closest<HTMLElement>('.notak-espace')
+    let vues = ''
+    const lire = () => {
+      const toile = ancre.current?.closest('.notak-toile')
+      const v = toile ? variablesDe(toile) : {}
+      setTheme(espace?.dataset.theme)
+      // Les mêmes valeurs ne redessinent pas le contenu (une carte, un document).
+      if (JSON.stringify(v) !== vues) (vues = JSON.stringify(v)), setVariables(v)
+    }
+    lire()
+    // Le thème et l'habillage changent pendant qu'elle est ouverte (les réglages s'ouvrent par-dessus) : elle les suit.
+    const suivi = new MutationObserver(lire)
+    if (espace) suivi.observe(espace, { attributes: true, attributeFilter: ['data-theme'] })
+    suivi.observe(document.documentElement, { attributes: true, attributeFilter: ['data-habillage', 'data-mode'] })
+    suivi.observe(document.head, { childList: true, subtree: true, characterData: true })
+    return () => suivi.disconnect()
   }, [])
+  // Le focus entre une fois, à l'ouverture ; un changement de thème ne le reprend pas aux réglages.
+  const focalise = useRef(false)
   useLayoutEffect(() => {
-    if (variables) racine.current?.focus({ preventScroll: true })
+    if (!variables || focalise.current) return
+    focalise.current = true
+    racine.current?.focus({ preventScroll: true })
   }, [variables])
   return (
     <>

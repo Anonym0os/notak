@@ -34,6 +34,7 @@ import { elementSous, suiviDedans, surbrillance } from "./accroche";
 import { editionLibelle } from "./edition";
 import { Guides } from "./Guides";
 import { suivreLesVols } from "../../envol";
+import { useSombre } from "../../themeVivant";
 
 type Mesures = { depart: Rect | null; arrivee: Rect | null };
 type Geste = {
@@ -127,7 +128,8 @@ export function RenduLigne({
     [idD, idA],
   );
 
-  const [sombre, setSombre] = useState(false);
+  // Le thème sombre éclaircit le gris par défaut du trait.
+  const sombre = useSombre(ancre, "[data-theme]");
   const [enGeste, setEnGeste] = useState(false);
   const [guides, setGuides] = useState<{ rect: Rect; p: Point } | null>(null);
   const dernier = useRef<{ x: number; y: number; maj: boolean } | null>(null);
@@ -146,10 +148,7 @@ export function RenduLigne({
   const [haut, setHaut] = useState<Element | null>(null);
   // Verrouillée ou en lecture seule, une ligne ne se remodèle pas.
   const inerte = !!element.verrou || !!contexte.services?.lectureSeule;
-  // Le thème sombre éclaircit le gris par défaut du trait.
   useLayoutEffect(() => {
-    const s = ancre.current?.closest("[data-theme]")?.getAttribute("data-theme") === "sombre";
-    if (s !== sombre) setSombre(s);
     const calque = ancre.current?.closest(".notak-plan")?.querySelector(".notak-calque-poignees") ?? null;
     if (calque !== haut) setHaut(calque);
   });
