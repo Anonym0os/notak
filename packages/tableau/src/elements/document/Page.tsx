@@ -193,8 +193,8 @@ export function OptionsPage({ page, changer }: { page: PageDocument; changer(p: 
   }
   return (
     <div className="notak-note-menu-ancre notak-page-options" ref={ancre}>
-      <button type="button" className="notak-document-export-bouton" aria-label={t('page.options')} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
-        •••
+      <button type="button" className="notak-document-export-bouton" aria-label={t('page.options')} title={t('page.options')} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
+        <Icone nom="plus" taille={20} trait={1.5} />
       </button>
       {ouvert && (
         <div className="notak-note-menu notak-page-options-menu" role="menu">

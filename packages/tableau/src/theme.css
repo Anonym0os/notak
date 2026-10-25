@@ -48,9 +48,8 @@
 }
 
 .notak-espace[data-theme='sombre'] .notak-barre-outils {
-  --notak-barre: var(--notak-fond);
   --notak-vignette-trait: #4a505a;
-  box-shadow: 1px 0 0 0 rgb(255 255 255 / 0.08);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.06);
 }
 
 .notak-espace[data-theme='sombre'] .notak-tiroir {
@@ -60,10 +59,6 @@
 .notak-espace[data-theme='sombre'] {
   background: var(--notak-fond);
   color: var(--notak-texte);
-}
-
-.notak-espace[data-theme='sombre'] .notak-entete {
-  border-bottom-color: rgb(255 255 255 / 0.08);
 }
 
 /* Les panneaux, menus et barres flottantes reposent déjà sur --notak-carte ; leurs ombres et séparateurs s'éclaircissent. */
@@ -152,6 +147,14 @@
 /* La taille de l'interface : l'en-tête, la barre d'outils et les fenêtres grandissent ou rapetissent ensemble. */
 .notak-espace[data-taille='petite'] :is(.notak-entete, .notak-barre-outils, .notak-raccourcis) {
   zoom: 0.88;
+}
+
+.notak-espace[data-taille='petite'] {
+  --notak-haut: 60px;
+}
+
+.notak-espace[data-taille='grande'] {
+  --notak-haut: 78px;
 }
 
 .notak-espace[data-taille='grande'] :is(.notak-entete, .notak-barre-outils, .notak-raccourcis) {
@@ -275,7 +278,7 @@
 }
 
 /* La présentation : rien que le tableau, sans en-tête ni barres. */
-.notak-espace[data-presentation] :is(.notak-entete, .notak-barre-outils, .notak-barre-selection, .notak-non-tries, .notak-corbeille) {
+.notak-espace[data-presentation] :is(.notak-entete, .notak-vue-bas, .notak-barre-outils, .notak-barre-selection, .notak-non-tries, .notak-corbeille) {
   display: none;
 }
 

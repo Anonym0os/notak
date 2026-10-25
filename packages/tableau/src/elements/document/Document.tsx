@@ -7,6 +7,7 @@ import { type Fils, MARQUE_FIL, avecFil, filsVivants, sansPassagesMuets } from '
 import { Marge } from '../note/Marge'
 import { type Pont, Propositions, extensionPropositions } from '../note/Propositions'
 import { Surcouche } from '../surcouche'
+import { BoutonIlot, FilEcran, ILOTS_APPLICATION, Ilot, IlotCompte, IlotHistorique, IlotPartage, fermerMenuDesIlots } from '../../Ilots'
 import { CLE_IDS } from '../../blocs/ids'
 import { degrader, lisible } from '../../blocs/lisible'
 import { aplatir, deplier } from '../../blocs/migration'
@@ -254,8 +255,8 @@ function MenuExport({ titre, lireTexte }: { titre: string; lireTexte(): NoeudTex
   ]
   return (
     <div className="notak-note-menu-ancre notak-document-export" ref={ancre}>
-      <button type="button" className="notak-document-export-bouton" aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
-        {t('document.exporter')} <Icone nom="chevronBas" taille={14} />
+      <button type="button" className="notak-document-export-bouton" aria-label={t('document.exporter')} title={t('document.exporter')} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
+        <Icone nom="exporter" taille={20} trait={1.5} />
       </button>
       {ouvert && (
         <div className="notak-note-menu notak-document-export-menu" role="menu">
@@ -293,8 +294,9 @@ interface PropsModale {
 }
 
 /**
- * Le document en grand, comme une page de Notion (docs/NOTION.md § 9) : toute la fenêtre, une barre de 44 px en haut
- * (fermer, le titre en petit, les options et « Export »), puis la page qui défile. Échap referme aussi.
+ * Le document en grand, comme une page de Notion (docs/NOTION.md § 9) : toute la fenêtre, la barre d'îlots du tableau
+ * et de la carte en haut (Ilots.tsx : le retour, le fil ; l'historique, le partage, puis les options, l'export et le
+ * compte), puis la page qui défile. Échap referme aussi.
  */
 function Modale({ titre, titreTexte, lireTexte, fermer, children, lecture, corps, page, options, finDePage, editeur }: PropsModale) {
   return (
@@ -307,6 +309,9 @@ function Modale({ titre, titreTexte, lireTexte, fermer, children, lecture, corps
         if (e.key === 'Escape' && document.querySelector('.notak-propositions, .notak-menu-blocs')) return true
         // Échap que l'éditeur a pris (il a choisi le bloc du curseur, NOTION.md § 7) ne ferme pas le document.
         if (e.key === 'Escape' && e.defaultPrevented) return true
+        // Échap ferme d'abord le menu ouvert dans un îlot de l'application (partage, compte), et ses touches restent les siennes.
+        if (e.key === 'Escape' && fermerMenuDesIlots(e.currentTarget as HTMLElement)) return true
+        if (e.key !== 'Escape' && (e.target as Element).closest?.(ILOTS_APPLICATION)) return true
         // Échap referme d'abord le menu ouvert, sans quitter le document.
         if (e.key !== 'Escape' || !(e.currentTarget as HTMLElement).querySelector('[aria-expanded="true"]')) return false
         e.preventDefault()
@@ -315,14 +320,18 @@ function Modale({ titre, titreTexte, lireTexte, fermer, children, lecture, corps
       }}
     >
       <div className="notak-document-boite" data-lecture={lecture || undefined} {...attributsPage(page ?? {})}>
-        <header className="notak-document-entete" data-tauri-drag-region="deep">
-          <button type="button" className="notak-document-fermer" aria-label={t('commun.fermer')} title={t('commun.fermer')} onClick={fermer}>
-            <Icone nom="fermer" taille={18} />
-          </button>
-          <div className="notak-document-entete-titre">{titre}</div>
+        <header className="notak-document-entete notak-bord-flou" data-tauri-drag-region="deep">
+          <Ilot>
+            <BoutonIlot icone="gauche" className="notak-document-fermer" libelle={t('espace.retourTableau')} onClick={fermer} />
+          </Ilot>
+          <FilEcran titre={titre} fermer={fermer} />
           <div className="notak-document-entete-droite">
-            {options}
-            <MenuExport titre={titreTexte} lireTexte={lireTexte} />
+            {!lecture && editeur && <IlotHistorique annuler={() => editeur.chain().focus().undo().run()} retablir={() => editeur.chain().focus().redo().run()} />}
+            <IlotPartage />
+            <IlotCompte>
+              {options}
+              <MenuExport titre={titreTexte} lireTexte={lireTexte} />
+            </IlotCompte>
           </div>
         </header>
         <div className="notak-document-corps" ref={corps}>

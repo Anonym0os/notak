@@ -118,8 +118,8 @@ export async function rechercherLocalement({ index, reseau }: EspaceLocal, reque
   return resultats
 }
 
-/** L'export du texte et des médias, fabriqués dans le navigateur avec le même code que le serveur. */
-export function exportLocal({ index, reseau }: EspaceLocal): ExportLocal {
+/** L'export du texte et des médias, fabriqués dans le navigateur avec le même code que le serveur (la copie `.notak` : local/copie.ts). */
+export function exportLocal({ index, reseau }: EspaceLocal): Omit<ExportLocal, 'notak'> {
   const lire = (tableau: string) => reseau.avec(tableau, (doc) => lireTableau(doc))
   return {
     async texte(tableau, format) {

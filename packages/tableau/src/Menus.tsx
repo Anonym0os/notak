@@ -45,6 +45,62 @@ export function Raccourci({ touches }: { touches: string }) {
   )
 }
 
+/** L'écart gardé entre un menu et le bord de la fenêtre. */
+const BORD_MENU = 8
+
+/**
+ * Où poser un sous-menu pour qu'il reste tout entier dans la fenêtre : à droite de son entrée, sinon à gauche ; aligné
+ * sur elle, sinon remonté juste ce qu'il faut. Plus haut que la fenêtre, il défile. `liste` est sa boîte telle qu'il
+ * s'ouvre (à droite, aligné, en px de la fenêtre) ; le résultat dit le côté, la remontée et la hauteur maximale.
+ */
+export function placerSousMenu(
+  liste: { left: number; top: number; width: number; height: number },
+  entree: { left: number },
+  fenetre: { largeur: number; hauteur: number },
+): { aGauche: boolean; remonte: number; hauteurMax: number } {
+  const hauteurMax = fenetre.hauteur - 2 * BORD_MENU
+  const aGauche = liste.left + liste.width > fenetre.largeur - BORD_MENU && entree.left - liste.width - 2 >= BORD_MENU
+  const bas = liste.top + Math.min(liste.height, hauteurMax)
+  const remonte = Math.max(0, Math.min(bas - (fenetre.hauteur - BORD_MENU), liste.top - BORD_MENU))
+  return { aGauche, remonte, hauteurMax }
+}
+
+/** La liste d'un sous-menu, ramenée dans la fenêtre dès qu'elle paraît (`placerSousMenu`). Flèche gauche y revient. */
+function SousListe({ children, retour }: { children: React.ReactNode; retour(ev: React.KeyboardEvent<HTMLDivElement>): void }) {
+  const liste = useRef<HTMLDivElement>(null)
+  const [place, setPlace] = useState<{ aGauche: boolean; remonte: number; hauteurMax: number } | null>(null)
+  useLayoutEffect(() => {
+    const n = liste.current
+    const entree = n?.parentElement
+    if (!n || !entree) return
+    const r = n.getBoundingClientRect()
+    setPlace(
+      placerSousMenu(
+        { left: r.left, top: r.top, width: r.width, height: n.scrollHeight },
+        { left: entree.getBoundingClientRect().left },
+        { largeur: window.innerWidth, hauteur: window.innerHeight },
+      ),
+    )
+  }, [])
+  return (
+    <div
+      ref={liste}
+      className="notak-menu notak-menu-sous-liste"
+      role="menu"
+      data-a-gauche={place?.aGauche || undefined}
+      style={place ? { marginTop: -place.remonte, maxHeight: place.hauteurMax } : { visibility: 'hidden' }}
+      onKeyDown={(ev) => {
+        if (ev.key !== 'ArrowLeft') return
+        ev.preventDefault()
+        ev.stopPropagation()
+        retour(ev)
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
 /**
  * Le menu du clic droit, posé au point cliqué et ramené dans la toile s'il déborde. Il prend le focus : les flèches
  * passent d'une entrée à l'autre (les grisées sont sautées), Entrée choisit, une lettre va à l'entrée qui commence
@@ -151,19 +207,14 @@ export function MenuContextuel({ x, y, entrees, fermer }: { x: number; y: number
             <Icone nom="chevronDroite" taille={14} />
           </button>
           {ouvert && (
-            <div
-              className="notak-menu notak-menu-sous-liste"
-              role="menu"
-              onKeyDown={(ev) => {
-                if (ev.key !== 'ArrowLeft') return
-                ev.preventDefault()
-                ev.stopPropagation()
+            <SousListe
+              retour={(ev) => {
                 setSousOuvert(null)
                 ev.currentTarget.parentElement?.querySelector<HTMLButtonElement>(':scope > button')?.focus({ preventScroll: true })
               }}
             >
               {sous.map((x, k) => rendre(x, k, niveau + 1))}
-            </div>
+            </SousListe>
           )}
         </div>
       )

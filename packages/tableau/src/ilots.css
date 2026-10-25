@@ -1,0 +1,160 @@
+/*
+ * Les îlots de la barre du haut (Ilots.tsx), communs au tableau, à la carte mentale et au document : une pilule de 36 px,
+ * blanche et un peu translucide, ombrée ; des boutons de 30 px qui se touchent ; un bouton enfoncé passe en sombre plein.
+ * Les couleurs se prennent à l'écran qui les porte (--notak-carte et --notak-texte, ou celles de la carte).
+ */
+.notak-ilot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  box-sizing: border-box;
+  height: 36px;
+  padding: 0 3px;
+  border-radius: 18px;
+  background: var(--notak-ilot-fond, color-mix(in srgb, var(--notak-carte, #fff) 88%, transparent));
+  box-shadow: var(--notak-ilot-ombre, 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.08), 0 6px 16px -6px rgb(27 37 54 / 0.16));
+  color: var(--notak-ilot-texte, var(--notak-texte, #323b4a));
+  font-size: 13px;
+}
+
+.notak-ilot-filet {
+  flex: none;
+  width: 1px;
+  height: 18px;
+  margin: 0 3px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+/* Les boutons de l'îlot, et ceux que l'application y range (partage, export, cloche, compte) : mêmes 30 px, sans cadre. */
+.notak-ilot :is(.notak-ilot-bouton, .bouton, .notak-reglages-bouton, .notak-vue-bouton, .notak-document-export-bouton) {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 32px;
+  height: 30px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.notak-ilot :is(.notak-ilot-bouton, .bouton, .notak-reglages-bouton, .notak-vue-bouton, .notak-document-export-bouton):hover:not(:disabled, [aria-pressed='true']),
+.notak-ilot :is(.notak-ilot-bouton, .bouton, .notak-reglages-bouton, .notak-vue-bouton, .notak-document-export-bouton)[aria-expanded='true'] {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.notak-ilot :is(.notak-ilot-bouton, .bouton)[aria-pressed='true'] {
+  background: var(--notak-ilot-plein, var(--notak-texte, #323b4a));
+  color: var(--notak-ilot-encre, var(--notak-carte, #fff));
+}
+
+.notak-ilot :is(.notak-ilot-bouton, .bouton):disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* « Partager » est le bouton principal de la barre : plein et sombre, à côté des pastilles des présents. */
+.notak-ilot-partage {
+  gap: 6px;
+  padding-left: 6px;
+}
+
+.notak-ilot-partage:not(:has(.notak-pastille)) {
+  padding-left: 3px;
+}
+
+/* Personne d'autre là, et rien à partager (l'édition locale) : pas d'îlot vide. */
+.notak-ilot-partage:not(:has(.bouton, .notak-pastille)) {
+  display: none;
+}
+
+.notak-ilot-partage .partage > .bouton {
+  padding: 0 12px 0 10px;
+  background: var(--notak-ilot-plein, var(--notak-texte, #323b4a));
+  color: var(--notak-ilot-encre, var(--notak-carte, #fff));
+}
+
+.notak-ilot-partage .partage > .bouton:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--notak-ilot-plein, var(--notak-texte, #323b4a)) 88%, var(--notak-carte, #fff));
+}
+
+.notak-ilot-partage .notak-pastilles:empty {
+  display: none;
+}
+
+/* Dans le dernier îlot, chaque bouton se réduit à son icône : le nom reste dit par l'infobulle et par aria-label. */
+.notak-ilot-compte :is(.bouton-texte, .export > .bouton > .bouton-texte + svg) {
+  display: none;
+}
+
+.notak-ilot-compte .export > .bouton,
+.notak-ilot-compte .bouton-nu {
+  padding: 0;
+}
+
+/* Le fil : le chemin pâle, le titre de l'écran en gras. */
+.notak-fil-ecran {
+  flex: 0 1 auto;
+  font-size: 14px;
+}
+
+/* Le chemin garde sa place (chaque maillon coupé à 160 px) : c'est le titre qui cède quand elle manque. */
+.notak-fil-ecran .notak-fil-bloc {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+
+.notak-fil-ecran .notak-fil-segment {
+  font-size: 14px;
+}
+
+.notak-fil-titre {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 6px;
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.notak-fil-titre > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/*
+ * Le bord flou sous la barre du haut (tableau, carte, document) : ce qui passe dessous se brouille vers le haut, comme
+ * le bord d'une vue qui défile chez Apple. Deux flous superposés, chacun effacé vers le bas par un masque, font un flou
+ * progressif ; ni teinte ni filet, ce qui passe dessous garde sa couleur (un tableau peut avoir son arrière-plan). Les
+ * îlots restent nets par-dessus. L'élément qui le porte doit former un empilement (position et z-index).
+ */
+.notak-bord-flou::before,
+.notak-bord-flou::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 -12px;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.notak-bord-flou::before {
+  backdrop-filter: blur(3px);
+  mask-image: linear-gradient(to bottom, #000 60%, transparent);
+}
+
+.notak-bord-flou::after {
+  backdrop-filter: blur(10px);
+  mask-image: linear-gradient(to bottom, #000 25%, transparent 70%);
+}

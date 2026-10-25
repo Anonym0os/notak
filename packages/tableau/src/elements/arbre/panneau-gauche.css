@@ -614,8 +614,3 @@
   outline: none;
 }
 
-/* Le bouton du panneau de gauche, à côté de l'accueil : plein quand le panneau est ouvert. */
-.notak-arbre-entete .notak-arbre-pastille[aria-pressed='true'] {
-  background: var(--notak-arbre-plein);
-  color: var(--notak-arbre-fond);
-}
