@@ -136,7 +136,7 @@ describe('NOTION.md § 2.2 : l’ordre des sections', () => {
     expect(SECTIONS_SLASH).toEqual(['base', 'media', 'avances', 'transformer', 'actions', 'couleurTexte', 'couleurFond'])
     const dans = (s: string) => BLOCS.filter((e) => e.section === s).map((e) => e.id)
     expect(dans('base')).toEqual(['texte', 'titre1', 'titre2', 'titre3', 'puce', 'numero', 'tache', 'deroulant', 'encadre', 'citation', 'tableau', 'separateur'])
-    expect(dans('media')).toEqual(['image', 'code'])
+    expect(dans('media')).toEqual(['image', 'code', 'apercuLien'])
     expect(dans('avances')).toEqual(['titreDeroulant1', 'titreDeroulant2', 'titreDeroulant3', 'colonnes2', 'colonnes3', 'colonnes4', 'colonnes5'])
     // Les sections se suivent dans le catalogue dans l'ordre d'affichage.
     const rangs = CATALOGUE.map((e) => SECTIONS_SLASH.indexOf(e.section))

@@ -14,7 +14,20 @@ function titresAuPlus2(n: NoeudTexte): NoeudTexte {
 }
 
 /**
+ * Une carte d'aperçu de lien (`apercuLien`) n'existe pas dans la note : elle devient un paragraphe dont le titre (à défaut,
+ * l'adresse) est un lien vers l'adresse. Une carte sans adresse n'a rien à garder.
+ */
+function cartesEnLiens(n: NoeudTexte): NoeudTexte[] {
+  if (n.type === 'apercuLien') {
+    const url = typeof n.attrs?.url === 'string' ? n.attrs.url : ''
+    const titre = typeof n.attrs?.titre === 'string' && n.attrs.titre.trim() ? n.attrs.titre.trim() : url
+    return url ? [{ type: 'paragraph', content: [{ type: 'text', text: titre, marks: [{ type: 'link', attrs: { href: url } }] }] }] : []
+  }
+  return [n.content ? { ...n, content: n.content.flatMap(cartesEnLiens) } : n]
+}
+
+/**
  * Un document devient une note : les blocs que la note ne sait pas dessiner (dépliants, colonnes, tâches, images)
  * sont défaits en ce qu'elle connaît, sans perdre leur texte (docs/NOTION.md § 1).
  */
-export const documentVersNote = (c: DocumentTexte): Note => documentEnNote({ ...c, texte: degrader(titresAuPlus2(deplier(aplatir(c.texte))), SCHEMA_NOTE) })
+export const documentVersNote = (c: DocumentTexte): Note => documentEnNote({ ...c, texte: degrader(titresAuPlus2(cartesEnLiens(deplier(aplatir(c.texte)))[0]!), SCHEMA_NOTE) })

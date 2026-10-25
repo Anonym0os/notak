@@ -521,26 +521,101 @@
   line-height: 18px;
 }
 
-/* L'aperçu de lien : une carte cliquable, titre, description et adresse. */
+/*
+ * L'aperçu de lien, le signet (NOTION.md § 10.3) : une carte cliquable à bordure fine. À gauche le titre (une ligne), la
+ * description (deux lignes, pâle), puis la favicon et l'adresse (petite, une ligne) ; à droite l'image de la page, au
+ * tiers de la largeur, recadrée. Les marges et le retrait viennent de la règle des blocs, plus haut.
+ */
 .notak-blocs .notak-apercu-lien {
+  box-sizing: border-box;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0 0 12px;
-  padding: 12px 14px;
-  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
-  border-radius: 4px;
+  min-height: 80px;
+  max-height: 128px;
+  overflow: hidden;
+  border: 1px solid var(--notak-page-trait);
+  border-radius: 6px;
   color: inherit;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .notak-blocs .notak-apercu-lien:hover {
-  background: color-mix(in srgb, currentColor 4%, transparent);
+  background: var(--notak-page-survol);
 }
 
-.notak-blocs .notak-apercu-lien-titre { font-size: 14px; font-weight: 600; line-height: 20px; }
-.notak-blocs .notak-apercu-lien-description { overflow: hidden; color: var(--notak-pale, rgb(0 0 0 / 0.5)); font-size: 13px; line-height: 18px; text-overflow: ellipsis; white-space: nowrap; }
-.notak-blocs .notak-apercu-lien-adresse { font-size: 12px; line-height: 16px; opacity: 0.6; }
+.notak-blocs .notak-apercu-lien.ProseMirror-selectednode {
+  outline: 3px solid var(--notak-page-halo);
+}
+
+.notak-blocs .notak-apercu-lien-texte {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-width: 0;
+  padding: 12px 14px 14px;
+  overflow: hidden;
+}
+
+.notak-blocs .notak-apercu-lien-titre {
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Tant que la page n'a rien dit d'elle (l'aperçu arrive, ou n'est pas venu), l'adresse fait le titre, discrète. */
+.notak-blocs .notak-apercu-lien[data-etat='attente'] .notak-apercu-lien-titre,
+.notak-blocs .notak-apercu-lien[data-etat='vide'] .notak-apercu-lien-titre {
+  color: color-mix(in srgb, var(--notak-page-texte) 60%, transparent);
+}
+
+.notak-blocs .notak-apercu-lien-description {
+  display: -webkit-box;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--notak-page-texte) 65%, transparent);
+  font-size: 12px;
+  line-height: 16px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.notak-blocs .notak-apercu-lien-description[hidden],
+.notak-blocs .notak-apercu-lien-pied[hidden] {
+  display: none;
+}
+
+.notak-blocs .notak-apercu-lien-pied {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 8px;
+  min-width: 0;
+}
+
+.notak-blocs .notak-apercu-lien-icone {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  object-fit: contain;
+}
+
+.notak-blocs .notak-apercu-lien-adresse {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-blocs .notak-apercu-lien-image {
+  flex: 0 0 33.333%;
+  width: 33.333%;
+  min-width: 0;
+  object-fit: cover;
+}
 
 /*
  * Les couleurs de la page et des blocs (NOTION.md § 1 et § 9), mesurées dans Notion : le texte des neuf teintes est le
