@@ -11,6 +11,7 @@ packages/tableau      @notak/tableau : tout ce qui ne dépend ni d'un serveur ni
   dossier/            le moteur de synchro par dossier (le « coffre ») et ses essais
   export/             le texte, le Markdown et les médias d'un tableau (partagé avec le serveur)
   fichierEspace.ts    le format .notak
+  habillage/          les thèmes en fichier (couleurs, rayons, polices, Pitch, cartes) : format, feuille, choix (docs/HABILLAGES.md)
   modeles/            les tableaux modèles (accueil, réunion, voyage…)
 apps/web              l'application : deux éditions, choisies à la construction
   main.tsx            charge edition/locale.tsx ou edition/serveur.tsx selon VITE_EDITION
