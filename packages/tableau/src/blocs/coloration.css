@@ -4,17 +4,19 @@
  * pose sous `[data-theme='sombre']`, comme dans `menus.css` ; le rendu figé et l'éditeur lisent les mêmes variables.
  */
 :root {
-  --notak-code-mot: #8250c4;
-  --notak-code-chaine: #2f7d4f;
-  --notak-code-commentaire: #7d7a75;
-  --notak-code-nombre: #c4492b;
-  --notak-code-fonction: #2563a8;
-  --notak-code-type: #9a6a0a;
-  --notak-code-propriete: #0f7490;
-  --notak-code-operateur: #6f6b64;
-  --notak-code-balise: #bb3a56;
-  --notak-code-attribut: #a1531c;
-  --notak-code-variable: #ad4d7a;
+  /* Mesuré dans Notion (relevé 4 § 7.6) : la palette claire de son code. */
+  --notak-code-mot: rgb(0 119 170);
+  --notak-code-chaine: rgb(102 153 0);
+  --notak-code-commentaire: rgb(112 128 144);
+  --notak-code-nombre: rgb(153 0 85);
+  --notak-code-fonction: rgb(221 74 104);
+  --notak-code-type: rgb(221 74 104);
+  --notak-code-propriete: inherit;
+  --notak-code-operateur: rgb(154 110 58);
+  --notak-code-ponctuation: rgb(153 153 153);
+  --notak-code-balise: rgb(153 0 85);
+  --notak-code-attribut: rgb(102 153 0);
+  --notak-code-variable: rgb(238 153 0);
 }
 
 [data-theme='sombre'] {
@@ -24,7 +26,8 @@
   --notak-code-nombre: #f0956f;
   --notak-code-fonction: #7db4f0;
   --notak-code-type: #e0b25a;
-  --notak-code-propriete: #5cc2d6;
+  --notak-code-propriete: inherit;
+  --notak-code-ponctuation: #8a857c;
   --notak-code-operateur: #a8a39b;
   --notak-code-balise: #f07a93;
   --notak-code-attribut: #e6a06a;
@@ -54,6 +57,9 @@
 }
 .notak-code-operateur {
   color: var(--notak-code-operateur);
+}
+.notak-code-ponctuation {
+  color: var(--notak-code-ponctuation);
 }
 .notak-code-balise {
   color: var(--notak-code-balise);

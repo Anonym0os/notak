@@ -9,7 +9,11 @@ import { poserIds } from './ids'
 import { EXTENSIONS_BLOCS } from './schema'
 
 /** Les passages colorés d'un texte, sous la forme « texte:genre ». */
-const lire = (code: string, langage: string | null) => jetons(code, langage).map((j) => `${code.slice(j.de, j.a)}:${j.genre}`)
+// La ponctuation (grisée, voir l'essai qui lui est consacré) est laissée de côté dans les listes des langages.
+const lire = (code: string, langage: string | null) =>
+  jetons(code, langage)
+    .filter((j) => j.genre !== 'ponctuation')
+    .map((j) => `${code.slice(j.de, j.a)}:${j.genre}`)
 const genreDe = (code: string, langage: string, mot: string): Genre | undefined => {
   const i = code.indexOf(mot)
   return jetons(code, langage).find((j) => j.de === i && j.a === i + mot.length)?.genre
@@ -33,15 +37,25 @@ describe('NOTION.md § 2 : jetons, les langages à accolades', () => {
     expect(genreDe('class Pile extends Base {}', 'js', 'Pile')).toBe('type')
   })
 
+  it('comme chez Notion : la ponctuation est grisée, null et undefined sont des mots-clés, true une valeur', () => {
+    const code = 'f(a, [b]); x = null ?? undefined || true'
+    const tous = jetons(code, 'javascript').map((j) => `${code.slice(j.de, j.a)}:${j.genre}`)
+    expect(tous.filter((t) => t.endsWith(':ponctuation'))).toEqual(['(:ponctuation', ',:ponctuation', '[:ponctuation', ']:ponctuation', '):ponctuation', ';:ponctuation'])
+    expect(tous).toContain('null:motCle')
+    expect(tous).toContain('undefined:motCle')
+    expect(tous).toContain('true:nombre')
+  })
+
   it('un commentaire de bloc non fermé court jusqu’à la fin du texte', () => {
     const code = 'a = 1 /* jamais fermé\nsuite'
     const j = jetons(code, 'javascript')
     expect(j[j.length - 1]).toEqual({ de: code.indexOf('/*'), a: code.length, genre: 'commentaire' })
   })
 
-  it('un gabarit : le texte est chaîne, ${…} est du code', () => {
+  it('un gabarit : le texte est chaîne, ${…} est du code entre deux ponctuations (Notion)', () => {
     const code = 'x = `a ${1 + b} c`'
-    expect(lire(code, 'javascript')).toEqual(['=:operateur', '`a ${:chaine', '1:nombre', '+:operateur', '} c`:chaine'])
+    expect(lire(code, 'javascript')).toEqual(['=:operateur', '`a :chaine', '1:nombre', '+:operateur', ' c`:chaine'])
+    expect(jetons(code, 'javascript').filter((j) => j.genre === 'ponctuation').map((j) => code.slice(j.de, j.a))).toEqual(['${', '}'])
   })
 
   it('une clé d’objet est une propriété, un mot après un point n’est pas un mot-clé', () => {
