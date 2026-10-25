@@ -798,11 +798,6 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   bottom: 72px;
 }
 
-.bandeau-mise-a-jour a.bouton-lien {
-  color: inherit;
-  text-decoration: underline;
-}
-
 .bouton-etoile[aria-pressed='true'] {
   color: #e8a400;
 }
