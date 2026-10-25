@@ -18,6 +18,7 @@ import { Activite } from '../Activite'
 import { Cloche } from '../Cloche'
 import { Compte } from '../Compte'
 import { EcranConnexion } from '../connexion'
+import { DroitsElement } from '../DroitsElement'
 import { Export } from '../Export'
 import { Favori } from '../Favori'
 import { adressePhoto, apercu, banqueImages, envoyerFichier, fichiers, rapatrier } from '../fichiers'
@@ -176,12 +177,16 @@ function Espace({ moi, changerMoi, deconnexion }: { moi: Moi; changerMoi(m: Moi)
   useEffect(() => {
     espace.changerUtilisateur({ id: moi.id, nom: moi.nom, couleur: moi.couleur, ...(moi.photo ? { photo: moi.photo } : {}) })
   }, [espace, moi])
+  // Les droits d'un élément, réglés par le propriétaire du tableau depuis le menu de la toile.
+  const [droitsElement, setDroitsElement] = useState<{ tableau: string; element: string } | null>(null)
+  const servicesIci = useMemo(() => ({ ...services, reglerDroitsElementDe: (tableau: string, element: string) => setDroitsElement({ tableau, element }) }), [])
   return (
     <>
+      {droitsElement && <DroitsElement {...droitsElement} fermer={() => setDroitsElement(null)} />}
       <EspaceNotak
         compte={compte}
         espace={espace}
-        services={services}
+        services={servicesIci}
         adresse={adresse}
         actions={(courant, ouvrir) => (
           <>

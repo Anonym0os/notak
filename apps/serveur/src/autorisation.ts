@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { ClientWriteRequestOnDuplicateWrites, ClientWriteRequestOnMissingDeletes, OpenFgaClient } from '@openfga/sdk'
 import { transformer } from '@openfga/syntax-transformer'
 import type { Base, Relation } from './base.ts'
-import type { DroitsTableau } from '../../../packages/tableau/src/coeur/droitsElements.ts'
+import type { DroitsTableau } from '../../../packages/tableau/src/coeur/reglesDroits.ts'
 import type { Role } from './droits.ts'
 import { synchroniserEspaces } from './espaces.ts'
 
@@ -50,6 +50,8 @@ export interface OptionsAutorisation {
   /** Le nom du magasin créé s'il n'en existe pas. */
   nom?: string
   journal?: (ligne: string) => void
+  /** Combien de fois réessayer une requête qui échoue (par défaut, ce que fait le SDK). */
+  essais?: number
 }
 
 export function ouvrirAutorisation(o: OptionsAutorisation): Autorisation {
@@ -57,19 +59,30 @@ export function ouvrirAutorisation(o: OptionsAutorisation): Autorisation {
   const journal = o.journal ?? ((l: string) => console.warn(l))
   let client: OpenFgaClient | null = null
 
+  /** OpenFGA a perdu le magasin ou le modèle (un volume effacé, un moteur en mémoire relancé) sous un Notak lancé. */
+  const perdu = (e: unknown): boolean => {
+    const code = (e as { apiErrorCode?: string } | null)?.apiErrorCode
+    return code === 'authorization_model_not_found' || code === 'store_id_not_found' || (e as { statusCode?: number } | null)?.statusCode === 404
+  }
+  /** Le client d'OpenFGA, sur ce magasin et ce modèle s'ils sont donnés. */
+  const nouveauClient = (storeId?: string, authorizationModelId?: string) =>
+    new OpenFgaClient({ apiUrl: o.url, storeId, authorizationModelId, ...(o.essais !== undefined ? { retryParams: { maxRetry: o.essais } } : {}) })
+
   /** Le magasin et le modèle, créés ou retrouvés ; un magasin neuf reçoit toutes les relations. */
   const preparer = async (): Promise<OpenFgaClient> => {
     let magasin = base.reglage('openfga.magasin')
     if (magasin) {
       try {
-        await new OpenFgaClient({ apiUrl: o.url, storeId: magasin }).getStore()
-      } catch {
+        await nouveauClient(magasin).getStore()
+      } catch (e) {
+        // Injoignable n'est pas disparu : on réessaiera, sans refaire un magasin.
+        if (!perdu(e)) throw e
         journal(`Notak : le magasin OpenFGA ${magasin} a disparu, il est recréé et rempli depuis la base.`)
         magasin = null
       }
     }
     if (!magasin) {
-      magasin = (await new OpenFgaClient({ apiUrl: o.url }).createStore({ name: o.nom ?? 'notak' })).id
+      magasin = (await nouveauClient().createStore({ name: o.nom ?? 'notak' })).id
       base.transaction(() => {
         base.definirReglage('openfga.magasin', magasin!)
         base.definirReglage('openfga.empreinte', '')
@@ -79,11 +92,11 @@ export function ouvrirAutorisation(o: OptionsAutorisation): Autorisation {
     let modele = base.reglage('openfga.modele')
     if (!modele || base.reglage('openfga.empreinte') !== EMPREINTE_MODELE) {
       const json = transformer.transformDSLToJSONObject(MODELE) as unknown as Parameters<OpenFgaClient['writeAuthorizationModel']>[0]
-      modele = (await new OpenFgaClient({ apiUrl: o.url, storeId: magasin }).writeAuthorizationModel(json)).authorization_model_id
+      modele = (await nouveauClient(magasin).writeAuthorizationModel(json)).authorization_model_id
       base.definirReglage('openfga.modele', modele)
       base.definirReglage('openfga.empreinte', EMPREINTE_MODELE)
     }
-    return new OpenFgaClient({ apiUrl: o.url, storeId: magasin, authorizationModelId: modele })
+    return nouveauClient(magasin, modele)
   }
   let pret: Promise<OpenFgaClient> | null = null
   const fga = (): Promise<OpenFgaClient> => {
@@ -98,11 +111,6 @@ export function ouvrirAutorisation(o: OptionsAutorisation): Autorisation {
     return pret
   }
 
-  /** OpenFGA a perdu le magasin ou le modèle (un volume effacé, un moteur en mémoire relancé) sous un Notak lancé. */
-  const perdu = (e: unknown): boolean => {
-    const code = (e as { apiErrorCode?: string } | null)?.apiErrorCode
-    return code === 'authorization_model_not_found' || code === 'store_id_not_found' || (e as { statusCode?: number } | null)?.statusCode === 404
-  }
   /** Oublie le client : le prochain appel retrouve ou refait le magasin, et le remplit s'il est neuf. */
   const oublier = () => {
     client = null

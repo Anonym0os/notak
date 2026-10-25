@@ -1,6 +1,6 @@
 import * as decoding from 'lib0/decoding'
 import * as Y from 'yjs'
-import { type DroitsTableau, gesteSurElement, permis } from '../../../packages/tableau/src/coeur/droitsElements.ts'
+import { type DroitsTableau, gesteSurElement, permis } from '../../../packages/tableau/src/coeur/reglesDroits.ts'
 import { decouper } from '../../../packages/tableau/src/coeur/arbresYjs.ts'
 
 // Le contrôle des mises à jour reçues par la synchro, élément par élément. Un geste qu'on n'a pas le droit de faire

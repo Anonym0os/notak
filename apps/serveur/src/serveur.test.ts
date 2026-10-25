@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -289,4 +290,15 @@ describe("l'application web servie par le serveur", () => {
     expect(r.status).toBe(303)
     expect(r.headers.get('location')).toBe('/')
   })
+})
+
+describe('le serveur tel que Node le lance', () => {
+  it('charge tous ses modules sans vitest (Node veut l’extension de chaque import)', () => {
+    const ici = new URL('.', import.meta.url).pathname
+    const r = spawnSync(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(`${ici}app.ts`)}); await import(${JSON.stringify(`${ici}serveur.ts`)})`], {
+      encoding: 'utf8',
+    })
+    expect(r.stderr).toBe('')
+    expect(r.status).toBe(0)
+  }, 30_000)
 })

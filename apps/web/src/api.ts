@@ -342,6 +342,23 @@ export async function bloquer(tableau: string, sujet: { tous: true } | Cible, et
   if (!r.ok) throw await refus(r, { ...PROPRIETAIRE, ...TABLEAU_ABSENT })
 }
 
+/** Un droit propre à un élément : écrire, commenter, ou bloqué (pour tous, une personne ou une équipe). */
+export type DroitElement = 'edition' | 'commentaire' | 'bloque'
+export type DroitPose = ({ tous: true } | { email: string; nom: string } | { equipe: string; nom: string }) & { droit: DroitElement }
+
+const droitsElementDe = (tableau: string, element: string) => `/api/tableaux/${encodeURIComponent(tableau)}/elements/${encodeURIComponent(element)}/droits`
+
+export async function listerDroitsElement(tableau: string, element: string): Promise<DroitPose[]> {
+  const r = await appeler(droitsElementDe(tableau, element))
+  if (!r.ok) throw await refus(r, { ...PROPRIETAIRE, ...TABLEAU_ABSENT })
+  return (await r.json()) as DroitPose[]
+}
+
+export async function reglerDroitElement(tableau: string, element: string, sujet: { tous: true } | Cible, droit: DroitElement | null): Promise<void> {
+  const r = await appeler(droitsElementDe(tableau, element), { ...sujet, droit })
+  if (!r.ok) throw await refus(r, { ...PROPRIETAIRE, ...TABLEAU_ABSENT, adresse_inconnue: 'erreur.adresse_inconnue' })
+}
+
 export async function retirerLienPublic(tableau: string): Promise<void> {
   const r = await appeler(lienDe(tableau), undefined, 'DELETE')
   if (!r.ok && r.status !== 404) throw await refus(r, { ...PROPRIETAIRE })

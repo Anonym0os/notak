@@ -130,7 +130,14 @@ tableau, un rôle d'espace et ce qu'il permet, une équipe, un lien public, un b
 `boite_envoi` dans la même transaction, puis part vers OpenFGA (`autorisation.ts`) ; une vérification vide d'abord la
 boîte, et un magasin OpenFGA disparu se refait depuis la base. Les membres, rôles et équipes que Better Auth change
 sont suivis par des déclencheurs SQL (`espaces_a_synchroniser`), puis recalculés (`synchroniserEspaces`). Le modèle
-sait aussi les droits d'un élément, que la synchro ne contrôle pas encore.
+sait aussi les droits d'un élément.
+
+La synchro contrôle ce qu'envoient un commentateur et quiconque écrit un tableau dont des éléments ont leurs droits
+propres (`controle.ts`). Une mise à jour y est appliquée sous une origine suivie, ses changements relevés élément par
+élément, et annulée aussitôt par un `Y.UndoManager` si elle n'est pas permise : l'annulation part chez tout le monde,
+son auteur compris, si bien qu'un refus ne laisse ni divergence ni renvoi sans fin. La règle (écrire ou seulement
+commenter) est dans `packages/tableau/src/coeur/reglesDroits.ts`, lue telle quelle par le serveur ; la toile s'en sert
+pour ne proposer que les gestes permis (`droitsElements.ts`, `filtrerMagasin`).
 
 ## Les essais
 

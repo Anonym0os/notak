@@ -589,7 +589,7 @@ export function creerApp(ctx: Contexte): Hono {
     } else if (typeof b?.equipe === 'string' && base.equipe(b.equipe)) sujet = `equipe:${b.equipe}#membre`
     else {
       const cible = typeof b?.email === 'string' ? base.utilisateurParEmail(normaliserEmail(b.email)) : null
-      if (!cible) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
+      if (!cible) return c.json({ erreur: 'adresse inconnue', code: 'adresse_inconnue' }, 404)
       sujet = `user:${cible.id}`
     }
     const objet = objetElement(g.id, element)

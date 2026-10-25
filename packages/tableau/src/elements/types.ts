@@ -1,3 +1,4 @@
+import type { DroitsTableau } from '../coeur/droitsElements'
 /**
  * Ce qu'un type d'élément apporte à la toile. Chaque type vit dans son dossier
  * (`elements/note`, `elements/image`…) et s'inscrit dans le registre ; la toile
@@ -156,6 +157,17 @@ export interface Services {
   pleinEcran?(id: Id | null): void
   /** On peut regarder et défiler, rien de plus : la toile refuse tout ce qui modifie. */
   lectureSeule?: boolean
+  /**
+   * Ce que le serveur permet, élément par élément. Un commentateur voit le tableau en lecture seule mais écrit ses
+   * fils ; un élément figé ne se modifie pas. La toile ne laisse passer que les gestes permis.
+   */
+  droits?: DroitsTableau
+  /** L'identifiant de qui écrit ici, pour reconnaître ses propres messages. */
+  auteurId?: string
+  /** Le propriétaire règle qui peut écrire ou commenter un élément : la toile le propose dans son menu. */
+  reglerDroitsElement?(id: Id): void
+  /** Ce que l'application fournit pour cela, tableau compris ; l'espace en fait `reglerDroitsElement` pour le propriétaire. */
+  reglerDroitsElementDe?(tableau: Id, element: Id): void
   /** L'aperçu d'un modèle : lecture seule, mais la barre de gauche reste là, grisée et sans clic. */
   apercuModele?: boolean
   /** La présentation (Cmd+Alt+P) : rien ne se modifie, et un clic sur un élément le montre en grand. */

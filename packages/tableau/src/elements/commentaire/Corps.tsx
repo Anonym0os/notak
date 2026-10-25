@@ -11,6 +11,7 @@ import { PastilleReaction } from '../decor/PastilleReaction'
 import { compterReactions } from '../decor/annotations'
 import { Compositeur, EXTENSIONS_MESSAGE, type PoigneeCompositeur } from './Compositeur'
 import { useNonLus, useQuiEcrit } from './suivi'
+import { peutCommenter } from '../../coeur/droitsElements'
 
 /** Les boutons et le champ de la carte ne lancent pas de glisser. */
 const garder = (e: React.PointerEvent) => e.stopPropagation()
@@ -106,7 +107,7 @@ export function Ligne({ message, retirer, modifier, contexte, reagir, nonLu, ecr
   const date = new Date(message.date)
   const quand = date.toLocaleString(langue() === 'en' ? 'en-US' : 'fr-FR')
   const jeSuis = contexte ? moi(contexte).id : ''
-  const ecrire = !!contexte && !contexte.services.lectureSeule
+  const ecrire = !!contexte && peutCommenter(contexte.services)
   const reactions = compterReactions(message.reactions, jeSuis)
   const miennes = new Set(reactions.filter((r) => r.moi).map((r) => r.emoji))
   const ouvrirEdition = () => {
@@ -258,7 +259,7 @@ export function CorpsFil({
   pied?: React.ReactNode
 }) {
   const auteur = moi(contexte)
-  const ecrire = !contexte.services.lectureSeule
+  const ecrire = peutCommenter(contexte.services)
   const defile = useRef<HTMLDivElement>(null)
   const [deborde, setDeborde] = useState(false)
   const nonLus = useNonLus(cle, fil.messages, auteur.id, vu)

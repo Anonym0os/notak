@@ -1,3 +1,4 @@
+import type { DroitsTableau } from './droitsElements'
 import type { Camera } from './camera'
 import type { ServicePresence } from '../elements/types'
 import { point } from './geometrie'
@@ -41,6 +42,8 @@ export interface EspaceNavigable {
   presence?(id: Id): ServicePresence | undefined
   /** On ne peut que regarder ce tableau. */
   lectureSeule?(id: Id): boolean
+  /** Ce que le serveur permet sur ce tableau et ses éléments ; `null` ou absent : tout, ou rien de connu encore. */
+  droits?(id: Id): DroitsTableau | null
   /** Le serveur n'en donne plus l'accès : la vue revient à l'accueil. */
   refuse?(id: Id): boolean
   /** Le tableau a rattrapé le serveur ; tant que non, le fil d'Ariane le dit en chargement. */

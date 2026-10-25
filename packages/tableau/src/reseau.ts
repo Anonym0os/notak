@@ -1,6 +1,7 @@
 import { t } from './langue'
 import { HocuspocusProvider, HocuspocusProviderWebsocket, WebSocketStatus } from '@hocuspocus/provider'
 import { IndexeddbPersistence } from 'y-indexeddb'
+import type { DroitsTableau } from './coeur/droitsElements'
 import type { Reseau } from './coeur/espaceDistant'
 
 /** Le vrai réseau : un seul WebSocket vers `/sync` pour tous les tableaux, IndexedDB pour le hors-ligne, `/api` pour déclarer. */
@@ -22,6 +23,17 @@ export function creerReseauNavigateur(utilisateurId: string): Reseau {
       let refuse = false
       let synchro = false
       let enAttente = false
+      let droits: DroitsTableau | null = null
+      // Les droits se relisent à chaque authentification : un partage, un rôle ou un élément figé a pu changer.
+      const lireDroits = () => {
+        fetch(`/api/tableaux/${encodeURIComponent(id)}/droits`, { credentials: 'same-origin' })
+          .then((r) => (r.ok ? (r.json() as Promise<DroitsTableau | null>) : null))
+          .then((d) => {
+            droits = d
+            surEtat()
+          })
+          .catch(() => {})
+      }
       const provider: HocuspocusProvider = new HocuspocusProvider({
         websocketProvider: socket(),
         name: `tableau:${id}`,
@@ -29,6 +41,7 @@ export function creerReseauNavigateur(utilisateurId: string): Reseau {
         onAuthenticated: ({ scope }) => {
           lecture = scope === 'readonly'
           refuse = false
+          lireDroits()
           surEtat()
         },
         onAuthenticationFailed: () => {
@@ -63,6 +76,7 @@ export function creerReseauNavigateur(utilisateurId: string): Reseau {
       return {
         awareness: provider.awareness,
         lectureSeule: () => lecture,
+        droits: () => droits,
         refuse: () => refuse,
         synchronise: () => synchro,
         enLigne: () => socket().status === WebSocketStatus.Connected,

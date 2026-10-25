@@ -1,3 +1,4 @@
+import { type DroitsTableau, permis } from './droitsElements'
 import * as Y from 'yjs'
 import type { Point } from './geometrie'
 import type { Presence, ServicePresence } from '../elements/types'
@@ -27,6 +28,8 @@ export interface Connexion {
   enLigne?(): boolean
   /** Des modifications faites ici n'ont pas encore été reçues par le serveur. */
   enAttente?(): boolean
+  /** Ce que le serveur permet ici, élément par élément ; `null` tant qu'il ne l'a pas dit. */
+  droits?(): DroitsTableau | null
   detruire(): void
 }
 
@@ -377,7 +380,8 @@ export function creerEspaceDistant(options: OptionsEspaceDistant): EspaceDistant
     },
     renommer(id, titre) {
       const e = ouvrir(id)
-      if (e.connexion?.lectureSeule()) return
+      const droits = e.connexion?.droits?.()
+      if (e.connexion?.lectureSeule() || (droits && !permis(droits, null, 'ecriture'))) return
       const t = e.magasin.lire()
       if (t.titre !== titre) e.magasin.remplacer({ ...t, titre })
     },
@@ -399,6 +403,7 @@ export function creerEspaceDistant(options: OptionsEspaceDistant): EspaceDistant
     retenir: (id) => retenirTableau(id, true),
     presence: (id) => ouvrir(id).presence,
     lectureSeule: (id) => entrees.get(id)?.connexion?.lectureSeule() ?? false,
+    droits: (id) => entrees.get(id)?.connexion?.droits?.() ?? null,
     refuse: (id) => entrees.get(id)?.connexion?.refuse() ?? false,
     synchronise: (id) => entrees.get(id)?.connexion?.synchronise() ?? false,
     envoi: (id) => {

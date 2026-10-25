@@ -5,7 +5,7 @@ import { HocuspocusProvider, HocuspocusProviderWebsocket } from '@hocuspocus/pro
 import WebSocket from 'ws'
 import * as Y from 'yjs'
 import { describe, expect, it } from 'vitest'
-import type { DroitsTableau } from '../../../packages/tableau/src/coeur/droitsElements.ts'
+import type { DroitsTableau } from '../../../packages/tableau/src/coeur/reglesDroits.ts'
 import { controler, miseAJourDuMessage } from './controle.ts'
 import { openfgaEssai } from './essai.ts'
 import { demarrer } from './serveur.ts'

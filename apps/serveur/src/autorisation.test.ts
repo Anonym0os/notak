@@ -202,7 +202,7 @@ describe('la copie tenue par OpenFGA', () => {
     const bonne = autorisationEssai(base)
     await bonne.vider()
     base.ajouterRelation({ objet: 'tableau:t-hors-ligne', relation: 'lecteur', sujet: 'user:u1' })
-    const injoignable = ouvrirAutorisation({ base, url: 'http://127.0.0.1:1', journal: () => {} })
+    const injoignable = ouvrirAutorisation({ base, url: 'http://127.0.0.1:1', journal: () => {}, essais: 0 })
     await expect(injoignable.vider()).rejects.toThrow()
     expect(base.boiteEnvoi(10)).toHaveLength(1)
     expect(await bonne.verifier('user:u1', 'peut_lire', 'tableau:t-hors-ligne')).toBe(true)
