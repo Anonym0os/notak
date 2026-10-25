@@ -34,4 +34,13 @@ describe('NOTION.md § 1 : les blocs à plat, rangés par leur retrait', () => {
     expect(places.map((p) => p.finEncadre)).toEqual([false, false, true, false, false, false])
     expect(places[5]!.citation).toBe(4)
   })
+
+  it('un encadré dans un encadré : chacun se ferme sous le dernier bloc de son sous-arbre, parfois le même', () => {
+    // encadré > encadré > paragraphe : le paragraphe ferme les deux ; puis un frère après l'encadré imbriqué.
+    const deux = structurer([l('encadreBloc'), l('encadreBloc', 1), l('paragraph', 2)])
+    expect(deux.map((p) => [p.encadres, p.encadreRacine, p.fermes, p.finRacine])).toEqual([[0, null, 0, false], [1, 0, 0, false], [2, 0, 2, true]])
+    const suite = structurer([l('encadreBloc'), l('encadreBloc', 1), l('paragraph', 2), l('paragraph', 1), l('paragraph')])
+    expect(suite.map((p) => p.fermes)).toEqual([0, 0, 1, 1, 0])
+    expect(suite.map((p) => p.finRacine)).toEqual([false, false, false, true, false])
+  })
 })

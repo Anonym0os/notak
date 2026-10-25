@@ -30,7 +30,7 @@
   min-width: 0;
   /* Les marges gauche et droite du bloc (6 px, 8 px pour l'encadré, le code et le séparateur) : le cadre d'un encadré
      se cale sur elles (voir plus bas). */
-  margin: 6px var(--notak-marge-droite, 6px) 6px calc(var(--notak-marge, 6px) + var(--notak-retrait, 0) * var(--notak-pas-retrait));
+  margin: 6px calc(var(--notak-marge-droite, 6px) + var(--notak-encadres, 0) * 21px) 6px calc(var(--notak-marge, 6px) + var(--notak-retrait, 0) * var(--notak-pas-retrait));
   padding: 2px;
   border-radius: 6px;
   font-family: inherit;
@@ -234,7 +234,7 @@
   padding: 20px 20px 20px 44px;
   border: 1px solid transparent;
   border-radius: 10px;
-  background: var(--notak-page-encadre);
+  background: var(--notak-fond-soi, var(--notak-page-encadre));
 }
 
 .notak-blocs .notak-b-encadre::before {
@@ -252,9 +252,11 @@
 }
 
 /*
- * Un encadré qui a des enfants les garde dans sa boîte : chaque enfant peint, derrière lui, la bande de la boîte qui
- * lui revient, du bord gauche de l'encadré (8 px + son retrait) au bord droit de la page (8 px). Les enfants se touchent
- * (marges nulles, 8 px de remplissage), le dernier ferme la boîte.
+ * Un encadré qui a des enfants les garde dans sa boîte (mesuré dans Notion) : ils commencent au niveau de son texte et
+ * s'arrêtent 13 px avant son bord intérieur droit, soit 21 px de moins à droite par encadré qui les entoure. Chaque
+ * enfant peint, derrière lui, la bande de la boîte la plus haute qui l'entoure (sa couleur), et dans cette bande la
+ * boîte de l'encadré le plus proche (la sienne). Les enfants se touchent (marges nulles, 8 px de remplissage) ; le
+ * dernier bloc d'un encadré le ferme, et peut en fermer plusieurs (`--notak-fermes`, voir `rang.ts`).
  */
 .notak-blocs .notak-b-encadre.notak-a-enfants {
   margin-bottom: 0;
@@ -270,42 +272,80 @@
 }
 
 .notak-blocs .notak-dans-encadre::after {
+  --notak-encadre-gauche: calc((var(--notak-retrait-encadre) - var(--notak-retrait-encadre-racine)) * var(--notak-pas-retrait));
+  --notak-encadre-droite: calc((var(--notak-encadres, 1) - 1) * 21px);
   content: '';
   position: absolute;
   z-index: -1;
-  top: 0;
-  right: calc(8px - var(--notak-marge-droite, 6px));
+  /* Un pixel sous la rangée d'avant : pas de liseré entre deux bandes. */
+  top: -1px;
+  right: calc(8px - var(--notak-marge-droite, 6px) - var(--notak-encadres, 1) * 21px);
   bottom: 0;
-  left: calc(8px - var(--notak-marge, 6px) - (var(--notak-retrait) - var(--notak-retrait-encadre)) * var(--notak-pas-retrait));
-  background: var(--notak-page-encadre);
+  left: calc(8px - var(--notak-marge, 6px) - (var(--notak-retrait) - var(--notak-retrait-encadre-racine)) * var(--notak-pas-retrait));
+  background: linear-gradient(
+    to right,
+    var(--notak-fond-encadre-racine) 0 var(--notak-encadre-gauche),
+    var(--notak-fond-encadre) var(--notak-encadre-gauche) calc(100% - var(--notak-encadre-droite)),
+    var(--notak-fond-encadre-racine) calc(100% - var(--notak-encadre-droite))
+  );
 }
 
+/* Le dernier bloc d'un encadré imbriqué ferme sa boîte (12 px + 1 px de bord + les 8 px de sa rangée) ; celui de
+   l'encadré le plus haut ferme aussi la grande boîte, arrondie, avec son air dessous. */
 .notak-texte.notak-blocs > .notak-dans-encadre.notak-fin-encadre,
 .notak-blocs .notak-blocs-colonne > .notak-dans-encadre.notak-fin-encadre {
-  margin-bottom: 8px;
-  padding-bottom: 20px;
+  padding-bottom: calc(8px + var(--notak-fermes, 1) * 21px);
 }
 
-.notak-blocs .notak-dans-encadre.notak-fin-encadre::after {
+.notak-texte.notak-blocs > .notak-dans-encadre.notak-fin-encadre-racine,
+.notak-blocs .notak-blocs-colonne > .notak-dans-encadre.notak-fin-encadre-racine {
+  margin-bottom: 8px;
+  padding-bottom: calc(20px + (var(--notak-fermes, 1) - 1) * 21px);
+}
+
+.notak-blocs .notak-dans-encadre.notak-fin-encadre-racine::after {
   border-bottom-right-radius: 10px;
   border-bottom-left-radius: 10px;
 }
 
-/* Un encadré dans un encadré : un filet le détache du fond commun ; il garde son remplissage et son air. */
-.notak-blocs .notak-dans-encadre.notak-b-encadre {
-  border-color: var(--notak-page-trait);
-}
-
+/* Un encadré dans un encadré : même fond, bord transparent, comme chez Notion ; il garde son remplissage et son air,
+   que sa bande de fond couvre pour que la boîte d'autour reste d'un seul tenant. */
 .notak-texte.notak-blocs > .notak-dans-encadre.notak-b-encadre,
 .notak-blocs .notak-blocs-colonne > .notak-dans-encadre.notak-b-encadre {
   margin-block: 8px;
   padding-block: 20px;
 }
 
-/* Sa bande de fond couvre aussi son air, pour que la boîte de l'encadré parent reste d'un seul tenant. */
+.notak-texte.notak-blocs > .notak-dans-encadre.notak-b-encadre.notak-a-enfants,
+.notak-blocs .notak-blocs-colonne > .notak-dans-encadre.notak-b-encadre.notak-a-enfants {
+  margin-bottom: 0;
+  padding-bottom: 8px;
+}
+
 .notak-blocs .notak-dans-encadre.notak-b-encadre::after {
-  top: -9px;
+  top: -12px;
   bottom: -9px;
+}
+
+.notak-blocs .notak-dans-encadre.notak-b-encadre.notak-a-enfants::after {
+  bottom: 0;
+}
+
+/* Un encadré imbriqué qui ferme des boîtes garde sa propre boîte : l'air des boîtes fermées passe sous elle, et sa
+   bande de fond le couvre. */
+.notak-texte.notak-blocs > .notak-dans-encadre.notak-b-encadre.notak-fin-encadre,
+.notak-blocs .notak-blocs-colonne > .notak-dans-encadre.notak-b-encadre.notak-fin-encadre {
+  padding-bottom: 20px;
+  margin-bottom: calc(var(--notak-fermes, 1) * 21px);
+}
+
+.notak-texte.notak-blocs > .notak-dans-encadre.notak-b-encadre.notak-fin-encadre-racine,
+.notak-blocs .notak-blocs-colonne > .notak-dans-encadre.notak-b-encadre.notak-fin-encadre-racine {
+  margin-bottom: calc(8px + var(--notak-fermes, 1) * 21px);
+}
+
+.notak-blocs .notak-dans-encadre.notak-b-encadre.notak-fin-encadre::after {
+  bottom: calc(-1 * var(--notak-fermes, 1) * 21px);
 }
 
 /* Le code : une boîte arrondie de 10 px, 13,6 px sur 20,4 en police à chasse fixe, sans numéros de ligne. */

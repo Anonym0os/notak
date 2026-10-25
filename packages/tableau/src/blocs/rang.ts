@@ -15,6 +15,8 @@ export interface Ligne {
   depliant?: boolean
   /** Le numéro d'où part une liste numérotée qui ne commence pas à 1. */
   depart?: number | null
+  /** La couleur du bloc (`bleu`, `bleu-fond`…) : un encadré de couleur la donne au fond de ses enfants. */
+  couleur?: string | null
 }
 
 export interface Place {
@@ -29,9 +31,15 @@ export interface Place {
   /** L'encadré, la citation les plus proches au-dessus de lui (leurs index), dont il reste dans le cadre. */
   encadre: number | null
   citation: number | null
-  /** Le bloc a des enfants ; il est le dernier bloc dans le cadre de son encadré. */
+  /** L'encadré le plus haut au-dessus de lui (son index), et combien d'encadrés l'entourent. */
+  encadreRacine: number | null
+  encadres: number
+  /** Le bloc a des enfants. */
   aEnfants: boolean
+  /** Combien d'encadrés se ferment sous lui (il est le dernier bloc visible de leur sous-arbre) ; le plus haut en est. */
+  fermes: number
   finEncadre: boolean
+  finRacine: boolean
 }
 
 /** Un dépliant ou un titre dépliant fermé cache ses enfants. */
@@ -84,15 +92,27 @@ export function structurer(lignes: readonly Ligne[]): Place[] {
       cache,
       encadre: parent === null ? null : lignes[parent]!.type === 'encadreBloc' ? parent : p!.encadre,
       citation: parent === null ? null : lignes[parent]!.type === 'citation' ? parent : p!.citation,
+      encadreRacine: parent === null ? null : (p!.encadreRacine ?? (lignes[parent]!.type === 'encadreBloc' ? parent : null)),
+      encadres: parent === null ? 0 : p!.encadres + (lignes[parent]!.type === 'encadreBloc' ? 1 : 0),
       aEnfants: false,
+      fermes: 0,
       finEncadre: false,
+      finRacine: false,
     })
     pile.push(i)
     avant = profondeur
   })
-  const fins = new Map<number, number>()
-  places.forEach((p, i) => p.encadre !== null && fins.set(p.encadre, i))
-  for (const i of fins.values()) places[i]!.finEncadre = true
+  // Chaque encadré qui a des enfants se ferme sous le dernier bloc visible de son sous-arbre (NOTION.md § 2) : un même
+  // bloc peut en fermer plusieurs, l'encadré imbriqué et celui qui l'entoure.
+  places.forEach((p, i) => {
+    if (lignes[i]!.type !== 'encadreBloc' || !p.aEnfants) return
+    let fin = finDuSousArbre(places, i) - 1
+    while (fin > i + 1 && places[fin]!.cache) fin--
+    const f = places[fin]!
+    f.fermes++
+    f.finEncadre = true
+    if (p.encadreRacine === null) f.finRacine = true
+  })
   return places
 }
 

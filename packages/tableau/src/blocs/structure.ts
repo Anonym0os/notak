@@ -19,20 +19,33 @@ export const ligneDe = (n: NoeudPM): Ligne => ({
   ouvert: n.attrs.ouvert !== false,
   depliant: !!n.attrs.depliant,
   depart: Number(n.attrs.depart) || null,
+  couleur: typeof n.attrs.couleur === 'string' ? n.attrs.couleur : null,
 })
 
-/** Les attributs de page qu'une place donne à son bloc. */
-export function attributsDePlace(place: Place, places: readonly Place[]): Record<string, string> {
+/** Le fond d'un encadré pour la bande de ses enfants : sa couleur de fond, ou le fond pâle par défaut. */
+const fondEncadre = (l: Ligne | undefined) =>
+  l?.couleur?.endsWith('-fond') ? `var(--notak-bloc-${l.couleur})` : 'var(--notak-page-encadre)'
+
+/** Les attributs de page qu'une place donne à son bloc ; `lignes` donne la couleur des encadrés, `soi` est sa ligne. */
+export function attributsDePlace(place: Place, places: readonly Place[], lignes?: readonly Ligne[], soi?: Ligne): Record<string, string> {
   const classes = [
     place.cache && 'notak-cache',
     place.aEnfants && 'notak-a-enfants',
     place.encadre !== null && 'notak-dans-encadre',
     place.finEncadre && 'notak-fin-encadre',
+    place.finRacine && 'notak-fin-encadre-racine',
     place.citation !== null && 'notak-dans-citation',
   ].filter(Boolean)
   const style = [
     `--notak-retrait: ${place.profondeur}`,
     place.encadre !== null && `--notak-retrait-encadre: ${places[place.encadre]!.profondeur}`,
+    place.encadreRacine !== null && `--notak-retrait-encadre-racine: ${places[place.encadreRacine]!.profondeur}`,
+    place.encadres > 0 && `--notak-encadres: ${place.encadres}`,
+    place.encadre !== null && `--notak-fond-encadre: ${fondEncadre(lignes?.[place.encadre])}`,
+    place.encadreRacine !== null && `--notak-fond-encadre-racine: ${fondEncadre(lignes?.[place.encadreRacine])}`,
+    place.fermes > 0 && `--notak-fermes: ${place.fermes}`,
+    // Un encadré de couleur de fond prend sa couleur (la règle de l'encadré passerait sinon devant celle de la couleur).
+    soi?.type === 'encadreBloc' && soi.couleur?.endsWith('-fond') && `--notak-fond-soi: ${fondEncadre(soi)}`,
     place.citation !== null && `--notak-retrait-citation: ${places[place.citation]!.profondeur}`,
   ].filter(Boolean)
   return {
@@ -50,9 +63,10 @@ function decorations(doc: NoeudPM): DecorationSet {
   const ranger = (conteneur: NoeudPM, debut: number) => {
     const noeuds: [NoeudPM, number][] = []
     conteneur.forEach((n, decalage) => noeuds.push([n, debut + decalage]))
-    const places = structurer(noeuds.map(([n]) => ligneDe(n)))
+    const lignes = noeuds.map(([n]) => ligneDe(n))
+    const places = structurer(lignes)
     noeuds.forEach(([n, pos], i) => {
-      deco.push(Decoration.node(pos, pos + n.nodeSize, attributsDePlace(places[i]!, places)))
+      deco.push(Decoration.node(pos, pos + n.nodeSize, attributsDePlace(places[i]!, places, lignes, lignes[i])))
       // Un dépliant ouvert sans enfant invite à en mettre un (NOTION.md § 2).
       const l = ligneDe(n)
       const depliant = l.type === 'depliant' || (l.type === 'heading' && l.depliant)
@@ -144,10 +158,11 @@ export function annoterPage(racine: HTMLElement) {
       ouvert: el.dataset.ouvert !== 'non',
       depliant: el.hasAttribute('data-depliant'),
       depart: Number(el.dataset.depart) || null,
+      couleur: el.dataset.couleur ?? null,
     }))
     const places = structurer(lignes)
     els.forEach((el, i) => {
-      const a = attributsDePlace(places[i]!, places)
+      const a = attributsDePlace(places[i]!, places, lignes, lignes[i])
       el.style.cssText += `; ${a.style}`
       if (a.class) el.classList.add(...a.class.split(' '))
       if (a['data-numero']) el.dataset.numero = a['data-numero']
