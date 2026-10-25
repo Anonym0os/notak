@@ -80,22 +80,22 @@
   left: 8px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .notak-arbre-nom {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
   min-width: 100px;
   max-width: 360px;
 }
 
+/* « Lecture seule », dans l'îlot du fil, après le titre. */
 .notak-arbre-etat {
-  padding: 0 6px;
-  font-size: 11px;
-  line-height: 15px;
-  letter-spacing: 0.44px;
+  flex: none;
+  padding-right: 6px;
+  opacity: 0.6;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 /* Dans l'application de bureau, comme chez Xmind : la feuille monte jusqu'au haut de la fenêtre, les îlots s'y posent

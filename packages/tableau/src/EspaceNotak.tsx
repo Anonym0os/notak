@@ -704,7 +704,8 @@ function Entete({
   useLayoutEffect(() => {
     const n = fil.current!
     // Le fil prend la place que lui laissent les îlots : c'est sa largeur qui dit combien de maillons tiennent.
-    const mesurer = () => setLargeur(n.clientWidth || Number.POSITIVE_INFINITY)
+    // Moins les marges de l'îlot qui porte les maillons (12 px).
+    const mesurer = () => setLargeur(n.clientWidth ? n.clientWidth - 12 : Number.POSITIVE_INFINITY)
     mesurer()
     const obs = new ResizeObserver(mesurer)
     obs.observe(n)
@@ -773,34 +774,37 @@ function Entete({
           </Ilot>
         )}
         <nav className="notak-fil" aria-label={t('espace.fil')} ref={fil}>
-          {visibles.flatMap((i, rang) => [
-            rang > 0 && <span key={`s${i}`} className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,
-            rang === 1 && caches.length > 0 && (
-              <span key="susp" className="notak-fil-bloc">
-                <button
-                  type="button"
-                  className="notak-fil-segment notak-fil-suspension"
-                  title={t('espace.niveauxCaches')}
-                  aria-expanded={menu}
-                  onClick={() => setMenu((m) => !m)}
-                >
-                  <Icone nom="plus" taille={16} />
-                </button>
-                {menu && (
-                  <div className="notak-fil-menu" role="menu">
-                    {caches.map((c) => (
-                      <button key={c} type="button" role="menuitem" onClick={() => aller(segments[c]!.id)}>
-                        {segments[c]!.titre || t('commun.sansTitre')}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </span>
-            ),
-            rang === 1 && caches.length > 0 && <span key="s-susp" className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,
-            segment(i),
-          ])}
-          {avecTitre && <EtatEnregistrement etat={envoi} />}
+          {/* Le fil a son îlot, comme les autres : la toile qui passe dessous ne le brouille pas. */}
+          <div className="notak-ilot notak-fil-ilot">
+            {visibles.flatMap((i, rang) => [
+              rang > 0 && <span key={`s${i}`} className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,
+              rang === 1 && caches.length > 0 && (
+                <span key="susp" className="notak-fil-bloc">
+                  <button
+                    type="button"
+                    className="notak-fil-segment notak-fil-suspension"
+                    title={t('espace.niveauxCaches')}
+                    aria-expanded={menu}
+                    onClick={() => setMenu((m) => !m)}
+                  >
+                    <Icone nom="plus" taille={16} />
+                  </button>
+                  {menu && (
+                    <div className="notak-fil-menu" role="menu">
+                      {caches.map((c) => (
+                        <button key={c} type="button" role="menuitem" onClick={() => aller(segments[c]!.id)}>
+                          {segments[c]!.titre || t('commun.sansTitre')}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </span>
+              ),
+              rang === 1 && caches.length > 0 && <span key="s-susp" className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,
+              segment(i),
+            ])}
+            {avecTitre && <EtatEnregistrement etat={envoi} />}
+          </div>
         </nav>
       </div>
       <div className="notak-entete-droite">

@@ -146,3 +146,28 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Le fil a son îlot (le tableau, ou le document et la carte ouverts en grand) : la toile passe dessous sans le
+   brouiller. Ses maillons prennent la forme des boutons des îlots, 30 px et ronds. */
+.notak-fil-ilot,
+.notak-ilot.notak-fil-ecran {
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0 6px 0 3px;
+}
+
+.notak-ilot .notak-fil-segment {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 15px;
+}
+
+.notak-ilot .notak-fil-segment:hover,
+.notak-ilot .notak-fil-segment[aria-expanded='true'] {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.notak-ilot .notak-titre-champ {
+  border-radius: 15px;
+}

@@ -191,7 +191,7 @@
 /* La barre du haut : les îlots du tableau et de la carte (ilots.css). Le retour et le fil à gauche ; l'historique, le
    partage, puis les options, l'export et le compte à droite. */
 .notak-document-entete {
-  /* La page défile dessous (le corps lui laisse 68 px en haut), sous le bord flou (ilots.css). */
+  /* La page défile dessous (le corps lui laisse 68 px en haut). */
   position: absolute;
   top: 0;
   right: 0;
@@ -200,7 +200,7 @@
   z-index: 5;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   box-sizing: border-box;
   height: 68px;
   padding: 16px;
@@ -211,18 +211,9 @@
   pointer-events: auto;
 }
 
-.notak-document-entete > .notak-fil {
-  pointer-events: none;
-}
-
-.notak-document-entete > .notak-fil > * {
-  pointer-events: auto;
-}
-
-.notak-document-entete > .notak-fil {
-  flex: 1 1 0;
-  min-width: 0;
-  overflow: hidden;
+/* Le fil est un îlot à sa mesure ; les îlots de droite gardent le bord. */
+.notak-document-entete-droite {
+  margin-left: auto;
 }
 
 /* Dans l'application de bureau, la barre tient lieu de barre de titre (on y saisit la fenêtre), et ses îlots se

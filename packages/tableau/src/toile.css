@@ -535,13 +535,14 @@
   display: flex;
   flex: 1 1 0;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   min-width: 0;
 }
 
+/* Le fil prend la place que laissent les îlots ; son îlot s'y ajuste, sans rogner le menu des maillons cachés. */
 .notak-entete-gauche > .notak-fil {
   flex: 1 1 0;
-  overflow: hidden;
+  min-width: 0;
 }
 
 .notak-entete-droite {
@@ -598,10 +599,11 @@
   white-space: pre;
 }
 
+/* Le champ se règle sur le titre (la cellule mesurée par ::after), jamais sur la largeur par défaut d'un champ. */
 .notak-titre-champ {
   grid-area: 1 / 1;
-  width: 100%;
-  min-width: 0;
+  width: 0;
+  min-width: 100%;
   box-sizing: border-box;
   padding: 0 5px;
   overflow: hidden;

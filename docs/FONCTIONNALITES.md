@@ -380,7 +380,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
 | Fonctionnalité | État | Reste |
 |---|---|---|
-| En-tête : fil d'Ariane, titre, partage, présence | ✅ | Une seule rangée d'îlots, la même sur le tableau, la carte et le document (`Ilots.tsx`) : retour et outils, fil et titre à gauche ; historique, partage, export et compte à droite. Le zoom passe en bas à droite. La toile, la carte et la page passent sous la barre, brouillée vers le haut (bord flou progressif, comme chez Apple). Réglages et raccourcis s'ouvrent par-dessus la carte et le document. |
+| En-tête : fil d'Ariane, titre, partage, présence | ✅ | Une seule rangée d'îlots, la même sur le tableau, la carte et le document (`Ilots.tsx`) : retour et outils, fil et titre à gauche ; historique, partage, export et compte à droite. Le zoom passe en bas à droite. La toile, la carte et la page passent sous la barre, sans flou : chaque îlot a son fond, le fil et le titre compris. Réglages et raccourcis s'ouvrent par-dessus la carte et le document. |
 | Barre des outils de gauche en îlot, à montrer ou cacher | ✅ | Décollée du bord ; le bouton du premier îlot la cache, et la machine s'en souvient. |
 | Sous-menus toujours entiers dans la fenêtre | ✅ | Remontés, ouverts à gauche, ou qui défilent (`placerSousMenu`). |
 | Barre d'outils contextuelle | ✅ | Au-dessus de la sélection, ou dans la barre de gauche comme Milanote (réglage). |

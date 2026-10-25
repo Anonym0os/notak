@@ -69,7 +69,14 @@ describe('la barre d’îlots, commune au tableau, à la carte et au document', 
       </>,
     )
     expect(document.querySelectorAll('.notak-fil-segment')).toHaveLength(0)
-    expect(document.querySelector('.notak-ilot')).toBeNull()
+    expect(document.querySelector('.notak-ilot-partage, .notak-ilot-compte')).toBeNull()
+  })
+
+  it('le fil est un îlot, comme les autres : la toile passe dessous sans le brouiller ; l’état de l’écran y suit le titre', () => {
+    rendre(entete(), <FilEcran titre="Carte" fermer={() => {}} apres={<span className="etat">Lecture seule</span>} />)
+    const fil = document.querySelector('.notak-fil-ecran')!
+    expect(fil.classList.contains('notak-ilot')).toBe(true)
+    expect([...fil.children].map((n) => n.textContent)).toEqual(['Projets', 'Un steak vivant ?!', 'Carte', 'Lecture seule'])
   })
 
   it('le dernier îlot : les boutons de l’écran, un filet, puis le compte prêté par l’application', () => {

@@ -69,8 +69,7 @@ export function EnTete({ titre, etat, fermer, navigation }: { titre: string; eta
         )}
       </Ilot>
       <div className="notak-arbre-nom">
-        <FilEcran titre={<span>{titre || t('type.arbre')}</span>} fermer={fermer} />
-        {etat && <span className="notak-arbre-etat">{etat}</span>}
+        <FilEcran titre={<span>{titre || t('type.arbre')}</span>} fermer={fermer} apres={etat && <span className="notak-arbre-etat">{etat}</span>} />
       </div>
     </div>
   )
