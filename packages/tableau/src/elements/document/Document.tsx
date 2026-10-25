@@ -583,6 +583,7 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
             poser({ texte: editeur.getJSON() as NoeudTexte, fils: avecFil(dernier.current.fils, id, fil) })
           }
           contexte={contexte}
+          enPage
         />
       )}
       {editeur && <Propositions editeur={editeur} contexte={contexte} pont={pont} />}

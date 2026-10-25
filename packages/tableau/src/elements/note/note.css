@@ -810,20 +810,43 @@
   display: flex;
   flex-direction: column;
   border-radius: 10px;
-  background: color-mix(in srgb, var(--notak-fm-texte) 2.5%, var(--notak-fm-fond));
+  background: var(--notak-fm-fond);
   box-shadow: 0 0 0 1px var(--notak-fm-trait);
   color: var(--notak-fm-texte);
   font-size: 14px;
   line-height: 21px;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  /* Une fiche glisse : 0,2 s de côté (survol, ouverture), 0,35 s quand une autre la pousse (mesuré dans Notion). */
+  transition: transform 0.2s, top 0.35s, opacity 0.2s ease-in-out, background 0.2s;
+}
+
+/* Son passage ou elle-même survolés : 5 px vers la gauche et un fond à peine teinté. */
+.notak-fil-marge[data-survol] {
+  background: color-mix(in srgb, var(--notak-fm-texte) 2.5%, var(--notak-fm-fond));
+  transform: translateX(-5px);
 }
 
 .notak-fil-marge[data-actif] {
   background: var(--notak-fm-fond);
   box-shadow: 0 8px 12px rgb(25 25 25 / 0.027), 0 2px 6px rgb(25 25 25 / 0.027), 0 0 0 1px var(--notak-fm-trait);
-  transform: translateX(-16px);
+  transform: translateX(-20px);
   cursor: default;
+}
+
+/* Un fil qu'on commence : le champ seul, sans avatar. */
+.notak-fil-marge[data-neuf] .notak-commentaire-saisie > .notak-commentaire-pastille {
+  display: none;
+}
+
+/* Le passage cité en tête du fil ouvert sous lui. */
+.notak-fil-marge .notak-commentaire-citation {
+  margin: 4px 0 6px;
+  padding-left: 10px;
+  border-left: 3px solid rgb(255 203 0 / 0.8);
+  color: var(--notak-fm-pale);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .notak-fil-marge[data-resolu]:not([data-actif]) {
