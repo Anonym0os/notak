@@ -1709,6 +1709,10 @@ export const fr: Textes = {
   // passe éditeur : sélection et glisser (début)
   'selection.poignee.tenir': 'Faites glisser pour déplacer, cliquez pour ouvrir le menu',
   'selection.poignee.ajouter': 'Cliquez pour ajouter un bloc en dessous. Cliquez en appuyant sur la touche Option pour l’ajouter au-dessus.',
+  'selection.aide.tenir.1': '**Glisser** pour déplacer',
+  'selection.aide.tenir.2': '**Cliquer** ou **⌘/** pour ouvrir le menu',
+  'selection.aide.plus.1': '**Cliquer** pour ajouter un bloc dessous',
+  'selection.aide.plus.2': '**⌥-clic** pour l’ajouter au-dessus',
   // passe éditeur : sélection et glisser (fin)
   'lien.echec.injoignable': 'Site injoignable : vérifiez l’adresse.',
   'lien.echec.delai': 'Le site a mis trop de temps à répondre.',
@@ -3670,6 +3674,10 @@ export const en: Textes = {
   // passe éditeur : sélection et glisser (début)
   'selection.poignee.tenir': 'Drag to move, click to open the menu',
   'selection.poignee.ajouter': 'Click to add a block below. Option-click to add it above.',
+  'selection.aide.tenir.1': '**Drag** to move',
+  'selection.aide.tenir.2': '**Click** or **⌘/** to open the menu',
+  'selection.aide.plus.1': '**Click** to add a block below',
+  'selection.aide.plus.2': '**⌥-click** to add it above',
   // passe éditeur : sélection et glisser (fin)
   'lien.chargement': 'Loading',
   'toile.misCorbeille.one': 'Moved to the trash',
