@@ -84,6 +84,8 @@ interface PropsLigne {
   enMarge?: boolean
   /** Des gestes en plus dans la barre au survol (ceux du fil, sur son premier message). */
   actionsFil?: React.ReactNode
+  /** Le passage commenté, cité sous l'en-tête (le fil ouvert sous son passage, NOTION.md § 9). */
+  citation?: string
 }
 
 /**
@@ -91,7 +93,7 @@ interface PropsLigne {
  * « Modifier » au survol, qui ouvre le message dans le champ, « Enregistrer » le remplace ; `reagir` montre le « + »
  * au survol d'un message d'un autre, puis les pastilles.
  */
-export function Ligne({ message, retirer, modifier, contexte, reagir, nonLu, ecrit, enMarge, actionsFil }: PropsLigne) {
+export function Ligne({ message, retirer, modifier, contexte, reagir, nonLu, ecrit, enMarge, actionsFil, citation }: PropsLigne) {
   const { auteur } = message
   const maintenant = useMinute()
   const [edition, setEdition] = useState(false)
@@ -161,6 +163,7 @@ export function Ligne({ message, retirer, modifier, contexte, reagir, nonLu, ecr
             </button>
           )}
         </div>
+        {citation && <blockquote className="notak-commentaire-citation">{citation}</blockquote>}
         {edition && contexte && modifier ? (
           <Compositeur
             contexte={contexte}

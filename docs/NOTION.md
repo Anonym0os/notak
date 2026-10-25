@@ -289,8 +289,9 @@ Les guillemets droits deviennent typographiques : “ ” et ‘ ’, quelle que
 
 ## 9. La page
 
-- **La page.** Ouvert en grand, le document prend toute la fenêtre : une barre de 44 px en haut (fermer, le
-  titre en petit, les options, l'export), puis la page qui défile, une colonne de **720 px** entre des marges
+- **La page.** Ouvert en grand, le document prend toute la fenêtre : la barre d'îlots du
+  tableau et de la carte en haut (68 px : le retour, le fil jusqu'au document ; l'historique, le partage, les options,
+  l'export et le compte), puis la page qui défile, une colonne de **720 px** entre des marges
   d'au moins 96 px, et 30 % de la fenêtre d'air sous le dernier bloc ; un appui sous lui y écrit. Le texte :
   16 px sur 24, police système ; 16 px entre deux paragraphes ; titres de 30, 24 et 20 px (graisse 600) avec 40,
   36 et 32 px au-dessus ; marqueurs de liste dans 24 px, texte à 38 px du bord ; un cran de retrait vaut 32 px.

@@ -146,6 +146,10 @@ export const fr: Textes = {
   'espace.niveauxCaches': 'Niveaux cachés',
   'espace.annuler': 'Annuler',
   'espace.retablir': 'Rétablir',
+  'espace.remonter': 'Revenir au tableau parent',
+  'espace.retourTableau': 'Revenir au tableau',
+  'espace.outilsAfficher': 'Afficher les outils',
+  'espace.outilsMasquer': 'Masquer les outils',
   'espace.vue': 'Vue',
   'vue.titre': 'Zoom',
   'vue.aide': 'Maintenez ⌘ et faites défiler pour zoomer.',
@@ -1663,6 +1667,7 @@ export const fr: Textes = {
   'blocs.image.droite': 'Aligner à droite',
   'blocs.image.legende': 'Légende',
   'blocs.image.legendeInvite': 'Écrivez une légende…',
+  'page.sommaire': 'Sommaire',
   // passe éditeur : page et rendu (fin)
   // passe éditeur : saisie (début)
   // passe éditeur : saisie (fin)
@@ -1721,6 +1726,10 @@ export const fr: Textes = {
   // passe éditeur : sélection et glisser (début)
   'selection.poignee.tenir': 'Faites glisser pour déplacer, cliquez pour ouvrir le menu',
   'selection.poignee.ajouter': 'Cliquez pour ajouter un bloc en dessous. Cliquez en appuyant sur la touche Option pour l’ajouter au-dessus.',
+  'selection.aide.tenir.1': '**Glisser** pour déplacer',
+  'selection.aide.tenir.2': '**Cliquer** ou **⌘/** pour ouvrir le menu',
+  'selection.aide.plus.1': '**Cliquer** pour ajouter un bloc dessous',
+  'selection.aide.plus.2': '**⌥-clic** pour l’ajouter au-dessus',
   // passe éditeur : sélection et glisser (fin)
   'lien.echec.injoignable': 'Site injoignable : vérifiez l’adresse.',
   'lien.echec.delai': 'Le site a mis trop de temps à répondre.',
@@ -2093,6 +2102,10 @@ export const en: Textes = {
   'espace.niveauxCaches': 'Hidden levels',
   'espace.annuler': 'Undo',
   'espace.retablir': 'Redo',
+  'espace.remonter': 'Back to the parent board',
+  'espace.retourTableau': 'Back to the board',
+  'espace.outilsAfficher': 'Show the tools',
+  'espace.outilsMasquer': 'Hide the tools',
   'espace.vue': 'View',
   'vue.titre': 'Zoom',
   'vue.aide': 'Hold ⌘ and scroll to zoom.',
@@ -3636,6 +3649,7 @@ export const en: Textes = {
   'blocs.image.droite': 'Align right',
   'blocs.image.legende': 'Caption',
   'blocs.image.legendeInvite': 'Write a caption…',
+  'page.sommaire': 'Table of contents',
   // passe éditeur : page et rendu (fin)
   // passe éditeur : saisie (début)
   // passe éditeur : saisie (fin)
@@ -3694,6 +3708,10 @@ export const en: Textes = {
   // passe éditeur : sélection et glisser (début)
   'selection.poignee.tenir': 'Drag to move, click to open the menu',
   'selection.poignee.ajouter': 'Click to add a block below. Option-click to add it above.',
+  'selection.aide.tenir.1': '**Drag** to move',
+  'selection.aide.tenir.2': '**Click** or **⌘/** to open the menu',
+  'selection.aide.plus.1': '**Click** to add a block below',
+  'selection.aide.plus.2': '**⌥-click** to add it above',
   // passe éditeur : sélection et glisser (fin)
   'lien.chargement': 'Loading',
   'toile.misCorbeille.one': 'Moved to the trash',

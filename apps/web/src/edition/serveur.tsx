@@ -178,23 +178,23 @@ function Espace({ moi, instance, changerMoi, deconnexion }: { moi: Moi; instance
         espace={espace}
         services={services}
         adresse={adresse}
-        actions={(courant, ouvrir, aide) => (
+        actions={(courant, ouvrir) => (
           <>
             <BullesDecouverte espace={espace} tableau={courant} compte={moi.id} />
             <Favori tableau={courant} accueil={moi.racine} />
-            <Cloche ouvrir={ouvrir} />
             <PlusEntete>
               <Activite tableau={courant} moi={moi.id} surNouveaux={recents.noter} />
               <Importer espace={espace} tableau={courant} ouvrir={ouvrir} fichiers={fichiers} />
             </PlusEntete>
             <VerrouTableau tableau={courant} accueil={moi.racine} ouvrir={ouvrir} />
-            <Compte moi={moi} deconnexion={deconnexion} ouvrir={ouvrir} aide={aide} />
           </>
         )}
-        actionsTableau={(courant) => (
+        actionsTableau={(courant) => <Export tableau={courant} titre={() => espace.tableau(courant)?.titre ?? ''} />}
+        partage={(courant) => <Partage tableau={courant} moi={moi} />}
+        actionsCompte={(_courant, ouvrir, aide) => (
           <>
-            <Partage tableau={courant} moi={moi} />
-            <Export tableau={courant} titre={() => espace.tableau(courant)?.titre ?? ''} />
+            <Cloche ouvrir={ouvrir} />
+            <Compte moi={moi} deconnexion={deconnexion} ouvrir={ouvrir} aide={aide} />
           </>
         )}
       />

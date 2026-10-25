@@ -388,20 +388,24 @@ captures du même dossier. Code : `elements/arbre/Fenetre.tsx`, `Outils.tsx`, `B
 
 1. **Cadre.** La carte est une feuille blanche aux coins arrondis, posée dans un cadre gris de 8 px ; les panneaux de
    côté se posent dans ce cadre, à gauche (navigation) et à droite (format ou icônes), et la carte rétrécit d'autant.
-2. **En-tête**, en haut à gauche : Accueil (→ Notak : ferme la carte et revient au tableau), le bouton du panneau de
-   gauche, puis le titre (15 px, graisse 700). Xmind écrit dessous « Modifié » tant que le fichier n'est pas
-   enregistré ; → Notak : tout s'enregistre seul, la ligne n'apparaît qu'en lecture seule.
+2. **En-tête**, en haut à gauche : Accueil, le bouton du panneau de gauche, puis le titre. → Notak : c'est la barre
+   d'îlots commune au tableau, à la carte et au document (`Ilots.tsx`, 25/10/2026) : un îlot avec le retour au tableau
+   (flèche) et le panneau de gauche, puis le fil (le tableau qui porte la carte et celui d'au-dessus, pâles, puis le
+   nom de la carte en gras ; un maillon ferme la carte et ouvre ce tableau). Xmind écrit dessous « Modifié » tant que
+   le fichier n'est pas enregistré ; ici tout s'enregistre seul, la ligne n'apparaît qu'en lecture seule.
 3. **Barre d'outils**, au centre en haut, pilule de 36 px : Relation, Résumé, Limite, Zone, Étiquette, Tâche, puis
    « + » et son menu Insérer (§ 15). Boutons de 34 × 28, icônes de 24, survol et appui en voile, grisé à 0,3.
-4. **À droite** : Partager (→ Notak : exporte la carte en `.xmind`, la collaboration de Notak étant celle du
-   tableau), puis la pilule Marqueur (panneau d'icônes, § 13) et Format (panneau à onglets Style, Pitch, Carte) ;
-   l'actif est plein, sombre. Pas de bouton « Upgrade » : rien n'est payant dans Notak.
+4. **À droite** : Partager, puis la pilule Marqueur (panneau d'icônes, § 13) et Format (panneau à onglets Style,
+   Pitch, Carte) ; l'actif est plein, sombre. → Notak, dans l'ordre de la barre commune : annuler et rétablir, le
+   partage du tableau (présents et « Partager », prêtés par l'application), l'export `.xmind` suivi des notifications,
+   du compte et des réglages, puis la pilule Marqueur et Format. Échap ferme d'abord un menu ouvert dans ces îlots.
+   Pas de bouton « Upgrade » : rien n'est payant dans Notak.
 5. **En bas** : la feuille à gauche, l'état de la vue à droite (§ 10).
 6. **Repli de la barre** (`repliBarre.ts`, fonction pure testée ; `Outils.tsx` ne fait que mesurer). Quand la place
    manque, la barre replie, dans cet ordre et en s'arrêtant dès que ça tient : le titre, puis Tâche, Étiquette, Zone,
    Limite, Résumé, Relation. Ce qui est replié passe **en tête du menu « + »**, dans l'ordre de la barre, suivi d'un
    séparateur ; le « + » ne se replie jamais. Seuils (zone de la carte, panneau de côté déjà retiré ; titre de 100,
-   maison et bouton du panneau de gauche à gauche, export et pilule des panneaux à droite) : tout tient à 646 ;
+   retour et bouton du panneau de gauche à gauche, export et pilule des panneaux à droite) : tout tient à 646 ;
    titre replié sous 646 ; puis 534, 500, 466, 432, 398, 364, 330 pour 0 à 6 boutons repliés ; sous 330, même le « + »
    seul ne tient pas, la barre se retire. Un seul seuil par niveau, dans les deux sens (pas d'hystérésis), comme Xmind.
    La pilule est centrée sur la zone, poussée vers le côté libre si le titre ou les pastilles de droite la touchent,

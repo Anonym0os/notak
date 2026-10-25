@@ -48,9 +48,8 @@
 }
 
 .notak-espace[data-theme='sombre'] .notak-barre-outils {
-  --notak-barre: var(--notak-fond);
   --notak-vignette-trait: #4a505a;
-  box-shadow: 1px 0 0 0 rgb(255 255 255 / 0.08);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.06);
 }
 
 .notak-espace[data-theme='sombre'] .notak-tiroir {
@@ -302,7 +301,7 @@
 }
 
 /* La présentation : rien que le tableau, sans en-tête ni barres. */
-.notak-espace[data-presentation] :is(.notak-entete, .notak-barre-outils, .notak-barre-selection, .notak-non-tries, .notak-corbeille) {
+.notak-espace[data-presentation] :is(.notak-entete, .notak-vue-bas, .notak-barre-outils, .notak-barre-selection, .notak-non-tries, .notak-corbeille) {
   display: none;
 }
 

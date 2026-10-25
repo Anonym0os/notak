@@ -2,6 +2,8 @@ import { TextSelection } from '@tiptap/pm/state'
 import type { Editor } from '@tiptap/react'
 import { type RefObject, useEffect, useRef, useState } from 'react'
 import { t } from '../langue'
+import { AideBouton, type BoutonAide } from './AideBouton'
+import { DELAI_AIDE } from './aidePoignee'
 import { enColonnes } from './colonnes'
 import { type Depot, choisirDepot, ouDuDepot } from './depot'
 import { poser, racines } from './gestes'
@@ -65,17 +67,19 @@ function departPossible(cible: Element, editeur: Editor): boolean {
   return !cible.closest(INTERACTIFS)
 }
 
+/** Les icônes sont pleines : leur couleur est le `fill` de la feuille de style (`poignee.css`). */
 function Plus() {
   return (
     <svg viewBox="0 0 20 20" aria-hidden="true">
-      <path d="M10 5.5v9M5.5 10h9" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <rect x="9.25" y="5.5" width="1.5" height="9" rx="0.75" />
+      <rect x="5.5" y="9.25" width="9" height="1.5" rx="0.75" />
     </svg>
   )
 }
 
 function Grille() {
   return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" fill="currentColor">
+    <svg viewBox="0 0 20 20" aria-hidden="true">
       {[5.5, 10, 14.5].flatMap((y) => [7.5, 12.5].map((x) => <circle key={`${x}:${y}`} cx={x} cy={y} r="1.3" />))}
     </svg>
   )
@@ -140,10 +144,30 @@ export function Poignee({ editeur, zone, ouvrirMenu, ouvrirAjout }: Props) {
       window.removeEventListener('keydown', verifier, true)
     }
   }, [menuOuvert])
+  // La bulle d'aide d'un bouton : elle paraît 150 ms après l'arrivée dessus, et part dès qu'on le quitte, qu'on appuie, qu'on
+  // tire ou que le menu s'ouvre. Pas de bulle tant qu'un bouton de la souris est tenu.
+  const [aide, setAide] = useState<{ cle: BoutonAide; bouton: HTMLElement } | null>(null)
+  const delaiAide = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const taireAide = () => {
+    clearTimeout(delaiAide.current)
+    setAide(null)
+  }
+  const annoncerAide = (cle: BoutonAide) => (e: React.PointerEvent<HTMLButtonElement>) => {
+    clearTimeout(delaiAide.current)
+    if (e.buttons || tire.current) return
+    const bouton = e.currentTarget
+    delaiAide.current = setTimeout(() => setAide({ cle, bouton }), DELAI_AIDE)
+  }
+  useEffect(() => () => clearTimeout(delaiAide.current), [])
   const [depot, setDepot] = useState<Depot | null>(null)
   const [rectangle, setRectangle] = useState<{ x: number; y: number; l: number; h: number } | null>(null)
   const [glisse, setGlisse] = useState(false)
   const tire = useRef(false)
+  // Sans poignée visible, ou pendant un glisser ou son menu, la bulle ne se garde pas pour plus tard.
+  const sansAide = !survol || glisse || menuOuvert
+  useEffect(() => {
+    if (sansAide) taireAide()
+  }, [sansAide])
 
   // Le survol (§ 6) : la poignée suit le bloc dont la tranche contient la souris, de 150 px à gauche de son bord à son bord
   // droit. Le calcul se fait au plus toutes les 60 ms ; une frappe la cache jusqu'au prochain mouvement.
@@ -313,6 +337,7 @@ export function Poignee({ editeur, zone, ouvrirMenu, ouvrirAjout }: Props) {
     const demarrer = () => {
       bouge = true
       tire.current = true
+      taireAide()
       setGlisse(true)
       setSurvol(null)
       // Le bloc est choisi (Maj étend, Maj+⌘ bascule) et ce sont tous les blocs choisis qui partent.
@@ -423,15 +448,24 @@ export function Poignee({ editeur, zone, ouvrirMenu, ouvrirAjout }: Props) {
     <>
       {!glisse && <Halos editeur={editeur} zone={zone} />}
       {survol && !glisse && (
-        <div className="notak-blocs-poignee" data-menu={menuOuvert || undefined} style={{ top: survol.haut, left: survol.gauche }} onPointerDown={(e) => e.stopPropagation()}>
-          <button type="button" className="notak-blocs-poignee-plus" title={t('selection.poignee.ajouter')} aria-label={t('selection.poignee.ajouter')} onMouseDown={(e) => e.preventDefault()} onClick={(e) => ajouter(e, survol)}>
+        <div
+          className="notak-blocs-poignee"
+          data-menu={menuOuvert || undefined}
+          style={{ top: survol.haut, left: survol.gauche }}
+          onPointerDown={(e) => {
+            e.stopPropagation()
+            taireAide()
+          }}
+        >
+          <button type="button" className="notak-blocs-poignee-plus" aria-label={t('selection.poignee.ajouter')} onPointerEnter={annoncerAide('plus')} onPointerLeave={taireAide} onMouseDown={(e) => e.preventDefault()} onClick={(e) => ajouter(e, survol)}>
             <Plus />
           </button>
-          <button type="button" className="notak-blocs-poignee-tenir" title={t('selection.poignee.tenir')} aria-label={t('selection.poignee.tenir')} onPointerDown={(e) => tirer(e, survol)}>
+          <button type="button" className="notak-blocs-poignee-tenir" aria-label={t('selection.poignee.tenir')} onPointerEnter={annoncerAide('tenir')} onPointerLeave={taireAide} onPointerDown={(e) => tirer(e, survol)}>
             <Grille />
           </button>
         </div>
       )}
+      {aide && !sansAide && <AideBouton bouton={aide.bouton} cle={aide.cle} hote={editeur.view.dom.closest<HTMLElement>('[aria-modal], .notak-espace')} />}
       {depot?.genre === 'entre' && depot.voile && (
         <div className="notak-blocs-halo" data-parent="" style={{ left: depot.voile.gauche, top: depot.voile.haut, width: depot.voile.droite - depot.voile.gauche, height: depot.voile.bas - depot.voile.haut }} aria-hidden />
       )}

@@ -188,66 +188,36 @@
   background: var(--notak-page-fond, #fff);
 }
 
-/* La barre du haut : fermer à gauche, le titre en petit, puis les options et l'export à droite. */
+/* La barre du haut : les îlots du tableau et de la carte (ilots.css). Le retour et le fil à gauche ; l'historique, le
+   partage, puis les options, l'export et le compte à droite. */
 .notak-document-entete {
   display: flex;
   align-items: center;
   flex: none;
-  gap: 4px;
-  height: 44px;
-  padding: 0 12px;
+  gap: 12px;
+  box-sizing: border-box;
+  height: 68px;
+  padding: 16px;
 }
 
-/* Dans l'application de bureau, la barre tient lieu de barre de titre : les boutons de la fenêtre à gauche (80 px), qu'elle
-   rend en plein écran (voir `toile.css`). */
+.notak-document-entete > .notak-fil {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Dans l'application de bureau, la barre tient lieu de barre de titre : les boutons de la fenêtre à gauche (88 px),
+   qu'elle rend en plein écran (voir `toile.css`). */
 :root[data-bureau] .notak-document-entete {
-  height: 40px;
-  padding-left: 80px;
+  padding-left: 88px;
 }
 
 :root[data-bureau][data-plein-ecran] .notak-document-entete {
-  padding-left: 12px;
-}
-
-.notak-document-fermer {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: 0;
-  border-radius: 6px;
-  background: none;
-  color: var(--notak-page-discret);
-  cursor: pointer;
-}
-
-.notak-document-fermer:hover {
-  background: var(--notak-page-survol);
-  color: var(--notak-page-texte);
-}
-
-.notak-document-entete-titre {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  gap: 6px;
-  min-width: 0;
-  padding: 0 6px;
-  overflow: hidden;
-  font-size: 14px;
-  line-height: 20px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.notak-document-entete-titre > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  padding-left: 16px;
 }
 
 .notak-document-titre-lu[data-vide],
-.notak-document-entete-titre [data-vide] {
+.notak-document-entete [data-vide] {
   color: var(--notak-page-discret);
 }
 
@@ -307,7 +277,18 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  height: 32px;
   padding: 0 16px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.notak-document-export-menu .notak-note-menu-ligne:hover {
+  background: var(--notak-page-survol, rgb(0 0 0 / 0.05));
 }
 
 /* La page qui défile : la grille, 30 % de la fenêtre d'air sous le dernier bloc. */
@@ -423,53 +404,72 @@
 }
 
 /*
- * Les fils des passages commentés (NOTION.md § 9) : dans la marge droite de la page, à 24 px de la colonne du texte,
- * chacun à la hauteur de son passage. Quand la marge est trop étroite, ils se posent par-dessus le bord droit du texte.
+ * Les fils des passages commentés (NOTION.md § 9, relevé 4 § 7) : dans la marge droite de la page, à 32 px de la
+ * colonne du texte, chacun à la hauteur de son passage. Le passage est surligné de jaune ; survolé (lui ou sa fiche) ou
+ * ouvert, il fonce. Quand la marge manque (`data-etroit`), chaque fil est une bulle au bord de la colonne, et le fil
+ * ouvert se pose sous son passage, centré sur la colonne.
  */
+.notak-page .notak-texte .notak-fil-texte {
+  padding: 0 0 1px;
+  background: rgb(255 203 0 / 0.12);
+  border-bottom: 2px solid rgb(255 203 0 / 0.35);
+  transition: background 0.2s, border-color 0.2s;
+}
+
 .notak-page > .notak-note-marge {
   z-index: 2;
   grid-column: 3;
-  left: 24px;
-  width: min(280px, calc(100% - 40px));
+  left: 32px;
+  width: 308px;
+  font-size: 14px;
 }
 
-/* Une marge trop étroite : les fils se posent sur le bord droit, sans retenir les clics destinés au texte ; un fil fermé
-   n'y est qu'une pastille 💬, qu'un appui rouvre. */
-@media (max-width: 1360px) {
-  .notak-page > .notak-note-marge {
-    grid-column: 2 / 4;
-    left: auto;
-    right: 12px;
-    width: 280px;
-    pointer-events: none;
-  }
+.notak-page > .notak-note-marge[data-etroit] {
+  grid-column: 1 / -1;
+  left: 0;
+  right: 0;
+  width: auto;
+  height: 0;
+  pointer-events: none;
+}
 
-  .notak-page > .notak-note-marge > .notak-fil-marge {
-    pointer-events: auto;
-  }
+.notak-page > .notak-note-marge[data-etroit] > * {
+  pointer-events: auto;
+}
 
-  .notak-page > .notak-note-marge > .notak-fil-marge:not([data-actif]) {
-    left: auto;
-    width: 36px;
-    height: 28px;
-    min-height: 0;
-    padding: 0;
-    overflow: hidden;
-    border-radius: 14px;
-    cursor: pointer;
-  }
+/* La bulle d'un fil, page étroite : l'icône et le nombre de messages, au bord droit de la colonne. */
+.notak-fil-bulle {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--notak-page-texte);
+  font: 500 14px/1 system-ui, sans-serif;
+  cursor: pointer;
+  transition: background 0.1s;
+}
 
-  .notak-page > .notak-note-marge > .notak-fil-marge:not([data-actif]) > * {
-    display: none;
-  }
+.notak-fil-bulle svg {
+  color: rgb(142 139 134);
+}
 
-  .notak-page > .notak-note-marge > .notak-fil-marge:not([data-actif])::before {
-    content: '💬';
-    display: grid;
-    place-items: center;
-    height: 100%;
-    font-size: 14px;
-  }
+.notak-fil-bulle:hover,
+.notak-fil-bulle[data-actif] {
+  background: rgb(33 27 23 / 0.051);
+}
+
+/* Le fil ouvert sous son passage : 480 px, centré sur la colonne, avec l'ombre des menus. */
+.notak-page > .notak-note-marge > .notak-fil-marge[data-flottant] {
+  right: auto;
+  width: 480px;
+  max-width: calc(100vw - 32px);
+  transform: translateX(-50%);
+  transition: none;
 }
 
 /* À droite de la barre : les options de la page, puis « Export ». */
@@ -477,7 +477,7 @@
   display: flex;
   align-items: center;
   flex: none;
-  gap: 2px;
+  gap: 8px;
 }
 
 .notak-document-entete-droite .notak-document-export {

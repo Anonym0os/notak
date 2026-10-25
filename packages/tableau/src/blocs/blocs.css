@@ -30,7 +30,9 @@
   min-width: 0;
   /* Les marges gauche et droite du bloc (6 px, 8 px pour l'encadré, le code et le séparateur) : le cadre d'un encadré
      se cale sur elles (voir plus bas). */
-  margin: 6px calc(var(--notak-marge-droite, 6px) + var(--notak-encadres, 0) * 21px) 6px calc(var(--notak-marge, 6px) + var(--notak-retrait, 0) * var(--notak-pas-retrait));
+  /* Dans un encadré, un bloc part du texte de l'encadré (45 px, soit 13 de plus qu'un cran) et s'arrête 21 px plus tôt
+     à droite, par encadré qui l'entoure (mesuré dans Notion). */
+  margin: 6px calc(var(--notak-marge-droite, 6px) + var(--notak-encadres, 0) * 21px) 6px calc(var(--notak-marge, 6px) + var(--notak-retrait, 0) * var(--notak-pas-retrait) + var(--notak-encadres, 0) * 13px);
   padding: 2px;
   border-radius: 6px;
   font-family: inherit;
@@ -91,6 +93,12 @@
 
 .notak-blocs :is(.notak-b-puce, .notak-b-numero, .notak-b-tache, .notak-b-depliant):has(+ :is(.notak-b-puce, .notak-b-numero, .notak-b-tache, .notak-b-depliant)) {
   margin-bottom: 1px;
+}
+
+/* Un dépliant ouvert colle à son premier enfant : 10 px de ligne à ligne, comme chez Notion. */
+.notak-texte.notak-blocs > :is(.notak-b-depliant, [data-depliant]).notak-a-enfants,
+.notak-blocs .notak-blocs-colonne > :is(.notak-b-depliant, [data-depliant]).notak-a-enfants {
+  margin-bottom: 0;
 }
 
 .notak-blocs :is(.notak-b-puce, .notak-b-numero, .notak-b-tache, .notak-b-depliant)::before {
@@ -260,7 +268,7 @@
  */
 .notak-blocs .notak-b-encadre.notak-a-enfants {
   margin-bottom: 0;
-  padding-bottom: 8px;
+  padding-bottom: 7px;
   border-bottom-right-radius: 0;
   border-bottom-left-radius: 0;
 }
@@ -272,7 +280,7 @@
 }
 
 .notak-blocs .notak-dans-encadre::after {
-  --notak-encadre-gauche: calc((var(--notak-retrait-encadre) - var(--notak-retrait-encadre-racine)) * var(--notak-pas-retrait));
+  --notak-encadre-gauche: calc((var(--notak-retrait-encadre) - var(--notak-retrait-encadre-racine)) * var(--notak-pas-retrait) + (var(--notak-encadres, 1) - 1) * 13px);
   --notak-encadre-droite: calc((var(--notak-encadres, 1) - 1) * 21px);
   content: '';
   position: absolute;
@@ -281,7 +289,7 @@
   top: -1px;
   right: calc(8px - var(--notak-marge-droite, 6px) - var(--notak-encadres, 1) * 21px);
   bottom: 0;
-  left: calc(8px - var(--notak-marge, 6px) - (var(--notak-retrait) - var(--notak-retrait-encadre-racine)) * var(--notak-pas-retrait));
+  left: calc(8px - var(--notak-marge, 6px) - (var(--notak-retrait) - var(--notak-retrait-encadre-racine)) * var(--notak-pas-retrait) - var(--notak-encadres, 1) * 13px);
   background: linear-gradient(
     to right,
     var(--notak-fond-encadre-racine) 0 var(--notak-encadre-gauche),
@@ -300,7 +308,7 @@
 .notak-texte.notak-blocs > .notak-dans-encadre.notak-fin-encadre-racine,
 .notak-blocs .notak-blocs-colonne > .notak-dans-encadre.notak-fin-encadre-racine {
   margin-bottom: 8px;
-  padding-bottom: calc(20px + (var(--notak-fermes, 1) - 1) * 21px);
+  padding-bottom: calc(var(--notak-fermes, 1) * 21px);
 }
 
 .notak-blocs .notak-dans-encadre.notak-fin-encadre-racine::after {
@@ -319,7 +327,7 @@
 .notak-texte.notak-blocs > .notak-dans-encadre.notak-b-encadre.notak-a-enfants,
 .notak-blocs .notak-blocs-colonne > .notak-dans-encadre.notak-b-encadre.notak-a-enfants {
   margin-bottom: 0;
-  padding-bottom: 8px;
+  padding-bottom: 7px;
 }
 
 .notak-blocs .notak-dans-encadre.notak-b-encadre::after {
@@ -336,7 +344,7 @@
 .notak-texte.notak-blocs > .notak-dans-encadre.notak-b-encadre.notak-fin-encadre,
 .notak-blocs .notak-blocs-colonne > .notak-dans-encadre.notak-b-encadre.notak-fin-encadre {
   padding-bottom: 20px;
-  margin-bottom: calc(var(--notak-fermes, 1) * 21px);
+  margin-bottom: calc(8px + var(--notak-fermes, 1) * 21px);
 }
 
 .notak-texte.notak-blocs > .notak-dans-encadre.notak-b-encadre.notak-fin-encadre-racine,
@@ -345,6 +353,10 @@
 }
 
 .notak-blocs .notak-dans-encadre.notak-b-encadre.notak-fin-encadre::after {
+  bottom: calc(-8px - var(--notak-fermes, 1) * 21px);
+}
+
+.notak-blocs .notak-dans-encadre.notak-b-encadre.notak-fin-encadre-racine::after {
   bottom: calc(-1 * var(--notak-fermes, 1) * 21px);
 }
 

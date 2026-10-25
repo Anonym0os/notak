@@ -1,0 +1,135 @@
+/*
+ * Le sommaire latéral de la page (docs/NOTION.md § 9), mesuré dans Notion : une colonne de traits de 2 px au pas de
+ * 14 px, fixée à 35 px du bord droit de la fenêtre ; au survol, un panneau de 232 px, rayon 14, les titres sur des
+ * lignes de 25 px. Les jetons du panneau sont ceux des menus (`menus.css`), clairs et sombres.
+ */
+
+.notak-sommaire {
+  --notak-m-fond: #fff;
+  --notak-m-texte: #2c2c2b;
+  --notak-m-titre: #7d7a75;
+  --notak-m-trait: rgb(42 28 0 / 0.07);
+  --notak-m-ombre: 0 20px 24px rgb(25 25 25 / 0.05), 0 5px 8px rgb(25 25 25 / 0.027), 0 0 0 1px rgb(42 28 0 / 0.07);
+  --notak-m-accent: #2783de;
+  --notak-s-courant: rgb(50 48 44);
+  --notak-s-autre: rgb(28 19 1 / 0.11);
+  /* Les traits finissent à 35 px du bord : le remplissage de 12 px à droite est de la zone de survol. */
+  position: fixed;
+  right: 23px;
+  z-index: 3;
+  box-sizing: border-box;
+  padding: 12px 12px 12px 20px;
+  cursor: text;
+}
+
+[data-theme='sombre'] .notak-sommaire {
+  --notak-m-fond: #252525;
+  --notak-m-texte: #f0efed;
+  --notak-m-titre: #ada9a3;
+  --notak-m-trait: rgb(255 255 235 / 0.082);
+  --notak-m-ombre: 0 0 0 1px #383836, 0 14px 28px -6px rgb(25 25 25 / 0.2), 0 2px 4px -1px rgb(25 25 25 / 0.118);
+  --notak-s-courant: rgb(240 239 237);
+  --notak-s-autre: rgb(255 255 235 / 0.12);
+}
+
+.notak-sommaire[hidden] {
+  display: none;
+}
+
+/* Les traits : alignés à droite, 2 px de haut et 12 px d'air entre deux (le pas est de 14 px). */
+.notak-sommaire-traits {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  transition: opacity 0.2s;
+}
+
+.notak-sommaire-trait {
+  display: block;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--notak-s-autre);
+  transition: background 0.2s;
+}
+
+.notak-sommaire-trait[data-courant] {
+  background: var(--notak-s-courant);
+}
+
+.notak-sommaire[data-ouvert] .notak-sommaire-traits {
+  opacity: 0;
+}
+
+/* Le panneau : son bord droit à 10 px à droite des traits, son haut à 10 px au-dessus du premier. */
+.notak-sommaire-panneau {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  box-sizing: border-box;
+  width: 232px;
+  max-height: calc(100vh - 160px);
+  margin: 0;
+  padding: 12px 12px 0;
+  overflow-y: auto;
+  list-style: none;
+  border-radius: 14px;
+  background: var(--notak-m-fond);
+  box-shadow: var(--notak-m-ombre);
+  cursor: default;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.2s,
+    visibility 0.2s;
+}
+
+.notak-sommaire[data-ouvert] .notak-sommaire-panneau {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Un peu d'air sous la dernière ligne. */
+.notak-sommaire-panneau > li:last-child {
+  margin-bottom: 12px;
+}
+
+/* Une ligne : 25 px (4 px de remplissage autour d'un texte de 13 px sur 16,9), une seule ligne, points de suspension. */
+.notak-sommaire-ligne {
+  display: block;
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--notak-m-titre);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 16.9px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.notak-sommaire-ligne:hover,
+.notak-sommaire-ligne:focus-visible {
+  background: var(--notak-m-trait);
+  color: var(--notak-m-texte);
+  outline: none;
+}
+
+.notak-sommaire-ligne[data-courant],
+.notak-sommaire-ligne[data-courant]:hover {
+  color: var(--notak-m-accent);
+}
+
+@media print {
+  .notak-sommaire {
+    display: none;
+  }
+}

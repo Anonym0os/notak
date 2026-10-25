@@ -46,12 +46,25 @@
   100% { background: transparent; }
 }
 
-/* La poignée : `+` (24 × 24) et `⋮⋮` (18 × 24) se touchent, à 10 px du bord gauche du bloc survolé. */
+/* La poignée : `+` (24 × 24) et `⋮⋮` (18 × 24) se touchent, le `⋮⋮` finit à 16 px du bord de la rangée du bloc (10 px avant son texte). */
 .notak-blocs-poignee {
   position: absolute;
   z-index: 3;
   display: flex;
-  transform: translateX(calc(-100% - 10px));
+  transform: translateX(calc(-100% - 16px));
+}
+
+/* Les couleurs des boutons, avec leur pendant sombre (les mêmes sélecteurs de thème que `--notak-page-*`). */
+.notak-espace,
+.notak-toile {
+  --notak-poignee-icone: rgb(173 169 163);
+  --notak-poignee-survol: rgba(33 27 23 / 0.051);
+}
+
+.notak-espace[data-theme='sombre'],
+.notak-espace[data-theme='sombre'] .notak-toile {
+  --notak-poignee-icone: rgba(255 255 255 / 0.283);
+  --notak-poignee-survol: rgba(255 255 255 / 0.055);
 }
 
 .notak-blocs-poignee button {
@@ -64,19 +77,20 @@
   border: 0;
   border-radius: 4px;
   background: none;
-  color: color-mix(in srgb, var(--notak-texte, #323b4a) 40%, transparent);
+  color: inherit;
   cursor: pointer;
-  transition: background 20ms ease-in;
+  transition: background 0.02s ease-in;
 }
 
 .notak-blocs-poignee button:hover {
-  background: color-mix(in srgb, var(--notak-texte, #211b17) 5.1%, transparent);
+  background: var(--notak-poignee-survol, rgba(33 27 23 / 0.051));
 }
 
 .notak-blocs-poignee button svg {
   display: block;
   width: 20px;
   height: 20px;
+  fill: var(--notak-poignee-icone, rgb(173 169 163));
 }
 
 .notak-blocs-poignee .notak-blocs-poignee-tenir {
@@ -86,7 +100,34 @@
 
 /* Son menu ouvert, la poignée reste teintée. */
 .notak-blocs-poignee[data-menu] .notak-blocs-poignee-tenir {
-  background: var(--notak-page-survol);
+  background: var(--notak-poignee-survol, rgba(33 27 23 / 0.051));
+}
+
+/*
+ * La bulle d'aide des boutons (`AideBouton`) : sombre dans les deux thèmes, 12 / 16,8 px, deux lignes dont les mots du geste
+ * sont en clair. Sa place est écrite par le composant ; elle ne prend jamais la souris.
+ */
+.notak-blocs-aide {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1100;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: rgb(44 44 43);
+  box-shadow: 0 4px 12px -2px rgb(0 0 0 / 0.08), inset 0 0 0 1px rgb(255 255 255 / 0.05);
+  color: rgb(173 169 163);
+  font-size: 12px;
+  line-height: 16.8px;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+.notak-blocs-aide b {
+  color: rgb(240 239 237);
+  font-weight: inherit;
 }
 
 /* Pendant un glisser, rien d'autre ne réagit à la souris, et le curseur ne change plus. */

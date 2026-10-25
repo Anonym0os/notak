@@ -235,8 +235,9 @@
   --notak-vignette-trait: #c9cdd3;
   --notak-vignette-accent: #4f6cf0;
 
+  /* Un îlot vertical, décollé du bord comme ceux de la barre du haut (ilots.css), sous elle et à 16 px des bords. */
   position: absolute;
-  inset: 0 auto 0 0;
+  inset: 0 auto 16px 16px;
   z-index: 3;
   display: flex;
   flex-direction: column;
@@ -244,8 +245,15 @@
   gap: 4px;
   width: 72px;
   padding: 10px 0;
-  box-shadow: 1px 0 0 0 rgb(0 0 0 / 0.08);
-  background: var(--notak-barre, var(--notak-fond));
+  box-sizing: border-box;
+  border-radius: 22px;
+  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.08), 0 6px 16px -6px rgb(27 37 54 / 0.16);
+  background: var(--notak-barre, color-mix(in srgb, var(--notak-carte) 88%, transparent));
+}
+
+/* Le bouton du premier îlot cache la barre des outils ; les outils d'une sélection, eux, restent. */
+.notak-espace[data-outils='caches'] .notak-barre-outils:not([data-selection]) {
+  display: none;
 }
 
 .notak-outil {
@@ -447,66 +455,66 @@
   min-height: 0;
 }
 
+/*
+ * La barre du haut du tableau : une bande de 68 px à la couleur de la toile, où flottent les îlots (Ilots.tsx, ilots.css),
+ * comme sur la carte mentale et le document. Le retour et les outils, puis le fil et le titre à gauche ; l'historique,
+ * le partage et le compte à droite.
+ */
 .notak-entete {
   display: flex;
   flex: none;
-  flex-direction: column;
+  align-items: center;
+  gap: 12px;
   box-sizing: border-box;
-  border-bottom: 1px solid rgb(0 0 0 / 0.08);
-  background: var(--notak-carte);
+  height: 68px;
+  padding: 16px;
+  background: var(--notak-fond);
   color: var(--notak-texte);
   font-size: 14px;
 }
 
-/* Première rangée : le fil d'Ariane à gauche, l'historique et les outils à droite. 44 px, comme Milanote. */
-.notak-entete-haut {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  box-sizing: border-box;
-  height: 44px;
-  padding: 0 16px;
+/* Dans l'application de bureau, la bande tient lieu de barre de titre : les boutons de la fenêtre à gauche (88 px),
+   centrés sur les îlots ; elle les rend en plein écran. */
+:root[data-bureau] .notak-entete {
+  padding-left: 88px;
 }
 
-/* Dans l'application de bureau, la rangée tient lieu de barre de titre : 40 px, les boutons de la fenêtre à gauche
-   (80 px), qu'elle rend en plein écran. */
-:root[data-bureau] .notak-entete-haut {
-  height: 40px;
-  padding-left: 80px;
-}
-
-:root[data-bureau][data-plein-ecran] .notak-entete-haut {
+:root[data-bureau][data-plein-ecran] .notak-entete {
   padding-left: 16px;
-}
-
-/* Seconde rangée : le titre centré, l'enregistrement à gauche, partage, export et vue à droite. */
-.notak-entete-bas {
-  display: grid;
-  /* Le titre cède la place aux boutons de droite (points de suspension), et reste centré quand il y en a. */
-  grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(max-content, 1fr);
-  align-items: center;
-  box-sizing: border-box;
-  height: 40px;
-  padding: 0 16px;
 }
 
 .notak-entete-gauche {
   display: flex;
+  flex: 1 1 0;
   align-items: center;
+  gap: 12px;
   min-width: 0;
+}
+
+.notak-entete-gauche > .notak-fil {
+  flex: 1 1 0;
+  overflow: hidden;
 }
 
 .notak-entete-droite {
   display: flex;
+  flex: none;
   align-items: center;
   justify-content: flex-end;
-  min-width: 0;
-  gap: 2px;
+  gap: 8px;
 }
 
-.notak-entete-bas .notak-entete-droite {
-  margin-left: 0;
-  gap: 18px;
+/* Le zoom du tableau, dans un îlot en bas à droite ; son panneau s'ouvre au-dessus. */
+.notak-vue-bas {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 4;
+}
+
+.notak-vue-bas .notak-vue-panneau {
+  top: auto;
+  bottom: 42px;
 }
 
 .notak-entete-filet {
@@ -520,19 +528,16 @@
   background: rgb(255 255 255 / 0.1);
 }
 
-/* Le titre du tableau : serif libre déjà sur la machine, 22 px, semi-gras, modifiable en place. */
+/* Le titre du tableau, au bout du fil : gras, à la taille du fil, modifiable en place ; il prend la largeur de son texte. */
 .notak-titre {
   display: inline-grid;
   grid-template-columns: minmax(0, 1fr);
-  justify-self: center;
   min-width: 0;
-  max-width: min(1000px, 56vw, 100%);
+  max-width: 360px;
   margin: 0;
-  font-family: 'Iowan Old Style', 'Charter', Georgia, serif;
-  font-size: 22px;
+  font-size: 14px;
   font-weight: 600;
-  letter-spacing: -0.2px;
-  line-height: 30px;
+  line-height: 28px;
 }
 
 .notak-titre::after {
@@ -559,7 +564,6 @@
   color: var(--notak-texte);
   font: inherit;
   letter-spacing: inherit;
-  text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -572,24 +576,6 @@
   background: var(--notak-fond);
   box-shadow: 0 0 0 2px var(--notak-accent);
   text-overflow: clip;
-}
-
-/* Les boutons de la seconde rangée : du texte et une icône, sans cadre. */
-.notak-entete-bas .bouton,
-.notak-entete-bas .notak-vue-bouton {
-  height: 28px;
-  padding: 0 6px;
-  border: 0;
-  border-radius: 4px;
-  background: none;
-  color: var(--notak-texte);
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.notak-entete-bas .bouton:hover,
-.notak-entete-bas .notak-vue-bouton:hover {
-  background: var(--notak-fond);
 }
 
 .notak-fil {
@@ -969,7 +955,8 @@
   position: absolute;
   z-index: 5;
   top: calc(-8px - var(--notak-tiroir-remonte, 0px));
-  left: calc(100% + 10px);
+  /* Le bouton est centré dans l'îlot de 72 px : 14 px jusqu'à son bord, puis 10 d'écart. */
+  left: calc(100% + 24px);
   display: grid;
   grid-template-columns: repeat(3, 76px);
   gap: 6px;
@@ -1124,8 +1111,8 @@
 .notak-corbeille {
   position: absolute;
   z-index: 35;
-  bottom: 12px;
-  left: 84px;
+  bottom: 16px;
+  left: 104px;
   display: flex;
   flex-direction: column;
   width: 320px;
@@ -1730,7 +1717,7 @@
 
 .notak-bulle-decouverte[data-ou='barre'] {
   top: 96px;
-  left: 82px;
+  left: 102px;
 }
 
 .notak-bulle-decouverte[data-ou='milieu'] {
@@ -2476,8 +2463,9 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 .notak-choix-modele {
   position: absolute;
   z-index: 30;
-  right: 30px;
-  bottom: 30px;
+  right: 16px;
+  /* Au-dessus de l'îlot du zoom (16 px du bas, 36 de haut), sans le couvrir. */
+  bottom: 64px;
   box-sizing: border-box;
   width: 300px;
   padding: 20px 20px 0;
