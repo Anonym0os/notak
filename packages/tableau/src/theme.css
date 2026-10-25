@@ -177,9 +177,10 @@
 
 .notak-reglages-choix {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   padding: 3px;
-  border-radius: 8px;
+  border-radius: var(--notak-rayon-panneau, 8px);
   background: var(--notak-fond);
 }
 
@@ -187,7 +188,7 @@
   flex: 1;
   padding: 6px 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--notak-rayon-controle, 6px);
   background: none;
   color: var(--notak-texte);
   font: inherit;
@@ -272,6 +273,32 @@
 .notak-reglages-erreur {
   margin: 0;
   color: #d84b4b;
+}
+
+.notak-reglages-choix button:disabled {
+  cursor: default;
+}
+
+/* Sous le choix du thème : l'import et le retrait, ou la phrase qui dit que le serveur l'impose. */
+.notak-reglages-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.notak-reglages-actions button {
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--notak-accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.notak-reglages-note {
+  margin: 0;
+  color: #7a7f87;
+  font-size: 12px;
 }
 
 /* La présentation : rien que le tableau, sans en-tête ni barres. */
