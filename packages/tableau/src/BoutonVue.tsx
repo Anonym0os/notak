@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import { Icone } from './icones'
 import { t } from './langue'
-import { bornesCurseur, commandesVue, pourcentage, useEtatVue } from './vueZoom'
+import type { AffichageMinicarte } from './minicarteModele'
+import { Pilule } from './reglages'
+import { bornesCurseur, commandesVue, depuisCran, pourcentage, versCran, useEtatVue } from './vueZoom'
 
 /** Le pourcentage reste affiché ce temps après le retour à 100 %, avant que « Vue » revienne, en millisecondes. */
 export const DELAI_RETOUR_VUE = 1000
 
 /**
  * Le bouton de vue de l'en-tête : « Vue » à 100 %, le pourcentage dès que le zoom en sort (et une seconde
- * encore après y être revenu). Il ouvre le panneau du zoom : un curseur de 3 à 300 %, et « Tout afficher » qui
- * devient « Revenir à 100 % » quand tout est déjà cadré.
+ * encore après y être revenu). Il ouvre le panneau du zoom : un curseur de 2 à 800 %, « Tout afficher » qui
+ * devient « Revenir à 100 % » quand tout est déjà cadré, et quand paraît la mini-carte.
  */
-export function BoutonVue() {
+export function BoutonVue({ minicarte }: { minicarte?: { valeur: AffichageMinicarte; changer(v: AffichageMinicarte): void } }) {
   const vue = useEtatVue()
   const echelle = vue?.echelle ?? 1
   const horsCent = pourcentage(echelle) !== 100
@@ -53,16 +55,17 @@ export function BoutonVue() {
         </span>
         <Icone nom="chevronBas" taille={16} />
       </button>
-      {ouvert && <PanneauVue echelle={echelle} />}
+      {ouvert && <PanneauVue echelle={echelle} minicarte={minicarte} />}
     </div>
   )
 }
 
-function PanneauVue({ echelle }: { echelle: number }) {
+function PanneauVue({ echelle, minicarte }: { echelle: number; minicarte?: { valeur: AffichageMinicarte; changer(v: AffichageMinicarte): void } }) {
   // La mesure du contenu coûte : elle se fait à l'ouverture et quand le zoom bouge, pas à chaque rendu de la toile.
   const details = commandesVue()?.details() ?? { min: 0.4, toutAffiche: false }
   const { min, max } = bornesCurseur(details.min)
   const pct = Math.min(max, Math.max(min, pourcentage(echelle)))
+  // Le curseur avance en logarithme : de 2 à 800 %, 100 % tombe aux deux tiers et chaque doublement fait le même pas.
   return (
     <div className="notak-vue-panneau" role="dialog" aria-label={t('vue.titre')}>
       <h3>{t('vue.titre')}</h3>
@@ -71,17 +74,33 @@ function PanneauVue({ echelle }: { echelle: number }) {
         <input
           type="range"
           aria-label={t('vue.curseur')}
-          min={min}
-          max={max}
+          min={versCran(min)}
+          max={versCran(max)}
           step={1}
-          value={pct}
-          onChange={(e) => commandesVue()?.zoomer(Number(e.currentTarget.value) / 100)}
+          value={versCran(pct)}
+          aria-valuetext={`${pct} %`}
+          onChange={(e) => commandesVue()?.zoomer(Math.min(max, Math.max(min, depuisCran(Number(e.currentTarget.value)))) / 100)}
         />
         <output>{pourcentage(echelle)} %</output>
       </div>
       <button type="button" className="notak-vue-tout" onClick={() => commandesVue()?.tout()}>
         {details.toutAffiche ? t('vue.cent') : t('vue.tout')}
       </button>
+      {minicarte && (
+        <div className="notak-vue-minicarte">
+          <span>{t('reglages.minicarte')}</span>
+          <Pilule
+            libelle={t('reglages.minicarte')}
+            options={[
+              { valeur: 'mouvement', libelle: t('reglages.minicarte.mouvement') },
+              { valeur: 'toujours', libelle: t('reglages.minicarte.toujours') },
+              { valeur: 'jamais', libelle: t('reglages.minicarte.jamais') },
+            ]}
+            actuelle={minicarte.valeur}
+            choisir={(v) => minicarte.changer(v as AffichageMinicarte)}
+          />
+        </div>
+      )}
     </div>
   )
 }

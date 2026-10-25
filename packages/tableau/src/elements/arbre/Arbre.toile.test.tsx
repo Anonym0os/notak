@@ -353,16 +353,16 @@ describe('le défilement', () => {
     expect(document.querySelector('.notak-arbre-depot')).toBeNull()
   })
 
-  it('la molette défile 1 pour 1 ; Cmd+molette zoome autour du pointeur, entre 0,1 et 5', () => {
+  it('la molette défile 1 pour 1 ; Cmd+molette zoome autour du pointeur, entre 0,02 et 8', () => {
     const { a } = base()
     ouvrir(a)
     const roue = (init: WheelEventInit) => act(() => void surface().dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, clientX: 0, clientY: 0, ...init })))
     roue({ deltaX: 12, deltaY: 30 })
     expect(camera()).toContain('translate(-12px, -30px)')
     for (let i = 0; i < 60; i++) roue({ metaKey: true, deltaY: -50 })
-    expect(camera()).toContain('scale(5)')
+    expect(camera()).toContain('scale(8)')
     for (let i = 0; i < 60; i++) roue({ metaKey: true, deltaY: 50 })
-    expect(camera()).toContain('scale(0.1)')
+    expect(camera()).toContain('scale(0.02)')
   })
 })
 

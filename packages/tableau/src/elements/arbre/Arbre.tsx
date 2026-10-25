@@ -9,6 +9,7 @@ import { Dessin, type Glisses, RepereDepot } from './Dessin'
 import { exporterCartes, sujetCarte } from './exporter'
 import { ouvrirExport } from '../../export/sujet'
 import { BarreBas } from './BarreBas'
+import { Minicarte } from '../../Minicarte'
 import { BarreSujet } from './BarreSujet'
 import { ChoixStyle } from './ChoixStyle'
 import { EnTete, type Onglet, PanneauCote } from './Fenetre'
@@ -1127,6 +1128,8 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     return { x: Math.max(8, Math.min(largeur - 408, bx)), y: Math.max(64, Math.min(hauteur - 288, by)) }
   })()
 
+  const fenetre = fenetreDe(surface.current)
+
   return (
     <Surcouche etiquette={t('type.arbre')} className="notak-arbre-fond" fermer={contexte.finirEdition} surTouche={surTouche}>
       <div
@@ -1257,6 +1260,22 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
                 </Ilot>
               )}
             </div>
+            {!plan && (
+              <Minicarte
+                lieu="carte"
+                version={disposition}
+                formes={() => [...disposition.boites.values()]}
+                vue={{ x: -camera.x / camera.z, y: -camera.y / camera.z, l: fenetre.l / camera.z, h: fenetre.h / camera.z }}
+                fenetre={fenetre}
+                aller={(ou: { x: number; y: number }) => {
+                  arreterAnimation()
+                  poser((c) => {
+                    const f = fenetreDe(surface.current)
+                    return { ...c, x: f.l / 2 - ou.x * c.z, y: f.h / 2 - ou.y * c.z }
+                  })
+                }}
+              />
+            )}
             <BarreBas
               titre={titreCentral}
               lectureSeule={lectureSeule}

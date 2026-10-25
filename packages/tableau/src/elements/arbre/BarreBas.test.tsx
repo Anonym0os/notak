@@ -60,9 +60,9 @@ describe('la barre du bas', () => {
     expect(a.hote.querySelector('.notak-arbre-bas-zoom .notak-arbre-bas-valeur')?.textContent).toBe('137%')
     a.clic(a.hote.querySelector('.notak-arbre-bas-zoom button')!)
     const items = [...a.hote.querySelectorAll('.notak-arbre-bas-zoom [role^=menuitem]')]
-    expect(items.map((i) => i.textContent?.replace(/\s/g, ' '))).toEqual(['500%', '400%', '300%', '200%', '150%', '137%', '120%', '100%', '80%', '50%', '20%', '10%', 'Ajuster la carte'])
+    expect(items.map((i) => i.textContent?.replace(/\s/g, ' '))).toEqual(['800%', '500%', '400%', '300%', '200%', '150%', '137%', '120%', '100%', '80%', '50%', '20%', '10%', '5%', '2%', 'Ajuster la carte'])
     expect(items.filter((i) => i.getAttribute('aria-checked') === 'true').map((i) => i.textContent?.replace(/\s/g, ' '))).toEqual(['137%'])
-    a.clic(items[3]!)
+    a.clic(items[4]!)
     expect(a.p.zoomer).toHaveBeenCalledWith(2)
     a.clic(a.hote.querySelector('.notak-arbre-bas-zoom button')!)
     a.clic([...a.hote.querySelectorAll('.notak-arbre-bas-zoom [role^=menuitem]')].at(-1)!)
