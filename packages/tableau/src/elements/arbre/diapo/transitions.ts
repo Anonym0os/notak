@@ -1,5 +1,6 @@
 import type { EtatItem } from '../modele/diapositives'
 import { DUREE_BASE, type Effet } from '../modele/gabarits'
+import { COURBES, RYTHME, courbeVive } from '../modele/rythme'
 import { choregraphie } from './choregraphies'
 import { dureeImposee } from './courbes'
 import { ANIMATIONS_DE_DECOR, type AnimationDeDecor, type DureeDecor } from './decor'
@@ -187,14 +188,15 @@ const VIDE = (effet: Effet): Plan => ({ effet, minutage: minutage(0, 0, 0), pist
  */
 export function planifier(effet: Effet, source: Instantane | null, cible: Instantane | null): Plan {
   if (effet.nom === 'aucun' || effet.duree <= 0 || !cible) return VIDE(effet)
-  const chore = effet.animationsDiapo ? choregraphie(cible, source, effet) : { pendant: { pistes: [], reclamees: new Set<string>() }, apres: { pistes: [], reclamees: new Set<string>() } }
+  const chore = effet.animationsDiapo ? choregraphie(cible, source) : { pendant: { pistes: [], reclamees: new Set<string>() }, apres: { pistes: [], reclamees: new Set<string>() } }
   const reclamees = new Set([...chore.pendant.reclamees, ...chore.apres.reclamees])
   const corps = effet.nom === 'fondu' || !source ? fondu(effet.duree, source, cible) : interpolation(effet, source, cible, reclamees)
   const avant = 0
-  const apres = duree(chore.apres.pistes)
-  const pistes = [...decaler([...corps.pistes, ...chore.pendant.pistes], avant), ...decaler(chore.apres.pistes, avant + effet.duree)]
+  // Les entrées « après l'effet » partent avant sa fin, quand il ralentit : rien n'attend que l'autre ait fini.
+  const relance = avant + effet.duree * RYTHME.chevauchement
+  const pistes = [...decaler([...corps.pistes, ...chore.pendant.pistes], avant), ...decaler(chore.apres.pistes, relance)]
   // L'effet dure ce qu'il dure ; une piste qui déborde (un ressort, une entrée échelonnée) allonge la transition.
-  const total = Math.max(avant + effet.duree + apres, duree(pistes))
+  const total = Math.max(avant + effet.duree, duree(pistes))
   return { effet, minutage: { avant, pendant: effet.duree, apres: total - avant - effet.duree, total }, pistes, caches: corps.caches, copies: corps.copies, fondTransparent: !!source }
 }
 
@@ -204,33 +206,37 @@ interface Corps {
   copies: Copie[]
 }
 
-/** La valeur d'une durée d'`ANIMATIONS_DE_DECOR` pour une transition de durée d. */
-const ms = (x: DureeDecor, d: number) => (typeof x === 'number' ? x : x.fois * d)
+/** La valeur d'une durée d'`ANIMATIONS_DE_DECOR` pour une transition de durée d ; celles en ms suivent notre rythme. */
+const ms = (x: DureeDecor, d: number) => (typeof x === 'number' ? x * RYTHME.facteur : x.fois * d)
 
 const entreesDuTheme = (theme: string, quand: AnimationDeDecor['quand']) => ANIMATIONS_DE_DECOR.filter((a) => a.theme === theme && a.quand === quand)
 
 // — dissolve (`314 · 45163`) —
 
 /**
- * Le fondu : la source s'efface (easeOutQuad), la cible paraît (easeInQuad), sur toute la durée. Si le thème anime
- * l'entrée de ses décors, ils jouent leur partition (tracés qui se dessinent, formes qui grandissent, formes qui arrivent
- * du coin le plus proche) ; une animation du contenu (Midnight Rose) remplace son fondu.
+ * Le fondu : la source s'efface sur les trois cinquièmes de la durée, la cible paraît à partir du quart ; les deux
+ * textes ne se superposent qu'un instant, déjà pâles. Xmind fond les deux sur toute la durée, la cible en easeInQuad :
+ * on lit deux textes l'un sur l'autre, et rien ne paraît d'abord. Si le thème anime l'entrée de ses décors, ils jouent
+ * leur partition (tracés qui se dessinent, formes qui grandissent, formes qui arrivent du coin le plus proche) ; une
+ * animation du contenu (Midnight Rose) remplace son fondu.
  */
 export function fondu(d: number, source: Instantane | null, cible: Instantane): Corps {
   const pistes: Piste[] = []
+  // La cible paraît après la source quand il y en a une ; seule, tout de suite.
+  const [debut, longueur] = source ? [0.25 * d, 0.75 * d] : [0, d]
   if (source) {
-    pistes.push(piste('source', 'contenu', { opacite: 1 }, { opacite: 0 }, 0, d, 'easeOutQuad'))
-    pistes.push(piste('source', 'decor', { opacite: 1 }, { opacite: 0 }, 0, d, 'easeOutQuad'))
+    pistes.push(piste('source', 'contenu', { opacite: 1 }, { opacite: 0 }, 0, 0.6 * d, COURBES.sortie))
+    pistes.push(piste('source', 'decor', { opacite: 1 }, { opacite: 0 }, 0, 0.6 * d, COURBES.sortie))
   } else {
     // Rien dessous : c'est toute la diapositive qui paraît, son fond compris.
-    pistes.push(piste('cible', 'cadre', { opacite: 0 }, { opacite: 1 }, 0, d, 'easeInQuad'))
+    pistes.push(piste('cible', 'cadre', { opacite: 0 }, { opacite: 1 }, 0, d, COURBES.entree))
   }
   const entrees = entreesDuTheme(cible.theme, 'entree')
   const duContenu = entrees.find((a) => a.cible === 'contenu')
-  if (duContenu) pistes.push(piste('cible', 'contenu', { opacite: Number(duContenu.de) }, { opacite: Number(duContenu.a) }, ms(duContenu.delai, d), ms(duContenu.duree, d), duContenu.courbe))
-  else pistes.push(piste('cible', 'contenu', { opacite: 0 }, { opacite: 1 }, 0, d, 'easeInQuad'))
+  if (duContenu) pistes.push(piste('cible', 'contenu', { opacite: Number(duContenu.de) }, { opacite: Number(duContenu.a) }, ms(duContenu.delai, d), ms(duContenu.duree, d), courbeVive(duContenu.courbe)))
+  else pistes.push(piste('cible', 'contenu', { opacite: 0 }, { opacite: 1 }, debut, longueur, COURBES.entree))
   const decors = entrees.filter((a) => a.cible !== 'contenu')
-  if (!decors.length) pistes.push(piste('cible', 'decor', { opacite: 0 }, { opacite: 1 }, 0, d, 'easeInQuad'))
+  if (!decors.length) pistes.push(piste('cible', 'decor', { opacite: 0 }, { opacite: 1 }, debut, longueur, COURBES.entree))
   for (const a of decors) {
     for (const e of cible.correspondances[a.cible] ?? []) {
       const p = pisteDeDecor(a, e, d, cible)
@@ -244,21 +250,22 @@ export function fondu(d: number, source: Instantane | null, cible: Instantane): 
 export function pisteDeDecor(a: AnimationDeDecor, e: VueElement, d: number, c: Pick<Instantane, 'l' | 'h'>): Piste | null {
   const debut = ms(a.delai, d)
   const longueur = ms(a.duree, d)
+  const courbe = courbeVive(a.courbe)
   const t = e.t
   switch (a.propriete) {
     case 'opacity':
-      return piste('cible', e.ref, { opacite: Number(a.de) }, { opacite: Number(a.a) }, debut, longueur, a.courbe)
+      return piste('cible', e.ref, { opacite: Number(a.de) }, { opacite: Number(a.a) }, debut, longueur, courbe)
     case 'strokeDashoffset':
       // Le décalage va de 1 à 0 : la part dessinée, de 0 à 1.
-      return piste('cible', e.ref, { dessin: 1 - Number(a.de) }, { dessin: 1 - Number(a.a) }, debut, longueur, a.courbe)
+      return piste('cible', e.ref, { dessin: 1 - Number(a.de) }, { dessin: 1 - Number(a.a) }, debut, longueur, courbe)
     case 'rotate':
-      return t ? piste('cible', e.ref, { rotation: t.rotation + Number(a.de) }, { rotation: t.rotation + Number(a.a) }, debut, longueur, a.courbe) : null
+      return t ? piste('cible', e.ref, { rotation: t.rotation + Number(a.de) }, { rotation: t.rotation + Number(a.a) }, debut, longueur, courbe) : null
     case 'scale':
-      return t ? piste('cible', e.ref, { sx: t.sx * Number(a.de), sy: t.sy * Number(a.de) }, { sx: t.sx * Number(a.a), sy: t.sy * Number(a.a) }, debut, longueur, a.courbe) : null
+      return t ? piste('cible', e.ref, { sx: t.sx * Number(a.de), sy: t.sy * Number(a.de) }, { sx: t.sx * Number(a.a), sy: t.sy * Number(a.a) }, debut, longueur, courbe) : null
     case 'translate': {
       if (!t) return null
       const h = horsChamp(e.rect, c.l, c.h)
-      return piste('cible', e.ref, { cx: t.cx + h.dx, cy: t.cy + h.dy }, { cx: t.cx, cy: t.cy }, debut, longueur, a.courbe)
+      return piste('cible', e.ref, { cx: t.cx + h.dx, cy: t.cy + h.dy }, { cx: t.cx, cy: t.cy }, debut, longueur, courbe)
     }
     default:
       return null
@@ -276,22 +283,22 @@ const naturel: Valeurs = { x: IMMOBILE.x, y: IMMOBILE.y, sx: IMMOBILE.sx, sy: IM
 
 /**
  * L'interpolation d'une diapositive à l'autre. Dans la diapositive (`dans-la-diapo`) : chaque boîte commune glisse de
- * sa place à la nouvelle et prend son opacité et sa couleur, en easeInOutCubic sur toute la durée ; les autres se fondent
- * sur toute la durée. Le morphing (easeInOutQuart) découpe en plus les textes en unités, transforme les tracés, croise
- * les images, et ce qui n'a pas de partenaire s'efface sur la première moitié ou paraît sur la seconde.
+ * sa place à la nouvelle et prend son opacité et sa couleur ; les autres se fondent. Le morphing découpe en plus les
+ * textes en unités, transforme les tracés, croise les images. Dans les deux cas, ce qui n'a pas de partenaire s'efface
+ * sur les deux premiers cinquièmes et ce qui arrive paraît ensuite : les deux ne se lisent jamais ensemble.
  */
 export function interpolation(effet: Effet, source: Instantane, cible: Instantane, reclamees: ReadonlySet<string>): Corps {
   const d = effet.duree
   const morphing = effet.nom === 'morphing'
-  const courbe = morphing ? 'easeInOutQuart' : 'easeInOutCubic'
+  const courbe = morphing ? COURBES.morphing : COURBES.glisse
   const pistes: Piste[] = []
   const caches: Plan['caches'] = []
   const copies: Copie[] = []
   let n = 0
   const nouvelle = () => `copie:${n++}`
-  // Ce qui sort : sur la première moitié au morphing, sur toute la durée sinon ; ce qui entre : sur la seconde moitié.
-  const sortie = (ref: string, o: number) => pistes.push(piste('source', ref, { opacite: o }, { opacite: 0 }, 0, morphing ? d / 2 : d, courbe))
-  const entree = (cote: Cote, ref: string, o: number) => pistes.push(piste(cote, ref, { opacite: 0 }, { opacite: o }, morphing ? d / 2 : 0, morphing ? d / 2 : d, courbe))
+  // Ce qui part s'efface vite, avant que ce qui glisse ne passe dessus.
+  const sortie = (ref: string, o: number) => pistes.push(piste('source', ref, { opacite: o }, { opacite: 0 }, 0, 0.4 * d, COURBES.sortie))
+  const entree = (cote: Cote, ref: string, o: number) => pistes.push(piste(cote, ref, { opacite: 0 }, { opacite: o }, 0.4 * d, 0.6 * d, COURBES.entree))
   const parCle = new Map(source.boites.map((b) => [b.cle, b]))
   const vues = new Set<string>()
 
@@ -322,9 +329,9 @@ export function interpolation(effet: Effet, source: Instantane, cible: Instantan
         // Les deux se déplacent ; la source s'efface (sur la moitié si c'est un emplacement), la cible paraît.
         const vide = (x: VueBoite) => !x.image
         pistes.push(piste('source', s.ref, { ...naturel, opacite: s.opacite }, { ...depuis(s.rect, c.rect, true) }, 0, d, courbe))
-        pistes.push(piste('source', s.ref, { opacite: s.opacite }, { opacite: 0 }, 0, vide(s) ? d / 2 : d, courbe))
+        pistes.push(piste('source', s.ref, { opacite: s.opacite }, { opacite: 0 }, 0, vide(s) ? d / 2 : d, COURBES.relais))
         pistes.push(piste('cible', c.ref, { ...depuis(c.rect, s.rect, true) }, { ...naturel }, 0, d, courbe))
-        pistes.push(piste('cible', c.ref, { opacite: 0 }, { opacite: c.opacite }, vide(c) ? d / 2 : 0, vide(c) ? d / 2 : d, courbe))
+        pistes.push(piste('cible', c.ref, { opacite: 0 }, { opacite: c.opacite }, vide(c) ? d / 2 : 0, vide(c) ? d / 2 : d, COURBES.relais))
       } else {
         if (sort !== 'entre') sortie(s.ref, s.opacite)
         else caches.push({ cote: 'source', ref: s.ref })
@@ -346,17 +353,52 @@ export function interpolation(effet: Effet, source: Instantane, cible: Instantan
   return { pistes, caches, copies }
 }
 
-/** Le relais de deux exemplaires d'une unité qui change de forme : à 300 ms, en 0,12 × d (relevé 10 § 7.3). */
-export const RELAIS = { debut: 300, part: 0.12 }
+/**
+ * Le relais de deux exemplaires d'une unité qui change de forme (une graisse, une police, une taille de lettre) : ils se
+ * fondent l'un dans l'autre du cinquième aux sept dixièmes du trajet. Xmind les relaie à 300 ms en 0,12 × d (relevé 10
+ * § 7.3) : la graisse saute d'un coup sous les yeux.
+ */
+export const RELAIS = { debut: 0.2, part: 0.5 }
+
+/** L'axe qui part devant quand un texte change de nombre de lignes : `null`, les deux ensemble. */
+export type Devant = 'x' | 'y' | null
 
 /**
- * Le texte, unité par unité. Une unité commune glisse et s'étire de sa boîte à l'autre ; si sa police change, deux
- * exemplaires (l'ancien, le nouveau) font ce chemin ensemble et se relaient en fondu. Une unité seule s'efface sur la
- * première moitié ou paraît sur la seconde.
+ * Un texte qui passe à plus de lignes s'ouvre d'abord en hauteur, puis se range en largeur ; à moins de lignes, l'inverse.
+ * Avec les deux axes ensemble, les mots d'une ligne qui devient une colonne se resserrent avant de s'écarter, et passent
+ * les uns sur les autres.
+ */
+export const axeDevant = (de: readonly Mot[], a: readonly Mot[]): Devant => {
+  const lignes = (m: readonly Mot[]) => new Set(m.map((x) => x.ligne)).size
+  const l1 = lignes(de)
+  const l2 = lignes(a)
+  return l2 > l1 ? 'y' : l2 < l1 ? 'x' : null
+}
+
+const AXES = { x: ['x', 'sx'], y: ['y', 'sy'] } as const
+const garder = (v: Valeurs, cles: readonly string[]) => Object.fromEntries(Object.entries(v).filter(([k]) => cles.includes(k))) as Valeurs
+const sauf = (v: Valeurs, cles: readonly string[]) => Object.fromEntries(Object.entries(v).filter(([k]) => !cles.includes(k))) as Valeurs
+
+/** Un déplacement en arc : l'axe de devant fait les trois quarts du chemin d'abord, l'autre suit d'un quart. */
+export function enArc(cote: Cote, ref: string, de: Valeurs, a: Valeurs, d: number, devant: Devant, courbe: string): Piste[] {
+  if (!devant) return [piste(cote, ref, de, a, 0, d, courbe)]
+  const tete = AXES[devant]
+  const queue = AXES[devant === 'x' ? 'y' : 'x']
+  const pistes = [piste(cote, ref, garder(de, tete), garder(a, tete), 0, 0.75 * d, courbe), piste(cote, ref, garder(de, queue), garder(a, queue), 0.25 * d, 0.75 * d, courbe)]
+  const reste = sauf(a, [...tete, ...queue])
+  if (Object.keys(reste).length) pistes.push(piste(cote, ref, sauf(de, [...tete, ...queue]), reste, 0, d, courbe))
+  return pistes
+}
+
+/**
+ * Le texte, unité par unité. Une unité commune glisse et s'étire de sa boîte à l'autre, en arc si le texte change de
+ * nombre de lignes ; si sa police change, deux exemplaires (l'ancien, le nouveau) font ce chemin ensemble et se fondent
+ * l'un dans l'autre. Une unité seule s'efface sur la première moitié ou paraît à partir des deux cinquièmes.
  */
 function morphingDeTexte(s: VueBoite, c: VueBoite, d: number, nouvelle: () => string, pistes: Piste[], copies: Copie[]) {
   const ma = s.mots!
   const mb = c.mots!
+  const devant = axeDevant(ma, mb)
   const copie = (cote: 'source' | 'cible', boite: VueBoite, mots: number[]): Copie & { genre: 'mots' } => {
     const rect = union(mots.map((i) => boite.mots![i]!.rect))
     const x: Copie & { genre: 'mots' } = { id: nouvelle(), genre: 'mots', cote, boite: boite.ref, mots, rect, opacite: boite.opacite }
@@ -375,19 +417,18 @@ function morphingDeTexte(s: VueBoite, c: VueBoite, d: number, nouvelle: () => st
         const de: Valeurs = { ...naturel, opacite: s.opacite }
         const a: Valeurs = { ...depuis(ra, rb), opacite: c.opacite }
         if (couleurA !== couleurB) ((de.couleur = couleurA), (a.couleur = couleurB))
-        pistes.push(piste('calque', A.id, de, a, 0, d, 'easeInOutQuart'))
+        pistes.push(...enArc('calque', A.id, de, a, d, devant, COURBES.morphing))
       } else {
         const B = copie('cible', c, u.b)
-        const relais = Math.min(RELAIS.debut, d)
-        pistes.push(piste('calque', A.id, { ...naturel }, { ...depuis(ra, rb) }, 0, d, 'easeInOutQuart'))
-        pistes.push(piste('calque', A.id, { opacite: s.opacite }, { opacite: 0 }, relais, RELAIS.part * d, 'easeInQuart'))
-        pistes.push(piste('calque', B.id, { ...depuis(rb, ra) }, { ...naturel }, 0, d, 'easeInOutQuart'))
-        pistes.push(piste('calque', B.id, { opacite: 0 }, { opacite: c.opacite }, relais, RELAIS.part * d, 'easeOutQuart'))
+        pistes.push(...enArc('calque', A.id, { ...naturel }, { ...depuis(ra, rb) }, d, devant, COURBES.morphing))
+        pistes.push(piste('calque', A.id, { opacite: s.opacite }, { opacite: 0 }, RELAIS.debut * d, RELAIS.part * d, COURBES.relais))
+        pistes.push(...enArc('calque', B.id, { ...depuis(rb, ra) }, { ...naturel }, d, devant, COURBES.morphing))
+        pistes.push(piste('calque', B.id, { opacite: 0 }, { opacite: c.opacite }, RELAIS.debut * d, RELAIS.part * d, COURBES.relais))
       }
     } else if (u.a) {
-      pistes.push(piste('calque', copie('source', s, u.a).id, { opacite: s.opacite }, { opacite: 0 }, 0, d / 2, 'easeInOutQuart'))
+      pistes.push(piste('calque', copie('source', s, u.a).id, { opacite: s.opacite }, { opacite: 0 }, 0, d / 2, COURBES.sortie))
     } else if (u.b) {
-      pistes.push(piste('calque', copie('cible', c, u.b).id, { opacite: 0 }, { opacite: c.opacite }, d / 2, d / 2, 'easeInOutQuart'))
+      pistes.push(piste('calque', copie('cible', c, u.b).id, { opacite: 0 }, { opacite: c.opacite }, 0.4 * d, 0.6 * d, COURBES.entree))
     }
   }
 }
@@ -403,13 +444,13 @@ function morphingDeForme(s: VueBoite, c: VueBoite, d: number, nouvelle: () => st
     const id = nouvelle()
     if (a && b) {
       copies.push({ id, genre: 'trace', de: { ...a, opacite: a.opacite * s.opacite }, a: { ...b, opacite: b.opacite * c.opacite } })
-      pistes.push(piste('calque', id, { morph: 0 }, { morph: 1 }, 0, d, 'easeInOutQuart'))
+      pistes.push(piste('calque', id, { morph: 0 }, { morph: 1 }, 0, d, COURBES.morphing))
     } else if (a) {
       copies.push({ id, genre: 'trace', de: a, a })
-      pistes.push(piste('calque', id, { opacite: s.opacite }, { opacite: 0 }, 0, d / 2, 'easeInOutQuart'))
+      pistes.push(piste('calque', id, { opacite: s.opacite }, { opacite: 0 }, 0, d / 2, COURBES.sortie))
     } else if (b) {
       copies.push({ id, genre: 'trace', de: b, a: b })
-      pistes.push(piste('calque', id, { opacite: 0 }, { opacite: c.opacite }, d / 2, d / 2, 'easeInOutQuart'))
+      pistes.push(piste('calque', id, { opacite: 0 }, { opacite: c.opacite }, 0.4 * d, 0.6 * d, COURBES.entree))
     }
   }
 }
@@ -426,7 +467,7 @@ function decorsCommuns(effet: Effet, source: Instantane, cible: Instantane, cour
   const formes = regles.find((r) => r.cible === '[data-decor][data-rang]')
   const bandes = regles.find((r) => r.cible === '[data-decor="bande"]')
   const dureeForme = morphing && formes ? ms(formes.duree, d) : d
-  const courbeForme = morphing && formes ? formes.courbe : courbe
+  const courbeForme = morphing && formes ? courbeVive(formes.courbe) : courbe
   const paires = apparierDecors(source.decors, cible.decors)
   const prisA = new Set(paires.map((p) => p[0]))
   const prisB = new Set(paires.map((p) => p[1]))
@@ -437,20 +478,23 @@ function decorsCommuns(effet: Effet, source: Instantane, cible: Instantane, cour
     pistes.push(piste('cible', c.ref, { cx: s.t.cx, cy: s.t.cy, opacite: s.opacite }, { cx: c.t.cx, cy: c.t.cy, opacite: c.opacite }, 0, dureeForme, courbeForme))
     pistes.push(piste('cible', c.interne, { rotation: s.t.rotation, sx: s.t.sx, sy: s.t.sy }, { rotation: c.t.rotation, sx: c.t.sx, sy: c.t.sy }, 0, dureeForme, courbeForme))
   }
-  source.decors.forEach((s, i) => prisA.has(i) || pistes.push(piste('source', s.ref, { opacite: s.opacite }, { opacite: 0 }, 0, morphing ? d / 2 : d, courbe)))
-  cible.decors.forEach((c, j) => prisB.has(j) || pistes.push(piste('cible', c.ref, { opacite: 0 }, { opacite: c.opacite }, morphing ? d / 2 : 0, morphing ? d / 2 : d, courbe)))
+  source.decors.forEach((s, i) => prisA.has(i) || pistes.push(piste('source', s.ref, { opacite: s.opacite }, { opacite: 0 }, 0, d / 2, COURBES.sortie)))
+  cible.decors.forEach((c, j) => prisB.has(j) || pistes.push(piste('cible', c.ref, { opacite: 0 }, { opacite: c.opacite }, 0.4 * d, 0.6 * d, COURBES.entree)))
   cible.bandes.forEach((c, j) => {
     const s = source.bandes[j]
-    if (!s) return void pistes.push(piste('cible', c.ref, { opacite: 0 }, { opacite: 1 }, morphing ? d / 2 : 0, morphing ? d / 2 : d, courbe))
+    if (!s) return void pistes.push(piste('cible', c.ref, { opacite: 0 }, { opacite: 1 }, 0.4 * d, 0.6 * d, COURBES.entree))
     caches.push({ cote: 'source', ref: s.ref })
     const b = (r: Rect): Valeurs => ({ bx: r.x, by: r.y, bl: r.l, bh: r.h })
     if (morphing && bandes) pistes.push(piste('cible', c.ref, b(s.rect), b(c.rect), ms(bandes.delai, d), ms(bandes.duree, d), bandes.courbe))
     else pistes.push(piste('cible', c.ref, b(s.rect), b(c.rect), 0, d, courbe))
   })
-  source.bandes.slice(cible.bandes.length).forEach((s) => pistes.push(piste('source', s.ref, { opacite: 1 }, { opacite: 0 }, 0, morphing ? d / 2 : d, courbe)))
+  source.bandes.slice(cible.bandes.length).forEach((s) => pistes.push(piste('source', s.ref, { opacite: 1 }, { opacite: 0 }, 0, d / 2, COURBES.sortie)))
 }
 
 // — Après la transition : l'animation d'affichage (Hubble Bubble) —
+
+/** Une durée de l'animation d'affichage : elle respire au rythme de Xmind, elle ne retient rien. */
+const brut = (x: DureeDecor) => (typeof x === 'number' ? x : x.fois * DUREE_BASE)
 
 /**
  * Les animations qui se jouent chaque fois qu'une diapositive paraît, sans retenir la présentation : les bulles de
@@ -460,15 +504,15 @@ export function planAffichage(c: Instantane): Piste[] {
   const pistes: Piste[] = []
   for (const a of entreesDuTheme(c.theme, 'affichage')) {
     if (a.propriete !== 'scale') continue
-    const longueur = ms(a.duree, DUREE_BASE)
+    const longueur = brut(a.duree)
     for (const e of c.correspondances[a.cible] ?? []) {
       if (!e.t || e.rect.l <= 0) continue
       const k = 1 + 25 / e.rect.l
       const base = { sx: e.t.sx, sy: e.t.sy }
       const gros = { sx: e.t.sx * k, sy: e.t.sy * k }
-      pistes.push(piste('cible', e.ref, base, gros, ms(a.delai, DUREE_BASE), longueur, a.courbe))
+      pistes.push(piste('cible', e.ref, base, gros, brut(a.delai), longueur, a.courbe))
       // Le retour : la même courbe jouée à l'envers.
-      if (a.sens === 'alternate') pistes.push(piste('cible', e.ref, gros, base, ms(a.delai, DUREE_BASE) + longueur, longueur, a.courbe.replace('easeIn', 'easeOut')))
+      if (a.sens === 'alternate') pistes.push(piste('cible', e.ref, gros, base, brut(a.delai) + longueur, longueur, a.courbe.replace('easeIn', 'easeOut')))
     }
   }
   return pistes
@@ -507,30 +551,4 @@ export function etatsInitiaux(plan: Pick<Plan, 'pistes' | 'caches'>): Map<string
     for (const k of Object.keys(p.de) as Propriete[]) if (!(k in e.valeurs)) e.valeurs[k] = p.de[k]!
   }
   return etats
-}
-
-// — La file des demandes (relevé 10 § 5.6) —
-
-/**
- * Pendant qu'une transition joue, une seule demande attend ; les suivantes sont ignorées. `occupee` : une transition
- * joue (ou un enchaînement automatique).
- */
-export interface File<C> {
-  occupee: boolean
-  attente: C | null
-}
-
-export const fileVide = <C>(): File<C> => ({ occupee: false, attente: null })
-
-/** Une demande : jouée tout de suite si rien ne joue, gardée si la place d'attente est libre, ignorée sinon. */
-export function demander<C>(f: File<C>, c: C): { file: File<C>; jouer: C | null } {
-  if (!f.occupee) return { file: { occupee: true, attente: null }, jouer: c }
-  if (f.attente === null) return { file: { occupee: true, attente: c }, jouer: null }
-  return { file: f, jouer: null }
-}
-
-/** La transition est finie : la demande en attente se joue, sinon la file se libère. */
-export function liberer<C>(f: File<C>): { file: File<C>; jouer: C | null } {
-  if (f.attente !== null) return { file: { occupee: true, attente: null }, jouer: f.attente }
-  return { file: { occupee: false, attente: null }, jouer: null }
 }

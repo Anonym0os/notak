@@ -1,5 +1,6 @@
 import { createTimeline } from 'animejs'
-import { DUREE_BASE, ECRAN_DE_FIN, type Effet } from '../modele/gabarits'
+import { ECRAN_DE_FIN, type Effet } from '../modele/gabarits'
+import { COURBES } from '../modele/rythme'
 import { courbe } from './courbes'
 import { ANIMATIONS_DE_DECOR } from './decor'
 import { type Mot, type Point, type Rect, type Trace, ecrireExterne, ecrireInterne, lireTransfo, partVisible, traceA } from './morphing'
@@ -17,15 +18,17 @@ import { type Copie, type Cote, type Genre, type Instantane, type Piste, type Pl
  */
 
 /**
- * Une transition qui joue : `fini` se résout à la fin (vrai) ou à l'arrêt (faux) ; `arreter` saute à la fin et efface
- * tout.
+ * Une transition qui joue : `fini` se résout à la fin (vrai) ou à l'arrêt (faux). `achever` la mène tout de suite à son
+ * terme, comme si elle avait fini (une touche pressée pendant qu'elle joue) ; `arreter` l'abandonne (on démonte). Les
+ * deux effacent tout : la cible retrouve son état naturel, qui est l'arrivée de chaque piste.
  */
 export interface Jeu {
   fini: Promise<boolean>
+  achever(): void
   arreter(): void
 }
 
-const FINIE: Jeu = { fini: Promise.resolve(true), arreter() {} }
+export const FINIE: Jeu = { fini: Promise.resolve(true), achever() {}, arreter() {} }
 
 /** L'utilisateur accepte le mouvement : le navigateur sait le dire et ne demande pas de le réduire. */
 export function mouvementPermis(): boolean {
@@ -461,7 +464,7 @@ function executer(scene: Scene, pistes: readonly Piste[], caches: Plan['caches']
   tl.then(() => terminer(true))
   // Si le moteur s'arrête (onglet caché), la transition ne retient pas la présentation au-delà de sa durée.
   const garde = setTimeout(() => terminer(true), total + 1000)
-  return { fini, arreter: () => terminer(false) }
+  return { fini, achever: () => terminer(true), arreter: () => terminer(false) }
 }
 
 /** Les deux diapositives d'une transition : leur `.notak-arbre-diapo`, et ce que le modèle sait d'elles. */
@@ -507,6 +510,9 @@ const masquer = (el: Element | null | undefined) => el instanceof HTMLElement &&
 
 /** L'animation d'affichage d'une diapositive arrivée (les bulles de Hubble Bubble) ; elle ne retient rien. */
 export function jouerAffichage(racine: HTMLElement): Jeu {
+  // Seuls quelques thèmes animent leurs diapositives arrivées : les autres ne paient pas la mesure.
+  const theme = racine.parentElement?.getAttribute('data-theme') ?? ''
+  if (!ANIMATIONS_DE_DECOR.some((a) => a.theme === theme && a.quand === 'affichage')) return FINIE
   const scene = new Scene()
   const C = instantane(racine, 'cible', scene, {}, new Set(), new Map())
   const pistes = planAffichage(C)
@@ -515,8 +521,8 @@ export function jouerAffichage(racine: HTMLElement): Jeu {
 }
 
 /**
- * L'écran de fin paraît (relevé 10 § 5.5) : son fond et la carte en 1 000 ms easeInOutCubic, pendant que « Merci »
- * rétrécit de toute la scène jusqu'à sa vignette ; la diapositive quittée se fond en 400 ms.
+ * L'écran de fin paraît (relevé 10 § 5.5) : son fond et la carte paraissent pendant que « Merci » rétrécit de toute la
+ * scène jusqu'à sa vignette ; la diapositive quittée se fond sur la première moitié.
  */
 export function jouerFin(source: HTMLElement | null, fin: HTMLElement): Jeu {
   const scene = new Scene()
@@ -526,10 +532,10 @@ export function jouerFin(source: HTMLElement | null, fin: HTMLElement): Jeu {
   const vignette = fin.querySelector<HTMLElement>('.notak-arbre-diapo-fin-vignette')
   const fond = getComputedStyle(fin).backgroundColor
   scene.inscrire('cible', 'fin', { els: [fin], sorte: 'html', base: {} })
-  pistes.push(piste('cible', 'fin', { fond: 'rgba(0, 0, 0, 0)' }, { fond }, 0, d, 'easeInOutCubic'))
+  pistes.push(piste('cible', 'fin', { fond: 'rgba(0, 0, 0, 0)' }, { fond }, 0, d, COURBES.glisse))
   if (carte) {
     scene.inscrire('cible', 'carte', { els: [carte], sorte: 'html', base: {} })
-    pistes.push(piste('cible', 'carte', { opacite: 0 }, { opacite: 1 }, 0, d, 'easeInOutCubic'))
+    pistes.push(piste('cible', 'carte', { opacite: 0 }, { opacite: 1 }, 0, d, COURBES.entree))
   }
   if (vignette && fin.offsetWidth > 0) {
     // La vignette part de toute la scène : ce qui pose sa boîte sur celle de l'écran.
@@ -537,29 +543,29 @@ export function jouerFin(source: HTMLElement | null, fin: HTMLElement): Jeu {
     const v = vignette.getBoundingClientRect()
     const k = v.width > 0 ? f.width / v.width : 1
     scene.inscrire('cible', 'vignette', { els: [vignette], sorte: 'html', base: { x: 0, y: 0, sx: 1, sy: 1 } })
-    pistes.push(piste('cible', 'vignette', { x: f.left - v.left, y: f.top - v.top, sx: k, sy: k }, { x: 0, y: 0, sx: 1, sy: 1 }, 0, d, 'easeInOutCubic'))
+    pistes.push(piste('cible', 'vignette', { x: f.left - v.left, y: f.top - v.top, sx: k, sy: k }, { x: 0, y: 0, sx: 1, sy: 1 }, 0, d, COURBES.glisse))
   }
   if (source) {
     scene.inscrire('source', 'cadre', { els: [source], sorte: 'html', base: {} })
-    pistes.push(piste('source', 'cadre', { opacite: 1 }, { opacite: 0 }, 0, DUREE_BASE, 'easeOutQuad'))
+    pistes.push(piste('source', 'cadre', { opacite: 1 }, { opacite: 0 }, 0, d / 2, COURBES.sortie))
   }
   return executer(scene, pistes, [], minutage(0, d, 0).total, (auBout) => auBout && masquer(source))
 }
 
-/** « Suivant » sur l'écran de fin : il s'efface en 400 ms linéaires. */
+/** « Suivant » sur l'écran de fin : il s'efface. */
 export function jouerSortieFin(fin: HTMLElement): Jeu {
   const scene = new Scene()
   scene.inscrire('cible', 'fin', { els: [fin], sorte: 'html', base: {} })
-  return executer(scene, [piste('cible', 'fin', { opacite: 1 }, { opacite: 0 }, 0, ECRAN_DE_FIN.disparition, 'linear')], [], ECRAN_DE_FIN.disparition, (auBout) => auBout && masquer(fin))
+  return executer(scene, [piste('cible', 'fin', { opacite: 1 }, { opacite: 0 }, 0, ECRAN_DE_FIN.disparition, COURBES.sortie)], [], ECRAN_DE_FIN.disparition, (auBout) => auBout && masquer(fin))
 }
 
-/** La durée d'ouverture et de fermeture de l'agrandissement d'une image. */
-export const DUREE_ZOOM = 300
+/** La durée d'ouverture et de fermeture de l'agrandissement d'une image (Xmind : 300). */
+export const DUREE_ZOOM = 260
 
 /**
  * L'agrandissement d'une image (relevé 12 § 8.5) : la copie part de la place de l'image et grandit jusqu'à la sienne
- * (300 ms easeInCubic) pendant que le voile passe de 0,01 à 0,2 ; la fermeture refait le chemin (easeOutCubic) et laisse
- * la fenêtre cachée, pour qu'elle disparaisse sans revenir le temps d'une image.
+ * pendant que le voile passe de 0,01 à 0,2 ; la fermeture refait le chemin et laisse la fenêtre cachée, pour qu'elle
+ * disparaisse sans revenir le temps d'une image. Xmind ouvre en easeInCubic, qui traîne au départ : on glisse.
  */
 export function jouerZoom(fenetre: HTMLElement, copie: HTMLElement, voile: HTMLElement, image: Rect, sens: 'ouvrir' | 'fermer'): Jeu {
   const scene = new Scene()
@@ -572,8 +578,8 @@ export function jouerZoom(fenetre: HTMLElement, copie: HTMLElement, voile: HTMLE
   const pleine = { x: 0, y: 0, sx: 1, sy: 1 }
   const ouvrir = sens === 'ouvrir'
   const pistes = [
-    piste('cible', 'copie', ouvrir ? la : pleine, ouvrir ? pleine : la, 0, DUREE_ZOOM, ouvrir ? 'easeInCubic' : 'easeOutCubic'),
-    piste('cible', 'voile', { opacite: ouvrir ? 0.01 : 0.2 }, { opacite: ouvrir ? 0.2 : 0.01 }, 0, DUREE_ZOOM, ouvrir ? 'easeInCubic' : 'easeOutCubic'),
+    piste('cible', 'copie', ouvrir ? la : pleine, ouvrir ? pleine : la, 0, DUREE_ZOOM, COURBES.glisse),
+    piste('cible', 'voile', { opacite: ouvrir ? 0.01 : 0.2 }, { opacite: ouvrir ? 0.2 : 0.01 }, 0, DUREE_ZOOM, COURBES.entree),
   ]
   return executer(scene, pistes, [], DUREE_ZOOM, (auBout) => !ouvrir && auBout && masquer(fenetre))
 }

@@ -188,6 +188,26 @@ describe('le mode présentation', () => {
     p.fin()
   })
 
+  it('sortir du plein écran referme la présentation du premier coup, même quand WebKit ne prévient que par son événement préfixé', () => {
+    const { a } = carte()
+    const doc = document as Document & { webkitFullscreenElement?: Element | null }
+    const p = presenter(a)
+    // WebKit est passé en plein écran sans tenir sa promesse : on le croit sur son événement.
+    act(() => {
+      doc.webkitFullscreenElement = p.hote
+      document.dispatchEvent(new Event('webkitfullscreenchange'))
+    })
+    expect(p.quitter).not.toHaveBeenCalled()
+    // Échap : le navigateur sort du plein écran et garde la touche pour lui.
+    act(() => {
+      doc.webkitFullscreenElement = null
+      document.dispatchEvent(new Event('webkitfullscreenchange'))
+    })
+    expect(p.quitter).toHaveBeenCalledTimes(1)
+    delete doc.webkitFullscreenElement
+    p.fin()
+  })
+
   it('Échap et Q quittent ; la fin de la dernière diapositive aussi ; ? montre les raccourcis', () => {
     const { a } = carte()
     const p = presenter(a)

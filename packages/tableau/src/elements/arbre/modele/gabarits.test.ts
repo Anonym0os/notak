@@ -15,6 +15,7 @@ import {
   placeImageAuto,
   titreCourt,
 } from './gabarits'
+import { RYTHME } from './rythme'
 
 const faits = (f: Partial<FaitsDeVariante> = {}): FaitsDeVariante => ({ portrait: false, enfants: 3, parentIllustre: false, enfantsIllustres: false, ...f })
 
@@ -97,24 +98,24 @@ describe('l’effet entre deux diapositives', () => {
   const liste = (sujet: string): BoutDeTransition => ({ type: 'liste', sujet, niveau: 'principal' })
 
   it('dans l’ordre des règles', () => {
-    expect(effetDeTransition(liste('A'), sujet('C', 'central'), 'avancer', true)).toEqual({ nom: 'fondu', duree: 600, animationsDiapo: true })
-    expect(effetDeTransition(null, sujet('A'), 'depart', true)).toEqual({ nom: 'fondu', duree: 400, animationsDiapo: true })
-    expect(effetDeTransition(sujet('A'), null, 'avancer', true).duree).toBe(400)
-    expect(effetDeTransition(liste('A'), sujet('A'), 'avancer', true)).toMatchObject({ nom: 'morphing', duree: 1000 })
-    expect(effetDeTransition(liste('A'), liste('A'), 'avancer', true)).toMatchObject({ nom: 'dans-la-diapo', duree: 600 })
-    expect(effetDeTransition(sujet('A'), liste('A'), 'avancer', true)).toMatchObject({ nom: 'morphing', duree: 1000 })
-    expect(effetDeTransition(liste('A'), sujet('B'), 'passer', true)).toMatchObject({ nom: 'morphing', duree: 1000 })
+    expect(effetDeTransition(liste('A'), sujet('C', 'central'), 'avancer', true)).toEqual({ nom: 'fondu', duree: RYTHME.central, animationsDiapo: true })
+    expect(effetDeTransition(null, sujet('A'), 'depart', true)).toEqual({ nom: 'fondu', duree: RYTHME.fondu, animationsDiapo: true })
+    expect(effetDeTransition(sujet('A'), null, 'avancer', true).duree).toBe(RYTHME.fondu)
+    expect(effetDeTransition(liste('A'), sujet('A'), 'avancer', true)).toMatchObject({ nom: 'morphing', duree: RYTHME.morphing })
+    expect(effetDeTransition(liste('A'), liste('A'), 'avancer', true)).toMatchObject({ nom: 'dans-la-diapo', duree: RYTHME.dansLaDiapo })
+    expect(effetDeTransition(sujet('A'), liste('A'), 'avancer', true)).toMatchObject({ nom: 'morphing', duree: RYTHME.morphing })
+    expect(effetDeTransition(liste('A'), sujet('B'), 'passer', true)).toMatchObject({ nom: 'morphing', duree: RYTHME.morphing })
   })
 
   it('reculer et l’animation coupée : rien ; remonter : l’effet sans les animations des diapositives', () => {
     const aucun = { nom: 'aucun', duree: 0, animationsDiapo: false }
     expect(effetDeTransition(liste('A'), liste('A'), 'reculer', true)).toEqual(aucun)
     expect(effetDeTransition(liste('A'), liste('A'), 'avancer', false)).toEqual(aucun)
-    expect(effetDeTransition(liste('A'), sujet('B'), 'remonter', true)).toEqual({ nom: 'morphing', duree: 1000, animationsDiapo: false })
+    expect(effetDeTransition(liste('A'), sujet('B'), 'remonter', true)).toEqual({ nom: 'morphing', duree: RYTHME.morphing, animationsDiapo: false })
   })
 
-  it('l’écran de fin garde ses durées, et sa vignette est plus grande en 4:3', () => {
-    expect([ECRAN_DE_FIN.apparition, ECRAN_DE_FIN.disparition]).toEqual([1000, 400])
+  it('l’écran de fin a ses durées, qui ne suivent pas le réglage d’animation, et sa vignette est plus grande en 4:3', () => {
+    expect([ECRAN_DE_FIN.apparition, ECRAN_DE_FIN.disparition]).toEqual([RYTHME.fin.apparition, RYTHME.fin.disparition])
     expect([ECRAN_DE_FIN.echelle('16:9'), ECRAN_DE_FIN.echelle('4:3')]).toEqual([0.2, 0.233])
   })
 })
