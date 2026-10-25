@@ -933,7 +933,7 @@ export function creerApp(ctx: Contexte): Hono {
   // Une image d'un autre site, relue pour la capture d'un tableau en PNG ou en PDF : le navigateur refuse de lire
   // lui-même une image d'une autre origine. Rien n'est gardé ; les adresses privées sont refusées comme pour l'aperçu.
   app.get('/api/image-distante', async (c) => {
-    const u = utilisateurCourant(c)
+    const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     const adresse = c.req.query('url') ?? ''
     if (!/^https?:\/\//.test(adresse)) return c.json({ erreur: 'url manquante', code: 'url_manquante' }, 400)
