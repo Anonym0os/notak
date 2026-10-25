@@ -428,11 +428,11 @@ export function Recherche(props: {
 
 const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
 /** Les touches telles qu'on les lit sur son clavier : ⌘ sur Mac, Ctrl ailleurs. */
-const touches = (v: string) =>
+export const touches = (v: string) =>
   MOTS_DE_TOUCHE[v] ? t(MOTS_DE_TOUCHE[v]) : MAC ? v : v.replace(/⌘/g, 'Ctrl+').replace(/⌥/g, 'Alt+').replace(/⇧/g, t('raccourcis.touche.maj'))
 
 /** Les groupes de la fenêtre des raccourcis : le titre et le quoi sont des clés de texte, les touches sont à lire telles quelles. */
-const RACCOURCIS: { titre: string; lignes: [string, string][] }[] = [
+export const RACCOURCIS: { titre: string; lignes: [string, string][] }[] = [
   {
     titre: 'raccourcis.elements',
     lignes: [

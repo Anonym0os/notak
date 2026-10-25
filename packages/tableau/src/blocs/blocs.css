@@ -626,9 +626,11 @@
 /*
  * Les couleurs de la page et des blocs (NOTION.md § 1 et § 9), mesurées dans Notion : le texte des neuf teintes est le
  * même dans les deux thèmes, leurs fonds changent. La surcouche du document les recopie (`elements/surcouche.tsx`).
+ * Les pages de l'export (export/capture.ts) prennent toujours le thème clair : c'est du papier.
  */
 .notak-espace,
-.notak-toile {
+.notak-toile,
+.notak-export-pages {
   --notak-page-fond: #fff;
   --notak-page-texte: rgb(44 44 43);
   --notak-page-pale: rgba(21 14 0 / 0.286);

@@ -28,11 +28,11 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 13. Naviguer | 13 | 0 | 0 | 100 % |
 | 14. À plusieurs | 19 | 0 | 0 | 100 % |
 | 15. Habillage | 15 | 0 | 0 | 100 % |
-| 16. Exporter, importer | 6 | 1 | 0 | 93 % |
+| 16. Exporter, importer | 8 | 1 | 0 | 94 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
 | 18. Carte mentale | 61 | 10 | 0 | 93 % |
 | 19. Document à blocs | 29 | 1 | 0 | 98 % |
-| **Total** | **375** | **21** | **2** | **97 %** |
+| **Total** | **377** | **21** | **2** | **97 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -289,7 +289,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Table : un petit tableur (sélection de plages, clavier, types, formules, repères, clic droit, presse-papiers, titre, légende) | ✅ | Relevé dans `docs/ecarts/table.md`, repris d'après le code de Milanote le 23/10. Gras, italique, barré, lien, couleur et surlignage sur quelques mots d'une cellule de texte, filets mêlés au fond des cellules colorées, plus de plafond à 200 × 30. Pas de mention « @ » dans une cellule ; Milanote n'a pas de raccourci de création de table dans ce qu'on a lu. |
 | Dessin libre sur la toile | ✅ | Outil « Dessin libre » du tiroir : on trace à même la toile, Entrée pose le dessin. |
 | Nuancier (couleur, code, légende) | ✅ | Code en haut à gauche (HEX, RGB, HSL), édité sur place, redimensionnement libre, légende au nom de la couleur. Le double-clic ouvre le sélecteur de couleur du système, avec les couleurs du tableau en suggestions. |
-| Document (texte long, ouvert en grand) | ✅ | Icône ou vue carte (34 unités, aperçu du texte), Renommer, légende, export PDF, Word, Markdown et texte brut. Outil Commentaire dans le texte (fils en marge, ⌘⌥M), colonne d'outils réduite en lecture seule. |
+| Document (texte long, ouvert en grand) | ✅ | Icône ou vue carte (34 unités, aperçu du texte), Renommer, légende, export PDF, Word, Markdown et texte brut (dialogue d'export, avec l'aperçu des pages). Outil Commentaire dans le texte (fils en marge, ⌘⌥M), colonne d'outils réduite en lecture seule. |
 | Lien vidéo | ✅ | Outil « Vidéo » du tiroir. |
 | Lien audio | ✅ | Outil « Audio » du tiroir. |
 | Carte (lieu) | ✅ |  |
@@ -396,7 +396,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Fenêtre des raccourcis (/) | ✅ | |
 | Présentation (Cmd+Alt+P), mode focus sur un élément | ✅ |  |
 | Aide, bulles de découverte, accueil d'un nouveau compte | ✅ |  |
-| Réglages du compte (Cmd+,), photo, couleur | ✅ |  |
+| Page des réglages (Cmd+,) | ✅ | Une fenêtre de 1040 × 680 au plus, par-dessus le tableau, la carte et le document (`PageReglages.tsx`). À gauche le compte, « Rechercher un réglage » (Cmd+F) et les rubriques groupées ; à droite la rubrique, en lignes « libellé et aide, puis la pilule ». Rubriques : Profil (photo, couleur, avec un compte), Général (langue), Apparence (mode clair ou sombre en aperçus, thème et import, taille), Tableau (double-clic, grille, outils de la sélection, barre des outils de gauche, la même que le bouton du premier îlot), Raccourcis clavier (la liste de « / »). Les rubriques sont des données (`rubriquesReglages.tsx`, rubrique → sections → lignes) : une rubrique sans ligne ne paraît pas, et Notifications, Connexion, Carte mentale, Document, Importer et exporter, Corbeille, App de bureau et À propos y attendent déjà leur premier réglage. La recherche lit libellés et aides sans tenir aux accents, surligne le mot, compte les résultats par rubrique et pâlit les autres ; chaque résultat se règle sur place. Échap vide la recherche puis ferme, le focus reste dans la fenêtre et revient au bouton ; la rubrique ouverte est retenue. En sombre, un anneau au lieu des ombres. |
 | Langues de l'interface | ✅ | Français et anglais, au choix dans les réglages ou d'après le navigateur ; un test vérifie que les deux dictionnaires ont les mêmes clés. Modèles, accueil d'un compte neuf, pages du téléphone, erreurs de l'API et export compris. |
 | Avis en bas d'écran (toasts) avec annulation | ✅ | Corbeille et non triés (« Annuler »), envoi raté, déplacement dans un tableau (« Ouvrir »), Cmd+S, style collé. |
 | Envoi de fichier : progression dans l'en-tête | ✅ |  |
@@ -407,7 +407,9 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
 | Fonctionnalité | État | Reste |
 |---|---|---|
-| Dialogue d'export | ✅ | Le bouton Exporter ouvre un dialogue : le format en liste (Notak d'abord, recommandé), les seules options du format choisi dessous ; derniers réglages retenus sur l'appareil. Le .xmind reste au menu de la carte. |
+| Dialogue d'export | ✅ | Un seul dialogue, sur le tableau, la carte mentale et le document ouverts en grand (`DialogueExport.tsx`, `export/sujet.ts`) : l'aperçu à gauche (la capture, les pages A4 une à une, le texte, ou ce que contient l'archive), le format et ses seules options à droite, le poids du fichier en bas. L'aperçu est le fichier même : on enregistre ce qu'on a vu. « Enregistrer sous » au clic (fenêtre du système dans Notak de bureau, du navigateur dans Chrome) ; derniers réglages retenus par genre sur l'appareil. Captures justes dans WebKit (Notak de bureau, Safari) : peinture des SVG et marges figées avant la prise de vue, images relues par l'application. |
+| Exporter une carte mentale (.notak, image, PDF, .xmind, texte) | ✅ | Notak recommandé, comme partout : un tableau qui ne contient qu'elle, avec ses images. Toute la carte en image, photographiée hors de l'écran sans la sélection, relations comprises ; le plan en Markdown ou texte brut. |
+| Exporter un document (.notak, PDF, Word, texte) | ✅ | Notak recommandé, comme partout. Pages A4 coupées entre deux blocs, dessinées comme la lecture (puces, numéros, tâches, encadrés) ; le PDF est fait d'images, son texte ne se sélectionne pas. |
 | Exporter en Notak (.notak) | ✅ | Le fichier `.notak` des copies (`fichierEspace.ts`) pour un tableau : sous-tableaux et fichiers en option. Le serveur n'y met que les sous-tableaux qu'on peut ouvrir (`export/copie.ts`). |
 | Importer un .notak | ✅ | Menu Importer. Sur le serveur, une copie neuve (identifiants refaits, renvois et fichiers suivis) ; l'édition locale le rouvre en le fusionnant. |
 | Exporter un tableau (PDF, image) | ✅ | PNG et PDF, de ce qui est à l'écran ou du tableau entier ; PNG en 1×, 2× ou 3×, fond transparent au choix. |
@@ -492,7 +494,7 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Présentation Pitch | 🟡 | Cmd+Alt+P : une diapositive par sujet selon les réglages (listes déroulées étape par étape), plein écran, barre qui s'estompe, touches et raccourcis de Xmind (⇧→ passe la branche, ⇧← revient au parent, A, ?). Pas de vue du présentateur ni de seconde fenêtre. |
 | Chercher dans la carte | ✅ | Cmd+F : titres, étiquettes et notes, sans accents ; Entrée va au suivant. |
 | Importer un fichier .xmind | ✅ | Déposé sur la toile : une carte par feuille, images comprises. Éprouvé sur les 36 modèles de Xmind et sa démo. Les fichiers de Xmind 8 (content.xml) sont refusés avec un avis. |
-| Exporter en .xmind | 🟡 | Menu de la carte, une feuille par carte choisie ; aller-retour vérifié par la lecture de Notak, pas encore rouvert dans Xmind lui-même. Le fond, les polices, la largeur et les couleurs des branches, et les réglages de l'onglet Carte s'écrivent avec les clés de Xmind (`docs/XMIND.md` § 9) ; le squelette de la carte s'écrit avec son identifiant de Xmind, ses structures et le style de chaque rang (relu, il redonne le squelette) ; les thèmes de Notak ne sont pas traduits. Le style des sujets, relations, limites et résumés est écrit (`style.properties`, `customWidth`) et relu sur les 36 modèles de Xmind ; les thèmes de couleur ne sont pas traduits. |
+| Exporter en .xmind | 🟡 | Dialogue d'export de la carte ouverte, ou menu des cartes choisies (une feuille par carte) ; aller-retour vérifié par la lecture de Notak, pas encore rouvert dans Xmind lui-même. Le fond, les polices, la largeur et les couleurs des branches, et les réglages de l'onglet Carte s'écrivent avec les clés de Xmind (`docs/XMIND.md` § 9) ; le squelette de la carte s'écrit avec son identifiant de Xmind, ses structures et le style de chaque rang (relu, il redonne le squelette) ; les thèmes de Notak ne sont pas traduits. Le style des sujets, relations, limites et résumés est écrit (`style.properties`, `customWidth`) et relu sur les 36 modèles de Xmind ; les thèmes de couleur ne sont pas traduits. |
 | Texte de la carte dans la recherche et l'export texte du tableau | ✅ | L'export la rend en liste indentée. |
 | Panneau d'icônes : Marqueur, Autocollant, Illustration | ✅ | Le smiley l'ouvre ; groupes repliables, un marqueur par groupe, 58 marqueurs en 7 groupes. Les autocollants (emojis) et les illustrations (icônes Tabler en couleur) ont les catégories de Xmind, pas ses dessins (docs/XMIND.md § 9). |
 | Groupes de marqueurs à soi, légende | ✅ | « Nouveau groupe », images importées, renommer, déplacer, supprimer ; la légende se montre sur la carte. |

@@ -64,3 +64,11 @@ describe('GET /api/tableaux/:id/notak', () => {
     expect((await m.appeler('/api/tableaux/tableau-prive/notak', { compte: bob })).status).toBe(404)
   })
 })
+
+describe('GET /api/image-distante', () => {
+  it('refuse sans session, sans adresse, et une adresse privée', async () => {
+    expect((await m.appeler('/api/image-distante?url=https%3A%2F%2Fexemple.fr%2Fa.png')).status).toBe(401)
+    expect((await m.appeler('/api/image-distante', { compte: ana })).status).toBe(400)
+    expect((await m.appeler('/api/image-distante?url=http%3A%2F%2F127.0.0.1%2Fa.png', { compte: ana })).status).toBe(422)
+  })
+})

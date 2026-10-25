@@ -921,10 +921,10 @@ body {
   }
 }
 
-/* Le dialogue d'export : centré et modal, le format en liste, ses seules options dessous. */
+/* Le dialogue d'export : centré et modal ; l'aperçu à gauche, le format et ses seules options à droite. */
 .export-dialogue {
   box-sizing: border-box;
-  width: min(420px, calc(100vw - 32px));
+  width: min(880px, calc(100vw - 32px));
   max-height: calc(100vh - 32px);
   padding: 0;
   border: 0;
@@ -945,6 +945,169 @@ body {
   gap: 12px;
   margin: 0;
   padding: 20px;
+}
+
+.export-corps {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 20px;
+  min-height: 0;
+}
+
+.export-reglages {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* L'aperçu : un fond gris, la page ou l'image posée dessus, comme une feuille. */
+.export-apercu {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+  height: min(480px, calc(100vh - 220px));
+  padding: 16px;
+  border-radius: 8px;
+  background: #f1f2f4;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.export-apercu-image {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  width: 100%;
+}
+
+.export-apercu-image img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12), 0 6px 20px rgb(0 0 0 / 0.08);
+}
+
+.export-pages {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
+}
+
+.export-pages .export-fermer:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.export-apercu-legende,
+.export-apercu-attente,
+.export-poids {
+  color: #6b7280;
+}
+
+.export-apercu-attente {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  text-align: center;
+}
+
+.export-roue {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgb(107 114 128 / 0.3);
+  border-top-color: #6b7280;
+  border-radius: 50%;
+  animation: export-roue 0.8s linear infinite;
+}
+
+@keyframes export-roue {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.export-apercu-texte {
+  align-self: stretch;
+  flex: 1;
+  margin: 0;
+  padding: 16px 18px;
+  overflow: auto;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
+  color: #323b4a;
+  font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.export-apercu-contenu {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  gap: 10px;
+  max-height: 100%;
+  padding: 16px 18px;
+  overflow: auto;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
+}
+
+.export-apercu-contenu ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.export-apercu-contenu li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.export-apercu-contenu li > svg {
+  flex: none;
+  color: #6b7280;
+}
+
+.export-apercu-contenu li > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.export-apercu-contenu li > small {
+  flex: none;
+  color: #6b7280;
+}
+
+/* Étroit : l'aperçu passe au-dessus, plus bas. */
+@media (max-width: 720px) {
+  .export-corps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .export-apercu {
+    height: 220px;
+  }
 }
 
 .export-entete {
@@ -1139,7 +1302,8 @@ body {
 
 .export-pied {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
   margin-top: 4px;
 }
@@ -1208,8 +1372,13 @@ body {
   background: rgb(0 0 0 / 0.5);
 }
 
-.notak-espace[data-theme='sombre'] :is(.export-format-texte small, .export-ext, .export-xmind, .export-rubrique, .export-format > svg) {
+.notak-espace[data-theme='sombre'] :is(.export-format-texte small, .export-ext, .export-xmind, .export-rubrique, .export-format > svg, .export-pages, .export-apercu-legende, .export-apercu-attente, .export-poids) {
   color: #a3aab4;
+}
+
+/* L'aperçu reste une feuille claire : c'est ce qui sera écrit. Seul le fond qui la porte s'assombrit. */
+.notak-espace[data-theme='sombre'] .export-apercu {
+  background: rgb(255 255 255 / 0.05);
 }
 
 .notak-espace[data-theme='sombre'] :is(.export-format:hover, .export-fermer:hover) {

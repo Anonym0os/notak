@@ -5,6 +5,7 @@ import { adressePour } from '../adresse'
 import { importDejaPropose, lireAncienEspace, noterImportPropose } from '../ancien'
 import { PagePartage, PageRapide } from '../Arrivees'
 import { Export, type ExportLocal } from '../Export'
+import { DialogueExport } from '../DialogueExport'
 import { localiser } from '../geocodage'
 import { importerEspaceLocal } from '../importLocal'
 import { Importer } from '../Importer'
@@ -183,6 +184,7 @@ function Espace({ el }: { el: EspaceLocal }) {
         }}
       />
       <Accueil el={el} />
+      <DialogueExport />
     </>
   )
 }

@@ -245,6 +245,15 @@ function planDeCarte(brut: unknown, r: Rendu): string[] {
   return sortie
 }
 
+/** Une carte mentale seule, en plan : le central en titre, puis ses sujets en liste indentée. */
+export function exporterCarte(sujets: unknown, format: FormatExport, langue: LangueExport = 'fr'): string {
+  const r: Rendu = { md: format === 'md', titreDe: () => undefined, mots: MOTS[langue] }
+  const [central, ...suite] = planDeCarte(sujets, r)
+  if (central === undefined) return ''
+  const titre = r.md ? `# ${central.replace(/^\*\*(.*)\*\*$/, '$1')}` : central
+  return [titre, ...(suite.length > 0 ? ['', ...suite] : [])].join('\n') + '\n'
+}
+
 /** Les blocs de chaque enfant, un par élément qui a quelque chose à dire. */
 function separes(liste: readonly ElementLu[], r: Rendu, enfants: Map<string, ElementLu[]>, niveau: number): string[][] {
   return liste.map((f) => lignesDe(f, r, enfants, niveau)).filter((l) => l.length > 0)

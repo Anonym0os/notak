@@ -1,7 +1,8 @@
 import { type Arbre, type Element, type Operation, nouvelId } from '../../coeur/tableau'
 import { annoncer } from '../../avis'
 import { porter } from './modele/elements'
-import { MIME_IMAGE, exporterCartes } from './exporter'
+import { MIME_IMAGE, exporterCartes, sujetCarte } from './exporter'
+import { ouvrirExport } from '../../export/sujet'
 import { lireXmind } from './xmind'
 import { ico } from '../../icones'
 import { t } from '../../langue'
@@ -109,12 +110,18 @@ registre.recepteur({
   },
 })
 
-/** « Exporter en .xmind » : les cartes choisies, une feuille chacune, avec leurs images. */
+/**
+ * « Exporter en .xmind » : les cartes choisies, une feuille chacune, avec leurs images. Une seule carte passe par le
+ * dialogue d'export de l'application quand il y en a un (le `.xmind` choisi, la carte en texte à côté).
+ */
 registre.entreeMenu({
   get libelle() {
     return t('arbre.exporterXmind')
   },
   visible: (els) => els.length > 0 && els.every((e) => e.contenu.type === 'arbre'),
-  faire: (els, contexte) => void exporterCartes(els, contexte),
+  faire: (els, contexte) => {
+    if (els.length === 1 && ouvrirExport({ ...sujetCarte(els[0]!, contexte, null), format: 'xmind' })) return
+    void exporterCartes(els, contexte)
+  },
 })
 
