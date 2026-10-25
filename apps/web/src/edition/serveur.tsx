@@ -1,6 +1,7 @@
 import {
   BullesDecouverte,
   EspaceNotak,
+  HoteNotak,
   reglerCapture,
   type ServiceCompte,
   type EspaceDistant,
@@ -36,6 +37,7 @@ import { enregistrerServiceWorker } from '../pwa'
 import { VerrouTableau } from '../Verrou'
 import { t } from '../langue'
 import { adressePour } from '../adresse'
+import { allerA, useChemin } from '../chemin'
 
 /**
  * Les tableaux du compte, pour les citer avec `[[` dans une note : gardés en mémoire, relus au chargement et quand
@@ -134,6 +136,23 @@ function Application() {
   useEffect(() => {
     if (etat.type === 'anonyme') fermerEspace()
   }, [etat.type])
+  // `/` est la bibliothèque, et les toiles sont sous `/t/` : on passe de l'une aux autres sans recharger.
+  const chemin = useChemin()
+  useEffect(() => {
+    if (chemin === '/bibliotheque') allerA('/', { remplacer: true })
+  }, [chemin])
+  // ⌥⌘O ramène à la bibliothèque, d'où qu'on soit : écouté avant la carte ou le document ouverts, qui gardent leurs touches.
+  useEffect(() => {
+    if (etat.type !== 'connecte') return
+    const touche = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || !e.altKey || e.shiftKey || e.code !== 'KeyO') return
+      e.preventDefault()
+      e.stopPropagation()
+      allerA('/')
+    }
+    window.addEventListener('keydown', touche, true)
+    return () => window.removeEventListener('keydown', touche, true)
+  }, [etat.type])
 
   if (etat.type === 'chargement' || !instance) return <div className="ecran-attente" aria-busy />
   if (etat.type === 'erreur') {
@@ -151,57 +170,34 @@ function Application() {
   }
   if (etat.type === 'anonyme') return <EcranConnexion instance={instance} surConnexion={(m) => setEtat({ type: 'connecte', moi: m })} />
   // Trois pages légères, sans la toile : le partage vers Notak, la note rapide du téléphone, et les jetons pour envoyer d'ailleurs.
-  if (location.pathname === '/rapide') return <PageRapide espace={espacePour(etat.moi)} fichiers={fichiers} />
-  if (location.pathname === '/partage') return <PagePartage espace={espacePour(etat.moi)} fichiers={fichiers} />
-  if (location.pathname === '/envoyer') return <PageEnvoyer />
-  if (location.pathname === '/espace') return <PageEspaces />
-  if (location.pathname === '/bibliotheque') return <PageBibliotheque />
-  return (
-    <Espace
-      moi={etat.moi}
-      instance={instance}
-      changerMoi={(m) => setEtat({ type: 'connecte', moi: m })}
-      deconnexion={async () => {
-        await seDeconnecter().catch(() => {})
-        setEtat({ type: 'anonyme' })
-      }}
-    />
-  )
+  if (chemin === '/rapide') return <PageRapide espace={espacePour(etat.moi)} fichiers={fichiers} />
+  if (chemin === '/partage') return <PagePartage espace={espacePour(etat.moi)} fichiers={fichiers} />
+  if (chemin === '/envoyer') return <PageEnvoyer />
+  if (chemin === '/espace') return <PageEspaces />
+  const proprietes = {
+    moi: etat.moi,
+    instance,
+    changerMoi: (m: Moi) => setEtat({ type: 'connecte', moi: m }),
+    deconnexion: async () => {
+      await seDeconnecter().catch(() => {})
+      setEtat({ type: 'anonyme' })
+    },
+  }
+  return chemin === '/' || chemin === '/bibliotheque' ? <Accueil {...proprietes} /> : <Espace {...proprietes} />
 }
 
-function Espace({ moi, instance, changerMoi, deconnexion }: { moi: Moi; instance: Instance; changerMoi(m: Moi): void; deconnexion(): void }) {
-  const habillages = useMemo(
+type ProprietesEcran = { moi: Moi; instance: Instance; changerMoi(m: Moi): void; deconnexion(): void }
+
+/** Les thèmes que l'instance fournit, impose ou propose. */
+const useHabillagesInstance = (instance: Instance) =>
+  useMemo(
     () => ({ fournis: instance.habillages, ...(instance.impose ? { impose: instance.impose } : {}), ...(instance.parDefaut ? { parDefaut: instance.parDefaut } : {}) }),
     [instance],
   )
-  const espace = espacePour(moi)
-  const [adresse] = useState(() => {
-    // Chaque carte mentale ou document ouvert en grand entre dans les récents de la bibliothèque, qu'on l'ouvre sur la
-    // toile ou qu'on arrive par son adresse.
-    const a = adressePour(moi.racine)
-    const ouvert = a.lireElement?.()
-    if (ouvert) void noterElementVu(a.lire() ?? moi.racine, ouvert)
-    return {
-      ...a,
-      ecrireElement(tableau: string, element: string | null) {
-        a.ecrireElement?.(tableau, element)
-        if (element) void noterElementVu(tableau, element)
-      },
-    }
-  })
-  // ⌥⌘O ouvre la bibliothèque, d'où qu'on soit : écouté avant la carte ou le document ouverts, qui gardent leurs touches.
-  useEffect(() => {
-    const touche = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || !e.altKey || e.shiftKey || e.code !== 'KeyO') return
-      e.preventDefault()
-      e.stopPropagation()
-      location.assign('/bibliotheque')
-    }
-    window.addEventListener('keydown', touche, true)
-    return () => window.removeEventListener('keydown', touche, true)
-  }, [])
-  // La section « Compte » des réglages : photo et couleur. Ce qui change se dit aussitôt aux autres, sur les tableaux ouverts.
-  const compte = useMemo<ServiceCompte>(
+
+/** La section « Compte » des réglages : photo et couleur. Ce qui change se dit aussitôt aux autres, sur les tableaux ouverts. */
+const useCompte = (moi: Moi, changerMoi: (m: Moi) => void) =>
+  useMemo<ServiceCompte>(
     () => ({
       nom: moi.nom,
       email: moi.email,
@@ -212,6 +208,48 @@ function Espace({ moi, instance, changerMoi, deconnexion }: { moi: Moi; instance
     }),
     [moi, changerMoi],
   )
+
+/** La page d'accueil : la bibliothèque, dans le thème et avec les réglages de Notak. */
+function Accueil({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
+  const habillages = useHabillagesInstance(instance)
+  const compte = useCompte(moi, changerMoi)
+  const espace = espacePour(moi)
+  return (
+    <HoteNotak compte={compte} habillages={habillages} className="biblio-hote">
+      {(fenetres) => (
+        <PageBibliotheque
+          espace={espace}
+          fenetres={fenetres}
+          compte={
+            <>
+              <Cloche ouvrir={(id) => allerA(`/t/${encodeURIComponent(id)}`)} />
+              <Compte moi={moi} deconnexion={deconnexion} aide={fenetres.aide} />
+            </>
+          }
+        />
+      )}
+    </HoteNotak>
+  )
+}
+
+function Espace({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
+  const habillages = useHabillagesInstance(instance)
+  const espace = espacePour(moi)
+  const [adresse] = useState(() => {
+    // Chaque carte mentale ou document ouvert en grand entre dans les récents de la bibliothèque, qu'on l'ouvre sur la
+    // toile ou qu'on arrive par son adresse.
+    const a = adressePour(moi.racine, { accueilAPart: true })
+    const ouvert = a.lireElement?.()
+    if (ouvert) void noterElementVu(a.lire() ?? moi.racine, ouvert)
+    return {
+      ...a,
+      ecrireElement(tableau: string, element: string | null) {
+        a.ecrireElement?.(tableau, element)
+        if (element) void noterElementVu(tableau, element)
+      },
+    }
+  })
+  const compte = useCompte(moi, changerMoi)
   useEffect(() => {
     espace.changerUtilisateur({ id: moi.id, nom: moi.nom, couleur: moi.couleur, ...(moi.photo ? { photo: moi.photo } : {}) })
   }, [espace, moi])
@@ -227,6 +265,7 @@ function Espace({ moi, instance, changerMoi, deconnexion }: { moi: Moi; instance
         espace={espace}
         services={servicesIci}
         adresse={adresse}
+        bibliotheque={() => allerA('/')}
         actions={(courant, ouvrir) => (
           <>
             <BullesDecouverte espace={espace} tableau={courant} compte={moi.id} />

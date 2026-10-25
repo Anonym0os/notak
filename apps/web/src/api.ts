@@ -461,6 +461,8 @@ export interface EntreeBibliotheque {
   resume: ResumeContenu
   /** Le titre de la toile qui le porte, s'il la lit. */
   ou: string | null
+  /** L'identifiant de cette toile, s'il la lit : le dossier du tri par dossier. */
+  dans: string | null
   /** La dernière fois que le compte l'a ouvert, ou `null`. */
   vu: number | null
   favori: boolean

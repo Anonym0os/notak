@@ -336,6 +336,14 @@ DELETE FROM recherche_etat;
 `)
     },
   },
+  {
+    version: 6,
+    nom: 'des vignettes plus riches dans la bibliothèque',
+    // Chaque boîte du plan d'une toile dit maintenant son type et ses lignes : on refait tous les résumés.
+    appliquer(db) {
+      db.exec('DELETE FROM recherche_etat;')
+    },
+  },
 ]
 
 /**

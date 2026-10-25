@@ -65,14 +65,14 @@ const LARGEUR_SUSPENSION = 44
 
 /** La barre des outils de gauche, montrée ou cachée : un choix de la machine, gardé d'une visite à l'autre. */
 const CLE_OUTILS = 'notak:outils-caches'
-function lireOutilsCaches(): boolean {
+export function lireOutilsCaches(): boolean {
   try {
     return localStorage.getItem(CLE_OUTILS) === '1'
   } catch {
     return false
   }
 }
-function ecrireOutilsCaches(caches: boolean) {
+export function ecrireOutilsCaches(caches: boolean) {
   try {
     if (caches) localStorage.setItem(CLE_OUTILS, '1')
     else localStorage.removeItem(CLE_OUTILS)
@@ -171,6 +171,7 @@ export function EspaceNotak({
   compte,
   enregistrer,
   habillages: offreHabillages,
+  bibliotheque,
 }: {
   espace: EspaceNavigable
   services?: Services
@@ -195,6 +196,8 @@ export function EspaceNotak({
   enregistrer?(): void
   /** Les thèmes que fournit l'application (un serveur), et celui qu'elle impose ou propose. */
   habillages?: OffreHabillages
+  /** Mène à la bibliothèque, la page d'accueil de l'application : une maison en tête de la barre. */
+  bibliotheque?(): void
 }) {
   const racine = espace.racine
   const [parcours, setParcours] = useState(() => parcoursDepart(racine))
@@ -581,6 +584,7 @@ export function EspaceNotak({
   const entete: EnteteEspace = {
     fil: segments,
     ouvrir,
+    ...(bibliotheque ? { bibliotheque } : {}),
     // Sans partage ni présence (l'édition locale), pas d'îlot vide.
     partage: (partage || presence) && (
       <>
@@ -606,6 +610,7 @@ export function EspaceNotak({
       {outilsCaches && <div className="notak-outils-bord" aria-hidden onPointerEnter={apercuOutils.entrer} onPointerLeave={apercuOutils.quitter} />}
       <Entete
         outils={{ caches: outilsCaches, retenus: outilsRetenus, basculer: basculerOutils }}
+        bibliotheque={bibliotheque}
         key={`entete:${langue}`}
         segments={segments}
         charge={charge}
@@ -693,6 +698,7 @@ function Entete({
   envoi,
   charge = true,
   outils,
+  bibliotheque,
 }: {
   segments: Segment[]
   courant: Id
@@ -713,6 +719,8 @@ function Entete({
   charge?: boolean
   /** La barre des outils de gauche, qu'un bouton du premier îlot montre ou cache ; retenue ouverte par une sélection. */
   outils?: { caches: boolean; retenus?: boolean; basculer(): void }
+  /** Mène à la bibliothèque : une maison en tête de l'îlot. */
+  bibliotheque?(): void
 }) {
   const fil = useRef<HTMLElement>(null)
   const [largeur, setLargeur] = useState(Number.POSITIVE_INFINITY)
@@ -787,6 +795,8 @@ function Entete({
         {/* Un seul îlot : remonter, la barre des outils, puis le fil et l'état de l'enregistrement. Le reste de la bande
             reste vide et transparent. */}
         <Ilot className="notak-ilot-fil">
+          {bibliotheque && <BoutonIlot icone="maison" libelle={t('espace.bibliotheque')} raccourci="⌥⌘O" onClick={bibliotheque} />}
+          {bibliotheque && (parent || outils) && <FiletIlot />}
           {parent && <BoutonIlot icone="gauche" libelle={t('espace.remonter')} onClick={() => aller(parent.id)} />}
           {parent && outils && <FiletIlot />}
           {outils && (
@@ -798,7 +808,7 @@ function Entete({
               onClick={outils.basculer}
             />
           )}
-          {(parent || outils) && <FiletIlot />}
+          {(bibliotheque || parent || outils) && <FiletIlot />}
           <nav className="notak-fil" aria-label={t('espace.fil')} ref={fil}>
             {visibles.flatMap((i, rang) => [
               rang > 0 && <span key={`s${i}`} className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,

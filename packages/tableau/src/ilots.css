@@ -135,6 +135,12 @@
   font-size: 14px;
 }
 
+/* La maison en tête du fil d'un écran ouvert en grand : elle ramène à la bibliothèque. */
+.notak-fil-maison {
+  display: inline-grid;
+  place-items: center;
+}
+
 .notak-fil-titre {
   display: inline-flex;
   flex: 0 1 auto;

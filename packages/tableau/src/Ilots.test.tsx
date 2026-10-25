@@ -59,6 +59,16 @@ describe('la barre d’îlots, commune au tableau, à la carte et au document', 
     expect(appels).toEqual(['fermer'])
   })
 
+  it('avec une bibliothèque, une maison ouvre le fil : elle ferme l’écran puis y mène', () => {
+    const appels: string[] = []
+    rendre(entete({ bibliotheque: () => void appels.push('bibliothèque') }), <FilEcran titre="Carte" fermer={() => appels.push('fermer')} />)
+    const maison = document.querySelector<HTMLButtonElement>('.notak-fil-maison')!
+    expect(maison.getAttribute('aria-label')).toBe('Bibliothèque')
+    expect(textes('.notak-fil-segment')).toEqual(['', 'Projets', 'Un steak vivant ?!'])
+    act(() => maison.click())
+    expect(appels).toEqual(['fermer', 'bibliothèque'])
+  })
+
   it('sans espace autour (un test, une page publique), le fil n’a que le titre et les îlots de l’application ne paraissent pas', () => {
     rendre(
       null,

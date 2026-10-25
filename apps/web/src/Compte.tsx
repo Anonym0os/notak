@@ -3,6 +3,7 @@ import { type Moi } from './api'
 import { adressePhoto } from './fichiers'
 import { Icone, PastillePersonne } from '@notak/tableau'
 import { usePanneau } from './panneaux'
+import { surLien } from './chemin'
 
 /** Le raccourci de la bibliothèque, partout dans l'édition serveur (⌥⌘O). */
 export const RACCOURCI_BIBLIOTHEQUE = '⌥⌘O'
@@ -21,7 +22,16 @@ export function Compte({ moi, deconnexion, aide }: { moi: Moi; deconnexion(): vo
       {ouvert && (
         <div className="compte-menu" ref={panneau} role="menu">
           <small>{moi.email}</small>
-          <a role="menuitem" className="compte-ligne" href="/bibliotheque" title={`${t('compte.bibliotheque')} (${RACCOURCI_BIBLIOTHEQUE})`}>
+          <a
+            role="menuitem"
+            className="compte-ligne"
+            href="/"
+            title={`${t('compte.bibliotheque')} (${RACCOURCI_BIBLIOTHEQUE})`}
+            onClick={(e) => {
+              regler(false)
+              surLien(e, '/')
+            }}
+          >
             <Icone nom="tableau" taille={16} />
             <span>{t('compte.bibliotheque')} <small>· {t('compte.bibliotheque.detail')}</small></span>
           </a>

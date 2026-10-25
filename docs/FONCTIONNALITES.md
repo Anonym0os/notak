@@ -351,7 +351,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Monter d'un niveau, redescendre (Cmd+U, Cmd+Maj+U) | ✅ | |
 | Recherche (Cmd+F) : ce qui ne correspond pas s'efface, Entrée va au résultat suivant | ✅ | Dans le tableau ouvert, et dans tous les tableaux du compte par le serveur. |
 | Tableaux récents, favoris | ✅ |  |
-| Bibliothèque (⌥⌘O, menu du compte) : toutes les toiles, cartes mentales et documents en vignettes, par onglet (récents, toiles, cartes, documents, favoris, partagés) | 🟡 | → Notak, pas chez Milanote. Édition serveur seulement : l'édition locale ne l'a pas encore. |
+| Bibliothèque, page d'accueil (`/`, ⌥⌘O, la maison de la barre) : toutes les toiles, cartes mentales et documents en vignettes, par rubrique (récents, favoris, partagés, toiles, cartes, documents), rangés par date ou par dossier, avec recherche et création | 🟡 | → Notak, comme l'accueil de Xmind. Édition serveur seulement : l'édition locale ne l'a pas encore. |
 | Aperçu d'un tableau au survol | ✅ | Le plan du tableau, ses éléments à leur place et dans leur couleur. |
 | Annuler la navigation (à l'échelle de la session) | ✅ | Quand le tableau n'a plus rien à annuler, Cmd+Z revient au tableau d'avant. |
 

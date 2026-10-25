@@ -6,7 +6,7 @@ import { indexerDocument } from './indexation.ts'
 import { lireTableau, resumesDuTableau } from './contenu.ts'
 import { nomDuDocument } from './synchro.ts'
 
-type Entree = { tableau: string; element: string | null; genre: string; titre: string; ou: string | null; vu: number | null; favori: boolean; partage: boolean; resume: unknown }
+type Entree = { tableau: string; element: string | null; genre: string; titre: string; ou: string | null; dans: string | null; vu: number | null; favori: boolean; partage: boolean; resume: unknown }
 
 /** Une carte mentale : un central et ses principaux, dans le désordre de leurs clés. */
 const carte = (central: string, ...branches: string[]) => ({
@@ -33,8 +33,8 @@ describe('resumesDuTableau', () => {
     const [toile, ...autres] = resumesDuTableau(lireTableau(doc))
     expect(toile).toMatchObject({ genre: 'toile', element: '', titre: 'Voyage', couleur: 'bleu' })
     expect(toile!.genre === 'toile' && toile!.boites.slice(0, 2)).toEqual([
-      [2, 3, 34, 7, 'jaune'],
-      [40, 0, 34, 6, 'colonne'],
+      [2, 3, 34, 7, 'jaune', 'note', 1],
+      [40, 0, 34, 15, '', 'colonne', 1],
     ])
     expect(autres).toEqual([
       { genre: 'arbre', element: 'a1', titre: 'Plan', branches: ['Retour', 'Aller'] },
@@ -79,8 +79,8 @@ describe('GET /api/bibliotheque', () => {
     const r = await lire(ana)
     expect(Array.isArray(r) && r.map(cle).sort()).toEqual([`${ana.utilisateur.racine}/idees`, 'etape/', 'etape/lisbonne', 'secret/', 'voyage/', 'voyage/budget'])
     const parCle = new Map((r as Entree[]).map((e) => [cle(e), e]))
-    expect(parCle.get('voyage/')).toMatchObject({ genre: 'toile', titre: 'Voyage', ou: 'Accueil d’Ana', vu: null, favori: false, partage: false })
-    expect(parCle.get('etape/lisbonne')).toMatchObject({ genre: 'arbre', titre: 'Lisbonne', ou: 'Étape', resume: { branches: ['Musées'] } })
+    expect(parCle.get('voyage/')).toMatchObject({ genre: 'toile', titre: 'Voyage', ou: 'Accueil d’Ana', dans: ana.utilisateur.racine, vu: null, favori: false, partage: false })
+    expect(parCle.get('etape/lisbonne')).toMatchObject({ genre: 'arbre', titre: 'Lisbonne', ou: 'Étape', dans: 'etape', resume: { branches: ['Musées'] } })
     expect(parCle.get('voyage/budget')).toMatchObject({ genre: 'document', titre: 'Budget', ou: 'Voyage', resume: { lignes: ['Train : 80 €'] } })
   })
 
@@ -89,7 +89,7 @@ describe('GET /api/bibliotheque', () => {
     expect(Array.isArray(r) && r.map(cle).sort()).toEqual(['etape/', 'etape/lisbonne', 'voyage/', 'voyage/budget'])
     const voyage = (r as Entree[]).find((e) => cle(e) === 'voyage/')
     // L'accueil d'Ana, Bob ne le lit pas : la toile ne dit pas où elle est posée.
-    expect(voyage).toMatchObject({ partage: true, ou: null })
+    expect(voyage).toMatchObject({ partage: true, ou: null, dans: null })
     expect(await lire()).toBe(401)
   })
 

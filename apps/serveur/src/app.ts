@@ -766,8 +766,8 @@ export function creerApp(ctx: Contexte): Hono {
 
   /**
    * La bibliothèque : chaque toile que le compte peut lire (sauf son accueil), et chaque carte mentale et
-   * document qu'elles portent, avec la toile qui les porte, la dernière fois qu'il les a ouverts, et ses favoris et
-   * partages. Ce qui est sous un mot de passe pas encore donné n'y est pas.
+   * document qu'elles portent, avec la toile qui les porte (son titre, `ou`, et son identifiant, `dans`), la dernière
+   * fois qu'il les a ouverts, et ses favoris et partages. Ce qui est sous un mot de passe pas encore donné n'y est pas.
    */
   app.get('/api/bibliotheque', async (c) => {
     const u = await utilisateurCourant(c)
@@ -796,6 +796,7 @@ export function creerApp(ctx: Contexte): Hono {
           titre: toile ? ligne.titre : l.titre,
           resume: JSON.parse(l.resume) as unknown,
           ou: parent && ouvrables.has(parent) ? titreDe(parent) : null,
+          dans: parent && ouvrables.has(parent) ? parent : null,
           vu: vus.get(`${l.tableau}/${l.element}`) ?? null,
           favori: toile && favoris.has(l.tableau),
           partage: toile && partages.has(l.tableau),

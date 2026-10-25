@@ -17,6 +17,8 @@ export interface EnteteEspace {
   /** De l'accueil au tableau ouvert, chacun avec son titre. */
   fil: { id: Id; titre: string }[]
   ouvrir(id: Id): void
+  /** Mène à la bibliothèque, quand l'application en a une : une maison en tête du fil. */
+  bibliotheque?(): void
   /** Les présents et le bouton « Partager ». */
   partage?: ReactNode
   /** Les notifications, le compte et les réglages. */
@@ -97,6 +99,25 @@ export function FilEcran({ titre, nom, fermer, apres }: { titre: ReactNode; nom?
   const vus = fil.slice(-2)
   return (
     <nav className="notak-fil notak-fil-ecran" aria-label={t('espace.fil')}>
+      {entete?.bibliotheque && (
+        <span className="notak-fil-bloc">
+          <button
+            type="button"
+            className="notak-fil-segment notak-fil-maison"
+            aria-label={t('espace.bibliotheque')}
+            title={`${t('espace.bibliotheque')} (⌥⌘O)`}
+            onClick={() => {
+              fermer()
+              entete.bibliotheque!()
+            }}
+          >
+            <Icone nom="maison" taille={16} />
+          </button>
+          <span className="notak-fil-sep" aria-hidden>
+            <Icone nom="chevronDroite" taille={14} />
+          </span>
+        </span>
+      )}
       {vus.map((s, i) => (
         <span key={s.id} className="notak-fil-bloc">
           <button

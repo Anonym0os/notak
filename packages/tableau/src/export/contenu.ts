@@ -190,11 +190,17 @@ export type ResumeContenu =
       element: ''
       titre: string
       couleur?: string
-      /** Le plan : chaque élément posé, en UG, avec sa couleur de note, `colonne`, `image` ou rien (une carte blanche). */
-      boites: [x: number, y: number, largeur: number, hauteur: number, fond: string][]
+      /**
+       * Le plan : chaque élément posé, en UG, avec sa couleur (une clé de la palette des notes, ou rien), son type, et
+       * le nombre de lignes à y dessiner (le texte d'une note ou d'une liste, les cartes d'une colonne).
+       */
+      boites: BoitePlan[]
     }
   | { genre: 'arbre'; element: string; titre: string; branches: string[] }
   | { genre: 'document'; element: string; titre: string; lignes: string[] }
+
+/** Une boîte du plan d'une toile (voir `ResumeContenu`). */
+export type BoitePlan = [x: number, y: number, largeur: number, hauteur: number, couleur: string, type: string, lignes: number]
 
 /** Au plus tant de boîtes dans le plan d'une toile, de branches d'une carte, de lignes d'un document. */
 const BOITES_MAX = 120
@@ -222,20 +228,23 @@ const HAUTEURS: Record<string, number> = {
  * La hauteur probable d'un élément, en UG, sans la toile pour le mesurer : celle qu'il garde, celle de son image, ou
  * pour une note, de quoi tenir son texte (une ligne d'environ 1,4 caractère par UG, 2,6 UG de haut).
  */
-function hauteurProbable(e: ElementLu): number {
+function hauteurProbable(e: ElementLu, lignes: number): number {
   const c = e.contenu
   const h = (e as { hauteur?: { max?: number; min?: number } }).hauteur
   if (c.type === 'image' && typeof c.largeurOrigine === 'number' && typeof c.hauteurOrigine === 'number' && c.largeurOrigine > 0)
     return (e.largeur * c.hauteurOrigine) / c.largeurOrigine
   if (typeof h?.max === 'number') return h.max
   if (typeof h?.min === 'number') return h.min
-  if (c.type === 'note') {
-    const d = doc(c.texte)
-    const parLigne = Math.max(8, e.largeur * 1.4)
-    const lignes = (d ? texteBrut(d) : '').split('\n').reduce((n, l) => n + Math.max(1, Math.ceil(l.length / parLigne)), 0)
-    return Math.min(40, Math.max(HAUTEURS.note!, 2 + lignes * 2.6))
-  }
+  if (c.type === 'note' || c.type === 'taches') return Math.min(40, Math.max(HAUTEURS[c.type]!, 2 + lignes * 2.6))
+  if (c.type === 'colonne') return Math.min(80, 6 + lignes * 9)
   return HAUTEURS[c.type] ?? 6
+}
+
+/** Les lignes de texte d'une note ou d'une liste, à la largeur de sa carte (environ 1,4 caractère par UG). */
+function lignesDeTexte(e: ElementLu): number {
+  const d = doc(e.contenu.texte)
+  const parLigne = Math.max(8, e.largeur * 1.4)
+  return (d ? texteBrut(d) : '').split('\n').reduce((n, l) => n + Math.max(1, Math.ceil(l.length / parLigne)), 0)
 }
 
 const court = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s)
@@ -246,13 +255,15 @@ const court = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…
  */
 export function resumesDuTableau(t: TableauLu): ResumeContenu[] {
   const vivants = t.elements.filter((e) => e.corbeille === undefined)
-  const boites: [number, number, number, number, string][] = vivants
+  const enfants = new Map<string, number>()
+  for (const e of vivants) if (e.parent) enfants.set(e.parent, (enfants.get(e.parent) ?? 0) + 1)
+  const boites: BoitePlan[] = vivants
     .filter((e) => !e.parent && e.nonTrie === undefined && e.contenu.type !== 'ligne')
     .slice(0, BOITES_MAX)
     .map((e) => {
       const c = e.contenu
-      const fond = c.type === 'colonne' || c.type === 'image' ? c.type : chaine(c.couleur)
-      return [Math.round(e.x), Math.round(e.y), Math.max(1, Math.round(e.largeur)), Math.max(1, Math.round(hauteurProbable(e))), fond]
+      const lignes = c.type === 'note' || c.type === 'taches' ? lignesDeTexte(e) : c.type === 'colonne' ? (enfants.get(e.id) ?? 0) : 0
+      return [Math.round(e.x), Math.round(e.y), Math.max(1, Math.round(e.largeur)), Math.max(1, Math.round(hauteurProbable(e, lignes))), chaine(c.couleur), c.type, lignes]
     })
   const resumes: ResumeContenu[] = [{ genre: 'toile', element: '', titre: t.titre, ...(t.couleur ? { couleur: t.couleur } : {}), boites }]
   for (const e of vivants) {

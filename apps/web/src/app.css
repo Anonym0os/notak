@@ -1639,137 +1639,383 @@ body {
   align-self: flex-start;
 }
 
-/* — La bibliothèque : tout ce que le compte peut ouvrir, en vignettes. — */
-.biblio {
-  --biblio-largeur: 1180px;
-  min-height: 100%;
-  box-sizing: border-box;
-  padding: 28px max(16px, calc((100% - var(--biblio-largeur)) / 2)) 56px;
-  background: var(--fond);
-  color: var(--texte);
+/* — La bibliothèque, page d'accueil : une colonne de rubriques, la barre de l'application, des tuiles. — */
+.biblio-hote {
+  height: 100%;
 }
 
-.biblio-tete {
+.biblio {
+  --biblio-pale: color-mix(in srgb, var(--notak-texte, #323b4a) 64%, transparent);
+  --biblio-survol: rgb(50 59 74 / 0.05);
+  --biblio-choisi: rgb(50 59 74 / 0.09);
+  --biblio-ombre: 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.08), 0 6px 16px -6px rgb(27 37 54 / 0.16);
+
+  display: grid;
+  flex: 1;
+  grid-template-columns: 264px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  background: var(--notak-fond, #ebedee);
+  color: var(--notak-texte, #323b4a);
+  font-family: var(--notak-police, 'Inter Variable', system-ui, sans-serif);
+}
+
+[data-theme='sombre'] .biblio {
+  --biblio-survol: rgb(255 255 255 / 0.05);
+  --biblio-choisi: rgb(255 255 255 / 0.1);
+  --biblio-ombre: 0 0 0 1px rgb(255 255 255 / 0.06), 0 6px 16px -6px rgb(0 0 0 / 0.5);
+}
+
+/* La colonne : un îlot comme ceux de l'application, de haut en bas. Dans l'app de bureau, les trois boutons de la
+   fenêtre se posent en haut. */
+.biblio-colonne {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.biblio-retour {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: -8px;
-  padding: 4px 10px 4px 6px;
-  border-radius: 8px;
-  color: #5b616a;
-  font-size: 13px;
-  text-decoration: none;
-}
-
-.biblio-retour:hover {
-  background: rgb(50 59 74 / 0.07);
-  color: var(--texte);
-}
-
-.biblio h1 {
-  margin: 0;
-  font-size: 26px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-}
-
-.biblio-onglets {
-  display: flex;
+  grid-row: 1 / 3;
   gap: 2px;
-  width: fit-content;
-  max-width: 100%;
-  margin-bottom: 28px;
-  padding: 3px;
+  min-height: 0;
+  margin: 8px 0 8px 8px;
+  padding: 12px;
   box-sizing: border-box;
-  overflow-x: auto;
-  border-radius: 18px;
-  background: rgb(50 59 74 / 0.07);
+  overflow-y: auto;
+  border-radius: 22px;
+  background: var(--notak-ilot-fond, color-mix(in srgb, var(--notak-carte, #fff) 88%, transparent));
+  box-shadow: var(--notak-ilot-ombre, var(--biblio-ombre));
   scrollbar-width: none;
 }
 
-.biblio-onglets button {
-  display: inline-flex;
-  flex: none;
+html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
+  padding-top: 44px;
+}
+
+.biblio-nouveau {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.biblio-nouveau-bouton {
+  display: flex;
   align-items: center;
-  gap: 7px;
-  height: 32px;
-  padding: 0 14px;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 40px;
   border: 0;
-  border-radius: 15px;
-  background: transparent;
-  color: var(--texte);
-  font: 500 13.5px/1 inherit;
-  white-space: nowrap;
+  border-radius: 20px;
+  background: var(--notak-selection, #323b4a);
+  color: var(--notak-fond, #fff);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
   cursor: pointer;
 }
 
-.biblio-onglets button svg {
-  color: #5f6672;
+.biblio-nouveau-bouton:hover:not(:disabled) {
+  opacity: 0.9;
 }
 
-.biblio-onglets button small {
-  color: #5f6672;
+.biblio-nouveau-bouton svg:last-child {
+  opacity: 0.7;
+}
+
+.biblio-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--notak-carte, #fff);
+  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.08), 0 14px 34px -10px rgb(27 37 54 / 0.3);
+}
+
+.biblio-menu button {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+}
+
+.biblio-menu button svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--biblio-pale);
+}
+
+.biblio-menu button:is(:hover, :focus-visible) {
+  outline: none;
+  background: var(--biblio-choisi);
+}
+
+.biblio-menu small {
+  display: block;
+  margin-top: 2px;
+  color: var(--biblio-pale);
   font-size: 12px;
   font-weight: 400;
 }
 
-.biblio-onglets button[aria-selected='true'] {
-  background: var(--carte);
-  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.06), 0 1px 2px rgb(27 37 54 / 0.12);
+.biblio-rubrique {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
 }
 
-.biblio-onglets button[aria-selected='true'] svg {
-  color: var(--texte);
+.biblio-rubrique > svg {
+  flex: none;
+  color: var(--biblio-pale);
 }
 
-.biblio-onglets button:focus-visible,
-.biblio-carte:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+.biblio-rubrique span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.biblio-rubrique small {
+  margin-left: auto;
+  color: var(--biblio-pale);
+  font-size: 12px;
+}
+
+.biblio-rubrique:hover {
+  background: var(--biblio-survol);
+}
+
+.biblio-rubrique[aria-current='page'] {
+  background: var(--biblio-choisi);
+}
+
+.biblio-rubrique[aria-current='page'] > svg {
+  color: inherit;
+}
+
+.biblio-rubrique:focus-visible,
+.biblio-nouveau-bouton:focus-visible,
+.biblio-tri-choix:focus-visible {
+  outline: 2px solid var(--notak-accent, #2f6feb);
+  outline-offset: 1px;
+}
+
+.biblio-maison {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: #5b6cf0;
+  color: #fff;
+}
+
+.biblio-groupe {
+  margin: 18px 10px 4px;
+  color: var(--biblio-pale);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.biblio-bas {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+/* La barre du haut : le titre de la rubrique, puis les îlots de l'application. */
+.biblio-tete {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 36px;
+  margin: 8px 16px 0 28px;
+}
+
+.biblio-tete h1 {
+  margin: 0;
+  overflow: hidden;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.biblio-tete-droite {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-left: auto;
+}
+
+.biblio-tri-choix {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 11px 0 9px;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.biblio-tri-choix[aria-pressed='true'] {
+  background: var(--notak-selection, #323b4a);
+  color: var(--notak-fond, #fff);
+}
+
+.biblio-recherche-champ {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 230px;
+  height: 30px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  color: var(--biblio-pale);
+  cursor: text;
+}
+
+.biblio-recherche-champ input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--notak-texte, #323b4a);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.biblio-recherche-champ input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.biblio-recherche-champ kbd {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.biblio-recherche:focus-within {
+  box-shadow: 0 0 0 2px var(--notak-accent, #2f6feb);
+}
+
+/* Les tuiles, comme celles de Xmind : une vignette blanche, le titre centré, la toile qui la porte. */
+.biblio-corps {
+  min-height: 0;
+  padding: 24px 24px 56px 28px;
+  overflow-y: auto;
+}
+
+.biblio-section + .biblio-section {
+  margin-top: 32px;
+}
+
+.biblio-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 14px;
+  color: var(--biblio-pale);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.biblio-section h2 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.biblio-section h2 a:hover {
+  color: var(--notak-texte, #323b4a);
+  text-decoration: underline;
 }
 
 .biblio-grille {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(208px, 1fr));
-  gap: 26px 20px;
+  grid-template-columns: repeat(auto-fill, minmax(188px, 1fr));
+  gap: 28px 24px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.biblio-carte {
+.biblio-tuile {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
   min-width: 0;
+  padding: 0;
+  border: 0;
   border-radius: 12px;
+  background: none;
   color: inherit;
+  font: inherit;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .biblio-vignette {
   position: relative;
-  display: block;
-  aspect-ratio: 4 / 3;
-  margin-bottom: 6px;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 206 / 136;
+  margin-bottom: 9px;
   overflow: hidden;
   border-radius: 12px;
-  background: var(--carte);
-  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.08), 0 1px 2px rgb(27 37 54 / 0.06);
+  background: var(--notak-carte, #fff);
+  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.06), 0 8px 20px -10px rgb(27 37 54 / 0.18);
   transition: box-shadow 0.15s ease, transform 0.15s ease;
-}
-
-.biblio-carte:hover .biblio-vignette {
-  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.1), 0 8px 22px rgb(27 37 54 / 0.12);
-  transform: translateY(-1px);
 }
 
 .biblio-vignette svg {
@@ -1778,110 +2024,104 @@ body {
   height: 100%;
 }
 
-.biblio-vignette[data-genre='toile'] {
-  background: #f4f5f7;
+.biblio-tuile-neuve .biblio-vignette svg {
+  width: 34px;
+  height: 34px;
 }
 
-.biblio-vignette[data-genre='arbre'] {
-  background: #f8f9fa;
+.biblio-tuile:hover .biblio-vignette {
+  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.1), 0 12px 28px -10px rgb(27 37 54 / 0.26);
+  transform: translateY(-1px);
+}
+
+.biblio-tuile:focus-visible {
+  outline: none;
+}
+
+.biblio-tuile:focus-visible .biblio-vignette {
+  box-shadow: 0 0 0 2px var(--notak-accent, #2f6feb);
+}
+
+.biblio-vignette[data-genre='toile'] {
+  background-color: var(--notak-fond, #ebedee);
+  background-image: radial-gradient(circle, var(--notak-point, #c4c8ce) 0.7px, transparent 1px);
+  background-size: 9px 9px;
 }
 
 .biblio-vignette[data-genre='document'] {
-  background: #eceef1;
+  background: color-mix(in srgb, var(--notak-fond, #ebedee) 60%, var(--notak-carte, #fff));
 }
 
 .biblio-vignette-vide {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: #8a9099;
-  font-size: 12px;
-}
-
-.biblio-feuille {
-  position: absolute;
-  inset: 14px 20px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 14px 14px 0;
-  overflow: hidden;
-  border-radius: 6px 6px 0 0;
-  background: #fff;
-  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.07), 0 2px 6px rgb(27 37 54 / 0.06);
-  color: #6a717b;
-  font-size: 9.5px;
-  line-height: 1.4;
-  mask-image: linear-gradient(#000 65%, transparent);
-}
-
-.biblio-feuille strong {
-  margin-bottom: 2px;
-  overflow: hidden;
-  color: var(--texte);
+  color: var(--biblio-pale);
   font-size: 12.5px;
-  font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.biblio-feuille span {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+.biblio-tuile-neuve .biblio-vignette {
+  background: color-mix(in srgb, var(--notak-carte, #fff) 50%, transparent);
+  box-shadow: inset 0 0 0 1.5px rgb(50 59 74 / 0.14);
+  color: var(--biblio-pale);
 }
 
-.biblio-carte-titre {
+.biblio-tuile-neuve:hover .biblio-vignette {
+  box-shadow: inset 0 0 0 1.5px rgb(50 59 74 / 0.3);
+  color: var(--notak-texte, #323b4a);
+  transform: none;
+}
+
+.biblio-tuile-titre {
+  max-width: 100%;
   overflow: hidden;
-  padding: 0 2px;
   font-size: 14px;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.biblio-carte-ou {
+.biblio-tuile-ou {
   display: flex;
   align-items: center;
   gap: 5px;
-  min-width: 0;
-  padding: 0 2px;
-  color: #5f6672;
+  max-width: 100%;
+  color: var(--biblio-pale);
   font-size: 12.5px;
-}
-
-.biblio-carte-ou svg {
-  flex: none;
-}
-
-.biblio-carte-ou span {
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.biblio-tuile-ou svg {
+  flex: none;
+}
+
+.biblio-tuile-ou span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .biblio-attente {
-  aspect-ratio: 4 / 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+}
+
+.biblio-attente span {
+  width: 100%;
+  aspect-ratio: 206 / 136;
   border-radius: 12px;
-  background: linear-gradient(100deg, #e2e5e8 40%, #eceef0 50%, #e2e5e8 60%) 0 0 / 200% 100%;
+  background: linear-gradient(100deg, rgb(50 59 74 / 0.07) 40%, rgb(50 59 74 / 0.03) 50%, rgb(50 59 74 / 0.07) 60%) 0 0 / 200% 100%;
   animation: biblio-attente 1.4s linear infinite;
+}
+
+.biblio-attente span + span {
+  width: 60%;
+  height: 12px;
+  aspect-ratio: auto;
+  border-radius: 6px;
 }
 
 @keyframes biblio-attente {
   to {
     background-position: -200% 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .biblio-attente {
-    animation: none;
-  }
-
-  .biblio-vignette {
-    transition: none;
   }
 }
 
@@ -1891,30 +2131,111 @@ body {
   align-items: center;
   gap: 8px;
   padding: 72px 16px;
-  color: #5f6672;
+  color: var(--biblio-pale);
   text-align: center;
+}
+
+.biblio-vide-bas {
+  padding-top: 32px;
 }
 
 .biblio-vide p {
   margin: 4px 0 0;
-  color: var(--texte);
+  color: var(--notak-texte, #323b4a);
   font-size: 15px;
   font-weight: 600;
 }
 
 .biblio-vide small {
-  max-width: 380px;
+  max-width: 400px;
   font-size: 13.5px;
   line-height: 1.45;
 }
 
-@media (max-width: 560px) {
+@media (prefers-reduced-motion: reduce) {
+  .biblio-attente span {
+    animation: none;
+  }
+
+  .biblio-vignette {
+    transition: none;
+  }
+}
+
+/* Sur un écran étroit, la colonne devient une bande de rubriques qui défile, au-dessus de la barre. */
+@media (max-width: 760px) {
   .biblio {
-    padding-top: 20px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+
+  .biblio-colonne {
+    flex-direction: row;
+    grid-row: auto;
+    align-items: center;
+    margin: 8px 8px 0;
+    padding: 6px;
+    overflow-x: auto;
+    overflow-y: visible;
+    border-radius: 20px;
+  }
+
+  html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
+    padding-top: 6px;
+  }
+
+  .biblio-groupe,
+  .biblio-bas,
+  .biblio-rubrique small {
+    display: none;
+  }
+
+  .biblio-nouveau {
+    flex: none;
+    margin: 0 4px 0 0;
+  }
+
+  .biblio-nouveau-bouton {
+    width: auto;
+    height: 34px;
+    padding: 0 14px;
+  }
+
+  .biblio-menu {
+    position: fixed;
+    top: 56px;
+    right: 8px;
+    left: 8px;
+  }
+
+  .biblio-rubrique {
+    width: auto;
+  }
+
+  .biblio-tete {
+    flex-wrap: wrap;
+    margin: 12px 12px 0;
+  }
+
+  .biblio-tete-droite {
+    flex-wrap: wrap;
+    margin-left: 0;
+  }
+
+  .biblio-recherche-champ {
+    width: 170px;
+  }
+
+  .biblio-recherche-champ kbd {
+    display: none;
+  }
+
+  .biblio-corps {
+    padding: 18px 12px 40px;
   }
 
   .biblio-grille {
-    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-    gap: 20px 12px;
+    grid-template-columns: repeat(auto-fill, minmax(146px, 1fr));
+    gap: 22px 12px;
   }
 }
