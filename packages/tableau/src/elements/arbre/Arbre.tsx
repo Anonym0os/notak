@@ -10,7 +10,8 @@ import { exporterCartes } from './exporter'
 import { BarreBas } from './BarreBas'
 import { BarreSujet } from './BarreSujet'
 import { ChoixStyle } from './ChoixStyle'
-import { BoutonIcone, EnTete, type Onglet, PanneauCote } from './Fenetre'
+import { EnTete, type Onglet, PanneauCote } from './Fenetre'
+import { BoutonIlot, ILOTS_APPLICATION, Ilot, IlotCompte, IlotHistorique, IlotPartage, fermerMenuDesIlots } from '../../Ilots'
 import { ONGLETS_FORMAT, ONGLETS_ICONES, OngletCarte, OngletIcones, OngletPresenter, OngletStyle, type OngletIcone } from './onglets'
 import { Outils } from './Outils'
 import { type Hote, executer, styleDeRelation } from './actionsMenu'
@@ -389,6 +390,9 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
 
   const surTouche = (e: React.KeyboardEvent): boolean => {
     if (edition) return e.key === 'Escape'
+    // Échap ferme d'abord le menu ouvert dans un îlot de l'application (partage, compte), et ses touches restent les siennes.
+    if (e.key === 'Escape' && fermerMenuDesIlots(e.currentTarget as HTMLElement)) return true
+    if (e.key !== 'Escape' && (e.target as Element).closest?.(ILOTS_APPLICATION)) return true
     // Échap pendant un cadre ou un glisser d'un sujet : le geste s'arrête (le cadre garde ce qu'il avait pris, le sujet ne bouge pas).
     if (e.key === 'Escape' && (tire || cadre)) {
       abandonnerGeste()
@@ -1221,18 +1225,25 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
                 actions={insertions.actions}
               />
             )}
+            {/* À droite, dans l'ordre du tableau et du document : l'historique, le partage, l'export et le compte, puis les panneaux. */}
             <div className="notak-arbre-droite">
-              <button type="button" className="notak-arbre-pastille" aria-label={t('arbre.exporter')} title={t('arbre.exporter')} onClick={() => {
-                  const e = contexte.magasin.lire().elements.find((x) => x.id === id)
-                  if (e) void exporterCartes([e], contexte)
-                }}>
-                <Icone nom="partager" taille={20} trait={1.5} />
-              </button>
+              {!lectureSeule && <IlotHistorique annuler={() => contexte.magasin.annuler()} retablir={() => contexte.magasin.retablir()} />}
+              <IlotPartage />
+              <IlotCompte>
+                <BoutonIlot
+                  icone="exporter"
+                  libelle={t('arbre.exporter')}
+                  onClick={() => {
+                    const e = contexte.magasin.lire().elements.find((x) => x.id === id)
+                    if (e) void exporterCartes([e], contexte)
+                  }}
+                />
+              </IlotCompte>
               {!lectureSeule && (
-                <div className="notak-arbre-pilule">
-                  <BoutonIcone icone="humeurSourire" libelle={t('arbre.icones')} actif={icones} onClick={() => (setIcones((x) => !x), setPanneau(null))} />
-                  <BoutonIcone icone="arbreCote" libelle={t('arbre.format')} touche="⌘]" actif={!!panneau} onClick={() => (setPanneau((p) => (p ? null : {})), setIcones(false))} />
-                </div>
+                <Ilot>
+                  <BoutonIlot icone="humeurSourire" libelle={t('arbre.icones')} actif={icones} onClick={() => (setIcones((x) => !x), setPanneau(null))} />
+                  <BoutonIlot icone="arbreCote" libelle={t('arbre.format')} raccourci="⌘]" actif={!!panneau} onClick={() => (setPanneau((p) => (p ? null : {})), setIcones(false))} />
+                </Ilot>
               )}
             </div>
             <BarreBas

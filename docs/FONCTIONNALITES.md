@@ -380,7 +380,8 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
 | Fonctionnalité | État | Reste |
 |---|---|---|
-| En-tête : fil d'Ariane, titre, partage, présence | ✅ | |
+| En-tête : fil d'Ariane, titre, partage, présence | ✅ | Une seule rangée d'îlots, la même sur le tableau, la carte et le document (`Ilots.tsx`) : retour et outils, fil et titre à gauche ; historique, partage, export et compte à droite. Le zoom passe en bas à droite. |
+| Barre des outils de gauche en îlot, à montrer ou cacher | ✅ | Décollée du bord ; le bouton du premier îlot la cache, et la machine s'en souvient. |
 | Barre d'outils contextuelle | ✅ | Au-dessus de la sélection, ou dans la barre de gauche comme Milanote (réglage). |
 | Annuler et rétablir dans l'en-tête | ✅ | |
 | État d'enregistrement (« enregistré », « hors ligne ») | ✅ | |

@@ -188,66 +188,36 @@
   background: var(--notak-page-fond, #fff);
 }
 
-/* La barre du haut : fermer à gauche, le titre en petit, puis les options et l'export à droite. */
+/* La barre du haut : les îlots du tableau et de la carte (ilots.css). Le retour et le fil à gauche ; l'historique, le
+   partage, puis les options, l'export et le compte à droite. */
 .notak-document-entete {
   display: flex;
   align-items: center;
   flex: none;
-  gap: 4px;
-  height: 44px;
-  padding: 0 12px;
+  gap: 12px;
+  box-sizing: border-box;
+  height: 68px;
+  padding: 16px;
 }
 
-/* Dans l'application de bureau, la barre tient lieu de barre de titre : les boutons de la fenêtre à gauche (80 px), qu'elle
-   rend en plein écran (voir `toile.css`). */
+.notak-document-entete > .notak-fil {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Dans l'application de bureau, la barre tient lieu de barre de titre : les boutons de la fenêtre à gauche (88 px),
+   qu'elle rend en plein écran (voir `toile.css`). */
 :root[data-bureau] .notak-document-entete {
-  height: 40px;
-  padding-left: 80px;
+  padding-left: 88px;
 }
 
 :root[data-bureau][data-plein-ecran] .notak-document-entete {
-  padding-left: 12px;
-}
-
-.notak-document-fermer {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: 0;
-  border-radius: 6px;
-  background: none;
-  color: var(--notak-page-discret);
-  cursor: pointer;
-}
-
-.notak-document-fermer:hover {
-  background: var(--notak-page-survol);
-  color: var(--notak-page-texte);
-}
-
-.notak-document-entete-titre {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  gap: 6px;
-  min-width: 0;
-  padding: 0 6px;
-  overflow: hidden;
-  font-size: 14px;
-  line-height: 20px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.notak-document-entete-titre > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  padding-left: 16px;
 }
 
 .notak-document-titre-lu[data-vide],
-.notak-document-entete-titre [data-vide] {
+.notak-document-entete [data-vide] {
   color: var(--notak-page-discret);
 }
 
@@ -307,7 +277,18 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  height: 32px;
   padding: 0 16px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.notak-document-export-menu .notak-note-menu-ligne:hover {
+  background: var(--notak-page-survol, rgb(0 0 0 / 0.05));
 }
 
 /* La page qui défile : la grille, 30 % de la fenêtre d'air sous le dernier bloc. */
@@ -496,7 +477,7 @@
   display: flex;
   align-items: center;
   flex: none;
-  gap: 2px;
+  gap: 8px;
 }
 
 .notak-document-entete-droite .notak-document-export {

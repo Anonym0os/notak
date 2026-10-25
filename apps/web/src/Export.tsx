@@ -95,9 +95,9 @@ export function Export({ tableau, titre, local }: { tableau: string; titre(): st
   }
   return (
     <div className="export" ref={ancre}>
-      <button type="button" ref={bouton} className="bouton" aria-expanded={ouvert} onClick={basculer}>
+      <button type="button" ref={bouton} className="bouton" aria-expanded={ouvert} aria-label={t('exporter.titre')} title={t('exporter.titre')} onClick={basculer}>
         <Icone nom="exporter" taille={16} />
-        {capture ? t('exporter.encours') : echec ? t('exporter.impossible') : t('exporter.titre')}
+        <span className="bouton-texte">{capture ? t('exporter.encours') : echec ? t('exporter.impossible') : t('exporter.titre')}</span>
         <Icone nom="chevronBas" taille={16} />
       </button>
       {ouvert && (

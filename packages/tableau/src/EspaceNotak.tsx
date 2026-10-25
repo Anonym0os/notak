@@ -29,6 +29,7 @@ import { t, tn, useLangue } from './langue'
 import { FenetreRaccourcis } from './Menus'
 import { BoutonVue } from './BoutonVue'
 import { Infobulle } from './Infobulle'
+import { BoutonIlot, ContexteEntete, type EnteteEspace, FiletIlot, Ilot, IlotCompte, IlotHistorique, IlotPartage } from './Ilots'
 import { modelesDe } from './modeles/langues'
 import { elementsDuModele, sansExemple } from './modeles/construire'
 import { PanneauModeles, modelesProposes } from './PanneauModeles'
@@ -54,7 +55,24 @@ function largeurSegment(titre: string): number {
   return Math.min(160, 8 + texte) + 24
 }
 const LARGEUR_SUSPENSION = 44
-const MARGE_ENTETE = 32
+
+/** La barre des outils de gauche, montrée ou cachée : un choix de la machine, gardé d'une visite à l'autre. */
+const CLE_OUTILS = 'notak:outils-caches'
+function lireOutilsCaches(): boolean {
+  try {
+    return localStorage.getItem(CLE_OUTILS) === '1'
+  } catch {
+    return false
+  }
+}
+function ecrireOutilsCaches(caches: boolean) {
+  try {
+    if (caches) localStorage.setItem(CLE_OUTILS, '1')
+    else localStorage.removeItem(CLE_OUTILS)
+  } catch {
+    // Sans stockage, le choix vaut pour la visite.
+  }
+}
 
 function lireVuesEnregistrees(): Vues {
   try {
@@ -140,6 +158,8 @@ export function EspaceNotak({
   services: hote = {},
   actions,
   actionsTableau,
+  partage,
+  actionsCompte,
   adresse,
   compte,
   enregistrer,
@@ -150,12 +170,16 @@ export function EspaceNotak({
   /** La section « Compte » des réglages (photo, couleur) ; sans elle, les réglages restent ceux de l'interface. */
   compte?: ServiceCompte
   /**
-   * Ce que l'application ajoute à droite de l'en-tête (partage, compte), pour le tableau ouvert. `aide` ouvre la
-   * fenêtre des raccourcis, la même que « / ».
+   * Les boutons que l'application ajoute au dernier îlot du tableau (favori, plus, verrou…), pour le tableau ouvert.
+   * `aide` ouvre la fenêtre des raccourcis, la même que « / ».
    */
   actions?(courant: Id, ouvrir: (id: Id) => void, aide: () => void): ReactNode
-  /** Ce que l'application ajoute à droite de la seconde rangée, à côté du bouton de vue (partager, exporter). */
+  /** L'export du tableau, en tête du dernier îlot. */
   actionsTableau?(courant: Id, ouvrir: (id: Id) => void): ReactNode
+  /** Le bouton « Partager », après les présents : il suit aussi dans la carte et le document ouverts en grand. */
+  partage?(courant: Id): ReactNode
+  /** Les notifications et le compte, avant les réglages : ils suivent aussi dans la carte et le document. */
+  actionsCompte?(courant: Id, ouvrir: (id: Id) => void, aide: () => void): ReactNode
   /**
    * Ce que fait Cmd+S. Sans lui, tout s'enregistre déjà seul et la toile le dit ; l'édition locale, elle, y range une
    * copie dans un fichier `.notak`.
@@ -178,6 +202,8 @@ export function EspaceNotak({
   const ouvrirAide = useCallback(() => setAideOuverte(true), [])
   const vues = useRef<Vues | null>(null)
   vues.current ??= lireVuesEnregistrees()
+  const [outilsCaches, setOutilsCaches] = useState(lireOutilsCaches)
+  const basculerOutils = useCallback(() => setOutilsCaches((c) => (ecrireOutilsCaches(!c), !c)), [])
 
   const ouvrir = useCallback(
     (id: Id) => {
@@ -528,18 +554,40 @@ export function EspaceNotak({
     [courant],
   )
 
+  const presence = espace.presence?.(courant)
+  const entete: EnteteEspace = {
+    fil: segments,
+    ouvrir,
+    // Sans partage ni présence (l'édition locale), pas d'îlot vide.
+    partage: (partage || presence) && (
+      <>
+        <Pastilles presence={presence} adressePhoto={hote.adressePhoto} />
+        {partage?.(courant)}
+      </>
+    ),
+    compte: (
+      <>
+        {actionsCompte?.(courant, ouvrir, ouvrirAide)}
+        <Infobulle libelle={t('reglages.titre')} raccourci="⌘,">
+          <button type="button" className="notak-reglages-bouton" aria-label={t('reglages.titre')} onClick={() => setReglagesOuverts(true)}>
+            <Icone nom="reglages" taille={20} trait={1.5} />
+          </button>
+        </Infobulle>
+      </>
+    ),
+  }
+
   return (
-    <div ref={racineEspace} className="notak-espace" data-theme={reglages.theme} data-taille={reglages.taille} data-presentation={presentation || undefined}>
+    <ContexteEntete.Provider value={entete}>
+    <div ref={racineEspace} className="notak-espace" data-theme={reglages.theme} data-taille={reglages.taille} data-presentation={presentation || undefined} data-outils={outilsCaches ? 'caches' : undefined}>
       <Entete
-        ouvrirReglages={() => setReglagesOuverts(true)}
+        outils={{ caches: outilsCaches, basculer: basculerOutils }}
         key={`entete:${langue}`}
         segments={segments}
         charge={charge}
         courant={courant}
         ouvrir={ouvrir}
         renommer={courant === racine || lectureSeule ? undefined : (titre) => espace.renommer(courant, titre)}
-        presence={espace.presence?.(courant)}
-        adressePhoto={hote.adressePhoto}
         actions={actions?.(courant, ouvrir, ouvrirAide)}
         actionsTableau={actionsTableau?.(courant, ouvrir)}
         historique={lectureSeule ? undefined : historique}
@@ -566,6 +614,14 @@ export function EspaceNotak({
             />
           )}
         </GardeToile>
+        {/* Le zoom, en bas à droite comme sur la carte mentale ; l'accueil n'en a pas, comme avant. */}
+        {segments.length > 1 && (
+          <div className="notak-vue-bas">
+            <Ilot>
+              <BoutonVue />
+            </Ilot>
+          </div>
+        )}
         {modelesAffiches && (
           <PanneauModeles
             modeles={proposes}
@@ -589,6 +645,7 @@ export function EspaceNotak({
       {aideOuverte && <FenetreRaccourcis fermer={fermerAide} />}
       {reglagesOuverts && <FenetreReglages reglages={reglages} changer={changerReglages} fermer={() => setReglagesOuverts(false)} {...(compte ? { compte } : {})} />}
     </div>
+    </ContexteEntete.Provider>
   )
 }
 
@@ -597,8 +654,6 @@ function Entete({
   courant,
   ouvrir,
   renommer,
-  presence,
-  adressePhoto,
   actions,
   actionsTableau,
   historique,
@@ -606,17 +661,16 @@ function Entete({
   peutRetablir = true,
   envoi,
   charge = true,
-  ouvrirReglages,
+  outils,
 }: {
   segments: Segment[]
   courant: Id
   ouvrir(id: Id): void
-  /** Le titre du tableau ouvert se change en place, dans la seconde rangée (pas celui de l'accueil). */
+  /** Le titre du tableau ouvert se change en place, au bout du fil (pas celui de l'accueil). */
   renommer?(titre: string): void
-  presence?: Services['presence']
-  adressePhoto?: Services['adressePhoto']
+  /** Les boutons de l'application propres au tableau (favori, plus…), dans le dernier îlot avant le compte. */
   actions?: ReactNode
-  /** À droite de la seconde rangée, avant le bouton de vue. */
+  /** L'export du tableau, en tête du dernier îlot. */
   actionsTableau?: ReactNode
   /** Annuler et rétablir le tableau ouvert ; absent en lecture seule. */
   historique?: { annuler(): void; retablir(): void }
@@ -626,21 +680,17 @@ function Entete({
   envoi?: EtatEnvoi
   /** Faux tant que le tableau ouvert n'a pas rattrapé le serveur. */
   charge?: boolean
-  /** La roue de la première rangée ouvre les réglages. */
-  ouvrirReglages(): void
+  /** La barre des outils de gauche, qu'un bouton du premier îlot montre ou cache. */
+  outils?: { caches: boolean; basculer(): void }
 }) {
-  const entete = useRef<HTMLElement>(null)
+  const fil = useRef<HTMLElement>(null)
   const [largeur, setLargeur] = useState(Number.POSITIVE_INFINITY)
   const [menu, setMenu] = useState(false)
 
   useLayoutEffect(() => {
-    const n = entete.current!
-    // Les marges de la première rangée : 16 px de chaque côté, plus la place des boutons de la fenêtre dans l'application de bureau.
-    const mesurer = () => {
-      const s = getComputedStyle(n.firstElementChild!)
-      const marges = parseFloat(s.paddingLeft) + parseFloat(s.paddingRight)
-      setLargeur(n.clientWidth - (Number.isNaN(marges) ? MARGE_ENTETE : marges))
-    }
+    const n = fil.current!
+    // Le fil prend la place que lui laissent les îlots : c'est sa largeur qui dit combien de maillons tiennent.
+    const mesurer = () => setLargeur(n.clientWidth || Number.POSITIVE_INFINITY)
     mesurer()
     const obs = new ResizeObserver(mesurer)
     obs.observe(n)
@@ -656,6 +706,8 @@ function Entete({
     return () => document.removeEventListener('pointerdown', hors)
   }, [menu])
 
+  // Le titre du tableau ouvert se change en place, au bout du fil ; l'accueil n'a que son nom.
+  const avecTitre = segments.length > 1
   const { visibles, caches } = tronquerFil(segments.map((s) => largeurSegment(s.titre)), largeur, LARGEUR_SUSPENSION)
 
   const aller = (id: Id) => {
@@ -665,6 +717,12 @@ function Entete({
   const segment = (i: number) => {
     const s = segments[i]!
     const ici = i === segments.length - 1 && s.id === courant
+    if (ici && avecTitre)
+      return (
+        <span key={`${s.id}:${i}`} className="notak-fil-titre" aria-current="page" data-depot-tableau={s.id} data-charge={!charge || undefined} title={!charge ? t('espace.chargement') : undefined}>
+          <TitreTableau titre={s.titre} {...(renommer ? { renommer } : {})} />
+        </span>
+      )
     return (
       <button
         key={`${s.id}:${i}`}
@@ -674,20 +732,33 @@ function Entete({
         title={ici && !charge ? t('espace.chargement') : s.titre}
         data-depot-tableau={s.id}
         data-charge={(ici && !charge) || undefined}
-        // Le maillon du tableau ouvert mène à son titre, qui se change dans la seconde rangée.
-        onClick={() => (ici ? document.querySelector<HTMLInputElement>('.notak-titre-champ')?.focus() : aller(s.id))}
+        onClick={() => (ici ? undefined : aller(s.id))}
       >
         {s.titre || t('commun.sansTitre')}
       </button>
     )
   }
-  const titre = segments.at(-1)?.titre ?? ''
+  const parent = segments.length > 1 ? segments.at(-2) : undefined
 
   return (
-    <header className="notak-entete" ref={entete}>
-      {/* Dans l'application de bureau, la première rangée tient lieu de barre de titre : on la saisit partout hors des boutons pour déplacer la fenêtre. */}
-      <div className="notak-entete-haut" data-tauri-drag-region="deep">
-        <nav className="notak-fil" aria-label={t('espace.fil')}>
+    // Dans l'application de bureau, la barre tient lieu de barre de titre : on la saisit partout hors des îlots pour déplacer la fenêtre.
+    <header className="notak-entete" data-tauri-drag-region="deep">
+      <div className="notak-entete-gauche">
+        {(parent || outils) && (
+          <Ilot>
+            {parent && <BoutonIlot icone="gauche" libelle={t('espace.remonter')} onClick={() => aller(parent.id)} />}
+            {parent && outils && <FiletIlot />}
+            {outils && (
+              <BoutonIlot
+                icone="panneauGauche"
+                libelle={outils.caches ? t('espace.outilsAfficher') : t('espace.outilsMasquer')}
+                actif={!outils.caches}
+                onClick={outils.basculer}
+              />
+            )}
+          </Ilot>
+        )}
+        <nav className="notak-fil" aria-label={t('espace.fil')} ref={fil}>
           {visibles.flatMap((i, rang) => [
             rang > 0 && <span key={`s${i}`} className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,
             rang === 1 && caches.length > 0 && (
@@ -715,47 +786,17 @@ function Entete({
             rang === 1 && caches.length > 0 && <span key="s-susp" className="notak-fil-sep" aria-hidden><Icone nom="chevronDroite" taille={14} /></span>,
             segment(i),
           ])}
+          {avecTitre && <EtatEnregistrement etat={envoi} />}
         </nav>
-        <div className="notak-entete-droite">
-          {historique && (
-            <>
-              <div className="notak-historique">
-                <Infobulle libelle={t('espace.annuler')} raccourci="⌘Z">
-                  <button type="button" aria-label={t('espace.annuler')} disabled={!peutAnnuler} onClick={historique.annuler}>
-                    <Icone nom="annuler" taille={22} trait={1.5} />
-                  </button>
-                </Infobulle>
-                <Infobulle libelle={t('espace.retablir')} raccourci="⇧⌘Z">
-                  <button type="button" aria-label={t('espace.retablir')} disabled={!peutRetablir} onClick={historique.retablir}>
-                    <Icone nom="retablir" taille={22} trait={1.5} />
-                  </button>
-                </Infobulle>
-              </div>
-              <span className="notak-entete-filet" aria-hidden />
-            </>
-          )}
-          <Pastilles presence={presence} adressePhoto={adressePhoto} />
-          {actions && <div className="notak-entete-actions">{actions}</div>}
-          <Infobulle libelle={t('reglages.titre')} raccourci="⌘,">
-            <button type="button" className="notak-reglages-bouton" aria-label={t('reglages.titre')} onClick={ouvrirReglages}>
-              <Icone nom="reglages" taille={22} trait={1.5} />
-            </button>
-          </Infobulle>
-        </div>
       </div>
-      {/* Comme Milanote : l'accueil n'a que la première rangée ; titre, partage, export et vue ne viennent qu'avec un tableau. */}
-      {segments.length > 1 && (
-      <div className="notak-entete-bas">
-        <div className="notak-entete-gauche">
-          <EtatEnregistrement etat={envoi} />
-        </div>
-        <TitreTableau titre={titre} {...(renommer ? { renommer } : {})} />
-        <div className="notak-entete-droite notak-entete-actions">
+      <div className="notak-entete-droite">
+        {historique && <IlotHistorique annuler={historique.annuler} retablir={historique.retablir} peutAnnuler={peutAnnuler} peutRetablir={peutRetablir} />}
+        <IlotPartage />
+        <IlotCompte>
           {actionsTableau}
-          <BoutonVue />
-        </div>
+          {actions}
+        </IlotCompte>
       </div>
-      )}
     </header>
   )
 }
