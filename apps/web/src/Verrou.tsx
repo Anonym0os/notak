@@ -47,7 +47,7 @@ export function VerrouTableau({ tableau, accueil, ouvrir }: { tableau: string; a
           <Icone nom="verrou" taille={22} />
           {t('verrou.titre')}
         </h1>
-        <p className="partage-note">{par === tableau ? t('verrou.ceTableau') : t('verrou.auDessus')}</p>
+        <p className="connexion-aide">{par === tableau ? t('verrou.ceTableau') : t('verrou.auDessus')}</p>
         <label>
           {t('connexion.mdp')}
           <input type="password" value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} autoComplete="off" autoFocus />

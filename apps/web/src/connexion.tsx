@@ -1,5 +1,6 @@
 import { lireReglages, themeEffectif, useHabillages, useSystemeSombre } from '@notak/tableau'
 import { t } from './langue'
+import { Marque } from './PageApp'
 import { type FormEvent, useEffect, useState } from 'react'
 import {
   type Fournisseur,
@@ -111,78 +112,83 @@ export function EcranConnexion({ instance, surConnexion }: { instance: Instance;
   }[mode]
 
   return (
-    <main className="connexion">
-      <form className="connexion-carte" onSubmit={valider} noValidate>
-        <h1>{instance.nom}</h1>
-        {mode === 'oubli' && <p className="connexion-aide">{t(courriel ? 'connexion.oubliAide' : 'connexion.oubliSansCourriel')}</p>}
-        {mode === 'sso' && <p className="connexion-aide">{t('connexion.ssoAide')}</p>}
-        {mode === 'inscription' && (
-          <label>
-            {t('connexion.nom')}
-            <input value={nom} onChange={(e) => setNom(e.target.value)} autoComplete="name" autoFocus />
-          </label>
-        )}
-        {mode !== 'nouveau' && (
-          <label>
-            {t('connexion.adresse')}
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" autoFocus={mode !== 'inscription'} />
-          </label>
-        )}
-        {mode !== 'oubli' && mode !== 'sso' && (
-          <label>
-            {mode === 'nouveau' ? t('connexion.nouveauMdp') : t('connexion.mdp')}
-            <input
-              type="password"
-              value={motDePasse}
-              onChange={(e) => setMotDePasse(e.target.value)}
-              autoComplete={mode === 'connexion' ? 'current-password' : 'new-password'}
-              autoFocus={mode === 'nouveau'}
-            />
-          </label>
-        )}
-        {erreur && (
-          <p className="connexion-erreur" role="alert">
-            {erreur}
-          </p>
-        )}
-        {avis && (
-          <p className="connexion-avis" role="status">
-            {avis}
-          </p>
-        )}
-        <button type="submit" className="bouton bouton-plein" disabled={envoi}>
-          {titreBouton}
-        </button>
-        {mode === 'connexion' && (
-          <div className="connexion-fournisseurs">
-            <span className="connexion-ou">{t('connexion.ou')}</span>
-            {fournisseurs.map((f) => (
-              <button key={f} type="button" className="bouton" onClick={() => void avecFournisseur(f)}>
-                {t('connexion.avec', { fournisseur: NOMS_FOURNISSEURS[f] })}
+    <div className="notak-espace" data-theme={theme}>
+      <main className="connexion">
+        <form className="connexion-carte" onSubmit={valider} noValidate>
+          <Marque />
+          <h1>{instance.nom}</h1>
+          {mode === 'oubli' && <p className="connexion-aide">{t(courriel ? 'connexion.oubliAide' : 'connexion.oubliSansCourriel')}</p>}
+          {mode === 'sso' && <p className="connexion-aide">{t('connexion.ssoAide')}</p>}
+          {mode === 'inscription' && (
+            <label>
+              {t('connexion.nom')}
+              <input value={nom} onChange={(e) => setNom(e.target.value)} autoComplete="name" autoFocus />
+            </label>
+          )}
+          {mode !== 'nouveau' && (
+            <label>
+              {t('connexion.adresse')}
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" autoFocus={mode !== 'inscription'} />
+            </label>
+          )}
+          {mode !== 'oubli' && mode !== 'sso' && (
+            <label>
+              {mode === 'nouveau' ? t('connexion.nouveauMdp') : t('connexion.mdp')}
+              <input
+                type="password"
+                value={motDePasse}
+                onChange={(e) => setMotDePasse(e.target.value)}
+                autoComplete={mode === 'connexion' ? 'current-password' : 'new-password'}
+                autoFocus={mode === 'nouveau'}
+              />
+            </label>
+          )}
+          {erreur && (
+            <p className="connexion-erreur" role="alert">
+              {erreur}
+            </p>
+          )}
+          {avis && (
+            <p className="connexion-avis" role="status">
+              {avis}
+            </p>
+          )}
+          <button type="submit" className="bouton bouton-plein" disabled={envoi}>
+            {titreBouton}
+          </button>
+          {mode === 'connexion' && (
+            <div className="connexion-fournisseurs">
+              <span className="connexion-ou">{t('connexion.ou')}</span>
+              {fournisseurs.map((f) => (
+                <button key={f} type="button" className="bouton" onClick={() => void avecFournisseur(f)}>
+                  {t('connexion.avec', { fournisseur: NOMS_FOURNISSEURS[f] })}
+                </button>
+              ))}
+              <button type="button" className="bouton" onClick={() => passerA('sso')}>
+                {t('connexion.sso')}
               </button>
-            ))}
-            <button type="button" className="bouton" onClick={() => passerA('sso')}>
-              {t('connexion.sso')}
-            </button>
+            </div>
+          )}
+          <div className="connexion-liens">
+            {mode === 'connexion' && (
+              <button type="button" className="bouton-lien" onClick={() => passerA('oubli')}>
+                {t('connexion.oubli')}
+              </button>
+            )}
+            {mode !== 'connexion' ? (
+              <button type="button" className="bouton-lien" onClick={() => passerA('connexion')}>
+                {t('connexion.dejaCompte')}
+              </button>
+            ) : ouvertes ? (
+              <button type="button" className="bouton-lien" onClick={() => passerA('inscription')}>
+                {t('connexion.creer')}
+              </button>
+            ) : (
+              <p className="connexion-note">{t('connexion.fermees')}</p>
+            )}
           </div>
-        )}
-        {mode === 'connexion' && (
-          <button type="button" className="bouton-lien" onClick={() => passerA('oubli')}>
-            {t('connexion.oubli')}
-          </button>
-        )}
-        {mode !== 'connexion' ? (
-          <button type="button" className="bouton-lien" onClick={() => passerA('connexion')}>
-            {t('connexion.dejaCompte')}
-          </button>
-        ) : ouvertes ? (
-          <button type="button" className="bouton-lien" onClick={() => passerA('inscription')}>
-            {t('connexion.creer')}
-          </button>
-        ) : (
-          <p className="connexion-note">{t('connexion.fermees')}</p>
-        )}
-      </form>
-    </main>
+        </form>
+      </main>
+    </div>
   )
 }

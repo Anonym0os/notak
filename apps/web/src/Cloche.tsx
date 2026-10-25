@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { type GenreNotification, type ListeNotifications, type Notification, listerNotifications, marquerLues } from './api'
 import { quand } from './Activite'
 import { t, tn } from './langue'
-import { Icone, Infobulle } from '@notak/tableau'
+import { Icone, Infobulle, PastillePersonne } from '@notak/tableau'
 import { usePanneau } from './panneaux'
 
 const RAFRAICHIR_MS = 30_000
@@ -68,20 +68,24 @@ export function Cloche({ ouvrir }: { ouvrir(tableau: string): void }) {
         </button>
       </Infobulle>
       {ouvert && (
-        <div className="cloche-panneau" ref={panneau} role="dialog" aria-label={t('cloche.titre')}>
-          <div className="cloche-tete">
-            <strong>{t('cloche.titre')}</strong>
+        <div className="app-panneau cloche-panneau" ref={panneau} role="dialog" aria-label={t('cloche.titre')}>
+          <div className="app-panneau-tete">
+            <span>{t('cloche.titre')}</span>
             <button type="button" className="bouton-lien" disabled={nonLues === 0} onClick={() => lire()}>
               {t('cloche.toutLu')}
             </button>
           </div>
-          {erreur && !liste && <p className="partage-note">{t('cloche.indisponibles')}</p>}
-          {liste && liste.notifications.length === 0 && <p className="partage-note">{t('cloche.rien')}</p>}
+          {((erreur && !liste) || liste?.notifications.length === 0) && (
+            <p className="app-panneau-vide">
+              <Icone nom="cloche" taille={22} trait={1.5} />
+              {erreur && !liste ? t('cloche.indisponibles') : t('cloche.rien')}
+            </p>
+          )}
           <ul className="cloche-liste">
             {liste?.notifications.map((n) => (
               <li key={n.id} data-lu={n.lu || undefined}>
                 <button type="button" onClick={() => aller(n)}>
-                  <span className="activite-pastille" style={{ background: n.auteur.couleur }} aria-hidden />
+                  <PastillePersonne className="app-pastille" nom={n.auteur.nom} couleur={n.auteur.couleur} titre="" />
                   <span className="cloche-texte">
                     <span>{TEXTES[n.genre](n)}</span>
                     {n.extrait && n.genre !== 'partage' && <small className="activite-elements">{n.extrait}</small>}

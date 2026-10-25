@@ -38,6 +38,24 @@ const LIBELLE_ROLE: Record<Role, () => string> = {
   lecture: () => t('partage.lecture'),
 }
 
+/** La pastille d'une ligne d'accès : l'initiale de la personne, ou l'icône d'une équipe. */
+function PastilleAcces({ nom, equipe }: { nom: string; equipe?: boolean }) {
+  return (
+    <span className="app-pastille app-pastille-neutre" aria-hidden>
+      {equipe ? <Icone nom="equipe" taille={15} /> : ([...nom.trim()][0]?.toLocaleUpperCase() ?? '?')}
+    </span>
+  )
+}
+
+/** Retirer une ligne : une croix pâle, dont le nom se lit à l'infobulle et au lecteur d'écran. */
+function Retirer({ libelle, disabled, onClick }: { libelle: string; disabled: boolean; onClick(): void }) {
+  return (
+    <button type="button" className="app-icone-bouton" aria-label={libelle} title={libelle} disabled={disabled} onClick={onClick}>
+      <Icone nom="fermer" taille={16} />
+    </button>
+  )
+}
+
 /** Les équipes des espaces d'équipe dont on est membre : on peut leur partager un tableau. */
 async function equipesPossibles(): Promise<(EquipeEspace & { espace: string })[]> {
   const espaces = (await listerEspaces()).filter((e) => !e.personnel)
@@ -104,10 +122,12 @@ function Panneau({ tableau, moi, reference }: { tableau: string; moi: Moi; refer
   }
 
   return (
-    <div className="partage-panneau" ref={reference} role="dialog" aria-label={t('partage.titre')}>
+    <div className="app-panneau partage-panneau" ref={reference} role="dialog" aria-label={t('partage.titre')}>
+      <div className="app-panneau-tete">{t('partage.titre')}</div>
       <ul className="partage-liste">
         {acces?.map((a) => (
           <li key={a.equipe ?? a.email}>
+            <PastilleAcces nom={a.nom || a.email} equipe={!!a.equipe} />
             <span className="partage-qui">
               <strong>{a.nom || a.email}</strong>
               {a.equipe ? <small>{t('partage.equipe')}</small> : a.nom && <small>{a.email}</small>}
@@ -118,14 +138,11 @@ function Panneau({ tableau, moi, reference }: { tableau: string; moi: Moi; refer
               {a.herite && <em> · {t('partage.parent')}</em>}
             </span>
             {proprietaire && a.role !== 'proprietaire' && !a.herite && (
-              <button
-                type="button"
-                className="bouton-lien"
+              <Retirer
+                libelle={`${t('partage.retirer')} ${a.nom || a.email}`}
                 disabled={occupe}
                 onClick={() => agir(() => retirerAcces(tableau, a.equipe ? { equipe: a.equipe } : { email: a.email }))}
-              >
-                {t('partage.retirer')}
-              </button>
+              />
             )}
           </li>
         ))}
@@ -450,18 +467,16 @@ function Blocages({ tableau }: { tableau: string }) {
             .filter((b) => !('tous' in b))
             .map((b) => (
               <li key={'email' in b ? b.email : 'equipe' in b ? b.equipe : 'tous'}>
+                <PastilleAcces nom={nomDuBlocage(b)} equipe={'equipe' in b} />
                 <span className="partage-qui">
                   <strong>{nomDuBlocage(b)}</strong>
                 </span>
                 <span className="partage-role">{t(b.etat === 'bloque' ? 'partage.bloque' : 'partage.debloque')}</span>
-                <button
-                  type="button"
-                  className="bouton-lien"
+                <Retirer
+                  libelle={`${t('partage.retirer')} ${nomDuBlocage(b)}`}
                   disabled={occupe}
                   onClick={() => agir(() => bloquer(tableau, 'email' in b ? { email: b.email } : { equipe: (b as { equipe: string }).equipe }, null))}
-                >
-                  {t('partage.retirer')}
-                </button>
+                />
               </li>
             ))}
         </ul>

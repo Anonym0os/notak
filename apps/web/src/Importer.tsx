@@ -5,6 +5,7 @@ import { CIBLE_FICHIER, CIBLE_TABLEAU, ErreurImport, type PlanImport, lireExport
 import { Icone } from '@notak/tableau'
 import { poserLeRenvoi, poserNotak } from './notak'
 import { usePanneau } from './panneaux'
+import { LigneMenu } from './LigneMenu'
 
 /** Les dimensions d'une image, lues dans ses pixels ; un format que le navigateur ne lit pas garde un 4:3. */
 async function dimensions(blob: Blob): Promise<{ largeur: number; hauteur: number }> {
@@ -162,15 +163,10 @@ export function Importer({
         {etat.type === 'cours' ? t('importer.encours') : t('importer.titre')}
       </button>
       {ouvert && (
-        <div className="compte-menu" ref={panneau} role="menu">
-          <button type="button" role="menuitem" onClick={() => choisir('.notak')}>
-            {t('importer.notak')}
-          </button>
-          <button type="button" role="menuitem" onClick={() => choisir('.zip,application/zip')}>
-            {t('importer.milanote')}
-          </button>
-          <small>{t('importer.aide')}</small>
-          <small>{t('importer.aideXmind')}</small>
+        <div className="app-panneau app-menu" ref={panneau} role="menu" aria-label={t('importer.titre')}>
+          <LigneMenu icone="tableau" libelle={t('importer.notak')} onClick={() => choisir('.notak')} />
+          <LigneMenu icone="fichierArchive" libelle={t('importer.milanote')} detail={t('importer.aide')} onClick={() => choisir('.zip,application/zip')} />
+          <p className="app-menu-note">{t('importer.aideXmind')}</p>
         </div>
       )}
       <input
@@ -185,7 +181,7 @@ export function Importer({
         }}
       />
       {(etat.type === 'fini' || etat.type === 'echec') && (
-        <div className="partage-panneau importer-etat" role="status">
+        <div className="app-panneau importer-etat" role="status">
           <p className="partage-note">{etat.texte}</p>
           <button type="button" className="bouton-lien" onClick={() => setEtat({ type: 'repos' })}>
             {t('commun.fermer')}

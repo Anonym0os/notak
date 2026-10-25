@@ -54,7 +54,19 @@ export const MARGE_FENETRE = 8
 export function borner(el: HTMLElement | null) {
   if (!el) return
   el.style.translate = ''
+  el.style.top = ''
+  el.style.maxHeight = ''
   const position = getComputedStyle(el).position
+  // Sur un téléphone, le panneau est posé par rapport à la fenêtre (app.css) : sous l'îlot qui le porte.
+  if (position === 'fixed') {
+    const porteur = el.parentElement?.closest('.notak-ilot') ?? el.parentElement
+    const bas = porteur?.getBoundingClientRect().bottom
+    if (bas !== undefined && bas > 0) {
+      el.style.top = `${Math.round(bas + MARGE_FENETRE)}px`
+      el.style.maxHeight = `${Math.round(window.innerHeight - bas - 3 * MARGE_FENETRE)}px`
+    }
+    return
+  }
   if (position !== 'absolute') return
   const { left, right } = el.getBoundingClientRect()
   const largeur = document.documentElement.clientWidth || window.innerWidth

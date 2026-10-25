@@ -10,11 +10,33 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-:root {
-  --texte: #323b4a;
-  --accent: #2f6feb;
-  --fond: #ebedee;
-  --carte: #fff;
+/*
+ * Le socle des écrans hors de la toile et des panneaux de l'en-tête : tout se tire des jetons de Notak (--notak-*),
+ * le texte pâle, le survol, le filet et le fond des champs compris. Le thème sombre repeint les jetons, et le reste suit.
+ */
+:root,
+.notak-espace {
+  --texte: var(--notak-texte, #323b4a);
+  --accent: var(--notak-accent, #2f6feb);
+  --fond: var(--notak-fond, #ebedee);
+  --carte: var(--notak-carte, #fff);
+  --app-pale: color-mix(in srgb, var(--texte) 62%, transparent);
+  --app-survol: color-mix(in srgb, var(--texte) 6%, transparent);
+  --app-choisi: color-mix(in srgb, var(--texte) 10%, transparent);
+  --app-filet: color-mix(in srgb, var(--texte) 11%, transparent);
+  --app-champ: color-mix(in srgb, var(--texte) 3%, var(--carte));
+  --app-plein: var(--notak-selection, #323b4a);
+  --app-encre: var(--carte);
+  --app-danger: #c0362c;
+  --app-ombre-ilot: 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.08), 0 6px 16px -6px rgb(27 37 54 / 0.16);
+  --app-ombre-menu: 0 0 0 1px rgb(27 37 54 / 0.08), 0 14px 34px -10px rgb(27 37 54 / 0.3);
+}
+
+/* En sombre, comme les îlots : pas d'ombre portée sous une carte, un anneau d'un pixel. */
+[data-theme='sombre'] {
+  --app-danger: #ff8a80;
+  --app-ombre-ilot: 0 0 0 1px rgb(255 255 255 / 0.1);
+  --app-ombre-menu: 0 0 0 1px rgb(255 255 255 / 0.1), 0 16px 40px -10px rgb(0 0 0 / 0.6);
 }
 
 .ecran-attente {
@@ -22,133 +44,68 @@ body {
   background: var(--fond);
 }
 
-.connexion {
-  display: grid;
-  place-items: center;
-  height: 100%;
-  background: var(--fond);
-  color: var(--texte);
-}
+/* — Les boutons : des pilules sans cadre, comme ceux des îlots ; le principal est plein et sombre, comme « Partager ». — */
 
-.connexion-carte {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  box-sizing: border-box;
-  width: min(340px, calc(100vw - 32px));
-  padding: 28px;
-  border-radius: var(--notak-rayon-panneau, 12px);
-  background: var(--carte);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.1), 0 8px 24px rgb(0 0 0 / 0.06);
-}
-
-.connexion-carte h1 {
-  margin: 0 0 4px;
-  font-size: 22px;
-}
-
-.connexion-carte label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  color: #5b616a;
-  font-size: 13px;
-}
-
-.connexion-carte input,
-.partage-form input,
-.partage-form select {
-  height: 34px;
-  box-sizing: border-box;
-  padding: 0 10px;
-  border: 1px solid rgb(0 0 0 / 0.15);
-  border-radius: var(--notak-rayon-controle, 6px);
-  background: #fff;
-  color: var(--texte);
-  font: inherit;
-  font-size: 14px;
-}
-
-.connexion-carte input:focus,
-.partage-form input:focus {
-  border-color: var(--accent);
-  outline: 2px solid rgb(47 111 235 / 0.25);
-}
-
-.connexion-erreur {
-  margin: 0;
-  color: #c0362c;
-  font-size: 13px;
-}
-
-.connexion-avis,
-.connexion-aide {
-  margin: 0;
-  color: #5b616a;
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.connexion-fournisseurs {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.connexion-fournisseurs .bouton {
-  height: 36px;
-}
-
-.connexion-ou {
-  color: #5b616a;
-  font-size: 12px;
-}
-
-/* À la place du lien « Créer un compte », quand le serveur n'en accepte pas. */
-.connexion-note {
-  margin: 0;
-  color: color-mix(in srgb, var(--texte) 60%, transparent);
-  font-size: 13px;
-  text-align: center;
-}
-
-.bouton {
+/* Un panneau ouvert depuis un îlot garde des boutons de panneau : l'îlot ne repeint que les siens. */
+.bouton,
+.notak-ilot .app-panneau .bouton {
   display: inline-flex;
+  flex: none;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 30px;
-  padding: 0 12px;
-  border: 1px solid rgb(0 0 0 / 0.15);
-  border-radius: var(--notak-rayon-controle, 6px);
-  background: #fff;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--app-survol);
   color: var(--texte);
   font: inherit;
   font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
   cursor: pointer;
 }
 
-.bouton:hover {
-  background: var(--fond);
+.bouton:hover:not(:disabled),
+.notak-ilot .app-panneau .bouton:hover:not(:disabled) {
+  background: var(--app-choisi);
 }
 
-.bouton:disabled {
-  opacity: 0.6;
+.bouton-plein,
+.notak-ilot .app-panneau .bouton-plein {
+  background: var(--app-plein);
+  color: var(--app-encre);
+}
+
+.bouton-plein:hover:not(:disabled),
+.notak-ilot .app-panneau .bouton-plein:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--app-plein) 88%, var(--carte));
+}
+
+.app-page .bouton[aria-pressed='true'] {
+  background: var(--app-plein);
+  color: var(--app-encre);
+}
+
+.bouton:disabled,
+.notak-ilot .app-panneau .bouton:disabled {
+  opacity: 0.45;
   cursor: default;
 }
 
-.bouton-plein {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: #fff;
+.bouton-danger,
+.notak-ilot .app-panneau .bouton-danger {
+  color: var(--app-danger);
 }
 
-.bouton-plein:hover {
-  background: #2560d0;
-}
-
-.connexion-carte .bouton-plein {
-  height: 36px;
+:is(.bouton, .bouton-lien, .app-menu-ligne, .app-icone-bouton):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .bouton-lien {
@@ -158,14 +115,274 @@ body {
   color: var(--accent);
   font: inherit;
   font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
   cursor: pointer;
 }
 
+.bouton-lien:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.bouton-lien:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Le petit bouton rond d'une ligne (retirer quelqu'un, fermer) : pâle, il fonce au survol. */
+.app-icone-bouton {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--app-pale);
+  cursor: pointer;
+}
+
+.app-icone-bouton:hover:not(:disabled) {
+  background: var(--app-survol);
+  color: var(--texte);
+}
+
+.app-icone-bouton:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* — Les champs : un fond à peine teinté, un filet d'un pixel, l'anneau de l'accent au focus. — */
+.champ,
+.connexion-carte input,
+.partage-form :is(input, select),
+.partage-lien-ligne input,
+.partage-niveau select {
+  box-sizing: border-box;
+  min-width: 0;
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  outline: none;
+  background-color: var(--app-champ);
+  box-shadow: inset 0 0 0 1px var(--app-filet);
+  color: var(--texte);
+  font: inherit;
+  font-size: 14px;
+  transition: box-shadow 0.12s ease;
+}
+
+:is(.champ, .connexion-carte input, .partage-form :is(input, select), .partage-lien-ligne input, .partage-niveau select):focus {
+  box-shadow: inset 0 0 0 1.5px var(--accent), 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+/* Un menu déroulant natif, sans sa flèche de système : un chevron pâle, le même en clair et en sombre. */
+select:is(.champ, .partage-form select, .partage-niveau select) {
+  appearance: none;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a919c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6l6 -6'/%3E%3C/svg%3E");
+  background-position: right 9px center;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+.connexion-erreur {
+  margin: 0;
+  color: var(--app-danger);
+  font-size: 13px;
+}
+
+.sr-seulement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* — Les panneaux de l'en-tête (compte, notifications, partage, « … », activité, import) : une carte de 16 px d'arrondi,
+   l'ombre des menus de la bibliothèque, posée 8 px sous son îlot. — */
 .partage,
 .compte,
 .importer,
-.export {
+.export,
+.activite,
+.cloche,
+.plus-entete,
+.rangement {
   position: relative;
+}
+
+.app-panneau {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 9px);
+  right: 0;
+  box-sizing: border-box;
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  padding: 6px;
+  border-radius: 16px;
+  background: var(--carte);
+  box-shadow: var(--app-ombre-menu);
+  color: var(--texte);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+  scrollbar-width: thin;
+}
+
+.app-panneau[hidden] {
+  display: none;
+}
+
+/* Panneau ouvert, la barre du haut passe devant la barre d'outils (z-index 30), qu'un panneau large recouvre sur un
+   téléphone. */
+.notak-entete:has(.app-panneau:not([hidden])) {
+  z-index: 41;
+}
+
+/* La tête d'un panneau : son titre, et son action à droite. */
+.app-panneau-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
+  padding: 2px 6px 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Un menu : des rangées de 36 px, l'icône pâle dans sa colonne, le libellé sur une ligne, son détail dessous. */
+.app-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 272px;
+}
+
+.app-menu-ligne {
+  display: flex;
+  flex: none;
+  align-items: flex-start;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.app-menu-ligne > svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--app-pale);
+}
+
+.app-menu-ligne:is(:hover, :focus-visible):not(:disabled) {
+  outline: none;
+  background: var(--app-survol);
+}
+
+.app-menu-ligne:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.app-menu-texte {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-menu-texte > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Le détail passe à la ligne entre deux mots plutôt que d'être coupé ; une adresse trop longue, elle, se coupe. */
+.app-menu-texte > small {
+  overflow-wrap: anywhere;
+  color: var(--app-pale);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.app-menu-ligne kbd {
+  flex: none;
+  margin-left: 8px;
+  color: var(--app-pale);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.app-menu-sep {
+  flex: none;
+  height: 1px;
+  margin: 5px 6px;
+  background: var(--app-filet);
+}
+
+.app-menu-note {
+  margin: 0;
+  padding: 4px 10px 6px;
+  color: var(--app-pale);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/* La tête du menu du compte : sa pastille, son nom, son adresse. */
+.compte-tete {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 8px 10px 6px;
+}
+
+.compte-tete .compte-pastille {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  font-size: 14px;
+}
+
+.compte-tete .app-menu-texte > span {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.compte-pastille {
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .compte-pastille img {
@@ -174,28 +391,27 @@ body {
   object-fit: cover;
 }
 
-.partage-panneau,
-.compte-menu {
-  position: absolute;
-  z-index: 40;
-  top: 36px;
-  right: 0;
-  box-sizing: border-box;
-  border-radius: var(--notak-rayon-panneau, 10px);
-  background: #fff;
-  box-shadow: 0 4px 20px rgb(0 0 0 / 0.14), 0 1px 3px rgb(0 0 0 / 0.1);
+.compte-nom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
+/* — Le partage : qui a accès, l'invitation, puis le mot de passe, le blocage et le lien, chacun sous son filet. — */
 .partage-panneau {
-  width: min(360px, calc(100vw - 24px));
-  padding: 12px;
+  width: min(384px, calc(100vw - 32px));
+  padding: 8px 14px 14px;
+}
+
+.partage-panneau > .app-panneau-tete {
+  margin: 0 -8px 2px;
 }
 
 .partage-liste {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin: 0 0 12px;
+  gap: 2px;
+  margin: 0 -6px 10px;
   padding: 0;
   list-style: none;
 }
@@ -203,8 +419,41 @@ body {
 .partage-liste li {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  min-height: 40px;
+  padding: 4px 6px;
+  border-radius: 10px;
   font-size: 13px;
+}
+
+.partage-liste li:hover {
+  background: var(--app-survol);
+}
+
+.app-pastille {
+  display: grid;
+  flex: none;
+  place-items: center;
+  overflow: hidden;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.app-pastille img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Sans couleur à soi (une adresse invitée, une équipe) : le gris du survol, le texte de l'écran. */
+.app-pastille-neutre {
+  background: var(--app-choisi);
+  color: var(--texte);
 }
 
 .partage-qui {
@@ -212,6 +461,10 @@ body {
   flex: 1;
   flex-direction: column;
   min-width: 0;
+}
+
+.partage-qui strong {
+  font-weight: 500;
 }
 
 .partage-qui strong,
@@ -224,12 +477,27 @@ body {
 .partage-qui small,
 .partage-role,
 .partage-note {
-  color: #6b7280;
+  color: var(--app-pale);
+}
+
+.partage-role {
+  flex: none;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.partage-role em {
+  font-style: normal;
 }
 
 .partage-note {
-  margin: 8px 0 0;
-  font-size: 12px;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.partage-vide {
+  justify-content: center;
 }
 
 .partage-form {
@@ -245,174 +513,32 @@ body {
 
 .partage-form input {
   flex: 1;
-  min-width: 0;
 }
 
-.compte-nom {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.compte-pastille {
-  overflow: hidden;
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.compte-menu {
-  display: flex;
-  flex-direction: column;
-  min-width: 190px;
-  padding: 6px;
-}
-
-.compte-menu small {
-  padding: 4px 8px;
-  color: #6b7280;
-}
-
-.compte-menu .compte-rubrique {
-  margin-top: 6px;
-  border-top: 1px solid #eef0f3;
-  padding-top: 8px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.compte-menu button small,
-.compte-menu a small {
-  padding: 0;
-}
-
-.compte-menu a {
-  display: flex;
-  align-items: center;
-  color: inherit;
-  text-decoration: none;
-}
-
-.compte-menu button,
-.compte-menu a {
-  height: 28px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: var(--notak-rayon-controle, 6px);
-  background: none;
-  font: inherit;
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.compte-menu .compte-ligne {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-}
-
-.compte-menu button:hover,
-.compte-menu a:hover {
-  background: var(--fond);
-}
-
-.bandeau {
-  position: fixed;
-  z-index: 50;
-  bottom: 16px;
-  left: 50%;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  border-radius: var(--notak-rayon-panneau, 10px);
-  background: #fff;
-  box-shadow: 0 4px 20px rgb(0 0 0 / 0.16), 0 1px 3px rgb(0 0 0 / 0.1);
-  color: var(--texte);
-  font-size: 13px;
-  transform: translateX(-50%);
-}
-
-.public {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.public-entete {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 12px;
-  height: 48px;
-  box-sizing: border-box;
-  padding: 0 16px;
-  background: #fff;
-  box-shadow: 0 1px 0 rgb(0 0 0 / 0.08);
-  color: var(--texte);
-}
-
-.public-titre {
-  overflow: hidden;
-  min-width: 0;
-  flex: 1;
-  font-size: 15px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.public-note {
-  color: #6b7280;
-  font-size: 13px;
-}
-
-.public-entete .bouton {
-  display: inline-flex;
-  align-items: center;
-  text-decoration: none;
-}
-
-.public-corps {
-  flex: 1;
-  min-height: 0;
-}
-
-.public-pied {
-  display: flex;
-  flex: none;
-  justify-content: center;
-  padding: 4px 16px;
-  background: #fff;
-  box-shadow: 0 -1px 0 rgb(0 0 0 / 0.06);
-  font-size: 11px;
-}
-
-.public-pied a {
-  color: #9ca3af;
-  text-decoration: none;
-}
-
-.public-pied a:hover {
-  color: #6b7280;
+.partage-form .bouton,
+.notak-ilot .partage-form .bouton {
+  height: 36px;
+  border-radius: 18px;
 }
 
 .partage-lien {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #eef0f3;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--app-filet);
   font-size: 13px;
+}
+
+.partage-lien > strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.partage-lien > :is(.partage-lien-ligne, .partage-liste, .partage-niveau, .partage-mdp-lien) {
+  align-self: stretch;
 }
 
 .partage-lien-ligne {
@@ -422,292 +548,60 @@ body {
 
 .partage-lien-ligne input {
   flex: 1;
-  min-width: 0;
-  height: 30px;
-  box-sizing: border-box;
-  padding: 0 8px;
-  border: 1px solid rgb(0 0 0 / 0.15);
-  border-radius: var(--notak-rayon-controle, 6px);
-  font: inherit;
-  font-size: 12px;
-}
-
-.bouton-etoile {
-  padding: 0 9px;
-  font-size: 15px;
-  line-height: 1;
-}
-
-.bouton-etoile[aria-pressed='true'] {
-  color: #e8a400;
-}
-
-.sr-seulement {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-/* Les pages légères : la note rapide du téléphone, et l'arrivée d'un partage. */
-.arrivee {
-  display: grid;
-  place-items: center;
-  min-height: 100%;
-  box-sizing: border-box;
-  padding: 16px;
-  background: var(--fond);
-  color: var(--texte);
-}
-
-.arrivee-carte {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  box-sizing: border-box;
-  width: min(480px, 100%);
-  padding: 24px;
-  border-radius: var(--notak-rayon-panneau, 12px);
-  background: var(--carte);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.1), 0 8px 24px rgb(0 0 0 / 0.06);
-}
-
-.arrivee-carte h1 {
-  margin: 0;
-  font-size: 22px;
-}
-
-.arrivee-carte p {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.45;
-}
-
-.arrivee-carte a.bouton {
-  display: inline-flex;
-  align-items: center;
-  align-self: flex-start;
-  text-decoration: none;
-}
-
-.rapide-champ {
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 140px;
-  padding: 10px 12px;
-  border: 1px solid rgb(0 0 0 / 0.15);
-  border-radius: var(--notak-rayon-controle, 8px);
-  background: #fff;
-  color: var(--texte);
-  font: inherit;
-  /* 16 px : en dessous, Safari sur iPhone zoome la page à la prise de focus. */
-  font-size: 16px;
-  line-height: 1.4;
-  /* Pas de poignée de redimensionnement : sur un téléphone elle ne sert à rien et déborde du cadre. */
-  resize: none;
-}
-
-.rapide-champ:focus {
-  border-color: var(--accent);
-  outline: 2px solid rgb(47 111 235 / 0.25);
-}
-
-.rapide-envoyer {
-  height: 44px;
-  font-size: 16px;
-}
-
-.rapide-etat {
-  min-height: 1.45em;
-  color: #5b616a;
-}
-
-.arrivee-carte .bouton-lien {
-  align-self: flex-start;
-}
-
-/* La page « Envoyer vers Notak » : des cartes les unes sous les autres, la page défile. */
-.envoyer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  min-height: 100%;
-  box-sizing: border-box;
-  padding: 16px;
-  background: var(--fond);
-  color: var(--texte);
-}
-
-.envoyer-carte {
-  width: min(640px, 100%);
-}
-
-.envoyer-carte h2 {
-  margin: 0;
-  font-size: 17px;
-}
-
-.envoyer-carte h3 {
-  margin: 8px 0 0;
-  font-size: 14px;
-}
-
-.envoyer-carte code {
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: var(--fond);
-  font-size: 12.5px;
-  overflow-wrap: anywhere;
-}
-
-.envoyer-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.envoyer-form input {
-  flex: 1 1 200px;
-  min-width: 0;
-  height: 40px;
-  box-sizing: border-box;
-  padding: 0 10px;
-  border: 1px solid rgb(0 0 0 / 0.15);
-  border-radius: var(--notak-rayon-controle, 6px);
-  background: #fff;
-  color: var(--texte);
-  font: inherit;
-  /* 16 px : en dessous, Safari sur iPhone zoome la page à la prise de focus. */
-  font-size: 16px;
-}
-
-.envoyer-form input:focus {
-  border-color: var(--accent);
-  outline: 2px solid rgb(47 111 235 / 0.25);
-}
-
-.envoyer-form .bouton {
-  height: 40px;
-}
-
-.envoyer-neuf {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 12px;
-  border-radius: var(--notak-rayon-controle, 8px);
-  background: #f4f8ff;
-  border: 1px solid rgb(47 111 235 / 0.3);
-}
-
-.envoyer-carte .envoyer-jeton {
-  align-self: stretch;
-  padding: 8px 10px;
-  user-select: all;
+  height: 32px;
   font-size: 13px;
 }
 
-.envoyer-liste {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.envoyer-liste li {
+/* Le niveau du lien public, sous son adresse. */
+.partage-niveau {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 8px 0;
-  border-top: 1px solid #eef0f3;
-}
-
-.envoyer-qui {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  font-size: 14px;
-}
-
-.envoyer-qui small {
-  color: #6b7280;
-}
-
-.envoyer-etapes {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0;
-  padding-left: 22px;
-  font-size: 14px;
-  line-height: 1.45;
-}
-
-.envoyer-note {
-  color: #5b616a;
-}
-
-.envoyer-favori {
-  height: 40px;
-  cursor: grab;
-}
-
-/* Le tableau protégé se couvre d'un écran qui demande son mot de passe. */
-.verrou-titre {
-  display: flex;
-  align-items: center;
   gap: 8px;
 }
 
-.verrou {
-  position: fixed;
-  z-index: 100;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  background: var(--fond);
-  color: var(--texte);
+.partage-niveau select {
+  height: 32px;
+  font-size: 13px;
 }
 
 .partage-mdp-lien {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 6px;
 }
 
-/* Activité du tableau et notifications */
-.activite,
-.cloche {
-  position: relative;
+.partage-mdp-lien > .partage-lien-ligne {
+  align-self: stretch;
 }
 
+/* L'import fini ou en échec : une note sous le bouton. */
+.importer-etat {
+  width: min(300px, calc(100vw - 32px));
+  padding: 12px 14px;
+}
+
+.importer-etat .bouton-lien {
+  margin-top: 6px;
+}
+
+/* — Activité du tableau et notifications : une liste de rangées, la pastille de l'auteur en tête. — */
 .activite-panneau,
 .cloche-panneau {
-  position: absolute;
-  z-index: 40;
-  top: 36px;
-  right: 0;
-  box-sizing: border-box;
-  width: min(360px, calc(100vw - 24px));
-  max-height: min(70vh, 520px);
-  overflow-y: auto;
-  padding: 12px;
-  border-radius: var(--notak-rayon-panneau, 10px);
-  background: #fff;
-  box-shadow: 0 4px 20px rgb(0 0 0 / 0.14), 0 1px 3px rgb(0 0 0 / 0.1);
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(70vh, 520px, calc(100vh - 64px));
+}
+
+.activite-panneau {
+  padding: 8px;
 }
 
 .activite-liste,
 .cloche-liste {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 1px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -716,7 +610,9 @@ body {
 .activite-liste li {
   display: flex;
   gap: 10px;
+  padding: 8px 6px;
   font-size: 13px;
+  line-height: 1.4;
 }
 
 .activite-pastille {
@@ -739,9 +635,14 @@ body {
   margin: 0;
 }
 
+.activite-texte strong {
+  font-weight: 600;
+}
+
 .activite-texte small,
 .cloche-texte small {
-  color: #6b7280;
+  color: var(--app-pale);
+  font-size: 12px;
 }
 
 .activite-elements {
@@ -761,7 +662,7 @@ body {
   min-width: 14px;
   padding: 0 3px;
   box-sizing: border-box;
-  border-radius: var(--notak-rayon-controle, 8px);
+  border-radius: 7px;
   background: #d92d20;
   color: #fff;
   font-size: 9px;
@@ -770,133 +671,799 @@ body {
   text-align: center;
 }
 
-.cloche-tete {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  font-size: 13px;
-}
-
 .cloche-liste button {
   display: flex;
+  align-items: flex-start;
   gap: 10px;
   width: 100%;
-  padding: 6px 8px;
+  padding: 8px 10px;
   border: 0;
-  border-radius: var(--notak-rayon-controle, 6px);
+  border-radius: 10px;
   background: none;
   color: inherit;
   font: inherit;
   font-size: 13px;
+  line-height: 1.4;
   text-align: left;
   cursor: pointer;
 }
 
-.cloche-liste button:hover {
-  background: var(--fond);
+.cloche-liste button:is(:hover, :focus-visible) {
+  outline: none;
+  background: var(--app-survol);
 }
 
-.cloche-liste li[data-lu] {
-  opacity: 0.6;
-}
-
+/* Non lue : en gras, avec le point de l'accent au bout de la rangée. */
 .cloche-liste li:not([data-lu]) .cloche-texte > span {
   font-weight: 600;
 }
 
-.importer-etat {
-  width: min(300px, calc(100vw - 24px));
+.cloche-liste li:not([data-lu]) button::after {
+  content: '';
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 
-/* « … » de l'en-tête : un menu en colonne sous le bouton ; l'activité garde ses panneaux. */
-.plus-entete {
-  position: relative;
+.cloche-liste li[data-lu] .cloche-texte > span {
+  color: color-mix(in srgb, var(--texte) 78%, transparent);
 }
 
-.plus-entete-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 40;
+/* Rien à dire : l'icône et une phrase, au milieu du panneau. */
+.app-panneau-vide {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 4px;
-  min-width: 150px;
-  padding: 6px;
-  border-radius: var(--notak-rayon-panneau, 8px);
-  background: #fff;
-  box-shadow: 0 6px 20px rgb(0 0 0 / 0.14);
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 24px 16px 28px;
+  color: var(--app-pale);
+  font-size: 13px;
+  text-align: center;
 }
 
-.plus-entete-menu[hidden] {
-  display: none;
-}
-
-.plus-entete-menu .bouton {
-  justify-content: flex-start;
-  width: 100%;
-}
-
-/* Les panneaux de l'en-tête restent dans la fenêtre : jamais plus hauts qu'elle, et (voir panneaux.ts) jamais plus à droite ni à gauche. */
-.partage-panneau,
-.compte-menu,
+/* — « … » de l'en-tête : un menu en colonne ; l'activité et l'import y déplient leurs panneaux à la suite. — */
 .plus-entete-menu {
-  max-height: calc(100vh - 64px);
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 272px;
 }
 
-/* Dans le menu « … », les panneaux des actions se déplient à la suite, sans se superposer au menu. */
-.plus-entete-menu :is(.activite-panneau, .compte-menu, .partage-panneau) {
+.notak-ilot .plus-entete-menu :is(.activite, .importer) > .bouton {
+  justify-content: flex-start;
+  gap: 12px;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.notak-ilot .plus-entete-menu :is(.activite, .importer) > .bouton > svg {
+  color: var(--app-pale);
+}
+
+.notak-ilot .plus-entete-menu :is(.activite, .importer) > .bouton:is(:hover, [aria-expanded='true']):not(:disabled) {
+  background: var(--app-survol);
+}
+
+.plus-entete-menu :is(.activite-panneau, .app-menu, .partage-panneau) {
   position: static;
   width: auto;
   max-height: 50vh;
-  margin-top: 4px;
-  padding: 8px;
+  margin: 2px 0 4px;
+  padding: 0 0 0 4px;
+  border-radius: 0;
   background: none;
   box-shadow: none;
+  translate: none;
 }
 
-.activite-panneau,
-.cloche-panneau {
-  max-height: min(70vh, 520px, calc(100vh - 64px));
+.plus-entete-menu .importer-etat {
+  padding: 4px 10px 8px;
+}
+
+/* — Le bandeau du bas (reprendre l'ancien tableau) : un îlot posé au milieu. — */
+.bandeau {
+  position: fixed;
+  z-index: 50;
+  bottom: 16px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  padding: 8px 8px 8px 18px;
+  border-radius: 24px;
+  background: var(--carte);
+  box-shadow: var(--app-ombre-menu);
+  color: var(--texte);
+  font-size: 13px;
+  transform: translateX(-50%);
+}
+
+.bandeau .bouton-lien {
+  padding: 0 10px;
+}
+
+.bouton-etoile[aria-pressed='true'] {
+  color: #e8a400;
+}
+
+[data-theme='sombre'] .bouton-etoile[aria-pressed='true'] {
+  color: #f5b82e;
+}
+
+/* — Les cartes posées seules au milieu de la page : la connexion, le mot de passe d'un tableau, l'arrivée d'un partage. — */
+.connexion,
+.arrivee {
+  display: grid;
+  flex: 1 0 auto;
+  place-items: center;
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: 24px 16px;
+  background: var(--fond);
+  color: var(--texte);
+}
+
+.connexion-carte,
+.arrivee-carte {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-sizing: border-box;
+  width: min(380px, 100%);
+  padding: 32px 28px 28px;
+  border-radius: 22px;
+  background: var(--carte);
+  box-shadow: var(--app-ombre-ilot), 0 18px 40px -18px rgb(27 37 54 / 0.18);
+  color: var(--texte);
+}
+
+[data-theme='sombre'] :is(.connexion-carte, .arrivee-carte) {
+  box-shadow: var(--app-ombre-ilot);
+}
+
+.arrivee-carte {
+  width: min(480px, 100%);
+}
+
+/* La marque en tête de carte : l'icône de l'application. */
+.connexion-marque {
+  display: block;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 2px;
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px var(--app-filet);
+}
+
+.connexion-carte h1,
+.arrivee-carte h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.connexion-carte label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--app-pale);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.connexion-carte input {
+  height: 40px;
+}
+
+.connexion-carte .bouton {
+  height: 40px;
+  border-radius: 20px;
+  font-size: 14px;
+}
+
+.connexion-avis,
+.connexion-aide {
+  margin: 0;
+  color: var(--app-pale);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.connexion-fournisseurs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* « ou », entre deux filets. */
+.connexion-ou {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--app-pale);
+  font-size: 12px;
+}
+
+.connexion-ou::before,
+.connexion-ou::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--app-filet);
+}
+
+.connexion-liens {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 16px;
+  margin-top: 2px;
+}
+
+/* À la place du lien « Créer un compte », quand le serveur n'en accepte pas. */
+.connexion-note {
+  margin: 0;
+  color: var(--app-pale);
+  font-size: 13px;
+  text-align: center;
+}
+
+.arrivee-carte p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.arrivee-carte > .bouton {
+  align-self: flex-start;
+  height: 36px;
+  border-radius: 18px;
+}
+
+.arrivee-carte > .bouton-lien {
+  align-self: flex-start;
+}
+
+.rapide-champ {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 160px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 14px;
+  outline: none;
+  background: var(--app-champ);
+  box-shadow: inset 0 0 0 1px var(--app-filet);
+  color: var(--texte);
+  font: inherit;
+  /* 16 px : en dessous, Safari sur iPhone zoome la page à la prise de focus. */
+  font-size: 16px;
+  line-height: 1.45;
+  /* Pas de poignée de redimensionnement : sur un téléphone elle ne sert à rien et déborde du cadre. */
+  resize: none;
+}
+
+.rapide-champ:focus {
+  box-shadow: inset 0 0 0 1.5px var(--accent), 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.arrivee-carte > .rapide-envoyer {
+  align-self: stretch;
+  height: 44px;
+  border-radius: 22px;
+  font-size: 15px;
+}
+
+.rapide-etat {
+  min-height: 1.5em;
+  color: var(--app-pale);
+}
+
+/* Le tableau protégé se couvre d'un écran qui demande son mot de passe. */
+.verrou {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: var(--fond);
+  color: var(--texte);
+}
+
+.verrou-titre {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* — Les pages de l'application (Envoyer vers Notak, espaces d'équipe) : le retour à la bibliothèque dans un îlot, le
+   titre, puis des cartes les unes sous les autres, sur 680 px au plus ; la page défile. — */
+.app-hote {
+  overflow-y: auto;
+}
+
+.app-page {
+  flex: 1 0 auto;
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: 8px 16px 64px;
+  background: var(--fond);
+  color: var(--texte);
+}
+
+html[data-bureau]:not([data-plein-ecran]) .app-page {
+  padding-top: 36px;
+}
+
+.app-page-tete {
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+}
+
+.notak-ilot.app-page-retour {
+  gap: 6px;
+  padding: 0 14px 0 10px;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.notak-ilot.app-page-retour:hover {
+  background: color-mix(in srgb, var(--carte) 100%, transparent);
+}
+
+.notak-ilot.app-page-retour > svg {
+  color: var(--app-pale);
+}
+
+.app-page-corps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(680px, 100%);
+  margin: 0 auto;
+}
+
+.app-page-corps > h1 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 0;
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
+.app-page-intro {
+  margin: -6px 0 8px;
+  color: var(--app-pale);
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+.app-carte {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 22px 24px 24px;
+  border-radius: 18px;
+  background: var(--carte);
+  box-shadow: var(--app-ombre-ilot);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.app-carte p {
+  margin: 0;
+}
+
+.app-carte > .bouton {
+  align-self: flex-start;
+}
+
+.app-carte h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.005em;
+}
+
+.app-carte h2 > svg {
+  flex: none;
+  color: var(--app-pale);
+}
+
+/* Le numéro d'une étape : une pastille pleine et sombre. */
+.app-etape {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--app-plein);
+  color: var(--app-encre);
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-carte h3 {
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.app-carte code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--app-survol);
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.app-note {
+  color: var(--app-pale);
+  font-size: 13px;
+}
+
+/* Un champ et son bouton, sur une ligne ; ils passent l'un sous l'autre quand la place manque. */
+.app-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.app-form > .champ {
+  flex: 1 1 200px;
+  height: 40px;
+}
+
+.app-form > select.champ {
+  flex: 0 1 auto;
+}
+
+.app-form > .bouton {
+  height: 40px;
+  border-radius: 20px;
+}
+
+/* Les rangées d'une liste : le nom et son détail, puis les actions au bout ; un filet entre deux. */
+.app-liste {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-liste > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--app-filet);
+}
+
+.app-liste > li:first-child {
+  border-top: 0;
+}
+
+.app-qui {
+  display: flex;
+  flex: 1 1 220px;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-qui strong {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+}
+
+.app-qui small,
+.app-liste > li > small {
+  color: var(--app-pale);
+  font-size: 12.5px;
+}
+
+.app-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-actions .champ {
+  height: 32px;
+  font-size: 13px;
+}
+
+/* La page « Envoyer vers Notak » : le jeton tout neuf dans un encart à l'accent, les étapes numérotées. */
+.envoyer-neuf {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--carte));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.app-carte .envoyer-jeton {
+  align-self: stretch;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--carte);
+  font-size: 13px;
+  user-select: all;
+}
+
+.envoyer-etapes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding-left: 22px;
+  line-height: 1.5;
+}
+
+.envoyer-etapes li::marker {
+  color: var(--app-pale);
+  font-variant-numeric: tabular-nums;
+}
+
+.envoyer-favori {
+  cursor: grab;
+}
+
+/* La page des espaces d'équipe : des listes de cases et des menus de rôle. */
+.espaces-equipe {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--app-filet);
+}
+
+.espaces-equipe-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.espaces-coches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 13.5px;
+}
+
+.espaces-coches legend {
+  margin-bottom: 6px;
+  padding: 0;
+  color: var(--app-pale);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.espaces-coches label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.espaces-coches input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--app-plein);
+}
+
+.espaces-role {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.espaces-role > .champ {
+  height: 40px;
+}
+
+.espaces-role > .bouton {
+  align-self: flex-start;
+  height: 36px;
+  border-radius: 18px;
+}
+
+.espaces-sso code {
+  font-size: 12px;
+}
+
+/* — La page publique : la toile en entier, le titre et le retour à Notak dans des îlots posés dessus. — */
+.public {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--fond);
+}
+
+.public-entete {
+  position: absolute;
+  z-index: 5;
+  top: 16px;
+  right: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  color: var(--texte);
+}
+
+.public-entete > * {
+  pointer-events: auto;
+}
+
+.public-entete .notak-ilot {
+  gap: 8px;
+  min-width: 0;
+  padding: 0 4px 0 14px;
+}
+
+.public-titre {
+  overflow: hidden;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-note {
+  flex: none;
+  padding: 0 10px;
+  height: 28px;
+  border-radius: 14px;
+  background: var(--app-survol);
+  color: var(--app-pale);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 28px;
+}
+
+.public-entete .notak-ilot.public-ouvrir {
+  margin-left: auto;
+  padding: 0 14px;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.public-corps {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Une bande à part, sous la toile : la mention ne recouvre jamais une carte. */
+.public-pied {
+  display: flex;
+  flex: none;
+  justify-content: center;
+  padding: 6px 16px;
+  font-size: 11px;
+}
+
+.public-pied a {
+  color: var(--app-pale);
+  text-decoration: none;
+}
+
+.public-pied a:hover {
+  color: var(--texte);
+}
+
+/* — Les droits d'un élément : une carte au-dessus de la toile, sur un voile. — */
+.droits-element-fond {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(20 24 31 / 0.32);
+}
+
+[data-theme='sombre'] .droits-element-fond {
+  background: rgb(0 0 0 / 0.5);
+}
+
+.droits-element {
+  width: min(440px, 100%);
+}
+
+.droits-element h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.droits-element > .bouton {
+  align-self: flex-start;
+}
+
+.droits-element .partage-liste {
+  margin: 0 -6px;
 }
 
 @media (max-width: 640px) {
-  /* Sur un téléphone, un panneau se cale sur l'en-tête, sous lui, et prend la largeur de la fenêtre moins 16 px. */
-  .notak-entete {
-    position: relative;
-  }
-
+  /*
+   * Sur un téléphone, un panneau de l'en-tête prend la largeur de la fenêtre moins 16 px de chaque côté, posé sous la
+   * barre, au-dessus de tout le reste de l'écran (la barre d'outils de gauche comprise).
+   */
   .partage,
   .compte,
   .activite,
   .cloche,
   .plus-entete,
   .importer,
-  .export {
+  .export,
+  .rangement {
     position: static;
   }
 
-  .partage-panneau,
-  .activite-panneau,
-  .cloche-panneau,
-  .compte-menu,
-  .plus-entete-menu {
-    position: absolute;
-    top: calc(100% + 4px);
-    right: 8px;
-    left: 8px;
+  .app-panneau:not(.plus-entete-menu .app-panneau) {
+    position: fixed;
+    z-index: 1000;
+    top: var(--app-panneau-haut, 64px);
+    right: 16px;
+    left: 16px;
     width: auto;
     min-width: 0;
     max-width: none;
+    max-height: calc(100dvh - var(--app-panneau-haut, 64px) - 16px);
     translate: none;
   }
 
-  .plus-entete-menu :is(.activite-panneau, .compte-menu, .partage-panneau) {
+  .plus-entete-menu .app-panneau {
     position: static;
-    margin-top: 4px;
+  }
+
+  .app-menu {
+    width: auto;
   }
 
   /* Les boutons de l'en-tête se réduisent à leur icône ; le nom reste dit par l'infobulle et par aria-label. */
@@ -937,6 +1504,35 @@ body {
   .notak-entete-actions {
     gap: 6px;
     margin-left: auto;
+  }
+
+  .connexion-carte,
+  .arrivee-carte {
+    padding: 26px 20px 22px;
+  }
+
+  /* 16 px : en dessous, Safari sur iPhone zoome la page à la prise de focus. */
+  :is(.champ, .connexion-carte input, .partage-form :is(input, select), .partage-lien-ligne input) {
+    font-size: 16px;
+  }
+
+  .app-page-corps > h1 {
+    margin-top: 12px;
+    font-size: 23px;
+  }
+
+  .app-carte {
+    padding: 18px 16px 20px;
+  }
+
+  .public-entete {
+    top: 12px;
+    right: 16px;
+    left: 16px;
+  }
+
+  .public-note {
+    display: none;
   }
 }
 
@@ -1337,50 +1933,7 @@ body {
   height: 34px;
 }
 
-/* Thème sombre : l'en-tête, le fil d'Ariane et les panneaux repeints avec les jetons du thème. */
-.notak-espace[data-theme='sombre'] :is(.partage-panneau, .activite-panneau, .cloche-panneau, .compte-menu, .plus-entete-menu) {
-  background: var(--notak-carte);
-  color: var(--notak-texte);
-  box-shadow: 0 6px 24px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.08);
-}
-
-.notak-espace[data-theme='sombre'] .plus-entete-menu :is(.activite-panneau, .compte-menu, .partage-panneau) {
-  background: none;
-  box-shadow: none;
-}
-
-.notak-espace[data-theme='sombre'] :is(.partage-qui small, .partage-role, .partage-note, .compte-menu small, .activite-texte small, .cloche-texte small) {
-  color: #a3aab4;
-}
-
-.notak-espace[data-theme='sombre'] :is(.compte-menu .compte-rubrique, .partage-lien) {
-  border-top-color: rgb(255 255 255 / 0.1);
-}
-
-.notak-espace[data-theme='sombre'] :is(.compte-menu button, .compte-menu a, .cloche-liste button) {
-  color: var(--notak-texte);
-}
-
-.notak-espace[data-theme='sombre'] :is(.compte-menu button, .compte-menu a, .cloche-liste button):hover {
-  background: rgb(255 255 255 / 0.08);
-}
-
-.notak-espace[data-theme='sombre'] :is(.partage-form input, .partage-form select, .partage-lien-ligne input) {
-  border-color: rgb(255 255 255 / 0.18);
-  background: var(--notak-fond);
-  color: var(--notak-texte);
-}
-
-.notak-espace[data-theme='sombre'] :is(.partage-panneau, .compte-menu, .cloche-panneau) .bouton:not(.bouton-plein) {
-  border-color: rgb(255 255 255 / 0.14);
-  background: #353a42;
-  color: var(--notak-texte);
-}
-
-.notak-espace[data-theme='sombre'] .bouton-lien {
-  color: var(--notak-accent);
-}
-
+/* Thème sombre : le dialogue d'export et le fil d'Ariane, repeints avec les jetons du thème. */
 .notak-espace[data-theme='sombre'] .export-dialogue {
   background: var(--notak-carte);
   color: var(--notak-texte);
@@ -1416,16 +1969,6 @@ body {
   background: #3a4048;
 }
 
-.notak-espace[data-theme='sombre'] .export-dialogue .bouton:not(.bouton-plein) {
-  border-color: rgb(255 255 255 / 0.14);
-  background: #353a42;
-  color: var(--notak-texte);
-}
-
-.notak-espace[data-theme='sombre'] .connexion-erreur {
-  color: #ff8a80;
-}
-
 .notak-espace[data-theme='sombre'] .notak-fil-segment {
   color: #b4bac3;
 }
@@ -1448,15 +1991,7 @@ body {
   background: #3a3f47;
 }
 
-.notak-espace[data-theme='sombre'] .bouton-etoile[aria-pressed='true'] {
-  color: #f5b82e;
-}
-
 /* L'édition locale : la pastille « Où sont mes tableaux ? » et son panneau. */
-.rangement {
-  position: relative;
-}
-
 .rangement-pastille span {
   white-space: nowrap;
 }
@@ -1466,12 +2001,9 @@ body {
 }
 
 .rangement-panneau {
-  width: min(400px, calc(100vw - 24px));
-  max-height: calc(100vh - 80px);
-  overflow-y: auto;
-  font-size: 13px;
+  width: min(400px, calc(100vw - 32px));
+  padding: 14px 16px 16px;
   line-height: 1.45;
-  color: var(--texte);
 }
 
 .rangement-panneau h2 {
@@ -1480,12 +2012,10 @@ body {
 }
 
 .rangement-panneau h3 {
-  margin: 14px 0 6px;
+  margin: 16px 0 6px;
+  color: var(--app-pale);
   font-size: 12px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #6b7280;
 }
 
 .rangement-panneau p {
@@ -1525,7 +2055,7 @@ body {
 
 .rangement-note {
   display: block;
-  color: #6b7280;
+  color: var(--app-pale);
 }
 
 /* Sous 640 px, la pastille se réduit à son icône, comme les autres boutons de l'en-tête. */
@@ -1535,127 +2065,8 @@ body {
   }
 }
 
-.notak-espace[data-theme='sombre'] :is(.rangement-panneau h3, .rangement-note) {
-  color: #9aa1ab;
-}
-
 .notak-espace[data-theme='sombre'] :is(.rangement-pastille[data-alerte], .rangement-attention) {
   color: #f59e0b;
-}
-
-/* La page des espaces d'équipe : les cartes de la page « Envoyer », des listes de cases et des menus de rôle. */
-.espaces-actions {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 8px;
-}
-
-.espaces-actions a.bouton {
-  text-decoration: none;
-}
-
-.espaces-actions select,
-.envoyer-form select {
-  height: 30px;
-  padding: 0 6px;
-  border: 1px solid rgb(0 0 0 / 0.15);
-  border-radius: 6px;
-  background: #fff;
-  color: var(--texte);
-  font: inherit;
-  font-size: 13px;
-}
-
-.envoyer-form select {
-  height: 40px;
-}
-
-.espaces-equipe {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px 0;
-  border-top: 1px solid #eef0f3;
-}
-
-.espaces-equipe-tete {
-  display: flex;
-  justify-content: space-between;
-}
-
-.espaces-coches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  font-size: 13px;
-}
-
-.espaces-coches legend {
-  margin-bottom: 4px;
-  color: #5b616a;
-  font-size: 12px;
-}
-
-.espaces-coches label {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.espaces-role {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.espaces-champ {
-  box-sizing: border-box;
-  width: 100%;
-  height: 36px;
-  padding: 0 10px;
-  border: 1px solid rgb(0 0 0 / 0.15);
-  border-radius: 6px;
-  background: #fff;
-  color: var(--texte);
-  font: inherit;
-  font-size: 14px;
-}
-
-.espaces-sso .envoyer-qui code {
-  font-size: 12px;
-}
-
-/* Le niveau du lien public, sous son adresse. */
-.partage-niveau {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-/* Les droits d'un élément : une carte au-dessus de la toile, sur un voile. */
-.droits-element-fond {
-  position: fixed;
-  z-index: 100;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-  background: rgb(0 0 0 / 0.25);
-}
-
-.droits-element h2 {
-  margin: 0;
-  font-size: 17px;
-}
-
-.droits-element > .bouton {
-  align-self: flex-start;
 }
 
 /* — La bibliothèque, page d'accueil : une colonne de rubriques, la barre de l'application, des tuiles. — */

@@ -73,9 +73,13 @@ export function Activite({
         {t('activite.titre')}
       </button>
       {ouvert && (
-        <div className="activite-panneau" ref={panneau} role="dialog" aria-label={t('activite.titre')}>
-          {erreur && !activite && <p className="partage-note">{t('activite.indisponible')}</p>}
-          {activite && activite.groupes.length === 0 && <p className="partage-note">{t('activite.rien')}</p>}
+        <div className="app-panneau activite-panneau" ref={panneau} role="dialog" aria-label={t('activite.titre')}>
+          {((erreur && !activite) || activite?.groupes.length === 0) && (
+            <p className="app-panneau-vide">
+              <Icone nom="activite" taille={22} trait={1.5} />
+              {erreur && !activite ? t('activite.indisponible') : t('activite.rien')}
+            </p>
+          )}
           <ol className="activite-liste">
             {activite?.groupes.map((g, i) => (
               <Ligne key={`${g.auteur.id}-${g.fin}-${i}`} groupe={g} moi={moi} />

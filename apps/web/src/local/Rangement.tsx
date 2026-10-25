@@ -71,7 +71,7 @@ export function Rangement({ el, enregistrer, rouvrir, message }: { el: EspaceLoc
         <span>{etiquette}</span>
       </button>
       {ouvert && (
-        <div className="partage-panneau rangement-panneau" ref={panneau} role="dialog" aria-label={t('local.titre')}>
+        <div className="app-panneau partage-panneau rangement-panneau" ref={panneau} role="dialog" aria-label={t('local.titre')}>
           <h2>{t('local.titre')}</h2>
           <p>{t('local.ici')}</p>
           <ul className="rangement-faits">

@@ -1,5 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { t } from './langue'
+import { PageApp } from './PageApp'
 import {
   type EquipeEspace,
   type EspaceLu,
@@ -97,26 +98,18 @@ export function PageEspaces() {
   const espace = espaces?.find((e) => e.id === choisi && !e.personnel) ?? null
 
   return (
-    <main className="envoyer">
-      <div className="arrivee-carte envoyer-carte">
-        <h1>{t('espaces.titre')}</h1>
-        <p>{t('espaces.intro')}</p>
-        <a className="bouton-lien" href="/">
-          {t('envoyer.retour')}
-        </a>
-      </div>
-
-      <section className="arrivee-carte envoyer-carte" aria-labelledby="espaces-liste">
+    <PageApp titre={t('espaces.titre')} intro={t('espaces.intro')}>
+      <section className="app-carte" aria-labelledby="espaces-liste">
         <h2 id="espaces-liste">{t('espaces.mesEspaces')}</h2>
         {espaces && (
-          <ul className="envoyer-liste">
+          <ul className="app-liste">
             {espaces.map((e) => (
               <li key={e.id}>
-                <span className="envoyer-qui">
+                <span className="app-qui">
                   <strong>{e.personnel ? t('espaces.personnel') : e.nom}</strong>
                   <small>{e.role.split(',').map(nomDuRole).join(', ')}</small>
                 </span>
-                <span className="espaces-actions">
+                <span className="app-actions">
                   <a className="bouton" href={`/t/${e.racine}`}>
                     {t('espaces.ouvrir')}
                   </a>
@@ -130,8 +123,8 @@ export function PageEspaces() {
             ))}
           </ul>
         )}
-        <form className="envoyer-form" onSubmit={creer} noValidate>
-          <input aria-label={t('espaces.nomNouveau')} placeholder={t('espaces.nomNouveau')} maxLength={80} value={nom} onChange={(e) => setNom(e.target.value)} />
+        <form className="app-form" onSubmit={creer} noValidate>
+          <input className="champ" aria-label={t('espaces.nomNouveau')} placeholder={t('espaces.nomNouveau')} maxLength={80} value={nom} onChange={(e) => setNom(e.target.value)} />
           <button type="submit" className="bouton bouton-plein" disabled={occupe}>
             {t('espaces.creer')}
           </button>
@@ -144,7 +137,7 @@ export function PageEspaces() {
       </section>
 
       {espace && <GestionEspace key={espace.id} espace={espace} agir={agir} occupe={occupe} apresDepart={() => setChoisi(null)} />}
-    </main>
+    </PageApp>
   )
 }
 
@@ -170,25 +163,25 @@ function GestionEspace({ espace, agir, occupe, apresDepart }: { espace: EspaceLu
 
   return (
     <>
-      <section className="arrivee-carte envoyer-carte" aria-labelledby="espace-membres">
+      <section className="app-carte" aria-labelledby="espace-membres">
         <h2 id="espace-membres">{t('espaces.membresDe', { nom: espace.nom })}</h2>
-        <ul className="envoyer-liste">
+        <ul className="app-liste">
           {membres.map((m) => (
             <li key={m.id}>
-              <span className="envoyer-qui">
+              <span className="app-qui">
                 <strong>{m.user.name}</strong>
                 <small>{m.user.email}</small>
               </span>
               {admin && m.role !== 'owner' ? (
-                <span className="espaces-actions">
-                  <select aria-label={t('espaces.roleDe', { nom: m.user.name })} value={m.role} disabled={occupe} onChange={(e) => void agirPuisRelire(() => changerRoleMembre(espace.id, m.id, e.target.value))}>
+                <span className="app-actions">
+                  <select className="champ" aria-label={t('espaces.roleDe', { nom: m.user.name })} value={m.role} disabled={occupe} onChange={(e) => void agirPuisRelire(() => changerRoleMembre(espace.id, m.id, e.target.value))}>
                     {rolesPossibles.filter((r) => r !== 'owner').map((r) => (
                       <option key={r} value={r}>
                         {nomDuRole(r)}
                       </option>
                     ))}
                   </select>
-                  <button type="button" className="bouton-lien" disabled={occupe} onClick={() => void agirPuisRelire(() => retirerMembre(espace.id, m.id))}>
+                  <button type="button" className="bouton bouton-danger" disabled={occupe} onClick={() => void agirPuisRelire(() => retirerMembre(espace.id, m.id))}>
                     {t('espaces.retirer')}
                   </button>
                 </span>
@@ -202,14 +195,14 @@ function GestionEspace({ espace, agir, occupe, apresDepart }: { espace: EspaceLu
         {invitations.length > 0 && (
           <>
             <h3>{t('espaces.enAttente')}</h3>
-            <ul className="envoyer-liste">
+            <ul className="app-liste">
               {invitations.map((i) => (
                 <li key={i.id}>
-                  <span className="envoyer-qui">
+                  <span className="app-qui">
                     <strong>{i.email}</strong>
                     <small>{nomDuRole(i.role)}</small>
                   </span>
-                  <button type="button" className="bouton-lien" disabled={occupe} onClick={() => void agirPuisRelire(() => annulerInvitation(i.id))}>
+                  <button type="button" className="bouton bouton-danger" disabled={occupe} onClick={() => void agirPuisRelire(() => annulerInvitation(i.id))}>
                     {t('espaces.annuler')}
                   </button>
                 </li>
@@ -223,11 +216,11 @@ function GestionEspace({ espace, agir, occupe, apresDepart }: { espace: EspaceLu
       {admin && <Roles espace={espace} roles={roles} agir={agirPuisRelire} occupe={occupe} />}
       {admin && <Sso espace={espace} agir={agir} occupe={occupe} />}
 
-      <section className="arrivee-carte envoyer-carte">
+      <section className="app-carte">
         {espace.role.split(',').includes('owner') ? (
           <button
             type="button"
-            className="bouton"
+            className="bouton bouton-danger"
             disabled={occupe}
             onClick={() => {
               if (confirm(t('espaces.supprimerConfirme', { nom: espace.nom }))) void agir(() => supprimerEspace(espace.id)).then(apresDepart)
@@ -236,7 +229,7 @@ function GestionEspace({ espace, agir, occupe, apresDepart }: { espace: EspaceLu
             {t('espaces.supprimer')}
           </button>
         ) : (
-          <button type="button" className="bouton" disabled={occupe} onClick={() => void agir(() => quitterEspace(espace.id)).then(apresDepart)}>
+          <button type="button" className="bouton bouton-danger" disabled={occupe} onClick={() => void agir(() => quitterEspace(espace.id)).then(apresDepart)}>
             {t('espaces.quitter')}
           </button>
         )}
@@ -258,9 +251,9 @@ function Inviter({ espace, roles, agir, occupe }: { espace: EspaceLu; roles: Rol
     })
   }
   return (
-    <form className="envoyer-form" onSubmit={inviter} noValidate>
-      <input type="email" aria-label={t('espaces.inviterAdresse')} placeholder={t('espaces.inviterAdresse')} value={email} onChange={(e) => setEmail(e.target.value)} />
-      <select aria-label={t('espaces.role')} value={role} onChange={(e) => setRole(e.target.value)}>
+    <form className="app-form" onSubmit={inviter} noValidate>
+      <input className="champ" type="email" aria-label={t('espaces.inviterAdresse')} placeholder={t('espaces.inviterAdresse')} value={email} onChange={(e) => setEmail(e.target.value)} />
+      <select className="champ" aria-label={t('espaces.role')} value={role} onChange={(e) => setRole(e.target.value)}>
         {roles.filter((r) => r !== 'owner').map((r) => (
           <option key={r} value={r}>
             {nomDuRole(r)}
@@ -295,14 +288,14 @@ function Equipes({ espace, membres, agir, occupe }: { espace: EspaceLu; membres:
     })
   }
   return (
-    <section className="arrivee-carte envoyer-carte" aria-labelledby="espace-equipes">
+    <section className="app-carte" aria-labelledby="espace-equipes">
       <h2 id="espace-equipes">{t('espaces.equipes')}</h2>
-      <p className="envoyer-note">{t('espaces.equipesExplique')}</p>
+      <p className="app-note">{t('espaces.equipesExplique')}</p>
       {equipes.map((e) => (
         <div key={e.id} className="espaces-equipe">
           <div className="espaces-equipe-tete">
             <strong>{e.name}</strong>
-            <button type="button" className="bouton-lien" disabled={occupe} onClick={() => void faire(() => supprimerEquipe(espace.id, e.id))}>
+            <button type="button" className="bouton bouton-danger" disabled={occupe} onClick={() => void faire(() => supprimerEquipe(espace.id, e.id))}>
               {t('espaces.supprimer')}
             </button>
           </div>
@@ -324,8 +317,8 @@ function Equipes({ espace, membres, agir, occupe }: { espace: EspaceLu; membres:
           </div>
         </div>
       ))}
-      <form className="envoyer-form" onSubmit={creer} noValidate>
-        <input aria-label={t('espaces.nomEquipe')} placeholder={t('espaces.nomEquipe')} maxLength={60} value={nom} onChange={(e) => setNom(e.target.value)} />
+      <form className="app-form" onSubmit={creer} noValidate>
+        <input className="champ" aria-label={t('espaces.nomEquipe')} placeholder={t('espaces.nomEquipe')} maxLength={60} value={nom} onChange={(e) => setNom(e.target.value)} />
         <button type="submit" className="bouton" disabled={occupe}>
           {t('espaces.creerEquipe')}
         </button>
@@ -354,14 +347,14 @@ function Roles({ espace, roles, agir, occupe }: { espace: EspaceLu; roles: RoleC
   }
   const lirePermission = (p: RoleCompose['permission'] | string) => (typeof p === 'string' ? (JSON.parse(p) as Record<string, string[]>) : p)
   return (
-    <section className="arrivee-carte envoyer-carte" aria-labelledby="espace-roles">
+    <section className="app-carte" aria-labelledby="espace-roles">
       <h2 id="espace-roles">{t('espaces.roles')}</h2>
-      <p className="envoyer-note">{t('espaces.rolesExplique')}</p>
+      <p className="app-note">{t('espaces.rolesExplique')}</p>
       {roles.length > 0 && (
-        <ul className="envoyer-liste">
+        <ul className="app-liste">
           {roles.map((r) => (
             <li key={r.id}>
-              <span className="envoyer-qui">
+              <span className="app-qui">
                 <strong>{r.role}</strong>
                 <small>
                   {Object.entries(lirePermission(r.permission))
@@ -369,7 +362,7 @@ function Roles({ espace, roles, agir, occupe }: { espace: EspaceLu; roles: RoleC
                     .join(' · ')}
                 </small>
               </span>
-              <button type="button" className="bouton-lien" disabled={occupe} onClick={() => void agir(() => supprimerRole(espace.id, r.role))}>
+              <button type="button" className="bouton bouton-danger" disabled={occupe} onClick={() => void agir(() => supprimerRole(espace.id, r.role))}>
                 {t('espaces.supprimer')}
               </button>
             </li>
@@ -377,7 +370,7 @@ function Roles({ espace, roles, agir, occupe }: { espace: EspaceLu; roles: RoleC
         </ul>
       )}
       <form className="espaces-role" onSubmit={creer} noValidate>
-        <input className="espaces-champ" aria-label={t('espaces.nomRole')} placeholder={t('espaces.nomRole')} maxLength={40} value={nom} onChange={(e) => setNom(e.target.value)} />
+        <input className="champ" aria-label={t('espaces.nomRole')} placeholder={t('espaces.nomRole')} maxLength={40} value={nom} onChange={(e) => setNom(e.target.value)} />
         {Object.entries(GESTES).map(([ressource, gestes]) => (
           <fieldset key={ressource} className="espaces-coches">
             <legend>{t(`espaces.ressource.${ressource}`)}</legend>
@@ -417,7 +410,7 @@ function Sso({ espace, agir, occupe }: { espace: EspaceLu; agir: Agir; occupe: b
   }
   const champ = (cle: keyof typeof champs, type = 'text') => (
     <input
-      className="espaces-champ"
+      className="champ"
       type={type}
       aria-label={t(`espaces.sso.${cle}`)}
       placeholder={t(`espaces.sso.${cle}`)}
@@ -427,14 +420,14 @@ function Sso({ espace, agir, occupe }: { espace: EspaceLu; agir: Agir; occupe: b
     />
   )
   return (
-    <section className="arrivee-carte envoyer-carte" aria-labelledby="espace-sso">
+    <section className="app-carte" aria-labelledby="espace-sso">
       <h2 id="espace-sso">{t('espaces.sso')}</h2>
-      <p className="envoyer-note">{t('espaces.ssoExplique', { retour: `${location.origin}/api/auth/sso/callback/` })}</p>
+      <p className="app-note">{t('espaces.ssoExplique', { retour: `${location.origin}/api/auth/sso/callback/` })}</p>
       {fournisseurs.length > 0 && (
-        <ul className="envoyer-liste">
+        <ul className="app-liste">
           {fournisseurs.map((f) => (
             <li key={f.providerId} className="espaces-sso">
-              <span className="envoyer-qui">
+              <span className="app-qui">
                 <strong>
                   {f.providerId} · {f.domain}
                 </strong>
@@ -451,7 +444,7 @@ function Sso({ espace, agir, occupe }: { espace: EspaceLu; agir: Agir; occupe: b
                   </small>
                 )}
               </span>
-              <span className="espaces-actions">
+              <span className="app-actions">
                 {f.domainVerified ? (
                   <small>{t('espaces.sso.domaineProuve')}</small>
                 ) : jetons[f.providerId] ? (
@@ -473,7 +466,7 @@ function Sso({ espace, agir, occupe }: { espace: EspaceLu; agir: Agir; occupe: b
                     {t('espaces.sso.prouver')}
                   </button>
                 )}
-                <button type="button" className="bouton-lien" disabled={occupe} onClick={() => void faire(() => supprimerSso(f.providerId))}>
+                <button type="button" className="bouton bouton-danger" disabled={occupe} onClick={() => void faire(() => supprimerSso(f.providerId))}>
                   {t('espaces.supprimer')}
                 </button>
               </span>

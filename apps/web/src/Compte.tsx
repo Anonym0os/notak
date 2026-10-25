@@ -1,9 +1,11 @@
+import type { MouseEvent } from 'react'
 import { t } from './langue'
 import { type Moi } from './api'
 import { adressePhoto } from './fichiers'
-import { Icone, PastillePersonne } from '@notak/tableau'
+import { PastillePersonne } from '@notak/tableau'
 import { usePanneau } from './panneaux'
 import { surLien } from './chemin'
+import { LigneMenu } from './LigneMenu'
 
 /** Le raccourci de la bibliothèque, partout dans l'édition serveur (⌥⌘O). */
 export const RACCOURCI_BIBLIOTHEQUE = '⌥⌘O'
@@ -14,51 +16,40 @@ export const RACCOURCI_BIBLIOTHEQUE = '⌥⌘O'
  */
 export function Compte({ moi, deconnexion, aide }: { moi: Moi; deconnexion(): void; aide(): void }) {
   const { ouvert, regler, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
+  const photo = moi.photo ? adressePhoto(moi.photo) : undefined
+  const aller = (chemin: string) => (e: MouseEvent) => {
+    regler(false)
+    surLien(e, chemin)
+  }
   return (
     <div className="compte" ref={ancre}>
       <button type="button" ref={bouton} className="bouton bouton-nu compte-nom" aria-expanded={ouvert} aria-label={moi.nom} title={moi.nom} onClick={basculer}>
-        <PastillePersonne className="compte-pastille" nom={moi.nom} couleur={moi.couleur} adresse={moi.photo ? adressePhoto(moi.photo) : undefined} titre="" />
+        <PastillePersonne className="compte-pastille" nom={moi.nom} couleur={moi.couleur} adresse={photo} titre="" />
       </button>
       {ouvert && (
-        <div className="compte-menu" ref={panneau} role="menu">
-          <small>{moi.email}</small>
-          <a
-            role="menuitem"
-            className="compte-ligne"
-            href="/"
-            title={`${t('compte.bibliotheque')} (${RACCOURCI_BIBLIOTHEQUE})`}
-            onClick={(e) => {
-              regler(false)
-              surLien(e, '/')
-            }}
-          >
-            <Icone nom="tableau" taille={16} />
-            <span>{t('compte.bibliotheque')} <small>· {t('compte.bibliotheque.detail')}</small></span>
-          </a>
-          <button
-            type="button"
-            role="menuitem"
-            className="compte-ligne"
+        <div className="app-panneau app-menu compte-menu" ref={panneau} role="menu" aria-label={moi.nom}>
+          <div className="compte-tete">
+            <PastillePersonne className="compte-pastille" nom={moi.nom} couleur={moi.couleur} adresse={photo} titre="" />
+            <span className="app-menu-texte">
+              <span>{moi.nom}</span>
+              <small>{moi.email}</small>
+            </span>
+          </div>
+          <div className="app-menu-sep" />
+          <LigneMenu icone="tableau" libelle={t('compte.bibliotheque')} detail={t('compte.bibliotheque.detail')} touche={RACCOURCI_BIBLIOTHEQUE} href="/" onClick={aller('/')} />
+          <LigneMenu icone="equipe" libelle={t('compte.espaces')} detail={t('compte.espaces.detail')} href="/espace" onClick={aller('/espace')} />
+          <LigneMenu icone="envoyer" libelle={t('compte.envoyer')} detail={t('compte.envoyer.detail')} href="/envoyer" onClick={aller('/envoyer')} />
+          <LigneMenu
+            icone="aide"
+            libelle={t('compte.aide')}
+            detail={t('compte.raccourcis')}
             onClick={() => {
               regler(false)
               aide()
             }}
-          >
-            <Icone nom="aide" taille={16} />
-            <span>{t('compte.aide')} <small>· {t('compte.raccourcis')}</small></span>
-          </button>
-          <a role="menuitem" className="compte-ligne" href="/espace">
-            <Icone nom="equipe" taille={16} />
-            <span>{t('compte.espaces')} <small>· {t('compte.espaces.detail')}</small></span>
-          </a>
-          <a role="menuitem" className="compte-ligne" href="/envoyer">
-            <Icone nom="envoyer" taille={16} />
-            <span>{t('compte.envoyer')} <small>· {t('compte.envoyer.detail')}</small></span>
-          </a>
-          <button type="button" role="menuitem" className="compte-ligne" onClick={deconnexion}>
-            <Icone nom="deconnexion" taille={16} />
-            {t('compte.deconnexion')}
-          </button>
+          />
+          <div className="app-menu-sep" />
+          <LigneMenu icone="deconnexion" libelle={t('compte.deconnexion')} onClick={deconnexion} />
         </div>
       )}
     </div>

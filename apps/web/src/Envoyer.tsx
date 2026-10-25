@@ -1,6 +1,7 @@
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { t, langue } from './langue'
 import { type JetonArrivee, creerJeton, listerJetons, revoquerJeton } from './api'
+import { PageApp } from './PageApp'
 import { jetonARemplacer, adresseArrivee, enteteAutorisation, etapesRaccourciImage, etapesRaccourciTexte, favori } from './raccourcis'
 
 const quand = (instant: number) => new Date(instant).toLocaleString(langue() === 'en' ? 'en-US' : 'fr-FR', { dateStyle: 'medium', timeStyle: 'short' })
@@ -23,6 +24,17 @@ function Etapes({ etapes }: { etapes: string[] }) {
         </li>
       ))}
     </ol>
+  )
+}
+
+/** Le titre d'une étape, « 1. Un jeton » : son numéro dans une pastille, puis son nom. */
+function TitreEtape({ id, texte }: { id: string; texte: string }) {
+  const [, numero, nom] = /^(\d+)\.\s*(.*)$/.exec(texte) ?? [null, null, texte]
+  return (
+    <h2 id={id}>
+      {numero && <span className="app-etape">{numero}</span>}
+      {nom}
+    </h2>
   )
 }
 
@@ -108,20 +120,12 @@ export function PageEnvoyer() {
   const origine = location.origin
 
   return (
-    <main className="envoyer">
-      <div className="arrivee-carte envoyer-carte">
-        <h1>{t('compte.envoyer')}</h1>
-        <p>{t('envoyer.intro')}</p>
-        <a className="bouton-lien" href="/">
-          {t('envoyer.retour')}
-        </a>
-      </div>
-
-      <section className="arrivee-carte envoyer-carte" aria-labelledby="envoyer-jetons">
-        <h2 id="envoyer-jetons">{t('envoyer.jeton')}</h2>
+    <PageApp titre={t('compte.envoyer')} intro={t('envoyer.intro')}>
+      <section className="app-carte" aria-labelledby="envoyer-jetons">
+        <TitreEtape id="envoyer-jetons" texte={t('envoyer.jeton')} />
         <p>{t('envoyer.jetonExplique')}</p>
-        <form className="envoyer-form" onSubmit={creer} noValidate>
-          <input aria-label={t('envoyer.nomJeton')} placeholder={t('envoyer.nomExemple')} maxLength={60} value={nom} onChange={(e) => setNom(e.target.value)} />
+        <form className="app-form" onSubmit={creer} noValidate>
+          <input className="champ" aria-label={t('envoyer.nomJeton')} placeholder={t('envoyer.nomExemple')} maxLength={60} value={nom} onChange={(e) => setNom(e.target.value)} />
           <button type="submit" className="bouton bouton-plein" disabled={occupe}>
             {t('envoyer.creer')}
           </button>
@@ -135,10 +139,10 @@ export function PageEnvoyer() {
           </div>
         )}
         {jetons && jetons.length > 0 && (
-          <ul className="envoyer-liste">
+          <ul className="app-liste">
             {jetons.map((j) => (
               <li key={j.id}>
-                <span className="envoyer-qui">
+                <span className="app-qui">
                   <strong>{j.nom}</strong>
                   <small>
                     {t('envoyer.cree', { date: quand(j.cree) })} · {j.dernierUsage ? t('envoyer.servi', { date: quand(j.dernierUsage) }) : t('envoyer.jamaisServi')}
@@ -146,7 +150,7 @@ export function PageEnvoyer() {
                 </span>
                 <button
                   type="button"
-                  className="bouton-lien"
+                  className="bouton bouton-danger"
                   disabled={occupe}
                   onClick={() =>
                     agir(async () => {
@@ -168,10 +172,10 @@ export function PageEnvoyer() {
         )}
       </section>
 
-      <section className="arrivee-carte envoyer-carte" aria-labelledby="envoyer-iphone">
-        <h2 id="envoyer-iphone">{t('envoyer.iphone')}</h2>
+      <section className="app-carte" aria-labelledby="envoyer-iphone">
+        <TitreEtape id="envoyer-iphone" texte={t('envoyer.iphone')} />
         {!neuf && (
-          <p className="envoyer-note">
+          <p className="app-note">
             <Ligne texte={t('envoyer.sansJeton', { jeton: jetonARemplacer() })} />
           </p>
         )}
@@ -179,26 +183,26 @@ export function PageEnvoyer() {
         <Etapes etapes={etapesRaccourciTexte(origine, jeton)} />
         <h3>{t('envoyer.pourImage')}</h3>
         <Etapes etapes={etapesRaccourciImage(origine, jeton)} />
-        <p className="envoyer-note">
+        <p className="app-note">
           <Ligne texte={t('envoyer.adresse', { adresse: adresseArrivee(origine), entete: enteteAutorisation(jeton) })} />
         </p>
       </section>
 
-      <section className="arrivee-carte envoyer-carte" aria-labelledby="envoyer-bureau">
-        <h2 id="envoyer-bureau">{t('envoyer.bureau')}</h2>
+      <section className="app-carte" aria-labelledby="envoyer-bureau">
+        <TitreEtape id="envoyer-bureau" texte={t('envoyer.bureau')} />
         {neuf ? (
           <>
             <p>{t('envoyer.glisser')}</p>
-            <div className="envoyer-form">
+            <div className="app-form">
               <LienFavori code={favori(origine, neuf.jeton)} />
               <Copier valeur={favori(origine, neuf.jeton)} libelle={t('envoyer.copierCode')} />
             </div>
-            <p className="envoyer-note">{t('envoyer.pasDeBarre')}</p>
+            <p className="app-note">{t('envoyer.pasDeBarre')}</p>
           </>
         ) : (
-          <p>{t('envoyer.favoriSansJeton')}</p>
+          <p className="app-note">{t('envoyer.favoriSansJeton')}</p>
         )}
       </section>
-    </main>
+    </PageApp>
   )
 }

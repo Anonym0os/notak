@@ -18,7 +18,7 @@ export function PlusEntete({ children }: { children: ReactNode }) {
         </button>
       </Infobulle>
       {/* Toujours monté : l'activité se relit en continu, menu fermé aussi. */}
-      <div className="plus-entete-menu" ref={panneau} hidden={!ouvert}>
+      <div className="app-panneau plus-entete-menu" ref={panneau} hidden={!ouvert}>
         <DansPanneau value={id}>{children}</DansPanneau>
       </div>
     </div>

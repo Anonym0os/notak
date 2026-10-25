@@ -9,7 +9,7 @@ import {
   creerEspaceDistant,
   creerReseauNavigateur,
 } from '@notak/tableau'
-import { StrictMode, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { type ReactNode, StrictMode, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
 import { type Instance, type Moi, accepterInvitation, lireInstance, moi as lireMoi, noterElementVu, rechercherPartout, reglerCompte, seDeconnecter } from '../api'
 import { importDejaPropose, lireAncienEspace, noterImportPropose } from '../ancien'
@@ -171,10 +171,6 @@ function Application() {
   }
   if (etat.type === 'anonyme') return <EcranConnexion instance={instance} surConnexion={(m) => setEtat({ type: 'connecte', moi: m })} />
   // Trois pages légères, sans la toile : le partage vers Notak, la note rapide du téléphone, et les jetons pour envoyer d'ailleurs.
-  if (chemin === '/rapide') return <PageRapide espace={espacePour(etat.moi)} fichiers={fichiers} />
-  if (chemin === '/partage') return <PagePartage espace={espacePour(etat.moi)} fichiers={fichiers} />
-  if (chemin === '/envoyer') return <PageEnvoyer />
-  if (chemin === '/espace') return <PageEspaces />
   const proprietes = {
     moi: etat.moi,
     instance,
@@ -184,6 +180,10 @@ function Application() {
       setEtat({ type: 'anonyme' })
     },
   }
+  if (chemin === '/rapide') return <PageLegere {...proprietes}>{() => <PageRapide espace={espacePour(etat.moi)} fichiers={fichiers} />}</PageLegere>
+  if (chemin === '/partage') return <PageLegere {...proprietes}>{() => <PagePartage espace={espacePour(etat.moi)} fichiers={fichiers} />}</PageLegere>
+  if (chemin === '/envoyer') return <PageLegere {...proprietes}>{() => <PageEnvoyer />}</PageLegere>
+  if (chemin === '/espace') return <PageLegere {...proprietes}>{() => <PageEspaces />}</PageLegere>
   return chemin === '/' || chemin === '/bibliotheque' ? <Accueil {...proprietes} /> : <Espace {...proprietes} />
 }
 
@@ -229,6 +229,17 @@ function Accueil({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
           }
         />
       )}
+    </HoteNotak>
+  )
+}
+
+/** Une page légère, sans la toile (note rapide, arrivée d'un partage, Envoyer vers Notak, espaces) : dans le thème de Notak. */
+function PageLegere({ moi, instance, changerMoi, children }: ProprietesEcran & { children(): ReactNode }) {
+  const habillages = useHabillagesInstance(instance)
+  const compte = useCompte(moi, changerMoi)
+  return (
+    <HoteNotak compte={compte} habillages={habillages} className="app-hote">
+      {children}
     </HoteNotak>
   )
 }

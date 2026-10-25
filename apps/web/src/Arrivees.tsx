@@ -1,6 +1,7 @@
 import type { Arrivee, DepotFichiers, EspaceDistant } from '@notak/tableau'
 import { useEffect, useRef, useState } from 'react'
 import { t } from './langue'
+import { Marque } from './PageApp'
 import { deposerDansAccueil, messageDuDepot } from './deposer'
 import { lireArrivee, oublierArrivee } from './recuDuPartage'
 
@@ -39,6 +40,7 @@ export function PagePartage({ espace, fichiers }: { espace: EspaceDistant; fichi
   return (
     <main className="arrivee">
       <div className="arrivee-carte" role="status">
+        <Marque />
         <h1>Notak</h1>
         <p>
           {etat.type === 'cours' && t('arrivee.cours')}
@@ -90,6 +92,7 @@ export function PageRapide({ espace, fichiers }: { espace: EspaceDistant; fichie
           void envoyer()
         }}
       >
+        <Marque />
         <h1>{t('rapide.titre')}</h1>
         <textarea
           ref={champ}

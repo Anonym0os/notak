@@ -1,12 +1,23 @@
-import { type Services, Toile, creerMagasin } from '@notak/tableau'
+import { type Services, Toile, creerMagasin, lireReglages, themeEffectif, useSystemeSombre } from '@notak/tableau'
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { ErreurApi, type TableauPublic, deverrouillerPublic, lirePublic } from './api'
 import { t } from './langue'
+import { Marque } from './PageApp'
 
 type Etat = { type: 'chargement' } | { type: 'absent' } | { type: 'erreur' } | { type: 'protege' } | { type: 'pret'; tableau: TableauPublic }
 
-/** `/p/<jeton>` : un tableau publié, qu'on regarde sans compte. Rien ne s'y modifie. */
+/** `/p/<jeton>` : un tableau publié, qu'on regarde sans compte. Rien ne s'y modifie. Le thème est celui de l'appareil. */
 export function PagePublique({ jeton }: { jeton: string }) {
+  const [reglages] = useState(lireReglages)
+  const theme = themeEffectif(reglages.theme, useSystemeSombre())
+  return (
+    <div className="notak-espace" data-theme={theme}>
+      <Contenu jeton={jeton} />
+    </div>
+  )
+}
+
+function Contenu({ jeton }: { jeton: string }) {
   const [etat, setEtat] = useState<Etat>({ type: 'chargement' })
   const charger = useCallback(() => {
     let vivant = true
@@ -35,8 +46,9 @@ export function PagePublique({ jeton }: { jeton: string }) {
     return (
       <main className="connexion">
         <div className="connexion-carte">
+          <Marque />
           <h1>Notak</h1>
-          <p>{etat.type === 'absent' ? t('publique.absent') : t('publique.erreur')}</p>
+          <p className="connexion-aide">{etat.type === 'absent' ? t('publique.absent') : t('publique.erreur')}</p>
         </div>
       </main>
     )
@@ -60,9 +72,11 @@ function Lecture({ jeton, tableau }: { jeton: string; tableau: TableauPublic }) 
   return (
     <div className="public">
       <header className="public-entete">
-        <strong className="public-titre">{tableau.titre || t('commun.sansTitre')}</strong>
-        <span className="public-note">{t('publique.lectureSeule')}</span>
-        <a className="bouton" href="/">
+        <div className="notak-ilot">
+          <strong className="public-titre">{tableau.titre || t('commun.sansTitre')}</strong>
+          <span className="public-note">{t('publique.lectureSeule')}</span>
+        </div>
+        <a className="notak-ilot public-ouvrir" href="/">
           Notak
         </a>
       </header>
@@ -99,8 +113,9 @@ function MotDePasseRequis({ jeton, surOuverture }: { jeton: string; surOuverture
   return (
     <main className="connexion">
       <form className="connexion-carte" onSubmit={valider} noValidate>
+        <Marque />
         <h1>Notak</h1>
-        <p className="partage-note">{t('publique.protege')}</p>
+        <p className="connexion-aide">{t('publique.protege')}</p>
         <label>
           {t('connexion.mdp')}
           <input type="password" value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} autoComplete="off" autoFocus />
