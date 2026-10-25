@@ -2,7 +2,8 @@
 import { act, useState } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { FenetreReglages, type Reglages } from '../reglages'
+import { PageReglages } from '../PageReglages'
+import type { Reglages } from '../reglages'
 import { useHabillages } from './appliquer'
 import type { OffreHabillages } from './bibliotheque'
 import { lireHabillage } from './format'
@@ -28,7 +29,7 @@ const nuit = { notak: 'habillage', version: 1, id: 'nuit', nom: 'Nuit', couleurs
 function Banc({ offre }: { offre?: OffreHabillages }) {
   const [reglages, setReglages] = useState(depart)
   const habillages = useHabillages(offre, reglages.habillage, reglages.theme)
-  return <FenetreReglages reglages={reglages} changer={(r) => setReglages((v) => ({ ...v, ...r }))} fermer={() => {}} habillages={habillages} />
+  return <PageReglages reglages={reglages} changer={(r) => setReglages((v) => ({ ...v, ...r }))} fermer={() => {}} habillages={habillages} />
 }
 
 const monter = (offre?: OffreHabillages) => act(() => racine.render(<Banc {...(offre ? { offre } : {})} />))

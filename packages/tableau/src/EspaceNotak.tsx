@@ -36,7 +36,8 @@ import { elementsDuModele, sansExemple } from './modeles/construire'
 import { PanneauModeles, modelesProposes } from './PanneauModeles'
 import { TitreTableau } from './TitreTableau'
 import { PastillePersonne } from './pastille'
-import { FenetreReglages, type ServiceCompte, useReglages } from './reglages'
+import { type ServiceCompte, useReglages } from './reglages'
+import { PageReglages } from './PageReglages'
 import { useHabillages } from './habillage/appliquer'
 import type { OffreHabillages } from './habillage/bibliotheque'
 import './theme.css'
@@ -204,6 +205,7 @@ export function EspaceNotak({
   // Un changement de langue redessine l'en-tête et la toile : les textes se relisent à la nouvelle langue.
   const langue = useLangue()
   const [reglagesOuverts, setReglagesOuverts] = useState(false)
+  const fermerReglages = useCallback(() => setReglagesOuverts(false), [])
   const [presentation, setPresentation] = useState(false)
   const [aideOuverte, setAideOuverte] = useState(false)
   const fermerAide = useCallback(() => setAideOuverte(false), [])
@@ -657,7 +659,7 @@ export function EspaceNotak({
         createPortal(
           <div className="notak-espace notak-par-dessus" data-theme={reglages.theme} data-taille={reglages.taille}>
             {aideOuverte && <FenetreRaccourcis fermer={fermerAide} />}
-            {reglagesOuverts && <FenetreReglages reglages={reglages} changer={changerReglages} fermer={() => setReglagesOuverts(false)} habillages={habillages} {...(compte ? { compte } : {})} />}
+            {reglagesOuverts && <PageReglages reglages={reglages} changer={changerReglages} fermer={fermerReglages} habillages={habillages} compte={compte} outils={{ caches: outilsCaches, basculer: basculerOutils }} />}
           </div>,
           document.body,
         )}
