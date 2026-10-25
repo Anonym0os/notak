@@ -1132,6 +1132,13 @@ export const fr: Textes = {
   'arbre.style.br.organique': 'Courbe organique',
   'arbre.carte.sq': '{groupe} {n}',
   'arbre.carte.sqMain': 'Dessiné à la main',
+  // passe fond : pitch, la séquence
+  'arbre.pitch.merci': 'Merci',
+  // passe pitch : thèmes
+  'arbre.pitch.theme.vignette': 'Pitch Mode',
+  // passe pitch : transitions
+  'arbre.pitch.agrandir': "Agrandir l'image",
+  'arbre.pitch.fermerImage': "Fermer l'image",
   'type.croquis': 'Croquis',
   'type.dessin': 'Dessin',
   'outil.dessin': 'Dessiner',
@@ -3060,6 +3067,13 @@ export const en: Textes = {
   'arbre.style.br.organique': 'Organic curve',
   'arbre.carte.sq': '{groupe} {n}',
   'arbre.carte.sqMain': 'Hand drawn',
+  // passe fond : pitch, la séquence
+  'arbre.pitch.merci': 'Thank you',
+  // passe pitch : thèmes
+  'arbre.pitch.theme.vignette': 'Pitch Mode',
+  // passe pitch : transitions
+  'arbre.pitch.agrandir': 'Zoom in on image',
+  'arbre.pitch.fermerImage': 'Close image',
   'type.croquis': 'Sketch',
   'type.dessin': 'Drawing',
   'outil.dessin': 'Draw',

@@ -6,14 +6,14 @@ import { ChoixTheme } from './ChoixTheme'
 import { Diapositive } from './Diapo'
 import {
   type ChampVisibilite,
+  LIVRAISON_DEFAUT,
   MISES_EN_PAGE,
   type MiseEnPage,
-  diapositives,
-  livraisonDe,
   miseEnPageDe,
-  pasDe,
-  placeImageDe,
+  placeImageAutoDe,
+  sequence,
   visibilite,
+  visibiliteAuto,
 } from './modele/diapositives'
 import type { Geste } from './modele/gestes'
 import { type Lecture, enfantsDe, structureDe } from './modele/sujets'
@@ -108,7 +108,8 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
   /** Un menu Auto / Visible / Masqué, dont « Auto » dit ce qu'il décide. */
   const menuVisibilite = (champ: ChampVisibilite) => {
     const dit = commun(l, ids, champ)
-    const resolus = new Set(ids.map((x) => visibilite(l, x, champ).valeur))
+    // « Auto (…) » dit ce que la règle déciderait sans le réglage du sujet.
+    const resolus = new Set(ids.map((x) => visibiliteAuto(l, x, champ)))
     const auto = resolus.size === 1 ? `${t('arbre.pitch.auto')} (${t(`arbre.pitch.${[...resolus][0]}`)})` : t('arbre.pitch.auto')
     return (
       <Menu
@@ -133,10 +134,9 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
   const dispositions = new Set(avecEnfants.map((x) => miseEnPageDe(l, x).valeur))
   const dispo = dispositions.size === 1 ? [...dispositions][0] : null
   const placeImage = commun(l, ids, 'image')
-  const placeAuto = new Set(ids.map((x) => placeImageDe(l, x).valeur))
+  const placeAuto = new Set(ids.map((x) => placeImageAutoDe(l, x, ratio)))
 
   const livraison = commun(l, avecEnfants, 'livraison')
-  const livraisons = new Set(avecEnfants.map((x) => livraisonDe(l, x).valeur))
 
   return (
     <div className="notak-arbre-pitch">
@@ -194,7 +194,7 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
                     info={t('arbre.pitch.livraisonInfo')}
                     large
                     options={[
-                      { valeur: LIGNE_VIDE, libelle: livraisons.size === 1 ? `${t('arbre.pitch.auto')} (${t(`arbre.pitch.livraison.${[...livraisons][0]}`)})` : t('arbre.pitch.auto') },
+                      { valeur: LIGNE_VIDE, libelle: `${t('arbre.pitch.auto')} (${t(`arbre.pitch.livraison.${LIVRAISON_DEFAUT}`)})` },
                       ...(['percer', 'un-par-un', 'tout'] as const).map((v) => ({ valeur: v, libelle: t(`arbre.pitch.livraison.${v}`) })),
                     ]}
                     change={(v) => faireDiapo(faire, avecEnfants, { livraison: v === LIGNE_VIDE ? null : (v as ReglagesDiapo['livraison']) })}
@@ -234,11 +234,10 @@ const HAUTEUR_APERCU = 128
  * toutes les 2 s. Plusieurs sujets ou aucune diapositive : un texte à la place.
  */
 function Apercu({ lecture: l, ids, arbre, ratio, adresse }: { lecture: Lecture; ids: readonly Id[]; arbre: Arbre; ratio: ReturnType<typeof ratioEffectif>; adresse: Props['adresse'] }) {
-  const diapos = useMemo(() => diapositives(l), [l])
-  const pas = useMemo(() => pasDe(diapos), [diapos])
+  const diapos = useMemo(() => sequence(l, { ratio, resumes: arbre.resumes }).diapos, [l, ratio, arbre.resumes])
   const id = ids.length === 1 ? ids[0]! : null
-  // Les pas de ce sujet : sa diapositive, puis sa liste.
-  const siens = useMemo(() => (id ? pas.filter((p) => diapos[p.diapo]!.sujet === id) : []), [pas, diapos, id])
+  // Les diapositives montrées de ce sujet : la sienne, puis les étapes de sa liste.
+  const siens = useMemo(() => (id ? diapos.filter((d) => d.sujet === id && d.type !== 'fin' && !d.sautee) : []), [diapos, id])
   const [rang, setRang] = useState(0)
   const [survol, setSurvol] = useState(false)
   useEffect(() => setRang(0), [id, arbre.pitch, siens.length])
@@ -254,7 +253,7 @@ function Apercu({ lecture: l, ids, arbre, ratio, adresse }: { lecture: Lecture; 
   if (!courant) return <p className="notak-arbre-pitch-apercu-texte">{t('arbre.pitch.invisibles')}</p>
   return (
     <div className="notak-arbre-pitch-apercu" key={`${id}:${arbre.pitch?.theme ?? ''}:${arbre.pitch?.ratio ?? ''}`} onMouseEnter={() => setSurvol(true)} onMouseLeave={() => (setSurvol(false), setRang(0))}>
-      <Diapositive lecture={l} diapo={diapos[courant.diapo]!} etape={courant.etape} theme={themePitchDe(arbre.pitch?.theme)} ratio={ratio} adresse={adresse} taille={{ l: largeur, h: HAUTEUR_APERCU }} />
+      <Diapositive lecture={l} diapo={courant} theme={themePitchDe(arbre.pitch?.theme)} ratio={ratio} adresse={adresse} taille={{ l: largeur, h: HAUTEUR_APERCU }} />
     </div>
   )
 }

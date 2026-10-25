@@ -1,8 +1,8 @@
 import { type ReactNode, useLayoutEffect, useRef } from 'react'
 import { t } from '../../langue'
-import { CadreDiapo } from './Diapo'
+import { DecorDiapo } from './diapo/decor'
 import { Flottant } from './Flottant'
-import { type RatioPitch, THEMES_PITCH, dimensionsDuRatio } from './themesPitch'
+import { type RatioPitch, type ThemePitch, THEMES_PITCH, dimensionsDuRatio, variablesDeTheme } from './themesPitch'
 
 /**
  * Un popover posé sous (ou au-dessus de) son ancre, hors du panneau qui le lance : le panneau défile et rogne, le
@@ -59,6 +59,19 @@ const tailleVignette = (r: RatioPitch) => {
 
 const largeurPopover = (r: RatioPitch) => ({ '16:9': 276, '4:3': 276, '3:4': 316, '9:16': 304 })[r]
 
+/**
+ * La vignette d'un thème (relevé 12 § 8.7) : « Pitch Mode » dans la police et la couleur du thème, sur le décor de son
+ * sujet central, sur l'aplat de la vignette (le clair y est blanc pur).
+ */
+export function VignetteTheme({ theme: th, ratio, taille }: { theme: ThemePitch; ratio: RatioPitch; taille: { l: number; h: number } }) {
+  return (
+    <span className="notak-arbre-pitch-vignette-diapo" data-theme={th.id} style={{ ...variablesDeTheme(th), width: taille.l, height: taille.h, background: th.fondVignette ?? th.fond, fontSize: Math.round(Math.min(taille.l, taille.h) * 0.2) }}>
+      <DecorDiapo theme={th} ratio={ratio} niveau="central" gabarit="sujet" branche={0} graine={0} />
+      <span className="notak-arbre-pitch-vignette-titre">{t('arbre.pitch.theme.vignette')}</span>
+    </span>
+  )
+}
+
 /** Le sélecteur de thèmes : une vignette par thème, deux par ligne. Le choix ne ferme pas la fenêtre. */
 export function ChoixTheme({ ancre, theme, ratio, choisir, fermer, vers }: { ancre: HTMLElement | null; theme: string; ratio: RatioPitch; choisir(id: string): void; fermer(): void; vers?: 'bas' | 'haut' }) {
   const taille = tailleVignette(ratio)
@@ -67,11 +80,7 @@ export function ChoixTheme({ ancre, theme, ratio, choisir, fermer, vers }: { anc
       {THEMES_PITCH.map((th) => (
         <button key={th.id} type="button" className="notak-arbre-pitch-vignette" aria-pressed={th.id === theme} onClick={() => choisir(th.id)}>
           <span className="notak-arbre-pitch-vignette-cadre">
-            <CadreDiapo ratio={ratio} theme={th} taille={taille}>
-              <div className="notak-arbre-diapo-sujet" data-central="">
-                <h1>Aa</h1>
-              </div>
-            </CadreDiapo>
+            <VignetteTheme theme={th} ratio={ratio} taille={taille} />
           </span>
           <span className="notak-arbre-pitch-legende">{t(th.nom)}</span>
         </button>

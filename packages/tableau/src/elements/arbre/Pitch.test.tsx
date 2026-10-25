@@ -54,7 +54,7 @@ describe('l’onglet Pitch', () => {
     expect(o.hote.querySelector('.notak-arbre-pitch-apercu .notak-arbre-diapo')).toBeTruthy()
     expect([...o.menu('Sujet comme diapositive').options].map((x) => x.textContent)).toEqual(['Auto (Visible)', 'Visible', 'Masqué'])
     expect([...o.menu('Sous-sujets comme diapositive').options].map((x) => x.textContent)).toEqual(['Auto (Visible)', 'Visible', 'Masqué'])
-    expect([...o.menu('Livraison').options].map((x) => x.textContent)).toEqual(['Auto (Un par un)', 'Un par un, en profondeur', 'Un par un', 'Tout à la fois'])
+    expect([...o.menu('Livraison').options].map((x) => x.textContent)).toEqual(['Auto (Un par un, en profondeur)', 'Un par un, en profondeur', 'Un par un', 'Tout à la fois'])
     expect([...o.hote.querySelectorAll('.notak-arbre-pitch-segments button')].map((b) => b.getAttribute('aria-label'))).toEqual(['Liste à accolade', 'Liste à puces', 'Paroles', 'Arêtes de poisson', 'Chronologie'])
     // Pas d’image sur ce sujet : pas de ligne « Position de l’image ».
     expect(o.hote.textContent).not.toContain('Position de l’image')
@@ -108,7 +108,7 @@ describe('l’onglet Pitch', () => {
     expect(sujet.querySelector('.notak-arbre-pitch-valeur')!.textContent).toBe('Auto')
     const large = o.menu('Livraison').parentElement!
     expect(large.hasAttribute('data-large')).toBe(true)
-    expect(large.querySelector('.notak-arbre-pitch-valeur')!.textContent).toBe('Auto (Un par un)')
+    expect(large.querySelector('.notak-arbre-pitch-valeur')!.textContent).toBe('Auto (Un par un, en profondeur)')
     o.fin()
   })
 
@@ -144,7 +144,7 @@ function presenter(a: Arbre, depart?: Id) {
   act(() => racine.render(<Presentation arbre={a} lecture={lire(a)} depart={depart} faire={faire} lectureSeule={false} quitter={quitter} />))
   const touche = (key: string, mods: Partial<KeyboardEventInit> = {}) =>
     act(() => void document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...mods })))
-  const titre = () => hote.querySelector('.notak-arbre-diapo h1, .notak-arbre-diapo h2')?.textContent
+  const titre = () => hote.querySelector('.notak-arbre-pitch-diapo .notak-arbre-diapo-texte[data-titre]')?.textContent
   return { hote, quitter, faire, touche, titre, fin: () => (act(() => racine.unmount()), hote.remove()) }
 }
 
@@ -153,13 +153,13 @@ describe('le mode présentation', () => {
     const { a } = carte()
     const p = presenter(a)
     expect(p.titre()).toBe('Cours')
+    // La liste du central paraît avec son premier enfant ; on perce dans A.
     p.touche(' ')
-    expect(p.hote.querySelector('.notak-arbre-diapo-liste h2')?.textContent).toBe('Cours')
-    p.touche('ArrowRight')
+    expect(p.hote.querySelector('.notak-arbre-diapo[data-type="liste"] .notak-arbre-diapo-texte[data-titre]')?.textContent).toBe('Cours')
     p.touche('ArrowRight')
     expect(p.titre()).toBe('Chapitre A')
     p.touche('ArrowLeft')
-    expect(p.hote.querySelector('.notak-arbre-diapo-liste')).toBeTruthy()
+    expect(p.hote.querySelector('.notak-arbre-diapo[data-type="liste"]')).toBeTruthy()
     p.fin()
   })
 
@@ -168,7 +168,7 @@ describe('le mode présentation', () => {
     const p = presenter(a, A)
     expect(p.titre()).toBe('Chapitre A')
     p.touche('ArrowRight')
-    const etats = () => [...p.hote.querySelectorAll('.notak-arbre-diapo-liste li')].map((li) => li.getAttribute('data-etat'))
+    const etats = () => [...p.hote.querySelectorAll('.notak-arbre-diapo[data-type="liste"] .notak-arbre-diapo-texte[data-etat]')].map((li) => li.getAttribute('data-etat'))
     expect(etats()).toEqual(['courant', 'cache'])
     p.touche('ArrowRight')
     expect(etats()).toEqual(['passe', 'courant'])
@@ -178,8 +178,10 @@ describe('le mode présentation', () => {
   it('Maj+→ passe la branche, Maj+← revient au parent', () => {
     const { a, A } = carte()
     const p = presenter(a, A)
+    // Retour dans la liste du central, où B paraît aussitôt.
     p.touche('ArrowRight', { shiftKey: true })
-    expect(p.titre()).toBe('Chapitre B')
+    expect(p.hote.querySelector('.notak-arbre-diapo[data-type="liste"] .notak-arbre-diapo-texte[data-etat="courant"]')?.textContent).toBe('Chapitre B')
+    // Depuis la liste du central, le parent est la diapositive du central.
     p.touche('ArrowLeft', { shiftKey: true })
     expect(p.titre()).toBe('Cours')
     p.fin()
@@ -197,15 +199,32 @@ describe('le mode présentation', () => {
     expect(p.quitter).toHaveBeenCalledTimes(1)
     p.touche('q')
     expect(p.quitter).toHaveBeenCalledTimes(2)
-    for (let i = 0; i < 12; i++) p.touche('ArrowRight')
+    // « Merci », puis l'écran de fin, puis la fin.
+    for (let i = 0; i < 20; i++) p.touche('ArrowRight')
     expect(p.quitter.mock.calls.length).toBeGreaterThan(2)
+    p.fin()
+  })
+
+  it('au bout : « Merci », puis l’écran de fin, puis on quitte', () => {
+    const { a } = carte()
+    const p = presenter(a)
+    for (let i = 0; i < 20 && p.titre() !== 'Merci'; i++) p.touche('ArrowRight')
+    expect(p.titre()).toBe('Merci')
+    p.touche('ArrowRight')
+    expect(p.hote.querySelector('.notak-arbre-pitch-fin')).toBeTruthy()
+    expect(p.quitter).not.toHaveBeenCalled()
+    p.touche('ArrowLeft')
+    expect(p.titre()).toBe('Merci')
+    p.touche('ArrowRight')
+    p.touche('ArrowRight')
+    expect(p.quitter).toHaveBeenCalledTimes(1)
     p.fin()
   })
 
   it('le thème de la carte habille la diapositive, et la barre garde ses quatre groupes de boutons', () => {
     const { a } = carte()
     const p = presenter({ ...a, pitch: { theme: 'light', ratio: '4:3' } })
-    expect((p.hote.querySelector('.notak-arbre-diapo-cadre') as HTMLElement).style.getPropertyValue('--d-fond')).toBe('#fafbfc')
+    expect((p.hote.querySelector('.notak-arbre-diapo-cadre') as HTMLElement).style.getPropertyValue('--d-fond')).toBe('#f9f9f9')
     expect(p.hote.querySelector('.notak-arbre-diapo-cadre')?.getAttribute('data-ratio')).toBe('4:3')
     expect([...p.hote.querySelectorAll('.notak-arbre-pitch-outil')].map((b) => b.getAttribute('aria-label'))).toEqual([
       'Quitter le mode présentation.',
