@@ -16,6 +16,7 @@ import { enregistrerServiceWorker } from '../pwa'
 import { t, tn } from '../langue'
 import { fabriquerCopie, rouvrirCopie } from '../local/copie'
 import { choisirCopie, estCopie, nomDeCopie, rangerCopie } from '../local/enregistrement'
+import { BandeauRecu } from '../local/BandeauRecu'
 import { type EspaceLocal, espaceLocal, exportLocal, rechercherLocalement } from '../local/espace'
 import { fichiersLocaux } from '../local/fichiers'
 import { Rangement } from '../local/Rangement'
@@ -57,6 +58,8 @@ function Espace({ el }: { el: EspaceLocal }) {
   const { espace, index } = el
   const [adresse] = useState(() => adressePour(index.racine()))
   const [message, setMessage] = useState<string | null>(null)
+  /** Le tableau ouvert, pour le bandeau d'une copie reçue (`courant` n'est qu'une ref : rien ne s'en redessine). */
+  const [ouvert, setOuvert] = useState<Id>(() => index.racine())
   const minuteur = useRef<ReturnType<typeof setTimeout>>(undefined)
   const dire = useCallback((texte: string) => {
     setMessage(texte)
@@ -73,6 +76,10 @@ function Espace({ el }: { el: EspaceLocal }) {
       localiser,
       rechercherPartout: (requete) => rechercherLocalement(el, requete),
       listerTableaux: () => index.lister().map((e) => ({ id: e.id, titre: e.titre, ...(e.couleur ? { couleur: e.couleur as CouleurNote } : {}) })),
+      // Les tableaux d'une copie reçue n'appellent aucun autre site tant que la personne ne l'a pas permis (`local/copie.ts`).
+      contenuExterne: (id) => (index.recu(id) ? 'demander' : undefined),
+      permettreContenuExterne: (id) => index.retirerRecu(id),
+      ecouterContenuExterne: index.ecouterRecus,
       // L'app de bureau n'a qu'une fenêtre, et n'en ouvre pas d'autre (`apps/bureau/src-tauri/src/navigation.rs`).
       ...(estBureau() ? {} : { ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank') }),
     }),
@@ -176,6 +183,7 @@ function Espace({ el }: { el: EspaceLocal }) {
           ouvrirTableau.current = ouvrir
           return (
             <>
+              <SuiviTableau tableau={ici} vers={setOuvert} />
               <BullesDecouverte espace={espace} tableau={ici} compte="local" />
               <PlusEntete>
                 <Importer espace={espace} tableau={ici} ouvrir={ouvrir} fichiers={fichiersLocaux} rouvrirNotak={rouvrirFichier} />
@@ -187,11 +195,18 @@ function Espace({ el }: { el: EspaceLocal }) {
         }}
       />
       <Accueil el={el} />
+      <BandeauRecu index={index} tableau={ouvert} />
       <BandeauMiseAJour />
       <BandeauNouvelleVersion />
       <DialogueExport />
     </>
   )
+}
+
+/** Dit à l'application quel tableau est ouvert : `actions` ne reçoit que cela, pendant le rendu de la toile. */
+function SuiviTableau({ tableau, vers }: { tableau: Id; vers(id: Id): void }) {
+  useEffect(() => vers(tableau), [tableau, vers])
+  return null
 }
 
 const CLE_ACCUEILLI = 'notak:local:accueilli'

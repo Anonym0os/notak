@@ -1,5 +1,7 @@
+import type { DOMOutputSpec } from '@tiptap/pm/model'
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import { Node, mergeAttributes } from '@tiptap/react'
+import { type ContenuExterne, hotesDe } from '../elements/contenuExterne'
 import { adresseSure } from '../elements/lien/adresse'
 import { Citation } from '../elements/note/noeuds'
 import type { ChercheurApercu } from '../elements/types'
@@ -146,6 +148,66 @@ export const Colonne = Node.create({
 export interface OptionsImage {
   /** L'adresse affichable d'un fichier du tableau (voir `DepotFichiers.adresse`). */
   adresse: ((fichier: string) => Promise<string | null>) | null
+  /** Ce que la toile attend avant de charger une image d'un autre site (copie reçue) ; absent, tout se charge. */
+  externe: ContenuExterne | null
+  /** Qui dessine : l'éditeur (ses vues de nœud, et son presse-papiers, qui garde l'adresse), la lecture, ou un export. */
+  rendu: RenduTexte
+}
+
+/**
+ * Qui dessine le texte. Dans l'éditeur, une image ou un signet qui attend l'accord est une vue de nœud à place ; son
+ * rendu fixe (`renderHTML`), lui, sert aussi au presse-papiers et garde l'adresse. La lecture et l'export, eux, ne
+ * demandent rien à un autre site tant que l'accord n'est pas donné ; un export n'a pas de bouton à cliquer.
+ */
+export type RenduTexte = 'editeur' | 'lecture' | 'export'
+
+/** Ce que disent les places du contenu d'un autre site : l'image ou le signet qui attend, et d'où il viendrait. */
+type FormeExterne = 'image' | 'signet'
+
+/**
+ * La place du contenu d'un autre site qui attend l'accord, dans le rendu fixe (lecture, export) : où il serait, et
+ * « Afficher » (la lecture le prend par `data-externe`, voir `Document.tsx`) ; `inerte`, sans bouton.
+ */
+function placeExterne(forme: FormeExterne, partie: string, hotes: string[], inerte: boolean): DOMOutputSpec {
+  const d = hotes.join(', ')
+  const bouton = { type: 'button', class: 'notak-externe-bouton', 'data-externe': partie, 'aria-label': t('externe.afficherDe', { hotes: d }) }
+  return [
+    forme === 'signet' ? 'span' : 'div',
+    { class: 'notak-externe', 'data-forme': forme },
+    ['span', { class: 'notak-externe-texte' }, t('externe.de', { hote: d })],
+    ...(inerte ? [] : [['button', bouton, t('externe.afficher')] as const]),
+  ]
+}
+
+/** La même place dans l'éditeur, en DOM : `dire` l'écrit (ou la retire, sans hôtes), `afficher` est ce que fait le bouton. */
+function lieuExterne(forme: FormeExterne, afficher: () => void) {
+  const dom = document.createElement(forme === 'signet' ? 'span' : 'div')
+  dom.className = 'notak-externe'
+  dom.dataset.forme = forme
+  dom.contentEditable = 'false'
+  const texte = document.createElement('span')
+  texte.className = 'notak-externe-texte'
+  const bouton = document.createElement('button')
+  bouton.type = 'button'
+  bouton.className = 'notak-externe-bouton'
+  // Ni le curseur du texte ni le lien d'une carte ne prennent le clic.
+  bouton.addEventListener('mousedown', (e) => e.preventDefault())
+  bouton.addEventListener('click', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    afficher()
+  })
+  dom.append(texte, bouton)
+  return {
+    dom,
+    dire(hotes: string[]) {
+      const d = hotes.join(', ')
+      texte.textContent = t('externe.de', { hote: d })
+      texte.title = d
+      bouton.textContent = t('externe.afficher')
+      bouton.setAttribute('aria-label', t('externe.afficherDe', { hotes: d }))
+    },
+  }
 }
 
 export const ImageBloc = Node.create<OptionsImage>({
@@ -153,7 +215,7 @@ export const ImageBloc = Node.create<OptionsImage>({
   group: 'block',
   atom: true,
   draggable: false,
-  addOptions: () => ({ adresse: null }),
+  addOptions: () => ({ adresse: null, externe: null, rendu: 'editeur' }),
   addAttributes() {
     return {
       fichier: { default: null, parseHTML: (el: HTMLElement) => el.getAttribute('data-fichier') },
@@ -164,7 +226,8 @@ export const ImageBloc = Node.create<OptionsImage>({
     }
   },
   parseHTML: () => [{ tag: 'figure[data-type="image"]' }],
-  renderHTML: ({ node, HTMLAttributes }) => {
+  renderHTML({ node, HTMLAttributes }) {
+    const { externe, rendu } = this.options
     const { fichier, url, largeur, alignement, legende, ...reste } = HTMLAttributes as Record<string, unknown>
     const attrs = mergeAttributes(reste, {
       'data-type': 'image',
@@ -174,12 +237,17 @@ export const ImageBloc = Node.create<OptionsImage>({
       ...(largeur ? { 'data-largeur': String(largeur), style: `width: ${Math.round(Number(largeur) * 100)}%` } : {}),
     })
     const texte = String(node.attrs.legende ?? '')
-    return ['figure', attrs, ['img', { src: String(url ?? ''), alt: texte }], ...(legende ? [['figcaption', {}, texte] as const] : [])]
+    // Une adresse d'image vient du document, donc de n'importe qui : seulement le web (`adresseSure`), et rien d'un autre site
+    // tant que la toile attend l'accord. Les images des fichiers du tableau ont leur adresse plus tard (`remplirImages`).
+    const sure = adresseSure(url, 'image')
+    const attend = rendu !== 'editeur' && !!sure && !!externe?.attend(`image:${url}`)
+    const image: DOMOutputSpec = attend ? placeExterne('image', `image:${url}`, hotesDe([sure]), rendu === 'export') : ['img', { ...(sure ? { src: sure } : {}), alt: texte }]
+    return ['figure', attrs, image, ...(legende ? [['figcaption', {}, texte] as const] : [])]
   },
   // Dans l'éditeur, l'image d'un fichier du tableau va chercher son adresse ; hors édition, voir `remplirImages`.
   // Au survol, deux poignées sur ses bords règlent sa largeur (NOTION.md § 2), écrite au lâcher en part de la colonne.
   addNodeView() {
-    const { adresse } = this.options
+    const { adresse, externe } = this.options
     return ({ node: depart, view, getPos }) => {
       let node = depart
       const figure = document.createElement('figure')
@@ -187,6 +255,8 @@ export const ImageBloc = Node.create<OptionsImage>({
       figure.dataset.type = 'image'
       const img = document.createElement('img')
       img.draggable = false
+      // Une image d'un autre site, tant que la toile attend l'accord : sa place dit d'où elle viendrait (`elements/contenuExterne.ts`).
+      const attente = lieuExterne('image', () => externe?.permettre(`image:${node.attrs.url}`))
       const legende = document.createElement('figcaption')
       legende.dataset.invite = t('blocs.image.legendeInvite')
       // La légende s'écrit sur place ; elle n'est écrite dans le texte qu'en la quittant.
@@ -201,12 +271,23 @@ export const ImageBloc = Node.create<OptionsImage>({
         }
         figure.style.width = a.largeur ? `${Math.round(Number(a.largeur) * 1000) / 10}%` : ''
         img.alt = String(a.legende ?? '')
-        const voulue = String(a.url ?? a.fichier ?? '')
-        if (voulue !== source) {
-          source = voulue
-          // Une adresse d'image vient du document, donc de n'importe qui : seulement le web (`adresseSure`).
-          if (a.url) img.src = adresseSure(a.url, 'image') ?? ''
-          else if (a.fichier && adresse) void adresse(String(a.fichier)).then((u) => u && source === voulue && (img.src = u))
+        const distante = a.url ? adresseSure(a.url, 'image') : undefined
+        const attend = !!distante && !!externe?.attend(`image:${a.url}`)
+        if (attend) {
+          // L'image n'est pas demandée : l'adresse se redemandera dès que l'accord est donné.
+          source = ''
+          img.removeAttribute('src')
+          attente.dire(hotesDe([distante]))
+          if (!attente.dom.isConnected) figure.insertBefore(attente.dom, img)
+        } else {
+          attente.dom.remove()
+          const voulue = String(a.url ?? a.fichier ?? '')
+          if (voulue !== source) {
+            source = voulue
+            // Une adresse d'image vient du document, donc de n'importe qui : seulement le web (`adresseSure`).
+            if (a.url) img.src = adresseSure(a.url, 'image') ?? ''
+            else if (a.fichier && adresse) void adresse(String(a.fichier)).then((u) => u && source === voulue && (img.src = u))
+          }
         }
         for (const b of alignements) b.dataset.actif = String(b.dataset.valeur === figure.dataset.alignement)
         boutonAlignement.replaceChildren(dessinAlignement((figure.dataset.alignement as 'gauche' | 'centre' | 'droite') || 'centre'))
@@ -369,6 +450,8 @@ export const ImageBloc = Node.create<OptionsImage>({
       const poignees = [poignee('gauche'), poignee('droite')]
       figure.append(img, ...poignees, barre)
       peindre()
+      // L'accord peut venir pendant que le texte est ouvert (le bouton de la place, le bandeau de la toile).
+      const arreter = externe?.ecouter(peindre)
       return {
         dom: figure,
         update: (n) => {
@@ -377,8 +460,9 @@ export const ImageBloc = Node.create<OptionsImage>({
           peindre()
           return true
         },
-        stopEvent: (e) => [...poignees, barre, legende].some((p) => p.contains(e.target as HTMLElement)),
+        stopEvent: (e) => [...poignees, barre, legende, attente.dom].some((p) => p.contains(e.target as HTMLElement)),
         ignoreMutation: () => true,
+        destroy: () => arreter?.(),
       }
     }
   },
@@ -401,6 +485,10 @@ export function remplirImages(racine: HTMLElement, adresse: (fichier: string) =>
 export interface OptionsApercuLien {
   /** Lit l'aperçu d'une adresse (`contexte.services.apercu`) ; absent, la carte garde l'adresse pour titre. */
   chercher: ChercheurApercu | null
+  /** Ce que la toile attend avant de charger l'image et la favicon d'une carte (copie reçue) ; absent, tout se charge. */
+  externe: ContenuExterne | null
+  /** Qui dessine : l'éditeur, la lecture, ou un export (voir `RenduTexte`). */
+  rendu: RenduTexte
 }
 
 /** Un élément de la carte, avec sa classe. */
@@ -445,7 +533,7 @@ export const ApercuLien = Node.create<OptionsApercuLien>({
   group: 'block',
   atom: true,
   draggable: false,
-  addOptions: () => ({ chercher: null }),
+  addOptions: () => ({ chercher: null, externe: null, rendu: 'editeur' }),
   addAttributes() {
     return {
       url: { default: '', parseHTML: (el: HTMLElement) => el.getAttribute('href') ?? '' },
@@ -456,21 +544,24 @@ export const ApercuLien = Node.create<OptionsApercuLien>({
     }
   },
   parseHTML: () => [{ tag: 'a[data-type="apercu-lien"]' }],
-  renderHTML: ({ node, HTMLAttributes }) => {
+  renderHTML({ node, HTMLAttributes }) {
+    const { externe, rendu } = this.options
     const { url, titre, description, image, favicon, ...reste } = HTMLAttributes as Record<string, unknown>
     const adresse = String(node.attrs.url ?? '')
     const titreVu = String(node.attrs.titre || adresse)
-    const icone = adresseSure(node.attrs.favicon, 'image')
+    const icone = node.attrs.titre ? adresseSure(node.attrs.favicon, 'image') : undefined
     const vignette = adresseSure(node.attrs.image, 'image')
+    // L'image et la favicon viennent d'un autre site : rien n'en est demandé tant que la toile attend l'accord.
+    const attend = rendu !== 'editeur' && !!(icone || vignette) && !!externe?.attend(`signet:${adresse}`)
     return [
       'a',
       mergeAttributes(reste, { 'data-type': 'apercu-lien', class: 'notak-apercu-lien', href: adresseSure(adresse) ?? '', target: '_blank', rel: 'noopener noreferrer', ...(node.attrs.titre ? {} : { 'data-etat': 'vide' }) }),
       // Comme chez Notion : l'image à gauche, puis la favicon, le titre, la description et l'adresse.
-      ...(vignette ? [['img', { class: 'notak-apercu-lien-image', src: vignette, alt: '' }] as const] : []),
+      ...(attend ? [placeExterne('signet', `signet:${adresse}`, hotesDe([vignette, icone]), rendu === 'export')] : vignette ? [['img', { class: 'notak-apercu-lien-image', src: vignette, alt: '' }] as const] : []),
       [
         'span',
         { class: 'notak-apercu-lien-texte' },
-        ...(node.attrs.titre && icone ? [['img', { class: 'notak-apercu-lien-icone', src: icone, alt: '' }] as const] : []),
+        ...(icone && !attend ? [['img', { class: 'notak-apercu-lien-icone', src: icone, alt: '' }] as const] : []),
         ['span', { class: 'notak-apercu-lien-titre' }, titreVu],
         ...(node.attrs.description ? [['span', { class: 'notak-apercu-lien-description' }, String(node.attrs.description)] as const] : []),
         // Sans titre, l'adresse est déjà le titre : elle n'est pas écrite deux fois.
@@ -479,7 +570,7 @@ export const ApercuLien = Node.create<OptionsApercuLien>({
     ]
   },
   addNodeView() {
-    const { chercher } = this.options
+    const { chercher, externe } = this.options
     return ({ node: depart, view, getPos }) => {
       let node = depart
       let detruit = false
@@ -501,6 +592,8 @@ export const ApercuLien = Node.create<OptionsApercuLien>({
       const vignette = imageDeCarte('image')
       // Comme chez Notion : l'image à gauche, le texte à droite (favicon, titre, description, adresse en bas).
       carte.append(vignette, texte)
+      // Tant que la toile attend l'accord, l'image et la favicon ne sont pas demandées : cette place dit d'où elles viendraient.
+      const attente = lieuExterne('signet', () => externe?.permettre(`signet:${node.attrs.url}`))
       // Une image qui n'a pas pu se charger a retiré son élément : on le rend à la carte avec sa nouvelle adresse.
       const montrer = (img: HTMLImageElement, src: string | undefined, parent: HTMLElement, avant?: HTMLElement) => {
         if (!src) return img.remove()
@@ -523,8 +616,15 @@ export const ApercuLien = Node.create<OptionsApercuLien>({
         description.hidden = !a.description
         adresse.textContent = url
         adresse.hidden = !a.titre
-        montrer(icone, a.titre ? adresseSure(a.favicon, 'image') : undefined, texte, titre)
-        montrer(vignette, adresseSure(a.image, 'image'), carte, texte)
+        const iconeSure = a.titre ? adresseSure(a.favicon, 'image') : undefined
+        const vignetteSure = adresseSure(a.image, 'image')
+        const attend = !!(iconeSure || vignetteSure) && !!externe?.attend(`signet:${url}`)
+        if (attend) {
+          attente.dire(hotesDe([vignetteSure, iconeSure]))
+          if (!attente.dom.isConnected) carte.insertBefore(attente.dom, texte)
+        } else attente.dom.remove()
+        montrer(icone, attend ? undefined : iconeSure, texte, titre)
+        montrer(vignette, attend ? undefined : vignetteSure, carte, texte)
       }
       // Sans titre, la carte demande l'aperçu de sa page, une fois ; la réponse s'écrit dans le nœud, hors annulation.
       const chercherSiVide = () => {
@@ -557,6 +657,8 @@ export const ApercuLien = Node.create<OptionsApercuLien>({
       })
       peindre()
       chercherSiVide()
+      // L'accord peut venir pendant que le texte est ouvert (le bouton de la place, le bandeau de la toile).
+      const arreter = externe?.ecouter(peindre)
       return {
         dom: carte,
         update: (n) => {
@@ -566,9 +668,11 @@ export const ApercuLien = Node.create<OptionsApercuLien>({
           chercherSiVide()
           return true
         },
+        stopEvent: (e) => attente.dom.contains(e.target as HTMLElement),
         ignoreMutation: () => true,
         destroy: () => {
           detruit = true
+          arreter?.()
         },
       }
     }

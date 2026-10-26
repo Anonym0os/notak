@@ -21,6 +21,15 @@ fil des changements ; `bun run nouvelle-version x.y.z` en fait la section de la 
   déposé) ne s'ouvre jamais comme une page de Notak ; une archive piégée qui se déplierait en gigaoctets est refusée ;
   une copie ou un dossier partagé ne peut plus abîmer l'index de l'espace ni ses fichiers ; une « couleur » qui
   chargerait une image espion est ignorée ; un collage démesuré ne fige plus la page.
+- **Une copie reçue ne charge rien d'un autre site sans votre accord** : dans ses toiles, les lecteurs intégrés et les
+  images venues d'ailleurs attendent derrière « Afficher » ; « Tout afficher pour cette toile » lève l'attente pour de bon.
 - **Connexion (serveur Notak)** : on peut afficher le mot de passe, les majuscules verrouillées se signalent, la règle
   du mot de passe se lit avant le refus, et après trop d'essais l'écran dit combien attendre. Le serveur limite aussi
   les essais par compte, d'où qu'ils viennent.
+- **Un serveur Notak s'installe et se met à jour d'une commande** : l'image est publiée pour amd64 et arm64, et
+  `docker compose pull && docker compose up -d` la met à jour, la base copiée avant chaque migration. Le serveur dit de
+  lui-même quand une nouvelle version existe, dans son journal et à ses admins (`NOTAK_ADMINS`) ; chaque image porte
+  une attestation de provenance que l'on peut vérifier.
+- **Depuis l'app de bureau, la connexion par Google, Microsoft, GitHub ou le SSO d'un espace passe par votre
+  navigateur** : l'app montre un code, vous le confirmez sur votre serveur, qui vous dit d'où et quand il a été demandé.
+- **Une seule version pour tout Notak** : l'app de bureau, le serveur et les réglages portent le même numéro.

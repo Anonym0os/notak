@@ -2164,6 +2164,12 @@ export const fr: Textes = {
   'fichier.aucunApercu': 'Aucun aperçu disponible',
   'fichier.traitement': 'Traitement',
   'fichier.enregistrement': 'Enregistrement',
+  'externe.de': 'Contenu de {hote}',
+  'externe.afficher': 'Afficher',
+  'externe.afficherDe': 'Afficher le contenu de {hotes}',
+  'externe.bandeau': 'Cette toile vient d’une copie reçue : ses lecteurs et ses images venus d’autres sites attendent votre accord.',
+  'externe.toutAfficher': 'Tout afficher pour cette toile',
+  'externe.masquer': 'Masquer',
 }
 
 export const en: Textes = {
@@ -4245,4 +4251,10 @@ export const en: Textes = {
   'fichier.aucunApercu': 'No preview available',
   'fichier.traitement': 'Processing',
   'fichier.enregistrement': 'Saving',
+  'externe.de': 'Content from {hote}',
+  'externe.afficher': 'Show',
+  'externe.afficherDe': 'Show content from {hotes}',
+  'externe.bandeau': 'This board comes from a copy you received: its players and images from other sites are waiting for your permission.',
+  'externe.toutAfficher': 'Show everything for this board',
+  'externe.masquer': 'Dismiss',
 }

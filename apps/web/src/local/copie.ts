@@ -94,6 +94,10 @@ export async function rouvrirCopie(el: EspaceLocal, octets: Uint8Array, ici: Id)
   const racine = index.racine()
   // Déjà là : sa propre copie, ou une copie déjà rouverte. Tout se fond, rien ne s'ajoute.
   const fusion = c.racine === racine || index.entree(c.racine) !== undefined
+  // La copie de quelqu'un d'autre : ses lecteurs et ses images d'autres sites attendent l'accord de la personne. La marque
+  // est à l'appareil (celle que porterait la copie serait celle de l'expéditeur), posée avant que rien ne soit fondu.
+  // Une copie déjà connue ne marque ni ne démarque rien : ce que la personne a permis le reste.
+  if (!fusion) index.noterRecus(c.tableaux.map((t) => t.id))
   const accueil = !fusion && (await espaceIntact(el))
   for (const t of c.tableaux) {
     await reseau.avec(t.id, (doc) => Y.applyUpdate(doc, t.etat, ORIGINE_COPIE))

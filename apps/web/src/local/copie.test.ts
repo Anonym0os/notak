@@ -31,6 +31,8 @@ describe('copies .notak', () => {
     await attendre()
     expect(index.lister().length).toBe(avant)
     expect(await elements()).toBe(notesAvant)
+    // Sa propre copie n'a rien d'une copie reçue.
+    expect(index.lister().some((e) => index.recu(e.id))).toBe(false)
   })
 
   it('la copie de quelqu’un d’autre s’ajoute, rangée dans le tableau ouvert, une seule fois', async () => {
@@ -47,6 +49,8 @@ describe('copies .notak', () => {
     const r = await rouvrirCopie(el, octets, racine)
     expect(r.fusion).toBe(false)
     expect(index.entree('accueilDeLea')).toMatchObject({ titre: 'Chez Léa', parent: racine })
+    // Venue de quelqu'un d'autre, elle attend l'accord de la personne pour ses lecteurs et ses images ; la nôtre, non.
+    expect([index.recu('accueilDeLea'), index.recu(racine)]).toEqual([true, false])
     await attendre()
     const renvois = () => reseau.avec(racine, (d) => [...d.getMap<{ contenu: { type: string; cible?: string } }>('elements').values()].filter((e) => e.contenu.cible === 'accueilDeLea').length)
     expect(await renvois()).toBe(1)

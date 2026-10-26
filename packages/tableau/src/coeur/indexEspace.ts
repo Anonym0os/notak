@@ -40,8 +40,23 @@ export interface IndexEspace {
   garderAccueil(): void
   /** Ce tableau n'est plus listé (un accueil vide qu'une copie rouverte a remplacé). */
   retirer(id: Id): void
+  /**
+   * Ce tableau vient d'une copie reçue de quelqu'un d'autre : ses lecteurs et ses images d'autres sites attendent
+   * l'accord de la personne. La marque est à cet appareil (et à ceux qui partagent le dossier), pas dans le tableau :
+   * ce qu'il porte est écrit par l'expéditeur, qui ne doit pas pouvoir dire « de confiance ».
+   */
+  recu(id: Id): boolean
+  /** Ces tableaux viennent d'une copie reçue. Une clé par tableau : deux appareils qui en marquent chacun se fusionnent. */
+  noterRecus(ids: readonly Id[]): void
+  /** La personne a permis le contenu d'autres sites pour ce tableau : la marque s'efface, sur tous ses appareils. */
+  retirerRecu(id: Id): void
+  /** Prévenu quand une marque est posée ou retirée (et pour elles seules, pas pour chaque changement de l'index). */
+  ecouterRecus(f: () => void): () => void
   ecouter(f: () => void): () => void
 }
+
+/** La clé de la marque d'un tableau reçu, dans `meta`. */
+const cleRecu = (id: Id) => `recu:${id}`
 
 const estObjet = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 
@@ -78,6 +93,13 @@ export function creerIndexEspace(doc: Y.Doc, maintenant: () => number = Date.now
       estObjet(v) ? [{ id, cree: typeof v.cree === 'number' ? v.cree : 0, retire: v.retire === true }] : [],
     )
   const avant = (a: { id: string; cree: number }, b: { id: string; cree: number }) => a.cree - b.cree || (a.id < b.id ? -1 : 1)
+
+  // Les marques de copies reçues : un seul observateur, que tous ceux qui suivent un tableau partagent.
+  const ecouteursRecus = new Set<() => void>()
+  meta.observe((e) => {
+    if (![...e.keysChanged].some((k) => k.startsWith('recu:'))) return
+    for (const f of [...ecouteursRecus]) f()
+  })
 
   if (candidats().length === 0) {
     const id = nouvelId()
@@ -132,6 +154,19 @@ export function creerIndexEspace(doc: Y.Doc, maintenant: () => number = Date.now
       })
     },
     retirer: (id) => tableaux.delete(id),
+    recu: (id) => meta.get(cleRecu(id)) === true,
+    noterRecus(ids) {
+      const aMarquer = ids.filter((id) => meta.get(cleRecu(id)) !== true)
+      if (aMarquer.length === 0) return
+      doc.transact(() => {
+        for (const id of aMarquer) meta.set(cleRecu(id), true)
+      })
+    },
+    retirerRecu: (id) => void meta.delete(cleRecu(id)),
+    ecouterRecus(f) {
+      ecouteursRecus.add(f)
+      return () => void ecouteursRecus.delete(f)
+    },
     cederAccueil() {
       const c = candidats().find((x) => x.id === mien)
       accueils.set(mien, { cree: c?.cree ?? 0, retire: true })
