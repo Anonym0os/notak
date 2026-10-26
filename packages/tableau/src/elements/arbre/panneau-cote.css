@@ -29,70 +29,10 @@
   display: none;
 }
 
-/* Le rail : 244 de large (268 moins 12 de chaque côté), 4 de padding, 25 de haut par onglet, soit 33. */
+/* Le rail des onglets : le contrôle segmenté commun, à 12 px des bords du panneau. */
 .notak-arbre-cote > .notak-arbre-onglets {
-  display: flex;
   flex: none;
-  gap: 0;
   margin: 8px 12px 0;
-  padding: 4px;
-  border-radius: 24px;
-  background: var(--notak-arbre-piste);
-}
-
-.notak-arbre-cote > .notak-arbre-onglets > button {
-  position: relative;
-  flex: 1 1 auto;
-  min-width: 0;
-  height: 25px;
-  padding: 4px 2px;
-  overflow: hidden;
-  border: 0;
-  border-radius: 24px;
-  background: transparent;
-  color: color-mix(in srgb, var(--notak-arbre-texte) 70%, transparent);
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 400;
-  line-height: 17px;
-  letter-spacing: 0;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background-color 0.2s ease-in-out, color 0.1s;
-}
-
-.notak-arbre-cote > .notak-arbre-onglets > button:hover:not([aria-selected='true']) {
-  color: var(--notak-arbre-texte);
-}
-
-.notak-arbre-cote > .notak-arbre-onglets > button[aria-selected='true'] {
-  background: var(--notak-arbre-fond);
-  color: var(--notak-arbre-texte);
-  font-weight: 600;
-  box-shadow: 0 0 1.5px rgb(0 0 0 / 0.06), 0 0 3px rgb(0 0 0 / 0.03);
-}
-
-.notak-arbre-cote > .notak-arbre-onglets > button:focus-visible {
-  outline: 2px solid var(--notak-arbre-choix);
-  outline-offset: -2px;
-}
-
-/* Le filet de 1 × 16 entre deux onglets, caché contre l'onglet choisi. */
-.notak-arbre-cote > .notak-arbre-onglets > button + button::before {
-  content: '';
-  position: absolute;
-  top: 4px;
-  left: 0;
-  width: 1px;
-  height: 16px;
-  border-radius: 1px;
-  background: var(--notak-arbre-filet-c);
-}
-
-.notak-arbre-cote > .notak-arbre-onglets > button[aria-selected='true']::before,
-.notak-arbre-cote > .notak-arbre-onglets > button[aria-selected='true'] + button::before {
-  visibility: hidden;
 }
 
 /* Le corps défile, la barre de défilement fine et discrète. */

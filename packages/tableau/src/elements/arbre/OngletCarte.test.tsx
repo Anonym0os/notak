@@ -53,7 +53,7 @@ const bouton = (nom: string | RegExp) => {
   return trouve
 }
 const cliquer = (el: HTMLElement) => act(() => el.click())
-const interrupteur = (libelle: string) => hote.querySelector<HTMLInputElement>(`input[role=switch][aria-label="${libelle}"]`)!
+const interrupteur = (libelle: string) => hote.querySelector<HTMLButtonElement>(`button[role=switch][aria-label="${libelle}"]`)!
 const saisir = (el: HTMLInputElement, valeur: string) =>
   act(() => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(el, valeur)
@@ -112,13 +112,13 @@ describe('l’onglet Carte : ce qu’il montre', () => {
 
   it('une carte neuve : carte équilibrée et branches de couleur allumées, le reste éteint', () => {
     monter(carte())
-    const allumes = [...hote.querySelectorAll<HTMLInputElement>('input[role=switch]')].filter((i) => i.checked).map((i) => i.getAttribute('aria-label'))
+    const allumes = [...hote.querySelectorAll<HTMLButtonElement>('button[role=switch]')].filter((i) => i.getAttribute('aria-checked') === 'true').map((i) => i.getAttribute('aria-label'))
     expect(allumes).toEqual(['Branche colorée', 'Équilibrer la carte'])
   })
 
   it('les réglages d’une carte se lisent dans ses options', () => {
     monter(carte('carte', { options: { compacte: true, uniforme: true, toutesNotes: true, flottantsColores: true, relationsColorees: true, libre: true, flottantSouple: true, chevauchement: true, uneCouleur: true } }))
-    const eteints = [...hote.querySelectorAll<HTMLInputElement>('input[role=switch]')].filter((i) => !i.checked).map((i) => i.getAttribute('aria-label'))
+    const eteints = [...hote.querySelectorAll<HTMLButtonElement>('button[role=switch]')].filter((i) => i.getAttribute('aria-checked') !== 'true').map((i) => i.getAttribute('aria-label'))
     // Tout est allumé, sauf « Branche colorée » : c'est « une couleur » qui l'est.
     expect(eteints).toEqual(['Branche colorée'])
   })

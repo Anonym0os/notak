@@ -182,11 +182,12 @@ describe('le dialogue d’export du tableau', () => {
   it('montre les options des captures, et la résolution seulement pour l’image de l’écran', async () => {
     await ouvrir()
     await choisirFormat('png')
-    expect(document.querySelector('input[name=resolution]')).toBeNull()
-    act(() => document.querySelectorAll<HTMLInputElement>('input[name=portee]')[1]!.click())
-    expect(document.querySelectorAll('input[name=resolution]')).toHaveLength(3)
+    const resolution = () => document.querySelectorAll('[role=radiogroup][aria-label="Résolution"] [role=radio]')
+    expect(resolution()).toHaveLength(0)
+    act(() => document.querySelectorAll<HTMLButtonElement>('[role=radiogroup][aria-label="Portée"] [role=radio]')[1]!.click())
+    expect(resolution()).toHaveLength(3)
     await choisirFormat('pdf')
-    expect(document.querySelector('input[name=resolution]')).toBeNull()
+    expect(resolution()).toHaveLength(0)
     expect(document.querySelector('.export-options [role=checkbox]')).toBeNull()
   })
 

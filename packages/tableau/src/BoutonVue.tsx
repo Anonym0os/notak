@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Icone } from './icones'
 import { t } from './langue'
 import type { AffichageMinicarte } from './minicarteModele'
-import { Pilule } from './reglages'
+import { Segments } from './communs'
 import { bornesCurseur, commandesVue, depuisCran, pourcentage, versCran, useEtatVue } from './vueZoom'
 
 /** Le pourcentage reste affiché ce temps après le retour à 100 %, avant que « Vue » revienne, en millisecondes. */
@@ -89,15 +89,15 @@ function PanneauVue({ echelle, minicarte }: { echelle: number; minicarte?: { val
       {minicarte && (
         <div className="notak-vue-minicarte">
           <span>{t('reglages.minicarte')}</span>
-          <Pilule
+          <Segments
             libelle={t('reglages.minicarte')}
             options={[
               { valeur: 'mouvement', libelle: t('reglages.minicarte.mouvement') },
               { valeur: 'toujours', libelle: t('reglages.minicarte.toujours') },
               { valeur: 'jamais', libelle: t('reglages.minicarte.jamais') },
             ]}
-            actuelle={minicarte.valeur}
-            choisir={(v) => minicarte.changer(v as AffichageMinicarte)}
+            valeur={minicarte.valeur}
+            onChange={(v) => minicarte.changer(v as AffichageMinicarte)}
           />
         </div>
       )}

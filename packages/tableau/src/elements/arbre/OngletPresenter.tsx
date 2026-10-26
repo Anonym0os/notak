@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import type { Arbre, Id, ReglagesDiapo } from '../../coeur/tableau'
 import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
+import { Segments } from '../../communs'
 import { ChoixTheme } from './ChoixTheme'
 import { Diapositive } from './Diapo'
 import {
@@ -201,13 +202,14 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
                 </Ligne>
                 {dispo && (
                   <Ligne libelle={t('arbre.pitch.miseEnPage')} vertical>
-                    <div className="notak-arbre-pitch-segments" role="radiogroup" aria-label={t('arbre.pitch.miseEnPage')}>
-                      {MISES_EN_PAGE.map((m) => (
-                        <button key={m} type="button" role="radio" aria-checked={dispo === m} disabled={tete} title={t(`arbre.pitch.mise.${m}Info`)} aria-label={t(`arbre.pitch.mise.${m}`)} onClick={() => faireDiapo(faire, avecEnfants, { miseEnPage: m })}>
-                          <Icone nom={ICONE_MISE[m]} taille={18} trait={1.5} />
-                        </button>
-                      ))}
-                    </div>
+                    <Segments
+                      large
+                      libelle={t('arbre.pitch.miseEnPage')}
+                      inactif={tete}
+                      options={MISES_EN_PAGE.map((m) => ({ valeur: m, libelle: <Icone nom={ICONE_MISE[m]} taille={18} trait={1.5} />, titre: t(`arbre.pitch.mise.${m}Info`), etiquette: t(`arbre.pitch.mise.${m}`) }))}
+                      valeur={dispo}
+                      onChange={(m) => faireDiapo(faire, avecEnfants, { miseEnPage: m })}
+                    />
                   </Ligne>
                 )}
               </>

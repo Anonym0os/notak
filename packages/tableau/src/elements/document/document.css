@@ -793,31 +793,3 @@
   background: color-mix(in srgb, currentColor 7%, transparent);
 }
 
-.notak-page-interrupteur {
-  position: relative;
-  width: 26px;
-  height: 14px;
-  border-radius: 7px;
-  background: color-mix(in srgb, currentColor 20%, transparent);
-  transition: background 120ms ease;
-}
-
-.notak-page-interrupteur::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #fff;
-  transition: transform 120ms ease;
-}
-
-[aria-checked='true'] > .notak-page-interrupteur {
-  background: var(--notak-accent, #2f6feb);
-}
-
-[aria-checked='true'] > .notak-page-interrupteur::after {
-  transform: translateX(12px);
-}

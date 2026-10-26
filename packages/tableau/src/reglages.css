@@ -19,7 +19,6 @@
   --rg-page: var(--notak-carte, #fff);
   --rg-nav: #f4f5f7;
   --rg-filet: #eceef1;
-  --rg-pilule: rgb(50 59 74 / 0.07);
   --rg-actif: #fff;
   --rg-actif-ombre: 0 0 0 1px rgb(27 37 54 / 0.06), 0 1px 2px rgb(27 37 54 / 0.12);
   --rg-lien-ombre: 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.08);
@@ -395,50 +394,6 @@
   color: inherit;
 }
 
-/* Le contrôle en pilule : le choix enfoncé est blanc sur le gris de la pilule. */
-.notak-rg-pilule {
-  display: inline-flex;
-  flex: none;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 18px;
-  background: var(--rg-pilule);
-}
-
-.notak-rg-pilule button {
-  height: 30px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 15px;
-  background: transparent;
-  color: var(--rg-texte);
-  font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.notak-rg-pilule button:hover:not([aria-checked='true'], :disabled) {
-  background: var(--rg-survol);
-}
-
-.notak-rg-pilule button[aria-checked='true'] {
-  background: var(--rg-actif);
-  box-shadow: var(--rg-actif-ombre);
-}
-
-.notak-rg-pilule button:disabled {
-  cursor: default;
-  opacity: 0.55;
-}
-
-.notak-rg-pilule small {
-  margin-left: 4px;
-  color: var(--rg-aide);
-  font-size: 12px;
-  font-weight: 400;
-}
-
 /* Les contrôles dessinés à part : un rang de boutons, et dessous une note ou une erreur. */
 .notak-rg-controle {
   display: flex;
@@ -660,7 +615,6 @@
   --rg-aide: rgb(255 255 255 / 0.6);
   --rg-nav: color-mix(in srgb, var(--notak-fond, #1b1e23) 55%, var(--notak-carte, #2a2e35));
   --rg-filet: rgb(255 255 255 / 0.08);
-  --rg-pilule: rgb(255 255 255 / 0.07);
   --rg-actif: #4a4f59;
   --rg-actif-ombre: 0 0 0 1px rgb(255 255 255 / 0.08);
   --rg-lien-ombre: 0 0 0 1px rgb(255 255 255 / 0.08);

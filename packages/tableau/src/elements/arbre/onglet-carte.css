@@ -119,85 +119,6 @@
   background: var(--notak-arbre-filet-c);
 }
 
-/* ------------------------------------------------------------------ la bascule : 36 × 16, poignée ovale de 21 × 13 */
-
-.notak-arbre-reglages-bascule {
-  position: relative;
-  flex: none;
-  width: 36px;
-  height: 16px;
-}
-
-.notak-arbre-reglages-bascule input {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.notak-arbre-reglages-bascule input:disabled {
-  cursor: default;
-}
-
-.notak-arbre-reglages-bascule input:focus-visible + .notak-arbre-reglages-piste {
-  outline: 2px solid var(--notak-arbre-choix);
-  outline-offset: 2px;
-}
-
-.notak-arbre-reglages-piste {
-  position: absolute;
-  inset: 0;
-  border-radius: 80px;
-  background: color-mix(in srgb, var(--notak-arbre-texte) 13%, transparent);
-  box-shadow: inset 0 0 1px rgb(0 0 0 / 0.2), inset 0 0.5px 2px rgb(0 0 0 / 0.1);
-  transition: background 250ms cubic-bezier(0.4, 0.1, 0.3, 1);
-}
-
-.notak-arbre-reglages-piste::after {
-  content: '';
-  position: absolute;
-  top: 1.5px;
-  left: 1.5px;
-  width: 21px;
-  height: 13px;
-  border-radius: 80px;
-  background: #fff;
-  box-shadow: 0 0 4px rgb(0 0 0 / 0.12), 0 0 1.8px rgb(0 0 0 / 0.08);
-  transition: left 250ms cubic-bezier(0.4, 0.1, 0.3, 1), opacity 250ms;
-}
-
-.notak-arbre-reglages-bascule[data-actif] .notak-arbre-reglages-piste {
-  background: var(--notak-arbre-plein);
-}
-
-.notak-arbre-reglages-bascule[data-actif] .notak-arbre-reglages-piste::after {
-  left: calc(100% - 1.5px - 21px);
-}
-
-.notak-arbre-reglages-bascule input:active + .notak-arbre-reglages-piste {
-  background: color-mix(in srgb, var(--notak-arbre-texte) 22%, transparent);
-}
-
-.notak-arbre-reglages-bascule[data-actif] input:active + .notak-arbre-reglages-piste {
-  background: color-mix(in srgb, var(--notak-arbre-plein) 85%, var(--notak-arbre-fond));
-}
-
-.notak-arbre-reglages-bascule[data-inactif] .notak-arbre-reglages-piste {
-  background: color-mix(in srgb, var(--notak-arbre-texte) 8%, transparent);
-}
-
-.notak-arbre-reglages-bascule[data-inactif][data-actif] .notak-arbre-reglages-piste {
-  background: color-mix(in srgb, var(--notak-arbre-texte) 20%, var(--notak-arbre-fond));
-}
-
-.notak-arbre-reglages-bascule[data-inactif] .notak-arbre-reglages-piste::after {
-  opacity: 0.5;
-}
-
 /* ------------------------------------------------------------------ boutons de liste : 24 px, chevron à droite */
 
 .notak-arbre-reglages .notak-arbre-reglages-select {
@@ -561,32 +482,9 @@
   margin-top: -4px;
 }
 
-/* La liste des thèmes : 316 × 370, des onglets capsule, des groupes sur deux colonnes. */
+/* La liste des thèmes : 316 × 370, des onglets (le contrôle segmenté commun), des groupes sur deux colonnes. */
 .notak-arbre-reglages-capsules {
-  display: flex;
   margin: 8px 16px 16px;
-  padding: 2px;
-  border-radius: 999px;
-  background: var(--notak-arbre-piste);
-}
-
-.notak-arbre-reglages-popover .notak-arbre-reglages-capsules button {
-  flex: 1;
-  height: 26px;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--notak-arbre-discret);
-  cursor: pointer;
-  transition: background 150ms;
-}
-
-.notak-arbre-reglages-popover .notak-arbre-reglages-capsules button[aria-selected='true'] {
-  background: var(--notak-arbre-fond);
-  color: var(--notak-arbre-texte);
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
 }
 
 .notak-arbre-reglages-themes-groupes,

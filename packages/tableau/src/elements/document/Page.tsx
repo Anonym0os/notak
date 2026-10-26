@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Id, PageDocument } from '../../coeur/tableau'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
+import { Interrupteur } from '../../communs'
 import { useMenu } from '../../menuUnique'
 import type { DepotFichiers } from '../types'
 
@@ -218,11 +219,11 @@ export function OptionsPage({ page, changer }: { page: PageDocument; changer(p: 
           </div>
           <button type="button" role="menuitemcheckbox" aria-checked={!!page.petitTexte} className="notak-page-option" onClick={() => basculer('petitTexte')}>
             {t('page.petitTexte')}
-            <span className="notak-page-interrupteur" aria-hidden />
+            <Interrupteur decor actif={!!page.petitTexte} />
           </button>
           <button type="button" role="menuitemcheckbox" aria-checked={!!page.pleineLargeur} className="notak-page-option" onClick={() => basculer('pleineLargeur')}>
             {t('page.pleineLargeur')}
-            <span className="notak-page-interrupteur" aria-hidden />
+            <Interrupteur decor actif={!!page.pleineLargeur} />
           </button>
         </div>
       )}

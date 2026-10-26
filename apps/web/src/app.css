@@ -1857,35 +1857,6 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
   gap: 12px;
 }
 
-.export-segments {
-  display: inline-flex;
-  padding: 2px;
-  border-radius: 6px;
-  background: var(--fond);
-}
-
-.export-segments label {
-  padding: 4px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.export-segments input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.export-segments label:has(input:checked) {
-  background: var(--carte);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
-  font-weight: 600;
-}
-
-.export-segments label:has(input:focus-visible) {
-  outline: 2px solid rgb(47 111 235 / 0.5);
-}
-
 .export-pied {
   display: flex;
   align-items: center;
@@ -1930,14 +1901,6 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
 
 .notak-espace[data-theme='sombre'] .export-format-filet {
   border-top-color: rgb(255 255 255 / 0.1);
-}
-
-.notak-espace[data-theme='sombre'] .export-segments {
-  background: rgb(255 255 255 / 0.06);
-}
-
-.notak-espace[data-theme='sombre'] .export-segments label:has(input:checked) {
-  background: #3a4048;
 }
 
 .notak-espace[data-theme='sombre'] .notak-fil-segment {

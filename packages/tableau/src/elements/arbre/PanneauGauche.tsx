@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { type Arbre, type Id } from '../../coeur/tableau'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
+import { Segments } from '../../communs'
 import { Case } from '../../communs'
 import { Deroulant, Entree } from './Fenetre'
 import { Marqueur } from './marqueurs'
@@ -51,13 +52,14 @@ export function PanneauGauche({ onglet, choisirOnglet, fermer, arbre, lecture, c
       }}
     >
       <header className="notak-arbre-gauche-entete">
-        <div className="notak-arbre-gauche-onglets" role="tablist" data-actif={onglet}>
-          {ONGLETS_GAUCHE.map((o) => (
-            <button key={o} type="button" role="tab" aria-selected={onglet === o} title={t(`arbre.gauche.${o}Info`)} onClick={() => choisirOnglet(o)}>
-              {t(`arbre.gauche.${o}`)}
-            </button>
-          ))}
-        </div>
+        <Segments
+          mode="onglets"
+          large
+          className="notak-arbre-gauche-onglets"
+          options={ONGLETS_GAUCHE.map((o) => ({ valeur: o, libelle: t(`arbre.gauche.${o}`), titre: t(`arbre.gauche.${o}Info`) }))}
+          valeur={onglet}
+          onChange={choisirOnglet}
+        />
         <button type="button" className="notak-arbre-gauche-fermer" aria-label={t('arbre.gauche.fermer')} title={t('arbre.gauche.fermer')} onClick={fermer}>
           <Icone nom="fermer" taille={18} trait={1.6} />
         </button>

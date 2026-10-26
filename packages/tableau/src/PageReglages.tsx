@@ -3,7 +3,7 @@ import { t, tn } from './langue'
 import { touchesDe } from './communs'
 import { touches } from './Menus'
 import { PastillePersonne } from './pastille'
-import { Pilule } from './reglages'
+import { Segments } from './communs'
 import { type ContexteReglages, GROUPES, type Ligne, type Rubrique, chercher, lire, morceaux, nombreDeLignes, rubriquesVisibles } from './rubriquesReglages'
 import { VERSION_NOTAK } from './version'
 import './reglages.css'
@@ -72,7 +72,7 @@ function LigneReglage({ ligne, c, cherche }: { ligne: Ligne; c: ContexteReglages
         )}
       </span>
       {controle.type === 'choix' ? (
-        <Pilule libelle={libelle} options={controle.options(c)} actuelle={controle.lire(c)} choisir={(v) => controle.ecrire(c, v)} />
+        <Segments libelle={libelle} options={controle.options(c)} valeur={controle.lire(c)} onChange={(v) => controle.ecrire(c, v)} />
       ) : controle.type === 'touches' ? (
         <Touches combinaison={controle.combinaison} />
       ) : (

@@ -220,71 +220,6 @@
 }
 
 /* Les mises en page d'une liste : un groupe segmenté pleine largeur, 24 de haut sous sa bordure de 1. */
-.notak-arbre-fond .notak-arbre-pitch-segments {
-  display: flex;
-  box-sizing: border-box;
-  width: 100%;
-  gap: 1px;
-  overflow: hidden;
-  border: 1px solid var(--notak-arbre-style-bord);
-  border-radius: 8px;
-  background: var(--notak-arbre-fond);
-}
-
-.notak-arbre-fond .notak-arbre-pitch-segments button {
-  position: relative;
-  display: grid;
-  flex: 1 1 0;
-  place-items: center;
-  box-sizing: border-box;
-  min-width: 24px;
-  height: 24px;
-  margin: 0;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--notak-arbre-texte);
-  cursor: pointer;
-}
-
-.notak-arbre-fond .notak-arbre-pitch-segments button:hover:not(:disabled) {
-  background: var(--notak-arbre-survol);
-}
-
-.notak-arbre-fond .notak-arbre-pitch-segments button[aria-checked='true'] {
-  border: 0;
-  background: var(--notak-arbre-appui);
-}
-
-.notak-arbre-fond .notak-arbre-pitch-segments button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.notak-arbre-fond .notak-arbre-pitch-segments button:focus-visible {
-  outline: 2px solid var(--notak-arbre-choix);
-  outline-offset: -2px;
-}
-
-/* Le filet entre deux cellules : la moitié de la hauteur, caché contre la cellule choisie ou survolée. */
-.notak-arbre-fond .notak-arbre-pitch-segments button + button::before {
-  content: '';
-  position: absolute;
-  top: 6px;
-  left: -1px;
-  width: 1px;
-  height: 12px;
-  background: var(--notak-arbre-style-bord);
-}
-
-.notak-arbre-fond .notak-arbre-pitch-segments button[aria-checked='true']::before,
-.notak-arbre-fond .notak-arbre-pitch-segments button[aria-checked='true'] + button::before,
-.notak-arbre-fond .notak-arbre-pitch-segments button:hover::before,
-.notak-arbre-fond .notak-arbre-pitch-segments button:hover + button::before {
-  visibility: hidden;
-}
-
 /* Les réglages de la présentation (Presentation.tsx) : un popover posé hors du panneau, qui garde ces rangées d'avant. */
 .notak-arbre-pitch-reglages .notak-arbre-pitch-bouton {
   width: 100%;
@@ -408,37 +343,6 @@
 
 .notak-arbre-pitch-reglages .notak-arbre-pitch-bouton {
   margin: 0;
-}
-
-.notak-arbre-pitch-interrupteur {
-  position: relative;
-  width: 36px;
-  height: 16px;
-  padding: 0;
-  border: 0;
-  border-radius: 80px;
-  background: var(--notak-arbre-appui);
-  cursor: pointer;
-}
-
-.notak-arbre-pitch-interrupteur[aria-checked='true'] {
-  background: var(--notak-arbre-plein);
-}
-
-.notak-arbre-pitch-interrupteur span {
-  position: absolute;
-  top: 1.5px;
-  left: 2px;
-  width: 21px;
-  height: 13px;
-  border-radius: 80px;
-  background: #fff;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
-  transition: transform 150ms ease-out;
-}
-
-.notak-arbre-pitch-interrupteur[aria-checked='true'] span {
-  transform: translateX(11px);
 }
 
 /* — La présentation — */

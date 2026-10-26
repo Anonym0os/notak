@@ -42,56 +42,9 @@
   margin-top: 52px;
 }
 
-/* Les onglets en capsule : une pastille glissante marque l'onglet ouvert. */
-.notak-arbre-gauche-onglets {
-  position: relative;
-  display: flex;
+/* Les onglets : le contrôle segmenté commun, qui prend la place que laisse la croix. */
+.notak-seg.notak-arbre-gauche-onglets {
   flex: 1;
-  padding: 4px;
-  border-radius: 24px;
-  background: var(--notak-arbre-piste);
-}
-
-.notak-arbre-gauche-onglets::before {
-  content: '';
-  position: absolute;
-  top: 4px;
-  bottom: 4px;
-  left: 4px;
-  width: calc((100% - 8px) / 3);
-  border-radius: 24px;
-  background: var(--notak-arbre-fond);
-  box-shadow: 0 0 1.5px rgb(0 0 0 / 0.06), 0 0 3px rgb(0 0 0 / 0.03);
-  transition: transform 200ms ease-in-out;
-}
-
-.notak-arbre-gauche-onglets[data-actif='notes']::before {
-  transform: translateX(100%);
-}
-
-.notak-arbre-gauche-onglets[data-actif='etiquettes']::before {
-  transform: translateX(200%);
-}
-
-.notak-arbre-gauche-onglets button {
-  position: relative;
-  flex: 1;
-  padding: 4px 8px;
-  border: 0;
-  background: transparent;
-  color: var(--notak-arbre-discret);
-  font: inherit;
-  text-align: center;
-  cursor: pointer;
-}
-
-.notak-arbre-gauche-onglets button:hover {
-  color: var(--notak-arbre-texte);
-}
-
-.notak-arbre-gauche-onglets button[aria-selected='true'] {
-  color: var(--notak-arbre-texte);
-  font-weight: 600;
 }
 
 .notak-arbre-gauche-fermer {

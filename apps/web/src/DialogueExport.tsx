@@ -8,6 +8,7 @@ import {
   ErreurExport,
   Icone,
   REGLAGES_PAR_DEFAUT,
+  Segments,
   brancherExport,
   nomDeFichier,
 } from '@notak/tableau'
@@ -302,28 +303,19 @@ function Option({ option, reglages, regler }: { option: OptionExport; reglages: 
   if (option === 'portee')
     return (
       <div className="export-ligne">
-        <span id="export-portee">{t('exporter.portee')}</span>
-        <div className="export-segments" role="radiogroup" aria-labelledby="export-portee">
-          {(['tout', 'ecran'] as const).map((p) => (
-            <label key={p}>
-              <input type="radio" name="portee" checked={reglages.portee === p} onChange={() => regler({ portee: p })} />
-              {t(p === 'tout' ? 'exporter.tout' : 'exporter.ecran')}
-            </label>
-          ))}
-        </div>
+        <span>{t('exporter.portee')}</span>
+        <Segments
+          libelle={t('exporter.portee')}
+          options={(['tout', 'ecran'] as const).map((p) => ({ valeur: p, libelle: t(p === 'tout' ? 'exporter.tout' : 'exporter.ecran') }))}
+          valeur={reglages.portee}
+          onChange={(p) => regler({ portee: p })}
+        />
       </div>
     )
   return (
     <div className="export-ligne">
-      <span id="export-resolution">{t('exporter.resolution')}</span>
-      <div className="export-segments" role="radiogroup" aria-labelledby="export-resolution">
-        {([1, 2, 3] as const).map((n) => (
-          <label key={n}>
-            <input type="radio" name="resolution" checked={reglages.resolution === n} onChange={() => regler({ resolution: n })} />
-            {n}×
-          </label>
-        ))}
-      </div>
+      <span>{t('exporter.resolution')}</span>
+      <Segments libelle={t('exporter.resolution')} options={([1, 2, 3] as const).map((n) => ({ valeur: n, libelle: `${n}×` }))} valeur={reglages.resolution} onChange={(n) => regler({ resolution: n })} />
     </div>
   )
 }

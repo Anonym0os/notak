@@ -2,6 +2,7 @@ import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import type { Arbre, Id } from '../../coeur/tableau'
 import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
+import { Interrupteur } from '../../communs'
 import { Agrandissement, BoutonAgrandir, type ImageVisee } from './Agrandissement'
 import { ChoixTheme, PopoverFixe } from './ChoixTheme'
 import { Diapositive } from './Diapo'
@@ -94,17 +95,6 @@ const RACCOURCIS: { libelle: string; touches: string[][] | null }[] = [
   { libelle: 'arbre.pitch.raccAnimation', touches: [['A']] },
   { libelle: 'arbre.pitch.raccAide', touches: [['?']] },
 ]
-
-function Interrupteur({ actif, change, libelle, info }: { actif: boolean; change(v: boolean): void; libelle: string; info: string }) {
-  return (
-    <div className="notak-arbre-pitch-ligne">
-      <span>{libelle}</span>
-      <button type="button" role="switch" className="notak-arbre-pitch-interrupteur" aria-checked={actif} title={info} aria-label={libelle} onClick={() => change(!actif)}>
-        <span />
-      </button>
-    </div>
-  )
-}
 
 function BoutonOutil({ icone, info, inactif, onClick, refBouton, actif }: { icone: NomIcone; info: string; inactif?: boolean; onClick(): void; refBouton?: React.Ref<HTMLButtonElement>; actif?: boolean }) {
   return (
@@ -492,7 +482,10 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
               ))}
             </select>
           </div>
-          <Interrupteur actif={anime} change={basculerAnimation} libelle={t('arbre.pitch.animation')} info={t('arbre.pitch.animationInfo')} />
+          <div className="notak-arbre-pitch-ligne">
+            <span>{t('arbre.pitch.animation')}</span>
+            <Interrupteur actif={anime} onChange={basculerAnimation} libelle={t('arbre.pitch.animation')} titre={t('arbre.pitch.animationInfo')} />
+          </div>
           {themes && <ChoixTheme ancre={boutonTheme.current} pitch={arbre.pitch} ratio={ratio} choisir={mettreAJour} fermer={() => setThemes(false)} />}
         </PopoverFixe>
       )}

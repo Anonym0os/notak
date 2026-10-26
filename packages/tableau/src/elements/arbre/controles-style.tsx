@@ -437,15 +437,7 @@ export function ChampCourt({ valeur, valider, titre, className, longueur }: { va
   )
 }
 
-// — Bascule, case, segments, boutons —
-
-export function Bascule({ active, changer, titre, inactif }: { active: boolean; changer(v: boolean): void; titre: string; inactif?: boolean }) {
-  return (
-    <button type="button" role="switch" className="notak-arbre-style-bascule" aria-checked={active} title={titre} aria-label={titre} disabled={inactif} onClick={() => changer(!active)}>
-      <span className="notak-arbre-style-bascule-bouton" />
-    </button>
-  )
-}
+// — Case, boutons —
 
 export function Case({ cochee, changer, libelle, titre, inactif }: { cochee: boolean; changer(v: boolean): void; libelle: string; titre?: string; inactif?: boolean }) {
   return (
@@ -453,40 +445,6 @@ export function Case({ cochee, changer, libelle, titre, inactif }: { cochee: boo
       <CaseCommune option cochee={cochee} disabled={inactif} onChange={changer} />
       <span>{libelle}</span>
     </label>
-  )
-}
-
-export interface Segment {
-  id: string
-  contenu: ReactNode
-  titre: string
-  actif?: boolean
-  inactif?: boolean
-  faire(): void
-  /** Une case à cocher (gras, italique) ou un choix parmi d'autres (l'alignement). */
-  choix?: boolean
-}
-
-/** Un groupe de boutons segmentés : chacun de 24 px, celui qui est actif grisé. */
-export function Segments({ segments, className, etendu = true, suite }: { segments: readonly Segment[]; className?: string; etendu?: boolean; suite?: ReactNode }) {
-  return (
-    <div className={`notak-arbre-style-segments${className ? ` ${className}` : ''}`} data-etendu={etendu ? '' : undefined} role="group">
-      {segments.map((s) => (
-        <button
-          key={s.id}
-          type="button"
-          className="notak-arbre-style-segment"
-          title={s.titre}
-          aria-label={s.titre}
-          {...(s.choix ? { role: 'radio', 'aria-checked': !!s.actif } : { 'aria-pressed': !!s.actif })}
-          disabled={s.inactif}
-          onClick={s.faire}
-        >
-          {s.contenu}
-        </button>
-      ))}
-      {suite}
-    </div>
   )
 }
 

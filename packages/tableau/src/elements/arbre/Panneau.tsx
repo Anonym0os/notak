@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Id, Sujet } from '../../coeur/tableau'
 import { t } from '../../langue'
-import { Case } from '../../communs'
+import { Case, Segments } from '../../communs'
 import type { ContexteToile } from '../types'
 import { GROUPES_MARQUEURS, Marqueur } from './marqueurs'
 import type { Geste } from './modele/gestes'
@@ -71,13 +71,13 @@ export function Panneau({ lecture: l, ids, section, faire, contexte, fermer, int
 
       <section>
         <h3>{t('arbre.rang')}</h3>
-        <div className="notak-arbre-choix-ligne" role="radiogroup" aria-label={t('arbre.rang')}>
-          {(['ordinaire', 'important', 'secondaire', 'barre'] as const).map((c) => (
-            <button key={c} type="button" role="radio" aria-checked={classe === c} onClick={() => porter('classe', c === 'ordinaire' ? undefined : c)}>
-              {t(`arbre.${c}`)}
-            </button>
-          ))}
-        </div>
+        <Segments
+          large
+          libelle={t('arbre.rang')}
+          options={(['ordinaire', 'important', 'secondaire', 'barre'] as const).map((c) => ({ valeur: c, libelle: t(`arbre.${c}`) }))}
+          valeur={classe}
+          onChange={(c) => porter('classe', c === 'ordinaire' ? undefined : c)}
+        />
         <label className="notak-arbre-case">
           <Case option cochee={sujets.every((s) => !!s.tache)} onChange={() => faire({ type: 'tache', ids })} />
           {t('arbre.tache')}

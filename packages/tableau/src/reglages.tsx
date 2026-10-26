@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { type ChoixLangue, definirLangue, t } from './langue'
 import { PastillePersonne } from './pastille'
+import { Segments } from './communs'
 import type { Habillages } from './habillage/appliquer'
 import { ErreurHabillage, HABILLAGE_NOTAK } from './habillage/format'
 import { AFFICHAGES_MINICARTE, type AffichageMinicarte } from './minicarteModele'
@@ -112,26 +113,12 @@ export function useReglages() {
   return [reglages, changer] as const
 }
 
-/** Une option d'une pilule de choix : son libellé, et un détail plus pâle (« 8 px », la langue du navigateur). */
+/** Une option d'un contrôle segmenté de choix : son libellé, et un détail plus pâle (« 8 px », la langue du navigateur). */
 export interface OptionChoix {
   valeur: unknown
   libelle: string
   detail?: string
   lang?: string
-}
-
-/** La pilule de choix des réglages : un seul bouton enfoncé, blanc sur le gris de la pilule. */
-export function Pilule({ libelle, options, actuelle, choisir, desactive }: { libelle: string; options: OptionChoix[]; actuelle: unknown; choisir(v: unknown): void; desactive?: boolean }) {
-  return (
-    <div className="notak-rg-pilule" role="radiogroup" aria-label={libelle}>
-      {options.map((o) => (
-        <button key={String(o.valeur)} type="button" role="radio" aria-checked={o.valeur === actuelle} disabled={desactive} lang={o.lang} onClick={() => choisir(o.valeur)}>
-          {o.libelle}
-          {o.detail && <small>{o.detail}</small>}
-        </button>
-      ))}
-    </div>
-  )
 }
 
 /** Un changement du compte en cours : le temps qu'il passe au serveur, et pourquoi il a échoué. */
@@ -260,7 +247,7 @@ export function ChoixHabillage({ habillages, changer }: { habillages: Habillages
   return (
     <div className="notak-rg-controle">
       <div className="notak-rg-rang">
-        <Pilule libelle={t('reglages.habillage')} options={options} actuelle={actuel} choisir={(id) => changer({ habillage: id as string })} desactive={impose} />
+        <Segments libelle={t('reglages.habillage')} options={options} valeur={actuel} onChange={(id) => changer({ habillage: id as string })} inactif={impose} />
         {!impose && (
           <>
             <button type="button" className="notak-rg-bouton" onClick={() => champ.current?.click()}>

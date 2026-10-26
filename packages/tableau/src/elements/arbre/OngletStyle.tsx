@@ -2,10 +2,10 @@ import { useMemo, useRef, useState } from 'react'
 import type { Arbre, CasseTexte, FormeBranche, FormeLimite, FormeRelation, FormeResume, FormeSujet, Id, Limite, MotifRemplissage, MotifTrait, PointeTrait, Relation, StyleSujet } from '../../coeur/tableau'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
+import { Interrupteur, Segments } from '../../communs'
 import type { ContexteToile } from '../types'
 import { POLICE, type TexteEffectif, limiteEffective, relationEffective, resumeEffectif } from './apparence'
 import {
-  Bascule,
   Bouton,
   BoutonMenu,
   BoutonVignette,
@@ -20,7 +20,6 @@ import {
   Popover,
   Rangee,
   Section,
-  Segments,
   Separateur,
   type OptionListe,
   type Tuile,
@@ -473,17 +472,33 @@ export function SectionTexte({ titre, etat, poser }: { titre: string; etat: Etat
       </Rangee>
       <Rangee>
         <Segments
-          segments={[
-            { id: 'gras', contenu: <Icone nom="gras" taille={15} trait={2.2} />, titre: T('gras'), actif: gras, faire: () => poser(patchGras(etat.graisse === MULTIPLE ? 400 : etat.graisse)) },
-            { id: 'italique', contenu: <Icone nom="italique" taille={15} trait={2} />, titre: T('italique'), actif: etat.italique === true, faire: () => poser({ italique: etat.italique === true ? undefined : true }) },
-            { id: 'barre', contenu: <Icone nom="barre" taille={15} trait={2} />, titre: T('barre'), actif: etat.barre === true, faire: () => poser({ barre: etat.barre === true ? undefined : true }) },
-            { id: 'souligne', contenu: <Icone nom="souligne" taille={15} trait={2} />, titre: T('souligne'), actif: etat.souligne === true, faire: () => poser({ souligne: etat.souligne === true ? undefined : true }) },
+          mode="bascules"
+          large
+          options={[
+            { valeur: 'gras', libelle: <Icone nom="gras" taille={15} trait={2.2} />, titre: T('gras'), actif: gras },
+            { valeur: 'italique', libelle: <Icone nom="italique" taille={15} trait={2} />, titre: T('italique'), actif: etat.italique === true },
+            { valeur: 'barre', libelle: <Icone nom="barre" taille={15} trait={2} />, titre: T('barre'), actif: etat.barre === true },
+            { valeur: 'souligne', libelle: <Icone nom="souligne" taille={15} trait={2} />, titre: T('souligne'), actif: etat.souligne === true },
           ]}
+          onChange={(v) =>
+            poser(
+              v === 'gras'
+                ? patchGras(etat.graisse === MULTIPLE ? 400 : etat.graisse)
+                : v === 'italique'
+                  ? { italique: etat.italique === true ? undefined : true }
+                  : v === 'barre'
+                    ? { barre: etat.barre === true ? undefined : true }
+                    : { souligne: etat.souligne === true ? undefined : true },
+            )
+          }
           suite={<BoutonCasse valeur={etat.casse} choisir={(c) => poser({ casse: c })} />}
         />
       </Rangee>
       <Segments
-        segments={alignements.map((a) => ({ id: a.id, contenu: <Icone nom={a.icone} taille={15} trait={2} />, titre: a.titre, choix: true, actif: etat.alignement === a.id, faire: () => poser({ alignement: a.id }) }))}
+        large
+        options={alignements.map((a) => ({ valeur: a.id, libelle: <Icone nom={a.icone} taille={15} trait={2} />, titre: a.titre }))}
+        valeur={etat.alignement}
+        onChange={(a) => poser({ alignement: a })}
       />
     </Section>
   )
@@ -496,7 +511,7 @@ function BoutonCasse({ valeur, choisir }: { valeur: Mixte<CasseTexte | undefined
   const actif = valeur !== MULTIPLE && valeur !== undefined
   return (
     <>
-      <button ref={ancre} type="button" className="notak-arbre-style-segment notak-arbre-style-casse" title={T('casse')} aria-label={T('casse')} aria-haspopup="menu" aria-expanded={ouvert} aria-pressed={actif} onClick={() => setOuvert((o) => !o)}>
+      <button ref={ancre} type="button" className="notak-arbre-style-casse" title={T('casse')} aria-label={T('casse')} aria-haspopup="menu" aria-expanded={ouvert} aria-pressed={actif} onClick={() => setOuvert((o) => !o)}>
         <span className="notak-arbre-style-tt">Tt</span>
         <Icone nom="chevronBas" taille={10} trait={2.4} />
       </button>
@@ -681,7 +696,7 @@ function SectionBranche({ titre, ids, vals, arbre, lecture, faire, centralSeul }
       {centralSeul && (
         <div className="notak-arbre-style-coloree">
           <Ligne libelle={T('brancheColoree')}>
-            <Bascule active={coloree} titre={T('brancheColoreeAide')} inactif={sans} changer={(a) => faire({ type: 'options', options: { ...arbre.options, uneCouleur: !a } })} />
+            <Interrupteur actif={coloree} titre={T('brancheColoreeAide')} inactif={sans} onChange={(a) => faire({ type: 'options', options: { ...arbre.options, uneCouleur: !a } })} />
           </Ligne>
           <Ligne libelle={T('couleur')}>
             {coloree ? (

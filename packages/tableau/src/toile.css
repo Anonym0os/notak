@@ -2660,7 +2660,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   font-variant-numeric: tabular-nums;
 }
 
-/* La mini-carte, sous le zoom : la pilule des réglages, qui en prend les teintes. */
+/* La mini-carte, sous le zoom : le contrôle segmenté commun. */
 .notak-vue-minicarte {
   display: flex;
   flex-direction: column;
@@ -2669,24 +2669,10 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   margin-top: 16px;
   padding-top: 14px;
   border-top: 1px solid rgb(0 0 0 / 0.08);
-  --rg-texte: var(--notak-texte, #323b4a);
-  --rg-pilule: rgb(50 59 74 / 0.07);
-  --rg-actif: #fff;
-  --rg-actif-ombre: 0 0 0 1px rgb(27 37 54 / 0.06), 0 1px 2px rgb(27 37 54 / 0.12);
-  --rg-survol: color-mix(in srgb, var(--rg-texte) 6%, transparent);
-}
-
-.notak-vue-minicarte .notak-rg-pilule button {
-  height: 26px;
-  padding: 0 8px;
-  font-size: 12px;
 }
 
 [data-theme='sombre'] .notak-vue-minicarte {
   border-top-color: rgb(255 255 255 / 0.08);
-  --rg-pilule: rgb(255 255 255 / 0.07);
-  --rg-actif: #4a4f59;
-  --rg-actif-ombre: 0 0 0 1px rgb(255 255 255 / 0.08);
 }
 
 .notak-vue-tout {

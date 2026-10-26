@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
+import { Interrupteur } from '../../communs'
 import { Flottant } from './Flottant'
 import { COLONNES_GRILLE, GRILLE_COULEURS, assemblerCouleur, decouperCouleur, degradeConique, estCouleur, normaliserHex } from './carte/couleurs'
 
@@ -55,21 +56,11 @@ export function Aide({ children }: { children: ReactNode }) {
 
 /* ------------------------------------------------------------------ bascule */
 
-/** L'interrupteur : une case à cocher masquée, une piste et une poignée. Seul lui est cliquable, pas la ligne. */
-export function Bascule({ actif, onChange, inactif, libelle }: { actif: boolean; onChange(actif: boolean): void; inactif?: boolean | undefined; libelle: string }) {
-  return (
-    <span className="notak-arbre-reglages-bascule" data-actif={actif ? '' : undefined} data-inactif={inactif ? '' : undefined}>
-      <input type="checkbox" role="switch" checked={actif} disabled={inactif} aria-label={libelle} onChange={(e) => onChange(e.target.checked)} />
-      <span className="notak-arbre-reglages-piste" aria-hidden />
-    </span>
-  )
-}
-
 /** Une ligne à bascule : le libellé, l'infobulle de la ligne, la bascule à droite. */
 export function LigneBascule({ libelle, aide, actif, onChange, inactif }: { libelle: string; aide?: string | undefined; actif: boolean; onChange(actif: boolean): void; inactif?: boolean | undefined }) {
   return (
     <LigneReglage libelle={libelle} aide={aide} inactif={inactif}>
-      <Bascule actif={actif} onChange={onChange} inactif={inactif} libelle={libelle} />
+      <Interrupteur actif={actif} onChange={onChange} inactif={inactif} libelle={libelle} />
     </LigneReglage>
   )
 }
