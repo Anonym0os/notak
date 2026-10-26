@@ -167,6 +167,21 @@ describe('commenter un sujet de la carte', () => {
     act(() => void document.querySelector('.notak-arbre-fond')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'µ', code: 'KeyM', altKey: true, metaKey: true, bubbles: true, cancelable: true })))
     expect(c.courant().fils?.[idees]?.messages).toHaveLength(1)
   })
+
+  it('un commentateur lit la carte et commente ses sujets : le menu n’a que « Commenter », le fil s’écrit', () => {
+    const { a, idees } = carte()
+    const c = ouvrir(a, { lectureSeule: true, droits: { role: 'commentaire', elements: {} } })
+    menuContextuel(sujetDe('Idées'))
+    expect([...document.querySelectorAll('.notak-arbre-ctx > .notak-e')].map((b) => b.textContent!.replace(/[⌥⌘M]|Alt\+|Ctrl\+/g, '').trim())).toEqual(['Commenter'])
+    clic(document.querySelector('.notak-arbre-ctx > .notak-e')!)
+    const champ = document.querySelector<Champ>('.notak-fil-attache .ProseMirror')!
+    act(() => void champ.editor.commands.insertContent('Une remarque'))
+    act(() => document.querySelector<HTMLButtonElement>('.notak-fil-attache .notak-commentaire-publier')!.click())
+    expect(c.courant().fils?.[idees]?.messages.map((m) => m.texte)).toEqual(['Une remarque'])
+    // Le reste de la carte ne s’écrit pas : pas de menu sur le fond.
+    menuContextuel(document.querySelector('.notak-arbre-fond')!)
+    expect(document.querySelectorAll('.notak-arbre-ctx > .notak-e').length).toBe(0)
+  })
 })
 
 describe('l’épingle suit la carte', () => {

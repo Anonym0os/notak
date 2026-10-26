@@ -409,6 +409,13 @@ function menuZone(): Item[] {
   ])
 }
 
+/** Le menu d'un commentateur, qui lit la carte : sur un sujet, « Commenter » seul. */
+export function menuCommentateur(c: Pick<ContexteMenu, 'lecture' | 'selection' | 'cible'>): Item[] {
+  if (c.cible.genre !== 'sujet' || !c.lecture.sujets.has(c.cible.id)) return []
+  const sujets = c.selection.filter((x) => c.lecture.sujets.has(x))
+  return [e('commenter', K('⌥⌘M'), sujets.length > 1 && sujets.includes(c.cible.id))]
+}
+
 /** Le menu de ce qu'on clique, selon la cible : un sujet, le fond, une relation, une zone, une image… */
 export function construireMenu(c: ContexteMenu): Item[] {
   const cible = c.cible

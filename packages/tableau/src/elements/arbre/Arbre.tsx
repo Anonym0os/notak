@@ -20,7 +20,8 @@ import { ONGLETS_FORMAT, ONGLETS_ICONES, OngletCarte, OngletIcones, OngletPresen
 import { Outils } from './Outils'
 import { type Hote, executer, styleDeRelation } from './actionsMenu'
 import { MenuContextuel } from './MenuContextuel'
-import { type CibleMenu, construireMenu } from './menus'
+import { type CibleMenu, construireMenu, menuCommentateur } from './menus'
+import { peutCommenter } from '../../coeur/reglesDroits'
 import { type Ancre, useInsertions } from './Insertions'
 import { TYPE_GLISSE } from './OngletIcones'
 import { type Fragment, boitesDeBranche, choisirParGenre, contenuZone, extraire, rectAutour } from './modele/insertions'
@@ -165,6 +166,8 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
   const { lecture, mesures, disposition } = useVue(vueTitree)
   const adresse = useAdresses(a, contexte.services)
   const lectureSeule = !!contexte.services.lectureSeule
+  // Un commentateur lit la carte et n'écrit que dans les fils de ses sujets, comme sur la toile.
+  const commentateur = lectureSeule && peutCommenter(contexte.services, id)
 
   // La sélection mêle des sujets, des relations et des limites : chacun est un identifiant.
   const [selection, setSelection] = useState<ReadonlySet<Id>>(() => new Set([lecture.central]))
@@ -245,7 +248,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
   const faire = useCallback(
     (geste: Geste) => {
       const avant = actuel()
-      if (!avant || lectureSeule) return
+      if (!avant || (lectureSeule && !(commentateur && geste.type === 'commenter'))) return
       const r = appliquerGeste(avant, geste, titreNeuf)
       if (!r) return
       if (r.arbre !== avant) changer(r.arbre)
@@ -256,7 +259,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       // frappe l'ouvrent. Dans le plan, le sujet neuf s'écrit sur sa ligne, pas dans un champ posé sur la carte.
       if (r.editer && !plan && !GESTES_SANS_EDITION.has(geste.type)) setEdition(debutEdition(r.editer, r.arbre.sujets[r.editer]?.titre ?? ''))
     },
-    [actuel, changer, lectureSeule, plan],
+    [actuel, changer, lectureSeule, commentateur, plan],
   )
   const valider = useCallback(() => {
     if (!edition) return
@@ -495,7 +498,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
         return true
       }
       // Alt+Cmd+M : commenter le sujet choisi.
-      if (e.altKey && (e as unknown as KeyboardEvent).code === 'KeyM' && !lectureSeule && !dansLePlan && sujetsChoisis.length <= 1) {
+      if (e.altKey && (e as unknown as KeyboardEvent).code === 'KeyM' && (!lectureSeule || commentateur) && !dansLePlan && sujetsChoisis.length <= 1) {
         e.preventDefault()
         hote.commenter(courant)
         return true
@@ -942,8 +945,9 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     return { genre: 'fond', x: p.x, y: p.y }
   }
   const ouvrirMenuDe = (x: number, y: number, element: Element) => {
-    if (lectureSeule || plan || relier || traceZone) return
+    if ((lectureSeule && !commentateur) || plan || relier || traceZone) return
     const cible = cibleDe(element, versCarte({ clientX: x, clientY: y }))
+    if (lectureSeule && cible.genre !== 'sujet') return
     // Comme Xmind : un clic droit sur ce qui n'est pas choisi le choisit d'abord ; sur le fond, il désélectionne.
     const vise = 'id' in cible ? cible.id : null
     if (cible.genre === 'fond') setSelection(new Set())
@@ -1239,7 +1243,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
             ouvert={filDe && lecture.sujets.has(filDe) ? filDe : null}
             ouvrir={setFilDe}
             contexte={contexte}
-            ecrire={!lectureSeule}
+            ecrire={!lectureSeule || commentateur}
             poser={(sujet, fil) => faire({ type: 'commenter', id: sujet, fil })}
           />
         )}
@@ -1377,7 +1381,11 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
         <MenuContextuel
           x={menu.x}
           y={menu.y}
-          items={construireMenu({ arbre: vue, lecture, selection: [...choisis], cible: menu.cible, presse: !!presse.current, styleCopie: styleCopie.current !== undefined || !!styleRelation.current, brancheSeule: seule })}
+          items={
+            lectureSeule
+              ? menuCommentateur({ lecture, selection: [...choisis], cible: menu.cible })
+              : construireMenu({ arbre: vue, lecture, selection: [...choisis], cible: menu.cible, presse: !!presse.current, styleCopie: styleCopie.current !== undefined || !!styleRelation.current, brancheSeule: seule })
+          }
           etiquette={t('arbre.menu.titre')}
           choisir={(action) => {
             const { cible } = menu

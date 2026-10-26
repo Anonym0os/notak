@@ -145,7 +145,7 @@ d'un autre ne prend pas ce qu'on lui destinait.
 
 La synchro contrôle ce qu'envoient un commentateur et quiconque écrit un tableau dont des éléments ont leurs droits
 propres (`controle.ts`). Une mise à jour y est appliquée sous une origine suivie, ses changements relevés élément par
-élément, et annulée aussitôt par un `Y.UndoManager` si elle n'est pas permise : l'annulation part chez tout le monde,
+élément (et fil par fil pour les sujets d'une carte mentale, rangés dans `arbres`), et annulée aussitôt par un `Y.UndoManager` si elle n'est pas permise : l'annulation part chez tout le monde,
 son auteur compris, si bien qu'un refus ne laisse ni divergence ni renvoi sans fin. La règle (écrire ou seulement
 commenter) est dans `packages/tableau/src/coeur/reglesDroits.ts`, lue telle quelle par le serveur ; la toile s'en sert
 pour ne proposer que les gestes permis (`droitsElements.ts`, `filtrerMagasin`).

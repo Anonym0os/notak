@@ -34,6 +34,15 @@ describe('gesteSurElement', () => {
     expect(gesteSurElement(avant, fil('f', [message('m1', 'ana', 'Q', { '👍': [] })]), 'bob')).toBe('ecriture')
   })
 
+  it('sur une carte mentale, le fil d’un sujet relève du commentaire, ses sujets de l’écriture', () => {
+    const carte = (extra: object = {}) => ({ id: 'c', x: 0, y: 0, largeur: 300, contenu: { type: 'arbre', sujets: { s1: { titre: 'Central' } }, ...extra } })
+    const fils = (messages: unknown[]) => ({ fils: { s1: { type: 'commentaire', messages } } })
+    expect(gesteSurElement(carte(), carte(fils([message('m1', 'bob', 'Ici ?')])), 'bob')).toBe('commentaire')
+    expect(gesteSurElement(carte(fils([message('m1', 'ana', 'Q')])), carte(fils([message('m1', 'ana', 'Q'), message('m2', 'bob', 'R')])), 'bob')).toBe('commentaire')
+    expect(gesteSurElement(carte(fils([message('m1', 'ana', 'Q')])), carte(fils([message('m1', 'ana', 'Volé')])), 'bob')).toBe('ecriture')
+    expect(gesteSurElement(carte(), { ...carte(), contenu: { type: 'arbre', sujets: { s1: { titre: 'Renommé' } } } }, 'bob')).toBe('ecriture')
+  })
+
   it('sur un autre élément, seuls son fil et ses réactions relèvent du commentaire', () => {
     const avant = note('n')
     expect(gesteSurElement(avant, note('n', { commentaire: { type: 'commentaire', messages: [message('m1', 'bob', 'Ici ?')] } }), 'bob')).toBe('commentaire')

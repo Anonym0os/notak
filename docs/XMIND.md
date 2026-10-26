@@ -879,8 +879,12 @@ Notak met sur la carte le fil qu'il a déjà sur la toile (`elements/commentaire
   son fil ensemble, Rétablir les retire ensemble. Copier-coller, couper, dupliquer un sujet ou une feuille ne reprennent
   pas les fils de l'original.
 - **Lecture seule.** Le fil se lit (l'épingle s'ouvre), il ne s'écrit pas : ni champ, ni réaction, ni résolution, ni
-  menu « Commenter ». Limite connue : le serveur n'accepte d'un
-  commentateur (droits « commentaire ») que les fils de la toile, car `reglesDroits.ts` ne lit pas les clés d'`arbres` ;
-  sur une carte, seul qui peut écrire commente. Lui ouvrir les fils de la carte demande un changement du contrôle serveur.
+  menu « Commenter ».
+- **Commentateur** (droits « commentaire »). Il lit la carte et écrit dans les fils de ses sujets, comme sur la toile :
+  le clic droit d'un sujet n'offre que « Commenter », ⌥⌘M aussi, et le reste de la carte ne s'écrit pas. Le serveur
+  (`controle.ts`) relève chaque clé `fils` d'`arbres` avant et après, et la juge comme un fil de la toile
+  (`gesteSurFil`) : ses messages, ses réactions, rien sur ceux des autres ; la toile fait de même sur l'élément entier
+  (`gesteSurElement` laisse passer une carte dont seuls les fils ont changé ainsi). Un visiteur par lien n'écrit pas
+  encore dans les fils de carte (son chemin, `visiteurs.ts`, ne lit que les éléments).
 - **`.xmind`.** L'export n'écrit pas les commentaires, l'import n'en crée pas : le fichier reste lisible par Xmind.
 

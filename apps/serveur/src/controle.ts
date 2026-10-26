@@ -1,6 +1,6 @@
 import * as decoding from 'lib0/decoding'
 import * as Y from 'yjs'
-import { type DroitsTableau, gesteSurElement, permis } from '../../../packages/tableau/src/coeur/reglesDroits.ts'
+import { type DroitsTableau, gesteSurElement, gesteSurFil, permis } from '../../../packages/tableau/src/coeur/reglesDroits.ts'
 import { decouper } from '../../../packages/tableau/src/coeur/arbresYjs.ts'
 
 // Le contrôle des mises à jour reçues par la synchro, élément par élément. Un geste qu'on n'a pas le droit de faire
@@ -29,8 +29,10 @@ export function miseAJourDuMessage(message: Uint8Array): Uint8Array | null {
 export interface Changements {
   /** Chaque élément de `elements` qui a changé : avant, après (`undefined` : absent). */
   elements: Map<string, { avant: unknown; apres: unknown }>
-  /** Les éléments dont un texte, une ligne ou une carte mentale a changé. */
+  /** Les éléments dont un texte, une ligne ou une carte mentale a changé (hors des fils de ses sujets). */
   textes: Set<string>
+  /** Chaque fil d'un sujet de carte mentale qui a changé, par clé de `arbres` : sa carte, avant, après. */
+  fils: Map<string, { element: string; avant: unknown; apres: unknown }>
   /** Le titre, le fond ou les étiquettes du tableau. */
   meta: boolean
 }
@@ -52,13 +54,23 @@ function racineDe(type: Y.AbstractType<any>): { racine: Y.AbstractType<any>; cle
  */
 export function appliquerEnRelevant(doc: Y.Doc, miseAJour: Uint8Array, origine: object): Changements {
   const elements = doc.getMap<unknown>('elements')
+  const arbres = doc.getMap<unknown>(ARBRES)
   const cartes = new Map<unknown, string>([...CARTES, ARBRES].map((nom) => [doc.getMap(nom), nom]))
-  const releve: Changements = { elements: new Map(), textes: new Set(), meta: false }
+  const releve: Changements = { elements: new Map(), textes: new Set(), fils: new Map(), meta: false }
 
   const surElements = (ev: Y.YMapEvent<unknown>, tx: Y.Transaction) => {
     if (tx.origin !== origine) return
     for (const [cle, ch] of ev.changes.keys) {
       if (!releve.elements.has(cle)) releve.elements.set(cle, { avant: ch.action === 'add' ? undefined : ch.oldValue, apres: elements.get(cle) })
+    }
+  }
+  // Le fil d'un sujet est une valeur entière de `arbres` : on le lit avant et après, comme un élément.
+  const surArbres = (ev: Y.YMapEvent<unknown>, tx: Y.Transaction) => {
+    if (tx.origin !== origine) return
+    for (const [cle, ch] of ev.changes.keys) {
+      const d = decouper(cle)
+      if (d?.[1] !== 'fils' || releve.fils.has(cle)) continue
+      releve.fils.set(cle, { element: d[0], avant: ch.action === 'add' ? undefined : ch.oldValue, apres: arbres.get(cle) })
     }
   }
   const surTransaction = (tx: Y.Transaction) => {
@@ -71,16 +83,22 @@ export function appliquerEnRelevant(doc: Y.Doc, miseAJour: Uint8Array, origine: 
       const cles = type === racine ? [...(tx.changed.get(type) ?? [])].filter((c): c is string => c !== null) : cle ? [cle] : []
       if (nom === 'meta') releve.meta = true
       else if (nom === 'textes' || nom === 'lignes') for (const c of cles) releve.textes.add(c)
-      else if (nom === ARBRES) for (const c of cles) releve.textes.add(decouper(c)?.[0] ?? c)
+      else if (nom === ARBRES)
+        for (const c of cles) {
+          const d = decouper(c)
+          if (!(type === racine && d?.[1] === 'fils')) releve.textes.add(d?.[0] ?? c)
+        }
       else if (nom === undefined) releve.meta = true // une carte inconnue : seul qui écrit le tableau y touche
     }
   }
   elements.observe(surElements)
+  arbres.observe(surArbres)
   doc.on('afterTransaction', surTransaction)
   try {
     Y.applyUpdate(doc, miseAJour, origine)
   } finally {
     elements.unobserve(surElements)
+    arbres.unobserve(surArbres)
     doc.off('afterTransaction', surTransaction)
   }
   return releve
@@ -91,6 +109,7 @@ export function changementsPermis(c: Changements, droits: DroitsTableau, auteur:
   if (c.meta && !permis(droits, null, 'ecriture')) return false
   for (const [id, { avant, apres }] of c.elements) if (!permis(droits, id, gesteSurElement(avant, apres, auteur))) return false
   for (const id of c.textes) if (!permis(droits, id, 'ecriture')) return false
+  for (const { element, avant, apres } of c.fils.values()) if (!permis(droits, element, gesteSurFil(avant, apres, auteur))) return false
   return true
 }
 

@@ -513,7 +513,7 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Note audio | 🟡 | Le micro du navigateur ; non éprouvée sur un vrai micro dans cette passe. |
 | Équation en LaTeX | ✅ | Temml (MathML) ; aperçu à mesure, Cmd+Entrée valide. |
 | Grille, tableau-arbre | ➖ | Écartés (docs/XMIND.md § 2). |
-| Commentaire sur un sujet | ✅ | « Commenter » (⌥⌘M) au menu du sujet ; épingle au coin du sujet avec son compte et le point du nouveau, le même fil que la toile, état résolu, lecture seule respectée ; supprimer le sujet emporte son fil (annulable). Pas dans le .xmind. Reste : un commentateur (droit « commentaire ») ne peut pas encore commenter une carte, le serveur ne lui ouvre que les fils de la toile (docs/XMIND.md § 16). |
+| Commentaire sur un sujet | ✅ | « Commenter » (⌥⌘M) au menu du sujet ; épingle au coin du sujet avec son compte et le point du nouveau, le même fil que la toile, état résolu, lecture seule respectée, un commentateur y écrit (et rien d'autre) ; supprimer le sujet emporte son fil (annulable). Pas dans le .xmind. Reste : un visiteur par lien ne commente pas encore une carte (docs/XMIND.md § 16). |
 | Gantt, IA, collaboration propre à Xmind, vidéo web | ➖ | Écartés (docs/XMIND.md § 6). |
 
 ## 19. Document à blocs

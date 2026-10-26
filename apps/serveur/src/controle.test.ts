@@ -51,6 +51,37 @@ describe('le contrôle des mises à jour', () => {
     expect(client.getMap('meta').get('titre')).toBe('Atelier')
   })
 
+  it('un commentateur écrit dans le fil d’un sujet de carte mentale, pas dans ses sujets ni dans les messages des autres', () => {
+    const { serveur, client, envoyer } = paire({ role: 'commentaire', elements: {} })
+    const arbres = (d: Y.Doc) => d.getMap<unknown>('arbres')
+    const cle = (champ: string, id: string) => `carte\u001f${champ}\u001f${id}`
+    serveur.transact(() => {
+      arbres(serveur).set(cle('sujets', 's1'), { titre: 'Sujet central' })
+      arbres(serveur).set(cle('fils', 's1'), { type: 'commentaire', messages: [message('m1', 'ana', 'Une question')] })
+    })
+    Y.applyUpdate(client, Y.encodeStateAsUpdate(serveur, Y.encodeStateVector(client)))
+    const filDe = (d: Y.Doc, id: string) => arbres(d).get(cle('fils', id)) as { messages: unknown[] } | undefined
+
+    // Répondre, et ouvrir le fil d'un autre sujet.
+    expect(envoyer((d) => arbres(d).set(cle('fils', 's1'), { type: 'commentaire', messages: [message('m1', 'ana', 'Une question'), message('m2', 'bob', 'Ma réponse')] }))).toBe(true)
+    expect(envoyer((d) => arbres(d).set(cle('fils', 's2'), { type: 'commentaire', messages: [message('m3', 'bob', 'Et ici ?')] }))).toBe(true)
+    expect(filDe(serveur, 's1')!.messages).toHaveLength(2)
+    expect(filDe(serveur, 's2')!.messages).toHaveLength(1)
+
+    // Corriger le message d'un autre, ou toucher un sujet : annulé, chez lui aussi.
+    expect(envoyer((d) => arbres(d).set(cle('fils', 's1'), { type: 'commentaire', messages: [message('m1', 'ana', 'Volé'), message('m2', 'bob', 'Ma réponse')] }))).toBe(false)
+    expect((filDe(serveur, 's1')!.messages[0] as { texte: string }).texte).toBe('Une question')
+    expect((filDe(client, 's1')!.messages[0] as { texte: string }).texte).toBe('Une question')
+    expect(envoyer((d) => arbres(d).set(cle('sujets', 's1'), { titre: 'Renommé' }))).toBe(false)
+    expect(arbres(serveur).get(cle('sujets', 's1'))).toEqual({ titre: 'Sujet central' })
+  })
+
+  it('un lecteur n’écrit pas dans le fil d’un sujet', () => {
+    const { serveur, envoyer } = paire({ role: 'lecture', elements: {} })
+    expect(envoyer((d) => d.getMap('arbres').set('carte\u001ffils\u001fs1', { type: 'commentaire', messages: [message('m1', 'bob', 'Bonjour')] }))).toBe(false)
+    expect(serveur.getMap('arbres').size).toBe(0)
+  })
+
   it('un élément figé n’est pas écrit, et un geste qui le touche est refusé en entier', () => {
     const { serveur, client, envoyer } = paire({ role: 'edition', elements: { n2: { ecrire: false, commenter: true } } })
     expect(envoyer((d) => elements(d).set('n1', note('n1', 10)))).toBe(true)

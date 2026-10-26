@@ -81,10 +81,37 @@ function filDeSoi(avant: unknown, apres: unknown, auteur: string): boolean {
   return true
 }
 
+/** Ce que demande le changement du fil d'un sujet de carte mentale (rangé à part de l'élément) : le même que sur la toile. */
+export function gesteSurFil(avant: unknown, apres: unknown, auteur: string): Geste {
+  return filDeSoi(avant, apres, auteur) ? 'commentaire' : 'ecriture'
+}
+
+/** Les fils des sujets d'une carte (`Arbre.fils`, par sujet) n'ont changé qu'en ce qu'un commentateur peut y faire. */
+function filsDeSoi(avant: unknown, apres: unknown, auteur: string): boolean {
+  const a = objet(avant) ?? {}
+  const b = objet(apres) ?? {}
+  for (const sujet of new Set([...Object.keys(a), ...Object.keys(b)])) if (!egal(a[sujet], b[sujet]) && !filDeSoi(a[sujet], b[sujet], auteur)) return false
+  return true
+}
+
+/** Une carte mentale dont seuls les fils des sujets ont changé, et en ce qu'un commentateur peut y faire. */
+function carteDeSoi(avant: unknown, apres: unknown, auteur: string): boolean {
+  const a = objet(avant)
+  const b = objet(apres)
+  if (a?.type !== 'arbre' || b?.type !== 'arbre') return false
+  for (const cle of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    if (egal(a[cle], b[cle])) continue
+    if (cle === 'fils' && filsDeSoi(a[cle], b[cle], auteur)) continue
+    return false
+  }
+  return true
+}
+
 /**
  * Ce que demande le passage d'un élément de `avant` à `apres` (des éléments stockés, `undefined` s'il n'existe pas),
  * fait par `auteur` : commenter suffit pour un fil (le créer, y répondre, le déplacer, le résoudre, le supprimer s'il
- * n'a que ses messages) et pour le fil ou les réactions accrochés à un autre élément ; tout le reste est écrire.
+ * n'a que ses messages), pour le fil ou les réactions accrochés à un autre élément et pour les fils des sujets d'une
+ * carte mentale ; tout le reste est écrire.
  */
 export function gesteSurElement(avant: unknown, apres: unknown, auteur: string): Geste {
   const a = objet(avant)
@@ -99,6 +126,7 @@ export function gesteSurElement(avant: unknown, apres: unknown, auteur: string):
     if (egal(a[cle], b[cle])) continue
     if (cle === 'commentaire' && filDeSoi(a[cle], b[cle], auteur)) continue
     if (cle === 'reactions' && reactionsDeSoi(a[cle], b[cle], auteur)) continue
+    if (cle === 'contenu' && carteDeSoi(a[cle], b[cle], auteur)) continue
     return 'ecriture'
   }
   return 'commentaire'
