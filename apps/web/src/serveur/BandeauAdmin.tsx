@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react'
 import type { Moi } from '../api'
 import { t } from '../langue'
 import { COMMANDE_MISE_A_JOUR, type VersionDisponible, ecarterVersion, lireMiseAJourServeur, versionEcartee } from './miseAJourServeur'
+import { useBandeau } from '../bandeaux'
 
 /**
  * Une nouvelle version de Notak existe : le bandeau des admins du serveur, et d'eux seuls. Il dit les deux versions, donne
  * la commande à copier, renvoie aux nouveautés (dans le navigateur) et laisse dire « plus tard », jusqu'à la version suivante.
  */
 export function BandeauAdmin({ moi }: { moi: Moi }) {
+  const bandeau = useBandeau<HTMLElement>()
   const [dispo, setDispo] = useState<VersionDisponible | null>(null)
   const [ecartee, setEcartee] = useState(versionEcartee)
   const [copie, setCopie] = useState<'non' | 'oui' | 'echec'>('non')
@@ -45,7 +47,7 @@ export function BandeauAdmin({ moi }: { moi: Moi }) {
   }
 
   return (
-    <aside className="bandeau bandeau-admin" role="status">
+    <aside ref={bandeau} className="bandeau bandeau-admin" role="status">
       <span>{t('serveur.maj.disponible', { version: dispo.version, actuelle: dispo.actuelle })}</span>
       <button type="button" className="bouton bouton-plein" title={COMMANDE_MISE_A_JOUR} onClick={() => void copier()}>
         {copie === 'oui' ? t('serveur.maj.copiee') : t('serveur.maj.copier')}

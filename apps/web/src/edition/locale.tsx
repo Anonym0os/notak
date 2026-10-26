@@ -25,6 +25,7 @@ import { type EspaceLocal, espaceLocal, exportLocal, rechercherLocalement } from
 import { fichiersLocaux } from '../local/fichiers'
 import { Rangement } from '../local/Rangement'
 import { initialiserSynchro } from '../local/synchro'
+import { useBandeau } from '../bandeaux'
 
 /**
  * L'édition locale, celle de notak.app : pas de compte, pas de serveur. Les tableaux vivent dans ce navigateur
@@ -259,6 +260,7 @@ function SuiviTableau({ tableau, vers }: { tableau: Id; vers(id: Id): void }) {
 const CLE_ACCUEILLI = 'notak:local:accueilli'
 /** Une fois, à la première visite : la vérité en une ligne, sans rien bloquer. */
 function Accueil({ el }: { el: EspaceLocal }) {
+  const bandeau = useBandeau<HTMLElement>()
   const [vu, setVu] = useState(() => {
     try {
       return localStorage.getItem(CLE_ACCUEILLI) === '1'
@@ -278,7 +280,7 @@ function Accueil({ el }: { el: EspaceLocal }) {
   }
   const bureau = estBureau()
   return (
-    <aside className={bureau ? 'bandeau bandeau-accueil-bureau' : 'bandeau'} role="status">
+    <aside ref={bandeau} className={bureau ? 'bandeau bandeau-accueil-bureau' : 'bandeau'} role="status">
       <span>{t(bureau ? 'local.accueilBureau' : 'local.accueil')}</span>
       {bureau && (
         <>
@@ -297,6 +299,7 @@ function Accueil({ el }: { el: EspaceLocal }) {
 
 /** Une seule fois, si un espace d'avant les comptes traîne dans ce navigateur et que l'accueil est vide. */
 function BandeauAncien({ el }: { el: EspaceLocal }) {
+  const bandeau = useBandeau<HTMLElement>()
   const [clos, setClos] = useState(() => importDejaPropose('local') || lireAncienEspace() === null)
   const [etat, setEtat] = useState<'attente' | 'cours' | 'echec'>('attente')
   const { espace } = el
@@ -308,7 +311,7 @@ function BandeauAncien({ el }: { el: EspaceLocal }) {
     setClos(true)
   }
   return (
-    <aside className="bandeau" role="status">
+    <aside ref={bandeau} className="bandeau" role="status">
       <span>{etat === 'echec' ? t('bandeau.echec') : t('bandeau.attend')}</span>
       <button
         type="button"

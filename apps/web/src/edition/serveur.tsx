@@ -61,6 +61,7 @@ import { VerrouTableau } from '../Verrou'
 import { t } from '../langue'
 import { adressePour } from '../adresse'
 import { allerA, useChemin } from '../chemin'
+import { useBandeau } from '../bandeaux'
 
 /**
  * Les tableaux du compte, pour les citer avec `[[` dans une note : gardés en mémoire, relus au chargement et quand
@@ -393,6 +394,7 @@ function Espace({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
 
 /** Une seule fois, à un compte dont l'accueil est vide : reprendre le tableau d'avant les comptes. */
 function BandeauImport({ moi, espace }: { moi: Moi; espace: EspaceDistant }) {
+  const bandeau = useBandeau<HTMLElement>()
   const [clos, setClos] = useState(() => importDejaPropose(moi.id) || lireAncienEspace() === null)
   const [etat, setEtat] = useState<'attente' | 'cours' | 'echec'>('attente')
   const vide = useSyncExternalStore(
@@ -415,7 +417,7 @@ function BandeauImport({ moi, espace }: { moi: Moi; espace: EspaceDistant }) {
     }
   }
   return (
-    <aside className="bandeau" role="status">
+    <aside ref={bandeau} className="bandeau" role="status">
       <span>{etat === 'echec' ? t('bandeau.echec') : t('bandeau.attend')}</span>
       <button type="button" className="bouton bouton-plein" disabled={etat === 'cours'} onClick={importer}>
         {etat === 'echec' ? t('bandeau.reessayer') : t('bandeau.importer')}

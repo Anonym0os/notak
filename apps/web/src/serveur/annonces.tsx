@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { t } from '../langue'
+import { useBandeau } from '../bandeaux'
 
 /**
  * Un mot court quand un geste de l'app de bureau échoue (un fichier qui ne s'ouvre pas, un retour impossible) : un
@@ -29,6 +30,7 @@ const retirer = () => {
 }
 
 export function AnnoncesServeur() {
+  const bandeau = useBandeau<HTMLElement>()
   const annonce = useSyncExternalStore(ecouter, () => courante)
   useEffect(() => {
     if (!annonce) return
@@ -38,7 +40,7 @@ export function AnnoncesServeur() {
   }, [annonce])
   if (!annonce) return null
   return (
-    <aside className="bandeau bandeau-annonce" role="status" key={annonce.n}>
+    <aside ref={bandeau} className="bandeau bandeau-annonce" role="status" key={annonce.n}>
       <span>{annonce.texte}</span>
       <button type="button" className="bouton-lien" onClick={retirer}>
         {t('commun.fermer')}

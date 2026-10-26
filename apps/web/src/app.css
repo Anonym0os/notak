@@ -797,10 +797,7 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   padding: 0 10px;
 }
 
-/* Deux bandeaux à la fois (l'accueil, une mise à jour) : le second se pose au-dessus du premier. */
-.bandeau ~ .bandeau {
-  bottom: 72px;
-}
+/* Plusieurs bandeaux à la fois : chacun se pose au-dessus des précédents, à leur hauteur réelle (`bandeaux.ts`). */
 
 .bouton-etoile[aria-pressed='true'] {
   color: #e8a400;

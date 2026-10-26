@@ -3,6 +3,7 @@ import { estBureau, estPageServeur, invoquer, reglerMajAuto } from './bureau'
 import { relireAcces } from './bureau/etat'
 import { t } from './langue'
 import { ecouterNouvelleVersion, nouvelleVersion } from './pwa'
+import { useBandeau } from './bandeaux'
 
 /**
  * Les mises à jour de l'app de bureau, côté page. La coque fait le travail (`apps/bureau/src-tauri/src/mise_a_jour.rs`) :
@@ -137,10 +138,11 @@ export const pageDeVersion = (version: string) => `https://github.com/Anonym0os/
 
 /** Le bandeau du bas, une fois la nouvelle version prête : redémarrer maintenant, ou la laisser se poser en quittant. */
 export function BandeauMiseAJour() {
+  const bandeau = useBandeau<HTMLElement>()
   const e = useMiseAJour()
   if ((e.phase !== 'prete' && e.phase !== 'pose') || !e.nouvelle || e.ecartee === e.nouvelle) return null
   return (
-    <aside className="bandeau bandeau-mise-a-jour" role="status">
+    <aside ref={bandeau} className="bandeau bandeau-mise-a-jour" role="status">
       <span>{t('maj.prete', { version: e.nouvelle })}</span>
       <a className="bouton-lien" href={pageDeVersion(e.nouvelle)} target="_blank" rel="noopener noreferrer">
         {t('maj.nouveautes')}
@@ -225,10 +227,11 @@ export function SectionMiseAJour() {
 
 /** La version web : une nouvelle version a pris la main sous la page ouverte (`pwa.ts`) ; un clic la recharge. */
 export function BandeauNouvelleVersion() {
+  const bandeau = useBandeau<HTMLElement>()
   const arrivee = useSyncExternalStore(ecouterNouvelleVersion, nouvelleVersion)
   if (!arrivee) return null
   return (
-    <aside className="bandeau bandeau-mise-a-jour" role="status">
+    <aside ref={bandeau} className="bandeau bandeau-mise-a-jour" role="status">
       <span>{t('maj.webArrivee')}</span>
       <button type="button" className="bouton bouton-plein" onClick={() => location.reload()}>
         {t('maj.recharger')}

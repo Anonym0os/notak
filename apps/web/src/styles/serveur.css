@@ -165,14 +165,6 @@
   border-radius: 20px;
 }
 
-/* — Les bandeaux du bas : au-delà de deux, chacun se pose au-dessus du précédent (`.bandeau ~ .bandeau` s'arrête au deuxième). — */
-.bandeau ~ .bandeau ~ .bandeau {
-  bottom: 128px;
-}
-
-.bandeau ~ .bandeau ~ .bandeau ~ .bandeau {
-  bottom: 184px;
-}
 
 /* La nouvelle version du serveur : sur plusieurs lignes quand la place manque, les notes dépliées en dessous. */
 .bandeau.bandeau-admin {
