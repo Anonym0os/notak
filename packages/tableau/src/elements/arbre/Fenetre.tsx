@@ -2,6 +2,7 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
 import { BoutonIlot, FiletIlot, FilEcran, Ilot } from '../../Ilots'
+import { LigneMenu, classeMenu } from '../../communs'
 import { Flottant } from './Flottant'
 import type { AlignementFlottant } from './geometrieMenus'
 
@@ -122,7 +123,7 @@ export function Deroulant({
     <>
       <span ref={marque} hidden />
       {ouvert && porteur && (
-        <Flottant racine={racine} ancre={porteur} cote={vers} alignement={alignement} className={`notak-arbre-deroulant${className ? ` ${className}` : ''}`} role="menu">
+        <Flottant racine={racine} ancre={porteur} cote={vers} alignement={alignement} className={classeMenu(`notak-arbre-deroulant${className ? ` ${className}` : ''}`)} role="menu">
           {children}
         </Flottant>
       )}
@@ -131,8 +132,8 @@ export function Deroulant({
 }
 
 /**
- * Une entrée de menu : icône (16 px, trait 1,6, discrète), libellé, raccourci à droite ; ou, pour une entrée qui ouvre un
- * sous-menu (`sous`), un chevron à la place du raccourci.
+ * Une entrée de menu déroulant : la ligne du menu commun (icône de 16 px, libellé, raccourci à droite, coche en fin de
+ * ligne), ou, pour une entrée qui ouvre un sous-menu (`sous`), une flèche à la place du raccourci.
  */
 export function Entree({
   icone,
@@ -154,27 +155,7 @@ export function Entree({
   /** Le pointeur entre dans l'entrée : un menu y ferme le sous-menu resté ouvert à côté. */
   onSurvol?: (() => void) | undefined
 }) {
-  return (
-    <button
-      type="button"
-      role={coche === undefined ? 'menuitem' : 'menuitemradio'}
-      aria-checked={coche}
-      aria-haspopup={sous ? 'menu' : undefined}
-      disabled={inactif}
-      onClick={onClick}
-      onPointerEnter={onSurvol}
-    >
-      <span className="notak-arbre-entree-icone">{icone ? <Icone nom={icone} taille={16} trait={1.6} /> : coche ? <Icone nom="coche" taille={14} /> : null}</span>
-      <span className="notak-arbre-entree-libelle">{libelle}</span>
-      {sous ? (
-        <span className="notak-arbre-entree-sous">
-          <Icone nom="chevronDroite" taille={14} trait={1.8} />
-        </span>
-      ) : (
-        touche && <kbd>{touche}</kbd>
-      )}
-    </button>
-  )
+  return <LigneMenu icone={icone} libelle={libelle} raccourci={sous ? undefined : touche} coche={coche} sous={sous} desactive={inactif} onClick={onClick} onPointerEnter={onSurvol} />
 }
 
 export type Onglet = 'style' | 'presenter' | 'carte'

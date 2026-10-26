@@ -211,8 +211,8 @@ function OptionsRecherchePanneau({ options, changer }: { options: OptionsRecherc
         <Icone nom="reglages" taille={16} trait={1.6} />
       </button>
       <Deroulant ouvert={ouvert} fermer={() => setOuvert(false)} alignement="fin" className="notak-arbre-gauche-menu">
-        <Entree libelle={t('arbre.gauche.motsEntiers')} coche={!!options.motsEntiers} onClick={() => changer({ ...options, motsEntiers: !options.motsEntiers })} />
-        <Entree libelle={t('arbre.gauche.casse')} coche={!!options.casse} onClick={() => changer({ ...options, casse: !options.casse })} />
+        <Entree icone="texte" libelle={t('arbre.gauche.motsEntiers')} coche={!!options.motsEntiers} onClick={() => changer({ ...options, motsEntiers: !options.motsEntiers })} />
+        <Entree icone="gras" libelle={t('arbre.gauche.casse')} coche={!!options.casse} onClick={() => changer({ ...options, casse: !options.casse })} />
       </Deroulant>
     </span>
   )

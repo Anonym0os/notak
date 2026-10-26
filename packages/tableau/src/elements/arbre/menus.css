@@ -1,4 +1,4 @@
-/* Le menu contextuel et le bouton « + » (MenuContextuel.tsx, Outils.tsx), la barre du sujet (BarreSujet.tsx), les
+/* Le bouton « + » (Outils.tsx) et le menu contextuel (MenuContextuel.tsx), la barre du sujet (BarreSujet.tsx), les
    éditeurs en popover (Insertions.tsx) et ce que la carte pose en plus (zones, tracé). Les menus déroulants, eux,
    sont dans fenetre.css. Les teintes se tirent des variables de la carte : le thème sombre suit. */
 
@@ -23,27 +23,12 @@
   background: var(--notak-arbre-appui);
 }
 
-/* Un menu contextuel : posé au point cliqué ou sous son bouton, par-dessus tout. Les sous-menus sortent de son cadre : il ne défile pas. */
+/* Un menu contextuel : le menu commun, posé au point cliqué ou sous son bouton, par-dessus tout. Les sous-menus sortent de son cadre : il ne défile pas. */
 .notak-arbre-ctx {
-  position: fixed;
   z-index: 40;
   min-width: 230px;
   max-height: none;
   overflow: visible;
-}
-
-/* Un sous-menu : sa première entrée face à l'entrée parente, à 4 du bord du menu ; à gauche quand la fenêtre manque de place. */
-.notak-arbre-sous-menu {
-  top: -9px;
-  left: calc(100% + 13px);
-  z-index: 41;
-  max-height: none;
-  overflow: visible;
-}
-
-.notak-arbre-sous-menu[data-cote='gauche'] {
-  right: calc(100% + 13px);
-  left: auto;
 }
 
 /* Tracer une zone : le curseur en croix. */

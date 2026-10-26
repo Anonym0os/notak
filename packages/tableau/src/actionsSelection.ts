@@ -48,6 +48,7 @@ export function actionsSelection(elements: Element[], contexte: ContexteToile): 
     .map((x) => ({
       cle: `m:${x.libelle}`,
       libelle: x.libelle,
+      icone: x.icone,
       ...(x.raccourci ? { raccourci: x.raccourci } : {}),
       ...(x.coche ? { coche: x.coche(elements, contexte) } : {}),
       faire: () => x.faire(elements, contexte),

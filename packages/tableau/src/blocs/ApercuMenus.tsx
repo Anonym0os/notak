@@ -1,6 +1,8 @@
 import type { Editor } from '@tiptap/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { PanneauFlottant } from '../PanneauFlottant'
+import { LigneMenu, Menu, TitreMenu } from '../communs'
+import type { NomIcone } from '../icones'
 import { t } from '../langue'
 import { insererSignet, normaliserAdresse } from './apercu'
 import { CLE_APERCU, type EtatApercu, choisirApercu, fermerApercu, ouvrirApercu } from './collerComme'
@@ -31,9 +33,9 @@ export function ApercuMenus({ editeur }: { editeur: Editor }) {
  * lien collé), sous la fin du lien ; des lignes de texte seul, sous un titre.
  */
 function MenuCollerComme({ editeur, etat, hote }: { editeur: Editor; etat: Extract<EtatApercu, { genre: 'coller' }>; hote: HTMLElement | null }) {
-  const choix = [
-    { cle: 'apercu', libelle: t('menus.collerComme.apercu') },
-    { cle: 'lien', libelle: t('menus.collerComme.lien') },
+  const choix: { cle: string; icone: NomIcone; libelle: string }[] = [
+    { cle: 'apercu', icone: 'vueCarte', libelle: t('menus.collerComme.apercu') },
+    { cle: 'lien', icone: 'lien', libelle: t('menus.collerComme.lien') },
   ]
   // Sous le point où finit le lien, relu à chaque image : le menu suit la page qui défile.
   const cible = () => {
@@ -51,25 +53,23 @@ function MenuCollerComme({ editeur, etat, hote }: { editeur: Editor; etat: Extra
   }
   return (
     <PanneauFlottant cible={cible} hote={hote} cote="bas" alignement="debut" distance={4} fleche={false} className="notak-menu-blocs-panneau" onPointerDown={(e) => e.preventDefault()}>
-      <div className="notak-menu-blocs notak-apercu-coller" data-genre="coller" role="listbox" aria-label={t('menus.collerComme.titre')}>
-        <div className="notak-menu-blocs-liste">
-          <div className="notak-menu-blocs-categorie">{t('menus.collerComme.titre')}</div>
-          {choix.map((c, i) => (
-            <div
-              key={c.cle}
-              role="option"
-              aria-selected={i === etat.rang}
-              data-id={c.cle}
-              data-actif={i === etat.rang || undefined}
-              className="notak-menu-blocs-entree"
-              onPointerEnter={() => i !== etat.rang && ouvrirApercu(editeur.view, { ...etat, rang: i })}
-              onClick={() => agir(i)}
-            >
-              <span className="notak-menu-blocs-nom">{c.libelle}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <Menu className="notak-menu-blocs notak-apercu-coller" data-genre="coller" role="listbox" aria-label={t('menus.collerComme.titre')}>
+        <TitreMenu>{t('menus.collerComme.titre')}</TitreMenu>
+        {choix.map((c, i) => (
+          <LigneMenu
+            key={c.cle}
+            as="div"
+            role="option"
+            aria-selected={i === etat.rang}
+            data-id={c.cle}
+            actif={i === etat.rang}
+            icone={c.icone}
+            libelle={c.libelle}
+            onPointerEnter={() => i !== etat.rang && ouvrirApercu(editeur.view, { ...etat, rang: i })}
+            onClick={() => agir(i)}
+          />
+        ))}
+      </Menu>
     </PanneauFlottant>
   )
 }
@@ -132,7 +132,7 @@ function ChampApercu({ editeur, hote }: { editeur: Editor; hote: HTMLElement | n
         if (!(e.target instanceof HTMLInputElement)) e.preventDefault()
       }}
     >
-      <div className="notak-menu-blocs notak-apercu-champ" data-genre="lien" role="dialog" aria-label={t('blocs.apercuLien')}>
+      <div className="notak-pop notak-menu-blocs notak-apercu-champ" data-genre="lien" role="dialog" aria-label={t('blocs.apercuLien')}>
         <input
           ref={champ}
           className="notak-menu-blocs-filtre"

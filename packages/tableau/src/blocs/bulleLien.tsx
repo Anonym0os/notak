@@ -1,6 +1,6 @@
 import type { Editor } from '@tiptap/react'
 import { useEffect, useRef, useState } from 'react'
-import { Icone } from '../icones'
+import { LigneMenu, SeparateurMenu } from '../communs'
 import { t } from '../langue'
 import { lireAdresse } from './bulleAdresse'
 import { BulleFixe } from './bulleFixe'
@@ -56,23 +56,24 @@ export function BulleLien({ editeur, plage, ancre, hote, fermer }: Props) {
     }
   }
   const rendre = (quoi: 'adresse' | 'retirer') => (
-    <div
+    <LigneMenu
       key={quoi}
+      as="div"
       role="option"
       aria-selected={actif === quoi}
-      data-actif={actif === quoi || undefined}
-      className="notak-menu-blocs-entree"
+      actif={actif === quoi}
+      {...(quoi === 'adresse' ? { signe: <IconeAdresse taille={16} /> } : { icone: 'corbeille' as const })}
+      libelle={t(quoi === 'adresse' ? 'menus.lien.versAdresse' : 'menus.lien.retirer')}
+      fin={
+        quoi === 'adresse' ? (
+          <span className="notak-bulle-lien-legende" {...(adresse.genre === 'invalide' ? { 'data-erreur': true } : {})}>
+            {t(adresse.genre === 'invalide' ? 'menus.lien.urlComplete' : 'menus.lien.pageWeb')}
+          </span>
+        ) : undefined
+      }
       onPointerEnter={() => setRang(lignes.indexOf(quoi))}
       onClick={() => valider(quoi)}
-    >
-      <span className="notak-menu-blocs-icone">{quoi === 'adresse' ? <IconeAdresse /> : <Icone nom="corbeille" taille={20} />}</span>
-      <span className="notak-menu-blocs-nom">{t(quoi === 'adresse' ? 'menus.lien.versAdresse' : 'menus.lien.retirer')}</span>
-      {quoi === 'adresse' && (
-        <span className="notak-bulle-lien-legende" {...(adresse.genre === 'invalide' ? { 'data-erreur': true } : {})}>
-          {t(adresse.genre === 'invalide' ? 'menus.lien.urlComplete' : 'menus.lien.pageWeb')}
-        </span>
-      )}
-    </div>
+    />
   )
 
   return (
@@ -80,7 +81,7 @@ export function BulleLien({ editeur, plage, ancre, hote, fermer }: Props) {
       ancre={ancre}
       racine={editeur.view.dom}
       hote={hote}
-      className="notak-bulle-sous notak-bulle-lien notak-bulle-panneau"
+      className="notak-pop notak-bulle-sous notak-bulle-lien notak-bulle-panneau"
       role="dialog"
       aria-label={t('barre.lien')}
       onPointerDown={(e) => {
@@ -121,7 +122,7 @@ export function BulleLien({ editeur, plage, ancre, hote, fermer }: Props) {
       {valeur.trim() && rendre('adresse')}
       {existe && (
         <>
-          <div className="notak-menu-blocs-trait" aria-hidden />
+          <SeparateurMenu />
           {rendre('retirer')}
         </>
       )}

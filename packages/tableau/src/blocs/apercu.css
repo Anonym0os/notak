@@ -8,10 +8,6 @@
   width: 200px;
 }
 
-.notak-menu-blocs[data-genre='coller'] .notak-menu-blocs-entree {
-  height: 28px;
-}
-
 .notak-menu-blocs[data-genre='lien'] {
   gap: 6px;
   width: 340px;

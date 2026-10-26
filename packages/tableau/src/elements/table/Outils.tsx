@@ -3,7 +3,7 @@ import type { Element, FormatCellule, Id, Table, TypeCellule } from '../../coeur
 import { BoutonOutil, OutilAvecMenu } from '../../BoutonOutil'
 import { type NomIcone, Icone } from '../../icones'
 import { langue, t } from '../../langue'
-import { Raccourci } from '../../Menus'
+import { MenuEntrees } from '../../communs'
 import { fermerMenus, useMenu } from '../../menuUnique'
 import type { ContexteToile, PropsOutils } from '../types'
 import {
@@ -463,31 +463,9 @@ function OutilPlus({ c }: { c: Cellules }) {
   const menu = useMenu()
   // Le menu se relit à chaque rendu : la sélection a pu changer.
   const entrees = menu[0] ? entreesTable(c.contexte, c.id, 'barre') : []
-  const propres = entrees.filter((e, i, tout) => e !== null || (i > 0 && i < tout.length - 1 && tout[i - 1] !== null))
   return (
     <OutilAvecMenu menu={menu} icone="plus" titre={t('table.plus.titre')} libelle={t('table.plus')}>
-      <div className="notak-note-palette notak-table-menu-plus" role="menu">
-        {propres.map((e, i) =>
-          e === null ? (
-            <hr key={`s${i}`} />
-          ) : (
-            <button
-              key={e.libelle}
-              type="button"
-              role="menuitem"
-              className="notak-menu-rang"
-              disabled={e.desactive}
-              onClick={() => {
-                menu[1](false)
-                e.faire()
-              }}
-            >
-              <span className="notak-menu-rang-texte">{e.libelle}</span>
-              {e.raccourci && <Raccourci touches={e.raccourci} />}
-            </button>
-          ),
-        )}
-      </div>
+      <MenuEntrees className="notak-table-menu-plus" entrees={entrees} fermer={() => menu[1](false)} />
     </OutilAvecMenu>
   )
 }

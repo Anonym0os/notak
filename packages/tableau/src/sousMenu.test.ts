@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { placerSousMenu } from './Menus'
+import { placerSousMenu } from './communs'
 
 const fenetre = { largeur: 1385, hauteur: 868 }
 

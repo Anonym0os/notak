@@ -104,7 +104,7 @@ export function Popover({ ancre, ouvert, fermer, cote = 'dessous', largeur = 'an
     const dehors = (e: PointerEvent) => {
       const cible = e.target as Node
       // Un menu contextuel ou une boîte ouverts depuis la fenêtre sont posés à côté d'elle : les cliquer ne la ferme pas.
-      if (ref.current?.contains(cible) || ancre?.contains(cible) || (cible as Element).closest?.('.notak-arbre-reglages-menu, .notak-arbre-reglages-voile')) return
+      if (ref.current?.contains(cible) || ancre?.contains(cible) || (cible as Element).closest?.('.notak-arbre-ctx, .notak-arbre-reglages-voile')) return
       fermer()
     }
     const echap = (e: KeyboardEvent) => {
@@ -373,58 +373,6 @@ export function PastilleCouleur({
         <Nuancier valeur={valeur} onChoisir={onChoisir} fermer={o.fermer} couleursTheme={couleursTheme ?? []} recentes={recentes ?? []} reinitialiser={valeur ? reinitialiser : undefined} />
       </Popover>
     </>
-  )
-}
-
-/* ------------------------------------------------------------------ menu contextuel */
-
-export interface EntreeMenu {
-  libelle: string
-  onClick(): void
-  /** Un filet avant cette entrée. */
-  separateurAvant?: boolean
-}
-
-/** Le menu d'un clic droit, posé au pointeur dans la carte ouverte ; il glisse pour rester dans la fenêtre, et se ferme au clic dehors, à Échap et au choix. */
-export function MenuContextuel({ ancre, point, entrees, fermer }: { ancre: HTMLElement | null; point: { x: number; y: number } | null; entrees: readonly EntreeMenu[]; fermer(): void }) {
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!point) return
-    const dehors = (e: PointerEvent) => {
-      if (!ref.current?.contains(e.target as Node)) fermer()
-    }
-    const echap = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      e.stopPropagation()
-      fermer()
-    }
-    document.addEventListener('pointerdown', dehors, true)
-    document.addEventListener('keydown', echap, true)
-    return () => {
-      document.removeEventListener('pointerdown', dehors, true)
-      document.removeEventListener('keydown', echap, true)
-    }
-  }, [point, fermer])
-  if (!point || !ancre) return null
-  return (
-    <Flottant racine={ref} ancre={{ x: point.x, y: point.y, l: 0, h: 0 }} cote="libre" hote={ancre.closest('.notak-arbre-fond') ?? undefined} className="notak-arbre-reglages-popover notak-arbre-reglages-menu" role="menu">
-      {entrees.map((e) => (
-        <div key={e.libelle} role="presentation">
-          {e.separateurAvant && <hr className="notak-arbre-reglages-separateur" />}
-          <button
-            type="button"
-            role="menuitem"
-            className="notak-arbre-reglages-option"
-            onClick={() => {
-              fermer()
-              e.onClick()
-            }}
-          >
-            {e.libelle}
-          </button>
-        </div>
-      ))}
-    </Flottant>
   )
 }
 

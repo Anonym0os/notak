@@ -39,7 +39,7 @@ function ouvrir(contenu: Arbre) {
 const racineGrande = () => document.querySelector('.notak-arbre-fond')!
 const clic = (e: Element) => act(() => void e.dispatchEvent(new MouseEvent('click', { bubbles: true })))
 const menuContextuel = (e: Element, init: MouseEventInit = {}) => act(() => void e.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 200, clientY: 120, ...init })))
-const entrees = () => [...document.querySelectorAll('.notak-arbre-ctx > button, .notak-arbre-ctx > hr, .notak-arbre-ctx > .notak-arbre-menu-hote > button')].map((b) => (b.tagName === 'HR' ? '—' : b.querySelector('.notak-arbre-entree-libelle')!.textContent))
+const entrees = () => [...document.querySelectorAll('.notak-arbre-ctx > .notak-e, .notak-arbre-ctx > .notak-sep, .notak-arbre-ctx > .notak-menu-sous > .notak-e')].map((b) => (b.classList.contains('notak-sep') ? '—' : b.querySelector('.notak-e-libelle')!.textContent))
 
 function base() {
   let a: Arbre = nouvelArbre('Central')
@@ -54,7 +54,7 @@ describe('la carte ouverte en grand, avec ses menus et ses insertions', () => {
     expect(racineGrande()).toBeTruthy()
     expect(document.querySelectorAll('.notak-arbre-outils .notak-arbre-bouton').length).toBeGreaterThanOrEqual(7)
     clic(document.querySelector('.notak-arbre-plus')!)
-    const menu = [...document.querySelectorAll('.notak-arbre-deroulant .notak-arbre-entree-libelle')].map((e) => e.textContent)
+    const menu = [...document.querySelectorAll('.notak-arbre-ctx .notak-e-libelle')].map((e) => e.textContent)
     expect(menu).toEqual(['Note', 'Tâches à faire', 'Lien', 'Pièce jointe', 'Note audio', 'Autocollant', 'Illustration', 'Image locale', 'Équation'])
   })
 
@@ -82,10 +82,10 @@ describe('la carte ouverte en grand, avec ses menus et ses insertions', () => {
     const c = ouvrir(base())
     const sujet = () => [...document.querySelectorAll('.notak-arbre-surface [data-sujet]')].find((s) => s.textContent === 'Idées')!
     menuContextuel(sujet())
-    clic([...document.querySelectorAll('.notak-arbre-ctx > button')].find((b) => b.textContent!.startsWith('Copier'))!)
+    clic([...document.querySelectorAll('.notak-arbre-ctx > .notak-e')].find((b) => b.textContent!.startsWith('Copier'))!)
     expect(document.querySelector('.notak-arbre-ctx')).toBeNull()
     menuContextuel(sujet())
-    clic([...document.querySelectorAll('.notak-arbre-ctx > button')].find((b) => b.textContent!.startsWith('Coller'))!)
+    clic([...document.querySelectorAll('.notak-arbre-ctx > .notak-e')].find((b) => b.textContent!.startsWith('Coller'))!)
     const l = lire(c.courant())
     expect(l.enfants.get([...l.sujets].find(([, s]) => s.titre === 'Idées')![0])).toHaveLength(1)
   })
@@ -94,8 +94,8 @@ describe('la carte ouverte en grand, avec ses menus et ses insertions', () => {
     const c = ouvrir(base())
     const sujet = [...document.querySelectorAll('.notak-arbre-surface [data-sujet]')].find((s) => s.textContent === 'Idées')!
     menuContextuel(sujet)
-    clic([...document.querySelectorAll('.notak-arbre-ctx > .notak-arbre-menu-hote > button')].find((b) => b.textContent!.startsWith('Insérer'))!)
-    expect([...document.querySelectorAll('.notak-arbre-sous-menu > button, .notak-arbre-sous-menu > .notak-arbre-menu-hote > button')].map((b) => b.querySelector('.notak-arbre-entree-libelle')!.textContent)).toContain('Équation')
+    clic([...document.querySelectorAll('.notak-arbre-ctx > .notak-menu-sous > .notak-e')].find((b) => b.textContent!.startsWith('Insérer'))!)
+    expect([...document.querySelectorAll('.notak-menu-sous-liste > .notak-e, .notak-menu-sous-liste > .notak-menu-sous > .notak-e')].map((b) => b.querySelector('.notak-e-libelle')!.textContent)).toContain('Équation')
     act(() => void document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
     expect(document.querySelector('.notak-arbre-ctx')).toBeNull()
     // Le bouton Zone, sans flottant choisi, arme le tracé ; Échap le désarme.

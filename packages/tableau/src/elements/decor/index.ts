@@ -16,6 +16,7 @@ const modifiables = (elements: Element[], contexte: { services: { lectureSeule?:
 const repliables = (elements: Element[]) => elements.every(peutSeReduire)
 
 registre.entreeMenu({
+  icone: 'commentaire',
   get libelle() {
     return t('menu.commenter')
   },
@@ -24,6 +25,7 @@ registre.entreeMenu({
   faire: (elements) => ouvrirFil(elements[0]!.id),
 })
 registre.entreeMenu({
+  icone: 'reduire',
   get libelle() {
     return t('menu.enIcone')
   },
@@ -32,6 +34,7 @@ registre.entreeMenu({
   faire: (elements, contexte) => appliquerAffichage(elements, true, contexte),
 })
 registre.entreeMenu({
+  icone: 'agrandir',
   get libelle() {
     return t('menu.enDetail')
   },

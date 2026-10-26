@@ -52,19 +52,19 @@ async function monter(blocs: NoeudTexte[]): Promise<Editor> {
 }
 const taper = (ed: Editor, texte: string) => act(async () => void ed.commands.insertContent(texte))
 const touche = (ed: Editor, key: string, plus: KeyboardEventInit = {}) => act(async () => void ed.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...plus })))
-const nom = (x: Element) => x.querySelector('.notak-menu-blocs-nom')?.textContent ?? x.textContent
-const lignes = () => [...document.querySelectorAll('.notak-menu-blocs [role="option"]')].map((x) => `${nom(x)}${x.querySelector('.notak-menu-blocs-droite')?.textContent ?? ''}`)
+const nom = (x: Element) => x.querySelector('.notak-e-libelle')?.textContent ?? x.textContent
+const lignes = () => [...document.querySelectorAll('.notak-menu-blocs [role="option"]')].map((x) => `${nom(x)}${x.querySelector(':scope > .notak-touches, :scope > .notak-e-detail')?.textContent ?? ''}`)
 
 describe('NOTION.md § 2 : le menu « / »', () => {
   it('à l’ouverture : les sections dans l’ordre, le pied « Fermer le menu · esc », l’invite en ligne', async () => {
     const ed = await monter([b('paragraph', '')])
     await taper(ed, '/')
-    const titres = [...document.querySelectorAll('.notak-menu-blocs-categorie')].map((x) => x.textContent)
+    const titres = [...document.querySelectorAll('.notak-groupe')].map((x) => x.textContent)
     expect(titres).toEqual(['Blocs de base', 'Média', 'Blocs avancés', 'Transformer en', 'Actions', 'Couleur du texte', 'Couleur d’arrière-plan'])
     expect(document.querySelector('.notak-menu-blocs-pied')?.textContent).toBe('Fermer le menuesc')
     expect(ed.view.dom.querySelector('.notak-slash-texte')?.textContent).toBe('/')
     expect(ed.view.dom.querySelector('.notak-slash-fantome')?.textContent).toBe('Saisissez du texte pour chercher')
-    expect(document.querySelector('.notak-menu-blocs-entree[data-actif]')?.textContent).toContain('Texte')
+    expect(document.querySelector('.notak-e[data-actif]')?.textContent).toContain('Texte')
   })
 
   it('le texte tapé est surligné dans le bloc, l’invite part avec la première lettre', async () => {
@@ -73,7 +73,7 @@ describe('NOTION.md § 2 : le menu « / »', () => {
     expect(ed.view.dom.querySelector('.notak-slash-texte')?.textContent).toBe('/enc')
     expect(ed.view.dom.querySelector('.notak-slash-fantome')).toBeNull()
     expect(lignes()).toEqual(['Encadré', 'Encadré · Transformer en', 'Fermer le menuesc'])
-    expect(document.querySelector('.notak-menu-blocs-categorie')?.textContent).toBe('Résultats filtrés')
+    expect(document.querySelector('.notak-groupe')?.textContent).toBe('Résultats filtrés')
   })
 
   it('l’ancre est prise à l’ouverture : taper davantage ne la mesure plus', async () => {
@@ -128,7 +128,7 @@ describe('NOTION.md § 3 : le menu d’actions du bloc', () => {
     const menu = document.querySelector('.notak-menu-blocs[data-genre="bloc"]')
     expect(menu).not.toBeNull()
     expect(menu!.querySelector('input')?.getAttribute('placeholder')).toBe('Rechercher des actions…')
-    expect(menu!.querySelector('.notak-menu-blocs-categorie')?.textContent).toBe('Titre 2')
+    expect(menu!.querySelector('.notak-groupe')?.textContent).toBe('Titre 2')
     expect(lignes()).toEqual(['Transformer en', 'Couleur', 'Copier le lien du bloc⌘⌃L', 'Dupliquer⌘D', 'Supprimer' + 'Suppr', 'Commenter⌘⇧M'])
   })
 
@@ -138,7 +138,7 @@ describe('NOTION.md § 3 : le menu d’actions du bloc', () => {
     const couleur = [...document.querySelectorAll<HTMLElement>('.notak-menu-blocs [role="option"]')].find((x) => nom(x) === 'Couleur')!
     await act(async () => void couleur.click())
     const sous = document.querySelector('.notak-menu-blocs[data-genre="sous"]')!
-    expect([...sous.querySelectorAll('.notak-menu-blocs-categorie')].map((x) => x.textContent)).toEqual(['Utilisé dernièrement', 'Couleur du texte', 'Couleur d’arrière-plan'])
+    expect([...sous.querySelectorAll('.notak-groupe')].map((x) => x.textContent)).toEqual(['Utilisé dernièrement', 'Couleur du texte', 'Couleur d’arrière-plan'])
     const rouge = [...sous.querySelectorAll<HTMLElement>('[role="option"]')].find((x) => nom(x) === 'Texte rouge')!
     await act(async () => void rouge.click())
     expect(ed.state.doc.child(0).attrs.couleur).toBe('rouge')

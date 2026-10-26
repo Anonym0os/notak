@@ -594,8 +594,7 @@ tr:first-child:last-child .notak-table-repere-ligne {
   font-size: 11px;
 }
 
-.notak-table-menu-type .notak-menu-rang:disabled,
-.notak-table-menu-plus .notak-menu-rang:disabled {
+.notak-table-menu-type .notak-menu-rang:disabled {
   opacity: 0.4;
   cursor: default;
 }
@@ -657,31 +656,13 @@ tr:first-child:last-child .notak-table-repere-ligne {
 }
 
 .notak-table-menu-plus {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  z-index: 4;
   min-width: 230px;
   white-space: nowrap;
-}
-
-.notak-table-menu-plus hr {
-  width: 100%;
-  margin: 2px 0;
-  border: 0;
-  border-top: 1px solid var(--notak-point);
-}
-
-.notak-table-menu-plus .notak-menu-touches {
-  display: inline-flex;
-  gap: 4px;
-}
-
-.notak-table-menu-plus .notak-menu-touches kbd {
-  min-width: 12px;
-  padding: 0 4px;
-  border-radius: 4px;
-  background: rgb(0 0 0 / 0.06);
-  font: inherit;
-  font-size: 11px;
-  line-height: 18px;
-  text-align: center;
+  transform: translateX(-50%);
 }
 
 /* La fenêtre d'alignement : 150 px, deux rangées de trois icônes de 30 px (10 px d'écart), un filet entre les deux. */

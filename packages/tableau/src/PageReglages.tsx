@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { t, tn } from './langue'
-import { touches, touchesDe } from './Menus'
+import { touchesDe } from './communs'
+import { touches } from './Menus'
 import { PastillePersonne } from './pastille'
 import { Pilule } from './reglages'
 import { type ContexteReglages, GROUPES, type Ligne, type Rubrique, chercher, lire, morceaux, nombreDeLignes, rubriquesVisibles } from './rubriquesReglages'

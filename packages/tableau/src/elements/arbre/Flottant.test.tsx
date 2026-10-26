@@ -11,7 +11,7 @@ import { Popover as PopoverInsertions } from './Insertions'
 import { MenuContextuel } from './MenuContextuel'
 import { PopoverNote } from './PopoverNote'
 import { MARGE_FENETRE } from './geometrieMenus'
-import { MenuContextuel as MenuReglages, Popover as PopoverReglages } from './controles'
+import { Popover as PopoverReglages } from './controles'
 import { Popover as PopoverStyle } from './controles-style'
 import type { Item } from './menus'
 
@@ -213,12 +213,6 @@ describe('les popovers du panneau de droite (controles)', () => {
     tient(p)
     expect(noeud.dataset.cote).toBe('gauche')
     expect(p.x + p.l).toBeLessThanOrEqual(FENETRE.l - 268)
-  })
-
-  it('le menu d’un clic droit dans le coin', () => {
-    const a = faux(COIN)
-    const { hote } = monter(<MenuReglages ancre={a.el} point={{ x: FENETRE.l - 3, y: FENETRE.h - 3 }} entrees={[{ libelle: 'Modifier', onClick: () => {} }]} fermer={() => {}} />, { l: 180, h: 120 })
-    tient(posee(hote.querySelector('[role=menu]'), { l: 180, h: 120 }))
   })
 })
 

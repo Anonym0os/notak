@@ -178,14 +178,14 @@ describe('le menu contextuel', () => {
     const choisir = vi.fn()
     const fermer = vi.fn()
     const h = monter(<MenuContextuel x={20} y={30} items={items} choisir={choisir} fermer={fermer} />)
-    const boutons = [...h.querySelectorAll('button')]
-    expect(boutons.map((b) => b.querySelector('.notak-arbre-entree-libelle')!.textContent)).toEqual(['Copier', 'Coller', 'Insérer'])
+    const boutons = [...h.querySelectorAll<HTMLButtonElement>('.notak-arbre-ctx button')]
+    expect(boutons.map((b) => b.querySelector('.notak-e-libelle')!.textContent)).toEqual(['Copier', 'Coller', 'Insérer'])
     expect(boutons[1]!.disabled).toBe(true)
-    expect(h.querySelectorAll('hr')).toHaveLength(1)
+    expect(h.querySelectorAll('.notak-sep')).toHaveLength(1)
     clic(boutons[0]!)
     expect(choisir).toHaveBeenLastCalledWith('copier')
     clic(boutons[2]!)
-    const note = [...h.querySelectorAll('.notak-arbre-sous-menu button')]
+    const note = [...h.querySelectorAll('.notak-menu-sous-liste .notak-e')]
     expect(note).toHaveLength(1)
     clic(note[0]!)
     expect(choisir).toHaveBeenLastCalledWith('inserer.note')

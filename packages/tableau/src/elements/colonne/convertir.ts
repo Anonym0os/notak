@@ -39,6 +39,7 @@ export function pasDeConversion(colonne: Element<Colonne>, partants: readonly El
 }
 
 registre.entreeMenu({
+  icone: 'convertir',
   get libelle() {
     return t('menu.convertirTableau')
   },

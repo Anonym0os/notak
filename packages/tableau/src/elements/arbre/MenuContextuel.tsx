@@ -1,7 +1,7 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Entree } from './Fenetre'
+import { useEffect, useMemo, useRef } from 'react'
+import { type Entree, ListeMenu, classeMenu, ligneVisee, naviguer } from '../../communs'
 import { Flottant } from './Flottant'
-import { ECART_ANCRE, RETRAIT_MENU, poserSousMenu } from './geometrieMenus'
+import { ECART_ANCRE } from './geometrieMenus'
 import type { Item } from './menus'
 
 interface Props {
@@ -21,14 +21,33 @@ interface Props {
   etiquette?: string
 }
 
+/** Les entrées de la carte (identifiant, sous-menus) en entrées du menu commun. */
+const entreesDe = (items: Item[], choisir: (action: string) => void): Entree[] =>
+  items.map((it): Entree =>
+    it === 'sep'
+      ? null
+      : {
+          libelle: it.libelle,
+          icone: it.icone,
+          ...(it.touche ? { raccourci: it.touche } : {}),
+          ...(it.inactif ? { desactive: true } : {}),
+          ...(it.danger ? { danger: true } : {}),
+          ...(it.sous ? { sous: entreesDe(it.sous, choisir) } : {}),
+          faire: () => choisir(it.id),
+        },
+  )
+
 /**
- * Un menu contextuel : posé au point cliqué (ou sous son bouton), il garde la fenêtre (il glisse, ou se retourne, s'il
- * déborde ; plus haut qu'elle, il défile), s'ouvre en sous-menus, se parcourt aux flèches et se ferme à Échap, au clic
- * dehors ou quand la fenêtre change de taille. Les entrées grisées restent visibles, comme chez Xmind.
+ * Un menu contextuel de la carte : le menu commun (`communs/Menu.tsx`), posé au point cliqué (ou sous son bouton), par
+ * `Flottant` qui lui garde la fenêtre (il glisse, ou se retourne, s'il déborde ; plus haut qu'elle, il défile). Il se
+ * ferme à Échap, au clic dehors et quand la fenêtre change de taille. Les entrées grisées restent visibles, comme chez
+ * Xmind. Il ne prend pas le focus à l'ouverture : la première flèche bas le prend, et la carte le retrouve à la fermeture
+ * (`Flottant`), sans quoi ses touches meurent.
  */
 export function MenuContextuel({ x = 0, y = 0, ancre, items, choisir, fermer, etiquette }: Props) {
   const racine = useRef<HTMLDivElement>(null)
   const point = useMemo(() => ({ x, y, l: 0, h: 0 }), [x, y])
+  const entrees = entreesDe(items, choisir)
   useEffect(() => {
     const dehors = (e: PointerEvent) => {
       const cible = e.target as Node
@@ -41,12 +60,11 @@ export function MenuContextuel({ x = 0, y = 0, ancre, items, choisir, fermer, et
         return fermer()
       }
       if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
-      const boutons = [...(racine.current?.querySelectorAll<HTMLButtonElement>(':scope > button:not(:disabled), :scope > .notak-arbre-menu-hote > button:not(:disabled)') ?? [])]
-      if (boutons.length === 0) return
+      const cible = racine.current && ligneVisee(racine.current, e)
+      if (!cible) return
       e.preventDefault()
       e.stopPropagation()
-      const i = boutons.indexOf(document.activeElement as HTMLButtonElement)
-      boutons[(i + (e.key === 'ArrowDown' ? 1 : -1) + boutons.length) % boutons.length]!.focus()
+      cible.focus()
     }
     document.addEventListener('pointerdown', dehors, true)
     document.addEventListener('keydown', touche, true)
@@ -58,54 +76,22 @@ export function MenuContextuel({ x = 0, y = 0, ancre, items, choisir, fermer, et
     }
   }, [fermer, ancre])
   return (
-    <Flottant racine={racine} ancre={ancre ?? point} cote={ancre ? 'bas' : 'libre'} ecart={ECART_ANCRE} className="notak-arbre-deroulant notak-arbre-ctx" role="menu" aria-label={etiquette} onContextMenu={(e) => e.preventDefault()}>
-      <Liste items={items} choisir={choisir} />
-    </Flottant>
-  )
-}
-
-function Liste({ items, choisir }: { items: Item[]; choisir(action: string): void }) {
-  const [ouvert, setOuvert] = useState<string | null>(null)
-  return (
-    <>
-      {items.map((it, i) =>
-        it === 'sep' ? (
-          <hr key={`s${i}`} />
-        ) : it.sous ? (
-          <div key={it.id} className="notak-arbre-menu-hote" data-ouvert={ouvert === it.id ? '' : undefined} onPointerEnter={() => setOuvert(it.id)}>
-            <Entree icone={it.icone} libelle={it.libelle} sous inactif={it.inactif} onClick={() => setOuvert(ouvert === it.id ? null : it.id)} />
-            {ouvert === it.id && <SousMenu items={it.sous} choisir={choisir} />}
-          </div>
-        ) : (
-          <Entree key={it.id} icone={it.icone} libelle={it.libelle} touche={it.touche} inactif={it.inactif} onClick={() => choisir(it.id)} onSurvol={() => setOuvert(null)} />
-        ),
-      )}
-    </>
-  )
-}
-
-/** Un sous-menu, à droite de son entrée ; il passe à gauche s'il sortirait de la fenêtre, remonte s'il en sortirait par le bas, et défile s'il est plus haut que la fenêtre. */
-function SousMenu({ items, choisir }: { items: Item[]; choisir(action: string): void }) {
-  const racine = useRef<HTMLDivElement>(null)
-  const [place, setPlace] = useState<{ cote: 'droite' | 'gauche'; decalage: number; hauteurMax?: number }>({ cote: 'droite', decalage: 0 })
-  useLayoutEffect(() => {
-    const sous = racine.current?.getBoundingClientRect()
-    const entree = racine.current?.parentElement?.getBoundingClientRect()
-    const parent = racine.current?.parentElement?.closest('.notak-arbre-deroulant')?.getBoundingClientRect()
-    if (!sous || !entree || !parent) return
-    const boite = (r: DOMRect) => ({ x: r.left, y: r.top, l: r.width, h: r.height })
-    setPlace(poserSousMenu(boite(parent), boite(entree), { l: sous.width, h: sous.height }, { l: window.innerWidth, h: window.innerHeight }))
-  }, [])
-  return (
-    <div
-      ref={racine}
-      className="notak-arbre-deroulant notak-arbre-sous-menu"
+    <Flottant
+      racine={racine}
+      ancre={ancre ?? point}
+      cote={ancre ? 'bas' : 'libre'}
+      ecart={ECART_ANCRE}
+      className={classeMenu('notak-arbre-ctx')}
       role="menu"
-      data-cote={place.cote}
-      data-borne={place.hauteurMax ? '' : undefined}
-      style={{ ...(place.decalage ? { top: place.decalage - RETRAIT_MENU } : {}), ...(place.hauteurMax ? { maxHeight: place.hauteurMax } : {}) }}
+      aria-label={etiquette}
+      onContextMenu={(e) => e.preventDefault()}
+      onKeyDown={(ev) => {
+        // Une touche tapée dans le menu y reste : la carte ne l'entend pas (Entrée n'ajoute pas un sujet).
+        ev.stopPropagation()
+        naviguer(ev)
+      }}
     >
-      <Liste items={items} choisir={choisir} />
-    </div>
+      <ListeMenu entrees={entrees} fermer={fermer} />
+    </Flottant>
   )
 }

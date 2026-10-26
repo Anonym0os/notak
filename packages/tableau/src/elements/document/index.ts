@@ -61,6 +61,7 @@ registre.type<DocumentTexte>({
 })
 
 registre.entreeMenu({
+  icone: 'convertir',
   get libelle() {
     return t('menu.convertirNote')
   },
@@ -71,6 +72,7 @@ registre.entreeMenu({
 
 // « Renommer » : le titre s'édite sur la carte (un seul document).
 registre.entreeMenu({
+  icone: 'renommer',
   get libelle() {
     return t('menu.renommer')
   },

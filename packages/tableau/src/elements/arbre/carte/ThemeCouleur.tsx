@@ -3,7 +3,8 @@ import { useHabillagesPublies } from '../../../habillage/catalogue'
 import type { Arbre, StructureArbre } from '../../../coeur/tableau'
 import { Icone } from '../../../icones'
 import { t, useLangue } from '../../../langue'
-import { CarteVignette, MenuContextuel, Popover, useOuvrable } from '../controles'
+import { CarteVignette, Popover, useOuvrable } from '../controles'
+import { MenuContextuel } from '../MenuContextuel'
 import type { Geste } from '../modele/gestes'
 import { themeDuGroupe, groupeCourant, groupesThemes, squeletteDeCarte, type GroupeTheme, choixDe, varianteActive, varianteSuivante } from './groupes'
 import type { SqueletteDef } from './squelettes'
@@ -244,21 +245,27 @@ function ListeThemes({
         )}
       </div>
     </Popover>
-      <MenuContextuel
-        ancre={ancre}
-        point={menu}
-        fermer={() => setMenu(null)}
-        entrees={
-          menu
-            ? [
-                { libelle: t('arbre.carte.menu.modifier'), onClick: () => modifier(menu.theme) },
-                { libelle: t('arbre.carte.menu.renommer'), onClick: () => setRenomme(menu.theme.id) },
-                { libelle: t('arbre.carte.menu.dupliquer'), onClick: () => dupliquer(menu.theme), separateurAvant: true },
-                { libelle: t('arbre.carte.menu.supprimer'), onClick: () => supprimer(menu.theme) },
-              ]
-            : []
-        }
-      />
+      {menu && (
+        <MenuContextuel
+          x={menu.x}
+          y={menu.y}
+          fermer={() => setMenu(null)}
+          choisir={(action) => {
+            setMenu(null)
+            if (action === 'modifier') modifier(menu.theme)
+            else if (action === 'renommer') setRenomme(menu.theme.id)
+            else if (action === 'dupliquer') dupliquer(menu.theme)
+            else supprimer(menu.theme)
+          }}
+          items={[
+            { id: 'modifier', libelle: t('arbre.carte.menu.modifier'), icone: 'modifier' },
+            { id: 'renommer', libelle: t('arbre.carte.menu.renommer'), icone: 'renommer' },
+            'sep',
+            { id: 'dupliquer', libelle: t('arbre.carte.menu.dupliquer'), icone: 'menuDupliquer' },
+            { id: 'supprimer', libelle: t('arbre.carte.menu.supprimer'), icone: 'corbeille' },
+          ]}
+        />
+      )}
     </>
   )
 }

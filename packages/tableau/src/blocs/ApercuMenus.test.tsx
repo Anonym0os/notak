@@ -124,7 +124,7 @@ describe('NOTION.md § 10.3 : le menu « coller comme »', () => {
     await collerUrl(ed)
     expect(lignes()).toEqual(['Aperçu*', 'URL'])
     expect(document.querySelector('.notak-apercu-coller')?.getAttribute('aria-label')).toBe('Coller en tant que')
-    expect(document.querySelector('.notak-apercu-coller .notak-menu-blocs-categorie')?.textContent).toBe('Coller en tant que')
+    expect(document.querySelector('.notak-apercu-coller .notak-groupe')?.textContent).toBe('Coller en tant que')
     expect(ed.state.doc.textContent).toBe(URL1)
   })
 

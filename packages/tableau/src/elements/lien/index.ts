@@ -178,6 +178,7 @@ const liensAvecAdresse = (els: Element[]) => els.length > 0 && els.every((e) => 
 const adressesDe = (els: Element[]) => els.flatMap((e) => (e.contenu.type === 'lien' ? [e.contenu.url] : []))
 
 registre.entreeMenu({
+  icone: 'copie',
   get libelle() {
     return t('lien.copierAdresse')
   },
@@ -191,6 +192,7 @@ const lienSeul = (els: Element[], contexte: ContexteToile) =>
   els.length === 1 && els[0]!.contenu.type === 'lien' && !!els[0]!.contenu.url && !contexte.services.lectureSeule && !!contexte.services.fichiers
 
 registre.entreeMenu({
+  icone: 'image',
   get libelle() {
     return t('lien.ajouterImage')
   },
@@ -199,6 +201,7 @@ registre.entreeMenu({
 })
 
 registre.entreeMenu({
+  icone: 'remplacer',
   get libelle() {
     return t('lien.remplacerApercu')
   },

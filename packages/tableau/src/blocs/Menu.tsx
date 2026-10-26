@@ -3,7 +3,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { type Editor, Extension } from '@tiptap/react'
 import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { PanneauFlottant } from '../PanneauFlottant'
-import { Icone } from '../icones'
+import { LigneMenu, SeparateurMenu, TitreMenu } from '../communs'
 import { t } from '../langue'
 import { ApercuMenus } from './ApercuMenus'
 import { type Couleur, type Entree, declencheurSlash, fermeParEspaces, tropLoin } from './catalogue'
@@ -394,50 +394,47 @@ export function MenuBlocs({ editeur, pont, demande, choisirImage, surCouleur, co
   const rendreLigne = (e: Entree, actif: boolean, survol: (ligne: HTMLElement) => void, groupe?: Groupe) => {
     const couleur = e.effet.genre === 'couleur' ? e.effet.couleur : null
     const coche = (mode.genre !== 'slash' && e.effet.genre === 'vers' && e.effet.vers === actuel) || estCouleurActuelle(e)
-    const droite = e.sousMenu ? null : (e.raccourci ?? (e.section === 'base' || e.section === 'media' || e.section === 'avances' ? e.markdown : undefined))
+    const raccourci = e.sousMenu ? undefined : e.raccourci
+    // L'exemple markdown (« ## ») tient la place du raccourci dans le menu « / » ; il ne se lit pas comme des touches.
+    const exemple = e.sousMenu || e.raccourci ? undefined : e.section === 'base' || e.section === 'media' || e.section === 'avances' ? e.markdown : undefined
     const suffixe = groupe?.suffixe ? suffixeDe(e) : ''
     return (
-      <div
+      <LigneMenu
         key={e.id}
+        as="div"
         role="option"
         aria-selected={actif}
         data-id={e.id}
-        data-actif={actif || undefined}
-        className="notak-menu-blocs-entree"
+        actif={actif}
+        {...(couleur
+          ? {
+              large: true,
+              signe: (
+                <span className="notak-menu-teinte" style={couleur.fond ? { background: couleur.nom === 'defaut' ? undefined : `var(--notak-bloc-${couleur.nom}-fond)` } : { color: couleur.nom === 'defaut' ? undefined : `var(--notak-bloc-${couleur.nom})` }}>
+                  A
+                </span>
+              ),
+            }
+          : { signe: <IconeMenu nom={e.icone} taille={16} /> })}
+        libelle={e.libelle}
+        detail={suffixe || undefined}
+        raccourci={raccourci && !coche ? raccourci : undefined}
+        fin={exemple && !coche ? <span className="notak-e-detail">{exemple}</span> : undefined}
+        coche={coche ? true : undefined}
+        sous={!!e.sousMenu}
         onPointerDown={(ev) => ev.preventDefault()}
         onPointerEnter={(ev) => survol(ev.currentTarget)}
         onClick={() => choisir(e)}
-      >
-        {couleur ? (
-          <span className="notak-menu-teinte" aria-hidden style={couleur.fond ? { background: couleur.nom === 'defaut' ? undefined : `var(--notak-bloc-${couleur.nom}-fond)` } : { color: couleur.nom === 'defaut' ? undefined : `var(--notak-bloc-${couleur.nom})` }}>
-            A
-          </span>
-        ) : (
-          <span className="notak-menu-blocs-icone">
-            <IconeMenu nom={e.icone} />
-          </span>
-        )}
-        <span className="notak-menu-blocs-nom">
-          {e.libelle}
-          {suffixe && <span className="notak-menu-blocs-suffixe"> · {suffixe}</span>}
-        </span>
-        {coche && (
-          <span className="notak-menu-blocs-coche" aria-hidden>
-            ✓
-          </span>
-        )}
-        {droite && !coche && <span className="notak-menu-blocs-droite">{droite}</span>}
-        {e.sousMenu && <Icone nom="chevronDroite" taille={16} className="notak-menu-blocs-chevron" />}
-      </div>
+      />
     )
   }
 
   let i = -1
   const corps = groupes.map((g, k) => (
     <div key={g.cle} role="presentation">
-      {k > 0 && <div className="notak-menu-blocs-trait" aria-hidden />}
-      <div className="notak-menu-blocs-groupe" role="group">
-        {g.titre && <div className="notak-menu-blocs-categorie">{g.titre}</div>}
+      {k > 0 && <SeparateurMenu />}
+      <div role="group">
+        {g.titre && <TitreMenu>{g.titre}</TitreMenu>}
         {g.lignes.map((e) => {
           const n = ++i
           return rendreLigne(e, n === Math.min(rang, nbRangs - 1) && !sous?.clavier, (ligne) => survoler(n, e, ligne), g)
@@ -463,7 +460,7 @@ export function MenuBlocs({ editeur, pont, demande, choisirImage, surCouleur, co
         }}
       >
         <div
-          className="notak-menu-blocs"
+          className="notak-pop notak-menu-blocs"
           data-genre={mode.genre}
           role="dialog"
           aria-label={slash ? t('blocs.menu') : t(`blocs.action.${mode.genre === 'bloc' ? 'transformer' : mode.genre}`)}
@@ -515,26 +512,25 @@ export function MenuBlocs({ editeur, pont, demande, choisirImage, surCouleur, co
           </div>
           {slash && (
             <div className="notak-menu-blocs-pied">
-              <div
+              <LigneMenu
+                as="div"
                 role="option"
                 aria-selected={rang === lignes.length}
-                data-actif={rang === lignes.length || undefined}
-                className="notak-menu-blocs-entree"
+                actif={rang === lignes.length}
+                libelle={t('menus.fermer')}
+                fin={<span className="notak-e-detail">{t('menus.echap')}</span>}
                 onPointerDown={(ev) => ev.preventDefault()}
                 onPointerEnter={() => setRang(lignes.length)}
                 onClick={() => mode.genre === 'slash' && setFerme(mode.etat.de)}
-              >
-                <span className="notak-menu-blocs-nom">{t('menus.fermer')}</span>
-                <span className="notak-menu-blocs-droite">{t('menus.echap')}</span>
-              </div>
+              />
             </div>
           )}
         </div>
       </PanneauFlottant>
       {sous && (
-        <PanneauFlottant cible={() => sous.ligne} hote={hote} cote="droite" alignement="debut" distance={0} fleche={false} className="notak-menu-blocs-panneau" panneau={sousPanneau} onPointerDown={(e) => e.preventDefault()}>
+        <PanneauFlottant cible={() => sous.ligne} hote={hote} cote="droite" alignement="debut" distance={2} fleche={false} className="notak-menu-blocs-panneau notak-menu-blocs-sous" panneau={sousPanneau} onPointerDown={(e) => e.preventDefault()}>
           <div
-            className="notak-menu-blocs"
+            className="notak-pop notak-menu-blocs"
             data-genre="sous"
             role="menu"
             onPointerEnter={() => clearTimeout(minuteur.current)}
@@ -546,9 +542,9 @@ export function MenuBlocs({ editeur, pont, demande, choisirImage, surCouleur, co
             <div className="notak-menu-blocs-liste">
               {(sous.menu === 'transformer' ? listeTransformer('') : listeCouleur('', recentes[0] ?? null)).map((g, k) => (
                 <div key={g.cle} role="presentation">
-                  {k > 0 && <div className="notak-menu-blocs-trait" aria-hidden />}
-                  <div className="notak-menu-blocs-groupe" role="group">
-                    {g.titre && <div className="notak-menu-blocs-categorie">{g.titre}</div>}
+                  {k > 0 && <SeparateurMenu />}
+                  <div role="group">
+                    {g.titre && <TitreMenu>{g.titre}</TitreMenu>}
                     {g.lignes.map((e) => rendreLigne(e, sous.clavier && lignesSous[sous.rang]?.id === e.id, () => setSous({ ...sous, rang: lignesSous.findIndex((x) => x.id === e.id) }), g))}
                   </div>
                 </div>

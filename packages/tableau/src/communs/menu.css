@@ -1,0 +1,236 @@
+/*
+ * Le menu commun, le même sur la toile, dans le document et sur la carte mentale (maquette « Composants communs » :
+ * .nk-pop, .nk-menu, .nk-e, .nk-sep, .nk-groupe, .nk-kbd, .nk-touches). Popover de rayon 14 à une seule ombre, rembourré
+ * de 6 ; lignes de 32 px de rayon 8, texte de 13 px, icône de 16 px ; l'état actif est un voile clair, jamais un fond
+ * foncé. Les teintes se tirent de la carte et du texte de l'espace : le thème sombre et les habillages suivent seuls.
+ */
+
+.notak-pop,
+.notak-menu-nu {
+  --notak-pop-fond: var(--notak-carte, #fff);
+  --notak-pop-texte: var(--notak-texte, #323b4a);
+  --notak-pop-texte-2: color-mix(in srgb, var(--notak-pop-texte) 68%, transparent);
+  --notak-pop-texte-3: color-mix(in srgb, var(--notak-pop-texte) 46%, transparent);
+  --notak-pop-actif: color-mix(in srgb, var(--notak-pop-texte) 8%, transparent);
+  --notak-pop-filet: color-mix(in srgb, var(--notak-pop-texte) 9%, transparent);
+  --notak-pop-touche: color-mix(in srgb, var(--notak-pop-texte) 7%, transparent);
+  --notak-pop-rouge: #a31d13;
+  --notak-pop-ombre: 0 0 0 1px rgb(27 37 54 / 0.08), 0 12px 32px -8px rgb(27 37 54 / 0.25);
+
+  color: var(--notak-pop-texte);
+  font: 400 13px/1.3 var(--notak-police, Inter, system-ui, sans-serif);
+}
+
+[data-theme='sombre'] :is(.notak-pop, .notak-menu-nu) {
+  --notak-pop-rouge: #ff8a80;
+  --notak-pop-ombre: 0 0 0 1px rgb(255 255 255 / 0.08), 0 16px 40px -10px rgb(0 0 0 / 0.6);
+}
+
+/* Le popover : fond de la carte, une seule ombre. `notak-menu-nu` donne les mêmes teintes à des lignes posées dans un autre panneau. */
+.notak-pop {
+  box-sizing: border-box;
+  border-radius: var(--notak-rayon-panneau, 14px);
+  background: var(--notak-pop-fond);
+  box-shadow: var(--notak-pop-ombre);
+}
+
+/* Le menu : une colonne de lignes, à 6 px du bord. */
+.notak-menu {
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+}
+
+/* Le menu du clic droit, posé au point cliqué dans la toile. */
+.notak-menu-ctx {
+  position: absolute;
+  z-index: 40;
+  width: max-content;
+  min-width: 220px;
+  max-width: 296px;
+}
+
+/* ===== La ligne ===== */
+
+.notak-e {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--notak-rayon-controle, 8px);
+  background: transparent;
+  color: var(--notak-pop-texte);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+}
+
+.notak-e:is(:hover, :focus, [data-actif]):not(:disabled, [aria-disabled='true']) {
+  background: var(--notak-pop-actif);
+}
+
+.notak-e:is(:disabled, [aria-disabled='true']) {
+  color: var(--notak-pop-texte-3);
+  cursor: default;
+}
+
+.notak-e[data-danger]:not(:disabled, [aria-disabled='true']) {
+  color: var(--notak-pop-rouge);
+}
+
+.notak-e svg {
+  flex: none;
+}
+
+/* L'icône : 16 px, au même endroit sur toutes les lignes d'un menu. */
+.notak-e-icone {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+}
+
+/* Une tuile plus large que l'icône (la lettre « A » d'une couleur) déborde de part et d'autre sans grandir la ligne. */
+.notak-e-icone[data-large] {
+  width: 20px;
+  height: 20px;
+  margin: -2px;
+}
+
+.notak-e-pastille {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.14);
+}
+
+.notak-e-libelle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Ce qui suit le libellé en retrait : la section d'une entrée dans une liste filtrée. */
+.notak-e-detail {
+  color: var(--notak-pop-texte-3);
+}
+
+/* La coche de fin de ligne ; sa place est gardée sur les lignes sans coche pour que les raccourcis s'alignent. */
+.notak-e-coche {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+}
+
+.notak-e-fleche {
+  flex: none;
+  color: var(--notak-pop-texte-3);
+}
+
+/* Une ligne sur deux lignes : l'icône, le titre et sa description. */
+.notak-e[data-double] {
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 10px;
+}
+
+/* ===== Séparateur, titre de groupe, ligne d'information ===== */
+
+.notak-sep {
+  flex: none;
+  height: 1px;
+  margin: 5px 8px;
+  background: var(--notak-pop-filet);
+}
+
+.notak-groupe {
+  margin: 8px 10px 4px;
+  color: var(--notak-pop-texte-2);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Une ligne d'information, sans clic : une personne (avatar) et ce qu'elle a fait. */
+.notak-menu-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  color: var(--notak-pop-texte-3);
+}
+
+.notak-menu-info .notak-decor-personne {
+  flex: none;
+  overflow: hidden;
+}
+
+.notak-menu-info .notak-decor-personne img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ===== Raccourci ===== */
+
+.notak-kbd {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 5px;
+  background: var(--notak-pop-touche, color-mix(in srgb, var(--notak-texte, #323b4a) 7%, transparent));
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--notak-texte, #323b4a) 12%, transparent);
+  color: inherit;
+  font: 500 11.5px/1 var(--notak-police, Inter, system-ui, sans-serif);
+  white-space: nowrap;
+}
+
+/* Une combinaison : une pastille par touche, jamais coupée. */
+.notak-touches {
+  display: inline-flex;
+  flex: none;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+/* ===== Sous-menu ===== */
+
+.notak-menu-sous {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* À droite de sa ligne, sa première ligne à la hauteur de la ligne parente (le rembourrage du menu remonte d'autant). */
+.notak-menu-sous-liste {
+  position: absolute;
+  z-index: 1;
+  top: -6px;
+  left: calc(100% + 2px);
+  width: max-content;
+  min-width: 220px;
+  max-width: 296px;
+  /* Ramenée dans la fenêtre par SousListe (Menu.tsx) : remontée, à gauche, ou qui défile si elle est trop haute. */
+  overflow-y: auto;
+}
+
+.notak-menu-sous-liste[data-a-gauche] {
+  right: calc(100% + 2px);
+  left: auto;
+}

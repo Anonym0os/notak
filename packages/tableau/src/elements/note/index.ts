@@ -123,6 +123,7 @@ registre.recepteur({
 })
 
 registre.entreeMenu({
+  icone: 'convertir',
   get libelle() {
     return t('menu.convertirDocument')
   },
