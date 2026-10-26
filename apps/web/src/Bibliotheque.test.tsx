@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { type Element as ElementToile, creerEspace, definirLangue } from '@notak/tableau'
+import { type Element as ElementToile, creerEspace, definirLangue, montrerDemande } from '@notak/tableau'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -328,6 +328,20 @@ describe('les gestes', () => {
     await act(async () => void hote.querySelector('.biblio-renommer')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
     await act(async () => void document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'N', metaKey: true, shiftKey: true, bubbles: true })))
     expect(espace.tableau('racine')!.elements.filter((e) => e.contenu.type === 'tableau')).toHaveLength(4)
+  })
+
+  it('« Afficher dans sa toile » ouvre celle qui la porte et lui demande de la montrer ; pour une toile, sa carte', async () => {
+    history.replaceState(null, '', '/')
+    await ouvrir()
+    menu(tuile('voyage/plan'))
+    act(() => entree('Afficher dans sa toile').click())
+    expect(location.pathname).toBe('/t/voyage')
+    expect(montrerDemande()).toBe('plan')
+    history.replaceState(null, '', '/?vue=toiles')
+    menu(tuile('voyage/'))
+    act(() => entree('Afficher dans sa toile').click())
+    expect(location.pathname).toBe('/t/racine')
+    expect(montrerDemande()).toBe('voyage')
   })
 
   it('renomme sur place', async () => {

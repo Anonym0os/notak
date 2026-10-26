@@ -262,7 +262,8 @@ export async function importerEntrees(
   importer: (fichiers: File[], dans: string) => Promise<BilanImport>,
   fichiers: File[],
   dans: { id: string; titre: string },
-  voir: () => void,
+  /** « Voir » : la toile, centrée sur ce premier fichier joint. */
+  voir: (element: string) => void,
   maintenant = Date.now(),
 ): Promise<Resultat & { entrees: EntreeBibliotheque[] }> {
   const b = await importer(fichiers, dans.id)
@@ -293,7 +294,7 @@ export async function importerEntrees(
     texte: texte + (refus ? ` ${refus}` : ''),
     entrees,
     // Ce qui est allé sur la toile sans tuile ici, on peut aller le voir.
-    ...(joints.length > 0 ? { actions: [{ libelle: t('biblio.import.voir'), faire: voir }] } : {}),
+    ...(joints.length > 0 ? { actions: [{ libelle: t('biblio.import.voir'), faire: () => voir(joints[0]!.id) }] } : {}),
     correctifs: [{ type: 'ajouter', entrees }],
     async annuler() {
       jeter(o.espace, [
