@@ -29,6 +29,7 @@ export {
   toilesPortees,
 } from './rangement'
 export { importerSurLaToile } from './importation'
+export { demanderAMontrer, montrerDemande } from './elements/tableau/montrer'
 export { type DetailImport, EST_UN_TEXTE, EVENEMENT_IMPORT } from './recevoirImport'
 export { BoutonIlot, FiletIlot, Ilot } from './Ilots'
 export { creerMagasinYjs, type MagasinYjs } from './coeur/magasinYjs'

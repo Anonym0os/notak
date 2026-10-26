@@ -11,6 +11,7 @@ import { BarreEdition, ContexteBarreEdition } from './barreEdition'
 import { Cadre, ContexteRangement, type Empreinte, type Rangement } from './Cadre'
 import * as cam from './coeur/camera'
 import { brancherPilote } from './pilotage'
+import { montrerDemande, prendreDemande } from './elements/tableau/montrer'
 import { type DetailImport, EVENEMENT_IMPORT, operationsDImport } from './recevoirImport'
 import { type Point, type Rect, centre, chevauche, depuisCoins, englobant, point, soustraire } from './coeur/geometrie'
 import { type Hauteur, hauteurTiree, memeHauteur } from './coeur/hauteur'
@@ -1734,9 +1735,32 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   /** Choisit un élément et y centre la vue (le contexte l'appelle par `montrerCourant`, toujours à jour). */
   montrerCourant.current = (id) => {
     setSelection(new Set([id]))
-    const zone = rect(id)
+    const zone = rect(id) ?? zoneRangee(id)
     if (zone) lancerAnimation(cam.centree(centre(zone), camera.echelle, vue))
   }
+  /**
+   * Hors de l'écran, un élément n'est pas dessiné, donc pas mesuré : sa place rangée suffit pour y aller (celle de sa
+   * colonne s'il est dedans), avec une hauteur de carte ordinaire.
+   */
+  const zoneRangee = (id: Id): Rect | null => {
+    const tous = etat.current.tableau.elements
+    let e = tous.find((x) => x.id === id)
+    for (let n = 0; e?.parent && n < 10; n++) e = tous.find((x) => x.id === e!.parent)
+    return e ? { min: point(e.x, e.y), max: point(e.x + e.largeur, e.y + 8) } : null
+  }
+
+  // Une demande venue d'ailleurs (« Afficher dans sa toile » ou « Voir » dans la bibliothèque) : dès que l'élément est
+  // posé et la vue mesurée, il se choisit et la vue s'y centre. L'id d'une toile vise sa carte ici.
+  useEffect(() => {
+    const d = montrerDemande()
+    if (!d || vue.largeur <= 1) return
+    const vise = magasin
+      .lire()
+      .elements.find((x) => x.corbeille === undefined && (x.id === d || (x.contenu.type === 'tableau' && x.contenu.cible === d && !x.contenu.raccourci)))
+    if (!vise || !prendreDemande(d)) return
+    // Comme la carte retrouvée (Renvoi.tsx) : après la vue rendue, que la caméra rangée ne vienne pas la recouvrir.
+    setTimeout(() => montrerCourant.current(vise.id), 60)
+  })
 
   const lancerAnimation = (cible: cam.Camera) => {
     animation.current = { depart: camera, cible, debut: performance.now() }

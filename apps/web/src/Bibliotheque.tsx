@@ -10,6 +10,7 @@ import {
   type NomIcone,
   annoncer,
   creerDans,
+  demanderAMontrer,
   quandPretes,
 } from '@notak/tableau'
 import {
@@ -371,6 +372,11 @@ export function PageBibliotheque({
     }
   }
   const ouvrir = (e: EntreeBibliotheque) => allerA(adresseDe(e))
+  /** Ouvre la toile qui la porte, la vue centrée sur elle, choisie (pour une toile : sa carte). */
+  const afficherDansSaToile = (e: Pick<EntreeBibliotheque, 'tableau' | 'element'>, porteuse: string) => {
+    demanderAMontrer(e.element ?? e.tableau)
+    allerA(`/t/${encodeURIComponent(porteuse)}`)
+  }
 
   // ---- Les gestes ----
 
@@ -491,7 +497,7 @@ export function PageBibliotheque({
     const ecrit = outils !== null
     const l: EntreeMenu[] = []
     if (une) l.push({ libelle: t('biblio.menu.ouvrir'), icone: 'ouvrir', raccourci: '↩', faire: () => ouvrir(une) })
-    if (porteuse) l.push({ libelle: t('biblio.menu.afficher'), icone: 'tableau', faire: () => allerA(`/t/${encodeURIComponent(porteuse)}`) })
+    if (porteuse) l.push({ libelle: t('biblio.menu.afficher'), icone: 'tableau', faire: () => afficherDansSaToile(une!, porteuse) })
     l.push(null)
     if (une && ecrit) l.push({ libelle: t('biblio.menu.renommer'), icone: 'renommer', raccourci: 'F2', faire: () => setRenommage({ cle: cleDe(une) }) })
     if (ecrit) l.push({ libelle: t('biblio.menu.dupliquer'), icone: 'menuDupliquer', raccourci: '⌘D', faire: () => dupliquerCes(es) })
@@ -817,7 +823,7 @@ export function PageBibliotheque({
   const importerIci = (fichiers: File[], dans: string) => {
     if (!outils || !importer || fichiers.length === 0) return
     setImportEnCours(fichiers.length)
-    void executer(importerEntrees(outils, importer, fichiers, { id: dans, titre: titreToile(dans) }, () => allerA(`/t/${encodeURIComponent(dans)}`)))
+    void executer(importerEntrees(outils, importer, fichiers, { id: dans, titre: titreToile(dans) }, (element) => afficherDansSaToile({ tableau: dans, element }, dans)))
       .then((r) => r && montrerArrivee(r.entrees, dans))
       .finally(() => setImportEnCours(0))
   }

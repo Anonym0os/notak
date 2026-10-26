@@ -1,18 +1,21 @@
 import type { Id } from '../../coeur/tableau'
 
 /**
- * Quelle carte la toile doit montrer dès qu'elle l'affiche : « Retrouver le tableau d'origine » ouvre un autre
- * tableau, et c'est la carte, une fois posée là, qui se choisit et s'y centre (elle prend la demande).
+ * Quel élément la toile doit montrer dès qu'elle l'affiche : « Retrouver le tableau d'origine » ouvre un autre
+ * tableau, « Afficher dans sa toile » et « Voir » de la bibliothèque aussi, et c'est l'élément, une fois posé là, qui se
+ * choisit et sur lequel la vue se centre (la toile, ou la carte elle-même, prend la demande). L'id d'une toile vise sa
+ * carte sur celle qui la porte. Une demande que personne ne prend s'éteint au bout de quelques secondes.
  */
-let demande: Id | null = null
+const DUREE = 15_000
+let demande: { id: Id; jusqua: number } | null = null
 
-export const montrerDemande = () => demande
-export function demanderAMontrer(id: Id | null) {
-  demande = id
+export const montrerDemande = (maintenant = Date.now()): Id | null => (demande && demande.jusqua > maintenant ? demande.id : null)
+export function demanderAMontrer(id: Id | null, maintenant = Date.now()) {
+  demande = id ? { id, jusqua: maintenant + DUREE } : null
 }
-/** Prend la demande si elle vise cette carte (une seule fois). */
+/** Prend la demande si elle vise cet élément (une seule fois). */
 export function prendreDemande(id: Id): boolean {
-  if (demande !== id) return false
+  if (montrerDemande() !== id) return false
   demande = null
   return true
 }
