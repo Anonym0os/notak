@@ -998,6 +998,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
 
   useLayoutEffect(() => {
     const div = racine.current!
+    // Mesurée tout de suite, avant la première image : une vue de 1 px ne laisserait rien se poser au premier affichage.
+    setVue({ largeur: div.clientWidth, hauteur: div.clientHeight })
     const obs = new ResizeObserver(() => setVue({ largeur: div.clientWidth, hauteur: div.clientHeight }))
     obs.observe(div)
     return () => obs.disconnect()
@@ -1749,17 +1751,51 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     return e ? { min: point(e.x, e.y), max: point(e.x + e.largeur, e.y + 8) } : null
   }
 
-  // Une demande venue d'ailleurs (« Afficher dans sa toile » ou « Voir » dans la bibliothèque) : dès que l'élément est
-  // posé et la vue mesurée, il se choisit et la vue s'y centre. L'id d'une toile vise sa carte ici.
-  useEffect(() => {
+  /**
+   * Une demande venue d'ailleurs (« Afficher dans sa toile » ou « Voir » dans la bibliothèque) : on arrive sur une toile,
+   * glisser depuis l'ancienne vue n'apprendrait rien et saccaderait pendant le chargement. Dès que l'élément est là,
+   * la vue se pose sur lui, il se choisit, et son cadre bat une fois. Hors de l'écran, il n'est pas encore dessiné : on
+   * vise sa place rangée, puis on corrige au pixel au rendu suivant, avant que l'écran ne le montre. L'id d'une toile
+   * vise sa carte ici.
+   */
+  const arrivee = useRef<Id | null>(null)
+  useLayoutEffect(() => {
+    if (vue.largeur <= 1) return
+    const poser = (zone: Rect) => {
+      const juste = cam.centree(centre(zone), camera.echelle, vue)
+      if (Math.abs(juste.origine.x - camera.origine.x) + Math.abs(juste.origine.y - camera.origine.y) > 0.01) setCamera(juste)
+    }
+    const battre = (id: Id) => {
+      const noeud = racine.current?.querySelector<HTMLElement>(`[data-id="${CSS.escape(id)}"]`)
+      if (!noeud) return
+      noeud.dataset.arrivee = ''
+      setTimeout(() => delete noeud.dataset.arrivee, 900)
+    }
+    if (arrivee.current) {
+      const zone = rect(arrivee.current)
+      if (!zone) return
+      poser(zone)
+      battre(arrivee.current)
+      arrivee.current = null
+      return
+    }
     const d = montrerDemande()
-    if (!d || vue.largeur <= 1) return
+    if (!d) return
     const vise = magasin
       .lire()
       .elements.find((x) => x.corbeille === undefined && (x.id === d || (x.contenu.type === 'tableau' && x.contenu.cible === d && !x.contenu.raccourci)))
     if (!vise || !prendreDemande(d)) return
-    // Comme la carte retrouvée (Renvoi.tsx) : après la vue rendue, que la caméra rangée ne vienne pas la recouvrir.
-    setTimeout(() => montrerCourant.current(vise.id), 60)
+    animation.current = null
+    setSelection(new Set([vise.id]))
+    const zone = rect(vise.id)
+    if (zone) {
+      poser(zone)
+      battre(vise.id)
+    } else {
+      arrivee.current = vise.id
+      const estimee = zoneRangee(vise.id)
+      if (estimee) poser(estimee)
+    }
   })
 
   const lancerAnimation = (cible: cam.Camera) => {
