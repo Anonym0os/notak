@@ -7,7 +7,7 @@
  */
 
 /** Au moins trente minutes entre deux demandes sans rien d'autre pour les provoquer. */
-export const INTERVALLE_MS = 30 * 60_000
+export const INTERVALLE_VERSION_MS = 30 * 60_000
 /** Reprendre la main sur la fenêtre, ou une synchronisation qui se rétablit, ne redemande pas plus d'une fois par minute. */
 export const ENTRE_DEUX_DEMANDES_MS = 60_000
 
@@ -65,7 +65,7 @@ export function surveillerVersionDuServeur({ depart, signaler, fenetre = window,
   const minuteur = fenetre.setInterval(() => {
     derniere = -Infinity
     verifier()
-  }, INTERVALLE_MS)
+  }, INTERVALLE_VERSION_MS)
   return {
     verifier,
     arreter() {

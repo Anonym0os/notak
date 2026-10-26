@@ -11,6 +11,8 @@ export const fr: Textes = {
   'arrivee.annule': 'Rien n’a été ajouté.',
   'importer.envoi': 'Envoi au serveur…',
   'importer.pasEncoreEnvoye': 'Elles ne sont pas encore sur le serveur : elles y partiront la prochaine fois que vous les ouvrirez ici.',
+  // La mise à jour de l'app de bureau téléchargée, que la coque n'a pas pu installer : elle est perdue, on la cherche de nouveau.
+  'maj.installEchec': 'Notak {version} n’a pas pu s’installer. Réessayez : elle sera téléchargée de nouveau.',
 }
 
 export const en: Textes = {
@@ -23,4 +25,5 @@ export const en: Textes = {
   'arrivee.annule': 'Nothing was added.',
   'importer.envoi': 'Sending to the server…',
   'importer.pasEncoreEnvoye': 'They are not on the server yet: they will be sent the next time you open them here.',
+  'maj.installEchec': 'Notak {version} couldn’t be installed. Try again: it will be downloaded again.',
 }

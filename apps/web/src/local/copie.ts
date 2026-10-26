@@ -68,11 +68,35 @@ function poserRenvoi(m: Magasin, cible: Id) {
   m.faire([{ type: 'creer', element: { id: nouvelId(), x, y, largeur: 10, contenu: { type: 'tableau', cible } } }])
 }
 
+/**
+ * Les tableaux de la copie qui apporteraient quelque chose qu'on n'a pas : un tableau inconnu de l'index, ou connu mais
+ * que la copie a poussé plus loin (un élément, un lecteur ou une image de plus, ou changés : tout cela prend de
+ * nouvelles horloges Yjs). Ni une copie identique, ni sa propre copie plus ancienne, ni une suppression seule
+ * (elle ne fait avancer aucune horloge) n'en font partie.
+ */
+async function avecNouveautes({ index, reseau }: EspaceLocal, tableaux: ContenuNotak['tableaux']): Promise<Id[]> {
+  const ids: Id[] = []
+  for (const t of tableaux) {
+    // Un tableau inconnu n'est pas ouvert : le lire créerait sa base pour rien.
+    if (index.entree(t.id) === undefined) {
+      ids.push(t.id)
+      continue
+    }
+    const copie = Y.decodeStateVector(Y.encodeStateVectorFromUpdate(t.etat))
+    const enAvance = await reseau.avec(t.id, (doc) => {
+      const ici = Y.decodeStateVector(Y.encodeStateVector(doc))
+      return [...copie].some(([client, horloge]) => horloge > (ici.get(client) ?? 0))
+    })
+    if (enAvance) ids.push(t.id)
+  }
+  return ids
+}
+
 export interface CopieRouverte {
   /** Le tableau de tête du fichier. */
   tete: Id
   tableaux: number
-  /** C'était une copie de cet espace (ou elle avait déjà été rouverte) : tout s'est fondu dans ce qu'on avait. */
+  /** C'était une copie de cet espace (ou elle avait déjà été rouverte) : tout s'est fondu dans ce qu'on avait, et seul ce qu'elle apportait de neuf est marqué « reçu ». */
   fusion: boolean
   /** L'espace était vide : la copie est devenue l'accueil (la page doit se recharger pour le montrer). */
   accueil: boolean
@@ -96,8 +120,10 @@ export async function rouvrirCopie(el: EspaceLocal, octets: Uint8Array, ici: Id)
   const fusion = c.racine === racine || index.entree(c.racine) !== undefined
   // La copie de quelqu'un d'autre : ses lecteurs et ses images d'autres sites attendent l'accord de la personne. La marque
   // est à l'appareil (celle que porterait la copie serait celle de l'expéditeur), posée avant que rien ne soit fondu.
-  // Une copie déjà connue ne marque ni ne démarque rien : ce que la personne a permis le reste.
-  if (!fusion) index.noterRecus(c.tableaux.map((t) => t.id))
+  // Même sous une racine connue (un fichier qui a fait l'aller-retour chez quelqu'un, ou forgé avec un identifiant qu'on
+  // lui a donné), c'est tableau par tableau : un tableau inconnu, ou que la copie a poussé plus loin que le nôtre, se
+  // marque, même s'il avait été permis. Ce que la copie n'ajoute pas ne marque ni ne démarque rien.
+  index.noterRecus(fusion ? await avecNouveautes(el, c.tableaux) : c.tableaux.map((t) => t.id))
   const accueil = !fusion && (await espaceIntact(el))
   for (const t of c.tableaux) {
     await reseau.avec(t.id, (doc) => Y.applyUpdate(doc, t.etat, ORIGINE_COPIE))

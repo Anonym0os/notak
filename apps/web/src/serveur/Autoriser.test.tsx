@@ -63,15 +63,27 @@ describe('la page où l’on autorise l’app de bureau', () => {
     expect(hote.querySelector('.autoriser-code')?.textContent).toBe('ABCD 2345')
     expect(hote.textContent).toContain('203.0.113.9')
     expect(hote.textContent).toContain('il y a 2 minutes')
+    // Les trois faits se disent en mots clairs : de quelle adresse l'app a demandé, quand, et d'où l'on lit cette page.
+    expect([...hote.querySelectorAll('dt')].map((e) => e.textContent)).toEqual(['Adresse IP de l’app', 'Date de la demande', 'Votre adresse IP actuelle'])
     // Le code se confie d'abord à ce compte : sans cela, la demande est refusée.
     expect(appels.map((a) => a.cle)).toEqual([lire(`/api/auth/device?user_code=${CODE}`), lire(`/api/bureau/demande?user_code=${CODE}`)])
     // Même réseau : rien ne s'alarme.
     expect(alertes()).toEqual([])
     expect(bouton(/^Autoriser$/)).toBeTruthy()
     expect(bouton(/^Refuser$/)).toBeTruthy()
-    // Une demande d'ici : « Autoriser » est le bouton principal.
+    // Une demande d'ici : « Autoriser » est le bouton principal, et le premier.
     expect(bouton(/^Autoriser$/).className).toContain('bouton-plein')
     expect(bouton(/^Refuser$/).className).not.toContain('bouton-plein')
+    expect([...hote.querySelectorAll('.autoriser-actions button')].map((b) => b.textContent)).toEqual(['Autoriser', 'Refuser'])
+  })
+
+  it('le code se lit lettre par lettre au lecteur d’écran, et en groupes à l’écran', async () => {
+    await monter()
+    const code = hote.querySelector('.autoriser-code')!
+    // À l'écran : « ABCD 2345 », que le lecteur d'écran ne lit pas (il y verrait deux mots).
+    expect(code.getAttribute('aria-hidden')).toBe('true')
+    expect(code.nextElementSibling?.className).toBe('sr-seulement')
+    expect(code.nextElementSibling?.textContent).toBe('A B C D, 2 3 4 5')
   })
 
   it('le curseur arrive sur la carte, pas sur « Autoriser » : un Entrée ne suffit pas', async () => {
@@ -84,12 +96,17 @@ describe('la page où l’on autorise l’app de bureau', () => {
   it('une demande qui ne vient pas du réseau de la personne est signalée, avec les deux adresses', async () => {
     routes[lire(`/api/bureau/demande?user_code=${CODE}`)] = () => demande({ ipActuelle: '198.51.100.4' })
     await monter()
-    expect(alertes()).toEqual(['Cette demande ne vient pas de votre réseau actuel : si vous n’avez pas lancé la connexion vous-même, refusez.'])
+    // Ce que le code compare, c'est deux adresses : l'alerte ne prétend pas savoir que ce n'est « pas votre réseau » (un VPN, un autre réseau).
+    expect(alertes()).toEqual([
+      'L’adresse d’où l’app a fait cette demande diffère de la vôtre (cela arrive avec un VPN, ou en changeant de réseau) : si vous n’avez pas lancé la connexion vous-même, refusez.',
+    ])
     expect(hote.textContent).toContain('203.0.113.9')
     expect(hote.textContent).toContain('198.51.100.4')
     // Et c'est « Refuser » qui prend la place du bouton principal : le geste qui protège est celui qu'on trouve d'abord.
     expect(bouton(/^Refuser$/).className).toContain('bouton-plein')
     expect(bouton(/^Autoriser$/).className).not.toContain('bouton-plein')
+    // À l'écran comme au clavier et au lecteur d'écran : « Refuser » vient avant « Autoriser ».
+    expect([...hote.querySelectorAll('.autoriser-actions button')].map((b) => b.textContent)).toEqual(['Refuser', 'Autoriser'])
   })
 
   it('une origine que le serveur ne sait plus (redémarré) est dite aussi, et l’on peut toujours décider', async () => {
@@ -98,6 +115,7 @@ describe('la page où l’on autorise l’app de bureau', () => {
     expect(alertes()).toEqual(['Le serveur ne sait plus d’où cette demande est partie (il a redémarré depuis). Si vous n’avez pas lancé la connexion vous-même, refusez.'])
     expect(bouton(/^Autoriser$/).disabled).toBe(false)
     expect(bouton(/^Refuser$/).className).toContain('bouton-plein')
+    expect([...hote.querySelectorAll('.autoriser-actions button')].map((b) => b.textContent)).toEqual(['Refuser', 'Autoriser'])
   })
 
   it('« Autoriser » dit au serveur d’accepter ce code, et la page dit de revenir dans l’app', async () => {
@@ -230,7 +248,7 @@ describe('la page où l’on autorise l’app de bureau', () => {
       })
     await ecrire('abc')
     await act(async () => void hote.querySelector('form')!.requestSubmit())
-    expect(alertes()).toEqual(['Ce code n’a pas la bonne forme : des lettres et des chiffres, huit en tout.'])
+    expect(alertes()).toEqual(['Ce code n’a pas le bon format : des lettres et des chiffres, huit en tout.'])
     expect(champ.getAttribute('aria-invalid')).toBe('true')
     expect(appels).toEqual([])
 

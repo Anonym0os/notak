@@ -166,7 +166,7 @@ describe('l’écran de connexion dans un navigateur', () => {
     reponses['/api/auth/sign-in/social'] = () => Response.json({})
     await monter()
     expect(hote.querySelector('.connexion-bureau')).toBeNull()
-    expect(hote.textContent).not.toContain('Toiles de cet ordinateur')
+    expect(hote.textContent).not.toContain('toiles de cet ordinateur')
     await act(async () => bouton(/Continuer avec Google/).click())
     expect(appels).toContain('/api/auth/sign-in/social')
     expect(appels).not.toContain('/api/auth/device/code')
@@ -178,6 +178,9 @@ describe('l’écran de connexion dans l’app de bureau', () => {
   const ouvrir = vi.fn()
   const CODE = { device_code: 'dev-1', user_code: 'ABCD2345', verification_uri: 'x', verification_uri_complete: 'x', expires_in: 600, interval: 1 }
   const jeton = () => new Response(JSON.stringify({ error: 'authorization_pending' }), { status: 400 })
+  const LIEN = 'http://localhost:3000/bureau/autoriser?user_code=ABCD2345'
+  /** Les fois où la page a demandé à la coque d'ouvrir la page d'accord dans le navigateur. */
+  const appelsOuvrir = () => invoke.mock.calls.filter((c) => c[0] === 'ouvrir_dans_le_navigateur')
 
   beforeEach(() => {
     invoke.mockReset().mockResolvedValue(undefined)
@@ -202,14 +205,30 @@ describe('l’écran de connexion dans l’app de bureau', () => {
     await avancer(0)
   }
 
-  it('dit le serveur où l’on est, de quoi en changer, et de quoi revenir aux toiles de cet ordinateur', async () => {
+  it('dit le serveur où l’on est, de quoi en changer, et de quoi ouvrir les toiles de cet ordinateur', async () => {
     await monter()
     const ligne = hote.querySelector('.connexion-bureau')!
     expect(ligne.textContent).toContain('Serveur : localhost:3000')
     await act(async () => bouton(/Changer de serveur/).click())
     expect(invoke).toHaveBeenLastCalledWith('revenir_ici', { ecran: 'acces' }, undefined)
-    await act(async () => bouton(/Toiles de cet ordinateur/).click())
+    await act(async () => bouton(/Ouvrir les toiles de cet ordinateur/).click())
     expect(invoke).toHaveBeenLastCalledWith('revenir_ici', { ecran: 'local' }, undefined)
+  })
+
+  it('la sortie vers cet ordinateur est un verbe, et un lien : elle se voit cliquable', async () => {
+    await monter()
+    const local = bouton(/Ouvrir les toiles de cet ordinateur/)
+    expect(local.className).toContain('bouton-lien')
+    expect(local.className).toContain('connexion-local')
+    expect(local.closest('.connexion-bureau')).not.toBeNull()
+  })
+
+  it('la note sous les connexions ne nomme aucun fournisseur : le serveur n’en propose peut-être aucun', async () => {
+    moyens = { fournisseurs: ['github'], courriel: true }
+    await monter()
+    const note = hote.querySelector('.connexion-fournisseurs .connexion-note')?.textContent
+    expect(note).toBe('Ces connexions se terminent dans votre navigateur.')
+    expect(note).not.toMatch(/Google|Microsoft|GitHub/)
   })
 
   it('si la coque refuse de partir, on le dit et les boutons restent', async () => {
@@ -227,17 +246,44 @@ describe('l’écran de connexion dans l’app de bureau', () => {
     expect(hote.querySelector('h1')?.textContent).toBe('Terminez la connexion dans votre navigateur')
     expect(hote.querySelector('.connexion-code-valeur')?.textContent).toBe('ABCD 2345')
     expect(hote.querySelector('[role=group]')?.getAttribute('aria-labelledby')).toBe('connexion-code-etiquette')
-    expect(ouvrir).toHaveBeenCalledExactlyOnceWith('http://localhost:3000/bureau/autoriser?user_code=ABCD2345', '_blank', 'noopener')
+    // La coque ouvre elle-même la page d'accord (WebKit refuserait `window.open`, qui n'est plus le fruit d'un clic).
+    expect(invoke).toHaveBeenCalledWith('ouvrir_dans_le_navigateur', { adresse: LIEN }, undefined)
+    expect(appelsOuvrir()).toHaveLength(1)
+    expect(ouvrir).not.toHaveBeenCalled()
     expect(hote.textContent).toContain('Ce code expire dans 10 min.')
     // Le curseur est sur ce qui sert d'abord : rouvrir le navigateur.
     expect(document.activeElement).toBe(bouton(/Rouvrir le navigateur/))
   })
 
+  it('le lecteur d’écran, qui n’entend que le bouton où va le curseur, y trouve l’aide et le code, lus lettre par lettre', async () => {
+    await lancer()
+    const rouvrir = bouton(/Rouvrir le navigateur/)
+    const decrit = rouvrir.getAttribute('aria-describedby')!.split(' ')
+    expect(decrit).toEqual(['connexion-code-aide', 'connexion-code-bloc'])
+    expect(hote.querySelector(`#${decrit[0]}`)?.textContent).toContain('Votre navigateur s’ouvre sur localhost:3000.')
+    // À l'écran : « ABCD 2345 », caché au lecteur d'écran ; pour lui : les lettres une à une.
+    const valeur = hote.querySelector('.connexion-code-valeur')!
+    expect(valeur.getAttribute('aria-hidden')).toBe('true')
+    expect(valeur.nextElementSibling?.className).toBe('sr-seulement')
+    expect(valeur.nextElementSibling?.textContent).toBe('A B C D, 2 3 4 5')
+    // Aucun ancêtre `aria-busy` ne retarde les annonces des régions d'état.
+    expect(hote.querySelector('.connexion-code')?.hasAttribute('aria-busy')).toBe(false)
+  })
+
   it('« Rouvrir le navigateur » remet le lien dans le navigateur', async () => {
     await lancer()
     await act(async () => bouton(/Rouvrir le navigateur/).click())
-    expect(ouvrir).toHaveBeenCalledTimes(2)
-    expect(ouvrir.mock.calls[1]![0]).toBe('http://localhost:3000/bureau/autoriser?user_code=ABCD2345')
+    expect(appelsOuvrir()).toHaveLength(2)
+    expect(appelsOuvrir()[1]![1]).toEqual({ adresse: LIEN })
+  })
+
+  it('une coque qui ne sait pas ouvrir la page (ou qui refuse) : la fenêtre retombe sur window.open, et « Rouvrir » reste là', async () => {
+    invoke.mockImplementation(async (commande: string) => {
+      if (commande === 'ouvrir_dans_le_navigateur') throw { code: 'interdit' }
+    })
+    await lancer()
+    expect(ouvrir).toHaveBeenCalledExactlyOnceWith(LIEN, '_blank', 'noopener')
+    expect(bouton(/Rouvrir le navigateur/)).toBeTruthy()
   })
 
   it('le compte à rebours avance', async () => {
@@ -345,12 +391,13 @@ describe('l’écran de connexion dans l’app de bureau', () => {
     reponses['/api/auth/request-password-reset'] = () => Response.json({ status: true })
     await monter()
     await act(() => bouton(/Mot de passe oublié/).click())
-    expect(hote.textContent).toContain('Le lien s’ouvrira dans votre navigateur')
+    expect(hote.textContent).toContain('Le lien reçu s’ouvrira dans votre navigateur')
     await ecrire('email', 'ana@exemple.fr')
     await envoyer()
     const avis = hote.querySelector('[role=status]')?.textContent
     expect(avis).toContain('Si ana@exemple.fr a un compte, un lien vient de partir')
-    expect(avis).toContain('Il s’ouvrira dans votre navigateur : changez-y le mot de passe, puis revenez ici pour vous connecter.')
+    // Après « Pensez à regarder dans les indésirables. » : « Ce lien » et non « Il », qui se rattacherait aux indésirables.
+    expect(avis).toContain('Ce lien s’ouvrira dans votre navigateur : changez-y le mot de passe, puis revenez ici pour vous connecter.')
   })
 
   it('le mot de passe se tape comme avant', async () => {

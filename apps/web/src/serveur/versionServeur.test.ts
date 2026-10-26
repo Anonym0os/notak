@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ENTRE_DEUX_DEMANDES_MS, INTERVALLE_MS, lireVersionDuServeur, surveillerVersionDuServeur } from './versionServeur'
+import { ENTRE_DEUX_DEMANDES_MS, INTERVALLE_VERSION_MS, lireVersionDuServeur, surveillerVersionDuServeur } from './versionServeur'
 
 let version: string | null
 let appels: number
@@ -113,12 +113,12 @@ describe('un serveur mis à jour sous la fenêtre ouverte', () => {
   it('une fenêtre qui ne perd jamais la main se renseigne quand même, toutes les trente minutes', async () => {
     const signaler = vi.fn()
     const s = surveillerVersionDuServeur({ depart: '1.0.0', signaler })
-    await vi.advanceTimersByTimeAsync(INTERVALLE_MS - 1)
+    await vi.advanceTimersByTimeAsync(INTERVALLE_VERSION_MS - 1)
     expect(appels).toBe(0)
     await vi.advanceTimersByTimeAsync(1)
     expect(appels).toBe(1)
     version = '1.0.1'
-    await vi.advanceTimersByTimeAsync(INTERVALLE_MS)
+    await vi.advanceTimersByTimeAsync(INTERVALLE_VERSION_MS)
     expect(appels).toBe(2)
     expect(signaler).toHaveBeenCalledTimes(1)
     s.arreter()
@@ -160,7 +160,7 @@ describe('un serveur mis à jour sous la fenêtre ouverte', () => {
     version = '2.0.0'
     focus()
     s.verifier()
-    await vi.advanceTimersByTimeAsync(INTERVALLE_MS * 2)
+    await vi.advanceTimersByTimeAsync(INTERVALLE_VERSION_MS * 2)
     expect(appels).toBe(0)
     expect(signaler).not.toHaveBeenCalled()
   })

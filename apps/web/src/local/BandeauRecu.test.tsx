@@ -46,11 +46,11 @@ describe('le bandeau d’une toile venue d’une copie reçue', () => {
     expect(hote.querySelector('.bandeau')).toBeNull()
   })
 
-  it('« Masquer » tait le bandeau pour cette visite sans rien permettre', () => {
+  it('« Fermer » tait le bandeau pour cette visite sans rien permettre : rien ne se charge pour autant', () => {
     const index = creerIndexEspace(new Y.Doc())
     index.noterRecus(['recue', 'autre'])
     act(() => racine.render(<BandeauRecu index={index} tableau="recue" />))
-    act(() => bouton('Masquer')!.click())
+    act(() => bouton('Fermer')!.click())
     expect(hote.querySelector('.bandeau')).toBeNull()
     expect(index.recu('recue')).toBe(true)
     // Il reste pour une autre toile reçue.

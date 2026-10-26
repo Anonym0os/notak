@@ -1,25 +1,25 @@
 import { type DepotFichiers, ErreurNotak, type EspaceNavigable, type Id, decoderNotak } from '@notak/tableau'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { type FichierOuvert, FICHIER_OUVERT, ecarterFichierOuvert, ecouter, estErreurCoque, estPageServeur, fichiersOuverts, lireFichierOuvert, revenirIci } from '../bureau'
+import { type FichierOuvert, ecarterFichierOuvert, estErreurCoque, lireFichierOuvert, revenirIci } from '../bureau'
 import { poids } from '../DialogueExport'
 import { t, tn } from '../langue'
 import { attendreEnvoi, poserNotak } from '../notak'
-
-/** Ce que la coque dit d'une copie en attente, relu : une réponse à demi lisible n'ouvre aucun dialogue. */
-const estCopie = (f: unknown): f is FichierOuvert => {
-  const c = f as Partial<FichierOuvert> | null
-  return typeof c?.id === 'string' && typeof c.nom === 'string' && typeof c.taille === 'number' && typeof c.confiee === 'boolean'
-}
+import { useFichiersEnAttente } from './fichiersEnAttente'
 
 /** Le temps qu'on laisse à la coque pour emmener la fenêtre avant de rendre les choix. */
 const ATTENTE_DEPART_MS = 3000
 
 type Phase = { type: 'choix' } | { type: 'cours'; envoi?: true } | { type: 'fini'; texte: string; tete: Id } | { type: 'echec'; texte: string }
 
-/** Ce qu'on dit d'une copie qui ne s'est pas importée. */
+/** Ce qu'on dit d'une copie qui ne s'est pas importée : trop récente, abîmée, trop lourde, ou pas une copie du tout. */
 function messageEchec(x: unknown): string {
-  if (x instanceof ErreurNotak) return x.message.includes('récente') ? t('importer.notakRecent') : t('importer.pasNotak')
+  if (x instanceof ErreurNotak) {
+    if (x.message.includes('récente')) return t('importer.notakRecent')
+    if (x.message.includes('abîmé')) return t('serveur.ouverts.abimee')
+    if (x.message.includes('trop gros')) return t('serveur.ouverts.tropGrosse')
+    return t('importer.pasNotak')
+  }
   if (estErreurCoque(x) && (x.code === 'introuvable' || x.code === 'illisible')) return t('serveur.ouverts.illisible')
   return t('importer.impossible')
 }
@@ -43,34 +43,13 @@ export function FichiersOuverts({
   /** Va voir la toile qu'on vient d'importer. */
   ouvrir(id: Id): void
 }) {
-  const [file, setFile] = useState<FichierOuvert[]>([])
+  const file = useFichiersEnAttente()
   /** Ce qu'on ne propose plus à cette page : importé, ouvert ailleurs, ou remis à plus tard. */
   const [ecartes, setEcartes] = useState<ReadonlySet<string>>(new Set())
   const [courant, setCourant] = useState<FichierOuvert | null>(null)
   const [phase, setPhase] = useState<Phase>({ type: 'choix' })
   const dialogue = useRef<HTMLDialogElement>(null)
   const titre = useRef<HTMLHeadingElement>(null)
-
-  const relire = useCallback(() => {
-    fichiersOuverts().then(
-      (liste) => setFile(Array.isArray(liste) ? liste.filter(estCopie) : []),
-      () => {},
-    )
-  }, [])
-  useEffect(() => {
-    if (!estPageServeur()) return
-    relire()
-    let vivant = true
-    let arreter: (() => void) | undefined
-    ecouter(FICHIER_OUVERT, relire).then(
-      (a) => (vivant ? (arreter = a) : a()),
-      () => {},
-    )
-    return () => {
-      vivant = false
-      arreter?.()
-    }
-  }, [relire])
 
   // Une seule copie à la fois : la suivante vient quand celle-ci est réglée.
   useEffect(() => {
@@ -123,7 +102,7 @@ export function FichiersOuverts({
     setPhase({ type: 'cours' })
     revenirIci('local').then(
       () => void setTimeout(() => setPhase((p) => (p.type === 'cours' ? { type: 'choix' } : p)), ATTENTE_DEPART_MS),
-      () => setPhase({ type: 'echec', texte: t('serveur.ouverts.retourImpossible') }),
+      () => setPhase({ type: 'echec', texte: t('serveur.retourImpossible') }),
     )
   }
 
@@ -134,21 +113,22 @@ export function FichiersOuverts({
       className="ouverts-dialogue"
       aria-labelledby="ouverts-titre"
       aria-describedby="ouverts-texte"
-      // Échap : « plus tard » (la copie reste dans la file), ou fermer le compte rendu.
+      // Échap : comme le bouton qui écarte la copie (« plus tard » pour un fichier, « ne pas importer » pour les toiles confiées), ou fermer le compte rendu.
       onCancel={(e) => {
         e.preventDefault()
         if (!enCours) ecarter()
       }}
     >
-      <div className="ouverts-carte" aria-busy={enCours}>
-        <h2 id="ouverts-titre" ref={titre} tabIndex={-1}>
+      <div className="ouverts-carte">
+        {/* Le texte d'état décrit le titre pendant l'import, puis le bouton qui prend le curseur : le lecteur d'écran le dit avec eux. Pas d'`aria-busy` : il retarderait l'annonce. */}
+        <h2 id="ouverts-titre" ref={titre} tabIndex={-1} aria-describedby={enCours ? 'ouverts-texte' : undefined}>
           {confiee ? t('serveur.ouverts.titreConfiee', { hote: adresse }) : t('serveur.ouverts.titre', { nom: courant.nom })}
         </h2>
         <div id="ouverts-texte" className="ouverts-texte">
           {phase.type === 'choix' && (
             <>
               <p>{confiee ? t('serveur.ouverts.confiee', { hote: adresse }) : t('serveur.ouverts.fichier', { taille: poids(courant.taille), hote: adresse })}</p>
-              {!confiee && <p className="ouverts-note">{t('serveur.ouverts.ouvrirIciNote')}</p>}
+              <p className="ouverts-note">{confiee ? t('serveur.ouverts.confieeNote', { hote: adresse }) : t('serveur.ouverts.ouvrirIciNote')}</p>
             </>
           )}
           {phase.type === 'cours' && <p role="status">{t(phase.envoi ? 'importer.envoi' : 'serveur.ouverts.encours')}</p>}
@@ -181,6 +161,7 @@ export function FichiersOuverts({
                 type="button"
                 className="bouton bouton-plein"
                 autoFocus
+                aria-describedby="ouverts-texte"
                 onClick={() => {
                   ouvrir(phase.tete)
                   ecarter()
@@ -194,7 +175,7 @@ export function FichiersOuverts({
             </>
           )}
           {phase.type === 'echec' && (
-            <button type="button" className="bouton bouton-plein" autoFocus onClick={ecarter}>
+            <button type="button" className="bouton bouton-plein" autoFocus aria-describedby="ouverts-texte" onClick={ecarter}>
               {t('commun.fermer')}
             </button>
           )}

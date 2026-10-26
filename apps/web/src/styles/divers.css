@@ -27,7 +27,8 @@
 }
 
 .arrivee-apercu dt {
-  color: var(--app-pale);
+  /* 72 % du texte (4,8:1) plutôt que les 62 % d'`app.css` (3,7:1), pour du texte de 12 px. */
+  color: color-mix(in srgb, var(--texte) 72%, transparent);
   font-size: 12px;
   font-weight: 500;
 }
@@ -49,4 +50,10 @@
 .arrivee-carte .arrivee-actions .bouton {
   height: 36px;
   border-radius: 18px;
+}
+
+/* Un bouton qu'on grise sans le désactiver (`aria-disabled`) : il garde le curseur, et se lit comme désactivé. */
+.bouton[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: default;
 }

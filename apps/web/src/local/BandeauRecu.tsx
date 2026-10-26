@@ -5,8 +5,9 @@ import { useBandeau } from '../bandeaux'
 
 /**
  * Le tableau ouvert vient d'une copie reçue : ses lecteurs et ses images d'autres sites attendent la permission de la
- * personne (`Services.contenuExterne`, voir `copie.ts`). « Tout afficher » efface la marque pour de bon, sur cet
- * appareil ; « Masquer » ne fait que taire le bandeau pour cette visite, rien ne se charge pour autant.
+ * personne (`Services.contenuExterne`, voir `copie.ts`). « Tout afficher » efface la marque, sur cet appareil (une copie
+ * qui apporterait du neuf la remettrait) ; « Fermer » ne fait que taire le bandeau pour cette visite, rien ne se charge
+ * pour autant.
  */
 export function BandeauRecu({ index, tableau }: { index: IndexEspace; tableau: Id }) {
   const bandeau = useBandeau<HTMLElement>()

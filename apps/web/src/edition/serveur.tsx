@@ -10,7 +10,7 @@ import {
   creerEspaceDistant,
   creerReseauNavigateur,
 } from '@notak/tableau'
-import { type ReactNode, StrictMode, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { type ReactNode, StrictMode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   type Instance,
@@ -47,11 +47,13 @@ import { creerRecents } from '../recents'
 import { PagePublique } from '../PagePublique'
 import { Partage } from '../Partage'
 import { PlusEntete } from '../PlusEntete'
-import { estPageServeur } from '../bureau'
+import { estPageServeur, signalerVie } from '../bureau'
 import { lancerMisesAJour } from '../MiseAJour'
 import { enregistrerServiceWorker, signalerNouvelleVersion } from '../pwa'
 import { PageAutoriser } from '../serveur/Autoriser'
+import { PAGE_AUTORISER } from '../serveur/appareil'
 import { BandeauxServeur } from '../serveur/Bandeaux'
+import { FichierEnAttente } from '../serveur/FichierEnAttente'
 import { FichiersOuverts } from '../serveur/FichiersOuverts'
 import { LigneServeur } from '../serveur/LigneServeur'
 import { servicesDeLaFenetre } from '../serveur/ouvrirAilleurs'
@@ -216,6 +218,16 @@ function Application() {
     return () => window.removeEventListener('keydown', touche, true)
   }, [etat.type])
 
+  // Le premier écran est là (connecté, connexion ou erreur) : la coque sait la page vivante. Tant qu'il n'y a que l'attente, elle
+  // ne le sait pas, et un serveur dont l'API ne répond jamais ramène la fenêtre à l'écran d'accès au bout de 20 s.
+  const decide = etat.type !== 'chargement' && instance !== null
+  const signale = useRef(false)
+  useEffect(() => {
+    if (!decide || signale.current) return
+    signale.current = true
+    if (estPageServeur()) signalerVie()
+  }, [decide])
+
   if (etat.type === 'chargement' || !instance) return <div className="ecran-attente" aria-busy />
   if (etat.type === 'erreur') {
     return (
@@ -229,6 +241,7 @@ function Application() {
           {/* Un serveur qui ne répond pas : dans l'app de bureau, la sortie reste là. */}
           {estPageServeur() && <LigneServeur />}
         </div>
+        <FichierEnAttente />
       </main>
     )
   }
@@ -236,7 +249,7 @@ function Application() {
     // Ce que la personne doit savoir en arrivant ici : sa session a fini, ou elle vient confirmer la connexion de l'app de bureau.
     const notice = etat.sessionFinie
       ? { texte: t('serveur.session.finie'), urgent: true }
-      : chemin === '/bureau/autoriser'
+      : chemin === PAGE_AUTORISER
         ? { texte: t('serveur.autoriser.connexion') }
         : undefined
     return <EcranConnexion instance={instance} surConnexion={(m) => setEtat({ type: 'connecte', moi: m })} {...(notice ? { notice } : {})} />
@@ -257,7 +270,7 @@ function Application() {
     if (chemin === '/envoyer') return <PageLegere {...proprietes}>{() => <PageEnvoyer />}</PageLegere>
     if (chemin === '/espace') return <PageLegere {...proprietes}>{() => <PageEspaces />}</PageLegere>
     // Où l'on confirme la connexion de l'app de bureau (le lien que le navigateur ouvre).
-    if (chemin === '/bureau/autoriser') return <PageLegere {...proprietes}>{() => <PageAutoriser moi={etat.moi} />}</PageLegere>
+    if (chemin === PAGE_AUTORISER) return <PageLegere {...proprietes}>{() => <PageAutoriser moi={etat.moi} />}</PageLegere>
     return chemin === '/' || chemin === '/bibliotheque' ? <Accueil {...proprietes} /> : <Espace {...proprietes} />
   })()
   return (
@@ -434,6 +447,8 @@ const publie = /^\/p\/([A-Za-z0-9_-]+)\/?$/.exec(location.pathname)
 enregistrerServiceWorker()
 // Dans l'app de bureau : la recherche des mises à jour signées (`MiseAJour.tsx`).
 if (estPageServeur()) lancerMisesAJour()
+// Une page publiée n'a pas d'écran à décider : elle se dit vivante dès le départ (l'application, elle, le fait au premier écran).
+if (publie && estPageServeur()) signalerVie()
 // ⇧⌘S, partout : un bug se signale sans quitter ce qu'on fait (`signaler/Signaler.tsx`).
 brancherSignaler()
 

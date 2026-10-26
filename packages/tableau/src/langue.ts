@@ -171,9 +171,9 @@ export const fr: Textes = {
   'reglages.section.interface': 'Interface',
   'reglages.section.toile': 'Sur le fond',
   'reglages.section.outils': 'Outils',
-  'reglages.section.bureau': 'Accès et mises à jour',
+  'reglages.section.bureau': 'Serveur et mises à jour',
   'reglages.bureau.ou': 'Où s’ouvre Notak',
-  'reglages.bureau.ou.aide': 'Les toiles de cet ordinateur restent sur cet ordinateur, celles d’un serveur restent sur ce serveur. Les mises à jour de l’app se règlent aussi ici.',
+  'reglages.bureau.ou.aide': 'Le serveur mémorisé et les mises à jour de l’app. Les toiles de cet ordinateur restent sur cet ordinateur, celles d’un serveur restent sur ce serveur.',
   'reglages.compte.photo': 'Photo',
   'reglages.compte.photo.aide': 'Elle remplace l’initiale dans votre pastille. PNG, JPEG, WebP ou GIF, 5 Mo au plus.',
   'reglages.compte.couleur.aide': 'Celle de votre curseur et de votre pastille.',
@@ -2173,7 +2173,7 @@ export const fr: Textes = {
   'externe.afficherDe': 'Afficher le contenu de {hotes}',
   'externe.bandeau': 'Cette toile vient d’une copie reçue : ses lecteurs et ses images venus d’autres sites attendent votre accord.',
   'externe.toutAfficher': 'Tout afficher pour cette toile',
-  'externe.masquer': 'Masquer',
+  'externe.masquer': 'Fermer',
 }
 
 export const en: Textes = {
@@ -2262,9 +2262,9 @@ export const en: Textes = {
   'reglages.section.interface': 'Interface',
   'reglages.section.toile': 'On the canvas',
   'reglages.section.outils': 'Tools',
-  'reglages.section.bureau': 'Access and updates',
+  'reglages.section.bureau': 'Server and updates',
   'reglages.bureau.ou': 'Where Notak opens',
-  'reglages.bureau.ou.aide': 'The boards on this computer stay on this computer, a server’s boards stay on that server. The app’s updates are also set here.',
+  'reglages.bureau.ou.aide': 'The saved server and the app’s updates. The boards on this computer stay on this computer, a server’s boards stay on that server.',
   'reglages.compte.photo': 'Photo',
   'reglages.compte.photo.aide': 'It replaces the initial in your badge. PNG, JPEG, WebP or GIF, 5 MB at most.',
   'reglages.compte.couleur.aide': 'The color of your cursor and your badge.',

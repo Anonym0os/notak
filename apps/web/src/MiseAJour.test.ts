@@ -44,6 +44,47 @@ describe('les mises à jour de l’app de bureau', () => {
     expect(invoke).toHaveBeenLastCalledWith('installer_mise_a_jour', undefined, undefined)
   })
 
+  it('une installation qui échoue se retient : la mise à jour est perdue côté coque, il faut la chercher de nouveau', async () => {
+    vi.useFakeTimers()
+    let installe = false
+    const { m } = await avecCoque(async (c) => {
+      if (c === 'preparer_mise_a_jour') return { etat: 'prete', version: '0.1.0', nouvelle: '0.2.0', notes: null, date: null }
+      if (c === 'installer_mise_a_jour' && !installe) throw 'permission denied'
+      return null
+    })
+    await m.chercherMiseAJour()
+    const fin = m.redemarrer()
+    await vi.runAllTimersAsync()
+    await fin
+    expect(m.lireMiseAJour()).toMatchObject({ phase: 'erreur', nouvelle: '0.2.0', erreur: 'permission denied', echecInstallation: true })
+
+    // « Réessayer » cherche de nouveau : la mise à jour reprise, l'échec s'efface.
+    installe = true
+    await m.chercherMiseAJour(true)
+    expect(m.lireMiseAJour()).toMatchObject({ phase: 'prete', nouvelle: '0.2.0' })
+    expect(m.lireMiseAJour().echecInstallation).toBeUndefined()
+  })
+
+  it('une recherche qui échoue après un échec d’installation garde l’échec : on peut réessayer', async () => {
+    vi.useFakeTimers()
+    let reponse: unknown = { etat: 'prete', version: '0.1.0', nouvelle: '0.2.0', notes: null, date: null }
+    const { m } = await avecCoque(async (c) => {
+      if (c === 'preparer_mise_a_jour') {
+        if (reponse instanceof Error) throw reponse
+        return reponse
+      }
+      if (c === 'installer_mise_a_jour') throw 'disque plein'
+      return null
+    })
+    await m.chercherMiseAJour()
+    const fin = m.redemarrer()
+    await vi.runAllTimersAsync()
+    await fin
+    reponse = new Error('error sending request')
+    await m.chercherMiseAJour(true)
+    expect(m.lireMiseAJour()).toMatchObject({ phase: 'erreur', nouvelle: '0.2.0', echecInstallation: true })
+  })
+
   it('une coque construite à la main le dit, et la page ne cherche plus', async () => {
     const { m, invoke } = await avecCoque(async () => ({ etat: 'indisponible', version: '0.1.0' }))
     await m.chercherMiseAJour()
@@ -86,7 +127,7 @@ describe('la recherche automatique, réglage de la coque', () => {
     await vi.advanceTimersByTimeAsync(m.PREMIERE_RECHERCHE_MS)
     expect(recherches(invoke)).toBe(1)
     await m.reglerRechercheAuto(false)
-    await vi.advanceTimersByTimeAsync(m.INTERVALLE_MS)
+    await vi.advanceTimersByTimeAsync(m.INTERVALLE_RECHERCHE_MS)
     expect(recherches(invoke)).toBe(1)
     expect(m.rechercheAuto()).toBe(false)
   })
@@ -99,11 +140,11 @@ describe('la recherche automatique, réglage de la coque', () => {
     expect(recherches(invoke)).toBe(1)
     // Une autre page de Notak (les toiles d'ici, quand on est sur un serveur) a coupé la recherche.
     reglage.majAuto = false
-    await vi.advanceTimersByTimeAsync(m.INTERVALLE_MS)
+    await vi.advanceTimersByTimeAsync(m.INTERVALLE_RECHERCHE_MS)
     expect(recherches(invoke)).toBe(1)
     expect(m.rechercheAuto()).toBe(false)
     reglage.majAuto = true
-    await vi.advanceTimersByTimeAsync(m.INTERVALLE_MS)
+    await vi.advanceTimersByTimeAsync(m.INTERVALLE_RECHERCHE_MS)
     expect(recherches(invoke)).toBe(2)
   })
 

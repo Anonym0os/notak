@@ -3,8 +3,10 @@ import { revenirIci } from '../bureau'
 import { t } from '../langue'
 
 /**
- * Sur l'écran de connexion de l'app de bureau : à quel serveur l'on parle, de quoi en changer, et de quoi revenir aux
- * toiles de cet ordinateur sans se connecter à rien. La coque emmène la fenêtre (`revenir_ici`) ; si elle refuse, on le dit.
+ * Sur l'écran de connexion de l'app de bureau : à quel serveur l'on parle, de quoi en changer, et de quoi ouvrir les
+ * toiles de cet ordinateur sans se connecter à rien (pour cette fois : le démarrage de Notak ne change pas). La coque
+ * emmène la fenêtre (`revenir_ici`) ; si elle refuse, on le dit. Les deux gestes se montrent cliquables : des liens, dans
+ * la couleur d'accent et soulignés.
  */
 export function LigneServeur() {
   const [enCours, setEnCours] = useState(false)
@@ -34,7 +36,7 @@ export function LigneServeur() {
       </button>
       {echec && (
         <p className="connexion-erreur" role="alert">
-          {t('serveur.connexion.retourImpossible')}
+          {t('serveur.retourImpossible')}
         </p>
       )}
     </div>

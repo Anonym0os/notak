@@ -3,13 +3,13 @@ import { type Moi, duree, moi as lireMoi } from '../api'
 import { estPageServeur, ouvrirDansLeNavigateur } from '../bureau'
 import { t } from '../langue'
 import { Marque } from '../PageApp'
-import { type Appareil, type EtatAppareil, grouperCode, lancerConnexionParCode } from './appareil'
+import { type Appareil, type EtatAppareil, epeler, grouperCode, lancerConnexionParCode } from './appareil'
 
-/** Le lien s'ouvre dans le navigateur de la personne : la coque envoie toute nouvelle fenêtre vers le système (`navigation.rs`). */
 /**
- * Ouvre la page d'accord dans le navigateur. Elle s'ouvre après une requête, hors du clic : WebKit refuserait
- * `window.open`. La coque l'ouvre alors elle-même (pages de ce serveur seulement) ; une coque plus ancienne, ou un
- * refus, retombe sur `window.open`, et « Rouvrir le navigateur » reste là.
+ * Ouvre la page d'accord dans le navigateur de la personne. Elle s'ouvre après une requête, hors du clic : WebKit
+ * refuserait `window.open`. La coque l'ouvre alors elle-même (pages de ce serveur seulement) ; une coque plus ancienne,
+ * ou un refus, retombe sur `window.open` (la coque envoie toute nouvelle fenêtre vers le système, `navigation.rs`), et
+ * « Rouvrir le navigateur » reste là.
  */
 const ouvrirNavigateur = (adresse: string) => {
   const parLaFenetre = () => void window.open(adresse, '_blank', 'noopener')
@@ -72,7 +72,8 @@ export function ConnexionParCode({ surConnexion, annuler }: { surConnexion(moi: 
     return () => clearInterval(tic)
   }, [attend])
 
-  // Chaque écran nouveau reprend le curseur : le bouton qui continue, que le clavier atteint aussitôt.
+  // Chaque écran nouveau reprend le curseur : le bouton qui continue, que le clavier atteint aussitôt. Le lecteur d'écran
+  // n'entend que ce bouton : l'aide et le code, qui le précèdent, lui sont liés (`aria-describedby`).
   useEffect(() => {
     carte.current?.querySelector<HTMLElement>('button')?.focus()
   }, [etat.type])
@@ -106,20 +107,26 @@ export function ConnexionParCode({ surConnexion, annuler }: { surConnexion(moi: 
   })()
 
   return (
-    <div className="connexion-carte connexion-code" ref={carte} aria-busy={occupe}>
+    <div className="connexion-carte connexion-code" ref={carte}>
       <Marque />
       <h1>{attend ? t('serveur.code.titre') : issue ? t('serveur.code.titreFin') : t('connexion.enCours')}</h1>
       {etat.type === 'attente' && (
         <>
-          <p className="connexion-aide">{t('serveur.code.aide', { hote })}</p>
-          <div className="connexion-code-bloc" role="group" aria-labelledby="connexion-code-etiquette">
+          <p className="connexion-aide" id="connexion-code-aide">
+            {t('serveur.code.aide', { hote })}
+          </p>
+          <div className="connexion-code-bloc" id="connexion-code-bloc" role="group" aria-labelledby="connexion-code-etiquette">
             <span className="connexion-code-etiquette" id="connexion-code-etiquette">
               {t('serveur.code.etiquette')}
             </span>
-            <strong className="connexion-code-valeur">{grouperCode(etat.code)}</strong>
+            {/* À l'écran en groupes ; au lecteur d'écran, lettre par lettre (sinon « ABCD » se lit comme un mot). */}
+            <strong className="connexion-code-valeur" aria-hidden="true">
+              {grouperCode(etat.code)}
+            </strong>
+            <span className="sr-seulement">{epeler(etat.code)}</span>
           </div>
           <p className="connexion-aide">{t('serveur.code.expireDans', { duree: duree(Math.max(0, Math.ceil((etat.expire - maintenant) / 1000))) })}</p>
-          <button type="button" className="bouton bouton-plein" onClick={() => appareil.current?.rouvrir()}>
+          <button type="button" className="bouton bouton-plein" aria-describedby="connexion-code-aide connexion-code-bloc" onClick={() => appareil.current?.rouvrir()}>
             {t('serveur.code.rouvrir')}
           </button>
           <p className="connexion-note">{t('serveur.code.siRien')}</p>

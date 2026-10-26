@@ -34,11 +34,13 @@ export interface EtatMiseAJour {
   erreur?: string
   /** « Plus tard » : le bandeau se tait jusqu'à la prochaine version. */
   ecartee?: string
+  /** La coque n'a pas pu installer `nouvelle` : elle a perdu la mise à jour téléchargée, qu'il faut chercher de nouveau. */
+  echecInstallation?: boolean
 }
 
 /** Au lancement, le temps que l'espace s'ouvre ; puis toutes les six heures, pour qui ne quitte jamais Notak. */
 export const PREMIERE_RECHERCHE_MS = 8_000
-export const INTERVALLE_MS = 6 * 3600_000
+export const INTERVALLE_RECHERCHE_MS = 6 * 3600_000
 /** Avant de redémarrer : le temps qu'IndexedDB ait écrit le dernier geste. */
 const AVANT_REDEMARRAGE_MS = 400
 
@@ -98,7 +100,7 @@ export async function chercherMiseAJour(parLaPersonne = false): Promise<void> {
   const avant = etat.phase
   changer({ phase: 'cherche', erreur: undefined })
   try {
-    changer(apresReponse(await invoquer<ReponseCoque>('preparer_mise_a_jour'), Date.now()))
+    changer({ ...apresReponse(await invoquer<ReponseCoque>('preparer_mise_a_jour'), Date.now()), echecInstallation: undefined })
   } catch (e) {
     // Une coque d'avant les mises à jour ne connaît pas la commande : elle ne se met simplement pas à jour seule.
     if (/not found|not allowed/i.test(String(e))) return changer({ phase: 'indisponible' })
@@ -114,7 +116,7 @@ export async function redemarrer(): Promise<void> {
   try {
     await invoquer('installer_mise_a_jour')
   } catch (e) {
-    changer({ phase: 'erreur', erreur: String(e) })
+    changer({ phase: 'erreur', erreur: String(e), echecInstallation: true })
   }
 }
 
@@ -130,16 +132,34 @@ export function lancerMisesAJour(): void {
     if (await actualiserRechercheAuto()) void chercherMiseAJour()
   }
   setTimeout(() => void tenter(), PREMIERE_RECHERCHE_MS)
-  setInterval(() => void tenter(), INTERVALLE_MS)
+  setInterval(() => void tenter(), INTERVALLE_RECHERCHE_MS)
 }
 
 /** L'adresse des nouveautés d'une version, sur la page de publication. */
 export const pageDeVersion = (version: string) => `https://github.com/Anonym0os/notak/releases/tag/v${encodeURIComponent(version)}`
 
-/** Le bandeau du bas, une fois la nouvelle version prête : redémarrer maintenant, ou la laisser se poser en quittant. */
+/**
+ * Le bandeau du bas, une fois la nouvelle version prête : redémarrer maintenant, ou la laisser se poser en quittant. Si
+ * la coque n'a pas pu l'installer, il le dit (même pour qui avait dit « plus tard ») et offre de la chercher de nouveau :
+ * la mise à jour téléchargée est perdue côté coque.
+ */
 export function BandeauMiseAJour() {
   const bandeau = useBandeau<HTMLElement>()
   const e = useMiseAJour()
+  if (e.echecInstallation && e.nouvelle) {
+    const cherche = e.phase === 'cherche'
+    return (
+      <aside ref={bandeau} className="bandeau bandeau-mise-a-jour" role="alert">
+        <span>{t('maj.installEchec', { version: e.nouvelle })}</span>
+        <button type="button" className="bouton-lien" onClick={() => changer({ echecInstallation: undefined })}>
+          {t('commun.fermer')}
+        </button>
+        <button type="button" className="bouton bouton-plein" aria-disabled={cherche || undefined} onClick={() => void chercherMiseAJour(true)}>
+          {t('bandeau.reessayer')}
+        </button>
+      </aside>
+    )
+  }
   if ((e.phase !== 'prete' && e.phase !== 'pose') || !e.nouvelle || e.ecartee === e.nouvelle) return null
   return (
     <aside ref={bandeau} className="bandeau bandeau-mise-a-jour" role="status">
@@ -191,7 +211,8 @@ export function SectionMiseAJour() {
   return (
     <>
       <h3>{t('maj.titre')}</h3>
-      <p>
+      {/* Toujours là, dont seul le texte change : « à jour » ou l'échec d'une recherche qu'on a lancée s'annonce. */}
+      <p role="status">
         <strong>{version}</strong>
         {ligne && ` · ${ligne}`}
       </p>
@@ -204,7 +225,8 @@ export function SectionMiseAJour() {
                 {e.phase === 'pose' ? t('maj.pose') : t('maj.redemarrer')}
               </button>
             ) : (
-              <button type="button" className="bouton" onClick={() => void chercherMiseAJour(true)} disabled={e.phase === 'cherche'}>
+              // `aria-disabled` et non `disabled` : le bouton qu'on vient de presser garde le curseur pendant la recherche.
+              <button type="button" className="bouton" onClick={() => void chercherMiseAJour(true)} aria-disabled={e.phase === 'cherche' || undefined}>
                 {t('maj.chercher')}
               </button>
             )}

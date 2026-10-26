@@ -3,10 +3,8 @@ import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { type DemandeBureau, ErreurApi, type Moi, lireDemandeBureau, ouvrirCodeBureau, repondreCodeBureau, sessionEncoreValide, signalerSessionFinie } from '../api'
 import { langue, t } from '../langue'
 import { PageApp } from '../PageApp'
-import { codePlausible, grouperCode, normaliserCode } from './appareil'
+import { CLIENT_BUREAU, codePlausible, epeler, grouperCode, normaliserCode } from './appareil'
 
-/** Le seul client que cette page sait autoriser. */
-const CLIENT = 'notak-bureau'
 /** Les refus du serveur qui disent que ce code-là ne se traite pas, quoi qu'on retente. */
 const CODES_DEFINITIFS = new Set(['invalid_request', 'expired_token', 'access_denied'])
 
@@ -42,7 +40,7 @@ async function charger(code: string): Promise<Etat> {
       if (!(await sessionEncoreValide())) return { type: 'charge' }
       return { type: 'impossible', message: t('erreur.appareil_autre_compte') }
     }
-    if (client !== CLIENT) return { type: 'impossible', message: t('erreur.appareil_inconnu') }
+    if (client !== CLIENT_BUREAU) return { type: 'impossible', message: t('erreur.appareil_inconnu') }
     return { type: 'pret', demande: await lireDemandeBureau(code), envoi: null, erreur: null }
   } catch (x) {
     return { type: 'impossible', message: x instanceof Error ? x.message : t('commun.echec') }
@@ -105,6 +103,18 @@ export function PageAutoriser({ moi }: { moi: Moi }) {
   // Une demande d'ailleurs, ou dont on ignore l'origine : c'est « Refuser » qui prend la place du bouton principal.
   const suspecte = etat.type === 'pret' && (!etat.demande || etat.demande.ip !== etat.demande.ipActuelle)
 
+  const envoi = etat.type === 'pret' ? etat.envoi : null
+  const autoriser = (
+    <button key="autoriser" type="button" className={suspecte ? 'bouton' : 'bouton bouton-plein'} disabled={envoi !== null} onClick={() => void repondre(true)}>
+      {envoi === 'autoriser' ? t('connexion.enCours') : t('serveur.autoriser.autoriser')}
+    </button>
+  )
+  const refuser = (
+    <button key="refuser" type="button" className={suspecte ? 'bouton bouton-plein' : 'bouton'} disabled={envoi !== null} onClick={() => void repondre(false)}>
+      {envoi === 'refuser' ? t('connexion.enCours') : t('serveur.autoriser.refuser')}
+    </button>
+  )
+
   return (
     <PageApp titre={t('serveur.autoriser.titre')} intro={etat.type === 'pret' ? t('serveur.autoriser.intro', { nom: moi.nom, email: moi.email }) : undefined}>
       {etat.type === 'saisie' && (
@@ -138,7 +148,7 @@ export function PageAutoriser({ moi }: { moi: Moi }) {
       )}
 
       {etat.type === 'charge' && (
-        <section className="app-carte autoriser-carte" ref={carte} tabIndex={-1} aria-busy aria-label={t('serveur.autoriser.titre')}>
+        <section className="app-carte autoriser-carte" ref={carte} tabIndex={-1} aria-label={t('serveur.autoriser.titre')}>
           <p role="status">{t('connexion.enCours')}</p>
         </section>
       )}
@@ -146,7 +156,11 @@ export function PageAutoriser({ moi }: { moi: Moi }) {
       {etat.type === 'pret' && code && (
         <section className="app-carte autoriser-carte" ref={carte} tabIndex={-1} aria-labelledby="autoriser-comparer" aria-busy={etat.envoi !== null}>
           <h2 id="autoriser-comparer">{t('serveur.autoriser.comparer')}</h2>
-          <p className="autoriser-code">{grouperCode(code)}</p>
+          {/* À l'écran en groupes ; au lecteur d'écran, lettre par lettre (sinon « ABCD » se lit comme un mot). */}
+          <p className="autoriser-code" aria-hidden="true">
+            {grouperCode(code)}
+          </p>
+          <p className="sr-seulement">{epeler(code)}</p>
           <dl className="autoriser-faits">
             {etat.demande ? (
               <>
@@ -188,13 +202,9 @@ export function PageAutoriser({ moi }: { moi: Moi }) {
               {etat.erreur}
             </p>
           )}
+          {/* L'ordre du clavier et de la lecture suit l'emphase : quand la demande est suspecte, « Refuser » vient avant « Autoriser ». */}
           <div className="autoriser-actions">
-            <button type="button" className={suspecte ? 'bouton' : 'bouton bouton-plein'} disabled={etat.envoi !== null} onClick={() => void repondre(true)}>
-              {etat.envoi === 'autoriser' ? t('connexion.enCours') : t('serveur.autoriser.autoriser')}
-            </button>
-            <button type="button" className={suspecte ? 'bouton bouton-plein' : 'bouton'} disabled={etat.envoi !== null} onClick={() => void repondre(false)}>
-              {etat.envoi === 'refuser' ? t('connexion.enCours') : t('serveur.autoriser.refuser')}
-            </button>
+            {suspecte ? [refuser, autoriser] : [autoriser, refuser]}
           </div>
         </section>
       )}

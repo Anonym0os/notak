@@ -11,6 +11,8 @@ const VERSION_MAX = 64
 /** Des notes de version sont une page de texte : au-delà, la page ralentirait sans rien apprendre de plus. */
 const NOTES_MAX = 4000
 const CLE_ECARTEE = 'notak:serveur:maj-ecartee'
+/** « Plus tard » : le bandeau se tait pour sept jours (ou jusqu'à une autre version), puis revient. */
+const RAPPEL_MS = 7 * 24 * 3600_000
 /** Une page de bibliothèque ou de toile rouverte ne redemande pas : le serveur ne regarde lui-même que de loin en loin. */
 const VALIDITE_MS = 30 * 60_000
 
@@ -67,19 +69,66 @@ export async function lireMiseAJourServeur(maintenant = Date.now()): Promise<Ver
   }
 }
 
-/** La version dont l'admin a dit « plus tard » : le bandeau se tait pour elle, pas pour la suivante. */
-export function versionEcartee(): string | null {
+/** La version dont l'admin a dit « plus tard », tant que le rappel n'est pas venu : le bandeau se tait pour elle, pas pour la suivante. */
+export function versionEcartee(maintenant = Date.now()): string | null {
   try {
-    return localStorage.getItem(CLE_ECARTEE)
+    const brut = localStorage.getItem(CLE_ECARTEE)
+    const lu = brut ? (JSON.parse(brut) as { version?: unknown; jusqu?: unknown } | null) : null
+    return typeof lu?.version === 'string' && typeof lu.jusqu === 'number' && maintenant < lu.jusqu ? lu.version : null
   } catch {
     return null
   }
 }
 
-export function ecarterVersion(version: string): void {
+export function ecarterVersion(version: string, maintenant = Date.now()): void {
   try {
-    localStorage.setItem(CLE_ECARTEE, version)
+    localStorage.setItem(CLE_ECARTEE, JSON.stringify({ version, jusqu: maintenant + RAPPEL_MS }))
   } catch {
     // Sans stockage, le bandeau se tait le temps de cette page.
   }
+}
+
+/** Les notes lues comme du Markdown simple : des paragraphes, et des puces groupées en listes. Du texte, jamais du HTML. */
+export type BlocNotes = { type: 'texte'; texte: string } | { type: 'liste'; puces: string[] }
+
+/** Un passage sans les marques du Markdown (`**gras**`, `code`, `[texte](adresse)`) : le texte seul. */
+const sansMarques = (texte: string) =>
+  texte
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/`([^`]*)`/g, '$1')
+
+/**
+ * Ce que dit `latest.json` (les notes de `docs/NOUVEAUTES.md`) : « - » ouvre une puce, qu'une ligne en retrait continue ;
+ * une ligne vide sépare les paragraphes. Les marques s'effacent ; rien n'est interprété au-delà.
+ */
+export function lireNotes(brut: string): BlocNotes[] {
+  const elements: { puce: boolean; texte: string }[] = []
+  let courant: { puce: boolean; texte: string } | null = null
+  for (const ligne of brut.split(/\r?\n/)) {
+    if (!ligne.trim()) {
+      courant = null
+      continue
+    }
+    const puce = /^\s*[-*+](?:\s+(.*))?$/.exec(ligne)
+    if (puce) {
+      courant = { puce: true, texte: (puce[1] ?? '').trim() }
+      elements.push(courant)
+    } else if (courant && (!courant.puce || /^\s/.test(ligne))) {
+      courant.texte += ` ${ligne.trim()}`
+    } else {
+      courant = { puce: false, texte: ligne.replace(/^\s*#{1,6}\s+/, '').trim() }
+      elements.push(courant)
+    }
+  }
+  const blocs: BlocNotes[] = []
+  for (const e of elements) {
+    const texte = sansMarques(e.texte).trim()
+    if (!texte) continue
+    const dernier = blocs.at(-1)
+    if (!e.puce) blocs.push({ type: 'texte', texte })
+    else if (dernier?.type === 'liste') dernier.puces.push(texte)
+    else blocs.push({ type: 'liste', puces: [texte] })
+  }
+  return blocs
 }

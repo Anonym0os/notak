@@ -1,12 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Moi } from '../api'
 import { t } from '../langue'
-import { COMMANDE_MISE_A_JOUR, type VersionDisponible, ecarterVersion, lireMiseAJourServeur, versionEcartee } from './miseAJourServeur'
+import { COMMANDE_MISE_A_JOUR, type VersionDisponible, ecarterVersion, lireMiseAJourServeur, lireNotes, versionEcartee } from './miseAJourServeur'
 import { useBandeau } from '../bandeaux'
 
 /**
- * Une nouvelle version de Notak existe : le bandeau des admins du serveur, et d'eux seuls. Il dit les deux versions, donne
- * la commande à copier, renvoie aux nouveautés (dans le navigateur) et laisse dire « plus tard », jusqu'à la version suivante.
+ * Une nouvelle version de Notak existe : le bandeau des admins du serveur, et d'eux seuls. Il dit les deux versions, montre
+ * la commande à lancer sur le serveur et la copie, renvoie aux nouveautés (dans le navigateur) et laisse dire « plus tard » :
+ * il se tait pour sept jours, ou jusqu'à la version suivante.
+ *
+ * Ce n'est pas une région `status` : elle serait relue en entier à chaque copie et à chaque ouverture des notes. Seul le
+ * résultat de la copie s'annonce (une région toujours là, dont le texte change), et son échec (une alerte).
  */
 export function BandeauAdmin({ moi }: { moi: Moi }) {
   const bandeau = useBandeau<HTMLElement>()
@@ -14,6 +18,7 @@ export function BandeauAdmin({ moi }: { moi: Moi }) {
   const [ecartee, setEcartee] = useState(versionEcartee)
   const [copie, setCopie] = useState<'non' | 'oui' | 'echec'>('non')
   const admin = moi.admin === true
+  const notes = useMemo(() => (dispo?.notes ? lireNotes(dispo.notes) : []), [dispo])
 
   useEffect(() => {
     if (!admin) return
@@ -37,7 +42,7 @@ export function BandeauAdmin({ moi }: { moi: Moi }) {
       await navigator.clipboard.writeText(COMMANDE_MISE_A_JOUR)
       setCopie('oui')
     } catch {
-      // Un presse-papiers refusé (page non sécurisée, webview) : la commande se montre, à copier à la main.
+      // Un presse-papiers refusé (page non sécurisée, webview) : la commande est là, à copier à la main.
       setCopie('echec')
     }
   }
@@ -47,9 +52,9 @@ export function BandeauAdmin({ moi }: { moi: Moi }) {
   }
 
   return (
-    <aside ref={bandeau} className="bandeau bandeau-admin" role="status">
+    <aside ref={bandeau} className="bandeau bandeau-admin" aria-label={t('serveur.maj.titre')}>
       <span>{t('serveur.maj.disponible', { version: dispo.version, actuelle: dispo.actuelle })}</span>
-      <button type="button" className="bouton bouton-plein" title={COMMANDE_MISE_A_JOUR} onClick={() => void copier()}>
+      <button type="button" className="bouton bouton-plein" onClick={() => void copier()}>
         {copie === 'oui' ? t('serveur.maj.copiee') : t('serveur.maj.copier')}
       </button>
       {dispo.adresse && (
@@ -60,15 +65,33 @@ export function BandeauAdmin({ moi }: { moi: Moi }) {
       <button type="button" className="bouton-lien" onClick={plusTard}>
         {t('maj.plusTard')}
       </button>
+      <span className="sr-seulement" role="status">
+        {copie === 'oui' ? t('serveur.maj.copiee') : ''}
+      </span>
+      <p className="bandeau-admin-commande">
+        {t('serveur.maj.commande')} <code>{COMMANDE_MISE_A_JOUR}</code>
+      </p>
       {copie === 'echec' && (
-        <p className="bandeau-admin-commande">
-          {t('serveur.maj.copieEchec')} <code>{COMMANDE_MISE_A_JOUR}</code>
+        <p className="bandeau-admin-commande" role="alert">
+          {t('serveur.maj.copieEchec')}
         </p>
       )}
-      {dispo.notes && (
+      {notes.length > 0 && (
         <details className="bandeau-admin-notes">
           <summary>{t('serveur.maj.notes')}</summary>
-          <pre>{dispo.notes}</pre>
+          <div className="bandeau-admin-notes-corps">
+            {notes.map((b, i) =>
+              b.type === 'liste' ? (
+                <ul key={i}>
+                  {b.puces.map((p, j) => (
+                    <li key={j}>{p}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p key={i}>{b.texte}</p>
+              ),
+            )}
+          </div>
         </details>
       )}
     </aside>

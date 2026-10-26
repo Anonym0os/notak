@@ -1,5 +1,7 @@
+import { readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { type EtatAppareil, codePlausible, grouperCode, lancerConnexionParCode, lienDeConfirmation, normaliserCode } from './appareil'
+import { CLIENT_BUREAU, type EtatAppareil, PAGE_AUTORISER, codePlausible, epeler, grouperCode, lancerConnexionParCode, lienDeConfirmation, normaliserCode } from './appareil'
 
 const ORIGINE = 'https://notak.exemple.fr'
 
@@ -300,8 +302,35 @@ describe('le code et son lien', () => {
     expect(codePlausible('A'.repeat(40))).toBe(false)
   })
 
+  it('se dit lettre par lettre au lecteur d’écran, par groupes : « ABCD » ne se lirait pas comme un mot', () => {
+    expect(epeler('ABCD2345')).toBe('A B C D, 2 3 4 5')
+    expect(epeler('ABC')).toBe('A B C')
+    expect(epeler('')).toBe('')
+  })
+
   it('mène à la page de confirmation de ce serveur', () => {
     expect(lienDeConfirmation('ABCD2345', 'https://notak.exemple.fr')).toBe('https://notak.exemple.fr/bureau/autoriser?user_code=ABCD2345')
     expect(lienDeConfirmation('A&B', 'http://localhost:3000')).toBe('http://localhost:3000/bureau/autoriser?user_code=A%26B')
+  })
+})
+
+describe('ce que la page et le serveur se disent', () => {
+  const web = join(import.meta.dirname, '..')
+
+  // Le serveur (`apps/serveur/src/auth.ts`) a ses deux valeurs, la page les siennes : qu'une change seule, et l'app ne se
+  // connecte plus (`invalid_client`, ou une page de confirmation introuvable). Lues dans son code, sans le charger.
+  it('le même client et la même page de confirmation que le serveur', () => {
+    const auth = readFileSync(join(import.meta.dirname, '../../../serveur/src/auth.ts'), 'utf8')
+    const valeur = (nom: string) => new RegExp(`export const ${nom} = '([^']+)'`).exec(auth)?.[1]
+    expect(valeur('CLIENT_BUREAU')).toBeDefined()
+    expect(CLIENT_BUREAU).toBe(valeur('CLIENT_BUREAU'))
+    expect(PAGE_AUTORISER).toBe(valeur('PAGE_AUTORISER'))
+  })
+
+  it('et la page n’en garde qu’une copie : appareil.ts, que les autres fichiers importent', () => {
+    const copies = readdirSync(web, { recursive: true, encoding: 'utf8' })
+      .filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f) && f !== join('serveur', 'appareil.ts'))
+      .filter((f) => /'notak-bureau'|'\/bureau\/autoriser'/.test(readFileSync(join(web, f), 'utf8')))
+    expect(copies).toEqual([])
   })
 })

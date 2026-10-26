@@ -26,7 +26,7 @@ export function Compte({ moi, deconnexion, aide }: { moi: Moi; deconnexion(): vo
   // Dans l'app de bureau : quitter ce serveur pour en choisir un autre, ou pour les toiles de cet ordinateur.
   const quitter = (ecran: 'acces' | 'local') => () => {
     regler(false)
-    revenirIci(ecran).catch(() => annoncerBureau(t('serveur.compte.retourImpossible')))
+    revenirIci(ecran).catch(() => annoncerBureau(t('serveur.retourImpossible')))
   }
   return (
     <div className="compte" ref={ancre}>

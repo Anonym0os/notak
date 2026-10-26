@@ -86,9 +86,14 @@ async function demarrer() {
   await attendre()
 }
 const racine = () => document.getElementById('racine')!
-const dansLApp = () => {
-  ;(window as unknown as { __TAURI_INTERNALS__: unknown }).__TAURI_INTERNALS__ = { invoke: vi.fn().mockResolvedValue(undefined) }
+/** L'app de bureau : sa coque répond par `invoke`, qui rend `undefined` pour tout ce qu'on ne lui a pas appris. */
+const dansLApp = (invoke = vi.fn().mockResolvedValue(undefined)) => {
+  ;(window as unknown as { __TAURI_INTERNALS__: unknown }).__TAURI_INTERNALS__ = { invoke, transformCallback: () => 1 }
+  return invoke
 }
+/** Une réponse qui n'arrive jamais : un serveur dont l'API reste pendue. */
+const jamais = () => new Promise<Response>(() => {}) as unknown as Response
+const commandes = (invoke: ReturnType<typeof vi.fn>) => invoke.mock.calls.map((c) => c[0])
 
 describe('l’édition serveur : la bibliothèque', () => {
   it('s’ouvre sur le compte, et porte les bandeaux de la version : le rechargement web, et la nouvelle version du serveur', async () => {
@@ -118,13 +123,105 @@ describe('l’édition serveur : un serveur qui ne répond pas', () => {
     routes['/api/moi'] = () => new Response('', { status: 503 })
     await demarrer()
     expect(racine().querySelector('.connexion-erreur')?.textContent).toBe('Le serveur a un souci')
-    expect([...racine().querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Réessayer', 'Changer de serveur', 'Toiles de cet ordinateur'])
+    expect([...racine().querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Réessayer', 'Changer de serveur', 'Ouvrir les toiles de cet ordinateur'])
   })
 
   it('dans un navigateur, « Réessayer » seul', async () => {
     routes['/api/moi'] = () => new Response('', { status: 503 })
     await demarrer()
     expect([...racine().querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Réessayer'])
+  })
+})
+
+describe('l’édition serveur : le signe de vie envoyé à la coque', () => {
+  it('une fois le premier écran là — connecté, connexion ou erreur — et une seule fois', async () => {
+    const cas: [string, () => void][] = [
+      ['connecté', () => {}],
+      ['connexion', () => void (routes['/api/moi'] = nonConnecte)],
+      ['erreur', () => void (routes['/api/moi'] = () => new Response('', { status: 503 }))],
+    ]
+    for (const [ecran, preparer] of cas) {
+      document.body.innerHTML = '<div id="racine"></div>'
+      vi.resetModules()
+      preparer()
+      const invoke = dansLApp()
+      await demarrer()
+      expect(commandes(invoke).filter((c) => c === 'acces'), ecran).toHaveLength(1)
+      // « Réessayer » repasse par le chargement : la coque est déjà prévenue.
+      if (ecran === 'erreur') {
+        await act(async () => [...racine().querySelectorAll('button')].find((b) => b.textContent === 'Réessayer')!.click())
+        await attendre()
+        expect(commandes(invoke).filter((c) => c === 'acces')).toHaveLength(1)
+      }
+    }
+  })
+
+  it('pas tant que l’API ne répond pas : un serveur muet ramène la fenêtre à l’écran d’accès au bout de 20 s', async () => {
+    for (const muette of ['/api/moi', '/api/instance']) {
+      document.body.innerHTML = '<div id="racine"></div>'
+      vi.resetModules()
+      routes[muette] = jamais
+      const invoke = dansLApp()
+      await demarrer()
+      // L'écran d'attente seul : rien n'est monté, la coque ne sait pas la page vivante.
+      expect(racine().querySelector('.ecran-attente'), muette).not.toBeNull()
+      expect(commandes(invoke), muette).not.toContain('acces')
+      routes[muette] = () => json(muette === '/api/moi' ? MOI : { nom: 'Chez nous', inscriptions: 'ouvertes', habillages: [] })
+    }
+  })
+})
+
+describe('l’édition serveur : une copie ouverte pendant la connexion ou quand le serveur ne répond pas', () => {
+  const FICHIER = { id: 'f1', nom: 'Plan.notak', taille: 2048, confiee: false }
+  /** Une coque dont la file tient `file`, et qui obéit à `revenir_ici`. */
+  const coque = (file: unknown[]) =>
+    vi.fn(async (commande: string) => {
+      if (commande === 'fichiers_ouverts') return file
+    })
+  const bandeau = () => racine().querySelector('.bandeau-attente')
+
+  it('l’écran de connexion le dit, et propose de l’ouvrir sur cet ordinateur sans attendre', async () => {
+    routes['/api/moi'] = nonConnecte
+    const invoke = dansLApp(coque([FICHIER]))
+    await demarrer()
+    expect(bandeau()?.textContent).toContain('Une copie Notak attend : connectez-vous pour l’importer sur localhost:3000, ou ouvrez-la sur cet ordinateur.')
+    await act(async () => bandeau()!.querySelector('button')!.click())
+    expect(invoke).toHaveBeenLastCalledWith('revenir_ici', { ecran: 'local' }, undefined)
+  })
+
+  it('la carte d’erreur d’un serveur qui ne répond pas aussi, au pluriel quand elles sont plusieurs', async () => {
+    routes['/api/moi'] = () => new Response('', { status: 503 })
+    dansLApp(coque([FICHIER, { ...FICHIER, id: 'f2', nom: 'Autre.notak' }]))
+    await demarrer()
+    expect(bandeau()?.textContent).toContain('2 copies Notak attendent : connectez-vous pour les importer sur localhost:3000, ou ouvrez-les sur cet ordinateur.')
+  })
+
+  it('les toiles de cet ordinateur confiées au serveur attendent aussi, sans bouton : elles sont pour lui', async () => {
+    routes['/api/moi'] = nonConnecte
+    dansLApp(coque([{ ...FICHIER, confiee: true }]))
+    await demarrer()
+    expect(bandeau()?.textContent).toContain('Une copie de vos toiles de cet ordinateur attend : connectez-vous pour l’importer sur localhost:3000.')
+    expect(bandeau()!.querySelector('button')).toBeNull()
+  })
+
+  it('si la coque refuse de partir, on le dit', async () => {
+    routes['/api/moi'] = nonConnecte
+    const invoke = coque([FICHIER])
+    invoke.mockImplementation(async (commande: string) => {
+      if (commande === 'fichiers_ouverts') return [FICHIER]
+      if (commande === 'revenir_ici') throw { code: 'interdit' }
+    })
+    dansLApp(invoke)
+    await demarrer()
+    await act(async () => bandeau()!.querySelector('button')!.click())
+    expect(bandeau()!.querySelector('[role=alert]')?.textContent).toBe('Impossible de quitter ce serveur pour le moment. Réessayez.')
+  })
+
+  it('sans copie en attente, ou hors de l’app de bureau, rien', async () => {
+    routes['/api/moi'] = nonConnecte
+    dansLApp(coque([]))
+    await demarrer()
+    expect(bandeau()).toBeNull()
   })
 })
 

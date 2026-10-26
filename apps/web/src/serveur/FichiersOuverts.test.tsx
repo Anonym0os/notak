@@ -112,7 +112,9 @@ describe('les copies remises à l’app depuis le système', () => {
     expect(d.textContent).toContain('Copie Notak de 2 ko')
     expect(d.textContent).toContain('localhost:3000')
     expect([...d.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Importer sur localhost:3000', 'Ouvrir sur cet ordinateur', 'Plus tard'])
-    expect(d.textContent).toContain('Notak s’y ouvrira désormais')
+    // Ouvrir sur cet ordinateur est un coup d'œil : le démarrage de Notak ne change pas, et la note ne promet pas le contraire.
+    expect(d.textContent).toContain('Pour cette fois seulement : le démarrage de Notak ne change pas.')
+    expect(d.textContent).not.toContain('désormais')
     // Rien n'a encore été lu : la copie reste en file tant qu'on n'a pas choisi.
     expect(m.lireFichierOuvert).not.toHaveBeenCalled()
   })
@@ -138,6 +140,18 @@ describe('les copies remises à l’app depuis le système', () => {
     expect(dialogue()).toBeNull()
   })
 
+  it('le résultat décrit le bouton où va le curseur : le lecteur d’écran le dit avec lui, et non à sa place', async () => {
+    m.poserNotak.mockResolvedValue({ tete: 'neuf', tableaux: 3, perdus: 1 })
+    file = [copie('Plan')]
+    await monter()
+    await clic(/^Importer sur/)
+    const ouvrirLa = bouton(/^Ouvrir$/)!
+    expect(document.activeElement).toBe(ouvrirLa)
+    expect(ouvrirLa.getAttribute('aria-describedby')).toBe('ouverts-texte')
+    expect(dialogue()!.querySelector('#ouverts-texte')?.textContent).toBe('3 toiles importées, 1 fichier non repris.')
+    expect(dialogue()!.querySelector('[aria-busy]')).toBeNull()
+  })
+
   it('les fichiers qu’on n’a pas pu reprendre se disent aussi', async () => {
     m.poserNotak.mockResolvedValue({ tete: 'neuf', tableaux: 1, perdus: 2 })
     file = [copie('Plan')]
@@ -155,7 +169,10 @@ describe('les copies remises à l’app depuis le système', () => {
     file = [copie('Plan')]
     await monter()
     await clic(/^Importer sur/)
-    expect(dialogue()!.getAttribute('aria-busy') ?? dialogue()!.querySelector('.ouverts-carte')?.getAttribute('aria-busy')).toBe('true')
+    // Pas d'`aria-busy` : il retarderait l'annonce de l'état. Le texte d'état décrit le titre, où va le curseur.
+    expect(dialogue()!.querySelector('[aria-busy]')).toBeNull()
+    expect(document.activeElement).toBe(dialogue()!.querySelector('h2'))
+    expect(dialogue()!.querySelector('h2')?.getAttribute('aria-describedby')).toBe('ouverts-texte')
     expect(dialogue()!.querySelectorAll('button')).toHaveLength(0)
     expect(dialogue()!.textContent).toContain('Import en cours…')
     const echap = new Event('cancel', { cancelable: true })
@@ -166,10 +183,13 @@ describe('les copies remises à l’app depuis le système', () => {
     expect(dialogue()!.textContent).toContain('1 toile importée.')
   })
 
-  it('un fichier qui n’en est pas un, ou venu d’une version plus récente, ou illisible : chacun ses mots', async () => {
+  it('un fichier qui n’en est pas un, venu d’une version plus récente, abîmé, trop lourd, ou illisible : chacun ses mots', async () => {
     const cas: [unknown, string][] = [
       [new ErreurNotak('pas un fichier Notak'), 'Ce fichier n’est pas un fichier Notak.'],
-      [new ErreurNotak('version plus récente'), 'Ce fichier vient d’une version plus récente de Notak'],
+      [new ErreurNotak('fichier Notak d’une version plus récente'), 'Ce fichier vient d’une version plus récente de Notak'],
+      // Une copie valide mais endommagée, ou démesurée une fois dépliée, n'est pas « pas un fichier Notak » : on dit quoi faire.
+      [new ErreurNotak('fichier Notak abîmé'), 'Cette copie est abîmée : elle ne peut pas s’ouvrir. Essayez une autre sauvegarde.'],
+      [new ErreurNotak('fichier Notak trop gros une fois décompressé'), 'Cette copie est trop volumineuse pour s’ouvrir. Refaites-en une plus légère.'],
       [{ code: 'illisible' }, 'Cette copie n’a pas pu être lue.'],
       [{ code: 'introuvable' }, 'Cette copie n’a pas pu être lue.'],
       [new Error('disque plein'), 'Import impossible'],
@@ -211,7 +231,10 @@ describe('les copies remises à l’app depuis le système', () => {
     file = [copie('Plan')]
     await monter()
     await clic(/Ouvrir sur cet ordinateur/)
-    expect(dialogue()!.querySelector('[role=alert]')?.textContent).toContain('Impossible de passer aux toiles de cet ordinateur')
+    expect(dialogue()!.querySelector('[role=alert]')?.textContent).toBe('Impossible de quitter ce serveur pour le moment. Réessayez.')
+    // L'échec décrit le bouton « Fermer », où va le curseur.
+    expect(document.activeElement).toBe(bouton(/^Fermer$/))
+    expect(bouton(/^Fermer$/)!.getAttribute('aria-describedby')).toBe('ouverts-texte')
     await clic(/^Fermer$/)
     expect(dialogue()).toBeNull()
   })
@@ -293,7 +316,18 @@ describe('les toiles de cet ordinateur confiées à ce serveur', () => {
     const d = dialogue()!
     expect(d.querySelector('h2')?.textContent).toBe('Importer les toiles de cet ordinateur sur localhost:3000 ?')
     expect(d.textContent).toContain('Rien n’est supprimé sur cet ordinateur : vos toiles y restent.')
-    expect([...d.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Importer', 'Pas maintenant'])
+    expect([...d.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Importer', 'Ne pas importer'])
+  })
+
+  it('dit que, sans import, la copie ne sera pas reproposée, et comment en refaire une', async () => {
+    file = [copie('toiles', { confiee: true })]
+    await monter()
+    const note = dialogue()!.querySelector('.ouverts-note')?.textContent
+    expect(note).toContain('elle ne vous sera pas reproposée')
+    expect(note).toContain('« Où sont mes toiles ? »')
+    expect(note).toContain('« Copier mes toiles sur localhost:3000 »')
+    // Un fichier du disque, lui, revient au prochain chargement : « Plus tard » est exact pour lui seul.
+    expect(bouton(/Plus tard/)).toBeUndefined()
   })
 
   it('« Importer » les pose comme n’importe quelle copie', async () => {
@@ -305,10 +339,10 @@ describe('les toiles de cet ordinateur confiées à ce serveur', () => {
     expect(dialogue()!.textContent).toContain('2 toiles importées.')
   })
 
-  it('« Pas maintenant » ne lit rien et ne supprime rien : la copie reste en file', async () => {
+  it('« Ne pas importer » ne lit rien et ne supprime rien sur cet ordinateur ; la page ne la reproposera plus', async () => {
     file = [copie('toiles', { confiee: true })]
     await monter()
-    await clic(/Pas maintenant/)
+    await clic(/Ne pas importer/)
     expect(dialogue()).toBeNull()
     expect(m.lireFichierOuvert).not.toHaveBeenCalled()
     expect(m.revenirIci).not.toHaveBeenCalled()

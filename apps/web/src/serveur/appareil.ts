@@ -7,8 +7,8 @@
  * Ce fichier ne sait rien de React : la machine d'états seule, pour qu'on la fasse tourner avec de faux minuteurs.
  */
 
-/** Le seul client admis à demander un code (`CLIENT_BUREAU`, côté serveur). */
-const CLIENT = 'notak-bureau'
+/** Le seul client admis à demander un code (`CLIENT_BUREAU`, côté serveur) ; la page « Autoriser » le vérifie aussi. */
+export const CLIENT_BUREAU = 'notak-bureau'
 const SUBVENTION = 'urn:ietf:params:oauth:grant-type:device_code'
 /** La page où l'on confirme (`PAGE_AUTORISER`, côté serveur). */
 export const PAGE_AUTORISER = '/bureau/autoriser'
@@ -57,6 +57,13 @@ export interface Appareil {
 
 /** Le code tel qu'on le montre : par groupes de quatre, pour le comparer d'un coup d'œil. */
 export const grouperCode = (code: string): string => (code.length > 4 ? `${code.slice(0, 4)} ${code.slice(4)}` : code)
+
+/** Le code tel qu'un lecteur d'écran le dit : lettre par lettre, par groupes (« ABCD EFGH » se lirait comme deux mots). */
+export const epeler = (code: string): string =>
+  grouperCode(code)
+    .split(' ')
+    .map((groupe) => [...groupe].join(' '))
+    .join(', ')
 
 /** Un code tel que le serveur le donne ou que la personne le tape : sans espace ni tiret, en capitales. */
 export const normaliserCode = (brut: string): string => brut.replace(/[\s-]/g, '').toUpperCase()
@@ -114,7 +121,7 @@ export function lancerConnexionParCode({ surEtat, ouvrir, origine = location.ori
     dire({ type: 'demande' })
     let r: Response
     try {
-      r = await poster('/api/auth/device/code', { client_id: CLIENT })
+      r = await poster('/api/auth/device/code', { client_id: CLIENT_BUREAU })
     } catch {
       return terminer({ type: 'echec', cause: 'reseau' })
     }
@@ -144,7 +151,7 @@ export function lancerConnexionParCode({ surEtat, ouvrir, origine = location.ori
       if (maintenant() >= expire) return terminer({ type: 'expire' })
       let reponse: Response
       try {
-        reponse = await poster('/api/auth/device/token', { grant_type: SUBVENTION, device_code: appareil, client_id: CLIENT })
+        reponse = await poster('/api/auth/device/token', { grant_type: SUBVENTION, device_code: appareil, client_id: CLIENT_BUREAU })
       } catch {
         return fini ? undefined : rater()
       }

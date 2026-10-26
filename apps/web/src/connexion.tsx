@@ -3,6 +3,7 @@ import { t } from './langue'
 import { Marque } from './PageApp'
 import { estPageServeur } from './bureau'
 import { ConnexionParCode } from './serveur/ConnexionParCode'
+import { FichierEnAttente } from './serveur/FichierEnAttente'
 import { LigneServeur } from './serveur/LigneServeur'
 import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import {
@@ -188,6 +189,7 @@ export function EcranConnexion({
         <main className="connexion">
           <ConnexionParCode surConnexion={surConnexion} annuler={() => setParCode(false)} />
         </main>
+        {enApp && <FichierEnAttente />}
       </div>
     )
   }
@@ -333,6 +335,8 @@ export function EcranConnexion({
           {enApp && <LigneServeur />}
         </form>
       </main>
+      {/* Une copie ouverte pendant la connexion attend : elle se propose une fois connecté. */}
+      {enApp && <FichierEnAttente />}
     </div>
   )
 }

@@ -61,7 +61,9 @@ describe('le menu du compte', () => {
     const l = lignes()
     expect(l).toHaveLength(7)
     expect(l[4]).toBe('Changer de serveur…localhost:3000')
-    expect(l[5]).toBe('Toiles de cet ordinateurSans serveur ni compte')
+    // Pour cette fois : revenir ici ne change pas où Notak s'ouvre au démarrage, et la ligne ne promet rien de tel.
+    expect(l[5]).toBe('Toiles de cet ordinateurPour cette fois, sans serveur ni compte')
+    expect(l[5]).not.toMatch(/désormais|toujours/)
     expect(l[6]).toBe('Se déconnecter')
   })
 
@@ -82,6 +84,8 @@ describe('le menu du compte', () => {
     invoke.mockRejectedValue({ code: 'interdit' })
     await monter()
     await act(async () => ligne(/Changer de serveur/).click())
-    expect(hote.querySelector('.bandeau')?.textContent).toContain('Impossible de quitter ce serveur pour le moment.')
+    expect(hote.querySelector('.bandeau')?.textContent).toContain('Impossible de quitter ce serveur pour le moment. Réessayez.')
+    // Un échec du geste qu'on vient de faire : une alerte, que le lecteur d'écran annonce à l'insertion.
+    expect(hote.querySelector('.bandeau')?.getAttribute('role')).toBe('alert')
   })
 })

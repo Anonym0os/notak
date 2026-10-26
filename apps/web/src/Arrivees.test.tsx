@@ -68,10 +68,16 @@ describe('la page de partage, quand le contenu arrive par l’adresse', () => {
     expect(document.activeElement).toBe(hote.querySelector('h2'))
   })
 
-  it('« Ajouter à mes toiles » pose l’arrivée, une seule fois même si on insiste', async () => {
+  it('« Ajouter à mes toiles » pose l’arrivée, une seule fois : le bouton part au premier clic, un second sur celui qu’on avait en main n’y change rien', async () => {
     await ouvrir('?titre=x')
+    const ajouter = bouton('Ajouter à mes toiles')!
     await act(async () => {
-      bouton('Ajouter à mes toiles')!.click()
+      ajouter.click()
+    })
+    expect(bouton('Ajouter à mes toiles')).toBeUndefined()
+    // Un clic de plus : un double clic, un Entrée qui insiste.
+    await act(async () => {
+      ajouter.click()
     })
     expect(m.deposer).toHaveBeenCalledExactlyOnceWith(espace, arrivee, fichiers)
     expect(hote.querySelector('[role="status"]')?.textContent).toContain('Notak')

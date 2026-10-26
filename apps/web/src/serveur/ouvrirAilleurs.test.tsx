@@ -3,8 +3,9 @@ import { definirLangue } from '@notak/tableau'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { texteOuvrirAilleurs } from '../bureau/ailleurs'
 import { AnnoncesServeur, annoncerBureau } from './annonces'
-import { messageOuverture, ouvrirAilleursDeBureau, servicesDeLaFenetre } from './ouvrirAilleurs'
+import { servicesDeLaFenetre } from './ouvrirAilleurs'
 
 const m = vi.hoisted(() => ({ ouvrirAilleurs: vi.fn() }))
 vi.mock('../bureau', async (origine) => ({ ...(await origine<typeof import('../bureau')>()), ouvrirAilleurs: m.ouvrirAilleurs }))
@@ -28,10 +29,13 @@ afterEach(() => {
 /** Laisse la promesse de `ouvrirAilleurs` se régler, puis ce qui en découle. */
 const regler = () => act(async () => void (await Promise.resolve()))
 
+/** `Services.ouvrirAilleurs` de l'app de bureau, tel que la toile l'appelle ; l'avis d'échec se dit par `annoncer`. */
+const ouvrirAilleurs = (annoncer: (texte: string) => void = vi.fn()) => servicesDeLaFenetre(true, annoncer).ouvrirAilleurs!
+
 describe('Services.ouvrirAilleurs dans l’app de bureau', () => {
   it('passe l’adresse et le nom à la coque, et ne dit rien quand tout va bien', async () => {
     const annoncer = vi.fn()
-    ouvrirAilleursDeBureau(annoncer)('blob:http://localhost:3000/1', 'Rapport.pdf')
+    ouvrirAilleurs(annoncer)('blob:http://localhost:3000/1', 'Rapport.pdf')
     await regler()
     expect(m.ouvrirAilleurs).toHaveBeenCalledExactlyOnceWith('blob:http://localhost:3000/1', 'Rapport.pdf')
     expect(annoncer).not.toHaveBeenCalled()
@@ -41,44 +45,50 @@ describe('Services.ouvrirAilleurs dans l’app de bureau', () => {
     const annoncer = vi.fn()
     for (const issue of ['enregistre', 'annule']) {
       m.ouvrirAilleurs.mockResolvedValue(issue)
-      ouvrirAilleursDeBureau(annoncer)('blob:x')
+      ouvrirAilleurs(annoncer)('blob:x')
     }
     await regler()
     expect(annoncer).not.toHaveBeenCalled()
   })
 
-  it('trop de fichiers d’un coup (trop_vite) se dit en mots', async () => {
+  // Les mots sont ceux de l'édition locale (`bureau/ailleurs.ts`) : une seule façon de dire la même panne, dans les deux éditions.
+  it('trop de fichiers d’un coup, un fichier trop gros, tout autre échec : les mêmes mots que l’édition locale, avec quoi faire', async () => {
     const annoncer = vi.fn()
-    m.ouvrirAilleurs.mockRejectedValue({ code: 'trop_vite' })
-    ouvrirAilleursDeBureau(annoncer)('blob:x', 'a.pdf')
-    await regler()
-    expect(annoncer).toHaveBeenCalledExactlyOnceWith('Trop de fichiers ouverts d’un coup : patientez un instant.')
-  })
-
-  it('tout autre échec aussi, sans promesse non gérée', async () => {
-    const annoncer = vi.fn()
-    for (const e of [{ code: 'echec', message: 'disque plein' }, { code: 'type_refuse' }, new Error('adresse refusée'), 'texte']) {
+    const cas: [unknown, string][] = [
+      [{ code: 'trop_vite' }, 'Trop de fichiers ouverts d’un coup : réessayez dans un instant.'],
+      [{ code: 'trop_gros' }, 'Ce fichier est trop volumineux pour s’ouvrir ainsi : téléchargez-le, puis ouvrez-le depuis votre ordinateur.'],
+      [{ code: 'echec', message: 'disque plein' }, 'Ce fichier n’a pas pu s’ouvrir. Réessayez, ou téléchargez-le.'],
+      [{ code: 'type_refuse' }, 'Ce fichier n’a pas pu s’ouvrir. Réessayez, ou téléchargez-le.'],
+      [new Error('adresse refusée'), 'Ce fichier n’a pas pu s’ouvrir. Réessayez, ou téléchargez-le.'],
+      ['texte', 'Ce fichier n’a pas pu s’ouvrir. Réessayez, ou téléchargez-le.'],
+    ]
+    for (const [e] of cas) {
       m.ouvrirAilleurs.mockRejectedValue(e)
-      ouvrirAilleursDeBureau(annoncer)('blob:x')
+      ouvrirAilleurs(annoncer)('blob:x', 'a.pdf')
     }
     await regler()
-    expect(annoncer.mock.calls.map((a) => a[0])).toEqual(Array(4).fill('Ce fichier n’a pas pu s’ouvrir.'))
+    expect(annoncer.mock.calls.map((a) => a[0])).toEqual(cas.map(([, texte]) => texte))
+    for (const [e, texte] of cas) expect(texteOuvrirAilleurs(e)).toBe(texte)
   })
 
-  it('les mots suivent la langue', () => {
+  it('les mots suivent la langue', async () => {
     definirLangue('en')
-    expect(messageOuverture({ code: 'trop_vite' })).toBe('Too many files opened at once: wait a moment.')
-    expect(messageOuverture({ code: 'echec', message: 'x' })).toBe('This file couldn’t be opened.')
+    const annoncer = vi.fn()
+    m.ouvrirAilleurs.mockRejectedValue({ code: 'trop_gros' })
+    ouvrirAilleurs(annoncer)('blob:x')
+    await regler()
+    expect(annoncer).toHaveBeenCalledExactlyOnceWith('This file is too large to open this way: download it, then open it from your computer.')
   })
 
-  it('l’annonce par défaut se montre en bas de la page, puis part seule', async () => {
+  it('l’annonce par défaut se montre en bas de la page, comme une alerte, puis part seule', async () => {
     vi.useFakeTimers()
     await act(async () => racine.render(<AnnoncesServeur />))
     expect(hote.querySelector('.bandeau')).toBeNull()
     m.ouvrirAilleurs.mockRejectedValue({ code: 'trop_vite' })
-    ouvrirAilleursDeBureau()('blob:x')
+    servicesDeLaFenetre(true).ouvrirAilleurs!('blob:x')
     await act(async () => void (await vi.advanceTimersByTimeAsync(0)))
-    expect(hote.querySelector('.bandeau')?.getAttribute('role')).toBe('status')
+    // Un échec du geste qu'on vient de faire : une alerte, seule fiable quand le bandeau s'insère avec son texte.
+    expect(hote.querySelector('.bandeau')?.getAttribute('role')).toBe('alert')
     expect(hote.textContent).toContain('Trop de fichiers ouverts d’un coup')
     await act(async () => void (await vi.advanceTimersByTimeAsync(6000)))
     expect(hote.querySelector('.bandeau')).toBeNull()
@@ -106,7 +116,7 @@ describe('ce que la fenêtre donne à la toile', () => {
   })
 
   it('dans l’app de bureau : pas d’onglet (le menu n’en propose plus), un fichier qui s’ouvre dans l’application du système', async () => {
-    const services = servicesDeLaFenetre(true)
+    const services = servicesDeLaFenetre(true, vi.fn())
     expect(services.ouvrirDansOnglet).toBeUndefined()
     services.ouvrirAilleurs!('blob:x', 'Plan.pdf')
     await regler()
