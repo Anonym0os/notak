@@ -517,15 +517,8 @@
   margin-right: 0;
 }
 
-.notak-arbre-reglages-options .notak-arbre-reglages-separateur,
-.notak-arbre-reglages-menu .notak-arbre-reglages-separateur {
+.notak-arbre-reglages-options .notak-arbre-reglages-separateur {
   margin: 4px 0;
-}
-
-.notak-arbre-reglages-menu {
-  min-width: 190px;
-  padding: 4px;
-  border-radius: 8px;
 }
 
 /* Le choix du squelette : 388 × 450, des groupes repliables, trois vignettes par ligne. */

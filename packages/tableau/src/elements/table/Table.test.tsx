@@ -827,7 +827,7 @@ describe('les outils de la barre', () => {
     monter(m)
     cliquer(1, 1)
     act(() => bouton('Autres gestes').click())
-    const noms = [...hote.querySelectorAll('.notak-table-menu-plus button .notak-menu-rang-texte')].map((b) => b.textContent)
+    const noms = [...hote.querySelectorAll('.notak-table-menu-plus .notak-e .notak-e-libelle')].map((b) => b.textContent)
     // Ni le presse-papiers, ni « en dessous » et « à droite », qui ont déjà leur bouton dans la barre.
     expect(noms).toEqual(['Ajouter une ligne au-dessus', 'Ajouter une colonne à gauche', 'Vider la cellule', 'Retirer la ligne', 'Retirer la colonne'])
   })
@@ -854,10 +854,10 @@ describe('le clic droit', () => {
     document.body.addEventListener('contextmenu', () => (remonte = true), { once: true })
     droit(td)
     expect(remonte).toBe(false)
-    const rangs = [...toile.querySelectorAll('.notak-menu > *')].map((b) => b.querySelector('.notak-menu-libelle')?.textContent ?? '|')
+    const rangs = [...toile.querySelectorAll('.notak-menu-ctx > *')].map((b) => b.querySelector('.notak-e-libelle')?.textContent ?? '|')
     expect(rangs).toEqual(['Couper', 'Copier', 'Coller', 'Coller les valeurs', '|', 'Ajouter une ligne au-dessus', 'Ajouter une ligne en dessous', '|', 'Ajouter une colonne à gauche', 'Ajouter une colonne à droite', '|', 'Vider la cellule', 'Retirer la ligne', 'Retirer la colonne'])
     // Seules les insertions montrent leur raccourci.
-    expect([...toile.querySelectorAll('.notak-menu-touches')].map((k) => k.getAttribute('aria-label'))).toEqual(['⌥↑', '⌥↓', '⌥←', '⌥→'])
+    expect([...toile.querySelectorAll('.notak-menu-ctx .notak-touches')].map((k) => k.getAttribute('aria-label'))).toEqual(['⌥↑', '⌥↓', '⌥←', '⌥→'])
     expect(lireEtat(ID).plages).toEqual([{ l1: 1, c1: 1, l2: 1, c2: 1 }])
     act(() => r.unmount())
     toile.remove()

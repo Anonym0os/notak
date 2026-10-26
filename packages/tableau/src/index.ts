@@ -11,7 +11,8 @@ export { Toile } from './Toile'
 export { avecToutLeTableau, LARGEUR_EXPORT_MAX } from './pilotage'
 export { type Adresse, EspaceNotak } from './EspaceNotak'
 export { type FenetresNotak, HoteNotak } from './HoteNotak'
-export { type Entree as EntreeMenu, MenuContextuel } from './Menus'
+export { type Entree as EntreeMenu, MenuContextuel } from './communs'
+export * from './communs'
 export { BandeauAvis, annoncer } from './avis'
 export {
   type GenreNeuf,

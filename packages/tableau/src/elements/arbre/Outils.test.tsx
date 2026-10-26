@@ -57,7 +57,7 @@ function monter(choisir = true) {
   const boutons = () => [...barre.querySelectorAll<HTMLButtonElement>(':scope > .notak-arbre-bouton:not(.notak-arbre-plus)')].map((b) => b.getAttribute('aria-label'))
   const plus = () => q<HTMLButtonElement>('.notak-arbre-plus')!
   const clic = (e: Element) => act(() => void e.dispatchEvent(new MouseEvent('click', { bubbles: true })))
-  const menu = () => [...document.querySelectorAll('.notak-arbre-ctx > button, .notak-arbre-ctx > hr, .notak-arbre-ctx > .notak-arbre-menu-hote > button')].map((b) => (b.tagName === 'HR' ? '—' : b.querySelector('.notak-arbre-entree-libelle')!.textContent))
+  const menu = () => [...document.querySelectorAll('.notak-arbre-ctx > .notak-e, .notak-arbre-ctx > .notak-sep, .notak-arbre-ctx > .notak-menu-sous > .notak-e')].map((b) => (b.classList.contains('notak-sep') ? '—' : b.querySelector('.notak-e-libelle')!.textContent))
   return { q, barre, mesurer, boutons, plus, clic, menu, actions, relier, faire }
 }
 
@@ -87,7 +87,7 @@ describe('la barre d’outils', () => {
     expect(m.barre.querySelector('.notak-arbre-ctx')).toBeNull()
     expect(m.q('.notak-arbre-fenetre > .notak-arbre-ctx')).toBeTruthy()
     // Chaque entrée porte son icône.
-    expect(document.querySelectorAll('.notak-arbre-ctx button .notak-arbre-entree-icone svg')).toHaveLength(9)
+    expect(document.querySelectorAll('.notak-arbre-ctx .notak-e .notak-e-icone svg')).toHaveLength(9)
     m.clic(m.plus())
     expect(m.q('.notak-arbre-ctx')).toBeNull()
   })
@@ -95,7 +95,7 @@ describe('la barre d’outils', () => {
   it('une entrée du menu fait son geste et ferme le menu', () => {
     const m = monter()
     m.clic(m.plus())
-    m.clic([...document.querySelectorAll('.notak-arbre-ctx > button')].find((b) => b.textContent!.startsWith('Note audio'))!)
+    m.clic([...document.querySelectorAll('.notak-arbre-ctx > .notak-e')].find((b) => b.textContent!.startsWith('Note audio'))!)
     expect(m.actions.noteAudio).toHaveBeenCalledTimes(1)
     expect(m.q('.notak-arbre-ctx')).toBeNull()
   })
@@ -151,7 +151,7 @@ describe('le repli quand la place manque', () => {
     expect(m.boutons()).toHaveLength(0)
     m.clic(m.plus())
     expect(m.menu().slice(0, 7)).toEqual(['Relation', 'Résumé', 'Limite', 'Zone', 'Étiquette', 'Tâche', '—'])
-    m.clic([...document.querySelectorAll('.notak-arbre-ctx > button')].find((b) => b.textContent!.startsWith('Zone'))!)
+    m.clic([...document.querySelectorAll('.notak-arbre-ctx > .notak-e')].find((b) => b.textContent!.startsWith('Zone'))!)
     expect(m.actions.zone).toHaveBeenCalledTimes(1)
   })
 
@@ -159,7 +159,7 @@ describe('le repli quand la place manque', () => {
     const m = monter(false)
     m.mesurer(350)
     m.clic(m.plus())
-    const entree = (nom: string) => [...document.querySelectorAll<HTMLButtonElement>('.notak-arbre-ctx > button')].find((b) => b.textContent!.startsWith(nom))!
+    const entree = (nom: string) => [...document.querySelectorAll<HTMLButtonElement>('.notak-arbre-ctx > .notak-e')].find((b) => b.textContent!.startsWith(nom))!
     expect(entree('Étiquette').disabled).toBe(true)
     expect(entree('Zone').disabled).toBe(false)
   })

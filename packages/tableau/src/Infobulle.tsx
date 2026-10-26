@@ -1,6 +1,6 @@
 import { type ReactElement, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Raccourci } from './Menus'
+import { Touches } from './communs'
 
 /** Le temps qu'il faut rester sur un élément avant que son infobulle paraisse, en millisecondes. */
 export const DELAI_INFOBULLE = 700
@@ -138,7 +138,7 @@ export function Infobulle({
           style={{ left: place?.x ?? 0, top: place?.y ?? 0 }}
         >
           {libelle}
-          {raccourci && <Raccourci touches={raccourci} />}
+          {raccourci && <Touches touches={raccourci} />}
         </div>,
         hote.current?.closest<HTMLElement>('.notak-espace'),
       )}

@@ -2,7 +2,8 @@ import { useState } from 'react'
 import type { Arbre, StructureArbre } from '../../../coeur/tableau'
 import { Icone } from '../../../icones'
 import { t } from '../../../langue'
-import { CarteVignette, MenuContextuel } from '../controles'
+import { CarteVignette } from '../controles'
+import { MenuContextuel } from '../MenuContextuel'
 import type { Geste } from '../modele/gestes'
 import { type StyleCarte, memeStyle, styleDeCarte } from '../modele/reglages'
 import { themeBase } from '../themes'
@@ -28,7 +29,6 @@ export function ThemesPersonnalises({ arbre, structure, faire }: { arbre: Arbre;
   const prefs = usePreferences()
   const [menu, setMenu] = useState<{ x: number; y: number; theme: ThemePersonnalise } | null>(null)
   const [renomme, setRenomme] = useState<string | null>(null)
-  const [hote, setHote] = useState<HTMLElement | null>(null)
   const actuel = styleDeCarte(arbre)
   const noms = prefs.themesPerso.map((x) => x.nom)
   const changer = (id: string, f: (x: ThemePersonnalise) => ThemePersonnalise) => modifierPreferences((p) => ({ ...p, themesPerso: p.themesPerso.map((x) => (x.id === id ? f(x) : x)) }))
@@ -37,7 +37,7 @@ export function ThemesPersonnalises({ arbre, structure, faire }: { arbre: Arbre;
     if (nom.trim()) changer(id, (x) => ({ ...x, nom: nom.trim() }))
   }
   return (
-    <div className="notak-arbre-reglages-themes-perso" ref={setHote}>
+    <div className="notak-arbre-reglages-themes-perso">
       <div className="notak-arbre-reglages-tuile">
         <button type="button" className="notak-arbre-reglages-tuile-image notak-arbre-reglages-creer" title={t('arbre.carte.creerThemeAide')} onClick={() => modifierPreferences((p) => ({ ...p, themesPerso: [...p.themesPerso, { id: idCouleurPerso(), nom: nomSuivant(t('arbre.carte.themePerso'), noms), style: actuel }] }))}>
           <Icone nom="ajouter" taille={20} trait={1.5} />
@@ -79,28 +79,27 @@ export function ThemesPersonnalises({ arbre, structure, faire }: { arbre: Arbre;
           </div>
         )
       })}
-      <MenuContextuel
-        ancre={hote}
-        point={menu}
-        fermer={() => setMenu(null)}
-        entrees={
-          menu
-            ? [
-                { libelle: t('arbre.carte.menu.miseAJour'), onClick: () => changer(menu.theme.id, (x) => ({ ...x, style: actuel })) },
-                { libelle: t('arbre.carte.menu.renommer'), onClick: () => setRenomme(menu.theme.id) },
-                {
-                  libelle: t('arbre.carte.menu.dupliquer'),
-                  separateurAvant: true,
-                  onClick: () => modifierPreferences((p) => ({ ...p, themesPerso: [...p.themesPerso, { ...menu.theme, id: idCouleurPerso(), nom: nomSuivant(menu.theme.nom, noms) }] })),
-                },
-                {
-                  libelle: t('arbre.carte.menu.supprimer'),
-                  onClick: () => window.confirm(t('arbre.carte.themeSupprimer', { nom: menu.theme.nom })) && modifierPreferences((p) => ({ ...p, themesPerso: p.themesPerso.filter((x) => x.id !== menu.theme.id) })),
-                },
-              ]
-            : []
-        }
-      />
+      {menu && (
+        <MenuContextuel
+          x={menu.x}
+          y={menu.y}
+          fermer={() => setMenu(null)}
+          choisir={(action) => {
+            setMenu(null)
+            if (action === 'miseAJour') changer(menu.theme.id, (x) => ({ ...x, style: actuel }))
+            else if (action === 'renommer') setRenomme(menu.theme.id)
+            else if (action === 'dupliquer') modifierPreferences((p) => ({ ...p, themesPerso: [...p.themesPerso, { ...menu.theme, id: idCouleurPerso(), nom: nomSuivant(menu.theme.nom, noms) }] }))
+            else if (window.confirm(t('arbre.carte.themeSupprimer', { nom: menu.theme.nom }))) modifierPreferences((p) => ({ ...p, themesPerso: p.themesPerso.filter((x) => x.id !== menu.theme.id) }))
+          }}
+          items={[
+            { id: 'miseAJour', libelle: t('arbre.carte.menu.miseAJour'), icone: 'remplacer' },
+            { id: 'renommer', libelle: t('arbre.carte.menu.renommer'), icone: 'renommer' },
+            'sep',
+            { id: 'dupliquer', libelle: t('arbre.carte.menu.dupliquer'), icone: 'menuDupliquer' },
+            { id: 'supprimer', libelle: t('arbre.carte.menu.supprimer'), icone: 'corbeille' },
+          ]}
+        />
+      )}
     </div>
   )
 }

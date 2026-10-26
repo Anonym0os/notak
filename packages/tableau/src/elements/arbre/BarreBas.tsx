@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
+import { SeparateurMenu } from '../../communs'
 import { Deroulant, Entree } from './Fenetre'
 import { Flottant } from './Flottant'
 import { enPourcent, entreesZoom } from './modele/zoom'
@@ -111,6 +112,7 @@ export function MenuZoom({ zoom, enPlan, zoomer, ajuster }: Pick<PropsBarreBas, 
         {entreesZoom(zoom, enPlan).map((e) => (
           <Entree
             key={e.valeur}
+            icone="zoom"
             libelle={formaterZoom(e.valeur)}
             coche={e.coche}
             onClick={() => {
@@ -121,8 +123,9 @@ export function MenuZoom({ zoom, enPlan, zoomer, ajuster }: Pick<PropsBarreBas, 
         ))}
         {!enPlan && (
           <>
-            <hr />
+            <SeparateurMenu />
             <Entree
+              icone="menuAjuster"
               libelle={t('arbre.ajuster')}
               coche={false}
               onClick={() => {
@@ -185,14 +188,14 @@ export function OngletFeuille({ titre, lectureSeule, renommer, dupliquer, nouvel
         </button>
       )}
       <Deroulant ouvert={menu} fermer={() => setMenu(false)} vers="haut" className="notak-arbre-bas-menu notak-arbre-bas-menu-feuille">
-        <Entree libelle={t('arbre.bas.renommer')} onClick={() => (setMenu(false), setEdition(titre))} />
-        <hr />
-        <Entree libelle={t('arbre.bas.dupliquer')} onClick={() => (setMenu(false), dupliquer())} />
-        <Entree libelle={t('arbre.bas.supprimer')} inactif onClick={undefined} />
-        <hr />
-        <Entree libelle={t('arbre.bas.nouvelle')} onClick={() => (setMenu(false), nouvelle())} />
-        <hr />
-        <Entree libelle={t('arbre.bas.enregistrer')} onClick={() => (setMenu(false), enregistrer())} />
+        <Entree icone="renommer" libelle={t('arbre.bas.renommer')} onClick={() => (setMenu(false), setEdition(titre))} />
+        <SeparateurMenu />
+        <Entree icone="menuDupliquer" libelle={t('arbre.bas.dupliquer')} onClick={() => (setMenu(false), dupliquer())} />
+        <Entree icone="corbeille" libelle={t('arbre.bas.supprimer')} inactif onClick={undefined} />
+        <SeparateurMenu />
+        <Entree icone="ajouter" libelle={t('arbre.bas.nouvelle')} onClick={() => (setMenu(false), nouvelle())} />
+        <SeparateurMenu />
+        <Entree icone="menuEnregistrer" libelle={t('arbre.bas.enregistrer')} onClick={() => (setMenu(false), enregistrer())} />
       </Deroulant>
     </div>
   )

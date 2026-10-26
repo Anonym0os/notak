@@ -21,7 +21,9 @@ import { largeurDoubleClic, largeurMinDe, largeurTiree } from './coeur/largeur'
 import { type Cible, type Deplace, cleEntre, clesEntre, comparerOrdre, indexInsertion, pasDeDepot } from './coeur/ordre'
 import { cliquer, lasso } from './coeur/selection'
 import { type Paquet, TYPE_PAQUET, decalageDeCollage, deballer, empaqueter, texteDuPaquet } from './coeur/pressePapiers'
-import { type Entree, FenetreRaccourcis, GLISSER_NON_TRIE, MenuContextuel, PanneauCorbeille, PanneauNonTries, Recherche } from './Menus'
+import { type Entree, MenuContextuel } from './communs'
+import type { NomIcone } from './icones'
+import { FenetreRaccourcis, GLISSER_NON_TRIE, PanneauCorbeille, PanneauNonTries, Recherche } from './Menus'
 import { chercher } from './coeur/recherche'
 import { ouvrirPourRecherche } from './elements/colonne/recherche'
 import { poussees } from './coeur/collisions'
@@ -193,6 +195,9 @@ const SANS_CROIX: ReadonlySet<string> = new Set(['croquis', 'document', 'arbre']
 const PLEIN_ECRAN: ReadonlySet<string> = new Set(['image', 'fichier', 'document', 'croquis', 'arbre'])
 
 /** Les types que propose le menu de la toile vide. */
+/** L'icône de chaque ligne de création du menu du fond. */
+const ICONES_CREATION: Record<string, NomIcone> = { note: 'note', lien: 'lien', taches: 'tache', ligne: 'ligne', tableau: 'tableau', colonne: 'colonne', commentaire: 'commentaire', table: 'table' }
+
 const TYPES_DU_MENU: ReadonlySet<string> = new Set(['note', 'lien', 'taches', 'ligne', 'tableau', 'colonne', 'commentaire', 'table'])
 
 /** L'âge d'une activité, en quelques mots : « il y a quelques secondes », « il y a 3 min ». */
@@ -1520,16 +1525,16 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         faire: () => poserFond({ ...fond, couleur: n === 'gris' ? undefined : n }),
       })),
       null,
-      { libelle: t('fond.personnalisee'), coche: estLibre(fond?.couleur), faire: choisirFondLibre },
-      { libelle: t('fond.grille'), coche: pointsAllumes(fond), reste: true, faire: () => poserFond({ ...fond, points: !pointsAllumes(fond) }) },
-      ...(fondParDefaut(fond) ? [] : [null, { libelle: t('fond.retablir'), faire: () => poserFond(undefined) }]),
+      { libelle: t('fond.personnalisee'), icone: 'pipette' as const, coche: estLibre(fond?.couleur), faire: choisirFondLibre },
+      { libelle: t('fond.grille'), icone: 'diese' as const, coche: pointsAllumes(fond), reste: true, faire: () => poserFond({ ...fond, points: !pointsAllumes(fond) }) },
+      ...(fondParDefaut(fond) ? [] : [null, { libelle: t('fond.retablir'), icone: 'annuler' as const, faire: () => poserFond(undefined) }]),
     ]
   }
 
   const entreesMenu = (): Entree[] => {
     if (!menu) return []
     const ou = menu.ou
-    const avecPaquet = !lectureSeule && copie.paquet ? [{ libelle: t('toile.coller'), raccourci: '⌘V', faire: () => collerPaquet(copie.paquet!, ou) }] : []
+    const avecPaquet = !lectureSeule && copie.paquet ? [{ libelle: t('toile.coller'), icone: 'menuColler' as const, raccourci: '⌘V', faire: () => collerPaquet(copie.paquet!, ou) }] : []
     if (!menu.surElement) {
       // Milanote ne propose ici que huit créations ; les autres se prennent dans la barre. Un commentateur, qui
       // n'a pas la barre, peut encore y poser un fil.
@@ -1541,6 +1546,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           : outilsDeBarre().filter((o) => o.outil.groupe !== 'action' && TYPES_DU_MENU.has(o.outil.fantome().contenu.type))
       ).map((o) => ({
             libelle: o.outil.libelle,
+            icone: ICONES_CREATION[o.outil.fantome().contenu.type] ?? ('ajouter' as const),
             faire: () => {
               const pas = o.outil.creer(point(Math.round(ou.x), Math.round(ou.y)), contexte)
               magasin.faire(pas)
@@ -1551,47 +1557,48 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       return [
         ...avecPaquet,
         null,
-        ...(lectureSeule || !magasin.peutAnnuler() ? [] : [{ libelle: t('espace.annuler'), raccourci: '⌘Z', faire: () => void magasin.annuler() }]),
-        ...(lectureSeule || !magasin.peutRetablir() ? [] : [{ libelle: t('espace.retablir'), raccourci: '⇧⌘Z', faire: () => void magasin.retablir() }]),
-        ...(tableau.elements.length === 0 ? [] : [{ libelle: t('raccourcis.toutSelectionner'), raccourci: '⌘A', faire: () => setSelection(new Set(tableau.elements.filter((x) => !x.parent).map((x) => x.id))) }]),
+        ...(lectureSeule || !magasin.peutAnnuler() ? [] : [{ libelle: t('espace.annuler'), icone: 'annuler' as const, raccourci: '⌘Z', faire: () => void magasin.annuler() }]),
+        ...(lectureSeule || !magasin.peutRetablir() ? [] : [{ libelle: t('espace.retablir'), icone: 'retablir' as const, raccourci: '⇧⌘Z', faire: () => void magasin.retablir() }]),
+        ...(tableau.elements.length === 0 ? [] : [{ libelle: t('raccourcis.toutSelectionner'), icone: 'menuSelectionner' as const, raccourci: '⌘A', faire: () => setSelection(new Set(tableau.elements.filter((x) => !x.parent).map((x) => x.id))) }]),
         null,
         ...creer,
-        ...(lectureSeule ? [] : [null, { libelle: t('fond.changer'), faire: () => {}, sous: sousMenuFond() }]),
+        ...(lectureSeule ? [] : [null, { libelle: t('fond.changer'), icone: 'palette' as const, faire: () => {}, sous: sousMenuFond() }]),
       ]
     }
     const els = choisis()
-    if (lectureSeule) return [{ libelle: t('commun.copier'), raccourci: '⌘C', faire: () => document.execCommand('copy') }]
+    if (lectureSeule) return [{ libelle: t('commun.copier'), icone: 'menuCopier' as const, raccourci: '⌘C', faire: () => document.execCommand('copy') }]
     const verrouilles = els.length > 0 && els.every((x) => x.verrou)
     const seul = els.length === 1 ? els[0] : undefined
     const defSeul = seul && definition(seul.contenu.type)
     // Comme Milanote : le presse-papiers et la suppression d'abord, puis le nom, les entrées des types, le verrou et le plan.
     // « Coller » ne paraît que sur des colonnes (le collage y entre, en tête).
     const colonnes = els.length > 0 && els.every((x) => x.contenu.type === 'colonne')
-    const collage = !!copie.paquet && colonnes && seul ? [{ libelle: t('toile.coller'), raccourci: '⌘V', faire: () => void collerDansColonne(copie.paquet!, seul) }] : []
+    const collage = !!copie.paquet && colonnes && seul ? [{ libelle: t('toile.coller'), icone: 'menuColler' as const, raccourci: '⌘V', faire: () => void collerDansColonne(copie.paquet!, seul) }] : []
     const renommable = !!seul && ['colonne', 'document', 'fichier'].includes(seul.contenu.type) && !!defSeul?.editable
     return [
-      { libelle: t('toile.couper'), raccourci: '⌘X', faire: () => document.execCommand('cut') },
-      { libelle: t('commun.copier'), raccourci: '⌘C', faire: () => document.execCommand('copy') },
+      { libelle: t('toile.couper'), icone: 'menuCouper' as const, raccourci: '⌘X', faire: () => document.execCommand('cut') },
+      { libelle: t('commun.copier'), icone: 'menuCopier' as const, raccourci: '⌘C', faire: () => document.execCommand('copy') },
       ...collage,
-      ...(copie.paquet ? [{ libelle: t('toile.collerStyle'), raccourci: '⌥⌘V', faire: collerStyle }] : []),
-      { libelle: t('raccourcis.dupliquer'), raccourci: '⌘D', faire: dupliquer },
-      { libelle: t('menu.supprimer'), raccourci: '⌫', faire: () => jeter(selection) },
+      ...(copie.paquet ? [{ libelle: t('toile.collerStyle'), icone: 'menuStyleColler' as const, raccourci: '⌥⌘V', faire: collerStyle }] : []),
+      { libelle: t('raccourcis.dupliquer'), icone: 'menuDupliquer' as const, raccourci: '⌘D', faire: dupliquer },
+      { libelle: t('menu.supprimer'), icone: 'corbeille' as const, danger: true, raccourci: '⌫', faire: () => jeter(selection) },
       null,
-      ...(renommable ? [{ libelle: t('menu.renommer'), raccourci: '↩', faire: () => commencerEdition(seul!.id) }] : []),
+      ...(renommable ? [{ libelle: t('menu.renommer'), icone: 'renommer' as const, raccourci: '↩', faire: () => commencerEdition(seul!.id) }] : []),
       null,
       ...toutesLesEntreesMenu()
         .filter((x) => x.visible(els, contexte))
-        .map((x) => ({ libelle: x.libelle, ...(x.raccourci ? { raccourci: x.raccourci } : {}), ...(x.coche ? { coche: x.coche(els, contexte) } : {}), faire: () => x.faire(els, contexte) })),
+        
+        .map((x) => ({ libelle: x.libelle, icone: x.icone, ...(x.raccourci ? { raccourci: x.raccourci } : {}), ...(x.coche ? { coche: x.coche(els, contexte) } : {}), faire: () => x.faire(els, contexte) })),
       null,
-      { libelle: t('toile.verrouiller'), coche: verrouilles, reste: true, faire: () => verrouiller(!verrouilles) },
+      { libelle: t('toile.verrouiller'), icone: 'verrou' as const, coche: verrouilles, reste: true, faire: () => verrouiller(!verrouilles) },
       null,
-      { libelle: t('toile.premierPlan'), raccourci: '⇧⌘↑', faire: () => changerPlan('haut', false) },
+      { libelle: t('toile.premierPlan'), icone: 'premierPlan' as const, raccourci: '⇧⌘↑', faire: () => changerPlan('haut', false) },
       // Une ligne accrochée à un élément ne passe pas à l'arrière-plan.
       ...(els.some((x) => x.contenu.type === 'ligne' && accroches(x.contenu).length > 0)
         ? []
-        : [{ libelle: t('toile.arrierePlan'), raccourci: '⇧⌘↓', faire: () => changerPlan('bas', false) }]),
+        : [{ libelle: t('toile.arrierePlan'), icone: 'arrierePlan' as const, raccourci: '⇧⌘↓', faire: () => changerPlan('bas', false) }]),
       // Le propriétaire règle qui peut écrire ou commenter cet élément.
-      ...(seul && services.reglerDroitsElement ? [null, { libelle: t('toile.droitsElement'), faire: () => services.reglerDroitsElement!(seul.id) }] : []),
+      ...(seul && services.reglerDroitsElement ? [null, { libelle: t('toile.droitsElement'), icone: 'verrou' as const, faire: () => services.reglerDroitsElement!(seul.id) }] : []),
       // Un élément seul dit qui l'a créé et touché, avec l'avatar de la personne (rien si l'on ne sait pas).
       ...(seul ? histoireDe(seul.id) : []),
     ]

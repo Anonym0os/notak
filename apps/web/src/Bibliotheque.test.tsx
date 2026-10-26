@@ -279,7 +279,7 @@ describe('les gestes', () => {
 
   it('le clic droit d’une tuile dit ce qu’on peut en faire, avec des icônes', async () => {
     await ouvrir()
-    const libelles = menu(tuile('voyage/')).map((b) => b.querySelector('.notak-menu-libelle')!.textContent)
+    const libelles = menu(tuile('voyage/')).map((b) => b.querySelector('.notak-e-libelle')!.textContent)
     expect(libelles).toEqual([
       'Ouvrir',
       'Afficher dans sa toile',
@@ -290,13 +290,13 @@ describe('les gestes', () => {
       'Copier le lien',
       'Mettre à la corbeille',
     ])
-    expect(hote.querySelectorAll('.notak-menu .notak-menu-icone svg')).toHaveLength(8)
+    expect(hote.querySelectorAll('.notak-menu .notak-e-icone svg')).toHaveLength(8)
     expect(choisies()).toEqual(['voyage/'])
   })
 
   it('le clic droit du fond crée, range et choisit tout', async () => {
     await ouvrir()
-    const libelles = menu(hote.querySelector('.biblio-corps')!).map((b) => b.querySelector('.notak-menu-libelle')!.textContent)
+    const libelles = menu(hote.querySelector('.biblio-corps')!).map((b) => b.querySelector('.notak-e-libelle')!.textContent)
     expect(libelles).toEqual(['Nouveau', 'Par date', 'Par dossier', 'Tout sélectionner'])
     act(() => entree('Tout sélectionner').click())
     expect(choisies()).toHaveLength(3)

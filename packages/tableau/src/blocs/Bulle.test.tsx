@@ -124,7 +124,7 @@ describe('NOTION.md § 5 : l’éditeur de lien de la bulle', () => {
       poser.call(champ, 'exemple.fr')
       champ.dispatchEvent(new Event('input', { bubbles: true }))
     })
-    expect(document.querySelector('.notak-bulle-lien .notak-menu-blocs-nom')?.textContent).toBe('Lien vers l’adresse')
+    expect(document.querySelector('.notak-bulle-lien .notak-e-libelle')?.textContent).toBe('Lien vers l’adresse')
     await act(async () => void champ.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })))
     expect(document.querySelector('.notak-bulle-lien')).toBeNull()
     const morceaux = (ed.getJSON().content?.[0]?.content ?? []) as { text?: string; marks?: { type: string; attrs?: { href?: string } }[] }[]
@@ -138,7 +138,7 @@ describe('NOTION.md § 5 : l’éditeur de lien de la bulle', () => {
     await act(async () => void ed.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true, cancelable: true })))
     const champ = document.querySelector<HTMLInputElement>('.notak-bulle-lien-champ')!
     expect(champ.value).toBe('https://a.fr')
-    const retirer = [...document.querySelectorAll<HTMLElement>('.notak-bulle-lien .notak-menu-blocs-entree')].find((x) => x.textContent?.includes('Supprimer le lien'))!
+    const retirer = [...document.querySelectorAll<HTMLElement>('.notak-bulle-lien .notak-e')].find((x) => x.textContent?.includes('Supprimer le lien'))!
     await act(async () => void retirer.click())
     expect(JSON.stringify(ed.getJSON())).not.toContain('"link"')
   })

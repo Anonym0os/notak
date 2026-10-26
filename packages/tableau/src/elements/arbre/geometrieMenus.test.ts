@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type CoteFlottant, MARGE_FENETRE, borner, placerBarreSujet, placerFlottant, poserSousMenu } from './geometrieMenus'
+import { type CoteFlottant, MARGE_FENETRE, borner, placerBarreSujet, placerFlottant } from './geometrieMenus'
 
 const fenetre = { l: 1000, h: 700 }
 
@@ -143,40 +143,6 @@ describe('placerFlottant : jamais hors de la fenêtre', () => {
   it('dans une toute petite fenêtre, la fenêtre flottante se borne et la borne basse l’emporte', () => {
     const p = placerFlottant({ x: 10, y: 10, l: 20, h: 20 }, { l: 300, h: 300 }, { l: 200, h: 150 })
     expect(p).toMatchObject({ x: 8, y: 8, l: 184, h: 134, borneL: true, borneH: true })
-  })
-})
-
-describe('poserSousMenu', () => {
-  const parent = { x: 100, y: 100, l: 230, h: 400 }
-  const entree = { x: 108, y: 140, l: 214, h: 28 }
-
-  it('à droite de son menu quand il y a la place, sans décalage', () => {
-    expect(poserSousMenu(parent, entree, { l: 200, h: 200 }, fenetre)).toEqual({ cote: 'droite', decalage: 0 })
-  })
-
-  it('à gauche quand la fenêtre manque de place à droite', () => {
-    expect(poserSousMenu({ ...parent, x: 700 }, { ...entree, x: 708 }, { l: 200, h: 200 }, fenetre).cote).toBe('gauche')
-  })
-
-  it('à droite quand ni l’un ni l’autre ne tient : le moins mauvais côté reste le naturel', () => {
-    expect(poserSousMenu({ ...parent, x: 20, l: 700 }, entree, { l: 400, h: 200 }, { l: 900, h: 700 }).cote).toBe('droite')
-  })
-
-  it('remonte de ce qui dépasse en bas', () => {
-    const { decalage } = poserSousMenu(parent, { ...entree, y: 600 }, { l: 200, h: 300 }, fenetre)
-    // Le haut est à 600 - 9 = 591 ; il faut finir à 692 : 591 + 300 = 891, 199 de trop.
-    expect(decalage).toBe(-199)
-    expect(591 + decalage + 300).toBe(700 - 8)
-  })
-
-  it('un sous-menu plus haut que la fenêtre se cale contre le haut et se borne : il défile', () => {
-    const { decalage, hauteurMax } = poserSousMenu(parent, entree, { l: 200, h: 900 }, fenetre)
-    expect(entree.y - 9 + decalage).toBe(MARGE_FENETRE)
-    expect(hauteurMax).toBe(700 - 2 * MARGE_FENETRE)
-  })
-
-  it('qui tient, il n’a pas de hauteur limite', () => {
-    expect(poserSousMenu(parent, entree, { l: 200, h: 200 }, fenetre).hauteurMax).toBeUndefined()
   })
 })
 

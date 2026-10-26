@@ -47,6 +47,7 @@ registre.type<Croquis>({
 
 // « Télécharger en SVG » : un seul croquis rempli est choisi.
 registre.entreeMenu({
+  icone: 'exporter',
   get libelle() {
     return t('croquis.telechargerSvg')
   },

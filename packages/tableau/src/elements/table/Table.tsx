@@ -4,7 +4,7 @@ import { PX_PAR_UG } from '../../coeur/camera'
 import type { Element, FormatCellule, Table } from '../../coeur/tableau'
 import { Icone } from '../../icones'
 import { t, useLangue } from '../../langue'
-import { MenuContextuel } from '../../Menus'
+import { MenuContextuel } from '../../communs'
 import { useSombre } from '../../themeVivant'
 import type { PropsRendu } from '../types'
 import {

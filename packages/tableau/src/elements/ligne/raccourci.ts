@@ -30,6 +30,7 @@ export const raccourciLibelle: Raccourci = (e, contexte) => {
 }
 
 export const entreeRelier: EntreeMenu = {
+  icone: 'relier',
   get libelle() {
     return t('menu.relier')
   },

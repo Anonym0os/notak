@@ -58,6 +58,7 @@ const clonables = (elements: readonly Element[]) =>
   elements.length > 0 && elements.every((e) => peutCloner(e.contenu as Contenu) || e.contenu.type === 'clone')
 
 registre.entreeMenu({
+  icone: 'copie',
   get libelle() {
     return t('clone.cloner')
   },

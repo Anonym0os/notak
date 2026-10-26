@@ -22,11 +22,6 @@ export interface Ancre {
 export const MARGE_FENETRE = 8
 /** L'écart entre un bouton et le menu qu'il ouvre : 6 px, comme Xmind (docs/XMIND.md § 8). */
 export const ECART_ANCRE = 6
-/** Le retrait du premier item d'un menu : son rembourrage (8) et sa bordure (1). Un sous-menu monte d'autant pour s'aligner sur son entrée. */
-export const RETRAIT_MENU = 9
-/** L'écart visible entre un menu et son sous-menu. */
-export const ECART_SOUS_MENU = 4
-
 /** Une valeur gardée entre deux bornes ; si elles se croisent (la fenêtre est trop petite), c'est la borne basse. */
 export const borner = (v: number, min: number, max: number): number => (max < min ? min : Math.max(min, Math.min(v, max)))
 
@@ -41,7 +36,7 @@ export interface OptionsFlottant {
   alignement?: AlignementFlottant
   /** L'écart entre l'ancre et la fenêtre. 6 px par défaut. */
   ecart?: number
-  /** Ajouté à la position transversale, après l'alignement (un sous-menu monte de `RETRAIT_MENU` pour s'aligner sur son entrée). */
+  /** Ajouté à la position transversale, après l'alignement. */
   decalage?: number
   /** Ce qu'elle laisse au bord de la fenêtre. 8 px par défaut. */
   marge?: number
@@ -96,23 +91,6 @@ export function placerFlottant(ancre: Boite, taille: Taille, fenetre: Taille, op
   const tientGauche = agauche >= marge
   if (cote === 'droite') return tientDroite ? colle(adroite, y, 'droite') : tientGauche ? colle(agauche, y, 'gauche') : colle(adroite, y, 'droite')
   return tientGauche ? colle(agauche, y, 'gauche') : tientDroite ? colle(adroite, y, 'droite') : colle(agauche, y, 'gauche')
-}
-
-/**
- * Où s'ouvre un sous-menu : à droite de son menu s'il y a la place, sinon à gauche ; et, s'il dépasse en bas (ou en
- * haut), décalé juste ce qu'il faut. `decalage` s'ajoute à l'alignement ordinaire (sa première entrée face à l'entrée
- * parente). Plus haut que la fenêtre, il se cale contre le haut et `hauteurMax` donne la place : il défile.
- */
-export function poserSousMenu(
-  parent: Boite,
-  entree: Boite,
-  sous: Taille,
-  fenetre: Taille,
-): { cote: 'droite' | 'gauche'; decalage: number; hauteurMax?: number } {
-  const p = placerFlottant({ x: parent.x, y: entree.y, l: parent.l, h: entree.h }, sous, fenetre, { cote: 'droite', ecart: ECART_SOUS_MENU, decalage: -RETRAIT_MENU })
-  // Ni à droite ni à gauche : le sous-menu reste du côté naturel, il ne glisse pas sur son menu.
-  const cote = p.cote === 'gauche' ? 'gauche' : 'droite'
-  return { cote, decalage: p.y - (entree.y - RETRAIT_MENU), ...(p.borneH ? { hauteurMax: p.h } : {}) }
 }
 
 /**

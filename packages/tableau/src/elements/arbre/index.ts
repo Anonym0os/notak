@@ -115,6 +115,7 @@ registre.recepteur({
  * dialogue d'export de l'application quand il y en a un (le `.xmind` choisi, la carte en texte à côté).
  */
 registre.entreeMenu({
+  icone: 'exporter',
   get libelle() {
     return t('arbre.exporterXmind')
   },

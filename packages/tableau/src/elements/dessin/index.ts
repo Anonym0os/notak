@@ -43,6 +43,7 @@ registre.type<Dessin>({
 
 // « Télécharger en SVG » : un seul dessin est choisi (fond transparent, comme sur la toile).
 registre.entreeMenu({
+  icone: 'exporter',
   get libelle() {
     return t('croquis.telechargerSvg')
   },

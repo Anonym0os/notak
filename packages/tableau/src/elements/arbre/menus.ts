@@ -33,6 +33,8 @@ export interface Entree {
   icone: NomIcone
   touche?: string
   inactif?: boolean
+  /** Une action qui détruit : dite en rouge. */
+  danger?: boolean
   sous?: Item[]
 }
 export type Item = Entree | 'sep'
@@ -151,6 +153,9 @@ const ICONES_MENU = {
 } as const satisfies Record<string, NomIcone>
 type IdEntree = keyof typeof ICONES_MENU
 
+/** Les entrées qui détruisent : le menu les dit en rouge. */
+const DESTRUCTIVES: ReadonlySet<IdEntree> = new Set(['supprimer', 'supprimerSeul', 'zone.supprimer', 'supprimer.champ'])
+
 /** Une entrée. Le libellé de `arbre.menu.<id>` et l'icône de `ICONES_MENU` sauf si l'appelant les donne (une entrée qui en réemploie une autre). */
 const e = (id: IdEntree, touche?: string, inactif?: boolean, libelle?: string, icone?: NomIcone): Entree => ({
   id,
@@ -158,6 +163,7 @@ const e = (id: IdEntree, touche?: string, inactif?: boolean, libelle?: string, i
   icone: icone ?? ICONES_MENU[id],
   ...(touche ? { touche } : {}),
   ...(inactif ? { inactif: true } : {}),
+  ...(DESTRUCTIVES.has(id) ? { danger: true } : {}),
 })
 const sous = (id: IdEntree, items: Item[], libelle?: string): Entree => ({ id, libelle: libelle ?? t(`arbre.menu.${id}`), icone: ICONES_MENU[id], sous: items })
 

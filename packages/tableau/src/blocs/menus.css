@@ -74,19 +74,18 @@
 /* ===== Le menu ===== */
 
 .notak-menu-blocs {
-  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   width: 220px;
   max-height: calc(100vh - 40px);
   overflow: hidden;
-  border-radius: var(--notak-rayon-panneau, 10px);
-  background: var(--notak-m-fond);
-  box-shadow: var(--notak-m-ombre);
-  color: var(--notak-m-texte);
-  font: 14px/1.2 system-ui, sans-serif;
   transform-origin: center;
   animation: notak-menu-ouvre 200ms ease;
+}
+
+/* Le sous-menu d'une ligne : sa première ligne tombe à la hauteur de la ligne parente (le rembourrage du menu remonte d'autant). */
+.notak-menu-blocs-sous {
+  margin-top: -6px;
 }
 
 .notak-menu-blocs[data-genre='slash'] {
@@ -106,141 +105,47 @@
 
 /* Le champ de recherche : une boîte de 28 px, bague bleue d'un pixel dedans et d'un pixel dehors. */
 .notak-menu-blocs-entete {
-  padding: 8px 4px 4px;
+  padding: 6px 6px 0;
 }
 
 .notak-menu-blocs-filtre {
   box-sizing: border-box;
   display: block;
-  width: calc(100% - 8px);
+  width: 100%;
   height: 28px;
-  margin: 0 4px;
-  padding: 3px 6px;
+  padding: 3px 8px;
   border: 0;
-  border-radius: var(--notak-rayon-controle, 6px);
+  border-radius: var(--notak-rayon-controle, 8px);
   outline: none;
-  background: var(--notak-m-champ);
+  background: var(--notak-pop-touche);
   color: inherit;
   font: inherit;
   line-height: 20px;
 }
 
 .notak-menu-blocs-filtre::placeholder {
-  color: var(--notak-m-pale);
+  color: var(--notak-pop-texte-3);
 }
 
 .notak-menu-blocs-filtre:focus {
-  box-shadow: inset 0 0 0 1px var(--notak-m-focus), 0 0 0 1px var(--notak-m-focus);
+  box-shadow: inset 0 0 0 1px var(--notak-accent, #2f6feb), 0 0 0 1px var(--notak-accent, #2f6feb);
 }
 
+/* Les lignes sont celles du menu commun (communs/menu.css) ; la liste défile quand elle est trop haute. */
 .notak-menu-blocs-liste {
   display: flex;
   flex-direction: column;
-  gap: 1px;
   min-height: 0;
-  padding: 4px;
+  padding: 6px;
   overflow-x: hidden;
   overflow-y: auto;
-}
-
-.notak-menu-blocs-groupe {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-/* Le titre d'une section : 12 px, graisse 500, couleur secondaire. */
-.notak-menu-blocs-categorie {
-  margin: 6px 0 8px;
-  padding: 0 8px;
-  color: var(--notak-m-titre);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 14.4px;
-}
-
-/* Le trait entre deux sections, en retrait de 12 px de chaque côté de la liste. */
-.notak-menu-blocs-trait {
-  flex: none;
-  height: 1px;
-  margin: 6px 8px 0;
-  background: var(--notak-m-trait);
-}
-
-.notak-menu-blocs-entree {
-  box-sizing: border-box;
-  display: flex;
-  flex: none;
-  gap: 8px;
-  align-items: center;
-  width: 100%;
-  height: 28px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: var(--notak-rayon-controle, 6px);
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.notak-menu-blocs[data-genre='slash'] .notak-menu-blocs-entree {
-  height: 32px;
-}
-
-/* La ligne survolée est aussi la ligne active au clavier : même fond. */
-.notak-menu-blocs-entree[data-actif],
-:is(.notak-menu-blocs[data-genre='sous'], .notak-bulle-transformer, .notak-bulle-lien) .notak-menu-blocs-entree:hover {
-  background: var(--notak-m-survol);
-}
-
-.notak-menu-blocs-icone {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  color: var(--notak-m-icone);
 }
 
 .notak-menu-icone {
   display: block;
 }
 
-.notak-menu-blocs-nom {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Le nom de la section, derrière le nom, dans une liste filtrée. */
-.notak-menu-blocs-suffixe {
-  color: var(--notak-m-pale);
-}
-
-.notak-menu-blocs-droite,
-.notak-menu-blocs-coche {
-  flex: none;
-  margin-right: 2px;
-  color: var(--notak-m-pale);
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.notak-menu-blocs-coche {
-  color: var(--notak-m-icone);
-  font-size: 14px;
-}
-
-.notak-menu-blocs-chevron {
-  flex: none;
-  color: var(--notak-m-chevron);
-}
-
-/* La tuile « A » d'une couleur : 20 px dans le menu « / », 26 px dans le menu du bloc ; un liseré d'un pixel, de deux sur la ligne active. */
+/* La tuile « A » d'une couleur : 20 px dans une ligne, un liseré d'un pixel, de deux sur la ligne active. */
 .notak-menu-teinte {
   box-sizing: border-box;
   display: grid;
@@ -255,34 +160,21 @@
   line-height: 1;
 }
 
-[data-actif] > .notak-menu-teinte,
-.notak-menu-blocs-entree:hover > .notak-menu-teinte {
+[data-actif] > .notak-e-icone > .notak-menu-teinte,
+.notak-e:hover > .notak-e-icone > .notak-menu-teinte {
   box-shadow: inset 0 0 0 2px var(--notak-m-anneau);
-}
-
-.notak-menu-blocs[data-genre='bloc'] .notak-menu-teinte,
-.notak-menu-blocs[data-genre='couleur'] .notak-menu-teinte,
-.notak-menu-blocs[data-genre='sous'] .notak-menu-teinte {
-  width: 26px;
-  height: 26px;
-  font-size: 16px;
 }
 
 /* Le pied du menu « / » : un trait pleine largeur, puis « Fermer le menu » et sa touche. */
 .notak-menu-blocs-pied {
   flex: none;
-  padding: 4px;
-  box-shadow: 0 -1px 0 var(--notak-m-trait);
-}
-
-.notak-menu-blocs-pied .notak-menu-blocs-entree {
-  height: 32px;
-  padding: 0 8px;
+  padding: 6px;
+  box-shadow: 0 -1px 0 var(--notak-pop-filet);
 }
 
 .notak-menu-blocs-vide {
-  padding: 8px;
-  color: var(--notak-m-pale);
+  padding: 8px 10px;
+  color: var(--notak-pop-texte-3);
 }
 
 /* ===== Ce qu'on voit dans le texte pendant que le menu « / » est ouvert ===== */
@@ -457,28 +349,11 @@
   line-height: 1;
 }
 
-/* Les panneaux ouverts depuis la bulle : la grille des couleurs, la liste « Transformer en ». */
-.notak-bulle-sous {
-  box-sizing: border-box;
-  border-radius: var(--notak-rayon-panneau, 10px);
-  background: var(--notak-m-fond);
-  box-shadow: var(--notak-m-ombre);
-  color: var(--notak-m-texte);
-  font: 14px/1.2 system-ui, sans-serif;
-  animation: notak-menu-ouvre 200ms ease;
-  transform-origin: 0 0;
-}
-
+/* Les panneaux ouverts depuis la bulle : la grille des couleurs, la liste « Transformer en », l'éditeur de lien (menus communs). */
 .notak-bulle-couleurs {
   width: 190px;
   max-height: calc(100vh - 40px);
-  padding: 4px 0;
   overflow-y: auto;
-}
-
-.notak-bulle-couleurs .notak-menu-blocs-categorie {
-  margin: 6px 0 8px;
-  padding: 0 12px;
 }
 
 .notak-bulle-grille {
@@ -488,12 +363,8 @@
   padding: 0 8px;
 }
 
-.notak-bulle-grille + .notak-menu-blocs-categorie {
-  margin-top: 8px;
-}
-
 .notak-bulle-grille:last-child {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .notak-bulle-pastille {
@@ -521,7 +392,6 @@
 .notak-bulle-transformer {
   min-width: 180px;
   max-height: calc(100vh - 40px);
-  padding: 4px;
   overflow-y: auto;
 }
 
@@ -529,7 +399,7 @@
 
 .notak-bulle-lien {
   width: 330px;
-  padding: 4px;
+  padding: 6px;
 }
 
 .notak-bulle-lien-champ {
@@ -542,22 +412,18 @@
   border: 0;
   border-radius: var(--notak-rayon-controle, 6px);
   outline: none;
-  background: var(--notak-m-champ);
+  background: var(--notak-pop-touche);
   color: inherit;
   font: inherit;
   line-height: 20px;
 }
 
 .notak-bulle-lien-champ::placeholder {
-  color: var(--notak-m-pale);
+  color: var(--notak-pop-texte-3);
 }
 
 .notak-bulle-lien-champ:focus {
-  box-shadow: inset 0 0 0 1px var(--notak-m-focus), 0 0 0 1px var(--notak-m-focus);
-}
-
-.notak-bulle-lien .notak-menu-blocs-entree {
-  height: 32px;
+  box-shadow: inset 0 0 0 1px var(--notak-accent, #2f6feb), 0 0 0 1px var(--notak-accent, #2f6feb);
 }
 
 /* « Saisissez une adresse complète » : en rouge tant que la saisie n'est pas une adresse. */
@@ -569,10 +435,6 @@
 
 .notak-bulle-lien-legende[data-erreur] {
   color: #cf5148;
-}
-
-.notak-bulle-lien .notak-menu-blocs-trait {
-  margin: 4px 8px;
 }
 
 @media (prefers-reduced-motion: reduce) {

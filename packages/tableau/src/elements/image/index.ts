@@ -51,6 +51,7 @@ const toutesImages = (els: Element[]): els is Element<Image>[] => els.length > 0
 // Remplacer l'image : le sélecteur de fichiers, puis le fichier prend la place de l'image (position, largeur et légende gardées).
 // Le même geste remplace l'image d'un lien (celle de son aperçu, hors vidéo : « Remplacer l'aperçu » est à elle, voir elements/lien).
 registre.entreeMenu({
+  icone: 'remplacer',
   get libelle() {
     return t('image.remplacer')
   },
@@ -68,6 +69,7 @@ registre.entreeMenu({
 // « Rogner l'image sur la grille de points » : cochée, l'image est rognée pour que ses bords tombent sur la grille ;
 // décochée, elle garde ses proportions exactes.
 registre.entreeMenu({
+  icone: 'recadrer',
   get libelle() {
     return t('image.rognerGrille')
   },

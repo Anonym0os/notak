@@ -92,6 +92,7 @@ const tousDe = (els: Element[], type: Element['contenu']['type']) => els.length 
 
 // Le même geste porte trois noms, comme chez Milanote : « Download original image », « …images » et « Download ».
 registre.entreeMenu({
+  icone: 'exporter',
   get libelle() {
     return t('menu.telechargerImage')
   },
@@ -100,6 +101,7 @@ registre.entreeMenu({
 })
 
 registre.entreeMenu({
+  icone: 'exporter',
   get libelle() {
     return t('menu.telechargerImages')
   },
@@ -108,6 +110,7 @@ registre.entreeMenu({
 })
 
 registre.entreeMenu({
+  icone: 'exporter',
   get libelle() {
     return t('menu.telecharger')
   },
@@ -117,6 +120,7 @@ registre.entreeMenu({
 
 // Copier l'adresse du fichier ; sans presse-papiers, c'est le fichier lui-même qu'on ouvre.
 registre.entreeMenu({
+  icone: 'lien',
   get libelle() {
     return t('fichier.copierLien')
   },

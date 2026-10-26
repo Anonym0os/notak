@@ -33,6 +33,7 @@ function nouveauRenvoi(ou: Point, contexte: ContexteToile, renommer = true): Ele
 }
 
 registre.entreeMenu({
+  icone: 'ouvrir',
   get libelle() {
     return t('menu.ouvrirOnglet')
   },
@@ -41,6 +42,7 @@ registre.entreeMenu({
 })
 
 registre.entreeMenu({
+  icone: 'lien',
   get libelle() {
     return t('menu.creerRaccourci')
   },
@@ -63,6 +65,7 @@ registre.entreeMenu({
 
 // Un raccourci seul : aller voir la carte du tableau qu'il montre, là où elle est.
 registre.entreeMenu({
+  icone: 'tableau',
   get libelle() {
     return t('menu.retrouverOrigine')
   },
@@ -80,6 +83,7 @@ registre.entreeMenu({
 
 // Le raccourci devient un vrai tableau : une copie du tableau lié, avec son contenu.
 registre.entreeMenu({
+  icone: 'copie',
   get libelle() {
     return t('menu.dupliquerLie')
   },
@@ -100,6 +104,7 @@ registre.entreeMenu({
 })
 
 registre.entreeMenu({
+  icone: 'renommer',
   get libelle() {
     return t('menu.renommer')
   },

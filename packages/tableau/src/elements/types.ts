@@ -12,6 +12,7 @@ import type { Camera } from '../coeur/camera'
 import type { Point, Rect } from '../coeur/geometrie'
 import type { Paquet } from '../coeur/pressePapiers'
 import type { Magasin } from '../coeur/magasin'
+import type { NomIcone } from '../icones'
 import type { Apercu, Contenu, CouleurNote, Element, Etiquette, Id, Operation, Tableau, TypeContenu } from '../coeur/tableau'
 
 /** Où l'application range les fichiers (images…). La toile ne sait pas où ils vivent. */
@@ -461,6 +462,8 @@ export type Raccourci = (e: KeyboardEvent, contexte: ContexteToile) => boolean
  */
 export interface EntreeMenu {
   libelle: string
+  /** L'icône de la ligne (Tabler, par `icones.tsx`) : chaque ligne d'un menu en porte une. */
+  icone: NomIcone
   raccourci?: string
   visible(elements: Element[], contexte: ContexteToile): boolean
   /** Le geste a déjà sa tuile dans la barre de gauche : l'entrée reste au clic droit, et ne se répète pas dans « ••• ». */

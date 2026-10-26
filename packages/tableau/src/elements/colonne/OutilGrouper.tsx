@@ -28,6 +28,7 @@ export function grouper(elements: Element[], contexte: ContexteToile) {
 }
 
 export const entreeGrouper: EntreeMenu = {
+  icone: 'colonne',
   get libelle() {
     return t('colonne.grouper')
   },

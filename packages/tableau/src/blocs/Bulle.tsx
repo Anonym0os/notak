@@ -1,6 +1,7 @@
 import { type Editor, useEditorState } from '@tiptap/react'
 import { useEffect, useRef, useState } from 'react'
 import { PanneauFlottant } from '../PanneauFlottant'
+import { LigneMenu, Menu, TitreMenu } from '../communs'
 import { Icone } from '../icones'
 import { t } from '../langue'
 import { BulleLien } from './bulleLien'
@@ -264,41 +265,33 @@ export function Bulle({ editeur, commenter, menuBloc, surCouleur }: Props) {
       </BulleFixe>
       {popup === 'type' && (
         <PanneauFlottant cible={() => boutonType.current} hote={hote} cote="bas" alignement="debut" distance={4} fleche={false} className="notak-bulle-panneau" onPointerDown={(ev) => ev.preventDefault()}>
-          <div className="notak-bulle-sous notak-bulle-transformer" role="menu">
+          <Menu className="notak-bulle-sous notak-bulle-transformer">
             {TRANSFORMATIONS.map((x: Entree) => (
-              <div
+              <LigneMenu
                 key={x.id}
-                role="menuitem"
-                className="notak-menu-blocs-entree"
+                as="div"
+                signe={<IconeMenu nom={x.icone} taille={16} />}
+                libelle={x.libelle}
+                coche={x.effet.genre === 'vers' && x.effet.vers === e.type ? true : undefined}
                 onClick={() => {
                   if (x.effet.genre === 'vers') transformer(editeur, x.effet.vers)
                   setPopup(null)
                 }}
-              >
-                <span className="notak-menu-blocs-icone">
-                  <IconeMenu nom={x.icone} />
-                </span>
-                <span className="notak-menu-blocs-nom">{x.libelle}</span>
-                {x.effet.genre === 'vers' && x.effet.vers === e.type && (
-                  <span className="notak-menu-blocs-coche" aria-hidden>
-                    ✓
-                  </span>
-                )}
-              </div>
+              />
             ))}
-          </div>
+          </Menu>
         </PanneauFlottant>
       )}
       {popup === 'couleur' && (
         <PanneauFlottant cible={() => boutonCouleur.current} hote={hote} cote="bas" alignement="debut" distance={4} fleche={false} className="notak-bulle-panneau" onPointerDown={(ev) => ev.preventDefault()}>
-          <div className="notak-bulle-sous notak-bulle-couleurs" role="menu">
-            <div className="notak-menu-blocs-categorie">{t('menus.section.recentes')}</div>
+          <Menu className="notak-bulle-sous notak-bulle-couleurs">
+            <TitreMenu>{t('menus.section.recentes')}</TitreMenu>
             <div className="notak-bulle-grille">{recentes.map((r) => pastille(r, couleur, poser))}</div>
-            <div className="notak-menu-blocs-categorie">{t('menus.section.couleurTexte')}</div>
+            <TitreMenu>{t('menus.section.couleurTexte')}</TitreMenu>
             <div className="notak-bulle-grille">{COULEURS.map((nom) => pastille({ nom, fond: false }, couleur, poser))}</div>
-            <div className="notak-menu-blocs-categorie">{t('menus.section.couleurFond')}</div>
+            <TitreMenu>{t('menus.section.couleurFond')}</TitreMenu>
             <div className="notak-bulle-grille">{COULEURS.map((nom) => pastille({ nom, fond: true }, couleur, poser))}</div>
-          </div>
+          </Menu>
         </PanneauFlottant>
       )}
     </>

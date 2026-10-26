@@ -1092,159 +1092,6 @@
   border-right-color: var(--notak-barre, #eceef1);
 }
 
-/* Le menu du clic droit : rangées de 28 px, survol gris, raccourcis en pastilles, une par touche. */
-.notak-menu {
-  --notak-menu-texte: #5f6672;
-  --notak-menu-survol: #f3f3f4;
-  --notak-menu-grise: #a3a7ae;
-  --notak-menu-touche: rgb(0 0 0 / 0.06);
-  --notak-menu-filet: rgb(0 0 0 / 0.1);
-  position: absolute;
-  z-index: 40;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  width: max-content;
-  min-width: 240px;
-  max-width: 296px;
-  padding: 4px 6px;
-  border-radius: var(--notak-rayon-panneau, 12px);
-  background: var(--notak-carte);
-  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25), 0 0 0 1px rgb(0 0 0 / 0.04);
-  color: var(--notak-menu-texte);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 20px;
-}
-
-.notak-menu button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 28px;
-  padding: 4px 10px;
-  border: 0;
-  border-radius: var(--notak-rayon-controle, 6px);
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  outline: none;
-}
-
-.notak-menu button:is(:hover, :focus-visible, :focus):not(:disabled) {
-  background: var(--notak-menu-survol);
-}
-
-.notak-menu button:disabled {
-  color: var(--notak-menu-grise);
-  cursor: default;
-}
-
-.notak-menu-coche {
-  width: 14px;
-  text-align: center;
-}
-
-.notak-menu-libelle {
-  flex: 1;
-}
-
-.notak-menu-icone {
-  display: inline-flex;
-  flex: none;
-  width: 16px;
-  margin-right: 4px;
-  color: var(--notak-menu-texte);
-  opacity: 0.85;
-}
-
-.notak-menu button[data-danger]:not(:disabled) {
-  color: #d64545;
-}
-
-.notak-menu button[data-danger]:not(:disabled) .notak-menu-icone {
-  color: inherit;
-}
-
-.notak-menu-touches {
-  display: inline-flex;
-  gap: 4px;
-  margin-left: 16px;
-}
-
-.notak-menu-touches kbd {
-  min-width: 12px;
-  padding: 0 4px;
-  border-radius: 4px;
-  background: var(--notak-menu-touche);
-  font: inherit;
-  font-size: 11px;
-  line-height: 18px;
-  text-align: center;
-}
-
-/* Un sous-menu s'ouvre à droite de son entrée ; une ligne d'information porte l'avatar de la personne. */
-.notak-menu-sous {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-
-.notak-menu-sous > button {
-  flex: 1;
-}
-
-.notak-menu-sous-liste {
-  top: -5px;
-  left: calc(100% + 2px);
-  min-width: 220px;
-  /* Ramenée dans la fenêtre par SousListe (Menus.tsx) : remontée, à gauche, ou qui défile si elle est trop haute. */
-  overflow-y: auto;
-}
-
-.notak-menu-sous-liste[data-a-gauche] {
-  right: calc(100% + 2px);
-  left: auto;
-}
-
-.notak-menu-pastille {
-  flex: none;
-  width: 14px;
-  height: 14px;
-  border-radius: 4px;
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.14);
-}
-
-.notak-menu-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 10px;
-  color: var(--notak-menu-grise);
-  font-size: 13px;
-  font-weight: 400;
-}
-
-.notak-menu-meta .notak-decor-personne {
-  flex: none;
-  overflow: hidden;
-}
-
-.notak-menu-meta .notak-decor-personne img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.notak-menu-sep {
-  flex: none;
-  height: 1px;
-  margin: 6px 0;
-  background: var(--notak-menu-filet);
-}
-
 .notak-barre-sep {
   flex: none;
   width: 44px;
@@ -2454,44 +2301,6 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   border-top: 1px solid rgb(0 0 0 / 0.1);
 }
 
-.notak-menu-actions button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 30px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: var(--notak-rayon-controle, 6px);
-  background: none;
-  color: var(--notak-texte);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.notak-menu-actions button:hover {
-  background: rgb(0 0 0 / 0.07);
-}
-
-.notak-menu-actions-icone {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 16px;
-  opacity: 0.7;
-}
-
-.notak-menu-actions-texte {
-  flex: 1;
-  white-space: nowrap;
-}
-
-.notak-menu-actions kbd {
-  font: inherit;
-  font-size: 11px;
-  opacity: 0.55;
-}
-
 .notak-menu-actions-info {
   display: flex;
   align-items: center;
@@ -2543,21 +2352,20 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   opacity: 1;
 }
 
-.notak-infobulle .notak-menu-touches {
+.notak-infobulle .notak-touches {
   gap: 2px;
-  margin-left: 0;
 }
 
-.notak-infobulle .notak-menu-touches kbd {
+.notak-infobulle .notak-kbd {
   min-width: 18px;
+  height: 18px;
   padding: 0 2px;
-  box-sizing: border-box;
   border-radius: 2px;
   background: rgb(255 255 255 / 0.18);
+  box-shadow: none;
   color: inherit;
   font-size: 12px;
   font-weight: 600;
-  line-height: 18px;
 }
 
 @media (prefers-reduced-motion: reduce) {
