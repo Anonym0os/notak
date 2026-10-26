@@ -11,7 +11,7 @@ import { glisserTache } from './glisse'
 import { htmlEnTaches } from './html'
 import { PROFONDEUR_MAX, type Place, hauteur, lignesEnTaches, peutDescendre, peutPoserAuNiveau, placeDe } from './liste'
 import { DRAPEAU, type GenrePuce, assigneDe, attrsAllumes, attrsEteints, attrsVides, echeanceDe, jourDe, puces } from './puces'
-import { animerCase } from './animation'
+import { animerCase } from '../../communs'
 import { ClavierTitre, NOM_TITRE, TitreListe, ajouterTitre, curseurAuTitre, titreDe } from './titre'
 import { t } from '../../langue'
 
@@ -67,11 +67,13 @@ const Tache = TaskItem.extend({
   addNodeView() {
     return ({ node, getPos, editor }) => {
       const li = document.createElement('li')
-      const case_ = document.createElement('span')
+      const case_ = document.createElement('button')
       const contenu = document.createElement('div')
-      case_.className = 'notak-case'
+      case_.type = 'button'
+      case_.className = 'notak-case notak-case-large'
       case_.contentEditable = 'false'
       case_.setAttribute('role', 'checkbox')
+      case_.setAttribute('aria-label', t('taches.fait'))
       case_.addEventListener('mousedown', (e) => e.preventDefault())
       case_.addEventListener('click', (e) => {
         e.preventDefault()
@@ -673,6 +675,22 @@ export function finDeListe(editor: Editor, etendre: boolean): boolean {
   return true
 }
 
+/** Coche ou décoche la tâche du curseur (la plus profonde), la case animée comme au clic. Faux hors d'une tâche. */
+export function cocherSousLeCurseur(editor: Editor): boolean {
+  const { $from } = editor.state.selection
+  for (let d = $from.depth; d > 0; d--) {
+    const n = $from.node(d)
+    if (n.type.name !== 'taskItem') continue
+    const pos = $from.before(d)
+    const li = editor.view.nodeDOM(pos)
+    const case_ = li instanceof HTMLElement ? li.querySelector<HTMLElement>(':scope > .notak-case') : null
+    if (case_) animerCase(case_, n.attrs.checked !== true)
+    cocherDansEditeur(editor, pos, false)
+    return true
+  }
+  return false
+}
+
 /** Tab et Maj+Tab restent dans la note, même quand il n'y a rien à faire. */
 const ClavierTaches = Extension.create({
   name: 'clavierTaches',
@@ -695,6 +713,8 @@ const ClavierTaches = Extension.create({
       },
       // Tiptap sortirait les tâches de la liste unique : la touche ne fait rien ici.
       'Mod-Shift-9': () => true,
+      // Cmd+Entrée : coche ou décoche la tâche du curseur, avec l'animation de sa case.
+      'Mod-Enter': ({ editor }) => cocherSousLeCurseur(editor),
       Delete: ({ editor }) => supprimer(editor),
       // Avec Cmd ou Alt, la même réduction ; ailleurs qu'au bout d'un texte, la touche efface un mot comme partout.
       'Mod-Delete': ({ editor }) => supprimer(editor),

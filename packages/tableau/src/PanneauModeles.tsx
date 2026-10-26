@@ -1,6 +1,7 @@
 import { type KeyboardEvent, useRef } from 'react'
 import { Icone } from './icones'
 import { t } from './langue'
+import { Case } from './communs'
 import type { ModeleTableau } from './modeles/construire'
 
 /** Les modèles que le panneau propose d'emblée, dans cet ordre : le premier porte la mention « le plus utilisé ». */
@@ -89,7 +90,7 @@ export function PanneauModeles({
           {libelleContinuer(choisi)}
         </button>
         <label data-desactive={choisi === null || undefined}>
-          <input type="checkbox" checked={garder && choisi !== null} disabled={choisi === null} onChange={(e) => surGarder(e.currentTarget.checked)} />
+          <Case option cochee={garder && choisi !== null} disabled={choisi === null} onChange={surGarder} />
           {t('modele.garder')}
         </label>
       </div>

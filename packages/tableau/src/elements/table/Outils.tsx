@@ -24,6 +24,7 @@ import { dateVersSerie } from './formules'
 import { type Plage, appliquerFormat, formatsDe, normaliserPlage } from './grille'
 import { entreesTable } from './menu'
 import { modifierTable } from './modifier'
+import { Case } from '../../communs'
 
 /**
  * Les outils de la barre de sélection pour une table. Des cellules choisies : le style du texte, le type, la couleur
@@ -275,7 +276,7 @@ function OptionsNombre({ type, f, lg, option }: { type: TypeCellule; f: FormatCe
   const dec = f.decimales ?? defaut
   const coche = (cle: 'sansMilliers' | 'comptable', libelle: string, inverse = false) => (
     <label className="notak-table-coche">
-      <input type="checkbox" checked={inverse ? !f[cle] : !!f[cle]} onChange={(e) => option({ [cle]: inverse ? !e.target.checked || undefined : e.target.checked || undefined })} />
+      <Case option cochee={inverse ? !f[cle] : !!f[cle]} onChange={(v) => option({ [cle]: inverse ? !v || undefined : v || undefined })} />
       <span>{libelle}</span>
     </label>
   )
@@ -363,7 +364,7 @@ function OptionsDate({ f, lg, option }: { f: FormatCellule; lg: string; option: 
         </select>
         {heure !== 'aucune' && (
           <label className="notak-table-coche">
-            <input type="checkbox" checked={!!f.heureEntreParentheses} onChange={(e) => option({ heureEntreParentheses: e.target.checked || undefined })} />
+            <Case option cochee={!!f.heureEntreParentheses} onChange={(v) => option({ heureEntreParentheses: v || undefined })} />
             <span>{t('table.opt.heureParentheses')}</span>
           </label>
         )}

@@ -9,6 +9,7 @@ import { CopieBlocs } from './copie'
 import { FlechesBlocs } from './fleches'
 import { CONTENEURS } from './ids'
 import { blocsDe } from './modele'
+import { animerCaseDuBloc } from './structure'
 import { transformer } from './transformer'
 import { DELIMITEURS, REMPLACEMENTS, chercherMarque, dansCodeOuvert, guillemet } from './typographie'
 
@@ -354,6 +355,7 @@ export function basculer(editor: Editor): boolean {
   if (!attribut || pos < 0) return false
   const valeur = attribut === 'coche' ? !n.attrs.coche : n.attrs.ouvert === false
   editor.view.dispatch(editor.state.tr.setNodeAttribute(pos, attribut, valeur))
+  if (attribut === 'coche') animerCaseDuBloc(editor.view, pos, valeur)
   return true
 }
 

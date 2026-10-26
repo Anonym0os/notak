@@ -1282,13 +1282,6 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
   cursor: pointer;
 }
 
-.espaces-coches input {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  accent-color: var(--app-plein);
-}
-
 .espaces-role {
   display: flex;
   flex-direction: column;
@@ -1855,11 +1848,6 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
   align-items: center;
   gap: 8px;
   cursor: pointer;
-}
-
-.export-case input {
-  margin: 0;
-  accent-color: var(--accent);
 }
 
 .export-ligne {

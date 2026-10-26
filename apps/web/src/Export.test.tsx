@@ -113,7 +113,7 @@ describe('le dialogue d’export du tableau', () => {
     await ouvrir()
     expect(dialogue()!.open).toBe(true)
     expect(document.querySelector<HTMLInputElement>('input[name=format]:checked')!.value).toBe('notak')
-    expect([...document.querySelectorAll<HTMLInputElement>('.export-options input[type=checkbox]')].map((c) => c.checked)).toEqual([true, true])
+    expect([...document.querySelectorAll<HTMLElement>('.export-options [role=checkbox]')].map((c) => c.getAttribute('aria-checked') === 'true')).toEqual([true, true])
     expect(apercu().textContent).toContain('3 toiles · 1 image ou fichier')
     expect([...apercu().querySelectorAll('li')].map((l) => l.textContent)).toEqual(['Voyage', 'ÉtapesToile imbriquée', 'BudgetToile imbriquée'])
     expect(document.querySelector('.export-poids')!.textContent).toMatch(/^\.notak · \d+ o$/)
@@ -121,7 +121,7 @@ describe('le dialogue d’export du tableau', () => {
 
   it('l’aperçu se refait quand une option change, et le fichier écrit est celui de l’aperçu', async () => {
     await ouvrir()
-    act(() => document.querySelectorAll<HTMLInputElement>('.export-options input[type=checkbox]')[0]!.click())
+    act(() => document.querySelectorAll<HTMLElement>('.export-options [role=checkbox]')[0]!.click())
     await patienter()
     expect(local.notak).toHaveBeenLastCalledWith('T1', { sousTableaux: false, fichiers: true })
     const appels = vi.mocked(local.notak).mock.calls.length
@@ -187,7 +187,7 @@ describe('le dialogue d’export du tableau', () => {
     expect(document.querySelectorAll('input[name=resolution]')).toHaveLength(3)
     await choisirFormat('pdf')
     expect(document.querySelector('input[name=resolution]')).toBeNull()
-    expect(document.querySelector('.export-options input[type=checkbox]')).toBeNull()
+    expect(document.querySelector('.export-options [role=checkbox]')).toBeNull()
   })
 
   it('retient le dernier format choisi sur l’appareil', async () => {
@@ -241,7 +241,7 @@ describe('le même dialogue, pour une carte ou un document', () => {
     expect(document.querySelector<HTMLInputElement>('input[name=format]:checked')!.value).toBe('png')
     expect(document.querySelector('.export-xmind')!.textContent).toBe('Une note sous les formats')
     expect(s.formats[0]!.preparer).toHaveBeenCalledWith(expect.objectContaining({ fond: true }))
-    act(() => document.querySelector<HTMLInputElement>('.export-options input[type=checkbox]')!.click())
+    act(() => document.querySelector<HTMLElement>('.export-options [role=checkbox]')!.click())
     await patienter()
     expect(s.formats[0]!.preparer).toHaveBeenLastCalledWith(expect.objectContaining({ fond: false }))
     expect(JSON.parse(localStorage.getItem('notak.export.carte')!)).toMatchObject({ fond: false })

@@ -4,6 +4,7 @@ import { t } from '../../langue'
 import { moitiesIso } from './dates'
 import { EditeurRiche } from './EditeurRiche'
 import { type EditionCellule, majEdition } from './etat'
+import { Case } from '../../communs'
 import { COULEURS_REFERENCES, alignementDe } from './formats'
 import { citerReferences, requeteAutocompletion, suggererFonctions } from './formules'
 
@@ -201,7 +202,7 @@ function Calendrier({ id, edition, format, valider, abandonner }: Omit<Props, 'f
         <input type="date" value={moities?.jour ?? ''} onChange={(e) => choisir(e.target.value, moities?.heure ?? '', avecHeure)} />
       </label>
       <label className="notak-table-calendrier-coche">
-        <input type="checkbox" checked={avecHeure} onChange={(e) => choisir(moities?.jour ?? '', moities?.heure ?? '', e.target.checked)} />
+        <Case option cochee={avecHeure} onChange={(v) => choisir(moities?.jour ?? '', moities?.heure ?? '', v)} />
         <span>{t('table.calendrier.avecHeure')}</span>
       </label>
       {avecHeure && (

@@ -69,6 +69,7 @@ export { type Capture, capturerEcran, capturerToile, enBlob, pdfDeCapture, regle
 export { A4, octetsDeDataUrl, pdfDePages, pdfDepuisJpeg } from './export/pdf'
 export { type Arrivee, decomposerArrivee, elementsArrives, elementsDeTexte, poserDansNonTries } from './arrivee'
 export * from './modeles'
+export * from './communs'
 export { BullesDecouverte } from './BullesDecouverte'
 export { BULLES, bulleAMontrer, vuesDuCompte, type Bulle, type GesteDecouverte } from './decouverte'
 export { type ServiceCompte, COULEURS_COMPTE, lireReglages } from './reglages'

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { type Arbre, type Id, type StyleSujet, nouvelId } from '../../coeur/tableau'
+import { animerCase } from '../../communs/animerCase'
 import { t } from '../../langue'
 import { Surcouche } from '../surcouche'
 import type { ContexteToile, PropsRendu, Services } from '../types'
@@ -674,6 +675,8 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     const tache = attribut('data-tache')
     if (tache && !lectureSeule) {
       const s = lecture.sujets.get(tache)
+      const dessin = cible.closest('[data-tache]')?.querySelector<SVGElement>('.notak-case-svg')
+      if (dessin) animerCase(dessin, s?.tache !== 'faite')
       return faire({ type: 'porter', ids: [tache], champ: 'tache', valeur: s?.tache === 'faite' ? 'a-faire' : 'faite' })
     }
     const icone = attribut('data-icone')

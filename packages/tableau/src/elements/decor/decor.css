@@ -494,10 +494,6 @@
   cursor: pointer;
 }
 
-.notak-etiquettes-ligne[data-posable] input[type='checkbox'] {
-  cursor: pointer;
-}
-
 .notak-etiquettes-chip {
   flex: 0 1 auto;
   min-width: 0;

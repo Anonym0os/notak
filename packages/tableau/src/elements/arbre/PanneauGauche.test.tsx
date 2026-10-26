@@ -93,8 +93,8 @@ describe('le panneau de gauche', () => {
     const a = monter('etiquettes')
     const lignes = [...a.hote.querySelectorAll('.notak-arbre-gauche-repere')]
     expect(lignes.map((l) => l.textContent)).toEqual(['urgent2'])
-    expect((lignes[0]!.querySelector('input') as HTMLInputElement).checked).toBe(true)
-    a.clic(lignes[0]!.querySelector('input')!)
+    expect(lignes[0]!.querySelector('[role=checkbox]')!.getAttribute('aria-checked')).toBe('true')
+    a.clic(lignes[0]!.querySelector('[role=checkbox]')!)
     expect(a.p.cocher).toHaveBeenCalledWith('etiquette:urgent')
     a.fin()
   })

@@ -1,5 +1,6 @@
 import { type CSSProperties, type ReactNode, type RefObject, useEffect, useId, useRef, useState } from 'react'
 import { Icone } from '../../icones'
+import { Case as CaseCommune } from '../../communs'
 import { t } from '../../langue'
 import { Flottant } from './Flottant'
 
@@ -449,10 +450,7 @@ export function Bascule({ active, changer, titre, inactif }: { active: boolean; 
 export function Case({ cochee, changer, libelle, titre, inactif }: { cochee: boolean; changer(v: boolean): void; libelle: string; titre?: string; inactif?: boolean }) {
   return (
     <label className="notak-arbre-style-case" title={titre ?? libelle} data-inactif={inactif ? '' : undefined}>
-      <input type="checkbox" className="notak-arbre-style-case-boite" checked={cochee} disabled={inactif} onChange={(e) => changer(e.target.checked)} />
-      <span className="notak-arbre-style-case-coche" aria-hidden="true">
-        {cochee && <Icone nom="coche" taille={11} trait={3} />}
-      </span>
+      <CaseCommune option cochee={cochee} disabled={inactif} onChange={changer} />
       <span>{libelle}</span>
     </label>
   )

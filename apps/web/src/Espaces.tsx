@@ -1,3 +1,4 @@
+import { Case } from '@notak/tableau'
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { t } from './langue'
 import { PageApp } from './PageApp'
@@ -304,9 +305,9 @@ function Equipes({ espace, membres, agir, occupe }: { espace: EspaceLu; membres:
               const coche = dans[e.id]?.includes(m.user.id) ?? false
               return (
                 <label key={m.id}>
-                  <input
-                    type="checkbox"
-                    checked={coche}
+                  <Case
+                    option
+                    cochee={coche}
                     disabled={occupe}
                     onChange={() => void faire(() => (coche ? retirerDEquipe(e.id, m.user.id) : ajouterAEquipe(e.id, m.user.id)))}
                   />
@@ -376,7 +377,7 @@ function Roles({ espace, roles, agir, occupe }: { espace: EspaceLu; roles: RoleC
             <legend>{t(`espaces.ressource.${ressource}`)}</legend>
             {gestes.map((g) => (
               <label key={g}>
-                <input type="checkbox" checked={choix[ressource]?.includes(g) ?? false} onChange={() => basculer(ressource, g)} />
+                <Case option cochee={choix[ressource]?.includes(g) ?? false} onChange={() => basculer(ressource, g)} />
                 {t(`espaces.geste.${g}`)}
               </label>
             ))}

@@ -136,8 +136,8 @@ describe('le rendu', () => {
   it('une case à cocher se coche d’un clic, d’un seul pas, sans choisir la cellule', () => {
     const m = monde({ cellules: [['true', 'x'], ['', ''], ['', ''], ['', '']], formats: [[{ type: 'case' }, null], [null, null], [null, null], [null, null]] })
     monter(m)
-    const case_ = cellule(0, 0).querySelector<HTMLInputElement>('input[type=checkbox]')!
-    expect(case_.checked).toBe(true)
+    const case_ = cellule(0, 0).querySelector<HTMLElement>('[role=checkbox]')!
+    expect(case_.getAttribute('aria-checked')).toBe('true')
     act(() => case_.click())
     expect(m.lire().contenu.cellules[0]![0]).toBe('false')
     expect(lireEtat(ID).plages).toEqual([])
