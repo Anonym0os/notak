@@ -13,7 +13,7 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 
 | Partie | Fait | En partie | Absent | Avancement |
 |---|---|---|---|---|
-| 1. Toile | 29 | 0 | 0 | 100 % |
+| 1. Toile | 31 | 0 | 0 | 100 % |
 | 2. Création | 16 | 1 | 0 | 97 % |
 | 3. Note et texte | 36 | 1 | 1 | 96 % |
 | 4. Colonne | 13 | 0 | 0 | 100 % |
@@ -26,13 +26,13 @@ Le décompte en tête de chaque partie compte ✅ pour 1 et 🟡 pour ½, sans l
 | 11. Commun aux éléments | 12 | 0 | 0 | 100 % |
 | 12. Organiser | 16 | 0 | 0 | 100 % |
 | 13. Naviguer | 13 | 1 | 0 | 96 % |
-| 14. À plusieurs | 24 | 0 | 0 | 100 % |
+| 14. À plusieurs | 25 | 0 | 0 | 100 % |
 | 15. Habillage | 17 | 0 | 0 | 100 % |
 | 16. Exporter, importer | 8 | 1 | 0 | 94 % |
 | 17. Plateformes | 7 | 2 | 0 | 89 % |
-| 18. Carte mentale | 61 | 10 | 0 | 93 % |
+| 18. Carte mentale | 62 | 10 | 0 | 93 % |
 | 19. Document à blocs | 29 | 1 | 0 | 98 % |
-| **Total** | **384** | **22** | **2** | **97 %** |
+| **Total** | **388** | **22** | **2** | **97 %** |
 
 Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 
@@ -513,7 +513,8 @@ Propre à Notak, d'après Xmind 26.05 : le comportement de référence est dans 
 | Note audio | 🟡 | Le micro du navigateur ; non éprouvée sur un vrai micro dans cette passe. |
 | Équation en LaTeX | ✅ | Temml (MathML) ; aperçu à mesure, Cmd+Entrée valide. |
 | Grille, tableau-arbre | ➖ | Écartés (docs/XMIND.md § 2). |
-| Gantt, IA, commentaires et collaboration propres à Xmind, vidéo web | ➖ | Écartés (docs/XMIND.md § 6). |
+| Commentaire sur un sujet | ✅ | « Commenter » (⌥⌘M) au menu du sujet ; épingle au coin du sujet avec son compte et le point du nouveau, le même fil que la toile, état résolu, lecture seule respectée ; supprimer le sujet emporte son fil (annulable). Pas dans le .xmind. Reste : un commentateur (droit « commentaire ») ne peut pas encore commenter une carte, le serveur ne lui ouvre que les fils de la toile (docs/XMIND.md § 16). |
+| Gantt, IA, collaboration propre à Xmind, vidéo web | ➖ | Écartés (docs/XMIND.md § 6). |
 
 ## 19. Document à blocs
 
