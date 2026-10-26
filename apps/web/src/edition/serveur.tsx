@@ -4,6 +4,7 @@ import {
   HoteNotak,
   reglerCapture,
   type ServiceCompte,
+  type Services,
   type EspaceDistant,
   type Declaration,
   creerEspaceDistant,
@@ -11,7 +12,20 @@ import {
 } from '@notak/tableau'
 import { type ReactNode, StrictMode, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
-import { type Instance, type Moi, accepterInvitation, lireInstance, moi as lireMoi, noterElementVu, rechercherPartout, reglerCompte, seDeconnecter } from '../api'
+import {
+  type Instance,
+  type Moi,
+  accepterInvitation,
+  ecouterSessionFinie,
+  lireInstance,
+  listerTableaux,
+  moi as lireMoi,
+  noterElementVu,
+  rechercherPartout,
+  reglerCompte,
+  seDeconnecter,
+  sessionEncoreValide,
+} from '../api'
 import { importDejaPropose, lireAncienEspace, noterImportPropose } from '../ancien'
 import { PagePartage, PageRapide } from '../Arrivees'
 import { PageEnvoyer } from '../Envoyer'
@@ -33,8 +47,15 @@ import { creerRecents } from '../recents'
 import { PagePublique } from '../PagePublique'
 import { Partage } from '../Partage'
 import { PlusEntete } from '../PlusEntete'
-import { BandeauNouvelleVersion } from '../MiseAJour'
-import { enregistrerServiceWorker } from '../pwa'
+import { estPageServeur } from '../bureau'
+import { lancerMisesAJour } from '../MiseAJour'
+import { enregistrerServiceWorker, signalerNouvelleVersion } from '../pwa'
+import { PageAutoriser } from '../serveur/Autoriser'
+import { BandeauxServeur } from '../serveur/Bandeaux'
+import { FichiersOuverts } from '../serveur/FichiersOuverts'
+import { LigneServeur } from '../serveur/LigneServeur'
+import { servicesDeLaFenetre } from '../serveur/ouvrirAilleurs'
+import { type SurveillanceVersion, surveillerVersionDuServeur } from '../serveur/versionServeur'
 import { BoutonSignaler, brancherSignaler } from '../signaler/Signaler'
 import { VerrouTableau } from '../Verrou'
 import { t } from '../langue'
@@ -46,10 +67,10 @@ import { allerA, useChemin } from '../chemin'
  * la fenêtre reprend la main (la liste est demandée sans attendre, la note se contente de ce qu'on a).
  */
 let tableauxConnus: { id: string; titre: string }[] = []
+// Par l'API : refaite à chaque retour sur la fenêtre, une lecture qui répond « non connecté » dit aussi que la session a fini.
 const relireTableaux = () =>
-  fetch('/api/tableaux', { credentials: 'same-origin' })
-    .then((r) => (r.ok ? r.json() : []))
-    .then((t: { id: string; titre: string }[]) => (tableauxConnus = t.map(({ id, titre }) => ({ id, titre }))))
+  listerTableaux()
+    .then((t) => (tableauxConnus = t.map(({ id, titre }) => ({ id, titre }))))
     .catch(() => {})
 void relireTableaux()
 window.addEventListener('focus', () => void relireTableaux())
@@ -58,7 +79,7 @@ const recents = creerRecents()
 // Les images d'un autre site, dans une capture d'export : le serveur les relaie, le navigateur refuse de les lire.
 reglerCapture({ imageDistante: (adresse) => `/api/image-distante?url=${encodeURIComponent(adresse)}` })
 
-const services = {
+const services: Services = {
   fichiers,
   apercu,
   rapatrier,
@@ -69,8 +90,12 @@ const services = {
   recemmentModifies: recents.lire,
   ecouterRecemmentModifies: recents.ecouter,
   adressePhoto,
-  ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank'),
+  // Un onglet dans un navigateur ; dans l'app de bureau, qui n'a qu'une fenêtre, un fichier qui s'ouvre dans l'application du système.
+  ...servicesDeLaFenetre(),
 }
+
+/** Ce que la page sait de la version du serveur : la synchronisation qui se rétablit l'invite à la relire (`serveur/versionServeur.ts`). */
+let surveillance: SurveillanceVersion | null = null
 
 // Un espace par compte, créé une fois : React peut monter l'application deux fois, pas le réseau.
 let ouvert: { id: string; espace: EspaceDistant } | null = null
@@ -81,7 +106,11 @@ function espacePour(moi: Moi): EspaceDistant {
   const espace = creerEspaceDistant({
     racine: moi.racine,
     utilisateur: { id: moi.id, nom: moi.nom, couleur: moi.couleur, ...(moi.photo ? { photo: moi.photo } : {}) },
-    reseau: creerReseauNavigateur(moi.id),
+    reseau: creerReseauNavigateur(moi.id, {
+      // Un tableau refusé : un accès retiré, ou une session finie. `/api/moi` le dit, et la page revient à la connexion s'il le faut.
+      surRefus: () => void sessionEncoreValide(),
+      surConnexion: () => surveillance?.verifier(),
+    }),
     memoire: {
       lire() {
         try {
@@ -107,13 +136,43 @@ function fermerEspace() {
   ouvert = null
 }
 
-type Etat = { type: 'chargement' } | { type: 'anonyme' } | { type: 'erreur'; message: string } | { type: 'connecte'; moi: Moi }
+type Etat =
+  | { type: 'chargement' }
+  /** `sessionFinie` : on était connecté, et le serveur ne reconnaît plus la session. */
+  | { type: 'anonyme'; sessionFinie?: boolean }
+  | { type: 'erreur'; message: string }
+  | { type: 'connecte'; moi: Moi }
 
 function Application() {
   const [etat, setEtat] = useState<Etat>({ type: 'chargement' })
   // Lue une fois : le nom, les inscriptions et les thèmes ne changent qu'au redémarrage du serveur.
   const [instance, setInstance] = useState<Instance | null>(null)
   useEffect(() => void lireInstance().then(setInstance), [])
+  // Dans l'app de bureau, un serveur mis à jour sous la fenêtre ouverte : la page le voit à sa version (pas de service worker ici).
+  useEffect(() => {
+    if (!instance || !estPageServeur()) return
+    const s = surveillerVersionDuServeur({ depart: instance.version ?? null, signaler: signalerNouvelleVersion })
+    surveillance = s
+    return () => {
+      s.arreter()
+      if (surveillance === s) surveillance = null
+    }
+  }, [instance])
+  // Une session qui prend fin : retour à la connexion, avec un mot. Ce qu'on a écrit sans réseau reste dans l'appareil (IndexedDB,
+  // par compte) : l'espace se ferme sans rien effacer, et la même personne le retrouve en se reconnectant.
+  useEffect(
+    () =>
+      ecouterSessionFinie(() => {
+        // Un 401 isolé (une réponse en retard) ne suffit pas : `/api/moi` tranche. Sans réponse, on garde ce qu'on croyait.
+        void lireMoi().then(
+          (m) => {
+            if (!m) setEtat((e) => (e.type === 'connecte' ? { type: 'anonyme', sessionFinie: true } : e))
+          },
+          () => {},
+        )
+      }),
+    [],
+  )
   const charger = useCallback(() => {
     setEtat({ type: 'chargement' })
     lireMoi().then(
@@ -166,11 +225,21 @@ function Application() {
           <button type="button" className="bouton bouton-plein" onClick={charger}>
             {t('bandeau.reessayer')}
           </button>
+          {/* Un serveur qui ne répond pas : dans l'app de bureau, la sortie reste là. */}
+          {estPageServeur() && <LigneServeur />}
         </div>
       </main>
     )
   }
-  if (etat.type === 'anonyme') return <EcranConnexion instance={instance} surConnexion={(m) => setEtat({ type: 'connecte', moi: m })} />
+  if (etat.type === 'anonyme') {
+    // Ce que la personne doit savoir en arrivant ici : sa session a fini, ou elle vient confirmer la connexion de l'app de bureau.
+    const notice = etat.sessionFinie
+      ? { texte: t('serveur.session.finie'), urgent: true }
+      : chemin === '/bureau/autoriser'
+        ? { texte: t('serveur.autoriser.connexion') }
+        : undefined
+    return <EcranConnexion instance={instance} surConnexion={(m) => setEtat({ type: 'connecte', moi: m })} {...(notice ? { notice } : {})} />
+  }
   // Trois pages légères, sans la toile : le partage vers Notak, la note rapide du téléphone, et les jetons pour envoyer d'ailleurs.
   const proprietes = {
     moi: etat.moi,
@@ -181,11 +250,22 @@ function Application() {
       setEtat({ type: 'anonyme' })
     },
   }
-  if (chemin === '/rapide') return <PageLegere {...proprietes}>{() => <PageRapide espace={espacePour(etat.moi)} fichiers={fichiers} />}</PageLegere>
-  if (chemin === '/partage') return <PageLegere {...proprietes}>{() => <PagePartage espace={espacePour(etat.moi)} fichiers={fichiers} />}</PageLegere>
-  if (chemin === '/envoyer') return <PageLegere {...proprietes}>{() => <PageEnvoyer />}</PageLegere>
-  if (chemin === '/espace') return <PageLegere {...proprietes}>{() => <PageEspaces />}</PageLegere>
-  return chemin === '/' || chemin === '/bibliotheque' ? <Accueil {...proprietes} /> : <Espace {...proprietes} />
+  const page = (() => {
+    if (chemin === '/rapide') return <PageLegere {...proprietes}>{() => <PageRapide espace={espacePour(etat.moi)} fichiers={fichiers} />}</PageLegere>
+    if (chemin === '/partage') return <PageLegere {...proprietes}>{() => <PagePartage espace={espacePour(etat.moi)} fichiers={fichiers} />}</PageLegere>
+    if (chemin === '/envoyer') return <PageLegere {...proprietes}>{() => <PageEnvoyer />}</PageLegere>
+    if (chemin === '/espace') return <PageLegere {...proprietes}>{() => <PageEspaces />}</PageLegere>
+    // Où l'on confirme la connexion de l'app de bureau (le lien que le navigateur ouvre).
+    if (chemin === '/bureau/autoriser') return <PageLegere {...proprietes}>{() => <PageAutoriser moi={etat.moi} />}</PageLegere>
+    return chemin === '/' || chemin === '/bibliotheque' ? <Accueil {...proprietes} /> : <Espace {...proprietes} />
+  })()
+  return (
+    <>
+      {page}
+      {/* Au-dessus des pages : l'état d'une copie remise à plus tard ne se perd pas quand on change de page. */}
+      <FichiersOuverts espace={espacePour(etat.moi)} racine={etat.moi.racine} fichiers={fichiers} ouvrir={(id) => allerA(`/t/${encodeURIComponent(id)}`)} />
+    </>
+  )
 }
 
 type ProprietesEcran = { moi: Moi; instance: Instance; changerMoi(m: Moi): void; deconnexion(): void }
@@ -217,21 +297,24 @@ function Accueil({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
   const compte = useCompte(moi, changerMoi)
   const espace = espacePour(moi)
   return (
-    <HoteNotak compte={compte} habillages={habillages} className="biblio-hote">
-      {(fenetres) => (
-        <PageBibliotheque
-          espace={espace}
-          fenetres={fenetres}
-          compte={
-            <>
-              <BoutonSignaler />
-              <Cloche ouvrir={(id) => allerA(`/t/${encodeURIComponent(id)}`)} />
-              <Compte moi={moi} deconnexion={deconnexion} aide={fenetres.aide} />
-            </>
-          }
-        />
-      )}
-    </HoteNotak>
+    <>
+      <HoteNotak compte={compte} habillages={habillages} className="biblio-hote">
+        {(fenetres) => (
+          <PageBibliotheque
+            espace={espace}
+            fenetres={fenetres}
+            compte={
+              <>
+                <BoutonSignaler />
+                <Cloche ouvrir={(id) => allerA(`/t/${encodeURIComponent(id)}`)} />
+                <Compte moi={moi} deconnexion={deconnexion} aide={fenetres.aide} />
+              </>
+            }
+          />
+        )}
+      </HoteNotak>
+      <BandeauxServeur moi={moi} />
+    </>
   )
 }
 
@@ -302,7 +385,7 @@ function Espace({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
         )}
       />
       <BandeauImport moi={moi} espace={espace} />
-      <BandeauNouvelleVersion />
+      <BandeauxServeur moi={moi} />
       <DialogueExport />
     </>
   )
@@ -347,6 +430,8 @@ function BandeauImport({ moi, espace }: { moi: Moi; espace: EspaceDistant }) {
 /** `/p/<jeton>` : un tableau publié, lu sans compte. */
 const publie = /^\/p\/([A-Za-z0-9_-]+)\/?$/.exec(location.pathname)
 enregistrerServiceWorker()
+// Dans l'app de bureau : la recherche des mises à jour signées (`MiseAJour.tsx`).
+if (estPageServeur()) lancerMisesAJour()
 // ⇧⌘S, partout : un bug se signale sans quitter ce qu'on fait (`signaler/Signaler.tsx`).
 brancherSignaler()
 

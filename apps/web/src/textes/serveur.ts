@@ -1,6 +1,189 @@
 import type { Textes } from '@notak/tableau'
 
 /** Textes de la piste « serveur », réunis à ceux de `../langue.ts` (fichier temporaire, replié dans `langue.ts` à la fin). */
-export const fr: Textes = {}
+export const fr: Textes = {
+  // Les refus des codes d'appareil (la page « Autoriser l'app de bureau »), dits à partir du code de Better Auth.
+  'erreur.appareil_inconnu': 'Ce code n’est pas reconnu, ou il a déjà servi.',
+  'erreur.appareil_expire': 'Ce code a expiré.',
+  'erreur.appareil_autre_compte': 'Cette demande a été ouverte avec un autre compte : connectez-vous avec le compte qui l’a ouverte, ou relancez la connexion dans l’app.',
 
-export const en: Textes = {}
+  // L'écran de connexion dans l'app de bureau.
+  'serveur.connexion.serveur': 'Serveur :',
+  'serveur.connexion.changer': 'Changer de serveur',
+  'serveur.connexion.local': 'Toiles de cet ordinateur',
+  'serveur.connexion.retourImpossible': 'Impossible de quitter ce serveur pour le moment. Réessayez.',
+  'serveur.connexion.ouvreNavigateur': 'La connexion avec Google, Microsoft, GitHub ou le SSO de votre entreprise se termine dans votre navigateur.',
+  'serveur.connexion.ssoNavigateur':
+    'Votre navigateur s’ouvrira sur ce serveur : saisissez-y votre adresse professionnelle, et Notak vous enverra vers le service de connexion de votre entreprise.',
+  'serveur.connexion.continuerNavigateur': 'Continuer dans le navigateur',
+  'serveur.connexion.oubliNavigateur': 'Le lien s’ouvrira dans votre navigateur : changez-y le mot de passe, puis revenez ici pour vous connecter.',
+  'serveur.connexion.lienNavigateur': 'Il s’ouvrira dans votre navigateur : changez-y le mot de passe, puis revenez ici pour vous connecter.',
+  'serveur.session.finie': 'Votre session a pris fin. Reconnectez-vous pour continuer.',
+
+  // L'attente de la connexion par le navigateur.
+  'serveur.code.titre': 'Terminez la connexion dans votre navigateur',
+  'serveur.code.titreFin': 'La connexion n’a pas abouti',
+  'serveur.code.demande': 'Demande d’un code à {hote}…',
+  'serveur.code.accorde': 'Autorisé : ouverture de votre session…',
+  'serveur.code.aide': 'Votre navigateur s’ouvre sur {hote}. Connectez-vous-y comme d’habitude, vérifiez le code, puis autorisez l’app.',
+  'serveur.code.etiquette': 'Code à retrouver dans le navigateur',
+  'serveur.code.expireDans': 'Ce code expire dans {duree}.',
+  'serveur.code.rouvrir': 'Rouvrir le navigateur',
+  'serveur.code.siRien': 'Si votre navigateur ne s’est pas ouvert, utilisez le bouton ci-dessus.',
+  'serveur.code.recommencer': 'Recommencer',
+  'serveur.code.retour': 'Retour à la connexion',
+  'serveur.code.expire': 'Ce code n’est plus valable : il a expiré, ou il a déjà servi. Recommencez pour en obtenir un nouveau.',
+  'serveur.code.refuse': 'La connexion a été refusée dans le navigateur. Si ce n’était pas voulu, recommencez.',
+  'serveur.code.reseau': 'Le serveur ne répond pas. Vérifiez votre connexion, puis recommencez.',
+  'serveur.code.ancien': 'Ce serveur ne sait pas encore connecter l’app par le navigateur. Utilisez votre mot de passe, ou demandez à son administrateur de le mettre à jour.',
+  'serveur.code.session': 'La connexion a été autorisée, mais cette fenêtre n’a pas reçu votre session. Recommencez, ou utilisez votre mot de passe.',
+
+  // La page du navigateur où l'on autorise l'app de bureau.
+  'serveur.autoriser.titre': 'Autoriser l’app Notak de bureau ?',
+  'serveur.autoriser.intro': 'Une app Notak de bureau demande à se connecter au compte {nom} ({email}) sur ce serveur.',
+  'serveur.autoriser.connexion': 'Connectez-vous pour autoriser l’app Notak de bureau.',
+  'serveur.autoriser.comparer': 'Comparez ce code avec celui de l’app',
+  'serveur.autoriser.depuis': 'Demandée depuis l’adresse',
+  'serveur.autoriser.quand': 'Demandée',
+  'serveur.autoriser.cettePage': 'Cette page vue depuis',
+  'serveur.autoriser.inconnue': 'Inconnue',
+  'serveur.autoriser.alInstant': 'à l’instant',
+  'serveur.autoriser.autreReseau': 'Cette demande ne vient pas de votre réseau actuel : si vous n’avez pas lancé la connexion vous-même, refusez.',
+  'serveur.autoriser.origineInconnue': 'Le serveur ne sait plus d’où cette demande est partie (il a redémarré depuis). Si vous n’avez pas lancé la connexion vous-même, refusez.',
+  'serveur.autoriser.seulement':
+    'N’autorisez que si vous venez de lancer la connexion dans l’app Notak et que ce code est le même. Sans réponse de votre part, rien ne se passe : le code s’éteint au bout de dix minutes.',
+  'serveur.autoriser.autoriser': 'Autoriser',
+  'serveur.autoriser.refuser': 'Refuser',
+  'serveur.autoriser.fait': 'C’est fait : revenez dans l’app Notak.',
+  'serveur.autoriser.faitAide': 'Elle est connectée à votre compte. Vous pouvez fermer cet onglet.',
+  'serveur.autoriser.refusee': 'Demande refusée.',
+  'serveur.autoriser.refuseeAide': 'L’app Notak ne sera pas connectée. Vous pouvez fermer cet onglet.',
+  'serveur.autoriser.impossible': 'Cette demande ne peut pas être traitée',
+  'serveur.autoriser.relancer': 'Relancez la connexion dans l’app Notak : un nouveau code s’y affichera.',
+  'serveur.autoriser.dejaFait': 'Ce code a déjà été utilisé.',
+  'serveur.autoriser.saisieTitre': 'Quel code l’app affiche-t-elle ?',
+  'serveur.autoriser.saisieChamp': 'Code affiché dans l’app Notak',
+  'serveur.autoriser.continuer': 'Continuer',
+  'serveur.autoriser.codeMalForme': 'Ce code n’a pas la bonne forme : des lettres et des chiffres, huit en tout.',
+
+  // Le menu du compte dans l'app de bureau.
+  'serveur.compte.changerServeur': 'Changer de serveur…',
+  'serveur.compte.toilesLocales': 'Toiles de cet ordinateur',
+  'serveur.compte.toilesLocales.detail': 'Sans serveur ni compte',
+  'serveur.compte.retourImpossible': 'Impossible de quitter ce serveur pour le moment.',
+
+  // La nouvelle version du serveur, dite à ses admins.
+  'serveur.maj.disponible': 'Notak {version} est disponible (ce serveur : {actuelle}).',
+  'serveur.maj.copier': 'Copier la commande',
+  'serveur.maj.copiee': 'Commande copiée',
+  'serveur.maj.copieEchec': 'La copie a échoué. Commande à lancer sur le serveur :',
+  'serveur.maj.notes': 'Notes de version',
+
+  // Les copies remises à l'app par le système, et les toiles de cet ordinateur confiées à ce serveur.
+  'serveur.ouverts.titre': '« {nom} »',
+  'serveur.ouverts.titreConfiee': 'Importer les toiles de cet ordinateur sur {hote} ?',
+  'serveur.ouverts.confiee':
+    'Une copie de vos toiles de cet ordinateur est prête. Elle s’ajoutera à votre accueil sur {hote}, comme une nouvelle toile. Rien n’est supprimé sur cet ordinateur : vos toiles y restent.',
+  'serveur.ouverts.fichier': 'Copie Notak de {taille}, ouverte depuis votre ordinateur. L’importer l’ajoute à votre accueil sur {hote}.',
+  'serveur.ouverts.ouvrirIciNote': '« Ouvrir sur cet ordinateur » la garde parmi les toiles de cet ordinateur, sans serveur ; Notak s’y ouvrira désormais.',
+  'serveur.ouverts.importerSur': 'Importer sur {hote}',
+  'serveur.ouverts.importer': 'Importer',
+  'serveur.ouverts.ouvrirIci': 'Ouvrir sur cet ordinateur',
+  'serveur.ouverts.pasMaintenant': 'Pas maintenant',
+  'serveur.ouverts.encours': 'Import en cours…',
+  'serveur.ouverts.illisible': 'Cette copie n’a pas pu être lue. Ouvrez-la de nouveau depuis votre ordinateur.',
+  'serveur.ouverts.retourImpossible': 'Impossible de passer aux toiles de cet ordinateur pour le moment.',
+
+  // Un fichier de la toile ouvert dans l'application du système.
+  'serveur.ouvrir.tropVite': 'Trop de fichiers ouverts d’un coup : patientez un instant.',
+  'serveur.ouvrir.impossible': 'Ce fichier n’a pas pu s’ouvrir.',
+}
+
+export const en: Textes = {
+  'erreur.appareil_inconnu': 'This code isn’t recognised, or it has already been used.',
+  'erreur.appareil_expire': 'This code has expired.',
+  'erreur.appareil_autre_compte': 'This request was opened with another account: sign in with the account that opened it, or start the sign-in again in the app.',
+
+  'serveur.connexion.serveur': 'Server:',
+  'serveur.connexion.changer': 'Change server',
+  'serveur.connexion.local': 'Boards on this computer',
+  'serveur.connexion.retourImpossible': 'Can’t leave this server right now. Try again.',
+  'serveur.connexion.ouvreNavigateur': 'Signing in with Google, Microsoft, GitHub or your company’s SSO finishes in your browser.',
+  'serveur.connexion.ssoNavigateur': 'Your browser will open on this server: enter your work email there, and Notak will send you to your company’s sign-in service.',
+  'serveur.connexion.continuerNavigateur': 'Continue in the browser',
+  'serveur.connexion.oubliNavigateur': 'The link opens in your browser: change the password there, then come back here to sign in.',
+  'serveur.connexion.lienNavigateur': 'It opens in your browser: change the password there, then come back here to sign in.',
+  'serveur.session.finie': 'Your session has ended. Sign in again to continue.',
+
+  'serveur.code.titre': 'Finish signing in in your browser',
+  'serveur.code.titreFin': 'Signing in didn’t work',
+  'serveur.code.demande': 'Asking {hote} for a code…',
+  'serveur.code.accorde': 'Approved: opening your session…',
+  'serveur.code.aide': 'Your browser is opening on {hote}. Sign in there as usual, check the code, then approve the app.',
+  'serveur.code.etiquette': 'Code to find in the browser',
+  'serveur.code.expireDans': 'This code expires in {duree}.',
+  'serveur.code.rouvrir': 'Reopen the browser',
+  'serveur.code.siRien': 'If your browser didn’t open, use the button above.',
+  'serveur.code.recommencer': 'Start over',
+  'serveur.code.retour': 'Back to sign in',
+  'serveur.code.expire': 'This code is no longer valid: it has expired, or it has already been used. Start over to get a new one.',
+  'serveur.code.refuse': 'Sign-in was refused in the browser. If that wasn’t intended, start over.',
+  'serveur.code.reseau': 'The server isn’t answering. Check your connection, then start over.',
+  'serveur.code.ancien': 'This server can’t yet sign the app in through the browser. Use your password, or ask its administrator to update it.',
+  'serveur.code.session': 'Sign-in was approved, but this window didn’t receive your session. Start over, or use your password.',
+
+  'serveur.autoriser.titre': 'Authorise the Notak desktop app?',
+  'serveur.autoriser.intro': 'A Notak desktop app is asking to sign in to the account {nom} ({email}) on this server.',
+  'serveur.autoriser.connexion': 'Sign in to authorise the Notak desktop app.',
+  'serveur.autoriser.comparer': 'Compare this code with the one in the app',
+  'serveur.autoriser.depuis': 'Requested from address',
+  'serveur.autoriser.quand': 'Requested',
+  'serveur.autoriser.cettePage': 'This page seen from',
+  'serveur.autoriser.inconnue': 'Unknown',
+  'serveur.autoriser.alInstant': 'just now',
+  'serveur.autoriser.autreReseau': 'This request doesn’t come from your current network: if you didn’t start the sign-in yourself, refuse it.',
+  'serveur.autoriser.origineInconnue': 'The server no longer knows where this request came from (it has restarted since). If you didn’t start the sign-in yourself, refuse it.',
+  'serveur.autoriser.seulement':
+    'Only authorise if you just started the sign-in in the Notak app and this code is the same. Without an answer from you nothing happens: the code expires after ten minutes.',
+  'serveur.autoriser.autoriser': 'Authorise',
+  'serveur.autoriser.refuser': 'Refuse',
+  'serveur.autoriser.fait': 'Done: go back to the Notak app.',
+  'serveur.autoriser.faitAide': 'It is signed in to your account. You can close this tab.',
+  'serveur.autoriser.refusee': 'Request refused.',
+  'serveur.autoriser.refuseeAide': 'The Notak app won’t be signed in. You can close this tab.',
+  'serveur.autoriser.impossible': 'This request can’t be handled',
+  'serveur.autoriser.relancer': 'Start the sign-in again in the Notak app: a new code will appear there.',
+  'serveur.autoriser.dejaFait': 'This code has already been used.',
+  'serveur.autoriser.saisieTitre': 'Which code does the app show?',
+  'serveur.autoriser.saisieChamp': 'Code shown in the Notak app',
+  'serveur.autoriser.continuer': 'Continue',
+  'serveur.autoriser.codeMalForme': 'This code isn’t the right shape: letters and digits, eight in all.',
+
+  'serveur.compte.changerServeur': 'Change server…',
+  'serveur.compte.toilesLocales': 'Boards on this computer',
+  'serveur.compte.toilesLocales.detail': 'No server, no account',
+  'serveur.compte.retourImpossible': 'Can’t leave this server right now.',
+
+  'serveur.maj.disponible': 'Notak {version} is available (this server: {actuelle}).',
+  'serveur.maj.copier': 'Copy the command',
+  'serveur.maj.copiee': 'Command copied',
+  'serveur.maj.copieEchec': 'Copying failed. Command to run on the server:',
+  'serveur.maj.notes': 'Release notes',
+
+  'serveur.ouverts.titre': '“{nom}”',
+  'serveur.ouverts.titreConfiee': 'Import the boards on this computer to {hote}?',
+  'serveur.ouverts.confiee':
+    'A copy of your boards on this computer is ready. It will be added to your home on {hote} as a new board. Nothing is deleted on this computer: your boards stay there.',
+  'serveur.ouverts.fichier': 'Notak copy of {taille}, opened from your computer. Importing it adds it to your home on {hote}.',
+  'serveur.ouverts.ouvrirIciNote': '“Open on this computer” keeps it among the boards on this computer, without a server; Notak will open there from now on.',
+  'serveur.ouverts.importerSur': 'Import to {hote}',
+  'serveur.ouverts.importer': 'Import',
+  'serveur.ouverts.ouvrirIci': 'Open on this computer',
+  'serveur.ouverts.pasMaintenant': 'Not now',
+  'serveur.ouverts.encours': 'Importing…',
+  'serveur.ouverts.illisible': 'This copy couldn’t be read. Open it again from your computer.',
+  'serveur.ouverts.retourImpossible': 'Can’t switch to the boards on this computer right now.',
+
+  'serveur.ouvrir.tropVite': 'Too many files opened at once: wait a moment.',
+  'serveur.ouvrir.impossible': 'This file couldn’t be opened.',
+}

@@ -40,6 +40,18 @@ describe('les versions de la version web', () => {
     expect(nouvelleVersion()).toBe(true)
   })
 
+  it('l’hôte peut la signaler lui-même (l’app de bureau n’a pas de service worker), une fois, et chacun l’apprend', async () => {
+    const { signalerNouvelleVersion, nouvelleVersion, ecouterNouvelleVersion } = await import('./pwa')
+    const prevenu = vi.fn()
+    const arreter = ecouterNouvelleVersion(prevenu)
+    expect(nouvelleVersion()).toBe(false)
+    signalerNouvelleVersion()
+    signalerNouvelleVersion()
+    expect(nouvelleVersion()).toBe(true)
+    expect(prevenu).toHaveBeenCalledTimes(1)
+    arreter()
+  })
+
   it('redemande la version toutes les heures', async () => {
     vi.useFakeTimers()
     const { suivreLesVersions } = await import('./pwa')

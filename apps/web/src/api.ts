@@ -9,6 +9,8 @@ export interface Moi {
   racine: string
   /** Le fichier de sa photo (voir `adressePhoto`), ou `null`. */
   photo: string | null
+  /** Administre ce serveur (`NOTAK_ADMINS`) : il est prévenu d'une nouvelle version. */
+  admin?: boolean
 }
 
 export type Role = 'proprietaire' | 'edition' | 'commentaire' | 'lecture'
@@ -40,8 +42,9 @@ export class ErreurApi extends Error {
 }
 
 async function appeler(chemin: string, corps?: unknown, methode = corps === undefined ? 'GET' : 'POST'): Promise<Response> {
+  let r: Response
   try {
-    return await fetch(chemin, {
+    r = await fetch(chemin, {
       method: methode,
       credentials: 'same-origin',
       ...(corps === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) }),
@@ -49,6 +52,59 @@ async function appeler(chemin: string, corps?: unknown, methode = corps === unde
   } catch {
     throw new ErreurApi(t('erreur.injoignable'), 0)
   }
+  guetterSessionFinie(r, chemin, methode)
+  return r
+}
+
+// ---- La session qui prend fin sous la page ----
+
+const surSessionFinie = new Set<() => void>()
+
+/** Prévenu quand la session a pris fin (expirée, ou fermée ailleurs) : l'application revient à l'écran de connexion. */
+export function ecouterSessionFinie(f: () => void): () => void {
+  surSessionFinie.add(f)
+  return () => void surSessionFinie.delete(f)
+}
+
+export function signalerSessionFinie(): void {
+  for (const f of [...surSessionFinie]) f()
+}
+
+/**
+ * Un appel qui demande un compte et répond « non connecté » : la session a pris fin. Pas ceux de la connexion elle-même
+ * (`/api/auth/…`, où un 401 dit « mot de passe incorrect »), ni la lecture de `/api/moi`, qui sert justement à savoir
+ * si l'on est connecté.
+ */
+function guetterSessionFinie(r: Response, chemin: string, methode: string): void {
+  if (r.status !== 401 || chemin.startsWith('/api/auth/') || (chemin === '/api/moi' && methode === 'GET')) return
+  void r
+    .clone()
+    .json()
+    .then(
+      (corps: { code?: unknown } | null) => corps?.code === 'non_connecte' && signalerSessionFinie(),
+      () => {},
+    )
+}
+
+let verification: Promise<boolean> | null = null
+
+/**
+ * La session tient-elle encore ? La synchronisation refuse un tableau aussi bien quand l'accès est retiré que quand la
+ * session a fini : seul `/api/moi` le dit. Sans réponse (hors ligne), on garde ce qu'on croyait.
+ */
+export function sessionEncoreValide(): Promise<boolean> {
+  return (verification ??= (async () => {
+    try {
+      const r = await appeler('/api/moi')
+      if (r.status !== 401) return true
+      signalerSessionFinie()
+      return false
+    } catch {
+      return true
+    } finally {
+      verification = null
+    }
+  })())
 }
 
 /** Les mots plus justes d'un tableau absent et d'un geste réservé au propriétaire, par code puis par statut. */
@@ -85,6 +141,8 @@ export interface Instance {
   habillages: Habillage[]
   impose?: string
   parDefaut?: string
+  /** La version du serveur au chargement de la page : celle qu'un serveur mis à jour ne dira plus (`/api/sante`). */
+  version?: string
 }
 
 const INSTANCE_ORIGINE: Instance = { nom: 'Notak', inscriptions: 'ouvertes', habillages: [] }
@@ -111,6 +169,7 @@ export async function lireInstance(): Promise<Instance> {
       habillages,
       ...(typeof brut.impose === 'string' ? { impose: brut.impose } : {}),
       ...(typeof brut.parDefaut === 'string' ? { parDefaut: brut.parDefaut } : {}),
+      ...(typeof brut.version === 'string' && brut.version.length <= 64 ? { version: brut.version } : {}),
     }
   } catch {
     return INSTANCE_ORIGINE
@@ -195,6 +254,63 @@ export async function connexionSso(email: string): Promise<void> {
   if (!r.ok) throw await refus(r, { ...REFUS_AUTH, 404: 'erreur.sso_inconnu', 400: 'erreur.sso_inconnu', 401: 'erreur.sso_inconnu' })
   const { url } = (await r.json()) as { url?: string }
   if (url) location.assign(url)
+}
+
+// ---- L'app de bureau demande à se connecter : la page où l'on confirme son code ----
+
+/** D'où et quand l'app a demandé le code, et d'où l'on confirme (`GET /api/bureau/demande`). */
+export interface DemandeBureau {
+  ip: string
+  quand: number
+  ipActuelle: string
+}
+
+const CODES_APPAREIL: Record<string, string> = {
+  invalid_request: 'erreur.appareil_inconnu',
+  expired_token: 'erreur.appareil_expire',
+  access_denied: 'erreur.appareil_autre_compte',
+}
+
+/**
+ * Le refus d'une route des codes d'appareil de Better Auth : `{ error, error_description }` en anglais. Le code
+ * (`invalid_request`, `expired_token`, `access_denied`…) reste dans `ErreurApi.code`, pour que la page dise le cas.
+ */
+async function refusAppareil(r: Response): Promise<ErreurApi> {
+  const corps = (await r
+    .clone()
+    .json()
+    .catch(() => null)) as { error?: unknown } | null
+  const code = typeof corps?.error === 'string' ? corps.error : undefined
+  if (r.status === 429 || !code) return refus(r, {})
+  const cle = CODES_APPAREIL[code]
+  return cle ? new ErreurApi(t(cle), r.status, code) : refus(r, {})
+}
+
+/**
+ * Ouvre la page d'un code : le serveur le confie à ce compte, le premier qui l'ouvre. `client` est absent quand un
+ * autre compte l'avait pris en main avant. `statut` : `pending`, `approved` ou `denied`.
+ */
+export async function ouvrirCodeBureau(code: string): Promise<{ statut: string; client: string | null }> {
+  const r = await appeler(`/api/auth/device?user_code=${encodeURIComponent(code)}`)
+  if (!r.ok) throw await refusAppareil(r)
+  const lu = (await r.json().catch(() => null)) as { status?: unknown; client_id?: unknown } | null
+  return { statut: typeof lu?.status === 'string' ? lu.status : '', client: typeof lu?.client_id === 'string' ? lu.client_id : null }
+}
+
+/** D'où l'app a demandé ce code ; `null` quand le serveur ne le sait plus (il a redémarré depuis). */
+export async function lireDemandeBureau(code: string): Promise<DemandeBureau | null> {
+  const r = await appeler(`/api/bureau/demande?user_code=${encodeURIComponent(code)}`)
+  if (r.status === 404) return null
+  if (!r.ok) throw await refus(r, {})
+  const lu = (await r.json().catch(() => null)) as Partial<Record<keyof DemandeBureau, unknown>> | null
+  if (typeof lu?.ip !== 'string' || typeof lu.ipActuelle !== 'string' || typeof lu.quand !== 'number' || !Number.isFinite(lu.quand)) return null
+  return { ip: lu.ip.slice(0, 64), quand: lu.quand, ipActuelle: lu.ipActuelle.slice(0, 64) }
+}
+
+/** Autorise (ou refuse) l'app qui attend ce code. */
+export async function repondreCodeBureau(code: string, autoriser: boolean): Promise<void> {
+  const r = await appeler(`/api/auth/device/${autoriser ? 'approve' : 'deny'}`, { userCode: code })
+  if (!r.ok) throw await refusAppareil(r)
 }
 
 // ---- Espaces : les organisations de Better Auth ----

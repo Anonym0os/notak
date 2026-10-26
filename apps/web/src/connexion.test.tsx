@@ -11,15 +11,18 @@ let racine: Root
 let hote: HTMLElement
 /** Ce que le serveur répond, adresse par adresse ; `/api/connexion/moyens` répond toujours. */
 let reponses: Record<string, () => Response>
+/** Ce que `/api/connexion/moyens` propose : aucun fournisseur, par défaut. */
+let moyens: { fournisseurs: string[]; courriel: boolean }
 const appels: string[] = []
 
 beforeEach(() => {
   definirLangue('fr')
   appels.length = 0
   reponses = {}
+  moyens = { fournisseurs: [], courriel: true }
   vi.stubGlobal('fetch', async (adresse: string) => {
     appels.push(adresse)
-    if (adresse === '/api/connexion/moyens') return Response.json({ fournisseurs: [], courriel: true })
+    if (adresse === '/api/connexion/moyens') return Response.json(moyens)
     return reponses[adresse]?.() ?? new Response('{}', { status: 404 })
   })
   hote = document.createElement('div')
@@ -32,8 +35,10 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-const monter = async (surConnexion = vi.fn()) => {
-  await act(async () => racine.render(<EcranConnexion instance={{ nom: 'Notak', inscriptions: 'ouvertes', habillages: [] }} surConnexion={surConnexion} />))
+const monter = async (surConnexion = vi.fn(), notice?: { texte: string; urgent?: boolean }) => {
+  await act(async () =>
+    racine.render(<EcranConnexion instance={{ nom: 'Notak', inscriptions: 'ouvertes', habillages: [] }} surConnexion={surConnexion} {...(notice ? { notice } : {})} />),
+  )
   return surConnexion
 }
 const champ = (nom: string) => hote.querySelector<HTMLInputElement>(`[data-champ="${nom}"]`)!
@@ -125,6 +130,237 @@ describe('l’écran de connexion', () => {
     await ecrire('email', 'Ana@Exemple.fr ')
     await envoyer()
     expect(hote.querySelector('[role=status]')?.textContent).toContain('Si ana@exemple.fr a un compte, un lien vient de partir')
+  })
+})
+
+describe('ce qu’on sait en arrivant sur l’écran de connexion', () => {
+  it('une session finie se dit, et d’abord à qui ne lit que les alertes', async () => {
+    await monter(vi.fn(), { texte: 'Votre session a pris fin. Reconnectez-vous pour continuer.', urgent: true })
+    expect(hote.querySelector('.connexion-notice')?.getAttribute('role')).toBe('alert')
+    expect(hote.querySelector('.connexion-notice')?.textContent).toBe('Votre session a pris fin. Reconnectez-vous pour continuer.')
+  })
+
+  it('une indication sans urgence est un simple état', async () => {
+    await monter(vi.fn(), { texte: 'Connectez-vous pour autoriser l’app Notak de bureau.' })
+    expect(hote.querySelector('.connexion-notice')?.getAttribute('role')).toBe('status')
+  })
+
+  it('le retour d’un fournisseur en erreur garde le reste de l’adresse (le code de l’app qu’on autorise)', async () => {
+    history.replaceState(null, '', '/bureau/autoriser?user_code=ABCD2345&error=access_denied&error_description=refus')
+    await monter()
+    expect(hote.querySelector('[role=alert]')?.textContent).toBe('La connexion n’a pas abouti. Réessayez, ou passez par votre mot de passe.')
+    expect(location.pathname + location.search).toBe('/bureau/autoriser?user_code=ABCD2345')
+    history.replaceState(null, '', '/')
+  })
+
+  it('et rend l’adresse nue quand il n’y avait rien d’autre', async () => {
+    history.replaceState(null, '', '/?error=access_denied')
+    await monter()
+    expect(location.pathname + location.search).toBe('/')
+  })
+})
+
+describe('l’écran de connexion dans un navigateur', () => {
+  it('n’a ni la ligne du serveur ni la sortie vers cet ordinateur, et un fournisseur y mène chez lui', async () => {
+    moyens = { fournisseurs: ['google'], courriel: true }
+    reponses['/api/auth/sign-in/social'] = () => Response.json({})
+    await monter()
+    expect(hote.querySelector('.connexion-bureau')).toBeNull()
+    expect(hote.textContent).not.toContain('Toiles de cet ordinateur')
+    await act(async () => bouton(/Continuer avec Google/).click())
+    expect(appels).toContain('/api/auth/sign-in/social')
+    expect(appels).not.toContain('/api/auth/device/code')
+  })
+})
+
+describe('l’écran de connexion dans l’app de bureau', () => {
+  const invoke = vi.fn()
+  const ouvrir = vi.fn()
+  const CODE = { device_code: 'dev-1', user_code: 'ABCD2345', verification_uri: 'x', verification_uri_complete: 'x', expires_in: 600, interval: 1 }
+  const jeton = () => new Response(JSON.stringify({ error: 'authorization_pending' }), { status: 400 })
+
+  beforeEach(() => {
+    invoke.mockReset().mockResolvedValue(undefined)
+    ouvrir.mockReset()
+    ;(window as unknown as { __TAURI_INTERNALS__: unknown }).__TAURI_INTERNALS__ = { invoke }
+    vi.stubGlobal('open', ouvrir)
+    moyens = { fournisseurs: ['google', 'github'], courriel: true }
+    reponses['/api/auth/device/code'] = () => Response.json(CODE)
+    reponses['/api/auth/device/token'] = jeton
+  })
+  afterEach(() => {
+    delete (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
+    vi.useRealTimers()
+  })
+
+  /** Avance l'horloge, dans `act` : la page se redessine avec ce que la machine d'états a dit. */
+  const avancer = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)))
+  const lancer = async (libelle = /Continuer avec Google/) => {
+    vi.useFakeTimers()
+    await monter()
+    await act(async () => bouton(libelle).click())
+    await avancer(0)
+  }
+
+  it('dit le serveur où l’on est, de quoi en changer, et de quoi revenir aux toiles de cet ordinateur', async () => {
+    await monter()
+    const ligne = hote.querySelector('.connexion-bureau')!
+    expect(ligne.textContent).toContain('Serveur : localhost:3000')
+    await act(async () => bouton(/Changer de serveur/).click())
+    expect(invoke).toHaveBeenLastCalledWith('revenir_ici', { ecran: 'acces' }, undefined)
+    await act(async () => bouton(/Toiles de cet ordinateur/).click())
+    expect(invoke).toHaveBeenLastCalledWith('revenir_ici', { ecran: 'local' }, undefined)
+  })
+
+  it('si la coque refuse de partir, on le dit et les boutons restent', async () => {
+    invoke.mockRejectedValue({ code: 'interdit' })
+    await monter()
+    await act(async () => bouton(/Changer de serveur/).click())
+    expect(hote.querySelector('.connexion-bureau [role=alert]')?.textContent).toContain('Impossible de quitter ce serveur')
+    expect(bouton(/Changer de serveur/).disabled).toBe(false)
+  })
+
+  it('un fournisseur ne mène pas la fenêtre chez lui : l’écran d’attente montre le code, et le navigateur s’ouvre', async () => {
+    await lancer()
+    expect(appels).not.toContain('/api/auth/sign-in/social')
+    expect(appels).toContain('/api/auth/device/code')
+    expect(hote.querySelector('h1')?.textContent).toBe('Terminez la connexion dans votre navigateur')
+    expect(hote.querySelector('.connexion-code-valeur')?.textContent).toBe('ABCD 2345')
+    expect(hote.querySelector('[role=group]')?.getAttribute('aria-labelledby')).toBe('connexion-code-etiquette')
+    expect(ouvrir).toHaveBeenCalledExactlyOnceWith('http://localhost:3000/bureau/autoriser?user_code=ABCD2345', '_blank', 'noopener')
+    expect(hote.textContent).toContain('Ce code expire dans 10 min.')
+    // Le curseur est sur ce qui sert d'abord : rouvrir le navigateur.
+    expect(document.activeElement).toBe(bouton(/Rouvrir le navigateur/))
+  })
+
+  it('« Rouvrir le navigateur » remet le lien dans le navigateur', async () => {
+    await lancer()
+    await act(async () => bouton(/Rouvrir le navigateur/).click())
+    expect(ouvrir).toHaveBeenCalledTimes(2)
+    expect(ouvrir.mock.calls[1]![0]).toBe('http://localhost:3000/bureau/autoriser?user_code=ABCD2345')
+  })
+
+  it('le compte à rebours avance', async () => {
+    await lancer()
+    await avancer(60_000 + 1000)
+    expect(hote.textContent).toContain('Ce code expire dans 9 min.')
+  })
+
+  it('accordé dans le navigateur : la session est relue, et l’écran de connexion rend la main', async () => {
+    reponses['/api/moi'] = () => Response.json({ id: 'u1', email: 'ana@exemple.fr', nom: 'Ana' })
+    const surConnexion = vi.fn()
+    vi.useFakeTimers()
+    await monter(surConnexion)
+    await act(async () => bouton(/Continuer avec GitHub/).click())
+    await avancer(0)
+    reponses['/api/auth/device/token'] = () => Response.json({ access_token: 'x' })
+    await avancer(1000)
+    expect(appels).toContain('/api/moi')
+    expect(surConnexion).toHaveBeenCalledExactlyOnceWith({ id: 'u1', email: 'ana@exemple.fr', nom: 'Ana' })
+  })
+
+  it('accordé, mais la session n’est pas arrivée dans cette fenêtre : on le dit, et l’on peut recommencer', async () => {
+    reponses['/api/moi'] = () => new Response('{}', { status: 401 })
+    const surConnexion = vi.fn()
+    vi.useFakeTimers()
+    await monter(surConnexion)
+    await act(async () => bouton(/Continuer avec Google/).click())
+    await avancer(0)
+    reponses['/api/auth/device/token'] = () => Response.json({ access_token: 'x' })
+    await avancer(1000)
+    expect(surConnexion).not.toHaveBeenCalled()
+    expect(hote.querySelector('[role=alert]')?.textContent).toContain('cette fenêtre n’a pas reçu votre session')
+    expect(hote.querySelector('h1')?.textContent).toBe('La connexion n’a pas abouti')
+  })
+
+  it('annuler ramène au formulaire, arrête l’attente, et le curseur y revient', async () => {
+    await lancer()
+    const avant = appels.length
+    await act(async () => bouton(/Annuler/).click())
+    expect(hote.querySelector('form')).not.toBeNull()
+    expect(document.activeElement).toBe(champ('email'))
+    await avancer(30_000)
+    expect(appels.length).toBe(avant)
+  })
+
+  it('chaque issue a ses mots, et « Recommencer » demande un nouveau code', async () => {
+    const issues: [() => Response, RegExp][] = [
+      [() => new Response(JSON.stringify({ error: 'expired_token' }), { status: 400 }), /Ce code n’est plus valable/],
+      [() => new Response(JSON.stringify({ error: 'access_denied' }), { status: 400 }), /refusée dans le navigateur/],
+      [() => new Response(JSON.stringify({ error: 'invalid_scope' }), { status: 400 }), /La connexion n’a pas abouti\. Réessayez/],
+    ]
+    for (const [jetonRefuse, mots] of issues) {
+      vi.useFakeTimers()
+      appels.length = 0
+      reponses['/api/auth/device/token'] = jetonRefuse
+      await monter()
+      await act(async () => bouton(/Continuer avec Google/).click())
+      await avancer(1000)
+      expect(hote.querySelector('[role=alert]')?.textContent).toMatch(mots)
+      expect(document.activeElement).toBe(bouton(/Recommencer/))
+      const codes = appels.filter((a) => a === '/api/auth/device/code').length
+      reponses['/api/auth/device/token'] = jeton
+      await act(async () => bouton(/Recommencer/).click())
+      await avancer(0)
+      expect(appels.filter((a) => a === '/api/auth/device/code')).toHaveLength(codes + 1)
+      expect(hote.querySelector('.connexion-code-valeur')?.textContent).toBe('ABCD 2345')
+      await act(async () => bouton(/Annuler/).click())
+      vi.useRealTimers()
+    }
+  })
+
+  it('un serveur qui ne répond pas, qui ne connaît pas les codes, ou qui limite : un mot pour chaque', async () => {
+    const cas: [() => Response, RegExp][] = [
+      [() => new Response('', { status: 404 }), /ne sait pas encore connecter l’app par le navigateur/],
+      [() => new Response(JSON.stringify({ code: 'trop_d_essais' }), { status: 429, headers: { 'retry-after': '120' } }), /Trop d’essais : réessayez dans 2 min/],
+    ]
+    for (const [code, mots] of cas) {
+      reponses['/api/auth/device/code'] = code
+      vi.useFakeTimers()
+      await monter()
+      await act(async () => bouton(/Continuer avec Google/).click())
+      await avancer(0)
+      expect(hote.querySelector('[role=alert]')?.textContent).toMatch(mots)
+      await act(async () => bouton(/Retour à la connexion/).click())
+      expect(hote.querySelector('form')).not.toBeNull()
+      vi.useRealTimers()
+    }
+  })
+
+  it('le SSO ne demande pas l’adresse ici : elle se donne dans le navigateur', async () => {
+    await monter()
+    await act(async () => bouton(/SSO de mon entreprise/).click())
+    expect(hote.textContent).toContain('Votre navigateur s’ouvrira sur ce serveur')
+    expect(champ('email')).toBeNull()
+    expect(bouton(/Continuer dans le navigateur/)).toBeTruthy()
+    vi.useFakeTimers()
+    await act(async () => bouton(/Continuer dans le navigateur/).click())
+    await avancer(0)
+    expect(appels).toContain('/api/auth/device/code')
+    expect(appels).not.toContain('/api/auth/sign-in/sso')
+    expect(hote.querySelector('.connexion-code-valeur')?.textContent).toBe('ABCD 2345')
+  })
+
+  it('le mot de passe oublié dit que le lien s’ouvrira dans le navigateur', async () => {
+    reponses['/api/auth/request-password-reset'] = () => Response.json({ status: true })
+    await monter()
+    await act(() => bouton(/Mot de passe oublié/).click())
+    expect(hote.textContent).toContain('Le lien s’ouvrira dans votre navigateur')
+    await ecrire('email', 'ana@exemple.fr')
+    await envoyer()
+    const avis = hote.querySelector('[role=status]')?.textContent
+    expect(avis).toContain('Si ana@exemple.fr a un compte, un lien vient de partir')
+    expect(avis).toContain('Il s’ouvrira dans votre navigateur : changez-y le mot de passe, puis revenez ici pour vous connecter.')
+  })
+
+  it('le mot de passe se tape comme avant', async () => {
+    reponses['/api/auth/sign-in/email'] = () => new Response(JSON.stringify({ code: 'identifiants_incorrects' }), { status: 401 })
+    await monter()
+    await ecrire('email', 'ana@exemple.fr')
+    await ecrire('mdp', 'motdepasse')
+    await envoyer()
+    expect(appels).toContain('/api/auth/sign-in/email')
+    expect(hote.querySelector('[role=alert]')?.textContent).toBe('Adresse ou mot de passe incorrect')
   })
 })
 

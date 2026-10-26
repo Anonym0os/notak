@@ -21,6 +21,11 @@ const signaler = () => {
   for (const f of ecouteurs) f()
 }
 export const nouvelleVersion = () => nouvelle
+/**
+ * Dit à la page qu'une nouvelle version est arrivée, quand ce n'est pas le service worker qui l'apprend : dans l'app de
+ * bureau il est désactivé, et c'est la page du serveur qui voit que celui-ci a changé de version (`serveur/versionServeur.ts`).
+ */
+export const signalerNouvelleVersion = signaler
 export const ecouterNouvelleVersion = (f: () => void) => {
   ecouteurs.add(f)
   return () => void ecouteurs.delete(f)
