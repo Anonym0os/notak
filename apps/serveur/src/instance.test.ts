@@ -38,6 +38,19 @@ describe('l’instance que décrit l’environnement', () => {
     expect(i.inscriptions).toBe('ouvertes')
     expect(signales).toHaveLength(3)
   })
+
+  it('dit l’adresse publique : NOTAK_ADRESSE_PUBLIQUE d’abord, sinon NOTAK_ORIGINE, réduite à son origine', () => {
+    const vide = join(dossier, 'vide')
+    expect(instanceDe({ NOTAK_ORIGINE: 'https://notak.exemple.fr/' }, vide, () => {}).adresse).toBe('https://notak.exemple.fr')
+    expect(instanceDe({ NOTAK_ORIGINE: 'https://notak.exemple.fr', NOTAK_ADRESSE_PUBLIQUE: 'http://mac.local:3005/x' }, vide, () => {}).adresse).toBe('http://mac.local:3005')
+  })
+
+  it('ignore une adresse publique qui n’est pas en http ou https, et le signale', () => {
+    const signales: string[] = []
+    const i = instanceDe({ NOTAK_ADRESSE_PUBLIQUE: 'mac.local:3005', NOTAK_ORIGINE: 'ftp://x' }, join(dossier, 'vide'), (m) => signales.push(m))
+    expect(i.adresse).toBeUndefined()
+    expect(signales).toHaveLength(2)
+  })
 })
 
 describe('une instance aux inscriptions fermées', () => {

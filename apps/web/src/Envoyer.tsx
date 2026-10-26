@@ -1,8 +1,10 @@
-import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { type FormEvent, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { Icone } from '@notak/tableau'
 import { t, langue } from './langue'
 import { type JetonArrivee, creerJeton, listerJetons, revoquerJeton } from './api'
+import { dansBureau } from './bureau'
 import { PageApp } from './PageApp'
-import { jetonARemplacer, adresseArrivee, enteteAutorisation, etapesRaccourciImage, etapesRaccourciTexte, favori } from './raccourcis'
+import { jetonARemplacer, adresseJoignable, etapesRaccourciImage, etapesRaccourciTexte, favori } from './raccourcis'
 
 const quand = (instant: number) => new Date(instant).toLocaleString(langue() === 'en' ? 'en-US' : 'fr-FR', { dateStyle: 'medium', timeStyle: 'short' })
 
@@ -27,14 +29,18 @@ function Etapes({ etapes }: { etapes: string[] }) {
   )
 }
 
-/** Le titre d'une étape, « 1. Un jeton » : son numéro dans une pastille, puis son nom. */
-function TitreEtape({ id, texte }: { id: string; texte: string }) {
-  const [, numero, nom] = /^(\d+)\.\s*(.*)$/.exec(texte) ?? [null, null, texte]
+/** Une étape de la page : son numéro dans une pastille, à gauche, puis son titre et ce qu'elle demande. */
+function Etape({ id, numero, titre, children }: { id: string; numero: number; titre: string; children: ReactNode }) {
   return (
-    <h2 id={id}>
-      {numero && <span className="app-etape">{numero}</span>}
-      {nom}
-    </h2>
+    <section className="app-carte envoyer-etape" aria-labelledby={id}>
+      <span className="app-etape" aria-hidden="true">
+        {numero}
+      </span>
+      <div className="envoyer-etape-corps">
+        <h2 id={id}>{titre}</h2>
+        {children}
+      </div>
+    </section>
   )
 }
 
@@ -79,8 +85,10 @@ function LienFavori({ code }: { code: string }) {
 /**
  * La page `/envoyer` : des jetons personnels pour poser des choses dans les non triés depuis un endroit où Notak ne
  * reçoit pas les partages (un iPhone, un autre navigateur), et de quoi s'en servir : un Raccourci iOS et un favori.
+ * Dans l'app de bureau, le favori n'a pas de barre où se glisser : le Raccourci, que le Mac range dans son menu
+ * Partager, en tient lieu. `adresseDeclaree` est l'adresse publique que dit le serveur (`GET /api/instance`).
  */
-export function PageEnvoyer() {
+export function PageEnvoyer({ adresseDeclaree }: { adresseDeclaree?: string }) {
   const [jetons, setJetons] = useState<JetonArrivee[] | null>(null)
   const [nom, setNom] = useState('iPhone')
   // Le jeton qu'on vient de créer : le serveur ne le redonne plus, la page le garde tant qu'elle reste ouverte.
@@ -117,13 +125,14 @@ export function PageEnvoyer() {
   }
 
   const jeton = neuf?.jeton ?? jetonARemplacer()
-  const origine = location.origin
+  const bureau = dansBureau()
+  // Ce qu'un iPhone joint ; le favori, lui, tourne sur cet ordinateur et se contente au besoin de l'adresse de la page.
+  const adresse = adresseJoignable(adresseDeclaree, location.origin)
 
   return (
-    <PageApp titre={t('compte.envoyer')} intro={t('envoyer.intro')}>
-      <section className="app-carte" aria-labelledby="envoyer-jetons">
-        <TitreEtape id="envoyer-jetons" texte={t('envoyer.jeton')} />
-        <p>{t('envoyer.jetonExplique')}</p>
+    <PageApp titre={t('compte.envoyer')} intro={t(bureau ? 'envoyer.introBureau' : 'envoyer.intro')}>
+      <Etape id="envoyer-jetons" numero={1} titre={t('envoyer.jeton')}>
+        <p className="app-note">{t('envoyer.jetonExplique')}</p>
         <form className="app-form" onSubmit={creer} noValidate>
           <input className="champ" aria-label={t('envoyer.nomJeton')} placeholder={t('envoyer.nomExemple')} maxLength={60} value={nom} onChange={(e) => setNom(e.target.value)} />
           <button type="submit" className="bouton bouton-plein" disabled={occupe}>
@@ -131,15 +140,16 @@ export function PageEnvoyer() {
           </button>
         </form>
         {neuf && (
-          <div className="envoyer-neuf" role="status">
-            <strong>{t('envoyer.jetonNom', { nom: neuf.nom })}</strong>
-            <code className="envoyer-jeton">{neuf.jeton}</code>
-            <p>{t('envoyer.copiezLe')}</p>
-            <Copier valeur={neuf.jeton} libelle={t('envoyer.copierJeton')} />
+          <div role="status">
+            <div className="envoyer-neuf">
+              <code className="envoyer-jeton">{neuf.jeton}</code>
+              <Copier valeur={neuf.jeton} libelle={t('envoyer.copierJeton')} />
+            </div>
+            <p className="app-note">{t('envoyer.copiezLe')}</p>
           </div>
         )}
         {jetons && jetons.length > 0 && (
-          <ul className="app-liste">
+          <ul className="app-liste envoyer-jetons">
             {jetons.map((j) => (
               <li key={j.id}>
                 <span className="app-qui">
@@ -170,39 +180,49 @@ export function PageEnvoyer() {
             {erreur}
           </p>
         )}
-      </section>
+      </Etape>
 
-      <section className="app-carte" aria-labelledby="envoyer-iphone">
-        <TitreEtape id="envoyer-iphone" texte={t('envoyer.iphone')} />
-        {!neuf && (
-          <p className="app-note">
-            <Ligne texte={t('envoyer.sansJeton', { jeton: jetonARemplacer() })} />
-          </p>
-        )}
-        <h3>{t('envoyer.pourTexte')}</h3>
-        <Etapes etapes={etapesRaccourciTexte(origine, jeton)} />
-        <h3>{t('envoyer.pourImage')}</h3>
-        <Etapes etapes={etapesRaccourciImage(origine, jeton)} />
-        <p className="app-note">
-          <Ligne texte={t('envoyer.adresse', { adresse: adresseArrivee(origine), entete: enteteAutorisation(jeton) })} />
-        </p>
-      </section>
-
-      <section className="app-carte" aria-labelledby="envoyer-bureau">
-        <TitreEtape id="envoyer-bureau" texte={t('envoyer.bureau')} />
-        {neuf ? (
+      <Etape id="envoyer-iphone" numero={2} titre={t(bureau ? 'envoyer.iphoneMac' : 'envoyer.iphone')}>
+        {adresse ? (
           <>
-            <p>{t('envoyer.glisser')}</p>
-            <div className="app-form">
-              <LienFavori code={favori(origine, neuf.jeton)} />
-              <Copier valeur={favori(origine, neuf.jeton)} libelle={t('envoyer.copierCode')} />
-            </div>
-            <p className="app-note">{t('envoyer.pasDeBarre')}</p>
+            {!neuf && (
+              <p className="app-note">
+                <Ligne texte={t('envoyer.sansJeton', { jeton: jetonARemplacer() })} />
+              </p>
+            )}
+            <Etapes etapes={etapesRaccourciTexte(adresse, jeton)} />
+            <details className="envoyer-image">
+              <summary>
+                <Icone nom="chevronDroite" taille={14} />
+                {t('envoyer.pourImage')}
+              </summary>
+              <Etapes etapes={etapesRaccourciImage(adresse, jeton)} />
+            </details>
+            {bureau && <p className="app-note">{t('envoyer.surMac')}</p>}
           </>
         ) : (
-          <p className="app-note">{t('envoyer.favoriSansJeton')}</p>
+          <p className="envoyer-injoignable">
+            <Ligne texte={t('envoyer.injoignable', { origine: location.origin })} />
+          </p>
         )}
-      </section>
+      </Etape>
+
+      {!bureau && (
+        <Etape id="envoyer-bureau" numero={3} titre={t('envoyer.bureau')}>
+          {neuf ? (
+            <>
+              <p className="app-note">{t('envoyer.glisser')}</p>
+              <div className="app-form">
+                <LienFavori code={favori(adresse ?? location.origin, neuf.jeton)} />
+                <Copier valeur={favori(adresse ?? location.origin, neuf.jeton)} libelle={t('envoyer.copierCode')} />
+              </div>
+              <p className="app-note">{t('envoyer.pasDeBarre')}</p>
+            </>
+          ) : (
+            <p className="app-note">{t('envoyer.favoriSansJeton')}</p>
+          )}
+        </Etape>
+      )}
     </PageApp>
   )
 }

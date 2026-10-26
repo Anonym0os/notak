@@ -84,6 +84,8 @@ export interface Instance {
   habillages: Habillage[]
   impose?: string
   parDefaut?: string
+  /** L'adresse où un autre appareil joint le serveur, quand il la déclare. */
+  adresse?: string
 }
 
 const INSTANCE_ORIGINE: Instance = { nom: 'Notak', inscriptions: 'ouvertes', habillages: [] }
@@ -110,6 +112,7 @@ export async function lireInstance(): Promise<Instance> {
       habillages,
       ...(typeof brut.impose === 'string' ? { impose: brut.impose } : {}),
       ...(typeof brut.parDefaut === 'string' ? { parDefaut: brut.parDefaut } : {}),
+      ...(typeof brut.adresse === 'string' && /^https?:\/\//.test(brut.adresse) ? { adresse: brut.adresse } : {}),
     }
   } catch {
     return INSTANCE_ORIGINE

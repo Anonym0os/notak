@@ -211,7 +211,7 @@ function Application() {
   }
   if (chemin === '/rapide') return <PageLegere {...proprietes}>{() => <PageRapide espace={espacePour(etat.moi)} fichiers={fichiers} />}</PageLegere>
   if (chemin === '/partage') return <PageLegere {...proprietes}>{() => <PagePartage espace={espacePour(etat.moi)} fichiers={fichiers} />}</PageLegere>
-  if (chemin === '/envoyer') return <PageLegere {...proprietes}>{() => <PageEnvoyer />}</PageLegere>
+  if (chemin === '/envoyer') return <PageLegere {...proprietes}>{() => <PageEnvoyer adresseDeclaree={instance.adresse} />}</PageLegere>
   if (chemin === '/espace') return <PageLegere {...proprietes}>{() => <PageEspaces />}</PageLegere>
   return chemin === '/' || chemin === '/bibliotheque' ? <Accueil {...proprietes} /> : <Espace {...proprietes} />
 }

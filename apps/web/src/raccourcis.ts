@@ -5,6 +5,22 @@ import { t } from './langue'
 /** Ce que la page montre à la place du jeton tant qu'aucun n'a été créé ici (« VOTRE_JETON » / « YOUR_TOKEN »). */
 export const jetonARemplacer = () => t('envoyer.jetonExemple')
 
+/** Un nom d'hôte qui ne désigne que l'appareil où la page est ouverte. */
+const local = (hote: string) => hote === 'localhost' || hote.endsWith('.localhost') || hote === '[::1]' || /^127\./.test(hote)
+
+/**
+ * L'adresse qu'un autre appareil peut joindre : celle que déclare le serveur, sinon celle où la page est ouverte, à moins
+ * qu'elle ne désigne que cet ordinateur (l'app de bureau en développement ouvre `localhost`). `null` : aucune.
+ */
+export function adresseJoignable(declaree: string | undefined, origine: string): string | null {
+  if (declaree) return declaree
+  try {
+    return local(new URL(origine).hostname) ? null : origine
+  } catch {
+    return null
+  }
+}
+
 export const adresseArrivee = (origine: string) => `${origine}/api/arrivee`
 
 /** La valeur de l'en-tête `Authorization`, avec son espace. */

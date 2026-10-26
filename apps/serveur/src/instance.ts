@@ -14,6 +14,11 @@ export interface Instance {
   impose?: string
   /** Proposé à qui n'a rien choisi. */
   parDefaut?: string
+  /**
+   * L'adresse où un autre appareil joint ce serveur (un iPhone qui envoie vers les non triés) : `NOTAK_ADRESSE_PUBLIQUE`,
+   * sinon `NOTAK_ORIGINE`. Absente, la page ne la connaît que par l'adresse où elle est ouverte.
+   */
+  adresse?: string
 }
 
 export const INSTANCE_PAR_DEFAUT: Instance = { nom: 'Notak', inscriptions: 'ouvertes', habillages: [] }
@@ -54,6 +59,7 @@ export function instanceDe(env: Record<string, string | undefined>, dossierDonne
   }
   const impose = connu('NOTAK_HABILLAGE')
   const parDefaut = connu('NOTAK_HABILLAGE_DEFAUT')
+  const adresse = adresseDe(env, signaler)
   const inscriptions = env.NOTAK_INSCRIPTIONS?.trim()
   if (inscriptions && inscriptions !== 'ouvertes' && inscriptions !== 'fermees') signaler(`Notak : NOTAK_INSCRIPTIONS=${inscriptions} n'est ni « ouvertes » ni « fermees » : elles restent ouvertes`)
   return {
@@ -62,5 +68,22 @@ export function instanceDe(env: Record<string, string | undefined>, dossierDonne
     habillages,
     ...(impose ? { impose } : {}),
     ...(parDefaut ? { parDefaut } : {}),
+    ...(adresse ? { adresse } : {}),
   }
+}
+
+/** L'origine d'une adresse en http ou https ; une autre valeur est signalée, puis oubliée. */
+function adresseDe(env: Record<string, string | undefined>, signaler: (message: string) => void): string | undefined {
+  for (const variable of ['NOTAK_ADRESSE_PUBLIQUE', 'NOTAK_ORIGINE'] as const) {
+    const brute = env[variable]?.trim()
+    if (!brute) continue
+    try {
+      const u = new URL(brute)
+      if (u.protocol === 'http:' || u.protocol === 'https:') return u.origin
+    } catch {
+      // signalée plus bas, comme une adresse d'un autre protocole
+    }
+    signaler(`Notak : ${variable}=${brute} n'est pas une adresse en http ou https : elle est ignorée`)
+  }
+  return undefined
 }
