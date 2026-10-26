@@ -30,6 +30,12 @@ describe('les correctifs', () => {
     expect(corriger(liste, { type: 'changer', cle: 'projets/', champs: { titre: 'Chantiers' } })[0]!.titre).toBe('Chantiers')
   })
 
+  it('un ajout que le serveur connaît déjà, sans l’avoir vu ouvert, garde l’ouverture la plus récente', () => {
+    const importe = { ...entree('accueil', 'doc', 'Budget'), vu: 1000 }
+    expect(corriger(liste, { type: 'ajouter', entrees: [importe] })[1]!.vu).toBe(1000)
+    expect(corriger([{ ...importe, vu: 2000 }], { type: 'ajouter', entrees: [importe] })[0]!.vu).toBe(2000)
+  })
+
   it('remplacent une entrée déplacée, qu’elle ait changé de clé ou seulement de dossier', () => {
     const par = { ...entree('projets', 'doc2', 'Budget'), dans: 'projets', ou: 'Projets' }
     const apres = corriger(liste, { type: 'remplacer', de: 'accueil/doc', par })

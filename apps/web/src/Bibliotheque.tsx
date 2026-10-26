@@ -25,7 +25,15 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { type BilanRangement, type EntreeBibliotheque, definirFavori as definirFavoriApi, lireBibliotheque, rangerToile as rangerToileApi } from './api'
+import {
+  type BilanRangement,
+  type EntreeBibliotheque,
+  definirFavori as definirFavoriApi,
+  lireBibliotheque,
+  noterElementVu,
+  noterVu as noterVuToile,
+  rangerToile as rangerToileApi,
+} from './api'
 import {
   type EspaceRangement,
   type Outils,
@@ -213,6 +221,9 @@ interface Glisse {
   cible: string | null
 }
 
+/** Une toile, une carte ou un document entre dans les récents du compte. */
+const noterVuEntree = (e: Pick<EntreeBibliotheque, 'tableau' | 'element'>) => (e.element ? noterElementVu(e.tableau, e.element) : noterVuToile(e.tableau))
+
 /** Le pointeur à moins de tant de pixels du haut ou du bas de la page la fait défiler, pendant un cadre ou un glisser. */
 const BORD_DEFILEMENT = 48
 
@@ -230,6 +241,7 @@ export function PageBibliotheque({
   definirFavori = definirFavoriApi,
   partage,
   importer,
+  noterVu = noterVuEntree,
 }: {
   charger?: () => Promise<EntreeBibliotheque[]>
   espace?: EspaceBibliotheque
@@ -244,6 +256,8 @@ export function PageBibliotheque({
   partage?: (tableau: string, fermer: () => void) => ReactNode
   /** Importe des fichiers de la machine sur une toile (lâchés sur la page, ou Fichier › Importer…). */
   importer?: (fichiers: File[], dans: string) => Promise<BilanImport>
+  /** Fait entrer une toile, une carte ou un document dans les récents du compte. */
+  noterVu?: (e: Pick<EntreeBibliotheque, 'tableau' | 'element'>) => Promise<void>
 }) {
   const [serveur, setServeur] = useState<EntreeBibliotheque[] | null>(null)
   const [correctifs, setCorrectifs] = useState<{ n: number; correctif: Correctif }[]>([])
@@ -260,7 +274,10 @@ export function PageBibliotheque({
   const [glisse, setGlisse] = useState<Glisse | null>(null)
   /** Des fichiers de la machine qu'on glisse sur la page : la toile où ils iraient. */
   const [apport, setApport] = useState<{ cible: string } | null>(null)
-  const [importEnCours, setImportEnCours] = useState(false)
+  /** Combien de fichiers sont en route, le temps de l'import. */
+  const [importEnCours, setImportEnCours] = useState(0)
+  /** Les tuiles qui viennent d'arriver, le temps que leur anneau batte. */
+  const [arrivees, setArrivees] = useState<ReadonlySet<string>>(new Set())
   const [cadre, setCadre] = useState<Boite | null>(null)
   const champ = useRef<HTMLInputElement>(null)
   const nav = useRef<HTMLElement>(null)
@@ -369,7 +386,11 @@ export function PageBibliotheque({
       if (!r) return null
       poser(r.correctifs)
       annulable.current = r.annuler ? r : null
-      annoncer({ texte: r.texte, ...(r.annuler ? { action: { libelle: t('biblio.annuler'), faire: () => void defaire(r) } } : {}) })
+      annoncer({
+        texte: r.texte,
+        ...(r.actions ? { actions: r.actions } : {}),
+        ...(r.annuler ? { action: { libelle: t('biblio.annuler'), faire: () => void defaire(r) } } : {}),
+      })
       return r
     } catch (x) {
       annoncer({ texte: (x as Error).message || t('commun.echec') })
@@ -795,8 +816,36 @@ export function PageBibliotheque({
   /** Importe ces fichiers sur la toile `dans` : l'accueil, ou la toile (tuile, dossier) sur laquelle on les lâche. */
   const importerIci = (fichiers: File[], dans: string) => {
     if (!outils || !importer || fichiers.length === 0) return
-    setImportEnCours(true)
-    void executer(importerEntrees(outils, importer, fichiers, { id: dans, titre: titreToile(dans) })).finally(() => setImportEnCours(false))
+    setImportEnCours(fichiers.length)
+    void executer(importerEntrees(outils, importer, fichiers, { id: dans, titre: titreToile(dans) }, () => allerA(`/t/${encodeURIComponent(dans)}`)))
+      .then((r) => r && montrerArrivee(r.entrees, dans))
+      .finally(() => setImportEnCours(0))
+  }
+  /**
+   * Ce qu'on vient d'importer se voit là où l'on est, s'il y a sa place ; sinon dans les récents, qui prennent tous les
+   * genres. Une recherche qui le cacherait se vide. Les tuiles sont choisies, la première vient à l'écran, et leur
+   * anneau bat une fois. Rien de neuf à montrer (des fichiers joints seuls) : c'est la toile qui les a pris qui bat.
+   */
+  const montrerArrivee = (entrees: readonly EntreeBibliotheque[], dans: string) => {
+    // Importer, c'est toucher : ce qui arrive entre dans les récents. Le serveur ne le note qu'une fois l'élément lu,
+    // quelques secondes après : on le redit le temps qu'il suive.
+    for (const e of entrees) {
+      void noterVu(e)
+      plusTard(() => void noterVu(e), 4000)
+      plusTard(() => void noterVu(e), DUREE_CORRECTIF + 1000)
+    }
+    const cles = entrees.map(cleDe)
+    const battre = (c: string[]) => {
+      setArrivees(new Set(c))
+      plusTard(() => setArrivees(new Set()), 1200)
+    }
+    if (cles.length === 0) return battre([`${dans}/`])
+    const icite = entrees.every((e) => entreesDe(rubrique, [e]).length > 0)
+    if (cherche || !icite) choisir(icite ? rubrique : 'recents')
+    setSel({ choisies: new Set(cles), ancre: cles[0]! })
+    setCourante(cles[0]!)
+    battre(cles)
+    plusTard(() => tuileDe(cles[0]!)?.scrollIntoView?.({ block: 'nearest' }), 60)
   }
   const importerCourant = useRef(importerIci)
   importerCourant.current = importerIci
@@ -1006,6 +1055,7 @@ export function PageBibliotheque({
                         focalisable={cle === premiereFocalisable}
                         glissee={glissees.has(cle)}
                         survolee={e.element === null && survolDepot === e.tableau}
+                        arrivee={arrivees.has(cleDe(e))}
                         renommer={renommage !== null && 'cle' in renommage && renommage.cle === cle}
                         valider={(titre) => {
                           void renommerCe(e, titre)
@@ -1033,10 +1083,10 @@ export function PageBibliotheque({
       </main>
 
       {glisse && <Fantome entrees={entreesDes(glisse.cles)} x={glisse.x} y={glisse.y} />}
-      {(apport || importEnCours) && (
+      {(apport || importEnCours > 0) && (
         <div className="biblio-apport" role="status">
           <Icone nom="importer" taille={16} />
-          <span>{apport ? t('biblio.import.deposer', { toile: titreToile(apport.cible) }) : t('biblio.import.encours')}</span>
+          <span>{apport ? t('biblio.import.deposer', { toile: titreToile(apport.cible) }) : tn('biblio.import.encours', importEnCours)}</span>
         </div>
       )}
       {menu && (
@@ -1113,6 +1163,7 @@ function Tuile({
   focalisable,
   glissee,
   survolee,
+  arrivee,
   renommer,
   valider,
   annuler,
@@ -1123,6 +1174,8 @@ function Tuile({
   focalisable: boolean
   glissee: boolean
   survolee: boolean
+  /** Vient d'arriver (un import) : son anneau bat une fois. */
+  arrivee?: boolean
   renommer: boolean
   valider(titre: string): void
   annuler(): void
@@ -1136,6 +1189,7 @@ function Tuile({
       data-cle={cleDe(e)}
       data-depot={e.element === null ? e.tableau : undefined}
       data-survol-depot={survolee || undefined}
+      data-arrivee={arrivee || undefined}
       data-glissee={glissee || undefined}
       aria-label={e.titre || t('commun.sansTitre')}
     >

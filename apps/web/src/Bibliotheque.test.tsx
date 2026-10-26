@@ -371,12 +371,14 @@ describe('les gestes', () => {
   it('des fichiers lâchés sur une toile y sont importés ; ce qui en naît s’y montre aussitôt', async () => {
     const espace = monde()
     const importes: [string[], string][] = []
+    const vus: string[] = []
     await act(async () =>
       racine.render(
         <PageBibliotheque
           charger={async () => TOUTES}
           espace={espace}
           definirFavori={async () => {}}
+          noterVu={async (e) => void vus.push(`${e.tableau}/${e.element ?? ''}`)}
           importer={async (fichiers, dans) => {
             importes.push([fichiers.map((f) => f.name), dans])
             const doc = { id: 'cr', x: 0, y: 0, largeur: 10, contenu: { type: 'document', titre: 'Compte rendu', texte: { type: 'doc', content: [] } } } as unknown as ElementToile
@@ -405,7 +407,15 @@ describe('les gestes', () => {
     expect(importes).toEqual([[['Compte rendu.md'], 'voyage']])
     expect(hote.querySelector('.biblio-apport')).toBeNull()
     expect(hote.querySelector('.notak-avis')!.textContent).toContain('Un fichier importé dans « Voyage » « vieux.pages » n’a pas pu être lu.')
+    // Un document n'a pas sa place dans « Toiles » : on passe aux récents, où l'import compte, la tuile choisie.
+    expect(rubrique('Récents').getAttribute('aria-current')).toBe('page')
+    expect(vus).toEqual(['voyage/cr'])
+    const arrivee = hote.querySelector<HTMLElement>('[data-cle="voyage/cr"]')!
+    expect(arrivee.getAttribute('aria-selected')).toBe('true')
+    expect(arrivee.hasAttribute('data-arrivee')).toBe(true)
+    // Là où il a sa place, on reste : un document lâché sur « Documents ».
     act(() => rubrique('Documents').click())
-    expect([...hote.querySelectorAll('.biblio-tuile-titre')].map((t) => t.textContent)).toContain('Compte rendu')
+    await act(async () => void glisser('drop', hote.querySelector('.biblio-corps')!))
+    expect(rubrique('Documents').getAttribute('aria-current')).toBe('page')
   })
 })

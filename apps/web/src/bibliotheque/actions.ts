@@ -35,6 +35,8 @@ export interface Outils {
 
 export interface Resultat {
   texte: string
+  /** D'autres boutons pour l'avis, avant « Annuler » (« Voir »). */
+  actions?: { libelle: string; faire(): void }[]
   correctifs: Correctif[]
   /** Défait le geste ; rend les correctifs qui le disent. */
   annuler?(): Promise<Correctif[]>
@@ -260,14 +262,20 @@ export async function importerEntrees(
   importer: (fichiers: File[], dans: string) => Promise<BilanImport>,
   fichiers: File[],
   dans: { id: string; titre: string },
-): Promise<Resultat> {
+  voir: () => void,
+  maintenant = Date.now(),
+): Promise<Resultat & { entrees: EntreeBibliotheque[] }> {
   const b = await importer(fichiers, dans.id)
-  const nombre = b.elements.filter((e) => !e.parent).length + b.toiles.length
+  const poses = b.elements.filter((e) => !e.parent)
+  // Ce qui n'a pas de tuile ici : un fichier joint, une image, posés sur la toile.
+  const joints = poses.filter((e) => e.contenu.type !== 'arbre' && e.contenu.type !== 'document')
+  const nombre = poses.length + b.toiles.length
   const refus = b.refuses.length ? tn('biblio.import.refuses', b.refuses.length, { noms: b.refuses.map((nom) => t('biblio.import.nom', { nom })).join(', ') }) : ''
-  if (nombre === 0) return { texte: refus || t('biblio.import.rien'), correctifs: [] }
-  const commun = { ou: dans.titre, dans: dans.id, vu: null, favori: false, partage: false }
+  if (nombre === 0) return { texte: refus || t('biblio.import.rien'), correctifs: [], entrees: [] }
+  // Importer, c'est toucher : ce qui arrive compte parmi les récents.
+  const commun = { ou: dans.titre, dans: dans.id, vu: maintenant, favori: false, partage: false }
   const entrees: EntreeBibliotheque[] = [
-    ...resumesDuTableau({ titre: '', elements: b.elements as never }).flatMap((resume) =>
+    ...resumesDuTableau({ titre: '', elements: poses as never }).flatMap((resume) =>
       resume.genre === 'toile' ? [] : [{ tableau: dans.id, element: resume.element, genre: resume.genre, titre: resume.titre, resume, ...commun }],
     ),
     ...b.toiles.map(({ id, titre }) => ({
@@ -279,12 +287,17 @@ export async function importerEntrees(
       ...commun,
     })),
   ]
+  const seul = nombre === 1 && joints.length === 1 ? (joints[0]!.contenu as { nom?: string }).nom : undefined
+  const texte = seul ? t('biblio.import.pose', { nom: seul, toile: dans.titre }) : tn('biblio.import.fait', nombre, { toile: dans.titre })
   return {
-    texte: tn('biblio.import.fait', nombre, { toile: dans.titre }) + (refus ? ` ${refus}` : ''),
+    texte: texte + (refus ? ` ${refus}` : ''),
+    entrees,
+    // Ce qui est allé sur la toile sans tuile ici, on peut aller le voir.
+    ...(joints.length > 0 ? { actions: [{ libelle: t('biblio.import.voir'), faire: voir }] } : {}),
     correctifs: [{ type: 'ajouter', entrees }],
     async annuler() {
       jeter(o.espace, [
-        ...b.elements.filter((e) => !e.parent).map((e) => ({ toile: dans.id, element: e.id })),
+        ...poses.map((e) => ({ toile: dans.id, element: e.id })),
         ...b.toiles.flatMap(({ id }) => {
           const carte = carteDeLaToile(o.espace, dans.id, id)
           return carte ? [{ toile: dans.id, element: carte }] : []

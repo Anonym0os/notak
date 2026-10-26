@@ -24,8 +24,17 @@ export function corriger(entrees: readonly EntreeBibliotheque[], c: Correctif): 
       return entrees.filter((e) => !cles.has(cleDe(e)))
     }
     case 'ajouter': {
+      // Déjà dans la liste du serveur : on garde la plus récente des deux ouvertures (un import compte, avant même que
+      // le serveur l'ait noté).
+      const voulues = new Map(c.entrees.map((e) => [cleDe(e), e]))
       const la = new Set(entrees.map(cleDe))
-      return [...entrees, ...c.entrees.filter((e) => !la.has(cleDe(e)))]
+      return [
+        ...entrees.map((e) => {
+          const v = voulues.get(cleDe(e))?.vu ?? null
+          return v !== null && (e.vu ?? -1) < v ? { ...e, vu: v } : e
+        }),
+        ...c.entrees.filter((e) => !la.has(cleDe(e))),
+      ]
     }
     case 'remplacer': {
       const nouvelle = cleDe(c.par)
