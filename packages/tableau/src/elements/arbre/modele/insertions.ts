@@ -1,5 +1,6 @@
 import { cleEntre } from '../../../coeur/ordre'
-import { langue, t } from '../../../langue'
+import { formaterDate } from '../../../communs/dates'
+import { t } from '../../../langue'
 import { type Arbre, type GroupeMarqueurs, type Id, type Sujet, type Zone, nouvelId } from '../../../coeur/tableau'
 import { GROUPES_MARQUEURS, estPerso } from '../marqueurs'
 import { groupeDuMarqueur, porter } from './elements'
@@ -137,8 +138,7 @@ export function normaliserPlanning(p: Planning, change?: 'debut' | 'fin' | 'dure
 
 /** La tâche planifiée en une ligne : « 3 → 9 janv. · 7 j · 40 % ». */
 export function resumePlanning(p: Planning): string {
-  const f = new Intl.DateTimeFormat(langue(), { day: 'numeric', month: 'short', timeZone: 'UTC' })
-  const jour = (iso: string) => f.format(dateDe(iso)!)
+  const jour = (iso: string) => formaterDate(iso, 'court')
   const morceaux: string[] = []
   if (p.debut && p.fin) morceaux.push(`${jour(p.debut)} → ${jour(p.fin)}`)
   else if (p.debut) morceaux.push(`${t('arbre.inserer.des')} ${jour(p.debut)}`)

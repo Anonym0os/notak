@@ -2,6 +2,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import type { Id } from '../../coeur/tableau'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
+import { Calendrier, formaterDate } from '../../communs'
 import type { ContexteToile } from '../types'
 import type { ActionsInsertion } from './actionsMenu'
 import { enMathml } from './equation'
@@ -134,7 +135,7 @@ export function useInsertions({ lecture, ids, faire, contexte, ancre, ouvrirIcon
         break
       case 'tache':
         corps = (
-          <Popover ancre={place} titre={t('arbre.inserer.tache')} fermer={fermer}>
+          <Popover ancre={place} titre={t('arbre.inserer.tache')} fermer={fermer} largeur={320}>
             <EditeurTache planning={sujet.planning} changer={(planning, change) => faire({ type: 'planning', ids: [edition.id], planning, ...(change ? { change } : {}) })} fermer={fermer} />
           </Popover>
         )
@@ -287,17 +288,32 @@ export function EditeurEtiquettes({ noms, ajouter, retirer, multiple }: { noms: 
 /** La tâche d'un sujet : début, fin, durée, avancement. Chaque champ remet les autres d'accord (`normaliserPlanning`). */
 export function EditeurTache({ planning, changer, fermer }: { planning: Planning | undefined; changer(p: Planning | undefined, change?: 'debut' | 'fin' | 'duree'): void; fermer(): void }) {
   const p = planning ?? {}
-  const champ = (k: 'debut' | 'fin') => (e: React.ChangeEvent<HTMLInputElement>) => changer({ ...p, [k]: e.target.value || undefined }, k)
+  // Le jour qu'on est en train de choisir : son calendrier se déplie sous lui.
+  const [ouvert, setOuvert] = useState<'debut' | 'fin' | null>(null)
+  const jour = (k: 'debut' | 'fin', libelle: string) => (
+    <div className="notak-arbre-jour">
+      <span>{libelle}</span>
+      <button type="button" aria-expanded={ouvert === k} onClick={() => setOuvert(ouvert === k ? null : k)}>
+        {p[k] ? formaterDate(p[k], 'long') : '—'}
+      </button>
+      {ouvert === k && (
+        <Calendrier
+          valeur={p[k] ?? null}
+          {...(k === 'fin' && p.debut ? { min: p.debut, depart: p.debut } : {})}
+          effacable
+          autoFocus
+          choisir={(j) => {
+            changer({ ...p, [k]: j ?? undefined }, k)
+            setOuvert(null)
+          }}
+        />
+      )}
+    </div>
+  )
   return (
     <div className="notak-arbre-popover-corps">
-      <label>
-        {t('arbre.inserer.debut')}
-        <input type="date" value={p.debut ?? ''} onChange={champ('debut')} />
-      </label>
-      <label>
-        {t('arbre.inserer.fin')}
-        <input type="date" value={p.fin ?? ''} min={p.debut} onChange={champ('fin')} />
-      </label>
+      {jour('debut', t('arbre.inserer.debut'))}
+      {jour('fin', t('arbre.inserer.fin'))}
       <label>
         {t('arbre.inserer.duree')}
         <input type="number" min={1} step={1} value={p.duree ?? ''} placeholder={t('arbre.inserer.joursUnite')} onChange={(e) => changer({ ...p, duree: e.target.value ? Number(e.target.value) : undefined }, 'duree')} />

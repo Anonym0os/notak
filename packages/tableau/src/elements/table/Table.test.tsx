@@ -519,11 +519,9 @@ describe('l’édition d’une cellule', () => {
     cliquer(0, 0)
     appuyer(clavier()!, { key: 'Enter' })
     expect(valeur()).toBe('2026-02-01')
-    const jour = hote.querySelector<HTMLInputElement>('.notak-table-calendrier input[type=date]')!
-    act(() => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(jour, '2026-03-15')
-      jour.dispatchEvent(new Event('input', { bubbles: true }))
-    })
+    // Le calendrier s'ouvre sur février 2026 : on passe à mars, puis on choisit le 15.
+    act(() => hote.querySelector<HTMLElement>('.notak-table-calendrier [aria-label="Mois suivant"]')!.click())
+    act(() => hote.querySelector<HTMLElement>('.notak-table-calendrier [data-jour="2026-03-15"]')!.click())
     expect(valeur()).toBe('2026-03-15')
     appuyer(zone(), { key: 'Enter' })
     expect(formatsDe(m.lire().contenu)[0]![0]).toEqual({ type: 'date', date: 'long' })

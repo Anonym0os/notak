@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { type ActiviteTableau, type EvenementActivite, type GroupeActivite, lireActivite } from './api'
 import { phraseDuGroupe } from './phrases'
-import { langue, t } from './langue'
-import { Icone } from '@notak/tableau'
+import { t } from './langue'
+import { Icone, formaterDate } from '@notak/tableau'
 import { usePanneau } from './panneaux'
 
 const RAFRAICHIR_MS = 8000
@@ -13,7 +13,7 @@ export function quand(instant: number, maintenant = Date.now()): string {
   if (s < 60) return t('fil.instant')
   if (s < 3600) return t('fil.minutes', { n: Math.floor(s / 60) })
   if (s < 86_400) return t('fil.heures', { n: Math.floor(s / 3600) })
-  return new Date(instant).toLocaleDateString(langue() === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'short' })
+  return formaterDate(instant, 'court')
 }
 
 /**

@@ -1,6 +1,7 @@
 import { Fragment, useLayoutEffect, useRef } from 'react'
 import type { FormatCellule, Id } from '../../coeur/tableau'
 import { t } from '../../langue'
+import { Calendrier, ChoixHeure } from '../../communs'
 import { moitiesIso } from './dates'
 import { EditeurRiche } from './EditeurRiche'
 import { type EditionCellule, majEdition } from './etat'
@@ -168,13 +169,13 @@ export function Editeur({ id, edition, format, valider, abandonner }: Props) {
           ))}
         </ul>
       )}
-      {format?.type === 'date' && !formule && <Calendrier id={id} edition={edition} format={format} valider={valider} abandonner={abandonner} />}
+      {format?.type === 'date' && !formule && <CalendrierCellule id={id} edition={edition} format={format} valider={valider} abandonner={abandonner} />}
     </div>
   )
 }
 
-/** Un calendrier sous l'éditeur d'une date : un jour, et une heure si la cellule en porte une. */
-function Calendrier({ id, edition, format, valider, abandonner }: Omit<Props, 'format'> & { format: FormatCellule }) {
+/** Le calendrier commun sous l'éditeur d'une date : un jour, et une heure si la cellule en porte une. */
+function CalendrierCellule({ id, edition, format, valider, abandonner }: Omit<Props, 'format'> & { format: FormatCellule }) {
   const moities = moitiesIso(edition.texte)
   const avecHeure = edition.avecHeure ?? (moities ? moities.heure !== '' : (format.heure ?? 'aucune') !== 'aucune')
   const choisir = (jour: string, heure: string, avec: boolean) =>
@@ -184,6 +185,7 @@ function Calendrier({ id, edition, format, valider, abandonner }: Omit<Props, 'f
       avecHeure: avec,
       depuisCalendrier: !!jour,
     }))
+  // Les flèches et Entrée sur un jour sont pris par le calendrier ; Entrée dans l'heure valide la cellule, Échap l'abandonne.
   const touche = (e: React.KeyboardEvent) => {
     e.stopPropagation()
     if (e.key === 'Enter') {
@@ -196,20 +198,13 @@ function Calendrier({ id, edition, format, valider, abandonner }: Omit<Props, 'f
   }
   return (
     <div className="notak-table-popup notak-table-calendrier" onKeyDown={touche}>
-      <label>
-        <span>{t('table.calendrier.jour')}</span>
-        <input type="date" value={moities?.jour ?? ''} onChange={(e) => choisir(e.target.value, moities?.heure ?? '', avecHeure)} />
-      </label>
-      <label className="notak-table-calendrier-coche">
-        <input type="checkbox" checked={avecHeure} onChange={(e) => choisir(moities?.jour ?? '', moities?.heure ?? '', e.target.checked)} />
-        <span>{t('table.calendrier.avecHeure')}</span>
-      </label>
-      {avecHeure && (
-        <label>
-          <span>{t('table.calendrier.heure')}</span>
-          <input type="time" value={moities?.heure.slice(0, 5) ?? ''} onChange={(e) => choisir(moities?.jour ?? '', e.target.value, true)} />
-        </label>
-      )}
+      <Calendrier valeur={moities?.jour ?? null} confirmer={() => valider('bas')} choisir={(jour) => choisir(jour ?? '', moities?.heure ?? '', avecHeure)}>
+        <ChoixHeure
+          valeur={avecHeure ? moities?.heure.slice(0, 5) || '00:00' : null}
+          parDefaut="00:00"
+          changer={(heure) => choisir(moities?.jour ?? '', heure ?? moities?.heure ?? '', heure !== null)}
+        />
+      </Calendrier>
     </div>
   )
 }

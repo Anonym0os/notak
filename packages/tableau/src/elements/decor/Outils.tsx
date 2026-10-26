@@ -12,6 +12,7 @@ import { t } from '../../langue'
 import { BoutonOutil, OutilAvecMenu } from '../../BoutonOutil'
 import { type NomIcone, Icone } from '../../icones'
 import { useMenu } from '../../menuUnique'
+import { Calendrier } from '../../communs'
 
 interface Props {
   elements: Element[]
@@ -76,10 +77,7 @@ export function OutilEcheance({ elements, contexte }: Props) {
     <Menu titre={t('decor.echeanceTitre')} libelle={t('decor.echeance')} icone="calendrier" secondaire>
       {() => (
         <div className="notak-decor-echeance">
-          <label className="notak-decor-champ">
-            <span>{t('decor.pourLe')}</span>
-            <input type="date" value={commune ?? ''} onChange={(e) => (ECHEANCE.test(e.target.value) ? echeance(e.target.value) : undefined)} aria-label={t('decor.echeance')} />
-          </label>
+          <Calendrier valeur={commune && ECHEANCE.test(commune) ? commune : null} choisir={(jour) => (jour ? echeance(jour) : undefined)} autoFocus />
           {elements.some((e) => e.echeance) && (
             <button type="button" className="notak-etiquettes-lien" onClick={() => echeance(null)}>
               {t('decor.retirerEcheance')}

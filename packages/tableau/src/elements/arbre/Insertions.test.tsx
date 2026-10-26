@@ -67,12 +67,20 @@ describe('l’éditeur de tâche', () => {
     const changer = vi.fn()
     const fermer = vi.fn()
     const h = monter(<EditeurTache planning={{ debut: '2026-03-02', duree: 3 }} changer={changer} fermer={fermer} />)
-    const [debut, fin, duree] = [...h.querySelectorAll<HTMLInputElement>('input')]
-    saisir(fin!, '2026-03-09')
+    const [debut, fin] = [...h.querySelectorAll<HTMLButtonElement>('.notak-arbre-jour > button')]
+    expect(debut!.textContent).toBe('2 mars 2026')
+    clic(fin!)
+    clic(h.querySelector('[data-jour="2026-03-09"]')!)
     expect(changer).toHaveBeenLastCalledWith({ debut: '2026-03-02', duree: 3, fin: '2026-03-09' }, 'fin')
-    saisir(duree!, '7')
+    saisir(h.querySelector<HTMLInputElement>('input[type=number]')!, '7')
     expect(changer).toHaveBeenLastCalledWith({ debut: '2026-03-02', duree: 7 }, 'duree')
-    saisir(debut!, '2026-04-01')
+    clic(debut!)
+    expect(h.querySelector('.notak-cal-mois')!.textContent).toBe('mars 2026')
+    clic(h.querySelector('[data-jour="2026-03-02"]')!)
+    expect(changer).toHaveBeenLastCalledWith({ duree: 3 }, 'debut')
+    clic(debut!)
+    clic(h.querySelector('.notak-cal-fleche[aria-label="Mois suivant"]')!)
+    clic(h.querySelector('[data-jour="2026-04-01"]')!)
     expect(changer).toHaveBeenLastCalledWith({ debut: '2026-04-01', duree: 3 }, 'debut')
     saisir(h.querySelector('input[type=range]')!, '60')
     expect(changer).toHaveBeenLastCalledWith({ debut: '2026-03-02', duree: 3, progression: 60 })
@@ -83,7 +91,7 @@ describe('l’éditeur de tâche', () => {
 
   it('sans tâche, pas de bouton Supprimer', () => {
     const h = monter(<EditeurTache planning={undefined} changer={() => {}} fermer={() => {}} />)
-    expect([...h.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['OK'])
+    expect([...h.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['—', '—', 'OK'])
   })
 })
 

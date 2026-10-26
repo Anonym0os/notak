@@ -1,6 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { type Cible, PanneauFlottant } from '../../PanneauFlottant'
-import { Calendrier } from './Calendrier'
 import {
   type GenrePuce,
   type Personne,
@@ -20,6 +19,7 @@ import {
 } from './puces'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
+import { Calendrier, ChoixHeure } from '../../communs'
 
 /** Où le menu s'ouvre : accroché à la puce touchée, qu'il suit quand la toile bouge. */
 export interface OuverturePuce {
@@ -29,9 +29,6 @@ export interface OuverturePuce {
   /** Le nœud qui porte la toile, où le menu se range pour garder ses couleurs. */
   hote: HTMLElement
 }
-
-/** L'heure proposée quand on en ajoute une. */
-const HEURE_PAR_DEFAUT = '17:00'
 
 /**
  * La fenêtre d'une puce, accrochée sous elle (au-dessus s'il n'y a pas la place). L'échéance : un calendrier mensuel, une heure facultative, un rappel.
@@ -63,10 +60,6 @@ export function MenuPuce({ ouverture, attrs, personnes, regler, fermer }: {
       document.removeEventListener('keydown', touche, true)
     }
   }, [fermer])
-  // L'échéance n'a pas de champ à focaliser : la fenêtre prend le focus, pour que Suppr et Échap l'atteignent.
-  useEffect(() => {
-    if (ouverture.genre === 'echeance') racine.current?.focus({ preventScroll: true })
-  }, [ouverture.genre])
   return (
     <PanneauFlottant
       panneau={racine}
@@ -105,29 +98,8 @@ function PanneauEcheance({ attrs, regler }: { attrs: Record<string, unknown> | u
   const options = useMemo(() => (jour ? optionsRappel(jour, heure, maintenant) : []), [jour, heure]) // eslint-disable-line react-hooks/exhaustive-deps
   const rappel = jour ? (rappelDe(attrs) ?? 'aucun') : 'aucun'
   return (
-    <>
-      <Calendrier valeur={jour} aujourdhui={jourDe(maintenant)} choisir={(j) => regler(attrsJour(attrs, j, maintenant))} />
-      <div className="notak-menu-heure" data-vide={heure === null ? '' : undefined}>
-        {heure === null ? (
-          <button type="button" className="notak-menu-heure-ajout" disabled={jour === null} onClick={() => regler(attrsHeure(attrs, HEURE_PAR_DEFAUT, maintenant))}>
-            <Icone nom="horloge" taille={20} />
-            {t('taches.ajouterHeure')}
-          </button>
-        ) : (
-          <div className="notak-menu-heure-ligne">
-            <Icone nom="horloge" taille={20} />
-            <input
-              type="time"
-              aria-label={t('taches.heure')}
-              value={heure}
-              onChange={(e) => (e.target.value ? regler(attrsHeure(attrs, e.target.value, maintenant)) : undefined)}
-            />
-            <button type="button" className="notak-menu-lien" onClick={() => regler(attrsHeure(attrs, null, maintenant))}>
-              {t('taches.retirerHeure')}
-            </button>
-          </div>
-        )}
-      </div>
+    <Calendrier valeur={jour} aujourdhui={jourDe(maintenant)} min={jourDe(maintenant)} effacable autoFocus choisir={(j) => regler(attrsJour(attrs, j, maintenant))}>
+      <ChoixHeure valeur={heure} desactive={jour === null} changer={(h) => regler(attrsHeure(attrs, h, maintenant))} />
       <label className="notak-menu-rappel" data-desactive={jour === null ? '' : undefined}>
         <Icone nom="cloche" taille={20} />
         <select
@@ -144,7 +116,7 @@ function PanneauEcheance({ attrs, regler }: { attrs: Record<string, unknown> | u
         </select>
         <Icone nom="chevronBas" taille={16} />
       </label>
-    </>
+    </Calendrier>
   )
 }
 

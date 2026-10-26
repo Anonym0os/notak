@@ -1,7 +1,8 @@
 import { type Element, type Operation, auDernierPlan, auPremierPlan } from './coeur/tableau'
 import type { ContexteToile } from './elements/types'
 import { toutesLesEntreesMenu } from './elements/registre'
-import { langue, t } from './langue'
+import { formaterDate } from './communs/dates'
+import { t } from './langue'
 import type { NomIcone } from './icones'
 
 /** Une ligne du menu « ••• » de la barre de gauche : une action, ou une information (sans `faire`). */
@@ -58,7 +59,7 @@ export function actionsSelection(elements: Element[], contexte: ContexteToile): 
     { cle: 'haut', libelle: t('toile.premierPlan'), icone: 'premierPlan', raccourci: '⇧⌘↑', faire: () => contexte.magasin.remplacer(auPremierPlan(contexte.magasin.lire(), ids)) },
     { cle: 'bas', libelle: t('toile.arrierePlan'), icone: 'arrierePlan', raccourci: '⇧⌘↓', faire: () => contexte.magasin.remplacer(auDernierPlan(contexte.magasin.lire(), ids)) },
     ...(seul !== null
-      ? [{ cle: 'infos', libelle: t('menu.creeLe', { date: new Date(seul).toLocaleDateString(langue(), { day: 'numeric', month: 'long', year: 'numeric' }) }), icone: 'infos' as const }]
+      ? [{ cle: 'infos', libelle: t('menu.creeLe', { date: formaterDate(seul) }), icone: 'infos' as const }]
       : []),
   ]
 }

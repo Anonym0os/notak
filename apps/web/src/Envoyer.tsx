@@ -1,10 +1,11 @@
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
-import { t, langue } from './langue'
+import { t } from './langue'
+import { formaterInstant } from '@notak/tableau'
 import { type JetonArrivee, creerJeton, listerJetons, revoquerJeton } from './api'
 import { PageApp } from './PageApp'
 import { jetonARemplacer, adresseArrivee, enteteAutorisation, etapesRaccourciImage, etapesRaccourciTexte, favori } from './raccourcis'
 
-const quand = (instant: number) => new Date(instant).toLocaleString(langue() === 'en' ? 'en-US' : 'fr-FR', { dateStyle: 'medium', timeStyle: 'short' })
+const quand = formaterInstant
 
 /** Les segments entre accents graves se lisent en police de code. */
 function Ligne({ texte }: { texte: string }) {

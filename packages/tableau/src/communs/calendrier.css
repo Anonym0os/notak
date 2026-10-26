@@ -1,0 +1,184 @@
+/*
+ * Le calendrier et l'heure, communs aux trois produits (maquette « Composants communs » : .nk-cal, .nk-jour,
+ * .nk-heure). 292 px de large, des jours de 36 px au rayon de 4. Rien en dur : les gris sont le texte du thème,
+ * dilué, donc le thème sombre suit tout seul.
+ */
+.notak-cal {
+  box-sizing: border-box;
+  width: 292px;
+  padding: 16px 20px 20px;
+  color: var(--notak-texte);
+  font-size: 13px;
+  line-height: 1.3;
+  text-align: left;
+  white-space: normal;
+}
+
+/* Le mois et ses deux flèches. */
+.notak-cal-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+  margin-bottom: 6px;
+}
+
+.notak-cal-mois {
+  font-size: 13.5px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.notak-cal .notak-cal-fleche,
+.notak-cal .notak-cal-jour,
+.notak-heure .notak-heure-retirer,
+.notak-heure-ajout.notak-heure-ajout {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.notak-cal .notak-cal-fleche {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 30px;
+  padding: 0;
+  border-radius: 4px;
+}
+
+.notak-cal .notak-cal-fleche:hover,
+.notak-cal .notak-cal-jour:not(:disabled):hover {
+  background: color-mix(in srgb, var(--notak-texte) 6%, transparent);
+}
+
+.notak-cal .notak-cal-fleche:focus-visible,
+.notak-cal .notak-cal-jour:focus-visible,
+.notak-heure .notak-heure-retirer:focus-visible,
+.notak-heure-ajout:focus-visible {
+  outline: 2px solid var(--notak-accent);
+  outline-offset: -2px;
+}
+
+/* L'initiale des jours, puis six semaines de cases de 36 px. */
+.notak-cal-grille {
+  display: grid;
+  grid-template-columns: repeat(7, 36px);
+}
+
+.notak-cal-initiale {
+  display: grid;
+  place-items: center;
+  height: 20px;
+  color: color-mix(in srgb, var(--notak-texte) 70%, transparent);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.notak-cal-vide,
+.notak-cal .notak-cal-jour {
+  box-sizing: border-box;
+  width: 36px;
+  height: 36px;
+}
+
+/* Un jour des mois voisins : la place reste, on ne voit rien. */
+.notak-cal-vide {
+  visibility: hidden;
+}
+
+.notak-cal .notak-cal-jour {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 4px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.notak-cal .notak-cal-jour:disabled {
+  color: color-mix(in srgb, var(--notak-texte) 30%, transparent);
+  cursor: default;
+}
+
+/* Aujourd'hui est cerclé en gris ; le jour choisi est en gras, cerclé en foncé. */
+.notak-cal .notak-cal-jour[data-aujourdhui] {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--notak-texte) 28%, transparent);
+}
+
+.notak-cal .notak-cal-jour[aria-pressed='true'] {
+  box-shadow: inset 0 0 0 2px var(--notak-texte);
+  font-weight: 700;
+}
+
+/* L'heure : « Ajouter une heure… » pleine largeur, puis la ligne horloge · HH : MM · Retirer l'heure. */
+.notak-heure,
+.notak-heure-ajout.notak-heure-ajout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 36px;
+  margin-top: 14px;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--notak-texte) 16%, transparent);
+  color: var(--notak-texte);
+  font-size: 13px;
+}
+
+.notak-heure {
+  padding: 0 6px 0 10px;
+}
+
+.notak-heure-ajout.notak-heure-ajout {
+  justify-content: flex-start;
+  padding: 0 10px;
+  text-align: left;
+}
+
+.notak-heure-ajout.notak-heure-ajout:disabled {
+  color: color-mix(in srgb, var(--notak-texte) 40%, transparent);
+  cursor: default;
+}
+
+.notak-heure-champs {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.notak-heure .notak-heure-champ {
+  box-sizing: border-box;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  outline: none;
+}
+
+.notak-heure .notak-heure-champ:focus {
+  background: color-mix(in srgb, var(--notak-texte) 8%, transparent);
+  box-shadow: inset 0 0 0 1px var(--notak-accent);
+}
+
+.notak-heure .notak-heure-retirer {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 13px;
+  color: color-mix(in srgb, var(--notak-texte) 70%, transparent);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.notak-heure .notak-heure-retirer:hover {
+  background: color-mix(in srgb, var(--notak-texte) 6%, transparent);
+}

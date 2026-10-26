@@ -474,15 +474,9 @@ tr:first-child:last-child .notak-table-repere-ligne {
   padding: 8px;
 }
 
-.notak-table-popup label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.notak-table-popup .notak-table-calendrier-coche {
-  justify-content: flex-start;
+/* Le calendrier commun porte sa propre marge. */
+.notak-table-popup.notak-table-calendrier {
+  padding: 0;
 }
 
 /* ───────────── Les menus de la barre d'outils ───────────── */

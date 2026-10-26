@@ -108,7 +108,6 @@
 }
 
 .notak-arbre-popover input[type='text'],
-.notak-arbre-popover input[type='date'],
 .notak-arbre-popover input[type='number'],
 .notak-arbre-popover input[type='search'],
 .notak-arbre-popover textarea {
@@ -123,6 +122,39 @@
   font: inherit;
   font-size: 13px;
   outline: none;
+}
+
+.notak-arbre-jour {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: var(--notak-arbre-discret);
+  font-size: 11px;
+}
+
+/* Le jour choisi : la même piste qu'un champ, le calendrier commun se déplie dessous. */
+.notak-arbre-jour > button {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--notak-arbre-piste);
+  color: var(--notak-arbre-texte);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notak-arbre-jour > button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--notak-arbre-choix);
+}
+
+.notak-arbre-jour .notak-cal {
+  align-self: center;
 }
 
 .notak-arbre-popover input:focus,

@@ -12,7 +12,7 @@ import { Decor, Pastille } from './Decor'
 import { BarreSelection } from '../../Barres'
 import { BarreEtiquette } from './BarreEtiquette'
 import { PanneauEtiquettes } from './Etiquettes'
-import { OutilEtiquettes, OutilReactions } from './Outils'
+import { OutilEcheance, OutilEtiquettes, OutilReactions } from './Outils'
 import { OutilsCommentaire } from '../commentaire/Commentaire'
 import { nouveauCommentaire } from '../commentaire/fil'
 import { SelecteurEmojis } from './SelecteurEmojis'
@@ -306,6 +306,23 @@ describe('l’outil Réagir', () => {
     act(() => bouton('Réagir').click())
     act(() => bouton('Réagir avec 🔥').click())
     expect(choisis().map((e) => e.reactions)).toEqual([undefined, undefined])
+  })
+})
+
+describe('l’outil Échéance', () => {
+  it('ouvre le calendrier commun : un jour choisi devient l’échéance de toute la sélection, « Retirer » l’efface', () => {
+    const { contexte, magasin } = monde()
+    magasin.faire([{ type: 'creer', element: nouvelleNote(40, 0, 'Autre') }])
+    const choisis = () => magasin.lire().elements
+    const rendre = () => act(() => racine.render(<OutilEcheance elements={choisis()} contexte={contexte} />))
+    rendre()
+    act(() => bouton('Échéance').click())
+    expect(hote.querySelector('input[type=date]')).toBeNull()
+    act(() => hote.querySelector<HTMLElement>('.notak-cal-jour[data-jour$="-15"]')!.click())
+    expect(choisis().map((e) => e.echeance)).toEqual([expect.stringMatching(/^\d{4}-\d{2}-15$/), expect.stringMatching(/^\d{4}-\d{2}-15$/)])
+    rendre()
+    act(() => bouton('Retirer l’échéance').click())
+    expect(choisis().every((e) => e.echeance === undefined)).toBe(true)
   })
 })
 

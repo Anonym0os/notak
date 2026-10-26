@@ -1,4 +1,5 @@
 import { langue, t } from '../../langue'
+import { decaler, jourDe } from '../../communs/dates'
 /**
  * Ce qui se pose sur une tâche en plus de son texte : une échéance, une personne. Des règles pures sur les
  * attributs de la tâche (`echeance` : `AAAA-MM-JJ`, `assigne` : un nom, libre ou celui d'une personne présente) ; le rendu les lit, hors édition en React, en édition
@@ -123,16 +124,6 @@ const MOIS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 
 
 const nb = (n: number, largeur = 2) => String(n).padStart(largeur, '0')
 
-/** Le jour d'une date, à l'heure de la machine : `AAAA-MM-JJ`. */
-export const jourDe = (d: Date) => `${nb(d.getFullYear(), 4)}-${nb(d.getMonth() + 1)}-${nb(d.getDate())}`
-
-/** Le jour `n` jours après `jour` (avant si `n` est négatif). */
-export function decaler(jour: string, n: number): string {
-  const d = new Date(`${jour}T12:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + n)
-  return d.toISOString().slice(0, 10)
-}
-
 /** Est-ce un vrai jour du calendrier, écrit `AAAA-MM-JJ` ? */
 export function jourValide(valeur: unknown): valeur is string {
   if (typeof valeur !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(valeur)) return false
@@ -253,3 +244,5 @@ export function personnes(moi: Personne | undefined, autres: readonly Personne[]
     return true
   })
 }
+
+export { decaler, jourDe }
