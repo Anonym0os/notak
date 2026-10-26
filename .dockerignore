@@ -8,3 +8,5 @@ apps/serveur/data
 # La coque de bureau ne sert pas à l'image du serveur : ses constructions pèsent des gigaoctets.
 apps/bureau/src-tauri/target
 **/dist-bureau
+# Les réglages du serveur (et peut-être sa clé) ne vont pas dans l'image.
+.env

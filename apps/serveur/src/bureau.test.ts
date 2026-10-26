@@ -1,9 +1,10 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { Hono } from 'hono'
-import { creerApp } from './app.ts'
+import { CORPS_APPAREIL_MAX, adresseTransmise, creerApp, relaisDe } from './app.ts'
+import { CLIENT_BUREAU, PAGE_AUTORISER, normaliserOrigine } from './auth.ts'
 import { type Base, ouvrirBase } from './base.ts'
 import { creerLimiteur } from './debit.ts'
 import { creerDemandes, normaliserCode } from './demandesBureau.ts'
@@ -68,7 +69,7 @@ describe('la connexion de l’app de bureau par un code', () => {
       limiteurJeton: creerLimiteur(60, 60_000),
       maintenant: Date.now,
       synchro: () => null,
-      relaisFiable: false,
+      relais: 0,
       cookieSecurise: false,
     })
   })
@@ -163,6 +164,9 @@ describe('la connexion de l’app de bureau par un code', () => {
     const codes = () => (base.db.prepare('SELECT count(*) AS n FROM deviceCode').get() as { n: number }).n
     const avant = codes()
     expect((await enJson('/api/auth/device/code', { client_id: CLIENT, user_id: ana.utilisateur.id }, { ip })).status).toBe(400)
+    // Ni un `scope`, ni un champ inconnu : Better Auth les écrirait tels quels dans la base, pour qui n'a pas de compte.
+    expect((await enJson('/api/auth/device/code', { client_id: CLIENT, scope: 'x'.repeat(1000) }, { ip })).status).toBe(400)
+    expect((await enJson('/api/auth/device/code', { client_id: CLIENT, autre: 1 }, { ip })).status).toBe(400)
     expect(codes()).toBe(avant)
 
     // Ni un jeton pour un autre client.
@@ -222,6 +226,209 @@ describe('la connexion de l’app de bureau par un code', () => {
     const sondages: number[] = []
     for (let i = 0; i < 30; i++) sondages.push((await jeton(code.device_code, { ip: app2 })).status)
     expect(sondages.includes(429)).toBe(false)
+  })
+})
+
+describe('le corps des demandes de la connexion par code', () => {
+  let base: Base
+  let dossier: string
+  let app: Hono
+
+  beforeAll(() => {
+    base = ouvrirBase(':memory:')
+    dossier = mkdtempSync(join(tmpdir(), 'notak-bureau-'))
+    app = creerApp({
+      base,
+      auth: authEssai(base),
+      autorisation: autorisationEssai(base),
+      moyens: { fournisseurs: [], courriel: false },
+      dossierFichiers: join(dossier, 'fichiers'),
+      limiteur: creerLimiteur(1000, 60_000),
+      maintenant: Date.now,
+      synchro: () => null,
+      relais: 0,
+      cookieSecurise: false,
+    })
+  })
+  afterAll(() => {
+    base.fermer()
+    rmSync(dossier, { recursive: true, force: true })
+  })
+
+  const codes = () => (base.db.prepare('SELECT count(*) AS n FROM deviceCode').get() as { n: number }).n
+
+  it('au-delà de quelques champs, rien n’est lu ni écrit : 413', async () => {
+    const gros = JSON.stringify({ client_id: CLIENT, scope: 'x'.repeat(1024 * 1024) })
+    const avant = codes()
+    for (const chemin of ['/device/code', '/device/token', '/device/approve', '/device/deny']) {
+      const r = await app.request(`/api/auth${chemin}`, { method: 'POST', headers: { 'content-type': 'application/json', origin: ORIGINE_ESSAI }, body: gros })
+      expect(r.status, chemin).toBe(413)
+    }
+    expect(codes()).toBe(avant)
+  })
+
+  it('un corps envoyé par morceaux, sans longueur annoncée, s’arrête aussi à la borne', async () => {
+    const morceau = new TextEncoder().encode('x'.repeat(1024))
+    let envoyes = 0
+    const flux = new ReadableStream<Uint8Array>({
+      pull(c) {
+        if (++envoyes > 100) c.close()
+        else c.enqueue(morceau)
+      },
+    })
+    const r = await app.request('/api/auth/device/code', { method: 'POST', headers: { 'content-type': 'application/json' }, body: flux, duplex: 'half' } as RequestInit)
+    expect(r.status).toBe(413)
+    // La lecture s'est arrêtée peu après la borne, sans attendre la fin du flux.
+    expect(envoyes).toBeLessThan(10)
+  })
+
+  it('une demande à la taille ordinaire passe', async () => {
+    const corps = JSON.stringify({ client_id: CLIENT })
+    expect(corps.length).toBeLessThan(CORPS_APPAREIL_MAX)
+    const r = await app.request('/api/auth/device/code', { method: 'POST', headers: { 'content-type': 'application/json' }, body: corps })
+    expect(r.status).toBe(200)
+  })
+})
+
+describe('derrière un relais', () => {
+  it('l’adresse du client est celle qu’a ajoutée le dernier relais de confiance, jamais celle de gauche', () => {
+    // Le client écrit ce qu'il veut à gauche ; chaque relais ajoute à droite l'adresse qui l'a joint.
+    expect(adresseTransmise('6.6.6.6, 203.0.113.5', 1)).toBe('203.0.113.5')
+    expect(adresseTransmise('203.0.113.5', 1)).toBe('203.0.113.5')
+    // Deux relais (un CDN, puis Caddy) : l'avant-dernière.
+    expect(adresseTransmise('6.6.6.6, 203.0.113.5, 198.51.100.7', 2)).toBe('203.0.113.5')
+    expect(adresseTransmise('2001:db8::1', 1)).toBe('2001:db8::1')
+    // Ce qui n'est pas une adresse, ou une entrée qui manque : rien de sûr, on garde celle de la connexion.
+    for (const [entete, relais] of [['inconnue', 1], ['203.0.113.5:443', 1], ['203.0.113.5', 2], ['6.6.6.6, ', 1], [undefined, 1], ['203.0.113.5', 0]] as const) {
+      expect(adresseTransmise(entete, relais), `${entete} / ${relais}`).toBeNull()
+    }
+  })
+
+  it('NOTAK_RELAIS : 1 (Caddy, Traefik), un nombre de relais, ou aucun', () => {
+    expect(relaisDe('1')).toBe(1)
+    expect(relaisDe(' 2 ')).toBe(2)
+    for (const v of [undefined, '', '0', 'oui', '-1', '1.5']) expect(relaisDe(v), String(v)).toBe(0)
+  })
+
+  describe('les limites et la page de confirmation', () => {
+    let base: Base
+    let dossier: string
+    let app: Hono
+    let ana: Compte
+    // Le relais, seul à joindre le serveur ; il ajoute l'adresse du client à X-Forwarded-For.
+    const RELAIS = '172.18.0.1'
+    const parLeRelais = (chemin: string, client: string, ecrit: string, o: { cookie?: string; json?: object } = {}) => {
+      const entetes: Record<string, string> = { 'x-forwarded-for': `${ecrit}, ${client}` }
+      if (o.cookie) entetes.cookie = o.cookie
+      if (o.json) entetes['content-type'] = 'application/json'
+      if (o.cookie) entetes.origin = ORIGINE_ESSAI
+      return app.request(chemin, { method: o.json ? 'POST' : 'GET', headers: entetes, body: o.json && JSON.stringify(o.json) }, { incoming: { socket: { remoteAddress: RELAIS } } })
+    }
+
+    beforeAll(async () => {
+      base = ouvrirBase(':memory:')
+      dossier = mkdtempSync(join(tmpdir(), 'notak-bureau-'))
+      const auth = authEssai(base)
+      ana = await inscrireEssai(auth, base, 'Ana')
+      app = creerApp({
+        base,
+        auth,
+        autorisation: autorisationEssai(base),
+        moyens: { fournisseurs: [], courriel: false },
+        dossierFichiers: join(dossier, 'fichiers'),
+        limiteur: creerLimiteur(10, 60_000),
+        maintenant: Date.now,
+        synchro: () => null,
+        relais: 1,
+        cookieSecurise: false,
+      })
+    })
+    afterAll(() => {
+      base.fermer()
+      rmSync(dossier, { recursive: true, force: true })
+    })
+
+    it('une adresse forgée à gauche n’ouvre pas de nouvelle limite', async () => {
+      const statuts: number[] = []
+      for (let i = 0; i < 11; i++) statuts.push((await parLeRelais('/api/auth/device/code', '203.0.113.5', `10.9.9.${i}`, { json: { client_id: CLIENT } })).status)
+      expect(statuts.slice(0, 10).every((s) => s === 200)).toBe(true)
+      expect(statuts[10]).toBe(429)
+      // Un autre client, derrière le même relais, a la sienne.
+      expect((await parLeRelais('/api/auth/device/code', '203.0.113.6', '10.9.9.1', { json: { client_id: CLIENT } })).status).toBe(200)
+    })
+
+    it('la page de confirmation compare les adresses qu’a vues le relais, pas celles qu’on lui écrit', async () => {
+      const app2 = '198.51.100.20'
+      const r = await parLeRelais('/api/auth/device/code', app2, '203.0.113.99', { json: { client_id: CLIENT } })
+      const { user_code } = (await r.json()) as { user_code: string }
+      // Celui qui confirme écrit l'adresse de l'app à gauche : rien n'y fait.
+      const navigateur = '203.0.113.99'
+      expect((await parLeRelais(`/api/auth/device?user_code=${user_code}`, navigateur, app2, { cookie: ana.cookie })).status).toBe(200)
+      const lu = (await (await parLeRelais(`/api/bureau/demande?user_code=${user_code}`, navigateur, app2, { cookie: ana.cookie })).json()) as { ip: string; ipActuelle: string }
+      expect(lu).toMatchObject({ ip: app2, ipActuelle: navigateur })
+    })
+  })
+})
+
+describe('une adresse du serveur écrite autrement que le navigateur', () => {
+  it('se lit sous sa forme d’origine', () => {
+    for (const ecrite of ['https://notak.exemple.fr/', 'HTTPS://Notak.Exemple.fr', 'https://notak.exemple.fr:443', ' https://notak.exemple.fr/accueil ']) {
+      expect(normaliserOrigine(ecrite), ecrite).toBe('https://notak.exemple.fr')
+    }
+    expect(normaliserOrigine('http://localhost:3005/')).toBe('http://localhost:3005')
+    // Une adresse sans origine web (l'app de bureau en développement) reste telle qu'écrite.
+    expect(normaliserOrigine('tauri://localhost')).toBe('tauri://localhost')
+    expect(normaliserOrigine('notak.exemple.fr')).toBeNull()
+    expect(normaliserOrigine('')).toBeNull()
+  })
+
+  it('la page de l’app reçoit quand même son cookie après un code confirmé', async () => {
+    const base = ouvrirBase(':memory:')
+    const dossier = mkdtempSync(join(tmpdir(), 'notak-bureau-'))
+    // Une faute courante : l'adresse copiée depuis la barre du navigateur, avec sa barre finale.
+    const auth = authEssai(base, `${ORIGINE_ESSAI}/`)
+    const ana = await inscrireEssai(auth, base, 'Ana')
+    const app = creerApp({
+      base,
+      auth,
+      autorisation: autorisationEssai(base),
+      moyens: { fournisseurs: [], courriel: false },
+      dossierFichiers: join(dossier, 'fichiers'),
+      limiteur: creerLimiteur(1000, 60_000),
+      maintenant: Date.now,
+      synchro: () => null,
+      relais: 0,
+      cookieSecurise: false,
+    })
+    const enJson = (chemin: string, corps: object, entetes: Record<string, string> = {}) =>
+      app.request(chemin, { method: 'POST', headers: { 'content-type': 'application/json', ...entetes }, body: JSON.stringify(corps) })
+    try {
+      const code = (await (await enJson('/api/auth/device/code', { client_id: CLIENT })).json()) as { device_code: string; user_code: string }
+      const navigateur = { cookie: ana.cookie, origin: ORIGINE_ESSAI }
+      expect((await app.request(`/api/auth/device?user_code=${code.user_code}`, { headers: navigateur })).status).toBe(200)
+      expect((await enJson('/api/auth/device/approve', { userCode: code.user_code }, navigateur)).status).toBe(200)
+      const r = await enJson(
+        '/api/auth/device/token',
+        { grant_type: 'urn:ietf:params:oauth:grant-type:device_code', device_code: code.device_code, client_id: CLIENT },
+        { origin: ORIGINE_ESSAI },
+      )
+      expect(r.status).toBe(200)
+      expect(r.headers.get('set-cookie')).toMatch(/^notak\.session_token=/)
+    } finally {
+      base.fermer()
+      rmSync(dossier, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('ce que la page de l’app attend du serveur', () => {
+  // Le navigateur (`apps/web/src/serveur/appareil.ts`) a sa copie de ces deux valeurs : qu'une change seule, et l'app
+  // ne se connecte plus (`invalid_client`, ou une page de confirmation introuvable).
+  it('le même client et la même page de confirmation', () => {
+    const page = readFileSync(join(import.meta.dirname, '../../web/src/serveur/appareil.ts'), 'utf8')
+    expect(page).toContain(`'${CLIENT_BUREAU}'`)
+    expect(page).toContain(`'${PAGE_AUTORISER}'`)
+    expect(CLIENT).toBe(CLIENT_BUREAU)
   })
 })
 

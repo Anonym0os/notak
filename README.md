@@ -36,7 +36,8 @@ Notak covers almost all of Milanote's features: see [`docs/FONCTIONNALITES.md`](
 
 ## Develop
 
-You need [Bun](https://bun.sh) 1.3 and Node 22.13 or later.
+You need [Bun](https://bun.sh) 1.3 and Node 22.18 or later (the server runs its TypeScript directly; CI and the image
+use Node 24).
 
 ```bash
 bun install
@@ -65,35 +66,47 @@ scenarios). The code is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 Two containers: Notak serves the app, the accounts and live collaboration on port 3005, and
 [OpenFGA](https://openfga.dev) evaluates permissions (who can read, comment, edit or own each board). Notak's data
-(SQLite database and uploaded files) lives in the `notak-donnees` volume and is the source of truth: OpenFGA only
-holds a copy, rebuilt from it if it is ever lost. The image is published for amd64 and arm64
-(`ghcr.io/anonym0os/notak`); all you need is [`compose.yaml`](compose.yaml):
+(SQLite database and uploaded files) lives in a Compose volume named after the folder (`notak_notak-donnees` for a
+`notak` folder: `docker volume ls`) and is the source of truth: OpenFGA only holds a copy, rebuilt from it if it is
+ever lost. The image is published for amd64 and arm64 (`ghcr.io/anonym0os/notak`); all you need is
+[`compose.yaml`](compose.yaml) and a `.env` file next to it (Docker Compose 2.24 or later):
 
 ```bash
 mkdir notak && cd notak
 curl -fsSLO https://raw.githubusercontent.com/Anonym0os/notak/main/compose.yaml
-NOTAK_ORIGINE=https://notak.example.com NOTAK_ADMINS=you@example.com docker compose up -d
+printf 'NOTAK_ORIGINE=https://notak.example.com\nNOTAK_ADMINS=you@example.com\n' > .env
+docker compose up -d
 ```
 
-To run the Notak image on its own, point it at an OpenFGA server with `-e NOTAK_OPENFGA_URL=http://openfga:8080`.
+**Settings live in the `.env` file**, one variable per line, and every line reaches the server. After a change,
+`docker compose up -d` recreates the container with it. A variable put in front of the command
+(`NOTAK_ADMINS=… docker compose up -d`) only lasts for that command: the next update would forget it.
+`NOTAK_ORIGINE` is the address everyone types, in the browser and in the desktop app: `https://` and the host name,
+with no path and no trailing `/`.
 
-To update: `docker compose pull && docker compose up -d`. The server tells you when a new version is out, in its log
-and in the app for the addresses listed in `NOTAK_ADMINS`, by reading the same release announcement as the desktop
-app every twelve hours (`NOTAK_VERIFIER_MAJ=0` turns this off). Pin a version with `NOTAK_VERSION=0.2.0` (or `0.2`)
-in a `.env` file next to `compose.yaml`. To build from source instead:
-`docker compose -f compose.yaml -f compose.source.yaml up -d --build`. Each published image carries a provenance
-attestation: `gh attestation verify oci://ghcr.io/anonym0os/notak:0.2.0 -R Anonym0os/notak`.
+To run the image on its own, without `compose.yaml`, give it an OpenFGA server (`NOTAK_OPENFGA_URL`), a volume on
+`/donnees` and the same variables.
 
-The image expects an HTTPS reverse proxy in front of it (`Secure` cookie, client address read from
-`X-Forwarded-For`). To try it over plain HTTP on your machine:
-`NOTAK_COOKIE_SECURISE=0 NOTAK_RELAIS=0 docker compose up -d`.
+To update: `docker compose pull && docker compose up -d`; the `.env` is read again, so your settings stay. The server
+tells you when a new version is out, in its log and in the app for the addresses listed in `NOTAK_ADMINS`, by reading
+the same release announcement as the desktop app every twelve hours (`NOTAK_VERIFIER_MAJ=0` turns this off). To stay
+on a version, put `NOTAK_VERSION=0.2.0` in the `.env` (`0.2` follows the 0.2 fixes as soon as they are published). To
+build from source instead: `docker compose -f compose.yaml -f compose.source.yaml up -d --build`. Each published
+image carries a provenance attestation: `gh attestation verify oci://ghcr.io/anonym0os/notak:0.2.0 -R Anonym0os/notak`.
 
-The desktop app connects to your server: enter its address in the app (HTTPS with a real certificate, except on
-`localhost`). Signing in with Google, Microsoft, GitHub or a space's SSO goes through your browser and a code to
-confirm.
+The image expects an HTTPS reverse proxy in front of it: it sets a `Secure` cookie, and takes the client's address
+from the entry the proxy adds to `X-Forwarded-For` (`NOTAK_RELAIS=2` behind two proxies). So `compose.yaml` publishes
+port 3005 on the machine's loopback only (`127.0.0.1`), for a proxy on the same machine (Caddy:
+`reverse_proxy localhost:3005`); for a proxy elsewhere, set `NOTAK_ECOUTE` and a firewall (see
+[`docs/AUTO-HEBERGER.md`](docs/AUTO-HEBERGER.md)). To try it over plain HTTP on your machine, put
+`NOTAK_COOKIE_SECURISE=0` and `NOTAK_RELAIS=0` in the `.env`, and no `NOTAK_ORIGINE`.
 
-Accounts go through [Better Auth](https://www.better-auth.com). Set the server's public address so sign-in
-links and provider callbacks point to it: `-e NOTAK_ORIGINE=https://notak.example.com`. Optional settings:
+The desktop app connects to your server: "Connect to a Notak server…", then its address (HTTPS with a real
+certificate, except on `localhost`). The server's boards stay on the server and the computer's boards stay on the
+computer, until you ask the app to copy the latter to the server. Signing in with Google, Microsoft, GitHub or a
+space's SSO goes through your browser and a code to confirm.
+
+Accounts go through [Better Auth](https://www.better-auth.com). Optional settings, in the `.env`:
 
 | Variable | Effect |
 |---|---|
@@ -103,11 +116,11 @@ links and provider callbacks point to it: `-e NOTAK_ORIGINE=https://notak.exampl
 | `NOTAK_SMTP_URL`, `NOTAK_EXPEDITEUR` | Sends password-reset and verification emails (`smtps://user:password@host:465`). Without it, the links go to the server log for the administrator to pass on. |
 
 Before each migration, the server copies the database to `notak.db.avant-<n>` in `/donnees`, then migrates it. A
-migrated database refuses older code, so rolling back means the previous image plus that copy (see
-[`docs/AUTO-HEBERGER.md`](docs/AUTO-HEBERGER.md), "Mettre à jour").
+migrated database refuses older code, so rolling back means the previous image plus that copy, and letting OpenFGA
+rebuild from it (see [`docs/AUTO-HEBERGER.md`](docs/AUTO-HEBERGER.md), "Mettre à jour").
 
-The "Image" panel's photo library queries Pexels: pass a free key with `-e PEXELS_API_KEY=…`. Without it, the panel
-only offers uploading your own files.
+The "Image" panel's photo library queries Pexels: put a free key in the `.env` (`PEXELS_API_KEY=…`). Without it, the
+panel only offers uploading your own files.
 
 Your instance's name, closed sign-ups, the themes it provides or enforces, Coolify, backups, updates and rollback,
 and the desktop app: [`docs/AUTO-HEBERGER.md`](docs/AUTO-HEBERGER.md) (in French).
@@ -123,24 +136,26 @@ export and public links all keep working: this protects the disk and its backups
 
 | Variable | Meaning |
 |---|---|
-| `NOTAK_CLE` | The key: 32 random bytes in base64, made with `openssl rand -base64 32`. |
-| `NOTAK_CLE_FICHIER` | Or the path of a file holding it (a Docker secret, say), readable by the image's `node` user. Give one or the other, never both. |
-
-```bash
-docker run -d -p 3005:3005 -v notak-donnees:/donnees -e NOTAK_OPENFGA_URL=http://openfga:8080 \
-  -e NOTAK_CLE_FICHIER=/run/secrets/notak_cle -v /root/notak_cle:/run/secrets/notak_cle:ro ghcr.io/anonym0os/notak
-```
+| `NOTAK_CLE` | The key: 32 random bytes in base64, made with `openssl rand -base64 32`. In the `.env`, keep that file to yourself (`chmod 600 .env`). |
+| `NOTAK_CLE_FICHIER` | Or the path of a file holding it (a Docker secret, say), readable by the image's `node` user: with Compose, mount it with a `- /root/notak_cle:/run/secrets/notak_cle:ro` line under the `notak` service's `volumes:`, and put `NOTAK_CLE_FICHIER=/run/secrets/notak_cle` in the `.env`. Give one or the other, never both. |
 
 Without a key, nothing changes. With one, data written before stays readable and is encrypted the next time it is
-saved; to encrypt everything at once, stop the server and run `bun run serveur:chiffrer` with the same variables
-(`NOTAK_DONNEES` for the data folder), or in the image:
-`docker run --rm -v notak-donnees:/donnees -e NOTAK_CLE=… ghcr.io/anonym0os/notak node apps/serveur/outils/chiffrer.ts`.
-A wrong key, or a missing one in front of encrypted data, stops the server at startup rather than serving empty
-boards.
+saved. To encrypt everything at once, with the key in the `.env`:
+
+```bash
+docker compose stop notak
+docker compose run --rm --no-deps notak node apps/serveur/outils/chiffrer.ts
+docker compose up -d
+```
+
+The tool says how many documents and files it encrypted: "0 document(s) et 0 fichier(s)" on a server that has boards
+means it did not open the right folder. Without Docker, stop the server and run `bun run serveur:chiffrer` with the
+same variables (`NOTAK_DONNEES` for the data folder). A wrong key, or a missing one in front of encrypted data, stops
+the server at startup rather than serving empty boards.
 
 What stays **in clear**, because the server needs to read it without opening each board: board titles, the search
 index (SQLite FTS5, which holds the text of the elements), activity and notification excerpts, and account e-mail
-addresses (plus names, colours and sharing rights). So also encrypt the host's disk (LUKS, an encrypted volume
+addresses (plus names, colors and sharing rights). So also encrypt the host's disk (LUKS, an encrypted volume
 from your provider): the key in `NOTAK_CLE` covers the content, the disk covers the rest.
 
 ### The local edition (like notak.app)

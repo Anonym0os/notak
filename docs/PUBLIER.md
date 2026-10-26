@@ -63,6 +63,7 @@ Ce qui peut joindre un tiers, et quand :
 | Un morceau, une carte, une maquette intégrés (Spotify, Apple Music, Deezer, Google Maps, OpenStreetMap, Figma, Miro, CodePen, Google Docs) | le fournisseur | dès que le tableau qui les contient s'affiche |
 | Une image posée par son adresse (ou l'aperçu d'un lien venu d'un serveur Notak) | son site | quand elle s'affiche |
 | La recherche des mises à jour (app de bureau) | GitHub | au lancement puis toutes les six heures ; se coupe dans « Où sont mes toiles ? » |
+| Votre travail sur un serveur Notak (app de bureau) | ce serveur, celui que vous avez choisi | une fois connecté (« Se connecter à un serveur Notak… ») ; les toiles de cet ordinateur n'y vont que par « Copier mes toiles sur… » |
 
 Les trois lignes sur les lecteurs et les images valent pour vos toiles. Dans un tableau qui vient d'une copie reçue, rien
 de cela ne part de soi-même : voir juste dessous.
@@ -75,11 +76,12 @@ vôtre sont marqués, sur votre appareil, et dans ces tableaux :
   document, vignettes de ses aperçus de lien), ni à l'écran, ni en présentation, ni dans un export ;
 - une place dit d'où le contenu viendrait (« Contenu de open.spotify.com ») et propose « Afficher », qui ne charge que cet
   élément et pour la visite en cours ;
-- un bandeau le dit, avec « Tout afficher pour cette toile », qui lève l'attente de ce tableau pour de bon (sur les
-  appareils qui partagent le même dossier synchronisé aussi).
+- un bandeau le dit, avec « Tout afficher pour cette toile », qui lève l'attente de ce tableau (sur les appareils qui
+  partagent le même dossier synchronisé aussi), jusqu'à ce qu'une copie reçue y apporte du neuf.
 
-Les images envoyées dans Notak ne sont pas concernées : elles sont dans la copie elle-même. Rouvrir sa propre copie ne
-marque rien, et ne retire aucune marque. Une fois affichés, ces hôtes voient l'adresse IP et ce qu'on leur demande, rien
+Les images envoyées dans Notak ne sont pas concernées : elles sont dans la copie elle-même. Rouvrir sa propre copie,
+sans rien de nouveau, ne marque rien et ne retire aucune marque ; ce qu'une copie renvoyée par quelqu'un ajoute à vos
+toiles (un tableau neuf, ou du contenu en avance sur le vôtre) est marqué. Une fois affichés, ces hôtes voient l'adresse IP et ce qu'on leur demande, rien
 d'autre : rien de vos toiles ne part avec.
 
 ## Ce qui manque à l'édition locale, et pourquoi

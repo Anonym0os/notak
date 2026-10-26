@@ -4,3 +4,5 @@ dist
 *.tsbuildinfo
 apps/serveur/data
 dist-bureau
+# Les réglages d'un serveur construit depuis le dépôt (docs/AUTO-HEBERGER.md) : la clé de chiffrement peut y être.
+.env

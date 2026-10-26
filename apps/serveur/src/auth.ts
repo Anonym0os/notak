@@ -122,6 +122,21 @@ export function pluginsAuth(o: Pick<OptionsAuth, 'base' | 'courrier' | 'origine'
   ]
 }
 
+/**
+ * Une origine écrite comme l'envoie un navigateur dans `Origin` : schéma et hôte en minuscules, sans port par défaut,
+ * sans chemin ni « / » final (`HTTPS://Notak.exemple.fr:443/` devient `https://notak.exemple.fr`). Une adresse d'un
+ * autre schéma (`tauri://localhost`) n'a pas d'origine web : elle reste telle qu'écrite. `null` : pas une adresse.
+ */
+export function normaliserOrigine(adresse: string): string | null {
+  const nette = adresse.trim()
+  try {
+    const origine = new URL(nette).origin
+    return origine === 'null' ? nette : origine
+  } catch {
+    return null
+  }
+}
+
 const typeDe = (entetes: Headers) => entetes.get('content-type')?.split(';')[0]?.trim().toLowerCase() ?? ''
 
 /**
@@ -132,6 +147,8 @@ const typeDe = (entetes: Headers) => entetes.get('content-type')?.split(';')[0]?
  * son insu au compte de l'attaquant, dont il aurait lui-même approuvé le code.
  */
 function connexionParCode(pages: readonly string[]): BetterAuthPlugin {
+  // Comparées à l'en-tête `Origin`, que le navigateur écrit toujours de la même façon (`normaliserOrigine`).
+  const sures = new Set(pages.map((p) => normaliserOrigine(p) ?? p))
   return {
     id: 'notak-connexion-par-code',
     hooks: {
@@ -143,10 +160,12 @@ function connexionParCode(pages: readonly string[]): BetterAuthPlugin {
             if (!ctx.request || typeDe(ctx.request.headers) !== 'application/json') {
               throw new APIError('UNSUPPORTED_MEDIA_TYPE', { error: 'invalid_request', error_description: 'JSON attendu' })
             }
-            // Un code se lie au compte qui le confirme, jamais à un compte nommé d'avance par qui le demande.
+            // `client_id` seul. Un code se lie au compte qui le confirme, jamais à un compte nommé d'avance par qui le
+            // demande (`user_id`) ; et Notak n'a pas de `scope` : un champ de plus serait écrit tel quel dans la base, par
+            // quelqu'un qui n'a pas de compte.
             const corps: unknown = ctx.body
-            if (corps && typeof corps === 'object' && 'user_id' in corps) {
-              throw new APIError('BAD_REQUEST', { error: 'invalid_request', error_description: 'user_id refusé' })
+            if (corps && typeof corps === 'object' && Object.keys(corps).some((k) => k !== 'client_id')) {
+              throw new APIError('BAD_REQUEST', { error: 'invalid_request', error_description: 'seul client_id est admis' })
             }
           }),
         },
@@ -159,7 +178,7 @@ function connexionParCode(pages: readonly string[]): BetterAuthPlugin {
             const requete = ctx.request
             if (!session || !requete) return
             const origine = requete.headers.get('origin')
-            if (typeDe(requete.headers) !== 'application/json' || !origine || !pages.includes(origine)) return
+            if (typeDe(requete.headers) !== 'application/json' || !origine || !sures.has(origine)) return
             await setSessionCookie(ctx, session)
           }),
         },

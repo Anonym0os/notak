@@ -25,6 +25,10 @@ describe('le numéro de la version suivante', () => {
   it('le même numéro pour la toile : son package.json et VERSION_NOTAK', () => {
     const paquet = '{\n  "name": "@notak/tableau",\n  "version": "0.1.0",\n  "dependencies": {\n    "animejs": "4.5.0"\n  }\n}\n'
     expect(avecVersion('paquet', paquet, '0.2.0')).toBe(paquet.replace('"version": "0.1.0"', '"version": "0.2.0"'))
+    // Son entrée dans bun.lock, pas celle d'un autre paquet qui porterait le même numéro.
+    const bun = '{\n  "workspaces": {\n    "apps/web": {\n      "name": "@notak/web",\n      "version": "0.1.0",\n    },\n    "packages/tableau": {\n      "name": "@notak/tableau",\n      "version": "0.1.0",\n      "dependencies": {\n        "animejs": "4.5.0",\n      },\n    },\n  },\n}\n'
+    expect(avecVersion('bun', bun, '0.2.0')).toBe(bun.replace('"@notak/tableau",\n      "version": "0.1.0"', '"@notak/tableau",\n      "version": "0.2.0"'))
+    expect(() => avecVersion('bun', '{ "packages": {} }', '0.2.0')).toThrow()
     const ts = "/** La version de Notak. */\nexport const VERSION_NOTAK = '0.1.0'\n"
     expect(avecVersion('tableau', ts, '0.2.0')).toBe("/** La version de Notak. */\nexport const VERSION_NOTAK = '0.2.0'\n")
     expect(() => avecVersion('tableau', 'export const AUTRE = "0.1.0"', '0.2.0')).toThrow()
@@ -37,6 +41,7 @@ describe('le numéro de la version suivante', () => {
       cargo: 'apps/bureau/src-tauri/Cargo.toml',
       verrou: 'apps/bureau/src-tauri/Cargo.lock',
       paquet: 'packages/tableau/package.json',
+      bun: 'bun.lock',
       tableau: 'packages/tableau/src/version.ts',
     } as const
     const actuelle = (JSON.parse(readFileSync(join(racine, lus.conf), 'utf8')) as { version: string }).version

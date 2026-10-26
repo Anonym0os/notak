@@ -253,7 +253,7 @@ describe('POST /api/arrivee : le débit', () => {
         limiteurArrivee: creerLimiteur(2, 60_000),
         maintenant: () => 1_000_000,
         synchro: () => null,
-        relaisFiable: false,
+        relais: 0,
         cookieSecurise: false,
       })
       const appel = () => app.request('/api/arrivee', { method: 'POST', headers: { authorization: 'Bearer nk_x', 'content-type': 'application/json' }, body: '{}' })

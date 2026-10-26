@@ -8,12 +8,18 @@
 # Ce qui protège la clé de signature :
 # - elle ne vit que dans l'environnement « publication », que GitHub ne déverrouille qu'après l'accord d'une personne
 #   (Required reviewers) et seulement pour une étiquette v* ;
-# - elle n'est là ni à l'installation des dépendances ni à la compilation : aucun code d'une dépendance (scripts npm,
-#   plugins de Vite, scripts de construction de Cargo) ne tourne à côté d'elle. Seuls la CLI de Tauri et les outils
-#   d'Apple la voient, pour empaqueter et signer ;
-# - les actions tierces sont épinglées à un commit, pas à une étiquette qu'on pourrait déplacer ;
+# - GitHub ne remet un secret qu'à la tâche qui le nomme, et le garde en mémoire sur sa machine le temps de la tâche.
+#   Les tâches qui font tourner le code des dépendances (installation, plugins de Vite, scripts de construction et
+#   macros de Cargo) n'en nomment donc aucun : « compiler », sans environnement, rend des paquets non signés, et les
+#   images n'ont l'environnement que pour l'accord. Seule « signer » nomme la clé, et n'installe ni ne compile rien :
+#   la CLI de Tauri (prise d'npm à son numéro exact), les outils d'Apple et nos scripts y tournent, rien d'autre ;
+# - « signer » n'ouvre que l'archive attendue : des fichiers ordinaires, aux noms attendus, sans lien ni chemin qui sorte ;
+# - à côté de la clé, seulement des actions de GitHub (actions/*), épinglées à un commit, pas à une étiquette qu'on
+#   pourrait déplacer ;
 # - aucun cache entre les exécutions : un cache empoisonné par une autre branche n'entre pas dans un paquet signé ;
-# - le jeton GitHub n'a que les droits dont chaque tâche a besoin.
+# - le jeton GitHub n'a que les droits dont chaque tâche a besoin, et une version déjà publiée ne se réécrit pas.
+# Cela protège la clé, pas le binaire : une dépendance piégée changerait ce qu'elle compile. C'est bun.lock et Cargo.lock
+# (`--frozen-lockfile`, `--locked`) qui fixent ce qui entre dans le binaire.
 name: Publier Notak
 
 on:
@@ -51,8 +57,21 @@ jobs:
           node-version: 24
       - name: L'étiquette, le numéro de l'app et ses notes s'accordent
         id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           version="${GITHUB_REF_NAME#v}"
+          # Trois nombres, rien d'autre : ce numéro entre ensuite dans des noms de fichiers et d'images.
+          if ! [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::« $GITHUB_REF_NAME » n'est pas une étiquette de version (vX.Y.Z)."
+            exit 1
+          fi
+          # Une version publiée ne se refait pas : les apps et les serveurs l'ont vue. Un brouillon, si (un essai
+          # qui a échoué) ; chaque tâche qui écrit le vérifie encore avant d'écrire.
+          if [ "$(gh release view "v$version" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null)" = false ]; then
+            echo "::error::v$version est déjà publiée : une version publiée ne se réécrit pas. Repartez d'un nouveau numéro."
+            exit 1
+          fi
           conf=$(node -p "require('./apps/bureau/src-tauri/tauri.conf.json').version")
           if [ "$version" != "$conf" ]; then
             echo "::error::L'étiquette $GITHUB_REF_NAME ne correspond pas à la version de tauri.conf.json ($conf) : passez par bun run nouvelle-version."
@@ -96,19 +115,23 @@ jobs:
           VERSION: ${{ needs.verifier.outputs.version }}
         run: |
           node scripts/publication.ts notes "$VERSION" > notes.md
-          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+          if brouillon=$(gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null); then
+            if [ "$brouillon" != true ]; then
+              echo "::error::v$VERSION est déjà publiée : une version publiée ne se réécrit pas."
+              exit 1
+            fi
             echo "Le brouillon de v$VERSION existe déjà : les paquets s'y ajoutent."
           else
             gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "Notak $VERSION" --notes-file notes.md
           fi
 
-  construire:
-    name: Construire (${{ matrix.plateforme }})
-    needs: [verifier, brouillon]
-    # Les secrets de signature ne s'ouvrent qu'ici, après l'accord demandé par l'environnement.
-    environment: publication
+  # Le code des dépendances tourne ici : aucun secret, aucun environnement, le dépôt en lecture seule. La configuration
+  # de publication y est déjà : la coque embarque l'adresse et la clé publique des mises à jour.
+  compiler:
+    name: Compiler (${{ matrix.plateforme }})
+    needs: verifier
     permissions:
-      contents: write
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -127,6 +150,11 @@ jobs:
             machine: windows-latest
             cible: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.machine }}
+    env:
+      CIBLE: ${{ matrix.cible }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -138,32 +166,138 @@ jobs:
         with:
           node-version: 24
       - name: Rust, pour la cible
-        shell: bash
         run: |
           rustup toolchain install stable --profile minimal
           rustup default stable
-          rustup target add ${{ matrix.cible }}
+          rustup target add "$CIBLE"
       - name: Les bibliothèques de WebKitGTK
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
       - run: bun install --frozen-lockfile
-      # La compilation (l'application web, puis Rust) fait tourner le code des dépendances : aucun secret ici. La
-      # configuration de publication y est déjà, la coque embarque l'adresse et la clé publique des mises à jour.
-      - name: Compiler, sans aucun secret
-        shell: bash
+      - name: Compiler (l'application web, puis Rust, à Cargo.lock près)
         run: |
           cd apps/bureau/src-tauri
-          bunx "$CLI_TAURI" build --ci --no-bundle --target ${{ matrix.cible }} --config tauri.publication.json
+          bunx "$CLI_TAURI" build --ci --no-bundle --target "$CIBLE" --config tauri.publication.json -- --locked
+      # macOS : `tauri bundle` signe l'app pendant qu'il l'empaquette, il se fait donc dans « signer ». Ici, le binaire seul.
+      - name: Le binaire, à empaqueter et signer plus loin (macOS)
+        if: runner.os == 'macOS'
+        # Sans les fichiers « ._ » de macOS, que « signer » refuserait.
+        env:
+          COPYFILE_DISABLE: 1
+        run: tar -cf paquet.tar -C "apps/bureau/src-tauri/target/$CIBLE/release" notak-bureau
+      # Linux et Windows : rien à signer pour le système (aucun certificat Windows n'est configuré ; `--no-sign` en
+      # sauterait un), donc l'empaquetage se fait ici. Seuls les paquets de mise à jour se signent plus loin.
+      - name: Empaqueter (Linux, Windows)
+        if: runner.os != 'macOS'
+        run: |
+          cd apps/bureau/src-tauri
+          bunx "$CLI_TAURI" bundle --ci --no-sign --target "$CIBLE" --config tauri.publication.json
+      - name: Les paquets, à signer plus loin (Linux, Windows)
+        if: runner.os != 'macOS'
+        run: |
+          bundle="apps/bureau/src-tauri/target/$CIBLE/release/bundle"
+          shopt -s nullglob
+          # Ceux que publie `scripts/publication.ts paquets`, et rien d'autre (pas les dossiers de travail de Tauri).
+          paquets=()
+          for f in "$bundle"/{appimage/*.AppImage,deb/*.deb,rpm/*.rpm,nsis/*-setup.exe,msi/*.msi}; do paquets+=("${f#"$bundle"/}"); done
+          if [ ${#paquets[@]} -eq 0 ]; then
+            echo "::error::Aucun paquet dans $bundle."
+            exit 1
+          fi
+          # Des chemins relatifs : sous Windows, « D:\… » se lirait comme une machine distante.
+          tar -cf paquet.tar -C "$bundle" "${paquets[@]}"
+      # L'archive garde les droits d'exécution, que l'artefact perdrait.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: paquet-${{ matrix.plateforme }}
+          path: paquet.tar
+          if-no-files-found: error
+          retention-days: 7
+
+  # La clé arrive ici, après l'accord, et seulement ici : on ne fait que déballer, empaqueter (macOS), signer et déposer.
+  signer:
+    name: Signer (${{ matrix.plateforme }})
+    needs: [verifier, brouillon, compiler]
+    environment: publication
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - plateforme: macos-aarch64
+            machine: macos-latest
+            cible: aarch64-apple-darwin
+          - plateforme: macos-x86_64
+            machine: macos-latest
+            cible: x86_64-apple-darwin
+          # Signer un paquet de mise à jour ne dépend pas du système : Linux pour les deux.
+          - plateforme: linux-x86_64
+            machine: ubuntu-latest
+            cible: x86_64-unknown-linux-gnu
+          - plateforme: windows-x86_64
+            machine: ubuntu-latest
+            cible: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.machine }}
+    env:
+      CIBLE: ${{ matrix.cible }}
+      PLATEFORME: ${{ matrix.plateforme }}
+      VERSION: ${{ needs.verifier.outputs.version }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      # Node pour nos scripts et la CLI de Tauri (npx) : pas de bun ici, ni d'action d'ailleurs à côté de la clé.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: paquet-${{ matrix.plateforme }}
+          path: ${{ runner.temp }}/paquet
+      - name: Déballer, après avoir vérifié chaque entrée
+        run: |
+          archive="$RUNNER_TEMP/paquet/paquet.tar"
+          if [ "$RUNNER_OS" = macOS ]; then
+            dossier="apps/bureau/src-tauri/target/$CIBLE/release"
+            attendu='^notak-bureau$'
+          else
+            dossier="apps/bureau/src-tauri/target/$CIBLE/release/bundle"
+            attendu='^(appimage|deb|rpm|nsis|msi)/[^/]+$'
+          fi
+          # Des fichiers ordinaires, aux noms attendus : ni lien, ni dossier, ni « .. » qui écrirait ailleurs.
+          tar -tvf "$archive" | while read -r droits _; do
+            if [ "${droits:0:1}" != - ]; then
+              echo "::error::L'archive contient autre chose qu'un fichier ($droits)."
+              exit 1
+            fi
+          done
+          tar -tf "$archive" | while read -r nom; do
+            if ! [[ "$nom" =~ $attendu ]] || [[ "$nom" == *..* ]]; then
+              echo "::error::Entrée inattendue dans l'archive : $nom"
+              exit 1
+            fi
+          done
+          mkdir -p "$dossier"
+          tar -xf "$archive" -C "$dossier"
+      - name: Rust, pour lire le projet (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add "$CIBLE"
       # macOS : `tauri bundle` signe l'app (le certificat Apple, s'il y en a un, sinon « ad hoc ») pendant qu'il
-      # l'empaquette, puis signe le paquet de mise à jour ; les deux se font donc ici, et seulement ici. Avec le
+      # l'empaquette, puis signe le paquet de mise à jour. Il ne compile rien : il prend le binaire déballé. Avec le
       # certificat, l'app est signée par un développeur identifié et notariée, et macOS l'ouvre sans avertissement.
       # Sans lui, elle est signée « ad hoc » (tauri.publication.json) et macOS demande, à la première ouverture
       # seulement, de confirmer dans Réglages → Confidentialité et sécurité.
       - name: Empaqueter et signer (macOS)
         if: runner.os == 'macOS'
-        shell: bash
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -184,28 +318,18 @@ jobs:
           done
           [ -n "${APPLE_CERTIFICATE:-}" ] || echo "Pas de certificat Apple : signature ad hoc."
           cd apps/bureau/src-tauri
-          bunx "$CLI_TAURI" bundle --ci --target ${{ matrix.cible }} --config tauri.publication.json
-      # Linux et Windows : rien à signer pour le système (aucun certificat Windows n'est configuré ; `--no-sign` en
-      # sauterait un), donc l'empaquetage se fait sans secret, et la clé ne sert qu'à `tauri signer sign`, à part.
-      - name: Empaqueter (Linux, Windows), sans aucun secret
-        if: runner.os != 'macOS'
-        shell: bash
-        run: |
-          cd apps/bureau/src-tauri
-          bunx "$CLI_TAURI" bundle --ci --no-sign --target ${{ matrix.cible }} --config tauri.publication.json
+          npx --yes "$CLI_TAURI" bundle --ci --target "$CIBLE" --config tauri.publication.json
       - name: Signer les paquets de mise à jour (Linux, Windows)
-        if: runner.os != 'macOS'
-        shell: bash
+        if: matrix.plateforme == 'linux-x86_64' || matrix.plateforme == 'windows-x86_64'
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          VERSION: ${{ needs.verifier.outputs.version }}
         run: |
           if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
             echo "::error::Le secret TAURI_SIGNING_PRIVATE_KEY manque dans l'environnement « publication » (docs/MISES-A-JOUR.md)."
             exit 1
           fi
-          cd "apps/bureau/src-tauri/target/${{ matrix.cible }}/release/bundle"
+          cd "apps/bureau/src-tauri/target/$CIBLE/release/bundle"
           shopt -s nullglob
           # Les paquets que l'app sait installer d'elle-même, ceux que `tauri build` signerait.
           paquets=(appimage/*.AppImage deb/*.deb rpm/*.rpm nsis/*-setup.exe msi/*.msi)
@@ -214,15 +338,18 @@ jobs:
             exit 1
           fi
           # Le numéro entre dans la signature : une annonce trafiquée ne fait pas passer ce paquet pour un autre.
-          for p in "${paquets[@]}"; do bunx "$CLI_TAURI" signer sign --app-version "$VERSION" "$p"; done
+          for p in "${paquets[@]}"; do npx --yes "$CLI_TAURI" signer sign --app-version "$VERSION" "$p"; done
       - name: Ranger les paquets sous des noms stables
-        shell: bash
-        run: node scripts/publication.ts paquets "apps/bureau/src-tauri/target/${{ matrix.cible }}/release/bundle" ${{ matrix.plateforme }} "${{ needs.verifier.outputs.version }}" livraison
+        run: node scripts/publication.ts paquets "apps/bureau/src-tauri/target/$CIBLE/release/bundle" "$PLATEFORME" "$VERSION" livraison
       - name: Les déposer dans le brouillon
-        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "v${{ needs.verifier.outputs.version }}" livraison/* --repo "$GITHUB_REPOSITORY" --clobber
+        run: |
+          if [ "$(gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" != true ]; then
+            echo "::error::v$VERSION n'est plus un brouillon : une version publiée ne se réécrit pas."
+            exit 1
+          fi
+          gh release upload "v$VERSION" livraison/* --repo "$GITHUB_REPOSITORY" --clobber
 
   # L'image du serveur, construite sur chaque architecture : sharp et argon2 y compilent ou y prennent leur code natif.
   # Poussée sans étiquette (par son empreinte), puis réunie en une seule plus bas. Aucun secret : le jeton GitHub de
@@ -302,6 +429,11 @@ jobs:
           AMD64: ${{ needs.image-amd64.outputs.empreinte }}
           ARM64: ${{ needs.image-arm64.outputs.empreinte }}
         run: |
+          # L'étiquette x.y.z d'une version publiée est celle qu'ont attestée et tirée les serveurs : elle ne se déplace plus.
+          if [ "$(gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null)" = false ]; then
+            echo "::error::v$VERSION est déjà publiée : son image ne se remplace pas."
+            exit 1
+          fi
           echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           docker buildx imagetools create -t "$IMAGE:$VERSION" "$IMAGE@$AMD64" "$IMAGE@$ARM64"
           empreinte=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{ json .Manifest }}' | jq -r .digest)
@@ -317,7 +449,7 @@ jobs:
 
   annoncer:
     name: Écrire l'annonce (latest.json)
-    needs: [verifier, construire, image]
+    needs: [verifier, signer, image]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -333,6 +465,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.verifier.outputs.version }}
         run: |
+          if [ "$(gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" != true ]; then
+            echo "::error::v$VERSION n'est plus un brouillon : son latest.json ne se réécrit pas."
+            exit 1
+          fi
           mkdir livraison
           gh release download "v$VERSION" --repo "$GITHUB_REPOSITORY" --dir livraison --pattern 'Notak_*'
           node scripts/publication.ts annonce livraison "$VERSION" "$GITHUB_REPOSITORY"

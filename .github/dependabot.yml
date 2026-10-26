@@ -1,7 +1,8 @@
 # Les mises à jour des dépendances, proposées en pull requests (docs/MISES-A-JOUR.md, « Les dépendances ») :
 # chaque semaine, les mineures et correctives groupées par écosystème pour se relire d'un coup ; les majeures à part,
 # une par une. Celles qui corrigent une faille arrivent sans attendre la semaine (activer « Dependabot security
-# updates » dans Settings → Code security). Chacune passe par la CI : essais, construction, hôtes de l'application.
+# updates » dans Settings → Code security). Chacune passe par la CI : essais, construction, hôtes de l'application, et
+# l'image du serveur construite et lancée (image.yml).
 version: 2
 updates:
   - package-ecosystem: bun
@@ -38,7 +39,9 @@ updates:
       interval: weekly
       day: monday
 
-  # Les images que tire compose.yaml (OpenFGA) ; celle de Notak suit ses propres versions (NOTAK_VERSION).
+  # Les images que tire compose.yaml (OpenFGA) ; celle de Notak suit ses propres versions (NOTAK_VERSION). OpenFGA doit
+  # rester celui que lancent les essais du serveur (vitest.openfga.ts), ce que vérifie apps/serveur/src/compose.test.ts :
+  # la pull request reste rouge tant que la version n'est pas montée aussi là, et les essais passés avec elle.
   - package-ecosystem: docker-compose
     directory: /
     schedule:

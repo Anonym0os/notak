@@ -306,6 +306,24 @@ describe("l'application web servie par le serveur", () => {
   })
 })
 
+describe('l’adresse publique du serveur', () => {
+  it('se dit sous sa forme d’origine, comme l’envoie un navigateur, même écrite autrement', async () => {
+    const ici = mkdtempSync(join(tmpdir(), 'notak-origine-'))
+    const s = await demarrer({ port: 0, dossier: ici, secret: SECRET, openfga: openfgaEssai(), origine: 'HTTPS://Notak.Exemple.fr:443/' })
+    try {
+      const sante = (await (await fetch(`http://localhost:${s.port}/api/sante`)).json()) as { origine: string }
+      expect(sante.origine).toBe('https://notak.exemple.fr')
+    } finally {
+      await s.fermer()
+      rmSync(ici, { recursive: true, force: true })
+    }
+  })
+
+  it('refuse de démarrer sur une adresse qui n’en est pas une', async () => {
+    await expect(demarrer({ port: 0, dossier: join(tmpdir(), 'notak-jamais'), secret: SECRET, openfga: openfgaEssai(), origine: 'notak.exemple.fr' })).rejects.toThrow(/adresse/)
+  })
+})
+
 describe('le serveur tel que Node le lance', () => {
   it('charge tous ses modules sans vitest (Node veut l’extension de chaque import)', () => {
     const ici = new URL('.', import.meta.url).pathname

@@ -1,0 +1,77 @@
+# L'image du serveur, construite et lancée comme le fera la publication (publier-bureau.yml) : une faute du Dockerfile
+# (un COPY oublié, un import du serveur hors des dossiers copiés) ou une image de base que monte Dependabot se voit ici,
+# avant l'étiquette et l'accord de publication. Rien n'est poussé, aucun secret ; amd64 seulement.
+name: Image du serveur
+
+on:
+  push:
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'compose.yaml'
+      - 'compose.source.yaml'
+      - 'package.json'
+      - 'bun.lock'
+      - 'apps/serveur/**'
+      - 'apps/web/**'
+      - 'packages/tableau/**'
+      - 'vitest.openfga.ts'
+      - '.github/workflows/image.yml'
+  pull_request:
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'compose.yaml'
+      - 'compose.source.yaml'
+      - 'package.json'
+      - 'bun.lock'
+      - 'apps/serveur/**'
+      - 'apps/web/**'
+      - 'packages/tableau/**'
+      - 'vitest.openfga.ts'
+      - '.github/workflows/image.yml'
+
+permissions:
+  contents: read
+
+# Une nouvelle poussée sur la même branche rend l'exécution en cours inutile.
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    name: Construire et lancer l'image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: compose.yaml se lit, seul et avec compose.source.yaml
+        run: |
+          docker compose -f compose.yaml config -q
+          docker compose -f compose.yaml -f compose.source.yaml config -q
+      - name: Construire, sans pousser
+        run: docker buildx build --load --build-arg NOTAK_VERSION=essai -t notak:essai .
+      # Le même OpenFGA que les essais du serveur (et que compose.yaml, ce qu'un essai vérifie).
+      - name: Démarrer à côté d'un OpenFGA, jusqu'à ce que le serveur réponde
+        run: |
+          openfga=$(sed -n "s/^export const IMAGE_OPENFGA = '\(.*\)'$/\1/p" vitest.openfga.ts)
+          docker network create notak
+          docker run -d --rm --name openfga --network notak "$openfga" run --datastore-engine memory --playground-enabled=false
+          docker run -d --name notak --network notak -p 127.0.0.1:3005:3005 \
+            -e NOTAK_OPENFGA_URL=http://openfga:8080 -e NOTAK_ORIGINE=http://localhost:3005 \
+            -e NOTAK_COOKIE_SECURISE=0 -e NOTAK_RELAIS=0 -e NOTAK_VERIFIER_MAJ=0 notak:essai
+          sante=''
+          for _ in $(seq 1 90); do
+            sante=$(curl -fsS http://127.0.0.1:3005/api/sante 2>/dev/null) && break
+            sleep 1
+          done
+          echo "$sante"
+          jq -e '.produit == "notak" and .ok == true and .version != null' <<< "$sante"
+          # L'application web est servie avec l'API.
+          curl -fsS -o /dev/null -w '%{content_type}\n' http://127.0.0.1:3005/ | grep '^text/html'
+      - name: Le journal du serveur
+        if: always()
+        run: docker logs notak || true

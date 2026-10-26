@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
-import { creerAuth, secretDe } from './auth.ts'
+import { creerAuth, normaliserOrigine, secretDe } from './auth.ts'
 import { ouvrirBase } from './base.ts'
 import { lireCle } from './chiffrement.ts'
 import { creerCourrier } from './courriel.ts'
@@ -30,7 +30,7 @@ const base = ouvrirBase(join(dossier, 'notak.db'), lireCle({ cle: process.env.NO
 const auth = creerAuth({
   base,
   secret: secretDe(process.env, dossier),
-  origine: process.env.NOTAK_ORIGINE ?? 'http://localhost:3005',
+  origine: normaliserOrigine(process.env.NOTAK_ORIGINE ?? '') ?? 'http://localhost:3005',
   cookieSecurise: false,
   courrier: creerCourrier(undefined, ''),
 })

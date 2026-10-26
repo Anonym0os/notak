@@ -389,10 +389,13 @@ export function migrer(db: DatabaseSync, sauvegarde?: (version: number) => strin
   const depart = versionDe(db)
   const derniere = migrations.at(-1)?.version ?? 0
   if (depart > derniere) throw new Error(`La base est en version ${depart}, ce serveur ne connaît que la ${derniere} : il est plus ancien qu'elle.`)
+  // Lu une fois, avant la première migration : une base neuve a des tables dès la première, et ses copies vides
+  // passeraient, à côté des vraies, pour la base d'avant une mise à jour.
+  const avaitDesDonnees = aDesDonnees(db)
   for (const m of migrations) {
     if (m.version <= depart) continue
     const copie = sauvegarde?.(m.version)
-    if (copie && !existsSync(copie) && aDesDonnees(db)) db.prepare('VACUUM INTO ?').run(copie)
+    if (copie && !existsSync(copie) && avaitDesDonnees) db.prepare('VACUUM INTO ?').run(copie)
     db.exec('BEGIN IMMEDIATE')
     try {
       m.appliquer(db)

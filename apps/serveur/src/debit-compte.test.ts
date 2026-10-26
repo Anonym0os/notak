@@ -36,7 +36,7 @@ describe('la limite par compte', () => {
       limiteurCompte: creerLimiteur(3, 15 * 60_000),
       maintenant: () => 1_000_000,
       synchro: () => null,
-      relaisFiable: false,
+      relais: 0,
       cookieSecurise: false,
     })
   })

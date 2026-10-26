@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 import { createReadStream } from 'node:fs'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { isIP } from 'node:net'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import type { Hocuspocus } from '@hocuspocus/server'
@@ -60,8 +61,11 @@ export interface Contexte {
   maintenant: () => number
   /** Lu à chaque requête : le serveur de synchro naît après l'application. */
   synchro: () => Hocuspocus | null
-  /** Derrière un relais de confiance : l'adresse du client vient de `X-Forwarded-For`. */
-  relaisFiable: boolean
+  /**
+   * Combien de relais de confiance sont devant le serveur (`NOTAK_RELAIS`) : l'adresse du client vient alors de
+   * `X-Forwarded-For` (voir `adresseTransmise`). 0 : aucun, c'est celle de la connexion.
+   */
+  relais: number
   cookieSecurise: boolean
   /** L'adresse publique du serveur : la CSP de ses pages y laisse passer la synchro en direct (WebSocket). */
   origine?: string
@@ -93,6 +97,8 @@ export interface MoyensConnexion {
 }
 
 export const FICHIER_MAX = 25 * 1024 * 1024
+/** Le corps d'une requête de la connexion par code (`/api/auth/device/*`), ouverte à tous : quelques champs courts. */
+export const CORPS_APPAREIL_MAX = 2048
 const ID_TABLEAU = /^[A-Za-z0-9_-]{8,64}$/
 const ID_FICHIER = /^[0-9a-f-]{36}$/
 const COULEUR_COMPTE = /^#[0-9a-f]{6}$/i
@@ -131,6 +137,25 @@ export function enTeteTelechargement(titre: string, extension: string): string {
   return `attachment; filename="${ascii}.${extension}"; filename*=UTF-8''${encodeURIComponent(`${net}.${extension}`)}`
 }
 
+/** `NOTAK_RELAIS` : le nombre de relais de confiance devant le serveur (`1` : Caddy ou Traefik). Absent, `0` ou illisible : aucun. */
+export function relaisDe(valeur: string | undefined): number {
+  const n = Number(valeur?.trim() || 0)
+  return Number.isInteger(n) && n > 0 ? n : 0
+}
+
+/**
+ * L'adresse du client d'après `X-Forwarded-For`, derrière `relais` relais de confiance. Chaque relais ajoute à droite
+ * l'adresse qui l'a joint : seules les `relais` dernières entrées viennent d'eux, celles de gauche sont ce que le client
+ * a bien voulu écrire. La n-ième en partant de la droite est donc celle du client. `null` quand elle manque ou n'est pas
+ * une adresse IP : on s'en tient alors à celle de la connexion.
+ */
+export function adresseTransmise(entete: string | undefined, relais: number): string | null {
+  if (!entete || relais < 1) return null
+  const entrees = entete.split(',')
+  const adresse = entrees[entrees.length - relais]?.trim()
+  return adresse && isIP(adresse) ? adresse : null
+}
+
 const moi = (u: Utilisateur, admin: boolean) => ({ id: u.id, email: u.email, nom: u.nom, couleur: u.couleur, racine: u.racine, photo: u.photo ?? null, admin })
 
 /** Lit un corps de requête jusqu'à `max` octets : `null` s'il est vide, `'trop gros'` s'il dépasse (la lecture s'arrête alors). */
@@ -163,10 +188,8 @@ export function creerApp(ctx: Contexte): Hono {
   const estAdmin = (u: Utilisateur) => admins.has(normaliserEmail(u.email))
 
   const adresseIp = (c: Context): string => {
-    if (ctx.relaisFiable) {
-      const transmis = c.req.header('x-forwarded-for')?.split(',')[0]?.trim()
-      if (transmis) return transmis
-    }
+    const transmise = adresseTransmise(c.req.header('x-forwarded-for'), ctx.relais)
+    if (transmise) return transmise
     try {
       return getConnInfo(c).remote.address ?? 'inconnue'
     } catch {
@@ -305,7 +328,18 @@ export function creerApp(ctx: Contexte): Hono {
           ? (limiter(c, route) ?? (poste ? await limiterCompte(c, chemin) : null))
           : null
     if (refus) return refus
-    const reponse = await ctx.auth.handler(c.req.raw)
+    let requete = c.req.raw
+    // La connexion par code s'ouvre à qui n'a pas de compte : son corps ne se lit pas au-delà de quelques champs, ni en
+    // mémoire ni dans la base. Un corps sans longueur annoncée (envoi par morceaux) s'arrête aussi à la borne.
+    if (poste && chemin.startsWith('/device/')) {
+      const annonce = Number(c.req.header('content-length') ?? 0)
+      const lu = annonce > CORPS_APPAREIL_MAX ? 'trop gros' : await lireBorne(c.req.raw.body, CORPS_APPAREIL_MAX)
+      if (lu === 'trop gros') return c.json({ error: 'invalid_request', error_description: 'corps trop gros' }, 413)
+      const entetes = new Headers(c.req.raw.headers)
+      entetes.delete('content-length')
+      requete = new Request(c.req.raw.url, { method: 'POST', headers: entetes, body: lu })
+    }
+    const reponse = await ctx.auth.handler(requete)
     if (poste && chemin === '/device/code' && reponse.ok) await noterDemande(c, reponse)
     // Un membre, un rôle ou une équipe a pu changer (une invitation acceptée, un SSO qui fait entrer quelqu'un) :
     // les droits suivent avant que la réponse parte.

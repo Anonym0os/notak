@@ -2,16 +2,27 @@
 # prépare publier-bureau.yml), son image `ghcr.io/anonym0os/notak:x.y.z`, déjà construite et attestée, reçoit aussi les
 # étiquettes `x.y` et `latest`. C'est ce que tirent les serveurs (`docker compose pull`) : tant que la version n'est
 # pas publiée, aucun ne la reçoit. Ni l'une ni l'autre ne recule : une correction publiée pour une version plus
-# ancienne ne prend pas `latest` à la plus récente. La marche à suivre : docs/MISES-A-JOUR.md.
+# ancienne ne prend pas `latest` à la plus récente.
 #
-# Aucun secret, aucune action tierce : seulement le jeton de la tâche, qui écrit dans le registre du dépôt, et la CLI
-# de Docker. L'image ne se reconstruit pas ici : les étiquettes désignent l'image attestée, telle quelle.
+# Une version publiée se révèle mauvaise : « Run workflow » ici, avec la version d'avant, remet `latest` et son `x.y`
+# sur elle, même plus ancienne, après l'accord demandé par l'environnement « publication ». La marche à suivre :
+# docs/MISES-A-JOUR.md, « Si ça tourne mal ».
+#
+# Aucun secret, aucune action tierce : seulement le jeton de la tâche, qui écrit dans le registre du dépôt, la CLI de
+# Docker et celle de GitHub (.github/scripts/etiqueter-serveur.sh). L'image ne se reconstruit pas ici : les étiquettes
+# désignent l'image attestée par la publication, telle quelle, et rien d'autre.
 name: Annoncer le serveur
 
 on:
   release:
     # Une version publiée, ou une pré-version qui devient une version ; jamais un brouillon ni une pré-version.
     types: [released]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'La version (x.y.z) que doivent de nouveau désigner latest et x.y, même plus ancienne'
+        required: true
+        type: string
 
 permissions: {}
 
@@ -29,88 +40,51 @@ defaults:
 jobs:
   etiqueter:
     name: x.y et latest
+    if: github.event_name == 'release'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
+      attestations: read
     steps:
-      - name: L'étiquette est une version
-        id: version
-        env:
-          ETIQUETTE: ${{ github.event.release.tag_name }}
-        run: |
-          if ! [[ "$ETIQUETTE" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-            echo "::error::« $ETIQUETTE » n'est pas une étiquette de version (vX.Y.Z) : rien à annoncer."
-            exit 1
-          fi
-          echo "version=${ETIQUETTE#v}" >> "$GITHUB_OUTPUT"
-          echo "mineure=${BASH_REMATCH[1]}.${BASH_REMATCH[2]}" >> "$GITHUB_OUTPUT"
-
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Poser les étiquettes, sans jamais reculer
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.version }}
-          MINEURE: ${{ steps.version.outputs.mineure }}
+          ETIQUETTE: ${{ github.event.release.tag_name }}
         run: |
           echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          format_version='{{ index (index .Image "linux/amd64").Config.Labels "org.opencontainers.image.version" }}'
+          bash .github/scripts/etiqueter-serveur.sh "${ETIQUETTE#v}" avancer
 
-          # L'image de cette version, telle que la publication l'a construite : les deux architectures, et son numéro.
-          if ! brut=$(docker buildx imagetools inspect --raw "$IMAGE:$VERSION"); then
-            echo "::error::$IMAGE:$VERSION n'existe pas : la publication de cette version a-t-elle construit l'image ?"
+  reprendre:
+    name: latest et x.y, de retour sur une version d'avant
+    if: github.event_name == 'workflow_dispatch'
+    # Faire reculer ce que tirent tous les serveurs : l'accord d'une personne, comme pour publier.
+    environment: publication
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      attestations: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Revenir sur cette version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          # Seulement vers une version publiée : un brouillon ou une pré-version n'a pas fini sa relecture.
+          if ! etat=$(gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease --jq '"\(.isDraft) \(.isPrerelease)"'); then
+            echo "::error::Pas de version v$VERSION publiée sur ce dépôt."
             exit 1
           fi
-          plateformes=$(jq -r '[.manifests[]?.platform | "\(.os)/\(.architecture)"] | sort | join(" ")' <<< "$brut")
-          if [ "$plateformes" != "linux/amd64 linux/arm64" ]; then
-            echo "::error::$IMAGE:$VERSION n'a pas les deux architectures attendues (elle a : $plateformes)."
+          if [ "$etat" != "false false" ]; then
+            echo "::error::v$VERSION est un brouillon ou une pré-version : on ne revient que sur une version publiée."
             exit 1
           fi
-          porte=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format "$format_version")
-          if [ "$porte" != "$VERSION" ]; then
-            echo "::error::$IMAGE:$VERSION porte le numéro « $porte » : ce n'est pas l'image de cette version."
-            exit 1
-          fi
-          empreinte() { docker buildx imagetools inspect "$IMAGE:$1" --format '{{ json .Manifest }}' | jq -r .digest; }
-          attestee=$(empreinte "$VERSION")
-          [[ "$attestee" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Pas d'empreinte pour $IMAGE:$VERSION"; exit 1; }
-
-          # Le numéro que porte une étiquette ; vide si elle n'existe pas encore. Une autre erreur (le registre qui ne
-          # répond pas) arrête tout : mieux vaut ne rien déplacer que déplacer à l'aveugle.
-          numero() {
-            local sortie
-            if sortie=$(docker buildx imagetools inspect "$IMAGE:$1" --format "$format_version" 2>&1); then
-              echo "$sortie"
-            elif grep -qi 'not found' <<< "$sortie"; then
-              echo ""
-            else
-              echo "::error::Impossible de lire $IMAGE:$1 : $sortie" >&2
-              return 1
-            fi
-          }
-          # Déplace l'étiquette sur cette version, si elle n'en désigne pas déjà une plus récente.
-          poser() {
-            local actuel
-            actuel=$(numero "$1") || exit 1
-            if [ -n "$actuel" ]; then
-              if ! [[ "$actuel" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-                echo "::error::$IMAGE:$1 porte « $actuel », qui n'est pas un numéro de version : à regarder à la main."
-                exit 1
-              fi
-              if [ "$(printf '%s\n%s\n' "$actuel" "$VERSION" | sort -V | tail -n 1)" != "$VERSION" ]; then
-                echo "$IMAGE:$1 reste sur $actuel, plus récente que $VERSION."
-                return 0
-              fi
-            fi
-            # Une seule source, sans annotation : l'étiquette désigne le même index, octet pour octet, donc la même
-            # attestation de provenance.
-            docker buildx imagetools create -t "$IMAGE:$1" "$IMAGE@$attestee"
-            if [ "$(empreinte "$1")" != "$attestee" ]; then
-              echo "::error::$IMAGE:$1 ne désigne pas l'image attestée ($attestee) : à regarder à la main."
-              exit 1
-            fi
-            echo "$IMAGE:$1 → $VERSION"
-            echo "- \`$IMAGE:$1\` → $VERSION" >> "$GITHUB_STEP_SUMMARY"
-          }
-          echo "## Image du serveur $VERSION" >> "$GITHUB_STEP_SUMMARY"
-          poser "$MINEURE"
-          poser latest
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          bash .github/scripts/etiqueter-serveur.sh "$VERSION" reprendre

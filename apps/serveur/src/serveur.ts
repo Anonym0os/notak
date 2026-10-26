@@ -6,7 +6,7 @@ import { serve } from '@hono/node-server'
 import type { Hocuspocus } from '@hocuspocus/server'
 import type { Hono } from 'hono'
 import { creerApp } from './app.ts'
-import { type Fournisseur, type Identifiants, creerAuth } from './auth.ts'
+import { type Fournisseur, type Identifiants, creerAuth, normaliserOrigine } from './auth.ts'
 import { type Autorisation, ouvrirAutorisation } from './autorisation.ts'
 import { ouvrirBase } from './base.ts'
 import type { Cle } from './chiffrement.ts'
@@ -21,12 +21,13 @@ import { VERSION_NOTAK } from '../../../packages/tableau/src/version.ts'
 export interface OptionsServeur {
   port: number
   dossier: string
-  relaisFiable?: boolean
+  /** Combien de relais de confiance sont devant le serveur (`NOTAK_RELAIS`) ; à défaut, aucun. */
+  relais?: number
   cookieSecurise?: boolean
   dossierWeb?: string
   /** Le secret qui signe les cookies de session (voir `secretDe`). */
   secret: string
-  /** L'adresse publique du serveur ; à défaut, `http://localhost:<port>`. */
+  /** L'adresse publique du serveur ; à défaut, `http://localhost:<port>`. Prise sous sa forme d'origine (`normaliserOrigine`). */
   origine?: string
   autresOrigines?: readonly string[]
   fournisseurs?: Partial<Record<Fournisseur, Identifiants>>
@@ -56,10 +57,13 @@ export interface ServeurDemarre {
 }
 
 export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre> {
+  if (options.origine !== undefined && !normaliserOrigine(options.origine)) throw new Error(`« ${options.origine} » n'est pas une adresse`)
   mkdirSync(options.dossier, { recursive: true })
   const cle = options.cle ?? null
   const base = ouvrirBase(join(options.dossier, 'notak.db'), cle)
   indexerLesAbsents(base)
+  // Les codes de connexion d'avant l'arrêt ne servent plus : ils ne restent pas dans la base jusqu'à la prochaine demande.
+  base.oublierDemandesAppareilExpirees(Date.now())
   let hocuspocus: Hocuspocus | null = null
   // L'application naît une fois le port connu (le port 0 en tire un au hasard) : l'origine par défaut en dépend.
   let app: Hono | null = null
@@ -68,13 +72,15 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     s.once('error', rejeter)
   })
   const port = (http.address() as AddressInfo).port
-  const origine = options.origine ?? `http://localhost:${port}`
+  // Comparées à l'en-tête `Origin` (connexion, synchro, CSP) : écrites comme l'écrit un navigateur.
+  const origine = normaliserOrigine(options.origine ?? `http://localhost:${port}`)!
+  const autresOrigines = (options.autresOrigines ?? []).map((o) => normaliserOrigine(o) ?? o)
   const courrier = creerCourrier(options.smtp, options.expediteur ?? `Notak <notak@${new URL(origine).hostname}>`)
   const auth = creerAuth({
     base,
     secret: options.secret,
     origine,
-    autresOrigines: options.autresOrigines,
+    autresOrigines,
     cookieSecurise: options.cookieSecurise ?? false,
     courrier,
     fournisseurs: options.fournisseurs,
@@ -113,7 +119,7 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     limiteurJeton: creerLimiteur(60, 60_000),
     maintenant: Date.now,
     synchro: () => hocuspocus,
-    relaisFiable: options.relaisFiable ?? false,
+    relais: options.relais ?? 0,
     cookieSecurise: options.cookieSecurise ?? false,
     origine,
     dossierWeb: options.dossierWeb,
@@ -125,7 +131,7 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
   })
 
   hocuspocus = creerHocuspocus(base, auth, autorisation)
-  const synchro = brancherSynchro(http, hocuspocus, [origine, ...(options.autresOrigines ?? [])])
+  const synchro = brancherSynchro(http, hocuspocus, [origine, ...autresOrigines])
 
   return {
     port,

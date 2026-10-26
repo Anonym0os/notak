@@ -29,7 +29,8 @@ describe('migrations', () => {
     const db = new DatabaseSync(chemin)
     expect(versionDe(db)).toBe(derniere)
     db.close()
-    expect(existsSync(`${chemin}.avant-1`)).toBe(false)
+    // Aucune copie du tout : celles d'une base vide passeraient pour la base d'avant une mise à jour.
+    for (const m of MIGRATIONS) expect(existsSync(`${chemin}.avant-${m.version}`), `avant-${m.version}`).toBe(false)
   })
 
   it('Better Auth trouve après nos migrations toutes les tables et colonnes qu’il attend', async () => {

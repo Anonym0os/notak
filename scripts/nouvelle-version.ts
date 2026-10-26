@@ -7,7 +7,8 @@
  * 2. fait des notes « À venir » de `docs/NOUVEAUTES.md` celles de la version (à défaut, la liste des commits depuis la
  *    version d'avant) ;
  * 3. écrit le numéro partout où il vit : `tauri.conf.json` (celui que voit l'app), `Cargo.toml` et `Cargo.lock`, le
- *    `package.json` de `packages/tableau` et son `VERSION_NOTAK` (celui que montrent les réglages et que dit le serveur) ;
+ *    `package.json` de `packages/tableau`, son entrée dans `bun.lock`, et son `VERSION_NOTAK` (celui que montrent les
+ *    réglages et que dit le serveur) ;
  * 4. en fait un commit et une étiquette `v0.2.0`.
  *
  * Rien ne part : `git push origin HEAD v0.2.0` lance la publication (`docs/MISES-A-JOUR.md`), qui s'arrête sur un
@@ -24,6 +25,7 @@ const CONF = 'apps/bureau/src-tauri/tauri.conf.json'
 const CARGO = 'apps/bureau/src-tauri/Cargo.toml'
 const VERROU = 'apps/bureau/src-tauri/Cargo.lock'
 const PAQUET = 'packages/tableau/package.json'
+const BUN_LOCK = 'bun.lock'
 const VERSION_TS = 'packages/tableau/src/version.ts'
 const NOUVEAUTES = 'docs/NOUVEAUTES.md'
 export const A_VENIR = '## À venir'
@@ -36,13 +38,16 @@ export function suit(a: string, b: string): boolean {
 }
 
 /** Le numéro remplacé dans chaque fichier, à sa place, sans rien toucher d'autre. */
-export function avecVersion(fichier: 'conf' | 'cargo' | 'verrou' | 'paquet' | 'tableau', texte: string, version: string): string {
+export function avecVersion(fichier: 'conf' | 'cargo' | 'verrou' | 'paquet' | 'bun' | 'tableau', texte: string, version: string): string {
   const motif = {
     conf: /^(\s*"version":\s*")[^"]+(")/m,
     cargo: /^(\[package\][^[]*?\nversion = ")[^"]+(")/,
     verrou: /(\nname = "notak-bureau"\nversion = ")[^"]+(")/,
     // Le premier « version » d'un package.json est le sien : ceux des dépendances viennent après, et sans espace en tête.
     paquet: /^(\s*"version":\s*")[^"]+(")/m,
+    // bun.lock garde le numéro de chaque espace de travail : sans lui, le premier `bun install` venu le réécrit, et le
+    // dépôt n'est plus propre pour la version suivante.
+    bun: /("packages\/tableau": \{\s*"name": "@notak\/tableau",\s*"version": ")[^"]+(")/,
     tableau: /^(export const VERSION_NOTAK = ')[^']+(')/m,
   }[fichier]
   if (!motif.test(texte)) throw new Error(`Pas de numéro de version à remplacer (${fichier})`)
@@ -94,8 +99,9 @@ function principal(version: string | undefined) {
   ecrire(CARGO, avecVersion('cargo', lire(CARGO), version))
   ecrire(VERROU, avecVersion('verrou', lire(VERROU), version))
   ecrire(PAQUET, avecVersion('paquet', lire(PAQUET), version))
+  ecrire(BUN_LOCK, avecVersion('bun', lire(BUN_LOCK), version))
   ecrire(VERSION_TS, avecVersion('tableau', lire(VERSION_TS), version))
-  git('add', NOUVEAUTES, CONF, CARGO, VERROU, PAQUET, VERSION_TS)
+  git('add', NOUVEAUTES, CONF, CARGO, VERROU, PAQUET, BUN_LOCK, VERSION_TS)
   git('commit', '-q', '-m', `Notak : version ${version}`)
   git('tag', '-a', `v${version}`, '-m', `Notak ${version}\n\n${notes}`)
 

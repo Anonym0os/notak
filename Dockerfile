@@ -34,6 +34,8 @@ LABEL org.opencontainers.image.title="Notak" \
       org.opencontainers.image.documentation="https://github.com/Anonym0os/notak/blob/main/docs/AUTO-HEBERGER.md" \
       org.opencontainers.image.licenses="AGPL-3.0-only" \
       org.opencontainers.image.version="${NOTAK_VERSION}"
+# Derrière un relais HTTPS : cookies `Secure`, et l'adresse du client lue dans l'entrée qu'un relais ajoute à
+# X-Forwarded-For (NOTAK_RELAIS : combien de relais de confiance). docs/AUTO-HEBERGER.md, « Le relais HTTPS ».
 ENV NODE_ENV=production \
     PORT=3005 \
     NOTAK_DONNEES=/donnees \
