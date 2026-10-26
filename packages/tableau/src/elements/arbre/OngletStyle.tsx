@@ -2,10 +2,10 @@ import { useMemo, useRef, useState } from 'react'
 import type { Arbre, CasseTexte, FormeBranche, FormeLimite, FormeRelation, FormeResume, FormeSujet, Id, Limite, MotifRemplissage, MotifTrait, PointeTrait, Relation, StyleSujet } from '../../coeur/tableau'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
+import { Interrupteur, LigneReglage, Segments, Separateur } from '../../communs'
 import type { ContexteToile } from '../types'
 import { POLICE, type TexteEffectif, limiteEffective, relationEffective, resumeEffectif } from './apparence'
 import {
-  Bascule,
   Bouton,
   BoutonMenu,
   BoutonVignette,
@@ -15,13 +15,10 @@ import {
   EtatVide,
   GrilleTuiles,
   Legende,
-  Ligne,
   ListeTexte,
   Popover,
   Rangee,
   Section,
-  Segments,
-  Separateur,
   type OptionListe,
   type Tuile,
 } from './controles-style'
@@ -328,7 +325,7 @@ function SectionForme({ titre, ids, vals, faire, lecture }: { titre: string; ids
   return (
     <Section titre={titre} entete={<ChoixForme valeur={v('forme')} choisir={(f) => style({ forme: f })} />}>
       <Rangee>
-        <Ligne libelle={T('remplir')}>
+        <LigneReglage libelle={T('remplir')}>
           <ChoixMotifRemplissage valeur={motifR} choisir={(m) => style(patchMotifRemplissage(m))} titre={T('motifRemplissage')} />
           <BoutonCouleur
             valeur={motifR === 'aucun' ? null : v('remplissage')}
@@ -337,10 +334,10 @@ function SectionForme({ titre, ids, vals, faire, lecture }: { titre: string; ids
             choisir={(c) => style(patchCouleurRemplissage(motifR === MULTIPLE ? 'plein' : motifR, c))}
             theme={THEMES[0]!.palette}
           />
-        </Ligne>
+        </LigneReglage>
       </Rangee>
       <Rangee>
-        <Ligne libelle={T('bordure')}>
+        <LigneReglage libelle={T('bordure')}>
           <ChoixMotifBordure valeur={motifB} choisir={(m) => style(patchMotifBordure(m, v('epaisseurBordure') === MULTIPLE ? 1 : (v('epaisseurBordure') as number)))} titre={T('motifBordure')} />
           <BoutonCouleur
             valeur={sansBordure ? null : v('bordure')}
@@ -348,13 +345,13 @@ function SectionForme({ titre, ids, vals, faire, lecture }: { titre: string; ids
             titre={T('couleurBordure')}
             choisir={(c) => style(patchCouleurBordure(motifB === MULTIPLE ? 'plein' : motifB, v('epaisseurBordure') === MULTIPLE ? 1 : (v('epaisseurBordure') as number), c))}
           />
-        </Ligne>
+        </LigneReglage>
       </Rangee>
       <Rangee>
         <ListeEpaisseur valeur={v('epaisseurBordure')} titre={T('largeurBordure')} inactif={sansBordure} choisir={(n) => style({ epaisseurBordure: n })} />
       </Rangee>
-      <hr className="notak-arbre-style-separateur notak-arbre-style-large" />
-      <Ligne libelle={T('longueur')}>
+      <Separateur className="notak-arbre-style-large" />
+      <LigneReglage libelle={T('longueur')}>
         <ChampMesure
           titre={T('largeurAide')}
           valeur={largeur === MULTIPLE ? undefined : largeur}
@@ -364,7 +361,7 @@ function SectionForme({ titre, ids, vals, faire, lecture }: { titre: string; ids
         <Bouton titre={T('adapterAide')} inactif={largeur === undefined} onClick={() => faire({ type: 'largeur', ids, largeur: undefined })} className="notak-arbre-style-adapter">
           {T('adapter')}
         </Bouton>
-      </Ligne>
+      </LigneReglage>
     </Section>
   )
 }
@@ -473,17 +470,33 @@ export function SectionTexte({ titre, etat, poser }: { titre: string; etat: Etat
       </Rangee>
       <Rangee>
         <Segments
-          segments={[
-            { id: 'gras', contenu: <Icone nom="gras" taille={15} trait={2.2} />, titre: T('gras'), actif: gras, faire: () => poser(patchGras(etat.graisse === MULTIPLE ? 400 : etat.graisse)) },
-            { id: 'italique', contenu: <Icone nom="italique" taille={15} trait={2} />, titre: T('italique'), actif: etat.italique === true, faire: () => poser({ italique: etat.italique === true ? undefined : true }) },
-            { id: 'barre', contenu: <Icone nom="barre" taille={15} trait={2} />, titre: T('barre'), actif: etat.barre === true, faire: () => poser({ barre: etat.barre === true ? undefined : true }) },
-            { id: 'souligne', contenu: <Icone nom="souligne" taille={15} trait={2} />, titre: T('souligne'), actif: etat.souligne === true, faire: () => poser({ souligne: etat.souligne === true ? undefined : true }) },
+          mode="bascules"
+          large
+          options={[
+            { valeur: 'gras', libelle: <Icone nom="gras" taille={15} trait={2.2} />, titre: T('gras'), actif: gras },
+            { valeur: 'italique', libelle: <Icone nom="italique" taille={15} trait={2} />, titre: T('italique'), actif: etat.italique === true },
+            { valeur: 'barre', libelle: <Icone nom="barre" taille={15} trait={2} />, titre: T('barre'), actif: etat.barre === true },
+            { valeur: 'souligne', libelle: <Icone nom="souligne" taille={15} trait={2} />, titre: T('souligne'), actif: etat.souligne === true },
           ]}
+          onChange={(v) =>
+            poser(
+              v === 'gras'
+                ? patchGras(etat.graisse === MULTIPLE ? 400 : etat.graisse)
+                : v === 'italique'
+                  ? { italique: etat.italique === true ? undefined : true }
+                  : v === 'barre'
+                    ? { barre: etat.barre === true ? undefined : true }
+                    : { souligne: etat.souligne === true ? undefined : true },
+            )
+          }
           suite={<BoutonCasse valeur={etat.casse} choisir={(c) => poser({ casse: c })} />}
         />
       </Rangee>
       <Segments
-        segments={alignements.map((a) => ({ id: a.id, contenu: <Icone nom={a.icone} taille={15} trait={2} />, titre: a.titre, choix: true, actif: etat.alignement === a.id, faire: () => poser({ alignement: a.id }) }))}
+        large
+        options={alignements.map((a) => ({ valeur: a.id, libelle: <Icone nom={a.icone} taille={15} trait={2} />, titre: a.titre }))}
+        valeur={etat.alignement}
+        onChange={(a) => poser({ alignement: a })}
       />
     </Section>
   )
@@ -496,7 +509,7 @@ function BoutonCasse({ valeur, choisir }: { valeur: Mixte<CasseTexte | undefined
   const actif = valeur !== MULTIPLE && valeur !== undefined
   return (
     <>
-      <button ref={ancre} type="button" className="notak-arbre-style-segment notak-arbre-style-casse" title={T('casse')} aria-label={T('casse')} aria-haspopup="menu" aria-expanded={ouvert} aria-pressed={actif} onClick={() => setOuvert((o) => !o)}>
+      <button ref={ancre} type="button" className="notak-arbre-style-casse" title={T('casse')} aria-label={T('casse')} aria-haspopup="menu" aria-expanded={ouvert} aria-pressed={actif} onClick={() => setOuvert((o) => !o)}>
         <span className="notak-arbre-style-tt">Tt</span>
         <Icone nom="chevronBas" taille={10} trait={2.4} />
       </button>
@@ -680,10 +693,10 @@ function SectionBranche({ titre, ids, vals, arbre, lecture, faire, centralSeul }
       </Rangee>
       {centralSeul && (
         <div className="notak-arbre-style-coloree">
-          <Ligne libelle={T('brancheColoree')}>
-            <Bascule active={coloree} titre={T('brancheColoreeAide')} inactif={sans} changer={(a) => faire({ type: 'options', options: { ...arbre.options, uneCouleur: !a } })} />
-          </Ligne>
-          <Ligne libelle={T('couleur')}>
+          <LigneReglage libelle={T('brancheColoree')}>
+            <Interrupteur actif={coloree} titre={T('brancheColoreeAide')} inactif={sans} onChange={(a) => faire({ type: 'options', options: { ...arbre.options, uneCouleur: !a } })} />
+          </LigneReglage>
+          <LigneReglage libelle={T('couleur')}>
             {coloree ? (
               <BoutonVignette titre={T('couleurSerie')} largeur={184} className="notak-arbre-style-serie-bouton" vignette={<Anneau couleurs={serie} taille={17} />} inactif={sans}>
                 {(fermer) => (
@@ -710,7 +723,7 @@ function SectionBranche({ titre, ids, vals, arbre, lecture, faire, centralSeul }
             ) : (
               <BoutonCouleur valeur={sans ? null : couleur} inactif={sans} titre={T('couleurLigne')} choisir={(c) => style({ couleurBranche: c })} />
             )}
-          </Ligne>
+          </LigneReglage>
         </div>
       )}
     </Section>
@@ -981,7 +994,7 @@ function VueLimites({ arbre, faire, ids }: Commun & { ids: Id[] }) {
         }
       >
         <Rangee>
-          <Ligne libelle={T('remplir')}>
+          <LigneReglage libelle={T('remplir')}>
             <ChoixMotifRemplissage valeur={motifR} choisir={(m) => poser(patchMotifRemplissage(m))} titre={T('motifRemplissage')} />
             <BoutonCouleur
               valeur={motifR === 'aucun' ? null : v('remplissage') === undefined ? 'var(--notak-arbre-encre)' : v('remplissage')}
@@ -990,13 +1003,13 @@ function VueLimites({ arbre, faire, ids }: Commun & { ids: Id[] }) {
               opaciteMax={20}
               choisir={(c) => poser(patchCouleurRemplissage(motifR === MULTIPLE ? 'plein' : motifR, c))}
             />
-          </Ligne>
+          </LigneReglage>
         </Rangee>
         <Rangee>
-          <Ligne libelle={T('bordure')}>
+          <LigneReglage libelle={T('bordure')}>
             <ChoixMotifBordure valeur={motifB} motifs={MOTIFS_TRAIT} titre={T('motifBordure')} choisir={(m) => poser(m === 'aucun' ? { motif: 'aucun', epaisseur: 0 } : { motif: m, ...(ep === 0 ? { epaisseur: 2 } : {}) })} />
             <BoutonCouleur valeur={sans ? null : v('couleur') === undefined ? 'var(--notak-arbre-encre)' : v('couleur')} inactif={sans} titre={T('couleurBordure')} choisir={(c) => poser({ couleur: c })} />
-          </Ligne>
+          </LigneReglage>
         </Rangee>
         <ListeEpaisseur valeur={ep} titre={T('largeurBordure')} inactif={sans} choisir={(n) => poser({ epaisseur: n })} />
       </Section>

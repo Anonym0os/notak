@@ -59,3 +59,37 @@
   --notak-btn-actif: rgb(255 255 255 / 0.14);
   --notak-btn-rouge: #f4766b;
 }
+
+/*
+ * Les contrôles communs (interrupteur, segments, champ, recherche, choix, avatar : maquette « Composants communs »,
+ * classes nk-*). Leurs teintes se tirent du texte et de la carte de l'espace : le thème sombre et les habillages suivent
+ * seuls. Définies sur le composant lui-même pour que `color-mix` voie le texte du lieu où il est posé.
+ */
+:is(.notak-inter, .notak-seg, .notak-champ, .notak-choix, .notak-champ-recherche, .notak-libelle, .notak-aide, .notak-av, .notak-reglage, .notak-filet) {
+  --notak-ctl-texte: var(--notak-texte, #323b4a);
+  --notak-ctl-carte: var(--notak-carte, #fff);
+  --notak-ctl-texte-2: color-mix(in srgb, var(--notak-ctl-texte) 68%, transparent);
+  --notak-ctl-texte-3: color-mix(in srgb, var(--notak-ctl-texte) 46%, transparent);
+  --notak-ctl-survol: color-mix(in srgb, var(--notak-ctl-texte) 6%, transparent);
+  --notak-ctl-actif: color-mix(in srgb, var(--notak-ctl-texte) 8%, transparent);
+  --notak-ctl-fond: color-mix(in srgb, var(--notak-ctl-texte) 7%, transparent);
+  --notak-ctl-contour: color-mix(in srgb, var(--notak-ctl-texte) 16%, transparent);
+  --notak-ctl-filet: color-mix(in srgb, var(--notak-ctl-texte) 9%, transparent);
+  --notak-ctl-piste: color-mix(in srgb, var(--notak-ctl-texte) 24%, var(--notak-ctl-carte));
+  --notak-ctl-poignee: #fff;
+  --notak-ctl-rouge: #a31d13;
+  --notak-ctl-anneau: var(--notak-accent, #2f6feb);
+  --notak-ctl-duree: 150ms;
+  --notak-ctl-sortie: ease-out;
+  --notak-ctl-police: var(--notak-police, Inter, system-ui, sans-serif);
+}
+
+[data-theme='sombre'] :is(.notak-inter, .notak-seg, .notak-champ, .notak-choix, .notak-champ-recherche, .notak-libelle, .notak-aide, .notak-av, .notak-reglage, .notak-filet) {
+  --notak-ctl-rouge: #ff8a80;
+}
+
+/* Les avatars : la couleur de soi-même est la même partout (maquette : --nk-soi). */
+:root,
+.notak-espace {
+  --notak-soi: #3d9a4f;
+}

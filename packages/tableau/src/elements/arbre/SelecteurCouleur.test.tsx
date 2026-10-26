@@ -3,7 +3,8 @@ import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MULTIPLE } from './modele/style'
-import { BoutonCouleur, NUANCIER, avecOpacite, decouperCouleur, lireRecentes, memoriserRecente, normaliserHex } from './SelecteurCouleur'
+import { assemblerCouleur, decouperCouleur, normaliserHex } from '../../communs'
+import { BoutonCouleur, NUANCIER, lireRecentes, memoriserRecente } from './SelecteurCouleur'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -23,20 +24,20 @@ describe('le nuancier', () => {
 })
 
 describe('le champ hexadécimal et l’opacité', () => {
-  it('les caractères qui ne sont pas hexadécimaux valent 0, trois chiffres se doublent, plus de six donnent blanc', () => {
-    expect(normaliserHex('ff00zz')).toBe('FF0000')
-    expect(normaliserHex('#abc')).toBe('AABBCC')
-    expect(normaliserHex('1234567')).toBe('FFFFFF')
-    expect(normaliserHex('12')).toBe('120000')
+  it('les caractères qui ne sont pas hexadécimaux s’ignorent, trois chiffres se doublent, un hexa court se complète de zéros', () => {
+    expect(normaliserHex('ff00zz')).toBe('#ff0000')
+    expect(normaliserHex('#abc')).toBe('#aabbcc')
+    expect(normaliserHex('1234567')).toBe('#123456')
+    expect(normaliserHex('12')).toBe('#120000')
   })
 
   it('l’opacité s’écrit en canal alpha, à la fin', () => {
-    expect(avecOpacite('#ff0000', 100)).toBe('#ff0000')
-    expect(avecOpacite('#FF0000', 50)).toBe('#ff000080')
-    expect(avecOpacite('#ff0000', 20)).toBe('#ff000033')
-    expect(avecOpacite('#ff0000', 0)).toBe('#ff000000')
-    expect(decouperCouleur('#ff000080')).toEqual({ hex: 'FF0000', opacite: 50 })
-    expect(decouperCouleur('var(--x)')).toBeNull()
+    expect(assemblerCouleur('#ff0000', 100)).toBe('#ff0000')
+    expect(assemblerCouleur('#FF0000', 50)).toBe('#ff000080')
+    expect(assemblerCouleur('#ff0000', 20)).toBe('#ff000033')
+    expect(assemblerCouleur('#ff0000', 0)).toBe('#ff000000')
+    expect(decouperCouleur('#ff000080')).toEqual({ hex: '#ff0000', opacite: 50 })
+    expect(decouperCouleur('var(--x)')).toEqual({ hex: '#000000', opacite: 100 })
   })
 
   it('les couleurs récentes : en tête, sans doublon, neuf au plus', () => {
@@ -86,7 +87,7 @@ describe('le bouton de couleur', () => {
   it('le popover : 45 pastilles ; un clic pose la couleur, la retient et se ferme', () => {
     monter('#ff0000')
     ouvrir()
-    expect(pop().querySelectorAll('.notak-arbre-style-nuancier')[0]!.children).toHaveLength(45)
+    expect(pop().querySelectorAll('.notak-couleurs-grille')[0]!.children).toHaveLength(45)
     act(() => void pop().querySelector<HTMLElement>('[aria-label="#176FD3"]')!.click())
     expect(choisir).toHaveBeenLastCalledWith('#176fd3')
     expect(document.body.querySelector('.notak-arbre-style-pop')).toBeNull()
@@ -104,7 +105,7 @@ describe('le bouton de couleur', () => {
     monter('#ff0000')
     ouvrir()
     const champ = pop().querySelector<HTMLInputElement>('input[aria-label="Définir la valeur de couleur (hex)."]')!
-    expect(champ.value).toBe('FF0000')
+    expect(champ.value).toBe('ff0000')
     act(() => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(champ, 'abc')
       champ.dispatchEvent(new Event('input', { bubbles: true }))

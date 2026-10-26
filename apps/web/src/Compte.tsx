@@ -24,12 +24,12 @@ export function Compte({ moi, deconnexion, aide }: { moi: Moi; deconnexion(): vo
   return (
     <div className="compte" ref={ancre}>
       <button type="button" ref={bouton} className="bouton bouton-nu compte-nom" aria-expanded={ouvert} aria-label={moi.nom} title={moi.nom} onClick={basculer}>
-        <PastillePersonne className="compte-pastille" nom={moi.nom} couleur={moi.couleur} adresse={photo} titre="" />
+        <PastillePersonne taille={24} nom={moi.nom} couleur={moi.couleur} adresse={photo} titre="" />
       </button>
       {ouvert && (
         <div className="app-panneau app-menu compte-menu" ref={panneau} role="menu" aria-label={moi.nom}>
           <div className="compte-tete">
-            <PastillePersonne className="compte-pastille" nom={moi.nom} couleur={moi.couleur} adresse={photo} titre="" />
+            <PastillePersonne taille={36} nom={moi.nom} couleur={moi.couleur} adresse={photo} titre="" />
             <span className="app-menu-texte">
               <span>{moi.nom}</span>
               <small>{moi.email}</small>

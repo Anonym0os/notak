@@ -848,24 +848,6 @@
     notak-pastille-pulse 1.5s ease-out 0.4s infinite;
 }
 
-.notak-pastille-autre-avatar {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 22px;
-  height: 22px;
-  overflow: hidden;
-  border-radius: 50%;
-  background: rgb(255 255 255 / 0.28);
-  font-size: 11px;
-}
-
-.notak-pastille-autre-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .notak-pastille-autre-nom {
   display: block;
   max-width: 125px;
@@ -945,29 +927,6 @@
   display: flex;
   margin-left: auto;
   padding-left: 12px;
-}
-
-.notak-pastille {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  margin-left: -6px;
-  border: 2px solid var(--notak-carte);
-  border-radius: 50%;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.notak-pastille {
-  overflow: hidden;
-}
-
-.notak-pastille img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 
 .notak-entete-actions {
@@ -1562,7 +1521,7 @@
   cursor: grab;
 }
 
-.notak-pastille-reste {
+.notak-av.notak-pastille-reste {
   background: #7a7f87;
   font-size: 10px;
 }
@@ -1938,19 +1897,6 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.notak-decor-personne {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #7a7f87;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
 }
 
 /* « Aucune couleur » : une pastille barrée en tête des couleurs. */
@@ -2619,7 +2565,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   font-variant-numeric: tabular-nums;
 }
 
-/* La mini-carte, sous le zoom : la pilule des réglages, qui en prend les teintes. */
+/* La mini-carte, sous le zoom : le contrôle segmenté commun. */
 .notak-vue-minicarte {
   display: flex;
   flex-direction: column;
@@ -2628,24 +2574,10 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   margin-top: 16px;
   padding-top: 14px;
   border-top: 1px solid rgb(0 0 0 / 0.08);
-  --rg-texte: var(--notak-texte, #323b4a);
-  --rg-pilule: rgb(50 59 74 / 0.07);
-  --rg-actif: #fff;
-  --rg-actif-ombre: 0 0 0 1px rgb(27 37 54 / 0.06), 0 1px 2px rgb(27 37 54 / 0.12);
-  --rg-survol: color-mix(in srgb, var(--rg-texte) 6%, transparent);
-}
-
-.notak-vue-minicarte .notak-rg-pilule button {
-  height: 26px;
-  padding: 0 8px;
-  font-size: 12px;
 }
 
 [data-theme='sombre'] .notak-vue-minicarte {
   border-top-color: rgb(255 255 255 / 0.08);
-  --rg-pilule: rgb(255 255 255 / 0.07);
-  --rg-actif: #4a4f59;
-  --rg-actif-ombre: 0 0 0 1px rgb(255 255 255 / 0.08);
 }
 
 .notak-vue-tout {

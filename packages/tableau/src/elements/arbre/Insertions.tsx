@@ -2,7 +2,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import type { Id } from '../../coeur/tableau'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
-import { Bouton, BoutonIcone, Calendrier, formaterDate, useFermeture } from '../../communs'
+import { Bouton, BoutonIcone, Calendrier, Recherche, formaterDate, useFermeture } from '../../communs'
 import type { ContexteToile } from '../types'
 import type { ActionsInsertion } from './actionsMenu'
 import { enMathml } from './equation'
@@ -366,7 +366,7 @@ export function EditeurLienSujet({ lecture, depuis, choisi, valider }: { lecture
     .slice(0, 60)
   return (
     <div className="notak-arbre-popover-corps">
-      <input type="text" value={filtre} placeholder={t('arbre.chercher')} aria-label={t('arbre.chercher')} onChange={(e) => setFiltre(e.target.value)} />
+      <Recherche valeur={filtre} onChange={setFiltre} placeholder={t('arbre.chercher')} aria-label={t('arbre.chercher')} />
       <ul className="notak-arbre-liste" role="listbox" aria-label={t('arbre.inserer.lienSujet')}>
         {options.map(([x, s]) => (
           <li key={x}>

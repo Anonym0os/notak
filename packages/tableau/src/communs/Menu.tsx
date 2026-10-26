@@ -258,7 +258,7 @@ export function ListeMenu({ entrees, fermer, ouvertA }: { entrees: Entree[]; fer
         if (e.info) {
           return (
             <div key={e.libelle} className="notak-menu-info">
-              <PastillePersonne className="notak-decor-personne" nom={e.info.nom} couleur={e.info.couleur ?? ''} adresse={e.info.photo} titre="" />
+              <PastillePersonne taille={20} nom={e.info.nom} couleur={e.info.couleur} adresse={e.info.photo} titre="" />
               <span>{e.libelle}</span>
             </div>
           )

@@ -1,4 +1,4 @@
-import { Case, Confirmation } from '@notak/tableau'
+import { Case, Champ, Choix, Confirmation } from '@notak/tableau'
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { t } from './langue'
 import { PageApp } from './PageApp'
@@ -125,7 +125,7 @@ export function PageEspaces() {
           </ul>
         )}
         <form className="app-form" onSubmit={creer} noValidate>
-          <input className="champ" aria-label={t('espaces.nomNouveau')} placeholder={t('espaces.nomNouveau')} maxLength={80} value={nom} onChange={(e) => setNom(e.target.value)} />
+          <Champ aria-label={t('espaces.nomNouveau')} placeholder={t('espaces.nomNouveau')} maxLength={80} value={nom} onChange={(e) => setNom(e.target.value)} />
           <button type="submit" className="bouton bouton-plein" disabled={occupe}>
             {t('espaces.creer')}
           </button>
@@ -176,13 +176,14 @@ function GestionEspace({ espace, agir, occupe, apresDepart }: { espace: EspaceLu
               </span>
               {admin && m.role !== 'owner' ? (
                 <span className="app-actions">
-                  <select className="champ" aria-label={t('espaces.roleDe', { nom: m.user.name })} value={m.role} disabled={occupe} onChange={(e) => void agirPuisRelire(() => changerRoleMembre(espace.id, m.id, e.target.value))}>
-                    {rolesPossibles.filter((r) => r !== 'owner').map((r) => (
-                      <option key={r} value={r}>
-                        {nomDuRole(r)}
-                      </option>
-                    ))}
-                  </select>
+                  <Choix
+                    haut
+                    libelle={t('espaces.roleDe', { nom: m.user.name })}
+                    valeur={m.role}
+                    inactif={occupe}
+                    onChange={(r) => void agirPuisRelire(() => changerRoleMembre(espace.id, m.id, r))}
+                    options={rolesPossibles.filter((r) => r !== 'owner').map((r) => ({ valeur: r, libelle: nomDuRole(r) }))}
+                  />
                   <button type="button" className="bouton bouton-danger" disabled={occupe} onClick={() => void agirPuisRelire(() => retirerMembre(espace.id, m.id))}>
                     {t('espaces.retirer')}
                   </button>
@@ -258,14 +259,8 @@ function Inviter({ espace, roles, agir, occupe }: { espace: EspaceLu; roles: Rol
   }
   return (
     <form className="app-form" onSubmit={inviter} noValidate>
-      <input className="champ" type="email" aria-label={t('espaces.inviterAdresse')} placeholder={t('espaces.inviterAdresse')} value={email} onChange={(e) => setEmail(e.target.value)} />
-      <select className="champ" aria-label={t('espaces.role')} value={role} onChange={(e) => setRole(e.target.value)}>
-        {roles.filter((r) => r !== 'owner').map((r) => (
-          <option key={r} value={r}>
-            {nomDuRole(r)}
-          </option>
-        ))}
-      </select>
+      <Champ type="email" aria-label={t('espaces.inviterAdresse')} placeholder={t('espaces.inviterAdresse')} value={email} onChange={(e) => setEmail(e.target.value)} />
+      <Choix haut libelle={t('espaces.role')} valeur={role} onChange={setRole} options={roles.filter((r) => r !== 'owner').map((r) => ({ valeur: r, libelle: nomDuRole(r) }))} />
       <button type="submit" className="bouton bouton-plein" disabled={occupe}>
         {t('espaces.inviter')}
       </button>
@@ -324,7 +319,7 @@ function Equipes({ espace, membres, agir, occupe }: { espace: EspaceLu; membres:
         </div>
       ))}
       <form className="app-form" onSubmit={creer} noValidate>
-        <input className="champ" aria-label={t('espaces.nomEquipe')} placeholder={t('espaces.nomEquipe')} maxLength={60} value={nom} onChange={(e) => setNom(e.target.value)} />
+        <Champ aria-label={t('espaces.nomEquipe')} placeholder={t('espaces.nomEquipe')} maxLength={60} value={nom} onChange={(e) => setNom(e.target.value)} />
         <button type="submit" className="bouton" disabled={occupe}>
           {t('espaces.creerEquipe')}
         </button>
@@ -376,7 +371,7 @@ function Roles({ espace, roles, agir, occupe }: { espace: EspaceLu; roles: RoleC
         </ul>
       )}
       <form className="espaces-role" onSubmit={creer} noValidate>
-        <input className="champ" aria-label={t('espaces.nomRole')} placeholder={t('espaces.nomRole')} maxLength={40} value={nom} onChange={(e) => setNom(e.target.value)} />
+        <Champ aria-label={t('espaces.nomRole')} placeholder={t('espaces.nomRole')} maxLength={40} value={nom} onChange={(e) => setNom(e.target.value)} />
         {Object.entries(GESTES).map(([ressource, gestes]) => (
           <fieldset key={ressource} className="espaces-coches">
             <legend>{t(`espaces.ressource.${ressource}`)}</legend>
@@ -415,8 +410,7 @@ function Sso({ espace, agir, occupe }: { espace: EspaceLu; agir: Agir; occupe: b
     })
   }
   const champ = (cle: keyof typeof champs, type = 'text') => (
-    <input
-      className="champ"
+    <Champ
       type={type}
       aria-label={t(`espaces.sso.${cle}`)}
       placeholder={t(`espaces.sso.${cle}`)}

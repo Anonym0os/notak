@@ -89,20 +89,16 @@
   display: none;
 }
 
-.notak-arbre-fond .notak-arbre-style-separateur {
-  height: 0;
+.notak-arbre-fond .notak-filet {
   margin: 8px 20px;
-  border: 0;
-  border-top: 1px solid var(--notak-arbre-style-bord);
 }
 
-.notak-arbre-fond .notak-arbre-style-separateur.notak-arbre-style-large {
+.notak-arbre-fond .notak-filet.notak-arbre-style-large {
   margin: 20px 0;
 }
 
-.notak-arbre-fond .notak-arbre-style-separateur.notak-arbre-style-fort {
+.notak-arbre-fond .notak-filet.notak-arbre-style-fort {
   margin: 12px 0;
-  border-top-color: var(--notak-arbre-filet-c);
 }
 
 .notak-arbre-fond .notak-arbre-style-rangee {
@@ -119,21 +115,8 @@
   margin-bottom: 0;
 }
 
-.notak-arbre-fond .notak-arbre-style-ligne {
-  display: flex;
+.notak-arbre-fond .notak-arbre-style-corps .notak-reglage {
   flex: 1;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.notak-arbre-fond .notak-arbre-style-ligne > .notak-arbre-style-libelle {
-  flex: 1;
-  min-width: 0;
-}
-
-.notak-arbre-fond .notak-arbre-style-libelle {
-  font-weight: 400;
 }
 
 .notak-arbre-fond .notak-arbre-style-legende {
@@ -230,7 +213,6 @@
 
 .notak-arbre-fond .notak-arbre-style-select:focus-visible,
 .notak-arbre-fond .notak-arbre-style-vignette:focus-visible,
-.notak-arbre-fond .notak-arbre-style-segment:focus-visible,
 .notak-arbre-fond .notak-arbre-style-bouton:focus-visible,
 .notak-arbre-fond .notak-arbre-style-couleur:focus-visible,
 .notak-arbre-fond .notak-arbre-style-titre:focus-visible {
@@ -432,62 +414,6 @@
   color: var(--notak-arbre-texte);
 }
 
-/* — Les boutons segmentés — */
-.notak-arbre-fond .notak-arbre-style-segments {
-  display: inline-flex;
-  gap: 1px;
-  border: 1px solid var(--notak-arbre-style-bord);
-  border-radius: 8px;
-  background: var(--notak-arbre-fond);
-  overflow: hidden;
-}
-
-.notak-arbre-fond .notak-arbre-style-segments[data-etendu] {
-  display: flex;
-  width: 100%;
-}
-
-.notak-arbre-fond .notak-arbre-style-segment {
-  all: unset;
-  box-sizing: border-box;
-  position: relative;
-  display: flex;
-  flex: 1;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  min-width: 24px;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 6px;
-  color: var(--notak-arbre-texte);
-  cursor: pointer;
-}
-
-.notak-arbre-fond .notak-arbre-style-segment + .notak-arbre-style-segment::before {
-  content: '';
-  position: absolute;
-  left: -1px;
-  top: 25%;
-  height: 50%;
-  width: 1px;
-  background: var(--notak-arbre-style-bord);
-}
-
-.notak-arbre-fond .notak-arbre-style-segment:hover:not(:disabled, [aria-pressed='true'], [aria-checked='true']) {
-  background: var(--notak-arbre-survol);
-}
-
-.notak-arbre-fond .notak-arbre-style-segment[aria-pressed='true'],
-.notak-arbre-fond .notak-arbre-style-segment[aria-checked='true'] {
-  background: var(--notak-arbre-appui);
-}
-
-.notak-arbre-fond .notak-arbre-style-segment:disabled {
-  color: var(--notak-arbre-style-inactif);
-  cursor: default;
-}
-
 .notak-arbre-fond .notak-arbre-style-tt {
   font-size: 12px;
   font-weight: 600;
@@ -544,49 +470,7 @@
   padding: 0 4px;
 }
 
-.notak-arbre-fond .notak-arbre-style-bouton-pied {
-  margin-top: 16px;
-}
-
-/* — La bascule et la case — */
-.notak-arbre-fond .notak-arbre-style-bascule {
-  all: unset;
-  box-sizing: border-box;
-  position: relative;
-  flex: none;
-  width: 36px;
-  height: 16px;
-  border-radius: 80px;
-  background: color-mix(in srgb, var(--notak-arbre-texte) 14%, transparent);
-  cursor: pointer;
-  transition: background 0.25s;
-}
-
-.notak-arbre-fond .notak-arbre-style-bascule[aria-checked='true'] {
-  background: var(--notak-arbre-plein);
-}
-
-.notak-arbre-fond .notak-arbre-style-bascule:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.notak-arbre-fond .notak-arbre-style-bascule-bouton {
-  position: absolute;
-  top: 1.5px;
-  left: 1.5px;
-  width: 21px;
-  height: 13px;
-  border-radius: 80px;
-  background: #fff;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
-  transition: transform 0.25s;
-}
-
-.notak-arbre-fond .notak-arbre-style-bascule[aria-checked='true'] .notak-arbre-style-bascule-bouton {
-  transform: translateX(11px);
-}
-
+/* — La case — */
 .notak-arbre-fond .notak-arbre-style-case {
   display: flex;
   align-items: center;
@@ -818,7 +702,7 @@
   gap: 12px;
 }
 
-.notak-arbre-fond .notak-arbre-style-coloree .notak-arbre-style-ligne {
+.notak-arbre-fond .notak-arbre-style-coloree .notak-reglage {
   flex: none;
   justify-content: space-between;
 }
@@ -862,158 +746,9 @@
   border-color: var(--notak-arbre-style-bleu);
 }
 
-/* — Le sélecteur de couleur : un nuancier de 9 × 5 pastilles de 24 px — */
+/* — Le sélecteur de couleur : le sélecteur commun, dans son popover — */
 .notak-arbre-fond .notak-arbre-style-pop.notak-arbre-style-selecteur {
   padding: 16px;
-}
-
-.notak-arbre-fond .notak-arbre-style-nuancier {
-  display: grid;
-  grid-template-columns: repeat(9, 24px);
-  gap: 2px;
-}
-
-.notak-arbre-fond .notak-arbre-style-pastille {
-  all: unset;
-  box-sizing: border-box;
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--notak-arbre-style-pastille-bord);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s;
-}
-
-.notak-arbre-fond .notak-arbre-style-pastille:hover:not([aria-pressed='true']) {
-  transform: scale(1.05);
-}
-
-.notak-arbre-fond .notak-arbre-style-pastille[aria-pressed='true'] {
-  transform: scale(0.9);
-  box-shadow: 0 0 0 2px var(--notak-arbre-fond), 0 0 0 4px var(--notak-arbre-style-anneau, currentColor);
-}
-
-.notak-arbre-fond .notak-arbre-style-pastille[aria-pressed='true'][data-claire] {
-  box-shadow: 0 0 0 2px var(--notak-arbre-fond), 0 0 0 4px #8d939a;
-}
-
-.notak-arbre-fond .notak-arbre-style-pastille:focus-visible {
-  outline: 2px solid var(--notak-arbre-choix);
-  outline-offset: 1px;
-}
-
-.notak-arbre-fond .notak-arbre-style-personnaliser {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px;
-}
-
-.notak-arbre-fond .notak-arbre-style-hex {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  height: 24px;
-  padding: 0 8px;
-  border: 1px solid var(--notak-arbre-style-bord-survol);
-  border-radius: 6px;
-  background: var(--notak-arbre-fond);
-}
-
-.notak-arbre-fond .notak-arbre-style-hex:focus-within {
-  border-color: var(--notak-arbre-texte);
-}
-
-.notak-arbre-fond .notak-arbre-style-diese,
-.notak-arbre-fond .notak-arbre-style-pourcent {
-  flex: none;
-  color: var(--notak-arbre-style-doux);
-}
-
-.notak-arbre-fond .notak-arbre-style-hex-champ,
-.notak-arbre-fond .notak-arbre-style-opacite-champ {
-  all: unset;
-  box-sizing: border-box;
-  min-width: 0;
-  color: var(--notak-arbre-texte);
-  font-variant-numeric: tabular-nums;
-  -webkit-user-select: text;
-  user-select: text;
-}
-
-.notak-arbre-fond .notak-arbre-style-hex-champ {
-  flex: 1;
-  text-transform: uppercase;
-}
-
-.notak-arbre-fond .notak-arbre-style-opacite-champ {
-  flex: none;
-  width: 22px;
-  text-align: right;
-}
-
-.notak-arbre-fond .notak-arbre-style-hex-sep {
-  flex: none;
-  width: 1px;
-  height: 12px;
-  margin: 0 2px;
-  background: var(--notak-arbre-style-bord-survol);
-}
-
-.notak-arbre-fond .notak-arbre-style-apercu {
-  display: block;
-  flex: none;
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--notak-arbre-style-pastille-bord);
-  border-radius: 8px;
-  background: conic-gradient(#edf0f2 25%, #fff 0 50%, #edf0f2 0 75%, #fff 0) 0 0 / 8px 8px;
-  overflow: hidden;
-}
-
-.notak-arbre-fond .notak-arbre-style-apercu > span {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.notak-arbre-fond .notak-arbre-style-systeme {
-  position: relative;
-  flex: none;
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--notak-arbre-style-pastille-bord);
-  border-radius: 8px;
-  background: conic-gradient(#e5534b, #c9a227, #3fa66b, #2ec4c4, #3a86d4, #c0489e, #e5534b);
-  overflow: hidden;
-  cursor: pointer;
-}
-
-.notak-arbre-fond .notak-arbre-style-systeme:hover {
-  opacity: 0.8;
-}
-
-.notak-arbre-fond .notak-arbre-style-systeme input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.notak-arbre-fond .notak-arbre-style-selecteur .notak-arbre-style-bouton-pied {
-  margin-top: 12px;
-}
-
-.notak-arbre-fond .notak-arbre-style-selecteur .notak-arbre-style-section {
-  padding: 0;
-}
-
-.notak-arbre-fond .notak-arbre-style-selecteur .notak-arbre-style-section .notak-arbre-style-corps {
-  margin: 8px 0 12px;
 }
 
 /* — L'état vide : un pictogramme pâle et une phrase, au milieu — */

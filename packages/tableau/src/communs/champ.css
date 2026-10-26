@@ -1,0 +1,206 @@
+/*
+ * Les champs communs (maquette « Composants communs » : .nk-champ, .nk-libelle, .nk-aide, .nk-recherche, .nk-choix).
+ * Le champ fait 36 px de rayon 10, avec un filet intérieur d'un pixel ; au focus, un filet de 1,5 px dans la couleur du
+ * texte. Les teintes viennent de jetons.css : le thème sombre suit.
+ */
+.notak-champ {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  margin: 0;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  outline: none;
+  background: var(--notak-ctl-carte);
+  box-shadow: inset 0 0 0 1px var(--notak-ctl-contour);
+  color: var(--notak-ctl-texte);
+  font: 400 13.5px var(--notak-ctl-police);
+  text-overflow: ellipsis;
+}
+
+.notak-champ-g {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+.notak-champ-p {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 12.5px;
+}
+
+textarea.notak-champ {
+  height: auto;
+  min-height: 72px;
+  padding: 10px 12px;
+  line-height: 1.45;
+  resize: none;
+}
+
+.notak-champ:focus,
+.notak-champ:focus-visible {
+  box-shadow: inset 0 0 0 1.5px var(--notak-ctl-texte);
+}
+
+.notak-champ[data-faux] {
+  box-shadow: inset 0 0 0 1.5px var(--notak-ctl-rouge);
+}
+
+.notak-champ::placeholder {
+  color: var(--notak-ctl-texte-3);
+  opacity: 1;
+}
+
+.notak-champ:disabled {
+  background: var(--notak-ctl-fond);
+  color: var(--notak-ctl-texte-3);
+}
+
+.notak-champ[type='search']::-webkit-search-cancel-button {
+  display: none;
+}
+
+/* 16 px : en dessous, Safari sur iPhone zoome la page à la prise de focus. */
+@media (max-width: 640px) {
+  .notak-champ {
+    font-size: 16px;
+  }
+}
+
+.notak-libelle {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--notak-ctl-texte);
+  font: 500 13px var(--notak-ctl-police);
+}
+
+.notak-aide {
+  margin: 0;
+  color: var(--notak-ctl-texte-2);
+  font: 400 12.5px/1.4 var(--notak-ctl-police);
+}
+
+.notak-aide[data-faux] {
+  color: var(--notak-ctl-rouge);
+}
+
+/* La recherche : le champ, une loupe de 16 px à 11 px du bord. */
+.notak-champ-recherche {
+  position: relative;
+  display: block;
+  flex: none;
+  min-width: 0;
+}
+
+.notak-champ-recherche > svg {
+  position: absolute;
+  top: 50%;
+  left: 11px;
+  color: var(--notak-ctl-texte-2);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.notak-champ-recherche .notak-champ {
+  padding-left: 34px;
+}
+
+.notak-champ-recherche-fin {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  color: var(--notak-ctl-texte-3);
+  font: 500 11px var(--notak-ctl-police);
+  transform: translateY(-50%);
+}
+
+.notak-champ-recherche:has(.notak-champ-recherche-fin) .notak-champ {
+  padding-right: 40px;
+}
+
+.notak-champ-recherche[data-pilule] .notak-champ {
+  height: 40px;
+  padding-left: 38px;
+  border-radius: 20px;
+  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.08), 0 6px 16px -6px rgb(27 37 54 / 0.16);
+}
+
+.notak-champ-recherche[data-pilule] > svg {
+  left: 14px;
+}
+
+/* La liste déroulante : une pilule de 30 px, le menu natif transparent par-dessus. */
+.notak-choix {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  max-width: 100%;
+  height: 30px;
+  padding: 0 10px 0 12px;
+  border-radius: 15px;
+  background: var(--notak-ctl-fond);
+  color: var(--notak-ctl-texte);
+  font: 500 12.5px var(--notak-ctl-police);
+  white-space: nowrap;
+}
+
+.notak-choix > svg {
+  flex: none;
+}
+
+.notak-choix-texte {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notak-choix > select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.notak-choix:has(select:focus-visible) {
+  outline: 2px solid var(--notak-ctl-anneau);
+  outline-offset: 1px;
+}
+
+.notak-choix[data-haut] {
+  height: 36px;
+  padding: 0 10px 0 12px;
+  border-radius: 10px;
+  background: var(--notak-ctl-carte);
+  box-shadow: inset 0 0 0 1px var(--notak-ctl-contour);
+  font-size: 13px;
+}
+
+.notak-choix[data-large] {
+  display: flex;
+  width: 100%;
+}
+
+.notak-choix[data-inactif] {
+  opacity: 0.45;
+}
+
+.notak-choix[data-inactif] > select {
+  cursor: default;
+}

@@ -366,12 +366,7 @@
 
 .notak-note-lien {
   width: 180px;
-  height: 28px;
   margin-left: 4px;
-  padding: 0 8px;
-  border: 1px solid var(--notak-point);
-  border-radius: 6px;
-  font: inherit;
   user-select: text;
 }
 
@@ -399,11 +394,6 @@
   background: none;
   color: var(--notak-pale, #8a9099);
   cursor: pointer;
-}
-
-.notak-note-lien:focus {
-  outline: 2px solid var(--notak-accent);
-  outline-offset: -1px;
 }
 
 /* Une note vide dit qu'on peut y écrire, même hors édition. */
@@ -614,19 +604,6 @@
   outline-offset: -1px;
 }
 
-/* Le menu d'insertion : huit émojis par ligne. */
-.notak-note-emojis {
-  display: grid;
-  grid-template-columns: repeat(8, 28px);
-  gap: 2px;
-}
-
-.notak-note-emojis button {
-  min-width: 28px !important;
-  padding: 0 !important;
-  font-size: 16px !important;
-}
-
 /* Le séparateur. */
 .notak-texte hr {
   margin: 10px 0 19px;
@@ -719,20 +696,6 @@
 
 .notak-propositions[data-genre='mention'] li[data-actif] {
   background: #eaeffe;
-}
-
-.notak-proposition-avatar {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: #8a94a3;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  object-fit: cover;
 }
 
 .notak-proposition-nom {

@@ -19,6 +19,7 @@ import {
 import { basculerFiltre, useFiltre, viderFiltre } from './etat'
 import { changerEtiquettes } from './ecriture'
 import { t, tn } from '../../langue'
+import { Champ } from '../../communs'
 import { Icone } from '../../icones'
 import { Case } from '../../communs'
 
@@ -123,7 +124,8 @@ export function PanneauEtiquettes({ elements, contexte }: { elements: readonly E
           />
         )}
         {renommerId === et.id ? (
-          <input
+          <Champ
+            taille="p"
             className="notak-etiquettes-nom"
             autoFocus
             defaultValue={et.nom}
@@ -170,8 +172,8 @@ export function PanneauEtiquettes({ elements, contexte }: { elements: readonly E
   return (
     <div className="notak-etiquettes" role="group" aria-label={t('etiquettes.titre')} onKeyDown={(e) => e.stopPropagation()}>
       {ecrire && (
-        <input
-          type="text"
+        <Champ
+          taille="p"
           className="notak-etiquettes-recherche"
           value={requete}
           maxLength={NOM_ETIQUETTE_MAX}

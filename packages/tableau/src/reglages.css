@@ -9,7 +9,6 @@
   --rg-page: var(--notak-carte, #fff);
   --rg-nav: #f4f5f7;
   --rg-filet: #eceef1;
-  --rg-pilule: rgb(50 59 74 / 0.07);
   --rg-actif: #fff;
   --rg-actif-ombre: 0 0 0 1px rgb(27 37 54 / 0.06), 0 1px 2px rgb(27 37 54 / 0.12);
   --rg-lien-ombre: 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.08);
@@ -100,70 +99,6 @@
   font-size: 12.5px;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-:is(.notak-rg-moi-pastille, .notak-reglages-avatar) {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  overflow: hidden;
-  border-radius: 18px;
-  color: #fff;
-  font-size: 15px;
-  font-weight: 600;
-}
-
-:is(.notak-rg-moi-pastille, .notak-reglages-avatar) img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.notak-rg-recherche {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 8px;
-  height: 34px;
-  padding: 0 10px;
-  border-radius: 10px;
-  background: var(--rg-actif);
-  box-shadow: var(--rg-champ-ombre);
-  color: var(--rg-aide);
-  font-size: 13px;
-}
-
-.notak-rg-recherche:focus-within {
-  box-shadow: var(--rg-champ-ombre), 0 0 0 3px color-mix(in srgb, var(--notak-accent, #2f6feb) 28%, transparent);
-}
-
-.notak-rg-recherche svg {
-  flex: none;
-}
-
-.notak-rg-recherche input {
-  flex: 1;
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  outline: none;
-  background: transparent;
-  color: var(--rg-texte);
-  font: inherit;
-}
-
-/* Le champ se dit déjà par l'anneau de son cadre. */
-.notak-rg-recherche input:focus-visible {
-  outline: none;
-}
-
-.notak-rg-recherche kbd {
-  color: var(--rg-aide);
-  font: inherit;
-  font-size: 11px;
-  font-weight: 500;
 }
 
 /* Les rubriques défilent si la fenêtre est basse ; la version reste en bas. */
@@ -370,50 +305,6 @@
   color: inherit;
 }
 
-/* Le contrôle en pilule : le choix enfoncé est blanc sur le gris de la pilule. */
-.notak-rg-pilule {
-  display: inline-flex;
-  flex: none;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 18px;
-  background: var(--rg-pilule);
-}
-
-.notak-rg-pilule button {
-  height: 30px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 15px;
-  background: transparent;
-  color: var(--rg-texte);
-  font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.notak-rg-pilule button:hover:not([aria-checked='true'], :disabled) {
-  background: var(--rg-survol);
-}
-
-.notak-rg-pilule button[aria-checked='true'] {
-  background: var(--rg-actif);
-  box-shadow: var(--rg-actif-ombre);
-}
-
-.notak-rg-pilule button:disabled {
-  cursor: default;
-  opacity: 0.55;
-}
-
-.notak-rg-pilule small {
-  margin-left: 4px;
-  color: var(--rg-aide);
-  font-size: 12px;
-  font-weight: 400;
-}
-
 /* Les contrôles dessinés à part : un rang de boutons, et dessous une note ou une erreur. */
 .notak-rg-controle {
   display: flex;
@@ -608,7 +499,6 @@
   --rg-aide: rgb(255 255 255 / 0.6);
   --rg-nav: color-mix(in srgb, var(--notak-fond, #1b1e23) 55%, var(--notak-carte, #2a2e35));
   --rg-filet: rgb(255 255 255 / 0.08);
-  --rg-pilule: rgb(255 255 255 / 0.07);
   --rg-actif: #4a4f59;
   --rg-actif-ombre: 0 0 0 1px rgb(255 255 255 / 0.08);
   --rg-lien-ombre: 0 0 0 1px rgb(255 255 255 / 0.08);
@@ -618,10 +508,6 @@
   --rg-hors: rgb(255 255 255 / 0.32);
   --rg-hors-icone: rgb(255 255 255 / 0.22);
   --rg-mark: rgb(250 204 21 / 0.34);
-}
-
-[data-theme='sombre'] .notak-rg-recherche {
-  background: color-mix(in srgb, white 5%, var(--rg-nav));
 }
 
 [data-theme='sombre'] .notak-rg-erreur {

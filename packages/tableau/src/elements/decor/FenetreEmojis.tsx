@@ -5,7 +5,7 @@ import { Icone } from '../../icones'
 import { SelecteurEmojis } from './SelecteurEmojis'
 
 /** Le sélecteur d'émojis, accroché à droite de son bouton (à gauche s'il n'y a pas la place) ; un appui ailleurs ou Échap le ferme. */
-export function FenetreEmojis({ ancre, fermer, choisir, posees }: { ancre: Element; fermer(): void; choisir(emoji: string): void; posees?: ReadonlySet<string> }) {
+export function FenetreEmojis({ ancre, fermer, choisir, posees, retirer }: { ancre: Element; fermer(): void; choisir(emoji: string): void; posees?: ReadonlySet<string>; /** « Retirer » : un lien sous la grille, quand l'émoji est une icône qu'on peut enlever. */ retirer?: () => void }) {
   const noeud = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const dehors = (e: PointerEvent) => !noeud.current?.contains(e.target as Node) && fermer()
@@ -20,6 +20,11 @@ export function FenetreEmojis({ ancre, fermer, choisir, posees }: { ancre: Eleme
   return (
     <PanneauFlottant panneau={noeud} cible={() => ancre} cote="droite" distance={15} className="notak-decor-menu notak-fenetre-emojis" role="dialog" onPointerDown={(e) => e.stopPropagation()}>
       <SelecteurEmojis choisir={choisir} {...(posees ? { posees } : {})} />
+      {retirer && (
+        <button type="button" className="notak-etiquettes-lien" onClick={retirer}>
+          {t('page.retirer')}
+        </button>
+      )}
     </PanneauFlottant>
   )
 }

@@ -5,7 +5,7 @@ import { t, tn } from './langue'
 import { touchesDe } from './communs'
 import { touches } from './Menus'
 import { PastillePersonne } from './pastille'
-import { Pilule } from './reglages'
+import { Recherche, Segments } from './communs'
 import { type ContexteReglages, GROUPES, type Ligne, type Rubrique, chercher, lire, morceaux, nombreDeLignes, rubriquesVisibles } from './rubriquesReglages'
 import { VERSION_NOTAK } from './version'
 import './reglages.css'
@@ -72,7 +72,7 @@ function LigneReglage({ ligne, c, cherche }: { ligne: Ligne; c: ContexteReglages
         )}
       </span>
       {controle.type === 'choix' ? (
-        <Pilule libelle={libelle} options={controle.options(c)} actuelle={controle.lire(c)} choisir={(v) => controle.ecrire(c, v)} />
+        <Segments libelle={libelle} options={controle.options(c)} valeur={controle.lire(c)} onChange={(v) => controle.ecrire(c, v)} />
       ) : controle.type === 'touches' ? (
         <Touches combinaison={controle.combinaison} />
       ) : (
@@ -148,21 +148,14 @@ export function PageReglages({ fermer, ...c }: ContexteReglages & { fermer(): vo
       <nav className="notak-rg-nav" aria-label={t('reglages.rubriques')}>
         {c.compte && (
           <button type="button" className="notak-rg-moi" onClick={() => ouvrir('profil')}>
-            <PastillePersonne className="notak-rg-moi-pastille" nom={c.compte.nom} couleur={c.compte.couleur} adresse={c.compte.photo ?? undefined} />
+            <PastillePersonne taille={36} nom={c.compte.nom} couleur={c.compte.couleur} adresse={c.compte.photo ?? undefined} />
             <span>
               <strong>{c.compte.nom}</strong>
               {c.compte.email && <small>{c.compte.email}</small>}
             </span>
           </button>
         )}
-        <label className="notak-rg-recherche">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <circle cx="11" cy="11" r="7" />
-            <path d="M20 20l-3.5-3.5" />
-          </svg>
-          <input ref={champ} autoFocus type="search" value={cherche} placeholder={t('reglages.chercher')} aria-label={t('reglages.chercher')} onChange={(e) => setCherche(e.target.value)} />
-          {!cherche && <kbd aria-hidden>{touches('⌘F')}</kbd>}
-        </label>
+        <Recherche ref={champ} autoFocus valeur={cherche} onChange={setCherche} placeholder={t('reglages.chercher')} aria-label={t('reglages.chercher')} fin={!cherche && <kbd aria-hidden>{touches('⌘F')}</kbd>} />
         <div className="notak-rg-liste">
           {GROUPES.map((g) => {
             const rubriques = visibles.filter((r) => r.groupe === g)

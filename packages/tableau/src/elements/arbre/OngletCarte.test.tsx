@@ -53,7 +53,7 @@ const bouton = (nom: string | RegExp) => {
   return trouve
 }
 const cliquer = (el: HTMLElement) => act(() => el.click())
-const interrupteur = (libelle: string) => hote.querySelector<HTMLInputElement>(`input[role=switch][aria-label="${libelle}"]`)!
+const interrupteur = (libelle: string) => hote.querySelector<HTMLButtonElement>(`button[role=switch][aria-label="${libelle}"]`)!
 const saisir = (el: HTMLInputElement, valeur: string) =>
   act(() => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(el, valeur)
@@ -107,25 +107,25 @@ describe('l’onglet Carte : ce qu’il montre', () => {
   it('quatre titres de section, des séparateurs entre les blocs', () => {
     monter(carte())
     expect([...hote.querySelectorAll('.notak-arbre-reglages-titre')].map((x) => x.textContent)).toEqual(['Style de carte', 'Affichage des sujets', 'Relation', 'Avancé'])
-    expect(hote.querySelectorAll('hr.notak-arbre-reglages-separateur').length).toBeGreaterThanOrEqual(8)
+    expect(hote.querySelectorAll('hr.notak-filet').length).toBeGreaterThanOrEqual(8)
   })
 
   it('une carte neuve : carte équilibrée et branches de couleur allumées, le reste éteint', () => {
     monter(carte())
-    const allumes = [...hote.querySelectorAll<HTMLInputElement>('input[role=switch]')].filter((i) => i.checked).map((i) => i.getAttribute('aria-label'))
+    const allumes = [...hote.querySelectorAll<HTMLButtonElement>('button[role=switch]')].filter((i) => i.getAttribute('aria-checked') === 'true').map((i) => i.getAttribute('aria-label'))
     expect(allumes).toEqual(['Branche colorée', 'Équilibrer la carte'])
   })
 
   it('les réglages d’une carte se lisent dans ses options', () => {
     monter(carte('carte', { options: { compacte: true, uniforme: true, toutesNotes: true, flottantsColores: true, relationsColorees: true, libre: true, flottantSouple: true, chevauchement: true, uneCouleur: true } }))
-    const eteints = [...hote.querySelectorAll<HTMLInputElement>('input[role=switch]')].filter((i) => !i.checked).map((i) => i.getAttribute('aria-label'))
+    const eteints = [...hote.querySelectorAll<HTMLButtonElement>('button[role=switch]')].filter((i) => i.getAttribute('aria-checked') !== 'true').map((i) => i.getAttribute('aria-label'))
     // Tout est allumé, sauf « Branche colorée » : c'est « une couleur » qui l'est.
     expect(eteints).toEqual(['Branche colorée'])
   })
 
   it('chaque ligne à bascule porte l’infobulle de Xmind sur toute la ligne', () => {
     monter(carte())
-    const ligne = interrupteur('Carte compacte').closest('.notak-arbre-reglages-ligne')!
+    const ligne = interrupteur('Carte compacte').closest('.notak-reglage')!
     expect(ligne.getAttribute('title')).toBe('Réduire la taille et l\'espacement des éléments.')
   })
 
@@ -205,7 +205,7 @@ describe('l’onglet Carte : ce que chaque réglage envoie', () => {
     monter(carte('carte', { options: { uneCouleur: true } }))
     expect(hote.querySelector('.notak-arbre-reglages-select-jeu')).toBeNull()
     cliquer(bouton('Couleur'))
-    cliquer(document.querySelector('.notak-arbre-reglages-case-couleur[aria-label="#dc2626"]') as HTMLElement)
+    cliquer(document.querySelector('.notak-teinte-carree[aria-label="#dc2626"]') as HTMLElement)
     expect(dernier()).toEqual({ type: 'couleurLigne', couleur: '#dc2626' })
   })
 })
@@ -385,22 +385,22 @@ describe('le fond, les polices, la largeur', () => {
   it('le fond : un clic sur une case du nuancier le pose et ferme la fenêtre', () => {
     monter(carte())
     cliquer(bouton('Arrière-plan'))
-    expect(document.querySelectorAll('.notak-arbre-reglages-nuancier > .notak-arbre-reglages-grille-couleurs .notak-arbre-reglages-case-couleur')).toHaveLength(45)
-    cliquer(document.querySelector('.notak-arbre-reglages-case-couleur[aria-label="#fef08a"]') as HTMLElement)
+    expect(document.querySelectorAll('.notak-couleurs > .notak-couleurs-grille:first-child .notak-teinte-carree')).toHaveLength(45)
+    cliquer(document.querySelector('.notak-teinte-carree[aria-label="#fef08a"]') as HTMLElement)
     expect(dernier()).toEqual({ type: 'fond', couleur: '#fef08a' })
-    expect(document.querySelector('.notak-arbre-reglages-nuancier')).toBeNull()
+    expect(document.querySelector('.notak-couleurs')).toBeNull()
     expect(preferences().couleursRecentes).toEqual(['#fef08a'])
   })
 
   it('l’hexa : « abc » devient #aabbcc ; l’opacité s’ajoute ; ils émettent à Entrée sans fermer', () => {
     monter(carte())
     cliquer(bouton('Arrière-plan'))
-    const hex = document.querySelector<HTMLInputElement>('input[aria-label="Code hexadécimal"]')!
+    const hex = document.querySelector<HTMLInputElement>('input[aria-label="Définir la valeur de couleur (hex)."]')!
     saisir(hex, 'abc')
     act(() => void hex.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })))
     expect(dernier()).toEqual({ type: 'fond', couleur: '#aabbcc' })
-    expect(document.querySelector('.notak-arbre-reglages-nuancier')).not.toBeNull()
-    const opacite = document.querySelector<HTMLInputElement>('input[aria-label="Opacité"]')!
+    expect(document.querySelector('.notak-couleurs')).not.toBeNull()
+    const opacite = document.querySelector<HTMLInputElement>('input[aria-label="Définir l’opacité."]')!
     saisir(opacite, '50')
     act(() => void opacite.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })))
     expect(dernier()).toEqual({ type: 'fond', couleur: '#aabbcc80' })

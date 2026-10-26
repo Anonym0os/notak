@@ -1,6 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { t } from './langue'
-import { formaterInstant } from '@notak/tableau'
+import { Champ, formaterInstant } from '@notak/tableau'
 import { type JetonArrivee, creerJeton, listerJetons, revoquerJeton } from './api'
 import { PageApp } from './PageApp'
 import { jetonARemplacer, adresseArrivee, enteteAutorisation, etapesRaccourciImage, etapesRaccourciTexte, favori } from './raccourcis'
@@ -126,7 +126,7 @@ export function PageEnvoyer() {
         <TitreEtape id="envoyer-jetons" texte={t('envoyer.jeton')} />
         <p>{t('envoyer.jetonExplique')}</p>
         <form className="app-form" onSubmit={creer} noValidate>
-          <input className="champ" aria-label={t('envoyer.nomJeton')} placeholder={t('envoyer.nomExemple')} maxLength={60} value={nom} onChange={(e) => setNom(e.target.value)} />
+          <Champ aria-label={t('envoyer.nomJeton')} placeholder={t('envoyer.nomExemple')} maxLength={60} value={nom} onChange={(e) => setNom(e.target.value)} />
           <button type="submit" className="bouton bouton-plein" disabled={occupe}>
             {t('envoyer.creer')}
           </button>

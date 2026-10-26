@@ -916,12 +916,12 @@ function Pastilles({ presence, adressePhoto }: { presence?: Services['presence']
   const vus = personnes.length > PASTILLES_MAX ? personnes.slice(0, PASTILLES_MAX - 1) : personnes
   const reste = personnes.slice(vus.length)
   return (
-    <div className="notak-pastilles">
+    <div className="notak-pastilles notak-pile">
       {vus.map((u) => (
-        <PastillePersonne key={u.id} nom={u.nom} couleur={u.couleur} adresse={u.photo ? adressePhoto?.(u.photo) : undefined} />
+        <PastillePersonne key={u.id} taille={24} nom={u.nom} couleur={u.couleur} adresse={u.photo ? adressePhoto?.(u.photo) : undefined} />
       ))}
       {reste.length > 0 && (
-        <span className="notak-pastille notak-pastille-reste" title={reste.map((u) => u.nom).join(', ')}>
+        <span className="notak-av notak-av-24 notak-pastille-reste" title={reste.map((u) => u.nom).join(', ')}>
           +{reste.length}
         </span>
       )}

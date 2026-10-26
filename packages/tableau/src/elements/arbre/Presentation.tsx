@@ -2,6 +2,7 @@ import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import type { Arbre, Id } from '../../coeur/tableau'
 import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
+import { Choix, Interrupteur, LigneReglage } from '../../communs'
 import { Agrandissement, BoutonAgrandir, type ImageVisee } from './Agrandissement'
 import { ChoixTheme, PopoverFixe } from './ChoixTheme'
 import { Diapositive } from './Diapo'
@@ -94,17 +95,6 @@ const RACCOURCIS: { libelle: string; touches: string[][] | null }[] = [
   { libelle: 'arbre.pitch.raccAnimation', touches: [['A']] },
   { libelle: 'arbre.pitch.raccAide', touches: [['?']] },
 ]
-
-function Interrupteur({ actif, change, libelle, info }: { actif: boolean; change(v: boolean): void; libelle: string; info: string }) {
-  return (
-    <div className="notak-arbre-pitch-ligne">
-      <span>{libelle}</span>
-      <button type="button" role="switch" className="notak-arbre-pitch-interrupteur" aria-checked={actif} title={info} aria-label={libelle} onClick={() => change(!actif)}>
-        <span />
-      </button>
-    </div>
-  )
-}
 
 function BoutonOutil({ icone, info, inactif, onClick, refBouton, actif }: { icone: NomIcone; info: string; inactif?: boolean; onClick(): void; refBouton?: React.Ref<HTMLButtonElement>; actif?: boolean }) {
   return (
@@ -474,25 +464,19 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
           <button ref={boutonTheme} type="button" className="notak-arbre-pitch-bouton" title={t('arbre.pitch.themeInfo')} disabled={lectureSeule} onClick={() => setThemes((o) => !o)}>
             {t('arbre.pitch.changerTheme')}
           </button>
-          <div className="notak-arbre-pitch-ligne">
-            <span>{t('arbre.pitch.ratio')}</span>
-            <select
-              className="notak-arbre-pitch-menu"
-              value={arbre.pitch?.ratio ?? 'auto'}
-              title={t('arbre.pitch.ratioInfo')}
-              aria-label={t('arbre.pitch.ratio')}
-              disabled={lectureSeule}
-              onChange={(e) => mettreAJour({ ratio: e.target.value === 'auto' ? null : (e.target.value as (typeof RATIOS_PITCH)[number]) })}
-            >
-              <option value="auto">{t('arbre.pitch.auto')}</option>
-              {RATIOS_PITCH.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Interrupteur actif={anime} change={basculerAnimation} libelle={t('arbre.pitch.animation')} info={t('arbre.pitch.animationInfo')} />
+          <LigneReglage className="notak-arbre-pitch-ligne" libelle={t('arbre.pitch.ratio')}>
+            <Choix
+              valeur={arbre.pitch?.ratio ?? 'auto'}
+              options={[{ valeur: 'auto', libelle: t('arbre.pitch.auto') }, ...RATIOS_PITCH.map((r) => ({ valeur: r, libelle: r }))]}
+              titre={t('arbre.pitch.ratioInfo')}
+              libelle={t('arbre.pitch.ratio')}
+              inactif={lectureSeule}
+              onChange={(v) => mettreAJour({ ratio: v === 'auto' ? null : (v as (typeof RATIOS_PITCH)[number]) })}
+            />
+          </LigneReglage>
+          <LigneReglage className="notak-arbre-pitch-ligne" libelle={t('arbre.pitch.animation')}>
+            <Interrupteur actif={anime} onChange={basculerAnimation} libelle={t('arbre.pitch.animation')} titre={t('arbre.pitch.animationInfo')} />
+          </LigneReglage>
           {themes && <ChoixTheme ancre={boutonTheme.current} pitch={arbre.pitch} ratio={ratio} choisir={mettreAJour} fermer={() => setThemes(false)} />}
         </PopoverFixe>
       )}

@@ -69,7 +69,7 @@ describe('la bande sous une carte', () => {
     act(() => racine.render(<Decor element={element()} contexte={contexte} mode="toile" />))
     expect(hote.querySelector('.notak-etiquette')?.textContent).toBe('Urgent')
     expect(hote.querySelector('.notak-echeance')?.getAttribute('data-etat')).toBe('passee')
-    expect(hote.querySelector('.notak-assigne')?.textContent).toBe('BM')
+    expect(hote.querySelector('.notak-av')?.textContent).toBe('B')
     const r = [...hote.querySelectorAll('.notak-reaction')]
     expect(r.map((x) => x.textContent?.trim())).toEqual(['👍2', '🎉1'])
     expect(r.map((x) => x.getAttribute('aria-pressed'))).toEqual(['true', 'false'])

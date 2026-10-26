@@ -1,6 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
+import { Segments } from '../../communs'
 import { BoutonIlot, FiletIlot, FilEcran, Ilot } from '../../Ilots'
 import { LigneMenu, classeMenu } from '../../communs'
 import { Flottant } from './Flottant'
@@ -174,13 +175,7 @@ export function PanneauCote({
 }) {
   return (
     <aside className="notak-arbre-cote notak-arbre-panneau" onKeyDown={(e) => e.key !== 'Escape' && e.stopPropagation()}>
-      <div className="notak-arbre-onglets" role="tablist">
-        {onglets.map((o) => (
-          <button key={o.id} type="button" role="tab" aria-selected={actif === o.id} onClick={() => choisir(o.id)}>
-            {o.libelle}
-          </button>
-        ))}
-      </div>
+      <Segments mode="onglets" large className="notak-arbre-onglets" options={onglets.map((o) => ({ valeur: o.id, libelle: o.libelle }))} valeur={actif} onChange={choisir} />
       <div className="notak-arbre-cote-corps" role="tabpanel">
         {children}
       </div>

@@ -1,0 +1,57 @@
+/*
+ * L'interrupteur commun (maquette « Composants communs », .nk-inter) : 30 × 18 px, poignée ronde de 14 px à 2 px du bord.
+ * Éteint : une piste grise ; allumé : la couleur du texte, la poignée prend celle de la carte (le thème sombre suit).
+ */
+.notak-inter {
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  width: 30px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: var(--notak-ctl-piste);
+  cursor: pointer;
+  transition: background-color var(--notak-ctl-duree) var(--notak-ctl-sortie);
+}
+
+.notak-inter::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 7px;
+  background: var(--notak-ctl-poignee);
+  box-shadow: 0 1px 2px rgb(27 37 54 / 0.2);
+  transition: transform var(--notak-ctl-duree) var(--notak-ctl-sortie);
+}
+
+.notak-inter:is([aria-checked='true'], [data-actif]) {
+  background: var(--notak-ctl-texte);
+}
+
+.notak-inter:is([aria-checked='true'], [data-actif])::after {
+  background: var(--notak-ctl-carte);
+  transform: translateX(12px);
+}
+
+.notak-inter:focus-visible {
+  outline: 2px solid var(--notak-ctl-anneau);
+  outline-offset: 2px;
+}
+
+.notak-inter:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notak-inter,
+  .notak-inter::after {
+    transition: none;
+  }
+}

@@ -361,34 +361,9 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   padding: 8px 10px 6px;
 }
 
-.compte-tete .compte-pastille {
-  flex: none;
-  width: 36px;
-  height: 36px;
-  font-size: 14px;
-}
-
 .compte-tete .app-menu-texte > span {
   font-size: 14px;
   font-weight: 600;
-}
-
-.compte-pastille {
-  overflow: hidden;
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.compte-pastille img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 
 .compte-nom {
@@ -1505,13 +1480,14 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
   gap: 8px;
 }
 
-.app-form > .champ {
+.app-form > .notak-champ {
   flex: 1 1 200px;
   height: 40px;
 }
 
-.app-form > select.champ {
+.app-form > .notak-choix {
   flex: 0 1 auto;
+  height: 40px;
 }
 
 .app-form > .bouton {
@@ -1568,9 +1544,8 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
   gap: 8px;
 }
 
-.app-actions .champ {
+.app-actions .notak-choix {
   height: 32px;
-  font-size: 13px;
 }
 
 /* La page « Envoyer vers Notak » : le jeton tout neuf dans un encart à l'accent, les étapes numérotées. */
@@ -1660,7 +1635,7 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
   padding-top: 4px;
 }
 
-.espaces-role > .champ {
+.espaces-role > .notak-champ {
   height: 40px;
 }
 
@@ -2300,35 +2275,6 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
   gap: 12px;
 }
 
-.export-segments {
-  display: inline-flex;
-  padding: 2px;
-  border-radius: 6px;
-  background: var(--fond);
-}
-
-.export-segments label {
-  padding: 4px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.export-segments input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.export-segments label:has(input:checked) {
-  background: var(--carte);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
-  font-weight: 600;
-}
-
-.export-segments label:has(input:focus-visible) {
-  outline: 2px solid rgb(47 111 235 / 0.5);
-}
-
 .export-pied {
   display: flex;
   align-items: center;
@@ -2359,14 +2305,6 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
 
 .notak-espace[data-theme='sombre'] .export-format-filet {
   border-top-color: rgb(255 255 255 / 0.1);
-}
-
-.notak-espace[data-theme='sombre'] .export-segments {
-  background: rgb(255 255 255 / 0.06);
-}
-
-.notak-espace[data-theme='sombre'] .export-segments label:has(input:checked) {
-  background: #3a4048;
 }
 
 .notak-espace[data-theme='sombre'] .notak-fil-segment {

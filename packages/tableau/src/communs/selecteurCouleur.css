@@ -1,0 +1,176 @@
+/*
+ * Le sélecteur de couleur commun : la grille de pastilles carrées de 24 px, la ligne « # hexadécimal | opacité % »,
+ * l'aperçu et le sélecteur du système, le retour au thème, puis les couleurs du thème et les récentes. Les teintes sont
+ * celles de jetons.css (la couleur du texte et de la carte), le thème sombre suit.
+ */
+.notak-couleurs {
+  --notak-ctl-texte: var(--notak-texte, #323b4a);
+  --notak-ctl-carte: var(--notak-carte, #fff);
+  --notak-couleurs-bord: color-mix(in srgb, var(--notak-ctl-texte) 22%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--notak-ctl-texte);
+  font: 400 13px var(--notak-police, Inter, system-ui, sans-serif);
+}
+
+.notak-couleurs-grille {
+  display: grid;
+  gap: 2px;
+}
+
+.notak-teinte-carree {
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--notak-couleurs-bord);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 150ms, box-shadow 150ms;
+}
+
+.notak-teinte-carree:hover:not([aria-pressed='true']) {
+  transform: scale(1.05);
+}
+
+.notak-teinte-carree[aria-pressed='true'] {
+  transform: scale(0.9);
+  box-shadow: 0 0 0 2px var(--notak-ctl-carte), 0 0 0 4px var(--notak-teinte-anneau, currentColor);
+}
+
+.notak-teinte-carree[aria-pressed='true'][data-claire] {
+  box-shadow: 0 0 0 2px var(--notak-ctl-carte), 0 0 0 4px #8d939a;
+}
+
+.notak-teinte-carree:focus-visible {
+  outline: 2px solid var(--notak-accent, #2f6feb);
+  outline-offset: 1px;
+}
+
+.notak-couleurs-perso {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.notak-couleurs-hex {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: var(--notak-ctl-carte);
+  box-shadow: inset 0 0 0 1px var(--notak-couleurs-bord);
+}
+
+.notak-couleurs-hex:focus-within {
+  box-shadow: inset 0 0 0 1.5px var(--notak-ctl-texte);
+}
+
+.notak-couleurs-diese {
+  flex: none;
+  color: color-mix(in srgb, var(--notak-ctl-texte) 60%, transparent);
+}
+
+.notak-couleurs-saisie {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--notak-ctl-texte);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  user-select: text;
+}
+
+.notak-couleurs-saisie[data-hex] {
+  flex: 1;
+  text-transform: uppercase;
+}
+
+.notak-couleurs-saisie[data-opacite] {
+  flex: none;
+  width: 24px;
+  text-align: right;
+}
+
+.notak-couleurs-filet {
+  flex: none;
+  width: 1px;
+  height: 12px;
+  margin: 0 2px;
+  background: var(--notak-couleurs-bord);
+}
+
+.notak-couleurs-apercu,
+.notak-couleurs-systeme {
+  position: relative;
+  display: block;
+  flex: none;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  overflow: hidden;
+  border: 1px solid var(--notak-couleurs-bord);
+  border-radius: 8px;
+}
+
+.notak-couleurs-apercu {
+  background: conic-gradient(#edf0f2 25%, #fff 0 50%, #edf0f2 0 75%, #fff 0) 0 0 / 8px 8px;
+}
+
+.notak-couleurs-apercu > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.notak-couleurs-systeme {
+  background: conic-gradient(#e5534b, #c9a227, #3fa66b, #2ec4c4, #3a86d4, #c0489e, #e5534b);
+  cursor: pointer;
+}
+
+.notak-couleurs-systeme:hover {
+  opacity: 0.8;
+}
+
+.notak-couleurs-systeme input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.notak-couleurs-retour {
+  box-sizing: border-box;
+  width: 100%;
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--notak-couleurs-bord);
+  color: var(--notak-ctl-texte);
+  font: 500 12.5px var(--notak-police, Inter, system-ui, sans-serif);
+  cursor: pointer;
+}
+
+.notak-couleurs-retour:hover {
+  background: color-mix(in srgb, var(--notak-ctl-texte) 6%, transparent);
+}
+
+.notak-couleurs-titre {
+  margin: 4px 0 0;
+  color: color-mix(in srgb, var(--notak-ctl-texte) 68%, transparent);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}

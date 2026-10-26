@@ -3,6 +3,7 @@ import { useHabillagesPublies } from '../../../habillage/catalogue'
 import type { Arbre, StructureArbre } from '../../../coeur/tableau'
 import { Icone } from '../../../icones'
 import { t, useLangue } from '../../../langue'
+import { Segments } from '../../../communs'
 import { CarteVignette, Popover, useOuvrable } from '../controles'
 import { MenuContextuel } from '../MenuContextuel'
 import type { Geste } from '../modele/gestes'
@@ -16,7 +17,7 @@ import { type Preferences, type ThemeCouleurPerso, basculerFavori, cleFavori, de
 type OngletTheme = 'favoris' | 'perso' | 'colore' | 'classique'
 
 /** Les six couleurs d'un groupe, en pastille entièrement arrondie découpée en six segments égaux. */
-function Segments({ palette }: { palette: readonly string[] }) {
+function PastillePalette({ palette }: { palette: readonly string[] }) {
   return (
     <span className="notak-arbre-reglages-segments" aria-hidden>
       {palette.slice(0, 6).map((c, i) => (
@@ -65,7 +66,7 @@ export function ThemeCouleur({ arbre, structure, faire }: { arbre: Arbre; struct
     <>
       <div className="notak-arbre-reglages-rangee-theme">
         <button ref={liste.poser} type="button" className="notak-arbre-reglages-select notak-arbre-reglages-select-theme" aria-haspopup="dialog" aria-expanded={liste.ouvert} title={t('arbre.carte.themeAide')} onClick={liste.basculer}>
-          <Segments palette={courant.palette} />
+          <PastillePalette palette={courant.palette} />
           <span className="notak-arbre-reglages-select-texte">{courant.nom}</span>
           <Icone nom="chevronBas" taille={12} trait={2} />
         </button>
@@ -175,13 +176,7 @@ function ListeThemes({
     <>
     <Popover ancre={ancre} ouvert={ouvert} fermer={fermer} cote="gauche" largeur={316} hauteur={370} className="notak-arbre-reglages-popover-themes" etiquette={t('arbre.carte.themeCouleur')}>
       <div className="notak-arbre-reglages-themes">
-        <div className="notak-arbre-reglages-capsules" role="tablist">
-          {onglets.map((o) => (
-            <button key={o} type="button" role="tab" aria-selected={o === actif} onClick={() => changerOnglet(o)}>
-              {t(`arbre.carte.onglet.${o}`)}
-            </button>
-          ))}
-        </div>
+        <Segments mode="onglets" large className="notak-arbre-reglages-capsules" options={onglets.map((o) => ({ valeur: o, libelle: t(`arbre.carte.onglet.${o}`) }))} valeur={actif} onChange={changerOnglet} />
         {actif === 'favoris' ? (
           <div className="notak-arbre-reglages-themes-favoris">
             {favoris.map(({ g, accent }) => (
@@ -231,7 +226,7 @@ function ListeThemes({
                     setMenu({ x: e.clientX, y: e.clientY, theme: g.perso })
                   }}
                 >
-                  <Segments palette={g.palette} />
+                  <PastillePalette palette={g.palette} />
                   {g.id === courant.id && (
                     <span className="notak-arbre-reglages-alterner">
                       <Icone nom="convertir" taille={12} trait={2} />

@@ -2,6 +2,7 @@ import { type Editor, Extension } from '@tiptap/react'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { type RefObject, useEffect, useState } from 'react'
 import { PanneauFlottant } from '../../PanneauFlottant'
+import { PastillePersonne } from '../../pastille'
 import { t as translate } from '../../langue'
 import type { ContexteToile } from '../types'
 import { type Declencheur, MAX_MENTION, type Proposition, declencheurDans, filtrer, sansDoublons } from './suggestion'
@@ -163,11 +164,5 @@ export function Propositions({ editeur, contexte, pont }: { editeur: Editor; con
 /** La photo de la personne, sinon son initiale sur sa couleur. */
 function Avatar({ proposition: p, contexte }: { proposition: Proposition; contexte: ContexteToile }) {
   const adresse = p.photo ? contexte.services.adressePhoto?.(p.photo) : undefined
-  return adresse ? (
-    <img className="notak-proposition-avatar" src={adresse} alt="" />
-  ) : (
-    <span className="notak-proposition-avatar" style={p.teinte ? { background: p.teinte } : undefined} aria-hidden>
-      {p.libelle.trim().charAt(0).toUpperCase()}
-    </span>
-  )
+  return <PastillePersonne nom={p.libelle} couleur={p.teinte} adresse={adresse} titre="" />
 }

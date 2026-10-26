@@ -286,64 +286,19 @@
 
 /* Le rappel : une liste déroulante de 35 px, une cloche à gauche, une flèche à droite. */
 .notak-menu-rappel {
-  position: relative;
   display: flex;
   align-items: center;
+  gap: 8px;
   margin-top: 10px;
-  height: 35px;
-  border-radius: 3px;
 }
 
-.notak-menu-rappel:hover {
-  background: #f3f3f4;
+.notak-menu-rappel > .notak-ico {
+  flex: none;
 }
 
-.notak-menu-rappel[data-desactive] {
-  opacity: 0.45;
-}
-
-.notak-menu-rappel > .notak-ico:first-child,
-.notak-menu-rappel > .notak-ico:last-child {
-  position: absolute;
-  pointer-events: none;
-}
-
-.notak-menu-rappel > .notak-ico:first-child {
-  left: 8px;
-}
-
-.notak-menu-rappel > .notak-ico:last-child {
-  right: 8px;
-}
-
-.notak-menu-rappel select {
-  appearance: none;
-  box-sizing: border-box;
-  width: 100%;
-  height: 100%;
-  padding: 0 32px 0 40px;
-  border: 0;
-  border-radius: 3px;
-  background: none;
-  color: inherit;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* La personne : la recherche en tête, séparée d'un trait, puis les collaborateurs. */
+/* La personne : la recherche en tête, puis les collaborateurs. */
 .notak-menu-recherche {
-  box-sizing: border-box;
-  width: 100%;
-  height: 36px;
   margin: 4px 0 0;
-  padding: 0 12px;
-  border: 0;
-  border-bottom: 1px solid #e6e8eb;
-  background: none;
-  color: inherit;
-  font: inherit;
-  outline: none;
 }
 
 .notak-menu-liste {
@@ -386,18 +341,6 @@
   margin: 0;
   padding: 8px 16px;
   color: #8d929a;
-}
-
-.notak-menu-puce-pastille {
-  flex: none;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  color: #fff;
-  font-size: 9px;
-  font-weight: 600;
-  line-height: 22px;
-  text-align: center;
 }
 
 /* À droite de la tâche, au survol : la poignée pour la changer de place (trois traits). Rien si la liste est verrouillée ou si plusieurs éléments sont choisis. */

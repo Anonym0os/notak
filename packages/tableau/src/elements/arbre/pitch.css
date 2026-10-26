@@ -124,165 +124,18 @@
   outline-offset: 1px;
 }
 
-/* Une rangée courte : le libellé à gauche sur une ligne, le contrôle de 72 collé au bord droit de la colonne. */
+/* Une rangée courte : le libellé à gauche sur une ligne, le contrôle collé au bord droit de la colonne (la ligne commune). */
 .notak-arbre-fond .notak-arbre-pitch-ligne {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
   min-height: 24px;
 }
 
-.notak-arbre-fond .notak-arbre-pitch-ligne > span:first-child {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  letter-spacing: 0.02em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Une rangée longue : la légende de 11 / 15 au-dessus, le contrôle sur les 228. */
+/* Une rangée longue : la légende au-dessus, le contrôle sur toute la largeur. */
 .notak-arbre-fond .notak-arbre-pitch-ligne[data-vertical] {
-  display: block;
   margin-top: 12px;
 }
 
-.notak-arbre-fond .notak-arbre-pitch-ligne[data-ample] {
+.notak-arbre-fond .notak-arbre-pitch-ample {
   margin-top: 16px;
-}
-
-.notak-arbre-fond .notak-arbre-pitch-ligne[data-vertical] > span:first-child {
-  display: block;
-  height: 15px;
-  margin-bottom: 4px;
-  color: var(--notak-arbre-style-doux);
-  font-size: 11px;
-  line-height: 15px;
-  letter-spacing: 0.04em;
-}
-
-/* La liste : 72 × 24 (228 dans une rangée longue), 8 de rayon, le chevron à droite. Le menu natif est posé par
-   dessus, transparent : il garde le clavier, la liste et l'accessibilité ; la valeur qu'on lit est celle d'à côté. */
-.notak-arbre-fond .notak-arbre-pitch-select {
-  position: relative;
-  display: flex;
-  flex: none;
-  align-items: center;
-  box-sizing: border-box;
-  width: 72px;
-  height: 24px;
-  padding: 0 8px;
-  border: 1px solid var(--notak-arbre-style-bord);
-  border-radius: 8px;
-  background: var(--notak-arbre-fond);
-  color: var(--notak-arbre-texte);
-}
-
-.notak-arbre-fond .notak-arbre-pitch-select[data-large] {
-  width: 100%;
-}
-
-.notak-arbre-fond .notak-arbre-pitch-select:hover {
-  border-color: var(--notak-arbre-style-bord-survol);
-}
-
-.notak-arbre-fond .notak-arbre-pitch-select:has(select:focus-visible) {
-  outline: 2px solid var(--notak-arbre-choix);
-  outline-offset: 1px;
-}
-
-.notak-arbre-fond .notak-arbre-pitch-select select {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  opacity: 0;
-  appearance: none;
-  cursor: pointer;
-}
-
-.notak-arbre-fond .notak-arbre-pitch-valeur {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.notak-arbre-fond .notak-arbre-pitch-select > svg {
-  flex: none;
-  margin-left: 8px;
-  opacity: 0.7;
-}
-
-/* Les mises en page d'une liste : un groupe segmenté pleine largeur, 24 de haut sous sa bordure de 1. */
-.notak-arbre-fond .notak-arbre-pitch-segments {
-  display: flex;
-  box-sizing: border-box;
-  width: 100%;
-  gap: 1px;
-  overflow: hidden;
-  border: 1px solid var(--notak-arbre-style-bord);
-  border-radius: 8px;
-  background: var(--notak-arbre-fond);
-}
-
-.notak-arbre-fond .notak-arbre-pitch-segments button {
-  position: relative;
-  display: grid;
-  flex: 1 1 0;
-  place-items: center;
-  box-sizing: border-box;
-  min-width: 24px;
-  height: 24px;
-  margin: 0;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--notak-arbre-texte);
-  cursor: pointer;
-}
-
-.notak-arbre-fond .notak-arbre-pitch-segments button:hover:not(:disabled) {
-  background: var(--notak-arbre-survol);
-}
-
-.notak-arbre-fond .notak-arbre-pitch-segments button[aria-checked='true'] {
-  border: 0;
-  background: var(--notak-arbre-appui);
-}
-
-.notak-arbre-fond .notak-arbre-pitch-segments button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.notak-arbre-fond .notak-arbre-pitch-segments button:focus-visible {
-  outline: 2px solid var(--notak-arbre-choix);
-  outline-offset: -2px;
-}
-
-/* Le filet entre deux cellules : la moitié de la hauteur, caché contre la cellule choisie ou survolée. */
-.notak-arbre-fond .notak-arbre-pitch-segments button + button::before {
-  content: '';
-  position: absolute;
-  top: 6px;
-  left: -1px;
-  width: 1px;
-  height: 12px;
-  background: var(--notak-arbre-style-bord);
-}
-
-.notak-arbre-fond .notak-arbre-pitch-segments button[aria-checked='true']::before,
-.notak-arbre-fond .notak-arbre-pitch-segments button[aria-checked='true'] + button::before,
-.notak-arbre-fond .notak-arbre-pitch-segments button:hover::before,
-.notak-arbre-fond .notak-arbre-pitch-segments button:hover + button::before {
-  visibility: hidden;
 }
 
 /* Les réglages de la présentation (Presentation.tsx) : un popover posé hors du panneau, qui garde ces rangées d'avant. */
@@ -305,34 +158,9 @@
   background: var(--notak-arbre-survol);
 }
 
+/* Les réglages de la présentation : la ligne commune, au pas de 24 px. */
 .notak-arbre-pitch-reglages .notak-arbre-pitch-ligne {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
   min-height: 24px;
-}
-
-.notak-arbre-pitch-reglages .notak-arbre-pitch-ligne > span {
-  letter-spacing: 0.52px;
-}
-
-.notak-arbre-pitch-reglages .notak-arbre-pitch-menu {
-  min-width: 0;
-  max-width: 150px;
-  height: 24px;
-  padding: 0 8px;
-  border: 1px solid var(--notak-arbre-piste);
-  border-radius: 8px;
-  background: var(--notak-arbre-fond) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8f95' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 6px center;
-  appearance: none;
-  color: var(--notak-arbre-texte);
-  font: inherit;
-  padding-right: 24px;
-}
-
-.notak-arbre-pitch-reglages .notak-arbre-pitch-menu:hover {
-  border-color: var(--notak-arbre-discret);
 }
 
 /* Les popovers (thèmes, réglages), posés hors du panneau : la surface du popover commun (.notak-pop). */
@@ -402,37 +230,6 @@
 
 .notak-arbre-pitch-reglages .notak-arbre-pitch-bouton {
   margin: 0;
-}
-
-.notak-arbre-pitch-interrupteur {
-  position: relative;
-  width: 36px;
-  height: 16px;
-  padding: 0;
-  border: 0;
-  border-radius: 80px;
-  background: var(--notak-arbre-appui);
-  cursor: pointer;
-}
-
-.notak-arbre-pitch-interrupteur[aria-checked='true'] {
-  background: var(--notak-arbre-plein);
-}
-
-.notak-arbre-pitch-interrupteur span {
-  position: absolute;
-  top: 1.5px;
-  left: 2px;
-  width: 21px;
-  height: 13px;
-  border-radius: 80px;
-  background: #fff;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
-  transition: transform 150ms ease-out;
-}
-
-.notak-arbre-pitch-interrupteur[aria-checked='true'] span {
-  transform: translateX(11px);
 }
 
 /* — La présentation — */

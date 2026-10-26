@@ -1,0 +1,44 @@
+/*
+ * La ligne de réglage commune (libellé à gauche, contrôle à droite) et le filet qui sépare deux groupes. Les panneaux de la
+ * carte, du style et de la présentation s'en servent ; ils ne règlent que leur espacement.
+ */
+.notak-reglage {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.notak-reglage-libelle {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--notak-ctl-texte);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-reglage[data-inactif] .notak-reglage-libelle {
+  color: var(--notak-ctl-texte-3);
+}
+
+/* La légende au-dessus d'un contrôle de toute la largeur. */
+.notak-reglage[data-vertical] {
+  display: block;
+}
+
+.notak-reglage[data-vertical] > .notak-reglage-libelle {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--notak-ctl-texte-2);
+  font-size: 11px;
+  line-height: 15px;
+}
+
+.notak-filet {
+  height: 0;
+  margin: 8px 0;
+  border: 0;
+  border-top: 1px solid var(--notak-ctl-filet);
+}

@@ -1,7 +1,8 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Arbre, Id, ReglagesDiapo } from '../../coeur/tableau'
 import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
+import { Choix, LigneReglage, Segments } from '../../communs'
 import { ChoixTheme } from './ChoixTheme'
 import { Diapositive } from './Diapo'
 import {
@@ -45,44 +46,22 @@ function commun(l: Lecture, ids: readonly Id[], champ: Reglage): string | undefi
 const LIGNE_VIDE = 'auto'
 
 /**
- * Un menu à 24 de haut. Le menu natif garde la liste et l'accessibilité ; ce qu'on voit est une valeur courte posée par
- * dessus (« Auto », jamais « Auto (Visible) » dans les 72 px d'une rangée courte : le détail vit dans la liste ouverte).
+ * Un menu déroulant : le choix commun, qui garde le menu natif. Ce qu'on lit est une valeur courte (« Auto », jamais
+ * « Auto (Visible) » dans une rangée courte : le détail vit dans la liste ouverte).
  */
 function Menu({ valeur, options, change, info, libelle, large }: { valeur: string; options: { valeur: string; libelle: string }[]; change(v: string): void; info: string; libelle: string; large?: boolean }) {
   const courante = options.find((o) => o.valeur === valeur)
   const affiche = valeur === 'multiple' ? t('arbre.pitch.multiple') : valeur === LIGNE_VIDE && !large ? t('arbre.pitch.auto') : (courante?.libelle ?? valeur)
   return (
-    <span className="notak-arbre-pitch-select" data-large={large ? '' : undefined}>
-      <select value={valeur} title={info} aria-label={libelle} onChange={(e) => change(e.target.value)}>
-        {valeur === 'multiple' && (
-          <option value="multiple" disabled>
-            {t('arbre.pitch.multiple')}
-          </option>
-        )}
-        {options.map((o) => (
-          <option key={o.valeur} value={o.valeur}>
-            {o.libelle}
-          </option>
-        ))}
-      </select>
-      <span className="notak-arbre-pitch-valeur" aria-hidden>
-        {affiche}
-      </span>
-      <Icone nom="chevronBas" taille={12} trait={2} />
-    </span>
-  )
-}
-
-/**
- * Une rangée du panneau : courte (libellé à gauche, contrôle de 72 à droite) ou, en `vertical`, une légende de 11 puis
- * le contrôle sur toute la largeur. Le libellé tient sur une ligne, quelle que soit la colonne.
- */
-function Ligne({ libelle, children, vertical, ample }: { libelle: string; children: ReactNode; vertical?: boolean; ample?: boolean }) {
-  return (
-    <div className="notak-arbre-pitch-ligne" data-vertical={vertical ? '' : undefined} data-ample={ample ? '' : undefined}>
-      <span title={libelle}>{libelle}</span>
-      {children}
-    </div>
+    <Choix
+      valeur={valeur}
+      options={valeur === 'multiple' ? [{ valeur: 'multiple', libelle: t('arbre.pitch.multiple'), inactif: true }, ...options] : options}
+      onChange={change}
+      libelle={libelle}
+      titre={info}
+      affiche={affiche}
+      large={large}
+    />
   )
 }
 
@@ -148,7 +127,7 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
           {t('arbre.pitch.changerTheme')}
         </button>
         {themes && <ChoixTheme ancre={bouton.current} pitch={arbre.pitch} ratio={ratio} choisir={(reglage) => faire({ type: 'pitch', reglage })} fermer={() => setThemes(false)} />}
-        <Ligne libelle={t('arbre.pitch.ratio')}>
+        <LigneReglage className="notak-arbre-pitch-ligne" libelle={t('arbre.pitch.ratio')}>
           <Menu
             valeur={arbre.pitch?.ratio ?? LIGNE_VIDE}
             libelle={t('arbre.pitch.ratio')}
@@ -156,17 +135,17 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
             options={[{ valeur: LIGNE_VIDE, libelle: t('arbre.pitch.auto') }, ...RATIOS_PITCH.map((r) => ({ valeur: r, libelle: r }))]}
             change={(v) => faire({ type: 'pitch', reglage: { ratio: v === LIGNE_VIDE ? null : (v as (typeof RATIOS_PITCH)[number]) } })}
           />
-        </Ligne>
+        </LigneReglage>
         <hr />
         {resumes && (
           <>
-            <Ligne libelle={t('arbre.pitch.resumeLigne')}>{menuVisibilite('resume')}</Ligne>
+            <LigneReglage className="notak-arbre-pitch-ligne" libelle={t('arbre.pitch.resumeLigne')}>{menuVisibilite('resume')}</LigneReglage>
             <hr />
           </>
         )}
-        <Ligne libelle={t('arbre.pitch.sujetLigne')}>{menuVisibilite('sujet')}</Ligne>
+        <LigneReglage className="notak-arbre-pitch-ligne" libelle={t('arbre.pitch.sujetLigne')}>{menuVisibilite('sujet')}</LigneReglage>
         {toutesImages && (
-          <Ligne libelle={t('arbre.pitch.imagePlace')} vertical ample>
+          <LigneReglage className="notak-arbre-pitch-ligne notak-arbre-pitch-ample" libelle={t('arbre.pitch.imagePlace')} vertical>
             <Menu
               valeur={placeImage === undefined ? LIGNE_VIDE : placeImage}
               libelle={t('arbre.pitch.imagePlace')}
@@ -178,15 +157,15 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
               ]}
               change={(v) => poser({ image: v === LIGNE_VIDE ? null : (v as ReglagesDiapo['image']) })}
             />
-          </Ligne>
+          </LigneReglage>
         )}
         {unAuMoins((x) => enfantsDe(l, x).length > 0) && (
           <>
             <hr />
-            <Ligne libelle={t('arbre.pitch.listeLigne')}>{menuVisibilite('liste')}</Ligne>
+            <LigneReglage className="notak-arbre-pitch-ligne" libelle={t('arbre.pitch.listeLigne')}>{menuVisibilite('liste')}</LigneReglage>
             {listeVisible && (
               <>
-                <Ligne libelle={t('arbre.pitch.livraison')} vertical>
+                <LigneReglage className="notak-arbre-pitch-ligne" libelle={t('arbre.pitch.livraison')} vertical>
                   <Menu
                     valeur={livraison === undefined ? LIGNE_VIDE : livraison}
                     libelle={t('arbre.pitch.livraison')}
@@ -198,17 +177,18 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
                     ]}
                     change={(v) => faireDiapo(faire, avecEnfants, { livraison: v === LIGNE_VIDE ? null : (v as ReglagesDiapo['livraison']) })}
                   />
-                </Ligne>
+                </LigneReglage>
                 {dispo && (
-                  <Ligne libelle={t('arbre.pitch.miseEnPage')} vertical>
-                    <div className="notak-arbre-pitch-segments" role="radiogroup" aria-label={t('arbre.pitch.miseEnPage')}>
-                      {MISES_EN_PAGE.map((m) => (
-                        <button key={m} type="button" role="radio" aria-checked={dispo === m} disabled={tete} title={t(`arbre.pitch.mise.${m}Info`)} aria-label={t(`arbre.pitch.mise.${m}`)} onClick={() => faireDiapo(faire, avecEnfants, { miseEnPage: m })}>
-                          <Icone nom={ICONE_MISE[m]} taille={18} trait={1.5} />
-                        </button>
-                      ))}
-                    </div>
-                  </Ligne>
+                  <LigneReglage className="notak-arbre-pitch-ligne" libelle={t('arbre.pitch.miseEnPage')} vertical>
+                    <Segments
+                      large
+                      libelle={t('arbre.pitch.miseEnPage')}
+                      inactif={tete}
+                      options={MISES_EN_PAGE.map((m) => ({ valeur: m, libelle: <Icone nom={ICONE_MISE[m]} taille={18} trait={1.5} />, titre: t(`arbre.pitch.mise.${m}Info`), etiquette: t(`arbre.pitch.mise.${m}`) }))}
+                      valeur={dispo}
+                      onChange={(m) => faireDiapo(faire, avecEnfants, { miseEnPage: m })}
+                    />
+                  </LigneReglage>
                 )}
               </>
             )}

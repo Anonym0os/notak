@@ -691,43 +691,6 @@
   color: var(--notak-page-pale);
 }
 
-.notak-page-emojis {
-  position: absolute;
-  z-index: 10;
-  top: 100%;
-  left: 0;
-  width: 360px;
-  padding: 8px;
-  border-radius: 10px;
-  background: var(--notak-page-fond);
-  box-shadow: 0 0 0 1px var(--notak-page-trait), 0 14px 28px -6px rgb(0 0 0 / 0.2), 0 2px 4px -1px rgb(0 0 0 / 0.12);
-}
-
-.notak-page-entete:not([data-couverture]) .notak-page-emojis {
-  top: 170px;
-}
-
-.notak-page-emojis-grille {
-  display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 2px;
-  margin-bottom: 4px;
-}
-
-.notak-page-emojis-grille button {
-  height: 28px;
-  padding: 0;
-  border: 0;
-  border-radius: 6px;
-  background: none;
-  font-size: 20px;
-  cursor: pointer;
-}
-
-.notak-page-emojis-grille button:hover {
-  background: var(--notak-page-survol);
-}
-
 /* « ••• » : la police en trois tuiles, puis deux interrupteurs. */
 .notak-page-options-menu {
   top: calc(100% + 8px);
@@ -793,31 +756,3 @@
   background: color-mix(in srgb, currentColor 7%, transparent);
 }
 
-.notak-page-interrupteur {
-  position: relative;
-  width: 26px;
-  height: 14px;
-  border-radius: 7px;
-  background: color-mix(in srgb, currentColor 20%, transparent);
-  transition: background 120ms ease;
-}
-
-.notak-page-interrupteur::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #fff;
-  transition: transform 120ms ease;
-}
-
-[aria-checked='true'] > .notak-page-interrupteur {
-  background: var(--notak-accent, #2f6feb);
-}
-
-[aria-checked='true'] > .notak-page-interrupteur::after {
-  transform: translateX(12px);
-}

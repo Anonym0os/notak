@@ -8,7 +8,8 @@ import { ThemeCouleur } from './carte/ThemeCouleur'
 import { ThemesPersonnalises } from './carte/ThemesPersonnalises'
 import { recentes as ajouterRecente } from './carte/couleurs'
 import { modifierPreferences, usePreferences } from './carte/preferences'
-import { Aide, Anneau, Bloc, Champ, LigneBascule, LigneReglage, Liste, type OptionListe, PastilleCouleur, Popover, Separateur, VueSecondaire, useOuvrable } from './controles'
+import { Anneau, Bloc, LigneBascule, Liste, type OptionListe, PastilleCouleur, Popover, VueSecondaire, useOuvrable } from './controles'
+import { Aide, Libelle, LigneReglage, Separateur } from '../../communs'
 import type { Geste } from './modele/gestes'
 import { type CleOption, LARGEURS_BRANCHE, STRUCTURES_CARTE, estEquilibree } from './modele/reglages'
 import { type Lecture, enfantsDe } from './modele/sujets'
@@ -76,9 +77,9 @@ export function OngletCarte({ arbre, lecture, faire }: { arbre: Arbre; lecture: 
       </div>
       <Separateur />
       <Bloc>
-        <Champ libelle={t('arbre.carte.themeCouleur')}>
+        <Libelle groupe texte={t('arbre.carte.themeCouleur')}>
           <ThemeCouleur arbre={arbre} structure={structure} faire={faire} />
-        </Champ>
+        </Libelle>
       </Bloc>
       <Separateur />
       <Bloc>
@@ -96,7 +97,7 @@ export function OngletCarte({ arbre, lecture, faire }: { arbre: Arbre; lecture: 
       </Bloc>
       <Separateur />
       <Bloc>
-        <Champ libelle={t('arbre.carte.policeGlobale')} aide={t('arbre.carte.policeAide')}>
+        <Libelle groupe texte={t('arbre.carte.policeGlobale')} aide={t('arbre.carte.policeAide')}>
           <Liste
             valeur={arbre.police ?? ''}
             libelle={t('arbre.carte.policeGlobale')}
@@ -104,8 +105,8 @@ export function OngletCarte({ arbre, lecture, faire }: { arbre: Arbre; lecture: 
             options={optionsPolices(POLICES, prefs.policesRecentes, arbre.police)}
             onChoisir={choisirPolice('policesRecentes', 'policeGlobale')}
           />
-        </Champ>
-        <Champ libelle={t('arbre.carte.largeurBranche')} aide={t('arbre.carte.largeurAide')}>
+        </Libelle>
+        <Libelle groupe texte={t('arbre.carte.largeurBranche')} aide={t('arbre.carte.largeurAide')}>
           <Liste
             valeur={largeur}
             libelle={t('arbre.carte.largeurBranche')}
@@ -117,7 +118,7 @@ export function OngletCarte({ arbre, lecture, faire }: { arbre: Arbre; lecture: 
               faire({ type: 'largeurBranche', pt: Number(pt) || null, effile: effile === 'effile' })
             }}
           />
-        </Champ>
+        </Libelle>
         <div className="notak-arbre-reglages-branches-colorees">
           <LigneBascule libelle={t('arbre.carte.brancheColoree')} aide={t('arbre.carte.brancheColoreeAide')} actif={!options.uneCouleur} onChange={(v) => faire({ type: 'reglage', cle: 'uneCouleur', actif: !v })} />
           <LigneReglage libelle={t('arbre.carte.couleur')}>
@@ -179,7 +180,7 @@ export function OngletCarte({ arbre, lecture, faire }: { arbre: Arbre; lecture: 
       </Bloc>
       <Separateur />
       <Bloc>
-        <Champ libelle={t('arbre.carte.policeCjk')}>
+        <Libelle groupe texte={t('arbre.carte.policeCjk')}>
           <Liste
             valeur={arbre.policeCjk ?? ''}
             libelle={t('arbre.carte.policeCjk')}
@@ -187,7 +188,7 @@ export function OngletCarte({ arbre, lecture, faire }: { arbre: Arbre; lecture: 
             onChoisir={choisirPolice('policesCjkRecentes', 'policeCjk')}
           />
           <Aide>{t('arbre.carte.cjkAide')}</Aide>
-        </Champ>
+        </Libelle>
         <hr className="notak-arbre-reglages-filet-section" />
         <button type="button" className="notak-arbre-reglages-bouton-large" title={t('arbre.carte.themesPersoAide')} onClick={() => setSecondaire(true)}>
           {t('arbre.carte.themesPerso')}

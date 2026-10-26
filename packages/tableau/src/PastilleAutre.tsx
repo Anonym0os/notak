@@ -31,7 +31,7 @@ export function PastilleAutre({
   const { nom, photo } = presence.utilisateur
   return createPortal(
     <span className="notak-pastille-autre" role="status">
-      <PastillePersonne nom={nom} couleur="rgb(255 255 255 / 0.28)" adresse={photo ? adressePhoto?.(photo) : undefined} className="notak-pastille-autre-avatar" titre={nom} />
+      <PastillePersonne nom={nom} couleur="rgb(255 255 255 / 0.28)" adresse={photo ? adressePhoto?.(photo) : undefined} taille={24} titre={nom} />
       <span className="notak-pastille-autre-nom">{prenomDe(nom)}</span>
       {lacher && !SANS_CROIX.has(type) && (
         <button

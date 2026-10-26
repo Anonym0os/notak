@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { BoutonOutil, OutilAvecMenu } from '../../BoutonOutil'
 import type { Id } from '../../coeur/tableau'
 import { t } from '../../langue'
+import { Champ } from '../../communs'
 import { useMenu } from '../../menuUnique'
 import { normaliserUrl } from '../note/conversion'
 import type { EditionCellule } from './etat'
@@ -94,9 +95,10 @@ function OutilLienPassage({ id, commun }: { id: Id; commun: Marque }) {
   return (
     <OutilAvecMenu menu={menu} icone="lien" titre={t('barre.lien')} libelle={t('barre.lien')}>
       <div className="notak-note-palette notak-table-lien" role="dialog" aria-label={t('barre.lien')}>
-        <input
+        <Champ
           autoFocus
           data-garde-focus
+          taille="p"
           className="notak-note-lien"
           value={adresse}
           placeholder={t('barre.lienPlaceholder')}

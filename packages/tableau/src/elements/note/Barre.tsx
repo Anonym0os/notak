@@ -3,10 +3,11 @@ import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { type StyleBloc, basculerCentre, basculerSurlignage, poserCouleurTexte, poserStyle, styleActif } from './commandes'
 import { normaliserUrl } from './conversion'
 import { basculerEncadre } from './noeuds'
-import { EMOJIS } from './insertion'
+import { FenetreEmojis } from '../decor/FenetreEmojis'
 import { augmenterRetrait, diminuerRetrait } from './texte'
 import { COULEURS_TEXTE, SURLIGNAGES, valeurCouleurTexte } from './couleurs'
 import { t } from '../../langue'
+import { Champ } from '../../communs'
 import { Icone } from '../../icones'
 import { useMenu } from '../../menuUnique'
 
@@ -170,6 +171,8 @@ export function MenuStyle({ editor, etat, sansBlocs = false }: { editor: Editor;
 
 /** Le menu d'insertion : un séparateur, un lien vers un tableau (`[[`), un émoji. */
 export function MenuInsertion({ editor, ferme }: { editor: Editor; ferme(): void }) {
+  const [emojis, setEmojis] = useState(false)
+  const ligneEmojis = useRef<HTMLButtonElement>(null)
   return (
     <div className="notak-note-menu" role="menu">
       <button type="button" role="menuitem" className="notak-note-menu-ligne" onClick={() => { editor.chain().focus().setHorizontalRule().run(); ferme() }}>
@@ -178,14 +181,19 @@ export function MenuInsertion({ editor, ferme }: { editor: Editor; ferme(): void
       <button type="button" role="menuitem" className="notak-note-menu-ligne" onClick={() => { editor.chain().focus().insertContent('[[').run(); ferme() }}>
         {t('barre.lierTableau')}
       </button>
-      <hr />
-      <div className="notak-note-emojis" role="group" aria-label={t('barre.emojis')}>
-        {EMOJIS.map((e) => (
-          <button key={e} type="button" role="menuitem" aria-label={e} onClick={() => { editor.chain().focus().insertContent(e).run(); ferme() }}>
-            {e}
-          </button>
-        ))}
-      </div>
+      <button ref={ligneEmojis} type="button" role="menuitem" className="notak-note-menu-ligne" aria-haspopup="dialog" aria-expanded={emojis} onClick={() => setEmojis(!emojis)}>
+        {t('barre.emojis')}
+      </button>
+      {emojis && ligneEmojis.current && (
+        <FenetreEmojis
+          ancre={ligneEmojis.current}
+          fermer={() => setEmojis(false)}
+          choisir={(e) => {
+            editor.chain().focus().insertContent(e).run()
+            ferme()
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -207,8 +215,9 @@ export function ChampLien({ editor, depart, fini }: { editor: Editor; depart: st
   }
   return (
     <span className="notak-note-lien-champ">
-      <input
+      <Champ
         ref={champ}
+        taille="p"
         className="notak-note-lien"
         value={valeur}
         placeholder={t('barre.lienPlaceholder')}

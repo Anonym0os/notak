@@ -1,0 +1,76 @@
+/*
+ * Le contrôle segmenté commun (maquette « Composants communs », .nk-seg) : un rail de rayon 10, rembourré de 3 px, des
+ * boutons de 28 px de rayon 8 ; le bouton enfoncé prend la carte et une ombre fine. Les teintes sont celles de
+ * jetons.css : le thème sombre suit. Un bouton posé dans le rail (le menu de la casse) en prend le dessin.
+ */
+.notak-seg {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--notak-ctl-fond);
+  font-family: var(--notak-ctl-police);
+}
+
+.notak-seg[data-large] {
+  display: flex;
+}
+
+.notak-seg > button {
+  display: inline-flex;
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-sizing: border-box;
+  min-width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0 10px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--notak-ctl-texte-2);
+  font: 500 12.5px var(--notak-ctl-police);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.notak-seg[data-large] > button {
+  flex: 1 1 0;
+}
+
+.notak-seg > button:hover:not(:disabled, [aria-pressed='true'], [aria-checked='true'], [aria-selected='true']) {
+  color: var(--notak-ctl-texte);
+}
+
+.notak-seg > button:is([aria-pressed='true'], [aria-checked='true'], [aria-selected='true']) {
+  background: var(--notak-ctl-carte);
+  color: var(--notak-ctl-texte);
+  box-shadow: 0 1px 2px rgb(27 37 54 / 0.12), 0 0 0 1px rgb(27 37 54 / 0.06);
+}
+
+[data-theme='sombre'] .notak-seg > button:is([aria-pressed='true'], [aria-checked='true'], [aria-selected='true']) {
+  background: color-mix(in srgb, var(--notak-ctl-texte) 16%, var(--notak-ctl-carte));
+  box-shadow: none;
+}
+
+.notak-seg > button:focus-visible {
+  outline: 2px solid var(--notak-ctl-anneau);
+  outline-offset: -2px;
+}
+
+.notak-seg > button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.notak-seg small {
+  color: var(--notak-ctl-texte-3);
+  font: 400 12px var(--notak-ctl-police);
+}

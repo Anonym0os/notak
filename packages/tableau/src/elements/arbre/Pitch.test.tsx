@@ -55,7 +55,7 @@ describe('l’onglet Pitch', () => {
     expect([...o.menu('Sujet comme diapositive').options].map((x) => x.textContent)).toEqual(['Auto (Visible)', 'Visible', 'Masqué'])
     expect([...o.menu('Sous-sujets comme diapositive').options].map((x) => x.textContent)).toEqual(['Auto (Visible)', 'Visible', 'Masqué'])
     expect([...o.menu('Livraison').options].map((x) => x.textContent)).toEqual(['Auto (Un par un, en profondeur)', 'Un par un, en profondeur', 'Un par un', 'Tout à la fois'])
-    expect([...o.hote.querySelectorAll('.notak-arbre-pitch-segments button')].map((b) => b.getAttribute('aria-label'))).toEqual(['Liste à accolade', 'Liste à puces', 'Paroles', 'Arêtes de poisson', 'Chronologie'])
+    expect([...o.hote.querySelectorAll('.notak-seg [role=radio]')].map((b) => b.getAttribute('aria-label'))).toEqual(['Liste à accolade', 'Liste à puces', 'Paroles', 'Arêtes de poisson', 'Chronologie'])
     // Pas d’image sur ce sujet : pas de ligne « Position de l’image ».
     expect(o.hote.textContent).not.toContain('Position de l’image')
     o.fin()
@@ -78,7 +78,7 @@ describe('l’onglet Pitch', () => {
     expect(o.faire).toHaveBeenLastCalledWith({ type: 'diapo', ids: [A], reglage: { sujet: 'masque' } })
     taper(o.menu('Livraison'), 'tout')
     expect(o.faire).toHaveBeenLastCalledWith({ type: 'diapo', ids: [A], reglage: { livraison: 'tout' } })
-    clic(o.hote.querySelectorAll('.notak-arbre-pitch-segments button')[4]!)
+    clic(o.hote.querySelectorAll('.notak-seg [role=radio]')[4]!)
     expect(o.faire).toHaveBeenLastCalledWith({ type: 'diapo', ids: [A], reglage: { miseEnPage: 'chronologie' } })
     taper(o.menu('Rapport d’aspect'), '4:3')
     expect(o.faire).toHaveBeenLastCalledWith({ type: 'pitch', reglage: { ratio: '4:3' } })
@@ -101,14 +101,14 @@ describe('l’onglet Pitch', () => {
     // Chaque libellé porte son texte en infobulle : coupé par « … » s'il ne tenait pas, jamais sur deux lignes.
     for (const r of rangees) expect(r.firstElementChild!.getAttribute('title')).toBe(r.firstElementChild!.textContent)
     // Le menu natif (clavier, liste) garde son nom accessible ; ce qu'on lit est « Auto », le détail est dans la liste.
-    const court = o.hote.querySelector('.notak-arbre-pitch-select:not([data-large])')!
+    const court = o.hote.querySelector('.notak-choix:not([data-large])')!
     expect(court.querySelector('select')!.getAttribute('aria-label')).toBe('Rapport d’aspect')
-    expect(court.querySelector('.notak-arbre-pitch-valeur')!.textContent).toBe('Auto')
+    expect(court.querySelector('.notak-choix-texte')!.textContent).toBe('Auto')
     const sujet = o.menu('Sujet comme diapositive').parentElement!
-    expect(sujet.querySelector('.notak-arbre-pitch-valeur')!.textContent).toBe('Auto')
+    expect(sujet.querySelector('.notak-choix-texte')!.textContent).toBe('Auto')
     const large = o.menu('Livraison').parentElement!
     expect(large.hasAttribute('data-large')).toBe(true)
-    expect(large.querySelector('.notak-arbre-pitch-valeur')!.textContent).toBe('Auto (Un par un, en profondeur)')
+    expect(large.querySelector('.notak-choix-texte')!.textContent).toBe('Auto (Un par un, en profondeur)')
     o.fin()
   })
 

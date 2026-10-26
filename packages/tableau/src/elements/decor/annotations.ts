@@ -134,9 +134,6 @@ export const passeLeFiltre = (e: Element, filtre: ReadonlySet<Id>): boolean => f
 
 // ---- Réactions ----
 
-/** Les émojis qu'on propose. */
-export const EMOJIS = ['👍', '❤️', '😂', '🎉', '👀', '✅', '🙏', '🔥'] as const
-
 /** La réaction d'une personne : posée si elle n'y était pas, retirée si elle y était. */
 export function basculerReaction(reactions: Reactions | undefined, emoji: string, personne: string): Reactions {
   const gens = reactions?.[emoji] ?? []

@@ -11,7 +11,6 @@ import {
   attrsPersonne,
   echeanceDe,
   heureDe,
-  initiales,
   jourDe,
   optionsRappel,
   rappelDe,
@@ -19,7 +18,8 @@ import {
 } from './puces'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
-import { Calendrier, ChoixHeure, useFermeture } from '../../communs'
+import { Calendrier, Choix, ChoixHeure, Recherche, useFermeture } from '../../communs'
+import { PastillePersonne } from '../../pastille'
 
 /** Où le menu s'ouvre : accroché à la puce touchée, qu'il suit quand la toile bouge. */
 export interface OuverturePuce {
@@ -86,22 +86,18 @@ function PanneauEcheance({ attrs, regler }: { attrs: Record<string, unknown> | u
   return (
     <Calendrier valeur={jour} aujourdhui={jourDe(maintenant)} min={jourDe(maintenant)} effacable autoFocus choisir={(j) => regler(attrsJour(attrs, j, maintenant))}>
       <ChoixHeure valeur={heure} desactive={jour === null} changer={(h) => regler(attrsHeure(attrs, h, maintenant))} />
-      <label className="notak-menu-rappel" data-desactive={jour === null ? '' : undefined}>
+      <div className="notak-menu-rappel">
         <Icone nom="cloche" taille={20} />
-        <select
-          aria-label={t('taches.rappel')}
-          disabled={jour === null}
-          value={options.includes(rappel) ? rappel : 'aucun'}
-          onChange={(e) => regler({ rappel: e.target.value as Rappel })}
-        >
-          {(jour ? options : (['aucun'] as Rappel[])).map((r) => (
-            <option key={r} value={r}>
-              {t(`taches.rappel.${r}`)}
-            </option>
-          ))}
-        </select>
-        <Icone nom="chevronBas" taille={16} />
-      </label>
+        <Choix
+          large
+          haut
+          libelle={t('taches.rappel')}
+          inactif={jour === null}
+          valeur={options.includes(rappel) ? rappel : 'aucun'}
+          onChange={(r) => regler({ rappel: r as Rappel })}
+          options={(jour ? options : (['aucun'] as Rappel[])).map((r) => ({ valeur: r, libelle: t(`taches.rappel.${r}`) }))}
+        />
+      </div>
     </Calendrier>
   )
 }
@@ -131,15 +127,14 @@ function PanneauPersonne({ valeur, personnes, regler, fermer }: { valeur: string
   }
   return (
     <>
-      <input
+      <Recherche
         className="notak-menu-recherche"
-        type="text"
         aria-label={t('taches.nom')}
         placeholder={t('taches.chercherPersonne')}
-        value={recherche}
+        valeur={recherche}
         autoFocus
-        onChange={(e) => {
-          setRecherche(e.target.value)
+        onChange={(v) => {
+          setRecherche(v)
           setActif(0)
         }}
         onKeyDown={(e) => {
@@ -168,9 +163,7 @@ function PanneauPersonne({ valeur, personnes, regler, fermer }: { valeur: string
             onMouseEnter={() => setActif(i)}
             onClick={() => choisir(p.nom)}
           >
-            <span className="notak-menu-puce-pastille" style={{ background: p.couleur ?? teinteDe(p.nom) }}>
-              {initiales(p.nom)}
-            </span>
+            <PastillePersonne taille={24} nom={p.nom} couleur={p.couleur ?? teinteDe(p.nom)} titre="" />
             <span className="notak-menu-liste-nom">{surligner(p.nom, recherche.trim())}</span>
             {p.nom === valeur && <Icone nom="coche" taille={16} />}
           </button>

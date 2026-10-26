@@ -171,11 +171,11 @@ describe('le profil', () => {
   it('montre l’initiale sans photo, la photo avec, et propose de la retirer', () => {
     monter({ compte: service().s })
     ouvrir('Profil')
-    expect(hote.querySelector('.notak-reglages-avatar img')).toBeNull()
-    expect(hote.querySelector('.notak-reglages-avatar')?.textContent).toBe('A')
+    expect(hote.querySelector('.notak-av img')).toBeNull()
+    expect(hote.querySelector('.notak-av')?.textContent).toBe('A')
     expect(hote.textContent).toContain('Choisir une photo')
     monter({ compte: service({ photo: '/api/fichiers/x?l=400' }).s })
-    expect(hote.querySelector('.notak-reglages-avatar img')?.getAttribute('src')).toBe('/api/fichiers/x?l=400')
+    expect(hote.querySelector('.notak-av img')?.getAttribute('src')).toBe('/api/fichiers/x?l=400')
     expect(hote.textContent).toContain('Retirer la photo')
   })
 

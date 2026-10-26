@@ -88,25 +88,7 @@
   text-decoration: underline;
 }
 
-.notak-banque-champ {
-  position: relative;
-}
-
-.notak-banque-champ input {
-  box-sizing: border-box;
-  width: 100%;
-  padding: 8px 32px 8px 10px;
-  border: 1px solid var(--banque-filet);
-  border-radius: 6px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-}
-
 .notak-banque-champ button {
-  position: absolute;
-  top: 50%;
-  right: 6px;
   display: grid;
   place-items: center;
   width: 22px;
@@ -116,7 +98,6 @@
   background: none;
   color: var(--banque-doux);
   cursor: pointer;
-  transform: translateY(-50%);
 }
 
 .notak-banque-contenu {
