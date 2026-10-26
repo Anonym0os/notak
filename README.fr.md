@@ -13,12 +13,34 @@ quitte votre appareil. Vos tableaux vivent dans le navigateur ; **Cmd+S** en gar
 aussi synchroniser un dossier de son nuage (expérimental).
 
 **L'app de bureau** (macOS, Windows, Linux) embarque la même édition locale : rien ne passe par un serveur, et elle se
-met à jour d'elle-même, de versions signées ([`apps/bureau`](apps/bureau/README.md),
-[`docs/MISES-A-JOUR.md`](docs/MISES-A-JOUR.md)). Ce qui peut sortir de l'appareil, et vers qui :
-[`docs/PUBLIER.md`](docs/PUBLIER.md#ce-qui-sort-de-lappareil).
+met à jour d'elle-même, de versions signées (voir [Installer l'app de bureau](#installer-lapp-de-bureau),
+[`apps/bureau`](apps/bureau/README.md), [`docs/MISES-A-JOUR.md`](docs/MISES-A-JOUR.md)). Ce qui peut sortir de
+l'appareil, et vers qui : [`docs/PUBLIER.md`](docs/PUBLIER.md#ce-qui-sort-de-lappareil).
 
 Pour travailler à plusieurs en temps réel (comptes, partage, curseurs en direct), installez votre propre Notak : il
 est libre et s'installe d'un seul fichier `docker compose` (voir [Héberger](#héberger)).
+
+### Installer l'app de bureau
+
+Elle se télécharge sur la [page des versions](https://github.com/Anonym0os/notak/releases/latest), sous *Assets* :
+
+| Système | Le fichier | Au premier lancement |
+|---|---|---|
+| macOS, puce Apple (M1 et après) | `Notak_<version>_macos_aarch64.dmg` | Glissez Notak dans *Applications* : ailleurs, il ne pourrait pas se mettre à jour. À la première ouverture, macOS dit ne pas pouvoir vérifier l'app : dans *Réglages Système → Confidentialité et sécurité*, tout en bas, *Ouvrir quand même*, puis confirmez. Une fois pour toutes. |
+| macOS, processeur Intel | `Notak_<version>_macos_x86_64.dmg` | De même. |
+| Windows 10 et 11 | `Notak_<version>_windows_x64-setup.exe` | « Windows a protégé votre ordinateur » : *Informations complémentaires*, puis *Exécuter quand même*. Notak s'installe pour vous seul, sans mot de passe administrateur. |
+| Linux (PC 64 bits) | `Notak_<version>_linux_x86_64.AppImage` | Rangez-le dans un dossier à vous (`~/Applications`, par exemple), rendez-le exécutable (`chmod +x Notak_*.AppImage`, ou *Propriétés → Autoriser l'exécution*), puis ouvrez-le. S'il ne s'ouvre pas, il lui manque FUSE : `sudo apt install libfuse2` (`libfuse2t64` depuis Ubuntu 24.04). |
+
+Ensuite, les mises à jour viennent seules : l'app les télécharge, vérifie leur signature et les pose quand vous la
+quittez, sans repasser par ces avertissements. Une exception sur macOS : tant que l'app n'est pas signée par un
+certificat d'Apple, macOS redemande l'accès au micro à la première note audio après chaque mise à jour.
+
+Les autres fichiers : le `.msi` (Windows, pour toute la machine), le `.deb` et le `.rpm` (Linux) installent aussi
+Notak, mais chaque mise à jour demande alors le mot de passe administrateur, au moment où vous quittez l'app. Les
+`.app.tar.gz` et `.sig` servent aux mises à jour, `SHA256SUMS.txt` à vérifier un téléchargement.
+
+Vos toiles de notak.app vous suivent : dans le navigateur, **Cmd+S** (Ctrl+S) en garde une copie `.notak`, que l'app
+ouvre d'un double clic.
 
 ## Deux éditions, un seul code
 
@@ -83,7 +105,7 @@ refaite depuis elles s'il la perd. L'image est publiée pour amd64 et arm64 (`gh
 
 ```bash
 mkdir notak && cd notak
-curl -fsSLO https://raw.githubusercontent.com/Anonym0os/notak/main/compose.yaml
+curl -fsSLO https://github.com/Anonym0os/notak/releases/latest/download/compose.yaml
 printf 'NOTAK_ORIGINE=https://notak.exemple.fr\nNOTAK_ADMINS=vous@exemple.fr\n' > .env
 docker compose up -d
 ```
@@ -97,25 +119,35 @@ nom du serveur, sans chemin ni `/` final.
 Pour lancer l'image seule, sans `compose.yaml` : lui donner un OpenFGA (`NOTAK_OPENFGA_URL`), un volume sur `/donnees`
 et les mêmes variables.
 
-Mettre à jour : `docker compose pull && docker compose up -d` ; le `.env` est relu, les réglages restent. Le serveur
-dit de lui-même qu'une nouvelle version existe, dans son journal et dans l'app pour les adresses de `NOTAK_ADMINS`, en
-lisant toutes les douze heures la même annonce que l'app de bureau (`NOTAK_VERIFIER_MAJ=0` la coupe). Pour se tenir à
-une version : `NOTAK_VERSION=0.2.0` dans le `.env` (`0.2` suit les corrections de la 0.2 dès leur publication). Pour
-construire depuis les sources : `docker compose -f compose.yaml -f compose.source.yaml up -d --build`. Chaque image
-publiée porte une attestation de provenance :
+Mettre à jour :
+
+```bash
+curl -fsSLO https://github.com/Anonym0os/notak/releases/latest/download/compose.yaml
+docker compose pull && docker compose up -d
+```
+
+Le `compose.yaml` de la dernière version d'abord : il fixe celle d'OpenFGA, que `pull` seul ne change jamais. N'y
+écrivez donc rien ; vos ajouts à Compose vont dans un `compose.override.yaml` à côté. Le `.env` est relu, les réglages
+restent. Le serveur dit de lui-même qu'une nouvelle version existe, dans son journal et dans l'app pour les adresses de
+`NOTAK_ADMINS`, en lisant toutes les douze heures la même annonce que l'app de bureau (`NOTAK_VERIFIER_MAJ=0` la
+coupe). Pour se tenir à une version : `NOTAK_VERSION=0.2.0` dans le `.env` (`0.2` suit les corrections de la 0.2 dès
+leur publication). Pour construire depuis les sources : `docker compose -f compose.yaml -f compose.source.yaml up -d
+--build`. Chaque image publiée porte une attestation de provenance :
 `gh attestation verify oci://ghcr.io/anonym0os/notak:0.2.0 -R Anonym0os/notak`.
 
 L'image suppose un relais HTTPS devant elle : elle pose un cookie `Secure`, et prend l'adresse du client dans l'entrée
-que le relais ajoute à `X-Forwarded-For` (`NOTAK_RELAIS=2` derrière deux relais). `compose.yaml` ne publie donc le port
-3005 que sur la boucle locale de la machine (`127.0.0.1`), pour un relais sur la même machine (Caddy :
-`reverse_proxy localhost:3005`) ; pour un relais ailleurs, `NOTAK_ECOUTE` et un pare-feu (voir
+que le relais ajoute à `X-Forwarded-For` (`NOTAK_RELAIS=2` derrière deux relais, si le second croit le premier).
+`compose.yaml` ne publie donc le port 3005 que sur la boucle locale de la machine (`127.0.0.1`), pour un relais sur la
+même machine (Caddy : `reverse_proxy localhost:3005`) ; pour un relais ailleurs, `NOTAK_ECOUTE` et un pare-feu (voir
 [`docs/AUTO-HEBERGER.md`](docs/AUTO-HEBERGER.md)). Pour l'essayer en HTTP sur sa machine : `NOTAK_COOKIE_SECURISE=0`
 et `NOTAK_RELAIS=0` dans le `.env`, et pas de `NOTAK_ORIGINE`.
 
 L'app de bureau se connecte à votre serveur : « Se connecter à un serveur Notak… », puis son adresse (en HTTPS avec un
-vrai certificat, sauf sur `localhost`). Les toiles du serveur restent sur le serveur, celles de l'ordinateur sur
-l'ordinateur, jusqu'à « Copier mes toiles sur… », qui en porte une copie au serveur. La connexion par Google,
-Microsoft, GitHub ou le SSO d'un espace passe par le navigateur et un code à confirmer.
+vrai certificat, sauf sur `localhost` ; un serveur à la maison, sans nom de domaine : Tailscale, voir
+[`docs/AUTO-HEBERGER.md`](docs/AUTO-HEBERGER.md#un-serveur-à-la-maison-sans-nom-de-domaine)). Les toiles du serveur
+restent sur le serveur, celles de l'ordinateur sur l'ordinateur, jusqu'à « Copier mes toiles sur… », qui en porte une
+copie au serveur. La connexion par Google, Microsoft, GitHub ou le SSO d'un espace passe par le navigateur et un code
+à confirmer.
 
 Les comptes passent par [Better Auth](https://www.better-auth.com). Réglages facultatifs, dans le `.env` :
 
@@ -151,7 +183,7 @@ sauvegardes, pas un chiffrement de bout en bout.
 | Variable | Rôle |
 |---|---|
 | `NOTAK_CLE` | La clé : 32 octets tirés au hasard, en base64, faits par `openssl rand -base64 32`. Dans le `.env`, gardez ce fichier pour vous seul (`chmod 600 .env`). |
-| `NOTAK_CLE_FICHIER` | Ou le chemin d'un fichier qui la contient (un secret Docker, par exemple), lisible par l'utilisateur `node` de l'image : avec Compose, le monter par une ligne `- /root/notak_cle:/run/secrets/notak_cle:ro` sous `volumes:` du service `notak`, et mettre `NOTAK_CLE_FICHIER=/run/secrets/notak_cle` dans le `.env`. L'une ou l'autre, jamais les deux. |
+| `NOTAK_CLE_FICHIER` | Ou le chemin d'un fichier qui la contient (un secret Docker, par exemple), lisible par l'utilisateur `node` de l'image : avec Compose, le monter par une ligne `- /root/notak_cle:/run/secrets/notak_cle:ro` sous `volumes:` du service `notak`, dans un `compose.override.yaml` (voir [`docs/AUTO-HEBERGER.md`](docs/AUTO-HEBERGER.md)), et mettre `NOTAK_CLE_FICHIER=/run/secrets/notak_cle` dans le `.env`. L'une ou l'autre, jamais les deux. |
 
 Sans clé, rien ne change. Avec une clé, ce qui a été écrit avant se lit toujours et repart chiffré à sa prochaine
 écriture. Pour tout chiffrer d'un coup, la clé dans le `.env` :

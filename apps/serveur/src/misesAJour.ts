@@ -6,6 +6,12 @@
 
 export const DEPOT = 'Anonym0os/notak'
 export const ADRESSE_ANNONCE = `https://github.com/${DEPOT}/releases/latest/download/latest.json`
+/**
+ * La mise à jour d'un serveur installé par `compose.yaml` : le compose.yaml de la dernière version d'abord (il tient la
+ * version d'OpenFGA, que `pull` seul ne change jamais), puis l'image. Les autres installations : le guide.
+ */
+export const COMMANDE_MISE_A_JOUR = `curl -fsSLO https://github.com/${DEPOT}/releases/latest/download/compose.yaml && docker compose pull && docker compose up -d`
+export const GUIDE_MISE_A_JOUR = `https://github.com/${DEPOT}/blob/main/docs/AUTO-HEBERGER.md#mettre-%C3%A0-jour`
 export const PREMIERE_VERIFICATION_MS = 60_000
 export const INTERVALLE_VERIFICATION_MS = 12 * 3600_000
 const DELAI_MS = 15_000
@@ -154,7 +160,8 @@ export function creerVerificateur(o: OptionsVerificateur): Verificateur {
         dites.add(annonce.version)
         journal(
           `Notak : la version ${annonce.version} est disponible (ce serveur est en ${o.actuelle}). Ses notes : ${annonce.adresse}\n` +
-            '  Pour mettre à jour, dans le dossier de compose.yaml : docker compose pull && docker compose up -d',
+            `  Pour mettre à jour, dans le dossier de compose.yaml : ${COMMANDE_MISE_A_JOUR}\n` +
+            `  Une version tenue (NOTAK_VERSION), une installation depuis les sources, Coolify ou sans Docker : ${GUIDE_MISE_A_JOUR}`,
         )
       }
     } catch {

@@ -156,6 +156,29 @@ export function adresseTransmise(entete: string | undefined, relais: number): st
   return adresse && isIP(adresse) ? adresse : null
 }
 
+/**
+ * La clé sous laquelle une adresse compte ses essais. Un client IPv6 tient d'ordinaire tout un /64, et peut prendre une
+ * adresse neuve à chaque requête : il compte pour son /64. Une IPv4 compte telle quelle, même écrite en IPv6
+ * (`::ffff:203.0.113.5`, ce que donne une prise qui écoute en IPv6). L'adresse exacte reste celle qu'on montre.
+ */
+export function cleDAdresse(adresse: string): string {
+  if (isIP(adresse) !== 6) return adresse
+  const groupes = (s: string): number[] =>
+    s
+      ? s.split(':').flatMap((g) => {
+          if (!g.includes('.')) return [parseInt(g, 16)]
+          const [a = 0, b = 0, c = 0, d = 0] = g.split('.').map(Number)
+          return [(a << 8) | b, (c << 8) | d]
+        })
+      : []
+  const [gauche = '', droite] = adresse.toLowerCase().split('::')
+  const g = groupes(gauche)
+  const d = droite === undefined ? [] : groupes(droite)
+  const n = droite === undefined ? g : [...g, ...new Array<number>(8 - g.length - d.length).fill(0), ...d]
+  if (n.slice(0, 5).every((x) => x === 0) && n[5] === 0xffff) return [n[6]! >> 8, n[6]! & 255, n[7]! >> 8, n[7]! & 255].join('.')
+  return `${n.slice(0, 4).map((x) => x.toString(16)).join(':')}::/64`
+}
+
 const moi = (u: Utilisateur, admin: boolean) => ({ id: u.id, email: u.email, nom: u.nom, couleur: u.couleur, racine: u.racine, photo: u.photo ?? null, admin })
 
 /** Lit un corps de requête jusqu'à `max` octets : `null` s'il est vide, `'trop gros'` s'il dépasse (la lecture s'arrête alors). */
@@ -187,9 +210,20 @@ export function creerApp(ctx: Contexte): Hono {
   const utilisateurCourant = (c: Context): Promise<Utilisateur | null> => utilisateurDeSession(ctx.auth, base, c.req.raw.headers)
   const estAdmin = (u: Utilisateur) => admins.has(normaliserEmail(u.email))
 
+  // Dit une fois : un relais qui n'ajoute pas l'adresse attendue (un CDN devant Caddy, sans que Caddy le croie) met
+  // tous les clients sous celle de la connexion, et dix connexions par minute ferment la porte à tout le monde.
+  let relaisMuetDit = false
   const adresseIp = (c: Context): string => {
-    const transmise = adresseTransmise(c.req.header('x-forwarded-for'), ctx.relais)
+    const entete = c.req.header('x-forwarded-for')
+    const transmise = adresseTransmise(entete, ctx.relais)
     if (transmise) return transmise
+    if (entete && ctx.relais > 0 && !relaisMuetDit) {
+      relaisMuetDit = true
+      console.warn(
+        `Notak : NOTAK_RELAIS=${ctx.relais}, mais X-Forwarded-For (${entete.split(',').length} entrée(s)) n'a pas d'adresse IP à cette place : ` +
+          'l’adresse de la connexion est prise, et tous les clients du relais comptent pour un seul. Voir docs/AUTO-HEBERGER.md, « Le relais HTTPS ».',
+      )
+    }
     try {
       return getConnInfo(c).remote.address ?? 'inconnue'
     } catch {
@@ -198,7 +232,7 @@ export function creerApp(ctx: Contexte): Hono {
   }
 
   const limiter = (c: Context, route: string, limiteur: Limiteur = ctx.limiteur): Response | null => {
-    const cle = `${route}:${adresseIp(c)}`
+    const cle = `${route}:${cleDAdresse(adresseIp(c))}`
     const maintenant = ctx.maintenant()
     if (limiteur.autoriser(cle, maintenant)) return null
     const secondes = Math.ceil(limiteur.attente(cle, maintenant) / 1000)

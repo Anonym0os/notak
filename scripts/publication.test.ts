@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { annonce, empreintes, notesDe, paquets } from './publication'
+import { annonce, empreintes, notesDe, paquets, versionSignee } from './publication'
 
 const NOUVEAUTES = `# Nouveautés
 
@@ -63,13 +63,17 @@ describe('latest.json', () => {
     `Notak_${v}_linux_amd64.deb`,
   ]
   const signes = (noms: string[]) => [...noms, ...noms.map((n) => `${n}.sig`)]
-  const faire = (noms: string[]) =>
+  /** Un `.sig` comme l'écrit Tauri : le fichier de minisign en base64, avec son commentaire de confiance. */
+  const sig = (commentaire: string) =>
+    Buffer.from(`untrusted comment: signature from tauri secret key\nRUQ=\ntrusted comment: ${commentaire}\nAAAA==`).toString('base64') + '\n'
+  const signee = (nom: string) => sig(`timestamp:1791649051\tfile:${nom.replace(/\.sig$/, '')}\tversion:${v}`)
+  const faire = (noms: string[], signature: (nom: string) => string = signee) =>
     annonce({
       version: v,
       notes: '- Du neuf.',
       date: new Date('2026-10-25T20:00:00.123Z'),
       noms,
-      signature: (nom) => `sig:${nom}\n`,
+      signature,
       adresse: (nom) => `https://github.com/Anonym0os/notak/releases/download/v${v}/${nom}`,
     })
 
@@ -92,7 +96,7 @@ describe('latest.json', () => {
       ].sort(),
     )
     expect(a.platforms['darwin-aarch64']).toEqual({
-      signature: `sig:Notak_${v}_macos_aarch64.app.tar.gz.sig`,
+      signature: signee(`Notak_${v}_macos_aarch64.app.tar.gz.sig`).trim(),
       url: `https://github.com/Anonym0os/notak/releases/download/v${v}/Notak_${v}_macos_aarch64.app.tar.gz`,
     })
     expect(a.platforms['windows-x86_64']!.url).toContain('x64-setup.exe')
@@ -104,6 +108,26 @@ describe('latest.json', () => {
 
   it('ne s’écrit pas si un paquet de mise à jour n’a pas sa signature', () => {
     expect(() => faire([...signes(tous.slice(1)), tous[0]!])).toThrow(/signature/)
+  })
+
+  it('ne s’écrit pas si une signature ne porte pas ce numéro : chaque app la refuserait (requireSignedVersion)', () => {
+    const macos = `Notak_${v}_macos_aarch64.app.tar.gz.sig`
+    // Sans numéro (une CLI qui ne l'écrit pas), ou celui d'une autre version.
+    expect(() => faire(signes(tous), (nom) => (nom === macos ? sig(`timestamp:1791649051\tfile:Notak.app.tar.gz`) : signee(nom)))).toThrow(
+      /macos_aarch64.*ne porte pas de numéro/,
+    )
+    expect(() => faire(signes(tous), (nom) => (nom === macos ? sig(`timestamp:1791649051\tversion:0.1.9`) : signee(nom)))).toThrow(/signé pour 0\.1\.9, pas pour 0\.2\.0/)
+    // Un paquet facultatif aussi : son app le refuserait tout autant.
+    const msi = `Notak_${v}_windows_x64.msi.sig`
+    expect(() => faire(signes(tous), (nom) => (nom === msi ? sig('timestamp:1791649051\tversion:0.2.01') : signee(nom)))).toThrow(/msi/)
+  })
+
+  it('le numéro signé se lit comme le lit l’app', () => {
+    expect(versionSignee(sig('timestamp:1\tfile:a.tar.gz\tversion:0.2.0'))).toBe('0.2.0')
+    // Le commentaire qui ne fait pas foi (« untrusted ») ne compte pas.
+    expect(versionSignee(Buffer.from('untrusted comment: version:0.2.0\nRUQ=\ntrusted comment: timestamp:1\nAAAA==').toString('base64'))).toBeNull()
+    expect(versionSignee('pas du base64 de minisign')).toBeNull()
+    expect(versionSignee('')).toBeNull()
   })
 
   it('un paquet facultatif sans signature n’est pas annoncé, sans rien bloquer', () => {

@@ -16,7 +16,8 @@
 # - « signer » n'ouvre que l'archive attendue : des fichiers ordinaires, aux noms attendus, sans lien ni chemin qui sorte ;
 # - à côté de la clé, seulement des actions de GitHub (actions/*), épinglées à un commit, pas à une étiquette qu'on
 #   pourrait déplacer ;
-# - aucun cache entre les exécutions : un cache empoisonné par une autre branche n'entre pas dans un paquet signé ;
+# - aucun cache entre les exécutions, pas même celui où setup-bun garde bun (`no-cache`) : un cache empoisonné par
+#   une autre exécution n'entre pas dans un paquet signé ;
 # - le jeton GitHub n'a que les droits dont chaque tâche a besoin, et une version déjà publiée ne se réécrit pas.
 # Cela protège la clé, pas le binaire : une dépendance piégée changerait ce qu'elle compile. C'est bun.lock et Cargo.lock
 # (`--frozen-lockfile`, `--locked`) qui fixent ce qui entre dans le binaire.
@@ -52,6 +53,9 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.3.12
+          # Sans cache : setup-bun garde d'office bun dans celui de main, sous une clé que la CI de n'importe quel commit
+          # de main peut écrire ; un bun changé là construirait ce que « signer » signe.
+          no-cache: true
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
@@ -162,6 +166,9 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.3.12
+          # Sans cache : setup-bun garde d'office bun dans celui de main, sous une clé que la CI de n'importe quel commit
+          # de main peut écrire ; un bun changé là construirait ce que « signer » signe.
+          no-cache: true
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
@@ -460,7 +467,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
-      - name: latest.json et SHA256SUMS.txt, une fois toutes les plateformes là
+      - name: latest.json, SHA256SUMS.txt et compose.yaml, une fois toutes les plateformes là
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.verifier.outputs.version }}
@@ -471,13 +478,19 @@ jobs:
           fi
           mkdir livraison
           gh release download "v$VERSION" --repo "$GITHUB_REPOSITORY" --dir livraison --pattern 'Notak_*'
+          # Le compose.yaml de cette étiquette, celui qui va avec son image (l'OpenFGA qu'ont lancé ses essais) : les
+          # serveurs le reprennent à chaque mise à jour (releases/latest/download/compose.yaml, docs/AUTO-HEBERGER.md).
+          cp compose.yaml livraison/
           node scripts/publication.ts annonce livraison "$VERSION" "$GITHUB_REPOSITORY"
-          gh release upload "v$VERSION" livraison/latest.json livraison/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
+          gh release upload "v$VERSION" livraison/latest.json livraison/SHA256SUMS.txt livraison/compose.yaml --repo "$GITHUB_REPOSITORY" --clobber
           {
             echo "## Notak $VERSION est en brouillon"
             echo
-            echo "1. Téléchargez les paquets du brouillon et essayez-les ; vérifiez qu'une app de la version d'avant se met à jour."
+            echo "1. Téléchargez les paquets du brouillon, installez-les par-dessus la version d'avant et essayez-les. Le passage d'une"
+            echo "   app installée à cette version, lui, ne s'essaie qu'après la publication (étape 4) : aucune app ne voit un brouillon."
             echo "2. L'image du serveur attend aussi : \`$IMAGE:$VERSION\` (elle n'est pas encore \`latest\`)."
             echo "3. Puis, sur la page du brouillon : **Publish release**. Les apps installées la verront à leur prochaine recherche,"
             echo "   et \`latest\` passera à cette version (annoncer-serveur.yml)."
+            echo "4. Tout de suite après : sur une app de la version d'avant, *Rechercher maintenant* doit la trouver et l'installer."
+            echo "   Sinon : docs/MISES-A-JOUR.md, « Si ça tourne mal »."
           } >> "$GITHUB_STEP_SUMMARY"

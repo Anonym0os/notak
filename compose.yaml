@@ -11,8 +11,13 @@
 # Chaque ligne arrive au serveur (la liste : docs/AUTO-HEBERGER.md, « Les variables »). Une variable placée devant la
 # commande (`NOTAK_X=… docker compose up -d`) ne vaut que pour cette commande : la mise à jour suivante l'oublie.
 #
-# L'image est celle que publie le dépôt, pour amd64 et arm64. Mettre à jour : docker compose pull && docker compose up -d
-# (la base est copiée avant chaque migration). Construire depuis les sources :
+# Ce fichier se remplace à chaque mise à jour : ce que vous y ajouteriez (un volume pour la clé…) va dans un
+# compose.override.yaml à côté, que Compose lit de lui-même.
+#
+# L'image est celle que publie le dépôt, pour amd64 et arm64. Mettre à jour (la base est copiée avant chaque migration) :
+#   curl -fsSLO https://github.com/Anonym0os/notak/releases/latest/download/compose.yaml
+#   docker compose pull && docker compose up -d
+# Le premier tient la version d'OpenFGA, que `pull` seul ne change jamais. Construire depuis les sources :
 #   docker compose -f compose.yaml -f compose.source.yaml up -d --build
 services:
   notak:

@@ -13,11 +13,34 @@ iCloud Drive, a USB stick), **Cmd+O** to open one. On Chrome and Edge for deskto
 cloud drive (experimental).
 
 **The desktop app** (macOS, Windows, Linux) embeds the same local edition: nothing goes through a server, and it
-updates itself from signed releases ([`apps/bureau`](apps/bureau/README.md), [`docs/MISES-A-JOUR.md`](docs/MISES-A-JOUR.md),
-in French). What can leave your device, and to whom: [`docs/PUBLIER.md`](docs/PUBLIER.md#ce-qui-sort-de-lappareil).
+updates itself from signed releases (see [Install the desktop app](#install-the-desktop-app),
+[`apps/bureau`](apps/bureau/README.md), [`docs/MISES-A-JOUR.md`](docs/MISES-A-JOUR.md), in French). What can leave
+your device, and to whom: [`docs/PUBLIER.md`](docs/PUBLIER.md#ce-qui-sort-de-lappareil).
 
 Want to work together in real time (accounts, sharing, live cursors)? Install your own Notak: it is free software
 and installs with one `docker compose` file (see [Self-host](#self-host)).
+
+### Install the desktop app
+
+Download it from the [releases page](https://github.com/Anonym0os/notak/releases/latest), under *Assets*:
+
+| System | The file | On first launch |
+|---|---|---|
+| macOS, Apple chip (M1 and later) | `Notak_<version>_macos_aarch64.dmg` | Drag Notak into *Applications*: anywhere else, it can't update itself. The first time you open it, macOS says it can't verify the app: in *System Settings → Privacy & Security*, at the very bottom, click *Open Anyway*, then confirm. Once and for all. |
+| macOS, Intel processor | `Notak_<version>_macos_x86_64.dmg` | Same. |
+| Windows 10 and 11 | `Notak_<version>_windows_x64-setup.exe` | "Windows protected your PC": click *More info*, then *Run anyway*. Notak installs for you alone, with no administrator password. |
+| Linux (64-bit PC) | `Notak_<version>_linux_x86_64.AppImage` | Put it in a folder of your own (`~/Applications`, say), make it executable (`chmod +x Notak_*.AppImage`, or *Properties → Allow executing*), then open it. If it doesn't open, it is missing FUSE: `sudo apt install libfuse2` (`libfuse2t64` since Ubuntu 24.04). |
+
+From then on, updates come by themselves: the app downloads them, checks their signature and installs them when you
+quit, without these warnings again. One exception on macOS: until the app is signed with an Apple certificate, macOS
+asks again for microphone access at the first audio note after each update.
+
+The other files: the `.msi` (Windows, for the whole machine), the `.deb` and the `.rpm` (Linux) install Notak too, but
+then every update asks for the administrator password, when you quit the app. The `.app.tar.gz` and `.sig` files are
+for updates, and `SHA256SUMS.txt` is for checking a download.
+
+Your boards from notak.app come along: in the browser, **Cmd+S** (Ctrl+S) keeps a `.notak` copy, which the app opens
+with a double click.
 
 ## Two editions, one codebase
 
@@ -73,7 +96,7 @@ ever lost. The image is published for amd64 and arm64 (`ghcr.io/anonym0os/notak`
 
 ```bash
 mkdir notak && cd notak
-curl -fsSLO https://raw.githubusercontent.com/Anonym0os/notak/main/compose.yaml
+curl -fsSLO https://github.com/Anonym0os/notak/releases/latest/download/compose.yaml
 printf 'NOTAK_ORIGINE=https://notak.example.com\nNOTAK_ADMINS=you@example.com\n' > .env
 docker compose up -d
 ```
@@ -87,24 +110,34 @@ with no path and no trailing `/`.
 To run the image on its own, without `compose.yaml`, give it an OpenFGA server (`NOTAK_OPENFGA_URL`), a volume on
 `/donnees` and the same variables.
 
-To update: `docker compose pull && docker compose up -d`; the `.env` is read again, so your settings stay. The server
-tells you when a new version is out, in its log and in the app for the addresses listed in `NOTAK_ADMINS`, by reading
-the same release announcement as the desktop app every twelve hours (`NOTAK_VERIFIER_MAJ=0` turns this off). To stay
-on a version, put `NOTAK_VERSION=0.2.0` in the `.env` (`0.2` follows the 0.2 fixes as soon as they are published). To
-build from source instead: `docker compose -f compose.yaml -f compose.source.yaml up -d --build`. Each published
-image carries a provenance attestation: `gh attestation verify oci://ghcr.io/anonym0os/notak:0.2.0 -R Anonym0os/notak`.
+To update:
+
+```bash
+curl -fsSLO https://github.com/Anonym0os/notak/releases/latest/download/compose.yaml
+docker compose pull && docker compose up -d
+```
+
+The latest release's `compose.yaml` comes first: it pins OpenFGA's version, which `pull` alone never changes. So don't
+edit it; your additions to Compose go in a `compose.override.yaml` next to it. The `.env` is read again, so your
+settings stay. The server tells you when a new version is out, in its log and in the app for the addresses listed in
+`NOTAK_ADMINS`, by reading the same release announcement as the desktop app every twelve hours (`NOTAK_VERIFIER_MAJ=0`
+turns this off). To stay on a version, put `NOTAK_VERSION=0.2.0` in the `.env` (`0.2` follows the 0.2 fixes as soon as
+they are published). To build from source instead: `docker compose -f compose.yaml -f compose.source.yaml up -d
+--build`. Each published image carries a provenance attestation:
+`gh attestation verify oci://ghcr.io/anonym0os/notak:0.2.0 -R Anonym0os/notak`.
 
 The image expects an HTTPS reverse proxy in front of it: it sets a `Secure` cookie, and takes the client's address
-from the entry the proxy adds to `X-Forwarded-For` (`NOTAK_RELAIS=2` behind two proxies). So `compose.yaml` publishes
-port 3005 on the machine's loopback only (`127.0.0.1`), for a proxy on the same machine (Caddy:
-`reverse_proxy localhost:3005`); for a proxy elsewhere, set `NOTAK_ECOUTE` and a firewall (see
+from the entry the proxy adds to `X-Forwarded-For` (`NOTAK_RELAIS=2` behind two proxies, if the second one trusts the
+first). So `compose.yaml` publishes port 3005 on the machine's loopback only (`127.0.0.1`), for a proxy on the same
+machine (Caddy: `reverse_proxy localhost:3005`); for a proxy elsewhere, set `NOTAK_ECOUTE` and a firewall (see
 [`docs/AUTO-HEBERGER.md`](docs/AUTO-HEBERGER.md)). To try it over plain HTTP on your machine, put
 `NOTAK_COOKIE_SECURISE=0` and `NOTAK_RELAIS=0` in the `.env`, and no `NOTAK_ORIGINE`.
 
 The desktop app connects to your server: "Connect to a Notak server…", then its address (HTTPS with a real
-certificate, except on `localhost`). The server's boards stay on the server and the computer's boards stay on the
-computer, until you ask the app to copy the latter to the server. Signing in with Google, Microsoft, GitHub or a
-space's SSO goes through your browser and a code to confirm.
+certificate, except on `localhost`; for a server at home with no domain name, Tailscale works, see
+[`docs/AUTO-HEBERGER.md`](docs/AUTO-HEBERGER.md#un-serveur-à-la-maison-sans-nom-de-domaine)). The server's boards stay
+on the server and the computer's boards stay on the computer, until you ask the app to copy the latter to the server.
+Signing in with Google, Microsoft, GitHub or a space's SSO goes through your browser and a code to confirm.
 
 Accounts go through [Better Auth](https://www.better-auth.com). Optional settings, in the `.env`:
 
@@ -137,7 +170,7 @@ export and public links all keep working: this protects the disk and its backups
 | Variable | Meaning |
 |---|---|
 | `NOTAK_CLE` | The key: 32 random bytes in base64, made with `openssl rand -base64 32`. In the `.env`, keep that file to yourself (`chmod 600 .env`). |
-| `NOTAK_CLE_FICHIER` | Or the path of a file holding it (a Docker secret, say), readable by the image's `node` user: with Compose, mount it with a `- /root/notak_cle:/run/secrets/notak_cle:ro` line under the `notak` service's `volumes:`, and put `NOTAK_CLE_FICHIER=/run/secrets/notak_cle` in the `.env`. Give one or the other, never both. |
+| `NOTAK_CLE_FICHIER` | Or the path of a file holding it (a Docker secret, say), readable by the image's `node` user: with Compose, mount it with a `- /root/notak_cle:/run/secrets/notak_cle:ro` line under the `notak` service's `volumes:`, in a `compose.override.yaml` (see [`docs/AUTO-HEBERGER.md`](docs/AUTO-HEBERGER.md)), and put `NOTAK_CLE_FICHIER=/run/secrets/notak_cle` in the `.env`. Give one or the other, never both. |
 
 Without a key, nothing changes. With one, data written before stays readable and is encrypted the next time it is
 saved. To encrypt everything at once, with the key in the `.env`:

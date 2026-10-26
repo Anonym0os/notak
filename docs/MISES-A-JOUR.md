@@ -9,6 +9,13 @@
   la télécharge en arrière-plan et vérifie sa signature ; seulement alors, un bandeau dit « Notak 0.3.0 est prête :
   elle s'installera quand vous quitterez Notak », avec *Redémarrer maintenant*, *Nouveautés* et *Plus tard*. Rien
   n'interrompt le travail ; en quittant, la mise à jour se pose, et la prochaine ouverture est à jour.
+- **Ce que demande la sorte d'installation.** Le `.dmg` (Notak glissé dans *Applications*), le `-setup.exe` (installé
+  pour la personne seule) et l'AppImage (rangée dans un dossier à soi) se mettent à jour sans rien demander : ce sont
+  eux que conseille le README (« Installer l'app de bureau »). Le `.msi` (pour toute la machine), le `.deb` et le
+  `.rpm` demandent le mot de passe administrateur à chaque mise à jour (UAC sur Windows, pkexec sur Linux), au moment
+  où la mise à jour se pose, donc en quittant ; sans rien pour le demander à l'écran (agent polkit, zenity, kdialog),
+  elle échoue sans un mot. Un `.app` lancé depuis le `.dmg`, ou une AppImage dans un dossier qu'on ne peut écrire, ne
+  se remplace pas.
 - **« Où sont mes toiles ? »**, et la rubrique « App de bureau » des réglages, montrent la version qui tourne,
   *Rechercher maintenant*, et la case pour couper la recherche automatique, avec ce qu'elle envoie (voir plus bas).
 - **La version web** (notak.app, un serveur Notak) prend la nouvelle version à la prochaine page ouverte. Une page déjà
@@ -45,7 +52,13 @@ clé publique est dans chaque app (`apps/bureau/src-tauri/tauri.publication.json
    les secrets du même environnement : `APPLE_CERTIFICATE` (le .p12 en base64), `APPLE_CERTIFICATE_PASSWORD`,
    `APPLE_SIGNING_IDENTITY`, et pour la notarisation `APPLE_ID`, `APPLE_PASSWORD` (un mot de passe d'app),
    `APPLE_TEAM_ID`. Sans eux, l'app est signée « ad hoc » : macOS demande une fois, à la première ouverture, de
-   confirmer dans *Réglages → Confidentialité et sécurité*. Les mises à jour, elles, passent sans rien demander.
+   confirmer dans *Réglages → Confidentialité et sécurité*. Les mises à jour, elles, s'installent sans rien demander,
+   sauf le micro : macOS reconnaît une app à sa signature, et une signature ad hoc change à chaque version, si bien que
+   l'accord au micro (les notes audio) se redemande à la première note après chaque mise à jour. Le certificat
+   *Developer ID* règle les deux. Windows : aucun certificat n'est prévu (`--no-sign`), et SmartScreen avertit au
+   premier lancement de l'installeur (*Informations complémentaires → Exécuter quand même*) ; les mises à jour,
+   téléchargées par l'app, passent sans cet avertissement. Un certificat de signature de code (ou Azure Trusted
+   Signing) l'éviterait, mais la publication ne sait pas encore signer pour Windows.
 5. Après la première publication de l'image du serveur : sur GitHub, *Packages → notak → Package settings → Change
    visibility → Public*. Un paquet du registre naît privé ; sans cela, `docker compose pull` demande un compte.
 
@@ -63,25 +76,31 @@ git push origin HEAD v0.2.0         # lance la publication
    passent.
 2. **Il compile** Notak pour macOS (Apple et Intel), Windows et Linux, sans aucun secret, puis **demande votre
    accord** (l'environnement `publication`) pour signer chaque paquet et le déposer dans un **brouillon** de version,
-   avec `latest.json` (ce que lisent les apps) et `SHA256SUMS.txt`. `latest.json` ne s'écrit que si les quatre
-   plateformes sont là et signées. Dans le même temps, il construit l'image du serveur sur une machine amd64 et une
-   machine arm64, la publie sous `ghcr.io/anonym0os/notak:0.2.0` seulement, et l'atteste (provenance signée par
-   GitHub). L'accord se demande à chaque étape qui en a besoin : l'image dès la vérification faite, la signature une
-   fois la compilation finie, puis la réunion des deux architectures de l'image sous ce numéro.
-3. **Vous relisez le brouillon.** Tant qu'il est brouillon, aucune app ne le voit :
-   - téléchargez le paquet de votre plateforme, installez-le, et faites le tour de ce qui a changé ;
+   avec `latest.json` (ce que lisent les apps), `SHA256SUMS.txt` et le `compose.yaml` de l'étiquette (celui que
+   reprennent les serveurs à chaque mise à jour). `latest.json` ne s'écrit que si les quatre plateformes sont là, et
+   chaque paquet signé pour ce numéro (`version:` dans sa signature, que les apps exigent). Dans le même temps, il
+   construit l'image du serveur sur une machine amd64 et une machine arm64, la publie sous
+   `ghcr.io/anonym0os/notak:0.2.0` seulement, et l'atteste (provenance signée par GitHub). L'accord se demande à
+   chaque étape qui en a besoin : l'image dès la vérification faite, la signature une fois la compilation finie, puis
+   la réunion des deux architectures de l'image sous ce numéro.
+3. **Vous relisez le brouillon.** Tant qu'il est brouillon, aucune app ne le voit : une app installée ne lit que le
+   `latest.json` de la dernière version publiée, et le passage d'une app à cette version ne s'essaie donc qu'après
+   la publication (étape 4). Ce qui s'essaie avant :
+   - téléchargez le paquet de votre plateforme, installez-le par-dessus la version d'avant (c'est ce que fait la
+     mise à jour : l'installeur rejoue sur une installation qui existe), puis faites le tour de ce qui a changé ;
    - relisez les notes : ce sont elles que montre *Nouveautés* ;
    - vérifiez que `latest.json` annonce le bon numéro (la CI a déjà vérifié qu'il couvre les quatre plateformes et que
      chaque paquet est signé).
    - pour le serveur : sur un serveur d'essai, `NOTAK_VERSION=0.2.0` dans son `.env`, puis `docker compose pull &&
      docker compose up -d`, et `gh attestation verify oci://ghcr.io/anonym0os/notak:0.2.0 -R Anonym0os/notak`.
 4. **Publish release.** Les apps installées la trouvent à leur prochaine recherche (au plus six heures, ou au prochain
-   lancement). Sur une machine restée à la version d'avant, *Rechercher maintenant* doit la trouver : c'est la
-   vérification de bout en bout. Dans le même temps, `.github/workflows/annoncer-serveur.yml` vérifie que l'image de
-   cette version existe, pour les deux architectures, à son numéro, et avec l'attestation de la publication de cette
-   étiquette, puis lui donne les étiquettes `0.2` et `latest`, sans jamais les faire reculer (une correction 0.1.5
-   publiée après la 0.2.0 prend `0.1`, pas `latest`). Les serveurs la voient à leur prochaine vérification. Si quelque
-   chose cloche, voir plus bas.
+   lancement). Tout de suite, sur une machine restée à la version d'avant, *Rechercher maintenant* doit la trouver,
+   la télécharger et l'installer : c'est la vérification de bout en bout, la seule du chemin de mise à jour, et elle
+   se fait quand tout le monde peut déjà la recevoir. Si elle échoue, « Si ça tourne mal » plus bas, sans attendre.
+   Dans le même temps, `.github/workflows/annoncer-serveur.yml` vérifie que l'image de cette version existe, pour les
+   deux architectures, à son numéro, et avec l'attestation de la publication de cette étiquette, puis lui donne les
+   étiquettes `0.2` et `latest`, sans jamais les faire reculer (une correction 0.1.5 publiée après la 0.2.0 prend
+   `0.1`, pas `latest`). Les serveurs la voient à leur prochaine vérification.
 
 Renoncer avant d'avoir poussé : `git tag -d v0.2.0 && git reset --hard HEAD~1`. Après avoir poussé : supprimez le
 brouillon, l'étiquette et, s'il a été poussé, la version d'image `0.2.0` (*Packages → notak*), corrigez, et repartez
@@ -115,12 +134,14 @@ d'un nouveau numéro. Une version publiée, elle, ne se refait jamais sous le m�
 | un paquet trafiqué (en route, ou sur GitHub) | la signature Ed25519 de chaque paquet, vérifiée avant toute installation avec la clé publique embarquée |
 | une réponse trafiquée qui fait passer une vieille version (à faille) pour une neuve | une app n'installe qu'une version plus récente, et la signature porte le numéro signé (`requireSignedVersion`) |
 | quelqu'un qui pousse une étiquette pour signer son code | l'environnement `publication` : accord d'une personne, étiquettes `v*` seulement |
-| une action GitHub tierce compromise | les actions épinglées à un commit ; à côté de la clé, seulement des actions de GitHub (`actions/*`) : l'empaquetage et la signature sont la CLI de Tauri |
+| une action GitHub tierce compromise | les actions épinglées à un commit, dans tous les workflows (la CI de main aussi : elle écrit le cache que d'autres relisent) ; à côté de la clé, seulement des actions de GitHub (`actions/*`) : l'empaquetage et la signature sont la CLI de Tauri |
 | une dépendance piégée (un script npm, un plugin de Vite, un script de construction ou une macro de Cargo) qui lirait la clé | GitHub ne remet un secret qu'à la tâche qui le nomme : celles qui font tourner le code des dépendances (« compiler », les essais, les images) n'en nomment aucun, et « compiler » n'a pas même d'environnement. La clé ne va qu'à « signer », qui n'installe ni ne compile rien (la CLI de Tauri, prise d'npm à son numéro exact, les outils d'Apple, nos scripts) et n'ouvre qu'une archive dont chaque entrée est vérifiée, pour `tauri bundle` (macOS, avec le certificat Apple) ou `tauri signer sign` (Linux, Windows) |
 | une dépendance piégée qui changerait le binaire | ce n'est pas la séparation qui l'empêche : elle protège la clé, pas ce qui se compile. Ce sont `bun.lock` et `Cargo.lock`, tenus à la compilation (`--frozen-lockfile`, `--locked`), et la relecture de chaque mise à jour de dépendance |
 | une version publiée réécrite (une étiquette repoussée, un essai relancé) | la publication refuse une version qui n'est plus un brouillon : ni ses paquets, ni son `latest.json`, ni son image `x.y.z` ne se remplacent |
 | une image du serveur trafiquée sur le registre | l'attestation de provenance (`gh attestation verify`), que la CI vérifie aussi avant de poser `latest` et `0.2` : ils désignent l'image attestée par la publication de son étiquette, jamais une reconstruite |
-| un cache empoisonné par une autre branche | aucun cache dans la publication |
+| un cache empoisonné par une autre branche | aucun cache dans la publication, pas même celui où setup-bun garde bun d'office (`no-cache: true`) |
+| une image de base déplacée sous son étiquette (`node:24-slim`, `oven/bun`) | le `Dockerfile` les tient à leur empreinte (`@sha256:…`) ; Dependabot propose les nouvelles |
+| une signature sans numéro, ou d'un autre (une CLI qui ne l'écrirait pas) | `latest.json` ne s'écrit pas : chaque app l'aurait refusée, et une version publiée ne se refait pas |
 | la page qui demanderait une autre adresse, une autre clé ou une vieille version | la page ne fait que demander « y a-t-il du neuf ? » et « installe » : l'adresse, la clé et la règle sont dans la coque (`src/mise_a_jour.rs`) |
 | une app d'essai, construite à la main, qui se remplacerait par la version publiée | seule la publication ajoute la configuration des mises à jour (`tauri.publication.json`) ; sans elle, l'app le dit et ne cherche rien |
 
@@ -140,7 +161,10 @@ Dependabot (`.github/dependabot.yml`) propose chaque semaine les mises à jour d
 GitHub, images Docker), groupées pour se relire d'un coup, et tout de suite celles qui corrigent une faille. Une pull
 request de Dependabot passe par la même CI qu'une autre, y compris l'image du serveur construite et lancée
 (`.github/workflows/image.yml`) ; une fois fusionnée, elle part à la version suivante. OpenFGA se monte à deux endroits,
-`compose.yaml` et les essais (`vitest.openfga.ts`) : un essai refuse qu'ils diffèrent.
+`compose.yaml` et les essais (`vitest.openfga.ts`) : un essai refuse qu'ils diffèrent. Les serveurs installés reçoivent
+le nouvel OpenFGA avec le `compose.yaml` que porte chaque version publiée, et que reprend leur commande de mise à jour
+([`AUTO-HEBERGER.md`](AUTO-HEBERGER.md), « Mettre à jour ») : `docker compose pull` seul ne le change pas. Les images de
+base du `Dockerfile` sont tenues à leur empreinte, que Dependabot fait avancer.
 
 ## Construire à la main
 

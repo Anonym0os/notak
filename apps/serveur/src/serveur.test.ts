@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { networkInterfaces, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -319,6 +319,23 @@ describe('l’adresse publique du serveur', () => {
     }
   })
 
+  it('n’écoute que sur l’adresse donnée (NOTAK_HOTE) : derrière un relais local, nul autre ne joint le port', async () => {
+    const ici = mkdtempSync(join(tmpdir(), 'notak-hote-'))
+    const s = await demarrer({ port: 0, hote: '127.0.0.1', dossier: ici, secret: SECRET, openfga: openfgaEssai() })
+    try {
+      expect((await fetch(`http://127.0.0.1:${s.port}/api/sante`)).status).toBe(200)
+      // Ni la boucle IPv6, ni une autre interface de la machine.
+      const ailleurs = Object.values(networkInterfaces())
+        .flat()
+        .filter((i) => i && !i.internal && i.family === 'IPv4')
+        .map((i) => i!.address)
+      for (const a of ['[::1]', ...ailleurs]) await expect(fetch(`http://${a}:${s.port}/api/sante`), a).rejects.toThrow()
+    } finally {
+      await s.fermer()
+      rmSync(ici, { recursive: true, force: true })
+    }
+  })
+
   it('refuse de démarrer sur une adresse qui n’en est pas une', async () => {
     await expect(demarrer({ port: 0, dossier: join(tmpdir(), 'notak-jamais'), secret: SECRET, openfga: openfgaEssai(), origine: 'notak.exemple.fr' })).rejects.toThrow(/adresse/)
   })
@@ -332,5 +349,20 @@ describe('le serveur tel que Node le lance', () => {
     })
     expect(r.stderr).toBe('')
     expect(r.status).toBe(0)
+  }, 30_000)
+
+  it('lit NOTAK_IDP_INTERNES comme les autres origines : une valeur qui n’en est pas une l’arrête net', () => {
+    const ici = mkdtempSync(join(tmpdir(), 'notak-idp-'))
+    try {
+      const r = spawnSync(process.execPath, [new URL('index.ts', import.meta.url).pathname], {
+        encoding: 'utf8',
+        env: { ...process.env, NOTAK_DONNEES: ici, NOTAK_ORIGINE: '', NOTAK_IDP_INTERNES: 'http://keycloak.lan, idp.interne' },
+        timeout: 20_000,
+      })
+      expect(r.stderr).toContain('NOTAK_IDP_INTERNES=idp.interne n')
+      expect(r.status).toBe(1)
+    } finally {
+      rmSync(ici, { recursive: true, force: true })
+    }
   }, 30_000)
 })

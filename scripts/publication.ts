@@ -8,7 +8,8 @@
  *
  * `latest.json` est ce que lit chaque app installée pour savoir qu'une version existe : son numéro, ses notes, et pour
  * chaque plateforme l'adresse du paquet et sa signature. L'annonce refuse de s'écrire s'il manque une plateforme, ou
- * si un paquet de mise à jour n'a pas sa signature : une version à moitié publiée ne se propose à personne.
+ * si un paquet de mise à jour n'a pas sa signature, ou une signature qui ne porte pas ce numéro : une version à moitié
+ * publiée ne se propose à personne.
  */
 import { createHash } from 'node:crypto'
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
@@ -100,6 +101,22 @@ export function paquets(fichiers: Record<string, string[]>, plateforme: Platefor
   return res
 }
 
+/**
+ * Le numéro qu'une signature de Tauri porte dans son commentaire de confiance (`version:0.2.0`, couvert par la
+ * signature), ou `null`. Le `.sig` est le fichier de minisign, en base64 ; le commentaire, des champs `clé:valeur`
+ * séparés par des tabulations, lus comme les lit l'app (`tauri-plugin-updater`, `signed_version`).
+ */
+export function versionSignee(signature: string): string | null {
+  const texte = Buffer.from(signature, 'base64').toString('utf8')
+  const commentaire = texte
+    .split('\n')
+    .find((l) => l.startsWith('trusted comment: '))
+    ?.slice('trusted comment: '.length)
+    .replace(/\r$/, '')
+  const champ = commentaire?.split('\t').find((c) => c.startsWith('version:'))
+  return champ === undefined ? null : champ.slice('version:'.length)
+}
+
 export interface Annonce {
   version: string
   notes: string
@@ -123,6 +140,10 @@ export function annonce(o: { version: string; notes: string; date: Date; noms: s
     }
     const signature = o.signature(`${nom}.sig`).trim()
     if (!signature) throw new Error(`${nom}.sig est vide`)
+    // Les apps exigent ce numéro (`requireSignedVersion`) : sans lui, ou avec un autre, chacune refuserait la mise à
+    // jour, et une version publiée ne se refait pas sous le même numéro.
+    const signee = versionSignee(signature)
+    if (signee !== o.version) throw new Error(`${nom}.sig ${signee === null ? 'ne porte pas de numéro (version:)' : `est signé pour ${signee}`}, pas pour ${o.version}`)
     for (const cle of cles) platforms[cle] = { signature, url: o.adresse(nom) }
   }
   const manquantes = CLES_REQUISES.filter((c) => !platforms[c])

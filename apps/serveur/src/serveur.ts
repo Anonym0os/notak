@@ -20,6 +20,11 @@ import { VERSION_NOTAK } from '../../../packages/tableau/src/version.ts'
 
 export interface OptionsServeur {
   port: number
+  /**
+   * L'adresse où écouter (`NOTAK_HOTE`) : `127.0.0.1` derrière un relais sur la même machine, pour que nul autre ne
+   * joigne le port ni n'écrive lui-même X-Forwarded-For. À défaut, toutes les interfaces (dans l'image, celles du conteneur).
+   */
+  hote?: string
   dossier: string
   /** Combien de relais de confiance sont devant le serveur (`NOTAK_RELAIS`) ; à défaut, aucun. */
   relais?: number
@@ -68,7 +73,7 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
   // L'application naît une fois le port connu (le port 0 en tire un au hasard) : l'origine par défaut en dépend.
   let app: Hono | null = null
   const http = await new Promise<Server>((resoudre, rejeter) => {
-    const s = serve({ fetch: (requete, env) => app!.fetch(requete, env), port: options.port }, () => resoudre(s as Server))
+    const s = serve({ fetch: (requete, env) => app!.fetch(requete, env), port: options.port, hostname: options.hote }, () => resoudre(s as Server))
     s.once('error', rejeter)
   })
   const port = (http.address() as AddressInfo).port

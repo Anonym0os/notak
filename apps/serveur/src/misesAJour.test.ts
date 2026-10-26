@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { adminsDe } from './comptes.ts'
-import { ADRESSE_ANNONCE, ANNONCE_MAX, INTERVALLE_VERIFICATION_MS, comparerVersions, creerVerificateur, lireAnnonce } from './misesAJour.ts'
+import { ADRESSE_ANNONCE, ANNONCE_MAX, GUIDE_MISE_A_JOUR, INTERVALLE_VERIFICATION_MS, comparerVersions, creerVerificateur, lireAnnonce } from './misesAJour.ts'
 
 const annonce = (version: string, extra: object = {}) => ({ version, notes: '- Une chose.', pub_date: '2026-10-25T10:00:00Z', platforms: {}, ...extra })
 
@@ -85,7 +87,9 @@ describe('la vérification des mises à jour', () => {
     expect(demandes[0]!.init!.signal).toBeInstanceOf(AbortSignal)
     expect(journal).toHaveLength(1)
     expect(journal[0]).toContain('0.2.0')
-    expect(journal[0]).toContain('docker compose pull && docker compose up -d')
+    // Le compose.yaml de la version d'abord : c'est lui qui fait monter OpenFGA.
+    expect(journal[0]).toContain('curl -fsSLO https://github.com/Anonym0os/notak/releases/latest/download/compose.yaml && docker compose pull && docker compose up -d')
+    expect(journal[0]).toContain('docs/AUTO-HEBERGER.md#mettre-%C3%A0-jour')
   })
 
   it('rien de neuf : la même version, une plus ancienne, une pré-version', async () => {
@@ -178,6 +182,14 @@ describe('la vérification des mises à jour', () => {
     const v = creerVerificateur({ actuelle: '0.1.0', active: true, lire, journal: () => {}, programmer: false })
     await Promise.all([v.verifier(), v.verifier()])
     expect(demandes).toHaveLength(1)
+  })
+})
+
+describe('le guide où renvoie le journal', () => {
+  it('a bien la section « Mettre à jour » que vise son ancre', () => {
+    const guide = readFileSync(join(import.meta.dirname, '../../../docs/AUTO-HEBERGER.md'), 'utf8')
+    expect(guide).toMatch(/^## Mettre à jour$/m)
+    expect(decodeURIComponent(GUIDE_MISE_A_JOUR)).toMatch(/docs\/AUTO-HEBERGER\.md#mettre-à-jour$/)
   })
 })
 

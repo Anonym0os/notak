@@ -1,9 +1,9 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { Hono } from 'hono'
-import { CORPS_APPAREIL_MAX, adresseTransmise, creerApp, relaisDe } from './app.ts'
+import { CORPS_APPAREIL_MAX, adresseTransmise, cleDAdresse, creerApp, relaisDe } from './app.ts'
 import { CLIENT_BUREAU, PAGE_AUTORISER, normaliserOrigine } from './auth.ts'
 import { type Base, ouvrirBase } from './base.ts'
 import { creerLimiteur } from './debit.ts'
@@ -310,6 +310,18 @@ describe('derrière un relais', () => {
     for (const v of [undefined, '', '0', 'oui', '-1', '1.5']) expect(relaisDe(v), String(v)).toBe(0)
   })
 
+  it('un client IPv6 compte pour son /64, une IPv4 pour elle seule, même écrite en IPv6', () => {
+    for (const a of ['2001:db8:1:2::1', '2001:db8:1:2:aaaa:bbbb:cccc:dddd', '2001:0DB8:0001:0002:0:0:0:ffff', '2001:db8:1:2::1.2.3.4']) {
+      expect(cleDAdresse(a), a).toBe('2001:db8:1:2::/64')
+    }
+    expect(cleDAdresse('2001:db8:1:3::1')).toBe('2001:db8:1:3::/64')
+    expect(cleDAdresse('::1')).toBe('0:0:0:0::/64')
+    expect(cleDAdresse('fe80::1')).toBe('fe80:0:0:0::/64')
+    for (const a of ['::ffff:203.0.113.5', '::FFFF:cb00:7105', '0:0:0:0:0:ffff:203.0.113.5']) expect(cleDAdresse(a), a).toBe('203.0.113.5')
+    expect(cleDAdresse('203.0.113.5')).toBe('203.0.113.5')
+    expect(cleDAdresse('inconnue')).toBe('inconnue')
+  })
+
   describe('les limites et la page de confirmation', () => {
     let base: Base
     let dossier: string
@@ -355,6 +367,32 @@ describe('derrière un relais', () => {
       expect(statuts[10]).toBe(429)
       // Un autre client, derrière le même relais, a la sienne.
       expect((await parLeRelais('/api/auth/device/code', '203.0.113.6', '10.9.9.1', { json: { client_id: CLIENT } })).status).toBe(200)
+    })
+
+    it('changer d’adresse dans son /64 n’ouvre pas de nouvelle limite ; la page montre l’adresse exacte', async () => {
+      const statuts: number[] = []
+      for (let i = 0; i < 11; i++) statuts.push((await parLeRelais('/api/auth/device/code', `2001:db8:77:1::${i + 1}`, '10.9.9.9', { json: { client_id: CLIENT } })).status)
+      expect(statuts.slice(0, 10).every((s) => s === 200)).toBe(true)
+      expect(statuts[10]).toBe(429)
+      // Le /64 d'à côté est un autre client.
+      const r = await parLeRelais('/api/auth/device/code', '2001:db8:77:2::abcd', '10.9.9.9', { json: { client_id: CLIENT } })
+      expect(r.status).toBe(200)
+      const { user_code } = (await r.json()) as { user_code: string }
+      expect((await parLeRelais(`/api/auth/device?user_code=${user_code}`, '203.0.113.40', '', { cookie: ana.cookie })).status).toBe(200)
+      const lu = (await (await parLeRelais(`/api/bureau/demande?user_code=${user_code}`, '203.0.113.40', '', { cookie: ana.cookie })).json()) as { ip: string }
+      expect(lu.ip).toBe('2001:db8:77:2::abcd')
+    })
+
+    it('un relais qui n’ajoute pas l’adresse attendue se dit une fois au journal', async () => {
+      const avertir = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      try {
+        // Un relais qui écrit `ip:port` : illisible, on retombe sur l'adresse de la connexion.
+        for (let i = 0; i < 2; i++) await parLeRelais('/api/auth/device/code', '203.0.113.50:443', '10.9.9.9', { json: { client_id: CLIENT } })
+        expect(avertir).toHaveBeenCalledTimes(1)
+        expect(String(avertir.mock.calls[0]![0])).toMatch(/NOTAK_RELAIS=1.*X-Forwarded-For/)
+      } finally {
+        avertir.mockRestore()
+      }
     })
 
     it('la page de confirmation compare les adresses qu’a vues le relais, pas celles qu’on lui écrit', async () => {

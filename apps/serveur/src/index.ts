@@ -10,6 +10,7 @@ import { type ServeurDemarre, demarrer } from './serveur.ts'
 
 // Une variable vide vaut une variable absente : une ligne `NOTAK_X=` laissée dans le .env de Compose ne casse rien.
 const port = Number(process.env.PORT || 3005)
+const hote = process.env.NOTAK_HOTE?.trim() || undefined
 const dossier = process.env.NOTAK_DONNEES || join(dirname(fileURLToPath(import.meta.url)), '..', 'data')
 
 mkdirSync(dossier, { recursive: true })
@@ -40,6 +41,7 @@ try {
   cle = lireCle({ cle: process.env.NOTAK_CLE, fichier: process.env.NOTAK_CLE_FICHIER })
   serveur = await demarrer({
     port,
+    hote,
     dossier,
     secret: secretDe(process.env, dossier),
     origine,
@@ -55,7 +57,12 @@ try {
     ],
     openfga: process.env.NOTAK_OPENFGA_URL || 'http://localhost:8080',
     fournisseurs: fournisseursDe(process.env),
-    idpInternes: (process.env.NOTAK_IDP_INTERNES ?? '').split(',').map((o) => o.trim()).filter(Boolean),
+    // Comparées à l'origine de l'émetteur (`decouvrirOidc`) et aux pages qui appellent : écrites comme le fait un navigateur.
+    idpInternes: (process.env.NOTAK_IDP_INTERNES ?? '')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean)
+      .map((o) => origineDe('NOTAK_IDP_INTERNES', o)),
     smtp: process.env.NOTAK_SMTP_URL,
     expediteur: process.env.NOTAK_EXPEDITEUR?.trim() || undefined,
     relais: relaisDe(process.env.NOTAK_RELAIS),
@@ -74,7 +81,12 @@ try {
   console.error(`Notak : refus de démarrer, ${e.message}`)
   process.exit(1)
 }
-console.log(`Notak : serveur sur le port ${serveur.port}, données dans ${dossier}${cle ? ', chiffrées au repos' : ''}`)
+console.log(`Notak : serveur sur le port ${serveur.port}${hote ? ` de ${hote}` : ''}, données dans ${dossier}${cle ? ', chiffrées au repos' : ''}`)
+// Une valeur illisible (`oui`, `1,2`) vaut aucun relais : derrière Caddy, tous les clients compteraient pour un seul.
+const relaisEcrit = process.env.NOTAK_RELAIS?.trim()
+if (relaisEcrit && relaisDe(relaisEcrit) === 0 && Number(relaisEcrit) !== 0) {
+  console.warn(`Notak : NOTAK_RELAIS=${relaisEcrit} n'est pas un nombre de relais (1, 2…) : il est lu 0, et l'adresse du client est celle de la connexion.`)
+}
 // L'adresse par défaut de compose.yaml, avec des cookies `Secure` : un .env oublié, sans doute. Les navigateurs qui
 // arrivent par la vraie adresse seraient refusés sans un mot.
 if (process.env.NOTAK_ORIGINE?.trim().startsWith('http://localhost') && process.env.NOTAK_COOKIE_SECURISE === '1') {
