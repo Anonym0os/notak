@@ -11,7 +11,7 @@ import { PastilleReaction } from '../decor/PastilleReaction'
 import { compterReactions } from '../decor/annotations'
 import { Compositeur, EXTENSIONS_MESSAGE, type PoigneeCompositeur } from './Compositeur'
 import { useNonLus, useQuiEcrit } from './suivi'
-import { peutCommenter } from '../../coeur/droitsElements'
+import { estVisiteur, peutCommenter } from '../../coeur/droitsElements'
 import { personneAJour } from '../../personne'
 
 /** Les boutons et le champ de la carte ne lancent pas de glisser. */
@@ -146,6 +146,12 @@ export function Ligne({ message, retirer, modifier, contexte, reagir, nonLu, ecr
         {barre}
         <div className="notak-commentaire-entete">
           <strong title={auteur.nom}>{prenom(auteur.nom)}</strong>
+          {/* Le nom d'un visiteur est celui qu'il s'est donné : on le dit, pour que personne ne passe pour un membre. */}
+          {estVisiteur(auteur.id) && (
+            <span className="notak-commentaire-visiteur" title={t('commentaire.visiteurAide')}>
+              {t('commentaire.visiteur')}
+            </span>
+          )}
           <time dateTime={date.toISOString()} title={quand}>
             {dateLisible(message.date, maintenant)}
           </time>

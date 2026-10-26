@@ -362,10 +362,11 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Comptes, connexion | ✅ | Par Better Auth : mot de passe (les empreintes Argon2 d'avant sont reprises telles quelles), Google, Microsoft et GitHub quand le serveur les a configurés, mot de passe oublié (par courriel, ou par le journal du serveur sans SMTP). |
 | Espaces d'équipe : membres, invitations, équipes, rôles sur mesure | ✅ | Page `/espace`. Chaque compte a son espace personnel ; un espace d'équipe a son accueil, et ses membres en voient les tableaux selon leur rôle (propriétaire, admin, membre, invité, ou un rôle composé de gestes). |
 | SSO d'entreprise (OIDC, SAML) | ✅ | Déclaré par un admin d'espace d'équipe, actif une fois le domaine prouvé par un enregistrement DNS ; qui arrive par lui entre dans l'espace comme membre. |
-| Droits fins : commentaire, partage à une équipe, blocage levé plus bas, lien public à niveau | ✅ | Évalués par OpenFGA (`apps/serveur/autorisation/modele.fga`). Le lien public en commentaire ou en édition est accepté par la synchro ; la page publique, elle, reste en lecture. |
+| Droits fins : commentaire, partage à une équipe, blocage levé plus bas, lien visiteur à niveau | ✅ | Évalués par OpenFGA (`apps/serveur/autorisation/modele.fga`). Un lien visiteur voit ou commente, jamais ne modifie, et ne se synchronise pas. |
 | Droits par élément | ✅ | Le propriétaire fige un élément pour tous et le rend à quelques-uns (écrire ou commenter), depuis son menu. La synchro contrôle chaque mise à jour : un geste non permis est annulé par le serveur, chez tout le monde. Un élément ne se cache pas. |
 | Commentateurs | ✅ | Ils posent des fils (menu de la toile vide), y répondent et réagissent ; le reste du tableau leur est en lecture. |
-| Partager un tableau par adresse, invitation en attente | ✅ | |
+| Partager un tableau par adresse, invitation en attente | ✅ | Le rôle se change sur place. Une adresse sans compte, ou jamais vérifiée, reçoit une invitation dont le lien (`/invitation#…`, trente jours, une fois) est le seul passage ; il part par courriel si le serveur en envoie, sinon on le copie. |
+| Accès temporaire | ✅ | Une échéance par personne, par équipe et par invitation (un jour, une semaine, un mois, une date) ; passée, le rôle tombe et les connexions ouvertes se ferment. |
 | Rôles lecture, édition, propriétaire ; changés en direct | ✅ | |
 | Partage hérité par les sous-tableaux | ✅ | |
 | Présence : pastilles, curseurs, sélections des autres | ✅ | Pastille avec avatar et prénom qui pulse, et croix qui fait lâcher l'élément à l'autre (sauf croquis et document) ; un élément tenu par un autre ne se choisit ni ne s'édite. |
@@ -377,7 +378,7 @@ Le compte se refait par `bun scripts/avancement.ts`, qui réécrit ce tableau.
 | Curseur des autres au repos | ✅ |  |
 | Cache local, reprise après coupure | ✅ | Copie locale (IndexedDB), « Hors ligne » dans l'en-tête. |
 | Texte écrit à plusieurs dans une même note | ✅ | Voir § 3. |
-| Lien public, publication en lecture | ✅ |  |
+| Liens visiteurs, pour qui n'a pas de compte | ✅ | Vingt par toile, un par destinataire : nom, voir ou voir et commenter, échéance (un mois par défaut), mot de passe, dernière visite. Le visiteur qui commente signe du nom qu'il se donne, marqué « visiteur » ; il ajoute, modifie et retire ses messages, rien d'autre. |
 | Mot de passe sur un tableau partagé | ✅ |  |
 | Notifications (commentaires, mentions, modifications) | ✅ | Cloche dans l'en-tête ; pas de courriel ni de push. |
 | Activité récente du tableau | ✅ |  |

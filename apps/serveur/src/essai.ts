@@ -8,6 +8,7 @@ import { type Auth, creerAuth } from './auth.ts'
 import { type Autorisation, ouvrirAutorisation } from './autorisation.ts'
 import { type Base, type Utilisateur, ouvrirBase } from './base.ts'
 import type { Cle } from './chiffrement.ts'
+import type { Courriel } from './courriel.ts'
 import type { ElementLu, NoeudTexte } from './contenu.ts'
 import { creerLimiteur } from './debit.ts'
 import { nomDuDocument } from './synchro.ts'
@@ -33,12 +34,16 @@ export function authEssai(base: Base): Auth {
   })
 }
 
-/** Inscrit un compte par Better Auth ; rend le compte et le cookie de sa session. */
-export async function inscrireEssai(auth: Auth, base: Base, nom: string, langue?: 'fr' | 'en'): Promise<Compte> {
+/**
+ * Inscrit un compte par Better Auth ; rend le compte et le cookie de sa session. Son adresse compte pour vérifiée,
+ * comme celle d'un compte qui a ouvert le lien du courriel, sauf `verifie: false`.
+ */
+export async function inscrireEssai(auth: Auth, base: Base, nom: string, langue?: 'fr' | 'en', options: { verifie?: boolean } = {}): Promise<Compte> {
   // L'adresse se tire du nom sans ses accents : Better Auth n'accepte que des adresses ASCII.
   const adresse = `${nom.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()}@exemple.fr`
   const r = await auth.api.signUpEmail({ body: { email: adresse, password: 'motdepasse', name: nom, langue } as never, returnHeaders: true })
   const cookie = (r.headers.get('set-cookie') ?? '').split(';')[0]!
+  if (options.verifie !== false) base.verifierEmail(r.response.user.id)
   return { utilisateur: base.utilisateurParId(r.response.user.id)!, cookie }
 }
 
@@ -71,17 +76,27 @@ export interface Monde {
   auth: Auth
   autorisation: Autorisation
   dossier: string
-  compte(nom: string): Promise<Compte>
+  compte(nom: string, options?: { verifie?: boolean }): Promise<Compte>
   /** Crée un tableau à `proprietaire` et y écrit ce que fait `ecrire` ; l'état est enregistré comme le ferait la synchro. */
   tableau(proprietaire: Compte, id: string, titre: string, ecrire?: (doc: Y.Doc) => void, parent?: string): void
-  appeler(chemin: string, options?: { methode?: string; compte?: Compte; cookie?: string; json?: unknown; corps?: Uint8Array; type?: string }): Promise<Response>
+  appeler(
+    chemin: string,
+    options?: { methode?: string; compte?: Compte; cookie?: string; json?: unknown; corps?: Uint8Array; type?: string; entetes?: Record<string, string> },
+  ): Promise<Response>
   /** L'application appelée telle quelle (en-têtes et corps à la main), pour ce que `appeler` ne sait pas dire. */
   appelerBrut(chemin: string, init?: RequestInit): Promise<Response>
+  /** L'heure du monde (ms), qui avance d'une milliseconde à chaque lecture. */
+  maintenant(): number
+  /** Fait passer le temps du monde : une échéance arrive, un lien expire. */
+  avancer(ms: number): void
   fermer(): void
 }
 
-/** `cle` : le monde chiffre au repos, comme un serveur qui a reçu `NOTAK_CLE`. */
-export function monde(options: { cle?: Cle } = {}): Monde {
+/**
+ * `cle` : le monde chiffre au repos, comme un serveur qui a reçu `NOTAK_CLE`. `courriels` : les courriels partent,
+ * et s'empilent là.
+ */
+export function monde(options: { cle?: Cle; courriels?: Courriel[] } = {}): Monde {
   const dossier = mkdtempSync(join(tmpdir(), 'notak-monde-'))
   const base = ouvrirBase(':memory:', options.cle ?? null)
   const auth = authEssai(base)
@@ -100,13 +115,15 @@ export function monde(options: { cle?: Cle } = {}): Monde {
     relaisFiable: false,
     cookieSecurise: false,
     cle: options.cle ?? null,
+    origine: ORIGINE_ESSAI,
+    ...(options.courriels ? { courrier: { actif: true, envoyer: async (c: Courriel) => void options.courriels!.push(c) } } : {}),
   })
   return {
     base,
     auth,
     autorisation,
     dossier,
-    compte: (nom) => inscrireEssai(auth, base, nom),
+    compte: (nom, o) => inscrireEssai(auth, base, nom, undefined, o),
     tableau(proprietaire, id, titre, ecrire, parent) {
       base.creerTableau({ id, titre, proprietaire: proprietaire.utilisateur.id, parent: parent ?? null })
       base.definirAcces({ tableau: id, utilisateur: proprietaire.utilisateur.id, role: 'proprietaire' })
@@ -116,7 +133,7 @@ export function monde(options: { cle?: Cle } = {}): Monde {
       base.enregistrerDocument(nomDuDocument(id), Y.encodeStateAsUpdate(doc))
     },
     appeler(chemin, options = {}) {
-      const entetes: Record<string, string> = {}
+      const entetes: Record<string, string> = { ...options.entetes }
       if (options.compte) entetes.cookie = options.compte.cookie
       if (options.cookie) entetes.cookie = options.cookie
       if (options.json !== undefined) entetes['content-type'] = 'application/json'
@@ -132,6 +149,10 @@ export function monde(options: { cle?: Cle } = {}): Monde {
       )
     },
     appelerBrut: (chemin, init) => Promise.resolve(app.request(chemin, init)),
+    maintenant: () => instant,
+    avancer(ms) {
+      instant += ms
+    },
     fermer() {
       base.fermer()
       rmSync(dossier, { recursive: true, force: true })

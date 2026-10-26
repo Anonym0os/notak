@@ -55,6 +55,35 @@ export interface Invitation {
   tableau: string
   email: string
   role: Role
+  /** Quand elle a été faite (ms) : elle vaut `DUREE_INVITATION_MS`. */
+  cree: number
+  /** Qui l'a faite, s'il a encore un compte. */
+  par: string | null
+  /** Jusqu'à quand l'accès qu'elle donne vaudra (ms), ou `null` : sans limite. */
+  echeance: number | null
+}
+
+/** Voir le tableau, ou le voir et le commenter : un visiteur sans compte ne modifie jamais rien. */
+export type NiveauVisiteur = 'lecture' | 'commentaire'
+
+/** Un lien visiteur : qui l'a, sans compte, regarde le tableau (et le commente, si le niveau le permet). */
+export interface LienVisiteur {
+  /** L'identifiant qui sert à le gérer : il ne révèle pas le jeton. */
+  id: string
+  tableau: string
+  /** Le secret de l'adresse (`/p/<jeton>`). */
+  jeton: string
+  /** Pour qui, ou pour quoi : « Client Dupont », « Jury ». Peut être vide. */
+  nom: string
+  niveau: NiveauVisiteur
+  cree: number
+  par: string | null
+  /** Jusqu'à quand il ouvre le tableau (ms), ou `null` : sans limite. */
+  expire: number | null
+  /** L'empreinte de son mot de passe, ou `null`. */
+  motDePasse: string | null
+  /** La dernière fois qu'on l'a ouvert, ou `null` s'il n'a jamais servi. */
+  derniereVisite: number | null
 }
 
 export interface Fichier {
@@ -64,8 +93,8 @@ export interface Fichier {
   auteur: string
 }
 
-/** Ce que protège un mot de passe : l'ouverture du tableau (`tableau`), ou la lecture par son lien public (`public`). */
-export type Portee = 'tableau' | 'public'
+/** Ce que protège un mot de passe : l'ouverture du tableau aux comptes. Un lien visiteur porte le sien. */
+export type Portee = 'tableau'
 export type GenreActivite = 'cree' | 'modifie' | 'deplace' | 'supprime' | 'restaure' | 'commente' | 'titre'
 
 export interface NouvelleActivite {
@@ -184,9 +213,27 @@ export interface Base {
 
   invitations(tableau: string): Invitation[]
   invitationsPour(email: string): Invitation[]
-  definirInvitation(i: Invitation): void
+  /** Pose (ou refait) l'invitation ; `jeton` : l'empreinte du jeton de son lien, qui remplace l'ancien. */
+  definirInvitation(i: Invitation & { jeton: string }): void
+  /** L'invitation dont le lien porte ce jeton (par son empreinte). */
+  invitationDuJeton(empreinte: string): Invitation | null
+  /** Change le rôle et l'échéance d'une invitation, sans toucher à son lien. */
+  modifierInvitation(tableau: string, email: string, m: { role: Role; echeance: number | null }): void
   retirerInvitation(tableau: string, email: string): boolean
   supprimerInvitationsPour(email: string): void
+  /** L'adresse de ce compte est vérifiée (un lien ouvert, un fournisseur qui la garantit, un compte créé par l'admin). */
+  emailVerifie(utilisateur: string): boolean
+  /** Marque l'adresse de ce compte vérifiée. */
+  verifierEmail(utilisateur: string): void
+  // ---- Les échéances des accès donnés à des comptes ----
+  /** Jusqu'à quand ce sujet garde son rôle direct sur ce tableau, ou `null` : sans limite. */
+  echeance(tableau: string, sujet: string): number | null
+  /** Pose l'échéance du rôle direct de ce sujet ; `null` la retire. Retirer le rôle retire aussi l'échéance. */
+  definirEcheance(tableau: string, sujet: string, expire: number | null): void
+  /** Une échéance est-elle passée, dont le rôle n'a pas encore été retiré ? */
+  echeanceAtteinte(maintenant: number): boolean
+  /** Retire les rôles dont l'échéance est passée ; rend les tableaux touchés. */
+  expirerAcces(maintenant: number): string[]
 
   document(nom: string): Uint8Array | null
   enregistrerDocument(nom: string, etat: Uint8Array): void
@@ -194,32 +241,35 @@ export interface Base {
   creerFichier(f: Fichier): void
   fichier(id: string): Fichier | null
 
-  /** Le jeton du lien public du tableau, ou `null` s'il n'est pas publié. */
-  jetonPublic(tableau: string): string | null
-  definirJetonPublic(tableau: string, jeton: string, maintenant: number): void
-  /** Ce que permet le lien public du tableau : lire, commenter ou modifier. */
-  niveauPublic(tableau: string): 'lecture' | 'commentaire' | 'edition' | null
-  definirNiveauPublic(tableau: string, niveau: 'lecture' | 'commentaire' | 'edition'): void
+  // ---- Les liens visiteurs ----
+  /** Les liens visiteurs du tableau, du plus ancien au plus récent. */
+  liensVisiteurs(tableau: string): LienVisiteur[]
+  lienVisiteur(id: string): LienVisiteur | null
+  lienDuJeton(jeton: string): LienVisiteur | null
+  /** Crée le lien ; `lien:<jeton>` reçoit sur le tableau le rôle de son niveau. */
+  creerLienVisiteur(l: Omit<LienVisiteur, 'derniereVisite'>): void
+  /** Change son nom, son niveau ou son échéance ; ce qui manque ne bouge pas. */
+  modifierLienVisiteur(id: string, m: { nom?: string; niveau?: NiveauVisiteur; expire?: number | null }): void
+  /** Pose, change ou retire (`null`) son mot de passe : ceux qui l'avaient donné doivent le redonner. */
+  definirMotDePasseLien(id: string, empreinte: string | null): void
+  /** Retire le lien et son rôle : son adresse n'ouvre plus rien. Rend faux s'il n'existait pas. */
+  retirerLienVisiteur(id: string): boolean
+  noterVisite(id: string, maintenant: number): void
+  /** Un accès donné contre le mot de passe d'un lien : seule l'empreinte du jeton du cookie est gardée. */
+  creerAccesLien(empreinte: string, lien: string, expire: number): void
+  accesLienValide(empreinte: string, lien: string, maintenant: number): boolean
   /** Une équipe, et l'espace où elle vit. */
   equipe(id: string): { id: string; nom: string; espace: string } | null
-  retirerJetonPublic(tableau: string): boolean
-  tableauDuJeton(jeton: string): string | null
 
   /** L'empreinte du mot de passe de ce tableau pour cette portée, ou `null` s'il n'en a pas. */
   motDePasse(tableau: string, portee: Portee): string | null
-  /**
-   * Pose (ou change) le mot de passe. Tout ce qui l'avait levé retombe : les comptes qui avaient ouvert le tableau
-   * (`tableau`), ou les lecteurs du lien public (`public`) doivent le redonner.
-   */
+  /** Pose (ou change) le mot de passe. Les comptes qui avaient ouvert le tableau doivent le redonner. */
   definirMotDePasse(tableau: string, portee: Portee, empreinte: string): void
   /** Retire le mot de passe ; rend faux s'il n'y en avait pas. */
   retirerMotDePasse(tableau: string, portee: Portee): boolean
   /** Ce compte a-t-il donné le mot de passe de ce tableau ? */
   aOuvert(utilisateur: string, tableau: string): boolean
   noterOuverture(utilisateur: string, tableau: string): void
-  /** Un accès à la lecture publique, donné contre le mot de passe du lien : seule l'empreinte du jeton est gardée. */
-  creerAccesPublic(empreinte: string, tableau: string, expire: number): void
-  accesPublicValide(empreinte: string, tableau: string, maintenant: number): boolean
 
   /** Les tableaux favoris d'un compte, le dernier ajouté d'abord. */
   favoris(utilisateur: string): string[]
@@ -291,8 +341,10 @@ export interface Trouve {
   extrait: string
 }
 
-/** Combien de temps un accès public, donné contre le mot de passe du lien, reste valable. */
+/** Combien de temps un accès donné contre le mot de passe d'un lien visiteur reste valable, au plus. */
 export const DUREE_ACCES_PUBLIC_MS = 24 * 3600 * 1000
+/** Combien de temps le lien d'une invitation s'accepte. */
+export const DUREE_INVITATION_MS = 30 * 24 * 3600 * 1000
 
 /** Combien de tableaux récents on garde par compte. */
 export const RECENTS_GARDES = 50
@@ -335,11 +387,37 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
     (db.prepare(sql).get(...params) as Ligne | undefined) ?? null
   const executer = (sql: string, ...params: (string | number | Uint8Array | null)[]) => db.prepare(sql).run(...params)
 
-  /** Un mot de passe change ou disparaît : ce qui l'avait levé ne vaut plus. */
-  const oublierLeves = (tableau: string, portee: Portee) => {
-    if (portee === 'tableau') executer('DELETE FROM ouvertures WHERE tableau = ?', tableau)
-    else executer('DELETE FROM acces_publics WHERE tableau = ?', tableau)
-  }
+  /** Le mot de passe d'un tableau change ou disparaît : ceux qui l'avaient donné doivent le redonner. */
+  const oublierLeves = (tableau: string, _portee: Portee) => void executer('DELETE FROM ouvertures WHERE tableau = ?', tableau)
+
+  const invitation = (l: Ligne | null): Invitation | null =>
+    l
+      ? {
+          tableau: l.tableau as string,
+          email: l.email as string,
+          role: l.role as Role,
+          cree: l.cree as number,
+          par: (l.par as string | null) ?? null,
+          echeance: (l.echeance as number | null) ?? null,
+        }
+      : null
+  const COLONNES_INVITATION = 'tableau, email, role, cree, par, echeance'
+
+  const lienVisiteur = (l: Ligne | null): LienVisiteur | null =>
+    l
+      ? {
+          id: l.id as string,
+          tableau: l.tableau as string,
+          jeton: l.jeton as string,
+          nom: l.nom as string,
+          niveau: l.niveau as NiveauVisiteur,
+          cree: l.cree as number,
+          par: (l.par as string | null) ?? null,
+          expire: (l.expire as number | null) ?? null,
+          motDePasse: (l.mot_de_passe as string | null) ?? null,
+          derniereVisite: (l.derniere_visite as number | null) ?? null,
+        }
+      : null
 
   // Les colonnes que Better Auth ajoute à `utilisateurs` (adresse vérifiée, dates, avatar d'un fournisseur) n'en sortent pas.
   const utilisateur = (l: Ligne | null): Utilisateur | null =>
@@ -372,7 +450,7 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
       if (Number(executer('DELETE FROM relations WHERE objet = ? AND relation = ? AND sujet = ?', r.objet, r.relation, r.sujet).changes) > 0) aEnvoyer(r)
     })
   const relationsSur = (objet: string) => tous('SELECT objet, relation, sujet FROM relations WHERE objet = ?', objet) as unknown as Relation[]
-  /** Un sujet n'a qu'un rôle direct sur un tableau : le nouveau remplace l'ancien. */
+  /** Un sujet n'a qu'un rôle direct sur un tableau : le nouveau remplace l'ancien. Sans rôle, plus d'échéance. */
   const definirRoleDe = (tableau: string, sujet: string, role: Role | null) =>
     transaction(() => {
       for (const r of ROLES) {
@@ -380,6 +458,7 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
         if (r === role) ajouterRelation(relation)
         else retirerRelation(relation)
       }
+      if (role === null) executer('DELETE FROM echeances WHERE tableau = ? AND sujet = ?', tableau, sujet)
     })
 
   return {
@@ -529,17 +608,40 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
         membres: (tous('SELECT userId FROM teamMember WHERE teamId = ?', id) as unknown as { userId: string }[]).map((l) => l.userId),
       })),
 
-    invitations: (tableau) => tous('SELECT tableau, email, role FROM invitations WHERE tableau = ?', tableau) as unknown as Invitation[],
-    invitationsPour: (email) => tous('SELECT tableau, email, role FROM invitations WHERE email = ?', email) as unknown as Invitation[],
+    invitations: (tableau) => tous(`SELECT ${COLONNES_INVITATION} FROM invitations WHERE tableau = ? ORDER BY cree`, tableau).map((l) => invitation(l)!),
+    invitationsPour: (email) => tous(`SELECT ${COLONNES_INVITATION} FROM invitations WHERE email = ?`, email).map((l) => invitation(l)!),
     definirInvitation: (i) =>
       void executer(
-        'INSERT INTO invitations (tableau,email,role) VALUES (?,?,?) ON CONFLICT(tableau,email) DO UPDATE SET role = excluded.role',
+        `INSERT INTO invitations (tableau,email,role,jeton,cree,par,echeance) VALUES (?,?,?,?,?,?,?)
+         ON CONFLICT(tableau,email) DO UPDATE SET role = excluded.role, jeton = excluded.jeton, cree = excluded.cree, par = excluded.par, echeance = excluded.echeance`,
         i.tableau,
         i.email,
         i.role,
+        i.jeton,
+        i.cree,
+        i.par,
+        i.echeance,
       ),
+    invitationDuJeton: (empreinte) => invitation(un(`SELECT ${COLONNES_INVITATION} FROM invitations WHERE jeton = ?`, empreinte)),
+    modifierInvitation: (tableau, email, m) =>
+      void executer('UPDATE invitations SET role = ?, echeance = ? WHERE tableau = ? AND email = ?', m.role, m.echeance, tableau, email),
     retirerInvitation: (tableau, email) => Number(executer('DELETE FROM invitations WHERE tableau = ? AND email = ?', tableau, email).changes) > 0,
     supprimerInvitationsPour: (email) => void executer('DELETE FROM invitations WHERE email = ?', email),
+    emailVerifie: (u) => un('SELECT email_verifie FROM utilisateurs WHERE id = ?', u)?.email_verifie === 1,
+    verifierEmail: (u) => void executer('UPDATE utilisateurs SET email_verifie = 1 WHERE id = ?', u),
+
+    echeance: (tableau, sujet) => (un('SELECT expire FROM echeances WHERE tableau = ? AND sujet = ?', tableau, sujet)?.expire as number | undefined) ?? null,
+    definirEcheance(tableau, sujet, expire) {
+      if (expire === null) executer('DELETE FROM echeances WHERE tableau = ? AND sujet = ?', tableau, sujet)
+      else executer('INSERT INTO echeances (tableau,sujet,expire) VALUES (?,?,?) ON CONFLICT(tableau,sujet) DO UPDATE SET expire = excluded.expire', tableau, sujet, expire)
+    },
+    echeanceAtteinte: (maintenant) => un('SELECT 1 AS ok FROM echeances WHERE expire <= ? LIMIT 1', maintenant) !== null,
+    expirerAcces: (maintenant) =>
+      transaction(() => {
+        const passees = tous('SELECT tableau, sujet FROM echeances WHERE expire <= ?', maintenant) as unknown as { tableau: string; sujet: string }[]
+        for (const p of passees) definirRoleDe(p.tableau, p.sujet, null)
+        return [...new Set(passees.map((p) => p.tableau))]
+      }),
 
     document(nom) {
       const l = un('SELECT etat FROM documents WHERE nom = ?', nom)
@@ -555,36 +657,57 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
     creerFichier: (f) => void executer('INSERT INTO fichiers (id,type,taille,auteur) VALUES (?,?,?,?)', f.id, f.type, f.taille, f.auteur),
     fichier: (id) => (un('SELECT * FROM fichiers WHERE id = ?', id) as Fichier | null),
 
-    jetonPublic: (tableau) => (un('SELECT jeton FROM liens_publics WHERE tableau = ?', tableau)?.jeton as string | undefined) ?? null,
-    // Le lien public est un sujet du modèle d'autorisation : `lien:<jeton>` a sur le tableau le rôle de son niveau.
-    definirJetonPublic: (tableau, jeton, maintenant) =>
+    liensVisiteurs: (tableau) => tous('SELECT * FROM liens_visiteurs WHERE tableau = ? ORDER BY cree, id', tableau).map((l) => lienVisiteur(l)!),
+    lienVisiteur: (id) => lienVisiteur(un('SELECT * FROM liens_visiteurs WHERE id = ?', id)),
+    lienDuJeton: (jeton) => lienVisiteur(un('SELECT * FROM liens_visiteurs WHERE jeton = ?', jeton)),
+    // Un lien visiteur est un sujet du modèle d'autorisation : `lien:<jeton>` a sur le tableau le rôle de son niveau.
+    creerLienVisiteur: (l) =>
       transaction(() => {
-        const ancien = un('SELECT jeton FROM liens_publics WHERE tableau = ?', tableau)?.jeton as string | undefined
-        if (ancien) definirRoleDe(tableau, `lien:${ancien}`, null)
         executer(
-          "INSERT INTO liens_publics (tableau,jeton,cree,niveau) VALUES (?,?,?,'lecture') ON CONFLICT(tableau) DO UPDATE SET jeton = excluded.jeton, cree = excluded.cree, niveau = 'lecture'",
-          tableau,
-          jeton,
-          maintenant,
+          'INSERT INTO liens_visiteurs (id,tableau,jeton,nom,niveau,cree,par,expire,mot_de_passe) VALUES (?,?,?,?,?,?,?,?,?)',
+          l.id,
+          l.tableau,
+          l.jeton,
+          l.nom,
+          l.niveau,
+          l.cree,
+          l.par,
+          l.expire,
+          l.motDePasse,
         )
-        definirRoleDe(tableau, `lien:${jeton}`, 'lecture')
+        definirRoleDe(l.tableau, `lien:${l.jeton}`, l.niveau)
       }),
-    retirerJetonPublic: (tableau) =>
+    modifierLienVisiteur: (id, m) =>
       transaction(() => {
-        const jeton = un('SELECT jeton FROM liens_publics WHERE tableau = ?', tableau)?.jeton as string | undefined
-        if (!jeton) return false
-        definirRoleDe(tableau, `lien:${jeton}`, null)
-        executer('DELETE FROM liens_publics WHERE tableau = ?', tableau)
+        const l = lienVisiteur(un('SELECT * FROM liens_visiteurs WHERE id = ?', id))
+        if (!l) return
+        if (m.nom !== undefined) executer('UPDATE liens_visiteurs SET nom = ? WHERE id = ?', m.nom, id)
+        if (m.expire !== undefined) executer('UPDATE liens_visiteurs SET expire = ? WHERE id = ?', m.expire, id)
+        if (m.niveau !== undefined) {
+          executer('UPDATE liens_visiteurs SET niveau = ? WHERE id = ?', m.niveau, id)
+          definirRoleDe(l.tableau, `lien:${l.jeton}`, m.niveau)
+        }
+      }),
+    definirMotDePasseLien: (id, empreinte) =>
+      transaction(() => {
+        executer('UPDATE liens_visiteurs SET mot_de_passe = ? WHERE id = ?', empreinte, id)
+        executer('DELETE FROM acces_liens WHERE lien = ?', id)
+      }),
+    retirerLienVisiteur: (id) =>
+      transaction(() => {
+        const l = lienVisiteur(un('SELECT * FROM liens_visiteurs WHERE id = ?', id))
+        if (!l) return false
+        definirRoleDe(l.tableau, `lien:${l.jeton}`, null)
+        executer('DELETE FROM liens_visiteurs WHERE id = ?', id)
         return true
       }),
-    niveauPublic: (tableau) => (un('SELECT niveau FROM liens_publics WHERE tableau = ?', tableau)?.niveau as 'lecture' | 'commentaire' | 'edition' | undefined) ?? null,
-    definirNiveauPublic: (tableau, niveau) =>
-      transaction(() => {
-        const jeton = un('SELECT jeton FROM liens_publics WHERE tableau = ?', tableau)?.jeton as string | undefined
-        if (!jeton) return
-        executer('UPDATE liens_publics SET niveau = ? WHERE tableau = ?', niveau, tableau)
-        definirRoleDe(tableau, `lien:${jeton}`, niveau)
-      }),
+    noterVisite: (id, maintenant) => void executer('UPDATE liens_visiteurs SET derniere_visite = ? WHERE id = ?', maintenant, id),
+    creerAccesLien(empreinte, lien, expire) {
+      executer('DELETE FROM acces_liens WHERE expire < ?', expire - DUREE_ACCES_PUBLIC_MS)
+      executer('INSERT INTO acces_liens (empreinte,lien,expire) VALUES (?,?,?)', empreinte, lien, expire)
+    },
+    accesLienValide: (empreinte, lien, maintenant) =>
+      un('SELECT 1 AS ok FROM acces_liens WHERE empreinte = ? AND lien = ? AND expire >= ?', empreinte, lien, maintenant) !== null,
     equipe(id) {
       const l = un('SELECT id, name AS nom, organizationId AS espace FROM team WHERE id = ?', id)
       return l ? (l as unknown as { id: string; nom: string; espace: string }) : null
@@ -611,12 +734,6 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
     },
     aOuvert: (u, t) => un('SELECT 1 AS ok FROM ouvertures WHERE utilisateur = ? AND tableau = ?', u, t) !== null,
     noterOuverture: (u, t) => void executer('INSERT OR IGNORE INTO ouvertures (utilisateur,tableau) VALUES (?,?)', u, t),
-    creerAccesPublic(empreinte, tableau, expire) {
-      executer('DELETE FROM acces_publics WHERE expire < ?', expire - DUREE_ACCES_PUBLIC_MS)
-      executer('INSERT INTO acces_publics (empreinte,tableau,expire) VALUES (?,?,?)', empreinte, tableau, expire)
-    },
-    accesPublicValide: (empreinte, tableau, maintenant) =>
-      un('SELECT 1 AS ok FROM acces_publics WHERE empreinte = ? AND tableau = ? AND expire >= ?', empreinte, tableau, maintenant) !== null,
     favoris: (u) =>
       (tous('SELECT tableau FROM favoris WHERE utilisateur = ? ORDER BY cree DESC, tableau', u) as unknown as { tableau: string }[]).map((l) => l.tableau),
     definirFavori: (u, t, maintenant) =>
@@ -811,6 +928,5 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
         ).changes,
       )
     },
-    tableauDuJeton: (jeton) => (un('SELECT tableau FROM liens_publics WHERE jeton = ?', jeton)?.tableau as string | undefined) ?? null,
   }
 }

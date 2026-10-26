@@ -30,6 +30,7 @@ export {
 export { BoutonIlot, FiletIlot, Ilot } from './Ilots'
 export { creerMagasinYjs, type MagasinYjs } from './coeur/magasinYjs'
 export { enLectureSeule } from './coeur/magasin'
+export { type DroitsTableau, PREFIXE_VISITEUR, estVisiteur } from './coeur/reglesDroits'
 export {
   type Connexion,
   type Declaration,

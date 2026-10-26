@@ -133,6 +133,16 @@ boîte, et un magasin OpenFGA disparu se refait depuis la base. Les membres, rô
 sont suivis par des déclencheurs SQL (`espaces_a_synchroniser`), puis recalculés (`synchroniserEspaces`). Le modèle
 sait aussi les droits d'un élément.
 
+**Décision (26/10/2026) : sans compte, on ne se synchronise jamais.** Un visiteur passe par son lien (`/api/public/<jeton>`)
+et lit une vue faite pour lui : sans corbeille, non triés ni personne confiée, et sans les fils si le lien ne permet pas de
+commenter. Motif : le document Yjs porte tout, la présence des autres comprise, et ne se filtre pas par connexion. Un lien
+visiteur voit ou commente (`liens_visiteurs`), jamais ne modifie ; ce qu'un visiteur écrit arrive par une route à part,
+relu champ par champ et jugé par la règle du commentateur (`visiteurs.ts`), sous un identifiant `visiteur:` que la toile
+marque. Un tableau a autant de liens que de destinataires, chacun avec son échéance et son mot de passe. Un accès donné à
+un compte peut avoir une échéance (`echeances`, `echeances.ts`). Une invitation ne s'active d'elle-même que pour une
+adresse vérifiée ; sinon, seul le lien qu'elle porte (son empreinte en base) l'accepte : un compte ouvert sous l'adresse
+d'un autre ne prend pas ce qu'on lui destinait.
+
 La synchro contrôle ce qu'envoient un commentateur et quiconque écrit un tableau dont des éléments ont leurs droits
 propres (`controle.ts`). Une mise à jour y est appliquée sous une origine suivie, ses changements relevés élément par
 élément, et annulée aussitôt par un `Y.UndoManager` si elle n'est pas permise : l'annulation part chez tout le monde,

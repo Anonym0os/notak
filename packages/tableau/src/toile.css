@@ -936,6 +936,13 @@
   pointer-events: none;
 }
 
+/* Le coin est au bouton « Vue » quand l'espace en pose un : la mention passe au milieu, en bas. */
+.notak-espace:has(.notak-vue-bas) .notak-lecture {
+  right: auto;
+  left: 50%;
+  translate: -50% 0;
+}
+
 .notak-pastilles {
   display: flex;
   margin-left: auto;

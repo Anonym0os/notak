@@ -32,6 +32,10 @@
   color: var(--notak-texte);
 }
 
+.notak-espace[data-theme='sombre'] .notak-commentaire-visiteur {
+  color: #a3aab4;
+}
+
 /* Le fil borné en hauteur défile dans sa fiche : pas de voile qui cache le bas. */
 .notak-carte[data-type='commentaire'] > .notak-voile {
   display: none;
@@ -132,6 +136,18 @@
 .notak-commentaire-entete time {
   color: #8d929a;
   font-size: 12px;
+}
+
+/* Écrit par un visiteur, sans compte : une étiquette discrète après son nom, qu'il a choisi lui-même. */
+.notak-commentaire-visiteur {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  color: #6b7280;
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 16px;
 }
 
 /* Du nouveau que je n'ai pas lu : un point orange à côté du nom. */

@@ -20,12 +20,17 @@ export interface Acces {
   utilisateur?: string
   /** Une équipe d'un espace à qui le tableau est partagé (son nom est alors dans `nom`, et `email` est vide). */
   equipe?: string
+  /** Vide pour qui n'est pas propriétaire : il ne voit que les noms des autres. */
   email: string
   nom?: string
   role: Role
   enAttente: boolean
   /** Donné sur un tableau parent : il se retire là-haut. */
   herite?: boolean
+  /** Jusqu'à quand l'accès vaut (ms), ou `null` : sans limite. */
+  expire?: number | null
+  /** Une invitation : quand elle a été faite, et si son lien s'accepte encore. */
+  invitation?: { cree: number; valable: boolean }
 }
 
 /** Une erreur dont le message se montre tel quel (il est déjà dans la langue de l'interface). `code` : celui que le serveur a rendu. */
@@ -328,9 +333,59 @@ export async function listerAcces(tableau: string): Promise<Acces[]> {
 /** À qui on partage : une adresse, ou une équipe. */
 export type Cible = { email: string } | { equipe: string }
 
-export async function partager(tableau: string, cible: Cible, role: RoleDonne): Promise<void> {
-  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/partage`, { ...cible, role })
+/** Ce que répond un partage : l'accès donné, ou une invitation, avec le jeton de son lien et s'il est parti par courriel. */
+export interface Partage {
+  enAttente: boolean
+  expire: number | null
+  jeton?: string
+  envoye?: boolean
+  /** L'adresse n'a pas de compte, et l'instance n'accepte pas d'inscriptions. */
+  inscriptionsFermees?: boolean
+}
+
+/** `expire` : jusqu'à quand (ms) ; `null` : sans limite. */
+export async function partager(tableau: string, cible: Cible, role: RoleDonne, expire: number | null = null): Promise<Partage> {
+  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/partage`, { ...cible, role, expire })
   if (!r.ok) throw await refus(r, { demande_invalide: 'erreur.adresse_invalide', 400: 'erreur.adresse_invalide', ...PROPRIETAIRE, ...TABLEAU_ABSENT })
+  return (await r.json()) as Partage
+}
+
+/** Change le rôle ou l'échéance d'un accès déjà donné, ou d'une invitation, sans la renvoyer. */
+export async function modifierAcces(tableau: string, cible: Cible, changement: { role?: RoleDonne; expire?: number | null }): Promise<void> {
+  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/partage`, { ...cible, ...changement }, 'PATCH')
+  if (!r.ok) throw await refus(r, { ...PROPRIETAIRE, ...TABLEAU_ABSENT })
+}
+
+/** Un nouveau lien pour une invitation en attente : l'ancien ne vaut plus ; il repart par courriel si l'on peut. */
+export async function nouveauLienInvitation(tableau: string, email: string): Promise<{ jeton: string; envoye: boolean }> {
+  const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/invitations/lien`, { email })
+  if (!r.ok) throw await refus(r, { ...PROPRIETAIRE, ...TABLEAU_ABSENT })
+  return (await r.json()) as { jeton: string; envoye: boolean }
+}
+
+/** L'adresse d'une invitation : le jeton après `#`, qui ne part jamais vers le serveur avec la page. */
+export const adresseInvitation = (jeton: string) => `${location.origin}/invitation#${jeton}`
+
+/** Ce que propose une invitation, lue par son lien, avant de l'accepter. */
+export interface InvitationRecue {
+  titre: string
+  par: string | null
+  role: Role
+  email: string
+  expire: number | null
+}
+
+export async function lireInvitation(jeton: string): Promise<InvitationRecue> {
+  const r = await appeler(`/api/invitations/${encodeURIComponent(jeton)}`)
+  if (!r.ok) throw await refus(r, { 404: 'erreur.invitation_introuvable', 410: 'erreur.invitation_expiree', 429: 'erreur.trop_d_essais' })
+  return (await r.json()) as InvitationRecue
+}
+
+/** Accepte l'invitation pour le compte connecté ; rend le tableau qu'elle ouvre. */
+export async function accepterInvitationTableau(jeton: string): Promise<string> {
+  const r = await appeler(`/api/invitations/${encodeURIComponent(jeton)}/accepter`, {})
+  if (!r.ok) throw await refus(r, { 404: 'erreur.invitation_introuvable', 410: 'erreur.invitation_expiree', 429: 'erreur.trop_d_essais' })
+  return ((await r.json()) as { tableau: string }).tableau
 }
 
 export async function retirerAcces(tableau: string, cible: Cible): Promise<void> {
@@ -338,33 +393,56 @@ export async function retirerAcces(tableau: string, cible: Cible): Promise<void>
   if (!r.ok) throw await refus(r, { 409: 'erreur.dernier_proprietaire', ...PROPRIETAIRE, ...TABLEAU_ABSENT })
 }
 
-const lienDe = (tableau: string) => `/api/tableaux/${encodeURIComponent(tableau)}/lien`
+/** Ce que permet un lien visiteur : voir, ou voir et commenter. Sans compte, on ne modifie jamais rien. */
+export type NiveauVisiteur = 'lecture' | 'commentaire'
 
-/** Le jeton du lien public du tableau, ou `null` s'il n'est pas publié. */
-export async function lienPublic(tableau: string): Promise<string | null> {
-  const r = await appeler(lienDe(tableau))
-  if (!r.ok) throw await refus(r, { ...PROPRIETAIRE, ...TABLEAU_ABSENT })
-  return ((await r.json()) as { jeton: string | null }).jeton
+/** Un lien visiteur, tel que son propriétaire le gère. */
+export interface LienVisiteur {
+  id: string
+  jeton: string
+  /** Pour qui : « Client Dupont ». Peut être vide. */
+  nom: string
+  niveau: NiveauVisiteur
+  cree: number
+  /** Jusqu'à quand il ouvre le tableau (ms), ou `null` : sans limite. */
+  expire: number | null
+  /** Son échéance est passée : il n'ouvre plus rien, jusqu'à ce qu'on le prolonge. */
+  echu: boolean
+  protege: boolean
+  /** La dernière fois qu'on l'a ouvert, ou `null`. */
+  derniereVisite: number | null
 }
 
-export async function creerLienPublic(tableau: string): Promise<string> {
-  const r = await appeler(lienDe(tableau), {})
+const liensDe = (tableau: string) => `/api/tableaux/${encodeURIComponent(tableau)}/liens`
+
+export async function listerLiens(tableau: string): Promise<LienVisiteur[]> {
+  const r = await appeler(liensDe(tableau))
   if (!r.ok) throw await refus(r, { ...PROPRIETAIRE, ...TABLEAU_ABSENT })
-  return ((await r.json()) as { jeton: string }).jeton
+  return (await r.json()) as LienVisiteur[]
 }
 
-export type NiveauLien = 'lecture' | 'commentaire' | 'edition'
-
-/** Ce que permet le lien public : lire, commenter, ou modifier. */
-export async function niveauLien(tableau: string): Promise<NiveauLien | null> {
-  const r = await appeler(lienDe(tableau))
-  if (!r.ok) throw await refus(r, { ...PROPRIETAIRE, ...TABLEAU_ABSENT })
-  return ((await r.json()) as { niveau: NiveauLien | null }).niveau
+export async function creerLien(tableau: string, l: { nom: string; niveau: NiveauVisiteur; expire: number | null; motDePasse?: string }): Promise<LienVisiteur> {
+  const r = await appeler(liensDe(tableau), l)
+  if (!r.ok) throw await refus(r, { mot_de_passe_invalide: 'partage.mdp6', ...PROPRIETAIRE, ...TABLEAU_ABSENT })
+  return (await r.json()) as LienVisiteur
 }
 
-export async function definirNiveauLien(tableau: string, niveau: NiveauLien): Promise<void> {
-  const r = await appeler(`${lienDe(tableau)}/niveau`, { niveau }, 'PUT')
+export async function modifierLien(tableau: string, id: string, m: { nom?: string; niveau?: NiveauVisiteur; expire?: number | null }): Promise<LienVisiteur> {
+  const r = await appeler(`${liensDe(tableau)}/${id}`, m, 'PATCH')
   if (!r.ok) throw await refus(r, { ...PROPRIETAIRE, ...TABLEAU_ABSENT })
+  return (await r.json()) as LienVisiteur
+}
+
+/** Pose ou change le mot de passe du lien (`null` : le retire). */
+export async function motDePasseDuLien(tableau: string, id: string, motDePasse: string | null): Promise<LienVisiteur> {
+  const r = await appeler(`${liensDe(tableau)}/${id}/mot-de-passe`, motDePasse === null ? undefined : { motDePasse }, motDePasse === null ? 'DELETE' : 'PUT')
+  if (!r.ok) throw await refus(r, { mot_de_passe_invalide: 'partage.mdp6', 400: 'partage.mdp6', ...PROPRIETAIRE, ...TABLEAU_ABSENT })
+  return (await r.json()) as LienVisiteur
+}
+
+export async function fermerLien(tableau: string, id: string): Promise<void> {
+  const r = await appeler(`${liensDe(tableau)}/${id}`, undefined, 'DELETE')
+  if (!r.ok && r.status !== 404) throw await refus(r, { ...PROPRIETAIRE })
 }
 
 /** Un blocage posé sur un tableau : pour tous, une personne ou une équipe ; `debloque` lève plus bas celui d'au-dessus. */
@@ -398,12 +476,7 @@ export async function reglerDroitElement(tableau: string, element: string, sujet
   if (!r.ok) throw await refus(r, { ...PROPRIETAIRE, ...TABLEAU_ABSENT, adresse_inconnue: 'erreur.adresse_inconnue' })
 }
 
-export async function retirerLienPublic(tableau: string): Promise<void> {
-  const r = await appeler(lienDe(tableau), undefined, 'DELETE')
-  if (!r.ok && r.status !== 404) throw await refus(r, { ...PROPRIETAIRE })
-}
-
-/** L'adresse que l'on donne : la page de lecture du tableau. */
+/** L'adresse que l'on donne à un visiteur : la page du tableau, sans compte. */
 export const adressePublique = (jeton: string) => `${location.origin}/p/${jeton}`
 
 export interface TableauPublic {
@@ -412,13 +485,83 @@ export interface TableauPublic {
   elements: Element[]
   /** Le titre des tableaux imbriqués, pour leurs cartes. */
   titres: Record<string, string>
+  niveau: NiveauVisiteur
+  /** Jusqu'à quand le lien ouvre le tableau, ou `null`. */
+  expire: number | null
+  /** Pour commenter : les éléments qui ont leurs propres droits, qu'un visiteur ne commente pas. */
+  figes?: string[]
+  /** Pour commenter : qui est ce visiteur, d'après la clé de son navigateur, et la couleur de ses messages. */
+  moi?: { id: string; couleur: string }
 }
 
-/** Un tableau publié, lu sans compte ; `null` si le lien n'existe pas ou plus. */
-export async function lirePublic(jeton: string): Promise<TableauPublic | null> {
-  const r = await appeler(`/api/public/${encodeURIComponent(jeton)}`)
-  if (r.status === 404) return null
-  if (!r.ok) throw await refus(r, { mot_de_passe_requis: 'erreur.lienProtege', 401: 'erreur.lienProtege' })
+/** Pourquoi un lien n'ouvre rien : il n'existe pas (ou plus), son échéance est passée, ou il demande un mot de passe. */
+export type RefusPublic = 'absent' | 'expire' | 'protege'
+
+const CLE_VISITEUR = 'notak:visiteur'
+
+/** La clé de ce navigateur pour commenter en visiteur : tirée une fois, gardée ici ; elle seule lui rend ses messages. */
+export function cleVisiteur(): string {
+  try {
+    const gardee = localStorage.getItem(CLE_VISITEUR)
+    if (gardee && /^[A-Za-z0-9_-]{32,128}$/.test(gardee)) return gardee
+  } catch {
+    // stockage fermé (navigation privée) : une clé pour cette page seulement
+  }
+  const octets = crypto.getRandomValues(new Uint8Array(32))
+  const cle = btoa(String.fromCharCode(...octets)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+  try {
+    localStorage.setItem(CLE_VISITEUR, cle)
+  } catch {
+    // tant pis : la clé vaut jusqu'à la fermeture de la page
+  }
+  return cle
+}
+
+/**
+ * Un tableau lu par un lien visiteur. `etiquette` : celle de la dernière lecture ; rien n'a changé depuis, la réponse
+ * est `'inchange'`. Un refus dit pourquoi le lien n'ouvre rien.
+ */
+export async function lirePublic(jeton: string, etiquette?: string): Promise<{ tableau: TableauPublic; etiquette: string | null } | 'inchange' | RefusPublic> {
+  let r: Response
+  try {
+    r = await fetch(`/api/public/${encodeURIComponent(jeton)}`, {
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { 'x-notak-visiteur': cleVisiteur(), ...(etiquette ? { 'if-none-match': etiquette } : {}) },
+    })
+  } catch {
+    throw new ErreurApi(t('erreur.injoignable'), 0)
+  }
+  if (r.status === 304) return 'inchange'
+  if (r.status === 404) return 'absent'
+  if (r.status === 410) return 'expire'
+  if (r.status === 401) return 'protege'
+  if (!r.ok) throw await refus(r, {})
+  return { tableau: (await r.json()) as TableauPublic, etiquette: r.headers.get('etag') }
+}
+
+/** Ce qu'un visiteur envoie de son geste : les éléments changés, tels qu'il les voit (`null` : retiré). */
+export interface ChangementVisiteur {
+  id: string
+  apres: Element | null
+}
+
+/** Envoie les commentaires d'un visiteur ; rend sa vue du tableau à jour. */
+export async function commenterEnVisiteur(jeton: string, nom: string, changements: ChangementVisiteur[]): Promise<TableauPublic> {
+  let r: Response
+  try {
+    r = await fetch(`/api/public/${encodeURIComponent(jeton)}/commentaires`, {
+      method: 'POST',
+      // Il part encore si la page se ferme pendant l'envoi : c'est souvent le dernier message qu'on vient d'écrire.
+      keepalive: true,
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json', 'x-notak-visiteur': cleVisiteur() },
+      body: JSON.stringify({ nom, changements }),
+    })
+  } catch {
+    throw new ErreurApi(t('erreur.injoignable'), 0)
+  }
+  if (!r.ok) throw await refus(r, { 410: 'erreur.lien_expire', 404: 'erreur.lienDisparu', 401: 'erreur.lienProtege', 403: 'erreur.commentaire_refuse', 429: 'erreur.trop_d_essais' })
   return (await r.json()) as TableauPublic
 }
 
@@ -532,24 +675,6 @@ export async function retirerMotDePasse(tableau: string): Promise<void> {
 export async function deverrouillerPublic(jeton: string, motDePasse: string): Promise<void> {
   const r = await appeler(`/api/public/${encodeURIComponent(jeton)}/deverrouiller`, { motDePasse })
   if (!r.ok) throw await refus(r, { 401: 'erreur.mot_de_passe_incorrect', 429: 'erreur.trop_d_essais', introuvable: 'erreur.lienDisparu', 404: 'erreur.lienDisparu' })
-}
-
-const motDePasseDuLien = (tableau: string) => `${lienDe(tableau)}/mot-de-passe`
-
-export async function lienProtege(tableau: string): Promise<boolean> {
-  const r = await appeler(motDePasseDuLien(tableau))
-  if (!r.ok) throw await refus(r, { ...PROPRIETAIRE, ...TABLEAU_ABSENT })
-  return ((await r.json()) as { protege: boolean }).protege
-}
-
-export async function poserMotDePasseDuLien(tableau: string, motDePasse: string): Promise<void> {
-  const r = await appeler(motDePasseDuLien(tableau), { motDePasse }, 'PUT')
-  if (!r.ok) throw await refus(r, { mot_de_passe_invalide: 'erreur.mdp6', 400: 'erreur.mdp6', ...PROPRIETAIRE, ...TABLEAU_ABSENT })
-}
-
-export async function retirerMotDePasseDuLien(tableau: string): Promise<void> {
-  const r = await appeler(motDePasseDuLien(tableau), undefined, 'DELETE')
-  if (!r.ok && r.status !== 404) throw await refus(r, { ...PROPRIETAIRE })
 }
 
 export type GenreActivite = 'cree' | 'modifie' | 'deplace' | 'supprime' | 'restaure' | 'commente' | 'titre'

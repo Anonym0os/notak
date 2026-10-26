@@ -36,6 +36,9 @@ const auth = creerAuth({
 })
 try {
   const r = await auth.api.signUpEmail({ body: { email: values.email, password: motDePasse, name: values.nom, langue: values.langue === 'en' ? 'en' : 'fr' } as never })
+  // L'administrateur crée le compte pour cette adresse : il en répond, elle compte pour vérifiée (une invitation
+  // qui l'attendait s'ouvrira à sa première connexion).
+  base.verifierEmail(r.user.id)
   console.log(`Compte créé : ${r.user.email} (${r.user.name})`)
   if (tire) console.log(`Mot de passe : ${motDePasse}`)
   console.log('Ses droits partiront vers OpenFGA au prochain démarrage du serveur, ou dans les secondes s’il tourne.')

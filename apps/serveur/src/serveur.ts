@@ -12,6 +12,7 @@ import { ouvrirBase } from './base.ts'
 import type { Cle } from './chiffrement.ts'
 import { creerCourrier } from './courriel.ts'
 import { creerLimiteur } from './debit.ts'
+import { creerExpiration } from './echeances.ts'
 import { indexerLesAbsents } from './indexation.ts'
 import type { Instance } from './instance.ts'
 import { brancherSynchro, creerHocuspocus, nomDuDocument } from './synchro.ts'
@@ -89,6 +90,10 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     )
   }, 5000)
   relance.unref()
+  // Un accès arrivé à échéance tombe aussi sans requête : les connexions ouvertes sur son tableau se ferment.
+  const expirer = creerExpiration(base, autorisation, () => hocuspocus, Date.now)
+  const echeances = setInterval(() => void expirer().catch(() => {}), 30_000)
+  echeances.unref()
 
   app = creerApp({
     base,
@@ -99,6 +104,7 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     dossierFichiers: join(options.dossier, 'fichiers'),
     limiteur: creerLimiteur(10, 60_000),
     limiteurArrivee: creerLimiteur(30, 60_000),
+    limiteurVisiteurs: creerLimiteur(90, 60_000),
     maintenant: Date.now,
     synchro: () => hocuspocus,
     relaisFiable: options.relaisFiable ?? false,
@@ -107,15 +113,19 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     ...(options.instance ? { instance: options.instance } : {}),
     cle,
     dossierSignalements: options.dossierSignalements ?? null,
+    courrier,
+    origine,
+    expirer,
   })
 
-  hocuspocus = creerHocuspocus(base, auth, autorisation)
+  hocuspocus = creerHocuspocus(base, auth, autorisation, Date.now, expirer)
   const synchro = brancherSynchro(http, hocuspocus, [origine, ...(options.autresOrigines ?? [])])
 
   return {
     port,
     async fermer() {
       clearInterval(relance)
+      clearInterval(echeances)
       synchro.fermer()
       hocuspocus?.flushPendingStores()
       await new Promise<void>((fini) => {

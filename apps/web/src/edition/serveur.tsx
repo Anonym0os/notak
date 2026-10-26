@@ -31,6 +31,7 @@ import { importerEspaceLocal } from '../importLocal'
 import { Importer } from '../Importer'
 import { creerRecents } from '../recents'
 import { PagePublique } from '../PagePublique'
+import { ApercuInvitation, PageInvitation, jetonInvitation, useInvitation } from '../Invitation'
 import { Partage, PartageEnFenetre } from '../Partage'
 import { PlusEntete } from '../PlusEntete'
 import { enregistrerServiceWorker } from '../pwa'
@@ -111,8 +112,24 @@ function fermerEspace() {
 
 type Etat = { type: 'chargement' } | { type: 'anonyme' } | { type: 'erreur'; message: string } | { type: 'connecte'; moi: Moi }
 
+/** L'écran de connexion, quand on arrive par une invitation : elle s'affiche au-dessus, et propose son adresse. */
+function ConnexionInvitee({ jeton, instance, surConnexion }: { jeton: string; instance: Instance; surConnexion(m: Moi): void }) {
+  const invitation = useInvitation(jeton)
+  if (invitation === null) return <div className="ecran-attente" aria-busy />
+  return (
+    <EcranConnexion
+      instance={instance}
+      surConnexion={surConnexion}
+      entete={<ApercuInvitation invitation={invitation} />}
+      {...(typeof invitation === 'string' ? {} : { email: invitation.email })}
+    />
+  )
+}
+
 function Application() {
   const [etat, setEtat] = useState<Etat>({ type: 'chargement' })
+  // Une invitation à une toile (`/invitation#<jeton>`), lue une fois : elle attend qu'on se connecte, puis qu'on l'accepte.
+  const [invitation] = useState(jetonInvitation)
   // Lue une fois : le nom, les inscriptions et les thèmes ne changent qu'au redémarrage du serveur.
   const [instance, setInstance] = useState<Instance | null>(null)
   useEffect(() => void lireInstance().then(setInstance), [])
@@ -172,7 +189,11 @@ function Application() {
       </main>
     )
   }
-  if (etat.type === 'anonyme') return <EcranConnexion instance={instance} surConnexion={(m) => setEtat({ type: 'connecte', moi: m })} />
+  if (etat.type === 'anonyme') {
+    const surConnexion = (m: Moi) => setEtat({ type: 'connecte', moi: m })
+    return invitation ? <ConnexionInvitee jeton={invitation} instance={instance} surConnexion={surConnexion} /> : <EcranConnexion instance={instance} surConnexion={surConnexion} />
+  }
+  if (invitation) return <PageInvitation jeton={invitation} moi={etat.moi} />
   // Trois pages légères, sans la toile : le partage vers Notak, la note rapide du téléphone, et les jetons pour envoyer d'ailleurs.
   const proprietes = {
     moi: etat.moi,

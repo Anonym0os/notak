@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { creerAuth } from './auth.ts'
-import { type Base, ouvrirBase } from './base.ts'
-import { COULEURS } from './comptes.ts'
+import { type Base, DUREE_INVITATION_MS, ouvrirBase } from './base.ts'
+import { COULEURS, activerInvitations } from './comptes.ts'
 import { role } from './droits.ts'
 import { lireEtat } from './contenu.ts'
 import { ORIGINE_ESSAI, authEssai, poserUtilisateur } from './essai.ts'
@@ -81,21 +81,33 @@ describe('inscription', () => {
     }
   })
 
-  it('active les invitations en attente pour cette adresse, et elles seules', async () => {
+  it('active les invitations en attente pour cette adresse, et elles seules, une fois l’adresse vérifiée', async () => {
     const base = neuf()
     const ana = await inscrire(base, { email: 'ana@exemple.fr', motDePasse: 'motdepasse', nom: 'Ana' })
-    base.creerTableau({ id: 'tableau-un', titre: 'Un', proprietaire: ana.id, parent: null })
-    base.definirAcces({ tableau: 'tableau-un', utilisateur: ana.id, role: 'proprietaire' })
-    base.creerTableau({ id: 'tableau-deux', titre: 'Deux', proprietaire: ana.id, parent: null })
-    base.definirAcces({ tableau: 'tableau-deux', utilisateur: ana.id, role: 'proprietaire' })
-    base.definirInvitation({ tableau: 'tableau-un', email: 'bob@exemple.fr', role: 'edition' })
-    base.definirInvitation({ tableau: 'tableau-deux', email: 'bob@exemple.fr', role: 'lecture' })
-    base.definirInvitation({ tableau: 'tableau-un', email: 'cleo@exemple.fr', role: 'lecture' })
+    const maintenant = Date.now()
+    const invitation = { cree: maintenant, par: ana.id, echeance: null }
+    for (const t of ['tableau-un', 'tableau-deux', 'tableau-trois']) {
+      base.creerTableau({ id: t, titre: t, proprietaire: ana.id, parent: null })
+      base.definirAcces({ tableau: t, utilisateur: ana.id, role: 'proprietaire' })
+    }
+    base.definirInvitation({ ...invitation, tableau: 'tableau-un', email: 'bob@exemple.fr', role: 'edition', jeton: 'j1' })
+    base.definirInvitation({ ...invitation, tableau: 'tableau-deux', email: 'bob@exemple.fr', role: 'lecture', echeance: maintenant + 3600_000, jeton: 'j2' })
+    base.definirInvitation({ ...invitation, tableau: 'tableau-trois', email: 'bob@exemple.fr', role: 'lecture', cree: maintenant - DUREE_INVITATION_MS - 1, jeton: 'j3' })
+    base.definirInvitation({ ...invitation, tableau: 'tableau-un', email: 'cleo@exemple.fr', role: 'lecture', jeton: 'j4' })
 
+    // Inscrit par mot de passe, son adresse n'est pas prouvée : quelqu'un d'autre a pu la taper. Rien ne s'ouvre.
     const bob = await inscrire(base, { email: 'bob@exemple.fr', motDePasse: 'motdepasse', nom: 'Bob' })
+    expect(role(base.acces('tableau-un'), bob.id, 'tableau-un')).toBeNull()
+    expect(activerInvitations(base, bob, maintenant)).toEqual([])
+    expect(base.invitationsPour('bob@exemple.fr')).toHaveLength(3)
 
+    base.verifierEmail(bob.id)
+    expect(activerInvitations(base, bob, maintenant).sort()).toEqual(['tableau-deux', 'tableau-un'])
     expect(role(base.acces('tableau-un'), bob.id, 'tableau-un')).toBe('edition')
     expect(role(base.acces('tableau-deux'), bob.id, 'tableau-deux')).toBe('lecture')
+    // L'échéance de l'invitation devient celle de l'accès ; l'invitation trop vieille ne donne rien.
+    expect(base.echeance('tableau-deux', `user:${bob.id}`)).toBe(maintenant + 3600_000)
+    expect(role(base.acces('tableau-trois'), bob.id, 'tableau-trois')).toBeNull()
     expect(base.invitationsPour('bob@exemple.fr')).toEqual([])
     expect(base.invitationsPour('cleo@exemple.fr')).toHaveLength(1)
   })
