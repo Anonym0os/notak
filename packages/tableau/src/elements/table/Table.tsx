@@ -63,6 +63,7 @@ import { passagesDe } from './riche'
 import { PassagesRendus } from './RichePassages'
 import { entreesTable } from './menu'
 import { largeurDesColonnes, modifierTable } from './modifier'
+import { Case } from '../../communs'
 
 /* ───────────── Les gestes à la souris ───────────── */
 
@@ -929,14 +930,14 @@ export function RenduTable({ element, seule, contexte, changer }: PropsRendu<Tab
       contenu = <Editeur id={id} edition={edition} format={f} valider={valider} abandonner={abandonner} />
     } else if (f?.type === 'case') {
       contenu = (
-        <input
-          type="checkbox"
+        <Case
           className="notak-table-case"
-          checked={brut === 'true'}
+          cochee={brut === 'true'}
           aria-label={t('table.case', { ligne: i + 1, colonne: j + 1 })}
+          aria-readonly={lectureSeule || undefined}
           // Une case se coche d'un clic, même sur une table qui n'est pas choisie.
           onPointerDown={(e) => !lectureSeule && e.stopPropagation()}
-          onChange={() => !lectureSeule && cocher(i, j)}
+          onChange={() => cocher(i, j)}
         />
       )
     } else if (estFormule && r?.erreur) {

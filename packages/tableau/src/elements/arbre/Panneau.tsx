@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Id, Sujet } from '../../coeur/tableau'
 import { t } from '../../langue'
+import { Case } from '../../communs'
 import type { ContexteToile } from '../types'
 import { GROUPES_MARQUEURS, Marqueur } from './marqueurs'
 import type { Geste } from './modele/gestes'
@@ -78,7 +79,7 @@ export function Panneau({ lecture: l, ids, section, faire, contexte, fermer, int
           ))}
         </div>
         <label className="notak-arbre-case">
-          <input type="checkbox" checked={sujets.every((s) => !!s.tache)} onChange={() => faire({ type: 'tache', ids })} />
+          <Case option cochee={sujets.every((s) => !!s.tache)} onChange={() => faire({ type: 'tache', ids })} />
           {t('arbre.tache')}
         </label>
       </section>

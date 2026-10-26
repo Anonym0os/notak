@@ -62,7 +62,7 @@ const option = (libelle: string) => {
   return o
 }
 /** Une case à cocher par son libellé. */
-const caseA = (libelle: string) => [...hote.querySelectorAll<HTMLInputElement>('label.notak-arbre-style-case')].find((x) => x.textContent === libelle)!.querySelector('input')!
+const caseA = (libelle: string) => [...hote.querySelectorAll<HTMLElement>('label.notak-arbre-style-case')].find((x) => x.textContent === libelle)!.querySelector<HTMLElement>('[role=checkbox]')!
 const cliquer = (el: HTMLElement) => act(() => void el.click())
 const saisir = (champ: HTMLInputElement, valeur: string, touche = 'Enter') =>
   act(() => {

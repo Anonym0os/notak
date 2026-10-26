@@ -599,36 +599,6 @@
   color: var(--notak-arbre-style-inactif);
 }
 
-.notak-arbre-fond .notak-arbre-style-case-boite {
-  position: absolute;
-  opacity: 0;
-  width: 16px;
-  height: 16px;
-  margin: 0;
-}
-
-.notak-arbre-fond .notak-arbre-style-case-coche {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 6px;
-  background: var(--notak-arbre-fond);
-  box-shadow: inset 0 0 0 1px var(--notak-arbre-style-bord-survol);
-  color: var(--notak-arbre-fond);
-}
-
-.notak-arbre-fond .notak-arbre-style-case-boite:checked + .notak-arbre-style-case-coche {
-  background: var(--notak-arbre-plein);
-  box-shadow: none;
-}
-
-.notak-arbre-fond .notak-arbre-style-case-boite:focus-visible + .notak-arbre-style-case-coche {
-  outline: 2px solid var(--notak-arbre-choix);
-  outline-offset: 1px;
-}
-
 /* — Le popover : une carte translucide posée dans la fenêtre — */
 .notak-arbre-fond .notak-arbre-style-pop {
   z-index: 30;

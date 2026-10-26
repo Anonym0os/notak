@@ -45,7 +45,7 @@ describe('le dessin d’une tâche, pour la grille CSS', () => {
   it('hors édition : poignée, case, colonne (texte, sous-liste), puces, corbeille', () => {
     rendre(contenu([{ ...tache('a', { echeance: '2099-01-01' }), content: [...tache('a').content!, { type: 'taskList', content: [tache('sous')] }] }]))
     const li = hote.querySelector('li[data-type="taskItem"]')!
-    expect([...li.children].map((n) => n.className || n.tagName.toLowerCase())).toEqual(['notak-tache-poignee', 'notak-case', 'div', 'notak-puces', 'notak-tache-suppr'])
+    expect([...li.children].map((n) => n.className || n.tagName.toLowerCase())).toEqual(['notak-tache-poignee', 'notak-case notak-case-large', 'div', 'notak-puces', 'notak-tache-suppr'])
     const colonne = li.children[2]!
     expect([...colonne.children].map((n) => n.tagName)).toEqual(['P', 'UL'])
     expect(li.querySelector(':scope > .notak-puces > .notak-puce')?.textContent).toMatch(/^Pour le /)
@@ -58,7 +58,7 @@ describe('le dessin d’une tâche, pour la grille CSS', () => {
       content: docEditeur(contenu([{ ...tache('a'), content: [...tache('a').content!, { type: 'taskList', content: [tache('sous')] }] }])),
     })
     const dom = editor.view.dom.querySelector('li[data-type="taskItem"]')!
-    expect([...dom.children].map((n) => n.className || n.tagName.toLowerCase())).toEqual(['notak-tache-poignee', 'notak-case', 'div', 'notak-puces', 'notak-tache-suppr'])
+    expect([...dom.children].map((n) => n.className || n.tagName.toLowerCase())).toEqual(['notak-tache-poignee', 'notak-case notak-case-large', 'div', 'notak-puces', 'notak-tache-suppr'])
     expect([...dom.children[2]!.children].map((n) => n.tagName)).toEqual(['P', 'UL'])
     editor.destroy()
   })

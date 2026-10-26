@@ -582,6 +582,24 @@ describe('la barre du sujet choisi', () => {
     expect(c.courant().sujets[autre]!.tache).toBe('a-faire')
   })
 
+  it('la case d’une tâche se coche au clic, avec l’animation de la case commune, et se décoche de même', () => {
+    const { a, autre } = base()
+    const c = ouvrir(a)
+    choisir('Autre')
+    clic(barre()!.querySelectorAll('button')[4]!)
+    const dessin = () => document.querySelector('[data-tache] .notak-case-svg') as SVGElement
+    expect(dessin().dataset.etat).toBe('a-faire')
+    expect(dessin().dataset.anime).toBeUndefined()
+    const m = dessin().getBoundingClientRect()
+    pointeur(document.querySelector('[data-tache]')!, 'pointerdown', m.x, m.y)
+    expect(c.courant().sujets[autre]!.tache).toBe('faite')
+    expect(dessin().dataset.etat).toBe('faite')
+    expect(dessin().dataset.anime).toBe('coche')
+    pointeur(document.querySelector('[data-tache]')!, 'pointerdown', m.x, m.y)
+    expect(c.courant().sujets[autre]!.tache).toBe('a-faire')
+    expect(dessin().dataset.anime).toBe('decoche')
+  })
+
   it('le pinceau ouvre la fenêtre « Style » : un choix s’applique au sujet et la ferme ; Échap la ferme sans fermer la carte', () => {
     const { a, autre } = base()
     const c = ouvrir(a)

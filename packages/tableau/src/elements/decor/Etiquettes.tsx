@@ -19,6 +19,7 @@ import { basculerFiltre, useFiltre, viderFiltre } from './etat'
 import { changerEtiquettes } from './ecriture'
 import { t, tn } from '../../langue'
 import { Icone } from '../../icones'
+import { Case } from '../../communs'
 
 /** Combien d'étiquettes « récentes » on met en tête de la liste. */
 const RECENTES = 5
@@ -112,14 +113,11 @@ export function PanneauEtiquettes({ elements, contexte }: { elements: readonly E
         }}
       >
         {posable && (
-          <input
-            type="checkbox"
+          <Case
+            option
             tabIndex={-1}
             aria-label={t('etiquettes.poser', { nom: et.nom })}
-            checked={etat !== 'aucun'}
-            ref={(n) => {
-              if (n) n.indeterminate = etat === 'certains'
-            }}
+            cochee={etat === 'certains' ? 'mixte' : etat !== 'aucun'}
             onChange={() => poser(et.id)}
           />
         )}

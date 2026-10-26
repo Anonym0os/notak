@@ -2,6 +2,7 @@ import type { Node as NoeudPM } from '@tiptap/pm/model'
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
 import { Extension } from '@tiptap/react'
+import { animerCase } from '../communs/animerCase'
 import { t } from '../langue'
 import { type Ligne, type Place, structurer } from './rang'
 
@@ -104,6 +105,15 @@ export const CLE_STRUCTURE = new PluginKey<DecorationSet>('structureBlocs')
 /** Les marqueurs cliquables : la case d'une tâche, le triangle d'un dépliant. Ils sont dans la marge gauche du bloc. */
 const MARQUEURS = '.notak-b-tache, .notak-b-depliant, [data-depliant]'
 
+/**
+ * Joue l'animation de la case d'une tâche qu'on vient de cocher ou de décocher, au geste. ProseMirror refait le bloc
+ * quand son attribut change : on cherche donc son DOM après la transaction.
+ */
+export function animerCaseDuBloc(view: EditorView, pos: number, coche: boolean) {
+  const bloc = view.nodeDOM(pos)
+  if (bloc instanceof HTMLElement) animerCase(bloc, coche)
+}
+
 /** L'appui tombe-t-il dans la marge du marqueur (le retrait gauche du bloc, avant son texte) ? */
 export function dansLeMarqueur(el: HTMLElement, x: number): boolean {
   const r = el.getBoundingClientRect()
@@ -136,6 +146,7 @@ export const StructureBlocs = Extension.create({
               e.preventDefault()
               if (!view.editable && cle === 'coche') return true
               view.dispatch(view.state.tr.setNodeAttribute(pos, cle, cle === 'coche' ? !n.attrs.coche : n.attrs.ouvert === false))
+              if (cle === 'coche') animerCaseDuBloc(view, pos, !n.attrs.coche)
               return true
             },
           },

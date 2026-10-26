@@ -423,14 +423,19 @@ export function RepereDepot({ arbre, lecture: l, disposition: d, repere }: { arb
   )
 }
 
-/** La case d'une tâche, devant le titre ; un clic la coche (`data-tache`). */
+/**
+ * La case d'une tâche, devant le titre ; un clic la coche (`data-tache`). C'est la case commune (communs/case.css) en
+ * SVG : le `<g>` intérieur rebondit autour de son centre, le carré s'éclaire, la coche se trace. L'animation se joue
+ * au clic (`Arbre.tsx`), jamais au rendu. « Annulée » garde sa croix grise.
+ */
 function CaseTache({ x, y, etat, id }: { x: number; y: number; etat: 'a-faire' | 'faite' | 'annulee'; id: Id }) {
-  const faite = etat === 'faite'
   return (
     <g transform={`translate(${x} ${y})`} data-tache={id} className="notak-arbre-tache">
-      <rect x={1} y={1} width={TAILLE_ICONE - 2} height={TAILLE_ICONE - 2} rx={3} fill={faite ? '#3fa66b' : 'var(--notak-arbre-fond)'} stroke={faite ? '#3fa66b' : etat === 'annulee' ? 'var(--notak-arbre-discret, #8c939d)' : 'var(--notak-arbre-encre)'} strokeWidth={1.5} />
-      {faite && <path d="M4.5 8.2l2.4 2.4l4.6-4.8" stroke="#fff" strokeWidth={1.75} fill="none" strokeLinecap="round" strokeLinejoin="round" />}
-      {etat === 'annulee' && <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" stroke="#8c939d" strokeWidth={1.5} fill="none" strokeLinecap="round" />}
+      <g className="notak-case-svg" data-etat={etat}>
+        <rect className="notak-case-svg-boite" x={0.5} y={0.5} width={15} height={15} rx={1.5} />
+        <path className="notak-case-svg-coche" d="M4.5 8.3l2.4 2.4l4.6-5.1" pathLength={1} />
+        {etat === 'annulee' && <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" stroke="#8c939d" strokeWidth={1.5} fill="none" strokeLinecap="round" />}
+      </g>
     </g>
   )
 }

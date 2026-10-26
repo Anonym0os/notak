@@ -190,10 +190,10 @@ describe('le panneau des étiquettes', () => {
     const { contexte, element } = monde()
     const rendre = () => act(() => racine.render(<PanneauEtiquettes elements={[element()]} contexte={contexte} />))
     rendre()
-    act(() => hote.querySelector<HTMLInputElement>('input[type=checkbox]')!.click())
+    act(() => hote.querySelector<HTMLElement>('[role=checkbox]')!.click())
     expect(element().etiquettes).toEqual(['e1'])
     rendre()
-    act(() => hote.querySelector<HTMLInputElement>('input[type=checkbox]')!.click())
+    act(() => hote.querySelector<HTMLElement>('[role=checkbox]')!.click())
     expect(element().etiquettes).toBeUndefined()
   })
 

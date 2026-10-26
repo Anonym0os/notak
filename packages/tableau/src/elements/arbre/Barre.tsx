@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { THEMES, cleNomTheme } from './themes'
 import type { Arbre, Id, Relation, StructureArbre } from '../../coeur/tableau'
 import { t } from '../../langue'
+import { Case } from '../../communs'
 import type { Geste } from './modele/gestes'
 import { type Lecture, enfantsDe } from './modele/sujets'
 
@@ -121,7 +122,7 @@ export function Barre({ arbre, lecture: l, choisis, faire, relier, panneau, rela
         )}
       </div>
       <label className="notak-arbre-case">
-        <input type="checkbox" checked={!options.uneCouleur} onChange={(e) => faire({ type: 'options', options: { ...options, uneCouleur: !e.target.checked } })} />
+        <Case option cochee={!options.uneCouleur} onChange={(v) => faire({ type: 'options', options: { ...options, uneCouleur: !v } })} />
         {t('arbre.arcEnCiel')}
       </label>
       <span className="notak-arbre-sep" role="separator" />
@@ -145,11 +146,11 @@ export function Barre({ arbre, lecture: l, choisis, faire, relier, panneau, rela
       )}
       <span className="notak-arbre-sep" role="separator" />
       <label className="notak-arbre-case">
-        <input type="checkbox" checked={!!options.compacte} onChange={(e) => faire({ type: 'options', options: { ...options, compacte: e.target.checked } })} />
+        <Case option cochee={!!options.compacte} onChange={(v) => faire({ type: 'options', options: { ...options, compacte: v } })} />
         {t('arbre.compacte')}
       </label>
       <label className="notak-arbre-case">
-        <input type="checkbox" checked={!!options.libre} onChange={(e) => faire({ type: 'options', options: { ...options, libre: e.target.checked } })} />
+        <Case option cochee={!!options.libre} onChange={(v) => faire({ type: 'options', options: { ...options, libre: v } })} />
         {t('arbre.libre')}
       </label>
       {options.libre && (
@@ -172,11 +173,11 @@ function ReglagesRelation({ id, r, faire }: { id: Id; r: Relation; faire(g: Gest
         </button>
       ))}
       <label className="notak-arbre-case">
-        <input type="checkbox" checked={pointes.depart} onChange={(e) => faire({ type: 'relationStyle', id, pointes: { ...pointes, depart: e.target.checked } })} />
+        <Case option cochee={pointes.depart} onChange={(v) => faire({ type: 'relationStyle', id, pointes: { ...pointes, depart: v } })} />
         {t('arbre.pointeDepart')}
       </label>
       <label className="notak-arbre-case">
-        <input type="checkbox" checked={pointes.arrivee} onChange={(e) => faire({ type: 'relationStyle', id, pointes: { ...pointes, arrivee: e.target.checked } })} />
+        <Case option cochee={pointes.arrivee} onChange={(v) => faire({ type: 'relationStyle', id, pointes: { ...pointes, arrivee: v } })} />
         {t('arbre.pointeArrivee')}
       </label>
     </span>

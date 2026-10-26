@@ -3,7 +3,7 @@ import { Editor } from '@tiptap/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { NoeudTexte } from '../../coeur/tableau'
 import { Slice } from '@tiptap/pm/model'
-import { EXTENSIONS_TACHES, cocherDansEditeur, deplacerDansEditeur } from './extensions'
+import { EXTENSIONS_TACHES, cocherDansEditeur, cocherSousLeCurseur, deplacerDansEditeur } from './extensions'
 
 /** Une liste décrite en JS : un texte est une tâche, un tableau est la sous-liste de la tâche d'avant. */
 type Plan = (string | Plan)[]
@@ -411,5 +411,22 @@ describe('Cases, en édition', () => {
     expect(coches()).toBe('A:1 a1:1 a2:1 B:0')
     cocherDansEditeur(editeur, 1, true)
     expect(coches()).toBe('A:0 a1:0 a2:0 B:0')
+  })
+})
+
+describe('Cmd+Entrée : cocher la tâche du curseur', () => {
+  it('coche puis décoche la tâche du curseur, sans toucher aux autres, et anime sa case', () => {
+    ouvrir(['a', 'b'])
+    editeur.commands.setTextSelection(editeur.state.doc.content.size - 3)
+    expect(cocherSousLeCurseur(editeur)).toBe(true)
+    const coches = () => editeur.state.doc.firstChild!.children.map((n) => n.attrs.checked)
+    expect(coches()).toEqual([false, true])
+    const cases = editeur.view.dom.querySelectorAll<HTMLElement>('.notak-case')
+    expect(cases[1]!.dataset.anime).toBe('coche')
+    expect(cases[1]!.getAttribute('aria-checked')).toBe('true')
+    expect(cases[0]!.dataset.anime).toBeUndefined()
+    cocherSousLeCurseur(editeur)
+    expect(coches()).toEqual([false, false])
+    expect(cases[1]!.dataset.anime).toBe('decoche')
   })
 })

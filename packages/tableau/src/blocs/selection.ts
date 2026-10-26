@@ -5,6 +5,7 @@ import { Extension } from '@tiptap/react'
 import { blocA, decaler, dupliquer, indenter, racines, supprimer } from './gestes'
 import { type Ligne, ligneSelonY, sortiDuTexte } from './glisser'
 import { type Bloc, blocsDe } from './modele'
+import { animerCaseDuBloc } from './structure'
 
 /**
  * La sélection de blocs (docs/NOTION.md § 7) : on est soit dans le texte, soit sur des blocs entiers. Elle va d'un bloc
@@ -240,7 +241,10 @@ function activer(view: EditorView, ids: readonly string[]): boolean {
     if (n.type.name === 'tache') tr.setNodeAttribute(x.pos, 'coche', cocher)
     else if ('ouvert' in n.attrs && (n.type.name === 'depliant' || n.attrs.depliant)) tr.setNodeAttribute(x.pos, 'ouvert', n.attrs.ouvert === false)
   }
-  if (tr.docChanged) view.dispatch(tr)
+  if (tr.docChanged) {
+    view.dispatch(tr)
+    for (const x of r) if (x.noeud.type.name === 'tache' && !!x.noeud.attrs.coche !== cocher) animerCaseDuBloc(view, x.pos, cocher)
+  }
   return true
 }
 

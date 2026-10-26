@@ -298,6 +298,11 @@
   cursor: pointer;
 }
 
+/* Une tâche annulée : le carré de la case commune en gris, la croix par-dessus. */
+.notak-case-svg[data-etat='annulee'] .notak-case-svg-boite {
+  stroke: var(--notak-arbre-discret, #8c939d);
+}
+
 .notak-arbre-relation [data-controle] {
   cursor: grab;
 }

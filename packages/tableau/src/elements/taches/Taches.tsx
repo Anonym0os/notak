@@ -10,7 +10,7 @@ import type { ContexteToile, PropsOutils, PropsRendu, ServicePresence } from '..
 import { EXTENSIONS_TACHES, EXTENSIONS_TACHES_PARTAGEE, type GestesTaches, clavierListe, gestesDe, ouvreursPuces, puceActive, remplacerListe } from './extensions'
 import { MenuPuce, type OuverturePuce } from './MenuPuce'
 import { type Personne, type Puce, attrsAllumes, attrsEteints, attrsVides, jourDe, personnes, puces } from './puces'
-import { animerCase } from './animation'
+import { Case } from '../../communs'
 import { ajouterTitre, avecTitre, contenuDepuis, curseurAuTitre, docEditeur, sansTitre } from './titre'
 import { type Sortie, glisserTache } from './glisse'
 import { type Chemin, type Place, basculer, emporteLaListe, compter, deplacer, detacher, docTaches, effacerFaites, estFaite, regler, retirer, sousTaches, transferer } from './liste'
@@ -150,20 +150,14 @@ function Liste({ noeud, chemin, cocher, supprimer, ouvrir, deplacer, sortir }: P
                 if (racine && li) glisserTache(e.nativeEvent, racine, li, deplacer, sortir)
               }}
             />
-            <button
-              type="button"
-              tabIndex={-1}
-              className="notak-case"
-              role="checkbox"
-              aria-checked={faite}
+            <Case
+              large
+              cochee={faite}
               aria-label={t('taches.fait')}
               onPointerDown={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.preventDefault()}
               onDoubleClick={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                animerCase(e.currentTarget, !faite)
-                cocher(ici, e.shiftKey)
-              }}
+              onChange={(_, e) => cocher(ici, e.shiftKey)}
             />
             <div>
               {(tache.content ?? []).map((n, k) =>

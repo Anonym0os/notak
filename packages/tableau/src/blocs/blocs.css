@@ -134,33 +134,43 @@
 
 .notak-blocs .notak-b-numero[data-niveau='2']::before { justify-content: flex-start; }
 
-/* La case : 16 px, bord de 1,5 px ; cochée, un fond bleu et une coche blanche, le texte pâli et barré. */
-.notak-blocs .notak-b-tache::before {
-  content: '';
-  top: 6px;
-  left: 6px;
-  width: 16px;
-  height: 16px;
-  box-sizing: border-box;
-  border: 1.5px solid var(--notak-page-case);
-  border-radius: 1.5px;
-  cursor: pointer;
-  transition: background 0.2s ease-out;
+/*
+ * La case : la case commune (communs/case.css), qui dessine le carré en `::before` et la coche en `::after` du bloc ;
+ * ici seulement sa place (6 px du bord, 6 px du haut). Le texte d'une tâche faite passe au gris, sans barré ; le
+ * bloc est neuf à chaque coche, l'animation du texte est donc la sienne (`data-anime`, posé au geste).
+ */
+.notak-blocs .notak-b-tache {
+  --notak-case-x: 6px;
+  --notak-case-y: 6px;
 }
 
-.notak-blocs .notak-b-tache[data-coche]::before {
-  border: 0;
-  background: var(--notak-page-coche) center / 14px no-repeat
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M3 7.2l2.6 2.6L11 4.4' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+.notak-blocs .notak-b-tache::before {
+  content: '';
+  top: var(--notak-case-y);
+  left: var(--notak-case-x);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
 }
 
 .notak-blocs .notak-b-tache[data-coche] {
-  text-decoration: line-through;
-  text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
+  color: var(--notak-case-texte-fait);
 }
 
-.notak-blocs .notak-b-tache[data-coche] > * { opacity: 0.7; }
-.notak-blocs .notak-b-tache[data-coche]:not(:has(> *)) { color: color-mix(in srgb, var(--notak-page-texte) 70%, transparent); }
+@keyframes notak-b-tache-grise {
+  from { color: var(--notak-page-texte); }
+}
+
+@keyframes notak-b-tache-fonce {
+  from { color: var(--notak-case-texte-fait); }
+}
+
+.notak-blocs .notak-b-tache[data-anime='coche'] { animation: notak-b-tache-grise 150ms linear; }
+.notak-blocs .notak-b-tache[data-anime='decoche'] { animation: notak-b-tache-fonce 150ms linear; }
+
+@media (prefers-reduced-motion: reduce) {
+  .notak-blocs .notak-b-tache[data-anime] { animation: none; }
+}
 
 /* Le triangle du dépliant (et du titre dépliant) : pointe en bas ouvert, à droite fermé, tourné en 200 ms. */
 .notak-blocs :is(.notak-b-depliant, [data-depliant])::before {
@@ -639,8 +649,6 @@
   --notak-page-encadre: rgb(249 248 247);
   --notak-page-code: rgba(66 35 3 / 0.03);
   --notak-page-code-ligne: rgba(33 27 23 / 0.05);
-  --notak-page-case: rgb(56 56 54);
-  --notak-page-coche: rgb(39 131 222);
   --notak-page-lien: rgba(55 53 47 / 0.4);
   --notak-page-selection: rgba(35 131 226 / 0.28);
   --notak-page-halo: rgba(35 131 226 / 0.14);
@@ -675,7 +683,6 @@
   --notak-page-encadre: rgb(56 56 54);
   --notak-page-code: rgba(255 255 255 / 0.03);
   --notak-page-code-ligne: rgba(255 255 255 / 0.055);
-  --notak-page-case: rgb(230 229 227);
   --notak-page-lien: rgba(255 255 255 / 0.282);
   --notak-page-survol: rgba(255 255 255 / 0.055);
   --notak-bloc-gris-fond: rgb(56 56 54);

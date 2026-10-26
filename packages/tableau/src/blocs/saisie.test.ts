@@ -308,6 +308,8 @@ describe('NOTION.md § 5 : les raccourcis du moteur', () => {
     const ed = ouvrir({ type: 'tache', content: [{ type: 'text', text: 'a' }] })
     ed.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true }))
     expect(ed.getJSON().content?.[0]?.attrs?.coche).toBe(true)
+    // La case s'anime au geste : le bloc refait par ProseMirror porte `data-anime`.
+    expect((ed.view.dom.querySelector('.notak-b-tache') as HTMLElement).dataset.anime).toBe('coche')
     const ed2 = ouvrir(p('a'))
     ed2.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true }))
     expect(types(ed2)).toEqual(['paragraph'])

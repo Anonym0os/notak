@@ -4,6 +4,7 @@ import {
   type Prepare,
   type ReglagesExport,
   type SujetExport,
+  Case,
   ErreurExport,
   Icone,
   REGLAGES_PAR_DEFAUT,
@@ -294,7 +295,7 @@ function Option({ option, reglages, regler }: { option: OptionExport; reglages: 
   if (option === 'sousTableaux' || option === 'fichiers' || option === 'fond')
     return (
       <label className="export-case">
-        <input type="checkbox" checked={reglages[option]} onChange={(e) => regler({ [option]: e.target.checked })} />
+        <Case option cochee={reglages[option]} onChange={(v) => regler({ [option]: v })} />
         {t(`exporter.${option}`)}
       </label>
     )

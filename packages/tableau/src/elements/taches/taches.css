@@ -54,93 +54,17 @@
 }
 
 .notak-taches li[data-checked='true'] > div > p {
-  color: #8d929a;
+  color: var(--notak-case-texte-fait);
 }
 
 /*
- * La zone de clic de la case : 38 × 32 px autour d'une case de 16 (8 px au-dessus et au-dessous, 16 à gauche,
- * 6 à droite). Elle déborde sur la marge ; la case dessinée tombe à 2 px sous le haut de la ligne.
+ * La case est la case commune (communs/case.css) à zone de clic élargie : 38 × 32 px, qui déborde sur la marge ; le
+ * carré dessiné tombe à 2 px sous le haut de la ligne et laisse 10 px avant le texte.
  */
-.notak-case {
-  position: relative;
+.notak-taches .notak-case {
   grid-column: 1;
   grid-row: 1;
-  box-sizing: border-box;
-  width: 38px;
-  height: 32px;
   margin: -6px 4px -6px -16px;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  user-select: none;
-}
-
-.notak-case::before {
-  content: '';
-  position: absolute;
-  inset: 8px 6px 8px 16px;
-  box-sizing: border-box;
-  border: 1px solid var(--notak-texte);
-  border-radius: 2px;
-  background: #fff;
-  transition: background-color 100ms linear 50ms, border-color 100ms linear 50ms;
-}
-
-.notak-case[aria-checked='true']::before {
-  border-color: transparent;
-  background: #d1d3d6;
-  transition: background-color 150ms linear, border-color 100ms linear;
-}
-
-/* La coche : un trait blanc de 2 px aux bouts ronds, de 12 px de côté, au centre de la case. */
-.notak-case[aria-checked='true']::after,
-.notak-case[data-anime='decoche']::after {
-  content: '';
-  position: absolute;
-  inset: 8px 6px 8px 16px;
-  background: #fff;
-  -webkit-mask: var(--notak-coche) center / 12px 12px no-repeat;
-  mask: var(--notak-coche) center / 12px 12px no-repeat;
-}
-
-.notak-case {
-  --notak-coche: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.3l2.4 2.4L9.5 3.6' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-}
-
-/* Au cochage seulement (jamais à l'affichage) : un rebond, un éclair vert, la coche qui se trace. */
-@keyframes notak-case-rebond {
-  0% { transform: scale(1); }
-  50% { transform: scale(0.8); }
-  100% { transform: scale(1); }
-}
-
-@keyframes notak-case-eclair {
-  0% { background-color: #d1d3d6; }
-  50% { background-color: #6ac374; }
-  100% { background-color: #d1d3d6; }
-}
-
-@keyframes notak-case-trace {
-  from { clip-path: inset(0 100% 0 0); }
-  to { clip-path: inset(0); }
-}
-
-@keyframes notak-case-retire {
-  from { clip-path: inset(0); }
-  to { clip-path: inset(0 100% 0 0); }
-}
-
-.notak-case[data-anime='coche']::before {
-  animation: notak-case-rebond 150ms ease-out, notak-case-eclair 150ms linear;
-}
-
-.notak-case[data-anime='coche']::after {
-  animation: notak-case-trace 150ms linear 150ms backwards;
-}
-
-.notak-case[data-anime='decoche']::after {
-  animation: notak-case-retire 100ms linear forwards;
 }
 
 .notak-taches-texte {

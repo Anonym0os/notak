@@ -1,0 +1,251 @@
+/*
+ * La case à cocher de Notak : celle de Milanote (docs/ecarts/releves/taches.md § 13), pour les trois produits.
+ * Carré de 16 px, rayon 2, bord de 1 px ; cochée : fond gris, coche blanche de 12 px. Au cochage seulement : un
+ * rebond, un éclair vert, la coche qui se trace. Rien à l'affichage.
+ *
+ * L'hôte (le bouton `.notak-case`, ou le bloc de tâche du document) porte le carré en `::before` et la coche en
+ * `::after` : l'animation se joue donc sur eux, jamais sur l'hôte. Le carré de la carte mentale est la même case
+ * en SVG (`.notak-case-svg`, plus bas). Les couleurs sont les jetons de `jetons.css`.
+ */
+.notak-case {
+  --notak-case-x: 0px;
+  --notak-case-y: 0px;
+  position: relative;
+  display: inline-block;
+  flex: none;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  vertical-align: middle;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* La zone de clic élargie d'une case de tâche : 38 × 32 px, le carré à 16 px du bord gauche et 8 px du haut. */
+.notak-case-large {
+  --notak-case-x: 16px;
+  --notak-case-y: 8px;
+  width: 38px;
+  height: 32px;
+  margin: -8px -6px -8px -16px;
+}
+
+.notak-case:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+:is(.notak-case, .notak-b-tache)::before {
+  content: '';
+  position: absolute;
+  top: var(--notak-case-y);
+  left: var(--notak-case-x);
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid var(--notak-case-bord);
+  border-radius: 2px;
+  background: var(--notak-case-fond);
+  transition: background-color 100ms linear 50ms, border-color 100ms linear 50ms;
+}
+
+:is(.notak-case[aria-checked='true'], .notak-case[aria-checked='mixed'], .notak-b-tache[data-coche])::before {
+  border-color: transparent;
+  background: var(--notak-case-cochee);
+  transition: background-color 150ms linear, border-color 100ms linear;
+}
+
+/* La coche : un trait de 2 px aux bouts ronds, de 12 px de côté, au centre du carré. Elle reste le temps de se retirer. */
+:is(
+    .notak-case[aria-checked='true'],
+    .notak-case[data-anime='decoche'],
+    .notak-b-tache[data-coche],
+    .notak-b-tache[data-anime='decoche']
+  )::after {
+  content: '';
+  position: absolute;
+  top: var(--notak-case-y);
+  left: var(--notak-case-x);
+  width: 16px;
+  height: 16px;
+  background: var(--notak-case-coche);
+  -webkit-mask: var(--notak-coche) center / 12px 12px no-repeat;
+  mask: var(--notak-coche) center / 12px 12px no-repeat;
+}
+
+:is(.notak-case, .notak-b-tache) {
+  --notak-coche: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.3l2.4 2.4L9.5 3.6' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.notak-case:focus-visible {
+  outline: none;
+}
+
+.notak-case:focus-visible::before {
+  outline: 2px solid var(--notak-case-anneau);
+  outline-offset: 2px;
+}
+
+/* Cochée « en partie » : un trait de 8 px au lieu de la coche. */
+.notak-case[aria-checked='mixed']::after {
+  content: '';
+  position: absolute;
+  top: calc(var(--notak-case-y) + 7px);
+  left: calc(var(--notak-case-x) + 4px);
+  width: 8px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--notak-case-coche);
+}
+
+/* Une option de formulaire : cochée, un fond foncé comme le texte, pour ne pas se lire « désactivée ». */
+.notak-case-option:is([aria-checked='true'], [aria-checked='mixed'])::before {
+  background: var(--notak-case-option);
+}
+
+.notak-case-option:is([aria-checked='true'], [aria-checked='mixed'], [data-anime='decoche'])::after {
+  background: var(--notak-case-coche-option);
+}
+
+@keyframes notak-case-rebond {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.8); }
+  100% { transform: scale(1); }
+}
+
+@keyframes notak-case-eclair {
+  0% { background-color: var(--notak-case-cochee); }
+  50% { background-color: var(--notak-case-eclair); }
+  100% { background-color: var(--notak-case-cochee); }
+}
+
+@keyframes notak-case-eclair-option {
+  0% { background-color: var(--notak-case-option); }
+  50% { background-color: var(--notak-case-eclair); }
+  100% { background-color: var(--notak-case-option); }
+}
+
+@keyframes notak-case-trace {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0); }
+}
+
+@keyframes notak-case-retire {
+  from { clip-path: inset(0); }
+  to { clip-path: inset(0 100% 0 0); }
+}
+
+:is(.notak-case, .notak-b-tache)[data-anime='coche']::before {
+  animation: notak-case-rebond 150ms ease-out, notak-case-eclair 150ms linear;
+}
+
+.notak-case-option[data-anime='coche']::before {
+  animation: notak-case-rebond 150ms ease-out, notak-case-eclair-option 150ms linear;
+}
+
+:is(.notak-case, .notak-b-tache)[data-anime='coche']::after {
+  animation: notak-case-trace 150ms linear 150ms backwards;
+}
+
+:is(.notak-case, .notak-b-tache)[data-anime='decoche']::after {
+  animation: notak-case-retire 100ms linear forwards;
+}
+
+/*
+ * La même case en SVG (la carte mentale) : un `<g class="notak-case-svg" data-etat="faite">` qui contient le carré
+ * (`.notak-case-svg-boite`) et la coche (`.notak-case-svg-coche`, `pathLength="1"`). L'animation se pose sur le `<g>`
+ * (`data-anime`, par `animerCase`) : il rebondit autour de son centre, le carré s'éclaire, la coche se trace.
+ */
+.notak-case-svg {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.notak-case-svg-boite {
+  fill: var(--notak-case-fond);
+  stroke: var(--notak-case-bord);
+  stroke-width: 1;
+  transition: fill 100ms linear 50ms, stroke 100ms linear 50ms;
+}
+
+.notak-case-svg[data-etat='faite'] .notak-case-svg-boite {
+  fill: var(--notak-case-cochee);
+  stroke: transparent;
+  transition: fill 150ms linear, stroke 100ms linear;
+}
+
+.notak-case-svg-coche {
+  fill: none;
+  stroke: var(--notak-case-coche);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1 2;
+  stroke-dashoffset: 0;
+  visibility: hidden;
+}
+
+.notak-case-svg[data-etat='faite'] .notak-case-svg-coche,
+.notak-case-svg[data-anime='decoche'] .notak-case-svg-coche {
+  visibility: visible;
+}
+
+@keyframes notak-case-eclair-svg {
+  0% { fill: var(--notak-case-cochee); }
+  50% { fill: var(--notak-case-eclair); }
+  100% { fill: var(--notak-case-cochee); }
+}
+
+@keyframes notak-case-trace-svg {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes notak-case-retire-svg {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: 1; }
+}
+
+.notak-case-svg[data-anime='coche'] {
+  animation: notak-case-rebond 150ms ease-out;
+}
+
+.notak-case-svg[data-anime='coche'] .notak-case-svg-boite {
+  animation: notak-case-eclair-svg 150ms linear;
+}
+
+.notak-case-svg[data-anime='coche'] .notak-case-svg-coche {
+  animation: notak-case-trace-svg 150ms linear 150ms backwards;
+}
+
+.notak-case-svg[data-anime='decoche'] .notak-case-svg-coche {
+  animation: notak-case-retire-svg 100ms linear forwards;
+}
+
+/* Mouvement réduit : il ne reste que l'éclair. */
+@media (prefers-reduced-motion: reduce) {
+  :is(.notak-case, .notak-b-tache)[data-anime='coche']::before {
+    animation: notak-case-eclair 150ms linear;
+  }
+
+  .notak-case-option[data-anime='coche']::before {
+    animation: notak-case-eclair-option 150ms linear;
+  }
+
+  :is(.notak-case, .notak-b-tache)[data-anime]::after {
+    animation: none;
+  }
+
+  .notak-case-svg[data-anime='coche'] {
+    animation: none;
+  }
+
+  .notak-case-svg[data-anime] .notak-case-svg-coche {
+    animation: none;
+  }
+}

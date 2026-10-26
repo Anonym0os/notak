@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { type Arbre, type Id } from '../../coeur/tableau'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
+import { Case } from '../../communs'
 import { Deroulant, Entree } from './Fenetre'
 import { Marqueur } from './marqueurs'
 import { type OptionsRecherche, contient, notesDe, notesFiltrees, reperesDe } from './modele/listes'
@@ -267,7 +268,7 @@ function OngletEtiquettes({ lecture: l, coches, cocher }: { lecture: Lecture; co
   const total = reperes.marqueurs.length + reperes.etiquettes.length + reperes.taches.length
   const ligne = (cle: string, contenu: React.ReactNode, n: number) => (
     <label key={cle} className="notak-arbre-gauche-repere" data-coche={coches.has(cle) ? '' : undefined}>
-      <input type="checkbox" checked={coches.has(cle)} onChange={() => cocher(cle)} />
+      <Case option cochee={coches.has(cle)} onChange={() => cocher(cle)} />
       <span className="notak-arbre-gauche-repere-contenu">{contenu}</span>
       <span className="notak-arbre-gauche-repere-nombre">{n}</span>
     </label>

@@ -1,0 +1,32 @@
+/*
+ * Les jetons des composants communs (communs/*.css), avec leur version sombre. Les mêmes valeurs servent la toile, le
+ * document et la carte mentale ; une surcouche les recopie (elements/surcouche.tsx).
+ */
+:root,
+.notak-espace,
+.notak-toile,
+.notak-export-pages {
+  /* La case à cocher (relevé de Milanote, docs/ecarts/releves/taches.md § 13). */
+  --notak-case-bord: #323b4a;
+  --notak-case-fond: #fff;
+  --notak-case-cochee: #d1d3d6;
+  --notak-case-coche: #fff;
+  --notak-case-eclair: #6ac374;
+  /* Une case d'option de formulaire, cochée : le fond foncé du texte, pour qu'elle ne se lise pas « désactivée ». */
+  --notak-case-option: #323b4a;
+  --notak-case-coche-option: #fff;
+  --notak-case-anneau: #2f6feb;
+  /* Le texte d'une tâche faite. */
+  --notak-case-texte-fait: #8d929a;
+}
+
+[data-theme='sombre']:is(:root, .notak-espace),
+[data-theme='sombre'] .notak-toile {
+  --notak-case-bord: #e3e5e9;
+  --notak-case-fond: #2a2e35;
+  --notak-case-cochee: #5b616b;
+  --notak-case-option: #e3e5e9;
+  --notak-case-coche-option: #1b1e23;
+  --notak-case-anneau: #5b8ff9;
+  --notak-case-texte-fait: #9aa0a8;
+}
