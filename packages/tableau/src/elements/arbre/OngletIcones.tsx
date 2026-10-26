@@ -3,7 +3,7 @@ import { annoncer } from '../../avis'
 import { type Arbre, type Id, nouvelId } from '../../coeur/tableau'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
-import { Choix } from '../../communs'
+import { Choix, Recherche } from '../../communs'
 import type { ContexteToile } from '../types'
 import { AUTOCOLLANTS, DessinIllustration, ILLUSTRATIONS, type GroupeIllustrations, TAILLE_VIGNETTE } from './catalogue'
 import { choisirFichiers } from './Insertions'
@@ -399,10 +399,7 @@ function Illustrations({ ids, faire }: Omit<Props, 'onglet'>) {
           <strong>{t(`arbre.icones.ill.${ouvert.cle}`)}</strong>
         </div>
       )}
-      <label className="notak-arbre-icones-recherche">
-        <Icone nom="recherche" taille={14} />
-        <input type="search" value={recherche} placeholder={t('arbre.icones.chercherIllustrations')} aria-label={t('arbre.icones.chercherIllustrations')} onChange={(e) => setRecherche(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />
-      </label>
+      <Recherche className="notak-arbre-icones-recherche" valeur={recherche} onChange={setRecherche} placeholder={t('arbre.icones.chercherIllustrations')} aria-label={t('arbre.icones.chercherIllustrations')} onKeyDown={(e) => e.stopPropagation()} />
       <div className="notak-arbre-icones-defile">
         {trouvees ? (
           trouvees.length === 0 ? (

@@ -217,21 +217,7 @@
 
 /* La recherche d'icône, au-dessus de la grille. */
 .notak-renvoi-recherche {
-  box-sizing: border-box;
-  width: 100%;
   margin-bottom: 6px;
-  padding: 6px 8px;
-  border: 1px solid rgb(128 128 128 / 0.35);
-  border-radius: 6px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: 13px;
-  outline: none;
-}
-
-.notak-renvoi-recherche:focus {
-  border-color: var(--notak-accent);
 }
 
 .notak-renvoi-aucune {

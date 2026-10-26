@@ -113,51 +113,6 @@
   white-space: nowrap;
 }
 
-.notak-rg-recherche {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 8px;
-  height: 34px;
-  padding: 0 10px;
-  border-radius: 10px;
-  background: var(--rg-actif);
-  box-shadow: var(--rg-champ-ombre);
-  color: var(--rg-aide);
-  font-size: 13px;
-}
-
-.notak-rg-recherche:focus-within {
-  box-shadow: var(--rg-champ-ombre), 0 0 0 3px color-mix(in srgb, var(--notak-accent, #2f6feb) 28%, transparent);
-}
-
-.notak-rg-recherche svg {
-  flex: none;
-}
-
-.notak-rg-recherche input {
-  flex: 1;
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  outline: none;
-  background: transparent;
-  color: var(--rg-texte);
-  font: inherit;
-}
-
-/* Le champ se dit déjà par l'anneau de son cadre. */
-.notak-rg-recherche input:focus-visible {
-  outline: none;
-}
-
-.notak-rg-recherche kbd {
-  color: var(--rg-aide);
-  font: inherit;
-  font-size: 11px;
-  font-weight: 500;
-}
-
 /* Les rubriques défilent si la fenêtre est basse ; la version reste en bas. */
 .notak-rg-liste {
   flex: 1;
@@ -607,10 +562,6 @@
   --rg-mark: rgb(250 204 21 / 0.34);
 
   box-shadow: 0 0 0 1px rgb(255 255 255 / 0.1);
-}
-
-[data-theme='sombre'] .notak-rg-recherche {
-  background: color-mix(in srgb, white 5%, var(--rg-nav));
 }
 
 [data-theme='sombre'] .notak-rg-erreur {

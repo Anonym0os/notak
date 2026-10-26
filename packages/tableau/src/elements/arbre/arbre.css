@@ -482,14 +482,8 @@
   transform: translateX(-50%);
 }
 
-.notak-arbre-recherche input {
+.notak-arbre-recherche .notak-champ-recherche {
   width: 240px;
-  padding: 4px 6px;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  outline: none;
 }
 
 .notak-arbre-recherche output {

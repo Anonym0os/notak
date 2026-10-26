@@ -1,8 +1,8 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Arbre, Id, ReglagesDiapo } from '../../coeur/tableau'
 import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
-import { Choix, Segments } from '../../communs'
+import { Choix, LigneReglage, Segments } from '../../communs'
 import { ChoixTheme } from './ChoixTheme'
 import { Diapositive } from './Diapo'
 import {
@@ -62,19 +62,6 @@ function Menu({ valeur, options, change, info, libelle, large }: { valeur: strin
       affiche={affiche}
       large={large}
     />
-  )
-}
-
-/**
- * Une rangée du panneau : courte (libellé à gauche, contrôle de 72 à droite) ou, en `vertical`, une légende de 11 puis
- * le contrôle sur toute la largeur. Le libellé tient sur une ligne, quelle que soit la colonne.
- */
-function Ligne({ libelle, children, vertical, ample }: { libelle: string; children: ReactNode; vertical?: boolean; ample?: boolean }) {
-  return (
-    <div className="notak-arbre-pitch-ligne" data-vertical={vertical ? '' : undefined} data-ample={ample ? '' : undefined}>
-      <span title={libelle}>{libelle}</span>
-      {children}
-    </div>
   )
 }
 
@@ -140,7 +127,7 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
           {t('arbre.pitch.changerTheme')}
         </button>
         {themes && <ChoixTheme ancre={bouton.current} pitch={arbre.pitch} ratio={ratio} choisir={(reglage) => faire({ type: 'pitch', reglage })} fermer={() => setThemes(false)} />}
-        <Ligne libelle={t('arbre.pitch.ratio')}>
+        <LigneReglage className="notak-arbre-pitch-ligne" libelle={t('arbre.pitch.ratio')}>
           <Menu
             valeur={arbre.pitch?.ratio ?? LIGNE_VIDE}
             libelle={t('arbre.pitch.ratio')}
@@ -148,17 +135,17 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
             options={[{ valeur: LIGNE_VIDE, libelle: t('arbre.pitch.auto') }, ...RATIOS_PITCH.map((r) => ({ valeur: r, libelle: r }))]}
             change={(v) => faire({ type: 'pitch', reglage: { ratio: v === LIGNE_VIDE ? null : (v as (typeof RATIOS_PITCH)[number]) } })}
           />
-        </Ligne>
+        </LigneReglage>
         <hr />
         {resumes && (
           <>
-            <Ligne libelle={t('arbre.pitch.resumeLigne')}>{menuVisibilite('resume')}</Ligne>
+            <LigneReglage className="notak-arbre-pitch-ligne" libelle={t('arbre.pitch.resumeLigne')}>{menuVisibilite('resume')}</LigneReglage>
             <hr />
           </>
         )}
-        <Ligne libelle={t('arbre.pitch.sujetLigne')}>{menuVisibilite('sujet')}</Ligne>
+        <LigneReglage className="notak-arbre-pitch-ligne" libelle={t('arbre.pitch.sujetLigne')}>{menuVisibilite('sujet')}</LigneReglage>
         {toutesImages && (
-          <Ligne libelle={t('arbre.pitch.imagePlace')} vertical ample>
+          <LigneReglage className="notak-arbre-pitch-ligne notak-arbre-pitch-ample" libelle={t('arbre.pitch.imagePlace')} vertical>
             <Menu
               valeur={placeImage === undefined ? LIGNE_VIDE : placeImage}
               libelle={t('arbre.pitch.imagePlace')}
@@ -170,15 +157,15 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
               ]}
               change={(v) => poser({ image: v === LIGNE_VIDE ? null : (v as ReglagesDiapo['image']) })}
             />
-          </Ligne>
+          </LigneReglage>
         )}
         {unAuMoins((x) => enfantsDe(l, x).length > 0) && (
           <>
             <hr />
-            <Ligne libelle={t('arbre.pitch.listeLigne')}>{menuVisibilite('liste')}</Ligne>
+            <LigneReglage className="notak-arbre-pitch-ligne" libelle={t('arbre.pitch.listeLigne')}>{menuVisibilite('liste')}</LigneReglage>
             {listeVisible && (
               <>
-                <Ligne libelle={t('arbre.pitch.livraison')} vertical>
+                <LigneReglage className="notak-arbre-pitch-ligne" libelle={t('arbre.pitch.livraison')} vertical>
                   <Menu
                     valeur={livraison === undefined ? LIGNE_VIDE : livraison}
                     libelle={t('arbre.pitch.livraison')}
@@ -190,9 +177,9 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
                     ]}
                     change={(v) => faireDiapo(faire, avecEnfants, { livraison: v === LIGNE_VIDE ? null : (v as ReglagesDiapo['livraison']) })}
                   />
-                </Ligne>
+                </LigneReglage>
                 {dispo && (
-                  <Ligne libelle={t('arbre.pitch.miseEnPage')} vertical>
+                  <LigneReglage className="notak-arbre-pitch-ligne" libelle={t('arbre.pitch.miseEnPage')} vertical>
                     <Segments
                       large
                       libelle={t('arbre.pitch.miseEnPage')}
@@ -201,7 +188,7 @@ export function OngletPresenter({ arbre, lecture: l, choisis, faire, adresse }: 
                       valeur={dispo}
                       onChange={(m) => faireDiapo(faire, avecEnfants, { miseEnPage: m })}
                     />
-                  </Ligne>
+                  </LigneReglage>
                 )}
               </>
             )}

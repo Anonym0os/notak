@@ -95,6 +95,7 @@ textarea.notak-champ {
 .notak-champ-recherche {
   position: relative;
   display: block;
+  flex: none;
   min-width: 0;
 }
 
@@ -109,6 +110,21 @@ textarea.notak-champ {
 
 .notak-champ-recherche .notak-champ {
   padding-left: 34px;
+}
+
+.notak-champ-recherche-fin {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  color: var(--notak-ctl-texte-3);
+  font: 500 11px var(--notak-ctl-police);
+  transform: translateY(-50%);
+}
+
+.notak-champ-recherche:has(.notak-champ-recherche-fin) .notak-champ {
+  padding-right: 40px;
 }
 
 .notak-champ-recherche[data-pilule] .notak-champ {

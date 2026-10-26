@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { type Arbre, type Id } from '../../coeur/tableau'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
-import { Segments } from '../../communs'
+import { Recherche, Segments } from '../../communs'
 import { Case } from '../../communs'
 import { Deroulant, Entree } from './Fenetre'
 import { Marqueur } from './marqueurs'
@@ -76,11 +76,7 @@ export function PanneauGauche({ onglet, choisirOnglet, fermer, arbre, lecture, c
 /** Le champ de recherche des onglets : une loupe, le texte, et au besoin le bouton des options. */
 function ChampRecherche({ valeur, change, info, options }: { valeur: string; change(v: string): void; info: string; options?: React.ReactNode }) {
   return (
-    <div className="notak-arbre-gauche-recherche" role="search">
-      <Icone nom="recherche" taille={16} trait={1.6} />
-      <input type="search" value={valeur} placeholder={info} aria-label={info} spellCheck={false} onChange={(e) => change(e.target.value)} />
-      {options}
-    </div>
+    <Recherche className="notak-arbre-gauche-recherche" valeur={valeur} onChange={change} placeholder={info} aria-label={info} fin={options} />
   )
 }
 

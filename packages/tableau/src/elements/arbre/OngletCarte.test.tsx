@@ -107,7 +107,7 @@ describe('l’onglet Carte : ce qu’il montre', () => {
   it('quatre titres de section, des séparateurs entre les blocs', () => {
     monter(carte())
     expect([...hote.querySelectorAll('.notak-arbre-reglages-titre')].map((x) => x.textContent)).toEqual(['Style de carte', 'Affichage des sujets', 'Relation', 'Avancé'])
-    expect(hote.querySelectorAll('hr.notak-arbre-reglages-separateur').length).toBeGreaterThanOrEqual(8)
+    expect(hote.querySelectorAll('hr.notak-filet').length).toBeGreaterThanOrEqual(8)
   })
 
   it('une carte neuve : carte équilibrée et branches de couleur allumées, le reste éteint', () => {
@@ -125,7 +125,7 @@ describe('l’onglet Carte : ce qu’il montre', () => {
 
   it('chaque ligne à bascule porte l’infobulle de Xmind sur toute la ligne', () => {
     monter(carte())
-    const ligne = interrupteur('Carte compacte').closest('.notak-arbre-reglages-ligne')!
+    const ligne = interrupteur('Carte compacte').closest('.notak-reglage')!
     expect(ligne.getAttribute('title')).toBe('Réduire la taille et l\'espacement des éléments.')
   })
 

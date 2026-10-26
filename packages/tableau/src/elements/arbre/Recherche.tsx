@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { type Id, texteBrut } from '../../coeur/tableau'
 import { t } from '../../langue'
+import { Recherche as RechercheCommune } from '../../communs'
 import type { Lecture } from './modele/sujets'
 
 const normaliser = (s: string) =>
@@ -30,13 +31,12 @@ export function Recherche({ texte, trouves, rang, changer, suivant, fermer }: { 
   }, [])
   return (
     <div className="notak-arbre-recherche" role="search">
-      <input
+      <RechercheCommune
         ref={champ}
-        type="search"
-        value={texte}
+        valeur={texte}
         placeholder={t('arbre.chercher')}
         aria-label={t('arbre.chercher')}
-        onChange={(e) => changer(e.target.value)}
+        onChange={changer}
         onKeyDown={(e) => {
           e.stopPropagation()
           if (e.key === 'Enter') {

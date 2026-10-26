@@ -7,6 +7,7 @@ import { EMOJIS } from './insertion'
 import { augmenterRetrait, diminuerRetrait } from './texte'
 import { COULEURS_TEXTE, SURLIGNAGES, valeurCouleurTexte } from './couleurs'
 import { t } from '../../langue'
+import { Champ } from '../../communs'
 import { Icone } from '../../icones'
 import { useMenu } from '../../menuUnique'
 
@@ -207,8 +208,9 @@ export function ChampLien({ editor, depart, fini }: { editor: Editor; depart: st
   }
   return (
     <span className="notak-note-lien-champ">
-      <input
+      <Champ
         ref={champ}
+        taille="p"
         className="notak-note-lien"
         value={valeur}
         placeholder={t('barre.lienPlaceholder')}

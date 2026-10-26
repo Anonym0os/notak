@@ -72,35 +72,7 @@
 }
 
 .notak-arbre-gauche-recherche {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
   margin: 0 12px 8px;
-  padding: 0 4px 0 10px;
-  height: 32px;
-  border: 1px solid var(--notak-arbre-filet-c);
-  border-radius: 8px;
-  background: var(--notak-arbre-fond);
-  color: var(--notak-arbre-discret);
-}
-
-.notak-arbre-gauche-recherche:focus-within {
-  border-color: var(--notak-arbre-choix);
-}
-
-.notak-arbre-gauche-recherche input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  color: var(--notak-arbre-texte);
-  font: inherit;
-  outline: none;
-}
-
-.notak-arbre-gauche-recherche input::-webkit-search-cancel-button {
-  display: none;
 }
 
 .notak-arbre-gauche-options {

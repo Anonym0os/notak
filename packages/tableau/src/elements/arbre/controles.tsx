@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
-import { Interrupteur } from '../../communs'
+import { Interrupteur, LigneReglage, Separateur } from '../../communs'
 import { Flottant } from './Flottant'
 import { COLONNES_GRILLE, GRILLE_COULEURS, assemblerCouleur, decouperCouleur, degradeConique, estCouleur, normaliserHex } from './carte/couleurs'
 
@@ -23,38 +23,6 @@ export function Bloc({ titre, children, className }: { titre?: string; children:
     </section>
   )
 }
-
-/** Le filet entre deux blocs. */
-export function Separateur() {
-  return <hr className="notak-arbre-reglages-separateur" />
-}
-
-/** Une ligne d'un bloc : le libellé à gauche, le contrôle à droite. `aide` : l'infobulle de toute la ligne. */
-export function LigneReglage({ libelle, aide, inactif, children }: { libelle: string; aide?: string | undefined; inactif?: boolean | undefined; children?: ReactNode }) {
-  return (
-    <div className="notak-arbre-reglages-ligne" title={aide} data-inactif={inactif ? '' : undefined}>
-      <span className="notak-arbre-reglages-libelle">{libelle}</span>
-      {children}
-    </div>
-  )
-}
-
-/** Un champ vertical : un petit libellé gris au-dessus de son contrôle (liste, nuancier). */
-export function Champ({ libelle, aide, children, className }: { libelle: string; aide?: string | undefined; children: ReactNode; className?: string }) {
-  return (
-    <div className={`notak-arbre-reglages-champ${className ? ` ${className}` : ''}`} title={aide}>
-      <span className="notak-arbre-reglages-champ-libelle">{libelle}</span>
-      {children}
-    </div>
-  )
-}
-
-/** La phrase d'aide sous un contrôle. */
-export function Aide({ children }: { children: ReactNode }) {
-  return <p className="notak-arbre-reglages-aide">{children}</p>
-}
-
-/* ------------------------------------------------------------------ bascule */
 
 /** Une ligne à bascule : le libellé, l'infobulle de la ligne, la bascule à droite. */
 export function LigneBascule({ libelle, aide, actif, onChange, inactif }: { libelle: string; aide?: string | undefined; actif: boolean; onChange(actif: boolean): void; inactif?: boolean | undefined }) {
@@ -183,7 +151,7 @@ export function Liste({
         <div role="listbox" aria-label={libelle} className="notak-arbre-reglages-options" style={{ maxHeight: hauteurMax }}>
           {options.map((x, i) => (
             <div key={`${i}:${x.valeur}`} role="presentation">
-              {x.separateurAvant && <hr className="notak-arbre-reglages-separateur" />}
+              {x.separateurAvant && <Separateur />}
               <button
                 type="button"
                 role="option"

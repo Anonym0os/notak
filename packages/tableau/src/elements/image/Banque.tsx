@@ -1,6 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
+import { Recherche } from '../../communs'
 import type { ContexteToile, ImageDeBanque } from '../types'
 import { envoyerFichiers, fermerBanque, lireHistorique, motsDuMenu, noterRecherche, poserImageDeBanque, useBanqueOuverte } from './banqueImages'
 import './banque.css'
@@ -182,27 +183,27 @@ function Banque({ contexte, libelleOutil }: { contexte: ContexteToile; libelleOu
                 Pexels
               </a>
             </p>
-            <div className="notak-banque-champ">
-              <input
-                ref={champ}
-                type="text"
-                value={saisie}
-                placeholder={t('image.banque.rechercher')}
-                aria-label={t('image.banque.rechercher')}
-                onChange={(e) => setSaisie(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    valider()
-                  }
-                }}
-              />
-              {saisie && (
-                <button type="button" aria-label={t('image.banque.effacer')} title={t('image.banque.effacer')} onClick={() => { setSaisie(''); champ.current?.focus() }}>
-                  <Icone nom="fermer" taille={14} />
-                </button>
-              )}
-            </div>
+            <Recherche
+              ref={champ}
+              className="notak-banque-champ"
+              valeur={saisie}
+              placeholder={t('image.banque.rechercher')}
+              aria-label={t('image.banque.rechercher')}
+              onChange={setSaisie}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  valider()
+                }
+              }}
+              fin={
+                saisie && (
+                  <button type="button" aria-label={t('image.banque.effacer')} title={t('image.banque.effacer')} onClick={() => { setSaisie(''); champ.current?.focus() }}>
+                    <Icone nom="fermer" taille={14} />
+                  </button>
+                )
+              }
+            />
           </div>
           <div className="notak-banque-contenu">
             {mode.genre === 'envoyer' ? (

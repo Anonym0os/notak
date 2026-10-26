@@ -48,18 +48,6 @@ export function Section({ titre, entete, ouverte = true, children }: { titre: st
   )
 }
 
-export const Separateur = () => <hr className="notak-arbre-style-separateur" />
-
-/** Une rangée : un libellé à gauche, des contrôles à droite. */
-export function Ligne({ libelle, children }: { libelle?: string; children?: ReactNode }) {
-  return (
-    <div className="notak-arbre-style-ligne">
-      {libelle && <span className="notak-arbre-style-libelle">{libelle}</span>}
-      {children}
-    </div>
-  )
-}
-
 /** Une rangée de contrôles côte à côte, écartés de 8 px. */
 export const Rangee = ({ children, bas = true }: { children: ReactNode; bas?: boolean }) => (
   <div className="notak-arbre-style-rangee" data-bas={bas ? '' : undefined}>

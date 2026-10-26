@@ -18,7 +18,7 @@ import {
 } from './puces'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
-import { Calendrier, Choix, ChoixHeure } from '../../communs'
+import { Calendrier, Choix, ChoixHeure, Recherche } from '../../communs'
 import { PastillePersonne } from '../../pastille'
 
 /** Où le menu s'ouvre : accroché à la puce touchée, qu'il suit quand la toile bouge. */
@@ -141,15 +141,14 @@ function PanneauPersonne({ valeur, personnes, regler, fermer }: { valeur: string
   }
   return (
     <>
-      <input
+      <Recherche
         className="notak-menu-recherche"
-        type="text"
         aria-label={t('taches.nom')}
         placeholder={t('taches.chercherPersonne')}
-        value={recherche}
+        valeur={recherche}
         autoFocus
-        onChange={(e) => {
-          setRecherche(e.target.value)
+        onChange={(v) => {
+          setRecherche(v)
           setActif(0)
         }}
         onKeyDown={(e) => {

@@ -11,6 +11,7 @@ import { demanderModele } from './modele'
 import { peutPoserModele } from './poserModele'
 import { demanderRenommage } from './renommage'
 import { t } from '../../langue'
+import { Recherche } from '../../communs'
 import { Icone } from '../../icones'
 import { useMenu } from '../../menuUnique'
 import { BoutonOutil, OutilAvecMenu } from '../../BoutonOutil'
@@ -48,15 +49,13 @@ function ChoixIcone({ elements, contexte }: PropsOutils<RenvoiTableau>) {
   return (
     <OutilAvecMenu menu={[ouvert, setOuvert, ancre]} classeAncre="notak-colonne-menu-ancre" icone="tableau" titre={t('tableau.icone.titre')} libelle={t('tableau.icone')}>
       <div className="notak-colonne-palette notak-renvoi-choix" role="menu">
-          <input
+          <Recherche
             ref={champ}
-            type="search"
             className="notak-renvoi-recherche"
-            value={requete}
+            valeur={requete}
             placeholder={t('tableau.rechercheIcone')}
             aria-label={t('tableau.rechercheIcone')}
-            spellCheck={false}
-            onChange={(e) => setRequete(e.target.value)}
+            onChange={setRequete}
             onKeyDown={(e) => e.stopPropagation()}
           />
           <div className="notak-renvoi-icones">

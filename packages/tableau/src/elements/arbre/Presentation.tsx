@@ -2,7 +2,7 @@ import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import type { Arbre, Id } from '../../coeur/tableau'
 import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
-import { Choix, Interrupteur } from '../../communs'
+import { Choix, Interrupteur, LigneReglage } from '../../communs'
 import { Agrandissement, BoutonAgrandir, type ImageVisee } from './Agrandissement'
 import { ChoixTheme, PopoverFixe } from './ChoixTheme'
 import { Diapositive } from './Diapo'
@@ -464,8 +464,7 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
           <button ref={boutonTheme} type="button" className="notak-arbre-pitch-bouton" title={t('arbre.pitch.themeInfo')} disabled={lectureSeule} onClick={() => setThemes((o) => !o)}>
             {t('arbre.pitch.changerTheme')}
           </button>
-          <div className="notak-arbre-pitch-ligne">
-            <span>{t('arbre.pitch.ratio')}</span>
+          <LigneReglage className="notak-arbre-pitch-ligne" libelle={t('arbre.pitch.ratio')}>
             <Choix
               valeur={arbre.pitch?.ratio ?? 'auto'}
               options={[{ valeur: 'auto', libelle: t('arbre.pitch.auto') }, ...RATIOS_PITCH.map((r) => ({ valeur: r, libelle: r }))]}
@@ -474,11 +473,10 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
               inactif={lectureSeule}
               onChange={(v) => mettreAJour({ ratio: v === 'auto' ? null : (v as (typeof RATIOS_PITCH)[number]) })}
             />
-          </div>
-          <div className="notak-arbre-pitch-ligne">
-            <span>{t('arbre.pitch.animation')}</span>
+          </LigneReglage>
+          <LigneReglage className="notak-arbre-pitch-ligne" libelle={t('arbre.pitch.animation')}>
             <Interrupteur actif={anime} onChange={basculerAnimation} libelle={t('arbre.pitch.animation')} titre={t('arbre.pitch.animationInfo')} />
-          </div>
+          </LigneReglage>
           {themes && <ChoixTheme ancre={boutonTheme.current} pitch={arbre.pitch} ratio={ratio} choisir={mettreAJour} fermer={() => setThemes(false)} />}
         </PopoverFixe>
       )}

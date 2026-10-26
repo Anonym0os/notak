@@ -24,13 +24,17 @@ export const ChampLong = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<
   return <textarea ref={ref} className={classes(taille, className)} data-faux={faux ? '' : undefined} aria-invalid={faux || undefined} {...reste} />
 })
 
-/** Un libellé au-dessus de son champ (13 px, 500), à 6 px. */
-export function Libelle({ texte, children, className }: { texte: ReactNode; children: ReactNode; className?: string }) {
+/**
+ * Un libellé au-dessus de son champ (13 px, 500), à 6 px. `groupe` : le contrôle n'est pas un champ (une liste qui
+ * s'ouvre, un nuancier) ; le libellé n'est plus un `label`, qui en déclencherait le clic.
+ */
+export function Libelle({ texte, aide, groupe, children, className }: { texte: ReactNode; aide?: string | undefined; groupe?: boolean; children: ReactNode; className?: string }) {
+  const Balise = groupe ? 'div' : 'label'
   return (
-    <label className={['notak-libelle', className].filter(Boolean).join(' ')}>
+    <Balise className={['notak-libelle', className].filter(Boolean).join(' ')} title={aide}>
       <span>{texte}</span>
       {children}
-    </label>
+    </Balise>
   )
 }
 

@@ -124,42 +124,18 @@
   outline-offset: 1px;
 }
 
-/* Une rangée courte : le libellé à gauche sur une ligne, le contrôle de 72 collé au bord droit de la colonne. */
+/* Une rangée courte : le libellé à gauche sur une ligne, le contrôle collé au bord droit de la colonne (la ligne commune). */
 .notak-arbre-fond .notak-arbre-pitch-ligne {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
   min-height: 24px;
 }
 
-.notak-arbre-fond .notak-arbre-pitch-ligne > span:first-child {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  letter-spacing: 0.02em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Une rangée longue : la légende de 11 / 15 au-dessus, le contrôle sur les 228. */
+/* Une rangée longue : la légende au-dessus, le contrôle sur toute la largeur. */
 .notak-arbre-fond .notak-arbre-pitch-ligne[data-vertical] {
-  display: block;
   margin-top: 12px;
 }
 
-.notak-arbre-fond .notak-arbre-pitch-ligne[data-ample] {
+.notak-arbre-fond .notak-arbre-pitch-ample {
   margin-top: 16px;
-}
-
-.notak-arbre-fond .notak-arbre-pitch-ligne[data-vertical] > span:first-child {
-  display: block;
-  height: 15px;
-  margin-bottom: 4px;
-  color: var(--notak-arbre-style-doux);
-  font-size: 11px;
-  line-height: 15px;
-  letter-spacing: 0.04em;
 }
 
 /* Les réglages de la présentation (Presentation.tsx) : un popover posé hors du panneau, qui garde ces rangées d'avant. */
@@ -182,16 +158,9 @@
   background: var(--notak-arbre-survol);
 }
 
+/* Les réglages de la présentation : la ligne commune, au pas de 24 px. */
 .notak-arbre-pitch-reglages .notak-arbre-pitch-ligne {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
   min-height: 24px;
-}
-
-.notak-arbre-pitch-reglages .notak-arbre-pitch-ligne > span {
-  letter-spacing: 0.52px;
 }
 
 /* Les popovers (thèmes, réglages), posés hors du panneau. */

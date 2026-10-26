@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { t } from '../../langue'
+import { Separateur } from '../../communs'
 import { Points, Popover, Section } from './controles-style'
 import { MULTIPLE, type Mixte } from './modele/style'
 
@@ -218,7 +219,7 @@ function Selecteur({ ancre, fermer, valeur, choisir, opaciteMax = 100, theme, sa
           {t('arbre.style.parDefaut')}
         </button>
       )}
-      {((theme?.length ?? 0) + recentes.length) > 0 && <hr className="notak-arbre-style-separateur notak-arbre-style-fort" />}
+      {((theme?.length ?? 0) + recentes.length) > 0 && <Separateur className="notak-arbre-style-fort" />}
       {!!theme?.length && (
         <Section titre={t('arbre.style.themeActuel')}>{grille(theme, t('arbre.style.themeActuel'))}</Section>
       )}

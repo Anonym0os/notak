@@ -318,28 +318,7 @@
 
 /* Les illustrations : la recherche, la liste des groupes, un groupe ouvert. */
 .notak-arbre-fond .notak-arbre-icones-recherche {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 6px;
-  box-sizing: border-box;
-  height: 28px;
   margin: 8px 12px 12px;
-  padding: 0 8px;
-  border: 1px solid var(--notak-arbre-style-bord);
-  border-radius: 8px;
-  background: var(--notak-arbre-fond);
-  color: var(--notak-arbre-discret);
-}
-
-.notak-arbre-fond .notak-arbre-icones-recherche input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  color: var(--notak-arbre-texte);
-  font: inherit;
-  outline: none;
 }
 
 .notak-arbre-fond .notak-arbre-icones-titre-groupe {

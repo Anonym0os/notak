@@ -89,20 +89,16 @@
   display: none;
 }
 
-.notak-arbre-fond .notak-arbre-style-separateur {
-  height: 0;
+.notak-arbre-fond .notak-filet {
   margin: 8px 20px;
-  border: 0;
-  border-top: 1px solid var(--notak-arbre-style-bord);
 }
 
-.notak-arbre-fond .notak-arbre-style-separateur.notak-arbre-style-large {
+.notak-arbre-fond .notak-filet.notak-arbre-style-large {
   margin: 20px 0;
 }
 
-.notak-arbre-fond .notak-arbre-style-separateur.notak-arbre-style-fort {
+.notak-arbre-fond .notak-filet.notak-arbre-style-fort {
   margin: 12px 0;
-  border-top-color: var(--notak-arbre-filet-c);
 }
 
 .notak-arbre-fond .notak-arbre-style-rangee {
@@ -119,21 +115,8 @@
   margin-bottom: 0;
 }
 
-.notak-arbre-fond .notak-arbre-style-ligne {
-  display: flex;
+.notak-arbre-fond .notak-arbre-style-corps .notak-reglage {
   flex: 1;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.notak-arbre-fond .notak-arbre-style-ligne > .notak-arbre-style-libelle {
-  flex: 1;
-  min-width: 0;
-}
-
-.notak-arbre-fond .notak-arbre-style-libelle {
-  font-weight: 400;
 }
 
 .notak-arbre-fond .notak-arbre-style-legende {
@@ -729,7 +712,7 @@
   gap: 12px;
 }
 
-.notak-arbre-fond .notak-arbre-style-coloree .notak-arbre-style-ligne {
+.notak-arbre-fond .notak-arbre-style-coloree .notak-reglage {
   flex: none;
   justify-content: space-between;
 }

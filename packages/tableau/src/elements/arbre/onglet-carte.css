@@ -40,11 +40,8 @@
   padding: 12px;
 }
 
-.notak-arbre-reglages-separateur {
-  height: 1px;
+.notak-arbre-reglages .notak-filet {
   margin: 8px 20px;
-  border: 0;
-  background: var(--notak-arbre-filet-c);
 }
 
 .notak-arbre-reglages-titre {
@@ -59,57 +56,14 @@
   user-select: none;
 }
 
-.notak-arbre-reglages-ligne {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+.notak-arbre-reglages .notak-reglage,
+.notak-arbre-reglages .notak-libelle {
   padding-bottom: 12px;
 }
 
-.notak-arbre-reglages-ligne:last-child {
+.notak-arbre-reglages .notak-reglage:last-child,
+.notak-arbre-reglages .notak-libelle:last-child {
   padding-bottom: 0;
-}
-
-.notak-arbre-reglages-libelle {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  font-weight: 400;
-  letter-spacing: 0.52px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.notak-arbre-reglages-ligne[data-inactif] .notak-arbre-reglages-libelle {
-  color: color-mix(in srgb, var(--notak-arbre-texte) 30%, transparent);
-}
-
-.notak-arbre-reglages-champ {
-  display: flex;
-  flex-direction: column;
-  padding-bottom: 12px;
-}
-
-.notak-arbre-reglages-champ:last-child {
-  padding-bottom: 0;
-}
-
-.notak-arbre-reglages-champ-libelle {
-  height: 15px;
-  margin-bottom: 4px;
-  color: var(--notak-arbre-discret);
-  font-size: 11px;
-  line-height: 15px;
-  letter-spacing: 0.44px;
-}
-
-.notak-arbre-reglages-aide {
-  margin: 6px 0 0;
-  color: var(--notak-arbre-discret);
-  font-size: 10px;
-  line-height: 14px;
-  letter-spacing: 0.4px;
 }
 
 .notak-arbre-reglages-filet-section {
@@ -438,7 +392,7 @@
   margin-right: 0;
 }
 
-.notak-arbre-reglages-options .notak-arbre-reglages-separateur {
+.notak-arbre-reglages-options .notak-filet {
   margin: 4px 0;
 }
 

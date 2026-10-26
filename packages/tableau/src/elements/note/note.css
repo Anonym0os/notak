@@ -366,12 +366,7 @@
 
 .notak-note-lien {
   width: 180px;
-  height: 28px;
   margin-left: 4px;
-  padding: 0 8px;
-  border: 1px solid var(--notak-point);
-  border-radius: 6px;
-  font: inherit;
   user-select: text;
 }
 
@@ -399,11 +394,6 @@
   background: none;
   color: var(--notak-pale, #8a9099);
   cursor: pointer;
-}
-
-.notak-note-lien:focus {
-  outline: 2px solid var(--notak-accent);
-  outline-offset: -1px;
 }
 
 /* Une note vide dit qu'on peut y écrire, même hors édition. */

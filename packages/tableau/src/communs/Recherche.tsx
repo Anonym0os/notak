@@ -20,7 +20,7 @@ export const Recherche = forwardRef<HTMLInputElement, Props>(function Recherche(
     <label className={['notak-champ-recherche', className].filter(Boolean).join(' ')} data-pilule={pilule ? '' : undefined}>
       <Icone nom="recherche" taille={16} trait={1.8} />
       <input ref={ref} type="search" className="notak-champ" spellCheck={false} value={valeur} onChange={(e) => onChange(e.target.value)} {...reste} />
-      {fin}
+      {fin && <span className="notak-champ-recherche-fin">{fin}</span>}
     </label>
   )
 })

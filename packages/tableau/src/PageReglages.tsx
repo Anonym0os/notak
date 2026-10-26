@@ -3,7 +3,7 @@ import { t, tn } from './langue'
 import { touchesDe } from './communs'
 import { touches } from './Menus'
 import { PastillePersonne } from './pastille'
-import { Segments } from './communs'
+import { Recherche, Segments } from './communs'
 import { type ContexteReglages, GROUPES, type Ligne, type Rubrique, chercher, lire, morceaux, nombreDeLignes, rubriquesVisibles } from './rubriquesReglages'
 import { VERSION_NOTAK } from './version'
 import './reglages.css'
@@ -181,14 +181,7 @@ export function PageReglages({ fermer, ...c }: ContexteReglages & { fermer(): vo
               </span>
             </button>
           )}
-          <label className="notak-rg-recherche">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <circle cx="11" cy="11" r="7" />
-              <path d="M20 20l-3.5-3.5" />
-            </svg>
-            <input ref={champ} type="search" value={cherche} placeholder={t('reglages.chercher')} aria-label={t('reglages.chercher')} onChange={(e) => setCherche(e.target.value)} />
-            {!cherche && <kbd aria-hidden>{touches('⌘F')}</kbd>}
-          </label>
+          <Recherche ref={champ} valeur={cherche} onChange={setCherche} placeholder={t('reglages.chercher')} aria-label={t('reglages.chercher')} fin={!cherche && <kbd aria-hidden>{touches('⌘F')}</kbd>} />
           <div className="notak-rg-liste">
             {GROUPES.map((g) => {
               const rubriques = visibles.filter((r) => r.groupe === g)
