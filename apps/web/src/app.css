@@ -1,3 +1,7 @@
+@import './styles/bureau.css';
+@import './styles/serveur.css';
+@import './styles/divers.css';
+
 html,
 body,
 #racine {

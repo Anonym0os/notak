@@ -1,4 +1,7 @@
 import { type Textes, ajouterTextes } from '@notak/tableau'
+import * as bureau from './textes/bureau'
+import * as divers from './textes/divers'
+import * as serveur from './textes/serveur'
 
 export { langue, t, tn } from '@notak/tableau'
 
@@ -1059,5 +1062,8 @@ export const en: Textes = {
   'maj.recharger': 'Reload',
   // FIN en
 }
+
+Object.assign(fr, bureau.fr, serveur.fr, divers.fr)
+Object.assign(en, bureau.en, serveur.en, divers.en)
 
 ajouterTextes(fr, en)
