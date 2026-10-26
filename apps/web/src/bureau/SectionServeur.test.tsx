@@ -3,47 +3,27 @@ import { definirLangue } from '@notak/tableau'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Acces } from '../bureau'
 import { fabriquerCopie } from '../local/copie'
 import type { EspaceLocal } from '../local/espace'
 import { DEPART_MS, lireEtatServeur, oublierEchecServeur } from './emporter'
+import { SERVEUR, acces, appelsDe, bouton, coque, dialoguesDeJsdom, invoke, poserCoque, retirerCoque } from './essai'
 import { fermerDialogueAcces } from './etat'
 import { DialogueAcces } from './FormulaireAcces'
 import { SectionServeur } from './SectionServeur'
 
 vi.mock('../local/copie', () => ({ fabriquerCopie: vi.fn(async () => new Uint8Array([9, 8, 7])) }))
 
-;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+dialoguesDeJsdom()
 
-if (!HTMLDialogElement.prototype.showModal) {
-  HTMLDialogElement.prototype.showModal = function () {
-    this.open = true
-  }
-  HTMLDialogElement.prototype.close = function () {
-    this.open = false
-    this.dispatchEvent(new Event('close'))
-  }
-}
-
-const SERVEUR = 'https://notak.exemple.fr'
-const acces = (o: Partial<Acces> = {}): Acces => ({ ouvrir: 'local', serveur: null, majAuto: true, version: '0.1.0', ...o })
 const el = { espace: 'el' } as unknown as EspaceLocal
 
 let racine: Root
 let hote: HTMLElement
-let invoke: ReturnType<typeof vi.fn>
-let coque: Record<string, (args: unknown) => unknown>
 
 beforeEach(() => {
   definirLangue('fr')
   vi.mocked(fabriquerCopie).mockClear()
-  coque = { acces: () => acces() }
-  invoke = vi.fn(async (commande: string, args: unknown) => {
-    const r = coque[commande]
-    if (!r) throw `Command ${commande} not found`
-    return r(args)
-  })
-  ;(window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = { invoke }
+  poserCoque({ acces: () => acces() })
   hote = document.createElement('div')
   document.body.append(hote)
   racine = createRoot(hote)
@@ -56,12 +36,11 @@ afterEach(async () => {
   })
   hote.remove()
   document.querySelectorAll('dialog').forEach((d) => d.remove())
-  delete (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
+  retirerCoque()
   oublierEchecServeur()
+  vi.restoreAllMocks()
 })
 
-const appelsDe = (commande: string) => invoke.mock.calls.filter((c) => c[0] === commande).map((c) => c[1])
-const bouton = (texte: string) => [...document.querySelectorAll('button')].find((b) => b.textContent === texte)
 const monter = async (fermer = vi.fn()) => {
   await act(async () => racine.render(<><SectionServeur el={el} fermer={fermer} /><DialogueAcces /></>))
   return fermer
@@ -91,10 +70,10 @@ describe('« Travailler à plusieurs », dans « Où sont mes toiles ? » de l�
       coque.acces = () => acces({ serveur: SERVEUR })
     })
 
-    it('propose d’y revenir et d’y emporter ses toiles, en disant ce qui arrive aux copies', async () => {
+    it('propose d’y revenir et d’y copier ses toiles, en disant ce qui arrive aux copies', async () => {
       await monter()
       expect(bouton('Revenir sur notak.exemple.fr')).toBeTruthy()
-      expect(bouton('Emporter mes toiles sur notak.exemple.fr')).toBeTruthy()
+      expect(bouton('Copier mes toiles sur notak.exemple.fr')).toBeTruthy()
       expect(document.body.textContent).toContain('Une copie de vos toiles sera proposée à l’import sur notak.exemple.fr. Rien n’est supprimé ici.')
     })
 
@@ -116,13 +95,13 @@ describe('« Travailler à plusieurs », dans « Où sont mes toiles ? » de l�
       expect(lireEtatServeur()).toEqual({ type: 'repos' })
     })
 
-    it('« Emporter » : une copie complète, un temps pour qu’IndexedDB écrive, la copie confiée à la coque, puis le serveur', async () => {
+    it('« Copier » : une copie complète, un temps pour qu’IndexedDB écrive, la copie confiée à la coque, puis le serveur', async () => {
       vi.useFakeTimers()
       let partir: (v: unknown) => void = () => {}
       coque.confier_copie = () => undefined
       coque.joindre_serveur = () => new Promise((fin) => (partir = fin))
       await monter()
-      await act(async () => bouton('Emporter mes toiles sur notak.exemple.fr')!.click())
+      await act(async () => bouton('Copier mes toiles sur notak.exemple.fr')!.click())
       expect(fabriquerCopie).toHaveBeenCalledWith(el)
       expect(document.querySelector('[role="status"]')?.textContent).toBe('Préparation de la copie de vos toiles…')
       expect(appelsDe('confier_copie')).toHaveLength(0)
@@ -140,13 +119,25 @@ describe('« Travailler à plusieurs », dans « Où sont mes toiles ? » de l�
         throw { code: 'trop_gros' }
       }
       await monter()
-      await act(async () => bouton('Emporter mes toiles sur notak.exemple.fr')!.click())
+      await act(async () => bouton('Copier mes toiles sur notak.exemple.fr')!.click())
       await act(async () => void vi.advanceTimersByTimeAsync(400))
       expect(document.querySelector('[role="alert"]')?.textContent).toBe(
-        'Vos toiles sont trop volumineuses pour partir ainsi. Enregistrez-en une copie (.notak), puis importez-la sur notak.exemple.fr.',
+        'Vos toiles sont trop volumineuses pour être copiées ainsi. Enregistrez-en une copie (.notak), puis importez-la sur notak.exemple.fr.',
       )
       expect(appelsDe('joindre_serveur')).toHaveLength(0)
-      expect(bouton('Emporter mes toiles sur notak.exemple.fr')!.disabled).toBe(false)
+      expect(bouton('Copier mes toiles sur notak.exemple.fr')!.disabled).toBe(false)
+    })
+
+    it('une file pleine de copies ouvertes depuis le système : ce n’est pas que les toiles sont trop lourdes', async () => {
+      vi.useFakeTimers()
+      coque.confier_copie = () => {
+        throw { code: 'file_pleine' }
+      }
+      await monter()
+      await act(async () => bouton('Copier mes toiles sur notak.exemple.fr')!.click())
+      await act(async () => void vi.advanceTimersByTimeAsync(400))
+      expect(document.querySelector('[role="alert"]')?.textContent).toBe('Trop de fichiers attendent déjà d’être ouverts dans Notak. Redémarrez l’app, puis réessayez.')
+      expect(appelsDe('joindre_serveur')).toHaveLength(0)
     })
 
     it('un serveur qui ne répond pas, une fois la copie confiée : l’erreur se dit comme à l’écran d’accès', async () => {
@@ -156,7 +147,7 @@ describe('« Travailler à plusieurs », dans « Où sont mes toiles ? » de l�
         throw { code: 'certificat' }
       }
       await monter()
-      await act(async () => bouton('Emporter mes toiles sur notak.exemple.fr')!.click())
+      await act(async () => bouton('Copier mes toiles sur notak.exemple.fr')!.click())
       await act(async () => void vi.advanceTimersByTimeAsync(400))
       expect(document.querySelector('[role="alert"]')?.textContent).toContain('certificat')
     })

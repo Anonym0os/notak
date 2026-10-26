@@ -3,7 +3,7 @@ import { definirLangue, reglerRubriqueBureau } from '@notak/tableau'
 import { act, isValidElement } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Acces } from '../bureau'
+import { SERVEUR, acces, appelsDe, bouton, coque, dialoguesDeJsdom, poserCoque, retirerCoque } from './essai'
 import { DialogueAcces } from './FormulaireAcces'
 import { fermerDialogueAcces } from './etat'
 import { ReglagesBureau, brancherReglagesBureau } from './ReglagesBureau'
@@ -13,36 +13,15 @@ vi.mock('@notak/tableau', async (origine) => ({ ...(await origine<typeof import(
 let surServeur = false
 vi.mock('../bureau', async (origine) => ({ ...(await origine<typeof import('../bureau')>()), estPageServeur: () => surServeur }))
 
-;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
-
-if (!HTMLDialogElement.prototype.showModal) {
-  HTMLDialogElement.prototype.showModal = function () {
-    this.open = true
-  }
-  HTMLDialogElement.prototype.close = function () {
-    this.open = false
-    this.dispatchEvent(new Event('close'))
-  }
-}
-
-const SERVEUR = 'https://notak.exemple.fr'
-const acces = (o: Partial<Acces> = {}): Acces => ({ ouvrir: 'local', serveur: null, majAuto: true, version: '0.1.0', ...o })
+dialoguesDeJsdom()
 
 let racine: Root
 let hote: HTMLElement
-let invoke: ReturnType<typeof vi.fn>
-let coque: Record<string, (args: unknown) => unknown>
 
 beforeEach(() => {
   definirLangue('fr')
   surServeur = false
-  coque = { acces: () => acces() }
-  invoke = vi.fn(async (commande: string, args: unknown) => {
-    const r = coque[commande]
-    if (!r) throw `Command ${commande} not found`
-    return r(args)
-  })
-  ;(window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = { invoke }
+  poserCoque({ acces: () => acces() })
   hote = document.createElement('div')
   document.body.append(hote)
   racine = createRoot(hote)
@@ -54,13 +33,13 @@ afterEach(() => {
   })
   hote.remove()
   document.querySelectorAll('dialog').forEach((d) => d.remove())
-  delete (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
+  retirerCoque()
   vi.mocked(reglerRubriqueBureau).mockClear()
 })
 
-const appelsDe = (commande: string) => invoke.mock.calls.filter((c) => c[0] === commande).map((c) => c[1])
-const bouton = (texte: string) => [...document.querySelectorAll('button')].find((b) => b.textContent === texte)
 const monter = async () => act(async () => racine.render(<ReglagesBureau />))
+const choix = () => [...hote.querySelectorAll<HTMLInputElement>('input[type="radio"]')]
+const attente = () => hote.querySelector('[role="status"]')?.textContent ?? ''
 
 describe('brancher la rubrique « App de bureau »', () => {
   it('donne aux réglages de la toile de quoi la dessiner : le contenu de l’app, comme un composant', async () => {
@@ -75,32 +54,60 @@ describe('brancher la rubrique « App de bureau »', () => {
 })
 
 describe('les réglages de l’app de bureau, sur la page des toiles d’ici', () => {
-  it('sans serveur retenu : où Notak s’ouvre, et de quoi se connecter', async () => {
+  it('sans serveur mémorisé : où Notak s’ouvre, et de quoi se connecter', async () => {
     await monter()
-    expect(hote.querySelector('h3')?.textContent).toBe('Accès')
+    expect(hote.querySelector('h3')?.textContent).toBe('Serveur')
     expect(hote.textContent).toContain('Notak s’ouvre sur les toiles de cet ordinateur.')
+    // Un seul lieu possible : pas de choix à faire.
+    expect(choix()).toEqual([])
     expect(bouton('Se connecter à un serveur Notak…')).toBeTruthy()
     expect([...hote.querySelectorAll('button')].some((b) => b.textContent?.startsWith('Revenir sur'))).toBe(false)
     expect(bouton('Changer de serveur…')).toBeUndefined()
   })
 
-  it('avec un serveur retenu : il se lit, et « Revenir sur » y envoie la fenêtre, en le gardant', async () => {
+  it('avec un serveur mémorisé : où Notak s’ouvre au démarrage se choisit ici, et se retient dans la coque', async () => {
+    coque.acces = () => acces({ serveur: SERVEUR })
+    coque.regler_ouverture = (a) => {
+      const { ouvrir } = a as { ouvrir: 'local' | 'serveur' }
+      coque.acces = () => acces({ serveur: SERVEUR, ouvrir })
+    }
+    await monter()
+    expect(hote.querySelector('legend')?.textContent).toBe('Au démarrage, Notak s’ouvre :')
+    expect(choix().map((c) => [c.parentElement!.textContent, c.checked, c.disabled])).toEqual([
+      ['sur cet ordinateur', true, false],
+      ['sur notak.exemple.fr', false, false],
+    ])
+    await act(async () => choix()[1]!.click())
+    expect(appelsDe('regler_ouverture')).toEqual([{ ouvrir: 'serveur' }])
+    expect(choix().map((c) => c.checked)).toEqual([false, true])
+    await act(async () => choix()[0]!.click())
+    expect(appelsDe('regler_ouverture')).toEqual([{ ouvrir: 'serveur' }, { ouvrir: 'local' }])
+    expect(choix().map((c) => c.checked)).toEqual([true, false])
+  })
+
+  it('« Revenir sur » y envoie la fenêtre en le gardant, et dit qu’il se connecte sans retirer le bouton du clavier', async () => {
     coque.acces = () => acces({ serveur: SERVEUR })
     coque.joindre_serveur = () => new Promise(() => {})
     await monter()
-    expect(hote.textContent).toContain('Notak s’ouvre sur les toiles de cet ordinateur. Serveur retenu : notak.exemple.fr.')
-    await act(async () => bouton('Revenir sur notak.exemple.fr')!.click())
+    expect(attente()).toBe('')
+    const revenir = bouton('Revenir sur notak.exemple.fr')!
+    revenir.focus()
+    await act(async () => revenir.click())
     expect(appelsDe('joindre_serveur')).toEqual([{ adresse: SERVEUR, garder: true }])
-    expect(bouton('Revenir sur notak.exemple.fr')!.disabled).toBe(true)
-  })
-
-  it('un serveur qui s’ouvrirait d’office, vu pour cette fois depuis les toiles d’ici : on le dit', async () => {
-    coque.acces = () => acces({ ouvrir: 'serveur', serveur: SERVEUR })
-    await monter()
-    expect(hote.textContent).toContain('Notak s’ouvre sur notak.exemple.fr ; pour cette fois, vous êtes sur les toiles de cet ordinateur.')
+    expect(attente()).toBe('Connexion à notak.exemple.fr…')
+    expect(revenir.getAttribute('aria-disabled')).toBe('true')
+    expect(revenir.disabled).toBe(false)
+    expect(document.activeElement).toBe(revenir)
+    // Pris : un second geste ne part pas, ni la fenêtre d'accès (qui relirait les réglages en s'ouvrant).
+    const lectures = appelsDe('acces').length
+    await act(async () => revenir.click())
+    await act(async () => bouton('Se connecter à un serveur Notak…')!.click())
+    expect(appelsDe('joindre_serveur')).toHaveLength(1)
+    expect(appelsDe('acces')).toHaveLength(lectures)
   })
 
   it('un refus de la coque se dit en alerte, et les boutons se rendent', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
     coque.acces = () => acces({ serveur: SERVEUR })
     coque.joindre_serveur = () => {
       throw { code: 'injoignable' }
@@ -108,7 +115,8 @@ describe('les réglages de l’app de bureau, sur la page des toiles d’ici', (
     await monter()
     await act(async () => bouton('Revenir sur notak.exemple.fr')!.click())
     expect(hote.querySelector('[role="alert"]')?.textContent).toContain('Ce serveur ne répond pas')
-    expect(bouton('Revenir sur notak.exemple.fr')!.disabled).toBe(false)
+    expect(bouton('Revenir sur notak.exemple.fr')!.getAttribute('aria-disabled')).toBeNull()
+    expect(attente()).toBe('')
   })
 
   it('« Se connecter à un serveur… » ouvre la fenêtre d’accès', async () => {
@@ -121,7 +129,7 @@ describe('les réglages de l’app de bureau, sur la page des toiles d’ici', (
   it('les mises à jour y sont, et la case de la recherche automatique se change depuis ici', async () => {
     coque.regler_maj_auto = () => undefined
     await monter()
-    expect([...hote.querySelectorAll('h3')].map((h) => h.textContent)).toEqual(['Accès', 'Mises à jour'])
+    expect([...hote.querySelectorAll('h3')].map((h) => h.textContent)).toEqual(['Serveur', 'Mises à jour'])
     const case_ = hote.querySelector<HTMLInputElement>('input[type="checkbox"]')!
     expect(case_.checked).toBe(true)
     expect(case_.disabled).toBe(false)
@@ -136,34 +144,44 @@ describe('les réglages de l’app de bureau, sur la page d’un serveur', () =>
     coque.acces = () => acces({ ouvrir: 'serveur', serveur: SERVEUR })
   })
 
-  it('dit sur quel serveur on est, et propose d’en changer ou de rentrer aux toiles d’ici', async () => {
+  it('dit sur quel serveur on est et où Notak s’ouvre, sans le changer d’ici ; propose d’en changer ou de rentrer', async () => {
     await monter()
-    expect(hote.textContent).toContain('Notak s’ouvre sur notak.exemple.fr.')
+    expect(hote.textContent).toContain('Vous êtes sur notak.exemple.fr.')
+    expect(choix().map((c) => [c.parentElement!.textContent, c.checked, c.matches(':disabled')])).toEqual([
+      ['sur cet ordinateur', false, true],
+      ['sur notak.exemple.fr', true, true],
+    ])
+    const groupe = hote.querySelector('fieldset')!
+    expect(document.getElementById(groupe.getAttribute('aria-describedby')!)?.textContent).toBe('Ce choix se règle depuis les toiles de cet ordinateur.')
     expect(bouton('Changer de serveur…')).toBeTruthy()
     expect(bouton('Toiles de cet ordinateur')).toBeTruthy()
     expect(bouton('Se connecter à un serveur Notak…')).toBeUndefined()
   })
 
-  it('« Changer de serveur… » ramène à l’écran d’accès, « Toiles de cet ordinateur » aux toiles d’ici', async () => {
+  it('« Changer de serveur… » ramène à l’écran d’accès, en le disant ; un seul geste à la fois', async () => {
     coque.revenir_ici = () => new Promise(() => {})
     await monter()
     await act(async () => bouton('Changer de serveur…')!.click())
     expect(appelsDe('revenir_ici')).toEqual([{ ecran: 'acces' }])
-    // Un seul geste à la fois, le temps que la fenêtre change de page.
-    expect(bouton('Toiles de cet ordinateur')!.disabled).toBe(true)
+    expect(attente()).toBe('Ouverture de l’écran de connexion…')
+    expect(bouton('Toiles de cet ordinateur')!.getAttribute('aria-disabled')).toBe('true')
+    await act(async () => bouton('Toiles de cet ordinateur')!.click())
+    expect(appelsDe('revenir_ici')).toHaveLength(1)
   })
 
-  it('« Toiles de cet ordinateur » demande à la coque d’y ouvrir Notak désormais', async () => {
-    coque.revenir_ici = () => undefined
+  it('« Toiles de cet ordinateur » y ramène la fenêtre pour un coup d’œil, sans rien régler', async () => {
+    coque.revenir_ici = () => new Promise(() => {})
     await monter()
     await act(async () => bouton('Toiles de cet ordinateur')!.click())
     expect(appelsDe('revenir_ici')).toEqual([{ ecran: 'local' }])
+    expect(appelsDe('regler_ouverture')).toEqual([])
+    expect(attente()).toBe('Ouverture des toiles de cet ordinateur…')
   })
 
-  it('un serveur visité sans être celui qu’on ouvre le dit', async () => {
+  it('un serveur visité sans être celui où Notak s’ouvre : le choix le dit', async () => {
     coque.acces = () => acces({ ouvrir: 'local', serveur: SERVEUR })
     await monter()
-    expect(hote.textContent).toContain('Vous êtes sur notak.exemple.fr. Au prochain lancement, Notak s’ouvrira sur les toiles de cet ordinateur.')
+    expect(choix().map((c) => c.checked)).toEqual([true, false])
   })
 
   it('la recherche automatique se lit sans se changer : la case est grisée et dit d’où elle se règle', async () => {

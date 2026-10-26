@@ -8,7 +8,7 @@ import { ouvrirDialogueAcces, useAcces } from './etat'
 
 /**
  * « Travailler à plusieurs », dans « Où sont mes toiles ? » de l'app de bureau : se connecter à un serveur Notak ; et,
- * si l'on en a retenu un, y revenir, ou y emporter les toiles de cet ordinateur (une copie, que le serveur proposera à
+ * si l'on en a mémorisé un, y revenir, ou y copier les toiles de cet ordinateur (une copie, que le serveur proposera à
  * l'import : rien n'est supprimé ici).
  */
 export function SectionServeur({ el, fermer }: { el: EspaceLocal; fermer(): void }) {
@@ -43,15 +43,15 @@ export function SectionServeur({ el, fermer }: { el: EspaceLocal; fermer(): void
               {t('bureau.serveur.revenir', { hote })}
             </button>
             <button type="button" className="bouton" disabled={occupe} onClick={() => void emporterSurServeur(serveur, () => fabriquerCopie(el))}>
-              {t('bureau.serveur.emporter', { hote })}
+              {t('bureau.serveur.copier', { hote })}
             </button>
           </>
         )}
       </div>
-      {serveur && <small className="rangement-note">{t('bureau.serveur.emporterNote', { hote })}</small>}
+      {serveur && <small className="rangement-note">{t('bureau.serveur.copierNote', { hote })}</small>}
       {etat.type === 'cours' && (
         <small className="rangement-note" role="status">
-          {etat.quoi === 'emporter' ? t('bureau.serveur.emporterCours') : t('bureau.porte.connexion', { hote })}
+          {etat.quoi === 'emporter' ? t('bureau.serveur.copierCours') : t('bureau.porte.connexion', { hote })}
         </small>
       )}
       {etat.type === 'echec' && (
@@ -69,4 +69,4 @@ export function SectionServeur({ el, fermer }: { el: EspaceLocal; fermer(): void
 }
 
 /** Un refus de la coque, dit pour ce panneau : une copie trop lourde pour lui est le seul cas qui lui soit propre. */
-const texteEchec = (e: Echec, hote: string) => (e.code === 'trop_gros' ? t('bureau.serveur.emporterTrop', { hote }) : texteErreur(e, hote))
+const texteEchec = (e: Echec, hote: string) => (e.code === 'trop_gros' ? t('bureau.serveur.copierTrop', { hote }) : texteErreur(e, hote))

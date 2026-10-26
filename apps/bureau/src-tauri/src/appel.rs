@@ -2,6 +2,9 @@
 /// la page n'est cru sur parole : qui appelle se lit à l'adresse de la page, et les octets comme le nom d'un fichier
 /// sont relus ici avant de servir.
 use std::borrow::Cow;
+use std::collections::VecDeque;
+use std::sync::{Mutex, PoisonError};
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use tauri::http::HeaderMap;
@@ -32,15 +35,18 @@ pub enum Erreur {
     /// Une sorte de fichier que la coque n'ouvre pas dans une autre application.
     TypeRefuse,
     TropGros,
-    /// Trop de fichiers ouverts coup sur coup.
+    /// Trop de fichiers ouverts coup sur coup, ou une question déjà posée à la personne.
     TropVite,
+    /// La file des fichiers qui attendent la page est pleine (`fichiers::FILE_MAX`).
+    FilePleine,
     /// Un fichier ouvert qui n'est plus (ou pas pour cette page).
     Introuvable,
     /// Des octets ou des arguments que la coque ne sait pas lire.
     Illisible,
     /// Cette page n'a pas le droit de demander cela.
     Interdit,
-    /// La personne a choisi autre chose pendant qu'on joignait le serveur (`annuler_jonction`).
+    /// La personne a choisi autre chose pendant qu'on joignait le serveur (`annuler_jonction`), ou a refusé d'ouvrir un
+    /// fichier venu d'un serveur.
     Annule,
     /// Le système a refusé (un disque plein, un dossier interdit).
     Echec { message: String },
@@ -71,6 +77,33 @@ pub const LOCALE_OU_SERVEUR: &[Appelant] = &[Appelant::Locale, Appelant::Serveur
 pub const LOCALE: &[Appelant] = &[Appelant::Locale];
 /// La photo de la fenêtre pour un signalement (macOS), et les pages du serveur ouvertes dans le navigateur.
 pub const SERVEUR: &[Appelant] = &[Appelant::Serveur];
+
+/// Combien de fois une chose se fait coup sur coup : `max` au plus dans toute fenêtre de `duree`. Une personne qui
+/// clique n'en fait pas plus ; une page qui s'emballe (ou un serveur malveillant) ne va pas au-delà.
+pub struct Cadence {
+    max: usize,
+    duree: Duration,
+    recentes: Mutex<VecDeque<Instant>>,
+}
+
+impl Cadence {
+    pub const fn new(max: usize, duree: Duration) -> Self {
+        Self { max, duree, recentes: Mutex::new(VecDeque::new()) }
+    }
+
+    /// Encore une, maintenant ? Celle qui passe compte.
+    pub fn permise(&self, maintenant: Instant) -> bool {
+        let mut recentes = self.recentes.lock().unwrap_or_else(PoisonError::into_inner);
+        while recentes.front().is_some_and(|t| maintenant.duration_since(*t) >= self.duree) {
+            recentes.pop_front();
+        }
+        if recentes.len() >= self.max {
+            return false;
+        }
+        recentes.push_back(maintenant);
+        true
+    }
+}
 
 /// Les octets d'un appel. Ils viennent bruts par le canal de Tauri ; mais une page dont la CSP le bloque (ou une
 /// webview qui le refuse) passe par `postMessage`, et ses octets arrivent en tableau JSON de nombres.
@@ -106,11 +139,27 @@ mod essais {
         assert_eq!(serde_json::to_value(Erreur::AdresseInvalide).unwrap(), json!({ "code": "adresse_invalide" }));
         assert_eq!(serde_json::to_value(Erreur::PasNotak).unwrap(), json!({ "code": "pas_notak" }));
         assert_eq!(serde_json::to_value(Erreur::TypeRefuse).unwrap(), json!({ "code": "type_refuse" }));
+        assert_eq!(serde_json::to_value(Erreur::FilePleine).unwrap(), json!({ "code": "file_pleine" }));
         assert_eq!(
             serde_json::to_value(Erreur::Redirige { vers: "https://notak.exemple.fr".into() }).unwrap(),
             json!({ "code": "redirige", "vers": "https://notak.exemple.fr" })
         );
         assert_eq!(serde_json::to_value(Erreur::echec("disque plein")).unwrap(), json!({ "code": "echec", "message": "disque plein" }));
+    }
+
+    #[test]
+    fn coup_sur_coup_mais_pas_sans_fin() {
+        let c = Cadence::new(3, Duration::from_secs(10));
+        let t = Instant::now();
+        for i in 0..3 {
+            assert!(c.permise(t + Duration::from_millis(i)), "{i}");
+        }
+        assert!(!c.permise(t + Duration::from_secs(1)));
+        // La plus ancienne passée, une place se libère, une seule.
+        assert!(c.permise(t + Duration::from_secs(10)));
+        assert!(!c.permise(t + Duration::from_secs(10)));
+        // Un refus ne compte pas : la fenêtre ne se prolonge pas d'elle-même.
+        assert!(c.permise(t + Duration::from_secs(20)));
     }
 
     #[test]

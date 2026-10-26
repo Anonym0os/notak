@@ -12,6 +12,7 @@ fn main() {
         "revenir_ici",
         "oublier_serveur",
         "regler_maj_auto",
+        "regler_ouverture",
         "ouvrir_fichier",
         "fichiers_ouverts",
         "lire_fichier_ouvert",

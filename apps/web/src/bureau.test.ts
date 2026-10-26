@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
+import { URL as UrlDeNode } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   FICHIER_OUVERT,
   acces,
+  annulerJonction,
   confierCopie,
   ecouter,
   enregistrerSous,
-  estErreurAcces,
   estErreurCoque,
   estPageServeur,
   fichiersOuverts,
@@ -20,7 +22,9 @@ import {
   ouvrirAilleurs,
   ouvrirFichier,
   reglerMajAuto,
+  reglerOuverture,
   revenirIci,
+  signalerVie,
 } from './bureau'
 
 type Appel = { commande: string; arguments_?: unknown; options?: { headers?: Record<string, string> } }
@@ -86,15 +90,20 @@ describe("l'application de bureau", () => {
     expect(f.document.documentElement.hasAttribute('data-bureau')).toBe(false)
   })
 
-  it('la page d’un serveur se signale à la coque dès qu’elle tourne', () => {
+  it('la page d’un serveur ne se dit pas vivante à son premier script, mais quand elle le décide', async () => {
     const { appels } = poserCoque(() => ({ ouvrir: 'local', serveur: 'http://localhost:3000', majAuto: true, version: '0.2.0' }))
     const f = { ...fenetre(false, 1280, 1440), __TAURI_INTERNALS__: (window as unknown as { __TAURI_INTERNALS__: unknown }).__TAURI_INTERNALS__ }
     f.location = { protocol: 'https:', hostname: 'notak.exemple.fr', host: 'notak.exemple.fr', href: 'https://notak.exemple.fr/' }
     marquerBureau(f as unknown as Window)
-    expect(appels.map((a) => a.commande)).toEqual(['acces'])
-    appels.length = 0
-    marquerBureau(fenetre(true, 1280, 1440) as unknown as Window)
     expect(appels).toEqual([])
+    signalerVie()
+    expect(appels.map((a) => a.commande)).toEqual(['acces'])
+    // Une coque qui refuse : la page n'en tombe pas.
+    poserCoque(() => {
+      throw { code: 'interdit' }
+    })
+    expect(() => signalerVie()).not.toThrow()
+    await Promise.resolve()
   })
 
   it('reconnaît la page d’un serveur : une adresse web qui n’est pas l’app embarquée', () => {
@@ -135,6 +144,8 @@ describe('les commandes de la coque', () => {
     expect(await joindreServeur(' notak.exemple.fr ', true)).toEqual(joint)
     await revenirIci('acces')
     await revenirIci('local')
+    await reglerOuverture('serveur')
+    await annulerJonction()
     await oublierServeur()
     await reglerMajAuto(false)
     expect(appels.map(({ commande, arguments_ }) => [commande, arguments_])).toEqual([
@@ -142,9 +153,21 @@ describe('les commandes de la coque', () => {
       ['joindre_serveur', { adresse: ' notak.exemple.fr ', garder: true }],
       ['revenir_ici', { ecran: 'acces' }],
       ['revenir_ici', { ecran: 'local' }],
+      ['regler_ouverture', { ouvrir: 'serveur' }],
+      ['annuler_jonction', undefined],
       ['oublier_serveur', undefined],
       ['regler_maj_auto', { actif: false }],
     ])
+  })
+
+  it('chaque commande que la page demande, la coque la déclare', () => {
+    // Un nom mal recopié n'échouerait qu'à l'usage, dans l'app : `build.rs` est la liste de ce que la coque sert.
+    // L'URL de Node : celle de jsdom ne lit pas les adresses `file:`.
+    const source = readFileSync(new UrlDeNode('./bureau.ts', import.meta.url), 'utf8')
+    const declarees = readFileSync(new UrlDeNode('../../bureau/src-tauri/build.rs', import.meta.url), 'utf8')
+    const demandees = [...new Set([...source.matchAll(/invoquer(?:<[^>]*>)?\(\s*'(\w+)'/g)].map((m) => m[1]!))]
+    expect(demandees.length).toBeGreaterThan(10)
+    expect(demandees.filter((c) => !declarees.includes(`"${c}"`))).toEqual([])
   })
 
   it('une erreur de la coque se lit à son code', async () => {
@@ -152,9 +175,9 @@ describe('les commandes de la coque', () => {
       throw { code: 'redirige', vers: 'https://www.notak.exemple.fr' }
     })
     const e = await joindreServeur('notak.exemple.fr', false).catch((x: unknown) => x)
-    expect(estErreurAcces(e) && e.code === 'redirige' && e.vers).toBe('https://www.notak.exemple.fr')
+    expect(estErreurCoque(e) && e.code === 'redirige' && e.vers).toBe('https://www.notak.exemple.fr')
     expect(estErreurCoque({ code: 'type_refuse' })).toBe(true)
-    expect(estErreurAcces({ code: 'type_refuse' })).toBe(false)
+    expect(estErreurCoque({ code: 'file_pleine' })).toBe(true)
     expect(estErreurCoque({ code: 'redirige' })).toBe(false)
     expect(estErreurCoque(new Error('pas_notak'))).toBe(false)
     expect(estErreurCoque('Command acces not allowed by ACL')).toBe(false)
@@ -166,12 +189,17 @@ describe('les commandes de la coque', () => {
     await expect(ecouter(FICHIER_OUVERT, () => {})).rejects.toThrow()
   })
 
-  it('un fichier confié passe en octets bruts, son nom dans un en-tête', async () => {
+  it('un fichier confié passe en octets bruts, son nom dans un en-tête, et la langue de la page pour la question', async () => {
     const { appels } = poserCoque()
     const octets = new Uint8Array([1, 2, 3])
+    document.documentElement.lang = 'en'
     await ouvrirFichier(octets, 'Réunion d’été.pdf')
     await confierCopie(octets, 'Toiles 2026-10-26.notak')
-    expect(appels[0]).toEqual({ commande: 'ouvrir_fichier', arguments_: octets, options: { headers: { 'x-notak-nom': 'R%C3%A9union%20d%E2%80%99%C3%A9t%C3%A9.pdf' } } })
+    expect(appels[0]).toEqual({
+      commande: 'ouvrir_fichier',
+      arguments_: octets,
+      options: { headers: { 'x-notak-nom': 'R%C3%A9union%20d%E2%80%99%C3%A9t%C3%A9.pdf', 'x-notak-langue': 'en' } },
+    })
     expect(appels[1]!.commande).toBe('confier_copie')
     expect(appels[1]!.arguments_).toBe(octets)
     expect(decodeURIComponent(appels[1]!.options!.headers!['x-notak-nom']!)).toBe('Toiles 2026-10-26.notak')
@@ -274,6 +302,16 @@ describe('ouvrir un fichier ailleurs', () => {
       ['choisir_emplacement', { nom: 'dessin.svg', extension: 'svg', description: 'SVG' }],
       ['ecrire_fichier', svg],
     ])
+  })
+
+  it('un fichier venu d’un serveur que la personne refuse d’ouvrir : rien d’autre, et rien à lui reprocher', async () => {
+    servir(new Uint8Array([1]), 'application/pdf')
+    const { appels } = poserCoque((a) => {
+      if (a.commande === 'ouvrir_fichier') throw { code: 'annule' }
+      return null
+    })
+    expect(await ouvrirAilleurs('blob:http://localhost:3000/1', 'devis.pdf')).toBe('annule')
+    expect(appels.map((a) => a.commande)).toEqual(['ouvrir_fichier'])
   })
 
   it('l’enregistrement auquel on renonce n’écrit rien ; une autre erreur remonte', async () => {

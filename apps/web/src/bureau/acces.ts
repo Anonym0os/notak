@@ -13,11 +13,15 @@ export const GUIDE = 'https://github.com/Anonym0os/notak/blob/main/docs/AUTO-HEB
 export type Porte = 'local' | 'connecter' | 'ecran'
 
 /**
- * `?acces` ouvre l'écran d'accès, et jamais une connexion d'office. Sinon, le serveur retenu s'il doit s'ouvrir ; les
- * toiles d'ici pour le reste, y compris avec une coque d'avant les serveurs (`acces` en échec : `null`).
+ * `?acces` ouvre l'écran d'accès, et jamais une connexion d'office ; `?ici` (un coup d'œil aux toiles d'ici, depuis un
+ * serveur) les toiles d'ici, sans connexion non plus. Ces marques ne font qu'empêcher : aucune ne mène à un serveur.
+ * Sinon, le serveur mémorisé s'il doit s'ouvrir ; les toiles d'ici pour le reste, y compris avec une coque d'avant les
+ * serveurs (`acces` en échec : `null`).
  */
 export function decidePorte(acces: Acces | null, recherche: string): Porte {
-  if (new URLSearchParams(recherche).has('acces')) return 'ecran'
+  const marques = new URLSearchParams(recherche)
+  if (marques.has('acces')) return 'ecran'
+  if (marques.has('ici')) return 'local'
   return acces?.ouvrir === 'serveur' && acces.serveur ? 'connecter' : 'local'
 }
 
@@ -30,8 +34,15 @@ export const serveurMuet = (recherche: string) => new URLSearchParams(recherche)
 /** Ce qui a manqué : un refus de la coque, ou le silence d'un serveur qu'elle a guetté. */
 export type Echec = ErreurCoque | { code: 'muette' }
 
-/** Une erreur quelconque, ramenée à un refus qu'on sait dire (une panne de la page se dit comme un échec). */
-export const echecDe = (e: unknown): Echec => (estErreurCoque(e) ? e : { code: 'echec', message: '' })
+/**
+ * Une erreur quelconque, ramenée à un refus qu'on sait dire. Une panne (de la page, ou du système derrière la coque) se
+ * dit comme un échec : son détail, souvent en anglais, sert à qui cherche (la console), pas à l'écran.
+ */
+export function echecDe(e: unknown): Echec {
+  if (estErreurCoque(e) && e.code !== 'echec') return e
+  console.warn('Notak :', e)
+  return { code: 'echec', message: '' }
+}
 
 /** Le nom d'hôte d'une origine (`https://notak.exemple.fr:8443` → `notak.exemple.fr:8443`) ; l'origine telle quelle sinon. */
 export function hoteDe(origine: string): string {
@@ -61,6 +72,7 @@ const TEXTES: Record<string, string> = {
   redirige: 'bureau.erreur.redirige',
   muette: 'bureau.erreur.muette',
   interdit: 'bureau.erreur.interdit',
+  file_pleine: 'bureau.erreur.file_pleine',
   echec: 'bureau.erreur.echec',
 }
 
@@ -68,13 +80,6 @@ const TEXTES: Record<string, string> = {
 export function texteErreur(e: Echec, hote = ''): string {
   const cle = TEXTES[e.code] ?? TEXTES.echec!
   return t(cle, { hote, vers: e.code === 'redirige' ? e.vers : '' })
-}
-
-/** Le détail technique d'un échec inattendu, en clair et court, ou rien. */
-export function detailErreur(e: Echec): string | null {
-  if (e.code !== 'echec') return null
-  const detail = e.message.replace(/\p{Cc}/gu, ' ').trim().slice(0, 200)
-  return detail || null
 }
 
 /** L'erreur se corrige dans le champ de l'adresse : il se marque, et reprend le curseur. */

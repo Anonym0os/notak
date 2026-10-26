@@ -91,6 +91,8 @@ pub async fn installer_mise_a_jour(app: AppHandle, webview: Webview, garde: Stat
     let pret = etat.prete.lock().map_err(|e| e.to_string())?.take().ok_or("aucune mise à jour prête")?;
     // Sous Windows, l'installeur ferme l'app puis la relance de lui-même ; ailleurs, on relance.
     if let Err(e) = pret.update.install(&pret.octets) {
+        // Les octets vérifiés restent bons : la mise à jour reste prête, pour réessayer ou se poser en partant.
+        *etat.prete.lock().map_err(|e| e.to_string())? = Some(pret);
         return Err(e.to_string());
     }
     app.request_restart();

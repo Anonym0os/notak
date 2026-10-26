@@ -9,18 +9,19 @@ import { EcranAcces } from './FormulaireAcces'
 
 /**
  * La porte de l'app de bureau, sur sa page embarquée : avant de monter l'édition locale, on regarde où Notak doit
- * s'ouvrir (`acces`). Sur un serveur retenu, on y va (« Connexion à notak.exemple.fr… ») ; s'il ne répond pas, ou si la
- * coque nous a ramenés ici pour choisir (`?acces`), l'écran d'accès parle. Sinon, les toiles de cet ordinateur.
+ * s'ouvrir (`acces`). Sur un serveur mémorisé, on y va (« Connexion à notak.exemple.fr… ») ; s'il ne répond pas, ou si
+ * la coque nous a ramenés ici pour choisir (`?acces`), l'écran d'accès parle. Sinon, et pour un coup d'œil depuis un
+ * serveur (`?ici`), les toiles de cet ordinateur.
  *
  * Tant qu'on se connecte, rien de l'édition locale ne tourne : les copies `.notak` ouvertes depuis le système restent en
  * file pour la page du serveur, qui les prend.
  */
 
 /**
- * Passé ce délai sans réponse du serveur, on propose d'ouvrir les toiles de cet ordinateur en attendant. Ce bouton ne
- * change rien aux réglages (pas de `revenirIci('local')` : ce serait « Notak s'ouvre désormais ici », que seul l'écran
- * d'accès propose) : le serveur reste retenu, et Notak y retournera au prochain lancement. La coque ne sait pas annuler
- * la connexion en cours : si le serveur répond tard, la fenêtre part encore chez lui.
+ * Passé ce délai sans réponse du serveur, on propose d'ouvrir les toiles de cet ordinateur en attendant, pour cette
+ * fois : rien ne change aux réglages, le serveur reste mémorisé et Notak y retournera au prochain lancement. La
+ * jonction en cours s'arrête (`annulerJonction`) : un serveur qui répond tard n'emmène pas la fenêtre en pleine
+ * édition, et si elle était déjà partie le chercher, la coque la ramène ici.
  */
 export const LENTEUR_MS = 10_000
 /** Une coque qui ne répond pas aux réglages ne retient pas l'app : les toiles d'ici s'ouvrent. */
@@ -37,6 +38,7 @@ export function Porte({ acces, recherche, surLocal }: { acces: Acces | null; rec
       : { type: 'ecran', ...(serveurMuet(recherche) && acces?.serveur ? { echec: { code: 'muette' } as const } : {}) },
   )
   const lance = useRef(false)
+  const renonce = useRef(false)
   const serveur = acces?.serveur ?? null
 
   useEffect(() => {
@@ -44,7 +46,7 @@ export function Porte({ acces, recherche, surLocal }: { acces: Acces | null; rec
     const lenteur = setTimeout(() => setPhase((p) => (p.type === 'connexion' ? { ...p, lent: true } : p)), LENTEUR_MS)
     if (!lance.current) {
       lance.current = true
-      // Le serveur retenu reste retenu, quoi qu'il arrive ici : garder = Notak s'y rouvrira encore.
+      // Le serveur mémorisé le reste, quoi qu'il arrive ici : garder = Notak s'y rouvrira encore.
       joindreServeur(serveur, true).catch((e: unknown) => {
         // Annulée parce que la personne a ouvert les toiles d'ici : la porte n'est déjà plus là.
         if (estErreurCoque(e) && e.code === 'annule') return
@@ -74,9 +76,18 @@ export function Porte({ acces, recherche, surLocal }: { acces: Acces | null; rec
                 className="bouton"
                 autoFocus
                 onClick={() => {
-                  // Le serveur peut encore répondre : il n'emmènera pas la fenêtre en pleine édition.
-                  void annulerJonction().catch(() => {})
-                  surLocal()
+                  if (renonce.current) return
+                  renonce.current = true
+                  // La fenêtre déjà partie chercher le serveur : la coque la ramène aux toiles d'ici, cette page s'en va.
+                  annulerJonction().then(
+                    (ramenee) => {
+                      if (!ramenee) surLocal()
+                    },
+                    (e: unknown) => {
+                      console.warn('Notak : la connexion en cours n’a pas pu être arrêtée', e)
+                      surLocal()
+                    },
+                  )
                 }}
               >
                 {t('bureau.porte.ouvrirLocal')}
@@ -90,11 +101,37 @@ export function Porte({ acces, recherche, surLocal }: { acces: Acces | null; rec
   )
 }
 
-/** Retire de l'adresse ce que la coque y a mis (`?acces`, `erreur=…`), pour qu'un rechargement n'y revienne pas. */
+/** Ce que la coque met dans l'adresse de la page embarquée, pour une fois : l'écran d'accès, son erreur, un coup d'œil. */
+const MARQUES = ['acces', 'erreur', 'ici']
+
+/**
+ * Le coup d'œil aux toiles d'ici vaut pour la séance, pas seulement pour cette page : l'édition locale se recharge
+ * parfois d'elle-même (une copie devenue l'accueil), et ne doit pas rejoindre le serveur pour autant. Comme `?ici`, il ne
+ * fait qu'empêcher une connexion d'office ; la séance finie (l'app quittée), Notak s'ouvre de nouveau où il doit.
+ */
+const ICI = 'notak.bureau.ici'
+
+function retenirIci() {
+  try {
+    sessionStorage.setItem(ICI, '1')
+  } catch {
+    // Sans stockage, le coup d'œil vaut pour cette page seulement.
+  }
+}
+
+function dejaIci(): boolean {
+  try {
+    return sessionStorage.getItem(ICI) === '1'
+  } catch {
+    return false
+  }
+}
+
+/** Retire de l'adresse les marques de la coque, une fois lues, pour qu'un rechargement n'y revienne pas. */
 function nettoyerAdresse() {
   const u = new URL(location.href)
-  u.searchParams.delete('acces')
-  u.searchParams.delete('erreur')
+  if (!MARQUES.some((m) => u.searchParams.has(m))) return
+  for (const m of MARQUES) u.searchParams.delete(m)
   history.replaceState(history.state, '', u)
 }
 
@@ -112,7 +149,12 @@ export async function passerLaPorte(monterLocal: () => void): Promise<void> {
     // Une coque d'avant les serveurs, ou qui ne répond pas : les toiles de cet ordinateur.
   }
   const recherche = location.search
-  if (decidePorte(acces, recherche) === 'local') return monterLocal()
+  const porte = decidePorte(acces, recherche)
+  if (porte === 'local' || (porte === 'connecter' && dejaIci())) {
+    if (new URLSearchParams(recherche).has('ici')) retenirIci()
+    nettoyerAdresse()
+    return monterLocal()
+  }
   const racine = createRoot(document.getElementById('racine')!)
   racine.render(
     <Porte
@@ -120,6 +162,7 @@ export async function passerLaPorte(monterLocal: () => void): Promise<void> {
       recherche={recherche}
       surLocal={() => {
         racine.unmount()
+        retenirIci()
         nettoyerAdresse()
         monterLocal()
       }}

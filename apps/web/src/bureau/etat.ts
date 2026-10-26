@@ -2,7 +2,7 @@ import { useEffect, useSyncExternalStore } from 'react'
 import { type Acces, acces as lireDeLaCoque, estBureau } from '../bureau'
 
 /**
- * Ce que la page sait des réglages de la coque (le serveur retenu, où s'ouvre Notak), partagé par les écrans qui le
+ * Ce que la page sait des réglages de la coque (le serveur mémorisé, où s'ouvre Notak), partagé par les écrans qui le
  * montrent : la section « Où sont mes toiles ? », les réglages de l'app, la fenêtre « Se connecter à un serveur ».
  * `null` tant qu'on ne l'a pas lu, et pour une coque d'avant les serveurs qui ne répond pas.
  */
@@ -23,7 +23,7 @@ const poser = (e: EtatAcces) => {
   for (const f of abonnes) f()
 }
 
-export const lireEtatAcces = () => etat
+const lireEtatAcces = () => etat
 
 /** Relit les réglages de la coque ; les rend, ou `null` si elle ne les donne pas. */
 export async function relireAcces(): Promise<Acces | null> {

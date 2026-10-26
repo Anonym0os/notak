@@ -52,17 +52,16 @@ export interface Acces {
   version: string
 }
 
-/** Ce qui empêche de joindre un serveur (`appel::Erreur`). `redirige` : il se dit ailleurs, à `vers`, qu'on propose. */
-export type CodeErreurAcces = 'adresse_invalide' | 'https_requis' | 'chemin' | 'injoignable' | 'certificat' | 'delai' | 'pas_notak' | 'trop_ancien' | 'redirige'
-export type ErreurAcces = { code: Exclude<CodeErreurAcces, 'redirige'> } | { code: 'redirige'; vers: string }
-
 /**
- * Les autres refus de la coque : une sorte de fichier qu'elle n'ouvre pas (`type_refuse`), trop de fichiers ouverts
- * coup sur coup (`trop_vite`), une page qu'elle ne sert pas (`interdit`)…
+ * Un refus de la coque (`appel::Erreur`) : ce qui empêche de joindre un serveur (`redirige` : il se dit ailleurs, à
+ * `vers`, qu'on propose), une sorte de fichier qu'elle n'ouvre pas (`type_refuse`), trop de fichiers ouverts coup sur
+ * coup (`trop_vite`), une file d'attente pleine (`file_pleine`), une page qu'elle ne sert pas (`interdit`), un geste
+ * auquel la personne a renoncé (`annule`)…
  */
 export type ErreurCoque =
-  | ErreurAcces
-  | { code: 'type_refuse' | 'trop_gros' | 'trop_vite' | 'introuvable' | 'illisible' | 'interdit' | 'annule' }
+  | { code: 'adresse_invalide' | 'https_requis' | 'chemin' | 'injoignable' | 'certificat' | 'delai' | 'pas_notak' | 'trop_ancien' }
+  | { code: 'redirige'; vers: string }
+  | { code: 'type_refuse' | 'trop_gros' | 'trop_vite' | 'file_pleine' | 'introuvable' | 'illisible' | 'interdit' | 'annule' }
   | { code: 'echec'; message: string }
 
 const CODES = new Set([
@@ -78,21 +77,19 @@ const CODES = new Set([
   'type_refuse',
   'trop_gros',
   'trop_vite',
+  'file_pleine',
   'introuvable',
   'illisible',
   'interdit',
   'annule',
   'echec',
 ])
-const CODES_ACCES = new Set(['adresse_invalide', 'https_requis', 'chemin', 'injoignable', 'certificat', 'delai', 'pas_notak', 'trop_ancien', 'redirige'])
 
 /** Une erreur rendue par la coque (et pas une panne de la page). */
 export function estErreurCoque(e: unknown): e is ErreurCoque {
   const code = (e as { code?: unknown } | null)?.code
   return typeof code === 'string' && CODES.has(code) && (code !== 'redirige' || typeof (e as { vers?: unknown }).vers === 'string')
 }
-
-export const estErreurAcces = (e: unknown): e is ErreurAcces => estErreurCoque(e) && CODES_ACCES.has(e.code)
 
 /** Un serveur joint : son origine, son nom s'il en a un, sa version. */
 export interface ServeurJoint {
@@ -128,23 +125,40 @@ export function octetsDe(reponse: unknown): Uint8Array {
 /** Le nom d'un fichier, tel que la coque le lit (`x-notak-nom`) : un en-tête ne porte que de l'ASCII. */
 const avecNom = (nom: string) => ({ headers: { 'x-notak-nom': encodeURIComponent(nom) } })
 
-/** Les réglages de la coque ; depuis la page d'un serveur, c'est aussi son signe de vie. */
+/** Les réglages de la coque ; depuis la page d'un serveur, c'est aussi son signe de vie (`signalerVie`). */
 export const acces = () => invoquer<Acces>('acces')
+
+/**
+ * La page d'un serveur dit à la coque qu'elle est bien là : sans cela, passé 20 s, la coque la croit muette et ramène la
+ * fenêtre à l'écran d'accès (`acces.rs`). À appeler une fois le premier écran décidé (connecté, connexion, ou erreur),
+ * pas au premier script : une page qui charge sans que l'app vienne n'est pas vivante.
+ */
+export const signalerVie = (): void => void acces().catch(() => {})
 
 /** Vérifie l'adresse, puis y envoie la fenêtre (page embarquée seulement). `garder` : Notak s'y ouvrira désormais. */
 export const joindreServeur = (adresse: string, garder: boolean) => invoquer<ServeurJoint>('joindre_serveur', { adresse, garder })
 
-/** Revient aux toiles de cet ordinateur (et Notak s'y ouvrira), ou à l'écran d'accès (`?acces`), sans rien régler. */
+/**
+ * Ramène la fenêtre aux toiles de cet ordinateur (`?ici`, un coup d'œil) ou à l'écran d'accès (`?acces`), sans rien
+ * régler : où Notak s'ouvre reste ce qu'il était (`reglerOuverture`). Une jonction en cours s'arrête là.
+ */
 export const revenirIci = (ecran: 'local' | 'acces') => invoquer<void>('revenir_ici', { ecran })
 
-/** Oublie le serveur retenu et sa session (page embarquée seulement). */
+/** Où s'ouvre Notak au lancement ; `serveur` demande un serveur mémorisé (page embarquée seulement). */
+export const reglerOuverture = (ouvrir: Ouvrir) => invoquer<void>('regler_ouverture', { ouvrir })
+
+/** Oublie le serveur mémorisé et sa session ; Notak s'ouvre de nouveau ici (page embarquée seulement). */
 export const oublierServeur = () => invoquer<void>('oublier_serveur')
 
 /** La recherche automatique des mises à jour (page embarquée seulement). */
 export const reglerMajAuto = (actif: boolean) => invoquer<void>('regler_maj_auto', { actif })
 
-/** Ouvre ces octets dans l'application du système ; une sorte qui pourrait s'exécuter est refusée (`type_refuse`). */
-export const ouvrirFichier = (octets: Uint8Array, nom: string) => invoquer<void>('ouvrir_fichier', octets, avecNom(nom))
+/**
+ * Ouvre ces octets dans l'application du système ; une sorte qui pourrait s'exécuter est refusée (`type_refuse`). Pour
+ * la page d'un serveur, la coque demande d'abord à la personne, dans la langue de la page ; un non rend `annule`.
+ */
+export const ouvrirFichier = (octets: Uint8Array, nom: string) =>
+  invoquer<void>('ouvrir_fichier', octets, { headers: { ...avecNom(nom).headers, 'x-notak-langue': document.documentElement.lang || '' } })
 
 /**
  * Les copies `.notak` ouvertes depuis le système (un double clic, « Ouvrir avec »…), qui attendent la page ; à lire au
@@ -170,19 +184,23 @@ export async function lireFichierOuvert(id: string): Promise<Uint8Array> {
   }
 }
 
-/**
- * Confie une copie `.notak` à la coque, pour la page du serveur qu'on va joindre (page embarquée seulement). Elle
- * remplace celle d'avant ; aucun événement : la page du serveur la trouvera dans `fichiersOuverts` en arrivant.
- */
 /** Retire un fichier qui attend, sans le lire (« Pas maintenant »). */
 export const ecarterFichierOuvert = (id: string) => invoquer<void>('ecarter_fichier_ouvert', { id })
 
 /** Ouvre une page du serveur choisi dans le navigateur de la personne (page du serveur seulement). */
 export const ouvrirDansLeNavigateur = (adresse: string) => invoquer<void>('ouvrir_dans_le_navigateur', { adresse })
 
-/** Renonce à la jonction en cours : elle finit sur `annule`, sans emmener la fenêtre (page embarquée seulement). */
-export const annulerJonction = () => invoquer<void>('annuler_jonction')
+/**
+ * Renonce à la jonction en cours : elle finit sur `annule` (page embarquée seulement). Rend `true` si la fenêtre était
+ * déjà partie chercher la page du serveur : la coque la ramène alors aux toiles d'ici, et cette page va être remplacée.
+ */
+export const annulerJonction = () => invoquer<boolean>('annuler_jonction')
 
+/**
+ * Confie une copie `.notak` à la coque, pour la page du serveur mémorisé qu'on va joindre (page embarquée seulement) :
+ * elle seule la trouvera dans `fichiersOuverts`, en arrivant (aucun événement). Elle remplace celle d'avant, et s'en va
+ * si la jonction échoue. Une file déjà pleine de copies ouvertes depuis le système rend `file_pleine`.
+ */
 export const confierCopie = (octets: Uint8Array, nom: string) => invoquer<void>('confier_copie', octets, avecNom(nom))
 
 /** Écoute un événement de la coque ; rend de quoi cesser. */
@@ -303,6 +321,8 @@ export async function ouvrirAilleurs(adresse: string, nom?: string, fenetre: Win
     await ouvrirFichier(octets, retenu)
     return 'ouvert'
   } catch (e) {
+    // La personne a dit non à la coque : il n'y a rien à lui reprocher.
+    if (estErreurCoque(e) && e.code === 'annule') return 'annule'
     if (!estErreurCoque(e) || e.code !== 'type_refuse') throw e
     return (await enregistrerSous(octets, retenu)) ? 'enregistre' : 'annule'
   }
@@ -316,10 +336,9 @@ export function marquerBureau(fenetre: Window = window): void {
     racine.toggleAttribute('data-plein-ecran', fenetre.innerWidth >= fenetre.screen.width && fenetre.innerHeight >= fenetre.screen.height)
   pleinEcran()
   fenetre.addEventListener('resize', pleinEcran)
+  // La page d'un serveur ne se signale pas ici, au premier script : elle le fait une fois son premier écran là
+  // (`signalerVie`), pour qu'une page qui charge sans que l'app vienne ramène la fenêtre à l'écran d'accès.
   garderLesLiens(fenetre)
-  // La page d'un serveur se signale dès qu'elle tourne : sans cela, la coque la croit muette et ramène la fenêtre
-  // à l'écran d'accès (`acces.rs`).
-  if (estPageServeur(fenetre)) void acces().catch(() => {})
 }
 
 /** Les adresses qu'un lien peut ouvrir hors de Notak : le web, un courriel, un numéro. */

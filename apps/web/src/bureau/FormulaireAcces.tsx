@@ -1,27 +1,28 @@
 import { Icone, lireReglages, themeEffectif, useSystemeSombre } from '@notak/tableau'
 import { type FormEvent, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { type Acces, joindreServeur, oublierServeur, revenirIci } from '../bureau'
+import { type Acces, annulerJonction, estErreurCoque, joindreServeur, oublierServeur } from '../bureau'
 import { t } from '../langue'
 import { Marque } from '../PageApp'
-import { type Echec, GUIDE, concerneAdresse, detailErreur, echecDe, hoteDe, hoteSaisi, texteErreur } from './acces'
+import { type Echec, GUIDE, concerneAdresse, echecDe, hoteDe, hoteSaisi, texteErreur } from './acces'
 import { fermerDialogueAcces, relireAcces, useAcces, useDialogueAcces } from './etat'
 
 /**
  * « Se connecter à un serveur Notak » : l'adresse du serveur, ce qu'il y a à faire quand il ne répond pas comme il faut,
- * et de quoi revenir aux toiles de cet ordinateur ou oublier le serveur retenu. Le même formulaire sert d'écran entier
+ * et de quoi ouvrir les toiles de cet ordinateur ou oublier le serveur mémorisé. Le même formulaire sert d'écran entier
  * (la porte de l'app, `?acces`) et de fenêtre ouverte depuis l'édition locale.
  *
  * La page n'envoie jamais la fenêtre ailleurs d'elle-même : c'est la coque qui vérifie l'adresse, et elle la relit.
+ * Fermé pendant « Connexion… », le formulaire arrête la jonction : renoncer ne mène pas chez le serveur.
  */
 
 export interface PropsAcces {
-  /** Les réglages de la coque : le serveur retenu, et où s'ouvre Notak. */
+  /** Les réglages de la coque : le serveur mémorisé, et où s'ouvre Notak. */
   acces: Acces | null
   mode: 'ecran' | 'dialogue'
-  /** Ce qui a ramené ici, dit dès l'ouverture : le serveur retenu n'a pas répondu. */
+  /** Ce qui a ramené ici, dit dès l'ouverture : le serveur mémorisé n'a pas répondu. */
   echecInitial?: Echec | undefined
-  /** « Toiles de cet ordinateur » : l'écran ou la fenêtre se ferme, l'édition locale reste. */
+  /** « Toiles de cet ordinateur » (l'écran entier) : l'édition locale prend la place, pour cette fois. */
   surLocal(): void
   /** La fenêtre se ferme sans rien choisir. */
   surFermer?(): void
@@ -32,7 +33,8 @@ export function FormulaireAcces({ acces, mode, echecInitial, surLocal, surFermer
   const [adresse, setAdresse] = useState(acces?.serveur ?? '')
   /** L'hôte qu'on est en train de joindre ; la coque vérifie, puis y envoie la fenêtre. */
   const [occupe, setOccupe] = useState<string | null>(null)
-  const [retour, setRetour] = useState(false)
+  /** Une jonction lancée d'ici, la fenêtre pas encore partie : la fermeture du formulaire l'arrête. */
+  const enCours = useRef(false)
   const [echec, setEchec] = useState<Echec | null>(echecInitial ?? null)
   const [retenu, setRetenu] = useState(acces?.serveur ?? null)
   const [ouvrirServeur, setOuvrirServeur] = useState(acces?.ouvrir === 'serveur' && !!acces.serveur)
@@ -42,8 +44,17 @@ export function FormulaireAcces({ acces, mode, echecInitial, surLocal, surFermer
   const utiliser = useRef<HTMLButtonElement>(null)
   const demander = useRef<HTMLButtonElement>(null)
   const annuler = useRef<HTMLButtonElement>(null)
-  const bloque = occupe !== null || retour
+  const bloque = occupe !== null
   const hote = retenu ? hoteDe(retenu) : ''
+
+  // Échap, la croix ou le voile pendant « Connexion… » démontent la fenêtre : la coque n'emmène pas la fenêtre pour
+  // autant (et ne retient pas ce serveur).
+  useEffect(
+    () => () => {
+      if (enCours.current) void annulerJonction().catch((e: unknown) => console.warn('Notak : la connexion en cours n’a pas pu être arrêtée', e))
+    },
+    [],
+  )
 
   // Une erreur ramène le curseur là où elle se corrige : le champ, ou le bouton qui propose la bonne adresse.
   useEffect(() => {
@@ -67,12 +78,16 @@ export function FormulaireAcces({ acces, mode, echecInitial, surLocal, surFermer
     setEchec(null)
     setAvis(null)
     setOccupe(hoteSaisi(saisie))
+    // Jusqu'à ce que la page du serveur remplace celle-ci : réussie, la jonction a seulement lancé la fenêtre.
+    enCours.current = true
     try {
       // Réussie, la fenêtre part chez le serveur : le bouton reste « Connexion… » jusque-là.
       await joindreServeur(saisie, true)
     } catch (e) {
-      setEchec(echecDe(e))
+      enCours.current = false
       setOccupe(null)
+      // Arrêtée parce qu'on a renoncé (la fenêtre fermée, le menu) : il n'y a rien à reprocher.
+      if (!(estErreurCoque(e) && e.code === 'annule')) setEchec(echecDe(e))
     }
   }
   const envoyer = (e: FormEvent) => {
@@ -82,18 +97,6 @@ export function FormulaireAcces({ acces, mode, echecInitial, surLocal, surFermer
   const utiliserCelle = (vers: string) => {
     setAdresse(vers)
     void connecter(vers)
-  }
-
-  const ouvrirLocal = async () => {
-    // Un serveur qui s'ouvre d'office : choisir les toiles d'ici, c'est y ouvrir Notak désormais (la coque le retient).
-    if (!ouvrirServeur) return surLocal()
-    setRetour(true)
-    try {
-      await revenirIci('local')
-    } catch (e) {
-      setEchec(echecDe(e))
-      setRetour(false)
-    }
   }
 
   const oublier = async () => {
@@ -118,7 +121,6 @@ export function FormulaireAcces({ acces, mode, echecInitial, surLocal, surFermer
   }
 
   const Titre = mode === 'ecran' ? 'h1' : 'h2'
-  const detail = echec ? detailErreur(echec) : null
   const idErreur = `${id}-erreur`
   const idAide = `${id}-aide`
   return (
@@ -162,7 +164,6 @@ export function FormulaireAcces({ acces, mode, echecInitial, surLocal, surFermer
           {texteErreur(echec, hote)}
         </p>
       )}
-      {detail && <small className="connexion-indice acces-detail">{detail}</small>}
       {echec?.code === 'redirige' && (
         <button ref={utiliser} type="button" className="bouton bouton-plein" disabled={bloque} onClick={() => utiliserCelle(echec.vers)}>
           {t('bureau.erreur.redirigeUtiliser', { vers: echec.vers })}
@@ -189,9 +190,10 @@ export function FormulaireAcces({ acces, mode, echecInitial, surLocal, surFermer
 
       <div className="acces-autres">
         <p className="connexion-aide">{t('bureau.acces.deuxLieux')}</p>
-        {(mode === 'ecran' || ouvrirServeur) && (
+        {/* Dans la fenêtre, on est déjà sur les toiles d'ici ; où Notak s'ouvre se règle dans les réglages de l'app. */}
+        {mode === 'ecran' && (
           <>
-            <button type="button" className="bouton" disabled={bloque} onClick={() => void ouvrirLocal()}>
+            <button type="button" className="bouton" disabled={bloque} onClick={() => surLocal()}>
               {t('bureau.acces.local')}
             </button>
             {ouvrirServeur && <small className="connexion-indice">{t('bureau.acces.localAide', { hote })}</small>}
@@ -241,12 +243,14 @@ export function EcranAcces(props: Omit<PropsAcces, 'mode'>) {
 
 /**
  * La même chose, en fenêtre modale par-dessus l'édition locale (`ouvrirDialogueAcces`). Les réglages de l'app gardent le
- * clavier pour eux (Tab, Échap) : tant que la fenêtre est ouverte, ce qui s'y tape ne leur parvient pas.
+ * clavier pour eux (Tab, Échap) : tant que la fenêtre est ouverte, ce qui s'y tape ne leur parvient pas. Elle se ferme
+ * par `close()`, qui rend le curseur à ce qui l'avait avant elle, puis se démonte (`onClose`).
  */
 export function DialogueAcces() {
   const ouvert = useDialogueAcces()
   const { acces } = useAcces()
   const dialogue = useRef<HTMLDialogElement>(null)
+  const fermer = () => (dialogue.current?.open ? dialogue.current.close() : fermerDialogueAcces())
 
   useEffect(() => {
     const d = dialogue.current
@@ -271,9 +275,9 @@ export function DialogueAcces() {
       aria-label={t('bureau.acces.titre')}
       onClose={fermerDialogueAcces}
       // Un clic sur le voile (le dialogue lui-même, hors de sa carte) le ferme.
-      onClick={(e) => e.target === e.currentTarget && fermerDialogueAcces()}
+      onClick={(e) => e.target === e.currentTarget && fermer()}
     >
-      <FormulaireAcces mode="dialogue" acces={acces} surLocal={fermerDialogueAcces} surFermer={fermerDialogueAcces} />
+      <FormulaireAcces mode="dialogue" acces={acces} surLocal={fermer} surFermer={fermer} />
     </dialog>,
     hote,
   )

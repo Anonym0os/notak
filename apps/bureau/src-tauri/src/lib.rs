@@ -24,7 +24,9 @@ mod navigation;
 mod reglages;
 
 use std::path::PathBuf;
-use std::sync::{Mutex, PoisonError};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, PoisonError};
+use std::time::{Duration, Instant};
 
 use tauri::ipc::Request;
 use tauri::webview::{NewWindowResponse, PageLoadEvent};
@@ -33,8 +35,9 @@ use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
 use acces::Acces;
-use appel::{exiger, octets, LOCALE_OU_SERVEUR, REFUSE};
+use appel::{exiger, octets, Cadence, LOCALE_OU_SERVEUR, REFUSE};
 use fichiers::Ouverts;
+use navigation::Appelant;
 use mise_a_jour::MisesAJour;
 use navigation::{racine_locale, vers_dehors, Origines, ServeurCourant};
 use reglages::Reglage;
@@ -86,10 +89,12 @@ async fn choisir_emplacement(
 
 /// Écrit les octets reçus (le corps de l'appel) au chemin choisi juste avant : celui d'un export, une seule fois, ou
 /// celui de la copie. L'écriture passe par un fichier voisin, posé d'un coup : un enregistrement coupé en route ne
-/// laisse jamais une copie à moitié écrite à la place de la bonne.
+/// laisse jamais une copie à moitié écrite à la place de la bonne. Pour la page d'un serveur, le fichier est marqué
+/// comme venu d'Internet, comme un téléchargement : un programme qu'elle aurait fait enregistrer ne se lance pas sans
+/// l'avertissement du système.
 #[tauri::command]
 async fn ecrire_fichier(webview: Webview, garde: State<'_, Origines>, requete: Request<'_>, emplacements: State<'_, Emplacements>) -> Result<(), String> {
-    exiger(&webview, &garde, LOCALE_OU_SERVEUR).map_err(|_| REFUSE.to_string())?;
+    let appelant = exiger(&webview, &garde, LOCALE_OU_SERVEUR).map_err(|_| REFUSE.to_string())?;
     let octets = octets(requete.body()).map_err(|_| "octets attendus".to_string())?;
     let copie = requete.headers().get(USAGE).is_some_and(|v| v == "copie");
     let chemin = if copie {
@@ -98,13 +103,19 @@ async fn ecrire_fichier(webview: Webview, garde: State<'_, Origines>, requete: R
         emplacements.export.lock().map_err(|e| e.to_string())?.take()
     }
     .ok_or("aucun emplacement choisi")?;
+    // Un voisin à soi : deux écritures rapprochées vers le même chemin ne partagent pas leur fichier provisoire.
+    static SUIVANT: AtomicU64 = AtomicU64::new(0);
     let mut provisoire = chemin.clone().into_os_string();
-    provisoire.push(".notak-tmp");
+    provisoire.push(format!(".{}-{}.notak-tmp", std::process::id(), SUIVANT.fetch_add(1, Ordering::Relaxed)));
     let provisoire = PathBuf::from(provisoire);
     std::fs::write(&provisoire, &octets).and_then(|_| std::fs::rename(&provisoire, &chemin)).map_err(|e| {
         let _ = std::fs::remove_file(&provisoire);
         e.to_string()
-    })
+    })?;
+    if appelant == Appelant::Serveur {
+        fichiers::marquer_venu_d_internet(&chemin);
+    }
+    Ok(())
 }
 
 /// La page telle qu'on la voit, en PNG, par `takeSnapshot` du WKWebView : l'image peinte, au pixel près, là où la
@@ -145,12 +156,22 @@ async fn capturer_fenetre(fenetre: tauri::WebviewWindow, webview: Webview, garde
     Ok(tauri::ipc::Response::new(png))
 }
 
+/// Combien d'adresses la page envoie coup sur coup vers le navigateur ou la messagerie, sans commande (un lien, un
+/// `window.open`) : la webview n'a pas de bloqueur de fenêtres, une page qui s'emballe n'en ouvre pas des dizaines.
+const DEHORS_MAX: usize = 3;
+const DEHORS_DUREE: Duration = Duration::from_secs(10);
+
 /// Ouvre une adresse du monde (le web, un courriel) dans l'application de la personne : son navigateur, sa messagerie.
-fn ouvrir_dehors(app: &AppHandle, url: &tauri::Url) {
-    if vers_dehors(url) {
-        if let Err(e) = app.opener().open_url(url.as_str(), None::<&str>) {
-            eprintln!("Notak : impossible d'ouvrir {url} ({e})");
-        }
+fn ouvrir_dehors(app: &AppHandle, cadence: &Cadence, url: &tauri::Url) {
+    if !vers_dehors(url) {
+        return;
+    }
+    if !cadence.permise(Instant::now()) {
+        eprintln!("Notak : trop d'adresses ouvertes coup sur coup, {url} ne s'ouvre pas");
+        return;
+    }
+    if let Err(e) = app.opener().open_url(url.as_str(), None::<&str>) {
+        eprintln!("Notak : impossible d'ouvrir {url} ({e})");
     }
 }
 
@@ -164,6 +185,8 @@ fn ouvrir_fenetre(app: &AppHandle, origines: Origines) -> tauri::Result<()> {
     };
     let pour_navigation = app.clone();
     let pour_fenetres = app.clone();
+    let cadence = Arc::new(Cadence::new(DEHORS_MAX, DEHORS_DUREE));
+    let cadence_fenetres = cadence.clone();
     WebviewWindowBuilder::from_config(app, fenetre)?
         .on_navigation(move |url| {
             if origines.permise(url) {
@@ -172,12 +195,12 @@ fn ouvrir_fenetre(app: &AppHandle, origines: Origines) -> tauri::Result<()> {
             // Un courriel ou un numéro ne se charge pas dans un cadre : c'est un lien cliqué, il part vers le système.
             // Une page web refusée, elle, peut venir d'un cadre : on ne l'ouvre pas dans le dos de la personne.
             if matches!(url.scheme(), "mailto" | "tel") {
-                ouvrir_dehors(&pour_navigation, url);
+                ouvrir_dehors(&pour_navigation, &cadence, url);
             }
             false
         })
         .on_new_window(move |url, _| {
-            ouvrir_dehors(&pour_fenetres, &url);
+            ouvrir_dehors(&pour_fenetres, &cadence_fenetres, &url);
             NewWindowResponse::Deny
         })
         .on_page_load(move |fenetre, chargement| {
@@ -221,13 +244,15 @@ pub fn run() {
         .manage(Emplacements::default())
         .manage(MisesAJour::new(mises_a_jour))
         .manage(Ouverts::default())
-        .manage(fichiers::Cadence::default())
+        .manage(fichiers::Ouvertures::default())
         .setup(|app| {
             let app = app.handle();
             fichiers::vider_les_ouverts(app);
             let reglage = Reglage::new(app.path().app_config_dir().ok().map(|d| d.join("bureau.json")));
-            app.manage(Acces::new(reglage, racine_locale(app.config())));
-            let origines = Origines::de(app.config(), ServeurCourant::default());
+            // Un seul serveur courant, partagé par les réglages d'accès et la garde de navigation.
+            let serveur = ServeurCourant::default();
+            app.manage(Acces::new(reglage, racine_locale(app.config()), serveur.clone()));
+            let origines = Origines::de(app.config(), serveur);
             app.manage(origines.clone());
             ouvrir_fenetre(app, origines)?;
             // Sous Windows et Linux, un fichier ouvert depuis le système arrive en argument ; macOS l'envoie à part
@@ -246,6 +271,7 @@ pub fn run() {
             acces::revenir_ici,
             acces::oublier_serveur,
             acces::regler_maj_auto,
+            acces::regler_ouverture,
             fichiers::ouvrir_fichier,
             fichiers::fichiers_ouverts,
             fichiers::lire_fichier_ouvert,

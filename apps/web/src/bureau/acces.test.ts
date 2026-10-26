@@ -1,9 +1,12 @@
 import { definirLangue, textesEn, textesFr } from '@notak/tableau'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Acces } from '../bureau'
-import { type Echec, concerneAdresse, decidePorte, detailErreur, echecDe, hoteDe, hoteSaisi, serveurMuet, texteErreur } from './acces'
+import { type Echec, concerneAdresse, decidePorte, echecDe, hoteDe, hoteSaisi, serveurMuet, texteErreur } from './acces'
 
-afterEach(() => definirLangue('fr'))
+afterEach(() => {
+  definirLangue('fr')
+  vi.restoreAllMocks()
+})
 
 const acces = (o: Partial<Acces> = {}): Acces => ({ ouvrir: 'local', serveur: null, majAuto: true, version: '0.1.0', ...o })
 const SERVEUR = 'https://notak.exemple.fr'
@@ -27,6 +30,14 @@ describe('la porte de l’app de bureau', () => {
     expect(decidePorte(null, '?acces')).toBe('ecran')
   })
 
+  it('« ?ici » (un coup d’œil depuis un serveur) : les toiles d’ici, même avec un serveur à ouvrir', () => {
+    expect(decidePorte(acces({ ouvrir: 'serveur', serveur: SERVEUR }), '?ici')).toBe('local')
+    expect(decidePorte(acces({ ouvrir: 'serveur', serveur: SERVEUR }), '?x=1&ici')).toBe('local')
+    expect(decidePorte(null, '?ici')).toBe('local')
+    // L'écran d'accès l'emporte : ni l'un ni l'autre ne connecte.
+    expect(decidePorte(acces({ ouvrir: 'serveur', serveur: SERVEUR }), '?ici&acces')).toBe('ecran')
+  })
+
   it('une coque d’avant les serveurs (réglages illisibles) : les toiles de cet ordinateur', () => {
     expect(decidePorte(null, '')).toBe('local')
     expect(decidePorte(null, '?autre=1')).toBe('local')
@@ -47,7 +58,7 @@ describe('la porte de l’app de bureau', () => {
 
 describe('les mots des refus', () => {
   const CODES = ['adresse_invalide', 'https_requis', 'chemin', 'injoignable', 'certificat', 'delai', 'pas_notak', 'trop_ancien'] as const
-  const AUTRES = ['type_refuse', 'trop_gros', 'trop_vite', 'introuvable', 'illisible', 'interdit'] as const
+  const AUTRES = ['type_refuse', 'trop_gros', 'trop_vite', 'introuvable', 'illisible', 'interdit', 'file_pleine', 'annule'] as const
 
   /** Tous les refus que la coque sait rendre, et le silence du serveur. */
   const tous: Echec[] = [
@@ -71,13 +82,17 @@ describe('les mots des refus', () => {
   })
 
   it('les codes propres à la connexion ont un texte à eux, qui dit quoi faire', () => {
-    for (const code of [...CODES, 'muette', 'interdit'] as const) expect(textesFr[`bureau.erreur.${code}`], code).toBeTruthy()
-    for (const code of [...CODES, 'muette', 'interdit'] as const) expect(textesEn[`bureau.erreur.${code}`], code).toBeTruthy()
+    for (const code of [...CODES, 'muette', 'interdit', 'file_pleine'] as const) expect(textesFr[`bureau.erreur.${code}`], code).toBeTruthy()
+    for (const code of [...CODES, 'muette', 'interdit', 'file_pleine'] as const) expect(textesEn[`bureau.erreur.${code}`], code).toBeTruthy()
     expect(texteErreur({ code: 'https_requis' })).toContain('localhost')
     expect(texteErreur({ code: 'chemin' })).toContain('racine')
     expect(texteErreur({ code: 'certificat' })).toContain('Let’s Encrypt')
-    expect(texteErreur({ code: 'trop_ancien' })).toContain('docker compose pull && docker compose up -d')
+    // Un serveur d'avant `/api/sante` a été construit depuis les sources : le guide dit comment le mettre à jour, pas
+    // une commande qui ne vaut que pour l'image publiée.
+    expect(texteErreur({ code: 'trop_ancien' })).toContain('« Mettre à jour »')
+    expect(texteErreur({ code: 'trop_ancien' })).not.toContain('docker')
     expect(texteErreur({ code: 'injoignable' })).toContain('démarré')
+    expect(texteErreur({ code: 'file_pleine' })).toContain('Redémarrez')
   })
 
   it('un serveur qui se dit ailleurs donne son adresse ; un serveur muet son nom', () => {
@@ -85,20 +100,18 @@ describe('les mots des refus', () => {
     expect(texteErreur({ code: 'muette' }, 'notak.exemple.fr')).toContain('notak.exemple.fr n’a pas répondu')
   })
 
-  it('une erreur qui n’est pas un refus de la coque se dit comme un échec, sans détail', () => {
-    for (const e of [new Error('boum'), 'Command joindre_serveur not found', null, undefined, { code: 'inconnu' }, { code: 'redirige' }]) {
+  it('une erreur qui n’est pas un refus de la coque se dit comme un échec, son détail dans la console seulement', () => {
+    const console_ = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const pannes = [new Error('boum'), 'Command joindre_serveur not found', null, undefined, { code: 'inconnu' }, { code: 'redirige' }, { code: 'echec', message: 'Permission denied (os error 13)' }]
+    for (const e of pannes) {
       const echec = echecDe(e)
-      expect(echec.code).toBe('echec')
-      expect(detailErreur(echec)).toBeNull()
+      expect(echec).toEqual({ code: 'echec', message: '' })
       expect(texteErreur(echec)).toBe(textesFr['bureau.erreur.echec'])
     }
+    expect(console_).toHaveBeenCalledTimes(pannes.length)
+    expect(console_).toHaveBeenLastCalledWith('Notak :', { code: 'echec', message: 'Permission denied (os error 13)' })
     expect(echecDe({ code: 'certificat' })).toEqual({ code: 'certificat' })
-  })
-
-  it('le détail d’un échec de la coque se lit en clair et en court', () => {
-    expect(detailErreur({ code: 'echec', message: 'erreur\u0000 de   disque\n' })).toBe('erreur  de   disque')
-    expect(detailErreur({ code: 'echec', message: 'x'.repeat(500) })?.length).toBe(200)
-    expect(detailErreur({ code: 'injoignable' })).toBeNull()
+    expect(console_).toHaveBeenCalledTimes(pannes.length)
   })
 
   it('seules les erreurs d’adresse se corrigent dans son champ', () => {

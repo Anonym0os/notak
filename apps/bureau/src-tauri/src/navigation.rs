@@ -65,8 +65,9 @@ impl Origines {
 
     fn de_l_app(&self, url: &Url) -> bool {
         match (url.scheme(), url.host_str()) {
-            // Les fichiers embarqués : `tauri://localhost` sur macOS et Linux, `http://tauri.localhost` sous Windows.
-            ("tauri", Some("localhost")) | ("http" | "https", Some("tauri.localhost")) => true,
+            // Les fichiers embarqués : `tauri://localhost` sur macOS et Linux, `http://tauri.localhost` sous Windows. Sans
+            // port : `http://tauri.localhost:9999`, la webview le cherche sur cette machine, chez qui écoute ce port.
+            ("tauri", Some("localhost")) | ("http" | "https", Some("tauri.localhost")) => url.port().is_none(),
             _ => self.app.contains(&url.origin().ascii_serialization()),
         }
     }
@@ -100,8 +101,8 @@ impl Origines {
     /// plateforme (`http://tauri.localhost` ailleurs que sous Windows serait un serveur de la machine).
     pub fn appelant(&self, url: &Url) -> Appelant {
         let locale = match (url.scheme(), url.host_str()) {
-            ("tauri", Some("localhost")) => !cfg!(windows),
-            ("http" | "https", Some("tauri.localhost")) => cfg!(windows),
+            ("tauri", Some("localhost")) => !cfg!(windows) && url.port().is_none(),
+            ("http" | "https", Some("tauri.localhost")) => cfg!(windows) && url.port().is_none(),
             _ => self.app.contains(&url.origin().ascii_serialization()),
         };
         if locale {
@@ -175,6 +176,10 @@ mod essais {
         assert!(!o.permise(&url("https://exemple.fr/")));
         assert!(!o.permise(&url("https://www.youtube-nocookie.com.exemple.fr/")));
         assert!(!o.permise(&url("http://localhost:5173/")));
+        assert!(!o.permise(&url("http://tauri.localhost:9999/")));
+        assert!(!o.permise(&url("https://tauri.localhost:8443/")));
+        assert!(!o.permise(&url("tauri://localhost:1234/")));
+        assert!(!o.permise(&url("blob:http://tauri.localhost:9999/0b6f6e2c")));
         assert!(!o.permise(&url("blob:https://exemple.fr/0b6f6e2c")));
         assert!(!o.permise(&url("data:text/html,<script>alert(1)</script>")));
         assert!(!o.permise(&url("file:///etc/passwd")));
@@ -221,6 +226,10 @@ mod essais {
         let pas_ici = if cfg!(windows) { "tauri://localhost/" } else { "http://tauri.localhost/" };
         assert_eq!(o.appelant(&url(ici)), Appelant::Locale);
         assert_eq!(o.appelant(&url(pas_ici)), Appelant::Autre);
+        // Un autre port de la même adresse est un serveur de la machine, pas la page embarquée.
+        assert_eq!(o.appelant(&url("http://tauri.localhost:9999/")), Appelant::Autre);
+        assert_eq!(o.appelant(&url("https://tauri.localhost:8443/")), Appelant::Autre);
+        assert_eq!(o.appelant(&url("tauri://localhost:1234/")), Appelant::Autre);
         assert_eq!(o.appelant(&url("https://notak.exemple.fr/")), Appelant::Autre);
         o.serveur.poser(Some("https://notak.exemple.fr".into()));
         assert_eq!(o.appelant(&url("https://notak.exemple.fr/t/abc")), Appelant::Serveur);
@@ -240,6 +249,7 @@ mod essais {
         assert_eq!(dev.appelant(&url("http://localhost:5173/")), Appelant::Locale);
         assert!(dev.est_de_l_app("http://localhost:5173"));
         assert!(dev.est_de_l_app("https://tauri.localhost"));
+        assert!(!dev.est_de_l_app("http://tauri.localhost:9999"));
         assert!(!dev.est_de_l_app("https://notak.exemple.fr"));
     }
 

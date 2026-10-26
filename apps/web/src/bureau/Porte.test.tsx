@@ -5,28 +5,18 @@ import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Acces } from '../bureau'
 import { texteErreur } from './acces'
+import { SERVEUR, acces, alerte, appelsDe, bouton, coque, commandes, invoke, poserCoque, retirerCoque } from './essai'
 import { LENTEUR_MS, Porte, passerLaPorte } from './Porte'
 
-;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
-
-const SERVEUR = 'https://notak.exemple.fr'
-const acces = (o: Partial<Acces> = {}): Acces => ({ ouvrir: 'local', serveur: null, majAuto: true, version: '0.1.0', ...o })
 const retenu = (o: Partial<Acces> = {}) => acces({ ouvrir: 'serveur', serveur: SERVEUR, ...o })
 
 let racine: Root
 let hote: HTMLElement
-let invoke: ReturnType<typeof vi.fn>
-let coque: Record<string, (args: unknown) => unknown>
 
 beforeEach(() => {
   definirLangue('fr')
-  coque = {}
-  invoke = vi.fn(async (commande: string, args: unknown) => {
-    const r = coque[commande]
-    if (!r) throw `Command ${commande} not found`
-    return r(args)
-  })
-  ;(window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = { invoke }
+  poserCoque()
+  sessionStorage.clear()
   history.replaceState(null, '', '/')
   hote = document.createElement('div')
   hote.id = 'racine'
@@ -35,15 +25,11 @@ beforeEach(() => {
 })
 afterEach(() => {
   vi.useRealTimers()
+  vi.restoreAllMocks()
   act(() => racine.unmount())
   hote.remove()
-  delete (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
+  retirerCoque()
 })
-
-const appelsDe = (commande: string) => invoke.mock.calls.filter((c) => c[0] === commande).map((c) => c[1])
-const commandes = () => [...new Set(invoke.mock.calls.map((c) => c[0] as string))]
-const bouton = (texte: string) => [...document.querySelectorAll('button')].find((b) => b.textContent === texte)
-const alerte = () => document.querySelector('[role="alert"]')?.textContent ?? null
 
 describe('la connexion au serveur retenu, au lancement', () => {
   it('dit à quel serveur elle se connecte, et l’y envoie en le retenant encore', async () => {
@@ -63,6 +49,7 @@ describe('la connexion au serveur retenu, au lancement', () => {
   it('ne propose rien tout de suite, puis, passé dix secondes, d’ouvrir les toiles de cet ordinateur', async () => {
     vi.useFakeTimers()
     coque.joindre_serveur = () => new Promise(() => {})
+    coque.annuler_jonction = () => false
     const surLocal = vi.fn()
     await act(async () => racine.render(<Porte acces={retenu()} recherche="" surLocal={surLocal} />))
     await act(async () => void vi.advanceTimersByTime(LENTEUR_MS - 1))
@@ -71,13 +58,40 @@ describe('la connexion au serveur retenu, au lancement', () => {
     const ouvrir = bouton('Ouvrir les toiles de cet ordinateur')!
     expect(ouvrir).toBeTruthy()
     expect(document.querySelector('[role="status"]')?.textContent).toBe('notak.exemple.fr tarde à répondre.')
-    expect(document.body.textContent).toContain('Pour cette fois seulement : notak.exemple.fr reste retenu')
+    expect(document.body.textContent).toContain('Pour cette fois seulement : notak.exemple.fr reste mémorisé')
     expect(document.activeElement).toBe(ouvrir)
     await act(async () => ouvrir.click())
     expect(surLocal).toHaveBeenCalledOnce()
     // Pour cette fois seulement : ni le serveur ni où Notak s'ouvre ne changent ; la jonction en cours est abandonnée,
     // pour qu'une réponse tardive du serveur n'emmène pas la fenêtre.
     expect(commandes()).toEqual(['joindre_serveur', 'annuler_jonction'])
+    // Un second clic ne redemande rien.
+    await act(async () => ouvrir.click())
+    expect(appelsDe('annuler_jonction')).toHaveLength(1)
+  })
+
+  it('la fenêtre déjà partie chercher le serveur : la coque la ramène, la page n’ouvre rien elle-même', async () => {
+    vi.useFakeTimers()
+    // Le serveur a répondu, la navigation est lancée, mais sa page tarde : la porte est encore là.
+    coque.joindre_serveur = () => ({ origine: SERVEUR, nom: null, version: '1' })
+    coque.annuler_jonction = () => true
+    const surLocal = vi.fn()
+    await act(async () => racine.render(<Porte acces={retenu()} recherche="" surLocal={surLocal} />))
+    await act(async () => void vi.advanceTimersByTime(LENTEUR_MS))
+    await act(async () => bouton('Ouvrir les toiles de cet ordinateur')!.click())
+    expect(appelsDe('annuler_jonction')).toHaveLength(1)
+    expect(surLocal).not.toHaveBeenCalled()
+  })
+
+  it('une coque qui ne sait pas arrêter la connexion : les toiles d’ici s’ouvrent quand même', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    coque.joindre_serveur = () => new Promise(() => {})
+    const surLocal = vi.fn()
+    await act(async () => racine.render(<Porte acces={retenu()} recherche="" surLocal={surLocal} />))
+    await act(async () => void vi.advanceTimersByTime(LENTEUR_MS))
+    await act(async () => bouton('Ouvrir les toiles de cet ordinateur')!.click())
+    expect(surLocal).toHaveBeenCalledOnce()
   })
 
   it('un serveur qui répond mal : l’écran d’accès dit pourquoi, avec son adresse sous la main', async () => {
@@ -93,14 +107,16 @@ describe('la connexion au serveur retenu, au lancement', () => {
     expect(appelsDe('joindre_serveur')).toHaveLength(1)
   })
 
-  it('depuis cet écran, « Toiles de cet ordinateur » fait rouvrir ici dès la prochaine fois', async () => {
+  it('depuis cet écran, « Toiles de cet ordinateur » les ouvre pour cette fois, sans rien régler', async () => {
     coque.joindre_serveur = () => {
       throw { code: 'injoignable' }
     }
-    coque.revenir_ici = () => undefined
-    await act(async () => racine.render(<Porte acces={retenu()} recherche="" surLocal={() => {}} />))
+    const surLocal = vi.fn()
+    await act(async () => racine.render(<Porte acces={retenu()} recherche="" surLocal={surLocal} />))
+    expect(document.body.textContent).toContain('au prochain lancement, Notak s’ouvrira encore sur notak.exemple.fr')
     await act(async () => bouton('Toiles de cet ordinateur')!.click())
-    expect(appelsDe('revenir_ici')).toEqual([{ ecran: 'local' }])
+    expect(surLocal).toHaveBeenCalledOnce()
+    expect(commandes()).toEqual(['joindre_serveur'])
   })
 
   it('« Réessayer » (« Se connecter ») renvoie l’adresse du champ', async () => {
@@ -159,6 +175,46 @@ describe('passer la porte', () => {
     await act(async () => passerLaPorte(monter))
     expect(monter).toHaveBeenCalledOnce()
     expect(hote.childElementCount).toBe(0)
+  })
+
+  it('un coup d’œil depuis un serveur (?ici) : l’édition locale, sans connexion, et l’adresse nettoyée', async () => {
+    history.replaceState(null, '', '/?ici&garde=1')
+    coque.acces = () => retenu()
+    const monter = vi.fn()
+    await act(async () => passerLaPorte(monter))
+    expect(monter).toHaveBeenCalledOnce()
+    expect(commandes()).toEqual(['acces'])
+    expect(location.search).toBe('?garde=1')
+  })
+
+  it('le coup d’œil vaut pour la séance : l’édition qui se recharge d’elle-même ne rejoint pas le serveur', async () => {
+    history.replaceState(null, '', '/?ici')
+    coque.acces = () => retenu()
+    coque.joindre_serveur = () => new Promise(() => {})
+    const monter = vi.fn()
+    await act(async () => passerLaPorte(monter))
+    // Une copie devenue l'accueil : la page repart de « / ».
+    await act(async () => passerLaPorte(monter))
+    expect(monter).toHaveBeenCalledTimes(2)
+    expect(appelsDe('joindre_serveur')).toEqual([])
+    // L'écran d'accès demandé, lui, s'affiche toujours.
+    history.replaceState(null, '', '/?acces')
+    await act(async () => passerLaPorte(monter))
+    expect(hote.querySelector('h1')?.textContent).toBe('Se connecter à un serveur Notak')
+  })
+
+  it('« pour cette fois » à la porte vaut aussi pour la séance', async () => {
+    coque.acces = () => retenu()
+    coque.joindre_serveur = () => {
+      throw { code: 'injoignable' }
+    }
+    const monter = vi.fn()
+    await act(async () => passerLaPorte(monter))
+    await act(async () => bouton('Toiles de cet ordinateur')!.click())
+    expect(monter).toHaveBeenCalledOnce()
+    await act(async () => passerLaPorte(monter))
+    expect(monter).toHaveBeenCalledTimes(2)
+    expect(appelsDe('joindre_serveur')).toHaveLength(1)
   })
 
   it('une coque d’avant les serveurs (réglages refusés) : l’édition locale', async () => {

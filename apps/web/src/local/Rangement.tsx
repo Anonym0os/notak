@@ -85,9 +85,10 @@ export function Rangement({ el, enregistrer, rouvrir, message }: { el: EspaceLoc
       {ouvert && (
         <div className="app-panneau partage-panneau rangement-panneau" ref={panneau} role="dialog" aria-label={t('local.titre')}>
           <h2>{t('local.titre')}</h2>
-          <p>{t(bureau ? 'local.iciBureau' : 'local.ici')}</p>
+          {/* L'app de bureau se connecte à un serveur quand on le lui demande : elle a ses propres mots. */}
+          <p>{bureau ? t('bureau.rangement.ici') : t('local.ici')}</p>
           <ul className="rangement-faits">
-            <li>{t('local.rienNePart')}</li>
+            <li>{bureau ? t('bureau.rangement.rienNePart') : t('local.rienNePart')}</li>
             <li>{t(bureau ? 'local.effaceBureau' : 'local.efface')}</li>
             {safariNonInstalle() && <li className="rangement-attention">{t('local.safari')}</li>}
           </ul>
@@ -140,7 +141,14 @@ export function Rangement({ el, enregistrer, rouvrir, message }: { el: EspaceLoc
           {bureau && <SectionMiseAJour />}
 
           {bureau ? (
-            <SectionServeur el={el} fermer={() => regler(false)} />
+            <SectionServeur
+              el={el}
+              fermer={() => {
+                // La pastille reprend le curseur : la fenêtre qui s'ouvre le lui rendra en se fermant.
+                regler(false)
+                bouton.current?.focus()
+              }}
+            />
           ) : (
             <>
               <h3>{t('local.plusieurs')}</h3>

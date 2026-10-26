@@ -1,13 +1,19 @@
 import { useSyncExternalStore } from 'react'
 import { confierCopie, joindreServeur } from '../bureau'
-import { t } from '../langue'
 import { type Echec, echecDe } from './acces'
 
 /**
- * Passer de l'édition locale à son serveur retenu : « Revenir sur… », ou « Emporter mes toiles sur… », qui confie à la
- * coque une copie complète des toiles de cet ordinateur avant d'y aller : la page du serveur la proposera à l'import.
- * Rien n'est supprimé ici. L'état se tient hors du panneau « Où sont mes toiles ? », qui peut se refermer pendant ce temps.
+ * Passer de l'édition locale à son serveur mémorisé : « Revenir sur… », ou « Copier mes toiles sur… », qui confie à la
+ * coque une copie complète des toiles de cet ordinateur avant d'y aller : la page de ce serveur, et d'aucun autre, la
+ * proposera à l'import. Rien n'est supprimé ici. Si la jonction échoue, la coque oublie la copie : elle n'attend pas le
+ * serveur suivant. L'état se tient hors du panneau « Où sont mes toiles ? », qui peut se refermer pendant ce temps.
  */
+
+/**
+ * Le nom de la copie confiée : un nom de code, pas un texte traduit. La coque n'accepte qu'un `.notak`, et la page du
+ * serveur reconnaît la copie à `confiee`, pas à son nom.
+ */
+export const NOM_COPIE = 'Toiles de cet ordinateur.notak'
 
 /** Le temps qu'IndexedDB ait écrit le dernier geste, avant que la page ne parte (comme avant un redémarrage, `MiseAJour.tsx`). */
 export const ATTENTE_ECRITURES_MS = 400
@@ -45,7 +51,7 @@ const MOYENS: Moyens = { confier: confierCopie, joindre: joindreServeur, attendr
 export async function emporterToiles(serveur: string, copie: () => Promise<Uint8Array>, moyens: Moyens = MOYENS): Promise<void> {
   const octets = await copie()
   await moyens.attendre(ATTENTE_ECRITURES_MS)
-  await moyens.confier(octets, t('bureau.serveur.nomCopie'))
+  await moyens.confier(octets, NOM_COPIE)
   await moyens.joindre(serveur, true)
 }
 

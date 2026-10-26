@@ -2,8 +2,9 @@
 /// c'est bien un serveur Notak, puis y envoie la fenêtre. Ses pages reçoivent alors une partie des droits de la coque,
 /// et elles seules.
 ///
-/// - **L'adresse est relue ici**, pas dans la page : `https` seulement (du HTTP simple pour cet ordinateur), ni
-///   identifiants, ni paramètres, ni chemin, ni IPv6 ; un nom international en punycode. On n'en garde que l'origine.
+/// - **L'adresse est relue ici**, pas dans la page : `https` seulement (du HTTP simple pour cet ordinateur, et par défaut
+///   pour `localhost` tapé sans schéma), ni identifiants, ni paramètres, ni chemin, ni IPv6 ; un nom international en
+///   punycode. On n'en garde que l'origine.
 /// - **On vérifie avant d'y aller** (`GET /api/sante`, sans suivre de redirection, 10 s, 64 Kio au plus) : un serveur
 ///   qui se dit ailleurs, ou une redirection, n'emmène pas la fenêtre ; on propose l'adresse (`redirige`), la personne
 ///   décide. Un certificat refusé se dit comme tel.
@@ -13,12 +14,14 @@
 /// - **Les chemins choisis par une page ne servent pas à l'autre** : changer de page oublie ceux d'« Enregistrer sous ».
 /// - **Une page muette ramène chez soi** : si le serveur ne se signale pas (`acces`) dans les 20 s, la fenêtre revient
 ///   à l'écran d'accès (`?acces&erreur=muette`).
+/// - **Revenir chez soi n'est qu'un coup d'œil** (`revenir`, `?ici`) : la jonction en cours s'arrête, rien n'est retenu.
+///   Où Notak s'ouvre se choisit dans ses réglages (`regler_ouverture`).
 ///
-/// La page embarquée ne joint jamais un serveur d'après les paramètres de son adresse (`?acces`, `erreur=…`) : elle ne
-/// fait que les afficher. Seuls ses réglages (`acces`) et ce que tape la personne mènent ailleurs.
+/// La page embarquée ne joint jamais un serveur d'après les paramètres de son adresse (`?acces`, `?ici`, `erreur=…`) :
+/// elle ne fait que les afficher, ou s'en abstenir. Seuls ses réglages (`acces`) et ce que tape la personne mènent
+/// ailleurs.
 use std::net::Ipv4Addr;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::collections::VecDeque;
 use std::sync::{Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
@@ -29,13 +32,15 @@ use tauri::utils::acl::RemoteUrlPattern;
 use tauri::{AppHandle, Manager, State, Url, Webview};
 use url::Host;
 
-use crate::appel::{exiger, Erreur, LOCALE, LOCALE_OU_SERVEUR, SERVEUR};
-use crate::navigation::{Appelant, Origines};
+use crate::appel::{exiger, Cadence, Erreur, LOCALE, LOCALE_OU_SERVEUR, SERVEUR};
+use crate::fichiers::Ouverts;
+use crate::navigation::{Appelant, Origines, ServeurCourant};
 use crate::reglages::{Ouvrir, Reglage};
 use crate::Emplacements;
 
 /// Ce que peut une page du serveur choisi. Ni `joindre_serveur`, ni `oublier_serveur`, ni `regler_maj_auto`, ni
-/// `confier_copie` : un serveur ne choisit pas où va la fenêtre, et ne règle pas la coque.
+/// `regler_ouverture`, ni `confier_copie`, ni `annuler_jonction` : un serveur ne choisit pas où va la fenêtre, et ne
+/// règle pas la coque.
 pub const DROITS_SERVEUR: &[&str] = &[
     "core:window:allow-start-dragging",
     "core:window:allow-internal-toggle-maximize",
@@ -60,23 +65,33 @@ const CORPS_MAX: usize = 64 * 1024;
 /// Le temps qu'a la page d'un serveur pour se signaler.
 const GRACE: Duration = Duration::from_secs(20);
 
-/// L'origine d'un serveur Notak, à partir de ce que la personne a tapé.
+/// L'origine d'un serveur Notak, à partir de ce que la personne a tapé. Sans schéma, `https`, sauf pour cet ordinateur
+/// (`localhost:3005`), où un serveur d'essai parle HTTP.
 pub fn normaliser(adresse: &str) -> Result<String, Erreur> {
     let adresse = adresse.trim();
     if adresse.is_empty() || adresse.len() > 2048 || adresse.chars().any(char::is_control) {
         return Err(Erreur::AdresseInvalide);
     }
-    let url = if adresse.contains("://") { Url::parse(adresse) } else { Url::parse(&format!("https://{adresse}")) };
+    let url = if adresse.contains("://") {
+        Url::parse(adresse)
+    } else {
+        Url::parse(&format!("https://{adresse}")).and_then(|u| if de_cet_ordinateur(&u) { Url::parse(&format!("http://{adresse}")) } else { Ok(u) })
+    };
     origine_de(&url.map_err(|_| Erreur::AdresseInvalide)?)
+}
+
+/// `localhost` ou `127.0.0.1` : cet ordinateur.
+fn de_cet_ordinateur(url: &Url) -> bool {
+    match url.host() {
+        Some(Host::Domain(d)) => d == "localhost",
+        Some(Host::Ipv4(ip)) => ip == Ipv4Addr::LOCALHOST,
+        _ => false,
+    }
 }
 
 /// L'origine d'une adresse déjà lue, si c'est celle d'un serveur possible, à sa racine.
 fn origine_de(url: &Url) -> Result<String, Erreur> {
-    let locale = match url.host() {
-        Some(Host::Domain(d)) => d == "localhost",
-        Some(Host::Ipv4(ip)) => ip == Ipv4Addr::LOCALHOST,
-        _ => false,
-    };
+    let locale = de_cet_ordinateur(url);
     match url.scheme() {
         "https" => {}
         // Les webviews (macOS surtout) refusent le HTTP simple hors de la machine ; un mot de passe n'y passe pas en clair.
@@ -285,26 +300,69 @@ struct Visite {
 pub struct Acces {
     pub reglage: Reglage,
     racine: Url,
+    /// Le serveur où est la fenêtre, le même que celui de la garde (`Origines`) : il ne change que sous le verrou de la
+    /// visite, avec elle.
+    serveur: ServeurCourant,
     /// Les origines qui ont déjà leur capacité.
     accordes: Mutex<Vec<String>>,
     visite: Mutex<Visite>,
     /// Un serveur à la fois : deux demandes rapprochées ne partent pas chacune de leur côté.
     joindre: tauri::async_runtime::Mutex<()>,
-    /// Change à chaque annulation : une vérification en cours qui la voit changer n'emmène pas la fenêtre.
+    /// Change à chaque renoncement (`abandonner`) : une jonction en cours qui la voit changer n'emmène pas la fenêtre,
+    /// et ne retient rien.
     annulations: AtomicU64,
     /// Les pages du serveur ouvertes récemment dans le navigateur (`ouvrir_dans_le_navigateur`).
-    navigateur: Mutex<VecDeque<Instant>>,
+    navigateur: Cadence,
 }
 
 impl Acces {
-    pub fn new(reglage: Reglage, racine: Url) -> Self {
-        Self { reglage, racine, accordes: Mutex::new(Vec::new()), visite: Mutex::new(Visite::default()), joindre: tauri::async_runtime::Mutex::new(()), annulations: AtomicU64::new(0), navigateur: Mutex::new(VecDeque::new()) }
+    pub fn new(reglage: Reglage, racine: Url, serveur: ServeurCourant) -> Self {
+        Self {
+            reglage,
+            racine,
+            serveur,
+            accordes: Mutex::new(Vec::new()),
+            visite: Mutex::new(Visite::default()),
+            joindre: tauri::async_runtime::Mutex::new(()),
+            annulations: AtomicU64::new(0),
+            navigateur: Cadence::new(NAVIGATEUR_MAX, NAVIGATEUR_DUREE),
+        }
     }
 
-    fn nouvelle_visite(&self, origine: Option<String>) -> u64 {
+    /// Commence la visite de `origine`, si personne n'a renoncé depuis `vu` : il devient le serveur de la fenêtre. Sous
+    /// le verrou de la visite, comme `abandonner` : l'un passe avant l'autre, jamais au milieu.
+    fn commencer_visite(&self, origine: &str, vu: u64) -> Option<u64> {
         let mut v = self.visite.lock().unwrap_or_else(PoisonError::into_inner);
-        *v = Visite { numero: v.numero + 1, origine, vivante: false };
-        v.numero
+        if self.annulations.load(Ordering::SeqCst) != vu {
+            return None;
+        }
+        self.serveur.poser(Some(origine.to_string()));
+        *v = Visite { numero: v.numero + 1, origine: Some(origine.to_string()), vivante: false };
+        Some(v.numero)
+    }
+
+    /// Une page du serveur de la fenêtre commence à se charger (un rechargement, un lien) : une nouvelle visite, qui a
+    /// de nouveau son délai pour se signaler. Rien pour une autre adresse, ni quand la fenêtre n'a plus de serveur.
+    fn visite_rechargee(&self, url: &Url) -> Option<u64> {
+        let mut v = self.visite.lock().unwrap_or_else(PoisonError::into_inner);
+        let courant = self.serveur.lire()?;
+        if url.origin().ascii_serialization() != courant {
+            return None;
+        }
+        *v = Visite { numero: v.numero + 1, origine: Some(courant), vivante: false };
+        Some(v.numero)
+    }
+
+    /// Renonce au serveur : la jonction en cours finit sur `annule`, la fenêtre n'a plus de serveur ni de visite à
+    /// guetter. Rend vrai si une page de serveur était en route sans s'être signalée : la fenêtre est peut-être déjà
+    /// partie la chercher.
+    fn abandonner(&self) -> bool {
+        let mut v = self.visite.lock().unwrap_or_else(PoisonError::into_inner);
+        self.annulations.fetch_add(1, Ordering::SeqCst);
+        let en_route = v.origine.is_some() && !v.vivante;
+        self.serveur.poser(None);
+        *v = Visite { numero: v.numero + 1, origine: None, vivante: false };
+        en_route
     }
 
     fn signe_de_vie(&self, origine: &str) {
@@ -359,43 +417,53 @@ pub async fn acces(app: AppHandle, webview: Webview, garde: State<'_, Origines>,
     Ok(EtatAcces { ouvrir: r.ouvrir, serveur: r.serveur, maj_auto: r.maj_auto, version })
 }
 
-/// Vérifie l'adresse tapée, puis y envoie la fenêtre. `garder` : Notak s'ouvrira désormais sur ce serveur.
+/// Vérifie l'adresse tapée, puis y envoie la fenêtre. `garder` : Notak s'ouvrira désormais sur ce serveur. Qu'elle
+/// échoue, et la copie confiée pour elle (`confier_copie`) s'en va : elle n'attend pas le serveur suivant.
 #[tauri::command]
 pub async fn joindre_serveur(
     app: AppHandle,
     webview: Webview,
     garde: State<'_, Origines>,
     etat: State<'_, Acces>,
-    emplacements: State<'_, Emplacements>,
+    ouverts: State<'_, Ouverts>,
     adresse: String,
     garder: bool,
 ) -> Result<Joint, Erreur> {
     exiger(&webview, &garde, LOCALE)?;
-    let annulations = etat.annulations.load(Ordering::SeqCst);
+    let vu = etat.annulations.load(Ordering::SeqCst);
+    let joint = joindre(&app, &garde, &etat, &ouverts, &adresse, garder, vu).await;
+    if joint.is_err() {
+        ouverts.retirer_confiees(None);
+    }
+    joint
+}
+
+async fn joindre(app: &AppHandle, garde: &Origines, etat: &Acces, ouverts: &Ouverts, adresse: &str, garder: bool, vu: u64) -> Result<Joint, Erreur> {
     let _seul = etat.joindre.lock().await;
-    let origine = normaliser(&adresse)?;
+    let origine = normaliser(adresse)?;
     if garde.est_de_l_app(&origine) {
         return Err(Erreur::AdresseInvalide);
     }
     let version = app.package_info().version.to_string();
     let joint = verifier(&client(true, DELAI, &version)?, &origine).await?;
-    // La personne a ouvert les toiles de cet ordinateur entre-temps : la fenêtre reste où elle est.
-    if etat.annulations.load(Ordering::SeqCst) != annulations {
-        return Err(Erreur::Annule);
-    }
-    etat.accorder(&app, &origine)?;
+    etat.accorder(app, &origine)?;
     let racine = Url::parse(&format!("{origine}/")).map_err(|_| Erreur::AdresseInvalide)?;
-    let fenetre = fenetre(&app)?;
-    // La garde d'abord : la navigation qui suit passe par elle.
-    garde.serveur.poser(Some(origine.clone()));
-    emplacements.vider();
-    let numero = etat.nouvelle_visite(Some(origine.clone()));
+    let fenetre = fenetre(app)?;
+    // La garde d'abord : la navigation qui suit passe par elle. La personne a renoncé entre-temps (les toiles d'ici, le
+    // menu) : la fenêtre reste où elle est.
+    let numero = etat.commencer_visite(&origine, vu).ok_or(Erreur::Annule)?;
+    app.state::<Emplacements>().vider();
+    // Un autre serveur n'a pas à trouver la copie confiée pour un autre.
+    ouverts.retirer_confiees(Some(&origine));
     if let Err(e) = fenetre.navigate(racine) {
-        garde.serveur.poser(None);
-        etat.nouvelle_visite(None);
+        etat.abandonner();
         return Err(Erreur::echec(e));
     }
     guetter(app.clone(), numero);
+    // Abandonnée pendant que la fenêtre partait (`annuler_jonction`) : elle est revenue, et rien n'est retenu.
+    if etat.annulations.load(Ordering::SeqCst) != vu {
+        return Err(Erreur::Annule);
+    }
     if garder {
         if let Err(e) = etat.reglage.changer(|r| {
             r.ouvrir = Ouvrir::Serveur;
@@ -412,39 +480,44 @@ pub async fn joindre_serveur(
 const NAVIGATEUR_MAX: usize = 3;
 const NAVIGATEUR_DUREE: Duration = Duration::from_secs(10);
 
+/// Une adresse que la page du serveur `courant` peut ouvrir dans le navigateur : une page de ce serveur, et de lui seul
+/// (même schéma, même hôte, même port), sans identifiants.
+fn adresse_ouvrable(adresse: &str, courant: Option<&str>) -> Result<Url, Erreur> {
+    let url = Url::parse(adresse).map_err(|_| Erreur::AdresseInvalide)?;
+    let courant = courant.ok_or(Erreur::Interdit)?;
+    if !matches!(url.scheme(), "https" | "http") || !url.username().is_empty() || url.password().is_some() || url.origin().ascii_serialization() != courant {
+        return Err(Erreur::Interdit);
+    }
+    Ok(url)
+}
+
 /// Une page du serveur, ouverte dans le navigateur de la personne. La page d'accord de la connexion par code s'ouvre
 /// après une requête : WebKit refuse alors `window.open`, qui n'est plus le fruit d'un clic. Seules les pages du
 /// serveur choisi passent par ici, et pas plus de trois en dix secondes.
 #[tauri::command]
 pub async fn ouvrir_dans_le_navigateur(app: AppHandle, webview: Webview, garde: State<'_, Origines>, etat: State<'_, Acces>, adresse: String) -> Result<(), Erreur> {
     exiger(&webview, &garde, SERVEUR)?;
-    let url = Url::parse(&adresse).map_err(|_| Erreur::AdresseInvalide)?;
-    let courant = garde.serveur.lire().ok_or(Erreur::Interdit)?;
-    if !matches!(url.scheme(), "https" | "http") || !url.username().is_empty() || url.password().is_some() || url.origin().ascii_serialization() != courant {
-        return Err(Erreur::Interdit);
-    }
-    {
-        let maintenant = Instant::now();
-        let mut recentes = etat.navigateur.lock().unwrap_or_else(PoisonError::into_inner);
-        while recentes.front().is_some_and(|t| maintenant.duration_since(*t) >= NAVIGATEUR_DUREE) {
-            recentes.pop_front();
-        }
-        if recentes.len() >= NAVIGATEUR_MAX {
-            return Err(Erreur::TropVite);
-        }
-        recentes.push_back(maintenant);
+    let url = adresse_ouvrable(&adresse, garde.serveur.lire().as_deref())?;
+    if !etat.navigateur.permise(Instant::now()) {
+        return Err(Erreur::TropVite);
     }
     use tauri_plugin_opener::OpenerExt;
     app.opener().open_url(url.as_str(), None::<&str>).map_err(Erreur::echec)
 }
 
-/// Renonce à la jonction en cours (la porte : « Ouvrir les toiles de cet ordinateur » pendant qu'on attend le
-/// serveur). Elle finit sur `annule`, sans emmener la fenêtre.
+/// Renonce à la jonction en cours (la porte : « Ouvrir les toiles de cet ordinateur » pendant qu'on attend le serveur ;
+/// la fenêtre « Se connecter » fermée pendant « Connexion… »). Pendant la vérification, elle finit sur `annule` sans
+/// emmener la fenêtre. Si la fenêtre est déjà partie chercher la page du serveur, elle revient aux toiles d'ici
+/// (`?ici`) : une nouvelle navigation remplace la sienne, ce que `window.stop` ne garantit pas partout. Rend vrai dans
+/// ce cas : la page qui a demandé va être remplacée. Rien n'est retenu.
 #[tauri::command]
-pub async fn annuler_jonction(webview: Webview, garde: State<'_, Origines>, etat: State<'_, Acces>) -> Result<(), Erreur> {
+pub async fn annuler_jonction(app: AppHandle, webview: Webview, garde: State<'_, Origines>) -> Result<bool, Erreur> {
     exiger(&webview, &garde, LOCALE)?;
-    etat.annulations.fetch_add(1, Ordering::SeqCst);
-    Ok(())
+    if !app.state::<Acces>().abandonner() {
+        return Ok(false);
+    }
+    rentrer(&app, Ecran::Local, None)?;
+    Ok(true)
 }
 
 fn fenetre(app: &AppHandle) -> Result<tauri::WebviewWindow, Erreur> {
@@ -455,12 +528,9 @@ fn fenetre(app: &AppHandle) -> Result<tauri::WebviewWindow, Erreur> {
 /// de nouveau 20 s pour se signaler. Sans cela, un serveur tombé pendant la séance laisserait, au rechargement suivant,
 /// une page d'erreur sans issue (pas de menu hors de macOS).
 pub fn page_chargee(app: &AppHandle, url: &Url) {
-    let Some(courant) = app.state::<Origines>().serveur.lire() else { return };
-    if url.origin().ascii_serialization() != courant {
-        return;
+    if let Some(numero) = app.state::<Acces>().visite_rechargee(url) {
+        guetter(app.clone(), numero);
     }
-    let numero = app.state::<Acces>().nouvelle_visite(Some(courant));
-    guetter(app.clone(), numero);
 }
 
 /// Sans signe de vie de la page du serveur à temps, la fenêtre revient à l'écran d'accès.
@@ -478,48 +548,66 @@ fn guetter(app: AppHandle, numero: u64) {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Ecran {
-    /// Les toiles de cet ordinateur.
+    /// Les toiles de cet ordinateur, pour un coup d'œil (`?ici`) : la page embarquée ne joint aucun serveur d'office.
     Local,
     /// L'écran pour choisir un serveur.
     Acces,
 }
 
-/// Ramène la fenêtre dans l'application : le serveur n'est plus permis, ni les chemins qu'il avait choisis.
+/// L'adresse de la page embarquée qui montre cet écran.
+fn adresse_d_ici(racine: &Url, ecran: Ecran, erreur: Option<&str>) -> Url {
+    let mut url = racine.clone();
+    url.set_query(Some(&match (ecran, erreur) {
+        (Ecran::Local, _) => "ici".to_string(),
+        (Ecran::Acces, Some(e)) => format!("acces&erreur={e}"),
+        (Ecran::Acces, None) => "acces".to_string(),
+    }));
+    url
+}
+
+/// Ramène la fenêtre dans l'application : la jonction en cours s'arrête, le serveur n'est plus permis, ni les chemins
+/// qu'il avait choisis, ni la copie confiée pour lui. Rien n'est retenu : où Notak s'ouvre ne change pas. La page le
+/// demande (`revenir_ici`), le menu de l'app (`menu.rs`), ou le guet d'une page muette.
 pub fn revenir(app: &AppHandle, ecran: Ecran, erreur: Option<&str>) -> Result<(), Erreur> {
-    let etat = app.state::<Acces>();
-    etat.nouvelle_visite(None);
-    app.state::<Origines>().serveur.poser(None);
+    app.state::<Acces>().abandonner();
+    rentrer(app, ecran, erreur)
+}
+
+/// La fenêtre, déjà sans serveur (`abandonner`), sur la page embarquée.
+fn rentrer(app: &AppHandle, ecran: Ecran, erreur: Option<&str>) -> Result<(), Erreur> {
     app.state::<Emplacements>().vider();
-    let mut url = etat.racine.clone();
-    if ecran == Ecran::Acces {
-        url.set_query(Some(&match erreur {
-            Some(e) => format!("acces&erreur={e}"),
-            None => "acces".to_string(),
-        }));
-    }
+    app.state::<Ouverts>().retirer_confiees(None);
+    let url = adresse_d_ici(&app.state::<Acces>().racine, ecran, erreur);
     fenetre(app)?.navigate(url).map_err(Erreur::echec)
 }
 
-/// Revient aux toiles de cet ordinateur (et Notak s'y ouvrira désormais, le serveur restant retenu pour plus tard), ou
-/// à l'écran d'accès, sans rien changer aux réglages. La page le demande, ou le menu de l'app (`menu.rs`).
-pub fn rentrer(app: &AppHandle, ecran: Ecran) -> Result<(), Erreur> {
-    if ecran == Ecran::Local {
-        if let Err(e) = app.state::<Acces>().reglage.changer(|r| r.ouvrir = Ouvrir::Local) {
-            eprintln!("Notak : le choix des toiles de cet ordinateur n'a pas pu être retenu ({e})");
-        }
-    }
-    revenir(app, ecran, None)
-}
-
+/// Revient aux toiles de cet ordinateur ou à l'écran d'accès, sans rien changer aux réglages.
 #[tauri::command]
 pub async fn revenir_ici(app: AppHandle, webview: Webview, garde: State<'_, Origines>, ecran: Ecran) -> Result<(), Erreur> {
     exiger(&webview, &garde, LOCALE_OU_SERVEUR)?;
-    rentrer(&app, ecran)
+    revenir(&app, ecran, None)
 }
 
-/// Oublie le serveur retenu, et la session qu'on y avait (ses cookies).
+/// Où s'ouvre Notak au lancement : les toiles de cet ordinateur, ou le serveur mémorisé (il en faut un).
 #[tauri::command]
-pub async fn oublier_serveur(webview: Webview, garde: State<'_, Origines>, etat: State<'_, Acces>) -> Result<(), Erreur> {
+pub async fn regler_ouverture(webview: Webview, garde: State<'_, Origines>, etat: State<'_, Acces>, ouvrir: Ouvrir) -> Result<(), Erreur> {
+    exiger(&webview, &garde, LOCALE)?;
+    if ouvrir == Ouvrir::Serveur && etat.reglage.lire().serveur.is_none() {
+        return Err(Erreur::Interdit);
+    }
+    etat.reglage
+        .changer(|r| {
+            // Oublié entre-temps : il n'y a plus de serveur où s'ouvrir.
+            if ouvrir == Ouvrir::Local || r.serveur.is_some() {
+                r.ouvrir = ouvrir;
+            }
+        })
+        .map_err(Erreur::echec)
+}
+
+/// Oublie le serveur mémorisé, et la session qu'on y avait (ses cookies) ; Notak s'ouvre de nouveau ici.
+#[tauri::command]
+pub async fn oublier_serveur(webview: Webview, garde: State<'_, Origines>, etat: State<'_, Acces>, ouverts: State<'_, Ouverts>) -> Result<(), Erreur> {
     exiger(&webview, &garde, LOCALE)?;
     let mut oublie = None;
     // Oublié en mémoire même si le fichier ne s'écrit pas : les cookies partent quand même.
@@ -527,9 +615,11 @@ pub async fn oublier_serveur(webview: Webview, garde: State<'_, Origines>, etat:
         oublie = r.serveur.take();
         r.ouvrir = Ouvrir::Local;
     });
+    ouverts.retirer_confiees(None);
     if let Some(origine) = oublie {
+        // La fenêtre partait chez lui : elle n'y va plus.
         if garde.serveur.lire().as_deref() == Some(origine.as_str()) {
-            garde.serveur.poser(None);
+            etat.abandonner();
         }
         // Les cookies de toute la fenêtre partagent un magasin : on y retire ceux de ce serveur.
         let url = Url::parse(&format!("{origine}/")).map_err(Erreur::echec)?;
@@ -579,7 +669,14 @@ mod essais {
             ("http://127.0.0.1:3005", "http://127.0.0.1:3005"),
             ("http://127.1:3005", "http://127.0.0.1:3005"),
             ("http://localhost:80", "http://localhost"),
-            ("localhost:3005", "https://localhost:3005"),
+            // Cet ordinateur, tapé sans schéma : un serveur d'essai, en HTTP ; `https://` se tape si on le veut.
+            ("localhost:3005", "http://localhost:3005"),
+            ("LocalHost:3005/", "http://localhost:3005"),
+            ("localhost", "http://localhost"),
+            ("127.0.0.1:3005", "http://127.0.0.1:3005"),
+            ("https://localhost:3443", "https://localhost:3443"),
+            // Ailleurs, sans schéma : HTTPS, même sur le réseau local.
+            ("192.168.1.5:3005", "https://192.168.1.5:3005"),
             ("notak", "https://notak"),
         ];
         for (tape, origine) in bonnes {
@@ -591,6 +688,9 @@ mod essais {
             ("http://notak.exemple.fr", Erreur::HttpsRequis),
             ("http://192.168.1.20:3005", Erreur::HttpsRequis),
             ("http://localhost.:3005", Erreur::HttpsRequis),
+            ("localhost.:3005", Erreur::AdresseInvalide),
+            ("localhost:3005/notak", Erreur::Chemin),
+            ("localhost:0", Erreur::AdresseInvalide),
             ("https://localhost.:3005", Erreur::AdresseInvalide),
             ("http://sous.localhost:3005", Erreur::HttpsRequis),
             ("https://tauri.localhost", Erreur::AdresseInvalide),
@@ -776,10 +876,27 @@ mod essais {
         assert!(!c.local);
         let resolue = Resolved::resolve(&m, BTreeMap::from([(c.identifier.clone(), c)]), Target::current()).unwrap();
         let commandes: BTreeSet<&str> = resolue.allowed_commands.keys().map(String::as_str).collect();
-        for attendue in ["acces", "revenir_ici", "ouvrir_fichier", "fichiers_ouverts", "lire_fichier_ouvert", "ecrire_fichier", "plugin:event|listen", "plugin:window|start_dragging"] {
-            assert!(commandes.contains(attendue), "{attendue}");
-        }
-        for interdite in ["joindre_serveur", "oublier_serveur", "regler_maj_auto", "confier_copie", "plugin:event|emit", "plugin:opener|open_url"] {
+        // Toutes, et rien d'autre : une commande ajoutée ici par mégarde (choisir un serveur, régler la coque) se voit.
+        let attendues = BTreeSet::from([
+            "acces",
+            "revenir_ici",
+            "preparer_mise_a_jour",
+            "installer_mise_a_jour",
+            "choisir_emplacement",
+            "ecrire_fichier",
+            "capturer_fenetre",
+            "ouvrir_fichier",
+            "fichiers_ouverts",
+            "lire_fichier_ouvert",
+            "ecarter_fichier_ouvert",
+            "ouvrir_dans_le_navigateur",
+            "plugin:event|listen",
+            "plugin:event|unlisten",
+            "plugin:window|start_dragging",
+            "plugin:window|internal_toggle_maximize",
+        ]);
+        assert_eq!(commandes, attendues);
+        for interdite in ["joindre_serveur", "oublier_serveur", "regler_maj_auto", "regler_ouverture", "confier_copie", "annuler_jonction", "plugin:event|emit", "plugin:opener|open_url"] {
             assert!(!commandes.contains(interdite), "{interdite}");
         }
         for (commande, resolus) in &resolue.allowed_commands {
@@ -815,10 +932,138 @@ mod essais {
             assert!(permission_connue(&m, p), "{p}");
         }
         let resolue = Resolved::resolve(&m, BTreeMap::from([(c.identifier.clone(), c)]), Target::current()).unwrap();
-        for attendue in ["acces", "joindre_serveur", "revenir_ici", "oublier_serveur", "regler_maj_auto", "confier_copie", "ouvrir_fichier", "fichiers_ouverts", "lire_fichier_ouvert"] {
-            assert!(resolue.allowed_commands.contains_key(attendue), "{attendue}");
+        let commandes: BTreeSet<&str> = resolue.allowed_commands.keys().map(String::as_str).collect();
+        let attendues = BTreeSet::from([
+            "acces",
+            "joindre_serveur",
+            "annuler_jonction",
+            "revenir_ici",
+            "oublier_serveur",
+            "regler_maj_auto",
+            "regler_ouverture",
+            "preparer_mise_a_jour",
+            "installer_mise_a_jour",
+            "choisir_emplacement",
+            "ecrire_fichier",
+            "ouvrir_fichier",
+            "fichiers_ouverts",
+            "lire_fichier_ouvert",
+            "ecarter_fichier_ouvert",
+            "confier_copie",
+            "plugin:event|listen",
+            "plugin:event|unlisten",
+            "plugin:window|start_dragging",
+            "plugin:window|internal_toggle_maximize",
+        ]);
+        assert_eq!(commandes, attendues);
+        // La photo de la fenêtre ne sert qu'au signalement, et le navigateur qu'à la connexion par code : sur la page
+        // d'un serveur.
+        assert!(!commandes.contains("capturer_fenetre"));
+        assert!(!commandes.contains("ouvrir_dans_le_navigateur"));
+    }
+
+    #[test]
+    fn chaque_commande_de_la_coque_a_un_droit() {
+        // Toute commande que `build.rs` déclare est donnée à l'une des deux pages : une oubliée ne servirait personne.
+        let texte = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/build.rs")).unwrap();
+        let declarees: BTreeSet<String> = texte.lines().filter_map(|l| l.trim().strip_prefix('"')?.strip_suffix("\",")).map(str::to_string).collect();
+        assert!(declarees.len() > 10, "{declarees:?}");
+        let locale = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/capabilities/principale.json")).unwrap();
+        for commande in &declarees {
+            let droit = format!("allow-{}", commande.replace('_', "-"));
+            assert!(locale.contains(&format!("\"{droit}\"")) || DROITS_SERVEUR.contains(&droit.as_str()), "{commande} n'est permise à aucune page");
         }
-        // La photo de la fenêtre ne sert qu'au signalement, sur la page d'un serveur.
-        assert!(!resolue.allowed_commands.contains_key("capturer_fenetre"));
+    }
+
+    const ICI: &str = "https://notak.exemple.fr";
+
+    fn etat() -> Acces {
+        Acces::new(Reglage::new(None), Url::parse("tauri://localhost/").unwrap(), ServeurCourant::default())
+    }
+
+    #[test]
+    fn une_page_de_serveur_muette_se_reconnait() {
+        let a = etat();
+        let n = a.commencer_visite(ICI, 0).unwrap();
+        assert_eq!(a.serveur.lire().as_deref(), Some(ICI));
+        assert!(a.muette(n));
+        // Un autre serveur qui se signale ne compte pas.
+        a.signe_de_vie("https://autre.exemple.fr");
+        assert!(a.muette(n));
+        a.signe_de_vie(ICI);
+        assert!(!a.muette(n));
+        // Un rechargement : une visite neuve, qui doit se signaler de nouveau ; l'ancien numéro ne compte plus.
+        let m = a.visite_rechargee(&Url::parse(&format!("{ICI}/t/abc")).unwrap()).unwrap();
+        assert!(!a.muette(n));
+        assert!(a.muette(m));
+        // Une page d'une autre adresse ne recommence rien.
+        assert_eq!(a.visite_rechargee(&Url::parse("https://autre.exemple.fr/").unwrap()), None);
+        assert!(a.muette(m));
+    }
+
+    #[test]
+    fn renoncer_arrete_la_jonction_et_la_visite() {
+        let a = etat();
+        // Pendant la vérification : rien n'est en route ; la jonction qui finit ensuite ne part pas.
+        let vu = a.annulations.load(Ordering::SeqCst);
+        assert!(!a.abandonner());
+        assert_eq!(a.commencer_visite(ICI, vu), None);
+        assert_eq!(a.serveur.lire(), None);
+        // La fenêtre est partie, la page ne s'est pas signalée : on le sait, et plus rien ne la guette.
+        let vu = a.annulations.load(Ordering::SeqCst);
+        let n = a.commencer_visite(ICI, vu).unwrap();
+        assert!(a.abandonner());
+        assert!(!a.muette(n));
+        assert_eq!(a.serveur.lire(), None);
+        assert_ne!(a.annulations.load(Ordering::SeqCst), vu, "la jonction qui l'a lancée ne retient rien");
+        // Plus de serveur : un chargement tardif de sa page ne recommence pas de visite.
+        assert_eq!(a.visite_rechargee(&Url::parse(&format!("{ICI}/")).unwrap()), None);
+        // Une page vivante n'est plus « en route ».
+        let vu = a.annulations.load(Ordering::SeqCst);
+        a.commencer_visite(ICI, vu).unwrap();
+        a.signe_de_vie(ICI);
+        assert!(!a.abandonner());
+    }
+
+    #[test]
+    fn revenir_chez_soi_est_un_coup_d_oeil_ou_l_ecran_d_acces() {
+        let r = Url::parse("tauri://localhost/").unwrap();
+        assert_eq!(adresse_d_ici(&r, Ecran::Local, None).as_str(), "tauri://localhost/?ici");
+        assert_eq!(adresse_d_ici(&r, Ecran::Acces, None).as_str(), "tauri://localhost/?acces");
+        assert_eq!(adresse_d_ici(&r, Ecran::Acces, Some("muette")).as_str(), "tauri://localhost/?acces&erreur=muette");
+        let vite = Url::parse("http://localhost:5173/?vieux=1").unwrap();
+        assert_eq!(adresse_d_ici(&vite, Ecran::Local, None).as_str(), "http://localhost:5173/?ici");
+    }
+
+    #[test]
+    fn une_page_du_serveur_seulement_s_ouvre_dehors() {
+        for bonne in ["https://notak.exemple.fr/t/abc?x#y", "https://notak.exemple.fr:443/", "https://NOTAK.exemple.fr/appareil?code=ABCD"] {
+            assert!(adresse_ouvrable(bonne, Some(ICI)).is_ok(), "{bonne}");
+        }
+        for mauvaise in [
+            "https://notak.exemple.fr.evil.fr/",
+            "https://sous.notak.exemple.fr/",
+            "https://notak.exemple.fr:8443/",
+            "http://notak.exemple.fr/",
+            "https://moi@notak.exemple.fr/",
+            "https://moi:x@notak.exemple.fr/",
+            "javascript:alert(1)",
+            "file:///etc/passwd",
+            "data:text/html,x",
+            "mailto:a@b.fr",
+            "blob:https://notak.exemple.fr/0b6f",
+        ] {
+            assert_eq!(adresse_ouvrable(mauvaise, Some(ICI)), Err(Erreur::Interdit), "{mauvaise}");
+        }
+        assert_eq!(adresse_ouvrable("pas une adresse", Some(ICI)), Err(Erreur::AdresseInvalide));
+        assert_eq!(adresse_ouvrable("https://notak.exemple.fr/", None), Err(Erreur::Interdit));
+        // Trois en dix secondes, pas une de plus.
+        let a = etat();
+        let t = Instant::now();
+        for _ in 0..NAVIGATEUR_MAX {
+            assert!(a.navigateur.permise(t));
+        }
+        assert!(!a.navigateur.permise(t + Duration::from_secs(1)));
+        assert!(a.navigateur.permise(t + NAVIGATEUR_DUREE));
     }
 }

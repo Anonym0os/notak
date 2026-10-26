@@ -1,11 +1,23 @@
 // @vitest-environment jsdom
+import { definirLangue } from '@notak/tableau'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ATTENTE_ECRITURES_MS, DEPART_MS, emporterSurServeur, emporterToiles, lireEtatServeur, oublierEchecServeur, revenirSurServeur } from './emporter'
+import { ATTENTE_ECRITURES_MS, DEPART_MS, NOM_COPIE, emporterSurServeur, emporterToiles, lireEtatServeur, oublierEchecServeur, revenirSurServeur } from './emporter'
+import { SERVEUR, coque, invoke, poserCoque, retirerCoque } from './essai'
 
-const SERVEUR = 'https://notak.exemple.fr'
 const COPIE = new Uint8Array([1, 2, 3])
 
-describe('emporter les toiles de cet ordinateur sur son serveur', () => {
+describe('copier les toiles de cet ordinateur sur son serveur', () => {
+  it('le nom de la copie ne dépend pas de la langue, et reste un .notak que la coque accepte', async () => {
+    const noms: string[] = []
+    for (const langue of ['fr', 'en'] as const) {
+      definirLangue(langue)
+      await emporterToiles(SERVEUR, async () => COPIE, { attendre: async () => {}, confier: async (_, nom) => void noms.push(nom), joindre: async (o) => ({ origine: o, nom: null, version: '1' }) })
+    }
+    definirLangue('fr')
+    expect(noms).toEqual([NOM_COPIE, NOM_COPIE])
+    expect(NOM_COPIE).toMatch(/\.notak$/)
+  })
+
   it('copie tout, attend qu’IndexedDB ait écrit, confie la copie à la coque, puis seulement alors joint le serveur', async () => {
     const ordre: string[] = []
     await emporterToiles(
@@ -44,24 +56,17 @@ describe('emporter les toiles de cet ordinateur sur son serveur', () => {
 })
 
 describe('l’état de ces gestes, tenu hors du panneau qui les lance', () => {
-  let invoke: ReturnType<typeof vi.fn>
-  let coque: Record<string, (args: unknown) => unknown>
   beforeEach(() => {
     vi.useFakeTimers()
-    coque = {}
-    invoke = vi.fn(async (commande: string, args: unknown) => {
-      const r = coque[commande]
-      if (!r) throw `Command ${commande} not found`
-      return r(args)
-    })
-    ;(window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = { invoke }
+    poserCoque()
   })
   afterEach(async () => {
     // Un geste réussi laisse la page « en cours » jusqu'à son départ : on laisse passer ce temps.
     await vi.advanceTimersByTimeAsync(DEPART_MS)
     vi.useRealTimers()
     oublierEchecServeur()
-    delete (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
+    retirerCoque()
+    vi.restoreAllMocks()
   })
 
   it('« Revenir sur » joint le serveur en le retenant ; la page reste « en cours » jusqu’à son départ', async () => {
@@ -75,6 +80,7 @@ describe('l’état de ces gestes, tenu hors du panneau qui les lance', () => {
   })
 
   it('un refus se garde, jusqu’à ce qu’on rouvre le panneau', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
     coque.joindre_serveur = () => {
       throw { code: 'injoignable' }
     }
@@ -84,7 +90,7 @@ describe('l’état de ces gestes, tenu hors du panneau qui les lance', () => {
     expect(lireEtatServeur()).toEqual({ type: 'repos' })
   })
 
-  it('« Emporter » : une copie confiée à la coque avec son nom, puis le serveur', async () => {
+  it('« Copier » : une copie confiée à la coque avec son nom, puis le serveur', async () => {
     coque.confier_copie = () => undefined
     coque.joindre_serveur = () => ({ origine: SERVEUR, nom: null, version: '1' })
     const lancee = emporterSurServeur(SERVEUR, async () => COPIE)
@@ -94,7 +100,7 @@ describe('l’état de ces gestes, tenu hors du panneau qui les lance', () => {
     const commandes = invoke.mock.calls.map((c) => c[0])
     expect(commandes).toEqual(['confier_copie', 'joindre_serveur'])
     expect(invoke.mock.calls[0]![1]).toBe(COPIE)
-    expect(invoke.mock.calls[0]![2]).toEqual({ headers: { 'x-notak-nom': encodeURIComponent('Toiles de cet ordinateur.notak') } })
+    expect(invoke.mock.calls[0]![2]).toEqual({ headers: { 'x-notak-nom': encodeURIComponent(NOM_COPIE) } })
   })
 
   it('une copie trop lourde pour la coque arrête là, sans aller au serveur, et le dit', async () => {

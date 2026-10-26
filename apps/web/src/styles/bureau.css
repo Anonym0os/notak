@@ -26,11 +26,7 @@
   text-decoration: none;
 }
 
-.acces-detail {
-  overflow-wrap: anywhere;
-}
-
-/* Les toiles d'ici et le serveur retenu : sous un filet, à l'écart du bouton « Se connecter ». */
+/* Les toiles d'ici et le serveur mémorisé : sous un filet, à l'écart du bouton « Se connecter ». */
 .acces-autres {
   display: flex;
   flex-direction: column;
@@ -184,8 +180,32 @@
   color: var(--rg-texte);
 }
 
-.bureau-reglages .bouton:hover:not(:disabled) {
+.bureau-reglages .bouton:hover:not(:disabled, [aria-disabled='true']) {
   background: var(--rg-survol);
+}
+
+/* Pris pendant que la fenêtre change de page, sans perdre le curseur : l'air d'un bouton grisé, pas son retrait. */
+.bureau-reglages .bouton[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* « Au démarrage, Notak s'ouvre : » et ses deux choix, sans le cadre d'un fieldset. */
+.bureau-ouverture {
+  margin: 0 0 8px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.bureau-ouverture legend {
+  margin-bottom: 2px;
+  padding: 0;
+  font-size: 13px;
+}
+
+.bureau-ouverture:disabled .rangement-choix {
+  cursor: default;
 }
 
 .bureau-reglages .bouton-plein {
@@ -194,7 +214,7 @@
   color: var(--rg-page);
 }
 
-.bureau-reglages .bouton-plein:hover:not(:disabled) {
+.bureau-reglages .bouton-plein:hover:not(:disabled, [aria-disabled='true']) {
   background: color-mix(in srgb, var(--rg-texte) 88%, var(--rg-page));
 }
 
@@ -205,5 +225,6 @@
 }
 
 .bureau-reglages-erreur {
-  color: #c92a2a;
+  /* Le rouge des alertes de l'app, redéfini pour le thème sombre (app.css). */
+  color: var(--app-danger);
 }

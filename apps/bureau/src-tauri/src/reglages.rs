@@ -4,12 +4,13 @@
 ///
 /// Le fichier est relu sans confiance : illisible, trop gros ou abîmé, il vaut les réglages par défaut ; un serveur
 /// qui n'est pas une adresse permise (`acces::normaliser`) est oublié. Il s'écrit par un fichier voisin posé d'un
-/// coup : une coupure en route ne laisse jamais un fichier à moitié écrit.
+/// coup, une écriture à la fois : une coupure en route ne laisse jamais un fichier à moitié écrit, et deux changements
+/// rapprochés ne se marchent pas dessus.
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::acces::normaliser;
@@ -17,7 +18,7 @@ use crate::acces::normaliser;
 /// Au-delà, ce n'est pas un fichier de réglages.
 const TAILLE_MAX: u64 = 64 * 1024;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Ouvrir {
     /// Les toiles de cet ordinateur, l'édition embarquée.
@@ -90,12 +91,15 @@ pub fn ecrire(chemin: &Path, reglages: &Reglages) -> std::io::Result<()> {
 pub struct Reglage {
     chemin: Option<PathBuf>,
     courant: Mutex<Reglages>,
+    /// Tenu de la retouche jusqu'au fichier posé : les écritures passent dans l'ordre des changements, et la dernière
+    /// sur le disque est toujours la plus récente (elles partagent leur fichier provisoire).
+    ecriture: Mutex<()>,
 }
 
 impl Reglage {
     pub fn new(chemin: Option<PathBuf>) -> Self {
         let courant = chemin.as_deref().map(charger).unwrap_or_default();
-        Self { chemin, courant: Mutex::new(courant) }
+        Self { chemin, courant: Mutex::new(courant), ecriture: Mutex::new(()) }
     }
 
     pub fn lire(&self) -> Reglages {
@@ -104,6 +108,7 @@ impl Reglage {
 
     /// Change les réglages, en mémoire tout de suite, puis sur le disque.
     pub fn changer(&self, f: impl FnOnce(&mut Reglages)) -> std::io::Result<()> {
+        let _ecriture = self.ecriture.lock().unwrap_or_else(PoisonError::into_inner);
         let nouveaux = {
             let mut r = self.courant.lock().unwrap_or_else(PoisonError::into_inner);
             f(&mut r);
@@ -169,6 +174,30 @@ mod essais {
         assert_eq!(charger(&chemin), Reglages::default());
         assert_eq!(charger(&dossier.join("absent.json")), Reglages::default());
         assert_eq!(charger(&dossier), Reglages::default());
+        std::fs::remove_dir_all(&dossier).unwrap();
+    }
+
+    #[test]
+    fn des_changements_rapproches_laissent_le_dernier_sur_le_disque() {
+        let dossier = std::env::temp_dir().join(format!("notak-reglages-concurrents-{}", std::process::id()));
+        let chemin = dossier.join("bureau.json");
+        let reglage = std::sync::Arc::new(Reglage::new(Some(chemin.clone())));
+        let fils: Vec<_> = (0..8)
+            .map(|i| {
+                let r = reglage.clone();
+                std::thread::spawn(move || {
+                    for _ in 0..20 {
+                        r.changer(|x| x.maj_auto = i % 2 == 0).unwrap();
+                    }
+                })
+            })
+            .collect();
+        for f in fils {
+            f.join().unwrap();
+        }
+        // Le fichier entier, et ce qu'on a en mémoire : rien de tronqué, rien d'un instantané plus ancien.
+        assert_eq!(charger(&chemin), reglage.lire());
+        assert_eq!(std::fs::read_to_string(&chemin).unwrap(), reglage.lire().texte());
         std::fs::remove_dir_all(&dossier).unwrap();
     }
 }

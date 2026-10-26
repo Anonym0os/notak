@@ -3,42 +3,20 @@ import { definirLangue } from '@notak/tableau'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Acces } from '../bureau'
 import { texteErreur } from './acces'
+import { SERVEUR, acces, alerte, appelsDe, bouton, coque, dialoguesDeJsdom, invoke, poserCoque, retirerCoque } from './essai'
 import { fermerDialogueAcces, ouvrirDialogueAcces } from './etat'
 import { DialogueAcces, EcranAcces, FormulaireAcces } from './FormulaireAcces'
 
-;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
-
-// jsdom ne fait pas de dialogue modal : `open` suffit pour ce qu'on vérifie.
-if (!HTMLDialogElement.prototype.showModal) {
-  HTMLDialogElement.prototype.showModal = function () {
-    this.open = true
-  }
-  HTMLDialogElement.prototype.close = function () {
-    this.open = false
-    this.dispatchEvent(new Event('close'))
-  }
-}
-
-const SERVEUR = 'https://notak.exemple.fr'
-const acces = (o: Partial<Acces> = {}): Acces => ({ ouvrir: 'local', serveur: null, majAuto: true, version: '0.1.0', ...o })
+dialoguesDeJsdom()
 
 let racine: Root
 let hote: HTMLElement
-let invoke: ReturnType<typeof vi.fn>
-/** Ce que répond la coque, commande par commande ; une commande absente échoue comme chez une coque trop ancienne. */
-let coque: Record<string, (args: unknown) => unknown>
 
 beforeEach(() => {
   definirLangue('fr')
-  coque = {}
-  invoke = vi.fn(async (commande: string, args: unknown) => {
-    const r = coque[commande]
-    if (!r) throw `Command ${commande} not found`
-    return r(args)
-  })
-  ;(window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = { invoke }
+  vi.spyOn(console, 'warn').mockImplementation(() => {})
+  poserCoque()
   hote = document.createElement('div')
   document.body.append(hote)
   racine = createRoot(hote)
@@ -50,14 +28,11 @@ afterEach(() => {
   })
   hote.remove()
   document.querySelectorAll('dialog').forEach((d) => d.remove())
-  delete (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
+  retirerCoque()
+  vi.restoreAllMocks()
 })
 
-const appelsDe = (commande: string) => invoke.mock.calls.filter((c) => c[0] === commande).map((c) => c[1])
 const champ = () => document.querySelector<HTMLInputElement>('input[name="adresse"]')!
-const bouton = (texte: string | RegExp) =>
-  [...document.querySelectorAll('button')].find((b) => (typeof texte === 'string' ? b.textContent === texte : texte.test(b.textContent ?? '')))
-const alerte = () => document.querySelector('[role="alert"]')?.textContent ?? null
 const ecrire = (valeur: string) =>
   act(() => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(champ(), valeur)
@@ -144,15 +119,16 @@ describe('« Se connecter à un serveur Notak »', () => {
     expect(document.body.textContent).not.toContain('not found')
   })
 
-  it('le détail d’un échec de la coque se lit sous le message, en texte brut', async () => {
+  it('le détail d’un échec de la coque ne s’affiche pas : il va à la console, l’écran dit quoi faire', async () => {
     coque.joindre_serveur = () => {
-      throw { code: 'echec', message: '<img src=x onerror=alert(1)> la fenêtre n’est pas là' }
+      throw { code: 'echec', message: 'Permission denied (os error 13)' }
     }
     monter()
     ecrire('notak.exemple.fr')
     await envoyer()
-    expect(document.querySelector('.acces-detail')?.textContent).toContain('<img src=x')
-    expect(document.querySelector('.acces-detail img')).toBeNull()
+    expect(alerte()).toBe('La connexion n’a pas abouti. Réessayez dans un instant.')
+    expect(document.body.textContent).not.toContain('Permission denied')
+    expect(console.warn).toHaveBeenCalledWith('Notak :', { code: 'echec', message: 'Permission denied (os error 13)' })
   })
 
   it('un serveur qui se dit ailleurs : le bouton « Utiliser » reprend avec cette adresse', async () => {
@@ -182,7 +158,7 @@ describe('« Se connecter à un serveur Notak »', () => {
     monter({ acces: acces({ ouvrir: 'serveur', serveur: SERVEUR }), echecInitial: { code: 'muette' } })
     expect(champ().value).toBe(SERVEUR)
     expect(alerte()).toContain('notak.exemple.fr n’a pas répondu')
-    expect(document.body.textContent).toContain('Serveur retenu : notak.exemple.fr.')
+    expect(document.body.textContent).toContain('Serveur mémorisé : notak.exemple.fr.')
   })
 })
 
@@ -194,28 +170,20 @@ describe('les toiles de cet ordinateur', () => {
     expect(invoke).not.toHaveBeenCalled()
   })
 
-  it('quand on vient d’un serveur retenu : la coque s’en souvient, Notak s’ouvrira ici la prochaine fois', async () => {
-    coque.revenir_ici = () => undefined
+  it('quand un serveur s’ouvre d’office : un coup d’œil, pour cette fois ; rien ne change aux réglages', async () => {
     const surLocal = monter({ acces: acces({ ouvrir: 'serveur', serveur: SERVEUR }) })
-    expect(document.body.textContent).toContain('Notak s’ouvrira désormais sur cet ordinateur ; notak.exemple.fr reste retenu pour y revenir.')
+    expect(document.body.textContent).toContain(
+      'Pour cette fois : au prochain lancement, Notak s’ouvrira encore sur notak.exemple.fr. Cela se change dans les réglages de l’app.',
+    )
+    expect(document.body.textContent).not.toContain('désormais')
     await act(async () => bouton('Toiles de cet ordinateur')!.click())
-    expect(appelsDe('revenir_ici')).toEqual([{ ecran: 'local' }])
-    expect(surLocal).not.toHaveBeenCalled()
+    expect(surLocal).toHaveBeenCalledOnce()
+    expect(invoke).not.toHaveBeenCalled()
   })
 
-  it('un refus de la coque à ce moment-là se dit, et l’on peut réessayer', async () => {
-    coque.revenir_ici = () => {
-      throw { code: 'interdit' }
-    }
-    monter({ acces: acces({ ouvrir: 'serveur', serveur: SERVEUR }) })
-    await act(async () => bouton('Toiles de cet ordinateur')!.click())
-    expect(alerte()).toBe(texteErreur({ code: 'interdit' }))
-    expect(bouton('Toiles de cet ordinateur')!.disabled).toBe(false)
-  })
-
-  it('dans la fenêtre : pas de bouton superflu tant que rien n’est retenu ; la croix la ferme', async () => {
+  it('dans la fenêtre, on est déjà sur les toiles d’ici : pas de bouton pour y aller ; la croix la ferme', async () => {
     const surFermer = vi.fn()
-    monter({ mode: 'dialogue', surFermer })
+    monter({ mode: 'dialogue', surFermer, acces: acces({ ouvrir: 'serveur', serveur: SERVEUR }) })
     expect(document.querySelector('h2')?.textContent).toBe('Se connecter à un serveur Notak')
     expect(bouton('Toiles de cet ordinateur')).toBeUndefined()
     await act(async () => document.querySelector<HTMLButtonElement>('button[aria-label="Fermer"]')!.click())
@@ -249,14 +217,14 @@ describe('oublier le serveur retenu', () => {
     expect(appelsDe('oublier_serveur')).toHaveLength(1)
     expect(champ().value).toBe('')
     expect(bouton('Oublier ce serveur')).toBeUndefined()
-    expect(document.body.textContent).not.toContain('Serveur retenu')
+    expect(document.body.textContent).not.toContain('Serveur mémorisé')
     expect(document.querySelector('[role="status"]')?.textContent).toBe('notak.exemple.fr est oublié.')
     expect(document.activeElement).toBe(champ())
     // Rien d'autre ne bouge : ni la fenêtre, ni les toiles d'ici.
     expect(surLocal).not.toHaveBeenCalled()
     expect(appelsDe('revenir_ici')).toHaveLength(0)
-    // Les réglages que la coque donne ont changé : l'écran ne propose plus de rentrer « pour de bon ».
-    expect(document.body.textContent).not.toContain('reste retenu pour y revenir')
+    // Les réglages que la coque donne ont changé : l'écran ne dit plus que Notak s'ouvrira sur ce serveur.
+    expect(document.body.textContent).not.toContain('s’ouvrira encore sur')
   })
 
   it('une adresse que la personne a retapée entre-temps n’est pas effacée', async () => {
@@ -269,7 +237,7 @@ describe('oublier le serveur retenu', () => {
     expect(champ().value).toBe('autre.exemple.fr')
   })
 
-  it('refusé par la coque : l’erreur se dit, et le serveur reste retenu', async () => {
+  it('refusé par la coque : l’erreur se dit, et le serveur reste mémorisé', async () => {
     coque.oublier_serveur = () => {
       throw { code: 'echec', message: 'disque plein' }
     }
@@ -277,7 +245,7 @@ describe('oublier le serveur retenu', () => {
     await act(async () => bouton('Oublier ce serveur')!.click())
     await act(async () => bouton('Oui, oublier')!.click())
     expect(alerte()).toContain('La connexion n’a pas abouti')
-    expect(document.body.textContent).toContain('Serveur retenu : notak.exemple.fr.')
+    expect(document.body.textContent).toContain('Serveur mémorisé : notak.exemple.fr.')
     expect(bouton('Oublier ce serveur')).toBeTruthy()
   })
 })
@@ -305,7 +273,7 @@ describe('la fenêtre ouverte depuis l’édition locale', () => {
     expect(d.getAttribute('aria-label')).toBe('Se connecter à un serveur Notak')
     expect(document.activeElement).toBe(champ())
     expect(champ().value).toBe(SERVEUR)
-    expect(document.body.textContent).toContain('Serveur retenu : notak.exemple.fr.')
+    expect(document.body.textContent).toContain('Serveur mémorisé : notak.exemple.fr.')
   })
 
   it('rien n’est monté tant qu’on ne l’a pas ouverte', () => {
@@ -325,6 +293,59 @@ describe('la fenêtre ouverte depuis l’édition locale', () => {
     await act(async () => void ouvrirDialogueAcces())
     await act(async () => document.querySelector('dialog')!.click())
     expect(document.querySelector('dialog')).toBeNull()
+  })
+
+  it('fermée par sa croix ou son voile, elle rend le curseur à ce qui l’avait ouverte', async () => {
+    const origine = document.createElement('button')
+    document.body.append(origine)
+    coque.acces = () => acces({ serveur: SERVEUR })
+    act(() => racine.render(<DialogueAcces />))
+    for (const fermer of [() => document.querySelector<HTMLButtonElement>('button[aria-label="Fermer"]')!.click(), () => document.querySelector('dialog')!.click()]) {
+      origine.focus()
+      await act(async () => void ouvrirDialogueAcces())
+      expect(document.activeElement).toBe(champ())
+      await act(async () => fermer())
+      expect(document.querySelector('dialog')).toBeNull()
+      expect(document.activeElement).toBe(origine)
+    }
+    origine.remove()
+  })
+
+  it('fermée pendant « Connexion… » (Échap, la croix, le voile), elle arrête la jonction : renoncer ne mène pas chez le serveur', async () => {
+    coque.joindre_serveur = () => new Promise(() => {})
+    coque.annuler_jonction = () => false
+    await ouvrir()
+    await envoyer()
+    expect(appelsDe('joindre_serveur')).toHaveLength(1)
+    // Échap : le navigateur ferme le dialogue de lui-même.
+    await act(async () => document.querySelector('dialog')!.dispatchEvent(new Event('close')))
+    expect(document.querySelector('dialog')).toBeNull()
+    expect(appelsDe('annuler_jonction')).toHaveLength(1)
+    // Fermée sans rien en cours : rien à arrêter.
+    await act(async () => void ouvrirDialogueAcces())
+    await act(async () => document.querySelector<HTMLButtonElement>('button[aria-label="Fermer"]')!.click())
+    expect(appelsDe('annuler_jonction')).toHaveLength(1)
+  })
+
+  it('fermée quand la coque a déjà lancé la fenêtre vers le serveur, mais que sa page tarde : la jonction s’arrête aussi', async () => {
+    coque.joindre_serveur = () => ({ origine: SERVEUR, nom: null, version: '1' })
+    coque.annuler_jonction = () => true
+    await ouvrir()
+    await envoyer()
+    expect(document.querySelector('[role="status"]')?.textContent).toBe('Connexion à notak.exemple.fr…')
+    await act(async () => document.querySelector<HTMLButtonElement>('button[aria-label="Fermer"]')!.click())
+    expect(appelsDe('annuler_jonction')).toHaveLength(1)
+  })
+
+  it('une jonction arrêtée ne se dit pas comme une erreur', async () => {
+    coque.joindre_serveur = () => {
+      throw { code: 'annule' }
+    }
+    monter()
+    ecrire('notak.exemple.fr')
+    await envoyer()
+    expect(alerte()).toBeNull()
+    expect(document.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(false)
   })
 
   it('le clavier y reste : Tab et Échap ne parviennent pas aux panneaux qui le gardent pour eux', async () => {
