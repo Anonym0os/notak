@@ -67,7 +67,7 @@ describe('le bandeau d’une mise à jour qui n’a pas pu s’installer', () =>
     await installationRatee()
     const alerte = hote.querySelector('.bandeau')!
     expect(alerte.getAttribute('role')).toBe('alert')
-    expect(alerte.textContent).toContain('Notak 0.2.0 n’a pas pu s’installer. Réessayez : elle sera téléchargée de nouveau.')
+    expect(alerte.textContent).toContain('Notak 0.2.0 n’a pas pu s’installer. Réessayez ; sinon, elle se posera quand vous quitterez Notak.')
     expect([...alerte.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Fermer', 'Réessayer'])
   })
 

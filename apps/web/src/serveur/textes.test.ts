@@ -2,13 +2,21 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { definirLangue, t, textesEn, textesFr } from '@notak/tableau'
 import { afterEach, describe, expect, it } from 'vitest'
-import '../langue'
-import { en as enDivers, fr as frDivers } from '../textes/divers'
-import { en, fr } from '../textes/serveur'
+import { en as enWeb, fr as frWeb } from '../langue'
+
+/** Les clés de ces écrans : celles de l'édition serveur, et celles du partage par un lien et de l'import vers un serveur. */
+const DIVERS = ['importer.envoi', 'importer.pasEncoreEnvoye', 'maj.installEchec']
+const deLaPiste = (k: string) => k.startsWith('serveur.') || k.startsWith('erreur.appareil')
+const duReste = (k: string) => k.startsWith('arrivee.') || DIVERS.includes(k)
+const choisir = (textes: Record<string, string>, garder: (k: string) => boolean) => Object.fromEntries(Object.entries(textes).filter(([k]) => garder(k)))
+const fr = choisir(frWeb, deLaPiste)
+const en = choisir(enWeb, deLaPiste)
+const frDivers = choisir(frWeb, duReste)
+const enDivers = choisir(enWeb, duReste)
 
 afterEach(() => definirLangue('fr'))
 
-describe('les textes de la piste « serveur »', () => {
+describe('les textes de l’édition serveur (app et navigateur)', () => {
   it('chaque clé du français existe en anglais, et l’inverse', () => {
     expect(Object.keys(fr).filter((k) => !(k in en))).toEqual([])
     expect(Object.keys(en).filter((k) => !(k in fr))).toEqual([])
@@ -27,7 +35,7 @@ describe('les textes de la piste « serveur »', () => {
   })
 
   it('toute clé que ces écrans emploient existe, dans les textes de la toile ou ceux d’ici', () => {
-    // Les écrans de la piste, et ceux d'`apps/web/src` qu'elle retouche (`langue.test.ts` ne lit que le premier niveau).
+    // Les écrans de l'édition serveur, et ceux d'`apps/web/src` qui s'en servent.
     const sources: Record<string, string> = import.meta.glob(['./*.{ts,tsx}', '../edition/serveur.tsx', '../connexion.tsx', '../Compte.tsx', '../MiseAJour.tsx', '!./*.test.{ts,tsx}'], { query: '?raw', import: 'default', eager: true })
     expect(Object.keys(sources).length).toBeGreaterThan(10)
     const inconnues: string[] = []
@@ -50,15 +58,15 @@ describe('les textes de la piste « serveur »', () => {
   })
 })
 
-/** Le code de l'application et celui de la toile, hors essais et hors fichiers de textes : là où une clé s'emploie. */
+/** Le code de l'application et celui de la toile, hors essais et hors textes : là où une clé s'emploie. */
 function sourcesDe(dossier: string): string[] {
   return readdirSync(dossier, { recursive: true, encoding: 'utf8' })
-    .filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f) && !/(^|[\\/])(textes[\\/].*|langue\.ts)$/.test(f))
+    .filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f) && !/(^|[\\/])langue\.ts$/.test(f))
     .map((f) => readFileSync(join(dossier, f), 'utf8'))
 }
 
-describe('les textes de la piste, de bout en bout', () => {
-  // `serveur.*` et les clés de `textes/divers.ts` (`arrivee.*`, `importer.envoi`…) ; `externe.*` vit dans la toile, mais s'emploie des deux côtés.
+describe('ces textes, de bout en bout', () => {
+  // `serveur.*`, `erreur.appareil_*`, et `arrivee.*`, `importer.envoi`… ; `externe.*` vit dans la toile, mais s'emploie des deux côtés.
   const cles = [...Object.keys(fr), ...Object.keys(frDivers), ...Object.keys(textesFr).filter((k) => k.startsWith('externe.'))]
 
   it('toute clé est employée quelque part : une clé qu’on retire d’un écran ne reste pas orpheline', () => {
