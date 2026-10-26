@@ -30,6 +30,7 @@ import {
   type EspaceRangement,
   type Outils,
   type Resultat,
+  creerDossier,
   deplacerEntrees,
   dupliquerEntrees,
   favoris,
@@ -418,6 +419,21 @@ export function PageBibliotheque({
       setRenommage({ cle })
     })
   }
+  /** Un dossier neuf, là où l'on est (l'accueil, ou le dossier du clic droit) : on le voit choisi, son nom prêt à changer. */
+  const nouveauDossier = (dans?: string) => {
+    if (!outils) return
+    const ou = dans ?? outils.espace.racine
+    setMenuNeuf(false)
+    // Il doit se voir : la rubrique des toiles, sans recherche.
+    if (rubrique !== 'toiles' || cherche) choisir('toiles')
+    void executer(creerDossier(outils, { id: ou, titre: titreToile(ou) })).then((r) => {
+      if (!r) return
+      const cle = `${r.toile}/`
+      setSel({ choisies: new Set([cle]), ancre: cle })
+      setCourante(cle)
+      setRenommage({ cle })
+    })
+  }
   const renommerCe = async (cible: Pick<EntreeBibliotheque, 'tableau' | 'element' | 'titre'>, titre: string) => {
     setRenommage(null)
     if (!outils || !titre.trim()) return
@@ -476,7 +492,13 @@ export function PageBibliotheque({
   const sousMenuCreer = (dans?: string): EntreeMenu[] =>
     (['toile', 'arbre', 'document'] as const).map((g) => ({ libelle: t(`biblio.genre.${g}`), icone: ICONE_GENRE[g], faire: () => void creerPuisOuvrir(g, dans) }))
   const menuDuFond = (): EntreeMenu[] => [
-    ...(espace ? [{ libelle: t('biblio.menu.nouveau'), icone: 'ajouter' as const, sous: sousMenuCreer(), faire: () => {} }, null] : []),
+    ...(espace
+      ? [
+          { libelle: t('biblio.menu.nouveau'), icone: 'ajouter' as const, sous: sousMenuCreer(), faire: () => {} },
+          { libelle: t('biblio.menu.nouveauDossier'), icone: 'dossier' as const, raccourci: '⇧⌘N', faire: () => nouveauDossier() },
+          null,
+        ]
+      : []),
     { libelle: t('biblio.tri.date'), icone: 'horloge', coche: tri === 'date', faire: () => trier('date') },
     { libelle: t('biblio.tri.dossier'), icone: 'dossier', coche: tri === 'dossier', faire: () => trier('dossier') },
     null,
@@ -487,6 +509,7 @@ export function PageBibliotheque({
     ...(espace
       ? [
           { libelle: t('biblio.menu.creerIci'), icone: 'ajouter' as const, sous: sousMenuCreer(dans), faire: () => {} },
+          { libelle: t('biblio.menu.nouveauDossier'), icone: 'dossier' as const, faire: () => nouveauDossier(dans) },
           null,
           { libelle: t('biblio.menu.renommerToile'), icone: 'renommer' as const, faire: () => setRenommage({ dossier: dans }) },
         ]
@@ -728,6 +751,9 @@ export function PageBibliotheque({
     } else if (cmd && !e.shiftKey && e.key.toLowerCase() === 'z' && annulable.current) {
       e.preventDefault()
       void defaire(annulable.current)
+    } else if (cmd && e.shiftKey && e.key.toLowerCase() === 'n' && outils) {
+      e.preventDefault()
+      nouveauDossier()
     } else if (cmd && e.key.toLowerCase() === 'd' && es.length > 0) {
       e.preventDefault()
       dupliquerCes(es)
@@ -817,7 +843,7 @@ export function PageBibliotheque({
             {t('biblio.nouveau')}
             <Icone nom="chevronBas" taille={14} trait={2} />
           </button>
-          {menuNeuf && <MenuNeuf creer={(g) => void creerPuisOuvrir(g)} fermer={() => setMenuNeuf(false)} />}
+          {menuNeuf && <MenuNeuf creer={(g) => void creerPuisOuvrir(g)} dossier={outils ? () => nouveauDossier() : undefined} fermer={() => setMenuNeuf(false)} />}
         </div>
         {bouton('recents')}
         {bouton('favoris')}
@@ -1039,7 +1065,7 @@ export function PageBibliotheque({
 }
 
 /** Le menu du bouton « Nouveau » : une toile, une carte mentale ou un document, posés sur l'accueil. */
-function MenuNeuf({ creer, fermer }: { creer(genre: GenreNeuf): void; fermer(): void }) {
+function MenuNeuf({ creer, dossier, fermer }: { creer(genre: GenreNeuf): void; dossier?: () => void; fermer(): void }) {
   const menu = useRef<HTMLDivElement>(null)
   useEffect(() => {
     menu.current?.querySelector('button')?.focus()
@@ -1063,6 +1089,15 @@ function MenuNeuf({ creer, fermer }: { creer(genre: GenreNeuf): void; fermer(): 
           </span>
         </button>
       ))}
+      {dossier && (
+        <button type="button" role="menuitem" onClick={dossier}>
+          <Icone nom="dossier" taille={18} />
+          <span>
+            {t('biblio.dossier.titre')}
+            <small>{t('biblio.dossier.aide')}</small>
+          </span>
+        </button>
+      )}
     </div>
   )
 }

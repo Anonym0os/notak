@@ -297,7 +297,7 @@ describe('les gestes', () => {
   it('le clic droit du fond crée, range et choisit tout', async () => {
     await ouvrir()
     const libelles = menu(hote.querySelector('.biblio-corps')!).map((b) => b.querySelector('.notak-menu-libelle')!.textContent)
-    expect(libelles).toEqual(['Nouveau', 'Par date', 'Par dossier', 'Tout sélectionner'])
+    expect(libelles).toEqual(['Nouveau', 'Nouveau dossier', 'Par date', 'Par dossier', 'Tout sélectionner'])
     act(() => entree('Tout sélectionner').click())
     expect(choisies()).toHaveLength(3)
   })
@@ -312,6 +312,22 @@ describe('les gestes', () => {
     await act(async () => touche('z', { metaKey: true }))
     expect(espace.tableau('racine')!.elements.find((e) => e.id === 'c-atelier')!.corbeille).toBeUndefined()
     expect(tuile('atelier/')).not.toBeNull()
+  })
+
+  it('crée un dossier vide sans quitter la page, choisi et prêt à renommer ; ⇧⌘N fait de même', async () => {
+    const espace = await ouvrir()
+    menu(hote.querySelector('.biblio-corps')!)
+    await act(async () => entree('Nouveau dossier').click())
+    const carte = espace.tableau('racine')!.elements.find((e) => e.contenu.type === 'tableau' && !['voyage', 'atelier'].includes(e.contenu.cible))!
+    const dossier = (carte.contenu as { cible: string }).cible
+    expect(espace.tableau(dossier)!.titre).toBe('Nouveau dossier')
+    expect(location.search).toBe('?vue=toiles')
+    expect(choisies()).toEqual([`${dossier}/`])
+    expect(hote.querySelector<HTMLInputElement>('.biblio-renommer')!.value).toBe('Nouveau dossier')
+    expect(hote.querySelector('.notak-avis')!.textContent).toContain('Dossier créé dans « Accueil »')
+    await act(async () => void hote.querySelector('.biblio-renommer')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+    await act(async () => void document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'N', metaKey: true, shiftKey: true, bubbles: true })))
+    expect(espace.tableau('racine')!.elements.filter((e) => e.contenu.type === 'tableau')).toHaveLength(4)
   })
 
   it('renomme sur place', async () => {

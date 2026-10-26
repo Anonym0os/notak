@@ -2,6 +2,7 @@ import {
   type EspaceNavigable,
   type Place,
   carteDeLaToile,
+  creerDans,
   deplacer,
   dupliquer,
   jeter,
@@ -290,6 +291,38 @@ export async function importerEntrees(
         }),
       ])
       return [{ type: 'retirer', cles: entrees.map(cleDe) }]
+    },
+  }
+}
+
+/**
+ * Un dossier neuf, vide, rangé dans `ou` (le « Nouveau dossier » du Finder) : une toile, dans laquelle on glisse ensuite
+ * ce qu'on veut y ranger. Se défait en jetant sa carte.
+ */
+export async function creerDossier(o: Outils, ou: { id: string; titre: string }): Promise<Resultat & { toile: string }> {
+  await quandPretes(o.espace, [ou.id])
+  const titre = t('biblio.dossier.nouveau')
+  const { tableau } = creerDans(o.espace, ou.id, 'toile', titre)
+  const neuf: EntreeBibliotheque = {
+    tableau,
+    element: null,
+    genre: 'toile',
+    titre,
+    resume: { genre: 'toile', element: '', titre, boites: [] },
+    ou: ou.titre,
+    dans: ou.id,
+    vu: null,
+    favori: false,
+    partage: false,
+  }
+  return {
+    toile: tableau,
+    texte: t('biblio.annonce.dossier', { toile: ou.titre }),
+    correctifs: [{ type: 'ajouter', entrees: [neuf] }],
+    async annuler() {
+      const carte = carteDeLaToile(o.espace, ou.id, tableau)
+      if (carte) jeter(o.espace, [{ toile: ou.id, element: carte }])
+      return [{ type: 'retirer', cles: [cleDe(neuf)] }]
     },
   }
 }
