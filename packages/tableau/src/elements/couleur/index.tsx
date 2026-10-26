@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { COULEURS_NOTE, type CouleurNote, type Element, type Operation } from '../../coeur/tableau'
 import { LIBELLES_COULEUR, teinteDe } from '../note/couleurs'
+import { GrillePastilles } from '../note/PanneauCouleur'
 import { OutilAvecMenu } from '../../BoutonOutil'
 import { definition, registre } from '../registre'
 import type { ContexteToile } from '../types'
@@ -38,12 +39,12 @@ function OutilCouleur({ elements, contexte }: { elements: Element[]; contexte: C
   return (
     <OutilAvecMenu menu={[ouvert, setOuvert, ancre]} icone="palette" titre={t('couleur.titre')} libelle={t('couleur.titre')} pastille={teinteDe(actuelle ?? undefined)}>
       <div className="notak-note-palette" role="menu">
-          <div className="notak-note-pastilles">
-            {sansCouleur && <button type="button" role="menuitem" className="notak-pastille-aucune" title={t('couleur.aucune')} aria-label={t('couleur.aucune')} aria-pressed={actuelle === undefined} onClick={() => choisir(undefined)} />}
-            {COULEURS_NOTE.map((c) => (
-              <button key={c} type="button" role="menuitem" title={LIBELLES_COULEUR[c]} aria-label={LIBELLES_COULEUR[c]} aria-pressed={actuelle === c} data-fond={c} onClick={() => choisir(c)} />
-            ))}
-          </div>
+        <GrillePastilles
+          pastilles={[
+            ...(sansCouleur ? [{ cle: 'aucune', libelle: t('couleur.aucune'), genre: 'aucune' as const, actif: actuelle === undefined, choisir: () => choisir(undefined) }] : []),
+            ...COULEURS_NOTE.map((c) => ({ cle: c, libelle: LIBELLES_COULEUR[c], teinte: teinteDe(c), actif: actuelle === c, choisir: () => choisir(c) })),
+          ]}
+        />
       </div>
     </OutilAvecMenu>
   )
