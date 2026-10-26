@@ -448,16 +448,15 @@ async fn joindre(app: &AppHandle, garde: &Origines, etat: &Acces, ouverts: &Ouve
     let joint = verifier(&client(true, DELAI, &version)?, &origine).await?;
     etat.accorder(app, &origine)?;
     let racine = Url::parse(&format!("{origine}/")).map_err(|_| Erreur::AdresseInvalide)?;
-    let fenetre = fenetre(app)?;
     // La garde d'abord : la navigation qui suit passe par elle. La personne a renoncé entre-temps (les toiles d'ici, le
     // menu) : la fenêtre reste où elle est.
     let numero = etat.commencer_visite(&origine, vu).ok_or(Erreur::Annule)?;
     app.state::<Emplacements>().vider();
     // Un autre serveur n'a pas à trouver la copie confiée pour un autre.
     ouverts.retirer_confiees(Some(&origine));
-    if let Err(e) = fenetre.navigate(racine) {
+    if let Err(e) = naviguer(app, racine) {
         etat.abandonner();
-        return Err(Erreur::echec(e));
+        return Err(e);
     }
     guetter(app.clone(), numero);
     // Abandonnée pendant que la fenêtre partait (`annuler_jonction`) : elle est revenue, et rien n'est retenu.
@@ -520,6 +519,58 @@ pub async fn annuler_jonction(app: AppHandle, webview: Webview, garde: State<'_,
     Ok(true)
 }
 
+/// D'une page à l'autre (la page embarquée et celle du serveur), la fenêtre passe par une page vide. Une requête à la
+/// coque encore en route quand la fenêtre part est coupée, et le script de Tauri la renvoie aussitôt par `postMessage` :
+/// la coque la juge alors sur l'adresse de la fenêtre, déjà la page d'après. Vu dans l'app : une pièce jointe demandée
+/// par la page du serveur s'ouvrait sans accord, prise pour une demande de la page embarquée (qui a plus de droits).
+/// Par la page vide, une telle requête tombe sur une page sans aucun droit ; et tant que dure le passage, la coque ne
+/// répond à personne (`appel::exiger`).
+#[derive(Default)]
+pub struct Passage(Mutex<Option<Url>>);
+
+impl Passage {
+    pub fn en_cours(&self) -> bool {
+        self.0.lock().unwrap_or_else(PoisonError::into_inner).is_some()
+    }
+}
+
+/// Le temps laissé aux requêtes de la page d'avant pour être refusées, une fois la page vide chargée ; et, faute de
+/// nouvelles d'elle, celui au bout duquel la fenêtre repart quand même.
+const PASSAGE_APRES: Duration = Duration::from_millis(150);
+const PASSAGE_AU_PLUS: Duration = Duration::from_millis(2000);
+
+/// Envoie la fenêtre à `vers`, par la page vide.
+fn naviguer(app: &AppHandle, vers: Url) -> Result<(), Erreur> {
+    let fenetre = fenetre(app)?;
+    *app.state::<Passage>().0.lock().unwrap_or_else(PoisonError::into_inner) = Some(vers);
+    if let Err(e) = fenetre.navigate(Url::parse("about:blank").expect("adresse fixe")) {
+        app.state::<Passage>().0.lock().unwrap_or_else(PoisonError::into_inner).take();
+        return Err(Erreur::echec(e));
+    }
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(PASSAGE_AU_PLUS).await;
+        continuer(&app);
+    });
+    Ok(())
+}
+
+/// La page vide est chargée : la fenêtre peut aller où elle allait.
+pub fn page_vide_chargee(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(PASSAGE_APRES).await;
+        continuer(&app);
+    });
+}
+
+fn continuer(app: &AppHandle) {
+    let Some(vers) = app.state::<Passage>().0.lock().unwrap_or_else(PoisonError::into_inner).take() else { return };
+    if let Err(e) = fenetre(app).and_then(|f| f.navigate(vers).map_err(Erreur::echec)) {
+        eprintln!("Notak : la fenêtre n'a pas pu changer de page ({e:?})");
+    }
+}
+
 fn fenetre(app: &AppHandle) -> Result<tauri::WebviewWindow, Erreur> {
     app.get_webview_window("principale").ok_or_else(|| Erreur::echec("la fenêtre de Notak n'est pas là"))
 }
@@ -578,7 +629,7 @@ fn rentrer(app: &AppHandle, ecran: Ecran, erreur: Option<&str>) -> Result<(), Er
     app.state::<Emplacements>().vider();
     app.state::<Ouverts>().retirer_confiees(None);
     let url = adresse_d_ici(&app.state::<Acces>().racine, ecran, erreur);
-    fenetre(app)?.navigate(url).map_err(Erreur::echec)
+    naviguer(app, url)
 }
 
 /// Revient aux toiles de cet ordinateur ou à l'écran d'accès, sans rien changer aux réglages.

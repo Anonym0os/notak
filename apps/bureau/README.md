@@ -97,6 +97,12 @@ ouvertes depuis le système se dit comme telle (`file_pleine`).
   (le temps qu'on y est) et leurs lecteurs intégrés est refusée ; une nouvelle fenêtre (`target="_blank"`,
   `window.open`) part dans le navigateur de la personne, et seulement pour le web, un courriel ou un numéro. La page
   fait passer chaque lien cliqué par là (`apps/web/src/bureau.ts`) ; un lien de l'application se suit sur place.
+- **D'une page à l'autre, la fenêtre passe par une page vide** (`acces::Passage`). Une requête à la coque encore en
+  route quand la fenêtre change de page est coupée, et le script de Tauri la renvoie aussitôt par `postMessage` : la
+  coque la jugerait alors sur l'adresse de la page d'après. Vu dans l'app réelle : une pièce jointe demandée par la page
+  d'un serveur, juste avant un retour aux toiles d'ici, s'ouvrait sans accord, prise pour une demande de la page
+  embarquée. Par la page vide, ces requêtes tombent sur une page sans aucun droit, et pendant le passage la coque ne
+  répond à personne. Un « oui » à une boîte d'accord ne vaut aussi que si la page qui a demandé est encore là.
 - **Ce que chaque page peut demander**, et rien d'autre ; chaque commande vérifie en plus qui l'appelle
   (`src/appel.rs`), car un serveur quitté garde sa capacité jusqu'au redémarrage (Tauri n'en retire pas).
   - La page embarquée (`capabilities/principale.json`) : déplacer la fenêtre, l'agrandir d'un double clic,

@@ -204,8 +204,10 @@ fn ouvrir_fenetre(app: &AppHandle, origines: Origines) -> tauri::Result<()> {
             NewWindowResponse::Deny
         })
         .on_page_load(move |fenetre, chargement| {
-            if chargement.event() == PageLoadEvent::Started {
-                acces::page_chargee(fenetre.app_handle(), chargement.url());
+            match chargement.event() {
+                PageLoadEvent::Started => acces::page_chargee(fenetre.app_handle(), chargement.url()),
+                PageLoadEvent::Finished if chargement.url().as_str() == "about:blank" => acces::page_vide_chargee(fenetre.app_handle()),
+                PageLoadEvent::Finished => {}
             }
         })
         .build()?;
@@ -242,6 +244,7 @@ pub fn run() {
     }
     constructeur
         .manage(Emplacements::default())
+        .manage(acces::Passage::default())
         .manage(MisesAJour::new(mises_a_jour))
         .manage(Ouverts::default())
         .manage(fichiers::Ouvertures::default())
@@ -287,7 +290,12 @@ pub fn run() {
         .build(contexte)
         .expect("Notak n'a pas pu ouvrir sa fenêtre")
         .run(|app, evenement| match evenement {
-            RunEvent::Exit => mise_a_jour::poser_en_partant(&app.state::<MisesAJour>()),
+            // Une boîte d'accord encore ouverte ne doit pas valoir oui pendant que Notak se ferme.
+            RunEvent::ExitRequested { .. } => app.state::<fichiers::Ouvertures>().finir(),
+            RunEvent::Exit => {
+                app.state::<fichiers::Ouvertures>().finir();
+                mise_a_jour::poser_en_partant(&app.state::<MisesAJour>())
+            }
             // Un double clic sur une copie `.notak` dans le Finder, peut-être avant que la fenêtre n'existe : la file
             // l'attend, et la page la lira en arrivant.
             #[cfg(target_os = "macos")]

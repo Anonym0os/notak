@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 use serde::Serialize;
 use tauri::http::HeaderMap;
 use tauri::ipc::InvokeBody;
-use tauri::Webview;
+use tauri::{Manager, Webview};
 
 use crate::navigation::{Appelant, Origines};
 
@@ -61,6 +61,11 @@ impl Erreur {
 /// Qui appelle, s'il est de ceux que la commande sert ; sinon `Interdit`. La capacité de Tauri a déjà filtré par
 /// origine ; ceci écarte en plus un serveur joint plus tôt, qui garde la sienne jusqu'au redémarrage.
 pub fn exiger(webview: &Webview, garde: &Origines, permis: &[Appelant]) -> Result<Appelant, Erreur> {
+    // Entre deux pages (`acces::Passage`), personne n'appelle : ce qui arrive là est une requête de la page d'avant,
+    // rejouée par Tauri et prise pour celle d'après.
+    if webview.app_handle().state::<crate::acces::Passage>().en_cours() {
+        return Err(Erreur::Interdit);
+    }
     let appelant = webview.url().map(|u| garde.appelant(&u)).unwrap_or(Appelant::Autre);
     if appelant != Appelant::Autre && permis.contains(&appelant) {
         Ok(appelant)

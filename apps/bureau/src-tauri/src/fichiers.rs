@@ -30,7 +30,7 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 use tauri_plugin_opener::OpenerExt;
 
 use crate::acces::Acces;
-use crate::appel::{exiger, nom_envoye, octets, Cadence, Erreur, LOCALE, LOCALE_OU_SERVEUR};
+use crate::appel::{exiger, nom_envoye, octets, Cadence, Erreur, LOCALE, LOCALE_OU_SERVEUR, SERVEUR};
 use crate::navigation::{Appelant, Origines};
 
 /// Au-delà, ce n'est plus un fichier qu'on se passe ainsi.
@@ -175,11 +175,13 @@ const OUVERTURES_DUREE: Duration = Duration::from_secs(10);
 pub struct Ouvertures {
     cadence: Cadence,
     question: AtomicBool,
+    /// Notak se ferme : une réponse qui arrive maintenant n'est plus celle de la personne.
+    fin: AtomicBool,
 }
 
 impl Default for Ouvertures {
     fn default() -> Self {
-        Self { cadence: Cadence::new(OUVERTURES_MAX, OUVERTURES_DUREE), question: AtomicBool::new(false) }
+        Self { cadence: Cadence::new(OUVERTURES_MAX, OUVERTURES_DUREE), question: AtomicBool::new(false), fin: AtomicBool::new(false) }
     }
 }
 
@@ -193,6 +195,11 @@ impl Drop for Question<'_> {
 }
 
 impl Ouvertures {
+    /// Notak se ferme (`RunEvent::ExitRequested`) : plus aucune boîte encore ouverte ne vaut accord.
+    pub fn finir(&self) {
+        self.fin.store(true, Ordering::SeqCst);
+    }
+
     fn poser_question(&self) -> Option<Question<'_>> {
         self.question.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).ok().map(|_| Question(&self.question))
     }
@@ -247,7 +254,11 @@ pub async fn ouvrir_fichier(app: AppHandle, webview: Webview, garde: State<'_, O
         let question = app.dialog().message(texte).title("Notak").buttons(MessageDialogButtons::OkCancelCustom(oui, non));
         // Hors du fil principal, comme « Enregistrer sous » : la boîte attend la personne sans figer la fenêtre.
         let accord = tauri::async_runtime::spawn_blocking(move || question.blocking_show()).await.map_err(Erreur::echec)?;
-        if !accord {
+        // Un oui ne vaut que pour la page qui a demandé, encore là : vu dans l'app, une boîte restée ouverte pendant
+        // que la fenêtre revenait ici puis se fermait rendait « oui » sans que personne ait répondu. On relit donc qui
+        // est dans la fenêtre, et si Notak ne se ferme pas.
+        let toujours = exiger(&webview, &garde, SERVEUR).is_ok() && garde.serveur.lire().map(|o| hote_de(&o)).as_deref() == Some(hote.as_str());
+        if !accord || !toujours || ouvertures.fin.load(Ordering::SeqCst) {
             return Err(Erreur::Annule);
         }
     }
