@@ -62,7 +62,7 @@ export type ErreurAcces = { code: Exclude<CodeErreurAcces, 'redirige'> } | { cod
  */
 export type ErreurCoque =
   | ErreurAcces
-  | { code: 'type_refuse' | 'trop_gros' | 'trop_vite' | 'introuvable' | 'illisible' | 'interdit' }
+  | { code: 'type_refuse' | 'trop_gros' | 'trop_vite' | 'introuvable' | 'illisible' | 'interdit' | 'annule' }
   | { code: 'echec'; message: string }
 
 const CODES = new Set([
@@ -81,6 +81,7 @@ const CODES = new Set([
   'introuvable',
   'illisible',
   'interdit',
+  'annule',
   'echec',
 ])
 const CODES_ACCES = new Set(['adresse_invalide', 'https_requis', 'chemin', 'injoignable', 'certificat', 'delai', 'pas_notak', 'trop_ancien', 'redirige'])
@@ -173,6 +174,12 @@ export async function lireFichierOuvert(id: string): Promise<Uint8Array> {
  * Confie une copie `.notak` à la coque, pour la page du serveur qu'on va joindre (page embarquée seulement). Elle
  * remplace celle d'avant ; aucun événement : la page du serveur la trouvera dans `fichiersOuverts` en arrivant.
  */
+/** Retire un fichier qui attend, sans le lire (« Pas maintenant »). */
+export const ecarterFichierOuvert = (id: string) => invoquer<void>('ecarter_fichier_ouvert', { id })
+
+/** Renonce à la jonction en cours : elle finit sur `annule`, sans emmener la fenêtre (page embarquée seulement). */
+export const annulerJonction = () => invoquer<void>('annuler_jonction')
+
 export const confierCopie = (octets: Uint8Array, nom: string) => invoquer<void>('confier_copie', octets, avecNom(nom))
 
 /** Écoute un événement de la coque ; rend de quoi cesser. */

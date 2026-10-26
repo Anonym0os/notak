@@ -253,6 +253,14 @@ impl Ouverts {
             .collect()
     }
 
+    /// Retire un fichier qui attend, sans le lire : la personne n'en veut pas ici (« Pas maintenant »).
+    fn ecarter(&self, appelant: Appelant, id: &str) -> bool {
+        let mut file = self.file.lock().unwrap_or_else(PoisonError::into_inner);
+        let avant = file.len();
+        file.retain(|o| !(o.id == id && visible(o, appelant)));
+        file.len() != avant
+    }
+
     /// Un morceau, à partir de `debut` ; le dernier retire le fichier de la file.
     fn lire(&self, appelant: Appelant, id: &str, debut: u64) -> Result<Vec<u8>, Erreur> {
         let mut file = self.file.lock().unwrap_or_else(PoisonError::into_inner);
@@ -338,6 +346,17 @@ pub async fn fichiers_ouverts(webview: Webview, garde: State<'_, Origines>, ouve
 pub async fn lire_fichier_ouvert(webview: Webview, garde: State<'_, Origines>, ouverts: State<'_, Ouverts>, id: String, debut: u64) -> Result<Response, Erreur> {
     let appelant = exiger(&webview, &garde, LOCALE_OU_SERVEUR)?;
     Ok(Response::new(ouverts.lire(appelant, &id, debut)?))
+}
+
+/// Écarte un fichier qui attend, sans le lire.
+#[tauri::command]
+pub async fn ecarter_fichier_ouvert(webview: Webview, garde: State<'_, Origines>, ouverts: State<'_, Ouverts>, id: String) -> Result<(), Erreur> {
+    let appelant = exiger(&webview, &garde, LOCALE_OU_SERVEUR)?;
+    if ouverts.ecarter(appelant, &id) {
+        Ok(())
+    } else {
+        Err(Erreur::Introuvable)
+    }
 }
 
 /// Confie une copie `.notak` à la file, pour la page du serveur qu'on va joindre.
@@ -479,6 +498,17 @@ mod essais {
         assert!(liste[0].confiee);
         assert_eq!(o.lire(Appelant::Locale, &liste[0].id, 0), Err(Erreur::Introuvable));
         assert_eq!(o.lire(Appelant::Serveur, &liste[0].id, 0), Ok(vec![4, 5]));
+        assert!(o.lister(Appelant::Serveur).is_empty());
+    }
+
+    #[test]
+    fn un_fichier_s_ecarte_sans_se_lire() {
+        let o = Ouverts::default();
+        assert!(o.confier("Toiles.notak".into(), vec![1]));
+        let id = o.lister(Appelant::Serveur)[0].id.clone();
+        assert!(!o.ecarter(Appelant::Locale, &id), "la page embarquée ne voit pas la copie confiée");
+        assert!(o.ecarter(Appelant::Serveur, &id));
+        assert!(!o.ecarter(Appelant::Serveur, &id));
         assert!(o.lister(Appelant::Serveur).is_empty());
     }
 

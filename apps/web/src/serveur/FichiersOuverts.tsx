@@ -1,7 +1,7 @@
 import { type DepotFichiers, ErreurNotak, type EspaceNavigable, type Id, decoderNotak } from '@notak/tableau'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { type FichierOuvert, FICHIER_OUVERT, ecouter, estErreurCoque, estPageServeur, fichiersOuverts, lireFichierOuvert, revenirIci } from '../bureau'
+import { type FichierOuvert, FICHIER_OUVERT, ecarterFichierOuvert, ecouter, estErreurCoque, estPageServeur, fichiersOuverts, lireFichierOuvert, revenirIci } from '../bureau'
 import { poids } from '../DialogueExport'
 import { t, tn } from '../langue'
 import { poserNotak } from '../notak'
@@ -102,6 +102,8 @@ export function FichiersOuverts({
   const ecarter = () => {
     setEcartes((e) => new Set(e).add(courant.id))
     setCourant(null)
+    // Les toiles de cet ordinateur ne se reproposent pas à chaque page ; un fichier du disque, lui, attend « plus tard ».
+    if (courant.confiee) void ecarterFichierOuvert(courant.id).catch(() => {})
   }
   const importer = async () => {
     setPhase({ type: 'cours' })

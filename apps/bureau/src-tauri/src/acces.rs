@@ -17,6 +17,7 @@
 /// La page embarquée ne joint jamais un serveur d'après les paramètres de son adresse (`?acces`, `erreur=…`) : elle ne
 /// fait que les afficher. Seuls ses réglages (`acces`) et ce que tape la personne mènent ailleurs.
 use std::net::Ipv4Addr;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, PoisonError};
 use std::time::Duration;
 
@@ -49,6 +50,7 @@ pub const DROITS_SERVEUR: &[&str] = &[
     "allow-ouvrir-fichier",
     "allow-fichiers-ouverts",
     "allow-lire-fichier-ouvert",
+    "allow-ecarter-fichier-ouvert",
 ];
 
 const DELAI: Duration = Duration::from_secs(10);
@@ -286,11 +288,13 @@ pub struct Acces {
     visite: Mutex<Visite>,
     /// Un serveur à la fois : deux demandes rapprochées ne partent pas chacune de leur côté.
     joindre: tauri::async_runtime::Mutex<()>,
+    /// Change à chaque annulation : une vérification en cours qui la voit changer n'emmène pas la fenêtre.
+    annulations: AtomicU64,
 }
 
 impl Acces {
     pub fn new(reglage: Reglage, racine: Url) -> Self {
-        Self { reglage, racine, accordes: Mutex::new(Vec::new()), visite: Mutex::new(Visite::default()), joindre: tauri::async_runtime::Mutex::new(()) }
+        Self { reglage, racine, accordes: Mutex::new(Vec::new()), visite: Mutex::new(Visite::default()), joindre: tauri::async_runtime::Mutex::new(()), annulations: AtomicU64::new(0) }
     }
 
     fn nouvelle_visite(&self, origine: Option<String>) -> u64 {
@@ -363,6 +367,7 @@ pub async fn joindre_serveur(
     garder: bool,
 ) -> Result<Joint, Erreur> {
     exiger(&webview, &garde, LOCALE)?;
+    let annulations = etat.annulations.load(Ordering::SeqCst);
     let _seul = etat.joindre.lock().await;
     let origine = normaliser(&adresse)?;
     if garde.est_de_l_app(&origine) {
@@ -370,6 +375,10 @@ pub async fn joindre_serveur(
     }
     let version = app.package_info().version.to_string();
     let joint = verifier(&client(true, DELAI, &version)?, &origine).await?;
+    // La personne a ouvert les toiles de cet ordinateur entre-temps : la fenêtre reste où elle est.
+    if etat.annulations.load(Ordering::SeqCst) != annulations {
+        return Err(Erreur::Annule);
+    }
     etat.accorder(&app, &origine)?;
     let racine = Url::parse(&format!("{origine}/")).map_err(|_| Erreur::AdresseInvalide)?;
     let fenetre = fenetre(&app)?;
@@ -392,6 +401,15 @@ pub async fn joindre_serveur(
         }
     }
     Ok(joint)
+}
+
+/// Renonce à la jonction en cours (la porte : « Ouvrir les toiles de cet ordinateur » pendant qu'on attend le
+/// serveur). Elle finit sur `annule`, sans emmener la fenêtre.
+#[tauri::command]
+pub async fn annuler_jonction(webview: Webview, garde: State<'_, Origines>, etat: State<'_, Acces>) -> Result<(), Erreur> {
+    exiger(&webview, &garde, LOCALE)?;
+    etat.annulations.fetch_add(1, Ordering::SeqCst);
+    Ok(())
 }
 
 fn fenetre(app: &AppHandle) -> Result<tauri::WebviewWindow, Erreur> {

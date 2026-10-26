@@ -75,8 +75,9 @@ describe('la connexion au serveur retenu, au lancement', () => {
     expect(document.activeElement).toBe(ouvrir)
     await act(async () => ouvrir.click())
     expect(surLocal).toHaveBeenCalledOnce()
-    // Pour cette fois seulement : ni le serveur ni où Notak s'ouvre ne changent.
-    expect(commandes()).toEqual(['joindre_serveur'])
+    // Pour cette fois seulement : ni le serveur ni où Notak s'ouvre ne changent ; la jonction en cours est abandonnée,
+    // pour qu'une réponse tardive du serveur n'emmène pas la fenêtre.
+    expect(commandes()).toEqual(['joindre_serveur', 'annuler_jonction'])
   })
 
   it('un serveur qui répond mal : l’écran d’accès dit pourquoi, avec son adresse sous la main', async () => {

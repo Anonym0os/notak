@@ -1,7 +1,7 @@
 import { lireReglages, themeEffectif, useSystemeSombre } from '@notak/tableau'
 import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { type Acces, acces as lireAcces, joindreServeur } from '../bureau'
+import { type Acces, acces as lireAcces, annulerJonction, estErreurCoque, joindreServeur } from '../bureau'
 import { t } from '../langue'
 import { Marque } from '../PageApp'
 import { type Echec, decidePorte, echecDe, hoteDe, serveurMuet } from './acces'
@@ -45,7 +45,11 @@ export function Porte({ acces, recherche, surLocal }: { acces: Acces | null; rec
     if (!lance.current) {
       lance.current = true
       // Le serveur retenu reste retenu, quoi qu'il arrive ici : garder = Notak s'y rouvrira encore.
-      joindreServeur(serveur, true).catch((e: unknown) => setPhase({ type: 'ecran', echec: echecDe(e) }))
+      joindreServeur(serveur, true).catch((e: unknown) => {
+        // Annulée parce que la personne a ouvert les toiles d'ici : la porte n'est déjà plus là.
+        if (estErreurCoque(e) && e.code === 'annule') return
+        setPhase({ type: 'ecran', echec: echecDe(e) })
+      })
     }
     return () => clearTimeout(lenteur)
     // Une seule tentative, au montage : un changement de phase ne la relance pas.
@@ -65,7 +69,16 @@ export function Porte({ acces, recherche, surLocal }: { acces: Acces | null; rec
               <p className="connexion-aide" role="status">
                 {t('bureau.porte.lent', { hote })}
               </p>
-              <button type="button" className="bouton" autoFocus onClick={surLocal}>
+              <button
+                type="button"
+                className="bouton"
+                autoFocus
+                onClick={() => {
+                  // Le serveur peut encore répondre : il n'emmènera pas la fenêtre en pleine édition.
+                  void annulerJonction().catch(() => {})
+                  surLocal()
+                }}
+              >
                 {t('bureau.porte.ouvrirLocal')}
               </button>
               <small className="connexion-indice">{t('bureau.porte.ouvrirLocalAide', { hote })}</small>

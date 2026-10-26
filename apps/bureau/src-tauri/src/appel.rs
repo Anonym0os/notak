@@ -40,6 +40,8 @@ pub enum Erreur {
     Illisible,
     /// Cette page n'a pas le droit de demander cela.
     Interdit,
+    /// La personne a choisi autre chose pendant qu'on joignait le serveur (`annuler_jonction`).
+    Annule,
     /// Le système a refusé (un disque plein, un dossier interdit).
     Echec { message: String },
 }

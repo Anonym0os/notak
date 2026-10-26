@@ -15,6 +15,8 @@ fn main() {
         "ouvrir_fichier",
         "fichiers_ouverts",
         "lire_fichier_ouvert",
+        "ecarter_fichier_ouvert",
+        "annuler_jonction",
         "confier_copie",
     ])))
     .unwrap();

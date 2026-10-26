@@ -20,6 +20,8 @@
     "allow-ouvrir-fichier",
     "allow-fichiers-ouverts",
     "allow-lire-fichier-ouvert",
+    "allow-ecarter-fichier-ouvert",
+    "allow-annuler-jonction",
     "allow-confier-copie"
   ]
 }
