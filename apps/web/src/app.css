@@ -1110,13 +1110,14 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
   gap: 8px;
 }
 
-.app-form > .champ {
+.app-form > .notak-champ {
   flex: 1 1 200px;
   height: 40px;
 }
 
-.app-form > select.champ {
+.app-form > .notak-choix {
   flex: 0 1 auto;
+  height: 40px;
 }
 
 .app-form > .bouton {
@@ -1173,9 +1174,8 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
   gap: 8px;
 }
 
-.app-actions .champ {
+.app-actions .notak-choix {
   height: 32px;
-  font-size: 13px;
 }
 
 /* La page « Envoyer vers Notak » : le jeton tout neuf dans un encart à l'accent, les étapes numérotées. */
@@ -1265,7 +1265,7 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
   padding-top: 4px;
 }
 
-.espaces-role > .champ {
+.espaces-role > .notak-champ {
   height: 40px;
 }
 

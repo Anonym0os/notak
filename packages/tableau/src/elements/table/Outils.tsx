@@ -24,7 +24,7 @@ import { dateVersSerie } from './formules'
 import { type Plage, appliquerFormat, formatsDe, normaliserPlage } from './grille'
 import { entreesTable } from './menu'
 import { modifierTable } from './modifier'
-import { Case } from '../../communs'
+import { Case, Champ, Choix } from '../../communs'
 
 /**
  * Les outils de la barre de sélection pour une table. Des cellules choisies : le style du texte, le type, la couleur
@@ -293,8 +293,9 @@ function OptionsNombre({ type, f, lg, option }: { type: TypeCellule; f: FormatCe
     <>
       <span className="notak-table-format-etiquette">{t('table.opt.decimales')}</span>
       <div className="notak-table-format-controles">
-        <input
+        <Champ
           type="number"
+          taille="p"
           className="notak-table-decimales"
           min={0}
           max={20}
@@ -315,20 +316,20 @@ function OptionsNombre({ type, f, lg, option }: { type: TypeCellule; f: FormatCe
         <>
           <span className="notak-table-format-etiquette">{t('table.opt.devise')}</span>
           <div className="notak-table-format-controles">
-            <select aria-label={t('table.opt.devise')} value={devise} onChange={(e) => option({ devise: e.target.value })}>
-              {(liste.some((d) => d.code === devise) ? liste : [...liste, { code: devise, nom: devise }]).map((d) => (
-                <option key={d.code} value={d.code}>
-                  {d.nom === d.code ? d.code : `${d.nom} (${d.code})`}
-                </option>
-              ))}
-            </select>
-            <select aria-label={t('table.opt.affichageDevise')} value={rendus.some((r) => r.a === (f.affichageDevise ?? 'symboleEtroit')) ? (f.affichageDevise ?? 'symboleEtroit') : rendus[0]!.a} onChange={(e) => option({ affichageDevise: e.target.value as (typeof AFFICHAGES_DEVISE)[number] })}>
-              {rendus.map((r) => (
-                <option key={r.a} value={r.a}>
-                  {r.texte}
-                </option>
-              ))}
-            </select>
+            <Choix
+              large
+              libelle={t('table.opt.devise')}
+              valeur={devise}
+              onChange={(v) => option({ devise: v })}
+              options={(liste.some((d) => d.code === devise) ? liste : [...liste, { code: devise, nom: devise }]).map((d) => ({ valeur: d.code, libelle: d.nom === d.code ? d.code : `${d.nom} (${d.code})` }))}
+            />
+            <Choix
+              large
+              libelle={t('table.opt.affichageDevise')}
+              valeur={rendus.some((r) => r.a === (f.affichageDevise ?? 'symboleEtroit')) ? (f.affichageDevise ?? 'symboleEtroit') : rendus[0]!.a}
+              onChange={(v) => option({ affichageDevise: v as (typeof AFFICHAGES_DEVISE)[number] })}
+              options={rendus.map((r) => ({ valeur: r.a, libelle: r.texte }))}
+            />
           </div>
         </>
       )}
@@ -344,24 +345,24 @@ function OptionsDate({ f, lg, option }: { f: FormatCellule; lg: string; option: 
     <>
       <span className="notak-table-format-etiquette">{t('table.opt.date')}</span>
       <div className="notak-table-format-controles">
-        <select aria-label={t('table.opt.date')} value={date} onChange={(e) => option({ date: e.target.value as (typeof FORMATS_DATE)[number] })}>
-          {FORMATS_DATE.map((d) => (
-            // Jamais ni date ni heure : « aucune » se grise quand l'autre l'est déjà.
-            <option key={d} value={d} disabled={d === 'aucun' && heure === 'aucune'}>
-              {d === 'aucun' ? t('table.date.aucun') : exemple({ date: d })}
-            </option>
-          ))}
-        </select>
+        <Choix
+          large
+          libelle={t('table.opt.date')}
+          valeur={date}
+          onChange={(v) => option({ date: v as (typeof FORMATS_DATE)[number] })}
+          // Jamais ni date ni heure : « aucune » se grise quand l'autre l'est déjà.
+          options={FORMATS_DATE.map((d) => ({ valeur: d, libelle: d === 'aucun' ? t('table.date.aucun') : exemple({ date: d }), inactif: d === 'aucun' && heure === 'aucune' }))}
+        />
       </div>
       <span className="notak-table-format-etiquette">{t('table.opt.heure')}</span>
       <div className="notak-table-format-controles">
-        <select aria-label={t('table.opt.heure')} value={heure} onChange={(e) => option({ heure: e.target.value as (typeof FORMATS_HEURE)[number] })}>
-          {FORMATS_HEURE.map((h) => (
-            <option key={h} value={h} disabled={h === 'aucune' && date === 'aucun'}>
-              {h === 'aucune' ? t('table.heure.aucune') : exemple({ heure: h })}
-            </option>
-          ))}
-        </select>
+        <Choix
+          large
+          libelle={t('table.opt.heure')}
+          valeur={heure}
+          onChange={(v) => option({ heure: v as (typeof FORMATS_HEURE)[number] })}
+          options={FORMATS_HEURE.map((h) => ({ valeur: h, libelle: h === 'aucune' ? t('table.heure.aucune') : exemple({ heure: h }), inactif: h === 'aucune' && date === 'aucun' }))}
+        />
         {heure !== 'aucune' && (
           <label className="notak-table-coche">
             <Case option cochee={!!f.heureEntreParentheses} onChange={(v) => option({ heureEntreParentheses: v || undefined })} />

@@ -2,7 +2,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import type { Arbre, Id, ReglagesDiapo } from '../../coeur/tableau'
 import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
-import { Segments } from '../../communs'
+import { Choix, Segments } from '../../communs'
 import { ChoixTheme } from './ChoixTheme'
 import { Diapositive } from './Diapo'
 import {
@@ -46,31 +46,22 @@ function commun(l: Lecture, ids: readonly Id[], champ: Reglage): string | undefi
 const LIGNE_VIDE = 'auto'
 
 /**
- * Un menu à 24 de haut. Le menu natif garde la liste et l'accessibilité ; ce qu'on voit est une valeur courte posée par
- * dessus (« Auto », jamais « Auto (Visible) » dans les 72 px d'une rangée courte : le détail vit dans la liste ouverte).
+ * Un menu déroulant : le choix commun, qui garde le menu natif. Ce qu'on lit est une valeur courte (« Auto », jamais
+ * « Auto (Visible) » dans une rangée courte : le détail vit dans la liste ouverte).
  */
 function Menu({ valeur, options, change, info, libelle, large }: { valeur: string; options: { valeur: string; libelle: string }[]; change(v: string): void; info: string; libelle: string; large?: boolean }) {
   const courante = options.find((o) => o.valeur === valeur)
   const affiche = valeur === 'multiple' ? t('arbre.pitch.multiple') : valeur === LIGNE_VIDE && !large ? t('arbre.pitch.auto') : (courante?.libelle ?? valeur)
   return (
-    <span className="notak-arbre-pitch-select" data-large={large ? '' : undefined}>
-      <select value={valeur} title={info} aria-label={libelle} onChange={(e) => change(e.target.value)}>
-        {valeur === 'multiple' && (
-          <option value="multiple" disabled>
-            {t('arbre.pitch.multiple')}
-          </option>
-        )}
-        {options.map((o) => (
-          <option key={o.valeur} value={o.valeur}>
-            {o.libelle}
-          </option>
-        ))}
-      </select>
-      <span className="notak-arbre-pitch-valeur" aria-hidden>
-        {affiche}
-      </span>
-      <Icone nom="chevronBas" taille={12} trait={2} />
-    </span>
+    <Choix
+      valeur={valeur}
+      options={valeur === 'multiple' ? [{ valeur: 'multiple', libelle: t('arbre.pitch.multiple'), inactif: true }, ...options] : options}
+      onChange={change}
+      libelle={libelle}
+      titre={info}
+      affiche={affiche}
+      large={large}
+    />
   )
 }
 

@@ -2,7 +2,7 @@ import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import type { Arbre, Id } from '../../coeur/tableau'
 import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
-import { Interrupteur } from '../../communs'
+import { Choix, Interrupteur } from '../../communs'
 import { Agrandissement, BoutonAgrandir, type ImageVisee } from './Agrandissement'
 import { ChoixTheme, PopoverFixe } from './ChoixTheme'
 import { Diapositive } from './Diapo'
@@ -466,21 +466,14 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
           </button>
           <div className="notak-arbre-pitch-ligne">
             <span>{t('arbre.pitch.ratio')}</span>
-            <select
-              className="notak-arbre-pitch-menu"
-              value={arbre.pitch?.ratio ?? 'auto'}
-              title={t('arbre.pitch.ratioInfo')}
-              aria-label={t('arbre.pitch.ratio')}
-              disabled={lectureSeule}
-              onChange={(e) => mettreAJour({ ratio: e.target.value === 'auto' ? null : (e.target.value as (typeof RATIOS_PITCH)[number]) })}
-            >
-              <option value="auto">{t('arbre.pitch.auto')}</option>
-              {RATIOS_PITCH.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
+            <Choix
+              valeur={arbre.pitch?.ratio ?? 'auto'}
+              options={[{ valeur: 'auto', libelle: t('arbre.pitch.auto') }, ...RATIOS_PITCH.map((r) => ({ valeur: r, libelle: r }))]}
+              titre={t('arbre.pitch.ratioInfo')}
+              libelle={t('arbre.pitch.ratio')}
+              inactif={lectureSeule}
+              onChange={(v) => mettreAJour({ ratio: v === 'auto' ? null : (v as (typeof RATIOS_PITCH)[number]) })}
+            />
           </div>
           <div className="notak-arbre-pitch-ligne">
             <span>{t('arbre.pitch.animation')}</span>

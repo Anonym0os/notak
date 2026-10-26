@@ -353,9 +353,8 @@
   opacity: 0.6;
 }
 
-.notak-arbre-panneau button,
-.notak-arbre-panneau input[type='text'],
-.notak-arbre-panneau select {
+.notak-arbre-panneau button:not(.notak-seg > button),
+.notak-arbre-panneau input[type='text'] {
   padding: 4px 8px;
   border: 1px solid rgb(0 0 0 / 0.12);
   border-radius: 5px;
@@ -364,7 +363,7 @@
   font: inherit;
 }
 
-.notak-arbre-panneau button {
+.notak-arbre-panneau button:not(.notak-seg > button) {
   cursor: pointer;
 }
 
@@ -389,8 +388,8 @@
   border-color: transparent;
 }
 
-.notak-arbre-panneau button[aria-pressed='true'],
-.notak-arbre-panneau button[aria-checked='true'] {
+.notak-arbre-panneau button:not(.notak-seg > button)[aria-pressed='true'],
+.notak-arbre-panneau button:not(.notak-seg > button)[aria-checked='true'] {
   border-color: var(--notak-arbre-choix);
   background: color-mix(in srgb, var(--notak-arbre-choix) 12%, transparent);
 }
@@ -413,8 +412,7 @@
   overflow-x: hidden;
 }
 
-.notak-arbre-panneau input[type='text'],
-.notak-arbre-panneau select {
+.notak-arbre-panneau input[type='text'] {
   box-sizing: border-box;
   width: 100%;
 }

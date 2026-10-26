@@ -101,14 +101,14 @@ describe('l’onglet Pitch', () => {
     // Chaque libellé porte son texte en infobulle : coupé par « … » s'il ne tenait pas, jamais sur deux lignes.
     for (const r of rangees) expect(r.firstElementChild!.getAttribute('title')).toBe(r.firstElementChild!.textContent)
     // Le menu natif (clavier, liste) garde son nom accessible ; ce qu'on lit est « Auto », le détail est dans la liste.
-    const court = o.hote.querySelector('.notak-arbre-pitch-select:not([data-large])')!
+    const court = o.hote.querySelector('.notak-choix:not([data-large])')!
     expect(court.querySelector('select')!.getAttribute('aria-label')).toBe('Rapport d’aspect')
-    expect(court.querySelector('.notak-arbre-pitch-valeur')!.textContent).toBe('Auto')
+    expect(court.querySelector('.notak-choix-texte')!.textContent).toBe('Auto')
     const sujet = o.menu('Sujet comme diapositive').parentElement!
-    expect(sujet.querySelector('.notak-arbre-pitch-valeur')!.textContent).toBe('Auto')
+    expect(sujet.querySelector('.notak-choix-texte')!.textContent).toBe('Auto')
     const large = o.menu('Livraison').parentElement!
     expect(large.hasAttribute('data-large')).toBe(true)
-    expect(large.querySelector('.notak-arbre-pitch-valeur')!.textContent).toBe('Auto (Un par un, en profondeur)')
+    expect(large.querySelector('.notak-choix-texte')!.textContent).toBe('Auto (Un par un, en profondeur)')
     o.fin()
   })
 

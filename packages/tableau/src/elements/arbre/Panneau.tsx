@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Id, Sujet } from '../../coeur/tableau'
 import { t } from '../../langue'
-import { Case, Segments } from '../../communs'
+import { Case, Choix, Segments } from '../../communs'
 import type { ContexteToile } from '../types'
 import { GROUPES_MARQUEURS, Marqueur } from './marqueurs'
 import type { Geste } from './modele/gestes'
@@ -107,14 +107,14 @@ export function Panneau({ lecture: l, ids, section, faire, contexte, fermer, int
           <section data-section="lien">
             <h3>{t('arbre.lien')}</h3>
             <ChampValide key={`l${id}`} valeur={un.lien?.startsWith('sujet:') ? '' : (un.lien ?? '')} aide={t('arbre.lienAide')} valider={(v) => porter('lien', v.trim() || undefined)} />
-            <select value={un.lien?.startsWith('sujet:') ? un.lien.slice(6) : ''} onChange={(e) => porter('lien', e.target.value ? `sujet:${e.target.value}` : undefined)} aria-label={t('arbre.lienSujet')}>
-              <option value="">{t('arbre.lienSujet')}</option>
-              {[...l.sujets].filter(([x]) => x !== id).map(([x, s]) => (
-                <option key={x} value={x}>
-                  {s.titre.replace(/\n/g, ' ').slice(0, 60)}
-                </option>
-              ))}
-            </select>
+            <Choix
+              large
+              haut
+              valeur={un.lien?.startsWith('sujet:') ? un.lien.slice(6) : ''}
+              options={[{ valeur: '', libelle: t('arbre.lienSujet') }, ...[...l.sujets].filter(([x]) => x !== id).map(([x, s]) => ({ valeur: x, libelle: s.titre.replace(/\n/g, ' ').slice(0, 60) }))]}
+              onChange={(v) => porter('lien', v ? `sujet:${v}` : undefined)}
+              libelle={t('arbre.lienSujet')}
+            />
           </section>
 
           <section data-section="image">

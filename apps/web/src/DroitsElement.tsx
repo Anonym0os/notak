@@ -1,3 +1,4 @@
+import { Champ, Choix } from '@notak/tableau'
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { type DroitElement, type DroitPose, listerDroitsElement, reglerDroitElement } from './api'
 import { t } from './langue'
@@ -80,11 +81,17 @@ export function DroitsElement({ tableau, element, fermer }: { tableau: string; e
           </ul>
         )}
         <form className="partage-form" onSubmit={donner} noValidate>
-          <input type="email" placeholder={t('connexion.adresse')} aria-label={t('droitsElement.adresse')} value={email} onChange={(e) => setEmail(e.target.value)} />
-          <select value={droit} aria-label={t('partage.droit')} onChange={(e) => setDroit(e.target.value as 'edition' | 'commentaire')}>
-            <option value="edition">{t('droitsElement.edition')}</option>
-            <option value="commentaire">{t('droitsElement.commentaire')}</option>
-          </select>
+          <Champ type="email" placeholder={t('connexion.adresse')} aria-label={t('droitsElement.adresse')} value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Choix
+            haut
+            valeur={droit}
+            libelle={t('partage.droit')}
+            onChange={(v) => setDroit(v as 'edition' | 'commentaire')}
+            options={[
+              { valeur: 'edition', libelle: t('droitsElement.edition') },
+              { valeur: 'commentaire', libelle: t('droitsElement.commentaire') },
+            ]}
+          />
           <button type="submit" className="bouton bouton-plein" disabled={occupe}>
             {t('droitsElement.donner')}
           </button>

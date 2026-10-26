@@ -3,6 +3,7 @@ import { annoncer } from '../../avis'
 import { type Arbre, type Id, nouvelId } from '../../coeur/tableau'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
+import { Choix } from '../../communs'
 import type { ContexteToile } from '../types'
 import { AUTOCOLLANTS, DessinIllustration, ILLUSTRATIONS, type GroupeIllustrations, TAILLE_VIGNETTE } from './catalogue'
 import { choisirFichiers } from './Insertions'
@@ -331,14 +332,7 @@ function Autocollants({ ids, faire }: Omit<Props, 'onglet'>) {
     <>
       <label className="notak-arbre-icones-categorie">
         <span>{t('arbre.icones.categorie')}</span>
-        <select value={categorie} onChange={(e) => setCategorie(e.target.value)} aria-label={t('arbre.icones.categorie')}>
-          <option value="">{t('arbre.icones.tout')}</option>
-          {AUTOCOLLANTS.map((c) => (
-            <option key={c.cle} value={c.cle}>
-              {t(`arbre.icones.cat.${c.cle}`)}
-            </option>
-          ))}
-        </select>
+        <Choix large valeur={categorie} onChange={setCategorie} libelle={t('arbre.icones.categorie')} options={[{ valeur: '', libelle: t('arbre.icones.tout') }, ...AUTOCOLLANTS.map((c) => ({ valeur: c.cle, libelle: t(`arbre.icones.cat.${c.cle}`) }))]} />
       </label>
       <div className="notak-arbre-icones-defile">
         {AUTOCOLLANTS.filter((c) => !categorie || c.cle === categorie).map((c) => (

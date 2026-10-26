@@ -629,21 +629,6 @@ tr:first-child:last-child .notak-table-repere-ligne {
   min-width: 0;
 }
 
-.notak-table-format select,
-.notak-table-decimales {
-  width: 100%;
-  min-width: 0;
-  height: 28px;
-  box-sizing: border-box;
-  padding: 0 6px;
-  border: 1px solid rgb(0 0 0 / 0.12);
-  border-radius: 6px;
-  background: var(--notak-carte);
-  color: inherit;
-  font: inherit;
-  color-scheme: light dark;
-}
-
 .notak-table-decimales {
   width: 84px;
 }

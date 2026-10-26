@@ -18,7 +18,7 @@ import {
 } from './puces'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
-import { Calendrier, ChoixHeure } from '../../communs'
+import { Calendrier, Choix, ChoixHeure } from '../../communs'
 import { PastillePersonne } from '../../pastille'
 
 /** Où le menu s'ouvre : accroché à la puce touchée, qu'il suit quand la toile bouge. */
@@ -100,22 +100,18 @@ function PanneauEcheance({ attrs, regler }: { attrs: Record<string, unknown> | u
   return (
     <Calendrier valeur={jour} aujourdhui={jourDe(maintenant)} min={jourDe(maintenant)} effacable autoFocus choisir={(j) => regler(attrsJour(attrs, j, maintenant))}>
       <ChoixHeure valeur={heure} desactive={jour === null} changer={(h) => regler(attrsHeure(attrs, h, maintenant))} />
-      <label className="notak-menu-rappel" data-desactive={jour === null ? '' : undefined}>
+      <div className="notak-menu-rappel">
         <Icone nom="cloche" taille={20} />
-        <select
-          aria-label={t('taches.rappel')}
-          disabled={jour === null}
-          value={options.includes(rappel) ? rappel : 'aucun'}
-          onChange={(e) => regler({ rappel: e.target.value as Rappel })}
-        >
-          {(jour ? options : (['aucun'] as Rappel[])).map((r) => (
-            <option key={r} value={r}>
-              {t(`taches.rappel.${r}`)}
-            </option>
-          ))}
-        </select>
-        <Icone nom="chevronBas" taille={16} />
-      </label>
+        <Choix
+          large
+          haut
+          libelle={t('taches.rappel')}
+          inactif={jour === null}
+          valeur={options.includes(rappel) ? rappel : 'aucun'}
+          onChange={(r) => regler({ rappel: r as Rappel })}
+          options={(jour ? options : (['aucun'] as Rappel[])).map((r) => ({ valeur: r, libelle: t(`taches.rappel.${r}`) }))}
+        />
+      </div>
     </Calendrier>
   )
 }
