@@ -7,14 +7,17 @@
 /// - **Pas de retour en arrière** : seule une version plus récente s'installe, et la signature porte le numéro de la
 ///   version (`requireSignedVersion`) : une réponse trafiquée ne peut pas faire passer un vieux paquet pour un neuf.
 /// - **La page ne commande rien** : elle demande « y a-t-il du neuf ? » et « installe », sans pouvoir choisir l'adresse,
-///   la version ni la clé. Une coque construite à la main, ou pour un serveur, n'a pas de configuration de mise à jour :
-///   elle le dit (`Indisponible`) et ne cherche rien.
+///   la version ni la clé ; la page embarquée comme celle du serveur choisi, puisque c'est la même coque. Une coque
+///   construite à la main n'a pas de configuration de mise à jour : elle le dit (`Indisponible`) et ne cherche rien.
 use std::sync::Mutex;
 use std::time::Duration;
 
 use serde::Serialize;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, State, Webview};
 use tauri_plugin_updater::{Update, UpdaterExt};
+
+use crate::appel::{exiger, LOCALE_OU_SERVEUR, REFUSE};
+use crate::navigation::Origines;
 
 /// Une mise à jour téléchargée et vérifiée, prête à poser.
 struct Prete {
@@ -40,7 +43,7 @@ impl MisesAJour {
 #[derive(Serialize)]
 #[serde(tag = "etat", rename_all = "kebab-case", rename_all_fields = "camelCase")]
 pub enum Etat {
-    /// Cette app ne se met pas à jour seule : construite à la main, ou pour un serveur.
+    /// Cette app ne se met pas à jour seule : construite à la main.
     Indisponible { version: String },
     AJour { version: String },
     Prete { version: String, nouvelle: String, notes: Option<String>, date: Option<String> },
@@ -58,7 +61,8 @@ fn etat_pret(app: &AppHandle, update: &Update) -> Etat {
 /// Cherche une version plus récente et, s'il y en a une, la télécharge et vérifie sa signature avant de répondre :
 /// quand la page propose de redémarrer, il n'y a plus rien à attendre.
 #[tauri::command]
-pub async fn preparer_mise_a_jour(app: AppHandle, etat: State<'_, MisesAJour>) -> Result<Etat, String> {
+pub async fn preparer_mise_a_jour(app: AppHandle, webview: Webview, garde: State<'_, Origines>, etat: State<'_, MisesAJour>) -> Result<Etat, String> {
+    exiger(&webview, &garde, LOCALE_OU_SERVEUR).map_err(|_| REFUSE.to_string())?;
     let version = app.package_info().version.to_string();
     if !etat.active {
         return Ok(Etat::Indisponible { version });
@@ -78,15 +82,19 @@ pub async fn preparer_mise_a_jour(app: AppHandle, etat: State<'_, MisesAJour>) -
     Ok(pret)
 }
 
-/// Pose la mise à jour prête et relance Notak sur la nouvelle version.
+/// Pose la mise à jour prête et relance Notak sur la nouvelle version. Hors du fil principal, et par une demande de
+/// redémarrage : Notak quitte d'abord comme d'habitude (`RunEvent::Exit`, qui libère aussi le verrou d'instance unique),
+/// puis repart. `poser_en_partant` n'a alors plus rien à poser : la mise à jour prête a été prise ici.
 #[tauri::command]
-pub fn installer_mise_a_jour(app: AppHandle, etat: State<'_, MisesAJour>) -> Result<(), String> {
+pub async fn installer_mise_a_jour(app: AppHandle, webview: Webview, garde: State<'_, Origines>, etat: State<'_, MisesAJour>) -> Result<(), String> {
+    exiger(&webview, &garde, LOCALE_OU_SERVEUR).map_err(|_| REFUSE.to_string())?;
     let pret = etat.prete.lock().map_err(|e| e.to_string())?.take().ok_or("aucune mise à jour prête")?;
     // Sous Windows, l'installeur ferme l'app puis la relance de lui-même ; ailleurs, on relance.
     if let Err(e) = pret.update.install(&pret.octets) {
         return Err(e.to_string());
     }
-    app.restart()
+    app.request_restart();
+    Ok(())
 }
 
 /// Quand on quitte Notak avec une mise à jour prête, elle se pose en partant : la prochaine ouverture est à jour,

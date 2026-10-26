@@ -1,7 +1,7 @@
 [package]
 name = "notak-bureau"
 version = "0.1.0"
-description = "Notak de bureau : l'édition locale de Notak dans sa fenêtre, sans serveur, et ses mises à jour signées."
+description = "Notak de bureau : l'édition locale de Notak dans sa fenêtre, ou un serveur Notak choisi dans l'app, et ses mises à jour signées."
 edition = "2021"
 publish = false
 
@@ -13,23 +13,38 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+# Le décodage du nom d'un fichier que la page confie à la coque (`x-notak-nom`, en `encodeURIComponent`).
+percent-encoding = "2"
+# Joindre un serveur Notak avant d'y envoyer la fenêtre (`src/acces.rs`) : le client des mises à jour, avec ses seules
+# fonctions (sans HTTP/2 ni second moteur cryptographique, que tireraient celles par défaut).
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "json", "system-proxy"] }
+# Le moteur cryptographique de ce client : installé dès le lancement, sans quoi le premier client construit s'arrête net.
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
 serde = { version = "1", features = ["derive"] }
 # `generate_context!` s'en sert pour la configuration des plugins (celle des mises à jour).
 serde_json = "1"
 tauri = { version = "2", features = [] }
 # La fenêtre « Enregistrer sous » du système.
 tauri-plugin-dialog = "2"
-# Un lien vers un autre site, ouvert dans le navigateur de la personne (par la coque seule : la page n'y a pas droit).
+# Un lien vers un autre site, ouvert dans le navigateur de la personne, et une pièce jointe dans son application (par la
+# coque seule : la page n'y a pas droit).
 tauri-plugin-opener = "2"
+# Une seule Notak à la fois : un fichier ouvert depuis le système rejoint la fenêtre déjà là (`src/fichiers.rs`).
+tauri-plugin-single-instance = "2"
 # Les mises à jour signées (`src/mise_a_jour.rs`).
 tauri-plugin-updater = "2"
+# Le délai de grâce d'une page de serveur qui ne répond pas (`src/acces.rs`).
+tokio = { version = "1", features = ["time"] }
+# Lire une adresse de serveur : son hôte, en punycode.
+url = "2"
 
-# La photo de la fenêtre pour un signalement : `takeSnapshot` du WKWebView, l'image exacte de la page.
+# La photo de la fenêtre pour un signalement : `takeSnapshot` du WKWebView, l'image exacte de la page ; la langue du
+# système, pour le menu de l'app.
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6"
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSImage", "NSImageRep", "NSBitmapImageRep", "NSGraphics"] }
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSData", "NSDictionary", "NSError", "NSString"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSData", "NSDictionary", "NSError", "NSLocale", "NSString"] }
 objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "block2", "objc2-app-kit", "WKWebView", "WKSnapshotConfiguration"] }
 
 [profile.release]

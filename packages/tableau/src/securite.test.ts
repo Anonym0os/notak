@@ -67,6 +67,15 @@ describe('politiqueContenu', () => {
     expect(politiqueContenu('serveur', 'http://localhost:3005')).toContain('ws://localhost:3005')
   })
 
+  it('les pages d’un serveur, ouvertes dans l’app de bureau, parlent aussi à la coque', () => {
+    const connexions = /connect-src ([^;]+)/.exec(politiqueContenu('serveur', 'https://notak.exemple.fr'))![1]!.split(' ')
+    expect(connexions).toEqual(["'self'", 'blob:', 'data:', 'https://nominatim.openstreetmap.org', 'ipc:', 'http://ipc.localhost', 'wss://notak.exemple.fr'])
+    // Rien d'autre ne s'ouvre : ni scripts, ni cadres, ni formulaires vers la coque.
+    for (const directive of ['script-src', 'frame-src', 'form-action', 'default-src']) {
+      expect(new RegExp(`${directive} ([^;]+)`).exec(politiqueContenu('serveur', 'https://notak.exemple.fr'))![1], directive).not.toContain('ipc')
+    }
+  })
+
   it('HSTS seulement en HTTPS', () => {
     expect(entetesSecurite('site', { https: true })['strict-transport-security']).toBeDefined()
     expect(entetesSecurite('serveur', { https: false, origineServeur: 'http://localhost:3005' })['strict-transport-security']).toBeUndefined()

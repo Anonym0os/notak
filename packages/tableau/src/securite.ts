@@ -54,7 +54,10 @@ export type Cible = 'site' | 'bureau' | 'serveur'
 export function politiqueContenu(cible: Cible, origineServeur?: string): string {
   const connexions = ["'self'", 'blob:', 'data:', ...ORIGINES_REQUETES]
   // La coque parle à la page par son propre protocole : `ipc:` sur macOS et Linux, `http://ipc.localhost` sous Windows.
-  if (cible === 'bureau') connexions.push('ipc:', 'http://ipc.localhost')
+  // Les pages d'un serveur aussi : ouvertes dans l'app de bureau, elles parlent à la coque. Sans cela, Tauri se
+  // rabattrait sur `postMessage` pour toute la vie de la page, et chaque octet passerait en tableau de nombres.
+  // Dans un navigateur, ces adresses ne mènent nulle part : rien n'y répond.
+  if (cible === 'bureau' || cible === 'serveur') connexions.push('ipc:', 'http://ipc.localhost')
   if (cible === 'serveur' && origineServeur) {
     const u = new URL(origineServeur)
     connexions.push(`${u.protocol === 'https:' ? 'wss:' : 'ws:'}//${u.host}`)

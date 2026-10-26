@@ -1,16 +1,14 @@
 /**
  * L'app de bureau, depuis la racine du dépôt :
  *
- *   bun run bureau:construire                       l'app de bureau : l'édition locale embarquée, sans serveur
- *   bun run bureau:construire -- --serveur https://notak.exemple.fr
- *                                                   une fenêtre sur un serveur Notak (comptes, temps réel)
- *   bun run bureau:cle                              une fois pour toutes : la clé qui signe les mises à jour
+ *   bun run bureau:construire    l'app de bureau : l'édition locale embarquée ; un serveur Notak se choisit dans l'app
+ *   bun run bureau:cle           une fois pour toutes : la clé qui signe les mises à jour
  *
  * Les autres arguments vont à `tauri build` (`--bundles dmg`, `--target universal-apple-darwin`…).
  */
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
-import { homedir, tmpdir } from 'node:os'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
@@ -19,57 +17,21 @@ const racine = new URL('..', import.meta.url).pathname
 const coque = join(racine, 'apps/bureau/src-tauri')
 const PUBLICATION = join(coque, 'tauri.publication.json')
 
-/** Ce que peut une page servie par un serveur Notak dans la coque : la même chose que l'app embarquée, plus la photo d'un signalement, moins les mises à jour (la coque d'un serveur n'en a pas). */
-const DROITS_SERVEUR = [
-  'core:window:allow-start-dragging',
-  'core:window:allow-internal-toggle-maximize',
-  'allow-choisir-emplacement',
-  'allow-ecrire-fichier',
-  'allow-capturer-fenetre',
-]
-
-/**
- * La configuration d'une coque pour un serveur : la fenêtre s'ouvre sur lui, et seules ses pages reçoivent les droits
- * de la coque (une capacité limitée à son origine, au lieu de « tout site en https »). Pas de mise à jour automatique :
- * celles du projet remplaceraient cette coque par l'app sans serveur.
- */
-export function configServeur(adresse: string): object {
-  let u: URL
-  try {
-    u = new URL(adresse)
-  } catch {
-    throw new Error(`Adresse illisible : ${adresse}`)
-  }
-  const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1'
-  // Les webviews (macOS surtout) refusent le HTTP simple hors de la machine.
-  if (u.protocol !== 'https:' && !(local && u.protocol === 'http:')) throw new Error('Un serveur distant se joint en https')
-  if (u.username || u.password || u.search || u.hash) throw new Error('Une adresse de serveur, sans identifiants ni paramètres')
-  return {
-    build: { frontendDist: u.origin, beforeBuildCommand: null },
-    app: {
-      security: {
-        capabilities: [{ identifier: 'serveur', windows: ['principale'], remote: { urls: [`${u.origin}/*`] }, permissions: DROITS_SERVEUR }],
-      },
-    },
-  }
-}
-
 function tauri(args: string[], env: NodeJS.ProcessEnv = process.env): number {
   const r = spawnSync('bunx', [CLI, ...args], { cwd: coque, stdio: 'inherit', env, shell: process.platform === 'win32' })
   return r.status ?? 1
 }
 
-function construire(args: string[]): number {
-  const i = args.indexOf('--serveur')
-  if (i < 0) return tauri(['build', ...args])
-  const adresse = args[i + 1]
-  if (!adresse) throw new Error('--serveur <https://notak.exemple.fr>')
-  const reste = [...args.slice(0, i), ...args.slice(i + 2)]
-  const fichier = join(mkdtempSync(join(tmpdir(), 'notak-bureau-')), 'serveur.json')
-  writeFileSync(fichier, JSON.stringify(configServeur(adresse), null, 2))
-  console.log(`Une coque pour ${new URL(adresse).origin}, sans mise à jour automatique.`)
-  return tauri(['build', '--config', fichier, ...reste])
+/**
+ * Les arguments de `tauri build`. Il n'y a plus de coque construite pour un serveur : la même app, mise à jour comme
+ * les autres, joint le serveur que la personne choisit (`apps/bureau/src-tauri/src/acces.rs`).
+ */
+export function argumentsDeConstruction(args: string[]): string[] {
+  if (args.includes('--serveur')) throw new Error('--serveur n’existe plus : le serveur Notak se choisit dans l’app (« Changer de serveur… »)')
+  return ['build', ...args]
 }
+
+const construire = (args: string[]): number => tauri(argumentsDeConstruction(args))
 
 /**
  * La clé des mises à jour : la privée chez soi (`~/.tauri/notak.key`, protégée par un mot de passe), la publique dans

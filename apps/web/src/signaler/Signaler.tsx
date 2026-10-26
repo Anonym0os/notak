@@ -1,6 +1,7 @@
 import { Icone, Infobulle, capturerEcran } from '@notak/tableau'
 import { type PointerEvent as PointeurReact, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
+import { octetsDe } from '../bureau'
 import { t } from '../langue'
 import { contexteEnMarkdown, estLeRaccourci, releverContexte } from './contexte'
 import { erreursRecentes, poserJournal } from './journal'
@@ -62,8 +63,9 @@ async function photographierLaFenetre(): Promise<Image | null> {
   const coque = tauri()
   if (!coque) return null
   try {
-    const octets = await coque.invoke<ArrayBuffer>('capturer_fenetre')
-    const canevas = await canevasDe(new Blob([octets], { type: 'image/png' }))
+    // En `ArrayBuffer` par le canal de la coque, en tableau de nombres si la page est passée par `postMessage`.
+    const octets = octetsDe(await coque.invoke<unknown>('capturer_fenetre'))
+    const canevas = await canevasDe(new Blob([octets as Uint8Array<ArrayBuffer>], { type: 'image/png' }))
     return imageDe(canevas, canevas.width / window.innerWidth)
   } catch (e) {
     console.warn('Notak : photo de la fenêtre impossible, la page sera recopiée', e)
