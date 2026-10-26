@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { fournisseursDe, secretDe } from './auth.ts'
 import { type Cle, ErreurChiffrement, lireCle } from './chiffrement.ts'
+import { adminsDe } from './comptes.ts'
 import { instanceDe } from './instance.ts'
 import { type ServeurDemarre, demarrer } from './serveur.ts'
 
@@ -39,6 +40,9 @@ try {
     cle,
     // Les signalements de bugs (⇧⌘S) : d'office en développement, dans les données ; ailleurs, là où le dit l'instance.
     dossierSignalements: process.env.NOTAK_SIGNALEMENTS || (origine ? null : join(dossier, 'signalements')),
+    admins: adminsDe(process.env.NOTAK_ADMINS),
+    // Un serveur de développement (sans adresse publique) ne cherche pas de mise à jour : il est en avance sur elles.
+    misesAJour: Boolean(origine) && process.env.NOTAK_VERIFIER_MAJ?.trim() !== '0',
   })
 } catch (e) {
   if (!(e instanceof ErreurChiffrement)) throw e

@@ -37,3 +37,10 @@ updates:
     schedule:
       interval: weekly
       day: monday
+
+  # Les images que tire compose.yaml (OpenFGA) ; celle de Notak suit ses propres versions (NOTAK_VERSION).
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday

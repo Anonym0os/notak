@@ -1,16 +1,17 @@
 /**
- * Prépare une nouvelle version de l'app de bureau, en une commande :
+ * Prépare une nouvelle version de Notak (l'app de bureau, l'image du serveur, la toile : un seul numéro), en une commande :
  *
  *   bun run nouvelle-version 0.2.0
  *
  * 1. vérifie que le numéro suit le précédent et que rien n'est en cours dans le dépôt ;
  * 2. fait des notes « À venir » de `docs/NOUVEAUTES.md` celles de la version (à défaut, la liste des commits depuis la
  *    version d'avant) ;
- * 3. écrit le numéro partout où il vit : `tauri.conf.json` (celui que voit l'app), `Cargo.toml` et `Cargo.lock` ;
+ * 3. écrit le numéro partout où il vit : `tauri.conf.json` (celui que voit l'app), `Cargo.toml` et `Cargo.lock`, le
+ *    `package.json` de `packages/tableau` et son `VERSION_NOTAK` (celui que montrent les réglages et que dit le serveur) ;
  * 4. en fait un commit et une étiquette `v0.2.0`.
  *
  * Rien ne part : `git push origin HEAD v0.2.0` lance la publication (`docs/MISES-A-JOUR.md`), qui s'arrête sur un
- * brouillon à relire avant que les apps installées ne le voient.
+ * brouillon à relire avant que les apps installées et les serveurs ne le voient.
  */
 import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -22,6 +23,8 @@ const racine = new URL('..', import.meta.url).pathname
 const CONF = 'apps/bureau/src-tauri/tauri.conf.json'
 const CARGO = 'apps/bureau/src-tauri/Cargo.toml'
 const VERROU = 'apps/bureau/src-tauri/Cargo.lock'
+const PAQUET = 'packages/tableau/package.json'
+const VERSION_TS = 'packages/tableau/src/version.ts'
 const NOUVEAUTES = 'docs/NOUVEAUTES.md'
 export const A_VENIR = '## À venir'
 
@@ -33,11 +36,14 @@ export function suit(a: string, b: string): boolean {
 }
 
 /** Le numéro remplacé dans chaque fichier, à sa place, sans rien toucher d'autre. */
-export function avecVersion(fichier: 'conf' | 'cargo' | 'verrou', texte: string, version: string): string {
+export function avecVersion(fichier: 'conf' | 'cargo' | 'verrou' | 'paquet' | 'tableau', texte: string, version: string): string {
   const motif = {
     conf: /^(\s*"version":\s*")[^"]+(")/m,
     cargo: /^(\[package\][^[]*?\nversion = ")[^"]+(")/,
     verrou: /(\nname = "notak-bureau"\nversion = ")[^"]+(")/,
+    // Le premier « version » d'un package.json est le sien : ceux des dépendances viennent après, et sans espace en tête.
+    paquet: /^(\s*"version":\s*")[^"]+(")/m,
+    tableau: /^(export const VERSION_NOTAK = ')[^']+(')/m,
   }[fichier]
   if (!motif.test(texte)) throw new Error(`Pas de numéro de version à remplacer (${fichier})`)
   return texte.replace(motif, `$1${version}$2`)
@@ -87,13 +93,15 @@ function principal(version: string | undefined) {
   ecrire(CONF, avecVersion('conf', lire(CONF), version))
   ecrire(CARGO, avecVersion('cargo', lire(CARGO), version))
   ecrire(VERROU, avecVersion('verrou', lire(VERROU), version))
-  git('add', NOUVEAUTES, CONF, CARGO, VERROU)
-  git('commit', '-q', '-m', `Bureau : version ${version}`)
+  ecrire(PAQUET, avecVersion('paquet', lire(PAQUET), version))
+  ecrire(VERSION_TS, avecVersion('tableau', lire(VERSION_TS), version))
+  git('add', NOUVEAUTES, CONF, CARGO, VERROU, PAQUET, VERSION_TS)
+  git('commit', '-q', '-m', `Notak : version ${version}`)
   git('tag', '-a', `v${version}`, '-m', `Notak ${version}\n\n${notes}`)
 
   console.log(`\nNotak ${version} est prête à partir. Ses notes :\n\n${notes}\n`)
   console.log(`Pour la publier :  git push origin HEAD v${version}`)
-  console.log('GitHub construit et signe les apps, puis prépare un brouillon : relisez-le, essayez-le, et « Publish release ».')
+  console.log('GitHub construit et signe les apps, construit l’image du serveur, puis prépare un brouillon : relisez-le, essayez-le, et « Publish release ».')
   console.log(`Pour renoncer avant d'avoir poussé :  git tag -d v${version} && git reset --hard HEAD~1`)
 }
 

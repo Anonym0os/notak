@@ -18,7 +18,7 @@ met à jour d'elle-même, de versions signées ([`apps/bureau`](apps/bureau/READ
 [`docs/PUBLIER.md`](docs/PUBLIER.md#ce-qui-sort-de-lappareil).
 
 Pour travailler à plusieurs en temps réel (comptes, partage, curseurs en direct), installez votre propre Notak : il
-est libre et tient dans un conteneur (voir [Héberger](#héberger)).
+est libre et s'installe d'un seul fichier `docker compose` (voir [Héberger](#héberger)).
 
 ## Deux éditions, un seul code
 
@@ -28,7 +28,7 @@ est libre et tient dans un conteneur (voir [Héberger](#héberger)).
 | Comptes | aucun | oui |
 | À plusieurs | on s'échange des `.notak`, ou un dossier partagé synchronisé | en direct : présence, curseurs, commentaires, partage par adresse ou par lien |
 | Aperçus de liens | l'adresse seule (un navigateur ne peut pas lire les autres sites) | titre, image, lecteur |
-| Tourne sur | n'importe quel hébergement statique | un conteneur Docker |
+| Tourne sur | n'importe quel hébergement statique | Docker (Notak et OpenFGA, amd64 ou arm64) |
 
 Les deux se construisent depuis `apps/web` ; `VITE_EDITION=locale` choisit l'édition locale à la construction, et
 aucun des deux paquets ne contient le code de l'autre.
@@ -73,24 +73,35 @@ de synchro tirés au hasard). Le code est décrit dans [`docs/ARCHITECTURE.md`](
 
 ### L'édition serveur (comptes, travail à plusieurs en direct)
 
-Un seul conteneur sert l'application, les comptes et le travail à plusieurs, sur le port 3005. Les données (base
-SQLite et fichiers envoyés) vivent dans le volume `/donnees`.
+Deux conteneurs : Notak sert l'application, les comptes et le travail à plusieurs, sur le port 3005, et
+[OpenFGA](https://openfga.dev) évalue les droits (qui lit, commente, écrit ou possède chaque tableau). Les données de
+Notak (base SQLite et fichiers envoyés) vivent dans le volume `notak-donnees` et font foi : OpenFGA n'en tient qu'une
+copie, refaite depuis elles s'il la perd. L'image est publiée pour amd64 et arm64 (`ghcr.io/anonym0os/notak`) ; il
+suffit de [`compose.yaml`](compose.yaml) :
 
 ```bash
-git clone https://github.com/Anonym0os/notak
-cd notak
-docker build -t notak .
-docker run -d -p 3005:3005 -v notak-donnees:/donnees notak
+mkdir notak && cd notak
+curl -fsSLO https://raw.githubusercontent.com/Anonym0os/notak/main/compose.yaml
+NOTAK_ORIGINE=https://notak.exemple.fr NOTAK_ADMINS=vous@exemple.fr docker compose up -d
 ```
 
+Mettre à jour : `docker compose pull && docker compose up -d`. La base est copiée avant chaque migration
+(`notak.db.avant-<n>` dans `/donnees`) ; le serveur dit de lui-même, dans son journal et aux admins
+(`NOTAK_ADMINS`), qu'une nouvelle version existe. Pour construire depuis les sources :
+`docker compose -f compose.yaml -f compose.source.yaml up -d --build`.
+
 L'image suppose un relais HTTPS devant elle (cookie `Secure`, adresse du client lue dans `X-Forwarded-For`).
-Pour l'essayer en HTTP sur sa machine : `-e NOTAK_COOKIE_SECURISE=0 -e NOTAK_RELAIS=0`.
+Pour l'essayer en HTTP sur sa machine : `NOTAK_COOKIE_SECURISE=0 NOTAK_RELAIS=0 docker compose up -d`.
+
+L'app de bureau se connecte à votre serveur : on y entre son adresse (en HTTPS avec un vrai certificat). La connexion
+par Google, Microsoft, GitHub ou un SSO passe par le navigateur et un code à confirmer.
 
 La banque d'images du panneau « Image » interroge Pexels : donner une clé gratuite par `-e PEXELS_API_KEY=…`. Sans
 elle, le panneau ne propose que l'envoi de ses propres fichiers.
 
-Le nom de l'instance, les inscriptions fermées, les thèmes fournis ou imposés, Coolify et les sauvegardes :
-[`docs/AUTO-HEBERGER.md`](docs/AUTO-HEBERGER.md), avec un [`compose.yaml`](compose.yaml) prêt à l'emploi.
+Le nom de l'instance, les inscriptions fermées, les thèmes fournis ou imposés, Coolify, les sauvegardes, les mises à
+jour (et le retour en arrière), la vérification de l'image et l'app de bureau :
+[`docs/AUTO-HEBERGER.md`](docs/AUTO-HEBERGER.md).
 
 #### Le chiffrement au repos
 
@@ -109,14 +120,14 @@ sauvegardes, pas un chiffrement de bout en bout.
 | `NOTAK_CLE_FICHIER` | Ou le chemin d'un fichier qui la contient (un secret Docker, par exemple), lisible par l'utilisateur `node` de l'image. L'une ou l'autre, jamais les deux. |
 
 ```bash
-docker run -d -p 3005:3005 -v notak-donnees:/donnees -e NOTAK_CLE_FICHIER=/run/secrets/notak_cle \
-  -v /root/notak_cle:/run/secrets/notak_cle:ro notak
+docker run -d -p 3005:3005 -v notak-donnees:/donnees -e NOTAK_OPENFGA_URL=http://openfga:8080 \
+  -e NOTAK_CLE_FICHIER=/run/secrets/notak_cle -v /root/notak_cle:/run/secrets/notak_cle:ro ghcr.io/anonym0os/notak
 ```
 
 Sans clé, rien ne change. Avec une clé, ce qui a été écrit avant se lit toujours et repart chiffré à sa prochaine
 écriture ; pour tout chiffrer d'un coup, arrêter le serveur et lancer `bun run serveur:chiffrer` avec les mêmes
 variables (`NOTAK_DONNEES` pour le dossier des données), ou dans l'image :
-`docker run --rm -v notak-donnees:/donnees -e NOTAK_CLE=… notak node apps/serveur/outils/chiffrer.ts`.
+`docker run --rm -v notak-donnees:/donnees -e NOTAK_CLE=… ghcr.io/anonym0os/notak node apps/serveur/outils/chiffrer.ts`.
 Une clé fausse, ou une clé absente devant des données chiffrées, arrête le serveur au démarrage plutôt que de servir
 des tableaux vides.
 

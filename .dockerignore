@@ -5,3 +5,6 @@ apps/serveur/data
 .claude
 **/*.tsbuildinfo
 .DS_Store
+# La coque de bureau ne sert pas à l'image du serveur : ses constructions pèsent des gigaoctets.
+apps/bureau/src-tauri/target
+**/dist-bureau

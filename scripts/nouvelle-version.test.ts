@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { avecNotes, avecVersion, suit } from './nouvelle-version'
 
@@ -18,6 +20,33 @@ describe('le numéro de la version suivante', () => {
     const verrou = '[[package]]\nname = "notak-bureau"\nversion = "0.1.0"\n\n[[package]]\nname = "tauri"\nversion = "2.12.5"\n'
     expect(avecVersion('verrou', verrou, '0.2.0')).toBe(verrou.replace('0.1.0', '0.2.0'))
     expect(() => avecVersion('verrou', 'rien', '0.2.0')).toThrow()
+  })
+
+  it('le même numéro pour la toile : son package.json et VERSION_NOTAK', () => {
+    const paquet = '{\n  "name": "@notak/tableau",\n  "version": "0.1.0",\n  "dependencies": {\n    "animejs": "4.5.0"\n  }\n}\n'
+    expect(avecVersion('paquet', paquet, '0.2.0')).toBe(paquet.replace('"version": "0.1.0"', '"version": "0.2.0"'))
+    const ts = "/** La version de Notak. */\nexport const VERSION_NOTAK = '0.1.0'\n"
+    expect(avecVersion('tableau', ts, '0.2.0')).toBe("/** La version de Notak. */\nexport const VERSION_NOTAK = '0.2.0'\n")
+    expect(() => avecVersion('tableau', 'export const AUTRE = "0.1.0"', '0.2.0')).toThrow()
+  })
+
+  it('les vrais fichiers du dépôt ont tous un numéro à remplacer, et le même', () => {
+    const racine = new URL('..', import.meta.url).pathname
+    const lus = {
+      conf: 'apps/bureau/src-tauri/tauri.conf.json',
+      cargo: 'apps/bureau/src-tauri/Cargo.toml',
+      verrou: 'apps/bureau/src-tauri/Cargo.lock',
+      paquet: 'packages/tableau/package.json',
+      tableau: 'packages/tableau/src/version.ts',
+    } as const
+    const actuelle = (JSON.parse(readFileSync(join(racine, lus.conf), 'utf8')) as { version: string }).version
+    for (const [fichier, chemin] of Object.entries(lus) as [keyof typeof lus, string][]) {
+      const texte = readFileSync(join(racine, chemin), 'utf8')
+      const apres = avecVersion(fichier, texte, '99.0.0')
+      expect(apres, chemin).toContain('99.0.0')
+      // Rien d'autre ne bouge : remettre l'ancien numéro rend le fichier tel quel.
+      expect(avecVersion(fichier, apres, actuelle), chemin).toBe(texte)
+    }
   })
 })
 

@@ -1,0 +1,14 @@
+# Construire l'image de Notak depuis ce dépôt plutôt que de prendre celle qui est publiée (docs/AUTO-HEBERGER.md) :
+#
+#   docker compose -f compose.yaml -f compose.source.yaml up -d --build
+#
+# Pour une version modifiée, la vôtre : l'AGPL demande alors d'en publier le code à qui s'en sert.
+services:
+  notak:
+    image: notak:source
+    # Toujours construite ici, jamais tirée d'un registre.
+    pull_policy: build
+    build:
+      context: .
+      args:
+        NOTAK_VERSION: source

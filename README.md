@@ -17,7 +17,7 @@ updates itself from signed releases ([`apps/bureau`](apps/bureau/README.md), [`d
 in French). What can leave your device, and to whom: [`docs/PUBLIER.md`](docs/PUBLIER.md#ce-qui-sort-de-lappareil).
 
 Want to work together in real time (accounts, sharing, live cursors)? Install your own Notak: it is free software
-and fits in one container (see [Self-host](#self-host)).
+and installs with one `docker compose` file (see [Self-host](#self-host)).
 
 ## Two editions, one codebase
 
@@ -27,7 +27,7 @@ and fits in one container (see [Self-host](#self-host)).
 | Accounts | none | yes |
 | Working together | swap `.notak` files, or sync a shared folder | live: presence, cursors, comments, sharing by address or link |
 | Link previews | address only (browsers can't read other sites) | title, image, player |
-| Runs on | any static host | one Docker container |
+| Runs on | any static host | Docker (Notak and OpenFGA, amd64 or arm64) |
 
 Both are built from `apps/web`; `VITE_EDITION=locale` selects the local one at build time, and neither bundle
 contains the other's code.
@@ -66,18 +66,31 @@ scenarios). The code is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 Two containers: Notak serves the app, the accounts and live collaboration on port 3005, and
 [OpenFGA](https://openfga.dev) evaluates permissions (who can read, comment, edit or own each board). Notak's data
 (SQLite database and uploaded files) lives in the `notak-donnees` volume and is the source of truth: OpenFGA only
-holds a copy, rebuilt from it if it is ever lost.
+holds a copy, rebuilt from it if it is ever lost. The image is published for amd64 and arm64
+(`ghcr.io/anonym0os/notak`); all you need is [`compose.yaml`](compose.yaml):
 
 ```bash
-git clone https://github.com/Anonym0os/notak
-cd notak
-NOTAK_ORIGINE=https://notak.example.com docker compose up -d
+mkdir notak && cd notak
+curl -fsSLO https://raw.githubusercontent.com/Anonym0os/notak/main/compose.yaml
+NOTAK_ORIGINE=https://notak.example.com NOTAK_ADMINS=you@example.com docker compose up -d
 ```
 
 To run the Notak image on its own, point it at an OpenFGA server with `-e NOTAK_OPENFGA_URL=http://openfga:8080`.
 
+To update: `docker compose pull && docker compose up -d`. The server tells you when a new version is out, in its log
+and in the app for the addresses listed in `NOTAK_ADMINS`, by reading the same release announcement as the desktop
+app every twelve hours (`NOTAK_VERIFIER_MAJ=0` turns this off). Pin a version with `NOTAK_VERSION=0.2.0` (or `0.2`)
+in a `.env` file next to `compose.yaml`. To build from source instead:
+`docker compose -f compose.yaml -f compose.source.yaml up -d --build`. Each published image carries a provenance
+attestation: `gh attestation verify oci://ghcr.io/anonym0os/notak:0.2.0 -R Anonym0os/notak`.
+
 The image expects an HTTPS reverse proxy in front of it (`Secure` cookie, client address read from
-`X-Forwarded-For`). To try it over plain HTTP on your machine: `-e NOTAK_COOKIE_SECURISE=0 -e NOTAK_RELAIS=0`.
+`X-Forwarded-For`). To try it over plain HTTP on your machine:
+`NOTAK_COOKIE_SECURISE=0 NOTAK_RELAIS=0 docker compose up -d`.
+
+The desktop app connects to your server: enter its address in the app (HTTPS with a real certificate, except on
+`localhost`). Signing in with Google, Microsoft, GitHub or a space's SSO goes through your browser and a code to
+confirm.
 
 Accounts go through [Better Auth](https://www.better-auth.com). Set the server's public address so sign-in
 links and provider callbacks point to it: `-e NOTAK_ORIGINE=https://notak.example.com`. Optional settings:
@@ -89,13 +102,15 @@ links and provider callbacks point to it: `-e NOTAK_ORIGINE=https://notak.exampl
 | `NOTAK_IDP_INTERNES` | Comma-separated origins of identity providers on your private network (e.g. `http://keycloak.lan`) that a team space may declare for SSO. Public providers (Okta, Entra ID, Google Workspace) need nothing. |
 | `NOTAK_SMTP_URL`, `NOTAK_EXPEDITEUR` | Sends password-reset and verification emails (`smtps://user:password@host:465`). Without it, the links go to the server log for the administrator to pass on. |
 
-Before upgrading, the server copies the database to `notak.db.avant-<version>` in `/donnees`, then migrates it.
+Before each migration, the server copies the database to `notak.db.avant-<n>` in `/donnees`, then migrates it. A
+migrated database refuses older code, so rolling back means the previous image plus that copy (see
+[`docs/AUTO-HEBERGER.md`](docs/AUTO-HEBERGER.md), "Mettre à jour").
 
 The "Image" panel's photo library queries Pexels: pass a free key with `-e PEXELS_API_KEY=…`. Without it, the panel
 only offers uploading your own files.
 
-Your instance's name, closed sign-ups, the themes it provides or enforces, Coolify and backups:
-[`docs/AUTO-HEBERGER.md`](docs/AUTO-HEBERGER.md) (in French), with a ready-made [`compose.yaml`](compose.yaml).
+Your instance's name, closed sign-ups, the themes it provides or enforces, Coolify, backups, updates and rollback,
+and the desktop app: [`docs/AUTO-HEBERGER.md`](docs/AUTO-HEBERGER.md) (in French).
 
 #### Encryption at rest
 
@@ -112,14 +127,14 @@ export and public links all keep working: this protects the disk and its backups
 | `NOTAK_CLE_FICHIER` | Or the path of a file holding it (a Docker secret, say), readable by the image's `node` user. Give one or the other, never both. |
 
 ```bash
-docker run -d -p 3005:3005 -v notak-donnees:/donnees -e NOTAK_CLE_FICHIER=/run/secrets/notak_cle \
-  -v /root/notak_cle:/run/secrets/notak_cle:ro notak
+docker run -d -p 3005:3005 -v notak-donnees:/donnees -e NOTAK_OPENFGA_URL=http://openfga:8080 \
+  -e NOTAK_CLE_FICHIER=/run/secrets/notak_cle -v /root/notak_cle:/run/secrets/notak_cle:ro ghcr.io/anonym0os/notak
 ```
 
 Without a key, nothing changes. With one, data written before stays readable and is encrypted the next time it is
 saved; to encrypt everything at once, stop the server and run `bun run serveur:chiffrer` with the same variables
 (`NOTAK_DONNEES` for the data folder), or in the image:
-`docker run --rm -v notak-donnees:/donnees -e NOTAK_CLE=… notak node apps/serveur/outils/chiffrer.ts`.
+`docker run --rm -v notak-donnees:/donnees -e NOTAK_CLE=… ghcr.io/anonym0os/notak node apps/serveur/outils/chiffrer.ts`.
 A wrong key, or a missing one in front of encrypted data, stops the server at startup rather than serving empty
 boards.
 

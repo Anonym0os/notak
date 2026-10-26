@@ -13,6 +13,17 @@
   recherche automatique, avec ce qu'elle envoie (voir plus bas).
 - **La version web** (notak.app, un serveur Notak) prend la nouvelle version à la prochaine page ouverte. Une page déjà
   ouverte le sait et propose *Recharger*, au lieu de laisser des morceaux de l'ancienne version échouer.
+- **Un serveur Notak** ne se met pas à jour seul : c'est à son admin de tirer la nouvelle image. Il le lui dit : une
+  minute après son démarrage puis toutes les douze heures, il lit la même annonce que les apps (`latest.json`) ; s'il
+  trouve plus récent que lui, il l'écrit une fois dans son journal, avec la commande à lancer, et les admins du serveur
+  (`NOTAK_ADMINS`) le voient dans l'app. `NOTAK_VERIFIER_MAJ=0` coupe la vérification.
+
+## Un seul numéro
+
+L'app de bureau, l'image du serveur et la toile portent le même numéro, posé par `bun run nouvelle-version` dans
+`tauri.conf.json`, `Cargo.toml`, `Cargo.lock`, `packages/tableau/package.json` et `VERSION_NOTAK`
+(`packages/tableau/src/version.ts`, celui que montrent les réglages et que dit le serveur sur `/api/sante`). La
+publication refuse une étiquette qui ne s'accorde pas avec eux tous.
 
 ## Une fois pour toutes : la clé de signature
 
@@ -33,6 +44,8 @@ clé publique est dans chaque app (`apps/bureau/src-tauri/tauri.publication.json
    `APPLE_SIGNING_IDENTITY`, et pour la notarisation `APPLE_ID`, `APPLE_PASSWORD` (un mot de passe d'app),
    `APPLE_TEAM_ID`. Sans eux, l'app est signée « ad hoc » : macOS demande une fois, à la première ouverture, de
    confirmer dans *Réglages → Confidentialité et sécurité*. Les mises à jour, elles, passent sans rien demander.
+5. Après la première publication de l'image du serveur : sur GitHub, *Packages → notak → Package settings → Change
+   visibility → Public*. Un paquet du registre naît privé ; sans cela, `docker compose pull` demande un compte.
 
 ## Publier une version
 
@@ -48,14 +61,22 @@ git push origin HEAD v0.2.0         # lance la publication
 2. **Il demande votre accord** (l'environnement `publication`), puis construit Notak pour macOS (Apple et Intel),
    Windows et Linux, signe chaque paquet, et dépose le tout dans un **brouillon** de version, avec `latest.json` (ce
    que lisent les apps) et `SHA256SUMS.txt`. `latest.json` ne s'écrit que si les quatre plateformes sont là et signées.
+   Dans le même temps, il construit l'image du serveur sur une machine amd64 et une machine arm64, la publie sous
+   `ghcr.io/anonym0os/notak:0.2.0` seulement, et l'atteste (provenance signée par GitHub). L'accord se redemande une
+   fois, pour réunir les deux architectures sous ce numéro.
 3. **Vous relisez le brouillon.** Tant qu'il est brouillon, aucune app ne le voit :
    - téléchargez le paquet de votre plateforme, installez-le, et faites le tour de ce qui a changé ;
    - relisez les notes : ce sont elles que montre *Nouveautés* ;
    - vérifiez que `latest.json` annonce le bon numéro (la CI a déjà vérifié qu'il couvre les quatre plateformes et que
      chaque paquet est signé).
+   - pour le serveur : `NOTAK_VERSION=0.2.0 docker compose pull && NOTAK_VERSION=0.2.0 docker compose up -d` sur un
+     serveur d'essai, puis `gh attestation verify oci://ghcr.io/anonym0os/notak:0.2.0 -R Anonym0os/notak`.
 4. **Publish release.** Les apps installées la trouvent à leur prochaine recherche (au plus six heures, ou au prochain
    lancement). Sur une machine restée à la version d'avant, *Rechercher maintenant* doit la trouver : c'est la
-   vérification de bout en bout. Si quelque chose cloche, voir plus bas.
+   vérification de bout en bout. Dans le même temps, `.github/workflows/annoncer-serveur.yml` vérifie que l'image de
+   cette version existe, pour les deux architectures et à son numéro, puis lui donne les étiquettes `0.2` et `latest`,
+   sans jamais les faire reculer (une correction 0.1.5 publiée après la 0.2.0 prend `0.1`, pas `latest`). Les serveurs
+   la voient à leur prochaine vérification. Si quelque chose cloche, voir plus bas.
 
 Renoncer avant d'avoir poussé : `git tag -d v0.2.0 && git reset --hard HEAD~1`. Après avoir poussé : supprimez le
 brouillon et l'étiquette sur GitHub, corrigez, et repartez d'un nouveau numéro.
@@ -64,7 +85,9 @@ brouillon et l'étiquette sur GitHub, corrigez, et repartez d'un nouveau numéro
 
 - **Une version publiée est mauvaise** : repassez-la en *pre-release* (ou supprimez-la) ; `latest` redevient la
   précédente, et plus personne ne la reçoit. Ceux qui l'ont déjà ne reviennent pas en arrière (une app n'installe
-  qu'une version plus récente) : publiez vite une version corrigée, avec un numéro plus grand.
+  qu'une version plus récente) : publiez vite une version corrigée, avec un numéro plus grand. L'étiquette `latest` de
+  l'image, elle, ne recule pas d'elle-même : la nouvelle version corrigée la reprendra ; d'ici là, un admin revient
+  en arrière comme le dit [`AUTO-HEBERGER.md`](AUTO-HEBERGER.md) (« Mettre à jour »).
 - **La clé est perdue** : les apps installées ne pourront plus se mettre à jour. Faites une nouvelle clé
   (`bun run bureau:cle -- --remplacer`), publiez, et dites à chacun de réinstaller Notak depuis la page des versions.
 - **La clé est volée** : même chose, sans attendre, et révoquez les secrets GitHub. Tant qu'il n'a pas aussi la main sur
@@ -77,7 +100,9 @@ brouillon et l'étiquette sur GitHub, corrigez, et repartez d'un nouveau numéro
 | un paquet trafiqué (en route, ou sur GitHub) | la signature Ed25519 de chaque paquet, vérifiée avant toute installation avec la clé publique embarquée |
 | une réponse trafiquée qui fait passer une vieille version (à faille) pour une neuve | une app n'installe qu'une version plus récente, et la signature porte le numéro signé (`requireSignedVersion`) |
 | quelqu'un qui pousse une étiquette pour signer son code | l'environnement `publication` : accord d'une personne, étiquettes `v*` seulement |
-| une action GitHub tierce compromise | les actions épinglées à un commit ; aucune action tierce ne touche la clé (le build est `tauri build`) |
+| une action GitHub tierce compromise | les actions épinglées à un commit ; aucune action tierce ne touche la clé (l'empaquetage et la signature sont la CLI de Tauri) |
+| une dépendance piégée (un script npm, un plugin de Vite, un script de construction de Cargo) qui lirait la clé | la clé n'existe pas pendant la compilation (`tauri build --no-bundle`) : elle n'arrive qu'après, pour `tauri bundle` (macOS, avec le certificat Apple) ou `tauri signer sign` (Linux, Windows) |
+| une image du serveur trafiquée sur le registre | l'attestation de provenance (`gh attestation verify`) ; les étiquettes `latest` et `0.2` désignent l'image attestée, jamais une reconstruite |
 | un cache empoisonné par une autre branche | aucun cache dans la publication |
 | la page qui demanderait une autre adresse, une autre clé ou une vieille version | la page ne fait que demander « y a-t-il du neuf ? » et « installe » : l'adresse, la clé et la règle sont dans la coque (`src/mise_a_jour.rs`) |
 | une app d'essai, construite à la main, qui se remplacerait par la version publiée | seule la publication ajoute la configuration des mises à jour (`tauri.publication.json`) ; sans elle, l'app le dit et ne cherche rien |
@@ -89,6 +114,9 @@ téléchargement du paquet chez GitHub. GitHub voit l'adresse IP et la version d
 identifiant. C'est la seule chose que l'app de bureau fait d'elle-même sur le réseau ; on la coupe dans « Où sont mes
 toiles ? ».
 
+Un serveur fait la même requête, toutes les douze heures, et ne télécharge rien : il ne fait que comparer les numéros.
+`NOTAK_VERIFIER_MAJ=0` la coupe ; un serveur de développement (sans `NOTAK_ORIGINE`) ne la fait jamais.
+
 ## Les dépendances
 
 Dependabot (`.github/dependabot.yml`) propose chaque semaine les mises à jour des dépendances (JavaScript, Rust, actions
@@ -98,6 +126,15 @@ request de Dependabot passe par la même CI qu'une autre ; une fois fusionnée, 
 ## Construire à la main
 
 - `bun run bureau:construire` : l'app de bureau, sans configuration de mise à jour (une app d'essai ne se met pas à jour).
-- `bun run bureau:construire -- --serveur https://notak.exemple.fr` : une fenêtre sur un serveur Notak (comptes, temps
-  réel), dont seules les pages reçoivent les droits de la coque. Elle ne se met pas à jour seule ; son contenu, servi
-  par le serveur, l'est à chaque ouverture.
+- `docker compose -f compose.yaml -f compose.source.yaml up -d --build` : le serveur, depuis le dépôt (voir
+  [`AUTO-HEBERGER.md`](AUTO-HEBERGER.md)).
+
+## Se connecter à un serveur Notak
+
+Plus besoin d'une app construite pour un serveur : l'app de bureau publiée s'y connecte. On entre l'adresse du serveur
+dans l'app (`https://notak.exemple.fr`, un vrai certificat : seul `http://localhost` s'en passe) ; elle vérifie que
+c'est un serveur Notak assez récent (`GET /api/sante`), puis ouvre ses pages dans sa fenêtre, et, si l'on a choisi de
+garder l'adresse, y revient à chaque ouverture. Le contenu, servi par le serveur, est à jour à chaque ouverture ; la
+coque, elle, se met à jour comme toujours. La connexion par mot de passe se fait dans l'app ; celle par un fournisseur
+(Google, Microsoft, GitHub, le SSO d'un espace) passe par le navigateur et un code à confirmer (`/bureau/autoriser` sur
+le serveur). Le détail, côté serveur : [`AUTO-HEBERGER.md`](AUTO-HEBERGER.md), « Depuis l'app de bureau ».

@@ -15,6 +15,7 @@ import { type ElementArrive, elementImage, elementsDeTexte, poserDansNonTries } 
 import { ErreurApercu, apercuDePage, rapatrierImage } from './apercu.ts'
 import { type Base, DUREE_ACCES_PUBLIC_MS, type Fichier, type Utilisateur } from './base.ts'
 import { type Auth, CHEMIN_AUTH, type Fournisseur, utilisateurDeSession } from './auth.ts'
+import { type Demandes, creerDemandes, normaliserCode } from './demandesBureau.ts'
 import { type Autorisation, objetElement } from './autorisation.ts'
 import { normaliserEmail } from './comptes.ts'
 import { type Cle, duDisque, pourLeDisque } from './chiffrement.ts'
@@ -31,6 +32,8 @@ import { TYPE_NOTAK, ecrireCopie } from './copie.ts'
 import { nomDuDocument } from './synchro.ts'
 import { largeurDemandee, nomReduit, reduire, reductible } from './tailles.ts'
 import { INSTANCE_PAR_DEFAUT, type Instance } from './instance.ts'
+import type { Verificateur } from './misesAJour.ts'
+import { VERSION_NOTAK } from '../../../packages/tableau/src/version.ts'
 import { CAPTURES_MAX, CAPTURE_MAX, CONTEXTE_MAX, TEXTE_MAX, deposerSignalement } from './signalements.ts'
 import { entetesSecurite } from '@notak/tableau/securite'
 import { verrouPar } from './verrou.ts'
@@ -70,6 +73,17 @@ export interface Contexte {
   cle?: Cle | null
   /** Où ranger les signalements de bugs (⇧⌘S) ; absent, la route n'existe pas. */
   dossierSignalements?: string | null
+  /** Les adresses des admins du serveur (`NOTAK_ADMINS`), en minuscules. */
+  admins?: readonly string[]
+  /** Ce que sait la vérification des mises à jour ; absente, elle ne se fait pas. */
+  misesAJour?: Pick<Verificateur, 'etat'> | null
+  /**
+   * Pour `POST /api/auth/device/token`, que l'app de bureau interroge toutes les cinq secondes en attendant qu'on
+   * confirme son code : à défaut, le limiteur commun.
+   */
+  limiteurJeton?: Limiteur
+  /** D'où et quand chaque code de connexion a été demandé ; à défaut, une mémoire à elle. */
+  demandesBureau?: Demandes
 }
 
 export interface MoyensConnexion {
@@ -117,7 +131,7 @@ export function enTeteTelechargement(titre: string, extension: string): string {
   return `attachment; filename="${ascii}.${extension}"; filename*=UTF-8''${encodeURIComponent(`${net}.${extension}`)}`
 }
 
-const moi = (u: Utilisateur) => ({ id: u.id, email: u.email, nom: u.nom, couleur: u.couleur, racine: u.racine, photo: u.photo ?? null })
+const moi = (u: Utilisateur, admin: boolean) => ({ id: u.id, email: u.email, nom: u.nom, couleur: u.couleur, racine: u.racine, photo: u.photo ?? null, admin })
 
 /** Lit un corps de requête jusqu'à `max` octets : `null` s'il est vide, `'trop gros'` s'il dépasse (la lecture s'arrête alors). */
 async function lireBorne(flux: ReadableStream<Uint8Array> | null, max: number): Promise<Buffer | null | 'trop gros'> {
@@ -141,9 +155,12 @@ async function lireBorne(flux: ReadableStream<Uint8Array> | null, max: number): 
 export function creerApp(ctx: Contexte): Hono {
   const { base } = ctx
   const cle = ctx.cle ?? null
+  const admins = new Set(ctx.admins ?? [])
+  const demandesBureau = ctx.demandesBureau ?? creerDemandes()
   const app = new Hono()
 
   const utilisateurCourant = (c: Context): Promise<Utilisateur | null> => utilisateurDeSession(ctx.auth, base, c.req.raw.headers)
+  const estAdmin = (u: Utilisateur) => admins.has(normaliserEmail(u.email))
 
   const adresseIp = (c: Context): string => {
     if (ctx.relaisFiable) {
@@ -184,7 +201,13 @@ export function creerApp(ctx: Contexte): Hono {
     '/request-password-reset': 'reinitialisation',
     '/reset-password': 'reinitialisation',
     '/sign-in/sso': 'connexion',
+    // L'app de bureau qui demande un code, et la page où on le confirme : un code ne se devine pas à dix essais la minute.
+    '/device/code': 'code-appareil',
+    '/device/approve': 'accord-appareil',
+    '/device/deny': 'accord-appareil',
   }
+  // Ouvrir la page de confirmation lit le code et le prend en main pour son compte : il se limite comme le reste.
+  const LIMITES_AUTH_GET: Record<string, string> = { '/device': 'accord-appareil' }
   // Ces gestes visent un compte par son adresse e-mail : ils se limitent aussi par compte. Mille machines qui se
   // partagent les essais ne devinent pas plus vite un mot de passe, et ne remplissent pas la boîte de quelqu'un de
   // liens qu'il n'a pas demandés. La limite tombe que le compte existe ou non : elle ne dit rien de lui.
@@ -222,7 +245,19 @@ export function creerApp(ctx: Contexte): Hono {
 
   const instance = ctx.instance ?? INSTANCE_PAR_DEFAUT
   // Ce que l'écran de connexion lit avant tout compte : il se règle dessus (nom, inscription, thème).
-  app.get('/api/instance', (c) => c.json(instance))
+  app.get('/api/instance', (c) => c.json({ ...instance, version: VERSION_NOTAK }))
+
+  // « Est-ce bien un serveur Notak, et lequel ? » : l'app de bureau avant de s'y connecter, la surveillance du
+  // conteneur (HEALTHCHECK). Sans compte, sans base, sans limite : rien n'y coûte.
+  app.get('/api/sante', (c) => c.json({ produit: 'notak', version: VERSION_NOTAK, origine: ctx.origine ?? null, ok: true }, 200, { 'cache-control': 'no-store' }))
+
+  // Une version plus récente existe-t-elle ? Les admins du serveur seulement : c'est à eux de tirer la nouvelle image.
+  app.get('/api/instance/mise-a-jour', async (c) => {
+    const u = await utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    if (!estAdmin(u)) return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
+    return c.json(ctx.misesAJour?.etat() ?? { actuelle: VERSION_NOTAK, active: false }, 200, { 'cache-control': 'no-store' })
+  })
 
   const versSso = async (c: Context, b: Record<string, unknown>): Promise<Response> => {
     const oidc = b.oidcConfig as Record<string, unknown> | undefined
@@ -259,14 +294,49 @@ export function creerApp(ctx: Contexte): Hono {
 
   app.on(['GET', 'POST'], `${CHEMIN_AUTH}/*`, async (c) => {
     const chemin = c.req.path.slice(CHEMIN_AUTH.length)
-    const route = LIMITES_AUTH[chemin]
-    const refus = c.req.method === 'POST' && route ? (limiter(c, route) ?? (await limiterCompte(c, chemin))) : null
+    const poste = c.req.method === 'POST'
+    const route = (poste ? LIMITES_AUTH : LIMITES_AUTH_GET)[chemin]
+    // Le jeton de l'app de bureau a sa propre limite, large : elle le redemande toutes les cinq secondes, dix minutes
+    // durant, et Better Auth refuse déjà, code par code, qui le demande plus vite (`slow_down`).
+    const refus =
+      poste && chemin === '/device/token'
+        ? limiter(c, 'jeton-appareil', ctx.limiteurJeton)
+        : route
+          ? (limiter(c, route) ?? (poste ? await limiterCompte(c, chemin) : null))
+          : null
     if (refus) return refus
     const reponse = await ctx.auth.handler(c.req.raw)
+    if (poste && chemin === '/device/code' && reponse.ok) await noterDemande(c, reponse)
     // Un membre, un rôle ou une équipe a pu changer (une invitation acceptée, un SSO qui fait entrer quelqu'un) :
     // les droits suivent avant que la réponse parte.
     await droitsAJour()
     return reponse
+  })
+
+  /** Retient d'où vient la demande d'un code de connexion, pour la montrer à qui le confirme. */
+  const noterDemande = async (c: Context, reponse: Response) => {
+    const lu: unknown = await reponse
+      .clone()
+      .json()
+      .catch(() => null)
+    const code = lu && typeof lu === 'object' && 'user_code' in lu ? lu.user_code : null
+    if (typeof code === 'string') demandesBureau.noter(code, adresseIp(c), ctx.maintenant())
+    base.oublierDemandesAppareilExpirees(Date.now())
+  }
+
+  // La page qui fait confirmer un code : d'où et quand l'app l'a demandé, et d'où l'on confirme. Seulement pour le
+  // compte qui a ouvert la page de ce code (`GET /api/auth/device?user_code=…` le prend en main) : l'adresse d'une
+  // app ne se montre pas à qui devinerait son code.
+  app.get('/api/bureau/demande', async (c) => {
+    const u = await utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    const code = normaliserCode(c.req.query('user_code') ?? '')
+    const maintenant = ctx.maintenant()
+    const enBase = code ? base.demandeAppareil(code) : null
+    // L'expiration est celle de Better Auth, à l'heure de la machine.
+    const demande = enBase && enBase.compte === u.id && enBase.expire > Date.now() ? demandesBureau.lire(code, maintenant) : null
+    if (!demande) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
+    return c.json({ ip: demande.ip, quand: demande.quand, ipActuelle: adresseIp(c) }, 200, { 'cache-control': 'no-store' })
   })
 
   // Les espaces du compte, avec leur accueil et son rôle.
@@ -281,7 +351,7 @@ export function creerApp(ctx: Contexte): Hono {
 
   app.get('/api/moi', async (c) => {
     const u = await utilisateurCourant(c)
-    return u ? c.json(moi(u)) : c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    return u ? c.json(moi(u, estAdmin(u))) : c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
   })
 
   // Les réglages du compte : sa couleur (curseur, pastille) et sa photo, un fichier que le compte a déposé.
@@ -307,7 +377,7 @@ export function creerApp(ctx: Contexte): Hono {
     }
     if (Object.keys(reglages).length === 0) return c.json({ erreur: 'rien à régler', code: 'rien_a_regler' }, 400)
     base.reglerCompte(u.id, reglages)
-    return c.json(moi(base.utilisateurParId(u.id) ?? u))
+    return c.json(moi(base.utilisateurParId(u.id) ?? u, estAdmin(u)))
   })
 
   // ---- Tableaux ----

@@ -14,7 +14,9 @@ import { creerCourrier } from './courriel.ts'
 import { creerLimiteur } from './debit.ts'
 import { indexerLesAbsents } from './indexation.ts'
 import type { Instance } from './instance.ts'
+import { type Verificateur, creerVerificateur } from './misesAJour.ts'
 import { brancherSynchro, creerHocuspocus, nomDuDocument } from './synchro.ts'
+import { VERSION_NOTAK } from '../../../packages/tableau/src/version.ts'
 
 export interface OptionsServeur {
   port: number
@@ -42,6 +44,10 @@ export interface OptionsServeur {
   cle?: Cle | null
   /** Où ranger les signalements de bugs ; absent, on ne les reçoit pas. */
   dossierSignalements?: string | null
+  /** Les adresses des admins du serveur (`NOTAK_ADMINS`). */
+  admins?: readonly string[]
+  /** Chercher les nouvelles versions de Notak (`NOTAK_VERIFIER_MAJ`, jamais en développement), ou le vérificateur à prendre. */
+  misesAJour?: boolean | Verificateur
 }
 
 export interface ServeurDemarre {
@@ -89,6 +95,8 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     )
   }, 5000)
   relance.unref()
+  const misesAJour =
+    typeof options.misesAJour === 'object' ? options.misesAJour : creerVerificateur({ actuelle: VERSION_NOTAK, active: options.misesAJour === true })
 
   app = creerApp({
     base,
@@ -101,6 +109,8 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     limiteurArrivee: creerLimiteur(30, 60_000),
     // Dix essais par compte et par quart d'heure : assez pour qui se trompe, trop peu pour deviner.
     limiteurCompte: creerLimiteur(10, 15 * 60_000),
+    // L'app de bureau redemande son jeton toutes les cinq secondes : de quoi en attendre plusieurs derrière une même adresse.
+    limiteurJeton: creerLimiteur(60, 60_000),
     maintenant: Date.now,
     synchro: () => hocuspocus,
     relaisFiable: options.relaisFiable ?? false,
@@ -110,6 +120,8 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     ...(options.instance ? { instance: options.instance } : {}),
     cle,
     dossierSignalements: options.dossierSignalements ?? null,
+    admins: options.admins ?? [],
+    misesAJour,
   })
 
   hocuspocus = creerHocuspocus(base, auth, autorisation)
@@ -119,6 +131,7 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     port,
     async fermer() {
       clearInterval(relance)
+      misesAJour.arreter()
       synchro.fermer()
       hocuspocus?.flushPendingStores()
       await new Promise<void>((fini) => {

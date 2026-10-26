@@ -344,6 +344,23 @@ DELETE FROM recherche_etat;
       db.exec('DELETE FROM recherche_etat;')
     },
   },
+  {
+    version: 7,
+    nom: 'la connexion de l’app de bureau par un code',
+    // La table du plugin `deviceAuthorization` de Better Auth (`auth.ts`) : un code demandé par l'app, confirmé dans le
+    // navigateur. Un compte supprimé emporte les codes qui lui étaient liés.
+    appliquer(db) {
+      db.exec(`
+CREATE TABLE deviceCode (
+  id TEXT NOT NULL PRIMARY KEY, deviceCode TEXT NOT NULL, userCode TEXT NOT NULL,
+  userId TEXT REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  expiresAt DATE NOT NULL, status TEXT NOT NULL, lastPolledAt DATE, pollingInterval INTEGER, clientId TEXT, scope TEXT
+);
+CREATE UNIQUE INDEX deviceCode_deviceCode_uidx ON deviceCode(deviceCode);
+CREATE UNIQUE INDEX deviceCode_userCode_uidx ON deviceCode(userCode);
+`)
+    },
+  },
 ]
 
 /**

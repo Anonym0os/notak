@@ -1,15 +1,20 @@
-# Publier l'app de bureau : une étiquette v* poussée (`bun run nouvelle-version 0.2.0`, puis `git push origin HEAD v0.2.0`)
-# construit Notak pour macOS (Apple et Intel), Windows et Linux, signe chaque paquet de mise à jour, et prépare un
+# Publier Notak : une étiquette v* poussée (`bun run nouvelle-version 0.2.0`, puis `git push origin HEAD v0.2.0`)
+# construit l'app de bureau pour macOS (Apple et Intel), Windows et Linux, signe chaque paquet de mise à jour, construit
+# l'image du serveur (ghcr.io/anonym0os/notak:0.2.0, amd64 et arm64, avec son attestation de provenance), et prépare un
 # BROUILLON de version sur GitHub. Les apps installées n'en voient rien tant que le brouillon n'est pas publié à la main :
-# on télécharge, on essaie, puis « Publish release ». La marche à suivre et le pourquoi : docs/MISES-A-JOUR.md.
+# on télécharge, on essaie, puis « Publish release ». Les serveurs non plus : `latest` ne bouge qu'à la publication
+# (annoncer-serveur.yml). La marche à suivre et le pourquoi : docs/MISES-A-JOUR.md.
 #
 # Ce qui protège la clé de signature :
 # - elle ne vit que dans l'environnement « publication », que GitHub ne déverrouille qu'après l'accord d'une personne
 #   (Required reviewers) et seulement pour une étiquette v* ;
+# - elle n'est là ni à l'installation des dépendances ni à la compilation : aucun code d'une dépendance (scripts npm,
+#   plugins de Vite, scripts de construction de Cargo) ne tourne à côté d'elle. Seuls la CLI de Tauri et les outils
+#   d'Apple la voient, pour empaqueter et signer ;
 # - les actions tierces sont épinglées à un commit, pas à une étiquette qu'on pourrait déplacer ;
 # - aucun cache entre les exécutions : un cache empoisonné par une autre branche n'entre pas dans un paquet signé ;
 # - le jeton GitHub n'a que les droits dont chaque tâche a besoin.
-name: Publier l'app de bureau
+name: Publier Notak
 
 on:
   push:
@@ -23,6 +28,8 @@ concurrency:
 
 env:
   CLI_TAURI: '@tauri-apps/cli@2.12.4'
+  # En minuscules : le registre de GitHub n'en accepte pas d'autres.
+  IMAGE: ghcr.io/anonym0os/notak
 
 jobs:
   verifier:
@@ -49,6 +56,13 @@ jobs:
           conf=$(node -p "require('./apps/bureau/src-tauri/tauri.conf.json').version")
           if [ "$version" != "$conf" ]; then
             echo "::error::L'étiquette $GITHUB_REF_NAME ne correspond pas à la version de tauri.conf.json ($conf) : passez par bun run nouvelle-version."
+            exit 1
+          fi
+          # Le serveur dit sa version d'après la toile : la même partout.
+          paquet=$(node -p "require('./packages/tableau/package.json').version")
+          notak=$(sed -n "s/^export const VERSION_NOTAK = '\(.*\)'$/\1/p" packages/tableau/src/version.ts)
+          if [ "$paquet" != "$version" ] || [ "$notak" != "$version" ]; then
+            echo "::error::packages/tableau dit $paquet et VERSION_NOTAK $notak, l'étiquette $version : passez par bun run nouvelle-version."
             exit 1
           fi
           node scripts/publication.ts notes "$version" > /dev/null
@@ -135,13 +149,24 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
       - run: bun install --frozen-lockfile
-      # Le certificat Apple, s'il y en a un : l'app est alors signée par un développeur identifié et notariée, et macOS
-      # l'ouvre sans avertissement. Sans lui, elle est signée « ad hoc » (tauri.publication.json) et macOS demande, à la
-      # première ouverture seulement, de confirmer dans Réglages → Confidentialité et sécurité.
-      - name: Signature Apple (si configurée)
+      # La compilation (l'application web, puis Rust) fait tourner le code des dépendances : aucun secret ici. La
+      # configuration de publication y est déjà, la coque embarque l'adresse et la clé publique des mises à jour.
+      - name: Compiler, sans aucun secret
+        shell: bash
+        run: |
+          cd apps/bureau/src-tauri
+          bunx "$CLI_TAURI" build --ci --no-bundle --target ${{ matrix.cible }} --config tauri.publication.json
+      # macOS : `tauri bundle` signe l'app (le certificat Apple, s'il y en a un, sinon « ad hoc ») pendant qu'il
+      # l'empaquette, puis signe le paquet de mise à jour ; les deux se font donc ici, et seulement ici. Avec le
+      # certificat, l'app est signée par un développeur identifié et notariée, et macOS l'ouvre sans avertissement.
+      # Sans lui, elle est signée « ad hoc » (tauri.publication.json) et macOS demande, à la première ouverture
+      # seulement, de confirmer dans Réglages → Confidentialité et sécurité.
+      - name: Empaqueter et signer (macOS)
         if: runner.os == 'macOS'
         shell: bash
         env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -149,28 +174,47 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          if [ -n "$APPLE_CERTIFICATE" ]; then
-            for v in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
-              valeur="${!v}"
-              [ -n "$valeur" ] || continue
-              echo "::add-mask::$valeur"
-              { echo "$v<<FIN_$v"; echo "$valeur"; echo "FIN_$v"; } >> "$GITHUB_ENV"
-            done
-          else
-            echo "Pas de certificat Apple : signature ad hoc."
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::error::Le secret TAURI_SIGNING_PRIVATE_KEY manque dans l'environnement « publication » (docs/MISES-A-JOUR.md)."
+            exit 1
           fi
-      - name: Construire et signer
+          # Une variable vide passerait pour un certificat : sans certificat, aucune ne reste.
+          for v in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "$APPLE_CERTIFICATE" ] || [ -z "${!v}" ]; then unset "$v"; fi
+          done
+          [ -n "${APPLE_CERTIFICATE:-}" ] || echo "Pas de certificat Apple : signature ad hoc."
+          cd apps/bureau/src-tauri
+          bunx "$CLI_TAURI" bundle --ci --target ${{ matrix.cible }} --config tauri.publication.json
+      # Linux et Windows : rien à signer pour le système (aucun certificat Windows n'est configuré ; `--no-sign` en
+      # sauterait un), donc l'empaquetage se fait sans secret, et la clé ne sert qu'à `tauri signer sign`, à part.
+      - name: Empaqueter (Linux, Windows), sans aucun secret
+        if: runner.os != 'macOS'
+        shell: bash
+        run: |
+          cd apps/bureau/src-tauri
+          bunx "$CLI_TAURI" bundle --ci --no-sign --target ${{ matrix.cible }} --config tauri.publication.json
+      - name: Signer les paquets de mise à jour (Linux, Windows)
+        if: runner.os != 'macOS'
         shell: bash
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          VERSION: ${{ needs.verifier.outputs.version }}
         run: |
           if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
             echo "::error::Le secret TAURI_SIGNING_PRIVATE_KEY manque dans l'environnement « publication » (docs/MISES-A-JOUR.md)."
             exit 1
           fi
-          cd apps/bureau/src-tauri
-          bunx "$CLI_TAURI" build --ci --target ${{ matrix.cible }} --config tauri.publication.json
+          cd "apps/bureau/src-tauri/target/${{ matrix.cible }}/release/bundle"
+          shopt -s nullglob
+          # Les paquets que l'app sait installer d'elle-même, ceux que `tauri build` signerait.
+          paquets=(appimage/*.AppImage deb/*.deb rpm/*.rpm nsis/*-setup.exe msi/*.msi)
+          if [ ${#paquets[@]} -eq 0 ]; then
+            echo "::error::Aucun paquet de mise à jour à signer."
+            exit 1
+          fi
+          # Le numéro entre dans la signature : une annonce trafiquée ne fait pas passer ce paquet pour un autre.
+          for p in "${paquets[@]}"; do bunx "$CLI_TAURI" signer sign --app-version "$VERSION" "$p"; done
       - name: Ranger les paquets sous des noms stables
         shell: bash
         run: node scripts/publication.ts paquets "apps/bureau/src-tauri/target/${{ matrix.cible }}/release/bundle" ${{ matrix.plateforme }} "${{ needs.verifier.outputs.version }}" livraison
@@ -180,9 +224,100 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "v${{ needs.verifier.outputs.version }}" livraison/* --repo "$GITHUB_REPOSITORY" --clobber
 
+  # L'image du serveur, construite sur chaque architecture : sharp et argon2 y compilent ou y prennent leur code natif.
+  # Poussée sans étiquette (par son empreinte), puis réunie en une seule plus bas. Aucun secret : le jeton GitHub de
+  # la tâche suffit à écrire dans le registre du dépôt.
+  image-amd64:
+    name: Image du serveur (amd64)
+    needs: verifier
+    environment: publication
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      empreinte: ${{ steps.construire.outputs.empreinte }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Construire et pousser
+        id: construire
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.verifier.outputs.version }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker buildx create --use --driver docker-container --name notak > /dev/null
+          docker buildx build --platform linux/amd64 --build-arg NOTAK_VERSION="$VERSION" --provenance=false --sbom=false \
+            --output "type=image,name=$IMAGE,push-by-digest=true,name-canonical=true,push=true" --metadata-file image.json .
+          empreinte=$(jq -r '."containerimage.digest"' image.json)
+          [[ "$empreinte" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Pas d'empreinte pour l'image : $empreinte"; exit 1; }
+          echo "empreinte=$empreinte" >> "$GITHUB_OUTPUT"
+
+  image-arm64:
+    name: Image du serveur (arm64)
+    needs: verifier
+    environment: publication
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      empreinte: ${{ steps.construire.outputs.empreinte }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Construire et pousser
+        id: construire
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.verifier.outputs.version }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker buildx create --use --driver docker-container --name notak > /dev/null
+          docker buildx build --platform linux/arm64 --build-arg NOTAK_VERSION="$VERSION" --provenance=false --sbom=false \
+            --output "type=image,name=$IMAGE,push-by-digest=true,name-canonical=true,push=true" --metadata-file image.json .
+          empreinte=$(jq -r '."containerimage.digest"' image.json)
+          [[ "$empreinte" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Pas d'empreinte pour l'image : $empreinte"; exit 1; }
+          echo "empreinte=$empreinte" >> "$GITHUB_OUTPUT"
+
+  image:
+    name: Image du serveur (x.y.z, les deux architectures)
+    needs: [verifier, image-amd64, image-arm64]
+    environment: publication
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Une seule étiquette pour les deux architectures
+        id: reunir
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.verifier.outputs.version }}
+          AMD64: ${{ needs.image-amd64.outputs.empreinte }}
+          ARM64: ${{ needs.image-arm64.outputs.empreinte }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker buildx imagetools create -t "$IMAGE:$VERSION" "$IMAGE@$AMD64" "$IMAGE@$ARM64"
+          empreinte=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{ json .Manifest }}' | jq -r .digest)
+          [[ "$empreinte" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Pas d'empreinte pour $IMAGE:$VERSION"; exit 1; }
+          echo "empreinte=$empreinte" >> "$GITHUB_OUTPUT"
+      # Ce que vérifie `gh attestation verify oci://ghcr.io/anonym0os/notak:x.y.z -R Anonym0os/notak` : l'image vient
+      # de ce dépôt, de cette étiquette et de ce workflow. Signée par GitHub (Sigstore), poussée à côté de l'image.
+      - uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.reunir.outputs.empreinte }}
+          push-to-registry: true
+
   annoncer:
     name: Écrire l'annonce (latest.json)
-    needs: [verifier, construire]
+    needs: [verifier, construire, image]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -206,5 +341,7 @@ jobs:
             echo "## Notak $VERSION est en brouillon"
             echo
             echo "1. Téléchargez les paquets du brouillon et essayez-les ; vérifiez qu'une app de la version d'avant se met à jour."
-            echo "2. Puis, sur la page du brouillon : **Publish release**. Les apps installées la verront à leur prochaine recherche."
+            echo "2. L'image du serveur attend aussi : \`$IMAGE:$VERSION\` (elle n'est pas encore \`latest\`)."
+            echo "3. Puis, sur la page du brouillon : **Publish release**. Les apps installées la verront à leur prochaine recherche,"
+            echo "   et \`latest\` passera à cette version (annoncer-serveur.yml)."
           } >> "$GITHUB_STEP_SUMMARY"
