@@ -224,14 +224,14 @@ describe('les gestes', () => {
       },
     })
   const appels: [string, string, unknown][] = []
-  const ouvrir = async (espace = monde(), nouveaux = 0) => {
+  const ouvrir = async (espace = monde(), nouveaux = 0, perdus = 0) => {
     appels.length = 0
     await act(async () =>
       racine.render(
         <PageBibliotheque
           charger={async () => TOUTES}
           espace={espace}
-          rangerToile={async (toile, parent, options) => (appels.push([toile, parent, options ?? {}]), { nouveaux, fait: !options?.essai })}
+          rangerToile={async (toile, parent, options) => (appels.push([toile, parent, options ?? {}]), { nouveaux, perdus, permanents: 0, liensOuverts: 0, liensEteints: nouveaux > 0 ? 1 : 0, fait: !options?.essai })}
           definirFavori={async () => {}}
         />,
       ),
@@ -328,8 +328,8 @@ describe('les gestes', () => {
     expect(tuile('atelier/').querySelector('.biblio-tuile-titre')!.textContent).toBe('Atelier bois')
   })
 
-  it('déplace une toile vers une autre ; quand d’autres y gagnent l’accès, il le demande avant', async () => {
-    const espace = await ouvrir(undefined, 2)
+  it('déplace une toile vers une autre ; quand cela change qui la voit, il le dit ligne à ligne avant', async () => {
+    const espace = await ouvrir(undefined, 2, 1)
     menu(tuile('atelier/'))
     act(() => entree('Déplacer vers…').click())
     const options = [...hote.querySelectorAll<HTMLElement>('.biblio-deplacer-liste li')]
@@ -337,7 +337,11 @@ describe('les gestes', () => {
     expect(options.map((o) => o.querySelector('.biblio-deplacer-nom')!.textContent)).toEqual(['Accueil', 'Budget', 'Voyage'])
     expect(options[0]!.getAttribute('aria-disabled')).toBe('true')
     await act(async () => options[2]!.click())
-    expect(hote.querySelector('.biblio-confirmation')!.textContent).toContain('2 personnes ou équipes qui ont accès à « Voyage »')
+    expect([...hote.querySelectorAll('.biblio-confirmation li')].map((l) => l.textContent)).toEqual([
+      '2 personnes ou équipes qui ont accès à « Voyage » la verront aussi.',
+      'Une personne ou une équipe qui la voit aujourd’hui n’y aura plus accès.',
+      'Un lien de visiteur qui y mène ne l’ouvrira plus.',
+    ])
     await act(async () => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-confirmation button')].find((b) => b.textContent === 'Déplacer')!.click())
     expect(appels).toEqual([
       ['atelier', 'voyage', { essai: true }],

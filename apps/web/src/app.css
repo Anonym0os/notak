@@ -3278,6 +3278,17 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   line-height: 1.5;
 }
 
+.biblio-confirmation-lignes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0 0 0 18px;
+  color: var(--app-pale);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
 .biblio-dialogue-boutons {
   display: flex;
   justify-content: flex-end;

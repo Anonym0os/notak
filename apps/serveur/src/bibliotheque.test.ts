@@ -3,6 +3,7 @@ import * as Y from 'yjs'
 import { ELEMENTS_VUS_GARDES } from './base.ts'
 import { type Compte, type Monde, monde, poser, texte } from './essai.ts'
 import { indexerDocument } from './indexation.ts'
+import { AUCUN_CHANGEMENT } from './rangement.ts'
 import { lireTableau, resumesDuTableau } from './contenu.ts'
 import { nomDuDocument } from './synchro.ts'
 
@@ -166,20 +167,20 @@ describe('PUT /api/tableaux/:id/parent', () => {
 
   it('compte qui gagnerait l’accès, sans rien ranger à l’essai', async () => {
     const r = await ranger(ana, 'idee', { parent: 'equipe', essai: true })
-    expect(await r.json()).toEqual({ nouveaux: 1, fait: false })
+    expect(await r.json()).toEqual({ ...AUCUN_CHANGEMENT, nouveaux: 1, fait: false })
     expect(m.base.tableau('idee')!.parent).toBe(ana.utilisateur.racine)
     const prudent = await ranger(ana, 'idee', { parent: 'equipe', siPersonne: true })
-    expect(await prudent.json()).toEqual({ nouveaux: 1, fait: false })
+    expect(await prudent.json()).toEqual({ ...AUCUN_CHANGEMENT, nouveaux: 1, fait: false })
   })
 
   it('range la toile : ses accès hérités et ceux de ce qu’elle contient suivent', async () => {
     expect(await roleDe(bob, 'detail')).toBeNull()
     const r = await ranger(ana, 'idee', { parent: 'equipe' })
-    expect(await r.json()).toEqual({ nouveaux: 1, fait: true })
+    expect(await r.json()).toEqual({ ...AUCUN_CHANGEMENT, nouveaux: 1, fait: true })
     expect(m.base.tableau('idee')!.parent).toBe('equipe')
     expect(await roleDe(bob, 'detail')).toBe('edition')
-    // Rangée ailleurs, elle quitte ceux d'avant.
-    await ranger(ana, 'idee', { parent: 'projets' })
+    // Rangée ailleurs, elle quitte ceux d'avant : Bob la perd, Cléo la gagne.
+    expect(await (await ranger(ana, 'idee', { parent: 'projets' })).json()).toEqual({ ...AUCUN_CHANGEMENT, nouveaux: 1, perdus: 1, fait: true })
     expect(await roleDe(bob, 'detail')).toBeNull()
     expect(await roleDe(cle, 'detail')).toBe('lecture')
     expect(m.base.tableau('idee')!.parent).toBe('projets')

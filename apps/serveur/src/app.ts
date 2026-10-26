@@ -22,6 +22,7 @@ import { creerExpiration } from './echeances.ts'
 import { type Cle, duDisque, pourLeDisque } from './chiffrement.ts'
 import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from './contenu.ts'
 import type { Limiteur } from './debit.ts'
+import { AUCUN_CHANGEMENT, bilanDuRangement, rienNeChange } from './rangement.ts'
 import { RELATION_DU_ROLE, type Role, auMoins, role, roleDeRelation } from './droits.ts'
 import { decouvrirOidc } from './sso.ts'
 import { estFormatExport, exporterTexte, langueExport } from './exporter.ts'
@@ -980,8 +981,9 @@ export function creerApp(ctx: Contexte): Hono {
   /**
    * Range une toile dans une autre (la bibliothèque, ou sa carte glissée d'une toile à l'autre). Il faut posséder la
    * toile et pouvoir écrire dans la nouvelle ; ni l'accueil, ni dans elle-même ou ce qu'elle contient, ni d'un espace à
-   * un autre. Ses accès hérités suivent : `nouveaux` compte qui la verrait alors sans la voir encore. `essai` ne fait
-   * que compter ; `siPersonne` ne range que si personne n'y gagne l'accès.
+   * un autre. Ses accès hérités suivent : la réponse dit ce que cela change pour les autres (`Bilan` : qui y gagne ou y
+   * perd l'accès, qui le garde désormais sans échéance, quels liens de visiteurs y mènent ou n'y mènent plus). `essai`
+   * ne fait que compter ; `siPersonne` ne range que si cela ne change rien pour personne.
    */
   app.put('/api/tableaux/:id/parent', async (c) => {
     const g = await garde(c, 'proprietaire')
@@ -998,30 +1000,20 @@ export function creerApp(ctx: Contexte): Hono {
     if (!auMoins(droit, 'edition')) return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
     if (parent === g.id || base.descendants(g.id).includes(parent)) return c.json({ erreur: 'boucle', code: 'dossier_dans_lui' }, 400)
     if ((cible.espace ?? null) !== (ligne.espace ?? null)) return c.json({ erreur: 'autre espace', code: 'autre_espace' }, 400)
-    if (ligne.parent === parent) return c.json({ nouveaux: 0, fait: true })
-    // Qui reçoit la nouvelle toile ou une toile au-dessus, sans rien voir de celle-ci aujourd'hui : une personne, ou
-    // une équipe qui ne la reçoit pas déjà d'en haut.
-    const donnes = (depart: string | null) => {
-      const r: { sujet: string }[] = []
-      for (let t = depart, vus = 0; t !== null && vus < 1000; t = base.tableau(t)?.parent ?? null, vus++)
-        r.push(...base.relationsSur(`tableau:${t}`).filter((x) => roleDeRelation(x.relation)))
-      return r
-    }
-    const equipesDejaLa = new Set(donnes(g.id).map((r) => r.sujet).filter((s) => s.startsWith('equipe:')))
-    const nouveaux = new Set<string>()
-    for (const { sujet } of donnes(parent)) {
-      if (nouveaux.has(sujet)) continue
-      if (sujet.startsWith('user:')) {
-        const qui = sujet.slice(5)
-        if (qui !== g.u.id && (await roleSur(qui, g.id)) === null) nouveaux.add(sujet)
-      } else if (sujet.startsWith('equipe:') && !equipesDejaLa.has(sujet)) nouveaux.add(sujet)
-    }
-    if (b?.essai === true || (b?.siPersonne === true && nouveaux.size > 0)) return c.json({ nouveaux: nouveaux.size, fait: false })
+    if (ligne.parent === parent) return c.json({ ...AUCUN_CHANGEMENT, fait: true })
+    // Ce que chacun y gagne ou y perd. Celui qui range, et les membres d'un espace d'équipe (leur accès vient de
+    // l'espace, qui ne change pas), n'y comptent pas.
+    const espaceDEquipe = ligne.espace && !base.espace(ligne.espace)?.personnel ? ligne.espace : null
+    const bilan = bilanDuRangement(base, g.id, ligne.parent, parent, (sujet) => {
+      if (sujet === `user:${g.u.id}`) return true
+      return espaceDEquipe !== null && sujet.startsWith('user:') && base.roleMembre(espaceDEquipe, sujet.slice(5)) !== null
+    })
+    if (b?.essai === true || (b?.siPersonne === true && !rienNeChange(bilan))) return c.json({ ...bilan, fait: false })
     base.changerParent(g.id, parent)
     // Les accès hérités de l'ancien parent ne valent plus, ici ni plus bas : chacun relit son rôle.
     await droitsAJour()
     fermerConnexions(g.id)
-    return c.json({ nouveaux: nouveaux.size, fait: true })
+    return c.json({ ...bilan, fait: true })
   })
 
   app.get('/api/recents', async (c) => {

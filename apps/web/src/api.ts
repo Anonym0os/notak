@@ -578,13 +578,27 @@ export async function definirFavori(tableau: string, favori: boolean): Promise<v
 }
 
 /**
- * Range une toile dans une autre ; ses accès hérités suivent. `nouveaux` : combien la verraient alors sans la voir
- * encore. `essai` ne fait que compter ; `siPersonne` ne range que si personne n'y gagne l'accès.
+ * Range une toile dans une autre ; ses accès hérités suivent, et la réponse dit ce que cela change pour les autres.
+ * `essai` ne fait que compter ; `siPersonne` ne range que si cela ne change rien pour personne.
  */
-export async function rangerToile(tableau: string, parent: string, options: { essai?: boolean; siPersonne?: boolean } = {}): Promise<{ nouveaux: number; fait: boolean }> {
+/** Ce que change, pour les autres, le rangement d'une toile : le serveur compare ce que chacun en reçoit avant et après. */
+export interface BilanRangement {
+  /** Personnes et équipes qui la verraient sans la voir aujourd'hui. */
+  nouveaux: number
+  /** Celles qui la voient et ne la verraient plus. */
+  perdus: number
+  /** Celles dont l'accès, limité dans le temps, deviendrait permanent. */
+  permanents: number
+  /** Liens de visiteurs qui y mèneraient. */
+  liensOuverts: number
+  /** Liens de visiteurs qui n'y mèneraient plus. */
+  liensEteints: number
+}
+
+export async function rangerToile(tableau: string, parent: string, options: { essai?: boolean; siPersonne?: boolean } = {}): Promise<BilanRangement & { fait: boolean }> {
   const r = await appeler(`/api/tableaux/${encodeURIComponent(tableau)}/parent`, { parent, ...options }, 'PUT')
   if (!r.ok) throw await refus(r, { ...TABLEAU_ABSENT, ...PROPRIETAIRE })
-  return (await r.json()) as { nouveaux: number; fait: boolean }
+  return (await r.json()) as BilanRangement & { fait: boolean }
 }
 
 /** Les derniers tableaux ouverts par le compte. */

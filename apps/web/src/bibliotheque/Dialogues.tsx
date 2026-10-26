@@ -124,11 +124,15 @@ export function DeplacerVers({
   )
 }
 
-/** Une question avant un geste qui ouvre à d'autres ce qu'on range. */
-export function Confirmation({ titre, texte, oui, repondre }: { titre: string; texte: string; oui: string; repondre(oui: boolean): void }) {
+/** Une question avant un geste qui change qui voit ce qu'on range : une ligne par changement. */
+export function Confirmation({ titre, lignes, oui, repondre }: { titre: string; lignes: readonly string[]; oui: string; repondre(oui: boolean): void }) {
   return (
     <Dialogue titre={titre} fermer={() => repondre(false)} className="biblio-confirmation">
-      <p>{texte}</p>
+      <ul className="biblio-confirmation-lignes">
+        {lignes.map((l) => (
+          <li key={l}>{l}</li>
+        ))}
+      </ul>
       <div className="biblio-dialogue-boutons">
         <button type="button" className="bouton" onClick={() => repondre(false)}>
           {t('commun.annuler')}
