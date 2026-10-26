@@ -26,6 +26,9 @@ afterEach(() => {
   act(() => racine.unmount())
   hote.remove()
   delete (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
+  // « Plus tard » se retient d'une page à l'autre : chaque essai part d'une page neuve.
+  localStorage.clear()
+  vi.restoreAllMocks()
   vi.useRealTimers()
   vi.unstubAllEnvs()
   vi.unstubAllGlobals()
@@ -101,7 +104,8 @@ describe('la section « Mises à jour » : le résultat d’une recherche s’an
     const { m } = await avecCoque(async (c) => (c === 'preparer_mise_a_jour' ? new Promise((r) => (finir = r)) : null))
     await act(async () => racine.render(<m.SectionMiseAJour />))
     const statut = hote.querySelector('[role=status]')!
-    expect(statut.textContent).toBe('Notak')
+    // La version qui tourne, lue dans les réglages de la coque avant toute recherche.
+    expect(statut.textContent).toBe('Notak 0.1.0')
 
     await act(async () => void m.chercherMiseAJour(true))
     // La même région, un autre texte : c'est ce qu'un lecteur d'écran annonce.
@@ -129,5 +133,88 @@ describe('la section « Mises à jour » : le résultat d’une recherche s’an
     expect(invoke.mock.calls.filter((c) => c[0] === 'preparer_mise_a_jour')).toHaveLength(1)
     await act(async () => finir({ etat: 'a-jour', version: '0.1.0' }))
     expect(chercher.hasAttribute('aria-disabled')).toBe(false)
+  })
+})
+
+describe('les nouveautés d’une version prête', () => {
+  const avecNotes = (notes: string | null) => ({ etat: 'prete', version: '0.1.0', nouvelle: '0.2.0', notes, date: null })
+
+  it('se lisent dans l’app, en texte et en puces ; la page de la version reste à côté, dans le navigateur', async () => {
+    const { m } = await avecCoque(async (c) => (c === 'preparer_mise_a_jour' ? avecNotes('## 0.2.0\n- Une **chose**\n- Deux <img src=x onerror=alert(1)>') : null))
+    await act(async () => racine.render(<m.BandeauMiseAJour />))
+    await act(async () => m.chercherMiseAJour())
+    const notes = hote.querySelector('details')!
+    expect(notes.querySelector('summary')?.textContent).toBe('Nouveautés')
+    expect([...notes.querySelectorAll('li')].map((li) => li.textContent)).toEqual(['Une chose', 'Deux <img src=x onerror=alert(1)>'])
+    expect(notes.querySelector('img')).toBeNull()
+    const lien = notes.querySelector('a')!
+    expect(lien.href).toBe('https://github.com/Anonym0os/notak/releases/tag/v0.2.0')
+    expect(lien.textContent).toContain('navigateur')
+    expect(lien.target).toBe('_blank')
+    // Les boutons du bandeau restent ceux d'avant.
+    expect(bouton(/Plus tard/)).toBeTruthy()
+    expect(bouton(/Redémarrer maintenant/)).toBeTruthy()
+  })
+
+  it('sans notes, « Nouveautés » ouvre la page de la version', async () => {
+    const { m } = await avecCoque(async (c) => (c === 'preparer_mise_a_jour' ? avecNotes(null) : null))
+    await act(async () => racine.render(<m.BandeauMiseAJour />))
+    await act(async () => m.chercherMiseAJour())
+    expect(hote.querySelector('details')).toBeNull()
+    const lien = [...hote.querySelectorAll('a')].find((a) => a.textContent === 'Nouveautés')!
+    expect(lien.href).toBe('https://github.com/Anonym0os/notak/releases/tag/v0.2.0')
+  })
+
+  it('se lisent aussi dans la section « Mises à jour »', async () => {
+    const { m } = await avecCoque(async (c) => (c === 'preparer_mise_a_jour' ? avecNotes('Corrige la synchro.') : null))
+    await act(async () => racine.render(<m.SectionMiseAJour />))
+    await act(async () => m.chercherMiseAJour())
+    expect(hote.querySelector('details p')?.textContent).toBe('Corrige la synchro.')
+  })
+})
+
+describe('un échec se dit en mots, d’après son code', () => {
+  it('une signature refusée se dit comme telle, jamais « hors ligne », avec la page des versions', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { m } = await avecCoque(async (c) => {
+      if (c === 'preparer_mise_a_jour') throw { code: 'signature' }
+      return null
+    })
+    await act(async () => racine.render(<m.SectionMiseAJour />))
+    await act(async () => m.chercherMiseAJour(true))
+    const statut = hote.querySelector('[role=status]')!
+    expect(statut.textContent).toContain('la recherche n’a pas abouti')
+    expect(statut.textContent).toContain('sa signature ne correspond pas')
+    expect(hote.textContent).not.toMatch(/hors ligne \?|offline/)
+    expect(statut.querySelector('a')?.href).toBe('https://github.com/Anonym0os/notak/releases/latest')
+  })
+
+  it('le détail anglais d’une coque d’avant les codes ne s’affiche pas', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { m } = await avecCoque(async (c) => {
+      if (c === 'preparer_mise_a_jour') throw 'error decoding response body'
+      return null
+    })
+    await act(async () => racine.render(<m.SectionMiseAJour />))
+    await act(async () => m.chercherMiseAJour(true))
+    expect(hote.textContent).toContain('La mise à jour n’a pas abouti.')
+    expect(hote.textContent).not.toContain('decoding')
+  })
+
+  it('une installation qui ne peut pas se poser là où est l’app le dit, sans promettre qu’elle se posera en quittant', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { m } = await avecCoque(async (c) => {
+      if (c === 'preparer_mise_a_jour') return { etat: 'prete', version: '0.1.0', nouvelle: '0.2.0', notes: null, date: null }
+      throw { code: 'emplacement' }
+    })
+    await act(async () => racine.render(<m.BandeauMiseAJour />))
+    await act(async () => m.chercherMiseAJour())
+    await act(async () => bouton(/Redémarrer maintenant/)!.click())
+    await act(async () => void (await vi.advanceTimersByTimeAsync(500)))
+    const alerte = hote.querySelector('[role=alert]')!
+    expect(alerte.textContent).toContain('Notak 0.2.0 n’a pas pu s’installer.')
+    expect(alerte.textContent).toContain('dossier Applications')
+    expect(alerte.textContent).not.toContain('quand vous quitterez')
   })
 })

@@ -249,6 +249,18 @@ fn redirection(origine: &str, location: Option<&str>) -> Erreur {
     }
 }
 
+/// Un serveur joint à `origine` qui se dit à `declaree` : on propose son adresse. Sauf s'il se dit sur cet ordinateur
+/// sans y avoir été joint : son `NOTAK_ORIGINE` est restée à sa valeur par défaut (`http://localhost:3005`), et
+/// proposer d'y aller enverrait la personne sur sa propre machine.
+fn se_dit_ailleurs(origine: &str, declaree: String) -> Erreur {
+    let ici = |o: &str| Url::parse(o).is_ok_and(|u| de_cet_ordinateur(&u));
+    if ici(&declaree) && !ici(origine) {
+        Erreur::MalRegle
+    } else {
+        Erreur::Redirige { vers: declaree }
+    }
+}
+
 /// Est-ce bien un serveur Notak, à cette origine ?
 pub async fn verifier(client: &reqwest::Client, origine: &str) -> Result<Joint, Erreur> {
     let sante = obtenir(client, &format!("{origine}/api/sante")).await?;
@@ -267,7 +279,7 @@ pub async fn verifier(client: &reqwest::Client, origine: &str) -> Result<Joint, 
     if let Some(declaree) = declaree {
         let declaree = normaliser(&declaree).map_err(|_| Erreur::PasNotak)?;
         if declaree != origine {
-            return Err(Erreur::Redirige { vers: declaree });
+            return Err(se_dit_ailleurs(origine, declaree));
         }
     }
     let nom = match obtenir(client, &format!("{origine}/api/instance")).await {
@@ -329,16 +341,18 @@ impl Acces {
         }
     }
 
-    /// Commence la visite de `origine`, si personne n'a renoncé depuis `vu` : il devient le serveur de la fenêtre. Sous
-    /// le verrou de la visite, comme `abandonner` : l'un passe avant l'autre, jamais au milieu.
-    fn commencer_visite(&self, origine: &str, vu: u64) -> Option<u64> {
+    /// Commence la visite de `origine`, si personne n'a renoncé depuis `vu` : il devient le serveur de la fenêtre, et le
+    /// passage vers `racine` se pose avec lui. Sous le verrou de la visite, comme `abandonner` : l'un passe avant
+    /// l'autre, jamais au milieu, et le serveur et le passage changent ensemble. Rend le numéro de la visite et le jeton
+    /// du passage.
+    fn commencer_visite(&self, passage: &Passage, origine: &str, racine: Url, vu: u64) -> Option<(u64, u64)> {
         let mut v = self.visite.lock().unwrap_or_else(PoisonError::into_inner);
         if self.annulations.load(Ordering::SeqCst) != vu {
             return None;
         }
         self.serveur.poser(Some(origine.to_string()));
         *v = Visite { numero: v.numero + 1, origine: Some(origine.to_string()), vivante: false };
-        Some(v.numero)
+        Some((v.numero, passage.poser(racine)))
     }
 
     /// Une page du serveur de la fenêtre commence à se charger (un rechargement, un lien) : une nouvelle visite, qui a
@@ -355,14 +369,15 @@ impl Acces {
 
     /// Renonce au serveur : la jonction en cours finit sur `annule`, la fenêtre n'a plus de serveur ni de visite à
     /// guetter. Rend vrai si une page de serveur était en route sans s'être signalée : la fenêtre est peut-être déjà
-    /// partie la chercher.
-    fn abandonner(&self) -> bool {
+    /// partie la chercher. `retour` dit, d'après cela, où ramener la fenêtre : ce passage se pose sous le même verrou
+    /// (un passage vers le serveur posé juste avant ne l'emmènera plus), et son jeton est rendu.
+    fn abandonner(&self, passage: &Passage, retour: impl FnOnce(bool) -> Option<Url>) -> (bool, Option<u64>) {
         let mut v = self.visite.lock().unwrap_or_else(PoisonError::into_inner);
         self.annulations.fetch_add(1, Ordering::SeqCst);
         let en_route = v.origine.is_some() && !v.vivante;
         self.serveur.poser(None);
         *v = Visite { numero: v.numero + 1, origine: None, vivante: false };
-        en_route
+        (en_route, retour(en_route).map(|vers| passage.poser(vers)))
     }
 
     fn signe_de_vie(&self, origine: &str) {
@@ -417,7 +432,8 @@ pub async fn acces(app: AppHandle, webview: Webview, garde: State<'_, Origines>,
     Ok(EtatAcces { ouvrir: r.ouvrir, serveur: r.serveur, maj_auto: r.maj_auto, version })
 }
 
-/// Vérifie l'adresse tapée, puis y envoie la fenêtre. `garder` : Notak s'ouvrira désormais sur ce serveur. Qu'elle
+/// Vérifie l'adresse tapée, puis y envoie la fenêtre. `garder` : Notak s'ouvrira désormais sur ce serveur, à la place
+/// de celui retenu jusque-là, dont la session s'en va (il n'apparaît plus nulle part pour être oublié). Qu'elle
 /// échoue, et la copie confiée pour elle (`confier_copie`) s'en va : elle n'attend pas le serveur suivant.
 #[tauri::command]
 pub async fn joindre_serveur(
@@ -431,14 +447,24 @@ pub async fn joindre_serveur(
 ) -> Result<Joint, Erreur> {
     exiger(&webview, &garde, LOCALE)?;
     let vu = etat.annulations.load(Ordering::SeqCst);
-    let joint = joindre(&app, &garde, &etat, &ouverts, &adresse, garder, vu).await;
+    let joint = joindre(&app, &webview, &garde, &etat, &ouverts, &adresse, garder, vu).await;
     if joint.is_err() {
         ouverts.retirer_confiees(None);
     }
     joint
 }
 
-async fn joindre(app: &AppHandle, garde: &Origines, etat: &Acces, ouverts: &Ouverts, adresse: &str, garder: bool, vu: u64) -> Result<Joint, Erreur> {
+#[allow(clippy::too_many_arguments)]
+async fn joindre(
+    app: &AppHandle,
+    webview: &Webview,
+    garde: &Origines,
+    etat: &Acces,
+    ouverts: &Ouverts,
+    adresse: &str,
+    garder: bool,
+    vu: u64,
+) -> Result<Joint, Erreur> {
     let _seul = etat.joindre.lock().await;
     let origine = normaliser(adresse)?;
     if garde.est_de_l_app(&origine) {
@@ -448,27 +474,35 @@ async fn joindre(app: &AppHandle, garde: &Origines, etat: &Acces, ouverts: &Ouve
     let joint = verifier(&client(true, DELAI, &version)?, &origine).await?;
     etat.accorder(app, &origine)?;
     let racine = Url::parse(&format!("{origine}/")).map_err(|_| Erreur::AdresseInvalide)?;
-    // La garde d'abord : la navigation qui suit passe par elle. La personne a renoncé entre-temps (les toiles d'ici, le
-    // menu) : la fenêtre reste où elle est.
-    let numero = etat.commencer_visite(&origine, vu).ok_or(Erreur::Annule)?;
+    let passage = app.state::<Passage>();
+    // La garde d'abord, avec le passage : la navigation qui suit passe par elle. La personne a renoncé entre-temps (les
+    // toiles d'ici, le menu) : la fenêtre reste où elle est.
+    let (numero, jeton) = etat.commencer_visite(&passage, &origine, racine, vu).ok_or(Erreur::Annule)?;
     app.state::<Emplacements>().vider();
     // Un autre serveur n'a pas à trouver la copie confiée pour un autre.
     ouverts.retirer_confiees(Some(&origine));
-    if let Err(e) = naviguer(app, racine) {
-        etat.abandonner();
+    if let Err(e) = partir(app, jeton) {
+        etat.abandonner(&passage, |_| None);
         return Err(e);
     }
     guetter(app.clone(), numero);
-    // Abandonnée pendant que la fenêtre partait (`annuler_jonction`) : elle est revenue, et rien n'est retenu.
+    // Abandonnée pendant que la fenêtre partait (`annuler_jonction`, le menu) : qui a renoncé l'a ramenée, par un
+    // passage posé après le nôtre, et rien n'est retenu.
     if etat.annulations.load(Ordering::SeqCst) != vu {
         return Err(Erreur::Annule);
     }
     if garder {
+        let mut avant = None;
         if let Err(e) = etat.reglage.changer(|r| {
             r.ouvrir = Ouvrir::Serveur;
-            r.serveur = Some(origine);
+            avant = r.serveur.replace(origine.clone());
         }) {
             eprintln!("Notak : le serveur choisi n'a pas pu être retenu ({e})");
+        }
+        if let Some(avant) = avant.filter(|a| *a != origine) {
+            if let Err(e) = effacer_session(webview, &avant) {
+                eprintln!("Notak : la session du serveur d'avant n'a pas pu être fermée ({e:?})");
+            }
         }
     }
     Ok(joint)
@@ -505,17 +539,20 @@ pub async fn ouvrir_dans_le_navigateur(app: AppHandle, webview: Webview, garde: 
 }
 
 /// Renonce à la jonction en cours (la porte : « Ouvrir les toiles de cet ordinateur » pendant qu'on attend le serveur ;
-/// la fenêtre « Se connecter » fermée pendant « Connexion… »). Pendant la vérification, elle finit sur `annule` sans
-/// emmener la fenêtre. Si la fenêtre est déjà partie chercher la page du serveur, elle revient aux toiles d'ici
-/// (`?ici`) : une nouvelle navigation remplace la sienne, ce que `window.stop` ne garantit pas partout. Rend vrai dans
-/// ce cas : la page qui a demandé va être remplacée. Rien n'est retenu.
+/// « Annuler », ou la fenêtre « Se connecter » fermée, pendant « Connexion… »). Pendant la vérification, elle finit sur
+/// `annule` sans emmener la fenêtre. Si la fenêtre est déjà partie chercher la page du serveur, elle revient à `ecran`
+/// (les toiles d'ici, `?ici`, par défaut) : une nouvelle navigation remplace la sienne, ce que `window.stop` ne garantit
+/// pas partout. Rend vrai dans ce cas : la page qui a demandé va être remplacée. Rien n'est retenu.
 #[tauri::command]
-pub async fn annuler_jonction(app: AppHandle, webview: Webview, garde: State<'_, Origines>) -> Result<bool, Erreur> {
+pub async fn annuler_jonction(app: AppHandle, webview: Webview, garde: State<'_, Origines>, ecran: Option<Ecran>) -> Result<bool, Erreur> {
     exiger(&webview, &garde, LOCALE)?;
-    if !app.state::<Acces>().abandonner() {
+    let etat = app.state::<Acces>();
+    let vers = adresse_d_ici(&etat.racine, ecran.unwrap_or(Ecran::Local), None);
+    let (en_route, jeton) = etat.abandonner(&app.state::<Passage>(), |en_route| en_route.then_some(vers));
+    if !en_route {
         return Ok(false);
     }
-    rentrer(&app, Ecran::Local, None)?;
+    rentrer(&app, jeton)?;
     Ok(true)
 }
 
@@ -525,12 +562,45 @@ pub async fn annuler_jonction(app: AppHandle, webview: Webview, garde: State<'_,
 /// par la page du serveur s'ouvrait sans accord, prise pour une demande de la page embarquée (qui a plus de droits).
 /// Par la page vide, une telle requête tombe sur une page sans aucun droit ; et tant que dure le passage, la coque ne
 /// répond à personne (`appel::exiger`).
+///
+/// Chaque passage a son jeton, et seul le dernier posé mène quelque part : le minuteur ou la page vide d'un passage
+/// révolu ne touche pas à celui d'après. Un passage se pose sous le verrou de la visite, avec le serveur qu'il rejoint
+/// ou qu'il quitte (`commencer_visite`, `abandonner`) : le dernier posé va toujours là où la garde le laisse aller.
 #[derive(Default)]
-pub struct Passage(Mutex<Option<Url>>);
+pub struct Passage(Mutex<EnRoute>);
+
+#[derive(Default)]
+struct EnRoute {
+    jeton: u64,
+    vers: Option<Url>,
+}
 
 impl Passage {
     pub fn en_cours(&self) -> bool {
-        self.0.lock().unwrap_or_else(PoisonError::into_inner).is_some()
+        self.0.lock().unwrap_or_else(PoisonError::into_inner).vers.is_some()
+    }
+
+    /// Un passage vers `vers`, qui remplace celui en cours : son jeton.
+    fn poser(&self, vers: Url) -> u64 {
+        let mut p = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+        p.jeton += 1;
+        p.vers = Some(vers);
+        p.jeton
+    }
+
+    /// Le jeton du passage en cours, s'il y en a un.
+    fn courant(&self) -> Option<u64> {
+        let p = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+        p.vers.is_some().then_some(p.jeton)
+    }
+
+    /// Termine le passage `jeton`, s'il est toujours le dernier : où il allait.
+    fn finir(&self, jeton: u64) -> Option<Url> {
+        let mut p = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+        if p.jeton != jeton {
+            return None;
+        }
+        p.vers.take()
     }
 }
 
@@ -539,36 +609,54 @@ impl Passage {
 const PASSAGE_APRES: Duration = Duration::from_millis(150);
 const PASSAGE_AU_PLUS: Duration = Duration::from_millis(2000);
 
-/// Envoie la fenêtre à `vers`, par la page vide.
-fn naviguer(app: &AppHandle, vers: Url) -> Result<(), Erreur> {
-    let fenetre = fenetre(app)?;
-    *app.state::<Passage>().0.lock().unwrap_or_else(PoisonError::into_inner) = Some(vers);
-    if let Err(e) = fenetre.navigate(Url::parse("about:blank").expect("adresse fixe")) {
-        app.state::<Passage>().0.lock().unwrap_or_else(PoisonError::into_inner).take();
-        return Err(Erreur::echec(e));
+/// Envoie la fenêtre sur la page vide, pour le passage `jeton` (déjà posé) ; elle en repart vers où il va.
+fn partir(app: &AppHandle, jeton: u64) -> Result<(), Erreur> {
+    let passage = app.state::<Passage>();
+    // Un passage posé depuis a pris la main : c'est lui qui emmène la fenêtre.
+    if passage.courant() != Some(jeton) {
+        return Ok(());
+    }
+    if let Err(e) = fenetre(app).and_then(|f| f.navigate(Url::parse("about:blank").expect("adresse fixe")).map_err(Erreur::echec)) {
+        passage.finir(jeton);
+        return Err(e);
     }
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(PASSAGE_AU_PLUS).await;
-        continuer(&app);
+        continuer(&app, jeton);
     });
     Ok(())
 }
 
-/// La page vide est chargée : la fenêtre peut aller où elle allait.
+/// La page vide est chargée : la fenêtre peut aller où va le passage en cours.
 pub fn page_vide_chargee(app: &AppHandle) {
+    let Some(jeton) = app.state::<Passage>().courant() else { return };
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(PASSAGE_APRES).await;
-        continuer(&app);
+        continuer(&app, jeton);
     });
 }
 
-fn continuer(app: &AppHandle) {
-    let Some(vers) = app.state::<Passage>().0.lock().unwrap_or_else(PoisonError::into_inner).take() else { return };
+fn continuer(app: &AppHandle, jeton: u64) {
+    let Some(vers) = app.state::<Passage>().finir(jeton) else { return };
+    let Some(vers) = destination(&app.state::<Origines>(), vers, &app.state::<Acces>().racine) else {
+        eprintln!("Notak : la fenêtre n'a plus nulle part où aller");
+        return;
+    };
     if let Err(e) = fenetre(app).and_then(|f| f.navigate(vers).map_err(Erreur::echec)) {
         eprintln!("Notak : la fenêtre n'a pas pu changer de page ({e:?})");
     }
+}
+
+/// Où mène un passage qui s'achève : là où il allait, si la garde l'y laisse encore. Sinon (son serveur quitté sans que
+/// la fenêtre soit rappelée), l'écran d'accès, plutôt que la page vide, d'où rien ne ramène hors de macOS.
+fn destination(garde: &Origines, vers: Url, racine: &Url) -> Option<Url> {
+    if garde.permise(&vers) {
+        return Some(vers);
+    }
+    let acces = adresse_d_ici(racine, Ecran::Acces, None);
+    garde.permise(&acces).then_some(acces)
 }
 
 fn fenetre(app: &AppHandle) -> Result<tauri::WebviewWindow, Erreur> {
@@ -620,16 +708,17 @@ fn adresse_d_ici(racine: &Url, ecran: Ecran, erreur: Option<&str>) -> Url {
 /// qu'il avait choisis, ni la copie confiée pour lui. Rien n'est retenu : où Notak s'ouvre ne change pas. La page le
 /// demande (`revenir_ici`), le menu de l'app (`menu.rs`), ou le guet d'une page muette.
 pub fn revenir(app: &AppHandle, ecran: Ecran, erreur: Option<&str>) -> Result<(), Erreur> {
-    app.state::<Acces>().abandonner();
-    rentrer(app, ecran, erreur)
+    let etat = app.state::<Acces>();
+    let vers = adresse_d_ici(&etat.racine, ecran, erreur);
+    let (_, jeton) = etat.abandonner(&app.state::<Passage>(), |_| Some(vers));
+    rentrer(app, jeton)
 }
 
-/// La fenêtre, déjà sans serveur (`abandonner`), sur la page embarquée.
-fn rentrer(app: &AppHandle, ecran: Ecran, erreur: Option<&str>) -> Result<(), Erreur> {
+/// La fenêtre, déjà sans serveur (`abandonner`), part pour la page embarquée par le passage `jeton`, s'il y en a un.
+fn rentrer(app: &AppHandle, jeton: Option<u64>) -> Result<(), Erreur> {
     app.state::<Emplacements>().vider();
     app.state::<Ouverts>().retirer_confiees(None);
-    let url = adresse_d_ici(&app.state::<Acces>().racine, ecran, erreur);
-    naviguer(app, url)
+    jeton.map_or(Ok(()), |j| partir(app, j))
 }
 
 /// Revient aux toiles de cet ordinateur ou à l'écran d'accès, sans rien changer aux réglages.
@@ -656,9 +745,17 @@ pub async fn regler_ouverture(webview: Webview, garde: State<'_, Origines>, etat
         .map_err(Erreur::echec)
 }
 
-/// Oublie le serveur mémorisé, et la session qu'on y avait (ses cookies) ; Notak s'ouvre de nouveau ici.
+/// Oublie le serveur mémorisé, et la session qu'on y avait (ses cookies) ; Notak s'ouvre de nouveau ici. Les copies de
+/// ses toiles gardées pour le hors-ligne restent : elles sont dans le stockage de la page du serveur, que la coque ne
+/// sait pas vider pour une seule origine.
 #[tauri::command]
-pub async fn oublier_serveur(webview: Webview, garde: State<'_, Origines>, etat: State<'_, Acces>, ouverts: State<'_, Ouverts>) -> Result<(), Erreur> {
+pub async fn oublier_serveur(
+    app: AppHandle,
+    webview: Webview,
+    garde: State<'_, Origines>,
+    etat: State<'_, Acces>,
+    ouverts: State<'_, Ouverts>,
+) -> Result<(), Erreur> {
     exiger(&webview, &garde, LOCALE)?;
     let mut oublie = None;
     // Oublié en mémoire même si le fichier ne s'écrit pas : les cookies partent quand même.
@@ -668,17 +765,25 @@ pub async fn oublier_serveur(webview: Webview, garde: State<'_, Origines>, etat:
     });
     ouverts.retirer_confiees(None);
     if let Some(origine) = oublie {
-        // La fenêtre partait chez lui : elle n'y va plus.
+        // La fenêtre partait chez lui : elle n'y va plus, et revient à l'écran d'accès si elle était déjà en route.
         if garde.serveur.lire().as_deref() == Some(origine.as_str()) {
-            etat.abandonner();
+            let vers = adresse_d_ici(&etat.racine, Ecran::Acces, None);
+            if let (_, Some(jeton)) = etat.abandonner(&app.state::<Passage>(), |en_route| en_route.then_some(vers)) {
+                rentrer(&app, Some(jeton))?;
+            }
         }
-        // Les cookies de toute la fenêtre partagent un magasin : on y retire ceux de ce serveur.
-        let url = Url::parse(&format!("{origine}/")).map_err(Erreur::echec)?;
-        for cookie in webview.cookies_for_url(url).map_err(Erreur::echec)? {
-            webview.delete_cookie(cookie).map_err(Erreur::echec)?;
-        }
+        effacer_session(&webview, &origine)?;
     }
     ecrit.map_err(Erreur::echec)
+}
+
+/// Retire les cookies d'un serveur, et avec eux la session qu'on y avait : ceux de toute la fenêtre partagent un magasin.
+fn effacer_session(webview: &Webview, origine: &str) -> Result<(), Erreur> {
+    let url = Url::parse(&format!("{origine}/")).map_err(Erreur::echec)?;
+    for cookie in webview.cookies_for_url(url).map_err(Erreur::echec)? {
+        webview.delete_cookie(cookie).map_err(Erreur::echec)?;
+    }
+    Ok(())
 }
 
 /// La recherche automatique des mises à jour, réglée une fois pour la coque.
@@ -1032,10 +1137,75 @@ mod essais {
         Acces::new(Reglage::new(None), Url::parse("tauri://localhost/").unwrap(), ServeurCourant::default())
     }
 
+    fn racine(origine: &str) -> Url {
+        Url::parse(&format!("{origine}/")).unwrap()
+    }
+
+    #[test]
+    fn un_serveur_reste_a_sa_valeur_par_defaut_ne_fait_pas_proposer_cet_ordinateur() {
+        for declaree in ["http://localhost:3005", "http://127.0.0.1:3005", "https://localhost:3443"] {
+            for tapee in ["https://notak.exemple.fr", "https://192.168.1.5:3005"] {
+                assert_eq!(se_dit_ailleurs(tapee, declaree.into()), Erreur::MalRegle, "{tapee} → {declaree}");
+            }
+        }
+        // Un essai sur cet ordinateur, joint par l'autre nom de la machine : on propose celui qu'il donne.
+        assert_eq!(se_dit_ailleurs("http://127.0.0.1:3005", "http://localhost:3005".into()), Erreur::Redirige { vers: "http://localhost:3005".into() });
+        assert_eq!(
+            se_dit_ailleurs("https://notak.exemple.fr", "https://www.notak.exemple.fr".into()),
+            Erreur::Redirige { vers: "https://www.notak.exemple.fr".into() }
+        );
+    }
+
+    #[test]
+    fn chaque_passage_a_son_jeton_et_seul_le_dernier_mene_quelque_part() {
+        let p = Passage::default();
+        assert!(!p.en_cours());
+        assert_eq!(p.courant(), None);
+        let un = p.poser(racine(ICI));
+        let deux = p.poser(Url::parse("tauri://localhost/?ici").unwrap());
+        assert_eq!(p.courant(), Some(deux));
+        // Le minuteur du premier passage, devenu orphelin, ne vide pas le second avant son heure.
+        assert_eq!(p.finir(un), None);
+        assert!(p.en_cours());
+        assert_eq!(p.finir(deux).map(String::from), Some("tauri://localhost/?ici".into()));
+        assert!(!p.en_cours());
+        // Fini une fois : la page vide et le minuteur du même passage n'emmènent pas la fenêtre deux fois.
+        assert_eq!(p.finir(deux), None);
+        assert_eq!(p.courant(), None);
+    }
+
+    #[test]
+    fn le_dernier_passage_va_la_ou_la_garde_laisse_aller() {
+        let serveur = ServeurCourant::default();
+        let ici = Url::parse("tauri://localhost/").unwrap();
+        let a = Acces::new(Reglage::new(None), ici.clone(), serveur.clone());
+        let garde = Origines::de(&tauri::utils::config::Config::default(), serveur);
+        let p = Passage::default();
+        // La jonction pose son passage avec le serveur ; une annulation qui la voit en route pose le retour après lui.
+        let vu = a.annulations.load(Ordering::SeqCst);
+        let (_, vers_serveur) = a.commencer_visite(&p, ICI, racine(ICI), vu).unwrap();
+        assert_eq!(destination(&garde, racine(ICI), &ici), Some(racine(ICI)), "tant qu'on y va, le serveur est permis");
+        let local = adresse_d_ici(&ici, Ecran::Local, None);
+        let (en_route, retour) = a.abandonner(&p, |en_route| en_route.then(|| local.clone()));
+        assert!(en_route);
+        assert_eq!(p.finir(vers_serveur), None, "le passage vers le serveur n'emmène plus la fenêtre");
+        let vers = p.finir(retour.unwrap()).unwrap();
+        assert_eq!(destination(&garde, vers, &ici), Some(local));
+        // Un renoncement sans retour : le serveur n'est plus permis, la fenêtre va à l'écran d'accès, pas sur la page vide.
+        let vu = a.annulations.load(Ordering::SeqCst);
+        let (_, jeton) = a.commencer_visite(&p, ICI, racine(ICI), vu).unwrap();
+        assert_eq!(a.abandonner(&p, |_| None), (true, None));
+        let vers = p.finir(jeton).unwrap();
+        assert_eq!(destination(&garde, vers, &ici).map(String::from), Some("tauri://localhost/?acces".into()));
+        // Une jonction abandonnée avant de partir ne pose aucun passage.
+        assert_eq!(a.commencer_visite(&p, ICI, racine(ICI), vu), None);
+        assert!(!p.en_cours());
+    }
+
     #[test]
     fn une_page_de_serveur_muette_se_reconnait() {
         let a = etat();
-        let n = a.commencer_visite(ICI, 0).unwrap();
+        let (n, _) = a.commencer_visite(&Passage::default(), ICI, racine(ICI), 0).unwrap();
         assert_eq!(a.serveur.lire().as_deref(), Some(ICI));
         assert!(a.muette(n));
         // Un autre serveur qui se signale ne compte pas.
@@ -1055,25 +1225,27 @@ mod essais {
     #[test]
     fn renoncer_arrete_la_jonction_et_la_visite() {
         let a = etat();
+        let p = Passage::default();
         // Pendant la vérification : rien n'est en route ; la jonction qui finit ensuite ne part pas.
         let vu = a.annulations.load(Ordering::SeqCst);
-        assert!(!a.abandonner());
-        assert_eq!(a.commencer_visite(ICI, vu), None);
+        assert_eq!(a.abandonner(&p, |en_route| en_route.then(|| racine("tauri://localhost"))), (false, None));
+        assert_eq!(a.commencer_visite(&p, ICI, racine(ICI), vu), None);
         assert_eq!(a.serveur.lire(), None);
+        assert!(!p.en_cours());
         // La fenêtre est partie, la page ne s'est pas signalée : on le sait, et plus rien ne la guette.
         let vu = a.annulations.load(Ordering::SeqCst);
-        let n = a.commencer_visite(ICI, vu).unwrap();
-        assert!(a.abandonner());
+        let (n, _) = a.commencer_visite(&p, ICI, racine(ICI), vu).unwrap();
+        assert!(a.abandonner(&p, |_| None).0);
         assert!(!a.muette(n));
         assert_eq!(a.serveur.lire(), None);
         assert_ne!(a.annulations.load(Ordering::SeqCst), vu, "la jonction qui l'a lancée ne retient rien");
         // Plus de serveur : un chargement tardif de sa page ne recommence pas de visite.
-        assert_eq!(a.visite_rechargee(&Url::parse(&format!("{ICI}/")).unwrap()), None);
+        assert_eq!(a.visite_rechargee(&racine(ICI)), None);
         // Une page vivante n'est plus « en route ».
         let vu = a.annulations.load(Ordering::SeqCst);
-        a.commencer_visite(ICI, vu).unwrap();
+        a.commencer_visite(&p, ICI, racine(ICI), vu).unwrap();
         a.signe_de_vie(ICI);
-        assert!(!a.abandonner());
+        assert!(!a.abandonner(&p, |_| None).0);
     }
 
     #[test]

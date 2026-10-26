@@ -171,6 +171,12 @@ describe('l’écran de connexion dans un navigateur', () => {
     expect(appels).toContain('/api/auth/sign-in/social')
     expect(appels).not.toContain('/api/auth/device/code')
   })
+
+  it('n’offre pas « Se connecter dans le navigateur » : il y est déjà, avec son gestionnaire de mots de passe', async () => {
+    await monter()
+    expect(hote.querySelector('.connexion-navigateur')).toBeNull()
+    expect(hote.textContent).not.toContain('Se connecter dans le navigateur')
+  })
 })
 
 describe('l’écran de connexion dans l’app de bureau', () => {
@@ -385,6 +391,85 @@ describe('l’écran de connexion dans l’app de bureau', () => {
     expect(appels).toContain('/api/auth/device/code')
     expect(appels).not.toContain('/api/auth/sign-in/sso')
     expect(hote.querySelector('.connexion-code-valeur')?.textContent).toBe('ABCD 2345')
+  })
+
+  it('« Se connecter dans le navigateur » : un lien discret sous le formulaire, qui dit à quoi il sert', async () => {
+    moyens = { fournisseurs: [], courriel: true }
+    await monter()
+    const lien = bouton(/Se connecter dans le navigateur/)
+    // Un lien, pas un second bouton plein : le formulaire reste le chemin principal.
+    expect(lien.className).toBe('bouton-lien')
+    expect(lien.type).toBe('button')
+    expect(lien.closest('.connexion-navigateur')).not.toBeNull()
+    // Sous « Se connecter », avant les autres façons de se connecter.
+    expect(hote.querySelector<HTMLButtonElement>('button[type=submit]')!.compareDocumentPosition(lien) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // La ligne pâle (lue avec le lien, pas seulement vue) dit pourquoi : le gestionnaire de mots de passe n'est pas dans la fenêtre de l'app.
+    const aide = hote.querySelector(`#${lien.getAttribute('aria-describedby')}`)!
+    expect(aide.textContent).toBe('Pour vous servir de votre gestionnaire de mots de passe, ou des mots de passe enregistrés dans votre navigateur.')
+    // Le formulaire reste celui qui connecte ici.
+    expect(hote.querySelector<HTMLButtonElement>('button[type=submit]')!.textContent).toBe('Se connecter')
+  })
+
+  it('« Se connecter dans le navigateur » lance la connexion par code, sans fournisseur ni mot de passe envoyé ici', async () => {
+    moyens = { fournisseurs: [], courriel: true }
+    vi.useFakeTimers()
+    await monter()
+    expect(hote.querySelector('.connexion-fournisseurs button:not(.bouton-lien)')).not.toBeNull()
+    await act(async () => bouton(/Se connecter dans le navigateur/).click())
+    await avancer(0)
+    expect(appels).toContain('/api/auth/device/code')
+    expect(appels).not.toContain('/api/auth/sign-in/email')
+    expect(appels).not.toContain('/api/auth/sign-in/social')
+    expect(appels).not.toContain('/api/auth/sign-in/sso')
+    expect(hote.querySelector('h1')?.textContent).toBe('Terminez la connexion dans votre navigateur')
+    expect(hote.querySelector('.connexion-code-valeur')?.textContent).toBe('ABCD 2345')
+    // La coque ouvre la page d'accord, où le navigateur a son gestionnaire de mots de passe et ses clés d'accès.
+    expect(invoke).toHaveBeenCalledWith('ouvrir_dans_le_navigateur', { adresse: LIEN }, undefined)
+    expect(appelsOuvrir()).toHaveLength(1)
+  })
+
+  it('accordé dans le navigateur, la session se relit ; annuler ramène au formulaire, ce qu’on y avait écrit y reste', async () => {
+    reponses['/api/moi'] = () => Response.json({ id: 'u1', email: 'ana@exemple.fr', nom: 'Ana' })
+    const surConnexion = vi.fn()
+    vi.useFakeTimers()
+    await monter(surConnexion)
+    await ecrire('email', 'ana@exemple.fr')
+    await act(async () => bouton(/Se connecter dans le navigateur/).click())
+    await avancer(0)
+    await act(async () => bouton(/Annuler/).click())
+    expect(hote.querySelector('form')).not.toBeNull()
+    expect(champ('email').value).toBe('ana@exemple.fr')
+    expect(document.activeElement).toBe(champ('email'))
+    expect(surConnexion).not.toHaveBeenCalled()
+
+    await act(async () => bouton(/Se connecter dans le navigateur/).click())
+    await avancer(0)
+    reponses['/api/auth/device/token'] = () => Response.json({ access_token: 'x' })
+    await avancer(1000)
+    expect(surConnexion).toHaveBeenCalledExactlyOnceWith({ id: 'u1', email: 'ana@exemple.fr', nom: 'Ana' })
+  })
+
+  it('« Se connecter dans le navigateur » n’est que pour la connexion : ni pour créer un compte, ni pour retrouver l’accès, ni pour le SSO', async () => {
+    await monter()
+    expect(bouton(/Se connecter dans le navigateur/)).toBeTruthy()
+    for (const mode of [/^Créer un compte$/, /Mot de passe oublié/, /SSO de mon entreprise/]) {
+      await act(async () => bouton(mode).click())
+      expect(hote.querySelector('.connexion-navigateur'), String(mode)).toBeNull()
+      await act(async () => bouton(/J’ai déjà un compte/).click())
+    }
+    expect(bouton(/Se connecter dans le navigateur/)).toBeTruthy()
+  })
+
+  it('il se grise pendant l’envoi du formulaire, comme les autres façons de se connecter', async () => {
+    let finir: (r: Response) => void = () => {}
+    reponses['/api/auth/sign-in/email'] = () => new Promise<Response>((r) => (finir = r)) as unknown as Response
+    await monter()
+    await ecrire('email', 'ana@exemple.fr')
+    await ecrire('mdp', 'motdepasse')
+    await envoyer()
+    expect(bouton(/Se connecter dans le navigateur/).disabled).toBe(true)
+    await act(async () => finir(new Response(JSON.stringify({ code: 'identifiants_incorrects' }), { status: 401 })))
+    expect(bouton(/Se connecter dans le navigateur/).disabled).toBe(false)
   })
 
   it('le mot de passe oublié dit que le lien s’ouvrira dans le navigateur', async () => {

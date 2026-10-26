@@ -2875,6 +2875,59 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   border-radius: 20px;
 }
 
+/* La mise à jour de l'app prête, ou qui n'a pas pu s'installer : sur plusieurs lignes quand la place manque (la cause
+   d'un échec est une phrase), et ses notes dépliées en dessous des boutons. */
+.bandeau.bandeau-mise-a-jour {
+  flex-wrap: wrap;
+  justify-content: center;
+  row-gap: 6px;
+  max-width: min(640px, calc(100vw - 32px));
+  border-radius: 20px;
+}
+
+.maj-notes {
+  flex: 1 0 100%;
+  margin: 0;
+  font-size: 12px;
+}
+
+.maj-notes summary {
+  width: fit-content;
+  color: var(--accent);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* Les notes en texte, lues comme du Markdown simple (`lireNotes`) : des paragraphes et des puces, sans leurs marques. */
+.maj-notes-corps {
+  max-height: 180px;
+  margin: 6px 0;
+  padding: 8px 10px;
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--app-champ);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.maj-notes-corps :is(p, ul) {
+  margin: 0;
+}
+
+.maj-notes-corps ul {
+  padding-left: 18px;
+}
+
+.maj-notes-corps li + li,
+.maj-notes-corps :is(p, ul) + :is(p, ul) {
+  margin-top: 4px;
+}
+
+.bureau-reglages .maj-notes .bouton-lien,
+.bandeau-mise-a-jour .maj-notes .bouton-lien {
+  padding: 0;
+}
+
 /* — La rubrique « App de bureau » des réglages : à droite de son libellé, les boutons et les mises à jour, aux couleurs
    des autres contrôles de la page. — */
 .bureau-reglages {
@@ -2965,7 +3018,7 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 /* Le texte pâle d'`app.css` (62 % du texte) ne tient que 3,7:1 sur le blanc, et l'accent 4,4:1 sur le sombre : trop peu pour du texte de
    12 à 13 px, dont un lien. Dans ces écrans, 72 % (4,8:1), et un accent qui tire vers la couleur du texte (plus foncé en clair, plus
    clair en sombre). */
-:is(.connexion-bureau, .connexion-code, .connexion-fournisseurs, .autoriser-carte, .ouverts-dialogue, .bandeau-admin, .bandeau-attente) {
+:is(.connexion-bureau, .connexion-navigateur, .connexion-code, .connexion-fournisseurs, .autoriser-carte, .ouverts-dialogue, .bandeau-admin, .bandeau-attente) {
   --app-pale: color-mix(in srgb, var(--texte) 72%, transparent);
   --accent-lien: color-mix(in srgb, var(--accent) 80%, var(--texte));
 }
@@ -2977,6 +3030,21 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   background: var(--app-champ);
   color: var(--texte);
   font-weight: 500;
+}
+
+/* « Se connecter dans le navigateur » : un lien discret sous le bouton qui connecte ici, avec une ligne pâle qui dit à quoi il sert. */
+.connexion-navigateur {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.connexion-navigateur .bouton-lien {
+  color: var(--accent-lien);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 /* À quel serveur l'on parle, de quoi en changer ; en bas de la carte, discret. */
@@ -3152,6 +3220,13 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 .bandeau-admin-commande code {
   overflow-wrap: anywhere;
   user-select: all;
+}
+
+/* Le guide des autres installations : un lien dans le texte, souligné. */
+.bandeau.bandeau-admin .bandeau-admin-commande a {
+  color: var(--accent-lien);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .bandeau-admin-notes summary {

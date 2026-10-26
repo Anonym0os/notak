@@ -146,6 +146,7 @@ describe('les commandes de la coque', () => {
     await revenirIci('local')
     await reglerOuverture('serveur')
     await annulerJonction()
+    await annulerJonction('acces')
     await oublierServeur()
     await reglerMajAuto(false)
     expect(appels.map(({ commande, arguments_ }) => [commande, arguments_])).toEqual([
@@ -154,7 +155,8 @@ describe('les commandes de la coque', () => {
       ['revenir_ici', { ecran: 'acces' }],
       ['revenir_ici', { ecran: 'local' }],
       ['regler_ouverture', { ouvrir: 'serveur' }],
-      ['annuler_jonction', undefined],
+      ['annuler_jonction', { ecran: 'local' }],
+      ['annuler_jonction', { ecran: 'acces' }],
       ['oublier_serveur', undefined],
       ['regler_maj_auto', { actif: false }],
     ])
@@ -178,6 +180,7 @@ describe('les commandes de la coque', () => {
     expect(estErreurCoque(e) && e.code === 'redirige' && e.vers).toBe('https://www.notak.exemple.fr')
     expect(estErreurCoque({ code: 'type_refuse' })).toBe(true)
     expect(estErreurCoque({ code: 'file_pleine' })).toBe(true)
+    expect(estErreurCoque({ code: 'mal_regle' })).toBe(true)
     expect(estErreurCoque({ code: 'redirige' })).toBe(false)
     expect(estErreurCoque(new Error('pas_notak'))).toBe(false)
     expect(estErreurCoque('Command acces not allowed by ACL')).toBe(false)

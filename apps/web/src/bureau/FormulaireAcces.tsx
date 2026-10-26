@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { type Acces, annulerJonction, estErreurCoque, joindreServeur, oublierServeur } from '../bureau'
 import { t } from '../langue'
 import { Marque } from '../PageApp'
-import { type Echec, GUIDE, concerneAdresse, echecDe, hoteDe, hoteSaisi, texteErreur } from './acces'
+import { type Echec, GUIDE, GUIDE_ORIGINE, concerneAdresse, echecDe, hoteDe, hoteSaisi, texteErreur } from './acces'
 import { fermerDialogueAcces, relireAcces, useAcces, useDialogueAcces } from './etat'
 
 /**
@@ -13,7 +13,9 @@ import { fermerDialogueAcces, relireAcces, useAcces, useDialogueAcces } from './
  * (la porte de l'app, `?acces`) et de fenêtre ouverte depuis l'édition locale.
  *
  * La page n'envoie jamais la fenêtre ailleurs d'elle-même : c'est la coque qui vérifie l'adresse, et elle la relit.
- * Fermé pendant « Connexion… », le formulaire arrête la jonction : renoncer ne mène pas chez le serveur.
+ * Pendant « Connexion… », « Annuler » arrête la jonction, comme la fermeture du formulaire : renoncer ne mène pas chez
+ * le serveur. Sur l'écran entier, « Toiles de cet ordinateur » reste une sortie : sans menu (Windows, Linux), c'est la
+ * seule tant qu'un serveur tarde.
  */
 
 export interface PropsAcces {
@@ -35,6 +37,8 @@ export function FormulaireAcces({ acces, mode, echecInitial, surLocal, surFermer
   const [occupe, setOccupe] = useState<string | null>(null)
   /** Une jonction lancée d'ici, la fenêtre pas encore partie : la fermeture du formulaire l'arrête. */
   const enCours = useRef(false)
+  /** La tentative en cours : une jonction annulée qui finit plus tard (sur `annule`) ne touche pas à la suivante. */
+  const tentative = useRef(0)
   const [echec, setEchec] = useState<Echec | null>(echecInitial ?? null)
   const [retenu, setRetenu] = useState(acces?.serveur ?? null)
   const [ouvrirServeur, setOuvrirServeur] = useState(acces?.ouvrir === 'serveur' && !!acces.serveur)
@@ -44,6 +48,7 @@ export function FormulaireAcces({ acces, mode, echecInitial, surLocal, surFermer
   const utiliser = useRef<HTMLButtonElement>(null)
   const demander = useRef<HTMLButtonElement>(null)
   const annuler = useRef<HTMLButtonElement>(null)
+  const arreter = useRef<HTMLButtonElement>(null)
   const bloque = occupe !== null
   const hote = retenu ? hoteDe(retenu) : ''
 
@@ -63,6 +68,15 @@ export function FormulaireAcces({ acces, mode, echecInitial, surLocal, surFermer
     else champ.current?.focus()
   }, [echec])
 
+  // Le bouton pressé (« Se connecter », « Utiliser ») est pris pendant « Connexion… » : le curseur va à « Annuler », la
+  // sortie ; et revient au champ quand on a annulé.
+  const occupeAvant = useRef(occupe)
+  useEffect(() => {
+    if (occupe !== null && occupeAvant.current === null) arreter.current?.focus()
+    else if (occupe === null && occupeAvant.current !== null && document.activeElement === document.body) champ.current?.focus()
+    occupeAvant.current = occupe
+  }, [occupe])
+
   // Oublier demande confirmation : le curseur va à « Annuler », et revient à « Oublier » si l'on renonce.
   const avant = useRef(oubli)
   useEffect(() => {
@@ -80,15 +94,37 @@ export function FormulaireAcces({ acces, mode, echecInitial, surLocal, surFermer
     setOccupe(hoteSaisi(saisie))
     // Jusqu'à ce que la page du serveur remplace celle-ci : réussie, la jonction a seulement lancé la fenêtre.
     enCours.current = true
+    const n = ++tentative.current
     try {
       // Réussie, la fenêtre part chez le serveur : le bouton reste « Connexion… » jusque-là.
       await joindreServeur(saisie, true)
     } catch (e) {
+      if (n !== tentative.current) return
       enCours.current = false
       setOccupe(null)
-      // Arrêtée parce qu'on a renoncé (la fenêtre fermée, le menu) : il n'y a rien à reprocher.
+      // Arrêtée parce qu'on a renoncé (« Annuler », la fenêtre fermée, le menu) : il n'y a rien à reprocher.
       if (!(estErreurCoque(e) && e.code === 'annule')) setEchec(echecDe(e))
     }
+  }
+
+  /**
+   * Arrête la jonction en cours. La coque rend vrai si la fenêtre était déjà partie : elle la ramène à `ecran`, et cette
+   * page va être remplacée. Sinon, le formulaire se rend tout de suite, sans attendre que la vérification finisse.
+   */
+  const renoncer = async (ecran: 'local' | 'acces'): Promise<boolean> => {
+    enCours.current = false
+    tentative.current++
+    try {
+      if (await annulerJonction(ecran)) return true
+    } catch (e) {
+      console.warn('Notak : la connexion en cours n’a pas pu être arrêtée', e)
+    }
+    setOccupe(null)
+    return false
+  }
+  const toilesDIci = async () => {
+    if (bloque && (await renoncer('local'))) return
+    surLocal()
   }
   const envoyer = (e: FormEvent) => {
     e.preventDefault()
@@ -169,6 +205,11 @@ export function FormulaireAcces({ acces, mode, echecInitial, surLocal, surFermer
           {t('bureau.erreur.redirigeUtiliser', { vers: echec.vers })}
         </button>
       )}
+      {echec?.code === 'mal_regle' && (
+        <a className="bouton-lien acces-guide" href={GUIDE_ORIGINE} target="_blank" rel="noopener noreferrer">
+          {t('bureau.erreur.mal_regleGuide')}
+        </a>
+      )}
       {avis && (
         <p className="connexion-avis" role="status">
           {avis}
@@ -184,6 +225,12 @@ export function FormulaireAcces({ acces, mode, echecInitial, surLocal, surFermer
       <button type="submit" className="bouton bouton-plein" disabled={bloque}>
         {t(occupe !== null ? 'bureau.acces.connexion' : 'bureau.acces.seConnecter')}
       </button>
+      {occupe !== null && (
+        // Déjà partie, la fenêtre revient là d'où l'on venait : l'écran d'accès, ou les toiles d'ici sous la fenêtre.
+        <button ref={arreter} type="button" className="bouton" onClick={() => void renoncer(mode === 'ecran' ? 'acces' : 'local')}>
+          {t('commun.annuler')}
+        </button>
+      )}
       <a className="bouton-lien acces-guide" href={GUIDE} target="_blank" rel="noopener noreferrer">
         {t('bureau.acces.guide')}
       </a>
@@ -193,7 +240,7 @@ export function FormulaireAcces({ acces, mode, echecInitial, surLocal, surFermer
         {/* Dans la fenêtre, on est déjà sur les toiles d'ici ; où Notak s'ouvre se règle dans les réglages de l'app. */}
         {mode === 'ecran' && (
           <>
-            <button type="button" className="bouton" disabled={bloque} onClick={() => surLocal()}>
+            <button type="button" className="bouton" onClick={() => void toilesDIci()}>
               {t('bureau.acces.local')}
             </button>
             {ouvrirServeur && <small className="connexion-indice">{t('bureau.acces.localAide', { hote })}</small>}

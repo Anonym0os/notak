@@ -300,6 +300,17 @@ export function EcranConnexion({
           <button type="submit" className="bouton bouton-plein" disabled={envoi}>
             {envoi ? t('connexion.enCours') : titreBouton}
           </button>
+          {/* Dans la fenêtre de l'app, ni extension ni trousseau ne remplissent le formulaire : le navigateur, où ils servent, peut faire la connexion. */}
+          {enApp && mode === 'connexion' && (
+            <div className="connexion-navigateur">
+              <button type="button" className="bouton-lien" disabled={envoi} aria-describedby="connexion-navigateur-aide" onClick={() => setParCode(true)}>
+                {t('serveur.connexion.dansNavigateur')}
+              </button>
+              <small id="connexion-navigateur-aide" className="connexion-indice">
+                {t('serveur.connexion.dansNavigateurAide')}
+              </small>
+            </div>
+          )}
           {mode === 'connexion' && (
             <div className="connexion-fournisseurs">
               <span className="connexion-ou">{t('connexion.ou')}</span>

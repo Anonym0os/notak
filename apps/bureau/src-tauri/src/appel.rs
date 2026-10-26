@@ -32,6 +32,9 @@ pub enum Erreur {
     TropAncien,
     /// Le serveur se dit ailleurs : on propose son adresse, on n'y va pas seul.
     Redirige { vers: String },
+    /// Joint par son adresse publique, le serveur se dit sur cet ordinateur (`http://localhost:3005`) : son
+    /// administrateur n'a pas réglé `NOTAK_ORIGINE`.
+    MalRegle,
     /// Une sorte de fichier que la coque n'ouvre pas dans une autre application.
     TypeRefuse,
     TropGros,
@@ -145,6 +148,7 @@ mod essais {
         assert_eq!(serde_json::to_value(Erreur::PasNotak).unwrap(), json!({ "code": "pas_notak" }));
         assert_eq!(serde_json::to_value(Erreur::TypeRefuse).unwrap(), json!({ "code": "type_refuse" }));
         assert_eq!(serde_json::to_value(Erreur::FilePleine).unwrap(), json!({ "code": "file_pleine" }));
+        assert_eq!(serde_json::to_value(Erreur::MalRegle).unwrap(), json!({ "code": "mal_regle" }));
         assert_eq!(
             serde_json::to_value(Erreur::Redirige { vers: "https://notak.exemple.fr".into() }).unwrap(),
             json!({ "code": "redirige", "vers": "https://notak.exemple.fr" })

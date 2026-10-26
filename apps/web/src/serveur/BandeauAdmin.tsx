@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Moi } from '../api'
 import { t } from '../langue'
-import { COMMANDE_MISE_A_JOUR, type VersionDisponible, ecarterVersion, lireMiseAJourServeur, lireNotes, versionEcartee } from './miseAJourServeur'
+import { COMMANDE_MISE_A_JOUR, GUIDE_MISE_A_JOUR, type VersionDisponible, ecarterVersion, lireMiseAJourServeur, lireNotes, versionEcartee } from './miseAJourServeur'
 import { useBandeau } from '../bandeaux'
 
 /**
  * Une nouvelle version de Notak existe : le bandeau des admins du serveur, et d'eux seuls. Il dit les deux versions, montre
- * la commande à lancer sur le serveur et la copie, renvoie aux nouveautés (dans le navigateur) et laisse dire « plus tard » :
- * il se tait pour sept jours, ou jusqu'à la version suivante.
+ * la commande à lancer sur le serveur (pour l'installation avec l'image publiée et son compose.yaml) et la copie, renvoie aux
+ * nouveautés et au guide des autres installations (dans le navigateur) et laisse dire « plus tard » : il se tait pour sept
+ * jours, ou jusqu'à la version suivante.
  *
  * Ce n'est pas une région `status` : elle serait relue en entier à chaque copie et à chaque ouverture des notes. Seul le
  * résultat de la copie s'annonce (une région toujours là, dont le texte change), et son échec (une alerte).
@@ -76,6 +77,12 @@ export function BandeauAdmin({ moi }: { moi: Moi }) {
           {t('serveur.maj.copieEchec')}
         </p>
       )}
+      {/* La commande ne vaut que pour l'installation courante : les autres installations ont leur guide. */}
+      <p className="bandeau-admin-commande">
+        <a href={GUIDE_MISE_A_JOUR} target="_blank" rel="noopener noreferrer">
+          {t('serveur.maj.autres')}
+        </a>
+      </p>
       {notes.length > 0 && (
         <details className="bandeau-admin-notes">
           <summary>{t('serveur.maj.notes')}</summary>

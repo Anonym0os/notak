@@ -8,6 +8,8 @@ import { t } from '../langue'
 
 /** Le guide pour installer son propre serveur. */
 export const GUIDE = 'https://github.com/Anonym0os/notak/blob/main/docs/AUTO-HEBERGER.md'
+/** Le passage du guide qui dit quoi écrire dans `NOTAK_ORIGINE`. */
+export const GUIDE_ORIGINE = `${GUIDE}#les-variables`
 
 /** Ce que fait la page embarquée en s'ouvrant : les toiles d'ici, le serveur retenu, ou l'écran où l'on choisit. */
 export type Porte = 'local' | 'connecter' | 'ecran'
@@ -70,6 +72,7 @@ const TEXTES: Record<string, string> = {
   pas_notak: 'bureau.erreur.pas_notak',
   trop_ancien: 'bureau.erreur.trop_ancien',
   redirige: 'bureau.erreur.redirige',
+  mal_regle: 'bureau.erreur.mal_regle',
   muette: 'bureau.erreur.muette',
   interdit: 'bureau.erreur.interdit',
   file_pleine: 'bureau.erreur.file_pleine',

@@ -4,8 +4,17 @@
  * du réseau : relu avec méfiance, et montré en texte, jamais en HTML.
  */
 
-/** La commande pour un serveur installé avec le `compose.yaml` du dépôt. */
-export const COMMANDE_MISE_A_JOUR = 'docker compose pull && docker compose up -d'
+/**
+ * La commande pour un serveur installé avec l'image publiée et le `compose.yaml` (le cas courant), la même que dans le
+ * journal du serveur (`apps/serveur/src/misesAJour.ts`) : le `compose.yaml` de la version d'abord (il porte la version
+ * d'OpenFGA), puis l'image.
+ */
+export const COMMANDE_MISE_A_JOUR = 'curl -fsSLO https://github.com/Anonym0os/notak/releases/latest/download/compose.yaml && docker compose pull && docker compose up -d'
+/**
+ * Pour les autres installations (version tenue par `NOTAK_VERSION`, depuis les sources, Coolify, sans Docker), que cette
+ * commande ne met pas à jour : la section « Mettre à jour » du guide, la même que dans le journal du serveur.
+ */
+export const GUIDE_MISE_A_JOUR = 'https://github.com/Anonym0os/notak/blob/main/docs/AUTO-HEBERGER.md#mettre-à-jour'
 
 const VERSION_MAX = 64
 /** Des notes de version sont une page de texte : au-delà, la page ralentirait sans rien apprendre de plus. */

@@ -7,7 +7,7 @@ import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Moi } from '../api'
 import { BandeauAdmin } from './BandeauAdmin'
-import { COMMANDE_MISE_A_JOUR, adresseSure, lireDisponible, lireNotes, oublierMiseAJourServeur, versionEcartee } from './miseAJourServeur'
+import { COMMANDE_MISE_A_JOUR, GUIDE_MISE_A_JOUR, adresseSure, lireDisponible, lireNotes, oublierMiseAJourServeur, versionEcartee } from './miseAJourServeur'
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 let racine: Root
@@ -81,16 +81,47 @@ describe('le bandeau d’une nouvelle version du serveur', () => {
   it('la commande est toujours là, avec où la lancer : sur le serveur, dans le dossier du compose.yaml', async () => {
     await monter(moi(true))
     const commande = hote.querySelector('.bandeau-admin-commande')!
-    expect(commande.querySelector('code')?.textContent).toBe('docker compose pull && docker compose up -d')
-    expect(commande.textContent).toContain('À lancer sur le serveur, dans le dossier de Notak (celui du compose.yaml)')
+    expect(commande.querySelector('code')?.textContent).toBe(COMMANDE_MISE_A_JOUR)
+    // Elle est dite pour ce qu'elle est : l'installation avec l'image publiée et son compose.yaml, pas toutes les installations.
+    expect(commande.textContent).toContain('Si vous avez installé Notak avec l’image publiée et le compose.yaml, lancez ceci sur le serveur, dans le dossier de Notak (celui du compose.yaml)')
     // Pas seulement une infobulle : elle n'existe ni au tactile, ni au lecteur d'écran.
     expect(bouton(/Copier la commande/).hasAttribute('title')).toBe(false)
   })
 
+  it('renvoie au guide pour les autres installations', async () => {
+    await monter(moi(true))
+    const lignes = [...hote.querySelectorAll('.bandeau-admin-commande')]
+    const ligne = lignes.find((p) => p.querySelector('a'))!
+    const guide = ligne.querySelector<HTMLAnchorElement>('a')!
+    expect(guide.textContent).toBe('Autres installations : le guide')
+    // La section « Mettre à jour » du guide, dans le navigateur (jamais dans la fenêtre du bandeau), sans rien transmettre.
+    expect(guide.href).toBe(encodeURI('https://github.com/Anonym0os/notak/blob/main/docs/AUTO-HEBERGER.md#mettre-à-jour'))
+    expect(guide.target).toBe('_blank')
+    expect(guide.rel).toBe('noopener noreferrer')
+    // Elle ne dépend pas de ce que le serveur dit : c'est une adresse d'ici, pas du réseau.
+    reponse = () => neuf({ adresse: null })
+    oublierMiseAJourServeur()
+    await demonter()
+    await monter(moi(true))
+    expect(hote.querySelector('a')?.textContent).toBe('Autres installations : le guide')
+  })
+
+  it('le guide est celui du journal du serveur, et la section existe dans le guide', () => {
+    const serveur = readFileSync(join(import.meta.dirname, '../../../serveur/src/misesAJour.ts'), 'utf8')
+    const fragment = /AUTO-HEBERGER\.md#([^\s`'"$]+)/.exec(serveur)?.[1]
+    expect(decodeURIComponent(fragment ?? '')).toBe('mettre-à-jour')
+    expect(GUIDE_MISE_A_JOUR).toMatch(/\/docs\/AUTO-HEBERGER\.md#mettre-à-jour$/)
+    // `#mettre-à-jour` est l'ancre du titre « Mettre à jour » : si on le renomme, le lien ne mène plus nulle part.
+    const guide = readFileSync(join(import.meta.dirname, '../../../../docs/AUTO-HEBERGER.md'), 'utf8')
+    expect(guide).toMatch(/^## Mettre à jour$/m)
+  })
+
   // Le serveur écrit la même commande dans son journal (`apps/serveur/src/misesAJour.ts`) : qu'une change seule, et l'admin lit deux consignes.
   it('la commande est celle que le serveur écrit dans son journal', () => {
+    // Le serveur l'écrit avec son dépôt (`DEPOT`) : on le remet en clair avant de comparer.
     const serveur = readFileSync(join(import.meta.dirname, '../../../serveur/src/misesAJour.ts'), 'utf8')
-    expect(serveur).toContain(COMMANDE_MISE_A_JOUR)
+    const depot = /const DEPOT = '([^']+)'/.exec(serveur)![1]!
+    expect(serveur.replaceAll('${DEPOT}', depot)).toContain(COMMANDE_MISE_A_JOUR)
   })
 
   it('« Copier la commande » met la commande dans le presse-papiers, et dit où la lancer', async () => {
@@ -121,7 +152,7 @@ describe('le bandeau d’une nouvelle version du serveur', () => {
     expect(hote.querySelector('[role=alert]')).toBeNull()
     await act(async () => bouton(/Copier la commande/).click())
     expect(hote.querySelector('[role=alert]')?.textContent).toBe('La copie a échoué : copiez la commande à la main.')
-    expect(hote.querySelector('code')?.textContent).toBe('docker compose pull && docker compose up -d')
+    expect(hote.querySelector('code')?.textContent).toBe(COMMANDE_MISE_A_JOUR)
     expect(bouton(/Copier la commande/)).toBeTruthy()
   })
 
@@ -158,7 +189,8 @@ describe('le bandeau d’une nouvelle version du serveur', () => {
       oublierMiseAJourServeur()
       await demonter()
       await monter(moi(true))
-      expect(hote.querySelector('a'), String(adresse)).toBeNull()
+      // Le guide des autres installations, lui, reste : son adresse est d'ici.
+      expect([...hote.querySelectorAll('a')].map((a) => a.textContent), String(adresse)).toEqual(['Autres installations : le guide'])
       // Le bandeau reste : la version est dite, seul le lien manque.
       expect(hote.textContent).toContain('1.2.0')
     }

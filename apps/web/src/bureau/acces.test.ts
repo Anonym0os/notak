@@ -57,7 +57,7 @@ describe('la porte de l’app de bureau', () => {
 })
 
 describe('les mots des refus', () => {
-  const CODES = ['adresse_invalide', 'https_requis', 'chemin', 'injoignable', 'certificat', 'delai', 'pas_notak', 'trop_ancien'] as const
+  const CODES = ['adresse_invalide', 'https_requis', 'chemin', 'injoignable', 'certificat', 'delai', 'pas_notak', 'trop_ancien', 'mal_regle'] as const
   const AUTRES = ['type_refuse', 'trop_gros', 'trop_vite', 'introuvable', 'illisible', 'interdit', 'file_pleine', 'annule'] as const
 
   /** Tous les refus que la coque sait rendre, et le silence du serveur. */
@@ -91,6 +91,11 @@ describe('les mots des refus', () => {
     // une commande qui ne vaut que pour l'image publiée.
     expect(texteErreur({ code: 'trop_ancien' })).toContain('« Mettre à jour »')
     expect(texteErreur({ code: 'trop_ancien' })).not.toContain('docker')
+    // Qui se connecte n'a pas la main sur le serveur : on lui dit à qui s'adresser.
+    expect(texteErreur({ code: 'trop_ancien' })).toContain('administrateur')
+    // Un serveur resté à sa valeur par défaut : la variable à régler, sans proposer d'adresse de cet ordinateur.
+    expect(texteErreur({ code: 'mal_regle' })).toContain('NOTAK_ORIGINE=https://')
+    expect(texteErreur({ code: 'mal_regle' })).not.toContain('http://localhost')
     expect(texteErreur({ code: 'injoignable' })).toContain('démarré')
     expect(texteErreur({ code: 'file_pleine' })).toContain('Redémarrez')
   })

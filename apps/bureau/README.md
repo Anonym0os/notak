@@ -62,8 +62,10 @@ l'app ; il n'y a plus de coque construite pour un serveur (`--serveur` n'existe 
   d'IPv6, un nom international en punycode ; elle n'en garde que l'origine ;
 - **vérifie que c'est Notak** avant d'y aller : `GET /api/sante` (sans suivre de redirection, 10 s, 64 Kio au plus)
   doit dire `produit: "notak"` et sa propre origine. Un serveur qui se dit ailleurs, ou qui redirige, n'emmène pas la
-  fenêtre : l'app propose l'adresse, la personne décide. Un serveur trop ancien (`/api/instance` sans `/api/sante`), un
-  certificat refusé, un délai dépassé se disent comme tels ;
+  fenêtre : l'app propose l'adresse, la personne décide. Sauf un serveur joint par une autre adresse qui se dit sur cet
+  ordinateur (`NOTAK_ORIGINE` restée à `http://localhost:3005`) : l'app ne propose rien, elle dit ce que son
+  administrateur doit régler (`mal_regle`). Un serveur trop ancien (`/api/instance` sans `/api/sante`), un certificat
+  refusé, un délai dépassé se disent comme tels ;
 - **donne ses droits aux pages de ce serveur, et à elles seules** : une capacité par origine, ajoutée à la volée ;
 - **envoie la fenêtre sur le serveur**, et l'en ramène si sa page ne se signale pas dans les 20 s (`?acces&erreur=muette`).
   La page se signale une fois son premier écran là (`signalerVie`, dans `apps/web/src/bureau.ts`), pas à son premier
@@ -75,10 +77,14 @@ serveur si c'est là que Notak s'ouvre. Où s'ouvre Notak se choisit dans les r�
 depuis les toiles d'ici. Revenir aux toiles de cet ordinateur depuis un serveur (la page, ou le menu Notak sur macOS)
 n'est qu'un coup d'œil : la coque ramène la fenêtre sur `?ici`, ne retient rien, et arrête la jonction en cours. La page
 embarquée ne joint jamais un serveur d'après les paramètres de son adresse : `?acces` et `?ici` ne font qu'empêcher une
-connexion, jamais en causer une. « Pour cette fois seulement », pendant qu'un serveur tarde, arrête la jonction, même
-quand la fenêtre est déjà partie chercher sa page : la coque la ramène alors (une nouvelle navigation remplace la sienne,
-ce que `window.stop` ne garantit pas partout). « Oublier ce serveur » efface aussi ses cookies, et Notak s'ouvre de
-nouveau ici. L'app d'un serveur se met à jour comme les autres : c'est la même.
+connexion, jamais en causer une. « Pour cette fois seulement », pendant qu'un serveur tarde, arrête la jonction, comme
+« Annuler » ou « Toiles de cet ordinateur » sur l'écran d'accès, même quand la fenêtre est déjà partie chercher sa page :
+la coque la ramène alors (une nouvelle navigation remplace la sienne, ce que `window.stop` ne garantit pas partout).
+« Oublier ce serveur » efface aussi ses cookies, et Notak s'ouvre de nouveau ici ; un serveur retenu à la place d'un
+autre efface de même la session de celui d'avant. Les copies des toiles d'un serveur gardées pour le hors-ligne, dans le
+stockage de sa page, restent : la coque ne sait pas vider celui d'une seule origine, et l'écran d'accès le dit. L'app
+d'un serveur se met à jour comme les autres : c'est la même ; ses réglages disent la version du serveur à côté de la
+sienne.
 
 « Copier mes toiles sur… » confie à la coque une copie `.notak` des toiles d'ici pour le serveur mémorisé
 (`confier_copie`) : seule la page de ce serveur la trouve dans la file. La copie s'en va si la jonction échoue, si l'on
@@ -102,7 +108,16 @@ ouvertes depuis le système se dit comme telle (`file_pleine`).
   coque la jugerait alors sur l'adresse de la page d'après. Vu dans l'app réelle : une pièce jointe demandée par la page
   d'un serveur, juste avant un retour aux toiles d'ici, s'ouvrait sans accord, prise pour une demande de la page
   embarquée. Par la page vide, ces requêtes tombent sur une page sans aucun droit, et pendant le passage la coque ne
-  répond à personne. Un « oui » à une boîte d'accord ne vaut aussi que si la page qui a demandé est encore là.
+  répond à personne. Un « oui » à une boîte d'accord ne vaut aussi que si la page qui a demandé est encore là. Chaque
+  passage a son jeton, et seul le dernier posé mène quelque part : le minuteur d'un passage révolu n'écourte pas le
+  suivant. Il se pose sous le même verrou que le serveur qu'il rejoint ou quitte : une annulation qui croise une
+  jonction ramène toujours la fenêtre, et un passage dont la destination n'est plus permise mène à l'écran d'accès,
+  jamais sur la page vide.
+- **Les mises à jour** (`src/mise_a_jour.rs`, `docs/MISES-A-JOUR.md`) : 60 s pour lire `latest.json`, 15 min pour
+  télécharger le paquet (85 Mo pour l'AppImage). Une réponse « à jour » vaut cinq heures pour les recherches
+  automatiques : une page qui se charge (passer des toiles d'ici au serveur, recharger) ne redemande pas à GitHub ;
+  « Rechercher maintenant » redemande. Un échec se dit par un code (`reseau`, `delai`, `signature`, `emplacement`,
+  `espace_disque`, `autre`), que la page dit dans sa langue, avec quoi faire ; le détail va au journal.
 - **Ce que chaque page peut demander**, et rien d'autre ; chaque commande vérifie en plus qui l'appelle
   (`src/appel.rs`), car un serveur quitté garde sa capacité jusqu'au redémarrage (Tauri n'en retire pas).
   - La page embarquée (`capabilities/principale.json`) : déplacer la fenêtre, l'agrandir d'un double clic,

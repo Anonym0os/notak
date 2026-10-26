@@ -54,13 +54,14 @@ export interface Acces {
 
 /**
  * Un refus de la coque (`appel::Erreur`) : ce qui empêche de joindre un serveur (`redirige` : il se dit ailleurs, à
- * `vers`, qu'on propose), une sorte de fichier qu'elle n'ouvre pas (`type_refuse`), trop de fichiers ouverts coup sur
+ * `vers`, qu'on propose ; `mal_regle` : il se dit sur cet ordinateur, faute de `NOTAK_ORIGINE`), une sorte de fichier qu'elle n'ouvre pas (`type_refuse`), trop de fichiers ouverts coup sur
  * coup (`trop_vite`), une file d'attente pleine (`file_pleine`), une page qu'elle ne sert pas (`interdit`), un geste
  * auquel la personne a renoncé (`annule`)…
  */
 export type ErreurCoque =
   | { code: 'adresse_invalide' | 'https_requis' | 'chemin' | 'injoignable' | 'certificat' | 'delai' | 'pas_notak' | 'trop_ancien' }
   | { code: 'redirige'; vers: string }
+  | { code: 'mal_regle' }
   | { code: 'type_refuse' | 'trop_gros' | 'trop_vite' | 'file_pleine' | 'introuvable' | 'illisible' | 'interdit' | 'annule' }
   | { code: 'echec'; message: string }
 
@@ -74,6 +75,7 @@ const CODES = new Set([
   'pas_notak',
   'trop_ancien',
   'redirige',
+  'mal_regle',
   'type_refuse',
   'trop_gros',
   'trop_vite',
@@ -192,9 +194,10 @@ export const ouvrirDansLeNavigateur = (adresse: string) => invoquer<void>('ouvri
 
 /**
  * Renonce à la jonction en cours : elle finit sur `annule` (page embarquée seulement). Rend `true` si la fenêtre était
- * déjà partie chercher la page du serveur : la coque la ramène alors aux toiles d'ici, et cette page va être remplacée.
+ * déjà partie chercher la page du serveur : la coque la ramène alors à `ecran` (les toiles d'ici, ou l'écran d'accès),
+ * et cette page va être remplacée.
  */
-export const annulerJonction = () => invoquer<boolean>('annuler_jonction')
+export const annulerJonction = (ecran: 'local' | 'acces' = 'local') => invoquer<boolean>('annuler_jonction', { ecran })
 
 /**
  * Confie une copie `.notak` à la coque, pour la page du serveur mémorisé qu'on va joindre (page embarquée seulement) :

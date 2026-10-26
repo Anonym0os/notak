@@ -1,5 +1,5 @@
 import { reglerRubriqueBureau } from '@notak/tableau'
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { type Ouvrir, estPageServeur, joindreServeur, reglerOuverture, revenirIci } from '../bureau'
 import { t } from '../langue'
 import { SectionMiseAJour } from '../MiseAJour'
@@ -16,6 +16,29 @@ import { ouvrirDialogueAcces, relireAcces, useAcces } from './etat'
 /** Ce qui est en cours : la fenêtre va changer de page, et on le dit. */
 type Geste = 'connexion' | 'local' | 'acces'
 
+/**
+ * La version du serveur dont c'est la page (`/api/sante`, à la même adresse), pour la dire à côté de celle de l'app :
+ * l'app se met à jour seule, le serveur non. `null` tant qu'on ne la sait pas, et ailleurs que sur un serveur.
+ */
+function useVersionServeur(surServeur: boolean): string | null {
+  const [version, setVersion] = useState<string | null>(null)
+  useEffect(() => {
+    if (!surServeur) return
+    let fini = false
+    fetch('/api/sante', { headers: { accept: 'application/json' }, cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s: unknown) => {
+        const v = (s as { version?: unknown } | null)?.version
+        if (!fini && typeof v === 'string' && v.length > 0 && v.length <= 64) setVersion(v)
+      })
+      .catch(() => {})
+    return () => {
+      fini = true
+    }
+  }, [surServeur])
+  return version
+}
+
 export function ReglagesBureau() {
   const { acces, charge } = useAcces()
   const identifiant = useId()
@@ -24,6 +47,7 @@ export function ReglagesBureau() {
   const hote = retenu ? hoteDe(retenu) : ''
   const [geste, setGeste] = useState<Geste | null>(null)
   const [echec, setEchec] = useState<Echec | null>(null)
+  const versionServeur = useVersionServeur(surServeur)
 
   /** Une demande à la coque ; réussie, la fenêtre change de page : les boutons restent pris jusque-là. */
   const agir = async (quoi: Geste, travail: () => Promise<unknown>) => {
@@ -59,6 +83,9 @@ export function ReglagesBureau() {
       <section aria-labelledby={`${identifiant}-serveur`}>
         <h3 id={`${identifiant}-serveur`}>{t('bureau.reglages.serveur')}</h3>
         {charge && surServeur && retenu && <p>{t('bureau.reglages.visite', { hote })}</p>}
+        {surServeur && versionServeur && acces?.version && (
+          <small className="rangement-note">{t('bureau.reglages.versions', { serveur: versionServeur, app: acces.version })}</small>
+        )}
         {charge && retenu && (
           <fieldset className="bureau-ouverture" disabled={surServeur} aria-describedby={surServeur ? idAide : undefined}>
             <legend>{t('bureau.reglages.demarrage')}</legend>

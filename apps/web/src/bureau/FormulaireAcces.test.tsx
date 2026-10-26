@@ -63,9 +63,10 @@ describe('« Se connecter à un serveur Notak »', () => {
     expect(guide.rel).toContain('noopener')
   })
 
-  it('dit une fois, simplement, où vivent les toiles de l’ordinateur et celles du serveur', () => {
+  it('dit une fois, simplement, où vivent les toiles de l’ordinateur et celles du serveur, copie hors ligne comprise', () => {
     monter()
-    expect(document.body.textContent).toContain('Vos toiles de cet ordinateur restent sur cet ordinateur ; celles d’un serveur restent sur ce serveur.')
+    expect(document.body.textContent).toContain('Vos toiles de cet ordinateur restent sur cet ordinateur.')
+    expect(document.body.textContent).toContain('Notak garde ici une copie de celles que vous y ouvrez, pour travailler hors ligne.')
   })
 
   it('« Se connecter » envoie l’adresse tapée à la coque, en la retenant, et le dit pendant qu’elle travaille', async () => {
@@ -93,7 +94,7 @@ describe('« Se connecter à un serveur Notak »', () => {
     expect(champ().getAttribute('aria-describedby')).toContain(document.querySelector('[role="alert"]')!.id)
   })
 
-  it.each(['adresse_invalide', 'https_requis', 'chemin', 'injoignable', 'certificat', 'delai', 'pas_notak', 'trop_ancien', 'interdit'])(
+  it.each(['adresse_invalide', 'https_requis', 'chemin', 'injoignable', 'certificat', 'delai', 'pas_notak', 'trop_ancien', 'mal_regle', 'interdit'])(
     'le refus « %s » se dit en alerte, avec ce qu’il y a à faire, et rend le champ',
     async (code) => {
       coque.joindre_serveur = () => {
@@ -154,11 +155,109 @@ describe('« Se connecter à un serveur Notak »', () => {
     expect(document.querySelector('[role="status"]')?.textContent).toBe('Connexion à notak.exemple.com…')
   })
 
+  it('un serveur resté à son adresse par défaut : ce que son administrateur doit régler, le guide, et rien qui mène à cet ordinateur', async () => {
+    coque.joindre_serveur = () => {
+      throw { code: 'mal_regle' }
+    }
+    monter()
+    ecrire('notak.exemple.fr')
+    await envoyer()
+    expect(alerte()).toContain('NOTAK_ORIGINE=https://')
+    expect(alerte()).toContain('administrateur')
+    expect(bouton(/^Utiliser/)).toBeUndefined()
+    const guide = [...document.querySelectorAll('a')].find((a) => a.textContent === 'Ce que dit le guide de NOTAK_ORIGINE')!
+    expect(guide.href).toBe('https://github.com/Anonym0os/notak/blob/main/docs/AUTO-HEBERGER.md#les-variables')
+    expect(guide.target).toBe('_blank')
+  })
+
   it('arrive avec l’adresse du serveur retenu, et dit qu’il n’a pas répondu quand la coque nous a ramenés', () => {
     monter({ acces: acces({ ouvrir: 'serveur', serveur: SERVEUR }), echecInitial: { code: 'muette' } })
     expect(champ().value).toBe(SERVEUR)
     expect(alerte()).toContain('notak.exemple.fr n’a pas répondu')
     expect(document.body.textContent).toContain('Serveur mémorisé : notak.exemple.fr.')
+  })
+})
+
+describe('pendant « Connexion… », une sortie', () => {
+  it('« Annuler » arrête la jonction et rend le formulaire, sans attendre la fin de la vérification ; le curseur suit', async () => {
+    coque.joindre_serveur = () => new Promise(() => {})
+    coque.annuler_jonction = () => false
+    const surLocal = monter()
+    ecrire('notak.exemple.fr')
+    await envoyer()
+    const annuler = bouton('Annuler')!
+    expect(annuler.disabled).toBe(false)
+    // Le bouton pressé est pris : le curseur va à la sortie.
+    expect(document.activeElement).toBe(annuler)
+    await act(async () => annuler.click())
+    // Sur l'écran d'accès, une fenêtre déjà partie y reviendrait.
+    expect(appelsDe('annuler_jonction')).toEqual([{ ecran: 'acces' }])
+    expect(bouton('Annuler')).toBeUndefined()
+    expect(document.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(false)
+    expect(champ().readOnly).toBe(false)
+    expect(document.activeElement).toBe(champ())
+    expect(alerte()).toBeNull()
+    expect(surLocal).not.toHaveBeenCalled()
+  })
+
+  it('la jonction annulée qui finit plus tard ne touche pas à la suivante', async () => {
+    const finir: Array<(e: unknown) => void> = []
+    coque.joindre_serveur = () => new Promise((_, refus) => finir.push(refus))
+    coque.annuler_jonction = () => false
+    monter()
+    ecrire('notak.exemple.fr')
+    await envoyer()
+    await act(async () => bouton('Annuler')!.click())
+    await envoyer()
+    expect(appelsDe('joindre_serveur')).toHaveLength(2)
+    // La première finit sur « annule », la seconde attend toujours le serveur.
+    await act(async () => finir[0]!({ code: 'annule' }))
+    expect(document.querySelector<HTMLButtonElement>('button[type="submit"]')!.textContent).toBe('Connexion…')
+    expect(bouton('Annuler')).toBeTruthy()
+  })
+
+  it('la fenêtre déjà partie chercher le serveur : la coque la ramène, la page attend d’être remplacée', async () => {
+    coque.joindre_serveur = () => ({ origine: SERVEUR, nom: null, version: '1' })
+    coque.annuler_jonction = () => true
+    monter()
+    ecrire('notak.exemple.fr')
+    await envoyer()
+    await act(async () => bouton('Annuler')!.click())
+    expect(appelsDe('annuler_jonction')).toHaveLength(1)
+    expect(document.querySelector<HTMLButtonElement>('button[type="submit"]')!.textContent).toBe('Connexion…')
+  })
+
+  it('« Toiles de cet ordinateur » reste une sortie : la jonction s’arrête, puis les toiles d’ici s’ouvrent', async () => {
+    coque.joindre_serveur = () => new Promise(() => {})
+    coque.annuler_jonction = () => false
+    const surLocal = monter()
+    ecrire('notak.exemple.fr')
+    await envoyer()
+    const local = bouton('Toiles de cet ordinateur')!
+    expect(local.disabled).toBe(false)
+    await act(async () => local.click())
+    expect(appelsDe('annuler_jonction')).toEqual([{ ecran: 'local' }])
+    expect(surLocal).toHaveBeenCalledOnce()
+  })
+
+  it('… et si la fenêtre était déjà partie, c’est la coque qui la ramène aux toiles d’ici', async () => {
+    coque.joindre_serveur = () => new Promise(() => {})
+    coque.annuler_jonction = () => true
+    const surLocal = monter()
+    ecrire('notak.exemple.fr')
+    await envoyer()
+    await act(async () => bouton('Toiles de cet ordinateur')!.click())
+    expect(surLocal).not.toHaveBeenCalled()
+  })
+
+  it('dans la fenêtre, « Annuler » aussi ; une fenêtre déjà partie reviendrait aux toiles d’ici', async () => {
+    coque.joindre_serveur = () => new Promise(() => {})
+    coque.annuler_jonction = () => false
+    monter({ mode: 'dialogue', surFermer: () => {} })
+    ecrire('notak.exemple.fr')
+    await envoyer()
+    await act(async () => bouton('Annuler')!.click())
+    expect(appelsDe('annuler_jonction')).toEqual([{ ecran: 'local' }])
   })
 })
 
@@ -198,7 +297,7 @@ describe('oublier le serveur retenu', () => {
     monter({ acces: retenu() })
     await act(async () => bouton('Oublier ce serveur')!.click())
     expect(document.querySelector('[role="group"]')?.textContent).toContain(
-      'Oublier notak.exemple.fr ? La session ouverte sur ce serveur sera fermée sur cet ordinateur. Vos toiles de cet ordinateur ne sont pas touchées.',
+      'Oublier notak.exemple.fr ? La session ouverte sur ce serveur sera fermée sur cet ordinateur. Les copies de ses toiles que Notak garde pour travailler hors ligne restent sur cet ordinateur. Vos toiles de cet ordinateur ne sont pas touchées.',
     )
     expect(document.activeElement).toBe(bouton('Annuler'))
     await act(async () => bouton('Annuler')!.click())

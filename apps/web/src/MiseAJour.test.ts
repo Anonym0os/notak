@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 afterEach(() => {
   delete (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
   localStorage.clear()
+  vi.restoreAllMocks()
   vi.useRealTimers()
   vi.unstubAllEnvs()
   vi.resetModules()
@@ -56,7 +57,8 @@ describe('les mises à jour de l’app de bureau', () => {
     const fin = m.redemarrer()
     await vi.runAllTimersAsync()
     await fin
-    expect(m.lireMiseAJour()).toMatchObject({ phase: 'erreur', nouvelle: '0.2.0', erreur: 'permission denied', echecInstallation: true })
+    // Une phrase (une coque d'avant les codes) ne s'affiche pas : elle se range sous « autre ».
+    expect(m.lireMiseAJour()).toMatchObject({ phase: 'erreur', nouvelle: '0.2.0', erreur: 'autre', echecInstallation: true })
 
     // « Réessayer » cherche de nouveau : la mise à jour reprise, l'échec s'efface.
     installe = true
@@ -93,22 +95,87 @@ describe('les mises à jour de l’app de bureau', () => {
     expect(recherches(invoke)).toBe(1)
   })
 
-  it('une coque d’avant les mises à jour ne connaît pas la commande : indisponible, sans erreur', async () => {
-    const { m } = await avecCoque(async () => {
-      throw 'Command preparer_mise_a_jour not found'
+  it('une installation refusée par l’emplacement de l’app le dit par son code', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { m } = await avecCoque(async (c) => {
+      if (c === 'preparer_mise_a_jour') return { etat: 'prete', version: '0.1.0', nouvelle: '0.2.0', notes: null, date: null }
+      throw { code: 'emplacement' }
     })
-    await m.chercherMiseAJour(true)
-    expect(m.lireMiseAJour().phase).toBe('indisponible')
+    await m.chercherMiseAJour()
+    const fin = m.redemarrer()
+    await vi.runAllTimersAsync()
+    await fin
+    expect(m.lireMiseAJour()).toMatchObject({ phase: 'erreur', erreur: 'emplacement', echecInstallation: true })
   })
 
-  it('hors ligne : la recherche automatique se tait, celle qu’on a demandée le dit', async () => {
+  it('une coque d’avant les mises à jour ne connaît pas la commande : indisponible, sans erreur', async () => {
+    for (const refus of ['Command preparer_mise_a_jour not found', 'preparer_mise_a_jour not allowed. Command not found', 'Command preparer_mise_a_jour not allowed by ACL']) {
+      vi.resetModules()
+      const { m } = await avecCoque(async () => {
+        throw refus
+      })
+      await m.chercherMiseAJour(true)
+      expect(m.lireMiseAJour().phase, refus).toBe('indisponible')
+    }
+  })
+
+  it('un « Not Found » venu du téléchargement n’est pas une coque sans mises à jour : un échec, qu’on peut réessayer', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { m } = await avecCoque(async () => {
-      throw 'error sending request'
+      throw 'Download request failed with status: 404 Not Found'
+    })
+    await m.chercherMiseAJour(true)
+    expect(m.lireMiseAJour()).toMatchObject({ phase: 'erreur', erreur: 'autre' })
+  })
+
+  it('hors ligne : la recherche automatique se tait, celle qu’on a demandée le dit par son code, le détail en console', async () => {
+    const console_ = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { m } = await avecCoque(async () => {
+      throw { code: 'reseau' }
     })
     await m.chercherMiseAJour()
     expect(m.lireMiseAJour().phase).toBe('inconnue')
     await m.chercherMiseAJour(true)
-    expect(m.lireMiseAJour()).toMatchObject({ phase: 'erreur', erreur: 'error sending request' })
+    expect(m.lireMiseAJour()).toMatchObject({ phase: 'erreur', erreur: 'reseau' })
+    expect(console_).toHaveBeenCalledWith('Notak : la recherche d’une mise à jour a échoué', { code: 'reseau' })
+  })
+
+  it('une signature refusée se dit, même quand la recherche allait d’elle-même : réessayer n’y changera rien', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { m } = await avecCoque(async () => {
+      throw { code: 'signature' }
+    })
+    await m.chercherMiseAJour()
+    expect(m.lireMiseAJour()).toMatchObject({ phase: 'erreur', erreur: 'signature' })
+  })
+
+  it('« Rechercher maintenant » demande à la coque d’aller voir GitHub ; la recherche automatique se contente de sa dernière réponse', async () => {
+    const { m, invoke } = await avecCoque(async () => ({ etat: 'a-jour', version: '0.1.0', verifie: 1_800_000_000_000 }))
+    await m.chercherMiseAJour()
+    await m.chercherMiseAJour(true)
+    expect(invoke.mock.calls.filter((c) => c[0] === 'preparer_mise_a_jour').map((c) => c[1])).toEqual([{ parLaPersonne: false }, { parLaPersonne: true }])
+    // « Vérifié il y a… » dit quand GitHub a répondu, pas quand la page a demandé.
+    expect(m.lireMiseAJour()).toMatchObject({ phase: 'a-jour', verifie: 1_800_000_000_000 })
+  })
+
+  it('« Plus tard » se retient : la page suivante (un rechargement, un retour) ne le redemande pas pour cette version', async () => {
+    const prete = { etat: 'prete', version: '0.1.0', nouvelle: '0.2.0', notes: null, date: null }
+    const { m } = await avecCoque(async () => prete)
+    await m.chercherMiseAJour()
+    m.ecarter()
+    vi.resetModules()
+    const { m: suivante } = await avecCoque(async () => prete)
+    await suivante.chercherMiseAJour()
+    expect(suivante.lireMiseAJour()).toMatchObject({ nouvelle: '0.2.0', ecartee: '0.2.0' })
+  })
+
+  it('la version qui tourne se dit, même quand la recherche automatique est coupée', async () => {
+    const { m, invoke } = await avecCoque(async () => null, { majAuto: false })
+    expect(m.lireMiseAJour().version).toBeNull()
+    await m.actualiserRechercheAuto()
+    expect(m.lireMiseAJour().version).toBe('0.1.0')
+    expect(recherches(invoke)).toBe(0)
   })
 
   it('dans un navigateur, rien ne se cherche', async () => {

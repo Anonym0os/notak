@@ -139,9 +139,26 @@ describe('les réglages de l’app de bureau, sur la page des toiles d’ici', (
 })
 
 describe('les réglages de l’app de bureau, sur la page d’un serveur', () => {
+  /** Ce que répond `/api/sante` du serveur dont c'est la page. */
+  let sante: () => Promise<Response>
   beforeEach(() => {
     surServeur = true
-    coque.acces = () => acces({ ouvrir: 'serveur', serveur: SERVEUR })
+    coque.acces = () => acces({ ouvrir: 'serveur', serveur: SERVEUR, version: '0.3.0' })
+    sante = async () => new Response(JSON.stringify({ produit: 'notak', version: '1.4.0', origine: SERVEUR, ok: true }), { status: 200 })
+    vi.stubGlobal('fetch', vi.fn(async () => sante()))
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('dit la version du serveur à côté de celle de l’app : l’une se met à jour seule, l’autre non', async () => {
+    await monter()
+    expect(fetch).toHaveBeenCalledWith('/api/sante', expect.objectContaining({ cache: 'no-store' }))
+    expect(hote.textContent).toContain('Ce serveur : Notak 1.4.0. Cette app : Notak 0.3.0.')
+  })
+
+  it('un serveur qui ne dit pas sa version : rien d’inventé', async () => {
+    sante = async () => new Response('non', { status: 500 })
+    await monter()
+    expect(hote.textContent).not.toContain('Ce serveur : Notak')
   })
 
   it('dit sur quel serveur on est et où Notak s’ouvre, sans le changer d’ici ; propose d’en changer ou de rentrer', async () => {
