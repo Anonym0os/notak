@@ -101,7 +101,7 @@ interface PropsPopover {
 export function Popover({ ancre, ouvert, fermer, cote = 'dessous', largeur = 'ancre', hauteur = 320, className, etiquette, children }: PropsPopover) {
   const ref = useRef<HTMLDivElement>(null)
   // Un menu contextuel ou une boîte ouverts depuis la fenêtre sont posés à côté d'elle : les cliquer ne la ferme pas.
-  useFermeture({ racine: ref, ancre, aussi: '.notak-arbre-ctx, .notak-arbre-reglages-voile', actif: ouvert, fermer })
+  useFermeture({ racine: ref, ancre, aussi: '.notak-arbre-ctx, .notak-dialogue-hote', actif: ouvert, fermer })
   if (!ouvert || !ancre) return null
   return (
     <Flottant
