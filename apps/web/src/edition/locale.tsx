@@ -3,6 +3,10 @@ import { StrictMode, useCallback, useEffect, useMemo, useRef, useState, useSyncE
 import { createRoot } from 'react-dom/client'
 import { adressePour } from '../adresse'
 import { estBureau } from '../bureau'
+import { ouvrirAilleursAvecAvis } from '../bureau/ailleurs'
+import { DialogueAcces } from '../bureau/FormulaireAcces'
+import { ouvrirDialogueAcces } from '../bureau/etat'
+import { suivreFichiersOuverts } from '../bureau/ouverts'
 import { importDejaPropose, lireAncienEspace, noterImportPropose } from '../ancien'
 import { PagePartage, PageRapide } from '../Arrivees'
 import { Export, type ExportLocal } from '../Export'
@@ -66,6 +70,20 @@ function Espace({ el }: { el: EspaceLocal }) {
     clearTimeout(minuteur.current)
     minuteur.current = setTimeout(() => setMessage(null), 4000)
   }, [])
+  /** Un échec se dit aussi aux lecteurs d'écran : la pastille qui porte `message` ne s'annonce pas d'elle-même. */
+  const [alerte, setAlerte] = useState<{ n: number; texte: string } | null>(null)
+  const alerter = useCallback(
+    (texte: string) => {
+      dire(texte)
+      setAlerte((a) => ({ n: (a?.n ?? 0) + 1, texte }))
+    },
+    [dire],
+  )
+  useEffect(() => {
+    if (!alerte) return
+    const fin = setTimeout(() => setAlerte(null), 6000)
+    return () => clearTimeout(fin)
+  }, [alerte])
   /** Le tableau ouvert, pour y ranger ce qu'on rouvre. */
   const courant = useRef<Id>(index.racine())
   const ouvrirTableau = useRef<(id: Id) => void>(() => {})
@@ -80,10 +98,13 @@ function Espace({ el }: { el: EspaceLocal }) {
       contenuExterne: (id) => (index.recu(id) ? 'demander' : undefined),
       permettreContenuExterne: (id) => index.retirerRecu(id),
       ecouterContenuExterne: index.ecouterRecus,
-      // L'app de bureau n'a qu'une fenêtre, et n'en ouvre pas d'autre (`apps/bureau/src-tauri/src/navigation.rs`).
-      ...(estBureau() ? {} : { ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank') }),
+      // L'app de bureau n'a qu'une fenêtre, et n'en ouvre pas d'autre (`apps/bureau/src-tauri/src/navigation.rs`) : un
+      // fichier s'y ouvre dans l'application du système, ou se propose à l'enregistrement.
+      ...(estBureau()
+        ? { ouvrirAilleurs: (adresse: string, nom?: string) => ouvrirAilleursAvecAvis(adresse, nom, alerter) }
+        : { ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank') }),
     }),
-    [el, index],
+    [el, index, alerter],
   )
   const exporter = useMemo<ExportLocal>(
     () => ({
@@ -111,23 +132,37 @@ function Espace({ el }: { el: EspaceLocal }) {
     [el, index, dire],
   )
 
-  const rouvrirFichier = useCallback(
-    async (f: File) => {
+  const rouvrirOctets = useCallback(
+    async (octets: Uint8Array): Promise<'fait' | 'recharge'> => {
       try {
-        const r = await rouvrirCopie(el, new Uint8Array(await f.arrayBuffer()), courant.current)
+        const r = await rouvrirCopie(el, octets, courant.current)
         // La copie est devenue l'accueil : on repart d'elle.
         if (r.accueil) {
           // Le temps qu'IndexedDB ait tout écrit, puis l'on repart de l'accueil neuf.
           await new Promise((fin) => setTimeout(fin, 300))
-          return location.assign('/')
+          location.assign('/')
+          return 'recharge'
         }
         dire(r.fusion ? tn('local.rouvertFusion', r.tableaux) : tn('local.rouvert', r.tableaux))
         if (!r.fusion) ouvrirTableau.current(r.tete)
       } catch (e) {
-        dire(e instanceof ErreurNotak ? t('local.pasUneCopie') : t('local.rouvrirImpossible'))
+        alerter(e instanceof ErreurNotak ? t('local.pasUneCopie') : t('local.rouvrirImpossible'))
       }
+      return 'fait'
     },
-    [el, dire],
+    [el, dire, alerter],
+  )
+  const rouvrirFichier = useCallback(
+    async (f: File) => {
+      let octets: Uint8Array
+      try {
+        octets = new Uint8Array(await f.arrayBuffer())
+      } catch {
+        return alerter(t('local.rouvrirImpossible'))
+      }
+      await rouvrirOctets(octets)
+    },
+    [rouvrirOctets, alerter],
   )
   const rouvrir = useCallback(async () => {
     const f = await choisirCopie().catch(() => null)
@@ -154,6 +189,12 @@ function Espace({ el }: { el: EspaceLocal }) {
       for (const h of p.files) await rouvrirFichier(await h.getFile())
     })
   }, [rouvrirFichier])
+
+  // L'app de bureau ouvre les fichiers .notak (un double clic, « Ouvrir avec… ») : la coque les met en file, on les rouvre.
+  useEffect(() => {
+    if (!estBureau()) return
+    return suivreFichiersOuverts({ rouvrir: (octets) => rouvrirOctets(octets), echec: () => alerter(t('local.rouvrirImpossible')) })
+  }, [rouvrirOctets, alerter])
 
   // Cmd+Maj+S range la copie ailleurs ; Cmd+O rouvre.
   useEffect(() => {
@@ -199,6 +240,12 @@ function Espace({ el }: { el: EspaceLocal }) {
       <BandeauMiseAJour />
       <BandeauNouvelleVersion />
       <DialogueExport />
+      {estBureau() && <DialogueAcces />}
+      {alerte && (
+        <p key={alerte.n} className="sr-seulement" role="alert">
+          {alerte.texte}
+        </p>
+      )}
     </>
   )
 }
@@ -229,9 +276,18 @@ function Accueil({ el }: { el: EspaceLocal }) {
     }
     setVu(true)
   }
+  const bureau = estBureau()
   return (
-    <aside className="bandeau" role="status">
-      <span>{t(estBureau() ? 'local.accueilBureau' : 'local.accueil')}</span>
+    <aside className={bureau ? 'bandeau bandeau-accueil-bureau' : 'bandeau'} role="status">
+      <span>{t(bureau ? 'local.accueilBureau' : 'local.accueil')}</span>
+      {bureau && (
+        <>
+          <span>{t('bureau.accueil.serveur')}</span>
+          <button type="button" className="bouton-lien" onClick={() => void ouvrirDialogueAcces()}>
+            {t('bureau.accueil.seConnecter')}
+          </button>
+        </>
+      )}
       <button type="button" className="bouton bouton-plein" onClick={fermer}>
         {t('local.compris')}
       </button>

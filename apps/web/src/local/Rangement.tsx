@@ -1,6 +1,7 @@
 import { Icone } from '@notak/tableau'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { estBureau } from '../bureau'
+import { SectionServeur } from '../bureau/SectionServeur'
 import { t, tn } from '../langue'
 import { SectionMiseAJour } from '../MiseAJour'
 import { usePanneau } from '../panneaux'
@@ -11,7 +12,8 @@ import { arreterSynchro, choisirDossier, ecouterSynchro, lireEtatSynchro, repren
  * Où sont mes tableaux ? Une pastille dans l'en-tête dit la vérité en deux mots (« Dans ce navigateur », « Copie
  * il y a 3 j »), et son panneau l'explique : rien ne quitte l'appareil, le navigateur peut tout effacer, voici
  * comment garder une copie, et comment travailler à plusieurs en temps réel (une version à soi, ou nous écrire).
- * Dans l'app de bureau, la même vérité dite pour un ordinateur, et ses mises à jour.
+ * Dans l'app de bureau, la même vérité dite pour un ordinateur, ses mises à jour, et de quoi se connecter à un serveur
+ * Notak (`bureau/SectionServeur.tsx`).
  */
 
 export const DEPOT = 'https://github.com/Anonym0os/notak'
@@ -137,18 +139,24 @@ export function Rangement({ el, enregistrer, rouvrir, message }: { el: EspaceLoc
           <Synchro el={el} />
           {bureau && <SectionMiseAJour />}
 
-          <h3>{t('local.plusieurs')}</h3>
-          <p>{t(bureau ? 'local.plusieursTexteBureau' : 'local.plusieursTexte')}</p>
-          <div className="rangement-actions">
-            <a className="bouton" href={DEPOT} target="_blank" rel="noopener noreferrer">
-              {t('local.installerSien')}
-            </a>
-            {CONTACT && (
-              <a className="bouton" href={`mailto:${CONTACT}?subject=${encodeURIComponent('Notak')}`}>
-                {t('local.ecrire')}
-              </a>
-            )}
-          </div>
+          {bureau ? (
+            <SectionServeur el={el} fermer={() => regler(false)} />
+          ) : (
+            <>
+              <h3>{t('local.plusieurs')}</h3>
+              <p>{t('local.plusieursTexte')}</p>
+              <div className="rangement-actions">
+                <a className="bouton" href={DEPOT} target="_blank" rel="noopener noreferrer">
+                  {t('local.installerSien')}
+                </a>
+                {CONTACT && (
+                  <a className="bouton" href={`mailto:${CONTACT}?subject=${encodeURIComponent('Notak')}`}>
+                    {t('local.ecrire')}
+                  </a>
+                )}
+              </div>
+            </>
+          )}
           <small className="rangement-note">
             {bureau ? (
               <a href={A_PROPOS} target="_blank" rel="noopener noreferrer">

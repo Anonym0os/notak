@@ -1,1 +1,209 @@
 /* Styles de la piste « bureau » (fichier temporaire, replié dans app.css à la fin). */
+
+/* — La porte de l'app de bureau et « Se connecter à un serveur Notak » : une carte de connexion, un peu plus large que
+   celle des comptes, car les erreurs disent quoi faire. — */
+/* `.connexion-carte` (app.css) est lue après ce fichier : à égalité de poids elle l'emporterait. */
+.connexion-carte.acces-carte {
+  width: min(440px, 100%);
+}
+
+.acces-tete {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.acces-tete :is(h1, h2) {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.acces-guide {
+  align-self: center;
+  text-decoration: none;
+}
+
+.acces-detail {
+  overflow-wrap: anywhere;
+}
+
+/* Les toiles d'ici et le serveur retenu : sous un filet, à l'écart du bouton « Se connecter ». */
+.acces-autres {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--app-filet);
+}
+
+.acces-autres > .bouton {
+  align-self: flex-start;
+}
+
+.acces-retenu,
+.acces-confirme {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.bouton-lien.acces-oublier {
+  color: var(--app-danger);
+}
+
+.acces-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.acces-carte .acces-actions .bouton {
+  height: 34px;
+}
+
+.acces-attente {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* La connexion en cours : le nom du serveur, une roue, et plus rien à faire tant qu'il répond. */
+.acces-connexion {
+  align-items: center;
+  text-align: center;
+}
+
+.acces-connexion h1 {
+  overflow-wrap: anywhere;
+}
+
+.acces-connexion .bureau-roue {
+  width: 22px;
+  height: 22px;
+}
+
+/* Comme la roue de l'export, aux jetons de l'app ; au mouvement réduit, elle tourne plus lentement. */
+.bureau-roue {
+  flex: none;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  border: 2px solid color-mix(in srgb, var(--texte) 22%, transparent);
+  border-top-color: var(--texte);
+  border-radius: 50%;
+  animation: bureau-roue 0.8s linear infinite;
+}
+
+@keyframes bureau-roue {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bureau-roue {
+    animation-duration: 3s;
+  }
+}
+
+/* La même carte, en fenêtre modale par-dessus l'édition locale. */
+.bureau-dialogue {
+  box-sizing: border-box;
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  overflow: auto;
+  border: 0;
+  border-radius: 22px;
+  background: var(--carte);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.1), 0 16px 48px rgb(0 0 0 / 0.18);
+  color: var(--texte);
+}
+
+.bureau-dialogue::backdrop {
+  background: rgb(20 24 31 / 0.32);
+}
+
+.bureau-dialogue .connexion-carte {
+  width: auto;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.notak-espace[data-theme='sombre'] .bureau-dialogue {
+  background: var(--notak-carte);
+  box-shadow: 0 16px 48px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.08);
+  color: var(--notak-texte);
+}
+
+.notak-espace[data-theme='sombre'] .bureau-dialogue::backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
+
+/* Le bandeau de la première visite porte une phrase de plus : il passe à la ligne plutôt que de déborder. */
+.bandeau.bandeau-accueil-bureau {
+  flex-wrap: wrap;
+  justify-content: center;
+  row-gap: 4px;
+  border-radius: 20px;
+}
+
+/* — La rubrique « App de bureau » des réglages : à droite de son libellé, les boutons et les mises à jour, aux couleurs
+   des autres contrôles de la page. — */
+.bureau-reglages {
+  display: flex;
+  flex: 1 1 320px;
+  flex-direction: column;
+  gap: 22px;
+  min-width: 0;
+  max-width: 360px;
+}
+
+.bureau-reglages h3 {
+  margin: 0 0 6px;
+  color: var(--rg-aide);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.bureau-reglages p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.bureau-reglages .bouton {
+  height: 36px;
+  border-radius: 18px;
+  background: transparent;
+  box-shadow: var(--rg-bord);
+  color: var(--rg-texte);
+}
+
+.bureau-reglages .bouton:hover:not(:disabled) {
+  background: var(--rg-survol);
+}
+
+.bureau-reglages .bouton-plein {
+  background: var(--rg-texte);
+  box-shadow: none;
+  color: var(--rg-page);
+}
+
+.bureau-reglages .bouton-plein:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--rg-texte) 88%, var(--rg-page));
+}
+
+.bureau-reglages .rangement-note {
+  color: var(--rg-aide);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.bureau-reglages-erreur {
+  color: #c92a2a;
+}

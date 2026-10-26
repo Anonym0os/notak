@@ -1,5 +1,6 @@
-import { useSyncExternalStore } from 'react'
-import { estBureau, invoquer } from './bureau'
+import { useEffect, useId, useSyncExternalStore } from 'react'
+import { estBureau, estPageServeur, invoquer, reglerMajAuto } from './bureau'
+import { relireAcces } from './bureau/etat'
 import { t } from './langue'
 import { ecouterNouvelleVersion, nouvelleVersion } from './pwa'
 
@@ -10,7 +11,9 @@ import { ecouterNouvelleVersion, nouvelleVersion } from './pwa'
  * d'elle-même quand on quitte Notak. Rien n'interrompt le travail, rien ne se télécharge sous les yeux.
  *
  * La recherche ne joint que GitHub, où les versions sont publiées, et n'envoie rien de l'espace. On peut la couper
- * (« Où sont mes tableaux ? ») et la lancer à la main.
+ * (« Où sont mes tableaux ? », les réglages de l'app) et la lancer à la main. Couper ou non est un réglage de la coque,
+ * donc de l'ordinateur : il vaut sur la page des toiles d'ici comme sur celle d'un serveur, qui le montre sans pouvoir
+ * le changer.
  */
 
 /** Ce que la coque répond (`mise_a_jour::Etat`). */
@@ -32,7 +35,6 @@ export interface EtatMiseAJour {
   ecartee?: string
 }
 
-const CLE_AUTO = 'notak:bureau:maj-auto'
 /** Au lancement, le temps que l'espace s'ouvre ; puis toutes les six heures, pour qui ne quitte jamais Notak. */
 export const PREMIERE_RECHERCHE_MS = 8_000
 export const INTERVALLE_MS = 6 * 3600_000
@@ -52,20 +54,34 @@ const ecouter = (f: () => void) => {
 export const lireMiseAJour = () => etat
 export const useMiseAJour = () => useSyncExternalStore(ecouter, lireMiseAJour)
 
-export function rechercheAuto(): boolean {
-  try {
-    return localStorage.getItem(CLE_AUTO) !== '0'
-  } catch {
-    return true
+/** La recherche automatique, telle que la coque la retient (`acces`) ; vraie tant qu'on ne l'a pas lue. */
+let majAuto = true
+export const rechercheAuto = (): boolean => majAuto
+
+/** Relit le réglage à la coque (qui n'en change pas sans nous) ; la réponse se garde. */
+export async function actualiserRechercheAuto(): Promise<boolean> {
+  const a = await relireAcces()
+  if (a && a.majAuto !== majAuto) {
+    majAuto = a.majAuto
+    changer({})
   }
+  return majAuto
 }
-export function reglerRechercheAuto(oui: boolean): void {
-  try {
-    localStorage.setItem(CLE_AUTO, oui ? '1' : '0')
-  } catch {
-    // Sans stockage, le réglage vaut le temps de la session.
-  }
+
+/** Règle la recherche automatique, sur la page des toiles d'ici seulement : la coque refuse à celle d'un serveur. */
+export async function reglerRechercheAuto(oui: boolean): Promise<void> {
+  if (estPageServeur()) return
+  const avant = majAuto
+  majAuto = oui
   changer({})
+  try {
+    await reglerMajAuto(oui)
+  } catch {
+    // La coque n'a pas retenu le choix : la case redit ce qui vaut.
+    majAuto = avant
+    changer({})
+    return
+  }
   if (oui) void chercherMiseAJour()
 }
 
@@ -108,11 +124,12 @@ let lancee = false
 export function lancerMisesAJour(): void {
   if (lancee || !estBureau()) return
   lancee = true
-  const tenter = () => {
-    if (rechercheAuto()) void chercherMiseAJour()
+  // Le réglage se relit à chaque fois : il a pu changer depuis l'autre page (les toiles d'ici, ou un serveur).
+  const tenter = async () => {
+    if (await actualiserRechercheAuto()) void chercherMiseAJour()
   }
-  setTimeout(tenter, PREMIERE_RECHERCHE_MS)
-  setInterval(tenter, INTERVALLE_MS)
+  setTimeout(() => void tenter(), PREMIERE_RECHERCHE_MS)
+  setInterval(() => void tenter(), INTERVALLE_MS)
 }
 
 /** L'adresse des nouveautés d'une version, sur la page de publication. */
@@ -146,10 +163,16 @@ function ilYa(quand: number, maintenant = Date.now()): string {
   return t('maj.ilYaH', { n: Math.round(minutes / 60) })
 }
 
-/** La section « Mises à jour » du panneau « Où sont mes tableaux ? », dans l'app de bureau. */
+/** La section « Mises à jour » du panneau « Où sont mes tableaux ? » et des réglages de l'app, dans l'app de bureau. */
 export function SectionMiseAJour() {
   const e = useMiseAJour()
+  const aide = useId()
+  useEffect(() => {
+    void actualiserRechercheAuto()
+  }, [])
   const auto = rechercheAuto()
+  // Sur la page d'un serveur, la case dit ce qui vaut sans pouvoir le changer.
+  const surServeur = estPageServeur()
   const version = e.version ? `Notak ${e.version}` : 'Notak'
   const ligne =
     e.phase === 'cherche'
@@ -185,9 +208,14 @@ export function SectionMiseAJour() {
             )}
           </div>
           <label className="rangement-choix">
-            <input type="checkbox" checked={auto} onChange={(x) => reglerRechercheAuto(x.target.checked)} />
+            <input type="checkbox" checked={auto} disabled={surServeur} aria-describedby={surServeur ? aide : undefined} onChange={(x) => void reglerRechercheAuto(x.target.checked)} />
             {t('maj.auto')}
           </label>
+          {surServeur && (
+            <small id={aide} className="rangement-note">
+              {t('maj.autoServeur')}
+            </small>
+          )}
           <small className="rangement-note">{t('maj.ceQuiPart')}</small>
         </>
       )}
