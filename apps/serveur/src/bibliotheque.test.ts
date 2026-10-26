@@ -147,9 +147,10 @@ describe('PUT /api/tableaux/:id/parent', () => {
   let cle: Compte
   const ranger = (c: Compte, id: string, json: Record<string, unknown>) => m.appeler(`/api/tableaux/${id}/parent`, { methode: 'PUT', compte: c, json })
   const roleDe = (c: Compte, id: string) => m.autorisation.roleSur(`user:${c.utilisateur.id}`, id)
+  const fermetures: string[] = []
 
   beforeAll(async () => {
-    m = monde()
+    m = monde({ fermetures })
     ana = await m.compte('Ana')
     bob = await m.compte('Bob')
     cle = await m.compte('Cléo')
@@ -182,6 +183,17 @@ describe('PUT /api/tableaux/:id/parent', () => {
     expect(await roleDe(bob, 'detail')).toBeNull()
     expect(await roleDe(cle, 'detail')).toBe('lecture')
     expect(m.base.tableau('idee')!.parent).toBe('projets')
+  })
+
+  it('ferme les synchros de la toile et de ce qu’elle contient : l’éditeur venu de l’ancien parent y relit son rôle', async () => {
+    m.tableau(ana, 'chantier', 'Chantier', undefined, 'equipe')
+    m.tableau(ana, 'plan-chantier', 'Plan', undefined, 'chantier')
+    expect(await roleDe(bob, 'plan-chantier')).toBe('edition')
+    fermetures.length = 0
+    expect((await ranger(ana, 'chantier', { parent: 'projets' })).status).toBe(200)
+    expect(fermetures).toEqual(expect.arrayContaining([nomDuDocument('chantier'), nomDuDocument('plan-chantier')]))
+    expect(await roleDe(bob, 'chantier')).toBeNull()
+    expect(await roleDe(bob, 'plan-chantier')).toBeNull()
   })
 
   it('refuse l’accueil, la toile dans elle-même ou dans ce qu’elle contient, et sans les droits', async () => {

@@ -22,7 +22,7 @@ import { creerExpiration } from './echeances.ts'
 import { type Cle, duDisque, pourLeDisque } from './chiffrement.ts'
 import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from './contenu.ts'
 import type { Limiteur } from './debit.ts'
-import { type Role, auMoins, role, roleDeRelation } from './droits.ts'
+import { RELATION_DU_ROLE, type Role, auMoins, role, roleDeRelation } from './droits.ts'
 import { decouvrirOidc } from './sso.ts'
 import { estFormatExport, exporterTexte, langueExport } from './exporter.ts'
 import { ErreurBanque, chercherImages } from './images.ts'
@@ -330,6 +330,35 @@ export function creerApp(ctx: Contexte): Hono {
   const fermerConnexions = (id: string) => {
     for (const t of [id, ...base.descendants(id)]) ctx.synchro()?.closeConnections(nomDuDocument(t))
   }
+  /**
+   * Jusqu'à quand le créateur d'un tableau posé sous `parent` le garde : il ne le tient pas plus longtemps que l'édition
+   * qui lui permet de l'y créer. C'est la plus tardive des échéances des accès qui la lui donnent, sur le parent ou
+   * plus haut, à lui ou à une équipe dont il est membre ; `null` si l'un d'eux n'en a pas, ou s'il l'a par l'espace.
+   */
+  const echeanceHeritee = (utilisateur: string, parent: string): number | null => {
+    const sujet = `user:${utilisateur}`
+    const membre = (equipe: string) => base.relationExiste({ objet: `equipe:${equipe}`, relation: 'membre', sujet })
+    const parLEspace = (espace: string) =>
+      base
+        .relationsSur(`espace:${espace}`)
+        .some((r) => (r.relation === 'modifie_tableaux' || r.relation === 'administre_tableaux') && r.sujet.endsWith('#assignee') && base.relationExiste({ objet: r.sujet.slice(0, -'#assignee'.length), relation: 'assignee', sujet }))
+    let plusTardive: number | null = null
+    const vus = new Set<string>()
+    for (let t: string | null = parent; t !== null && !vus.has(t); t = base.tableau(t)?.parent ?? null) {
+      vus.add(t)
+      const espace = base.tableau(t)?.espace
+      if (espace && parLEspace(espace)) return null
+      for (const r of base.relationsSur(`tableau:${t}`)) {
+        if (r.relation !== RELATION_DU_ROLE.edition && r.relation !== RELATION_DU_ROLE.proprietaire) continue
+        const equipe = /^equipe:(.+)#membre$/.exec(r.sujet)?.[1]
+        if (r.sujet !== sujet && !(equipe && membre(equipe))) continue
+        const fin = base.echeance(t, r.sujet)
+        if (fin === null) return null
+        plusTardive = Math.max(plusTardive ?? fin, fin)
+      }
+    }
+    return plusTardive
+  }
 
   app.post('/api/tableaux', async (c) => {
     const u = await utilisateurCourant(c)
@@ -353,9 +382,12 @@ export function creerApp(ctx: Contexte): Hono {
       return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
     }
     const espace = heritage ? undefined : (demande ?? base.espacePersonnel(u.id))
+    // Créé pendant un accès temporaire, il tombe avec lui.
+    const fin = heritage && parent !== null ? echeanceHeritee(u.id, parent) : null
     base.transaction(() => {
       base.creerTableau({ id, titre, proprietaire: u.id, parent: heritage ? parent : null, espace })
       base.definirAcces({ tableau: id, utilisateur: u.id, role: 'proprietaire' })
+      if (fin !== null) base.definirEcheance(id, `user:${u.id}`, fin)
     })
     await droitsAJour()
     return c.json({ id, titre, role: 'proprietaire' }, 201)
@@ -364,6 +396,7 @@ export function creerApp(ctx: Contexte): Hono {
   app.get('/api/tableaux', async (c) => {
     const u = await utilisateurCourant(c)
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    await echus()
     return c.json(base.tableauxAccessibles(u.id).filter((t) => t.id !== u.racine))
   })
 
@@ -985,6 +1018,9 @@ export function creerApp(ctx: Contexte): Hono {
     }
     if (b?.essai === true || (b?.siPersonne === true && nouveaux.size > 0)) return c.json({ nouveaux: nouveaux.size, fait: false })
     base.changerParent(g.id, parent)
+    // Les accès hérités de l'ancien parent ne valent plus, ici ni plus bas : chacun relit son rôle.
+    await droitsAJour()
+    fermerConnexions(g.id)
     return c.json({ nouveaux: nouveaux.size, fait: true })
   })
 
@@ -1206,13 +1242,21 @@ export function creerApp(ctx: Contexte): Hono {
     const elements = visibles
       .filter((e) => e.contenu.type !== 'ligne' || (bout(e.contenu.depart) && bout(e.contenu.arrivee)))
       .map(({ commentaire, reactions, assigne: _a, ...e }) => (commentaires ? { ...e, ...(commentaire ? { commentaire } : {}), ...(reactions ? { reactions } : {}) } : e))
+    // Une carte vers un tableau qui n'est pas sous celui-ci n'en dit rien : ni son titre, ni l'image ou l'icône
+    // reprises de sa carte d'origine. Un éditeur ne lit pas ainsi, par un lien visiteur, un tableau qu'il ne peut pas ouvrir.
+    const dessous = new Set(base.descendants(id))
     const titres: Record<string, string> = {}
-    for (const e of elements) {
-      if (e.contenu.type !== 'tableau' || typeof e.contenu.cible !== 'string') continue
+    const cartes = elements.map((e) => {
+      if (e.contenu.type !== 'tableau' || typeof e.contenu.cible !== 'string') return e
+      if (!dessous.has(e.contenu.cible)) {
+        const { titre: _t, icone: _i, image: _m, ...contenu } = e.contenu as Record<string, unknown>
+        return { ...e, contenu: contenu as typeof e.contenu }
+      }
       const titre = titreDe(e.contenu.cible)
       if (titre !== undefined) titres[e.contenu.cible] = titre
-    }
-    return { titre: t.titre, ...(t.couleur ? { couleur: t.couleur } : {}), elements, titres }
+      return e
+    })
+    return { titre: t.titre, ...(t.couleur ? { couleur: t.couleur } : {}), elements: cartes, titres }
   }
 
   /**
@@ -1518,6 +1562,7 @@ export function creerApp(ctx: Contexte): Hono {
    */
   const peutLireFichier = async (u: Utilisateur, f: Fichier): Promise<boolean> => {
     if (f.auteur === u.id || base.estPhoto(f.id)) return true
+    await echus()
     for (const t of base.tableauxDuFichier(f.id)) {
       if (await ctx.autorisation.verifier(`user:${u.id}`, 'peut_lire', `tableau:${t}`)) return true
     }

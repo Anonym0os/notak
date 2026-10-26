@@ -8,6 +8,7 @@ let bob: Compte
 let cleo: Compte
 let idImage: string
 let idCache: string
+let idCouverture: string
 const octets = new Uint8Array([137, 80, 78, 71, 5, 5])
 
 interface LienVu {
@@ -29,7 +30,8 @@ beforeAll(async () => {
   const depot = async () => ((await (await m.appeler('/api/fichiers', { compte: ana, corps: octets, type: 'image/png' })).json()) as { id: string }).id
   idImage = await depot()
   idCache = await depot()
-  m.tableau(ana, 'tableau-budget', 'Budget')
+  idCouverture = await depot()
+  m.tableau(ana, 'tableau-secret', 'Rachat confidentiel')
   m.tableau(ana, 'tableau-public', 'Carnet', (doc) => {
     poser(
       doc,
@@ -49,9 +51,11 @@ beforeAll(async () => {
     poser(doc, { type: 'image', fichier: idImage, largeurOrigine: 1, hauteurOrigine: 1 }, { id: 'img-1' })
     poser(doc, { type: 'image', fichier: idCache, largeurOrigine: 1, hauteurOrigine: 1 }, { id: 'img-2', corbeille: 5 })
     poser(doc, { type: 'tableau', cible: 'tableau-budget' }, { id: 'sous-1' })
+    poser(doc, { type: 'tableau', cible: 'tableau-secret', titre: 'Rachat confidentiel', image: idCouverture, raccourci: true }, { id: 'sous-2' })
     poser(doc, { type: 'ligne', depart: { element: 'note-1' }, arrivee: { element: 'sous-1' } }, { id: 'lien-ok' })
     poser(doc, { type: 'ligne', depart: { element: 'note-1' }, arrivee: { element: 'comm-1' } }, { id: 'lien-coupe' })
   })
+  m.tableau(ana, 'tableau-budget', 'Budget', undefined, 'tableau-public')
   m.base.definirAcces({ tableau: 'tableau-public', utilisateur: bob.utilisateur.id, role: 'edition' })
 })
 afterAll(() => m.fermer())
@@ -117,7 +121,7 @@ describe('les liens visiteurs d’un tableau', () => {
     const t = (await r.json()) as { titre: string; elements: Record<string, unknown>[]; titres: Record<string, string>; niveau: string; expire: null }
     expect(t.titre).toBe('Carnet')
     expect(t.niveau).toBe('lecture')
-    expect(t.elements.map((e) => e.id)).toEqual(['note-1', 'img-1', 'sous-1', 'lien-ok'])
+    expect(t.elements.map((e) => e.id)).toEqual(['note-1', 'img-1', 'sous-1', 'sous-2', 'lien-ok'])
     expect(t.titres).toEqual({ 'tableau-budget': 'Budget' })
     const note = t.elements.find((e) => e.id === 'note-1')!
     expect(note).toMatchObject({ echeance: '2026-11-02', etiquettes: ['e1'] })
@@ -141,7 +145,7 @@ describe('les liens visiteurs d’un tableau', () => {
     const l = await creer({ niveau: 'commentaire' })
     const t = await vue(l.jeton)
     expect(t.niveau).toBe('commentaire')
-    expect(t.elements.map((e) => e.id)).toEqual(['note-1', 'comm-1', 'img-1', 'sous-1', 'lien-ok', 'lien-coupe'])
+    expect(t.elements.map((e) => e.id)).toEqual(['note-1', 'comm-1', 'img-1', 'sous-1', 'sous-2', 'lien-ok', 'lien-coupe'])
     const note = t.elements.find((e) => e.id === 'note-1')!
     expect(note).toHaveProperty('commentaire')
     expect(note).toHaveProperty('reactions')
@@ -163,6 +167,16 @@ describe('les liens visiteurs d’un tableau', () => {
     expect((await m.appeler(`/api/public/${l.jeton}/fichiers/${idCache}`)).status).toBe(404)
     expect((await m.appeler(`/api/public/${l.jeton}/fichiers/../../etc/passwd`)).status).toBe(404)
     expect((await m.appeler(`/api/fichiers/${idImage}`)).status).toBe(401)
+    await m.appeler(`${liens}/${l.id}`, { compte: ana, methode: 'DELETE' })
+  })
+
+  it('une carte vers un tableau qui n’est pas dessous n’en dit rien : ni titre, ni image', async () => {
+    const l = await creer()
+    const t = await vue(l.jeton)
+    expect(t.titres).toEqual({ 'tableau-budget': 'Budget' })
+    expect(t.elements.find((e) => e.id === 'sous-2')!.contenu).toEqual({ type: 'tableau', cible: 'tableau-secret', raccourci: true })
+    expect(JSON.stringify(t)).not.toContain('Rachat confidentiel')
+    expect((await m.appeler(`/api/public/${l.jeton}/fichiers/${idCouverture}`)).status).toBe(404)
     await m.appeler(`${liens}/${l.id}`, { compte: ana, methode: 'DELETE' })
   })
 

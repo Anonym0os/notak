@@ -94,9 +94,9 @@ export interface Monde {
 
 /**
  * `cle` : le monde chiffre au repos, comme un serveur qui a reçu `NOTAK_CLE`. `courriels` : les courriels partent,
- * et s'empilent là.
+ * et s'empilent là. `fermetures` : le nom de chaque document dont la synchro ferme les connexions s'y empile.
  */
-export function monde(options: { cle?: Cle; courriels?: Courriel[] } = {}): Monde {
+export function monde(options: { cle?: Cle; courriels?: Courriel[]; fermetures?: string[] } = {}): Monde {
   const dossier = mkdtempSync(join(tmpdir(), 'notak-monde-'))
   const base = ouvrirBase(':memory:', options.cle ?? null)
   const auth = authEssai(base)
@@ -111,7 +111,7 @@ export function monde(options: { cle?: Cle; courriels?: Courriel[] } = {}): Mond
     dossierFichiers: join(dossier, 'fichiers'),
     limiteur: creerLimiteur(1000, 60_000),
     maintenant: () => ++instant,
-    synchro: () => null,
+    synchro: () => (options.fermetures ? ({ closeConnections: (nom: string) => void options.fermetures!.push(nom) } as never) : null),
     relaisFiable: false,
     cookieSecurise: false,
     cle: options.cle ?? null,

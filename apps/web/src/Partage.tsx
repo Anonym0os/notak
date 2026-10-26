@@ -178,9 +178,13 @@ export function Partage({ tableau, moi }: { tableau: string; moi: Moi }) {
 /** Le même panneau en fenêtre, au centre : la bibliothèque le propose au clic droit sur une toile. */
 export function PartageEnFenetre({ tableau, moi, fermer }: { tableau: string; moi: Moi; fermer(): void }) {
   const boite = useRef<HTMLDialogElement>(null)
+  const appuiSurLeFond = useRef(false)
   useEffect(() => {
     const d = boite.current
     if (d && !d.open) d.showModal?.()
+    return () => {
+      if (d?.open) d.close?.()
+    }
   }, [])
   return (
     <dialog
@@ -191,10 +195,16 @@ export function PartageEnFenetre({ tableau, moi, fermer }: { tableau: string; mo
         e.preventDefault()
         fermer()
       }}
-      onClick={(e) => e.target === e.currentTarget && fermer()}
+      onPointerDown={(e) => {
+        appuiSurLeFond.current = e.target === e.currentTarget
+      }}
+      onClick={(e) => {
+        if (appuiSurLeFond.current && e.target === e.currentTarget) fermer()
+        appuiSurLeFond.current = false
+      }}
       onKeyDown={(e) => e.stopPropagation()}
     >
-      <Panneau tableau={tableau} moi={moi} reference={() => {}} />
+      <Panneau tableau={tableau} moi={moi} reference={() => {}} enFenetre />
     </dialog>
   )
 }
@@ -202,7 +212,7 @@ export function PartageEnFenetre({ tableau, moi, fermer }: { tableau: string; mo
 /** Ce qu'il reste à faire après une invitation : le lien à transmettre, s'il n'est pas parti tout seul. */
 type Suite = { email: string } & ReponsePartage
 
-function Panneau({ tableau, moi, reference }: { tableau: string; moi: Moi; reference(el: HTMLElement | null): void }) {
+function Panneau({ tableau, moi, reference, enFenetre }: { tableau: string; moi: Moi; reference(el: HTMLElement | null): void; enFenetre?: boolean }) {
   const [acces, setAcces] = useState<Acces[] | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
   const charger = useCallback(() => {
@@ -212,7 +222,7 @@ function Panneau({ tableau, moi, reference }: { tableau: string; moi: Moi; refer
   const proprietaire = acces?.some((a) => a.utilisateur === moi.id && a.role === 'proprietaire') ?? false
 
   return (
-    <div className="app-panneau partage-panneau" ref={reference} role="dialog" aria-label={t('partage.titre')}>
+    <div className="app-panneau partage-panneau" ref={reference} role={enFenetre ? undefined : 'dialog'} aria-label={enFenetre ? undefined : t('partage.titre')}>
       <div className="app-panneau-tete">{t('partage.titre')}</div>
       {proprietaire && <Inviter tableau={tableau} apres={charger} />}
       <Personnes tableau={tableau} moi={moi} acces={acces} proprietaire={proprietaire} recharger={charger} />

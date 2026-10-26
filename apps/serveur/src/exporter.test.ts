@@ -164,6 +164,11 @@ describe('texte cherchable et fichiers', () => {
     expect([...idsDeFichiers([lien])]).toEqual(['apercu'])
   })
 
+  it('garde servie la couverture d\u2019une carte de toile', () => {
+    expect([...idsDeFichiers([el({ type: 'tableau', cible: 'x', image: 'couv' })])]).toEqual(['couv'])
+    expect([...idsDeFichiers([el({ type: 'tableau', cible: 'y' })])]).toEqual([])
+  })
+
   it('garde servi l\u2019original d\u2019une image détourée', () => {
     const detouree = el({ type: 'image', fichier: 'png', original: { fichier: 'photo', tailles: [{ largeur: 400, fichier: 'photo-400' }] } })
     expect([...idsDeFichiers([detouree])].sort()).toEqual(['photo', 'photo-400', 'png'])

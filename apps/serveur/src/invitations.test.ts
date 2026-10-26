@@ -21,6 +21,7 @@ afterAll(() => m.fermer())
 const partager = (tableau: string, corps: Record<string, unknown>, compte = ana) => m.appeler(`/api/tableaux/${tableau}/partage`, { compte, json: corps })
 const acces = async (tableau: string, compte = ana) => (await (await m.appeler(`/api/tableaux/${tableau}/acces`, { compte })).json()) as Record<string, unknown>[]
 const ouvrir = (tableau: string, compte: Compte) => m.appeler(`/api/tableaux/${tableau}/export`, { compte })
+const creer = (compte: Compte, corps: Record<string, unknown>) => m.appeler('/api/tableaux', { compte, json: corps })
 /** Le jeton d'une adresse d'invitation, tel qu'il arrive dans un courriel. */
 const jetonDe = (c: Courriel) => /\/invitation#([A-Za-z0-9_-]+)/.exec(c.texte)![1]!
 
@@ -125,6 +126,59 @@ describe('un accès temporaire', () => {
     await partager('tableau-temp-2', { email: bob.utilisateur.email, role: 'commentaire' })
     m.avancer(2000)
     expect((await ouvrir('tableau-temp-2', bob)).status).toBe(200)
+  })
+
+  it('ce qu’on crée dessous tombe avec lui ; son propriétaire garde tout', async () => {
+    m.tableau(ana, 'tableau-temp-p', 'Atelier prêté')
+    const fin = m.maintenant() + 3600_000
+    await partager('tableau-temp-p', { email: bob.utilisateur.email, role: 'edition', expire: fin })
+    expect((await creer(bob, { id: 'tableau-temp-c', titre: 'Croquis', parent: 'tableau-temp-p' })).status).toBe(201)
+    expect(m.base.echeance('tableau-temp-c', `user:${bob.utilisateur.id}`)).toBe(fin)
+    expect((await ouvrir('tableau-temp-c', bob)).status).toBe(200)
+    m.avancer(3600_001)
+    for (const t of ['tableau-temp-p', 'tableau-temp-c']) {
+      expect((await ouvrir(t, bob)).status).toBe(404)
+      expect((await ouvrir(t, ana)).status).toBe(200)
+    }
+  })
+
+  it('créé sous plusieurs accès temporaires, il dure autant que le plus long ; un seul sans échéance le laisse à son créateur', async () => {
+    m.tableau(ana, 'tableau-temp-g', 'Maison')
+    m.tableau(ana, 'tableau-temp-q', 'Pièce', undefined, 'tableau-temp-g')
+    const tot = m.maintenant() + 1000
+    const tard = m.maintenant() + 5000
+    await partager('tableau-temp-q', { email: bob.utilisateur.email, role: 'edition', expire: tot })
+    await partager('tableau-temp-g', { email: bob.utilisateur.email, role: 'edition', expire: tard })
+    expect((await creer(bob, { id: 'tableau-temp-d', titre: 'Coin', parent: 'tableau-temp-q' })).status).toBe(201)
+    expect(m.base.echeance('tableau-temp-d', `user:${bob.utilisateur.id}`)).toBe(tard)
+
+    m.tableau(ana, 'tableau-temp-s', 'Atelier ouvert')
+    await partager('tableau-temp-s', { email: bob.utilisateur.email, role: 'edition' })
+    expect((await creer(bob, { id: 'tableau-temp-e', titre: 'À Bob', parent: 'tableau-temp-s' })).status).toBe(201)
+    expect(m.base.echeance('tableau-temp-e', `user:${bob.utilisateur.id}`)).toBeNull()
+    m.avancer(10_000)
+    expect((await ouvrir('tableau-temp-e', bob)).status).toBe(200)
+  })
+
+  it('passée, l’échéance retire le tableau de la liste avant tout balayage', async () => {
+    m.tableau(ana, 'tableau-temp-l', 'Atelier listé')
+    await partager('tableau-temp-l', { email: bob.utilisateur.email, role: 'lecture', expire: m.maintenant() + 1000 })
+    const liste = async () => ((await (await m.appeler('/api/tableaux', { compte: bob })).json()) as { id: string }[]).map((t) => t.id)
+    expect(await liste()).toContain('tableau-temp-l')
+    m.avancer(2000)
+    expect(await liste()).not.toContain('tableau-temp-l')
+  })
+
+  it('passée, l’échéance ferme aussitôt les fichiers que seul ce tableau montrait', async () => {
+    m.tableau(ana, 'tableau-temp-f', 'Atelier illustré')
+    const depot = await m.appeler('/api/fichiers', { compte: ana, corps: new Uint8Array([137, 80, 78, 71, 5, 5]), type: 'image/png' })
+    const { id } = (await depot.json()) as { id: string }
+    m.base.indexer('tableau-temp-f', [], [id], [])
+    await partager('tableau-temp-f', { email: bob.utilisateur.email, role: 'lecture', expire: m.maintenant() + 1000 })
+    expect((await m.appeler(`/api/fichiers/${id}`, { compte: bob })).status).toBe(200)
+    m.avancer(2000)
+    expect((await m.appeler(`/api/fichiers/${id}`, { compte: bob })).status).toBe(404)
+    expect((await m.appeler(`/api/fichiers/${id}`, { compte: ana })).status).toBe(200)
   })
 
   it('une échéance passée, trop lointaine ou mal formée est refusée', async () => {
