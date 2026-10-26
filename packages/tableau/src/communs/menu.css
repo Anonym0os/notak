@@ -173,17 +173,6 @@
   color: var(--notak-pop-texte-3);
 }
 
-.notak-menu-info .notak-decor-personne {
-  flex: none;
-  overflow: hidden;
-}
-
-.notak-menu-info .notak-decor-personne img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 /* ===== Raccourci ===== */
 
 .notak-kbd {

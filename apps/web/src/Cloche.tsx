@@ -85,7 +85,7 @@ export function Cloche({ ouvrir }: { ouvrir(tableau: string): void }) {
             {liste?.notifications.map((n) => (
               <li key={n.id} data-lu={n.lu || undefined}>
                 <button type="button" onClick={() => aller(n)}>
-                  <PastillePersonne className="app-pastille" nom={n.auteur.nom} couleur={n.auteur.couleur} titre="" />
+                  <PastillePersonne nom={n.auteur.nom} couleur={n.auteur.couleur} titre="" />
                   <span className="cloche-texte">
                     <span>{TEXTES[n.genre](n)}</span>
                     {n.extrait && n.genre !== 'partage' && <small className="activite-elements">{n.extrait}</small>}

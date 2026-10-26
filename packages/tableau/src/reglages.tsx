@@ -161,7 +161,7 @@ export function ChoixPhoto({ compte }: { compte: ServiceCompte }) {
   return (
     <div className="notak-rg-controle">
       <div className="notak-rg-rang">
-        <PastillePersonne className="notak-reglages-avatar" nom={compte.nom} couleur={compte.couleur} adresse={compte.photo ?? undefined} />
+        <PastillePersonne taille={36} nom={compte.nom} couleur={compte.couleur} adresse={compte.photo ?? undefined} />
         <button type="button" className="notak-rg-bouton" disabled={occupe} onClick={() => champ.current?.click()}>
           {compte.photo ? t('reglages.compte.photoChanger') : t('reglages.compte.photoChoisir')}
         </button>

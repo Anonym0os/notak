@@ -2,6 +2,7 @@ import './jetons.css'
 import './case.css'
 import './interrupteur.css'
 import './segments.css'
+import './avatar.css'
 
 export { Case } from './Case'
 export { animerCase } from './animerCase'

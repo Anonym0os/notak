@@ -13,6 +13,7 @@ import { BoutonOutil, OutilAvecMenu } from '../../BoutonOutil'
 import { type NomIcone, Icone } from '../../icones'
 import { useMenu } from '../../menuUnique'
 import { Calendrier } from '../../communs'
+import { PastillePersonne } from '../../pastille'
 
 interface Props {
   elements: Element[]
@@ -86,9 +87,7 @@ export function OutilEcheance({ elements, contexte }: Props) {
           <span className="notak-decor-titre">{t('decor.confieA')}</span>
           {personnes(contexte).map((p) => (
             <button key={p.id} type="button" className="notak-menu-rang" role="menuitemradio" aria-checked={assigneCommun === p.id} onClick={() => assigner(assigneCommun === p.id ? null : p)}>
-              <span className="notak-decor-personne" style={p.couleur ? { background: p.couleur } : undefined}>
-                {p.nom.trim().charAt(0).toUpperCase()}
-              </span>
+              <PastillePersonne taille={24} nom={p.nom} couleur={p.couleur} titre="" />
               <span className="notak-menu-rang-texte">{p.nom}</span>
               {assigneCommun === p.id && <Icone nom="coche" taille={14} />}
             </button>

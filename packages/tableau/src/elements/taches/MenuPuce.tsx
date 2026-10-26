@@ -11,7 +11,6 @@ import {
   attrsPersonne,
   echeanceDe,
   heureDe,
-  initiales,
   jourDe,
   optionsRappel,
   rappelDe,
@@ -20,6 +19,7 @@ import {
 import { t } from '../../langue'
 import { Icone } from '../../icones'
 import { Calendrier, ChoixHeure } from '../../communs'
+import { PastillePersonne } from '../../pastille'
 
 /** Où le menu s'ouvre : accroché à la puce touchée, qu'il suit quand la toile bouge. */
 export interface OuverturePuce {
@@ -182,9 +182,7 @@ function PanneauPersonne({ valeur, personnes, regler, fermer }: { valeur: string
             onMouseEnter={() => setActif(i)}
             onClick={() => choisir(p.nom)}
           >
-            <span className="notak-menu-puce-pastille" style={{ background: p.couleur ?? teinteDe(p.nom) }}>
-              {initiales(p.nom)}
-            </span>
+            <PastillePersonne taille={24} nom={p.nom} couleur={p.couleur ?? teinteDe(p.nom)} titre="" />
             <span className="notak-menu-liste-nom">{surligner(p.nom, recherche.trim())}</span>
             {p.nom === valeur && <Icone nom="coche" taille={16} />}
           </button>

@@ -174,7 +174,7 @@ export function PageReglages({ fermer, ...c }: ContexteReglages & { fermer(): vo
         <nav className="notak-rg-nav" aria-label={t('reglages.rubriques')}>
           {c.compte && (
             <button type="button" className="notak-rg-moi" onClick={() => ouvrir('profil')}>
-              <PastillePersonne className="notak-rg-moi-pastille" nom={c.compte.nom} couleur={c.compte.couleur} adresse={c.compte.photo ?? undefined} />
+              <PastillePersonne taille={36} nom={c.compte.nom} couleur={c.compte.couleur} adresse={c.compte.photo ?? undefined} />
               <span>
                 <strong>{c.compte.nom}</strong>
                 {c.compte.email && <small>{c.compte.email}</small>}

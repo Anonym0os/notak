@@ -721,20 +721,6 @@
   background: #eaeffe;
 }
 
-.notak-proposition-avatar {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: #8a94a3;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  object-fit: cover;
-}
-
 .notak-proposition-nom {
   font-weight: 700;
   color: #2f63f7;

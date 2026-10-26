@@ -848,24 +848,6 @@
     notak-pastille-pulse 1.5s ease-out 0.4s infinite;
 }
 
-.notak-pastille-autre-avatar {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 22px;
-  height: 22px;
-  overflow: hidden;
-  border-radius: 50%;
-  background: rgb(255 255 255 / 0.28);
-  font-size: 11px;
-}
-
-.notak-pastille-autre-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .notak-pastille-autre-nom {
   display: block;
   max-width: 125px;
@@ -938,29 +920,6 @@
   display: flex;
   margin-left: auto;
   padding-left: 12px;
-}
-
-.notak-pastille {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  margin-left: -6px;
-  border: 2px solid var(--notak-carte);
-  border-radius: 50%;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.notak-pastille {
-  overflow: hidden;
-}
-
-.notak-pastille img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 
 .notak-entete-actions {
@@ -1603,7 +1562,7 @@
   cursor: grab;
 }
 
-.notak-pastille-reste {
+.notak-av.notak-pastille-reste {
   background: #7a7f87;
   font-size: 10px;
 }
@@ -1979,19 +1938,6 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.notak-decor-personne {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #7a7f87;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
 }
 
 /* « Aucune couleur » : une pastille barrée en tête des couleurs. */

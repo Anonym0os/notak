@@ -2,7 +2,7 @@ import { type ReactNode, useEffect, useLayoutEffect, useRef, useState, useSyncEx
 import { type Auteur, type Element, type Etiquette, annoter } from '../../coeur/tableau'
 import { FilAttache } from '../commentaire/Attache'
 import { GlypheEpingle, aDuNouveau, couleurEpingle, useFermerAuClicDehors } from '../commentaire/Epingle'
-import { AUTEUR_INCONNU, epinglerEn, initiales, pointeEpingle } from '../commentaire/fil'
+import { AUTEUR_INCONNU, epinglerEn, pointeEpingle } from '../commentaire/fil'
 import { marquerLu } from '../commentaire/suivi'
 import { definition } from '../registre'
 import type { ContexteToile } from '../types'
@@ -14,6 +14,7 @@ import { choisirPuce, ouvrirFil, retenirContexte, useFilOuvert, usePuce } from '
 import { t } from '../../langue'
 import { Icone } from '../../icones'
 import { personneAJour } from '../../personne'
+import { PastillePersonne } from '../../pastille'
 
 const garder = (e: React.SyntheticEvent) => e.stopPropagation()
 
@@ -331,9 +332,7 @@ function Assigne({ assigne, contexte }: { assigne: Auteur; contexte: ContexteToi
   const p = personneAJour(assigne, contexte.services)
   const photo = p.photo ? contexte.services.adressePhoto?.(p.photo) : undefined
   return (
-    <span className="notak-assigne" style={p.couleur ? { background: p.couleur } : undefined} title={t('decor.confieANom', { nom: p.nom })} aria-label={t('decor.confieANom', { nom: p.nom })}>
-      {photo ? <img src={photo} alt="" draggable={false} /> : initiales(p.nom)}
-    </span>
+    <PastillePersonne taille={24} nom={p.nom} couleur={p.couleur} adresse={photo} titre={t('decor.confieANom', { nom: p.nom })} etiquette={t('decor.confieANom', { nom: p.nom })} />
   )
 }
 

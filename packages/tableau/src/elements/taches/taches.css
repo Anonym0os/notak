@@ -392,18 +392,6 @@
   color: #8d929a;
 }
 
-.notak-menu-puce-pastille {
-  flex: none;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  color: #fff;
-  font-size: 9px;
-  font-weight: 600;
-  line-height: 22px;
-  text-align: center;
-}
-
 /* À droite de la tâche, au survol : la poignée pour la changer de place (trois traits). Rien si la liste est verrouillée ou si plusieurs éléments sont choisis. */
 .notak-tache-poignee {
   position: absolute;

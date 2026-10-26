@@ -72,12 +72,12 @@
   padding-left: 6px;
 }
 
-.notak-ilot-partage:not(:has(.notak-pastille)) {
+.notak-ilot-partage:not(:has(.notak-av)) {
   padding-left: 3px;
 }
 
 /* Personne d'autre là, et rien à partager (l'édition locale) : pas d'îlot vide. */
-.notak-ilot-partage:not(:has(.bouton, .notak-pastille)) {
+.notak-ilot-partage:not(:has(.bouton, .notak-av)) {
   display: none;
 }
 
