@@ -85,7 +85,7 @@ export function Compteur({ sujets, choisis, mots, caracteres }: Pick<PropsBarreB
         <span className="notak-arbre-bas-valeur">{libelle}</span>
       </button>
       {ouvert && (
-        <Flottant ancre={racine.current} cote="haut" alignement="centre" ecart={12} className="notak-arbre-bas-popover" role="dialog" aria-label={t('arbre.bas.compteInfo')}>
+        <Flottant ancre={racine.current} cote="haut" alignement="centre" ecart={12} className="notak-pop notak-arbre-bas-popover" role="dialog" aria-label={t('arbre.bas.compteInfo')}>
           <p>{t('arbre.bas.compte', { n: sujets })}</p>
           <p>{t('arbre.bas.mots', { n: mots })}</p>
           <p>{t('arbre.bas.caracteres', { n: caracteres })}</p>

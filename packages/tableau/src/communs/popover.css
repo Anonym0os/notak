@@ -1,0 +1,29 @@
+/*
+ * Le popover de Notak (maquette « Composants communs » : .nk-pop, .nk-corps, .nk-titre-pop). Une surface : fond, rayon
+ * 14, une ombre. `:where` la garde sans poids : la place, la largeur et le défilement restent à qui la pose.
+ * `notak-pop-menu` : 6 de marge, pour une liste d'entrées ; `notak-pop-corps` : 16, pour un contenu.
+ */
+:where(.notak-pop) {
+  box-sizing: border-box;
+  border-radius: 14px;
+  background: var(--notak-pop-fond);
+  box-shadow: var(--notak-pop-ombre);
+  color: var(--notak-pop-texte);
+}
+
+:where(.notak-pop-menu) {
+  padding: 6px;
+}
+
+:where(.notak-pop-corps) {
+  padding: 16px;
+}
+
+/* Le titre d'un popover (16), au-dessus de son contenu. */
+.notak-titre-pop {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-wrap: balance;
+}

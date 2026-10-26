@@ -339,7 +339,7 @@ describe('le thème de couleur', () => {
     monter(carte())
     cliquer(bouton('Créer un nouveau thème.'))
     const enregistrer = bouton('Enregistrer') as HTMLButtonElement
-    expect(document.querySelector('#notak-arbre-reglages-dlg-titre')!.textContent).toBe('Créer un nouveau thème de couleur')
+    expect(document.querySelector('.notak-dialogue-titre')!.textContent).toBe('Créer un nouveau thème de couleur')
     expect(enregistrer.disabled).toBe(true)
     expect(document.querySelector('.notak-arbre-reglages-dlg-apercu')!.textContent).toBe('Aperçu du thème de couleur')
     const couleurs = ['#111111', '#222222', '#333333', '#444444', '#555555', '#666666']

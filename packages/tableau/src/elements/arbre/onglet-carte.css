@@ -20,7 +20,6 @@
 .notak-arbre-reglages input,
 .notak-arbre-reglages-popover button,
 .notak-arbre-reglages-popover input,
-.notak-arbre-reglages-dialogue button,
 .notak-arbre-reglages-dialogue input {
   font: inherit;
   color: inherit;
@@ -470,12 +469,7 @@
 .notak-arbre-reglages-popover {
   position: fixed;
   z-index: 30;
-  box-sizing: border-box;
   overflow: auto;
-  border-radius: 12px;
-  background: var(--notak-arbre-fond);
-  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.1), 0 8px 24px rgb(0 0 0 / 0.14);
-  color: var(--notak-arbre-texte);
   font-size: 13px;
   line-height: 17px;
 }
@@ -822,42 +816,14 @@
   cursor: pointer;
 }
 
-/* La boîte « Créer un nouveau thème de couleur » : 540 × 480. */
-.notak-arbre-reglages-voile {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  display: grid;
-  place-items: center;
-  background: rgb(0 0 0 / 0.25);
-}
-
+/* La boîte « Créer un nouveau thème de couleur » : un dialogue commun (Dialogue) de 540 × 480. */
 .notak-arbre-reglages-dialogue {
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  width: 540px;
-  max-width: calc(100vw - 32px);
   height: 480px;
-  max-height: calc(100vh - 32px);
-  padding: 11px 24px 16px;
-  border-radius: 12px;
-  background: var(--notak-arbre-fond);
-  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.1), 0 16px 48px rgb(0 0 0 / 0.25);
-  color: var(--notak-arbre-texte);
   font-size: 13px;
-}
-
-.notak-arbre-reglages-dialogue h3 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 25px;
 }
 
 .notak-arbre-reglages-dlg-sous {
   margin: 4px 0 16px;
-  color: var(--notak-arbre-discret);
 }
 
 .notak-arbre-reglages-dlg-rangee {
@@ -958,33 +924,9 @@
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.1);
 }
 
-.notak-arbre-reglages-dialogue footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+.notak-arbre-reglages-dialogue .notak-dialogue-actions {
   margin-top: auto;
   padding-top: 12px;
-}
-
-.notak-arbre-reglages-dialogue footer button {
-  height: 28px;
-  padding: 0 16px;
-  border: 1px solid var(--notak-arbre-filet-c);
-  border-radius: 6px;
-  background: var(--notak-arbre-fond);
-  cursor: pointer;
-}
-
-.notak-arbre-reglages-dialogue footer .notak-arbre-reglages-bouton-fort {
-  border-color: transparent;
-  background: var(--notak-arbre-plein);
-  color: var(--notak-arbre-fond);
-  font-weight: 600;
-}
-
-.notak-arbre-reglages-dialogue footer button:disabled {
-  opacity: 0.35;
-  cursor: default;
 }
 
 /* La vue secondaire : « Thèmes personnalisés ». */

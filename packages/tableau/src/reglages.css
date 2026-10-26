@@ -1,18 +1,8 @@
 /*
- * La page des réglages (PageReglages.tsx) : une fenêtre de 1040 × 680 au plus, au-dessus de l'écran assombri. À gauche
+ * La page des réglages (PageReglages.tsx) : un dialogue commun (Dialogue) de 1040 × 680 au plus. À gauche
  * une colonne grise de 256 px (le compte, la recherche, les rubriques) ; à droite la rubrique ouverte, en lignes
  * « libellé et aide, puis le contrôle en pilule ». En sombre, un anneau d'un pixel remplace les ombres.
  */
-.notak-rg-fond {
-  position: absolute;
-  inset: 0;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgb(27 37 54 / 0.24);
-}
-
 .notak-rg {
   --rg-texte: #323b4a;
   --rg-aide: #5f6672;
@@ -35,13 +25,11 @@
 
   position: relative;
   display: flex;
-  box-sizing: border-box;
+  flex-direction: row;
   width: min(1040px, calc((100vw - 32px) / var(--rg-zoom)));
   height: min(680px, calc((100vh - 32px) / var(--rg-zoom)));
-  overflow: hidden;
-  border-radius: 18px;
+  max-height: none;
   background: var(--rg-page);
-  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.08), 0 24px 64px -12px rgb(27 37 54 / 0.35);
   color: var(--rg-texte);
   font-size: 14px;
   line-height: normal;
@@ -293,25 +281,12 @@
   font-size: 14px;
 }
 
-.notak-rg-fermer {
+/* La croix : un bouton commun (BoutonIcone), posé en haut à droite de la page. */
+.notak-rg-fermer.notak-rg-fermer {
   position: absolute;
   z-index: 1;
-  top: 18px;
-  right: 18px;
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: 0;
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--rg-texte) 7%, var(--rg-page));
-  color: var(--rg-texte);
-  cursor: pointer;
-}
-
-.notak-rg-fermer:hover {
-  background: color-mix(in srgb, var(--rg-texte) 12%, var(--rg-page));
+  top: 16px;
+  right: 16px;
 }
 
 .notak-rg-section {
@@ -651,10 +626,6 @@
 }
 
 /* Le sombre : la page et la colonne dans les gris profonds, un anneau au lieu des ombres. */
-[data-theme='sombre'] .notak-rg-fond {
-  background: rgb(0 0 0 / 0.45);
-}
-
 [data-theme='sombre'] .notak-rg {
   --rg-texte: #e3e5e9;
   --rg-aide: rgb(255 255 255 / 0.6);
@@ -670,8 +641,6 @@
   --rg-hors: rgb(255 255 255 / 0.32);
   --rg-hors-icone: rgb(255 255 255 / 0.22);
   --rg-mark: rgb(250 204 21 / 0.34);
-
-  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.1);
 }
 
 [data-theme='sombre'] .notak-rg-recherche {

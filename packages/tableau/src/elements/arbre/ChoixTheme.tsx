@@ -1,4 +1,5 @@
-import { type ReactNode, useLayoutEffect, useRef } from 'react'
+import { type ReactNode, useRef } from 'react'
+import { useFermeture } from '../../communs'
 import { t } from '../../langue'
 import { DecorDiapo } from './diapo/decor'
 import { Flottant } from './Flottant'
@@ -14,25 +15,8 @@ import { type RatioPitch, type ThemePitch, THEME_PITCH_PERSO, THEMES_PITCH, dime
  */
 export function PopoverFixe({ ancre, fermer, largeur, vers = 'bas', children, className }: { ancre: HTMLElement | null; fermer(): void; largeur: number; vers?: 'bas' | 'haut'; children: ReactNode; className?: string }) {
   const racine = useRef<HTMLDivElement>(null)
-  useLayoutEffect(() => {
-    const dehors = (e: PointerEvent) => {
-      const cible = e.target as Node
-      // Un clic dans un autre popover du mode Pitch (le sélecteur de thèmes ouvert depuis les réglages) ne le ferme pas.
-      if (!racine.current?.contains(cible) && !ancre?.contains(cible) && !(cible as Element).closest?.('.notak-arbre-pitch-popover')) fermer()
-    }
-    const echap = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      e.stopPropagation()
-      e.preventDefault()
-      fermer()
-    }
-    document.addEventListener('pointerdown', dehors, true)
-    document.addEventListener('keydown', echap, true)
-    return () => {
-      document.removeEventListener('pointerdown', dehors, true)
-      document.removeEventListener('keydown', echap, true)
-    }
-  }, [ancre, fermer])
+  // Un appui dans un autre popover du mode Pitch (le sélecteur de thèmes ouvert depuis les réglages) ne le ferme pas.
+  useFermeture({ racine, ancre, aussi: '.notak-arbre-pitch-popover', fermer })
   if (!ancre) return null
   return (
     <Flottant
@@ -42,7 +26,7 @@ export function PopoverFixe({ ancre, fermer, largeur, vers = 'bas', children, cl
       alignement="centre"
       ecart={8}
       largeur={largeur}
-      className={className ? `notak-arbre-pitch-popover ${className}` : 'notak-arbre-pitch-popover'}
+      className={className ? `notak-pop notak-pop-corps notak-arbre-pitch-popover ${className}` : 'notak-pop notak-pop-corps notak-arbre-pitch-popover'}
       role="dialog"
       onKeyDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}

@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useState } from 'react'
 import type { StructureArbre } from '../../../coeur/tableau'
+import { Bouton, Dialogue } from '../../../communs'
 import { Icone } from '../../../icones'
 import { t } from '../../../langue'
 import { themePerso, variantesDe } from '../themes'
@@ -35,15 +35,6 @@ export function DialogueTheme({
   const [couleurs, setCouleurs] = useState<string[]>(() => [...(edition?.palette ?? [])])
   const [nom, setNom] = useState(() => edition?.nom ?? nomSuivant(t('arbre.carte.dlg.perso'), noms))
   const [derniere, setDerniere] = useState(COULEUR_DE_DEPART)
-  useEffect(() => {
-    const echap = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      e.stopPropagation()
-      fermer()
-    }
-    document.addEventListener('keydown', echap, true)
-    return () => document.removeEventListener('keydown', echap, true)
-  }, [fermer])
   if (!hote) return null
   const complet = couleurs.length === 6
   const poser = (i: number, c: string) => {
@@ -52,55 +43,59 @@ export function DialogueTheme({
   }
   const variantes = complet ? variantesDe(themePerso('perso:apercu', couleurs)) : []
   const pret = complet && nom.trim() !== ''
-  return createPortal(
-    <div className="notak-arbre-reglages-voile" role="presentation" onPointerDown={(e) => e.target === e.currentTarget && fermer()}>
-      <div className="notak-arbre-reglages-dialogue" role="dialog" aria-modal aria-labelledby="notak-arbre-reglages-dlg-titre" onKeyDown={(e) => e.stopPropagation()}>
-        <h3 id="notak-arbre-reglages-dlg-titre">{edition ? t('arbre.carte.dlg.modifier') : t('arbre.carte.dlg.creer')}</h3>
-        <p className="notak-arbre-reglages-dlg-sous">{edition ? t('arbre.carte.dlg.modifierAide') : t('arbre.carte.dlg.creerAide')}</p>
-        <div className="notak-arbre-reglages-dlg-rangee">
-          <div className="notak-arbre-reglages-cases" role="group" aria-label={t('arbre.carte.dlg.cases')}>
-            {Array.from({ length: 6 }, (_, i) => {
-              const rempli = i < couleurs.length
-              const ouvert = rempli || i === couleurs.length
-              return (
-                <span key={i} className="notak-arbre-reglages-case-theme" data-vide={rempli ? undefined : ''} data-inactif={ouvert ? undefined : ''}>
-                  {!rempli && <Icone nom="ajouter" taille={16} trait={2} />}
-                  <input
-                    type="color"
-                    aria-label={t('arbre.carte.dlg.case', { n: i + 1 })}
-                    disabled={!ouvert}
-                    value={couleurs[i] ?? derniere}
-                    style={rempli ? { background: couleurs[i] } : undefined}
-                    onClick={() => !rempli && i === couleurs.length && poser(i, derniere)}
-                    onChange={(e) => poser(i, e.target.value)}
-                  />
-                </span>
-              )
-            })}
-          </div>
-          <input type="text" className="notak-arbre-reglages-dlg-nom" value={nom} aria-label={t('arbre.carte.dlg.nom')} onChange={(e) => setNom(e.target.value)} />
-        </div>
-        <div className="notak-arbre-reglages-dlg-apercu" data-vide={complet ? undefined : ''}>
-          {complet ? (
-            <div className="notak-arbre-reglages-dlg-variantes">
-              {variantes.map((accent, i) => (
-                <ApercuStructure key={i} structure={structure} couleurs={accent ? [accent] : couleurs} fond="var(--notak-arbre-fond)" />
-              ))}
-            </div>
-          ) : (
-            <p>{t('arbre.carte.dlg.apercu')}</p>
-          )}
-        </div>
-        <footer>
-          <button type="button" onClick={fermer}>
+  return (
+    <Dialogue
+      titre={edition ? t('arbre.carte.dlg.modifier') : t('arbre.carte.dlg.creer')}
+      fermer={fermer}
+      hote={hote}
+      largeur={540}
+      className="notak-arbre-reglages-dialogue"
+      actions={
+        <>
+          <Bouton variante="second" onClick={fermer}>
             {t('arbre.carte.dlg.annuler')}
-          </button>
-          <button type="button" className="notak-arbre-reglages-bouton-fort" disabled={!pret} onClick={() => enregistrer({ id: edition?.id ?? idCouleurPerso(), nom: nom.trim(), palette: couleurs })}>
+          </Bouton>
+          <Bouton variante="principal" disabled={!pret} onClick={() => enregistrer({ id: edition?.id ?? idCouleurPerso(), nom: nom.trim(), palette: couleurs })}>
             {t('arbre.carte.dlg.enregistrer')}
-          </button>
-        </footer>
+          </Bouton>
+        </>
+      }
+    >
+      <p className="notak-dialogue-texte notak-arbre-reglages-dlg-sous">{edition ? t('arbre.carte.dlg.modifierAide') : t('arbre.carte.dlg.creerAide')}</p>
+      <div className="notak-arbre-reglages-dlg-rangee">
+        <div className="notak-arbre-reglages-cases" role="group" aria-label={t('arbre.carte.dlg.cases')}>
+          {Array.from({ length: 6 }, (_, i) => {
+            const rempli = i < couleurs.length
+            const ouvert = rempli || i === couleurs.length
+            return (
+              <span key={i} className="notak-arbre-reglages-case-theme" data-vide={rempli ? undefined : ''} data-inactif={ouvert ? undefined : ''}>
+                {!rempli && <Icone nom="ajouter" taille={16} trait={2} />}
+                <input
+                  type="color"
+                  aria-label={t('arbre.carte.dlg.case', { n: i + 1 })}
+                  disabled={!ouvert}
+                  value={couleurs[i] ?? derniere}
+                  style={rempli ? { background: couleurs[i] } : undefined}
+                  onClick={() => !rempli && i === couleurs.length && poser(i, derniere)}
+                  onChange={(e) => poser(i, e.target.value)}
+                />
+              </span>
+            )
+          })}
+        </div>
+        <input type="text" className="notak-arbre-reglages-dlg-nom" value={nom} aria-label={t('arbre.carte.dlg.nom')} onChange={(e) => setNom(e.target.value)} />
       </div>
-    </div>,
-    hote,
+      <div className="notak-arbre-reglages-dlg-apercu" data-vide={complet ? undefined : ''}>
+        {complet ? (
+          <div className="notak-arbre-reglages-dlg-variantes">
+            {variantes.map((accent, i) => (
+              <ApercuStructure key={i} structure={structure} couleurs={accent ? [accent] : couleurs} fond="var(--notak-arbre-fond)" />
+            ))}
+          </div>
+        ) : (
+          <p>{t('arbre.carte.dlg.apercu')}</p>
+        )}
+      </div>
+    </Dialogue>
   )
 }

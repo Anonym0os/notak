@@ -1,4 +1,6 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { BoutonIcone, Dialogue } from './communs'
+import { Icone } from './icones'
 import { t, tn } from './langue'
 import { touches, touchesDe } from './Menus'
 import { PastillePersonne } from './pastille'
@@ -25,8 +27,6 @@ function ecrireRubrique(id: string) {
     // Sans stockage, la rubrique vaut pour la visite.
   }
 }
-
-const FOCALISABLES = 'button:not(:disabled), input:not(:disabled):not([hidden]), [href], [tabindex]:not([tabindex="-1"])'
 
 /** Un texte où ce qu'on cherche est surligné. */
 function Surligne({ texte, cherche }: { texte: string; cherche: string }) {
@@ -95,7 +95,8 @@ function Sections({ rubrique, c }: { rubrique: Rubrique; c: ContexteReglages }) 
 /**
  * La page des réglages : les rubriques à gauche, groupées, sous le compte et la recherche ; la rubrique ouverte à
  * droite, en sections de lignes « libellé et aide, puis le contrôle ». Cmd+, l'ouvre ; Échap vide la recherche puis
- * ferme ; Cmd+F cherche. Le focus reste dans la fenêtre et revient, à la fermeture, où il était.
+ * ferme ; Cmd+F cherche. C'est un dialogue (communs/Dialogue) : le focus reste dans la fenêtre et revient, à la
+ * fermeture, où il était.
  */
 export function PageReglages({ fermer, ...c }: ContexteReglages & { fermer(): void }) {
   const visibles = rubriquesVisibles(c)
@@ -106,11 +107,8 @@ export function PageReglages({ fermer, ...c }: ContexteReglages & { fermer(): vo
   const trouvees = enRecherche ? chercher(visibles, cherche) : []
   const total = trouvees.reduce((n, r) => n + nombreDeLignes(r), 0)
 
-  const fenetre = useRef<HTMLDivElement>(null)
   const champ = useRef<HTMLInputElement>(null)
   const page = useRef<HTMLDivElement>(null)
-  const etat = useRef({ cherche, fermer })
-  etat.current = { cherche, fermer }
 
   const ouvrir = (id: string) => {
     setRubriqueVoulue(id)
@@ -122,147 +120,120 @@ export function PageReglages({ fermer, ...c }: ContexteReglages & { fermer(): vo
     if (page.current) page.current.scrollTop = 0
   }, [rubrique?.id, enRecherche])
 
-  // Le champ de recherche prend le focus à l'ouverture ; à la fermeture, le focus revient d'où il venait.
-  useEffect(() => {
-    const avant = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null
-    champ.current?.focus({ preventScroll: true })
-    return () => {
-      const retour = avant?.isConnected ? avant : document.querySelector<HTMLElement>('.notak-reglages-bouton')
-      retour?.focus({ preventScroll: true })
-    }
-  }, [])
-
+  // Cmd+F cherche, où que soit le focus dans la fenêtre.
   useEffect(() => {
     const touche = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        e.stopPropagation()
-        if (etat.current.cherche) {
-          setCherche('')
-          champ.current?.focus()
-        } else etat.current.fermer()
-      } else if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'f') {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'f') {
         e.preventDefault()
         e.stopPropagation()
         champ.current?.focus()
         champ.current?.select()
-      } else if (e.key === 'Tab' && fenetre.current) {
-        // Le focus tourne dans la fenêtre.
-        const liste = [...fenetre.current.querySelectorAll<HTMLElement>(FOCALISABLES)].filter((el) => el.offsetParent !== null || el === document.activeElement)
-        const premier = liste[0]
-        const dernier = liste[liste.length - 1]
-        if (!premier || !dernier) return
-        const dedans = fenetre.current.contains(document.activeElement)
-        if (e.shiftKey && (document.activeElement === premier || !dedans)) {
-          e.preventDefault()
-          dernier.focus()
-        } else if (!e.shiftKey && (document.activeElement === dernier || !dedans)) {
-          e.preventDefault()
-          premier.focus()
-        }
       }
     }
     document.addEventListener('keydown', touche, true)
     return () => document.removeEventListener('keydown', touche, true)
   }, [])
+  // Échap vide d'abord la recherche, puis ferme.
+  const echap = () => {
+    if (cherche) {
+      setCherche('')
+      champ.current?.focus()
+    } else fermer()
+  }
 
   const compteDe = (id: string) => trouvees.find((r) => r.id === id)
   return (
-    <div className="notak-rg-fond" onPointerDown={(e) => (e.stopPropagation(), e.target === e.currentTarget && fermer())} onDoubleClick={(e) => e.stopPropagation()}>
-      <div ref={fenetre} className="notak-rg" role="dialog" aria-modal="true" aria-label={t('reglages.titre')}>
-        <nav className="notak-rg-nav" aria-label={t('reglages.rubriques')}>
-          {c.compte && (
-            <button type="button" className="notak-rg-moi" onClick={() => ouvrir('profil')}>
-              <PastillePersonne className="notak-rg-moi-pastille" nom={c.compte.nom} couleur={c.compte.couleur} adresse={c.compte.photo ?? undefined} />
-              <span>
-                <strong>{c.compte.nom}</strong>
-                {c.compte.email && <small>{c.compte.email}</small>}
-              </span>
-            </button>
-          )}
-          <label className="notak-rg-recherche">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <circle cx="11" cy="11" r="7" />
-              <path d="M20 20l-3.5-3.5" />
-            </svg>
-            <input ref={champ} type="search" value={cherche} placeholder={t('reglages.chercher')} aria-label={t('reglages.chercher')} onChange={(e) => setCherche(e.target.value)} />
-            {!cherche && <kbd aria-hidden>{touches('⌘F')}</kbd>}
-          </label>
-          <div className="notak-rg-liste">
-            {GROUPES.map((g) => {
-              const rubriques = visibles.filter((r) => r.groupe === g)
-              if (rubriques.length === 0) return null
-              return (
-                <Fragment key={g}>
-                  <p className="notak-rg-groupe">{t(`reglages.groupe.${g}`)}</p>
-                  {rubriques.map((r) => {
-                    const n = enRecherche ? nombreDeLignes(compteDe(r.id)!) : 0
-                    return (
-                      <button
-                        key={r.id}
-                        type="button"
-                        className="notak-rg-lien"
-                        aria-current={!enRecherche && r.id === rubrique?.id ? 'page' : undefined}
-                        data-hors={enRecherche && n === 0 ? '' : undefined}
-                        onClick={() => ouvrir(r.id)}
-                      >
-                        {r.icone}
-                        <span>{lire(r.titre)}</span>
-                        {n > 0 && (
-                          <span className="notak-rg-nombre" aria-label={tn('reglages.recherche.resultats', n)}>
-                            {n}
-                          </span>
-                        )}
-                      </button>
-                    )
-                  })}
-                </Fragment>
-              )
-            })}
-          </div>
-          <span className="notak-rg-version">{t('reglages.version', { version: VERSION_NOTAK })}</span>
-        </nav>
-        <div ref={page} className="notak-rg-page">
-          <button type="button" className="notak-rg-fermer" aria-label={t('reglages.fermer')} onClick={fermer}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
-              <path d="M6 6l12 12M18 6L6 18" />
-            </svg>
+    <Dialogue nu className="notak-rg" etiquette={t('reglages.titre')} fermer={fermer} echap={echap} retour={() => document.querySelector<HTMLElement>('.notak-reglages-bouton')}>
+      <nav className="notak-rg-nav" aria-label={t('reglages.rubriques')}>
+        {c.compte && (
+          <button type="button" className="notak-rg-moi" onClick={() => ouvrir('profil')}>
+            <PastillePersonne className="notak-rg-moi-pastille" nom={c.compte.nom} couleur={c.compte.couleur} adresse={c.compte.photo ?? undefined} />
+            <span>
+              <strong>{c.compte.nom}</strong>
+              {c.compte.email && <small>{c.compte.email}</small>}
+            </span>
           </button>
-          {enRecherche ? (
-            <>
-              <h2>{total > 0 ? tn('reglages.recherche.titre', total, { q: cherche.trim() }) : t('reglages.recherche.aucun', { q: cherche.trim() })}</h2>
-              <p className="notak-rg-phrase" aria-live="polite">
-                {total > 0 ? t('reglages.recherche.phrase') : t('reglages.recherche.aucunePhrase')}
-              </p>
-              {trouvees
-                .filter((r) => r.sections.length > 0)
-                .map((r) => (
-                  <section key={r.id} className="notak-rg-section" aria-label={lire(r.titre)}>
-                    <h3 className="notak-rg-section-titre">
-                      <button type="button" onClick={() => ouvrir(r.id)}>
-                        {lire(r.titre)}
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                          <path d="M9 6l6 6-6 6" />
-                        </svg>
-                      </button>
-                    </h3>
-                    {r.sections.flatMap((s) => s.lignes).map((l) => (
-                      <LigneReglage key={l.id} ligne={l} c={c} cherche={cherche} />
-                    ))}
-                  </section>
-                ))}
-            </>
-          ) : (
-            rubrique && (
-              <>
-                <h2>{lire(rubrique.titre)}</h2>
-                {rubrique.phrase && <p className="notak-rg-phrase">{lire(rubrique.phrase)}</p>}
-                <Sections rubrique={rubrique} c={c} />
-              </>
+        )}
+        <label className="notak-rg-recherche">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-3.5-3.5" />
+          </svg>
+          <input ref={champ} autoFocus type="search" value={cherche} placeholder={t('reglages.chercher')} aria-label={t('reglages.chercher')} onChange={(e) => setCherche(e.target.value)} />
+          {!cherche && <kbd aria-hidden>{touches('⌘F')}</kbd>}
+        </label>
+        <div className="notak-rg-liste">
+          {GROUPES.map((g) => {
+            const rubriques = visibles.filter((r) => r.groupe === g)
+            if (rubriques.length === 0) return null
+            return (
+              <Fragment key={g}>
+                <p className="notak-rg-groupe">{t(`reglages.groupe.${g}`)}</p>
+                {rubriques.map((r) => {
+                  const n = enRecherche ? nombreDeLignes(compteDe(r.id)!) : 0
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      className="notak-rg-lien"
+                      aria-current={!enRecherche && r.id === rubrique?.id ? 'page' : undefined}
+                      data-hors={enRecherche && n === 0 ? '' : undefined}
+                      onClick={() => ouvrir(r.id)}
+                    >
+                      {r.icone}
+                      <span>{lire(r.titre)}</span>
+                      {n > 0 && (
+                        <span className="notak-rg-nombre" aria-label={tn('reglages.recherche.resultats', n)}>
+                          {n}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </Fragment>
             )
-          )}
+          })}
         </div>
+        <span className="notak-rg-version">{t('reglages.version', { version: VERSION_NOTAK })}</span>
+      </nav>
+      <div ref={page} className="notak-rg-page">
+        <BoutonIcone className="notak-rg-fermer" aria-label={t('reglages.fermer')} onClick={fermer}>
+          <Icone nom="fermer" taille={16} trait={2} />
+        </BoutonIcone>
+        {enRecherche ? (
+          <>
+            <h2>{total > 0 ? tn('reglages.recherche.titre', total, { q: cherche.trim() }) : t('reglages.recherche.aucun', { q: cherche.trim() })}</h2>
+            <p className="notak-rg-phrase" aria-live="polite">
+              {total > 0 ? t('reglages.recherche.phrase') : t('reglages.recherche.aucunePhrase')}
+            </p>
+            {trouvees
+              .filter((r) => r.sections.length > 0)
+              .map((r) => (
+                <section key={r.id} className="notak-rg-section" aria-label={lire(r.titre)}>
+                  <h3 className="notak-rg-section-titre">
+                    <button type="button" onClick={() => ouvrir(r.id)}>
+                      {lire(r.titre)}
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <path d="M9 6l6 6-6 6" />
+                      </svg>
+                    </button>
+                  </h3>
+                  {r.sections.flatMap((s) => s.lignes).map((l) => (
+                    <LigneReglage key={l.id} ligne={l} c={c} cherche={cherche} />
+                  ))}
+                </section>
+              ))}
+          </>
+        ) : (
+          rubrique && (
+            <>
+              <h2>{lire(rubrique.titre)}</h2>
+              {rubrique.phrase && <p className="notak-rg-phrase">{lire(rubrique.phrase)}</p>}
+              <Sections rubrique={rubrique} c={c} />
+            </>
+          )
+        )}
       </div>
-    </div>
+    </Dialogue>
   )
 }

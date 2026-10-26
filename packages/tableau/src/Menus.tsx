@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Element, Id } from './coeur/tableau'
 import { definition } from './elements/registre'
+import { Confirmation, Dialogue } from './communs'
 import { t, tn } from './langue'
 import type { ContexteToile, ResultatRecherche } from './elements/types'
 import { Icone, type NomIcone } from './icones'
@@ -316,24 +317,24 @@ export function PanneauCorbeille({
           ))}
         </ul>
       )}
-      {elements.length > 0 &&
-        (confirmer ? (
-          <div className="notak-corbeille-pied">
-            <span>{t('corbeille.confirmer')}</span>
-            <button type="button" className="notak-danger" onClick={vider}>
-              {t('corbeille.effacer')}
-            </button>
-            <button type="button" onClick={() => setConfirmer(false)}>
-              {t('commun.annuler')}
-            </button>
-          </div>
-        ) : (
-          <div className="notak-corbeille-pied">
-            <button type="button" onClick={() => setConfirmer(true)}>
-              {t('corbeille.vider')}
-            </button>
-          </div>
-        ))}
+      {elements.length > 0 && (
+        <div className="notak-corbeille-pied">
+          <button type="button" onClick={() => setConfirmer(true)}>
+            {t('corbeille.vider')}
+          </button>
+        </div>
+      )}
+      {confirmer && (
+        <Confirmation
+          titre={t('corbeille.confirmer')}
+          texte={tn('corbeille.confirmer', elements.length)}
+          oui={t('corbeille.effacer')}
+          repondre={(oui) => {
+            setConfirmer(false)
+            if (oui) vider()
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -515,7 +516,7 @@ const MOTS_DE_TOUCHE: Record<string, string> = {
 export function FenetreRaccourcis({ fermer }: { fermer(): void }) {
   useEffect(() => {
     const touche = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' && e.key !== '/') return
+      if (e.key !== '/') return
       e.preventDefault()
       e.stopPropagation()
       fermer()
@@ -524,37 +525,29 @@ export function FenetreRaccourcis({ fermer }: { fermer(): void }) {
     return () => document.removeEventListener('keydown', touche, true)
   }, [fermer])
   return (
-    <div className="notak-raccourcis-fond" onPointerDown={(e) => (e.stopPropagation(), e.target === e.currentTarget && fermer())} onDoubleClick={(e) => e.stopPropagation()}>
-      <div className="notak-raccourcis" role="dialog" aria-label={t('raccourcis.titre')}>
-        <div className="notak-raccourcis-tete">
-          <strong>{t('raccourcis.titre')}</strong>
-          <button type="button" aria-label={t('commun.fermer')} onClick={fermer}>
-            <Icone nom="fermer" />
-          </button>
-        </div>
-        <div className="notak-raccourcis-corps">
-          {RACCOURCIS.map((g) => (
-            <section key={g.titre}>
-              <h3>{t(g.titre)}</h3>
-              <dl>
-                {g.lignes.map(([quoi, combinaison]) => (
-                  <div key={quoi}>
-                    <dt>{t(quoi)}</dt>
-                    <dd>
-                      {touches(combinaison)
-                        .split('  ')
-                        .map((k) => (
-                          <kbd key={k}>{k}</kbd>
-                        ))}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </section>
-          ))}
-        </div>
+    <Dialogue className="notak-raccourcis" titre={t('raccourcis.titre')} fermer={fermer} largeur="min(760px, calc(100vw - 32px))">
+      <div className="notak-raccourcis-corps">
+        {RACCOURCIS.map((g) => (
+          <section key={g.titre}>
+            <h3>{t(g.titre)}</h3>
+            <dl>
+              {g.lignes.map(([quoi, combinaison]) => (
+                <div key={quoi}>
+                  <dt>{t(quoi)}</dt>
+                  <dd>
+                    {touches(combinaison)
+                      .split('  ')
+                      .map((k) => (
+                        <kbd key={k}>{k}</kbd>
+                      ))}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ))}
       </div>
-    </div>
+    </Dialogue>
   )
 }
 

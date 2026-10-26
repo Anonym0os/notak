@@ -2,7 +2,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import type { Id } from '../../coeur/tableau'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
-import { Calendrier, formaterDate } from '../../communs'
+import { Bouton, BoutonIcone, Calendrier, formaterDate, useFermeture } from '../../communs'
 import type { ContexteToile } from '../types'
 import type { ActionsInsertion } from './actionsMenu'
 import { enMathml } from './equation'
@@ -204,22 +204,8 @@ export function Popover({ ancre, titre, fermer, children, largeur = 300 }: { anc
     // Le premier champ du corps ; à défaut son premier bouton. Jamais la croix de l'en-tête.
     const corps = racine.current?.querySelector<HTMLElement>(':scope > :not(header)')
     ;(corps?.querySelector<HTMLElement>('input:not([type=range]), textarea') ?? corps?.querySelector<HTMLElement>('button, audio'))?.focus({ preventScroll: true })
-    const dehors = (e: PointerEvent) => {
-      if (!racine.current?.contains(e.target as Node)) fermer()
-    }
-    const echap = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      e.stopPropagation()
-      e.preventDefault()
-      fermer()
-    }
-    document.addEventListener('pointerdown', dehors, true)
-    document.addEventListener('keydown', echap, true)
-    return () => {
-      document.removeEventListener('pointerdown', dehors, true)
-      document.removeEventListener('keydown', echap, true)
-    }
-  }, [fermer])
+  }, [])
+  useFermeture({ racine, fermer })
   return (
     <Flottant
       racine={racine}
@@ -228,17 +214,17 @@ export function Popover({ ancre, titre, fermer, children, largeur = 300 }: { anc
       alignement="centre"
       ecart={10}
       largeur={largeur}
-      className="notak-arbre-popover notak-arbre-menu"
+      className="notak-pop notak-pop-corps notak-arbre-popover"
       role="dialog"
       aria-label={titre}
       onKeyDown={(e) => e.stopPropagation()}
       onContextMenu={(e) => e.stopPropagation()}
     >
       <header>
-        <strong>{titre}</strong>
-        <button type="button" aria-label={t('commun.fermer')} onClick={fermer}>
-          <Icone nom="fermer" taille={14} />
-        </button>
+        <strong className="notak-titre-pop">{titre}</strong>
+        <BoutonIcone taille={30} aria-label={t('commun.fermer')} onClick={fermer}>
+          <Icone nom="fermer" taille={16} trait={2} />
+        </BoutonIcone>
       </header>
       {children}
     </Flottant>
@@ -327,13 +313,13 @@ export function EditeurTache({ planning, changer, fermer }: { planning: Planning
       </label>
       <div className="notak-arbre-popover-actions">
         {planning && (
-          <button type="button" onClick={() => (changer(undefined), fermer())}>
+          <Bouton taille="p" variante="second" onClick={() => (changer(undefined), fermer())}>
             {t('arbre.menu.planning.oter')}
-          </button>
+          </Bouton>
         )}
-        <button type="button" className="notak-arbre-principal" onClick={fermer}>
+        <Bouton taille="p" variante="principal" onClick={fermer}>
           {t('arbre.inserer.ok')}
-        </button>
+        </Bouton>
       </div>
     </div>
   )
@@ -360,13 +346,13 @@ export function EditeurLienWeb({ adresse, valider }: { adresse: string; valider(
       />
       <div className="notak-arbre-popover-actions">
         {adresse && (
-          <button type="button" onClick={() => valider('')}>
+          <Bouton taille="p" variante="second" onClick={() => valider('')}>
             {t('arbre.menu.oter.lien')}
-          </button>
+          </Bouton>
         )}
-        <button type="button" className="notak-arbre-principal" onClick={() => valider(v.trim())}>
+        <Bouton taille="p" variante="principal" onClick={() => valider(v.trim())}>
           {t('arbre.inserer.ok')}
-        </button>
+        </Bouton>
       </div>
     </div>
   )
@@ -392,9 +378,9 @@ export function EditeurLienSujet({ lecture, depuis, choisi, valider }: { lecture
       </ul>
       {choisi && (
         <div className="notak-arbre-popover-actions">
-          <button type="button" onClick={() => valider(null)}>
+          <Bouton taille="p" variante="second" onClick={() => valider(null)}>
             {t('arbre.menu.oter.lien')}
-          </button>
+          </Bouton>
         </div>
       )}
     </div>
@@ -426,13 +412,13 @@ export function EditeurEquation({ latex, valider }: { latex: string; valider(v: 
       </div>
       <div className="notak-arbre-popover-actions">
         {latex && (
-          <button type="button" onClick={() => valider('')}>
+          <Bouton taille="p" variante="second" onClick={() => valider('')}>
             {t('arbre.inserer.retirer')}
-          </button>
+          </Bouton>
         )}
-        <button type="button" className="notak-arbre-principal" disabled={mathml === null || !v.trim()} onClick={() => valider(v)}>
+        <Bouton taille="p" variante="principal" disabled={mathml === null || !v.trim()} onClick={() => valider(v)}>
           {t('arbre.inserer.ok')}
-        </button>
+        </Bouton>
       </div>
     </div>
   )
@@ -496,28 +482,28 @@ export function EditeurAudio({ existante, enregistrer, retirer }: { existante: s
       {etat.genre === 'fait' && <audio controls src={etat.adresse} aria-label={t('arbre.inserer.noteAudio')} />}
       <div className="notak-arbre-popover-actions">
         {existante && etat.genre === 'repos' && (
-          <button type="button" onClick={retirer}>
+          <Bouton taille="p" variante="second" onClick={retirer}>
             {t('arbre.inserer.retirer')}
-          </button>
+          </Bouton>
         )}
         {possible && (etat.genre === 'repos' || etat.genre === 'refuse') && (
-          <button type="button" className="notak-arbre-principal" onClick={() => void commencer()}>
+          <Bouton taille="p" variante="principal" onClick={() => void commencer()}>
             <Icone nom="micro" taille={14} /> {existante ? t('arbre.inserer.recommencer') : t('arbre.inserer.enregistrer')}
-          </button>
+          </Bouton>
         )}
         {etat.genre === 'enregistre' && (
-          <button type="button" className="notak-arbre-principal" onClick={() => enregistreur.current?.stop()}>
+          <Bouton taille="p" variante="principal" onClick={() => enregistreur.current?.stop()}>
             {t('arbre.inserer.arreter')}
-          </button>
+          </Bouton>
         )}
         {etat.genre === 'fait' && (
           <>
-            <button type="button" onClick={() => setEtat({ genre: 'repos' })}>
+            <Bouton taille="p" variante="second" onClick={() => setEtat({ genre: 'repos' })}>
               {t('arbre.inserer.recommencer')}
-            </button>
-            <button type="button" className="notak-arbre-principal" onClick={() => void enregistrer(etat.blob)}>
+            </Bouton>
+            <Bouton taille="p" variante="principal" onClick={() => void enregistrer(etat.blob)}>
               {t('arbre.inserer.garder')}
-            </button>
+            </Bouton>
           </>
         )}
       </div>

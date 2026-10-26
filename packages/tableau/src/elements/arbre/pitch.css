@@ -335,17 +335,11 @@
   border-color: var(--notak-arbre-discret);
 }
 
-/* Les popovers (thèmes, réglages), posés hors du panneau. */
+/* Les popovers (thèmes, réglages), posés hors du panneau : la surface du popover commun (.notak-pop). */
 .notak-arbre-pitch-popover {
   position: fixed;
   z-index: 20;
-  padding: 16px;
   overflow-y: auto;
-  border-radius: 24px;
-  background: color-mix(in srgb, var(--notak-arbre-fond) 88%, transparent);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 0 0 0.5px var(--notak-arbre-filet-c), 0 8px 60px rgb(0 0 0 / 0.16), 0 4px 8px rgb(0 0 0 / 0.02);
-  color: var(--notak-arbre-texte);
   font-size: 13px;
   line-height: 17px;
 }

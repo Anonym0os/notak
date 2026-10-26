@@ -553,7 +553,7 @@
   opacity: 0.3;
 }
 
-/* La note d'un sujet, en popover près de lui : 400 sur 280. */
+/* La note d'un sujet, en popover près de lui : 400 sur 280, la surface du popover commun (.notak-pop). */
 .notak-arbre-note-popover {
   z-index: 30;
   display: flex;
@@ -561,11 +561,6 @@
   width: 400px;
   height: 280px;
   overflow: hidden;
-  border-radius: 24px;
-  background: var(--notak-arbre-verre);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 0 0 0.5px var(--notak-arbre-filet-c), 0 8px 60px rgb(0 0 0 / 0.16), 0 4px 8px rgb(0 0 0 / 0.02);
-  color: var(--notak-arbre-texte);
   font-size: 14px;
 }
 
@@ -574,28 +569,6 @@
   align-items: center;
   gap: 2px;
   padding: 8px 12px 4px;
-}
-
-.notak-arbre-note-barre button {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 0;
-  border-radius: 24px;
-  background: transparent;
-  color: var(--notak-arbre-texte);
-  cursor: pointer;
-}
-
-.notak-arbre-note-barre button:hover {
-  background: var(--notak-arbre-survol);
-}
-
-.notak-arbre-note-barre button[aria-pressed='true'] {
-  background: var(--notak-arbre-plein);
-  color: var(--notak-arbre-fond);
 }
 
 .notak-arbre-note-barre .notak-arbre-note-titre {

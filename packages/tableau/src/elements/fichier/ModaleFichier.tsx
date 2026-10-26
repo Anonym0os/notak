@@ -1,6 +1,5 @@
-import { useEffect } from 'react'
-import { createPortal } from 'react-dom'
 import type { Fichier } from '../../coeur/tableau'
+import { Dialogue } from '../../communs'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
 import { ICONE_DU_GENRE, genreDe, lisible, seLitEnLigne, tailleLisible } from './genre'
@@ -10,19 +9,9 @@ import { ouvrirFenetreFichier } from './ouverture'
 /**
  * Le fichier en grand, sur un voile à 70 %. Un PDF ou un texte se lit dans le lecteur du navigateur (80 % de la largeur,
  * 90 % de la hauteur) ; une image, un son ou une vidéo se montrent en grand ; le reste est une carte agrandie.
- * Échap ou un clic sur le fond la ferme.
+ * C'est un dialogue (communs/Dialogue), sans boîte : Échap ou un clic sur le fond la ferme.
  */
 export function ModaleFichier({ contenu: c, adresse }: { contenu: Fichier; adresse: string }) {
-  useEffect(() => {
-    const touche = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      e.preventDefault()
-      e.stopPropagation()
-      ouvrirFenetreFichier(null)
-    }
-    document.addEventListener('keydown', touche, true)
-    return () => document.removeEventListener('keydown', touche, true)
-  }, [])
   const genre = genreDe(c.nom, c.typeMime)
   const lecteur = lisible(c.typeMime)
   const titre = c.titre ?? c.nom
@@ -55,18 +44,9 @@ export function ModaleFichier({ contenu: c, adresse }: { contenu: Fichier; adres
       </div>
     </div>
   )
-  return createPortal(
-    <div
-      className="notak-fenetre"
-      role="dialog"
-      aria-label={titre}
-      onPointerDown={(e) => {
-        if (!(e.target instanceof HTMLElement && e.target.closest('[data-garder]'))) ouvrirFenetreFichier(null)
-      }}
-      onDoubleClick={(e) => e.stopPropagation()}
-    >
+  return (
+    <Dialogue nu className="notak-fenetre" etiquette={titre} voile="sombre" fermer={() => ouvrirFenetreFichier(null)} hote={document.body}>
       {corps}
-    </div>,
-    document.body,
+    </Dialogue>
   )
 }

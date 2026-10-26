@@ -140,15 +140,11 @@
   justify-items: center;
 }
 
-/* Le popover des comptes, au-dessus du compteur. */
+/* Le popover des comptes, au-dessus du compteur : la surface du popover commun (.notak-pop). */
 .notak-arbre-bas-popover {
   z-index: 30;
   min-width: 72px;
   padding: 8px;
-  border-radius: 24px;
-  background: var(--notak-arbre-verre);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 0 0 0.5px var(--notak-arbre-filet-c), 0 8px 60px rgb(0 0 0 / 0.16), 0 4px 8px rgb(0 0 0 / 0.02);
   font-size: 13px;
   line-height: 17px;
   white-space: nowrap;

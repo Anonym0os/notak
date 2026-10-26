@@ -337,8 +337,8 @@ describe('les gestes', () => {
     expect(options.map((o) => o.querySelector('.biblio-deplacer-nom')!.textContent)).toEqual(['Accueil', 'Budget', 'Voyage'])
     expect(options[0]!.getAttribute('aria-disabled')).toBe('true')
     await act(async () => options[2]!.click())
-    expect(hote.querySelector('.biblio-confirmation')!.textContent).toContain('2 personnes ou équipes qui ont accès à « Voyage »')
-    await act(async () => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-confirmation button')].find((b) => b.textContent === 'Déplacer')!.click())
+    expect(hote.querySelector('[role="alertdialog"]')!.textContent).toContain('2 personnes ou équipes qui ont accès à « Voyage »')
+    await act(async () => [...hote.querySelectorAll<HTMLButtonElement>('[role="alertdialog"] button')].find((b) => b.textContent === 'Déplacer')!.click())
     expect(appels).toEqual([
       ['atelier', 'voyage', { essai: true }],
       ['atelier', 'voyage', {}],

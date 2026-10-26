@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useMemo, useRef, useState } from 'react'
 import { type Cible, PanneauFlottant } from '../../PanneauFlottant'
 import {
   type GenrePuce,
@@ -19,7 +19,7 @@ import {
 } from './puces'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
-import { Calendrier, ChoixHeure } from '../../communs'
+import { Calendrier, ChoixHeure, useFermeture } from '../../communs'
 
 /** Où le menu s'ouvre : accroché à la puce touchée, qu'il suit quand la toile bouge. */
 export interface OuverturePuce {
@@ -44,27 +44,13 @@ export function MenuPuce({ ouverture, attrs, personnes, regler, fermer }: {
   fermer(): void
 }) {
   const racine = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const hors = (e: PointerEvent) => {
-      if (!racine.current?.contains(e.target as Node)) fermer()
-    }
-    const touche = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      e.stopPropagation()
-      fermer()
-    }
-    document.addEventListener('pointerdown', hors, true)
-    document.addEventListener('keydown', touche, true)
-    return () => {
-      document.removeEventListener('pointerdown', hors, true)
-      document.removeEventListener('keydown', touche, true)
-    }
-  }, [fermer])
+  useFermeture({ racine, fermer })
   return (
     <PanneauFlottant
       panneau={racine}
       cible={ouverture.cible}
       hote={ouverture.hote}
+      surface
       className="notak-menu-puce"
       data-genre={ouverture.genre}
       role="dialog"

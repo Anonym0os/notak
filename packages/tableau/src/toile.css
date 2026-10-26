@@ -1324,15 +1324,6 @@
   border-top: 1px solid rgb(0 0 0 / 0.06);
 }
 
-.notak-corbeille-pied span {
-  flex: 1;
-}
-
-.notak-corbeille .notak-danger {
-  background: #d43b3b;
-  color: #fff;
-}
-
 /* La place laissée dans une colonne par ce qu'on en a tiré. */
 .notak-empreinte {
   box-sizing: border-box;
@@ -1599,52 +1590,13 @@
   display: none;
 }
 
-/* La fenêtre des raccourcis, au centre de la toile. */
-.notak-raccourcis-fond {
-  position: absolute;
-  inset: 0;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  background: rgb(20 24 30 / 0.18);
-}
-
-.notak-raccourcis {
-  display: flex;
-  flex-direction: column;
-  width: min(760px, 100%);
-  max-height: 100%;
-  border-radius: var(--notak-rayon-panneau, 12px);
-  background: var(--notak-carte);
-  box-shadow: 0 12px 40px rgb(0 0 0 / 0.2);
-  color: var(--notak-texte);
-  font-size: 13px;
-}
-
-.notak-raccourcis-tete {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px 6px;
-  font-size: 15px;
-}
-
-.notak-raccourcis-tete button {
-  border: 0;
-  background: none;
-  color: inherit;
-  font-size: 18px;
-  cursor: pointer;
-}
-
+/* La fenêtre des raccourcis : un dialogue commun (Dialogue), les raccourcis en colonnes dessous. */
 .notak-raccourcis-corps {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 4px 28px;
-  padding: 0 18px 18px;
-  overflow: auto;
+  font-size: 13px;
+  line-height: normal;
 }
 
 .notak-raccourcis h3 {

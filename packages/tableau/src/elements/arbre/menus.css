@@ -55,18 +55,13 @@
   cursor: pointer;
 }
 
-/* Un éditeur en popover, près du sujet. */
+/* Un éditeur en popover, près du sujet : la surface est le popover commun (.notak-pop, communs/popover.css). */
 .notak-arbre-popover {
   position: fixed;
   z-index: 40;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px;
-  border-radius: 12px;
-  background: var(--notak-arbre-fond);
-  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.1), 0 10px 30px rgb(0 0 0 / 0.18);
-  color: var(--notak-arbre-texte);
   font-size: 13px;
 }
 
@@ -76,21 +71,12 @@
   justify-content: space-between;
 }
 
-.notak-arbre-popover > header button {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--notak-arbre-discret);
-  cursor: pointer;
+.notak-arbre-popover > header .notak-titre-pop {
+  margin: 0;
 }
 
-.notak-arbre-popover > header button:hover {
-  background: var(--notak-arbre-survol);
+.notak-arbre-popover button {
+  text-align: left;
 }
 
 .notak-arbre-popover-corps {
@@ -189,30 +175,6 @@
   display: flex;
   justify-content: flex-end;
   gap: 6px;
-}
-
-.notak-arbre-popover-actions button {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 26px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 8px;
-  background: var(--notak-arbre-piste);
-  color: var(--notak-arbre-texte);
-  font: inherit;
-  cursor: pointer;
-}
-
-.notak-arbre-popover-actions button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.notak-arbre-popover-actions .notak-arbre-principal {
-  background: var(--notak-arbre-plein);
-  color: var(--notak-arbre-fond);
 }
 
 /* Les étiquettes : des pastilles qu'on retire d'un clic. */
