@@ -40,6 +40,13 @@
   user-select: none;
 }
 
+/* Le fil d'un sujet se lit et se copie : le texte y reste sélectionnable. */
+.notak-arbre-surface .notak-fil-attache {
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: auto;
+}
+
 .notak-arbre-fond {
   position: fixed;
   inset: 0;

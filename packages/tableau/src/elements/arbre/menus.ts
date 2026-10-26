@@ -59,6 +59,7 @@ export interface ContexteMenu {
  */
 const ICONES_MENU = {
   inserer: 'ajouter',
+  commenter: 'commentaire',
   'inserer.note': 'note',
   'inserer.etiquette': 'etiquette',
   'inserer.aFaire': 'menuListeCochee',
@@ -289,7 +290,7 @@ function menuSujet(c: ContexteMenu, id: Id): Item[] {
   const enleverUn = (genre: string) => (genre === 'marqueur' ? e('oter.marqueur') : genre === 'etiquette' ? e('oter.etiquette') : e('oter.lien'))
   const etatTache = unSeul ? s.tache : undefined
   const items: Item[] = []
-  items.push(sous('inserer', menuInserer(unSeul, true)), 'sep')
+  items.push(sous('inserer', menuInserer(unSeul, true)), e('commenter', K('⌥⌘M'), !unSeul), 'sep')
   if (!resume) {
     items.push(e('couper', K('⌘X'), central), e('copier', K('⌘C')), e('coller', K('⌘V'), !c.presse), e('dupliquer', K('⌘D'), central), 'sep')
   } else items.push(e('copier', K('⌘C'), true), 'sep')

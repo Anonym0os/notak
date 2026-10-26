@@ -26,6 +26,17 @@ const ids = (items: Item[]) => entrees(items).map((e) => e.id)
 const entree = (items: Item[], id: string) => entrees(items).find((e) => e.id === id)
 
 describe('le menu d’un sujet', () => {
+  it('« Commenter » porte son icône et son raccourci ; il se grise quand plusieurs sujets sont choisis', () => {
+    const { a, x, y } = carte()
+    const un = entree(menu(a, { genre: 'sujet', id: x }), 'commenter')!
+    expect(un.libelle).toBe('Commenter')
+    expect(un.icone).toBe('commentaire')
+    expect(un.touche).toMatch(/M$/)
+    expect(un.inactif).toBeUndefined()
+    const deux = entree(menu(a, { genre: 'sujet', id: x }, { selection: [x, y] }), 'commenter')!
+    expect(deux.inactif).toBe(true)
+  })
+
   it('commence par Insérer, avec ses sous-menus et ses séparateurs, dans l’ordre de Xmind', () => {
     const { a, x } = carte()
     const m = menu(a, { genre: 'sujet', id: x })
@@ -38,7 +49,9 @@ describe('le menu d’un sujet', () => {
     ])
     const lien = inserer.sous!.find((i) => i !== 'sep' && i.id === 'inserer.lien') as Extract<Item, object>
     expect(lien.sous!.map((i) => (i === 'sep' ? '—' : i.id))).toEqual(['inserer.pageWeb', 'inserer.lienSujet'])
-    expect(m[1]).toBe('sep')
+    // « Commenter » suit Insérer, comme sur la planche.
+    expect((m[1] as Extract<Item, object>).id).toBe('commenter')
+    expect(m[2]).toBe('sep')
   })
 
   it('rien en tête, en queue ni en double : les séparateurs superflus sont retirés', () => {

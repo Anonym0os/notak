@@ -7,6 +7,7 @@ import type { ContexteToile, PropsRendu, Services } from '../types'
 import { POLICE, type Mesure, brancheDe, habitDe, mesureDeSujet, souligne, uniformiser } from './apparence'
 import { fondDe, themeDeArbre } from './themes'
 import { Dessin, type Glisses, RepereDepot } from './Dessin'
+import { EpinglesCarte } from './Epingles'
 import { exporterCartes, sujetCarte } from './exporter'
 import { ouvrirExport } from '../../export/sujet'
 import { BarreBas } from './BarreBas'
@@ -181,6 +182,8 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
   const [gauche, setGauche] = useState<{ onglet: OngletGauche } | null>(null)
   const [coches, setCoches] = useState<ReadonlySet<string>>(new Set())
   const [noteDe, setNoteDe] = useState<Id | null>(null)
+  // Le sujet dont le fil de commentaires est ouvert (à côté de son épingle).
+  const [filDe, setFilDe] = useState<Id | null>(null)
   const [zoomPlan, setZoomPlan] = useState(1)
   const [recherche, setRecherche] = useState<{ texte: string; i: number } | null>(null)
   // Maj+Cmd+R : la relation part de ce sujet, et attend le clic sur sa cible.
@@ -334,6 +337,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     inserer: insertions.actions,
     ouvrirIcones,
     ouvrirNote: (x) => (x && setSelection(new Set([x])), setPanneau({ section: 'note' })),
+    commenter: (x) => (setSelection(new Set([x])), setFilDe(x)),
     allerAuCentral: () => {
       const r = surface.current?.getBoundingClientRect()
       if (r) setCamera((c) => ({ ...c, x: r.width / 2, y: r.height / 2 }))
@@ -427,6 +431,11 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       setPanneau(null)
       return true
     }
+    // Le fil ouvert se ferme avant le reste.
+    if (e.key === 'Escape' && filDe) {
+      setFilDe(null)
+      return true
+    }
     // Les autres panneaux aussi se ferment avant la carte.
     if (e.key === 'Escape' && icones) {
       setIcones(false)
@@ -483,6 +492,12 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       if (e.altKey && (e as unknown as KeyboardEvent).code === 'KeyZ' && !lectureSeule) {
         e.preventDefault()
         creerZone()
+        return true
+      }
+      // Alt+Cmd+M : commenter le sujet choisi.
+      if (e.altKey && (e as unknown as KeyboardEvent).code === 'KeyM' && !lectureSeule && !dansLePlan && sujetsChoisis.length <= 1) {
+        e.preventDefault()
+        hote.commenter(courant)
         return true
       }
     }
@@ -1118,7 +1133,9 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     const e = elementCourant()
     if (!e || e.contenu.type !== 'arbre') return
     const central = lire(e.contenu).central
-    poserFeuille(renommer(e.contenu, central, `${lire(e.contenu).sujets.get(central)?.titre ?? ''} ${t('arbre.bas.copie')}`.trim()))
+    // La copie ne reprend pas les commentaires de l'original.
+    const { fils: _, ...sansFils } = e.contenu
+    poserFeuille(renommer(sansFils, central, `${lire(e.contenu).sujets.get(central)?.titre ?? ''} ${t('arbre.bas.copie')}`.trim()))
   }
   // Le popover de note : posé à droite du sujet, dans la surface (ou au centre dans le plan).
   const notePlace = (() => {
@@ -1210,6 +1227,20 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
               tache: () => faire({ type: 'tache', ids: [seulChoisi] }),
             }}
             choixStyle={(ancre, fermer) => <ChoixStyle ancre={ancre} arbre={vue} lecture={lecture} ids={[seulChoisi]} palette={themeDeArbre(vue).palette} faire={faire} fermer={fermer} />}
+          />
+        )}
+        {!plan && presentation === null && (
+          <EpinglesCarte
+            carte={id}
+            arbre={vue}
+            lecture={lecture}
+            disposition={disposition}
+            camera={camera}
+            ouvert={filDe && lecture.sujets.has(filDe) ? filDe : null}
+            ouvrir={setFilDe}
+            contexte={contexte}
+            ecrire={!lectureSeule}
+            poser={(sujet, fil) => faire({ type: 'commenter', id: sujet, fil })}
           />
         )}
         {edition && champ && (

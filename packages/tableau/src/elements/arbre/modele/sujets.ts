@@ -120,11 +120,20 @@ export function structureDe(l: Lecture, id: Id): StructureArbre {
 
 const avec = (a: Arbre, changes: Record<Id, Sujet | undefined>): Arbre => {
   const sujets = { ...a.sujets }
+  // Un sujet retiré emporte son fil de commentaires (un défaire rend les deux ensemble : même geste).
+  let fils = a.fils
   for (const [id, s] of Object.entries(changes)) {
-    if (s === undefined) delete sujets[id]
-    else sujets[id] = s
+    if (s === undefined) {
+      delete sujets[id]
+      if (fils?.[id]) {
+        fils = { ...fils }
+        delete fils[id]
+      }
+    } else sujets[id] = s
   }
-  return { ...a, sujets }
+  if (fils === a.fils) return { ...a, sujets }
+  const { fils: _, ...sans } = a
+  return { ...sans, sujets, ...(fils && Object.keys(fils).length > 0 ? { fils } : {}) }
 }
 
 /** Une carte neuve : un central seul. */

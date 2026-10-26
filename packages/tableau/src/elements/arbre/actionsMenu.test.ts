@@ -47,6 +47,7 @@ function hote(a: Arbre) {
     ouvrirFichier: noter('ouvrirFichier'),
     flottant: noter('flottant'),
     ouvrirLien: noter('ouvrirLien'),
+    commenter: noter('commenter'),
   }
   return { h, gestes, appels }
 }
@@ -54,6 +55,13 @@ function hote(a: Arbre) {
 const sujet = (id: Id): CibleMenu => ({ genre: 'sujet', id })
 
 describe('ce que fait chaque entrée des menus', () => {
+  it('Commenter : ouvre le fil du sujet cliqué', () => {
+    const { a, x, y } = carte()
+    const { h, appels } = hote(a)
+    executer('commenter', sujet(x), [y], h)
+    expect(appels).toEqual([`commenter:${JSON.stringify([x])}`])
+  })
+
   it('Insérer : chaque entrée ouvre son éditeur, après avoir choisi le sujet cliqué s’il ne l’était pas', () => {
     const { a, x, y } = carte()
     const { h, appels } = hote(a)

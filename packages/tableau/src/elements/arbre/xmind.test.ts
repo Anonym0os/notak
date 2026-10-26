@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { ajouterLimite, ajouterRelation, ajouterResume, porter } from './modele/elements'
+import { poserFil } from './modele/commentaires'
 import { ajouterEnfant, ajouterFlottant, lire, nouvelArbre } from './modele/sujets'
 import { strFromU8, unzipSync } from 'fflate'
 import { appliquerSquelette } from './modele/reglages'
@@ -52,6 +53,21 @@ describe('le format .xmind', () => {
     expect(relu.arbre.sujets[x]!.numerotation).toEqual({ motif: 'romain' })
     expect(relu.arbre.sujets[z]!.tache).toBe('faite')
     expect(relu.arbre.sujets[z]!.lien).toBe(`sujet:${y}`)
+  })
+
+  it('les commentaires des sujets restent hors du fichier : ni écrits, ni cassés au retour', () => {
+    let a = nouvelArbre('Projet')
+    let x
+    ;[a, x] = ajouterEnfant(a, lire(a).central, 'Idées')
+    const sans = ecrireXmind([{ titre: 'Projet', arbre: a }])
+    a = poserFil(a, x, { type: 'commentaire', messages: [{ id: 'm', auteur: { id: 'ana', nom: 'Ana Dupont' }, date: 1, texte: 'Un secret de passage' }] })
+    const octets = ecrireXmind([{ titre: 'Projet', arbre: a }])
+    const contenu = strFromU8(unzipSync(octets)['content.json']!)
+    expect(contenu).not.toContain('Un secret de passage')
+    expect(contenu).not.toContain('Ana Dupont')
+    const relu = lireXmind(octets)[0]!.arbre
+    expect(relu.fils).toBeUndefined()
+    expect(resumeDeCarte(relu)).toEqual(resumeDeCarte(lireXmind(sans)[0]!.arbre))
   })
 
   const feuilleEcrite = (octets: Uint8Array) => (JSON.parse(strFromU8(unzipSync(octets)['content.json']!)) as Record<string, unknown>[])[0]!

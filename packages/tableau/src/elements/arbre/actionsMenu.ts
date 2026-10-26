@@ -53,6 +53,8 @@ export interface Hote {
   /** Le sujet flottant qu'on insère au point cliqué. */
   flottant(x: number, y: number): void
   ouvrirLien(id: Id): void
+  /** Ouvre le fil de commentaires d'un sujet (il se crée au premier message). */
+  commenter(id: Id): void
 }
 
 const SELECTIONS: Record<string, Genre> = {
@@ -123,6 +125,8 @@ export function executer(action: string, cible: CibleMenu, selection: readonly I
   if (alignement) return h.faire({ type: 'aligner', ids: sujetsCibles, mode: alignement, tailles: h.tailles(sujetsCibles) })
 
   switch (action) {
+    case 'commenter':
+      return id ? h.commenter(id) : undefined
     case 'couper':
       return h.copier(sujetsCibles, true)
     case 'copier':
