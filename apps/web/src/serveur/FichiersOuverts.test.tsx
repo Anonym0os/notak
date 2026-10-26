@@ -13,6 +13,7 @@ const m = vi.hoisted(() => ({
   revenirIci: vi.fn(),
   estPageServeur: vi.fn(),
   poserNotak: vi.fn(),
+  attendreEnvoi: vi.fn(),
   decoderNotak: vi.fn(),
 }))
 vi.mock('../bureau', async (origine) => ({
@@ -23,7 +24,7 @@ vi.mock('../bureau', async (origine) => ({
   revenirIci: m.revenirIci,
   estPageServeur: m.estPageServeur,
 }))
-vi.mock('../notak', () => ({ poserNotak: m.poserNotak }))
+vi.mock('../notak', () => ({ poserNotak: m.poserNotak, attendreEnvoi: m.attendreEnvoi }))
 vi.mock('@notak/tableau', async (origine) => ({ ...(await origine<typeof import('@notak/tableau')>()), decoderNotak: m.decoderNotak }))
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -56,7 +57,8 @@ beforeEach(() => {
   m.fichiersOuverts.mockReset().mockImplementation(async () => [...file])
   m.lireFichierOuvert.mockReset().mockResolvedValue(new Uint8Array([1, 2, 3]))
   m.decoderNotak.mockReset().mockReturnValue({ racine: 'x' })
-  m.poserNotak.mockReset().mockResolvedValue({ tete: 'neuf', tableaux: 2, perdus: 0 })
+  m.poserNotak.mockReset().mockResolvedValue({ tete: 'neuf', tableaux: 2, perdus: 0, poses: ['accueil', 'neuf'] })
+  m.attendreEnvoi.mockReset().mockResolvedValue(true)
   m.revenirIci.mockReset().mockResolvedValue(undefined)
   m.ecouter.mockReset().mockImplementation(async (_evenement: string, rappel: () => void) => {
     surOuverture = rappel

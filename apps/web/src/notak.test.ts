@@ -1,7 +1,7 @@
-import { type DepotFichiers, creerEspace, encoderNotak, decoderNotak } from '@notak/tableau'
+import { type DepotFichiers, type EspaceNavigable, creerEspace, encoderNotak, decoderNotak } from '@notak/tableau'
 import * as Y from 'yjs'
 import { describe, expect, it } from 'vitest'
-import { poserNotak } from './notak'
+import { attendreEnvoi, poserNotak } from './notak'
 
 function etat(titre: string, elements: Record<string, unknown>[], meta: Record<string, unknown> = {}): Uint8Array {
   const doc = new Y.Doc()
@@ -51,5 +51,46 @@ describe('importer un .notak comme une copie neuve', () => {
     expect(espace.tableau(fille)!.elements[0]!.contenu).toMatchObject({ type: 'image', fichier: 'NOUVEAU-F' })
     // Le renvoi vers la tête, dans le tableau d'où l'on importe.
     expect(espace.tableau('R')!.elements.map((e) => e.contenu)).toEqual([{ type: 'tableau', cible: r.tete }])
+  })
+})
+
+describe('ne dire « importé » qu’une fois arrivé au serveur', () => {
+  const espaceQui = (etats: Record<string, string[]>) => {
+    const retenus: string[] = []
+    const vus: Record<string, number> = {}
+    return {
+      retenus,
+      espace: {
+        retenir: (id: string) => {
+          retenus.push(id)
+          return () => void retenus.splice(retenus.indexOf(id), 1)
+        },
+        // Chaque lecture fait avancer l'état de ce tableau : en route, puis reçu.
+        envoi: (id: string) => {
+          const suite = etats[id]!
+          const i = Math.min(vus[id] ?? 0, suite.length - 1)
+          vus[id] = i + 1
+          return suite[i] as 'enregistre' | 'envoi' | 'hors-ligne'
+        },
+      } as unknown as EspaceNavigable,
+    }
+  }
+
+  it('attend que chaque tableau posé soit reçu, en les retenant le temps qu’ils partent', async () => {
+    const { espace, retenus } = espaceQui({ a: ['envoi', 'envoi', 'enregistre'], b: ['enregistre'] })
+    const fini = attendreEnvoi(espace, ['a', 'b'], 1000, 1)
+    expect(retenus).toEqual(['a', 'b'])
+    expect(await fini).toBe(true)
+    expect(retenus).toEqual([])
+  })
+
+  it('rend faux, sans rien perdre, quand le serveur ne reçoit pas à temps', async () => {
+    const { espace, retenus } = espaceQui({ a: ['hors-ligne'] })
+    expect(await attendreEnvoi(espace, ['a'], 20, 1)).toBe(false)
+    expect(retenus).toEqual([])
+  })
+
+  it('sans serveur (l’édition locale), rien à attendre', async () => {
+    expect(await attendreEnvoi({} as EspaceNavigable, ['a'], 20, 1)).toBe(true)
   })
 })

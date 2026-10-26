@@ -3,7 +3,7 @@ import { t, tn } from './langue'
 import { useRef, useState } from 'react'
 import { CIBLE_FICHIER, CIBLE_TABLEAU, ErreurImport, type PlanImport, lireExportMilanote } from './milanote'
 import { Icone } from '@notak/tableau'
-import { poserLeRenvoi, poserNotak } from './notak'
+import { attendreEnvoi, poserLeRenvoi, poserNotak } from './notak'
 import { usePanneau } from './panneaux'
 import { LigneMenu } from './LigneMenu'
 
@@ -113,7 +113,7 @@ export function Importer({
   rouvrirNotak?(f: File): Promise<void>
 }) {
   const { ouvert, regler, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
-  const [etat, setEtat] = useState<{ type: 'repos' } | { type: 'cours' } | { type: 'fini'; texte: string } | { type: 'echec'; texte: string }>({ type: 'repos' })
+  const [etat, setEtat] = useState<{ type: 'repos' } | { type: 'cours'; envoi?: true } | { type: 'fini'; texte: string } | { type: 'echec'; texte: string }>({ type: 'repos' })
   const choix = useRef<HTMLInputElement>(null)
   // Le sélecteur ne montre que le format choisi : `accept` est posé juste avant le clic.
   const choisir = (types: string) => {
@@ -126,9 +126,13 @@ export function Importer({
   const importerNotak = async (fichier: File) => {
     setEtat({ type: 'cours' })
     try {
-      const { tete, tableaux, perdus } = await poserNotak(decoderNotak(new Uint8Array(await fichier.arrayBuffer())), espace, tableau, fichiers)
-      setEtat({ type: 'fini', texte: tn('importer.tableaux', tableaux) + (perdus ? `, ${tn('importer.fichiersPerdus', perdus)}` : '') + '.' })
+      const { tete, tableaux, perdus, poses } = await poserNotak(decoderNotak(new Uint8Array(await fichier.arrayBuffer())), espace, tableau, fichiers)
       ouvrir(tete)
+      // « Importé » ne se dit qu'une fois les toiles arrivées au serveur (`attendreEnvoi`).
+      setEtat({ type: 'cours', envoi: true })
+      const arrive = await attendreEnvoi(espace, poses)
+      const texte = tn('importer.tableaux', tableaux) + (perdus ? `, ${tn('importer.fichiersPerdus', perdus)}` : '') + '.'
+      setEtat({ type: 'fini', texte: arrive ? texte : `${texte} ${t('importer.pasEncoreEnvoye')}` })
     } catch (x) {
       const recent = x instanceof ErreurNotak && x.message.includes('récente')
       setEtat({ type: 'echec', texte: recent ? t('importer.notakRecent') : x instanceof ErreurNotak ? t('importer.pasNotak') : t('importer.impossible') })
@@ -160,7 +164,7 @@ export function Importer({
     <div className="importer" ref={ancre}>
       <button type="button" ref={bouton} className="bouton" aria-expanded={ouvert} disabled={etat.type === 'cours'} onClick={basculer}>
         <Icone nom="importer" taille={16} />
-        {etat.type === 'cours' ? t('importer.encours') : t('importer.titre')}
+        {etat.type === 'cours' ? t(etat.envoi ? 'importer.envoi' : 'importer.encours') : t('importer.titre')}
       </button>
       {ouvert && (
         <div className="app-panneau app-menu" ref={panneau} role="menu" aria-label={t('importer.titre')}>

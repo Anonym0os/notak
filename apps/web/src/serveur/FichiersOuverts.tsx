@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { type FichierOuvert, FICHIER_OUVERT, ecarterFichierOuvert, ecouter, estErreurCoque, estPageServeur, fichiersOuverts, lireFichierOuvert, revenirIci } from '../bureau'
 import { poids } from '../DialogueExport'
 import { t, tn } from '../langue'
-import { poserNotak } from '../notak'
+import { attendreEnvoi, poserNotak } from '../notak'
 
 /** Ce que la coque dit d'une copie en attente, relu : une réponse à demi lisible n'ouvre aucun dialogue. */
 const estCopie = (f: unknown): f is FichierOuvert => {
@@ -15,7 +15,7 @@ const estCopie = (f: unknown): f is FichierOuvert => {
 /** Le temps qu'on laisse à la coque pour emmener la fenêtre avant de rendre les choix. */
 const ATTENTE_DEPART_MS = 3000
 
-type Phase = { type: 'choix' } | { type: 'cours' } | { type: 'fini'; texte: string; tete: Id } | { type: 'echec'; texte: string }
+type Phase = { type: 'choix' } | { type: 'cours'; envoi?: true } | { type: 'fini'; texte: string; tete: Id } | { type: 'echec'; texte: string }
 
 /** Ce qu'on dit d'une copie qui ne s'est pas importée. */
 function messageEchec(x: unknown): string {
@@ -108,8 +108,12 @@ export function FichiersOuverts({
   const importer = async () => {
     setPhase({ type: 'cours' })
     try {
-      const { tete, tableaux, perdus } = await poserNotak(decoderNotak(await lireFichierOuvert(courant.id)), espace, racine, fichiers)
-      setPhase({ type: 'fini', texte: tn('importer.tableaux', tableaux) + (perdus ? `, ${tn('importer.fichiersPerdus', perdus)}` : '') + '.', tete })
+      const { tete, tableaux, perdus, poses } = await poserNotak(decoderNotak(await lireFichierOuvert(courant.id)), espace, racine, fichiers)
+      // « Importé » ne se dit qu'une fois les toiles arrivées au serveur : sinon, fermer l'app tout de suite les laisserait ici.
+      setPhase({ type: 'cours', envoi: true })
+      const arrive = await attendreEnvoi(espace, poses)
+      const texte = tn('importer.tableaux', tableaux) + (perdus ? `, ${tn('importer.fichiersPerdus', perdus)}` : '') + '.'
+      setPhase({ type: 'fini', texte: arrive ? texte : `${texte} ${t('importer.pasEncoreEnvoye')}`, tete })
     } catch (x) {
       setPhase({ type: 'echec', texte: messageEchec(x) })
     }
@@ -147,7 +151,7 @@ export function FichiersOuverts({
               {!confiee && <p className="ouverts-note">{t('serveur.ouverts.ouvrirIciNote')}</p>}
             </>
           )}
-          {phase.type === 'cours' && <p role="status">{t('serveur.ouverts.encours')}</p>}
+          {phase.type === 'cours' && <p role="status">{t(phase.envoi ? 'importer.envoi' : 'serveur.ouverts.encours')}</p>}
           {phase.type === 'fini' && <p role="status">{phase.texte}</p>}
           {phase.type === 'echec' && (
             <p className="connexion-erreur" role="alert">

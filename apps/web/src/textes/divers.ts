@@ -9,6 +9,8 @@ export const fr: Textes = {
   'arrivee.apercu.adresse': 'Adresse',
   'arrivee.ajouter': 'Ajouter à mes toiles',
   'arrivee.annule': 'Rien n’a été ajouté.',
+  'importer.envoi': 'Envoi au serveur…',
+  'importer.pasEncoreEnvoye': 'Elles ne sont pas encore sur le serveur : elles y partiront la prochaine fois que vous les ouvrirez ici.',
 }
 
 export const en: Textes = {
@@ -19,4 +21,6 @@ export const en: Textes = {
   'arrivee.apercu.adresse': 'Address',
   'arrivee.ajouter': 'Add to my boards',
   'arrivee.annule': 'Nothing was added.',
+  'importer.envoi': 'Sending to the server…',
+  'importer.pasEncoreEnvoye': 'They are not on the server yet: they will be sent the next time you open them here.',
 }
