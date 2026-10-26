@@ -72,6 +72,8 @@ proche (`logic-chart.right` → logique droite, `tree.branch-aligned.right` → 
 - **Numérotation** des enfants : 1, 2, 3 ; I, II, III ; A, B, C ; a, b, c ; à plusieurs niveaux ou non.
 - **Rang d'importance** : important, secondaire, ou barré (dépassé).
 - **Repli** : un sujet replié cache ses descendants et montre leur nombre dans une pastille.
+- **Commentaires** : un fil de discussion, le même que sur la toile et dans le document, montré par une épingle au coin
+  haut droit du sujet (§ 16). → Notak ; Xmind n'a que des commentaires de collaboration en ligne.
 
 ## 4. Gestes
 
@@ -323,8 +325,9 @@ telle quelle. À valider contre un fichier sauvegardé par Xmind : la valeur de 
   avancent, flèche gauche recule, Échap sort.
 - **Afficher la branche seule** (Cmd+;) : la branche choisie devient la seule visible, comme une carte à part.
 
-→ Notak : le Gantt, l'IA, les commentaires et la collaboration propres à Xmind et la vidéo web sont écartés :
-Notak a déjà ses propres moyens à plusieurs. La note audio, elle, est reprise (§ 11).
+→ Notak : le Gantt, l'IA, la collaboration propre à Xmind et la vidéo web sont écartés : Notak a déjà ses propres
+moyens à plusieurs. **Les commentaires, eux, sont repris** (décision du 25/10/2026, qui lève le choix d'abord écrit ici) :
+on commente un sujet, avec le fil de la toile et du document (§ 16), pas celui de Xmind. La note audio, elle, est reprise (§ 11).
 
 ## 7. Le format `.xmind`
 
@@ -791,7 +794,7 @@ retourne au-dessus de son bouton ; un sous-menu s'ouvre à droite, à gauche si 
 dépasse en bas (`geometrieMenus.ts`). Survoler une entrée simple ferme le sous-menu resté ouvert à côté.
 
 - **Sujet** : Insérer ▸ (Note, Étiquette, Tâches à faire, Tâche, Lien ▸ Page web / Sujet, —, Pièce jointe, Note audio, —,
-  Marqueur, Autocollant, Illustration, Image locale, Équation) · Couper, Copier, Coller, Dupliquer · Supprimer, Supprimer
+  Marqueur, Autocollant, Illustration, Image locale, Équation) · Commenter (Alt+Cmd+M ; grisé sur plusieurs sujets) · Couper, Copier, Coller, Dupliquer · Supprimer, Supprimer
   le sujet seul, Effacer le texte, Supprimer le marqueur / l'étiquette / le lien (une entrée par genre, ou un sous-menu
   « Supprimer ▸ » s'il y en a plusieurs) · Marquer comme terminé / non terminé / annulé, Supprimer la tâche à faire,
   Supprimer la tâche · Copier / Coller / Réinitialiser le style · Sélectionner ▸ (sous-sujets, frères, même niveau, tout ;
@@ -810,7 +813,7 @@ dépasse en bas (`geometrieMenus.ts`). Survoler une entrée simple ferme le sous
   Supprimer, Mettre en surbrillance : choisit les sujets qui le portent), étiquette (Supprimer, surbrillance), icône de
   note (Modifier, Supprimer, Afficher toutes les notes), lien (Modifier, Supprimer), pièce jointe (Ouvrir, Supprimer,
   Enregistrer sous), tâche planifiée (Modifier, Supprimer), case à faire (Supprimer, Marquer comme annulé / terminé).
-- Cmd+C, Cmd+X, Cmd+V, Cmd+A et Alt+Cmd+Z font ce que disent les menus. → Notak : copier et couper mettent la branche
+- Cmd+C, Cmd+X, Cmd+V, Cmd+A, Alt+Cmd+Z et Alt+Cmd+M font ce que disent les menus. → Notak : copier et couper mettent la branche
   de côté dans la carte ouverte (pas dans le presse-papiers du système) ; coller la remet sous le sujet choisi, ou en
   flottants au point cliqué.
 
@@ -852,3 +855,32 @@ jointe, Note audio, Image locale, Équation pour un seul sujet ; Zone toujours.
 Chaque élément passe par un geste (`modele/gestes.ts`), se voit dans le rendu (`Dessin.tsx`) et fait l'aller-retour
 `.xmind` (§ 7). `zones` et `groupes` sont des dictionnaires de la carte Yjs `arbres` (`CHAMPS_ARBRE`) : deux personnes
 qui posent chacune une zone ne s'effacent pas.
+
+## 16. Les commentaires sur les sujets
+
+Livré le 26/10/2026 (passe « composants communs »). **→ Notak** : Xmind n'a pas de fil de discussion sur un sujet ;
+Notak met sur la carte le fil qu'il a déjà sur la toile (`elements/commentaire/`, `Epingle.tsx`, `Corps.tsx`,
+`Compositeur.tsx`) et dans le document : mêmes messages, mêmes réponses, mentions, réactions, résolution, « lu » et
+« en train d'écrire ». Rien n'est réinventé.
+
+- **Poser.** Clic droit sur un sujet, « Commenter » (icône du commentaire, Alt+Cmd+M), juste sous « Insérer ». Le fil
+  s'ouvre à droite de l'épingle, champ en main ; Entrée envoie, Échap ferme. L'entrée est grisée quand plusieurs sujets
+  sont choisis. Le fil ne s'écrit qu'au premier message : fermé sans rien dire, il ne laisse ni fil ni épingle.
+- **L'épingle** (`Epingles.tsx`) : celle de la toile, de la couleur du fil, avec le nombre de messages et le point orange
+  du nouveau. Elle est posée en HTML par-dessus la carte, pointe au coin haut droit du sujet (4 px en dedans), à l'endroit
+  où la caméra met le sujet : elle suit le déplacement et le zoom sans décalage, et ne grossit pas. Un clic ouvre le fil,
+  un second le ferme ; un appui ailleurs le ferme. Un fil résolu a son épingle atténuée. Pas d'épingle dans le plan ni
+  en présentation, ni dans l'aperçu de la carte sur la toile.
+- **Les données.** `Arbre.fils`, par identifiant de sujet, dans la carte Yjs `arbres` (clé `<élément>␟fils␟<sujet>`,
+  `CHAMPS_ARBRE`) : à part des sujets, donc un commentaire ne remesure pas la carte, et celui qui renomme un sujet
+  n'écrase pas celui qui y répond. `modele/commentaires.ts` (`poserFil`, geste `commenter`). Un fil sans message n'est
+  pas gardé.
+- **Supprimer un sujet** (la branche, ou le sujet seul) supprime son fil dans le même geste : Annuler rend le sujet et
+  son fil ensemble, Rétablir les retire ensemble. Copier-coller, couper, dupliquer un sujet ou une feuille ne reprennent
+  pas les fils de l'original.
+- **Lecture seule.** Le fil se lit (l'épingle s'ouvre), il ne s'écrit pas : ni champ, ni réaction, ni résolution, ni
+  menu « Commenter ». Limite connue : le serveur n'accepte d'un
+  commentateur (droits « commentaire ») que les fils de la toile, car `reglesDroits.ts` ne lit pas les clés d'`arbres` ;
+  sur une carte, seul qui peut écrire commente. Lui ouvrir les fils de la carte demande un changement du contrôle serveur.
+- **`.xmind`.** L'export n'écrit pas les commentaires, l'import n'en crée pas : le fichier reste lisible par Xmind.
+

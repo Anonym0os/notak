@@ -1,4 +1,5 @@
-import type { Arbre, Id, Relation, StructureArbre, StyleSujet } from '../../../coeur/tableau'
+import type { Arbre, Commentaire, Id, Relation, StructureArbre, StyleSujet } from '../../../coeur/tableau'
+import { poserFil } from './commentaires'
 import { type GesteCarte, GESTES_CARTE, appliquerGesteCarte } from './reglages'
 import { type ReglageDiapo, type ReglagePitch, poserDiapo, poserPitch } from './pitch'
 import { type GesteStyle, appliquerGesteStyle } from './gestes-style'
@@ -83,6 +84,8 @@ export type Geste =
   | { type: 'resume'; ids: Id[] }
   /** Retire des relations, des limites ou des résumés. */
   | { type: 'retirer'; ids: Id[] }
+  /** Le fil de commentaires d'un sujet, remplacé par celui-ci (`null` : retiré). */
+  | { type: 'commenter'; id: Id; fil: Commentaire | null }
   | { type: 'titrer'; id: Id; titre: string }
   | { type: 'controles'; id: Id; controles: [{ x: number; y: number }, { x: number; y: number }] }
   | { type: 'marqueur'; ids: Id[]; marqueur: string }
@@ -281,6 +284,10 @@ export function appliquerGeste(a: Arbre, g: Geste, titre: Titreur): Effet | null
     }
     case 'retirer':
       return { arbre: g.ids.reduce(retirer, a) }
+    case 'commenter': {
+      const arbre = poserFil(a, g.id, g.fil)
+      return arbre === a ? null : { arbre }
+    }
     case 'titrer': {
       const nettoye = g.titre.trim()
       if (a.zones?.[g.id]) return { arbre: changerZone(a, g.id, ({ titre: _t, ...z }) => (nettoye ? { ...z, titre: nettoye } : z)) }

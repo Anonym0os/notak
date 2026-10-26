@@ -789,6 +789,13 @@ export interface Arbre {
   zones?: Record<Id, Zone>
   /** Les groupes de marqueurs à soi, par identifiant (`perso-<marqueur>` sur un sujet). */
   groupes?: Record<Id, GroupeMarqueurs>
+  /**
+   * Les fils de discussion posés sur des sujets, par identifiant de sujet (le même fil que sur la toile et dans le
+   * document). Rangés à part des sujets : un commentaire ne remesure pas la carte, et deux personnes qui écrivent l'une
+   * dans le titre d'un sujet, l'autre dans son fil, ne s'écrasent pas. Un fil sans message n'est pas gardé ; un sujet
+   * supprimé emporte le sien.
+   */
+  fils?: Record<Id, Commentaire>
   /** La légende des marqueurs : montrée ou non, et ce que chaque marqueur veut dire (par identifiant de marqueur). */
   legende?: { visible?: boolean; textes?: Record<string, string> }
   /** Le mode Pitch de la carte : le thème et le rapport d'aspect des diapositives. Absent : thème sombre, rapport automatique. */
