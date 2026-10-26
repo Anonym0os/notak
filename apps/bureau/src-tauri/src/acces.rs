@@ -398,6 +398,18 @@ fn fenetre(app: &AppHandle) -> Result<tauri::WebviewWindow, Erreur> {
     app.get_webview_window("principale").ok_or_else(|| Erreur::echec("la fenêtre de Notak n'est pas là"))
 }
 
+/// Une page du serveur commence à se charger (un rechargement, un lien qui quitte l'application d'une page) : elle a
+/// de nouveau 20 s pour se signaler. Sans cela, un serveur tombé pendant la séance laisserait, au rechargement suivant,
+/// une page d'erreur sans issue (pas de menu hors de macOS).
+pub fn page_chargee(app: &AppHandle, url: &Url) {
+    let Some(courant) = app.state::<Origines>().serveur.lire() else { return };
+    if url.origin().ascii_serialization() != courant {
+        return;
+    }
+    let numero = app.state::<Acces>().nouvelle_visite(Some(courant));
+    guetter(app.clone(), numero);
+}
+
 /// Sans signe de vie de la page du serveur à temps, la fenêtre revient à l'écran d'accès.
 fn guetter(app: AppHandle, numero: u64) {
     tauri::async_runtime::spawn(async move {

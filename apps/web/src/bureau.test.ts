@@ -180,13 +180,13 @@ describe('les commandes de la coque', () => {
   it('une copie ouverte se lit par morceaux, en ArrayBuffer ou en tableau', async () => {
     const contenu = Uint8Array.from({ length: 10 }, (_, i) => i)
     const { appels } = poserCoque((a) => {
-      if (a.commande === 'fichiers_ouverts') return [{ id: 'f1', nom: 'Toiles.notak', taille: 10 }]
+      if (a.commande === 'fichiers_ouverts') return [{ id: 'f1', nom: 'Toiles.notak', taille: 10, confiee: false }]
       const { debut } = a.arguments_ as { debut: number }
       const morceau = contenu.slice(debut, debut + 4)
       // Un morceau sur deux comme après un repli sur postMessage.
       return debut % 8 === 0 ? morceau.buffer : Array.from(morceau)
     })
-    expect(await fichiersOuverts()).toEqual([{ id: 'f1', nom: 'Toiles.notak', taille: 10 }])
+    expect(await fichiersOuverts()).toEqual([{ id: 'f1', nom: 'Toiles.notak', taille: 10, confiee: false }])
     expect(await lireFichierOuvert('f1')).toEqual(contenu)
     expect(appels.filter((a) => a.commande === 'lire_fichier_ouvert').map((a) => a.arguments_)).toEqual([
       { id: 'f1', debut: 0 },

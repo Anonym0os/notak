@@ -27,7 +27,7 @@ use std::path::PathBuf;
 use std::sync::{Mutex, PoisonError};
 
 use tauri::ipc::Request;
-use tauri::webview::NewWindowResponse;
+use tauri::webview::{NewWindowResponse, PageLoadEvent};
 use tauri::{AppHandle, Manager, RunEvent, State, Webview, WebviewWindowBuilder};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
@@ -179,6 +179,11 @@ fn ouvrir_fenetre(app: &AppHandle, origines: Origines) -> tauri::Result<()> {
         .on_new_window(move |url, _| {
             ouvrir_dehors(&pour_fenetres, &url);
             NewWindowResponse::Deny
+        })
+        .on_page_load(move |fenetre, chargement| {
+            if chargement.event() == PageLoadEvent::Started {
+                acces::page_chargee(fenetre.app_handle(), chargement.url());
+            }
         })
         .build()?;
     Ok(())

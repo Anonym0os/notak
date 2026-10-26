@@ -197,6 +197,9 @@ pub struct FichierOuvert {
     pub id: String,
     pub nom: String,
     pub taille: u64,
+    /// Les toiles de cet ordinateur, confiées par la page embarquée (`confier_copie`), et non un fichier du disque :
+    /// la page du serveur ne propose pas de les « ouvrir sur cet ordinateur », d'où elles viennent.
+    pub confiee: bool,
 }
 
 /// La file des fichiers qui attendent la page.
@@ -246,7 +249,7 @@ impl Ouverts {
         let file = self.file.lock().unwrap_or_else(PoisonError::into_inner);
         file.iter()
             .filter(|o| visible(o, appelant))
-            .map(|o| FichierOuvert { id: o.id.clone(), nom: o.nom.clone(), taille: o.taille })
+            .map(|o| FichierOuvert { id: o.id.clone(), nom: o.nom.clone(), taille: o.taille, confiee: matches!(o.source, Source::Confiee(_)) })
             .collect()
     }
 
@@ -449,7 +452,7 @@ mod essais {
         assert!(!o.ajouter_chemin(&d.join("absent.notak")));
         assert!(!o.ajouter_chemin(&d.join("dossier.notak")));
         let liste = o.lister(Appelant::Serveur);
-        assert_eq!(liste, vec![FichierOuvert { id: "f1".into(), nom: "Toiles.NOTAK".into(), taille: contenu.len() as u64 }, FichierOuvert { id: "f2".into(), nom: "vide.notak".into(), taille: 0 }]);
+        assert_eq!(liste, vec![FichierOuvert { id: "f1".into(), nom: "Toiles.NOTAK".into(), taille: contenu.len() as u64, confiee: false }, FichierOuvert { id: "f2".into(), nom: "vide.notak".into(), taille: 0, confiee: false }]);
         // Remplacé après son arrivée : c'est le fichier ouvert qu'on lit.
         std::fs::remove_file(d.join("Toiles.NOTAK")).unwrap();
         std::fs::write(d.join("Toiles.NOTAK"), b"autre chose").unwrap();
@@ -473,6 +476,7 @@ mod essais {
         assert!(o.lister(Appelant::Locale).is_empty());
         let liste = o.lister(Appelant::Serveur);
         assert_eq!(liste.len(), 1, "la copie d'avant est remplacée");
+        assert!(liste[0].confiee);
         assert_eq!(o.lire(Appelant::Locale, &liste[0].id, 0), Err(Erreur::Introuvable));
         assert_eq!(o.lire(Appelant::Serveur, &liste[0].id, 0), Ok(vec![4, 5]));
         assert!(o.lister(Appelant::Serveur).is_empty());

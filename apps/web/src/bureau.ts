@@ -105,6 +105,8 @@ export interface FichierOuvert {
   id: string
   nom: string
   taille: number
+  /** Les toiles de cet ordinateur confiées au serveur (`confierCopie`), et non un fichier du disque. */
+  confiee: boolean
 }
 
 /** L'événement de la coque quand un fichier ouvert rejoint la file. */
