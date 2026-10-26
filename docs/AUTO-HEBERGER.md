@@ -36,6 +36,7 @@ Pour un essai en HTTP sur sa machine : `NOTAK_COOKIE_SECURISE=0` et `NOTAK_RELAI
 | Variable | Par défaut | Ce qu'elle règle |
 |---|---|---|
 | `NOTAK_ORIGINE` | `http://localhost:3005` | l'adresse publique du serveur : liens envoyés, retours de connexion |
+| `NOTAK_ADRESSE_PUBLIQUE` | `NOTAK_ORIGINE` | l'adresse où un autre appareil joint le serveur, quand elle diffère de `NOTAK_ORIGINE` (en développement : celle du Mac sur le réseau local ou Tailscale). La page « Envoyer vers Notak » la donne aux Raccourcis de l'iPhone ; sans elle, et sur une page ouverte en `localhost`, elle dit qu'un iPhone ne peut rien envoyer |
 | `NOTAK_AUTRES_ORIGINES` | aucune | d'autres origines, séparées par des virgules, dont les pages peuvent se connecter et se synchroniser (sans `NOTAK_ORIGINE`, `http://localhost:5173` l'est déjà) |
 | `NOTAK_OPENFGA_URL` | `http://localhost:8080` | l'OpenFGA qui évalue les droits (`http://openfga:8080` dans `compose.yaml`) |
 | `NOTAK_NOM` | `Notak` | le nom affiché sur l'écran de connexion |

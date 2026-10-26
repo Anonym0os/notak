@@ -27,7 +27,7 @@ export interface Place {
 const LARGEUR_RENVOI = 10
 
 /** Ce que l'espace sait des toiles qu'il charge : `synchronise` dit si le contenu est arrivé du serveur. */
-type EspaceRangement = Pick<EspaceNavigable, 'magasin' | 'tableau' | 'ecouter' | 'creerTableau' | 'renommer' | 'lectureSeule' | 'synchronise' | 'racine'>
+export type EspaceRangement = Pick<EspaceNavigable, 'magasin' | 'tableau' | 'ecouter' | 'creerTableau' | 'renommer' | 'lectureSeule' | 'synchronise' | 'racine'>
 
 /** Ces toiles ont leur contenu, arrivé du serveur (au plus `delai` ms, après quoi on fait avec ce qu'on a). */
 export function quandPretes(espace: Pick<EspaceRangement, 'tableau' | 'ecouter' | 'synchronise'>, toiles: readonly Id[], delai = 4000): Promise<void> {

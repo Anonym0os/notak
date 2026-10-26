@@ -28,6 +28,8 @@ export {
   renommerChose,
   toilesPortees,
 } from './rangement'
+export { importerSurLaToile } from './importation'
+export { type DetailImport, EST_UN_TEXTE, EVENEMENT_IMPORT } from './recevoirImport'
 export { BoutonIlot, FiletIlot, Ilot } from './Ilots'
 export { creerMagasinYjs, type MagasinYjs } from './coeur/magasinYjs'
 export { enLectureSeule } from './coeur/magasin'

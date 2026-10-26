@@ -6,6 +6,7 @@ import { PastillePersonne } from '@notak/tableau'
 import { usePanneau } from './panneaux'
 import { surLien } from './chemin'
 import { LigneMenu } from './LigneMenu'
+import { dansBureau } from './bureau'
 
 /** Le raccourci de la bibliothèque, partout dans l'édition serveur (⌥⌘O). */
 export const RACCOURCI_BIBLIOTHEQUE = '⌥⌘O'
@@ -38,7 +39,7 @@ export function Compte({ moi, deconnexion, aide }: { moi: Moi; deconnexion(): vo
           <div className="app-menu-sep" />
           <LigneMenu icone="tableau" libelle={t('compte.bibliotheque')} detail={t('compte.bibliotheque.detail')} touche={RACCOURCI_BIBLIOTHEQUE} href="/" onClick={aller('/')} />
           <LigneMenu icone="equipe" libelle={t('compte.espaces')} detail={t('compte.espaces.detail')} href="/espace" onClick={aller('/espace')} />
-          <LigneMenu icone="envoyer" libelle={t('compte.envoyer')} detail={t('compte.envoyer.detail')} href="/envoyer" onClick={aller('/envoyer')} />
+          <LigneMenu icone="envoyer" libelle={t('compte.envoyer')} detail={t(dansBureau() ? 'compte.envoyer.detailBureau' : 'compte.envoyer.detail')} href="/envoyer" onClick={aller('/envoyer')} />
           <LigneMenu
             icone="aide"
             libelle={t('compte.aide')}

@@ -4,16 +4,23 @@
 /// Seule exception, l'export : la webview de macOS ne télécharge rien, alors la page demande à la coque la fenêtre
 /// « Enregistrer sous », puis lui confie les octets. La coque n'écrit qu'au chemin que la personne vient de choisir.
 /// Et le signalement d'un bug (⌥⌘S) : la coque photographie la page telle qu'elle est peinte (`capturer_fenetre`).
+/// Et l'import : Fichier › Importer… (⌘O) ouvre la fenêtre « Ouvrir » du système, puis la page lit, un à un, les
+/// fichiers que la personne vient de choisir (`lire_fichier_choisi`), et seulement ceux-là.
 use std::path::PathBuf;
 use std::sync::Mutex;
 
 use tauri::ipc::{InvokeBody, Request};
-use tauri::{AppHandle, State};
+use tauri::menu::{Menu, MenuEvent, MenuItemBuilder, SubmenuBuilder};
+use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
 /// Le chemin choisi dans la dernière fenêtre « Enregistrer sous », en attente de ses octets.
 #[derive(Default)]
 struct Emplacement(Mutex<Option<PathBuf>>);
+
+/// Les fichiers choisis par Fichier › Importer…, que la page vient lire.
+#[derive(Default)]
+struct Choisis(Mutex<Vec<PathBuf>>);
 
 /// Ouvre la fenêtre « Enregistrer sous » ; rend le nom du fichier choisi, ou rien si la personne a annulé.
 #[tauri::command]
@@ -44,6 +51,64 @@ fn ecrire_fichier(requete: Request<'_>, emplacement: State<'_, Emplacement>) -> 
     };
     let chemin = emplacement.0.lock().map_err(|e| e.to_string())?.take().ok_or("aucun emplacement choisi")?;
     std::fs::write(&chemin, octets).map_err(|e| e.to_string())
+}
+
+/// Les octets du `index`-ième fichier choisi par Fichier › Importer… ; rien d'autre sur le disque.
+#[tauri::command]
+fn lire_fichier_choisi(index: usize, choisis: State<'_, Choisis>) -> Result<tauri::ipc::Response, String> {
+    let chemin = choisis.0.lock().map_err(|e| e.to_string())?.get(index).cloned().ok_or("aucun fichier choisi à ce rang")?;
+    std::fs::read(&chemin).map(tauri::ipc::Response::new).map_err(|e| e.to_string())
+}
+
+/// Le menu de la barre du Mac, en français : celui de Tauri, plus Fichier › Importer….
+fn menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+    let importer = MenuItemBuilder::with_id("importer", "Importer…").accelerator("CmdOrCtrl+O").build(app)?;
+    let notak = SubmenuBuilder::new(app, "Notak")
+        .about_with_text("À propos de Notak", None)
+        .separator()
+        .services_with_text("Services")
+        .separator()
+        .hide_with_text("Masquer Notak")
+        .hide_others_with_text("Masquer les autres")
+        .show_all_with_text("Tout afficher")
+        .separator()
+        .quit_with_text("Quitter Notak")
+        .build()?;
+    let fichier = SubmenuBuilder::new(app, "Fichier").item(&importer).separator().close_window_with_text("Fermer la fenêtre").build()?;
+    let edition = SubmenuBuilder::new(app, "Édition")
+        .undo_with_text("Annuler")
+        .redo_with_text("Rétablir")
+        .separator()
+        .cut_with_text("Couper")
+        .copy_with_text("Copier")
+        .paste_with_text("Coller")
+        .select_all_with_text("Tout sélectionner")
+        .build()?;
+    let presentation = SubmenuBuilder::new(app, "Présentation").fullscreen_with_text("Plein écran").build()?;
+    let fenetre = SubmenuBuilder::new(app, "Fenêtre").minimize_with_text("Réduire").maximize_with_text("Zoom").build()?;
+    Menu::with_items(app, &[&notak, &fichier, &edition, &presentation, &fenetre])
+}
+
+/// Fichier › Importer… : la fenêtre « Ouvrir » du système, plusieurs fichiers au choix ; la page apprend leurs noms
+/// par l'événement `notak:fichiers-choisis` et vient lire leurs octets.
+fn sur_menu(app: &AppHandle, evenement: MenuEvent) {
+    if evenement.id() != "importer" {
+        return;
+    }
+    let app = app.clone();
+    app.dialog().file().set_title("Importer dans Notak").pick_files(move |choix| {
+        let chemins: Vec<PathBuf> = choix.unwrap_or_default().into_iter().filter_map(|c| c.into_path().ok()).collect();
+        if chemins.is_empty() {
+            return;
+        }
+        let noms: Vec<String> = chemins.iter().map(|c| c.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()).collect();
+        if let Ok(mut choisis) = app.state::<Choisis>().0.lock() {
+            *choisis = chemins;
+        }
+        let Some(fenetre) = app.get_webview_window("principale") else { return };
+        let noms = serde_json::to_string(&noms).unwrap_or_else(|_| "[]".into());
+        let _ = fenetre.eval(format!("window.dispatchEvent(new CustomEvent('notak:fichiers-choisis', {{ detail: {noms} }}))"));
+    });
 }
 
 /// La page telle qu'on la voit, en PNG, par `takeSnapshot` du WKWebView : l'image peinte, au pixel près, là où la
@@ -88,9 +153,13 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(Emplacement::default())
+        .manage(Choisis::default())
+        .menu(menu)
+        .on_menu_event(sur_menu)
         .invoke_handler(tauri::generate_handler![
             choisir_emplacement,
             ecrire_fichier,
+            lire_fichier_choisi,
             #[cfg(target_os = "macos")]
             capturer_fenetre
         ])

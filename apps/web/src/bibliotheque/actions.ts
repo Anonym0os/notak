@@ -2,14 +2,17 @@ import {
   type EspaceNavigable,
   type Place,
   carteDeLaToile,
+  creerDans,
   deplacer,
   dupliquer,
   jeter,
   quandPretes,
   rangerDansNeuve,
   renommerChose,
+  resumesDuTableau,
 } from '@notak/tableau'
 import type { BilanRangement, EntreeBibliotheque } from '../api'
+import type { BilanImport } from '../importation'
 import { t, tn } from '../langue'
 import type { Correctif } from './correctifs'
 import { cleDe, porteuseDe } from './selection'
@@ -32,6 +35,8 @@ export interface Outils {
 
 export interface Resultat {
   texte: string
+  /** D'autres boutons pour l'avis, avant « Annuler » (« Voir »). */
+  actions?: { libelle: string; faire(): void }[]
   correctifs: Correctif[]
   /** Défait le geste ; rend les correctifs qui le disent. */
   annuler?(): Promise<Correctif[]>
@@ -245,4 +250,92 @@ export async function favoris(o: Outils, entrees: readonly EntreeBibliotheque[],
   const toiles = entrees.filter((e) => e.element === null)
   await Promise.all(toiles.map((e) => o.definirFavori(e.tableau, favori)))
   return toiles.map((e) => ({ type: 'changer', cle: cleDe(e), champs: { favori } }))
+}
+
+/**
+ * Des fichiers lâchés sur la bibliothèque (ou choisis par Fichier › Importer…), importés sur la toile `dans` : ses
+ * cartes mentales, ses documents et ses toiles neuves s'y montrent tout de suite ; ce qui n'est qu'un fichier joint
+ * reste sur la toile. Se défait en jetant ce qui est né.
+ */
+export async function importerEntrees(
+  o: Outils,
+  importer: (fichiers: File[], dans: string) => Promise<BilanImport>,
+  fichiers: File[],
+  dans: { id: string; titre: string },
+  voir: () => void,
+  maintenant = Date.now(),
+): Promise<Resultat & { entrees: EntreeBibliotheque[] }> {
+  const b = await importer(fichiers, dans.id)
+  const poses = b.elements.filter((e) => !e.parent)
+  // Ce qui n'a pas de tuile ici : un fichier joint, une image, posés sur la toile.
+  const joints = poses.filter((e) => e.contenu.type !== 'arbre' && e.contenu.type !== 'document')
+  const nombre = poses.length + b.toiles.length
+  const refus = b.refuses.length ? tn('biblio.import.refuses', b.refuses.length, { noms: b.refuses.map((nom) => t('biblio.import.nom', { nom })).join(', ') }) : ''
+  if (nombre === 0) return { texte: refus || t('biblio.import.rien'), correctifs: [], entrees: [] }
+  // Importer, c'est toucher : ce qui arrive compte parmi les récents.
+  const commun = { ou: dans.titre, dans: dans.id, vu: maintenant, favori: false, partage: false }
+  const entrees: EntreeBibliotheque[] = [
+    ...resumesDuTableau({ titre: '', elements: poses as never }).flatMap((resume) =>
+      resume.genre === 'toile' ? [] : [{ tableau: dans.id, element: resume.element, genre: resume.genre, titre: resume.titre, resume, ...commun }],
+    ),
+    ...b.toiles.map(({ id, titre }) => ({
+      tableau: id,
+      element: null,
+      genre: 'toile' as const,
+      titre,
+      resume: { genre: 'toile' as const, element: '' as const, titre, boites: [] },
+      ...commun,
+    })),
+  ]
+  const seul = nombre === 1 && joints.length === 1 ? (joints[0]!.contenu as { nom?: string }).nom : undefined
+  const texte = seul ? t('biblio.import.pose', { nom: seul, toile: dans.titre }) : tn('biblio.import.fait', nombre, { toile: dans.titre })
+  return {
+    texte: texte + (refus ? ` ${refus}` : ''),
+    entrees,
+    // Ce qui est allé sur la toile sans tuile ici, on peut aller le voir.
+    ...(joints.length > 0 ? { actions: [{ libelle: t('biblio.import.voir'), faire: voir }] } : {}),
+    correctifs: [{ type: 'ajouter', entrees }],
+    async annuler() {
+      jeter(o.espace, [
+        ...poses.map((e) => ({ toile: dans.id, element: e.id })),
+        ...b.toiles.flatMap(({ id }) => {
+          const carte = carteDeLaToile(o.espace, dans.id, id)
+          return carte ? [{ toile: dans.id, element: carte }] : []
+        }),
+      ])
+      return [{ type: 'retirer', cles: entrees.map(cleDe) }]
+    },
+  }
+}
+
+/**
+ * Un dossier neuf, vide, rangé dans `ou` (le « Nouveau dossier » du Finder) : une toile, dans laquelle on glisse ensuite
+ * ce qu'on veut y ranger. Se défait en jetant sa carte.
+ */
+export async function creerDossier(o: Outils, ou: { id: string; titre: string }): Promise<Resultat & { toile: string }> {
+  await quandPretes(o.espace, [ou.id])
+  const titre = t('biblio.dossier.nouveau')
+  const { tableau } = creerDans(o.espace, ou.id, 'toile', titre)
+  const neuf: EntreeBibliotheque = {
+    tableau,
+    element: null,
+    genre: 'toile',
+    titre,
+    resume: { genre: 'toile', element: '', titre, boites: [] },
+    ou: ou.titre,
+    dans: ou.id,
+    vu: null,
+    favori: false,
+    partage: false,
+  }
+  return {
+    toile: tableau,
+    texte: t('biblio.annonce.dossier', { toile: ou.titre }),
+    correctifs: [{ type: 'ajouter', entrees: [neuf] }],
+    async annuler() {
+      const carte = carteDeLaToile(o.espace, ou.id, tableau)
+      if (carte) jeter(o.espace, [{ toile: ou.id, element: carte }])
+      return [{ type: 'retirer', cles: [cleDe(neuf)] }]
+    },
+  }
 }

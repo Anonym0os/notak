@@ -1,6 +1,6 @@
 import { definirLangue } from '@notak/tableau'
 import { afterEach, describe, expect, it } from 'vitest'
-import { adresseArrivee, enteteAutorisation, etapesRaccourciImage, etapesRaccourciTexte, favori } from './raccourcis'
+import { adresseArrivee, adresseJoignable, enteteAutorisation, etapesRaccourciImage, etapesRaccourciTexte, favori } from './raccourcis'
 
 afterEach(() => definirLangue('fr'))
 
@@ -94,5 +94,18 @@ describe('en anglais', () => {
     expect(image.join('\n')).toContain('Convert Image')
     expect(new Set(image).size).toBe(image.length)
     expect(favori(ORIGINE, JETON)).toContain('Sent to Notak')
+  })
+})
+
+describe('l’adresse qu’un autre appareil joint', () => {
+  it('prend celle que déclare le serveur, sinon celle de la page', () => {
+    expect(adresseJoignable('https://notak.exemple.fr', 'http://localhost:3010')).toBe('https://notak.exemple.fr')
+    expect(adresseJoignable(undefined, 'https://notak.exemple.fr')).toBe('https://notak.exemple.fr')
+  })
+
+  it('n’en a aucune quand la page n’est ouverte que sur cet ordinateur', () => {
+    for (const origine of ['http://localhost:3010', 'http://app.localhost:5173', 'http://127.0.0.1:3005', 'http://[::1]:3005']) {
+      expect(adresseJoignable(undefined, origine)).toBeNull()
+    }
   })
 })

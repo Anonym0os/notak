@@ -297,7 +297,7 @@ describe('les gestes', () => {
   it('le clic droit du fond crée, range et choisit tout', async () => {
     await ouvrir()
     const libelles = menu(hote.querySelector('.biblio-corps')!).map((b) => b.querySelector('.notak-e-libelle')!.textContent)
-    expect(libelles).toEqual(['Nouveau', 'Par date', 'Par dossier', 'Tout sélectionner'])
+    expect(libelles).toEqual(['Nouveau', 'Nouveau dossier', 'Par date', 'Par dossier', 'Tout sélectionner'])
     act(() => entree('Tout sélectionner').click())
     expect(choisies()).toHaveLength(3)
   })
@@ -312,6 +312,22 @@ describe('les gestes', () => {
     await act(async () => touche('z', { metaKey: true }))
     expect(espace.tableau('racine')!.elements.find((e) => e.id === 'c-atelier')!.corbeille).toBeUndefined()
     expect(tuile('atelier/')).not.toBeNull()
+  })
+
+  it('crée un dossier vide sans quitter la page, choisi et prêt à renommer ; ⇧⌘N fait de même', async () => {
+    const espace = await ouvrir()
+    menu(hote.querySelector('.biblio-corps')!)
+    await act(async () => entree('Nouveau dossier').click())
+    const carte = espace.tableau('racine')!.elements.find((e) => e.contenu.type === 'tableau' && !['voyage', 'atelier'].includes(e.contenu.cible))!
+    const dossier = (carte.contenu as { cible: string }).cible
+    expect(espace.tableau(dossier)!.titre).toBe('Nouveau dossier')
+    expect(location.search).toBe('?vue=toiles')
+    expect(choisies()).toEqual([`${dossier}/`])
+    expect(hote.querySelector<HTMLInputElement>('.biblio-renommer')!.value).toBe('Nouveau dossier')
+    expect(hote.querySelector('.notak-avis')!.textContent).toContain('Dossier créé dans « Accueil »')
+    await act(async () => void hote.querySelector('.biblio-renommer')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+    await act(async () => void document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'N', metaKey: true, shiftKey: true, bubbles: true })))
+    expect(espace.tableau('racine')!.elements.filter((e) => e.contenu.type === 'tableau')).toHaveLength(4)
   })
 
   it('renomme sur place', async () => {
@@ -350,5 +366,56 @@ describe('les gestes', () => {
     expect(espace.tableau('voyage')!.elements.some((e) => e.contenu.type === 'tableau' && e.contenu.cible === 'atelier')).toBe(true)
     expect(espace.tableau('racine')!.elements.some((e) => e.id === 'c-atelier')).toBe(false)
     expect(hote.querySelector('.notak-avis')!.textContent).toContain('Déplacé dans « Voyage »')
+  })
+
+  it('des fichiers lâchés sur une toile y sont importés ; ce qui en naît s’y montre aussitôt', async () => {
+    const espace = monde()
+    const importes: [string[], string][] = []
+    const vus: string[] = []
+    await act(async () =>
+      racine.render(
+        <PageBibliotheque
+          charger={async () => TOUTES}
+          espace={espace}
+          definirFavori={async () => {}}
+          noterVu={async (e) => void vus.push(`${e.tableau}/${e.element ?? ''}`)}
+          importer={async (fichiers, dans) => {
+            importes.push([fichiers.map((f) => f.name), dans])
+            const doc = { id: 'cr', x: 0, y: 0, largeur: 10, contenu: { type: 'document', titre: 'Compte rendu', texte: { type: 'doc', content: [] } } } as unknown as ElementToile
+            return { elements: [doc], toiles: [], refuses: ['vieux.pages'] }
+          }}
+        />,
+      ),
+    )
+    const rubrique = (nom: string) => [...hote.querySelectorAll<HTMLButtonElement>('[data-rubrique]')].find((b) => b.textContent?.startsWith(nom))!
+    act(() => rubrique('Documents').click())
+    const fichier = new File(['# Compte rendu'], 'Compte rendu.md', { type: 'text/markdown' })
+    const glisser = (type: string, sur: Element) => {
+      const e = new Event(type, { bubbles: true, cancelable: true })
+      Object.defineProperty(e, 'dataTransfer', { value: { types: ['Files'], files: [fichier], dropEffect: 'none' } })
+      act(() => void sur.dispatchEvent(e))
+      return e
+    }
+    // Sur le fond : l'accueil ; le bandeau dit où ils iraient.
+    expect(glisser('dragover', hote.querySelector('.biblio-corps')!).defaultPrevented).toBe(true)
+    expect(hote.querySelector('.biblio-apport')!.textContent).toBe('Déposer pour importer dans « Accueil »')
+    act(() => rubrique('Toiles').click())
+    glisser('dragover', tuile('voyage/'))
+    expect(hote.querySelector('.biblio-apport')!.textContent).toBe('Déposer pour importer dans « Voyage »')
+    expect(tuile('voyage/').hasAttribute('data-survol-depot')).toBe(true)
+    await act(async () => void glisser('drop', tuile('voyage/')))
+    expect(importes).toEqual([[['Compte rendu.md'], 'voyage']])
+    expect(hote.querySelector('.biblio-apport')).toBeNull()
+    expect(hote.querySelector('.notak-avis')!.textContent).toContain('Un fichier importé dans « Voyage » « vieux.pages » n’a pas pu être lu.')
+    // Un document n'a pas sa place dans « Toiles » : on passe aux récents, où l'import compte, la tuile choisie.
+    expect(rubrique('Récents').getAttribute('aria-current')).toBe('page')
+    expect(vus).toEqual(['voyage/cr'])
+    const arrivee = hote.querySelector<HTMLElement>('[data-cle="voyage/cr"]')!
+    expect(arrivee.getAttribute('aria-selected')).toBe('true')
+    expect(arrivee.hasAttribute('data-arrivee')).toBe(true)
+    // Là où il a sa place, on reste : un document lâché sur « Documents ».
+    act(() => rubrique('Documents').click())
+    await act(async () => void glisser('drop', hote.querySelector('.biblio-corps')!))
+    expect(rubrique('Documents').getAttribute('aria-current')).toBe('page')
   })
 })

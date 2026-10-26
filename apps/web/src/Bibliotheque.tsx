@@ -13,6 +13,7 @@ import {
   quandPretes,
 } from '@notak/tableau'
 import {
+  type DragEvent,
   type KeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
@@ -24,15 +25,25 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { type BilanRangement, type EntreeBibliotheque, definirFavori as definirFavoriApi, lireBibliotheque, rangerToile as rangerToileApi } from './api'
+import {
+  type BilanRangement,
+  type EntreeBibliotheque,
+  definirFavori as definirFavoriApi,
+  lireBibliotheque,
+  noterElementVu,
+  noterVu as noterVuToile,
+  rangerToile as rangerToileApi,
+} from './api'
 import {
   type EspaceRangement,
   type Outils,
   type Resultat,
+  creerDossier,
   deplacerEntrees,
   dupliquerEntrees,
   favoris,
   jeterEntrees,
+  importerEntrees,
   rangerDansUneNeuve,
   renommerEntree,
 } from './bibliotheque/actions'
@@ -54,6 +65,8 @@ import {
   voisine,
 } from './bibliotheque/selection'
 import { Vignette } from './bibliotheque/Vignettes'
+import { ecouterImportBureau } from './importBureau'
+import type { BilanImport } from './importation'
 import { allerA, surLien } from './chemin'
 import { t, tn } from './langue'
 
@@ -208,6 +221,9 @@ interface Glisse {
   cible: string | null
 }
 
+/** Une toile, une carte ou un document entre dans les récents du compte. */
+const noterVuEntree = (e: Pick<EntreeBibliotheque, 'tableau' | 'element'>) => (e.element ? noterElementVu(e.tableau, e.element) : noterVuToile(e.tableau))
+
 /** Le pointeur à moins de tant de pixels du haut ou du bas de la page la fait défiler, pendant un cadre ou un glisser. */
 const BORD_DEFILEMENT = 48
 
@@ -224,6 +240,8 @@ export function PageBibliotheque({
   rangerToile = rangerToileApi,
   definirFavori = definirFavoriApi,
   partage,
+  importer,
+  noterVu = noterVuEntree,
 }: {
   charger?: () => Promise<EntreeBibliotheque[]>
   espace?: EspaceBibliotheque
@@ -236,6 +254,10 @@ export function PageBibliotheque({
   definirFavori?: Outils['definirFavori']
   /** Le partage d'une toile, en fenêtre. */
   partage?: (tableau: string, fermer: () => void) => ReactNode
+  /** Importe des fichiers de la machine sur une toile (lâchés sur la page, ou Fichier › Importer…). */
+  importer?: (fichiers: File[], dans: string) => Promise<BilanImport>
+  /** Fait entrer une toile, une carte ou un document dans les récents du compte. */
+  noterVu?: (e: Pick<EntreeBibliotheque, 'tableau' | 'element'>) => Promise<void>
 }) {
   const [serveur, setServeur] = useState<EntreeBibliotheque[] | null>(null)
   const [correctifs, setCorrectifs] = useState<{ n: number; correctif: Correctif }[]>([])
@@ -250,6 +272,12 @@ export function PageBibliotheque({
   const [fenetre, setFenetre] = useState<Fenetre | null>(null)
   const [renommage, setRenommage] = useState<Renommage | null>(null)
   const [glisse, setGlisse] = useState<Glisse | null>(null)
+  /** Des fichiers de la machine qu'on glisse sur la page : la toile où ils iraient. */
+  const [apport, setApport] = useState<{ cible: string } | null>(null)
+  /** Combien de fichiers sont en route, le temps de l'import. */
+  const [importEnCours, setImportEnCours] = useState(0)
+  /** Les tuiles qui viennent d'arriver, le temps que leur anneau batte. */
+  const [arrivees, setArrivees] = useState<ReadonlySet<string>>(new Set())
   const [cadre, setCadre] = useState<Boite | null>(null)
   const champ = useRef<HTMLInputElement>(null)
   const nav = useRef<HTMLElement>(null)
@@ -358,7 +386,11 @@ export function PageBibliotheque({
       if (!r) return null
       poser(r.correctifs)
       annulable.current = r.annuler ? r : null
-      annoncer({ texte: r.texte, ...(r.annuler ? { action: { libelle: t('biblio.annuler'), faire: () => void defaire(r) } } : {}) })
+      annoncer({
+        texte: r.texte,
+        ...(r.actions ? { actions: r.actions } : {}),
+        ...(r.annuler ? { action: { libelle: t('biblio.annuler'), faire: () => void defaire(r) } } : {}),
+      })
       return r
     } catch (x) {
       annoncer({ texte: (x as Error).message || t('commun.echec') })
@@ -401,6 +433,21 @@ export function PageBibliotheque({
     const ou = es.every((e) => porteuseDe(e) === porteuseDe(es[0]!)) ? (porteuseDe(es[0]!) ?? outils.espace.racine) : outils.espace.racine
     // Comme le « nouveau dossier avec la sélection » du Finder : la toile neuve est choisie, son nom prêt à changer.
     void executer(rangerDansUneNeuve(outils, es, { id: ou, titre: titreToile(ou) }, confirmerOuverture(nomDe(es), ou))).then((r) => {
+      if (!r) return
+      const cle = `${r.toile}/`
+      setSel({ choisies: new Set([cle]), ancre: cle })
+      setCourante(cle)
+      setRenommage({ cle })
+    })
+  }
+  /** Un dossier neuf, là où l'on est (l'accueil, ou le dossier du clic droit) : on le voit choisi, son nom prêt à changer. */
+  const nouveauDossier = (dans?: string) => {
+    if (!outils) return
+    const ou = dans ?? outils.espace.racine
+    setMenuNeuf(false)
+    // Il doit se voir : la rubrique des toiles, sans recherche.
+    if (rubrique !== 'toiles' || cherche) choisir('toiles')
+    void executer(creerDossier(outils, { id: ou, titre: titreToile(ou) })).then((r) => {
       if (!r) return
       const cle = `${r.toile}/`
       setSel({ choisies: new Set([cle]), ancre: cle })
@@ -466,7 +513,13 @@ export function PageBibliotheque({
   const sousMenuCreer = (dans?: string): EntreeMenu[] =>
     (['toile', 'arbre', 'document'] as const).map((g) => ({ libelle: t(`biblio.genre.${g}`), icone: ICONE_GENRE[g], faire: () => void creerPuisOuvrir(g, dans) }))
   const menuDuFond = (): EntreeMenu[] => [
-    ...(espace ? [{ libelle: t('biblio.menu.nouveau'), icone: 'ajouter' as const, sous: sousMenuCreer(), faire: () => {} }, null] : []),
+    ...(espace
+      ? [
+          { libelle: t('biblio.menu.nouveau'), icone: 'ajouter' as const, sous: sousMenuCreer(), faire: () => {} },
+          { libelle: t('biblio.menu.nouveauDossier'), icone: 'dossier' as const, raccourci: '⇧⌘N', faire: () => nouveauDossier() },
+          null,
+        ]
+      : []),
     { libelle: t('biblio.tri.date'), icone: 'horloge', coche: tri === 'date', faire: () => trier('date') },
     { libelle: t('biblio.tri.dossier'), icone: 'dossier', coche: tri === 'dossier', faire: () => trier('dossier') },
     null,
@@ -477,6 +530,7 @@ export function PageBibliotheque({
     ...(espace
       ? [
           { libelle: t('biblio.menu.creerIci'), icone: 'ajouter' as const, sous: sousMenuCreer(dans), faire: () => {} },
+          { libelle: t('biblio.menu.nouveauDossier'), icone: 'dossier' as const, faire: () => nouveauDossier(dans) },
           null,
           { libelle: t('biblio.menu.renommerToile'), icone: 'renommer' as const, faire: () => setRenommage({ dossier: dans }) },
         ]
@@ -718,6 +772,9 @@ export function PageBibliotheque({
     } else if (cmd && !e.shiftKey && e.key.toLowerCase() === 'z' && annulable.current) {
       e.preventDefault()
       void defaire(annulable.current)
+    } else if (cmd && e.shiftKey && e.key.toLowerCase() === 'n' && outils) {
+      e.preventDefault()
+      nouveauDossier()
     } else if (cmd && e.key.toLowerCase() === 'd' && es.length > 0) {
       e.preventDefault()
       dupliquerCes(es)
@@ -754,6 +811,67 @@ export function PageBibliotheque({
     boutons[(i + (e.key === 'ArrowDown' ? 1 : -1) + boutons.length) % boutons.length]?.focus()
   }
 
+  // ---- Des fichiers de la machine ----
+
+  /** Importe ces fichiers sur la toile `dans` : l'accueil, ou la toile (tuile, dossier) sur laquelle on les lâche. */
+  const importerIci = (fichiers: File[], dans: string) => {
+    if (!outils || !importer || fichiers.length === 0) return
+    setImportEnCours(fichiers.length)
+    void executer(importerEntrees(outils, importer, fichiers, { id: dans, titre: titreToile(dans) }, () => allerA(`/t/${encodeURIComponent(dans)}`)))
+      .then((r) => r && montrerArrivee(r.entrees, dans))
+      .finally(() => setImportEnCours(0))
+  }
+  /**
+   * Ce qu'on vient d'importer se voit là où l'on est, s'il y a sa place ; sinon dans les récents, qui prennent tous les
+   * genres. Une recherche qui le cacherait se vide. Les tuiles sont choisies, la première vient à l'écran, et leur
+   * anneau bat une fois. Rien de neuf à montrer (des fichiers joints seuls) : c'est la toile qui les a pris qui bat.
+   */
+  const montrerArrivee = (entrees: readonly EntreeBibliotheque[], dans: string) => {
+    // Importer, c'est toucher : ce qui arrive entre dans les récents. Le serveur ne le note qu'une fois l'élément lu,
+    // quelques secondes après : on le redit le temps qu'il suive.
+    for (const e of entrees) {
+      void noterVu(e)
+      plusTard(() => void noterVu(e), 4000)
+      plusTard(() => void noterVu(e), DUREE_CORRECTIF + 1000)
+    }
+    const cles = entrees.map(cleDe)
+    const battre = (c: string[]) => {
+      setArrivees(new Set(c))
+      plusTard(() => setArrivees(new Set()), 1200)
+    }
+    if (cles.length === 0) return battre([`${dans}/`])
+    const icite = entrees.every((e) => entreesDe(rubrique, [e]).length > 0)
+    if (cherche || !icite) choisir(icite ? rubrique : 'recents')
+    setSel({ choisies: new Set(cles), ancre: cles[0]! })
+    setCourante(cles[0]!)
+    battre(cles)
+    plusTard(() => tuileDe(cles[0]!)?.scrollIntoView?.({ block: 'nearest' }), 60)
+  }
+  const importerCourant = useRef(importerIci)
+  importerCourant.current = importerIci
+  // Fichier › Importer… dans Notak de bureau : sur l'accueil, comme un fichier lâché sur le fond.
+  useEffect(() => (espace ? ecouterImportBureau((f) => importerCourant.current(f, espace.racine)) : undefined), [espace])
+  const apporteDesFichiers = (e: DragEvent) => !!importer && !!espace && e.dataTransfer.types.includes('Files')
+  const surApport = (e: DragEvent<HTMLDivElement>) => {
+    if (!apporteDesFichiers(e)) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+    const cible = (e.target as HTMLElement).closest?.<HTMLElement>('[data-depot]')?.dataset.depot ?? espace!.racine
+    if (apport?.cible !== cible) setApport({ cible })
+  }
+  // Sorti de la page, et non d'une tuile vers sa voisine.
+  const surDepart = (e: DragEvent<HTMLDivElement>) => {
+    if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget))) setApport(null)
+  }
+  const surLacher = (e: DragEvent<HTMLDivElement>) => {
+    if (!apporteDesFichiers(e)) return
+    e.preventDefault()
+    setApport(null)
+    importerIci([...e.dataTransfer.files], apport?.cible ?? espace!.racine)
+  }
+  /** La toile qui prendrait ce qu'on glisse : des tuiles, ou des fichiers de la machine. */
+  const survolDepot = glisse?.cible ?? apport?.cible ?? null
+
   const bouton = (r: Rubrique) => (
     <button key={r} type="button" className="biblio-rubrique" data-rubrique={r} aria-current={!cherche && rubrique === r ? 'page' : undefined} onClick={() => choisir(r)}>
       <Icone nom={ICONE_RUBRIQUE[r]} taille={18} />
@@ -766,7 +884,7 @@ export function PageBibliotheque({
   const premiereFocalisable = courante && ordre.includes(courante) ? courante : (choisies[0] ?? ordre[0])
 
   return (
-    <div className="biblio">
+    <div className="biblio" data-apport={apport ? (apport.cible === espace?.racine ? 'accueil' : 'toile') : undefined} onDragEnter={surApport} onDragOver={surApport} onDragLeave={surDepart} onDrop={surLacher}>
       <nav className="biblio-colonne" aria-label={t('biblio.titre')} ref={nav} onKeyDown={surToucheColonne} data-tauri-drag-region="deep">
         <div className="biblio-nouveau">
           <button type="button" className="biblio-nouveau-bouton" aria-expanded={menuNeuf} aria-haspopup="menu" disabled={creation} onClick={() => setMenuNeuf((o) => !o)}>
@@ -774,7 +892,7 @@ export function PageBibliotheque({
             {t('biblio.nouveau')}
             <Icone nom="chevronBas" taille={14} trait={2} />
           </button>
-          {menuNeuf && <MenuNeuf creer={(g) => void creerPuisOuvrir(g)} fermer={() => setMenuNeuf(false)} />}
+          {menuNeuf && <MenuNeuf creer={(g) => void creerPuisOuvrir(g)} dossier={outils ? () => nouveauDossier() : undefined} fermer={() => setMenuNeuf(false)} />}
         </div>
         {bouton('recents')}
         {bouton('favoris')}
@@ -789,7 +907,7 @@ export function PageBibliotheque({
           href={accueil}
           onClick={(e) => surLien(e, accueil)}
           data-depot={espace?.racine}
-          data-survol-depot={(espace && glisse?.cible === espace.racine) || undefined}
+          data-survol-depot={(espace && survolDepot === espace.racine) || undefined}
         >
           <span className="biblio-maison" aria-hidden>
             <Icone nom="maison" taille={12} trait={2.4} />
@@ -896,7 +1014,7 @@ export function PageBibliotheque({
                   <h2
                     data-dossier={s.dans || undefined}
                     data-depot={s.dans || undefined}
-                    data-survol-depot={(s.dans && glisse?.cible === s.dans) || undefined}
+                    data-survol-depot={(s.dans && survolDepot === s.dans) || undefined}
                   >
                     {s.dans !== undefined && <Icone nom={s.dans ? 'tableau' : 'equipe'} taille={15} />}
                     {s.dans && renommage && 'dossier' in renommage && renommage.dossier === s.dans ? (
@@ -936,7 +1054,8 @@ export function PageBibliotheque({
                         choisie={sel.choisies.has(cle)}
                         focalisable={cle === premiereFocalisable}
                         glissee={glissees.has(cle)}
-                        survolee={e.element === null && glisse?.cible === e.tableau}
+                        survolee={e.element === null && survolDepot === e.tableau}
+                        arrivee={arrivees.has(cleDe(e))}
                         renommer={renommage !== null && 'cle' in renommage && renommage.cle === cle}
                         valider={(titre) => {
                           void renommerCe(e, titre)
@@ -964,6 +1083,12 @@ export function PageBibliotheque({
       </main>
 
       {glisse && <Fantome entrees={entreesDes(glisse.cles)} x={glisse.x} y={glisse.y} />}
+      {(apport || importEnCours > 0) && (
+        <div className="biblio-apport" role="status">
+          <Icone nom="importer" taille={16} />
+          <span>{apport ? t('biblio.import.deposer', { toile: titreToile(apport.cible) }) : tn('biblio.import.encours', importEnCours)}</span>
+        </div>
+      )}
       {menu && (
         <div className="biblio-calque-menu">
           <MenuContextuel x={menu.x} y={menu.y} entrees={entreesDuMenu(menu)} fermer={() => setMenu(null)} />
@@ -990,7 +1115,7 @@ export function PageBibliotheque({
 }
 
 /** Le menu du bouton « Nouveau » : une toile, une carte mentale ou un document, posés sur l'accueil. */
-function MenuNeuf({ creer, fermer }: { creer(genre: GenreNeuf): void; fermer(): void }) {
+function MenuNeuf({ creer, dossier, fermer }: { creer(genre: GenreNeuf): void; dossier?: () => void; fermer(): void }) {
   const menu = useRef<HTMLDivElement>(null)
   useEffect(() => {
     menu.current?.querySelector('button')?.focus()
@@ -1014,6 +1139,15 @@ function MenuNeuf({ creer, fermer }: { creer(genre: GenreNeuf): void; fermer(): 
           </span>
         </button>
       ))}
+      {dossier && (
+        <button type="button" role="menuitem" onClick={dossier}>
+          <Icone nom="dossier" taille={18} />
+          <span>
+            {t('biblio.dossier.titre')}
+            <small>{t('biblio.dossier.aide')}</small>
+          </span>
+        </button>
+      )}
     </div>
   )
 }
@@ -1029,6 +1163,7 @@ function Tuile({
   focalisable,
   glissee,
   survolee,
+  arrivee,
   renommer,
   valider,
   annuler,
@@ -1039,6 +1174,8 @@ function Tuile({
   focalisable: boolean
   glissee: boolean
   survolee: boolean
+  /** Vient d'arriver (un import) : son anneau bat une fois. */
+  arrivee?: boolean
   renommer: boolean
   valider(titre: string): void
   annuler(): void
@@ -1052,6 +1189,7 @@ function Tuile({
       data-cle={cleDe(e)}
       data-depot={e.element === null ? e.tableau : undefined}
       data-survol-depot={survolee || undefined}
+      data-arrivee={arrivee || undefined}
       data-glissee={glissee || undefined}
       aria-label={e.titre || t('commun.sansTitre')}
     >

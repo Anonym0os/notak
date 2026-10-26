@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react'
 import type { Contenu, Element } from '../coeur/tableau'
 import { annoncer } from '../avis'
+import type { Magasin } from '../coeur/magasin'
 import type { ContexteToile, DepotFichiers } from './types'
 import { t } from '../langue'
 
@@ -55,6 +56,36 @@ export function commencerEnvoi(fichier: Blob, depot: DepotFichiers): string {
     },
   )
   return id
+}
+
+/**
+ * Ces éléments, posés sur une toile que personne n'a ouverte (un import depuis la bibliothèque), prennent leur vrai
+ * fichier à la fin de l'envoi, ou s'en vont s'il échoue, comme le fait `useFichier` pour un élément dessiné. Si la
+ * toile s'ouvre entre-temps, le premier des deux qui voit la fin la pose, l'autre ne trouve plus rien à faire.
+ */
+export function suivreEnvois(magasin: Magasin, elements: readonly Element[]) {
+  const attendus = new Map<string, string>()
+  for (const e of elements) {
+    const f = (e.contenu as { fichier?: unknown }).fichier
+    if (typeof f === 'string' && enEnvoi(f)) attendus.set(f, e.id)
+  }
+  const voir = () => {
+    for (const [fichier, id] of attendus) {
+      const en = envois.get(fichier)
+      if (!en?.fini && !en?.echec) continue
+      attendus.delete(fichier)
+      const present = magasin.lire().elements.find((e) => e.id === id)
+      if (!present || (present.contenu as { fichier?: unknown }).fichier !== fichier) continue
+      if (en.fini) magasin.corriger([{ type: 'contenu', id, avant: present.contenu, apres: { ...present.contenu, fichier: en.fini } as Contenu }])
+      else {
+        magasin.corriger([{ type: 'supprimer', element: present }])
+        annoncer({ texte: en.echec! })
+      }
+    }
+    if (attendus.size === 0) fin()
+  }
+  const fin = ecouter(voir)
+  voir()
 }
 
 /** La copie locale d'un fichier en cours d'envoi, pour le montrer sans attendre le serveur ; `undefined` s'il n'est pas d'ici. */
