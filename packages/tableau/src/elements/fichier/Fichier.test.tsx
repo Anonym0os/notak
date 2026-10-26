@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { creerMagasin } from '../../coeur/magasin'
 import type { Element, Fichier } from '../../coeur/tableau'
 import type { ContexteToile } from '../types'
-import { RenduFichier } from './Fichier'
+import { RenduFichier, copierLienFichier, ouvrirFichier } from './Fichier'
 
 // Le dessin de la première page passe par pdf.js, que jsdom ne sait pas faire : le test choisit l'état du dessin.
 const apercu = vi.hoisted(() => ({ etat: { etat: 'pret', adresse: 'blob:page-1' } as { etat: string; adresse?: string } }))
@@ -98,5 +98,59 @@ describe('la carte d’un fichier', () => {
   it('la légende se range dans la carte', async () => {
     await rendre({ legende: 'Version signée' })
     expect(hote.querySelector('.notak-fichier-legende')?.textContent).toBe('Version signée')
+  })
+})
+
+describe('ouvrir le fichier hors de la toile', () => {
+  const fichier: Fichier = { type: 'fichier', fichier: 'f1', nom: 'devis.pdf', typeMime: 'application/pdf', taille: 10 }
+  let onglet: ReturnType<typeof vi.spyOn>
+  beforeEach(() => {
+    onglet = vi.spyOn(window, 'open').mockReturnValue(null)
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+    Reflect.deleteProperty(navigator, 'clipboard')
+  })
+  const avec = (ouvrirAilleurs?: (adresse: string, nom?: string) => void) => {
+    const c = contexte()
+    return { ...c, services: { ...c.services, ouvrirAilleurs } } as ContexteToile
+  }
+
+  it('l’hôte, s’il sait ouvrir ailleurs, reçoit l’adresse et le nom ; aucun onglet', async () => {
+    const ailleurs = vi.fn()
+    await ouvrirFichier(fichier, avec(ailleurs))
+    expect(ailleurs).toHaveBeenCalledExactlyOnceWith('/api/fichiers/ab', 'devis.pdf')
+    expect(onglet).not.toHaveBeenCalled()
+  })
+
+  it('sans hôte pour cela, un nouvel onglet, détaché de la page', async () => {
+    await ouvrirFichier(fichier, avec())
+    expect(onglet).toHaveBeenCalledExactlyOnceWith('/api/fichiers/ab', '_blank', 'noopener,noreferrer')
+  })
+
+  it('un fichier sans adresse ne s’ouvre nulle part', async () => {
+    const c = avec(vi.fn())
+    c.services.fichiers = { enregistrer: async () => 'x', adresse: async () => null }
+    await ouvrirFichier(fichier, c)
+    expect(onglet).not.toHaveBeenCalled()
+  })
+
+  it('« Copier le lien » : avec un presse-papiers, rien ne s’ouvre', async () => {
+    const ecrire = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: ecrire }, configurable: true })
+    const ailleurs = vi.fn()
+    await copierLienFichier(fichier, avec(ailleurs))
+    expect(ecrire).toHaveBeenCalledOnce()
+    expect(ailleurs).not.toHaveBeenCalled()
+    expect(onglet).not.toHaveBeenCalled()
+  })
+
+  it('« Copier le lien » sans presse-papiers : le fichier s’ouvre, ailleurs si l’hôte le sait', async () => {
+    const ailleurs = vi.fn()
+    await copierLienFichier(fichier, avec(ailleurs))
+    expect(ailleurs).toHaveBeenCalledExactlyOnceWith('/api/fichiers/ab', 'devis.pdf')
+    expect(onglet).not.toHaveBeenCalled()
+    await copierLienFichier(fichier, avec())
+    expect(onglet).toHaveBeenCalledExactlyOnceWith('/api/fichiers/ab', '_blank', 'noopener,noreferrer')
   })
 })

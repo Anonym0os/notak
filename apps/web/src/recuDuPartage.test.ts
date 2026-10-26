@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fauxCaches } from './fauxCaches'
-import { CACHE_PARTAGE, arriveeDepuisParametres, lireArrivee, numeroDuPartage, oublierArrivee } from './recuDuPartage'
+import { CACHE_PARTAGE, apercuDeLArrivee, arriveeDepuisParametres, lireArrivee, numeroDuPartage, origineDuPartage, oublierArrivee } from './recuDuPartage'
 
 const ID = '123e4567-e89b-12d3-a456-426614174000'
 
@@ -22,6 +22,33 @@ describe('numeroDuPartage', () => {
     expect(numeroDuPartage(`?recu=${ID}`)).toBe(ID)
     expect(numeroDuPartage('?recu=../../x')).toBeNull()
     expect(numeroDuPartage('')).toBeNull()
+  })
+})
+
+describe('origineDuPartage', () => {
+  it('« système » seulement pour un numéro bien formé, celui que le service worker a rangé', () => {
+    expect(origineDuPartage(`?recu=${ID}`)).toBe('systeme')
+    expect(origineDuPartage('?recu=../../x&texte=a')).toBe('adresse')
+    expect(origineDuPartage('?titre=A&texte=B&adresse=https%3A%2F%2Fx.fr')).toBe('adresse')
+    expect(origineDuPartage('')).toBe('adresse')
+  })
+})
+
+describe('apercuDeLArrivee', () => {
+  it('rend chaque champ sur une ligne, sans les vides', () => {
+    expect(apercuDeLArrivee({ titre: '  Une\npage ', texte: 'a\n\n  b\tc', adresse: 'https://x.fr' })).toEqual({ titre: 'Une page', texte: 'a b c', adresse: 'https://x.fr' })
+    expect(apercuDeLArrivee({ texte: ' \n ' })).toEqual({})
+    expect(apercuDeLArrivee({})).toEqual({})
+  })
+  it('borne le texte à un extrait, avec des points de suspension', () => {
+    const a = apercuDeLArrivee({ titre: 'a'.repeat(500), texte: 'b'.repeat(2000), adresse: 'https://x.fr/' + 'c'.repeat(2000) })
+    expect(a.titre).toHaveLength(161)
+    expect(a.texte).toHaveLength(401)
+    expect(a.adresse).toHaveLength(301)
+    for (const v of Object.values(a)) expect(v!.endsWith('…')).toBe(true)
+  })
+  it('retire les marques de sens d’écriture, qui feraient lire une autre adresse', () => {
+    expect(apercuDeLArrivee({ adresse: 'https://x.fr/\u202Egpj.exe' }).adresse).toBe('https://x.fr/gpj.exe')
   })
 })
 

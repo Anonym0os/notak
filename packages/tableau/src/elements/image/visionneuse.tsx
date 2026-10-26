@@ -4,6 +4,7 @@ import type { Element, Id, Image } from '../../coeur/tableau'
 import { Icone, type NomIcone } from '../../icones'
 import { t } from '../../langue'
 import type { ContexteToile } from '../types'
+import { ouvrirDehors } from '../fichier/ouverture'
 import { nomTelecharge } from '../fichier/telechargement'
 import { copieLocale, useProgressionEnvoi } from '../envois'
 import { aUneCarte } from './geometrie'
@@ -223,7 +224,7 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
         {envoi === null && plusieurs && outil('precedent', t('visionneuse.precedent'), () => aller(-1))}
         {envoi === null && plusieurs && outil('suivant', t('visionneuse.suivant'), () => aller(1))}
         {envoi === null && plusieurs && <span className="notak-visionneuse-sep" role="separator" />}
-        {envoi === null && outil('ouvrir', t('visionneuse.ouvrir'), () => adresse && window.open(adresse, '_blank', 'noopener,noreferrer'), !!adresse)}
+        {envoi === null && outil('ouvrir', t(contexte.services.ouvrirAilleurs ? 'visionneuse.ouvrirAilleurs' : 'visionneuse.ouvrir'), () => adresse && ouvrirDehors(contexte.services, adresse, nomTelecharge(c)), !!adresse)}
         {envoi === null &&
           (adresse ? (
             <a className="notak-visionneuse-outil" href={adresse} download={nomTelecharge(c)} aria-label={t('visionneuse.telecharger')} title={t('visionneuse.telecharger')} rel="noopener">

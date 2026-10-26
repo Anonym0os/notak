@@ -1,0 +1,58 @@
+# La coque de l'app de bureau (apps/bureau) sur macOS et Windows. Linux est déjà couvert par la tâche « bureau » de
+# ci.yml, qui tourne à chaque poussée : ici, seulement ce qui touche la coque, car chaque système a son code (la
+# navigation et les droits de la fenêtre, l'ouverture d'un fichier avec le système, le menu de macOS) et ses essais.
+# Aucun secret : rien ne se signe ni ne se publie ici (c'est publier-bureau.yml, sur une étiquette v*).
+name: App de bureau (macOS, Windows)
+
+on:
+  push:
+    paths:
+      - 'apps/bureau/**'
+      - 'apps/web/src/bureau.ts'
+      - '.github/workflows/bureau.yml'
+  pull_request:
+    paths:
+      - 'apps/bureau/**'
+      - 'apps/web/src/bureau.ts'
+      - '.github/workflows/bureau.yml'
+
+permissions:
+  contents: read
+
+# Une nouvelle poussée sur la même branche rend l'exécution en cours inutile.
+concurrency:
+  group: bureau-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coque:
+    name: La coque (${{ matrix.machine }})
+    runs-on: ${{ matrix.machine }}
+    # La première compilation de Rust, cache vide, est longue sous Windows.
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        machine: [macos-latest, windows-latest]
+    steps:
+      # Les actions sont épinglées à un commit, comme dans publier-bureau.yml, plutôt qu'à une étiquette qu'on pourrait déplacer.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.12
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            apps/bureau/src-tauri/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('apps/bureau/src-tauri/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
+      - run: bun install --frozen-lockfile
+      # La coque embarque l'application : il la faut construite pour compiler. (Le contrôle des hôtes que l'application
+      # nomme, `scripts/hotes.ts`, ne dépend pas du système : la tâche Linux de ci.yml le fait.)
+      - run: bun run build:bureau
+      - name: Compiler la coque et passer ses essais (navigation, droits)
+        run: cargo test --locked --manifest-path apps/bureau/src-tauri/Cargo.toml

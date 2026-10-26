@@ -32,6 +32,14 @@ export function numeroDuPartage(recherche: string): string | null {
 }
 
 /**
+ * D'où vient un partage : du système (le service worker l'a rangé après un `POST`, `?recu=`), ou de l'adresse seule
+ * (`?titre=&texte=&adresse=`), que n'importe quel lien peut fabriquer. Le second n'est posé qu'avec l'accord de la personne.
+ */
+export type Origine = 'systeme' | 'adresse'
+
+export const origineDuPartage = (recherche: string): Origine => (numeroDuPartage(recherche) ? 'systeme' : 'adresse')
+
+/**
  * Ce qu'on a partagé : le partage rangé par le service worker (texte et images), ou à défaut celui de l'adresse.
  * `null` : rien à poser.
  */
@@ -66,4 +74,29 @@ export async function oublierArrivee(recherche: string, stockage: Caches | undef
   for (const requete of await cache.keys()) {
     if (new URL(requete.url).pathname.startsWith(cleDe(id))) await cache.delete(requete)
   }
+}
+
+/** Ce que la page montre d'un partage avant de le poser : chaque champ en texte brut, sur une ligne et borné. */
+export interface ApercuArrivee {
+  titre?: string
+  texte?: string
+  adresse?: string
+}
+
+const LONGUEUR_TITRE = 160
+const LONGUEUR_EXTRAIT = 400
+const LONGUEUR_ADRESSE = 300
+// Les marques de sens d'écriture : posées dans une adresse, elles en réordonnent l'affichage et la font passer pour une autre.
+const MARQUES_DE_SENS = /[\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/g
+
+function court(valeur: string | undefined, max: number): string | undefined {
+  const ligne = valeur?.replace(MARQUES_DE_SENS, '').replace(/\s+/g, ' ').trim()
+  if (!ligne) return undefined
+  return ligne.length > max ? `${ligne.slice(0, max).trimEnd()}…` : ligne
+}
+
+/** L'aperçu d'un partage reçu par l'adresse : le titre, un extrait du texte, l'adresse, tels qu'ils seraient posés. */
+export function apercuDeLArrivee(a: Arrivee): ApercuArrivee {
+  const [titre, texte, adresse] = [court(a.titre, LONGUEUR_TITRE), court(a.texte, LONGUEUR_EXTRAIT), court(a.adresse, LONGUEUR_ADRESSE)]
+  return { ...(titre ? { titre } : {}), ...(texte ? { texte } : {}), ...(adresse ? { adresse } : {}) }
 }
