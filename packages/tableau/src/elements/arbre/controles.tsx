@@ -1,9 +1,9 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
-import { Interrupteur, LigneReglage, Separateur } from '../../communs'
+import { Interrupteur, LigneReglage, SelecteurCouleur, Separateur } from '../../communs'
 import { Flottant } from './Flottant'
-import { COLONNES_GRILLE, GRILLE_COULEURS, assemblerCouleur, decouperCouleur, degradeConique, estCouleur, normaliserHex } from './carte/couleurs'
+import { COLONNES_GRILLE, GRILLE_COULEURS, degradeConique } from './carte/couleurs'
 
 /**
  * Les contrôles du panneau de format, d'après les mesures de l'onglet « Map » de Xmind (docs/XMIND.md § 9) : une
@@ -175,122 +175,6 @@ export function Liste({
 
 /* ------------------------------------------------------------------ couleurs */
 
-/** Les rangées de couleurs d'un nuancier, sous la grille : celles du thème, celles qu'on a prises récemment. */
-function RangeeCouleurs({ titre, couleurs, valeur, choisir }: { titre: string; couleurs: readonly string[]; valeur: string | undefined; choisir(c: string): void }) {
-  if (couleurs.length === 0) return null
-  return (
-    <details open className="notak-arbre-reglages-pliant">
-      <summary>{titre}</summary>
-      <div className="notak-arbre-reglages-grille-couleurs" style={{ gridTemplateColumns: `repeat(${COLONNES_GRILLE}, 24px)` }}>
-        {couleurs.map((c, i) => (
-          <Case key={`${c}${i}`} couleur={c} actif={valeur?.toLowerCase() === c.toLowerCase()} choisir={choisir} />
-        ))}
-      </div>
-    </details>
-  )
-}
-
-function Case({ couleur, actif, choisir }: { couleur: string; actif: boolean; choisir(c: string): void }) {
-  return (
-    <button type="button" className="notak-arbre-reglages-case-couleur" aria-label={couleur} aria-pressed={actif} title={couleur} style={{ ['--c' as string]: couleur }} onClick={() => choisir(couleur)} />
-  )
-}
-
-/**
- * Le nuancier : la grille de 45 couleurs, le champ hexadécimal et l'opacité, le sélecteur natif, puis les couleurs du
- * thème et celles prises récemment. Une case émet tout de suite et ferme ; l'hexa et l'opacité émettent à Entrée ou en
- * quittant le champ ; le sélecteur natif, quand on le lâche (une émission à chaque mouvement noierait l'historique).
- */
-export function Nuancier({
-  valeur,
-  onChoisir,
-  fermer,
-  couleursTheme = [],
-  recentes = [],
-  reinitialiser,
-}: {
-  valeur: string | undefined
-  onChoisir(valeur: string): void
-  fermer(): void
-  couleursTheme?: readonly string[]
-  recentes?: readonly string[]
-  /** Un bouton « Couleur du thème » qui retire la couleur choisie. */
-  reinitialiser?: (() => void) | undefined
-}) {
-  const { hex, opacite } = valeur && estCouleur(valeur) ? decouperCouleur(valeur) : { hex: '#ffffff', opacite: 100 }
-  const [saisieHex, setSaisieHex] = useState(hex.slice(1))
-  const [saisieOpacite, setSaisieOpacite] = useState(String(opacite))
-  const natif = useRef<HTMLInputElement>(null)
-  useEffect(() => {
-    setSaisieHex(hex.slice(1))
-    setSaisieOpacite(String(opacite))
-  }, [hex, opacite])
-  const opaciteSaisie = () => {
-    const n = Number.parseFloat(saisieOpacite)
-    return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 100
-  }
-  const valider = () => onChoisir(assemblerCouleur(normaliserHex(saisieHex), opaciteSaisie()))
-  // Le sélecteur natif émet un `input` à chaque mouvement : on n'écrit dans la carte qu'à son `change`.
-  useEffect(() => {
-    const n = natif.current
-    if (!n) return
-    const fin = () => onChoisir(assemblerCouleur(n.value, opaciteSaisie()))
-    n.addEventListener('change', fin)
-    return () => n.removeEventListener('change', fin)
-  })
-  const choisir = (c: string) => {
-    onChoisir(c)
-    fermer()
-  }
-  const surEntree = (e: React.KeyboardEvent) => {
-    if (e.key !== 'Enter') return
-    e.preventDefault()
-    valider()
-  }
-  return (
-    <div className="notak-arbre-reglages-nuancier">
-      <div className="notak-arbre-reglages-grille-couleurs" style={{ gridTemplateColumns: `repeat(${COLONNES_GRILLE}, 24px)` }}>
-        {GRILLE_COULEURS.map((c) => (
-          <Case key={c} couleur={c} actif={!!valeur && decouperCouleur(valeur).hex === c && opacite === 100} choisir={choisir} />
-        ))}
-      </div>
-      <div className="notak-arbre-reglages-saisie-couleur">
-        <span className="notak-arbre-reglages-diese">#</span>
-        <input type="text" className="notak-arbre-reglages-hex" value={saisieHex} maxLength={7} spellCheck={false} aria-label={t('arbre.carte.hex')} onChange={(e) => setSaisieHex(e.target.value)} onBlur={valider} onKeyDown={surEntree} />
-        <span className="notak-arbre-reglages-filet-vertical" />
-        <input
-          type="number"
-          className="notak-arbre-reglages-opacite"
-          min={0}
-          max={100}
-          value={saisieOpacite}
-          aria-label={t('arbre.carte.opacite')}
-          onChange={(e) => setSaisieOpacite(e.target.value)}
-          onBlur={valider}
-          onKeyDown={surEntree}
-        />
-        <span className="notak-arbre-reglages-pourcent">%</span>
-        <span className="notak-arbre-reglages-apercu-couleur" style={{ ['--c' as string]: assemblerCouleur(normaliserHex(saisieHex), opaciteSaisie()) }} />
-        <input ref={natif} type="color" className="notak-arbre-reglages-natif" value={normaliserHex(saisieHex)} aria-label={t('arbre.carte.selecteurNatif')} onChange={(e) => setSaisieHex(e.target.value.slice(1))} />
-      </div>
-      <RangeeCouleurs titre={t('arbre.carte.themeActuel')} couleurs={couleursTheme} valeur={valeur} choisir={choisir} />
-      <RangeeCouleurs titre={t('arbre.carte.recemment')} couleurs={recentes} valeur={valeur} choisir={choisir} />
-      {reinitialiser && (
-        <button
-          type="button"
-          className="notak-arbre-reglages-lien"
-          onClick={() => {
-            reinitialiser()
-            fermer()
-          }}
-        >
-          {t('arbre.carte.couleurTheme')}
-        </button>
-      )}
-    </div>
-  )
-}
-
 /**
  * La pastille de couleur : 72 × 24 px, remplie de la couleur ; sans valeur, un trait en diagonale la barre (ou, si
  * `defaut` dit ce qu'on voit en attendant, cette couleur). Un clic ouvre le nuancier.
@@ -329,7 +213,16 @@ export function PastilleCouleur({
         onClick={o.basculer}
       />
       <Popover ancre={o.ancre} ouvert={o.ouvert} fermer={o.fermer} largeur={268} hauteur={400} className="notak-arbre-reglages-popover-couleur" etiquette={libelle}>
-        <Nuancier valeur={valeur} onChoisir={onChoisir} fermer={o.fermer} couleursTheme={couleursTheme ?? []} recentes={recentes ?? []} reinitialiser={valeur ? reinitialiser : undefined} />
+        <SelecteurCouleur
+          valeur={valeur}
+          palette={GRILLE_COULEURS}
+          colonnes={COLONNES_GRILLE}
+          theme={couleursTheme ?? []}
+          recentes={recentes ?? []}
+          retour={valeur && reinitialiser ? t('arbre.carte.couleurTheme') : undefined}
+          fermer={o.fermer}
+          choisir={(c) => (c === undefined ? reinitialiser?.() : onChoisir(c))}
+        />
       </Popover>
     </>
   )

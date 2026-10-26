@@ -691,43 +691,6 @@
   color: var(--notak-page-pale);
 }
 
-.notak-page-emojis {
-  position: absolute;
-  z-index: 10;
-  top: 100%;
-  left: 0;
-  width: 360px;
-  padding: 8px;
-  border-radius: 10px;
-  background: var(--notak-page-fond);
-  box-shadow: 0 0 0 1px var(--notak-page-trait), 0 14px 28px -6px rgb(0 0 0 / 0.2), 0 2px 4px -1px rgb(0 0 0 / 0.12);
-}
-
-.notak-page-entete:not([data-couverture]) .notak-page-emojis {
-  top: 170px;
-}
-
-.notak-page-emojis-grille {
-  display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 2px;
-  margin-bottom: 4px;
-}
-
-.notak-page-emojis-grille button {
-  height: 28px;
-  padding: 0;
-  border: 0;
-  border-radius: 6px;
-  background: none;
-  font-size: 20px;
-  cursor: pointer;
-}
-
-.notak-page-emojis-grille button:hover {
-  background: var(--notak-page-survol);
-}
-
 /* « ••• » : la police en trois tuiles, puis deux interrupteurs. */
 .notak-page-options-menu {
   top: calc(100% + 8px);

@@ -3,6 +3,7 @@ import type { Id, PageDocument } from '../../coeur/tableau'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
 import { Interrupteur } from '../../communs'
+import { FenetreEmojis } from '../decor/FenetreEmojis'
 import { useMenu } from '../../menuUnique'
 import type { DepotFichiers } from '../types'
 
@@ -31,34 +32,6 @@ export const attributsPage = (p: PageDocument) => ({
   'data-petit': p.petitTexte || undefined,
   'data-large': p.pleineLargeur || undefined,
 })
-
-/** Les émojis qu'on propose pour l'icône. */
-export const EMOJIS = [
-  '📄', '📝', '📌', '📎', '📚', '📖', '🗂️', '📁', '📅', '🗓️', '✅', '☑️',
-  '💡', '⭐', '🔥', '🎯', '🚀', '⚡', '🧭', '🔑', '🔒', '🛠️', '⚙️', '🧪',
-  '🏠', '🏢', '🌍', '✈️', '🚗', '🍽️', '☕', '🎨', '🎵', '🎬', '📷', '🎮',
-  '❤️', '😀', '🤝', '👋', '👀', '🧠', '🌱', '🌸', '☀️', '🌙', '❄️', '🌊',
-]
-
-/** Le choix d'une icône : une grille d'émojis, et « Retirer ». */
-function ChoixIcone({ choisir, retirer }: { choisir(e: string): void; retirer?: () => void }) {
-  return (
-    <div className="notak-page-emojis" role="menu" aria-label={t('page.icone')}>
-      <div className="notak-page-emojis-grille">
-        {EMOJIS.map((e) => (
-          <button key={e} type="button" role="menuitem" onClick={() => choisir(e)}>
-            {e}
-          </button>
-        ))}
-      </div>
-      {retirer && (
-        <button type="button" className="notak-page-lien" onClick={retirer}>
-          {t('page.retirer')}
-        </button>
-      )}
-    </div>
-  )
-}
 
 interface PropsEntete {
   page: PageDocument
@@ -163,8 +136,10 @@ export function EntetePage({ page, changer, fichiers, lectureSeule, children }: 
           </div>
         )}
         {children}
-        {emojis && (
-          <ChoixIcone
+        {emojis && ancre.current && (
+          <FenetreEmojis
+            ancre={ancre.current}
+            fermer={() => setEmojis(false)}
             choisir={(e) => {
               changer({ ...page, icone: e })
               setEmojis(false)

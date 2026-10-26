@@ -604,19 +604,6 @@
   outline-offset: -1px;
 }
 
-/* Le menu d'insertion : huit émojis par ligne. */
-.notak-note-emojis {
-  display: grid;
-  grid-template-columns: repeat(8, 28px);
-  gap: 2px;
-}
-
-.notak-note-emojis button {
-  min-width: 28px !important;
-  padding: 0 !important;
-  font-size: 16px !important;
-}
-
 /* Le séparateur. */
 .notak-texte hr {
   margin: 10px 0 19px;
