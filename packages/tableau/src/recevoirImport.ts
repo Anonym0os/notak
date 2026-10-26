@@ -1,6 +1,6 @@
 import { blocsDepuisMarkdown } from './blocs/collageMarkdown'
 import type { Point } from './coeur/geometrie'
-import type { Element, Operation } from './coeur/tableau'
+import { type Element, type Operation, texteBrut } from './coeur/tableau'
 import { nouveauDocument } from './elements/document/texte'
 import { marquerDepot, tousLesRecepteurs } from './elements/registre'
 import type { ContexteToile } from './elements/types'
@@ -19,13 +19,18 @@ export const EST_UN_TEXTE = /\.(md|markdown|txt|text)$/i
 export const EVENEMENT_IMPORT = 'notak:importer'
 export type DetailImport = { fichiers: File[] }
 
-/** Un texte en document : son nom sans l'extension pour titre, son Markdown en blocs. */
+/**
+ * Un texte en document, son Markdown en blocs. Comme dans Notion, un titre de premier niveau en tête devient le titre
+ * du document ; sinon, c'est le nom du fichier sans son extension.
+ */
 export async function documentDuTexte(f: File, ou: Point): Promise<Element> {
   const blocs = blocsDepuisMarkdown(await f.text())
+  const tete = blocs[0]?.type === 'heading' && blocs[0].attrs?.level === 1 ? texteBrut(blocs[0]).trim() : ''
+  const corps = tete ? blocs.slice(1) : blocs
   const e = nouveauDocument(Math.round(ou.x), Math.round(ou.y))
   return {
     ...e,
-    contenu: { ...e.contenu, titre: f.name.replace(/\.[^.]+$/, ''), texte: { type: 'doc', content: blocs.length ? blocs : [{ type: 'paragraph' }] } },
+    contenu: { ...e.contenu, titre: tete || f.name.replace(/\.[^.]+$/, ''), texte: { type: 'doc', content: corps.length ? corps : [{ type: 'paragraph' }] } },
   }
 }
 

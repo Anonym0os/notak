@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import { File as FichierNode } from 'node:buffer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import './elements'
 import { creerEspace } from './coeur/espace'
@@ -22,8 +21,8 @@ function depot() {
   return { d, finir }
 }
 
-// Le `File` de jsdom ne sait pas se lire (`text()`) : celui de Node, comme celui des navigateurs, le sait.
-const File = FichierNode as unknown as typeof globalThis.File
+/** Un fichier qui se lit (`text()`), comme dans les navigateurs ; celui de jsdom ne le sait pas. */
+const fichier = (contenu: string, nom: string, type = '') => Object.assign(new File([contenu], nom, { type }), { text: async () => contenu })
 
 const accueil = (elements: Element[] = []) => creerEspace({ racine: 'accueil', tableaux: { accueil: { titre: 'Accueil', elements } } })
 
@@ -34,23 +33,25 @@ describe('importer des fichiers sur une toile fermée', () => {
   })
   afterEach(() => vi.unstubAllGlobals())
 
-  it('un texte devient un document titré du nom du fichier, son Markdown en blocs', async () => {
+  it('un texte devient un document, son Markdown en blocs', async () => {
     const espace = accueil()
-    const md = new File(['# Plan\n\n- un\n- deux'], 'Notes de réunion.md', { type: 'text/markdown' })
+    const md = fichier('# Plan\n\n- un\n- deux', 'Notes de réunion.md', 'text/markdown')
     const [doc] = await importerSurLaToile(espace, 'accueil', [md], {})
     expect(doc!.contenu.type).toBe('document')
     if (doc!.contenu.type !== 'document') return
-    expect(doc!.contenu.titre).toBe('Notes de réunion')
-    expect(doc!.contenu.texte.content?.[0]?.type).toBe('heading')
-    expect(doc!.contenu.texte.content).toHaveLength(3)
+    // Le titre en tête devient celui du document, comme dans Notion.
+    expect(doc!.contenu.titre).toBe('Plan')
+    expect(doc!.contenu.texte.content).toHaveLength(2)
     expect(surLeTableau(espace.tableau('accueil')!).map((e) => e.id)).toEqual([doc!.id])
   })
 
   it('se pose à la suite de ce que la toile porte, chaque fichier à droite du précédent', async () => {
     const espace = accueil([{ id: 'note', x: 0, y: 3, largeur: 20, contenu: { type: 'note', texte: { type: 'doc' } } } as unknown as Element])
     const { d } = depot()
-    const poses = await importerSurLaToile(espace, 'accueil', [new File(['a'], 'a.txt'), new File(['%PDF'], 'devis.pdf', { type: 'application/pdf' })], { fichiers: d })
+    const poses = await importerSurLaToile(espace, 'accueil', [fichier('a', 'a.txt'), fichier('%PDF', 'devis.pdf', 'application/pdf')], { fichiers: d })
     expect(poses.map((e) => e.contenu.type)).toEqual(['document', 'fichier'])
+    // Sans titre en tête, le document prend le nom du fichier.
+    expect((poses[0]!.contenu as { titre: string }).titre).toBe('a')
     expect(poses[0]!.x).toBeGreaterThanOrEqual(20)
     expect(poses[1]!.x).toBeGreaterThan(poses[0]!.x)
     // Sur la même rangée que la note, en haut.
@@ -60,7 +61,7 @@ describe('importer des fichiers sur une toile fermée', () => {
   it('un fichier joint prend son vrai fichier à la fin de l’envoi, sans toile ouverte pour le faire', async () => {
     const espace = accueil()
     const { d, finir } = depot()
-    const [f] = await importerSurLaToile(espace, 'accueil', [new File(['%PDF'], 'devis.pdf', { type: 'application/pdf' })], { fichiers: d })
+    const [f] = await importerSurLaToile(espace, 'accueil', [fichier('%PDF', 'devis.pdf', 'application/pdf')], { fichiers: d })
     const lu = () => espace.tableau('accueil')!.elements.find((e) => e.id === f!.id)!.contenu as { fichier: string }
     expect(lu().fichier).toMatch(/^envoi-/)
     finir[0]!('vrai-id')
@@ -71,7 +72,7 @@ describe('importer des fichiers sur une toile fermée', () => {
   it('rien de lisible, rien de posé', async () => {
     const espace = accueil()
     // Sans dépôt de fichiers, un PDF ne peut aller nulle part.
-    expect(await importerSurLaToile(espace, 'accueil', [new File(['%PDF'], 'devis.pdf', { type: 'application/pdf' })], {})).toEqual([])
+    expect(await importerSurLaToile(espace, 'accueil', [fichier('%PDF', 'devis.pdf', 'application/pdf')], {})).toEqual([])
     expect(espace.tableau('accueil')!.elements).toEqual([])
   })
 })
