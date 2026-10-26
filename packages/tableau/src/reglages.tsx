@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Bouton } from './communs'
 import { type ChoixLangue, definirLangue, t } from './langue'
 import { PastillePersonne } from './pastille'
 import type { Habillages } from './habillage/appliquer'
@@ -175,13 +176,13 @@ export function ChoixPhoto({ compte }: { compte: ServiceCompte }) {
     <div className="notak-rg-controle">
       <div className="notak-rg-rang">
         <PastillePersonne className="notak-reglages-avatar" nom={compte.nom} couleur={compte.couleur} adresse={compte.photo ?? undefined} />
-        <button type="button" className="notak-rg-bouton" disabled={occupe} onClick={() => champ.current?.click()}>
+        <Bouton variante="second" disabled={occupe} onClick={() => champ.current?.click()}>
           {compte.photo ? t('reglages.compte.photoChanger') : t('reglages.compte.photoChoisir')}
-        </button>
+        </Bouton>
         {compte.photo && (
-          <button type="button" className="notak-rg-bouton" disabled={occupe} onClick={() => void faire(() => compte.changerPhoto(null))}>
+          <Bouton variante="second" disabled={occupe} onClick={() => void faire(() => compte.changerPhoto(null))}>
             {t('reglages.compte.photoRetirer')}
-          </button>
+          </Bouton>
         )}
         <input ref={champ} type="file" accept={TYPES_PHOTO.join(',')} hidden aria-label={t('reglages.compte.photoChamp')} onChange={(e) => choisirPhoto(e.target.files?.[0])} />
       </div>
@@ -263,9 +264,9 @@ export function ChoixHabillage({ habillages, changer }: { habillages: Habillages
         <Pilule libelle={t('reglages.habillage')} options={options} actuelle={actuel} choisir={(id) => changer({ habillage: id as string })} desactive={impose} />
         {!impose && (
           <>
-            <button type="button" className="notak-rg-bouton" onClick={() => champ.current?.click()}>
+            <Bouton variante="second" onClick={() => champ.current?.click()}>
               {t('reglages.habillage.importer')}
-            </button>
+            </Bouton>
             <input ref={champ} type="file" accept=".json,application/json" hidden aria-label={t('reglages.habillage.champ')} onChange={(e) => void choisirFichier(e.target.files?.[0])} />
           </>
         )}

@@ -430,29 +430,6 @@
   gap: 8px;
 }
 
-.notak-rg-bouton {
-  height: 36px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 18px;
-  background: transparent;
-  box-shadow: var(--rg-bord);
-  color: var(--rg-texte);
-  font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.notak-rg-bouton:hover:not(:disabled) {
-  background: var(--rg-survol);
-}
-
-.notak-rg-bouton:disabled {
-  cursor: default;
-  opacity: 0.55;
-}
-
 .notak-rg-retirer {
   padding: 0;
   border: 0;

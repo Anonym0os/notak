@@ -5,7 +5,8 @@ import { t } from '../langue'
 import { Bouton, BoutonIcone } from './Bouton'
 import './dialogue.css'
 
-const FOCALISABLES = 'button:not(:disabled), input:not(:disabled):not([hidden]):not([type=hidden]), select:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])'
+const FOCALISABLES =
+  'button:not(:disabled), input:not(:disabled):not([hidden]):not([type=hidden]), select:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])'
 
 interface PropsDialogue {
   /** Le titre, en tête de la boîte. Sans lui (`etiquette` seule), le contenu dessine tout. */
@@ -47,7 +48,23 @@ interface PropsDialogue {
  * Échap et un clic sur le voile le ferment (`fermer`), le focus tourne dans la boîte et revient, à la fermeture, à ce
  * qui l'a ouverte. Le contenu se monte une fois la boîte ouverte, si bien qu'un `autoFocus` y prend le focus.
  */
-export function Dialogue({ titre, etiquette, fermer, occupe, echap, retour, croix = true, actions, nu, largeur, voile, role = 'dialog', hote, className, children }: PropsDialogue) {
+export function Dialogue({
+  titre,
+  etiquette,
+  fermer,
+  occupe,
+  echap,
+  retour,
+  croix = true,
+  actions,
+  nu,
+  largeur,
+  voile,
+  role = 'dialog',
+  hote,
+  className,
+  children,
+}: PropsDialogue) {
   const id = useId()
   const dialogue = useRef<HTMLDialogElement>(null)
   const [ouvert, setOuvert] = useState(false)
@@ -138,7 +155,10 @@ export function Dialogue({ titre, etiquette, fermer, occupe, echap, retour, croi
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
     >
-      <div className={['notak-dialogue', nu && 'notak-dialogue-nu', className].filter(Boolean).join(' ')} style={largeur === undefined ? undefined : ({ '--notak-dialogue-largeur': typeof largeur === 'number' ? `${largeur}px` : largeur } as CSSProperties)}>
+      <div
+        className={['notak-dialogue', nu && 'notak-dialogue-nu', className].filter(Boolean).join(' ')}
+        style={largeur === undefined ? undefined : ({ '--notak-dialogue-largeur': typeof largeur === 'number' ? `${largeur}px` : largeur } as CSSProperties)}
+      >
         {ouvert && (
           <>
             {titre && (

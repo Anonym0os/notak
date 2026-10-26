@@ -1,4 +1,4 @@
-import { Case } from '@notak/tableau'
+import { Case, Confirmation } from '@notak/tableau'
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { t } from './langue'
 import { PageApp } from './PageApp'
@@ -150,6 +150,7 @@ function GestionEspace({ espace, agir, occupe, apresDepart }: { espace: EspaceLu
   const [invitations, setInvitations] = useState<InvitationEspace[]>([])
   const [roles, setRoles] = useState<RoleCompose[]>([])
   const [version, setVersion] = useState(0)
+  const [confirmer, setConfirmer] = useState(false)
   const relire = () => setVersion((v) => v + 1)
 
   useEffect(() => {
@@ -219,14 +220,7 @@ function GestionEspace({ espace, agir, occupe, apresDepart }: { espace: EspaceLu
 
       <section className="app-carte">
         {espace.role.split(',').includes('owner') ? (
-          <button
-            type="button"
-            className="bouton bouton-danger"
-            disabled={occupe}
-            onClick={() => {
-              if (confirm(t('espaces.supprimerConfirme', { nom: espace.nom }))) void agir(() => supprimerEspace(espace.id)).then(apresDepart)
-            }}
-          >
+          <button type="button" className="bouton bouton-danger" disabled={occupe} onClick={() => setConfirmer(true)}>
             {t('espaces.supprimer')}
           </button>
         ) : (
@@ -235,6 +229,17 @@ function GestionEspace({ espace, agir, occupe, apresDepart }: { espace: EspaceLu
           </button>
         )}
       </section>
+      {confirmer && (
+        <Confirmation
+          titre={t('espaces.supprimerTitre', { nom: espace.nom })}
+          texte={t('espaces.supprimerTexte')}
+          oui={t('espaces.supprimer')}
+          repondre={(oui) => {
+            setConfirmer(false)
+            if (oui) void agir(() => supprimerEspace(espace.id)).then(apresDepart)
+          }}
+        />
+      )}
     </>
   )
 }
