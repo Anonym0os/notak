@@ -102,7 +102,15 @@ export function DeplacerVers({
   )
 }
 
-/** Une question avant un geste qui ouvre à d'autres ce qu'on range : la confirmation commune, sans rouge (rien n'est perdu). */
-export function Confirmation({ titre, texte, oui, repondre }: { titre: string; texte: string; oui: string; repondre(oui: boolean): void }) {
-  return <ConfirmationCommune titre={titre} texte={texte} oui={oui} danger={false} repondre={repondre} />
+/** Une question avant un geste qui change qui voit ce qu'on range : la confirmation commune, sans rouge (rien n'est perdu), une ligne par changement. */
+export function Confirmation({ titre, lignes, oui, repondre }: { titre: string; lignes: readonly string[]; oui: string; repondre(oui: boolean): void }) {
+  return (
+    <ConfirmationCommune titre={titre} oui={oui} danger={false} repondre={repondre}>
+      <ul className="biblio-confirmation-lignes">
+        {lignes.map((l) => (
+          <li key={l}>{l}</li>
+        ))}
+      </ul>
+    </ConfirmationCommune>
+  )
 }

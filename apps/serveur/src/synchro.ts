@@ -17,19 +17,18 @@ const PREFIXE = 'tableau:'
 
 /** Ce que la synchro retient d'une connexion : qui écrit, avec quels droits, et s'il faut contrôler ses mises à jour. */
 interface ContexteConnexion {
-  utilisateur?: Acteur
-  lien?: string
+  utilisateur: Acteur
   role: Role
   droits: DroitsTableau
-  /** L'identifiant qui signe ses messages : un compte, ou `lien:<jeton>`. */
+  /** L'identifiant qui signe ses messages : le compte. */
   auteur: string
   /** Commentateur, ou tableau dont des éléments ont leurs propres droits : chaque mise à jour se vérifie. */
   controle: boolean
 }
 
-function contexteDe(droits: DroitsTableau, auteur: string, sujet: { utilisateur: Acteur } | { lien: string }): ContexteConnexion {
+function contexteDe(droits: DroitsTableau, utilisateur: Acteur): ContexteConnexion {
   const controle = droits.role === 'commentaire' || Object.keys(droits.elements).length > 0
-  return { ...sujet, role: droits.role, droits, auteur, controle }
+  return { utilisateur, role: droits.role, droits, auteur: utilisateur.id, controle }
 }
 
 export function idDuDocument(nom: string): string | null {
@@ -40,7 +39,17 @@ export function nomDuDocument(tableau: string): string {
   return PREFIXE + tableau
 }
 
-export function creerHocuspocus(base: Base, auth: Auth, autorisation: Autorisation, maintenant: () => number = Date.now): Hocuspocus {
+/**
+ * `expirer` : retire les accès arrivés à échéance et prévient OpenFGA (`echeances.ts`) ; appelé avant de lire les
+ * droits d'une connexion, quand une échéance est passée.
+ */
+export function creerHocuspocus(
+  base: Base,
+  auth: Auth,
+  autorisation: Autorisation,
+  maintenant: () => number = Date.now,
+  expirer?: () => Promise<unknown>,
+): Hocuspocus {
   const activite = suivreActivite(base, maintenant)
   return new Hocuspocus({
     extensions: [
@@ -70,27 +79,22 @@ export function creerHocuspocus(base: Base, auth: Auth, autorisation: Autorisati
     async onChange({ documentName, document, context }) {
       activite.noter(idDuDocument(documentName), document, (context as { utilisateur?: Acteur } | undefined)?.utilisateur)
     },
-    async onAuthenticate({ documentName, requestHeaders, connectionConfig, token }) {
+    async onAuthenticate({ documentName, requestHeaders, connectionConfig }) {
       const id = idDuDocument(documentName)
       if (!id) throw new Error('refusé')
       // La session se lit sur les en-têtes de la requête de mise à niveau : le cookie y voyage comme pour l'API.
+      // Sans compte, rien ne se synchronise : un visiteur passe par son lien (`/api/public/*`), qui ne lui montre que
+      // ce qu'il doit voir, alors que le document Yjs porte tout (corbeille, non triés, fils, présence des autres).
       const utilisateur = await utilisateurDeSession(auth, base, requestHeaders)
-      if (utilisateur) {
-        const droits = await autorisation.droitsSur(`user:${utilisateur.id}`, id)
-        if (!droits) throw new Error('refusé')
-        // Un tableau protégé ne se synchronise qu'une fois son mot de passe donné.
-        if (verrouPar(base, utilisateur.id, id) !== null) throw new Error('verrouillé')
-        if (droits.role === 'lecture') connectionConfig.readOnly = true
-        return contexteDe(droits, utilisateur.id, { utilisateur: { id: utilisateur.id, nom: utilisateur.nom, couleur: utilisateur.couleur } })
-      }
-      // Sans compte, par un lien public : son jeton arrive en `token`. Un lien protégé par un mot de passe ne se
-      // synchronise pas (son accès vit dans un cookie limité aux adresses du lien).
-      const jeton = typeof token === 'string' && token.startsWith('lien:') ? token.slice(5) : null
-      if (!jeton || base.tableauDuJeton(jeton) !== id || base.motDePasse(id, 'public') !== null) throw new Error('refusé')
-      const droits = await autorisation.droitsSur(`lien:${jeton}`, id)
+      if (!utilisateur) throw new Error('refusé')
+      // Un accès arrivé à échéance tombe avant qu'on le lise.
+      if (expirer && base.echeanceAtteinte(maintenant())) await expirer()
+      const droits = await autorisation.droitsSur(`user:${utilisateur.id}`, id)
       if (!droits) throw new Error('refusé')
+      // Un tableau protégé ne se synchronise qu'une fois son mot de passe donné.
+      if (verrouPar(base, utilisateur.id, id) !== null) throw new Error('verrouillé')
       if (droits.role === 'lecture') connectionConfig.readOnly = true
-      return contexteDe(droits, `lien:${jeton}`, { lien: jeton })
+      return contexteDe(droits, { id: utilisateur.id, nom: utilisateur.nom, couleur: utilisateur.couleur })
     },
     // Ce qu'une connexion contrôlée envoie passe élément par élément : appliqué, puis annulé s'il n'est pas permis.
     // Hocuspocus réapplique ensuite le même message, ce qui ne change plus rien.

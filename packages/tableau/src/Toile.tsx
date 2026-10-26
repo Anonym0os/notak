@@ -3195,7 +3195,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           {...(toutLeTableau.id ? { ici: toutLeTableau.id } : {})}
         />
       )}
-      {lectureSeule && !services.presentation && <div className="notak-lecture">{t('toile.lectureSeule')}</div>}
+      {/* Qui commente n'est pas en lecture seule : il écrit ses fils, et rien d'autre. */}
+      {lectureSeule && !services.presentation && (
+        <div className="notak-lecture">{t(aFiltrer(services.droits) && peutCommenter(services) ? 'toile.commentaireSeul' : 'toile.lectureSeule')}</div>
+      )}
       <PointeursBord cibles={ciblesBord} camera={camera} vue={vue} aller={(ou) => lancerAnimation(cam.centree(ou, camera.echelle, vue))} />
       <PastilleZoom echelle={camera.echelle} remettre={remettreA100} />
       {!services.presentation && (

@@ -103,7 +103,11 @@ describe('de bout en bout, par la synchro', () => {
       const ana = await compte('ana')
       const bob = await compte('bob')
       expect((await post('/api/tableaux', { id: 'tableau-controle', titre: 'Revue' }, ana)).status).toBe(201)
-      expect((await post('/api/tableaux/tableau-controle/partage', { email: 'bob@exemple.fr', role: 'commentaire' }, ana)).status).toBe(200)
+      const partage = await post('/api/tableaux/tableau-controle/partage', { email: 'bob@exemple.fr', role: 'commentaire' }, ana)
+      expect(partage.status).toBe(200)
+      // Sans courriel, l'adresse de Bob n'est pas prouvée : il entre par le lien de l'invitation.
+      const { jeton } = (await partage.json()) as { jeton: string }
+      expect((await post(`/api/invitations/${jeton}/accepter`, {}, bob)).status).toBe(200)
       const moiBob = (await (await fetch(`${origine}/api/moi`, { headers: { cookie: bob } })).json()) as { id: string }
 
       const ouvrir = (cookie: string) =>

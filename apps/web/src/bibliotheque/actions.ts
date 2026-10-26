@@ -9,7 +9,7 @@ import {
   rangerDansNeuve,
   renommerChose,
 } from '@notak/tableau'
-import type { EntreeBibliotheque } from '../api'
+import type { BilanRangement, EntreeBibliotheque } from '../api'
 import { t, tn } from '../langue'
 import type { Correctif } from './correctifs'
 import { cleDe, porteuseDe } from './selection'
@@ -26,7 +26,7 @@ export type EspaceRangement = Pick<EspaceNavigable, 'racine' | 'magasin' | 'tabl
 
 export interface Outils {
   espace: EspaceRangement
-  rangerToile(tableau: string, parent: string, options?: { essai?: boolean; siPersonne?: boolean }): Promise<{ nouveaux: number; fait: boolean }>
+  rangerToile(tableau: string, parent: string, options?: { essai?: boolean; siPersonne?: boolean }): Promise<BilanRangement & { fait: boolean }>
   definirFavori(tableau: string, favori: boolean): Promise<void>
 }
 
@@ -51,22 +51,34 @@ async function placesDe(espace: EspaceRangement, entrees: readonly EntreeBibliot
 
 const rien = (): Resultat => ({ texte: t('biblio.annonce.rien'), correctifs: [] })
 
+const CHAMPS_BILAN = ['nouveaux', 'perdus', 'permanents', 'liensOuverts', 'liensEteints'] as const
+
 /**
- * Déplace ces entrées dans la toile `vers`. Ranger une toile chez d'autres leur ouvre ce qu'elle contient : le serveur
- * compte d'abord qui y gagnerait l'accès, et `confirmer` le demande. Rend `null` si l'on renonce.
+ * Ce que change le rangement de plusieurs toiles : pour chaque ligne, le plus grand nombre d'une toile (les mêmes
+ * personnes reçoivent souvent plusieurs toiles d'un même dossier ; les additionner les compterait plusieurs fois).
+ */
+export function bilanDe(bilans: readonly BilanRangement[]): BilanRangement {
+  return Object.fromEntries(CHAMPS_BILAN.map((c) => [c, Math.max(0, ...bilans.map((b) => b[c]))])) as unknown as BilanRangement
+}
+export const changeQuelqueChose = (b: BilanRangement) => CHAMPS_BILAN.some((c) => b[c] > 0)
+
+/**
+ * Déplace ces entrées dans la toile `vers`. Ranger une toile ailleurs change qui voit ce qu'elle contient : le serveur
+ * fait d'abord le bilan (qui y gagne ou y perd l'accès, les accès qui deviennent permanents, les liens de visiteurs
+ * qui s'ouvrent ou s'éteignent), et `confirmer` le demande. Rend `null` si l'on renonce.
  */
 export async function deplacerEntrees(
   o: Outils,
   entrees: readonly EntreeBibliotheque[],
   vers: { id: string; titre: string },
-  confirmer: (nouveaux: number) => Promise<boolean>,
+  confirmer: (bilan: BilanRangement) => Promise<boolean>,
 ): Promise<Resultat | null> {
   const mobiles = entrees.filter((e) => porteuseDe(e) !== vers.id && !(e.element === null && e.tableau === vers.id))
   if (mobiles.length === 0) return rien()
   const toiles = mobiles.filter((e) => e.element === null)
   const essais = await Promise.all(toiles.map((e) => o.rangerToile(e.tableau, vers.id, { essai: true })))
-  const nouveaux = Math.max(0, ...essais.map((x) => x.nouveaux))
-  if (nouveaux > 0 && !(await confirmer(nouveaux))) return null
+  const bilan = bilanDe(essais)
+  if (changeQuelqueChose(bilan) && !(await confirmer(bilan))) return null
   const places = await placesDe(o.espace, mobiles, [vers.id])
   const voulues = mobiles.flatMap((e, i) => (places[i] ? [{ e, place: places[i]! }] : []))
   const d = deplacer(
@@ -104,11 +116,12 @@ export async function rangerDansUneNeuve(
   o: Outils,
   entrees: readonly EntreeBibliotheque[],
   ou: { id: string; titre: string },
-  confirmer: (nouveaux: number) => Promise<boolean>,
+  confirmer: (bilan: BilanRangement) => Promise<boolean>,
 ): Promise<(Resultat & { toile: string }) | null> {
   const toiles = entrees.filter((e) => e.element === null)
   const essais = await Promise.all(toiles.filter((e) => e.dans !== ou.id).map((e) => o.rangerToile(e.tableau, ou.id, { essai: true })))
-  if (Math.max(0, ...essais.map((x) => x.nouveaux)) > 0 && !(await confirmer(Math.max(...essais.map((x) => x.nouveaux))))) return null
+  const bilan = bilanDe(essais)
+  if (changeQuelqueChose(bilan) && !(await confirmer(bilan))) return null
   const places = await placesDe(o.espace, entrees, [ou.id])
   const voulues = entrees.flatMap((e, i) => (places[i] ? [{ e, place: places[i]! }] : []))
   const titre = t('tableau.nouveau')

@@ -24,7 +24,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { type EntreeBibliotheque, definirFavori as definirFavoriApi, lireBibliotheque, rangerToile as rangerToileApi } from './api'
+import { type BilanRangement, type EntreeBibliotheque, definirFavori as definirFavoriApi, lireBibliotheque, rangerToile as rangerToileApi } from './api'
 import {
   type EspaceRangement,
   type Outils,
@@ -192,7 +192,7 @@ type EspaceBibliotheque = EspaceRangement
 type Fenetre =
   | { type: 'deplacer'; cles: string[] }
   | { type: 'partage'; tableau: string }
-  | { type: 'confirmer'; titre: string; texte: string; repondre(oui: boolean): void }
+  | { type: 'confirmer'; titre: string; lignes: string[]; repondre(oui: boolean): void }
 
 /** Ce qu'on renomme sur place : une tuile, ou le titre d'un dossier (la toile qu'il regroupe). */
 type Renommage = { cle: string } | { dossier: string }
@@ -365,12 +365,23 @@ export function PageBibliotheque({
       return null
     }
   }
-  const confirmerOuverture = (titre: string, vers: string) => (nouveaux: number) =>
+  /** Ce que dit la question avant un rangement qui change qui voit quoi : une ligne par changement. */
+  const lignesDuBilan = (b: BilanRangement, vers: string) => {
+    const toile = titreToile(vers)
+    return [
+      b.nouveaux > 0 && tn('biblio.confirmer.nouveaux', b.nouveaux, { toile }),
+      b.perdus > 0 && tn('biblio.confirmer.perdus', b.perdus),
+      b.permanents > 0 && tn('biblio.confirmer.permanents', b.permanents),
+      b.liensOuverts > 0 && tn('biblio.confirmer.liensOuverts', b.liensOuverts, { toile }),
+      b.liensEteints > 0 && tn('biblio.confirmer.liensEteints', b.liensEteints),
+    ].filter((x): x is string => typeof x === 'string')
+  }
+  const confirmerOuverture = (titre: string, vers: string) => (bilan: BilanRangement) =>
     new Promise<boolean>((repondre) =>
       setFenetre({
         type: 'confirmer',
         titre: t('biblio.confirmer.titre', { titre }),
-        texte: tn('biblio.confirmer.texte', nouveaux, { toile: titreToile(vers) }),
+        lignes: lignesDuBilan(bilan, vers),
         repondre: (oui) => {
           setFenetre(null)
           repondre(oui)
@@ -679,13 +690,15 @@ export function PageBibliotheque({
     if (!cle) return
     setSel((s) => (etendre ? cliquer(s, cle, ordre, { suite: true }) : cliquer(RIEN, cle, ordre)))
     setCourante(cle)
-    const el = corps.current?.querySelector<HTMLElement>(`[data-cle="${CSS.escape(cle)}"]`)
+    const el = tuileDe(cle)
     el?.focus({ preventScroll: true })
     el?.scrollIntoView?.({ block: 'nearest' })
   }
+  /** La tuile de cette clé, dans la page. */
+  const tuileDe = (cle: string) => [...(corps.current?.querySelectorAll<HTMLElement>('[data-cle]') ?? [])].find((x) => x.dataset.cle === cle)
   /** Le renommage fini, le clavier revient à la tuile. */
   const rendreFocus = (cle: string) =>
-    requestAnimationFrame(() => corps.current?.querySelector<HTMLElement>(`[data-cle="${CSS.escape(cle)}"]`)?.focus({ preventScroll: true }))
+    requestAnimationFrame(() => tuileDe(cle)?.focus({ preventScroll: true }))
   const touche = useRef<(e: globalThis.KeyboardEvent) => void>(() => {})
   touche.current = (e) => {
     const cible = e.target as HTMLElement
@@ -721,7 +734,7 @@ export function PageBibliotheque({
       setSel(RIEN)
     } else if ((e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) && choisies.length > 0) {
       e.preventDefault()
-      const b = corps.current?.querySelector<HTMLElement>(`[data-cle="${CSS.escape(courante ?? choisies[0]!)}"]`)?.getBoundingClientRect()
+      const b = tuileDe(courante ?? choisies[0]!)?.getBoundingClientRect()
       setMenu({ x: b ? b.left + 24 : 200, y: b ? b.top + 24 : 200, type: 'tuiles', cles: choisies })
     }
   }
@@ -969,7 +982,7 @@ export function PageBibliotheque({
           }}
         />
       )}
-      {fenetre?.type === 'confirmer' && <Confirmation titre={fenetre.titre} texte={fenetre.texte} oui={t('biblio.confirmer.oui')} repondre={fenetre.repondre} />}
+      {fenetre?.type === 'confirmer' && <Confirmation titre={fenetre.titre} lignes={fenetre.lignes} oui={t('biblio.confirmer.oui')} repondre={fenetre.repondre} />}
       {fenetre?.type === 'partage' && partage?.(fenetre.tableau, () => setFenetre(null))}
       <BandeauAvis />
     </div>

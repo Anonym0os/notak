@@ -1,7 +1,7 @@
 import { lireReglages, themeEffectif, useHabillages, useSystemeSombre } from '@notak/tableau'
 import { t } from './langue'
 import { Marque } from './PageApp'
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
 import {
   type Fournisseur,
   type Instance,
@@ -33,14 +33,26 @@ function erreurDeRetour(): string | null {
  * de passe. Il porte déjà le nom de l'instance et son thème (celui qu'elle impose, sinon celui choisi sur cet
  * appareil, sinon celui qu'elle propose).
  */
-export function EcranConnexion({ instance, surConnexion }: { instance: Instance; surConnexion(moi: Moi): void }) {
+export function EcranConnexion({
+  instance,
+  surConnexion,
+  entete,
+  email: emailPropose,
+}: {
+  instance: Instance
+  surConnexion(moi: Moi): void
+  /** Ce qui précède le formulaire : une invitation qu'on vient d'ouvrir, et qu'on acceptera une fois connecté. */
+  entete?: ReactNode
+  /** L'adresse à proposer (celle de l'invitation) : la créer devient alors le premier geste. */
+  email?: string
+}) {
   const [reglages] = useState(lireReglages)
   const theme = themeEffectif(reglages.theme, useSystemeSombre())
   useHabillages({ fournis: instance.habillages, ...(instance.impose ? { impose: instance.impose } : {}), ...(instance.parDefaut ? { parDefaut: instance.parDefaut } : {}) }, reglages.habillage, theme)
   const ouvertes = instance.inscriptions === 'ouvertes'
   const [jeton] = useState(jetonReinitialisation)
-  const [mode, setMode] = useState<Mode>(jeton ? 'nouveau' : 'connexion')
-  const [email, setEmail] = useState('')
+  const [mode, setMode] = useState<Mode>(jeton ? 'nouveau' : emailPropose && ouvertes ? 'inscription' : 'connexion')
+  const [email, setEmail] = useState(emailPropose ?? '')
   const [motDePasse, setMotDePasse] = useState('')
   const [nom, setNom] = useState('')
   const [erreur, setErreur] = useState<string | null>(erreurDeRetour)
@@ -117,6 +129,7 @@ export function EcranConnexion({ instance, surConnexion }: { instance: Instance;
         <form className="connexion-carte" onSubmit={valider} noValidate>
           <Marque />
           <h1>{instance.nom}</h1>
+          {entete}
           {mode === 'oubli' && <p className="connexion-aide">{t(courriel ? 'connexion.oubliAide' : 'connexion.oubliSansCourriel')}</p>}
           {mode === 'sso' && <p className="connexion-aide">{t('connexion.ssoAide')}</p>}
           {mode === 'inscription' && (

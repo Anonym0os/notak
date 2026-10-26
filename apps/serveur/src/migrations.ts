@@ -352,6 +352,64 @@ DELETE FROM recherche_etat;
       db.exec('DELETE FROM recherche_etat;')
     },
   },
+  {
+    version: 8,
+    nom: 'les accès de l’extérieur',
+    // Un tableau peut avoir plusieurs liens visiteurs, chacun avec son nom, son niveau (voir ou commenter, jamais
+    // modifier), son échéance et son mot de passe. Un accès donné à un compte peut avoir une échéance. Une invitation
+    // porte un jeton (son empreinte), qui l'accepte depuis le lien reçu.
+    appliquer(db) {
+      db.exec(`
+CREATE TABLE liens_visiteurs (
+  id TEXT PRIMARY KEY,
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  jeton TEXT NOT NULL UNIQUE,
+  nom TEXT NOT NULL DEFAULT '',
+  niveau TEXT NOT NULL CHECK (niveau IN ('lecture','commentaire')),
+  cree INTEGER NOT NULL,
+  par TEXT REFERENCES utilisateurs(id) ON DELETE SET NULL,
+  expire INTEGER,
+  mot_de_passe TEXT,
+  derniere_visite INTEGER
+);
+CREATE INDEX liens_visiteurs_tableau ON liens_visiteurs(tableau, cree);
+-- Le lien d'avant, un par tableau, garde son jeton et son mot de passe. Un lien qui permettait de modifier ne permet
+-- plus que de commenter : sans compte, on ne modifie rien.
+INSERT INTO liens_visiteurs (id, tableau, jeton, niveau, cree, mot_de_passe)
+  SELECT lower(hex(randomblob(12))), l.tableau, l.jeton, CASE l.niveau WHEN 'lecture' THEN 'lecture' ELSE 'commentaire' END, l.cree,
+         (SELECT m.empreinte FROM mots_de_passe m WHERE m.tableau = l.tableau AND m.portee = 'public')
+  FROM liens_publics l;
+INSERT OR IGNORE INTO boite_envoi (objet, relation, sujet) SELECT objet, relation, sujet FROM relations WHERE sujet LIKE 'lien:%' AND relation = 'editeur';
+DELETE FROM relations WHERE sujet LIKE 'lien:%' AND relation = 'editeur';
+INSERT OR IGNORE INTO relations (objet, relation, sujet) SELECT 'tableau:' || tableau, 'commentateur', 'lien:' || jeton FROM liens_visiteurs WHERE niveau = 'commentaire';
+INSERT OR IGNORE INTO boite_envoi (objet, relation, sujet) SELECT 'tableau:' || tableau, 'commentateur', 'lien:' || jeton FROM liens_visiteurs WHERE niveau = 'commentaire';
+DELETE FROM mots_de_passe WHERE portee = 'public';
+DROP TABLE acces_publics;
+DROP TABLE liens_publics;
+-- L'accès remis contre le mot de passe d'un lien : l'empreinte du jeton du cookie, pour ce lien seulement.
+CREATE TABLE acces_liens (
+  empreinte TEXT PRIMARY KEY,
+  lien TEXT NOT NULL REFERENCES liens_visiteurs(id) ON DELETE CASCADE,
+  expire INTEGER NOT NULL
+);
+-- Jusqu'à quand un sujet (un compte) garde son rôle direct sur un tableau.
+CREATE TABLE echeances (
+  tableau TEXT NOT NULL REFERENCES tableaux(id) ON DELETE CASCADE,
+  sujet TEXT NOT NULL,
+  expire INTEGER NOT NULL,
+  PRIMARY KEY (tableau, sujet)
+);
+CREATE INDEX echeances_expire ON echeances(expire);
+ALTER TABLE invitations ADD COLUMN jeton TEXT;
+ALTER TABLE invitations ADD COLUMN cree INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE invitations ADD COLUMN par TEXT REFERENCES utilisateurs(id) ON DELETE SET NULL;
+ALTER TABLE invitations ADD COLUMN echeance INTEGER;
+CREATE UNIQUE INDEX invitations_jeton ON invitations(jeton);
+`)
+      // Une invitation d'avant vaut encore le temps d'une invitation neuve, à compter d'aujourd'hui.
+      db.prepare('UPDATE invitations SET cree = ?').run(Date.now())
+    },
+  },
 ]
 
 /**

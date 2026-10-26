@@ -3,6 +3,7 @@ import * as Y from 'yjs'
 import { ELEMENTS_VUS_GARDES } from './base.ts'
 import { type Compte, type Monde, monde, poser, texte } from './essai.ts'
 import { indexerDocument } from './indexation.ts'
+import { AUCUN_CHANGEMENT } from './rangement.ts'
 import { lireTableau, resumesDuTableau } from './contenu.ts'
 import { nomDuDocument } from './synchro.ts'
 
@@ -77,7 +78,7 @@ describe('GET /api/bibliotheque', () => {
 
   it('chaque toile (sauf l’accueil), carte et document, avec la toile qui le porte', async () => {
     const r = await lire(ana)
-    expect(Array.isArray(r) && r.map(cle).sort()).toEqual([`${ana.utilisateur.racine}/idees`, 'etape/', 'etape/lisbonne', 'secret/', 'voyage/', 'voyage/budget'])
+    expect(Array.isArray(r) && r.map(cle).sort()).toEqual([`${ana.utilisateur.racine}/idees`, 'etape/', 'etape/lisbonne', 'secret/', 'voyage/', 'voyage/budget'].sort())
     const parCle = new Map((r as Entree[]).map((e) => [cle(e), e]))
     expect(parCle.get('voyage/')).toMatchObject({ genre: 'toile', titre: 'Voyage', ou: 'Accueil d’Ana', dans: ana.utilisateur.racine, vu: null, favori: false, partage: false })
     expect(parCle.get('etape/lisbonne')).toMatchObject({ genre: 'arbre', titre: 'Lisbonne', ou: 'Étape', dans: 'etape', resume: { branches: ['Musées'] } })
@@ -147,9 +148,10 @@ describe('PUT /api/tableaux/:id/parent', () => {
   let cle: Compte
   const ranger = (c: Compte, id: string, json: Record<string, unknown>) => m.appeler(`/api/tableaux/${id}/parent`, { methode: 'PUT', compte: c, json })
   const roleDe = (c: Compte, id: string) => m.autorisation.roleSur(`user:${c.utilisateur.id}`, id)
+  const fermetures: string[] = []
 
   beforeAll(async () => {
-    m = monde()
+    m = monde({ fermetures })
     ana = await m.compte('Ana')
     bob = await m.compte('Bob')
     cle = await m.compte('Cléo')
@@ -165,23 +167,34 @@ describe('PUT /api/tableaux/:id/parent', () => {
 
   it('compte qui gagnerait l’accès, sans rien ranger à l’essai', async () => {
     const r = await ranger(ana, 'idee', { parent: 'equipe', essai: true })
-    expect(await r.json()).toEqual({ nouveaux: 1, fait: false })
+    expect(await r.json()).toEqual({ ...AUCUN_CHANGEMENT, nouveaux: 1, fait: false })
     expect(m.base.tableau('idee')!.parent).toBe(ana.utilisateur.racine)
     const prudent = await ranger(ana, 'idee', { parent: 'equipe', siPersonne: true })
-    expect(await prudent.json()).toEqual({ nouveaux: 1, fait: false })
+    expect(await prudent.json()).toEqual({ ...AUCUN_CHANGEMENT, nouveaux: 1, fait: false })
   })
 
   it('range la toile : ses accès hérités et ceux de ce qu’elle contient suivent', async () => {
     expect(await roleDe(bob, 'detail')).toBeNull()
     const r = await ranger(ana, 'idee', { parent: 'equipe' })
-    expect(await r.json()).toEqual({ nouveaux: 1, fait: true })
+    expect(await r.json()).toEqual({ ...AUCUN_CHANGEMENT, nouveaux: 1, fait: true })
     expect(m.base.tableau('idee')!.parent).toBe('equipe')
     expect(await roleDe(bob, 'detail')).toBe('edition')
-    // Rangée ailleurs, elle quitte ceux d'avant.
-    await ranger(ana, 'idee', { parent: 'projets' })
+    // Rangée ailleurs, elle quitte ceux d'avant : Bob la perd, Cléo la gagne.
+    expect(await (await ranger(ana, 'idee', { parent: 'projets' })).json()).toEqual({ ...AUCUN_CHANGEMENT, nouveaux: 1, perdus: 1, fait: true })
     expect(await roleDe(bob, 'detail')).toBeNull()
     expect(await roleDe(cle, 'detail')).toBe('lecture')
     expect(m.base.tableau('idee')!.parent).toBe('projets')
+  })
+
+  it('ferme les synchros de la toile et de ce qu’elle contient : l’éditeur venu de l’ancien parent y relit son rôle', async () => {
+    m.tableau(ana, 'chantier', 'Chantier', undefined, 'equipe')
+    m.tableau(ana, 'plan-chantier', 'Plan', undefined, 'chantier')
+    expect(await roleDe(bob, 'plan-chantier')).toBe('edition')
+    fermetures.length = 0
+    expect((await ranger(ana, 'chantier', { parent: 'projets' })).status).toBe(200)
+    expect(fermetures).toEqual(expect.arrayContaining([nomDuDocument('chantier'), nomDuDocument('plan-chantier')]))
+    expect(await roleDe(bob, 'chantier')).toBeNull()
+    expect(await roleDe(bob, 'plan-chantier')).toBeNull()
   })
 
   it('refuse l’accueil, la toile dans elle-même ou dans ce qu’elle contient, et sans les droits', async () => {

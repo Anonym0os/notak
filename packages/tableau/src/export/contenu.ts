@@ -170,6 +170,8 @@ export function idsDeFichiers(elements: readonly ElementLu[]): Set<string> {
     // L'image qu'on a donnée à un lien comme aperçu.
     const apercu = c.type === 'lien' ? (c.image as { fichier?: unknown } | undefined) : undefined
     if (apercu && chaine(apercu.fichier)) ids.add(chaine(apercu.fichier))
+    // La couverture d'une carte de toile.
+    if (c.type === 'tableau' && chaine(c.image)) ids.add(chaine(c.image))
     if (c.type === 'image' && Array.isArray(c.tailles)) {
       for (const t of c.tailles as { fichier?: unknown }[]) if (chaine(t?.fichier)) ids.add(chaine(t.fichier))
     }

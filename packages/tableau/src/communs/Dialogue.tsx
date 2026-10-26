@@ -187,6 +187,8 @@ interface PropsConfirmation {
   titre: ReactNode
   /** Ce qui disparaît, ce qui reste : une phrase. */
   texte?: ReactNode
+  /** Ce qui suit la phrase, quand une phrase ne suffit pas (une liste de changements). */
+  children?: ReactNode
   /** Le libellé de l'action (« Effacer », « Supprimer ») : un bouton rouge, le second rang étant « Annuler ». */
   oui: string
   /** Vrai : la confirmation d'une suppression (fond rouge). Faux : un bouton plein et sombre. */
@@ -199,7 +201,7 @@ interface PropsConfirmation {
  * La confirmation, d'une seule forme : un titre, une phrase, Annuler et l'action. Échap, la croix et le voile disent non.
  * Le focus part sur l'action, comme un « Entrée » qui confirme.
  */
-export function Confirmation({ titre, texte, oui, danger = true, repondre, hote }: PropsConfirmation) {
+export function Confirmation({ titre, texte, children, oui, danger = true, repondre, hote }: PropsConfirmation) {
   return (
     <Dialogue
       titre={titre}
@@ -218,6 +220,7 @@ export function Confirmation({ titre, texte, oui, danger = true, repondre, hote 
       }
     >
       {texte && <p className="notak-dialogue-texte">{texte}</p>}
+      {children}
     </Dialogue>
   )
 }

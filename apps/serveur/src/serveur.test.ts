@@ -66,8 +66,12 @@ describe('serveur de bout en bout', () => {
     expect(avant).toEqual([])
     expect((await appeler('/api/tableaux/tableau-partage-1/acces', { cookie: bob.cookie })).statut).toBe(404)
 
+    // Sans courriel, l'adresse de Bob n'est pas prouvée : il reçoit une invitation, qu'il accepte par son lien.
     const partage = await appeler('/api/tableaux/tableau-partage-1/partage', { cookie: ana.cookie, json: { email: 'bob@exemple.fr', role: 'lecture' } })
     expect(partage.statut).toBe(200)
+    const invitation = await lire<{ enAttente: boolean; jeton: string; envoye: boolean }>(partage)
+    expect(invitation).toMatchObject({ enAttente: true, envoye: false })
+    expect((await appeler(`/api/invitations/${invitation.jeton}/accepter`, { cookie: bob.cookie, json: {} })).statut).toBe(200)
 
     const apres = await lire<Tableau[]>(await appeler('/api/tableaux', { cookie: bob.cookie }))
     expect(apres).toEqual([{ id: 'tableau-partage-1', titre: 'Voyage', role: 'lecture' }])
@@ -79,27 +83,35 @@ describe('serveur de bout en bout', () => {
     const refus = await appeler('/api/tableaux/tableau-partage-1/partage', { cookie: bob.cookie, json: { email: 'x@exemple.fr', role: 'edition' } })
     expect(refus.statut).toBe(403)
 
+    // Un lecteur voit qui travaille ici ; l'adresse des autres reste au propriétaire.
     const acces = await lire<Membre[]>(await appeler('/api/tableaux/tableau-partage-1/acces', { cookie: bob.cookie }))
     expect(acces.map((a) => [a.email, a.role]).sort()).toEqual([
-      ['ana@exemple.fr', 'proprietaire'],
+      ['', 'proprietaire'],
       ['bob@exemple.fr', 'lecture'],
     ])
+    const vuParAna = await lire<Membre[]>(await appeler('/api/tableaux/tableau-partage-1/acces', { cookie: ana.cookie }))
+    expect(vuParAna.map((a) => a.email).sort()).toEqual(['ana@exemple.fr', 'bob@exemple.fr'])
 
     // le dernier propriétaire ne se retire pas
     const retrait = await appeler('/api/tableaux/tableau-partage-1/partage', { methode: 'DELETE', cookie: ana.cookie, json: { email: 'ana@exemple.fr' } })
     expect(retrait.statut).toBe(409)
   })
 
-  it('une invitation vers une adresse inconnue s’active à l’inscription', async () => {
+  it('une invitation vers une adresse inconnue attend son lien : s’inscrire sous l’adresse ne suffit pas', async () => {
     const ana = await appeler('/api/auth/sign-in/email', { json: { email: 'ana@exemple.fr', password: 'motdepasse' } })
     expect(ana.statut).toBe(200)
     await appeler('/api/tableaux', { cookie: ana.cookie, json: { id: 'tableau-invite-1', titre: 'Invité' } })
     const p = await appeler('/api/tableaux/tableau-invite-1/partage', { cookie: ana.cookie, json: { email: 'Cleo@Exemple.fr', role: 'edition' } })
-    expect((await lire<Membre>(p)).enAttente).toBe(true)
+    const invitation = await lire<Membre & { jeton: string }>(p)
+    expect(invitation.enAttente).toBe(true)
     const attente = await lire<Membre[]>(await appeler('/api/tableaux/tableau-invite-1/acces', { cookie: ana.cookie }))
     expect(attente.some((a) => a.email === 'cleo@exemple.fr' && a.enAttente)).toBe(true)
 
+    // Sans courriel, rien ne prouve que l'adresse est la sienne : l'inscription seule n'ouvre rien.
     const cleo = await appeler('/api/auth/sign-up/email', { json: { email: 'cleo@exemple.fr', password: 'motdepasse', name: 'Cléo' } })
+    expect(await lire<Tableau[]>(await appeler('/api/tableaux', { cookie: cleo.cookie }))).toEqual([])
+    expect((await appeler(`/api/invitations/${invitation.jeton}`)).statut).toBe(200)
+    expect((await appeler(`/api/invitations/${invitation.jeton}/accepter`, { cookie: cleo.cookie, json: {} })).statut).toBe(200)
     const liste = await lire<Tableau[]>(await appeler('/api/tableaux', { cookie: cleo.cookie }))
     expect(liste).toEqual([{ id: 'tableau-invite-1', titre: 'Invité', role: 'edition' }])
   })
@@ -107,7 +119,8 @@ describe('serveur de bout en bout', () => {
   it('un tableau sous un parent éditable en hérite les accès, présents et à venir', async () => {
     const ana = await appeler('/api/auth/sign-in/email', { json: { email: 'ana@exemple.fr', password: 'motdepasse' } })
     const bob = await appeler('/api/auth/sign-in/email', { json: { email: 'bob@exemple.fr', password: 'motdepasse' } })
-    await appeler('/api/tableaux/tableau-invite-1/partage', { cookie: ana.cookie, json: { email: 'bob@exemple.fr', role: 'edition' } })
+    const invitation = await lire<{ jeton: string }>(await appeler('/api/tableaux/tableau-invite-1/partage', { cookie: ana.cookie, json: { email: 'bob@exemple.fr', role: 'edition' } }))
+    await appeler(`/api/invitations/${invitation.jeton}/accepter`, { cookie: bob.cookie, json: {} })
     const fils = await appeler('/api/tableaux', { cookie: bob.cookie, json: { id: 'tableau-fils-0001', titre: 'Fils', parent: 'tableau-invite-1' } })
     expect(fils.statut).toBe(201)
     const membres = await lire<(Membre & { herite?: boolean })[]>(await appeler('/api/tableaux/tableau-fils-0001/acces', { cookie: ana.cookie }))

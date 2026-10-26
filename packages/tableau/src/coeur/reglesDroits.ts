@@ -14,6 +14,13 @@ export interface DroitsTableau {
   elements: Record<Id, { ecrire: boolean; commenter: boolean }>
 }
 
+/**
+ * Qui écrit sans compte, par un lien visiteur : son identifiant d'auteur commence ainsi, et la toile le dit à côté de
+ * son nom, qu'il a choisi lui-même. Personne ne passe ainsi pour un membre.
+ */
+export const PREFIXE_VISITEUR = 'visiteur:'
+export const estVisiteur = (auteur: string | undefined) => !!auteur?.startsWith(PREFIXE_VISITEUR)
+
 /** Ce geste est-il permis sur cet élément (`null` : sur le tableau lui-même, son titre, son fond, ses étiquettes) ? */
 export function permis(droits: DroitsTableau, element: Id | null, geste: Geste): boolean {
   const propre = element === null ? undefined : droits.elements[element]

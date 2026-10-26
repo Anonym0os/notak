@@ -576,6 +576,352 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   align-self: stretch;
 }
 
+/* Les rubriques du partage : les personnes, puis les liens visiteurs ; un titre pâle, son action à droite. */
+.partage-rubrique {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+  margin: 14px 0 4px;
+  color: var(--app-pale);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.partage-rubrique .bouton {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12.5px;
+}
+
+.partage-form-ligne {
+  display: flex;
+  flex: 1 1 100%;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Le rôle et la durée, sous l'adresse : deux choix plus petits, côte à côte. */
+.partage-form-reglages :is(select, input),
+.partage-form .partage-form-reglages :is(select, input) {
+  height: 32px;
+  font-size: 13px;
+}
+
+.partage-echeance {
+  display: flex;
+  flex: 1;
+  gap: 6px;
+  min-width: 0;
+}
+
+.partage-echeance > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.partage-echeance input[type='date'] {
+  padding-right: 8px;
+}
+
+/* L'invitation faite, l'accès pas encore : où en est son lien. */
+.partage-suite {
+  display: flex;
+  flex: 1 1 100%;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--app-survol);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.partage-suite > svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--app-pale);
+}
+
+.partage-suite p {
+  margin: 0 0 4px;
+}
+
+/* Une ligne de personne peut s'ouvrir sur la durée de son accès : elle passe alors à la ligne, dessous. */
+.partage-liste li {
+  flex-wrap: wrap;
+}
+
+.partage-attente .app-pastille {
+  border: 1px dashed var(--app-filet);
+  background: transparent;
+}
+
+.partage-qui-action {
+  align-self: flex-start;
+  margin-top: 1px;
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+/* Le détail d'une personne (son adresse, l'invitation, l'échéance) passe à la ligne plutôt que d'être coupé. */
+.partage-liste .partage-qui small {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Le rôle d'une personne, changeable sur place : un choix sans cadre, qui n'en prend un qu'au survol. */
+.partage-role-choix {
+  flex: none;
+  max-width: 132px;
+  height: 28px;
+  padding: 0 24px 0 8px;
+  border: 0;
+  border-radius: 8px;
+  outline: none;
+  appearance: none;
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238a919c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6l6 -6'/%3E%3C/svg%3E") no-repeat right 6px center;
+  color: var(--app-pale);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.partage-role-choix:is(:hover, :focus-visible) {
+  background-color: var(--app-survol);
+  color: var(--texte);
+}
+
+.partage-ligne-reglage {
+  display: flex;
+  flex: 1 1 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0 2px 38px;
+}
+
+.partage-ligne-reglage select,
+.partage-ligne-reglage input {
+  height: 30px;
+  font-size: 12.5px;
+}
+
+.partage-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 4px;
+  border-top: 1px solid var(--app-filet);
+}
+
+.partage-section > .partage-rubrique {
+  margin-top: 10px;
+}
+
+.partage-liens {
+  margin-bottom: 0;
+}
+
+.partage-liens li {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.partage-lien-tete {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* L'adresse du lien, à sélectionner si la copie n'a pas pu se faire. */
+.partage-adresse {
+  display: flex;
+  gap: 6px;
+}
+
+.partage-adresse input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  font-size: 12.5px;
+}
+
+.partage-adresse .bouton {
+  height: 32px;
+}
+
+.partage-lien-tete > .bouton {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12.5px;
+}
+
+/* Le nom du lien et ce qu'il permet : un bouton qui déplie ses réglages. */
+.partage-lien-ouvrir {
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.partage-lien-ouvrir:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.partage-echu .partage-qui small {
+  color: var(--app-danger);
+}
+
+.partage-echu .app-pastille {
+  opacity: 0.55;
+}
+
+/* Un lien neuf, ou les réglages d'un lien : une carte à peine teintée, ses champs les uns sous les autres. */
+.partage-carte {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--app-survol);
+}
+
+.partage-liens .partage-carte {
+  margin: 0 0 4px;
+  background: color-mix(in srgb, var(--texte) 4%, var(--carte));
+}
+
+.partage-champ {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12.5px;
+}
+
+.partage-champ > span:first-child,
+.partage-champ > label {
+  color: var(--app-pale);
+  font-weight: 500;
+}
+
+.partage-champ .champ {
+  height: 34px;
+  font-size: 13px;
+}
+
+.partage-champ .bouton-lien {
+  align-self: flex-start;
+  font-size: 12.5px;
+}
+
+.partage-carte-pied {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.partage-carte-pied .partage-note {
+  flex: 1 1 100%;
+  text-align: right;
+}
+
+/* Voir, ou voir et commenter : deux moitiés d'une même pilule, l'une enfoncée. */
+.partage-segments {
+  display: flex;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--app-choisi);
+}
+
+.partage-segments button {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--app-pale);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.partage-segments button[aria-checked='true'] {
+  background: var(--carte);
+  box-shadow: 0 1px 2px rgb(27 37 54 / 0.12);
+  color: var(--texte);
+}
+
+.partage-segments button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.partage-segments button:disabled {
+  cursor: default;
+}
+
+/* La protection de la toile entière, repliée en bas : rare, et sans rapport avec un invité. */
+.partage-avance {
+  margin-top: 14px;
+  border-top: 1px solid var(--app-filet);
+}
+
+.partage-avance > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 0 2px;
+  color: var(--app-pale);
+  font-size: 12.5px;
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
+}
+
+.partage-avance > summary::-webkit-details-marker {
+  display: none;
+}
+
+.partage-avance > summary > svg {
+  transition: rotate 0.15s ease;
+}
+
+.partage-avance[open] > summary > svg {
+  rotate: 90deg;
+}
+
+.partage-avance > summary:hover {
+  color: var(--texte);
+}
+
+.partage-avance > .partage-lien:first-of-type {
+  margin-top: 8px;
+  padding-top: 0;
+  border-top: 0;
+}
+
 /* L'import fini ou en échec : une note sous le bouton. */
 .importer-etat {
   width: min(300px, calc(100vw - 32px));
@@ -799,6 +1145,24 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
 
 [data-theme='sombre'] .bouton-etoile[aria-pressed='true'] {
   color: #f5b82e;
+}
+
+/* — L'invitation à une toile, en tête de la carte de connexion ou d'acceptation. — */
+.invitation-apercu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+}
+
+.invitation-apercu p {
+  margin: 0;
+}
+
+.invitation-titre {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 /* — Les cartes posées seules au milieu de la page : la connexion, le mot de passe d'un tableau, l'arrivée d'un partage. — */
@@ -1357,6 +1721,112 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
   text-decoration: none;
 }
 
+/* Ce que le visiteur peut faire ici, dit sans détour, à côté du titre ; il cède la place avant « Notak ». */
+.public-entete .notak-ilot.public-visiteur {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  min-width: 0;
+  padding: 0 14px;
+  font-size: 13px;
+  line-height: 36px;
+  white-space: nowrap;
+}
+
+.public-visiteur > svg {
+  flex: none;
+  color: var(--app-pale);
+}
+
+.public-visiteur > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.public-visiteur > :is(svg, .bouton-lien, .public-visiteur-fin) {
+  flex: none;
+}
+
+.public-entete .notak-ilot.public-titre {
+  flex: 0 1 auto;
+}
+
+/* L'aide du clic droit ne tient que sur un grand écran ; ailleurs, l'infobulle de l'îlot la garde. */
+@media (max-width: 1180px) {
+  .public-visiteur-aide {
+    display: none;
+  }
+}
+
+.public-visiteur-fin,
+.public-visiteur-aide {
+  color: var(--app-pale);
+}
+
+.public-visiteur-fin::before,
+.public-visiteur-aide::before {
+  content: '·';
+  margin-right: 8px;
+}
+
+/* Le nom demandé avant le premier commentaire : un champ et son bouton, dans l'îlot. */
+.public-entete .notak-ilot.public-visiteur-nom {
+  gap: 10px;
+  padding: 4px 4px 4px 14px;
+  line-height: 1.3;
+}
+
+.public-visiteur-nom label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.public-visiteur-nom label > span {
+  color: var(--app-pale);
+}
+
+.public-visiteur-nom input {
+  box-sizing: border-box;
+  width: 160px;
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  outline: none;
+  background: var(--app-champ);
+  box-shadow: inset 0 0 0 1px var(--app-filet);
+  color: var(--texte);
+  font: inherit;
+}
+
+.public-visiteur-nom input:focus {
+  box-shadow: inset 0 0 0 1.5px var(--accent), 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.public-visiteur-nom .bouton {
+  height: 30px;
+}
+
+/* Un commentaire que le serveur n'a pas pris : dit sous l'en-tête, il se ferme. */
+.public-refus.notak-ilot {
+  position: absolute;
+  z-index: 5;
+  top: 64px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 4px 4px 4px 14px;
+  color: var(--app-danger);
+  font-size: 13px;
+  translate: -50% 0;
+}
+
 .public-corps {
   flex: 1;
   min-height: 0;
@@ -1513,6 +1983,29 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
     top: 12px;
     right: 16px;
     left: 16px;
+    flex-wrap: wrap;
+  }
+
+  /* Sur un téléphone, l'aide du clic droit ne dit rien (un appui long ouvre le même menu), et le nom passe avant
+     l'échéance du lien. */
+  .public-visiteur-aide,
+  .public-visiteur-fin,
+  .public-visiteur-nom label > span {
+    display: none;
+  }
+
+  .public-entete .notak-ilot.public-visiteur {
+    order: 3;
+    flex: 1 1 100%;
+  }
+
+  .public-visiteur-nom input {
+    width: auto;
+    flex: 1;
+  }
+
+  .public-visiteur-nom label {
+    flex: 1;
   }
 }
 
@@ -2682,6 +3175,17 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 
 .biblio-deplacer {
   gap: 12px;
+}
+
+.biblio-confirmation-lignes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0 0 0 18px;
+  color: var(--app-pale);
+  font-size: 13.5px;
+  line-height: 1.45;
 }
 
 .biblio-deplacer-champ {

@@ -114,23 +114,26 @@ describe('les droits par OpenFGA', () => {
     expect(await statut(bob, `/api/fichiers/${depot.id}`)).toBe(200)
   })
 
-  it('le lien public prend un niveau ; en édition, il synchronise sans compte, et un blocage pour tous l’arrête', async () => {
+  it('un lien visiteur voit ou commente, jamais ne modifie ; il ne se synchronise pas ; un blocage pour tous l’arrête', async () => {
     m.tableau(ana, 'tableau-lien-01', 'Ouvert')
-    const { jeton } = await json<{ jeton: string }>(m.appeler('/api/tableaux/tableau-lien-01/lien', { compte: ana, json: {} }))
+    const { id, jeton } = await json<{ id: string; jeton: string }>(m.appeler('/api/tableaux/tableau-lien-01/liens', { compte: ana, json: {} }))
     expect(await m.autorisation.roleSur(`lien:${jeton}`, 'tableau-lien-01')).toBe('lecture')
-    expect((await m.appeler('/api/tableaux/tableau-lien-01/lien/niveau', { compte: ana, methode: 'PUT', json: { niveau: 'edition' } })).status).toBe(200)
-    expect(await m.autorisation.roleSur(`lien:${jeton}`, 'tableau-lien-01')).toBe('edition')
+    expect((await m.appeler(`/api/tableaux/tableau-lien-01/liens/${id}`, { compte: ana, methode: 'PATCH', json: { niveau: 'commentaire' } })).status).toBe(200)
+    expect(await m.autorisation.roleSur(`lien:${jeton}`, 'tableau-lien-01')).toBe('commentaire')
+    expect((await m.appeler(`/api/tableaux/tableau-lien-01/liens/${id}`, { compte: ana, methode: 'PATCH', json: { niveau: 'edition' } })).status).toBe(400)
+    expect(await m.autorisation.roleSur(`lien:${jeton}`, 'tableau-lien-01')).toBe('commentaire')
 
+    // Sans compte, la synchro refuse tout, jeton de lien compris : le document Yjs porte ce qu'un visiteur ne voit pas.
     const hp = creerHocuspocus(m.base, m.auth, m.autorisation)
     const demander = (token: string) => {
       const config = { readOnly: false }
       return hp.configuration.onAuthenticate!({ documentName: nomDuDocument('tableau-lien-01'), requestHeaders: new Headers(), connectionConfig: config, token } as never).then(() => config)
     }
-    expect(await demander(`lien:${jeton}`)).toEqual({ readOnly: false })
+    await expect(demander(`lien:${jeton}`)).rejects.toThrow('refusé')
     await expect(demander('lien:faux-jeton-de-lien')).rejects.toThrow('refusé')
 
+    expect((await m.appeler(`/api/public/${jeton}`)).status).toBe(200)
     await m.appeler('/api/tableaux/tableau-lien-01/blocage', { compte: ana, json: { tous: true, etat: 'bloque' } })
-    await expect(demander(`lien:${jeton}`)).rejects.toThrow('refusé')
     expect((await m.appeler(`/api/public/${jeton}`)).status).toBe(404)
   })
 
@@ -243,6 +246,34 @@ describe('la reprise des droits d’avant (migration 4)', () => {
       ['lien:jeton-d-avant-0001', 'projet', null],
     ]
     for (const [sujet, tableau, r] of attendu) expect([sujet, tableau, await autorisation.roleSur(sujet, tableau)]).toEqual([sujet, tableau, r])
+    migree.fermer()
+  })
+})
+
+describe('les liens d’avant (migration 8)', () => {
+  it('un lien qui modifiait ne fait plus que commenter, garde son jeton et son mot de passe', async () => {
+    const maintenant = new Date().toISOString()
+    const chemin = join(m.dossier, 'liens-avant.db')
+    const disque = new DatabaseSync(chemin)
+    migrer(disque, undefined, MIGRATIONS.slice(0, 6))
+    disque.prepare('INSERT INTO utilisateurs (id,email,nom,couleur,racine,email_verifie,cree,modifie) VALUES (?,?,?,?,?,1,?,?)').run('ana', 'ana@exemple.fr', 'Ana', '#000000', 'racine-ana', maintenant, maintenant)
+    disque.prepare("INSERT INTO tableaux (id,titre,proprietaire,parent) VALUES ('ouvert','Ouvert','ana',NULL), ('lu','Lu','ana',NULL)").run()
+    disque.prepare("INSERT INTO liens_publics (tableau,jeton,cree,niveau) VALUES ('ouvert','jeton-qui-modifiait-01',5,'edition'), ('lu','jeton-qui-lisait-0001',6,'lecture')").run()
+    disque.prepare("INSERT INTO relations (objet,relation,sujet) VALUES ('tableau:ouvert','editeur','lien:jeton-qui-modifiait-01'), ('tableau:lu','lecteur','lien:jeton-qui-lisait-0001')").run()
+    disque.prepare("INSERT INTO mots_de_passe (tableau,portee,empreinte) VALUES ('ouvert','public','$argon2id$empreinte')").run()
+    disque.prepare("INSERT INTO invitations (tableau,email,role) VALUES ('lu','zoe@dehors.fr','lecture')").run()
+    disque.close()
+
+    const migree = ouvrirBase(chemin)
+    const autorisation = autorisationEssai(migree)
+    const [ouvert] = migree.liensVisiteurs('ouvert')
+    expect(ouvert).toMatchObject({ jeton: 'jeton-qui-modifiait-01', niveau: 'commentaire', motDePasse: '$argon2id$empreinte', expire: null, cree: 5 })
+    expect(migree.liensVisiteurs('lu')).toMatchObject([{ jeton: 'jeton-qui-lisait-0001', niveau: 'lecture', motDePasse: null }])
+    expect(await autorisation.roleSur('lien:jeton-qui-modifiait-01', 'ouvert')).toBe('commentaire')
+    expect(await autorisation.roleSur('lien:jeton-qui-lisait-0001', 'lu')).toBe('lecture')
+    expect(migree.motDePasse('ouvert', 'tableau')).toBeNull()
+    // Une invitation d'avant vaut encore trente jours, sans lien : elle attend une adresse vérifiée.
+    expect(migree.invitationsPour('zoe@dehors.fr')).toMatchObject([{ tableau: 'lu', role: 'lecture', echeance: null }])
     migree.fermer()
   })
 })
