@@ -1,0 +1,19 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "windows": [
+      {
+        "label": "principale",
+        "create": false,
+        "title": "Notak",
+        "dragDropEnabled": false
+      }
+    ]
+  },
+  "bundle": {
+    "iOS": {
+      "minimumSystemVersion": "17.0",
+      "developmentTeam": ""
+    }
+  }
+}

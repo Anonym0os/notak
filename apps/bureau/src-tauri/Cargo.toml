@@ -21,7 +21,11 @@ tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 # Un lien vers un autre site, ouvert dans le navigateur de la personne (par la coque seule : la page n'y a pas droit).
 tauri-plugin-opener = "2"
-# Les mises à jour signées (`src/mise_a_jour.rs`).
+# Ce qu'une page ne sait pas faire sur un iPhone ou un iPad, et, partout, le nom de la plateforme donné à la page.
+notak-appareil = { path = "../plugins/appareil" }
+
+# Les mises à jour signées (`src/mise_a_jour.rs`) : sur un ordinateur seulement ; sur iOS, c'est l'App Store.
+[target.'cfg(not(any(target_os = "ios", target_os = "android")))'.dependencies]
 tauri-plugin-updater = "2"
 
 # La photo de la fenêtre pour un signalement : `takeSnapshot` du WKWebView, l'image exacte de la page.

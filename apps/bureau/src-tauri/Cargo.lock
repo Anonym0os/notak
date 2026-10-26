@@ -2204,10 +2204,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
 
 [[package]]
+name = "notak-appareil"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+]
+
+[[package]]
 name = "notak-bureau"
 version = "0.1.0"
 dependencies = [
  "block2",
+ "notak-appareil",
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",

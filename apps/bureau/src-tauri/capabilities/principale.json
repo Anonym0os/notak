@@ -1,7 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "principale",
-  "description": "Les droits de l'application embarquée, et d'elle seule (aucune adresse distante) : déplacer la fenêtre par l'en-tête, l'agrandir d'un double clic, enregistrer un export ou une copie là où la personne le choisit, et demander puis poser une mise à jour signée.",
+  "description": "Les droits de l'application embarquée sur un ordinateur (iOS a les siens : mobile.json), et d'elle seule (aucune adresse distante) : déplacer la fenêtre par l'en-tête, l'agrandir d'un double clic, enregistrer un export ou une copie là où la personne le choisit, et demander puis poser une mise à jour signée.",
+  "platforms": ["macOS", "windows", "linux"],
   "windows": ["principale"],
   "permissions": [
     "core:window:allow-start-dragging",

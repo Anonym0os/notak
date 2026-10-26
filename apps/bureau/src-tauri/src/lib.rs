@@ -8,23 +8,36 @@
 /// - se mettre à jour (`mise_a_jour.rs`), de versions signées seulement ;
 /// - garder la fenêtre chez elle (`navigation.rs`) : un lien vers un autre site s'ouvre dans le navigateur.
 /// Et, pour une coque construite pour un serveur Notak, photographier la fenêtre pour un signalement (`capturer_fenetre`).
+///
+/// Sur un iPhone ou un iPad, la même coque compile (`tauri ios build`) : ce qui n'y a pas de sens est sous
+/// `#[cfg(desktop)]` (les mises à jour, c'est l'App Store ; « Enregistrer sous » n'existe pas), et le natif d'iOS est
+/// dans le plugin `appareil` (`apps/bureau/plugins/appareil`, `docs/IOS.md`).
+#[cfg(desktop)]
 mod mise_a_jour;
 mod navigation;
 
+#[cfg(desktop)]
 use std::path::PathBuf;
+#[cfg(desktop)]
 use std::sync::Mutex;
 
+#[cfg(desktop)]
 use tauri::ipc::{InvokeBody, Request};
 use tauri::webview::NewWindowResponse;
-use tauri::{AppHandle, Manager, RunEvent, State, WebviewWindowBuilder};
+#[cfg(desktop)]
+use tauri::{RunEvent, State};
+use tauri::{AppHandle, Manager, WebviewWindowBuilder};
+#[cfg(desktop)]
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
+#[cfg(desktop)]
 use mise_a_jour::MisesAJour;
 use navigation::{vers_dehors, Origines};
 
 /// Les chemins choisis dans la fenêtre « Enregistrer sous » : celui d'un export attend ses octets une seule fois ;
 /// celui de la copie `.notak` reste, pour que ⌘S la réécrive sans redemander, jusqu'à ce qu'on en choisisse un autre.
+#[cfg(desktop)]
 #[derive(Default)]
 struct Emplacements {
     export: Mutex<Option<PathBuf>>,
@@ -32,10 +45,12 @@ struct Emplacements {
 }
 
 /// L'en-tête qui dit à `ecrire_fichier` quel chemin prendre : `copie`, sinon celui de l'export.
+#[cfg(desktop)]
 const USAGE: &str = "x-notak-usage";
 
 /// Ouvre la fenêtre « Enregistrer sous » ; rend le nom du fichier choisi, ou rien si la personne a annulé. `garder` :
 /// c'est l'emplacement de la copie, qu'on réécrira.
+#[cfg(desktop)]
 #[tauri::command]
 async fn choisir_emplacement(
     app: AppHandle,
@@ -62,6 +77,7 @@ async fn choisir_emplacement(
 /// Écrit les octets reçus (le corps brut de l'appel) au chemin choisi juste avant : celui d'un export, une seule fois,
 /// ou celui de la copie. L'écriture passe par un fichier voisin, posé d'un coup : un enregistrement coupé en route ne
 /// laisse jamais une copie à moitié écrite à la place de la bonne.
+#[cfg(desktop)]
 #[tauri::command]
 fn ecrire_fichier(requete: Request<'_>, emplacements: State<'_, Emplacements>) -> Result<(), String> {
     let InvokeBody::Raw(octets) = requete.body() else {
@@ -163,29 +179,43 @@ fn ouvrir_fenetre(app: &AppHandle) -> tauri::Result<()> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let contexte = tauri::generate_context!();
-    // Seule une construction publiée porte la clé publique et l'adresse des mises à jour (`tauri.publication.json`).
-    let mises_a_jour = contexte.config().plugins.0.contains_key("updater");
-    let mut constructeur = tauri::Builder::default().plugin(tauri_plugin_dialog::init()).plugin(tauri_plugin_opener::init());
-    if mises_a_jour {
-        constructeur = constructeur.plugin(tauri_plugin_updater::Builder::new().build());
+    #[cfg_attr(mobile, allow(unused_mut))]
+    let mut constructeur = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
+        .plugin(notak_appareil::init());
+    // Seule une construction publiée porte la clé publique et l'adresse des mises à jour (`tauri.publication.json`) ;
+    // sur un iPhone ou un iPad, les mises à jour viennent de l'App Store.
+    #[cfg(desktop)]
+    {
+        let mises_a_jour = contexte.config().plugins.0.contains_key("updater");
+        if mises_a_jour {
+            constructeur = constructeur.plugin(tauri_plugin_updater::Builder::new().build());
+        }
+        constructeur = constructeur.manage(MisesAJour::new(mises_a_jour)).manage(Emplacements::default());
     }
     constructeur
-        .manage(Emplacements::default())
-        .manage(MisesAJour::new(mises_a_jour))
         .setup(|app| Ok(ouvrir_fenetre(app.handle())?))
         .invoke_handler(tauri::generate_handler![
+            #[cfg(desktop)]
             choisir_emplacement,
+            #[cfg(desktop)]
             ecrire_fichier,
+            #[cfg(desktop)]
             mise_a_jour::preparer_mise_a_jour,
+            #[cfg(desktop)]
             mise_a_jour::installer_mise_a_jour,
             #[cfg(target_os = "macos")]
             capturer_fenetre
         ])
         .build(contexte)
         .expect("Notak n'a pas pu ouvrir sa fenêtre")
-        .run(|app, evenement| {
+        .run(|_app, evenement| {
+            #[cfg(desktop)]
             if let RunEvent::Exit = evenement {
-                mise_a_jour::poser_en_partant(&app.state::<MisesAJour>());
+                mise_a_jour::poser_en_partant(&_app.state::<MisesAJour>());
             }
+            #[cfg(mobile)]
+            let _ = evenement;
         });
 }

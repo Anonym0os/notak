@@ -2,6 +2,7 @@ import { BullesDecouverte, type CouleurNote, EspaceNotak, type Id, ErreurNotak, 
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
 import { adressePour } from '../adresse'
+import { estMobile } from '../appareil'
 import { estBureau } from '../bureau'
 import { importDejaPropose, lireAncienEspace, noterImportPropose } from '../ancien'
 import { PagePartage, PageRapide } from '../Arrivees'
@@ -263,8 +264,8 @@ function BandeauAncien({ el }: { el: EspaceLocal }) {
 }
 
 enregistrerServiceWorker()
-// Dans l'app de bureau : la recherche des mises à jour signées (`MiseAJour.tsx`).
-lancerMisesAJour()
+// Dans l'app de bureau : la recherche des mises à jour signées (`MiseAJour.tsx`). Sur iOS, c'est l'App Store.
+if (!estMobile()) lancerMisesAJour()
 createRoot(document.getElementById('racine')!).render(
   <StrictMode>
     <Application />

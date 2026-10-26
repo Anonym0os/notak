@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Ce que l'app iOS déclare au système, ajouté par Tauri au Info.plist du projet généré (gen/apple). Les textes des
+  demandes d'autorisation sont traduits dans gen/apple/Sources/InfoPlist.strings (fr, en) ; ceux d'ici sont l'anglais
+  de repli. docs/IOS.md explique chaque clé.
+-->
+<plist version="1.0">
+<dict>
+  <key>CFBundleDisplayName</key>
+  <string>Notak</string>
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
+  <key>UIRequiresFullScreen</key>
+  <false/>
+  <key>UIApplicationSupportsIndirectInputEvents</key>
+  <true/>
+  <key>UISupportedInterfaceOrientations</key>
+  <array>
+    <string>UIInterfaceOrientationPortrait</string>
+    <string>UIInterfaceOrientationLandscapeLeft</string>
+    <string>UIInterfaceOrientationLandscapeRight</string>
+  </array>
+  <key>UISupportedInterfaceOrientations~ipad</key>
+  <array>
+    <string>UIInterfaceOrientationPortrait</string>
+    <string>UIInterfaceOrientationPortraitUpsideDown</string>
+    <string>UIInterfaceOrientationLandscapeLeft</string>
+    <string>UIInterfaceOrientationLandscapeRight</string>
+  </array>
+  <key>UIFileSharingEnabled</key>
+  <true/>
+  <key>LSSupportsOpeningDocumentsInPlace</key>
+  <true/>
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Copie Notak</string>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+      <key>LSHandlerRank</key>
+      <string>Owner</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>app.notak.copie</string>
+      </array>
+    </dict>
+  </array>
+  <key>UTExportedTypeDeclarations</key>
+  <array>
+    <dict>
+      <key>UTTypeIdentifier</key>
+      <string>app.notak.copie</string>
+      <key>UTTypeDescription</key>
+      <string>Copie Notak</string>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>public.data</string>
+        <string>public.archive</string>
+      </array>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array>
+          <string>notak</string>
+        </array>
+        <key>public.mime-type</key>
+        <array>
+          <string>application/x-notak</string>
+        </array>
+      </dict>
+    </dict>
+  </array>
+  <key>UIApplicationShortcutItems</key>
+  <array>
+    <dict>
+      <key>UIApplicationShortcutItemType</key>
+      <string>app.notak.rapide</string>
+      <key>UIApplicationShortcutItemTitle</key>
+      <string>Quick note</string>
+      <key>UIApplicationShortcutItemIconSymbolName</key>
+      <string>square.and.pencil</string>
+    </dict>
+  </array>
+  <key>NSCameraUsageDescription</key>
+  <string>To put a photo you take straight onto your board.</string>
+  <key>NSPhotoLibraryAddUsageDescription</key>
+  <string>To save an image from a board to your photos, when you ask.</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>To record a voice note onto a board, when you ask.</string>
+</dict>
+</plist>

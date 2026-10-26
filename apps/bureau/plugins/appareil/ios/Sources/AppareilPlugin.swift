@@ -1,0 +1,155 @@
+// Le natif iOS de Notak, et rien de plus que ce qu'une page ne sait pas faire :
+// - `infos` : où l'on tourne (téléphone ou tablette, système, modèle, version de l'app, zones sûres) ;
+// - `reglerTheme` : la couleur de la vue derrière la page et le style de la barre d'état, pour que les bords (encoche,
+//   barre d'accueil) soient du thème et qu'aucun blanc ne paraisse au lancement ni en sombre ;
+// - `capturerFenetre` : la page telle qu'elle est peinte, en PNG, pour un signalement (comme `capturer_fenetre` sur
+//   macOS) ; la vue ne photographie qu'elle-même, aucune autorisation d'enregistrement d'écran ;
+// - `haptique` : un retour au doigt (une aimantation, une suppression) ;
+// - l'événement `clavier` : la hauteur du clavier à l'écran et la durée de son animation, avant qu'il n'arrive.
+// Le nom de chaque méthode est le camelCase de la commande déclarée dans `build.rs`.
+import SwiftRs
+import Tauri
+import UIKit
+import WebKit
+
+struct ArgsTheme: Decodable {
+  /// `clair` ou `sombre` : ce que la page affiche, une fois le réglage « système » résolu.
+  let theme: String
+  /// `#rrggbb` : le fond de la toile dans ce thème (`--notak-fond`).
+  let fond: String
+}
+
+struct ArgsHaptique: Decodable {
+  /// `leger`, `moyen`, `fort`, `selection`, `succes`, `avertissement`, `erreur`.
+  let sorte: String
+}
+
+class AppareilPlugin: Plugin {
+  private weak var vue: WKWebView?
+  private var observateurs: [NSObjectProtocol] = []
+
+  public override func load(webview: WKWebView) {
+    vue = webview
+    // La page a son propre défilement et son propre zoom : pas de rebond ni de marge que le système ajouterait.
+    webview.scrollView.bounces = false
+    webview.scrollView.contentInsetAdjustmentBehavior = .never
+    webview.isOpaque = false
+    let centre = NotificationCenter.default
+    observateurs.append(
+      centre.addObserver(forName: UIResponder.keyboardWillChangeFrameNotification, object: nil, queue: .main) { [weak self] n in
+        self?.clavier(n)
+      })
+    observateurs.append(
+      centre.addObserver(forName: UIResponder.keyboardWillHideNotification, object: nil, queue: .main) { [weak self] n in
+        self?.clavier(n, cache: true)
+      })
+  }
+
+  deinit {
+    observateurs.forEach(NotificationCenter.default.removeObserver)
+  }
+
+  /// La hauteur visible du clavier dans la fenêtre (0 quand il se range), et la durée de son animation.
+  private func clavier(_ n: Notification, cache: Bool = false) {
+    let duree = (n.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
+    var hauteur: CGFloat = 0
+    if !cache, let fenetre = vue?.window, let cadre = (n.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
+      let visible = fenetre.bounds.intersection(fenetre.convert(cadre, from: nil))
+      hauteur = visible.isNull ? 0 : visible.height
+    }
+    trigger("clavier", data: ["hauteur": Double(hauteur), "duree": duree])
+  }
+
+  @objc public func infos(_ invoke: Invoke) {
+    let appareil = UIDevice.current
+    let idiome: String
+    switch appareil.userInterfaceIdiom {
+    case .pad: idiome = "tablette"
+    case .phone: idiome = "telephone"
+    default: idiome = "ordinateur"
+    }
+    let zones = vue?.window?.safeAreaInsets ?? .zero
+    let info = Bundle.main.infoDictionary ?? [:]
+    invoke.resolve([
+      "plateforme": "ios",
+      "idiome": idiome,
+      "systeme": appareil.systemVersion,
+      "modele": modele(),
+      "version": (info["CFBundleShortVersionString"] as? String) ?? "",
+      "build": (info["CFBundleVersion"] as? String) ?? "",
+      "zonesSures": ["haut": Double(zones.top), "droite": Double(zones.right), "bas": Double(zones.bottom), "gauche": Double(zones.left)],
+    ])
+  }
+
+  /// « iPad14,3 », tel que le système le nomme ; la page n'en fait qu'un libellé d'appareil dans un dossier partagé.
+  private func modele() -> String {
+    var info = utsname()
+    uname(&info)
+    return withUnsafePointer(to: &info.machine) { p in
+      p.withMemoryRebound(to: CChar.self, capacity: Int(_SYS_NAMELEN)) { String(cString: $0) }
+    }
+  }
+
+  @objc public func reglerTheme(_ invoke: Invoke) throws {
+    let args = try invoke.parseArgs(ArgsTheme.self)
+    guard let couleur = UIColor(hex: args.fond) else {
+      return invoke.reject("couleur illisible : \(args.fond)")
+    }
+    DispatchQueue.main.async { [weak self] in
+      guard let vue = self?.vue else { return invoke.resolve() }
+      vue.backgroundColor = couleur
+      vue.scrollView.backgroundColor = couleur
+      vue.superview?.backgroundColor = couleur
+      self?.manager.viewController?.view.backgroundColor = couleur
+      // Le style de la barre d'état suit l'apparence de la fenêtre : claire sur un fond sombre, et l'inverse.
+      vue.window?.overrideUserInterfaceStyle = args.theme == "sombre" ? .dark : .light
+      invoke.resolve()
+    }
+  }
+
+  @objc public func capturerFenetre(_ invoke: Invoke) {
+    DispatchQueue.main.async { [weak self] in
+      guard let vue = self?.vue else { return invoke.reject("pas de vue") }
+      vue.takeSnapshot(with: nil) { image, erreur in
+        guard let png = image?.pngData() else {
+          return invoke.reject("la photo de la fenêtre a échoué", error: erreur)
+        }
+        invoke.resolve(["png": png.base64EncodedString(), "echelle": Double(image?.scale ?? 1)])
+      }
+    }
+  }
+
+  @objc public func haptique(_ invoke: Invoke) throws {
+    let args = try invoke.parseArgs(ArgsHaptique.self)
+    DispatchQueue.main.async {
+      switch args.sorte {
+      case "leger": UIImpactFeedbackGenerator(style: .light).impactOccurred()
+      case "moyen": UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+      case "fort": UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+      case "selection": UISelectionFeedbackGenerator().selectionChanged()
+      case "succes": UINotificationFeedbackGenerator().notificationOccurred(.success)
+      case "avertissement": UINotificationFeedbackGenerator().notificationOccurred(.warning)
+      case "erreur": UINotificationFeedbackGenerator().notificationOccurred(.error)
+      default: break
+      }
+      invoke.resolve()
+    }
+  }
+}
+
+extension UIColor {
+  /// `#rrggbb` ou `#rgb` ; `nil` pour tout le reste (la page n'envoie que ce qu'elle a calculé elle-même).
+  convenience init?(hex: String) {
+    var h = hex.trimmingCharacters(in: .whitespaces)
+    if h.hasPrefix("#") { h.removeFirst() }
+    if h.count == 3 { h = h.map { "\($0)\($0)" }.joined() }
+    guard h.count == 6, let v = UInt32(h, radix: 16) else { return nil }
+    self.init(
+      red: CGFloat((v >> 16) & 0xff) / 255, green: CGFloat((v >> 8) & 0xff) / 255, blue: CGFloat(v & 0xff) / 255, alpha: 1)
+  }
+}
+
+@_cdecl("init_plugin_appareil")
+func initPlugin() -> Plugin {
+  return AppareilPlugin()
+}
