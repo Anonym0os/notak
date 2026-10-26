@@ -69,8 +69,7 @@ pub const REFUSE: &str = "appel refusé : cette page n'est ni Notak ni le serveu
 /// Les deux pages que la coque sert : l'application et le serveur choisi.
 pub const LOCALE_OU_SERVEUR: &[Appelant] = &[Appelant::Locale, Appelant::Serveur];
 pub const LOCALE: &[Appelant] = &[Appelant::Locale];
-/// La photo de la fenêtre, pour un signalement (macOS seulement).
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+/// La photo de la fenêtre pour un signalement (macOS), et les pages du serveur ouvertes dans le navigateur.
 pub const SERVEUR: &[Appelant] = &[Appelant::Serveur];
 
 /// Les octets d'un appel. Ils viennent bruts par le canal de Tauri ; mais une page dont la CSP le bloque (ou une

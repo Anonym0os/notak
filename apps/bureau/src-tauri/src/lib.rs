@@ -251,6 +251,7 @@ pub fn run() {
             fichiers::lire_fichier_ouvert,
             fichiers::ecarter_fichier_ouvert,
             acces::annuler_jonction,
+            acces::ouvrir_dans_le_navigateur,
             fichiers::confier_copie,
             mise_a_jour::preparer_mise_a_jour,
             mise_a_jour::installer_mise_a_jour,

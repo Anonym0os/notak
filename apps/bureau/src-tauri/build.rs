@@ -17,6 +17,7 @@ fn main() {
         "lire_fichier_ouvert",
         "ecarter_fichier_ouvert",
         "annuler_jonction",
+        "ouvrir_dans_le_navigateur",
         "confier_copie",
     ])))
     .unwrap();

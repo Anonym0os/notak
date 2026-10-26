@@ -1,11 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { type Moi, duree, moi as lireMoi } from '../api'
+import { estPageServeur, ouvrirDansLeNavigateur } from '../bureau'
 import { t } from '../langue'
 import { Marque } from '../PageApp'
 import { type Appareil, type EtatAppareil, grouperCode, lancerConnexionParCode } from './appareil'
 
 /** Le lien s'ouvre dans le navigateur de la personne : la coque envoie toute nouvelle fenêtre vers le système (`navigation.rs`). */
-const ouvrirNavigateur = (adresse: string) => void window.open(adresse, '_blank', 'noopener')
+/**
+ * Ouvre la page d'accord dans le navigateur. Elle s'ouvre après une requête, hors du clic : WebKit refuserait
+ * `window.open`. La coque l'ouvre alors elle-même (pages de ce serveur seulement) ; une coque plus ancienne, ou un
+ * refus, retombe sur `window.open`, et « Rouvrir le navigateur » reste là.
+ */
+const ouvrirNavigateur = (adresse: string) => {
+  const parLaFenetre = () => void window.open(adresse, '_blank', 'noopener')
+  if (estPageServeur()) void ouvrirDansLeNavigateur(adresse).catch(parLaFenetre)
+  else parLaFenetre()
+}
 
 /**
  * L'attente de la connexion par le navigateur (app de bureau, fournisseur ou SSO) : le code à comparer, un bouton pour

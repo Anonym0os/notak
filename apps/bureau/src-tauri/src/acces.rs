@@ -18,8 +18,9 @@
 /// fait que les afficher. Seuls ses réglages (`acces`) et ce que tape la personne mènent ailleurs.
 use std::net::Ipv4Addr;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::collections::VecDeque;
 use std::sync::{Mutex, PoisonError};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -28,7 +29,7 @@ use tauri::utils::acl::RemoteUrlPattern;
 use tauri::{AppHandle, Manager, State, Url, Webview};
 use url::Host;
 
-use crate::appel::{exiger, Erreur, LOCALE, LOCALE_OU_SERVEUR};
+use crate::appel::{exiger, Erreur, LOCALE, LOCALE_OU_SERVEUR, SERVEUR};
 use crate::navigation::{Appelant, Origines};
 use crate::reglages::{Ouvrir, Reglage};
 use crate::Emplacements;
@@ -51,6 +52,7 @@ pub const DROITS_SERVEUR: &[&str] = &[
     "allow-fichiers-ouverts",
     "allow-lire-fichier-ouvert",
     "allow-ecarter-fichier-ouvert",
+    "allow-ouvrir-dans-le-navigateur",
 ];
 
 const DELAI: Duration = Duration::from_secs(10);
@@ -290,11 +292,13 @@ pub struct Acces {
     joindre: tauri::async_runtime::Mutex<()>,
     /// Change à chaque annulation : une vérification en cours qui la voit changer n'emmène pas la fenêtre.
     annulations: AtomicU64,
+    /// Les pages du serveur ouvertes récemment dans le navigateur (`ouvrir_dans_le_navigateur`).
+    navigateur: Mutex<VecDeque<Instant>>,
 }
 
 impl Acces {
     pub fn new(reglage: Reglage, racine: Url) -> Self {
-        Self { reglage, racine, accordes: Mutex::new(Vec::new()), visite: Mutex::new(Visite::default()), joindre: tauri::async_runtime::Mutex::new(()), annulations: AtomicU64::new(0) }
+        Self { reglage, racine, accordes: Mutex::new(Vec::new()), visite: Mutex::new(Visite::default()), joindre: tauri::async_runtime::Mutex::new(()), annulations: AtomicU64::new(0), navigateur: Mutex::new(VecDeque::new()) }
     }
 
     fn nouvelle_visite(&self, origine: Option<String>) -> u64 {
@@ -401,6 +405,37 @@ pub async fn joindre_serveur(
         }
     }
     Ok(joint)
+}
+
+/// Combien de pages du serveur s'ouvrent coup sur coup dans le navigateur : la connexion par code en ouvre une ; un
+/// serveur qui s'emballe n'en ouvre pas des dizaines.
+const NAVIGATEUR_MAX: usize = 3;
+const NAVIGATEUR_DUREE: Duration = Duration::from_secs(10);
+
+/// Une page du serveur, ouverte dans le navigateur de la personne. La page d'accord de la connexion par code s'ouvre
+/// après une requête : WebKit refuse alors `window.open`, qui n'est plus le fruit d'un clic. Seules les pages du
+/// serveur choisi passent par ici, et pas plus de trois en dix secondes.
+#[tauri::command]
+pub async fn ouvrir_dans_le_navigateur(app: AppHandle, webview: Webview, garde: State<'_, Origines>, etat: State<'_, Acces>, adresse: String) -> Result<(), Erreur> {
+    exiger(&webview, &garde, SERVEUR)?;
+    let url = Url::parse(&adresse).map_err(|_| Erreur::AdresseInvalide)?;
+    let courant = garde.serveur.lire().ok_or(Erreur::Interdit)?;
+    if !matches!(url.scheme(), "https" | "http") || !url.username().is_empty() || url.password().is_some() || url.origin().ascii_serialization() != courant {
+        return Err(Erreur::Interdit);
+    }
+    {
+        let maintenant = Instant::now();
+        let mut recentes = etat.navigateur.lock().unwrap_or_else(PoisonError::into_inner);
+        while recentes.front().is_some_and(|t| maintenant.duration_since(*t) >= NAVIGATEUR_DUREE) {
+            recentes.pop_front();
+        }
+        if recentes.len() >= NAVIGATEUR_MAX {
+            return Err(Erreur::TropVite);
+        }
+        recentes.push_back(maintenant);
+    }
+    use tauri_plugin_opener::OpenerExt;
+    app.opener().open_url(url.as_str(), None::<&str>).map_err(Erreur::echec)
 }
 
 /// Renonce à la jonction en cours (la porte : « Ouvrir les toiles de cet ordinateur » pendant qu'on attend le

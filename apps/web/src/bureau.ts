@@ -177,6 +177,9 @@ export async function lireFichierOuvert(id: string): Promise<Uint8Array> {
 /** Retire un fichier qui attend, sans le lire (« Pas maintenant »). */
 export const ecarterFichierOuvert = (id: string) => invoquer<void>('ecarter_fichier_ouvert', { id })
 
+/** Ouvre une page du serveur choisi dans le navigateur de la personne (page du serveur seulement). */
+export const ouvrirDansLeNavigateur = (adresse: string) => invoquer<void>('ouvrir_dans_le_navigateur', { adresse })
+
 /** Renonce à la jonction en cours : elle finit sur `annule`, sans emmener la fenêtre (page embarquée seulement). */
 export const annulerJonction = () => invoquer<void>('annuler_jonction')
 

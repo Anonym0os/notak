@@ -27,6 +27,8 @@ export const HOTES_NOMMES: Record<string, string> = {
   'www.apache.org': 'la licence du lecteur PDF (pdf.js)',
   'www.xfa.org': 'les espaces de noms des formulaires PDF',
   'ns.adobe.com': 'les espaces de noms des métadonnées PDF',
+  'notak.exemple.fr': 'l’adresse d’exemple de l’écran « Se connecter à un serveur Notak »',
+  'notak.example.com': 'la même, en anglais',
   'example.com': 'un exemple dans une bibliothèque',
   'foo.bar': 'un exemple dans une bibliothèque',
 }
