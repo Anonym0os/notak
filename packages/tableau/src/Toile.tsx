@@ -11,6 +11,7 @@ import { BarreEdition, ContexteBarreEdition } from './barreEdition'
 import { Cadre, ContexteRangement, type Empreinte, type Rangement } from './Cadre'
 import * as cam from './coeur/camera'
 import { brancherPilote } from './pilotage'
+import { type DetailImport, EVENEMENT_IMPORT, operationsDImport } from './recevoirImport'
 import { type Point, type Rect, centre, chevauche, depuisCoins, englobant, point, soustraire } from './coeur/geometrie'
 import { type Hauteur, hauteurTiree, memeHauteur } from './coeur/hauteur'
 import { CANEVAS, type Fond, NOMS_CANEVAS, estLibre, estNomme, estSombre, fondParDefaut, fondRange, pointsAllumes } from './coeur/fond'
@@ -972,6 +973,22 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   }
 
   recevoirCourant.current = recevoir
+
+  // Fichier › Importer… (Notak de bureau) : la toile ouverte, si on peut y écrire, prend les fichiers au centre de la vue.
+  useEffect(() => {
+    const importer = (e: Event) => {
+      const { fichiers } = (e as CustomEvent<DetailImport>).detail
+      if (e.defaultPrevented || lectureSeule || !racine.current?.isConnected || racine.current.offsetParent === null) return
+      e.preventDefault()
+      void operationsDImport(fichiers, contexte.centreVue(), contexte).then((ops) => {
+        if (ops.length === 0) return
+        magasin.faire(ops)
+        setSelection(new Set(ops.flatMap((op) => (op.type === 'creer' ? [op.element.id] : []))))
+      })
+    }
+    window.addEventListener(EVENEMENT_IMPORT, importer)
+    return () => window.removeEventListener(EVENEMENT_IMPORT, importer)
+  }, [contexte, lectureSeule, magasin])
 
   useLayoutEffect(() => {
     const div = racine.current!

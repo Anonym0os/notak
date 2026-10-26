@@ -3222,6 +3222,45 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   white-space: nowrap;
 }
 
+/* Des fichiers de la machine glissés sur la page : la toile qui les prendrait s'allume, l'accueil par défaut. */
+.biblio[data-apport='accueil'] .biblio-corps {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.biblio-apport {
+  position: fixed;
+  z-index: 60;
+  bottom: 24px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 32px);
+  height: 36px;
+  padding: 0 16px;
+  box-sizing: border-box;
+  border-radius: 18px;
+  background: var(--texte);
+  color: var(--carte);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+  box-shadow: 0 12px 28px -8px rgb(27 37 54 / 0.4);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.biblio-apport > svg {
+  flex: none;
+}
+
+.biblio-apport > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Le menu du clic droit, posé au-dessus de toute la page. */
 .biblio-calque-menu {
   position: fixed;

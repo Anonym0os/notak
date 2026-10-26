@@ -8,8 +8,10 @@ import {
   quandPretes,
   rangerDansNeuve,
   renommerChose,
+  resumesDuTableau,
 } from '@notak/tableau'
 import type { BilanRangement, EntreeBibliotheque } from '../api'
+import type { BilanImport } from '../importation'
 import { t, tn } from '../langue'
 import type { Correctif } from './correctifs'
 import { cleDe, porteuseDe } from './selection'
@@ -245,4 +247,49 @@ export async function favoris(o: Outils, entrees: readonly EntreeBibliotheque[],
   const toiles = entrees.filter((e) => e.element === null)
   await Promise.all(toiles.map((e) => o.definirFavori(e.tableau, favori)))
   return toiles.map((e) => ({ type: 'changer', cle: cleDe(e), champs: { favori } }))
+}
+
+/**
+ * Des fichiers lâchés sur la bibliothèque (ou choisis par Fichier › Importer…), importés sur la toile `dans` : ses
+ * cartes mentales, ses documents et ses toiles neuves s'y montrent tout de suite ; ce qui n'est qu'un fichier joint
+ * reste sur la toile. Se défait en jetant ce qui est né.
+ */
+export async function importerEntrees(
+  o: Outils,
+  importer: (fichiers: File[], dans: string) => Promise<BilanImport>,
+  fichiers: File[],
+  dans: { id: string; titre: string },
+): Promise<Resultat> {
+  const b = await importer(fichiers, dans.id)
+  const nombre = b.elements.filter((e) => !e.parent).length + b.toiles.length
+  const refus = b.refuses.length ? tn('biblio.import.refuses', b.refuses.length, { noms: b.refuses.map((nom) => t('biblio.import.nom', { nom })).join(', ') }) : ''
+  if (nombre === 0) return { texte: refus || t('biblio.import.rien'), correctifs: [] }
+  const commun = { ou: dans.titre, dans: dans.id, vu: null, favori: false, partage: false }
+  const entrees: EntreeBibliotheque[] = [
+    ...resumesDuTableau({ titre: '', elements: b.elements as never }).flatMap((resume) =>
+      resume.genre === 'toile' ? [] : [{ tableau: dans.id, element: resume.element, genre: resume.genre, titre: resume.titre, resume, ...commun }],
+    ),
+    ...b.toiles.map(({ id, titre }) => ({
+      tableau: id,
+      element: null,
+      genre: 'toile' as const,
+      titre,
+      resume: { genre: 'toile' as const, element: '' as const, titre, boites: [] },
+      ...commun,
+    })),
+  ]
+  return {
+    texte: tn('biblio.import.fait', nombre, { toile: dans.titre }) + (refus ? ` ${refus}` : ''),
+    correctifs: [{ type: 'ajouter', entrees }],
+    async annuler() {
+      jeter(o.espace, [
+        ...b.elements.filter((e) => !e.parent).map((e) => ({ toile: dans.id, element: e.id })),
+        ...b.toiles.flatMap(({ id }) => {
+          const carte = carteDeLaToile(o.espace, dans.id, id)
+          return carte ? [{ toile: dans.id, element: carte }] : []
+        }),
+      ])
+      return [{ type: 'retirer', cles: entrees.map(cleDe) }]
+    },
+  }
 }

@@ -8,6 +8,9 @@ import {
   type Declaration,
   creerEspaceDistant,
   creerReseauNavigateur,
+  type DetailImport,
+  EVENEMENT_IMPORT,
+  annoncer,
 } from '@notak/tableau'
 import { type ReactNode, StrictMode, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -29,6 +32,8 @@ import { adressePhoto, apercu, banqueImages, envoyerFichier, fichiers, rapatrier
 import { localiser } from '../geocodage'
 import { importerEspaceLocal } from '../importLocal'
 import { Importer } from '../Importer'
+import { devientUneToile, importerFichiers } from '../importation'
+import { ecouterImportBureau } from '../importBureau'
 import { creerRecents } from '../recents'
 import { PagePublique } from '../PagePublique'
 import { ApercuInvitation, PageInvitation, jetonInvitation, useInvitation } from '../Invitation'
@@ -37,7 +42,7 @@ import { PlusEntete } from '../PlusEntete'
 import { enregistrerServiceWorker } from '../pwa'
 import { BoutonSignaler, brancherSignaler } from '../signaler/Signaler'
 import { VerrouTableau } from '../Verrou'
-import { t } from '../langue'
+import { t, tn } from '../langue'
 import { adressePour } from '../adresse'
 import { allerA, useChemin } from '../chemin'
 
@@ -246,6 +251,7 @@ function Accueil({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
           espace={espace}
           fenetres={fenetres}
           partage={(tableau, fermer) => <PartageEnFenetre tableau={tableau} moi={moi} fermer={fermer} />}
+          importer={(f, dans) => importerFichiers(f, dans, espace, services)}
           compte={
             <>
               <BoutonSignaler />
@@ -291,6 +297,26 @@ function Espace({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
   useEffect(() => {
     espace.changerUtilisateur({ id: moi.id, nom: moi.nom, couleur: moi.couleur, ...(moi.photo ? { photo: moi.photo } : {}) })
   }, [espace, moi])
+  // Fichier › Importer… dans Notak de bureau : la toile ouverte prend les fichiers au centre de sa vue ; un `.notak` ou un
+  // export Milanote y devient une toile, comme par le bouton « Importer ». Sans toile à l'écran (un document ouvert en
+  // grand), ils se posent à la suite sur la toile.
+  useEffect(
+    () =>
+      ecouterImportBureau(async (choisis) => {
+        const dans = adresse.lire() ?? moi.racine
+        const ordinaires = choisis.filter((f) => !devientUneToile(f))
+        const evenement = new CustomEvent<DetailImport>(EVENEMENT_IMPORT, { detail: { fichiers: ordinaires }, cancelable: true })
+        if (ordinaires.length > 0) window.dispatchEvent(evenement)
+        const restants = evenement.defaultPrevented ? choisis.filter(devientUneToile) : choisis
+        if (restants.length === 0) return
+        const b = await importerFichiers(restants, dans, espace, services)
+        const nombre = b.elements.filter((e) => !e.parent).length + b.toiles.length
+        const refus = b.refuses.length ? tn('biblio.import.refuses', b.refuses.length, { noms: b.refuses.map((nom) => t('biblio.import.nom', { nom })).join(', ') }) : ''
+        const titre = espace.tableau(dans)?.titre || t('commun.sansTitre')
+        annoncer({ texte: [nombre ? tn('biblio.import.fait', nombre, { toile: titre }) : '', refus].filter(Boolean).join(' ') || t('biblio.import.rien') })
+      }),
+    [adresse, espace, moi.racine],
+  )
   // Les droits d'un élément, réglés par le propriétaire du tableau depuis le menu de la toile.
   const [droitsElement, setDroitsElement] = useState<{ tableau: string; element: string } | null>(null)
   const servicesIci = useMemo(() => ({ ...services, reglerDroitsElementDe: (tableau: string, element: string) => setDroitsElement({ tableau, element }) }), [])

@@ -351,4 +351,45 @@ describe('les gestes', () => {
     expect(espace.tableau('racine')!.elements.some((e) => e.id === 'c-atelier')).toBe(false)
     expect(hote.querySelector('.notak-avis')!.textContent).toContain('Déplacé dans « Voyage »')
   })
+
+  it('des fichiers lâchés sur une toile y sont importés ; ce qui en naît s’y montre aussitôt', async () => {
+    const espace = monde()
+    const importes: [string[], string][] = []
+    await act(async () =>
+      racine.render(
+        <PageBibliotheque
+          charger={async () => TOUTES}
+          espace={espace}
+          definirFavori={async () => {}}
+          importer={async (fichiers, dans) => {
+            importes.push([fichiers.map((f) => f.name), dans])
+            const doc = { id: 'cr', x: 0, y: 0, largeur: 10, contenu: { type: 'document', titre: 'Compte rendu', texte: { type: 'doc', content: [] } } } as unknown as ElementToile
+            return { elements: [doc], toiles: [], refuses: ['vieux.pages'] }
+          }}
+        />,
+      ),
+    )
+    const rubrique = (nom: string) => [...hote.querySelectorAll<HTMLButtonElement>('[data-rubrique]')].find((b) => b.textContent?.startsWith(nom))!
+    act(() => rubrique('Documents').click())
+    const fichier = new File(['# Compte rendu'], 'Compte rendu.md', { type: 'text/markdown' })
+    const glisser = (type: string, sur: Element) => {
+      const e = new Event(type, { bubbles: true, cancelable: true })
+      Object.defineProperty(e, 'dataTransfer', { value: { types: ['Files'], files: [fichier], dropEffect: 'none' } })
+      act(() => void sur.dispatchEvent(e))
+      return e
+    }
+    // Sur le fond : l'accueil ; le bandeau dit où ils iraient.
+    expect(glisser('dragover', hote.querySelector('.biblio-corps')!).defaultPrevented).toBe(true)
+    expect(hote.querySelector('.biblio-apport')!.textContent).toBe('Déposer pour importer dans « Accueil »')
+    act(() => rubrique('Toiles').click())
+    glisser('dragover', tuile('voyage/'))
+    expect(hote.querySelector('.biblio-apport')!.textContent).toBe('Déposer pour importer dans « Voyage »')
+    expect(tuile('voyage/').hasAttribute('data-survol-depot')).toBe(true)
+    await act(async () => void glisser('drop', tuile('voyage/')))
+    expect(importes).toEqual([[['Compte rendu.md'], 'voyage']])
+    expect(hote.querySelector('.biblio-apport')).toBeNull()
+    expect(hote.querySelector('.notak-avis')!.textContent).toContain('Un fichier importé dans « Voyage » « vieux.pages » n’a pas pu être lu.')
+    act(() => rubrique('Documents').click())
+    expect([...hote.querySelectorAll('.biblio-tuile-titre')].map((t) => t.textContent)).toContain('Compte rendu')
+  })
 })

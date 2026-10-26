@@ -13,6 +13,7 @@ import {
   quandPretes,
 } from '@notak/tableau'
 import {
+  type DragEvent,
   type KeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
@@ -33,6 +34,7 @@ import {
   dupliquerEntrees,
   favoris,
   jeterEntrees,
+  importerEntrees,
   rangerDansUneNeuve,
   renommerEntree,
 } from './bibliotheque/actions'
@@ -54,6 +56,8 @@ import {
   voisine,
 } from './bibliotheque/selection'
 import { Vignette } from './bibliotheque/Vignettes'
+import { ecouterImportBureau } from './importBureau'
+import type { BilanImport } from './importation'
 import { allerA, surLien } from './chemin'
 import { t, tn } from './langue'
 
@@ -224,6 +228,7 @@ export function PageBibliotheque({
   rangerToile = rangerToileApi,
   definirFavori = definirFavoriApi,
   partage,
+  importer,
 }: {
   charger?: () => Promise<EntreeBibliotheque[]>
   espace?: EspaceBibliotheque
@@ -236,6 +241,8 @@ export function PageBibliotheque({
   definirFavori?: Outils['definirFavori']
   /** Le partage d'une toile, en fenêtre. */
   partage?: (tableau: string, fermer: () => void) => ReactNode
+  /** Importe des fichiers de la machine sur une toile (lâchés sur la page, ou Fichier › Importer…). */
+  importer?: (fichiers: File[], dans: string) => Promise<BilanImport>
 }) {
   const [serveur, setServeur] = useState<EntreeBibliotheque[] | null>(null)
   const [correctifs, setCorrectifs] = useState<{ n: number; correctif: Correctif }[]>([])
@@ -250,6 +257,9 @@ export function PageBibliotheque({
   const [fenetre, setFenetre] = useState<Fenetre | null>(null)
   const [renommage, setRenommage] = useState<Renommage | null>(null)
   const [glisse, setGlisse] = useState<Glisse | null>(null)
+  /** Des fichiers de la machine qu'on glisse sur la page : la toile où ils iraient. */
+  const [apport, setApport] = useState<{ cible: string } | null>(null)
+  const [importEnCours, setImportEnCours] = useState(false)
   const [cadre, setCadre] = useState<Boite | null>(null)
   const champ = useRef<HTMLInputElement>(null)
   const nav = useRef<HTMLElement>(null)
@@ -754,6 +764,39 @@ export function PageBibliotheque({
     boutons[(i + (e.key === 'ArrowDown' ? 1 : -1) + boutons.length) % boutons.length]?.focus()
   }
 
+  // ---- Des fichiers de la machine ----
+
+  /** Importe ces fichiers sur la toile `dans` : l'accueil, ou la toile (tuile, dossier) sur laquelle on les lâche. */
+  const importerIci = (fichiers: File[], dans: string) => {
+    if (!outils || !importer || fichiers.length === 0) return
+    setImportEnCours(true)
+    void executer(importerEntrees(outils, importer, fichiers, { id: dans, titre: titreToile(dans) })).finally(() => setImportEnCours(false))
+  }
+  const importerCourant = useRef(importerIci)
+  importerCourant.current = importerIci
+  // Fichier › Importer… dans Notak de bureau : sur l'accueil, comme un fichier lâché sur le fond.
+  useEffect(() => (espace ? ecouterImportBureau((f) => importerCourant.current(f, espace.racine)) : undefined), [espace])
+  const apporteDesFichiers = (e: DragEvent) => !!importer && !!espace && e.dataTransfer.types.includes('Files')
+  const surApport = (e: DragEvent<HTMLDivElement>) => {
+    if (!apporteDesFichiers(e)) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+    const cible = (e.target as HTMLElement).closest?.<HTMLElement>('[data-depot]')?.dataset.depot ?? espace!.racine
+    if (apport?.cible !== cible) setApport({ cible })
+  }
+  // Sorti de la page, et non d'une tuile vers sa voisine.
+  const surDepart = (e: DragEvent<HTMLDivElement>) => {
+    if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget))) setApport(null)
+  }
+  const surLacher = (e: DragEvent<HTMLDivElement>) => {
+    if (!apporteDesFichiers(e)) return
+    e.preventDefault()
+    setApport(null)
+    importerIci([...e.dataTransfer.files], apport?.cible ?? espace!.racine)
+  }
+  /** La toile qui prendrait ce qu'on glisse : des tuiles, ou des fichiers de la machine. */
+  const survolDepot = glisse?.cible ?? apport?.cible ?? null
+
   const bouton = (r: Rubrique) => (
     <button key={r} type="button" className="biblio-rubrique" data-rubrique={r} aria-current={!cherche && rubrique === r ? 'page' : undefined} onClick={() => choisir(r)}>
       <Icone nom={ICONE_RUBRIQUE[r]} taille={18} />
@@ -766,7 +809,7 @@ export function PageBibliotheque({
   const premiereFocalisable = courante && ordre.includes(courante) ? courante : (choisies[0] ?? ordre[0])
 
   return (
-    <div className="biblio">
+    <div className="biblio" data-apport={apport ? (apport.cible === espace?.racine ? 'accueil' : 'toile') : undefined} onDragEnter={surApport} onDragOver={surApport} onDragLeave={surDepart} onDrop={surLacher}>
       <nav className="biblio-colonne" aria-label={t('biblio.titre')} ref={nav} onKeyDown={surToucheColonne} data-tauri-drag-region="deep">
         <div className="biblio-nouveau">
           <button type="button" className="biblio-nouveau-bouton" aria-expanded={menuNeuf} aria-haspopup="menu" disabled={creation} onClick={() => setMenuNeuf((o) => !o)}>
@@ -789,7 +832,7 @@ export function PageBibliotheque({
           href={accueil}
           onClick={(e) => surLien(e, accueil)}
           data-depot={espace?.racine}
-          data-survol-depot={(espace && glisse?.cible === espace.racine) || undefined}
+          data-survol-depot={(espace && survolDepot === espace.racine) || undefined}
         >
           <span className="biblio-maison" aria-hidden>
             <Icone nom="maison" taille={12} trait={2.4} />
@@ -896,7 +939,7 @@ export function PageBibliotheque({
                   <h2
                     data-dossier={s.dans || undefined}
                     data-depot={s.dans || undefined}
-                    data-survol-depot={(s.dans && glisse?.cible === s.dans) || undefined}
+                    data-survol-depot={(s.dans && survolDepot === s.dans) || undefined}
                   >
                     {s.dans !== undefined && <Icone nom={s.dans ? 'tableau' : 'equipe'} taille={15} />}
                     {s.dans && renommage && 'dossier' in renommage && renommage.dossier === s.dans ? (
@@ -936,7 +979,7 @@ export function PageBibliotheque({
                         choisie={sel.choisies.has(cle)}
                         focalisable={cle === premiereFocalisable}
                         glissee={glissees.has(cle)}
-                        survolee={e.element === null && glisse?.cible === e.tableau}
+                        survolee={e.element === null && survolDepot === e.tableau}
                         renommer={renommage !== null && 'cle' in renommage && renommage.cle === cle}
                         valider={(titre) => {
                           void renommerCe(e, titre)
@@ -964,6 +1007,12 @@ export function PageBibliotheque({
       </main>
 
       {glisse && <Fantome entrees={entreesDes(glisse.cles)} x={glisse.x} y={glisse.y} />}
+      {(apport || importEnCours) && (
+        <div className="biblio-apport" role="status">
+          <Icone nom="importer" taille={16} />
+          <span>{apport ? t('biblio.import.deposer', { toile: titreToile(apport.cible) }) : t('biblio.import.encours')}</span>
+        </div>
+      )}
       {menu && (
         <div className="biblio-calque-menu">
           <MenuContextuel x={menu.x} y={menu.y} entrees={entreesDuMenu(menu)} fermer={() => setMenu(null)} />
