@@ -5,7 +5,7 @@ import { t, tn } from './langue'
 import { touchesDe } from './communs'
 import { touches } from './Menus'
 import { PastillePersonne } from './pastille'
-import { Recherche, Segments } from './communs'
+import { Recherche, Segments, Touches as TouchesRaccourci } from './communs'
 import { type ContexteReglages, GROUPES, type Ligne, type Rubrique, chercher, lire, morceaux, nombreDeLignes, rubriquesVisibles } from './rubriquesReglages'
 import { VERSION_NOTAK } from './version'
 import './reglages.css'
@@ -155,7 +155,7 @@ export function PageReglages({ fermer, ...c }: ContexteReglages & { fermer(): vo
             </span>
           </button>
         )}
-        <Recherche ref={champ} autoFocus valeur={cherche} onChange={setCherche} placeholder={t('reglages.chercher')} aria-label={t('reglages.chercher')} fin={!cherche && <kbd aria-hidden>{touches('⌘F')}</kbd>} />
+        <Recherche ref={champ} autoFocus valeur={cherche} onChange={setCherche} placeholder={t('reglages.chercher')} aria-label={t('reglages.chercher')} fin={!cherche && <TouchesRaccourci touches="⌘F" />} />
         <div className="notak-rg-liste">
           {GROUPES.map((g) => {
             const rubriques = visibles.filter((r) => r.groupe === g)

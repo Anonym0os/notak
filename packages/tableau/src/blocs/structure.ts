@@ -2,7 +2,7 @@ import type { Node as NoeudPM } from '@tiptap/pm/model'
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
 import { Extension } from '@tiptap/react'
-import { animerCase } from '../communs/animerCase'
+import { DUREE_CASE } from '../communs/animerCase'
 import { t } from '../langue'
 import { type Ligne, type Place, structurer } from './rang'
 
@@ -105,14 +105,41 @@ export const CLE_STRUCTURE = new PluginKey<DecorationSet>('structureBlocs')
 /** Les marqueurs cliquables : la case d'une tâche, le triangle d'un dépliant. Ils sont dans la marge gauche du bloc. */
 const MARQUEURS = '.notak-b-tache, .notak-b-depliant, [data-depliant]'
 
+/** Les cases qui s'animent, en décorations : ProseMirror (et la synchro) refont le bloc, la décoration le suit. */
+const CLE_ANIME = new PluginKey<DecorationSet>('animeCases')
+type GesteCase = { pos: number; genre: 'coche' | 'decoche'; jeton: number } | { fin: number }
+let jetonCase = 0
+
 /**
- * Joue l'animation de la case d'une tâche qu'on vient de cocher ou de décocher, au geste. ProseMirror refait le bloc
- * quand son attribut change : on cherche donc son DOM après la transaction.
+ * Joue l'animation de la case d'une tâche qu'on vient de cocher ou de décocher, au geste. L'attribut `data-anime` est
+ * une décoration du bloc, pas un attribut posé sur son DOM : un bloc refait pendant l'animation la garde.
  */
 export function animerCaseDuBloc(view: EditorView, pos: number, coche: boolean) {
-  const bloc = view.nodeDOM(pos)
-  if (bloc instanceof HTMLElement) animerCase(bloc, coche)
+  const genre = coche ? 'coche' : 'decoche'
+  const jeton = ++jetonCase
+  view.dispatch(view.state.tr.setMeta(CLE_ANIME, { pos, genre, jeton } satisfies GesteCase).setMeta('addToHistory', false))
+  setTimeout(() => {
+    if (!view.isDestroyed) view.dispatch(view.state.tr.setMeta(CLE_ANIME, { fin: jeton } satisfies GesteCase).setMeta('addToHistory', false))
+  }, DUREE_CASE[genre])
 }
+
+const AnimeCases = new Plugin<DecorationSet>({
+  key: CLE_ANIME,
+  state: {
+    init: () => DecorationSet.empty,
+    apply: (tr, avant) => {
+      let set = avant.map(tr.mapping, tr.doc)
+      const geste = tr.getMeta(CLE_ANIME) as GesteCase | undefined
+      if (!geste) return set
+      if ('fin' in geste) return set.remove(set.find(undefined, undefined, (spec) => spec.jeton === geste.fin))
+      const n = tr.doc.nodeAt(geste.pos)
+      if (!n) return set
+      set = set.remove(set.find(geste.pos, geste.pos + n.nodeSize))
+      return set.add(tr.doc, [Decoration.node(geste.pos, geste.pos + n.nodeSize, { 'data-anime': geste.genre }, { jeton: geste.jeton })])
+    },
+  },
+  props: { decorations: (state) => CLE_ANIME.getState(state) },
+})
 
 /** L'appui tombe-t-il dans la marge du marqueur (le retrait gauche du bloc, avant son texte) ? */
 export function dansLeMarqueur(el: HTMLElement, x: number): boolean {
@@ -125,6 +152,7 @@ export const StructureBlocs = Extension.create({
   name: 'structureBlocs',
   addProseMirrorPlugins() {
     return [
+      AnimeCases,
       new Plugin<DecorationSet>({
         key: CLE_STRUCTURE,
         state: {

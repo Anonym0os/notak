@@ -43,7 +43,8 @@
   --rg-zoom: 1.15;
 }
 
-.notak-rg :focus-visible {
+/* Un champ montre son focus par son propre filet : pas d'anneau en plus. */
+.notak-rg :focus-visible:not(.notak-champ) {
   outline: 2px solid var(--notak-accent, #2f6feb);
   outline-offset: 2px;
 }

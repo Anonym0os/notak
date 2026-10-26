@@ -1,5 +1,5 @@
 /** Les durées de l'animation d'une case (ms) : le cochage dure 300 (rebond, puis coche tracée), le décochage 100. */
-const DUREE = { coche: 300, decoche: 100 }
+export const DUREE_CASE = { coche: 300, decoche: 100 }
 
 /** Le dernier geste posé sur chaque case : un geste plus récent rend caduc le nettoyage du précédent. */
 const jetons = new WeakMap<Element, number>()
@@ -22,5 +22,5 @@ export function animerCase(case_: HTMLElement | SVGElement, coche: boolean) {
     if (jetons.get(case_) !== jeton) return
     delete case_.dataset.anime
     jetons.delete(case_)
-  }, DUREE[genre])
+  }, DUREE_CASE[genre])
 }
