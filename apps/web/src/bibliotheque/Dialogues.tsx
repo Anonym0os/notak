@@ -1,37 +1,9 @@
-import { Icone } from '@notak/tableau'
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { Bouton, Confirmation as ConfirmationCommune, Dialogue, Icone } from '@notak/tableau'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { EntreeBibliotheque } from '../api'
 import { t, tn } from '../langue'
 import { filtrer } from '../Bibliotheque'
 import { horsDAtteinte, porteuseDe } from './selection'
-
-/** Un dialogue modal au thème de la page : Échap ou un clic sur le voile le ferment. */
-function Dialogue({ titre, fermer, children, className }: { titre: string; fermer(): void; children: ReactNode; className?: string }) {
-  const boite = useRef<HTMLDialogElement>(null)
-  useEffect(() => {
-    const d = boite.current
-    if (d && !d.open) d.showModal?.()
-  }, [])
-  return (
-    <dialog
-      ref={boite}
-      className={`biblio-dialogue${className ? ` ${className}` : ''}`}
-      aria-label={titre}
-      onCancel={(e) => {
-        e.preventDefault()
-        fermer()
-      }}
-      onClick={(e) => e.target === e.currentTarget && fermer()}
-      // Ce qu'on tape ici n'est pas pour la page.
-      onKeyDown={(e) => e.stopPropagation()}
-    >
-      <div className="biblio-dialogue-carte">
-        <h2>{titre}</h2>
-        {children}
-      </div>
-    </dialog>
-  )
-}
 
 /**
  * Choisir où ranger : l'accueil, puis chaque toile par son nom, avec ce qui la porte. Celles où l'on ne peut pas
@@ -75,7 +47,21 @@ export function DeplacerVers({
     if (c && !ici(c.id)) choisir({ id: c.id, titre: c.titre })
   }
   return (
-    <Dialogue titre={titre} fermer={fermer} className="biblio-deplacer">
+    <Dialogue
+      titre={titre}
+      fermer={fermer}
+      className="biblio-deplacer"
+      actions={
+        <>
+          <Bouton variante="second" onClick={fermer}>
+            {t('commun.annuler')}
+          </Bouton>
+          <Bouton variante="principal" disabled={!cibles[n] || ici(cibles[n]!.id)} onClick={() => valider(n)}>
+            {t('biblio.deplacer.valider')}
+          </Bouton>
+        </>
+      }
+    >
       <label className="biblio-recherche-champ biblio-deplacer-champ">
         <Icone nom="recherche" taille={17} />
         <input
@@ -112,31 +98,11 @@ export function DeplacerVers({
           ))}
         </ul>
       )}
-      <div className="biblio-dialogue-boutons">
-        <button type="button" className="bouton" onClick={fermer}>
-          {t('commun.annuler')}
-        </button>
-        <button type="button" className="bouton bouton-plein" disabled={!cibles[n] || ici(cibles[n]!.id)} onClick={() => valider(n)}>
-          {t('biblio.deplacer.valider')}
-        </button>
-      </div>
     </Dialogue>
   )
 }
 
-/** Une question avant un geste qui ouvre à d'autres ce qu'on range. */
+/** Une question avant un geste qui ouvre à d'autres ce qu'on range : la confirmation commune, sans rouge (rien n'est perdu). */
 export function Confirmation({ titre, texte, oui, repondre }: { titre: string; texte: string; oui: string; repondre(oui: boolean): void }) {
-  return (
-    <Dialogue titre={titre} fermer={() => repondre(false)} className="biblio-confirmation">
-      <p>{texte}</p>
-      <div className="biblio-dialogue-boutons">
-        <button type="button" className="bouton" onClick={() => repondre(false)}>
-          {t('commun.annuler')}
-        </button>
-        <button type="button" className="bouton bouton-plein" autoFocus onClick={() => repondre(true)}>
-          {oui}
-        </button>
-      </div>
-    </Dialogue>
-  )
+  return <ConfirmationCommune titre={titre} texte={texte} oui={oui} danger={false} repondre={repondre} />
 }

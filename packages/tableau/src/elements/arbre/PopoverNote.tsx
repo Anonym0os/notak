@@ -2,6 +2,7 @@ import { EditorContent, useEditor } from '@tiptap/react'
 import { useEffect, useRef } from 'react'
 import { type NoeudTexte, texteBrut } from '../../coeur/tableau'
 import { type NomIcone, Icone } from '../../icones'
+import { BoutonIcone, useFermeture } from '../../communs'
 import { t } from '../../langue'
 import { EXTENSIONS_NOTE } from '../note/extensions'
 import { Flottant } from './Flottant'
@@ -69,28 +70,14 @@ export function PopoverNote({ titre, note, x, y, lectureSeule, valider, fermer }
     })
     return () => cancelAnimationFrame(image)
   }, [editeur, lectureSeule])
-  // Échap la ferme, où que soit le focus : il ne remonte pas jusqu'à la carte, qui se fermerait avec.
-  useEffect(() => {
-    const echap = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      e.stopPropagation()
-      e.preventDefault()
+  // Échap la ferme, où que soit le focus (il ne remonte pas jusqu'à la carte, qui se fermerait avec), et un clic dehors aussi.
+  useFermeture({
+    racine,
+    fermer: () => {
       quitter.current()
       fermer()
-    }
-    document.addEventListener('keydown', echap, true)
-    return () => document.removeEventListener('keydown', echap, true)
-  }, [fermer])
-  // Un clic dehors la ferme.
-  useEffect(() => {
-    const dehors = (e: PointerEvent) => {
-      if (racine.current?.contains(e.target as Node)) return
-      quitter.current()
-      fermer()
-    }
-    document.addEventListener('pointerdown', dehors, true)
-    return () => document.removeEventListener('pointerdown', dehors, true)
-  }, [fermer])
+    },
+  })
   const lien = () => {
     if (!editeur) return
     const actuel = (editeur.getAttributes('link').href as string | undefined) ?? ''
@@ -106,7 +93,7 @@ export function PopoverNote({ titre, note, x, y, lectureSeule, valider, fermer }
       racine={racine}
       ancre={{ x: (surface?.left ?? 0) + x, y: (surface?.top ?? 0) + y, l: 0, h: 0 }}
       cote="libre"
-      className="notak-arbre-note-popover"
+      className="notak-pop notak-arbre-note-popover"
       role="dialog"
       aria-label={t('arbre.note')}
       onPointerDown={(e) => e.stopPropagation()}
@@ -119,17 +106,17 @@ export function PopoverNote({ titre, note, x, y, lectureSeule, valider, fermer }
         {!lectureSeule &&
           editeur &&
           BOUTONS.map((b) => (
-            <button key={b.actif} type="button" aria-label={t(b.cle)} title={t(b.cle)} aria-pressed={editeur.isActive(b.actif)} onClick={() => b.faire(editeur)}>
+            <BoutonIcone key={b.actif} taille={30} aria-label={t(b.cle)} title={t(b.cle)} aria-pressed={editeur.isActive(b.actif)} onClick={() => b.faire(editeur)}>
               <Icone nom={b.icone} taille={18} trait={1.5} />
-            </button>
+            </BoutonIcone>
           ))}
         {!lectureSeule && editeur && (
-          <button type="button" aria-label={t('arbre.lien')} title={t('arbre.lien')} aria-pressed={editeur.isActive('link')} onClick={lien}>
+          <BoutonIcone taille={30} aria-label={t('arbre.lien')} title={t('arbre.lien')} aria-pressed={editeur.isActive('link')} onClick={lien}>
             <Icone nom="lien" taille={18} trait={1.5} />
-          </button>
+          </BoutonIcone>
         )}
-        <button
-          type="button"
+        <BoutonIcone
+          taille={30}
           aria-label={t('commun.fermer')}
           title={t('commun.fermer')}
           onClick={() => {
@@ -137,8 +124,8 @@ export function PopoverNote({ titre, note, x, y, lectureSeule, valider, fermer }
             fermer()
           }}
         >
-          <Icone nom="fermer" taille={18} trait={1.5} />
-        </button>
+          <Icone nom="fermer" taille={16} trait={2} />
+        </BoutonIcone>
       </div>
       <div className="notak-arbre-note-corps">
         <EditorContent editor={editeur} />

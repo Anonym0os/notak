@@ -30,7 +30,8 @@ const bouton = (texte: string) => [...hote.querySelectorAll<HTMLButtonElement>('
 const lien = (texte: string) => [...hote.querySelectorAll<HTMLButtonElement>('.notak-rg-lien')].find((b) => b.querySelector('span')?.textContent === texte)
 const titre = () => hote.querySelector('h2')?.textContent
 const ouvrir = (rubrique: string) => act(() => lien(rubrique)!.click())
-const touche = (key: string, extra: KeyboardEventInit = {}) => act(() => void document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...extra })))
+// Une touche tombe où est le focus (dans le dialogue), et remonte.
+const touche = (key: string, extra: KeyboardEventInit = {}) => act(() => void (document.activeElement ?? document).dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...extra })))
 
 /** Écrit dans le champ de recherche comme au clavier (React écoute `input`). */
 function chercher(texte: string) {
@@ -289,9 +290,9 @@ describe('le clavier', () => {
   it('un clic sur le fond ferme, un clic dans la fenêtre non', () => {
     const fermer = vi.fn()
     monter({ fermer })
-    act(() => void hote.querySelector('.notak-rg')!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })))
+    act(() => void hote.querySelector('.notak-rg')!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
     expect(fermer).not.toHaveBeenCalled()
-    act(() => void hote.querySelector('.notak-rg-fond')!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })))
+    act(() => void hote.querySelector('dialog')!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
     expect(fermer).toHaveBeenCalledOnce()
   })
 
@@ -316,7 +317,7 @@ describe('le clavier', () => {
     // jsdom ne met pas en page : rien n'a d'`offsetParent`, sauf l'élément qui a le focus.
     fermer.focus()
     const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
-    act(() => void document.dispatchEvent(tab))
+    act(() => void fermer.dispatchEvent(tab))
     expect(tab.defaultPrevented).toBe(true)
   })
 })

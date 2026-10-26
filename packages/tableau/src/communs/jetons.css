@@ -18,6 +18,22 @@
   --notak-case-anneau: #2f6feb;
   /* Le texte d'une tâche faite. */
   --notak-case-texte-fait: #8d929a;
+  /* Le popover (.notak-pop) et le dialogue (.notak-dialogue) : fond, texte, texte secondaire, ombre, voile. */
+  --notak-pop-fond: #fff;
+  --notak-pop-texte: #323b4a;
+  --notak-pop-texte-2: #5f6672;
+  --notak-pop-ombre: 0 0 0 1px rgb(27 37 54 / 0.08), 0 12px 32px -8px rgb(27 37 54 / 0.25);
+  --notak-dialogue-ombre: 0 0 0 1px rgb(27 37 54 / 0.08), 0 24px 64px -12px rgb(27 37 54 / 0.35);
+  --notak-dialogue-voile: rgb(27 37 54 / 0.24);
+  /* Le bouton (.notak-btn) : texte, plein, texte sur le plein, contour, survol, appuyé ; le rouge du texte et du fond. */
+  --notak-btn-texte: #323b4a;
+  --notak-btn-plein: #323b4a;
+  --notak-btn-sur-plein: #fff;
+  --notak-btn-contour: rgb(27 37 54 / 0.16);
+  --notak-btn-survol: rgb(50 59 74 / 0.06);
+  --notak-btn-actif: rgb(50 59 74 / 0.08);
+  --notak-btn-rouge: #a31d13;
+  --notak-btn-danger: #b42318;
 }
 
 [data-theme='sombre']:is(:root, .notak-espace),
@@ -29,4 +45,17 @@
   --notak-case-coche-option: #1b1e23;
   --notak-case-anneau: #5b8ff9;
   --notak-case-texte-fait: #9aa0a8;
+  --notak-pop-fond: #262a31;
+  --notak-pop-texte: #e3e5e9;
+  --notak-pop-texte-2: #a3aab4;
+  --notak-pop-ombre: 0 0 0 1px rgb(255 255 255 / 0.08), 0 16px 40px -10px rgb(0 0 0 / 0.6);
+  --notak-dialogue-ombre: 0 0 0 1px rgb(255 255 255 / 0.08), 0 24px 64px -12px rgb(0 0 0 / 0.65);
+  --notak-dialogue-voile: rgb(0 0 0 / 0.5);
+  --notak-btn-texte: #e3e5e9;
+  --notak-btn-plein: #fff;
+  --notak-btn-sur-plein: #1d2026;
+  --notak-btn-contour: rgb(255 255 255 / 0.22);
+  --notak-btn-survol: rgb(255 255 255 / 0.08);
+  --notak-btn-actif: rgb(255 255 255 / 0.14);
+  --notak-btn-rouge: #f4766b;
 }

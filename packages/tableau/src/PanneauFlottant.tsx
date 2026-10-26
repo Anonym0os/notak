@@ -1,10 +1,12 @@
 import { type HTMLAttributes, type ReactNode, type Ref, useLayoutEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import './communs/popover.css'
 import './panneauFlottant.css'
 
 /**
- * Une fenêtre accrochée à ce qui l'a ouverte (une puce de tâche, un bouton d'un fil, le curseur d'une note) : elle
- * la suit à chaque image, quand la toile défile ou zoome, au lieu de rester clouée là où elle s'est ouverte.
+ * Le popover commun de Notak (dessiné par `.notak-pop` avec `surface`, communs/popover.css) : une fenêtre accrochée à ce qui l'a
+ * ouverte (une puce de tâche, un bouton d'un fil, le curseur d'une note) : elle la suit à chaque image, quand la toile
+ * défile ou zoome, au lieu de rester clouée là où elle s'est ouverte.
  *
  * Elle se pose du côté voulu de sa cible (dessous par défaut), centrée sur elle, à `distance` px, une petite flèche
  * tournée vers elle ; s'il n'y a pas la place de ce côté, elle passe du côté opposé. Elle reste dans la fenêtre (10 px des côtés, 20 px du haut et du bas) et, pour une cible
@@ -115,6 +117,11 @@ interface Props extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
   cote?: Cote
   distance?: number
   alignement?: 'centre' | 'debut'
+  /**
+   * Le dessin du popover commun (fond, rayon 14, une ombre : `.notak-pop`). Un panneau qui n'est que le porteur d'une
+   * carte qui se dessine elle-même (un menu, une bulle) ne le prend pas, pour ne pas doubler sa surface.
+   */
+  surface?: boolean
   /** La petite flèche tournée vers la cible ; oui par défaut. */
   fleche?: boolean
   /** Le panneau garde le côté pris à sa première pose tant qu'il reste ouvert : il ne va-et-vient pas quand sa taille change. */
@@ -124,7 +131,7 @@ interface Props extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
   children: ReactNode
 }
 
-export function PanneauFlottant({ cible, hote, cote, distance, alignement, fleche = true, garderCote = false, panneau, className, children, ...reste }: Props) {
+export function PanneauFlottant({ cible, hote, cote, distance, alignement, fleche = true, garderCote = false, surface = false, panneau, className, children, ...reste }: Props) {
   const noeud = useRef<HTMLDivElement | null>(null)
   const viser = useRef(cible)
   viser.current = cible
@@ -167,7 +174,7 @@ export function PanneauFlottant({ cible, hote, cote, distance, alignement, flech
     else if (panneau) panneau.current = n
   }
   return createPortal(
-    <div ref={attacher} className={`notak-panneau-flottant ${className ?? ''}`} style={{ visibility: 'hidden' }} {...reste}>
+    <div ref={attacher} className={`notak-panneau-flottant${surface ? ' notak-pop' : ''} ${className ?? ''}`} style={{ visibility: 'hidden' }} {...reste}>
       {fleche && <span className="notak-panneau-fleche" aria-hidden />}
       {children}
     </div>,

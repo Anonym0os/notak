@@ -599,15 +599,9 @@
   color: var(--notak-arbre-style-inactif);
 }
 
-/* — Le popover : une carte translucide posée dans la fenêtre — */
+/* — Le popover : la surface du popover commun (.notak-pop), posée dans la fenêtre — */
 .notak-arbre-fond .notak-arbre-style-pop {
   z-index: 30;
-  box-sizing: border-box;
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--notak-arbre-fond) 94%, transparent);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.12), 0 12px 32px rgb(0 0 0 / 0.18);
-  color: var(--notak-arbre-texte);
   font-size: 13px;
   line-height: 17px;
   letter-spacing: 0.01em;

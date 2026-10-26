@@ -1,0 +1,84 @@
+/*
+ * Le dialogue de Notak (maquette « Composants communs » : .nk-voile, .nk-dialogue, .nk-actions). Un <dialog> modal :
+ * le voile est son ::backdrop, la boîte son seul enfant. Rayon 18, 24 de marge, titre 18/600, actions en bas à droite.
+ */
+.notak-dialogue-hote {
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.notak-dialogue-hote::backdrop {
+  background: var(--notak-dialogue-voile, rgb(27 37 54 / 0.24));
+}
+
+.notak-dialogue-hote[data-voile='sombre']::backdrop {
+  background: rgb(0 0 0 / 0.7);
+}
+
+.notak-dialogue {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: var(--notak-dialogue-largeur, min(440px, calc(100vw - 32px)));
+  max-height: calc(100vh - 32px);
+  padding: 24px;
+  overflow: auto;
+  border-radius: 18px;
+  background: var(--notak-pop-fond);
+  box-shadow: var(--notak-dialogue-ombre);
+  color: var(--notak-pop-texte);
+  font-size: 13.5px;
+  line-height: 1.5;
+  text-align: left;
+}
+
+/* Sans marge ni défilement : le contenu dessine tout (les réglages, deux colonnes). */
+.notak-dialogue.notak-dialogue-nu {
+  padding: 0;
+  overflow: hidden;
+}
+
+.notak-dialogue-tete {
+  display: flex;
+  flex: none;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.notak-dialogue-titre {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+/* La croix est plus haute que la ligne du titre : elle remonte pour s'aligner dessus. */
+.notak-dialogue-tete > .notak-ic {
+  margin: -6px -10px -6px 0;
+}
+
+.notak-dialogue-texte {
+  margin: 0;
+  color: var(--notak-pop-texte-2);
+  font-size: 13.5px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.notak-dialogue-actions {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}

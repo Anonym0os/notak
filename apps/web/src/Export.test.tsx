@@ -91,7 +91,7 @@ afterEach(() => {
   hote.remove()
 })
 
-const dialogue = () => document.querySelector<HTMLDialogElement>('.export-dialogue')
+const dialogue = () => document.querySelector<HTMLDialogElement>('dialog.notak-dialogue-hote')
 const apercu = () => document.querySelector<HTMLElement>('.export-apercu')!
 const ouvrir = async () => {
   act(() => document.querySelector<HTMLButtonElement>('.export > button')!.click())
@@ -103,7 +103,7 @@ const choisirFormat = async (f: string) => {
 }
 const exporter = async () => {
   await act(async () => {
-    document.querySelector<HTMLButtonElement>('.export-actions .bouton-plein')!.click()
+    document.querySelector<HTMLButtonElement>('.export-actions .notak-btn-principal')!.click()
   })
   await patienter()
 }
@@ -161,7 +161,7 @@ describe('le dialogue d’export du tableau', () => {
     await ouvrir()
     await choisirFormat('medias')
     expect(apercu().textContent).toContain('ni image ni fichier')
-    expect(document.querySelector<HTMLButtonElement>('.export-actions .bouton-plein')!.disabled).toBe(true)
+    expect(document.querySelector<HTMLButtonElement>('.export-actions .notak-btn-principal')!.disabled).toBe(true)
   })
 
   it('les médias : l’aperçu liste les fichiers de l’archive, avec leur poids', async () => {
@@ -193,7 +193,7 @@ describe('le dialogue d’export du tableau', () => {
   it('retient le dernier format choisi sur l’appareil', async () => {
     await ouvrir()
     await choisirFormat('txt')
-    act(() => dialogue()!.close())
+    act(() => document.querySelector<HTMLButtonElement>('.notak-dialogue-tete .notak-ic')!.click())
     await ouvrir()
     expect(document.querySelector<HTMLInputElement>('input[name=format]:checked')!.value).toBe('txt')
   })
@@ -237,7 +237,7 @@ describe('le même dialogue, pour une carte ou un document', () => {
     const s = sujet()
     act(() => void ouvrirExport(s))
     await patienter()
-    expect(document.querySelector('#export-titre')!.textContent).toContain('Ma carte')
+    expect(document.querySelector('.notak-dialogue-titre')!.textContent).toContain('Ma carte')
     expect(document.querySelector<HTMLInputElement>('input[name=format]:checked')!.value).toBe('png')
     expect(document.querySelector('.export-xmind')!.textContent).toBe('Une note sous les formats')
     expect(s.formats[0]!.preparer).toHaveBeenCalledWith(expect.objectContaining({ fond: true }))
@@ -270,7 +270,7 @@ describe('le même dialogue, pour une carte ou un document', () => {
     act(() => void ouvrirExport(s))
     await patienter()
     expect(apercu().textContent).toContain('L’aperçu n’a pas pu se faire.')
-    expect(document.querySelector<HTMLButtonElement>('.export-actions .bouton-plein')!.disabled).toBe(true)
+    expect(document.querySelector<HTMLButtonElement>('.export-actions .notak-btn-principal')!.disabled).toBe(true)
   })
 })
 

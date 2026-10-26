@@ -248,7 +248,7 @@ describe('le panneau des étiquettes', () => {
     act(() => [...document.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find((b) => b.textContent === 'Supprimer')!.click())
     // Une confirmation d'abord : rien n'est supprimé avant elle.
     expect(magasin.lire().etiquettes).toHaveLength(1)
-    act(() => [...document.querySelectorAll<HTMLButtonElement>('.notak-etiquettes-confirmer button')].find((b) => b.textContent === 'Supprimer')!.click())
+    act(() => [...document.querySelectorAll<HTMLButtonElement>('[role="alertdialog"] button')].find((b) => b.textContent === 'Supprimer')!.click())
     expect(magasin.lire().etiquettes).toBeUndefined()
     expect(element().etiquettes).toBeUndefined()
     magasin.annuler()

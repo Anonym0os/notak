@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { Confirmation } from '../../communs'
 import { PanneauFlottant, horsPanneau } from '../../PanneauFlottant'
 import { COULEURS_NOTE, type CouleurNote, type Element, type Etiquette, annoter } from '../../coeur/tableau'
 import { LIBELLES_COULEUR } from '../note/couleurs'
@@ -282,7 +283,7 @@ function MenuEtiquette({
     else aller('principal')
   }
   return (
-    <PanneauFlottant cible={bouton} cote="droite" alignement="debut" distance={4} fleche={false} className="notak-etiquettes-menu" role="menu" onKeyDown={echap}>
+    <PanneauFlottant cible={bouton} cote="droite" alignement="debut" distance={4} fleche={false} surface className="notak-etiquettes-menu" role="menu" onKeyDown={echap}>
       {ecrire && (
         <div className="notak-etiquettes-entrees">
           <button type="button" role="menuitem" onClick={renommer}>
@@ -300,7 +301,7 @@ function MenuEtiquette({
         {tn('etiquettes.utilisee', n)}
       </button>
       {vue === 'couleur' && (
-        <PanneauFlottant cible={() => entreeCouleur.current} cote="droite" alignement="debut" distance={4} fleche={false} className="notak-etiquettes-sousmenu" onKeyDown={echap}>
+        <PanneauFlottant cible={() => entreeCouleur.current} cote="droite" alignement="debut" distance={4} fleche={false} surface className="notak-etiquettes-sousmenu" onKeyDown={echap}>
           <div className="notak-note-pastilles notak-etiquettes-palette">
             {COULEURS_NOTE.map((c: CouleurNote) => (
               <button key={c} type="button" data-fond={c} title={LIBELLES_COULEUR[c]} aria-label={LIBELLES_COULEUR[c]} aria-pressed={etiquette.couleur === c} onClick={() => colorer(c)} />
@@ -309,17 +310,12 @@ function MenuEtiquette({
         </PanneauFlottant>
       )}
       {vue === 'suppression' && (
-        <PanneauFlottant cible={() => entreeSuppression.current} cote="droite" alignement="debut" distance={4} fleche={false} className="notak-etiquettes-sousmenu notak-etiquettes-confirmer" role="alertdialog" onKeyDown={echap}>
-          <p>{t('etiquettes.confirmer', { nom: etiquette.nom })}</p>
-          <div>
-            <button type="button" onClick={() => aller('principal')}>
-              {t('etiquettes.annuler')}
-            </button>
-            <button type="button" className="notak-etiquettes-danger" onClick={retirer}>
-              {t('etiquettes.supprimerBouton')}
-            </button>
-          </div>
-        </PanneauFlottant>
+        <Confirmation
+          titre={t('etiquettes.confirmerTitre', { nom: etiquette.nom })}
+          texte={t('etiquettes.confirmer', { nom: etiquette.nom })}
+          oui={t('etiquettes.supprimerBouton')}
+          repondre={(oui) => (oui ? retirer() : aller('principal'))}
+        />
       )}
     </PanneauFlottant>
   )

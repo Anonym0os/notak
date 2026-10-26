@@ -63,7 +63,7 @@
 }
 
 /* Les panneaux, menus et barres flottantes reposent déjà sur --notak-carte ; leurs ombres et séparateurs s'éclaircissent. */
-.notak-espace[data-theme='sombre'] :is(.notak-barre-selection:not([data-a-gauche]), .notak-barre-plus-menu, .notak-corbeille, .notak-recherche, .notak-raccourcis, .notak-tiroir) {
+.notak-espace[data-theme='sombre'] :is(.notak-barre-selection:not([data-a-gauche]), .notak-barre-plus-menu, .notak-corbeille, .notak-recherche, .notak-tiroir) {
   box-shadow: 0 6px 24px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.06);
 }
 

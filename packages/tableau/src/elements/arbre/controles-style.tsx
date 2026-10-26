@@ -1,6 +1,6 @@
 import { type CSSProperties, type ReactNode, type RefObject, useEffect, useId, useRef, useState } from 'react'
 import { Icone } from '../../icones'
-import { Case as CaseCommune } from '../../communs'
+import { Case as CaseCommune, useFermeture } from '../../communs'
 import { t } from '../../langue'
 import { Flottant } from './Flottant'
 
@@ -91,27 +91,10 @@ export function Popover({
   children: ReactNode
 }) {
   const carte = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const dehors = (e: PointerEvent) => {
-      const cible = e.target as Node
-      if (carte.current?.contains(cible) || ancre.current?.contains(cible)) return
-      fermer()
-    }
-    const echap = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      e.stopPropagation()
-      fermer()
-    }
-    document.addEventListener('pointerdown', dehors, true)
-    document.addEventListener('keydown', echap, true)
-    return () => {
-      document.removeEventListener('pointerdown', dehors, true)
-      document.removeEventListener('keydown', echap, true)
-    }
-  }, [ancre, fermer])
+  useFermeture({ racine: carte, ancre, fermer })
   // Le bord droit de la carte sur celui de l'ancre : le panneau est contre le bord droit de la fenêtre.
   return (
-    <Flottant racine={carte} ancre={ancre.current} cote="bas" alignement="fin" largeur={largeur} hauteur={0} className={`notak-arbre-style-pop${className ? ` ${className}` : ''}`} role="dialog" data-popover="">
+    <Flottant racine={carte} ancre={ancre.current} cote="bas" alignement="fin" largeur={largeur} hauteur={0} className={`notak-pop notak-arbre-style-pop${className ? ` ${className}` : ''}`} role="dialog" data-popover="">
       {children}
     </Flottant>
   )

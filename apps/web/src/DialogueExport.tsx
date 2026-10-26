@@ -4,7 +4,10 @@ import {
   type Prepare,
   type ReglagesExport,
   type SujetExport,
+  Bouton,
+  BoutonIcone,
   Case,
+  Dialogue,
   ErreurExport,
   Icone,
   REGLAGES_PAR_DEFAUT,
@@ -12,7 +15,6 @@ import {
   nomDeFichier,
 } from '@notak/tableau'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { type Emplacement, choisirEmplacement } from './enregistrer'
 import { langue, t } from './langue'
 
@@ -82,7 +84,6 @@ const message = (code?: string) => (code === 'aucun_media' ? t('exporter.aucunMe
 const TEXTE_MAX = 20_000
 
 export function DialogueExport() {
-  const dialogue = useRef<HTMLDialogElement>(null)
   const [sujet, setSujet] = useState<SujetExport | null>(null)
   const [reglages, setReglages] = useState<Retenu>(REGLAGES_PAR_DEFAUT)
   const [format, setFormat] = useState<FormatExport | null>(null)
@@ -108,11 +109,6 @@ export function DialogueExport() {
       }),
     [],
   )
-
-  // Le dialogue s'ouvre une fois posé dans son hôte.
-  useEffect(() => {
-    if (sujet && hote && !dialogue.current?.open) dialogue.current?.showModal()
-  }, [sujet, hote])
 
   useEffect(() => {
     if (!fait) return
@@ -160,7 +156,7 @@ export function DialogueExport() {
     regler({ format: f.id })
   }
 
-  const fermer = () => dialogue.current?.close()
+  const fermer = () => setSujet(null)
   const enCours = etat.type === 'cours'
 
   const exporter = async () => {
@@ -194,94 +190,77 @@ export function DialogueExport() {
 
   return (
     <>
-      {hote &&
-        sujet &&
-        createPortal(
-          <dialog
-            ref={dialogue}
-            className="export-dialogue"
-            aria-labelledby="export-titre"
-            onCancel={(e) => {
-              if (enCours) e.preventDefault()
-            }}
-            onClose={() => setSujet(null)}
-            // Un clic sur le voile (le dialogue lui-même, hors de sa carte) le ferme, sauf pendant un export.
-            onClick={(e) => {
-              if (e.target === e.currentTarget && !enCours) fermer()
+      {hote && sujet && (
+        <Dialogue
+          titre={t('exporter.dialogue', { titre: sujet.titre || t('commun.sansTitre') })}
+          fermer={fermer}
+          occupe={enCours}
+          hote={hote}
+          largeur="min(880px, calc(100vw - 32px))"
+        >
+          <form
+            className="export-carte"
+            onSubmit={(e) => {
+              e.preventDefault()
+              void exporter()
             }}
           >
-            <form
-              className="export-carte"
-              method="dialog"
-              onSubmit={(e) => {
-                e.preventDefault()
-                void exporter()
-              }}
-            >
-              <header className="export-entete">
-                <h2 id="export-titre">{t('exporter.dialogue', { titre: sujet.titre || t('commun.sansTitre') })}</h2>
-                <button type="button" className="export-fermer" aria-label={t('commun.fermer')} disabled={enCours} onClick={fermer}>
-                  <Icone nom="fermer" taille={16} />
-                </button>
-              </header>
+            <div className="export-corps">
+              <ApercuExport etat={apercu} />
 
-              <div className="export-corps">
-                <ApercuExport etat={apercu} />
+              <div className="export-reglages">
+                <fieldset className="export-formats" disabled={enCours}>
+                  <legend className="export-rubrique">{t('exporter.format')}</legend>
+                  {sujet.formats.map((f) => (
+                    <label key={f.id} className={`export-format${f.filet ? ' export-format-filet' : ''}`}>
+                      <input type="radio" name="format" value={f.id} checked={format?.id === f.id} onChange={() => choisir(f)} />
+                      <Icone nom={f.icone} taille={18} />
+                      <span className="export-format-texte">
+                        <strong>
+                          {f.libelle} <span className="export-ext">.{f.extension}</span>
+                          {f.recommande && <span className="export-pastille">{t('exporter.recommande')}</span>}
+                        </strong>
+                        <small>{f.aide}</small>
+                      </span>
+                    </label>
+                  ))}
+                </fieldset>
 
-                <div className="export-reglages">
-                  <fieldset className="export-formats" disabled={enCours}>
-                    <legend className="export-rubrique">{t('exporter.format')}</legend>
-                    {sujet.formats.map((f) => (
-                      <label key={f.id} className={`export-format${f.filet ? ' export-format-filet' : ''}`}>
-                        <input type="radio" name="format" value={f.id} checked={format?.id === f.id} onChange={() => choisir(f)} />
-                        <Icone nom={f.icone} taille={18} />
-                        <span className="export-format-texte">
-                          <strong>
-                            {f.libelle} <span className="export-ext">.{f.extension}</span>
-                            {f.recommande && <span className="export-pastille">{t('exporter.recommande')}</span>}
-                          </strong>
-                          <small>{f.aide}</small>
-                        </span>
-                      </label>
+                {visibles.length > 0 && (
+                  <fieldset className="export-options" disabled={enCours}>
+                    <legend className="export-rubrique">{t('exporter.options')}</legend>
+                    {visibles.map((o) => (
+                      <Option key={o} option={o} reglages={reglages} regler={regler} />
                     ))}
                   </fieldset>
+                )}
 
-                  {visibles.length > 0 && (
-                    <fieldset className="export-options" disabled={enCours}>
-                      <legend className="export-rubrique">{t('exporter.options')}</legend>
-                      {visibles.map((o) => (
-                        <Option key={o} option={o} reglages={reglages} regler={regler} />
-                      ))}
-                    </fieldset>
-                  )}
-
-                  {sujet.note && <small className="export-xmind">{sujet.note}</small>}
-                </div>
+                {sujet.note && <small className="export-xmind">{sujet.note}</small>}
               </div>
+            </div>
 
-              {etat.type === 'echec' && (
-                <p className="connexion-erreur export-erreur" role="alert">
-                  {message(etat.code)}
-                </p>
-              )}
+            {etat.type === 'echec' && (
+              <p className="connexion-erreur export-erreur" role="alert">
+                {message(etat.code)}
+              </p>
+            )}
 
-              <footer className="export-pied">
-                <small className="export-poids" aria-live="polite">
-                  {pret?.fichier && format ? t('exporter.poids', { extension: format.extension, poids: poids(pret.fichier.size) }) : ''}
-                </small>
-                <div className="export-actions">
-                  <button type="button" className="bouton" disabled={enCours} onClick={fermer}>
-                    {t('commun.annuler')}
-                  </button>
-                  <button type="submit" className="bouton bouton-plein" disabled={enCours || apercu.type === 'echec'} autoFocus>
-                    {enCours ? t('exporter.encours') : t('exporter.action', { extension: format?.extension ?? '' })}
-                  </button>
-                </div>
-              </footer>
-            </form>
-          </dialog>,
-          hote,
-        )}
+            <footer className="export-pied">
+              <small className="export-poids" aria-live="polite">
+                {pret?.fichier && format ? t('exporter.poids', { extension: format.extension, poids: poids(pret.fichier.size) }) : ''}
+              </small>
+              <div className="export-actions">
+                <Bouton variante="second" disabled={enCours} onClick={fermer}>
+                  {t('commun.annuler')}
+                </Bouton>
+                <Bouton type="submit" variante="principal" disabled={enCours || apercu.type === 'echec'} autoFocus>
+                  {enCours ? t('exporter.encours') : t('exporter.action', { extension: format?.extension ?? '' })}
+                </Bouton>
+              </div>
+            </footer>
+          </form>
+        </Dialogue>
+      )}
       {fait && (
         <div className="bandeau" role="status">
           {t('exporter.fait', { nom: fait })}
@@ -355,13 +334,13 @@ function ApercuExport({ etat }: { etat: EtatApercu }) {
           <div className="export-apercu-image">{adresses[i] && <img src={adresses[i]} alt="" />}</div>
           {n > 1 && (
             <div className="export-pages">
-              <button type="button" className="export-fermer" aria-label={t('exporter.pagePrecedente')} disabled={i === 0} onClick={() => setPage(i - 1)}>
+              <BoutonIcone taille={30} aria-label={t('exporter.pagePrecedente')} disabled={i === 0} onClick={() => setPage(i - 1)}>
                 <Icone nom="precedent" taille={16} />
-              </button>
+              </BoutonIcone>
               <span>{t('exporter.page', { n: i + 1, total: n })}</span>
-              <button type="button" className="export-fermer" aria-label={t('exporter.pageSuivante')} disabled={i === n - 1} onClick={() => setPage(i + 1)}>
+              <BoutonIcone taille={30} aria-label={t('exporter.pageSuivante')} disabled={i === n - 1} onClick={() => setPage(i + 1)}>
                 <Icone nom="chevronDroite" taille={16} />
-              </button>
+              </BoutonIcone>
             </div>
           )}
           {a.legende && <small className="export-apercu-legende">{a.legende}</small>}

@@ -1,7 +1,7 @@
 import { t } from './langue'
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useId, useState } from 'react'
 import { deverrouiller, etatVerrou } from './api'
-import { Icone } from '@notak/tableau'
+import { Bouton, Dialogue, Icone } from '@notak/tableau'
 
 /**
  * Un tableau protégé par mot de passe se couvre d'un écran qui le demande. Une fois donné, la page se recharge :
@@ -12,6 +12,7 @@ export function VerrouTableau({ tableau, accueil, ouvrir }: { tableau: string; a
   const [motDePasse, setMotDePasse] = useState('')
   const [erreur, setErreur] = useState<string | null>(null)
   const [envoi, setEnvoi] = useState(false)
+  const formulaire = useId()
 
   useEffect(() => {
     let vivant = true
@@ -41,31 +42,37 @@ export function VerrouTableau({ tableau, accueil, ouvrir }: { tableau: string; a
     }
   }
   return (
-    <div className="verrou" role="dialog" aria-modal aria-label={t('verrou.titre')}>
-      <form className="connexion-carte" onSubmit={valider} noValidate>
-        <h1 className="verrou-titre">
+    <Dialogue
+      etiquette={t('verrou.titre')}
+      titre={
+        <span className="verrou-titre">
           <Icone nom="verrou" taille={22} />
           {t('verrou.titre')}
-        </h1>
+        </span>
+      }
+      actions={
+        <Bouton type="submit" form={formulaire} variante="principal" disabled={envoi || !motDePasse}>
+          {t('commun.ouvrir')}
+        </Bouton>
+      }
+    >
+      <form id={formulaire} className="verrou-form" onSubmit={valider} noValidate>
         <p className="connexion-aide">{par === tableau ? t('verrou.ceTableau') : t('verrou.auDessus')}</p>
         <label>
           {t('connexion.mdp')}
-          <input type="password" value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} autoComplete="off" autoFocus />
+          <input className="champ" type="password" value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} autoComplete="off" autoFocus />
         </label>
         {erreur && (
           <p className="connexion-erreur" role="alert">
             {erreur}
           </p>
         )}
-        <button type="submit" className="bouton bouton-plein" disabled={envoi || !motDePasse}>
-          {t('commun.ouvrir')}
-        </button>
         {tableau !== accueil && (
           <button type="button" className="bouton-lien" onClick={() => ouvrir(accueil)}>
             {t('verrou.accueil')}
           </button>
         )}
       </form>
-    </div>
+    </Dialogue>
   )
 }

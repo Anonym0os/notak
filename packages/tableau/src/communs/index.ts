@@ -1,5 +1,6 @@
 import './jetons.css'
 import './case.css'
+import './bouton.css'
 
 export { Case } from './Case'
 export { animerCase } from './animerCase'
@@ -7,3 +8,6 @@ export { Calendrier, type PropsCalendrier } from './Calendrier'
 export { ChoixHeure } from './ChoixHeure'
 export { type FormeDate, type Instant, decaler, formaterDate, formaterInstant, jourDe } from './dates'
 export { type Entree, LigneMenu, ListeMenu, Menu, MenuContextuel, MenuEntrees, SeparateurMenu, TitreMenu, Touches, classeMenu, ligneVisee, naviguer, placerSousMenu, touchesDe } from './Menu'
+export { Bouton, BoutonIcone, type TailleBouton, type TailleIcone, type VarianteBouton } from './Bouton'
+export { Confirmation, Dialogue } from './Dialogue'
+export { PanneauFlottant, horsPanneau, useFermeture, useRendreFocus } from './Popover'

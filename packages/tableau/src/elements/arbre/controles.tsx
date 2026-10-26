@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { useFermeture } from '../../communs'
 import { Icone } from '../../icones'
 import { t } from '../../langue'
 import { Flottant } from './Flottant'
@@ -99,26 +100,8 @@ interface PropsPopover {
  */
 export function Popover({ ancre, ouvert, fermer, cote = 'dessous', largeur = 'ancre', hauteur = 320, className, etiquette, children }: PropsPopover) {
   const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!ouvert) return
-    const dehors = (e: PointerEvent) => {
-      const cible = e.target as Node
-      // Un menu contextuel ou une boîte ouverts depuis la fenêtre sont posés à côté d'elle : les cliquer ne la ferme pas.
-      if (ref.current?.contains(cible) || ancre?.contains(cible) || (cible as Element).closest?.('.notak-arbre-ctx, .notak-arbre-reglages-voile')) return
-      fermer()
-    }
-    const echap = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      e.stopPropagation()
-      fermer()
-    }
-    document.addEventListener('pointerdown', dehors, true)
-    document.addEventListener('keydown', echap, true)
-    return () => {
-      document.removeEventListener('pointerdown', dehors, true)
-      document.removeEventListener('keydown', echap, true)
-    }
-  }, [ouvert, ancre, fermer])
+  // Un menu contextuel ou une boîte ouverts depuis la fenêtre sont posés à côté d'elle : les cliquer ne la ferme pas.
+  useFermeture({ racine: ref, ancre, aussi: '.notak-arbre-ctx, .notak-arbre-reglages-voile', actif: ouvert, fermer })
   if (!ouvert || !ancre) return null
   return (
     <Flottant
@@ -127,7 +110,7 @@ export function Popover({ ancre, ouvert, fermer, cote = 'dessous', largeur = 'an
       {...(cote === 'gauche' ? { cote: 'gauche', bord: '.notak-arbre-cote', ecart: 8 } : { cote: 'bas', ecart: 4, alignement: largeur === 'ancre' ? 'debut' : 'fin' })}
       largeur={largeur}
       hauteur={hauteur}
-      className={`notak-arbre-reglages-popover${className ? ` ${className}` : ''}`}
+      className={`notak-pop notak-arbre-reglages-popover${className ? ` ${className}` : ''}`}
       role="dialog"
       aria-label={etiquette}
       onKeyDown={(e) => e.key !== 'Escape' && e.stopPropagation()}
