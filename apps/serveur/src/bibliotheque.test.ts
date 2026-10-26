@@ -77,7 +77,7 @@ describe('GET /api/bibliotheque', () => {
 
   it('chaque toile (sauf l’accueil), carte et document, avec la toile qui le porte', async () => {
     const r = await lire(ana)
-    expect(Array.isArray(r) && r.map(cle).sort()).toEqual([`${ana.utilisateur.racine}/idees`, 'etape/', 'etape/lisbonne', 'secret/', 'voyage/', 'voyage/budget'])
+    expect(Array.isArray(r) && r.map(cle).sort()).toEqual([`${ana.utilisateur.racine}/idees`, 'etape/', 'etape/lisbonne', 'secret/', 'voyage/', 'voyage/budget'].sort())
     const parCle = new Map((r as Entree[]).map((e) => [cle(e), e]))
     expect(parCle.get('voyage/')).toMatchObject({ genre: 'toile', titre: 'Voyage', ou: 'Accueil d’Ana', dans: ana.utilisateur.racine, vu: null, favori: false, partage: false })
     expect(parCle.get('etape/lisbonne')).toMatchObject({ genre: 'arbre', titre: 'Lisbonne', ou: 'Étape', dans: 'etape', resume: { branches: ['Musées'] } })
