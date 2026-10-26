@@ -531,6 +531,18 @@ export const fr: Textes = {
   'maj.webArrivee': 'Une nouvelle version de Notak est arrivée : rechargez la page pour en profiter.',
   'maj.recharger': 'Recharger',
   // FIN fr
+  'diag.titre': 'Diagnostic',
+  'diag.appareil': 'L’appareil',
+  'diag.points': 'points de contact',
+  'diag.capacites': 'Ce que sait faire cette webview',
+  'diag.inattendu': 'pas ce qu’on attend sur iOS',
+  'diag.pencil': 'Le stylet',
+  'diag.pencilAide': 'Dessinez dans le carré, au Pencil puis au doigt ; approchez le Pencil sans toucher pour voir si le survol arrive.',
+  'diag.survol': 'survols reçus',
+  'diag.clavier': 'Le clavier',
+  'diag.clavierAide': 'Touchez le champ : la hauteur du clavier doit se lire ci-dessous.',
+  'diag.copier': 'Copier le relevé',
+  'diag.copie': 'Relevé copié',
 }
 
 export const en: Textes = {
@@ -1058,6 +1070,18 @@ export const en: Textes = {
   'maj.webArrivee': 'A new version of Notak has arrived: reload the page to use it.',
   'maj.recharger': 'Reload',
   // FIN en
+  'diag.titre': 'Diagnostics',
+  'diag.appareil': 'The device',
+  'diag.points': 'touch points',
+  'diag.capacites': 'What this web view can do',
+  'diag.inattendu': 'not what we expect on iOS',
+  'diag.pencil': 'The stylus',
+  'diag.pencilAide': 'Draw in the square with the Pencil, then with a finger; hover the Pencil without touching to see whether hover events arrive.',
+  'diag.survol': 'hover events received',
+  'diag.clavier': 'The keyboard',
+  'diag.clavierAide': 'Tap the field: the keyboard height should show below.',
+  'diag.copier': 'Copy the report',
+  'diag.copie': 'Report copied',
 }
 
 ajouterTextes(fr, en)

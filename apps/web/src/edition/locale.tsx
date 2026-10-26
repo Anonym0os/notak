@@ -19,6 +19,7 @@ import { fabriquerCopie, rouvrirCopie } from '../local/copie'
 import { choisirCopie, estCopie, nomDeCopie, rangerCopie } from '../local/enregistrement'
 import { type EspaceLocal, espaceLocal, exportLocal, rechercherLocalement } from '../local/espace'
 import { fichiersLocaux } from '../local/fichiers'
+import { PageDiagnostic } from '../ios/Diagnostic'
 import { Rangement } from '../local/Rangement'
 import { initialiserSynchro } from '../local/synchro'
 
@@ -51,6 +52,8 @@ function Application() {
   // Le partage vers Notak et la note rapide du téléphone, sans la toile.
   if (location.pathname === '/rapide') return <PageRapide espace={el.espace} fichiers={fichiersLocaux} />
   if (location.pathname === '/partage') return <PagePartage espace={el.espace} fichiers={fichiersLocaux} />
+  // Ce que sait faire cette webview, ce qu'envoie un stylet : pour cocher la phase 0 de docs/IOS.md, et un signalement.
+  if (location.pathname === '/diagnostic') return <PageDiagnostic />
   return <Espace el={el} />
 }
 

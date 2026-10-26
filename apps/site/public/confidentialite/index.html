@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Confidentialité · Notak</title>
+    <meta name="description" content="Ce que Notak fait de vos données : rien ne quitte votre appareil, sauf ce que vous demandez. En français et en anglais." />
+    <meta name="theme-color" content="#f4f5f7" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <style>
+      @font-face { font-family: "Inter"; src: url("/fonts/inter.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+      :root { --fond: #f4f5f7; --encre: #16181b; --doux: #5d6670; --trait: #e1e4e8; --carte: #fff; --bleu: #3a76df; }
+      @media (prefers-color-scheme: dark) { :root { --fond: #1b1e23; --encre: #e3e5e9; --doux: #a7adb6; --trait: #2f343b; --carte: #23272e; --bleu: #5b8ff9; } }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; }
+      body { background: var(--fond); color: var(--encre); font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.55; }
+      header, footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px max(16px, env(safe-area-inset-left)) 18px max(16px, env(safe-area-inset-right)); }
+      @media (min-width: 720px) { header, footer { padding-inline: 32px; } }
+      .marque { font-weight: 800; font-size: 17px; letter-spacing: -0.04em; color: inherit; text-decoration: none; }
+      nav a { margin-left: 14px; color: var(--doux); text-decoration: none; font-size: 14px; }
+      nav a:hover, main a:hover { color: var(--encre); }
+      main { max-width: 68ch; margin: 0 auto; padding: 8px 16px 48px; }
+      article + article { margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--trait); }
+      h1 { margin: 16px 0 6px; font-size: clamp(28px, 5vw, 40px); font-weight: 800; letter-spacing: -0.04em; line-height: 1.05; }
+      h2 { margin: 28px 0 8px; font-size: 19px; letter-spacing: -0.02em; }
+      p, li { font-size: 16px; }
+      .date { color: var(--doux); font-size: 14px; }
+      main a { color: var(--bleu); text-decoration: none; }
+      table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 15px; }
+      th, td { padding: 8px 10px; border-bottom: 1px solid var(--trait); text-align: left; vertical-align: top; }
+      th { color: var(--doux); font-weight: 600; }
+      code { font: 14px ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: var(--carte); padding: 1px 5px; border-radius: 5px; }
+      footer { color: var(--doux); font-size: 13px; }
+      footer a { color: inherit; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <a class="marque" href="/">Notak</a>
+      <nav><a href="/a-propos">À propos</a><a href="/aide">Aide</a><a href="/confidentialite">Confidentialité</a><a href="https://github.com/Anonym0os/notak">Code</a></nav>
+    </header>
+    <main>
+      <article lang="fr">
+        <p class="date">Mise à jour le 26 octobre 2026 · <a href="#en">In English</a></p>
+        <h1>Confidentialité</h1>
+        <p>Notak est un logiciel libre, publié par des gens qui s'en servent. Nous n'exploitons aucun serveur pour l'application : <strong>nous ne collectons aucune donnée</strong>, nous n'avons pas de compte à vous ouvrir, pas de mesure d'audience, pas de rapport d'erreur automatique, pas de publicité. Cette page dit ce qui se passe quand même, et où.</p>
+
+        <h2>Où vivent vos toiles</h2>
+        <ul>
+          <li><strong>Sur notak.app</strong> : dans votre navigateur (IndexedDB), sur votre appareil. Le site ne sert que des fichiers ; rien n'est envoyé.</li>
+          <li><strong>Dans l'app pour iPhone, iPad, Mac, Windows ou Linux</strong> : dans les données de l'app, sur l'appareil. Sur iPhone et iPad, elles font partie de la sauvegarde iCloud de l'appareil si vous l'avez activée, comme celles de toute app.</li>
+          <li><strong>Les copies <code>.notak</code></strong> : des fichiers que vous enregistrez où vous voulez (Fichiers, iCloud Drive, un disque). Ils sont à vous et ne passent pas par nous.</li>
+          <li><strong>Un dossier choisi</strong> (iCloud Drive, OneDrive, Dropbox, Nextcloud…) : si vous demandez à Notak d'y ranger vos toiles, il y écrit en continu. C'est votre service de stockage qui les transporte, selon ses propres règles.</li>
+          <li><strong>Un serveur Notak</strong> : si vous donnez à l'app l'adresse d'un serveur, vos toiles, votre compte et vos partages y vivent. Ce serveur est celui que vous, ou votre organisation, avez installé : sa politique est celle de qui l'héberge, pas la nôtre. Nous n'en exploitons aucun.</li>
+        </ul>
+
+        <h2>Ce qui sort de l'appareil, et quand</h2>
+        <table>
+          <tr><th>Quand vous…</th><th>L'appareil joint…</th><th>Ce qu'il reçoit</th></tr>
+          <tr><td>cherchez un lieu ou affichez sa carte</td><td>OpenStreetMap (nominatim.openstreetmap.org, openstreetmap.org)</td><td>l'adresse tapée, votre adresse IP</td></tr>
+          <tr><td>collez un lien vers une vidéo, une musique, un document et lancez son lecteur</td><td>le site de ce lecteur (YouTube, Vimeo, Spotify, Figma…)</td><td>l'adresse du contenu, votre adresse IP, ce que ce site place dans son cadre</td></tr>
+          <tr><td>posez une image par son adresse web</td><td>le site qui héberge l'image</td><td>votre adresse IP</td></tr>
+          <tr><td>cliquez un lien</td><td>votre navigateur l'ouvre</td><td>comme pour tout lien</td></tr>
+          <tr><td>écrivez à l'adresse de contact</td><td>votre messagerie</td><td>ce que vous écrivez</td></tr>
+        </table>
+        <p>Rien d'autre. En particulier, l'app ne joint jamais un serveur à nous : la liste de ce qu'elle a le droit de joindre est écrite dans le code (<a href="https://github.com/Anonym0os/notak/blob/main/packages/tableau/src/securite.ts">securite.ts</a>) et imposée par la politique de sécurité du contenu, qu'une mise à jour ne peut pas contourner sans la changer au grand jour.</p>
+
+        <h2>Autorisations demandées sur iPhone et iPad</h2>
+        <ul>
+          <li><strong>Appareil photo, Photos</strong> : seulement quand vous ajoutez une image depuis l'appareil photo ou la photothèque, ou en enregistrez une.</li>
+          <li><strong>Micro</strong> : seulement quand vous enregistrez un son sur une toile.</li>
+          <li><strong>Fichiers</strong> : seulement le dossier ou le fichier que vous choisissez vous-même dans le sélecteur du système.</li>
+        </ul>
+
+        <h2>Signaler un problème</h2>
+        <p>Rien ne part sans votre geste. Si vous nous écrivez, vous choisissez ce que vous joignez ; l'app prépare un relevé technique (version, appareil, ce qui s'affichait) que vous pouvez relire et retirer avant d'envoyer. Sur un serveur Notak, le bouton « Signaler un bug » envoie ce relevé et une capture d'écran à ce serveur, et à lui seul.</p>
+
+        <h2>Vos droits, et nous</h2>
+        <p>Comme nous ne détenons aucune donnée vous concernant, il n'y a rien à nous demander d'effacer ou de transmettre : supprimer vos toiles, c'est les supprimer de votre appareil, de vos fichiers ou de votre serveur. Pour toute question : <a href="https://github.com/Anonym0os/notak">le dépôt du projet</a>. Cette page change si l'app change ; sa date est en haut.</p>
+      </article>
+
+      <article lang="en" id="en">
+        <p class="date">Updated 26 October 2026 · <a href="#top">En français</a></p>
+        <h1>Privacy</h1>
+        <p>Notak is free software, published by the people who use it. We run no server for the app: <strong>we collect no data</strong>, there is no account to open with us, no analytics, no automatic crash reports, no advertising. This page says what happens anyway, and where.</p>
+
+        <h2>Where your boards live</h2>
+        <ul>
+          <li><strong>On notak.app</strong>: in your browser (IndexedDB), on your device. The site only serves files; nothing is sent.</li>
+          <li><strong>In the app for iPhone, iPad, Mac, Windows or Linux</strong>: in the app's data, on the device. On iPhone and iPad they are part of the device's iCloud Backup if you have it on, like any app's data.</li>
+          <li><strong><code>.notak</code> copies</strong>: files you save wherever you like (Files, iCloud Drive, a disk). They are yours and never go through us.</li>
+          <li><strong>A folder you choose</strong> (iCloud Drive, OneDrive, Dropbox, Nextcloud…): if you ask Notak to keep your boards there, it writes to it continuously. Your storage service carries them, under its own rules.</li>
+          <li><strong>A Notak server</strong>: if you give the app a server address, your boards, account and shares live there. That server is one you, or your organisation, installed: its policy is its host's, not ours. We run none.</li>
+        </ul>
+
+        <h2>What leaves the device, and when</h2>
+        <table>
+          <tr><th>When you…</th><th>The device contacts…</th><th>What it receives</th></tr>
+          <tr><td>search for a place or show its map</td><td>OpenStreetMap (nominatim.openstreetmap.org, openstreetmap.org)</td><td>the address you typed, your IP address</td></tr>
+          <tr><td>paste a link to a video, music or document and start its player</td><td>that player's site (YouTube, Vimeo, Spotify, Figma…)</td><td>the content's address, your IP address, whatever that site sets inside its frame</td></tr>
+          <tr><td>place an image by its web address</td><td>the site hosting the image</td><td>your IP address</td></tr>
+          <tr><td>tap a link</td><td>your browser opens it</td><td>as with any link</td></tr>
+          <tr><td>write to the contact address</td><td>your mail app</td><td>what you write</td></tr>
+        </table>
+        <p>Nothing else. In particular, the app never contacts a server of ours: the list of what it may reach is written in the code (<a href="https://github.com/Anonym0os/notak/blob/main/packages/tableau/src/securite.ts">securite.ts</a>) and enforced by the content security policy, which an update cannot bypass without changing it in the open.</p>
+
+        <h2>Permissions asked on iPhone and iPad</h2>
+        <ul>
+          <li><strong>Camera, Photos</strong>: only when you add an image from the camera or the photo library, or save one.</li>
+          <li><strong>Microphone</strong>: only when you record a sound onto a board.</li>
+          <li><strong>Files</strong>: only the folder or file you pick yourself in the system picker.</li>
+        </ul>
+
+        <h2>Reporting a problem</h2>
+        <p>Nothing is sent without your action. If you write to us, you choose what to attach; the app prepares a technical report (version, device, what was on screen) that you can read and remove before sending. On a Notak server, the “Report a bug” button sends that report and a screenshot to that server, and to it alone.</p>
+
+        <h2>Your rights, and us</h2>
+        <p>Since we hold no data about you, there is nothing to ask us to delete or hand over: deleting your boards means deleting them from your device, your files or your server. Questions: <a href="https://github.com/Anonym0os/notak">the project repository</a>. This page changes when the app does; its date is at the top.</p>
+      </article>
+    </main>
+    <footer>
+      <span>AGPL-3.0 · logiciel libre</span>
+      <a href="https://github.com/Anonym0os/notak">github.com/Anonym0os/notak</a>
+    </footer>
+  </body>
+</html>

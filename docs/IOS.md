@@ -23,6 +23,9 @@
 | Les droits de la page sur mobile, et ceux du bureau limités au bureau | `src-tauri/capabilities/mobile.json`, `principale.json` |
 | Les scripts du Mac et l'icône | `scripts/ios.ts` (`bun run ios:init`, `ios:dev`, `ios:construire`), `scripts/icones.ts` (`icons/ios`) |
 | La CI du simulateur, à la main pour l'instant | `.github/workflows/ios.yml` |
+| La page `/diagnostic` : ce que sait faire la webview, ce qu'envoie le stylet, le clavier, un relevé à copier | `apps/web/src/ios/Diagnostic.tsx`, `diagnostic.ts` |
+| La fiche App Store, fr et en, dans la disposition de `fastlane deliver`, avec un essai des limites | `apps/bureau/app-store/`, `scripts/app-store.test.ts` |
+| Les pages Confidentialité et Aide de notak.app (fr puis en), citées par la fiche | `apps/site/public/confidentialite/`, `aide/`, `nginx.conf` |
 
 **Ce qui n'a pas encore tourné** : tout ce qui demande Xcode. Le Swift n'est pas compilé, le projet `gen/apple` n'est
 pas généré, l'app n'a pas été vue sur un simulateur. La phase 0 ci-dessous est faite pour ça.
@@ -99,11 +102,11 @@ la table des risques ; une bascule vers Capacitor ne se décide qu'après cette 
 | 1 | L'app s'ouvre, la toile d'accueil se dessine, `data-plateforme="ios"` et `data-idiome` sont sur `<html>` | inspecteur Web de Safari (Développement → simulateur) | |
 | 2 | `/t/<id>`, `/rapide`, `location.assign('/')` retombent sur la page | ouvrir une toile, recharger ; rouvrir une copie qui devient l'accueil | |
 | 3 | IndexedDB persiste : créer une toile avec 3 images, tuer l'app, relancer ; installer un nouveau build par-dessus ; redémarrer l'appareil | `navigator.storage.estimate()` avant et après | |
-| 4 | `isSecureContext`, `crypto.subtle`, `BroadcastChannel`, `navigator.locks` existent | console | |
+| 4 | `isSecureContext`, `crypto.subtle`, `BroadcastChannel`, `navigator.locks` existent ; `showSaveFilePicker` et `serviceWorker` non | `/diagnostic`, « Ce que sait faire cette webview » : rien de marqué « pas ce qu'on attend » | |
 | 5 | Un lien `https` dans une note s'ouvre dans Safari, un `mailto:` dans Mail (plugin `opener`) ; la fenêtre ne part jamais sur un autre site | cliquer | |
 | 6 | `confirm()` répond `false` sans rien montrer (attendu ; d'où le remplacement des 5 appels, phase 1 suite) | supprimer un espace, changer une couleur de thème | |
-| 7 | **Apple Pencil** : `pointerType === 'pen'`, `pressure` varie, `tiltX/Y` varient, `getCoalescedEvents` rend plusieurs points, `getPredictedEvents` existe ; **survol** à 1 cm sur iPad M2 : des `pointermove` arrivent-ils ? Scribble écrit dans une note ; latence ressentie dans Croquis | une page de test `?diag=pencil` à ajouter, qui affiche les valeurs | |
-| 8 | Clavier : `visualViewport.height` baisse quand il monte ; l'événement `clavier` de la coque arrive avec la bonne hauteur ; `--clavier` est posée | éditer une note, regarder la variable dans l'inspecteur | |
+| 7 | **Apple Pencil** : `pointerType === 'pen'`, `pressure` varie, `tiltX/Y` varient, `getCoalescedEvents` rend plusieurs points, `getPredictedEvents` existe ; **survol** à 1 cm sur iPad M2 : des `pointermove` arrivent-ils ? Scribble écrit dans une note ; latence ressentie dans Croquis | la page `/diagnostic` de l'app affiche les valeurs et compte les survols | |
+| 8 | Clavier : `visualViewport.height` baisse quand il monte ; l'événement `clavier` de la coque arrive avec la bonne hauteur ; `--clavier` est posée | le champ de `/diagnostic`, ou éditer une note et lire la variable dans l'inspecteur | |
 | 9 | Gestes : pincer zoome, un doigt tire la toile, appui long ouvre le menu ; pas de rebond de page ; pas de zoom de page au double appui ; pas de menu système sur une image | la toile | |
 | 10 | `<input type=file>` propose Photos et Appareil photo (la phrase de `NSCameraUsageDescription` paraît) ; `getUserMedia` demande le micro | ajouter une image, enregistrer un son | |
 | 11 | `navigator.share` avec un fichier ouvre la feuille de partage ; « Enregistrer une copie » passe par là en attendant la phase 2 | ⌘S / le panneau | |
@@ -178,7 +181,7 @@ ouverts, image Docker) et celui-ci partagent la coque. Pour qu'ils s'emboîtent 
   7 l'export, 8 la carte mentale. Faites par `scripts/captures-ios.ts` (simulateurs iPhone 16 Pro Max et iPad Pro
   13", scènes nommées d'une toile de vitrine, `xcrun simctl io screenshot`).
 - **Adresses** : assistance `https://notak.app/aide`, marketing `https://notak.app`, confidentialité
-  `https://notak.app/confidentialite` (pages statiques d'`apps/site`, à écrire).
+  `https://notak.app/confidentialite` (pages statiques d'`apps/site/public`, écrites, fr puis en ; à relire).
 - **App Privacy** : « Nous ne collectons pas de données depuis cette app ». Justification : Notak n'exploite aucun
   serveur ; les toiles restent sur l'appareil ; un serveur Notak est celui de la personne (comme un client mail) ;
   ce qui sort est dit dans `docs/PUBLIER.md` (OpenStreetMap quand on cherche une adresse, les lecteurs intégrés
