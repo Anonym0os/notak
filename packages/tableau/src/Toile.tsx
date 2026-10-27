@@ -7,6 +7,7 @@ import { ouvrirImage, useImageOuverte } from './elements/image/visionneuse'
 import { ouvrirFenetreFichier, useFichierOuvert } from './elements/fichier/ouverture'
 import { PanneauEnvoi } from './elements/fichier/PanneauEnvoi'
 import { BarreOutils, BarreSelection, type OutilDeBarre, outilsDeBarre } from './Barres'
+import { flushSync } from 'react-dom'
 import { enFeuille } from './communs/Feuille'
 import { auDoigt } from './doigt'
 import { BarreEdition, ContexteBarreEdition } from './barreEdition'
@@ -199,6 +200,9 @@ function choisirAxe(actuel: 'h' | 'v' | null, d: Point): 'h' | 'v' {
 }
 
 /** Un doigt posé sans bouger ce temps-là ouvre le menu du clic droit, en millisecondes. */
+/** L'évènement par lequel la loupe de l'en-tête demande la recherche à la toile (`EspaceNotak.tsx`). */
+export const EVENEMENT_CHERCHER = 'notak-chercher'
+
 /** Le décalage de la grille de points dans un pas (0 à -pas) : elle glisse par `transform`, sans être repeinte. */
 const decalageGrille = (px: number) => {
   const pas = cam.PX_PAR_UG
@@ -1223,6 +1227,19 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       window.removeEventListener('pointercancel', fin, true)
     }
   }, [contenu])
+
+  // La loupe de l'en-tête (au doigt, sans ⌘F) ouvre la recherche de la toile visible, dans le geste même.
+  useEffect(() => {
+    const chercher = () => {
+      if (!racine.current?.isConnected || racine.current.offsetParent === null) return
+      flushSync(() => {
+        setRequete((r) => r ?? '')
+        setAppelRecherche((n) => n + 1)
+      })
+    }
+    window.addEventListener(EVENEMENT_CHERCHER, chercher)
+    return () => window.removeEventListener(EVENEMENT_CHERCHER, chercher)
+  }, [])
 
   // Copier, couper, coller sur la toile, hors édition.
   useEffect(() => {

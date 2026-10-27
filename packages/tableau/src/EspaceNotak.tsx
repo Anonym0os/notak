@@ -24,7 +24,7 @@ import { poserModele } from './elements/tableau/poserModele'
 import { marquerVu } from './elements/tableau/activite'
 import { demanderRenommage } from './elements/tableau/renommage'
 import type { Presence, Services } from './elements/types'
-import { Toile } from './Toile'
+import { EVENEMENT_CHERCHER, Toile } from './Toile'
 import { annoncer } from './avis'
 import { ecouterEnvois, envoisEnCours } from './elements/envois'
 import { t, tn, useLangue } from './langue'
@@ -856,6 +856,8 @@ function Entete({
         {historique && <IlotHistorique annuler={historique.annuler} retablir={historique.retablir} peutAnnuler={peutAnnuler} peutRetablir={peutRetablir} />}
         <IlotPartage />
         <IlotCompte>
+          {/* Au doigt, sans ⌘F : la recherche de la toile a sa loupe. */}
+          {telephone && <BoutonIlot icone="recherche" libelle={t('espace.chercher')} onClick={() => window.dispatchEvent(new Event(EVENEMENT_CHERCHER))} />}
           {actionsTableau}
           {actions}
         </IlotCompte>

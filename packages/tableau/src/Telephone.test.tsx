@@ -6,7 +6,7 @@ import { creerMagasin } from './coeur/magasin'
 import { nouvelleNote } from './coeur/tableau'
 import './elements'
 import { fermerMenus } from './menuUnique'
-import { Toile } from './Toile'
+import { EVENEMENT_CHERCHER, Toile } from './Toile'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -83,3 +83,17 @@ describe('la toile sur un téléphone', () => {
     expect(hote.querySelector('.notak-outils-ajouter')).toBeNull()
   })
 })
+
+describe('la recherche au doigt', () => {
+  it('la loupe de l’en-tête ouvre la recherche de la toile, le champ prêt à écrire', () => {
+    const magasin = creerMagasin({ titre: '', etiquettes: [], elements: [] })
+    act(() => racine.render(<Toile magasin={magasin} />))
+    // jsdom ne met rien en page : la toile se dit visible.
+    Object.defineProperty(hote.querySelector('.notak-toile')!, 'offsetParent', { get: () => document.body })
+    act(() => void window.dispatchEvent(new Event(EVENEMENT_CHERCHER)))
+    const champ = hote.querySelector<HTMLInputElement>('.notak-recherche input')
+    expect(champ).not.toBeNull()
+    expect(document.activeElement).toBe(champ)
+  })
+})
+

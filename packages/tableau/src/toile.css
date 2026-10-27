@@ -3078,3 +3078,20 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
     left: calc(16px + var(--notak-zone-gauche, 0px));
   }
 }
+
+/* Sur un téléphone, la recherche de la toile prend la largeur, sous la barre du haut, et son champ est en 16 px :
+   en dessous, iOS agrandirait la page au toucher. */
+@media (pointer: coarse) and (max-width: 640px) {
+  .notak-recherche {
+    right: calc(8px + var(--notak-zone-droite, 0px));
+    left: calc(8px + var(--notak-zone-gauche, 0px));
+    transform: none;
+    translate: 0 0;
+  }
+
+  .notak-recherche input {
+    flex: 1;
+    min-width: 0;
+    font-size: 16px;
+  }
+}

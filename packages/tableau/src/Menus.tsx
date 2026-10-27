@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Element, Id } from './coeur/tableau'
 import { definition } from './elements/registre'
 import { Confirmation, Dialogue } from './communs'
@@ -110,7 +110,8 @@ export function Recherche(props: {
       clearTimeout(delai)
     }
   }, [partout, requete, ici])
-  useEffect(() => {
+  // Pendant le rendu même de l'appel : au doigt, le clavier d'iOS ne monte que si le champ prend le focus dans le geste.
+  useLayoutEffect(() => {
     champ.current?.focus()
     champ.current?.select()
   }, [appel])
