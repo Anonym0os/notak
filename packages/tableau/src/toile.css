@@ -3095,3 +3095,67 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
     font-size: 16px;
   }
 }
+
+/*
+ * Sur un téléphone, clavier sorti, la barre d'une note qu'on écrit devient la barre du clavier, comme celle de Notes ou
+ * de Notion : une bande d'une ligne, sur toute la largeur, collée au clavier, des icônes de 44 px sans libellé, qui
+ * défile de côté quand elles sont trop nombreuses.
+ */
+@media (pointer: coarse) and (max-width: 640px) {
+  html[data-clavier] .notak-barre-outils[data-edition] {
+    inset: auto 0 var(--clavier) 0;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    height: 48px;
+    padding: 2px 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-radius: 0;
+    box-shadow: 0 -0.5px 0 color-mix(in srgb, var(--notak-texte) 16%, transparent);
+    scrollbar-width: none;
+    touch-action: pan-x;
+    overscroll-behavior-x: contain;
+    transition: none;
+  }
+
+  html[data-clavier] .notak-barre-outils[data-edition]::-webkit-scrollbar {
+    display: none;
+  }
+
+  html[data-clavier] .notak-barre-outils[data-edition] :is(.notak-edition-outils, .notak-barre-edition, .notak-barre-selection[data-a-gauche]) {
+    flex: none;
+    flex-wrap: nowrap;
+  }
+
+  html[data-clavier] .notak-barre-outils[data-edition] .notak-outil-libelle {
+    display: none;
+  }
+
+  html[data-clavier] .notak-barre-outils[data-edition] :is(button.notak-outil, .notak-note-menu-ancre, .notak-barre-retour) {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+
+  html[data-clavier] .notak-barre-outils[data-edition] .notak-barre-selection[data-a-gauche]::before {
+    height: 24px;
+  }
+
+  /* Ce qu'ouvre un outil de la bande monte au-dessus d'elle, donc au-dessus du clavier. */
+  html[data-clavier]
+    .notak-barre-outils[data-selection]
+    :is(.notak-note-palette, .notak-decor-menu, .notak-etiquettes-menu, [role='menu'], [role='dialog']):not(.notak-tiroir):not(
+      :is(.notak-note-palette, .notak-decor-menu, .notak-etiquettes-menu, .notak-tiroir, [role='menu'], [role='dialog']) *
+    ) {
+    bottom: calc(var(--clavier) + 56px) !important;
+    max-height: calc(100dvh - var(--clavier) - var(--notak-zone-haut, 0px) - 140px);
+  }
+}
+
+/* Sur un téléphone, les raccourcis du clavier ne disent rien : les menus des barres ne les montrent pas. */
+@media (pointer: coarse) and (max-width: 640px) {
+  .notak-barre-outils .notak-touches {
+    display: none;
+  }
+}

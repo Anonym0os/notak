@@ -6,7 +6,7 @@ import { creerMagasin } from './coeur/magasin'
 import { nouvelleNote } from './coeur/tableau'
 import './elements'
 import { fermerMenus } from './menuUnique'
-import { Toile } from './Toile'
+import { Toile, decalageClavier } from './Toile'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -206,6 +206,19 @@ describe('tirer la toile au doigt', () => {
     const apres = glisse()
     expect(apres).not.toBe(pendant)
     expect(apres).toMatch(/translate/)
+  })
+})
+
+describe('le clavier sur la toile', () => {
+  it('la note qu’on écrit, couverte par le clavier, remonte juste au-dessus de sa barre', () => {
+    // Écran de 844, clavier de 336 : la barre du clavier commence à 444.
+    expect(decalageClavier({ top: 640, bottom: 720 }, 844, 336, 112)).toBe(444 - 720)
+  })
+
+  it('sans que son haut passe sous la barre du haut, ni bouger ce qui se voit déjà', () => {
+    expect(decalageClavier({ top: 200, bottom: 720 }, 844, 336, 112)).toBe(120 - 200)
+    expect(decalageClavier({ top: 200, bottom: 400 }, 844, 336, 112)).toBe(0)
+    expect(decalageClavier({ top: 640, bottom: 720 }, 844, 0, 112)).toBe(0)
   })
 })
 

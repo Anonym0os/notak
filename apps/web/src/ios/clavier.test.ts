@@ -48,4 +48,17 @@ describe('la hauteur du clavier', () => {
     appliquerClavierDeLaCoque(d, { hauteur: 0 })
     expect(d.documentElement.hasAttribute('data-clavier')).toBe(false)
   })
+
+  it('une fois la coque entendue, la visualViewport (qui bouge quand iOS fait défiler la page) ne compte plus', () => {
+    const d = window.document.implementation.createHTMLDocument('')
+    const ecoutes = new Map<string, () => void>()
+    const vv = { height: 844, offsetTop: 0, addEventListener: (type: string, f: () => void) => ecoutes.set(type, f) }
+    suivreClavier({ document: d, innerHeight: 844, visualViewport: vv })
+    appliquerClavierDeLaCoque(d, { hauteur: 336 })
+    vv.height = 500
+    vv.offsetTop = 120
+    ecoutes.get('scroll')!()
+    expect(d.documentElement.style.getPropertyValue('--clavier')).toBe('336px')
+  })
 })
+

@@ -36,12 +36,20 @@ struct ArgsHaptique: Decodable {
 class AppareilPlugin: Plugin {
   private weak var vue: WKWebView?
   private var observateurs: [NSObjectProtocol] = []
+  private var gardeDefilement: NSKeyValueObservation?
 
   public override func load(webview: WKWebView) {
     vue = webview
     // La page a son propre défilement et son propre zoom : pas de rebond ni de marge que le système ajouterait.
     webview.scrollView.bounces = false
     webview.scrollView.contentInsetAdjustmentBehavior = .never
+    // Quand le clavier monte, iOS fait défiler la page entière pour montrer le champ : la barre du haut sortait de
+    // l'écran et la barre du bas sautait. La page reste où elle est ; c'est elle qui place ce qu'on écrit au-dessus du
+    // clavier (`--clavier`, la toile recadre la note).
+    webview.scrollView.isScrollEnabled = false
+    gardeDefilement = webview.scrollView.observe(\.contentOffset, options: [.new]) { vue, _ in
+      if vue.contentOffset != .zero { vue.contentOffset = .zero }
+    }
     // Ni pincement ni double toucher n'agrandissent la page entière : la toile zoome seule, et une page agrandie
     // cacherait les boutons qui permettent d'en sortir.
     webview.scrollView.minimumZoomScale = 1

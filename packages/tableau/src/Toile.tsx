@@ -200,6 +200,20 @@ function choisirAxe(actuel: 'h' | 'v' | null, d: Point): 'h' | 'v' {
 }
 
 /** Un doigt posé sans bouger ce temps-là ouvre le menu du clic droit, en millisecondes. */
+/** Au-dessus du clavier : la barre du clavier (48 px) et un peu d'air. */
+const MARGE_CLAVIER = 64
+
+/**
+ * De combien la toile glisse (vers le haut, en px, négatif) pour qu'une note de `rect` reste visible au-dessus d'un
+ * clavier de `clavier` px et de sa barre, sans que son haut passe sous la barre du haut (`haut`). 0 : rien à faire.
+ */
+export function decalageClavier(rect: { top: number; bottom: number }, hauteurEcran: number, clavier: number, haut: number): number {
+  if (clavier <= 0) return 0
+  const bas = hauteurEcran - clavier - MARGE_CLAVIER
+  if (rect.bottom <= bas) return 0
+  return Math.min(0, Math.max(bas - rect.bottom, haut + 8 - rect.top))
+}
+
 /** L'évènement par lequel la loupe de l'en-tête demande la recherche à la toile (`EspaceNotak.tsx`). */
 export const EVENEMENT_CHERCHER = 'notak-chercher'
 
@@ -1227,6 +1241,26 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       window.removeEventListener('pointercancel', fin, true)
     }
   }, [contenu])
+
+  // Au doigt, le clavier se pose sur la toile sans la rétrécir : la note qu'on écrit glisse juste au-dessus de la barre
+  // du clavier, sans passer sous la barre du haut (la page, elle, ne défile plus : AppareilPlugin.swift).
+  useEffect(() => {
+    if (!edition) return
+    const racineDoc = document.documentElement
+    const recadrer = () => {
+      // `--clavier` est posée sur la racine même (apps/web/src/ios/clavier.ts).
+      const clavier = Number.parseFloat(racineDoc.style.getPropertyValue('--clavier')) || 0
+      const n = noeudDe(edition)
+      if (clavier <= 0 || !n) return
+      const haut = Number.parseFloat(getComputedStyle(racine.current ?? racineDoc).getPropertyValue('--notak-haut')) || 68
+      const dy = decalageClavier(n.getBoundingClientRect(), innerHeight, clavier, haut)
+      if (dy < 0) setCamera((c) => cam.defiler(c, 0, dy))
+    }
+    recadrer()
+    const obs = new MutationObserver(recadrer)
+    obs.observe(racineDoc, { attributes: true, attributeFilter: ['style', 'data-clavier'] })
+    return () => obs.disconnect()
+  }, [edition])
 
   // La loupe de l'en-tête (au doigt, sans ⌘F) ouvre la recherche de la toile visible, dans le geste même.
   useEffect(() => {

@@ -12,6 +12,8 @@ export interface EtatClavier {
 
 const ecouteurs = new Set<(e: EtatClavier) => void>()
 let etat: EtatClavier = { hauteur: 0 }
+/** La coque a parlé : sa hauteur est la bonne, celle de la `visualViewport` (qui bouge avec le défilement) se tait. */
+let coqueEntendue = false
 
 export const lireClavier = () => etat
 export function ecouterClavier(f: (e: EtatClavier) => void): () => void {
@@ -42,12 +44,14 @@ interface FenetreClavier {
 
 /**
  * Suit le clavier par la `visualViewport`. La coque mobile envoie en plus son propre événement, plus tôt et avec la
- * durée de l'animation (`suivreClavierDeLaCoque`) ; les deux posent la même variable, la dernière mesure gagne.
+ * durée de l'animation (`appliquerClavierDeLaCoque`) : dès qu'elle a parlé, c'est elle seule qu'on écoute.
  */
 export function suivreClavier(fenetre: FenetreClavier): void {
   const vv = fenetre.visualViewport
   if (!vv) return
-  const mesurer = () => poser(fenetre.document, hauteurDepuisViewport(fenetre.innerHeight, vv.height, vv.offsetTop))
+  const mesurer = () => {
+    if (!coqueEntendue) poser(fenetre.document, hauteurDepuisViewport(fenetre.innerHeight, vv.height, vv.offsetTop))
+  }
   vv.addEventListener('resize', mesurer)
   vv.addEventListener('scroll', mesurer)
   mesurer()
@@ -63,6 +67,7 @@ export interface EvenementClavierCoque {
 /** Branche l'événement de la coque : la hauteur qu'elle donne est en points, c'est-à-dire en px CSS. */
 export function appliquerClavierDeLaCoque(document: Document, e: EvenementClavierCoque): void {
   if (typeof e?.hauteur !== 'number' || !Number.isFinite(e.hauteur)) return
+  coqueEntendue = true
   document.documentElement.style.setProperty('--clavier-duree', `${Math.max(0, e.duree ?? 0.25)}s`)
   poser(document, Math.max(0, Math.round(e.hauteur)))
 }
