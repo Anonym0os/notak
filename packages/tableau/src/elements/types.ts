@@ -124,6 +124,8 @@ export interface Services {
   retrouverOriginal?(cible: Id): { tableau: Id; element: Id } | undefined
   /** L'ouvrir dans un nouvel onglet (Cmd+clic, menu), là où l'application a des adresses. */
   ouvrirDansOnglet?(id: Id): void
+  /** Un retour au doigt, là où l'appareil en a un (l'app iPhone) : un élément qu'on décolle de la toile. */
+  vibrer?(): void
   /**
    * Ouvre un fichier ailleurs que dans un nouvel onglet du navigateur : l'app de bureau le remet au système ou propose
    * « Enregistrer sous ». `nom` : le nom que le fichier porte. Absent, les éléments gardent leur façon d'ouvrir (un onglet).

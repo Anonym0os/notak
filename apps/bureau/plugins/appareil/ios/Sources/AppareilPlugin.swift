@@ -33,6 +33,11 @@ class AppareilPlugin: Plugin {
     // La page a son propre défilement et son propre zoom : pas de rebond ni de marge que le système ajouterait.
     webview.scrollView.bounces = false
     webview.scrollView.contentInsetAdjustmentBehavior = .never
+    // Ni pincement ni double toucher n'agrandissent la page entière : la toile zoome seule, et une page agrandie
+    // cacherait les boutons qui permettent d'en sortir.
+    webview.scrollView.minimumZoomScale = 1
+    webview.scrollView.maximumZoomScale = 1
+    webview.scrollView.pinchGestureRecognizer?.isEnabled = false
     webview.isOpaque = false
     let centre = NotificationCenter.default
     observateurs.append(

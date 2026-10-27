@@ -2,7 +2,7 @@ import { BullesDecouverte, type CouleurNote, auDoigt, EspaceNotak, type Id, Erre
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
 import { adressePour } from '../adresse'
-import { estMobile } from '../appareil'
+import { estMobile, vibrer } from '../appareil'
 import { dansCoque, estBureau } from '../bureau'
 import { ouvrirAilleursAvecAvis } from '../bureau/ailleurs'
 import { DialogueAcces } from '../bureau/FormulaireAcces'
@@ -105,6 +105,7 @@ function Espace({ el }: { el: EspaceLocal }) {
       ecouterContenuExterne: index.ecouterRecus,
       // L'app de bureau n'a qu'une fenêtre, et n'en ouvre pas d'autre (`apps/bureau/src-tauri/src/navigation.rs`) : un
       // fichier s'y ouvre dans l'application du système, ou se propose à l'enregistrement.
+      ...(estMobile() ? { vibrer: () => vibrer() } : {}),
       ...(estBureau()
         ? { ouvrirAilleurs: (adresse: string, nom?: string) => ouvrirAilleursAvecAvis(adresse, nom, alerter) }
         : { ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank') }),

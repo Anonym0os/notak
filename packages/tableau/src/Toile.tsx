@@ -72,7 +72,13 @@ import { personneAJour } from './personne'
 import { usePublierVue } from './vueZoom'
 
 type Geste =
-  | { type: 'attraper'; dernier: Point }
+  | {
+      type: 'attraper'
+      dernier: Point
+      /** Au doigt : ce que le doigt a touché en premier (un élément, ou le vide), et s'il a bougé depuis. Relâché sans
+          bouger, c'est un toucher : il choisit l'élément, ou vide le choix. */
+      toucher?: { id: Id | null; ecran: Point; bouge: boolean }
+    }
   | { type: 'lasso'; depart: Point; avant: ReadonlySet<Id>; inverser: boolean }
   | {
       type: 'glisser'
@@ -85,6 +91,8 @@ type Geste =
       axe: 'h' | 'v' | null
       /** Un appui sur un élément déjà choisi, sans Cmd : au relâchement sans glisser, il devient seul choisi (ou s'édite). */
       reduire?: { id: Id; seul: boolean; ou: Point }
+      /** Au doigt, décollé par un appui long : relâché sans avoir bougé, il ouvre son menu, là. */
+      decolle?: { clientX: number; clientY: number; target: EventTarget | null }
       /** Le déplacement voulu, en UG, sans aimantation : on n'aimante qu'au dépôt. */
       d: Point
       envol?: Envol
@@ -405,6 +413,8 @@ const DELAI_CURSEUR = 100
 /** Deux touchers comptent pour un double-clic s'ils tombent à moins de tant de millisecondes et de pixels l'un de l'autre. */
 const DOUBLE_TOUCHER_MS = 350
 const DOUBLE_TOUCHER_PX = 24
+/** Un doigt qui a bougé de plus que cela (px) tire le fond : ce n'est plus un toucher. */
+const SEUIL_TOUCHER = 8
 
 export function Toile({ magasin: source, services = {}, cameraInitiale, surCamera }: PropsToile) {
   const lectureSeule = !!services.lectureSeule
@@ -1080,7 +1090,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     }
   }, [contenu])
 
-  // Au doigt : pincer zoome autour du milieu des deux doigts et les suit ; un appui long ouvre le menu du clic droit.
+  // Au doigt : pincer zoome autour du milieu des deux doigts et les suit ; un appui long décolle l'élément touché pour le
+  // déplacer, ou ouvre le menu du clic droit (`appuiLongRef`).
   useEffect(() => {
     const div = racine.current
     if (!div) return
@@ -1108,10 +1119,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           depart: ici(e),
           minuteur: setTimeout(() => {
             appuiLong = null
-            geste.current = null
-            setEnGeste(false)
-            setZoneLasso(null)
-            ouvrirMenuRef.current({ preventDefault() {}, clientX, clientY, target } as unknown as React.MouseEvent)
+            appuiLongRef.current({ clientX, clientY, target })
           }, APPUI_LONG),
         }
       } else if (doigts.size === 2) {
@@ -2110,6 +2118,47 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (el && ouvrir) ouvrir(el, contexte)
   }
 
+  /** Le geste qui glisse les éléments choisis `s`, pris en `ici` (tableau) et `p` (écran). */
+  const gesteGlisser = (s: ReadonlySet<Id>, ici: Point, p: Point): Extract<Geste, { type: 'glisser' }> => {
+    // Un élément rangé se glisse aussi, sauf si sa colonne est choisie avec lui : il la suit.
+    const origines = new Map(
+      tableau.elements
+        .filter((x) => s.has(x.id) && mobile(x) && !x.verrou && !(x.parent && s.has(x.parent)))
+        .map((x) => {
+          const r = x.parent ? rect(x.id) : null
+          return [x.id, { place: placeDe(x), pos: r ? r.min : point(x.x, x.y) }] as const
+        }),
+    )
+    return { type: 'glisser', depart: ici, ecran: p, demarre: false, origines, axe: null, d: point(0, 0), vols: [], base: point(0, 0), sorties: [] }
+  }
+
+  /**
+   * Un doigt resté posé : sur un élément qui se déplace, il le décolle (un retour au doigt, l'élément choisi, prêt à
+   * suivre) ; relâché sans bouger, ce sera son menu. Ailleurs, le menu du clic droit, tout de suite.
+   */
+  const appuiLongRef = useRef<(o: { clientX: number; clientY: number; target: EventTarget | null }) => void>(() => {})
+  appuiLongRef.current = (o) => {
+    const g = geste.current
+    const id = g?.type === 'attraper' ? g.toucher?.id : null
+    const el = id ? tableau.elements.find((x) => x.id === id) : null
+    if (el && !lectureSeule && !el.verrou && mobile(el)) {
+      const r = racine.current!.getBoundingClientRect()
+      const p = point(o.clientX - r.left, o.clientY - r.top)
+      const s = new Set([el.id])
+      setSelection(s)
+      setAttrape(false)
+      geste.current = { ...gesteGlisser(s, cam.versTableau(camera, p), p), decolle: o }
+      setBarresGardees(true)
+      services.vibrer?.()
+      return
+    }
+    geste.current = null
+    setEnGeste(false)
+    setAttrape(false)
+    setZoneLasso(null)
+    ouvrirMenuRef.current({ preventDefault() {}, ...o } as unknown as React.MouseEvent)
+  }
+
   const appui = (e: React.PointerEvent) => {
     // DESSIN-LIBRE : la couche de dessin tient le pointeur ; la toile ne capture rien dessous.
     if (toileSuspendue(racine.current)) return
@@ -2131,9 +2180,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const p = local(e)
     const idBrut = sous(e.target)
     const id = idBrut && prisParUnAutre.has(idBrut) ? null : idBrut
-    // Au doigt, deux touchers rapprochés sur le vide font ce que fait un double-clic : la webview d'iOS n'en envoie pas
-    // de fiable, le premier toucher ayant déjà pris le fond pour le tirer.
-    if (e.pointerType === 'touch' && e.button === 0 && !id && !espace) {
+    const surPoignee = !!(e.target as HTMLElement).closest('[data-poignee]')
+    // Au doigt, deux touchers rapprochés font ce que fait un double-clic (une note sur le vide, entrer dans une toile,
+    // écrire dans une note) : la webview d'iOS n'en envoie pas de fiable, le premier toucher ayant déjà pris le geste.
+    if (e.pointerType === 'touch' && e.button === 0 && !surPoignee && !espace) {
       const avant = toucher.current
       if (avant && e.timeStamp - avant.instant < DOUBLE_TOUCHER_MS && Math.hypot(e.clientX - avant.x, e.clientY - avant.y) < DOUBLE_TOUCHER_PX) {
         toucher.current = null
@@ -2144,8 +2194,20 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       }
       toucher.current = { instant: e.timeStamp, x: e.clientX, y: e.clientY }
     }
-    // Au doigt, le vide se tire comme au bouton du milieu : le lasso n'a pas de sens sous un pouce.
-    if (e.button === 1 || (e.button === 0 && (espace || (e.pointerType === 'touch' && !id)))) {
+    // Au doigt, le fond se tire d'un doigt, même posé sur un élément qu'on n'a pas choisi : le lasso n'a pas de sens
+    // sous un pouce, et un élément ne part pas sous le doigt qui voulait se déplacer. Un toucher le choisit, un appui
+    // long le décolle (`appuiLongRef`) ; un élément déjà choisi se glisse tout de suite, comme à la souris.
+    const doigtSurLeFond = e.pointerType === 'touch' && e.button === 0 && !surPoignee && (!id || !selection.has(id))
+    if (doigtSurLeFond && !espace) {
+      espaceBref.current = false
+      geste.current = { type: 'attraper', dernier: p, toucher: { id: id ?? null, ecran: p, bouge: false } }
+      setAttrape(true)
+      setEnGeste(true)
+      setBarresGardees(true)
+      // Pas de capture : le doigt garde sa cible, dont le clic (une case, un bouton) doit arriver.
+      return
+    }
+    if (e.button === 1 || (e.button === 0 && espace)) {
       e.preventDefault()
       espaceBref.current = false
       geste.current = { type: 'attraper', dernier: p }
@@ -2199,28 +2261,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           racine.current!.setPointerCapture(e.pointerId)
           return
         }
-        // Un élément rangé se glisse aussi, sauf si sa colonne est choisie avec lui : il la suit.
-        const origines = new Map(
-          tableau.elements
-            .filter((x) => s.has(x.id) && mobile(x) && !x.verrou && !(x.parent && s.has(x.parent)))
-            .map((x) => {
-              const r = x.parent ? rect(x.id) : null
-              return [x.id, { place: placeDe(x), pos: r ? r.min : point(x.x, x.y) }] as const
-            }),
-        )
-        geste.current = {
-          type: 'glisser',
-          depart: ici,
-          ecran: p,
-          demarre: false,
-          origines,
-          axe: null,
-          d: point(0, 0),
-          vols: [],
-          base: point(0, 0),
-          sorties: [],
-          ...(reduire ? { reduire } : {}),
-        }
+        geste.current = { ...gesteGlisser(s, ici, p), ...(reduire ? { reduire } : {}) }
       } else {
         const inverser = e.shiftKey || e.metaKey || e.ctrlKey
         const avant = inverser ? selection : new Set<Id>()
@@ -2324,6 +2365,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     suivreBord(e)
     const p = local(e)
     if (g.type === 'attraper') {
+      if (g.toucher && !g.toucher.bouge && Math.hypot(p.x - g.toucher.ecran.x, p.y - g.toucher.ecran.y) > SEUIL_TOUCHER) g.toucher.bouge = true
       const d = soustraire(p, g.dernier)
       g.dernier = p
       animation.current = null
@@ -2758,6 +2800,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     setEnGeste(false)
     setAttrape(false)
     setZoneLasso(null)
+    // Un doigt posé et relevé sans bouger : un toucher, qui choisit l'élément touché ou vide le choix.
+    if (g?.type === 'attraper' && g.toucher && !g.toucher.bouge && e.type === 'pointerup') {
+      setSelection(g.toucher.id ? new Set([g.toucher.id]) : new Set())
+      return
+    }
     if (g?.type === 'lasso') {
       setPrisLasso((pris) => {
         if (pris) setSelection(pris)
@@ -2880,6 +2927,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       }
     }
     if (!g.demarre) {
+      // Décollé au doigt, puis relâché sur place : son menu.
+      if (g.decolle) return ouvrirMenu({ preventDefault() {}, ...g.decolle } as unknown as React.MouseEvent)
       // Un clic sans glisser sur un élément déjà choisi : il devient seul choisi, ou s'édite s'il l'était déjà.
       const r = g.reduire
       if (!r) return

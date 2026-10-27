@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { creerMagasin } from './coeur/magasin'
+import { nouvelleNote } from './coeur/tableau'
 import './elements'
 import { fermerMenus } from './menuUnique'
 import { Toile } from './Toile'
@@ -20,6 +21,7 @@ let hote: HTMLElement
 beforeEach(() => {
   ;(globalThis as { ResizeObserver?: unknown }).ResizeObserver ??= ObservateurMuet
   document.elementFromPoint ??= () => null
+  document.elementsFromPoint ??= () => []
   // La toile prend le pointeur au premier toucher, pour tirer le fond.
   HTMLElement.prototype.setPointerCapture ??= () => {}
   HTMLElement.prototype.releasePointerCapture ??= () => {}
@@ -35,13 +37,17 @@ afterEach(() => {
   fermerMenus()
 })
 
-/** Un toucher du doigt sur le vide, à l'instant voulu (jsdom n'a pas de PointerEvent : un MouseEvent qui en a les champs). */
+/** Un évènement de doigt (jsdom n'a pas de PointerEvent : un MouseEvent qui en a les champs). */
+function doigt(cible: Element, type: string, instant: number, x = 300, y = 200) {
+  const e = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, buttons: type === 'pointerup' ? 0 : 1, clientX: x, clientY: y })
+  Object.defineProperties(e, { pointerType: { value: 'touch' }, pointerId: { value: 1 }, isPrimary: { value: true }, timeStamp: { value: instant } })
+  act(() => void cible.dispatchEvent(e))
+}
+
+/** Un toucher du doigt, posé puis relevé sur place, à l'instant voulu. */
 function toucher(cible: Element, instant: number, x = 300, y = 200) {
-  for (const type of ['pointerdown', 'pointerup']) {
-    const e = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, buttons: type === 'pointerdown' ? 1 : 0, clientX: x, clientY: y })
-    Object.defineProperties(e, { pointerType: { value: 'touch' }, pointerId: { value: 1 }, isPrimary: { value: true }, timeStamp: { value: instant } })
-    act(() => void cible.dispatchEvent(e))
-  }
+  doigt(cible, 'pointerdown', instant, x, y)
+  doigt(cible, 'pointerup', instant + 50, x, y)
 }
 
 function monter() {
@@ -75,5 +81,51 @@ describe('deux touchers sur le vide', () => {
     Object.defineProperty(clic, 'timeStamp', { value: 1400 })
     act(() => void toile.dispatchEvent(clic))
     expect(magasin.lire().elements).toHaveLength(1)
+  })
+})
+
+describe('un doigt sur un élément', () => {
+  function monterAvecNote(vibrer = () => {}) {
+    const note = nouvelleNote(0, 0, 'a')
+    const magasin = creerMagasin({ titre: '', etiquettes: [], elements: [note] })
+    act(() => racine.render(<Toile magasin={magasin} services={{ vibrer }} />))
+    const carte = hote.querySelector(`[data-id="${note.id}"]`)!
+    return { magasin, note, carte, toile: hote.querySelector('.notak-toile')! }
+  }
+  const position = (m: ReturnType<typeof monterAvecNote>) => {
+    const el = m.magasin.lire().elements.find((x) => x.id === m.note.id)!
+    return [el.x, el.y]
+  }
+
+  it('un toucher le choisit, sans le déplacer', () => {
+    const m = monterAvecNote()
+    toucher(m.carte, 1000)
+    expect(hote.querySelector(`[data-id="${m.note.id}"][data-choisie]`)).not.toBeNull()
+    expect(position(m)).toEqual([0, 0])
+  })
+
+  it('glissé tout de suite, il tire le fond et laisse l’élément à sa place', () => {
+    const m = monterAvecNote()
+    doigt(m.carte, 'pointerdown', 1000)
+    doigt(m.carte, 'pointermove', 1020, 360, 260)
+    doigt(m.carte, 'pointerup', 1040, 360, 260)
+    expect(position(m)).toEqual([0, 0])
+  })
+
+  it('après un appui long, il est décollé : un retour au doigt, et il suit le doigt', () => {
+    vi.useFakeTimers()
+    try {
+      const vibrer = vi.fn()
+      const m = monterAvecNote(vibrer)
+      doigt(m.carte, 'pointerdown', 1000)
+      act(() => void vi.advanceTimersByTime(600))
+      expect(vibrer).toHaveBeenCalledTimes(1)
+      doigt(m.carte, 'pointermove', 1700, 420, 320)
+      doigt(m.carte, 'pointerup', 1720, 420, 320)
+      act(() => void vi.advanceTimersByTime(1000))
+      expect(position(m)).not.toEqual([0, 0])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

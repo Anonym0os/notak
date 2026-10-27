@@ -342,7 +342,9 @@ describe('l’adresse publique du serveur', () => {
         .flat()
         .filter((i) => i && !i.internal && i.family === 'IPv4')
         .map((i) => i!.address)
-      for (const a of ['[::1]', ...ailleurs]) await expect(fetch(`http://${a}:${s.port}/api/sante`), a).rejects.toThrow()
+      // Une interface muette (un tunnel de VPN) laisse la connexion pendre au lieu de la refuser : au bout de 2 s, elle
+      // compte pour refusée, elle aussi.
+      for (const a of ['[::1]', ...ailleurs]) await expect(fetch(`http://${a}:${s.port}/api/sante`, { signal: AbortSignal.timeout(2000) }), a).rejects.toThrow()
     } finally {
       await s.fermer()
       rmSync(ici, { recursive: true, force: true })

@@ -96,3 +96,9 @@ export function infosAppareil(fenetre: FenetreAvecCoque = window as unknown as F
 
 /** Pour les essais : oublie la réponse gardée. */
 export const oublierInfos = () => void (infos = null)
+
+/** Un retour au doigt léger, par le plugin `appareil`, sur un iPhone ou un iPad ; ailleurs, rien. */
+export function vibrer(fenetre: FenetreAvecCoque = window as unknown as FenetreAvecCoque): void {
+  if (!estMobile(plateforme(fenetre))) return
+  void fenetre.__TAURI_INTERNALS__?.invoke('plugin:appareil|haptique', { sorte: 'moyen' }).catch(() => {})
+}
