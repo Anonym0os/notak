@@ -573,6 +573,14 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
   /** Le défilement à la main : le bouton droit (le menu attend le relâchement), ou le bouton gauche sur le central. */
   const main = useRef<{ x: number; y: number; cx: number; cy: number; bouton: 0 | 1 | 2; panne: boolean; id?: Id; reduire?: boolean; menu?: { x: number; y: number; cible: Element } } | null>(null)
   const supprimerMenu = useRef(false)
+  /**
+   * Au doigt (la souris n'y passe jamais) : le toucher en cours, pour l'appui long qui ouvre le menu et le toucher qui
+   * écrit un sujet déjà choisi seul ; le dernier toucher sur le fond, dont un second tout proche pose un sujet flottant ;
+   * l'instant de ce second, pour ignorer le double-clic que la webview en tirerait.
+   */
+  const doigt = useRef<{ x: number; y: number; sujet: Id | null; seul: boolean; bouge: boolean; menu: boolean; minuteur: ReturnType<typeof setTimeout> } | null>(null)
+  const toucherFond = useRef<{ x: number; y: number; t: number } | null>(null)
+  const doubleDoigt = useRef(0)
   const [cadre, setCadre] = useState<{ de: Point; ajout: boolean } | null>(null)
   const [tire, setTire] = useState<{ id: Id; ids: Id[]; depart: Point; maj: boolean; alt: boolean } | null>(null)
   const [pointeur, setPointeur] = useState<Point | null>(null)
@@ -733,6 +741,29 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       return
     }
     const depart = { x: e.clientX, y: e.clientY }
+    if (e.pointerType === 'touch') {
+      // Resté posé sans bouger, le doigt ouvre le menu de ce qu'il touche, comme le clic droit.
+      const { clientX, clientY } = e
+      const touche = e.target as Element
+      clearTimeout(doigt.current?.minuteur)
+      doigt.current = {
+        ...depart,
+        sujet,
+        seul: !!sujet && choisis.size === 1 && choisis.has(sujet),
+        bouge: false,
+        menu: false,
+        minuteur: setTimeout(() => {
+          const d = doigt.current
+          if (!d || d.bouge) return
+          d.menu = true
+          main.current = prise.current = fond.current = null
+          setPanne(false)
+          setCadre(null)
+          contexte.services.vibrer?.()
+          ouvrirMenuDe(clientX, clientY, touche)
+        }, APPUI_LONG),
+      }
+    }
     if (sujet) {
       // Le sujet pressé est choisi à l'appui ; pressé dans une sélection, il la laisse entière (pour glisser le groupe).
       // Cmd le bascule, Maj prend aussi les frères d'entre deux.
@@ -746,11 +777,20 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       else if (!lectureSeule) prise.current = { id: sujet, ...depart, depart: versCarte(e), reduire }
       return
     }
-    // Le fond : l'appui vide la sélection (Maj ou Cmd la gardent), le glisser trace le cadre.
+    // Le fond : l'appui vide la sélection (Maj ou Cmd la gardent), le glisser trace le cadre ; au doigt, il tire la carte.
     if (!e.shiftKey && !e.metaKey) setSelection(new Set())
+    if (e.pointerType === 'touch') {
+      main.current = { ...depart, cx: camera.x, cy: camera.y, bouton: 0, panne: false }
+      return
+    }
     fond.current = { ...depart, de: versCarte(e) }
   }
   const surMouvement = (e: React.PointerEvent) => {
+    const d = doigt.current
+    if (d && e.pointerType === 'touch' && !d.bouge && Math.hypot(e.clientX - d.x, e.clientY - d.y) > SEUIL_DOIGT) {
+      d.bouge = true
+      clearTimeout(d.minuteur)
+    }
     if (relier) return setRelier({ ...relier, p: versCarte(e) })
     if (traceZone && traceZone !== 'arme') return setTraceZone({ ...traceZone, vers: versCarte(e) })
     if (zoneTiree) return setZoneTiree({ ...zoneTiree, p: versCarte(e) })
@@ -802,6 +842,29 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     setSurvol((v) => (v === sous ? v : sous))
   }
   const surRelache = (e: React.PointerEvent) => {
+    const d = doigt.current
+    if (d && e.pointerType === 'touch') {
+      doigt.current = null
+      clearTimeout(d.minuteur)
+      // Le menu est ouvert : le doigt qui se relève n'a rien d'autre à faire.
+      if (d.menu) return
+      const surPlace = !d.bouge && e.type !== 'pointercancel'
+      // Un toucher sur le sujet déjà choisi seul l'écrit : au doigt, c'est le double-clic.
+      if (surPlace && d.seul && d.sujet && !lectureSeule) {
+        main.current = prise.current = null
+        return ouvrirEdition(d.sujet)
+      }
+      if (surPlace && !d.sujet) {
+        const avant = toucherFond.current
+        toucherFond.current = { x: e.clientX, y: e.clientY, t: e.timeStamp }
+        if (avant && e.timeStamp - avant.t < DOUBLE_DOIGT_MS && Math.hypot(e.clientX - avant.x, e.clientY - avant.y) < DOUBLE_DOIGT_PX && !seule && !lectureSeule) {
+          toucherFond.current = null
+          main.current = null
+          doubleDoigt.current = performance.now()
+          return faire({ type: 'flottant', position: versCarte(e) })
+        }
+      }
+    }
     if (traceZone && traceZone !== 'arme') {
       // Le cadre tracé : trop petit, c'est un simple clic, on garde le mode armé.
       const [x0, x1] = [Math.min(traceZone.de.x, traceZone.vers.x), Math.max(traceZone.de.x, traceZone.vers.x)]
@@ -989,7 +1052,8 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     }
   }
   const surDoubleClic = (e: React.MouseEvent) => {
-    if (lectureSeule) return
+    // Le double-clic que la webview tire de deux touchers déjà traités au doigt (`surRelache`).
+    if (lectureSeule || performance.now() - doubleDoigt.current < 600) return
     const cible = e.target as Element
     // Le champ d'un titre, une pastille « + » : le double-clic leur appartient.
     if (cible.closest('.notak-arbre-barre, .notak-arbre-panneau, textarea, input, [data-ajout]')) return
@@ -1001,6 +1065,61 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     if (seule) return
     faire({ type: 'flottant', position: versCarte(e) })
   }
+  // Au doigt, pincer zoome autour du milieu des deux doigts et les suit ; le second doigt arrête ce que le premier faisait.
+  useEffect(() => {
+    const s = surface.current
+    if (!s) return
+    const doigts = new Map<number, Point>()
+    let avant: { ecart: number; milieu: Point } | null = null
+    const mesure = () => {
+      const [a, b] = [...doigts.values()] as [Point, Point]
+      const r = s.getBoundingClientRect()
+      return { ecart: Math.hypot(a.x - b.x, a.y - b.y), milieu: { x: (a.x + b.x) / 2 - r.left, y: (a.y + b.y) / 2 - r.top } }
+    }
+    const appui = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch') return
+      doigts.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      if (doigts.size !== 2) return
+      clearTimeout(doigt.current?.minuteur)
+      doigt.current = null
+      main.current = prise.current = fond.current = null
+      setCadre(null)
+      setPanne(false)
+      setTire(null)
+      arreterAnimation()
+      avant = mesure()
+      e.stopPropagation()
+    }
+    const bouge = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch' || !doigts.has(e.pointerId)) return
+      doigts.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      if (!avant || doigts.size < 2) return
+      e.stopPropagation()
+      const a = avant
+      const m = mesure()
+      avant = m
+      poser((c) => {
+        const z = zoomAutour(c, m.ecart / Math.max(1, a.ecart), a.milieu)
+        return { ...z, x: z.x + m.milieu.x - a.milieu.x, y: z.y + m.milieu.y - a.milieu.y }
+      })
+    }
+    const fin = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch') return
+      doigts.delete(e.pointerId)
+      if (doigts.size < 2) avant = null
+    }
+    s.addEventListener('pointerdown', appui)
+    s.addEventListener('pointermove', bouge)
+    s.addEventListener('pointerup', fin)
+    s.addEventListener('pointercancel', fin)
+    return () => {
+      s.removeEventListener('pointerdown', appui)
+      s.removeEventListener('pointermove', bouge)
+      s.removeEventListener('pointerup', fin)
+      s.removeEventListener('pointercancel', fin)
+    }
+  }, [montee, poser, arreterAnimation])
+
   // La molette fait défiler ; avec Cmd (ou le pincement du pavé), elle zoome autour du pointeur.
   useEffect(() => {
     const s = surface.current
@@ -1413,6 +1532,12 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
 }
 
 /** Les pastilles « + » d'un sujet choisi seul : un clic ajoute un enfant ou un frère, comme Tab et Entrée. */
+/** Au doigt : l'appui long qui ouvre le menu, le pas au-delà duquel le doigt glisse, et deux touchers qui font un double. */
+const APPUI_LONG = 500
+const SEUIL_DOIGT = 8
+const DOUBLE_DOIGT_MS = 350
+const DOUBLE_DOIGT_PX = 24
+
 function Ajouts({ id, pastilles }: { id: Id; pastilles: { enfant: Point; frere: Point | null } }) {
   const r = PASTILLE.diametre / 2
   const pastille = (genre: 'enfant' | 'frere', c: Point) => (

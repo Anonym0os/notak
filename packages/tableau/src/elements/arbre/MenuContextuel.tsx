@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { type Entree, ListeMenu, classeMenu, ligneVisee, naviguer } from '../../communs'
+import { type Entree, FeuilleMenu, ListeMenu, classeMenu, enFeuille, ligneVisee, naviguer } from '../../communs'
 import { Flottant } from './Flottant'
 import { ECART_ANCRE } from './geometrieMenus'
 import type { Item } from './menus'
@@ -44,7 +44,13 @@ const entreesDe = (items: Item[], choisir: (action: string) => void): Entree[] =
  * Xmind. Il ne prend pas le focus à l'ouverture : la première flèche bas le prend, et la carte le retrouve à la fermeture
  * (`Flottant`), sans quoi ses touches meurent.
  */
-export function MenuContextuel({ x = 0, y = 0, ancre, items, choisir, fermer, etiquette }: Props) {
+export function MenuContextuel(props: Props) {
+  // Au doigt sur un téléphone : la feuille qui monte du bas, comme le menu de la toile.
+  if (enFeuille()) return <FeuilleMenu entrees={entreesDe(props.items, props.choisir)} fermer={props.fermer} />
+  return <MenuAuPoint {...props} />
+}
+
+function MenuAuPoint({ x = 0, y = 0, ancre, items, choisir, fermer, etiquette }: Props) {
   const racine = useRef<HTMLDivElement>(null)
   const point = useMemo(() => ({ x, y, l: 0, h: 0 }), [x, y])
   const entrees = entreesDe(items, choisir)
