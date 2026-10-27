@@ -629,6 +629,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         p.style.setProperty('--notak-zoom-inverse', String(1 / c.echelle))
       }
       if (r) {
+        r.style.setProperty('--notak-cam-ox', String(c.origine.x))
+        r.style.setProperty('--notak-cam-oy', String(c.origine.y))
+        r.style.setProperty('--notak-cam-k', String(kk))
         r.style.setProperty('--notak-grille-x', `${decalageGrille(-c.origine.x * kk)}px`)
         r.style.setProperty('--notak-grille-y', `${decalageGrille(-c.origine.y * kk)}px`)
       }
@@ -982,8 +985,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   }, [])
 
   // Le contexte est stable : ses champs lisent l'état courant, les cartes ne se redessinent pas à chaque zoom.
+  const actionsRef = useRef<() => Entree[]>(() => [])
   const contexte = useMemo<ContexteToile>(
     () => ({
+      actions: () => actionsRef.current(),
       get magasin() {
         return etat.current.magasin
       },
@@ -1164,7 +1169,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (!div) return
     const doigts = new Map<number, Point>()
     let pince: { ecart: number; milieu: Point; camera: cam.Camera } | null = null
-    let appuiLong: { minuteur: ReturnType<typeof setTimeout>; depart: Point } | null = null
+    let appuiLong: { minuteur: ReturnType<typeof setTimeout>; depart: Point; carte: HTMLElement | null } | null = null
     const ici = (e: PointerEvent) => {
       const r = div.getBoundingClientRect()
       return point(e.clientX - r.left, e.clientY - r.top)
@@ -1175,6 +1180,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     }
     const lacherAppuiLong = () => {
       if (appuiLong) clearTimeout(appuiLong.minuteur)
+      delete appuiLong?.carte?.dataset.presse
       appuiLong = null
     }
     const appui = (e: PointerEvent) => {
@@ -1188,9 +1194,14 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       doigts.set(e.pointerId, ici(e))
       if (doigts.size === 1) {
         const { clientX, clientY, target, pointerId } = e
+        // L'élément tenu s'enfonce un peu pendant l'appui (voir `[data-presse]`) : on voit que quelque chose vient.
+        const carte = (target as HTMLElement | null)?.closest?.<HTMLElement>('.notak-plan [data-id]') ?? null
+        if (carte) carte.dataset.presse = ''
         appuiLong = {
           depart: ici(e),
+          carte,
           minuteur: setTimeout(() => {
+            if (carte) delete carte.dataset.presse
             appuiLong = null
             appuiLongRef.current({ clientX, clientY, target, pointerId })
           }, APPUI_LONG),
@@ -1710,6 +1721,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         ...(lectureSeule ? [] : [null, { libelle: t('fond.changer'), icone: 'palette' as const, faire: () => {}, sous: sousMenuFond() }]),
       ]
     }
+    return entreesElement()
+  }
+
+  /** Le menu des éléments choisis : celui de leur clic droit, et sur un téléphone celui du « ••• » de leur barre. */
+  const entreesElement = (): Entree[] => {
     const els = choisis()
     if (lectureSeule) return [{ libelle: t('commun.copier'), icone: 'menuCopier' as const, raccourci: '⌘C', faire: () => document.execCommand('copy') }]
     const verrouilles = els.length > 0 && els.every((x) => x.verrou)
@@ -2181,7 +2197,23 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     })
   }
 
-  const surAppuiOutil = (o: OutilDeBarre, e: React.PointerEvent) => {
+  /** L'outil touché (sans être tiré) dans la feuille des outils d'un téléphone : son élément naît au milieu de la vue. */
+  const poserOutil = (o: OutilDeBarre) => {
+    if (lectureSeule) return
+    if (edition) finirEdition()
+    const clic = o.outil.clic
+    const milieu = cam.versTableau(camera, point(vue.largeur / 2, vue.hauteur / 2))
+    if (clic) return clic(milieu, contexte)
+    if (o.outil.cliquerSeulement) return
+    const [cx, cy] = aimanter(milieu)
+    const pas = o.outil.creer(point(cx, cy), contexte)
+    const ids = pas.flatMap((op) => (op.type === 'creer' ? [op.element.id] : []))
+    if (ids.length === 0) return
+    magasin.faire(pas)
+    apresCreation(ids)
+  }
+
+  const surAppuiOutil = (o: OutilDeBarre, e: { pointerId: number; clientX: number; clientY: number }) => {
     if (lectureSeule) return
     if (edition) finirEdition()
     arreterDepose()
@@ -2202,6 +2234,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   }
 
   const fermerMenu = useCallback(() => setMenu(null), [])
+  const [actionsDemandees, setActionsDemandees] = useState(0)
   const ouvrirMenuRef = useRef<(e: React.MouseEvent) => void>(() => {})
   const ouvrirMenu = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -2210,11 +2243,19 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     // poser un fil.
     const id = sous(document.elementFromPoint(e.clientX, e.clientY))
     if (lectureSeule && (id || !peutCommenter(services))) return
+    // Sur un téléphone, l'appui long sur un élément le choisit et ouvre la feuille de sa barre : une seule feuille
+    // d'actions, qu'on y vienne par l'appui ou par « ••• ».
+    if (id && enFeuille() && !lectureSeule) {
+      if (!selection.has(id)) setSelection(new Set([id]))
+      setActionsDemandees(Date.now())
+      return
+    }
     const p = local(e)
     setMenu({ x: p.x, y: p.y, ou: cam.versTableau(camera, p), surElement: !!id })
   }
 
   ouvrirMenuRef.current = ouvrirMenu
+  actionsRef.current = entreesElement
 
   /** Espace relâchée sans avoir attrapé la toile : elle ouvre l'élément choisi (un tableau). */
   const relacherEspace = (e: React.KeyboardEvent) => {
@@ -2274,6 +2315,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     setEnGeste(false)
     setAttrape(false)
     setZoneLasso(null)
+    services.vibrer?.()
     ouvrirMenuRef.current({ preventDefault() {}, ...o } as unknown as React.MouseEvent)
   }
 
@@ -2298,7 +2340,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const p = local(e)
     const idBrut = sous(e.target)
     const id = idBrut && prisParUnAutre.has(idBrut) ? null : idBrut
-    const surPoignee = !!(e.target as HTMLElement).closest('[data-poignee]')
+    // Au doigt, la poignée d'un élément qu'on n'a pas choisi ne redimensionne pas : le doigt qui passe dessus pour se
+    // déplacer tire le fond. On touche l'élément d'abord, puis sa poignée.
+    const surPoignee =
+      !!(e.target as HTMLElement).closest('[data-poignee]') && (e.pointerType !== 'touch' || (!!id && selection.has(id)))
     // Au doigt, deux touchers rapprochés font ce que fait un double-clic (une note sur le vide, entrer dans une toile,
     // écrire dans une note) : la webview d'iOS n'en envoie pas de fiable, le premier toucher ayant déjà pris le geste.
     if (e.pointerType === 'touch' && e.button === 0 && !surPoignee && !espace) {
@@ -2338,7 +2383,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     } else if (e.button === 0) {
       const ici = cam.versTableau(camera, p)
       const el = id && tableau.elements.find((x) => x.id === id)
-      if (el && !lectureSeule && !el.verrou && (e.target as HTMLElement).closest('[data-poignee]') && selection.size > 1 && selection.has(el.id)) {
+      if (el && !lectureSeule && !el.verrou && surPoignee && selection.size > 1 && selection.has(el.id)) {
         // Une poignée dans une sélection de plusieurs : chacune lance le redimensionnement du groupe.
         const choisis = tableau.elements.filter((x) => selection.has(x.id))
         const rects = choisis.flatMap((x) => rect(x.id) ?? [])
@@ -2350,7 +2395,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           })
         const cadre = englobant(rects)
         if (cadre) geste.current = { type: 'redimensionnerGroupe', depart: ici, cadre, items }
-      } else if (el && !lectureSeule && !el.verrou && (e.target as HTMLElement).closest('[data-poignee]')) {
+      } else if (el && !lectureSeule && !el.verrou && surPoignee) {
         const def = definition(el.contenu.type)
         const min = largeurMinDe(def?.largeurMin, el.contenu)
         const n = def?.hauteurBornable && !el.parent ? noeudDe(el.id) : null
@@ -2763,15 +2808,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       // Un outil d'envoi s'ouvre au clic : ce qu'on choisit se pose au milieu de la vue.
       if (clic) return clic(cam.versTableau(camera, point(vue.largeur / 2, vue.hauteur / 2)), contexte)
       // Sur un téléphone, l'outil touché dans la feuille des outils pose son élément au milieu de la vue.
-      if (enFeuille() && !g.outil.outil.cliquerSeulement) {
-        const [cx, cy] = aimanter(cam.versTableau(camera, point(vue.largeur / 2, vue.hauteur / 2)))
-        const pas = g.outil.outil.creer(point(cx, cy), contexte)
-        const ids = pas.flatMap((op) => (op.type === 'creer' ? [op.element.id] : []))
-        if (ids.length === 0) return
-        magasin.faire(pas)
-        apresCreation(ids)
-        return
-      }
+      if (enFeuille() && !g.outil.outil.cliquerSeulement) return poserOutil(g.outil)
       setRebond((r) => ({ libelle: g.outil.outil.libelle, n: (r?.n ?? 0) + 1 }))
       return
     }
@@ -3230,6 +3267,11 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   // La grille ne paraît qu'à 100 % : elle revient en fondu quand on y retombe (voir `.notak-toile::before`).
   const styleRacine = {
     '--notak-grille-pas': `${cam.PX_PAR_UG}px`,
+    // La caméra affichée, pour ce qui se pose sur la toile en pixels d'écran et doit suivre un geste rapide sans
+    // attendre React (voir `surLaToile`).
+    '--notak-cam-ox': affichee.origine.x,
+    '--notak-cam-oy': affichee.origine.y,
+    '--notak-cam-k': ka,
     '--notak-grille-x': `${decalageGrille(-affichee.origine.x * ka)}px`,
     '--notak-grille-y': `${decalageGrille(-affichee.origine.y * ka)}px`,
     // Une couleur libre : les points s'éclaircissent sur un fond sombre.
@@ -3412,11 +3454,12 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           contexte={contexte}
           position={{ x: (barre.min.x + barre.max.x) / 2, y: Math.max(8, barre.min.y - MARGE_BARRE) }}
           {...(services.barreAGauche ? { aGauche: true } : {})}
+          actionsDemandees={actionsDemandees}
         />
       )}
       {/* [barre d'édition à gauche] */}
       {selectionEnEdition && (
-        <BarreSelection elements={selectionEnEdition} contexte={contexte} position={{ x: 0, y: 0 }} aGauche />
+        <BarreSelection elements={selectionEnEdition} contexte={contexte} position={{ x: 0, y: 0 }} aGauche actionsDemandees={actionsDemandees} />
       )}
       {barreEdition && (
         <BarreEdition
@@ -3438,6 +3481,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         <BarreOutils
           grisee={lectureSeule}
           surAppui={surAppuiOutil}
+          poser={poserOutil}
+          {...(services.vibrer ? { vibrer: services.vibrer } : {})}
           rebond={rebond}
           corbeille={{ nombre: corbeille.length, ouverte: corbeilleOuverte, basculer: () => setCorbeilleOuverte((o) => !o) }}
           nonTries={{ nombre: nonTries.length, ouverte: nonTriesOuvert, basculer: () => setNonTriesOuvert((o) => !o) }}

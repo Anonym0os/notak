@@ -1,6 +1,7 @@
 import { type HTMLAttributes, type ReactNode, type Ref, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Icone, type NomIcone } from '../icones'
 import { PastillePersonne } from '../pastille'
+import { ActionsFeuille } from './ActionsFeuille'
 import { Feuille, enFeuille } from './Feuille'
 import './menu.css'
 
@@ -366,10 +367,8 @@ export function MenuContextuel(props: { x: number; y: number; entrees: Entree[];
 /** Au doigt sur un téléphone, le menu monte du bas en feuille : des lignes larges, pas de raccourcis du clavier. */
 export function FeuilleMenu({ entrees, fermer, titre }: { entrees: Entree[]; fermer(): void; titre?: ReactNode }) {
   return (
-    <Feuille fermer={fermer} titre={titre} role="presentation">
-      <div role="menu" className="notak-menu notak-tiroir-bas-menu">
-        <ListeMenu entrees={entrees} fermer={fermer} />
-      </div>
+    <Feuille fermer={fermer} titre={titre} role="presentation" className="notak-tiroir-bas-actions">
+      <ActionsFeuille entrees={entrees} fermer={fermer} />
     </Feuille>
   )
 }

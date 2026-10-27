@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { t } from "../../langue";
-import { PX_PAR_UG, versEcran } from "../../coeur/camera";
+import { PX_PAR_UG, surLaToile, versEcran } from "../../coeur/camera";
 import { type Point, type Rect, centre, point } from "../../coeur/geometrie";
 import { TAILLE_POINTE, sommetsFleche, tracer } from "../../coeur/lignes";
 import type { Element, Id } from "../../coeur/tableau";
@@ -128,7 +128,7 @@ export function LigneRapide({ elements, contexte }: { elements: Element[]; conte
     fin.current = arreter;
   };
 
-  const coin = rect && versEcran(contexte.camera, coinPoignee(rect));
+  const coin = rect && coinPoignee(rect);
   return (
     <span ref={repere} hidden>
       {toile &&
@@ -138,7 +138,7 @@ export function LigneRapide({ elements, contexte }: { elements: Element[]; conte
             <div
               className="notak-ligne-rapide"
               data-tirage={apercu ? "" : undefined}
-              style={{ left: coin.x, top: coin.y }}
+              style={surLaToile(coin)}
               title={t('ligne.glisser')}
               onPointerDown={commencer}
               onDoubleClick={(e) => e.stopPropagation()}

@@ -92,6 +92,31 @@ export function replier({
 }
 
 /**
+ * Sur un téléphone, la barre de sélection est une capsule d'une ligne : elle garde au plus `places` outils, les plus
+ * importants (le plus petit ordre), et range les autres dans le « ••• ». Les séparateurs n'y ont pas cours.
+ */
+export function garderAuPlus(entrees: readonly EntreeRepli[], places: number): Repli {
+  const ranges = new Set<string>()
+  const retires = new Set<string>()
+  const retirer = (e: EntreeRepli) => {
+    retires.add(e.id)
+    if (!e.masque) ranges.add(e.id)
+  }
+  for (const e of entrees) if (e.ordre >= ORDRE.toujours || e.genre === 'sep') retires.add(e.id)
+  for (const e of entrees) if (e.ordre >= ORDRE.toujours) retirer(e)
+  const restantes = () => entrees.filter((e) => !retires.has(e.id))
+  while (restantes().length > places) {
+    const candidats = restantes().filter((e) => e.ordre > ORDRE.jamais)
+    if (candidats.length === 0) break
+    retirer(candidats.reduce((m, e) => (e.ordre >= m.ordre ? e : m)))
+  }
+  return { palier: 'grande', visibles: restantes().map((e) => e.id), ranges: entrees.filter((e) => ranges.has(e.id)).map((e) => e.id) }
+}
+
+/** Les outils que garde la capsule de sélection d'un téléphone, à côté de « Fermer », « Supprimer » et « ••• ». */
+export const PLACES_TELEPHONE = 3
+
+/**
  * Mesure la barre qui contient `ref` (le `nav` de la barre de gauche) par un ResizeObserver et la fenêtre, calcule
  * le repli, pose la taille des tuiles sur la barre (`data-palier`) et rend ce qui est rangé. La barre est
  * ancrée haut et bas : sa hauteur ne dépend pas de son contenu, donc le repli ne boucle pas.
@@ -124,10 +149,15 @@ export function useRepli(
     if (!barre) return
     const calculer = () => {
       const { entrees: es, fixe: f } = dernier.current
-      // Sur un téléphone, la barre est une bande en bas qui défile : rien ne se range dans le « ••• ».
       if (enFeuille()) {
         barre.dataset.palier = 'grande'
-        return setEtat((e) => (e.cle === 'telephone' ? e : { cle: 'telephone', ranges: new Set(), visibles: null, palier: 'grande' }))
+        // La barre d'une note qu'on écrit défile : rien ne se range dans le « ••• ».
+        if (barre.hasAttribute('data-edition')) {
+          return setEtat((e) => (e.cle === 'telephone' ? e : { cle: 'telephone', ranges: new Set(), visibles: null, palier: 'grande' }))
+        }
+        const r = garderAuPlus(es, PLACES_TELEPHONE)
+        const cle = `telephone/${r.ranges.join(',')}/${r.visibles.join(',')}`
+        return setEtat((e) => (e.cle === cle ? e : { cle, ranges: new Set(r.ranges), visibles: new Set(r.visibles), palier: 'grande' }))
       }
       const r = replier({ entrees: es, hauteur: placeDe(barre), fixe: f })
       barre.dataset.palier = r.palier

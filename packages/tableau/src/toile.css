@@ -3211,3 +3211,106 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
     display: none;
   }
 }
+
+/* Sur un téléphone, la barre d'une sélection est une capsule d'une ligne, comme les îlots du haut : « ✕ », trois
+   outils en icônes seules, Supprimer en rouge, et « ••• » pour tout le reste (Barres.tsx). */
+@media (pointer: coarse) and (max-width: 640px) {
+  .notak-barre-outils[data-capsule] {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2px;
+    height: 56px;
+    max-height: none;
+    padding: 0 6px;
+    overflow: visible;
+    border-radius: 28px;
+    box-shadow: var(--app-ombre-ilot, var(--notak-ombre-vol));
+  }
+
+  .notak-barre-outils[data-capsule] .notak-barre-selection[data-a-gauche] {
+    flex: 1 1 0;
+    flex-wrap: nowrap;
+    justify-content: space-around;
+    gap: 0;
+    min-width: 0;
+    height: 44px;
+    padding: 0 0 0 6px;
+  }
+
+  .notak-barre-outils[data-capsule] .notak-barre-selection[data-a-gauche]::before {
+    height: 24px;
+    margin-right: 4px;
+  }
+
+  .notak-barre-outils[data-capsule] :is(.notak-barre-retour, .notak-outil-plus, .notak-capsule-jeter),
+  .notak-barre-outils[data-capsule] .notak-barre-selection :is(button.notak-outil, .notak-note-menu-ancre) {
+    display: grid;
+    place-items: center;
+    flex: none;
+    box-sizing: border-box;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 22px;
+    background: none;
+    color: var(--notak-texte);
+  }
+
+  .notak-barre-outils[data-capsule] .notak-barre-selection .notak-note-menu-ancre > button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .notak-barre-outils[data-capsule] .notak-outil-libelle {
+    display: none;
+  }
+
+  .notak-barre-outils[data-capsule] .notak-outil-icone {
+    width: 28px;
+    height: 28px;
+    margin: 0;
+    background: none;
+    box-shadow: none;
+  }
+
+  .notak-barre-outils[data-capsule] .notak-capsule-jeter {
+    color: #e5484d;
+  }
+
+  .notak-barre-outils[data-capsule] :is(button, .notak-note-menu-ancre):active {
+    background: color-mix(in srgb, var(--notak-texte) 8%, transparent);
+  }
+
+  /* La mini-carte laisse la place à la capsule : elle revient quand rien n'est choisi. */
+  .notak-toile:has(.notak-barre-outils[data-capsule]) .notak-minicarte {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease-out;
+  }
+
+  /* Un élément tenu au doigt s'enfonce un peu, après un temps : un toucher bref ne clignote pas. */
+  .notak-plan [data-id][data-presse] {
+    scale: 0.96;
+    transition: scale 0.35s linear 0.15s;
+  }
+
+  /* Dans la feuille du « + », l'outil touché s'enfonce. */
+  .notak-outils-feuille .notak-outil[data-presse] {
+    scale: 0.94;
+    transition: scale 0.1s ease-out;
+  }
+}
+
+@media (pointer: coarse) and (max-width: 640px) {
+  /* Dans la capsule, une icône n'a pas de tuile grise : c'est une touche comme « ✕ » et « ••• ». */
+  .notak-barre-outils[data-capsule][data-selection] .notak-barre-selection[data-a-gauche] .notak-outil .notak-outil-icone {
+    width: 28px !important;
+    height: 28px !important;
+    background: none !important;
+    box-shadow: none !important;
+  }
+}

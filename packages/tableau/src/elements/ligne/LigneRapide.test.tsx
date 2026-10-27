@@ -56,9 +56,9 @@ describe('ligne rapide', () => {
     monter()
     expect(poignee()).not.toBeNull()
     expect(poignee()!.parentElement).toBe(toile)
-    // Le coin haut droit (30, 10) UG, à 10 px par UG.
-    expect(poignee()!.style.left).toBe('300px')
-    expect(poignee()!.style.top).toBe('100px')
+    // Le coin haut droit (30, 10) UG, posé sur la caméra que publie la toile : il suit un geste sans rendu.
+    expect(poignee()!.style.left).toBe('calc((30 - var(--notak-cam-ox)) * var(--notak-cam-k) * 1px)')
+    expect(poignee()!.style.top).toBe('calc((10 - var(--notak-cam-oy)) * var(--notak-cam-k) * 1px)')
   })
 
   it('n’en pose pas pour deux éléments, ni pour une ligne', () => {

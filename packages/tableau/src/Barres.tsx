@@ -13,6 +13,7 @@ import { Icone } from './icones'
 import { Feuille, enFeuille } from './communs/Feuille'
 import { Infobulle } from './Infobulle'
 import { MenuActions } from './MenuActions'
+import { ActionsFeuille } from './communs/ActionsFeuille'
 import { useMenu } from './menuUnique'
 import { Vignette } from './vignettes'
 import { useDessinLibreOuvert } from './elements/dessin/mode'
@@ -32,6 +33,13 @@ const cleOutil = (o: OutilDeBarre) => `${o.type}:${o.outil.libelle}`
  */
 const fixeCreation = (p: Palier) => (p === 'grande' ? 20 : 12) + 30 + 21 + 60 + 12
 /** Idem pour la barre de sélection : la flèche retour s'y ajoute, pas le séparateur. */
+/** La dernière demande de la feuille d'actions qu'une barre a servie (voir `actionsDemandees`). */
+let demandeServie = 0
+
+/** Le temps qu'on tient un outil de la feuille pour le tirer sur la toile, et le mouvement toléré avant, en px. */
+const APPUI_OUTIL = 400
+const TOLERANCE_OUTIL = 10
+
 const fixeSelection = (p: Palier) => (p === 'grande' ? 20 : 12) + 44 + 34 + 60 + 12
 
 /** L'ordre de repli d'un outil de la barre de création (relevé : Tableau 10, Image, Upload et Draw 2, le tiroir toujours). */
@@ -106,13 +114,19 @@ function LibelleOutil({ children }: { children: ReactNode }) {
 export function BarreOutils({
   grisee = false,
   surAppui,
+  poser,
+  vibrer,
   rebond,
   corbeille,
   nonTries,
 }: {
   /** Aperçu d'un modèle : la barre reste visible, grisée à 30 % et sans clic. */
   grisee?: boolean
-  surAppui(o: OutilDeBarre, e: React.PointerEvent): void
+  surAppui(o: OutilDeBarre, e: { pointerId: number; clientX: number; clientY: number }): void
+  /** Sur un téléphone, l'outil touché dans la feuille : son élément se pose au milieu de la vue. */
+  poser?(o: OutilDeBarre): void
+  /** Le retour au doigt de l'appareil, quand l'outil se décolle de la feuille. */
+  vibrer?(): void
   rebond: { libelle: string; n: number; texte?: 'barre.cliquer' } | null
   /** La corbeille, en bas de la barre : elle s'ouvre au clic et reçoit ce qu'on y lâche. */
   corbeille: { nombre: number; ouverte: boolean; basculer(): void }
@@ -131,6 +145,56 @@ export function BarreOutils({
     const depasse = r.bottom - (window.innerHeight - 8)
     if (depasse > 0) g.style.setProperty('--notak-tiroir-remonte', `${Math.min(depasse, r.top - 8)}px`)
   }, [tiroir])
+  /*
+   * Dans la feuille des outils, un toucher pose l'outil au milieu de la vue ; pour le tirer sur la toile, on le tient
+   * un instant, l'appareil vibre et l'outil se soulève. Un doigt qui bouge avant ne prend rien : il ferme la feuille
+   * ou la fait défiler.
+   */
+  const prise = useRef<{ fin(): void } | null>(null)
+  const prendre = (o: OutilDeBarre, e: React.PointerEvent<HTMLButtonElement>) => {
+    prise.current?.fin()
+    const bouton = e.currentTarget
+    const id = e.pointerId
+    const depart = { x: e.clientX, y: e.clientY }
+    let dernier = { pointerId: id, clientX: e.clientX, clientY: e.clientY }
+    bouton.dataset.presse = ''
+    const fin = () => {
+      clearTimeout(minuteur)
+      delete bouton.dataset.presse
+      window.removeEventListener('pointermove', bouge, true)
+      window.removeEventListener('pointerup', lache, true)
+      window.removeEventListener('pointercancel', annule, true)
+      // Le clic qui suit ce toucher est déjà traité ici.
+      setTimeout(() => {
+        if (prise.current?.fin === fin) prise.current = null
+      }, 400)
+    }
+    const minuteur = setTimeout(() => {
+      fin()
+      vibrer?.()
+      setFeuille(false)
+      surAppui(o, dernier)
+    }, APPUI_OUTIL)
+    const bouge = (m: PointerEvent) => {
+      if (m.pointerId !== id) return
+      dernier = { pointerId: id, clientX: m.clientX, clientY: m.clientY }
+      if (Math.hypot(m.clientX - depart.x, m.clientY - depart.y) > TOLERANCE_OUTIL) fin()
+    }
+    const lache = (m: PointerEvent) => {
+      if (m.pointerId !== id) return
+      fin()
+      setFeuille(false)
+      poser?.(o)
+    }
+    const annule = (m: PointerEvent) => {
+      if (m.pointerId === id) fin()
+    }
+    window.addEventListener('pointermove', bouge, true)
+    window.addEventListener('pointerup', lache, true)
+    window.addEventListener('pointercancel', annule, true)
+    prise.current = { fin }
+  }
+  useEffect(() => () => prise.current?.fin(), [])
   const nav = useRef<HTMLElement>(null)
   useGlissement(nav, 0)
   useEchapFerme(nav, () => setTiroir(false))
@@ -215,9 +279,13 @@ export function BarreOutils({
                   aria-label={o.outil.libelle}
                   onPointerDown={(e) => {
                     if (e.button !== 0) return
-                    e.preventDefault()
+                    prendre(o, e)
+                  }}
+                  onClick={() => {
+                    // Le clavier, ou un lecteur d'écran : le clic seul pose l'outil.
+                    if (prise.current) return
                     setFeuille(false)
-                    surAppui(o, e)
+                    poser?.(o)
                   }}
                 >
                   <span className="notak-outil-icone">{o.outil.vignette ? <Vignette nom={o.outil.vignette} /> : o.outil.icone}</span>
@@ -293,10 +361,13 @@ export function BarreSelection({
   contexte,
   position,
   aGauche = false,
+  actionsDemandees = 0,
 }: {
   elements: Element[]
   contexte: ContexteToile
   position: { x: number; y: number }
+  /** Sur un téléphone, un appui long sur l'élément : chaque nouvelle valeur ouvre la feuille de ses actions. */
+  actionsDemandees?: number
   /** À la place de la barre de gauche, en colonne de tuiles, plutôt qu'au-dessus de la sélection. */
   aGauche?: boolean
 }) {
@@ -325,6 +396,19 @@ export function BarreSelection({
     return () => setInscrits((l) => l.filter((x) => x.id !== e.id))
   }, [])
   const { ranges } = useRepli(nav, inscrits, fixeSelection)
+  const telephone = aGauche && enFeuille()
+  // Les outils rangés d'un téléphone vivent dans un nœud à part, qui entre dans la feuille quand elle s'ouvre : fermée,
+  // ils restent montés (leur état, leurs menus) sans se voir.
+  const [rangement] = useState(() => (typeof document === 'undefined' ? null : document.createElement('div')))
+  const poserRangement = useCallback((n: HTMLDivElement | null) => {
+    if (n && rangement) n.append(rangement)
+  }, [rangement])
+  useEffect(() => {
+    // Une demande ne sert qu'une fois : la barre qui renaît pour une autre sélection n'ouvre rien.
+    if (!telephone || actionsDemandees <= demandeServie) return
+    demandeServie = actionsDemandees
+    setTiroir(true)
+  }, [actionsDemandees]) // eslint-disable-line react-hooks/exhaustive-deps
   const parType = new Map<string, Element[]>()
   for (const e of elements) parType.set(e.contenu.type, [...(parType.get(e.contenu.type) ?? []), e])
   const blocs = [...parType].flatMap(([type, els]) => {
@@ -353,6 +437,55 @@ export function BarreSelection({
     return <BarreEtiquette element={elements[0]!} puce={puce} contexte={contexte} aGauche={aGauche} position={position} />
   }
   if (blocs.length === 0 && communs.length + communsSuite.length === 0) return null
+
+  if (aGauche && telephone) {
+    // Sur un téléphone : une capsule d'une ligne, « ✕ », les trois outils qui comptent, Supprimer, et « ••• » qui
+    // ouvre une feuille avec tout le reste (les outils rangés, puis le menu de l'appui long).
+    const peutJeter = !contexte.services.lectureSeule && elements.length > 0 && !elements.every((x) => x.verrou)
+    return (
+      <nav ref={nav} className="notak-barre-outils" data-selection data-capsule data-eteinte={dessinOuvert || undefined} onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+        <button type="button" className="notak-barre-retour" aria-label={t('barre.retour')} onClick={() => contexte.choisir([])}>
+          <Icone nom="fermer" taille={22} />
+        </button>
+        <ContexteOutils.Provider value={{ aGauche: true, plus: rangement, ranges, inscrire }}>
+          <div key={cle} className="notak-barre-selection" data-a-gauche>
+            {!mele && blocs.map((b) => b.tete)}
+            {communs}
+            {!mele && blocs.map((b) => b.suite)}
+            {communsSuite}
+            {!mele && blocs.map((b) => b.fin)}
+          </div>
+        </ContexteOutils.Provider>
+        {peutJeter && (
+          <button type="button" className="notak-outil notak-capsule-jeter" aria-label={t('menu.supprimer')} onClick={() => contexte.jeter(elements.map((x) => x.id))}>
+            <Icone nom="corbeille" taille={22} />
+          </button>
+        )}
+        <button type="button" className="notak-outil-plus" aria-expanded={tiroir} aria-label={t('barre.plusOutils')} onClick={() => setTiroir(true)}>
+          <Icone nom="plus" />
+        </button>
+        {tiroir && (
+          <Feuille fermer={() => setTiroir(false)} role="presentation" className="notak-tiroir-bas-actions">
+            <ActionsFeuille
+              entrees={contexte.actions?.() ?? []}
+              fermer={() => setTiroir(false)}
+              avant={
+                <>
+                  <div className="notak-actions-outils" ref={poserRangement} />
+                  {mele &&
+                    blocs.map((b) => (
+                      <div key={b.type} className="notak-actions-outils">
+                        <ContexteOutils.Provider value={{ aGauche: true, plus: null }}>{b.rendu}</ContexteOutils.Provider>
+                      </div>
+                    ))}
+                </>
+              }
+            />
+          </Feuille>
+        )}
+      </nav>
+    )
+  }
 
   if (aGauche) {
     return (

@@ -36,7 +36,7 @@ describe('le menu du clic droit au doigt sur un téléphone', () => {
     act(() => racine.render(<MenuContextuel x={10} y={10} entrees={[{ libelle: 'Dupliquer', raccourci: '⌘D', faire }]} fermer={fermer} />))
     expect(document.querySelector('.notak-tiroir-bas')).not.toBeNull()
     expect(document.querySelector('.notak-menu-ctx')).toBeNull()
-    act(() => document.querySelector<HTMLButtonElement>('.notak-tiroir-bas .notak-e')!.click())
+    act(() => document.querySelector<HTMLButtonElement>('.notak-tiroir-bas .notak-actions-ligne')!.click())
     expect(faire).toHaveBeenCalled()
     expect(fermer).toHaveBeenCalled()
   })
@@ -51,6 +51,36 @@ describe('le menu du clic droit au doigt sur un téléphone', () => {
     expect(fermer).not.toHaveBeenCalled()
     act(() => void vi.advanceTimersByTime(400))
     act(() => voile.click())
+    expect(fermer).toHaveBeenCalled()
+  })
+
+  it('se ferme quand on la tire vers le bas depuis n’importe où, et revient si on la lâche trop tôt', () => {
+    vi.useFakeTimers()
+    auTelephone()
+    const fermer = vi.fn()
+    act(() => racine.render(<MenuContextuel x={10} y={10} entrees={[{ libelle: 'Copier', faire() {} }, { libelle: 'Coller', faire() {} }]} fermer={fermer} />))
+    act(() => void vi.advanceTimersByTime(400))
+    const feuille = document.querySelector<HTMLElement>('.notak-tiroir-bas')!
+    const ligne = document.querySelector<HTMLElement>('.notak-actions-ligne')!
+    const doigt = (type: string, y: number, cible: EventTarget = window, t = 0) =>
+      act(() => {
+        const e = Object.assign(new Event(type, { bubbles: true }), { pointerId: 1, pointerType: 'touch', clientX: 50, clientY: y, button: 0 })
+        Object.defineProperty(e, 'timeStamp', { value: t })
+        cible.dispatchEvent(e)
+      })
+    // Un peu : elle suit le doigt, puis remonte.
+    doigt('pointerdown', 300, ligne)
+    doigt('pointermove', 320, window, 100)
+    doigt('pointermove', 350, window, 200)
+    expect(feuille.style.transform).toBe('translateY(30px)')
+    doigt('pointerup', 350, window, 1000)
+    expect(fermer).not.toHaveBeenCalled()
+    expect(feuille.style.transform).toBe('')
+    // Assez bas : elle se ferme, et le clic du relâchement ne déclenche pas la ligne.
+    doigt('pointerdown', 300, ligne, 2000)
+    doigt('pointermove', 320, window, 2100)
+    doigt('pointermove', 600, window, 3000)
+    doigt('pointerup', 600, window, 3500)
     expect(fermer).toHaveBeenCalled()
   })
 

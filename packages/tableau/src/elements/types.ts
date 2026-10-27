@@ -13,6 +13,7 @@ import type { Point, Rect } from '../coeur/geometrie'
 import type { Paquet } from '../coeur/pressePapiers'
 import type { Magasin } from '../coeur/magasin'
 import type { NomIcone } from '../icones'
+import type { Entree } from '../communs/Menu'
 import type { Apercu, Contenu, CouleurNote, Element, Etiquette, Id, Operation, Tableau, TypeContenu } from '../coeur/tableau'
 
 /** Où l'application range les fichiers (images…). La toile ne sait pas où ils vivent. */
@@ -250,6 +251,8 @@ export interface ContexteToile {
   montrer(id: Id): void
   /** Met ces éléments à la corbeille du tableau (avec leurs lignes accrochées), d'un seul pas. */
   jeter(ids: Iterable<Id>): void
+  /** Le menu des éléments choisis, celui de leur clic droit (couper, copier, dupliquer, supprimer, plans…). */
+  actions?(): Entree[]
   /**
    * Cmd+Entrée : crée l'élément suivant, du type que dit `suivant` (une note par défaut), sous cet élément,
    * ou juste après lui dans sa colonne ; le choisit et l'édite. `format` : recopier aussi la mise en forme.

@@ -204,3 +204,12 @@ export function animer(depart: Camera, cible: Camera, t: number, v: Vue): { came
   const echelle = depart.echelle * (cible.echelle / depart.echelle) ** k
   return { camera: centree(point(c0.x + (c1.x - c0.x) * k, c0.y + (c1.y - c0.y) * k), echelle, v), fini: false }
 }
+
+/**
+ * La place à l'écran d'un point de la toile, en CSS : elle se calcule sur la caméra que la toile publie
+ * (`--notak-cam-*`), si bien qu'un repère posé ainsi suit un geste au doigt image par image, sans rendu React.
+ */
+export const surLaToile = (p: Point): { left: string; top: string } => ({
+  left: `calc((${p.x} - var(--notak-cam-ox)) * var(--notak-cam-k) * 1px)`,
+  top: `calc((${p.y} - var(--notak-cam-oy)) * var(--notak-cam-k) * 1px)`,
+})

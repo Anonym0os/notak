@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type EntreeRepli, ORDRE, pasDe, replier } from './repli'
+import { type EntreeRepli, ORDRE, garderAuPlus, pasDe, replier } from './repli'
 
 const tuile = (id: string, ordre: number = ORDRE.defaut, masque?: boolean): EntreeRepli => ({ id, genre: 'tuile', ordre, ...(masque ? { masque } : {}) })
 const creation = [
@@ -58,5 +58,23 @@ describe('le repli de la barre de gauche', () => {
     const un = replier({ entrees: texte, hauteur: 200, fixe: () => 0 })
     expect(un.ranges).toEqual(['code', 'souligne'])
     expect(un.ranges).not.toContain('commentaire')
+  })
+})
+
+describe('la capsule de sélection d’un téléphone', () => {
+  it('garde les trois outils les plus importants et range les autres dans le « ••• »', () => {
+    const r = garderAuPlus(
+      [
+        { id: 'couleur', genre: 'tuile', ordre: 10 },
+        { id: 'sep', genre: 'sep', ordre: 100 },
+        { id: 'etiquettes', genre: 'tuile', ordre: 100 },
+        { id: 'reagir', genre: 'tuile', ordre: 200 },
+        { id: 'commenter', genre: 'tuile', ordre: 50 },
+        { id: 'legende', genre: 'tuile', ordre: 10000 },
+      ],
+      3,
+    )
+    expect(r.visibles).toEqual(['couleur', 'etiquettes', 'commenter'])
+    expect(r.ranges).toEqual(['reagir', 'legende'])
   })
 })
