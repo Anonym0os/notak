@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { BoutonIcone, Dialogue } from './communs'
+import { enFeuille } from './communs/Feuille'
 import { Icone } from './icones'
 import { t, tn } from './langue'
 import { touchesDe } from './communs'
@@ -110,11 +111,15 @@ export function PageReglages({ fermer, ...c }: ContexteReglages & { fermer(): vo
 
   const champ = useRef<HTMLInputElement>(null)
   const page = useRef<HTMLDivElement>(null)
+  // Sur un téléphone, comme les Réglages d'iOS : la liste des rubriques en plein écran, puis la rubrique poussée par-dessus.
+  const telephone = enFeuille()
+  const [poussee, setPoussee] = useState(false)
 
   const ouvrir = (id: string) => {
     setRubriqueVoulue(id)
     ecrireRubrique(id)
     setCherche('')
+    setPoussee(true)
   }
   // Une autre rubrique, ou d'autres résultats, se lisent depuis le haut.
   useLayoutEffect(() => {
@@ -136,7 +141,8 @@ export function PageReglages({ fermer, ...c }: ContexteReglages & { fermer(): vo
   }, [])
   // Échap vide d'abord la recherche, puis ferme.
   const echap = () => {
-    if (cherche) {
+    if (telephone && poussee) setPoussee(false)
+    else if (cherche) {
       setCherche('')
       champ.current?.focus()
     } else fermer()
@@ -144,8 +150,19 @@ export function PageReglages({ fermer, ...c }: ContexteReglages & { fermer(): vo
 
   const compteDe = (id: string) => trouvees.find((r) => r.id === id)
   return (
-    <Dialogue nu className="notak-rg" etiquette={t('reglages.titre')} fermer={fermer} echap={echap} retour={() => document.querySelector<HTMLElement>('.notak-reglages-bouton')}>
+    <Dialogue
+      nu
+      className={telephone ? `notak-rg notak-rg-telephone${poussee || enRecherche ? ' notak-rg-poussee' : ''}` : 'notak-rg'}
+      etiquette={t('reglages.titre')} fermer={fermer} echap={echap} retour={() => document.querySelector<HTMLElement>('.notak-reglages-bouton')}>
       <nav className="notak-rg-nav" aria-label={t('reglages.rubriques')}>
+        {telephone && (
+          <div className="notak-rg-tete">
+            <h2>{t('reglages.titre')}</h2>
+            <button type="button" className="notak-rg-ok" onClick={fermer}>
+              {t('commun.fermer')}
+            </button>
+          </div>
+        )}
         {c.compte && (
           <button type="button" className="notak-rg-moi" onClick={() => ouvrir('profil')}>
             <PastillePersonne taille={36} nom={c.compte.nom} couleur={c.compte.couleur} adresse={c.compte.photo ?? undefined} />
@@ -155,7 +172,7 @@ export function PageReglages({ fermer, ...c }: ContexteReglages & { fermer(): vo
             </span>
           </button>
         )}
-        <Recherche ref={champ} autoFocus valeur={cherche} onChange={setCherche} placeholder={t('reglages.chercher')} aria-label={t('reglages.chercher')} fin={!cherche && <TouchesRaccourci touches="⌘F" />} />
+        <Recherche ref={champ} autoFocus={!telephone} valeur={cherche} onChange={setCherche} placeholder={t('reglages.chercher')} aria-label={t('reglages.chercher')} fin={!cherche && !telephone && <TouchesRaccourci touches="⌘F" />} />
         <div className="notak-rg-liste">
           {GROUPES.map((g) => {
             const rubriques = visibles.filter((r) => r.groupe === g)
@@ -191,6 +208,19 @@ export function PageReglages({ fermer, ...c }: ContexteReglages & { fermer(): vo
         <span className="notak-rg-version">{t('reglages.version', { version: VERSION_NOTAK })}</span>
       </nav>
       <div ref={page} className="notak-rg-page">
+        {telephone && (
+          <button
+            type="button"
+            className="notak-rg-retour"
+            onClick={() => {
+              setPoussee(false)
+              setCherche('')
+            }}
+          >
+            <Icone nom="gauche" taille={18} />
+            {t('reglages.titre')}
+          </button>
+        )}
         <BoutonIcone className="notak-rg-fermer" aria-label={t('reglages.fermer')} onClick={fermer}>
           <Icone nom="fermer" taille={16} trait={2} />
         </BoutonIcone>

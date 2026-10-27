@@ -534,3 +534,111 @@
     max-width: none;
   }
 }
+
+/*
+ * Sur un téléphone, au doigt (PageReglages.tsx, `notak-rg-telephone`) : comme les Réglages d'iOS, la liste des
+ * rubriques en plein écran, puis la rubrique choisie à sa place, avec « ‹ Réglages » pour revenir. Les zones sûres
+ * restent libres.
+ */
+.notak-rg.notak-rg-telephone {
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border-radius: 0;
+  box-sizing: border-box;
+  padding: var(--notak-zone-haut, 0px) var(--notak-zone-droite, 0px) var(--notak-zone-bas, 0px) var(--notak-zone-gauche, 0px);
+}
+
+.notak-rg-telephone .notak-rg-nav {
+  flex: 1;
+  width: auto;
+  padding: 8px 16px 16px;
+  overflow-y: auto;
+  border-right: 0;
+}
+
+.notak-rg-telephone.notak-rg-poussee .notak-rg-nav,
+.notak-rg-telephone:not(.notak-rg-poussee) .notak-rg-page {
+  display: none;
+}
+
+.notak-rg-telephone .notak-rg-page {
+  padding: 4px 20px 24px;
+}
+
+.notak-rg-telephone .notak-rg-fermer {
+  display: none;
+}
+
+.notak-rg-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 4px 0 12px;
+}
+
+.notak-rg-tete h2 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.notak-rg-ok,
+.notak-rg-retour {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--notak-accent, #2f6feb);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.notak-rg-retour {
+  margin: 0 0 4px -8px;
+}
+
+.notak-rg-telephone .notak-rg-lien {
+  min-height: 48px;
+  font-size: 16px;
+}
+
+.notak-rg-telephone .notak-rg-ligne {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.notak-rg-telephone .notak-rg-controle {
+  max-width: none;
+}
+
+/* Dans la liste, rien n'est « ouvert » : aucune rubrique ne se distingue avant qu'on la touche. */
+.notak-rg-telephone .notak-rg-lien[aria-current] {
+  background: none;
+  box-shadow: none;
+}
+
+/* Les trois aperçus du mode se partagent la largeur. */
+.notak-rg-telephone .notak-rg-modes {
+  display: grid;
+  flex: 1 1 100%;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.notak-rg-telephone .notak-rg-tuile {
+  min-width: 0;
+}
+
+.notak-rg-telephone .notak-rg-apercu {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 124 / 80;
+}
