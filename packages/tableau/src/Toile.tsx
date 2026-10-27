@@ -429,6 +429,11 @@ interface PropsToile {
   cameraInitiale?: cam.Camera
   /** La vue a changé : au plus toutes les 300 ms, et une dernière fois en quittant la toile. */
   surCamera?(c: cam.Camera): void
+  /**
+   * À l'ouverture, la vue glisse de `cameraInitiale` au cadrage de tout le contenu, et y revient quand elle change de
+   * taille : l'aperçu d'un modèle au téléphone, au-dessus de la feuille du choix.
+   */
+  cadrer?: boolean
 }
 
 /** Le texte qu'on écrit part dans le tableau à ce rythme au plus, en millisecondes. */
@@ -443,7 +448,7 @@ const DOUBLE_TOUCHER_PX = 24
 /** Un doigt qui a bougé de plus que cela (px) tire le fond : ce n'est plus un toucher. */
 const SEUIL_TOUCHER = 8
 
-export function Toile({ magasin: source, services = {}, cameraInitiale, surCamera }: PropsToile) {
+export function Toile({ magasin: source, services = {}, cameraInitiale, surCamera, cadrer }: PropsToile) {
   const lectureSeule = !!services.lectureSeule
   // Les droits du serveur, lus au moment du geste : ils peuvent changer sans que la toile se refasse.
   const droitsActuels = useRef(services.droits)
@@ -1963,6 +1968,16 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     if (!cible) return
     lancerAnimation(cam.revenirA100(camera.echelle, cible.echelle) ? cam.centree(cam.centreCamera(camera, vue), 1, vue) : cible)
   }
+  // [aperçu d'un modèle] Le cadrage de tout le contenu, à l'ouverture et à chaque nouvelle taille de vue.
+  const cadree = useRef<cam.Vue | null>(null)
+  useEffect(() => {
+    const avant = cadree.current
+    if (!cadrer || vue.largeur <= 1 || (avant && avant.largeur === vue.largeur && avant.hauteur === vue.hauteur)) return
+    const cible = cam.cadrage(contenu(), vue)
+    if (!cible) return
+    cadree.current = vue
+    lancerAnimation(cible)
+  })
 
   const zoomerVers = (echelle: number) => {
     animation.current = null

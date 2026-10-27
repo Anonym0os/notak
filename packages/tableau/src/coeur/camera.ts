@@ -173,6 +173,12 @@ export function ajuster(contenu: Rect | null, v: Vue): Camera | null {
   return centree(centreRect(contenu), echelle, v)
 }
 
+/** Le cadrage d'un aperçu : tout le contenu tient dans la vue, sans jamais grossir au-delà de 100 %. */
+export function cadrage(contenu: Rect | null, v: Vue): Camera | null {
+  const cible = ajuster(contenu, v)
+  return cible && cible.echelle > 1 ? centree(centreRect(contenu!), 1, v) : cible
+}
+
 /**
  * Ajuster ramène à 100 % plutôt qu'à l'échelle ajustée quand on y est déjà, ou quand elle irait dans le même
  * sens que le zoom actuel sans franchir 100 % (on est dézoomé et elle dézoomerait moins, par exemple).

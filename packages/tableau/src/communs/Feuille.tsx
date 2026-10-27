@@ -47,6 +47,8 @@ export function Feuille({
   role = 'dialog',
   rattache,
   sansClavier,
+  pied,
+  surVoile,
 }: {
   titre?: ReactNode
   fermer(): void
@@ -57,6 +59,10 @@ export function Feuille({
   rattache?: Element | null | undefined
   /** Le champ de recherche que le contenu prend d'office ne sort pas le clavier : on le touche pour écrire. */
   sansClavier?: boolean
+  /** Ce qui tient le bas de la feuille à la place de « Fermer » : le bouton qui conclut (le choix d'un modèle). */
+  pied?: ReactNode
+  /** Un toucher hors de la feuille fait ceci au lieu de la fermer. */
+  surVoile?(): void
 }) {
   const [prete, setPrete] = useState(false)
   const calque = useRef<HTMLDivElement>(null)
@@ -249,7 +255,7 @@ export function Feuille({
 
   return createPortal(
     <div ref={calque} className="notak-tiroir-bas-calque" onPointerDown={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
-      <div className="notak-tiroir-bas-voile" onClick={() => prete && descendre()} aria-hidden />
+      <div className="notak-tiroir-bas-voile" onClick={() => prete && (surVoile ? surVoile() : descendre())} aria-hidden />
       <div ref={feuille} className={`notak-tiroir-bas${className ? ` ${className}` : ''}`} role={role} aria-modal="true" data-prete={prete || undefined}>
         <div className="notak-tiroir-bas-poignee">
           <span aria-hidden />
@@ -258,9 +264,11 @@ export function Feuille({
         <div ref={corps} className="notak-tiroir-bas-corps">
           {children}
         </div>
-        <button type="button" className="notak-tiroir-bas-fermer" onClick={descendre}>
-          {t('commun.fermer')}
-        </button>
+        {pied ?? (
+          <button type="button" className="notak-tiroir-bas-fermer" onClick={descendre}>
+            {t('commun.fermer')}
+          </button>
+        )}
       </div>
     </div>,
     hote(),
