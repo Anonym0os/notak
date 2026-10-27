@@ -108,8 +108,13 @@ function Espace({ el }: { el: EspaceLocal }) {
     setBiblio(true)
   }, [])
   const ouvrirDepuisBibliotheque = useCallback(
-    (id: Id) => {
+    (id: Id, element: Id | null = null) => {
       setBiblio(false)
+      // Une carte mentale ou un document : son adresse (`/t/<toile>/e/<élément>`), que la toile suit comme un retour.
+      if (element) {
+        history.pushState({ element }, '', `/t/${encodeURIComponent(id)}/e/${encodeURIComponent(element)}`)
+        return void dispatchEvent(new PopStateEvent('popstate', { state: { element } }))
+      }
       // La toile déjà ouverte dessous ne change pas : seule l'adresse le redit.
       if (id === courant.current) history.pushState(null, '', id === index.racine() ? '/' : `/t/${encodeURIComponent(id)}`)
       else ouvrirTableau.current(id)
