@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom'
-import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { type Camera, TAILLES_GRILLE, definirTailleGrille } from './coeur/camera'
 import { definirAffichageMinicarte } from './minicarteModele'
 import {
@@ -527,6 +527,9 @@ export function EspaceNotak({
   const [garderExemple, setGarderExemple] = useState(false)
   const [plusDeModeles, setPlusDeModeles] = useState(false)
   const [clignote, setClignote] = useState(0)
+  // Au téléphone, la place de la feuille du choix, et la dernière vue de l'aperçu : le suivant glisse depuis elle.
+  const [hauteurFeuille, setHauteurFeuille] = useState<number | null>(null)
+  const vueApercu = useRef<Camera | undefined>(undefined)
   const [modelesPrets, setModelesPrets] = useState(false)
   const modelesVus = useRef(false)
   const peutChoisir = vide && charge && courant !== racine && !lectureSeule && !hote.lectureSeule && !presentation && !fermes.has(courant)
@@ -546,6 +549,7 @@ export function EspaceNotak({
     setModeleChoisi(null)
     setPlusDeModeles(false)
     modelesVus.current = false
+    vueApercu.current = undefined
   }, [courant])
   // Un élément posé ferme le choix pour de bon (annuler ne le ramène pas) ; commencer à glisser aussi.
   useEffect(() => {
@@ -630,8 +634,17 @@ export function EspaceNotak({
         <GardeToile key={courant}>
           {apercu ? (
             // L'aperçu vivant : le modèle dans la toile, sans l'écrire, derrière un voile qui bloque les gestes.
-            <div className="notak-modele-apercu">
-              <Toile key={`apercu:${courant}:${modeleChoisi}:${garderExemple}:${langue}`} magasin={apercu} services={servicesApercu} />
+            <div
+              className="notak-modele-apercu"
+              data-feuille={hauteurFeuille !== null || undefined}
+              style={hauteurFeuille !== null ? { '--notak-feuille-modele': `${hauteurFeuille}px` } as CSSProperties : undefined}
+            >
+              <Toile
+                key={`apercu:${courant}:${modeleChoisi}:${garderExemple}:${langue}`}
+                magasin={apercu}
+                services={servicesApercu}
+                {...(hauteurFeuille !== null && { cadrer: true, cameraInitiale: vueApercu.current, surCamera: (c: Camera) => void (vueApercu.current = c) })}
+              />
               <div className="notak-modele-voile" onPointerDown={() => setClignote((n) => n + 1)} />
             </div>
           ) : (
@@ -656,6 +669,7 @@ export function EspaceNotak({
         {modelesAffiches && (
           <PanneauModeles
             modeles={proposes}
+            catalogue={catalogue}
             choisi={modeleChoisi}
             surChoix={setModeleChoisi}
             garder={garderExemple}
@@ -664,6 +678,8 @@ export function EspaceNotak({
             plus={() => setPlusDeModeles(true)}
             fermer={fermerModeles}
             signal={clignote}
+            toucherDehors={() => setClignote((n) => n + 1)}
+            surHauteur={setHauteurFeuille}
           />
         )}
         {plusDeModeles && (

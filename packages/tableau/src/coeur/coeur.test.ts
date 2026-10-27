@@ -206,6 +206,15 @@ describe('caméra', () => {
     proche(c.y, -40)
   })
 
+  test('le cadrage d’un aperçu fait tout tenir sans grossir au-delà de 100 %', () => {
+    expect(cam.cadrage(depuisTaille(point(0, 0), 10, 10), VUE)!.echelle).toBe(1)
+    proche(cam.cadrage(depuisTaille(point(0, 0), 150, 10), VUE)!.echelle, 1000 / 1500 / 1.4)
+    const c = cam.centreCamera(cam.cadrage(depuisTaille(point(100, -50), 40, 20), VUE)!, VUE)
+    proche(c.x, 120)
+    proche(c.y, -40)
+    expect(cam.cadrage(null, VUE)).toBeNull()
+  })
+
   test('ajuster ramène à 100 % quand on y est déjà, ou quand il irait dans le même sens', () => {
     expect(cam.revenirA100(0.5, 0.5)).toBe(true)
     expect(cam.revenirA100(0.4, 0.7)).toBe(true)
