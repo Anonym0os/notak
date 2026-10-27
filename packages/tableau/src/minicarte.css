@@ -5,7 +5,7 @@
 .notak-minicarte {
   position: absolute;
   right: 16px;
-  bottom: 16px;
+  bottom: calc(16px + var(--notak-zone-bas, 0px));
   /* Sous l'îlot du zoom (4) : le panneau « Vue » qui s'ouvre au-dessus la recouvre. */
   z-index: 3;
   overflow: hidden;
@@ -54,13 +54,13 @@
 
 /* Le zoom du tableau tient le coin (un îlot de 36 px à 16 px du bord) : la mini-carte se pose au-dessus. */
 .notak-espace-corps:has(> .notak-vue-bas) .notak-minicarte {
-  bottom: 62px;
+  bottom: calc(62px + var(--notak-zone-bas, 0px));
 }
 
 /* La carte a sa barre du bas (36 px à 16 px du bord) : la mini-carte se pose au-dessus, alignée sur son bord droit. */
 .notak-minicarte[data-lieu='carte'] {
   right: 8px;
-  bottom: 62px;
+  bottom: calc(62px + var(--notak-zone-bas, 0px));
 }
 
 [data-theme='sombre'] .notak-minicarte {

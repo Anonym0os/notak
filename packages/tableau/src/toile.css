@@ -60,10 +60,12 @@
 .notak-toile::before {
   content: '';
   position: absolute;
-  inset: 0;
+  /* Un pas de plus de chaque côté : la grille glisse d'au plus un pas par `transform` (composée, jamais repeinte). */
+  inset: calc(-1 * var(--notak-grille-pas));
   background-image: radial-gradient(circle, var(--notak-point) 0.8px, transparent 1.2px);
   background-size: var(--notak-grille-pas) var(--notak-grille-pas);
-  background-position: var(--notak-grille-x) var(--notak-grille-y);
+  transform: translate(calc(var(--notak-grille-x) + var(--notak-grille-pas)), calc(var(--notak-grille-y) + var(--notak-grille-pas)));
+  will-change: transform;
   opacity: 0;
   pointer-events: none;
 }
@@ -247,7 +249,7 @@
      hauteur de ses outils : quand la fenêtre en manque, ils se resserrent puis passent dans le « ••• » (repli.ts). */
   position: absolute;
   /* Sous la barre du haut (68 px) : la taille de l'interface les zoome toutes deux, la mesure suit d'elle-même. */
-  inset: 68px auto auto 16px;
+  inset: calc(68px + var(--notak-zone-haut, 0px)) auto auto 16px;
   z-index: 3;
   display: flex;
   flex-direction: column;
@@ -299,7 +301,7 @@
 /* Le bord qui ramène la barre : une bande de 12 px sous la barre du haut, invisible. */
 .notak-outils-bord {
   position: absolute;
-  inset: 68px auto 0 0;
+  inset: calc(68px + var(--notak-zone-haut, 0px)) auto 0 0;
   z-index: 31;
   width: 12px;
 }
@@ -548,8 +550,9 @@
   --notak-texte: #323b4a;
   --notak-accent: #2f6feb;
   --notak-selection: #323b4a;
-  /* La hauteur de la barre du haut, sous laquelle passe la toile : ce qui s'accroche en haut de la toile descend d'autant. */
-  --notak-haut: 68px;
+  /* La hauteur de la barre du haut, sous laquelle passe la toile : ce qui s'accroche en haut de la toile descend d'autant.
+     Sur un téléphone, la toile passe aussi sous la barre d'état : la barre du haut l'enjambe. */
+  --notak-haut: calc(68px + var(--notak-zone-haut, 0px));
 
   display: flex;
   flex-direction: column;
@@ -593,8 +596,8 @@
   align-items: center;
   gap: 12px;
   box-sizing: border-box;
-  height: 68px;
-  padding: 16px;
+  height: calc(68px + var(--notak-zone-haut, 0px));
+  padding: calc(16px + var(--notak-zone-haut, 0px)) 16px 16px;
   color: var(--notak-texte);
   font-size: 14px;
   /* La toile passe dessous : seuls les îlots et le fil prennent le pointeur, le reste le laisse à la toile. */
@@ -646,7 +649,7 @@
 .notak-vue-bas {
   position: absolute;
   right: 16px;
-  bottom: 16px;
+  bottom: calc(16px + var(--notak-zone-bas, 0px));
   z-index: 4;
 }
 
@@ -932,7 +935,7 @@
 .notak-lecture {
   position: absolute;
   right: 12px;
-  bottom: 12px;
+  bottom: calc(12px + var(--notak-zone-bas, 0px));
   padding: 2px 8px;
   border-radius: var(--notak-rayon-controle, 6px);
   background: var(--notak-carte);
@@ -1094,7 +1097,7 @@
 .notak-corbeille {
   position: absolute;
   z-index: 35;
-  bottom: 16px;
+  bottom: calc(16px + var(--notak-zone-bas, 0px));
   left: 104px;
   display: flex;
   flex-direction: column;
@@ -1344,7 +1347,7 @@
 /* L'avis en bas de la toile, avec son bouton qui défait le geste. */
 .notak-avis {
   position: absolute;
-  bottom: 20px;
+  bottom: calc(20px + var(--notak-zone-bas, 0px));
   left: 50%;
   z-index: 30;
   display: flex;
@@ -2301,7 +2304,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 /* La pastille du zoom en cours, centrée en bas de la toile. */
 .notak-zoom-pastille {
   position: absolute;
-  bottom: 10px;
+  bottom: calc(10px + var(--notak-zone-bas, 0px));
   left: 50%;
   box-sizing: border-box;
   width: 54px;
@@ -2341,7 +2344,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   z-index: 30;
   right: 16px;
   /* Au-dessus de l'îlot du zoom (16 px du bas, 36 de haut), sans le couvrir. */
-  bottom: 64px;
+  bottom: calc(64px + var(--notak-zone-bas, 0px));
   box-sizing: border-box;
   width: 300px;
   padding: 20px 20px 0;
@@ -2872,7 +2875,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
  */
 .notak-outils-ajouter {
   position: absolute;
-  bottom: 16px;
+  bottom: calc(16px + var(--notak-zone-bas, 0px));
   left: calc(16px + var(--notak-zone-gauche, 0px));
   z-index: 30;
   display: grid;
@@ -2932,7 +2935,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   }
 
   .notak-barre-outils[data-selection] {
-    inset: auto calc(8px + var(--notak-zone-droite, 0px)) max(8px, calc(var(--clavier, 0px) - var(--notak-zone-bas, 0px) + 8px))
+    inset: auto calc(8px + var(--notak-zone-droite, 0px)) max(calc(8px + var(--notak-zone-bas, 0px)), calc(var(--clavier, 0px) + 8px))
       calc(8px + var(--notak-zone-gauche, 0px));
     flex-direction: row;
     align-items: center;
@@ -2987,6 +2990,28 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   }
 
   .notak-barre-outils[data-selection] .notak-tiroir::before {
+    display: none;
+  }
+
+  /* Pendant l'écriture d'une note : le retour, puis les outils du texte sur une ligne (deux au plus), sans la corbeille,
+     qu'on ne vise pas le clavier sorti. */
+  .notak-barre-outils[data-selection] .notak-edition-outils {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: row;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .notak-barre-outils[data-selection] .notak-barre-edition {
+    flex: 1 1 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .notak-barre-outils[data-edition] [data-corbeille] {
     display: none;
   }
 

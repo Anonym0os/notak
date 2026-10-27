@@ -43,6 +43,13 @@ html[data-plateforme='ios'] #racine {
   background: var(--fond, var(--notak-fond, #ebedee));
 }
 
+/* La toile, elle, va jusqu'en haut et en bas de l'écran, sous la barre d'état et la barre d'accueil, comme Freeform :
+   ses barres et ses boutons gardent eux-mêmes les zones sûres (toile.css, `--notak-zone-*`). */
+html[data-plateforme='ios'] #racine:has(.notak-toile) {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 /* Un panneau qui prend l'écran sur un téléphone (app.css, max-width 640px) s'arrête au clavier. */
 html[data-plateforme='ios'][data-clavier] .app-panneau {
   max-height: calc(100dvh - var(--zone-haut) - var(--clavier));
@@ -118,4 +125,13 @@ html[data-mobile] a[download] {
   display: flex;
   gap: 8px;
   margin-top: 8px;
+}
+
+/* Sur un téléphone, le bas de l'écran est aux outils (le « + », la bande d'une sélection) : un bandeau se pose en haut,
+   sous la barre de la toile. */
+@media (pointer: coarse) and (max-width: 640px) {
+  html[data-mobile] .bandeau {
+    top: calc(var(--zone-haut) + 76px);
+    bottom: auto;
+  }
 }

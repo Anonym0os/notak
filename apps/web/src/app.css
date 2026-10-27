@@ -2050,8 +2050,9 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
     align-content: center;
     gap: 4px 6px;
     height: auto;
-    min-height: 44px;
-    padding: 4px 12px;
+    min-height: calc(44px + var(--notak-zone-haut, 0px));
+    /* Sous la barre d'état d'un téléphone, que la toile occupe aussi. */
+    padding: calc(4px + var(--notak-zone-haut, 0px)) 12px 4px;
   }
 
   .notak-fil {

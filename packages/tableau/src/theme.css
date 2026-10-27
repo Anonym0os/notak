@@ -143,11 +143,11 @@
 }
 
 .notak-espace[data-taille='petite'] {
-  --notak-haut: 60px;
+  --notak-haut: calc(60px + var(--notak-zone-haut, 0px));
 }
 
 .notak-espace[data-taille='grande'] {
-  --notak-haut: 78px;
+  --notak-haut: calc(78px + var(--notak-zone-haut, 0px));
 }
 
 .notak-espace[data-taille='grande'] :is(.notak-entete, .notak-barre-outils, .notak-raccourcis) {
