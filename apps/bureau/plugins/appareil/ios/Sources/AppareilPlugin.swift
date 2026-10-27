@@ -46,6 +46,9 @@ class AppareilPlugin: Plugin {
         bord.isHidden = true
       }
     }
+    // Le geste du bord gauche fait le retour de l'historique : chaque toile, la bibliothèque et l'élément ouvert en
+    // grand ont leur adresse (`adresse.ts`), et le retour y ramène comme le bouton ‹.
+    webview.allowsBackForwardNavigationGestures = true
     webview.isOpaque = false
     let centre = NotificationCenter.default
     observateurs.append(
