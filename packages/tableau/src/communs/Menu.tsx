@@ -1,6 +1,7 @@
 import { type HTMLAttributes, type ReactNode, type Ref, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Icone, type NomIcone } from '../icones'
 import { PastillePersonne } from '../pastille'
+import { Feuille, enFeuille } from './Feuille'
 import './menu.css'
 
 /**
@@ -358,7 +359,22 @@ export function MenuEntrees({ entrees, fermer, ouvertA, onKeyDown, ...reste }: {
  * commence par elle, flèche droite ouvre un sous-menu et flèche gauche en revient. Un clic dehors, Échap, un
  * redimensionnement de la fenêtre ou une entrée choisie le ferment ; le bouton droit relâché sur une ligne la choisit aussi.
  */
-export function MenuContextuel({ x, y, entrees, fermer }: { x: number; y: number; entrees: Entree[]; fermer(): void }) {
+export function MenuContextuel(props: { x: number; y: number; entrees: Entree[]; fermer(): void }) {
+  return enFeuille() ? <FeuilleMenu entrees={props.entrees} fermer={props.fermer} /> : <MenuAuPoint {...props} />
+}
+
+/** Au doigt sur un téléphone, le menu monte du bas en feuille : des lignes larges, pas de raccourcis du clavier. */
+export function FeuilleMenu({ entrees, fermer, titre }: { entrees: Entree[]; fermer(): void; titre?: ReactNode }) {
+  return (
+    <Feuille fermer={fermer} titre={titre} role="presentation">
+      <div role="menu" className="notak-menu notak-tiroir-bas-menu">
+        <ListeMenu entrees={entrees} fermer={fermer} />
+      </div>
+    </Feuille>
+  )
+}
+
+function MenuAuPoint({ x, y, entrees, fermer }: { x: number; y: number; entrees: Entree[]; fermer(): void }) {
   const boite = useRef<HTMLDivElement>(null)
   const [place, setPlace] = useState({ x, y })
   const ouvertA = useRef(performance.now())

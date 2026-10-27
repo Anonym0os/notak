@@ -128,4 +128,18 @@ describe('un doigt sur un élément', () => {
       vi.useRealTimers()
     }
   })
+
+  it('après un appui long, relâché sur place, son menu s’ouvre et reste ouvert', () => {
+    vi.useFakeTimers()
+    try {
+      const m = monterAvecNote()
+      doigt(m.carte, 'pointerdown', 1000)
+      act(() => void vi.advanceTimersByTime(600))
+      doigt(m.carte, 'pointerup', 1650)
+      act(() => void vi.advanceTimersByTime(400))
+      expect(document.querySelector('.notak-menu-ctx')).not.toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
