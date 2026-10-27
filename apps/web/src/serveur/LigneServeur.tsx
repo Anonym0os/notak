@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { revenirIci } from '../bureau'
 import { t } from '../langue'
+import { surAppareil } from '../bureau/acces'
 
 /**
  * Sur l'écran de connexion de l'app de bureau : à quel serveur l'on parle, de quoi en changer, et de quoi ouvrir les
@@ -32,7 +33,7 @@ export function LigneServeur() {
         </button>
       </p>
       <button type="button" className="bouton-lien connexion-local" disabled={enCours} onClick={() => void aller('local')}>
-        {t('serveur.connexion.local')}
+        {t(surAppareil() ? 'serveur.connexion.local.appareil' : 'serveur.connexion.local')}
       </button>
       {echec && (
         <p className="connexion-erreur" role="alert">

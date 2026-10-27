@@ -51,6 +51,26 @@ export function estPageServeur(fenetre: Window = window): boolean {
   return (protocol === 'https:' || protocol === 'http:') && hostname !== 'tauri.localhost' && !hostname.endsWith('.tauri.localhost')
 }
 
+/**
+ * La page d'un serveur Notak, ouverte dans l'app d'un iPhone ou d'un iPad : la coque y a joint le serveur choisi
+ * (`acces.rs`, comme sur un ordinateur), mais ne lui donne que de quoi se signaler et revenir aux toiles de l'appareil.
+ * `estPageServeur` reste l'affaire de l'ordinateur : ses fichiers, son menu et ses mises à jour n'existent pas ici.
+ */
+export function estPageServeurMobile(fenetre: Window = window): boolean {
+  if (import.meta.env.VITE_EDITION === 'locale' || !dansCoque(fenetre) || !estMobile(plateforme(fenetre as unknown as FenetreAvecCoque))) return false
+  const { protocol, hostname } = fenetre.location
+  return (protocol === 'https:' || protocol === 'http:') && hostname !== 'tauri.localhost' && !hostname.endsWith('.tauri.localhost')
+}
+
+/** La page d'un serveur, dans l'app : sur un ordinateur ou sur un téléphone. Elle se signale, et sait revenir. */
+export const estServeurDansApp = (fenetre: Window = window): boolean => estPageServeur(fenetre) || estPageServeurMobile(fenetre)
+
+/**
+ * La page embarquée qui peut joindre un serveur : celle de l'édition locale, dans la coque d'un ordinateur comme dans
+ * celle d'un iPhone ou d'un iPad.
+ */
+export const peutJoindreUnServeur = (fenetre: Window = window): boolean => import.meta.env.VITE_EDITION === 'locale' && dansCoque(fenetre)
+
 /** Où s'ouvre Notak : les toiles de cet ordinateur, ou le serveur retenu. */
 export type Ouvrir = 'local' | 'serveur'
 

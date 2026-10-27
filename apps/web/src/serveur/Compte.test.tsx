@@ -24,6 +24,8 @@ afterEach(() => {
   act(() => racine.unmount())
   hote.remove()
   delete (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
+  delete (window as unknown as { __NOTAK_PLATEFORME__?: unknown }).__NOTAK_PLATEFORME__
+  vi.unstubAllGlobals()
 })
 
 const dansLApp = () => {
@@ -87,5 +89,27 @@ describe('le menu du compte', () => {
     expect(hote.querySelector('.bandeau')?.textContent).toContain('Impossible de quitter ce serveur pour le moment. Réessayez.')
     // Un échec du geste qu'on vient de faire : une alerte, que le lecteur d'écran annonce à l'insertion.
     expect(hote.querySelector('.bandeau')?.getAttribute('role')).toBe('alert')
+  })
+})
+
+describe('le compte dans l’app d’un iPhone', () => {
+  it('monte en feuille du bas : le compte, le serveur, les toiles de cet appareil, la déconnexion', async () => {
+    ;(window as unknown as { __TAURI_INTERNALS__: unknown; __NOTAK_PLATEFORME__: string }).__TAURI_INTERNALS__ = { invoke }
+    ;(window as unknown as { __NOTAK_PLATEFORME__: string }).__NOTAK_PLATEFORME__ = 'ios'
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('coarse'), addEventListener() {}, removeEventListener() {} }))
+    vi.stubGlobal('innerWidth', 375)
+    await monter()
+    // Pas de bulle sous la pastille : une feuille, hors de l'en-tête.
+    expect(hote.querySelector('.app-panneau.compte-menu')).toBeNull()
+    const feuille = document.querySelector('.notak-tiroir-bas.compte-feuille')!
+    expect(feuille).not.toBeNull()
+    const textes = [...feuille.querySelectorAll('[role=menuitem]')].map((l) => l.textContent)
+    expect(textes).toContain('Toiles de cet appareilPour cette fois, sans serveur ni compte')
+    expect(textes.at(-1)).toBe('Se déconnecter')
+    expect(feuille.textContent).toContain('ana@exemple.fr')
+    const local = [...feuille.querySelectorAll<HTMLElement>('[role=menuitem]')].find((l) => /appareil/.test(l.textContent ?? ''))!
+    await act(async () => local.click())
+    expect(invoke).toHaveBeenCalledWith('revenir_ici', { ecran: 'local' }, undefined)
+    expect(document.querySelector('.compte-feuille')).toBeNull()
   })
 })

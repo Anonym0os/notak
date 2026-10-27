@@ -135,3 +135,31 @@ html[data-mobile] a[download] {
     bottom: auto;
   }
 }
+
+/* La connexion (celle d'un serveur, l'écran « Se connecter à un serveur Notak ») au doigt : des champs de 16 px, sans
+   quoi iOS zoome à la prise de focus, et des boutons de 44 pt au moins, liens compris. */
+html[data-mobile] .connexion-carte input {
+  height: 48px;
+  font-size: 16px;
+}
+
+html[data-mobile] .connexion-carte .bouton {
+  min-height: 44px;
+  font-size: 16px;
+}
+
+html[data-mobile] .connexion-carte .bouton-lien {
+  min-height: 44px;
+}
+
+/* Le compte connecté, en feuille du bas au téléphone (`Compte.tsx`) : toute la largeur, des lignes de 48 px, du texte
+   de 16 px ; la feuille est déjà la carte. */
+.compte-feuille .app-menu.compte-menu {
+  width: 100%;
+}
+
+.compte-feuille .app-menu-ligne {
+  min-height: 48px;
+  align-items: center;
+  font-size: 16px;
+}

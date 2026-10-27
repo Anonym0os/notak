@@ -54,7 +54,7 @@ import { PagePublique } from '../PagePublique'
 import { ApercuInvitation, PageInvitation, jetonInvitation, useInvitation } from '../Invitation'
 import { Partage, PartageEnFenetre } from '../Partage'
 import { PlusEntete } from '../PlusEntete'
-import { estPageServeur, signalerVie } from '../bureau'
+import { estPageServeur, estServeurDansApp, signalerVie } from '../bureau'
 import { lancerMisesAJour } from '../MiseAJour'
 import { enregistrerServiceWorker, signalerNouvelleVersion } from '../pwa'
 import { PageAutoriser } from '../serveur/Autoriser'
@@ -251,7 +251,7 @@ function Application() {
   useEffect(() => {
     if (!decide || signale.current) return
     signale.current = true
-    if (estPageServeur()) signalerVie()
+    if (estServeurDansApp()) signalerVie()
   }, [decide])
 
   if (etat.type === 'chargement' || !instance) return <div className="ecran-attente" aria-busy />
@@ -265,7 +265,7 @@ function Application() {
             {t('bandeau.reessayer')}
           </button>
           {/* Un serveur qui ne répond pas : dans l'app de bureau, la sortie reste là. */}
-          {estPageServeur() && <LigneServeur />}
+          {estServeurDansApp() && <LigneServeur />}
         </div>
         <FichierEnAttente />
       </main>
@@ -502,7 +502,7 @@ enregistrerServiceWorker()
 // Dans l'app de bureau : la recherche des mises à jour signées (`MiseAJour.tsx`).
 if (estPageServeur()) lancerMisesAJour()
 // Une page publiée n'a pas d'écran à décider : elle se dit vivante dès le départ (l'application, elle, le fait au premier écran).
-if (publie && estPageServeur()) signalerVie()
+if (publie && estServeurDansApp()) signalerVie()
 // ⇧⌘S, partout : un bug se signale sans quitter ce qu'on fait (`signaler/Signaler.tsx`).
 brancherSignaler()
 

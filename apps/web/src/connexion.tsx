@@ -1,7 +1,7 @@
 import { Icone, lireReglages, themeEffectif, useHabillages, useSystemeSombre } from '@notak/tableau'
 import { t } from './langue'
 import { Marque } from './PageApp'
-import { estPageServeur } from './bureau'
+import { estServeurDansApp } from './bureau'
 import { ConnexionParCode } from './serveur/ConnexionParCode'
 import { FichierEnAttente } from './serveur/FichierEnAttente'
 import { LigneServeur } from './serveur/LigneServeur'
@@ -91,8 +91,9 @@ export function EcranConnexion({
   const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([])
   const [courriel, setCourriel] = useState(false)
   const champs = useRef<HTMLFormElement>(null)
-  // Dans l'app de bureau, la fenêtre ne va pas chez le fournisseur : le navigateur de la personne s'en charge (`serveur/appareil.ts`).
-  const enApp = estPageServeur()
+  // Dans l'app (ordinateur ou téléphone), la fenêtre ne va pas chez le fournisseur : le navigateur de la personne s'en charge
+  // (`serveur/appareil.ts`). Google refuse les vues web intégrées, sur iOS comme ailleurs.
+  const enApp = estServeurDansApp()
   const [parCode, setParCode] = useState(false)
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { type Moi, duree, moi as lireMoi } from '../api'
-import { estPageServeur, ouvrirDansLeNavigateur } from '../bureau'
+import { estServeurDansApp, ouvrirDansLeNavigateur } from '../bureau'
 import { t } from '../langue'
 import { Marque } from '../PageApp'
 import { type Appareil, type EtatAppareil, epeler, grouperCode, lancerConnexionParCode } from './appareil'
@@ -13,7 +13,7 @@ import { type Appareil, type EtatAppareil, epeler, grouperCode, lancerConnexionP
  */
 const ouvrirNavigateur = (adresse: string) => {
   const parLaFenetre = () => void window.open(adresse, '_blank', 'noopener')
-  if (estPageServeur()) void ouvrirDansLeNavigateur(adresse).catch(parLaFenetre)
+  if (estServeurDansApp()) void ouvrirDansLeNavigateur(adresse).catch(parLaFenetre)
   else parLaFenetre()
 }
 

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { Vignette } from '../bibliotheque/Vignettes'
 import { t } from '../langue'
 import type { EspaceLocal } from './espace'
+import { ServeurTelephone } from './ServeurTelephone'
 
 /**
  * La bibliothèque de l'édition locale, celle de l'app iPhone : les toiles de cet appareil en grille, la plus récemment
@@ -156,6 +157,7 @@ export function BibliothequeLocale({ el, ouvrir }: { el: EspaceLocal; ouvrir(id:
           </ul>
         )}
       </section>
+      <ServeurTelephone />
     </div>
   )
 }

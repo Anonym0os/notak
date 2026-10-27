@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { type Acces, acces as lireAcces, annulerJonction, estErreurCoque, joindreServeur } from '../bureau'
 import { t } from '../langue'
 import { Marque } from '../PageApp'
-import { type Echec, decidePorte, echecDe, hoteDe, serveurMuet } from './acces'
+import { type Echec, decidePorte, surAppareil, echecDe, hoteDe, serveurMuet } from './acces'
 import { EcranAcces } from './FormulaireAcces'
 
 /**
@@ -90,7 +90,7 @@ export function Porte({ acces, recherche, surLocal }: { acces: Acces | null; rec
                   )
                 }}
               >
-                {t('bureau.porte.ouvrirLocal')}
+                {t(surAppareil() ? 'bureau.porte.ouvrirLocal.appareil' : 'bureau.porte.ouvrirLocal')}
               </button>
               <small className="connexion-indice">{t('bureau.porte.ouvrirLocalAide', { hote })}</small>
             </>

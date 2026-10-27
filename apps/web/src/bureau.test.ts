@@ -11,6 +11,8 @@ import {
   enregistrerSous,
   estErreurCoque,
   estPageServeur,
+  estPageServeurMobile,
+  estServeurDansApp,
   fichiersOuverts,
   garderLesLiens,
   joindreServeur,
@@ -19,6 +21,7 @@ import {
   nomDeFichier,
   octetsDe,
   oublierServeur,
+  peutJoindreUnServeur,
   ouvrirAilleurs,
   ouvrirFichier,
   reglerMajAuto,
@@ -117,6 +120,39 @@ describe("l'application de bureau", () => {
     expect(estPageServeur(avec('http://tauri.localhost/'))).toBe(false)
     expect(estPageServeur(avec('https://tauri.localhost/'))).toBe(false)
     expect(estPageServeur(avec('https://notak.exemple.fr/', false))).toBe(false)
+  })
+
+  it('reconnaît la page d’un serveur dans l’app d’un iPhone, sans la prendre pour celle d’un ordinateur', () => {
+    const avec = (href: string, plateforme: string | null) => {
+      const u = new URL(href)
+      return {
+        __TAURI_INTERNALS__: {},
+        ...(plateforme ? { __NOTAK_PLATEFORME__: plateforme } : {}),
+        location: { protocol: u.protocol, hostname: u.hostname, host: u.host, href },
+      } as unknown as Window
+    }
+    const iphone = avec('https://notak.exemple.fr/t/abc', 'ios')
+    expect(estPageServeurMobile(iphone)).toBe(true)
+    expect(estServeurDansApp(iphone)).toBe(true)
+    // Les commandes de l'ordinateur (fichiers, menu, mises à jour) ne la concernent pas.
+    expect(estPageServeur(iphone)).toBe(false)
+    // La page embarquée de l'iPhone n'est pas un serveur.
+    expect(estPageServeurMobile(avec('tauri://localhost/', 'ios'))).toBe(false)
+    // Sur un ordinateur, c'est l'autre.
+    const mac = avec('https://notak.exemple.fr/', 'macos')
+    expect(estPageServeurMobile(mac)).toBe(false)
+    expect(estServeurDansApp(mac)).toBe(true)
+  })
+
+  it('la page embarquée peut joindre un serveur, dans la coque d’un ordinateur comme d’un iPhone', () => {
+    vi.stubEnv('VITE_EDITION', 'locale')
+    const dans = (plateforme: string) => ({ __TAURI_INTERNALS__: {}, __NOTAK_PLATEFORME__: plateforme, location: new URL('tauri://localhost/') }) as unknown as Window
+    expect(peutJoindreUnServeur(dans('ios'))).toBe(true)
+    expect(peutJoindreUnServeur(dans('macos'))).toBe(true)
+    expect(peutJoindreUnServeur({ location: new URL('https://notak.app/') } as unknown as Window)).toBe(false)
+    vi.unstubAllEnvs()
+    // L'édition serveur n'a rien à joindre : elle est le serveur.
+    expect(peutJoindreUnServeur(dans('ios'))).toBe(false)
   })
 })
 

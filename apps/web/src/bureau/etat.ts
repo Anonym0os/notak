@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react'
-import { type Acces, acces as lireDeLaCoque, estBureau } from '../bureau'
+import { type Acces, acces as lireDeLaCoque, dansCoque } from '../bureau'
 
 /**
  * Ce que la page sait des réglages de la coque (le serveur mémorisé, où s'ouvre Notak), partagé par les écrans qui le
@@ -27,7 +27,8 @@ const lireEtatAcces = () => etat
 
 /** Relit les réglages de la coque ; les rend, ou `null` si elle ne les donne pas. */
 export async function relireAcces(): Promise<Acces | null> {
-  if (!estBureau()) return null
+  // Dans la coque, sur la page embarquée comme sur celle d'un serveur, d'un ordinateur comme d'un iPhone.
+  if (!dansCoque()) return null
   try {
     const a = await lireDeLaCoque()
     poser({ acces: a, charge: true })
