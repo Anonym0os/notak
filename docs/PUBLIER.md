@@ -45,6 +45,45 @@
    - Rouvrir la copie de quelqu'un l'ajoute, rangée dans le tableau ouvert.
    - Dans un navigateur encore vierge, la copie devient l'accueil.
 
+## Ce qui sort de l'appareil
+
+**Rien ne part vers un serveur à nous** : ni compte, ni mesure d'audience, ni rapport d'erreur, ni police chargée
+ailleurs (elles sont dans l'application). Ce n'est pas qu'une promesse : la politique de sécurité du contenu (CSP,
+`packages/tableau/src/securite.ts`), que portent notak.app et l'app de bureau, interdit au navigateur tout script venu
+d'ailleurs et toute requête de données vers un autre hôte que ceux-ci ; la CI vérifie que l'application construite
+n'en nomme pas d'autres (`scripts/hotes.ts`).
+
+Ce qui peut joindre un tiers, et quand :
+
+| Quoi | Vers qui | Quand |
+|---|---|---|
+| L'adresse d'un lieu | Nominatim (OpenStreetMap) | quand on ouvre un lieu dont la position n'est pas encore connue |
+| La carte d'un lieu | OpenStreetMap | au clic sur la carte |
+| Une vidéo intégrée (YouTube, Vimeo, Loom, Dailymotion, Wistia, TikTok) ou un morceau SoundCloud | le fournisseur | au clic sur « Lire » ; pour une vidéo, aussi si on l'a réglée en lecture automatique |
+| Un morceau, une carte, une maquette intégrés (Spotify, Apple Music, Deezer, Google Maps, OpenStreetMap, Figma, Miro, CodePen, Google Docs) | le fournisseur | dès que le tableau qui les contient s'affiche |
+| Une image posée par son adresse (ou l'aperçu d'un lien venu d'un serveur Notak) | son site | quand elle s'affiche |
+| La recherche des mises à jour (app de bureau) | GitHub | au lancement puis toutes les six heures ; se coupe dans « Où sont mes toiles ? » |
+| Votre travail sur un serveur Notak (app de bureau) | ce serveur, celui que vous avez choisi | une fois connecté (« Se connecter à un serveur Notak… ») ; les toiles de cet ordinateur n'y vont que par « Copier mes toiles sur… » |
+
+Les trois lignes sur les lecteurs et les images valent pour vos toiles. Dans un tableau qui vient d'une copie reçue, rien
+de cela ne part de soi-même : voir juste dessous.
+
+Une copie `.notak` reçue de quelqu'un peut contenir des lecteurs et des images venus d'autres sites, et c'est une façon
+de savoir qui ouvre une toile et quand. Notak ne les charge donc pas d'office : les tableaux d'une copie qui n'est pas la
+vôtre sont marqués, sur votre appareil, et dans ces tableaux :
+
+- aucun lecteur ne se monte, et aucune image d'un autre site ne se charge (aperçus et favicons des liens, images d'un
+  document, vignettes de ses aperçus de lien), ni à l'écran, ni en présentation, ni dans un export ;
+- une place dit d'où le contenu viendrait (« Contenu de open.spotify.com ») et propose « Afficher », qui ne charge que cet
+  élément et pour la visite en cours ;
+- un bandeau le dit, avec « Tout afficher pour cette toile », qui lève l'attente de ce tableau (sur les appareils qui
+  partagent le même dossier synchronisé aussi), jusqu'à ce qu'une copie reçue y apporte du neuf.
+
+Les images envoyées dans Notak ne sont pas concernées : elles sont dans la copie elle-même. Rouvrir sa propre copie,
+sans rien de nouveau, ne marque rien et ne retire aucune marque ; ce qu'une copie renvoyée par quelqu'un ajoute à vos
+toiles (un tableau neuf, ou du contenu en avance sur le vôtre) est marqué. Une fois affichés, ces hôtes voient l'adresse IP et ce qu'on leur demande, rien
+d'autre : rien de vos toiles ne part avec.
+
 ## Ce qui manque à l'édition locale, et pourquoi
 
 | Absent | Pourquoi | Où le trouver |

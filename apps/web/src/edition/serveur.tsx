@@ -4,6 +4,7 @@ import {
   HoteNotak,
   reglerCapture,
   type ServiceCompte,
+  type Services,
   type EspaceDistant,
   type Declaration,
   creerEspaceDistant,
@@ -12,9 +13,23 @@ import {
   EVENEMENT_IMPORT,
   annoncer,
 } from '@notak/tableau'
-import { type ReactNode, StrictMode, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { type ReactNode, StrictMode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
-import { type Instance, type Moi, accepterInvitation, lireInstance, moi as lireMoi, noterElementVu, rangerToile, rechercherPartout, reglerCompte, seDeconnecter } from '../api'
+import {
+  type Instance,
+  type Moi,
+  accepterInvitation,
+  ecouterSessionFinie,
+  lireInstance,
+  listerTableaux,
+  moi as lireMoi,
+  noterElementVu,
+  rangerToile,
+  rechercherPartout,
+  reglerCompte,
+  seDeconnecter,
+  sessionEncoreValide,
+} from '../api'
 import { importDejaPropose, lireAncienEspace, noterImportPropose } from '../ancien'
 import { PagePartage, PageRapide } from '../Arrivees'
 import { PageEnvoyer } from '../Envoyer'
@@ -39,22 +54,33 @@ import { PagePublique } from '../PagePublique'
 import { ApercuInvitation, PageInvitation, jetonInvitation, useInvitation } from '../Invitation'
 import { Partage, PartageEnFenetre } from '../Partage'
 import { PlusEntete } from '../PlusEntete'
-import { enregistrerServiceWorker } from '../pwa'
+import { estPageServeur, signalerVie } from '../bureau'
+import { lancerMisesAJour } from '../MiseAJour'
+import { enregistrerServiceWorker, signalerNouvelleVersion } from '../pwa'
+import { PageAutoriser } from '../serveur/Autoriser'
+import { PAGE_AUTORISER } from '../serveur/appareil'
+import { BandeauxServeur } from '../serveur/Bandeaux'
+import { FichierEnAttente } from '../serveur/FichierEnAttente'
+import { FichiersOuverts } from '../serveur/FichiersOuverts'
+import { LigneServeur } from '../serveur/LigneServeur'
+import { servicesDeLaFenetre } from '../serveur/ouvrirAilleurs'
+import { type SurveillanceVersion, surveillerVersionDuServeur } from '../serveur/versionServeur'
 import { BoutonSignaler, brancherSignaler } from '../signaler/Signaler'
 import { VerrouTableau } from '../Verrou'
 import { t, tn } from '../langue'
 import { adressePour } from '../adresse'
 import { allerA, useChemin } from '../chemin'
+import { useBandeau } from '../bandeaux'
 
 /**
  * Les tableaux du compte, pour les citer avec `[[` dans une note : gardés en mémoire, relus au chargement et quand
  * la fenêtre reprend la main (la liste est demandée sans attendre, la note se contente de ce qu'on a).
  */
 let tableauxConnus: { id: string; titre: string }[] = []
+// Par l'API : refaite à chaque retour sur la fenêtre, une lecture qui répond « non connecté » dit aussi que la session a fini.
 const relireTableaux = () =>
-  fetch('/api/tableaux', { credentials: 'same-origin' })
-    .then((r) => (r.ok ? r.json() : []))
-    .then((t: { id: string; titre: string }[]) => (tableauxConnus = t.map(({ id, titre }) => ({ id, titre }))))
+  listerTableaux()
+    .then((t) => (tableauxConnus = t.map(({ id, titre }) => ({ id, titre }))))
     .catch(() => {})
 void relireTableaux()
 window.addEventListener('focus', () => void relireTableaux())
@@ -74,11 +100,15 @@ const services = {
   recemmentModifies: recents.lire,
   ecouterRecemmentModifies: recents.ecouter,
   adressePhoto,
-  ouvrirDansOnglet: (id: string) => window.open(`/t/${encodeURIComponent(id)}`, '_blank'),
+  // Un onglet dans un navigateur ; dans l'app de bureau, qui n'a qu'une fenêtre, un fichier qui s'ouvre dans l'application du système.
+  ...servicesDeLaFenetre(),
   // Glissée sur une autre toile, une toile y est rangée sans rien demander, tant que personne n'y gagne l'accès ; sinon
   // ses accès restent ceux d'avant (la bibliothèque, elle, demande).
   toileRangee: (toile: string, dans: string) => void rangerToile(toile, dans, { siPersonne: true }).catch(() => {}),
-}
+} satisfies Services
+
+/** Ce que la page sait de la version du serveur : la synchronisation qui se rétablit l'invite à la relire (`serveur/versionServeur.ts`). */
+let surveillance: SurveillanceVersion | null = null
 
 // Un espace par compte, créé une fois : React peut monter l'application deux fois, pas le réseau.
 let ouvert: { id: string; espace: EspaceDistant } | null = null
@@ -89,7 +119,11 @@ function espacePour(moi: Moi): EspaceDistant {
   const espace = creerEspaceDistant({
     racine: moi.racine,
     utilisateur: { id: moi.id, nom: moi.nom, couleur: moi.couleur, ...(moi.photo ? { photo: moi.photo } : {}) },
-    reseau: creerReseauNavigateur(moi.id),
+    reseau: creerReseauNavigateur(moi.id, {
+      // Un tableau refusé : un accès retiré, ou une session finie. `/api/moi` le dit, et la page revient à la connexion s'il le faut.
+      surRefus: () => void sessionEncoreValide(),
+      surConnexion: () => surveillance?.verifier(),
+    }),
     memoire: {
       lire() {
         try {
@@ -115,7 +149,12 @@ function fermerEspace() {
   ouvert = null
 }
 
-type Etat = { type: 'chargement' } | { type: 'anonyme' } | { type: 'erreur'; message: string } | { type: 'connecte'; moi: Moi }
+type Etat =
+  | { type: 'chargement' }
+  /** `sessionFinie` : on était connecté, et le serveur ne reconnaît plus la session. */
+  | { type: 'anonyme'; sessionFinie?: boolean }
+  | { type: 'erreur'; message: string }
+  | { type: 'connecte'; moi: Moi }
 
 /** L'écran de connexion, quand on arrive par une invitation : elle s'affiche au-dessus, et propose son adresse. */
 function ConnexionInvitee({ jeton, instance, surConnexion }: { jeton: string; instance: Instance; surConnexion(m: Moi): void }) {
@@ -138,6 +177,31 @@ function Application() {
   // Lue une fois : le nom, les inscriptions et les thèmes ne changent qu'au redémarrage du serveur.
   const [instance, setInstance] = useState<Instance | null>(null)
   useEffect(() => void lireInstance().then(setInstance), [])
+  // Dans l'app de bureau, un serveur mis à jour sous la fenêtre ouverte : la page le voit à sa version (pas de service worker ici).
+  useEffect(() => {
+    if (!instance || !estPageServeur()) return
+    const s = surveillerVersionDuServeur({ depart: instance.version ?? null, signaler: signalerNouvelleVersion })
+    surveillance = s
+    return () => {
+      s.arreter()
+      if (surveillance === s) surveillance = null
+    }
+  }, [instance])
+  // Une session qui prend fin : retour à la connexion, avec un mot. Ce qu'on a écrit sans réseau reste dans l'appareil (IndexedDB,
+  // par compte) : l'espace se ferme sans rien effacer, et la même personne le retrouve en se reconnectant.
+  useEffect(
+    () =>
+      ecouterSessionFinie(() => {
+        // Un 401 isolé (une réponse en retard) ne suffit pas : `/api/moi` tranche. Sans réponse, on garde ce qu'on croyait.
+        void lireMoi().then(
+          (m) => {
+            if (!m) setEtat((e) => (e.type === 'connecte' ? { type: 'anonyme', sessionFinie: true } : e))
+          },
+          () => {},
+        )
+      }),
+    [],
+  )
   const charger = useCallback(() => {
     setEtat({ type: 'chargement' })
     lireMoi().then(
@@ -180,6 +244,16 @@ function Application() {
     return () => window.removeEventListener('keydown', touche, true)
   }, [etat.type])
 
+  // Le premier écran est là (connecté, connexion ou erreur) : la coque sait la page vivante. Tant qu'il n'y a que l'attente, elle
+  // ne le sait pas, et un serveur dont l'API ne répond jamais ramène la fenêtre à l'écran d'accès au bout de 20 s.
+  const decide = etat.type !== 'chargement' && instance !== null
+  const signale = useRef(false)
+  useEffect(() => {
+    if (!decide || signale.current) return
+    signale.current = true
+    if (estPageServeur()) signalerVie()
+  }, [decide])
+
   if (etat.type === 'chargement' || !instance) return <div className="ecran-attente" aria-busy />
   if (etat.type === 'erreur') {
     return (
@@ -190,13 +264,26 @@ function Application() {
           <button type="button" className="bouton bouton-plein" onClick={charger}>
             {t('bandeau.reessayer')}
           </button>
+          {/* Un serveur qui ne répond pas : dans l'app de bureau, la sortie reste là. */}
+          {estPageServeur() && <LigneServeur />}
         </div>
+        <FichierEnAttente />
       </main>
     )
   }
   if (etat.type === 'anonyme') {
+    // Ce que la personne doit savoir en arrivant ici : sa session a fini, ou elle vient confirmer la connexion de l'app de bureau.
+    const notice = etat.sessionFinie
+      ? { texte: t('serveur.session.finie'), urgent: true }
+      : chemin === PAGE_AUTORISER
+        ? { texte: t('serveur.autoriser.connexion') }
+        : undefined
     const surConnexion = (m: Moi) => setEtat({ type: 'connecte', moi: m })
-    return invitation ? <ConnexionInvitee jeton={invitation} instance={instance} surConnexion={surConnexion} /> : <EcranConnexion instance={instance} surConnexion={surConnexion} />
+    return invitation ? (
+      <ConnexionInvitee jeton={invitation} instance={instance} surConnexion={surConnexion} />
+    ) : (
+      <EcranConnexion instance={instance} surConnexion={surConnexion} {...(notice ? { notice } : {})} />
+    )
   }
   if (invitation) return <PageInvitation jeton={invitation} moi={etat.moi} />
   // Trois pages légères, sans la toile : le partage vers Notak, la note rapide du téléphone, et les jetons pour envoyer d'ailleurs.
@@ -209,11 +296,22 @@ function Application() {
       setEtat({ type: 'anonyme' })
     },
   }
-  if (chemin === '/rapide') return <PageLegere {...proprietes}>{() => <PageRapide espace={espacePour(etat.moi)} fichiers={fichiers} />}</PageLegere>
-  if (chemin === '/partage') return <PageLegere {...proprietes}>{() => <PagePartage espace={espacePour(etat.moi)} fichiers={fichiers} />}</PageLegere>
-  if (chemin === '/envoyer') return <PageLegere {...proprietes}>{() => <PageEnvoyer adresseDeclaree={instance.adresse} />}</PageLegere>
-  if (chemin === '/espace') return <PageLegere {...proprietes}>{() => <PageEspaces />}</PageLegere>
-  return chemin === '/' || chemin === '/bibliotheque' ? <Accueil {...proprietes} /> : <Espace {...proprietes} />
+  const page = (() => {
+    if (chemin === '/rapide') return <PageLegere {...proprietes}>{() => <PageRapide espace={espacePour(etat.moi)} fichiers={fichiers} />}</PageLegere>
+    if (chemin === '/partage') return <PageLegere {...proprietes}>{() => <PagePartage espace={espacePour(etat.moi)} fichiers={fichiers} />}</PageLegere>
+    if (chemin === '/envoyer') return <PageLegere {...proprietes}>{() => <PageEnvoyer adresseDeclaree={instance.adresse} />}</PageLegere>
+    if (chemin === '/espace') return <PageLegere {...proprietes}>{() => <PageEspaces />}</PageLegere>
+    // Où l'on confirme la connexion de l'app de bureau (le lien que le navigateur ouvre).
+    if (chemin === PAGE_AUTORISER) return <PageLegere {...proprietes}>{() => <PageAutoriser moi={etat.moi} />}</PageLegere>
+    return chemin === '/' || chemin === '/bibliotheque' ? <Accueil {...proprietes} /> : <Espace {...proprietes} />
+  })()
+  return (
+    <>
+      {page}
+      {/* Au-dessus des pages : l'état d'une copie remise à plus tard ne se perd pas quand on change de page. */}
+      <FichiersOuverts espace={espacePour(etat.moi)} racine={etat.moi.racine} fichiers={fichiers} ouvrir={(id) => allerA(`/t/${encodeURIComponent(id)}`)} />
+    </>
+  )
 }
 
 type ProprietesEcran = { moi: Moi; instance: Instance; changerMoi(m: Moi): void; deconnexion(): void }
@@ -245,23 +343,26 @@ function Accueil({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
   const compte = useCompte(moi, changerMoi)
   const espace = espacePour(moi)
   return (
-    <HoteNotak compte={compte} habillages={habillages} className="biblio-hote">
-      {(fenetres) => (
-        <PageBibliotheque
-          espace={espace}
-          fenetres={fenetres}
-          partage={(tableau, fermer) => <PartageEnFenetre tableau={tableau} moi={moi} fermer={fermer} />}
-          importer={(f, dans) => importerFichiers(f, dans, espace, services)}
-          compte={
-            <>
-              <BoutonSignaler />
-              <Cloche ouvrir={(id) => allerA(`/t/${encodeURIComponent(id)}`)} />
-              <Compte moi={moi} deconnexion={deconnexion} aide={fenetres.aide} />
-            </>
-          }
-        />
-      )}
-    </HoteNotak>
+    <>
+      <HoteNotak compte={compte} habillages={habillages} className="biblio-hote">
+        {(fenetres) => (
+          <PageBibliotheque
+            espace={espace}
+            fenetres={fenetres}
+            partage={(tableau, fermer) => <PartageEnFenetre tableau={tableau} moi={moi} fermer={fermer} />}
+            importer={(f, dans) => importerFichiers(f, dans, espace, services)}
+            compte={
+              <>
+                <BoutonSignaler />
+                <Cloche ouvrir={(id) => allerA(`/t/${encodeURIComponent(id)}`)} />
+                <Compte moi={moi} deconnexion={deconnexion} aide={fenetres.aide} />
+              </>
+            }
+          />
+        )}
+      </HoteNotak>
+      <BandeauxServeur moi={moi} />
+    </>
   )
 }
 
@@ -352,6 +453,7 @@ function Espace({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
         )}
       />
       <BandeauImport moi={moi} espace={espace} />
+      <BandeauxServeur moi={moi} />
       <DialogueExport />
     </>
   )
@@ -359,6 +461,7 @@ function Espace({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
 
 /** Une seule fois, à un compte dont l'accueil est vide : reprendre le tableau d'avant les comptes. */
 function BandeauImport({ moi, espace }: { moi: Moi; espace: EspaceDistant }) {
+  const bandeau = useBandeau<HTMLElement>()
   const [clos, setClos] = useState(() => importDejaPropose(moi.id) || lireAncienEspace() === null)
   const [etat, setEtat] = useState<'attente' | 'cours' | 'echec'>('attente')
   const vide = useSyncExternalStore(
@@ -381,7 +484,7 @@ function BandeauImport({ moi, espace }: { moi: Moi; espace: EspaceDistant }) {
     }
   }
   return (
-    <aside className="bandeau" role="status">
+    <aside ref={bandeau} className="bandeau" role="status">
       <span>{etat === 'echec' ? t('bandeau.echec') : t('bandeau.attend')}</span>
       <button type="button" className="bouton bouton-plein" disabled={etat === 'cours'} onClick={importer}>
         {etat === 'echec' ? t('bandeau.reessayer') : t('bandeau.importer')}
@@ -396,6 +499,10 @@ function BandeauImport({ moi, espace }: { moi: Moi; espace: EspaceDistant }) {
 /** `/p/<jeton>` : un tableau publié, lu sans compte. */
 const publie = /^\/p\/([A-Za-z0-9_-]+)\/?$/.exec(location.pathname)
 enregistrerServiceWorker()
+// Dans l'app de bureau : la recherche des mises à jour signées (`MiseAJour.tsx`).
+if (estPageServeur()) lancerMisesAJour()
+// Une page publiée n'a pas d'écran à décider : elle se dit vivante dès le départ (l'application, elle, le fait au premier écran).
+if (publie && estPageServeur()) signalerVie()
 // ⇧⌘S, partout : un bug se signale sans quitter ce qu'on fait (`signaler/Signaler.tsx`).
 brancherSignaler()
 

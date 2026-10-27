@@ -76,6 +76,16 @@ const icone = (trace: ReactNode) => (
   </svg>
 )
 
+/**
+ * Le contenu de la rubrique « App de bureau » : la toile ne sait pas ce qu'est le bureau, l'application le lui dit en
+ * posant de quoi le dessiner (`reglerRubriqueBureau`, comme `reglerCapture`). Tant qu'elle ne l'a pas fait, la rubrique
+ * n'existe pas.
+ */
+let rubriqueBureau: (() => ReactNode) | null = null
+export function reglerRubriqueBureau(rendre: (() => ReactNode) | null) {
+  rubriqueBureau = rendre
+}
+
 export const RUBRIQUES: Rubrique[] = [
   {
     id: 'profil',
@@ -344,7 +354,21 @@ export const RUBRIQUES: Rubrique[] = [
         <path d="M8 21h8M12 17v4" />
       </>,
     ),
-    sections: [],
+    sections: [
+      {
+        titre: 'reglages.section.bureau',
+        lignes: [
+          {
+            id: 'bureau',
+            libelle: 'reglages.bureau.ou',
+            aide: 'reglages.bureau.ou.aide',
+            si: () => rubriqueBureau !== null,
+            haut: true,
+            controle: { type: 'libre', rendre: () => rubriqueBureau?.() },
+          },
+        ],
+      },
+    ],
   },
   {
     id: 'aPropos',

@@ -410,6 +410,23 @@ CREATE UNIQUE INDEX invitations_jeton ON invitations(jeton);
       db.prepare('UPDATE invitations SET cree = ?').run(Date.now())
     },
   },
+  {
+    version: 9,
+    nom: 'la connexion de l’app de bureau par un code',
+    // La table du plugin `deviceAuthorization` de Better Auth (`auth.ts`) : un code demandé par l'app, confirmé dans le
+    // navigateur. Un compte supprimé emporte les codes qui lui étaient liés.
+    appliquer(db) {
+      db.exec(`
+CREATE TABLE deviceCode (
+  id TEXT NOT NULL PRIMARY KEY, deviceCode TEXT NOT NULL, userCode TEXT NOT NULL,
+  userId TEXT REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  expiresAt DATE NOT NULL, status TEXT NOT NULL, lastPolledAt DATE, pollingInterval INTEGER, clientId TEXT, scope TEXT
+);
+CREATE UNIQUE INDEX deviceCode_deviceCode_uidx ON deviceCode(deviceCode);
+CREATE UNIQUE INDEX deviceCode_userCode_uidx ON deviceCode(userCode);
+`)
+    },
+  },
 ]
 
 /**
@@ -438,10 +455,13 @@ export function migrer(db: DatabaseSync, sauvegarde?: (version: number) => strin
   const depart = versionDe(db)
   const derniere = migrations.at(-1)?.version ?? 0
   if (depart > derniere) throw new Error(`La base est en version ${depart}, ce serveur ne connaît que la ${derniere} : il est plus ancien qu'elle.`)
+  // Lu une fois, avant la première migration : une base neuve a des tables dès la première, et ses copies vides
+  // passeraient, à côté des vraies, pour la base d'avant une mise à jour.
+  const avaitDesDonnees = aDesDonnees(db)
   for (const m of migrations) {
     if (m.version <= depart) continue
     const copie = sauvegarde?.(m.version)
-    if (copie && !existsSync(copie) && aDesDonnees(db)) db.prepare('VACUUM INTO ?').run(copie)
+    if (copie && !existsSync(copie) && avaitDesDonnees) db.prepare('VACUUM INTO ?').run(copie)
     db.exec('BEGIN IMMEDIATE')
     try {
       m.appliquer(db)

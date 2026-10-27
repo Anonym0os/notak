@@ -335,4 +335,21 @@ describe('le coffre : ce qu’il garde pour lui', () => {
     await stabiliser(nuage, appareils)
     expect(lus()).toBe(0)
   })
+
+  it('un participant qui écrit de travers (une liste qui n’en est pas une, un appareil nommé `constructor`) ne bloque personne', async () => {
+    const { nuage, appareils } = await monde(['mac', 'pc'])
+    const [mac, pc] = appareils as [AppareilSimule, AppareilSimule]
+    const mechant = nuage.vue('mechant')
+    const texte = (o: unknown) => new TextEncoder().encode(JSON.stringify(o))
+    await mechant.ecrireAtomique('appareils/constructor/oublies.json', texte({ format: 1, appareils: 42 }))
+    await mechant.ecrireAtomique('appareils/__proto__/oublies.json', texte({ format: 1, appareils: { includes: 1 } }))
+    await mechant.ecrireAtomique('appareils/toString/appareil.json', texte({ format: 1, nom: 7 }))
+    mac.doc('t').getMap('elements').set('a', 'du mac')
+    pc.doc('t').getMap('elements').set('b', 'du pc')
+    await stabiliser(nuage, appareils)
+    expect(mac.contenu('t')).toEqual(pc.contenu('t'))
+    expect(mac.contenu('t').elements).toEqual({ a: 'du mac', b: 'du pc' })
+    await expect(mac.coffre.appareils()).resolves.toBeDefined()
+  })
 })
+

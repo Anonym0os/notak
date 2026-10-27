@@ -4,7 +4,9 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { instanceDe } from './instance.ts'
 import { openfgaEssai } from './essai.ts'
+import { creerVerificateur } from './misesAJour.ts'
 import { type ServeurDemarre, demarrer } from './serveur.ts'
+import { VERSION_NOTAK } from '../../../packages/tableau/src/version.ts'
 
 const habillage = (id: string, nom: string) => JSON.stringify({ notak: 'habillage', version: 1, id, nom, rayons: { panneau: 20 } })
 
@@ -78,5 +80,79 @@ describe('une instance aux inscriptions fermées', () => {
     })
     expect(r.status).toBe(403)
     expect(await r.json()).toMatchObject({ code: 'INSCRIPTIONS_FERMEES' })
+  })
+})
+
+describe('ce que le serveur dit de lui-même, et à ses admins', () => {
+  let serveur: ServeurDemarre
+  let origine: string
+  // Le GitHub d'essai annonce une version plus récente que celle qui tourne.
+  const plusRecente = `${Number(VERSION_NOTAK.split('.')[0]) + 1}.0.0`
+  const misesAJour = creerVerificateur({
+    actuelle: VERSION_NOTAK,
+    active: true,
+    programmer: false,
+    journal: () => {},
+    maintenant: () => 1_700_000_000_000,
+    lire: (async () => new Response(JSON.stringify({ version: plusRecente, notes: '- Du neuf.', pub_date: '2026-10-25T10:00:00Z', platforms: {} }))) as typeof fetch,
+  })
+  const inscrire = async (email: string, nom: string) => {
+    const r = await fetch(`${origine}/api/auth/sign-up/email`, {
+      method: 'POST',
+      headers: { origin: origine, 'content-type': 'application/json' },
+      body: JSON.stringify({ email, password: 'motdepasse', name: nom }),
+    })
+    expect(r.status).toBe(200)
+    return r.headers.get('set-cookie')!.split(';')[0]!
+  }
+  const lire = (chemin: string, cookie?: string) => fetch(origine + chemin, { headers: cookie ? { cookie } : {} })
+
+  beforeAll(async () => {
+    serveur = await demarrer({
+      port: 0,
+      dossier: join(dossier, 'donnees-admin'),
+      secret: 'un-secret-d-essai-assez-long-pour-better-auth',
+      openfga: openfgaEssai(),
+      admins: ['admin@exemple.fr'],
+      misesAJour,
+    })
+    origine = `http://localhost:${serveur.port}`
+    await misesAJour.verifier()
+  })
+  afterAll(() => serveur.fermer())
+
+  it('/api/sante : un serveur Notak, sa version et son adresse, sans compte et jamais gardé en cache', async () => {
+    const r = await fetch(`${origine}/api/sante`)
+    expect(r.status).toBe(200)
+    expect(r.headers.get('cache-control')).toBe('no-store')
+    expect(r.headers.get('content-type')).toMatch(/^application\/json/)
+    expect(await r.json()).toEqual({ produit: 'notak', version: VERSION_NOTAK, origine, ok: true })
+    // Ni compte ni limite : la surveillance du conteneur l'appelle à la chaîne.
+    const statuts = await Promise.all(Array.from({ length: 30 }, () => fetch(`${origine}/api/sante`).then((x) => x.status)))
+    expect(statuts.every((s) => s === 200)).toBe(true)
+  })
+
+  it('/api/instance dit sa version', async () => {
+    expect(await (await lire('/api/instance')).json()).toMatchObject({ nom: 'Notak', version: VERSION_NOTAK })
+  })
+
+  it('/api/moi dit qui est admin du serveur, d’après NOTAK_ADMINS', async () => {
+    const admin = await inscrire('Admin@Exemple.fr', 'Admin')
+    const ana = await inscrire('ana@exemple.fr', 'Ana')
+    expect(await (await lire('/api/moi', admin)).json()).toMatchObject({ email: 'admin@exemple.fr', admin: true })
+    expect(await (await lire('/api/moi', ana)).json()).toMatchObject({ email: 'ana@exemple.fr', admin: false })
+
+    // La mise à jour à faire : aux admins seulement.
+    expect((await lire('/api/instance/mise-a-jour')).status).toBe(401)
+    expect((await lire('/api/instance/mise-a-jour', ana)).status).toBe(403)
+    const r = await lire('/api/instance/mise-a-jour', admin)
+    expect(r.status).toBe(200)
+    expect(r.headers.get('cache-control')).toBe('no-store')
+    expect(await r.json()).toEqual({
+      actuelle: VERSION_NOTAK,
+      active: true,
+      verifiee: 1_700_000_000_000,
+      nouvelle: { version: plusRecente, notes: '- Du neuf.', date: '2026-10-25T10:00:00.000Z', adresse: `https://github.com/Anonym0os/notak/releases/tag/v${plusRecente}` },
+    })
   })
 })

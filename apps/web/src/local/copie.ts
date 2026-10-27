@@ -13,6 +13,9 @@ import * as Y from 'yjs'
 import { type EspaceLocal, espaceIntact } from './espace'
 import { garderFichier, lireFichier } from './fichiers'
 
+/** Le nom d'un fichier de l'édition locale : l'empreinte SHA-256 de son contenu (`fichiers.ts`). */
+const EMPREINTE = /^[0-9a-f]{64}$/
+
 /** L'origine des changements qu'un fichier `.notak` rouvert apporte. */
 export const ORIGINE_COPIE = 'notak:copie'
 
@@ -65,11 +68,35 @@ function poserRenvoi(m: Magasin, cible: Id) {
   m.faire([{ type: 'creer', element: { id: nouvelId(), x, y, largeur: 10, contenu: { type: 'tableau', cible } } }])
 }
 
+/**
+ * Les tableaux de la copie qui apporteraient quelque chose qu'on n'a pas : un tableau inconnu de l'index, ou connu mais
+ * que la copie a poussé plus loin (un élément, un lecteur ou une image de plus, ou changés : tout cela prend de
+ * nouvelles horloges Yjs). Ni une copie identique, ni sa propre copie plus ancienne, ni une suppression seule
+ * (elle ne fait avancer aucune horloge) n'en font partie.
+ */
+async function avecNouveautes({ index, reseau }: EspaceLocal, tableaux: ContenuNotak['tableaux']): Promise<Id[]> {
+  const ids: Id[] = []
+  for (const t of tableaux) {
+    // Un tableau inconnu n'est pas ouvert : le lire créerait sa base pour rien.
+    if (index.entree(t.id) === undefined) {
+      ids.push(t.id)
+      continue
+    }
+    const copie = Y.decodeStateVector(Y.encodeStateVectorFromUpdate(t.etat))
+    const enAvance = await reseau.avec(t.id, (doc) => {
+      const ici = Y.decodeStateVector(Y.encodeStateVector(doc))
+      return [...copie].some(([client, horloge]) => horloge > (ici.get(client) ?? 0))
+    })
+    if (enAvance) ids.push(t.id)
+  }
+  return ids
+}
+
 export interface CopieRouverte {
   /** Le tableau de tête du fichier. */
   tete: Id
   tableaux: number
-  /** C'était une copie de cet espace (ou elle avait déjà été rouverte) : tout s'est fondu dans ce qu'on avait. */
+  /** C'était une copie de cet espace (ou elle avait déjà été rouverte) : tout s'est fondu dans ce qu'on avait, et seul ce qu'elle apportait de neuf est marqué « reçu ». */
   fusion: boolean
   /** L'espace était vide : la copie est devenue l'accueil (la page doit se recharger pour le montrer). */
   accueil: boolean
@@ -82,10 +109,21 @@ export interface CopieRouverte {
 export async function rouvrirCopie(el: EspaceLocal, octets: Uint8Array, ici: Id): Promise<CopieRouverte> {
   const { index, reseau, espace } = el
   const c = decoderNotak(octets)
-  for (const f of c.fichiers) await garderFichier(new Blob([f.octets as Uint8Array<ArrayBuffer>], { type: f.type }), f.id)
+  for (const f of c.fichiers) {
+    const blob = new Blob([f.octets as Uint8Array<ArrayBuffer>], { type: f.type })
+    // Un fichier nommé par son empreinte (ceux de l'édition locale) se range sous celle qu'on calcule, pas sous celle
+    // qu'annonce la copie : une copie trafiquée ne glisse pas son contenu sous le nom d'une image qu'on posera plus tard.
+    await (EMPREINTE.test(f.id) ? garderFichier(blob) : garderFichier(blob, f.id))
+  }
   const racine = index.racine()
   // Déjà là : sa propre copie, ou une copie déjà rouverte. Tout se fond, rien ne s'ajoute.
   const fusion = c.racine === racine || index.entree(c.racine) !== undefined
+  // La copie de quelqu'un d'autre : ses lecteurs et ses images d'autres sites attendent l'accord de la personne. La marque
+  // est à l'appareil (celle que porterait la copie serait celle de l'expéditeur), posée avant que rien ne soit fondu.
+  // Même sous une racine connue (un fichier qui a fait l'aller-retour chez quelqu'un, ou forgé avec un identifiant qu'on
+  // lui a donné), c'est tableau par tableau : un tableau inconnu, ou que la copie a poussé plus loin que le nôtre, se
+  // marque, même s'il avait été permis. Ce que la copie n'ajoute pas ne marque ni ne démarque rien.
+  index.noterRecus(fusion ? await avecNouveautes(el, c.tableaux) : c.tableaux.map((t) => t.id))
   const accueil = !fusion && (await espaceIntact(el))
   for (const t of c.tableaux) {
     await reseau.avec(t.id, (doc) => Y.applyUpdate(doc, t.etat, ORIGINE_COPIE))

@@ -11,7 +11,8 @@
     "./modeles/*": "./src/modeles/*.ts",
     "./decomposer": "./src/decomposer.ts",
     "./habillage": "./src/habillage/format.ts",
-    "./essais/contrat": "./src/dossier/essais/contrat.ts"
+    "./essais/contrat": "./src/dossier/essais/contrat.ts",
+    "./securite": "./src/securite.ts"
   },
   "peerDependencies": {
     "@hocuspocus/provider": "4.7.1",

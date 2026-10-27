@@ -9,26 +9,31 @@ import { EXTENSIONS_BLOCS, SCHEMA_BLOCS } from '../../blocs/schema'
 import { capturerPages, enBlob, pdfDePagesA4 } from '../../export/capture'
 import type { FormatExport, SujetExport } from '../../export/sujet'
 import { t } from '../../langue'
+import type { ContenuExterne } from '../contenuExterne'
 import { documentEnDocx } from './docx'
 import { type FormatDocument, documentEnTexte } from './export'
+import { extensionsExternes } from './externe'
 
 const TYPE_DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 /**
  * Le document ouvert, à exporter : ses pages A4 en PDF, en Word, ou son texte. L'aperçu du PDF et de Word montre les
  * mêmes pages, mises en page une fois pour les deux. `adresse` donne l'adresse d'une image rangée dans l'espace ; `copie`
- * donne l'élément du moment, pour le `.notak` (recommandé, comme partout).
+ * donne l'élément du moment, pour le `.notak` (recommandé, comme partout). `externe` : dans une toile venue d'une copie
+ * reçue, une image d'un autre site que la personne n'a pas permise n'est pas demandée pour les pages non plus.
  */
 export function sujetDocument(
   titre: string,
   lireTexte: () => NoeudTexte,
   adresse?: (fichier: string) => Promise<string | null>,
   copie?: { element(): Element | null; fichiers?: DepotFichiers | undefined },
+  externe?: ContenuExterne | null,
 ): SujetExport {
   const titreAffiche = titre.trim() || t('commun.sansTitre')
   const texte = () => deplier(aplatir(lireTexte()))
   // Le texte tel que la lecture le dessine, sans l'éditeur.
-  const html = () => renderToStaticMarkup(renderToReactElement({ content: degrader(aplatir(lireTexte()), SCHEMA_BLOCS), extensions: EXTENSIONS_BLOCS }))
+  const html = () =>
+    renderToStaticMarkup(renderToReactElement({ content: degrader(aplatir(lireTexte()), SCHEMA_BLOCS), extensions: extensionsExternes(EXTENSIONS_BLOCS, externe ?? null, 'export') }))
 
   let pages: Promise<{ canevas: HTMLCanvasElement[]; images: Blob[] }> | null = null
   const lesPages = () =>

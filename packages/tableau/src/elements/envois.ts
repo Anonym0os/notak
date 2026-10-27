@@ -4,6 +4,7 @@ import { annoncer } from '../avis'
 import type { Magasin } from '../coeur/magasin'
 import type { ContexteToile, DepotFichiers } from './types'
 import { t } from '../langue'
+import { typeAffichable } from '../securite'
 
 /**
  * Les fichiers que ce navigateur est en train d'envoyer. L'élément naît tout de suite avec un fichier
@@ -31,7 +32,8 @@ export const ecouterEnvois = ecouter
 /** Lance l'envoi et rend tout de suite l'id provisoire à mettre dans l'élément. */
 export function commencerEnvoi(fichier: Blob, depot: DepotFichiers): string {
   const id = PREFIXE + crypto.randomUUID()
-  envois.set(id, { local: URL.createObjectURL(fichier) })
+  // Le temps de l'envoi, l'aperçu vient de l'appareil : sous une sorte qui ne s'exécute pas, comme ensuite.
+  envois.set(id, { local: URL.createObjectURL(new Blob([fichier], { type: typeAffichable(fichier.type) })) })
   enRoute++
   prevenir()
   depot

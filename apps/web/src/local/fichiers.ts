@@ -1,4 +1,5 @@
 import type { DepotFichiers } from '@notak/tableau'
+import { typeAffichable } from '@notak/tableau/securite'
 
 /**
  * Les fichiers de l'édition locale (images, documents) : rangés dans IndexedDB, nommés par l'empreinte de leur
@@ -75,7 +76,9 @@ export const fichiersLocaux: DepotFichiers = {
   adresse: (id) => {
     let a = adresses.get(id)
     if (!a) {
-      a = lireFichier(id).then((b) => (b ? URL.createObjectURL(b) : null))
+      // Montré sous une sorte qui ne s'exécute jamais (`typeAffichable`) : un fichier reçu qui se dirait page HTML
+      // s'ouvrirait sinon comme une page de Notak.
+      a = lireFichier(id).then((b) => (b ? URL.createObjectURL(new Blob([b], { type: typeAffichable(b.type) })) : null))
       adresses.set(id, a)
       // Un fichier absent aujourd'hui peut arriver demain (un fichier .notak qu'on rouvre) : on redemandera.
       void a.then((x) => x === null && adresses.delete(id))

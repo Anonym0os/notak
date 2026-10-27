@@ -166,6 +166,13 @@ export interface Base {
   espacePersonnel(utilisateur: string): string | null
   /** L'émetteur d'un fournisseur SSO déclaré, par son identifiant. */
   emetteurSso(fournisseur: string): string | null
+  /**
+   * La demande de connexion d'une app de bureau qui porte ce code (table `deviceCode` de Better Auth) : le compte qui
+   * l'a prise en main (`null` tant que personne), son expiration (ms) et où elle en est.
+   */
+  demandeAppareil(codeUtilisateur: string): { compte: string | null; expire: number; statut: string } | null
+  /** Oublie les demandes expirées : Better Auth n'efface que celles qu'une app revient chercher. */
+  oublierDemandesAppareilExpirees(maintenant: number): void
   /** Tous les tableaux qui vivent dans cet espace. */
   tableauxDeLEspace(espace: string): string[]
   /** Les espaces dont le compte est membre, avec son rôle (plusieurs rôles se séparent par des virgules). */
@@ -504,6 +511,15 @@ export function ouvrirBase(chemin: string, cle: Cle | null = null): Base {
       (un("SELECT e.espace FROM espaces e JOIN member m ON m.organizationId = e.espace WHERE e.personnel = 1 AND m.userId = ? AND m.role = 'owner'", u)
         ?.espace as string | undefined) ?? null,
     emetteurSso: (f) => (un('SELECT issuer FROM ssoProvider WHERE providerId = ?', f)?.issuer as string | undefined) ?? null,
+    demandeAppareil(code) {
+      const l = un('SELECT userId, expiresAt, status FROM deviceCode WHERE userCode = ?', code)
+      if (!l) return null
+      // Better Auth y écrit ses dates en ISO 8601 ; une date illisible vaut une demande expirée.
+      const expire = typeof l.expiresAt === 'number' ? l.expiresAt : Date.parse(String(l.expiresAt))
+      return { compte: (l.userId as string | null) ?? null, expire: Number.isNaN(expire) ? 0 : expire, statut: String(l.status) }
+    },
+    // Les dates ISO 8601 de Better Auth (toutes en UTC, même longueur) se comparent comme du texte.
+    oublierDemandesAppareilExpirees: (maintenant) => void executer('DELETE FROM deviceCode WHERE expiresAt < ?', new Date(maintenant).toISOString()),
     tableauxDeLEspace: (espace) => (tous('SELECT id FROM tableaux WHERE espace = ?', espace) as unknown as { id: string }[]).map((l) => l.id),
     espacesDe: (u) =>
       (

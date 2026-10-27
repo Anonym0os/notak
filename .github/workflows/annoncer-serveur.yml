@@ -1,0 +1,90 @@
+# Annoncer l'image du serveur : quand une version est publiée à la main (« Publish release » sur le brouillon que
+# prépare publier-bureau.yml), son image `ghcr.io/anonym0os/notak:x.y.z`, déjà construite et attestée, reçoit aussi les
+# étiquettes `x.y` et `latest`. C'est ce que tirent les serveurs (`docker compose pull`) : tant que la version n'est
+# pas publiée, aucun ne la reçoit. Ni l'une ni l'autre ne recule : une correction publiée pour une version plus
+# ancienne ne prend pas `latest` à la plus récente.
+#
+# Une version publiée se révèle mauvaise : « Run workflow » ici, avec la version d'avant, remet `latest` et son `x.y`
+# sur elle, même plus ancienne, après l'accord demandé par l'environnement « publication ». La marche à suivre :
+# docs/MISES-A-JOUR.md, « Si ça tourne mal ».
+#
+# Aucun secret, aucune action tierce : seulement le jeton de la tâche, qui écrit dans le registre du dépôt, la CLI de
+# Docker et celle de GitHub (.github/scripts/etiqueter-serveur.sh). L'image ne se reconstruit pas ici : les étiquettes
+# désignent l'image attestée par la publication, telle quelle, et rien d'autre.
+name: Annoncer le serveur
+
+on:
+  release:
+    # Une version publiée, ou une pré-version qui devient une version ; jamais un brouillon ni une pré-version.
+    types: [released]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'La version (x.y.z) que doivent de nouveau désigner latest et x.y, même plus ancienne'
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: annoncer-serveur
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/anonym0os/notak
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  etiqueter:
+    name: x.y et latest
+    if: github.event_name == 'release'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      attestations: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Poser les étiquettes, sans jamais reculer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ETIQUETTE: ${{ github.event.release.tag_name }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          bash .github/scripts/etiqueter-serveur.sh "${ETIQUETTE#v}" avancer
+
+  reprendre:
+    name: latest et x.y, de retour sur une version d'avant
+    if: github.event_name == 'workflow_dispatch'
+    # Faire reculer ce que tirent tous les serveurs : l'accord d'une personne, comme pour publier.
+    environment: publication
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      attestations: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Revenir sur cette version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          # Seulement vers une version publiée : un brouillon ou une pré-version n'a pas fini sa relecture.
+          if ! etat=$(gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease --jq '"\(.isDraft) \(.isPrerelease)"'); then
+            echo "::error::Pas de version v$VERSION publiée sur ce dépôt."
+            exit 1
+          fi
+          if [ "$etat" != "false false" ]; then
+            echo "::error::v$VERSION est un brouillon ou une pré-version : on ne revient que sur une version publiée."
+            exit 1
+          fi
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          bash .github/scripts/etiqueter-serveur.sh "$VERSION" reprendre

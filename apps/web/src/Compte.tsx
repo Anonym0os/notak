@@ -6,7 +6,8 @@ import { PastillePersonne } from '@notak/tableau'
 import { usePanneau } from './panneaux'
 import { surLien } from './chemin'
 import { LigneMenu } from './LigneMenu'
-import { dansBureau } from './bureau'
+import { estBureau, estPageServeur, revenirIci } from './bureau'
+import { annoncerBureau } from './serveur/annonces'
 
 /** Le raccourci de la bibliothèque, partout dans l'édition serveur (⌥⌘O). */
 export const RACCOURCI_BIBLIOTHEQUE = '⌥⌘O'
@@ -21,6 +22,11 @@ export function Compte({ moi, deconnexion, aide }: { moi: Moi; deconnexion(): vo
   const aller = (chemin: string) => (e: MouseEvent) => {
     regler(false)
     surLien(e, chemin)
+  }
+  // Dans l'app de bureau : quitter ce serveur pour en choisir un autre, ou pour les toiles de cet ordinateur.
+  const quitter = (ecran: 'acces' | 'local') => () => {
+    regler(false)
+    revenirIci(ecran).catch(() => annoncerBureau(t('serveur.retourImpossible')))
   }
   return (
     <div className="compte" ref={ancre}>
@@ -39,7 +45,7 @@ export function Compte({ moi, deconnexion, aide }: { moi: Moi; deconnexion(): vo
           <div className="app-menu-sep" />
           <LigneMenu icone="tableau" libelle={t('compte.bibliotheque')} detail={t('compte.bibliotheque.detail')} touche={RACCOURCI_BIBLIOTHEQUE} href="/" onClick={aller('/')} />
           <LigneMenu icone="equipe" libelle={t('compte.espaces')} detail={t('compte.espaces.detail')} href="/espace" onClick={aller('/espace')} />
-          <LigneMenu icone="envoyer" libelle={t('compte.envoyer')} detail={t(dansBureau() ? 'compte.envoyer.detailBureau' : 'compte.envoyer.detail')} href="/envoyer" onClick={aller('/envoyer')} />
+          <LigneMenu icone="envoyer" libelle={t('compte.envoyer')} detail={t(estBureau() ? 'compte.envoyer.detailBureau' : 'compte.envoyer.detail')} href="/envoyer" onClick={aller('/envoyer')} />
           <LigneMenu
             icone="aide"
             libelle={t('compte.aide')}
@@ -49,6 +55,13 @@ export function Compte({ moi, deconnexion, aide }: { moi: Moi; deconnexion(): vo
               aide()
             }}
           />
+          {estPageServeur() && (
+            <>
+              <div className="app-menu-sep" />
+              <LigneMenu icone="convertir" libelle={t('serveur.compte.changerServeur')} detail={location.host} onClick={quitter('acces')} />
+              <LigneMenu icone="ordinateur" libelle={t('serveur.compte.toilesLocales')} detail={t('serveur.compte.toilesLocales.detail')} onClick={quitter('local')} />
+            </>
+          )}
           <div className="app-menu-sep" />
           <LigneMenu icone="deconnexion" libelle={t('compte.deconnexion')} onClick={deconnexion} />
         </div>

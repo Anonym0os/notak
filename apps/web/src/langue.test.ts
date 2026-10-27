@@ -19,7 +19,7 @@ describe('textes de l’application web', () => {
   })
 
   it('toute clé employée dans le code existe, dans les textes de la toile ou ceux d’ici', () => {
-    const sources: Record<string, string> = import.meta.glob(['./*.{ts,tsx}', '!./*.test.{ts,tsx}'], { query: '?raw', import: 'default', eager: true })
+    const sources: Record<string, string> = import.meta.glob(['./**/*.{ts,tsx}', '!./**/*.test.{ts,tsx}'], { query: '?raw', import: 'default', eager: true })
     expect(Object.keys(sources).length).toBeGreaterThan(10)
     const connue = (k: string) => k in textesFr
     const inconnues: string[] = []

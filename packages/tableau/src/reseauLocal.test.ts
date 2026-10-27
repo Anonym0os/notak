@@ -89,4 +89,19 @@ describe('l’édition locale', () => {
     liberer()
     a.fermer()
   })
+
+  it('un nom réservé (`/t/fichiers`) n’ouvre jamais une base de l’espace : rien ne s’écrit', async () => {
+    const p = neuf()
+    const a = await ouvrir(p)
+    const ecrit = await a.reseau.avec('fichiers', (doc) => {
+      doc.getMap('elements').set('x', { y: 1 })
+      return doc.getMap('elements').size
+    })
+    expect(ecrit).toBe(1)
+    const bases = (await indexedDB.databases()).map((b) => b.name)
+    expect(bases).toContain(`${p}espace`)
+    expect(bases).not.toContain(`${p}fichiers`)
+    a.fermer()
+  })
 })
+

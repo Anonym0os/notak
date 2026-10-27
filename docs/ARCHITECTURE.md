@@ -17,9 +17,12 @@ apps/web              l'application : deux éditions, choisies à la constructio
   main.tsx            charge edition/locale.tsx ou edition/serveur.tsx selon VITE_EDITION
   edition/            ce qui est propre à chaque édition (services, en-tête, routes)
   local/              l'édition locale : fichiers, copies .notak, panneau « Où sont mes tableaux ? », synchro
+  bureau/             l'app de bureau dans la page : la porte, « Se connecter à un serveur Notak », la rubrique « App de bureau »
+  serveur/            l'édition serveur : connexion par code, page « Autoriser », bandeaux, copies ouvertes depuis l'ordinateur
 apps/serveur          l'édition serveur : Hono (API, fichiers), Better Auth (comptes, sessions), Hocuspocus (synchro), SQLite
 apps/site             notak.app : l'édition locale derrière nginx, et la page « À propos »
-apps/bureau           la coque de bureau (Tauri)
+apps/bureau           l'app de bureau (Tauri) : l'édition locale embarquée, ou un serveur Notak choisi dans l'app, et ses
+                      mises à jour signées (docs/MISES-A-JOUR.md)
 ```
 
 ## Le cœur : un tableau est un document Yjs
@@ -150,6 +153,19 @@ son auteur compris, si bien qu'un refus ne laisse ni divergence ni renvoi sans f
 commenter) est dans `packages/tableau/src/coeur/reglesDroits.ts`, lue telle quelle par le serveur ; la toile s'en sert
 pour ne proposer que les gestes permis (`droitsElements.ts`, `filtrerMagasin`).
 
+### L'app de bureau, vue du serveur
+
+L'app de bureau se connecte par un code (RFC 8628) : le plugin `deviceAuthorization` de Better Auth, que `auth.ts`
+borne (le seul client `notak-bureau`, en JSON, `client_id` seul, un corps de quelques champs) et complète (la session
+que rend `/device/token` devient aussi un cookie, pour une page de Notak seulement). `demandesBureau.ts` retient d'où
+et quand chaque code a été demandé, ce que montre la page `/bureau/autoriser` à côté de l'adresse de qui confirme.
+Derrière un relais, cette adresse est l'entrée qu'il ajoute à `X-Forwarded-For` (`adresseTransmise`, `NOTAK_RELAIS`),
+jamais celle qu'écrit le client ; c'est aussi elle que comptent les limites par adresse. `GET /api/sante` dit, sans
+compte ni base, que c'est un serveur Notak, sa version et son adresse (`NOTAK_ORIGINE`, sous sa forme d'origine) :
+l'app le lit avant d'y aller, le conteneur pour sa santé, et la page pour savoir qu'un serveur a changé de version.
+`misesAJour.ts` lit `latest.json` toutes les douze heures et le dit aux admins (`NOTAK_ADMINS`,
+`GET /api/instance/mise-a-jour`). Le guide de l'admin : `docs/AUTO-HEBERGER.md`.
+
 ### Le chiffrement au repos
 
 **Perdre la clé, c'est perdre les données** : aucune porte de secours, c'est le principe.
@@ -171,6 +187,35 @@ pour ne proposer que les gestes permis (`droitsElements.ts`, `filtrerMagasin`).
   les documents dans une seule transaction suivie d'un `VACUUM`, les fichiers écrits à côté puis posés par `rename`.
 - **Au démarrage**, `ouvrirBase` déchiffre un document chiffré s'il en existe un : une clé fausse, ou l'absence de
   clé, refuse d'ouvrir. Sinon la synchro partirait d'un document vide et l'enregistrerait par-dessus le vrai.
+
+## L'app de bureau
+
+`apps/bureau` embarque l'édition locale (`bun run build:bureau`, dans `apps/web/dist-bureau`) : la même application que
+notak.app, sans service worker, avec des textes qui disent « sur cet ordinateur » (`estBureau`, `apps/web/src/bureau.ts`).
+La coque ajoute ce qu'une page ne sait pas faire : enregistrer un fichier là où la personne le choisit, garder la
+fenêtre chez elle (`src/navigation.rs`), et se mettre à jour de versions signées (`src/mise_a_jour.rs`,
+`apps/web/src/MiseAJour.tsx`). La publication et ce qui la protège : `docs/MISES-A-JOUR.md`.
+
+Elle peut aussi ouvrir un serveur Notak choisi dans l'app. `src/acces.rs` relit l'adresse, vérifie `GET /api/sante`,
+puis y envoie la fenêtre ; ses pages reçoivent une partie des droits de la coque, et elles seules : `src/navigation.rs`
+sait qui appelle, `src/appel.rs` relit ce que la page apporte, et `capabilities/` dit quelle commande chaque page
+peut appeler. `src/reglages.rs` garde dans `bureau.json` où Notak s'ouvre, le serveur retenu et la recherche des mises
+à jour ; `src/fichiers.rs` ouvre une pièce jointe dans l'application du système et range en file les copies `.notak`
+ouvertes d'un double clic (une seule instance) ; `src/menu.rs` est le menu de macOS. Côté page, `apps/web/src/bureau/`
+tient la porte (où s'ouvrir au lancement), l'écran « Se connecter à un serveur Notak », la rubrique « App de bureau »
+des réglages et « Copier mes toiles sur… » ; `apps/web/src/serveur/` ce que la page d'un serveur fait dans l'app (la
+connexion par code, les copies ouvertes depuis l'ordinateur). Le détail de la coque : `apps/bureau/README.md`.
+
+## Ce que Notak a le droit de joindre
+
+Une seule source, `packages/tableau/src/securite.ts` : la CSP et les en-têtes de notak.app (`apps/site/csp.conf`,
+`entetes.conf`), de l'app de bureau (`tauri.conf.json`) et des pages du serveur (`app.ts`), et les lecteurs intégrés
+qu'elle laisse entrer ; un essai vérifie que chacun la porte telle quelle. La CI vérifie aussi que l'application
+construite ne nomme aucun hôte inconnu (`scripts/hotes.ts`). Ce qui peut sortir de l'appareil : `docs/PUBLIER.md`.
+
+Ce qui vient d'ailleurs passe par une porte : un élément par `coeur/valider.ts` (couleurs comprises), une archive par
+`coeur/dezipper.ts` (bornée au dépliage), un fichier de l'appareil montré sous une sorte qui ne s'exécute pas
+(`typeAffichable`), une adresse par `adresseSure`, un nom de tableau hors des noms réservés (`coeur/idsReserves.ts`).
 
 ## Les essais
 

@@ -1,0 +1,90 @@
+/*
+ * La place d'un contenu d'un autre site qui attend l'accord, dans une toile venue d'une copie reçue : un texte calme
+ * (d'où il viendrait) et « Afficher ». Les cartes de lien (`lien.css`) et les pages de texte (`blocs.css`) lui donnent
+ * leurs couleurs ; ici, la forme.
+ */
+.notak-externe {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.notak-externe-texte {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-externe-bouton {
+  flex: none;
+  padding: 3px 12px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.notak-externe-bouton:hover {
+  background: rgb(128 128 128 / 0.2);
+}
+
+.notak-externe-bouton:focus-visible {
+  outline: 2px solid var(--notak-accent, #5b8ff9);
+  outline-offset: 2px;
+}
+
+/* Dans une carte de lien : sur le fond du lecteur ; par-dessus l'image qu'on a donnée à la carte, s'il y en a une. */
+.notak-lien-media > .notak-externe {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  background: rgb(31 35 40 / 0.92);
+  color: #fff;
+}
+
+/* Sans lecteur, l'emplacement tient la place de l'image d'aperçu : sa forme si on la connaît (le style la porte), sinon une bande. */
+.notak-lien-media[data-attente] {
+  background: #1f2328;
+}
+
+.notak-lien-media[data-attente]:not([style]) {
+  min-height: 112px;
+}
+
+/* Dans une page de texte : un cadre pâle, comme les autres blocs, à la place de l'image ou de la vignette. */
+.notak-blocs .notak-externe {
+  min-height: 96px;
+  border: 1px solid var(--notak-page-trait);
+  border-radius: 4px;
+  background: var(--notak-page-survol);
+  color: var(--notak-page-texte);
+}
+
+.notak-blocs .notak-externe-texte {
+  color: color-mix(in srgb, var(--notak-page-texte) 78%, transparent);
+}
+
+.notak-blocs .notak-externe[data-forme='signet'] {
+  flex: 0 0 184px;
+  width: 184px;
+  min-height: 100%;
+  border-width: 0 1px 0 0;
+  border-radius: 0;
+}
+
+.notak-blocs .notak-externe[data-forme='image'] {
+  width: min(100%, 360px);
+}

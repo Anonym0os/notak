@@ -8,7 +8,7 @@ import { t } from './langue'
  * renvois, les images et les mentions suivent. (L'édition locale, elle, rouvre le fichier en le fusionnant :
  * local/copie.ts.) Rend l'id du tableau de tête, le nombre de tableaux posés et de fichiers perdus.
  */
-export async function poserNotak(c: ContenuNotak, espace: EspaceNavigable, parent: Id, fichiers: DepotFichiers): Promise<{ tete: Id; tableaux: number; perdus: number }> {
+export async function poserNotak(c: ContenuNotak, espace: EspaceNavigable, parent: Id, fichiers: DepotFichiers): Promise<{ tete: Id; tableaux: number; perdus: number; poses: Id[] }> {
   const nouveaux = new Map<string, string>()
 
   // Les fichiers d'abord : un élément posé doit trouver le sien.
@@ -58,7 +58,29 @@ export async function poserNotak(c: ContenuNotak, espace: EspaceNavigable, paren
 
   const neuf = nouveaux.get(tete.tb.id)!
   poserLeRenvoi(espace, parent, neuf)
-  return { tete: neuf, tableaux: ordre.length, perdus }
+  return { tete: neuf, tableaux: ordre.length, perdus, poses: [parent, ...ordre.map((x) => nouveaux.get(x.tb.id)!)] }
+}
+
+/**
+ * Attend que les tableaux posés soient arrivés au serveur, pour ne dire « importé » qu'une fois que c'est vrai : un
+ * tableau qu'on ne regarde pas se referme tout seul, et ce qu'on y a posé ne partirait qu'à sa prochaine ouverture.
+ * On les retient le temps qu'ils partent. Rend faux si le serveur n'a pas tout reçu à temps (hors ligne, lent) : rien
+ * n'est perdu, tout est gardé sur cet appareil et partira au retour du réseau. Sans serveur (l'édition locale), vrai.
+ */
+export async function attendreEnvoi(espace: EspaceNavigable, ids: readonly Id[], delai = 60_000, pas = 300): Promise<boolean> {
+  const { envoi } = espace
+  if (!envoi) return true
+  const rendre = ids.map((id) => espace.retenir?.(id))
+  try {
+    const fin = Date.now() + delai
+    for (;;) {
+      if (ids.every((id) => envoi.call(espace, id) === 'enregistre' && espace.synchronise?.(id) !== false)) return true
+      if (Date.now() >= fin) return false
+      await new Promise((r) => setTimeout(r, pas))
+    }
+  } finally {
+    for (const r of rendre) r?.()
+  }
 }
 
 /** Le renvoi vers un tableau importé, dans le tableau d'où l'on importe : à droite de ce qui y est déjà. */

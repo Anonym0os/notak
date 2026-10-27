@@ -4,7 +4,7 @@ import type { ContexteToile } from '../types'
 import { type Element, nouvelId } from '../../coeur/tableau'
 import { estUnDepotToile, registre } from '../registre'
 import { TYPES_ACCEPTES } from '../image/geometrie'
-import { lireAdresse } from './adresse'
+import { adresseSure, lireAdresse } from './adresse'
 import { LARGEUR_MEDIA_SEUL, largeurMaxLien, largeurOrigineLien, largeurMinLien, mediaSeul, proportionLien } from './affichage'
 import { choisirImageApercu, estVideo, imageMontree, lienSous, poserImageApercu } from './imageApercu'
 import { lireRaccourci } from './raccourciUrl'
@@ -66,7 +66,8 @@ registre.type<Lien>({
   surDoubleClic(e, cible, contexte) {
     if (contexte.services.presentation || !e.contenu.url || !cible?.closest('.notak-lien-media')) return false
     if (!mediaSeul(e.contenu, e.parent ? undefined : e.largeur)) return false
-    window.open(e.contenu.url, '_blank', 'noopener,noreferrer')
+    const url = adresseSure(e.contenu.url)
+    if (url) window.open(url, '_blank', 'noopener,noreferrer')
     return true
   },
   Outils: OutilCouleurCarte,

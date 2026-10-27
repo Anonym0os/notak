@@ -124,6 +124,11 @@ export interface Services {
   retrouverOriginal?(cible: Id): { tableau: Id; element: Id } | undefined
   /** L'ouvrir dans un nouvel onglet (Cmd+clic, menu), là où l'application a des adresses. */
   ouvrirDansOnglet?(id: Id): void
+  /**
+   * Ouvre un fichier ailleurs que dans un nouvel onglet du navigateur : l'app de bureau le remet au système ou propose
+   * « Enregistrer sous ». `nom` : le nom que le fichier porte. Absent, les éléments gardent leur façon d'ouvrir (un onglet).
+   */
+  ouvrirAilleurs?: (adresse: string, nom?: string) => void
   /** Le tableau d'un renvoi (titre, couleur, contenu), ou `undefined` s'il n'existe pas. */
   tableau?(id: Id): Tableau | undefined
   /** Prévenu à chaque changement de n'importe quel tableau de l'espace. */
@@ -205,6 +210,17 @@ export interface Services {
   barreAGauche?: boolean
   /** Un double-clic sur le vide crée une note (le réglage de chacun) ; absent : oui. */
   doubleClicCreeNote?: boolean
+  /**
+   * Ce que ce tableau a le droit de charger d'autres sites. `'demander'` : il vient d'une copie reçue de quelqu'un
+   * d'autre, ses lecteurs intégrés et ses images d'autres sites (aperçus, favicons, images d'un texte) n'apparaissent
+   * pas d'eux-mêmes : un emplacement dit d'où le contenu viendrait, et « Afficher » le charge, pour cet élément
+   * et pour la session. `undefined` : tout se charge. Sans ce service (le serveur), rien ne change.
+   */
+  contenuExterne?(tableau: Id): 'demander' | undefined
+  /** La personne permet tout le contenu d'autres sites de ce tableau : l'hôte retient son accord, de façon durable, et prévient ceux qui écoutent. */
+  permettreContenuExterne?(tableau: Id): void
+  /** Prévenu quand `contenuExterne` change (la marque d'un tableau se pose ou s'efface). Rend de quoi arrêter. À fournir avec `contenuExterne`. */
+  ecouterContenuExterne?(f: () => void): () => void
 }
 
 /** L'état de la toile, prêté à chaque type d'élément. */

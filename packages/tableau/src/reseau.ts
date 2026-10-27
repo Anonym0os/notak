@@ -3,13 +3,26 @@ import { HocuspocusProvider, HocuspocusProviderWebsocket, WebSocketStatus } from
 import { IndexeddbPersistence } from 'y-indexeddb'
 import type { DroitsTableau } from './coeur/droitsElements'
 import type { Reseau } from './coeur/espaceDistant'
+import type { Id } from './coeur/tableau'
+
+/** Ce que l'hôte veut savoir de la synchronisation, au-delà de l'état de chaque tableau. */
+export interface OptionsReseauNavigateur {
+  /**
+   * Le serveur refuse l'accès à ce tableau. Il le refuse aussi bien quand l'accès est retiré que quand la session a
+   * pris fin : à l'hôte de le départager (l'édition serveur relit `/api/moi`).
+   */
+  surRefus?(tableau: Id): void
+  /** Le lien avec le serveur vient de s'ouvrir : au chargement, et après chaque coupure. */
+  surConnexion?(): void
+}
 
 /** Le vrai réseau : un seul WebSocket vers `/sync` pour tous les tableaux, IndexedDB pour le hors-ligne, `/api` pour déclarer. */
-export function creerReseauNavigateur(utilisateurId: string): Reseau {
+export function creerReseauNavigateur(utilisateurId: string, options: OptionsReseauNavigateur = {}): Reseau {
   let prise: HocuspocusProviderWebsocket | undefined
   const socket = () =>
     (prise ??= new HocuspocusProviderWebsocket({
       url: `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/sync`,
+      onConnect: () => options.surConnexion?.(),
     }))
 
   return {
@@ -50,6 +63,7 @@ export function creerReseauNavigateur(utilisateurId: string): Reseau {
           // On cesse de redemander : un accès retiré ne revient pas en insistant.
           queueMicrotask(() => provider.detach())
           surEtat()
+          options.surRefus?.(id)
         },
         onSynced: ({ state }) => {
           synchro = state

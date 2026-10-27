@@ -48,6 +48,8 @@ import { PopoverNote } from './PopoverNote'
 import { Presentation } from './Presentation'
 import { Recherche, correspondances } from './Recherche'
 import { courbeRelation } from './trace/relations'
+import { adresseSure } from '../lien/adresse'
+import { ouvrirDehors } from '../fichier/ouverture'
 
 const tailleEquation = (latex: string) => {
   const { l, h } = equation(latex)
@@ -325,6 +327,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     const fragment = presse.current
     if (fragment) faire({ type: 'coller', fragment, ...('parent' in cible ? { parent: cible.parent } : { position: { x: cible.x, y: cible.y } }) })
   }
+  const nomDePiece = (fichier: Id) => [...lecture.sujets.values()].find((s) => s.piece?.fichier === fichier)?.piece?.nom
   const hote: Hote = {
     arbre: () => actuel() ?? vue,
     lecture: () => lecture,
@@ -355,7 +358,8 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       if (boites.length > 0) faire({ type: 'zoneRect', id: x, rect: rectAutour(boites) })
     },
     telecharger: (fichier, nom) => void ouvrirOuTelecharger(contexte, fichier, nom),
-    ouvrirFichier: (fichier) => void ouvrirOuTelecharger(contexte, fichier),
+    // L'hôte reçoit le nom de la pièce jointe : c'est lui qui fait choisir l'application du système.
+    ouvrirFichier: (fichier) => void ouvrirOuTelecharger(contexte, fichier, nomDePiece(fichier), false),
     flottant: (x, y) => faire({ type: 'flottant', position: { x, y } }),
     ouvrirLien: (x) => ouvrirIcone(`lien:${x}`),
   }
@@ -899,7 +903,7 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     if (nom === 'piece') {
       const p = lecture.sujets.get(sujet)?.piece
       if (p?.audio) insertions.ouvrirAudio(sujet)
-      else if (p) void ouvrirOuTelecharger(contexte, p.fichier)
+      else if (p) void ouvrirOuTelecharger(contexte, p.fichier, p.nom, false)
       return
     }
     const lien = lecture.sujets.get(sujet)?.lien
@@ -910,7 +914,11 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
       const r = surface.current?.getBoundingClientRect()
       if (b && r) setCamera((c) => ({ ...c, x: r.width / 2 - (b.x + b.l / 2) * c.z, y: r.height / 2 - (b.y + b.h / 2) * c.z }))
       setSelection(new Set([cible]))
-    } else window.open(/^[a-z][\w+.-]*:/i.test(lien) ? lien : `https://${lien}`, '_blank', 'noopener')
+    } else {
+      // Le lien d'un sujet vient de la carte (un fichier Xmind, une copie reçue) : seulement le web, un courriel, un numéro.
+      const sur = adresseSure(/^[a-z][\w+.-]*:/i.test(lien) ? lien : `https://${lien}`)
+      if (sur) window.open(sur, '_blank', 'noopener')
+    }
   }
   /** Ce que le clic droit vise, d'après ce que le dessin porte : un marqueur, une étiquette, une image, un sujet, le fond… */
   const cibleDe = (cible: Element, p: Point): CibleMenu => {
@@ -1512,14 +1520,14 @@ function ChampTitre({ pose, texte, tout, changer, valider, annuler }: { pose: Ch
   )
 }
 
-/** Ouvre un fichier de la carte dans un onglet, ou l'enregistre sous ce nom. */
-async function ouvrirOuTelecharger(contexte: ContexteToile, fichier: Id, nom?: string) {
+/** Ouvre un fichier de la carte (là où l'hôte le veut : un onglet, ou l'application du système), ou l'enregistre sous ce nom. */
+export async function ouvrirOuTelecharger(contexte: ContexteToile, fichier: Id, nom?: string, enregistrer = nom !== undefined) {
   const adresse = await contexte.services.fichiers?.adresse(fichier)
   if (!adresse) return
-  if (!nom) return void window.open(adresse, '_blank', 'noopener')
+  if (!enregistrer) return ouvrirDehors(contexte.services, adresse, nom)
   const lien = document.createElement('a')
   lien.href = adresse
-  lien.download = nom
+  lien.download = nom ?? ''
   lien.click()
 }
 

@@ -6,7 +6,7 @@ import { serve } from '@hono/node-server'
 import type { Hocuspocus } from '@hocuspocus/server'
 import type { Hono } from 'hono'
 import { creerApp } from './app.ts'
-import { type Fournisseur, type Identifiants, creerAuth } from './auth.ts'
+import { type Fournisseur, type Identifiants, creerAuth, normaliserOrigine } from './auth.ts'
 import { type Autorisation, ouvrirAutorisation } from './autorisation.ts'
 import { ouvrirBase } from './base.ts'
 import type { Cle } from './chiffrement.ts'
@@ -15,17 +15,25 @@ import { creerLimiteur } from './debit.ts'
 import { creerExpiration } from './echeances.ts'
 import { indexerLesAbsents } from './indexation.ts'
 import type { Instance } from './instance.ts'
+import { type Verificateur, creerVerificateur } from './misesAJour.ts'
 import { brancherSynchro, creerHocuspocus, nomDuDocument } from './synchro.ts'
+import { VERSION_NOTAK } from '../../../packages/tableau/src/version.ts'
 
 export interface OptionsServeur {
   port: number
+  /**
+   * L'adresse où écouter (`NOTAK_HOTE`) : `127.0.0.1` derrière un relais sur la même machine, pour que nul autre ne
+   * joigne le port ni n'écrive lui-même X-Forwarded-For. À défaut, toutes les interfaces (dans l'image, celles du conteneur).
+   */
+  hote?: string
   dossier: string
-  relaisFiable?: boolean
+  /** Combien de relais de confiance sont devant le serveur (`NOTAK_RELAIS`) ; à défaut, aucun. */
+  relais?: number
   cookieSecurise?: boolean
   dossierWeb?: string
   /** Le secret qui signe les cookies de session (voir `secretDe`). */
   secret: string
-  /** L'adresse publique du serveur ; à défaut, `http://localhost:<port>`. */
+  /** L'adresse publique du serveur ; à défaut, `http://localhost:<port>`. Prise sous sa forme d'origine (`normaliserOrigine`). */
   origine?: string
   autresOrigines?: readonly string[]
   fournisseurs?: Partial<Record<Fournisseur, Identifiants>>
@@ -43,6 +51,10 @@ export interface OptionsServeur {
   cle?: Cle | null
   /** Où ranger les signalements de bugs ; absent, on ne les reçoit pas. */
   dossierSignalements?: string | null
+  /** Les adresses des admins du serveur (`NOTAK_ADMINS`). */
+  admins?: readonly string[]
+  /** Chercher les nouvelles versions de Notak (`NOTAK_VERIFIER_MAJ`, jamais en développement), ou le vérificateur à prendre. */
+  misesAJour?: boolean | Verificateur
 }
 
 export interface ServeurDemarre {
@@ -51,25 +63,30 @@ export interface ServeurDemarre {
 }
 
 export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre> {
+  if (options.origine !== undefined && !normaliserOrigine(options.origine)) throw new Error(`« ${options.origine} » n'est pas une adresse`)
   mkdirSync(options.dossier, { recursive: true })
   const cle = options.cle ?? null
   const base = ouvrirBase(join(options.dossier, 'notak.db'), cle)
   indexerLesAbsents(base)
+  // Les codes de connexion d'avant l'arrêt ne servent plus : ils ne restent pas dans la base jusqu'à la prochaine demande.
+  base.oublierDemandesAppareilExpirees(Date.now())
   let hocuspocus: Hocuspocus | null = null
   // L'application naît une fois le port connu (le port 0 en tire un au hasard) : l'origine par défaut en dépend.
   let app: Hono | null = null
   const http = await new Promise<Server>((resoudre, rejeter) => {
-    const s = serve({ fetch: (requete, env) => app!.fetch(requete, env), port: options.port }, () => resoudre(s as Server))
+    const s = serve({ fetch: (requete, env) => app!.fetch(requete, env), port: options.port, hostname: options.hote }, () => resoudre(s as Server))
     s.once('error', rejeter)
   })
   const port = (http.address() as AddressInfo).port
-  const origine = options.origine ?? `http://localhost:${port}`
+  // Comparées à l'en-tête `Origin` (connexion, synchro, CSP) : écrites comme l'écrit un navigateur.
+  const origine = normaliserOrigine(options.origine ?? `http://localhost:${port}`)!
+  const autresOrigines = (options.autresOrigines ?? []).map((o) => normaliserOrigine(o) ?? o)
   const courrier = creerCourrier(options.smtp, options.expediteur ?? `Notak <notak@${new URL(origine).hostname}>`)
   const auth = creerAuth({
     base,
     secret: options.secret,
     origine,
-    autresOrigines: options.autresOrigines,
+    autresOrigines,
     cookieSecurise: options.cookieSecurise ?? false,
     courrier,
     fournisseurs: options.fournisseurs,
@@ -94,6 +111,8 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
   const expirer = creerExpiration(base, autorisation, () => hocuspocus, Date.now)
   const echeances = setInterval(() => void expirer().catch(() => {}), 30_000)
   echeances.unref()
+  const misesAJour =
+    typeof options.misesAJour === 'object' ? options.misesAJour : creerVerificateur({ actuelle: VERSION_NOTAK, active: options.misesAJour === true })
 
   app = creerApp({
     base,
@@ -105,27 +124,34 @@ export async function demarrer(options: OptionsServeur): Promise<ServeurDemarre>
     limiteur: creerLimiteur(10, 60_000),
     limiteurArrivee: creerLimiteur(30, 60_000),
     limiteurVisiteurs: creerLimiteur(90, 60_000),
+    // Dix essais par compte et par quart d'heure : assez pour qui se trompe, trop peu pour deviner.
+    limiteurCompte: creerLimiteur(10, 15 * 60_000),
+    // L'app de bureau redemande son jeton toutes les cinq secondes : de quoi en attendre plusieurs derrière une même adresse.
+    limiteurJeton: creerLimiteur(60, 60_000),
     maintenant: Date.now,
     synchro: () => hocuspocus,
-    relaisFiable: options.relaisFiable ?? false,
+    relais: options.relais ?? 0,
     cookieSecurise: options.cookieSecurise ?? false,
+    origine,
     dossierWeb: options.dossierWeb,
     ...(options.instance ? { instance: options.instance } : {}),
     cle,
     dossierSignalements: options.dossierSignalements ?? null,
     courrier,
-    origine,
     expirer,
+    admins: options.admins ?? [],
+    misesAJour,
   })
 
   hocuspocus = creerHocuspocus(base, auth, autorisation, Date.now, expirer)
-  const synchro = brancherSynchro(http, hocuspocus, [origine, ...(options.autresOrigines ?? [])])
+  const synchro = brancherSynchro(http, hocuspocus, [origine, ...autresOrigines])
 
   return {
     port,
     async fermer() {
       clearInterval(relance)
       clearInterval(echeances)
+      misesAJour.arreter()
       synchro.fermer()
       hocuspocus?.flushPendingStores()
       await new Promise<void>((fini) => {

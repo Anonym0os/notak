@@ -3,7 +3,8 @@ import type { Lien } from '../../coeur/tableau'
 import { BAC_A_SABLE, type Lecteur, PERMISSIONS, adresseDeLecture, demarreSeul, formeDe } from './lecteurs'
 import { ecouterFin } from './fin'
 import { t } from '../../langue'
-import { Icone } from '../../icones'
+import { Icone, type NomIcone } from '../../icones'
+import { ContenuAttendu } from '../ContenuAttendu'
 
 /** Au plus ce temps après le clic, le lecteur prend la place de l'aperçu, qu'il ait dit « prêt » ou non. */
 const DELAI_LECTEUR = 2000
@@ -25,7 +26,14 @@ interface Props {
   presentation: boolean
   /** L'image vient de se charger sans qu'on en connaisse la taille : à garder avec le lien. */
   surDimensions(largeur: number, hauteur: number): void
+  /**
+   * Toile venue d'une copie reçue : ce que la carte chargerait d'un autre site (le lecteur, l'image d'aperçu) attend
+   * l'accord. Une place dit d'où cela viendrait ; `afficher` le permet, pour cette carte seule.
+   */
+  attente?: { hotes: readonly string[]; afficher(): void } | null
 }
+
+const ICONE_LECTEUR: Record<Lecteur['genre'], NomIcone> = { video: 'lecture', audio: 'audio', carte: 'carte', riche: 'lien' }
 
 /** La hauteur d'une image d'aperçu sur la grille : en UG entières, 10 px chacune. */
 export const hauteurSurGrille = (largeurUG: number, proportions: number) => Math.max(1, Math.round(largeurUG / proportions)) * 10
@@ -36,15 +44,16 @@ export const hauteurSurGrille = (largeurUG: number, proportions: number) => Math
  * clic (une roue tourne sur l'aperçu jusqu'à ce que le lecteur soit prêt, et l'aperçu revient quand la lecture finit) ;
  * une carte ou une maquette est incrustée d'emblée.
  */
-export function Media({ lecteur, image, titre, lien, actif, bouton, largeur, dimensions, presentation, surDimensions }: Props) {
+export function Media({ lecteur, image, titre, lien, actif, bouton, largeur, dimensions, presentation, surDimensions, attente }: Props) {
   const [clic, setClic] = useState(false)
   const [pret, setPret] = useState(false)
   const [fini, setFini] = useState(false)
   const [illisible, setIllisible] = useState(false)
   const [cassee, setCassee] = useState(false)
   const arreter = useRef<(() => void) | null>(null)
-  const seul = !presentation && !fini && !!lecteur && demarreSeul(lecteur, lien)
-  const monte = !presentation && !fini && (clic || seul)
+  // Tant que la carte attend l'accord, aucun lecteur ne se monte, même déjà lancé : le cadre part avec lui.
+  const seul = !presentation && !attente && !fini && !!lecteur && demarreSeul(lecteur, lien)
+  const monte = !presentation && !attente && !fini && (clic || seul)
   useEffect(() => {
     if (!monte || pret) return
     const minuteur = setTimeout(() => setPret(true), DELAI_LECTEUR)
@@ -55,12 +64,14 @@ export function Media({ lecteur, image, titre, lien, actif, bouton, largeur, dim
   useEffect(() => setCassee(false), [image])
 
   if (!lecteur) {
-    if (!image) return null
+    if (!image && !attente) return null
     const proportions = dimensions ? dimensions.largeur / dimensions.hauteur : undefined
     const forme = proportions ? (largeur ? { height: hauteurSurGrille(largeur, proportions) } : { aspectRatio: String(proportions) }) : undefined
     return (
-      <div className="notak-lien-media" data-calee={proportions ? '' : undefined} style={forme}>
-        {cassee ? (
+      <div className="notak-lien-media" data-calee={proportions ? '' : undefined} data-attente={attente ? '' : undefined} style={forme}>
+        {attente ? (
+          <ContenuAttendu icone="image" {...attente} />
+        ) : cassee ? (
           <div className="notak-lien-cassee">
             <Icone nom="image" taille={24} />
           </div>
@@ -77,7 +88,7 @@ export function Media({ lecteur, image, titre, lien, actif, bouton, largeur, dim
       </div>
     )
   }
-  const peutLire = bouton && !presentation
+  const peutLire = bouton && !presentation && !attente
   return (
     <div
       className="notak-lien-media"
@@ -96,6 +107,7 @@ export function Media({ lecteur, image, titre, lien, actif, bouton, largeur, dim
       }
     >
       {image && <img src={image} alt="" draggable={false} referrerPolicy="no-referrer" />}
+      {attente && <ContenuAttendu icone={ICONE_LECTEUR[lecteur.genre]} {...attente} />}
       {monte && (
         <iframe
           src={adresseDeLecture(lecteur, lien, clic)}

@@ -1,5 +1,7 @@
-import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
+import { strFromU8, strToU8, zipSync } from 'fflate'
+import { ErreurTropGros, dezipper } from './coeur/dezipper.ts'
 import type { Id } from './coeur/tableau'
+import { idReserve } from './coeur/idsReserves.ts'
 
 /**
  * Le fichier `.notak` : une copie d'un espace (ou d'un tableau et de ses sous-tableaux), à garder où l'on veut.
@@ -70,9 +72,9 @@ const estObjet = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 export function decoderNotak(octets: Uint8Array): ContenuNotak {
   let zip: Record<string, Uint8Array>
   try {
-    zip = unzipSync(octets)
-  } catch {
-    throw new ErreurNotak('pas un fichier Notak')
+    zip = dezipper(octets)
+  } catch (e) {
+    throw new ErreurNotak(e instanceof ErreurTropGros ? 'fichier Notak trop gros une fois décompressé' : 'pas un fichier Notak')
   }
   const brut = zip['notak.json']
   if (!brut) throw new ErreurNotak('pas un fichier Notak')
@@ -83,10 +85,12 @@ export function decoderNotak(octets: Uint8Array): ContenuNotak {
     throw new ErreurNotak('fichier Notak abîmé')
   }
   if (!estObjet(m) || m.application !== 'notak' || typeof m.racine !== 'string') throw new ErreurNotak('pas un fichier Notak')
+  // Un tableau qui porterait le nom d'une base de l'espace (l'index, les fichiers…) l'ouvrirait comme la sienne.
+  if (!sur(m.racine) || idReserve(m.racine)) throw new ErreurNotak('fichier Notak abîmé')
   if (typeof m.format !== 'number' || m.format > FORMAT_NOTAK) throw new ErreurNotak('fichier Notak d’une version plus récente')
   const tableaux: TableauNotak[] = []
   for (const t of Array.isArray(m.tableaux) ? m.tableaux : []) {
-    if (!estObjet(t) || typeof t.id !== 'string' || !sur(t.id)) continue
+    if (!estObjet(t) || typeof t.id !== 'string' || !sur(t.id) || idReserve(t.id)) continue
     const etat = zip[`tableaux/${t.id}.yjs`]
     if (!etat) continue
     tableaux.push({

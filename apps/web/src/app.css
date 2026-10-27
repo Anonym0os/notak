@@ -1114,6 +1114,8 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   padding: 0 10px;
 }
 
+/* Plusieurs bandeaux à la fois : chacun se pose au-dessus des précédents, à leur hauteur réelle (`bandeaux.ts`). */
+
 .bouton-etoile[aria-pressed='true'] {
   color: #e8a400;
 }
@@ -1204,6 +1206,64 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
 
 .connexion-carte input {
   height: 40px;
+}
+
+/* Un champ que l'erreur désigne : le filet prend la couleur du danger, jusqu'à ce qu'on le corrige. */
+.connexion-carte input[aria-invalid='true'] {
+  box-shadow: inset 0 0 0 1.5px var(--app-danger);
+}
+
+/* Le mot de passe et, à sa droite dans le champ, de quoi l'afficher. */
+.connexion-mdp {
+  position: relative;
+  display: flex;
+}
+
+.connexion-mdp input {
+  flex: 1;
+  padding-right: 44px;
+}
+
+.connexion-voir {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--app-pale);
+  cursor: pointer;
+}
+
+.connexion-voir:hover,
+.connexion-voir:focus-visible {
+  background: var(--app-survol, rgb(50 59 74 / 0.06));
+  color: var(--texte);
+}
+
+.connexion-voir[aria-pressed='true'] {
+  color: var(--accent);
+}
+
+/* La règle du mot de passe, les majuscules verrouillées : une ligne pâle sous le champ. */
+.connexion-indice {
+  color: var(--app-pale);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.connexion-indice[role='status'] {
+  color: #b45309;
+}
+
+[data-theme='sombre'] .connexion-indice[role='status'] {
+  color: #f59e0b;
 }
 
 .connexion-carte .bouton {
@@ -2475,6 +2535,19 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
   color: var(--app-pale);
 }
 
+.rangement-choix {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+  cursor: pointer;
+}
+
+.rangement-choix input {
+  margin: 0;
+  accent-color: var(--notak-accent, #2f6feb);
+}
+
 /* Sous 640 px, la pastille se réduit à son icône, comme les autres boutons de l'en-tête. */
 @media (max-width: 640px) {
   .rangement-pastille span {
@@ -3427,4 +3500,705 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
     grid-template-columns: repeat(auto-fill, minmax(146px, 1fr));
     gap: 22px 12px;
   }
+}
+
+/* ═══ App de bureau : la porte, l’écran d’accès, les réglages « App de bureau » ═══ */
+
+/* — La porte de l'app de bureau et « Se connecter à un serveur Notak » : une carte de connexion, un peu plus large que
+   celle des comptes, car les erreurs disent quoi faire. — */
+/* `.connexion-carte` (app.css) est lue après ce fichier : à égalité de poids elle l'emporterait. */
+.connexion-carte.acces-carte {
+  width: min(440px, 100%);
+}
+
+.acces-tete {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.acces-tete :is(h1, h2) {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.acces-guide {
+  align-self: center;
+  text-decoration: none;
+}
+
+/* Les toiles d'ici et le serveur mémorisé : sous un filet, à l'écart du bouton « Se connecter ». */
+.acces-autres {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--app-filet);
+}
+
+.acces-autres > .bouton {
+  align-self: flex-start;
+}
+
+.acces-retenu,
+.acces-confirme {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.bouton-lien.acces-oublier {
+  color: var(--app-danger);
+}
+
+.acces-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.acces-carte .acces-actions .bouton {
+  height: 34px;
+}
+
+.acces-attente {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* La connexion en cours : le nom du serveur, une roue, et plus rien à faire tant qu'il répond. */
+.acces-connexion {
+  align-items: center;
+  text-align: center;
+}
+
+.acces-connexion h1 {
+  overflow-wrap: anywhere;
+}
+
+.acces-connexion .bureau-roue {
+  width: 22px;
+  height: 22px;
+}
+
+/* Comme la roue de l'export, aux jetons de l'app ; au mouvement réduit, elle tourne plus lentement. */
+.bureau-roue {
+  flex: none;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  border: 2px solid color-mix(in srgb, var(--texte) 22%, transparent);
+  border-top-color: var(--texte);
+  border-radius: 50%;
+  animation: bureau-roue 0.8s linear infinite;
+}
+
+@keyframes bureau-roue {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bureau-roue {
+    animation-duration: 3s;
+  }
+}
+
+/* La même carte, en fenêtre modale par-dessus l'édition locale. */
+.bureau-dialogue {
+  box-sizing: border-box;
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  overflow: auto;
+  border: 0;
+  border-radius: 22px;
+  background: var(--carte);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.1), 0 16px 48px rgb(0 0 0 / 0.18);
+  color: var(--texte);
+}
+
+.bureau-dialogue::backdrop {
+  background: rgb(20 24 31 / 0.32);
+}
+
+.bureau-dialogue .connexion-carte {
+  width: auto;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.notak-espace[data-theme='sombre'] .bureau-dialogue {
+  background: var(--notak-carte);
+  box-shadow: 0 16px 48px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.08);
+  color: var(--notak-texte);
+}
+
+.notak-espace[data-theme='sombre'] .bureau-dialogue::backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
+
+/* Le bandeau de la première visite porte une phrase de plus : il passe à la ligne plutôt que de déborder. */
+.bandeau.bandeau-accueil-bureau {
+  flex-wrap: wrap;
+  justify-content: center;
+  row-gap: 4px;
+  border-radius: 20px;
+}
+
+/* La mise à jour de l'app prête, ou qui n'a pas pu s'installer : sur plusieurs lignes quand la place manque (la cause
+   d'un échec est une phrase), et ses notes dépliées en dessous des boutons. */
+.bandeau.bandeau-mise-a-jour {
+  flex-wrap: wrap;
+  justify-content: center;
+  row-gap: 6px;
+  max-width: min(640px, calc(100vw - 32px));
+  border-radius: 20px;
+}
+
+.maj-notes {
+  flex: 1 0 100%;
+  margin: 0;
+  font-size: 12px;
+}
+
+.maj-notes summary {
+  width: fit-content;
+  color: var(--accent);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* Les notes en texte, lues comme du Markdown simple (`lireNotes`) : des paragraphes et des puces, sans leurs marques. */
+.maj-notes-corps {
+  max-height: 180px;
+  margin: 6px 0;
+  padding: 8px 10px;
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--app-champ);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.maj-notes-corps :is(p, ul) {
+  margin: 0;
+}
+
+.maj-notes-corps ul {
+  padding-left: 18px;
+}
+
+.maj-notes-corps li + li,
+.maj-notes-corps :is(p, ul) + :is(p, ul) {
+  margin-top: 4px;
+}
+
+.bureau-reglages .maj-notes .bouton-lien,
+.bandeau-mise-a-jour .maj-notes .bouton-lien {
+  padding: 0;
+}
+
+/* — La rubrique « App de bureau » des réglages : à droite de son libellé, les boutons et les mises à jour, aux couleurs
+   des autres contrôles de la page. — */
+.bureau-reglages {
+  display: flex;
+  flex: 1 1 320px;
+  flex-direction: column;
+  gap: 22px;
+  min-width: 0;
+  max-width: 360px;
+}
+
+.bureau-reglages h3 {
+  margin: 0 0 6px;
+  color: var(--rg-aide);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.bureau-reglages p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.bureau-reglages .bouton {
+  height: 36px;
+  border-radius: 18px;
+  background: transparent;
+  box-shadow: var(--rg-bord);
+  color: var(--rg-texte);
+}
+
+.bureau-reglages .bouton:hover:not(:disabled, [aria-disabled='true']) {
+  background: var(--rg-survol);
+}
+
+/* Pris pendant que la fenêtre change de page, sans perdre le curseur : l'air d'un bouton grisé, pas son retrait. */
+.bureau-reglages .bouton[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* « Au démarrage, Notak s'ouvre : » et ses deux choix, sans le cadre d'un fieldset. */
+.bureau-ouverture {
+  margin: 0 0 8px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.bureau-ouverture legend {
+  margin-bottom: 2px;
+  padding: 0;
+  font-size: 13px;
+}
+
+.bureau-ouverture:disabled .rangement-choix {
+  cursor: default;
+}
+
+.bureau-reglages .bouton-plein {
+  background: var(--rg-texte);
+  box-shadow: none;
+  color: var(--rg-page);
+}
+
+.bureau-reglages .bouton-plein:hover:not(:disabled, [aria-disabled='true']) {
+  background: color-mix(in srgb, var(--rg-texte) 88%, var(--rg-page));
+}
+
+.bureau-reglages .rangement-note {
+  color: var(--rg-aide);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.bureau-reglages-erreur {
+  /* Le rouge des alertes de l'app, redéfini pour le thème sombre (app.css). */
+  color: var(--app-danger);
+}
+
+/* ═══ Édition serveur : connexion par le navigateur, page d’accord, bandeaux, fichiers ouverts ═══ */
+
+/* Ce fichier se charge avant `app.css` : à poids égal, ses règles passeraient après les miennes ; les sélecteurs qui retouchent un
+   composant d'`app.css` (`.bandeau`, `.connexion-avis`, `.bouton-lien`, `.champ`) portent donc une classe de plus. */
+
+/* Le texte pâle d'`app.css` (62 % du texte) ne tient que 3,7:1 sur le blanc, et l'accent 4,4:1 sur le sombre : trop peu pour du texte de
+   12 à 13 px, dont un lien. Dans ces écrans, 72 % (4,8:1), et un accent qui tire vers la couleur du texte (plus foncé en clair, plus
+   clair en sombre). */
+:is(.connexion-bureau, .connexion-navigateur, .connexion-code, .connexion-fournisseurs, .autoriser-carte, .ouverts-dialogue, .bandeau-admin, .bandeau-attente) {
+  --app-pale: color-mix(in srgb, var(--texte) 72%, transparent);
+  --accent-lien: color-mix(in srgb, var(--accent) 80%, var(--texte));
+}
+
+/* — L'écran de connexion : ce qu'il faut savoir en arrivant, et dans l'app de bureau le serveur et la sortie. — */
+.connexion-avis.connexion-notice {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--app-champ);
+  color: var(--texte);
+  font-weight: 500;
+}
+
+/* « Se connecter dans le navigateur » : un lien discret sous le bouton qui connecte ici, avec une ligne pâle qui dit à quoi il sert. */
+.connexion-navigateur {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.connexion-navigateur .bouton-lien {
+  color: var(--accent-lien);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* À quel serveur l'on parle, de quoi en changer ; en bas de la carte, discret. */
+.connexion-bureau {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  padding-top: 12px;
+  border-top: 1px solid var(--app-filet);
+  color: var(--app-pale);
+  font-size: 12px;
+}
+
+.connexion-serveur {
+  margin: 0;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.connexion-serveur strong {
+  color: var(--texte);
+  font-weight: 600;
+}
+
+/* « Changer de serveur » et « Ouvrir les toiles de cet ordinateur » sont des liens : l'accent et le souligné, pas la couleur du texte pâle autour. */
+.connexion-bureau .bouton-lien {
+  color: var(--accent-lien);
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.connexion-bureau .connexion-erreur {
+  text-align: center;
+}
+
+/* — L'attente de la connexion par le navigateur : le code, en grand, à comparer. — */
+.connexion-code {
+  text-align: center;
+}
+
+.connexion-code :is(.connexion-aide, .connexion-note) {
+  text-align: center;
+}
+
+.connexion-code-bloc {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 12px;
+  border-radius: 14px;
+  background: var(--app-champ);
+}
+
+.connexion-code-etiquette {
+  color: var(--app-pale);
+  font-size: 12px;
+}
+
+.connexion-code-valeur {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 32px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+  user-select: all;
+}
+
+/* — La page où l'on autorise l'app de bureau. — */
+.autoriser-carte:focus {
+  outline: none;
+}
+
+.autoriser-carte > label {
+  color: var(--app-pale);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.champ.autoriser-champ {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.autoriser-code {
+  margin: 0;
+  padding: 16px 12px;
+  border-radius: 14px;
+  background: var(--app-champ);
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: clamp(26px, 9vw, 38px);
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  text-align: center;
+  white-space: nowrap;
+  user-select: all;
+}
+
+.autoriser-faits {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.autoriser-faits dt {
+  color: var(--app-pale);
+  font-size: 12px;
+}
+
+.autoriser-faits dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+/* L'avertissement : une icône dans la couleur du danger, le texte dans celle de la page (il se lit en sombre comme en clair). */
+.autoriser-alerte {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--app-danger) 10%, var(--carte));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-danger) 40%, transparent);
+  color: var(--texte);
+  font-weight: 500;
+}
+
+.autoriser-alerte > svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--app-danger);
+}
+
+.autoriser-aide {
+  color: var(--app-pale);
+  font-size: 13px;
+}
+
+.autoriser-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.autoriser-actions .bouton {
+  height: 40px;
+  padding: 0 22px;
+  border-radius: 20px;
+}
+
+
+/* La nouvelle version du serveur : sur plusieurs lignes quand la place manque, les notes dépliées en dessous. */
+.bandeau.bandeau-admin {
+  flex-wrap: wrap;
+  justify-content: center;
+  row-gap: 6px;
+  max-width: min(640px, calc(100vw - 32px));
+  border-radius: 20px;
+}
+
+.bandeau-admin-commande,
+.bandeau-admin-notes {
+  flex: 1 0 100%;
+  margin: 0;
+  font-size: 12px;
+}
+
+.bandeau-admin-commande code {
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+/* Le guide des autres installations : un lien dans le texte, souligné. */
+.bandeau.bandeau-admin .bandeau-admin-commande a {
+  color: var(--accent-lien);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.bandeau-admin-notes summary {
+  color: var(--accent-lien);
+  cursor: pointer;
+}
+
+/* Les notes en texte lu comme du Markdown simple (`lireNotes`) : des paragraphes et des puces, sans leurs marques. */
+.bandeau-admin-notes-corps {
+  max-height: 160px;
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--app-champ);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.bandeau-admin-notes-corps :is(p, ul) {
+  margin: 0;
+}
+
+.bandeau-admin-notes-corps ul {
+  padding-left: 18px;
+}
+
+.bandeau-admin-notes-corps li + li,
+.bandeau-admin-notes-corps :is(p, ul) + :is(p, ul) {
+  margin-top: 4px;
+}
+
+/* Les liens du bandeau (« Nouveautés », « Plus tard »), dans l'accent qui tient 4,5:1 en sombre aussi. */
+.bandeau.bandeau-admin .bouton-lien {
+  color: var(--accent-lien);
+}
+
+/* Une copie qui attend pendant la connexion : sur une ligne tant qu'il y a la place, sinon sur deux. */
+.bandeau.bandeau-attente {
+  flex-wrap: wrap;
+  justify-content: center;
+  row-gap: 6px;
+  max-width: min(640px, calc(100vw - 32px));
+  border-radius: 20px;
+}
+
+.bandeau-attente .connexion-erreur {
+  flex: 1 0 100%;
+  text-align: center;
+}
+
+/* — La copie remise à l'app par le système : un dialogue modal, centré, au thème de l'espace. — */
+.ouverts-dialogue {
+  box-sizing: border-box;
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  background: var(--carte);
+  box-shadow:
+    0 1px 3px rgb(0 0 0 / 0.1),
+    0 16px 48px rgb(0 0 0 / 0.18);
+  color: var(--texte);
+  font-size: 14px;
+}
+
+.ouverts-dialogue::backdrop {
+  background: rgb(20 24 31 / 0.32);
+}
+
+.notak-espace[data-theme='sombre'] .ouverts-dialogue {
+  box-shadow:
+    0 16px 48px rgb(0 0 0 / 0.6),
+    0 0 0 1px rgb(255 255 255 / 0.08);
+}
+
+.notak-espace[data-theme='sombre'] .ouverts-dialogue::backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
+
+.ouverts-carte {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px 24px 20px;
+}
+
+.ouverts-carte h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.ouverts-carte h2:focus {
+  outline: none;
+}
+
+.ouverts-texte p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.ouverts-texte p + p {
+  margin-top: 8px;
+}
+
+.ouverts-note {
+  color: var(--app-pale);
+  font-size: 13px;
+}
+
+.ouverts-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 12px;
+}
+
+.ouverts-actions .bouton {
+  height: 36px;
+  border-radius: 18px;
+}
+
+.champ.autoriser-champ[aria-invalid='true'] {
+  box-shadow: inset 0 0 0 1.5px var(--app-danger);
+}
+
+/* Un champ que l'erreur désigne garde son anneau de focus : sinon, focalisé ou non, il s'affiche pareil. Le filet reste
+   celui du danger, l'anneau l'entoure comme celui de l'accent. */
+.connexion-carte input[aria-invalid='true']:focus,
+.champ.autoriser-champ[aria-invalid='true']:focus {
+  box-shadow:
+    inset 0 0 0 1.5px var(--app-danger),
+    0 0 0 3px color-mix(in srgb, var(--app-danger) 22%, transparent);
+}
+
+/* ═══ Partage par un lien, mises à jour ═══ */
+
+/* — L'arrivée par un lien : ce qui va être ajouté, montré avant qu'on l'accepte. — */
+/* Les règles d'`app.css` (`.arrivee-carte h1`, `.arrivee-carte p`…) sont lues après ce fichier : on double la classe. */
+.arrivee-carte .arrivee-question {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.arrivee-carte .arrivee-question:focus {
+  outline: none;
+}
+
+.arrivee-carte .arrivee-apercu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 40vh;
+  margin: 0;
+  padding: 12px 14px;
+  overflow-y: auto;
+  border-radius: 14px;
+  background: var(--app-champ);
+  box-shadow: inset 0 0 0 1px var(--app-filet);
+}
+
+.arrivee-apercu dt {
+  /* 72 % du texte (4,8:1) plutôt que les 62 % d'`app.css` (3,7:1), pour du texte de 12 px. */
+  color: color-mix(in srgb, var(--texte) 72%, transparent);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.arrivee-apercu dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  /* Une adresse ou un mot sans coupure ne fait pas déborder la carte. */
+  overflow-wrap: anywhere;
+}
+
+.arrivee-carte .arrivee-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.arrivee-carte .arrivee-actions .bouton {
+  height: 36px;
+  border-radius: 18px;
+}
+
+/* Un bouton qu'on grise sans le désactiver (`aria-disabled`) : il garde le curseur, et se lit comme désactivé. */
+.bouton[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: default;
 }

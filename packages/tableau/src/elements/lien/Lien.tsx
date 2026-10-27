@@ -5,6 +5,7 @@ import { INVITES, adresseAffichee, adresseSure, avecAdresse, domaineDe, lireAdre
 import { lireCause, messageEchec } from './echec'
 import { lecteurDe } from './lecteurs'
 import { Media } from './Media'
+import { hotesDe, useAttend, useContenuExterne } from '../contenuExterne'
 import { convertirEnImage, estAdresseImage } from './versImage'
 import { affichage, mediaSeul } from './affichage'
 import { dimensionsApercu } from './imageApercu'
@@ -243,7 +244,17 @@ function Carte({ element, choisie, seule, enEdition, contexte, brouillon }: Prop
   const lecteur = lecteurDe(url)
   // L'image qu'on a donnée à la carte prime sur celle de la page.
   const perso = useAdresseFichier(contenu.image?.fichier, contexte)
-  const image = contenu.image ? perso : statut === 'pret' ? adresseSure(apercu?.image, 'image') : undefined
+  const imageDistante = contenu.image || statut !== 'pret' ? undefined : adresseSure(apercu?.image, 'image')
+  const faviconDistante = statut === 'pret' ? adresseSure(apercu?.favicon, 'image') : undefined
+  // Une toile venue d'une copie reçue : le lecteur, l'image d'aperçu et la favicon, qui viennent d'un autre site, attendent
+  // l'accord. Une image donnée à la carte, elle, est un fichier du tableau : rien ne sort.
+  const externe = useContenuExterne(contexte, element.id)
+  const attend = useAttend(externe)
+  const image = contenu.image ? perso : attend ? undefined : imageDistante
+  const attente =
+    attend && externe && (lecteur || imageDistante)
+      ? { hotes: hotesDe([lecteur?.src, imageDistante, faviconDistante]), afficher: () => externe.permettre() }
+      : null
   // Dans une colonne, la largeur de la carte n'est pas la sienne : le média seul ne s'y décide pas par la largeur.
   const aff = affichage(contenu, element.parent ? undefined : element.largeur)
   const seulMedia = mediaSeul(contenu, element.parent ? undefined : element.largeur)
@@ -310,6 +321,7 @@ function Carte({ element, choisie, seule, enEdition, contexte, brouillon }: Prop
           dimensions={dimensionsApercu(contenu)}
           presentation={!!contexte.services.presentation}
           surDimensions={(largeur, hauteur) => retenirDimensions(element.id, image, largeur, hauteur, contexte)}
+          attente={attente}
         />
       )}
       {(aff.infos || aff.legende || partie) && (
@@ -317,8 +329,8 @@ function Carte({ element, choisie, seule, enEdition, contexte, brouillon }: Prop
           {aff.infos &&
             lien(
               <>
-                {adresseSure(apercu?.favicon, 'image') && statut === 'pret' ? (
-                  <img className="notak-lien-favicon" src={adresseSure(apercu?.favicon, 'image')} alt="" draggable={false} referrerPolicy="no-referrer" />
+                {faviconDistante && !attend ? (
+                  <img className="notak-lien-favicon" src={faviconDistante} alt="" draggable={false} referrerPolicy="no-referrer" />
                 ) : (
                   <Icone nom="lien" taille={16} />
                 )}

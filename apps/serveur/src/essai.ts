@@ -24,11 +24,11 @@ export interface Compte {
 export const ORIGINE_ESSAI = 'http://notak.essai'
 
 /** Better Auth sur cette base, comme le monte `serveur.ts`, sans courriel ni fournisseur. */
-export function authEssai(base: Base): Auth {
+export function authEssai(base: Base, origine = ORIGINE_ESSAI): Auth {
   return creerAuth({
     base,
     secret: 'un-secret-d-essai-assez-long-pour-better-auth',
-    origine: ORIGINE_ESSAI,
+    origine,
     cookieSecurise: false,
     courrier: { actif: false, envoyer: async () => {} },
   })
@@ -112,7 +112,7 @@ export function monde(options: { cle?: Cle; courriels?: Courriel[]; fermetures?:
     limiteur: creerLimiteur(1000, 60_000),
     maintenant: () => ++instant,
     synchro: () => (options.fermetures ? ({ closeConnections: (nom: string) => void options.fermetures!.push(nom) } as never) : null),
-    relaisFiable: false,
+    relais: 0,
     cookieSecurise: false,
     cle: options.cle ?? null,
     origine: ORIGINE_ESSAI,

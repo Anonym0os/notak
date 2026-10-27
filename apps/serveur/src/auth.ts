@@ -2,8 +2,10 @@ import { randomBytes, randomInt, randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { sso } from '@better-auth/sso'
-import { type BetterAuthOptions, betterAuth } from 'better-auth'
-import { APIError } from 'better-auth/api'
+import { type BetterAuthOptions, type BetterAuthPlugin, betterAuth } from 'better-auth'
+import { APIError, createAuthMiddleware } from 'better-auth/api'
+import { setSessionCookie } from 'better-auth/cookies'
+import { deviceAuthorization } from 'better-auth/plugins/device-authorization'
 import { organization } from 'better-auth/plugins/organization'
 import type { Base, Utilisateur } from './base.ts'
 import { COULEURS, preparerCompte, preparerEspace } from './comptes.ts'
@@ -17,6 +19,12 @@ import { hacher, verifier } from './motsDePasse.ts'
 // et les tables `account`, `session` et `verification` qu'il gère seul. Le schéma vient de nos migrations, pas de lui.
 
 export const CHEMIN_AUTH = '/api/auth'
+/** L'app de bureau, seul client admis à demander un code de connexion (`/device/code`). */
+export const CLIENT_BUREAU = 'notak-bureau'
+/** La page où l'on confirme, dans son navigateur, le code qu'affiche l'app de bureau. */
+export const PAGE_AUTORISER = '/bureau/autoriser'
+/** Le temps qu'a la personne pour confirmer le code : l'app interroge le serveur jusque-là. */
+export const DUREE_CODE_APPAREIL_MS = 10 * 60_000
 export const DUREE_SESSION_S = 30 * 24 * 3600
 export const MOT_DE_PASSE_COMPTE_MIN = 8
 export const MOT_DE_PASSE_COMPTE_MAX = 200
@@ -103,7 +111,80 @@ export function pluginsAuth(o: Pick<OptionsAuth, 'base' | 'courrier' | 'origine'
       domainVerification: { enabled: true },
       organizationProvisioning: { disabled: false, defaultRole: 'member' },
     }),
+    // L'app de bureau ne peut pas montrer la page d'un fournisseur (Google refuse les fenêtres intégrées) : elle demande
+    // un code, la personne le confirme dans son navigateur, où elle est connectée, et l'app reçoit sa session.
+    deviceAuthorization({
+      verificationUri: PAGE_AUTORISER,
+      expiresIn: `${DUREE_CODE_APPAREIL_MS / 60_000}m`,
+      interval: '5s',
+      validateClient: (id) => id === CLIENT_BUREAU,
+    }),
   ]
+}
+
+/**
+ * Une origine écrite comme l'envoie un navigateur dans `Origin` : schéma et hôte en minuscules, sans port par défaut,
+ * sans chemin ni « / » final (`HTTPS://Notak.exemple.fr:443/` devient `https://notak.exemple.fr`). Une adresse d'un
+ * autre schéma (`tauri://localhost`) n'a pas d'origine web : elle reste telle qu'écrite. `null` : pas une adresse.
+ */
+export function normaliserOrigine(adresse: string): string | null {
+  const nette = adresse.trim()
+  try {
+    const origine = new URL(nette).origin
+    return origine === 'null' ? nette : origine
+  } catch {
+    return null
+  }
+}
+
+const typeDe = (entetes: Headers) => entetes.get('content-type')?.split(';')[0]?.trim().toLowerCase() ?? ''
+
+/**
+ * Ce que Notak ajoute à la connexion par un code. La session que rend `/device/token` devient aussi un cookie : la page
+ * du serveur, dans la fenêtre de l'app, est alors connectée comme après un mot de passe. Seulement pour une demande en
+ * JSON venue d'une page de Notak (`pages`) : un formulaire d'un autre site ne passe pas de JSON, et une page d'ailleurs
+ * qui viendrait à le faire porterait sa propre origine. Sans cette garde, un autre site pourrait connecter quelqu'un à
+ * son insu au compte de l'attaquant, dont il aurait lui-même approuvé le code.
+ */
+function connexionParCode(pages: readonly string[]): BetterAuthPlugin {
+  // Comparées à l'en-tête `Origin`, que le navigateur écrit toujours de la même façon (`normaliserOrigine`).
+  const sures = new Set(pages.map((p) => normaliserOrigine(p) ?? p))
+  return {
+    id: 'notak-connexion-par-code',
+    hooks: {
+      before: [
+        {
+          matcher: (ctx) => ctx.path === '/device/code',
+          handler: createAuthMiddleware(async (ctx) => {
+            // En JSON seulement : un formulaire répète ses champs, et Better Auth n'y lit pas la même valeur que nous.
+            if (!ctx.request || typeDe(ctx.request.headers) !== 'application/json') {
+              throw new APIError('UNSUPPORTED_MEDIA_TYPE', { error: 'invalid_request', error_description: 'JSON attendu' })
+            }
+            // `client_id` seul. Un code se lie au compte qui le confirme, jamais à un compte nommé d'avance par qui le
+            // demande (`user_id`) ; et Notak n'a pas de `scope` : un champ de plus serait écrit tel quel dans la base, par
+            // quelqu'un qui n'a pas de compte.
+            const corps: unknown = ctx.body
+            if (corps && typeof corps === 'object' && Object.keys(corps).some((k) => k !== 'client_id')) {
+              throw new APIError('BAD_REQUEST', { error: 'invalid_request', error_description: 'seul client_id est admis' })
+            }
+          }),
+        },
+      ],
+      after: [
+        {
+          matcher: (ctx) => ctx.path === '/device/token',
+          handler: createAuthMiddleware(async (ctx) => {
+            const session = ctx.context.newSession
+            const requete = ctx.request
+            if (!session || !requete) return
+            const origine = requete.headers.get('origin')
+            if (typeDe(requete.headers) !== 'application/json' || !origine || !sures.has(origine)) return
+            await setSessionCookie(ctx, session)
+          }),
+        },
+      ],
+    },
+  }
 }
 
 export function optionsAuth(o: OptionsAuth) {
@@ -112,7 +193,7 @@ export function optionsAuth(o: OptionsAuth) {
   const f = o.fournisseurs ?? {}
   return {
     ...optionsSchema,
-    plugins: pluginsAuth(o),
+    plugins: [...pluginsAuth(o), connexionParCode([o.origine, ...(o.autresOrigines ?? [])])],
     database: base.db,
     secret: o.secret,
     baseURL: o.origine,

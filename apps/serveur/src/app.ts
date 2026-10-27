@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { createReadStream } from 'node:fs'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { isIP } from 'node:net'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import type { Hocuspocus } from '@hocuspocus/server'
@@ -15,6 +16,7 @@ import { type ElementArrive, elementImage, elementsDeTexte, poserDansNonTries } 
 import { ErreurApercu, apercuDePage, rapatrierImage } from './apercu.ts'
 import { type Base, DUREE_ACCES_PUBLIC_MS, DUREE_INVITATION_MS, type Fichier, type Invitation, type LienVisiteur, type NiveauVisiteur, type Utilisateur } from './base.ts'
 import { type Auth, CHEMIN_AUTH, type Fournisseur, utilisateurDeSession } from './auth.ts'
+import { type Demandes, creerDemandes, normaliserCode } from './demandesBureau.ts'
 import { type Autorisation, objetElement } from './autorisation.ts'
 import { accorderInvitation, activerInvitations, invitationValable, normaliserEmail } from './comptes.ts'
 import type { Courrier } from './courriel.ts'
@@ -34,7 +36,10 @@ import { TYPE_NOTAK, ecrireCopie } from './copie.ts'
 import { nomDuDocument } from './synchro.ts'
 import { largeurDemandee, nomReduit, reduire, reductible } from './tailles.ts'
 import { INSTANCE_PAR_DEFAUT, type Instance } from './instance.ts'
+import type { Verificateur } from './misesAJour.ts'
+import { VERSION_NOTAK } from '../../../packages/tableau/src/version.ts'
 import { CAPTURES_MAX, CAPTURE_MAX, CONTEXTE_MAX, TEXTE_MAX, deposerSignalement } from './signalements.ts'
+import { entetesSecurite } from '@notak/tableau/securite'
 import { verrouPar } from './verrou.ts'
 import { CLE_VISITEUR, auteurVisiteur, ecrireChangements, jugerChangements, nomVisiteur } from './visiteurs.ts'
 import { creerZip, nommerLesMedias } from './zip.ts'
@@ -54,12 +59,25 @@ export interface Contexte {
   limiteurArrivee?: Limiteur
   /** Pour les commentaires d'un visiteur, dont le brouillon part pendant qu'il écrit : à défaut, le limiteur commun. */
   limiteurVisiteurs?: Limiteur
+  /**
+   * Par compte, en plus de la limite par adresse IP : les essais de mot de passe et les demandes de lien visant une même
+   * adresse e-mail, d'où qu'ils viennent. À défaut, aucun.
+   */
+  limiteurCompte?: Limiteur
   maintenant: () => number
   /** Lu à chaque requête : le serveur de synchro naît après l'application. */
   synchro: () => Hocuspocus | null
-  /** Derrière un relais de confiance : l'adresse du client vient de `X-Forwarded-For`. */
-  relaisFiable: boolean
+  /**
+   * Combien de relais de confiance sont devant le serveur (`NOTAK_RELAIS`) : l'adresse du client vient alors de
+   * `X-Forwarded-For` (voir `adresseTransmise`). 0 : aucun, c'est celle de la connexion.
+   */
+  relais: number
   cookieSecurise: boolean
+  /**
+   * L'adresse publique du serveur : celle des liens qui partent par courriel, et celle où la CSP de ses pages laisse
+   * passer la synchro en direct (WebSocket).
+   */
+  origine?: string
   /** Le build de `apps/web`, servi à côté de l'API ; absent en développement, où Vite s'en charge. */
   dossierWeb?: string
   /** Son nom, ses inscriptions, ses habillages ; absente, celle d'origine (`INSTANCE_PAR_DEFAUT`). */
@@ -70,10 +88,19 @@ export interface Contexte {
   dossierSignalements?: string | null
   /** Pour écrire à qui l'on invite sur un tableau ; absent, l'invitation ne se donne que par son lien. */
   courrier?: Courrier
-  /** L'adresse publique du serveur, celle des liens qui partent par courriel. */
-  origine?: string
   /** Fait tomber les accès arrivés à échéance (`echeances.ts`) ; à défaut, l'application en fabrique un. */
   expirer?: () => Promise<string[]>
+  /** Les adresses des admins du serveur (`NOTAK_ADMINS`), en minuscules. */
+  admins?: readonly string[]
+  /** Ce que sait la vérification des mises à jour ; absente, elle ne se fait pas. */
+  misesAJour?: Pick<Verificateur, 'etat'> | null
+  /**
+   * Pour `POST /api/auth/device/token`, que l'app de bureau interroge toutes les cinq secondes en attendant qu'on
+   * confirme son code : à défaut, le limiteur commun.
+   */
+  limiteurJeton?: Limiteur
+  /** D'où et quand chaque code de connexion a été demandé ; à défaut, une mémoire à elle. */
+  demandesBureau?: Demandes
 }
 
 export interface MoyensConnexion {
@@ -83,6 +110,8 @@ export interface MoyensConnexion {
 }
 
 export const FICHIER_MAX = 25 * 1024 * 1024
+/** Le corps d'une requête de la connexion par code (`/api/auth/device/*`), ouverte à tous : quelques champs courts. */
+export const CORPS_APPAREIL_MAX = 2048
 const ID_TABLEAU = /^[A-Za-z0-9_-]{8,64}$/
 const ID_FICHIER = /^[0-9a-f-]{36}$/
 const COULEUR_COMPTE = /^#[0-9a-f]{6}$/i
@@ -134,7 +163,49 @@ export function enTeteTelechargement(titre: string, extension: string): string {
   return `attachment; filename="${ascii}.${extension}"; filename*=UTF-8''${encodeURIComponent(`${net}.${extension}`)}`
 }
 
-const moi = (u: Utilisateur) => ({ id: u.id, email: u.email, nom: u.nom, couleur: u.couleur, racine: u.racine, photo: u.photo ?? null })
+/** `NOTAK_RELAIS` : le nombre de relais de confiance devant le serveur (`1` : Caddy ou Traefik). Absent, `0` ou illisible : aucun. */
+export function relaisDe(valeur: string | undefined): number {
+  const n = Number(valeur?.trim() || 0)
+  return Number.isInteger(n) && n > 0 ? n : 0
+}
+
+/**
+ * L'adresse du client d'après `X-Forwarded-For`, derrière `relais` relais de confiance. Chaque relais ajoute à droite
+ * l'adresse qui l'a joint : seules les `relais` dernières entrées viennent d'eux, celles de gauche sont ce que le client
+ * a bien voulu écrire. La n-ième en partant de la droite est donc celle du client. `null` quand elle manque ou n'est pas
+ * une adresse IP : on s'en tient alors à celle de la connexion.
+ */
+export function adresseTransmise(entete: string | undefined, relais: number): string | null {
+  if (!entete || relais < 1) return null
+  const entrees = entete.split(',')
+  const adresse = entrees[entrees.length - relais]?.trim()
+  return adresse && isIP(adresse) ? adresse : null
+}
+
+/**
+ * La clé sous laquelle une adresse compte ses essais. Un client IPv6 tient d'ordinaire tout un /64, et peut prendre une
+ * adresse neuve à chaque requête : il compte pour son /64. Une IPv4 compte telle quelle, même écrite en IPv6
+ * (`::ffff:203.0.113.5`, ce que donne une prise qui écoute en IPv6). L'adresse exacte reste celle qu'on montre.
+ */
+export function cleDAdresse(adresse: string): string {
+  if (isIP(adresse) !== 6) return adresse
+  const groupes = (s: string): number[] =>
+    s
+      ? s.split(':').flatMap((g) => {
+          if (!g.includes('.')) return [parseInt(g, 16)]
+          const [a = 0, b = 0, c = 0, d = 0] = g.split('.').map(Number)
+          return [(a << 8) | b, (c << 8) | d]
+        })
+      : []
+  const [gauche = '', droite] = adresse.toLowerCase().split('::')
+  const g = groupes(gauche)
+  const d = droite === undefined ? [] : groupes(droite)
+  const n = droite === undefined ? g : [...g, ...new Array<number>(8 - g.length - d.length).fill(0), ...d]
+  if (n.slice(0, 5).every((x) => x === 0) && n[5] === 0xffff) return [n[6]! >> 8, n[6]! & 255, n[7]! >> 8, n[7]! & 255].join('.')
+  return `${n.slice(0, 4).map((x) => x.toString(16)).join(':')}::/64`
+}
+
+const moi = (u: Utilisateur, admin: boolean) => ({ id: u.id, email: u.email, nom: u.nom, couleur: u.couleur, racine: u.racine, photo: u.photo ?? null, admin })
 
 /** Lit un corps de requête jusqu'à `max` octets : `null` s'il est vide, `'trop gros'` s'il dépasse (la lecture s'arrête alors). */
 async function lireBorne(flux: ReadableStream<Uint8Array> | null, max: number): Promise<Buffer | null | 'trop gros'> {
@@ -158,14 +229,26 @@ async function lireBorne(flux: ReadableStream<Uint8Array> | null, max: number): 
 export function creerApp(ctx: Contexte): Hono {
   const { base } = ctx
   const cle = ctx.cle ?? null
+  const admins = new Set(ctx.admins ?? [])
+  const demandesBureau = ctx.demandesBureau ?? creerDemandes()
   const app = new Hono()
 
   const utilisateurCourant = (c: Context): Promise<Utilisateur | null> => utilisateurDeSession(ctx.auth, base, c.req.raw.headers)
+  const estAdmin = (u: Utilisateur) => admins.has(normaliserEmail(u.email))
 
+  // Dit une fois : un relais qui n'ajoute pas l'adresse attendue (un CDN devant Caddy, sans que Caddy le croie) met
+  // tous les clients sous celle de la connexion, et dix connexions par minute ferment la porte à tout le monde.
+  let relaisMuetDit = false
   const adresseIp = (c: Context): string => {
-    if (ctx.relaisFiable) {
-      const transmis = c.req.header('x-forwarded-for')?.split(',')[0]?.trim()
-      if (transmis) return transmis
+    const entete = c.req.header('x-forwarded-for')
+    const transmise = adresseTransmise(entete, ctx.relais)
+    if (transmise) return transmise
+    if (entete && ctx.relais > 0 && !relaisMuetDit) {
+      relaisMuetDit = true
+      console.warn(
+        `Notak : NOTAK_RELAIS=${ctx.relais}, mais X-Forwarded-For (${entete.split(',').length} entrée(s)) n'a pas d'adresse IP à cette place : ` +
+          'l’adresse de la connexion est prise, et tous les clients du relais comptent pour un seul. Voir docs/AUTO-HEBERGER.md, « Le relais HTTPS ».',
+      )
     }
     try {
       return getConnInfo(c).remote.address ?? 'inconnue'
@@ -175,7 +258,7 @@ export function creerApp(ctx: Contexte): Hono {
   }
 
   const limiter = (c: Context, route: string, limiteur: Limiteur = ctx.limiteur): Response | null => {
-    const cle = `${route}:${adresseIp(c)}`
+    const cle = `${route}:${cleDAdresse(adresseIp(c))}`
     const maintenant = ctx.maintenant()
     if (limiteur.autoriser(cle, maintenant)) return null
     const secondes = Math.ceil(limiteur.attente(cle, maintenant) / 1000)
@@ -199,7 +282,32 @@ export function creerApp(ctx: Contexte): Hono {
     '/sign-in/email': 'connexion',
     '/sign-up/email': 'inscription',
     '/request-password-reset': 'reinitialisation',
+    '/reset-password': 'reinitialisation',
     '/sign-in/sso': 'connexion',
+    // L'app de bureau qui demande un code, et la page où on le confirme : un code ne se devine pas à dix essais la minute.
+    '/device/code': 'code-appareil',
+    '/device/approve': 'accord-appareil',
+    '/device/deny': 'accord-appareil',
+  }
+  // Ouvrir la page de confirmation lit le code et le prend en main pour son compte : il se limite comme le reste.
+  const LIMITES_AUTH_GET: Record<string, string> = { '/device': 'accord-appareil' }
+  // Ces gestes visent un compte par son adresse e-mail : ils se limitent aussi par compte. Mille machines qui se
+  // partagent les essais ne devinent pas plus vite un mot de passe, et ne remplissent pas la boîte de quelqu'un de
+  // liens qu'il n'a pas demandés. La limite tombe que le compte existe ou non : elle ne dit rien de lui.
+  const PAR_COMPTE = new Set(['/sign-in/email', '/request-password-reset'])
+  const limiterCompte = async (c: Context, chemin: string): Promise<Response | null> => {
+    if (!ctx.limiteurCompte || !PAR_COMPTE.has(chemin)) return null
+    const b: unknown = await c.req.raw
+      .clone()
+      .json()
+      .catch(() => null)
+    const email = b && typeof b === 'object' && 'email' in b ? normaliserEmail(texte(b.email)) : ''
+    if (!email) return null
+    const maintenant = ctx.maintenant()
+    const cle = `${chemin}:${email}`
+    if (ctx.limiteurCompte.autoriser(cle, maintenant)) return null
+    const secondes = Math.ceil(ctx.limiteurCompte.attente(cle, maintenant) / 1000)
+    return c.json({ erreur: 'trop d’essais', code: 'trop_d_essais' }, 429, { 'retry-after': String(secondes) })
   }
   // Le SSO d'un espace : seul un espace d'équipe en a un, et la découverte OIDC se fait ici, sous la garde réseau
   // de Notak, plutôt que par Better Auth, qui ne l'accepte que d'origines déclarées d'avance. La demande, complétée
@@ -220,7 +328,19 @@ export function creerApp(ctx: Contexte): Hono {
 
   const instance = ctx.instance ?? INSTANCE_PAR_DEFAUT
   // Ce que l'écran de connexion lit avant tout compte : il se règle dessus (nom, inscription, thème).
-  app.get('/api/instance', (c) => c.json(instance))
+  app.get('/api/instance', (c) => c.json({ ...instance, version: VERSION_NOTAK }))
+
+  // « Est-ce bien un serveur Notak, et lequel ? » : l'app de bureau avant de s'y connecter, la surveillance du
+  // conteneur (HEALTHCHECK). Sans compte, sans base, sans limite : rien n'y coûte.
+  app.get('/api/sante', (c) => c.json({ produit: 'notak', version: VERSION_NOTAK, origine: ctx.origine ?? null, ok: true }, 200, { 'cache-control': 'no-store' }))
+
+  // Une version plus récente existe-t-elle ? Les admins du serveur seulement : c'est à eux de tirer la nouvelle image.
+  app.get('/api/instance/mise-a-jour', async (c) => {
+    const u = await utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    if (!estAdmin(u)) return c.json({ erreur: 'interdit', code: 'interdit' }, 403)
+    return c.json(ctx.misesAJour?.etat() ?? { actuelle: VERSION_NOTAK, active: false }, 200, { 'cache-control': 'no-store' })
+  })
 
   const versSso = async (c: Context, b: Record<string, unknown>): Promise<Response> => {
     const oidc = b.oidcConfig as Record<string, unknown> | undefined
@@ -256,14 +376,61 @@ export function creerApp(ctx: Contexte): Hono {
   })
 
   app.on(['GET', 'POST'], `${CHEMIN_AUTH}/*`, async (c) => {
-    const route = LIMITES_AUTH[c.req.path.slice(CHEMIN_AUTH.length)]
-    const refus = c.req.method === 'POST' && route ? limiter(c, route) : null
+    const chemin = c.req.path.slice(CHEMIN_AUTH.length)
+    const poste = c.req.method === 'POST'
+    const route = (poste ? LIMITES_AUTH : LIMITES_AUTH_GET)[chemin]
+    // Le jeton de l'app de bureau a sa propre limite, large : elle le redemande toutes les cinq secondes, dix minutes
+    // durant, et Better Auth refuse déjà, code par code, qui le demande plus vite (`slow_down`).
+    const refus =
+      poste && chemin === '/device/token'
+        ? limiter(c, 'jeton-appareil', ctx.limiteurJeton)
+        : route
+          ? (limiter(c, route) ?? (poste ? await limiterCompte(c, chemin) : null))
+          : null
     if (refus) return refus
-    const reponse = await ctx.auth.handler(c.req.raw)
+    let requete = c.req.raw
+    // La connexion par code s'ouvre à qui n'a pas de compte : son corps ne se lit pas au-delà de quelques champs, ni en
+    // mémoire ni dans la base. Un corps sans longueur annoncée (envoi par morceaux) s'arrête aussi à la borne.
+    if (poste && chemin.startsWith('/device/')) {
+      const annonce = Number(c.req.header('content-length') ?? 0)
+      const lu = annonce > CORPS_APPAREIL_MAX ? 'trop gros' : await lireBorne(c.req.raw.body, CORPS_APPAREIL_MAX)
+      if (lu === 'trop gros') return c.json({ error: 'invalid_request', error_description: 'corps trop gros' }, 413)
+      const entetes = new Headers(c.req.raw.headers)
+      entetes.delete('content-length')
+      requete = new Request(c.req.raw.url, { method: 'POST', headers: entetes, body: lu })
+    }
+    const reponse = await ctx.auth.handler(requete)
+    if (poste && chemin === '/device/code' && reponse.ok) await noterDemande(c, reponse)
     // Un membre, un rôle ou une équipe a pu changer (une invitation acceptée, un SSO qui fait entrer quelqu'un) :
     // les droits suivent avant que la réponse parte.
     await droitsAJour()
     return reponse
+  })
+
+  /** Retient d'où vient la demande d'un code de connexion, pour la montrer à qui le confirme. */
+  const noterDemande = async (c: Context, reponse: Response) => {
+    const lu: unknown = await reponse
+      .clone()
+      .json()
+      .catch(() => null)
+    const code = lu && typeof lu === 'object' && 'user_code' in lu ? lu.user_code : null
+    if (typeof code === 'string') demandesBureau.noter(code, adresseIp(c), ctx.maintenant())
+    base.oublierDemandesAppareilExpirees(Date.now())
+  }
+
+  // La page qui fait confirmer un code : d'où et quand l'app l'a demandé, et d'où l'on confirme. Seulement pour le
+  // compte qui a ouvert la page de ce code (`GET /api/auth/device?user_code=…` le prend en main) : l'adresse d'une
+  // app ne se montre pas à qui devinerait son code.
+  app.get('/api/bureau/demande', async (c) => {
+    const u = await utilisateurCourant(c)
+    if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
+    const code = normaliserCode(c.req.query('user_code') ?? '')
+    const maintenant = ctx.maintenant()
+    const enBase = code ? base.demandeAppareil(code) : null
+    // L'expiration est celle de Better Auth, à l'heure de la machine.
+    const demande = enBase && enBase.compte === u.id && enBase.expire > Date.now() ? demandesBureau.lire(code, maintenant) : null
+    if (!demande) return c.json({ erreur: 'introuvable', code: 'introuvable' }, 404)
+    return c.json({ ip: demande.ip, quand: demande.quand, ipActuelle: adresseIp(c) }, 200, { 'cache-control': 'no-store' })
   })
 
   // Les espaces du compte, avec leur accueil et son rôle.
@@ -281,7 +448,7 @@ export function creerApp(ctx: Contexte): Hono {
     if (!u) return c.json({ erreur: 'non connecté', code: 'non_connecte' }, 401)
     // Une adresse tout juste vérifiée (le lien du courriel, un fournisseur relié) ouvre ce qui l'attendait.
     if (base.invitationsPour(u.email).length > 0 && activerInvitations(base, u, ctx.maintenant()).length > 0) await droitsAJour()
-    return c.json(moi(u))
+    return c.json(moi(u, estAdmin(u)))
   })
 
   // Les réglages du compte : sa couleur (curseur, pastille) et sa photo, un fichier que le compte a déposé.
@@ -307,7 +474,7 @@ export function creerApp(ctx: Contexte): Hono {
     }
     if (Object.keys(reglages).length === 0) return c.json({ erreur: 'rien à régler', code: 'rien_a_regler' }, 400)
     base.reglerCompte(u.id, reglages)
-    return c.json(moi(base.utilisateurParId(u.id) ?? u))
+    return c.json(moi(base.utilisateurParId(u.id) ?? u, estAdmin(u)))
   })
 
   // ---- Tableaux ----
@@ -1781,6 +1948,14 @@ export function creerApp(ctx: Contexte): Hono {
 
   // En production, le même serveur sert l'application web construite ; toute autre adresse (`/t/…`) reçoit la page.
   if (ctx.dossierWeb) {
+    // Les pages de l'application, la connexion comprise : la CSP commune (`packages/tableau/src/securite.ts`), et
+    // aucune page d'un autre site ne peut les afficher dans un cadre pour faire cliquer à l'insu de la personne.
+    // L'API, plus haut, a déjà répondu : ses fichiers gardent leur propre bac à sable.
+    const securite = entetesSecurite('serveur', { https: ctx.cookieSecurise, ...(ctx.origine ? { origineServeur: ctx.origine } : {}) })
+    app.use('*', async (c, next) => {
+      await next()
+      for (const [nom, valeur] of Object.entries(securite)) c.res.headers.set(nom, valeur)
+    })
     // Un partage vers Notak est reçu par le service worker ; sans lui (pas encore installé), on ne perd que le partage, pas la page.
     app.post('/partage', async (c) => c.redirect('/', 303))
     // La page d'un lien visiteur et celle d'une invitation portent un secret : rien ne le répète à un autre site, et

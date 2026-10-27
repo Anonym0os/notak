@@ -9,7 +9,7 @@ import { Icone } from '../../icones'
 import { BoutonOutil } from '../../BoutonOutil'
 import { LecteurSon, LecteurVideo } from './lecteur'
 import { ModaleFichier } from './ModaleFichier'
-import { ouvrirFenetreFichier, prendreAmorce, prendreCible, useFichierOuvert, viserEdition } from './ouverture'
+import { ouvrirDehors, ouvrirFenetreFichier, prendreAmorce, prendreCible, useFichierOuvert, viserEdition } from './ouverture'
 import { useApercuPdf } from './apercuPdf'
 
 /** La largeur d'un fichier en icône (une feuille et son nom) et d'une carte détaillée, en UG. */
@@ -276,7 +276,7 @@ export function OutilsFichier({ elements, contexte }: PropsOutils<Fichier>) {
 
 export async function ouvrirFichier(c: Fichier, contexte: PropsOutils['contexte']) {
   const a = await contexte.services.fichiers?.adresse(c.fichier)
-  if (a) window.open(a, '_blank', 'noopener,noreferrer')
+  if (a) ouvrirDehors(contexte.services, a, c.nom)
 }
 
 /** L'adresse du fichier, absolue, au presse-papiers ; sans presse-papiers, on ouvre le fichier. */
@@ -287,6 +287,6 @@ export async function copierLienFichier(c: Fichier, contexte: PropsOutils['conte
     await navigator.clipboard.writeText(new URL(a, window.location.href).href)
     annoncer({ texte: t('fichier.lienCopie') })
   } catch {
-    window.open(a, '_blank', 'noopener,noreferrer')
+    ouvrirDehors(contexte.services, a, c.nom)
   }
 }

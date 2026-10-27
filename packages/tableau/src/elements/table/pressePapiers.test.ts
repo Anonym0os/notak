@@ -29,6 +29,13 @@ describe('copier', () => {
 })
 
 describe('lire ce qu’on colle', () => {
+  test('une case qui s’étend sur des millions d’autres ne fige pas la page : le collage s’arrête à ce que Notak tient', () => {
+    const debut = performance.now()
+    const lu = lireCollage('<table><tr><td rowspan="10000" colspan="1000">x</td></tr><tr><td>y</td></tr></table>', '')
+    expect(performance.now() - debut).toBeLessThan(2000)
+    expect(lu.cellules.length * (lu.cellules[0]?.length ?? 0)).toBeLessThanOrEqual(200_000)
+  })
+
   test('nos données font l’aller-retour, avec formats', () => {
     const lu = lireCollage(versHtml(table(), tout), '')
     expect(lu.notak).toBe(true)

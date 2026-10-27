@@ -2,7 +2,7 @@ import { type FormEvent, type ReactNode, useCallback, useEffect, useRef, useStat
 import { Champ, Icone, formaterInstant } from '@notak/tableau'
 import { t } from './langue'
 import { type JetonArrivee, creerJeton, listerJetons, revoquerJeton } from './api'
-import { dansBureau } from './bureau'
+import { estBureau } from './bureau'
 import { PageApp } from './PageApp'
 import { jetonARemplacer, adresseJoignable, etapesRaccourciImage, etapesRaccourciTexte, favori } from './raccourcis'
 
@@ -125,7 +125,7 @@ export function PageEnvoyer({ adresseDeclaree }: { adresseDeclaree?: string }) {
   }
 
   const jeton = neuf?.jeton ?? jetonARemplacer()
-  const bureau = dansBureau()
+  const bureau = estBureau()
   // Ce qu'un iPhone joint ; le favori, lui, tourne sur cet ordinateur et se contente au besoin de l'adresse de la page.
   const adresse = adresseJoignable(adresseDeclaree, location.origin)
 

@@ -1,25 +1,36 @@
 import type { Arrivee, DepotFichiers, EspaceDistant } from '@notak/tableau'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { t } from './langue'
 import { Marque } from './PageApp'
 import { deposerDansAccueil, messageDuDepot } from './deposer'
-import { lireArrivee, oublierArrivee } from './recuDuPartage'
+import { apercuDeLArrivee, lireArrivee, oublierArrivee, origineDuPartage } from './recuDuPartage'
+
+type EtatPartage =
+  | { type: 'cours' }
+  | { type: 'confirmer'; arrivee: Arrivee }
+  | { type: 'annule' }
+  | { type: 'vide' }
+  | { type: 'fini'; message: string; local: boolean }
+  | { type: 'echec' }
 
 /**
  * La page `/partage`, où mène le partage d'une page, d'un texte ou d'images vers Notak : ce qui est arrivé va dans
- * les non triés de l'accueil, puis on rend la main à l'application.
+ * les non triés de l'accueil, puis on rend la main à l'application. Ce qui arrive par l'adresse seule (n'importe quel
+ * lien peut la fabriquer) est d'abord montré : rien n'est posé sans l'accord de la personne.
  */
 export function PagePartage({ espace, fichiers }: { espace: EspaceDistant; fichiers: DepotFichiers }) {
-  const [etat, setEtat] = useState<{ type: 'cours' } | { type: 'vide' } | { type: 'fini'; message: string; local: boolean } | { type: 'echec' }>({ type: 'cours' })
+  const [etat, setEtat] = useState<EtatPartage>({ type: 'cours' })
+  const ouvrir = useRef<HTMLAnchorElement>(null)
+  // Annulé, le bouton disparaît : le focus passe à « Ouvrir Notak » plutôt que de se perdre.
+  useEffect(() => {
+    if (etat.type === 'annule') ouvrir.current?.focus()
+  }, [etat.type])
   // Une seule fois, même quand React monte la page deux fois : poser deux fois ferait des doublons.
   const lance = useRef(false)
-  useEffect(() => {
-    if (lance.current) return
-    lance.current = true
-    void (async () => {
+  const deposer = useCallback(
+    async (arrivee: Arrivee) => {
+      setEtat({ type: 'cours' })
       try {
-        const arrivee = await lireArrivee(location.search)
-        if (!arrivee) return setEtat({ type: 'vide' })
         const depot = await deposerDansAccueil(espace, arrivee, fichiers)
         await oublierArrivee(location.search)
         if (depot.ajoutes === 0) return setEtat({ type: 'vide' })
@@ -27,8 +38,27 @@ export function PagePartage({ espace, fichiers }: { espace: EspaceDistant; fichi
       } catch {
         setEtat({ type: 'echec' })
       }
+    },
+    [espace, fichiers],
+  )
+  useEffect(() => {
+    if (lance.current) return
+    lance.current = true
+    void (async () => {
+      try {
+        const arrivee = await lireArrivee(location.search)
+        if (!arrivee) return setEtat({ type: 'vide' })
+        // Un partage du système a été rangé par notre service worker ; celui de l'adresse peut venir de n'importe où.
+        if (origineDuPartage(location.search) === 'adresse') {
+          // Rien de montrable (des blancs) : rien à demander.
+          return setEtat(Object.keys(apercuDeLArrivee(arrivee)).length > 0 ? { type: 'confirmer', arrivee } : { type: 'vide' })
+        }
+        await deposer(arrivee)
+      } catch {
+        setEtat({ type: 'echec' })
+      }
     })()
-  }, [espace, fichiers])
+  }, [deposer])
 
   // Reçu par le serveur : on rend la main à l'accueil. Gardé ici seulement : on laisse lire.
   useEffect(() => {
@@ -37,6 +67,20 @@ export function PagePartage({ espace, fichiers }: { espace: EspaceDistant; fichi
     return () => clearTimeout(minuteur)
   }, [etat])
 
+  if (etat.type === 'confirmer') {
+    return (
+      <ConfirmationArrivee
+        arrivee={etat.arrivee}
+        ajouter={() => void deposer(etat.arrivee)}
+        annuler={() => {
+          // La fenêtre que le favori a ouverte se referme ; un onglet reste là, avec de quoi aller à Notak.
+          if (window.opener) window.close()
+          setEtat({ type: 'annule' })
+        }}
+      />
+    )
+  }
+
   return (
     <main className="arrivee">
       <div className="arrivee-carte" role="status">
@@ -44,16 +88,67 @@ export function PagePartage({ espace, fichiers }: { espace: EspaceDistant; fichi
         <h1>Notak</h1>
         <p>
           {etat.type === 'cours' && t('arrivee.cours')}
+          {etat.type === 'annule' && t('arrivee.annule')}
           {etat.type === 'vide' && t('arrivee.vide')}
           {etat.type === 'fini' && etat.message}
           {etat.type === 'echec' && t('arrivee.echec')}
         </p>
         {etat.type !== 'cours' && (
-          <a className="bouton bouton-plein" href="/">
+          <a ref={ouvrir} className="bouton bouton-plein" href="/">
             {t('arrivee.ouvrir')}
           </a>
         )}
       </div>
+    </main>
+  )
+}
+
+/** Ce qui est arrivé par un lien, en texte brut (jamais en lien cliquable), et le choix de l'ajouter ou non. */
+function ConfirmationArrivee({ arrivee, ajouter, annuler }: { arrivee: Arrivee; ajouter(): void; annuler(): void }) {
+  const titre = useRef<HTMLHeadingElement>(null)
+  // Le focus va à la question, pas à un bouton : un Entrée distrait n'ajouterait pas ce qu'on n'a pas lu.
+  useEffect(() => titre.current?.focus(), [])
+  const apercu = apercuDeLArrivee(arrivee)
+  const champs = [
+    [t('arrivee.apercu.titre'), apercu.titre],
+    [t('arrivee.apercu.texte'), apercu.texte],
+    [t('arrivee.apercu.adresse'), apercu.adresse],
+  ] as const
+  return (
+    <main className="arrivee">
+      <form
+        className="arrivee-carte"
+        aria-labelledby="arrivee-question"
+        onSubmit={(e) => {
+          e.preventDefault()
+          ajouter()
+        }}
+      >
+        <Marque />
+        <h1>Notak</h1>
+        <h2 id="arrivee-question" ref={titre} tabIndex={-1} className="arrivee-question">
+          {t('arrivee.confirmer.titre')}
+        </h2>
+        <p>{t('arrivee.confirmer')}</p>
+        <dl className="arrivee-apercu">
+          {champs.map(([libelle, valeur]) =>
+            valeur ? (
+              <div key={libelle}>
+                <dt>{libelle}</dt>
+                <dd>{valeur}</dd>
+              </div>
+            ) : null,
+          )}
+        </dl>
+        <div className="arrivee-actions">
+          <button type="submit" className="bouton bouton-plein">
+            {t('arrivee.ajouter')}
+          </button>
+          <button type="button" className="bouton" onClick={annuler}>
+            {t('commun.annuler')}
+          </button>
+        </div>
+      </form>
     </main>
   )
 }

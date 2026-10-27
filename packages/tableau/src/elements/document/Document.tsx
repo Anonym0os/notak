@@ -44,14 +44,19 @@ import { Icone } from '../../icones'
 import { fermerMenus, useMenu } from '../../menuUnique'
 import { exportBranche, ouvrirExport } from '../../export/sujet'
 import { sujetDocument } from './sujetExport'
+import { type ContenuExterne, useContenuExterne, useEtatExterne } from '../contenuExterne'
+import { extensionsExternes } from './externe'
 
 /**
  * Le texte tel que le moteur de blocs le dessine, en lecture seule. Un bloc qu'une version plus récente a
  * écrit se dessine réduit à son texte (docs/NOTION.md § 1).
  */
-const Lu = memo(function Lu({ texte, fils, adresse }: { texte: NoeudTexte; fils?: Fils | undefined; adresse?: Adresse | undefined }) {
+const Lu = memo(function Lu({ texte, fils, adresse, externe }: { texte: NoeudTexte; fils?: Fils | undefined; adresse?: Adresse | undefined; externe?: ContenuExterne | null | undefined }) {
+  // Une toile venue d'une copie reçue : l'image ou le signet d'un autre site attend l'accord, et le texte se redessine quand il vient.
+  const etat = useEtatExterne(externe ?? null)
+  const extensions = useMemo(() => extensionsExternes(EXTENSIONS_BLOCS, externe ?? null, 'lecture'), [externe])
   // Un passage dont le fil n'a aucun message (marqué, rien écrit) ne se souligne pas.
-  const rendu = useMemo(() => renderToReactElement({ content: sansPassagesMuets(degrader(aplatir(texte), SCHEMA), fils), extensions: EXTENSIONS_BLOCS }), [texte, fils])
+  const rendu = useMemo(() => renderToReactElement({ content: sansPassagesMuets(degrader(aplatir(texte), SCHEMA), fils), extensions }), [texte, fils, extensions, etat])
   const racine = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!racine.current) return
@@ -61,11 +66,32 @@ const Lu = memo(function Lu({ texte, fils, adresse }: { texte: NoeudTexte; fils?
     if (adresse) remplirImages(racine.current, adresse)
   }, [rendu, adresse])
   return (
-    <div className="notak-texte notak-blocs" ref={racine}>
+    <div
+      className="notak-texte notak-blocs"
+      ref={racine}
+      // « Afficher », sur la place d'une image ou d'un signet qui attend : le rendu fixe n'a pas de gestionnaire à lui. Le
+      // geste ne glisse ni ne choisit la carte, et, dans un signet (le bouton est dans le lien), n'ouvre pas le lien.
+      onPointerDown={externe ? (e) => void (boutonExterne(e) && e.stopPropagation()) : undefined}
+      onDoubleClick={externe ? (e) => void (boutonExterne(e) && e.stopPropagation()) : undefined}
+      onClick={
+        externe
+          ? (e) => {
+              const bouton = boutonExterne(e)
+              if (!bouton) return
+              e.preventDefault()
+              e.stopPropagation()
+              externe.permettre(bouton.dataset.externe)
+            }
+          : undefined
+      }
+    >
       {rendu}
     </div>
   )
 })
+
+/** Le bouton « Afficher » de la place d'un contenu d'un autre site, si le geste vient de lui. */
+const boutonExterne = (e: React.SyntheticEvent) => (e.target instanceof Element ? e.target.closest<HTMLElement>('button[data-externe]') : null)
 
 /** Le schéma de la note, pour imprimer l'écriture imbriquée. */
 const SCHEMA_NOTE = getSchema(EXTENSIONS_NOTE)
@@ -155,6 +181,8 @@ export function RenduDocument({ element, choisie, enEdition, contexte, brouillon
   // L'icône de la page se voit sur la carte, posée sur la feuille (NOTION.md § 9).
   const icone = pageDe(c.page).icone
   const adresse = useMemo(() => (fichiers ? (id: string) => fichiers.adresse(id) : undefined), [fichiers])
+  // Les images et les signets d'un autre site attendent l'accord, dans une toile venue d'une copie reçue.
+  const externe = useContenuExterne(contexte, element.id)
   // Un texte qu'une version plus récente a écrit ne s'édite pas ici : l'éditeur le viderait (docs/NOTION.md § 1).
   const editable = useMemo(() => lisible(aplatir(c.texte), SCHEMA), [c.texte])
   const nom = (
@@ -191,7 +219,7 @@ export function RenduDocument({ element, choisie, enEdition, contexte, brouillon
                 <p>{t('document.ecrire')}</p>
               </div>
             ) : (
-              <Lu texte={premiersBlocsApercu(c.texte)} adresse={adresse} />
+              <Lu texte={premiersBlocsApercu(c.texte)} adresse={adresse} externe={externe} />
             )}
           </div>
           <div className="notak-document-pied">
@@ -220,9 +248,9 @@ export function RenduDocument({ element, choisie, enEdition, contexte, brouillon
         (editable ? (
           <Grand id={element.id} contenu={c} ecrire={brouillon} finir={contexte.finirEdition} contexte={contexte} />
         ) : (
-          <Lecture contenu={c} fermer={contexte.finirEdition} adresse={adresse} fichiers={fichiers} element={element} plusRecent />
+          <Lecture contenu={c} fermer={contexte.finirEdition} adresse={adresse} fichiers={fichiers} element={element} externe={externe} plusRecent />
         ))}
-      {enLecture && <Lecture contenu={c} fermer={() => setEnLecture(false)} adresse={adresse} fichiers={fichiers} element={element} />}
+      {enLecture && <Lecture contenu={c} fermer={() => setEnLecture(false)} adresse={adresse} fichiers={fichiers} element={element} externe={externe} />}
     </div>
   )
 }
@@ -234,7 +262,7 @@ const premiersBlocsApercu = (doc: NoeudTexte): NoeudTexte => premiersBlocs(aplat
  * « Export » : le dialogue d'export de l'application, s'il y en a un (le même que pour le tableau et la carte, avec
  * l'aperçu des pages) ; sinon le menu du document.
  */
-function BoutonExport(p: { titre: string; lireTexte(): NoeudTexte; adresse?: Adresse | undefined; copie?: CopieDocument | undefined }) {
+function BoutonExport(p: { titre: string; lireTexte(): NoeudTexte; adresse?: Adresse | undefined; copie?: CopieDocument | undefined; externe?: ContenuExterne | null | undefined }) {
   if (!exportBranche()) return <MenuExport titre={p.titre} lireTexte={p.lireTexte} />
   return (
     <div className="notak-note-menu-ancre notak-document-export">
@@ -246,7 +274,7 @@ function BoutonExport(p: { titre: string; lireTexte(): NoeudTexte; adresse?: Adr
         title={t('document.exporter')}
         onClick={() => {
           fermerMenus()
-          ouvrirExport(sujetDocument(p.titre, p.lireTexte, p.adresse, p.copie))
+          ouvrirExport(sujetDocument(p.titre, p.lireTexte, p.adresse, p.copie, p.externe))
         }}
       >
         <Icone nom="exporter" taille={20} trait={1.5} />
@@ -324,6 +352,8 @@ interface PropsModale {
   adresse?: Adresse | undefined
   /** Le document du moment, pour l'export en `.notak`. */
   copie?: CopieDocument | undefined
+  /** Ce que la toile attend avant de charger les images d'autres sites : l'export n'en charge pas non plus. */
+  externe?: ContenuExterne | null | undefined
 }
 
 /** De quoi exporter le document en `.notak` : l'élément tel qu'il est maintenant, et le dépôt de ses images. */
@@ -334,7 +364,7 @@ type CopieDocument = { element(): ElementTableau | null; fichiers?: DepotFichier
  * et de la carte en haut (Ilots.tsx : le retour, le fil ; l'historique, le partage, puis les options, l'export et le
  * compte), puis la page qui défile. Échap referme aussi.
  */
-function Modale({ titre, titreTexte, lireTexte, fermer, children, lecture, corps, page, options, finDePage, editeur, adresse, copie }: PropsModale) {
+function Modale({ titre, titreTexte, lireTexte, fermer, children, lecture, corps, page, options, finDePage, editeur, adresse, copie, externe }: PropsModale) {
   return (
     <Surcouche
       etiquette={t('type.document')}
@@ -367,7 +397,7 @@ function Modale({ titre, titreTexte, lireTexte, fermer, children, lecture, corps
             <IlotPartage />
             <IlotCompte>
               {options}
-              <BoutonExport titre={titreTexte} lireTexte={lireTexte} adresse={adresse} copie={copie} />
+              <BoutonExport titre={titreTexte} lireTexte={lireTexte} adresse={adresse} copie={copie} externe={externe} />
             </IlotCompte>
           </div>
         </header>
@@ -432,6 +462,7 @@ function Lecture({
   adresse,
   fichiers,
   element,
+  externe,
 }: {
   contenu: DocumentTexte
   fermer(): void
@@ -439,11 +470,12 @@ function Lecture({
   adresse?: Adresse | undefined
   fichiers?: DepotFichiers | undefined
   element?: ElementTableau<DocumentTexte>
+  externe?: ContenuExterne | null | undefined
 }) {
   const titre = contenu.titre.trim() || t('commun.sansTitre')
   const page = pageDe(contenu.page)
   return (
-    <Modale lecture titre={<FilDuTitre icone={page.icone} titre={contenu.titre} />} titreTexte={contenu.titre} lireTexte={() => contenu.texte} fermer={fermer} page={page} adresse={adresse} copie={element ? { element: () => element, fichiers } : undefined}>
+    <Modale lecture titre={<FilDuTitre icone={page.icone} titre={contenu.titre} />} titreTexte={contenu.titre} lireTexte={() => contenu.texte} fermer={fermer} page={page} adresse={adresse} copie={element ? { element: () => element, fichiers } : undefined} externe={externe}>
       <EntetePage page={page} changer={() => {}} fichiers={fichiers} lectureSeule>
         <h1 className="notak-page-titre notak-document-titre-lu">{titre}</h1>
       </EntetePage>
@@ -452,7 +484,7 @@ function Lecture({
           {t('document.plusRecent')}
         </p>
       )}
-      <Lu texte={contenu.texte} fils={contenu.fils} adresse={adresse} />
+      <Lu texte={contenu.texte} fils={contenu.fils} adresse={adresse} externe={externe} />
     </Modale>
   )
 }
@@ -502,17 +534,25 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
   const gestes = useRef<GestesBlocs>({ transformerEn: () => {}, derniereCouleur: () => {} })
   const fichiers = contexte.services.fichiers
   const chercherApercu = contexte.services.apercu
+  // Les images et les signets d'un autre site attendent l'accord, dans une toile venue d'une copie reçue.
+  const externe = useContenuExterne(contexte, id)
   // À plusieurs, le texte vit dans le fragment Yjs du document ; lu une fois, à l'entrée en édition (NOTION.md § 9).
   const fragment = useMemo(() => textePartage(contexte, id, initial, SCHEMA), [])
   const extensions = useMemo(
     () => [
-      ...(fragment ? [...EXTENSIONS_BLOCS_PARTAGEE, ...extensionsDuPartage(fragment, contexte)] : EXTENSIONS_BLOCS).map((x) => (x.name === 'image' && fichiers ? ImageBloc.configure({ adresse: (id) => fichiers.adresse(id) }) : x.name === 'apercuLien' && chercherApercu ? ApercuLien.configure({ chercher: chercherApercu }) : x)),
+      ...(fragment ? [...EXTENSIONS_BLOCS_PARTAGEE, ...extensionsDuPartage(fragment, contexte)] : EXTENSIONS_BLOCS).map((x) =>
+        x.name === 'image' && (fichiers || externe)
+          ? ImageBloc.configure({ adresse: fichiers ? (id) => fichiers.adresse(id) : null, externe })
+          : x.name === 'apercuLien' && (chercherApercu || externe)
+            ? ApercuLien.configure({ chercher: chercherApercu ?? null, externe })
+            : x,
+      ),
       Invite,
       extensionPropositions(pont),
       extensionSlash(pontMenu),
       raccourcisBlocs(gestes),
     ],
-    [fichiers, chercherApercu, fragment],
+    [fichiers, chercherApercu, externe, fragment],
   )
   const editeur = useEditor({
     extensions,
@@ -642,6 +682,7 @@ function Grand({ id, contenu, ecrire, finir, contexte }: { id: Id; contenu: Docu
       page={page}
       editeur={editeur}
       adresse={fichiers ? (id) => fichiers.adresse(id) : undefined}
+      externe={externe}
       copie={{
         // L'élément tel qu'il est écrit, avec le titre et le texte de l'éditeur : le brouillon n'est peut-être pas encore passé.
         element: () => {

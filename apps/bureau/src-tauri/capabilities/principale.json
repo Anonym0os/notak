@@ -1,8 +1,29 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "principale",
-  "description": "Les droits de la page : déplacer la fenêtre par l'en-tête, l'agrandir d'un double clic, enregistrer un export là où la personne le choisit, lire les fichiers choisis par Fichier › Importer…, et photographier la fenêtre pour un signalement.",
+  "description": "Les droits de l'application embarquée, et d'elle seule (aucune adresse distante) : déplacer la fenêtre par l'en-tête, l'agrandir d'un double clic, enregistrer un export ou une copie là où la personne le choisit, lire les fichiers choisis par Fichier › Importer…, demander puis poser une mise à jour signée, lire et changer les réglages de la coque (joindre un serveur Notak, en revenir, l'oublier, où s'ouvre Notak, la recherche des mises à jour), ouvrir une pièce jointe dans son application, recevoir une copie .notak ouverte depuis le système, en confier une au serveur qu'on va joindre, et écouter l'arrivée de ces fichiers. Les pages du serveur choisi reçoivent leur propre capacité, plus étroite (src/acces.rs).",
   "windows": ["principale"],
-  "remote": { "urls": ["http://localhost:*", "https://*"] },
-  "permissions": ["core:window:allow-start-dragging", "core:window:allow-internal-toggle-maximize", "allow-choisir-emplacement", "allow-ecrire-fichier", "allow-lire-fichier-choisi", "allow-capturer-fenetre"]
+  "permissions": [
+    "core:window:allow-start-dragging",
+    "core:window:allow-internal-toggle-maximize",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "allow-choisir-emplacement",
+    "allow-ecrire-fichier",
+    "allow-lire-fichier-choisi",
+    "allow-preparer-mise-a-jour",
+    "allow-installer-mise-a-jour",
+    "allow-acces",
+    "allow-joindre-serveur",
+    "allow-revenir-ici",
+    "allow-oublier-serveur",
+    "allow-regler-maj-auto",
+    "allow-regler-ouverture",
+    "allow-ouvrir-fichier",
+    "allow-fichiers-ouverts",
+    "allow-lire-fichier-ouvert",
+    "allow-ecarter-fichier-ouvert",
+    "allow-annuler-jonction",
+    "allow-confier-copie"
+  ]
 }

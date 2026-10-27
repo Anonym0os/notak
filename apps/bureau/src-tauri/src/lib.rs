@@ -1,128 +1,148 @@
-/// Notak de bureau n'est qu'une fenêtre : l'application web, servie par le serveur de Notak, vit dans la
-/// fenêtre déclarée dans `tauri.conf.json` (adresse dans `build.frontendDist`). Aucune donnée n'est gardée ici.
+/// Notak de bureau : l'édition locale de Notak (`apps/web`, construite avec `VITE_EDITION=locale`), embarquée dans
+/// l'application. Pas de compte ni de serveur : les tableaux vivent sur l'ordinateur, dans le stockage de la fenêtre,
+/// et la page ne joint que ce que permet sa CSP (`tauri.conf.json`, tirée de `packages/tableau/src/securite.ts`).
+/// La personne peut aussi choisir, dans l'app, un serveur Notak (`acces.rs`) : la fenêtre va alors sur ses pages.
 ///
-/// Seule exception, l'export : la webview de macOS ne télécharge rien, alors la page demande à la coque la fenêtre
-/// « Enregistrer sous », puis lui confie les octets. La coque n'écrit qu'au chemin que la personne vient de choisir.
-/// Et le signalement d'un bug (⌥⌘S) : la coque photographie la page telle qu'elle est peinte (`capturer_fenetre`).
-/// Et l'import : Fichier › Importer… (⌘O) ouvre la fenêtre « Ouvrir » du système, puis la page lit, un à un, les
-/// fichiers que la personne vient de choisir (`lire_fichier_choisi`), et seulement ceux-là.
+/// La coque n'ajoute à la page que ce qu'une page ne sait pas faire seule :
+/// - enregistrer un fichier là où la personne le choisit (un export, une copie `.notak`) : la webview de macOS ne
+///   télécharge rien ; la coque n'écrit qu'au chemin que la personne vient de choisir ;
+/// - ouvrir une pièce jointe dans son application, recevoir une copie `.notak` ouverte depuis le système
+///   (`fichiers.rs`) ;
+/// - joindre un serveur Notak, et en revenir (`acces.rs`), avec des réglages à elle (`reglages.rs`) ;
+/// - se mettre à jour (`mise_a_jour.rs`), de versions signées seulement ;
+/// - garder la fenêtre chez elle (`navigation.rs`) : un lien vers un autre site s'ouvre dans le navigateur.
+/// - lire les fichiers choisis par Fichier › Importer… (⌘O, `menu.rs`), un à un, et seulement ceux-là ;
+/// Et, pour la page d'un serveur, photographier la fenêtre pour un signalement (`capturer_fenetre`).
+///
+/// Chaque commande vérifie qui l'appelle (`appel::exiger`) : la page embarquée, la page du serveur choisi, et personne
+/// d'autre ; celles qui choisissent un serveur ou règlent la coque ne servent que la page embarquée.
+mod acces;
+mod appel;
+mod fichiers;
+mod menu;
+mod mise_a_jour;
+mod navigation;
+mod reglages;
+
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, PoisonError};
+use std::time::{Duration, Instant};
 
-use tauri::ipc::{InvokeBody, Request};
-use tauri::menu::{Menu, MenuEvent, MenuItemBuilder, SubmenuBuilder};
-use tauri::{AppHandle, Manager, State};
+use tauri::ipc::Request;
+use tauri::webview::{NewWindowResponse, PageLoadEvent};
+use tauri::{AppHandle, Manager, RunEvent, State, Webview, WebviewWindowBuilder};
 use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_opener::OpenerExt;
 
-/// Le chemin choisi dans la dernière fenêtre « Enregistrer sous », en attente de ses octets.
+use acces::Acces;
+use appel::{exiger, octets, Cadence, LOCALE_OU_SERVEUR, REFUSE};
+use fichiers::Ouverts;
+use navigation::Appelant;
+use mise_a_jour::MisesAJour;
+use navigation::{racine_locale, vers_dehors, Origines, ServeurCourant};
+use reglages::Reglage;
+
+/// Les chemins choisis dans la fenêtre « Enregistrer sous » : celui d'un export attend ses octets une seule fois ;
+/// celui de la copie `.notak` reste, pour que ⌘S la réécrive sans redemander, jusqu'à ce qu'on en choisisse un autre.
+/// Ils ne valent que pour la page qui les a choisis : changer de page (`acces.rs`) les oublie.
 #[derive(Default)]
-struct Emplacement(Mutex<Option<PathBuf>>);
+pub(crate) struct Emplacements {
+    export: Mutex<Option<PathBuf>>,
+    copie: Mutex<Option<PathBuf>>,
+    /// Les fichiers choisis par Fichier › Importer…, que la page vient lire.
+    pub(crate) choisis: Mutex<Vec<PathBuf>>,
+}
 
-/// Les fichiers choisis par Fichier › Importer…, que la page vient lire.
-#[derive(Default)]
-struct Choisis(Mutex<Vec<PathBuf>>);
+impl Emplacements {
+    pub(crate) fn vider(&self) {
+        *self.export.lock().unwrap_or_else(PoisonError::into_inner) = None;
+        *self.copie.lock().unwrap_or_else(PoisonError::into_inner) = None;
+        self.choisis.lock().unwrap_or_else(PoisonError::into_inner).clear();
+    }
+}
 
-/// Ouvre la fenêtre « Enregistrer sous » ; rend le nom du fichier choisi, ou rien si la personne a annulé.
+/// L'en-tête qui dit à `ecrire_fichier` quel chemin prendre : `copie`, sinon celui de l'export.
+const USAGE: &str = "x-notak-usage";
+
+/// Ouvre la fenêtre « Enregistrer sous » ; rend le nom du fichier choisi, ou rien si la personne a annulé. `garder` :
+/// c'est l'emplacement de la copie, qu'on réécrira. Sans extension, la fenêtre ne filtre rien.
 #[tauri::command]
 async fn choisir_emplacement(
     app: AppHandle,
-    emplacement: State<'_, Emplacement>,
+    webview: Webview,
+    garde: State<'_, Origines>,
+    emplacements: State<'_, Emplacements>,
     nom: String,
     extension: String,
     description: String,
+    garder: Option<bool>,
 ) -> Result<Option<String>, String> {
-    let chemin = app
-        .dialog()
-        .file()
-        .set_file_name(&nom)
-        .add_filter(&description, &[extension.as_str()])
-        .blocking_save_file()
-        .and_then(|c| c.into_path().ok());
-    let nom = chemin.as_ref().and_then(|c| c.file_name()).map(|n| n.to_string_lossy().into_owned());
-    *emplacement.0.lock().map_err(|e| e.to_string())? = chemin;
+    exiger(&webview, &garde, LOCALE_OU_SERVEUR).map_err(|_| REFUSE.to_string())?;
+    let mut fenetre = app.dialog().file().set_file_name(&nom);
+    if !extension.is_empty() {
+        fenetre = fenetre.add_filter(&description, &[extension.as_str()]);
+    }
+    let chemin = fenetre.blocking_save_file().and_then(|c| c.into_path().ok());
+    let Some(chemin) = chemin else { return Ok(None) };
+    let nom = chemin.file_name().map(|n| n.to_string_lossy().into_owned());
+    let place = if garder == Some(true) { &emplacements.copie } else { &emplacements.export };
+    *place.lock().map_err(|e| e.to_string())? = Some(chemin);
     Ok(nom)
 }
 
-/// Écrit les octets reçus (le corps brut de l'appel) au chemin choisi juste avant, une seule fois.
+/// Écrit les octets reçus (le corps de l'appel) au chemin choisi juste avant : celui d'un export, une seule fois, ou
+/// celui de la copie. L'écriture passe par un fichier voisin, posé d'un coup : un enregistrement coupé en route ne
+/// laisse jamais une copie à moitié écrite à la place de la bonne. Pour la page d'un serveur, le fichier est marqué
+/// comme venu d'Internet, comme un téléchargement : un programme qu'elle aurait fait enregistrer ne se lance pas sans
+/// l'avertissement du système.
 #[tauri::command]
-fn ecrire_fichier(requete: Request<'_>, emplacement: State<'_, Emplacement>) -> Result<(), String> {
-    let InvokeBody::Raw(octets) = requete.body() else {
-        return Err("octets attendus".into());
-    };
-    let chemin = emplacement.0.lock().map_err(|e| e.to_string())?.take().ok_or("aucun emplacement choisi")?;
-    std::fs::write(&chemin, octets).map_err(|e| e.to_string())
-}
-
-/// Les octets du `index`-ième fichier choisi par Fichier › Importer… ; rien d'autre sur le disque.
-#[tauri::command]
-fn lire_fichier_choisi(index: usize, choisis: State<'_, Choisis>) -> Result<tauri::ipc::Response, String> {
-    let chemin = choisis.0.lock().map_err(|e| e.to_string())?.get(index).cloned().ok_or("aucun fichier choisi à ce rang")?;
-    std::fs::read(&chemin).map(tauri::ipc::Response::new).map_err(|e| e.to_string())
-}
-
-/// Le menu de la barre du Mac, en français : celui de Tauri, plus Fichier › Importer….
-fn menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
-    let importer = MenuItemBuilder::with_id("importer", "Importer…").accelerator("CmdOrCtrl+O").build(app)?;
-    let notak = SubmenuBuilder::new(app, "Notak")
-        .about_with_text("À propos de Notak", None)
-        .separator()
-        .services_with_text("Services")
-        .separator()
-        .hide_with_text("Masquer Notak")
-        .hide_others_with_text("Masquer les autres")
-        .show_all_with_text("Tout afficher")
-        .separator()
-        .quit_with_text("Quitter Notak")
-        .build()?;
-    let fichier = SubmenuBuilder::new(app, "Fichier").item(&importer).separator().close_window_with_text("Fermer la fenêtre").build()?;
-    let edition = SubmenuBuilder::new(app, "Édition")
-        .undo_with_text("Annuler")
-        .redo_with_text("Rétablir")
-        .separator()
-        .cut_with_text("Couper")
-        .copy_with_text("Copier")
-        .paste_with_text("Coller")
-        .select_all_with_text("Tout sélectionner")
-        .build()?;
-    let presentation = SubmenuBuilder::new(app, "Présentation").fullscreen_with_text("Plein écran").build()?;
-    let fenetre = SubmenuBuilder::new(app, "Fenêtre").minimize_with_text("Réduire").maximize_with_text("Zoom").build()?;
-    Menu::with_items(app, &[&notak, &fichier, &edition, &presentation, &fenetre])
-}
-
-/// Fichier › Importer… : la fenêtre « Ouvrir » du système, plusieurs fichiers au choix ; la page apprend leurs noms
-/// par l'événement `notak:fichiers-choisis` et vient lire leurs octets.
-fn sur_menu(app: &AppHandle, evenement: MenuEvent) {
-    if evenement.id() != "importer" {
-        return;
+async fn ecrire_fichier(webview: Webview, garde: State<'_, Origines>, requete: Request<'_>, emplacements: State<'_, Emplacements>) -> Result<(), String> {
+    let appelant = exiger(&webview, &garde, LOCALE_OU_SERVEUR).map_err(|_| REFUSE.to_string())?;
+    let octets = octets(requete.body()).map_err(|_| "octets attendus".to_string())?;
+    let copie = requete.headers().get(USAGE).is_some_and(|v| v == "copie");
+    let chemin = if copie {
+        emplacements.copie.lock().map_err(|e| e.to_string())?.clone()
+    } else {
+        emplacements.export.lock().map_err(|e| e.to_string())?.take()
     }
-    let app = app.clone();
-    app.dialog().file().set_title("Importer dans Notak").pick_files(move |choix| {
-        let chemins: Vec<PathBuf> = choix.unwrap_or_default().into_iter().filter_map(|c| c.into_path().ok()).collect();
-        if chemins.is_empty() {
-            return;
-        }
-        let noms: Vec<String> = chemins.iter().map(|c| c.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()).collect();
-        if let Ok(mut choisis) = app.state::<Choisis>().0.lock() {
-            *choisis = chemins;
-        }
-        let Some(fenetre) = app.get_webview_window("principale") else { return };
-        let noms = serde_json::to_string(&noms).unwrap_or_else(|_| "[]".into());
-        let _ = fenetre.eval(format!("window.dispatchEvent(new CustomEvent('notak:fichiers-choisis', {{ detail: {noms} }}))"));
-    });
+    .ok_or("aucun emplacement choisi")?;
+    // Un voisin à soi : deux écritures rapprochées vers le même chemin ne partagent pas leur fichier provisoire.
+    static SUIVANT: AtomicU64 = AtomicU64::new(0);
+    let mut provisoire = chemin.clone().into_os_string();
+    provisoire.push(format!(".{}-{}.notak-tmp", std::process::id(), SUIVANT.fetch_add(1, Ordering::Relaxed)));
+    let provisoire = PathBuf::from(provisoire);
+    std::fs::write(&provisoire, &octets).and_then(|_| std::fs::rename(&provisoire, &chemin)).map_err(|e| {
+        let _ = std::fs::remove_file(&provisoire);
+        e.to_string()
+    })?;
+    if appelant == Appelant::Serveur {
+        fichiers::marquer_venu_d_internet(&chemin);
+    }
+    Ok(())
+}
+
+/// Les octets du `index`-ième fichier choisi par Fichier › Importer… (`menu.rs`) ; rien d'autre sur le disque.
+#[tauri::command]
+fn lire_fichier_choisi(webview: Webview, garde: State<'_, Origines>, emplacements: State<'_, Emplacements>, index: usize) -> Result<tauri::ipc::Response, String> {
+    exiger(&webview, &garde, LOCALE_OU_SERVEUR).map_err(|_| REFUSE.to_string())?;
+    let chemin = emplacements.choisis.lock().map_err(|e| e.to_string())?.get(index).cloned().ok_or("aucun fichier choisi à ce rang")?;
+    std::fs::read(&chemin).map(tauri::ipc::Response::new).map_err(|e| e.to_string())
 }
 
 /// La page telle qu'on la voit, en PNG, par `takeSnapshot` du WKWebView : l'image peinte, au pixel près, là où la
 /// recopie du DOM (html-to-image) déforme ce que WebKit rend mal. Aucune autorisation d'enregistrement de l'écran :
-/// la vue ne photographie qu'elle-même.
+/// la vue ne photographie qu'elle-même. Pour la page d'un serveur seulement : c'est là qu'on signale un bug.
 #[cfg(target_os = "macos")]
 #[tauri::command]
-async fn capturer_fenetre(fenetre: tauri::WebviewWindow) -> Result<tauri::ipc::Response, String> {
+async fn capturer_fenetre(fenetre: tauri::WebviewWindow, webview: Webview, garde: State<'_, Origines>) -> Result<tauri::ipc::Response, String> {
     use block2::RcBlock;
     use objc2_app_kit::{NSBitmapImageFileType, NSBitmapImageRep, NSImage};
     use objc2_foundation::{NSDictionary, NSError};
     use objc2_web_kit::WKWebView;
     use std::sync::mpsc;
 
+    exiger(&webview, &garde, appel::SERVEUR).map_err(|_| REFUSE.to_string())?;
     let (envoi, reception) = mpsc::channel::<Result<Vec<u8>, String>>();
     fenetre
         .with_webview(move |vue| {
@@ -148,21 +168,151 @@ async fn capturer_fenetre(fenetre: tauri::WebviewWindow) -> Result<tauri::ipc::R
     Ok(tauri::ipc::Response::new(png))
 }
 
+/// Combien d'adresses la page envoie coup sur coup vers le navigateur ou la messagerie, sans commande (un lien, un
+/// `window.open`) : la webview n'a pas de bloqueur de fenêtres, une page qui s'emballe n'en ouvre pas des dizaines.
+const DEHORS_MAX: usize = 3;
+const DEHORS_DUREE: Duration = Duration::from_secs(10);
+
+/// Ouvre une adresse du monde (le web, un courriel) dans l'application de la personne : son navigateur, sa messagerie.
+fn ouvrir_dehors(app: &AppHandle, cadence: &Cadence, url: &tauri::Url) {
+    if !vers_dehors(url) {
+        return;
+    }
+    if !cadence.permise(Instant::now()) {
+        eprintln!("Notak : trop d'adresses ouvertes coup sur coup, {url} ne s'ouvre pas");
+        return;
+    }
+    if let Err(e) = app.opener().open_url(url.as_str(), None::<&str>) {
+        eprintln!("Notak : impossible d'ouvrir {url} ({e})");
+    }
+}
+
+/// La fenêtre de Notak, déclarée dans `tauri.conf.json` mais créée ici, pour la garder chez elle : elle ne va que
+/// sur l'application, le serveur choisi et leurs lecteurs intégrés ; une nouvelle fenêtre demandée par un lien
+/// (`target="_blank"`, `window.open`) s'ouvre dans le navigateur, jamais dans Notak.
+fn ouvrir_fenetre(app: &AppHandle, origines: Origines) -> tauri::Result<()> {
+    let config = app.config();
+    let Some(fenetre) = config.app.windows.iter().find(|f| f.label == "principale") else {
+        return Ok(());
+    };
+    let pour_navigation = app.clone();
+    let pour_fenetres = app.clone();
+    let cadence = Arc::new(Cadence::new(DEHORS_MAX, DEHORS_DUREE));
+    let cadence_fenetres = cadence.clone();
+    WebviewWindowBuilder::from_config(app, fenetre)?
+        .on_navigation(move |url| {
+            if origines.permise(url) {
+                return true;
+            }
+            // Un courriel ou un numéro ne se charge pas dans un cadre : c'est un lien cliqué, il part vers le système.
+            // Une page web refusée, elle, peut venir d'un cadre : on ne l'ouvre pas dans le dos de la personne.
+            if matches!(url.scheme(), "mailto" | "tel") {
+                ouvrir_dehors(&pour_navigation, &cadence, url);
+            }
+            false
+        })
+        .on_new_window(move |url, _| {
+            ouvrir_dehors(&pour_fenetres, &cadence_fenetres, &url);
+            NewWindowResponse::Deny
+        })
+        .on_page_load(move |fenetre, chargement| {
+            match chargement.event() {
+                PageLoadEvent::Started => acces::page_chargee(fenetre.app_handle(), chargement.url()),
+                PageLoadEvent::Finished if chargement.url().as_str() == "about:blank" => acces::page_vide_chargee(fenetre.app_handle()),
+                PageLoadEvent::Finished => {}
+            }
+        })
+        .build()?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    // Le moteur cryptographique des clients HTTP (`acces.rs`, les mises à jour), avant qu'aucun ne se construise.
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let contexte = tauri::generate_context!();
+    // Seule une construction publiée porte la clé publique et l'adresse des mises à jour (`tauri.publication.json`).
+    let mises_a_jour = contexte.config().plugins.0.contains_key("updater");
+    // L'instance unique d'abord : une seconde Notak passe ses fichiers à la première et s'arrête là.
+    let mut constructeur = tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, arguments, dossier| {
+            fichiers::recevoir(app, fichiers::chemins_de_la_ligne(arguments, std::path::Path::new(&dossier)));
+            if let Some(f) = app.get_webview_window("principale") {
+                let _ = f.unminimize();
+                let _ = f.show();
+                let _ = f.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_dialog::init())
-        .manage(Emplacement::default())
-        .manage(Choisis::default())
-        .menu(menu)
-        .on_menu_event(sur_menu)
+        // Sans son script, qui enverrait les liens `target="_blank"` vers une commande qu'aucune capacité ne permet :
+        // ils passent par `on_new_window`, comme le reste.
+        .plugin(tauri_plugin_opener::Builder::new().open_js_links_on_click(false).build());
+    if mises_a_jour {
+        constructeur = constructeur.plugin(tauri_plugin_updater::Builder::new().build());
+    }
+    #[cfg(target_os = "macos")]
+    {
+        constructeur = constructeur.menu(menu::menu).on_menu_event(menu::choisi);
+    }
+    constructeur
+        .manage(Emplacements::default())
+        .manage(acces::Passage::default())
+        .manage(MisesAJour::new(mises_a_jour))
+        .manage(Ouverts::default())
+        .manage(fichiers::Ouvertures::default())
+        .setup(|app| {
+            let app = app.handle();
+            fichiers::vider_les_ouverts(app);
+            let reglage = Reglage::new(app.path().app_config_dir().ok().map(|d| d.join("bureau.json")));
+            // Un seul serveur courant, partagé par les réglages d'accès et la garde de navigation.
+            let serveur = ServeurCourant::default();
+            app.manage(Acces::new(reglage, racine_locale(app.config()), serveur.clone()));
+            let origines = Origines::de(app.config(), serveur);
+            app.manage(origines.clone());
+            ouvrir_fenetre(app, origines)?;
+            // Sous Windows et Linux, un fichier ouvert depuis le système arrive en argument ; macOS l'envoie à part
+            // (`RunEvent::Opened`).
+            #[cfg(not(target_os = "macos"))]
+            if let Ok(dossier) = std::env::current_dir() {
+                fichiers::recevoir(app, fichiers::chemins_de_la_ligne(std::env::args_os().map(|a| a.to_string_lossy().into_owned()), &dossier));
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             choisir_emplacement,
             ecrire_fichier,
             lire_fichier_choisi,
+            acces::acces,
+            acces::joindre_serveur,
+            acces::revenir_ici,
+            acces::oublier_serveur,
+            acces::regler_maj_auto,
+            acces::regler_ouverture,
+            fichiers::ouvrir_fichier,
+            fichiers::fichiers_ouverts,
+            fichiers::lire_fichier_ouvert,
+            fichiers::ecarter_fichier_ouvert,
+            acces::annuler_jonction,
+            acces::ouvrir_dans_le_navigateur,
+            fichiers::confier_copie,
+            mise_a_jour::preparer_mise_a_jour,
+            mise_a_jour::installer_mise_a_jour,
             #[cfg(target_os = "macos")]
             capturer_fenetre
         ])
-        .run(tauri::generate_context!())
-        .expect("Notak n'a pas pu ouvrir sa fenêtre");
+        .build(contexte)
+        .expect("Notak n'a pas pu ouvrir sa fenêtre")
+        .run(|app, evenement| match evenement {
+            // Une boîte d'accord encore ouverte ne doit pas valoir oui pendant que Notak se ferme.
+            RunEvent::ExitRequested { .. } => app.state::<fichiers::Ouvertures>().finir(),
+            RunEvent::Exit => {
+                app.state::<fichiers::Ouvertures>().finir();
+                mise_a_jour::poser_en_partant(&app.state::<MisesAJour>())
+            }
+            // Un double clic sur une copie `.notak` dans le Finder, peut-être avant que la fenêtre n'existe : la file
+            // l'attend, et la page la lira en arrivant.
+            #[cfg(target_os = "macos")]
+            RunEvent::Opened { urls } => fichiers::recevoir(app, fichiers::chemins_des_adresses(&urls)),
+            _ => {}
+        });
 }

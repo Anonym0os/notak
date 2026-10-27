@@ -55,6 +55,14 @@ export function activerInvitations(base: Base, utilisateur: Utilisateur, mainten
 }
 
 /**
+ * Les admins du serveur (`NOTAK_ADMINS`, des adresses séparées par des virgules). Être admin du serveur ne donne aucun
+ * droit sur les tableaux ni sur les espaces : seulement de voir ce qui regarde l'instance (une mise à jour à faire).
+ */
+export function adminsDe(valeur: string | undefined): string[] {
+  return [...new Set((valeur ?? '').split(',').map(normaliserEmail).filter(Boolean))]
+}
+
+/**
  * Donne au compte qui vient de naître son espace personnel et son tableau d'accueil, qui en est la racine, et active
  * les invitations en attente pour son adresse, si elle est vérifiée (un fournisseur qui la garantit).
  */

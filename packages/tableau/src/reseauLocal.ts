@@ -2,6 +2,7 @@ import { IndexeddbPersistence } from 'y-indexeddb'
 import * as Y from 'yjs'
 import type { Connexion, Reseau } from './coeur/espaceDistant'
 import { ORIGINE_DOSSIER } from './dossier/coffre'
+import { idReserve } from './coeur/idsReserves'
 import { type IndexEspace, creerIndexEspace } from './coeur/indexEspace'
 import type { Id } from './coeur/tableau'
 
@@ -40,6 +41,9 @@ export interface OptionsReseauLocal {
 
 /** Garde un document dans IndexedDB et le relie aux autres onglets. Rend la persistance et de quoi tout arrêter. */
 function garder(prefixe: string, id: Id, doc: Y.Doc, index: IndexEspace) {
+  // Un nom réservé (`/t/fichiers`, une copie trafiquée) n'ouvre jamais une base de l'espace : le document reste en
+  // mémoire, vide, et rien ne s'écrit.
+  if (idReserve(id)) return { persistance: { whenSynced: Promise.resolve() }, arreter: () => {} }
   const persistance = new IndexeddbPersistence(NOM_BASE(prefixe, id), doc)
   // y-indexeddb n'écrit qu'une fois sa base ouverte (il y range alors tout l'état du document) : fermé avant, il
   // perdrait ce qu'on vient d'écrire. On ne le ferme donc qu'une fois chargé, même si le document part avant.

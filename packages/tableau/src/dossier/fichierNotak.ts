@@ -1,4 +1,8 @@
-import { deflateSync, inflateSync } from 'fflate'
+import { deflateSync } from 'fflate'
+import { gonfler } from '../coeur/dezipper'
+
+/** Ce qu'un fichier du dossier peut contenir une fois déplié : les mises à jour de quelques tableaux, compactées. */
+const CHARGE_MAX = 256 * 1024 * 1024
 
 /**
  * Un fichier du dossier Notak : des mises à jour Yjs, chacune pour un tableau.
@@ -78,7 +82,9 @@ export async function decoderFichier(octets: Uint8Array): Promise<FichierNotak |
   const genre = GENRES[octets[MAGIE.length + 1]!]
   if (!genre) return null
   try {
-    const charge = inflateSync(sansPied.subarray(MAGIE.length + 2))
+    // Écrit par un autre appareil, peut-être par quelqu'un d'autre : déplié sous une borne, il ne fait jamais tomber
+    // l'onglet (ce qui recommencerait à chaque tour, le fichier restant à lire).
+    const charge = gonfler(sansPied.subarray(MAGIE.length + 2), CHARGE_MAX)
     const v = new DataView(charge.buffer, charge.byteOffset, charge.byteLength)
     const n = v.getUint32(0)
     const enregistrements: Enregistrement[] = []
