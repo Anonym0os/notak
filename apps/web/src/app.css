@@ -4202,3 +4202,143 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   opacity: 0.45;
   cursor: default;
 }
+
+/*
+ * La bibliothèque de l'édition locale, au doigt (local/BibliothequeLocale.tsx) : un écran de téléphone posé sur la
+ * toile ouverte. Un grand titre, la recherche, de quoi créer, puis les toiles de l'appareil en grille de deux (trois et
+ * plus quand la place le permet), comme les tableaux de Savee ou les projets de CapCut.
+ */
+.biblio-locale {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: block;
+  box-sizing: border-box;
+  height: auto;
+  padding: calc(var(--notak-zone-haut, 0px) + 12px) calc(var(--notak-zone-droite, 0px) + 16px) calc(var(--notak-zone-bas, 0px) + 24px)
+    calc(var(--notak-zone-gauche, 0px) + 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--notak-fond);
+  color: var(--notak-texte);
+  -webkit-overflow-scrolling: touch;
+}
+
+.biblio-locale-entete {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.biblio-locale-entete h1 {
+  margin: 8px 0 0;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.biblio-locale-recherche {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--notak-texte) 7%, transparent);
+  color: color-mix(in srgb, var(--notak-texte) 55%, transparent);
+}
+
+.biblio-locale-recherche input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--notak-texte);
+  /* 16 px : en dessous, Safari agrandirait la page au toucher du champ. */
+  font: inherit;
+  font-size: 16px;
+  outline: none;
+}
+
+.biblio-locale-neuf {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.biblio-locale-neuf button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 64px;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--notak-carte);
+  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.06);
+  color: var(--notak-texte);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.biblio-locale-neuf button:active,
+.biblio-locale-tuile:active .biblio-vignette {
+  transform: scale(0.97);
+  transition: transform 0.1s ease;
+}
+
+.biblio-locale-rubrique h2 {
+  margin: 0 0 10px;
+  color: color-mix(in srgb, var(--notak-texte) 60%, transparent);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.biblio-locale-grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 20px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.biblio-locale-tuile {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.biblio-locale-titre {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.biblio-locale-detail {
+  overflow: hidden;
+  color: color-mix(in srgb, var(--notak-texte) 55%, transparent);
+  font-size: 13px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.biblio-locale-vide {
+  color: color-mix(in srgb, var(--notak-texte) 60%, transparent);
+}

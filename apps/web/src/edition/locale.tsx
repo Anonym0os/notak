@@ -26,6 +26,7 @@ import { type EspaceLocal, espaceLocal, exportLocal, rechercherLocalement } from
 import { fichiersLocaux } from '../local/fichiers'
 import { PageDiagnostic } from '../ios/PageDiagnostic'
 import { Rangement } from '../local/Rangement'
+import { BibliothequeLocale, noterVu } from '../local/BibliothequeLocale'
 import { initialiserSynchro } from '../local/synchro'
 import { useBandeau } from '../bandeaux'
 
@@ -92,6 +93,29 @@ function Espace({ el }: { el: EspaceLocal }) {
   /** Le tableau ouvert, pour y ranger ce qu'on rouvre. */
   const courant = useRef<Id>(index.racine())
   const ouvrirTableau = useRef<(id: Id) => void>(() => {})
+
+  // Au doigt, la bibliothèque des toiles de l'appareil (`/toiles`), posée sur la toile ouverte : le retour y ramène.
+  const avecBibliotheque = estMobile() || auDoigt()
+  const [biblio, setBiblio] = useState(() => avecBibliotheque && location.pathname === '/toiles')
+  useEffect(() => {
+    if (!avecBibliotheque) return
+    const suivre = () => setBiblio(location.pathname === '/toiles')
+    window.addEventListener('popstate', suivre)
+    return () => window.removeEventListener('popstate', suivre)
+  }, [avecBibliotheque])
+  const allerBibliotheque = useCallback(() => {
+    history.pushState(null, '', '/toiles')
+    setBiblio(true)
+  }, [])
+  const ouvrirDepuisBibliotheque = useCallback(
+    (id: Id) => {
+      setBiblio(false)
+      // La toile déjà ouverte dessous ne change pas : seule l'adresse le redit.
+      if (id === courant.current) history.pushState(null, '', id === index.racine() ? '/' : `/t/${encodeURIComponent(id)}`)
+      else ouvrirTableau.current(id)
+    },
+    [index],
+  )
 
   const services = useMemo<Services>(
     () => ({
@@ -225,6 +249,7 @@ function Espace({ el }: { el: EspaceLocal }) {
         services={services}
         adresse={adresse}
         enregistrer={() => void enregistrer()}
+        {...(avecBibliotheque ? { bibliotheque: allerBibliotheque } : {})}
         actions={(ici, ouvrir, _aide) => {
           courant.current = ici
           ouvrirTableau.current = ouvrir
@@ -241,6 +266,7 @@ function Espace({ el }: { el: EspaceLocal }) {
           )
         }}
       />
+      {biblio && <BibliothequeLocale el={el} ouvrir={ouvrirDepuisBibliotheque} />}
       <Accueil el={el} />
       <BandeauRecu index={index} tableau={ouvert} />
       <BandeauMiseAJour />
@@ -258,7 +284,10 @@ function Espace({ el }: { el: EspaceLocal }) {
 
 /** Dit à l'application quel tableau est ouvert : `actions` ne reçoit que cela, pendant le rendu de la toile. */
 function SuiviTableau({ tableau, vers }: { tableau: Id; vers(id: Id): void }) {
-  useEffect(() => vers(tableau), [tableau, vers])
+  useEffect(() => {
+    vers(tableau)
+    noterVu(tableau)
+  }, [tableau, vers])
   return null
 }
 

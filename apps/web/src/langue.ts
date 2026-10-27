@@ -140,6 +140,7 @@ export const fr: Textes = {
   'compte.bibliotheque.detail': 'Toiles, cartes, documents',
 
   'biblio.titre': 'Bibliothèque',
+  'biblio.surAppareil': 'Sur cet appareil',
   'biblio.nouveau': 'Nouveau',
   'biblio.mesContenus': 'Mes contenus',
   'biblio.maToile': 'Ma toile d’accueil',
@@ -1034,6 +1035,7 @@ export const en: Textes = {
   'compte.bibliotheque.detail': 'Boards, maps, documents',
 
   'biblio.titre': 'Library',
+  'biblio.surAppareil': 'On this device',
   'biblio.nouveau': 'New',
   'biblio.mesContenus': 'My content',
   'biblio.maToile': 'My home board',
