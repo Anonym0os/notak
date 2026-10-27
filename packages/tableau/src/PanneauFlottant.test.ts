@@ -23,6 +23,14 @@ describe('placer un panneau accroché à sa cible', () => {
     expect(p.fleche).toBe(32 - 10 - 6.5)
   })
 
+  it('sur un téléphone, garde en plus les zones sûres : rien sous la barre d’accueil ni l’encoche', () => {
+    const zones = { haut: 59, droite: 0, bas: 34, gauche: 0 }
+    const bas = placer(boite(400, 600), TAILLE, FENETRE, { cote: 'droite', zones })!
+    expect(bas.top + TAILLE.hauteur).toBe(800 - 20 - 34)
+    const haut = placer(boite(400, 90), TAILLE, FENETRE, { cote: 'droite', zones })!
+    expect(haut.top).toBe(20 + 59)
+  })
+
   it('suit la cible : elle bouge, il bouge d’autant', () => {
     const a = placer(boite(400, 100), TAILLE, FENETRE)!
     const b = placer(boite(350, 140), TAILLE, FENETRE)!

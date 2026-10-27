@@ -529,6 +529,18 @@
   cursor: nwse-resize;
 }
 
+/*
+ * Les zones sûres (encoche, barre d'état, barre d'accueil), nulles hors d'un téléphone. La page de l'app les laisse
+ * déjà autour de sa racine ; ce qui s'en échappe (un portail sur <body>, une surcouche en `position: fixed`) les
+ * reprend d'ici.
+ */
+:root {
+  --notak-zone-haut: env(safe-area-inset-top, 0px);
+  --notak-zone-droite: env(safe-area-inset-right, 0px);
+  --notak-zone-bas: env(safe-area-inset-bottom, 0px);
+  --notak-zone-gauche: env(safe-area-inset-left, 0px);
+}
+
 /* L'espace de tableaux : l'en-tête et la toile du tableau courant. */
 .notak-espace {
   --notak-fond: #ebedee;

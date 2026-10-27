@@ -171,6 +171,11 @@
   inset: 0;
   z-index: 1000;
   display: flex;
+  box-sizing: border-box;
+  /* Les zones sûres en bordure de la couleur de la page : la barre du haut et la page restent hors de l'encoche et de
+     la barre d'accueil, que la page remplit de son fond. */
+  border: 0 solid var(--notak-page-fond, #fff);
+  border-width: var(--notak-zone-haut) var(--notak-zone-droite) var(--notak-zone-bas) var(--notak-zone-gauche);
   background: var(--notak-page-fond, #fff);
   outline: none;
   color: var(--notak-page-texte, rgb(44 44 43));

@@ -38,6 +38,14 @@ class AppareilPlugin: Plugin {
     webview.scrollView.minimumZoomScale = 1
     webview.scrollView.maximumZoomScale = 1
     webview.scrollView.pinchGestureRecognizer?.isEnabled = false
+    // iOS 26 floute ce qui passe sous la barre d'état et la barre d'accueil, comme sous les barres d'une liste :
+    // la page pose elle-même ses boutons hors des zones sûres, ce voile ne ferait que couper la pastille du zoom.
+    if #available(iOS 26.0, *) {
+      for bord in [webview.scrollView.topEdgeEffect, webview.scrollView.bottomEdgeEffect,
+                   webview.scrollView.leftEdgeEffect, webview.scrollView.rightEdgeEffect] {
+        bord.isHidden = true
+      }
+    }
     webview.isOpaque = false
     let centre = NotificationCenter.default
     observateurs.append(

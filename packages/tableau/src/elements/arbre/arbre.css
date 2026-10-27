@@ -51,6 +51,10 @@
   position: fixed;
   inset: 0;
   z-index: 1000;
+  box-sizing: border-box;
+  /* Les zones sûres en bordure du fond de la carte : ses barres, posées sur le fond, restent hors de l'encoche. */
+  border: 0 solid var(--notak-arbre-fond);
+  border-width: var(--notak-zone-haut) var(--notak-zone-droite) var(--notak-zone-bas) var(--notak-zone-gauche);
   background: var(--notak-arbre-fond);
   outline: none;
 }

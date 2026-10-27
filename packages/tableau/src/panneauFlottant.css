@@ -3,6 +3,9 @@
   position: fixed;
   top: 0;
   left: 0;
+  /* Au-dessus des barres de la toile (30) et des surcouches en grand (1000), d'où il s'ouvre aussi ; sous les fenêtres
+     de l'espace (1100). Une fenêtre qui se veut plus haut le dit dans sa propre règle. */
+  z-index: 1050;
 }
 
 /* La flèche de 13 × 8 px, du fond du panneau, tournée vers la cible. */

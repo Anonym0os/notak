@@ -1,5 +1,6 @@
 import { type HTMLAttributes, type ReactNode, type Ref, useLayoutEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { SANS_ZONES, type Zones, zonesSures } from './zones'
 import './communs/popover.css'
 import './panneauFlottant.css'
 
@@ -41,6 +42,8 @@ export interface OptionsPlacement {
   alignement?: 'centre' | 'debut'
   /** Ce qu'on voit de la toile, pour une cible posée dessus : hors de là, le panneau se cache. */
   bornes?: Boite
+  /** Les zones sûres de l'écran, ajoutées aux marges : rien ne passe sous l'encoche ni la barre d'accueil. */
+  zones?: Zones
 }
 
 /** Les marges gardées entre le panneau et les bords de la fenêtre, en px. */
@@ -57,15 +60,15 @@ export function placer(
   cible: Boite,
   taille: { largeur: number; hauteur: number },
   fenetre: { largeur: number; hauteur: number },
-  { cote = 'bas', distance = 10, alignement = 'centre', bornes }: OptionsPlacement = {},
+  { cote = 'bas', distance = 10, alignement = 'centre', bornes, zones = SANS_ZONES }: OptionsPlacement = {},
 ): Placement | null {
   if (cible.right - cible.left <= 0 && cible.bottom - cible.top <= 0) return null
   if (bornes && (cible.left < bornes.left || cible.right > bornes.right || cible.top < bornes.top || cible.bottom > bornes.bottom)) return null
   // Les marges, élargies à la toile quand la cible y est : le panneau ne déborde pas sur les barres.
-  const g = Math.max(MARGES.gauche, bornes?.left ?? 0)
-  const d = Math.max(MARGES.droite, fenetre.largeur - (bornes?.right ?? fenetre.largeur))
-  const h = Math.max(MARGES.haut, bornes?.top ?? 0)
-  const b = Math.max(MARGES.bas, fenetre.hauteur - (bornes?.bottom ?? fenetre.hauteur))
+  const g = Math.max(MARGES.gauche + zones.gauche, bornes?.left ?? 0)
+  const d = Math.max(MARGES.droite + zones.droite, fenetre.largeur - (bornes?.right ?? fenetre.largeur))
+  const h = Math.max(MARGES.haut + zones.haut, bornes?.top ?? 0)
+  const b = Math.max(MARGES.bas + zones.bas, fenetre.hauteur - (bornes?.bottom ?? fenetre.hauteur))
   // La flèche doit pouvoir montrer la cible : dessous ou dessus, la cible tient entre les marges des côtés ; à côté, entre celles du haut et du bas.
   const enLargeur = cote === 'bas' || cote === 'haut'
   if (enLargeur ? cible.bottom <= 0 || cible.top >= fenetre.hauteur || cible.left < g || cible.right > fenetre.largeur - d : cible.right <= 0 || cible.left >= fenetre.largeur || cible.top < h || cible.bottom > fenetre.hauteur - b) return null
@@ -138,6 +141,7 @@ export function PanneauFlottant({ cible, hote, cote, distance, alignement, flech
   useLayoutEffect(() => {
     let image = 0
     let pris: Cote | undefined
+    const zones = zonesSures()
     const suivre = () => {
       const div = noeud.current
       if (!div) return
@@ -152,6 +156,7 @@ export function PanneauFlottant({ cible, hote, cote, distance, alignement, flech
           ...(distance !== undefined ? { distance } : {}),
           ...(alignement ? { alignement } : {}),
           ...(toile ? { bornes: toile.getBoundingClientRect() } : {}),
+          zones,
         })
       if (!p) div.style.visibility = 'hidden'
       else {
