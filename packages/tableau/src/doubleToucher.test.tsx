@@ -159,3 +159,36 @@ describe('un doigt sur un élément', () => {
   })
 })
 
+describe('un doigt relevé hors de la toile', () => {
+  /** Un doigt numéroté : le premier posé sur l'écran est `isPrimary`. */
+  function doigtN(cible: EventTarget, type: string, id: number, primaire: boolean, x: number, y: number) {
+    const e = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, buttons: type === 'pointerup' ? 0 : 1, clientX: x, clientY: y })
+    Object.defineProperties(e, { pointerType: { value: 'touch' }, pointerId: { value: id }, isPrimary: { value: primaire } })
+    act(() => void cible.dispatchEvent(e))
+  }
+  const echelle = () => (hote.querySelector('.notak-plan') as HTMLElement).style.transform
+
+  it('est oublié : un seul doigt, ensuite, tire la toile sans la zoomer', () => {
+    const { toile } = monter()
+    const avant = echelle()
+    // Le doigt posé sur la toile se relève sur autre chose (une feuille portée hors d'elle).
+    doigtN(toile, 'pointerdown', 1, true, 100, 100)
+    doigtN(document.body, 'pointerup', 1, true, 100, 100)
+    doigtN(toile, 'pointerdown', 2, true, 300, 300)
+    doigtN(toile, 'pointermove', 2, true, 300, 420)
+    doigtN(toile, 'pointerup', 2, true, 300, 420)
+    expect(echelle()).toBe(avant)
+  })
+
+  it('même jamais entendu, il ne fait pas d’un doigt premier un pincement', () => {
+    const { toile } = monter()
+    const avant = echelle()
+    doigtN(toile, 'pointerdown', 1, true, 100, 100)
+    // Son relâchement n'arrive nulle part ; le doigt suivant est le premier sur l'écran.
+    doigtN(toile, 'pointerdown', 2, true, 300, 300)
+    doigtN(toile, 'pointermove', 2, true, 300, 420)
+    doigtN(toile, 'pointerup', 2, true, 300, 420)
+    expect(echelle()).toBe(avant)
+  })
+})
+

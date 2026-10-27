@@ -1114,6 +1114,12 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     }
     const appui = (e: PointerEvent) => {
       if (e.pointerType !== 'touch') return
+      // Le premier doigt sur l'écran : aucun autre n'est posé, quoi qu'on ait retenu (un doigt relevé hors de la toile
+      // et jamais entendu ferait d'un seul doigt un pincement).
+      if (e.isPrimary) {
+        doigts.clear()
+        pince = null
+      }
       doigts.set(e.pointerId, ici(e))
       if (doigts.size === 1) {
         const { clientX, clientY, target, pointerId } = e
@@ -1156,14 +1162,15 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     }
     div.addEventListener('pointerdown', appui)
     div.addEventListener('pointermove', mouvement)
-    div.addEventListener('pointerup', fin)
-    div.addEventListener('pointercancel', fin)
+    // Un doigt se relève parfois ailleurs que sur la toile (une feuille, un menu ouvert entre-temps) : on l'entend partout.
+    window.addEventListener('pointerup', fin, true)
+    window.addEventListener('pointercancel', fin, true)
     return () => {
       lacherAppuiLong()
       div.removeEventListener('pointerdown', appui)
       div.removeEventListener('pointermove', mouvement)
-      div.removeEventListener('pointerup', fin)
-      div.removeEventListener('pointercancel', fin)
+      window.removeEventListener('pointerup', fin, true)
+      window.removeEventListener('pointercancel', fin, true)
     }
   }, [contenu])
 

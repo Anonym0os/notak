@@ -1078,6 +1078,11 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     }
     const appui = (e: PointerEvent) => {
       if (e.pointerType !== 'touch') return
+      // Le premier doigt sur l'écran : rien d'autre n'est posé, quoi qu'on ait retenu.
+      if (e.isPrimary) {
+        doigts.clear()
+        avant = null
+      }
       doigts.set(e.pointerId, { x: e.clientX, y: e.clientY })
       if (doigts.size !== 2) return
       clearTimeout(doigt.current?.minuteur)
@@ -1110,13 +1115,14 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
     }
     s.addEventListener('pointerdown', appui)
     s.addEventListener('pointermove', bouge)
-    s.addEventListener('pointerup', fin)
-    s.addEventListener('pointercancel', fin)
+    // Un doigt relevé hors de la carte (un menu, une feuille) est oublié lui aussi.
+    window.addEventListener('pointerup', fin, true)
+    window.addEventListener('pointercancel', fin, true)
     return () => {
       s.removeEventListener('pointerdown', appui)
       s.removeEventListener('pointermove', bouge)
-      s.removeEventListener('pointerup', fin)
-      s.removeEventListener('pointercancel', fin)
+      window.removeEventListener('pointerup', fin, true)
+      window.removeEventListener('pointercancel', fin, true)
     }
   }, [montee, poser, arreterAnimation])
 
