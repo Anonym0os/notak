@@ -4,10 +4,12 @@ import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PageReglages } from './PageReglages'
 import type { Reglages } from './reglages'
+import { RUBRIQUES, lire, rubriquesVisibles } from './rubriquesReglages'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const reglages: Reglages = { theme: 'clair', taille: 'moyenne', doubleClic: true, grille: 10, barre: 'flottante' }
+const outils = { caches: false, basculer() {} }
 
 let racine: Root
 let hote: HTMLElement
@@ -26,18 +28,79 @@ afterEach(() => {
   Object.defineProperty(window, 'innerWidth', { value: largeur, configurable: true })
 })
 
+const ids = (telephone: boolean) => rubriquesVisibles({ reglages, changer: () => {}, outils }, RUBRIQUES, telephone)
+const lignes = (telephone: boolean, rubrique: string) =>
+  ids(telephone)
+    .find((r) => r.id === rubrique)!
+    .sections.flatMap((s) => s.lignes)
+
+describe('le tri des réglages au téléphone', () => {
+  it('écarte les raccourcis clavier, que le bureau garde', () => {
+    expect(ids(false).map((r) => r.id)).toContain('raccourcis')
+    expect(ids(true).map((r) => r.id)).not.toContain('raccourcis')
+  })
+
+  it('écarte la barre de gauche, les outils de la sélection et la taille de l’interface', () => {
+    expect(lignes(false, 'tableau').map((l) => l.id)).toEqual(['doubleClic', 'minicarte', 'grille', 'barre', 'outils'])
+    expect(lignes(true, 'tableau').map((l) => l.id)).toEqual(['doubleClic', 'minicarte', 'grille'])
+    expect(lignes(false, 'apparence').map((l) => l.id)).toContain('taille')
+    expect(lignes(true, 'apparence').map((l) => l.id)).not.toContain('taille')
+  })
+
+  it('écarte la rubrique de l’app de bureau, même quand l’application l’a posée', async () => {
+    const { reglerRubriqueBureau } = await import('./rubriquesReglages')
+    reglerRubriqueBureau(() => null)
+    try {
+      expect(ids(false).map((r) => r.id)).toContain('bureau')
+      expect(ids(true).map((r) => r.id)).not.toContain('bureau')
+    } finally {
+      reglerRubriqueBureau(null)
+    }
+  })
+
+  it('dit l’aide sans touches ni souris', () => {
+    for (const rubrique of ['general', 'apparence', 'tableau']) {
+      for (const l of lignes(true, rubrique)) {
+        const aide = l.aide ? lire(l.aide) : ''
+        expect(aide, l.id).not.toMatch(/⌘|⇧|clic|souris|navigateur|macOS/)
+      }
+    }
+  })
+})
+
 describe('les réglages sur un téléphone', () => {
-  it('montrent la liste des rubriques, puis la rubrique touchée, et « Réglages » y ramène', () => {
+  const rg = () => document.querySelector('.notak-rg')!
+  const rangee = (texte: string) => [...document.querySelectorAll<HTMLButtonElement>('.notak-rgt-racine .notak-rgt-rangee')].find((b) => b.textContent === texte)
+
+  it('listent les rubriques en cartes, sans recherche ni raccourcis ; une rubrique glisse par-dessus, « Réglages » y ramène', () => {
     const fermer = vi.fn()
-    act(() => racine.render(<PageReglages reglages={reglages} changer={() => {}} fermer={fermer} />))
-    const rg = () => document.querySelector('.notak-rg')!
+    act(() => racine.render(<PageReglages reglages={reglages} changer={() => {}} fermer={fermer} outils={outils} />))
     expect(rg().classList.contains('notak-rg-telephone')).toBe(true)
+    expect(document.querySelector('.notak-champ-recherche')).toBeNull()
+    expect([...document.querySelectorAll('.notak-rgt-racine .notak-rgt-rangee')].map((b) => b.textContent)).toEqual(['Général', 'Apparence', 'Toile'])
     expect(rg().classList.contains('notak-rg-poussee')).toBe(false)
-    act(() => document.querySelector<HTMLButtonElement>('.notak-rg-lien')!.click())
+    expect(document.querySelector('.notak-rgt-rubrique')!.hasAttribute('inert')).toBe(true)
+
+    act(() => rangee('Toile')!.click())
     expect(rg().classList.contains('notak-rg-poussee')).toBe(true)
+    expect(document.querySelector('.notak-rgt-racine')!.hasAttribute('inert')).toBe(true)
+    expect(document.querySelector('.notak-rgt-rubrique .notak-rgt-barre-titre')!.textContent).toBe('Toile')
+    expect([...document.querySelectorAll('.notak-rgt-rubrique .notak-rgt-entete')].map((h) => h.textContent)).toEqual(['Deux touchers sur le vide', 'Mini-carte', 'Grille'])
+
     act(() => document.querySelector<HTMLButtonElement>('.notak-rg-retour')!.click())
     expect(rg().classList.contains('notak-rg-poussee')).toBe(false)
     act(() => document.querySelector<HTMLButtonElement>('.notak-rg-ok')!.click())
     expect(fermer).toHaveBeenCalled()
+  })
+
+  it('un choix se coche ligne à ligne, et le toucher change le réglage', () => {
+    const changer = vi.fn()
+    act(() => racine.render(<PageReglages reglages={reglages} changer={changer} fermer={() => {}} />))
+    act(() => rangee('Toile')!.click())
+    const grille = [...document.querySelectorAll('.notak-rgt-rubrique [role="radiogroup"]')].find((g) => g.getAttribute('aria-label') === 'Grille')!
+    const options = [...grille.querySelectorAll<HTMLButtonElement>('[role="radio"]')]
+    expect(options.map((o) => o.getAttribute('aria-checked'))).toEqual(['false', 'false', 'true'])
+    act(() => options[0]!.click())
+    expect(changer).toHaveBeenCalledWith({ grille: 8 })
   })
 })

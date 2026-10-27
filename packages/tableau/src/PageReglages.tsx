@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { BoutonIcone, Dialogue } from './communs'
 import { enFeuille } from './communs/Feuille'
+import { ReglagesTelephone } from './ReglagesTelephone'
 import { Icone } from './icones'
 import { t, tn } from './langue'
 import { touchesDe } from './communs'
@@ -94,13 +95,18 @@ function Sections({ rubrique, c }: { rubrique: Rubrique; c: ContexteReglages }) 
   ))
 }
 
+/** La page des réglages : sur un téléphone, celle d'iOS (ReglagesTelephone.tsx) ; ailleurs, celle du bureau. */
+export function PageReglages(props: ContexteReglages & { fermer(): void }) {
+  return enFeuille() ? <ReglagesTelephone {...props} /> : <PageReglagesBureau {...props} />
+}
+
 /**
- * La page des réglages : les rubriques à gauche, groupées, sous le compte et la recherche ; la rubrique ouverte à
+ * La page des réglages du bureau : les rubriques à gauche, groupées, sous le compte et la recherche ; la rubrique ouverte à
  * droite, en sections de lignes « libellé et aide, puis le contrôle ». Cmd+, l'ouvre ; Échap vide la recherche puis
  * ferme ; Cmd+F cherche. C'est un dialogue (communs/Dialogue) : le focus reste dans la fenêtre et revient, à la
  * fermeture, où il était.
  */
-export function PageReglages({ fermer, ...c }: ContexteReglages & { fermer(): void }) {
+function PageReglagesBureau({ fermer, ...c }: ContexteReglages & { fermer(): void }) {
   const visibles = rubriquesVisibles(c)
   const [rubriqueVoulue, setRubriqueVoulue] = useState(lireRubrique)
   const rubrique = visibles.find((r) => r.id === rubriqueVoulue) ?? visibles.find((r) => r.id === RUBRIQUE_DEFAUT) ?? visibles[0]
@@ -111,15 +117,11 @@ export function PageReglages({ fermer, ...c }: ContexteReglages & { fermer(): vo
 
   const champ = useRef<HTMLInputElement>(null)
   const page = useRef<HTMLDivElement>(null)
-  // Sur un téléphone, comme les Réglages d'iOS : la liste des rubriques en plein écran, puis la rubrique poussée par-dessus.
-  const telephone = enFeuille()
-  const [poussee, setPoussee] = useState(false)
 
   const ouvrir = (id: string) => {
     setRubriqueVoulue(id)
     ecrireRubrique(id)
     setCherche('')
-    setPoussee(true)
   }
   // Une autre rubrique, ou d'autres résultats, se lisent depuis le haut.
   useLayoutEffect(() => {
@@ -141,8 +143,7 @@ export function PageReglages({ fermer, ...c }: ContexteReglages & { fermer(): vo
   }, [])
   // Échap vide d'abord la recherche, puis ferme.
   const echap = () => {
-    if (telephone && poussee) setPoussee(false)
-    else if (cherche) {
+    if (cherche) {
       setCherche('')
       champ.current?.focus()
     } else fermer()
@@ -152,17 +153,9 @@ export function PageReglages({ fermer, ...c }: ContexteReglages & { fermer(): vo
   return (
     <Dialogue
       nu
-      className={telephone ? `notak-rg notak-rg-telephone${poussee || enRecherche ? ' notak-rg-poussee' : ''}` : 'notak-rg'}
+      className="notak-rg"
       etiquette={t('reglages.titre')} fermer={fermer} echap={echap} retour={() => document.querySelector<HTMLElement>('.notak-reglages-bouton')}>
       <nav className="notak-rg-nav" aria-label={t('reglages.rubriques')}>
-        {telephone && (
-          <div className="notak-rg-tete">
-            <h2>{t('reglages.titre')}</h2>
-            <button type="button" className="notak-rg-ok" onClick={fermer}>
-              {t('commun.fermer')}
-            </button>
-          </div>
-        )}
         {c.compte && (
           <button type="button" className="notak-rg-moi" onClick={() => ouvrir('profil')}>
             <PastillePersonne taille={36} nom={c.compte.nom} couleur={c.compte.couleur} adresse={c.compte.photo ?? undefined} />
@@ -172,7 +165,7 @@ export function PageReglages({ fermer, ...c }: ContexteReglages & { fermer(): vo
             </span>
           </button>
         )}
-        <Recherche ref={champ} autoFocus={!telephone} valeur={cherche} onChange={setCherche} placeholder={t('reglages.chercher')} aria-label={t('reglages.chercher')} fin={!cherche && !telephone && <TouchesRaccourci touches="⌘F" />} />
+        <Recherche ref={champ} autoFocus valeur={cherche} onChange={setCherche} placeholder={t('reglages.chercher')} aria-label={t('reglages.chercher')} fin={!cherche && <TouchesRaccourci touches="⌘F" />} />
         <div className="notak-rg-liste">
           {GROUPES.map((g) => {
             const rubriques = visibles.filter((r) => r.groupe === g)
@@ -208,19 +201,6 @@ export function PageReglages({ fermer, ...c }: ContexteReglages & { fermer(): vo
         <span className="notak-rg-version">{t('reglages.version', { version: VERSION_NOTAK })}</span>
       </nav>
       <div ref={page} className="notak-rg-page">
-        {telephone && (
-          <button
-            type="button"
-            className="notak-rg-retour"
-            onClick={() => {
-              setPoussee(false)
-              setCherche('')
-            }}
-          >
-            <Icone nom="gauche" taille={18} />
-            {t('reglages.titre')}
-          </button>
-        )}
         <BoutonIcone className="notak-rg-fermer" aria-label={t('reglages.fermer')} onClick={fermer}>
           <Icone nom="fermer" taille={16} trait={2} />
         </BoutonIcone>

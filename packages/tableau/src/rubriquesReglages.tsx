@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { Habillages } from './habillage/appliquer'
+import { enFeuille } from './communs/Feuille'
 import { auDoigt } from './doigt'
 import { langueDuNavigateur, t } from './langue'
 import { RACCOURCIS, touches } from './Menus'
@@ -42,6 +43,10 @@ export interface Ligne {
   si?(c: ContexteReglages): boolean
   /** Le libellé se cale en haut du contrôle, plus haut que lui (les aperçus du mode). */
   haut?: true
+  /** Sur un téléphone, l'aide qui ne parle ni de touches ni de souris. */
+  aideAuDoigt?: Texte
+  /** Sur un téléphone, la ligne n'existe pas : elle règle ce qui n'y est pas (la barre de gauche, le clavier). */
+  bureauSeul?: true
 }
 
 export interface Section {
@@ -58,6 +63,10 @@ export interface Rubrique {
   titre: Texte
   phrase?: Texte
   icone: ReactNode
+  /** La couleur de la pastille de l'icône, sur un téléphone (les listes groupées d'iOS). */
+  teinte: string
+  /** Sur un téléphone, la rubrique n'existe pas : tout ce qu'elle règle tient au clavier, à la souris ou au bureau. */
+  bureauSeul?: true
   sections: Section[]
 }
 
@@ -90,6 +99,7 @@ export function reglerRubriqueBureau(rendre: (() => ReactNode) | null) {
 export const RUBRIQUES: Rubrique[] = [
   {
     id: 'profil',
+    teinte: '#8e8e93',
     groupe: 'compte',
     titre: 'reglages.rubrique.profil',
     phrase: 'reglages.rubrique.profil.phrase',
@@ -111,6 +121,7 @@ export const RUBRIQUES: Rubrique[] = [
   },
   {
     id: 'notifications',
+    teinte: '#ff3b30',
     groupe: 'compte',
     titre: 'reglages.rubrique.notifications',
     icone: icone(
@@ -123,6 +134,7 @@ export const RUBRIQUES: Rubrique[] = [
   },
   {
     id: 'connexion',
+    teinte: '#8e8e93',
     groupe: 'compte',
     titre: 'reglages.rubrique.connexion',
     icone: icone(
@@ -135,6 +147,7 @@ export const RUBRIQUES: Rubrique[] = [
   },
   {
     id: 'general',
+    teinte: '#8e8e93',
     groupe: 'notak',
     titre: 'reglages.rubrique.general',
     phrase: 'reglages.rubrique.general.phrase',
@@ -147,6 +160,7 @@ export const RUBRIQUES: Rubrique[] = [
             id: 'langue',
             libelle: 'reglages.langue',
             aide: 'reglages.langue.aide',
+            aideAuDoigt: 'reglages.langue.aide.doigt',
             controle: choix('langue', () => [
               // Automatique dit quelle langue le navigateur donnerait.
               { valeur: 'auto', libelle: t('reglages.langue.auto'), detail: t(`reglages.langue.${langueDuNavigateur()}`) },
@@ -160,6 +174,7 @@ export const RUBRIQUES: Rubrique[] = [
   },
   {
     id: 'apparence',
+    teinte: '#007aff',
     groupe: 'notak',
     titre: 'reglages.rubrique.apparence',
     phrase: 'reglages.rubrique.apparence.phrase',
@@ -173,7 +188,7 @@ export const RUBRIQUES: Rubrique[] = [
       {
         titre: 'reglages.section.couleurs',
         lignes: [
-          { id: 'mode', libelle: 'reglages.mode', aide: () => t('reglages.mode.aide', { touches: touches('⇧⌘D') }), haut: true, controle: { type: 'libre', rendre: (c) => <ChoixMode reglages={c.reglages} changer={c.changer} /> } },
+          { id: 'mode', libelle: 'reglages.mode', aide: () => t('reglages.mode.aide', { touches: touches('⇧⌘D') }), aideAuDoigt: 'reglages.mode.aide.doigt', haut: true, controle: { type: 'libre', rendre: (c) => <ChoixMode reglages={c.reglages} changer={c.changer} /> } },
           { id: 'habillage', libelle: 'reglages.habillage', aide: 'reglages.habillage.aide', si: (c) => !!c.habillages, controle: { type: 'libre', rendre: (c) => c.habillages && <ChoixHabillage habillages={c.habillages} changer={c.changer} /> } },
         ],
       },
@@ -184,6 +199,8 @@ export const RUBRIQUES: Rubrique[] = [
             id: 'taille',
             libelle: 'reglages.taille',
             aide: 'reglages.taille.aide',
+            // Au doigt, les îlots et la capsule ont la taille du pouce : plus petits, on les manquerait.
+            bureauSeul: true,
             controle: choix('taille', () => [
               { valeur: 'petite', libelle: t('reglages.taille.petite') },
               { valeur: 'moyenne', libelle: t('reglages.taille.moyenne') },
@@ -196,6 +213,7 @@ export const RUBRIQUES: Rubrique[] = [
   },
   {
     id: 'tableau',
+    teinte: '#ff9500',
     groupe: 'notak',
     titre: 'reglages.rubrique.tableau',
     phrase: 'reglages.rubrique.tableau.phrase',
@@ -211,9 +229,9 @@ export const RUBRIQUES: Rubrique[] = [
         lignes: [
           {
             id: 'doubleClic',
-            // Au doigt, le même réglage : deux touchers valent un double-clic.
-            libelle: auDoigt() ? 'reglages.doubleTouche' : 'reglages.doubleClic',
-            aide: auDoigt() ? 'reglages.doubleTouche.aide' : 'reglages.doubleClic.aide',
+            // Au doigt, le même réglage : deux touchers valent un double-clic. Lu à l'affichage, pas au chargement.
+            libelle: () => t(auDoigt() ? 'reglages.doubleTouche' : 'reglages.doubleClic'),
+            aide: () => t(auDoigt() ? 'reglages.doubleTouche.aide' : 'reglages.doubleClic.aide'),
             controle: choix('doubleClic', () => [
               { valeur: true, libelle: t('reglages.doubleClic.note') },
               { valeur: false, libelle: t('reglages.doubleClic.rien') },
@@ -223,6 +241,7 @@ export const RUBRIQUES: Rubrique[] = [
             id: 'minicarte',
             libelle: 'reglages.minicarte',
             aide: 'reglages.minicarte.aide',
+            aideAuDoigt: 'reglages.minicarte.aide.doigt',
             controle: {
               type: 'choix',
               options: () => [
@@ -238,6 +257,7 @@ export const RUBRIQUES: Rubrique[] = [
             id: 'grille',
             libelle: 'reglages.grille',
             aide: () => t('reglages.grille.aide', { serrer: touches('⇧⌘,'), elargir: touches('⇧⌘.') }),
+            aideAuDoigt: 'reglages.grille.aide.doigt',
             controle: choix('grille', () => [
               { valeur: 8, libelle: t('reglages.grille.serree'), detail: '8 px' },
               { valeur: 9, libelle: t('reglages.grille.moyenne'), detail: '9 px' },
@@ -253,6 +273,8 @@ export const RUBRIQUES: Rubrique[] = [
             id: 'barre',
             libelle: 'reglages.barre',
             aide: 'reglages.barre.aide',
+            // Au doigt, les outils de la sélection sont toujours la capsule du bas, et il n'y a pas de barre de gauche.
+            bureauSeul: true,
             controle: choix('barre', () => [
               { valeur: 'flottante', libelle: t('reglages.barre.flottante') },
               { valeur: 'gauche', libelle: t('reglages.barre.gauche') },
@@ -262,6 +284,8 @@ export const RUBRIQUES: Rubrique[] = [
             id: 'outils',
             libelle: 'reglages.outils',
             aide: 'reglages.outils.aide',
+            // Au doigt, la barre de gauche laisse place au « + » rond : rien à montrer ni à cacher.
+            bureauSeul: true,
             si: (c) => !!c.outils,
             controle: {
               type: 'choix',
@@ -281,6 +305,7 @@ export const RUBRIQUES: Rubrique[] = [
   },
   {
     id: 'carte',
+    teinte: '#34c759',
     groupe: 'notak',
     titre: 'reglages.rubrique.carte',
     icone: icone(
@@ -295,6 +320,7 @@ export const RUBRIQUES: Rubrique[] = [
   },
   {
     id: 'document',
+    teinte: '#5856d6',
     groupe: 'notak',
     titre: 'reglages.rubrique.document',
     icone: icone(
@@ -307,6 +333,8 @@ export const RUBRIQUES: Rubrique[] = [
   },
   {
     id: 'raccourcis',
+    teinte: '#8e8e93',
+    bureauSeul: true,
     groupe: 'notak',
     titre: 'reglages.rubrique.raccourcis',
     phrase: 'reglages.rubrique.raccourcis.phrase',
@@ -324,6 +352,7 @@ export const RUBRIQUES: Rubrique[] = [
   },
   {
     id: 'importer',
+    teinte: '#32ade6',
     groupe: 'donnees',
     titre: 'reglages.rubrique.importer',
     icone: icone(
@@ -336,6 +365,7 @@ export const RUBRIQUES: Rubrique[] = [
   },
   {
     id: 'corbeille',
+    teinte: '#8e8e93',
     groupe: 'donnees',
     titre: 'reglages.rubrique.corbeille',
     icone: icone(
@@ -348,6 +378,8 @@ export const RUBRIQUES: Rubrique[] = [
   },
   {
     id: 'bureau',
+    teinte: '#5856d6',
+    bureauSeul: true,
     groupe: 'application',
     titre: 'reglages.rubrique.bureau',
     icone: icone(
@@ -374,6 +406,7 @@ export const RUBRIQUES: Rubrique[] = [
   },
   {
     id: 'aPropos',
+    teinte: '#8e8e93',
     groupe: 'application',
     titre: 'reglages.rubrique.aPropos',
     icone: icone(
@@ -386,10 +419,16 @@ export const RUBRIQUES: Rubrique[] = [
   },
 ]
 
-/** Les rubriques telles qu'elles paraissent : sans les lignes qui n'existent pas ici, ni les sections et rubriques vides. */
-export function rubriquesVisibles(c: ContexteReglages, toutes: Rubrique[] = RUBRIQUES): Rubrique[] {
+/**
+ * Les rubriques telles qu'elles paraissent : sans les lignes qui n'existent pas ici, ni les sections et rubriques vides.
+ * Sur un téléphone, sans ce qui ne sert qu'au bureau, et avec l'aide écrite pour le doigt.
+ */
+export function rubriquesVisibles(c: ContexteReglages, toutes: Rubrique[] = RUBRIQUES, telephone = enFeuille()): Rubrique[] {
+  const existe = (x: { bureauSeul?: true }) => !(telephone && x.bureauSeul)
+  const pourIci = (l: Ligne): Ligne => (telephone && l.aideAuDoigt ? { ...l, aide: l.aideAuDoigt } : l)
   return toutes
-    .map((r) => ({ ...r, sections: r.sections.map((s) => ({ ...s, lignes: s.lignes.filter((l) => !l.si || l.si(c)) })).filter((s) => s.lignes.length > 0) }))
+    .filter(existe)
+    .map((r) => ({ ...r, sections: r.sections.map((s) => ({ ...s, lignes: s.lignes.filter((l) => existe(l) && (!l.si || l.si(c))).map(pourIci) })).filter((s) => s.lignes.length > 0) }))
     .filter((r) => r.sections.length > 0)
 }
 

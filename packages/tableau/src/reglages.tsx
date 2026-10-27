@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Bouton } from './communs'
+import { enFeuille } from './communs/Feuille'
 import { type ChoixLangue, definirLangue, t } from './langue'
 import { PastillePersonne } from './pastille'
 import { Segments } from './communs'
@@ -226,7 +227,17 @@ function refusDeHabillage(e: unknown): string {
   return t(`reglages.habillage.refus.${e.raison}`, { champ: e.champ ?? '' })
 }
 
-/** Le thème (l'habillage) : Notak ou un thème importé, et l'import d'un fichier. */
+/** La coche d'une rangée choisie, dans les listes groupées du téléphone (ReglagesTelephone.tsx). */
+export const Coche = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M5 12.5l4.5 4.5L19 7" />
+  </svg>
+)
+
+/**
+ * Le thème (l'habillage) : Notak ou un thème importé, et l'import d'un fichier. Sur un téléphone, en rangées comme les
+ * autres choix : une coche sur le thème porté, « Importer… » et « Retirer » en rangées d'action dessous.
+ */
 export function ChoixHabillage({ habillages, changer }: { habillages: Habillages; changer(r: Partial<Reglages>): void }) {
   const [erreur, setErreur] = useState<string | null>(null)
   const champ = useRef<HTMLInputElement>(null)
@@ -245,6 +256,39 @@ export function ChoixHabillage({ habillages, changer }: { habillages: Habillages
     }
   }
   const options: OptionChoix[] = [{ valeur: HABILLAGE_NOTAK, libelle: t('reglages.habillage.notak') }, ...liste.map((d) => ({ valeur: d.habillage.id, libelle: d.habillage.nom }))]
+  const fichier = <input ref={champ} type="file" accept=".json,application/json" hidden aria-label={t('reglages.habillage.champ')} onChange={(e) => void choisirFichier(e.target.files?.[0])} />
+  const retirer = () => importe && (habillages.retirer(importe.habillage.id), changer({ habillage: HABILLAGE_NOTAK }))
+  if (enFeuille()) {
+    return (
+      <div className="notak-rgt-rangees">
+        <div role="radiogroup" aria-label={t('reglages.habillage')}>
+          {options.map((o) => (
+            <button key={String(o.valeur)} type="button" role="radio" aria-checked={o.valeur === actuel} className="notak-rgt-rangee" disabled={impose} onClick={() => changer({ habillage: o.valeur as string })}>
+              <span className="notak-rgt-libelle">{o.libelle}</span>
+              <span className="notak-rgt-coche">{o.valeur === actuel && <Coche />}</span>
+            </button>
+          ))}
+        </div>
+        {!impose && (
+          <button type="button" className="notak-rgt-rangee notak-rgt-action" onClick={() => champ.current?.click()}>
+            {t('reglages.habillage.importer')}
+          </button>
+        )}
+        {!impose && importe && (
+          <button type="button" className="notak-rgt-rangee notak-rgt-action" data-danger="" onClick={retirer}>
+            {t('reglages.habillage.retirer', { nom: importe.habillage.nom })}
+          </button>
+        )}
+        {!impose && fichier}
+        {impose && actif && <p className="notak-rgt-note">{t('reglages.habillage.impose', { nom: actif.nom })}</p>}
+        {erreur && (
+          <div className="notak-rgt-note">
+            <Erreur texte={erreur} />
+          </div>
+        )}
+      </div>
+    )
+  }
   return (
     <div className="notak-rg-controle">
       <div className="notak-rg-rang">
@@ -254,13 +298,13 @@ export function ChoixHabillage({ habillages, changer }: { habillages: Habillages
             <Bouton variante="second" onClick={() => champ.current?.click()}>
               {t('reglages.habillage.importer')}
             </Bouton>
-            <input ref={champ} type="file" accept=".json,application/json" hidden aria-label={t('reglages.habillage.champ')} onChange={(e) => void choisirFichier(e.target.files?.[0])} />
+            {fichier}
           </>
         )}
       </div>
       {impose && actif && <p className="notak-rg-note">{t('reglages.habillage.impose', { nom: actif.nom })}</p>}
       {!impose && importe && (
-        <button type="button" className="notak-rg-retirer" onClick={() => (habillages.retirer(importe.habillage.id), changer({ habillage: HABILLAGE_NOTAK }))}>
+        <button type="button" className="notak-rg-retirer" onClick={retirer}>
           {t('reglages.habillage.retirer', { nom: importe.habillage.nom })}
         </button>
       )}
