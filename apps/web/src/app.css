@@ -4205,54 +4205,115 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 }
 
 /*
- * La bibliothèque de l'édition locale, au doigt (local/BibliothequeLocale.tsx) : un écran de téléphone posé sur la
- * toile ouverte. Un grand titre, la recherche, de quoi créer, puis les toiles de l'appareil en grille de deux (trois et
- * plus quand la place le permet), comme les tableaux de Savee ou les projets de CapCut.
+ * La bibliothèque de l'édition locale, au doigt (local/BibliothequeLocale.tsx) : la page où l'on arrive, posée sur la
+ * toile ouverte. Un grand titre et le « + », la recherche, la toile d'accueil en vedette, la rangée des récents (comme
+ * les « Recently viewed » de Fresha), puis les toiles, les cartes et les documents en grilles de deux, comme les
+ * tableaux de Savee. La recherche replie le grand titre, comme celle des Notes d'iOS.
  */
 .biblio-locale {
+  --biblio-gouttiere: 16px;
+  --biblio-courbe: cubic-bezier(0.32, 0.72, 0, 1);
+  --biblio-discret: color-mix(in srgb, var(--notak-texte) 55%, transparent);
+  --biblio-remplissage: color-mix(in srgb, var(--notak-texte) 7%, transparent);
   position: fixed;
   inset: 0;
   z-index: 900;
   display: block;
   box-sizing: border-box;
   height: auto;
-  padding: calc(var(--notak-zone-haut, 0px) + 12px) calc(var(--notak-zone-droite, 0px) + 16px) calc(var(--notak-zone-bas, 0px) + 24px)
-    calc(var(--notak-zone-gauche, 0px) + 16px);
+  padding: 0 calc(var(--notak-zone-droite, 0px) + var(--biblio-gouttiere)) calc(var(--notak-zone-bas, 0px) + 32px)
+    calc(var(--notak-zone-gauche, 0px) + var(--biblio-gouttiere));
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   background: var(--notak-fond);
   color: var(--notak-texte);
   -webkit-overflow-scrolling: touch;
+  -webkit-tap-highlight-color: transparent;
 }
 
+.biblio-locale button {
+  font: inherit;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* L'en-tête colle en haut quand on défile : le titre part, la recherche reste sous la barre d'état. */
 .biblio-locale-entete {
-  display: grid;
-  gap: 12px;
-  margin-bottom: 20px;
+  position: sticky;
+  /* Le titre (48 px et sa marge) passe sous le bord ; la recherche s'arrête juste sous la barre d'état. */
+  top: -56px;
+  z-index: 2;
+  margin: 0 calc(-1 * var(--biblio-gouttiere));
+  padding: calc(var(--notak-zone-haut, 0px) + 8px) var(--biblio-gouttiere) 12px;
+  background: var(--notak-fond);
 }
 
-.biblio-locale-entete h1 {
-  margin: 8px 0 0;
+.biblio-locale-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  margin-bottom: 8px;
+  transition: margin 0.35s var(--biblio-courbe), opacity 0.25s ease, transform 0.35s var(--biblio-courbe);
+}
+
+.biblio-locale-tete h1 {
+  margin: 0;
   font-size: 32px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  line-height: 1.15;
+  line-height: 1.1;
+}
+
+.biblio-locale-plus {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-right: -4px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--biblio-remplissage);
+  color: var(--notak-texte);
+}
+
+/* En recherche, le titre se replie vers le haut et la recherche prend sa place, collée en haut. */
+.biblio-locale[data-cherche] .biblio-locale-entete {
+  top: 0;
+}
+
+.biblio-locale[data-cherche] .biblio-locale-tete {
+  margin-top: -56px;
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+}
+
+.biblio-locale-barre {
+  display: flex;
+  align-items: center;
 }
 
 .biblio-locale-recherche {
   display: flex;
+  flex: 1;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  min-width: 0;
   height: 40px;
-  padding: 0 12px;
+  padding: 0 10px;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--notak-texte) 7%, transparent);
-  color: color-mix(in srgb, var(--notak-texte) 55%, transparent);
+  background: var(--biblio-remplissage);
+  color: var(--biblio-discret);
 }
 
 .biblio-locale-recherche input {
   flex: 1;
   min-width: 0;
+  height: 100%;
+  padding: 0;
   border: 0;
   background: none;
   color: var(--notak-texte);
@@ -4260,51 +4321,176 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   font: inherit;
   font-size: 16px;
   outline: none;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
-.biblio-locale-neuf {
+.biblio-locale-recherche input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.biblio-locale-effacer {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-
-.biblio-locale-neuf button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  min-height: 64px;
-  padding: 8px 4px;
+  place-items: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
   border: 0;
-  border-radius: 12px;
-  background: var(--notak-carte);
-  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.06);
-  color: var(--notak-texte);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 500;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--notak-texte) 35%, transparent);
+  color: var(--notak-fond) !important;
 }
 
-.biblio-locale-neuf button:active,
+/* « Annuler » entre par la droite pendant que le champ se resserre. */
+.biblio-locale-annuler {
+  flex: none;
+  max-width: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--notak-accent, #2f6feb) !important;
+  font-size: 16px !important;
+  white-space: nowrap;
+  opacity: 0;
+  transition: max-width 0.35s var(--biblio-courbe), padding 0.35s var(--biblio-courbe), opacity 0.2s ease;
+}
+
+.biblio-locale[data-cherche] .biblio-locale-annuler {
+  max-width: 120px;
+  padding: 0 2px 0 12px;
+  opacity: 1;
+}
+
+/* La toile d'accueil, en vedette : son plan sur toute la largeur, son nom et ce qu'elle porte. */
+.biblio-locale-vedette {
+  display: block;
+  width: 100%;
+  margin: 4px 0 28px;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+
+.biblio-locale-vedette-plan {
+  display: block;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--notak-carte);
+  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.05);
+  transition: transform 0.15s ease;
+}
+
+.biblio-locale-vedette-plan .biblio-vignette {
+  aspect-ratio: auto;
+  height: 160px;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.biblio-locale-vedette-vide {
+  display: grid;
+  place-items: center;
+  height: 160px;
+  color: var(--biblio-discret);
+  font-size: 14px;
+}
+
+.biblio-locale-vedette-texte {
+  display: grid;
+  gap: 2px;
+  padding: 10px 2px 0;
+}
+
+.biblio-locale-vedette-titre {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 26px;
+}
+
+.biblio-locale-vedette-titre svg {
+  color: var(--notak-accent, #2f6feb);
+}
+
+.biblio-locale-vedette:active .biblio-locale-vedette-plan,
 .biblio-locale-tuile:active .biblio-vignette {
   transform: scale(0.97);
   transition: transform 0.1s ease;
 }
 
-.biblio-locale-rubrique h2 {
+.biblio-locale-rubrique {
+  margin-bottom: 28px;
+}
+
+.biblio-locale-rubrique-tete {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.biblio-locale-rubrique h2,
+.biblio-locale-resultats h2 {
   margin: 0 0 10px;
-  color: color-mix(in srgb, var(--notak-texte) 60%, transparent);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 26px;
+}
+
+.biblio-locale-rubrique-tete h2 {
+  margin: 0;
+}
+
+.biblio-locale-compte {
+  margin-left: 4px;
+  color: var(--biblio-discret);
+  font-weight: 500;
+}
+
+.biblio-locale-voir {
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--notak-accent, #2f6feb) !important;
+  font-size: 15px !important;
+}
+
+/* Les récents glissent de côté, d'une tuile à l'autre ; la troisième dépasse du bord pour le dire. */
+.biblio-locale-rangee {
+  display: grid;
+  grid-auto-columns: 148px;
+  grid-auto-flow: column;
+  gap: 12px;
+  margin: 0 calc(-1 * var(--biblio-gouttiere));
+  padding: 0 var(--biblio-gouttiere) 4px;
+  overflow-x: auto;
+  scroll-padding: 0 var(--biblio-gouttiere);
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  list-style: none;
+}
+
+.biblio-locale-rangee::-webkit-scrollbar {
+  display: none;
+}
+
+.biblio-locale-rangee > li {
+  scroll-snap-align: start;
 }
 
 .biblio-locale-grille {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 20px 14px;
+  gap: 18px 12px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -4317,9 +4503,12 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   padding: 0;
   border: 0;
   background: none;
-  color: inherit;
-  font: inherit;
   text-align: left;
+}
+
+.biblio-locale-tuile .biblio-vignette {
+  margin-bottom: 8px;
+  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.05);
 }
 
 .biblio-locale-titre {
@@ -4333,13 +4522,169 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 
 .biblio-locale-detail {
   overflow: hidden;
-  color: color-mix(in srgb, var(--notak-texte) 55%, transparent);
+  color: var(--biblio-discret);
   font-size: 13px;
+  font-weight: 400;
   line-height: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* La pastille du genre : une toile en bleu, une carte en orange, un document en vert ; un passage d'une note en gris. */
+.biblio-locale-pastille {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: color-mix(in srgb, #2f6feb 14%, transparent);
+  color: #2f6feb;
+}
+
+.biblio-locale-pastille[data-genre='arbre'] {
+  background: color-mix(in srgb, #ef8a2b 16%, transparent);
+  color: #d9771c;
+}
+
+.biblio-locale-pastille[data-genre='document'] {
+  background: color-mix(in srgb, #3c9a54 16%, transparent);
+  color: #2f8a46;
+}
+
+.biblio-locale-pastille[data-genre='note'] {
+  background: var(--biblio-remplissage);
+  color: var(--biblio-discret);
+}
+
+/* Le choix de ce qu'on crée : dans la feuille du « + », ou sur la page tant qu'elle est vide. */
+.biblio-locale-neuf {
+  display: grid;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--biblio-remplissage);
+}
+
+.biblio-locale-feuille .biblio-locale-neuf {
+  margin: 4px 0 8px;
+}
+
+.biblio-locale-neuf button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 8px 14px;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+
+.biblio-locale-neuf button + button {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--notak-texte) 8%, transparent);
+}
+
+.biblio-locale-neuf button:active {
+  background: var(--biblio-remplissage);
+}
+
+.biblio-locale-neuf-texte {
+  display: grid;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 21px;
+}
+
+.biblio-locale-premiers {
+  margin-bottom: 28px;
+}
+
+.biblio-locale-premiers p {
+  margin: 0 0 10px;
+  color: var(--biblio-discret);
+}
+
+/* Les résultats : des lignes de 56 px, la pastille du genre, le titre et où il est. */
+.biblio-locale-resultats {
+  padding-top: 8px;
+  animation: biblio-locale-entree 0.25s ease-out;
+}
+
+.biblio-locale-resultats h2 {
+  margin-top: 8px;
+  font-size: 15px;
+  color: var(--biblio-discret);
+}
+
+.biblio-locale-resultats ul {
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.biblio-locale-ligne {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+
+.biblio-locale-ligne:active {
+  opacity: 0.6;
+}
+
+.biblio-locale-ligne-texte {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--notak-texte) 8%, transparent);
+  padding-bottom: 8px;
+  margin-bottom: -8px;
+}
+
+.biblio-locale-ligne mark,
+.biblio-locale-resultats .biblio-locale-detail mark {
+  background: none;
+  color: var(--notak-texte);
+  font-weight: 700;
+}
+
+.biblio-locale-voir-extraits {
+  margin: -8px 0 16px 48px;
+}
+
 .biblio-locale-vide {
-  color: color-mix(in srgb, var(--notak-texte) 60%, transparent);
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 48px 16px;
+  color: var(--biblio-discret);
+  text-align: center;
+}
+
+.biblio-locale-vide p {
+  margin: 8px 0 4px;
+  font-size: 16px;
+}
+
+@keyframes biblio-locale-entree {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .biblio-locale-tete,
+  .biblio-locale-annuler,
+  .biblio-locale-resultats {
+    transition: none;
+    animation: none;
+  }
 }
