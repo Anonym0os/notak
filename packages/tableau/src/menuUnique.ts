@@ -18,6 +18,15 @@ const changer = (id: string | null) => {
   abonnes.forEach((f) => f())
 }
 
+/** L'appui qui vient de fermer un menu en tombant dehors (voir `fermeParCetAppui`). */
+let fermeur: Event | null = null
+
+/**
+ * Cet appui a-t-il fermé un menu en tombant hors de lui ? Au doigt, il ne fait alors que cela : la toile ne
+ * désélectionne pas sous lui, la barre et ce qu'on avait choisi restent, comme on referme un menu d'iOS.
+ */
+export const fermeParCetAppui = (e: Event): boolean => fermeur === e
+
 /** Ferme le menu ouvert, quel qu'il soit. */
 export const fermerMenus = () => changer(null)
 
@@ -73,6 +82,7 @@ export function useMenu<T extends HTMLElement = HTMLDivElement>(options: Options
       // panneau ouvert depuis le menu compte comme un appui sur ce qui l'a ouvert.
       const cible = horsPanneau(e.target as Node) ?? (e.target as Node)
       if (courant !== id || ancre.current?.contains(cible)) return
+      fermeur = e
       changer(parentContenant(id, cible))
     }
     document.addEventListener('pointerdown', dehors, true)

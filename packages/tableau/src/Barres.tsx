@@ -397,6 +397,9 @@ export function BarreSelection({
   }, [])
   const { ranges } = useRepli(nav, inscrits, fixeSelection)
   const telephone = aGauche && enFeuille()
+  // La feuille d'actions d'un téléphone n'est pas un menu de la barre (`useMenu`) : elle vit hors de la barre, et un
+  // toucher dedans la refermerait comme un appui dehors.
+  const [feuilleActions, setFeuilleActions] = useState(false)
   // Les outils rangés d'un téléphone vivent dans un nœud à part, qui entre dans la feuille quand elle s'ouvre : fermée,
   // ils restent montés (leur état, leurs menus) sans se voir.
   const [rangement] = useState(() => (typeof document === 'undefined' ? null : document.createElement('div')))
@@ -407,7 +410,7 @@ export function BarreSelection({
     // Une demande ne sert qu'une fois : la barre qui renaît pour une autre sélection n'ouvre rien.
     if (!telephone || actionsDemandees <= demandeServie) return
     demandeServie = actionsDemandees
-    setTiroir(true)
+    setFeuilleActions(true)
   }, [actionsDemandees]) // eslint-disable-line react-hooks/exhaustive-deps
   const parType = new Map<string, Element[]>()
   for (const e of elements) parType.set(e.contenu.type, [...(parType.get(e.contenu.type) ?? []), e])
@@ -461,14 +464,14 @@ export function BarreSelection({
             <Icone nom="corbeille" taille={22} />
           </button>
         )}
-        <button type="button" className="notak-outil-plus" aria-expanded={tiroir} aria-label={t('barre.plusOutils')} onClick={() => setTiroir(true)}>
+        <button type="button" className="notak-outil-plus" aria-expanded={feuilleActions} aria-label={t('barre.plusOutils')} onClick={() => setFeuilleActions(true)}>
           <Icone nom="plus" />
         </button>
-        {tiroir && (
-          <Feuille fermer={() => setTiroir(false)} role="presentation" className="notak-tiroir-bas-actions">
+        {feuilleActions && (
+          <Feuille fermer={() => setFeuilleActions(false)} role="presentation" className="notak-tiroir-bas-actions">
             <ActionsFeuille
               entrees={contexte.actions?.() ?? []}
-              fermer={() => setTiroir(false)}
+              fermer={() => setFeuilleActions(false)}
               avant={
                 <>
                   <div className="notak-actions-outils" ref={poserRangement} />

@@ -9,6 +9,7 @@ import { PanneauEnvoi } from './elements/fichier/PanneauEnvoi'
 import { BarreOutils, BarreSelection, type OutilDeBarre, outilsDeBarre } from './Barres'
 import { flushSync } from 'react-dom'
 import { enFeuille } from './communs/Feuille'
+import { fermeParCetAppui } from './menuUnique'
 import { auDoigt } from './doigt'
 import { BarreEdition, ContexteBarreEdition } from './barreEdition'
 import { Cadre, ContexteRangement, type Empreinte, type Rangement } from './Cadre'
@@ -2333,6 +2334,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       }
     }
     if (dansEdition(racine.current, e.target)) return
+    // Au doigt, toucher la toile hors d'un menu ouvert de la barre ne fait que le fermer : on garde ce qu'on avait choisi.
+    if ((e.pointerType === 'touch' || enFeuille()) && fermeParCetAppui(e.nativeEvent)) return
     finRedim.current?.()
     if (edition) finirEdition()
     racine.current!.focus({ preventScroll: true })

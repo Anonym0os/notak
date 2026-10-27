@@ -3104,8 +3104,9 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 @media (pointer: coarse) and (max-width: 640px) {
   /* Une capsule qui flotte au-dessus du clavier, comme les îlots du haut : marges sur les côtés, coins ronds, ombre ;
      le clavier arrondi ne laisse plus de vide à côté d'une bande droite. */
-  html[data-clavier] .notak-barre-outils[data-edition] {
-    inset: auto calc(8px + var(--notak-zone-droite, 0px)) calc(var(--clavier) + 8px) calc(8px + var(--notak-zone-gauche, 0px));
+  .notak-barre-outils[data-edition] {
+    inset: auto calc(8px + var(--notak-zone-droite, 0px)) max(calc(8px + var(--notak-zone-bas, 0px)), calc(var(--clavier, 0px) + 8px))
+      calc(8px + var(--notak-zone-gauche, 0px));
     flex-wrap: nowrap;
     justify-content: flex-start;
     align-items: center;
@@ -3124,12 +3125,11 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
     transition: none;
   }
 
-  html[data-clavier] .notak-barre-outils[data-edition]::-webkit-scrollbar {
+  .notak-barre-outils[data-edition]::-webkit-scrollbar {
     display: none;
   }
 
-  html[data-clavier]
-    .notak-barre-outils[data-edition]
+      .notak-barre-outils[data-edition]
     :is(.notak-edition-outils, .notak-barre-edition, .notak-barre-edition-liste, .notak-barre-selection[data-a-gauche]) {
     flex: none;
     flex-direction: row;
@@ -3142,13 +3142,12 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
     padding: 0;
   }
 
-  html[data-clavier] .notak-barre-outils[data-edition] .notak-outil-libelle {
+  .notak-barre-outils[data-edition] .notak-outil-libelle {
     display: none;
   }
 
   /* Toutes les touches sur la même ligne et au même gabarit : 44 px, l'icône au centre, sans fond ni décalage. */
-  html[data-clavier]
-    .notak-barre-outils[data-edition]
+      .notak-barre-outils[data-edition]
     :is(button.notak-outil, button.notak-outil-texte, .notak-note-menu-ancre, .notak-barre-retour, .notak-outil-selection) {
     display: grid;
     place-items: center;
@@ -3164,24 +3163,24 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
     align-self: center;
   }
 
-  html[data-clavier] .notak-barre-outils[data-edition] .notak-note-menu-ancre .notak-outil-selection {
+  .notak-barre-outils[data-edition] .notak-note-menu-ancre .notak-outil-selection {
     width: 100%;
     height: 100%;
   }
 
-  html[data-clavier] .notak-barre-outils[data-edition] :is(.notak-outil-icone, .notak-ico) {
+  .notak-barre-outils[data-edition] :is(.notak-outil-icone, .notak-ico) {
     margin: 0;
   }
 
   /* Le « A » du style n'a pas de tuile grise : il est une touche comme les autres. */
-  html[data-clavier] .notak-barre-outils[data-edition] .notak-outil-selection .notak-outil-icone {
+  .notak-barre-outils[data-edition] .notak-outil-selection .notak-outil-icone {
     width: 44px;
     height: 44px;
     background: none;
     box-shadow: none;
   }
 
-  html[data-clavier] .notak-barre-outils[data-edition] button.notak-outil-texte[aria-pressed='true'] {
+  .notak-barre-outils[data-edition] button.notak-outil-texte[aria-pressed='true'] {
     width: 36px;
     min-width: 36px;
     height: 36px;
@@ -3189,7 +3188,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
     border-radius: 10px;
   }
 
-  html[data-clavier] .notak-barre-outils[data-edition] .notak-barre-selection[data-a-gauche]::before {
+  .notak-barre-outils[data-edition] .notak-barre-selection[data-a-gauche]::before {
     height: 24px;
     margin: 0 4px;
   }
@@ -3312,5 +3311,97 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
     height: 28px !important;
     background: none !important;
     box-shadow: none !important;
+  }
+}
+
+@media (pointer: coarse) and (max-width: 640px) {
+  /* Toutes les touches de la capsule au même pas, d'un bord à l'autre : ses outils se rangent avec « ✕ », Supprimer et
+     « ••• », sans groupe à part ni filet. */
+  .notak-barre-outils[data-capsule] {
+    justify-content: space-between;
+    padding: 0 8px;
+  }
+
+  .notak-barre-outils[data-capsule] .notak-barre-selection[data-a-gauche] {
+    display: contents;
+  }
+
+  .notak-barre-outils[data-capsule] .notak-barre-selection[data-a-gauche] > *,
+  .notak-barre-outils[data-capsule] .notak-barre-selection[data-a-gauche] .notak-outil-place {
+    flex: none;
+    width: 44px;
+    margin: 0;
+  }
+}
+
+@media (pointer: coarse) and (max-width: 640px) {
+  /* Des colonnes égales, une touche centrée dans chacune : le même pas d'un bout à l'autre, quelle que soit la largeur
+     de ce qui enveloppe chaque outil. */
+  .notak-barre-outils[data-capsule] {
+    display: grid;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    align-items: center;
+    justify-items: center;
+  }
+
+  .notak-barre-outils[data-capsule] .notak-barre-selection[data-a-gauche]::before {
+    display: none;
+  }
+
+  .notak-barre-outils[data-capsule] .notak-barre-selection[data-a-gauche] > * {
+    width: auto;
+  }
+}
+
+@media (pointer: coarse) and (max-width: 640px) {
+  /* Un outil actif de la capsule (le titre d'une liste) : une pastille grise, l'icône reste lisible. */
+  .notak-barre-outils[data-capsule] .notak-barre-selection button.notak-outil[aria-pressed='true'] {
+    background: color-mix(in srgb, var(--notak-texte) 12%, transparent);
+    color: var(--notak-texte);
+  }
+
+  /* Ce qu'ouvre un outil de la capsule (couleurs, étiquettes, réactions) : une carte sur la largeur, juste au-dessus
+     d'elle, aux mêmes coins et à la même ombre, et qui défile si elle est longue. */
+  .notak-barre-outils[data-capsule] :is(.notak-note-palette, .notak-decor-menu) {
+    position: fixed;
+    top: auto !important;
+    right: calc(8px + var(--notak-zone-droite, 0px)) !important;
+    bottom: max(calc(var(--notak-zone-bas, 0px) + 72px), calc(var(--clavier, 0px) + 72px)) !important;
+    left: calc(8px + var(--notak-zone-gauche, 0px)) !important;
+    box-sizing: border-box;
+    width: auto !important;
+    max-height: min(50dvh, calc(100dvh - var(--clavier, 0px) - var(--notak-zone-haut, 0px) - 160px));
+    padding: 12px;
+    overflow-y: auto;
+    translate: 0 0 !important;
+    border-radius: 20px;
+    box-shadow: var(--app-ombre-ilot, var(--notak-ombre-vol)), 0 12px 32px -12px rgb(27 37 54 / 0.25);
+  }
+
+  .notak-barre-outils[data-capsule] .notak-etiquettes {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .notak-barre-outils[data-capsule] .notak-etiquettes-recherche {
+    box-sizing: border-box;
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 12px;
+    /* 16 px : iOS ne zoome pas sur le champ. */
+    font-size: 16px;
+  }
+}
+
+@media (pointer: coarse) and (max-width: 640px) {
+  .notak-barre-outils[data-capsule][data-selection] .notak-barre-selection[data-a-gauche] :is(button.notak-outil, .notak-note-menu-ancre) {
+    width: 44px;
+    min-width: 44px;
+  }
+
+  .notak-barre-outils[data-capsule][data-selection] .notak-barre-selection[data-a-gauche] button.notak-outil[aria-pressed='true'] {
+    color: var(--notak-texte);
   }
 }

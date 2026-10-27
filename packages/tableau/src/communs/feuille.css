@@ -38,6 +38,14 @@
   pointer-events: auto;
 }
 
+/* Au doigt, la feuille mène tout le geste, le défilement de son contenu compris (Feuille.tsx). */
+@media (pointer: coarse) {
+  .notak-tiroir-bas,
+  .notak-tiroir-bas * {
+    touch-action: none;
+  }
+}
+
 /* La poignée est tirable dès l'ouverture, elle. */
 .notak-tiroir-bas-poignee {
   display: grid;

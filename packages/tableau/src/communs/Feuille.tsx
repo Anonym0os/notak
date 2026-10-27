@@ -59,46 +59,66 @@ export function Feuille({ titre, fermer, children, className, role = 'dialog' }:
   }
 
   /*
-   * La feuille se tire vers le bas depuis n'importe où, pas seulement sa poignée : le doigt qui descend la suit au pixel,
-   * et la lâcher assez bas, ou d'un geste vif, la ferme. Un contenu qui défile garde le geste tant qu'il n'est pas tout
-   * en haut. Le toucher qui l'a tirée n'agit pas sur ce qu'il a touché en partant.
+   * Le doigt sur la feuille, comme sur une feuille d'iOS : vers le haut, il fait défiler son contenu ; vers le bas, il
+   * le ramène en haut, puis tire la feuille elle-même, qui suit au pixel. Lâchée assez bas, ou d'un geste vif, elle se
+   * ferme ; sinon elle remonte, et le contenu lancé file sur son élan. La feuille mène tout le geste (`touch-action:
+   * none`) : WebKit n'a plus à deviner qui, du défilement ou de la feuille, le prend. Le toucher qui a glissé n'agit
+   * pas sur ce qu'il a touché en partant.
    */
   useEffect(() => {
     const f = feuille.current
-    if (!f) return
+    const c = corps.current
+    if (!f || !c) return
     // Vrai pendant que la feuille annule elle-même la prise de ce que le doigt tenait : cet abandon n'est pas le sien.
     let annulant = false
-    let geste: { id: number; x: number; y: number; t: number; mode: 'attente' | 'tire' | 'libre'; dy: number; v: number } | null = null
+    let elan = 0
+    let geste: { id: number; x: number; y: number; dernier: number; t: number; mode: 'attente' | 'vertical' | 'libre'; tire: number; v: number } | null = null
     const poser = (dy: number) => {
       f.style.transition = 'none'
-      f.style.transform = dy ? `translateY(${dy}px)` : ''
+      f.style.transform = dy ? `translateY(${dy > 0 ? dy : dy * 0.3}px)` : ''
     }
     const bouge = (e: PointerEvent) => {
       if (!geste || e.pointerId !== geste.id) return
-      const dx = e.clientX - geste.x
-      const dy = e.clientY - geste.y
-      if (geste.mode === 'attente') {
+      const g = geste
+      if (g.mode === 'attente') {
+        const dx = e.clientX - g.x
+        const dy = e.clientY - g.y
         if (Math.hypot(dx, dy) < SEUIL_SENS) return
-        const enHaut = (corps.current?.scrollTop ?? 0) <= 0
-        geste.mode = dy > 0 && Math.abs(dy) > Math.abs(dx) && enHaut ? 'tire' : 'libre'
-        if (geste.mode === 'tire') {
+        g.mode = Math.abs(dy) > Math.abs(dx) ? 'vertical' : 'libre'
+        if (g.mode === 'vertical' && typeof PointerEvent === 'function') {
           // Ce que le doigt tient (un outil, une ligne) lâche prise : le geste est à la feuille.
-          if (typeof PointerEvent === 'function') {
-            annulant = true
-            e.target?.dispatchEvent(new PointerEvent('pointercancel', { bubbles: true, pointerId: e.pointerId }))
-            annulant = false
-          }
-          geste.y = e.clientY
+          annulant = true
+          e.target?.dispatchEvent(new PointerEvent('pointercancel', { bubbles: true, pointerId: e.pointerId }))
+          annulant = false
         }
+        g.dernier = e.clientY
+        g.t = e.timeStamp
+        return
       }
-      if (geste.mode !== 'tire') return
-      const d = e.clientY - geste.y
-      const maintenant = e.timeStamp
-      if (maintenant > geste.t) geste.v = (d - geste.dy) / (maintenant - geste.t)
-      geste.t = maintenant
-      geste.dy = d
-      // Vers le haut, elle résiste.
-      poser(d > 0 ? d : d * 0.3)
+      if (g.mode !== 'vertical') return
+      let d = e.clientY - g.dernier
+      if (e.timeStamp > g.t) g.v = d / (e.timeStamp - g.t)
+      g.dernier = e.clientY
+      g.t = e.timeStamp
+      // La feuille tirée remonte d'abord ; le contenu ne défile qu'une fois la feuille revenue en place.
+      if (g.tire > 0 || (d > 0 && c.scrollTop <= 0)) {
+        const avant = g.tire
+        g.tire = Math.max(0, g.tire + d)
+        d -= g.tire - avant
+        poser(g.tire)
+      }
+      if (d !== 0) c.scrollTop -= d
+    }
+    const lancer = (v: number) => {
+      // L'élan : la vitesse du doigt, freinée image après image.
+      let vitesse = v * 16
+      const pas = () => {
+        if (Math.abs(vitesse) < 0.5) return
+        c.scrollTop -= vitesse
+        vitesse *= 0.95
+        elan = requestAnimationFrame(pas)
+      }
+      elan = requestAnimationFrame(pas)
     }
     const lache = (e: PointerEvent) => {
       if (!geste || e.pointerId !== geste.id || annulant) return
@@ -107,33 +127,39 @@ export function Feuille({ titre, fermer, children, className, role = 'dialog' }:
       window.removeEventListener('pointermove', bouge, true)
       window.removeEventListener('pointerup', lache, true)
       window.removeEventListener('pointercancel', lache, true)
-      if (g.mode !== 'tire') return
+      if (g.mode !== 'vertical') return
       // Le clic qui suit le relâchement ne touche rien.
-      const avaler = (c: Event) => {
-        c.stopPropagation()
-        c.preventDefault()
+      const avaler = (k: Event) => {
+        k.stopPropagation()
+        k.preventDefault()
       }
       window.addEventListener('click', avaler, { capture: true, once: true })
       setTimeout(() => window.removeEventListener('click', avaler, true), 400)
-      const hauteur = f.getBoundingClientRect().height
-      if (e.type !== 'pointercancel' && (g.dy > Math.max(FERMETURE_MIN, hauteur * PART_FERMETURE) || g.v > VITESSE_FERMETURE)) return descendre()
-      f.style.transition = 'transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.04)'
-      f.style.transform = ''
+      if (g.tire > 0) {
+        const hauteur = f.getBoundingClientRect().height
+        if (e.type !== 'pointercancel' && (g.tire > Math.max(FERMETURE_MIN, hauteur * PART_FERMETURE) || g.v > VITESSE_FERMETURE)) return descendre()
+        f.style.transition = 'transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.04)'
+        f.style.transform = ''
+        return
+      }
+      if (e.type !== 'pointercancel') lancer(g.v)
     }
     const appui = (e: PointerEvent) => {
       if (geste || sortie.current || (e.pointerType === 'mouse' && e.button !== 0)) return
-      geste = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, mode: 'attente', dy: 0, v: 0 }
+      cancelAnimationFrame(elan)
+      geste = { id: e.pointerId, x: e.clientX, y: e.clientY, dernier: e.clientY, t: e.timeStamp, mode: 'attente', tire: 0, v: 0 }
       window.addEventListener('pointermove', bouge, true)
       window.addEventListener('pointerup', lache, true)
       window.addEventListener('pointercancel', lache, true)
     }
-    // Pendant qu'on la tire, la page ne défile pas sous le doigt (WebKit prendrait le geste et l'annulerait).
+    // Le geste est à la feuille : la page ne défile pas sous le doigt.
     const retenir = (e: TouchEvent) => {
-      if (geste?.mode === 'tire') e.preventDefault()
+      if (geste?.mode === 'vertical') e.preventDefault()
     }
     f.addEventListener('pointerdown', appui, true)
     f.addEventListener('touchmove', retenir, { passive: false })
     return () => {
+      cancelAnimationFrame(elan)
       f.removeEventListener('pointerdown', appui, true)
       f.removeEventListener('touchmove', retenir)
       window.removeEventListener('pointermove', bouge, true)
