@@ -6,7 +6,7 @@
     "start": "node src/index.ts"
   },
   "dependencies": {
-    "@better-auth/sso": "1.7.7",
+    "@better-auth/sso": "1.7.12",
     "@hocuspocus/extension-database": "4.7.1",
     "@hocuspocus/provider": "4.7.1",
     "@hocuspocus/server": "4.7.1",
@@ -15,8 +15,8 @@
     "@notak/tableau": "workspace:*",
     "@openfga/sdk": "0.9.7",
     "@openfga/syntax-transformer": "0.2.2",
-    "better-auth": "1.7.7",
-    "fflate": "0.8.2",
+    "better-auth": "1.7.12",
+    "fflate": "0.8.3",
     "hono": "4.13.13",
     "lib0": "0.2.119",
     "nodemailer": "8.0.11",
