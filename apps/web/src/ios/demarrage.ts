@@ -6,6 +6,7 @@
  * - le clavier est suivi (`clavier.ts`), par la viewport et par l'événement de la coque.
  */
 import { appliquerClavierDeLaCoque, type EvenementClavierCoque, suivreClavier } from './clavier'
+import { reparerToucher } from './toucher'
 
 const CLE_REGLAGES = 'notak:reglages'
 
@@ -73,6 +74,7 @@ export function ecouterPlugin(coque: Coque, evenement: string, f: (donnees: unkn
 export function demarrerMobile(fenetre: Window, coque: Coque): void {
   themeSystemeAuPremierLancement(fenetre.localStorage)
   suivreClavier(fenetre)
+  reparerToucher(fenetre)
   ecouterPlugin(coque, 'clavier', (d) => appliquerClavierDeLaCoque(fenetre.document, d as EvenementClavierCoque))
   // La toile pose `data-theme` à son premier rendu : on attend qu'elle soit là.
   fenetre.requestAnimationFrame(() => suivreTheme(fenetre.document, fenetre, coque))
