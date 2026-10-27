@@ -194,3 +194,32 @@
   max-height: 70vh;
   overflow: auto;
 }
+
+/*
+ * Sur un téléphone, au doigt : la carte prend tout l'écran, sans le cadre de fenêtre (comme en Zen), et ses panneaux
+ * se posent dessus au lieu de la pousser. Le plan et la recherche (à gauche) couvrent la largeur ; le panneau de côté
+ * (style, carte, icônes) monte du bas, comme une feuille, et laisse voir le haut de la carte.
+ */
+@media (pointer: coarse) and (max-width: 640px) {
+  .notak-arbre-fond .notak-arbre-fenetre .notak-arbre-scene,
+  .notak-arbre-fond .notak-arbre-fenetre:is([data-gauche], [data-cote]) .notak-arbre-scene {
+    inset: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .notak-arbre-fond .notak-arbre-gauche {
+    right: 8px;
+    z-index: 20;
+    width: auto;
+  }
+
+  .notak-arbre-fond .notak-arbre-fenetre .notak-arbre-cote.notak-arbre-panneau {
+    top: auto;
+    left: 8px;
+    z-index: 20;
+    width: auto;
+    height: min(62dvh, 560px);
+    box-shadow: 0 -6px 30px rgb(0 0 0 / 0.16);
+  }
+}
