@@ -4261,6 +4261,19 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   background: var(--notak-fond);
 }
 
+/* La barre d'état garde le fond de la page : le titre qui monte passe dessous, sans se lire derrière l'heure. */
+.biblio-locale::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 3;
+  height: var(--notak-zone-haut, 0px);
+  background: var(--notak-fond);
+  pointer-events: none;
+}
+
 .biblio-locale-tete {
   display: flex;
   align-items: center;
