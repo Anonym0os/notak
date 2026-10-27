@@ -14,6 +14,8 @@ export const enFeuille = (): boolean => auDoigt() && typeof innerWidth === 'numb
 
 /** Le temps pendant lequel la feuille ignore les touchers : le clic que la webview tire du doigt qui l'a ouverte. */
 const ATTENTE_CLIC_FANTOME = 350
+/** Au-delà, un clic dans la feuille neuve est un vrai toucher, et non celui qui l'a ouverte. */
+const CLIC_FANTOME_MAX = 700
 
 /** Le thème de la toile : la feuille se range dans l'espace pour en garder les couleurs (clair, sombre, habillage). */
 const hote = () => document.querySelector<HTMLElement>('.notak-espace:not(.notak-par-dessus)') ?? document.body
@@ -71,6 +73,22 @@ export function Feuille({
   useEffect(() => {
     if (rattache && calque.current) rattacher(calque.current, () => rattache)
   }, [rattache])
+  // Le clic que la webview tire du toucher qui a ouvert la feuille arrive parfois après `ATTENTE_CLIC_FANTOME`, sur
+  // ce qui vient d'apparaître sous le doigt (le voile, une tuile) : il refermait la feuille aussitôt ouverte. Le
+  // premier clic qui tombe dedans, tant que la feuille est neuve, est avalé.
+  useEffect(() => {
+    const ouverte = performance.now()
+    const avaler = (e: MouseEvent) => {
+      if (performance.now() - ouverte > CLIC_FANTOME_MAX) return window.removeEventListener('click', avaler, true)
+      // Un clic tiré par le code (un test, un raccourci) n'est jamais celui d'un doigt.
+      if (!e.isTrusted || !calque.current?.contains(e.target as Node)) return
+      e.stopPropagation()
+      e.preventDefault()
+      window.removeEventListener('click', avaler, true)
+    }
+    window.addEventListener('click', avaler, true)
+    return () => window.removeEventListener('click', avaler, true)
+  }, [])
   useEffect(() => {
     if (!sansClavier) return
     const lacher = () => {
@@ -264,8 +282,9 @@ export function Feuille({
         <div ref={corps} className="notak-tiroir-bas-corps">
           {children}
         </div>
+        {/* Comme le voile : le toucher qui a ouvert la feuille ne la referme pas en retombant sur « Fermer ». */}
         {pied ?? (
-          <button type="button" className="notak-tiroir-bas-fermer" onClick={descendre}>
+          <button type="button" className="notak-tiroir-bas-fermer" onClick={() => prete && descendre()}>
             {t('commun.fermer')}
           </button>
         )}

@@ -83,7 +83,7 @@ describe('la toile sur un téléphone', () => {
     expect(hote.querySelector('.notak-outils-ajouter')).toBeNull()
   })
 
-  it('le menu d’un outil de la capsule monte en feuille, qu’un toucher dedans ne referme pas', () => {
+  it('le menu d’un outil de la capsule monte en feuille, qu’un toucher dedans ne referme pas', async () => {
     const n = nouvelleNote(0, 0, 'a')
     const magasin = creerMagasin({ titre: '', etiquettes: [], elements: [n] })
     act(() => racine.render(<Toile magasin={magasin} services={{ barreAGauche: true }} />))
@@ -97,6 +97,8 @@ describe('la toile sur un téléphone', () => {
     // La feuille vit hors de la barre : un toucher dedans compte pourtant comme un toucher sur l'outil.
     doigt(feuille!.querySelector('.notak-tiroir-bas-corps')!, 'pointerdown')
     expect(document.querySelector('.notak-tiroir-bas-outil')).not.toBeNull()
+    // « Fermer » attend que la feuille ait fini de s'ouvrir : le toucher qui l'ouvre ne la referme pas.
+    await act(() => new Promise((r) => setTimeout(r, 400)))
     act(() => document.querySelector<HTMLButtonElement>('.notak-tiroir-bas-outil .notak-tiroir-bas-fermer')!.click())
     expect(document.querySelector('.notak-tiroir-bas-outil')).toBeNull()
   })

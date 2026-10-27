@@ -477,9 +477,19 @@
   margin: 0;
 }
 
-.notak-actions-outils :is(.notak-outil-place, .notak-note-menu-ancre, .notak-outil) {
+/* Chaque case de la grille, quelle que soit l'enveloppe de l'outil (l'ancre d'un menu de note, de colonne, de ligne…),
+   prend toute sa colonne, et le bouton dedans aussi : sinon il garde la largeur de son nom et les colonnes se
+   décalent. */
+.notak-actions-outils > div:not([class]) > *,
+.notak-actions-outils > :not(div:not([class])) {
   justify-self: stretch;
   width: auto !important;
+  min-width: 0 !important;
+}
+
+.notak-actions-outils .notak-outil {
+  box-sizing: border-box;
+  width: 100% !important;
   min-width: 0 !important;
 }
 
