@@ -1390,6 +1390,57 @@
   }
 }
 
+/* Au téléphone, l'avis est une bande sur la largeur, au-dessus du « + » et de la capsule, comme les avis d'iOS : le
+   texte sur une ligne, « Annuler » en clair à droite, assez haut pour le pouce. */
+@media (pointer: coarse) and (max-width: 640px) {
+  .notak-avis {
+    right: calc(12px + var(--notak-zone-droite, 0px));
+    bottom: calc(84px + var(--notak-zone-bas, 0px));
+    left: calc(12px + var(--notak-zone-gauche, 0px));
+    gap: 4px;
+    min-height: 52px;
+    box-sizing: border-box;
+    padding: 0 4px 0 18px;
+    border-radius: 16px;
+    background: rgb(36 39 46 / 0.94);
+    box-shadow: 0 10px 30px -8px rgb(0 0 0 / 0.4);
+    font-size: 15px;
+    transform: none;
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    animation: notak-avis-monte 0.45s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .notak-avis > span {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .notak-avis button {
+    min-width: 44px;
+    height: 44px;
+    padding: 0 12px;
+    border-radius: 12px;
+    font-size: 15px;
+  }
+
+  .notak-avis .notak-avis-fermer {
+    display: grid;
+    place-items: center;
+    padding: 0;
+  }
+}
+
+@keyframes notak-avis-monte {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+
 /* Le « … » d'une sélection mêlée : les outils de chaque type, sous son nom. */
 .notak-barre-plus {
   position: relative;
@@ -2876,7 +2927,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 .notak-outils-ajouter {
   position: absolute;
   bottom: calc(16px + var(--notak-zone-bas, 0px));
-  left: calc(16px + var(--notak-zone-gauche, 0px));
+  right: calc(16px + var(--notak-zone-droite, 0px));
   z-index: 30;
   display: grid;
   place-items: center;
@@ -3370,5 +3421,19 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 
   .notak-barre-outils[data-capsule][data-selection] .notak-barre-selection[data-a-gauche] button.notak-outil[aria-pressed='true'] {
     color: var(--notak-texte);
+  }
+}
+
+/* Au téléphone, la barre du haut suit ses îlots de 44 px (ilots.css) : 16 px dessus, 16 dessous. */
+@media (pointer: coarse) and (max-width: 640px) {
+  .notak-espace {
+    --notak-haut: calc(76px + var(--notak-zone-haut, 0px));
+  }
+
+  .notak-entete {
+    gap: 8px;
+    height: calc(76px + var(--notak-zone-haut, 0px));
+    padding-right: calc(12px + var(--notak-zone-droite, 0px));
+    padding-left: calc(12px + var(--notak-zone-gauche, 0px));
   }
 }

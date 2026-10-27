@@ -10,6 +10,18 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Sous la barre d'état et la barre d'accueil d'un iPhone (viewport-fit=cover), la page montre son propre fond : celui
+   de l'app, jamais le blanc du navigateur. */
+html,
+body {
+  background: var(--notak-fond, #ebedee);
+}
+
+html[data-theme='sombre'],
+html[data-theme='sombre'] body {
+  background: var(--notak-fond, #1b1e23);
+}
+
 /*
  * Le socle des écrans hors de la toile et des panneaux de l'en-tête : tout se tire des jetons de Notak (--notak-*),
  * le texte pâle, le survol, le filet et le fond des champs compris. Le thème sombre repeint les jetons, et le reste suit.

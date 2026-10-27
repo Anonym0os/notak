@@ -63,6 +63,14 @@
   bottom: calc(62px + var(--notak-zone-bas, 0px));
 }
 
+/* Au téléphone, le « + » tient le coin bas droit, sous le pouce : la mini-carte prend le coin gauche. */
+@media (pointer: coarse) and (max-width: 640px) {
+  .notak-minicarte[data-lieu='tableau'] {
+    right: auto;
+    left: calc(16px + var(--notak-zone-gauche, 0px));
+  }
+}
+
 [data-theme='sombre'] .notak-minicarte {
   --notak-ilot-fond: color-mix(in oklab, var(--notak-fond, #1b1e23), white 6%);
   --notak-ilot-ombre: 0 0 0 1px rgb(255 255 255 / 0.1);

@@ -142,7 +142,8 @@
   max-width: none !important;
   max-height: none !important;
   margin: 0 !important;
-  padding: 2px 4px 8px !important;
+  /* Assez d'air pour l'anneau d'une pastille choisie, qui déborde de 4 px : la feuille le coupait sur les bords. */
+  padding: 6px 6px 8px !important;
   overflow: visible !important;
   translate: 0 0 !important;
   transform: none !important;
@@ -190,8 +191,19 @@
 /* Les pastilles de couleur, au doigt. */
 .notak-tiroir-bas-outil .notak-pastilles-grille {
   grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
-  gap: 10px;
+  gap: 14px;
   margin-bottom: 12px;
+}
+
+/* La pastille choisie est cerclée à 4 px de distance (6 px en tout) : ses rangées gardent cet air autour d'elles. */
+.notak-tiroir-bas-outil :is(.notak-pastilles-grille, .notak-note-pastilles) {
+  box-sizing: border-box;
+  padding: 6px;
+}
+
+.notak-tiroir-bas-outil .notak-note-pastilles {
+  flex-wrap: wrap;
+  gap: 14px;
 }
 
 .notak-tiroir-bas-outil .notak-pastilles-grille button {
@@ -430,17 +442,23 @@
 }
 
 /* Les outils de la barre qui n'y ont pas tenu : une carte de tuiles, quatre par ligne. */
-.notak-actions-outils:not(:empty),
-.notak-actions-outils > div:not(:empty) {
+.notak-actions-outils {
+  display: none;
+}
+
+/* Les tuiles se rangent dans la grille de la carte elle-même : le nœud du rangement (sans classe) s'efface, et une
+   carte sans outil ne se montre pas. */
+.notak-actions-outils:has(.notak-outil) {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
-  padding: 8px 4px;
+  /* Quatre colonnes égales, quel que soit le nom : « Échéance » ne pousse plus ses voisines. */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px 4px;
+  padding: 14px 6px 10px;
   border-radius: 14px;
   background: var(--notak-carte, #fff);
 }
 
-.notak-actions-outils > div {
+.notak-actions-outils > div:not([class]) {
   display: contents;
 }
 
@@ -462,6 +480,41 @@
 .notak-actions-outils :is(.notak-outil-place, .notak-note-menu-ancre, .notak-outil) {
   justify-self: stretch;
   width: auto !important;
+  min-width: 0 !important;
+}
+
+/* Une tuile d'outil : l'icône dans un carré gris de 52 px, le nom dessous sur une ligne, centrés dans leur colonne. */
+.notak-actions-outils .notak-outil {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: auto !important;
+  padding: 0 !important;
+  background: none !important;
+}
+
+.notak-actions-outils .notak-outil .notak-outil-icone {
+  display: grid;
+  place-items: center;
+  width: 52px !important;
+  height: 52px !important;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--notak-texte, #323b4a) 7%, transparent) !important;
+}
+
+.notak-actions-outils .notak-outil:active .notak-outil-icone {
+  background: color-mix(in srgb, var(--notak-texte, #323b4a) 14%, transparent) !important;
+}
+
+.notak-actions-outils .notak-outil .notak-outil-libelle {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--notak-texte, #323b4a);
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Les étiquettes au téléphone : la recherche et la liste sur toute la largeur. */

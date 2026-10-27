@@ -551,6 +551,11 @@
   padding: var(--notak-zone-haut, 0px) var(--notak-zone-droite, 0px) var(--notak-zone-bas, 0px) var(--notak-zone-gauche, 0px);
 }
 
+/* Les zones sûres prennent le fond de ce qu'elles bordent : la liste des rubriques, grise, et non le blanc du cadre. */
+.notak-rg.notak-rg-telephone:not(.notak-rg-poussee) {
+  background: var(--rg-nav);
+}
+
 .notak-rg-telephone .notak-rg-nav {
   flex: 1;
   width: auto;

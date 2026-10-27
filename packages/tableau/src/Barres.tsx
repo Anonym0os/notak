@@ -248,8 +248,9 @@ export function BarreOutils({
       </button>
     </Infobulle>
   )
-  // Sur un téléphone, la barre de gauche mangerait l'écran : un « + » en bas ouvre les outils en feuille, comme
-  // Freeform. Un outil touché se pose au milieu de la vue ; tiré, il part avec le doigt sur la toile.
+  // Sur un téléphone, la barre de gauche mangerait l'écran : un « + » en bas à droite, sous le pouce, ouvre les outils
+  // en feuille, comme Freeform, avec une vibration au toucher. Un outil touché se pose au milieu de la vue ; tiré, il
+  // part avec le doigt sur la toile.
   if (enFeuille() && !grisee) {
     return (
       <>
@@ -259,7 +260,10 @@ export function BarreOutils({
           aria-label={t('barre.ajouter')}
           aria-expanded={feuille}
           data-eteinte={dessinOuvert || undefined}
-          onPointerDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => {
+            e.stopPropagation()
+            vibrer?.()
+          }}
           // Au relâcher du doigt : la webview d'iOS ne tire pas toujours le clic d'un toucher sur la toile.
           onPointerUp={() => setFeuille(true)}
           onClick={() => setFeuille(true)}
