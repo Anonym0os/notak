@@ -1948,7 +1948,7 @@ export const fr: Textes = {
   'decouverte.outil': 'Glissez un outil de cette barre sur le fond pour poser votre premier élément.',
   'decouverte.note': 'Un double-clic sur le vide pose une note, prête à écrire.',
   'decouverte.aide': 'Tapez / à tout moment pour voir les raccourcis. L’entrée Aide de ce menu les ouvre aussi.',
-  'decouverte.outilDoigt': 'Glissez du doigt un outil de cette barre sur le fond pour poser votre premier élément.',
+  'decouverte.outilDoigt': 'Touchez le + pour poser votre premier élément (sur une tablette, glissez un outil de la barre de gauche).',
   'decouverte.noteDoigt': 'Touchez deux fois le vide : une note s’y pose, prête à écrire.',
   'decouverte.compris': 'Compris',
 
@@ -4050,7 +4050,7 @@ export const en: Textes = {
   'decouverte.outil': 'Drag a tool from this bar onto the canvas to place your first item.',
   'decouverte.note': 'Double-click on empty space to place a note, ready to write.',
   'decouverte.aide': 'Type / at any time to see the shortcuts. The Help entry in this menu opens them too.',
-  'decouverte.outilDoigt': 'Drag a tool from this bar onto the canvas with your finger to place your first item.',
+  'decouverte.outilDoigt': 'Tap the + to place your first item (on a tablet, drag a tool from the left bar).',
   'decouverte.noteDoigt': 'Tap twice on empty space: a note lands there, ready to write.',
   'decouverte.compris': 'Got it',
 

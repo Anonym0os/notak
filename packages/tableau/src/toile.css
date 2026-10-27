@@ -3045,3 +3045,36 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
     border-radius: 18px;
   }
 }
+
+/* Sur un téléphone, le choix du modèle d'une toile neuve monte du bas comme les autres feuilles : sur la largeur, des
+   lignes au doigt, au-dessus de la barre d'accueil. */
+@media (pointer: coarse) and (max-width: 640px) {
+  .notak-choix-modele {
+    right: calc(8px + var(--notak-zone-droite, 0px));
+    bottom: calc(8px + var(--notak-zone-bas, 0px));
+    left: calc(8px + var(--notak-zone-gauche, 0px));
+    z-index: 40;
+    width: auto;
+    border-radius: 22px;
+    animation: notak-feuille-monte 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+
+  .notak-choix-modele-corps button {
+    min-height: 46px;
+    font-size: 16px;
+  }
+
+  .notak-choix-modele-continuer {
+    min-height: 50px;
+    font-size: 16px;
+  }
+}
+
+/* Sur un téléphone, la bulle des outils montre le « + » du bas, puisqu'il n'y a pas de barre à gauche. */
+@media (pointer: coarse) and (max-width: 640px) {
+  .notak-bulle-decouverte[data-ou='barre'] {
+    top: auto;
+    bottom: calc(84px + var(--notak-zone-bas, 0px));
+    left: calc(16px + var(--notak-zone-gauche, 0px));
+  }
+}
