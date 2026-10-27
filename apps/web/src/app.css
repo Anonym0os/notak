@@ -1054,7 +1054,7 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   width: 272px;
 }
 
-.notak-ilot .plus-entete-menu :is(.activite, .importer) > .bouton {
+.notak-ilot .plus-entete-menu :is(.activite, .importer, .export) > .bouton {
   justify-content: flex-start;
   gap: 12px;
   width: 100%;
@@ -1066,11 +1066,11 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   font-weight: 500;
 }
 
-.notak-ilot .plus-entete-menu :is(.activite, .importer) > .bouton > svg {
+.notak-ilot .plus-entete-menu :is(.activite, .importer, .export) > .bouton > svg {
   color: var(--app-pale);
 }
 
-.notak-ilot .plus-entete-menu :is(.activite, .importer) > .bouton:is(:hover, [aria-expanded='true']):not(:disabled) {
+.notak-ilot .plus-entete-menu :is(.activite, .importer, .export) > .bouton:is(:hover, [aria-expanded='true']):not(:disabled) {
   background: var(--app-survol);
 }
 

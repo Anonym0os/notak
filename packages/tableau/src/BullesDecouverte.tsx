@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { type EspaceNavigable } from './coeur/espace'
 import { type Id, surLeTableau } from './coeur/tableau'
+import { auDoigt } from './doigt'
 import { t, useLangue } from './langue'
 import { type GesteDecouverte, bulleAMontrer, vuesDuCompte } from './decouverte'
 
@@ -26,7 +27,7 @@ export function BullesDecouverte({
     return surLeTableau(espace.magasin(tableau).lire()).length
   })
   const lectureSeule = useSyncExternalStore(espace.ecouter, () => espace.lectureSeule?.(tableau) ?? false)
-  const bulle = nombre < 0 ? null : bulleAMontrer(vu, { nombre, lectureSeule })
+  const bulle = nombre < 0 ? null : bulleAMontrer(vu, { nombre, lectureSeule, doigt: auDoigt() })
 
   const noter = (geste: GesteDecouverte) => {
     vues.noter(geste)

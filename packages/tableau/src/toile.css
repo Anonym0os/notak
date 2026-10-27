@@ -282,6 +282,20 @@
     visibility 0s 0.28s;
 }
 
+/* Au doigt, la barre est pleine : sur un petit écran, la toile passe juste dessous, et un voile laisserait lire les
+   cartes à travers les outils. Sur un téléphone, elle se colle au bord pour rendre un peu de largeur à la toile. */
+@media (pointer: coarse) {
+  .notak-barre-outils:not([data-selection]) {
+    background: var(--notak-barre, var(--notak-carte));
+  }
+}
+
+@media (pointer: coarse) and (max-width: 640px) {
+  .notak-barre-outils:not([data-selection]) {
+    left: 8px;
+  }
+}
+
 /* Le bord qui ramène la barre : une bande de 12 px sous la barre du haut, invisible. */
 .notak-outils-bord {
   position: absolute;

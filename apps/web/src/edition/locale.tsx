@@ -1,9 +1,9 @@
-import { BullesDecouverte, type CouleurNote, EspaceNotak, type Id, ErreurNotak, type Services, TYPE_NOTAK } from '@notak/tableau'
+import { BullesDecouverte, type CouleurNote, auDoigt, EspaceNotak, type Id, ErreurNotak, type Services, TYPE_NOTAK } from '@notak/tableau'
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
 import { adressePour } from '../adresse'
 import { estMobile } from '../appareil'
-import { estBureau } from '../bureau'
+import { dansCoque, estBureau } from '../bureau'
 import { ouvrirAilleursAvecAvis } from '../bureau/ailleurs'
 import { DialogueAcces } from '../bureau/FormulaireAcces'
 import { ouvrirDialogueAcces } from '../bureau/etat'
@@ -285,7 +285,7 @@ function Accueil({ el }: { el: EspaceLocal }) {
   const bureau = estBureau()
   return (
     <aside ref={bandeau} className={bureau ? 'bandeau bandeau-accueil-bureau' : 'bandeau'} role="status">
-      <span>{t(bureau ? 'local.accueilBureau' : 'local.accueil')}</span>
+      <span>{t(bureau ? 'local.accueilBureau' : dansCoque() ? 'local.accueilApp' : auDoigt() ? 'local.accueilDoigt' : 'local.accueil')}</span>
       {bureau && (
         <>
           <span>{t('bureau.accueil.serveur')}</span>

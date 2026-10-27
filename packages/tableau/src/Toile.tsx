@@ -402,6 +402,10 @@ const DELAI_ECRITURE = 1000
 /** Le pointeur est signalé aux autres à ce rythme au plus, en millisecondes. */
 const DELAI_CURSEUR = 100
 
+/** Deux touchers comptent pour un double-clic s'ils tombent à moins de tant de millisecondes et de pixels l'un de l'autre. */
+const DOUBLE_TOUCHER_MS = 350
+const DOUBLE_TOUCHER_PX = 24
+
 export function Toile({ magasin: source, services = {}, cameraInitiale, surCamera }: PropsToile) {
   const lectureSeule = !!services.lectureSeule
   // Les droits du serveur, lus au moment du geste : ils peuvent changer sans que la toile se refasse.
@@ -461,6 +465,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const [espace, setEspace] = useState(false)
   /** Espace vient d'être appuyée, et n'a encore rien attrapé. */
   const espaceBref = useRef(false)
+  // Au doigt, deux touchers rapides sur le vide valent un double-clic (`appui`) : le premier, et l'heure du double.
+  const toucher = useRef<{ instant: number; x: number; y: number } | null>(null)
+  const doubleTouche = useRef(-Infinity)
   const [anime, setAnime] = useState(false)
   const [enGeste, setEnGeste] = useState(false)
   // Un geste qui laisse les barres telles qu'avant l'appui : la toile qu'on déplace (bouton du milieu, Espace) ne
@@ -2124,6 +2131,19 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const p = local(e)
     const idBrut = sous(e.target)
     const id = idBrut && prisParUnAutre.has(idBrut) ? null : idBrut
+    // Au doigt, deux touchers rapprochés sur le vide font ce que fait un double-clic : la webview d'iOS n'en envoie pas
+    // de fiable, le premier toucher ayant déjà pris le fond pour le tirer.
+    if (e.pointerType === 'touch' && e.button === 0 && !id && !espace) {
+      const avant = toucher.current
+      if (avant && e.timeStamp - avant.instant < DOUBLE_TOUCHER_MS && Math.hypot(e.clientX - avant.x, e.clientY - avant.y) < DOUBLE_TOUCHER_PX) {
+        toucher.current = null
+        e.preventDefault()
+        doubleClic(e)
+        doubleTouche.current = e.timeStamp
+        return
+      }
+      toucher.current = { instant: e.timeStamp, x: e.clientX, y: e.clientY }
+    }
     // Au doigt, le vide se tire comme au bouton du milieu : le lasso n'a pas de sens sous un pouce.
     if (e.button === 1 || (e.button === 0 && (espace || (e.pointerType === 'touch' && !id)))) {
       e.preventDefault()
@@ -2919,6 +2939,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   }
 
   const doubleClic = (e: React.MouseEvent) => {
+    // Le double-clic que la webview tirerait de deux touchers déjà comptés (`appui`) ne pose pas une seconde note.
+    if (e.type === 'dblclick' && e.timeStamp - doubleTouche.current < 600) return
     // DESSIN-LIBRE : sous la couche de dessin, la toile ne fait rien (pas de note, pas d'ouverture).
     if (toileSuspendue(racine.current)) return
     if (dansEdition(racine.current, e.target)) return

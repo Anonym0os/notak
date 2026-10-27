@@ -8,13 +8,16 @@ export interface Bulle {
   geste: GesteDecouverte
   /** La clé du texte dans les dictionnaires (`decouverte.*`). */
   texte: string
+  /** Au doigt : le même geste, dit pour un écran qu'on touche ; sans lui, la bulle ne s'y montre pas. */
+  texteDoigt?: string
   /** Où elle se pose : près de la barre d'outils, au milieu, ou près du menu du compte. */
   ou: 'barre' | 'milieu' | 'compte'
 }
 
 export const BULLES: readonly Bulle[] = [
-  { geste: 'outil', ou: 'barre', texte: 'decouverte.outil' },
-  { geste: 'note', ou: 'milieu', texte: 'decouverte.note' },
+  { geste: 'outil', ou: 'barre', texte: 'decouverte.outil', texteDoigt: 'decouverte.outilDoigt' },
+  { geste: 'note', ou: 'milieu', texte: 'decouverte.note', texteDoigt: 'decouverte.noteDoigt' },
+  // « / » et l'aide des raccourcis : rien à dire sans clavier.
   { geste: 'aide', ou: 'compte', texte: 'decouverte.aide' },
 ]
 
@@ -23,17 +26,22 @@ export interface EtatToile {
   /** Ce qui est posé sur la toile (hors colonnes ouvertes, corbeille et non triés). */
   nombre: number
   lectureSeule: boolean
+  /** L'écran se touche du doigt (`doigt.ts`). */
+  doigt?: boolean
 }
 
 /**
  * La bulle à montrer maintenant, ou `null`. Une seule à la fois, dans l'ordre : le tableau vide appelle un outil,
  * le premier élément appelle le double-clic, le quatrième l'aide. Rien en lecture seule, rien pour un geste déjà vu.
+ * Au doigt, chaque bulle dit son geste pour un écran qu'on touche, et celle qui n'a rien à en dire se tait.
  */
 export function bulleAMontrer(vues: ReadonlySet<string>, etat: EtatToile): Bulle | null {
   if (etat.lectureSeule) return null
   const convient = (g: GesteDecouverte) =>
     g === 'outil' ? etat.nombre === 0 : g === 'note' ? etat.nombre >= 1 && etat.nombre <= 2 : etat.nombre >= 4
-  return BULLES.find((b) => !vues.has(b.geste) && convient(b.geste)) ?? null
+  if (!etat.doigt) return BULLES.find((b) => !vues.has(b.geste) && convient(b.geste)) ?? null
+  const bulle = BULLES.find((b) => b.texteDoigt && !vues.has(b.geste) && convient(b.geste))
+  return bulle?.texteDoigt ? { ...bulle, texte: bulle.texteDoigt } : null
 }
 
 type Stock = Pick<Storage, 'getItem' | 'setItem'>

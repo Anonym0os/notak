@@ -1,7 +1,7 @@
-import { Icone } from '@notak/tableau'
+import { Icone, auDoigt } from '@notak/tableau'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { estMobile } from '../appareil'
-import { estBureau } from '../bureau'
+import { dansCoque, estBureau } from '../bureau'
 import { SectionServeur } from '../bureau/SectionServeur'
 import { t, tn } from '../langue'
 import { SectionMiseAJour } from '../MiseAJour'
@@ -67,13 +67,15 @@ export function Rangement({ el, enregistrer, rouvrir, message }: { el: EspaceLoc
   }, [])
 
   const bureau = estBureau()
+  // L'app d'un iPhone ou d'un iPad : ni navigateur, ni ordinateur.
+  const app = dansCoque() && !bureau
   const jours = depuisQuand(derniere)
   // Safari efface pour de bon après une semaine sans visite ; ailleurs, le navigateur n'efface que si on le lui
   // demande ou faute de place : pas de quoi alarmer à la première visite.
   const fragile = safariNonInstalle()
   // Jamais copié : seulement si le navigateur menace d'effacer. Sinon, au bout d'une semaine sans copie.
   const alerte = jours === null ? fragile : jours >= COPIE_CONSEILLEE
-  const etiquette = message ?? (jours === null ? t(bureau ? 'local.pastilleBureau' : 'local.pastille') : jours === 0 ? t('local.copieAujourdhui') : tn('local.copieIlYa', jours))
+  const etiquette = message ?? (jours === null ? t(bureau ? 'local.pastilleBureau' : app ? 'local.pastilleApp' : 'local.pastille') : jours === 0 ? t('local.copieAujourdhui') : tn('local.copieIlYa', jours))
 
   const proteger = async () => setGarde((await navigator.storage?.persist?.()) ?? null)
 
@@ -87,10 +89,10 @@ export function Rangement({ el, enregistrer, rouvrir, message }: { el: EspaceLoc
         <div className="app-panneau partage-panneau rangement-panneau" ref={panneau} role="dialog" aria-label={t('local.titre')}>
           <h2>{t('local.titre')}</h2>
           {/* L'app de bureau se connecte à un serveur quand on le lui demande : elle a ses propres mots. */}
-          <p>{bureau ? t('bureau.rangement.ici') : t('local.ici')}</p>
+          <p>{t(bureau ? 'bureau.rangement.ici' : app ? 'local.iciApp' : 'local.ici')}</p>
           <ul className="rangement-faits">
             <li>{bureau ? t('bureau.rangement.rienNePart') : t('local.rienNePart')}</li>
-            <li>{t(bureau ? 'local.effaceBureau' : 'local.efface')}</li>
+            <li>{t(bureau ? 'local.effaceBureau' : app ? 'local.effaceApp' : 'local.efface')}</li>
             {safariNonInstalle() && <li className="rangement-attention">{t('local.safari')}</li>}
           </ul>
 
@@ -121,8 +123,13 @@ export function Rangement({ el, enregistrer, rouvrir, message }: { el: EspaceLoc
           </div>
           <small className="rangement-note">
             {jours === null ? t('local.jamaisCopie') : jours === 0 ? t('local.copieAujourdhui') : tn('local.copieIlYa', jours)}
-            {' · '}
-            {t('local.raccourci')}
+            {/* Sans clavier, pas de raccourci à dire. */}
+            {!auDoigt() && (
+              <>
+                {' · '}
+                {t('local.raccourci')}
+              </>
+            )}
           </small>
           <div className="rangement-actions">
             {installable && (
@@ -130,13 +137,13 @@ export function Rangement({ el, enregistrer, rouvrir, message }: { el: EspaceLoc
                 {t('local.installer')}
               </button>
             )}
-            {garde === false && !bureau && (
+            {garde === false && !bureau && !app && (
               <button type="button" className="bouton" onClick={() => void proteger()}>
                 {t('local.proteger')}
               </button>
             )}
           </div>
-          {garde === true && !bureau && <small className="rangement-note">{t('local.protege')}</small>}
+          {garde === true && !bureau && !app && <small className="rangement-note">{t('local.protege')}</small>}
 
           <Synchro el={el} />
           {bureau && !estMobile() && <SectionMiseAJour />}
@@ -153,7 +160,7 @@ export function Rangement({ el, enregistrer, rouvrir, message }: { el: EspaceLoc
           ) : (
             <>
               <h3>{t('local.plusieurs')}</h3>
-              <p>{t('local.plusieursTexte')}</p>
+              <p>{t(app ? 'local.plusieursTexteApp' : 'local.plusieursTexte')}</p>
               <div className="rangement-actions">
                 <a className="bouton" href={DEPOT} target="_blank" rel="noopener noreferrer">
                   {t('local.installerSien')}

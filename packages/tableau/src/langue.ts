@@ -114,6 +114,7 @@ export const fr: Textes = {
   'reglages.doubleClic': 'Double-clic sur le vide',
   'reglages.doubleClic.note': 'Crée une note',
   'reglages.doubleClic.rien': 'Ne fait rien',
+  'reglages.doubleTouche': 'Deux touchers sur le vide',
   'reglages.grille': 'Grille',
   'reglages.minicarte': 'Mini-carte',
   'reglages.minicarte.mouvement': 'En mouvement',
@@ -183,6 +184,7 @@ export const fr: Textes = {
   'reglages.habillage.aide': 'Les couleurs, les polices et les formes. Un thème s’importe depuis un fichier .json de 1,5 Mo au plus.',
   'reglages.taille.aide': 'Les barres, les menus et les panneaux. La toile garde son zoom.',
   'reglages.doubleClic.aide': 'Ce que fait un double-clic là où il n’y a rien.',
+  'reglages.doubleTouche.aide': 'Ce que font deux touchers rapides là où il n’y a rien.',
   'reglages.grille.aide': 'Le pas sur lequel les éléments s’alignent. {serrer} et {elargir} le changent aussi.',
   'reglages.barre.aide': 'Où paraissent les outils des éléments choisis.',
   'reglages.outils': 'Barre des outils de gauche',
@@ -1944,6 +1946,8 @@ export const fr: Textes = {
   'decouverte.outil': 'Glissez un outil de cette barre sur le fond pour poser votre premier élément.',
   'decouverte.note': 'Un double-clic sur le vide pose une note, prête à écrire.',
   'decouverte.aide': 'Tapez / à tout moment pour voir les raccourcis. L’entrée Aide de ce menu les ouvre aussi.',
+  'decouverte.outilDoigt': 'Glissez du doigt un outil de cette barre sur le fond pour poser votre premier élément.',
+  'decouverte.noteDoigt': 'Touchez deux fois le vide : une note s’y pose, prête à écrire.',
   'decouverte.compris': 'Compris',
 
   // Éléments : résumés, infobulles, messages
@@ -2210,6 +2214,7 @@ export const en: Textes = {
   'reglages.doubleClic': 'Double-click on empty space',
   'reglages.doubleClic.note': 'Creates a note',
   'reglages.doubleClic.rien': 'Does nothing',
+  'reglages.doubleTouche': 'Double-tap on empty space',
   'reglages.grille': 'Grid',
   'reglages.minicarte': 'Minimap',
   'reglages.minicarte.mouvement': 'While moving',
@@ -2279,6 +2284,7 @@ export const en: Textes = {
   'reglages.habillage.aide': 'Colors, fonts and shapes. A theme is imported from a .json file of 1.5 MB at most.',
   'reglages.taille.aide': 'Bars, menus and panels. The canvas keeps its zoom.',
   'reglages.doubleClic.aide': 'What a double-click does where there is nothing.',
+  'reglages.doubleTouche.aide': 'What two quick taps do where there is nothing.',
   'reglages.grille.aide': 'The step items snap to. {serrer} and {elargir} change it too.',
   'reglages.barre.aide': 'Where the tools of the selected items appear.',
   'reglages.outils': 'Left toolbar',
@@ -4040,6 +4046,8 @@ export const en: Textes = {
   'decouverte.outil': 'Drag a tool from this bar onto the canvas to place your first item.',
   'decouverte.note': 'Double-click on empty space to place a note, ready to write.',
   'decouverte.aide': 'Type / at any time to see the shortcuts. The Help entry in this menu opens them too.',
+  'decouverte.outilDoigt': 'Drag a tool from this bar onto the canvas with your finger to place your first item.',
+  'decouverte.noteDoigt': 'Tap twice on empty space: a note lands there, ready to write.',
   'decouverte.compris': 'Got it',
 
   // Éléments : résumés, infobulles, messages

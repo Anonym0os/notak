@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { Habillages } from './habillage/appliquer'
+import { auDoigt } from './doigt'
 import { langueDuNavigateur, t } from './langue'
 import { RACCOURCIS, touches } from './Menus'
 import { ChoixCouleur, ChoixHabillage, ChoixMode, ChoixPhoto, DEFAUT, type OptionChoix, type Reglages, type ServiceCompte } from './reglages'
@@ -210,8 +211,9 @@ export const RUBRIQUES: Rubrique[] = [
         lignes: [
           {
             id: 'doubleClic',
-            libelle: 'reglages.doubleClic',
-            aide: 'reglages.doubleClic.aide',
+            // Au doigt, le même réglage : deux touchers valent un double-clic.
+            libelle: auDoigt() ? 'reglages.doubleTouche' : 'reglages.doubleClic',
+            aide: auDoigt() ? 'reglages.doubleTouche.aide' : 'reglages.doubleClic.aide',
             controle: choix('doubleClic', () => [
               { valeur: true, libelle: t('reglages.doubleClic.note') },
               { valeur: false, libelle: t('reglages.doubleClic.rien') },

@@ -27,15 +27,23 @@ describe('bulles de découverte', () => {
     expect(bulleAMontrer(new Set(BULLES.map((b) => b.geste)), libre(0))).toBeNull()
   })
 
+  it('au doigt, chaque bulle dit son geste pour l’écran qu’on touche, et l’aide des raccourcis se tait', () => {
+    const doigt = (nombre: number) => ({ nombre, lectureSeule: false, doigt: true })
+    expect(bulleAMontrer(rien, doigt(0))).toMatchObject({ geste: 'outil', texte: 'decouverte.outilDoigt' })
+    expect(bulleAMontrer(rien, doigt(1))).toMatchObject({ geste: 'note', texte: 'decouverte.noteDoigt' })
+    expect(bulleAMontrer(rien, doigt(4))).toBeNull()
+    expect(bulleAMontrer(new Set(['note']), doigt(1))).toBeNull()
+  })
+
   it('rien en lecture seule', () => {
     expect(bulleAMontrer(rien, { nombre: 0, lectureSeule: true })).toBeNull()
   })
 
   it('chaque geste a un texte et une place', () => {
     expect(new Set(BULLES.map((b) => b.geste)).size).toBe(BULLES.length)
-    for (const b of BULLES) {
-      expect(fr[b.texte]?.length, b.texte).toBeGreaterThan(10)
-      expect(en[b.texte]?.length, b.texte).toBeGreaterThan(10)
+    for (const cle of BULLES.flatMap((b) => [b.texte, ...(b.texteDoigt ? [b.texteDoigt] : [])])) {
+      expect(fr[cle]?.length, cle).toBeGreaterThan(10)
+      expect(en[cle]?.length, cle).toBeGreaterThan(10)
     }
   })
 })

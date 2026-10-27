@@ -95,12 +95,13 @@
   display: none;
 }
 
-/* Dans le dernier îlot, chaque bouton se réduit à son icône : le nom reste dit par l'infobulle et par aria-label. */
-.notak-ilot-compte :is(.bouton-texte, .export > .bouton > .bouton-texte + svg) {
+/* Dans le dernier îlot, chaque bouton se réduit à son icône : le nom reste dit par l'infobulle et par aria-label. Pas
+   dans le menu « … » qu'il porte, où chaque ligne dit son nom. */
+.notak-ilot-compte :is(.bouton-texte, .export > .bouton > .bouton-texte + svg):not(.plus-entete-menu *) {
   display: none;
 }
 
-.notak-ilot-compte .export > .bouton,
+.notak-ilot-compte .export > .bouton:not(.plus-entete-menu *),
 .notak-ilot-compte .bouton-nu {
   padding: 0;
 }
