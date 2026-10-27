@@ -199,6 +199,12 @@ function choisirAxe(actuel: 'h' | 'v' | null, d: Point): 'h' | 'v' {
 }
 
 /** Un doigt posé sans bouger ce temps-là ouvre le menu du clic droit, en millisecondes. */
+/** Le décalage de la grille de points dans un pas (0 à -pas) : elle glisse par `transform`, sans être repeinte. */
+const decalageGrille = (px: number) => {
+  const pas = cam.PX_PAR_UG
+  return ((px % pas) + pas) % pas - pas
+}
+
 const APPUI_LONG = 500
 
 /** Les types qui s'ouvrent en grand, et dont le plein écran a donc une adresse. */
@@ -577,6 +583,47 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   // Les gestionnaires natifs (molette, collage, animation) et le contexte lisent l'état courant ici.
   const etat = useRef({ camera, vue, tableau, selection, edition, magasin, services })
   etat.current = { camera, vue, tableau, selection, edition, magasin, services }
+
+  /*
+   * Tirer ou pincer la toile au doigt arrive à 120 images par seconde sur un iPhone : rendre toute la toile à chaque
+   * mouvement la faisait saccader. La caméra du geste (`cameraVive`) se pose directement sur le calque qui glisse, sur
+   * l'échelle du plan et sur la grille ; React ne la reçoit que de loin en loin, et au relâchement.
+   */
+  const cameraVive = useRef<cam.Camera | null>(null)
+  const minuteurVive = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const calqueGlisse = useRef<HTMLDivElement>(null)
+  const calquePlan = useRef<HTMLDivElement>(null)
+  const rendreVive = useCallback(() => {
+    clearTimeout(minuteurVive.current)
+    minuteurVive.current = undefined
+    if (cameraVive.current) setCamera(cameraVive.current)
+  }, [])
+  const poserVite = useCallback(
+    (c: cam.Camera) => {
+      cameraVive.current = c
+      const kk = cam.PX_PAR_UG * c.echelle
+      const g = calqueGlisse.current
+      const p = calquePlan.current
+      const r = racine.current
+      if (g) g.style.transform = `translate(${-c.origine.x * kk}px, ${-c.origine.y * kk}px)`
+      if (p) {
+        p.style.transform = `scale(${c.echelle})`
+        p.style.setProperty('--notak-zoom-inverse', String(1 / c.echelle))
+      }
+      if (r) {
+        r.style.setProperty('--notak-grille-x', `${decalageGrille(-c.origine.x * kk)}px`)
+        r.style.setProperty('--notak-grille-y', `${decalageGrille(-c.origine.y * kk)}px`)
+      }
+      minuteurVive.current ??= setTimeout(rendreVive, 150)
+    },
+    [rendreVive],
+  )
+  /** Le geste est fini : React reprend la caméra, et le rendu redevient la seule source. */
+  const finirVive = useCallback(() => {
+    rendreVive()
+    cameraVive.current = null
+  }, [rendreVive])
+  useEffect(() => () => clearTimeout(minuteurVive.current), [])
 
   const limiteur = useMemo(
     () => (presence ? creerLimiteur((curseur: Point | null) => presence.signaler({ curseur }), DELAI_CURSEUR) : null),
@@ -1138,7 +1185,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         setEnGeste(false)
         setZoneLasso(null)
         animation.current = null
-        pince = { ...mesure(), camera: etat.current.camera }
+        pince = { ...mesure(), camera: cameraVive.current ?? etat.current.camera }
         e.stopPropagation()
       }
     }
@@ -1152,13 +1199,16 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const { vue: v } = etat.current
       const echelle = Math.min(cam.ECHELLE_MAX, Math.max(cam.echelleMin(contenu(), v), (pince.camera.echelle * ecart) / Math.max(1, pince.ecart)))
       const zoomee = cam.echelleAutour(pince.camera, echelle, pince.milieu)
-      setCamera(cam.defiler(zoomee, milieu.x - pince.milieu.x, milieu.y - pince.milieu.y))
+      poserVite(cam.defiler(zoomee, milieu.x - pince.milieu.x, milieu.y - pince.milieu.y))
     }
     const fin = (e: PointerEvent) => {
       if (e.pointerType !== 'touch') return
       doigts.delete(e.pointerId)
       lacherAppuiLong()
-      if (doigts.size < 2) pince = null
+      if (doigts.size < 2 && pince) {
+        pince = null
+        finirVive()
+      }
     }
     div.addEventListener('pointerdown', appui)
     div.addEventListener('pointermove', mouvement)
@@ -2386,6 +2436,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const d = soustraire(p, g.dernier)
       g.dernier = p
       animation.current = null
+      if (e.pointerType === 'touch') return poserVite(cam.defiler(cameraVive.current ?? etat.current.camera, d.x, d.y))
       return setCamera((c) => cam.defiler(c, d.x, d.y))
     }
     const k = cam.PX_PAR_UG * camera.echelle
@@ -2821,6 +2872,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   }
 
   const relache = (e: React.PointerEvent) => {
+    if (cameraVive.current) finirVive()
     arreterBord()
     const g = geste.current
     geste.current = null
@@ -3119,13 +3171,16 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   )
 
   const k = cam.PX_PAR_UG * camera.echelle
+  // Pendant un geste au doigt, le rendu montre la caméra du geste : un rendu de passage ne ramène pas la toile en arrière.
+  const affichee = cameraVive.current ?? camera
+  const ka = cam.PX_PAR_UG * affichee.echelle
   const grille = Math.abs(camera.echelle - 1) < 1e-3 && !anime && pointsAllumes(fondVoulu)
   const fondLibre = estLibre(fondVoulu?.couleur) ? fondVoulu.couleur : undefined
   // La grille ne paraît qu'à 100 % : elle revient en fondu quand on y retombe (voir `.notak-toile::before`).
   const styleRacine = {
     '--notak-grille-pas': `${cam.PX_PAR_UG}px`,
-    '--notak-grille-x': `${-camera.origine.x * k}px`,
-    '--notak-grille-y': `${-camera.origine.y * k}px`,
+    '--notak-grille-x': `${decalageGrille(-affichee.origine.x * ka)}px`,
+    '--notak-grille-y': `${decalageGrille(-affichee.origine.y * ka)}px`,
     // Une couleur libre : les points s'éclaircissent sur un fond sombre.
     ...(fondLibre ? { '--notak-fond': fondLibre, '--notak-point': estSombre(fondLibre) ? 'rgb(255 255 255 / 0.22)' : 'rgb(0 0 0 / 0.18)' } : {}),
   } as React.CSSProperties
@@ -3222,12 +3277,13 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       }}
       onDrop={deposer}
     >
-      <div className="notak-glisse" style={{ transform: `translate(${-camera.origine.x * k}px, ${-camera.origine.y * k}px)` }}>
+      <div ref={calqueGlisse} className="notak-glisse" style={{ transform: `translate(${-affichee.origine.x * ka}px, ${-affichee.origine.y * ka}px)` }}>
       <div
+        ref={calquePlan}
         className="notak-plan"
         style={{
-          transform: `scale(${camera.echelle})`,
-          ['--notak-zoom-inverse' as string]: 1 / camera.echelle,
+          transform: `scale(${affichee.echelle})`,
+          ['--notak-zoom-inverse' as string]: 1 / affichee.echelle,
         }}
       >
         <ContexteRangement.Provider value={rangement}>

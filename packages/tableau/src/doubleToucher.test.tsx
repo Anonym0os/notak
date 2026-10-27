@@ -192,3 +192,20 @@ describe('un doigt relevé hors de la toile', () => {
   })
 })
 
+describe('tirer la toile au doigt', () => {
+  it('le calque suit le doigt aussitôt, et la toile reste où on la lâche', () => {
+    const { toile } = monter()
+    const glisse = () => (hote.querySelector('.notak-glisse') as HTMLElement).style.transform
+    const avant = glisse()
+    doigt(toile, 'pointerdown', 1000, 300, 300)
+    doigt(toile, 'pointermove', 1016, 300, 360)
+    const pendant = glisse()
+    expect(pendant).not.toBe(avant)
+    doigt(toile, 'pointermove', 1032, 300, 420)
+    doigt(toile, 'pointerup', 1048, 300, 420)
+    const apres = glisse()
+    expect(apres).not.toBe(pendant)
+    expect(apres).toMatch(/translate/)
+  })
+})
+
