@@ -536,110 +536,384 @@
 }
 
 /*
- * Sur un téléphone, au doigt (PageReglages.tsx, `notak-rg-telephone`) : comme les Réglages d'iOS, la liste des
- * rubriques en plein écran, puis la rubrique choisie à sa place, avec « ‹ Réglages » pour revenir. Les zones sûres
- * restent libres.
+ * Sur un téléphone (ReglagesTelephone.tsx) : l'app Réglages d'iOS. Une pile de deux écrans plein cadre, la liste des
+ * rubriques et la rubrique ouverte, qui glisse depuis la droite sur la courbe des feuilles d'iOS ; des listes groupées
+ * en cartes arrondies à 16 px des bords, des rangées de 44 pt au moins, des séparateurs qui partent du texte. Les zones
+ * sûres restent libres : la barre du haut passe sous l'heure, le bas défile au-dessus de l'indicateur d'accueil.
  */
 .notak-rg.notak-rg-telephone {
+  --rgt-fond: #f2f2f7;
+  --rgt-carte: #fff;
+  --rgt-texte: #1c1c1e;
+  /* Le gris des valeurs, des en-têtes et des pieds : 5:1 sur la carte comme sur le fond. */
+  --rgt-second: #6c6c70;
+  --rgt-filet: rgb(60 60 67 / 0.2);
+  --rgt-chevron: #b4b4b9;
+  --rgt-appui: rgb(0 0 0 / 0.07);
+  --rgt-barre: rgb(242 242 247 / 0.86);
+  --rgt-accent: var(--notak-accent, #2f6feb);
+  --rgt-courbe: cubic-bezier(0.32, 0.72, 0, 1);
+
+  display: block;
   width: 100vw;
   height: 100dvh;
   max-width: none;
   max-height: none;
   margin: 0;
   border-radius: 0;
-  box-sizing: border-box;
-  padding: var(--notak-zone-haut, 0px) var(--notak-zone-droite, 0px) var(--notak-zone-bas, 0px) var(--notak-zone-gauche, 0px);
+  background: var(--rgt-fond);
+  color: var(--rgt-texte);
+  font-size: 17px;
+  zoom: 1;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Les zones sûres prennent le fond de ce qu'elles bordent : la liste des rubriques, grise, et non le blanc du cadre. */
-.notak-rg.notak-rg-telephone:not(.notak-rg-poussee) {
-  background: var(--rg-nav);
+[data-theme='sombre'] .notak-rg.notak-rg-telephone {
+  --rgt-fond: color-mix(in srgb, var(--notak-fond, #1b1e23) 60%, #000);
+  --rgt-carte: var(--notak-carte, #2a2e35);
+  --rgt-texte: #f2f3f5;
+  --rgt-second: rgb(235 235 245 / 0.62);
+  --rgt-filet: rgb(255 255 255 / 0.12);
+  --rgt-chevron: rgb(235 235 245 / 0.32);
+  --rgt-appui: rgb(255 255 255 / 0.09);
+  --rgt-barre: color-mix(in srgb, var(--rgt-fond) 86%, transparent);
 }
 
-.notak-rg-telephone .notak-rg-nav {
-  flex: 1;
-  width: auto;
-  padding: 8px 16px 16px;
-  overflow-y: auto;
-  border-right: 0;
+.notak-rgt-pile {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
 }
 
-.notak-rg-telephone.notak-rg-poussee .notak-rg-nav,
-.notak-rg-telephone:not(.notak-rg-poussee) .notak-rg-page {
-  display: none;
-}
-
-.notak-rg-telephone .notak-rg-page {
-  padding: 4px 20px 24px;
-}
-
-.notak-rg-telephone .notak-rg-fermer {
-  display: none;
-}
-
-.notak-rg-tete {
+.notak-rgt-ecran {
+  position: absolute;
+  inset: 0;
   display: flex;
+  flex-direction: column;
+  background: var(--rgt-fond);
+  transition: transform 0.5s var(--rgt-courbe);
+}
+
+/* La liste s'efface vers la gauche d'un tiers, la rubrique arrive de la droite, une ombre sur son bord. */
+.notak-rgt-rubrique {
+  transform: translateX(100%);
+  transition:
+    transform 0.5s var(--rgt-courbe),
+    box-shadow 0.5s var(--rgt-courbe);
+}
+
+.notak-rg-poussee .notak-rgt-rubrique,
+.notak-rgt-pile[data-tire] .notak-rgt-rubrique {
+  box-shadow: -10px 0 30px rgb(0 0 0 / 0.08);
+}
+
+.notak-rg-poussee .notak-rgt-racine {
+  transform: translateX(-30%);
+}
+
+.notak-rg-poussee .notak-rgt-rubrique {
+  transform: none;
+}
+
+/* Le doigt tire la rubrique : elle le suit sans courbe, la liste revient d'autant, au tiers de sa vitesse. */
+.notak-rgt-pile[data-tire] .notak-rgt-ecran {
+  transition: none;
+}
+
+.notak-rgt-pile[data-tire] .notak-rgt-rubrique {
+  transform: translateX(var(--rgt-tire));
+}
+
+.notak-rgt-pile[data-tire] .notak-rgt-racine {
+  transform: translateX(calc(-30% + var(--rgt-tire) * 0.3));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notak-rgt-ecran {
+    transition-duration: 0.01s;
+  }
+}
+
+/* La barre du haut : retour à gauche, petit titre au centre, action à droite ; floutée sous ce qui défile. */
+.notak-rgt-barre {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  flex: none;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
-  margin: 4px 0 12px;
+  box-sizing: border-box;
+  min-height: calc(44px + env(safe-area-inset-top, 0px));
+  padding: env(safe-area-inset-top, 0px) max(8px, env(safe-area-inset-right, 0px)) 0 max(8px, env(safe-area-inset-left, 0px));
+  background: var(--rgt-fond);
+  transition: background-color 0.2s, box-shadow 0.2s;
 }
 
-.notak-rg-tete h2 {
-  margin: 0;
-  font-size: 30px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+.notak-rgt-barre[data-replie] {
+  background: var(--rgt-barre);
+  box-shadow: 0 0.5px 0 var(--rgt-filet);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  backdrop-filter: blur(20px) saturate(1.8);
 }
 
-.notak-rg-ok,
-.notak-rg-retour {
+.notak-rgt-barre-titre {
+  overflow: hidden;
+  max-width: 60vw;
+  font-size: 17px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.notak-rgt-barre[data-replie] .notak-rgt-barre-titre {
+  opacity: 1;
+}
+
+.notak-rgt-barre-droite {
+  justify-self: end;
+}
+
+.notak-rgt-lien {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  min-width: 44px;
   min-height: 44px;
-  padding: 0 4px;
+  padding: 0 8px;
   border: 0;
   background: none;
-  color: var(--notak-accent, #2f6feb);
-  font: inherit;
-  font-size: 16px;
+  color: var(--rgt-accent);
+  font-size: 17px;
+}
+
+.notak-rgt-lien:active {
+  opacity: 0.4;
+}
+
+.notak-rg-retour {
+  gap: 6px;
+  padding-left: 0;
+}
+
+.notak-rg-ok {
   font-weight: 600;
 }
 
-.notak-rg-retour {
-  margin: 0 0 4px -8px;
+.notak-rgt-defile {
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 0 max(16px, env(safe-area-inset-right, 0px)) calc(32px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
-.notak-rg-telephone .notak-rg-lien {
-  min-height: 48px;
-  font-size: 16px;
+.notak-rgt-titre {
+  margin: 2px 4px 14px;
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
 }
 
-.notak-rg-telephone .notak-rg-ligne {
-  flex-wrap: wrap;
+/* Une carte : un groupe de rangées, coins de 12 px. */
+.notak-rgt-carte {
+  overflow: hidden;
+  margin: 0 0 32px;
+  border-radius: 12px;
+  background: var(--rgt-carte);
+}
+
+.notak-rgt-groupe .notak-rgt-carte {
+  margin: 0;
+}
+
+.notak-rgt-groupe {
+  margin: 0 0 32px;
+}
+
+.notak-rgt-groupe:first-child {
+  margin-top: 20px;
+}
+
+.notak-rgt-entete {
+  margin: 0 16px 7px;
+  color: var(--rgt-second);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.notak-rgt-pied {
+  margin: 7px 16px 0;
+  color: var(--rgt-second);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+/* Une rangée : 44 pt au moins, le libellé, la valeur en gris, puis le chevron ou la coche. */
+.notak-rgt-rangee {
+  --rgt-retrait: 16px;
+
+  position: relative;
+  display: flex;
+  align-items: center;
   gap: 12px;
-}
-
-.notak-rg-telephone .notak-rg-controle {
-  max-width: none;
-}
-
-/* Dans la liste, rien n'est « ouvert » : aucune rubrique ne se distingue avant qu'on la touche. */
-.notak-rg-telephone .notak-rg-lien[aria-current] {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 0;
   background: none;
-  box-shadow: none;
+  color: var(--rgt-texte);
+  font-size: 17px;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.notak-rgt-rangee:active {
+  background: var(--rgt-appui);
+}
+
+.notak-rgt-rangee:focus-visible {
+  outline-offset: -2px;
+}
+
+/* Le séparateur part du texte : après la pastille quand il y en a une, jamais sous la dernière rangée. */
+.notak-rgt-rangee + .notak-rgt-rangee::before,
+[role='radiogroup'] + .notak-rgt-rangee::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: var(--rgt-retrait);
+  border-top: 0.5px solid var(--rgt-filet);
+  content: '';
+}
+
+.notak-rgt-rangee[data-icone] {
+  --rgt-retrait: 57px;
+
+  padding-block: 7px;
+}
+
+.notak-rgt-libelle {
+  flex: 1;
+  min-width: 0;
+}
+
+.notak-rgt-valeur {
+  color: var(--rgt-second);
+}
+
+.notak-rgt-chevron {
+  flex: none;
+  color: var(--rgt-chevron);
+}
+
+.notak-rgt-coche {
+  display: flex;
+  flex: none;
+  justify-content: center;
+  width: 18px;
+  color: var(--rgt-accent);
+}
+
+.notak-rgt-pastille {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 29px;
+  height: 29px;
+  border-radius: 7px;
+  color: #fff;
+}
+
+/* Le compte, en tête : la photo en grand, le nom, l'adresse dessous. */
+.notak-rgt-moi {
+  --rgt-retrait: 66px;
+
+  gap: 14px;
+  padding-block: 10px;
+}
+
+.notak-rgt-moi .notak-rgt-libelle {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.notak-rgt-moi strong {
+  overflow: hidden;
+  font-size: 20px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-rgt-moi small {
+  overflow: hidden;
+  color: var(--rgt-second);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notak-rgt-version {
+  margin: -12px 0 0;
+  color: var(--rgt-second);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Un contrôle dessiné à part (le mode, le thème, la photo) : dans la carte, à 16 px de ses bords. */
+.notak-rgt-libre {
+  padding: 16px;
+}
+
+/* Sauf s'il se dessine lui-même en rangées (le thème). */
+.notak-rgt-libre:has(> .notak-rgt-rangees) {
+  padding: 0;
+}
+
+.notak-rgt-action {
+  color: var(--rgt-accent);
+}
+
+.notak-rgt-action[data-danger] {
+  color: #ff3b30;
+}
+
+.notak-rgt-rangee:disabled {
+  opacity: 0.45;
+}
+
+.notak-rgt-note {
+  margin: 0;
+  padding: 10px 16px 12px;
+  border-top: 0.5px solid var(--rgt-filet);
+  color: var(--rgt-second);
+  font-size: 15px;
+}
+
+.notak-rgt-libre .notak-rg-controle {
+  max-width: none;
 }
 
 /* Les trois aperçus du mode se partagent la largeur. */
 .notak-rg-telephone .notak-rg-modes {
   display: grid;
-  flex: 1 1 100%;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .notak-rg-telephone .notak-rg-tuile {
+  align-items: center;
   min-width: 0;
+  min-height: 44px;
+  font-size: 15px;
+  text-align: center;
 }
 
 .notak-rg-telephone .notak-rg-apercu {
