@@ -142,4 +142,20 @@ describe('un doigt sur un élément', () => {
       vi.useRealTimers()
     }
   })
+
+  it('décollé par un appui long, il prend le pointeur : le doigt ne le perd pas si sa carte change sous lui', () => {
+    vi.useFakeTimers()
+    const capture = vi.spyOn(HTMLElement.prototype, 'setPointerCapture')
+    try {
+      const m = monterAvecNote()
+      capture.mockClear()
+      doigt(m.carte, 'pointerdown', 1000)
+      act(() => void vi.advanceTimersByTime(600))
+      expect(capture).toHaveBeenCalledWith(1)
+    } finally {
+      capture.mockRestore()
+      vi.useRealTimers()
+    }
+  })
 })
+

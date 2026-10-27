@@ -8,6 +8,7 @@ import { ouvrirFenetreFichier, useFichierOuvert } from './elements/fichier/ouver
 import { PanneauEnvoi } from './elements/fichier/PanneauEnvoi'
 import { BarreOutils, BarreSelection, type OutilDeBarre, outilsDeBarre } from './Barres'
 import { enFeuille } from './communs/Feuille'
+import { auDoigt } from './doigt'
 import { BarreEdition, ContexteBarreEdition } from './barreEdition'
 import { Cadre, ContexteRangement, type Empreinte, type Rangement } from './Cadre'
 import * as cam from './coeur/camera'
@@ -1115,12 +1116,12 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       if (e.pointerType !== 'touch') return
       doigts.set(e.pointerId, ici(e))
       if (doigts.size === 1) {
-        const { clientX, clientY, target } = e
+        const { clientX, clientY, target, pointerId } = e
         appuiLong = {
           depart: ici(e),
           minuteur: setTimeout(() => {
             appuiLong = null
-            appuiLongRef.current({ clientX, clientY, target })
+            appuiLongRef.current({ clientX, clientY, target, pointerId })
           }, APPUI_LONG),
         }
       } else if (doigts.size === 2) {
@@ -2137,7 +2138,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
    * Un doigt resté posé : sur un élément qui se déplace, il le décolle (un retour au doigt, l'élément choisi, prêt à
    * suivre) ; relâché sans bouger, ce sera son menu. Ailleurs, le menu du clic droit, tout de suite.
    */
-  const appuiLongRef = useRef<(o: { clientX: number; clientY: number; target: EventTarget | null }) => void>(() => {})
+  const appuiLongRef = useRef<(o: { clientX: number; clientY: number; target: EventTarget | null; pointerId?: number }) => void>(() => {})
   appuiLongRef.current = (o) => {
     const g = geste.current
     const id = g?.type === 'attraper' ? g.toucher?.id : null
@@ -2150,6 +2151,14 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       setAttrape(false)
       geste.current = { ...gesteGlisser(s, cam.versTableau(camera, p), p), decolle: o }
       setBarresGardees(true)
+      // Décollé, l'élément suit le doigt jusqu'au bout, même si sa carte se redessine ou change de place sous lui.
+      if (o.pointerId !== undefined) {
+        try {
+          racine.current!.setPointerCapture(o.pointerId)
+        } catch {
+          // Le doigt s'est déjà levé : le relâchement le dira.
+        }
+      }
       services.vibrer?.()
       return
     }
@@ -2281,7 +2290,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const def = seul && definition(seul.contenu.type)
     // Moins de mouvement demandé : l'élément vole encore sous le pointeur, mais ne s'incline plus.
     const calme = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
-    return { incliner: !calme && !!def && !def.sansInclinaison && def.calque !== 'lignes', max: inclinaisonMax(cote) }
+    return { incliner: !calme && !!def && !def.sansInclinaison && def.calque !== 'lignes', max: inclinaisonMax(cote), ...(auDoigt() ? { colle: true } : {}) }
   }
 
   /** La vitesse du défilement au bord (px d'écran par image), ou `null` hors de la zone et sur la barre d'outils. */

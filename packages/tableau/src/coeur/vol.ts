@@ -40,10 +40,12 @@ export interface Reglage {
   incliner: boolean
   /** En degrés, d'après `inclinaisonMax`. */
   max: number
+  /** Au doigt, l'élément reste sous le doigt au lieu de le suivre avec du retard : il ne garde que son inclinaison. */
+  colle?: boolean
 }
 
 function suivre(v: Vol, cible: Point, dt: number, r: Reglage): { x: number; y: number; dx: number; dy: number } {
-  const part = Math.min(((r.incliner ? SUIVI_INCLINE : SUIVI) * dt) / IMAGE_MS, 1)
+  const part = r.colle ? 1 : Math.min(((r.incliner ? SUIVI_INCLINE : SUIVI) * dt) / IMAGE_MS, 1)
   const dx = (cible.x - v.x) * part
   const dy = (cible.y - v.y) * part
   return { x: v.x + dx, y: v.y + dy, dx, dy }

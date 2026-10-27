@@ -47,3 +47,17 @@ describe('vol', () => {
     expect(transformation({ x: 0, y: 0, rx: 1, ry: 2, ombre: 0 })).toContain('rotateY(2deg)')
   })
 })
+
+describe('au doigt', () => {
+  it('l’élément colle au doigt : une image suffit à le rejoindre, il s’incline encore', () => {
+    const v = pasEnVol(VOL_REPOS, { x: 120, y: 40 }, 130, 16, { incliner: true, max: 10, colle: true })
+    expect([v.x, v.y]).toEqual([120, 40])
+    expect(v.ry).not.toBe(0)
+  })
+
+  it('à la souris, il le suit avec son retard', () => {
+    const v = pasEnVol(VOL_REPOS, { x: 120, y: 40 }, 130, 16, { incliner: true, max: 10 })
+    expect(v.x).toBeLessThan(120)
+  })
+})
+
