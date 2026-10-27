@@ -14,14 +14,14 @@
 /// - lire les fichiers choisis par Fichier › Importer… (⌘O, `menu.rs`), un à un, et seulement ceux-là ;
 /// Et, pour la page d'un serveur, photographier la fenêtre pour un signalement (`capturer_fenetre`).
 ///
-/// Sur un iPhone ou un iPad, la même coque compile (`tauri ios build`) et n'ouvre que l'application embarquée : ce qui
-/// n'y a pas de sens est sous `#[cfg(desktop)]` (joindre un serveur, les fichiers du Finder, le menu, les mises à jour,
-/// c'est l'App Store ; « Enregistrer sous » n'existe pas), et le natif d'iOS est dans le plugin `appareil`
+/// Sur un iPhone ou un iPad, la même coque compile (`tauri ios build`) : l'application embarquée, ou un serveur Notak
+/// choisi dans l'app (`acces.rs`, comme sur un ordinateur). Ce qui n'y a pas de sens est sous `#[cfg(desktop)]` (les
+/// fichiers du Finder, le menu, les mises à jour, c'est l'App Store ; « Enregistrer sous » n'existe pas), et le natif
+/// d'iOS est dans le plugin `appareil`
 /// (`apps/bureau/plugins/appareil`, `docs/IOS.md`).
 ///
 /// Chaque commande vérifie qui l'appelle (`appel::exiger`) : la page embarquée, la page du serveur choisi, et personne
 /// d'autre ; celles qui choisissent un serveur ou règlent la coque ne servent que la page embarquée.
-#[cfg(desktop)]
 mod acces;
 #[cfg_attr(mobile, allow(dead_code, unused_imports))]
 mod appel;
@@ -33,7 +33,6 @@ mod menu;
 mod mise_a_jour;
 #[cfg_attr(mobile, allow(dead_code))]
 mod navigation;
-#[cfg(desktop)]
 mod reglages;
 
 #[cfg(desktop)]
@@ -48,7 +47,6 @@ use std::time::{Duration, Instant};
 #[cfg(desktop)]
 use tauri::ipc::Request;
 use tauri::webview::NewWindowResponse;
-#[cfg(desktop)]
 use tauri::webview::PageLoadEvent;
 #[cfg(desktop)]
 use tauri::{RunEvent, State, Webview};
@@ -57,7 +55,6 @@ use tauri::{AppHandle, Manager, WebviewWindowBuilder};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
-#[cfg(desktop)]
 use acces::Acces;
 use appel::Cadence;
 #[cfg(desktop)]
@@ -68,10 +65,8 @@ use fichiers::Ouverts;
 use mise_a_jour::MisesAJour;
 #[cfg(desktop)]
 use navigation::Appelant;
-#[cfg(desktop)]
 use navigation::racine_locale;
 use navigation::{vers_dehors, Origines, ServeurCourant};
-#[cfg(desktop)]
 use reglages::Reglage;
 
 /// Les chemins choisis dans la fenêtre « Enregistrer sous » : celui d'un export attend ses octets une seule fois ;
@@ -252,8 +247,7 @@ fn ouvrir_fenetre(app: &AppHandle, origines: Origines) -> tauri::Result<()> {
             ouvrir_dehors(&pour_fenetres, &cadence_fenetres, &url);
             NewWindowResponse::Deny
         });
-    // Le chargement d'une page de serveur, que suit `acces.rs` : sur un ordinateur seulement, iOS n'en joint aucun.
-    #[cfg(desktop)]
+    // Le chargement d'une page de serveur, que suit `acces.rs`.
     let constructeur = constructeur.on_page_load(move |fenetre, chargement| match chargement.event() {
         PageLoadEvent::Started => acces::page_chargee(fenetre.app_handle(), chargement.url()),
         PageLoadEvent::Finished if chargement.url().as_str() == "about:blank" => acces::page_vide_chargee(fenetre.app_handle()),
@@ -297,7 +291,6 @@ pub fn run() {
         constructeur = constructeur
             .manage(MisesAJour::new(mises_a_jour))
             .manage(Emplacements::default())
-            .manage(acces::Passage::default())
             .manage(Ouverts::default())
             .manage(fichiers::Ouvertures::default());
     }
@@ -306,16 +299,15 @@ pub fn run() {
         constructeur = constructeur.menu(menu::menu).on_menu_event(menu::choisi);
     }
     constructeur
+        .manage(acces::Passage::default())
         .setup(|app| {
             let app = app.handle();
-            // Un seul serveur courant, partagé par les réglages d'accès et la garde de navigation ; sur iOS, il reste vide.
+            // Un seul serveur courant, partagé par les réglages d'accès et la garde de navigation.
             let serveur = ServeurCourant::default();
             #[cfg(desktop)]
-            {
-                fichiers::vider_les_ouverts(app);
-                let reglage = Reglage::new(app.path().app_config_dir().ok().map(|d| d.join("bureau.json")));
-                app.manage(Acces::new(reglage, racine_locale(app.config()), serveur.clone()));
-            }
+            fichiers::vider_les_ouverts(app);
+            let reglage = Reglage::new(app.path().app_config_dir().ok().map(|d| d.join("bureau.json")));
+            app.manage(Acces::new(reglage, racine_locale(app.config()), serveur.clone()));
             let origines = Origines::de(app.config(), serveur);
             app.manage(origines.clone());
             ouvrir_fenetre(app, origines)?;
@@ -334,17 +326,12 @@ pub fn run() {
             ecrire_fichier,
             #[cfg(desktop)]
             lire_fichier_choisi,
-            #[cfg(desktop)]
             acces::acces,
-            #[cfg(desktop)]
             acces::joindre_serveur,
-            #[cfg(desktop)]
             acces::revenir_ici,
-            #[cfg(desktop)]
             acces::oublier_serveur,
             #[cfg(desktop)]
             acces::regler_maj_auto,
-            #[cfg(desktop)]
             acces::regler_ouverture,
             #[cfg(desktop)]
             fichiers::ouvrir_fichier,
@@ -354,9 +341,7 @@ pub fn run() {
             fichiers::lire_fichier_ouvert,
             #[cfg(desktop)]
             fichiers::ecarter_fichier_ouvert,
-            #[cfg(desktop)]
             acces::annuler_jonction,
-            #[cfg(desktop)]
             acces::ouvrir_dans_le_navigateur,
             #[cfg(desktop)]
             fichiers::confier_copie,

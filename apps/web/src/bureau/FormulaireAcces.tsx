@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { type Acces, annulerJonction, estErreurCoque, joindreServeur, oublierServeur } from '../bureau'
 import { t } from '../langue'
 import { Marque } from '../PageApp'
-import { type Echec, GUIDE, GUIDE_ORIGINE, concerneAdresse, echecDe, hoteDe, hoteSaisi, texteErreur } from './acces'
+import { type Echec, GUIDE, GUIDE_ORIGINE, concerneAdresse, surAppareil, echecDe, hoteDe, hoteSaisi, texteErreur } from './acces'
 import { fermerDialogueAcces, relireAcces, useAcces, useDialogueAcces } from './etat'
 
 /**
@@ -236,14 +236,14 @@ export function FormulaireAcces({ acces, mode, echecInitial, surLocal, surFermer
       </a>
 
       <div className="acces-autres">
-        <p className="connexion-aide">{t('bureau.acces.deuxLieux')}</p>
+        <p className="connexion-aide">{t(surAppareil() ? 'bureau.acces.deuxLieux.appareil' : 'bureau.acces.deuxLieux')}</p>
         {/* Dans la fenêtre, on est déjà sur les toiles d'ici ; où Notak s'ouvre se règle dans les réglages de l'app. */}
         {mode === 'ecran' && (
           <>
             <button type="button" className="bouton" onClick={() => void toilesDIci()}>
-              {t('bureau.acces.local')}
+              {t(surAppareil() ? 'bureau.acces.local.appareil' : 'bureau.acces.local')}
             </button>
-            {ouvrirServeur && <small className="connexion-indice">{t('bureau.acces.localAide', { hote })}</small>}
+            {ouvrirServeur && <small className="connexion-indice">{t(surAppareil() ? 'bureau.acces.localAide.appareil' : 'bureau.acces.localAide', { hote })}</small>}
           </>
         )}
         {retenu && (
@@ -256,7 +256,7 @@ export function FormulaireAcces({ acces, mode, echecInitial, surLocal, surFermer
             ) : (
               <div className="acces-confirme" role="group" aria-labelledby={`${id}-oubli`}>
                 <p id={`${id}-oubli`} className="connexion-aide">
-                  {t('bureau.acces.oublierConfirme', { hote })}
+                  {t(surAppareil() ? 'bureau.acces.oublierConfirme.appareil' : 'bureau.acces.oublierConfirme', { hote })}
                 </p>
                 <div className="acces-actions">
                   <button ref={annuler} type="button" className="bouton" disabled={oubli === 'cours'} onClick={() => setOubli('non')}>

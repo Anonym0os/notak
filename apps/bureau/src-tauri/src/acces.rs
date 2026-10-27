@@ -33,14 +33,17 @@ use tauri::{AppHandle, Manager, State, Url, Webview};
 use url::Host;
 
 use crate::appel::{exiger, Cadence, Erreur, LOCALE, LOCALE_OU_SERVEUR, SERVEUR};
+#[cfg(desktop)]
 use crate::fichiers::Ouverts;
 use crate::navigation::{Appelant, Origines, ServeurCourant};
 use crate::reglages::{Ouvrir, Reglage};
+#[cfg(desktop)]
 use crate::Emplacements;
 
-/// Ce que peut une page du serveur choisi. Ni `joindre_serveur`, ni `oublier_serveur`, ni `regler_maj_auto`, ni
-/// `regler_ouverture`, ni `confier_copie`, ni `annuler_jonction` : un serveur ne choisit pas où va la fenêtre, et ne
-/// règle pas la coque.
+/// Ce que peut une page du serveur choisi, sur un ordinateur. Ni `joindre_serveur`, ni `oublier_serveur`, ni
+/// `regler_maj_auto`, ni `regler_ouverture`, ni `confier_copie`, ni `annuler_jonction` : un serveur ne choisit pas où va
+/// la fenêtre, et ne règle pas la coque.
+#[cfg(desktop)]
 pub const DROITS_SERVEUR: &[&str] = &[
     "core:window:allow-start-dragging",
     "core:window:allow-internal-toggle-maximize",
@@ -60,6 +63,26 @@ pub const DROITS_SERVEUR: &[&str] = &[
     "allow-ecarter-fichier-ouvert",
     "allow-ouvrir-dans-le-navigateur",
 ];
+
+/// Sur un iPhone ou un iPad : se signaler et revenir aux toiles de l'appareil, ouvrir dans Safari la page d'accord de
+/// la connexion par code, et ce que la page embarquée y a déjà (`capabilities/mobile.json`) : le plugin `appareil`
+/// (le thème de la vue, le clavier, un retour haptique) et les liens vers le monde. Rien qui choisisse un serveur.
+#[cfg(mobile)]
+pub const DROITS_SERVEUR: &[&str] = &["allow-acces", "allow-revenir-ici", "allow-ouvrir-dans-le-navigateur", "appareil:default", "opener:default"];
+
+/// Une page qu'on quitte (pour un serveur, ou pour revenir) ne laisse rien à la suivante : ni les chemins choisis par
+/// « Enregistrer sous », ni les copies confiées pour un autre serveur que `garder`. Sur iOS, il n'y a ni l'un ni l'autre.
+fn oublier_les_fichiers(app: &AppHandle, emplacements: bool, garder: Option<&str>) {
+    #[cfg(desktop)]
+    {
+        if emplacements {
+            app.state::<Emplacements>().vider();
+        }
+        app.state::<Ouverts>().retirer_confiees(garder);
+    }
+    #[cfg(mobile)]
+    let _ = (app, emplacements, garder);
+}
 
 const DELAI: Duration = Duration::from_secs(10);
 const CORPS_MAX: usize = 64 * 1024;
@@ -442,15 +465,14 @@ pub async fn joindre_serveur(
     webview: Webview,
     garde: State<'_, Origines>,
     etat: State<'_, Acces>,
-    ouverts: State<'_, Ouverts>,
     adresse: String,
     garder: bool,
 ) -> Result<Joint, Erreur> {
     exiger(&webview, &garde, LOCALE)?;
     let vu = etat.annulations.load(Ordering::SeqCst);
-    let joint = joindre(&app, &webview, &garde, &etat, &ouverts, &adresse, garder, vu).await;
+    let joint = joindre(&app, &webview, &garde, &etat, &adresse, garder, vu).await;
     if joint.is_err() {
-        ouverts.retirer_confiees(None);
+        oublier_les_fichiers(&app, false, None);
     }
     joint
 }
@@ -461,7 +483,6 @@ async fn joindre(
     webview: &Webview,
     garde: &Origines,
     etat: &Acces,
-    ouverts: &Ouverts,
     adresse: &str,
     garder: bool,
     vu: u64,
@@ -479,9 +500,8 @@ async fn joindre(
     // La garde d'abord, avec le passage : la navigation qui suit passe par elle. La personne a renoncé entre-temps (les
     // toiles d'ici, le menu) : la fenêtre reste où elle est.
     let (numero, jeton) = etat.commencer_visite(&passage, &origine, racine, vu).ok_or(Erreur::Annule)?;
-    app.state::<Emplacements>().vider();
     // Un autre serveur n'a pas à trouver la copie confiée pour un autre.
-    ouverts.retirer_confiees(Some(&origine));
+    oublier_les_fichiers(app, true, Some(&origine));
     if let Err(e) = partir(app, jeton) {
         etat.abandonner(&passage, |_| None);
         return Err(e);
@@ -717,8 +737,7 @@ pub fn revenir(app: &AppHandle, ecran: Ecran, erreur: Option<&str>) -> Result<()
 
 /// La fenêtre, déjà sans serveur (`abandonner`), part pour la page embarquée par le passage `jeton`, s'il y en a un.
 fn rentrer(app: &AppHandle, jeton: Option<u64>) -> Result<(), Erreur> {
-    app.state::<Emplacements>().vider();
-    app.state::<Ouverts>().retirer_confiees(None);
+    oublier_les_fichiers(app, true, None);
     jeton.map_or(Ok(()), |j| partir(app, j))
 }
 
@@ -755,7 +774,6 @@ pub async fn oublier_serveur(
     webview: Webview,
     garde: State<'_, Origines>,
     etat: State<'_, Acces>,
-    ouverts: State<'_, Ouverts>,
 ) -> Result<(), Erreur> {
     exiger(&webview, &garde, LOCALE)?;
     let mut oublie = None;
@@ -764,7 +782,7 @@ pub async fn oublier_serveur(
         oublie = r.serveur.take();
         r.ouvrir = Ouvrir::Local;
     });
-    ouverts.retirer_confiees(None);
+    oublier_les_fichiers(&app, false, None);
     if let Some(origine) = oublie {
         // La fenêtre partait chez lui : elle n'y va plus, et revient à l'écran d'accès si elle était déjà en route.
         if garde.serveur.lire().as_deref() == Some(origine.as_str()) {
@@ -787,7 +805,8 @@ fn effacer_session(webview: &Webview, origine: &str) -> Result<(), Erreur> {
     Ok(())
 }
 
-/// La recherche automatique des mises à jour, réglée une fois pour la coque.
+/// La recherche automatique des mises à jour, réglée une fois pour la coque (sur iOS, c'est l'App Store).
+#[cfg_attr(mobile, allow(dead_code))]
 #[tauri::command]
 pub async fn regler_maj_auto(webview: Webview, garde: State<'_, Origines>, etat: State<'_, Acces>, actif: bool) -> Result<(), Erreur> {
     exiger(&webview, &garde, LOCALE)?;

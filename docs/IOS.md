@@ -114,7 +114,7 @@ la table des risques ; une bascule vers Capacitor ne se décide qu'après cette 
 | 13 | La CSP (`securite.ts`, cible `bureau`) ne bloque rien : console vide d'erreurs CSP ; un lecteur YouTube collé se charge | coller un lien | |
 | 14 | Thème : au premier lancement l'app suit le système ; la barre d'état est claire sur sombre ; les bords (encoche, barre d'accueil) sont du fond du thème, pas blancs | basculer le mode sombre d'iOS | |
 | 15 | Rotation, Split View (iPad), Stage Manager : la mise en page suit, rien ne reste sous l'encoche | tourner, partager l'écran | |
-| 16 | Mode serveur (quand l'autre chantier aura `joindre_serveur`) : connexion à un serveur de test, cookies, WebSocket `/sync`, un fichier envoyé | depuis l'iPad | |
+| 16 | Mode serveur : Bibliothèque › « Sur un serveur » › adresse d'un serveur de test ; sa page de connexion, sa bibliothèque ; cookies gardés au relancement (l'app rouvre sur le serveur) ; WebSocket `/sync` ; « Toiles de cet appareil » et « Se déconnecter » dans la feuille du compte ; Google par Safari (connexion par code) | depuis l'iPhone | |
 | 17 | `cargo test --manifest-path apps/bureau/plugins/appareil/Cargo.toml` et la compilation Swift passent ; `bun run ios:construire -- --build-number 1` sort une archive | terminal | |
 
 ## Rendez-vous avec le chantier de l'app de bureau
@@ -127,9 +127,13 @@ ouverts, image Docker) et celui-ci partagent la coque. Pour qu'ils s'emboîtent 
 - `fichiers_ouverts()` / `lire_fichier_ouvert` doivent accepter une source autre qu'`argv` : sur iOS, c'est
   `RunEvent::Opened { urls }`, avec un accès sécurisé (`startAccessingSecurityScopedResource`) que le Swift de
   `appareil` gérera. Une file commune, remplie de deux côtés.
-- `joindre_serveur` et la garde de navigation (`navigation.rs`) dans un module sans `#[cfg(target_os = "macos")]` :
-  le même code tourne sur iOS. Les droits accordés à l'origine du serveur à l'exécution doivent, sur mobile, être
-  ceux de `capabilities/mobile.json` (pas `allow-ecrire-fichier`, qui n'existe pas là).
+- Fait le 27/10/2026 : `acces.rs` et `reglages.rs` tournent sur iOS (`joindre_serveur`, `revenir_ici`,
+  `oublier_serveur`, `regler_ouverture`, `annuler_jonction`, `ouvrir_dans_le_navigateur`). La page d'un serveur y
+  reçoit `DROITS_SERVEUR` version mobile : se signaler, revenir, Safari pour la connexion par code, `appareil:default`
+  et `opener:default`, rien qui choisisse un serveur. La session est le cookie de Better Auth, gardé par WebKit dans le
+  magasin de la vue ; pas de Keychain tant que la page est servie par le serveur lui-même. Côté page :
+  `estPageServeurMobile`, `peutJoindreUnServeur` (`bureau.ts`), `local/ServeurTelephone.tsx`. En développement,
+  `?coque=ios` imite la coque dans le navigateur (`ios/coqueSimulee.ts`) pour essayer tout le parcours.
 - `ouvrirAilleurs(adresse, nom)` (le sien, pour les pièces jointes) et `ouvrirDehors` (le nôtre, `bureau.ts`) : un
   seul chemin, le sien quand il sera là ; le nôtre s'y repliera. Les 11 `window.open(…, '_blank')` à y faire passer :
   `edition/locale.tsx:74`, `edition/serveur.tsx:72`, `elements/lien/index.ts:69`, `elements/fichier/Fichier.tsx:279,290`,

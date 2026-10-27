@@ -18,6 +18,7 @@ import {
 import { Fragment, type ReactNode, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { Vignette } from '../bibliotheque/Vignettes'
 import { type EspaceLocal, rechercherLocalement } from './espace'
+import { ServeurTelephone } from './ServeurTelephone'
 
 /**
  * La bibliothèque de l'édition locale, celle de l'app iPhone : la page où l'on arrive. En tête, la toile d'accueil,
@@ -388,6 +389,8 @@ export function BibliothequeLocale({ el, ouvrir }: { el: EspaceLocal; ouvrir(tab
               </section>
             )
           })}
+
+          <ServeurTelephone />
         </>
       )}
 

@@ -920,6 +920,22 @@ export const fr: Textes = {
   'diag.clavierAide': 'Touchez le champ : la hauteur du clavier doit se lire ci-dessous.',
   'diag.copier': 'Copier le relevé',
   'diag.copie': 'Relevé copié',
+  // Se connecter à un serveur depuis un iPhone ou un iPad : on y parle de « cet appareil », pas de « cet ordinateur ».
+  'bureau.acces.deuxLieux.appareil':
+    'Vos toiles de cet appareil restent sur cet appareil. Celles d’un serveur vivent sur ce serveur, et Notak garde ici une copie de celles que vous y ouvrez, pour travailler hors ligne. Rien ne passe de l’un à l’autre sans que vous le demandiez.',
+  'bureau.acces.local.appareil': 'Toiles de cet appareil',
+  'bureau.acces.localAide.appareil': 'Pour cette fois : au prochain lancement, Notak s’ouvrira encore sur {hote}, tant que vous ne l’oubliez pas.',
+  'bureau.acces.oublierConfirme.appareil':
+    'Oublier {hote} ? La session ouverte sur ce serveur sera fermée sur cet appareil. Les copies de ses toiles que Notak garde pour travailler hors ligne restent sur cet appareil. Vos toiles de cet appareil ne sont pas touchées.',
+  'bureau.porte.ouvrirLocal.appareil': 'Ouvrir les toiles de cet appareil',
+  'serveur.connexion.local.appareil': 'Ouvrir les toiles de cet appareil',
+  'serveur.compte.toilesLocales.appareil': 'Toiles de cet appareil',
+  'telephone.serveur.rubrique': 'Sur un serveur',
+  'telephone.serveur.connecter': 'Se connecter à un serveur Notak',
+  'telephone.serveur.connecterDetail': 'Vos toiles d’un serveur, avec votre compte',
+  'telephone.serveur.ouvrir': 'Ouvrir {hote}',
+  'telephone.serveur.ouvrirDetail': 'Serveur mémorisé',
+  'telephone.serveur.autre': 'Un autre serveur, ou oublier celui-ci',
 }
 
 export const en: Textes = {
@@ -1814,6 +1830,21 @@ export const en: Textes = {
   'diag.clavierAide': 'Tap the field: the keyboard height should show below.',
   'diag.copier': 'Copy the report',
   'diag.copie': 'Report copied',
+  'bureau.acces.deuxLieux.appareil':
+    'The boards on this device stay on this device. A server’s boards live on that server, and Notak keeps a copy here of the ones you open there, for offline work. Nothing moves from one to the other unless you ask.',
+  'bureau.acces.local.appareil': 'Boards on this device',
+  'bureau.acces.localAide.appareil': 'Just this once: the next time it starts, Notak will open on {hote} again, until you forget it.',
+  'bureau.acces.oublierConfirme.appareil':
+    'Forget {hote}? The session open on that server will be closed on this device. The copies of its boards that Notak keeps for offline work stay on this device. The boards on this device are untouched.',
+  'bureau.porte.ouvrirLocal.appareil': 'Open the boards on this device',
+  'serveur.connexion.local.appareil': 'Open the boards on this device',
+  'serveur.compte.toilesLocales.appareil': 'Boards on this device',
+  'telephone.serveur.rubrique': 'On a server',
+  'telephone.serveur.connecter': 'Connect to a Notak server',
+  'telephone.serveur.connecterDetail': 'Your boards on a server, with your account',
+  'telephone.serveur.ouvrir': 'Open {hote}',
+  'telephone.serveur.ouvrirDetail': 'Saved server',
+  'telephone.serveur.autre': 'Another server, or forget this one',
 }
 
 ajouterTextes(fr, en)

@@ -1,3 +1,4 @@
+import { estMobile } from '../appareil'
 import { type Acces, type ErreurCoque, estErreurCoque } from '../bureau'
 import { t } from '../langue'
 
@@ -87,3 +88,10 @@ export function texteErreur(e: Echec, hote = ''): string {
 
 /** L'erreur se corrige dans le champ de l'adresse : il se marque, et reprend le curseur. */
 export const concerneAdresse = (e: Echec) => e.code === 'adresse_invalide' || e.code === 'https_requis' || e.code === 'chemin'
+
+/**
+ * Sur un iPhone ou un iPad, on ne parle pas de « cet ordinateur » : les textes qui nomment le lieu ont une variante
+ * `….appareil`, choisie par ceci. Les clés s'écrivent en toutes lettres là où elles servent (les essais des textes les y
+ * cherchent).
+ */
+export const surAppareil = (): boolean => estMobile()

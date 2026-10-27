@@ -137,3 +137,24 @@ describe('les noms de serveurs', () => {
     expect(hoteSaisi('http://localhost:3005')).toBe('localhost:3005')
   })
 })
+
+describe('le lieu, dans les mots', () => {
+  it('sur un iPhone, chaque texte qui nomme l’ordinateur a sa variante, en français et en anglais, sans lui', () => {
+    const cles = [
+      'bureau.acces.deuxLieux',
+      'bureau.acces.local',
+      'bureau.acces.localAide',
+      'bureau.acces.oublierConfirme',
+      'bureau.porte.ouvrirLocal',
+      'serveur.connexion.local',
+      'serveur.compte.toilesLocales',
+    ]
+    for (const cle of cles) {
+      const variante = `${cle}.appareil`
+      expect(textesFr[variante], cle).toBeTruthy()
+      expect(textesEn[variante], cle).toBeTruthy()
+      expect(textesFr[variante], cle).not.toMatch(/ordinateur/)
+      expect(textesEn[variante], cle).not.toMatch(/computer/)
+    }
+  })
+})
