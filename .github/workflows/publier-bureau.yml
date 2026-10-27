@@ -56,7 +56,7 @@ jobs:
           # Sans cache : setup-bun garde d'office bun dans celui de main, sous une clé que la CI de n'importe quel commit
           # de main peut écrire ; un bun changé là construirait ce que « signer » signe.
           no-cache: true
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
       - name: L'étiquette, le numéro de l'app et ses notes s'accordent
@@ -110,7 +110,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
       - name: Un brouillon, que personne ne voit encore
@@ -169,7 +169,7 @@ jobs:
           # Sans cache : setup-bun garde d'office bun dans celui de main, sous une clé que la CI de n'importe quel commit
           # de main peut écrire ; un bun changé là construirait ce que « signer » signe.
           no-cache: true
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
       - name: Rust, pour la cible
@@ -260,7 +260,7 @@ jobs:
         with:
           persist-credentials: false
       # Node pour nos scripts et la CLI de Tauri (npx) : pas de bun ici, ni d'action d'ailleurs à côté de la clé.
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -464,7 +464,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
       - name: latest.json, SHA256SUMS.txt et compose.yaml, une fois toutes les plateformes là
