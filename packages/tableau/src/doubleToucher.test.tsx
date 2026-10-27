@@ -192,6 +192,47 @@ describe('un doigt relevé hors de la toile', () => {
   })
 })
 
+describe('pincer la toile', () => {
+  it('la vue reste où les doigts la mènent, même quand React reprend la caméra au milieu du geste', () => {
+    vi.useFakeTimers()
+    // Les notes se mesurent à l'écran : le calque qui glisse et l'échelle du plan les placent, comme dans un navigateur.
+    const mesure = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      const glisse = hote.querySelector<HTMLElement>('.notak-glisse')?.style.transform ?? ''
+      const plan = hote.querySelector<HTMLElement>('.notak-plan')?.style.transform ?? ''
+      const [tx, ty] = (glisse.match(/-?[\d.]+/g) ?? ['0', '0']).map(Number) as [number, number]
+      const k = Number(plan.match(/[\d.]+/)?.[0] ?? 1) * 10
+      const rect = (x: number, y: number, l: number, h: number) => ({ left: x, top: y, right: x + l, bottom: y + h, width: l, height: h, x, y, toJSON() {} }) as DOMRect
+      return this.dataset.id ? rect(tx + 20 * k, ty + 20 * k, 30 * k, 10 * k) : rect(0, 0, 400, 800)
+    })
+    try {
+      const magasin = creerMagasin({ titre: '', etiquettes: [], elements: [nouvelleNote(20, 20, 'a')] })
+      act(() => racine.render(<Toile magasin={magasin} />))
+      const toile = hote.querySelector('.notak-toile')!
+      const doigtN = (type: string, id: number, x: number) => {
+        const e = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, buttons: type === 'pointerup' ? 0 : 1, clientX: x, clientY: 400 })
+        Object.defineProperties(e, { pointerType: { value: 'touch' }, pointerId: { value: id }, isPrimary: { value: id === 1 } })
+        act(() => void (type === 'pointerup' ? window : toile).dispatchEvent(e))
+      }
+      doigtN('pointerdown', 1, 150)
+      doigtN('pointerdown', 2, 250)
+      // Les doigts se rapprochent, et React reprend la caméra du geste entre deux mouvements (toutes les 150 ms).
+      for (const d of [40, 20, 10, 5]) {
+        doigtN('pointermove', 1, 200 - d)
+        doigtN('pointermove', 2, 200 + d)
+        act(() => void vi.advanceTimersByTime(200))
+      }
+      doigtN('pointerup', 2, 205)
+      doigtN('pointerup', 1, 195)
+      const ox = Number((hote.querySelector('.notak-toile') as HTMLElement).style.getPropertyValue('--notak-cam-ox'))
+      expect(Number.isFinite(ox)).toBe(true)
+      expect(Math.abs(ox)).toBeLessThan(10_000)
+    } finally {
+      mesure.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+})
+
 describe('tirer la toile au doigt', () => {
   it('le calque suit le doigt aussitôt, et la toile reste où on la lâche', () => {
     const { toile } = monter()

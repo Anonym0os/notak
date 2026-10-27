@@ -729,7 +729,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const noeud = div?.querySelector(`[data-id="${CSS.escape(id)}"]`)
     if (!div || !noeud) return null
     const [o, r] = [div.getBoundingClientRect(), noeud.getBoundingClientRect()]
-    const c = etat.current.camera
+    // Pendant un geste au doigt, l'écran montre la caméra du geste, pas encore celle de React.
+    const c = cameraVive.current ?? etat.current.camera
     return {
       min: cam.versTableau(c, point(r.left - o.left, r.top - o.top)),
       max: cam.versTableau(c, point(r.right - o.left, r.bottom - o.top)),
@@ -747,7 +748,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   // (tout tient à l'écran) attend un changement de zoom ou de fenêtre.
   const derniereBorne = useRef<{ camera: cam.Camera | null; vue: cam.Vue }>({ camera: null, vue })
   useLayoutEffect(() => {
-    if (enGeste || anime || edition) return
+    // Un pincement en cours non plus : la toile ne glisse pas sous les doigts (il rend la main en relâchant).
+    if (enGeste || anime || edition || cameraVive.current) return
     const avant = derniereBorne.current
     const memeVue = avant.vue.largeur === vue.largeur && avant.vue.hauteur === vue.hauteur
     derniereBorne.current = { camera, vue }
