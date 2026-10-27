@@ -1,14 +1,20 @@
 /**
- * Dans l'application de bureau (la coque Tauri, `apps/bureau`), la fenêtre n'a pas de barre de titre : ses trois
- * boutons se posent dans la première rangée de l'en-tête, comme chez Milanote. La racine du document le dit
- * (`data-bureau`), et dit aussi le plein écran (`data-plein-ecran`), où ces boutons disparaissent et rendent leur place.
+ * Dans la coque Tauri (`apps/bureau`) : sur un ordinateur, la fenêtre n'a pas de barre de titre et ses trois boutons
+ * se posent dans la première rangée de l'en-tête, comme chez Milanote. La racine du document le dit (`data-bureau`),
+ * et dit aussi le plein écran (`data-plein-ecran`), où ces boutons disparaissent et rendent leur place. Sur un iPhone
+ * ou un iPad, pas de boutons de fenêtre : la racine porte `data-plateforme="ios"` à la place (`appareil.ts`).
+ *
+ * `dansCoque()` dit « dans la coque », ordinateur ou mobile ; `estBureau()`, la coque d'un ordinateur, avec ses commandes
+ * (joindre un serveur, les fichiers, les mises à jour) : sur un iPhone ou un iPad, la page fait comme sur le web, hors ce
+ * que règle `appareil.ts`.
  *
  * La page parle à la coque par ses commandes (`apps/bureau/src-tauri/src/lib.rs`), enveloppées ici. Deux pages y ont
  * droit : l'édition locale embarquée, et les pages du serveur Notak que la personne a choisi dans l'app
  * (`estPageServeur`) ; certaines commandes (choisir un serveur, régler la coque) ne servent que la première.
  *
- * Ce fichier est chargé avant tout le reste (`main.tsx`) : il ne tire rien d'autre, ni la toile ni les textes.
+ * Ce fichier est chargé avant tout le reste (`main.tsx`) : il ne tire qu'`appareil.ts`, ni la toile ni les textes.
  */
+import { type FenetreAvecCoque, estMobile, idiome, marquerAppareil, plateforme } from './appareil'
 
 interface Tauri {
   invoke<T>(commande: string, arguments_?: unknown, options?: { headers?: Record<string, string> }): Promise<T>
@@ -23,7 +29,11 @@ interface AvecEvenements {
 /** La coque, si l'on tourne dedans. */
 export const coque = (fenetre: Window = window): Tauri | null => (fenetre as unknown as { __TAURI_INTERNALS__?: Tauri }).__TAURI_INTERNALS__ ?? null
 
-export const estBureau = (fenetre: Window = window): boolean => coque(fenetre) !== null
+/** Dans la coque Tauri, sur un ordinateur comme sur un iPhone ou un iPad. */
+export const dansCoque = (fenetre: Window = window): boolean => coque(fenetre) !== null
+
+/** Dans l'app de bureau : la coque d'un ordinateur, la seule qui ait les commandes de `lib.rs`. */
+export const estBureau = (fenetre: Window = window): boolean => dansCoque(fenetre) && !estMobile(plateforme(fenetre as unknown as FenetreAvecCoque))
 
 /** Une commande de la coque (`apps/bureau/src-tauri/src/lib.rs`) ; hors de l'app de bureau, une erreur. */
 export function invoquer<T>(commande: string, arguments_?: unknown, options?: { headers?: Record<string, string> }): Promise<T> {
@@ -332,20 +342,46 @@ export async function ouvrirAilleurs(adresse: string, nom?: string, fenetre: Win
 }
 
 export function marquerBureau(fenetre: Window = window): void {
-  if (!estBureau(fenetre)) return
+  if (!dansCoque(fenetre)) return
   const racine = fenetre.document.documentElement
+  const f = fenetre as unknown as FenetreAvecCoque
+  const p = plateforme(f)
+  marquerAppareil(fenetre.document, p, idiome(f, p))
+  // La page d'un serveur ne se signale pas ici, au premier script : elle le fait une fois son premier écran là
+  // (`signalerVie`), pour qu'une page qui charge sans que l'app vienne ramène la fenêtre à l'écran d'accès.
+  garderLesLiens(fenetre)
+  // Les boutons de la fenêtre et le plein écran : une affaire d'ordinateur.
+  if (estMobile(p)) return
   racine.dataset.bureau = ''
   const pleinEcran = () =>
     racine.toggleAttribute('data-plein-ecran', fenetre.innerWidth >= fenetre.screen.width && fenetre.innerHeight >= fenetre.screen.height)
   pleinEcran()
   fenetre.addEventListener('resize', pleinEcran)
-  // La page d'un serveur ne se signale pas ici, au premier script : elle le fait une fois son premier écran là
-  // (`signalerVie`), pour qu'une page qui charge sans que l'app vienne ramène la fenêtre à l'écran d'accès.
-  garderLesLiens(fenetre)
 }
 
 /** Les adresses qu'un lien peut ouvrir hors de Notak : le web, un courriel, un numéro. */
 const VERS_DEHORS = new Set(['https:', 'http:', 'mailto:', 'tel:'])
+
+/**
+ * Ouvre une adresse du monde dans l'application de la personne (son navigateur, sa messagerie). Sur un ordinateur, la
+ * coque intercepte la nouvelle fenêtre (`navigation.rs`) ; sur iOS, où la webview ignore `window.open`, on passe par
+ * le plugin `opener` (`capabilities/mobile.json`). Hors de la coque, un onglet.
+ */
+export function ouvrirDehors(adresse: string, fenetre: Window = window): void {
+  let u: URL
+  try {
+    u = new URL(adresse, fenetre.location.href)
+  } catch {
+    return
+  }
+  if (!VERS_DEHORS.has(u.protocol)) return
+  const c = coque(fenetre)
+  if (c && estMobile(plateforme(fenetre as unknown as FenetreAvecCoque))) {
+    void c.invoke('plugin:opener|open_url', { url: u.href }).catch((e: unknown) => console.warn('Notak : lien non ouvert', e))
+    return
+  }
+  fenetre.open(u.href, '_blank', 'noopener')
+}
 
 /**
  * Un lien vers un autre site, cliqué dans la page, s'ouvre dans le navigateur de la personne. Sans cela, la fenêtre de
@@ -377,7 +413,7 @@ export function garderLesLiens(fenetre: Window = window): void {
     }
     if (ici(adresse, fenetre)) return
     e.preventDefault()
-    if (VERS_DEHORS.has(adresse.protocol)) fenetre.open(adresse.href, '_blank', 'noopener')
+    ouvrirDehors(adresse.href, fenetre)
   })
 }
 

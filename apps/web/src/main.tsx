@@ -2,9 +2,13 @@ import '@fontsource-variable/inter'
 import '@fontsource-variable/source-serif-4'
 import '@notak/tableau/toile.css'
 import './app.css'
-import { estBureau, estPageServeur, marquerBureau } from './bureau'
+import './styles/ios.css'
+import { estMobile } from './appareil'
+import { coque, estBureau, estPageServeur, marquerBureau } from './bureau'
 
 marquerBureau()
+// Sur un iPhone ou un iPad : le thème du système au premier lancement, la vue native au fond du thème, le clavier suivi.
+if (estMobile()) void import('./ios/demarrage').then((m) => m.demarrerMobile(window, coque()!))
 
 // Dans l'app de bureau, les réglages (⌘,) gagnent leur rubrique « App de bureau », quelle que soit l'édition.
 if (estBureau()) void import('./bureau/ReglagesBureau').then((m) => m.brancherReglagesBureau())

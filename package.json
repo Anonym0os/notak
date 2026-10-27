@@ -22,7 +22,10 @@
     "bureau:dev": "cd apps/bureau/src-tauri && bunx @tauri-apps/cli@2.12.4 dev",
     "bureau:construire": "node scripts/bureau.ts construire",
     "bureau:cle": "node scripts/bureau.ts cle",
-    "nouvelle-version": "node scripts/nouvelle-version.ts"
+    "nouvelle-version": "node scripts/nouvelle-version.ts",
+    "ios:init": "node scripts/ios.ts init",
+    "ios:dev": "node scripts/ios.ts dev",
+    "ios:construire": "node scripts/ios.ts construire"
   },
   "devDependencies": {
     "fake-indexeddb": "6.2.5",

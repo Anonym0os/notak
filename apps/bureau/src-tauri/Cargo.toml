@@ -29,14 +29,18 @@ tauri-plugin-dialog = "2"
 # Un lien vers un autre site, ouvert dans le navigateur de la personne, et une pièce jointe dans son application (par la
 # coque seule : la page n'y a pas droit).
 tauri-plugin-opener = "2"
-# Une seule Notak à la fois : un fichier ouvert depuis le système rejoint la fenêtre déjà là (`src/fichiers.rs`).
-tauri-plugin-single-instance = "2"
-# Les mises à jour signées (`src/mise_a_jour.rs`).
-tauri-plugin-updater = "2"
+# Ce qu'une page ne sait pas faire sur un iPhone ou un iPad, et, partout, le nom de la plateforme donné à la page.
+notak-appareil = { path = "../plugins/appareil" }
 # Le délai de grâce d'une page de serveur qui ne répond pas (`src/acces.rs`).
 tokio = { version = "1", features = ["time"] }
 # Lire une adresse de serveur : son hôte, en punycode.
 url = "2"
+
+# Sur un ordinateur seulement. Une seule Notak à la fois : un fichier ouvert depuis le système rejoint la fenêtre déjà
+# là (`src/fichiers.rs`). Les mises à jour signées (`src/mise_a_jour.rs`) : sur iOS, c'est l'App Store.
+[target.'cfg(not(any(target_os = "ios", target_os = "android")))'.dependencies]
+tauri-plugin-single-instance = "2"
+tauri-plugin-updater = "2"
 
 # La photo de la fenêtre pour un signalement : `takeSnapshot` du WKWebView, l'image exacte de la page ; la langue du
 # système, pour le menu de l'app.

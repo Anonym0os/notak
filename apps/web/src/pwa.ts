@@ -1,4 +1,4 @@
-import { estBureau } from './bureau'
+import { dansCoque } from './bureau'
 
 /**
  * Le service worker de la version web : l'application s'ouvre sans réseau, et se met à jour d'elle-même.
@@ -60,7 +60,7 @@ export function enregistrerServiceWorker(): void {
   if (!('serviceWorker' in navigator)) return
   // L'app de bureau embarque ses fichiers et se met à jour par sa coque, de versions signées : un service worker y
   // garderait une vieille version par-dessus la nouvelle. S'il en reste un d'avant, il s'en va.
-  if (estBureau()) {
+  if (dansCoque()) {
     void navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => void r.unregister()), () => {})
     return
   }

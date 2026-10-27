@@ -1,0 +1,25 @@
+Notak is an infinite canvas for your ideas: notes, images, links, task lists, columns, arrows, sketches, mind maps. Bring things together, spread them out, sort them, draw over them. It’s the tool we use every day to think together; we publish it free and open source.
+
+NOTHING LEAVES YOUR IPHONE OR IPAD
+No account, no server of ours, no tracking. Your boards live on your device and open without a network. Keep copies (.notak) in Files, iCloud Drive or anywhere else: they reopen with a tap, on any device, and in the browser at notak.app.
+
+APPLE PENCIL
+Draw straight onto the canvas: the Pencil’s pressure and tilt shape the stroke, a resting palm doesn’t count, and two fingers pan and zoom while you draw. Handwrite into a note (Scribble), erase, lasso-select.
+
+WORK TOGETHER, YOUR WAY
+• A shared folder: pick a folder in iCloud Drive (or any service in Files); Notak keeps your boards there continuously, and a Mac, another iPad or another person opening the same folder sees the same boards.
+• Your own Notak server: run it in one container and give the app its address. Accounts, sharing by link, live cursors, comments: real time, on your terms.
+
+WHAT YOU CAN DO
+• Rich notes: headings, lists, checkboxes, code, highlights, Markdown as you type.
+• Images from Photos or the camera, files, PDFs, audio.
+• Links with their player: video, music, maps, documents.
+• Columns that sort, boards inside boards, arrows that connect.
+• Mind maps and a presentation (Pitch) built from the board.
+• Search across all boards, unlimited undo, dark mode.
+• Export to PDF, Markdown, images, or a complete .notak copy.
+
+FREE, FOR GOOD
+Notak is free software (AGPL-3.0). The code is public; anyone can read it, adapt it, host it. No subscription, no ads, no “pro” tier.
+
+What leaves the device, and only when you ask: a place card queries OpenStreetMap; a pasted link loads its player from its publisher; a Notak server is the one you choose. The privacy policy spells it out.

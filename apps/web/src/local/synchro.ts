@@ -1,3 +1,4 @@
+import { type Idiome, type Plateforme, idiome, plateforme } from '../appareil'
 import {
   type AccesTableaux,
   type Coffre,
@@ -80,8 +81,15 @@ export const ecouterSynchro = (f: () => void) => {
 type AvecSelecteur = { showDirectoryPicker?(o: unknown): Promise<PoigneeDossier> }
 const possible = () => typeof window !== 'undefined' && typeof (window as unknown as AvecSelecteur).showDirectoryPicker === 'function'
 
-/** Un nom lisible pour cet appareil, dans la liste des appareils du dossier. */
-export function nomAppareil(ua = navigator.userAgent): string {
+/**
+ * Un nom lisible pour cet appareil, dans la liste des appareils du dossier. Dans la coque, c'est elle qui dit la
+ * plateforme (un iPad se fait passer pour un Macintosh dans l'agent utilisateur) : « Notak · iPad », « Notak · macOS ».
+ */
+export function nomAppareil(ua = navigator.userAgent, p: Plateforme = plateforme(), i: Idiome = idiome()): string {
+  if (p !== 'web') {
+    const systeme = p === 'ios' ? (i === 'tablette' ? 'iPad' : 'iPhone') : p === 'macos' ? 'macOS' : p === 'windows' ? 'Windows' : p === 'android' ? 'Android' : 'Linux'
+    return `Notak · ${systeme}`
+  }
   const navigateur = /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : 'Safari'
   const systeme = /Mac OS X/.test(ua) ? 'macOS' : /Windows/.test(ua) ? 'Windows' : /CrOS/.test(ua) ? 'ChromeOS' : /Linux/.test(ua) ? 'Linux' : ''
   return systeme ? `${navigateur} · ${systeme}` : navigateur

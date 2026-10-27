@@ -1,5 +1,5 @@
-// Fabrique les icônes de l'application installée (apps/web/public/icones) et celles de la coque de bureau
-// (apps/bureau/src-tauri/icons) à partir du logo de Notak.
+// Fabrique les icônes de l'application installée (apps/web/public/icones), celles de la coque de bureau
+// (apps/bureau/src-tauri/icons) et celle de l'app iOS (apps/bureau/src-tauri/icons/ios) à partir du logo de Notak.
 //   node scripts/icones.ts
 import { createRequire } from 'node:module'
 import { mkdir, writeFile } from 'node:fs/promises'
@@ -24,6 +24,33 @@ await writeFile(new URL('192.png', dossier), await png(ronde, 192))
 await writeFile(new URL('512.png', dossier), await png(ronde, 512))
 await writeFile(new URL('maskable-512.png', dossier), await png(pleine, 512))
 await writeFile(new URL('apple-touch-180.png', dossier), await png(pleine, 180))
+
+// ---- iOS : une seule icône de 1024 px, pleine page (le système arrondit lui-même), en trois apparences ----
+// Xcode (cible iOS 17 et plus) accepte un jeu « universel » d'une seule taille ; `scripts/ios.ts init` le recopie dans
+// gen/apple/Assets.xcassets/AppIcon.appiconset. Sombre : le fond disparaît, le logo seul sur le verre du système.
+// Teintée : le logo en niveaux de gris, qu'iOS 18 colore à la teinte choisie par la personne.
+const ios = new URL('../apps/bureau/src-tauri/icons/ios/', import.meta.url)
+await mkdir(ios, { recursive: true })
+const sombre = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#1b1e23"/>${logo('translate(76.8 76.8) scale(0.7)').replace('#1f2328', '#e3e5e9')}</svg>`
+const teintee = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#000"/>${logo('translate(76.8 76.8) scale(0.7)').replace('#2f6feb', '#ffffff').replace('#1f2328', '#8a8f98')}</svg>`
+await writeFile(new URL('AppIcon-512@2x.png', ios), await png(pleine, 1024))
+await writeFile(new URL('AppIcon-512@2x-dark.png', ios), await png(sombre, 1024))
+await writeFile(new URL('AppIcon-512@2x-tinted.png', ios), await png(teintee, 1024))
+await writeFile(
+  new URL('Contents.json', ios),
+  JSON.stringify(
+    {
+      images: [
+        { filename: 'AppIcon-512@2x.png', idiom: 'universal', platform: 'ios', size: '1024x1024' },
+        { filename: 'AppIcon-512@2x-dark.png', idiom: 'universal', platform: 'ios', size: '1024x1024', appearances: [{ appearance: 'luminosity', value: 'dark' }] },
+        { filename: 'AppIcon-512@2x-tinted.png', idiom: 'universal', platform: 'ios', size: '1024x1024', appearances: [{ appearance: 'luminosity', value: 'tinted' }] },
+      ],
+      info: { author: 'xcode', version: 1 },
+    },
+    null,
+    2,
+  ) + '\n',
+)
 
 // ---- La coque de bureau : PNG, et les conteneurs .ico et .icns qui emballent des PNG tels quels ----
 const bureau = new URL('../apps/bureau/src-tauri/icons/', import.meta.url)

@@ -880,6 +880,18 @@ export const fr: Textes = {
   // La mise à jour de l'app de bureau que la coque n'a pas pu installer : elle reste prête, on peut réessayer.
   'maj.installEchec': 'Notak {version} n’a pas pu s’installer. Réessayez ; sinon, elle se posera quand vous quitterez Notak.',
   // FIN fr
+  'diag.titre': 'Diagnostic',
+  'diag.appareil': 'L’appareil',
+  'diag.points': 'points de contact',
+  'diag.capacites': 'Ce que sait faire cette webview',
+  'diag.inattendu': 'pas ce qu’on attend sur iOS',
+  'diag.pencil': 'Le stylet',
+  'diag.pencilAide': 'Dessinez dans le carré, au Pencil puis au doigt ; approchez le Pencil sans toucher pour voir si le survol arrive.',
+  'diag.survol': 'survols reçus',
+  'diag.clavier': 'Le clavier',
+  'diag.clavierAide': 'Touchez le champ : la hauteur du clavier doit se lire ci-dessous.',
+  'diag.copier': 'Copier le relevé',
+  'diag.copie': 'Relevé copié',
 }
 
 export const en: Textes = {
@@ -1734,6 +1746,18 @@ export const en: Textes = {
   'importer.pasEncoreEnvoye': 'They are not on the server yet: they will be sent the next time you open them here.',
   'maj.installEchec': 'Notak {version} couldn’t be installed. Try again; otherwise it will install when you quit Notak.',
   // FIN en
+  'diag.titre': 'Diagnostics',
+  'diag.appareil': 'The device',
+  'diag.points': 'touch points',
+  'diag.capacites': 'What this web view can do',
+  'diag.inattendu': 'not what we expect on iOS',
+  'diag.pencil': 'The stylus',
+  'diag.pencilAide': 'Draw in the square with the Pencil, then with a finger; hover the Pencil without touching to see whether hover events arrive.',
+  'diag.survol': 'hover events received',
+  'diag.clavier': 'The keyboard',
+  'diag.clavierAide': 'Tap the field: the keyboard height should show below.',
+  'diag.copier': 'Copy the report',
+  'diag.copie': 'Report copied',
 }
 
 ajouterTextes(fr, en)

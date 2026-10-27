@@ -1,0 +1,5 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = "Ce que la page embarquée peut demander à l'appareil : savoir sur quoi elle tourne, régler le thème de la vue native, photographier la fenêtre pour un signalement, un retour haptique, et écouter le clavier."
+permissions = ["allow-infos", "allow-regler-theme", "allow-capturer-fenetre", "allow-haptique", "allow-register-listener", "allow-remove-listener"]

@@ -1,0 +1,121 @@
+/*
+ * Ce que la page change quand elle tourne dans la coque mobile (`html[data-mobile]`, posé par `appareil.ts`) et, plus
+ * précisément, sur iOS (`html[data-plateforme='ios']`). Rien ici ne touche au navigateur ni à l'app de bureau.
+ *
+ * - Les zones sûres : `viewport-fit=cover` (index.html) donne toute la vitre à la page, encoche et barre d'accueil
+ *   comprises ; les variables `--zone-*` disent ce qu'il faut leur laisser, et la racine les laisse. Le fond derrière
+ *   (celui de la vue native, réglé par le plugin) est celui du thème : rien de blanc ne dépasse.
+ * - Le clavier : `--clavier` (px, posé par `ios/clavier.ts`) ; ce qui est collé en bas remonte d'autant.
+ * - Les gestes du système qu'on ne veut pas sur une toile : le zoom de page au double appui, la surbrillance grise au
+ *   toucher, le menu « Copier / Enregistrer l'image » qui sortirait sur un appui long hors des textes, le rebond.
+ */
+
+:root {
+  --zone-haut: env(safe-area-inset-top, 0px);
+  --zone-droite: env(safe-area-inset-right, 0px);
+  --zone-bas: env(safe-area-inset-bottom, 0px);
+  --zone-gauche: env(safe-area-inset-left, 0px);
+  --clavier: 0px;
+  --clavier-duree: 0.25s;
+}
+
+html[data-mobile] {
+  /* Le texte ne grossit pas tout seul en paysage, et le double appui n'agrandit pas la page : la toile a son propre zoom. */
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+}
+
+html[data-mobile] body {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Hors des textes qu'on édite, pas de menu système au doigt posé : Notak a le sien (appui long). */
+html[data-mobile] :where(img, a, video, canvas, svg, .notak-toile) {
+  -webkit-touch-callout: none;
+}
+
+/* La page laisse au système ses bords ; le fond du thème les remplit. */
+html[data-plateforme='ios'] #racine {
+  box-sizing: border-box;
+  padding: var(--zone-haut) var(--zone-droite) var(--zone-bas) var(--zone-gauche);
+  background: var(--fond, var(--notak-fond, #ebedee));
+}
+
+/* Un panneau qui prend l'écran sur un téléphone (app.css, max-width 640px) s'arrête au clavier. */
+html[data-plateforme='ios'][data-clavier] .app-panneau {
+  max-height: calc(100dvh - var(--zone-haut) - var(--clavier));
+  transition: max-height var(--clavier-duree) ease-out;
+}
+
+/* Le sélecteur natif « Enregistrer sous » n'existe pas : rien ne doit laisser croire à un téléchargement. */
+html[data-mobile] a[download] {
+  cursor: default;
+}
+
+/* La page /diagnostic : une carte qui défile, des listes serrées, un carré où dessiner. */
+.diagnostic {
+  align-items: start;
+  overflow: auto;
+}
+.diagnostic .arrivee-carte {
+  width: min(640px, 100%);
+  gap: 10px;
+}
+.diagnostic h2 {
+  margin: 12px 0 0;
+  font-size: 15px;
+}
+.diagnostic p {
+  margin: 0;
+  color: var(--app-pale);
+  font-size: 13px;
+}
+.diagnostic-liste {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 13px;
+}
+.diagnostic-liste dt {
+  color: var(--app-pale);
+}
+.diagnostic-liste dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.diagnostic-agent {
+  font-size: 11px;
+}
+.diagnostic-capacites {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+  list-style: none;
+}
+.diagnostic-capacites li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.diagnostic-capacites li em {
+  color: var(--app-danger);
+  font-style: normal;
+}
+.diagnostic-carre {
+  width: 100%;
+  height: 240px;
+  border-radius: 12px;
+  background: var(--fond);
+  box-shadow: inset 0 0 0 1px var(--app-filet);
+  touch-action: none;
+}
+.diagnostic-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}

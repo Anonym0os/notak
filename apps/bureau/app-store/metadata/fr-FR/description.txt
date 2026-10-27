@@ -1,0 +1,25 @@
+Notak est une toile sans bords où l’on pose ses idées : des notes, des images, des liens, des listes de tâches, des colonnes, des flèches, des croquis, des cartes mentales. On rapproche, on écarte, on range, on dessine par-dessus. C’est l’outil que nous utilisons chaque jour pour penser à plusieurs ; nous le publions libre et gratuit.
+
+RIEN NE QUITTE VOTRE IPHONE OU VOTRE IPAD
+Pas de compte, pas de serveur à nous, pas de suivi. Vos toiles vivent sur votre appareil et s’ouvrent sans réseau. Gardez-en des copies (.notak) dans Fichiers, iCloud Drive ou ailleurs : elles se rouvrent d’un toucher, sur n’importe quel appareil, et dans le navigateur sur notak.app.
+
+L’APPLE PENCIL
+Dessinez directement sur la toile : la pression et l’inclinaison du Pencil font le trait, la paume posée ne compte pas, deux doigts déplacent et zooment pendant que vous dessinez. Écrivez dans une note à la main (Scribble), gommez, sélectionnez au lasso.
+
+TRAVAILLER À PLUSIEURS, À VOTRE FAÇON
+• Un dossier partagé : choisissez un dossier dans iCloud Drive (ou tout service présent dans Fichiers) ; Notak y range vos toiles en continu, et un Mac, un autre iPad ou une autre personne qui ouvre le même dossier voit les mêmes toiles.
+• Votre propre serveur Notak : installez-le en un conteneur et donnez son adresse à l’app. Comptes, partage par lien, curseurs en direct, commentaires : le temps réel, chez vous.
+
+CE QU’ON Y FAIT
+• Des notes riches : titres, listes, cases à cocher, code, surlignage, Markdown en tapant.
+• Des images depuis Photos ou l’appareil photo, des fichiers, des PDF, des sons.
+• Des liens avec leur lecteur : vidéos, musique, cartes, documents.
+• Des colonnes qui rangent, des tableaux dans les tableaux, des flèches qui relient.
+• Des cartes mentales et une présentation (Pitch) tirée de la toile.
+• Une recherche dans toutes les toiles, l’annulation sans limite, le mode sombre.
+• L’export en PDF, Markdown, images, ou en une copie .notak complète.
+
+LIBRE, POUR DE BON
+Notak est un logiciel libre (AGPL-3.0). Le code est public, chacun peut le lire, l’adapter, l’héberger. Pas d’abonnement, pas de publicité, pas de version « pro ».
+
+Ce qui sort de l’appareil, seulement quand vous le demandez : la carte d’un lieu interroge OpenStreetMap ; un lien collé charge son lecteur chez son éditeur ; un serveur Notak est celui que vous choisissez. La politique de confidentialité le dit en détail.

@@ -1,5 +1,6 @@
 import { Icone } from '@notak/tableau'
 import { useEffect, useState, useSyncExternalStore } from 'react'
+import { estMobile } from '../appareil'
 import { estBureau } from '../bureau'
 import { SectionServeur } from '../bureau/SectionServeur'
 import { t, tn } from '../langue'
@@ -138,7 +139,7 @@ export function Rangement({ el, enregistrer, rouvrir, message }: { el: EspaceLoc
           {garde === true && !bureau && <small className="rangement-note">{t('local.protege')}</small>}
 
           <Synchro el={el} />
-          {bureau && <SectionMiseAJour />}
+          {bureau && !estMobile() && <SectionMiseAJour />}
 
           {bureau ? (
             <SectionServeur

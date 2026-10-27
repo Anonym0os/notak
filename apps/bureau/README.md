@@ -24,6 +24,23 @@ apps/bureau/
     icons/                   fabriquées par `node scripts/icones.ts` (à la racine du dépôt) à partir du logo
 ```
 
+## Sur iPhone et iPad
+
+La même coque compile pour iOS (`tauri ios`), avec le natif en Swift dans `plugins/appareil/`. Tout est dans
+[`docs/IOS.md`](../../docs/IOS.md) : la première fois sur le Mac (`bun run ios:init`, `bun run ios:dev`), ce qui est
+vérifié, ce qu'il reste à cocher, la fiche App Store et la grille d'essais.
+
+```
+apps/bureau/
+  plugins/appareil/        le plugin « appareil » : Rust (le nom de la plateforme donné à la page) et Swift (iOS)
+  src-tauri/
+    tauri.ios.conf.json    ce qui change sur iOS (fenêtre sans barre de titre, version minimale, équipe Apple)
+    Info.ios.plist         ce que l'app déclare au système (types de fichiers, orientations, autorisations)
+    capabilities/mobile.json   les droits de la page sur mobile
+    icons/ios/             l'icône 1024 px, claire, sombre et teintée (node scripts/icones.ts)
+    gen/apple/             le projet Xcode, généré par `bun run ios:init`, commité
+```
+
 ## Ce qu'il faut
 
 - [Rust](https://rustup.rs) (stable) ;

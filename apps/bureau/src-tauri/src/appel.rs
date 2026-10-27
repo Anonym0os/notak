@@ -63,6 +63,7 @@ impl Erreur {
 
 /// Qui appelle, s'il est de ceux que la commande sert ; sinon `Interdit`. La capacité de Tauri a déjà filtré par
 /// origine ; ceci écarte en plus un serveur joint plus tôt, qui garde la sienne jusqu'au redémarrage.
+#[cfg(desktop)]
 pub fn exiger(webview: &Webview, garde: &Origines, permis: &[Appelant]) -> Result<Appelant, Erreur> {
     // Entre deux pages (`acces::Passage`), personne n'appelle : ce qui arrive là est une requête de la page d'avant,
     // rejouée par Tauri et prise pour celle d'après.

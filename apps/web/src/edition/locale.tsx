@@ -2,6 +2,7 @@ import { BullesDecouverte, type CouleurNote, EspaceNotak, type Id, ErreurNotak, 
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
 import { adressePour } from '../adresse'
+import { estMobile } from '../appareil'
 import { estBureau } from '../bureau'
 import { ouvrirAilleursAvecAvis } from '../bureau/ailleurs'
 import { DialogueAcces } from '../bureau/FormulaireAcces'
@@ -23,6 +24,7 @@ import { choisirCopie, estCopie, nomDeCopie, rangerCopie } from '../local/enregi
 import { BandeauRecu } from '../local/BandeauRecu'
 import { type EspaceLocal, espaceLocal, exportLocal, rechercherLocalement } from '../local/espace'
 import { fichiersLocaux } from '../local/fichiers'
+import { PageDiagnostic } from '../ios/PageDiagnostic'
 import { Rangement } from '../local/Rangement'
 import { initialiserSynchro } from '../local/synchro'
 import { useBandeau } from '../bandeaux'
@@ -56,6 +58,8 @@ function Application() {
   // Le partage vers Notak et la note rapide du téléphone, sans la toile.
   if (location.pathname === '/rapide') return <PageRapide espace={el.espace} fichiers={fichiersLocaux} />
   if (location.pathname === '/partage') return <PagePartage espace={el.espace} fichiers={fichiersLocaux} />
+  // Ce que sait faire cette webview, ce qu'envoie un stylet : pour cocher la phase 0 de docs/IOS.md, et un signalement.
+  if (location.pathname === '/diagnostic') return <PageDiagnostic />
   return <Espace el={el} />
 }
 
@@ -337,8 +341,8 @@ function BandeauAncien({ el }: { el: EspaceLocal }) {
 }
 
 enregistrerServiceWorker()
-// Dans l'app de bureau : la recherche des mises à jour signées (`MiseAJour.tsx`).
-lancerMisesAJour()
+// Dans l'app de bureau : la recherche des mises à jour signées (`MiseAJour.tsx`). Sur iOS, c'est l'App Store.
+if (!estMobile()) lancerMisesAJour()
 createRoot(document.getElementById('racine')!).render(
   <StrictMode>
     <Application />

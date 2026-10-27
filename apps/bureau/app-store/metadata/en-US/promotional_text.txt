@@ -1,0 +1,1 @@
+First release for iPhone and iPad: your boards on the device, in Files or iCloud Drive, or on your own Notak server. Apple Pencil draws with real pressure.

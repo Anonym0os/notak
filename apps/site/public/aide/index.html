@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Aide · Notak</title>
+    <meta name="description" content="Notak : les questions qu'on se pose en arrivant, où sont les toiles, comment en garder une copie, comment travailler à plusieurs, où écrire." />
+    <meta name="theme-color" content="#f4f5f7" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <style>
+      @font-face { font-family: "Inter"; src: url("/fonts/inter.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+      :root { --fond: #f4f5f7; --encre: #16181b; --doux: #5d6670; --trait: #e1e4e8; --carte: #fff; --bleu: #3a76df; }
+      @media (prefers-color-scheme: dark) { :root { --fond: #1b1e23; --encre: #e3e5e9; --doux: #a7adb6; --trait: #2f343b; --carte: #23272e; --bleu: #5b8ff9; } }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; }
+      body { background: var(--fond); color: var(--encre); font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.55; }
+      header, footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px max(16px, env(safe-area-inset-left)) 18px max(16px, env(safe-area-inset-right)); }
+      @media (min-width: 720px) { header, footer { padding-inline: 32px; } }
+      .marque { font-weight: 800; font-size: 17px; letter-spacing: -0.04em; color: inherit; text-decoration: none; }
+      nav a { margin-left: 14px; color: var(--doux); text-decoration: none; font-size: 14px; }
+      nav a:hover, main a:hover { color: var(--encre); }
+      main { max-width: 68ch; margin: 0 auto; padding: 8px 16px 48px; }
+      article + article { margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--trait); }
+      h1 { margin: 16px 0 6px; font-size: clamp(28px, 5vw, 40px); font-weight: 800; letter-spacing: -0.04em; line-height: 1.05; }
+      h2 { margin: 28px 0 8px; font-size: 19px; letter-spacing: -0.02em; }
+      p, li { font-size: 16px; }
+      .date { color: var(--doux); font-size: 14px; }
+      main a { color: var(--bleu); text-decoration: none; }
+      table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 15px; }
+      th, td { padding: 8px 10px; border-bottom: 1px solid var(--trait); text-align: left; vertical-align: top; }
+      th { color: var(--doux); font-weight: 600; }
+      code { font: 14px ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: var(--carte); padding: 1px 5px; border-radius: 5px; }
+      footer { color: var(--doux); font-size: 13px; }
+      footer a { color: inherit; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <a class="marque" href="/">Notak</a>
+      <nav><a href="/a-propos">À propos</a><a href="/aide">Aide</a><a href="/confidentialite">Confidentialité</a><a href="https://github.com/Anonym0os/notak">Code</a></nav>
+    </header>
+    <main>
+      <article lang="fr">
+        <p class="date"><a href="#en">In English</a></p>
+        <h1>Aide</h1>
+
+        <h2>Où sont mes toiles ?</h2>
+        <p>Sur votre appareil. Dans l'app, la pastille en haut à droite le dit en deux mots, et son panneau explique tout : rien ne part, le navigateur peut effacer (pas l'app), comment garder une copie. Sur iPhone et iPad, vous pouvez aussi choisir un dossier dans Fichiers ou iCloud Drive, ou l'adresse de votre serveur Notak.</p>
+
+        <h2>Comment garder une copie ?</h2>
+        <p><strong>⌘S</strong> (ou « Enregistrer une copie » dans le panneau) écrit un fichier <code>.notak</code> : tout l'espace, images comprises. Rangez-le dans Fichiers, iCloud Drive, un disque. Pour le rouvrir : <strong>⌘O</strong>, un toucher sur le fichier dans Fichiers, ou glissez-le sur la fenêtre. Rouvrir sa propre copie fusionne, sans doublon ; rouvrir celle de quelqu'un l'ajoute.</p>
+
+        <h2>Travailler à plusieurs</h2>
+        <ul>
+          <li><strong>Un dossier partagé</strong> : choisissez un dossier d'iCloud Drive (ou de tout service dans Fichiers) ; chaque appareil ou personne qui ouvre le même dossier voit les mêmes toiles, au rythme du nuage (quelques secondes à quelques minutes). Les droits sont ceux du dossier : en lecture seule, la toile l'est aussi.</li>
+          <li><strong>Un serveur Notak</strong>, pour le temps réel (curseurs, commentaires, partage par lien) : il s'installe en un conteneur, <a href="https://github.com/Anonym0os/notak#self-host">comme expliqué ici</a>. Dans l'app, « Se connecter à un serveur Notak » prend son adresse.</li>
+        </ul>
+
+        <h2>L'Apple Pencil</h2>
+        <p>Sur iPad, le Pencil dessine directement sur la toile ; le doigt déplace et zoome. La pression et l'inclinaison font le trait. Pour écrire à la main dans une note : Scribble, le réglage du système. Le double-tap du Pencil bascule l'outil, comme vous l'avez réglé dans Réglages → Apple Pencil.</p>
+
+        <h2>Raccourcis</h2>
+        <p>Tapez <strong>/</strong> dans l'app pour la liste complète. Les plus utiles : ⌘Z annuler, ⌘D dupliquer, ⌘F chercher partout, ⌘+ et ⌘− zoomer, Z ajuster la vue, ⇧⌘D le mode sombre.</p>
+
+        <h2>Quelque chose ne va pas</h2>
+        <p>La page <code>/diagnostic</code> de l'app dit ce que votre appareil sait faire et prépare un relevé à copier. Écrivez-nous avec ce relevé, ou ouvrez une discussion sur <a href="https://github.com/Anonym0os/notak">le dépôt</a>. Nous lisons tout ; nous ne promettons pas de répondre à tout.</p>
+
+        <h2>Le code, la licence</h2>
+        <p>Notak est libre (AGPL-3.0) : <a href="https://github.com/Anonym0os/notak">github.com/Anonym0os/notak</a>. Vous pouvez le lire, l'adapter, l'héberger. <a href="/confidentialite">Ce qu'il fait de vos données.</a></p>
+      </article>
+
+      <article lang="en" id="en">
+        <p class="date"><a href="#top">En français</a></p>
+        <h1>Help</h1>
+
+        <h2>Where are my boards?</h2>
+        <p>On your device. In the app, the badge at the top right says so in two words, and its panel explains everything: nothing leaves, the browser can erase (the app cannot), how to keep a copy. On iPhone and iPad you can also pick a folder in Files or iCloud Drive, or the address of your Notak server.</p>
+
+        <h2>How do I keep a copy?</h2>
+        <p><strong>⌘S</strong> (or “Save a copy” in the panel) writes a <code>.notak</code> file: the whole space, images included. Put it in Files, iCloud Drive, a disk. To reopen it: <strong>⌘O</strong>, a tap on the file in Files, or drop it on the window. Reopening your own copy merges, with no duplicates; reopening someone else's adds it.</p>
+
+        <h2>Working together</h2>
+        <ul>
+          <li><strong>A shared folder</strong>: pick an iCloud Drive folder (or any service in Files); every device or person opening the same folder sees the same boards, at the cloud's pace (seconds to minutes). Rights are the folder's: read-only folder, read-only board.</li>
+          <li><strong>A Notak server</strong>, for real time (cursors, comments, sharing by link): it installs as one container, <a href="https://github.com/Anonym0os/notak#self-host">as explained here</a>. In the app, “Connect to a Notak server” takes its address.</li>
+        </ul>
+
+        <h2>Apple Pencil</h2>
+        <p>On iPad the Pencil draws straight onto the canvas; fingers pan and zoom. Pressure and tilt shape the stroke. To handwrite in a note: Scribble, the system setting. The Pencil's double-tap switches tools, as set in Settings → Apple Pencil.</p>
+
+        <h2>Shortcuts</h2>
+        <p>Type <strong>/</strong> in the app for the full list. The most useful: ⌘Z undo, ⌘D duplicate, ⌘F search everywhere, ⌘+ and ⌘− zoom, Z fit the view, ⇧⌘D dark mode.</p>
+
+        <h2>Something is wrong</h2>
+        <p>The app's <code>/diagnostic</code> page says what your device can do and prepares a report to copy. Write to us with that report, or open a discussion on <a href="https://github.com/Anonym0os/notak">the repository</a>. We read everything; we don't promise to answer everything.</p>
+
+        <h2>Code and licence</h2>
+        <p>Notak is free software (AGPL-3.0): <a href="https://github.com/Anonym0os/notak">github.com/Anonym0os/notak</a>. You may read it, adapt it, host it. <a href="/confidentialite">What it does with your data.</a></p>
+      </article>
+    </main>
+    <footer>
+      <span>AGPL-3.0 · logiciel libre</span>
+      <a href="https://github.com/Anonym0os/notak">github.com/Anonym0os/notak</a>
+    </footer>
+  </body>
+</html>

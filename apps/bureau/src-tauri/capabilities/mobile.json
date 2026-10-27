@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "mobile",
+  "description": "Les droits de l'application embarquée sur un iPhone ou un iPad, et d'elle seule : savoir sur quel appareil elle tourne, régler le thème de la vue, photographier la fenêtre pour un signalement, un retour haptique, écouter le clavier, et ouvrir un lien vers le monde (le web, un courriel, un numéro) dans l'application de la personne.",
+  "platforms": ["iOS", "android"],
+  "windows": ["principale"],
+  "permissions": ["appareil:default", "opener:default"]
+}
