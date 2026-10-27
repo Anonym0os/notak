@@ -10,6 +10,7 @@ import { ContexteOutils } from './BoutonOutil'
 import { type EntreeRepli, ORDRE, type Palier, useRepli } from './repli'
 import { useBarreBornee, useMenusBornes } from './borner'
 import { Icone } from './icones'
+import { Feuille, enFeuille } from './communs/Feuille'
 import { Infobulle } from './Infobulle'
 import { MenuActions } from './MenuActions'
 import { useMenu } from './menuUnique'
@@ -119,6 +120,7 @@ export function BarreOutils({
   nonTries: { nombre: number; ouverte: boolean; basculer(): void }
 }) {
   const [tiroir, setTiroir, ancreTiroir] = useMenu()
+  const [feuille, setFeuille] = useState(false)
   const grille = useRef<HTMLDivElement>(null)
   // La grille s'ouvre à droite de « ••• » ; si elle dépasse le bas de la fenêtre, elle remonte d'autant.
   useLayoutEffect(() => {
@@ -175,6 +177,72 @@ export function BarreOutils({
   const elementsVisibles = tous.filter((o) => !o.outil.tiroir && o.outil.groupe !== 'action' && visibles.has(cleOutil(o)))
   const caches = tous.filter((o) => o.outil.tiroir || ranges.has(cleOutil(o))).sort((a, b) => a.outil.rang - b.outil.rang)
   const actions = tous.filter((o) => !o.outil.tiroir && o.outil.groupe === 'action' && visibles.has(cleOutil(o)))
+  const boutonNonTries = (
+    <Infobulle libelle={t('nonTries.titre')} raccourci="⌘\\" contenu>
+      <button type="button" className="notak-non-tries-bouton" aria-expanded={nonTries.ouverte} onPointerDown={(e) => e.stopPropagation()} onClick={nonTries.basculer}>
+        <strong>{nonTries.nombre}</strong> {t('nonTries.titre')}
+      </button>
+    </Infobulle>
+  )
+  // Sur un téléphone, la barre de gauche mangerait l'écran : un « + » en bas ouvre les outils en feuille, comme
+  // Freeform. Un outil touché se pose au milieu de la vue ; tiré, il part avec le doigt sur la toile.
+  if (enFeuille() && !grisee) {
+    return (
+      <>
+        <button
+          type="button"
+          className="notak-outils-ajouter"
+          aria-label={t('barre.ajouter')}
+          aria-expanded={feuille}
+          data-eteinte={dessinOuvert || undefined}
+          onPointerDown={(e) => e.stopPropagation()}
+          // Au relâcher du doigt : la webview d'iOS ne tire pas toujours le clic d'un toucher sur la toile.
+          onPointerUp={() => setFeuille(true)}
+          onClick={() => setFeuille(true)}
+        >
+          <Icone nom="ajouter" taille={28} />
+        </button>
+        {feuille && (
+          <Feuille titre={t('barre.ajouter')} fermer={() => setFeuille(false)}>
+            <p className="notak-outils-feuille-aide">{t('barre.ajouterAide')}</p>
+            <div className="notak-outils-feuille">
+              {tous.map((o) => (
+                <button
+                  key={cleOutil(o)}
+                  type="button"
+                  className="notak-outil"
+                  data-genre={o.outil.vignette ? 'vignette' : 'tuile'}
+                  aria-label={o.outil.libelle}
+                  onPointerDown={(e) => {
+                    if (e.button !== 0) return
+                    e.preventDefault()
+                    setFeuille(false)
+                    surAppui(o, e)
+                  }}
+                >
+                  <span className="notak-outil-icone">{o.outil.vignette ? <Vignette nom={o.outil.vignette} /> : o.outil.icone}</span>
+                  <span className="notak-outil-libelle">{o.outil.libelle}</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                className="notak-outil"
+                data-genre="corbeille"
+                onClick={() => {
+                  setFeuille(false)
+                  corbeille.basculer()
+                }}
+              >
+                <span className="notak-outil-icone"><Icone nom="corbeille" taille={26} /></span>
+                <span className="notak-outil-libelle">{t('corbeille.titre')}{corbeille.nombre > 0 ? ` (${corbeille.nombre})` : ''}</span>
+              </button>
+            </div>
+          </Feuille>
+        )}
+        {boutonNonTries}
+      </>
+    )
+  }
   return (
     <>
       <nav ref={nav} className="notak-barre-outils" data-eteinte={dessinOuvert || undefined} data-grisee={grisee || undefined} onPointerDown={(e) => e.stopPropagation()}>
@@ -214,11 +282,7 @@ export function BarreOutils({
         </Infobulle>
       </nav>
       {/* Les non triés, en haut à droite de la toile : leur nombre, et Cmd+\ les ouvre aussi. */}
-      <Infobulle libelle={t('nonTries.titre')} raccourci="⌘\\" contenu>
-        <button type="button" className="notak-non-tries-bouton" aria-expanded={nonTries.ouverte} onPointerDown={(e) => e.stopPropagation()} onClick={nonTries.basculer}>
-          <strong>{nonTries.nombre}</strong> {t('nonTries.titre')}
-        </button>
-      </Infobulle>
+      {boutonNonTries}
     </>
   )
 }

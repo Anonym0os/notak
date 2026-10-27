@@ -2864,3 +2864,159 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
     animation: none;
   }
 }
+
+/*
+ * Sur un téléphone, au doigt (Barres.tsx, `enFeuille`) : pas de barre à gauche. Un « + » rond en bas à gauche ouvre les
+ * outils en feuille ; la barre d'une sélection, ou d'une note qu'on écrit, devient une bande en bas qui défile, au-dessus
+ * du clavier quand il est là. La page de l'app laisse déjà la barre d'accueil autour de la toile.
+ */
+.notak-outils-ajouter {
+  position: absolute;
+  bottom: 16px;
+  left: calc(16px + var(--notak-zone-gauche, 0px));
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--notak-accent);
+  color: #fff;
+  box-shadow: 0 6px 18px rgb(27 37 54 / 0.24), 0 1px 3px rgb(27 37 54 / 0.18);
+  transition: transform 0.12s ease;
+}
+
+.notak-outils-ajouter:active {
+  transform: scale(0.94);
+}
+
+.notak-outils-ajouter[data-eteinte] {
+  visibility: hidden;
+}
+
+.notak-outils-feuille-aide {
+  margin: -4px 12px 10px;
+  color: color-mix(in srgb, var(--notak-texte) 60%, transparent);
+  font-size: 13px;
+}
+
+.notak-outils-feuille {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px 4px;
+  padding: 0 4px 4px;
+  --notak-tuile: 32px;
+  --notak-tuile-l: 44px;
+  --notak-ecart-texte: 17px;
+}
+
+.notak-outils-feuille .notak-outil {
+  width: auto;
+  min-height: 76px;
+  touch-action: none;
+}
+
+.notak-outils-feuille .notak-outil-libelle {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (pointer: coarse) and (max-width: 640px) {
+  .notak-outils-bord {
+    display: none;
+  }
+
+  .notak-barre-outils[data-selection] {
+    inset: auto calc(8px + var(--notak-zone-droite, 0px)) max(8px, calc(var(--clavier, 0px) - var(--notak-zone-bas, 0px) + 8px))
+      calc(8px + var(--notak-zone-gauche, 0px));
+    flex-direction: row;
+    align-items: center;
+    width: auto;
+    height: auto;
+    flex-wrap: nowrap;
+    padding: 4px 6px;
+    /* Pas de défilement : WebKit rognerait sur iOS les palettes qui s'ouvrent au-dessus (position fixe dans un
+       conteneur qui défile). Trop d'outils pour une ligne : la bande en prend une seconde, vers le haut. */
+    overflow: visible;
+    background: var(--notak-barre, var(--notak-carte));
+    transition: bottom var(--clavier-duree, 0.25s) ease-out;
+  }
+
+  .notak-barre-outils[data-selection] :is(.notak-barre-selection[data-a-gauche], .notak-barre-edition-liste) {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .notak-barre-outils[data-selection] :is(.notak-barre-selection[data-a-gauche], .notak-barre-edition-liste) :is(button.notak-outil, .notak-note-menu-ancre) {
+    width: 58px;
+  }
+
+  .notak-barre-outils[data-selection] :is(.notak-barre-ressort, .notak-barre-sep) {
+    display: none;
+  }
+
+  .notak-barre-outils[data-selection] .notak-barre-retour {
+    flex: none;
+    width: 40px;
+    height: 56px;
+  }
+
+  /* Le « ••• » s'ouvre au-dessus de la bande, sur toute la largeur : la bande défile, il n'y a pas d'à-côté. */
+  .notak-barre-outils[data-selection] .notak-tiroir {
+    position: fixed;
+    top: auto;
+    right: calc(8px + var(--notak-zone-droite, 0px));
+    bottom: calc(var(--notak-zone-bas, 0px) + 88px);
+    left: calc(8px + var(--notak-zone-gauche, 0px));
+    z-index: 40;
+    grid-template-columns: repeat(4, 1fr);
+    max-height: 60dvh;
+    overflow-y: auto;
+    translate: 0 0 !important;
+    border-radius: 18px;
+  }
+
+  .notak-barre-outils[data-selection] .notak-tiroir::before {
+    display: none;
+  }
+
+  /* Le filet sous le retour devient un filet vertical après lui. */
+  .notak-barre-outils[data-selection] .notak-barre-selection[data-a-gauche]::before {
+    width: 1px;
+    height: 40px;
+    margin: 0 6px;
+  }
+
+  /* Ce qu'ouvre un outil de la bande (la palette des couleurs, les étiquettes, les réactions…) monte au-dessus d'elle, en
+     pleine largeur, au lieu de s'ouvrir à côté d'une barre de gauche qui n'est plus là. */
+  .notak-barre-outils[data-selection]
+    :is(.notak-note-palette, .notak-decor-menu, .notak-etiquettes-menu, [role='menu'], [role='dialog']):not(.notak-tiroir):not(
+      :is(.notak-note-palette, .notak-decor-menu, .notak-etiquettes-menu, .notak-tiroir, [role='menu'], [role='dialog']) *
+    ) {
+    position: fixed !important;
+    top: auto !important;
+    right: calc(8px + var(--notak-zone-droite, 0px)) !important;
+    bottom: calc(var(--notak-zone-bas, 0px) + 88px) !important;
+    left: calc(8px + var(--notak-zone-gauche, 0px)) !important;
+    z-index: 40;
+    box-sizing: border-box;
+    width: auto !important;
+    max-width: none !important;
+    max-height: 55dvh;
+    margin: 0 !important;
+    overflow-y: auto;
+    /* `translate`, que le bornage des menus pose (borner.ts) : `none` se perd à la minification, d'où `0 0`. */
+    translate: 0 0 !important;
+    border-radius: 18px;
+  }
+}

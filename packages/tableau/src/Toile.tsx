@@ -7,6 +7,7 @@ import { ouvrirImage, useImageOuverte } from './elements/image/visionneuse'
 import { ouvrirFenetreFichier, useFichierOuvert } from './elements/fichier/ouverture'
 import { PanneauEnvoi } from './elements/fichier/PanneauEnvoi'
 import { BarreOutils, BarreSelection, type OutilDeBarre, outilsDeBarre } from './Barres'
+import { enFeuille } from './communs/Feuille'
 import { BarreEdition, ContexteBarreEdition } from './barreEdition'
 import { Cadre, ContexteRangement, type Empreinte, type Rangement } from './Cadre'
 import * as cam from './coeur/camera'
@@ -2643,6 +2644,16 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       const clic = g.outil.outil.clic
       // Un outil d'envoi s'ouvre au clic : ce qu'on choisit se pose au milieu de la vue.
       if (clic) return clic(cam.versTableau(camera, point(vue.largeur / 2, vue.hauteur / 2)), contexte)
+      // Sur un téléphone, l'outil touché dans la feuille des outils pose son élément au milieu de la vue.
+      if (enFeuille() && !g.outil.outil.cliquerSeulement) {
+        const [cx, cy] = aimanter(cam.versTableau(camera, point(vue.largeur / 2, vue.hauteur / 2)))
+        const pas = g.outil.outil.creer(point(cx, cy), contexte)
+        const ids = pas.flatMap((op) => (op.type === 'creer' ? [op.element.id] : []))
+        if (ids.length === 0) return
+        magasin.faire(pas)
+        apresCreation(ids)
+        return
+      }
       setRebond((r) => ({ libelle: g.outil.outil.libelle, n: (r?.n ?? 0) + 1 }))
       return
     }

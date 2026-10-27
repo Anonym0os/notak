@@ -27,7 +27,7 @@ const REMPLACEMENTS: Record<'fr' | 'en', [RegExp, string][]> = {
 const AU_DOIGT: Record<'fr' | 'en', [RegExp, string][]> = {
   fr: [
     [/^# Une note\n.*/s, '# Une note\nTouchez deux fois le vide, puis écrivez.'],
-    [/^# Un outil\n.*/s, '# Un outil\nGlissez du doigt un outil de la barre de gauche sur le fond : colonne, tâches, lien, image, toile.'],
+    [/^# Un outil\n.*/s, '# Un outil\nTouchez le + en bas (sur une tablette, la barre de gauche), puis un outil : colonne, tâches, lien, image, toile. Tiré, il se pose où vous le lâchez.'],
     [/^# Un dépôt\n.*/s, '# Une image\nL’outil Ajouter une image prend une photo, ou en choisit une sur l’appareil.'],
     [/^# Les non triés\n.*/s, '# Les non triés\nLe bouton Non triés, en haut à droite, ouvre le bac des éléments qui attendent une place.'],
     [/^# Zoom et vue\n.*/s, '# Zoom et vue\nPincez pour zoomer ; un doigt glissé sur le vide déplace le fond.'],
@@ -39,7 +39,7 @@ const AU_DOIGT: Record<'fr' | 'en', [RegExp, string][]> = {
   ],
   en: [
     [/^# A note\n.*/s, '# A note\nTap twice on empty space, then write.'],
-    [/^# A tool\n.*/s, '# A tool\nDrag a tool from the left bar onto the canvas with your finger: column, tasks, link, image, board.'],
+    [/^# A tool\n.*/s, '# A tool\nTap the + at the bottom (the left bar on a tablet), then a tool: column, tasks, link, image, board. Dragged, it lands where you let go.'],
     [/^# A drop\n.*/s, '# An image\nThe Add image tool takes a photo, or picks one from the device.'],
     [/^# Unsorted\n.*/s, '# Unsorted\nThe Unsorted button, at the top right, opens the tray of items waiting for a place.'],
     [/^# Zoom and view\n.*/s, '# Zoom and view\nPinch to zoom; drag one finger on empty space to move the canvas.'],

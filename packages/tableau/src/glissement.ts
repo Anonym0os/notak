@@ -1,5 +1,6 @@
 import { type RefObject, useLayoutEffect } from 'react'
 import { RESSORT_LISTES, courbeRessort } from './coeur/ressort'
+import { enFeuille } from './communs/Feuille'
 
 /**
  * Le rang de la liste d'outils montrée à gauche : création (0), sélection (1), écriture (2). Passer à un rang plus
@@ -23,6 +24,9 @@ export function useGlissement(barre: RefObject<HTMLElement | null>, rang: RangLi
     const sens = rang > derniere ? 1 : rang < derniere ? -1 : 0
     derniere = rang
     if (sens === 0 || typeof n.animate !== 'function') return
+    // Sur un téléphone, la barre est une bande en bas : rien n'y glisse de côté, et la liste animée deviendrait le
+    // repère des palettes qui s'ouvrent au-dessus (une position fixe se cale sur un ancêtre transformé).
+    if (enFeuille()) return
     if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const { duree, easing } = courbeRessort(RESSORT_LISTES, ECART)
     const liste = [...n.children].filter((c): c is HTMLElement => c instanceof HTMLElement && !c.classList.contains('notak-barre-ressort') && !c.classList.contains('notak-barre-retour'))

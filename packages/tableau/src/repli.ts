@@ -1,4 +1,5 @@
 import { type RefObject, useEffect, useRef, useState } from 'react'
+import { enFeuille } from './communs/Feuille'
 
 /**
  * Le repli d'une barre de gauche trop courte pour ses outils. D'abord la taille des tuiles baisse en deux paliers
@@ -123,6 +124,11 @@ export function useRepli(
     if (!barre) return
     const calculer = () => {
       const { entrees: es, fixe: f } = dernier.current
+      // Sur un téléphone, la barre est une bande en bas qui défile : rien ne se range dans le « ••• ».
+      if (enFeuille()) {
+        barre.dataset.palier = 'grande'
+        return setEtat((e) => (e.cle === 'telephone' ? e : { cle: 'telephone', ranges: new Set(), visibles: null, palier: 'grande' }))
+      }
       const r = replier({ entrees: es, hauteur: placeDe(barre), fixe: f })
       barre.dataset.palier = r.palier
       const cle = `${r.palier}/${r.ranges.join(',')}/${r.visibles.join(',')}`
