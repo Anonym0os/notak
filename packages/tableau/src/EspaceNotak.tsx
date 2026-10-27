@@ -756,10 +756,11 @@ function Entete({
     return () => document.removeEventListener('pointerdown', hors)
   }, [menu])
 
+  // Sur un téléphone, un seul bouton de tête, comme une app iPhone : ‹ remonte à la toile parente, la maison ouvre la
+  // bibliothèque depuis l'accueil ; le fil n'a que la toile ouverte, et son titre prend la place qui reste.
+  const telephone = auDoigt() && typeof innerWidth === 'number' && innerWidth <= 640
   // Le titre du tableau ouvert se change en place, au bout du fil ; l'accueil n'a que son nom.
   const avecTitre = segments.length > 1
-  // Sur un téléphone, ‹ et la maison remontent : le fil n'a que la toile ouverte, et son titre prend toute la place.
-  const telephone = auDoigt() && typeof innerWidth === 'number' && innerWidth <= 640
   const { visibles, caches } = telephone
     ? { visibles: [segments.length - 1], caches: [] as number[] }
     : tronquerFil(segments.map((s) => largeurSegment(s.titre)), largeur, LARGEUR_SUSPENSION)
@@ -793,6 +794,10 @@ function Entete({
     )
   }
   const parent = segments.length > 1 ? segments.at(-2) : undefined
+  if (telephone) {
+    if (parent) bibliotheque = undefined
+    outils = undefined
+  }
 
   return (
     // Dans l'application de bureau, la barre tient lieu de barre de titre : on la saisit partout hors des îlots pour déplacer la fenêtre.
