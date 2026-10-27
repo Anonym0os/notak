@@ -3102,16 +3102,22 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
  * défile de côté quand elles sont trop nombreuses.
  */
 @media (pointer: coarse) and (max-width: 640px) {
+  /* Une capsule qui flotte au-dessus du clavier, comme les îlots du haut : marges sur les côtés, coins ronds, ombre ;
+     le clavier arrondi ne laisse plus de vide à côté d'une bande droite. */
   html[data-clavier] .notak-barre-outils[data-edition] {
-    inset: auto 0 var(--clavier) 0;
+    inset: auto calc(8px + var(--notak-zone-droite, 0px)) calc(var(--clavier) + 8px) calc(8px + var(--notak-zone-gauche, 0px));
     flex-wrap: nowrap;
     justify-content: flex-start;
-    height: 48px;
-    padding: 2px 6px;
+    align-items: center;
+    box-sizing: border-box;
+    height: 52px;
+    padding: 0 6px;
     overflow-x: auto;
     overflow-y: hidden;
-    border-radius: 0;
-    box-shadow: 0 -0.5px 0 color-mix(in srgb, var(--notak-texte) 16%, transparent);
+    border: 0;
+    border-radius: 26px;
+    background: var(--notak-barre, var(--notak-carte));
+    box-shadow: var(--app-ombre-ilot, var(--notak-ombre-vol));
     scrollbar-width: none;
     touch-action: pan-x;
     overscroll-behavior-x: contain;
@@ -3122,24 +3128,70 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
     display: none;
   }
 
-  html[data-clavier] .notak-barre-outils[data-edition] :is(.notak-edition-outils, .notak-barre-edition, .notak-barre-selection[data-a-gauche]) {
+  html[data-clavier]
+    .notak-barre-outils[data-edition]
+    :is(.notak-edition-outils, .notak-barre-edition, .notak-barre-edition-liste, .notak-barre-selection[data-a-gauche]) {
     flex: none;
+    flex-direction: row;
     flex-wrap: nowrap;
+    align-items: center;
+    gap: 0;
+    width: auto;
+    height: 44px;
+    margin: 0;
+    padding: 0;
   }
 
   html[data-clavier] .notak-barre-outils[data-edition] .notak-outil-libelle {
     display: none;
   }
 
-  html[data-clavier] .notak-barre-outils[data-edition] :is(button.notak-outil, .notak-note-menu-ancre, .notak-barre-retour) {
+  /* Toutes les touches sur la même ligne et au même gabarit : 44 px, l'icône au centre, sans fond ni décalage. */
+  html[data-clavier]
+    .notak-barre-outils[data-edition]
+    :is(button.notak-outil, button.notak-outil-texte, .notak-note-menu-ancre, .notak-barre-retour, .notak-outil-selection) {
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
     width: 44px;
     min-width: 44px;
     height: 44px;
+    margin: 0;
     padding: 0;
+    border: 0;
+    border-radius: 22px;
+    background: none;
+    align-self: center;
+  }
+
+  html[data-clavier] .notak-barre-outils[data-edition] .notak-note-menu-ancre .notak-outil-selection {
+    width: 100%;
+    height: 100%;
+  }
+
+  html[data-clavier] .notak-barre-outils[data-edition] :is(.notak-outil-icone, .notak-ico) {
+    margin: 0;
+  }
+
+  /* Le « A » du style n'a pas de tuile grise : il est une touche comme les autres. */
+  html[data-clavier] .notak-barre-outils[data-edition] .notak-outil-selection .notak-outil-icone {
+    width: 44px;
+    height: 44px;
+    background: none;
+    box-shadow: none;
+  }
+
+  html[data-clavier] .notak-barre-outils[data-edition] button.notak-outil-texte[aria-pressed='true'] {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    margin: 0 4px;
+    border-radius: 10px;
   }
 
   html[data-clavier] .notak-barre-outils[data-edition] .notak-barre-selection[data-a-gauche]::before {
     height: 24px;
+    margin: 0 4px;
   }
 
   /* Ce qu'ouvre un outil de la bande monte au-dessus d'elle, donc au-dessus du clavier. */
@@ -3148,7 +3200,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
     :is(.notak-note-palette, .notak-decor-menu, .notak-etiquettes-menu, [role='menu'], [role='dialog']):not(.notak-tiroir):not(
       :is(.notak-note-palette, .notak-decor-menu, .notak-etiquettes-menu, .notak-tiroir, [role='menu'], [role='dialog']) *
     ) {
-    bottom: calc(var(--clavier) + 56px) !important;
+    bottom: calc(var(--clavier) + 68px) !important;
     max-height: calc(100dvh - var(--clavier) - var(--notak-zone-haut, 0px) - 140px);
   }
 }

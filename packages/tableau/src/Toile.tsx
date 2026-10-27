@@ -199,9 +199,8 @@ function choisirAxe(actuel: 'h' | 'v' | null, d: Point): 'h' | 'v' {
   return ax >= ay ? 'h' : 'v'
 }
 
-/** Un doigt posé sans bouger ce temps-là ouvre le menu du clic droit, en millisecondes. */
-/** Au-dessus du clavier : la barre du clavier (48 px) et un peu d'air. */
-const MARGE_CLAVIER = 64
+/** Au-dessus du clavier : la capsule des outils (52 px, posée 8 px plus haut) et un peu d’air. */
+const MARGE_CLAVIER = 76
 
 /**
  * De combien la toile glisse (vers le haut, en px, négatif) pour qu'une note de `rect` reste visible au-dessus d'un
@@ -223,6 +222,7 @@ const decalageGrille = (px: number) => {
   return ((px % pas) + pas) % pas - pas
 }
 
+/** Un doigt posé sans bouger ce temps-là ouvre le menu du clic droit, en millisecondes. */
 const APPUI_LONG = 500
 
 /** Les types qui s'ouvrent en grand, et dont le plein écran a donc une adresse. */

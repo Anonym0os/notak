@@ -211,8 +211,8 @@ describe('tirer la toile au doigt', () => {
 
 describe('le clavier sur la toile', () => {
   it('la note qu’on écrit, couverte par le clavier, remonte juste au-dessus de sa barre', () => {
-    // Écran de 844, clavier de 336 : la barre du clavier commence à 444.
-    expect(decalageClavier({ top: 640, bottom: 720 }, 844, 336, 112)).toBe(444 - 720)
+    // Écran de 844, clavier de 336 : la capsule des outils et son air commencent à 432.
+    expect(decalageClavier({ top: 640, bottom: 720 }, 844, 336, 112)).toBe(432 - 720)
   })
 
   it('sans que son haut passe sous la barre du haut, ni bouger ce qui se voit déjà', () => {
