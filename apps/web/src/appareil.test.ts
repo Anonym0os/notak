@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest'
-import { idiome, infosAppareil, marquerAppareil, oublierInfos, plateforme } from './appareil'
+import { idiome, infosAppareil, marquerAppareil, oublierInfos, partagerFichier, peutPartager, plateforme } from './appareil'
 
 const fenetre = (o: { coque?: boolean; dite?: string; ua?: string; touches?: number; ecran?: [number, number]; reponse?: unknown }) => ({
   ...(o.coque || o.dite ? { __TAURI_INTERNALS__: { invoke: async () => (o.reponse instanceof Error ? Promise.reject(o.reponse) : o.reponse) } } : {}),
@@ -76,3 +76,17 @@ describe('les infos de la coque mobile', () => {
     expect(await infosAppareil(fenetre({ dite: 'ios', reponse: new Error('plugin appareil not found') }))).toBeNull()
   })
 })
+
+describe('la feuille de partage', () => {
+  it('n’existe que dans la coque mobile', () => {
+    expect(peutPartager(fenetre({ dite: 'ios' }) as never)).toBe(true)
+    expect(peutPartager(fenetre({ dite: 'macos' }) as never)).toBe(false)
+    expect(peutPartager(fenetre({ ua: IPHONE, touches: 5 }) as never)).toBe(false)
+  })
+
+  it('dit si la personne a envoyé le fichier quelque part ou refermé la feuille', async () => {
+    expect(await partagerFichier(new Blob(['a']), 'a.txt', fenetre({ dite: 'ios', reponse: { fait: true } }) as never)).toBe('partage')
+    expect(await partagerFichier(new Blob(['a']), 'a.txt', fenetre({ dite: 'ios', reponse: { fait: false } }) as never)).toBe('annule')
+  })
+})
+

@@ -7,6 +7,7 @@
  * L'emplacement se demande au clic, avant de fabriquer le fichier : la fenêtre n'en veut pas après une longue attente.
  */
 import { ErreurExport } from '@notak/tableau'
+import { partagerFichier, peutPartager } from './appareil'
 
 export interface Emplacement {
   /** Le nom retenu, celui que la personne a pu changer. */
@@ -51,6 +52,8 @@ export function telecharger(blob: Blob, nom: string) {
 /** L'emplacement choisi, ou `null` si la personne a renoncé. */
 export async function choisirEmplacement(f: FichierPropose, w: AvecSelecteur = fenetre()): Promise<Emplacement | null> {
   const tauri = w.__TAURI_INTERNALS__
+  // Sur un iPhone ou un iPad : pas d'« Enregistrer sous », la feuille de partage du système, une fois le fichier fait.
+  if (tauri && peutPartager(w as never)) return { nom: f.nom, ecrire: async (blob) => void (await partagerFichier(blob, f.nom, w as never)) }
   if (tauri) {
     // Une coque d'avant ces commandes ne sait pas enregistrer : on le dit, plutôt qu'un échec sans cause.
     const nom = await tauri.invoke<string | null>('choisir_emplacement', { nom: f.nom, extension: f.extension, description: f.description }).catch((e: unknown) => {

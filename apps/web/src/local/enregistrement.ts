@@ -1,4 +1,5 @@
 import { EXTENSION_NOTAK, TYPE_NOTAK } from '@notak/tableau'
+import { partagerFichier, peutPartager } from '../appareil'
 import { estBureau, invoquer } from '../bureau'
 import { telecharger } from '../Export'
 
@@ -38,6 +39,9 @@ export type CopieRangee = { ou: 'fichier'; nom: string } | { ou: 'partage' } | {
 export async function rangerCopie(octets: Uint8Array, nom: string, nouveau = false): Promise<CopieRangee> {
   if (estBureau()) return rangerCopieBureau(octets, nom, nouveau)
   const fichier = new File([octets as Uint8Array<ArrayBuffer>], nom, { type: TYPE_NOTAK })
+  // Dans l'app iPhone ou iPad : la feuille de partage du système. Celle du web n'accepte pas d'arriver après le temps
+  // qu'il faut pour fabriquer la copie.
+  if (peutPartager()) return (await partagerFichier(fichier, nom)) === 'partage' ? { ou: 'partage' } : { ou: 'annule' }
   const w = fenetre()
   if (w.showSaveFilePicker && !tactile()) {
     try {

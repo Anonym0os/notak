@@ -58,3 +58,15 @@ describe('une coque de bureau d’avant les commandes d’enregistrement', () =>
     await expect(choisirEmplacement(fichier, { __TAURI_INTERNALS__: { invoke } } as never)).rejects.toThrow('bureau_a_mettre_a_jour')
   })
 })
+
+describe('sur un iPhone ou un iPad', () => {
+  it('l’export part dans la feuille de partage du système, avec son nom, une fois fait', async () => {
+    const invoke = vi.fn(async () => ({ fait: true, activite: 'com.apple.DocumentManagerUICore.SaveToFiles' }))
+    const w = { __TAURI_INTERNALS__: { invoke }, __NOTAK_PLATEFORME__: 'ios', navigator: { userAgent: '', maxTouchPoints: 5 } }
+    const ou = await choisirEmplacement(fichier, w as never)
+    expect(invoke).not.toHaveBeenCalled()
+    await ou!.ecrire(blob())
+    expect(invoke).toHaveBeenCalledWith('plugin:appareil|partager', { nom: 'Voyage.notak', donnees: btoa(String.fromCharCode(80, 75, 3, 4)) })
+  })
+})
+

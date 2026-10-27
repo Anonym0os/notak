@@ -102,3 +102,36 @@ export function vibrer(fenetre: FenetreAvecCoque = window as unknown as FenetreA
   if (!estMobile(plateforme(fenetre))) return
   void fenetre.__TAURI_INTERNALS__?.invoke('plugin:appareil|haptique', { sorte: 'moyen' }).catch(() => {})
 }
+
+/** Les octets d'un fichier en base64, par morceaux : `btoa` d'une seule chaîne déborde sur un gros fichier. */
+async function enBase64(blob: Blob): Promise<string> {
+  const lu =
+    typeof blob.arrayBuffer === 'function'
+      ? await blob.arrayBuffer()
+      : await new Promise<ArrayBuffer>((fin, echec) => {
+          const r = new FileReader()
+          r.onload = () => fin(r.result as ArrayBuffer)
+          r.onerror = () => echec(r.error)
+          r.readAsArrayBuffer(blob)
+        })
+  const octets = new Uint8Array(lu)
+  let binaire = ''
+  for (let i = 0; i < octets.length; i += 0x8000) binaire += String.fromCharCode(...octets.subarray(i, i + 0x8000))
+  return btoa(binaire)
+}
+
+/** Dans la coque mobile : la coque sait ouvrir la feuille de partage du système (`plugin:appareil|partager`). */
+export const peutPartager = (fenetre: FenetreAvecCoque = window as unknown as FenetreAvecCoque): boolean =>
+  !!fenetre.__TAURI_INTERNALS__ && estMobile(plateforme(fenetre))
+
+/**
+ * Donne un fichier à la feuille de partage d'iOS (Enregistrer dans Fichiers, AirDrop, Mail…) : dans la webview, une
+ * page ne sait ni télécharger ni ouvrir « Enregistrer sous ». Rend `partage` si la personne l'a envoyé quelque part,
+ * `annule` si elle a refermé la feuille.
+ */
+export async function partagerFichier(blob: Blob, nom: string, fenetre: FenetreAvecCoque = window as unknown as FenetreAvecCoque): Promise<'partage' | 'annule'> {
+  const coque = fenetre.__TAURI_INTERNALS__
+  if (!coque) throw new Error('pas de coque')
+  const r = (await coque.invoke('plugin:appareil|partager', { nom, donnees: await enBase64(blob) })) as { fait?: boolean } | null
+  return r?.fait ? 'partage' : 'annule'
+}
