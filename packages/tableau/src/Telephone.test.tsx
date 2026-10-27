@@ -82,6 +82,24 @@ describe('la toile sur un téléphone', () => {
     expect(barre!.getAttribute('data-palier')).toBe('grande')
     expect(hote.querySelector('.notak-outils-ajouter')).toBeNull()
   })
+
+  it('le menu d’un outil de la capsule monte en feuille, qu’un toucher dedans ne referme pas', () => {
+    const n = nouvelleNote(0, 0, 'a')
+    const magasin = creerMagasin({ titre: '', etiquettes: [], elements: [n] })
+    act(() => racine.render(<Toile magasin={magasin} services={{ barreAGauche: true }} />))
+    const carte = hote.querySelector(`[data-id="${n.id}"]`)!
+    doigt(carte, 'pointerdown')
+    doigt(carte, 'pointerup')
+    const outil = hote.querySelector<HTMLButtonElement>('.notak-barre-outils[data-capsule] button[aria-expanded]')!
+    act(() => outil.click())
+    const feuille = document.querySelector('.notak-tiroir-bas-outil')
+    expect(feuille).not.toBeNull()
+    // La feuille vit hors de la barre : un toucher dedans compte pourtant comme un toucher sur l'outil.
+    doigt(feuille!.querySelector('.notak-tiroir-bas-corps')!, 'pointerdown')
+    expect(document.querySelector('.notak-tiroir-bas-outil')).not.toBeNull()
+    act(() => document.querySelector<HTMLButtonElement>('.notak-tiroir-bas-outil .notak-tiroir-bas-fermer')!.click())
+    expect(document.querySelector('.notak-tiroir-bas-outil')).toBeNull()
+  })
 })
 
 describe('la recherche au doigt', () => {

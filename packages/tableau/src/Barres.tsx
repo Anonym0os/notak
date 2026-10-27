@@ -2,7 +2,7 @@ import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import type { Element } from './coeur/tableau'
 import { BarreEtiquette } from './elements/decor/BarreEtiquette'
 import { BoutonEtiquettes } from './elements/decor/BoutonEtiquettes'
-import { usePuce } from './elements/decor/etat'
+import { useFilOuvert, usePuce } from './elements/decor/etat'
 import { t } from './langue'
 import { RANG_APRES_TETE, definition, tousLesOutilsCommunsRanges, tousLesTypes } from './elements/registre'
 import type { ContexteToile, Outil } from './elements/types'
@@ -412,6 +412,11 @@ export function BarreSelection({
     demandeServie = actionsDemandees
     setFeuilleActions(true)
   }, [actionsDemandees]) // eslint-disable-line react-hooks/exhaustive-deps
+  // « Commenter », touché dans la feuille, ouvre le fil dans sa propre feuille : celle des actions s'en va.
+  const filOuvert = useFilOuvert()
+  useEffect(() => {
+    if (filOuvert) setFeuilleActions(false)
+  }, [filOuvert])
   const parType = new Map<string, Element[]>()
   for (const e of elements) parType.set(e.contenu.type, [...(parType.get(e.contenu.type) ?? []), e])
   const blocs = [...parType].flatMap(([type, els]) => {
@@ -470,7 +475,8 @@ export function BarreSelection({
         {feuilleActions && (
           <Feuille fermer={() => setFeuilleActions(false)} role="presentation" className="notak-tiroir-bas-actions">
             <ActionsFeuille
-              entrees={contexte.actions?.() ?? []}
+              // « Commenter » est déjà une tuile des outils, au-dessus : pas une seconde fois en ligne.
+              entrees={(contexte.actions?.() ?? []).filter((e) => !e || e.libelle !== t('menu.commenter'))}
               fermer={() => setFeuilleActions(false)}
               avant={
                 <>

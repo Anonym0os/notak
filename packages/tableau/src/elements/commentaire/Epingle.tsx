@@ -9,6 +9,7 @@ import { AUTEUR_INCONNU, ajouterMessage } from './fil'
 import { type PoigneeCompositeur } from './Compositeur'
 import { marquerLu, nonLus, useSignalerFrappe } from './suivi'
 import { peutCommenter } from '../../coeur/droitsElements'
+import { Feuille, enFeuille } from '../../communs/Feuille'
 
 /** La couleur d'une épingle sans couleur de fil : le bleu des liens de Milanote. */
 export const BLEU_EPINGLE = '#2f63f7'
@@ -47,7 +48,7 @@ export function useFermerAuClicDehors(actif: boolean, racine: React.RefObject<HT
     const dehors = (e: PointerEvent) => {
       const cible = e.target as HTMLElement | null
       if (!cible || racine.current?.contains(cible)) return
-      if (cible.closest?.('.notak-fenetre-emojis, .notak-propositions, .notak-barre-outils, .notak-barre-selection')) return
+      if (cible.closest?.('.notak-fenetre-emojis, .notak-propositions, .notak-barre-outils, .notak-barre-selection, .notak-tiroir-bas-calque')) return
       dernier.current()
     }
     document.addEventListener('pointerdown', dehors, true)
@@ -57,7 +58,8 @@ export function useFermerAuClicDehors(actif: boolean, racine: React.RefObject<HT
 
 /**
  * La bulle d'un fil accroché ou épinglé : le fil déployé, sans en-tête, à droite de l'épingle. Entrée envoie, Échap
- * ferme ; ce qu'on écrit ici part tout de suite, comme un message (pas de brouillon).
+ * ferme ; ce qu'on écrit ici part tout de suite, comme un message (pas de brouillon). Au téléphone, le fil monte en
+ * feuille au-dessus du clavier, comme une conversation : à côté de l'élément, il sortait de l'écran.
  */
 export function BulleFil({
   fil,
@@ -90,7 +92,7 @@ export function BulleFil({
     setVide(true)
   }
   const texteCourant = useRef<{ texte: string; riche?: NoeudTexte }>({ texte: '' })
-  return (
+  const bulle = (
     <div
       className="notak-fil-attache"
       data-bande={fil.couleur ? '' : undefined}
@@ -135,6 +137,13 @@ export function BulleFil({
         />
       </div>
     </div>
+  )
+  return enFeuille() ? (
+    <Feuille titre={t('commentaire.titre')} fermer={fermer} className="notak-tiroir-bas-fil">
+      {bulle}
+    </Feuille>
+  ) : (
+    bulle
   )
 }
 

@@ -13,7 +13,13 @@
   position: absolute;
   inset: 0;
   background: rgb(15 20 28 / 0.32);
-  animation: notak-tiroir-bas-voile 0.2s ease-out;
+  animation: notak-tiroir-bas-voile 0.35s ease-out;
+  transition: opacity 0.28s ease-out;
+}
+
+/* En sortant, le voile s'éteint pendant que la feuille descend. */
+.notak-tiroir-bas-calque[data-sortie] .notak-tiroir-bas-voile {
+  opacity: 0;
 }
 
 .notak-tiroir-bas {
@@ -21,8 +27,9 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  max-height: calc(100dvh - var(--notak-zone-haut, 0px) - 48px);
-  margin: 0 8px calc(8px + var(--notak-zone-bas, 0px));
+  /* Le clavier sorti (un champ de la feuille) la pousse au-dessus de lui, sans qu'elle passe sous la barre du haut. */
+  max-height: calc(100dvh - var(--notak-zone-haut, 0px) - var(--clavier, 0px) - 48px);
+  margin: 0 8px max(calc(8px + var(--notak-zone-bas, 0px)), calc(var(--clavier, 0px) + 8px));
   padding: 0 8px 8px;
   overflow: hidden;
   border-radius: 22px;
@@ -30,8 +37,12 @@
   box-shadow: 0 10px 40px rgb(0 0 0 / 0.22);
   color: var(--notak-texte, #323b4a);
   pointer-events: none;
-  animation: notak-tiroir-bas-monte 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
-  transition: transform 0.2s ease-out;
+  /* La courbe des feuilles d'iOS : un départ franc, une arrivée longue et douce. */
+  animation: notak-tiroir-bas-monte 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+  transition:
+    transform 0.2s ease-out,
+    margin-bottom 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
 }
 
 .notak-tiroir-bas[data-prete] {
@@ -118,6 +129,167 @@
   max-height: none !important;
   margin: 0 0 4px 28px !important;
   overflow: visible;
+}
+
+/* Un menu d'outil dans la feuille (Icône, Couleur, Réaction, Étiquettes) : le contenu prend la largeur, sans le dessin
+   de bulle qu'il a sur le bureau (BoutonOutil.tsx). */
+.notak-tiroir-bas-outil .notak-tiroir-bas-corps > * {
+  position: static !important;
+  inset: auto !important;
+  box-sizing: border-box;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 2px 4px 8px !important;
+  overflow: visible !important;
+  translate: 0 0 !important;
+  transform: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  animation: none !important;
+}
+
+.notak-tiroir-bas-outil :is(input[type='text'], input:not([type])) {
+  box-sizing: border-box;
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  /* 16 px : iOS ne zoome pas sur le champ. */
+  font-size: 16px;
+}
+
+/* La recherche commune garde sa loupe et son retrait ; seulement plus haute, et à 16 px. */
+.notak-tiroir-bas-outil .notak-champ-recherche {
+  width: 100%;
+}
+
+.notak-tiroir-bas-outil .notak-champ-recherche .notak-champ {
+  height: 40px;
+  border-radius: 12px;
+  font-size: 16px;
+}
+
+/* Les boutons de ces menus, dessinés par la bulle sur le bureau : ici, à plat, une teinte au toucher. Sans poids
+   (`:where`) : une pastille ou une étiquette garde sa couleur à elle. */
+:where(.notak-tiroir-bas-outil .notak-tiroir-bas-corps button) {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+:where(.notak-tiroir-bas-outil .notak-tiroir-bas-corps button:active) {
+  background: color-mix(in srgb, var(--notak-texte, #323b4a) 8%, transparent);
+}
+
+/* Les pastilles de couleur, au doigt. */
+.notak-tiroir-bas-outil .notak-pastilles-grille {
+  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.notak-tiroir-bas-outil .notak-pastilles-grille button {
+  width: 100% !important;
+  height: 40px !important;
+  border-radius: 12px !important;
+}
+
+/* Les icônes d'une carte de toile : une grille à 44 px, qui suit la largeur. */
+.notak-tiroir-bas-outil .notak-renvoi-icones {
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  width: auto;
+  max-height: 40dvh;
+  margin: 8px 0;
+}
+
+.notak-tiroir-bas-outil .notak-renvoi-icones button {
+  height: 44px;
+  border-radius: 10px;
+}
+
+.notak-tiroir-bas-outil .notak-renvoi-choix > button[role='menuitem'],
+.notak-tiroir-bas-outil .notak-couleur-libre {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 6px;
+  padding: 0 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--notak-texte, #323b4a) 5%, transparent) !important;
+  font-size: 16px;
+  text-align: left;
+}
+
+/* Le fil de commentaires au téléphone : la conversation sur la largeur, le champ en bas, au-dessus du clavier. */
+.notak-tiroir-bas-fil .notak-fil-attache {
+  position: static;
+  width: auto;
+  max-height: none;
+  border-radius: 14px;
+  box-shadow: none;
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.notak-tiroir-bas-fil .notak-fil-attache::after {
+  display: none;
+}
+
+/* Les émojis au téléphone : la recherche, les catégories en une rangée qui glisse, puis la grille sur toute la largeur. */
+.notak-tiroir-bas-outil .notak-emojis {
+  flex-direction: column;
+  gap: 8px;
+  height: min(56dvh, 460px);
+  max-height: none;
+}
+
+.notak-tiroir-bas-outil .notak-emojis-menu {
+  width: auto;
+  gap: 8px;
+}
+
+.notak-tiroir-bas-outil .notak-emojis-recherche {
+  order: -1;
+}
+
+.notak-tiroir-bas-outil .notak-emojis-categories {
+  flex: none;
+  flex-direction: row;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.notak-tiroir-bas-outil .notak-emojis-categories button {
+  flex: none;
+  padding: 6px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.notak-tiroir-bas-outil .notak-emojis-teinte {
+  margin: 0;
+}
+
+.notak-tiroir-bas-outil .notak-emojis-grille {
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  grid-auto-rows: 44px;
+}
+
+.notak-tiroir-bas-outil .notak-emojis-grille button {
+  width: 100%;
+  height: 44px;
+  font-size: 28px;
 }
 
 @keyframes notak-tiroir-bas-monte {
@@ -290,4 +462,12 @@
 .notak-actions-outils :is(.notak-outil-place, .notak-note-menu-ancre, .notak-outil) {
   justify-self: stretch;
   width: auto !important;
+}
+
+/* Les étiquettes au téléphone : la recherche et la liste sur toute la largeur. */
+.notak-tiroir-bas-outil .notak-etiquettes {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  gap: 8px;
 }

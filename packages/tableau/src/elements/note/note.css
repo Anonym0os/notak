@@ -1,5 +1,7 @@
-/* Les couleurs de la note : fonds, texte, surlignages. Les fonds sont aussi dans couleurs.ts (un test les compare). */
-.notak-toile {
+/* Les couleurs de la note : fonds, texte, surlignages. Les fonds sont aussi dans couleurs.ts (un test les compare).
+   Une feuille du téléphone, posée hors de la toile, les reçoit aussi (étiquettes, pastilles). */
+.notak-toile,
+.notak-tiroir-bas-calque {
   --notak-note-gris: #bbbec3;
   --notak-note-cyan: #62dbc8;
   --notak-note-vert: #7cd651;

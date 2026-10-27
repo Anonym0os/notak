@@ -1,5 +1,6 @@
 import { type ReactNode, type RefObject, createContext, useContext, useEffect, useId } from 'react'
 import { createPortal } from 'react-dom'
+import { Feuille, enFeuille } from './communs/Feuille'
 import { type NomIcone, Icone } from './icones'
 import { Infobulle } from './Infobulle'
 import { type EntreeRepli, ORDRE } from './repli'
@@ -94,7 +95,11 @@ export function BoutonOutil({ icone, libelle, titre, flottant, pastille, seconda
   return sansEmplacement ? bouton : <Emplacement secondaire={range}>{bouton}</Emplacement>
 }
 
-/** Un outil qui ouvre un menu : l'ancre (le bouton et le menu, ensemble), le bouton, et le menu quand il est ouvert. */
+/**
+ * Un outil qui ouvre un menu : l'ancre (le bouton et le menu, ensemble), le bouton, et le menu quand il est ouvert.
+ * Au téléphone, dans la capsule du bas, le menu monte en feuille, comme les choix d'iOS : une bulle posée contre la
+ * capsule y était trop étroite, et son champ de recherche sortait le clavier par-dessus.
+ */
 export function OutilAvecMenu({
   menu: [ouvert, setOuvert, ancre],
   classeAncre = 'notak-note-menu-ancre',
@@ -108,11 +113,19 @@ export function OutilAvecMenu({
   children: ReactNode
 }) {
   const range = useRepliOutil(bouton.libelle, secondaire, repli ?? ORDRE.defaut)
+  const { aGauche } = useContext(ContexteOutils)
+  const feuille = ouvert && aGauche && enFeuille()
   return (
     <Emplacement secondaire={range}>
       <div className={classeAncre} ref={ancre}>
         <BoutonOutil {...bouton} ouvert={ouvert} sansEmplacement onClick={() => setOuvert(!ouvert)} />
-        {ouvert && children}
+        {feuille ? (
+          <Feuille titre={bouton.libelle} fermer={() => setOuvert(false)} rattache={ancre.current} className="notak-tiroir-bas-outil" sansClavier>
+            {children}
+          </Feuille>
+        ) : (
+          ouvert && children
+        )}
       </div>
     </Emplacement>
   )

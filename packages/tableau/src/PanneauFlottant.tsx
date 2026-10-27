@@ -98,6 +98,9 @@ export type Cible = () => Element | Boite | null | undefined
 
 const cibles = new WeakMap<Element, Cible>()
 
+/** Une feuille ouverte depuis un bouton (au téléphone) compte comme ce bouton : un appui dedans n'est pas « dehors ». */
+export const rattacher = (feuille: Element, cible: Cible) => void cibles.set(feuille, cible)
+
 /**
  * Le nœud qui compte pour un appui tombé dans un panneau : sa cible (remontée de panneau en panneau). Un menu qui se
  * referme au clic dehors garde ainsi ouvert ce qu'un panneau ouvert depuis lui contient.
@@ -105,7 +108,7 @@ const cibles = new WeakMap<Element, Cible>()
 export function horsPanneau(noeud: Node | null): Node | null {
   let n = noeud
   for (let i = 0; i < 8 && n; i++) {
-    const panneau = (n instanceof Element ? n : n.parentElement)?.closest('.notak-panneau-flottant')
+    const panneau = (n instanceof Element ? n : n.parentElement)?.closest('.notak-panneau-flottant, .notak-tiroir-bas-calque')
     const c = panneau && cibles.get(panneau)?.()
     if (!(c instanceof Element)) return n
     n = c

@@ -1,11 +1,32 @@
 import { useEffect, useRef, useState } from 'react'
 import { PanneauFlottant } from '../../PanneauFlottant'
+import { Feuille, enFeuille } from '../../communs/Feuille'
 import { t } from '../../langue'
 import { Icone } from '../../icones'
 import { SelecteurEmojis } from './SelecteurEmojis'
 
-/** Le sélecteur d'émojis, accroché à droite de son bouton (à gauche s'il n'y a pas la place) ; un appui ailleurs ou Échap le ferme. */
-export function FenetreEmojis({ ancre, fermer, choisir, posees, retirer }: { ancre: Element; fermer(): void; choisir(emoji: string): void; posees?: ReadonlySet<string>; /** « Retirer » : un lien sous la grille, quand l'émoji est une icône qu'on peut enlever. */ retirer?: () => void }) {
+/**
+ * Le sélecteur d'émojis, accroché à droite de son bouton (à gauche s'il n'y a pas la place) ; un appui ailleurs ou Échap
+ * le ferme. Au téléphone, il monte en feuille, par-dessus celle qui l'a ouvert (le fil d'un commentaire).
+ */
+export function FenetreEmojis(props: { ancre: Element; fermer(): void; choisir(emoji: string): void; posees?: ReadonlySet<string>; /** « Retirer » : un lien sous la grille, quand l'émoji est une icône qu'on peut enlever. */ retirer?: () => void }) {
+  if (!enFeuille()) return <FenetreFlottante {...props} />
+  const { ancre, fermer, choisir, posees, retirer } = props
+  return (
+    <Feuille titre={t('emojis.titre')} fermer={fermer} rattache={ancre} className="notak-tiroir-bas-outil" sansClavier>
+      <div>
+        <SelecteurEmojis choisir={choisir} {...(posees ? { posees } : {})} />
+        {retirer && (
+          <button type="button" className="notak-etiquettes-lien" onClick={retirer}>
+            {t('page.retirer')}
+          </button>
+        )}
+      </div>
+    </Feuille>
+  )
+}
+
+function FenetreFlottante({ ancre, fermer, choisir, posees, retirer }: { ancre: Element; fermer(): void; choisir(emoji: string): void; posees?: ReadonlySet<string>; retirer?: () => void }) {
   const noeud = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const dehors = (e: PointerEvent) => !noeud.current?.contains(e.target as Node) && fermer()
