@@ -317,6 +317,17 @@ export const DERNIERE_LIGNE = { seuil: 0.2, reduction: 0.8 }
 const tientDans = (lignes: readonly Ligne[], taille: number, p: Palier) => (p.lignes === undefined || lignes.length <= p.lignes) && (p.hauteur === undefined || hauteurDe(lignes.length, taille) <= p.hauteur)
 
 /**
+ * Jusqu'où l'on descend sous la taille mini d'un texte, en part d'elle, avant de le couper : un texte long se lit en
+ * plus petit plutôt qu'à moitié. Notak s'écarte ici de Xmind, qui coupe dès la taille mini.
+ */
+export const PLANCHER = 0.6
+
+/** La plus grande taille de [plancher, taille] où le texte tient en `lignesMax` lignes ; `null` si même le plancher n'y suffit pas. */
+export function tailleSansCoupe(texte: string, taille: number, police: string, largeur: number, lignesMax: number, mesurer: Mesure): number | null {
+  return plusGrandeTaille(taille * PLANCHER, taille, (t) => mesurer(texte, t, police, largeur).length <= lignesMax)
+}
+
+/**
  * Le texte coupé au plus grand nombre de caractères qui tient en `lignesMax` lignes, suivi de « ... » (trois points
  * ASCII). Le texte entier, s'il tient.
  */
@@ -352,8 +363,14 @@ export function ajuster(d: DemandeAjustement): Ajuste {
   if (taille === null) {
     if (d.repli.lignesMax === undefined) sortie = fini(d.repli.taille, mesure(d.repli.taille), false)
     else {
-      const t = tronquer(d.texte, d.repli.taille, d.police, d.largeur, d.repli.lignesMax, d.mesurer)
-      sortie = fini(d.repli.taille, t.lignes, t.tronque)
+      // Plus petit d'abord, sous la plus petite taille essayée ; coupé seulement si le plancher n'y suffit pas.
+      const bas = Math.min(d.repli.taille, ...d.paliers.map((p) => p.min))
+      const sans = tailleSansCoupe(d.texte, bas, d.police, d.largeur, d.repli.lignesMax, d.mesurer)
+      if (sans !== null) sortie = fini(sans, mesure(sans), false)
+      else {
+        const t = tronquer(d.texte, bas * PLANCHER, d.police, d.largeur, d.repli.lignesMax, d.mesurer)
+        sortie = fini(bas * PLANCHER, t.lignes, t.tronque)
+      }
     }
   } else sortie = fini(taille, mesure(taille), false)
   const derniere = sortie.lignes.at(-1)

@@ -93,7 +93,7 @@ export function GabaritAccolade({ c, diapo }: PropsGabarit<DiapoListe>) {
 
 function titreDeListe(c: Ctx, diapo: DiapoListe, p: Parameters<typeof ajusterPolice>[1]) {
   const contenu = c.u.l - 2 * c.s.marges.h
-  // Une seule ligne : la plus grande taille qui tient, sinon la taille maxi tronquée.
+  // Une seule ligne : la plus grande taille qui tient, sinon plus petit (jusqu'au plancher), tronqué en dernier recours.
   const a = ajuster({ texte: titreDe(c, diapo.sujet), police: c.polices.titre, largeur: contenu, paliers: [{ max: p.max, min: p.min, lignes: 1 }], repli: { taille: p.max, lignesMax: 1 }, derniereLigne: false, mesurer: c.mesurer })
   noterTitre(c, c.s.marges.h, c.s.marges.v, largeurDe(a), a.hauteur)
   return { a, noeud: <Texte boite={`${diapo.sujet}:titre`} x={c.s.marges.h} y={c.s.marges.v} a={a} largeur={contenu} titre marqueurs={marqueursDe(c, diapo.sujet)} /> }
