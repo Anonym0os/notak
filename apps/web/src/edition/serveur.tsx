@@ -63,7 +63,7 @@ import { PAGE_AUTORISER } from '../serveur/appareil'
 import { BandeauxServeur } from '../serveur/Bandeaux'
 import { FichierEnAttente } from '../serveur/FichierEnAttente'
 import { FichiersOuverts } from '../serveur/FichiersOuverts'
-import { LigneServeur } from '../serveur/LigneServeur'
+import { EcranPanne } from '../serveur/EcranPanne'
 import { servicesDeLaFenetre } from '../serveur/ouvrirAilleurs'
 import { type SurveillanceVersion, surveillerVersionDuServeur } from '../serveur/versionServeur'
 import { BoutonSignaler, brancherSignaler } from '../signaler/Signaler'
@@ -154,7 +154,7 @@ type Etat =
   | { type: 'chargement' }
   /** `sessionFinie` : on était connecté, et le serveur ne reconnaît plus la session. */
   | { type: 'anonyme'; sessionFinie?: boolean }
-  | { type: 'erreur'; message: string }
+  | { type: 'erreur'; erreur: Error }
   | { type: 'connecte'; moi: Moi }
 
 /** L'écran de connexion, quand on arrive par une invitation : elle s'affiche au-dessus, et propose son adresse. */
@@ -203,14 +203,8 @@ function Application() {
       }),
     [],
   )
-  const charger = useCallback(() => {
-    setEtat({ type: 'chargement' })
-    lireMoi().then(
-      (m) => setEtat(m ? { type: 'connecte', moi: m } : { type: 'anonyme' }),
-      (x: Error) => setEtat({ type: 'erreur', message: x.message }),
-    )
-  }, [])
-  useEffect(charger, [charger])
+  const lire = useCallback(() => lireMoi().then((m) => setEtat(m ? { type: 'connecte', moi: m } : { type: 'anonyme' })), [])
+  useEffect(() => void lire().catch((x: Error) => setEtat({ type: 'erreur', erreur: x })), [lire])
   // Une invitation dans un espace d'équipe (le lien du courriel) s'accepte une fois connecté, puis mène à l'espace.
   useEffect(() => {
     const invitation = new URLSearchParams(location.search).get('invitation')
@@ -258,18 +252,10 @@ function Application() {
   if (etat.type === 'chargement' || !instance) return <EcranAttente />
   if (etat.type === 'erreur') {
     return (
-      <main className="connexion">
-        <div className="connexion-carte">
-          <h1>Notak</h1>
-          <p className="connexion-erreur">{etat.message}</p>
-          <button type="button" className="bouton bouton-plein" onClick={charger}>
-            {t('bandeau.reessayer')}
-          </button>
-          {/* Un serveur qui ne répond pas : dans l'app de bureau, la sortie reste là. */}
-          {estServeurDansApp() && <LigneServeur />}
-        </div>
+      // Un nouvel essai manqué garde l'écran tel quel : il ne repasse pas par l'attente.
+      <EcranPanne erreur={etat.erreur} reessayer={lire}>
         <FichierEnAttente />
-      </main>
+      </EcranPanne>
     )
   }
   if (etat.type === 'anonyme') {

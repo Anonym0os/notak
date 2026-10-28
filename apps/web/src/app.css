@@ -3867,6 +3867,58 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   text-align: center;
 }
 
+/* — Le serveur qui ne répond pas : centrée, la carte dit lequel et quoi faire, puis réessaie seule. — */
+.panne-carte {
+  align-items: center;
+  text-align: center;
+}
+
+.panne-carte h1 {
+  overflow-wrap: anywhere;
+}
+
+.panne-carte .connexion-marque {
+  margin-bottom: 4px;
+}
+
+.panne-texte {
+  margin: -4px 0 4px;
+  color: var(--app-pale);
+  font-size: 14px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.panne-carte > .bouton,
+.panne-carte .connexion-bureau {
+  align-self: stretch;
+}
+
+.panne-carte .bouton .bureau-roue {
+  width: 14px;
+  height: 14px;
+  border-color: color-mix(in srgb, currentColor 30%, transparent);
+  border-top-color: currentColor;
+}
+
+.panne-auto {
+  min-height: 16px;
+  margin: -6px 0 0;
+  color: var(--app-pale);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.panne-carte .connexion-bureau {
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 16px;
+}
+
+.connexion-bureau .connexion-local-bouton {
+  align-self: stretch;
+}
+
 /* — L'attente de la connexion par le navigateur : le code, en grand, à comparer. — */
 .connexion-code {
   text-align: center;

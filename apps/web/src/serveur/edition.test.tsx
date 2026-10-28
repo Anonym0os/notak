@@ -122,8 +122,30 @@ describe('l’édition serveur : un serveur qui ne répond pas', () => {
     dansLApp()
     routes['/api/moi'] = () => new Response('', { status: 503 })
     await demarrer()
-    expect(racine().querySelector('.connexion-erreur')?.textContent).toBe('Le serveur a un souci')
-    expect([...racine().querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Réessayer', 'Changer de serveur', 'Ouvrir les toiles de cet ordinateur'])
+    expect(racine().querySelector('h1')?.textContent).toBe(`${location.host} ne répond pas`)
+    expect([...racine().querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Réessayer', 'Ouvrir les toiles de cet ordinateur', 'Changer de serveur'])
+  })
+
+  it('un serveur qui répond par une erreur à lui : il « a un souci », et c’est dit autrement', async () => {
+    routes['/api/moi'] = () => json({ erreur: 'Base indisponible', code: 'base' }, 500)
+    await demarrer()
+    expect(racine().querySelector('h1')?.textContent).toBe(`${location.host} a un souci`)
+  })
+
+  it('un nouvel essai manqué garde l’écran, sans repasser par l’attente ; le serveur revenu, la page s’ouvre', async () => {
+    routes['/api/moi'] = () => new Response('', { status: 502 })
+    await demarrer()
+    const reessayer = () => [...racine().querySelectorAll('button')].find((b) => b.textContent === 'Réessayer')!
+    expect(racine().querySelector('.panne-auto')?.textContent).toBe('Nouvel essai automatique dans 5 s')
+    await act(async () => reessayer().click())
+    await attendre(20)
+    expect(racine().querySelector('.ecran-attente')).toBeNull()
+    // Manqué : l'essai suivant attend plus longtemps.
+    expect(racine().querySelector('.panne-auto')?.textContent).toBe('Nouvel essai automatique dans 10 s')
+    routes['/api/moi'] = () => json(MOI)
+    await act(async () => reessayer().click())
+    await attendre(20)
+    expect(racine().querySelector('.panne-carte')).toBeNull()
   })
 
   it('dans un navigateur, « Réessayer » seul', async () => {

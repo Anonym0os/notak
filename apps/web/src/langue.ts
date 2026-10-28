@@ -797,6 +797,14 @@ export const fr: Textes = {
   // Quitter ce serveur (« Changer de serveur », « Toiles de cet ordinateur », « Ouvrir sur cet ordinateur ») : la coque a refusé.
   'serveur.retourImpossible': 'Impossible de quitter ce serveur pour le moment. Réessayez.',
 
+  // Le serveur ne répond pas au chargement : ce qui se passe, et le nouvel essai que Notak fait seul.
+  'serveur.panne.muetTitre': '{hote} ne répond pas',
+  'serveur.panne.muet': 'Le serveur est peut-être arrêté, ou la connexion coupée. Rien n’est perdu : vos toiles vous attendent sur le serveur, et Notak les rouvre dès qu’il répond.',
+  'serveur.panne.erreurTitre': '{hote} a un souci',
+  'serveur.panne.erreur': 'Il a répondu, mais par une erreur. Notak réessaie tout seul ; si cela dure, prévenez la personne qui s’occupe de ce serveur.',
+  'serveur.panne.essai': 'Nouvel essai…',
+  'serveur.panne.dans': 'Nouvel essai automatique dans {n} s',
+
   // L'écran de connexion dans l'app de bureau.
   'serveur.connexion.serveur': 'Serveur :',
   'serveur.connexion.changer': 'Changer de serveur',
@@ -1715,6 +1723,13 @@ export const en: Textes = {
   'erreur.appareil_autre_compte': 'This request was opened with another account: sign in with the account that opened it, or start the sign-in again in the app.',
 
   'serveur.retourImpossible': 'Can’t leave this server right now. Try again.',
+
+  'serveur.panne.muetTitre': '{hote} isn’t responding',
+  'serveur.panne.muet': 'The server may be stopped, or the connection is down. Nothing is lost: your boards are waiting on the server, and Notak reopens them as soon as it answers.',
+  'serveur.panne.erreurTitre': '{hote} is having trouble',
+  'serveur.panne.erreur': 'It answered, but with an error. Notak keeps trying on its own; if it lasts, let the person who runs this server know.',
+  'serveur.panne.essai': 'Trying again…',
+  'serveur.panne.dans': 'Trying again automatically in {n} s',
 
   'serveur.connexion.serveur': 'Server:',
   'serveur.connexion.changer': 'Change server',
