@@ -50,6 +50,7 @@ import { Importer } from '../Importer'
 import { devientUneToile, importerFichiers } from '../importation'
 import { ecouterImportBureau } from '../importBureau'
 import { creerRecents } from '../recents'
+import { EcranAttente } from '../PageApp'
 import { PagePublique } from '../PagePublique'
 import { ApercuInvitation, PageInvitation, jetonInvitation, useInvitation } from '../Invitation'
 import { Partage, PartageEnFenetre } from '../Partage'
@@ -159,7 +160,7 @@ type Etat =
 /** L'écran de connexion, quand on arrive par une invitation : elle s'affiche au-dessus, et propose son adresse. */
 function ConnexionInvitee({ jeton, instance, surConnexion }: { jeton: string; instance: Instance; surConnexion(m: Moi): void }) {
   const invitation = useInvitation(jeton)
-  if (invitation === null) return <div className="ecran-attente" aria-busy />
+  if (invitation === null) return <EcranAttente />
   return (
     <EcranConnexion
       instance={instance}
@@ -254,7 +255,7 @@ function Application() {
     if (estServeurDansApp()) signalerVie()
   }, [decide])
 
-  if (etat.type === 'chargement' || !instance) return <div className="ecran-attente" aria-busy />
+  if (etat.type === 'chargement' || !instance) return <EcranAttente />
   if (etat.type === 'erreur') {
     return (
       <main className="connexion">

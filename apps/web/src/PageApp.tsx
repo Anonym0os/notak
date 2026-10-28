@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react'
-import { Icone } from '@notak/tableau'
+import { useState, type ReactNode } from 'react'
+import { Icone, lireReglages, themeEffectif, useSystemeSombre } from '@notak/tableau'
 import { t } from './langue'
 import { surLien } from './chemin'
 
@@ -27,3 +27,9 @@ export function PageApp({ titre, intro, children }: { titre: string; intro?: Rea
 
 /** L'icône de Notak, en tête des cartes posées seules (connexion, arrivée d'un partage, note rapide). */
 export const Marque = () => <img className="connexion-marque" src="/icones/icone.svg" alt="" width={44} height={44} />
+
+/** L'écran d'attente : le même que celui de index.html, que React remplace donc sans que rien ne clignote. */
+export function EcranAttente() {
+  const [reglages] = useState(lireReglages)
+  return <div className="ecran-attente" data-theme={themeEffectif(reglages.theme, useSystemeSombre())} aria-busy />
+}

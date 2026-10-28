@@ -51,11 +51,6 @@ html[data-theme='sombre'] body {
   --app-ombre-menu: 0 0 0 1px rgb(255 255 255 / 0.1), 0 16px 40px -10px rgb(0 0 0 / 0.6);
 }
 
-.ecran-attente {
-  height: 100%;
-  background: var(--fond);
-}
-
 /* — Les boutons : des pilules sans cadre, comme ceux des îlots ; le principal est plein et sombre, comme « Partager ». — */
 
 /* Un panneau ouvert depuis un îlot garde des boutons de panneau : l'îlot ne repeint que les siens. */

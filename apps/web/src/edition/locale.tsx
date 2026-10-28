@@ -16,6 +16,7 @@ import { localiser } from '../geocodage'
 import { BandeauMiseAJour, BandeauNouvelleVersion, lancerMisesAJour } from '../MiseAJour'
 import { importerEspaceLocal } from '../importLocal'
 import { Importer } from '../Importer'
+import { EcranAttente } from '../PageApp'
 import { PlusEntete } from '../PlusEntete'
 import { enregistrerServiceWorker } from '../pwa'
 import { t, tn } from '../langue'
@@ -55,7 +56,7 @@ function Application() {
       </main>
     )
   }
-  if (!el) return <div className="ecran-attente" aria-busy />
+  if (!el) return <EcranAttente />
   // Le partage vers Notak et la note rapide du téléphone, sans la toile.
   if (location.pathname === '/rapide') return <PageRapide espace={el.espace} fichiers={fichiersLocaux} />
   if (location.pathname === '/partage') return <PagePartage espace={el.espace} fichiers={fichiersLocaux} />

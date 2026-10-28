@@ -2,7 +2,7 @@ import { type DroitsTableau, Icone, type ServicePresence, type Services, type Ta
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ErreurApi, type RefusPublic, type TableauPublic, commenterEnVisiteur, deverrouillerPublic, lirePublic } from './api'
 import { langue, t, tn } from './langue'
-import { Marque } from './PageApp'
+import { EcranAttente, Marque } from './PageApp'
 import { magasinVisiteur } from './visiteur'
 
 // `/p/<jeton>` : un tableau ouvert par un lien visiteur, sans compte. Le visiteur le regarde, et, si le lien le
@@ -82,7 +82,7 @@ function Contenu({ jeton }: { jeton: string }) {
     }
   }, [titre])
 
-  if (etat.type === 'chargement') return <div className="ecran-attente" aria-busy />
+  if (etat.type === 'chargement') return <EcranAttente />
   if (etat.type === 'protege')
     return (
       <MotDePasseRequis
