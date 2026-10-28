@@ -12,6 +12,7 @@
 /// - se mettre à jour (`mise_a_jour.rs`), de versions signées seulement ;
 /// - garder la fenêtre chez elle (`navigation.rs`) : un lien vers un autre site s'ouvre dans le navigateur.
 /// - lire les fichiers choisis par Fichier › Importer… (⌘O, `menu.rs`), un à un, et seulement ceux-là ;
+/// - recopier les toiles dans le dossier Notak d'iCloud Drive (`nuage.rs`), où les retrouvent les autres appareils ;
 /// Et, pour la page d'un serveur, photographier la fenêtre pour un signalement (`capturer_fenetre`).
 ///
 /// Sur un iPhone ou un iPad, la même coque compile (`tauri ios build`) : l'application embarquée, ou un serveur Notak
@@ -33,6 +34,7 @@ mod menu;
 mod mise_a_jour;
 #[cfg_attr(mobile, allow(dead_code))]
 mod navigation;
+mod nuage;
 mod reglages;
 
 #[cfg(desktop)]
@@ -300,6 +302,7 @@ pub fn run() {
     }
     constructeur
         .manage(acces::Passage::default())
+        .manage(nuage::Nuage::default())
         .setup(|app| {
             let app = app.handle();
             // Un seul serveur courant, partagé par les réglages d'accès et la garde de navigation.
@@ -343,6 +346,12 @@ pub fn run() {
             fichiers::ecarter_fichier_ouvert,
             acces::annuler_jonction,
             acces::ouvrir_dans_le_navigateur,
+            nuage::nuage_ouvrir,
+            nuage::nuage_lister,
+            nuage::nuage_lire,
+            nuage::nuage_ecrire,
+            nuage::nuage_supprimer,
+            nuage::nuage_telecharger,
             #[cfg(desktop)]
             fichiers::confier_copie,
             #[cfg(desktop)]

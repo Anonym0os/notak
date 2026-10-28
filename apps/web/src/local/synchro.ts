@@ -1,8 +1,10 @@
 import { type Idiome, type Plateforme, idiome, plateforme } from '../appareil'
+import { dansCoque } from '../bureau'
 import {
   type AccesTableaux,
   type Coffre,
   type DepotLocal,
+  type Dossier,
   ErreurDossier,
   ID_INDEX,
   type Id,
@@ -11,6 +13,7 @@ import {
   ouvrirCoffre,
 } from '@notak/tableau'
 import { t } from '../langue'
+import { dossierCoque, ouvrirNuage } from './dossierCoque'
 import { type PoigneeDossier, dossierNavigateur } from './dossierNavigateur'
 import { type EspaceLocal, accueilIntact, espaceIntact } from './espace'
 
@@ -23,13 +26,18 @@ import { type EspaceLocal, accueilIntact, espaceIntact } from './espace'
  * - ce qui change, dans n'importe quel onglet, part dans les secondes qui suivent ;
  * - on relit le dossier toutes les 30 s et au retour sur l'onglet ;
  * - une fois par jour, on compacte et on garde une version.
+ *
+ * Dans l'app (Mac, iPhone, iPad), c'est le défaut, et sans rien choisir : le dossier Notak d'iCloud Drive, par la
+ * coque (`dossierCoque.ts`). La personne peut l'arrêter ; l'app s'en souvient et ne le relance que sur sa demande.
  */
 
 export type EtatSynchro =
   | { mode: 'indisponible' }
   | { mode: 'aucune' }
+  /** Dans l'app, iCloud Drive est coupé sur cet appareil : les toiles restent ici. */
+  | { mode: 'sans-nuage' }
   | { mode: 'a-reprendre'; nom: string }
-  | { mode: 'active'; nom: string; meneur: boolean; derniere?: number; enAttente?: boolean; erreur?: string; accueilChange?: boolean }
+  | { mode: 'active'; nom: string; nuage?: boolean; meneur: boolean; derniere?: number; enAttente?: boolean; erreur?: string; accueilChange?: boolean }
 
 const RELIRE = 30_000
 const APRES_CHANGEMENT = 4_000
@@ -63,6 +71,16 @@ export function depotIndexedDb(nom: string): DepotLocal {
 
 const reglages = () => depotIndexedDb('notak:local:reglages')
 const CLE_DOSSIER = 'dossier'
+/** Dans l'app : `'arrete'` si la personne a arrêté la synchro iCloud. */
+const CLE_NUAGE = 'nuage'
+
+/** Ce que la boucle synchronise : un dossier, et le nom qu'on en montre. */
+interface Source {
+  nom: string
+  dossier: Dossier
+  nuage?: boolean
+}
+const depuisPoignee = (p: PoigneeDossier): Source => ({ nom: p.name, dossier: dossierNavigateur(p) })
 
 // --- L'état, que le panneau suit ------------------------------------------------------------------------------------
 
@@ -144,14 +162,15 @@ const message = (e: unknown) =>
         : t('synchro.introuvable')
     : t('synchro.erreur')
 
-async function boucle(el: EspaceLocal, poignee: PoigneeDossier, signal: { arrete: boolean }) {
+async function boucle(el: EspaceLocal, source: Source, signal: { arrete: boolean }) {
   const depot = depotIndexedDb('notak:local:coffre')
-  const nom = poignee.name
+  const { nom } = source
+  const nuage = source.nuage ? { nuage: true } : {}
   let coffre: Coffre
   try {
-    coffre = await ouvrirCoffre({ dossier: dossierNavigateur(poignee), depot, tableaux: acces(el), nom: nomAppareil(), plateforme: 'web' })
+    coffre = await ouvrirCoffre({ dossier: source.dossier, depot, tableaux: acces(el), nom: nomAppareil(), plateforme: 'web' })
   } catch (e) {
-    changer({ mode: 'active', nom, meneur: true, erreur: message(e) })
+    changer({ mode: 'active', nom, ...nuage, meneur: true, erreur: message(e) })
     return
   }
   const sales = new Set<Id>()
@@ -187,9 +206,9 @@ async function boucle(el: EspaceLocal, poignee: PoigneeDossier, signal: { arrete
         await coffre.versionner()
         await depot.ecrire('synchro:menage', Date.now())
       }
-      changer({ mode: 'active', nom, meneur: true, derniere: Date.now(), enAttente: r.enAttente, ...(accueilChange ? { accueilChange } : {}) })
+      changer({ mode: 'active', nom, ...nuage, meneur: true, derniere: Date.now(), enAttente: r.enAttente, ...(accueilChange ? { accueilChange } : {}) })
     } catch (e) {
-      changer({ mode: 'active', nom, meneur: true, derniere: Date.now(), erreur: message(e) })
+      changer({ mode: 'active', nom, ...nuage, meneur: true, derniere: Date.now(), erreur: message(e) })
     }
   }
   const lancer = () => {
@@ -209,7 +228,7 @@ async function boucle(el: EspaceLocal, poignee: PoigneeDossier, signal: { arrete
   document.addEventListener('visibilitychange', visible)
   const regulier = setInterval(() => document.visibilityState === 'visible' && lancer(), RELIRE)
   relancer = lancer
-  changer({ mode: 'active', nom, meneur: true })
+  changer({ mode: 'active', nom, ...nuage, meneur: true })
   lancer()
 
   await new Promise<void>((fin) => {
@@ -228,13 +247,13 @@ async function boucle(el: EspaceLocal, poignee: PoigneeDossier, signal: { arrete
 }
 
 /** Démarre la synchro : dans cet onglet s'il est le premier, sinon il attend son tour (un autre onglet la mène). */
-function demarrer(el: EspaceLocal, poignee: PoigneeDossier) {
+function demarrer(el: EspaceLocal, source: Source) {
   arret?.()
   const signal = { arrete: false }
   const locks = (navigator as Navigator & { locks?: { request(n: string, f: () => Promise<void>): Promise<void> } }).locks
-  changer({ mode: 'active', nom: poignee.name, meneur: false })
-  if (locks) void locks.request('notak:local:synchro', () => (signal.arrete ? Promise.resolve() : boucle(el, poignee, signal)))
-  else void boucle(el, poignee, signal)
+  changer({ mode: 'active', nom: source.nom, ...(source.nuage ? { nuage: true } : {}), meneur: false })
+  if (locks) void locks.request('notak:local:synchro', () => (signal.arrete ? Promise.resolve() : boucle(el, source, signal)))
+  else void boucle(el, source, signal)
   arret = () => {
     signal.arrete = true
   }
@@ -244,18 +263,40 @@ function demarrer(el: EspaceLocal, poignee: PoigneeDossier) {
 
 /** Au lancement : reprend la synchro si un dossier a été choisi et que le navigateur le permet encore. */
 export async function initialiserSynchro(el: EspaceLocal) {
+  if (dansCoque()) {
+    const arretee = await reglages()
+      .lire<string>(CLE_NUAGE)
+      .catch(() => undefined)
+    return arretee === 'arrete' ? changer({ mode: 'aucune' }) : demarrerNuage(el)
+  }
   if (!possible()) return changer({ mode: 'indisponible' })
   const poignee = await reglages()
     .lire<PoigneeDossier>(CLE_DOSSIER)
     .catch(() => undefined)
   if (!poignee) return changer({ mode: 'aucune' })
   const permission = (await poignee.queryPermission?.({ mode: 'readwrite' }).catch(() => 'prompt')) ?? 'granted'
-  if (permission === 'granted') demarrer(el, poignee)
+  if (permission === 'granted') demarrer(el, depuisPoignee(poignee))
   else changer({ mode: 'a-reprendre', nom: poignee.name })
 }
 
-/** Choisir un dossier (sur un geste) : on y range un sous-dossier `Notak`, sauf s'il s'appelle déjà ainsi. */
+/** Dans l'app : le dossier Notak d'iCloud Drive, s'il y en a un sur cet appareil. */
+async function demarrerNuage(el: EspaceLocal) {
+  const o = await ouvrirNuage().catch(() => ({ etat: 'absent' as const }))
+  if (o.etat === 'pret') demarrer(el, { nom: o.nom, dossier: dossierCoque(), nuage: true })
+  else changer({ mode: o.etat === 'eteint' ? 'sans-nuage' : 'indisponible' })
+}
+
+/**
+ * Choisir un dossier (sur un geste) : on y range un sous-dossier `Notak`, sauf s'il s'appelle déjà ainsi. Dans l'app,
+ * il n'y a rien à choisir : c'est iCloud Drive qui reprend.
+ */
 export async function choisirDossier(el: EspaceLocal) {
+  if (dansCoque()) {
+    await reglages()
+      .ecrire(CLE_NUAGE, undefined)
+      .catch(() => {})
+    return demarrerNuage(el)
+  }
   const w = window as unknown as AvecSelecteur
   let poignee: PoigneeDossier
   try {
@@ -270,7 +311,7 @@ export async function choisirDossier(el: EspaceLocal) {
   await reglages()
     .ecrire(CLE_DOSSIER, cible)
     .catch(() => {})
-  demarrer(el, cible)
+  demarrer(el, depuisPoignee(cible))
 }
 
 /** Reprendre après un rechargement : le navigateur redemande la permission, sur un geste. */
@@ -278,7 +319,7 @@ export async function reprendreSynchro(el: EspaceLocal) {
   const poignee = await reglages().lire<PoigneeDossier>(CLE_DOSSIER)
   if (!poignee) return changer({ mode: 'aucune' })
   if ((await poignee.requestPermission?.({ mode: 'readwrite' })) === 'denied') return
-  demarrer(el, poignee)
+  demarrer(el, depuisPoignee(poignee))
 }
 
 export function synchroniserMaintenant() {
@@ -288,6 +329,6 @@ export function synchroniserMaintenant() {
 export async function arreterSynchro() {
   arret?.()
   arret = null
-  await reglages().ecrire(CLE_DOSSIER, undefined)
+  await reglages().ecrire(dansCoque() ? CLE_NUAGE : CLE_DOSSIER, dansCoque() ? 'arrete' : undefined)
   changer({ mode: 'aucune' })
 }

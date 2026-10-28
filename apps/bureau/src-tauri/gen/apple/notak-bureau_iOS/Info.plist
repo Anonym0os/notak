@@ -110,5 +110,17 @@
 	<string>To put a photo you take straight onto your board.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>To save an image from a board to your photos, when you ask.</string>
+	<key>NSUbiquitousContainers</key>
+	<dict>
+		<key>iCloud.app.notak.bureau</key>
+		<dict>
+			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
+			<true/>
+			<key>NSUbiquitousContainerName</key>
+			<string>Notak</string>
+			<key>NSUbiquitousContainerSupportedFolderLevels</key>
+			<string>Any</string>
+		</dict>
+	</dict>
 </dict>
 </plist>

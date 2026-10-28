@@ -35,6 +35,27 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         .build()
 }
 
+/// Le dossier `Documents` du conteneur iCloud de Notak, ou rien si iCloud Drive est coupé. Bloque jusqu'à la réponse
+/// du système : à appeler hors du fil principal.
+#[cfg(target_os = "ios")]
+pub fn dossier_icloud<R: Runtime>(app: &tauri::AppHandle<R>) -> Option<std::path::PathBuf> {
+    #[derive(serde::Deserialize)]
+    struct Reponse {
+        chemin: String,
+    }
+    let poignee = tauri::Manager::try_state::<tauri::plugin::PluginHandle<R>>(app)?;
+    let r: Reponse = poignee.run_mobile_plugin("dossierIcloud", ()).ok()?;
+    (!r.chemin.is_empty()).then(|| r.chemin.into())
+}
+
+/// Demande au système de faire descendre un fichier resté dans le nuage.
+#[cfg(target_os = "ios")]
+pub fn telecharger_icloud<R: Runtime>(app: &tauri::AppHandle<R>, chemin: &std::path::Path) {
+    if let Some(poignee) = tauri::Manager::try_state::<tauri::plugin::PluginHandle<R>>(app) {
+        let _ = poignee.run_mobile_plugin::<serde_json::Value>("telechargerIcloud", serde_json::json!({ "chemin": chemin }));
+    }
+}
+
 #[cfg(test)]
 mod essais {
     use super::script_plateforme;

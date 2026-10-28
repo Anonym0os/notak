@@ -1,8 +1,13 @@
 # Le dossier Notak
 
-> Dans l'édition locale (notak.app), c'est l'option **« Synchroniser avec un dossier »**, expérimentale, sur Chrome
-> et Edge pour ordinateur (`apps/web/src/local/synchro.ts`) ; l'essentiel, pour la plupart des gens, reste la copie
-> `.notak` (`docs/PUBLIER.md`).
+> Dans l'app (Mac, iPhone, iPad), c'est **le défaut, sans rien choisir** : le dossier Notak d'iCloud Drive, le
+> conteneur `iCloud.app.notak.bureau`, que la coque lit et écrit pour la page (`apps/bureau/src-tauri/src/nuage.rs`,
+> `apps/web/src/local/dossierCoque.ts`). L'iPhone l'ouvre par son droit iCloud ; le Mac écrit dans son reflet,
+> `~/Library/Mobile Documents/iCloud~app~notak~bureau/Documents`. Si iCloud Drive est coupé, les toiles restent sur
+> l'appareil ; la personne peut arrêter la synchro dans le rangement, et l'app ne la relance que sur sa demande.
+>
+> Dans un navigateur (notak.app), c'est l'option **« Synchroniser avec un dossier »**, expérimentale, sur Chrome et
+> Edge pour ordinateur (`apps/web/src/local/synchro.ts`) ; l'essentiel y reste la copie `.notak` (`docs/PUBLIER.md`).
 
 > Ce que fait le code de `packages/tableau/src/dossier/`, et pourquoi. L'édition publique enregistre les tableaux
 > dans un dossier que la personne choisit dans son nuage (iCloud Drive, OneDrive, Dropbox, Google Drive, Nextcloud,

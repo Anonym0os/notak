@@ -8,6 +8,9 @@
 // - `partager` : la feuille de partage d'iOS pour un fichier (Enregistrer dans Fichiers, AirDrop, Mail…), là où une
 //   page ne sait ni télécharger ni ouvrir « Enregistrer sous » ;
 // - l'événement `clavier` : la hauteur du clavier à l'écran et la durée de son animation, avant qu'il n'arrive.
+// Et deux méthodes que seule la coque appelle (`src/lib.rs`, jamais la page : elles ne sont pas dans `build.rs`) :
+// - `dossierIcloud` : le dossier `Documents` du conteneur iCloud de Notak, où la page synchronise ses toiles ;
+// - `telechargerIcloud` : fait descendre un fichier de ce dossier resté dans le nuage.
 // Le nom de chaque méthode est le camelCase de la commande déclarée dans `build.rs`.
 import SwiftRs
 import Tauri
@@ -26,6 +29,10 @@ struct ArgsPartage: Decodable {
   let nom: String
   /// Ses octets, en base64.
   let donnees: String
+}
+
+struct ArgsChemin: Decodable {
+  let chemin: String
 }
 
 struct ArgsHaptique: Decodable {
@@ -224,6 +231,30 @@ class AppareilPlugin: Plugin {
       }
       invoke.resolve()
     }
+  }
+}
+
+extension AppareilPlugin {
+  /// Le conteneur iCloud de Notak (`notak-bureau_iOS.entitlements`) ; `chemin` vide si iCloud Drive est coupé.
+  /// Le système le demande hors du fil principal : la première fois, il peut le créer.
+  @objc public func dossierIcloud(_ invoke: Invoke) {
+    DispatchQueue.global(qos: .userInitiated).async {
+      let gestionnaire = FileManager.default
+      guard gestionnaire.ubiquityIdentityToken != nil,
+        let conteneur = gestionnaire.url(forUbiquityContainerIdentifier: "iCloud.app.notak.bureau")
+      else {
+        return invoke.resolve(["chemin": ""])
+      }
+      let documents = conteneur.appendingPathComponent("Documents", isDirectory: true)
+      try? gestionnaire.createDirectory(at: documents, withIntermediateDirectories: true)
+      invoke.resolve(["chemin": documents.path])
+    }
+  }
+
+  @objc public func telechargerIcloud(_ invoke: Invoke) throws {
+    let args = try invoke.parseArgs(ArgsChemin.self)
+    try? FileManager.default.startDownloadingUbiquitousItem(at: URL(fileURLWithPath: args.chemin))
+    invoke.resolve()
   }
 }
 

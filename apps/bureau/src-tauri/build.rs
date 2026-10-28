@@ -21,6 +21,12 @@ fn main() {
         "annuler_jonction",
         "ouvrir_dans_le_navigateur",
         "confier_copie",
+        "nuage_ouvrir",
+        "nuage_lister",
+        "nuage_lire",
+        "nuage_ecrire",
+        "nuage_supprimer",
+        "nuage_telecharger",
     ])))
     .unwrap();
 }

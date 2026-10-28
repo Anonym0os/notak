@@ -189,22 +189,33 @@ export function Rangement({ el, enregistrer, rouvrir, message }: { el: EspaceLoc
   )
 }
 
-/** La section « Synchroniser avec un dossier », là où le navigateur sait écrire dans un dossier. */
+/**
+ * La section « Synchroniser avec un dossier », là où le navigateur sait écrire dans un dossier ; dans l'app, c'est la
+ * synchro iCloud, active d'office.
+ */
 function Synchro({ el }: { el: EspaceLocal }) {
   const etat = useSyncExternalStore(ecouterSynchro, lireEtatSynchro)
   if (etat.mode === 'indisponible') return null
+  const app = dansCoque()
   return (
     <>
       <h3>
-        {t('synchro.titre')} <span className="rangement-experimental">{t('synchro.experimental')}</span>
+        {app ? (
+          t('synchro.titreNuage')
+        ) : (
+          <>
+            {t('synchro.titre')} <span className="rangement-experimental">{t('synchro.experimental')}</span>
+          </>
+        )}
       </h3>
+      {etat.mode === 'sans-nuage' && <p>{t('synchro.sansNuage')}</p>}
       {etat.mode === 'aucune' && (
         <>
-          <p>{t('synchro.explication')}</p>
+          <p>{t(app ? 'synchro.explicationNuage' : 'synchro.explication')}</p>
           <div className="rangement-actions">
             <button type="button" className="bouton" onClick={() => void choisirDossier(el)}>
               <Icone nom="dossier" taille={16} />
-              {t('synchro.choisir')}
+              {t(app ? 'synchro.activerNuage' : 'synchro.choisir')}
             </button>
           </div>
         </>
@@ -225,7 +236,7 @@ function Synchro({ el }: { el: EspaceLocal }) {
       {etat.mode === 'active' && (
         <>
           <p>
-            {t('synchro.active', { nom: etat.nom })}
+            {etat.nuage ? t('synchro.activeNuage') : t('synchro.active', { nom: etat.nom })}
             {' · '}
             {!etat.meneur
               ? t('synchro.autreOnglet')

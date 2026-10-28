@@ -83,6 +83,20 @@
       <string>square.and.pencil</string>
     </dict>
   </array>
+  <!-- Le dossier Notak d'iCloud Drive, où l'app synchronise les toiles (src/nuage.rs) : public, il paraît sous le nom
+       « Notak » dans Fichiers et dans le Finder. -->
+  <key>NSUbiquitousContainers</key>
+  <dict>
+    <key>iCloud.app.notak.bureau</key>
+    <dict>
+      <key>NSUbiquitousContainerIsDocumentScopePublic</key>
+      <true/>
+      <key>NSUbiquitousContainerName</key>
+      <string>Notak</string>
+      <key>NSUbiquitousContainerSupportedFolderLevels</key>
+      <string>Any</string>
+    </dict>
+  </dict>
   <key>NSCameraUsageDescription</key>
   <string>To put a photo you take straight onto your board.</string>
   <key>NSPhotoLibraryAddUsageDescription</key>

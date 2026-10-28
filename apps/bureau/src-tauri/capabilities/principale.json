@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "principale",
-  "description": "Les droits de l'application embarquée sur un ordinateur (iOS a les siens : mobile.json), et d'elle seule (aucune adresse distante) : déplacer la fenêtre par l'en-tête, l'agrandir d'un double clic, enregistrer un export ou une copie là où la personne le choisit, lire les fichiers choisis par Fichier › Importer…, demander puis poser une mise à jour signée, lire et changer les réglages de la coque (joindre un serveur Notak, en revenir, l'oublier, où s'ouvre Notak, la recherche des mises à jour), ouvrir une pièce jointe dans son application, recevoir une copie .notak ouverte depuis le système, en confier une au serveur qu'on va joindre, et écouter l'arrivée de ces fichiers. Les pages du serveur choisi reçoivent leur propre capacité, plus étroite (src/acces.rs).",
+  "description": "Les droits de l'application embarquée sur un ordinateur (iOS a les siens : mobile.json), et d'elle seule (aucune adresse distante) : déplacer la fenêtre par l'en-tête, l'agrandir d'un double clic, enregistrer un export ou une copie là où la personne le choisit, lire les fichiers choisis par Fichier › Importer…, demander puis poser une mise à jour signée, lire et changer les réglages de la coque (joindre un serveur Notak, en revenir, l'oublier, où s'ouvre Notak, la recherche des mises à jour), ouvrir une pièce jointe dans son application, recevoir une copie .notak ouverte depuis le système, en confier une au serveur qu'on va joindre, et écouter l'arrivée de ces fichiers, et synchroniser les toiles avec le dossier Notak d'iCloud Drive (src/nuage.rs). Les pages du serveur choisi reçoivent leur propre capacité, plus étroite (src/acces.rs).",
   "platforms": ["macOS", "windows", "linux"],
   "windows": ["principale"],
   "permissions": [
@@ -25,6 +25,12 @@
     "allow-lire-fichier-ouvert",
     "allow-ecarter-fichier-ouvert",
     "allow-annuler-jonction",
-    "allow-confier-copie"
+    "allow-confier-copie",
+    "allow-nuage-ouvrir",
+    "allow-nuage-lister",
+    "allow-nuage-lire",
+    "allow-nuage-ecrire",
+    "allow-nuage-supprimer",
+    "allow-nuage-telecharger"
   ]
 }
