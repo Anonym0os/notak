@@ -1,3 +1,4 @@
+import { Fragment, type Node as NoeudPM, Slice } from '@tiptap/pm/model'
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { type AnyExtension, type Editor, Extension, InputRule, Mark, markInputRule, mergeAttributes } from '@tiptap/react'
@@ -8,6 +9,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { ApercuCouleurs } from './apercuCouleur'
 import { PassageExtrait } from './extraction'
 import { basculerCentre, basculerCode, basculerSurlignage, poserStyle } from './commandes'
+import { SURLIGNAGES } from './couleurs'
 import { normaliserUrl } from './conversion'
 import { MARQUE_FIL } from './fils'
 import { AdressesReperees, Citation, CelluleTable, Encadre, EnteteTable, LienTableau, LigneTable, Mention, Table } from './noeuds'
@@ -276,6 +278,43 @@ const MarkdownTape = Extension.create({
   },
 })
 
+const SURLIGNAGES_NOTAK = new Set<string>(SURLIGNAGES.map((s) => s.nom))
+
+/** Une couleur ou un surlignage que Notak a posé : ceux d'une autre note, copiés d'ici. */
+const marqueNotak = (m: NoeudPM['marks'][number]) =>
+  m.type.name === 'textStyle'
+    ? String(m.attrs.color ?? '').startsWith('var(--notak-texte-')
+    : m.type.name !== 'highlight' || SURLIGNAGES_NOTAK.has(String(m.attrs.color))
+
+function sansCouleursEtrangeres(n: NoeudPM): NoeudPM {
+  if (n.isText) return n.marks.every(marqueNotak) ? n : n.mark(n.marks.filter(marqueNotak))
+  const enfants: NoeudPM[] = []
+  n.forEach((c) => enfants.push(sansCouleursEtrangeres(c)))
+  return n.copy(Fragment.from(enfants))
+}
+
+/**
+ * Collé dans le texte, un passage perd les couleurs de sa page d'origine (le gris de Notion, le noir d'un site) :
+ * écrites en dur, elles passaient devant la couleur de texte de la note et ne suivaient ni son fond ni le thème.
+ */
+export const CouleursCollees = Extension.create({
+  name: 'couleursCollees',
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: new PluginKey('couleursCollees'),
+        props: {
+          transformPasted: (slice) => {
+            const enfants: NoeudPM[] = []
+            slice.content.forEach((c) => enfants.push(sansCouleursEtrangeres(c)))
+            return new Slice(Fragment.from(enfants), slice.openStart, slice.openEnd)
+          },
+        },
+      }),
+    ]
+  },
+})
+
 /**
  * Une seule liste, pour l'éditeur comme pour le rendu figé. Une adresse tapée ou collée ne devient pas un lien
  * d'elle-même (`autolink`, `linkOnPaste`) : elle reste du texte, que `AdressesReperees` souligne.
@@ -295,6 +334,7 @@ export const EXTENSIONS_NOTE = [
   Surlignage,
   TextStyle,
   Color,
+  CouleursCollees,
   PetitTexte,
   RaccourcisFormat,
   Retraits,
@@ -347,6 +387,7 @@ export const EXTENSIONS_LEGENDE = [
   Surlignage,
   TextStyle,
   Color,
+  CouleursCollees,
   AdressesReperees,
 ]
 

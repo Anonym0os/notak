@@ -136,3 +136,25 @@ describe('citation entre guillemets', () => {
     expect(entreGuillemets('“hello')).toBe(false)
   })
 })
+
+describe('collage', () => {
+  const colle = (html: string) => {
+    const e = editeur('')
+    // jsdom n'a pas de `ClipboardEvent` : un évènement ordinaire suffit à ProseMirror.
+    e.view.pasteHTML(html, new Event('paste') as ClipboardEvent)
+    return (e.getJSON().content![0]!.content ?? []) as NoeudTexte[]
+  }
+
+  it('un texte collé perd les couleurs de sa page, garde le reste de sa mise en forme', () => {
+    const [a, b] = colle('<p><span style="color: rgb(55, 53, 47)">Bonjour <strong>gras</strong></span> <mark>vu</mark></p>')
+    expect(a!.marks).toBeUndefined()
+    expect(b!.marks).toEqual([{ type: 'bold' }])
+    expect(colle('<p><mark>vu</mark></p>')[0]!.marks).toBeUndefined()
+  })
+
+  it('les couleurs posées par Notak, copiées d’une autre note, restent', () => {
+    const [t] = colle('<p><span style="color: var(--notak-texte-bleu)">bleu</span></p>')
+    expect(t!.marks).toEqual([{ type: 'textStyle', attrs: { color: 'var(--notak-texte-bleu)' } }])
+    expect(colle('<p><mark data-color="vert">vert</mark></p>')[0]!.marks).toEqual([{ type: 'highlight', attrs: { color: 'vert' } }])
+  })
+})
