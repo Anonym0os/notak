@@ -78,6 +78,7 @@ export { type Arrivee, decomposerArrivee, elementsArrives, elementsDeTexte, pose
 export * from './modeles'
 export { BullesDecouverte } from './BullesDecouverte'
 export { auDoigt } from './doigt'
+export { EVENEMENT_DOUBLE_TOUCHER, type ActionDoubleToucher } from './elements/dessin/mode'
 export { BULLES, bulleAMontrer, vuesDuCompte, type Bulle, type GesteDecouverte } from './decouverte'
 export { type ServiceCompte, COULEURS_COMPTE, lireReglages } from './reglages'
 export { type ContexteReglages, type RubriqueCompte, reglerRubriqueBureau, reglerRubriqueCompte } from './rubriquesReglages'

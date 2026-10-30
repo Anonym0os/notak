@@ -30,6 +30,11 @@ export interface Reglages {
   minicarte?: AffichageMinicarte
   /** L'habillage choisi sur cet appareil (`notak` : celui d'origine). Absent : celui que propose le serveur. */
   habillage?: string
+  /**
+   * L'Apple Pencil sur la toile : `dessine` (absent) trace directement, sans passer par l'outil Dessin ; `doigt` choisit,
+   * déplace et mène la vue comme le doigt. Dans la couche de dessin, il dessine toujours.
+   */
+  crayon?: 'dessine' | 'doigt'
 }
 
 /**
@@ -81,6 +86,7 @@ export function lireReglages(): Reglages {
       langue: brut.langue === 'fr' || brut.langue === 'en' ? brut.langue : 'auto',
       ...(brut.minicarte && brut.minicarte !== 'mouvement' && AFFICHAGES_MINICARTE.includes(brut.minicarte) ? { minicarte: brut.minicarte } : {}),
       ...(typeof brut.habillage === 'string' && /^[a-z0-9][a-z0-9-]{0,39}$/.test(brut.habillage) ? { habillage: brut.habillage } : {}),
+      ...(brut.crayon === 'doigt' ? { crayon: 'doigt' as const } : {}),
     }
   } catch {
     return DEFAUT

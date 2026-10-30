@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { toileSuspendue } from './elements/dessin/mode'
+import { dessinerAuCrayon, noterCrayon, toileSuspendue, useDessinLibreOuvert } from './elements/dessin/mode'
+import { ActionsRapides } from './ActionsRapides'
+import { lireReglages } from './reglages'
 import { PanneauBanque } from './elements/image/Banque'
 import { attacherFil, pointDePose } from './elements/commentaire/attacher'
 import { avecLegende } from './elements/image/geometrie'
@@ -225,6 +227,15 @@ const decalageGrille = (px: number) => {
 
 /** Un doigt posé sans bouger ce temps-là ouvre le menu du clic droit, en millisecondes. */
 const APPUI_LONG = 500
+
+/** Ce qui se manie sur un élément : le Pencil y agit comme le doigt au lieu de dessiner. */
+const MANIABLE = 'button, a[href], input, textarea, select, iframe, [contenteditable=""], [contenteditable="true"], [role="button"], [role="checkbox"], [role="menuitem"], [data-poignee]'
+
+/** L'appui vise-t-il la toile elle-même (son fond, un élément), et pas l'interface posée dessus ni une toile imbriquée ? */
+export function surLaToile(cible: globalThis.Element, racine: globalThis.Element): boolean {
+  if (cible.closest('.notak-toile') !== racine) return false
+  return cible === racine || (!!cible.closest('.notak-glisse') && !cible.closest(MANIABLE))
+}
 
 /** Les types qui s'ouvrent en grand, et dont le plein écran a donc une adresse. */
 const SANS_CROIX: ReadonlySet<string> = new Set(['croquis', 'document', 'arbre'])
@@ -481,6 +492,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const [rangTrouve, setRangTrouve] = useState(-1)
   const [appelRecherche, setAppelRecherche] = useState(0)
   const [menu, setMenu] = useState<{ x: number; y: number; ou: Point; surElement: boolean } | null>(null)
+  const dessinOuvert = useDessinLibreOuvert()
   const presence = services.presence
   const autres = useSyncExternalStore(
     presence?.ecouter ?? sansEcoute,
@@ -1011,6 +1023,13 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       },
       rect,
       versTableau: (p) => cam.versTableau(etat.current.camera, p),
+      poserCamera: (c, enCours) => {
+        const k = Math.min(cam.ECHELLE_MAX, Math.max(cam.echelleMin(contenu(), etat.current.vue), c.echelle))
+        const gardee = k === c.echelle ? c : { ...c, echelle: k }
+        poserVite(gardee)
+        if (!enCours) finirVive()
+        return gardee
+      },
       largeurVue: () => etat.current.vue.largeur,
       centreVue: () => cam.centreCamera(etat.current.camera, etat.current.vue),
       choisir: (ids) => setSelection(new Set(ids)),
@@ -1029,7 +1048,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       arreterBord: () => arreterBordTenu(),
       recevoir: (donnees, ou) => void recevoirCourant.current(donnees, ou),
     }),
-    [rect, commencerEdition, finirEdition, creerSuivant, jeter, surBrouillon],
+    [rect, commencerEdition, finirEdition, creerSuivant, jeter, surBrouillon, poserVite, finirVive, contenu],
   )
   contexteRef.current = contexte
 
@@ -1260,6 +1279,26 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       window.removeEventListener('pointercancel', fin, true)
     }
   }, [contenu])
+
+  // L'Apple Pencil dessine sur la toile sans passer par l'outil (réglage « Apple Pencil », par défaut) : posé sur le fond
+  // ou sur un élément, il ouvre la couche de dessin sous lui et le trait commence. Sur ce qui se manie (un bouton, une
+  // case, une poignée, un texte qu'on écrit) et sur l'interface autour, il agit comme le doigt.
+  useEffect(() => {
+    const div = racine.current
+    if (!div) return
+    const appui = (e: PointerEvent) => {
+      noterCrayon(e)
+      if (e.pointerType !== 'pen' || e.button !== 0 || etat.current.services.lectureSeule || lireReglages().crayon === 'doigt') return
+      const cible = e.target instanceof Element ? e.target : null
+      if (!cible || !surLaToile(cible, div) || !contexteRef.current) return
+      if (dessinerAuCrayon(contexteRef.current, e)) {
+        e.stopPropagation()
+        e.preventDefault()
+      }
+    }
+    window.addEventListener('pointerdown', appui, true)
+    return () => window.removeEventListener('pointerdown', appui, true)
+  }, [])
 
   // Au doigt, le clavier se pose sur la toile sans la rétrécir : la note qu'on écrit glisse juste au-dessus de la barre
   // du clavier, sans passer sous la barre du haut (la page, elle, ne défile plus : AppareilPlugin.swift).
@@ -3318,6 +3357,9 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     ? englobant(elementsChoisis.flatMap((x) => rect(x.id) ?? []))
     : null
   const barre = cadreChoisis && !lectureSeule && versEcran(cadreChoisis)
+  // Au doigt, quand les outils de la sélection sont ailleurs (la barre de gauche, la capsule du bas), ses gestes
+  // courants paraissent au-dessus d'elle ; sous elle si elle touche le haut de la vue.
+  const rapides = barre && services.barreAGauche && auDoigt() && !menu && !dessinOuvert ? barre : null
 
   // [barre d'édition à gauche] En édition, la barre de gauche prend les outils de l'élément (la note : ses outils de
   // texte, par un portail) ; un type sans outils d'édition garde la barre de sa sélection.
@@ -3475,6 +3517,22 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
           position={{ x: (barre.min.x + barre.max.x) / 2, y: Math.max(8, barre.min.y - MARGE_BARRE) }}
           {...(services.barreAGauche ? { aGauche: true } : {})}
           actionsDemandees={actionsDemandees}
+        />
+      )}
+      {rapides && (
+        <ActionsRapides
+          x={(rapides.min.x + rapides.max.x) / 2}
+          y={rapides.min.y - 10 < 120 ? rapides.max.y : rapides.min.y}
+          dessous={rapides.min.y - 10 < 120}
+          couper={() => document.execCommand('cut')}
+          copier={() => document.execCommand('copy')}
+          dupliquer={dupliquer}
+          supprimer={() => jeter(selection)}
+          plus={() => {
+            if (enFeuille()) return setActionsDemandees(Date.now())
+            const p = point((rapides.min.x + rapides.max.x) / 2, Math.max(rapides.min.y, 120))
+            setMenu({ x: p.x, y: p.y, ou: cam.versTableau(camera, p), surElement: true })
+          }}
         />
       )}
       {/* [barre d'édition à gauche] */}

@@ -1861,9 +1861,11 @@
   display: none;
 }
 
-/* Les ancres des menus tiennent la largeur de la tuile ; le menu s'ouvre à droite d'elle, pas en dessous. */
+/* Les ancres des menus tiennent la largeur de la tuile ; le menu s'ouvre à droite d'elle, pas en dessous. Leur bouton
+   s'y centre : dans une barre plus étroite que l'ancre (l'iPad), il restait collé à gauche, décalé des autres. */
 .notak-barre-selection[data-a-gauche] :is(.notak-note-menu-ancre, .notak-colonne-menu-ancre, .notak-ligne-ancre, .notak-arrangement) {
-  display: block;
+  display: flex;
+  justify-content: center;
   width: 68px;
 }
 
@@ -3677,4 +3679,48 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
     padding-right: calc(12px + var(--notak-zone-droite, 0px));
     padding-left: calc(12px + var(--notak-zone-gauche, 0px));
   }
+}
+
+/* Les gestes rapides d'un élément touché, au-dessus de lui (ActionsRapides.tsx) : une pilule sombre comme le menu
+   d'édition d'iOS, des boutons de texte séparés d'un filet. */
+.notak-actions-rapides {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #2b2d31;
+  color: #fff;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.22);
+  transform: translate(-50%, calc(-100% - 10px));
+  white-space: nowrap;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.notak-actions-rapides[data-dessous] {
+  transform: translate(-50%, 10px);
+}
+
+.notak-actions-rapides button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: 500 15px/1 var(--notak-police, system-ui);
+  cursor: pointer;
+}
+
+.notak-actions-rapides button + button {
+  border-left: 1px solid rgb(255 255 255 / 0.16);
+}
+
+.notak-actions-rapides button:active {
+  background: rgb(255 255 255 / 0.14);
+}
+
+.notak-actions-rapides button[data-danger] {
+  color: #ff6b62;
 }

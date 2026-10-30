@@ -117,6 +117,20 @@ la table des risques ; une bascule vers Capacitor ne se décide qu'après cette 
 | 16 | Mode serveur : Bibliothèque › « Sur un serveur » › adresse d'un serveur de test ; sa page de connexion, sa bibliothèque ; cookies gardés au relancement (l'app rouvre sur le serveur) ; WebSocket `/sync` ; « Toiles de cet appareil » et « Se déconnecter » dans la feuille du compte ; Google par Safari (connexion par code) | depuis l'iPhone | |
 | 17 | `cargo test --manifest-path apps/bureau/plugins/appareil/Cargo.toml` et la compilation Swift passent ; `bun run ios:construire -- --build-number 1` sort une archive | terminal | |
 
+## Retours du premier essai sur iPad (30/10/2026, iPad Pro 11" 2018, iOS 26.5, Apple Pencil 2)
+
+Notés tels que le propriétaire les a donnés en essayant l'app. Une ligne cochée a son correctif dans le code.
+
+| # | Ce qui ne va pas | Ce qu'on attend | État |
+|---|---|---|---|
+| 1 | Au Pencil, le trait du dessin tremble et se hache en pointillés | un trait lisse ; sa largeur suit la **pression** du Pencil, pas la vitesse simulée | codé : `Trait.pressions`, `croquis/trace.ts` ; à revoir sur l'iPad |
+| 2 | En mode dessin, deux doigts qui pincent dessinent des hachures au lieu de zoomer ; on ne peut pas se déplacer | les doigts déplacent et zooment la vue, le Pencil dessine | codé : la couche mène la vue (`poserCamera`) ; une paume posée pendant que le Pencil écrit ne bouge rien ; sans stylet connu, un doigt dessine et deux naviguent |
+| 3 | Le double toucher du Pencil (sur son flanc) ne fait rien | il change d'outil comme dans Notes (gomme, outil précédent, couleurs), selon le réglage d'iOS | codé : `UIPencilInteraction` (`AppareilPlugin.swift`) → `ios/crayon.ts` → la couche |
+| 4 | Il faut ouvrir le mode dessin pour dessiner au Pencil | le Pencil dessine directement sur la toile (le fond et les éléments), sans passer par l'outil ; sur l'interface (barres, menus, boutons) il agit comme le doigt, glisser-déposer compris | codé : `surLaToile`, `dessinerAuCrayon` ; un toucher du doigt enregistre et referme ; `toucher.ts` rattrape aussi les clics perdus du Pencil |
+| 5 | Pas de choix | un réglage : « le Pencil dessine » ou « le Pencil fait comme le doigt » (choisir, déplacer, naviguer) | codé : Réglages › Tableau › Apple Pencil ; « comme le doigt » le laisse agir comme une souris (choisir, déplacer, lasso) |
+| 6 | Pour supprimer ou dupliquer un élément, il faut rester appuyé dessus (menu du clic droit) | un toucher sur l'élément montre ses actions rapides juste au-dessus de lui, proprement, sur iPad comme sur téléphone | codé : `ActionsRapides.tsx` (Couper, Copier, Dupliquer, Supprimer, •••) |
+| 7 | Dans la barre de gauche d'une sélection (une ligne : Couleur, Début, Fin, Étiquette…), les boutons ne sont pas alignés : un sur deux est décalé | une colonne droite, chaque bouton centré | codé : l'ancre d'un bouton à menu centre son bouton (`toile.css`) |
+
 ## Rendez-vous avec le chantier de l'app de bureau
 
 Ce chantier (`claude/youthful-hamilton-ji14zq` et la suite : accès à un serveur choisi, device flow, fichiers

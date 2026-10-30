@@ -3,6 +3,11 @@ import type { Trait } from '../../coeur/tableau'
 import {
   AFFINAGE,
   affinageDe,
+  commencerTrace,
+  pressionDe,
+  pressionsDe,
+  prolongerTrace,
+  traitFini,
   attributsTrait,
   dessinTrait,
   traitEnSvg,
@@ -137,5 +142,40 @@ describe("l'effet d'encre", () => {
     const a = attributsTrait(dessinTrait(points, 4, AFFINAGE), 'red', 3)
     expect([a.fill, a.stroke, a.strokeWidth]).toEqual(['red', 'red', 3])
     expect(attributsTrait(dessinTrait(points, 4), 'red', 3).strokeWidth).toBe(7)
+  })
+})
+
+describe('la pression du stylet', () => {
+  const pen = (pressure: number) => ({ pointerType: 'pen', pressure })
+  it('garde la pression du stylet, pas celle de la souris ni du doigt', () => {
+    expect(pressionDe(pen(0.4))).toBe(0.4)
+    expect(pressionDe(pen(0))).toBe(0.05)
+    expect(pressionDe({ pointerType: 'mouse', pressure: 0.5 })).toBeNull()
+    expect(pressionDe({ pointerType: 'touch', pressure: 0.5 })).toBeNull()
+  })
+  it('suit une pression par point, sans doublon', () => {
+    let t = commencerTrace(0, 0, pen(0.2))
+    t = prolongerTrace(t, 5, 1, pen(0.5))
+    expect(prolongerTrace(t, 5, 1, pen(0.9))).toBe(t)
+    t = prolongerTrace(t, 10, 3, pen(0.8))
+    expect(t.pressions).toEqual([0.2, 0.5, 0.8])
+    const fini = traitFini(t, '#323b4a', 2, AFFINAGE)
+    expect(fini.pressions).toEqual([0.2, 0.5, 0.8])
+    expect(pressionsDe(fini)).toEqual([0.2, 0.5, 0.8])
+  })
+  it('ne garde rien à la souris, ni pour un trait sans affinage', () => {
+    const souris = prolongerTrace(commencerTrace(0, 0, { pointerType: 'mouse', pressure: 0.5 }), 4, 4, { pointerType: 'mouse', pressure: 0.5 })
+    expect(traitFini(souris, '#000000', 2, AFFINAGE).pressions).toBeUndefined()
+    const t = prolongerTrace(commencerTrace(0, 0, pen(0.3)), 4, 4, pen(0.6))
+    expect(traitFini(t, '#000000', 8, 0).pressions).toBeUndefined()
+  })
+  it("la pression change le contour, et des pressions qui ne vont pas avec les points sont ignorées", () => {
+    const points = [0, 0, 10, 2, 22, 8, 30, 20, 34, 34]
+    const leger = dessinTrait(points, 4, AFFINAGE, true, [0.1, 0.1, 0.1, 0.1, 0.1])
+    const appuye = dessinTrait(points, 4, AFFINAGE, true, [1, 1, 1, 1, 1])
+    expect(leger.plein && appuye.plein).toBe(true)
+    expect(leger.d).not.toBe(appuye.d)
+    expect(dessinTrait(points, 4, AFFINAGE, true, [0.5]).d).toBe(dessinTrait(points, 4, AFFINAGE).d)
+    expect(pressionsDe({ points, pressions: [0.5] })).toBeUndefined()
   })
 })

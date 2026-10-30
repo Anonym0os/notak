@@ -235,6 +235,11 @@ export interface ContexteToile {
   rect(id: Id): Rect | null
   /** Un point de l'écran (coordonnées de la toile) vers le tableau. */
   versTableau(p: Point): Point
+  /**
+   * Déplace la vue (la couche de dessin, que les doigts mènent). `enCours` : le geste continue, la toile suit sans se
+   * redessiner ; sinon la vue se pose. Rend la caméra gardée, bornée comme un pincement de la toile.
+   */
+  poserCamera?(c: Camera, enCours: boolean): Camera
   /** La largeur de la vue à l'écran, en pixels. */
   largeurVue(): number
   /** Passe des données (fichiers choisis, déposés) aux récepteurs, comme un dépôt à `ou` (UG). */

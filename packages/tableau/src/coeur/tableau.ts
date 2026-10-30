@@ -466,6 +466,11 @@ export interface Trait {
   epaisseur: number
   /** L'effet d'encre : la vitesse du geste amincit le trait (0 à 1). Absent : un trait d'épaisseur constante. */
   affinage?: number
+  /**
+   * La pression du stylet en chaque point (0 à 1, une par paire de `points`) : un trait de l'Apple Pencil s'épaissit
+   * quand on appuie, au lieu de suivre la vitesse. Absente : la souris ou le doigt, la vitesse simule la pression.
+   */
+  pressions?: number[]
 }
 
 /** Un croquis à main levée : des traits sur une feuille de taille fixe (voir `elements/croquis`). */

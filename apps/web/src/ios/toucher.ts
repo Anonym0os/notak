@@ -33,7 +33,8 @@ export function reparerToucher(fenetre: Window): () => void {
     return el
   }
   const bas = (e: PointerEvent) => {
-    if (e.pointerType !== 'touch' || !e.isPrimary) return
+    // Le Pencil touche les boutons comme le doigt : même clic perdu, même remède.
+    if ((e.pointerType !== 'touch' && e.pointerType !== 'pen') || !e.isPrimary) return
     const cible = cliquable(e.target)
     appui = cible ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, cible } : null
   }

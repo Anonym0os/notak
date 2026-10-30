@@ -7,6 +7,7 @@ import type { ContexteToile } from '../types'
 import './index'
 import { ouvrirDessinLibre } from './Dessin'
 import { dessinLibreOuvert, poserDessinLibre, toileSuspendue } from './mode'
+import { surLaToile } from '../../Toile'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -80,5 +81,28 @@ describe('le double-clic pendant le dessin libre', () => {
     expect(document.querySelector('.notak-dessin-libre')).not.toBeNull()
     expect(magasin.lire().elements).toHaveLength(0)
     act(() => abandon().click())
+  })
+})
+
+describe('où le Pencil dessine', () => {
+  const toile = () => {
+    const racine = document.createElement('div')
+    racine.className = 'notak-toile'
+    racine.innerHTML =
+      '<div class="notak-glisse"><div class="notak-plan"><div data-id="a"><p>texte</p><button>ok</button><div contenteditable="true">écrit</div></div></div></div>' +
+      '<nav class="notak-barre-outils"><button>outil</button></nav>' +
+      '<div class="notak-toile"><div class="notak-glisse"><p>imbriquée</p></div></div>'
+    document.body.append(racine)
+    return racine
+  }
+  it('sur le fond et sur un élément, pas sur ce qui se manie ni sur l’interface', () => {
+    const r = toile()
+    expect(surLaToile(r, r)).toBe(true)
+    expect(surLaToile(r.querySelector('p')!, r)).toBe(true)
+    expect(surLaToile(r.querySelector('[data-id] button')!, r)).toBe(false)
+    expect(surLaToile(r.querySelector('[contenteditable]')!, r)).toBe(false)
+    expect(surLaToile(r.querySelector('nav button')!, r)).toBe(false)
+    expect(surLaToile(r.querySelector('.notak-toile .notak-toile p')!, r)).toBe(false)
+    r.remove()
   })
 })

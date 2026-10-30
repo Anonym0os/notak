@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { Habillages } from './habillage/appliquer'
 import { enFeuille } from './communs/Feuille'
 import { auDoigt } from './doigt'
+import { crayonVu } from './elements/dessin/mode'
 import { langueDuNavigateur, t } from './langue'
 import { RACCOURCIS, touches } from './Menus'
 import { ChoixCouleur, ChoixHabillage, ChoixMode, ChoixPhoto, DEFAUT, type OptionChoix, type Reglages, type ServiceCompte } from './reglages'
@@ -302,6 +303,22 @@ export const RUBRIQUES: Rubrique[] = [
               { valeur: 9, libelle: t('reglages.grille.moyenne'), detail: '9 px' },
               { valeur: 10, libelle: t('reglages.grille.large'), detail: '10 px' },
             ]),
+          },
+          {
+            id: 'crayon',
+            libelle: 'reglages.crayon',
+            aide: 'reglages.crayon.aide',
+            // Là où un stylet peut servir : une tablette, ou tout appareil où il s'est déjà montré.
+            si: () => crayonVu() || (auDoigt() && !enFeuille()),
+            controle: {
+              type: 'choix',
+              options: () => [
+                { valeur: 'dessine', libelle: t('reglages.crayon.dessine') },
+                { valeur: 'doigt', libelle: t('reglages.crayon.doigt') },
+              ],
+              lire: (c) => c.reglages.crayon ?? 'dessine',
+              ecrire: (c, v) => c.changer({ crayon: v as Reglages['crayon'] }),
+            },
           },
         ],
       },

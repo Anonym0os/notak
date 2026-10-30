@@ -9,7 +9,9 @@
 //   page ne sait ni télécharger ni ouvrir « Enregistrer sous » ;
 // - `connexionWeb` : la page d'accord de la connexion par code, dans la feuille Safari d'iOS faite pour se connecter
 //   (`ASWebAuthenticationSession`), au lieu de Safari lui-même : on n'a pas à revenir dans l'app à la main ;
-// - l'événement `clavier` : la hauteur du clavier à l'écran et la durée de son animation, avant qu'il n'arrive.
+// - l'événement `clavier` : la hauteur du clavier à l'écran et la durée de son animation, avant qu'il n'arrive ;
+// - l'événement `crayon` : le double toucher de l'Apple Pencil, avec l'action choisie dans Réglages › Apple Pencil
+//   (`gomme`, `precedent`, `couleurs`, `epaisseur`) ; la couche de dessin de la page y change d'outil.
 // Et deux méthodes que seule la coque appelle (`src/lib.rs`, jamais la page : elles ne sont pas dans `build.rs`) :
 // - `dossierIcloud` : le dossier `Documents` du conteneur iCloud de Notak, où la page synchronise ses toiles ;
 // - `telechargerIcloud` : fait descendre un fichier de ce dossier resté dans le nuage.
@@ -87,6 +89,9 @@ class AppareilPlugin: Plugin {
     // grand ont leur adresse (`adresse.ts`), et le retour y ramène comme le bouton ‹.
     webview.allowsBackForwardNavigationGestures = true
     masquerBarreDuClavier(webview)
+    let crayon = UIPencilInteraction()
+    crayon.delegate = self
+    webview.addInteraction(crayon)
     webview.isOpaque = false
     let centre = NotificationCenter.default
     observateurs.append(
@@ -363,4 +368,30 @@ extension UIColor {
 @_cdecl("init_plugin_appareil")
 func initPlugin() -> Plugin {
   return AppareilPlugin()
+}
+
+extension AppareilPlugin: UIPencilInteractionDelegate {
+  /// iOS 17.5 et après : le toucher arrive ici, et l'ancienne méthode n'est plus appelée.
+  @available(iOS 17.5, *)
+  func pencilInteraction(_ interaction: UIPencilInteraction, didReceiveTap tap: UIPencilInteraction.Tap) {
+    doubleToucher()
+  }
+
+  /// iOS 17.0 à 17.4.
+  func pencilInteractionDidTap(_ interaction: UIPencilInteraction) {
+    doubleToucher()
+  }
+
+  /// Ce que la personne a choisi pour le double toucher, dans les mots de la page ; rien pour « Ignorer » et le reste.
+  private func doubleToucher() {
+    let action: String
+    switch UIPencilInteraction.preferredTapAction {
+    case .switchEraser: action = "gomme"
+    case .switchPrevious: action = "precedent"
+    case .showColorPalette: action = "couleurs"
+    case .showInkAttributes: action = "epaisseur"
+    default: return
+    }
+    trigger("crayon", data: ["action": action])
+  }
 }

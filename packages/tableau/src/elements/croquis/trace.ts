@@ -76,6 +76,51 @@ export function ajouterPoint(points: readonly number[], x: number, y: number): n
   return [...points, x, y]
 }
 
+/**
+ * La pression d'un appui de stylet, à garder dans le trait ; `null` pour la souris et le doigt (leur pression ne dit
+ * rien : 0,5 ou 0 tant qu'on appuie). Un stylet posé à peine donne 0 au premier contact : un plancher garde le trait visible.
+ */
+export const pressionDe = (e: { pointerType: string; pressure: number }): number | null =>
+  e.pointerType === 'pen' ? Math.max(0.05, Math.min(1, Number.isFinite(e.pressure) ? e.pressure : 0.5)) : null
+
+/** Les pressions ramenées au centième, comme les points. */
+export const arrondirPressions = (pressions: readonly number[]): number[] => pressions.map((p) => Math.round(p * 100) / 100)
+
+/** Les pressions d'un trait, si elles vont avec ses points (une par point) ; sinon rien, la vitesse en tiendra lieu. */
+export const pressionsDe = (t: Pick<Trait, 'points' | 'pressions'>): number[] | undefined =>
+  t.pressions && t.pressions.length * 2 === t.points.length ? t.pressions : undefined
+
+type Appui = { pointerType: string; pressure: number }
+
+/** Un tracé en cours : ses points et, au stylet, la pression de chacun. */
+export interface TraceEnCours {
+  points: number[]
+  pressions: number[] | null
+}
+
+export function commencerTrace(x: number, y: number, e: Appui): TraceEnCours {
+  const p = pressionDe(e)
+  return { points: [x, y], pressions: p === null ? null : [p] }
+}
+
+/** Le tracé prolongé d'un point ; le même objet si c'est un doublon du dernier. */
+export function prolongerTrace(t: TraceEnCours, x: number, y: number, e: Appui): TraceEnCours {
+  const points = ajouterPoint(t.points, x, y)
+  if (points === t.points) return t
+  return { points, pressions: t.pressions && [...t.pressions, pressionDe(e) ?? t.pressions[t.pressions.length - 1]!] }
+}
+
+/** Le trait qu'un tracé laisse, ses nombres ramenés au centième. */
+export function traitFini(t: TraceEnCours, couleur: string, epaisseur: number, affinage: number): Trait {
+  return {
+    points: arrondir(t.points),
+    couleur,
+    epaisseur,
+    ...(affinage ? { affinage } : {}),
+    ...(t.pressions && affinage ? { pressions: arrondirPressions(t.pressions) } : {}),
+  }
+}
+
 /** Distance du point (px, py) au segment [(ax, ay), (bx, by)]. */
 export function distanceSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
   const dx = bx - ax
@@ -129,13 +174,19 @@ function cheminContour(contour: readonly number[][]): string {
   return `${d.trimEnd()}Z`
 }
 
-/** Le dessin d'un trait : un contour plein pour un trait affiné, une ligne lissée à tracer de son épaisseur sinon. */
+/**
+ * Le dessin d'un trait : un contour plein pour un trait affiné, une ligne lissée à tracer de son épaisseur sinon.
+ * `pressions` (le stylet) : la largeur suit l'appui. Sans elles, elle suit la vitesse ; avec les 240 points par
+ * seconde de l'Apple Pencil, irrégulièrement espacés, cette vitesse simulée faisait trembler le trait et le hachait
+ * en pointillés.
+ */
 export type DessinTrait = { d: string; plein: boolean; epaisseur: number }
-export function dessinTrait(points: readonly number[], epaisseur: number, affinage = 0, fini = true): DessinTrait {
+export function dessinTrait(points: readonly number[], epaisseur: number, affinage = 0, fini = true, pressions?: readonly number[]): DessinTrait {
   if (!affinage || points.length < 4) return { d: cheminLisse(points), plein: false, epaisseur }
+  const avecPression = !!pressions && pressions.length * 2 === points.length
   const paires: number[][] = []
-  for (let i = 0; i < points.length; i += 2) paires.push([points[i]!, points[i + 1]!])
-  const contour = getStroke(paires, { size: epaisseur * LARGEUR_ENCRE, thinning: affinage, smoothing: 0.5, streamline: 0.5, simulatePressure: true, last: fini })
+  for (let i = 0; i < points.length; i += 2) paires.push(avecPression ? [points[i]!, points[i + 1]!, pressions[i / 2]!] : [points[i]!, points[i + 1]!])
+  const contour = getStroke(paires, { size: epaisseur * LARGEUR_ENCRE, thinning: affinage, smoothing: 0.5, streamline: 0.5, simulatePressure: !avecPression, last: fini })
   const d = cheminContour(contour.filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1])))
   return d ? { d, plein: true, epaisseur } : { d: cheminLisse(points), plein: false, epaisseur }
 }
@@ -150,7 +201,7 @@ export function attributsTrait(dt: DessinTrait, couleur: string, deborde = 0): S
 
 /** Un trait en balise SVG autonome, pour les téléchargements. */
 export function traitEnSvg(tr: Trait): string {
-  const dt = dessinTrait(tr.points, tr.epaisseur, tr.affinage)
+  const dt = dessinTrait(tr.points, tr.epaisseur, tr.affinage, true, pressionsDe(tr))
   return dt.plein
     ? `<path d="${dt.d}" fill="${tr.couleur}"/>`
     : `<path d="${dt.d}" fill="none" stroke="${tr.couleur}" stroke-width="${tr.epaisseur}" stroke-linecap="round" stroke-linejoin="round"/>`

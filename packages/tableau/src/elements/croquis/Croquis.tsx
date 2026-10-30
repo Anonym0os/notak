@@ -9,16 +9,19 @@ import {
   EPAISSEURS_TRAIT,
   EPAISSEUR_DEFAUT,
   LARGEUR_FEUILLE,
-  ajouterPoint,
-  arrondir,
+  type TraceEnCours,
   affinageDe,
   attributsTrait,
+  commencerTrace,
   dessinTrait,
   ecrireReglage,
   epaisseurFeuille,
   gommer,
   hauteurFeuille,
   lireReglage,
+  pressionsDe,
+  prolongerTrace,
+  traitFini,
   traitVise,
 } from './trace'
 import { BarreEpaisseur, CURSEUR_GOMME, VoletCouleur, VoletEpaisseur, curseurCrayon } from './partage'
@@ -43,7 +46,7 @@ const CAPTURE_PX = 6
 
 /** Les traits d'une feuille, en SVG : un chemin lissé par trait. `vise` : le trait que la gomme viserait, cerné de rouge. */
 function Traits({ traits, vise, choisis, contour = 0, suitLeTheme = false, enCours = false }: { traits: readonly Trait[]; vise?: { i: number; extra: number } | null; choisis?: ReadonlySet<Trait>; contour?: number; suitLeTheme?: boolean; enCours?: boolean }) {
-  const chemins = useMemo(() => traits.map((t) => dessinTrait(t.points, t.epaisseur, t.affinage, !enCours)), [traits, enCours])
+  const chemins = useMemo(() => traits.map((t) => dessinTrait(t.points, t.epaisseur, t.affinage, !enCours, pressionsDe(t))), [traits, enCours])
   return (
     <>
       {traits.map((t, i) => (
@@ -92,7 +95,7 @@ export function RenduCroquis({ element, choisie, enEdition, contexte, brouillon,
 
 type Outil = 'crayon' | 'selection' | 'gomme' | 'pipette'
 type Geste =
-  | { type: 'trace'; points: number[]; avant: Trait[]; epaisseur: number; affinage: number }
+  | { type: 'trace'; trace: TraceEnCours; avant: Trait[]; epaisseur: number; affinage: number }
   | { type: 'gomme'; avant: Trait[] }
   | { type: 'deplacer'; depart: { x: number; y: number }; avant: Trait[]; choix: ReadonlySet<Trait> }
   | { type: 'marquise'; depart: { x: number; y: number }; ajoute: boolean; base: ReadonlySet<Trait> }
@@ -132,7 +135,7 @@ function Feuille({ contenu, ecrire, finir, contexte }: { contenu: CroquisFeuille
   const [volet, setVolet] = useState<Volet>(null)
   const [vise, setVise] = useState<{ i: number; extra: number } | null>(null)
   // Le trait qu'on est en train de tirer, et l'état d'avant un geste de gomme.
-  const [enCours, setEnCours] = useState<number[] | null>(null)
+  const [enCours, setEnCours] = useState<TraceEnCours | null>(null)
   const tire = useRef<Geste | null>(null)
   const [choix, setChoix] = useState<ReadonlySet<Trait>>(new Set())
   const [marquise, setMarquise] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
@@ -254,8 +257,9 @@ function Feuille({ contenu, ecrire, finir, contexte }: { contenu: CroquisFeuille
     }
     const { x, y } = dansFeuille(e)
     if (outil === 'crayon') {
-      tire.current = { type: 'trace', points: [x, y], avant: traits, epaisseur: epaisseurFeuille(EPAISSEURS_TRAIT[epaisseur]!.px, echelle()), affinage: affinageDe(epaisseur) }
-      setEnCours([x, y])
+      const trace = commencerTrace(x, y, e)
+      tire.current = { type: 'trace', trace, avant: traits, epaisseur: epaisseurFeuille(EPAISSEURS_TRAIT[epaisseur]!.px, echelle()), affinage: affinageDe(epaisseur) }
+      setEnCours(trace)
     } else if (outil === 'gomme') {
       tire.current = { type: 'gomme', avant: traits }
       setVise(null)
@@ -296,13 +300,13 @@ function Feuille({ contenu, ecrire, finir, contexte }: { contenu: CroquisFeuille
     const evenements = e.nativeEvent.getCoalescedEvents?.() ?? []
     const sources = evenements.length > 0 ? evenements : [e.nativeEvent]
     if (g.type === 'trace') {
-      let suite = g.points
+      let suite = g.trace
       for (const m of sources) {
         const { x, y } = dansFeuille(m)
-        suite = ajouterPoint(suite, x, y)
+        suite = prolongerTrace(suite, x, y, m)
       }
-      if (suite !== g.points) {
-        g.points = suite
+      if (suite !== g.trace) {
+        g.trace = suite
         setEnCours(suite)
       }
     } else if (g.type === 'gomme') {
@@ -330,8 +334,8 @@ function Feuille({ contenu, ecrire, finir, contexte }: { contenu: CroquisFeuille
     if (g.type === 'trace') {
       setEnCours(null)
       // Un simple clic sans déplacement laisse un trait de largeur nulle : comme Milanote, on l'écarte.
-      if (g.points.length < 4) return
-      valider([...g.avant, { points: arrondir(g.points), couleur, epaisseur: g.epaisseur, ...(g.affinage ? { affinage: g.affinage } : {}) }], g.avant)
+      if (g.trace.points.length < 4) return
+      valider([...g.avant, traitFini(g.trace, couleur, g.epaisseur, g.affinage)], g.avant)
     } else if (g.type === 'marquise') {
       const m = marquise
       setMarquise(null)
@@ -342,7 +346,7 @@ function Feuille({ contenu, ecrire, finir, contexte }: { contenu: CroquisFeuille
   }
 
   const encours = useMemo(
-    () => (enCours ? [{ points: enCours, couleur, epaisseur: epaisseurFeuille(EPAISSEURS_TRAIT[epaisseur]!.px, echelle()), affinage: affinageDe(epaisseur) }] : []),
+    () => (enCours ? [{ points: enCours.points, ...(enCours.pressions ? { pressions: enCours.pressions } : {}), couleur, epaisseur: epaisseurFeuille(EPAISSEURS_TRAIT[epaisseur]!.px, echelle()), affinage: affinageDe(epaisseur) }] : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [enCours, couleur, epaisseur],
   )
