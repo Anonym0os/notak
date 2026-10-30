@@ -87,7 +87,10 @@ journal quand `X-Forwarded-For` n'a pas l'adresse attendue. `NOTAK_RELAIS` est u
   port qu'au relais. Docker contourne souvent `ufw` : la règle se pose dans la chaîne `DOCKER-USER`, ou chez l'hébergeur.
 - **Coolify** : une application « Docker Compose » avec ce `compose.yaml` (ou « Docker Image »
   `ghcr.io/anonym0os/notak:latest`, à côté d'un OpenFGA), le port 3005, un volume persistant monté sur `/donnees`,
-  et les variables ci-dessous dans l'onglet *Environment Variables*. Si l'une n'arrive pas au serveur
+  et les variables ci-dessous dans l'onglet *Environment Variables*. Pour construire depuis le dépôt à chaque
+  poussée, l'application pointe plutôt sur `compose.coolify.yaml` : le domaine se donne au service `notak`
+  (`https://notak.exemple.fr:3005`), aucun port ne s'ouvre sur la machine, et seules les variables qu'il nomme
+  arrivent au serveur. Si l'une n'arrive pas au serveur
   (`GET /api/instance` montre le nom et les inscriptions qu'il a compris), ajoutez-la sous `environment:` dans le
   `compose.yaml` que tient Coolify, sous la forme `NOTAK_INSCRIPTIONS: ${NOTAK_INSCRIPTIONS}`.
 

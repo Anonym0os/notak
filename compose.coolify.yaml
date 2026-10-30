@@ -1,0 +1,57 @@
+# Notak déployé par Coolify depuis les sources (docs/AUTO-HEBERGER.md, « Coolify ») : une application « Docker
+# Compose » qui pointe sur ce fichier, construite à chaque poussée. Le domaine se donne au service `notak` dans Coolify
+# (`https://notak.exemple.fr:3005`) : son Traefik le joint par le réseau Docker, aucun port ne s'ouvre sur la machine.
+#
+# Les variables viennent de l'onglet Environment Variables de Coolify. Seules celles nommées ci-dessous arrivent au
+# serveur : en ajouter une, c'est l'ajouter ici aussi.
+services:
+  notak:
+    build:
+      context: .
+      args:
+        NOTAK_VERSION: source
+    restart: unless-stopped
+    expose:
+      - '3005'
+    environment:
+      NOTAK_ORIGINE: ${NOTAK_ORIGINE}
+      NOTAK_OPENFGA_URL: http://openfga:8080
+      NOTAK_NOM: ${NOTAK_NOM:-Notak}
+      NOTAK_INSCRIPTIONS: ${NOTAK_INSCRIPTIONS:-ouvertes}
+      NOTAK_ADMINS: ${NOTAK_ADMINS:-}
+      NOTAK_HABILLAGE_DEFAUT: ${NOTAK_HABILLAGE_DEFAUT:-}
+      NOTAK_HABILLAGE: ${NOTAK_HABILLAGE:-}
+      NOTAK_CLE: ${NOTAK_CLE:-}
+      NOTAK_SIGNALEMENTS: ${NOTAK_SIGNALEMENTS:-}
+      NOTAK_SMTP_URL: ${NOTAK_SMTP_URL:-}
+      NOTAK_EXPEDITEUR: ${NOTAK_EXPEDITEUR:-}
+      NOTAK_IDP_INTERNES: ${NOTAK_IDP_INTERNES:-}
+      # Le nombre de relais de confiance devant le serveur, Traefik de Coolify compris (voir « Le relais HTTPS »).
+      NOTAK_RELAIS: ${NOTAK_RELAIS:-1}
+      NOTAK_VERIFIER_MAJ: ${NOTAK_VERIFIER_MAJ:-0}
+    volumes:
+      - notak-donnees:/donnees
+    depends_on:
+      - openfga
+
+  openfga-migration:
+    # La même version que compose.yaml et que les essais du serveur (vitest.openfga.ts).
+    image: openfga/openfga:v1.22.0
+    command: migrate --datastore-engine sqlite --datastore-uri file:/home/nonroot/openfga.db
+    restart: 'no'
+    volumes:
+      - openfga:/home/nonroot
+
+  openfga:
+    image: openfga/openfga:v1.22.0
+    restart: unless-stopped
+    command: run --datastore-engine sqlite --datastore-uri file:/home/nonroot/openfga.db --playground-enabled=false
+    volumes:
+      - openfga:/home/nonroot
+    depends_on:
+      openfga-migration:
+        condition: service_completed_successfully
+
+volumes:
+  notak-donnees:
+  openfga:

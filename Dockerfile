@@ -23,7 +23,11 @@ COPY package.json bun.lock ./
 COPY apps/web/package.json apps/web/
 COPY apps/serveur/package.json apps/serveur/
 COPY packages/tableau/package.json packages/tableau/
-RUN bun install --frozen-lockfile --production --filter @notak/serveur
+# À plat (`--linker hoisted`) : le serveur importe des sources de la toile (`packages/tableau/src/…`), qui cherchent
+# leurs paquets (yjs…) en remontant depuis leur dossier. Rangés à part sous `apps/serveur/node_modules`, comme les
+# range Bun par défaut dans un espace de travail, ils restaient introuvables et le serveur ne démarrait pas.
+# Le dossier du serveur ne garde que les versions en conflit avec celles du haut : il peut rester vide.
+RUN bun install --frozen-lockfile --production --linker hoisted --filter @notak/serveur && mkdir -p apps/serveur/node_modules
 
 FROM node:24-slim@sha256:55fb5f5a527ea2c5c4a95f963e48ef90aa38c7b346054fdc8ee9957a2b55d205
 # Le numéro que porte l'image, donné par la publication (`--build-arg NOTAK_VERSION=0.2.0`) ; « dev » pour une image

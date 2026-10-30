@@ -10,6 +10,7 @@ on:
       - '.dockerignore'
       - 'compose.yaml'
       - 'compose.source.yaml'
+      - 'compose.coolify.yaml'
       - 'package.json'
       - 'bun.lock'
       - 'apps/serveur/**'
@@ -23,6 +24,7 @@ on:
       - '.dockerignore'
       - 'compose.yaml'
       - 'compose.source.yaml'
+      - 'compose.coolify.yaml'
       - 'package.json'
       - 'bun.lock'
       - 'apps/serveur/**'
@@ -48,10 +50,11 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - name: compose.yaml se lit, seul et avec compose.source.yaml
+      - name: compose.yaml se lit, seul et avec compose.source.yaml ; compose.coolify.yaml aussi
         run: |
           docker compose -f compose.yaml config -q
           docker compose -f compose.yaml -f compose.source.yaml config -q
+          NOTAK_ORIGINE=https://notak.exemple.fr docker compose -f compose.coolify.yaml config -q
       - name: Construire, sans pousser
         run: docker buildx build --load --build-arg NOTAK_VERSION=essai -t notak:essai .
       # Le même OpenFGA que les essais du serveur (et que compose.yaml, ce qu'un essai vérifie).

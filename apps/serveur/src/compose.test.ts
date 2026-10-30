@@ -9,9 +9,9 @@ const racine = join(import.meta.dirname, '../../..')
 const lire = (fichier: string) => readFileSync(join(racine, fichier), 'utf8')
 
 describe('compose.yaml', () => {
-  it('tire la version d’OpenFGA que lancent les essais du serveur (vitest.openfga.ts)', () => {
+  it.each(['compose.yaml', 'compose.coolify.yaml'])('%s tire la version d’OpenFGA que lancent les essais du serveur (vitest.openfga.ts)', (fichier) => {
     const essais = /IMAGE_OPENFGA = '([^']+)'/.exec(lire('vitest.openfga.ts'))?.[1]
-    const images = [...lire('compose.yaml').matchAll(/^\s*image:\s*(openfga\/openfga:\S+)\s*$/gm)].map((m) => m[1])
+    const images = [...lire(fichier).matchAll(/^\s*image:\s*(openfga\/openfga:\S+)\s*$/gm)].map((m) => m[1])
     expect(essais).toBeTruthy()
     expect(images).toHaveLength(2)
     for (const image of images) expect(image).toBe(essais)
