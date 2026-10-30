@@ -15,7 +15,7 @@ ARG VITE_CONTACT=""
 ENV VITE_EDITION=locale VITE_CONTACT=$VITE_CONTACT
 RUN cd apps/web && bun run build
 
-FROM nginx:1.27-alpine
+FROM nginx:1.31-alpine
 COPY apps/site/nginx.conf /etc/nginx/conf.d/default.conf
 COPY apps/site/entetes.conf apps/site/csp.conf /etc/nginx/notak/
 COPY --from=construction /notak/apps/web/dist /usr/share/nginx/html
