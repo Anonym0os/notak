@@ -141,7 +141,7 @@ describe('ce qu’on sait en arrivant sur l’écran de connexion', () => {
   })
 
   it('une indication sans urgence est un simple état', async () => {
-    await monter(vi.fn(), { texte: 'Connectez-vous pour autoriser l’app Notak de bureau.' })
+    await monter(vi.fn(), { texte: 'Connectez-vous pour autoriser l’app Notak.' })
     expect(hote.querySelector('.connexion-notice')?.getAttribute('role')).toBe('status')
   })
 
@@ -503,5 +503,88 @@ describe('une adresse plausible', () => {
     expect(adressePlausible('ana@exemple')).toBe(false)
     expect(adressePlausible('@exemple.fr')).toBe(false)
     expect(adressePlausible('ana @exemple.fr')).toBe(false)
+  })
+})
+
+describe('l’écran de connexion dans l’app d’un iPhone ou d’un iPad', () => {
+  const invoke = vi.fn()
+  const CODE = { device_code: 'dev-1', user_code: 'ABCD2345', verification_uri: 'x', verification_uri_complete: 'x', expires_in: 600, interval: 1 }
+  const FEUILLE = 'http://localhost:3000/bureau/autoriser?user_code=ABCD2345&retour=app'
+  /** Les fois où la page a demandé la feuille de connexion d'iOS. */
+  const feuilles = () => invoke.mock.calls.filter((c) => c[0] === 'plugin:appareil|connexion_web')
+  /** De quoi fermer chaque feuille ouverte, dans l'ordre : sa promesse reste ouverte sinon. */
+  let fermer: ((issue: 'autorise' | 'annule') => void)[]
+  type Fenetre = { __TAURI_INTERNALS__?: unknown; __NOTAK_PLATEFORME__?: string }
+
+  beforeEach(() => {
+    fermer = []
+    invoke.mockReset().mockImplementation((commande: string) =>
+      commande === 'plugin:appareil|connexion_web' ? new Promise((fin) => fermer.push((issue) => fin({ issue }))) : Promise.resolve(undefined),
+    )
+    const w = window as unknown as Fenetre
+    w.__TAURI_INTERNALS__ = { invoke }
+    w.__NOTAK_PLATEFORME__ = 'ios'
+    vi.stubGlobal('open', vi.fn())
+    reponses['/api/auth/device/code'] = () => Response.json(CODE)
+    reponses['/api/auth/device/token'] = () => new Response(JSON.stringify({ error: 'authorization_pending' }), { status: 400 })
+  })
+  afterEach(() => {
+    const w = window as unknown as Fenetre
+    delete w.__TAURI_INTERNALS__
+    delete w.__NOTAK_PLATEFORME__
+    vi.useRealTimers()
+  })
+
+  const avancer = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)))
+  const lancer = async () => {
+    vi.useFakeTimers()
+    await monter()
+    await act(async () => bouton(/Se connecter dans le navigateur/).click())
+    await avancer(0)
+  }
+  const sondages = () => appels.filter((a) => a === '/api/auth/device/token').length
+
+  it('la page d’accord s’ouvre dans la feuille de connexion d’iOS, pas dans Safari, et l’écran du code reste derrière', async () => {
+    await lancer()
+    expect(feuilles()).toEqual([['plugin:appareil|connexion_web', { adresse: FEUILLE }, undefined]])
+    expect(invoke.mock.calls.some((c) => c[0] === 'ouvrir_dans_le_navigateur')).toBe(false)
+    expect(hote.querySelector('h1')?.textContent).toBe('Terminez la connexion')
+    expect(hote.querySelector('.connexion-code-valeur')?.textContent).toBe('ABCD 2345')
+    expect(hote.textContent).toContain('La page de connexion de localhost:3000 s’ouvre par-dessus l’app.')
+    expect(hote.textContent).not.toContain('Si votre navigateur ne s’est pas ouvert')
+    // L'accord donné, la feuille se ferme seule ; l'attente continue, la session arrive par le code.
+    await act(async () => fermer[0]!('autorise'))
+    const avant = sondages()
+    await avancer(1000)
+    expect(sondages()).toBeGreaterThan(avant)
+    expect(hote.querySelector('[role=alert]')).toBeNull()
+  })
+
+  it('la feuille fermée avant la fin arrête la demande ; « Réessayer » demande un autre code et la rouvre', async () => {
+    await lancer()
+    await act(async () => fermer[0]!('annule'))
+    expect(hote.querySelector('[role=alert]')?.textContent).toBe('La page de connexion a été fermée avant la fin.')
+    const avant = sondages()
+    await avancer(5000)
+    expect(sondages()).toBe(avant)
+    await act(async () => bouton(/^Réessayer$/).click())
+    await avancer(0)
+    expect(appels.filter((a) => a === '/api/auth/device/code')).toHaveLength(2)
+    expect(feuilles()).toHaveLength(2)
+  })
+
+  it('« Rouvrir » remplace la feuille : l’ancienne, fermée, n’arrête rien', async () => {
+    await lancer()
+    await act(async () => bouton(/Rouvrir la page de connexion/).click())
+    expect(feuilles()).toHaveLength(2)
+    await act(async () => fermer[0]!('annule'))
+    expect(hote.querySelector('[role=alert]')).toBeNull()
+    expect(hote.querySelector('.connexion-code-valeur')?.textContent).toBe('ABCD 2345')
+  })
+
+  it('une coque d’avant la feuille ouvre Safari, comme avant', async () => {
+    invoke.mockImplementation((commande: string) => (commande === 'plugin:appareil|connexion_web' ? Promise.reject(new Error('inconnue')) : Promise.resolve(undefined)))
+    await lancer()
+    expect(invoke).toHaveBeenCalledWith('ouvrir_dans_le_navigateur', { adresse: 'http://localhost:3000/bureau/autoriser?user_code=ABCD2345' }, undefined)
   })
 })

@@ -122,5 +122,16 @@
 			<string>Any</string>
 		</dict>
 	</dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>app.notak.bureau</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>notak</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

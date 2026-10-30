@@ -1,5 +1,5 @@
 "$schema" = "schemas/schema.json"
 
 [default]
-description = "Ce que la page embarquée peut demander à l'appareil : savoir sur quoi elle tourne, régler le thème de la vue native, photographier la fenêtre pour un signalement, un retour haptique, partager un fichier par la feuille du système, et écouter le clavier."
-permissions = ["allow-infos", "allow-regler-theme", "allow-capturer-fenetre", "allow-haptique", "allow-partager", "allow-register-listener", "allow-remove-listener"]
+description = "Ce que la page embarquée peut demander à l'appareil : savoir sur quoi elle tourne, régler le thème de la vue native, photographier la fenêtre pour un signalement, un retour haptique, partager un fichier par la feuille du système, ouvrir la page d'accord d'une connexion dans la feuille de connexion d'iOS, et écouter le clavier."
+permissions = ["allow-infos", "allow-regler-theme", "allow-capturer-fenetre", "allow-haptique", "allow-partager", "allow-connexion-web", "allow-register-listener", "allow-remove-listener"]

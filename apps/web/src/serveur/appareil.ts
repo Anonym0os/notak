@@ -23,8 +23,8 @@ const RALENTIR_MS = 5_000
 /** Des essais qui échouent d'affilée, coupure ou serveur en panne, avant de renoncer. */
 const ECHECS_MAX = 4
 
-/** Pourquoi la demande n'a pas pu se faire, ou a été interrompue. */
-export type CauseEchec = 'reseau' | 'ancien' | 'trop_d_essais' | 'serveur' | 'session'
+/** Pourquoi la demande n'a pas pu se faire, ou a été interrompue (`ferme` : la feuille de connexion d'iOS fermée). */
+export type CauseEchec = 'reseau' | 'ancien' | 'trop_d_essais' | 'serveur' | 'session' | 'ferme'
 
 export type EtatAppareil =
   /** Le code se demande. */
@@ -53,6 +53,30 @@ export interface Appareil {
   rouvrir(): void
   /** Arrête sans rien dire : on ne parle plus au serveur, le code se périmera tout seul. */
   annuler(): void
+}
+
+/** L'adresse qui ramène l'app iOS au premier plan : elle déclare le schéma `notak` (`Info.ios.plist`), sans plus. */
+export const RETOUR_APP_IOS = 'notak://'
+/** Où la page d'accord renvoie, l'accord donné, quand l'app l'a ouverte dans sa feuille de connexion : la feuille se ferme. */
+export const FIN_FEUILLE_IOS = 'notak://autorise'
+
+/** La page d'accord, telle que l'app iOS l'ouvre dans sa feuille de connexion : `retour=app` lui dit d'y renvoyer. */
+export function lienPourLaFeuille(lien: string): string {
+  const u = new URL(lien)
+  u.searchParams.set('retour', 'app')
+  return u.href
+}
+
+/** La page d'accord est dans la feuille de connexion de l'app iOS (`lienPourLaFeuille`), pas dans un navigateur. */
+export const ouverteParLApp = (recherche: string = location.search): boolean => new URLSearchParams(recherche).get('retour') === 'app'
+
+/**
+ * La page est lue sur un iPhone ou un iPad, où l'app a ouvert Safari et où `notak://` la ramène. Un iPad se dit
+ * Macintosh, mais un Macintosh n'a pas d'écran tactile.
+ */
+export function navigateurIos(nav: { userAgent?: string; maxTouchPoints?: number } = navigator): boolean {
+  const ua = nav.userAgent ?? ''
+  return /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && (nav.maxTouchPoints ?? 0) > 1)
 }
 
 /** Le code tel qu'on le montre : par groupes de quatre, pour le comparer d'un coup d'œil. */

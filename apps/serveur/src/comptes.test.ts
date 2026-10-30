@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { agentAuDoigt } from './accueil.ts'
 import { creerAuth } from './auth.ts'
 import { type Base, DUREE_INVITATION_MS, ouvrirBase } from './base.ts'
 import { COULEURS, activerInvitations } from './comptes.ts'
@@ -56,6 +57,46 @@ describe('inscription', () => {
     expect(b!.elements).toHaveLength(a!.elements.length)
     expect(JSON.stringify(b!.elements)).toContain('Welcome to Notak')
     expect(JSON.stringify(a!.elements)).toContain('Bienvenue sur Notak')
+  })
+
+  it('l’accueil d’un compte créé depuis un téléphone présente les gestes au doigt ; depuis un ordinateur, ceux de la souris', async () => {
+    const base = neuf()
+    const auth = authEssai(base)
+    // Par la route, comme le navigateur : c'est l'agent utilisateur de la requête qui crée le compte qui décide.
+    const inscrireDepuis = async (agent: string, email: string, langue: 'fr' | 'en' = 'fr') => {
+      const r = await auth.handler(
+        new Request(`${ORIGINE_ESSAI}/api/auth/sign-up/email`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', origin: ORIGINE_ESSAI, 'user-agent': agent },
+          body: JSON.stringify({ email, password: 'motdepasse', name: 'Ana', langue }),
+        }),
+      )
+      expect(r.status).toBe(200)
+      const u = base.utilisateurParEmail(email)!
+      return JSON.stringify(lireEtat(base.document(nomDuDocument(u.racine))!).elements)
+    }
+    const iphone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'
+    const android = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36'
+    const mac = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15'
+
+    const auDoigt = await inscrireDepuis(iphone, 'ana@exemple.fr')
+    expect(auDoigt).toContain('Touchez deux fois le vide')
+    expect(auDoigt).toContain('La roue, en haut à droite, règle le thème, la taille, votre photo et votre couleur.')
+    expect(auDoigt).not.toMatch(/Cmd|Double-cliquez|Tapez \/|depuis votre bureau/)
+    // Ce qui n'est qu'au serveur reste : le partage.
+    expect(auDoigt).toContain('Le bouton Partager')
+    expect(await inscrireDepuis(android, 'bob@exemple.fr', 'en')).toContain('Tap twice on empty space')
+    const souris = await inscrireDepuis(mac, 'cleo@exemple.fr')
+    expect(souris).toContain('Double-cliquez sur le vide')
+    expect(souris).not.toContain('Touchez')
+  })
+
+  it('reconnaît un téléphone ou une tablette à l’agent utilisateur', () => {
+    expect(agentAuDoigt('Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148')).toBe(true)
+    expect(agentAuDoigt('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0 Safari/537.36')).toBe(false)
+    // La commande `serveur:compte` et les appels sans en-têtes : un accueil à la souris.
+    expect(agentAuDoigt(undefined)).toBe(false)
+    expect(agentAuDoigt(null)).toBe(false)
   })
 
   it('deux comptes n’ont aucun identifiant d’élément en commun', async () => {
