@@ -4,7 +4,7 @@ import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { Surcouche } from './elements/surcouche'
 import { lireReglages, useReglages } from './reglages'
-import { themeEffectif, useSombre, useSystemeSombre } from './themeVivant'
+import { themeEffectif, useSombre, useSystemeSombre, useThemeALaRacine } from './themeVivant'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -111,6 +111,19 @@ describe('le thème de l’espace, suivi en direct', () => {
       await Promise.resolve()
     })
     expect(surcouche()?.getAttribute('data-theme')).toBe('sombre')
+  })
+})
+
+describe('le thème sur la racine du document', () => {
+  it('suit le thème affiché : la bibliothèque posée sur la toile et la coque iOS le lisent là', () => {
+    function Hote({ theme }: { theme: 'clair' | 'sombre' }) {
+      useThemeALaRacine(theme)
+      return null
+    }
+    act(() => racine.render(<Hote theme="clair" />))
+    expect(document.documentElement.dataset.theme).toBe('clair')
+    act(() => racine.render(<Hote theme="sombre" />))
+    expect(document.documentElement.dataset.theme).toBe('sombre')
   })
 })
 

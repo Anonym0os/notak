@@ -37,3 +37,13 @@ export function useSombre(ref: RefObject<Element | null>, selecteur = '.notak-es
   }, [ref, selecteur])
   return sombre
 }
+
+/**
+ * Le thème affiché, posé aussi sur la racine du document : le fond de la page (`html[data-theme]`), la bibliothèque
+ * posée sur la toile, et la coque iOS (sa vue native, sa barre d'état : `ios/demarrage.ts`) le lisent là.
+ */
+export function useThemeALaRacine(theme: 'clair' | 'sombre') {
+  useLayoutEffect(() => {
+    document.documentElement.dataset.theme = theme
+  }, [theme])
+}

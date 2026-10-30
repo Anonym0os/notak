@@ -247,7 +247,15 @@ type ProprietesBibliotheque = Parameters<typeof BibliothequeBureau>[0] & {
 export function PageBibliotheque({ avatar, ...proprietes }: ProprietesBibliotheque) {
   if (!useAuTelephone()) return <BibliothequeBureau {...proprietes} />
   const { charger = lireBibliotheque, espace, creer = creerDansLEspace(espace) } = proprietes
-  return <BibliothequeTelephone charger={charger} {...(espace ? { espace } : {})} creer={(genre) => creer(genre)} avatar={avatar} />
+  return (
+    <BibliothequeTelephone
+      charger={charger}
+      {...(espace ? { espace } : {})}
+      creer={(genre) => creer(genre)}
+      avatar={avatar}
+      {...(proprietes.fenetres ? { reglages: proprietes.fenetres.reglages } : {})}
+    />
+  )
 }
 
 function BibliothequeBureau({

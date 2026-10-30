@@ -146,3 +146,46 @@ describe('l’édition locale dans l’app de bureau', () => {
     expect(invoke.mock.calls.some((c) => c[0] === 'plugin:event|listen')).toBe(true)
   })
 })
+
+describe('l’édition locale au téléphone : l’app s’ouvre sur la bibliothèque', () => {
+  /** Un téléphone (au doigt et étroit), ou un ordinateur. */
+  const ecran = (telephone: boolean) =>
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: telephone && q.includes('coarse'), media: q, addEventListener() {}, removeEventListener() {} }))
+  afterEach(() => history.replaceState(null, '', '/'))
+
+  it('sans adresse précise, la bibliothèque, l’accueil en vedette ; le mot de la première visite attend la toile', async () => {
+    ecran(true)
+    localStorage.removeItem('notak:local:accueilli')
+    history.replaceState(null, '', '/')
+    const { racine } = await demarrer()
+    await vi.waitFor(() => expect(racine.querySelector('.biblio-locale-vedette')).not.toBeNull())
+    expect(location.pathname).toBe('/toiles')
+    expect(racine.querySelector('.bandeau')).toBeNull()
+    // L'accueil touché s'ouvre par-dessus : la bibliothèque s'efface, le mot de la première visite vient.
+    await act(async () => racine.querySelector<HTMLButtonElement>('.biblio-locale-vedette')!.click())
+    expect(location.pathname).toBe('/')
+    expect(racine.querySelector('.biblio-locale')).toBeNull()
+    expect(racine.querySelector('.bandeau')?.textContent).toContain('Vos toiles restent')
+    // Le retour y ramène.
+    history.back()
+    await vi.waitFor(() => expect(racine.querySelector('.biblio-locale')).not.toBeNull())
+  })
+
+  it('une adresse précise ouvre sa toile, pas la bibliothèque', async () => {
+    ecran(true)
+    history.replaceState(null, '', '/t/voyage')
+    const { racine } = await demarrer()
+    await attendre(50)
+    expect(racine.querySelector('.biblio-locale')).toBeNull()
+    expect(location.pathname).toBe('/t/voyage')
+  })
+
+  it('sur un ordinateur, `/` ouvre la toile d’accueil, comme avant', async () => {
+    ecran(false)
+    history.replaceState(null, '', '/')
+    const { racine } = await demarrer()
+    await attendre(50)
+    expect(racine.querySelector('.biblio-locale')).toBeNull()
+    expect(location.pathname).toBe('/')
+  })
+})

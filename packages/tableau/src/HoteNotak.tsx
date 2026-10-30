@@ -7,7 +7,7 @@ import { useLangue } from './langue'
 import { FenetreRaccourcis } from './Menus'
 import { PageReglages } from './PageReglages'
 import { type ServiceCompte, useReglages } from './reglages'
-import { themeEffectif, useSystemeSombre } from './themeVivant'
+import { themeEffectif, useSystemeSombre, useThemeALaRacine } from './themeVivant'
 
 /** Ce qu'un écran hors de la toile peut ouvrir : les réglages et la fenêtre des raccourcis, les mêmes que sur la toile. */
 export interface FenetresNotak {
@@ -32,6 +32,7 @@ export function HoteNotak({
 }) {
   const [reglages, changer] = useReglages()
   const theme = themeEffectif(reglages.theme, useSystemeSombre())
+  useThemeALaRacine(theme)
   const habillages = useHabillages(offre, reglages.habillage, theme)
   useLangue()
   const [ouverte, setOuverte] = useState<'reglages' | 'aide' | null>(null)

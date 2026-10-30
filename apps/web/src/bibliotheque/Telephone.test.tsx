@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EntreeBibliotheque } from '../api'
 import { PageBibliotheque } from '../Bibliotheque'
 import { Surligne } from './AuDoigt'
+import { CLE_BIENVENUE_SERVEUR } from './Telephone'
 import type { EspaceRangement } from './actions'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -64,12 +65,14 @@ describe('la bibliothèque d’un serveur au téléphone', () => {
     vi.unstubAllGlobals()
   })
 
+  const fenetres = { reglages: vi.fn(), aide: vi.fn() }
   const ouvrir = async (creer?: Parameters<typeof PageBibliotheque>[0]['creer']) => {
     await act(async () =>
       racine.render(
         <PageBibliotheque
           charger={async () => TOUTES}
           espace={espace}
+          fenetres={fenetres}
           compte={<button type="button" className="essai-cloche" />}
           avatar={<button type="button" className="essai-avatar" />}
           {...(creer ? { creer } : {})}
@@ -80,14 +83,14 @@ describe('la bibliothèque d’un serveur au téléphone', () => {
   const filtre = (nom: string) => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-locale-filtre')].find((b) => b.textContent?.startsWith(nom))!
   const titresDe = (selecteur: string) => [...hote.querySelectorAll(`${selecteur} .biblio-locale-titre`)].map((n) => n.textContent)
 
-  it('prend la forme de la bibliothèque de l’appareil : grand titre, « + » et pastille du compte seule, récents, puis tout par genre', async () => {
+  it('prend la forme de la bibliothèque de l’appareil : grand titre, réglages, compte et « + », récents, puis tout par genre', async () => {
     await ouvrir()
     expect(hote.querySelector('.biblio-colonne')).toBeNull()
     expect(hote.querySelector('.biblio-telephone h1')!.textContent).toBe('Bibliothèque')
     const actions = hote.querySelector('.biblio-locale-actions')!
-    expect(actions.querySelector('.biblio-locale-plus')).not.toBeNull()
+    expect([...actions.children].map((n) => n.className)).toEqual(['biblio-locale-reglages', 'biblio-locale-avatar', 'biblio-locale-plus'])
     expect(actions.querySelector('.essai-avatar')).not.toBeNull()
-    // Ni cloche, ni insecte, ni réglages : la barre du bureau reste au bureau.
+    // Ni cloche, ni insecte : la barre du bureau reste au bureau.
     expect(hote.querySelector('.essai-cloche')).toBeNull()
     expect(titresDe('.biblio-locale-rangee')).toEqual(['Budget', 'Voyage', 'Plan'])
     const toiles = hote.querySelector('#biblio-tel-toiles')!.closest('section')!
@@ -147,13 +150,39 @@ describe('la bibliothèque d’un serveur au téléphone', () => {
     expect(hote.querySelector('.biblio-locale-filtres')).not.toBeNull()
   })
 
-  it('sur un ordinateur, la page du bureau ne change pas', async () => {
+  it('la roue ouvre les réglages, les mêmes que ceux de la toile', async () => {
+    fenetres.reglages.mockClear()
+    await ouvrir()
+    const roue = hote.querySelector<HTMLButtonElement>('.biblio-locale-actions .biblio-locale-reglages')!
+    expect(roue.getAttribute('aria-label')).toBe('Réglages')
+    act(() => roue.click())
+    expect(fenetres.reglages).toHaveBeenCalledOnce()
+  })
+
+  it('au premier passage, une carte de bienvenue ; « C’est parti » ouvre l’accueil, et elle ne revient plus', async () => {
+    localStorage.removeItem(CLE_BIENVENUE_SERVEUR)
+    await ouvrir()
+    const carte = hote.querySelector('.biblio-bienvenue')!
+    expect(carte.querySelector('h2')!.textContent).toBe('Vos toiles sur ce serveur')
+    expect(carte.querySelectorAll('li')).toHaveLength(3)
+    act(() => carte.querySelector<HTMLButtonElement>('.biblio-bienvenue-partir')!.click())
+    expect(location.pathname).toBe('/t/racine')
+    act(() => racine.unmount())
+    racine = createRoot(hote)
+    await ouvrir()
+    expect(hote.querySelector('.biblio-bienvenue')).toBeNull()
+  })
+
+  it('sur un ordinateur, la page du bureau ne change pas : ni roue ronde, ni carte de bienvenue', async () => {
+    localStorage.removeItem(CLE_BIENVENUE_SERVEUR)
     ecran(false)
     await ouvrir()
     expect(hote.querySelector('.biblio-telephone')).toBeNull()
     expect(hote.querySelector('.biblio-colonne')).not.toBeNull()
     expect(hote.querySelector('.essai-cloche')).not.toBeNull()
     expect(hote.querySelector('.essai-avatar')).toBeNull()
+    expect(hote.querySelector('.biblio-locale-reglages')).toBeNull()
+    expect(hote.querySelector('.biblio-bienvenue')).toBeNull()
   })
 })
 
