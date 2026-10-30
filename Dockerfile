@@ -29,7 +29,7 @@ COPY packages/tableau/package.json packages/tableau/
 # Le dossier du serveur ne garde que les versions en conflit avec celles du haut : il peut rester vide.
 RUN bun install --frozen-lockfile --production --linker hoisted --filter @notak/serveur && mkdir -p apps/serveur/node_modules
 
-FROM node:24-slim@sha256:55fb5f5a527ea2c5c4a95f963e48ef90aa38c7b346054fdc8ee9957a2b55d205
+FROM node:25-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370
 # Le numéro que porte l'image, donné par la publication (`--build-arg NOTAK_VERSION=0.2.0`) ; « dev » pour une image
 # construite à la main. Le serveur, lui, dit le sien (`GET /api/sante`), tiré du code.
 ARG NOTAK_VERSION=dev
