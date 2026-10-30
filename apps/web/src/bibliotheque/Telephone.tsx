@@ -4,13 +4,14 @@ import type { EntreeBibliotheque } from '../api'
 import { RUBRIQUES, type Rubrique, adresseDe, entreesDe, filtrer, rubriqueDeLAdresse } from '../Bibliotheque'
 import { allerA } from '../chemin'
 import { t } from '../langue'
-import { BoutonPlus, ChoixCreation, EnteteDoigt, LigneDoigt, RubriqueDoigt, TuileDoigt, quand } from './AuDoigt'
+import { BoutonPlus, BoutonReglages, CarteBienvenue, ChoixCreation, EnteteDoigt, LigneDoigt, RubriqueDoigt, TuileDoigt, quand, useBienvenue } from './AuDoigt'
 import type { EspaceRangement } from './actions'
 import { cleDe } from './selection'
 
 /**
  * La bibliothèque d'un serveur au téléphone, sur le modèle de celle de l'appareil (`local/BibliothequeLocale.tsx`) : le
- * grand titre, le « + » et la pastille du compte en haut à droite, la recherche ; puis une rangée qui glisse au doigt,
+ * grand titre, la roue des réglages, la pastille du compte et le « + » en haut à droite, la recherche ; au premier
+ * passage, une carte de bienvenue ; puis une rangée qui glisse au doigt,
  * la toile d'accueil (l'espace) et les filtres ; puis les récents en rangée, et tout le reste en grilles de deux, par
  * genre, quatre de chaque avant « Tout voir ». Les données sont celles de la page du bureau ; ni tri, ni sélection, ni
  * glisser : au doigt, on parcourt et on ouvre.
@@ -27,11 +28,15 @@ const GENRES = [
 
 const titreDe = (e: EntreeBibliotheque) => e.titre || t('commun.sansTitre')
 
+/** La carte de bienvenue du serveur, fermée une fois pour toutes (le stockage est déjà celui de ce serveur). */
+export const CLE_BIENVENUE_SERVEUR = 'notak:serveur:bienvenue'
+
 export function BibliothequeTelephone({
   charger,
   espace,
   creer,
   avatar,
+  reglages,
 }: {
   charger(): Promise<EntreeBibliotheque[]>
   espace?: EspaceRangement
@@ -39,6 +44,8 @@ export function BibliothequeTelephone({
   creer(genre: GenreNeuf): Promise<{ tableau: string; element: string | null }>
   /** La pastille du compte, qui ouvre sa feuille. */
   avatar?: ReactNode
+  /** La roue : les réglages, les mêmes que ceux de la toile. */
+  reglages?(): void
 }) {
   const [toutes, setToutes] = useState<EntreeBibliotheque[] | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
@@ -50,6 +57,7 @@ export function BibliothequeTelephone({
   const [creation, setCreation] = useState(false)
   const [ouvertes, setOuvertes] = useState<ReadonlySet<Rubrique>>(new Set())
   const page = useRef<HTMLDivElement>(null)
+  const [bienvenue, fermerBienvenue] = useBienvenue(CLE_BIENVENUE_SERVEUR)
   const titreAccueil = useSyncExternalStore(espace?.ecouter ?? (() => () => {}), () => (espace ? espace.tableau(espace.racine)?.titre : '') ?? '')
 
   /** Sous la tuile : la toile qui la porte, sauf l'accueil, qui porte tout ; sinon quand on l'a ouverte. */
@@ -194,8 +202,9 @@ export function BibliothequeTelephone({
         titre={t('biblio.titre')}
         actions={
           <>
-            {espace && <BoutonPlus onClick={() => setFeuille(true)} />}
+            {reglages && <BoutonReglages onClick={reglages} />}
             {avatar && <span className="biblio-locale-avatar">{avatar}</span>}
+            {espace && <BoutonPlus onClick={() => setFeuille(true)} />}
           </>
         }
         requete={requete}
@@ -208,6 +217,18 @@ export function BibliothequeTelephone({
         resultats()
       ) : (
         <>
+          {bienvenue && (
+            <CarteBienvenue
+              titre={t('biblio.bienvenue.serveur.titre')}
+              lignes={[
+                ...(accueil ? [{ icone: 'maison' as const, texte: t('biblio.bienvenue.serveur.accueil') }] : []),
+                ...(espace ? [{ icone: 'ajouter' as const, texte: t('biblio.bienvenue.creer') }] : []),
+                ...(avatar ? [{ icone: 'compte' as const, texte: t('biblio.bienvenue.serveur.compte') }] : []),
+              ]}
+              partir={() => accueil && allerA(accueil)}
+              fermer={fermerBienvenue}
+            />
+          )}
           <nav className="biblio-locale-filtres" aria-label={t('biblio.telephone.filtres')}>
             {accueil && (
               <button type="button" className="biblio-locale-filtre" data-espace onClick={() => allerA(accueil)}>

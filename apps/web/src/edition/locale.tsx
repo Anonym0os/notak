@@ -1,4 +1,4 @@
-import { BullesDecouverte, type CouleurNote, auDoigt, EspaceNotak, type Id, ErreurNotak, type Services, TYPE_NOTAK } from '@notak/tableau'
+import { BullesDecouverte, type CouleurNote, auDoigt, demanderReglages, EspaceNotak, type Id, ErreurNotak, type Services, TYPE_NOTAK } from '@notak/tableau'
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
 import { adressePour } from '../adresse'
@@ -28,6 +28,7 @@ import { fichiersLocaux } from '../local/fichiers'
 import { PageDiagnostic } from '../ios/PageDiagnostic'
 import { Rangement } from '../local/Rangement'
 import { BibliothequeLocale, noterVu } from '../local/BibliothequeLocale'
+import { auTelephone } from '../bibliotheque/AuDoigt'
 import { initialiserSynchro } from '../local/synchro'
 import { useBandeau } from '../bandeaux'
 
@@ -96,8 +97,9 @@ function Espace({ el }: { el: EspaceLocal }) {
   const ouvrirTableau = useRef<(id: Id) => void>(() => {})
 
   // Au doigt, la bibliothèque des toiles de l'appareil (`/toiles`), posée sur la toile ouverte : le retour y ramène.
+  // Au téléphone, l'app s'ouvre sur elle (`ouvrirSurLaBibliotheque`).
   const avecBibliotheque = estMobile() || auDoigt()
-  const [biblio, setBiblio] = useState(() => avecBibliotheque && location.pathname === '/toiles')
+  const [biblio, setBiblio] = useState(() => avecBibliotheque && (location.pathname === '/toiles' || ouvrirSurLaBibliotheque()))
   useEffect(() => {
     if (!avecBibliotheque) return
     const suivre = () => setBiblio(location.pathname === '/toiles')
@@ -174,13 +176,18 @@ function Espace({ el }: { el: EspaceLocal }) {
         const r = await rouvrirCopie(el, octets, courant.current)
         // La copie est devenue l'accueil : on repart d'elle.
         if (r.accueil) {
-          // Le temps qu'IndexedDB ait tout écrit, puis l'on repart de l'accueil neuf.
+          // Le temps qu'IndexedDB ait tout écrit, puis l'on repart de l'accueil neuf : sa toile, même au téléphone, où
+          // `/` ouvrirait la bibliothèque.
           await new Promise((fin) => setTimeout(fin, 300))
-          location.assign('/')
+          location.assign(auTelephone() ? `/t/${encodeURIComponent(r.tete)}` : '/')
           return 'recharge'
         }
         dire(r.fusion ? tn('local.rouvertFusion', r.tableaux) : tn('local.rouvert', r.tableaux))
-        if (!r.fusion) ouvrirTableau.current(r.tete)
+        // La copie rouverte se montre : la bibliothèque, si elle était là, s'efface devant elle.
+        if (!r.fusion) {
+          setBiblio(false)
+          ouvrirTableau.current(r.tete)
+        }
       } catch (e) {
         alerter(e instanceof ErreurNotak ? t('local.pasUneCopie') : t('local.rouvrirImpossible'))
       }
@@ -272,8 +279,9 @@ function Espace({ el }: { el: EspaceLocal }) {
           )
         }}
       />
-      {biblio && <BibliothequeLocale el={el} ouvrir={ouvrirDepuisBibliotheque} />}
-      <Accueil el={el} />
+      {biblio && <BibliothequeLocale el={el} ouvrir={ouvrirDepuisBibliotheque} reglages={demanderReglages} />}
+      {/* Le mot de la première visite parle de la toile (le dossier de sa barre) : il attend qu'on y soit. */}
+      {!biblio && <Accueil el={el} />}
       <BandeauRecu index={index} tableau={ouvert} />
       <BandeauMiseAJour />
       <BandeauNouvelleVersion />
@@ -286,6 +294,17 @@ function Espace({ el }: { el: EspaceLocal }) {
       )}
     </>
   )
+}
+
+/**
+ * Au téléphone, sans adresse précise (`/`, le lancement de l'app), on arrive sur la bibliothèque, la toile d'accueil
+ * en vedette : l'adresse devient `/toiles`, et la toile qu'on y touche s'empile dessus, que le retour défait. Une
+ * adresse précise (`/t/<id>`, un lien, une copie rouverte) ouvre toujours sa toile.
+ */
+function ouvrirSurLaBibliotheque(): boolean {
+  if (location.pathname !== '/' || !auTelephone()) return false
+  history.replaceState(null, '', `/toiles${location.search}${location.hash}`)
+  return true
 }
 
 /** Dit à l'application quel tableau est ouvert : `actions` ne reçoit que cela, pendant le rendu de la toile. */

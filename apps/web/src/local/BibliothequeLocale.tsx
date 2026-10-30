@@ -15,7 +15,20 @@ import {
   tn,
 } from '@notak/tableau'
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { BoutonPlus, ChoixCreation, EnteteDoigt, LigneDoigt as Ligne, RubriqueDoigt, Surligne, TuileDoigt, quand } from '../bibliotheque/AuDoigt'
+import {
+  BoutonPlus,
+  BoutonReglages,
+  CarteBienvenue,
+  ChoixCreation,
+  EnteteDoigt,
+  LigneDoigt as Ligne,
+  RubriqueDoigt,
+  Surligne,
+  TuileDoigt,
+  quand,
+  useAuTelephone,
+  useBienvenue,
+} from '../bibliotheque/AuDoigt'
 import { Vignette } from '../bibliotheque/Vignettes'
 import { peutJoindreUnServeur } from '../bureau'
 import { CompteEtServeur, RondCompte } from '../bureau/CompteEtServeur'
@@ -24,13 +37,17 @@ import { type EspaceLocal, rechercherLocalement } from './espace'
 /**
  * La bibliothèque de l'édition locale, celle de l'app iPhone : la page où l'on arrive. En tête, la toile d'accueil,
  * qui porte tout le reste ; puis ce qu'on a ouvert récemment, en rangée qui glisse ; puis les toiles, les cartes
- * mentales et les documents de l'appareil, quatre de chaque, le reste sur « Tout voir ». Le « + » du haut crée ; à côté,
- * dans l'app, le rond du compte ouvre la feuille où l'on rejoint un serveur Notak. La recherche replie le grand titre
- * comme celle des Notes d'iOS. Elle s'ouvre par la maison de l'en-tête (`/toiles`) et se quitte en ouvrant ce qu'on
- * touche, ou par le retour. Ses pièces sont celles de toute bibliothèque au doigt (`bibliotheque/AuDoigt.tsx`).
+ * mentales et les documents de l'appareil, quatre de chaque, le reste sur « Tout voir ». En haut à droite, la roue
+ * des réglages, le rond du compte (dans l'app, la feuille où l'on rejoint un serveur Notak) et le « + » qui crée. La
+ * recherche replie le grand titre comme celle des Notes d'iOS. Au téléphone, l'app s'ouvre ici, et la première fois
+ * une carte de bienvenue dit où toucher. Elle s'ouvre aussi par la maison de l'en-tête (`/toiles`) et se quitte en
+ * ouvrant ce qu'on touche, ou par le retour. Ses pièces sont celles de toute bibliothèque au doigt
+ * (`bibliotheque/AuDoigt.tsx`).
  */
 
 const CLE_VUS = 'notak:local:vus'
+/** La carte de bienvenue, fermée une fois pour toutes. */
+export const CLE_BIENVENUE = 'notak:local:bienvenue'
 
 /** Quand chaque toile (son id) ou chaque élément (`toile/e/élément`) a été ouvert pour la dernière fois ici (ms). */
 export function lireVus(): Record<string, number> {
@@ -158,7 +175,16 @@ function useTheme(): string | undefined {
   )
 }
 
-export function BibliothequeLocale({ el, ouvrir }: { el: EspaceLocal; ouvrir(tableau: Id, element?: Id | null): void }) {
+export function BibliothequeLocale({
+  el,
+  ouvrir,
+  reglages,
+}: {
+  el: EspaceLocal
+  ouvrir(tableau: Id, element?: Id | null): void
+  /** La roue : les réglages de la toile ouverte dessous. */
+  reglages(): void
+}) {
   const { index, reseau, espace } = el
   const theme = useTheme()
   const [toiles, setToiles] = useState(() => index.lister())
@@ -170,6 +196,9 @@ export function BibliothequeLocale({ el, ouvrir }: { el: EspaceLocal; ouvrir(tab
   const [compte, setCompte] = useState(false)
   const [ouvertes, setOuvertes] = useState<ReadonlySet<GenreNeuf>>(new Set())
   const racine = index.racine()
+  const [bienvenue, fermerBienvenue] = useBienvenue(CLE_BIENVENUE)
+  const auTelephone = useAuTelephone()
+  const avecCompte = peutJoindreUnServeur()
 
   // Les résumés (vignettes, cartes et documents portés) se lisent un à un dans IndexedDB, sans retenir l'affichage.
   useEffect(() => {
@@ -238,12 +267,13 @@ export function BibliothequeLocale({ el, ouvrir }: { el: EspaceLocal; ouvrir(tab
         titre={t('biblio.titre')}
         actions={
           <>
-            <BoutonPlus onClick={() => setCreation(true)} />
-            {peutJoindreUnServeur() && (
+            <BoutonReglages onClick={reglages} />
+            {avecCompte && (
               <button type="button" className="biblio-locale-compte-bouton" aria-label={t('compteServeur.titre')} aria-haspopup="dialog" onClick={() => setCompte(true)}>
                 <RondCompte taille={34} />
               </button>
             )}
+            <BoutonPlus onClick={() => setCreation(true)} />
           </>
         }
         requete={requete}
@@ -264,6 +294,18 @@ export function BibliothequeLocale({ el, ouvrir }: { el: EspaceLocal; ouvrir(tab
         />
       ) : (
         <>
+          {bienvenue && auTelephone && accueil && (
+            <CarteBienvenue
+              titre={t('biblio.bienvenue.titre')}
+              lignes={[
+                { icone: 'maison', texte: t('biblio.bienvenue.accueil') },
+                { icone: 'ajouter', texte: t('biblio.bienvenue.creer') },
+                avecCompte ? { icone: 'compte', texte: t('biblio.bienvenue.compte') } : { icone: 'reglages', texte: t('biblio.bienvenue.reglages') },
+              ]}
+              partir={() => aller(accueil)}
+              fermer={fermerBienvenue}
+            />
+          )}
           {accueil && (
             <button type="button" className="biblio-locale-vedette" onClick={() => aller(accueil)}>
               <span className="biblio-locale-vedette-plan">

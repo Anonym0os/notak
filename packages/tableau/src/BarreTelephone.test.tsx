@@ -4,7 +4,7 @@ import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { creerEspace } from './coeur/espace'
 import './elements'
-import { EspaceNotak, surplusBarre } from './EspaceNotak'
+import { EspaceNotak, demanderReglages, surplusBarre } from './EspaceNotak'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -83,6 +83,14 @@ describe('la barre du haut au téléphone', () => {
     auDoigt(true)
     rendre()
     act(() => hote.querySelector<HTMLButtonElement>('[data-essai="plus"]')!.click())
+    expect(document.querySelector('.notak-par-dessus')).not.toBeNull()
+  })
+
+  it('un écran posé sur la toile (la bibliothèque) en ouvre les réglages, sans passer par sa barre', () => {
+    auDoigt(true)
+    rendre(false)
+    expect(document.querySelector('.notak-par-dessus')).toBeNull()
+    act(() => demanderReglages())
     expect(document.querySelector('.notak-par-dessus')).not.toBeNull()
   })
 

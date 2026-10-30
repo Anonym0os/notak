@@ -1,11 +1,12 @@
 import { type GenreNeuf, Icone, type NomIcone, type ResumeContenu, normaliser } from '@notak/tableau'
-import { Fragment, type ReactNode, useRef, useSyncExternalStore } from 'react'
+import { Fragment, type ReactNode, useCallback, useRef, useState, useSyncExternalStore } from 'react'
 import { t } from '../langue'
 import { Vignette } from './Vignettes'
 
 /**
  * Les pièces de la bibliothèque au doigt, celle d'un téléphone : le grand titre qui se replie quand on cherche, la
- * tuile et sa vignette, la ligne d'un résultat, la rubrique et son « Tout voir », le choix de ce qu'on crée. La
+ * tuile et sa vignette, la ligne d'un résultat, la rubrique et son « Tout voir », le choix de ce qu'on crée, la roue
+ * des réglages et la carte de bienvenue du premier passage. La
  * bibliothèque de l'appareil (`local/BibliothequeLocale.tsx`) et celle d'un serveur au téléphone
  * (`bibliotheque/Telephone.tsx`) les partagent ; chacune garde ses données. Leur style est celui des classes
  * `biblio-locale-*` (app.css).
@@ -13,6 +14,9 @@ import { Vignette } from './Vignettes'
 
 /** Le téléphone : un écran qu'on touche du doigt, assez étroit pour que menus et panneaux montent en feuille (`enFeuille`). */
 const TELEPHONE = '(pointer: coarse) and (max-width: 640px)'
+
+/** Sommes-nous sur un téléphone, à l'instant ? Sans `matchMedia`, non. */
+export const auTelephone = (): boolean => typeof matchMedia === 'function' && matchMedia(TELEPHONE).matches
 
 /** Sommes-nous sur un téléphone ? Suit l'écran qui tourne ou la fenêtre qu'on élargit. Sans `matchMedia`, non. */
 export function useAuTelephone(): boolean {
@@ -23,7 +27,7 @@ export function useAuTelephone(): boolean {
       m.addEventListener('change', f)
       return () => m.removeEventListener('change', f)
     },
-    () => typeof matchMedia === 'function' && matchMedia(TELEPHONE).matches,
+    auTelephone,
     () => false,
   )
 }
@@ -120,6 +124,15 @@ export function EnteteDoigt({
   )
 }
 
+/** La roue ronde du haut, à gauche du compte et du « + » : les réglages, les mêmes que ceux de la toile. */
+export function BoutonReglages({ onClick }: { onClick(): void }) {
+  return (
+    <button type="button" className="biblio-locale-reglages" aria-label={t('reglages.titre')} aria-haspopup="dialog" onClick={onClick}>
+      <Icone nom="reglages" taille={21} />
+    </button>
+  )
+}
+
 /** Le « + » rond du haut : il ouvre la feuille de ce qu'on crée. */
 export function BoutonPlus({ onClick }: { onClick(): void }) {
   return (
@@ -207,5 +220,69 @@ export function ChoixCreation({ creer, occupe = false }: { creer(genre: GenreNeu
         </button>
       ))}
     </div>
+  )
+}
+
+/**
+ * La carte de bienvenue est-elle encore à montrer ? Fermée, elle ne revient plus : retenue dans le navigateur, comme
+ * les autres préférences d'ici. Sans stockage, on ne la montre pas (elle reviendrait à chaque visite).
+ */
+export function useBienvenue(cle: string): [visible: boolean, fermer: () => void] {
+  const [vue, setVue] = useState(() => {
+    try {
+      return localStorage.getItem(cle) === '1'
+    } catch {
+      return true
+    }
+  })
+  const fermer = useCallback(() => {
+    try {
+      localStorage.setItem(cle, '1')
+    } catch {
+      // Sans stockage, elle se ferme pour la visite.
+    }
+    setVue(true)
+  }, [cle])
+  return [!vue, fermer]
+}
+
+/**
+ * La carte du premier passage, en tête de la bibliothèque, à la façon des astuces d'iOS : un titre, trois lignes et
+ * leurs icônes, de quoi la fermer, et un bouton qui fait le premier pas. Pas de visite en plusieurs écrans.
+ */
+export function CarteBienvenue({
+  titre,
+  lignes,
+  partir,
+  fermer,
+}: {
+  titre: string
+  lignes: readonly { icone: NomIcone; texte: string }[]
+  /** « C'est parti » : la carte se ferme, et ce premier pas se fait (ouvrir la toile d'accueil). */
+  partir(): void
+  fermer(): void
+}) {
+  return (
+    <section className="biblio-bienvenue" aria-labelledby="biblio-bienvenue-titre">
+      <div className="biblio-bienvenue-tete">
+        <h2 id="biblio-bienvenue-titre">{titre}</h2>
+        <button type="button" className="biblio-bienvenue-fermer" aria-label={t('commun.fermer')} onClick={fermer}>
+          <Icone nom="fermer" taille={12} />
+        </button>
+      </div>
+      <ul>
+        {lignes.map((l) => (
+          <li key={l.icone}>
+            <span className="biblio-bienvenue-icone" aria-hidden>
+              <Icone nom={l.icone} taille={18} />
+            </span>
+            <span>{l.texte}</span>
+          </li>
+        ))}
+      </ul>
+      <button type="button" className="biblio-bienvenue-partir" onClick={() => (fermer(), partir())}>
+        {t('biblio.bienvenue.partir')}
+      </button>
+    </section>
   )
 }

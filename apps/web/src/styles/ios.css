@@ -128,11 +128,16 @@ html[data-mobile] a[download] {
 }
 
 /* Sur un téléphone, le bas de l'écran est aux outils (le « + », la bande d'une sélection) : un bandeau se pose en haut,
-   sous la barre de la toile. */
+   sous la barre de la toile, sur toute la largeur. La pile du bas (`bandeaux.ts`) pose `bottom` en ligne : il l'étirait
+   jusqu'en bas, et `left: 50%` le serrait sur une demi-largeur, en colonne d'un mot par ligne. */
 @media (pointer: coarse) and (max-width: 640px) {
   html[data-mobile] .bandeau {
     top: calc(var(--zone-haut) + 76px);
-    bottom: auto;
+    right: calc(var(--notak-zone-droite, 0px) + 12px);
+    bottom: auto !important;
+    left: calc(var(--notak-zone-gauche, 0px) + 12px);
+    max-width: none;
+    transform: none;
   }
 }
 

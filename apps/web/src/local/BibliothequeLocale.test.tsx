@@ -4,7 +4,7 @@ import type { ResumeContenu } from '@notak/tableau'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { BibliothequeLocale, type EntreeLocale, entreesLocales, lireVus, noterVu, ordonner, recents } from './BibliothequeLocale'
+import { BibliothequeLocale, CLE_BIENVENUE, type EntreeLocale, entreesLocales, lireVus, noterVu, ordonner, recents } from './BibliothequeLocale'
 import { acces, poserCoque, retirerCoque } from '../bureau/essai'
 import { espaceLocal } from './espace'
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -96,7 +96,7 @@ describe('l’écran de la bibliothèque', () => {
   it('met la toile d’accueil en tête et l’ouvre au toucher', async () => {
     const el = await espaceLocal()
     const ouvrir = vi.fn()
-    await act(async () => racine.render(<BibliothequeLocale el={el} ouvrir={ouvrir} />))
+    await act(async () => racine.render(<BibliothequeLocale el={el} ouvrir={ouvrir} reglages={vi.fn()} />))
     const vedette = hote.querySelector<HTMLButtonElement>('.biblio-locale-vedette')!
     expect(hote.querySelector('.biblio-locale-entete')!.nextElementSibling).toBe(vedette)
     act(() => vedette.click())
@@ -108,7 +108,7 @@ describe('l’écran de la bibliothèque', () => {
     poserCoque({ acces: () => acces() })
     try {
       const el = await espaceLocal()
-      await act(async () => racine.render(<BibliothequeLocale el={el} ouvrir={vi.fn()} />))
+      await act(async () => racine.render(<BibliothequeLocale el={el} ouvrir={vi.fn()} reglages={vi.fn()} />))
       expect(hote.querySelector('.biblio-serveur')).toBeNull()
       const rond = hote.querySelector<HTMLButtonElement>('.biblio-locale-actions .biblio-locale-compte-bouton')!
       expect(rond.getAttribute('aria-label')).toBe('Compte')
@@ -122,9 +122,72 @@ describe('l’écran de la bibliothèque', () => {
     }
   })
 
+  it('la roue des réglages, à gauche du compte et du « + », ouvre les réglages', async () => {
+    vi.stubEnv('VITE_EDITION', 'locale')
+    poserCoque({ acces: () => acces() })
+    try {
+      const el = await espaceLocal()
+      const reglages = vi.fn()
+      await act(async () => racine.render(<BibliothequeLocale el={el} ouvrir={vi.fn()} reglages={reglages} />))
+      const ordre = [...hote.querySelector('.biblio-locale-actions')!.children].map((n) => n.className)
+      expect(ordre).toEqual(['biblio-locale-reglages', 'biblio-locale-compte-bouton', 'biblio-locale-plus'])
+      const roue = hote.querySelector<HTMLButtonElement>('.biblio-locale-reglages')!
+      expect(roue.getAttribute('aria-label')).toBe('Réglages')
+      act(() => roue.click())
+      expect(reglages).toHaveBeenCalledOnce()
+    } finally {
+      retirerCoque()
+      vi.unstubAllEnvs()
+    }
+  })
+
+  describe('la carte de bienvenue', () => {
+    /** Un téléphone (au doigt et étroit), ou une tablette (au doigt, mais large). */
+    const telephone = (oui: boolean) =>
+      vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('coarse') && (oui || !q.includes('max-width')), media: q, addEventListener() {}, removeEventListener() {} }))
+    beforeEach(() => localStorage.removeItem(CLE_BIENVENUE))
+    afterEach(() => vi.unstubAllGlobals())
+    const montrer = async (ouvrir = vi.fn()) => {
+      const el = await espaceLocal()
+      await act(async () => racine.render(<BibliothequeLocale el={el} ouvrir={ouvrir} reglages={vi.fn()} />))
+      return el
+    }
+
+    it('au téléphone, en tête, la première fois : trois lignes, puis plus jamais une fois fermée', async () => {
+      telephone(true)
+      await montrer()
+      const carte = hote.querySelector('.biblio-bienvenue')!
+      expect(hote.querySelector('.biblio-locale-entete')!.nextElementSibling).toBe(carte)
+      expect(carte.querySelector('h2')!.textContent).toBe('Bienvenue dans Notak')
+      expect(carte.querySelectorAll('li')).toHaveLength(3)
+      expect(carte.textContent).toContain('touchez-la pour l’ouvrir')
+      act(() => carte.querySelector<HTMLButtonElement>('.biblio-bienvenue-fermer')!.click())
+      expect(hote.querySelector('.biblio-bienvenue')).toBeNull()
+      act(() => racine.unmount())
+      racine = createRoot(hote)
+      await montrer()
+      expect(hote.querySelector('.biblio-bienvenue')).toBeNull()
+    })
+
+    it('« C’est parti » ouvre la toile d’accueil, et la carte ne revient plus', async () => {
+      telephone(true)
+      const ouvrir = vi.fn()
+      const el = await montrer(ouvrir)
+      act(() => hote.querySelector<HTMLButtonElement>('.biblio-bienvenue-partir')!.click())
+      expect(ouvrir).toHaveBeenCalledWith(el.index.racine(), null)
+      expect(localStorage.getItem(CLE_BIENVENUE)).toBe('1')
+    })
+
+    it('sur une tablette, pas de carte', async () => {
+      telephone(false)
+      await montrer()
+      expect(hote.querySelector('.biblio-bienvenue')).toBeNull()
+    })
+  })
+
   it('dans un navigateur, pas de rond du compte : il n’y a pas de serveur à joindre', async () => {
     const el = await espaceLocal()
-    await act(async () => racine.render(<BibliothequeLocale el={el} ouvrir={vi.fn()} />))
+    await act(async () => racine.render(<BibliothequeLocale el={el} ouvrir={vi.fn()} reglages={vi.fn()} />))
     expect(hote.querySelector('.biblio-locale-compte-bouton')).toBeNull()
   })
 
@@ -133,7 +196,7 @@ describe('l’écran de la bibliothèque', () => {
     const voyage = el.espace.creerTableau('Voyage', el.index.racine())
     await attendre()
     const ouvrir = vi.fn()
-    await act(async () => racine.render(<BibliothequeLocale el={el} ouvrir={ouvrir} />))
+    await act(async () => racine.render(<BibliothequeLocale el={el} ouvrir={ouvrir} reglages={vi.fn()} />))
     const tuile = [...hote.querySelectorAll<HTMLButtonElement>('.biblio-locale-grille .biblio-locale-tuile')].find((b) => b.textContent?.includes('Voyage'))!
     act(() => tuile.click())
     expect(ouvrir).toHaveBeenCalledWith(voyage, null)
@@ -143,7 +206,7 @@ describe('l’écran de la bibliothèque', () => {
     const el = await espaceLocal()
     const avant = el.index.lister().length
     const ouvrir = vi.fn()
-    await act(async () => racine.render(<BibliothequeLocale el={el} ouvrir={ouvrir} />))
+    await act(async () => racine.render(<BibliothequeLocale el={el} ouvrir={ouvrir} reglages={vi.fn()} />))
     await creerPar('toile')
     const [neuve, element] = ouvrir.mock.calls[0]!
     expect(element).toBeNull()
@@ -155,7 +218,7 @@ describe('l’écran de la bibliothèque', () => {
   it.each(['arbre', 'document'] as const)('« + » › %s le pose sur l’accueil et l’ouvre en grand', async (genre) => {
     const el = await espaceLocal()
     const ouvrir = vi.fn()
-    await act(async () => racine.render(<BibliothequeLocale el={el} ouvrir={ouvrir} />))
+    await act(async () => racine.render(<BibliothequeLocale el={el} ouvrir={ouvrir} reglages={vi.fn()} />))
     await creerPar(genre)
     const [tableau, element] = ouvrir.mock.calls[0]! as [string, string]
     expect(tableau).toBe(el.index.racine())
@@ -167,7 +230,7 @@ describe('l’écran de la bibliothèque', () => {
     const el = await espaceLocal()
     el.espace.creerTableau('Recettes de saison', el.index.racine())
     await attendre()
-    await act(async () => racine.render(<BibliothequeLocale el={el} ouvrir={vi.fn()} />))
+    await act(async () => racine.render(<BibliothequeLocale el={el} ouvrir={vi.fn()} reglages={vi.fn()} />))
     const champ = hote.querySelector<HTMLInputElement>('.biblio-locale-recherche input')!
     act(() => champ.focus())
     expect(hote.querySelector('.biblio-locale')!.hasAttribute('data-cherche')).toBe(true)

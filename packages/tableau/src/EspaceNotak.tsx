@@ -39,7 +39,7 @@ import { TitreTableau } from './TitreTableau'
 import { PastillePersonne } from './pastille'
 import { type ServiceCompte, useReglages } from './reglages'
 import { PageReglages } from './PageReglages'
-import { themeEffectif, useSystemeSombre } from './themeVivant'
+import { themeEffectif, useSystemeSombre, useThemeALaRacine } from './themeVivant'
 import { useHabillages } from './habillage/appliquer'
 import type { OffreHabillages } from './habillage/bibliotheque'
 import './theme.css'
@@ -64,6 +64,11 @@ function largeurSegment(titre: string): number {
   return Math.min(160, 8 + texte) + 24
 }
 const LARGEUR_SUSPENSION = 44
+
+/** Ce qu'un écran posé sur la toile (la bibliothèque de l'appareil, au doigt) envoie pour en ouvrir les réglages. */
+export const EVENEMENT_REGLAGES = 'notak-reglages'
+/** Ouvre les réglages de la toile montée dessous : les mêmes, au même thème, que ceux de sa roue. */
+export const demanderReglages = () => void window.dispatchEvent(new Event(EVENEMENT_REGLAGES))
 
 /** La barre des outils de gauche, montrée ou cachée : un choix de la machine, gardé d'une visite à l'autre. */
 const CLE_OUTILS = 'notak:outils-caches'
@@ -216,6 +221,7 @@ export function EspaceNotak({
   const [reglages, changerReglages] = useReglages()
   // Le thème qui s'applique : « Système » suit macOS en direct.
   const theme = themeEffectif(reglages.theme, useSystemeSombre())
+  useThemeALaRacine(theme)
   const habillages = useHabillages(offreHabillages, reglages.habillage, theme)
   // Posée avant de dessiner la toile, qui la lit à chaque mesure.
   definirTailleGrille(reglages.grille)
@@ -230,6 +236,10 @@ export function EspaceNotak({
   const fermerAide = useCallback(() => setAideOuverte(false), [])
   const ouvrirAide = useCallback(() => setAideOuverte(true), [])
   const ouvrirReglages = useCallback(() => setReglagesOuverts(true), [])
+  useEffect(() => {
+    window.addEventListener(EVENEMENT_REGLAGES, ouvrirReglages)
+    return () => window.removeEventListener(EVENEMENT_REGLAGES, ouvrirReglages)
+  }, [ouvrirReglages])
   const vues = useRef<Vues | null>(null)
   vues.current ??= lireVuesEnregistrees()
   const [outilsCaches, setOutilsCaches] = useState(lireOutilsCaches)

@@ -4370,12 +4370,14 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   line-height: 1.1;
 }
 
-.biblio-locale-plus {
+/* Le « + » et la roue des réglages : deux ronds de 40 pt, du même gris que la recherche. */
+.biblio-locale-plus,
+.biblio-locale-reglages {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
-  margin-right: -4px;
+  flex: none;
+  width: 40px;
+  height: 40px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -4784,20 +4786,37 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   }
 }
 
-/* À droite du grand titre : le « + », et sur un serveur la pastille du compte. */
+/*
+ * À droite du grand titre, de gauche à droite : la roue des réglages, le rond du compte, le « + ». Le geste de tous les
+ * jours au bord, sous le pouce, comme le « + » de Freeform ; les réglages, rares, au plus loin. Le dernier déborde un
+ * peu dans la gouttière, pour s'aligner sur le bord de la recherche comme les boutons d'iOS.
+ */
 .biblio-locale-actions {
   display: flex;
+  flex: none;
   align-items: center;
   gap: 8px;
 }
 
-/* Le rond du compte de l'app (bibliothèque locale) : 44 pt à toucher, comme l'avatar de l'App Store. */
+.biblio-locale-actions > :last-child {
+  margin-right: -2px;
+}
+
+/* Le titre cède la place aux trois ronds quand l'écran est étroit (ou la langue bavarde) : il se coupe, sans pousser. */
+.biblio-locale-tete h1 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Le rond du compte de l'app (bibliothèque locale) : 40 pt à toucher, comme l'avatar de l'App Store. */
 .biblio-locale-compte-bouton {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
-  margin-right: -5px;
+  flex: none;
+  width: 40px;
+  height: 40px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -4808,13 +4827,12 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   opacity: 0.6;
 }
 
-/* La pastille du compte, aux mesures du doigt : 44 pt à toucher, la photo un peu plus grande qu'au bureau. */
+/* La pastille du compte, aux mesures du doigt : 40 pt à toucher, la photo un peu plus grande qu'au bureau. */
 .biblio-locale-avatar .compte-nom {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
-  margin-right: -6px;
+  width: 40px;
+  height: 40px;
   padding: 0;
   border-radius: 50%;
   background: none;
@@ -4893,8 +4911,105 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 }
 
 .biblio-locale-filtre:active,
-.biblio-locale-plus:active {
+.biblio-locale-plus:active,
+.biblio-locale-reglages:active {
   opacity: 0.6;
+}
+
+/*
+ * La carte de bienvenue, au premier passage : une astuce d'iOS (TipKit), posée en tête de la page. Un titre et sa
+ * croix, trois lignes et leurs icônes à la couleur de l'accent, puis « C'est parti », plein, sur toute la largeur.
+ */
+.biblio-bienvenue {
+  margin: 4px 0 20px;
+  padding: 16px 16px 14px;
+  border-radius: 16px;
+  background: var(--notak-carte);
+  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.07), 0 1px 2px rgb(27 37 54 / 0.05);
+  animation: biblio-locale-entree 0.25s ease-out;
+}
+
+.biblio-bienvenue-tete {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.biblio-bienvenue h2 {
+  margin: 2px 0 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 22px;
+}
+
+/* La croix : un petit rond gris, 28 pt, et 44 à toucher par sa marge. */
+.biblio-bienvenue-fermer {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: -2px -4px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--biblio-remplissage);
+  color: var(--biblio-discret) !important;
+}
+
+.biblio-bienvenue-fermer::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+
+.biblio-bienvenue ul {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.biblio-bienvenue li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.biblio-bienvenue-icone {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--notak-accent, #2f6feb) 12%, transparent);
+  color: var(--notak-accent, #2f6feb);
+}
+
+.biblio-bienvenue-partir {
+  display: block;
+  width: 100%;
+  height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--notak-accent, #2f6feb);
+  color: #fff !important;
+  font-size: 16px !important;
+  font-weight: 600;
+}
+
+.biblio-bienvenue-partir:active,
+.biblio-bienvenue-fermer:active {
+  opacity: 0.7;
 }
 
 .biblio-locale-vide small {
@@ -4904,7 +5019,8 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 @media (prefers-reduced-motion: reduce) {
   .biblio-locale-tete,
   .biblio-locale-annuler,
-  .biblio-locale-resultats {
+  .biblio-locale-resultats,
+  .biblio-bienvenue {
     transition: none;
     animation: none;
   }
