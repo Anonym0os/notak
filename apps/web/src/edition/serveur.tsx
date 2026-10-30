@@ -37,7 +37,7 @@ import { PageEspaces } from '../Espaces'
 import { Activite } from '../Activite'
 import { Cloche } from '../Cloche'
 import { PageBibliotheque } from '../Bibliotheque'
-import { Compte } from '../Compte'
+import { Compte, CompteTelephone } from '../Compte'
 import { EcranConnexion } from '../connexion'
 import { DroitsElement } from '../DroitsElement'
 import { Export } from '../Export'
@@ -55,6 +55,7 @@ import { PagePublique } from '../PagePublique'
 import { ApercuInvitation, PageInvitation, jetonInvitation, useInvitation } from '../Invitation'
 import { Partage, PartageEnFenetre } from '../Partage'
 import { PlusEntete } from '../PlusEntete'
+import { PlusTelephone } from '../PlusTelephone'
 import { estPageServeur, estServeurDansApp, signalerVie } from '../bureau'
 import { lancerMisesAJour } from '../MiseAJour'
 import { enregistrerServiceWorker, signalerNouvelleVersion } from '../pwa'
@@ -438,6 +439,18 @@ function Espace({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
             <Compte moi={moi} deconnexion={deconnexion} aide={aide} />
           </>
         )}
+        // Au téléphone, une ligne : la loupe, « ••• » (le reste, en feuille) et la pastille du compte, cloche comprise.
+        // Les bulles et le verrou n'ont pas de bouton : ils restent là, comme au bureau.
+        telephone={(courant, ouvrir, { aide, reglages }) => ({
+          plus: (
+            <>
+              <BullesDecouverte espace={espace} tableau={courant} compte={moi.id} />
+              <PlusTelephone espace={espace} tableau={courant} moi={moi} ouvrir={ouvrir} fichiers={fichiers} reglages={reglages} surNouveaux={recents.noter} />
+              <VerrouTableau tableau={courant} accueil={moi.racine} ouvrir={ouvrir} />
+            </>
+          ),
+          compte: <CompteTelephone moi={moi} deconnexion={deconnexion} aide={aide} ouvrir={ouvrir} />,
+        })}
       />
       <BandeauImport moi={moi} espace={espace} />
       <BandeauxServeur moi={moi} />

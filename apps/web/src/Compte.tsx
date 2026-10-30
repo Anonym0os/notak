@@ -1,5 +1,5 @@
 import { type MouseEvent, type ReactNode, useState } from 'react'
-import { t } from './langue'
+import { t, tn } from './langue'
 import { type Moi } from './api'
 import { adressePhoto } from './fichiers'
 import { FeuilleBas, PastillePersonne, enFeuille } from '@notak/tableau'
@@ -9,6 +9,7 @@ import { LigneMenu } from './LigneMenu'
 import { estBureau, estServeurDansApp, revenirIci } from './bureau'
 import { surAppareil } from './bureau/acces'
 import { annoncerBureau } from './serveur/annonces'
+import { NotificationsEnFeuille, useNotifications } from './Cloche'
 
 /** Le raccourci de la bibliothèque, partout dans l'édition serveur (⌥⌘O). */
 export const RACCOURCI_BIBLIOTHEQUE = '⌥⌘O'
@@ -18,7 +19,18 @@ export const RACCOURCI_BIBLIOTHEQUE = '⌥⌘O'
  * sont dans la bibliothèque, une page à part. Au doigt sur un téléphone, il monte du bas en feuille (`enFeuille`) : le
  * compte connecté, le serveur, la déconnexion, à portée de pouce.
  */
-export function Compte({ moi, deconnexion, aide }: { moi: Moi; deconnexion(): void; aide(): void }) {
+export function Compte({
+  moi,
+  deconnexion,
+  aide,
+  notifications,
+}: {
+  moi: Moi
+  deconnexion(): void
+  aide(): void
+  /** Au téléphone, la cloche vit ici : une pastille sur l'avatar s'il y a du non-lu, et une ligne qui ouvre la liste. */
+  notifications?: { nonLues: number; montrer(): void }
+}) {
   const { ouvert: enBulle, regler: reglerBulle, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
   // La feuille vit dans un portail, hors de l'ancre : le panneau la croirait touchée dehors. Elle a son propre état.
   const [enFeuilleOuverte, setEnFeuilleOuverte] = useState(false)
@@ -28,6 +40,7 @@ export function Compte({ moi, deconnexion, aide }: { moi: Moi; deconnexion(): vo
     reglerBulle(v)
   }
   const photo = moi.photo ? adressePhoto(moi.photo) : undefined
+  const nonLues = notifications?.nonLues ?? 0
   const aller = (chemin: string) => (e: MouseEvent) => {
     regler(false)
     surLien(e, chemin)
@@ -39,8 +52,17 @@ export function Compte({ moi, deconnexion, aide }: { moi: Moi; deconnexion(): vo
   }
   return (
     <div className="compte" ref={ancre}>
-      <button type="button" ref={bouton} className="bouton bouton-nu compte-nom" aria-expanded={ouvert} aria-label={moi.nom} title={moi.nom} onClick={() => (enFeuille() ? setEnFeuilleOuverte(true) : basculer())}>
+      <button
+        type="button"
+        ref={bouton}
+        className="bouton bouton-nu compte-nom"
+        aria-expanded={ouvert}
+        aria-label={nonLues ? `${moi.nom}, ${tn('cloche.nonLues', nonLues)}` : moi.nom}
+        title={moi.nom}
+        onClick={() => (enFeuille() ? setEnFeuilleOuverte(true) : basculer())}
+      >
         <PastillePersonne taille={24} nom={moi.nom} couleur={moi.couleur} adresse={photo} titre="" />
+        {nonLues > 0 && <span className="compte-non-lu" aria-hidden />}
       </button>
       {ouvert && (
         <Enveloppe feuille={enFeuilleOuverte} fermer={() => regler(false)} panneau={panneau} nom={moi.nom}>
@@ -52,6 +74,20 @@ export function Compte({ moi, deconnexion, aide }: { moi: Moi; deconnexion(): vo
             </span>
           </div>
           <div className="app-menu-sep" />
+          {notifications && (
+            <>
+              <LigneMenu
+                icone="cloche"
+                libelle={t('cloche.titre')}
+                {...(nonLues > 0 ? { detail: tn('cloche.nonLues', nonLues) } : {})}
+                onClick={() => {
+                  regler(false)
+                  notifications.montrer()
+                }}
+              />
+              <div className="app-menu-sep" />
+            </>
+          )}
           <LigneMenu icone="tableau" libelle={t('compte.bibliotheque')} detail={t('compte.bibliotheque.detail')} touche={RACCOURCI_BIBLIOTHEQUE} href="/" onClick={aller('/')} />
           <LigneMenu icone="equipe" libelle={t('compte.espaces')} detail={t('compte.espaces.detail')} href="/espace" onClick={aller('/espace')} />
           <LigneMenu icone="envoyer" libelle={t('compte.envoyer')} detail={t(estBureau() ? 'compte.envoyer.detailBureau' : 'compte.envoyer.detail')} href="/envoyer" onClick={aller('/envoyer')} />
@@ -76,6 +112,21 @@ export function Compte({ moi, deconnexion, aide }: { moi: Moi; deconnexion(): vo
         </Enveloppe>
       )}
     </div>
+  )
+}
+
+/**
+ * Le compte de la barre d'un téléphone : la cloche n'y tient plus, elle passe dans la feuille du compte. Les
+ * notifications se relisent ici, et leur liste monte en feuille à son tour ; toucher une notification ouvre son tableau.
+ */
+export function CompteTelephone({ moi, deconnexion, aide, ouvrir }: { moi: Moi; deconnexion(): void; aide(): void; ouvrir(tableau: string): void }) {
+  const [liste, setListe] = useState(false)
+  const notifications = useNotifications(liste)
+  return (
+    <>
+      <Compte moi={moi} deconnexion={deconnexion} aide={aide} notifications={{ nonLues: notifications.nonLues, montrer: () => setListe(true) }} />
+      {liste && <NotificationsEnFeuille notifications={notifications} ouvrir={ouvrir} fermer={() => setListe(false)} />}
+    </>
   )
 }
 

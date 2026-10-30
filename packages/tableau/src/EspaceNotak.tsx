@@ -45,6 +45,7 @@ import type { OffreHabillages } from './habillage/bibliotheque'
 import './theme.css'
 import { Icone } from './icones'
 import { auDoigt } from './doigt'
+import { enFeuille } from './communs/Feuille'
 import { GardeToile } from './garde'
 import { useApercuOutils, useBarreRetenue } from './apercuOutils'
 
@@ -168,6 +169,7 @@ export function EspaceNotak({
   actionsTableau,
   partage,
   actionsCompte,
+  telephone,
   adresse,
   compte,
   enregistrer,
@@ -190,6 +192,12 @@ export function EspaceNotak({
   partage?(courant: Id): ReactNode
   /** Les notifications et le compte, avant les réglages : ils suivent aussi dans la carte et le document. */
   actionsCompte?(courant: Id, ouvrir: (id: Id) => void, aide: () => void): ReactNode
+  /**
+   * Au téléphone, la barre tient sur une ligne : à droite de la loupe, l'application ne met que `plus` (« ••• ») et
+   * `compte` (sa pastille), à la place de ses boutons, du partage, des présents et des réglages, qu'elle range dans une
+   * feuille ; `reglages` ouvre ceux de la toile. Sans lui, le téléphone garde les boutons du bureau.
+   */
+  telephone?(courant: Id, ouvrir: (id: Id) => void, outils: { aide(): void; reglages(): void }): { plus: ReactNode; compte: ReactNode }
   /**
    * Ce que fait Cmd+S. Sans lui, tout s'enregistre déjà seul et la toile le dit ; l'édition locale, elle, y range une
    * copie dans un fichier `.notak`.
@@ -221,6 +229,7 @@ export function EspaceNotak({
   const [aideOuverte, setAideOuverte] = useState(false)
   const fermerAide = useCallback(() => setAideOuverte(false), [])
   const ouvrirAide = useCallback(() => setAideOuverte(true), [])
+  const ouvrirReglages = useCallback(() => setReglagesOuverts(true), [])
   const vues = useRef<Vues | null>(null)
   vues.current ??= lireVuesEnregistrees()
   const [outilsCaches, setOutilsCaches] = useState(lireOutilsCaches)
@@ -587,18 +596,22 @@ export function EspaceNotak({
   )
 
   const presence = espace.presence?.(courant)
+  const barreTelephone = telephone && enFeuille() ? telephone(courant, ouvrir, { aide: ouvrirAide, reglages: ouvrirReglages }) : null
   const entete: EnteteEspace = {
     fil: segments,
     ouvrir,
     ...(bibliotheque ? { bibliotheque } : {}),
-    // Sans partage ni présence (l'édition locale), pas d'îlot vide.
-    partage: (partage || presence) && (
+    // Sans partage ni présence (l'édition locale), pas d'îlot vide ; au téléphone, le partage est dans la feuille de « ••• ».
+    partage: !barreTelephone && (partage || presence) && (
       <>
         <Pastilles presence={presence} adressePhoto={hote.adressePhoto} />
         {partage?.(courant)}
       </>
     ),
-    compte: (
+    // Au téléphone, la pastille seule ; la carte et le document ouverts en grand la reprennent aussi.
+    compte: barreTelephone ? (
+      barreTelephone.compte
+    ) : (
       <>
         {actionsCompte?.(courant, ouvrir, ouvrirAide)}
         <Infobulle libelle={t('reglages.titre')} raccourci="⌘,">
@@ -623,8 +636,8 @@ export function EspaceNotak({
         courant={courant}
         ouvrir={ouvrir}
         renommer={courant === racine || lectureSeule ? undefined : (titre) => espace.renommer(courant, titre)}
-        actions={actions?.(courant, ouvrir, ouvrirAide)}
-        actionsTableau={actionsTableau?.(courant, ouvrir)}
+        actions={barreTelephone ? barreTelephone.plus : actions?.(courant, ouvrir, ouvrirAide)}
+        actionsTableau={barreTelephone ? undefined : actionsTableau?.(courant, ouvrir)}
         historique={lectureSeule ? undefined : historique}
         peutAnnuler={peutAnnuler}
         peutRetablir={peutRetablir}
@@ -741,8 +754,31 @@ function Entete({
   bibliotheque?(): void
 }) {
   const fil = useRef<HTMLElement>(null)
+  const barre = useRef<HTMLElement>(null)
   const [largeur, setLargeur] = useState(Number.POSITIVE_INFINITY)
   const [menu, setMenu] = useState(false)
+
+  // Ce qui s'accroche sous la barre (les non triés, la recherche) se règle sur sa hauteur ordinaire, celle d'une ligne
+  // d'îlots. Si les îlots passent sur deux lignes (une fenêtre étroite), le surplus est dit à l'espace : rien ne les
+  // chevauche.
+  useLayoutEffect(() => {
+    const n = barre.current!
+    const espace = n.closest<HTMLElement>('.notak-espace')
+    if (!espace) return
+    const mesurer = () => {
+      const surplus = surplusBarre([...n.querySelectorAll<HTMLElement>(':scope > div > .notak-ilot')].map((i) => i.getBoundingClientRect()))
+      if (surplus > 0) espace.style.setProperty('--notak-entete-surplus', `${surplus}px`)
+      else espace.style.removeProperty('--notak-entete-surplus')
+    }
+    mesurer()
+    const obs = new ResizeObserver(mesurer)
+    obs.observe(n)
+    for (const c of n.children) obs.observe(c)
+    return () => {
+      obs.disconnect()
+      espace.style.removeProperty('--notak-entete-surplus')
+    }
+  }, [])
 
   useLayoutEffect(() => {
     const n = fil.current!
@@ -817,7 +853,7 @@ function Entete({
 
   return (
     // Dans l'application de bureau, la barre tient lieu de barre de titre : on la saisit partout hors des îlots pour déplacer la fenêtre.
-    <header className="notak-entete" data-tauri-drag-region="deep">
+    <header ref={barre} className="notak-entete" data-tauri-drag-region="deep">
       <div className="notak-entete-gauche">
         {/* Un seul îlot : remonter, la barre des outils, puis le fil et l'état de l'enregistrement. Le reste de la bande
             reste vide et transparent. */}
@@ -880,6 +916,19 @@ function Entete({
       </div>
     </header>
   )
+}
+
+/**
+ * Ce que les îlots de la barre prennent de haut au-delà d'une ligne : rien s'ils sont côte à côte, la seconde ligne
+ * (et l'écart) s'ils ont dû passer dessous. En pixels.
+ */
+export function surplusBarre(ilots: readonly { top: number; bottom: number; height: number }[]): number {
+  const vus = ilots.filter((i) => i.height > 0)
+  if (vus.length === 0) return 0
+  const haut = Math.min(...vus.map((i) => i.top))
+  const bas = Math.max(...vus.map((i) => i.bottom))
+  const ligne = Math.max(...vus.map((i) => i.height))
+  return Math.max(0, Math.round(bas - haut - ligne))
 }
 
 /**

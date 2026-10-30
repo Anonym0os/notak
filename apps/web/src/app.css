@@ -999,6 +999,38 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   text-align: center;
 }
 
+/* Au téléphone, la cloche est dans le compte (`CompteTelephone`) : du non-lu se dit par une pastille rouge sur l'avatar. */
+.compte-nom {
+  position: relative;
+}
+
+.compte-non-lu {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 10px;
+  height: 10px;
+  box-sizing: border-box;
+  border: 2px solid var(--notak-ilot-fond, var(--carte, #fff));
+  border-radius: 50%;
+  background: #d92d20;
+}
+
+/* L'activité et les notifications en feuille du bas : la feuille est déjà la carte, les lignes prennent sa largeur. */
+.activite-feuille .activite-liste li {
+  padding: 10px 4px;
+  font-size: 15px;
+}
+
+.cloche-feuille .app-panneau-tete {
+  padding: 0 4px 8px;
+}
+
+.cloche-feuille .cloche-liste button {
+  padding: 10px 4px;
+  font-size: 15px;
+}
+
 .cloche-liste button {
   display: flex;
   align-items: flex-start;

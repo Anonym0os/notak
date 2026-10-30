@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { type GenreNotification, type ListeNotifications, type Notification, listerNotifications, marquerLues } from './api'
 import { quand } from './Activite'
 import { t, tn } from './langue'
-import { Icone, Infobulle, PastillePersonne } from '@notak/tableau'
+import { FeuilleBas, Icone, Infobulle, PastillePersonne } from '@notak/tableau'
 import { usePanneau } from './panneaux'
 
 const RAFRAICHIR_MS = 30_000
@@ -14,9 +14,11 @@ const TEXTES: Record<GenreNotification, (n: Notification) => string> = {
   partage: (n) => t('cloche.partage', { nom: n.auteur.nom, tableau: n.titreTableau || t('commun.sansTitre') }),
 }
 
-/** La cloche de l'en-tête : le nombre de notifications non lues, et leur liste. */
-export function Cloche({ ouvrir }: { ouvrir(tableau: string): void }) {
-  const { ouvert, regler, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
+/**
+ * Les notifications du compte : relues toutes les 30 s, et dès que leur liste s'ouvre (`ouvert`). `lire` les marque
+ * lues (toutes, sans ids).
+ */
+export function useNotifications(ouvert: boolean) {
   const [liste, setListe] = useState<ListeNotifications | null>(null)
   const [erreur, setErreur] = useState(false)
 
@@ -51,13 +53,56 @@ export function Cloche({ ouvrir }: { ouvrir(tableau: string): void }) {
     )
     marquerLues(ids).then(charger, charger)
   }
-  const aller = (n: Notification) => {
-    if (!n.lu) lire([n.id])
-    regler(false)
-    ouvrir(n.tableau)
-  }
+  return { liste, erreur, lire, nonLues: liste?.nonLues ?? 0 }
+}
 
-  const nonLues = liste?.nonLues ?? 0
+export type Notifications = ReturnType<typeof useNotifications>
+
+/** La tête (« Tout marquer comme lu ») et la liste ; toucher une notification la lit et ouvre son tableau. */
+function ListeDesNotifications({ notifications: { liste, erreur, lire, nonLues }, aller }: { notifications: Notifications; aller(tableau: string): void }) {
+  return (
+    <>
+      <div className="app-panneau-tete">
+        <span>{t('cloche.titre')}</span>
+        <button type="button" className="bouton-lien" disabled={nonLues === 0} onClick={() => lire()}>
+          {t('cloche.toutLu')}
+        </button>
+      </div>
+      {((erreur && !liste) || liste?.notifications.length === 0) && (
+        <p className="app-panneau-vide">
+          <Icone nom="cloche" taille={22} trait={1.5} />
+          {erreur && !liste ? t('cloche.indisponibles') : t('cloche.rien')}
+        </p>
+      )}
+      <ul className="cloche-liste">
+        {liste?.notifications.map((n) => (
+          <li key={n.id} data-lu={n.lu || undefined}>
+            <button
+              type="button"
+              onClick={() => {
+                if (!n.lu) lire([n.id])
+                aller(n.tableau)
+              }}
+            >
+              <PastillePersonne nom={n.auteur.nom} couleur={n.auteur.couleur} titre="" />
+              <span className="cloche-texte">
+                <span>{TEXTES[n.genre](n)}</span>
+                {n.extrait && n.genre !== 'partage' && <small className="activite-elements">{n.extrait}</small>}
+                <small>{quand(n.instant)}</small>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </>
+  )
+}
+
+/** La cloche de l'en-tête : le nombre de notifications non lues, et leur liste. */
+export function Cloche({ ouvrir }: { ouvrir(tableau: string): void }) {
+  const { ouvert, regler, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
+  const notifications = useNotifications(ouvert)
+  const { nonLues } = notifications
   return (
     <div className="cloche" ref={ancre}>
       <Infobulle libelle={nonLues > 0 ? tn('cloche.nonLues', nonLues) : t('cloche.titre')} desactivee={ouvert}>
@@ -69,34 +114,32 @@ export function Cloche({ ouvrir }: { ouvrir(tableau: string): void }) {
       </Infobulle>
       {ouvert && (
         <div className="app-panneau cloche-panneau" ref={panneau} role="dialog" aria-label={t('cloche.titre')}>
-          <div className="app-panneau-tete">
-            <span>{t('cloche.titre')}</span>
-            <button type="button" className="bouton-lien" disabled={nonLues === 0} onClick={() => lire()}>
-              {t('cloche.toutLu')}
-            </button>
-          </div>
-          {((erreur && !liste) || liste?.notifications.length === 0) && (
-            <p className="app-panneau-vide">
-              <Icone nom="cloche" taille={22} trait={1.5} />
-              {erreur && !liste ? t('cloche.indisponibles') : t('cloche.rien')}
-            </p>
-          )}
-          <ul className="cloche-liste">
-            {liste?.notifications.map((n) => (
-              <li key={n.id} data-lu={n.lu || undefined}>
-                <button type="button" onClick={() => aller(n)}>
-                  <PastillePersonne nom={n.auteur.nom} couleur={n.auteur.couleur} titre="" />
-                  <span className="cloche-texte">
-                    <span>{TEXTES[n.genre](n)}</span>
-                    {n.extrait && n.genre !== 'partage' && <small className="activite-elements">{n.extrait}</small>}
-                    <small>{quand(n.instant)}</small>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <ListeDesNotifications
+            notifications={notifications}
+            aller={(tableau) => {
+              regler(false)
+              ouvrir(tableau)
+            }}
+          />
         </div>
       )}
     </div>
+  )
+}
+
+/** Au téléphone, la même liste dans une feuille du bas : la cloche n'a plus de place dans la barre (`CompteTelephone`). */
+export function NotificationsEnFeuille({ notifications, ouvrir, fermer }: { notifications: Notifications; ouvrir(tableau: string): void; fermer(): void }) {
+  return (
+    <FeuilleBas fermer={fermer} className="cloche-feuille">
+      <div role="dialog" aria-label={t('cloche.titre')}>
+        <ListeDesNotifications
+          notifications={notifications}
+          aller={(tableau) => {
+            fermer()
+            ouvrir(tableau)
+          }}
+        />
+      </div>
+    </FeuilleBas>
   )
 }

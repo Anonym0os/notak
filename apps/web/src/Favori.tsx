@@ -4,10 +4,10 @@ import { definirFavori, listerFavoris, noterVu } from './api'
 import { Icone, Infobulle } from '@notak/tableau'
 
 /**
- * L'étoile du tableau ouvert : le mettre en favori ou l'en retirer. Montrer le tableau ici, c'est aussi
- * l'inscrire parmi les récents du compte.
+ * Le tableau ouvert est-il en favori (`null` tant qu'on ne sait pas, et toujours pour l'accueil), et de quoi le changer.
+ * Le montrer, c'est aussi l'inscrire parmi les récents du compte.
  */
-export function Favori({ tableau, accueil }: { tableau: string; accueil: string }) {
+export function useFavori(tableau: string, accueil: string) {
   const [favori, setFavori] = useState<boolean | null>(null)
   useEffect(() => {
     if (tableau === accueil) return
@@ -23,13 +23,19 @@ export function Favori({ tableau, accueil }: { tableau: string; accueil: string 
     }
   }, [tableau, accueil])
 
-  if (tableau === accueil) return null
   const bascule = () => {
     if (favori === null) return
     const voulu = !favori
     setFavori(voulu)
     definirFavori(tableau, voulu).catch(() => setFavori(!voulu))
   }
+  return { favori: tableau === accueil ? null : favori, sansObjet: tableau === accueil, bascule }
+}
+
+/** L'étoile du tableau ouvert : le mettre en favori ou l'en retirer. */
+export function Favori({ tableau, accueil }: { tableau: string; accueil: string }) {
+  const { favori, sansObjet, bascule } = useFavori(tableau, accueil)
+  if (sansObjet) return null
   return (
     <Infobulle libelle={favori ? t('favori.retirer') : t('favori.mettre')}>
       <button type="button" className="bouton bouton-nu bouton-etoile" disabled={favori === null} aria-pressed={favori === true} onClick={bascule}>

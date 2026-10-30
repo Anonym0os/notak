@@ -175,8 +175,11 @@ export function Partage({ tableau, moi }: { tableau: string; moi: Moi }) {
   )
 }
 
-/** Le même panneau en fenêtre, au centre : la bibliothèque le propose au clic droit sur une toile. */
-export function PartageEnFenetre({ tableau, moi, fermer }: { tableau: string; moi: Moi; fermer(): void }) {
+/**
+ * Le même panneau en fenêtre, au centre : la bibliothèque le propose au clic droit sur une toile, le téléphone dans sa
+ * feuille « ••• ». `protection` l'ouvre sur la protection de la toile (son mot de passe), dépliée.
+ */
+export function PartageEnFenetre({ tableau, moi, fermer, protection }: { tableau: string; moi: Moi; fermer(): void; protection?: boolean }) {
   const boite = useRef<HTMLDialogElement>(null)
   const appuiSurLeFond = useRef(false)
   useEffect(() => {
@@ -204,7 +207,7 @@ export function PartageEnFenetre({ tableau, moi, fermer }: { tableau: string; mo
       }}
       onKeyDown={(e) => e.stopPropagation()}
     >
-      <Panneau tableau={tableau} moi={moi} reference={() => {}} enFenetre />
+      <Panneau tableau={tableau} moi={moi} reference={() => {}} enFenetre {...(protection ? { protection } : {})} />
     </dialog>
   )
 }
@@ -212,7 +215,7 @@ export function PartageEnFenetre({ tableau, moi, fermer }: { tableau: string; mo
 /** Ce qu'il reste à faire après une invitation : le lien à transmettre, s'il n'est pas parti tout seul. */
 type Suite = { email: string } & ReponsePartage
 
-function Panneau({ tableau, moi, reference, enFenetre }: { tableau: string; moi: Moi; reference(el: HTMLElement | null): void; enFenetre?: boolean }) {
+function Panneau({ tableau, moi, reference, enFenetre, protection }: { tableau: string; moi: Moi; reference(el: HTMLElement | null): void; enFenetre?: boolean; protection?: boolean }) {
   const [acces, setAcces] = useState<Acces[] | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
   const charger = useCallback(() => {
@@ -229,7 +232,7 @@ function Panneau({ tableau, moi, reference, enFenetre }: { tableau: string; moi:
       {acces && !proprietaire && <p className="partage-note">{t('partage.seulProprio')}</p>}
       {proprietaire && <LiensVisiteurs tableau={tableau} />}
       {proprietaire && (
-        <details className="partage-avance">
+        <details className="partage-avance" open={protection || undefined}>
           <summary>
             <Icone nom="chevronDroite" taille={14} />
             {t('partage.protection')}
