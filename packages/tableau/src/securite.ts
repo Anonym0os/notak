@@ -47,6 +47,7 @@ export type Cible = 'site' | 'bureau' | 'serveur'
  * WebSocket, que tous les navigateurs ne rangent pas sous `'self'`.
  *
  * - les images viennent de partout en `https:` : ce sont celles qu'on a posées soi-même par leur adresse ;
+ * - les fontes aussi : celles d'un habillage (docs/HABILLAGES.md) se donnent par une adresse `https:` ;
  * - les styles en ligne restent permis : l'éditeur et la toile en posent ; les scripts, jamais ;
  * - `frame-ancestors 'none'` : aucune page d'un autre site ne peut afficher Notak dans un cadre pour faire cliquer
  *   dessus à l'insu de la personne.
@@ -68,7 +69,7 @@ export function politiqueContenu(cible: Cible, origineServeur?: string): string 
     ['style-src', "'self'", "'unsafe-inline'"],
     ['img-src', "'self'", 'data:', 'blob:', 'https:'],
     ['media-src', "'self'", 'data:', 'blob:'],
-    ['font-src', "'self'", 'data:'],
+    ['font-src', "'self'", 'data:', 'https:'],
     ['connect-src', ...connexions],
     ['frame-src', "'self'", 'blob:', ...ORIGINES_LECTEURS],
     ['worker-src', "'self'", 'blob:'],
