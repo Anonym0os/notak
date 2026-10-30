@@ -352,7 +352,7 @@ describe('l’édition serveur : la page où l’on autorise l’app de bureau',
     routes['/api/moi'] = nonConnecte
     history.replaceState(null, '', '/bureau/autoriser?user_code=ABCD2345')
     await demarrer()
-    expect(racine().querySelector('.connexion-notice')?.textContent).toBe('Connectez-vous pour autoriser l’app Notak de bureau.')
+    expect(racine().querySelector('.connexion-notice')?.textContent).toBe('Connectez-vous pour autoriser l’app Notak.')
     expect(location.pathname + location.search).toBe('/bureau/autoriser?user_code=ABCD2345')
   })
 
@@ -361,7 +361,7 @@ describe('l’édition serveur : la page où l’on autorise l’app de bureau',
     routes['/api/bureau/demande?user_code=ABCD2345'] = () => json({ ip: '203.0.113.9', quand: Date.now(), ipActuelle: '203.0.113.9' })
     history.replaceState(null, '', '/bureau/autoriser?user_code=ABCD2345')
     await demarrer()
-    expect(racine().querySelector('h1')?.textContent).toBe('Autoriser l’app Notak de bureau ?')
+    expect(racine().querySelector('h1')?.textContent).toBe('Autoriser l’app Notak ?')
     expect(racine().querySelector('.autoriser-code')?.textContent).toBe('ABCD 2345')
   })
 })

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { type Moi, duree, moi as lireMoi } from '../api'
-import { estServeurDansApp, ouvrirDansLeNavigateur } from '../bureau'
+import { plateforme } from '../appareil'
+import { estPageServeurMobile, estServeurDansApp, invoquer, ouvrirDansLeNavigateur } from '../bureau'
 import { t } from '../langue'
 import { Marque } from '../PageApp'
-import { type Appareil, type EtatAppareil, epeler, grouperCode, lancerConnexionParCode } from './appareil'
+import { type Appareil, type EtatAppareil, epeler, grouperCode, lancerConnexionParCode, lienPourLaFeuille } from './appareil'
 
 /**
  * Ouvre la page d'accord dans le navigateur de la personne. Elle s'ouvre après une requête, hors du clic : WebKit
@@ -18,8 +19,19 @@ const ouvrirNavigateur = (adresse: string) => {
 }
 
 /**
+ * Dans l'app d'un iPhone ou d'un iPad, la page d'accord ne s'ouvre pas dans Safari, d'où il faudrait revenir à la main,
+ * mais dans la feuille de connexion d'iOS (`plugin:appareil|connexion_web`, `ASWebAuthenticationSession`). Elle n'a
+ * pas besoin d'un geste : elle s'ouvre après la requête du code comme au toucher. Le Mac garde le navigateur.
+ */
+const dansLaFeuille = () => estPageServeurMobile() && plateforme() === 'ios'
+
+/** Ce que rend la feuille : `autorise` quand la page d'accord y a renvoyé (`notak://autorise`), `annule` si on l'a fermée. */
+const ouvrirLaFeuille = (adresse: string) => invoquer<{ issue: 'autorise' | 'annule' }>('plugin:appareil|connexion_web', { adresse: lienPourLaFeuille(adresse) })
+
+/**
  * L'attente de la connexion par le navigateur (app de bureau, fournisseur ou SSO) : le code à comparer, un bouton pour
- * rouvrir le navigateur, l'heure où le code s'éteint. Chaque issue a ses mots, et un geste pour repartir.
+ * rouvrir le navigateur, l'heure où le code s'éteint. Chaque issue a ses mots, et un geste pour repartir. Sur iOS, la
+ * feuille de connexion passe devant cet écran ; fermée avant la fin, la demande s'arrête et « Réessayer » la rouvre.
  */
 export function ConnexionParCode({ surConnexion, annuler }: { surConnexion(moi: Moi): void; annuler(): void }) {
   const [essai, setEssai] = useState(0)
@@ -29,15 +41,33 @@ export function ConnexionParCode({ surConnexion, annuler }: { surConnexion(moi: 
   const carte = useRef<HTMLDivElement>(null)
   // Le parent en donne une neuve à chaque rendu : la relecture de la session ne repart pas pour si peu.
   const connecte = useRef(surConnexion)
+  // L'état que la feuille, en se fermant, trouve : accordé entre-temps, il ne s'interrompt plus.
+  const courant = useRef(etat)
   useEffect(() => {
     connecte.current = surConnexion
+    courant.current = etat
   })
 
   useEffect(() => {
     setEtat({ type: 'demande' })
+    // La feuille d'iOS, à défaut le navigateur (une coque d'avant la feuille). Rouvrir remplace la feuille : seule la
+    // dernière, fermée, arrête la demande.
+    let ouvertures = 0
+    const ouvrir = (adresse: string) => {
+      if (!dansLaFeuille()) return ouvrirNavigateur(adresse)
+      const numero = ++ouvertures
+      ouvrirLaFeuille(adresse).then(
+        ({ issue }) => {
+          if (issue !== 'annule' || numero !== ouvertures || !appareil.current || courant.current.type !== 'attente') return
+          appareil.current.annuler()
+          setEtat({ type: 'echec', cause: 'ferme' })
+        },
+        () => ouvrirNavigateur(adresse),
+      )
+    }
     // Un tour d'horloge avant de demander : une application montée deux fois (StrictMode) ne demande qu'un code.
     const depart = setTimeout(() => {
-      appareil.current = lancerConnexionParCode({ surEtat: setEtat, ouvrir: ouvrirNavigateur })
+      appareil.current = lancerConnexionParCode({ surEtat: setEtat, ouvrir })
     }, 0)
     return () => {
       clearTimeout(depart)
@@ -80,6 +110,7 @@ export function ConnexionParCode({ surConnexion, annuler }: { surConnexion(moi: 
 
   const recommencer = () => setEssai((n) => n + 1)
   const hote = location.host
+  const feuille = dansLaFeuille()
   const occupe = etat.type === 'demande' || etat.type === 'accorde'
 
   const issue = (() => {
@@ -98,6 +129,8 @@ export function ConnexionParCode({ surConnexion, annuler }: { surConnexion(moi: 
             return etat.attente ? t('erreur.trop_d_essais_dans', { duree: duree(etat.attente) }) : t('erreur.trop_d_essais')
           case 'session':
             return t('serveur.code.session')
+          case 'ferme':
+            return t('serveur.code.ferme')
           default:
             return t('connexion.fournisseurRefuse')
         }
@@ -109,15 +142,15 @@ export function ConnexionParCode({ surConnexion, annuler }: { surConnexion(moi: 
   return (
     <div className="connexion-carte connexion-code" ref={carte}>
       <Marque />
-      <h1>{attend ? t('serveur.code.titre') : issue ? t('serveur.code.titreFin') : t('connexion.enCours')}</h1>
+      <h1>{attend ? t(feuille ? 'serveur.code.titreFeuille' : 'serveur.code.titre') : issue ? t('serveur.code.titreFin') : t('connexion.enCours')}</h1>
       {etat.type === 'attente' && (
         <>
           <p className="connexion-aide" id="connexion-code-aide">
-            {t('serveur.code.aide', { hote })}
+            {t(feuille ? 'serveur.code.aideFeuille' : 'serveur.code.aide', { hote })}
           </p>
           <div className="connexion-code-bloc" id="connexion-code-bloc" role="group" aria-labelledby="connexion-code-etiquette">
             <span className="connexion-code-etiquette" id="connexion-code-etiquette">
-              {t('serveur.code.etiquette')}
+              {t(feuille ? 'serveur.code.etiquetteFeuille' : 'serveur.code.etiquette')}
             </span>
             {/* À l'écran en groupes ; au lecteur d'écran, lettre par lettre (sinon « ABCD » se lit comme un mot). */}
             <strong className="connexion-code-valeur" aria-hidden="true">
@@ -127,9 +160,9 @@ export function ConnexionParCode({ surConnexion, annuler }: { surConnexion(moi: 
           </div>
           <p className="connexion-aide">{t('serveur.code.expireDans', { duree: duree(Math.max(0, Math.ceil((etat.expire - maintenant) / 1000))) })}</p>
           <button type="button" className="bouton bouton-plein" aria-describedby="connexion-code-aide connexion-code-bloc" onClick={() => appareil.current?.rouvrir()}>
-            {t('serveur.code.rouvrir')}
+            {t(feuille ? 'serveur.code.rouvrirFeuille' : 'serveur.code.rouvrir')}
           </button>
-          <p className="connexion-note">{t('serveur.code.siRien')}</p>
+          {!feuille && <p className="connexion-note">{t('serveur.code.siRien')}</p>}
           <button type="button" className="bouton-lien" onClick={annuler}>
             {t('commun.annuler')}
           </button>
@@ -151,7 +184,7 @@ export function ConnexionParCode({ surConnexion, annuler }: { surConnexion(moi: 
             {issue}
           </p>
           <button type="button" className="bouton bouton-plein" onClick={recommencer}>
-            {t('serveur.code.recommencer')}
+            {t(etat.type === 'echec' && etat.cause === 'ferme' ? 'serveur.code.reessayer' : 'serveur.code.recommencer')}
           </button>
           <button type="button" className="bouton-lien" onClick={annuler}>
             {t('serveur.code.retour')}

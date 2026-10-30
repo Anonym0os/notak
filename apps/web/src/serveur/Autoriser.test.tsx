@@ -46,6 +46,8 @@ afterEach(() => {
   hote.remove()
   vi.unstubAllGlobals()
   history.replaceState(null, '', '/')
+  // Le navigateur de jsdom reprend ce qu'il disait de lui.
+  for (const cle of ['userAgent', 'maxTouchPoints']) Reflect.deleteProperty(navigator, cle)
 })
 
 const monter = async (adresse = `/bureau/autoriser?user_code=${CODE}`) => {
@@ -54,12 +56,21 @@ const monter = async (adresse = `/bureau/autoriser?user_code=${CODE}`) => {
 }
 const bouton = (texte: RegExp) => [...hote.querySelectorAll('button')].find((b) => texte.test(b.textContent ?? ''))!
 const alertes = () => [...hote.querySelectorAll('[role=alert]')].map((a) => a.textContent)
+const retour = () => hote.querySelector<HTMLAnchorElement>('a[href="notak://"]')
+
+const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'
+const MAC = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15'
+/** Ce que le navigateur dit de lui : posé sur `navigator` le temps d'un essai (jsdom n'a pas `maxTouchPoints`). */
+const agent = (userAgent: string, maxTouchPoints = 0) => {
+  for (const [cle, valeur] of Object.entries({ userAgent, maxTouchPoints })) Object.defineProperty(navigator, cle, { value: valeur, configurable: true })
+}
 
 describe('la page où l’on autorise l’app de bureau', () => {
   it('montre le code à comparer, d’où et quand l’app l’a demandé, et ouvre le code avant de lire la demande', async () => {
     await monter()
-    expect(hote.querySelector('h1')?.textContent).toBe('Autoriser l’app Notak de bureau ?')
-    expect(hote.textContent).toContain('Une app Notak de bureau demande à se connecter au compte Ana (ana@exemple.fr) sur ce serveur.')
+    // La même page sert l'app de bureau et celle de l'iPhone : elle ne dit pas « de bureau ».
+    expect(hote.querySelector('h1')?.textContent).toBe('Autoriser l’app Notak ?')
+    expect(hote.textContent).toContain('Une app Notak demande à se connecter au compte Ana (ana@exemple.fr) sur ce serveur.')
     expect(hote.querySelector('.autoriser-code')?.textContent).toBe('ABCD 2345')
     expect(hote.textContent).toContain('203.0.113.9')
     expect(hote.textContent).toContain('il y a 2 minutes')
@@ -125,6 +136,66 @@ describe('la page où l’on autorise l’app de bureau', () => {
     expect(hote.querySelector('[role=status]')?.textContent).toContain('C’est fait : revenez dans l’app Notak.')
     expect(hote.textContent).toContain('Vous pouvez fermer cet onglet.')
     expect(hote.querySelector('button')).toBeNull()
+    // Sur un ordinateur, rien ne ramène nulle part : l'app de bureau a vu l'accord d'elle-même.
+    expect(retour()).toBeNull()
+  })
+
+  it('sur un iPhone ou un iPad, l’accord donné, « Revenir dans Notak » ramène dans l’app', async () => {
+    for (const [ua, touches] of [
+      [IPHONE, 5],
+      // L'iPad se dit Macintosh ; son écran tactile le trahit.
+      [MAC, 5],
+    ] as const) {
+      agent(ua, touches)
+      await monter()
+      // Avant l'accord, rien de plus.
+      expect(retour()).toBeNull()
+      await act(async () => bouton(/^Autoriser$/).click())
+      const lien = retour()!
+      expect(lien.closest('[role=status]')).not.toBeNull()
+      expect(lien.textContent).toBe('Revenir dans Notak')
+      expect(lien.className).toContain('bouton-plein')
+      await act(async () => racine.render(<></>))
+    }
+  })
+
+  it('sur un iPhone, une demande refusée ne ramène pas dans l’app ; un Mac sans écran tactile n’est pas un iPad', async () => {
+    agent(IPHONE)
+    await monter()
+    await act(async () => bouton(/^Refuser$/).click())
+    expect(retour()).toBeNull()
+    await act(async () => racine.render(<></>))
+    agent(MAC, 0)
+    await monter()
+    await act(async () => bouton(/^Autoriser$/).click())
+    expect(hote.textContent).toContain('C’est fait')
+    expect(retour()).toBeNull()
+  })
+
+  it('ouverte par l’app dans sa feuille de connexion (`retour=app`), l’accord donné, la page y renvoie ; ailleurs, non', async () => {
+    const renvoyer = vi.fn()
+    const monterAvec = async (adresse: string) => {
+      history.replaceState(null, '', adresse)
+      await act(async () => racine.render(<PageAutoriser moi={ana} renvoyer={renvoyer} />))
+    }
+    agent(IPHONE)
+    await monterAvec(`/bureau/autoriser?user_code=${CODE}&retour=app`)
+    expect(renvoyer).not.toHaveBeenCalled()
+    await act(async () => bouton(/^Autoriser$/).click())
+    expect(renvoyer).toHaveBeenCalledWith('notak://autorise')
+    // Le bouton reste, si la feuille ne s'est pas fermée.
+    expect(retour()).not.toBeNull()
+    await act(async () => racine.render(<></>))
+    // Refusée : la feuille reste, on la ferme soi-même.
+    renvoyer.mockReset()
+    await monterAvec(`/bureau/autoriser?user_code=${CODE}&retour=app`)
+    await act(async () => bouton(/^Refuser$/).click())
+    expect(renvoyer).not.toHaveBeenCalled()
+    await act(async () => racine.render(<></>))
+    // Dans Safari, la page reste où elle est.
+    await monterAvec(`/bureau/autoriser?user_code=${CODE}`)
+    await act(async () => bouton(/^Autoriser$/).click())
+    expect(renvoyer).not.toHaveBeenCalled()
   })
 
   it('« Refuser » dit au serveur de refuser, et la page le dit', async () => {

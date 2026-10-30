@@ -7,11 +7,14 @@
 // - `haptique` : un retour au doigt (une aimantation, une suppression) ;
 // - `partager` : la feuille de partage d'iOS pour un fichier (Enregistrer dans Fichiers, AirDrop, Mail…), là où une
 //   page ne sait ni télécharger ni ouvrir « Enregistrer sous » ;
+// - `connexionWeb` : la page d'accord de la connexion par code, dans la feuille Safari d'iOS faite pour se connecter
+//   (`ASWebAuthenticationSession`), au lieu de Safari lui-même : on n'a pas à revenir dans l'app à la main ;
 // - l'événement `clavier` : la hauteur du clavier à l'écran et la durée de son animation, avant qu'il n'arrive.
 // Et deux méthodes que seule la coque appelle (`src/lib.rs`, jamais la page : elles ne sont pas dans `build.rs`) :
 // - `dossierIcloud` : le dossier `Documents` du conteneur iCloud de Notak, où la page synchronise ses toiles ;
 // - `telechargerIcloud` : fait descendre un fichier de ce dossier resté dans le nuage.
 // Le nom de chaque méthode est le camelCase de la commande déclarée dans `build.rs`.
+import AuthenticationServices
 import SwiftRs
 import Tauri
 import UIKit
@@ -31,6 +34,11 @@ struct ArgsPartage: Decodable {
   let donnees: String
 }
 
+struct ArgsConnexion: Decodable {
+  /// La page d'accord du serveur ouvert dans l'app (`/bureau/autoriser?user_code=…&retour=app`).
+  let adresse: String
+}
+
 struct ArgsChemin: Decodable {
   let chemin: String
 }
@@ -44,6 +52,11 @@ class AppareilPlugin: Plugin {
   private weak var vue: WKWebView?
   private var observateurs: [NSObjectProtocol] = []
   private var gardeDefilement: NSKeyValueObservation?
+  /// La feuille de connexion ouverte, et ce qu'on lui a demandé : iOS ne la garde pas, on la tient jusqu'à sa fin.
+  private var feuilleConnexion: ASWebAuthenticationSession?
+  private var demandeConnexion: Invoke?
+  /// Celle dont on attend la fin : une feuille remplacée finit sans répondre à la demande de la suivante.
+  private var jetonConnexion: UUID?
 
   public override func load(webview: WKWebView) {
     vue = webview
@@ -231,6 +244,83 @@ class AppareilPlugin: Plugin {
       }
       invoke.resolve()
     }
+  }
+}
+
+/// Le schéma que l'app déclare (`Info.ios.plist`) : la page d'accord y renvoie (`notak://autorise`) quand l'accord est donné.
+private let SCHEMA_RETOUR = "notak"
+
+extension AppareilPlugin: ASWebAuthenticationPresentationContextProviding {
+  /// Ouvre la page d'accord dans la feuille de connexion d'iOS. Elle partage les cookies de Safari (pas de session
+  /// éphémère) : une session déjà ouverte chez le fournisseur d'identité sert. Rend `issue` : `autorise` quand la page a
+  /// renvoyé vers `notak://`, `annule` quand la personne a fermé la feuille. La session de l'app, elle, arrive par le
+  /// code d'appareil, comme sur un ordinateur : l'adresse de retour ne porte rien.
+  ///
+  /// Seule une page du serveur où l'app se trouve s'ouvre ici ; aucun geste n'est demandé, la feuille s'ouvre après une
+  /// requête comme au toucher.
+  @objc public func connexionWeb(_ invoke: Invoke) throws {
+    let args = try invoke.parseArgs(ArgsConnexion.self)
+    guard let adresse = URL(string: args.adresse), ["https", "http"].contains(adresse.scheme ?? ""), adresse.user == nil, adresse.password == nil else {
+      return invoke.reject("adresse refusée")
+    }
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self, let ici = self.vue?.url, AppareilPlugin.memeOrigine(ici, adresse) else {
+        return invoke.reject("adresse refusée")
+      }
+      // Une feuille à la fois : la précédente se ferme, sa demande finit sur `annule`.
+      self.feuilleConnexion?.cancel()
+      self.finirConnexion(["issue": "annule"])
+      let jeton = UUID()
+      let fin: ASWebAuthenticationSession.CompletionHandler = { [weak self] retour, erreur in
+        DispatchQueue.main.async {
+          guard let self = self, self.jetonConnexion == jeton else { return }
+          if retour != nil {
+            self.finirConnexion(["issue": "autorise"])
+          } else if let erreur = erreur as? ASWebAuthenticationSessionError, erreur.code == .canceledLogin {
+            self.finirConnexion(["issue": "annule"])
+          } else {
+            self.demandeConnexion?.reject("la feuille de connexion a échoué", error: erreur)
+            self.demandeConnexion = nil
+            self.feuilleConnexion = nil
+            self.jetonConnexion = nil
+          }
+        }
+      }
+      let feuille: ASWebAuthenticationSession
+      if #available(iOS 17.4, *) {
+        feuille = ASWebAuthenticationSession(url: adresse, callback: .customScheme(SCHEMA_RETOUR), completionHandler: fin)
+      } else {
+        feuille = ASWebAuthenticationSession(url: adresse, callbackURLScheme: SCHEMA_RETOUR, completionHandler: fin)
+      }
+      feuille.presentationContextProvider = self
+      feuille.prefersEphemeralWebBrowserSession = false
+      self.feuilleConnexion = feuille
+      self.demandeConnexion = invoke
+      self.jetonConnexion = jeton
+      if !feuille.start() {
+        self.feuilleConnexion = nil
+        self.demandeConnexion = nil
+        self.jetonConnexion = nil
+        invoke.reject("la feuille de connexion ne s'ouvre pas")
+      }
+    }
+  }
+
+  private func finirConnexion(_ reponse: JsonObject) {
+    demandeConnexion?.resolve(reponse)
+    demandeConnexion = nil
+    feuilleConnexion = nil
+    jetonConnexion = nil
+  }
+
+  /// Même schéma, même hôte, même port : la page d'accord est celle du serveur où l'app se trouve.
+  private static func memeOrigine(_ a: URL, _ b: URL) -> Bool {
+    let port = { (u: URL) in u.port ?? (u.scheme == "https" ? 443 : 80) }
+    return a.scheme == b.scheme && a.host?.lowercased() == b.host?.lowercased() && port(a) == port(b)
+  }
+
+  public func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+    vue?.window ?? manager.viewController?.view.window ?? ASPresentationAnchor()
   }
 }
 

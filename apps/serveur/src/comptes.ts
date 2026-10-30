@@ -64,9 +64,10 @@ export function adminsDe(valeur: string | undefined): string[] {
 
 /**
  * Donne au compte qui vient de naître son espace personnel et son tableau d'accueil, qui en est la racine, et active
- * les invitations en attente pour son adresse, si elle est vérifiée (un fournisseur qui la garantit).
+ * les invitations en attente pour son adresse, si elle est vérifiée (un fournisseur qui la garantit). `doigt` : il
+ * naît sur un téléphone, l'accueil y présente les gestes au doigt.
  */
-export function preparerCompte(base: Base, utilisateur: Utilisateur, langue?: 'fr' | 'en'): void {
+export function preparerCompte(base: Base, utilisateur: Utilisateur, langue?: 'fr' | 'en', doigt = false): void {
   const titre = titreAccueil(utilisateur.nom, langue)
   base.transaction(() => {
     const espace = creerOrganisationPersonnelle(base.db, utilisateur, new Date().toISOString())
@@ -74,7 +75,7 @@ export function preparerCompte(base: Base, utilisateur: Utilisateur, langue?: 'f
     base.definirEspace(espace, utilisateur.racine, true)
     base.definirAcces({ tableau: utilisateur.racine, utilisateur: utilisateur.id, role: 'proprietaire' })
     // L'accueil naît rempli : il présente les gestes. Le document est enregistré comme le ferait la synchro.
-    const accueil = documentAccueil(titre, langue)
+    const accueil = documentAccueil(titre, langue, doigt)
     base.enregistrerDocument(nomDuDocument(utilisateur.racine), Y.encodeStateAsUpdate(accueil))
     indexerDocument(base, utilisateur.racine, accueil)
     accueil.destroy()

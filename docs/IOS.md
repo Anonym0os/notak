@@ -166,6 +166,7 @@ ouverts, image Docker) et celui-ci partagent la coque. Pour qu'ils s'emboîtent 
 | `UIApplicationSupportsIndirectInputEvents` | trackpad et souris sur iPad : survol et clic droit arrivent en Pointer Events |
 | `UIFileSharingEnabled`, `LSSupportsOpeningDocumentsInPlace` | le dossier Documents de l'app paraît dans Fichiers ; un `.notak` s'ouvre en place |
 | `CFBundleDocumentTypes` + `UTExportedTypeDeclarations` (`app.notak.copie`, `.notak`, `application/x-notak`) | iOS propose Notak pour un `.notak` reçu par Mail ou dans Fichiers |
+| `CFBundleURLTypes` (schéma `notak`) | la connexion par code s'ouvre dans la feuille de connexion d'iOS (`ASWebAuthenticationSession`, commande `connexion_web` du plugin `appareil`) : l'accord donné, la page renvoie vers `notak://autorise` et la feuille se ferme. Ouverte dans Safari, la page offre « Revenir dans Notak » (`notak://`), qui ramène l'app au premier plan ; aucun plugin deep-link, l'adresse n'est pas lue |
 | `UIApplicationShortcutItems` « Quick note » | un appui long sur l'icône ouvre `/rapide` (phase 2 branche l'ouverture) |
 | `NSCameraUsageDescription`, `NSPhotoLibraryAddUsageDescription`, `NSMicrophoneUsageDescription` | sans la phrase, iOS ferme l'app à la première demande ; traduites dans `InfoPlist.strings` |
 

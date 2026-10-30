@@ -3,7 +3,7 @@ import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { type DemandeBureau, ErreurApi, type Moi, lireDemandeBureau, ouvrirCodeBureau, repondreCodeBureau, sessionEncoreValide, signalerSessionFinie } from '../api'
 import { langue, t } from '../langue'
 import { PageApp } from '../PageApp'
-import { CLIENT_BUREAU, codePlausible, epeler, grouperCode, normaliserCode } from './appareil'
+import { CLIENT_BUREAU, FIN_FEUILLE_IOS, RETOUR_APP_IOS, codePlausible, epeler, grouperCode, navigateurIos, normaliserCode, ouverteParLApp } from './appareil'
 
 /** Les refus du serveur qui disent que ce code-là ne se traite pas, quoi qu'on retente. */
 const CODES_DEFINITIFS = new Set(['invalid_request', 'expired_token', 'access_denied'])
@@ -48,17 +48,20 @@ async function charger(code: string): Promise<Etat> {
 }
 
 /**
- * La page où l'on confirme la connexion d'une app Notak de bureau : le code à comparer avec celui de l'app, d'où et
- * quand elle l'a demandé, et un avertissement quand ce n'est pas du réseau où l'on est. « Autoriser » donne à l'app
- * une session sur ce compte ; sans geste ici, rien ne se passe, et le code s'éteint au bout de dix minutes.
+ * La page où l'on confirme la connexion d'une app Notak, de bureau ou d'iPhone : le code à comparer avec celui de
+ * l'app, d'où et quand elle l'a demandé, et un avertissement quand ce n'est pas du réseau où l'on est. « Autoriser »
+ * donne à l'app une session sur ce compte ; sans geste ici, rien ne se passe, et le code s'éteint au bout de dix
+ * minutes. Sur un iPhone ou un iPad, l'accord donné, un bouton ramène dans l'app ; ouverte par l'app dans sa feuille
+ * de connexion (`retour=app`), la page y renvoie d'elle-même (`renvoyer`), et la feuille se ferme.
  */
-export function PageAutoriser({ moi }: { moi: Moi }) {
+export function PageAutoriser({ moi, renvoyer = (adresse) => location.assign(adresse) }: { moi: Moi; renvoyer?: (adresse: string) => void }) {
   const [code, setCode] = useState(codeDeLAdresse)
   const [etat, setEtat] = useState<Etat>(() =>
     code === null ? { type: 'saisie', erreur: null } : codePlausible(code) ? { type: 'charge' } : { type: 'impossible', message: t('erreur.appareil_inconnu') },
   )
   const [saisi, setSaisi] = useState('')
   const [maintenant] = useState(Date.now)
+  const [ios] = useState(() => navigateurIos())
   const carte = useRef<HTMLElement>(null)
 
   useEffect(() => {
@@ -91,6 +94,7 @@ export function PageAutoriser({ moi }: { moi: Moi }) {
     try {
       await repondreCodeBureau(code, autoriser)
       setEtat({ type: 'fait', autorise: autoriser })
+      if (autoriser && ouverteParLApp()) renvoyer(FIN_FEUILLE_IOS)
     } catch (x) {
       const erreur = x instanceof ErreurApi ? x : null
       // Plus de session : on revient à l'écran de connexion, avec ce code toujours dans l'adresse.
@@ -213,6 +217,14 @@ export function PageAutoriser({ moi }: { moi: Moi }) {
         <section className="app-carte autoriser-carte" ref={carte} tabIndex={-1} role="status" aria-labelledby="autoriser-fait">
           <h2 id="autoriser-fait">{etat.autorise ? t('serveur.autoriser.fait') : t('serveur.autoriser.refusee')}</h2>
           <p>{etat.autorise ? t('serveur.autoriser.faitAide') : t('serveur.autoriser.refuseeAide')}</p>
+          {/* Safari ne revient pas seul dans l'app qui l'a ouvert : `notak://` la ramène au premier plan. */}
+          {etat.autorise && ios && (
+            <div className="autoriser-actions">
+              <a className="bouton bouton-plein" href={RETOUR_APP_IOS}>
+                {t('serveur.autoriser.revenir')}
+              </a>
+            </div>
+          )}
         </section>
       )}
 

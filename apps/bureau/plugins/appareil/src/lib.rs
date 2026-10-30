@@ -6,8 +6,8 @@
 //! fait passer un iPad pour un Macintosh.
 //!
 //! Sur iOS, il porte aussi le natif que la page appelle directement (`invoke('plugin:appareil|infos')`), écrit en
-//! Swift dans `ios/Sources/AppareilPlugin.swift` : `infos`, `regler_theme`, `capturer_fenetre`, `haptique`, et
-//! l'événement `clavier`. Les commandes sont déclarées dans `build.rs` ; la page n'y a droit que par une capacité
+//! Swift dans `ios/Sources/AppareilPlugin.swift` : `infos`, `regler_theme`, `capturer_fenetre`, `haptique`,
+//! `partager`, `connexion_web`, et l'événement `clavier`. Les commandes sont déclarées dans `build.rs` ; la page n'y a droit que par une capacité
 //! (`apps/bureau/src-tauri/capabilities/mobile.json`, `appareil:default`).
 use tauri::plugin::{Builder, TauriPlugin};
 use tauri::Runtime;

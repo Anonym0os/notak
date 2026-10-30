@@ -8,6 +8,7 @@ import { setSessionCookie } from 'better-auth/cookies'
 import { deviceAuthorization } from 'better-auth/plugins/device-authorization'
 import { organization } from 'better-auth/plugins/organization'
 import type { Base, Utilisateur } from './base.ts'
+import { agentAuDoigt } from './accueil.ts'
 import { COULEURS, preparerCompte, preparerEspace } from './comptes.ts'
 import type { Courrier } from './courriel.ts'
 import { ROLES_ESPACE, ac } from './espaces.ts'
@@ -247,9 +248,11 @@ export function optionsAuth(o: OptionsAuth) {
             if (!nom || nom.length > NOM_MAX) throw new APIError('BAD_REQUEST', { message: 'nom invalide', code: 'NOM_INVALIDE' })
             return { data: { ...u, name: nom, couleur: choisirCouleur(), racine: randomUUID() } }
           },
-          after: async (u: { id: string }, ctx: { body?: { langue?: unknown } } | null) => {
+          // L'accueil se lit au doigt quand la requête qui crée le compte vient d'un téléphone : inscription, première
+          // connexion par un fournisseur ou par le SSO.
+          after: async (u: { id: string }, ctx: { body?: { langue?: unknown }; headers?: Headers } | null) => {
             const utilisateur = base.utilisateurParId(u.id)
-            if (utilisateur) preparerCompte(base, utilisateur, langueExport(ctx?.body?.langue))
+            if (utilisateur) preparerCompte(base, utilisateur, langueExport(ctx?.body?.langue), agentAuDoigt(ctx?.headers?.get('user-agent')))
           },
         },
       },
