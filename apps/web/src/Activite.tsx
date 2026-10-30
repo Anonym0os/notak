@@ -17,23 +17,13 @@ export function quand(instant: number, maintenant = Date.now()): string {
 }
 
 /**
- * Le bouton « Activité » et son panneau : ce que chacun a fait sur le tableau ouvert, regroupé.
- * Tant que le tableau est ouvert, l'activité se relit d'elle-même ; `surNouveaux` reçoit ce qui est arrivé depuis.
+ * L'activité du tableau ouvert, relue en continu, panneau fermé aussi : ce que les autres viennent de faire se met en
+ * valeur sur la toile. `surNouveaux` reçoit ce qui est arrivé depuis.
  */
-export function Activite({
-  tableau,
-  moi,
-  surNouveaux,
-}: {
-  tableau: string
-  moi: string
-  surNouveaux?(tableau: string, evenements: EvenementActivite[], moi: string): void
-}) {
-  const { ouvert, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
+export function useActivite(tableau: string, moi: string, surNouveaux?: (tableau: string, evenements: EvenementActivite[], moi: string) => void) {
   const [activite, setActivite] = useState<ActiviteTableau | null>(null)
   const [erreur, setErreur] = useState(false)
 
-  // Relue en continu, panneau fermé aussi : ce que les autres viennent de faire se met en valeur sur la toile.
   useEffect(() => {
     let vivant = true
     let dernier: number | undefined
@@ -66,6 +56,41 @@ export function Activite({
     }
   }, [tableau, moi, surNouveaux])
 
+  return { activite, erreur }
+}
+
+/** Les groupes de l'activité, du plus récent au plus ancien ; rien, ou une panne, se disent. */
+export function ListeActivite({ activite, erreur, moi }: { activite: ActiviteTableau | null; erreur: boolean; moi: string }) {
+  return (
+    <>
+      {((erreur && !activite) || activite?.groupes.length === 0) && (
+        <p className="app-panneau-vide">
+          <Icone nom="activite" taille={22} trait={1.5} />
+          {erreur && !activite ? t('activite.indisponible') : t('activite.rien')}
+        </p>
+      )}
+      <ol className="activite-liste">
+        {activite?.groupes.map((g, i) => (
+          <Ligne key={`${g.auteur.id}-${g.fin}-${i}`} groupe={g} moi={moi} />
+        ))}
+      </ol>
+    </>
+  )
+}
+
+/** Le bouton « Activité » et son panneau : ce que chacun a fait sur le tableau ouvert, regroupé. */
+export function Activite({
+  tableau,
+  moi,
+  surNouveaux,
+}: {
+  tableau: string
+  moi: string
+  surNouveaux?(tableau: string, evenements: EvenementActivite[], moi: string): void
+}) {
+  const { ouvert, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
+  const { activite, erreur } = useActivite(tableau, moi, surNouveaux)
+
   return (
     <div className="activite" ref={ancre}>
       <button type="button" ref={bouton} className="bouton" aria-expanded={ouvert} onClick={basculer}>
@@ -74,17 +99,7 @@ export function Activite({
       </button>
       {ouvert && (
         <div className="app-panneau activite-panneau" ref={panneau} role="dialog" aria-label={t('activite.titre')}>
-          {((erreur && !activite) || activite?.groupes.length === 0) && (
-            <p className="app-panneau-vide">
-              <Icone nom="activite" taille={22} trait={1.5} />
-              {erreur && !activite ? t('activite.indisponible') : t('activite.rien')}
-            </p>
-          )}
-          <ol className="activite-liste">
-            {activite?.groupes.map((g, i) => (
-              <Ligne key={`${g.auteur.id}-${g.fin}-${i}`} groupe={g} moi={moi} />
-            ))}
-          </ol>
+          <ListeActivite activite={activite} erreur={erreur} moi={moi} />
         </div>
       )}
     </div>

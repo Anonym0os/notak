@@ -97,22 +97,24 @@ export async function poserLePlan(plan: PlanImport, espace: EspaceNavigable, par
   return { tete: ids.get(racine.cle)!, perdus }
 }
 
-/** Le bouton « Importer » : un fichier `.notak`, ou un export Markdown de Milanote (zip), devient un tableau, ses sous-tableaux et ses fichiers. */
-export function Importer({
-  espace,
-  tableau,
-  ouvrir,
-  fichiers,
-  rouvrirNotak,
-}: {
+export interface ProprietesImport {
   espace: EspaceNavigable
   tableau: Id
   ouvrir(id: Id): void
   fichiers: DepotFichiers
   /** L'édition locale rouvre un `.notak` à sa façon : en le fusionnant à ce qu'elle a (local/copie.ts). */
   rouvrirNotak?(f: File): Promise<void>
-}) {
-  const { ouvert, regler, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
+}
+
+/** Les deux formats qu'on importe, à passer à `choisir` : le sélecteur de fichiers ne montre que lui. */
+export const TYPES_IMPORT = { notak: '.notak', milanote: '.zip,application/zip' } as const
+
+/**
+ * L'import, sans son bouton : `choisir` ouvre le sélecteur de fichiers sur un format, `champ` (le sélecteur caché) et
+ * `statut` (ce qu'a donné l'import) sont à poser dans la page. `surChoix` suit le choix d'un fichier (fermer un menu).
+ * `possible` est faux sur un tableau en lecture seule.
+ */
+export function useImport({ espace, tableau, ouvrir, fichiers, rouvrirNotak }: ProprietesImport, surChoix?: () => void) {
   const [etat, setEtat] = useState<{ type: 'repos' } | { type: 'cours'; envoi?: true } | { type: 'fini'; texte: string } | { type: 'echec'; texte: string }>({ type: 'repos' })
   const choix = useRef<HTMLInputElement>(null)
   // Le sélecteur ne montre que le format choisi : `accept` est posé juste avant le clic.
@@ -121,7 +123,6 @@ export function Importer({
     choix.current.accept = types
     choix.current.click()
   }
-  if (espace.lectureSeule?.(tableau)) return null
 
   const importerNotak = async (fichier: File) => {
     setEtat({ type: 'cours' })
@@ -160,38 +161,51 @@ export function Importer({
     }
   }
 
+  const champ = (
+    <input
+      ref={choix}
+      type="file"
+      hidden
+      onChange={(e) => {
+        const f = e.target.files?.[0]
+        e.target.value = ''
+        surChoix?.()
+        if (f) void importer(f)
+      }}
+    />
+  )
+  const statut = (etat.type === 'fini' || etat.type === 'echec') && (
+    <div className="app-panneau importer-etat" role="status">
+      <p className="partage-note">{etat.texte}</p>
+      <button type="button" className="bouton-lien" onClick={() => setEtat({ type: 'repos' })}>
+        {t('commun.fermer')}
+      </button>
+    </div>
+  )
+  const libelle = etat.type === 'cours' ? t(etat.envoi ? 'importer.envoi' : 'importer.encours') : t('importer.titre')
+  return { possible: !espace.lectureSeule?.(tableau), enCours: etat.type === 'cours', libelle, choisir, champ, statut }
+}
+
+/** Le bouton « Importer » : un fichier `.notak`, ou un export Markdown de Milanote (zip), devient un tableau, ses sous-tableaux et ses fichiers. */
+export function Importer(proprietes: ProprietesImport) {
+  const { ouvert, regler, basculer, ancre, bouton, panneau } = usePanneau<HTMLDivElement, HTMLButtonElement>()
+  const { possible, enCours, libelle, choisir, champ, statut } = useImport(proprietes, () => regler(false))
+  if (!possible) return null
   return (
     <div className="importer" ref={ancre}>
-      <button type="button" ref={bouton} className="bouton" aria-expanded={ouvert} disabled={etat.type === 'cours'} onClick={basculer}>
+      <button type="button" ref={bouton} className="bouton" aria-expanded={ouvert} disabled={enCours} onClick={basculer}>
         <Icone nom="importer" taille={16} />
-        {etat.type === 'cours' ? t(etat.envoi ? 'importer.envoi' : 'importer.encours') : t('importer.titre')}
+        {libelle}
       </button>
       {ouvert && (
         <div className="app-panneau app-menu" ref={panneau} role="menu" aria-label={t('importer.titre')}>
-          <LigneMenu icone="tableau" libelle={t('importer.notak')} onClick={() => choisir('.notak')} />
-          <LigneMenu icone="fichierArchive" libelle={t('importer.milanote')} detail={t('importer.aide')} onClick={() => choisir('.zip,application/zip')} />
+          <LigneMenu icone="tableau" libelle={t('importer.notak')} onClick={() => choisir(TYPES_IMPORT.notak)} />
+          <LigneMenu icone="fichierArchive" libelle={t('importer.milanote')} detail={t('importer.aide')} onClick={() => choisir(TYPES_IMPORT.milanote)} />
           <p className="app-menu-note">{t('importer.aideXmind')}</p>
         </div>
       )}
-      <input
-        ref={choix}
-        type="file"
-        hidden
-        onChange={(e) => {
-          const f = e.target.files?.[0]
-          e.target.value = ''
-          regler(false)
-          if (f) void importer(f)
-        }}
-      />
-      {(etat.type === 'fini' || etat.type === 'echec') && (
-        <div className="app-panneau importer-etat" role="status">
-          <p className="partage-note">{etat.texte}</p>
-          <button type="button" className="bouton-lien" onClick={() => setEtat({ type: 'repos' })}>
-            {t('commun.fermer')}
-          </button>
-        </div>
-      )}
+      {champ}
+      {statut}
     </div>
   )
 }

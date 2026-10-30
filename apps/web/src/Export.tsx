@@ -182,7 +182,13 @@ function contenuZip(o: Uint8Array): Prepare['apercu'] {
   }
 }
 
-/** Le bouton « Exporter » du tableau : il ouvre le dialogue d'export (DialogueExport.tsx) sur le tableau ouvert. */
+/** Ouvre le dialogue d'export (DialogueExport.tsx) sur le tableau, panneaux de l'en-tête fermés. */
+export function exporterTableau(tableau: string, titre: string, local?: ExportLocal) {
+  fermerPanneaux()
+  ouvrirExport(sujetTableau(tableau, titre, local))
+}
+
+/** Le bouton « Exporter » du tableau : il ouvre le dialogue d'export sur le tableau ouvert. */
 export function Export({ tableau, titre, local }: { tableau: string; titre(): string; local?: ExportLocal }) {
   return (
     <div className="export">
@@ -192,10 +198,7 @@ export function Export({ tableau, titre, local }: { tableau: string; titre(): st
         aria-haspopup="dialog"
         aria-label={t('exporter.titre')}
         title={t('exporter.titre')}
-        onClick={() => {
-          fermerPanneaux()
-          ouvrirExport(sujetTableau(tableau, titre(), local))
-        }}
+        onClick={() => exporterTableau(tableau, titre(), local)}
       >
         <Icone nom="exporter" taille={16} />
         <span className="bouton-texte">{t('exporter.titre')}</span>

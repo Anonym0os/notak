@@ -460,11 +460,14 @@ function AvisSignaler({ avis }: { avis: Avis }) {
 /** Ce qu'ouvre le bouton de l'en-tête ; posé par `brancherSignaler`. */
 let ouvrirLaFenetre: (() => void) | null = null
 
+/** La fenêtre de ⇧⌘S, ouverte d'ailleurs : le bouton de l'en-tête, ou la feuille « ••• » du téléphone. */
+export const ouvrirSignaler = () => ouvrirLaFenetre?.()
+
 /** Le petit insecte de l'en-tête, à côté de la cloche : la même fenêtre que ⇧⌘S. */
 export function BoutonSignaler() {
   return (
     <Infobulle libelle={t('signaler.bouton')}>
-      <button type="button" className="bouton bouton-nu" onClick={() => ouvrirLaFenetre?.()}>
+      <button type="button" className="bouton bouton-nu" onClick={ouvrirSignaler}>
         <Icone nom="bug" taille={22} trait={1.5} />
         <span className="sr-seulement">{t('signaler.titre')}</span>
       </button>

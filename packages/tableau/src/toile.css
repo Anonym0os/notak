@@ -393,10 +393,11 @@
   background: rgb(0 0 0 / 0.14);
 }
 
-/* Les non triés, en haut à droite de la toile. */
+/* Les non triés, en haut à droite de la toile, sous la barre : sous sa seconde ligne d'îlots si elle en a une
+   (`--notak-entete-surplus`, mesurée par EspaceNotak). */
 .notak-non-tries-bouton {
   position: absolute;
-  top: calc(var(--notak-haut, 0px) + 12px);
+  top: calc(var(--notak-haut, 0px) + var(--notak-entete-surplus, 0px) + 12px);
   right: 12px;
   z-index: 2;
   height: 28px;
@@ -1226,7 +1227,7 @@
 /* La recherche dans le tableau : en haut, au milieu ; ce qui ne correspond pas s'efface. */
 .notak-recherche {
   position: absolute;
-  top: calc(var(--notak-haut, 0px) + 12px);
+  top: calc(var(--notak-haut, 0px) + var(--notak-entete-surplus, 0px) + 12px);
   left: 50%;
   z-index: 20;
   display: flex;
@@ -1593,7 +1594,7 @@
 .notak-non-tries {
   right: 12px;
   bottom: auto;
-  top: calc(var(--notak-haut, 0px) + 48px);
+  top: calc(var(--notak-haut, 0px) + var(--notak-entete-surplus, 0px) + 48px);
   left: auto;
 }
 
