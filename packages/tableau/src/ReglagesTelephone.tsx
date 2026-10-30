@@ -3,7 +3,7 @@ import { Dialogue } from './communs'
 import { t } from './langue'
 import { PastillePersonne } from './pastille'
 import { Coche } from './reglages'
-import { type ContexteReglages, GROUPES, type Ligne, RUBRIQUES, type Rubrique, lire, rubriquesVisibles } from './rubriquesReglages'
+import { type ContexteReglages, GROUPES, type Ligne, RUBRIQUES, type Rubrique, carteCompte, lire, rubriquesVisibles } from './rubriquesReglages'
 import { VERSION_NOTAK } from './version'
 
 /** Le défilement au-delà duquel le grand titre de la liste passe dans la barre, petit et centré. */
@@ -165,7 +165,10 @@ export function ReglagesTelephone({ fermer, ...c }: ContexteReglages & { fermer(
     if (g.dx > largeur * PART_RETOUR || elan > ELAN_RETOUR) revenir()
   }
 
-  const profil = c.compte ? visibles.find((r) => r.id === 'profil') : undefined
+  // En tête, le compte et son serveur quand l'application les dit (`reglerRubriqueCompte`) ; sinon le profil du compte.
+  const carte = carteCompte(c)
+  const compte = carte ? visibles.find((r) => r.id === 'compte') : undefined
+  const profil = !compte && c.compte ? visibles.find((r) => r.id === 'profil') : undefined
   return (
     <Dialogue
       nu
@@ -187,6 +190,14 @@ export function ReglagesTelephone({ fermer, ...c }: ContexteReglages & { fermer(
             </button>
           }
         >
+          {compte && (
+            <div className="notak-rgt-carte">
+              <button type="button" className="notak-rgt-rangee notak-rgt-moi" data-rubrique={compte.id} onClick={() => ouvrir(compte)}>
+                {carte}
+                <Chevron />
+              </button>
+            </div>
+          )}
           {profil && c.compte && (
             <div className="notak-rgt-carte">
               <button type="button" className="notak-rgt-rangee notak-rgt-moi" data-rubrique={profil.id} onClick={() => ouvrir(profil)}>
@@ -200,7 +211,8 @@ export function ReglagesTelephone({ fermer, ...c }: ContexteReglages & { fermer(
             </div>
           )}
           {GROUPES.map((g) => {
-            const rubriques = visibles.filter((r) => r.groupe === g && r !== profil)
+            // La photo et la couleur sont dans « Compte » quand il est là : « Profil » ne se répète pas.
+            const rubriques = visibles.filter((r) => r.groupe === g && r !== profil && r.id !== 'compte' && !(compte && r.id === 'profil'))
             if (rubriques.length === 0) return null
             return (
               <nav key={g} className="notak-rgt-carte" aria-label={t(`reglages.groupe.${g}`)}>

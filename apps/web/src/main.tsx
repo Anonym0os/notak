@@ -17,6 +17,8 @@ if (estMobile()) void import('./ios/demarrage').then((m) => m.demarrerMobile(win
 
 // Dans l'app de bureau, les réglages (⌘,) gagnent leur rubrique « App de bureau », quelle que soit l'édition.
 if (estBureau()) void import('./bureau/ReglagesBureau').then((m) => m.brancherReglagesBureau())
+// Au téléphone, les réglages ouvrent sur le compte et son serveur : dans l'édition serveur, et dans l'app qui peut en joindre un.
+if (import.meta.env.VITE_EDITION !== 'locale' || peutJoindreUnServeur()) void import('./bureau/CompteEtServeur').then((m) => m.brancherReglagesCompte())
 
 // Deux éditions, un seul code : `VITE_EDITION=locale` (tout dans le navigateur, sans compte, ce que sert notak.app)
 // ou l'édition serveur (comptes, partage, temps réel). Le choix se fait à la construction : le paquet de l'une ne

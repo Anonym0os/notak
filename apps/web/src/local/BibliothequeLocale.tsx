@@ -1,7 +1,6 @@
 import {
   type GenreNeuf,
   type Id,
-  type NomIcone,
   type ResultatRecherche,
   type ResumeContenu,
   creerSurLAccueil,
@@ -15,17 +14,20 @@ import {
   t,
   tn,
 } from '@notak/tableau'
-import { Fragment, type ReactNode, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { BoutonPlus, ChoixCreation, EnteteDoigt, LigneDoigt as Ligne, RubriqueDoigt, Surligne, TuileDoigt, quand } from '../bibliotheque/AuDoigt'
 import { Vignette } from '../bibliotheque/Vignettes'
+import { peutJoindreUnServeur } from '../bureau'
+import { CompteEtServeur, RondCompte } from '../bureau/CompteEtServeur'
 import { type EspaceLocal, rechercherLocalement } from './espace'
-import { ServeurTelephone } from './ServeurTelephone'
 
 /**
  * La bibliothèque de l'édition locale, celle de l'app iPhone : la page où l'on arrive. En tête, la toile d'accueil,
  * qui porte tout le reste ; puis ce qu'on a ouvert récemment, en rangée qui glisse ; puis les toiles, les cartes
- * mentales et les documents de l'appareil, quatre de chaque, le reste sur « Tout voir ». Le « + » du haut crée, la
- * recherche replie le grand titre comme celle des Notes d'iOS. Elle s'ouvre par la maison de l'en-tête (`/toiles`)
- * et se quitte en ouvrant ce qu'on touche, ou par le retour.
+ * mentales et les documents de l'appareil, quatre de chaque, le reste sur « Tout voir ». Le « + » du haut crée ; à côté,
+ * dans l'app, le rond du compte ouvre la feuille où l'on rejoint un serveur Notak. La recherche replie le grand titre
+ * comme celle des Notes d'iOS. Elle s'ouvre par la maison de l'en-tête (`/toiles`) et se quitte en ouvrant ce qu'on
+ * touche, ou par le retour. Ses pièces sont celles de toute bibliothèque au doigt (`bibliotheque/AuDoigt.tsx`).
  */
 
 const CLE_VUS = 'notak:local:vus'
@@ -136,21 +138,11 @@ const EXTRAITS = 3
 /** Le temps d'attente avant la recherche dans le contenu : les titres, eux, répondent à chaque lettre. */
 const ATTENTE_CONTENU = 200
 
-/** L'icône de chaque genre ; `note` : un passage trouvé dans un élément qui ne s'ouvre pas en grand (note, liste…). */
-const ICONE: Record<GenreNeuf | 'note', NomIcone> = { toile: 'tableau', arbre: 'carteMentale', document: 'document', note: 'note' }
 const RUBRIQUES = [
   { genre: 'toile', titre: 'biblio.rubrique.toiles' },
   { genre: 'arbre', titre: 'biblio.rubrique.cartes' },
   { genre: 'document', titre: 'biblio.rubrique.documents' },
 ] as const
-
-function quand(ms: number | undefined): string {
-  if (!ms) return t('biblio.groupe.jamais')
-  const jours = Math.floor((Date.now() - ms) / 86_400_000)
-  if (jours < 1) return t('biblio.groupe.aujourdhui')
-  if (jours < 7) return t('biblio.groupe.semaine')
-  return new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
-}
 
 const detailDe = (e: EntreeLocale) => (e.dans ? t('biblio.dans', { toile: e.dans }) : quand(e.vu))
 
@@ -166,25 +158,6 @@ function useTheme(): string | undefined {
   )
 }
 
-/** Le texte, les mots de la requête en gras : ce qui a fait trouver la ligne. */
-export function Surligne({ texte, requete }: { texte: string; requete: string }) {
-  const mots = normaliser(requete).split(/\s+/).filter(Boolean)
-  if (mots.length === 0) return <>{texte}</>
-  // `normaliser` garde la longueur lettre à lettre (il ôte les accents) : les positions valent pour le texte d'origine.
-  const plat = normaliser(texte)
-  if (plat.length !== texte.length) return <>{texte}</>
-  const marques = new Array<boolean>(texte.length).fill(false)
-  for (const m of mots) for (let i = plat.indexOf(m); i >= 0; i = plat.indexOf(m, i + m.length)) marques.fill(true, i, i + m.length)
-  const morceaux: ReactNode[] = []
-  for (let i = 0; i < texte.length; ) {
-    let j = i
-    while (j < texte.length && marques[j] === marques[i]) j++
-    morceaux.push(marques[i] ? <mark key={i}>{texte.slice(i, j)}</mark> : <Fragment key={i}>{texte.slice(i, j)}</Fragment>)
-    i = j
-  }
-  return <>{morceaux}</>
-}
-
 export function BibliothequeLocale({ el, ouvrir }: { el: EspaceLocal; ouvrir(tableau: Id, element?: Id | null): void }) {
   const { index, reseau, espace } = el
   const theme = useTheme()
@@ -194,8 +167,8 @@ export function BibliothequeLocale({ el, ouvrir }: { el: EspaceLocal; ouvrir(tab
   const [requete, setRequete] = useState('')
   const [cherche, setCherche] = useState(false)
   const [creation, setCreation] = useState(false)
+  const [compte, setCompte] = useState(false)
   const [ouvertes, setOuvertes] = useState<ReadonlySet<GenreNeuf>>(new Set())
-  const champ = useRef<HTMLInputElement>(null)
   const racine = index.racine()
 
   // Les résumés (vignettes, cartes et documents portés) se lisent un à un dans IndexedDB, sans retenir l'affichage.
@@ -251,12 +224,6 @@ export function BibliothequeLocale({ el, ouvrir }: { el: EspaceLocal; ouvrir(tab
     }
   }, [requete, el])
 
-  const quitterRecherche = () => {
-    setCherche(false)
-    setRequete('')
-    champ.current?.blur()
-  }
-
   const nombres = {
     toiles: entrees.filter((e) => e.genre === 'toile' && !e.accueil).length,
     cartes: entrees.filter((e) => e.genre === 'arbre').length,
@@ -267,39 +234,23 @@ export function BibliothequeLocale({ el, ouvrir }: { el: EspaceLocal; ouvrir(tab
 
   return (
     <div className="notak-espace biblio-locale" data-theme={theme} data-cherche={cherche || undefined}>
-      <header className="biblio-locale-entete">
-        <div className="biblio-locale-tete">
-          <h1>{t('biblio.titre')}</h1>
-          <button type="button" className="biblio-locale-plus" aria-label={t('biblio.nouveau')} aria-haspopup="dialog" onClick={() => setCreation(true)}>
-            <Icone nom="ajouter" taille={22} />
-          </button>
-        </div>
-        <div className="biblio-locale-barre">
-          <label className="biblio-locale-recherche">
-            <Icone nom="recherche" taille={17} />
-            <input
-              ref={champ}
-              type="search"
-              placeholder={t('biblio.chercherTout')}
-              value={requete}
-              onFocus={() => setCherche(true)}
-              onChange={(e) => setRequete(e.target.value)}
-              enterKeyHint="search"
-              autoCorrect="off"
-              autoCapitalize="off"
-              spellCheck={false}
-            />
-            {requete && (
-              <button type="button" className="biblio-locale-effacer" aria-label={t('biblio.effacer')} onClick={() => (setRequete(''), champ.current?.focus())}>
-                <Icone nom="fermer" taille={12} />
+      <EnteteDoigt
+        titre={t('biblio.titre')}
+        actions={
+          <>
+            <BoutonPlus onClick={() => setCreation(true)} />
+            {peutJoindreUnServeur() && (
+              <button type="button" className="biblio-locale-compte-bouton" aria-label={t('compteServeur.titre')} aria-haspopup="dialog" onClick={() => setCompte(true)}>
+                <RondCompte taille={34} />
               </button>
             )}
-          </label>
-          <button type="button" className="biblio-locale-annuler" tabIndex={cherche ? 0 : -1} aria-hidden={!cherche} onClick={quitterRecherche}>
-            {t('commun.annuler')}
-          </button>
-        </div>
-      </header>
+          </>
+        }
+        requete={requete}
+        changer={setRequete}
+        cherche={cherche}
+        chercher={setCherche}
+      />
 
       {cherche ? (
         <Recherche
@@ -346,8 +297,7 @@ export function BibliothequeLocale({ el, ouvrir }: { el: EspaceLocal; ouvrir(tab
           )}
 
           {recents(entrees).length > 0 && (
-            <section className="biblio-locale-rubrique" aria-labelledby="biblio-locale-recents">
-              <h2 id="biblio-locale-recents">{t('biblio.rubrique.recents')}</h2>
+            <RubriqueDoigt id="biblio-locale-recents" titre={t('biblio.rubrique.recents')}>
               <ul className="biblio-locale-rangee">
                 {recents(entrees).map((e) => (
                   <li key={e.cle}>
@@ -355,7 +305,7 @@ export function BibliothequeLocale({ el, ouvrir }: { el: EspaceLocal; ouvrir(tab
                   </li>
                 ))}
               </ul>
-            </section>
+            </RubriqueDoigt>
           )}
 
           {RUBRIQUES.map(({ genre, titre }) => {
@@ -363,22 +313,15 @@ export function BibliothequeLocale({ el, ouvrir }: { el: EspaceLocal; ouvrir(tab
             if (liste.length === 0) return null
             const toutes = ouvertes.has(genre)
             return (
-              <section key={genre} className="biblio-locale-rubrique" aria-labelledby={`biblio-locale-${genre}`}>
-                <div className="biblio-locale-rubrique-tete">
-                  <h2 id={`biblio-locale-${genre}`}>
-                    {t(titre)} <span className="biblio-locale-compte">{liste.length}</span>
-                  </h2>
-                  {liste.length > PAR_RUBRIQUE && (
-                    <button
-                      type="button"
-                      className="biblio-locale-voir"
-                      aria-expanded={toutes}
-                      onClick={() => setOuvertes((avant) => new Set(toutes ? [...avant].filter((g) => g !== genre) : [...avant, genre]))}
-                    >
-                      {toutes ? t('biblio.voirMoins') : t('biblio.toutVoir')}
-                    </button>
-                  )}
-                </div>
+              <RubriqueDoigt
+                key={genre}
+                id={`biblio-locale-${genre}`}
+                titre={t(titre)}
+                nombre={liste.length}
+                {...(liste.length > PAR_RUBRIQUE
+                  ? { plus: { ouverte: toutes, basculer: () => setOuvertes((avant) => new Set(toutes ? [...avant].filter((g) => g !== genre) : [...avant, genre])) } }
+                  : {})}
+              >
                 <ul className="biblio-locale-grille">
                   {(toutes ? liste : liste.slice(0, PAR_RUBRIQUE)).map((e) => (
                     <li key={e.cle}>
@@ -386,14 +329,18 @@ export function BibliothequeLocale({ el, ouvrir }: { el: EspaceLocal; ouvrir(tab
                     </li>
                   ))}
                 </ul>
-              </section>
+              </RubriqueDoigt>
             )
           })}
 
-          <ServeurTelephone />
         </>
       )}
 
+      {compte && (
+        <FeuilleBas titre={t('compteServeur.titre')} fermer={() => setCompte(false)} className="compte-serveur-feuille">
+          <CompteEtServeur />
+        </FeuilleBas>
+      )}
       {creation && (
         <FeuilleBas titre={t('biblio.nouveau')} fermer={() => setCreation(false)} className="biblio-locale-feuille">
           <ChoixCreation creer={(g) => void creer(g)} />
@@ -403,52 +350,8 @@ export function BibliothequeLocale({ el, ouvrir }: { el: EspaceLocal; ouvrir(tab
   )
 }
 
-/** Les trois choses qu'on crée : une toile s'ouvre, une carte ou un document se pose sur l'accueil et s'ouvre en grand. */
-function ChoixCreation({ creer }: { creer(genre: GenreNeuf): void }) {
-  return (
-    <div className="biblio-locale-neuf" role="group" aria-label={t('biblio.nouveau')}>
-      {(['toile', 'arbre', 'document'] as const).map((g) => (
-        <button key={g} type="button" data-genre={g} onClick={() => creer(g)}>
-          <span className="biblio-locale-pastille" data-genre={g}>
-            <Icone nom={ICONE[g]} taille={20} />
-          </span>
-          <span className="biblio-locale-neuf-texte">
-            <span>{t(`biblio.genre.${g}`)}</span>
-            <span className="biblio-locale-detail">{t(`biblio.neufAide.${g}`)}</span>
-          </span>
-        </button>
-      ))}
-    </div>
-  )
-}
-
 function Tuile({ entree: e, resume, aller }: { entree: EntreeLocale; resume: ResumeContenu | undefined; aller(e: EntreeLocale): void }) {
-  return (
-    <button type="button" className="biblio-locale-tuile" data-genre={e.genre} onClick={() => aller(e)}>
-      {resume ? <Vignette resume={resume} /> : <span className="biblio-vignette" aria-hidden />}
-      <span className="biblio-locale-titre">{titreDe(e)}</span>
-      <span className="biblio-locale-detail">{detailDe(e)}</span>
-    </button>
-  )
-}
-
-/** Une ligne de résultat : l'icône du genre en pastille, le titre, et dessous où il est (ou le passage trouvé). */
-function Ligne({ genre, titre, detail, requete, onClick }: { genre: GenreNeuf | 'note'; titre: string; detail: ReactNode; requete: string; onClick(): void }) {
-  return (
-    <li>
-      <button type="button" className="biblio-locale-ligne" onClick={onClick}>
-        <span className="biblio-locale-pastille" data-genre={genre}>
-          <Icone nom={ICONE[genre]} taille={16} />
-        </span>
-        <span className="biblio-locale-ligne-texte">
-          <span className="biblio-locale-titre">
-            <Surligne texte={titre} requete={requete} />
-          </span>
-          <span className="biblio-locale-detail">{detail}</span>
-        </span>
-      </button>
-    </li>
-  )
+  return <TuileDoigt genre={e.genre} resume={resume} titre={titreDe(e)} detail={detailDe(e)} onClick={() => aller(e)} />
 }
 
 /**

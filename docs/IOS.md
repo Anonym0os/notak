@@ -132,7 +132,8 @@ ouverts, image Docker) et celui-ci partagent la coque. Pour qu'ils s'emboîtent 
   reçoit `DROITS_SERVEUR` version mobile : se signaler, revenir, Safari pour la connexion par code, `appareil:default`
   et `opener:default`, rien qui choisisse un serveur. La session est le cookie de Better Auth, gardé par WebKit dans le
   magasin de la vue ; pas de Keychain tant que la page est servie par le serveur lui-même. Côté page :
-  `estPageServeurMobile`, `peutJoindreUnServeur` (`bureau.ts`), `local/ServeurTelephone.tsx`. En développement,
+  `estPageServeurMobile`, `peutJoindreUnServeur` (`bureau.ts`), `bureau/CompteEtServeur.tsx` (le rond du compte de
+  la bibliothèque et la carte « Compte » des réglages, depuis le 30/10/2026). En développement,
   `?coque=ios` imite la coque dans le navigateur (`ios/coqueSimulee.ts`) pour essayer tout le parcours.
 - `ouvrirAilleurs(adresse, nom)` (le sien, pour les pièces jointes) et `ouvrirDehors` (le nôtre, `bureau.ts`) : un
   seul chemin, le sien quand il sera là ; le nôtre s'y repliera. Les 11 `window.open(…, '_blank')` à y faire passer :

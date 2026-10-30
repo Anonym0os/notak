@@ -66,6 +66,8 @@ import {
   voisine,
 } from './bibliotheque/selection'
 import { Vignette } from './bibliotheque/Vignettes'
+import { useAuTelephone } from './bibliotheque/AuDoigt'
+import { BibliothequeTelephone } from './bibliotheque/Telephone'
 import { ecouterImportBureau } from './importBureau'
 import type { BilanImport } from './importation'
 import { allerA, surLien } from './chemin'
@@ -74,7 +76,8 @@ import { t, tn } from './langue'
 /**
  * La bibliothèque, page d'accueil de l'édition serveur : tout ce que le compte peut ouvrir, en vignettes, comme chez
  * Xmind. Une colonne de rubriques à gauche, la barre de l'application en haut, et des tuiles rangées par date
- * d'ouverture ou par dossier (la toile qui les porte). Les toiles restent la façon de ranger ; ici, on parcourt.
+ * d'ouverture ou par dossier (la toile qui les porte). Les toiles restent la façon de ranger ; ici, on parcourt. Au
+ * téléphone, la même page prend la forme de la bibliothèque de l'appareil (`bibliotheque/Telephone.tsx`).
  */
 
 export const RUBRIQUES = ['recents', 'favoris', 'partages', 'toiles', 'cartes', 'documents'] as const
@@ -178,7 +181,7 @@ export function filtrer(entrees: readonly EntreeBibliotheque[], requete: string)
 export const adresseDe = (e: Pick<EntreeBibliotheque, 'tableau' | 'element'>) =>
   e.element === null ? `/t/${encodeURIComponent(e.tableau)}` : `/t/${encodeURIComponent(e.tableau)}/e/${encodeURIComponent(e.element)}`
 
-const rubriqueDeLAdresse = (): Rubrique | null => {
+export const rubriqueDeLAdresse = (): Rubrique | null => {
   const v = new URLSearchParams(location.search).get('vue')
   return (RUBRIQUES as readonly string[]).includes(v ?? '') ? (v as Rubrique) : null
 }
@@ -228,16 +231,31 @@ const noterVuEntree = (e: Pick<EntreeBibliotheque, 'tableau' | 'element'>) => (e
 /** Le pointeur à moins de tant de pixels du haut ou du bas de la page la fait défiler, pendant un cadre ou un glisser. */
 const BORD_DEFILEMENT = 48
 
-export function PageBibliotheque({
+/** Crée sur une toile de l'espace (l'accueil, sans `dans`) ; rend où aller. */
+const creerDansLEspace = (espace: EspaceBibliotheque | undefined) => async (genre: GenreNeuf, dans?: string) => {
+  const ou = dans ?? espace!.racine
+  await quandPretes(espace!, [ou])
+  return creerDans(espace!, ou, genre)
+}
+
+type ProprietesBibliotheque = Parameters<typeof BibliothequeBureau>[0] & {
+  /** La pastille du compte, seule : au téléphone, la barre ne garde qu'elle et le « + ». */
+  avatar?: ReactNode
+}
+
+/** La bibliothèque : au téléphone, sa forme au doigt ; ailleurs, celle du bureau. */
+export function PageBibliotheque({ avatar, ...proprietes }: ProprietesBibliotheque) {
+  if (!useAuTelephone()) return <BibliothequeBureau {...proprietes} />
+  const { charger = lireBibliotheque, espace, creer = creerDansLEspace(espace) } = proprietes
+  return <BibliothequeTelephone charger={charger} {...(espace ? { espace } : {})} creer={(genre) => creer(genre)} avatar={avatar} />
+}
+
+function BibliothequeBureau({
   charger = lireBibliotheque,
   espace,
   fenetres,
   compte,
-  creer = async (genre, dans) => {
-    const ou = dans ?? espace!.racine
-    await quandPretes(espace!, [ou])
-    return creerDans(espace!, ou, genre)
-  },
+  creer = creerDansLEspace(espace),
   rangerToile = rangerToileApi,
   definirFavori = definirFavoriApi,
   partage,

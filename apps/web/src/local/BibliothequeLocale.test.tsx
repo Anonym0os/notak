@@ -3,9 +3,9 @@ import 'fake-indexeddb/auto'
 import type { ResumeContenu } from '@notak/tableau'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
-import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { BibliothequeLocale, type EntreeLocale, Surligne, entreesLocales, lireVus, noterVu, ordonner, recents } from './BibliothequeLocale'
+import { BibliothequeLocale, type EntreeLocale, entreesLocales, lireVus, noterVu, ordonner, recents } from './BibliothequeLocale'
+import { acces, poserCoque, retirerCoque } from '../bureau/essai'
 import { espaceLocal } from './espace'
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -70,10 +70,6 @@ describe('l’ordre de la bibliothèque locale', () => {
       ['voyage/e/d1', 'document', 'Voyage', 50],
     ])
   })
-
-  it('met en gras les mots trouvés, accents compris', () => {
-    expect(renderToStaticMarkup(<Surligne texte="Été à Paris" requete="ete paris" />)).toBe('<mark>Été</mark> à <mark>Paris</mark>')
-  })
 })
 
 describe('l’écran de la bibliothèque', () => {
@@ -105,6 +101,31 @@ describe('l’écran de la bibliothèque', () => {
     expect(hote.querySelector('.biblio-locale-entete')!.nextElementSibling).toBe(vedette)
     act(() => vedette.click())
     expect(ouvrir).toHaveBeenCalledWith(el.index.racine(), null)
+  })
+
+  it('dans l’app, le rond du compte, à côté du « + », ouvre la feuille « Compte » ; plus de ligne « serveur » en bas', async () => {
+    vi.stubEnv('VITE_EDITION', 'locale')
+    poserCoque({ acces: () => acces() })
+    try {
+      const el = await espaceLocal()
+      await act(async () => racine.render(<BibliothequeLocale el={el} ouvrir={vi.fn()} />))
+      expect(hote.querySelector('.biblio-serveur')).toBeNull()
+      const rond = hote.querySelector<HTMLButtonElement>('.biblio-locale-actions .biblio-locale-compte-bouton')!
+      expect(rond.getAttribute('aria-label')).toBe('Compte')
+      act(() => rond.click())
+      await attendre()
+      const feuille = document.querySelector('.notak-tiroir-bas.compte-serveur-feuille')!
+      expect(feuille.querySelector('.compte-serveur-tete strong')!.textContent).toBe('Pas de compte')
+    } finally {
+      retirerCoque()
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('dans un navigateur, pas de rond du compte : il n’y a pas de serveur à joindre', async () => {
+    const el = await espaceLocal()
+    await act(async () => racine.render(<BibliothequeLocale el={el} ouvrir={vi.fn()} />))
+    expect(hote.querySelector('.biblio-locale-compte-bouton')).toBeNull()
   })
 
   it('montre les toiles de l’appareil et ouvre celle qu’on touche', async () => {

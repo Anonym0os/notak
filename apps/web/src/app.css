@@ -4784,6 +4784,123 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   }
 }
 
+/* À droite du grand titre : le « + », et sur un serveur la pastille du compte. */
+.biblio-locale-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Le rond du compte de l'app (bibliothèque locale) : 44 pt à toucher, comme l'avatar de l'App Store. */
+.biblio-locale-compte-bouton {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-right: -5px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+}
+
+.biblio-locale-compte-bouton:active {
+  opacity: 0.6;
+}
+
+/* La pastille du compte, aux mesures du doigt : 44 pt à toucher, la photo un peu plus grande qu'au bureau. */
+.biblio-locale-avatar .compte-nom {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-right: -6px;
+  padding: 0;
+  border-radius: 50%;
+  background: none;
+}
+
+.biblio-locale-avatar .compte-nom > * {
+  transform: scale(1.34);
+}
+
+/*
+ * La bibliothèque d'un serveur au téléphone (bibliotheque/Telephone.tsx) : la même page que celle de l'appareil, mais
+ * seule à l'écran. Elle ne passe pas devant les bandeaux du serveur, ni devant les feuilles qu'elle ouvre.
+ */
+.biblio-locale.biblio-telephone {
+  z-index: 0;
+}
+
+/* La rangée des espaces et des filtres : elle glisse de côté sous la recherche, comme les filtres de Photos. */
+.biblio-locale-filtres {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 calc(-1 * var(--biblio-gouttiere)) 20px;
+  padding: 2px var(--biblio-gouttiere);
+  overflow-x: auto;
+  scroll-padding: 0 var(--biblio-gouttiere);
+  scrollbar-width: none;
+}
+
+.biblio-locale-filtres::-webkit-scrollbar {
+  display: none;
+}
+
+.biblio-locale-filtre {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--biblio-remplissage);
+  font-size: 15px !important;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.biblio-locale-filtre small {
+  color: var(--biblio-discret);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.biblio-locale-filtre[aria-pressed='true'] {
+  background: var(--notak-texte);
+  color: var(--notak-fond) !important;
+}
+
+.biblio-locale-filtre[aria-pressed='true'] small {
+  color: color-mix(in srgb, var(--notak-fond) 70%, transparent);
+}
+
+/* La toile d'accueil, l'espace où tout se range : à part des filtres, à la couleur de l'accent. Elle s'ouvre. */
+.biblio-locale-filtre[data-espace] {
+  background: color-mix(in srgb, var(--notak-accent, #2f6feb) 12%, transparent);
+  color: var(--notak-accent, #2f6feb) !important;
+  font-weight: 600;
+}
+
+.biblio-locale-filtres-sep {
+  flex: none;
+  width: 1px;
+  height: 20px;
+  background: color-mix(in srgb, var(--notak-texte) 14%, transparent);
+}
+
+.biblio-locale-filtre:active,
+.biblio-locale-plus:active {
+  opacity: 0.6;
+}
+
+.biblio-locale-vide small {
+  font-size: 14px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .biblio-locale-tete,
   .biblio-locale-annuler,

@@ -1,0 +1,194 @@
+/* ═══ Le compte et le serveur, au téléphone : la feuille « Compte » de la bibliothèque, la rubrique des réglages ═══ */
+
+/* En tête, comme l'identifiant Apple : le rond, le nom (ou le serveur), et dessous ce qu'il en est. */
+.compte-serveur-tete {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 8px 0 18px;
+  text-align: center;
+}
+
+.compte-serveur-tete > :first-child {
+  margin-bottom: 8px;
+}
+
+.compte-serveur-tete strong {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compte-serveur-tete small {
+  color: color-mix(in srgb, var(--notak-texte) 55%, transparent);
+  font-size: 15px;
+}
+
+.compte-serveur-photo {
+  display: inline-flex;
+  flex: none;
+}
+
+/* Le rond sans photo : l'initiale du serveur retenu sur l'accent, sinon une silhouette sur gris, comme sur iOS. */
+.compte-serveur-rond {
+  display: grid;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #a5a9b1, #868a93);
+  color: #fff;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.compte-serveur-rond[data-initiale] {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--notak-accent, #2f6feb) 80%, #fff), var(--notak-accent, #2f6feb));
+}
+
+.compte-serveur-phrase,
+.compte-serveur-confirme > p {
+  margin: 0 4px 16px;
+  color: color-mix(in srgb, var(--notak-texte) 65%, transparent);
+  font-size: 15px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+/* Un groupe de lignes, comme dans les réglages d'iOS : 44 pt au moins chacune, un filet entre deux. */
+.compte-serveur-groupe {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--notak-carte, var(--carte));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--notak-texte) 8%, transparent);
+}
+
+.compte-serveur-ligne {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 14px 8px 16px;
+  border: 0;
+  background: none;
+  color: var(--notak-texte);
+  font: inherit;
+  font-size: 16px;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.compte-serveur-ligne + .compte-serveur-ligne {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--notak-texte) 8%, transparent);
+}
+
+.compte-serveur-ligne:active:not(:disabled) {
+  background: color-mix(in srgb, var(--notak-texte) 6%, transparent);
+}
+
+.compte-serveur-ligne:disabled {
+  opacity: 0.5;
+}
+
+.compte-serveur-ligne > svg:first-child {
+  flex: none;
+  color: var(--notak-accent, #2f6feb);
+}
+
+.compte-serveur-ligne > svg:last-child:not(:first-child) {
+  flex: none;
+  color: color-mix(in srgb, var(--notak-texte) 35%, transparent);
+}
+
+.compte-serveur-ligne[data-danger],
+.compte-serveur-ligne[data-danger] > svg:first-child {
+  color: #e5484d;
+}
+
+.compte-serveur-texte {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.compte-serveur-texte > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compte-serveur-texte small {
+  color: color-mix(in srgb, var(--notak-texte) 55%, transparent);
+  font-size: 13px;
+}
+
+.compte-serveur .connexion-erreur {
+  margin: 10px 4px 0;
+}
+
+/* Dans les réglages, la rubrique est déjà une carte : le compte y pose ses propres groupes, sur le fond de la page. */
+.notak-rgt-carte:has(> .notak-rgt-libre > .compte-serveur) {
+  background: none;
+}
+
+.notak-rgt-libre:has(> .compte-serveur) {
+  padding: 0;
+}
+
+/*
+ * Le formulaire de l'app de bureau, à la place du compte : il perd sa carte (la feuille ou la rubrique en est une) et
+ * prend les mesures du doigt : des champs de 16 px (en dessous, iOS zoome à la prise de focus) et 48 px de haut, des boutons de 44 pt au
+ * moins, liens compris.
+ */
+.compte-serveur-formulaire .connexion-carte.acces-carte {
+  width: 100%;
+  padding: 4px 4px 8px;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.compte-serveur-formulaire .connexion-carte input {
+  height: 48px;
+  font-size: 16px;
+}
+
+.compte-serveur-formulaire .connexion-carte label {
+  font-size: 14px;
+}
+
+.compte-serveur-formulaire .connexion-carte .bouton {
+  min-height: 48px;
+  border-radius: 24px;
+  font-size: 16px;
+}
+
+.compte-serveur-formulaire .connexion-carte .bouton-lien {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 15px;
+}
+
+.compte-serveur-formulaire .acces-autres > .bouton,
+.compte-serveur-formulaire .acces-actions {
+  align-self: stretch;
+}
+
+.compte-serveur-formulaire .acces-actions .bouton {
+  flex: 1;
+}
+
+.compte-serveur-formulaire .connexion-aide,
+.compte-serveur-formulaire .connexion-erreur,
+.compte-serveur-formulaire .connexion-avis {
+  font-size: 15px;
+}

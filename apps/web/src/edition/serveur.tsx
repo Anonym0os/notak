@@ -346,6 +346,7 @@ function Accueil({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
                 <Compte moi={moi} deconnexion={deconnexion} aide={fenetres.aide} />
               </>
             }
+            avatar={<Compte moi={moi} deconnexion={deconnexion} aide={fenetres.aide} />}
           />
         )}
       </HoteNotak>

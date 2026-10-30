@@ -6,14 +6,16 @@ const locale = vi.fn()
 const serveur = vi.fn()
 const reglages = vi.fn()
 const passerLaPorte = vi.fn()
+const compte = vi.fn()
 
 beforeEach(() => {
   vi.resetModules()
-  for (const f of [locale, serveur, reglages, passerLaPorte]) f.mockReset()
+  for (const f of [locale, serveur, reglages, passerLaPorte, compte]) f.mockReset()
   vi.doMock('../edition/locale', () => (locale(), {}))
   vi.doMock('../edition/serveur', () => (serveur(), {}))
   vi.doMock('./ReglagesBureau', () => ({ brancherReglagesBureau: reglages }))
   vi.doMock('./Porte', () => ({ passerLaPorte }))
+  vi.doMock('./CompteEtServeur', () => ({ brancherReglagesCompte: compte }))
 })
 afterEach(() => {
   delete (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
@@ -22,6 +24,7 @@ afterEach(() => {
   vi.doUnmock('../edition/serveur')
   vi.doUnmock('./ReglagesBureau')
   vi.doUnmock('./Porte')
+  vi.doUnmock('./CompteEtServeur')
 })
 
 const dansLeBureau = () => {
@@ -77,6 +80,20 @@ describe('le démarrage de l’app web', () => {
     expect(serveur).toHaveBeenCalledOnce()
     expect(passerLaPorte).not.toHaveBeenCalled()
     expect(reglages).toHaveBeenCalledOnce()
+  })
+
+  it('la carte « Compte » des réglages se branche dans l’édition serveur, et dans l’app qui peut joindre un serveur ; pas sur notak.app', async () => {
+    await demarrer()
+    expect(compte).toHaveBeenCalledOnce()
+    vi.resetModules()
+    compte.mockReset()
+    vi.stubEnv('VITE_EDITION', 'locale')
+    await demarrer()
+    expect(compte).not.toHaveBeenCalled()
+    vi.resetModules()
+    dansLeBureau()
+    await demarrer()
+    expect(compte).toHaveBeenCalledOnce()
   })
 
   it('une porte qui ne se charge pas ne laisse pas la page blanche : l’édition locale se monte', async () => {

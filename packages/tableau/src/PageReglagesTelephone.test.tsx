@@ -103,4 +103,37 @@ describe('les réglages sur un téléphone', () => {
     act(() => options[0]!.click())
     expect(changer).toHaveBeenCalledWith({ grille: 8 })
   })
+  it('ouvrent sur la carte « Compte » quand l’application la donne : elle mène au compte et au serveur, photo et couleur dessous', async () => {
+    const { reglerRubriqueCompte } = await import('./rubriquesReglages')
+    reglerRubriqueCompte({ carte: (c) => <span className="essai-carte">{c.compte?.nom ?? 'Pas de compte'}</span>, rendre: () => <p className="essai-serveur">notak.exemple.fr</p> })
+    const compte = { nom: 'Ada', couleur: '#2f6feb', photo: null, changerCouleur: async () => {}, changerPhoto: async () => {} }
+    try {
+      act(() => racine.render(<PageReglages reglages={reglages} changer={() => {}} fermer={() => {}} compte={compte} />))
+      const carte = document.querySelector<HTMLButtonElement>('.notak-rgt-racine .notak-rgt-moi')!
+      expect(carte.dataset.rubrique).toBe('compte')
+      expect(carte.querySelector('.essai-carte')!.textContent).toBe('Ada')
+      // « Profil » ne se répète pas : sa photo et sa couleur sont dans « Compte ».
+      expect(rangee('Profil')).toBeUndefined()
+      act(() => carte.click())
+      expect(document.querySelector('.notak-rgt-rubrique .notak-rgt-barre-titre')!.textContent).toBe('Compte')
+      expect(document.querySelector('.notak-rgt-rubrique .essai-serveur')).not.toBeNull()
+      expect([...document.querySelectorAll('.notak-rgt-rubrique .notak-rgt-entete')].map((h) => h.textContent)).toEqual(['Serveur Notak', 'Photo', 'Couleur du compte'])
+      // Sans compte (l'app, sans serveur) : la carte reste, la rubrique aussi.
+      act(() => racine.render(<PageReglages reglages={reglages} changer={() => {}} fermer={() => {}} />))
+      expect(document.querySelector('.notak-rgt-racine .essai-carte')!.textContent).toBe('Pas de compte')
+    } finally {
+      reglerRubriqueCompte(null)
+    }
+  })
+
+  it('le bureau n’a pas de rubrique « Compte » : le menu du compte et « App de bureau » le disent déjà', async () => {
+    const { reglerRubriqueCompte } = await import('./rubriquesReglages')
+    reglerRubriqueCompte({ carte: () => null, rendre: () => null })
+    try {
+      expect(ids(false).map((r) => r.id)).not.toContain('compte')
+      expect(ids(true).map((r) => r.id)).toContain('compte')
+    } finally {
+      reglerRubriqueCompte(null)
+    }
+  })
 })
