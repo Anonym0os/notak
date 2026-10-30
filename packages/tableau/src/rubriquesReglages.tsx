@@ -67,6 +67,8 @@ export interface Rubrique {
   teinte: string
   /** Sur un téléphone, la rubrique n'existe pas : tout ce qu'elle règle tient au clavier, à la souris ou au bureau. */
   bureauSeul?: true
+  /** Seulement sur un téléphone : le bureau dit la même chose ailleurs (le menu du compte, « App de bureau »). */
+  telephoneSeul?: true
   sections: Section[]
 }
 
@@ -96,7 +98,52 @@ export function reglerRubriqueBureau(rendre: (() => ReactNode) | null) {
   rubriqueBureau = rendre
 }
 
+/**
+ * Le compte et le serveur, en tête des réglages d'un téléphone, comme l'identifiant Apple : la toile ne sait ni ce qu'est
+ * un serveur ni comment s'y connecter, l'application le lui dit (`reglerRubriqueCompte`) : le dedans de la carte (le
+ * rond, le nom, le serveur) et le contenu de la rubrique. Tant qu'elle ne l'a pas fait, la carte du profil reste.
+ */
+export interface RubriqueCompte {
+  carte(c: ContexteReglages): ReactNode
+  rendre(c: ContexteReglages): ReactNode
+}
+let rubriqueCompte: RubriqueCompte | null = null
+export function reglerRubriqueCompte(r: RubriqueCompte | null) {
+  rubriqueCompte = r
+}
+/** Le dedans de la carte « Compte », si l'application l'a donné. */
+export const carteCompte = (c: ContexteReglages): ReactNode => rubriqueCompte?.carte(c) ?? null
+
+/** La photo et la couleur du compte connecté : dans « Profil » au bureau, sous le serveur dans « Compte » au téléphone. */
+const IDENTITE: Section = {
+  titre: 'reglages.section.identite',
+  lignes: [
+    { id: 'photo', libelle: 'reglages.compte.photo', aide: 'reglages.compte.photo.aide', si: (c) => !!c.compte, controle: { type: 'libre', rendre: (c) => c.compte && <ChoixPhoto compte={c.compte} /> } },
+    { id: 'couleur', libelle: 'reglages.compte.couleur', aide: 'reglages.compte.couleur.aide', si: (c) => !!c.compte, controle: { type: 'libre', rendre: (c) => c.compte && <ChoixCouleur compte={c.compte} /> } },
+  ],
+}
+
 export const RUBRIQUES: Rubrique[] = [
+  {
+    id: 'compte',
+    teinte: '#8e8e93',
+    telephoneSeul: true,
+    groupe: 'compte',
+    titre: 'reglages.rubrique.compte',
+    icone: icone(
+      <>
+        <circle cx="12" cy="8" r="4" />
+        <path d="M5 20a7 7 0 0 1 14 0" />
+      </>,
+    ),
+    sections: [
+      {
+        titre: 'reglages.section.serveur',
+        lignes: [{ id: 'compteServeur', libelle: 'reglages.section.serveur', si: () => rubriqueCompte !== null, controle: { type: 'libre', rendre: (c) => rubriqueCompte?.rendre(c) } }],
+      },
+      IDENTITE,
+    ],
+  },
   {
     id: 'profil',
     teinte: '#8e8e93',
@@ -109,15 +156,7 @@ export const RUBRIQUES: Rubrique[] = [
         <path d="M5 20a7 7 0 0 1 14 0" />
       </>,
     ),
-    sections: [
-      {
-        titre: 'reglages.section.identite',
-        lignes: [
-          { id: 'photo', libelle: 'reglages.compte.photo', aide: 'reglages.compte.photo.aide', si: (c) => !!c.compte, controle: { type: 'libre', rendre: (c) => c.compte && <ChoixPhoto compte={c.compte} /> } },
-          { id: 'couleur', libelle: 'reglages.compte.couleur', aide: 'reglages.compte.couleur.aide', si: (c) => !!c.compte, controle: { type: 'libre', rendre: (c) => c.compte && <ChoixCouleur compte={c.compte} /> } },
-        ],
-      },
-    ],
+    sections: [IDENTITE],
   },
   {
     id: 'notifications',
@@ -424,7 +463,7 @@ export const RUBRIQUES: Rubrique[] = [
  * Sur un téléphone, sans ce qui ne sert qu'au bureau, et avec l'aide écrite pour le doigt.
  */
 export function rubriquesVisibles(c: ContexteReglages, toutes: Rubrique[] = RUBRIQUES, telephone = enFeuille()): Rubrique[] {
-  const existe = (x: { bureauSeul?: true }) => !(telephone && x.bureauSeul)
+  const existe = (x: { bureauSeul?: true; telephoneSeul?: true }) => (telephone ? !x.bureauSeul : !x.telephoneSeul)
   const pourIci = (l: Ligne): Ligne => (telephone && l.aideAuDoigt ? { ...l, aide: l.aideAuDoigt } : l)
   return toutes
     .filter(existe)
