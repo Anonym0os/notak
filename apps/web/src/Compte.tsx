@@ -88,18 +88,21 @@ export function Compte({
               <div className="app-menu-sep" />
             </>
           )}
-          <LigneMenu icone="tableau" libelle={t('compte.bibliotheque')} detail={t('compte.bibliotheque.detail')} touche={RACCOURCI_BIBLIOTHEQUE} href="/" onClick={aller('/')} />
+          {/* En feuille, au doigt : ni raccourci clavier, ni l'aide, qui n'est faite que de raccourcis. */}
+          <LigneMenu icone="tableau" libelle={t('compte.bibliotheque')} detail={t('compte.bibliotheque.detail')} touche={enFeuilleOuverte ? undefined : RACCOURCI_BIBLIOTHEQUE} href="/" onClick={aller('/')} />
           <LigneMenu icone="equipe" libelle={t('compte.espaces')} detail={t('compte.espaces.detail')} href="/espace" onClick={aller('/espace')} />
           <LigneMenu icone="envoyer" libelle={t('compte.envoyer')} detail={t(estBureau() ? 'compte.envoyer.detailBureau' : 'compte.envoyer.detail')} href="/envoyer" onClick={aller('/envoyer')} />
-          <LigneMenu
-            icone="aide"
-            libelle={t('compte.aide')}
-            detail={t('compte.raccourcis')}
-            onClick={() => {
-              regler(false)
-              aide()
-            }}
-          />
+          {!enFeuilleOuverte && (
+            <LigneMenu
+              icone="aide"
+              libelle={t('compte.aide')}
+              detail={t('compte.raccourcis')}
+              onClick={() => {
+                regler(false)
+                aide()
+              }}
+            />
+          )}
           {estServeurDansApp() && (
             <>
               <div className="app-menu-sep" />
