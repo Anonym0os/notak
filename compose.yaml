@@ -52,13 +52,13 @@ services:
 
   openfga-migration:
     # La même version que les essais du serveur (vitest.openfga.ts) : un essai le vérifie.
-    image: openfga/openfga:v1.22.0
+    image: openfga/openfga:v1.22.1
     command: migrate --datastore-engine sqlite --datastore-uri file:/home/nonroot/openfga.db
     volumes:
       - openfga:/home/nonroot
 
   openfga:
-    image: openfga/openfga:v1.22.0
+    image: openfga/openfga:v1.22.1
     restart: unless-stopped
     command: run --datastore-engine sqlite --datastore-uri file:/home/nonroot/openfga.db --playground-enabled=false
     volumes:
