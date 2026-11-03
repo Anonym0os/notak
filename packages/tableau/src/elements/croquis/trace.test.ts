@@ -10,6 +10,9 @@ import {
   traitFini,
   attributsTrait,
   dessinTrait,
+  dessinDuTrait,
+  epurer,
+  OPACITE_SURLIGNEUR,
   traitEnSvg,
   COULEURS_TRAIT,
   EPAISSEURS_TRAIT,
@@ -177,5 +180,50 @@ describe('la pression du stylet', () => {
     expect(leger.d).not.toBe(appuye.d)
     expect(dessinTrait(points, 4, AFFINAGE, true, [0.5]).d).toBe(dessinTrait(points, 4, AFFINAGE).d)
     expect(pressionsDe({ points, pressions: [0.5] })).toBeUndefined()
+  })
+})
+
+describe('le tracé épuré (le flux du Pencil)', () => {
+  // Une droite parcourue à 2 px par point, comme le Pencil à vitesse moyenne.
+  const droite = Array.from({ length: 40 }, (_, i) => [i * 2, 0]).flat()
+
+  it('écarte un point déjà passé que ramène un paquet de points groupés', () => {
+    const avecRecul = [...droite.slice(0, 20), 14, 0, ...droite.slice(20)]
+    expect(epurer(avecRecul, 4).points).toEqual(epurer(droite, 4).points)
+  })
+  it('fond les points trop serrés, garde le premier et le dernier', () => {
+    const serre = Array.from({ length: 81 }, (_, i) => [i * 0.25, 0]).flat()
+    const r = epurer(serre, 4).points
+    expect(r.length).toBeLessThan(serre.length / 2)
+    expect(r.slice(0, 2)).toEqual([0, 0])
+    expect(r.at(-2)).toBeGreaterThan(19)
+  })
+  it('garde un vrai virage : le trait repart dans l’autre sens', () => {
+    const allerRetour = [...Array.from({ length: 20 }, (_, i) => [i * 2, 0]).flat(), ...Array.from({ length: 20 }, (_, i) => [38 - i * 2, 6]).flat()]
+    const r = epurer(allerRetour, 2).points
+    expect(Math.min(...r.filter((_, i) => i % 2 === 0 && r[i + 1] === 6))).toBeLessThan(5)
+  })
+  it('les pressions muettes prennent celle de leurs voisines, et toutes sont lissées', () => {
+    const points = Array.from({ length: 8 }, (_, i) => [i * 4, 0]).flat()
+    const r = epurer(points, 2, [0.05, 0.4, 0.05, 0.4, 0.4, 0.05, 0.4, 0.4])
+    expect(r.pressions!.every((p) => Math.abs(p - 0.4) < 1e-9)).toBe(true)
+  })
+  it('un trait au chapelet de reculs se dessine comme le trait propre', () => {
+    const haché = droite.flatMap((v, i) => (i % 8 === 0 && i > 8 ? [droite[i - 4]!, 0, v] : [v]))
+    expect(dessinTrait(haché, 4, AFFINAGE, true).d).toBe(dessinTrait(droite, 4, AFFINAGE, true).d)
+  })
+})
+
+describe('le surligneur', () => {
+  const points = [0, 0, 10, 2, 22, 8, 30, 20]
+  it('trace une ligne constante et translucide, sans affinage ni pression', () => {
+    const t = prolongerTrace(commencerTrace(0, 0, { pointerType: 'pen', pressure: 0.3 }), 8, 2, { pointerType: 'pen', pressure: 0.6 })
+    const fini = traitFini(t, '#ffd14d', 18, AFFINAGE, true)
+    expect(fini).toEqual({ points: [0, 0, 8, 2], couleur: '#ffd14d', epaisseur: 18, surligneur: true })
+    const a = attributsTrait(dessinDuTrait({ points, couleur: '#ffd14d', epaisseur: 18, surligneur: true }), '#ffd14d')
+    expect([a.fill, a.strokeWidth, a.strokeOpacity]).toEqual(['none', 18, OPACITE_SURLIGNEUR])
+    // Son contour de choix ou de gomme reste opaque.
+    expect(attributsTrait(dessinDuTrait({ points, couleur: '#ffd14d', epaisseur: 18, surligneur: true }), 'red', 3).strokeOpacity).toBeUndefined()
+    expect(traitEnSvg({ points, couleur: '#ffd14d', epaisseur: 18, surligneur: true })).toContain(`stroke-opacity="${OPACITE_SURLIGNEUR}"`)
   })
 })

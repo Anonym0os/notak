@@ -75,3 +75,10 @@
 .notak-dessin-libre-barre .notak-croquis-enregistrer[aria-disabled='true']:hover {
   background: var(--notak-accent, #2f6feb);
 }
+
+/* La traînée de la gomme, comme dans Miro : un trait gris qui suit la pointe et s'efface aussitôt. */
+.notak-dessin-libre-trainee line {
+  stroke: var(--notak-trait-defaut, #323b4a);
+  stroke-linecap: round;
+  pointer-events: none;
+}

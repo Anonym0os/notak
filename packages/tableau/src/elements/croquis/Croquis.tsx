@@ -13,13 +13,12 @@ import {
   affinageDe,
   attributsTrait,
   commencerTrace,
-  dessinTrait,
+  dessinDuTrait,
   ecrireReglage,
   epaisseurFeuille,
   gommer,
   hauteurFeuille,
   lireReglage,
-  pressionsDe,
   prolongerTrace,
   traitFini,
   traitVise,
@@ -46,7 +45,7 @@ const CAPTURE_PX = 6
 
 /** Les traits d'une feuille, en SVG : un chemin lissé par trait. `vise` : le trait que la gomme viserait, cerné de rouge. */
 function Traits({ traits, vise, choisis, contour = 0, suitLeTheme = false, enCours = false }: { traits: readonly Trait[]; vise?: { i: number; extra: number } | null; choisis?: ReadonlySet<Trait>; contour?: number; suitLeTheme?: boolean; enCours?: boolean }) {
-  const chemins = useMemo(() => traits.map((t) => dessinTrait(t.points, t.epaisseur, t.affinage, !enCours, pressionsDe(t))), [traits, enCours])
+  const chemins = useMemo(() => traits.map((t) => dessinDuTrait(t, !enCours)), [traits, enCours])
   return (
     <>
       {traits.map((t, i) => (
