@@ -191,21 +191,41 @@ function cheminContour(contour: readonly number[][]): string {
  * points groupés n'ont pas toujours de pression (0, gardée comme le plancher de `pressionDe`). Le contour d'encre
  * prend chaque recul pour un virage serré et y pose un bout rond : le trait se hachait en chapelet de pointillés.
  *
- * `epurer` rend le tracé qu'on a voulu faire : les points trop serrés (moins d'un quart d'épaisseur) se fondent, un recul
- * plus court que deux épaisseurs est écarté (un vrai virage repart plus loin, il reste), les pressions manquantes
- * prennent celle de leurs voisines et toutes sont lissées sur cinq points. Rien n'est réécrit dans le document : le
- * trait enregistré garde ses points, et un trait d'avant se redessine propre.
+ * `epurer` rend le tracé qu'on a voulu faire : les points trop serrés (moins d'un quart d'épaisseur) se fondent ; un
+ * point qui recule est écarté s'il est court (moins de deux épaisseurs, la poussière d'une pointe presque immobile), ou
+ * s'il retombe sur le chemin déjà tracé et que le stylet repart en avant dans les points d'après (un point déjà passé,
+ * renvoyé ; son recul grandit avec la vitesse, d'où un seuil qui ne dépend pas d'elle). Un vrai virage, lui, continue
+ * dans le nouveau sens : il reste. Les pressions manquantes prennent celle de leurs voisines et toutes sont lissées sur
+ * cinq points. `enCours` : le trait se trace encore ; un recul tout au bout, dont la suite n'est pas arrivée, attend
+ * d'être confirmé avant de compter (sinon un bout rond clignote à la pointe). Rien n'est réécrit dans le document : le trait enregistré garde ses points, et un trait d'avant se
+ * redessine propre.
  */
-export function epurer(points: readonly number[], epaisseur: number, pressions?: readonly number[]): { points: number[]; pressions?: number[] } {
+export function epurer(points: readonly number[], epaisseur: number, pressions?: readonly number[], enCours = false): { points: number[]; pressions?: number[] } {
   const n = points.length / 2
   const avecPression = !!pressions && pressions.length === n
   if (n < 3) return { points: [...points], ...(avecPression ? { pressions: pressionsPropres(pressions) } : {}) }
   const pas = Math.max(epaisseur * 0.25, 1e-6)
   const recul = epaisseur * 2
+  const pres = Math.max(epaisseur * 0.5, pas)
   const garde: number[] = [points[0]!, points[1]!]
   const indices: number[] = [0]
   let dx0 = 0
   let dy0 = 0
+  /** Le point (x, y) est-il sur le chemin gardé, parmi ses derniers segments ? */
+  const surLeChemin = (x: number, y: number) => {
+    const m = garde.length / 2
+    for (let k = m - 1; k >= Math.max(1, m - REGARD_CHEMIN); k--) {
+      if (distanceSegment(x, y, garde[2 * k - 2]!, garde[2 * k - 1]!, garde[2 * k]!, garde[2 * k + 1]!) <= pres) return true
+    }
+    return false
+  }
+  /** Le stylet repart-il en avant du dernier point gardé (sens `dx0`, `dy0`) dans les points qui suivent `i` ? */
+  const repartEnAvant = (i: number, lx: number, ly: number) => {
+    for (let j = i + 1; j < Math.min(n, i + 1 + REGARD_SUITE); j++) {
+      if ((points[2 * j]! - lx) * dx0 + (points[2 * j + 1]! - ly) * dy0 > 0) return true
+    }
+    return enCours && i + REGARD_SUITE >= n
+  }
   for (let i = 1; i < n; i++) {
     const x = points[2 * i]!
     const y = points[2 * i + 1]!
@@ -215,7 +235,7 @@ export function epurer(points: readonly number[], epaisseur: number, pressions?:
     const dy = y - ly
     const d = Math.hypot(dx, dy)
     if (d < pas) continue
-    if (dx * dx0 + dy * dy0 < 0 && d < recul) continue
+    if (dx * dx0 + dy * dy0 < 0 && (d < recul || (surLeChemin(x, y) && repartEnAvant(i, lx, ly)))) continue
     garde.push(x, y)
     indices.push(i)
     dx0 = dx
@@ -237,6 +257,10 @@ export function epurer(points: readonly number[], epaisseur: number, pressions?:
   })
   return { points: garde, pressions: lisserPressions(fondues) }
 }
+
+/** Combien de points on regarde après un recul (25 ms au Pencil), et combien de segments du chemin déjà tracé. */
+const REGARD_SUITE = 6
+const REGARD_CHEMIN = 12
 
 /** En dessous, une pression ne dit rien : le premier contact, ou un point groupé que WebKit n'a pas renseigné. */
 const PRESSION_MUETTE = 0.05
@@ -283,7 +307,7 @@ export function dessinTrait(
   pressions?: readonly number[],
   surligneur = false,
 ): DessinTrait {
-  const propre = epurer(points, epaisseur, pressions)
+  const propre = epurer(points, epaisseur, pressions, !fini)
   const constant = (): DessinTrait => ({ d: cheminLisse(propre.points), plein: false, epaisseur, ...(surligneur ? { surligneur: true } : {}) })
   if (surligneur || !affinage || propre.points.length < 4) return constant()
   const pts = propre.points
