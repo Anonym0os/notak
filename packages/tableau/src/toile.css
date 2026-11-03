@@ -517,14 +517,27 @@
   background: var(--notak-fond);
 }
 
+/*
+ * Le fondu des poignées qui paraissent au survol d'un élément (coin, hauteur, repli d'une colonne). Une transition
+ * d'`opacity` est confiée au compositeur : le temps du fondu, WebKit (Notak.app, Safari) sort la poignée dans un calque
+ * à elle, `.notak-plan` et son échelle avec, et le rastérise à 100 % puis l'agrandit : toute la toile devenait floue
+ * 100 ms à chaque carte survolée. On fait glisser ce nombre à la place : l'opacité suit, repeinte, sans calque.
+ */
+@property --notak-paraitre {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+
 .notak-poignee {
   position: absolute;
   right: -1px;
   bottom: -1px;
-  opacity: 0;
+  --notak-paraitre: 0;
+  opacity: var(--notak-paraitre);
   transform: scale(var(--notak-zoom-inverse, 1));
   transform-origin: 100% 100%;
-  transition: opacity 0.1s linear;
+  transition: --notak-paraitre 0.1s linear;
   box-sizing: border-box;
   width: 26px;
   height: 26px;
@@ -1197,7 +1210,7 @@
 /* La poignée paraît au survol, et sur l'élément seul choisi ; elle garde sa taille quel que soit le zoom. */
 .notak-carte:hover > .notak-poignee,
 .notak-carte[data-choisie] > .notak-poignee {
-  opacity: 1;
+  --notak-paraitre: 1;
 }
 
 /* Hauteur bornée : ce qui dépasse le plafond se cache sous un voile de la couleur de la carte. */
