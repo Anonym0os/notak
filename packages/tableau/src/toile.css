@@ -3723,3 +3723,26 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 .notak-gestes-rapides button[data-danger] {
   color: #ff6b62;
 }
+
+/* Au téléphone, la pilule tient dans la largeur : texte et marges plus serrés ; au pire, un libellé s'abrège. */
+.notak-gestes-rapides {
+  max-width: calc(100% - 16px);
+}
+
+.notak-gestes-rapides button {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 480px) {
+  .notak-gestes-rapides button {
+    padding: 0 10px;
+    font-size: 14px;
+  }
+
+  .notak-gestes-rapides button:last-child {
+    padding: 0 9px;
+  }
+}
