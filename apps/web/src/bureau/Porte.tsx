@@ -61,7 +61,7 @@ export function Porte({ acces, recherche, surLocal }: { acces: Acces | null; rec
   const hote = serveur ? hoteDe(serveur) : ''
   return (
     <div className="notak-espace" data-theme={theme}>
-      <main className="connexion">
+      <main className="connexion" data-tauri-drag-region>
         <div className="connexion-carte acces-carte acces-connexion">
           <Marque />
           <h1>{t('bureau.porte.connexion', { hote })}</h1>

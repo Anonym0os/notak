@@ -99,7 +99,7 @@ export function PageInvitation({ jeton, moi }: { jeton: string; moi: Moi }) {
   const theme = themeEffectif(reglages.theme, useSystemeSombre())
   return (
     <div className="notak-espace" data-theme={theme}>
-      <main className="connexion">
+      <main className="connexion" data-tauri-drag-region>
         <div className="connexion-carte">
           <Marque />
           <h1>Notak</h1>

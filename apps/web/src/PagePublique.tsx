@@ -96,7 +96,7 @@ function Contenu({ jeton }: { jeton: string }) {
   if (etat.type !== 'pret') {
     const message = { absent: t('publique.absent'), expire: t('publique.expire'), erreur: t('publique.erreur') }[etat.type]
     return (
-      <main className="connexion">
+      <main className="connexion" data-tauri-drag-region>
         <div className="connexion-carte">
           <Marque />
           <h1>Notak</h1>
@@ -298,7 +298,7 @@ function MotDePasseRequis({ jeton, surOuverture }: { jeton: string; surOuverture
     }
   }
   return (
-    <main className="connexion">
+    <main className="connexion" data-tauri-drag-region>
       <form className="connexion-carte" onSubmit={valider} noValidate>
         <Marque />
         <h1>Notak</h1>

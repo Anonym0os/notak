@@ -193,7 +193,7 @@ export function EcranConnexion({
   if (parCode) {
     return (
       <div className="notak-espace" data-theme={theme}>
-        <main className="connexion">
+        <main className="connexion" data-tauri-drag-region>
           <ConnexionParCode surConnexion={surConnexion} annuler={() => setParCode(false)} />
         </main>
         {enApp && <FichierEnAttente />}
@@ -203,7 +203,7 @@ export function EcranConnexion({
 
   return (
     <div className="notak-espace" data-theme={theme}>
-      <main className="connexion">
+      <main className="connexion" data-tauri-drag-region>
         <form className="connexion-carte" onSubmit={valider} noValidate ref={champs} aria-busy={envoi}>
           <Marque />
           <h1>{instance.nom}</h1>
