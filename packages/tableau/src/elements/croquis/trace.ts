@@ -258,6 +258,9 @@ export function epurer(points: readonly number[], epaisseur: number, pressions?:
   return { points: garde, pressions: lisserPressions(fondues) }
 }
 
+/** La version de `epurer`, écrite dans le relevé des traits : on sait ainsi ce que l'appareil fait tourner. */
+export const VERSION_EPURE = 3
+
 /** Combien de points on regarde après un recul (25 ms au Pencil), et combien de segments du chemin déjà tracé. */
 const REGARD_SUITE = 6
 const REGARD_CHEMIN = 12

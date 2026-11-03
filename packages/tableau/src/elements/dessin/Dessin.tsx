@@ -33,6 +33,7 @@ import { type ActionDoubleToucher, EVENEMENT_DOUBLE_TOUCHER, crayonVu, dessinLib
 import { dessinsDepuis, operationsApresEdition, presDuBas, traitsDe } from './trace'
 import { appliquerAuChoix, appuiSurTrait, decalageFleche, deplacerTraits, sansTraits, traitsDansMarquise } from '../croquis/selection'
 import { t } from '../../langue'
+import { releverDebut, releverFin, releverMouvement } from '../croquis/releve'
 import { ico } from '../../icones'
 
 export function RenduDessin({ element }: PropsRendu<Dessin>) {
@@ -370,6 +371,7 @@ function Couche({
 
   const abandonnerGeste = () => {
     const g = geste.current
+    if (g?.type === 'trace') releverFin(null)
     geste.current = null
     pointeur.current = null
     setEnCours(null)
@@ -457,6 +459,7 @@ function Couche({
     if (traceAvec(outil)) {
       const trace = commencerTrace(p.x, p.y, e)
       geste.current = { type: 'trace', trace, epaisseur: largeurTrait(), affinage: surligne ? 0 : affinageDe(epaisseur), surligneur: surligne }
+      releverDebut(e, hote, { echelle, origine: sur.current.camera.origine, epaisseur: geste.current.epaisseur, affinage: geste.current.affinage })
       setEnCours(trace)
     } else if (outil === 'gomme') {
       geste.current = { type: 'gomme', avant: traits }
@@ -505,6 +508,7 @@ function Couche({
     const evenements = e.getCoalescedEvents?.() ?? []
     const sources = evenements.length > 0 ? evenements : [e]
     if (g.type === 'trace') {
+      releverMouvement(e)
       let suite = g.trace
       for (const m of sources) {
         const p = ici(m)
@@ -564,7 +568,9 @@ function Couche({
     if (g.type === 'trace') {
       setEnCours(null)
       setPrediction([])
-      valider([...traits, traitFini(g.trace, g.surligneur ? couleurSurligneur : couleur, g.epaisseur, g.affinage, g.surligneur)], traits)
+      const fini = traitFini(g.trace, g.surligneur ? couleurSurligneur : couleur, g.epaisseur, g.affinage, g.surligneur)
+      releverFin(e, fini)
+      valider([...traits, fini], traits)
     } else if (g.type === 'gomme') {
       if (traits !== g.avant) setHisto((h) => noter(h, g.avant))
     } else if (g.type === 'deplacer') {

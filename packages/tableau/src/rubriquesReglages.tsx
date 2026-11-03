@@ -1,4 +1,6 @@
-import type { ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
+import { Segments } from './communs'
+import { nombreDeTraitsReleves, releveEnTexte } from './elements/croquis/releve'
 import type { Habillages } from './habillage/appliquer'
 import { enFeuille } from './communs/Feuille'
 import { auDoigt } from './doigt'
@@ -320,6 +322,13 @@ export const RUBRIQUES: Rubrique[] = [
               ecrire: (c, v) => c.changer({ crayon: v as Reglages['crayon'] }),
             },
           },
+          {
+            id: 'releveTrait',
+            libelle: 'reglages.releve',
+            aide: 'reglages.releve.aide',
+            si: () => crayonVu() || (auDoigt() && !enFeuille()),
+            controle: { type: 'libre', rendre: () => <CopierReleve /> },
+          },
         ],
       },
       {
@@ -528,3 +537,20 @@ export function chercher(rubriques: Rubrique[], cherche: string): Rubrique[] {
 }
 
 export const nombreDeLignes = (r: Rubrique) => r.sections.reduce((n, s) => n + s.lignes.length, 0)
+
+/** Copie le relevé des derniers traits du dessin (`croquis/releve.ts`), pour le coller dans un signalement. */
+function CopierReleve() {
+  const [etat, setEtat] = useState<'' | 'copie' | 'vide' | 'refus'>('')
+  const copier = async () => {
+    if (nombreDeTraitsReleves() === 0) return setEtat('vide')
+    try {
+      await navigator.clipboard.writeText(releveEnTexte())
+      setEtat('copie')
+    } catch {
+      setEtat('refus')
+    }
+    setTimeout(() => setEtat(''), 2500)
+  }
+  const libelle = etat === 'copie' ? t('reglages.releve.copie') : etat === 'vide' ? t('reglages.releve.vide') : etat === 'refus' ? t('reglages.releve.refus') : t('reglages.releve.copier')
+  return <Segments mode="bascules" options={[{ valeur: 'copier', libelle }]} onChange={() => void copier()} />
+}
