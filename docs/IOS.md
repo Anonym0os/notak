@@ -139,6 +139,8 @@ Notés tels que le propriétaire les a donnés en essayant l'app. Une ligne coch
 | 2 | Pas de surligneur | un surligneur translucide, large, avec sa couleur et son épaisseur à lui | codé : outil Surligneur (H) dans la barre du dessin, `Trait.surligneur`, opacité 0,4, jaune par défaut |
 | 3 | La gomme ne montre pas où elle passe | une traînée qui suit la pointe et s'efface, comme Miro | codé : traînée grise de 300 ms (`Dessin.tsx`) |
 | 4 | Le trait en cours traîne derrière la pointe | il colle au Pencil | codé : les points prédits (`getPredictedEvents`) prolongent le trait en cours, sans être gardés |
+| 5 | Vite, le trait se coupe encore en tronçons, avec de petites encoches en « A » | lisse à toute vitesse | codé : un point renvoyé recule d'autant plus que le geste est rapide (vitesse ÷ 240) ; au-delà de deux épaisseurs, `epurer` le gardait. Désormais un recul est écarté s'il retombe sur le chemin déjà tracé et que le stylet repart en avant dans les 6 points suivants, quelle que soit sa longueur ; un vrai virage ou un gribouillis rapide restent. Vérifié de 300 à 4 000 px/s sur un flux simulé |
+| 6 | En mouvement (la vue qu'on tire), le dessin paraît flou et pixelisé | net | à revoir sur l'iPad après le n° 5 : dans la vidéo, ce sont surtout les coutures des tronçons qui scintillent en blocs, sur un enregistrement compressé ; pas reproductible sans WebKit d'iOS. Si le flou reste sur un trait sans coutures, c'est le calque `.notak-glisse` (`toile.css`) qu'il faudra regarder |
 
 ## Rendez-vous avec le chantier de l'app de bureau
 

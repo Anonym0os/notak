@@ -214,6 +214,28 @@ describe('le tracé épuré (le flux du Pencil)', () => {
   })
 })
 
+describe('le tracé épuré, à toute vitesse', () => {
+  // Une droite à 240 points par seconde : à 4000 px/s, 17 px entre deux points ; chaque paquet de 4 renvoie les 2 d'avant.
+  const aVitesse = (v: number) => {
+    const pas = v / 240
+    const propre = Array.from({ length: Math.floor(900 / pas) }, (_, i) => [i * pas, 0])
+    const flux = propre.flatMap((p, i) => (i % 4 === 0 && i > 8 ? [propre[i - 2]!, propre[i - 1]!, p] : [p]))
+    return { propre: propre.flat(), flux: flux.flat() }
+  }
+  for (const v of [300, 1500, 4000]) {
+    it(`écarte les points renvoyés à ${v} px/s, même quand leur recul dépasse deux épaisseurs`, () => {
+      const { propre, flux } = aVitesse(v)
+      expect(epurer(flux, 4).points).toEqual(epurer(propre, 4).points)
+    })
+  }
+  it('garde un gribouillis rapide : chaque aller et chaque retour', () => {
+    const flat: number[] = []
+    for (let aller = 0; aller < 6; aller++)
+      for (let i = 0; i < 6; i++) flat.push(aller % 2 === 0 ? i * 20 : 100 - i * 20, aller * 6 + i)
+    expect(epurer(flat, 3).points).toEqual(flat)
+  })
+})
+
 describe('le surligneur', () => {
   const points = [0, 0, 10, 2, 22, 8, 30, 20]
   it('trace une ligne constante et translucide, sans affinage ni pression', () => {
