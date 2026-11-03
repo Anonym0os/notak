@@ -15,13 +15,15 @@
     linear-gradient(rgb(27 37 54 / 0.5), rgb(27 37 54 / 0.5)) center 9px / 16px 1px no-repeat,
     linear-gradient(rgb(255 255 255 / 0.4), rgb(255 255 255 / 0.4)) center 10px / 16px 1px no-repeat;
   cursor: ns-resize;
-  opacity: 0;
+  /* Le fondu passe par --notak-paraitre (toile.css) : une transition d'opacité floutait la toile dans WebKit. */
+  --notak-paraitre: 0;
+  opacity: var(--notak-paraitre);
   touch-action: none;
-  transition: opacity 0.1s linear;
+  transition: --notak-paraitre 0.1s linear;
 }
 
 .notak-carte:hover > .notak-poignee-hauteur,
 .notak-carte[data-choisie] > .notak-poignee-hauteur,
 .notak-poignee-hauteur:active {
-  opacity: 1;
+  --notak-paraitre: 1;
 }

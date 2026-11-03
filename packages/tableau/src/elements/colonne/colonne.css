@@ -142,8 +142,10 @@
   border-radius: 2px;
   background: none;
   color: var(--notak-colonne-compte);
-  opacity: 0;
-  transition: opacity 0.1s linear;
+  /* Le fondu passe par --notak-paraitre (toile.css) : une transition d'opacité floutait la toile dans WebKit. */
+  --notak-paraitre: 0;
+  opacity: var(--notak-paraitre);
+  transition: --notak-paraitre 0.1s linear;
   cursor: pointer;
 }
 
@@ -160,12 +162,12 @@
 .notak-colonne:hover .notak-colonne-plier,
 .notak-colonne[data-choisie] .notak-colonne-plier,
 .notak-colonne[data-repliee] .notak-colonne-plier {
-  opacity: 1;
+  --notak-paraitre: 1;
 }
 
 @media (hover: none) {
   .notak-colonne-plier {
-    opacity: 1;
+    --notak-paraitre: 1;
   }
 }
 
