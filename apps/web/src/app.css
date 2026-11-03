@@ -1194,6 +1194,13 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   color: var(--texte);
 }
 
+/* Dans l'app de bureau, le fond de ces écrans déplace la fenêtre (`data-tauri-drag-region`), qui n'a pas de barre de
+   titre : il prend la flèche, pas le curseur de texte. */
+html[data-bureau] .connexion,
+html[data-bureau] .arrivee {
+  cursor: default;
+}
+
 .connexion-carte,
 .arrivee-carte {
   display: flex;

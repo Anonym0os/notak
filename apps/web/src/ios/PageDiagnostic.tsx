@@ -78,7 +78,7 @@ export function PageDiagnostic() {
   }
 
   return (
-    <main className="arrivee diagnostic">
+    <main className="arrivee diagnostic" data-tauri-drag-region>
       <div className="arrivee-carte">
         <Marque />
         <h1>{t('diag.titre')}</h1>

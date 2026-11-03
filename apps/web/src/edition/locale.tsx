@@ -49,7 +49,7 @@ function Application() {
   }, [])
   if (echec) {
     return (
-      <main className="connexion">
+      <main className="connexion" data-tauri-drag-region>
         <div className="connexion-carte">
           <h1>Notak</h1>
           <p className="connexion-erreur">{t('local.indisponible')}</p>

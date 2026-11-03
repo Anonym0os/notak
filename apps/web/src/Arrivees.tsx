@@ -82,7 +82,7 @@ export function PagePartage({ espace, fichiers }: { espace: EspaceDistant; fichi
   }
 
   return (
-    <main className="arrivee">
+    <main className="arrivee" data-tauri-drag-region>
       <div className="arrivee-carte" role="status">
         <Marque />
         <h1>Notak</h1>
@@ -115,7 +115,7 @@ function ConfirmationArrivee({ arrivee, ajouter, annuler }: { arrivee: Arrivee; 
     [t('arrivee.apercu.adresse'), apercu.adresse],
   ] as const
   return (
-    <main className="arrivee">
+    <main className="arrivee" data-tauri-drag-region>
       <form
         className="arrivee-carte"
         aria-labelledby="arrivee-question"
@@ -179,7 +179,7 @@ export function PageRapide({ espace, fichiers }: { espace: EspaceDistant; fichie
   }
 
   return (
-    <main className="arrivee">
+    <main className="arrivee" data-tauri-drag-region>
       <form
         className="arrivee-carte rapide"
         onSubmit={(e) => {

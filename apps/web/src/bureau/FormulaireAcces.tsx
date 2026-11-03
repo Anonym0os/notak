@@ -281,7 +281,7 @@ export function EcranAcces(props: Omit<PropsAcces, 'mode'>) {
   const theme = themeEffectif(reglages.theme, useSystemeSombre())
   return (
     <div className="notak-espace" data-theme={theme}>
-      <main className="connexion">
+      <main className="connexion" data-tauri-drag-region>
         <FormulaireAcces mode="ecran" {...props} />
       </main>
     </div>

@@ -53,7 +53,7 @@ export function EcranPanne({ erreur, reessayer, children }: { erreur: Error; ree
   const muet = injoignable(erreur)
   return (
     <div className="notak-espace" data-theme={theme}>
-      <main className="connexion">
+      <main className="connexion" data-tauri-drag-region>
         <div className="connexion-carte panne-carte" role="alert" aria-labelledby="panne-titre">
           <Marque />
           <h1 id="panne-titre">{t(muet ? 'serveur.panne.muetTitre' : 'serveur.panne.erreurTitre', { hote })}</h1>
