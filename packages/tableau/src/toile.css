@@ -3682,10 +3682,14 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 }
 
 /* Les gestes rapides d'un élément touché, au-dessus de lui (ActionsRapides.tsx) : une pilule sombre comme le menu
-   d'édition d'iOS, des boutons de texte séparés d'un filet. */
-.notak-actions-rapides {
+   d'édition d'iOS, des boutons de texte séparés d'un filet. Le script la place (transform), image par image pendant
+   un geste ; son nom l'écarte de `.notak-actions-rapides`, la rangée de la feuille d'actions (feuille.css). */
+.notak-gestes-rapides {
   position: absolute;
+  top: 0;
+  left: 0;
   z-index: 3;
+  will-change: transform;
   display: flex;
   align-items: stretch;
   overflow: hidden;
@@ -3693,17 +3697,12 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   background: #2b2d31;
   color: #fff;
   box-shadow: 0 6px 20px rgb(0 0 0 / 0.22);
-  transform: translate(-50%, calc(-100% - 10px));
   white-space: nowrap;
   -webkit-user-select: none;
   user-select: none;
 }
 
-.notak-actions-rapides[data-dessous] {
-  transform: translate(-50%, 10px);
-}
-
-.notak-actions-rapides button {
+.notak-gestes-rapides button {
   min-height: 40px;
   padding: 0 14px;
   border: 0;
@@ -3713,14 +3712,14 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   cursor: pointer;
 }
 
-.notak-actions-rapides button + button {
+.notak-gestes-rapides button + button {
   border-left: 1px solid rgb(255 255 255 / 0.16);
 }
 
-.notak-actions-rapides button:active {
+.notak-gestes-rapides button:active {
   background: rgb(255 255 255 / 0.14);
 }
 
-.notak-actions-rapides button[data-danger] {
+.notak-gestes-rapides button[data-danger] {
   color: #ff6b62;
 }
