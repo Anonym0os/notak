@@ -42,11 +42,11 @@ export function VoletCouleur({ couleur, choisir, suggerees }: { couleur: string;
   )
 }
 
-/** Le volet des épaisseurs. */
-export function VoletEpaisseur({ epaisseur, choisir }: { epaisseur: number; choisir(i: number): void }) {
+/** Le volet des épaisseurs (`liste` : celles du surligneur, par exemple ; les mêmes libellés). */
+export function VoletEpaisseur({ epaisseur, choisir, liste = EPAISSEURS_TRAIT }: { epaisseur: number; choisir(i: number): void; liste?: readonly { libelle: string; px: number }[] }) {
   return (
     <div className="notak-croquis-volet" role="group" aria-label={t('croquis.epaisseur')}>
-      {EPAISSEURS_TRAIT.map((e, i) => (
+      {liste.map((e, i) => (
         <button key={e.px} type="button" title={`${e.libelle} (${i + 1})`} aria-label={e.libelle} aria-pressed={epaisseur === i} onClick={() => choisir(i)}>
           <BarreEpaisseur i={i} />
         </button>

@@ -6,19 +6,21 @@ import type { Dessin, Element, Trait } from '../../coeur/tableau'
 import { BarreEpaisseur, VoletCouleur, VoletEpaisseur, curseurCrayon } from '../croquis/partage'
 import {
   COULEURS_TRAIT,
+  COULEUR_SURLIGNEUR_DEFAUT,
+  EPAISSEURS_SURLIGNEUR,
   EPAISSEURS_TRAIT,
   EPAISSEUR_DEFAUT,
   type TraceEnCours,
   affinageDe,
   attributsTrait,
   commencerTrace,
+  dessinDuTrait,
   dessinTrait,
   couleurAffichee,
   ecrireReglage,
   epaisseurFeuille,
   gommer,
   lireReglage,
-  pressionsDe,
   prolongerTrace,
   traitFini,
   traitVise,
@@ -38,7 +40,7 @@ export function RenduDessin({ element }: PropsRendu<Dessin>) {
   return (
     <svg className="notak-dessin" viewBox={`0 0 ${c.largeurOrigine} ${c.hauteurOrigine}`} style={{ aspectRatio: `${c.largeurOrigine} / ${c.hauteurOrigine}` }}>
       {c.traits.map((tr, i) => (
-        <path key={i} {...attributsTrait(dessinTrait(tr.points, tr.epaisseur, tr.affinage, true, pressionsDe(tr)), couleurAffichee(tr.couleur, true))} />
+        <path key={i} {...attributsTrait(dessinDuTrait(tr), couleurAffichee(tr.couleur, true))} />
       ))}
     </svg>
   )
@@ -46,6 +48,8 @@ export function RenduDessin({ element }: PropsRendu<Dessin>) {
 
 const CLE_COULEUR = 'notak.dessin.couleur'
 const CLE_EPAISSEUR = 'notak.dessin.epaisseur'
+const CLE_COULEUR_SURLIGNEUR = 'notak.dessin.surligneur.couleur'
+const CLE_EPAISSEUR_SURLIGNEUR = 'notak.dessin.surligneur.epaisseur'
 const ROUGE_GOMME = '#ff0000'
 /** Le rayon de la gomme et la zone de capture d'un trait pour la sélection, en pixels d'écran. */
 const GOMME_PX = 7
@@ -54,6 +58,9 @@ const CAPTURE_PX = 6
 const CONTOUR_PX = 3
 /** Le cernage rouge de la gomme : 1 px de chaque côté, comme Milanote. */
 const CONTOUR_GOMME_PX = 1
+/** La traînée de la gomme : un trait gris qui suit la pointe et s'efface en ce temps (ms), de cette largeur (px). */
+const TRAINEE_MS = 300
+const TRAINEE_PX = 8
 
 /** Ce que la couche garde pour elle : rien de ce qui s'y passe ne doit atteindre la toile dessous. */
 const EVENEMENTS_ARRETES = ['dblclick', 'click', 'contextmenu', 'wheel', 'pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'mousedown', 'mouseup'] as const
@@ -105,15 +112,21 @@ export function ouvrirDessinLibre(contexte: ContexteToile, existant?: Element<De
 
 reglerOuvertureAuCrayon((contexte, appui) => ouvrirDessinLibre(contexte, undefined, appui))
 
-type Outil = 'crayon' | 'selection' | 'gomme'
+type Outil = 'crayon' | 'surligneur' | 'selection' | 'gomme'
+/** Les outils qui tracent : chacun garde sa couleur et son épaisseur. */
+const traceAvec = (o: Outil): o is 'crayon' | 'surligneur' => o === 'crayon' || o === 'surligneur'
 type Volet = 'couleur' | 'epaisseur' | null
 type Geste =
-  | { type: 'trace'; trace: TraceEnCours; epaisseur: number; affinage: number }
+  | { type: 'trace'; trace: TraceEnCours; epaisseur: number; affinage: number; surligneur: boolean }
   | { type: 'gomme'; avant: Trait[] }
   | { type: 'deplacer'; depart: { x: number; y: number }; avant: Trait[]; choix: ReadonlySet<Trait> }
   | { type: 'marquise'; depart: { x: number; y: number }; ecran: { x: number; y: number }; ajoute: boolean; base: ReadonlySet<Trait> }
 
 const couleurValide = (v: string | null): v is string => v !== null && /^#[0-9a-f]{6}$/i.test(v)
+const indiceValide = (v: string | null, n: number): number | null => {
+  const i = Number(v)
+  return v !== null && Number.isInteger(i) && i >= 0 && i < n ? i : null
+}
 
 /** Une caméra utilisable (un contexte d'essai n'en donne parfois qu'une moitié). */
 const cameraDe = (c: Partial<cam.Camera> | undefined): cam.Camera => ({ origine: c?.origine ?? { x: 0, y: 0 }, echelle: c?.echelle ?? 1 })
@@ -149,16 +162,29 @@ function Couche({
     return couleurValide(v) ? v : COULEURS_TRAIT[0]
   })
   const [precedente, setPrecedente] = useState(couleur)
-  const [epaisseur, setEpaisseur] = useState<number>(() => {
-    const n = Number(lireReglage(CLE_EPAISSEUR))
-    return Number.isInteger(n) && n >= 0 && n < EPAISSEURS_TRAIT.length ? n : EPAISSEUR_DEFAUT
+  const [epaisseurCrayon, setEpaisseurCrayon] = useState<number>(() => indiceValide(lireReglage(CLE_EPAISSEUR), EPAISSEURS_TRAIT.length) ?? EPAISSEUR_DEFAUT)
+  // Le surligneur garde sa couleur et son épaisseur à lui : passer de l'un à l'autre ne change pas le crayon.
+  const [couleurSurligneur, setCouleurSurligneur] = useState<string>(() => {
+    const v = lireReglage(CLE_COULEUR_SURLIGNEUR)
+    return couleurValide(v) ? v : COULEUR_SURLIGNEUR_DEFAUT
   })
+  const [epaisseurSurligneur, setEpaisseurSurligneur] = useState<number>(() => indiceValide(lireReglage(CLE_EPAISSEUR_SURLIGNEUR), EPAISSEURS_SURLIGNEUR.length) ?? 1)
+  const surligne = outil === 'surligneur'
+  /** La couleur et l'épaisseur de l'outil qui trace (le crayon quand on choisit ou gomme). */
+  const encre = surligne ? couleurSurligneur : couleur
+  const epaisseur = surligne ? epaisseurSurligneur : epaisseurCrayon
+  const epaisseurs = surligne ? EPAISSEURS_SURLIGNEUR : EPAISSEURS_TRAIT
   const [volet, setVolet] = useState<Volet>(null)
   const [choix, setChoix] = useState<ReadonlySet<Trait>>(new Set())
   const [vise, setVise] = useState<Trait | null>(null)
   const [enCours, setEnCours] = useState<TraceEnCours | null>(null)
   const [marquise, setMarquise] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
   const [effacee, setEffacee] = useState(false)
+  /** Les points prédits du Pencil (`getPredictedEvents`) : le trait en cours les montre pour coller à la pointe. */
+  const [prediction, setPrediction] = useState<number[]>([])
+  /** La traînée de la gomme, en coordonnées de la couche, avec l'instant de chaque point. */
+  const [trainee, setTrainee] = useState<{ x: number; y: number; t: number }[]>([])
+  const [horloge, setHorloge] = useState(0)
   // Les couleurs déjà employées sur le tableau, relevées à l'ouverture, sous la palette.
   const suggerees = useMemo(() => couleursDuTableau(contexte.magasin.lire().elements, { exclure: COULEURS_TRAIT }), [contexte])
   const geste = useRef<Geste | null>(null)
@@ -178,7 +204,7 @@ function Couche({
   const modifie = histo.passe.length > 0
 
   // Tout ce qu'un écouteur du document doit lire à jour.
-  const etat = { traits, histo, outil, couleur, precedente, epaisseur, volet, choix, modifie, camera }
+  const etat = { traits, histo, outil, couleur, couleurSurligneur, precedente, epaisseur, volet, choix, modifie, camera }
   const sur = useRef(etat)
   sur.current = etat
 
@@ -245,6 +271,11 @@ function Couche({
   const choisirCouleur = (c: string) => {
     const { couleur: actuelle, outil: o } = sur.current
     if (o === 'gomme') return
+    if (o === 'surligneur') {
+      setCouleurSurligneur(c)
+      ecrireReglage(CLE_COULEUR_SURLIGNEUR, c)
+      return
+    }
     if (o === 'selection') {
       if (!surChoix((tr) => ({ ...tr, couleur: c }))) return
     }
@@ -253,7 +284,12 @@ function Couche({
     ecrireReglage(CLE_COULEUR, c)
   }
   const choisirEpaisseur = (i: number) => {
-    setEpaisseur(i)
+    if (sur.current.outil === 'surligneur') {
+      setEpaisseurSurligneur(i)
+      ecrireReglage(CLE_EPAISSEUR_SURLIGNEUR, String(i))
+      return
+    }
+    setEpaisseurCrayon(i)
     choisirOutil('crayon')
     ecrireReglage(CLE_EPAISSEUR, String(i))
   }
@@ -310,6 +346,7 @@ function Couche({
       }
       if (cmd || e.altKey || (e.target as HTMLElement).tagName === 'INPUT') return
       if (k === 'd' || k === 'm' || k === 'b') choisirOutil('crayon')
+      else if (k === 'h' || k === 'u') choisirOutil('surligneur')
       else if (k === 'v' || k === 's') choisirOutil('selection')
       else if (k === 'e') choisirOutil('gomme')
       else if (k === 'c') setVolet((v) => (v === 'couleur' ? null : s.outil === 'gomme' ? null : 'couleur'))
@@ -329,13 +366,14 @@ function Couche({
   }, [])
 
   const rayon = (px: number) => px / echelle
-  const largeurTrait = () => epaisseurFeuille(EPAISSEURS_TRAIT[epaisseur]!.px, echelle)
+  const largeurTrait = () => epaisseurFeuille(epaisseurs[epaisseur]!.px, echelle)
 
   const abandonnerGeste = () => {
     const g = geste.current
     geste.current = null
     pointeur.current = null
     setEnCours(null)
+    setPrediction([])
     setMarquise(null)
     setEffacee(false)
     if (g && (g.type === 'gomme' || g.type === 'deplacer')) setTraits(g.avant)
@@ -416,13 +454,14 @@ function Couche({
     }
     pointeur.current = { id: e.pointerId, type: e.pointerType }
     const p = ici(e)
-    if (outil === 'crayon') {
+    if (traceAvec(outil)) {
       const trace = commencerTrace(p.x, p.y, e)
-      geste.current = { type: 'trace', trace, epaisseur: largeurTrait(), affinage: affinageDe(epaisseur) }
+      geste.current = { type: 'trace', trace, epaisseur: largeurTrait(), affinage: surligne ? 0 : affinageDe(epaisseur), surligneur: surligne }
       setEnCours(trace)
     } else if (outil === 'gomme') {
       geste.current = { type: 'gomme', avant: traits }
       setVise(null)
+      trainer([ecran(e)], e.timeStamp)
       effacer(p.x, p.y)
     } else {
       const i = traitVise(traits, p.x, p.y, rayon(CAPTURE_PX))
@@ -441,6 +480,9 @@ function Couche({
   }
   /** La gomme enlève les traits entiers qu'elle touche, une seule fois chacun. */
   const effacer = (x: number, y: number) => setTraits((tous) => gommer(tous, x, y, rayon(GOMME_PX)))
+  /** La traînée de la gomme s'allonge des points passés ; les plus vieux s'effacent (`TRAINEE_MS`). */
+  const trainer = (points: PointEcran[], t: number) =>
+    setTrainee((anc) => [...anc.filter((q) => t - q.t < TRAINEE_MS), ...points.map((q) => ({ ...q, t }))])
   const deplacement = (e: PointerEvent) => {
     if (e.pointerType === 'touch' && doigts.current.has(e.pointerId)) {
       doigts.current.set(e.pointerId, ecran(e))
@@ -472,7 +514,14 @@ function Couche({
         g.trace = suite
         setEnCours(suite)
       }
+      // Les points que le système prédit pour la prochaine image : montrés au bout du trait, jamais gardés.
+      const predits = e.getPredictedEvents?.() ?? []
+      setPrediction(predits.flatMap((m) => {
+        const p = ici(m)
+        return [p.x, p.y]
+      }))
     } else if (g.type === 'gomme') {
+      trainer(sources.map(ecran), e.timeStamp)
       for (const m of sources) {
         const p = ici(m)
         effacer(p.x, p.y)
@@ -514,7 +563,8 @@ function Couche({
     if (!g) return
     if (g.type === 'trace') {
       setEnCours(null)
-      valider([...traits, traitFini(g.trace, couleur, g.epaisseur, g.affinage)], traits)
+      setPrediction([])
+      valider([...traits, traitFini(g.trace, g.surligneur ? couleurSurligneur : couleur, g.epaisseur, g.affinage, g.surligneur)], traits)
     } else if (g.type === 'gomme') {
       if (traits !== g.avant) setHisto((h) => noter(h, g.avant))
     } else if (g.type === 'deplacer') {
@@ -583,6 +633,24 @@ function Couche({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // La traînée de la gomme s'efface d'elle-même, image après image, jusqu'au dernier point.
+  const avecTrainee = trainee.length > 0
+  useEffect(() => {
+    if (!avecTrainee) return
+    let image = 0
+    const vieillir = () => {
+      const t = performance.now()
+      setHorloge(t)
+      setTrainee((anc) => {
+        const reste = anc.filter((q) => t - q.t < TRAINEE_MS)
+        return reste.length === anc.length ? anc : reste
+      })
+      image = requestAnimationFrame(vieillir)
+    }
+    image = requestAnimationFrame(vieillir)
+    return () => cancelAnimationFrame(image)
+  }, [avecTrainee])
+
   // La molette et le trackpad déplacent la vue ; Ctrl (le pincement du trackpad) zoome autour du pointeur.
   const feuille = useRef<SVGSVGElement>(null)
   useEffect(() => {
@@ -614,13 +682,7 @@ function Couche({
       new Map(
         traits.map((tr) => [
           tr,
-          dessinTrait(
-            tr.points.map((v, i) => (v - (i % 2 === 0 ? cameraTraits.origine.x : cameraTraits.origine.y)) * kTraits),
-            tr.epaisseur * kTraits,
-            tr.affinage,
-            true,
-            pressionsDe(tr),
-          ),
+          dessinDuTrait(tr, true, kTraits, cameraTraits.origine.x, cameraTraits.origine.y),
         ]),
       ),
     [traits, cameraTraits, kTraits],
@@ -631,11 +693,22 @@ function Couche({
       ? undefined
       : `translate(${(cameraTraits.origine.x - origine.x) * echelle} ${(cameraTraits.origine.y - origine.y) * echelle}) scale(${glisse})`
   const px = (tr: Trait) => tr.epaisseur * echelle
-  const enCoursTrait: Trait | null = enCours
-    ? { points: enCours.points, ...(enCours.pressions ? { pressions: enCours.pressions } : {}), couleur, epaisseur: largeurTrait(), affinage: affinageDe(epaisseur) }
-    : null
+  const gTrace = geste.current?.type === 'trace' ? geste.current : null
+  const enCoursTrait: Trait | null =
+    enCours && gTrace
+      ? {
+          points: [...enCours.points, ...prediction],
+          // Les points prédits prennent la dernière pression connue.
+          ...(enCours.pressions ? { pressions: [...enCours.pressions, ...prediction.filter((_, i) => i % 2 === 0).map(() => enCours.pressions!.at(-1)!)] } : {}),
+          couleur: gTrace.surligneur ? couleurSurligneur : couleur,
+          epaisseur: gTrace.epaisseur,
+          affinage: gTrace.affinage,
+          ...(gTrace.surligneur ? { surligneur: true } : {}),
+        }
+      : null
+  const maintenant = Math.max(horloge, trainee.at(-1)?.t ?? 0)
 
-  const desactive = { couleur: outil === 'gomme' || (outil === 'selection' && choix.size === 0), epaisseur: outil !== 'crayon' }
+  const desactive = { couleur: outil === 'gomme' || (outil === 'selection' && choix.size === 0), epaisseur: !traceAvec(outil) }
   /** Un bouton grisé garde ses événements (aria-disabled, pas disabled) : un double-clic ne le traverse jamais vers la toile. */
   const agir = (grise: boolean, f: () => void) => () => {
     if (!grise) f()
@@ -647,7 +720,7 @@ function Couche({
         ref={feuille}
         className="notak-dessin-libre-feuille"
         data-outil={outil}
-        style={outil === 'crayon' ? { cursor: curseurCrayon(couleur) } : undefined}
+        style={traceAvec(outil) ? { cursor: curseurCrayon(encre) } : undefined}
         onPointerDown={(e) => debut(e.nativeEvent, e.currentTarget)}
         onPointerMove={(e) => deplacement(e.nativeEvent)}
         onPointerUp={(e) => fin(e.nativeEvent)}
@@ -671,10 +744,19 @@ function Couche({
         {enCoursTrait && (
           <path
             {...attributsTrait(
-              dessinTrait(versEcran(enCoursTrait.points), px(enCoursTrait), enCoursTrait.affinage, false, enCoursTrait.pressions),
-              couleurAffichee(couleur, true),
+              dessinTrait(versEcran(enCoursTrait.points), px(enCoursTrait), enCoursTrait.affinage, false, enCoursTrait.pressions, !!enCoursTrait.surligneur),
+              couleurAffichee(enCoursTrait.couleur, true),
             )}
           />
+        )}
+        {trainee.length > 1 && (
+          <g className="notak-dessin-libre-trainee" aria-hidden="true">
+            {trainee.slice(1).map((q, i) => {
+              const a = trainee[i]!
+              const age = Math.max(0, Math.min(1, (maintenant - q.t) / TRAINEE_MS))
+              return <line key={i} x1={a.x} y1={a.y} x2={q.x} y2={q.y} strokeWidth={TRAINEE_PX * (1 - 0.5 * age)} strokeOpacity={0.4 * (1 - age * age)} />
+            })}
+          </g>
         )}
         {marquise && (
           <rect
@@ -697,6 +779,9 @@ function Couche({
         <button type="button" title={`${t('dessin.crayon')} (D)`} aria-label={t('dessin.crayon')} aria-pressed={outil === 'crayon'} onClick={() => choisirOutil('crayon')}>
           {ico('croquis')}
         </button>
+        <button type="button" title={`${t('dessin.surligneur')} (H)`} aria-label={t('dessin.surligneur')} aria-pressed={outil === 'surligneur'} onClick={() => choisirOutil('surligneur')}>
+          {ico('surligneur')}
+        </button>
         <button type="button" title={`${t('dessin.selection')} (V)`} aria-label={t('dessin.selection')} aria-pressed={outil === 'selection'} onClick={() => choisirOutil('selection')}>
           {ico('pointeur')}
         </button>
@@ -713,9 +798,9 @@ function Couche({
             aria-disabled={desactive.couleur || undefined}
             onClick={agir(desactive.couleur, () => setVolet(volet === 'couleur' ? null : 'couleur'))}
           >
-            <span className="notak-croquis-pastille" style={{ background: couleur }} />
+            <span className="notak-croquis-pastille" style={{ background: encre }} />
           </button>
-          {volet === 'couleur' && !desactive.couleur && <VoletCouleur couleur={couleur} choisir={choisirCouleur} suggerees={suggerees} />}
+          {volet === 'couleur' && !desactive.couleur && <VoletCouleur couleur={encre} choisir={choisirCouleur} suggerees={suggerees} />}
         </span>
         <span className="notak-croquis-volet-hote">
           <button
@@ -728,7 +813,7 @@ function Couche({
           >
             <BarreEpaisseur i={epaisseur} />
           </button>
-          {volet === 'epaisseur' && !desactive.epaisseur && <VoletEpaisseur epaisseur={epaisseur} choisir={choisirEpaisseur} />}
+          {volet === 'epaisseur' && !desactive.epaisseur && <VoletEpaisseur epaisseur={epaisseur} choisir={choisirEpaisseur} liste={epaisseurs} />}
         </span>
         <span className="notak-croquis-sep" role="separator" />
         <button type="button" title={`${t('espace.annuler')} (⌘Z)`} aria-label={t('espace.annuler')} aria-disabled={histo.passe.length === 0 || undefined} onClick={agir(histo.passe.length === 0, annuler)}>

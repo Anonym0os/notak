@@ -131,6 +131,15 @@ Notés tels que le propriétaire les a donnés en essayant l'app. Une ligne coch
 | 6 | Pour supprimer ou dupliquer un élément, il faut rester appuyé dessus (menu du clic droit) | un toucher sur l'élément montre ses actions rapides juste au-dessus de lui, proprement, sur iPad comme sur téléphone | codé : `ActionsRapides.tsx` (Couper, Copier, Dupliquer, Supprimer, •••) |
 | 7 | Dans la barre de gauche d'une sélection (une ligne : Couleur, Début, Fin, Étiquette…), les boutons ne sont pas alignés : un sur deux est décalé | une colonne droite, chaque bouton centré | codé : l'ancre d'un bouton à menu centre son bouton (`toile.css`) |
 
+## Retours du deuxième essai sur iPad (03/11/2026, même iPad, comparaison avec Miro)
+
+| # | Ce qui ne va pas | Ce qu'on attend | État |
+|---|---|---|---|
+| 1 | Le trait au Pencil se hache encore en chapelet de petits points, même avec la pression | un trait continu et lisse, comme dans Miro | codé : la cause n'était pas la vitesse simulée mais le flux de points. Les paquets de `getCoalescedEvents` ramènent des points déjà passés (de petits reculs) et des points sans pression ; le contour de perfect-freehand prend chaque recul pour un virage serré et y pose un bout rond. `epurer` (`croquis/trace.ts`) fond les points serrés, écarte les reculs de moins de deux épaisseurs, comble et lisse les pressions, au dessin : les traits déjà enregistrés se redessinent propres. Reproduit et vérifié sur un flux simulé (reculs et pressions nulles injectés), à revoir sur l'iPad |
+| 2 | Pas de surligneur | un surligneur translucide, large, avec sa couleur et son épaisseur à lui | codé : outil Surligneur (H) dans la barre du dessin, `Trait.surligneur`, opacité 0,4, jaune par défaut |
+| 3 | La gomme ne montre pas où elle passe | une traînée qui suit la pointe et s'efface, comme Miro | codé : traînée grise de 300 ms (`Dessin.tsx`) |
+| 4 | Le trait en cours traîne derrière la pointe | il colle au Pencil | codé : les points prédits (`getPredictedEvents`) prolongent le trait en cours, sans être gardés |
+
 ## Rendez-vous avec le chantier de l'app de bureau
 
 Ce chantier (`claude/youthful-hamilton-ji14zq` et la suite : accès à un serveur choisi, device flow, fichiers

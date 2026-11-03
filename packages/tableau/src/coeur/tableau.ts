@@ -471,6 +471,8 @@ export interface Trait {
    * quand on appuie, au lieu de suivre la vitesse. Absente : la souris ou le doigt, la vitesse simule la pression.
    */
   pressions?: number[]
+  /** Un trait de surligneur : épaisseur constante, translucide (l'encre dessous se lit au travers). */
+  surligneur?: boolean
 }
 
 /** Un croquis à main levée : des traits sur une feuille de taille fixe (voir `elements/croquis`). */

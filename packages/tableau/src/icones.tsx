@@ -604,6 +604,7 @@ const ICONES = {
   ligneRetrait: IconRowRemove,
   colonneRetrait: IconColumnRemove,
   gomme: IconEraser,
+  surligneur: IconHighlight,
   pointeur: IconPointer,
   pipette: IconColorPicker,
   // L'image et le fichier joint.

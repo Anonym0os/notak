@@ -52,6 +52,16 @@ export const EPAISSEURS_TRAIT = [
 ] as const
 export const EPAISSEUR_DEFAUT = 1
 
+/** Les épaisseurs du surligneur, en pixels d'écran : larges, comme un feutre fluo. */
+export const EPAISSEURS_SURLIGNEUR = [
+  { get libelle() { return t('croquis.fin') }, px: 10 },
+  { get libelle() { return t('croquis.moyen') }, px: 18 },
+  { get libelle() { return t('croquis.epais') }, px: 28 },
+  { get libelle() { return t('croquis.tresEpais') }, px: 44 },
+] as const
+/** Le surligneur commence jaune, moyen. */
+export const COULEUR_SURLIGNEUR_DEFAUT = '#ffd14d'
+
 /** L'épaisseur à ranger dans le trait : des pixels d'écran ramenés aux unités de la feuille. `echelle` : pixels par unité. */
 export const epaisseurFeuille = (px: number, echelle: number): number => arrondi(px / (echelle > 0 ? echelle : 1))
 
@@ -103,15 +113,16 @@ export function commencerTrace(x: number, y: number, e: Appui): TraceEnCours {
   return { points: [x, y], pressions: p === null ? null : [p] }
 }
 
-/** Le tracé prolongé d'un point ; le même objet si c'est un doublon du dernier. */
+/** Le tracé prolongé d'un point ; le même objet si c'est un doublon du dernier. Les reculs, `epurer` les écarte au dessin. */
 export function prolongerTrace(t: TraceEnCours, x: number, y: number, e: Appui): TraceEnCours {
   const points = ajouterPoint(t.points, x, y)
   if (points === t.points) return t
   return { points, pressions: t.pressions && [...t.pressions, pressionDe(e) ?? t.pressions[t.pressions.length - 1]!] }
 }
 
-/** Le trait qu'un tracé laisse, ses nombres ramenés au centième. */
-export function traitFini(t: TraceEnCours, couleur: string, epaisseur: number, affinage: number): Trait {
+/** Le trait qu'un tracé laisse, ses nombres ramenés au centième. `surligneur` : un trait translucide d'épaisseur constante. */
+export function traitFini(t: TraceEnCours, couleur: string, epaisseur: number, affinage: number, surligneur = false): Trait {
+  if (surligneur) return { points: arrondir(t.points), couleur, epaisseur, surligneur: true }
   return {
     points: arrondir(t.points),
     couleur,
@@ -175,36 +186,140 @@ function cheminContour(contour: readonly number[][]): string {
 }
 
 /**
- * Le dessin d'un trait : un contour plein pour un trait affiné, une ligne lissée à tracer de son épaisseur sinon.
- * `pressions` (le stylet) : la largeur suit l'appui. Sans elles, elle suit la vitesse ; avec les 240 points par
- * seconde de l'Apple Pencil, irrégulièrement espacés, cette vitesse simulée faisait trembler le trait et le hachait
- * en pointillés.
+ * Ce qu'un stylet envoie n'est pas un trait propre : l'Apple Pencil donne 240 points par seconde, que WebKit regroupe
+ * par image (`getCoalescedEvents`) ; ces paquets ramènent parfois un point déjà passé, une poussière de recul, et leurs
+ * points groupés n'ont pas toujours de pression (0, gardée comme le plancher de `pressionDe`). Le contour d'encre
+ * prend chaque recul pour un virage serré et y pose un bout rond : le trait se hachait en chapelet de pointillés.
+ *
+ * `epurer` rend le tracé qu'on a voulu faire : les points trop serrés (moins d'un quart d'épaisseur) se fondent, un recul
+ * plus court que deux épaisseurs est écarté (un vrai virage repart plus loin, il reste), les pressions manquantes
+ * prennent celle de leurs voisines et toutes sont lissées sur cinq points. Rien n'est réécrit dans le document : le
+ * trait enregistré garde ses points, et un trait d'avant se redessine propre.
  */
-export type DessinTrait = { d: string; plein: boolean; epaisseur: number }
-export function dessinTrait(points: readonly number[], epaisseur: number, affinage = 0, fini = true, pressions?: readonly number[]): DessinTrait {
-  if (!affinage || points.length < 4) return { d: cheminLisse(points), plein: false, epaisseur }
-  const avecPression = !!pressions && pressions.length * 2 === points.length
+export function epurer(points: readonly number[], epaisseur: number, pressions?: readonly number[]): { points: number[]; pressions?: number[] } {
+  const n = points.length / 2
+  const avecPression = !!pressions && pressions.length === n
+  if (n < 3) return { points: [...points], ...(avecPression ? { pressions: pressionsPropres(pressions) } : {}) }
+  const pas = Math.max(epaisseur * 0.25, 1e-6)
+  const recul = epaisseur * 2
+  const garde: number[] = [points[0]!, points[1]!]
+  const indices: number[] = [0]
+  let dx0 = 0
+  let dy0 = 0
+  for (let i = 1; i < n; i++) {
+    const x = points[2 * i]!
+    const y = points[2 * i + 1]!
+    const lx = garde[garde.length - 2]!
+    const ly = garde[garde.length - 1]!
+    const dx = x - lx
+    const dy = y - ly
+    const d = Math.hypot(dx, dy)
+    if (d < pas) continue
+    if (dx * dx0 + dy * dy0 < 0 && d < recul) continue
+    garde.push(x, y)
+    indices.push(i)
+    dx0 = dx
+    dy0 = dy
+  }
+  // Le dernier point est celui où le stylet s'est levé : on finit là, sauf s'il n'était qu'un recul.
+  if (indices.length === 1) {
+    garde.push(points[2 * n - 2]!, points[2 * n - 1]!)
+    indices.push(n - 1)
+  }
+  if (!avecPression) return { points: garde }
+  // Chaque point gardé prend la pression la plus forte de ceux qu'il a absorbés : un appui ne se perd pas.
+  const propres = pressionsPropres(pressions)
+  const fondues = indices.map((debut, k) => {
+    const fin = k + 1 < indices.length ? indices[k + 1]! : n
+    let p = 0
+    for (let j = debut; j < fin; j++) p = Math.max(p, propres[j]!)
+    return p
+  })
+  return { points: garde, pressions: lisserPressions(fondues) }
+}
+
+/** En dessous, une pression ne dit rien : le premier contact, ou un point groupé que WebKit n'a pas renseigné. */
+const PRESSION_MUETTE = 0.05
+
+/** Les pressions muettes prennent celle du point renseigné le plus proche avant (ou après, en début de trait). */
+function pressionsPropres(pressions: readonly number[]): number[] {
+  const r = [...pressions]
+  let derniere = r.find((p) => p > PRESSION_MUETTE) ?? 0.5
+  for (let i = 0; i < r.length; i++) {
+    if (r[i]! > PRESSION_MUETTE && Number.isFinite(r[i])) derniere = r[i]!
+    else r[i] = derniere
+  }
+  return r
+}
+
+/** Une moyenne glissante sur cinq points : la largeur suit l'appui sans trembler d'un point à l'autre. */
+function lisserPressions(pressions: readonly number[]): number[] {
+  const n = pressions.length
+  return pressions.map((_, i) => {
+    let somme = 0
+    let nb = 0
+    for (let j = Math.max(0, i - 2); j <= Math.min(n - 1, i + 2); j++) {
+      somme += pressions[j]!
+      nb++
+    }
+    return somme / nb
+  })
+}
+
+/** La transparence d'un trait de surligneur : l'encre dessous se lit au travers, deux passages foncent. */
+export const OPACITE_SURLIGNEUR = 0.4
+
+/**
+ * Le dessin d'un trait : un contour plein pour un trait affiné, une ligne lissée à tracer de son épaisseur sinon.
+ * `pressions` (le stylet) : la largeur suit l'appui. Sans elles, elle suit la vitesse. Le tracé passe d'abord par
+ * `epurer`. `surligneur` : une ligne d'épaisseur constante, translucide.
+ */
+export type DessinTrait = { d: string; plein: boolean; epaisseur: number; surligneur?: boolean }
+export function dessinTrait(
+  points: readonly number[],
+  epaisseur: number,
+  affinage = 0,
+  fini = true,
+  pressions?: readonly number[],
+  surligneur = false,
+): DessinTrait {
+  const propre = epurer(points, epaisseur, pressions)
+  const constant = (): DessinTrait => ({ d: cheminLisse(propre.points), plein: false, epaisseur, ...(surligneur ? { surligneur: true } : {}) })
+  if (surligneur || !affinage || propre.points.length < 4) return constant()
+  const pts = propre.points
+  const pr = propre.pressions
   const paires: number[][] = []
-  for (let i = 0; i < points.length; i += 2) paires.push(avecPression ? [points[i]!, points[i + 1]!, pressions[i / 2]!] : [points[i]!, points[i + 1]!])
-  const contour = getStroke(paires, { size: epaisseur * LARGEUR_ENCRE, thinning: affinage, smoothing: 0.5, streamline: 0.5, simulatePressure: !avecPression, last: fini })
+  for (let i = 0; i < pts.length; i += 2) paires.push(pr ? [pts[i]!, pts[i + 1]!, pr[i / 2]!] : [pts[i]!, pts[i + 1]!])
+  const contour = getStroke(paires, { size: epaisseur * LARGEUR_ENCRE, thinning: affinage, smoothing: 0.5, streamline: 0.4, simulatePressure: !pr, last: fini })
   const d = cheminContour(contour.filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1])))
-  return d ? { d, plein: true, epaisseur } : { d: cheminLisse(points), plein: false, epaisseur }
+  return d ? { d, plein: true, epaisseur } : constant()
+}
+
+/** Le dessin d'un trait du document, à l'échelle `k` (et décalé de `-ox`, `-oy` avant) : ce que montrent les rendus. */
+export function dessinDuTrait(tr: Trait, fini = true, k = 1, ox = 0, oy = 0): DessinTrait {
+  const points = k === 1 && ox === 0 && oy === 0 ? tr.points : tr.points.map((v, i) => (v - (i % 2 === 0 ? ox : oy)) * k)
+  return dessinTrait(points, tr.epaisseur * k, tr.affinage, fini, pressionsDe(tr), !!tr.surligneur)
 }
 
 /** Les attributs SVG d'un trait dessiné en `couleur`, élargi de `deborde` (un contour de choix ou de gomme). */
 export function attributsTrait(dt: DessinTrait, couleur: string, deborde = 0): SVGProps<SVGPathElement> {
   const commun = { d: dt.d, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
-  return dt.plein
-    ? { ...commun, fill: couleur, stroke: deborde > 0 ? couleur : 'none', strokeWidth: deborde > 0 ? deborde : undefined }
-    : { ...commun, fill: 'none', stroke: couleur, strokeWidth: dt.epaisseur + deborde }
+  if (dt.plein) return { ...commun, fill: couleur, stroke: deborde > 0 ? couleur : 'none', strokeWidth: deborde > 0 ? deborde : undefined }
+  return {
+    ...commun,
+    fill: 'none',
+    stroke: couleur,
+    strokeWidth: dt.epaisseur + deborde,
+    ...(dt.surligneur && deborde === 0 ? { strokeOpacity: OPACITE_SURLIGNEUR } : {}),
+  }
 }
 
 /** Un trait en balise SVG autonome, pour les téléchargements. */
 export function traitEnSvg(tr: Trait): string {
-  const dt = dessinTrait(tr.points, tr.epaisseur, tr.affinage, true, pressionsDe(tr))
+  const dt = dessinDuTrait(tr)
   return dt.plein
     ? `<path d="${dt.d}" fill="${tr.couleur}"/>`
-    : `<path d="${dt.d}" fill="none" stroke="${tr.couleur}" stroke-width="${tr.epaisseur}" stroke-linecap="round" stroke-linejoin="round"/>`
+    : `<path d="${dt.d}" fill="none" stroke="${tr.couleur}" stroke-width="${tr.epaisseur}" stroke-linecap="round" stroke-linejoin="round"${dt.surligneur ? ` stroke-opacity="${OPACITE_SURLIGNEUR}"` : ''}/>`
 }
 
 /** Un trait touche-t-il le disque de centre (x, y) et de rayon `rayon` ? (Son épaisseur compte.) */
