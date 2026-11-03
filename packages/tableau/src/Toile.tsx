@@ -429,6 +429,8 @@ function avecLiees(supprimes: Element[], tableau: Tableau): Element[] {
 }
 /** Hauteur réservée au-dessus de la sélection pour sa barre, en pixels. */
 const MARGE_BARRE = 52
+/** Ce que couvrent, en haut et en bas de la vue, la barre du titre et la capsule du téléphone : les gestes rapides n'y vont pas. */
+const LIBRE_RAPIDES = { haut: 120, bas: 110 }
 
 /** La vue n'est signalée à l'hôte qu'à ce rythme au plus, en millisecondes. */
 const DELAI_SIGNAL_CAMERA = 300
@@ -629,6 +631,8 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const minuteurVive = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const calqueGlisse = useRef<HTMLDivElement>(null)
   const calquePlan = useRef<HTMLDivElement>(null)
+  /** Les gestes rapides d'une sélection (ActionsRapides.tsx) se replacent ici, dans la même image que la toile. */
+  const suiviRapides = useRef<((c: cam.Camera) => void) | null>(null)
   const rendreVive = useCallback(() => {
     clearTimeout(minuteurVive.current)
     minuteurVive.current = undefined
@@ -653,6 +657,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
         r.style.setProperty('--notak-grille-x', `${decalageGrille(-c.origine.x * kk)}px`)
         r.style.setProperty('--notak-grille-y', `${decalageGrille(-c.origine.y * kk)}px`)
       }
+      suiviRapides.current?.(c)
       minuteurVive.current ??= setTimeout(rendreVive, 150)
     },
     [rendreVive],
@@ -3359,7 +3364,7 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
   const barre = cadreChoisis && !lectureSeule && versEcran(cadreChoisis)
   // Au doigt, quand les outils de la sélection sont ailleurs (la barre de gauche, la capsule du bas), ses gestes
   // courants paraissent au-dessus d'elle ; sous elle si elle touche le haut de la vue.
-  const rapides = barre && services.barreAGauche && auDoigt() && !menu && !dessinOuvert ? barre : null
+  const rapides = barre && services.barreAGauche && auDoigt() && !menu && !dessinOuvert ? cadreChoisis : null
 
   // [barre d'édition à gauche] En édition, la barre de gauche prend les outils de l'élément (la note : ses outils de
   // texte, par un portail) ; un type sans outils d'édition garde la barre de sa sélection.
@@ -3521,16 +3526,19 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
       )}
       {rapides && (
         <ActionsRapides
-          x={(rapides.min.x + rapides.max.x) / 2}
-          y={rapides.min.y - 10 < 120 ? rapides.max.y : rapides.min.y}
-          dessous={rapides.min.y - 10 < 120}
+          cadre={rapides}
+          camera={affichee}
+          vue={vue}
+          libre={LIBRE_RAPIDES}
+          suivi={suiviRapides}
           couper={() => document.execCommand('cut')}
           copier={() => document.execCommand('copy')}
           dupliquer={dupliquer}
           supprimer={() => jeter(selection)}
           plus={() => {
             if (enFeuille()) return setActionsDemandees(Date.now())
-            const p = point((rapides.min.x + rapides.max.x) / 2, Math.max(rapides.min.y, 120))
+            const ecran = versEcran(rapides)
+            const p = point((ecran.min.x + ecran.max.x) / 2, Math.max(ecran.min.y, LIBRE_RAPIDES.haut))
             setMenu({ x: p.x, y: p.y, ou: cam.versTableau(camera, p), surElement: true })
           }}
         />
