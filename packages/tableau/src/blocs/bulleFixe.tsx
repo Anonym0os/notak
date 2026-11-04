@@ -1,3 +1,4 @@
+import { hauteurVisible } from '../zones'
 import { type HTMLAttributes, type ReactNode, useLayoutEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { type AncreFigee, suivreDefilement, defilement } from './menuAncre'
@@ -24,7 +25,7 @@ export function BulleFixe({ ancre, racine, hote, className, children, style, ...
       const div = noeud.current
       if (!div) return
       const fin = suivreDefilement(ancre.boite, ancre.defil, defilement(racine))
-      const { left, top } = placerBulle(fin, { largeur: div.offsetWidth, hauteur: div.offsetHeight }, { largeur: window.innerWidth, hauteur: window.innerHeight })
+      const { left, top } = placerBulle(fin, { largeur: div.offsetWidth, hauteur: div.offsetHeight }, { largeur: window.innerWidth, hauteur: hauteurVisible() })
       div.style.left = `${left}px`
       div.style.top = `${top}px`
     }

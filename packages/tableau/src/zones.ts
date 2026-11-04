@@ -28,3 +28,15 @@ export function zonesSures(): Zones {
   const px = (v: string) => Number.parseFloat(v) || 0
   return { haut: px(s.paddingTop), droite: px(s.paddingRight), bas: px(s.paddingBottom), gauche: px(s.paddingLeft) }
 }
+
+/**
+ * La hauteur de fenêtre que le clavier du téléphone laisse libre, en px. L'app pose `--clavier` (et `data-clavier`)
+ * sur <html> quand il monte : la coque iOS ne réduit pas la fenêtre, un panneau posé dessous resterait caché.
+ */
+export function hauteurVisible(): number {
+  if (typeof window === 'undefined') return 0
+  const racine = document.documentElement
+  if (!racine.hasAttribute('data-clavier')) return window.innerHeight
+  const clavier = Number.parseFloat(getComputedStyle(racine).getPropertyValue('--clavier')) || 0
+  return Math.max(0, window.innerHeight - clavier)
+}

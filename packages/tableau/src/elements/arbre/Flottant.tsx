@@ -1,3 +1,4 @@
+import { hauteurVisible } from '../../zones'
 import { type HTMLAttributes, type ReactNode, type RefObject, createContext, useContext, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRendreFocus } from '../../communs'
@@ -55,7 +56,7 @@ const boiteDe = (c: CibleFlottant): Boite => {
 
 /** Le repère de la fenêtre : la fenêtre du navigateur, ou le fond de la carte quand il n'en couvre pas toute la surface. */
 function cadreDe(hote: Element | null): Boite {
-  const plein = { x: 0, y: 0, l: window.innerWidth, h: window.innerHeight }
+  const plein = { x: 0, y: 0, l: window.innerWidth, h: hauteurVisible() }
   if (!hote || hote === document.body) return plein
   const r = hote.getBoundingClientRect()
   return r.width > 0 && r.height > 0 ? { x: r.left, y: r.top, l: r.width, h: r.height } : plein

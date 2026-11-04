@@ -26,6 +26,11 @@ interface PropsDialogue {
   echap?(): void
   /** Faux : pas de croix en tête, même avec `fermer` (le contenu en pose une à sa place). */
   croix?: boolean
+  /**
+   * Sans titre (un fichier montré en grand), une croix ronde dans le coin de l'écran : au doigt, le voile seul ne dit
+   * pas comment fermer.
+   */
+  croixFlottante?: boolean
   /** Les boutons du pied, à droite : `Annuler` puis l'action. */
   actions?: ReactNode
   /** Sans marge ni défilement : le contenu dessine tout. */
@@ -56,6 +61,7 @@ export function Dialogue({
   echap,
   retour,
   croix = true,
+  croixFlottante,
   actions,
   nu,
   largeur,
@@ -175,6 +181,11 @@ export function Dialogue({
             )}
             {children}
             {actions && <div className="notak-dialogue-actions">{actions}</div>}
+            {!titre && croixFlottante && fermer && (
+              <button type="button" className="notak-dialogue-croix-flottante" aria-label={t('commun.fermer')} title={t('commun.fermer')} disabled={occupe} onClick={fermer}>
+                <Icone nom="fermer" taille={20} trait={2} />
+              </button>
+            )}
           </>
         )}
       </div>

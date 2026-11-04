@@ -1,6 +1,6 @@
 import { type HTMLAttributes, type ReactNode, type Ref, useLayoutEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { SANS_ZONES, type Zones, zonesSures } from './zones'
+import { SANS_ZONES, type Zones, hauteurVisible, zonesSures } from './zones'
 import './communs/popover.css'
 import './panneauFlottant.css'
 
@@ -137,10 +137,26 @@ interface Props extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
   children: ReactNode
 }
 
+/**
+ * Où ranger un panneau sans hôte donné : dans la feuille du bas ou le dialogue d'où il s'ouvre, s'il y en a un. Rangé
+ * sur <body>, il passait sous leur voile (la feuille est à 1200, un <dialog> dans la couche du dessus) : invisible, et
+ * le toucher qui le visait fermait la feuille. Le calque de la feuille, pas la feuille : elle glisse (transform), et un
+ * panneau `position: fixed` rangé dedans se placerait par rapport à elle.
+ */
+function hoteAuto(c: ReturnType<Cible>): HTMLElement | null {
+  return c instanceof Element ? c.closest<HTMLElement>('.notak-tiroir-bas-calque, dialog[open]') : null
+}
+
 export function PanneauFlottant({ cible, hote, cote, distance, alignement, fleche = true, garderCote = false, surface = false, panneau, className, children, ...reste }: Props) {
   const noeud = useRef<HTMLDivElement | null>(null)
   const viser = useRef(cible)
   viser.current = cible
+  // Lu une fois, dès que la cible est là : changer d'hôte remonterait le contenu.
+  const auto = useRef<HTMLElement | null | undefined>(undefined)
+  if (hote === undefined && auto.current === undefined) {
+    const c = cible()
+    if (c) auto.current = hoteAuto(c)
+  }
   useLayoutEffect(() => {
     let image = 0
     let pris: Cote | undefined
@@ -154,7 +170,7 @@ export function PanneauFlottant({ cible, hote, cote, distance, alignement, flech
       const toile = c instanceof Element && c.closest('.notak-plan') ? c.closest('.notak-toile') : null
       const p =
         boite &&
-        placer(boite, { largeur: div.offsetWidth, hauteur: div.offsetHeight }, { largeur: window.innerWidth, hauteur: window.innerHeight }, {
+        placer(boite, { largeur: div.offsetWidth, hauteur: div.offsetHeight }, { largeur: window.innerWidth, hauteur: hauteurVisible() }, {
           ...((pris ?? cote) ? { cote: pris ?? cote } : {}),
           ...(distance !== undefined ? { distance } : {}),
           ...(alignement ? { alignement } : {}),
@@ -186,6 +202,6 @@ export function PanneauFlottant({ cible, hote, cote, distance, alignement, flech
       {fleche && <span className="notak-panneau-fleche" aria-hidden />}
       {children}
     </div>,
-    hote ?? document.body,
+    hote ?? auto.current ?? document.body,
   )
 }

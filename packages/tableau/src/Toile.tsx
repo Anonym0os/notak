@@ -2267,7 +2267,10 @@ export function Toile({ magasin: source, services = {}, cameraInitiale, surCamer
     const milieu = cam.versTableau(camera, point(vue.largeur / 2, vue.hauteur / 2))
     if (clic) return clic(milieu, contexte)
     if (o.outil.cliquerSeulement) return
-    const [cx, cy] = aimanter(milieu)
+    // Centré dans la vue : posé par son coin haut gauche, un fil de 34 UG débordait à droite de l'écran du téléphone.
+    const forme = o.outil.fantome()
+    const hauteur = typeof forme.hauteur === 'number' ? forme.hauteur : (definition(forme.contenu.type)?.hauteurParDefaut ?? 0)
+    const [cx, cy] = aimanter(point(milieu.x - forme.largeur / 2, milieu.y - hauteur / 2))
     const pas = o.outil.creer(point(cx, cy), contexte)
     const ids = pas.flatMap((op) => (op.type === 'creer' ? [op.element.id] : []))
     if (ids.length === 0) return

@@ -1,3 +1,4 @@
+import { hauteurVisible } from '../zones'
 import { type HTMLAttributes, type ReactNode, type Ref, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Icone, type NomIcone } from '../icones'
 import { PastillePersonne } from '../pastille'
@@ -188,7 +189,7 @@ function SousListe({ children, retour }: { children: ReactNode; retour(ev: React
       placerSousMenu(
         { left: r.left, top: r.top, width: r.width, height: n.scrollHeight },
         { left: entree.getBoundingClientRect().left },
-        { largeur: window.innerWidth, hauteur: window.innerHeight },
+        { largeur: window.innerWidth, hauteur: hauteurVisible() },
       ),
     )
   }, [])

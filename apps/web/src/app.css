@@ -1134,7 +1134,14 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   position: fixed;
   z-index: 50;
   bottom: 16px;
-  left: 50%;
+  /* Au-dessus de la barre d'accueil du téléphone : `bottom` est écrit par bandeaux.ts, la zone sûre s'y ajoute. */
+  margin-bottom: var(--notak-zone-bas, 0px);
+  /* Centré par ses marges : avec `left: 50%` et une translation, il n'avait que la moitié de la largeur pour s'étaler,
+     et passait en colonne d'un mot par ligne sur une fenêtre étroite. */
+  right: 0;
+  left: 0;
+  margin-inline: auto;
+  width: fit-content;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1146,7 +1153,6 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   box-shadow: var(--app-ombre-menu);
   color: var(--texte);
   font-size: 13px;
-  transform: translateX(-50%);
 }
 
 .bandeau .bouton-lien {

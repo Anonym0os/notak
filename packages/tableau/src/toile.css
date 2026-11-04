@@ -287,7 +287,7 @@
 /* Au doigt, la barre est pleine : sur un petit écran, la toile passe juste dessous, et un voile laisserait lire les
    cartes à travers les outils. Sur un téléphone, elle se colle au bord pour rendre un peu de largeur à la toile. */
 @media (pointer: coarse) {
-  .notak-barre-outils:not([data-selection]) {
+  .notak-barre-outils {
     background: var(--notak-barre, var(--notak-carte));
   }
 }
@@ -1361,7 +1361,8 @@
 /* L'avis en bas de la toile, avec son bouton qui défait le geste. */
 .notak-avis {
   position: absolute;
-  bottom: calc(20px + var(--notak-zone-bas, 0px));
+  /* Au-dessus des bandeaux du bas de l'app, s'il y en a (leur hauteur : --notak-bandeaux, bandeaux.ts). */
+  bottom: calc(20px + var(--notak-zone-bas, 0px) + var(--notak-bandeaux, 0px));
   left: 50%;
   z-index: 30;
   display: flex;
@@ -1409,6 +1410,7 @@
 @media (pointer: coarse) and (max-width: 640px) {
   .notak-avis {
     right: calc(12px + var(--notak-zone-droite, 0px));
+    /* Les bandeaux de l'app passent en haut au téléphone (ios.css) : rien à enjamber ici. */
     bottom: calc(84px + var(--notak-zone-bas, 0px));
     left: calc(12px + var(--notak-zone-gauche, 0px));
     gap: 4px;

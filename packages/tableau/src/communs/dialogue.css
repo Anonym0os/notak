@@ -12,6 +12,15 @@
   color: inherit;
 }
 
+/*
+ * Le clavier du téléphone levé (--clavier, posé par l'app), la boîte se centre dans ce qu'il laisse : la coque iOS ne
+ * fait pas défiler la page pour montrer le champ, il resterait dessous.
+ */
+.notak-dialogue-hote:modal {
+  bottom: var(--clavier, 0px);
+  transition: bottom var(--clavier-duree, 0.25s) ease-out;
+}
+
 .notak-dialogue-hote::backdrop {
   background: var(--notak-dialogue-voile, rgb(27 37 54 / 0.24));
 }
@@ -25,7 +34,10 @@
   flex-direction: column;
   box-sizing: border-box;
   width: var(--notak-dialogue-largeur, min(440px, calc(100vw - 32px)));
+  /* Jamais sous l'encoche, la barre d'accueil ou le clavier, et 16 px d'air autour ; 100dvh suit les barres de Safari. */
+  max-width: calc(100vw - 32px - var(--notak-zone-gauche, 0px) - var(--notak-zone-droite, 0px));
   max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px - var(--notak-zone-haut, 0px) - var(--notak-zone-bas, 0px) - var(--clavier, 0px));
   padding: 24px;
   overflow: auto;
   border-radius: 18px;
@@ -78,7 +90,35 @@
 .notak-dialogue-actions {
   display: flex;
   flex: none;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 20px;
+}
+
+/* La croix d'un dialogue sans titre qui montre un fichier en grand : dans le coin de l'écran, hors des zones sûres. */
+.notak-dialogue-croix-flottante {
+  position: fixed;
+  top: calc(12px + var(--notak-zone-haut, 0px));
+  right: calc(12px + var(--notak-zone-droite, 0px));
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.45);
+  color: #fff;
+  cursor: pointer;
+}
+
+.notak-dialogue-croix-flottante:hover {
+  background: rgb(0 0 0 / 0.65);
+}
+
+.notak-dialogue-croix-flottante:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }

@@ -36,6 +36,8 @@ describe('les bandeaux du bas', () => {
     // 16 + 64 + 8 : le bandeau de deux lignes ne cache pas celui du dessus.
     expect(bas('recu')).toBe('88px')
     expect(bas('maj')).toBe('136px')
+    // L'avis de la toile monte au-dessus de toute la pile : 64 + 8 + 40 + 8 + 40 + 8.
+    expect(document.documentElement.style.getPropertyValue('--notak-bandeaux')).toBe('168px')
   })
 
   it('redescendent quand un bandeau du dessous s’en va', () => {
@@ -44,5 +46,7 @@ describe('les bandeaux du bas', () => {
     act(() => racine.render(<Bandeau key="m" texte="maj" hauteur={40} />))
     expect(bandeauxEmpiles()).toHaveLength(1)
     expect(bas('maj')).toBe('16px')
+    act(() => racine.render(<></>))
+    expect(document.documentElement.style.getPropertyValue('--notak-bandeaux')).toBe('')
   })
 })

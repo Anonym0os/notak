@@ -12,12 +12,20 @@ const ECART = 8
 const pile: HTMLElement[] = []
 let observateur: ResizeObserver | null = null
 
+/**
+ * Pose chaque bandeau au-dessus des précédents (la barre d'accueil du téléphone est leur marge, app.css). La hauteur de la pile va
+ * dans `--notak-bandeaux` sur <html> : l'avis de la toile (« Mis à la corbeille · Annuler ») monte d'autant, au lieu
+ * de passer sous le bandeau, à la même place.
+ */
 function ranger() {
   let bas = BAS
   for (const el of pile) {
     el.style.bottom = `${bas}px`
     bas += el.offsetHeight + ECART
   }
+  const racine = document.documentElement.style
+  if (pile.length) racine.setProperty('--notak-bandeaux', `${bas - BAS}px`)
+  else racine.removeProperty('--notak-bandeaux')
 }
 
 /** À poser sur l'élément d'un bandeau du bas : `<aside ref={useBandeau()} className="bandeau">`. */

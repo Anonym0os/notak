@@ -392,6 +392,7 @@ img.notak-fichier-pdf {
 .notak-fenetre-lecteur {
   width: 80vw;
   height: 90vh;
+  height: calc(100dvh - 2 * max(5vh, 64px + var(--notak-zone-haut, 0px)));
   border: 0;
   background: #fff;
 }
@@ -399,6 +400,7 @@ img.notak-fichier-pdf {
 .notak-fenetre-image {
   max-width: 80vw;
   max-height: 90vh;
+  max-height: calc(100dvh - 2 * max(5vh, 64px + var(--notak-zone-haut, 0px)));
   object-fit: contain;
   background: #fff;
 }
@@ -407,8 +409,9 @@ img.notak-fichier-pdf {
   display: flex;
   flex-direction: column;
   width: min(1280px, calc(100vw - 200px));
-  min-width: min(450px, 100vw);
+  min-width: min(450px, calc(100vw - 32px));
   max-height: 90vh;
+  max-height: calc(100dvh - 2 * max(5vh, 64px + var(--notak-zone-haut, 0px)));
   overflow: auto;
   background: var(--notak-carte, #fff);
   color: var(--notak-texte, #323b4a);

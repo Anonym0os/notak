@@ -299,6 +299,11 @@
     width: 32px;
     height: 32px;
   }
+
+  /* « Entrée pour envoyer · Échap pour fermer » : des touches qu'un doigt n'a pas. */
+  .notak-commentaire-aide {
+    display: none;
+  }
 }
 
 .notak-commentaire button {

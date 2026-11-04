@@ -47,7 +47,7 @@ export function ModaleFichier({ contenu: c, adresse }: { contenu: Fichier; adres
     </div>
   )
   return (
-    <Dialogue nu className="notak-fenetre" etiquette={titre} voile="sombre" fermer={() => ouvrirFenetreFichier(null)} hote={document.body}>
+    <Dialogue nu croixFlottante className="notak-fenetre" etiquette={titre} voile="sombre" fermer={() => ouvrirFenetreFichier(null)} hote={document.body}>
       {corps}
     </Dialogue>
   )
