@@ -230,7 +230,9 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
   top: calc(100% + 9px);
   right: 0;
   box-sizing: border-box;
+  /* L'écran visible, moins la barre du haut et les zones sûres (barre d'état, barre d'accueil d'un iPad). */
   max-height: calc(100vh - 64px);
+  max-height: calc(100dvh - 72px - var(--notak-zone-haut, 0px) - var(--notak-zone-bas, 0px));
   overflow-y: auto;
   padding: 6px;
   border-radius: 16px;
@@ -1133,7 +1135,8 @@ select:is(.champ, .partage-form select, .partage-niveau select) {
 .bandeau {
   position: fixed;
   z-index: 50;
-  bottom: 16px;
+  /* Au-dessus de la barre d'accueil d'un iPhone ou d'un iPad. */
+  bottom: calc(16px + var(--notak-zone-bas, 0px));
   left: 50%;
   display: flex;
   align-items: center;
@@ -2622,6 +2625,8 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
   grid-template-columns: 264px minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
+  /* Ce qui dépasserait ne fait jamais glisser la page de côté, ni ne la dézoome sur un iPad. */
+  overflow-x: clip;
   background: var(--notak-fond, #ebedee);
   color: var(--notak-texte, #323b4a);
   font-family: var(--notak-police, 'Inter Variable', system-ui, sans-serif);
@@ -3311,7 +3316,7 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 .biblio-apport {
   position: fixed;
   z-index: 60;
-  bottom: 24px;
+  bottom: calc(24px + var(--notak-zone-bas, 0px));
   left: 50%;
   display: flex;
   align-items: center;
@@ -3471,6 +3476,52 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   }
 }
 
+/*
+ * Une fenêtre moyenne : un iPad en portrait (744 à 834 px), une fenêtre partagée ou étroite sur un ordinateur. La
+ * colonne se resserre, le tri ne garde que ses icônes (leur nom reste à aria-label et à l'infobulle), la recherche cède
+ * sa largeur, et la barre passe à la ligne plutôt que de pousser le compte hors de l'écran.
+ */
+@media (max-width: 1023px) {
+  .biblio {
+    grid-template-columns: clamp(216px, 26vw, 264px) minmax(0, 1fr);
+  }
+
+  .biblio-tete {
+    flex-wrap: wrap;
+    row-gap: 8px;
+    margin: 8px 12px 0 20px;
+  }
+
+  .biblio-tete h1 {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .biblio-tete-droite {
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: 8px;
+  }
+
+  .biblio-tri-choix {
+    padding: 0 7px;
+  }
+
+  .biblio-tri-libelle {
+    display: none;
+  }
+
+  .biblio-recherche.notak-ilot {
+    flex: 0 1 230px;
+    min-width: 132px;
+  }
+
+  .biblio-recherche-champ {
+    width: 100%;
+  }
+}
+
 /* Sur un écran étroit, la colonne devient une bande de rubriques qui défile, au-dessus de la barre. */
 @media (max-width: 760px) {
   .biblio {
@@ -3512,9 +3563,9 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 
   .biblio-menu {
     position: fixed;
-    top: 56px;
-    right: 8px;
-    left: 8px;
+    top: calc(56px + var(--notak-zone-haut, 0px));
+    right: calc(8px + var(--notak-zone-droite, 0px));
+    left: calc(8px + var(--notak-zone-gauche, 0px));
   }
 
   .biblio-rubrique {
@@ -4607,6 +4658,30 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/*
+ * Sur une tablette, la rangée des récents montre cinq tuiles entières (six en paysage) au lieu d'en couper une au
+ * bord de l'écran : la suite vient en glissant, tuile après tuile. Les rubriques en montrent quatre par ligne, autant
+ * qu'elles en gardent avant « Tout voir ».
+ */
+@media (min-width: 641px) {
+  .biblio-locale-rangee {
+    grid-auto-columns: calc((100% - 4 * 12px) / 5);
+    margin: 0;
+    padding: 0 0 4px;
+    scroll-padding: 0;
+  }
+
+  .biblio-locale-grille {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .biblio-locale-rangee {
+    grid-auto-columns: calc((100% - 5 * 12px) / 6);
+  }
 }
 
 .biblio-locale-tuile {

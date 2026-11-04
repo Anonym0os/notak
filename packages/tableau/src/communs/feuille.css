@@ -49,6 +49,15 @@
   pointer-events: auto;
 }
 
+/* Sur une tablette, la feuille garde la largeur d'une feuille d'iPhone, au milieu, comme celles d'iPadOS : étirée
+   sur toute la largeur d'un iPad, ses lignes et son bouton « Fermer » devenaient des bandes. */
+@media (min-width: 641px) {
+  .notak-tiroir-bas {
+    width: min(560px, calc(100% - 16px));
+    margin-inline: auto;
+  }
+}
+
 /* Au doigt, la feuille mène tout le geste, le défilement de son contenu compris (Feuille.tsx). */
 @media (pointer: coarse) {
   .notak-tiroir-bas,

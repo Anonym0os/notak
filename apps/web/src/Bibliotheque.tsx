@@ -976,9 +976,10 @@ function BibliothequeBureau({
         <div className="biblio-tete-droite">
           <Ilot className="biblio-tri" etiquette={t('biblio.tri')}>
             {(['date', 'dossier'] as const).map((x) => (
-              <button key={x} type="button" className="biblio-tri-choix" aria-pressed={tri === x} onClick={() => trier(x)}>
+              <button key={x} type="button" className="biblio-tri-choix" aria-pressed={tri === x} aria-label={t(`biblio.tri.${x}`)} title={t(`biblio.tri.${x}`)} onClick={() => trier(x)}>
                 <Icone nom={x === 'date' ? 'horloge' : 'dossier'} taille={16} />
-                {t(`biblio.tri.${x}`)}
+                {/* Dans une fenêtre moyenne (un iPad en portrait), le bouton garde son icône : son nom reste à aria-label. */}
+                <span className="biblio-tri-libelle">{t(`biblio.tri.${x}`)}</span>
               </button>
             ))}
           </Ilot>
