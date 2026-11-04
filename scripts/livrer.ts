@@ -236,12 +236,15 @@ function mac(ids: Identifiants, numero: string, envoi: boolean): number {
   if (!installeur) return (console.error('Le certificat « Mac Installer Distribution » manque : bun run livrer verifier'), 1)
   // Sans les variables APPLE_* : Tauri notariserait (c'est l'App Store qui s'en charge), et la mise à jour de GitHub
   // n'a pas sa place ici (tauri.publication.json n'est pas fondu, et la coque cloisonnée ne la lance pas).
-  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('APPLE_')))
+  // Son propre dossier de compilation : les proc-macros que compile le build iOS, sous l'environnement d'Xcode (le SDK
+  // de l'iPhone), ne se chargent pas sur le Mac (« mis-aligned LINKEDIT »), et Cargo les réutiliserait sans le voir.
+  const cibleCargo = join(coque, 'target/boutique')
+  const env = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('APPLE_'))), CARGO_TARGET_DIR: cibleCargo }
   const config = JSON.stringify({ bundle: { macOS: { bundleVersion: numero, files: { 'embedded.provisionprofile': PROFIL_MAC } } } })
   const cible = 'aarch64-apple-darwin'
   const statut = lancer('bunx', [CLI, 'build', '--bundles', 'app', '--target', cible, '--config', 'tauri.boutique.json', '--config', config], { cwd: coque, env })
   if (statut !== 0) return statut
-  const dossier = join(coque, `target/${cible}/release/bundle/macos`)
+  const dossier = join(cibleCargo, `${cible}/release/bundle/macos`)
   const app = join(dossier, 'Notak.app')
   const pkg = join(dossier, 'Notak.pkg')
   const p = lancer('xcrun', ['productbuild', '--sign', installeur, '--component', app, '/Applications', pkg])
