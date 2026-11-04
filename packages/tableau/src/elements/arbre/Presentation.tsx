@@ -13,6 +13,7 @@ import { type Diapo, type Position, type Saut, depart as diapoDeDepart, preceden
 import { type Commande, effetDeTransition, estPortrait } from './modele/gabarits'
 import type { Geste } from './modele/gestes'
 import type { Lecture } from './modele/sujets'
+import { fondDe } from './themes'
 import { RATIOS_PITCH, ratioEffectif, themeDuPitch } from './themesPitch'
 
 /**
@@ -133,7 +134,10 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
   const scene = useRef<HTMLDivElement>(null)
   const boutonReglages = useRef<HTMLButtonElement>(null)
   const boutonTheme = useRef<HTMLButtonElement>(null)
+  const outils = useRef<HTMLDivElement>(null)
   const [dim, setDim] = useState<{ l: number; h: number }>({ l: 1280, h: 720 })
+  // Le bas de la barre, depuis le haut de la scène : la vignette de l'écran de fin passe dessous.
+  const [basBarre, setBasBarre] = useState(0)
 
   // La scène mesure son cadre : la diapositive y prend la plus grande place de son rapport.
   useLayoutEffect(() => {
@@ -155,6 +159,13 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
   const k = Math.min(dim.l / rl, dim.h / rh)
   const taille = { l: Math.floor(rl * k), h: Math.floor(rh * k) }
   const seq = useMemo(() => sequence(l, { ratio, resumes: arbre.resumes }), [l, ratio, arbre.resumes])
+  useLayoutEffect(() => {
+    const o = outils.current
+    const sc = scene.current
+    if (!o || !sc) return
+    const haut = sc.getBoundingClientRect().top + (parseFloat(getComputedStyle(sc).paddingTop) || 0)
+    setBasBarre(Math.max(0, o.getBoundingClientRect().bottom - haut))
+  }, [dim])
 
   // Plein écran : celui qu'on obtient ; en sortir (Échap du navigateur) termine la présentation. On croit le navigateur
   // sur ce qu'il fait, pas sur la promesse : WebKit (Safari, l'app de bureau) n'émet que l'événement préfixé, et sa
@@ -365,8 +376,8 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
     const fin = sc.querySelector<HTMLElement>('.notak-arbre-diapo-fin')
     let lecture: Jeu = FINIE
     try {
-      if (saut.vers === 'terminer') lecture = fin ? jouerSortieFin(fin) : FINIE
-      else if (saut.vers === 'ecran-de-fin') lecture = fin ? jouerFin(sc.querySelector<HTMLElement>(`[data-couche="${String(saut.de)}"]`), fin) : FINIE
+      if (saut.vers === 'terminer') lecture = fin ? jouerSortieFin(sc) : FINIE
+      else if (saut.vers === 'ecran-de-fin') lecture = fin ? jouerFin(sc.querySelector<HTMLElement>(`[data-couche="${String(saut.de)}"]`), fin, saut.de === contexte.current.seq.diapos.length - 1, sc) : FINIE
       else {
         const cible = racine(saut.vers)
         const source = racine(saut.de)
@@ -416,7 +427,7 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
   const mettreAJour = (reglage: Extract<Geste, { type: 'pitch' }>['reglage']) => !lectureSeule && faire({ type: 'pitch', reglage })
 
   return (
-    <div ref={scene} className="notak-arbre-pitch-scene" style={{ background: '#000' }} onClick={() => suivant()} onPointerMove={viser} onPointerLeave={() => setVisee(null)} aria-label={t('arbre.pitch.titre')} role="region" aria-live="polite">
+    <div ref={scene} className="notak-arbre-pitch-scene" style={{ backgroundColor: position === 'ecran-de-fin' ? (fondDe(arbre) ?? 'var(--notak-arbre-fond)') : '#000' }} onClick={() => suivant()} onPointerMove={viser} onPointerLeave={() => setVisee(null)} aria-label={t('arbre.pitch.titre')} role="region" aria-live="polite">
       {couches.map((p) => {
         const d = seq.diapos[p]
         return (
@@ -429,7 +440,7 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
       })}
       {position === 'ecran-de-fin' && merci && (
         <div className="notak-arbre-pitch-fin" style={{ position: 'absolute', inset: 0 }}>
-          <EcranDeFin arbre={arbre} ratio={ratio} taille={taille} adresse={adresse} vignette={(petite) => <Diapositive lecture={l} diapo={merci} theme={theme} ratio={ratio} adresse={adresse} anime={false} graine={graine} taille={petite} />} />
+          <EcranDeFin arbre={arbre} ratio={ratio} taille={taille} adresse={adresse} haut={basBarre > 0 ? basBarre + 12 - (dim.h - taille.h) / 2 : undefined} vignette={(petite) => <Diapositive lecture={l} diapo={merci} theme={theme} ratio={ratio} adresse={adresse} anime={false} graine={graine} taille={petite} />} />
         </div>
       )}
       {visee && !zoom && !enCours && <BoutonAgrandir image={visee} ouvrir={agrandir} />}
@@ -437,6 +448,7 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
       <span className="notak-arbre-pitch-compte">{t('arbre.pitch.position', { i: rang, n: montrees })}</span>
 
       <div
+        ref={outils}
         className="notak-arbre-pitch-outils"
         data-discret={discret && !survol && !reglages && !themes ? '' : undefined}
         onClick={(e) => e.stopPropagation()}

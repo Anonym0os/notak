@@ -242,6 +242,19 @@ describe('le mode présentation', () => {
     p.fin()
   })
 
+  it('l’écran de fin prend le fond de la carte, le sien d’abord, et la scène autour aussi', () => {
+    const { a } = carte()
+    const p = presenter({ ...a, fond: '#123456' })
+    for (let i = 0; i < 20 && !p.hote.querySelector('.notak-arbre-diapo-fin'); i++) p.touche('ArrowRight')
+    const fin = p.hote.querySelector<HTMLElement>('.notak-arbre-diapo-fin')!
+    expect(fin.style.backgroundColor).toBe('rgb(18, 52, 86)')
+    expect(p.hote.querySelector<HTMLElement>('.notak-arbre-pitch-scene')!.style.backgroundColor).toBe('rgb(18, 52, 86)')
+    // Revenir à « Merci » rend son noir à la scène.
+    p.touche('ArrowLeft')
+    expect(p.hote.querySelector<HTMLElement>('.notak-arbre-pitch-scene')!.style.backgroundColor).toBe('rgb(0, 0, 0)')
+    p.fin()
+  })
+
   it('le thème de la carte habille la diapositive, et la barre garde ses quatre groupes de boutons', () => {
     const { a } = carte()
     const p = presenter({ ...a, pitch: { theme: 'light', ratio: '4:3' } })

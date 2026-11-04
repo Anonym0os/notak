@@ -56,6 +56,9 @@ interface Avant {
   attributs: Map<string, string | null>
 }
 
+/** Les propriétés longues qu'on anime, et le raccourci qui peut les porter. */
+const RACCOURCIS: Record<string, string> = { 'background-color': 'background' }
+
 class Scene {
   readonly entrees = new Map<string, Entree>()
   private readonly avant = new Map<Element, Avant>()
@@ -75,7 +78,15 @@ class Scene {
     const s = (el as HTMLElement).style
     if (!s) return
     const a = this.noter(el)
-    if (!a.styles.has(propriete)) a.styles.set(propriete, s.getPropertyValue(propriete))
+    if (!a.styles.has(propriete)) {
+      // Une propriété longue portée par son raccourci (`background: var(--x)` ne donne rien à lire sur
+      // `background-color`) : c'est le raccourci qu'on rendra, sans quoi l'effacer emporterait la couleur avec lui.
+      const raccourci = RACCOURCIS[propriete]
+      const vaut = s.getPropertyValue(propriete)
+      if (!vaut && raccourci && s.getPropertyValue(raccourci)) {
+        if (!a.styles.has(raccourci)) a.styles.set(raccourci, s.getPropertyValue(raccourci))
+      } else a.styles.set(propriete, vaut)
+    }
     s.setProperty(propriete, valeur)
   }
 
@@ -522,9 +533,12 @@ export function jouerAffichage(racine: HTMLElement): Jeu {
 
 /**
  * L'écran de fin paraît (relevé 10 § 5.5) : son fond et la carte paraissent pendant que « Merci » rétrécit de toute la
- * scène jusqu'à sa vignette ; la diapositive quittée se fond sur la première moitié.
+ * scène jusqu'à sa vignette. `memeQueVignette` : la diapositive quittée est ce « Merci » ; la vignette la recouvre
+ * exactement au départ, elle s'efface donc dès la première image (son fondu laissait voir deux « Merci » décalés).
+ * Une autre diapositive quittée se fond sur la première moitié. `entour` : la scène, dont le fond passe du noir à celui de
+ * l'écran de fin en même temps que lui (les bandes autour de la carte prennent sa couleur).
  */
-export function jouerFin(source: HTMLElement | null, fin: HTMLElement): Jeu {
+export function jouerFin(source: HTMLElement | null, fin: HTMLElement, memeQueVignette = false, entour?: HTMLElement): Jeu {
   const scene = new Scene()
   const d = ECRAN_DE_FIN.apparition
   const pistes: Piste[] = []
@@ -533,6 +547,10 @@ export function jouerFin(source: HTMLElement | null, fin: HTMLElement): Jeu {
   const fond = getComputedStyle(fin).backgroundColor
   scene.inscrire('cible', 'fin', { els: [fin], sorte: 'html', base: {} })
   pistes.push(piste('cible', 'fin', { fond: 'rgba(0, 0, 0, 0)' }, { fond }, 0, d, COURBES.glisse))
+  if (entour) {
+    scene.inscrire('cible', 'scene', { els: [entour], sorte: 'html', base: {} })
+    pistes.push(piste('cible', 'scene', { fond: 'rgb(0, 0, 0)' }, { fond: getComputedStyle(entour).backgroundColor }, 0, d, COURBES.glisse))
+  }
   if (carte) {
     scene.inscrire('cible', 'carte', { els: [carte], sorte: 'html', base: {} })
     pistes.push(piste('cible', 'carte', { opacite: 0 }, { opacite: 1 }, 0, d, COURBES.entree))
@@ -545,18 +563,24 @@ export function jouerFin(source: HTMLElement | null, fin: HTMLElement): Jeu {
     scene.inscrire('cible', 'vignette', { els: [vignette], sorte: 'html', base: { x: 0, y: 0, sx: 1, sy: 1 } })
     pistes.push(piste('cible', 'vignette', { x: f.left - v.left, y: f.top - v.top, sx: k, sy: k }, { x: 0, y: 0, sx: 1, sy: 1 }, 0, d, COURBES.glisse))
   }
-  if (source) {
+  const recouverte = memeQueVignette && pistes.some((p) => p.ref === 'vignette')
+  if (source && recouverte) scene.style(source, 'visibility', 'hidden')
+  else if (source) {
     scene.inscrire('source', 'cadre', { els: [source], sorte: 'html', base: {} })
     pistes.push(piste('source', 'cadre', { opacite: 1 }, { opacite: 0 }, 0, d / 2, COURBES.sortie))
   }
   return executer(scene, pistes, [], minutage(0, d, 0).total, (auBout) => auBout && masquer(source))
 }
 
-/** « Suivant » sur l'écran de fin : il s'efface. */
-export function jouerSortieFin(fin: HTMLElement): Jeu {
-  const scene = new Scene()
-  scene.inscrire('cible', 'fin', { els: [fin], sorte: 'html', base: {} })
-  return executer(scene, [piste('cible', 'fin', { opacite: 1 }, { opacite: 0 }, 0, ECRAN_DE_FIN.disparition, COURBES.sortie)], [], ECRAN_DE_FIN.disparition, (auBout) => auBout && masquer(fin))
+/**
+ * « Suivant » sur l'écran de fin : toute la présentation (`scene`, son fond noir et sa barre compris) s'efface sur la
+ * carte, restée montée dessous. L'écran de fin montre déjà la carte sur son fond : on passe de l'une à l'autre sans
+ * le noir qui, avant, séparait les deux d'une coupure sèche.
+ */
+export function jouerSortieFin(scene: HTMLElement): Jeu {
+  const s = new Scene()
+  s.inscrire('cible', 'scene', { els: [scene], sorte: 'html', base: {} })
+  return executer(s, [piste('cible', 'scene', { opacite: 1 }, { opacite: 0 }, 0, ECRAN_DE_FIN.disparition, COURBES.sortie)], [], ECRAN_DE_FIN.disparition, (auBout) => auBout && masquer(scene))
 }
 
 /** La durée d'ouverture et de fermeture de l'agrandissement d'une image (Xmind : 300). */
