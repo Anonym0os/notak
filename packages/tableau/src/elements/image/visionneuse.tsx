@@ -12,6 +12,7 @@ import { annoter } from './modeAnnotation'
 import { borneDecalage, borneZoom, ordreImages, voisine } from './navigation'
 import { recadrer } from './Recadreur'
 import { detourerImage } from './Detoureur'
+import '../../communs/dialogue.css'
 
 /** L'image montrée en grand, une seule à la fois : la carte qui la porte l'affiche par-dessus la page. */
 let ouverte: Id | null = null
@@ -211,6 +212,10 @@ export function Visionneuse({ element, adresse: adresseOuverte, contexte }: { el
           )}
         </figure>
       </div>
+      {/* Au doigt, ni Échap ni curseur : une croix dit comment fermer. */}
+      <button type="button" data-garder className="notak-dialogue-croix-flottante" aria-label={t('commun.fermer')} title={t('commun.fermer')} onClick={() => ouvrirImage(null)}>
+        <Icone nom="fermer" taille={20} trait={2} />
+      </button>
       <div data-garder className="notak-visionneuse-barre" data-estompee={bouge || undefined} role="toolbar" aria-label={t('visionneuse.barre')}>
         {envoi !== null && (
           <span className="notak-visionneuse-etat" role="status">

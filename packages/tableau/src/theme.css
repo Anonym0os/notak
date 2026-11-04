@@ -124,6 +124,9 @@
   --notak-colonne-violet: #322a42;
   --notak-colonne-bleu: #243250;
   --notak-colonne-bleu_nuit: #252c3b;
+  /* Le titre et le compte d'une colonne : clairs sur ces fonds sombres (ils restaient #323b4a, presque invisibles). */
+  --notak-colonne-texte: #e3e5e9;
+  --notak-colonne-compte: rgb(255 255 255 / 0.55);
 }
 
 .notak-espace[data-theme='sombre'] .notak-colonne-corps > .notak-carte:not([data-sans-fond]) {
@@ -139,6 +142,7 @@
 
 /* La taille de l'interface : l'en-tête, la barre d'outils et les fenêtres grandissent ou rapetissent ensemble. */
 .notak-espace[data-taille='petite'] :is(.notak-entete, .notak-barre-outils, .notak-raccourcis) {
+  --notak-dialogue-zoom: 0.88;
   zoom: 0.88;
 }
 
@@ -151,6 +155,8 @@
 }
 
 .notak-espace[data-taille='grande'] :is(.notak-entete, .notak-barre-outils, .notak-raccourcis) {
+  /* Les fenêtres zoomées divisent leurs bornes d'autant (dialogue.css) : elles restent dans l'écran. */
+  --notak-dialogue-zoom: 1.15;
   zoom: 1.15;
 }
 

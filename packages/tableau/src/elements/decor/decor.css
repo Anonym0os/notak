@@ -727,3 +727,14 @@
   color: #323b4a !important;
 }
 
+
+/* En sombre, la bulle d'un fil accroché (et sa flèche) prend le fond sombre des fiches de commentaire. */
+[data-theme='sombre'] .notak-fil-attache {
+  background: #262c3a;
+  color: var(--notak-texte, #e3e5e9);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08), 0 8px 24px rgb(0 0 0 / 0.45);
+}
+
+[data-theme='sombre'] .notak-fil-attache::after {
+  border-right-color: #262c3a;
+}

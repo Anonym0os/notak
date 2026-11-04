@@ -52,7 +52,8 @@ html[data-plateforme='ios'] #racine:has(.notak-toile) {
 
 /* Un panneau qui prend l'écran sur un téléphone (app.css, max-width 640px) s'arrête au clavier. */
 html[data-plateforme='ios'][data-clavier] .app-panneau {
-  max-height: calc(100dvh - var(--zone-haut) - var(--clavier));
+  /* Depuis le haut du panneau (sous la barre, app.css), pas depuis le haut de l'écran : sinon son bas restait derrière. */
+  max-height: calc(100dvh - var(--app-panneau-haut, 64px) - var(--zone-haut) - var(--clavier) - 8px);
   transition: max-height var(--clavier-duree) ease-out;
 }
 

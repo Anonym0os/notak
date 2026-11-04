@@ -21,6 +21,11 @@
   transition: bottom var(--clavier-duree, 0.25s) ease-out;
 }
 
+/* Sans champ ni bouton à prendre (les raccourcis), le focus va au <dialog> lui-même : pas d'anneau autour de la boîte. */
+.notak-dialogue-hote:focus {
+  outline: none;
+}
+
 .notak-dialogue-hote::backdrop {
   background: var(--notak-dialogue-voile, rgb(27 37 54 / 0.24));
 }
@@ -35,9 +40,10 @@
   box-sizing: border-box;
   width: var(--notak-dialogue-largeur, min(440px, calc(100vw - 32px)));
   /* Jamais sous l'encoche, la barre d'accueil ou le clavier, et 16 px d'air autour ; 100dvh suit les barres de Safari. */
-  max-width: calc(100vw - 32px - var(--notak-zone-gauche, 0px) - var(--notak-zone-droite, 0px));
+  /* Une fenêtre zoomée par la taille de l'interface (--notak-dialogue-zoom, theme.css) divise ses bornes d'autant. */
+  max-width: calc((100vw - 32px - var(--notak-zone-gauche, 0px) - var(--notak-zone-droite, 0px)) / var(--notak-dialogue-zoom, 1));
   max-height: calc(100vh - 32px);
-  max-height: calc(100dvh - 32px - var(--notak-zone-haut, 0px) - var(--notak-zone-bas, 0px) - var(--clavier, 0px));
+  max-height: calc((100dvh - 32px - var(--notak-zone-haut, 0px) - var(--notak-zone-bas, 0px) - var(--clavier, 0px)) / var(--notak-dialogue-zoom, 1));
   padding: 24px;
   overflow: auto;
   border-radius: 18px;

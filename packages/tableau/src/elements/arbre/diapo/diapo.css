@@ -9,6 +9,7 @@
   background: var(--d-fond, #000);
   color: var(--d-texte, #fff);
   font-family: var(--d-police, 'SF Pro Display', -apple-system, 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif);
+  -webkit-user-select: none;
   user-select: none;
 }
 

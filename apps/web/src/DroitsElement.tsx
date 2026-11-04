@@ -1,5 +1,5 @@
 import { Champ, Choix } from '@notak/tableau'
-import { type FormEvent, useCallback, useEffect, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { type DroitElement, type DroitPose, listerDroitsElement, reglerDroitElement } from './api'
 import { t } from './langue'
 
@@ -25,6 +25,15 @@ export function DroitsElement({ tableau, element, fermer }: { tableau: string; e
     listerDroitsElement(tableau, element).then(setDroits, (x: Error) => setErreur(x.message))
   }, [tableau, element])
   useEffect(charger, [charger])
+  // Le focus entre dans la carte à l'ouverture et revient, à la fermeture, à ce qui l'avait.
+  const carte = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const avant = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    carte.current?.focus({ preventScroll: true })
+    return () => {
+      if (avant?.isConnected) avant.focus({ preventScroll: true })
+    }
+  }, [])
   useEffect(() => {
     const touche = (e: KeyboardEvent) => e.key === 'Escape' && fermer()
     window.addEventListener('keydown', touche)
@@ -56,7 +65,7 @@ export function DroitsElement({ tableau, element, fermer }: { tableau: string; e
 
   return (
     <div className="droits-element-fond" onPointerDown={(e) => e.target === e.currentTarget && fermer()}>
-      <div className="arrivee-carte droits-element" role="dialog" aria-modal="true" aria-label={t('droitsElement.titre')}>
+      <div ref={carte} tabIndex={-1} className="arrivee-carte droits-element" role="dialog" aria-modal="true" aria-label={t('droitsElement.titre')}>
         <h2>{t('droitsElement.titre')}</h2>
         <p className="partage-note">{t('droitsElement.explique')}</p>
         <button type="button" className="bouton" disabled={occupe || droits === null} onClick={() => agir(() => reglerDroitElement(tableau, element, { tous: true }, fige ? null : 'bloque'))}>

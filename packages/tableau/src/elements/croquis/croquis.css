@@ -99,6 +99,9 @@
 /* La feuille ouverte en grand, au-dessus de la toile : centrée, 10 % de marge, la barre dessous. */
 .notak-croquis-fond {
   --croquis-marge: min(10vw, 10vh);
+  /* La feuille et sa barre restent hors de l'encoche et de la barre d'accueil. */
+  box-sizing: border-box;
+  padding: var(--notak-zone-haut, 0px) var(--notak-zone-droite, 0px) var(--notak-zone-bas, 0px) var(--notak-zone-gauche, 0px);
   position: fixed;
   inset: 0;
   z-index: 1000;
@@ -116,6 +119,10 @@
     calc(100vw - 2 * var(--croquis-marge)),
     calc((100vh - 2 * var(--croquis-marge) - 83px) * var(--croquis-rapport, 1.63))
   );
+  width: min(
+    calc(100vw - 2 * var(--croquis-marge) - var(--notak-zone-gauche, 0px) - var(--notak-zone-droite, 0px)),
+    calc((100dvh - 2 * var(--croquis-marge) - 83px - var(--notak-zone-haut, 0px) - var(--notak-zone-bas, 0px)) * var(--croquis-rapport, 1.63))
+  );
 }
 
 .notak-croquis-surface {
@@ -127,6 +134,7 @@
   /* Le crayon du curseur est posé par le composant, à la couleur du trait ; la pointe est en bas à gauche. */
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M3 21l1-5L16 4l4 4L8 20z' fill='white' stroke='black' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='M3 21l1-5 4 4z' fill='black'/%3E%3C/svg%3E") 3 21, crosshair;
   touch-action: none;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -145,6 +153,8 @@
   left: 50%;
   transform: translateX(-50%);
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
   gap: 2px;
   min-width: min(511px, 92vw);
@@ -353,4 +363,16 @@
   opacity: 0;
   transform: translate(-50%, 15px);
   pointer-events: none;
+}
+
+/* Au téléphone, la barre passée sur deux lignes garde des coins arrondis, pas une pilule écrasée. */
+@media (max-width: 520px) {
+  .notak-croquis-barre {
+    border-radius: 22px;
+  }
+
+  .notak-croquis-espace {
+    flex-basis: 100%;
+    height: 0;
+  }
 }

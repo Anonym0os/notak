@@ -106,6 +106,7 @@
   font-size: 12px;
   line-height: 20px;
   color: inherit;
+  -webkit-user-select: text;
   user-select: text;
 }
 
@@ -131,7 +132,9 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  padding: 48px 60px;
+  /* De la place pour la croix en haut et la barre en bas, hors de l'encoche et de la barre d'accueil. */
+  padding: calc(48px + var(--notak-zone-haut, 0px)) calc(60px + var(--notak-zone-droite, 0px)) calc(48px + var(--notak-zone-bas, 0px))
+    calc(60px + var(--notak-zone-gauche, 0px));
 }
 
 .notak-visionneuse-figure {
@@ -149,6 +152,7 @@
   min-height: 0;
   max-width: 100%;
   max-height: calc(100vh - 96px);
+  max-height: calc(100dvh - 96px - var(--notak-zone-haut, 0px) - var(--notak-zone-bas, 0px));
   object-fit: contain;
   will-change: transform;
   transition: transform 0.12s ease-out;
@@ -190,16 +194,25 @@
   color: #8d929a;
 }
 
-/* La barre : 40 px, sombre, au bas de la fenêtre ; elle s'estompe le temps du zoom. */
+/*
+ * La barre : 40 px, sombre, au bas de la fenêtre ; elle s'estompe le temps du zoom. Centrée par ses marges (avec
+ * `left: 50%`, elle n'avait que la moitié de l'écran pour s'étaler) ; trop large pour un téléphone, elle glisse.
+ */
 .notak-visionneuse-barre {
   position: absolute;
-  left: 50%;
-  bottom: 4px;
+  right: 0;
+  left: 0;
+  bottom: calc(4px + var(--notak-zone-bas, 0px));
   z-index: 1;
   display: flex;
   align-items: center;
+  width: fit-content;
+  max-width: calc(100vw - 16px - var(--notak-zone-gauche, 0px) - var(--notak-zone-droite, 0px));
   height: 40px;
-  transform: translateX(-50%);
+  margin-inline: auto;
+  overflow-x: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
   border-radius: 6px;
   background: #262626;
   box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
@@ -215,6 +228,7 @@
 
 .notak-visionneuse-texte,
 .notak-visionneuse-outil {
+  flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -251,6 +265,18 @@
   width: 1px;
   margin: 8px 2px;
   background: rgb(255 255 255 / 0.2);
+}
+
+/* Au téléphone, l'image prend la largeur : 12 px de marge sur les côtés au lieu de 60. */
+@media (max-width: 640px) {
+  .notak-visionneuse-zone {
+    padding-right: calc(12px + var(--notak-zone-droite, 0px));
+    padding-left: calc(12px + var(--notak-zone-gauche, 0px));
+  }
+
+  .notak-visionneuse-image {
+    max-height: calc(100dvh - 128px - var(--notak-zone-haut, 0px) - var(--notak-zone-bas, 0px));
+  }
 }
 
 @keyframes notak-voile {
@@ -333,6 +359,34 @@
   cursor: pointer;
 }
 
+/* Au doigt : les boutons du recadrage et du détourage à 36 px, les poignées de coin plus grosses, le curseur plus haut. */
+@media (pointer: coarse) {
+  .notak-recadreur-actions {
+    gap: 8px;
+    font-size: 14px;
+  }
+
+  .notak-recadreur-actions button {
+    min-height: 36px;
+    padding: 6px 14px;
+    border-radius: 8px;
+  }
+
+  .notak-recadre-poignee {
+    width: 22px;
+    height: 22px;
+  }
+
+  .notak-detoureur-reglage {
+    gap: 10px;
+    font-size: 14px;
+  }
+
+  .notak-detoureur-reglage input {
+    min-height: 32px;
+  }
+}
+
 /* Annotation : les traits dessinés par-dessus l'image, et la couche qui prend le crayon. */
 .notak-traits {
   position: absolute;
@@ -412,10 +466,12 @@
 .notak-annotation-barre {
   position: fixed;
   top: auto;
-  bottom: 4rem;
+  bottom: calc(4rem + var(--notak-zone-bas, 0px));
   left: 50%;
   z-index: 60;
   width: max-content;
+  /* Jamais plus large que l'écran : trop d'outils pour un téléphone, elle passe sur deux lignes (croquis.css). */
+  max-width: calc(100vw - 16px - var(--notak-zone-gauche, 0px) - var(--notak-zone-droite, 0px));
 }
 
 .notak-annotation-vise {

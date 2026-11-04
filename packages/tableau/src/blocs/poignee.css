@@ -12,6 +12,7 @@
 /* Pendant qu'un texte tiré devient une sélection de blocs, le navigateur n'étend plus rien. */
 .notak-blocs.notak-blocs-glisse,
 .notak-blocs.notak-blocs-glisse * {
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -122,6 +123,7 @@
   line-height: 16.8px;
   white-space: nowrap;
   pointer-events: none;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -150,6 +152,7 @@
   height: 0;
   opacity: 0.4;
   pointer-events: none;
+  -webkit-user-select: none;
   user-select: none;
 }
 

@@ -500,7 +500,6 @@ export const fr: Textes = {
   'bandeau.reessayer': 'Réessayer',
   'bandeau.importer': 'Importer ma toile locale',
   'bandeau.nonMerci': 'Non merci',
-  'bandeau.fermer': 'Fermer',
   'bandeau.invitationEchec': 'Cette invitation n’a pas pu être acceptée : {erreur}',
 
   // Arrivées, envoi, API
@@ -1470,7 +1469,6 @@ export const en: Textes = {
   'bandeau.reessayer': 'Try again',
   'bandeau.importer': 'Import my local board',
   'bandeau.nonMerci': 'No thanks',
-  'bandeau.fermer': 'Close',
   'bandeau.invitationEchec': 'This invitation could not be accepted: {erreur}',
 
   // Arrivées, envoi, API

@@ -20,6 +20,7 @@
   pointer-events: none;
   touch-action: none;
   transition: opacity 0.2s ease;
+  -webkit-user-select: none;
   user-select: none;
 }
 

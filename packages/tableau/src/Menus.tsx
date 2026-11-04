@@ -260,7 +260,7 @@ export function FenetreRaccourcis({ fermer }: { fermer(): void }) {
     return () => document.removeEventListener('keydown', touche, true)
   }, [fermer])
   return (
-    <Dialogue className="notak-raccourcis" titre={t('raccourcis.titre')} fermer={fermer} largeur="min(760px, calc(100vw - 32px))">
+    <Dialogue className="notak-raccourcis" titre={t('raccourcis.titre')} fermer={fermer} largeur="min(760px, calc((100vw - 32px) / var(--notak-dialogue-zoom, 1)))">
       <div className="notak-raccourcis-corps">
         {RACCOURCIS.map((g) => (
           <section key={g.titre}>

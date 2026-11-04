@@ -470,7 +470,7 @@ function BandeauErreur({ texte, fermer }: { texte: string; fermer(): void }) {
     <aside ref={bandeau} className="bandeau" role="alert">
       <span>{texte}</span>
       <button type="button" className="bouton-lien" onClick={fermer}>
-        {t('bandeau.fermer')}
+        {t('commun.fermer')}
       </button>
     </aside>
   )

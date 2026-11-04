@@ -52,6 +52,7 @@
   white-space: pre-wrap;
   pointer-events: auto;
   cursor: default;
+  -webkit-user-select: none;
   user-select: none;
 }
 

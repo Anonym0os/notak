@@ -24,6 +24,7 @@
 
 .notak-carte[data-type='colonne'][data-edition] {
   cursor: default;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -111,6 +112,7 @@
   font-weight: 600;
   letter-spacing: -0.2px;
   outline: none;
+  -webkit-user-select: text;
   user-select: text;
   cursor: text;
 }

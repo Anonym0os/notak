@@ -69,12 +69,14 @@
   --notak-fond: #ebedee;
   --notak-carte: #ffffff;
   --notak-texte: #323b4a;
+  --notak-selection: #323b4a;
 }
 
 :root[data-theme='sombre'] {
   --notak-fond: #1b1e23;
   --notak-carte: #2a2e35;
   --notak-texte: #e3e5e9;
+  --notak-selection: #e8e9eb;
 }
 
 /*

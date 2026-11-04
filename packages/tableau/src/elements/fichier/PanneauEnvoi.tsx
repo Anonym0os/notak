@@ -1,3 +1,4 @@
+import { hauteurVisible } from '../../zones'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { t } from '../../langue'
 import { Envoi, boutonOutil, estLOutil } from '../image/Banque'
@@ -41,8 +42,10 @@ function Panneau({ contexte, libelleOutil }: { contexte: ContexteToile; libelleO
       const r = bouton.getBoundingClientRect()
       const h = p.offsetHeight
       const milieu = r.top + r.height / 2
-      const top = Math.max(8, Math.min(milieu - 60, window.innerHeight - h - 8))
-      setPos({ left: r.right + 15, top, fleche: Math.max(16, Math.min(milieu - top, h - 16)) })
+      const top = Math.max(8, Math.min(milieu - 60, hauteurVisible() - h - 8))
+      // Jamais hors de l'écran : au téléphone, la barre ne laisse pas 568 px à sa droite (la flèche se cache alors).
+      const left = Math.max(8, Math.min(r.right + 15, window.innerWidth - p.offsetWidth - 8))
+      setPos({ left, top, fleche: left < r.right + 15 ? -1 : Math.max(16, Math.min(milieu - top, h - 16)) })
     }
     place()
     window.addEventListener('resize', place)
@@ -79,6 +82,7 @@ function Panneau({ contexte, libelleOutil }: { contexte: ContexteToile; libelleO
       role="dialog"
       aria-label={t('fichier.envoi.titre')}
       data-sans-banque=""
+      data-sans-fleche={pos?.fleche === -1 || undefined}
       style={pos ? { left: pos.left, top: pos.top, ['--notak-banque-fleche' as string]: `${pos.fleche}px` } : { visibility: 'hidden' }}
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}

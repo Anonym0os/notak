@@ -31,7 +31,7 @@ import {
   retirerMotDePasse,
 } from './api'
 import { langue, t, tn } from './langue'
-import { Icone } from '@notak/tableau'
+import { BoutonIcone, Icone } from '@notak/tableau'
 import { usePanneau } from './panneaux'
 
 // Partager un tableau, c'est deux portes, et le panneau les sépare :
@@ -207,7 +207,7 @@ export function PartageEnFenetre({ tableau, moi, fermer, protection }: { tableau
       }}
       onKeyDown={(e) => e.stopPropagation()}
     >
-      <Panneau tableau={tableau} moi={moi} reference={() => {}} enFenetre {...(protection ? { protection } : {})} />
+      <Panneau tableau={tableau} moi={moi} reference={() => {}} enFenetre fermer={fermer} {...(protection ? { protection } : {})} />
     </dialog>
   )
 }
@@ -215,7 +215,22 @@ export function PartageEnFenetre({ tableau, moi, fermer, protection }: { tableau
 /** Ce qu'il reste à faire après une invitation : le lien à transmettre, s'il n'est pas parti tout seul. */
 type Suite = { email: string } & ReponsePartage
 
-function Panneau({ tableau, moi, reference, enFenetre, protection }: { tableau: string; moi: Moi; reference(el: HTMLElement | null): void; enFenetre?: boolean; protection?: boolean }) {
+function Panneau({
+  tableau,
+  moi,
+  reference,
+  enFenetre,
+  protection,
+  fermer,
+}: {
+  tableau: string
+  moi: Moi
+  reference(el: HTMLElement | null): void
+  enFenetre?: boolean
+  protection?: boolean
+  /** En fenêtre : une croix dans l'en-tête (au doigt, le voile seul laissait 16 px pour fermer). */
+  fermer?: () => void
+}) {
   const [acces, setAcces] = useState<Acces[] | null>(null)
   const [erreur, setErreur] = useState<string | null>(null)
   const charger = useCallback(() => {
@@ -226,7 +241,14 @@ function Panneau({ tableau, moi, reference, enFenetre, protection }: { tableau: 
 
   return (
     <div className="app-panneau partage-panneau" ref={reference} role={enFenetre ? undefined : 'dialog'} aria-label={enFenetre ? undefined : t('partage.titre')}>
-      <div className="app-panneau-tete">{t('partage.titre')}</div>
+      <div className="app-panneau-tete">
+        {t('partage.titre')}
+        {fermer && (
+          <BoutonIcone taille={30} aria-label={t('commun.fermer')} title={t('commun.fermer')} onClick={fermer}>
+            <Icone nom="fermer" taille={16} trait={2} />
+          </BoutonIcone>
+        )}
+      </div>
       {proprietaire && <Inviter tableau={tableau} apres={charger} />}
       <Personnes tableau={tableau} moi={moi} acces={acces} proprietaire={proprietaire} recharger={charger} />
       {acces && !proprietaire && <p className="partage-note">{t('partage.seulProprio')}</p>}

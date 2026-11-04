@@ -513,3 +513,40 @@
   background: rgb(229 72 77 / 0.18) !important;
   color: #ff8a8e !important;
 }
+
+/*
+ * En sombre : le nom de l'auteur, le champ d'écriture (resté blanc), son invite, le survol des réactions et la fenêtre
+ * des émojis suivaient encore les teintes claires, écrites en dur.
+ */
+[data-theme='sombre'] .notak-commentaire-entete strong {
+  color: var(--notak-texte, #e3e5e9);
+}
+
+[data-theme='sombre'] .notak-compositeur {
+  border-color: rgb(255 255 255 / 0.16);
+  background: color-mix(in srgb, var(--notak-texte, #e3e5e9) 5%, var(--notak-carte, #2a2e35));
+  color: var(--notak-texte, #e3e5e9);
+}
+
+[data-theme='sombre'] .notak-compositeur:focus-within {
+  border-color: #5b8ff9;
+}
+
+[data-theme='sombre'] .notak-compositeur-attente {
+  color: rgb(255 255 255 / 0.4);
+}
+
+[data-theme='sombre'] :is(.notak-reaction-ajout, .notak-commentaire-reagir):is(:hover, [aria-expanded='true']) {
+  background: rgb(255 255 255 / 0.1);
+  color: var(--notak-texte, #e3e5e9);
+}
+
+[data-theme='sombre'] .notak-compositeur-emoji:is(:hover, [aria-expanded='true']) {
+  color: var(--notak-texte, #e3e5e9) !important;
+}
+
+[data-theme='sombre'] .notak-fenetre-emojis {
+  background: var(--notak-pop-fond, #262a31);
+  color: var(--notak-pop-texte, #e3e5e9);
+  box-shadow: var(--notak-pop-ombre);
+}

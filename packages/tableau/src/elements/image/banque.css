@@ -10,6 +10,7 @@
   box-sizing: border-box;
   width: min(568px, calc(100vw - 16px));
   height: min(540px, calc(100vh - 16px));
+  height: min(540px, calc(100dvh - 16px - var(--notak-zone-haut, 0px) - var(--notak-zone-bas, 0px) - var(--clavier, 0px)));
   padding: 24px;
   border-radius: 12px;
   background: var(--notak-carte, #fff);
@@ -28,6 +29,11 @@
   background: inherit;
   transform: rotate(45deg);
   border-radius: 2px;
+}
+
+/* Repoussé pour tenir dans l'écran, le panneau ne touche plus l'outil : pas de flèche vers lui. */
+.notak-banque[data-sans-fleche]::before {
+  display: none;
 }
 
 .notak-banque[data-sans-banque] {
@@ -124,6 +130,7 @@
   box-shadow: 0 1px 2px rgb(27 37 54 / 0.1);
   cursor: grab;
   touch-action: pan-y;
+  -webkit-user-select: none;
   user-select: none;
 }
 

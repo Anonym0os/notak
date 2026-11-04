@@ -672,6 +672,21 @@
   bottom: 42px;
 }
 
+/* Au téléphone, le « + » tient le coin bas droit : le zoom passe dans le coin gauche (la mini-carte au-dessus de lui,
+   minicarte.css), au lieu de rester dessous, à demi caché. */
+@media (pointer: coarse) and (max-width: 640px) {
+  .notak-vue-bas {
+    right: auto;
+    left: calc(16px + var(--notak-zone-gauche, 0px));
+  }
+
+  .notak-vue-bas .notak-vue-panneau {
+    right: auto;
+    left: 0;
+    width: min(290px, calc(100vw - 32px));
+  }
+}
+
 .notak-entete-filet {
   width: 1px;
   height: 20px;
@@ -1615,6 +1630,20 @@
 
 .notak-non-tries li[draggable] {
   cursor: grab;
+}
+
+/* Au téléphone, la corbeille et les non triés prennent la largeur de l'écran (320 px à 104 px du bord en sortaient). */
+@media (max-width: 640px) {
+  .notak-corbeille,
+  .notak-non-tries {
+    right: calc(8px + var(--notak-zone-droite, 0px));
+    left: calc(8px + var(--notak-zone-gauche, 0px));
+    width: auto;
+  }
+
+  .notak-corbeille:not(.notak-non-tries) {
+    bottom: calc(76px + var(--notak-zone-bas, 0px));
+  }
 }
 
 .notak-av.notak-pastille-reste {

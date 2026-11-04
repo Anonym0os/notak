@@ -124,6 +124,7 @@
   font-weight: 600;
   color: inherit;
   outline: none;
+  -webkit-user-select: text;
   user-select: text;
 }
 

@@ -15,6 +15,7 @@
 
 .notak-nuancier-code {
   font-variant-numeric: tabular-nums;
+  -webkit-user-select: none;
   user-select: none;
 }
 
