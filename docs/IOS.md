@@ -140,6 +140,28 @@ Notés tels que le propriétaire les a donnés en essayant l'app. Une ligne coch
 | 3 | La gomme ne montre pas où elle passe | une traînée qui suit la pointe et s'efface, comme Miro | codé : traînée grise de 300 ms (`Dessin.tsx`) |
 | 4 | Le trait en cours traîne derrière la pointe | il colle au Pencil | codé : les points prédits (`getPredictedEvents`) prolongent le trait en cours, sans être gardés |
 
+## Passe sur les fenêtres et les commentaires (04/11/2026), à revoir sur l'iPad et l'iPhone
+
+Vérifié dans Chromium aux formats iPhone 13, iPad Pro 11" et bureau, en clair et en sombre, le clavier simulé par
+`--clavier`. WebKit n'était pas disponible : chaque ligne reste à cocher sur l'appareil.
+
+| # | Ce qui change | À regarder sur l'appareil | État |
+|---|---|---|---|
+| 1 | Un message de commentaire se supprime d'une corbeille (en-tête du message, visible sans survol au doigt) ; « Annuler » le remet ; le dernier retiré jette le fil | toucher la corbeille dans la feuille du fil (iPhone) et dans la fiche (iPad) ; l'avis passe-t-il au-dessus du clavier ? | codé |
+| 2 | Le dialogue commun se centre au-dessus du clavier, hors de l'encoche et de la barre d'accueil | « Déplacer vers… », le mot de passe d'une toile verrouillée : le champ et ses boutons restent visibles, clavier sorti | codé |
+| 3 | Panneaux et menus flottants placés au-dessus du clavier, rangés dans la feuille d'où ils s'ouvrent | menu « ••• » d'une étiquette depuis la feuille des étiquettes (iPhone) ; menu « / » d'un document au clavier | codé |
+| 4 | Plus de `alert/confirm/prompt` | lien dans la note d'un sujet de carte ; supprimer un thème de couleur | codé |
+| 5 | Gestes cachés au survol visibles au doigt | corbeille d'une tâche faite, couverture d'un document, barre d'une image choisie dans un document | codé |
+| 6 | Visionneuse : croix, barre au-dessus de la barre d'accueil et qui glisse | ouvrir une image en grand sur l'iPhone, portrait et paysage | codé |
+| 7 | Bandeau du bas : plus en colonne d'un mot par ligne ; en haut au téléphone ; l'avis « Annuler » passe au-dessus | Safari sur l'iPhone, édition locale | codé |
+| 8 | Zoom « Vue » dans le coin gauche au téléphone (le « + » le cachait) | une sous-toile sur l'iPhone | codé |
+| 9 | En sombre : titres de colonne, champ et noms d'un fil, bulle d'un fil accroché | basculer le mode sombre d'iOS | codé |
+
+Reste, plus lourd, pour une passe suivante : l'iPhone en paysage (les règles « téléphone » se fient à la largeur,
+`enFeuille()` aussi, et ne se relisent pas à la rotation) ; `touch-action: none` sur tout le contenu d'une feuille
+(sélection de texte et loupe dans ses champs) et l'absence de piège à focus dans `Feuille` ; une échelle commune
+de z-index ; `--zone-*` et `--notak-zone-*` en double.
+
 ## Rendez-vous avec le chantier de l'app de bureau
 
 Ce chantier (`claude/youthful-hamilton-ji14zq` et la suite : accès à un serveur choisi, device flow, fichiers
