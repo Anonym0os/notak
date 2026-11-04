@@ -48,6 +48,7 @@ function FilLu({ element, choisie, contexte, changer }: { element: PropsRendu<Co
         cles={[element.id]}
         vu={choisie}
         maj={changer}
+        surVide={() => contexte.jeter([element.id])}
         vide={n === 0 ? t('commentaire.vide') : undefined}
         pied={
           ecrire && (choisie || n > 0) ? (

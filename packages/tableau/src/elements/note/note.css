@@ -900,6 +900,13 @@
   display: flex;
 }
 
+/* Au doigt, pas de survol : la fiche ouverte montre les gestes de ses messages. */
+@media (hover: none) {
+  .notak-fil-marge[data-actif] .notak-commentaire-survol {
+    display: flex;
+  }
+}
+
 .notak-fil-marge .notak-commentaire-geste {
   display: grid;
   place-items: center;

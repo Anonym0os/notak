@@ -18,6 +18,16 @@ function touches(pas: readonly Operation[]): { ids: Set<Id>; tableau: boolean } 
   return { ids, tableau }
 }
 
+/**
+ * On peut retirer les messages des autres dans les fils : il faut pouvoir écrire sur le tableau (règle `filDeSoi`).
+ * Jamais pendant une présentation ou dans l'aperçu d'un modèle.
+ */
+export function peutModerer(s: { lectureSeule?: boolean; droits?: DroitsTableau; presentation?: boolean; apercuModele?: boolean }, element?: Id): boolean {
+  if (s.presentation || s.apercuModele) return false
+  if (s.droits) return permis(s.droits, element ?? null, 'ecriture')
+  return !s.lectureSeule
+}
+
 /** Ces pas sont-ils permis, d'après l'état `t` du tableau ? */
 export function pasPermis(t: Tableau, pas: readonly Operation[], droits: DroitsTableau, auteur: string): boolean {
   const { ids, tableau } = touches(pas)

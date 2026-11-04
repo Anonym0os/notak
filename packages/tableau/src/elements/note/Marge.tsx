@@ -1,15 +1,16 @@
 import { type Editor, useEditorState } from '@tiptap/react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { type Commentaire, type Id, type NoeudTexte, annoter, nouvelId } from '../../coeur/tableau'
+import { type Commentaire, type Id, type Message, type NoeudTexte, annoter, nouvelId } from '../../coeur/tableau'
 import { Ligne } from '../commentaire/Commentaire'
 import { Compositeur, type PoigneeCompositeur } from '../commentaire/Compositeur'
 import { filDuBlocChoisi, placeDuFil } from '../../blocs/commentaires'
-import { AUTEUR_INCONNU, ajouterMessage, epinglerEn, initiales, modifierMessage, reagirAuMessage, retirerMessage } from '../commentaire/fil'
+import { AUTEUR_INCONNU, ajouterMessage, epinglerEn, initiales, modifierMessage, reagirAuMessage, remettreMessage, retirerMessage } from '../commentaire/fil'
 import type { ContexteToile } from '../types'
 import { type Fils, MARQUE_FIL, filsDuTexte, placerEnMarge } from './fils'
 import { t, tn } from '../../langue'
 import { Icone } from '../../icones'
+import { annoncer } from '../../avis'
 
 const garder = (e: React.SyntheticEvent) => e.stopPropagation()
 
@@ -331,6 +332,13 @@ function Fiche({
     setVide(true)
   }
   const n = fil.messages.length
+  // Le fil d'à présent : « Annuler » remet un message retiré sans perdre ce qui s'est écrit depuis.
+  const filCourant = useRef(fil)
+  filCourant.current = fil
+  const retirerMessageAnnulable = (m: Message) => {
+    ecrire(retirerMessage(fil, m.id))
+    annoncer({ texte: t('commentaire.messageSupprime'), action: { libelle: t('espace.annuler'), faire: () => ecrire(remettreMessage(filCourant.current, m)) } })
+  }
   // Les gestes du fil (NOTION.md § 9) : sur son premier message, à côté de ceux du message ; plus de pied « Fermer » :
   // Échap, ou le curseur hors du passage, ferment la fiche.
   const gestesFil = peutEcrire && (
@@ -370,7 +378,7 @@ function Fiche({
           {...(i === 0 && actif ? { actionsFil: gestesFil } : {})}
           {...(peutEcrire ? { reagir: (emoji: string) => ecrire(reagirAuMessage(fil, m.id, emoji, auteur.id)) } : {})}
           {...(peutEcrire && m.auteur.id === auteur.id
-            ? { modifier: (texte: string, riche?: NoeudTexte) => ecrire(modifierMessage(fil, m.id, texte, riche)), ...(i > 0 ? { retirer: () => ecrire(retirerMessage(fil, m.id)) } : {}) }
+            ? { modifier: (texte: string, riche?: NoeudTexte) => ecrire(modifierMessage(fil, m.id, texte, riche)), ...(i > 0 ? { retirer: () => retirerMessageAnnulable(m) } : {}) }
             : {})}
         />
       ))}

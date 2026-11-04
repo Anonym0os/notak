@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import type { Commentaire, Message } from '../../coeur/tableau'
-import { ajouterMessage, dateLisible, epinglerEn, estSimple, filVide, initiales, modifierMessage, morceauxDeTexte, plier, pointeEpingle, prenom, reagirAuMessage, replier, resoudre, retirerMessage, richeDe, texteDeRiche } from './fil'
+import { ajouterMessage, dateLisible, epinglerEn, estSimple, filVide, initiales, modifierMessage, morceauxDeTexte, plier, pointeEpingle, prenom, reagirAuMessage, remettreMessage, replier, resoudre, retirerMessage, richeDe, texteDeRiche } from './fil'
 
 const auteur = { id: 'a', nom: 'Samy' }
 const msg = (id: string, texte = 'Bonjour'): Message => ({ id, auteur, date: 0, texte })
@@ -138,5 +138,18 @@ describe('l’épingle d’un fil', () => {
   test('le point choisi est gardé, borné à la carte', () => {
     expect(pointeEpingle(epinglerEn(vide, 100.4, 50), 340, 100)).toEqual({ x: 100, y: 50 })
     expect(pointeEpingle(epinglerEn(vide, 900, -5), 340, 100)).toEqual({ x: 340, y: 0 })
+  })
+})
+
+describe('remettre un message retiré', () => {
+  const m = (id: string, date: number) => ({ id, auteur: { id: 'a', nom: 'A' }, date, texte: id })
+  test('le remet à sa place par date, sans perdre ce qui est arrivé depuis', () => {
+    const fil = { type: 'commentaire' as const, messages: [m('1', 1), m('3', 3), m('4', 4)] }
+    expect(remettreMessage(fil, m('2', 2)).messages.map((x) => x.id)).toEqual(['1', '2', '3', '4'])
+    expect(remettreMessage(fil, m('5', 5)).messages.map((x) => x.id)).toEqual(['1', '3', '4', '5'])
+  })
+  test('ne le double pas s’il est encore là', () => {
+    const fil = { type: 'commentaire' as const, messages: [m('1', 1)] }
+    expect(remettreMessage(fil, m('1', 1))).toBe(fil)
   })
 })

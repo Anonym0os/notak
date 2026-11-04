@@ -2,7 +2,7 @@ import { renderToReactElement } from '@tiptap/static-renderer/pm/react'
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Auteur, Commentaire, Message, NoeudTexte } from '../../coeur/tableau'
 import type { ContexteToile } from '../types'
-import { AUTEUR_INCONNU, dateLisible, initiales, modifierMessage, morceauxDeTexte, prenom, reagirAuMessage, retirerMessage } from './fil'
+import { AUTEUR_INCONNU, dateLisible, filVide, initiales, modifierMessage, morceauxDeTexte, prenom, reagirAuMessage, remettreMessage, retirerMessage } from './fil'
 import { langue, t, tn } from '../../langue'
 import { Icone } from '../../icones'
 import { adressesEnLiens } from '../note/conversion'
@@ -11,7 +11,8 @@ import { PastilleReaction } from '../decor/PastilleReaction'
 import { compterReactions } from '../decor/annotations'
 import { Compositeur, EXTENSIONS_MESSAGE, type PoigneeCompositeur } from './Compositeur'
 import { useNonLus, useQuiEcrit } from './suivi'
-import { estVisiteur, peutCommenter } from '../../coeur/droitsElements'
+import { estVisiteur, peutCommenter, peutModerer } from '../../coeur/droitsElements'
+import { annoncer } from '../../avis'
 import { personneAJour } from '../../personne'
 
 /** Les boutons et le champ de la carte ne lancent pas de glisser. */
@@ -100,8 +101,8 @@ interface PropsLigne {
 /**
  * Un message : l'avatar, le prénom, la date, le texte et les réactions. `modifier` (mes messages seulement) montre
  * « Modifier » au survol, qui ouvre le message dans le champ, « Enregistrer » le remplace ; `reagir` montre le « + »
- * au survol d'un message d'un autre, puis les pastilles. Hors marge, `retirer` n'a pas de bouton : comme chez Milanote,
- * on vide le message en le modifiant, puis Retour arrière le supprime.
+ * au survol d'un message d'un autre, puis les pastilles. `retirer` montre une corbeille à côté (au doigt, ces gestes
+ * restent visibles) ; vider le message en le modifiant, puis Retour arrière, le supprime aussi.
  */
 export function Ligne({ message, retirer, modifier, contexte, reagir, nonLu, ecrit, enMarge, actionsFil, citation }: PropsLigne) {
   const { auteur } = message
@@ -170,6 +171,22 @@ export function Ligne({ message, retirer, modifier, contexte, reagir, nonLu, ecr
               }}
             >
               {edition ? t('commentaire.enregistrer') : t('commentaire.modifier')}
+            </button>
+          )}
+          {!enMarge && contexte && retirer && (
+            <button
+              type="button"
+              className="notak-commentaire-supprimer"
+              aria-label={t('commentaire.supprimerMessage')}
+              title={t('commentaire.supprimerMessage')}
+              onPointerDown={garder}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                setEdition(false)
+                retirer()
+              }}
+            >
+              <Icone nom="corbeille" taille={14} />
             </button>
           )}
           {!enMarge && ecrire && reagir && reactions.length === 0 && auteur.id !== jeSuis && <BoutonAjoutReaction className="notak-commentaire-reagir" choisir={reagir} />}
@@ -258,6 +275,7 @@ export function CorpsFil({
   saisie,
   vide,
   pied,
+  surVide,
 }: {
   fil: Commentaire
   /** Les messages montrés, quand le fil est abrégé. */
@@ -275,9 +293,24 @@ export function CorpsFil({
   saisie?: SaisieFil
   vide?: string
   pied?: React.ReactNode
+  /**
+   * Le dernier message vient d'être retiré : le fil n'a plus rien à dire. Sans lui, le fil reste vide (une épingle
+   * accrochée disparaît d'elle-même) ; avec, il part à la corbeille, que son avis permet d'annuler.
+   */
+  surVide?: () => void
 }) {
   const auteur = moi(contexte)
   const ecrire = peutCommenter(contexte.services)
+  const moderer = ecrire && peutModerer(contexte.services)
+  // Le fil d'à présent, pour remettre un message retiré sans perdre ce qui s'est écrit depuis.
+  const filCourant = useRef(fil)
+  filCourant.current = fil
+  const retirer = (m: Message) => {
+    const apres = retirerMessage(fil, m.id)
+    if (filVide(apres) && surVide) return surVide()
+    maj(apres)
+    annoncer({ texte: t('commentaire.messageSupprime'), action: { libelle: t('espace.annuler'), faire: () => maj(remettreMessage(filCourant.current, m)) } })
+  }
   const defile = useRef<HTMLDivElement>(null)
   const [deborde, setDeborde] = useState(false)
   const nonLus = useNonLus(cle, fil.messages, auteur.id, vu)
@@ -314,7 +347,7 @@ export function CorpsFil({
               ecrit={lesEcrivent.has(m.auteur.id)}
               reagir={ecrire ? (emoji) => maj(reagirAuMessage(fil, m.id, emoji, auteur.id)) : undefined}
               {...(mien ? { modifier: (texte: string, riche?: NoeudTexte) => maj(modifierMessage(fil, m.id, texte, riche)) } : {})}
-              {...(mien && saisie ? { retirer: () => maj(retirerMessage(fil, m.id)) } : {})}
+              {...(mien || moderer ? { retirer: () => retirer(m) } : {})}
             />
             {i === 0 && caches > 0 && <p className="notak-commentaire-caches">{tn('commentaire.autresReponses', caches)}</p>}
           </div>

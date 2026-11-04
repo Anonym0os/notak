@@ -259,6 +259,48 @@
   opacity: 1;
 }
 
+/* La corbeille d'un message : à droite de l'en-tête (après « Modifier » sur mes messages), au survol. */
+.notak-commentaire-supprimer {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-left: auto;
+  padding: 0 !important;
+  border-radius: 6px;
+  color: #8d929a !important;
+  opacity: 0;
+}
+
+.notak-commentaire-modifier + .notak-commentaire-supprimer {
+  margin-left: 0;
+}
+
+.notak-commentaire-supprimer:hover {
+  background: #fdecec !important;
+  color: #d93036 !important;
+}
+
+.notak-commentaire-message:hover .notak-commentaire-supprimer,
+.notak-commentaire-message[data-edition] .notak-commentaire-supprimer,
+.notak-commentaire-supprimer:focus-visible {
+  opacity: 1;
+}
+
+/* Au doigt, pas de survol : les gestes d'un message restent visibles (Réagir, Modifier, Supprimer). */
+@media (hover: none) {
+  .notak-commentaire-reagir,
+  .notak-commentaire-modifier,
+  .notak-commentaire-supprimer {
+    opacity: 1;
+  }
+
+  .notak-commentaire-supprimer {
+    width: 32px;
+    height: 32px;
+  }
+}
+
 .notak-commentaire button {
   border: 0;
   background: none;
@@ -460,4 +502,9 @@
 
 .notak-epingle-bulle > .notak-fil-attache {
   top: -29px;
+}
+
+.notak-espace[data-theme='sombre'] .notak-commentaire-supprimer:hover {
+  background: rgb(229 72 77 / 0.18) !important;
+  color: #ff8a8e !important;
 }

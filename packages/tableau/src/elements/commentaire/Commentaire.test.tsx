@@ -12,6 +12,8 @@ import { ouvrirFil } from '../decor/etat'
 import { RenduCommentaire } from './Commentaire'
 import { ajouterMessage, nouveauCommentaire } from './fil'
 import { marquerLu, oublierLus } from './suivi'
+import { BandeauAvis, retirerAvis } from '../../avis'
+import type { DroitsTableau } from '../../coeur/reglesDroits'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -34,18 +36,23 @@ afterEach(() => {
 
 const bob = { id: 'bob', nom: 'Bob Martin', couleur: '#2a7' }
 
-function monde(opts: { ecrivent?: string[]; replie?: boolean; messages?: Commentaire['messages'] } = {}) {
+function monde(opts: { ecrivent?: string[]; replie?: boolean; messages?: Commentaire['messages']; droits?: DroitsTableau } = {}) {
   const base = nouveauCommentaire(0, 0)
   const messages = opts.messages ?? [{ id: 'm1', auteur: bob, date: Date.now() - 60_000, texte: 'Bonjour' }]
   const contenu = messages.reduce((c, m) => ajouterMessage(c, m), base.contenu as Commentaire)
   const element: Element<Commentaire> = { ...base, contenu: { ...contenu, ...(opts.replie ? { replie: true } : {}) } }
   const magasin = creerMagasin({ titre: '', etiquettes: [], elements: [element] })
   const autres = (opts.ecrivent ?? []).map((id) => ({ client: 1, utilisateur: { id, nom: 'Bob Martin', couleur: '#2a7' }, curseur: null, selection: [], edition: element.id }))
+  const jetes: string[] = []
   const contexte = {
     magasin,
     commencerEdition() {},
     finirEdition() {},
-    services: { presence: { moi: () => ({ id: 'ana', nom: 'Ana Dupont', couleur: '#e33' }), autres: () => autres, ecouter: () => () => {}, signaler() {} } },
+    jeter: (ids: Iterable<string>) => jetes.push(...ids),
+    services: {
+      ...(opts.droits ? { droits: opts.droits } : {}),
+      presence: { moi: () => ({ id: 'ana', nom: 'Ana Dupont', couleur: '#e33' }), autres: () => autres, ecouter: () => () => {}, signaler() {} },
+    },
   } as unknown as ContexteToile
   const courant = () => magasin.lire().elements[0] as Element<Commentaire>
   const rendre = (choisie = true) =>
@@ -54,7 +61,7 @@ function monde(opts: { ecrivent?: string[]; replie?: boolean; messages?: Comment
         <RenduCommentaire element={courant()} choisie={choisie} enEdition={false} contexte={contexte} brouillon={() => {}} changer={(c) => magasin.faire([{ type: 'contenu', id: element.id, avant: courant().contenu, apres: c }])} />,
       ),
     )
-  return { element, courant, rendre, magasin }
+  return { element, courant, rendre, magasin, jetes }
 }
 
 describe('un fil sur la toile', () => {
@@ -141,5 +148,75 @@ describe('écrire dans un fil', () => {
     expect(hote.querySelector('.notak-commentaire-texte')?.textContent).toBe('Bonjour')
     expect(hote.querySelector<HTMLButtonElement>('.notak-commentaire-publier')!.disabled).toBe(true)
     expect(element.id).toBeTruthy()
+  })
+})
+
+describe('supprimer un message', () => {
+  const ana = { id: 'ana', nom: 'Ana Dupont', couleur: '#e33' }
+  const corbeilles = () => [...hote.querySelectorAll<HTMLButtonElement>('.notak-commentaire-supprimer')]
+  let avis: Root
+  let hoteAvis: HTMLElement
+  beforeEach(() => {
+    hoteAvis = document.createElement('div')
+    document.body.append(hoteAvis)
+    avis = createRoot(hoteAvis)
+    act(() => avis.render(<BandeauAvis />))
+  })
+  afterEach(() => {
+    act(() => retirerAvis())
+    act(() => avis.unmount())
+    hoteAvis.remove()
+  })
+
+  it('une corbeille sur mes messages, pas sur ceux des autres quand je ne fais que commenter', () => {
+    const { rendre } = monde({
+      droits: { role: 'commentaire', elements: {} },
+      messages: [
+        { id: 'm1', auteur: bob, date: Date.now() - 2000, texte: 'De Bob' },
+        { id: 'm2', auteur: ana, date: Date.now() - 1000, texte: 'D’Ana' },
+      ],
+    })
+    rendre()
+    const lignes = [...hote.querySelectorAll('.notak-commentaire-message')]
+    expect(lignes[0]!.querySelector('.notak-commentaire-supprimer')).toBeNull()
+    expect(lignes[1]!.querySelector('.notak-commentaire-supprimer')).not.toBeNull()
+  })
+
+  it('qui peut écrire sur le tableau retire aussi les messages des autres', () => {
+    const { rendre } = monde({ droits: { role: 'edition', elements: {} } })
+    rendre()
+    expect(corbeilles()).toHaveLength(1)
+  })
+
+  it('la corbeille retire le message, et l’avis « Annuler » le remet à sa place', () => {
+    const { rendre, courant } = monde({
+      messages: [
+        { id: 'm1', auteur: ana, date: Date.now() - 3000, texte: 'Un' },
+        { id: 'm2', auteur: ana, date: Date.now() - 2000, texte: 'Deux' },
+        { id: 'm3', auteur: ana, date: Date.now() - 1000, texte: 'Trois' },
+      ],
+    })
+    rendre()
+    act(() => corbeilles()[1]!.click())
+    expect(courant().contenu.messages.map((m) => m.texte)).toEqual(['Un', 'Trois'])
+    expect(hoteAvis.textContent).toContain('Message supprimé')
+    act(() => [...hoteAvis.querySelectorAll('button')].find((b) => b.textContent === 'Annuler')!.click())
+    expect(courant().contenu.messages.map((m) => m.texte)).toEqual(['Un', 'Deux', 'Trois'])
+  })
+
+  it('retirer le dernier message jette le fil (à la corbeille de la toile, qui s’annule)', () => {
+    const { rendre, courant, jetes, element } = monde({ messages: [{ id: 'm1', auteur: ana, date: Date.now(), texte: 'Seul' }] })
+    rendre()
+    act(() => corbeilles()[0]!.click())
+    expect(jetes).toEqual([element.id])
+    expect(courant().contenu.messages).toHaveLength(1)
+  })
+
+  it('dans la bulle d’un fil épinglé aussi', () => {
+    const { rendre, jetes, element } = monde({ replie: true, messages: [{ id: 'm1', auteur: ana, date: Date.now(), texte: 'Seul' }] })
+    rendre()
+    act(() => hote.querySelector<HTMLButtonElement>('.notak-epingle-libre')!.click())
+    act(() => document.querySelector<HTMLButtonElement>('.notak-fil-attache .notak-commentaire-supprimer')!.click())
+    expect(jetes).toEqual([element.id])
   })
 })

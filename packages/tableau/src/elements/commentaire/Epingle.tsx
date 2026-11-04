@@ -69,6 +69,7 @@ export function BulleFil({
   cles,
   signal,
   fermer,
+  surVide,
 }: {
   fil: Commentaire
   maj(apres: Commentaire): void
@@ -80,6 +81,8 @@ export function BulleFil({
   /** Ce que je dis de moi pendant que j'écris (`null` : rien). */
   signal: string | null
   fermer(): void
+  /** Le dernier message vient d'être retiré (voir `CorpsFil`). */
+  surVide?: () => void
 }) {
   const auteur = contexte.services.presence?.moi?.() ?? AUTEUR_INCONNU
   const ecrire = peutCommenter(contexte.services)
@@ -114,6 +117,7 @@ export function BulleFil({
           cles={cles}
           vu
           maj={maj}
+          {...(surVide ? { surVide } : {})}
           vide={t('commentaire.aucun')}
           {...(ecrire
             ? {
@@ -185,7 +189,13 @@ export function EpingleLibre({ element, enEdition, contexte, changer }: { elemen
       </button>
       {ouvert && (
         <div className="notak-epingle-bulle">
-          <BulleFil fil={fil} maj={changer} contexte={contexte} cle={element.id} cles={[element.id, `fil:${element.id}`]} signal={`fil:${element.id}`} fermer={() => ouvrirFil(null)} />
+          <BulleFil fil={fil} maj={changer} contexte={contexte} cle={element.id} cles={[element.id, `fil:${element.id}`]} signal={`fil:${element.id}`}
+            fermer={() => ouvrirFil(null)}
+            surVide={() => {
+              ouvrirFil(null)
+              contexte.jeter([element.id])
+            }}
+          />
         </div>
       )}
     </div>

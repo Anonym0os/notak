@@ -29,6 +29,15 @@ export const filVide = (c: Commentaire) => c.messages.length === 0
 
 export const retirerMessage = (c: Commentaire, id: Id): Commentaire => ({ ...c, messages: c.messages.filter((m) => m.id !== id) })
 
+/** Remet un message retiré à sa place dans le fil (par date), sans toucher à ce qui a été écrit entre-temps. */
+export function remettreMessage(c: Commentaire, m: Message): Commentaire {
+  if (c.messages.some((x) => x.id === m.id)) return c
+  const i = c.messages.findIndex((x) => x.date > m.date)
+  const messages = [...c.messages]
+  messages.splice(i < 0 ? messages.length : i, 0, m)
+  return { ...c, messages }
+}
+
 export function resoudre(c: Commentaire, resolu: boolean): Commentaire {
   const { resolu: _, ...reste } = c
   return resolu ? { ...reste, resolu: true } : reste
