@@ -15,7 +15,7 @@ import {
 import { t } from '../langue'
 import { dossierCoque, ouvrirNuage } from './dossierCoque'
 import { type PoigneeDossier, dossierNavigateur } from './dossierNavigateur'
-import { type EspaceLocal, accueilIntact, espaceIntact } from './espace'
+import { type EspaceLocal, accueilIntact, espaceIntact, retirerLesGuidesIntacts } from './espace'
 
 /**
  * « Synchroniser avec un dossier » (expérimental, Chrome et Edge sur ordinateur) : l'espace local est recopié en
@@ -136,6 +136,7 @@ async function verifierAccueil(el: EspaceLocal): Promise<'vide' | 'range' | null
   const nouveau = index.racine()
   if (ancien === nouveau) return null
   if (await accueilIntact(el, ancien).catch(() => false)) {
+    await retirerLesGuidesIntacts(el, ancien)
     index.retirer(ancien)
     return 'vide'
   }

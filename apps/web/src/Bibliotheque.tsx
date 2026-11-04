@@ -69,6 +69,7 @@ import {
 import { Vignette } from './bibliotheque/Vignettes'
 import { suivreAppuiLong } from './bibliotheque/appuiLong'
 import { BarreChoix } from './bibliotheque/BarreChoix'
+import { PremierPas } from './bibliotheque/PremierPas'
 import { preparerClavier } from './bibliotheque/clavier'
 import { useAuTelephone } from './bibliotheque/AuDoigt'
 import { vibrer } from './appareil'
@@ -282,12 +283,18 @@ function BibliothequeBureau({
   noterVu = noterVuEntree,
   ecouter,
   partages = true,
+  decouvrir,
+  attente = false,
 }: {
   charger?: () => Promise<EntreeBibliotheque[]>
   /** Prévient quand la liste a changé ailleurs (les toiles de l'appareil) : la page se relit. Un serveur ne prévient pas. */
   ecouter?: (f: () => void) => () => void
   /** « Partagés avec moi » : sur un serveur. L'app n'a pas d'autres comptes. */
   partages?: boolean
+  /** « Découvrir Notak » : pose le guide, une toile qui montre les gestes, et rend son identifiant. */
+  decouvrir?: () => Promise<string>
+  /** Il n'y a encore rien, et l'app attend la première lecture d'iCloud avant de proposer de créer. */
+  attente?: boolean
   espace?: EspaceBibliotheque
   fenetres?: FenetresNotak
   /** Les notifications et le compte, que l'application prête à la barre. */
@@ -1130,6 +1137,15 @@ function BibliothequeBureau({
               </li>
             ))}
           </ul>
+        ) : toutes.length === 0 && !cherche ? (
+          // Rien encore : de quoi commencer, au lieu d'une toile déjà remplie.
+          <PremierPas
+            creer={(g) => void creerPuisOuvrir(g)}
+            occupe={creation}
+            attente={attente}
+            {...(importer && espace ? { importer: (f: File[]) => importerIci(f, espace.racine) } : {})}
+            {...(decouvrir ? { decouvrir: () => void decouvrir().then((id) => allerA(`/t/${encodeURIComponent(id)}`)) } : {})}
+          />
         ) : visibles.length === 0 && !neuf ? (
           <div className="biblio-vide">
             <Icone nom={cherche ? 'recherche' : ICONE_RUBRIQUE[rubrique]} taille={28} trait={1.5} />

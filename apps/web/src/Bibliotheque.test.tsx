@@ -148,18 +148,29 @@ describe('la page', () => {
     expect(hote.querySelector('.biblio-vide')!.textContent).toContain('Rien ne s’appelle « zzz ».')
   })
 
-  it('sans rien d’ouvert, commence par les toiles ; la tuile neuve crée puis ouvre', async () => {
+  it('sans rien encore, le premier écran : de quoi créer, qui crée puis ouvre, au lieu d’une toile déjà remplie', async () => {
     const crees: string[] = []
     await ouvrir(
       async () => [],
       async (genre) => (crees.push(genre), { tableau: 'neuve', element: null }),
     )
-    expect(rubrique('Toiles').getAttribute('aria-current')).toBe('page')
-    expect(hote.querySelector('.biblio-vide')!.textContent).toContain('Aucune toile.')
-    act(() => rubrique('Cartes mentales').click())
-    await act(async () => hote.querySelector<HTMLButtonElement>('.biblio-tuile-neuve')!.click())
+    const premiers = hote.querySelector('.biblio-premiers')!
+    expect(premiers.querySelector('h2')!.textContent).toBe('Bienvenue dans Notak')
+    const choix = [...premiers.querySelectorAll<HTMLButtonElement>('.biblio-premiers-choix')]
+    expect(choix.map((b) => b.querySelector('.biblio-premiers-libelle > span')!.textContent)).toEqual(['Toile', 'Document', 'Carte mentale'])
+    await act(async () => choix[2]!.click())
     expect(crees).toEqual(['arbre'])
     expect(location.pathname).toBe('/t/neuve')
+  })
+
+  it('le premier écran propose le guide quand on peut le poser, et attend iCloud quand il le faut', async () => {
+    await act(async () => racine.render(<PageBibliotheque charger={async () => []} decouvrir={async () => 'guide'} />))
+    const decouvrir = [...hote.querySelectorAll<HTMLButtonElement>('.biblio-premiers-choix')].find((b) => b.textContent?.startsWith('Découvrir Notak'))!
+    await act(async () => decouvrir.click())
+    expect(location.pathname).toBe('/t/guide')
+    await act(async () => racine.render(<PageBibliotheque charger={async () => []} attente />))
+    expect(hote.querySelector('.biblio-premiers-attente')!.textContent).toBe('Recherche de vos toiles dans iCloud…')
+    expect(hote.querySelector('.biblio-premiers-choix')).toBeNull()
   })
 
   it('le bouton Nouveau propose une toile, une carte ou un document', async () => {

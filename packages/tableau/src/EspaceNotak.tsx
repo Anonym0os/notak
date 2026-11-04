@@ -684,6 +684,7 @@ export function EspaceNotak({
               magasin={espace.magasin(courant)}
               services={services}
               cameraInitiale={vues.current[courant]?.camera}
+              arriver={charge}
               surCamera={surCamera}
             />
           )}

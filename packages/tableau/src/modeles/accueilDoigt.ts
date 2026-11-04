@@ -1,6 +1,5 @@
-// Le tableau d'accueil, au doigt : l'édition locale et le serveur le réécrivent avec les mêmes règles. Ce fichier est
-// lu par le serveur sans la toile (Node, sans bundler) : il ne tire rien d'autre que des types.
-import type { ModeleTableau } from './construire'
+// Le guide « Découvrir Notak », au doigt : l'app et l'édition serveur le réécrivent avec les mêmes règles.
+import { LARGEUR_COLONNE_MODELE, type ModeleTableau } from './construire'
 
 /** Une note dont le texte répond au motif est réécrite (`String.replace` : `$1` reprend ce que le motif a pris). */
 export type Reecritures = readonly (readonly [RegExp, string])[]
@@ -48,5 +47,14 @@ export function reecrire(m: ModeleTableau, regles: Reecritures): ModeleTableau {
   return { ...m, elements: parcourir(m.elements) as ModeleTableau['elements'] }
 }
 
-/** L'accueil tel qu'on le lit sur un écran qu'on touche. */
-export const accueilAuDoigt = (m: ModeleTableau, langue: 'fr' | 'en'): ModeleTableau => reecrire(m, AU_DOIGT[langue])
+/**
+ * Au doigt, le titre passe au-dessus de la première colonne : une tablette en portrait ou un téléphone ouvre la toile
+ * sur son coin, où un titre centré sur les quatre colonnes tomberait au bord.
+ */
+export const titreAuDoigt = (m: ModeleTableau): ModeleTableau => ({
+  ...m,
+  elements: m.elements.map((e) => (e.genre === 'titre' ? { ...e, x: 0, largeur: LARGEUR_COLONNE_MODELE } : e)),
+})
+
+/** Le guide tel qu'on le lit sur un écran qu'on touche. */
+export const accueilAuDoigt = (m: ModeleTableau, langue: 'fr' | 'en'): ModeleTableau => titreAuDoigt(reecrire(m, AU_DOIGT[langue]))

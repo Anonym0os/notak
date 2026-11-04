@@ -10,7 +10,7 @@ import {
   nouvelId,
 } from '@notak/tableau'
 import * as Y from 'yjs'
-import { type EspaceLocal, espaceIntact } from './espace'
+import { type EspaceLocal, espaceIntact, retirerLesGuidesIntacts } from './espace'
 import { garderFichier, lireFichier } from './fichiers'
 
 /** Le nom d'un fichier de l'édition locale : l'empreinte SHA-256 de son contenu (`fichiers.ts`). */
@@ -132,6 +132,7 @@ export async function rouvrirCopie(el: EspaceLocal, octets: Uint8Array, ici: Id)
   }
   if (accueil) {
     index.changerRacine(c.racine)
+    await retirerLesGuidesIntacts(el, racine)
     index.retirer(racine)
   } else if (!fusion && c.racine !== ici && c.tableaux.some((t) => t.id === c.racine)) {
     const liberer = espace.retenir?.(ici)

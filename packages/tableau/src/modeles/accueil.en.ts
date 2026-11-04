@@ -1,4 +1,4 @@
-// La version anglaise du tableau d'accueil : même forme que `accueil.ts`, textes traduits.
+// La version anglaise du guide : même forme que `accueil.ts`, textes traduits.
 import type { ModeleTableau } from './construire'
 
 export const ACCUEIL_EN: ModeleTableau = {

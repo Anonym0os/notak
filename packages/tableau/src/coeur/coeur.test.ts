@@ -238,6 +238,28 @@ describe('caméra', () => {
     expect(cam.bornerVue(cam.CAMERA_DEPART, null, VUE)).toBe(cam.CAMERA_DEPART)
   })
 
+  test('l’arrivée sur une toile jamais vue : à 100 %, au milieu de la place libre, ou son coin après les barres', () => {
+    const degagement = { haut: 68, gauche: 90 }
+    const ecran = (c: cam.Camera, p: { x: number; y: number }) => cam.versEcran(c, point(p.x, p.y))
+    const coin = point(90 + cam.AIR_ARRIVEE, 68 + cam.AIR_ARRIVEE)
+    // Plus large et plus haut que la vue : le coin du contenu juste après les barres, avec un peu d'air.
+    const grand = depuisTaille(point(10, 5), 200, 150)
+    const c = cam.arrivee(grand, VUE, degagement)
+    expect(c.echelle).toBe(1)
+    expect(ecran(c, grand.min)).toEqual(coin)
+    // Trop large seulement : on commence aussi en haut, comme une page, pas au milieu de la hauteur.
+    const large = depuisTaille(point(0, 0), 200, 20)
+    expect(ecran(cam.arrivee(large, VUE, degagement), large.min)).toEqual(coin)
+    // Petit : au milieu de ce que les barres laissent libre.
+    const petit = depuisTaille(point(-30, 40), 20, 10)
+    const p = cam.arrivee(petit, VUE, degagement)
+    const [debut, fin] = [ecran(p, petit.min), ecran(p, petit.max)]
+    proche((debut.x + fin.x) / 2, (90 + 1000) / 2)
+    proche((debut.y + fin.y) / 2, (68 + 800) / 2)
+    // Les bornes du document la laissent où elle est.
+    expect(cam.bornerVue(c, grand, VUE, false)).toBe(c)
+  })
+
   test('sans recentrage (un élément a bougé), la vue dézoomée reste où elle est', () => {
     const c = { origine: point(300, 300), echelle: 0.25 }
     expect(cam.bornerVue(c, depuisTaille(point(0, 0), 20, 10), VUE, false)).toBe(c)

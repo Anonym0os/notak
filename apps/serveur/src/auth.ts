@@ -8,7 +8,6 @@ import { setSessionCookie } from 'better-auth/cookies'
 import { deviceAuthorization } from 'better-auth/plugins/device-authorization'
 import { organization } from 'better-auth/plugins/organization'
 import type { Base, Utilisateur } from './base.ts'
-import { agentAuDoigt } from './accueil.ts'
 import { COULEURS, preparerCompte, preparerEspace } from './comptes.ts'
 import type { Courrier } from './courriel.ts'
 import { ROLES_ESPACE, ac } from './espaces.ts'
@@ -252,7 +251,7 @@ export function optionsAuth(o: OptionsAuth) {
           // connexion par un fournisseur ou par le SSO.
           after: async (u: { id: string }, ctx: { body?: { langue?: unknown }; headers?: Headers } | null) => {
             const utilisateur = base.utilisateurParId(u.id)
-            if (utilisateur) preparerCompte(base, utilisateur, langueExport(ctx?.body?.langue), agentAuDoigt(ctx?.headers?.get('user-agent')))
+            if (utilisateur) preparerCompte(base, utilisateur, langueExport(ctx?.body?.langue))
           },
         },
       },

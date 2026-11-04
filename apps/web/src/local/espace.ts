@@ -14,6 +14,7 @@ import {
   langueExport,
   lireTableau,
   nommerLesMedias,
+  nouvelId,
   normaliser,
   ouvrirIndexLocal,
   texteCherchable,
@@ -54,9 +55,10 @@ export function espaceLocal(): Promise<EspaceLocal> {
 }
 
 /**
- * Le tableau d'accueil d'un navigateur neuf, qui montre les gestes (celui des comptes neufs, adapté : `accueil.ts`).
- * On note son état d'alors : tant qu'on n'y a pas touché, il compte pour vide (une copie rouverte ou un dossier
- * qu'on rejoint le remplacent).
+ * Le tableau d'accueil d'un navigateur neuf : vide, à son nom. L'app s'ouvre sur la bibliothèque, qui propose de
+ * créer, et le guide (`poserLeGuide`) ne vient que si on le demande. On note son état d'alors : tant qu'on n'y a pas
+ * touché, il compte pour vide (une copie rouverte ou un dossier qu'on rejoint le remplacent). Un accueil d'avant,
+ * rempli par le modèle, garde sa marque et reste « intact » tant qu'on n'y touche pas.
  */
 async function poserAccueil({ index, reseau }: Pick<EspaceLocal, 'index' | 'reseau'>) {
   const racine = index.racine()
@@ -64,19 +66,47 @@ async function poserAccueil({ index, reseau }: Pick<EspaceLocal, 'index' | 'rese
   if (index.lister().length > 1 || marques.has(`modele:${racine}`)) return
   const sv = await reseau.avec(racine, (doc) => {
     if (doc.getMap('elements').size > 0) return null
-    doc.transact(() => {
-      doc.getMap('meta').set('titre', t('local.titreAccueil'))
-      const elements = doc.getMap('elements')
-      elementsDuModele(accueilLocal(langue()), () => crypto.randomUUID()).forEach((e, i) => elements.set(e.id, { ...e, plan: cleDeRang(i) }))
-    })
+    doc.getMap('meta').set('titre', t('local.titreAccueil'))
     return Y.encodeStateVector(doc)
   })
   if (sv) marques.set(`modele:${racine}`, Array.from(sv))
 }
 
-/** Rien n'a encore été fait ici : l'accueil seul, vide, ou tel que le modèle l'a posé. */
+/**
+ * Le guide de Notak, demandé depuis la bibliothèque : une toile à part, faite du modèle des gestes (`accueil.ts`),
+ * rangée dans l'accueil sans y poser de carte. Il porte la marque d'un modèle : resté tel quel, il ne compte pas, et
+ * un espace qui n'a que lui reste « intact » (l'accueil d'iCloud, ou une copie rouverte, peut encore prendre la place).
+ */
+export async function poserLeGuide({ index, reseau }: Pick<EspaceLocal, 'index' | 'reseau'>): Promise<Id> {
+  const id = nouvelId()
+  const titre = t('guide.titre')
+  index.declarer(id, titre, index.racine())
+  const sv = await reseau.avec(id, (doc) => {
+    doc.transact(() => {
+      doc.getMap('meta').set('titre', titre)
+      const elements = doc.getMap('elements')
+      elementsDuModele(accueilLocal(langue()), () => crypto.randomUUID()).forEach((e, i) => elements.set(e.id, { ...e, plan: cleDeRang(i) }))
+    })
+    return Y.encodeStateVector(doc)
+  })
+  index.doc.getMap<unknown>('meta').set(`modele:${id}`, Array.from(sv))
+  return id
+}
+
+/** Ce tableau est un guide (`poserLeGuide`) auquel on n'a pas touché. */
+export async function guideIntact(el: Pick<EspaceLocal, 'index' | 'reseau'>, id: Id): Promise<boolean> {
+  return Array.isArray(el.index.doc.getMap<unknown>('meta').get(`modele:${id}`)) && (await accueilIntact(el, id))
+}
+
+/** L'accueil `ancien` s'en va (un dossier ou une copie en apporte un autre) : les guides restés intacts partent avec lui. */
+export async function retirerLesGuidesIntacts(el: Pick<EspaceLocal, 'index' | 'reseau'>, ancien: Id): Promise<void> {
+  for (const e of el.index.lister()) if (e.parent === ancien && (await guideIntact(el, e.id).catch(() => false))) el.index.retirer(e.id)
+}
+
+/** Rien n'a encore été fait ici : l'accueil seul, vide ou tel que le modèle l'a posé, et au plus des guides intacts. */
 export async function espaceIntact(el: Pick<EspaceLocal, 'index' | 'reseau'>, racine = el.index.racine()): Promise<boolean> {
-  return !el.index.lister().some((e) => e.id !== racine) && (await accueilIntact(el, racine))
+  for (const e of el.index.lister()) if (e.id !== racine && !(await guideIntact(el, e.id))) return false
+  return accueilIntact(el, racine)
 }
 
 /** Ce tableau d'accueil est vide, ou tel que le modèle l'a posé. */

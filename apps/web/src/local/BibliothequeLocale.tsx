@@ -29,6 +29,7 @@ import {
   useAuTelephone,
   useBienvenue,
 } from '../bibliotheque/AuDoigt'
+import { PremierPas } from '../bibliotheque/PremierPas'
 import { Vignette } from '../bibliotheque/Vignettes'
 import { peutJoindreUnServeur } from '../bureau'
 import { CompteEtServeur, RondCompte } from '../bureau/CompteEtServeur'
@@ -162,11 +163,20 @@ export function BibliothequeLocale({
   el,
   ouvrir,
   reglages,
+  importer,
+  decouvrir,
+  attente = false,
 }: {
   el: EspaceLocal
   ouvrir(tableau: Id, element?: Id | null): void
-  /** La roue : les réglages de la toile ouverte dessous. */
+  /** La roue : les réglages de Notak. */
   reglages(): void
+  /** Des fichiers de la machine, posés sur l'accueil (le premier écran les propose). */
+  importer?(fichiers: File[]): void
+  /** « Découvrir Notak » : pose le guide, et rend son identifiant. */
+  decouvrir?(): Promise<Id>
+  /** Il n'y a encore rien, et l'app attend la première lecture d'iCloud. */
+  attente?: boolean
 }) {
   const { index, reseau, espace } = el
   const theme = useTheme()
@@ -243,6 +253,8 @@ export function BibliothequeLocale({
   }
   const resumeAccueil = accueil && resumeDe(accueil)
   const accueilVide = resumeAccueil?.genre === 'toile' && resumeAccueil.boites.length === 0
+  // Rien encore (un accueil vide, rien d'autre) : seulement de quoi commencer, sans carte ni vedette.
+  const rien = accueilVide && nombres.toiles + nombres.cartes + nombres.documents === 0
 
   return (
     <div className="notak-espace biblio-locale" data-theme={theme} data-cherche={cherche || undefined}>
@@ -277,7 +289,15 @@ export function BibliothequeLocale({
         />
       ) : (
         <>
-          {bienvenue && auTelephone && accueil && (
+          {rien && (
+            <PremierPas
+              creer={(g) => void creer(g)}
+              attente={attente}
+              {...(importer ? { importer } : {})}
+              {...(decouvrir ? { decouvrir: () => void decouvrir().then((id) => aller({ tableau: id, element: null })) } : {})}
+            />
+          )}
+          {!rien && bienvenue && auTelephone && accueil && (
             <CarteBienvenue
               titre={t('biblio.bienvenue.titre')}
               lignes={[
@@ -289,7 +309,7 @@ export function BibliothequeLocale({
               fermer={fermerBienvenue}
             />
           )}
-          {accueil && (
+          {accueil && !rien && (
             <button type="button" className="biblio-locale-vedette" onClick={() => aller(accueil)}>
               <span className="biblio-locale-vedette-plan">
                 {accueilVide ? (
@@ -314,7 +334,7 @@ export function BibliothequeLocale({
             </button>
           )}
 
-          {nombres.toiles + nombres.cartes + nombres.documents === 0 && (
+          {!rien && nombres.toiles + nombres.cartes + nombres.documents === 0 && (
             <div className="biblio-locale-premiers">
               <p>{t('biblio.premiers')}</p>
               <ChoixCreation creer={(g) => void creer(g)} />

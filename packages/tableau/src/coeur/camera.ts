@@ -179,6 +179,22 @@ export function cadrage(contenu: Rect | null, v: Vue): Camera | null {
   return cible && cible.echelle > 1 ? centree(centreRect(contenu!), 1, v) : cible
 }
 
+/** L'air laissé entre les barres et le contenu d'une toile qu'on découvre, en pixels. */
+export const AIR_ARRIVEE = 24
+
+/**
+ * La vue d'arrivée sur une toile jamais vue ici, à 100 % : ce qu'elle porte au milieu de la place que les barres
+ * laissent libre (`degagement` : ce qu'elles couvrent en haut et à gauche, en pixels), s'il y tient ; sinon son coin
+ * en haut à gauche juste après elles, comme une page qu'on commence à lire.
+ */
+export function arrivee(contenu: Rect, v: Vue, degagement: { haut: number; gauche: number }): Camera {
+  const reste = (min: number, max: number, debut: number, fin: number) => fin - debut - 2 * AIR_ARRIVEE - (max - min) * PX_PAR_UG
+  const [rx, ry] = [reste(contenu.min.x, contenu.max.x, degagement.gauche, v.largeur), reste(contenu.min.y, contenu.max.y, degagement.haut, v.hauteur)]
+  const tient = rx >= 0 && ry >= 0
+  const axe = (min: number, debut: number, r: number) => min - (debut + AIR_ARRIVEE + (tient ? r / 2 : 0)) / PX_PAR_UG
+  return { echelle: 1, origine: point(axe(contenu.min.x, degagement.gauche, rx), axe(contenu.min.y, degagement.haut, ry)) }
+}
+
 /**
  * Ajuster ramène à 100 % plutôt qu'à l'échelle ajustée quand on y est déjà, ou quand elle irait dans le même
  * sens que le zoom actuel sans franchir 100 % (on est dézoomé et elle dézoomerait moins, par exemple).
