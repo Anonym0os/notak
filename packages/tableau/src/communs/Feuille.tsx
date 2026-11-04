@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { auDoigt } from '../doigt'
+import { auTelephone } from '../doigt'
 import { rattacher } from '../PanneauFlottant'
 import { t } from '../langue'
 import './feuille.css'
@@ -10,7 +10,7 @@ import './feuille.css'
  * feuille, comme les menus d'actions d'iOS (CapCut, Reddit sur Mobbin). Plus large qu'un pouce ne le couvre, au-dessus
  * de la barre d'accueil, sur un voile qui la ferme d'un toucher.
  */
-export const enFeuille = (): boolean => auDoigt() && typeof innerWidth === 'number' && innerWidth <= 640
+export const enFeuille = (): boolean => auTelephone()
 
 /** Le temps pendant lequel la feuille ignore les touchers : le clic que la webview tire du doigt qui l'a ouverte. */
 const ATTENTE_CLIC_FANTOME = 350

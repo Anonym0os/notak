@@ -292,7 +292,7 @@
   }
 }
 
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   .notak-barre-outils:not([data-selection]) {
     left: 8px;
   }
@@ -674,7 +674,7 @@
 
 /* Au téléphone, le « + » tient le coin bas droit : le zoom passe dans le coin gauche (la mini-carte au-dessus de lui,
    minicarte.css), au lieu de rester dessous, à demi caché. */
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   .notak-vue-bas {
     right: auto;
     left: calc(16px + var(--notak-zone-gauche, 0px));
@@ -1422,7 +1422,7 @@
 
 /* Au téléphone, l'avis est une bande sur la largeur, au-dessus du « + » et de la capsule, comme les avis d'iOS : le
    texte sur une ligne, « Annuler » en clair à droite, assez haut pour le pouce. */
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   .notak-avis {
     right: calc(12px + var(--notak-zone-droite, 0px));
     /* Les bandeaux de l'app passent en haut au téléphone (ios.css) : rien à enjamber ici. */
@@ -3027,7 +3027,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   white-space: nowrap;
 }
 
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   .notak-outils-bord {
     display: none;
   }
@@ -3146,7 +3146,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 
 /* Sur un téléphone, le choix du modèle d'une toile neuve monte du bas comme les autres feuilles : sur la largeur, des
    lignes au doigt, au-dessus de la barre d'accueil. */
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   .notak-choix-modele {
     right: calc(8px + var(--notak-zone-droite, 0px));
     bottom: calc(8px + var(--notak-zone-bas, 0px));
@@ -3170,7 +3170,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 
 /* Au téléphone, l'aperçu d'un modèle se range sous la barre du haut et au-dessus de la feuille du choix : la toile y
    cadre tout le modèle (Toile.tsx, `cadrer`). */
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   .notak-modele-apercu[data-feuille] {
     position: absolute;
     inset: calc(68px + var(--notak-zone-haut, 0px)) 0 var(--notak-feuille-modele, 0px);
@@ -3409,7 +3409,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 }
 
 /* Sur un téléphone, la bulle des outils montre le « + » du bas, puisqu'il n'y a pas de barre à gauche. */
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   .notak-bulle-decouverte[data-ou='barre'] {
     top: auto;
     bottom: calc(84px + var(--notak-zone-bas, 0px));
@@ -3419,7 +3419,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 
 /* Sur un téléphone, la recherche de la toile prend la largeur, sous la barre du haut, et son champ est en 16 px :
    en dessous, iOS agrandirait la page au toucher. */
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   .notak-recherche {
     right: calc(8px + var(--notak-zone-droite, 0px));
     left: calc(8px + var(--notak-zone-gauche, 0px));
@@ -3439,7 +3439,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
  * de Notion : une bande d'une ligne, sur toute la largeur, collée au clavier, des icônes de 44 px sans libellé, qui
  * défile de côté quand elles sont trop nombreuses.
  */
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   /* Une capsule qui flotte au-dessus du clavier, comme les îlots du haut : marges sur les côtés, coins ronds, ombre ;
      le clavier arrondi ne laisse plus de vide à côté d'une bande droite. */
   .notak-barre-outils[data-edition] {
@@ -3543,7 +3543,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 }
 
 /* Sur un téléphone, les raccourcis du clavier ne disent rien : les menus des barres ne les montrent pas. */
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   .notak-barre-outils .notak-touches {
     display: none;
   }
@@ -3551,7 +3551,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 
 /* Sur un téléphone, la barre d'une sélection est une capsule d'une ligne, comme les îlots du haut : « ✕ », trois
    outils en icônes seules, Supprimer en rouge, et « ••• » pour tout le reste (Barres.tsx). */
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   .notak-barre-outils[data-capsule] {
     flex-wrap: nowrap;
     justify-content: space-between;
@@ -3642,7 +3642,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   }
 }
 
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   /* Dans la capsule, une icône n'a pas de tuile grise : c'est une touche comme « ✕ » et « ••• ». */
   .notak-barre-outils[data-capsule][data-selection] .notak-barre-selection[data-a-gauche] .notak-outil .notak-outil-icone {
     width: 28px !important;
@@ -3652,7 +3652,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   }
 }
 
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   /* Toutes les touches de la capsule au même pas, d'un bord à l'autre : ses outils se rangent avec « ✕ », Supprimer et
      « ••• », sans groupe à part ni filet. */
   .notak-barre-outils[data-capsule] {
@@ -3672,7 +3672,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   }
 }
 
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   /* Des colonnes égales, une touche centrée dans chacune : le même pas d'un bout à l'autre, quelle que soit la largeur
      de ce qui enveloppe chaque outil. */
   .notak-barre-outils[data-capsule] {
@@ -3692,7 +3692,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   }
 }
 
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   /* Un outil actif de la capsule (le titre d'une liste) : une pastille grise, l'icône reste lisible. */
   .notak-barre-outils[data-capsule] .notak-barre-selection button.notak-outil[aria-pressed='true'] {
     background: color-mix(in srgb, var(--notak-texte) 12%, transparent);
@@ -3700,7 +3700,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   }
 }
 
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   .notak-barre-outils[data-capsule][data-selection] .notak-barre-selection[data-a-gauche] :is(button.notak-outil, .notak-note-menu-ancre) {
     width: 44px;
     min-width: 44px;
@@ -3712,7 +3712,7 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
 }
 
 /* Au téléphone, la barre du haut suit ses îlots de 44 px (ilots.css) : 16 px dessus, 16 dessous. */
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   .notak-espace {
     --notak-haut: calc(76px + var(--notak-zone-haut, 0px));
   }

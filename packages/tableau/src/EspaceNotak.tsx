@@ -44,7 +44,7 @@ import { useHabillages } from './habillage/appliquer'
 import type { OffreHabillages } from './habillage/bibliotheque'
 import './theme.css'
 import { Icone } from './icones'
-import { auDoigt } from './doigt'
+import { useAuTelephone } from './doigt'
 import { enFeuille } from './communs/Feuille'
 import { GardeToile } from './garde'
 import { useApercuOutils, useBarreRetenue } from './apercuOutils'
@@ -820,7 +820,7 @@ function Entete({
 
   // Sur un téléphone, un seul bouton de tête, comme une app iPhone : ‹ remonte à la toile parente, la maison ouvre la
   // bibliothèque depuis l'accueil ; le fil n'a que la toile ouverte, et son titre prend la place qui reste.
-  const telephone = auDoigt() && typeof innerWidth === 'number' && innerWidth <= 640
+  const telephone = useAuTelephone()
   // Le titre du tableau ouvert se change en place, au bout du fil ; l'accueil n'a que son nom.
   const avecTitre = segments.length > 1
   const { visibles, caches } = telephone

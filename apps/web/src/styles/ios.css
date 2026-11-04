@@ -131,7 +131,7 @@ html[data-mobile] a[download] {
 /* Sur un téléphone, le bas de l'écran est aux outils (le « + », la bande d'une sélection) : un bandeau se pose en haut,
    sous la barre de la toile, sur toute la largeur. La pile du bas (`bandeaux.ts`) pose `bottom` en ligne : il l'étirait
    jusqu'en bas. Dans l'app comme dans Safari. */
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   .bandeau {
     top: calc(var(--notak-zone-haut, 0px) + 76px);
     right: calc(var(--notak-zone-droite, 0px) + 12px);

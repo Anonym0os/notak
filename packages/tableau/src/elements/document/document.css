@@ -765,7 +765,7 @@
 
 /* Au doigt sur un téléphone, la page prend la largeur, comme Notion sur iPhone : 24 px de marge, sans place gardée
    pour la poignée des blocs, qui ne sort pas au doigt. */
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   .notak-page,
   .notak-document-boite[data-large] .notak-page {
     grid-template-columns: 24px minmax(0, 1fr) 24px;

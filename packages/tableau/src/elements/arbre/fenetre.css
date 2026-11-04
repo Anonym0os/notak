@@ -200,7 +200,7 @@
  * se posent dessus au lieu de la pousser. Le plan et la recherche (à gauche) couvrent la largeur ; le panneau de côté
  * (style, carte, icônes) monte du bas, comme une feuille, et laisse voir le haut de la carte.
  */
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   .notak-arbre-fond .notak-arbre-fenetre .notak-arbre-scene,
   .notak-arbre-fond .notak-arbre-fenetre:is([data-gauche], [data-cote]) .notak-arbre-scene {
     inset: 0;

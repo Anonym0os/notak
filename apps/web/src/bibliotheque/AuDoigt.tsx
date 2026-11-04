@@ -1,4 +1,4 @@
-import { type GenreNeuf, Icone, type NomIcone, type ResumeContenu, normaliser } from '@notak/tableau'
+import { type GenreNeuf, Icone, type NomIcone, REQUETE_TELEPHONE, type ResumeContenu, normaliser } from '@notak/tableau'
 import { Fragment, type ReactNode, useCallback, useRef, useState, useSyncExternalStore } from 'react'
 import { t } from '../langue'
 import { Vignette } from './Vignettes'
@@ -12,8 +12,8 @@ import { Vignette } from './Vignettes'
  * `biblio-locale-*` (app.css).
  */
 
-/** Le téléphone : un écran qu'on touche du doigt, assez étroit pour que menus et panneaux montent en feuille (`enFeuille`). */
-const TELEPHONE = '(pointer: coarse) and (max-width: 640px)'
+/** Le téléphone : au doigt, étroit ou couché (`REQUETE_TELEPHONE`, comme `enFeuille`). */
+const TELEPHONE = REQUETE_TELEPHONE
 
 /** Sommes-nous sur un téléphone, à l'instant ? Sans `matchMedia`, non. */
 export const auTelephone = (): boolean => typeof matchMedia === 'function' && matchMedia(TELEPHONE).matches

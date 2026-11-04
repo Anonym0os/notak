@@ -65,7 +65,7 @@
 }
 
 /* Au téléphone, le « + » tient le coin bas droit, sous le pouce : la mini-carte prend le coin gauche. */
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   .notak-minicarte[data-lieu='tableau'] {
     right: auto;
     left: calc(16px + var(--notak-zone-gauche, 0px));

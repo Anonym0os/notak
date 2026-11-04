@@ -212,7 +212,7 @@
 
 /* Au téléphone, les îlots grandissent au gabarit d'iOS : une pilule de 44 px, des boutons de 38 px et des icônes de 22,
    qu'un pouce touche sans viser. Le premier îlot (le fil, le titre) cède sa largeur aux deux autres. */
-@media (pointer: coarse) and (max-width: 640px) {
+@media (pointer: coarse) and (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   .notak-ilot {
     height: 44px;
     border-radius: 22px;
