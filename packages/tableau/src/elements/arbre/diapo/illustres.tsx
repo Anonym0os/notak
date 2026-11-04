@@ -2,7 +2,7 @@ import type { DiapoListe } from '../modele/diapositives'
 import { ajuster } from '../modele/dimensions'
 import { type Ctx, Entete, Forme, Image, type PropsGabarit, Texte, Zone, forme, imageNaturelle, marqueursDe, noterSousSujet, noterTitre, titreDe } from './commun'
 import { type Taille, contenir, couvrir, defilement, estPetite, galerie, rapport } from './geometrie'
-import { aTaille, ajusterPolice, hauteurPile, largeurDe } from './tailles'
+import { aTaille, ajusterPolice, hauteurPile, largeurDe, lignesDans } from './tailles'
 
 /**
  * Les listes à images (relevé 11 § 13 à § 17) : un parent illustré (image sans titre) et ses enfants, des enfants
@@ -100,7 +100,7 @@ export function GabaritEnfantUniqueParentIllustre({ c, diapo }: PropsGabarit<Dia
   if (aCote(c, im, de.rapportLarge)) {
     const o = de.cote
     const largeurTexte = (petite ? 8 : 4) * s.marges.h
-    const a = ajuster({ texte: titreDe(c, item.id), police: c.polices.texte, largeur: largeurTexte, paliers: [{ max: o.enfant.max, min: o.enfant.min, hauteur: dispo }], repli: { taille: o.enfant.min }, mesurer: c.mesurer })
+    const a = ajuster({ texte: titreDe(c, item.id), police: c.polices.texte, largeur: largeurTexte, paliers: [{ max: o.enfant.max, min: o.enfant.min, hauteur: dispo }], repli: { taille: o.enfant.min, lignesMax: lignesDans(dispo, o.enfant.min) }, mesurer: c.mesurer })
     const zone = { l: Math.max((petite ? 2 : 6) * s.marges.h, contenu - largeurTexte - o.ecart), h: dispo }
     const t = contenir(im, zone)
     const lt = largeurDe(a)
@@ -121,7 +121,8 @@ export function GabaritEnfantUniqueParentIllustre({ c, diapo }: PropsGabarit<Dia
   }
   const o = de.dessus
   const t = contenir(im, { l: contenu, h: petite ? o.hauteurImagePetite : o.hauteurImage })
-  const a = ajuster({ texte: titreDe(c, item.id), police: c.polices.texte, largeur: contenu, paliers: [{ max: o.enfant.max, min: o.enfant.min, hauteur: Math.max(0, dispo - t.h - o.ecart) }], repli: { taille: o.enfant.min }, mesurer: c.mesurer })
+  const place = Math.max(0, dispo - t.h - o.ecart)
+  const a = ajuster({ texte: titreDe(c, item.id), police: c.polices.texte, largeur: contenu, paliers: [{ max: o.enfant.max, min: o.enfant.min, hauteur: place }], repli: { taille: o.enfant.min, lignesMax: lignesDans(place, o.enfant.min) }, mesurer: c.mesurer })
   const longueur = s.portrait ? contenu : largeurDe(a)
   const total = t.h + o.ecart + a.hauteur
   const y0 = Math.max(s.marges.v, (u.h - total) / 2)

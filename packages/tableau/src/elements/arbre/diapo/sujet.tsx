@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import type { Id } from '../../../coeur/tableau'
 import { t } from '../../../langue'
 import type { DiapoFin, DiapoSujet } from '../modele/diapositives'
-import { type Palier, type Police, ajuster } from '../modele/dimensions'
+import { type Palier, type Police, ajuster, hauteurDe as hauteurDeLignes } from '../modele/dimensions'
 import { type Ctx, Entete, Image, type PropsGabarit, Texte, etiquettes, imageNaturelle, marqueursDe, note, noterTitre, titreDe } from './commun'
 import { contenir, couvrir, estPetite } from './geometrie'
 import { largeurDe } from './tailles'
@@ -30,24 +30,32 @@ interface Contenu {
   lignesTitre: number
 }
 
-/** Les paliers d'un gabarit : ceux qui fixent un nombre de lignes, puis le dernier qui doit tenir dans `hauteur`. */
-const versPaliers = (ps: readonly Police[], hauteur: number): Palier[] => ps.map((p) => (p.lignesPreferees !== undefined ? { max: p.max, min: p.min, lignes: p.lignesPreferees } : { max: p.max, min: p.min, hauteur }))
+/** Les paliers d'un gabarit : ceux qui fixent un nombre de lignes, puis le dernier ; tous doivent tenir dans `hauteur`. */
+const versPaliers = (ps: readonly Police[], hauteur: number): Palier[] => ps.map((p) => (p.lignesPreferees !== undefined ? { max: p.max, min: p.min, lignes: p.lignesPreferees, hauteur } : { max: p.max, min: p.min, hauteur }))
 
 /**
  * Le titre, les étiquettes et la note d'un sujet sur `largeur`. `reserve` : la hauteur que prend déjà autre chose
- * (une image au-dessus) ; sans annexes le titre tient entre les marges, avec elles dans la diapositive.
+ * (une image au-dessus).
+ *
+ * Le tout tient entre les marges : le titre garde de quoi montrer ses étiquettes et deux lignes de note ; au-delà, il
+ * rétrécit jusqu'au plancher puis se coupe de « ... ». La note prend la place qui reste, rétrécit, puis se coupe à son
+ * tour. Avant, une note longue sortait de la diapositive, coupée au ras des lettres, et un titre démesuré aussi.
  */
 function contenuDeSujet(c: Ctx, id: Id, o: { largeur: number; paliers: readonly Police[]; ecartNote: number; reserve?: number; texte?: string; boiteTitre?: string; fond?: boolean; centrable?: boolean }): Contenu {
   const { d, s, u } = c
   const ecarts = d.sujet.ecarts
   const et0 = o.texte === undefined ? etiquettes(c, id, o.largeur, true) : null
-  const no = o.texte === undefined ? note(c, id, o.largeur) : null
-  const annexes = (et0 ? et0.h + ecarts.titreEtiquettes : 0) + (no ? no.h + o.ecartNote : 0)
-  const limite = (et0 || no ? u.h : u.h - 2 * s.marges.v) - annexes - (o.reserve ?? 0)
-  const paliers = versPaliers(o.paliers, Math.max(0, limite))
+  const no0 = o.texte === undefined ? note(c, id, o.largeur) : null
+  const hEtiquettes = et0 ? et0.h + ecarts.titreEtiquettes : 0
+  // Le titre passe d'abord, dans la place que lui laissent les étiquettes et deux lignes de note ; la note prend le reste.
+  const dispo = Math.max(0, u.h - 2 * s.marges.v - (o.reserve ?? 0))
+  const plafond = Math.max(0, dispo - hEtiquettes - (no0 ? o.ecartNote + Math.min(no0.h, hauteurDeLignes(2, s.note.police)) : 0))
+  const paliers = versPaliers(o.paliers, plafond)
   const repli = o.paliers.at(-1)?.max ?? d.sujet.repli
   const texte = o.texte ?? titreDe(c, id)
-  const a = ajuster({ texte, police: c.polices.titre, largeur: o.largeur, paliers, repli: { taille: repli }, mesurer: c.mesurer })
+  const a = ajuster({ texte, police: c.polices.titre, largeur: o.largeur, paliers, repli: { taille: repli, lignesMax: Math.max(1, Math.floor(plafond / hauteurDeLignes(1, repli))) }, mesurer: c.mesurer })
+  const resteNote = dispo - a.hauteur - hEtiquettes - o.ecartNote
+  const no = no0 && no0.h > resteNote ? note(c, id, o.largeur, Math.max(0, resteNote)) : no0
   const uneLigne = a.lignes.length <= 1
   // Centré sur une ligne ; dès deux, à gauche, et les annexes avec ; une note de plusieurs lignes aussi.
   const align: 'left' | 'center' = o.centrable !== false && uneLigne && !(no && no.lignes > 1) ? 'center' : 'left'

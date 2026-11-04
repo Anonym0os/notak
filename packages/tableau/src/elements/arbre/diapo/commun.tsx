@@ -9,7 +9,7 @@ import type { RatioPitch } from '../themesPitch'
 import type { FormesDiapo, ProprietesForme } from './formes'
 import { type Taille, pastilles } from './geometrie'
 import { MARQUEUR } from './mesure'
-import { aTaille, largeurDe } from './tailles'
+import { aTaille, dansHauteur, largeurDe } from './tailles'
 
 /**
  * Ce que tous les gabarits partagent : le contexte de dessin (les tables du rapport, la mesure, les polices, les formes),
@@ -215,7 +215,8 @@ export function etiquettes(c: Ctx, id: Id, largeur: number, centre: boolean): Bl
   if (liste.length === 0) return null
   const e = c.s.etiquettes
   const textes = liste.map((x) => aTaille(x, e.police, Math.max(0, largeur - 2 * e.marge), c.polices.texte, c.mesurer, 1))
-  const hauteur = textes[0]!.hauteur
+  // Une étiquette trop longue a rétréci : elle se dessine à sa taille, dans une pastille de la hauteur commune.
+  const hauteur = Math.max(...textes.map((t) => t.hauteur))
   const p = pastilles(
     textes.map((t) => largeurDe(t) + 2 * e.marge),
     { largeur, largeurMin: e.largeurMin, ecart: e.ecart, interligne: e.interligne, hauteur, centre },
@@ -226,7 +227,7 @@ export function etiquettes(c: Ctx, id: Id, largeur: number, centre: boolean): Bl
     rendre: (x, y) => (
       <div className="notak-arbre-diapo-etiquettes" data-boite={`${id}:etiquettes`} style={{ left: x, top: y, width: p.l, height: p.h }}>
         {p.pastilles.map((q, i) => (
-          <span key={i} className="notak-arbre-diapo-etiquette" style={{ left: q.x, top: q.y, width: q.l, height: hauteur, fontSize: e.police, lineHeight: `${hauteur - 2 * e.trait}px`, borderWidth: e.trait }}>
+          <span key={i} className="notak-arbre-diapo-etiquette" style={{ left: q.x, top: q.y, width: q.l, height: hauteur, fontSize: textes[i]!.taille, lineHeight: `${hauteur - 2 * e.trait}px`, borderWidth: e.trait }}>
             {textes[i]!.lignes[0]?.texte}
           </span>
         ))}
@@ -235,12 +236,15 @@ export function etiquettes(c: Ctx, id: Id, largeur: number, centre: boolean): Bl
   }
 }
 
-/** La note d'un sujet, à 4 vmin et 0,8 d'opacité ; `null` s'il n'en a pas. */
-export function note(c: Ctx, id: Id, largeur: number): (Bloc & { lignes: number; a: Ajuste }) | null {
+/**
+ * La note d'un sujet, à 4 vmin et 0,8 d'opacité ; `null` s'il n'en a pas. `hauteur` : la place qu'elle a ; plus longue,
+ * elle rétrécit (jusqu'au plancher), puis se coupe de « ... » au lieu de déborder de la diapositive.
+ */
+export function note(c: Ctx, id: Id, largeur: number, hauteur?: number): (Bloc & { lignes: number; a: Ajuste }) | null {
   const n = c.l.sujets.get(id)?.note
   const texte = n ? texteBrut(n).trim() : ''
   if (!texte) return null
-  const a = aTaille(texte, c.s.note.police, largeur, c.polices.texte, c.mesurer)
+  const a = dansHauteur(texte, c.s.note.police, largeur, c.polices.texte, c.mesurer, hauteur)
   return {
     l: largeurDe(a),
     h: a.hauteur,

@@ -322,7 +322,32 @@ const tientDans = (lignes: readonly Ligne[], taille: number, p: Palier) => (p.li
  */
 export const PLANCHER = 0.6
 
-/** La plus grande taille de [plancher, taille] où le texte tient en `lignesMax` lignes ; `null` si même le plancher n'y suffit pas. */
+/** Les mots les plus longs d'un texte, ceux qu'une coupe risque de casser ; sans les idéogrammes, qui se coupent un à un. */
+function motsLongs(texte: string): string[] {
+  const mots = new Set(
+    texte
+      .replace(/[\uE000-\uF8FF]/g, ' ')
+      .split(/\s+/)
+      .filter((m) => m && !/[\u2E80-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF\uFF00-\uFFEF]/.test(m)),
+  )
+  return [...mots].sort((a, b) => [...b].length - [...a].length).slice(0, 4)
+}
+
+/**
+ * À cette taille, aucun mot n'est plus large que la ligne : la coupe n'en cassera aucun. Dans sa fourchette, un texte
+ * cherche d'abord une taille où c'est vrai (« Chronologie bavarde » sur deux lignes plutôt que « Chronologi / e
+ * bavarde ») ; un mot plus large que la ligne même au bas de la fourchette (une adresse) se coupe encore, faute de
+ * mieux. Le critère est monotone, comme les autres.
+ */
+export function motsEntiers(textes: readonly string[], taille: number, police: string, largeur: number, mesurer: Mesure): boolean {
+  return textes.every((x) => motsLongs(x).every((m) => (mesurer(m, taille, police, Number.POSITIVE_INFINITY)[0]?.largeur ?? 0) <= largeur))
+}
+
+/**
+ * La plus grande taille de [plancher, taille] où le texte tient en `lignesMax` lignes ; `null` si même le plancher n'y
+ * suffit pas. Sous la fourchette, on ne rétrécit pas davantage pour garder un mot entier : une adresse se couperait
+ * en deux plutôt que d'emporter toute une liste à 60 %.
+ */
 export function tailleSansCoupe(texte: string, taille: number, police: string, largeur: number, lignesMax: number, mesurer: Mesure): number | null {
   return plusGrandeTaille(taille * PLANCHER, taille, (t) => mesurer(texte, t, police, largeur).length <= lignesMax)
 }
@@ -335,7 +360,8 @@ export function tronquer(texte: string, taille: number, police: string, largeur:
   const entier = mesurer(texte, taille, police, largeur)
   if (entier.length <= lignesMax) return { texte, lignes: entier, tronque: false }
   const car = [...texte]
-  const essai = (n: number) => `${car.slice(0, n).join('').trimEnd()}...`
+  // Coupé après une phrase finie, « diapositive. » ne devient pas « diapositive.... » : la ponctuation finale s'efface.
+  const essai = (n: number) => `${car.slice(0, n).join('').replace(/[\s.,;:…]+$/u, '')}...`
   let bas = 0
   let haut = car.length - 1
   while (bas < haut) {
@@ -348,15 +374,20 @@ export function tronquer(texte: string, taille: number, police: string, largeur:
 }
 
 /**
- * La plus grande taille où le texte tient, palier après palier ; à défaut la taille de repli (tronquée au besoin). Puis,
- * si la dernière ligne fait au plus 20 % de la largeur, un essai à 0,8 × la taille, gardé s'il fait moins de lignes.
+ * La plus grande taille où le texte tient, palier après palier, sans mot coupé d'abord (`motsEntiers`), puis coupé s'il
+ * le faut ; à défaut la taille de repli (tronquée au besoin). Puis, si la dernière ligne fait au plus 20 % de la largeur,
+ * un essai à 0,8 × la taille, gardé s'il fait moins de lignes.
  */
 export function ajuster(d: DemandeAjustement): Ajuste {
   const mesure = (taille: number) => d.mesurer(d.texte, taille, d.police, d.largeur)
   const fini = (taille: number, lignes: readonly Ligne[], tronque: boolean): Ajuste => ({ taille, interligne: interligne(taille), lignes, hauteur: hauteurDe(lignes.length, taille), tronque })
+  const entiers = (t: number) => motsEntiers([d.texte], t, d.police, d.largeur, d.mesurer)
   let taille: number | null = null
-  for (const p of d.paliers) {
-    taille = plusGrandeTaille(p.min, p.max, (t) => tientDans(mesure(t), t, p))
+  for (const exiger of [true, false]) {
+    for (const p of d.paliers) {
+      taille = plusGrandeTaille(p.min, p.max, (t) => (!exiger || entiers(t)) && tientDans(mesure(t), t, p))
+      if (taille !== null) break
+    }
     if (taille !== null) break
   }
   let sortie: Ajuste

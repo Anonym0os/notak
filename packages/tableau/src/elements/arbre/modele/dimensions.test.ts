@@ -96,6 +96,22 @@ describe('les mesures des diapositives (mode Pitch)', () => {
     // Pas plus de 6 caractères par ligne, une ligne : « abc... ».
     const six: Mesure = (s) => Array.from({ length: Math.ceil(s.length / 6) }, (_, i) => ({ texte: s.slice(i * 6, i * 6 + 6), largeur: 0 }))
     expect(tronquer('abcdefghij', 10, 'x', 1000, 1, six).texte).toBe('abc...')
+    // Une phrase finie ne prend pas un quatrième point.
+    expect(tronquer('ab. cdefghij', 10, 'x', 1000, 1, six).texte).toBe('ab...')
+  })
+
+  it('un mot ne se coupe pas en deux tant qu’une taille plus petite le garde entier ; un mot géant, si', () => {
+    // À 90 px dans 450 px, 10 caractères par ligne : « Chronologi / e bavarde » tenait en trois lignes.
+    const paliers = [
+      { max: 90, min: 72, lignes: 1 },
+      { max: 90, min: 72, lignes: 3 },
+    ]
+    const r = ajuster({ texte: 'Chronologie bavarde', police: 'x', largeur: 450, paliers, repli: { taille: 72, lignesMax: 3 }, mesurer: mesure })
+    expect([r.taille, r.lignes.map((l) => l.texte)]).toEqual([81, ['Chronologie', 'bavarde']])
+    // Aucune taille de la fourchette ne garde ce mot entier : il se coupe, comme avant.
+    const geant = ajuster({ texte: 'Supercalifragilisticexpialidocious', police: 'x', largeur: 450, paliers, repli: { taille: 72, lignesMax: 3 }, mesurer: mesure })
+    expect(geant.lignes).toHaveLength(3)
+    expect(geant.tronque).toBe(false)
   })
 
   it('une dernière ligne trop courte fait réessayer à 0,8 × la taille', () => {

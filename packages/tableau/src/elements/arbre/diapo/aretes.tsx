@@ -1,8 +1,10 @@
+import type { ReactNode } from 'react'
 import type { DiapoListe } from '../modele/diapositives'
 import { enfantsDe } from '../modele/sujets'
 import { type Ctx, Entete, Forme, type PropsGabarit, Texte, Zone, forme, marqueursDe, noterSousSujet, noterTitre, titreDe } from './commun'
-import { aretes, jalons } from './geometrie'
-import { aTaille, ajusterPolice, hauteurPile, largeurDe, tailleCommune } from './tailles'
+import type { Ajuste, Police } from '../modele/dimensions'
+import { aretes, defilement, jalons } from './geometrie'
+import { type TailleCommune, aTaille, ajusterPolice, hauteurPile, largeurDe, tailleCommune } from './tailles'
 
 /**
  * L'arête de poisson et la chronologie (relevé 11 § 9 à § 12) : le parent dans une zone à gauche, centré ; à droite,
@@ -14,6 +16,53 @@ import { aTaille, ajusterPolice, hauteurPile, largeurDe, tailleCommune } from '.
 const indiceCourant = (diapo: DiapoListe) => {
   const i = diapo.items.findIndex((x) => x.etat === 'courant')
   return i >= 0 ? i : Math.min(Math.max(0, diapo.centre), diapo.items.length - 1)
+}
+
+/** Les enfants d'une tête, empilés le long de son arête (de sa tige), dans leur bande. */
+interface PileDeTete {
+  tc: TailleCommune
+  hauteurs: number[]
+  /** Le haut de chaque enfant, depuis le haut de la pile. */
+  ys: number[]
+  /** Le haut de la pile, dans la diapositive, et sa hauteur. */
+  y0: number
+  hListe: number
+  /** La pile ne tient pas dans sa bande, même à la taille mini : elle défile de `dec` pour garder l'enfant courant en vue. */
+  defile: boolean
+  dec: number
+}
+
+/**
+ * Les enfants d'une tête dans la bande [haut, bas] qu'ils ont entre le titre et l'épine (l'axe) : à la taille commune
+ * qui y tient, plus petits s'il le faut ; et si même la taille mini déborde, la pile défile, comme celle d'une liste.
+ * Avant, ils s'empilaient sans limite : au cinquième, ils passaient sur l'épine, les suivants sortaient de la
+ * diapositive. `ancre` : la pile part du haut de la bande, ou finit en bas (quand le titre est dessous).
+ */
+function pileDeTete(c: Ctx, diapo: DiapoListe, p: Police, largeur: number, ecarts: { court: number; long: number }, bande: { haut: number; bas: number }, ancre: 'haut' | 'bas'): PileDeTete {
+  const ecartDe = (as: readonly Ajuste[]) => (as.length <= 3 && as.every((x) => x.lignes.length <= 1) ? ecarts.court : ecarts.long)
+  const dispo = Math.max(0, bande.bas - bande.haut)
+  const tc = tailleCommune(diapo.items.map((i) => titreDe(c, i.id)), p, Math.max(0, largeur), c.polices.texte, c.mesurer, (as) => hauteurPile(as.map((a) => a.hauteur), ecartDe(as)), dispo)
+  const ecart = ecartDe(tc.ajustes)
+  const hauteurs = tc.ajustes.map((x) => x.hauteur)
+  const ys = hauteurs.map((_, i) => hauteurs.slice(0, i).reduce((t, h) => t + h + ecart, 0))
+  const hListe = hauteurPile(hauteurs, ecart)
+  if (hListe <= dispo) return { tc, hauteurs, ys, y0: ancre === 'haut' ? bande.haut : bande.bas - hListe, hListe, defile: false, dec: 0 }
+  const k = indiceCourant(diapo)
+  return { tc, hauteurs, ys, y0: bande.haut, hListe, defile: true, dec: defilement(hListe, dispo, (ys[k] ?? 0) + (hauteurs[k] ?? 0) / 2) }
+}
+
+/**
+ * La pile d'une tête posée ; quand elle ne tient pas, dans une zone qui défile (bords estompés). `children` reçoit de
+ * quoi passer du repère de la diapositive à celui de la zone (`dy`), et le décalage du défilement (`vu`, négatif).
+ */
+function PoserPile({ c, pile, bande, children }: { c: Ctx; pile: PileDeTete; bande: { haut: number; bas: number }; children: (dy: number, vu: number) => ReactNode[] }) {
+  if (!pile.defile) return <>{children(0, 0)}</>
+  const h = bande.bas - bande.haut
+  return (
+    <Zone x={0} y={bande.haut} l={c.u.l} h={h} decalage={{ x: 0, y: pile.dec }} estompe={{ sens: 'v', taille: c.u.vmin(4), debut: pile.dec > 0, fin: pile.dec < pile.hListe - h }}>
+      {children(-bande.haut, -pile.dec)}
+    </Zone>
+  )
 }
 
 /** Le parent dans sa zone de gauche, centré dans la zone et sur la mi-hauteur. */
@@ -95,18 +144,15 @@ export function GabaritTeteArete({ c, diapo }: PropsGabarit<DiapoListe>) {
   const bout = haut ? yEpine - dy : yEpine + dy
   // Les enfants du sujet, le long de son arête : à l'abscisse de l'arête à leur hauteur, après un petit trait.
   const largeurItems = u.l - s.marges.h - xBout - dt.trait.longueur - c.u.vmin(1)
-  const tc = tailleCommune(diapo.items.map((i) => titreDe(c, i.id)), dt.elements, Math.max(0, largeurItems), c.polices.texte, c.mesurer)
-  const court = tc.ajustes.length <= 3 && tc.ajustes.every((x) => x.lignes.length <= 1)
-  const ecart = court ? dt.ecart.court : dt.ecart.long
-  const hauteurs = tc.ajustes.map((x) => x.hauteur)
-  const hListe = hauteurPile(hauteurs, ecart)
   const titreSujet = aTaille(titreDe(c, diapo.sujet, false), dt.soeurs.police, u.l - xBout - s.marges.h, c.polices.titre, c.mesurer, dt.soeurs.lignes)
-  // Au-dessus de l'épine, la liste part du haut (sous le titre) ; au-dessous, elle finit au-dessus du titre.
+  // Au-dessus de l'épine, la liste part du haut (sous le titre) ; au-dessous, elle finit au-dessus du titre. Elle reste
+  // à l'écart de l'épine et, en haut, de l'en-tête.
   const yTitre = haut ? bout - titreSujet.hauteur : bout
-  const y0 = haut ? bout + dt.margeTitre : bout - dt.margeTitre - hListe
+  const bande = haut ? { haut: bout + dt.margeTitre, bas: yEpine - d.arete.epine / 2 - u.vmin(3) } : { haut: Math.max(yEpine + d.arete.epine / 2 + u.vmin(3), s.entete.y + s.entete.hauteurLigne + u.vmin(3)), bas: bout - dt.margeTitre }
+  const pileT = pileDeTete(c, diapo, dt.elements, largeurItems, dt.ecart, bande, haut ? 'haut' : 'bas')
+  const { tc, hauteurs } = pileT
   const xArete = (y: number) => xSujet + (dx * Math.abs(yEpine - y)) / dy
   noterTitre(c, xBout, yTitre, largeurDe(titreSujet), titreSujet.hauteur)
-  let y = y0
   return (
     <>
       <Entete c={c} sujet={diapo.sujet} />
@@ -128,22 +174,26 @@ export function GabaritTeteArete({ c, diapo }: PropsGabarit<DiapoListe>) {
           </span>
         )
       })}
-      {diapo.items.map((item, i) => {
-        const ici = y
-        y += hauteurs[i]! + ecart
-        const a1 = tc.ajustes[i]!
-        const milieu = ici + (a1.taille * a1.interligne) / 2
-        const x = xArete(milieu)
-        noterSousSujet(c, x + dt.trait.longueur + largeurDe(a1) / 2, ici + a1.hauteur / 2)
-        return (
-          <span key={item.id}>
-            <Forme boite={`${item.id}:trait`} x={x} y={milieu - dt.trait.epaisseur / 2} l={dt.trait.longueur} h={dt.trait.epaisseur} etat={item.etat}>
-              {c.formes.filet(forme(dt.trait.longueur, dt.trait.epaisseur, dt.trait.epaisseur))}
-            </Forme>
-            <Texte boite={`${item.id}:titre`} x={x + dt.trait.longueur + c.u.vmin(1)} y={ici} a={a1} largeur={largeurItems} marqueurs={marqueursDe(c, item.id)} etat={item.etat} />
-          </span>
-        )
-      })}
+      <PoserPile c={c} pile={pileT} bande={bande}>
+        {(dy0, vu) =>
+          diapo.items.map((item, i) => {
+            // `ici` : dans la diapositive, tel qu'on le voit ; l'arête se suit à cette hauteur-là.
+            const ici = pileT.y0 + pileT.ys[i]! + vu
+            const a1 = tc.ajustes[i]!
+            const milieu = ici + (a1.taille * a1.interligne) / 2
+            const x = xArete(milieu)
+            noterSousSujet(c, x + dt.trait.longueur + largeurDe(a1) / 2, ici + hauteurs[i]! / 2)
+            return (
+              <span key={item.id}>
+                <Forme boite={`${item.id}:trait`} x={x} y={milieu - dt.trait.epaisseur / 2 + dy0 - vu} l={dt.trait.longueur} h={dt.trait.epaisseur} etat={item.etat}>
+                  {c.formes.filet(forme(dt.trait.longueur, dt.trait.epaisseur, dt.trait.epaisseur))}
+                </Forme>
+                <Texte boite={`${item.id}:titre`} x={x + dt.trait.longueur + c.u.vmin(1)} y={ici + dy0 - vu} a={a1} largeur={largeurItems} marqueurs={marqueursDe(c, item.id)} etat={item.etat} />
+              </span>
+            )
+          })
+        }
+      </PoserPile>
     </>
   )
 }
@@ -221,16 +271,13 @@ export function GabaritTeteChronologie({ c, diapo }: PropsGabarit<DiapoListe>) {
   const xTexte = xSujet + trait.longueur + u.vmin(1)
   const largeur = u.l - s.marges.h - xTexte
   const titre = aTaille(titreDe(c, diapo.sujet, false), dt.soeurs.police, largeur, c.polices.titre, c.mesurer, dt.soeurs.lignes)
-  const tc = tailleCommune(diapo.items.map((i) => titreDe(c, i.id)), dt.elements, Math.max(0, largeur), c.polices.texte, c.mesurer)
-  const court = tc.ajustes.length <= 3 && tc.ajustes.every((x) => x.lignes.length <= 1)
-  const ecart = court ? dt.ecart.court : dt.ecart.long
-  const hauteurs = tc.ajustes.map((x) => x.hauteur)
-  const hListe = hauteurPile(hauteurs, ecart)
   const yTitre = haut ? bout : bout - titre.hauteur
-  const y0 = haut ? bout + Math.max(dt.margeTitre, titre.hauteur + u.vmin(2)) : bout - Math.max(dt.margeTitre, titre.hauteur + u.vmin(2)) - hListe
+  const marge = Math.max(dt.margeTitre, titre.hauteur + u.vmin(2))
+  const bande = haut ? { haut: bout + marge, bas: yAxe - d.chronologie.axe / 2 - u.vmin(3) } : { haut: Math.max(yAxe + d.chronologie.axe / 2 + u.vmin(3), s.entete.y + s.entete.hauteurLigne + u.vmin(3)), bas: bout - marge }
+  const pileT = pileDeTete(c, diapo, dt.elements, largeur, dt.ecart, bande, haut ? 'haut' : 'bas')
+  const { tc, hauteurs } = pileT
   const tige = d.chronologie.tige.trait
   noterTitre(c, xTexte, yTitre, largeurDe(titre), titre.hauteur)
-  let y = y0
   return (
     <>
       <Entete c={c} sujet={diapo.sujet} />
@@ -255,21 +302,24 @@ export function GabaritTeteChronologie({ c, diapo }: PropsGabarit<DiapoListe>) {
         )
       })}
       <Texte boite={`${diapo.sujet}:titre`} x={xTexte} y={yTitre} a={titre} titre />
-      {diapo.items.map((item, i) => {
-        const ici = y
-        y += hauteurs[i]! + ecart
-        const a = tc.ajustes[i]!
-        const milieu = ici + (a.taille * a.interligne) / 2
-        noterSousSujet(c, xTexte + largeurDe(a) / 2, ici + a.hauteur / 2)
-        return (
-          <span key={item.id}>
-            <Forme boite={`${item.id}:trait`} x={xSujet} y={milieu - trait.epaisseur / 2} l={trait.longueur} h={trait.epaisseur} etat={item.etat}>
-              {c.formes.filet(forme(trait.longueur, trait.epaisseur, trait.epaisseur))}
-            </Forme>
-            <Texte boite={`${item.id}:titre`} x={xTexte} y={ici} a={a} largeur={largeur} marqueurs={marqueursDe(c, item.id)} etat={item.etat} />
-          </span>
-        )
-      })}
+      <PoserPile c={c} pile={pileT} bande={bande}>
+        {(dy0, vu) =>
+          diapo.items.map((item, i) => {
+            const ici = pileT.y0 + pileT.ys[i]! + vu
+            const a = tc.ajustes[i]!
+            const milieu = ici + (a.taille * a.interligne) / 2
+            noterSousSujet(c, xTexte + largeurDe(a) / 2, ici + hauteurs[i]! / 2)
+            return (
+              <span key={item.id}>
+                <Forme boite={`${item.id}:trait`} x={xSujet} y={milieu - trait.epaisseur / 2 + dy0 - vu} l={trait.longueur} h={trait.epaisseur} etat={item.etat}>
+                  {c.formes.filet(forme(trait.longueur, trait.epaisseur, trait.epaisseur))}
+                </Forme>
+                <Texte boite={`${item.id}:titre`} x={xTexte} y={ici + dy0 - vu} a={a} largeur={largeur} marqueurs={marqueursDe(c, item.id)} etat={item.etat} />
+              </span>
+            )
+          })
+        }
+      </PoserPile>
     </>
   )
 }

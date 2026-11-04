@@ -125,6 +125,53 @@ describe('les gabarits de diapositive', () => {
     m.fin()
   })
 
+  it('un sujet au titre démesuré et à la note de vingt lignes reste dans la diapositive : la note rétrécit, puis se coupe', () => {
+    let b: Arbre = nouvelArbre('Cours')
+    let x: Id
+    ;[b, x] = ajouterEnfant(b, lire(b).central, 'Un titre de sujet bien trop long, qui s’étire sur plusieurs lignes et continue encore, et encore, sans jamais s’arrêter vraiment')
+    const ligne = 'Une ligne de note qui explique encore et encore le même point pour remplir la diapositive.'
+    const note = { type: 'doc', content: Array.from({ length: 20 }, () => ({ type: 'paragraph', content: [{ type: 'text', text: ligne }] })) }
+    b = { ...b, sujets: { ...b.sujets, [x]: { ...b.sujets[x]!, note } } }
+    const m = monter(b, { ...commun, type: 'sujet', sujet: x, gabarit: 'sujet' })
+    const bas = (el: HTMLElement) => parseFloat(el.style.top) + el.children.length * parseFloat(el.style.fontSize) * parseFloat(el.style.lineHeight)
+    const titre = m.hote.querySelector<HTMLElement>(`[data-boite="${x}:titre"]`)!
+    const n = m.hote.querySelector<HTMLElement>(`[data-boite="${x}:note"]`)!
+    expect(parseFloat(titre.style.top)).toBeGreaterThanOrEqual(0)
+    expect(bas(n)).toBeLessThanOrEqual(900)
+    expect(n.textContent!.endsWith('...')).toBe(true)
+    m.fin()
+  })
+
+  it('une tête d’arête ou de chronologie chargée ne passe plus sur l’épine : ses enfants défilent dans leur bande', () => {
+    let b: Arbre = nouvelArbre('Cours')
+    let tete: Id
+    ;[b, tete] = ajouterEnfant(b, lire(b).central, 'Tête')
+    ;[b] = ajouterEnfant(b, lire(b).central, 'Autre')
+    const enfants: Id[] = []
+    for (let i = 0; i < 8; i++) {
+      let e: Id
+      ;[b, e] = ajouterEnfant(b, tete, `Enfant ${i + 1}`)
+      enfants.push(e)
+    }
+    const pc = lire(b).central
+    for (const [gabarit, axe] of [
+      ['tete-arete', 'epine'],
+      ['tete-chronologie', 'axe'],
+    ] as const) {
+      const m = monter(b, liste(tete, gabarit, enfants))
+      const ligne = m.hote.querySelector<HTMLElement>(`[data-boite="${pc}:${axe}"]`)!
+      const zone = m.hote.querySelector<HTMLElement>('.notak-arbre-diapo-zone')!
+      expect(zone).toBeTruthy()
+      expect(parseFloat(zone.style.top) + parseFloat(zone.style.height)).toBeLessThanOrEqual(parseFloat(ligne.style.top))
+      for (const e of enfants) expect(zone.querySelector(`[data-boite="${e}:titre"]`)).toBeTruthy()
+      m.fin()
+      // Trois enfants tiennent : pas de zone, comme avant.
+      const n = monter(b, liste(tete, gabarit, enfants.slice(0, 3)))
+      expect(n.hote.querySelector('.notak-arbre-diapo-zone')).toBeNull()
+      n.fin()
+    }
+  })
+
   it('les paroles : le courant en gras, sa version normale superposée', () => {
     const m = monter(a, liste(c!, 'paroles', enfants, ['passe', 'courant', 'cache']))
     const courant = m.hote.querySelector('.notak-arbre-diapo-parole[data-courant]')!
