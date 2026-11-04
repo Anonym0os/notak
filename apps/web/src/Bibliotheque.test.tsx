@@ -2,7 +2,7 @@
 import { type Element as ElementToile, creerEspace, definirLangue, montrerDemande } from '@notak/tableau'
 import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EntreeBibliotheque } from './api'
 import { PageBibliotheque, adresseDe, entreesDe, filtrer, sectionsParDate, sectionsParDossier } from './Bibliotheque'
 
@@ -431,5 +431,99 @@ describe('les gestes', () => {
     act(() => rubrique('Documents').click())
     await act(async () => void glisser('drop', hote.querySelector('.biblio-corps')!))
     expect(rubrique('Documents').getAttribute('aria-current')).toBe('page')
+  })
+
+  describe('au doigt et au Pencil', () => {
+    /** Un appui du doigt (ou du Pencil) : jsdom n'a pas de PointerEvent, son type se pose à la main. */
+    const pointeur = (el: Element | Window, type: string, sorte: 'touch' | 'pen', init: MouseEventInit = {}) => {
+      const e = new MouseEvent(type, { bubbles: true, button: 0, clientX: 50, clientY: 60, ...init })
+      Object.defineProperties(e, { pointerType: { value: sorte }, pointerId: { value: 1 } })
+      el.dispatchEvent(e)
+    }
+    /** Un écran qu'on touche, assez large pour la page du bureau (un iPad). */
+    const ecranTactile = () =>
+      vi.stubGlobal('matchMedia', (q: string) => ({ matches: q === '(pointer: coarse)', media: q, addEventListener() {}, removeEventListener() {} }))
+    afterEach(() => {
+      vi.useRealTimers()
+      vi.unstubAllGlobals()
+    })
+
+    it('un appui long ouvre le menu de la tuile sans l’ouvrir ; le doigt qui bouge (on fait défiler) l’annule', async () => {
+      await ouvrir()
+      vi.useFakeTimers()
+      act(() => pointeur(tuile('budget/'), 'pointerdown', 'touch'))
+      act(() => pointeur(window, 'pointermove', 'touch', { clientX: 50, clientY: 90 }))
+      act(() => void vi.advanceTimersByTime(600))
+      expect(hote.querySelector('.notak-menu')).toBeNull()
+
+      act(() => pointeur(tuile('voyage/'), 'pointerdown', 'touch'))
+      act(() => void vi.advanceTimersByTime(500))
+      expect(entree('Ouvrir')).toBeTruthy()
+      expect(choisies()).toEqual(['voyage/'])
+      // Le doigt se relève sur la tuile : le clic qui suit n'ouvre rien.
+      act(() => {
+        pointeur(window, 'pointerup', 'touch')
+        tuile('voyage/').click()
+      })
+      expect(location.pathname).toBe('/')
+    })
+
+    it('un appui long sur le fond ouvre le menu du fond', async () => {
+      await ouvrir()
+      vi.useFakeTimers()
+      act(() => pointeur(hote.querySelector('.biblio-corps')!, 'pointerdown', 'touch'))
+      act(() => void vi.advanceTimersByTime(500))
+      expect(entree('Nouveau dossier')).toBeTruthy()
+    })
+
+    it('le Pencil ouvre d’un toucher, comme le doigt', async () => {
+      await ouvrir()
+      act(() => {
+        pointeur(tuile('budget/'), 'pointerdown', 'pen')
+        tuile('budget/').click()
+      })
+      expect(location.pathname).toBe('/t/budget')
+    })
+
+    it('le « ••• » d’une tuile ouvre son menu, sans la choisir d’abord', async () => {
+      await ouvrir()
+      act(() => tuile('atelier/').querySelector<HTMLButtonElement>('.biblio-tuile-plus')!.click())
+      expect(entree('Renommer')).toBeTruthy()
+      expect(choisies()).toEqual(['atelier/'])
+    })
+
+    it('« Sélectionner » : toucher choisit et retire, la barre agit sur le choix, « OK » en sort', async () => {
+      ecranTactile()
+      await ouvrir()
+      act(() => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-choisir-bouton')].find((b) => b.textContent === 'Sélectionner')!.click())
+      expect(hote.querySelector('.biblio-barre-choix')!.textContent).toContain('Touchez pour choisir')
+      expect(hote.querySelectorAll('.biblio-tuile-case').length).toBeGreaterThan(0)
+      const toucher = (cle: string) =>
+        act(() => {
+          pointeur(tuile(cle), 'pointerdown', 'touch')
+          tuile(cle).click()
+        })
+      toucher('voyage/')
+      toucher('budget/')
+      expect(choisies().sort()).toEqual(['budget/', 'voyage/'])
+      expect(location.pathname).toBe('/')
+      expect(hote.querySelector('.biblio-barre-choix')!.textContent).toContain('2 sélectionnées')
+      toucher('budget/')
+      expect(choisies()).toEqual(['voyage/'])
+      // La barre met en favori ce qui est choisi : « Voyage » l'est déjà, le bouton l'en retire.
+      expect(hote.querySelector('.biblio-barre-choix [aria-label="Retirer des favoris"]')).not.toBeNull()
+      act(() => [...hote.querySelectorAll<HTMLButtonElement>('.biblio-choisir-bouton')].find((b) => b.textContent === 'OK')!.click())
+      expect(choisies()).toEqual([])
+      expect(hote.querySelector('.biblio-tuile-case')).toBeNull()
+    })
+
+    it('renommer au doigt fait monter le clavier : un champ relais prend le focus dans le geste, puis le vrai', async () => {
+      ecranTactile()
+      await ouvrir()
+      act(() => tuile('atelier/').querySelector<HTMLButtonElement>('.biblio-tuile-plus')!.click())
+      act(() => entree('Renommer').click())
+      expect(document.getElementById('notak-relais-clavier')).not.toBeNull()
+      expect(document.activeElement).toBe(hote.querySelector('.biblio-renommer'))
+    })
   })
 })

@@ -2962,6 +2962,7 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 }
 
 .biblio-tuile {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3477,6 +3478,117 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
 }
 
 /*
+ * Le « ••• » d'une tuile, dans le coin de sa vignette : le menu qu'on trouve au clic droit et à l'appui long, à portée
+ * d'un toucher et de VoiceOver. À la souris, il paraît au survol ; au doigt, il est toujours là.
+ */
+.biblio-tuile-plus {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--notak-carte, #fff) 88%, transparent);
+  box-shadow: 0 0 0 1px rgb(27 37 54 / 0.08), 0 2px 6px rgb(27 37 54 / 0.12);
+  color: var(--notak-texte, #323b4a);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.biblio-tuile:hover .biblio-tuile-plus,
+.biblio-tuile:focus-within .biblio-tuile-plus,
+.biblio-tuile[aria-selected='true'] .biblio-tuile-plus,
+.biblio-tuile-plus:focus-visible {
+  opacity: 1;
+}
+
+/* En « Sélectionner », la case de chaque tuile, cochée quand elle est choisie, comme dans Fichiers. */
+.biblio-tuile-case {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  box-sizing: border-box;
+  border: 2px solid rgb(255 255 255 / 0.95);
+  border-radius: 12px;
+  background: rgb(27 37 54 / 0.18);
+  box-shadow: 0 1px 4px rgb(27 37 54 / 0.25);
+  color: #fff;
+}
+
+.biblio-tuile[aria-selected='true'] .biblio-tuile-case {
+  border-color: var(--notak-accent, #2f6feb);
+  background: var(--notak-accent, #2f6feb);
+}
+
+/* « Sélectionner » et « OK » : un mot dans un îlot, comme les boutons texte d'iOS. */
+.biblio-choisir-bouton {
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--notak-accent, #2f6feb);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.biblio-choisir-bouton:hover {
+  background: var(--biblio-survol);
+}
+
+/*
+ * Au doigt, à toutes les largeurs (l'iPad compris) : des cibles de 44 px, des îlots à la mesure du pouce, et pas de
+ * bulle système sur une tuile tenue (Notak a son menu, à l'appui long).
+ */
+@media (pointer: coarse) {
+  .biblio-rubrique {
+    min-height: 44px;
+  }
+
+  .biblio-tete .notak-ilot {
+    height: 44px;
+    border-radius: 22px;
+  }
+
+  .biblio-tete .notak-ilot-bouton,
+  .biblio-tri-choix,
+  .biblio-choisir-bouton {
+    min-width: 38px;
+    height: 38px;
+    border-radius: 19px;
+  }
+
+  .biblio-recherche-champ {
+    height: 38px;
+  }
+
+  .biblio-tuile {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .biblio-tuile-plus {
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+    opacity: 1;
+  }
+}
+
+/*
  * Une fenêtre moyenne : un iPad en portrait (744 à 834 px), une fenêtre partagée ou étroite sur un ordinateur. La
  * colonne se resserre, le tri ne garde que ses icônes (leur nom reste à aria-label et à l'infobulle), la recherche cède
  * sa largeur, et la barre passe à la ligne plutôt que de pousser le compte hors de l'écran.
@@ -3512,9 +3624,12 @@ html[data-bureau]:not([data-plein-ecran]) .biblio-colonne {
     display: none;
   }
 
+  /* La recherche part petite et grandit dans la place qui reste : une ligne qui passe à la ligne se compte avant que
+     ses éléments ne rétrécissent, et une recherche large d'emblée y renverrait le compte. */
   .biblio-recherche.notak-ilot {
-    flex: 0 1 230px;
+    flex: 1 1 132px;
     min-width: 132px;
+    max-width: 280px;
   }
 
   .biblio-recherche-champ {

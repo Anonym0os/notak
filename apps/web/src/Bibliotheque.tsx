@@ -9,6 +9,7 @@ import {
   MenuContextuel,
   type NomIcone,
   annoncer,
+  auDoigt as ecranAuDoigt,
   creerDans,
   demanderAMontrer,
   quandPretes,
@@ -66,7 +67,11 @@ import {
   voisine,
 } from './bibliotheque/selection'
 import { Vignette } from './bibliotheque/Vignettes'
+import { suivreAppuiLong } from './bibliotheque/appuiLong'
+import { BarreChoix } from './bibliotheque/BarreChoix'
+import { preparerClavier } from './bibliotheque/clavier'
 import { useAuTelephone } from './bibliotheque/AuDoigt'
+import { vibrer } from './appareil'
 import { BibliothequeTelephone } from './bibliotheque/Telephone'
 import { ecouterImportBureau } from './importBureau'
 import type { BilanImport } from './importation'
@@ -294,6 +299,8 @@ function BibliothequeBureau({
   const [requete, setRequete] = useState('')
   const [menuNeuf, setMenuNeuf] = useState(false)
   const [sel, setSel] = useState<Selection>(RIEN)
+  /** Au doigt, « Sélectionner » : toucher une tuile la choisit (ou la retire) au lieu de l'ouvrir. */
+  const [modeChoix, setModeChoix] = useState(false)
   const [courante, setCourante] = useState<string | null>(null)
   const [menu, setMenu] = useState<Menu | null>(null)
   const [fenetre, setFenetre] = useState<Fenetre | null>(null)
@@ -461,6 +468,8 @@ function BibliothequeBureau({
   const dupliquerCes = (es: EntreeBibliotheque[]) => outils && es.length > 0 && void executer(dupliquerEntrees(outils, es))
   const rangerDansNeuveCes = (es: EntreeBibliotheque[]) => {
     if (!outils || es.length === 0) return
+    // Le nom de la toile neuve se tape aussitôt : au doigt, le clavier doit monter dans le geste.
+    preparerClavier()
     // La toile neuve va là où tout était, sinon sur l'accueil.
     const ou = es.every((e) => porteuseDe(e) === porteuseDe(es[0]!)) ? (porteuseDe(es[0]!) ?? outils.espace.racine) : outils.espace.racine
     // Comme le « nouveau dossier avec la sélection » du Finder : la toile neuve est choisie, son nom prêt à changer.
@@ -475,6 +484,7 @@ function BibliothequeBureau({
   /** Un dossier neuf, là où l'on est (l'accueil, ou le dossier du clic droit) : on le voit choisi, son nom prêt à changer. */
   const nouveauDossier = (dans?: string) => {
     if (!outils) return
+    preparerClavier()
     const ou = dans ?? outils.espace.racine
     setMenuNeuf(false)
     // Il doit se voir : la rubrique des toiles, sans recherche.
@@ -525,7 +535,16 @@ function BibliothequeBureau({
     if (une) l.push({ libelle: t('biblio.menu.ouvrir'), icone: 'ouvrir', raccourci: '↩', faire: () => ouvrir(une) })
     if (porteuse) l.push({ libelle: t('biblio.menu.afficher'), icone: 'tableau', faire: () => afficherDansSaToile(une!, porteuse) })
     l.push(null)
-    if (une && ecrit) l.push({ libelle: t('biblio.menu.renommer'), icone: 'renommer', raccourci: 'F2', faire: () => setRenommage({ cle: cleDe(une) }) })
+    if (une && ecrit)
+      l.push({
+        libelle: t('biblio.menu.renommer'),
+        icone: 'renommer',
+        raccourci: 'F2',
+        faire: () => {
+          preparerClavier()
+          setRenommage({ cle: cleDe(une) })
+        },
+      })
     if (ecrit) l.push({ libelle: t('biblio.menu.dupliquer'), icone: 'menuDupliquer', raccourci: '⌘D', faire: () => dupliquerCes(es) })
     if (toiles.length > 0)
       l.push({
@@ -564,26 +583,45 @@ function BibliothequeBureau({
           { libelle: t('biblio.menu.creerIci'), icone: 'ajouter' as const, sous: sousMenuCreer(dans), faire: () => {} },
           { libelle: t('biblio.menu.nouveauDossier'), icone: 'dossier' as const, faire: () => nouveauDossier(dans) },
           null,
-          { libelle: t('biblio.menu.renommerToile'), icone: 'renommer' as const, faire: () => setRenommage({ dossier: dans }) },
+          {
+            libelle: t('biblio.menu.renommerToile'),
+            icone: 'renommer' as const,
+            faire: () => {
+              preparerClavier()
+              setRenommage({ dossier: dans })
+            },
+          },
         ]
       : []),
   ]
-  const entreesDuMenu = (m: Menu) => (m.type === 'tuiles' ? menuDesTuiles(m.cles) : m.type === 'fond' ? menuDuFond() : menuDuDossier(m.dans))
+  /** Au doigt, sans clavier sous la main, le menu ne parle pas de raccourcis (la feuille du téléphone non plus). */
+  const sansRaccourcis = (l: EntreeMenu[]): EntreeMenu[] => (ecranAuDoigt() ? l.map((e) => (e && e.raccourci ? (({ raccourci: _r, ...reste }) => reste)(e) : e)) : l)
+  const entreesDuMenu = (m: Menu) => sansRaccourcis(m.type === 'tuiles' ? menuDesTuiles(m.cles) : m.type === 'fond' ? menuDuFond() : menuDuDossier(m.dans))
 
-  const surMenu = (ev: ReactMouseEvent) => {
-    const el = ev.target as HTMLElement
-    if (el.closest('input')) return
-    ev.preventDefault()
+  /** Le menu de ce qui est sous `el` : la tuile (et les autres choisies avec elle), le titre d'un dossier, ou le fond. */
+  const ouvrirMenuSur = (el: HTMLElement, x: number, y: number) => {
+    const { sel: s, choisies: ch, ordre: o } = etat.current
     const tuile = el.closest<HTMLElement>('[data-cle]')
     const dossier = el.closest<HTMLElement>('[data-dossier]')
     if (tuile) {
       const cle = tuile.dataset.cle!
-      const cles = sel.choisies.has(cle) ? choisies : [cle]
-      if (!sel.choisies.has(cle)) setSel(cliquer(sel, cle, ordre))
+      const cles = s.choisies.has(cle) ? ch : [cle]
+      if (!s.choisies.has(cle)) setSel(cliquer(s, cle, o))
       setCourante(cle)
-      setMenu({ x: ev.clientX, y: ev.clientY, type: 'tuiles', cles })
-    } else if (dossier) setMenu({ x: ev.clientX, y: ev.clientY, type: 'dossier', dans: dossier.dataset.dossier!, titre: dossier.textContent ?? '' })
-    else setMenu({ x: ev.clientX, y: ev.clientY, type: 'fond' })
+      setMenu({ x, y, type: 'tuiles', cles })
+    } else if (dossier) setMenu({ x, y, type: 'dossier', dans: dossier.dataset.dossier!, titre: dossier.textContent ?? '' })
+    else setMenu({ x, y, type: 'fond' })
+  }
+  const surMenu = (ev: ReactMouseEvent) => {
+    const el = ev.target as HTMLElement
+    if (el.closest('input')) return
+    ev.preventDefault()
+    ouvrirMenuSur(el, ev.clientX, ev.clientY)
+  }
+  /** Le « ••• » d'une tuile : son menu, posé sous le bouton, comme le clic droit. */
+  const menuDuBouton = (bouton: HTMLElement) => {
+    const r = bouton.getBoundingClientRect()
+    ouvrirMenuSur(bouton, r.left, r.bottom + 4)
   }
 
   // ---- Le pointeur : choisir, tracer un cadre, glisser ----
@@ -627,15 +665,28 @@ function BibliothequeBureau({
     return !horsDAtteinte(etat.current.toutes ?? [], es).has(id) && !es.every((e) => porteuseDe(e) === id)
   }
 
-  /** Le dernier appui venait-il d'un doigt : le clic qui suit n'en dit rien partout. */
+  /** Le dernier appui venait-il d'un doigt ou du Pencil : le clic qui suit n'en dit rien partout. */
   const auDoigt = useRef(false)
   const surAppui = (ev: ReactPointerEvent) => {
-    auDoigt.current = ev.pointerType === 'touch'
+    // Le Pencil touche comme un doigt : un toucher ouvre (la webview d'iOS ne rend pas les doubles clics sûrs).
+    auDoigt.current = ev.pointerType === 'touch' || ev.pointerType === 'pen'
     const el = ev.target as HTMLElement
     if (ev.button !== 0 || el.closest('input')) return
+    // Le « ••• » d'une tuile ouvre son menu : ni choix, ni glisser.
+    if (el.closest('.biblio-tuile-plus')) return
     const tuile = el.closest<HTMLElement>('[data-cle]')
-    // Au doigt, on fait défiler et on touche pour ouvrir : ni cadre ni glisser.
-    if (ev.pointerType === 'touch') return
+    // Au doigt et au Pencil, on fait défiler et on touche pour ouvrir ; un appui long ouvre le menu de ce qui est
+    // dessous (une tuile, le titre d'un dossier, le fond), comme le clic droit, que la webview d'iOS n'envoie pas.
+    if (auDoigt.current) {
+      if (!tuile && el.closest('a, button')) return
+      suivreAppuiLong(ev, {
+        tenu: ({ x, y }) => {
+          vibrer()
+          ouvrirMenuSur(el, x, y)
+        },
+      })
+      return
+    }
     const touches = { ajout: ev.metaKey || ev.ctrlKey, suite: ev.shiftKey }
     if (tuile) {
       const cle = tuile.dataset.cle!
@@ -758,15 +809,25 @@ function BibliothequeBureau({
   }
 
   const surDoubleClic = (ev: ReactMouseEvent) => {
-    const cle = (ev.target as HTMLElement).closest<HTMLElement>('[data-cle]')?.dataset.cle
-    const e = cle && !(ev.target as HTMLElement).closest('input') ? parCle.get(cle) : undefined
+    const el = ev.target as HTMLElement
+    if (el.closest('input, .biblio-tuile-plus')) return
+    const cle = el.closest<HTMLElement>('[data-cle]')?.dataset.cle
+    const e = cle ? parCle.get(cle) : undefined
     if (e) ouvrir(e)
   }
-  // Au doigt, une tuile touchée s'ouvre, comme avant.
+  // Au doigt et au Pencil, une tuile touchée s'ouvre ; en « Sélectionner », elle se choisit ou se retire.
   const surClic = (ev: ReactMouseEvent) => {
     if (!auDoigt.current) return
-    const cle = (ev.target as HTMLElement).closest<HTMLElement>('[data-cle]')?.dataset.cle
-    const e = cle ? parCle.get(cle) : undefined
+    const el = ev.target as HTMLElement
+    if (el.closest('.biblio-tuile-plus')) return
+    const cle = el.closest<HTMLElement>('[data-cle]')?.dataset.cle
+    if (!cle) return
+    if (modeChoix) {
+      setSel((s) => cliquer(s, cle, ordre, { ajout: true }))
+      setCourante(cle)
+      return
+    }
+    const e = parCle.get(cle)
     if (e) ouvrir(e)
   }
 
@@ -819,8 +880,9 @@ function BibliothequeBureau({
     } else if (e.key === 'F2' && une && outils) {
       e.preventDefault()
       setRenommage({ cle: cleDe(une) })
-    } else if (e.key === 'Escape' && sel.choisies.size > 0) {
+    } else if (e.key === 'Escape' && (sel.choisies.size > 0 || modeChoix)) {
       setSel(RIEN)
+      setModeChoix(false)
     } else if ((e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) && choisies.length > 0) {
       e.preventDefault()
       const b = tuileDe(courante ?? choisies[0]!)?.getBoundingClientRect()
@@ -963,17 +1025,39 @@ function BibliothequeBureau({
       </nav>
 
       <header className="biblio-tete" data-tauri-drag-region="deep">
-        {choisies.length > 1 ? (
-          <Ilot className="biblio-barre-choix" etiquette={tn('biblio.selection', choisies.length)}>
-            <span className="biblio-barre-compte">{tn('biblio.selection', choisies.length)}</span>
-            {outils && <BoutonIlot icone="dossier" libelle={t('biblio.menu.deplacer')} onClick={() => setFenetre({ type: 'deplacer', cles: choisies })} />}
-            {outils && <BoutonIlot icone="corbeille" libelle={t('biblio.menu.corbeille')} raccourci="⌫" onClick={() => jeterCes(entreesDes(choisies))} />}
-            <BoutonIlot icone="fermer" libelle={t('biblio.deselectionner')} raccourci="Échap" onClick={() => setSel(RIEN)} />
-          </Ilot>
+        {modeChoix || choisies.length > 1 ? (
+          <BarreChoix
+            choisies={entreesDes(choisies)}
+            ecrit={outils !== null}
+            deplacer={() => setFenetre({ type: 'deplacer', cles: choisies })}
+            favori={(oui) => void favoriCes(entreesDes(choisies).filter((e) => e.element === null), oui)}
+            dupliquer={() => dupliquerCes(entreesDes(choisies))}
+            jeter={() => jeterCes(entreesDes(choisies))}
+            fermer={() => {
+              setSel(RIEN)
+              setModeChoix(false)
+            }}
+            auDoigt={modeChoix}
+          />
         ) : (
           <h1>{cherche ? t('biblio.resultats') : t(`biblio.rubrique.${rubrique}`)}</h1>
         )}
         <div className="biblio-tete-droite">
+          {/* Au doigt, pas de ⌘ ni de ⇧ pour choisir plusieurs tuiles : « Sélectionner », comme dans Fichiers. */}
+          {ecranAuDoigt() && !modeChoix && toutes && toutes.length > 0 && (
+            <Ilot className="biblio-choisir">
+              <button
+                type="button"
+                className="biblio-choisir-bouton"
+                onClick={() => {
+                  setModeChoix(true)
+                  setMenu(null)
+                }}
+              >
+                {t('biblio.choisir')}
+              </button>
+            </Ilot>
+          )}
           <Ilot className="biblio-tri" etiquette={t('biblio.tri')}>
             {(['date', 'dossier'] as const).map((x) => (
               <button key={x} type="button" className="biblio-tri-choix" aria-pressed={tri === x} aria-label={t(`biblio.tri.${x}`)} title={t(`biblio.tri.${x}`)} onClick={() => trier(x)}>
@@ -1083,6 +1167,8 @@ function BibliothequeBureau({
                       <Tuile
                         key={cle}
                         entree={e}
+                        menu={menuDuBouton}
+                        coche={modeChoix}
                         parDossier={tri === 'dossier'}
                         choisie={sel.choisies.has(cle)}
                         focalisable={cle === premiereFocalisable}
@@ -1191,6 +1277,8 @@ function MenuNeuf({ creer, dossier, fermer }: { creer(genre: GenreNeuf): void; d
  */
 function Tuile({
   entree: e,
+  menu,
+  coche,
   parDossier,
   choisie,
   focalisable,
@@ -1202,6 +1290,10 @@ function Tuile({
   annuler,
 }: {
   entree: EntreeBibliotheque
+  /** Le « ••• » : le menu de la tuile, que la souris trouve au clic droit et le doigt à l'appui long. */
+  menu(bouton: HTMLElement): void
+  /** En « Sélectionner », la tuile porte sa case. */
+  coche: boolean
   parDossier: boolean
   choisie: boolean
   focalisable: boolean
@@ -1225,8 +1317,19 @@ function Tuile({
       data-arrivee={arrivee || undefined}
       data-glissee={glissee || undefined}
       aria-label={e.titre || t('commun.sansTitre')}
+      data-coche={coche || undefined}
     >
       <Vignette resume={e.resume} />
+      {coche && (
+        <span className="biblio-tuile-case" aria-hidden>
+          {choisie && <Icone nom="coche" taille={14} trait={2.4} />}
+        </span>
+      )}
+      {!coche && (
+        <button type="button" className="biblio-tuile-plus" aria-label={t('biblio.actions')} aria-haspopup="menu" tabIndex={-1} onClick={(ev) => menu(ev.currentTarget)}>
+          <Icone nom="plus" taille={16} trait={2} />
+        </button>
+      )}
       {renommer ? (
         <ChampRenommer valeur={e.titre} valider={valider} annuler={annuler} />
       ) : (
