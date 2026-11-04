@@ -23,6 +23,7 @@ import * as Y from 'yjs'
 import { ErreurExport, type ExportLocal } from '../Export'
 import { langue, t } from '../langue'
 import { accueilLocal } from './accueil'
+import { type CatalogueLocal, creerCatalogue } from './catalogue'
 import { lireFichier } from './fichiers'
 
 /**
@@ -33,6 +34,8 @@ export interface EspaceLocal {
   index: IndexEspace
   reseau: ReseauLocal
   espace: EspaceDistant
+  /** Ce que la bibliothèque sait de chaque toile, tenu à jour à chaque changement (`catalogue.ts`). */
+  catalogue: CatalogueLocal
 }
 
 export const UTILISATEUR_LOCAL = { id: 'local', nom: '', couleur: '#2f6feb' }
@@ -41,10 +44,11 @@ let ouvert: Promise<EspaceLocal> | null = null
 /** L'espace local, ouvert une fois : React peut monter l'application deux fois, pas IndexedDB. */
 export function espaceLocal(): Promise<EspaceLocal> {
   ouvert ??= ouvrirIndexLocal().then(async ({ index }) => {
-    const reseau = creerReseauLocal({ index })
+    const catalogue = creerCatalogue({ titreDe: (id) => index.entree(id)?.titre || undefined })
+    const reseau = creerReseauLocal({ index, suivi: catalogue })
     await poserAccueil({ index, reseau })
     const espace = creerEspaceDistant({ racine: index.racine(), utilisateur: { ...UTILISATEUR_LOCAL, nom: t('local.vous') }, reseau })
-    return { index, reseau, espace }
+    return { index, reseau, espace, catalogue }
   })
   return ouvert
 }

@@ -33,6 +33,7 @@ import { Vignette } from '../bibliotheque/Vignettes'
 import { peutJoindreUnServeur } from '../bureau'
 import { CompteEtServeur, RondCompte } from '../bureau/CompteEtServeur'
 import { type EspaceLocal, rechercherLocalement } from './espace'
+import { cleVu as cleDe, lireVus, noterVu } from './vus'
 
 /**
  * La bibliothèque de l'édition locale, celle de l'app iPhone : la page où l'on arrive. En tête, la toile d'accueil,
@@ -45,29 +46,11 @@ import { type EspaceLocal, rechercherLocalement } from './espace'
  * (`bibliotheque/AuDoigt.tsx`).
  */
 
-const CLE_VUS = 'notak:local:vus'
 /** La carte de bienvenue, fermée une fois pour toutes. */
 export const CLE_BIENVENUE = 'notak:local:bienvenue'
 
-/** Quand chaque toile (son id) ou chaque élément (`toile/e/élément`) a été ouvert pour la dernière fois ici (ms). */
-export function lireVus(): Record<string, number> {
-  try {
-    const brut = JSON.parse(localStorage.getItem(CLE_VUS) ?? '{}') as unknown
-    return brut && typeof brut === 'object' ? (brut as Record<string, number>) : {}
-  } catch {
-    return {}
-  }
-}
-
-export function noterVu(id: string, quand = Date.now()) {
-  try {
-    localStorage.setItem(CLE_VUS, JSON.stringify({ ...lireVus(), [id]: quand }))
-  } catch {
-    // Sans stockage, la bibliothèque range par date de création.
-  }
-}
-
-export const cleDe = (tableau: Id, element: Id | null) => (element ? `${tableau}/e/${element}` : tableau)
+// Les récents de l'appareil vivent dans `vus.ts`, que la bibliothèque du bureau lit aussi.
+export { cleVu as cleDe, lireVus, noterVu } from './vus'
 
 export interface EntreeLocale {
   /** La toile, ou `toile/e/élément` : la clé des récents. */

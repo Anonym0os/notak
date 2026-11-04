@@ -10,11 +10,14 @@ import type { EntreeBibliotheque } from '../api'
 import { PageBibliotheque } from '../Bibliotheque'
 import { simulerCoqueSiDemandee } from '../ios/coqueSimulee'
 import { BibliothequeLocale, noterVu } from '../local/BibliothequeLocale'
+import { CalqueBibliotheque } from '../local/CalqueBibliotheque'
+import { Rangement } from '../local/Rangement'
 import { type EspaceLocal, espaceLocal } from '../local/espace'
 
 /**
  * Le banc de la bibliothèque, pour le développement seulement : la page d'un serveur sans serveur
- * (`/banc-bibliotheque.html`), ou celle de l'app avec des toiles d'essai (`?edition=locale`). Il sert à voir chaque
+ * (`/banc-bibliotheque.html`), celle de l'app au téléphone avec des toiles d'essai (`?edition=locale`), ou celle de
+ * l'app sur un iPad ou un ordinateur (`?edition=calque`). Il sert à voir chaque
  * largeur d'écran (un iPad en portrait, une fenêtre partagée) et à en faire des captures. `?langue=en` passe à
  * l'anglais, `?coque=ios` fait croire à l'app d'un iPhone ou d'un iPad.
  */
@@ -122,11 +125,15 @@ async function remplirLocal(): Promise<EspaceLocal> {
   return el
 }
 
-function BancLocal() {
+function BancLocal({ calque }: { calque: boolean }) {
   const [el, setEl] = useState<EspaceLocal | null>(null)
   useEffect(() => void preparerLocal().then(setEl), [])
   if (!el) return null
+  // L'app sur un iPad ou un ordinateur : la bibliothèque qui range, sur les toiles de l'appareil.
+  if (calque)
+    return <CalqueBibliotheque el={el} importer={async () => ({ elements: [], toiles: [], refuses: [] })} rangement={<Rangement el={el} enregistrer={() => {}} rouvrir={() => {}} message={null} />} />
   return <BibliothequeLocale el={el} ouvrir={() => {}} reglages={() => {}} />
 }
 
-createRoot(document.getElementById('racine')!).render(<StrictMode>{parametres.get('edition') === 'locale' ? <BancLocal /> : <BancServeur />}</StrictMode>)
+const edition = parametres.get('edition')
+createRoot(document.getElementById('racine')!).render(<StrictMode>{edition === 'locale' || edition === 'calque' ? <BancLocal calque={edition === 'calque'} /> : <BancServeur />}</StrictMode>)

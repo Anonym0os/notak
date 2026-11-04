@@ -28,7 +28,10 @@ import { fichiersLocaux } from '../local/fichiers'
 import { PageDiagnostic } from '../ios/PageDiagnostic'
 import { Rangement } from '../local/Rangement'
 import { BibliothequeLocale, noterVu } from '../local/BibliothequeLocale'
-import { auTelephone } from '../bibliotheque/AuDoigt'
+import { auTelephone, useAuTelephone } from '../bibliotheque/AuDoigt'
+import { ecouterAllerA } from '../chemin'
+import { type BilanImport, importerFichiers } from '../importation'
+import { CalqueBibliotheque } from '../local/CalqueBibliotheque'
 import { initialiserSynchro } from '../local/synchro'
 import { useBandeau } from '../bandeaux'
 
@@ -99,6 +102,7 @@ function Espace({ el }: { el: EspaceLocal }) {
   // Au doigt, la bibliothèque des toiles de l'appareil (`/toiles`), posée sur la toile ouverte : le retour y ramène.
   // Au téléphone, l'app s'ouvre sur elle (`ouvrirSurLaBibliotheque`).
   const avecBibliotheque = estMobile() || auDoigt()
+  const telephone = useAuTelephone()
   const [biblio, setBiblio] = useState(() => avecBibliotheque && (location.pathname === '/toiles' || ouvrirSurLaBibliotheque()))
   useEffect(() => {
     if (!avecBibliotheque) return
@@ -106,6 +110,17 @@ function Espace({ el }: { el: EspaceLocal }) {
     window.addEventListener('popstate', suivre)
     return () => window.removeEventListener('popstate', suivre)
   }, [avecBibliotheque])
+  // La bibliothèque du bureau va à une toile par `allerA` (`/t/<id>`, ou un élément en grand) : la toile suit
+  // l'adresse au retour du navigateur ; on lui dit qu'elle a changé, et la bibliothèque s'efface.
+  useEffect(
+    () =>
+      ecouterAllerA(() => {
+        if (location.pathname === '/toiles') return
+        setBiblio(false)
+        dispatchEvent(new PopStateEvent('popstate', { state: history.state }))
+      }),
+    [],
+  )
   const allerBibliotheque = useCallback(() => {
     history.pushState(null, '', '/toiles')
     setBiblio(true)
@@ -137,6 +152,8 @@ function Espace({ el }: { el: EspaceLocal }) {
       ecouterContenuExterne: index.ecouterRecus,
       // L'app de bureau n'a qu'une fenêtre, et n'en ouvre pas d'autre (`apps/bureau/src-tauri/src/navigation.rs`) : un
       // fichier s'y ouvre dans l'application du système, ou se propose à l'enregistrement.
+      // Une toile glissée sur une autre y est rangée : l'index le note (la bibliothèque le lit aussi dans les cartes).
+      toileRangee: (toile: Id, dans: Id) => index.declarer(toile, '', dans),
       ...(estMobile() ? { vibrer: () => vibrer() } : {}),
       ...(estBureau()
         ? { ouvrirAilleurs: (adresse: string, nom?: string) => ouvrirAilleursAvecAvis(adresse, nom, alerter) }
@@ -212,6 +229,17 @@ function Espace({ el }: { el: EspaceLocal }) {
     if (f) await rouvrirFichier(f)
   }, [rouvrirFichier])
 
+  // Importer sur une toile depuis la bibliothèque : une copie .notak se rouvre (elle garde ses marques de copie reçue),
+  // le reste devient des cartes.
+  const importerIci = useCallback(
+    async (fichiers: File[], dans: Id): Promise<BilanImport> => {
+      const [copies, autres] = [fichiers.filter(estCopie), fichiers.filter((f) => !estCopie(f))]
+      for (const f of copies) await rouvrirFichier(f)
+      return autres.length > 0 ? importerFichiers(autres, dans, espace, { ...services, fichiers: fichiersLocaux }) : { elements: [], toiles: [], refuses: [] }
+    },
+    [rouvrirFichier, espace, services],
+  )
+
   // Un fichier .notak déposé sur la fenêtre se rouvre, au lieu de devenir une carte « fichier ».
   useEffect(() => {
     const deposer = (e: DragEvent) => {
@@ -279,7 +307,17 @@ function Espace({ el }: { el: EspaceLocal }) {
           )
         }}
       />
-      {biblio && <BibliothequeLocale el={el} ouvrir={ouvrirDepuisBibliotheque} reglages={demanderReglages} />}
+      {biblio &&
+        (telephone ? (
+          <BibliothequeLocale el={el} ouvrir={ouvrirDepuisBibliotheque} reglages={demanderReglages} />
+        ) : (
+          // Sur un iPad, un ordinateur : la bibliothèque qui range, celle d'un serveur, sur les toiles de l'appareil.
+          <CalqueBibliotheque
+            el={el}
+            importer={importerIci}
+            rangement={<Rangement el={el} enregistrer={() => void enregistrer()} rouvrir={() => void rouvrir()} message={message} />}
+          />
+        ))}
       {/* Le mot de la première visite parle de la toile (le dossier de sa barre) : il attend qu'on y soit. */}
       {!biblio && <Accueil el={el} />}
       <BandeauRecu index={index} tableau={ouvert} />

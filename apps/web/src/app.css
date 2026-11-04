@@ -2614,6 +2614,23 @@ html[data-bureau]:not([data-plein-ecran]) .app-page {
   height: 100%;
 }
 
+/* Dans l'app (iPad, ordinateur), la même bibliothèque posée sur la toile ouverte : tout l'écran, zones sûres comprises
+   (la page les rend à la toile, qui va jusqu'aux bords). */
+.biblio-calque {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: var(--notak-zone-haut, 0px) var(--notak-zone-droite, 0px) var(--notak-zone-bas, 0px) var(--notak-zone-gauche, 0px);
+  background: var(--notak-fond, #ebedee);
+}
+
+.biblio-calque-compte {
+  padding: 0;
+}
+
 .biblio {
   --biblio-pale: color-mix(in srgb, var(--notak-texte, #323b4a) 64%, transparent);
   --biblio-survol: rgb(50 59 74 / 0.05);

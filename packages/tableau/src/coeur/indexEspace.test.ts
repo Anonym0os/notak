@@ -143,3 +143,43 @@ describe('les tableaux d’une copie reçue', () => {
     expect(n).toBe(1)
   })
 })
+
+describe('les favoris', () => {
+  it('se posent, se lisent avec leur date, se retirent ; poser deux fois ne réécrit rien', () => {
+    let maintenant = 1000
+    const doc = new Y.Doc()
+    const i = creerIndexEspace(doc, () => maintenant)
+    i.definirFavori('voyage/', true)
+    maintenant = 2000
+    i.definirFavori('voyage/plan', true)
+    expect([...i.favoris()]).toEqual([
+      ['voyage/', 1000],
+      ['voyage/plan', 2000],
+    ])
+    const avant = Y.encodeStateVector(doc)
+    i.definirFavori('voyage/', true)
+    i.definirFavori('inconnu/', false)
+    expect(Y.encodeStateVector(doc)).toEqual(avant)
+    i.definirFavori('voyage/', false)
+    expect([...i.favoris().keys()]).toEqual(['voyage/plan'])
+  })
+
+  it('ne sont ni des tableaux listés ni des marques', () => {
+    const i = creerIndexEspace(new Y.Doc())
+    i.definirFavori('voyage/', true)
+    expect(i.lister()).toHaveLength(1)
+    expect(i.recu('voyage')).toBe(false)
+  })
+
+  it('deux appareils qui en ajoutent chacun les retrouvent tous', () => {
+    const { a, b, echanger } = deux(1, 2)
+    a.definirFavori('voyage/', true)
+    b.definirFavori('budget/', true)
+    echanger()
+    expect([...a.favoris().keys()].sort()).toEqual(['budget/', 'voyage/'])
+    expect([...b.favoris().keys()].sort()).toEqual(['budget/', 'voyage/'])
+    b.definirFavori('voyage/', false)
+    echanger()
+    expect([...a.favoris().keys()]).toEqual(['budget/'])
+  })
+})

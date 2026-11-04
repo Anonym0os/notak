@@ -23,6 +23,7 @@ import type { Courrier } from './courriel.ts'
 import { creerExpiration } from './echeances.ts'
 import { type Cle, duDisque, pourLeDisque } from './chiffrement.ts'
 import { type TableauLu, fichiersDe, idsDeFichiers, lireEtat, lireTableau } from './contenu.ts'
+import { rangerLesToiles } from './catalogue.ts'
 import type { Limiteur } from './debit.ts'
 import { AUCUN_CHANGEMENT, bilanDuRangement, rienNeChange } from './rangement.ts'
 import { RELATION_DU_ROLE, type Role, auMoins, role, roleDeRelation } from './droits.ts'
@@ -1228,26 +1229,14 @@ export function creerApp(ctx: Contexte): Hono {
       return titres.get(id)!
     }
     const lignes = base.contenus(ouverts).map((l) => ({ ...l, lu: JSON.parse(l.resume) as { cartes?: string[]; jetees?: string[] } }))
-    const portees = new Map<string, string[]>()
-    const jetees = new Set<string>()
-    for (const l of lignes) {
-      if (l.genre !== 'toile') continue
-      for (const cible of l.lu.cartes ?? []) portees.set(cible, [...(portees.get(cible) ?? []), l.tableau])
-      for (const cible of l.lu.jetees ?? []) jetees.add(cible)
-    }
-    const dossierDe = (id: string) => {
-      const parent = base.tableau(id)?.parent ?? null
-      const la = portees.get(id) ?? []
-      return parent !== null && la.includes(parent) ? parent : (la[0] ?? parent)
-    }
-    const cachees = new Set(ouverts.filter((id) => jetees.has(id) && !portees.has(id)))
-    for (let ajoute = cachees.size > 0; ajoute; ) {
-      ajoute = false
-      for (const id of ouverts) {
-        const d = dossierDe(id)
-        if (!cachees.has(id) && d !== null && cachees.has(d)) ajoute = Boolean(cachees.add(id))
-      }
-    }
+    // La règle du rangement, la même que dans l'app (catalogue.ts) : chaque toile lue, son parent en base, ses cartes.
+    const resumesDesToiles = new Map(lignes.flatMap((l) => (l.genre === 'toile' ? [[l.tableau, l.lu] as const] : [])))
+    const { dossierDe, cachees } = rangerLesToiles(
+      ouverts.map((id) => {
+        const lu = resumesDesToiles.get(id)
+        return { id, parent: base.tableau(id)?.parent ?? null, ...(lu?.cartes ? { cartes: lu.cartes } : {}), ...(lu?.jetees ? { jetees: lu.jetees } : {}) }
+      }),
+    )
     const entrees = lignes.flatMap((l) => {
       if ((l.genre === 'toile' && l.tableau === u.racine) || cachees.has(l.tableau)) return []
       const ligne = base.tableau(l.tableau)

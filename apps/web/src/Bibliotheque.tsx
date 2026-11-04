@@ -274,8 +274,14 @@ function BibliothequeBureau({
   partage,
   importer,
   noterVu = noterVuEntree,
+  ecouter,
+  partages = true,
 }: {
   charger?: () => Promise<EntreeBibliotheque[]>
+  /** Prévient quand la liste a changé ailleurs (les toiles de l'appareil) : la page se relit. Un serveur ne prévient pas. */
+  ecouter?: (f: () => void) => () => void
+  /** « Partagés avec moi » : sur un serveur. L'app n'a pas d'autres comptes. */
+  partages?: boolean
   espace?: EspaceBibliotheque
   fenetres?: FenetresNotak
   /** Les notifications et le compte, que l'application prête à la barre. */
@@ -324,6 +330,7 @@ function BibliothequeBureau({
     charger().then(setServeur, (x: Error) => setErreur(x.message || t('commun.echec')))
   }, [charger])
   useEffect(lire, [lire])
+  useEffect(() => ecouter?.(lire), [ecouter, lire])
   useEffect(() => {
     const m = minuteurs.current
     return () => m.forEach(clearTimeout)
@@ -990,7 +997,7 @@ function BibliothequeBureau({
         </div>
         {bouton('recents')}
         {bouton('favoris')}
-        {bouton('partages')}
+        {partages && bouton('partages')}
         <p className="biblio-groupe">{t('biblio.mesContenus')}</p>
         {bouton('toiles')}
         {bouton('cartes')}

@@ -21,7 +21,9 @@ vi.mock('@notak/tableau', async (origine) => ({
   },
   BullesDecouverte: () => null,
 }))
-vi.mock('../local/synchro', () => ({ initialiserSynchro: async () => {} }))
+// L'état de la synchro, lu par la pastille du stockage : toujours le même objet, comme le vrai.
+const AUCUNE_SYNCHRO = { mode: 'aucune' } as const
+vi.mock('../local/synchro', () => ({ initialiserSynchro: async () => {}, lireEtatSynchro: () => AUCUNE_SYNCHRO, ecouterSynchro: () => () => {} }))
 /**
  * Les racines que l'édition monte à son chargement : démontées après chaque essai. Laissées vivantes, leurs minuteurs
  * (le décompte de l'écran de panne, l'enregistrement…) sonnaient après la fin du fichier, quand jsdom n'est plus là.
@@ -195,6 +197,23 @@ describe('l’édition locale au téléphone : l’app s’ouvre sur la biblioth
     await attendre(50)
     expect(racine.querySelector('.biblio-locale')).toBeNull()
     expect(location.pathname).toBe('/t/voyage')
+  })
+
+  it('sur un iPad (au doigt, écran large), la bibliothèque est celle qui range, sur les toiles de l’appareil', async () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q === '(pointer: coarse)', media: q, addEventListener() {}, removeEventListener() {} }))
+    history.replaceState(null, '', '/toiles')
+    const { racine, el } = await demarrer()
+    await vi.waitFor(() => expect(racine.querySelector('.biblio-calque .biblio')).not.toBeNull())
+    // Ses toiles, ses rubriques (pas de « Partagés avec moi » sans serveur), et la pastille du stockage en haut.
+    act(() => [...racine.querySelectorAll<HTMLButtonElement>('[data-rubrique]')].find((b) => b.dataset.rubrique === 'toiles')!.click())
+    await vi.waitFor(() => expect([...racine.querySelectorAll('.biblio-tuile-titre')].map((x) => x.textContent)).toContain('Voyage'))
+    expect([...racine.querySelectorAll<HTMLElement>('[data-rubrique]')].map((b) => b.dataset.rubrique)).not.toContain('partages')
+    expect(racine.querySelector('.biblio-tete .rangement-pastille')).not.toBeNull()
+    // Une toile ouverte : la bibliothèque s'efface, l'adresse est la sienne.
+    const voyage = el.index.lister().find((e) => e.titre === 'Voyage')!.id
+    await act(async () => racine.querySelector<HTMLElement>(`[data-cle="${voyage}/"]`)!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
+    expect(location.pathname).toBe(`/t/${voyage}`)
+    expect(racine.querySelector('.biblio-calque')).toBeNull()
   })
 
   it('sur un ordinateur, `/` ouvre la toile d’accueil, comme avant', async () => {

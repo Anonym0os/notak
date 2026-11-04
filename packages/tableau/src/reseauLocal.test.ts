@@ -1,8 +1,9 @@
 import 'fake-indexeddb/auto'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import * as Y from 'yjs'
 import { creerEspaceDistant } from './coeur/espaceDistant'
 import { nouvelleNote } from './coeur/tableau'
-import { creerReseauLocal, ouvrirIndexLocal } from './reseauLocal'
+import { DELAI_SUIVI, creerReseauLocal, ouvrirIndexLocal } from './reseauLocal'
 
 const attendre = (ms = 30) => new Promise((r) => setTimeout(r, ms))
 let n = 0
@@ -105,3 +106,52 @@ describe('l’édition locale', () => {
   })
 })
 
+
+describe('le suivi des tableaux (le catalogue de la bibliothèque)', () => {
+  /** Ce que le suivi entend : `change` tout de suite, `relire` une fois les changements retombés. */
+  const ecoute = () => {
+    const changes: string[] = []
+    const relus: [string, number][] = []
+    return { changes, relus, suivi: { change: (id: string) => void changes.push(id), relire: (id: string, doc: Y.Doc) => void relus.push([id, doc.getMap('elements').size]) } }
+  }
+
+  it('un changement se dit tout de suite, une fois ; la relecture vient quand il retombe, sur le document à jour', async () => {
+    const p = neuf()
+    const { index, fermer } = await ouvrirIndexLocal(p)
+    const e = ecoute()
+    const reseau = creerReseauLocal({ index, prefixe: p, suivi: e.suivi })
+    const doc = new Y.Doc()
+    const arreter = reseau.persister!('voyage', doc)
+    await attendre()
+    vi.useFakeTimers()
+    try {
+      doc.getMap('elements').set('a', { id: 'a' })
+      doc.getMap('elements').set('b', { id: 'b' })
+      expect(e.changes).toEqual(['voyage'])
+      expect(e.relus).toEqual([])
+      vi.advanceTimersByTime(DELAI_SUIVI)
+      expect(e.relus).toEqual([['voyage', 2]])
+    } finally {
+      vi.useRealTimers()
+    }
+    arreter()
+    fermer()
+  })
+
+  it('ce que la base rend au chargement n’est pas un changement ; fermer relit ce qui attendait', async () => {
+    const p = neuf()
+    const { index, fermer } = await ouvrirIndexLocal(p)
+    const avant = creerReseauLocal({ index, prefixe: p })
+    await avant.avec('voyage', (doc) => doc.getMap('elements').set('a', { id: 'a' }))
+    const e = ecoute()
+    const reseau = creerReseauLocal({ index, prefixe: p, suivi: e.suivi })
+    // Ouvert pour lire seulement : rien à suivre.
+    await reseau.avec('voyage', (doc) => expect(doc.getMap('elements').size).toBe(1))
+    expect(e.changes).toEqual([])
+    // Ouvert pour écrire puis refermé aussitôt : relu à la fermeture, sans attendre le délai.
+    await reseau.avec('voyage', (doc) => doc.getMap('elements').set('b', { id: 'b' }))
+    expect(e.changes).toEqual(['voyage'])
+    expect(e.relus).toEqual([['voyage', 2]])
+    fermer()
+  })
+})
