@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Arbre, StructureArbre } from '../../../coeur/tableau'
 import { Icone } from '../../../icones'
 import { t } from '../../../langue'
+import { Confirmation } from '../../../communs'
 import { CarteVignette } from '../controles'
 import { MenuContextuel } from '../MenuContextuel'
 import type { Geste } from '../modele/gestes'
@@ -28,6 +29,7 @@ export function couleursDeStyle(style: StyleCarte): { couleurs: string[]; fond: 
 export function ThemesPersonnalises({ arbre, structure, faire }: { arbre: Arbre; structure: StructureArbre; faire(g: Geste): void }) {
   const prefs = usePreferences()
   const [menu, setMenu] = useState<{ x: number; y: number; theme: ThemePersonnalise } | null>(null)
+  const [aSupprimer, setASupprimer] = useState<ThemePersonnalise | null>(null)
   const [renomme, setRenomme] = useState<string | null>(null)
   const actuel = styleDeCarte(arbre)
   const noms = prefs.themesPerso.map((x) => x.nom)
@@ -79,6 +81,17 @@ export function ThemesPersonnalises({ arbre, structure, faire }: { arbre: Arbre;
           </div>
         )
       })}
+      {aSupprimer && (
+        <Confirmation
+          danger
+          titre={t('arbre.carte.themeSupprimer', { nom: aSupprimer.nom })}
+          oui={t('arbre.carte.menu.supprimer')}
+          repondre={(oui) => {
+            setASupprimer(null)
+            if (oui) modifierPreferences((p) => ({ ...p, themesPerso: p.themesPerso.filter((x) => x.id !== aSupprimer.id) }))
+          }}
+        />
+      )}
       {menu && (
         <MenuContextuel
           x={menu.x}
@@ -89,7 +102,8 @@ export function ThemesPersonnalises({ arbre, structure, faire }: { arbre: Arbre;
             if (action === 'miseAJour') changer(menu.theme.id, (x) => ({ ...x, style: actuel }))
             else if (action === 'renommer') setRenomme(menu.theme.id)
             else if (action === 'dupliquer') modifierPreferences((p) => ({ ...p, themesPerso: [...p.themesPerso, { ...menu.theme, id: idCouleurPerso(), nom: nomSuivant(menu.theme.nom, noms) }] }))
-            else if (window.confirm(t('arbre.carte.themeSupprimer', { nom: menu.theme.nom }))) modifierPreferences((p) => ({ ...p, themesPerso: p.themesPerso.filter((x) => x.id !== menu.theme.id) }))
+            // Confirmée dans un dialogue de Notak : `window.confirm` répond non sans rien montrer dans l'app iOS.
+            else setASupprimer(menu.theme)
           }}
           items={[
             { id: 'miseAJour', libelle: t('arbre.carte.menu.miseAJour'), icone: 'remplacer' },

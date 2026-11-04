@@ -853,3 +853,22 @@
 .notak-blocs .notak-image-bloc img[src=''] {
   display: none;
 }
+
+/*
+ * Au doigt, pas de survol : la barre d'un bloc de code reste visible, et celle d'une image paraît quand l'image est
+ * choisie (touchée), avec ses poignées ; c'était le seul chemin vers « Voir en grand ».
+ */
+@media (hover: none) {
+  .notak-code-barre {
+    opacity: 1;
+  }
+
+  .notak-blocs .notak-image-bloc.ProseMirror-selectednode .notak-image-barre {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .notak-blocs .notak-image-bloc.ProseMirror-selectednode .notak-image-poignee {
+    opacity: 1;
+  }
+}

@@ -493,3 +493,14 @@
   from { height: 0; opacity: 0; transform: translateY(-40px); }
   to { height: 40px; opacity: 1; transform: none; }
 }
+
+/* Au doigt, pas de survol : la corbeille d'une tâche faite reste visible, sans attendre. */
+@media (hover: none) {
+  .notak-taches li[data-type='taskItem'][data-checked='true'] > .notak-tache-suppr {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+    transform: none;
+    transition: none;
+  }
+}

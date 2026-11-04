@@ -242,6 +242,7 @@ export const fr: Textes = {
   'espace.enregistrement': 'Enregistrement…',
   'espace.enregistre': 'Enregistré',
   'commun.annuler': 'Annuler',
+  'commun.valider': 'OK',
 
   'barre.glisser': 'Glissez l’outil sur le fond',
   'barre.cliquer': 'Cliquez sur l’outil pour ajouter une image',
@@ -2361,6 +2362,7 @@ export const en: Textes = {
   'espace.enregistrement': 'Saving…',
   'espace.enregistre': 'Saved',
   'commun.annuler': 'Cancel',
+  'commun.valider': 'OK',
 
   'barre.glisser': 'Drag the tool onto the board',
   'barre.cliquer': 'Click the tool to add an image',

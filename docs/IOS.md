@@ -104,7 +104,7 @@ la table des risques ; une bascule vers Capacitor ne se décide qu'après cette 
 | 3 | IndexedDB persiste : créer une toile avec 3 images, tuer l'app, relancer ; installer un nouveau build par-dessus ; redémarrer l'appareil | `navigator.storage.estimate()` avant et après | |
 | 4 | `isSecureContext`, `crypto.subtle`, `BroadcastChannel`, `navigator.locks` existent ; `showSaveFilePicker` et `serviceWorker` non | `/diagnostic`, « Ce que sait faire cette webview » : rien de marqué « pas ce qu'on attend » | |
 | 5 | Un lien `https` dans une note s'ouvre dans Safari, un `mailto:` dans Mail (plugin `opener`) ; la fenêtre ne part jamais sur un autre site | cliquer | |
-| 6 | `confirm()` répond `false` sans rien montrer (attendu ; d'où le remplacement des 5 appels, phase 1 suite) | supprimer un espace, changer une couleur de thème | |
+| 6 | `confirm()` répond `false` sans rien montrer (attendu) : plus aucun appel dans l'app, les 5 sont des dialogues de Notak (04/11/2026) | supprimer un espace, supprimer un thème de carte, poser un lien dans la note d'un sujet | |
 | 7 | **Apple Pencil** : `pointerType === 'pen'`, `pressure` varie, `tiltX/Y` varient, `getCoalescedEvents` rend plusieurs points, `getPredictedEvents` existe ; **survol** à 1 cm sur iPad M2 : des `pointermove` arrivent-ils ? Scribble écrit dans une note ; latence ressentie dans Croquis | la page `/diagnostic` de l'app affiche les valeurs et compte les survols | |
 | 8 | Clavier : `visualViewport.height` baisse quand il monte ; l'événement `clavier` de la coque arrive avec la bonne hauteur ; `--clavier` est posée | le champ de `/diagnostic`, ou éditer une note et lire la variable dans l'inspecteur | |
 | 9 | Gestes : pincer zoome, un doigt tire la toile, appui long ouvre le menu ; pas de rebond de page ; pas de zoom de page au double appui ; pas de menu système sur une image | la toile | |
@@ -162,8 +162,7 @@ ouverts, image Docker) et celui-ci partagent la coque. Pour qu'ils s'emboîtent 
   seul chemin, le sien quand il sera là ; le nôtre s'y repliera. Les 11 `window.open(…, '_blank')` à y faire passer :
   `edition/locale.tsx:74`, `edition/serveur.tsx:72`, `elements/lien/index.ts:69`, `elements/fichier/Fichier.tsx:279,290`,
   `elements/lieu/Lieu.tsx:146`, `elements/note/noeuds.ts:203`, `blocs/noeuds.ts:554`, `elements/arbre/Arbre.tsx:892,1477`,
-  `elements/image/visionneuse.tsx:226`. Les 5 `alert/confirm/prompt` : `Espaces.tsx:226`, `edition/serveur.tsx:152`,
-  `arbre/carte/ThemeCouleur.tsx:167`, `ThemesPersonnalises.tsx:98`, `arbre/PopoverNote.tsx:97`.
+  `elements/image/visionneuse.tsx:226`. Les 5 `alert/confirm/prompt` sont remplacés (04/11/2026) : `<Confirmation>` pour `Espaces.tsx` et les thèmes de la carte (`ThemeCouleur.tsx`, `ThemesPersonnalises.tsx`), un `Dialogue` à champ pour le lien de `arbre/PopoverNote.tsx`, un bandeau pour l'invitation refusée (`edition/serveur.tsx`).
 - `capabilities/principale.json` porte maintenant `"platforms": ["macOS", "windows", "linux"]` ; une capacité qu'il
   ajoute pour le serveur fait de même, et `mobile.json` prend la version mobile.
 - Les textes et styles iOS vivent dans leurs fichiers (`apps/web/src/ios/`, `styles/ios.css`) ; les clés de texte iOS
@@ -173,7 +172,7 @@ ouverts, image Docker) et celui-ci partagent la coque. Pour qu'ils s'emboîtent 
 
 | Phase | Contenu | Où ça vit |
 |---|---|---|
-| 1 (suite) | les 5 `confirm` remplacés, `[data-bureau]` vérifié absent sur iOS, `InfoPlist.strings`, launch screen | `apps/web/src`, `gen/apple` |
+| 1 (suite) | les 5 `confirm` remplacés (fait), `[data-bureau]` vérifié absent sur iOS, `InfoPlist.strings`, launch screen | `apps/web/src`, `gen/apple` |
 | 2 | export par le sélecteur de documents et la feuille de partage, `.notak` ouvert en place, extension de partage « Partager vers Notak », note rapide depuis l'écran d'accueil | `plugins/appareil` (`exporter`, `partages_recus`), `project.yml` (cible `NotakPartage`), `enregistrement.ts` |
 | 3 | le `Dossier` natif (signet sécurisé, `NSFileCoordinator`, fantômes iCloud, `beginBackgroundTask`), le miroir dans `Application Support`, l'écran des trois modes, Diagnostic (le contrat `contrat.ts` joué dans l'app) | `plugins/appareil/ios/Sources/Dossier.swift`, `local/dossierAppareil.ts`, `local/miroir.ts`, `Rangement.tsx` |
 | 4 | Pencil : pression et inclinaison réelles (`trace.ts`, triplets), prédiction et canvas vivant, paume ignorée, « Pencil d'abord », double-tap (`UIPencilInteraction`), survol s'il marche ; iPad : `UIKeyCommand`, Split View ; iPhone : barre en bas, lasso à l'appui long, feuilles | `elements/croquis`, `elements/dessin`, `Toile.tsx`, `plugins/appareil` |

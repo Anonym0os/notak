@@ -407,4 +407,16 @@ describe('la note d’un sujet (PopoverNote)', () => {
     const { hote } = monter(<PopoverNote titre="Sujet" note={undefined} x={FENETRE.l - 100} y={300} lectureSeule={false} valider={() => {}} fermer={() => {}} />, { l: 400, h: 280 })
     tient(posee(hote.querySelector('[role=dialog]'), { l: 400, h: 280 }))
   })
+
+  it('le lien se tape dans un dialogue de Notak, pas dans `window.prompt` (muet dans l’app iOS)', () => {
+    const prompt = vi.spyOn(window, 'prompt')
+    monter(<PopoverNote titre="Sujet" note={undefined} x={300} y={300} lectureSeule={false} valider={() => {}} fermer={() => {}} />, { l: 400, h: 280 })
+    act(() => document.querySelector<HTMLButtonElement>('button[aria-label="Lien"]')!.click())
+    expect(prompt).not.toHaveBeenCalled()
+    const champ = document.querySelector<HTMLInputElement>('dialog input[type="url"]')
+    expect(champ).not.toBeNull()
+    act(() => [...document.querySelectorAll<HTMLButtonElement>('dialog button')].find((b) => b.textContent === 'Annuler')!.click())
+    expect(document.querySelector('dialog input[type="url"]')).toBeNull()
+    prompt.mockRestore()
+  })
 })

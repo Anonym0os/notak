@@ -3,7 +3,7 @@ import { useHabillagesPublies } from '../../../habillage/catalogue'
 import type { Arbre, StructureArbre } from '../../../coeur/tableau'
 import { Icone } from '../../../icones'
 import { t, useLangue } from '../../../langue'
-import { Segments } from '../../../communs'
+import { Confirmation, Segments } from '../../../communs'
 import { CarteVignette, Popover, useOuvrable } from '../controles'
 import { MenuContextuel } from '../MenuContextuel'
 import type { Geste } from '../modele/gestes'
@@ -165,8 +165,10 @@ function ListeThemes({
     setRenomme(null)
     if (nom.trim()) modifierPreferences((p) => ({ ...p, couleursPerso: p.couleursPerso.map((x) => (x.id === id ? { ...x, nom: nom.trim() } : x)) }))
   }
-  const supprimer = (p: ThemeCouleurPerso) => {
-    if (!window.confirm(t('arbre.carte.themeSupprimer', { nom: p.nom }))) return
+  // Confirmée dans un dialogue de Notak : `window.confirm` répond non sans rien montrer dans l'app iOS.
+  const [aSupprimer, setASupprimer] = useState<ThemeCouleurPerso | null>(null)
+  const supprimer = (p: ThemeCouleurPerso) => setASupprimer(p)
+  const supprimerVraiment = (p: ThemeCouleurPerso) => {
     modifierPreferences((x) => ({ ...x, couleursPerso: x.couleursPerso.filter((y) => y.id !== p.id), favoris: x.favoris.filter((f) => !f.startsWith(`${p.id}|`)) }))
   }
   const dupliquer = (p: ThemeCouleurPerso) =>
@@ -259,6 +261,17 @@ function ListeThemes({
             { id: 'dupliquer', libelle: t('arbre.carte.menu.dupliquer'), icone: 'menuDupliquer' },
             { id: 'supprimer', libelle: t('arbre.carte.menu.supprimer'), icone: 'corbeille' },
           ]}
+        />
+      )}
+      {aSupprimer && (
+        <Confirmation
+          danger
+          titre={t('arbre.carte.themeSupprimer', { nom: aSupprimer.nom })}
+          oui={t('arbre.carte.menu.supprimer')}
+          repondre={(oui) => {
+            setASupprimer(null)
+            if (oui) supprimerVraiment(aSupprimer)
+          }}
         />
       )}
     </>

@@ -1,8 +1,8 @@
 import { EditorContent, useEditor } from '@tiptap/react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { type NoeudTexte, texteBrut } from '../../coeur/tableau'
 import { type NomIcone, Icone } from '../../icones'
-import { BoutonIcone, useFermeture } from '../../communs'
+import { Bouton, BoutonIcone, Champ, Dialogue, useFermeture } from '../../communs'
 import { t } from '../../langue'
 import { EXTENSIONS_NOTE } from '../note/extensions'
 import { Flottant } from './Flottant'
@@ -78,17 +78,23 @@ export function PopoverNote({ titre, note, x, y, lectureSeule, valider, fermer }
       fermer()
     },
   })
+  // L'adresse du lien se tape dans un dialogue de Notak : `window.prompt` ne montre rien dans l'app iOS (WKWebView).
+  const [adresse, setAdresse] = useState<string | null>(null)
   const lien = () => {
     if (!editeur) return
-    const actuel = (editeur.getAttributes('link').href as string | undefined) ?? ''
-    const url = window.prompt(t('arbre.gauche.noteLien'), actuel)
-    if (url === null) return
-    if (url.trim() === '') editeur.chain().focus().extendMarkRange('link').unsetLink().run()
-    else editeur.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run()
+    setAdresse((editeur.getAttributes('link').href as string | undefined) ?? '')
+  }
+  const poserLien = () => {
+    const url = (adresse ?? '').trim()
+    setAdresse(null)
+    if (!editeur) return
+    if (url === '') editeur.chain().focus().extendMarkRange('link').unsetLink().run()
+    else editeur.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
   }
   // Le coin demandé est dans le repère de la surface de la carte ; la fenêtre flottante le veut dans celui de l'écran.
   const surface = document.querySelector('.notak-arbre-surface')?.getBoundingClientRect()
   return (
+    <>
     <Flottant
       racine={racine}
       ancre={{ x: (surface?.left ?? 0) + x, y: (surface?.top ?? 0) + y, l: 0, h: 0 }}
@@ -131,5 +137,35 @@ export function PopoverNote({ titre, note, x, y, lectureSeule, valider, fermer }
         <EditorContent editor={editeur} />
       </div>
     </Flottant>
+    {adresse !== null && (
+      <Dialogue
+        titre={t('arbre.lien')}
+        fermer={() => setAdresse(null)}
+        actions={
+          <>
+            <Bouton variante="second" onClick={() => setAdresse(null)}>
+              {t('commun.annuler')}
+            </Bouton>
+            <Bouton variante="principal" onClick={poserLien}>
+              {t('commun.valider')}
+            </Bouton>
+          </>
+        }
+      >
+        <Champ
+          type="url"
+          inputMode="url"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          aria-label={t('arbre.gauche.noteLien')}
+          placeholder={t('arbre.gauche.noteLien')}
+          value={adresse}
+          onChange={(e) => setAdresse(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), poserLien())}
+        />
+      </Dialogue>
+    )}
+    </>
   )
 }

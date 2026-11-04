@@ -207,6 +207,7 @@ function Application() {
   const lire = useCallback(() => lireMoi().then((m) => setEtat(m ? { type: 'connecte', moi: m } : { type: 'anonyme' })), [])
   useEffect(() => void lire().catch((x: Error) => setEtat({ type: 'erreur', erreur: x })), [lire])
   // Une invitation dans un espace d'équipe (le lien du courriel) s'accepte une fois connecté, puis mène à l'espace.
+  const [erreurInvitation, setErreurInvitation] = useState<string | null>(null)
   useEffect(() => {
     const invitation = new URLSearchParams(location.search).get('invitation')
     if (etat.type !== 'connecte' || !invitation) return
@@ -214,7 +215,8 @@ function Application() {
       (espace) => location.replace(`/espace?espace=${encodeURIComponent(espace)}`),
       (x: Error) => {
         history.replaceState(null, '', location.pathname)
-        alert(x.message)
+        // Un bandeau plutôt qu'`alert`, qui ne montre rien dans l'app iOS (WKWebView).
+        setErreurInvitation(x.message)
       },
     )
   }, [etat.type])
@@ -296,6 +298,7 @@ function Application() {
   return (
     <>
       {page}
+      {erreurInvitation && <BandeauErreur texte={t('bandeau.invitationEchec', { erreur: erreurInvitation })} fermer={() => setErreurInvitation(null)} />}
       {/* Au-dessus des pages : l'état d'une copie remise à plus tard ne se perd pas quand on change de page. */}
       <FichiersOuverts espace={espacePour(etat.moi)} racine={etat.moi.racine} fichiers={fichiers} ouvrir={(id) => allerA(`/t/${encodeURIComponent(id)}`)} />
     </>
@@ -457,6 +460,19 @@ function Espace({ moi, instance, changerMoi, deconnexion }: ProprietesEcran) {
       <BandeauxServeur moi={moi} />
       <DialogueExport />
     </>
+  )
+}
+
+/** Une erreur à dire sans bloquer la page (une invitation refusée), jusqu'à ce qu'on la ferme. */
+function BandeauErreur({ texte, fermer }: { texte: string; fermer(): void }) {
+  const bandeau = useBandeau<HTMLElement>()
+  return (
+    <aside ref={bandeau} className="bandeau" role="alert">
+      <span>{texte}</span>
+      <button type="button" className="bouton-lien" onClick={fermer}>
+        {t('bandeau.fermer')}
+      </button>
+    </aside>
   )
 }
 

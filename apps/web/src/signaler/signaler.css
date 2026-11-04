@@ -324,3 +324,12 @@
   padding: 2px 10px;
   cursor: pointer;
 }
+
+/* Au doigt, pas de survol : la croix d'une capture reste visible, et assez grande pour le pouce. */
+@media (hover: none) {
+  .notak-signaler-vignette-retirer {
+    width: 24px;
+    height: 24px;
+    opacity: 1;
+  }
+}

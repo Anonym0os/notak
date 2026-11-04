@@ -758,3 +758,10 @@
   min-width: 1.5em;
   text-align: center;
 }
+
+/* Au doigt, pas de survol : l'étoile d'un thème reste visible. */
+@media (hover: none) {
+  .notak-arbre-reglages-etoile {
+    opacity: 1;
+  }
+}

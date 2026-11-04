@@ -774,3 +774,11 @@
     right: 24px;
   }
 }
+
+/* Au doigt, pas de survol : les gestes de la couverture et les « ajouter une icône / une couverture » restent visibles. */
+@media (hover: none) {
+  .notak-page-couverture-actions,
+  .notak-page-ajouts {
+    opacity: 1;
+  }
+}
