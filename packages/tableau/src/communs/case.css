@@ -112,10 +112,19 @@
   background: var(--notak-case-coche-option);
 }
 
+/*
+ * Le rebond anime --notak-echelle (toile.css), que `scale` suit : une animation de `transform` passait au compositeur,
+ * et dans WebKit toute la toile floutait le temps du rebond.
+ */
 @keyframes notak-case-rebond {
-  0% { transform: scale(1); }
-  50% { transform: scale(0.8); }
-  100% { transform: scale(1); }
+  0% { --notak-echelle: 1; }
+  50% { --notak-echelle: 0.8; }
+  100% { --notak-echelle: 1; }
+}
+
+:is(.notak-case, .notak-b-tache)::before,
+.notak-case-svg {
+  scale: var(--notak-echelle);
 }
 
 @keyframes notak-case-eclair {

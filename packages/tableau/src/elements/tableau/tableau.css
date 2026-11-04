@@ -100,7 +100,10 @@
   height: 72px;
   border-radius: 16px;
   font-size: 36px;
-  transition: transform 0.2s cubic-bezier(0.34, 1.3, 0.64, 1), filter 0.2s linear, box-shadow 0.2s linear;
+  /* Le grossissement passe par --notak-echelle (toile.css) : une transition de `transform` ou de `filter` floutait la
+     toile dans WebKit. L'assombrissement se pose d'un coup. */
+  scale: var(--notak-echelle);
+  transition: --notak-echelle 0.2s cubic-bezier(0.34, 1.3, 0.64, 1), box-shadow 0.2s linear;
 }
 
 /* Choisi : un cadre de 2 px à l'intérieur de l'icône, au même rayon ; rien autour du titre. */
@@ -124,7 +127,7 @@
 /* Survolé pendant un glisser : il grossit et s'assombrit, prêt à recevoir ; son glyphe pâlit. */
 .notak-carte[data-survol-depot] .notak-renvoi-carre {
   outline: none;
-  transform: scale(1.1);
+  --notak-echelle: 1.1;
   filter: brightness(0.8);
   box-shadow: 0 8px 20px rgb(0 0 0 / 0.2);
 }
@@ -190,20 +193,19 @@
   align-self: start;
 }
 
-/* Juste avant d'y entrer, l'icône clignote : on sait que le tableau va s'ouvrir. */
-.notak-carte[data-clignote] .notak-renvoi-carre {
-  animation: notak-renvoi-clignote 0.3s linear forwards;
-}
-
+/* Juste avant d'y entrer, l'icône clignote : on sait que le tableau va s'ouvrir. Le clignement anime --notak-lumiere
+   (toile.css) : animer `filter` floutait la toile dans WebKit. */
+.notak-carte[data-clignote] .notak-renvoi-carre,
 .notak-fil-segment[data-clignote] {
+  filter: brightness(var(--notak-lumiere));
   animation: notak-renvoi-clignote 0.3s linear forwards;
 }
 
 @keyframes notak-renvoi-clignote {
-  0% { filter: brightness(0.9); }
-  25% { filter: brightness(0.8); }
-  50% { filter: brightness(0.9); }
-  100% { filter: brightness(0.8); }
+  0% { --notak-lumiere: 0.9; }
+  25% { --notak-lumiere: 0.8; }
+  50% { --notak-lumiere: 0.9; }
+  100% { --notak-lumiere: 0.8; }
 }
 
 .notak-renvoi-icones {
@@ -397,6 +399,8 @@
   transform: translateX(-50%) scale(var(--notak-zoom-inverse, 1));
   transform-origin: bottom center;
   pointer-events: none;
+  /* Le fondu anime --notak-opacite (toile.css) : animer `opacity` floutait la toile dans WebKit. */
+  opacity: var(--notak-opacite);
   animation: notak-renvoi-apercu 0.18s ease-out;
 }
 
@@ -416,7 +420,7 @@
 
 @keyframes notak-renvoi-apercu {
   from {
-    opacity: 0;
+    --notak-opacite: 0;
   }
 }
 

@@ -206,6 +206,8 @@ img.notak-fichier-pdf {
   height: 8px;
   border-radius: 4px;
   background: #d1d3d6;
+  /* La respiration anime --notak-opacite (toile.css) : animer `opacity` floutait la toile dans WebKit. */
+  opacity: var(--notak-opacite);
   animation: notak-fichier-respire 1.2s ease-in-out infinite alternate;
 }
 
@@ -219,7 +221,7 @@ img.notak-fichier-pdf {
 
 @keyframes notak-fichier-respire {
   to {
-    opacity: 0.45;
+    --notak-opacite: 0.45;
   }
 }
 
@@ -539,15 +541,17 @@ img.notak-fichier-pdf {
   border: 2px solid #fff;
   border-radius: 50%;
   background: #5f6672;
-  opacity: 0;
+  /* Le fondu passe par --notak-paraitre (toile.css) : une transition d'opacité floutait la toile dans WebKit. */
+  --notak-paraitre: 0;
+  opacity: var(--notak-paraitre);
   transform: translate(-50%, -50%);
-  transition: opacity 0.15s;
+  transition: --notak-paraitre 0.15s;
   pointer-events: none;
 }
 
 .notak-curseur:hover .notak-curseur-rond,
 .notak-curseur:focus-visible .notak-curseur-rond {
-  opacity: 1;
+  --notak-paraitre: 1;
 }
 
 /* Le volume : un bouton, et au survol un curseur vertical de 32 × 100 px. */
@@ -624,8 +628,8 @@ img.notak-fichier-pdf {
   padding: 0 0 0 2px;
   border: 0;
   border-radius: 50%;
-  background: rgb(0 0 0 / 0.5);
-  backdrop-filter: blur(8px);
+  /* Sans `backdrop-filter` : il exige un calque, et WebKit y sortait toute la toile, floue au zoom. */
+  background: rgb(0 0 0 / 0.6);
   color: #fff;
   cursor: pointer;
   transform: translate(-50%, -50%);
@@ -641,13 +645,15 @@ img.notak-fichier-pdf {
   align-items: center;
   height: 30px;
   padding: 0 4px;
-  background: rgb(0 0 0 / 0.5);
-  backdrop-filter: blur(8px);
+  /* Sans `backdrop-filter` : il exige un calque, et WebKit y sortait toute la toile, floue au zoom. Le fondu passe par
+     --notak-paraitre (toile.css), pour la même raison. */
+  background: rgb(0 0 0 / 0.6);
   color: #fff;
   line-height: 1;
   font-size: 11px;
-  opacity: 0;
-  transition: opacity 0.15s;
+  --notak-paraitre: 0;
+  opacity: var(--notak-paraitre);
+  transition: --notak-paraitre 0.15s;
 }
 
 .notak-lecteur-barre .notak-curseur {
@@ -666,7 +672,7 @@ img.notak-fichier-pdf {
 .notak-lecteur-video:hover .notak-lecteur-barre,
 .notak-lecteur-video:focus-within .notak-lecteur-barre,
 .notak-carte[data-choisie] .notak-lecteur-barre {
-  opacity: 1;
+  --notak-paraitre: 1;
 }
 
 .notak-lecteur-video > .notak-lecteur-erreur {

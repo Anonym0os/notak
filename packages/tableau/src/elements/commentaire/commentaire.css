@@ -305,6 +305,10 @@
   height: 4px;
   border-radius: 50%;
   background: #8d929a;
+  /* Les points animent --notak-decalage-y et --notak-opacite (toile.css) : animer `transform` ou `opacity` floutait
+     la toile dans WebKit tant que quelqu'un écrivait. */
+  opacity: var(--notak-opacite);
+  translate: 0 var(--notak-decalage-y);
   animation: notak-frappe 1s ease-in-out infinite;
 }
 
@@ -320,12 +324,12 @@
   0%,
   60%,
   100% {
-    transform: translateY(0);
-    opacity: 0.5;
+    --notak-decalage-y: 0px;
+    --notak-opacite: 0.5;
   }
   30% {
-    transform: translateY(-3px);
-    opacity: 1;
+    --notak-decalage-y: -3px;
+    --notak-opacite: 1;
   }
 }
 

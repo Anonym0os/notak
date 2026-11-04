@@ -522,11 +522,55 @@
  * d'`opacity` est confiée au compositeur : le temps du fondu, WebKit (Notak.app, Safari) sort la poignée dans un calque
  * à elle, `.notak-plan` et son échelle avec, et le rastérise à 100 % puis l'agrandit : toute la toile devenait floue
  * 100 ms à chaque carte survolée. On fait glisser ce nombre à la place : l'opacité suit, repeinte, sans calque.
+ *
+ * La règle vaut pour tout ce qui est dessiné dans `.notak-plan` (les éléments, leur contenu, les pointeurs des autres) :
+ * ni transition ni animation d'`opacity`, `transform`, `scale`, `translate`, `rotate` ou `filter`, ni `will-change`,
+ * ni transformation 3D ; on anime l'une des propriétés enregistrées ci-dessous, que la vraie suit. Un test le vérifie
+ * (planSansCalque.test.ts).
  */
 @property --notak-paraitre {
   syntax: '<number>';
   inherits: false;
   initial-value: 0;
+}
+
+/* Une opacité qui vaut 1 tant qu'on n'y touche pas (pâlir, ou entrer en fondu par une animation). */
+@property --notak-opacite {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+
+/* Une échelle, un décalage et une rotation, pour `transform` ou `scale`. */
+@property --notak-echelle {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+
+@property --notak-decalage-x {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --notak-decalage-y {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --notak-tour {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* La luminosité d'un `filter: brightness()`. */
+@property --notak-lumiere {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
 }
 
 .notak-poignee {
@@ -886,6 +930,8 @@
   line-height: 30px;
   white-space: nowrap;
   transform-origin: bottom left;
+  /* Le « pop » anime --notak-echelle (plus haut) : animer `transform` floutait la toile dans WebKit. */
+  scale: var(--notak-echelle);
   animation:
     notak-pastille-pop 0.4s cubic-bezier(0.665, 0.1, 0, 2.5) both,
     notak-pastille-pulse 1.5s ease-out 0.4s infinite;
@@ -897,6 +943,7 @@
   overflow: hidden;
   padding: 0 4px 0 6px;
   text-overflow: ellipsis;
+  opacity: var(--notak-opacite);
   animation: notak-pastille-nom 0.4s ease-out 0.35s both;
 }
 
@@ -904,7 +951,7 @@
   from {
     max-width: 8px;
     padding-right: 0;
-    opacity: 0;
+    --notak-opacite: 0;
   }
 }
 
@@ -930,10 +977,10 @@
 
 @keyframes notak-pastille-pop {
   from {
-    transform: scale(0);
+    --notak-echelle: 0;
   }
   to {
-    transform: scale(1);
+    --notak-echelle: 1;
   }
 }
 
@@ -981,10 +1028,13 @@
 
 .notak-espace { position: relative; }
 
-/* Ce qui vole sous le pointeur : au-dessus de tout, soulevé par une ombre qui grandit. */
+/*
+ * Ce qui vole sous le pointeur : au-dessus de tout, soulevé par une ombre qui grandit. Pas de `will-change` : un calque
+ * à lui sortait `.notak-plan` dans un calque aussi, rastérisé à 100 % puis agrandi, et toute la toile floutait le temps
+ * du glisser dans WebKit. Il est repeint à chaque image, net.
+ */
 .notak-carte[data-vol] {
   z-index: 10;
-  will-change: transform;
 }
 
 .notak-carte[data-vol]:not([data-type='tableau'])::after {
@@ -1335,9 +1385,11 @@
   white-space: nowrap;
 }
 
+/* Le fondu passe par --notak-opacite (plus haut) : une transition d'opacité floutait la toile dans WebKit. */
 [data-hors-recherche] {
-  opacity: 0.22;
-  transition: opacity 0.15s;
+  --notak-opacite: 0.22;
+  opacity: var(--notak-opacite);
+  transition: --notak-opacite 0.15s;
 }
 
 /* Une roue qui tourne : un envoi en cours. */
@@ -1620,18 +1672,26 @@
   font-size: 10px;
 }
 
-/* Au repos, le nom d'un autre s'efface, puis son pointeur pâlit ; le moindre mouvement les rallume. */
+/*
+ * Au repos, le nom d'un autre s'efface, puis son pointeur pâlit ; le moindre mouvement les rallume. Les fondus passent
+ * par --notak-opacite (plus haut) : une transition d'opacité floutait la toile dans WebKit.
+ */
+.notak-curseur,
 .notak-curseur span {
-  transition: opacity 0.3s ease;
+  opacity: var(--notak-opacite);
+}
+
+.notak-curseur span {
+  transition: --notak-opacite 0.3s ease;
 }
 
 .notak-curseur[data-repos] span {
-  opacity: 0;
+  --notak-opacite: 0;
 }
 
 .notak-curseur[data-repos='tout'] {
-  opacity: 0.45;
-  transition: left 0.1s linear, top 0.1s linear, opacity 0.6s ease;
+  --notak-opacite: 0.45;
+  transition: left 0.1s linear, top 0.1s linear, --notak-opacite 0.6s ease;
 }
 
 /* La poignée d'un groupe choisi, au coin bas droit de son cadre commun. */
@@ -1645,12 +1705,14 @@
   margin: -20px 0 0 -20px;
   background: var(--notak-poignee-image) no-repeat right bottom / 16px 16px;
   cursor: nwse-resize;
+  /* Le fondu anime --notak-opacite (plus haut) : animer `opacity` floutait la toile dans WebKit. */
+  opacity: var(--notak-opacite);
   animation: notak-poignee-apparait 0.1s linear;
 }
 
 @keyframes notak-poignee-apparait {
   from {
-    opacity: 0;
+    --notak-opacite: 0;
   }
 }
 
@@ -3599,9 +3661,11 @@ body:has(.notak-note-barre) .notak-bulle-decouverte[data-ou='milieu'] {
   }
 
   /* Un élément tenu au doigt s'enfonce un peu, après un temps : un toucher bref ne clignote pas. */
+  /* L'enfoncement passe par --notak-echelle (plus haut) : une transition de `scale` floutait la toile dans WebKit. */
   .notak-plan [data-id][data-presse] {
-    scale: 0.96;
-    transition: scale 0.35s linear 0.15s;
+    --notak-echelle: 0.96;
+    scale: var(--notak-echelle);
+    transition: --notak-echelle 0.35s linear 0.15s;
   }
 
   /* Dans la feuille du « + », l'outil touché s'enfonce. */

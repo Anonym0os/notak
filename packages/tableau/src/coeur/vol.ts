@@ -77,8 +77,21 @@ export function pasDePose(v: Vol, cible: Point, dt: number, r: Reglage): { vol: 
   return { vol: fini ? { ...cible, rx: 0, ry: 0, ombre: 0 } : { x: p.x, y: p.y, ...rot, ombre }, fini }
 }
 
-/** La transformation CSS d'un vol, décalée de `base` (la place où l'élément est déjà posé). */
+/**
+ * La transformation CSS d'un vol, décalée de `base` (la place où l'élément est déjà posé).
+ *
+ * L'inclinaison reste en 2D : rotateX(rx) rotateY(ry) vus de face, soit la matrice [cos ry, 0 ; sin rx · sin ry, cos rx]
+ * (la projection, au centre de l'élément, de la rotation 3D ; seul manque le léger trapèze de la perspective). Une
+ * transformation 3D exige un calque à elle : WebKit (Notak.app, Safari) y sortait `.notak-plan` et son échelle avec,
+ * rastérisés à 100 % puis agrandis, et toute la toile floutait le temps du glisser.
+ */
 export function transformation(v: Vol, base: Point = { x: 0, y: 0 }): string {
   const t = `translate(${v.x - base.x}px, ${v.y - base.y}px)`
-  return v.rx || v.ry ? `${t} perspective(2000px) rotateX(${v.rx}deg) rotateY(${v.ry}deg)` : t
+  if (!v.rx && !v.ry) return t
+  const rad = Math.PI / 180
+  const n = (x: number) => String(Math.round(x * 1e5) / 1e5)
+  const a = Math.cos(v.ry * rad)
+  const b = Math.sin(v.rx * rad) * Math.sin(v.ry * rad)
+  const d = Math.cos(v.rx * rad)
+  return `${t} matrix(${n(a)}, ${n(b)}, 0, ${n(d)}, 0, 0)`
 }

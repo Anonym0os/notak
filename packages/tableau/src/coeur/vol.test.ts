@@ -44,7 +44,11 @@ describe('vol', () => {
 
   it('écrit la transformation, décalée de la place déjà posée', () => {
     expect(transformation({ x: 12, y: 5, rx: 0, ry: 0, ombre: 0 }, { x: 10, y: 0 })).toBe('translate(2px, 5px)')
-    expect(transformation({ x: 0, y: 0, rx: 1, ry: 2, ombre: 0 })).toContain('rotateY(2deg)')
+    // Incliné : une matrice 2D (rotateX puis rotateY vus de face), jamais de 3D, qui sortirait la toile dans un calque.
+    expect(transformation({ x: 0, y: 0, rx: 0, ry: 60, ombre: 0 })).toBe('translate(0px, 0px) matrix(0.5, 0, 0, 1, 0, 0)')
+    expect(transformation({ x: 0, y: 0, rx: 60, ry: 0, ombre: 0 })).toBe('translate(0px, 0px) matrix(1, 0, 0, 0.5, 0, 0)')
+    expect(transformation({ x: 0, y: 0, rx: 30, ry: 30, ombre: 0 })).toBe('translate(0px, 0px) matrix(0.86603, 0.25, 0, 0.86603, 0, 0)')
+    expect(transformation({ x: 0, y: 0, rx: 10, ry: -20, ombre: 0 })).not.toMatch(/perspective|rotate|3d/)
   })
 })
 

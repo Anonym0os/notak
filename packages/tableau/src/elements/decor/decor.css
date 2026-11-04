@@ -218,10 +218,12 @@
   background: var(--notak-etiq);
 }
 
-/* Le filtre par étiquette estompe ce qui ne correspond pas. */
+/* Le filtre par étiquette estompe ce qui ne correspond pas (par --notak-opacite, toile.css : une transition d'opacité
+   floutait la toile dans WebKit). */
 .notak-carte[data-attenue] {
-  opacity: 0.25;
-  transition: opacity 0.12s;
+  --notak-opacite: 0.25;
+  opacity: var(--notak-opacite);
+  transition: --notak-opacite 0.12s;
 }
 
 /* Un élément replié en icône. */

@@ -98,9 +98,8 @@
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: rgb(0 0 0 / 0.5);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  /* Sans `backdrop-filter` : il exige un calque, et WebKit y sortait toute la toile, floue au zoom. */
+  background: rgb(0 0 0 / 0.6);
   color: #fff;
   cursor: pointer;
   pointer-events: none;
@@ -123,6 +122,8 @@
   border: 3px solid rgb(255 255 255 / 0.35);
   border-top-color: #fff;
   border-radius: 50%;
+  /* La roue anime --notak-tour (toile.css) : animer `transform` floutait la toile dans WebKit tant qu'elle tournait. */
+  rotate: var(--notak-tour);
   animation: notak-lien-tour 0.8s linear infinite;
 }
 
@@ -225,12 +226,16 @@
   border: 2px solid var(--notak-point);
   border-top-color: var(--notak-accent);
   border-radius: 50%;
+  rotate: var(--notak-tour);
   animation: notak-lien-tour 0.8s linear infinite;
 }
 
 @keyframes notak-lien-tour {
+  from {
+    --notak-tour: 0deg;
+  }
   to {
-    transform: rotate(360deg);
+    --notak-tour: 360deg;
   }
 }
 

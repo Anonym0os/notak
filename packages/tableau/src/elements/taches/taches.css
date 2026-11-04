@@ -120,8 +120,11 @@
   pointer-events: none;
   /* Invisible, elle ne prend aucun clic : elle attend derrière la poignée pendant sa demi-seconde d'attente. */
   visibility: hidden;
-  transform: translateX(31px);
-  transition: transform 160ms ease-in, opacity 160ms ease-in, visibility 0s 160ms;
+  /* Le glissement et le fondu suivent --notak-paraitre (toile.css) : animés, ils floutaient la toile dans WebKit. */
+  --notak-paraitre: 0;
+  opacity: var(--notak-paraitre);
+  transform: translateX(calc(31px * (1 - var(--notak-paraitre))));
+  transition: --notak-paraitre 160ms ease-in, visibility 0s 160ms;
   cursor: pointer;
 }
 
@@ -152,11 +155,10 @@
 }
 
 .notak-taches li[data-type='taskItem'][data-checked='true']:hover > .notak-tache-suppr {
-  opacity: 1;
+  --notak-paraitre: 1;
   pointer-events: auto;
   visibility: visible;
-  transform: none;
-  transition: transform 160ms ease-out 500ms, opacity 160ms ease-out 500ms, visibility 0s 500ms;
+  transition: --notak-paraitre 160ms ease-out 500ms, visibility 0s 500ms;
 }
 
 /* La sous-tâche survolée montre la sienne, pas celle de sa parente. */
@@ -353,15 +355,17 @@
   background: #a3a7ae;
   -webkit-mask: var(--notak-icone-poignee) center / 16px 16px no-repeat;
   mask: var(--notak-icone-poignee) center / 16px 16px no-repeat;
-  opacity: 0;
+  /* Le fondu passe par --notak-paraitre (toile.css) : une transition d'opacité floutait la toile dans WebKit. */
+  --notak-paraitre: 0;
+  opacity: var(--notak-paraitre);
   cursor: grab;
-  transition: opacity 100ms;
+  transition: --notak-paraitre 100ms;
   /* Au-dessus de la corbeille, qui glisse dessous en arrivant. */
   z-index: 1;
 }
 
 .notak-taches li[data-type='taskItem']:hover > .notak-tache-poignee {
-  opacity: 1;
+  --notak-paraitre: 1;
 }
 
 .notak-taches li[data-type='taskItem'] > .notak-tache-poignee:hover {
@@ -370,7 +374,7 @@
 
 /* La sous-tâche survolée montre la sienne, pas celle de sa parente. */
 .notak-taches li[data-type='taskItem']:has(li[data-type='taskItem']:hover) > .notak-tache-poignee {
-  opacity: 0;
+  --notak-paraitre: 0;
 }
 
 .notak-taches[data-texte-choisi] .notak-tache-suppr,
@@ -465,6 +469,9 @@
   color: #7a7f87;
   font-size: 13px;
   white-space: nowrap;
+  /* L'entrée anime --notak-opacite et --notak-decalage-y (toile.css) : animer opacity et transform floutait la toile. */
+  opacity: var(--notak-opacite);
+  transform: translateY(var(--notak-decalage-y));
   animation: notak-suggestion-entree 200ms ease-out;
 }
 
@@ -490,6 +497,6 @@
 }
 
 @keyframes notak-suggestion-entree {
-  from { height: 0; opacity: 0; transform: translateY(-40px); }
-  to { height: 40px; opacity: 1; transform: none; }
+  from { height: 0; --notak-opacite: 0; --notak-decalage-y: -40px; }
+  to { height: 40px; --notak-opacite: 1; --notak-decalage-y: 0px; }
 }
