@@ -234,14 +234,29 @@
 
 /* — La présentation — */
 
+/*
+ * La scène couvre aussi les zones sûres (encoche, barre d'accueil), que le fond de la carte garde en bordure : sans
+ * quoi elles restaient de la couleur de la carte (souvent blanches) autour du noir, et les toucher fermait la carte.
+ * Sa marge intérieure les rend : les diapositives, la barre et les pastilles restent hors de l'encoche. Au doigt, elle
+ * lit elle-même les touchers et les balayages (Presentation.tsx) : ni zoom ni défilement du navigateur.
+ */
 .notak-arbre-pitch-scene {
   position: absolute;
-  inset: 0;
+  inset: calc(-1 * var(--notak-zone-haut, 0px)) calc(-1 * var(--notak-zone-droite, 0px)) calc(-1 * var(--notak-zone-bas, 0px)) calc(-1 * var(--notak-zone-gauche, 0px));
   z-index: 10;
+  box-sizing: border-box;
   display: grid;
   place-items: center;
+  padding: var(--notak-zone-haut, 0px) var(--notak-zone-droite, 0px) var(--notak-zone-bas, 0px) var(--notak-zone-gauche, 0px);
   overflow: hidden;
   cursor: default;
+  touch-action: none;
+}
+
+/* L'écran de fin, dans la même boîte que les diapositives. */
+.notak-arbre-pitch-fin {
+  position: absolute;
+  inset: var(--notak-zone-haut, 0px) var(--notak-zone-droite, 0px) var(--notak-zone-bas, 0px) var(--notak-zone-gauche, 0px);
 }
 
 /* Pendant une transition, la diapositive quittée et la nouvelle se superposent dans la même case. */
@@ -262,11 +277,11 @@
   clip-path: inset(50%);
 }
 
-/* La barre flottante : en haut à droite, à 100 % au début, à 15 % après trois secondes, à 100 % au survol. */
+/* La barre flottante : en haut à droite, à 100 % au début, à 15 % après trois secondes, à 100 % au survol ; au doigt, voir plus bas. */
 .notak-arbre-pitch-outils {
   position: absolute;
-  top: 30px;
-  right: 30px;
+  top: calc(30px + var(--notak-zone-haut, 0px));
+  right: calc(30px + var(--notak-zone-droite, 0px));
   display: flex;
   gap: 8px;
   transition: opacity 200ms ease;
@@ -305,6 +320,24 @@
   cursor: default;
 }
 
+/* Au doigt, des boutons qu'on vise, et une barre estompée qu'on voit encore (le survol ne la rappelle pas). */
+@media (pointer: coarse) {
+  .notak-arbre-pitch-outil {
+    min-width: 36px;
+    height: 36px;
+  }
+
+  .notak-arbre-pitch-outils[data-discret] {
+    opacity: 0.35;
+  }
+
+  /* Sans place au-dessus de la diapositive (un téléphone en paysage), elle disparaît tout à fait ; un toucher à sa place la rappelle. */
+  .notak-arbre-pitch-outils[data-discret][data-chevauche] {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
 .notak-arbre-pitch-outil[aria-expanded='true'] {
   background: var(--notak-arbre-appui);
 }
@@ -312,7 +345,7 @@
 /* La pastille « lire depuis le début ». */
 .notak-arbre-pitch-puce {
   position: absolute;
-  bottom: 40px;
+  bottom: calc(40px + var(--notak-zone-bas, 0px));
   left: 50%;
   display: flex;
   align-items: center;

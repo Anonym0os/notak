@@ -263,6 +263,33 @@ describe('le mode présentation', () => {
     p.fin()
   })
 
+  it('au doigt : un toucher avance, dans le quart gauche il recule ; un balayage avance ou recule ; le clic qui suit ne compte pas', () => {
+    const { a } = carte()
+    const p = presenter(a)
+    const scene = p.hote.querySelector<HTMLElement>('.notak-arbre-pitch-scene')!
+    scene.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1000, height: 600, right: 1000, bottom: 600, x: 0, y: 0, toJSON() {} }) as DOMRect
+    const pointeur = (type: string, x: number, y = 300) => {
+      const e = new MouseEvent(type, { bubbles: true, clientX: x, clientY: y })
+      Object.defineProperties(e, { pointerType: { value: 'touch' }, isPrimary: { value: true } })
+      scene.dispatchEvent(e)
+    }
+    const toucher = (x: number) => act(() => (pointeur('pointerdown', x), pointeur('pointerup', x), void scene.dispatchEvent(new MouseEvent('click', { bubbles: true }))))
+    const balayer = (de: number, a: number) => act(() => (pointeur('pointerdown', de), pointeur('pointerup', a)))
+    const liste = () => p.hote.querySelector('.notak-arbre-diapo[data-type="liste"]')
+    toucher(800)
+    expect(liste()).toBeTruthy()
+    toucher(100)
+    expect(p.titre()).toBe('Cours')
+    balayer(700, 500)
+    expect(liste()).toBeTruthy()
+    balayer(500, 700)
+    expect(p.titre()).toBe('Cours')
+    // Un doigt qui glisse un peu, ni toucher ni balayage : rien.
+    balayer(500, 525)
+    expect(p.titre()).toBe('Cours')
+    p.fin()
+  })
+
   it('avec le mouvement, la diapositive attend l’écran installé, puis paraît en fondu', async () => {
     const avant = window.matchMedia
     window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia

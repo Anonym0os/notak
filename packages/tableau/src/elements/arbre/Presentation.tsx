@@ -54,6 +54,9 @@ function instantane(s: Saut, mouvement: boolean): boolean {
   return s.effet.nom === 'aucun'
 }
 
+/** Au doigt : au-delà de `balayage` px à l'horizontale, un balayage ; en deçà de `toucher` px, un toucher. */
+const DOIGT = { balayage: 40, toucher: 12 }
+
 /** Ce qui, sur la scène, n'est pas la diapositive : la barre, ses fenêtres, les pastilles, l'agrandissement d'une image. */
 const INTERFACE = '.notak-arbre-pitch-outils, .notak-arbre-pitch-puce, .notak-arbre-pitch-raccourcis, .notak-arbre-pitch-popover, .notak-arbre-pitch-agrandir, .notak-arbre-pitch-zoom'
 const surInterface = (t: EventTarget | null) => t instanceof Element && !!t.closest(INTERFACE)
@@ -144,13 +147,20 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
   // Le bas de la barre, depuis le haut de la scène : la vignette de l'écran de fin passe dessous.
   const [basBarre, setBasBarre] = useState(0)
 
-  // La scène mesure son cadre : la diapositive y prend la plus grande place de son rapport.
+  // La scène mesure son cadre, hors des zones sûres (sa marge intérieure) : la diapositive y prend la plus grande place
+  // de son rapport. `plein` : toute la scène, zones sûres comprises (l'agrandissement d'une image s'y centre).
+  const [plein, setPlein] = useState<{ l: number; h: number }>({ l: 1280, h: 720 })
   useLayoutEffect(() => {
     const el = scene.current
     if (!el) return
     const lire = () => {
       const r = el.getBoundingClientRect()
-      if (r.width > 0 && r.height > 0) setDim({ l: r.width, h: r.height })
+      const cs = getComputedStyle(el)
+      const px = (v: string) => parseFloat(v) || 0
+      const l = r.width - px(cs.paddingLeft) - px(cs.paddingRight)
+      const h = r.height - px(cs.paddingTop) - px(cs.paddingBottom)
+      if (l > 0 && h > 0) setDim((d) => (d.l === l && d.h === h ? d : { l, h }))
+      if (r.width > 0 && r.height > 0) setPlein((d) => (d.l === r.width && d.h === r.height ? d : { l: r.width, h: r.height }))
     }
     lire()
     if (typeof ResizeObserver === 'undefined') return
@@ -205,11 +215,15 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // La barre s'estompe après trois secondes, reparaît au survol.
+  // La barre s'estompe après trois secondes, reparaît au survol ; au doigt, un toucher où elle était la rappelle (`rappel`).
+  const [rappel, setRappel] = useState(0)
+  // Le clic qui suit le toucher de rappel tomberait sur la barre revenue sous le doigt : il est avalé.
+  const rappelA = useRef(-Infinity)
   useEffect(() => {
+    setDiscret(false)
     const m = setTimeout(() => setDiscret(true), 3000)
     return () => clearTimeout(m)
-  }, [])
+  }, [rappel])
 
   // La pastille « lire depuis le début » : 1,5 s après le lancement, pour 4 s.
   useEffect(() => {
@@ -442,6 +456,24 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
   // présentation (ios/toucher.ts ne le rattache plus au bouton : la scène a pris sa place) tombait sur elle, passait un
   // pas et cassait le fondu d'ouverture.
   const appui = useRef<{ x: number; y: number; type: string } | null>(null)
+  // Au doigt (et au stylet) : un balayage horizontal avance (vers la gauche) ou recule (vers la droite) ; un toucher
+  // dans le quart gauche recule, ailleurs il avance. Ce qui bouge entre les deux seuils ne compte pas.
+  const geste = (a: { x: number; y: number }, dx: number, dy: number) => {
+    if (Math.abs(dx) >= DOIGT.balayage && Math.abs(dx) > Math.abs(dy)) return dx < 0 ? suivant() : precedent()
+    if (Math.hypot(dx, dy) > DOIGT.toucher) return
+    // La barre cachée (elle recouvrait la diapositive) : un toucher à sa place la rappelle au lieu d'avancer.
+    const o = outils.current
+    if (o && getComputedStyle(o).pointerEvents === 'none') {
+      const b = o.getBoundingClientRect()
+      if (a.x >= b.left - 16 && a.x <= b.right + 16 && a.y >= b.top - 16 && a.y <= b.bottom + 16) {
+        rappelA.current = performance.now()
+        return setRappel((n) => n + 1)
+      }
+    }
+    const r = scene.current?.getBoundingClientRect()
+    if (r && r.width > 0 && a.x - r.left < r.width / 4) precedent()
+    else suivant()
+  }
 
   const mettreAJour = (reglage: Extract<Geste, { type: 'pitch' }>['reglage']) => !lectureSeule && faire({ type: 'pitch', reglage })
 
@@ -452,10 +484,17 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
       data-attente={pret ? undefined : ''}
       style={{ backgroundColor: position === 'ecran-de-fin' ? (fondDe(arbre) ?? 'var(--notak-arbre-fond)') : '#000' }}
       onPointerDown={(e) => (appui.current = e.isPrimary === false || surInterface(e.target) ? null : { x: e.clientX, y: e.clientY, type: e.pointerType || 'mouse' })}
+      onPointerUp={(e) => {
+        const a = appui.current
+        if (!a || a.type === 'mouse' || e.isPrimary === false) return
+        geste(a, e.clientX - a.x, e.clientY - a.y)
+      }}
+      onPointerCancel={() => (appui.current = null)}
       onClick={() => {
         const a = appui.current
         appui.current = null
-        if (a) suivant()
+        // Au doigt et au stylet, le geste s'est lu au lever ; le clic qui suit n'ajoute rien.
+        if (a?.type === 'mouse') suivant()
       }}
       onPointerMove={viser} onPointerLeave={() => setVisee(null)} aria-label={t('arbre.pitch.titre')} role="region" aria-live="polite">
       {couches.map((p) => {
@@ -469,19 +508,23 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
         )
       })}
       {position === 'ecran-de-fin' && merci && (
-        <div className="notak-arbre-pitch-fin" style={{ position: 'absolute', inset: 0 }}>
+        <div className="notak-arbre-pitch-fin">
           <EcranDeFin arbre={arbre} ratio={ratio} taille={taille} adresse={adresse} haut={basBarre > 0 ? basBarre + 12 - (dim.h - taille.h) / 2 : undefined} vignette={(petite) => <Diapositive lecture={l} diapo={merci} theme={theme} ratio={ratio} adresse={adresse} anime={false} graine={graine} taille={petite} />} />
         </div>
       )}
       {visee && !zoom && !enCours && <BoutonAgrandir image={visee} ouvrir={agrandir} />}
-      {zoom && <Agrandissement image={zoom} scene={dim} sombre={zoom.sombre} portrait={estPortrait(ratio)} fermer={() => setZoom(null)} refermeur={refermeur} />}
+      {zoom && <Agrandissement image={zoom} scene={plein} sombre={zoom.sombre} portrait={estPortrait(ratio)} fermer={() => setZoom(null)} refermeur={refermeur} />}
       <span className="notak-arbre-pitch-compte">{t('arbre.pitch.position', { i: rang, n: montrees })}</span>
 
       <div
         ref={outils}
         className="notak-arbre-pitch-outils"
         data-discret={discret && !survol && !reglages && !themes ? '' : undefined}
+        data-chevauche={basBarre > (dim.h - taille.h) / 2 ? '' : undefined}
         onClick={(e) => e.stopPropagation()}
+        onClickCapture={(e) => {
+          if (performance.now() - rappelA.current < 500) (e.stopPropagation(), e.preventDefault())
+        }}
         onPointerEnter={() => setSurvol(true)}
         onPointerLeave={() => setSurvol(false)}
         onDoubleClick={(e) => e.stopPropagation()}

@@ -262,8 +262,9 @@
   }
 }
 
+/* Au plus serré (un téléphone en portrait), Plan et Zen s'en vont ; Pitch reste, seul moyen de présenter sans clavier. */
 @container barre-bas (max-width: 380px) {
-  .notak-arbre-bas-modes {
+  .notak-arbre-bas-modes > :not(.notak-arbre-bas-pitch) {
     display: none;
   }
 }

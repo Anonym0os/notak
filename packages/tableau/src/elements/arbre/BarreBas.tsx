@@ -10,7 +10,7 @@ import { enPourcent, entreesZoom } from './modele/zoom'
  * La barre du bas de la carte ouverte, comme celle de Xmind (docs/XMIND.md § 10) : deux pastilles flottantes. À
  * gauche, l'onglet de la feuille ; à droite, le compteur de sujets, le zoom, puis Gantt, plan, Zen et Pitch.
  * Quand la fenêtre se resserre, le compteur, le zoom, le Gantt puis les modes s'effacent dans cet ordre (le CSS le
- * fait par des seuils de largeur).
+ * fait par des seuils de largeur) ; Pitch reste, seul moyen de présenter sans clavier (au téléphone).
  */
 
 export interface PropsBarreBas {
@@ -241,7 +241,7 @@ export function BarreBas(p: PropsBarreBas) {
               <BoutonBas icone="pleinEcran" info={t('arbre.bas.zen')} touche="Alt+Meta+F" actif={p.zenActif} onClick={p.zen} />
             </>
           )}
-          <BoutonBas icone="fichierPresentation" info={t('arbre.bas.pitch')} touche="Alt+Meta+P" actif={p.pitchActif} onClick={p.presenter} />
+          <BoutonBas icone="fichierPresentation" info={t('arbre.bas.pitch')} touche="Alt+Meta+P" actif={p.pitchActif} classe="notak-arbre-bas-pitch" onClick={p.presenter} />
         </div>
       </div>
     </div>
