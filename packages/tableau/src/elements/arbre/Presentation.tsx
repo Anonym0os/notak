@@ -14,6 +14,7 @@ import { type Commande, effetDeTransition, estPortrait } from './modele/gabarits
 import type { Geste } from './modele/gestes'
 import type { Lecture } from './modele/sujets'
 import { fondDe } from './themes'
+import { demanderPleinEcran, enPleinEcran, sortirDuPleinEcran } from './pleinEcran'
 import { RATIOS_PITCH, ratioEffectif, themeDuPitch } from './themesPitch'
 
 /**
@@ -52,6 +53,10 @@ function instantane(s: Saut, mouvement: boolean): boolean {
   if (s.vers === 'ecran-de-fin') return !mouvement
   return s.effet.nom === 'aucun'
 }
+
+/** Ce qui, sur la scène, n'est pas la diapositive : la barre, ses fenêtres, les pastilles, l'agrandissement d'une image. */
+const INTERFACE = '.notak-arbre-pitch-outils, .notak-arbre-pitch-puce, .notak-arbre-pitch-raccourcis, .notak-arbre-pitch-popover, .notak-arbre-pitch-agrandir, .notak-arbre-pitch-zoom'
+const surInterface = (t: EventTarget | null) => t instanceof Element && !!t.closest(INTERFACE)
 
 /** Ce que le modèle sait d'une diapositive et que sa transition regarde. */
 const ficheDe = (d: Diapo | undefined) => ({ niveau: d?.niveau, premiere: d?.type === 'liste' ? d.premiere : undefined })
@@ -167,32 +172,34 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
     setBasBarre(Math.max(0, o.getBoundingClientRect().bottom - haut))
   }, [dim])
 
-  // Plein écran : celui qu'on obtient ; en sortir (Échap du navigateur) termine la présentation. On croit le navigateur
-  // sur ce qu'il fait, pas sur la promesse : WebKit (Safari, l'app de bureau) n'émet que l'événement préfixé, et sa
-  // promesse peut échouer alors que la fenêtre est passée en plein écran. Il fallait alors un second Échap pour sortir.
+  // Le fondu d'ouverture attend que l'écran soit installé : le plein écran arrive en s'animant (macOS) et, s'il tombait
+  // pendant le fondu, la diapositive changeait de taille en plein milieu. D'ici là, elle reste cachée sur le noir.
+  const [pret, setPret] = useState(() => !(anime && mouvementPermis()))
+
+  // Plein écran : celui qu'on obtient (pleinEcran.ts) ; en sortir (Échap du navigateur) termine la présentation. La
+  // demande part du geste qui lance la présentation (`lancerPresentation`) ; on la reprend, ou on la fait ici.
   useEffect(() => {
-    const doc = document as Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => void }
-    const plein = () => !!(document.fullscreenElement ?? doc.webkitFullscreenElement)
-    const fond = scene.current?.closest<HTMLElement>('.notak-arbre-fond') as (HTMLElement & { webkitRequestFullscreen?: () => void }) | null | undefined
-    let entre = plein()
-    try {
-      const r = fond?.requestFullscreen ? fond.requestFullscreen() : fond?.webkitRequestFullscreen?.()
-      void r?.catch(() => {})
-    } catch {
-      /* Pas de plein écran (une iframe, un navigateur qui refuse) : la présentation occupe la fenêtre. */
-    }
+    const fond = scene.current?.closest<HTMLElement>('.notak-arbre-fond')
+    let entre = enPleinEcran()
+    let vivant = true
+    void demanderPleinEcran(fond).then(() => {
+      if (!vivant) return
+      // Une image encore, que la scène ait pris sa nouvelle mesure.
+      if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => vivant && setPret(true))
+      else setPret(true)
+    })
     const change = () => {
-      if (plein()) entre = true
+      if (enPleinEcran()) entre = true
       else if (entre) ((entre = false), quitter())
     }
     document.addEventListener('fullscreenchange', change)
     document.addEventListener('webkitfullscreenchange', change)
     return () => {
+      vivant = false
       document.removeEventListener('fullscreenchange', change)
       document.removeEventListener('webkitfullscreenchange', change)
       entre = false
-      if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
-      else if (doc.webkitFullscreenElement) doc.webkitExitFullscreen?.()
+      sortirDuPleinEcran()
     }
     // Seulement au lancement.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -266,8 +273,11 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
     const { seq: s, l: lec, anime: an } = contexte.current
     enchainer.current(trajet(s, lec, ici.current, a.commande, an && mouvementPermis() && !presse), presse)
   }
+  // Avant que l'écran soit prêt, la diapositive est cachée : une demande y passe sans animation.
+  const pretRef = useRef(pret)
+  pretRef.current = pret
   const jouer = useCallback((commande: Demande, instant = false) => {
-    attentes.current.push({ commande, instant })
+    attentes.current.push({ commande, instant: instant || !pretRef.current })
     // Ce qui joue va à son terme tout de suite ; la fin du pas reprend la file.
     if (occupe.current) jeu.current?.achever()
     else suivante.current()
@@ -404,30 +414,50 @@ export function Presentation({ arbre, lecture: l, depart, faire, adresse, lectur
     }
   }, [enCours])
 
-  // Le démarrage : la première diapositive paraît en fondu (600 ms pour le central, 400 sinon), avant la première image.
+  // Le démarrage, une fois l'écran installé : la diapositive où l'on est paraît en fondu (RYTHME.central pour le central,
+  // RYTHME.fondu sinon), posé avant la première image où elle se montre.
+  const demarre = useRef(false)
   useLayoutEffect(() => {
+    if (!pret || demarre.current) return
+    demarre.current = true
     const p = ici.current
     const d = typeof p === 'number' ? seq.diapos[p] : undefined
-    if (!d || !anime || !mouvementPermis()) return
+    if (!d || !anime || !mouvementPermis() || occupe.current) return
     occupe.current = true
     setEnCours({ saut: { de: null, vers: p, effet: effetDeTransition(null, d, 'depart', true), automatique: false }, reste: [], n: ++compteur.current })
-    // Seulement au lancement.
+    // Seulement quand l'écran est prêt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [pret])
 
   // Une fois arrivée, la diapositive joue son animation d'affichage (les bulles de Hubble Bubble), sans rien retenir.
   useEffect(() => {
-    if (enCours || typeof position !== 'number' || !anime || !mouvementPermis()) return
+    if (!pret || enCours || typeof position !== 'number' || !anime || !mouvementPermis()) return
     const racine = scene.current?.querySelector<HTMLElement>(`[data-couche="${position}"] .notak-arbre-diapo`)
     if (!racine) return
     const lecture = jouerAffichage(racine)
     return () => lecture.arreter()
-  }, [enCours, position, anime, theme.id])
+  }, [pret, enCours, position, anime, theme.id])
+
+  // Le clic n'avance que s'il a commencé sur la scène. Celui que WebKit tire en retard après le toucher qui a lancé la
+  // présentation (ios/toucher.ts ne le rattache plus au bouton : la scène a pris sa place) tombait sur elle, passait un
+  // pas et cassait le fondu d'ouverture.
+  const appui = useRef<{ x: number; y: number; type: string } | null>(null)
 
   const mettreAJour = (reglage: Extract<Geste, { type: 'pitch' }>['reglage']) => !lectureSeule && faire({ type: 'pitch', reglage })
 
   return (
-    <div ref={scene} className="notak-arbre-pitch-scene" style={{ backgroundColor: position === 'ecran-de-fin' ? (fondDe(arbre) ?? 'var(--notak-arbre-fond)') : '#000' }} onClick={() => suivant()} onPointerMove={viser} onPointerLeave={() => setVisee(null)} aria-label={t('arbre.pitch.titre')} role="region" aria-live="polite">
+    <div
+      ref={scene}
+      className="notak-arbre-pitch-scene"
+      data-attente={pret ? undefined : ''}
+      style={{ backgroundColor: position === 'ecran-de-fin' ? (fondDe(arbre) ?? 'var(--notak-arbre-fond)') : '#000' }}
+      onPointerDown={(e) => (appui.current = e.isPrimary === false || surInterface(e.target) ? null : { x: e.clientX, y: e.clientY, type: e.pointerType || 'mouse' })}
+      onClick={() => {
+        const a = appui.current
+        appui.current = null
+        if (a) suivant()
+      }}
+      onPointerMove={viser} onPointerLeave={() => setVisee(null)} aria-label={t('arbre.pitch.titre')} role="region" aria-live="polite">
       {couches.map((p) => {
         const d = seq.diapos[p]
         return (

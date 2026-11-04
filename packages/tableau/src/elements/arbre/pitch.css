@@ -249,6 +249,11 @@
   grid-area: 1 / 1;
 }
 
+/* Le temps que l'écran s'installe (le plein écran s'anime), la diapositive attend, cachée, son fondu d'ouverture. */
+.notak-arbre-pitch-scene[data-attente] .notak-arbre-pitch-diapo {
+  visibility: hidden;
+}
+
 .notak-arbre-pitch-compte {
   position: absolute;
   width: 1px;

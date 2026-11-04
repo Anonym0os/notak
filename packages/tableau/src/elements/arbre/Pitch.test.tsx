@@ -242,6 +242,47 @@ describe('le mode présentation', () => {
     p.fin()
   })
 
+  it('un clic n’avance que s’il a commencé sur la scène : le clic tardif de WebKit après le lancement est ignoré', () => {
+    const { a } = carte()
+    const p = presenter(a)
+    const scene = p.hote.querySelector('.notak-arbre-pitch-scene')!
+    act(() => void scene.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    expect(p.titre()).toBe('Cours')
+    act(() => {
+      scene.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }))
+      scene.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    expect(p.hote.querySelector('.notak-arbre-diapo[data-type="liste"]')).toBeTruthy()
+    // Un appui sur la barre ne fait pas avancer la scène.
+    const outil = p.hote.querySelector('.notak-arbre-pitch-outils')!
+    act(() => {
+      outil.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }))
+      scene.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    expect(p.hote.querySelector('.notak-arbre-diapo[data-type="liste"] .notak-arbre-diapo-texte[data-etat="courant"]')?.textContent).toBe('Chapitre A')
+    p.fin()
+  })
+
+  it('avec le mouvement, la diapositive attend l’écran installé, puis paraît en fondu', async () => {
+    const avant = window.matchMedia
+    window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia
+    try {
+      const { a } = carte()
+      const p = presenter(a)
+      const scene = p.hote.querySelector('.notak-arbre-pitch-scene')!
+      // Pas de plein écran dans jsdom : la demande répond aussitôt, la scène attend encore une image.
+      expect(scene.hasAttribute('data-attente')).toBe(true)
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 50))
+      })
+      expect(scene.hasAttribute('data-attente')).toBe(false)
+      expect(p.titre()).toBe('Cours')
+      p.fin()
+    } finally {
+      window.matchMedia = avant
+    }
+  })
+
   it('l’écran de fin prend le fond de la carte, le sien d’abord, et la scène autour aussi', () => {
     const { a } = carte()
     const p = presenter({ ...a, fond: '#123456' })

@@ -46,6 +46,7 @@ import { type OngletGauche, PanneauGauche } from './PanneauGauche'
 import { Plan } from './Plan'
 import { PopoverNote } from './PopoverNote'
 import { Presentation } from './Presentation'
+import { demanderPleinEcran } from './pleinEcran'
 import { Recherche, correspondances } from './Recherche'
 import { courbeRelation } from './trace/relations'
 import { adresseSure } from '../lien/adresse'
@@ -1216,6 +1217,8 @@ function Grand({ id, contexte, changer }: { id: Id; contexte: ContexteToile; cha
   const lancerPresentation = () => {
     setPlan(false)
     setNoteDe(null)
+    // Le plein écran se demande pendant le geste (clic, ⌥⌘P) : Safari le refuse plus tard ; la présentation reprend la demande.
+    void demanderPleinEcran(surface.current?.closest('.notak-arbre-fond') ?? document.querySelector('.notak-arbre-fond'))
     // Un sujet choisi (autre que le central) donne le départ ; sinon la présentation commence au central.
     setPresentation(sujetsChoisis.length === 1 && sujetsChoisis[0] !== lecture.central ? { depart: sujetsChoisis[0]! } : {})
   }
