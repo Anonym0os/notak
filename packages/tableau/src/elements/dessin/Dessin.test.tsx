@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { creerMagasin } from '../../coeur/magasin'
 import type { ContexteToile } from '../types'
 import './index'
-import { ouvrirDessinLibre } from './Dessin'
+import { contactDePaume, ouvrirDessinLibre } from './Dessin'
 import { dessinLibreOuvert, poserDessinLibre, toileSuspendue } from './mode'
 import { surLaToile } from '../../Toile'
 
@@ -104,5 +104,54 @@ describe('où le Pencil dessine', () => {
     expect(surLaToile(r.querySelector('nav button')!, r)).toBe(false)
     expect(surLaToile(r.querySelector('.notak-toile .notak-toile p')!, r)).toBe(false)
     r.remove()
+  })
+})
+
+describe('la paume ne valide pas le dessin', () => {
+  const pointeur = (type: string, init: PointerEventInit & { pointerType: string }) =>
+    new PointerEvent(type, { bubbles: true, cancelable: true, isPrimary: true, button: 0, ...init })
+  const sur = (cible: EventTarget, ev: Event) => act(() => void cible.dispatchEvent(ev))
+
+  it('un contact large est une paume, un doigt ne l’est pas', () => {
+    expect(contactDePaume({ width: 90, height: 70 })).toBe(true)
+    expect(contactDePaume({ width: 24, height: 24 })).toBe(false)
+    expect(contactDePaume({})).toBe(false)
+  })
+
+  it('ouverte sous le Pencil : une paume, ou un doigt juste après le trait, ne referme rien ; un vrai toucher enregistre', () => {
+    vi.useFakeTimers({ toFake: ['Date', 'performance'] })
+    try {
+      const magasin = creerMagasin({ titre: '', etiquettes: [], elements: [] })
+      const contexte = {
+        magasin,
+        choisir: () => {},
+        services: {},
+        camera: { origine: { x: 0, y: 0 }, echelle: 1 },
+        poserCamera: (c: unknown) => c,
+      } as unknown as ContexteToile
+      const appui = pointeur('pointerdown', { pointerType: 'pen', pointerId: 1, clientX: 10, clientY: 10, pressure: 0.5 })
+      act(() => ouvrirDessinLibre(contexte, undefined, appui))
+      const feuille = document.querySelector('.notak-dessin-libre-feuille')!
+      for (let i = 1; i <= 5; i++) sur(document, pointeur('pointermove', { pointerType: 'pen', pointerId: 1, clientX: 10 + i * 10, clientY: 10, pressure: 0.5 }))
+      sur(document, pointeur('pointerup', { pointerType: 'pen', pointerId: 1, clientX: 60, clientY: 10 }))
+      const toucher = (id: number, taille: number) => {
+        sur(feuille, pointeur('pointerdown', { pointerType: 'touch', pointerId: id, clientX: 200, clientY: 200, width: taille, height: taille }))
+        sur(feuille, pointeur('pointerup', { pointerType: 'touch', pointerId: id, clientX: 200, clientY: 200, width: taille, height: taille }))
+      }
+      // La main qui écrit se pose aussitôt après le trait.
+      vi.advanceTimersByTime(100)
+      toucher(2, 20)
+      expect(dessinLibreOuvert()).toBe(true)
+      // Plus tard, une paume large.
+      vi.advanceTimersByTime(2000)
+      toucher(3, 90)
+      expect(dessinLibreOuvert()).toBe(true)
+      // Un vrai toucher du doigt : le dessin s'enregistre et la couche se referme.
+      toucher(4, 20)
+      expect(dessinLibreOuvert()).toBe(false)
+      expect(magasin.lire().elements).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

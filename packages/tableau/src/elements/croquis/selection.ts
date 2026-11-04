@@ -1,5 +1,5 @@
 import type { Trait } from '../../coeur/tableau'
-import { traitVise } from './trace'
+import { rayonMax, traitVise } from './trace'
 
 /**
  * La sélection de traits, commune au croquis et au dessin sur la toile : le rectangle d'un trait, la marquise, le
@@ -14,14 +14,14 @@ export interface Boite {
   y1: number
 }
 
-/** Le rectangle d'un trait, son épaisseur comprise, élargi de `marge` de chaque côté. */
+/** Le rectangle d'un trait, toute son encre comprise (`rayonMax`), élargi de `marge` de chaque côté. */
 export function boiteTrait(t: Trait, marge = 0): Boite {
   let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity]
   for (let i = 0; i < t.points.length; i += 2) {
     const [x, y] = [t.points[i]!, t.points[i + 1]!]
     ;[x0, y0, x1, y1] = [Math.min(x0, x), Math.min(y0, y), Math.max(x1, x), Math.max(y1, y)]
   }
-  const m = marge + t.epaisseur / 2
+  const m = marge + rayonMax(t)
   return { x0: x0 - m, y0: y0 - m, x1: x1 + m, y1: y1 + m }
 }
 

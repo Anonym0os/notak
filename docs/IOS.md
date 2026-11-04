@@ -140,6 +140,14 @@ Notés tels que le propriétaire les a donnés en essayant l'app. Une ligne coch
 | 3 | La gomme ne montre pas où elle passe | une traînée qui suit la pointe et s'efface, comme Miro | codé : traînée grise de 300 ms (`Dessin.tsx`) |
 | 4 | Le trait en cours traîne derrière la pointe | il colle au Pencil | codé : les points prédits (`getPredictedEvents`) prolongent le trait en cours, sans être gardés |
 
+## Retours du troisième essai sur iPad (04/11/2026)
+
+| # | Ce qui ne va pas | Ce qu'on attend | État |
+|---|---|---|---|
+| 1 | Au moment d'enregistrer, le dessin « se simplifie » : le trait tremble, sa fin part en ligne droite | le trait enregistré est exactement celui qu'on a tracé, à tout zoom | codé : perfect-freehand (la librairie de tldraw et d'Excalidraw, gardée) est faite pour des pixels et contient des constantes fixes (elle saute le contour des 3 dernières unités, décale un point seul d'une unité). La couche l'appelait en pixels, l'élément posé dans le repère du tableau (1 UG = 10 px × zoom) : à 600 %, 3 UG = 180 px de fin de trait tirés droit. `dessinTrait` (`croquis/trace.ts`) ramène tout trait à une épaisseur de référence avant l'appel, puis le remet à l'échelle : même forme pendant le tracé, posé, dans un croquis, exporté. Les points se rangent à un cinquantième d'épaisseur près (`arrondirTrait`) au lieu du centième d'UG, qui faisait trembler un trait fin tracé de près. Les anciens dessins se redessinent justes, sans migration. Reproduit (rendu avant/après à 100, 300 et 600 %) et vérifié dans l'app |
+| 2 | Enregistrer découpe le dessin en plusieurs éléments (un mot lettre par lettre) | ce qu'on trace dans une session forme un seul dessin | codé : `dessinDepuis` pour toute la session ; le cadre couvre toute l'encre d'un trait appuyé (`rayonMax`), comme la sélection et la gomme |
+| 3 | Ouvert sous le Pencil, le dessin se referme parfois tout seul | seul un vrai toucher du doigt enregistre et referme | codé : un contact large (paume, plus de 60 px) ou arrivé moins de 600 ms après le lever du Pencil est ignoré (`contactDePaume`, `Dessin.tsx`) ; à revoir sur l'iPad |
+
 ## Rendez-vous avec le chantier de l'app de bureau
 
 Ce chantier (`claude/youthful-hamilton-ji14zq` et la suite : accès à un serveur choisi, device flow, fichiers

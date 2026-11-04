@@ -19,7 +19,7 @@ est dit de Notak vient du code. (3) Le tactile, le mobile et la collaboration (c
 - Erreur d'interprétation à corriger dans ces relevés : « toujours visible, ne se replie jamais » pour Croquis, Nuancier et Document. Chez Milanote le rang de repli `ALWAYS` (10000) est le
   plus élevé, et « plus le nombre est haut, plus tôt l'outil se replie » : ces trois outils sont donc rangés d'office derrière « More ». Notak (`tiroir: true`) est donc juste. Seul le Tableau reste dans la barre (rang 100).
 - Table (`docs/ecarts/table.md`) : presque tout est appliqué (vérifié dans `Table.tsx`, `Outils.tsx`, `menu.ts`, `grille.ts`, `table.css`). Les écarts restants sont en §2.
-- Dessin (`releve-dessin-toile.md`) : appliqué = couche, gomme, sélection, historique de 100 pas, regroupement par proximité, barre en bas, Abandonner. Restent : Maj+D, ordre d'empilement, couleur du thème sombre (§4).
+- Dessin (`releve-dessin-toile.md`) : appliqué = couche, gomme, sélection, historique de 100 pas, un seul élément par session, barre en bas, Abandonner. Restent : Maj+D, ordre d'empilement, couleur du thème sombre (§4).
 
 ---------------------------------------------------------------------------------------------------------------------
 
@@ -274,7 +274,7 @@ Ordre Milanote : Couleur, Étiquette, Réaction, Commentaire, Légende, arrangem
 
 # 4. DESSIN (outil « Draw », annotation sur la toile)
 
-- [OK] Couche plein tableau, voile à 50 %, barre de gauche éteinte, bouton ouvert, regroupement par proximité (2 cellules de marge), un élément par groupe, réouverture au double-clic, historique de 100 pas, Cmd+S, Échap abandonne — `Dessin.tsx`, `dessin.css`.
+- [OK] Couche plein tableau, voile à 50 %, barre de gauche éteinte, bouton ouvert, un seul élément par session (le regroupement par proximité découpait un mot en lettres), réouverture au double-clic, historique de 100 pas, Cmd+S, Échap abandonne — `Dessin.tsx`, `dessin.css`.
 - [ABSENT] Raccourci d'entrée Maj+D — Milanote : démarre le mode (ne fait rien si une modale est ouverte ; ferme les popups). Notak : Maj+D est pris par « Dessiner sur l'image » (`raccourciAnnotation.ts`) et Cmd+Maj+D bascule le thème.
 - [ABSENT] Cmd+Maj+↑ / ↓ en sélection : amener devant / derrière (`selection.ts`).
 - [ABSENT] La barre reflète le trait choisi (couleur et taille).

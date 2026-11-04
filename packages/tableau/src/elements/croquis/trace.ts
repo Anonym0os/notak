@@ -63,7 +63,10 @@ export const EPAISSEURS_SURLIGNEUR = [
 export const COULEUR_SURLIGNEUR_DEFAUT = '#ffd14d'
 
 /** L'épaisseur à ranger dans le trait : des pixels d'écran ramenés aux unités de la feuille. `echelle` : pixels par unité. */
-export const epaisseurFeuille = (px: number, echelle: number): number => arrondi(px / (echelle > 0 ? echelle : 1))
+export const epaisseurFeuille = (px: number, echelle: number): number => {
+  const e = px / (echelle > 0 ? echelle : 1)
+  return arrondi(e, decimalesPour(e, 100))
+}
 
 export const nouveauCroquis = (x: number, y: number): Element<CroquisFeuille> => ({
   id: nouvelId(),
@@ -73,11 +76,24 @@ export const nouveauCroquis = (x: number, y: number): Element<CroquisFeuille> =>
   contenu: { type: 'croquis', traits: [], hauteur: HAUTEUR_FEUILLE_NEUVE },
 })
 
-/** Arrondi au centième : assez fin pour un tracé, assez court pour ne pas alourdir le document. */
-const arrondi = (v: number) => Math.round(v * 100) / 100
+/** Arrondi à `decimales` chiffres (le centième par défaut). */
+const arrondi = (v: number, decimales = 2) => {
+  const k = 10 ** decimales
+  return Math.round(v * k) / k
+}
 
-/** Les points ramenés au centième. */
-export const arrondir = (points: readonly number[]): number[] => points.map(arrondi)
+/** Les points ramenés au centième, ou à `decimales` chiffres. */
+export const arrondir = (points: readonly number[], decimales = 2): number[] => points.map((v) => arrondi(v, decimales))
+
+/**
+ * Combien de chiffres garder pour qu'un arrondi reste sous `1 / part` de l'épaisseur du trait (au moins deux, au plus
+ * six). Un trait fin tracé de près sur la toile ne fait que quelques centièmes d'UG : arrondi au centième, il tremblait.
+ */
+export const decimalesPour = (epaisseur: number, part: number): number =>
+  epaisseur > 0 && Number.isFinite(epaisseur) ? Math.min(6, Math.max(2, Math.ceil(-Math.log10(epaisseur / part)))) : 2
+
+/** Les points d'un trait d'épaisseur `epaisseur` tels qu'on les range : à moins d'un cinquantième d'épaisseur près. */
+export const arrondirTrait = (points: readonly number[], epaisseur: number): number[] => arrondir(points, decimalesPour(epaisseur, 50))
 
 /** Le point suivant d'un tracé en cours ; tous sont gardés, sauf un doublon exact du dernier (le tracé reste alors inchangé). */
 export function ajouterPoint(points: readonly number[], x: number, y: number): number[] {
@@ -122,9 +138,10 @@ export function prolongerTrace(t: TraceEnCours, x: number, y: number, e: Appui):
 
 /** Le trait qu'un tracé laisse, ses nombres ramenés au centième. `surligneur` : un trait translucide d'épaisseur constante. */
 export function traitFini(t: TraceEnCours, couleur: string, epaisseur: number, affinage: number, surligneur = false): Trait {
-  if (surligneur) return { points: arrondir(t.points), couleur, epaisseur, surligneur: true }
+  const points = arrondirTrait(t.points, epaisseur)
+  if (surligneur) return { points, couleur, epaisseur, surligneur: true }
   return {
-    points: arrondir(t.points),
+    points,
     couleur,
     epaisseur,
     ...(affinage ? { affinage } : {}),
@@ -141,18 +158,19 @@ export function distanceSegment(px: number, py: number, ax: number, ay: number, 
   return Math.hypot(px - (ax + t * dx), py - (ay + t * dy))
 }
 
-const nb = (v: number) => String(arrondi(v))
 
 /**
  * Le tracé lissé, en chemin SVG : chaque point du tracé sert de point de contrôle à une quadratique qui finit au
  * milieu du segment suivant (des courbes bout à bout, sans cassure aux jonctions) ; le dernier segment est droit.
  */
-export function cheminLisse(points: readonly number[]): string {
+export function cheminLisse(points: readonly number[], decimales = 2): string {
+  const nb = (v: number) => String(arrondi(v, decimales))
   const n = points.length / 2
   if (n === 0) return ''
   const p = (i: number) => [points[2 * i]!, points[2 * i + 1]!] as const
   const [x0, y0] = p(0)
-  if (n === 1) return `M${nb(x0)} ${nb(y0)}l0 0.01`
+  // Un point seul : un segment d'un cran d'arrondi, que les bouts ronds font disque.
+  if (n === 1) return `M${nb(x0)} ${nb(y0)}l0 ${1 / 10 ** decimales}`
   let d = `M${nb(x0)} ${nb(y0)}`
   for (let i = 1; i < n - 1; i++) {
     const [cx, cy] = p(i)
@@ -172,8 +190,26 @@ export const affinageDe = (indiceEpaisseur: number): number => (indiceEpaisseur 
 /** Un trait affiné est deux fois plus large qu'un trait constant de même réglage, à vitesse moyenne. */
 const LARGEUR_ENCRE = 2
 
+/**
+ * Le rayon le plus large qu'un trait peut prendre, de son axe au bord de l'encre : la moitié de l'épaisseur pour un
+ * trait constant ; pour l'encre, perfect-freehand donne `taille × (0,5 + affinage / 2)` à pleine pression. Les boîtes
+ * (sélection, cadre du dessin, gomme) le prennent pour couvrir tout le trait.
+ */
+export const rayonMax = (t: Pick<Trait, 'epaisseur' | 'affinage' | 'surligneur'>): number =>
+  t.affinage && !t.surligneur ? t.epaisseur * LARGEUR_ENCRE * (0.5 + t.affinage / 2) : t.epaisseur / 2
+
+/**
+ * L'épaisseur à laquelle on ramène tout trait avant de le confier à perfect-freehand. La librairie est faite pour des
+ * pixels : elle saute le contour des 3 dernières unités d'un trait, décale un point seul d'une unité, ne descend pas
+ * sous un rayon de 0,01. Appelée dans le repère du tableau (1 UG = 10 px à 100 %), elle coupait la fin d'un trait
+ * enregistré en ligne droite et faisait d'un point un tiret. Ramené à cette épaisseur, puis remis à l'échelle, un
+ * trait a la même forme partout : pendant le tracé, posé sur la toile, dans un croquis, exporté.
+ */
+const EPAISSEUR_REF = 4
+
 /** Les points du contour, en chemin SVG fermé : des quadratiques qui passent par le milieu de chaque côté. */
-function cheminContour(contour: readonly number[][]): string {
+function cheminContour(contour: readonly number[][], decimales: number): string {
+  const nb = (v: number) => String(arrondi(v, decimales))
   const n = contour.length
   if (n < 3) return ''
   const milieu = (a: number[], b: number[]) => `${nb((a[0]! + b[0]!) / 2)} ${nb((a[1]! + b[1]!) / 2)}`
@@ -283,15 +319,27 @@ export function dessinTrait(
   pressions?: readonly number[],
   surligneur = false,
 ): DessinTrait {
-  const propre = epurer(points, epaisseur, pressions)
-  const constant = (): DessinTrait => ({ d: cheminLisse(propre.points), plein: false, epaisseur, ...(surligneur ? { surligneur: true } : {}) })
-  if (surligneur || !affinage || propre.points.length < 4) return constant()
+  // Tout se calcule à l'épaisseur de référence, puis revient à l'échelle du trait (`f`) ; les chemins s'écrivent à un
+  // centième d'épaisseur près.
+  const f = epaisseur > 0 && Number.isFinite(epaisseur) ? EPAISSEUR_REF / epaisseur : 1
+  const decimales = decimalesPour(epaisseur, 100)
+  const propre = epurer(f === 1 ? points : points.map((v) => v * f), EPAISSEUR_REF, pressions)
   const pts = propre.points
+  const constant = (): DessinTrait => ({
+    d: cheminLisse(f === 1 ? pts : pts.map((v) => v / f), decimales),
+    plein: false,
+    epaisseur,
+    ...(surligneur ? { surligneur: true } : {}),
+  })
+  if (surligneur || !affinage || pts.length < 4) return constant()
   const pr = propre.pressions
   const paires: number[][] = []
   for (let i = 0; i < pts.length; i += 2) paires.push(pr ? [pts[i]!, pts[i + 1]!, pr[i / 2]!] : [pts[i]!, pts[i + 1]!])
-  const contour = getStroke(paires, { size: epaisseur * LARGEUR_ENCRE, thinning: affinage, smoothing: 0.5, streamline: 0.4, simulatePressure: !pr, last: fini })
-  const d = cheminContour(contour.filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1])))
+  const contour = getStroke(paires, { size: EPAISSEUR_REF * LARGEUR_ENCRE, thinning: affinage, smoothing: 0.5, streamline: 0.4, simulatePressure: !pr, last: fini })
+  const d = cheminContour(
+    contour.filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1])).map((p) => [p[0]! / f, p[1]! / f]),
+    decimales,
+  )
   return d ? { d, plein: true, epaisseur } : constant()
 }
 
@@ -325,7 +373,7 @@ export function traitEnSvg(tr: Trait): string {
 /** Un trait touche-t-il le disque de centre (x, y) et de rayon `rayon` ? (Son épaisseur compte.) */
 export function toucheTrait(t: Trait, x: number, y: number, rayon: number): boolean {
   const n = t.points.length / 2
-  const marge = rayon + t.epaisseur / 2
+  const marge = rayon + rayonMax(t)
   if (n === 1) return Math.hypot(x - t.points[0]!, y - t.points[1]!) <= marge
   for (let i = 0; i < n - 1; i++) {
     if (distanceSegment(x, y, t.points[2 * i]!, t.points[2 * i + 1]!, t.points[2 * i + 2]!, t.points[2 * i + 3]!) <= marge) return true

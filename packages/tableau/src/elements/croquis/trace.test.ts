@@ -227,3 +227,46 @@ describe('le surligneur', () => {
     expect(traitEnSvg({ points, couleur: '#ffd14d', epaisseur: 18, surligneur: true })).toContain(`stroke-opacity="${OPACITE_SURLIGNEUR}"`)
   })
 })
+
+describe('le même trait à toute échelle (enregistré comme tracé)', () => {
+  // Une écriture : des boucles, 400 points, une pression qui varie.
+  const n = 400
+  const points = Array.from({ length: n }, (_, i) => {
+    const t = (i / n) * Math.PI * 6
+    return [20 + t * 14 + 10 * Math.cos(t), 60 + 25 * Math.sin(t)]
+  }).flat()
+  const pressions = Array.from({ length: n }, (_, i) => 0.5 + 0.2 * Math.sin(i / 20))
+  const nombres = (d: string) => (d.match(/-?\d+(\.\d+)?(e-?\d+)?/g) ?? []).map(Number)
+
+  it.each([0.1, 1 / 60, 1 / 30, 0.53, 10])('à l’échelle %s, le contour est celui des pixels, mis à l’échelle', (k) => {
+    const enPixels = nombres(dessinTrait(points, 2, AFFINAGE, true, pressions).d)
+    const aLEchelle = nombres(dessinTrait(points.map((v) => v * k), 2 * k, AFFINAGE, true, pressions).d)
+    expect(aLEchelle).toHaveLength(enPixels.length)
+    aLEchelle.forEach((v, i) => expect(Math.abs(v / k - enPixels[i]!)).toBeLessThan(0.05))
+  })
+
+  it('dans le repère du tableau (1 UG = 60 px), la fin du trait n’est plus coupée en ligne droite', () => {
+    const k = 1 / 60
+    const c = nombres(dessinTrait(points.map((v) => v * k), 2 * k, AFFINAGE, true, pressions).d)
+    // Chaque point de la fin du tracé a un bord d'encre tout près : la dernière boucle est dessinée, pas tirée droit.
+    for (let i = Math.floor(n * 0.6); i < n; i += 10) {
+      const [x, y] = [points[2 * i]! * k, points[2 * i + 1]! * k]
+      let d = Infinity
+      for (let j = 0; j + 1 < c.length; j += 2) d = Math.min(d, Math.hypot(c[j]! - x, c[j + 1]! - y))
+      expect(d).toBeLessThan(4 * k)
+    }
+  })
+
+  it('un trait rangé garde ses points à moins d’un cinquantième d’épaisseur près', () => {
+    const ep = 2 / 60
+    const t = { points: [1.234567, 2.345678, 1.3, 2.4], pressions: null }
+    const fini = traitFini(t, '#000000', ep, AFFINAGE)
+    fini.points.forEach((v, i) => expect(Math.abs(v - t.points[i]!)).toBeLessThan(ep / 50))
+    expect(epaisseurFeuille(2, 60)).toBeCloseTo(ep, 4)
+  })
+
+  it('un point seul reste un point, à toute échelle', () => {
+    expect(dessinTrait([4, 5], 2).d).toBe('M4 5l0 0.01')
+    expect(dessinTrait([0.4, 0.5], 0.03).d).toBe('M0.4 0.5l0 0.0001')
+  })
+})

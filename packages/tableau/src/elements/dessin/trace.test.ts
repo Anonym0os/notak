@@ -21,44 +21,45 @@ describe('dessin libre', () => {
   })
 })
 
-import { boiteTrait, deplacerTraits, dessinsDepuis, grouper, operationsApresEdition, presDuBas, sansTraits, traitsDansMarquise, traitsDe } from './trace'
+import { boiteTrait, deplacerTraits, operationsApresEdition, presDuBas, sansTraits, traitsDansMarquise, traitsDe } from './trace'
 import { defaire, historiqueVide, noter, PAS_MAX, refaire } from './historique'
-import { gommer } from '../croquis/trace'
+import { gommer, rayonMax } from '../croquis/trace'
 
 const trait = (points: number[], epaisseur = 0.5) => ({ points, couleur: '#000', epaisseur })
 
-describe('regroupement par proximité', () => {
-  it('réunit les traits dont les rectangles élargis de 2 UG se touchent, de proche en proche', () => {
-    const a = trait([0, 0, 10, 0])
-    const b = trait([13, 0, 20, 0]) // à 3 UG de a : les marges de 2 se touchent
-    const c = trait([23, 0, 30, 0]) // touche b seulement
-    const loin = trait([100, 100, 110, 100])
-    const g = grouper([a, loin, b, c])
-    expect(g).toHaveLength(2)
-    expect(g.find((x) => x.includes(a))).toEqual([a, b, c])
-    expect(g.find((x) => x.includes(loin))).toEqual([loin])
+describe('un seul dessin par session', () => {
+  it('réunit tous les traits de la session en un seul élément, même éloignés, et jette ceux qui ne valent rien (NaN)', () => {
+    const el = dessinDepuis([trait([0, 0, 10, 0]), trait([NaN, NaN]), trait([200, 0, 210, 0]), trait([500, 300, 510, 310])])!
+    expect(el.contenu.traits).toHaveLength(3)
+    expect(dessinDepuis([trait([NaN, 1])])).toBeNull()
   })
 
-  it('sépare deux traits à plus de 4 UG l’un de l’autre', () => {
-    expect(grouper([trait([0, 0, 10, 0]), trait([16, 0, 20, 0])])).toHaveLength(2)
+  it('un trait fin tracé de très près garde sa forme : ses points ne sont pas arrondis au centième', () => {
+    // 2 px à 600 % : une épaisseur de 0,033 UG.
+    const ep = 2 / 60
+    const points = Array.from({ length: 40 }, (_, i) => [10 + i * 0.0137, 20 + Math.sin(i / 5) * 0.05]).flat()
+    const el = dessinDepuis([{ ...trait(points, ep), affinage: 0.6 }])!
+    const ranges = el.contenu.traits[0]!.points
+    ranges.forEach((v, i) => expect(Math.abs(v + (i % 2 === 0 ? el.x : el.y) - points[i]!)).toBeLessThan(ep / 20))
   })
 
-  it('jette un trait de largeur nulle (NaN) et rend un élément par groupe', () => {
-    const els = dessinsDepuis([trait([0, 0, 10, 0]), trait([NaN, NaN]), trait([200, 0, 210, 0])])
-    expect(els).toHaveLength(2)
-    expect(els.every((e) => e.contenu.traits.length === 1)).toBe(true)
-    expect(dessinsDepuis([trait([NaN, 1])])).toEqual([])
+  it('le cadre couvre toute l’encre d’un trait appuyé', () => {
+    const tr = { ...trait([10, 20, 30, 20], 2), affinage: 0.6, pressions: [1, 1] }
+    const el = dessinDepuis([tr])!
+    const r = rayonMax(tr)
+    expect(el.y).toBeLessThanOrEqual(20 - r)
+    expect(el.y + el.contenu.hauteurOrigine).toBeGreaterThanOrEqual(20 + r)
   })
 
   it('un dessin rouvert redonne ses traits au repère du tableau, à l’échelle de l’élément', () => {
-    const [el] = dessinsDepuis([trait([10, 20, 30, 25])])
+    const el = dessinDepuis([trait([10, 20, 30, 25])])
     const [rouvert] = traitsDe({ ...el!, largeur: el!.largeur * 2 })
     expect(rouvert!.points[0]).toBeCloseTo(el!.x + (10 - el!.x) * 2)
     expect(rouvert!.epaisseur).toBeCloseTo(1)
   })
 
   it('un dessin rouvert sans trait est supprimé ; sinon mis à jour sur place', () => {
-    const [el] = dessinsDepuis([trait([10, 20, 30, 25])])
+    const el = dessinDepuis([trait([10, 20, 30, 25])])
     expect(operationsApresEdition(el!, [])).toEqual([{ type: 'supprimer', element: el }])
     const ops = operationsApresEdition(el!, [trait([50, 50, 60, 60])])
     expect(ops.map((o) => o.type)).toEqual(['deplacer', 'redimensionner', 'contenu'])

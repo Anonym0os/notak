@@ -30,7 +30,7 @@ import { BoutonOutil } from '../../BoutonOutil'
 import type { ContexteToile, PropsOutils, PropsRendu } from '../types'
 import { type Historique, defaire, historiqueVide, noter, refaire } from './historique'
 import { type ActionDoubleToucher, EVENEMENT_DOUBLE_TOUCHER, crayonVu, dessinLibreOuvert, noterCrayon, poserDessinLibre, reglerOuvertureAuCrayon } from './mode'
-import { dessinsDepuis, operationsApresEdition, presDuBas, traitsDe } from './trace'
+import { dessinDepuis, operationsApresEdition, presDuBas, traitValide, traitsDe } from './trace'
 import { appliquerAuChoix, appuiSurTrait, decalageFleche, deplacerTraits, sansTraits, traitsDansMarquise } from '../croquis/selection'
 import { t } from '../../langue'
 import { ico } from '../../icones'
@@ -68,11 +68,19 @@ const EVENEMENTS_ARRETES = ['dblclick', 'click', 'contextmenu', 'wheel', 'pointe
 /** Un doigt qui bouge moins que ça, et se relève assez vite, a touché : il n'a pas tiré la vue. */
 const TOUCHER_PX = 8
 const TOUCHER_MS = 350
+/**
+ * Un contact plus large que ça (en pixels, `PointerEvent.width/height`) est une paume, pas un doigt ; et un contact qui
+ * arrive moins de `APRES_CRAYON_MS` après le lever du Pencil vient de la main qui écrit. Ni l'un ni l'autre n'enregistre
+ * ni ne referme la couche : seul un vrai toucher du doigt le fait.
+ */
+const PAUME_PX = 60
+const APRES_CRAYON_MS = 600
+export const contactDePaume = (e: { width?: number; height?: number }): boolean => Math.max(e.width || 0, e.height || 0) > PAUME_PX
 
 /**
  * Le dessin libre : toute la toile devient une feuille. On y trace au crayon, on gomme (le trait entier), on choisit
  * et déplace des traits, on défait et on refait (100 pas). Rien n'existe sur le tableau avant « Enregistrer » : les
- * traits se rangent alors par proximité, un élément par groupe. `existant` : un dessin posé qu'on rouvre ; il se met
+ * traits deviennent un seul élément dessin. `existant` : un dessin posé qu'on rouvre ; il se met
  * à jour sur place, ou disparaît s'il ne reste aucun trait.
  *
  * `appui` : l'Apple Pencil s'est posé sur la toile (`dessinerAuCrayon`, mode.ts) ; la couche s'ouvre sous lui et son
@@ -90,12 +98,13 @@ export function ouvrirDessinLibre(contexte: ContexteToile, existant?: Element<De
     if (traits) {
       if (existant) {
         contexte.magasin.faire(operationsApresEdition(existant, traits))
-        contexte.choisir(traits.some((tr) => tr.points.length >= 2) ? [existant.id] : [])
+        contexte.choisir(traits.some(traitValide) ? [existant.id] : [])
       } else {
-        const els = dessinsDepuis(traits)
-        if (els.length > 0) {
-          contexte.magasin.faire(els.map((element) => ({ type: 'creer' as const, element })))
-          contexte.choisir(els.map((e) => e.id))
+        // Tout ce qu'on a tracé dans la session devient un seul dessin, qui se déplace d'un bloc.
+        const element = dessinDepuis(traits)
+        if (element) {
+          contexte.magasin.faire([{ type: 'creer', element }])
+          contexte.choisir([element.id])
         }
       }
     }
@@ -195,6 +204,8 @@ function Couche({
   const navigation = useRef<Navigation | null>(null)
   /** Un doigt seul qui vient de se poser : s'il se relève sur place, c'est un toucher. */
   const toucher = useRef<{ x: number; y: number; t: number } | null>(null)
+  /** L'instant où le Pencil s'est levé pour la dernière fois (le temps des événements). */
+  const crayonLeve = useRef(-Infinity)
   /**
    * La caméra de la couche : les doigts la déplacent, et la toile dessous suit (`poserCamera`). Les chemins des traits
    * sont calculés pour `cameraTraits` ; pendant un geste des doigts, un simple transform les fait suivre.
@@ -431,7 +442,8 @@ function Couche({
       if (p && p.type !== 'touch') return
       if (p && doigts.current.size >= 2) abandonnerGeste()
       if (doigts.current.size >= 2 || crayonVu()) {
-        toucher.current = doigts.current.size === 1 ? { ...ecran(e), t: e.timeStamp } : null
+        const toucherPossible = doigts.current.size === 1 && !contactDePaume(e) && e.timeStamp - crayonLeve.current > APRES_CRAYON_MS
+        toucher.current = toucherPossible ? { ...ecran(e), t: e.timeStamp } : null
         try {
           cible?.setPointerCapture(e.pointerId)
         } catch {
@@ -557,6 +569,7 @@ function Couche({
     const p0 = pointeur.current
     if (!p0 || p0.id !== e.pointerId) return
     pointeur.current = null
+    if (p0.type === 'pen') crayonLeve.current = e.timeStamp
     const g = geste.current
     geste.current = null
     setEffacee(false)
