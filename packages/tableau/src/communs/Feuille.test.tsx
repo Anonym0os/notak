@@ -3,6 +3,7 @@ import { act } from 'react'
 import { type Root, createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MenuContextuel } from './Menu'
+import { Feuille as FeuilleBas } from './Feuille'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -88,5 +89,60 @@ describe('le menu du clic droit au doigt sur un téléphone', () => {
     act(() => racine.render(<MenuContextuel x={10} y={10} entrees={[{ libelle: 'Copier', faire() {} }]} fermer={() => {}} />))
     expect(document.querySelector('.notak-menu-ctx')).not.toBeNull()
     expect(document.querySelector('.notak-tiroir-bas')).toBeNull()
+  })
+})
+
+describe('la feuille, au clavier et dans ses champs', () => {
+  it('prend le focus à l’ouverture, le fait tourner avec Tab, et le rend à la fermeture', () => {
+    auTelephone()
+    const bouton = document.createElement('button')
+    document.body.append(bouton)
+    bouton.focus()
+    act(() => racine.render(<MenuContextuel x={10} y={10} entrees={[{ libelle: 'Copier', faire() {} }, { libelle: 'Coller', faire() {} }]} fermer={() => {}} />))
+    const feuille = document.querySelector<HTMLElement>('.notak-tiroir-bas')!
+    expect(document.activeElement).toBe(feuille)
+    const boutons = [...feuille.querySelectorAll<HTMLButtonElement>('button')]
+    boutons.at(-1)!.focus()
+    act(() => void feuille.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true })))
+    expect(document.activeElement).toBe(boutons[0])
+    act(() => racine.render(<></>))
+    expect(document.activeElement).toBe(bouton)
+    bouton.remove()
+  })
+
+  it('ne prend pas le focus d’un champ où l’on écrit déjà', () => {
+    auTelephone()
+    const champ = document.createElement('textarea')
+    document.body.append(champ)
+    champ.focus()
+    act(() => racine.render(<MenuContextuel x={10} y={10} entrees={[{ libelle: 'Copier', faire() {} }]} fermer={() => {}} />))
+    expect(document.activeElement).toBe(champ)
+    champ.remove()
+  })
+
+  it('un doigt posé dans un champ de la feuille ne la tire pas : il y sélectionne', () => {
+    vi.useFakeTimers()
+    auTelephone()
+    act(() =>
+      racine.render(
+        <FeuilleBas titre="Chercher" fermer={() => {}}>
+          <input aria-label="Chercher" />
+        </FeuilleBas>,
+      ),
+    )
+    act(() => void vi.advanceTimersByTime(400))
+    const feuille = document.querySelector<HTMLElement>('.notak-tiroir-bas')!
+    const champ = feuille.querySelector('input')!
+    const doigt = (type: string, y: number, cible: EventTarget, t: number) =>
+      act(() => {
+        const e = Object.assign(new Event(type, { bubbles: true }), { pointerId: 1, pointerType: 'touch', clientX: 50, clientY: y, button: 0 })
+        Object.defineProperty(e, 'timeStamp', { value: t })
+        cible.dispatchEvent(e)
+      })
+    doigt('pointerdown', 300, champ, 0)
+    doigt('pointermove', 330, window, 100)
+    doigt('pointermove', 380, window, 200)
+    expect(feuille.style.transform).toBe('')
+    doigt('pointerup', 380, window, 300)
   })
 })

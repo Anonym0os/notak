@@ -55,6 +55,17 @@
   .notak-tiroir-bas * {
     touch-action: none;
   }
+
+  /* Sauf dans un champ : le doigt y sélectionne, montre la loupe et déplace le curseur (Feuille.tsx n'y prend pas le
+     geste). */
+  .notak-tiroir-bas :is(input, textarea, select, [contenteditable='true'], [contenteditable='true'] *) {
+    touch-action: auto;
+  }
+}
+
+/* La feuille prend le focus à l'ouverture (Feuille.tsx) : pas d'anneau autour d'elle. */
+.notak-tiroir-bas:focus {
+  outline: none;
 }
 
 /* La poignée est tirable dès l'ouverture, elle. */

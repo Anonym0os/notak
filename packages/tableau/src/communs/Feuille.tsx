@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { auTelephone } from '../doigt'
 import { rattacher } from '../PanneauFlottant'
 import { t } from '../langue'
+import { FOCALISABLES } from './Dialogue'
 import './feuille.css'
 
 /**
@@ -11,6 +12,9 @@ import './feuille.css'
  * de la barre d'accueil, sur un voile qui la ferme d'un toucher.
  */
 export const enFeuille = (): boolean => auTelephone()
+
+/** Les champs où le doigt écrit et sélectionne : le geste de la feuille n'y part pas (feuille.css leur rend le toucher). */
+const CHAMPS = 'input, textarea, select, [contenteditable="true"]'
 
 /** Le temps pendant lequel la feuille ignore les touchers : le clic que la webview tire du doigt qui l'a ouverte. */
 const ATTENTE_CLIC_FANTOME = 350
@@ -237,6 +241,8 @@ export function Feuille({
     }
     const appui = (e: PointerEvent) => {
       if (geste || sortie.current || (e.pointerType === 'mouse' && e.button !== 0)) return
+      // Dans un champ, le doigt sélectionne, montre la loupe, déplace le curseur : la feuille ne prend pas le geste.
+      if ((e.target as Element | null)?.closest?.(CHAMPS)) return
       cancelAnimationFrame(elan)
       geste = {
         id: e.pointerId,
@@ -271,10 +277,42 @@ export function Feuille({
     }
   }, [])
 
+  // Le focus entre dans la feuille (sur elle, pas sur un champ : le clavier ne sort pas) si son contenu ne l'a pas
+  // déjà pris, et revient à la fermeture à ce qui l'avait. Les effets des enfants passent avant : un champ qui prend le
+  // focus de lui-même le garde. On écrit ailleurs (une note en édition, sa couleur choisie en feuille) : le focus y
+  // reste, sinon le clavier rentrerait et l'édition finirait.
+  useEffect(() => {
+    const f = feuille.current
+    const actif = document.activeElement
+    if (!f || f.contains(actif) || (actif instanceof Element && actif.closest(CHAMPS))) return
+    const avant = actif instanceof HTMLElement && actif !== document.body ? actif : null
+    f.focus({ preventScroll: true })
+    return () => {
+      const maintenant = document.activeElement
+      if (avant?.isConnected && (!maintenant || maintenant === document.body || !maintenant.isConnected)) avant.focus({ preventScroll: true })
+    }
+  }, [])
+  /** Tab et Maj+Tab tournent dans la feuille : le focus ne passe pas derrière le voile. */
+  const tourner = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'Tab') return
+    const liste = [...e.currentTarget.querySelectorAll<HTMLElement>(FOCALISABLES)]
+    const premier = liste[0]
+    const dernier = liste[liste.length - 1]
+    if (!premier || !dernier) return e.preventDefault()
+    const actif = document.activeElement
+    if (e.shiftKey && (actif === premier || actif === e.currentTarget)) {
+      e.preventDefault()
+      dernier.focus()
+    } else if (!e.shiftKey && actif === dernier) {
+      e.preventDefault()
+      premier.focus()
+    }
+  }
+
   return createPortal(
     <div ref={calque} className="notak-tiroir-bas-calque" onPointerDown={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
       <div className="notak-tiroir-bas-voile" onClick={() => prete && (surVoile ? surVoile() : descendre())} aria-hidden />
-      <div ref={feuille} className={`notak-tiroir-bas${className ? ` ${className}` : ''}`} role={role} aria-modal="true" data-prete={prete || undefined}>
+      <div ref={feuille} tabIndex={-1} className={`notak-tiroir-bas${className ? ` ${className}` : ''}`} role={role} aria-modal="true" data-prete={prete || undefined} onKeyDown={tourner}>
         <div className="notak-tiroir-bas-poignee">
           <span aria-hidden />
         </div>

@@ -5,7 +5,8 @@ import { t } from '../langue'
 import { Bouton, BoutonIcone } from './Bouton'
 import './dialogue.css'
 
-const FOCALISABLES =
+/** Ce qui prend le focus au clavier dans une fenêtre (le dialogue, la feuille du bas). */
+export const FOCALISABLES =
   'button:not(:disabled), input:not(:disabled):not([hidden]):not([type=hidden]), select:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])'
 
 interface PropsDialogue {
