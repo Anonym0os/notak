@@ -44,11 +44,13 @@ bun run ios:dev                                 # Vite + l'app sur le simulateur
 Après `ios:init`, à régler une fois dans `gen/apple` (puis commiter) :
 1. `project.yml` : vérifier `deploymentTarget` (17.0, celui de `tauri.ios.conf.json`), les orientations, et que
    `Info.ios.plist` a bien été fondu dans le `Info.plist` généré (`CFBundleDocumentTypes`, `UIFileSharingEnabled`…).
-2. L'icône : copier `apps/bureau/src-tauri/icons/ios/*` dans `gen/apple/Assets.xcassets/AppIcon.appiconset/` (le
-   `Contents.json` fourni décrit un jeu universel 1024 px, clair, sombre et teinté). `node scripts/icones.ts` les refait.
+2. L'icône : fait. `node scripts/icones.ts` écrit le jeu universel 1024 px (clair, sombre, teinté) dans `icons/ios/` et
+   dans `gen/apple/Assets.xcassets/AppIcon.appiconset/`, en retirant les anciennes tailles de `tauri ios init`.
 3. `Sources/InfoPlist.strings` (fr et en) : les phrases des demandes d'autorisation (`NSCameraUsageDescription`…) et
    `CFBundleDisplayName`, pour que la demande du système parle la langue de la personne.
-4. `LaunchScreen.storyboard` : fond `#EBEDEE` (le `--notak-fond` clair), le logo centré ; rien d'autre.
+4. `LaunchScreen.storyboard` : fait. Le fond est la couleur `FondLancement` (`#EBEDEE` clair, `#1B1E23` sombre) et la
+   marque `LogoLancement` (64 pt, noire ou blanche) est centrée ; les deux sont dans `Assets.xcassets`, refaits par
+   `node scripts/icones.ts`. L'écran d'attente de la page (`apps/web/index.html`) reprend la même marque au même endroit.
 
 ## Ce qu'on a vérifié dans les sources (Tauri 2.12, wry 0.57, tao, WebKit, Apple)
 
