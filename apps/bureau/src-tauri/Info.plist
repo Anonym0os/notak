@@ -5,5 +5,8 @@
 <dict>
   <key>NSMicrophoneUsageDescription</key>
   <string>Notak enregistre une note audio quand vous le lui demandez, dans une carte mentale. Le son reste sur votre ordinateur.</string>
+  <!-- Rien d'autre que le HTTPS du système : TestFlight et l'App Store ne demandent pas le questionnaire d'export à chaque build. -->
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
 </dict>
 </plist>

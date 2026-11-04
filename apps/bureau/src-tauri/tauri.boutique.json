@@ -6,7 +6,8 @@
       "entitlements": "Notak.boutique.entitlements",
       "files": {
         "embedded.provisionprofile": "apple/Notak_Mac_App_Store.provisionprofile"
-      }
+      },
+      "minimumSystemVersion": "14.0"
     }
   }
 }
