@@ -10,12 +10,14 @@ import '../../../../packages/tableau/src/elements/arbre/arbre.css'
 import '../../../../packages/tableau/src/elements/arbre/pitch.css'
 import '../../../../packages/tableau/src/elements/arbre/diapo/diapo.css'
 import { poserDiapo } from '../../../../packages/tableau/src/elements/arbre/modele/pitch'
-import { ajouterEnfant, lire, nouvelArbre } from '../../../../packages/tableau/src/elements/arbre/modele/sujets'
+import { ajouterEnfant, changerSujet, lire, nouvelArbre } from '../../../../packages/tableau/src/elements/arbre/modele/sujets'
 import { Presentation } from '../../../../packages/tableau/src/elements/arbre/Presentation'
 
 /**
  * Le banc du Pitch, pour le développement seulement (`/banc-pitch.html?theme=hand-drawn`) : une carte variée, ouverte
  * tout de suite en présentation, sans compte ni stockage. Il sert à reproduire un défaut et à mesurer les transitions.
+ * `?long` : des textes démesurés dans chaque mise en page ; `?cas` : une note de neuf lignes, des étiquettes longues, une
+ * arête et une chronologie chargées. De quoi revoir à l'œil ce que deviennent les textes qui ne tiennent pas.
  */
 
 // `?vitesse=0.2` ralentit tout, pour regarder une transition image par image ; les gardes de durée suivent.
@@ -38,8 +40,32 @@ const CARTE: Branche[] = [
   ['Prochaines étapes', [['Recruter'], ['Lever'], ['Livrer']], { livraison: 'tout' }],
 ]
 
+const LONG = 'Une idée qui demande beaucoup plus de mots que prévu pour être dite correctement, et qui continue encore sur plusieurs lignes sans jamais vraiment s’arrêter'
+
+const CARTE_LONGUE: Branche[] = [
+  ['Un titre de branche vraiment très long, qui dépasse largement ce qu’une diapositive peut montrer sur une seule ligne et même sur deux', [[LONG], ['Court'], ['https://exemple.com/un/chemin/tres/long/sans/espaces/AnticonstitutionnellementInterminable']]],
+  ['Liste interminable', Array.from({ length: 14 }, (_, i): Branche => [`Point numéro ${i + 1} ${i % 3 === 0 ? LONG : ''}`.trim()])],
+  ['Chronologie bavarde', [[`2024 : ${LONG}`], ['2025 : la bêta ouverte à tous ceux qui ont demandé un accès anticipé'], ['2026'], [`2027 : ${LONG}`]], { miseEnPage: 'chronologie' }],
+  ['Arêtes', [[LONG, [[LONG], ['Lent']]], ['Miro avec un nom de concurrent démesurément long', [['Cher']]]], { miseEnPage: 'arete' }],
+  ['Citation', [[`${LONG} ${LONG} ${LONG}`]], { miseEnPage: 'paroles' }],
+  ['Accolade', [[LONG], ['Licence'], [LONG], ['Services']], { miseEnPage: 'accolade' }],
+  ['Supercalifragilisticexpialidocious_AnticonstitutionnellementInterminable', [['a'], ['b']]],
+]
+
+const paragraphe = (texte: string) => ({ type: 'paragraph', content: [{ type: 'text', text: texte }] })
+const NOTE_LONGUE = { type: 'doc', content: Array.from({ length: 9 }, (_, i) => paragraphe(`Ligne de note ${i + 1} : du texte qui explique encore et encore le même point pour remplir la diapositive.`)) }
+
+const CARTE_CAS: Branche[] = [
+  ['Un sujet avec une très longue note et un titre lui aussi assez long pour prendre deux lignes au moins', [['x']]],
+  ['Étiquettes', [['y']]],
+  ['Arête chargée', [['Tête', ['Un', 'Deux', 'Trois', 'Quatre', 'Cinq', 'Six', 'Sept', 'Huit'].map((t): Branche => [t])], ['Autre']], { miseEnPage: 'arete' }],
+  ['Frise chargée', [['Tête', ['Un', 'Deux', 'Trois', 'Quatre', 'Cinq', 'Six', 'Sept'].map((t): Branche => [t])], ['Autre']], { miseEnPage: 'chronologie' }],
+]
+
 function construire(): Arbre {
-  let a = nouvelArbre('Lancer Notak en 2027')
+  const q = new URLSearchParams(location.search)
+  const variante = q.has('cas') ? 'cas' : q.has('long') ? 'long' : null
+  let a = nouvelArbre(variante === 'long' ? 'Un sujet central dont le titre est beaucoup trop long pour tenir sur la diapositive d’ouverture sans être coupé ou réduit' : 'Lancer Notak en 2027')
   const poser = (parent: Id, branches: Branche[]) => {
     for (const [titre, enfants, reglage] of branches) {
       let id: Id
@@ -48,8 +74,13 @@ function construire(): Arbre {
       if (reglage) a = poserDiapo(a, [id], reglage)
     }
   }
-  poser(lire(a).central, CARTE)
-  const theme = new URLSearchParams(location.search).get('theme')
+  poser(lire(a).central, variante === 'cas' ? CARTE_CAS : variante === 'long' ? CARTE_LONGUE : CARTE)
+  if (variante === 'cas') {
+    const [note, etiquettes] = lire(a).enfants.get(lire(a).central) ?? []
+    if (note) a = changerSujet(a, note, (x) => ({ ...x, note: NOTE_LONGUE }))
+    if (etiquettes) a = changerSujet(a, etiquettes, (x) => ({ ...x, etiquettes: ['Une étiquette particulièrement longue qui ne tient pas', 'Courte', 'Encore une étiquette assez bavarde pour déborder'] }))
+  }
+  const theme = q.get('theme')
   return theme ? { ...a, pitch: { theme } } : a
 }
 
