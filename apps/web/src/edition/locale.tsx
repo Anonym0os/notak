@@ -1,4 +1,4 @@
-import { BullesDecouverte, type CouleurNote, auDoigt, demanderReglages, EspaceNotak, type Id, ErreurNotak, type Services, TYPE_NOTAK } from '@notak/tableau'
+import { BullesDecouverte, type CouleurNote, auDoigt, EspaceNotak, type Id, ErreurNotak, type Services, TYPE_NOTAK } from '@notak/tableau'
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
 import { adressePour } from '../adresse'
@@ -27,11 +27,10 @@ import { type EspaceLocal, espaceLocal, exportLocal, rechercherLocalement } from
 import { fichiersLocaux } from '../local/fichiers'
 import { PageDiagnostic } from '../ios/PageDiagnostic'
 import { Rangement } from '../local/Rangement'
-import { BibliothequeLocale, noterVu } from '../local/BibliothequeLocale'
-import { auTelephone, useAuTelephone } from '../bibliotheque/AuDoigt'
-import { ecouterAllerA } from '../chemin'
+import { noterVu } from '../local/vus'
+import { allerA, useChemin } from '../chemin'
 import { type BilanImport, importerFichiers } from '../importation'
-import { CalqueBibliotheque } from '../local/CalqueBibliotheque'
+import { BibliothequeApp } from '../local/BibliothequeApp'
 import { initialiserSynchro } from '../local/synchro'
 import { useBandeau } from '../bandeaux'
 
@@ -71,7 +70,8 @@ function Application() {
 
 function Espace({ el }: { el: EspaceLocal }) {
   const { espace, index } = el
-  const [adresse] = useState(() => adressePour(index.racine()))
+  // `/` est la bibliothèque : la toile d'accueil a son adresse, comme les autres (`/t/<racine>`), comme sur un serveur.
+  const [adresse] = useState(() => adressePour(index.racine(), { accueilAPart: true }))
   const [message, setMessage] = useState<string | null>(null)
   /** Le tableau ouvert, pour le bandeau d'une copie reçue (`courant` n'est qu'une ref : rien ne s'en redessine). */
   const [ouvert, setOuvert] = useState<Id>(() => index.racine())
@@ -97,48 +97,35 @@ function Espace({ el }: { el: EspaceLocal }) {
   }, [alerte])
   /** Le tableau ouvert, pour y ranger ce qu'on rouvre. */
   const courant = useRef<Id>(index.racine())
+  /** Une copie qui finit de se rouvrir après le départ de la page ne va plus nulle part. */
+  const monte = useRef(true)
+  useEffect(() => {
+    monte.current = true
+    return () => {
+      monte.current = false
+    }
+  }, [])
   const ouvrirTableau = useRef<(id: Id) => void>(() => {})
 
-  // Au doigt, la bibliothèque des toiles de l'appareil (`/toiles`), posée sur la toile ouverte : le retour y ramène.
-  // Au téléphone, l'app s'ouvre sur elle (`ouvrirSurLaBibliotheque`).
-  const avecBibliotheque = estMobile() || auDoigt()
-  const telephone = useAuTelephone()
-  const [biblio, setBiblio] = useState(() => avecBibliotheque && (location.pathname === '/toiles' || ouvrirSurLaBibliotheque()))
+  // L'app s'ouvre sur la bibliothèque, partout : `/`. Une toile a son adresse (`/t/<id>`, un élément en grand
+  // `/t/<id>/e/<élément>`) et ne se monte que là ; la maison de son en-tête, ⌥⌘O et le retour ramènent à la
+  // bibliothèque. L'ancienne adresse de la bibliothèque du téléphone, `/toiles`, y mène aussi.
+  const chemin = useChemin()
+  const surLaToile = chemin.startsWith('/t/')
   useEffect(() => {
-    if (!avecBibliotheque) return
-    const suivre = () => setBiblio(location.pathname === '/toiles')
-    window.addEventListener('popstate', suivre)
-    return () => window.removeEventListener('popstate', suivre)
-  }, [avecBibliotheque])
-  // La bibliothèque du bureau va à une toile par `allerA` (`/t/<id>`, ou un élément en grand) : la toile suit
-  // l'adresse au retour du navigateur ; on lui dit qu'elle a changé, et la bibliothèque s'efface.
-  useEffect(
-    () =>
-      ecouterAllerA(() => {
-        if (location.pathname === '/toiles') return
-        setBiblio(false)
-        dispatchEvent(new PopStateEvent('popstate', { state: history.state }))
-      }),
-    [],
-  )
-  const allerBibliotheque = useCallback(() => {
-    history.pushState(null, '', '/toiles')
-    setBiblio(true)
+    if (chemin === '/toiles' || chemin === '/bibliotheque') allerA(`/${location.search}`, { remplacer: true })
+  }, [chemin])
+  const allerALaBibliotheque = useCallback(() => allerA('/'), [])
+  useEffect(() => {
+    const touche = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || !e.altKey || e.shiftKey || e.code !== 'KeyO') return
+      e.preventDefault()
+      e.stopPropagation()
+      allerA('/')
+    }
+    window.addEventListener('keydown', touche, true)
+    return () => window.removeEventListener('keydown', touche, true)
   }, [])
-  const ouvrirDepuisBibliotheque = useCallback(
-    (id: Id, element: Id | null = null) => {
-      setBiblio(false)
-      // Une carte mentale ou un document : son adresse (`/t/<toile>/e/<élément>`), que la toile suit comme un retour.
-      if (element) {
-        history.pushState({ element }, '', `/t/${encodeURIComponent(id)}/e/${encodeURIComponent(element)}`)
-        return void dispatchEvent(new PopStateEvent('popstate', { state: { element } }))
-      }
-      // La toile déjà ouverte dessous ne change pas : seule l'adresse le redit.
-      if (id === courant.current) history.pushState(null, '', id === index.racine() ? '/' : `/t/${encodeURIComponent(id)}`)
-      else ouvrirTableau.current(id)
-    },
-    [index],
-  )
 
   const services = useMemo<Services>(
     () => ({
@@ -191,19 +178,19 @@ function Espace({ el }: { el: EspaceLocal }) {
     async (octets: Uint8Array): Promise<'fait' | 'recharge'> => {
       try {
         const r = await rouvrirCopie(el, octets, courant.current)
+        if (!monte.current) return 'fait'
         // La copie est devenue l'accueil : on repart d'elle.
         if (r.accueil) {
-          // Le temps qu'IndexedDB ait tout écrit, puis l'on repart de l'accueil neuf : sa toile, même au téléphone, où
-          // `/` ouvrirait la bibliothèque.
+          // Le temps qu'IndexedDB ait tout écrit, puis l'on repart de l'accueil neuf : sa toile.
           await new Promise((fin) => setTimeout(fin, 300))
-          location.assign(auTelephone() ? `/t/${encodeURIComponent(r.tete)}` : '/')
+          location.assign(`/t/${encodeURIComponent(r.tete)}`)
           return 'recharge'
         }
         dire(r.fusion ? tn('local.rouvertFusion', r.tableaux) : tn('local.rouvert', r.tableaux))
-        // La copie rouverte se montre : la bibliothèque, si elle était là, s'efface devant elle.
+        // La copie rouverte se montre : sur la toile ouverte, elle s'ouvre à sa place ; depuis la bibliothèque, aussi.
         if (!r.fusion) {
-          setBiblio(false)
-          ouvrirTableau.current(r.tete)
+          if (location.pathname.startsWith('/t/')) ouvrirTableau.current(r.tete)
+          else allerA(`/t/${encodeURIComponent(r.tete)}`)
         }
       } catch (e) {
         alerter(e instanceof ErreurNotak ? t('local.pasUneCopie') : t('local.rouvrirImpossible'))
@@ -283,15 +270,18 @@ function Espace({ el }: { el: EspaceLocal }) {
     return () => window.removeEventListener('keydown', touche)
   }, [enregistrer, rouvrir])
 
+  const rangement = <Rangement el={el} enregistrer={() => void enregistrer()} rouvrir={() => void rouvrir()} message={message} />
   return (
     <>
-      <EspaceNotak
-        espace={espace}
-        services={services}
-        adresse={adresse}
-        enregistrer={() => void enregistrer()}
-        {...(avecBibliotheque ? { bibliotheque: allerBibliotheque } : {})}
-        actions={(ici, ouvrir, _aide) => {
+      {surLaToile ? (
+        <>
+          <EspaceNotak
+            espace={espace}
+            services={services}
+            adresse={adresse}
+            enregistrer={() => void enregistrer()}
+            bibliotheque={allerALaBibliotheque}
+            actions={(ici, ouvrir, _aide) => {
           courant.current = ici
           ouvrirTableau.current = ouvrir
           return (
@@ -302,25 +292,18 @@ function Espace({ el }: { el: EspaceLocal }) {
                 <Importer espace={espace} tableau={ici} ouvrir={ouvrir} fichiers={fichiersLocaux} rouvrirNotak={rouvrirFichier} />
                 <Export tableau={ici} titre={() => espace.tableau(ici)?.titre ?? ''} local={exporter} />
               </PlusEntete>
-              <Rangement el={el} enregistrer={() => void enregistrer()} rouvrir={() => void rouvrir()} message={message} />
+              {rangement}
             </>
           )
         }}
-      />
-      {biblio &&
-        (telephone ? (
-          <BibliothequeLocale el={el} ouvrir={ouvrirDepuisBibliotheque} reglages={demanderReglages} />
-        ) : (
-          // Sur un iPad, un ordinateur : la bibliothèque qui range, celle d'un serveur, sur les toiles de l'appareil.
-          <CalqueBibliotheque
-            el={el}
-            importer={importerIci}
-            rangement={<Rangement el={el} enregistrer={() => void enregistrer()} rouvrir={() => void rouvrir()} message={message} />}
           />
-        ))}
-      {/* Le mot de la première visite parle de la toile (le dossier de sa barre) : il attend qu'on y soit. */}
-      {!biblio && <Accueil el={el} />}
-      <BandeauRecu index={index} tableau={ouvert} />
+          {/* Le mot de la première visite parle de la toile (le dossier de sa barre) : il attend qu'on y soit. */}
+          <Accueil el={el} />
+          <BandeauRecu index={index} tableau={ouvert} />
+        </>
+      ) : (
+        <BibliothequeApp el={el} importer={importerIci} rangement={rangement} />
+      )}
       <BandeauMiseAJour />
       <BandeauNouvelleVersion />
       <DialogueExport />
@@ -332,17 +315,6 @@ function Espace({ el }: { el: EspaceLocal }) {
       )}
     </>
   )
-}
-
-/**
- * Au téléphone, sans adresse précise (`/`, le lancement de l'app), on arrive sur la bibliothèque, la toile d'accueil
- * en vedette : l'adresse devient `/toiles`, et la toile qu'on y touche s'empile dessus, que le retour défait. Une
- * adresse précise (`/t/<id>`, un lien, une copie rouverte) ouvre toujours sa toile.
- */
-function ouvrirSurLaBibliotheque(): boolean {
-  if (location.pathname !== '/' || !auTelephone()) return false
-  history.replaceState(null, '', `/toiles${location.search}${location.hash}`)
-  return true
 }
 
 /** Dit à l'application quel tableau est ouvert : `actions` ne reçoit que cela, pendant le rendu de la toile. */

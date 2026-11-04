@@ -1,7 +1,7 @@
 import { BandeauAvis, FeuilleBas, type GenreNeuf, Icone } from '@notak/tableau'
 import { type ReactNode, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { EntreeBibliotheque } from '../api'
-import { RUBRIQUES, type Rubrique, adresseDe, entreesDe, filtrer, rubriqueDeLAdresse } from '../Bibliotheque'
+import { RUBRIQUES, type Rubrique, allerAEntree, entreesDe, filtrer, rubriqueDeLAdresse } from '../Bibliotheque'
 import { allerA } from '../chemin'
 import { t } from '../langue'
 import { BoutonPlus, BoutonReglages, CarteBienvenue, ChoixCreation, EnteteDoigt, LigneDoigt, RubriqueDoigt, TuileDoigt, quand, useBienvenue } from './AuDoigt'
@@ -74,13 +74,13 @@ export function BibliothequeTelephone({
     history.replaceState(null, '', r ? `/?vue=${r}` : '/')
     page.current?.scrollTo?.({ top: 0 })
   }
-  const ouvrir = (e: EntreeBibliotheque) => allerA(adresseDe(e))
+  const ouvrir = (e: EntreeBibliotheque) => allerAEntree(e)
   const creerPuisOuvrir = async (genre: GenreNeuf) => {
     setFeuille(false)
     if (creation) return
     setCreation(true)
     try {
-      allerA(adresseDe(await creer(genre)))
+      allerAEntree(await creer(genre))
     } finally {
       setCreation(false)
     }

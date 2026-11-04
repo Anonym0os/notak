@@ -186,6 +186,12 @@ export function filtrer(entrees: readonly EntreeBibliotheque[], requete: string)
 export const adresseDe = (e: Pick<EntreeBibliotheque, 'tableau' | 'element'>) =>
   e.element === null ? `/t/${encodeURIComponent(e.tableau)}` : `/t/${encodeURIComponent(e.tableau)}/e/${encodeURIComponent(e.element)}`
 
+/**
+ * Ouvre une entrée : la toile, ou l'élément en grand sur la sienne. Un élément porte `{ element }` dans son entrée
+ * d'historique : le refermer revient à la bibliothèque d'où on l'a ouvert, au lieu de rester sur sa toile.
+ */
+export const allerAEntree = (e: Pick<EntreeBibliotheque, 'tableau' | 'element'>) => allerA(adresseDe(e), e.element ? { etat: { element: e.element } } : {})
+
 export const rubriqueDeLAdresse = (): Rubrique | null => {
   const v = new URLSearchParams(location.search).get('vue')
   return (RUBRIQUES as readonly string[]).includes(v ?? '') ? (v as Rubrique) : null
@@ -406,12 +412,12 @@ function BibliothequeBureau({
     if (creation) return
     setCreation(true)
     try {
-      allerA(adresseDe(await creer(genre, dans)))
+      allerAEntree(await creer(genre, dans))
     } finally {
       setCreation(false)
     }
   }
-  const ouvrir = (e: EntreeBibliotheque) => allerA(adresseDe(e))
+  const ouvrir = (e: EntreeBibliotheque) => allerAEntree(e)
   /** Ouvre la toile qui la porte, la vue centrée sur elle, choisie (pour une toile : sa carte). */
   const afficherDansSaToile = (e: Pick<EntreeBibliotheque, 'tableau' | 'element'>, porteuse: string) => {
     demanderAMontrer(e.element ?? e.tableau)

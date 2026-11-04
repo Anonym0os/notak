@@ -10,7 +10,7 @@ import type { EntreeBibliotheque } from '../api'
 import { PageBibliotheque } from '../Bibliotheque'
 import { simulerCoqueSiDemandee } from '../ios/coqueSimulee'
 import { BibliothequeLocale, noterVu } from '../local/BibliothequeLocale'
-import { CalqueBibliotheque } from '../local/CalqueBibliotheque'
+import { BibliothequeApp } from '../local/BibliothequeApp'
 import { Rangement } from '../local/Rangement'
 import { type EspaceLocal, espaceLocal } from '../local/espace'
 
@@ -131,7 +131,7 @@ function BancLocal({ calque }: { calque: boolean }) {
   if (!el) return null
   // L'app sur un iPad ou un ordinateur : la bibliothèque qui range, sur les toiles de l'appareil.
   if (calque)
-    return <CalqueBibliotheque el={el} importer={async () => ({ elements: [], toiles: [], refuses: [] })} rangement={<Rangement el={el} enregistrer={() => {}} rouvrir={() => {}} message={null} />} />
+    return <BibliothequeApp el={el} importer={async () => ({ elements: [], toiles: [], refuses: [] })} rangement={<Rangement el={el} enregistrer={() => {}} rouvrir={() => {}} message={null} />} />
   return <BibliothequeLocale el={el} ouvrir={() => {}} reglages={() => {}} />
 }
 

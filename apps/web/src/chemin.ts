@@ -6,9 +6,13 @@ import { useSyncExternalStore } from 'react'
  */
 const EVENEMENT = 'notak:chemin'
 
-export function allerA(chemin: string, { remplacer = false }: { remplacer?: boolean } = {}): void {
-  if (remplacer) history.replaceState(null, '', chemin)
-  else if (chemin !== location.pathname + location.search) history.pushState(null, '', chemin)
+/**
+ * `etat` : ce que l'entrée d'historique porte. Un élément ouvert en grand y met `{ element }` : le refermer revient
+ * alors en arrière (à la bibliothèque d'où on l'a ouvert) au lieu de rester sur sa toile.
+ */
+export function allerA(chemin: string, { remplacer = false, etat = null }: { remplacer?: boolean; etat?: unknown } = {}): void {
+  if (remplacer) history.replaceState(etat, '', chemin)
+  else if (chemin !== location.pathname + location.search) history.pushState(etat, '', chemin)
   window.dispatchEvent(new Event(EVENEMENT))
 }
 
