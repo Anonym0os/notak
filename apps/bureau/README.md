@@ -21,7 +21,7 @@ apps/bureau/
     src/fichiers.rs          ouvrir une pièce jointe dans son application ; les copies .notak ouvertes depuis le système
     src/menu.rs              macOS : « Changer de serveur… » et « Toiles de cet ordinateur » dans le menu Notak
     src/mise_a_jour.rs       chercher, vérifier, poser une mise à jour
-    icons/                   fabriquées par `node scripts/icones.ts` (à la racine du dépôt) à partir du logo
+    icons/                   fabriquées par `node scripts/icones.ts` (à la racine du dépôt) : l'éclat d'or, au gabarit macOS
 ```
 
 ## Sur iPhone et iPad
@@ -38,7 +38,8 @@ apps/bureau/
     Info.ios.plist         ce que l'app déclare au système (types de fichiers, orientations, autorisations)
     capabilities/mobile.json   les droits de la page sur mobile
     icons/ios/             l'icône 1024 px, claire, sombre et teintée (node scripts/icones.ts)
-    gen/apple/             le projet Xcode, généré par `bun run ios:init`, commité
+    gen/apple/             le projet Xcode, généré par `bun run ios:init`, commité ; son icône, et le logo et le fond
+                           de LaunchScreen.storyboard, viennent de `node scripts/icones.ts`
 ```
 
 ## Ce qu'il faut

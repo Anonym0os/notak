@@ -21,7 +21,6 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 28px;
         background: #ebedee;
       }
       .ecran-attente[data-theme='sombre'] {
@@ -31,11 +30,19 @@
         content: '';
         width: 64px;
         height: 64px;
-        background: url('/icones/icone.svg') center / contain no-repeat;
+        background: url('/icones/marque.svg') center / contain no-repeat;
+      }
+      /* La même marque que l'écran de lancement d'iOS, noire sur clair, blanche sur sombre. */
+      .ecran-attente[data-theme='sombre']::before {
+        filter: invert(1);
       }
       /* La roue n'arrive qu'après une demi-seconde : un lancement rapide ne montre que l'icône. */
       .ecran-attente::after {
         content: '';
+        /* hors du flux : la marque reste au centre exact, là où l'écran de lancement d'iOS la pose */
+        position: absolute;
+        top: calc(50% + 32px + 28px);
+        left: calc(50% - 9px);
         box-sizing: border-box;
         width: 18px;
         height: 18px;
