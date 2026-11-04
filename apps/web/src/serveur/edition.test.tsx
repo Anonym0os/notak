@@ -19,6 +19,22 @@ vi.mock('@notak/tableau', async (origine) => ({
   },
 }))
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+/**
+ * Les racines que l'édition monte à son chargement : démontées après chaque essai. Laissées vivantes, leurs minuteurs
+ * (le décompte de l'écran de panne, l'enregistrement…) sonnaient après la fin du fichier, quand jsdom n'est plus là.
+ */
+const racines = vi.hoisted(() => [] as import('react-dom/client').Root[])
+vi.mock('react-dom/client', async (origine) => {
+  const vrai = await origine<typeof import('react-dom/client')>()
+  return {
+    ...vrai,
+    createRoot: (...a: Parameters<typeof vrai.createRoot>) => {
+      const r = vrai.createRoot(...a)
+      racines.push(r)
+      return r
+    },
+  }
+})
 
 const MOI = { id: 'u1', email: 'ana@exemple.fr', nom: 'Ana', couleur: '#336699', racine: 'racine', photo: null, admin: true }
 const json = (corps: unknown, statut = 200, entetes: Record<string, string> = {}) => new Response(JSON.stringify(corps), { status: statut, headers: entetes })
@@ -72,6 +88,7 @@ beforeEach(() => {
   history.replaceState(null, '', '/')
 })
 afterEach(() => {
+  act(() => racines.splice(0).forEach((r) => r.unmount()))
   document.body.innerHTML = ''
   delete (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
   vi.unstubAllGlobals()

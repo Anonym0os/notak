@@ -22,6 +22,22 @@ vi.mock('@notak/tableau', async (origine) => ({
   BullesDecouverte: () => null,
 }))
 vi.mock('../local/synchro', () => ({ initialiserSynchro: async () => {} }))
+/**
+ * Les racines que l'édition monte à son chargement : démontées après chaque essai. Laissées vivantes, leurs minuteurs
+ * (le décompte de l'écran de panne, l'enregistrement…) sonnaient après la fin du fichier, quand jsdom n'est plus là.
+ */
+const racines = vi.hoisted(() => [] as import('react-dom/client').Root[])
+vi.mock('react-dom/client', async (origine) => {
+  const vrai = await origine<typeof import('react-dom/client')>()
+  return {
+    ...vrai,
+    createRoot: (...a: Parameters<typeof vrai.createRoot>) => {
+      const r = vrai.createRoot(...a)
+      racines.push(r)
+      return r
+    },
+  }
+})
 
 const attendre = (ms = 30) => act(async () => void (await new Promise((fin) => setTimeout(fin, ms))))
 
@@ -70,6 +86,7 @@ beforeEach(() => {
   )
 })
 afterEach(() => {
+  act(() => racines.splice(0).forEach((r) => r.unmount()))
   document.body.innerHTML = ''
   delete (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
   vi.unstubAllGlobals()
